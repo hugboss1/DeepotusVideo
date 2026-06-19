@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepotus Video Gen — Guide complet</title>
+<style>
+  :root { --ink:#1a2330; --soft:#5a6a7e; --brand:#c93535; --cyan:#0891b2; --bg:#ffffff; --panel:#f4f6f9; --stroke:#dde3ea; --violet:#7c3aed; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family:'Segoe UI', system-ui, sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; }
+  .page { max-width:880px; margin:0 auto; padding:48px 40px; }
+  h1 { font-size:30px; margin:0 0 4px; letter-spacing:-0.01em; }
+  h2 { font-size:21px; margin:46px 0 10px; padding-top:18px; border-top:2px solid var(--stroke); page-break-after:avoid; }
+  h2 .num { color:var(--brand); font-weight:800; margin-right:8px; }
+  h3 { font-size:15px; margin:20px 0 6px; page-break-after:avoid; }
+  p, li { font-size:13.5px; }
+  .sub { color:var(--soft); font-size:14px; margin:0 0 24px; }
+  .lead { background:linear-gradient(180deg,#fff6f6,#fff); border:1px solid #f0d0d0; border-left:4px solid var(--brand); border-radius:10px; padding:16px 20px; margin:0 0 18px; }
+  .lead p { font-size:13.5px; margin:6px 0; }
+  .toc { background:var(--panel); border:1px solid var(--stroke); border-radius:10px; padding:14px 20px; margin:0 0 8px; font-size:12.5px; columns:2; }
+  .toc a { color:var(--cyan); text-decoration:none; }
+  img.shot { width:100%; border:1px solid var(--stroke); border-radius:8px; margin:10px 0 4px; page-break-inside:avoid; }
+  .cap { font-size:11.5px; color:var(--soft); margin:0 0 14px; }
+  code, .k { font-family:Consolas, monospace; font-size:12.5px; background:var(--panel); border:1px solid var(--stroke); border-radius:4px; padding:1px 5px; }
+  .step { display:flex; gap:10px; margin:8px 0; page-break-inside:avoid; }
+  .step .n { flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--brand); color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  table { border-collapse:collapse; width:100%; margin:12px 0; font-size:12.5px; page-break-inside:avoid; }
+  th, td { border:1px solid var(--stroke); padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:var(--panel); }
+  .tip { background:#eef7fa; border:1px solid #bfe3ee; border-radius:8px; padding:10px 14px; font-size:12.5px; margin:12px 0; page-break-inside:avoid; }
+  .warn { background:#fdf3e7; border:1px solid #f0d9b4; border-radius:8px; padding:10px 14px; font-size:12.5px; margin:12px 0; page-break-inside:avoid; }
+  .new { display:inline-block; background:var(--brand); color:#fff; font-size:10px; font-weight:700; border-radius:4px; padding:1px 6px; vertical-align:middle; margin-left:6px; letter-spacing:0.04em; }
+  .recipe { background:var(--panel); border:1px solid var(--stroke); border-radius:10px; padding:18px 20px; margin:16px 0; page-break-inside:avoid; }
+  .recipe h3 { margin-top:0; color:var(--brand); }
+  .footer { margin-top:48px; padding-top:14px; border-top:2px solid var(--stroke); font-size:11px; color:var(--soft); }
+  @media print { .page { padding:0; max-width:100%; } .toc { columns:2; } }
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>🐙 Deepotus Video Gen</h1>
+<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.15</strong> · <a href="en.html">English version</a></p>
+
+<div class="lead">
+  <p><strong>Vous n'avez jamais touché à un outil de montage ?</strong> Parfait — ce guide est écrit pour vous. Deepotus Video Gen transforme une idée en vidéo verticale prête à poster, sans logiciel à apprendre. Tout tourne <strong>sur votre ordinateur</strong> ; vous branchez vos propres clés API (vous payez vos fournisseurs, pas l'application).</p>
+  <p><strong>Quatre façons de fabriquer une vidéo</strong>, de la plus simple à la plus riche :</p>
+  <p>① une image animée en <strong>clip cinématique</strong> (Seedance) · ② un <strong>avatar qui parle</strong> votre script (HeyGen) · ③ <strong>votre propre vidéo</strong> filmée au téléphone (UGC) · ④ une <strong>composition</strong> qui combine plusieurs sources (Templates ou Studio). Puis le <strong>Scheduler</strong> planifie et publie tout seul.</p>
+</div>
+
+<div class="toc">
+  <a href="#c0">0 · Démarrage &amp; clés API</a><br>
+  <a href="#c1">1 · Configurer un persona</a><br>
+  <a href="#c2">2 · Créer vos images</a><br>
+  <a href="#c3">3 · Clip cinématique (Seedance)</a><br>
+  <a href="#c4">4 · Avatar parlant (HeyGen)</a><br>
+  <a href="#c5">5 · Votre propre vidéo (UGC)</a><br>
+  <a href="#c6">6 · Composer — Templates</a><br>
+  <a href="#c7">7 · Composer — Studio (nœuds)</a><br>
+  <a href="#c8">8 · Planifier &amp; publier</a><br>
+  <a href="#c9">9 · Moteurs d'IA (cloud &amp; Ollama)</a><br>
+  <a href="#c10">10 · Connecter vos comptes</a><br>
+  <a href="#c11">11 · Marque blanche</a><br>
+  <a href="#c12">12 · Dépannage &amp; recettes</a>
+</div>
+
+<h2 id="c0"><span class="num">0</span>Démarrage &amp; clés API</h2>
+<p>Double-cliquez l'icône <strong>Deepotus Video Gen</strong> sur le Bureau. L'application démarre en silencieux (aucune fenêtre noire), puis votre navigateur s'ouvre sur le studio. Au tout premier lancement, un assistant en 5 étapes vous guide : persona, fournisseurs, canaux. Vous pouvez le rejouer à tout moment (palette de commandes <span class="k">⌘K</span> → « Replay onboarding »).</p>
+<img class="shot" src="img/onboarding.png" alt="Assistant de premier lancement">
+<p class="cap">L'assistant de premier lancement. L'étape « Generators » liste vos fournisseurs, dont l'option <strong>Ollama (LLM local)</strong>.</p>
+<div class="step"><span class="n">1</span><div>L'application fonctionne en <strong>BYO keys</strong> (« apportez vos clés ») : vous utilisez vos propres comptes API. Une seule est <strong>obligatoire</strong> pour commencer — <strong>fal.ai</strong> (elle fait les images <em>et</em> les clips vidéo). Créez-la sur <code>fal.ai/dashboard/keys</code>.</div></div>
+<div class="step"><span class="n">2</span><div>Collez vos clés dans <strong>Settings → API keys</strong>, bouton <em>Save</em>, puis redémarrez l'app. Les pastilles en haut à droite (<code>fal</code> / <code>heygen</code> / <code>voice</code>) passent au <strong>vert</strong> quand une clé est active.</div></div>
+<img class="shot" src="img/settings-keys.png" alt="Settings - API keys">
+<p class="cap">Settings → API keys : chaque clé a un champ, un statut et un bouton Save. En bas, la carte <strong>Local LLM (Ollama)</strong> (chapitre 9).</p>
+<h3>Combien ça coûte ? (ordres de grandeur)</h3>
+<table>
+  <tr><th>Action</th><th>Service</th><th>Coût indicatif</th></tr>
+  <tr><td>Créer une image</td><td>fal.ai (FLUX)</td><td>≈ $0.003</td></tr>
+  <tr><td>Clip cinématique 10 s</td><td>fal.ai (Seedance)</td><td>≈ $0.30–0.60</td></tr>
+  <tr><td>Avatar parlant 1 min</td><td>HeyGen</td><td>≈ 6 crédits</td></tr>
+  <tr><td>Uploader votre propre vidéo</td><td>—</td><td>gratuit</td></tr>
+  <tr><td>Résumé d'actu / plan marketing</td><td>Anthropic / OpenAI / Gemini / Ollama</td><td>≈ $0.01 / gratuit (Ollama)</td></tr>
+  <tr><td>Publication Telegram / X</td><td>—</td><td>gratuit / vos crédits X</td></tr>
+</table>
+
+<h3>Quelle clé débloque quoi ?</h3>
+<table>
+  <tr><th>Clé API</th><th>Requis ?</th><th>Ce qu'elle débloque</th></tr>
+  <tr><td><strong>fal.ai</strong></td><td><strong>Obligatoire</strong></td><td>Images (FLUX) <em>et</em> clips vidéo (Seedance) — la seule clé indispensable pour démarrer.</td></tr>
+  <tr><td><strong>HeyGen</strong></td><td>Optionnel</td><td>Avatars parlants (vidéo type ②) et compositions avatar + clip.</td></tr>
+  <tr><td><strong>ElevenLabs</strong></td><td>Optionnel</td><td>Voix off / narration pour vos vidéos UGC.</td></tr>
+  <tr><td><strong>Anthropic, OpenAI ou Gemini</strong><br>(une seule suffit)</td><td>Optionnel</td><td>Résumés d'actu, plans marketing <strong>et scripts réellement écrits par IA</strong> (News &amp; Studio). Sans clé : version déterministe (gabarits de marque).</td></tr>
+  <tr><td><strong>Ollama</strong> (LLM local)</td><td>Optionnel</td><td>Mêmes usages IA que ci-dessus, <strong>100 % local et gratuit</strong> (chapitre 9).</td></tr>
+  <tr><td><strong>X</strong> (4 clés)</td><td>Optionnel</td><td>Publication automatique sur X/Twitter (chapitre 10).</td></tr>
+  <tr><td><strong>Telegram</strong> (bot token)</td><td>Optionnel</td><td>Publication automatique sur un canal Telegram.</td></tr>
+</table>
+<p class="cap">Astuce : commencez avec <strong>fal.ai</strong> seule, puis ajoutez des clés au fur et à mesure que vous explorez avatars, voix off, IA et publication.</p>
+
+<div class="warn">Les coûts sont facturés par vos fournisseurs, pas par l'application. Surveillez vos crédits sur leurs tableaux de bord. Vos clés, vos fichiers et votre base restent <strong>sur votre machine</strong> (dossier <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>) — ils survivent aux mises à jour et réinstallations.</div>
+
+<h2 id="c1"><span class="num">1</span>Configurer un persona</h2>
+<p>Le persona est la <strong>voix de votre marque</strong> : il alimente les plans marketing, les scripts d'avatar et le générateur de prompts. Allez dans <strong>Settings → Personas</strong>.</p>
+<img class="shot" src="img/settings-personas.png" alt="Settings - Personas">
+<p class="cap">Settings → Personas : créez, éditez et activez la voix de votre marque.</p>
+<div class="step"><span class="n">1</span><div>Cliquez <em>New persona</em> : nom, ton (ex. « prophétique, joueur »), audience, mode de voix.</div></div>
+<div class="step"><span class="n">2</span><div>Cliquez la carte pour l'<strong>activer</strong> — le persona actif est rappelé dans les écrans de génération.</div></div>
+
+<h2 id="c2"><span class="num">2</span>Créer vos premières images</h2>
+<p>Onglet <strong>Library</strong> : votre bibliothèque d'images, de rendus vidéo et de captions. C'est ici que tout atterrit.</p>
+<img class="shot" src="img/library.png" alt="Library">
+<p class="cap">Library : créer une image (FLUX), le <strong>gestionnaire de prompt</strong>, <strong>Upload image</strong> et <strong>Upload video</strong> (votre propre clip). Survolez un rendu pour le lire.</p>
+<div class="step"><span class="n">1</span><div>Champ <em>« Describe an image to create »</em> → décrivez en une phrase, Entrée. L'image FLUX (~3 s) atterrit directement dans la bibliothèque.</div></div>
+<div class="step"><span class="n">2</span><div>À court d'inspiration ? Cliquez <strong>Prompt manager</strong> : choisissez des ingrédients (sujet, ambiance, lumière, mouvement…), « Random », ou « Refine with AI », puis <em>Use this prompt</em> — il <strong>remplace</strong> le champ pour un résultat plus personnel.</div></div>
+<div class="step"><span class="n">3</span><div>Vous avez déjà des visuels ? <strong>Upload image</strong> (ou glissez-déposez n'importe où). Pour vos vidéos, voir le chapitre 5.</div></div>
+<div class="tip">Exemples de prompts : « mascotte pieuvre rouge néon, fond abyssal, style cinéma » · « graphique de marché stylisé, ambiance bioluminescente » · « trône sous-marin, rayons de lumière, 9:16 ».</div>
+
+<h2 id="c3"><span class="num">3</span>Vidéo type ① — le clip cinématique (Seedance)</h2>
+<p>Onglet <strong>Quick</strong>, mode <strong>Seedance</strong> : une image + un prompt = un clip cinématique vertical.</p>
+<img class="shot" src="img/quick-seedance.png" alt="Quick - Seedance">
+<p class="cap">Quick / Seedance : sources à gauche, aperçu au format réel à droite, coût estimé avant de lancer.</p>
+<div class="step"><span class="n">1</span><div>Choisissez l'image de départ. Optionnel : une image de fin pour une transition.</div></div>
+<div class="step"><span class="n">2</span><div>Écrivez le prompt de mouvement, prenez un <em>template</em>, ou ouvrez le <strong>générateur de prompt</strong> (il écrase le prompt par défaut). Réglez style, durée (5–60 s), format (9:16 par défaut).</div></div>
+<div class="step"><span class="n">3</span><div><em>Generate</em> → suivez la progression dans le <strong>Job Dock</strong> (bandeau du bas). 30–45 s plus tard, le rendu est dans Library.</div></div>
+<div class="tip"><strong>Renommer un rendu :</strong> dans le Job Dock, cliquez le crayon ✏️ à côté du nom (ou lisez-le d'abord en cliquant ▶). Le nouveau nom se reflète aussitôt dans la Library et les sélecteurs.</div>
+
+<h2 id="c4"><span class="num">4</span>Vidéo type ② — l'avatar parlant (HeyGen)</h2>
+<p>Toujours dans <strong>Quick</strong>, mode <strong>HeyGen</strong> : un script lu par un avatar.</p>
+<img class="shot" src="img/quick-heygen.png" alt="Quick - HeyGen">
+<p class="cap">Quick / HeyGen : sélection avatar + voix, upload de votre photo pour un avatar perso, script.</p>
+<div class="step"><span class="n">1</span><div>Choisissez un avatar et une voix dans les listes (champ de recherche disponible).</div></div>
+<div class="step"><span class="n">2</span><div><strong>Créez votre propre avatar :</strong> bouton <em>Upload photo</em> → votre photo (PNG/JPG) devient un avatar parlant en ~30 s, sélectionné automatiquement.</div></div>
+<div class="step"><span class="n">3</span><div>Écrivez le script (jusqu'à 4 900 caractères), <em>Generate</em>. Comptez 1 à 3 minutes.</div></div>
+
+<h3>⏱ Le premier chargement des avatars — pourquoi il prend ~1 minute <span class="new">v1.15</span></h3>
+<p>HeyGen met à votre disposition un <strong>très grand catalogue</strong> — souvent <strong>plus de 1 000 avatars</strong> et 2 000 voix. La toute première fois que l'application demande cette liste, le serveur de HeyGen peut prendre <strong>jusqu'à une minute</strong> pour répondre. <strong>C'est une lenteur du service HeyGen lui-même</strong>, pas un bug de l'application, pas un problème de clé, et pas un souci de réseau ou d'antivirus.</p>
+<p>Pour que vous n'ayez pas à attendre, l'application <strong>précharge la liste en arrière-plan dès le démarrage</strong> : le temps que vous arriviez sur l'onglet HeyGen, les avatars sont en général <strong>déjà là</strong>. Une fois récupérée, la liste est <strong>mise en cache</strong> — toutes les ouvertures suivantes sont <strong>instantanées</strong>.</p>
+<img class="shot" src="img/heygen-avatars.png" alt="Quick / HeyGen — liste d'avatars chargée + chronologie du chargement">
+<p class="cap">À gauche : l'onglet HeyGen une fois chargé (1 281 avatars, champ de recherche, sélecteurs avatar &amp; voix). À droite : pourquoi le premier chargement prend ~1 min — préchargé au démarrage, puis instantané.</p>
+<div class="tip"><strong>Si vous ouvrez l'onglet juste après le lancement :</strong> la liste peut afficher « chargement… » pendant un court instant (jusqu'à ~1 min, <strong>une seule fois</strong>). Laissez-la se remplir, puis tout devient immédiat — y compris après avoir créé votre propre avatar (la liste se rafraîchit toute seule). Le <strong>statut HeyGen</strong> en haut à droite et dans Settings reste, lui, <strong>toujours instantané</strong> : il vérifie votre clé et vos crédits sans charger le catalogue entier.</div>
+
+<p>Le mode <strong>Composition</strong> combine les deux : clip Seedance + avatar HeyGen dans une seule vidéo (séquentiel ou écran partagé). L'<strong>anti-coupure</strong> est automatique : l'avatar finit toujours sa phrase.</p>
+
+<h2 id="c5"><span class="num">5</span>Vidéo type ③ — votre propre vidéo (UGC)<span class="new">NOUVEAU</span></h2>
+<p>Beaucoup de créateurs se filment au téléphone — un selfie, une réaction, un déballage. Deepotus accueille désormais ces clips bruts (<strong>UGC</strong>, <em>user-generated content</em>) et les marie à vos animations.</p>
+<div class="step"><span class="n">1</span><div><strong>Le plus simple :</strong> Library → <strong>Upload video</strong>. Votre clip est importé, sa durée réelle est mesurée, et il apparaît dans l'onglet <em>Renders</em> comme n'importe quel rendu — réutilisable partout (Scheduler, Studio).</div></div>
+<div class="step"><span class="n">2</span><div><strong>Dans le Studio :</strong> faites glisser un nœud <strong>UGC video</strong> sur le canevas, cliquez-le, puis <em>Upload your video</em>. Une miniature peuple le nœud.</div></div>
+<img class="shot" src="img/studio-ugc.png" alt="Studio - composition UGC + durée master">
+<p class="cap">Studio : le starter <strong>« UGC + animation »</strong>. À droite, le nœud <strong>UGC video</strong> avec l'interrupteur <strong>⏱ Duration master</strong>.</p>
+<h3>La durée « master » — l'idée clé</h3>
+<p>Quand vous activez <strong>⏱ Duration master</strong> sur votre clip, c'est <strong>sa durée réelle</strong> qui commande la vidéo finale. Les animations générées (Seedance) sont alors calibrées autour de votre clip : plus besoin de deviner « combien de secondes ? ». Vous parlez 12 secondes face caméra → la composition fait 12 secondes, votre animation d'illustration suit. C'est l'équivalent, pour vos propres vidéos, de l'anti-coupure des avatars.</p>
+<div class="tip"><strong>Recette éclair :</strong> Studio → starter « UGC + animation » → uploadez votre clip dans le nœud UGC video (master activé) → connectez une Image + Seedance comme moitié animée → <em>Run</em>. Sortie : votre vidéo en bas, l'animation en haut, le tout à la durée de votre clip.</div>
+
+<h2 id="c6"><span class="num">6</span>Vidéo type ④ — composer avec les Templates</h2>
+<p>Onglet <strong>Templates</strong> : des mises en page 9:16 prêtes à l'emploi (news reel + avatar + bandeau de marque, écran partagé, coin PIP, triptyque…). Chaque vignette reflète sa <strong>vraie disposition</strong> de régions — elles sont toutes différentes.</p>
+<img class="shot" src="img/templates.png" alt="Templates">
+<p class="cap">Templates : galerie de layouts (vignettes distinctes), éditeur spatial à droite (glissez les régions ou leurs poignées).</p>
+<div class="step"><span class="n">1</span><div>Cliquez une vignette : l'éditeur de droite montre ses régions. Déplacez-les, redimensionnez-les.</div></div>
+<div class="step"><span class="n">2</span><div><em>Save layout</em> enregistre votre version — elle <strong>apparaît aussitôt</strong> dans la galerie. <em>New template</em> en crée un vierge.</div></div>
+<div class="step"><span class="n">3</span><div><em>Open in Studio</em> bascule vers l'éditeur de nœuds pour un montage plus poussé.</div></div>
+
+<h2 id="c7"><span class="num">7</span>Composer avec le Studio (éditeur de nœuds)<span class="new">ENRICHI</span></h2>
+<p>Le <strong>Studio</strong> est l'atelier avancé : vous reliez des <em>nœuds</em> (sources → générateurs → montage → rendu) comme une recette visuelle. N'ayez pas peur — on commence toujours par un graphe de démarrage tout prêt.</p>
+<img class="shot" src="img/studio.png" alt="Studio">
+<p class="cap">Studio : la palette de nœuds à gauche, le canevas au centre, l'inspecteur à droite. En haut : <strong>New</strong>, <strong>Preview</strong>, <strong>Run</strong>.</p>
+<h3>Les gestes de base</h3>
+<div class="step"><span class="n">1</span><div><strong>Partir d'un modèle :</strong> dans la palette, section <em>Starter graphs</em>, cliquez « Seedance solo », « Avatar post », « UGC + animation », « News reel » ou « Timeline montage ».</div></div>
+<div class="step"><span class="n">2</span><div><strong>Partir de zéro :</strong> bouton <strong>New</strong> (barre du haut) → un canevas vierge avec juste le nœud de sortie <em>Render</em>. Le panneau de droite affiche le <strong>nom du graphe</strong>, éditable.</div></div>
+<div class="step"><span class="n">3</span><div><strong>Ajouter un nœud — glisser-déposer :</strong> attrapez n'importe quelle entrée de la palette (Image, Seedance, UGC video, Text…) et <strong>lâchez-la sur le canevas</strong>. Le nœud apparaît à l'endroit du lâcher.</div></div>
+<div class="step"><span class="n">4</span><div><strong>Relier :</strong> tirez un trait d'un point de sortie (à droite d'un nœud) vers un point d'entrée (à gauche d'un autre). <strong>Déplacer :</strong> glissez le corps d'un nœud. <strong>Supprimer :</strong> la croix <strong>×</strong> dans l'en-tête du nœud (elle retire aussi ses connexions).</div></div>
+<div class="step"><span class="n">5</span><div><strong>Vérifier puis lancer :</strong> <em>Preview</em> montre les entrées/le rendu ; <em>Run</em> compile le graphe et lance le vrai rendu (suivez-le dans le Job Dock).</div></div>
+<div class="tip">Quand vous choisissez un asset dans un nœud (image de la Library, render existant, votre clip UGC), une <strong>miniature peuple le nœud</strong> : vous voyez d'un coup d'œil ce que l'enchaînement va produire.</div>
+
+<h2 id="c8"><span class="num">8</span>Planifier &amp; publier votre semaine<span class="new">ENRICHI</span></h2>
+<p>Onglet <strong>Scheduler</strong> : le calendrier de publication, et le cœur du « human-in-the-loop » — <strong>rien ne part sans votre validation</strong> (sauf si vous le décidez).</p>
+<img class="shot" src="img/scheduler.png" alt="Scheduler">
+<p class="cap">Scheduler : semaine/mois, plan IA, import de document, graphe du post + inspecteur à droite.</p>
+<h3>Trois façons de remplir le calendrier</h3>
+<div class="step"><span class="n">1</span><div><strong>Generate plan</strong> : décrivez votre semaine en une phrase → l'IA propose un plan complet (posts datés, hooks, captions, formats). <em>Relisez le preview</em> avant « Add to calendar ».</div></div>
+<img class="shot" src="img/plan-generate.png" alt="Generate plan">
+<p class="cap">« Generate plan » : un brief en une phrase devient un plan complet, relu par vous (human-in-the-loop).</p>
+<div class="step"><span class="n">2</span><div><strong>Import doc</strong> : déposez votre planning existant (.md, .docx, .pdf) — transcrit en posts datés, <strong>semaines préservées</strong>.</div></div>
+<img class="shot" src="img/plan-import.png" alt="Import strategy document">
+<p class="cap">« Import doc » : votre document de stratégie devient des posts de calendrier.</p>
+<div class="step"><span class="n">3</span><div><strong>New post</strong> ou <em>+ add post</em> sur un jour : création manuelle.</div></div>
+<h3>Générer le rendu — avant de poster</h3>
+<p>Sélectionnez un post : l'inspecteur de droite ouvre tout l'atelier du post. Bouton <strong>Produce</strong> : l'app fabrique l'image (FLUX) puis le clip (Seedance) à partir des idées du plan — ou réutilise la source que vous avez choisie. Une <strong>miniature</strong> du rendu apparaît sur le nœud <em>Render</em> du graphe du post, et un <strong>aperçu vidéo</strong> s'affiche dans l'inspecteur : vous voyez le résultat <strong>avant</strong> de cliquer Send ou d'activer Auto.</p>
+<img class="shot" src="img/scheduler-caption.png" alt="Inspecteur de post : caption, emojis, pack Premium">
+<p class="cap">L'inspecteur d'un post : canaux, légende, et la <strong>barre d'emojis</strong> + le <strong>pack Telegram Premium</strong> (tags brandés en un clic) — plus l'aperçu du rendu avant publication.</p>
+<h3>Soigner la légende — emojis &amp; pack Premium</h3>
+<p>Sous la légende, deux rangées en un clic, idéales pour Telegram et X :</p>
+<div class="step"><span class="n">1</span><div><strong>Emojis rapides</strong> : ❤️ 🔥 🚀 😍 🎉 👍 💯 — insérés à l'endroit du curseur.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Pack Telegram Premium</strong> : des tags brandés par vertical de contenu (🐙 Deepotus Protocol, 🌊 Rippled Signal, 👁️ Prophet, 🎴 Board Game, 🎲 D&amp;D, 🪙 $DEEP…) pour signer chaque post d'un geste.</div></div>
+<h3>Auto ou assisté ?</h3>
+<p>Chaque post a un mode. <strong>Assisted</strong> (défaut) : à l'heure dite, le post passe en <code>READY</code> — vous cliquez <em>Send</em>. <strong>Auto</strong> : il part seul sur les canaux connectés (Telegram, X). Statut par couleur : gris = brouillon, cyan = planifié, ambre = prêt, vert = publié, rouge = échec.</p>
+
+<h2 id="c9"><span class="num">9</span>Choisir votre moteur d'IA (cloud &amp; local)<span class="new">v1.15</span></h2>
+<p>Deux usages font appel à un modèle de langage : le <strong>résumé d'actualités</strong> (News) et la <strong>génération de plans marketing</strong> (Scheduler). Depuis la v1.15, vous choisissez le <strong>fournisseur</strong> pour chacun.</p>
+<h3>Fournisseurs cloud — Anthropic, OpenAI, Gemini</h3>
+<p>Collez la ou les clés voulues dans <strong>Settings → API keys</strong> : <strong>Anthropic</strong> (Claude), <strong>OpenAI</strong> (GPT) et/ou <strong>Google Gemini</strong>. Il suffit d'<strong>une seule</strong> pour activer le résumé et les plans IA ; renseignez-en plusieurs si vous voulez pouvoir basculer.</p>
+<div class="step"><span class="n">1</span><div>Dans <strong>Settings → Provider defaults</strong>, choisissez par rôle (résumeur, planificateur) le fournisseur à utiliser via un menu déroulant. Un rôle n'est marqué « missing » que si <strong>aucun</strong> de ses fournisseurs possibles n'a de clé.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Bascule automatique</strong> : si le fournisseur choisi est indisponible (clé absente, panne), l'app passe au suivant disponible — vous n'êtes jamais bloqué.</div></div>
+<div class="tip"><strong>Priorité des moteurs</strong> : votre choix dans <em>Provider defaults</em> d'abord, puis l'ordre par défaut <strong>Anthropic → OpenAI → Gemini → Ollama → planificateur intégré</strong> (déterministe). Le badge du plan indique le moteur réellement utilisé.</div>
+<h3>LLM 100 % local — Ollama (gratuit, privé)</h3>
+<p>Les plans peuvent aussi tourner sur un <strong>modèle d'IA installé sur votre machine</strong> : c'est <strong>gratuit</strong> et votre stratégie ne quitte jamais votre ordinateur.</p>
+<div class="step"><span class="n">1</span><div>Installez <strong>Ollama</strong> depuis <code>ollama.com</code> (Windows).</div></div>
+<div class="step"><span class="n">2</span><div>Téléchargez un modèle : <code>ollama pull qwen2.5:14b-instruct</code>. <em>Recommandé : 14B ou plus.</em></div></div>
+<div class="step"><span class="n">3</span><div><strong>Settings → API keys → Local LLM (Ollama)</strong> : laissez l'URL par défaut, renseignez le <em>nom du modèle</em>, <em>Save</em>, redémarrez l'app.</div></div>
+
+<h2 id="c10"><span class="num">10</span>Connecter vos comptes (publier)</h2>
+<p><strong>Settings → Connected accounts</strong> : les identifiants utilisés par le Scheduler. Tout est stocké localement.</p>
+<img class="shot" src="img/settings-accounts.png" alt="Connected accounts">
+<p class="cap">Connected accounts : statut réel par canal — <span style="color:#178017">auto</span> (publication seule) ou <span style="color:#b8860b">assisted</span> (vous cliquez Send).</p>
+<h3>Telegram (5 minutes, gratuit, recommandé)</h3>
+<div class="step"><span class="n">1</span><div>Sur Telegram, parlez à <code>@BotFather</code> → <code>/newbot</code> → copiez le token.</div></div>
+<div class="step"><span class="n">2</span><div>Ajoutez le bot comme <strong>administrateur</strong> de votre canal.</div></div>
+<div class="step"><span class="n">3</span><div>Collez token + chat ID, <em>Save</em>, redémarrez, puis <em>Send test message</em>.</div></div>
+<h3>X (Twitter)</h3>
+<p>Créez vos 4 clés sur <code>developer.x.com</code> (écriture disponible en pay-per-use) et collez-les. Bouton <em>Verify credentials</em>. <strong>YouTube</strong> et <strong>Instagram</strong> restent en mode assisté.</p>
+
+<h2 id="c11"><span class="num">11</span>Marque blanche (rebrander le studio)</h2>
+<p><strong>Settings → Branding</strong> : nom, sous-titre, taglines, couleurs et logo s'appliquent au splash, à la barre latérale et à tous les accents de l'app.</p>
+<img class="shot" src="img/settings-branding.png" alt="Settings - Branding">
+<p class="cap">Branding : aperçu en direct du wordmark. Stocké dans le dossier de données — survit aux mises à jour.</p>
+<div class="step"><span class="n">1</span><div>Modifiez le nom, les taglines, la couleur primaire et l'accent.</div></div>
+<div class="step"><span class="n">2</span><div><em>Logo…</em> pour téléverser votre logo (normalisé automatiquement).</div></div>
+<div class="step"><span class="n">3</span><div><em>Save brand</em> — appliqué partout. <em>Reset to deepotus</em> restaure la marque par défaut.</div></div>
+
+<h2 id="c12"><span class="num">12</span>Dépannage</h2>
+<table>
+  <tr><th>Symptôme</th><th>Solution</th></tr>
+  <tr><td>Pastille <code>down</code> en haut à droite</td><td>Le moteur n'est pas lancé : relancez l'icône Bureau.</td></tr>
+  <tr><td>Pastille rouge sur <code>fal</code>/<code>heygen</code>/<code>voice</code></td><td>Clé absente ou invalide : Settings → API keys, corrigez, redémarrez.</td></tr>
+  <tr><td>Les avatars HeyGen sont longs à apparaître (ou la liste semble vide au début)</td><td><strong>Normal au tout premier chargement</strong> : HeyGen renvoie 1 000+ avatars et met jusqu'à ~1 min à répondre (lenteur de leur service). L'app précharge la liste au démarrage et la met en cache — patientez une fois, puis c'est instantané. Si le <strong>statut HeyGen</strong> est vert dans Settings, votre clé est bonne : ce n'est ni la clé, ni le réseau, ni l'antivirus.</td></tr>
+  <tr><td>Au redémarrage, clés/bibliothèque « disparues »</td><td>Aucune donnée n'est perdue (elle vit dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relancez l'app proprement via l'icône Bureau ; en v1.14 ce cas est corrigé.</td></tr>
+  <tr><td>Le plan utilise le planificateur intégré</td><td>Aucune clé Anthropic ni modèle Ollama (chapitres 9–10).</td></tr>
+  <tr><td>Erreur <code>CERTIFICATE_VERIFY_FAILED</code></td><td>Antivirus qui inspecte le HTTPS — géré automatiquement ; sinon désactivez l'inspection HTTPS.</td></tr>
+  <tr><td>« Port 8765 already in use »</td><td>L'app tourne déjà — ouvrez <code>http://127.0.0.1:8765</code>.</td></tr>
+  <tr><td>Où sont mes fichiers ?</td><td>Images : <code>…\DeepotusVideoGenData\assets\images</code> · Vidéos : <code>…\assets\outputs\final</code> · Vos uploads : <code>…\assets\outputs\uploads</code>.</td></tr>
+</table>
+
+<div class="recipe">
+<h3>🍳 Recette A — un meme posté sur Telegram en 5 minutes</h3>
+<div class="step"><span class="n">1</span><div><strong>Library</strong> → « Create image » : décrivez le meme (~3 s).</div></div>
+<div class="step"><span class="n">2</span><div><strong>Scheduler</strong> → <em>New post</em> : légende (+ un emoji 🔥), canal Telegram, heure dans 5 min, mode <em>Auto</em>.</div></div>
+<div class="step"><span class="n">3</span><div>Ou n'attendez pas : <strong>Send now</strong>. C'est posté.</div></div>
+</div>
+
+<div class="recipe">
+<h3>🍳 Recette B — votre vidéo selfie + une animation (UGC)</h3>
+<div class="step"><span class="n">1</span><div>Filmez 10–15 s au téléphone, transférez le fichier sur le PC.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Studio</strong> → starter « UGC + animation » → nœud <em>UGC video</em> → <em>Upload your video</em> (⏱ Duration master activé).</div></div>
+<div class="step"><span class="n">3</span><div>Choisissez l'image + le prompt de la moitié animée (Seedance) → <em>Run</em>. La sortie dure exactement votre clip.</div></div>
+<div class="step"><span class="n">4</span><div><strong>Scheduler</strong> → attachez le rendu, soignez la légende (emoji + pack), planifiez.</div></div>
+</div>
+
+<div class="recipe">
+<h3>🍳 Recette C — le news reel du jour</h3>
+<div class="step"><span class="n">1</span><div><strong>News</strong> → <em>Refresh</em> → cochez 2-3 articles.</div></div>
+<div class="step"><span class="n">2</span><div><em>Build script</em> (voix du persona) → <em>Build illustration</em>.</div></div>
+<div class="step"><span class="n">3</span><div>Composez dans <strong>Templates</strong> → <em>Send to Scheduler</em> → planifiez ou publiez.</div></div>
+</div>
+
+<div class="footer">Deepotus Video Gen v1.15 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
+
+</div>
+</body>
+</html>

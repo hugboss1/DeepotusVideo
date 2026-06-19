@@ -1,0 +1,60 @@
+{
+  "id": "tpl_montage_film",
+  "name": "Montage Film — chained clips + transitions",
+  "description": "Chain 2 to 5 Seedance (or any) clips into a short film. Fill as many clips as you want; empty ones are skipped. Pick a transition between each clip in the render fields (cut / crossfade / fade to black / glitch / slide / flash).",
+  "version": 1,
+  "render_mode": "sequential",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 30
+  },
+  "regions": [
+    {
+      "id": "r_clip1", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 0,
+      "slot_name": "clip1", "slot_label": "Clip 1",
+      "default_provider": "seedance", "fit": "cover", "audio_volume": 0.0
+    },
+    {
+      "id": "r_clip2", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 1,
+      "slot_name": "clip2", "slot_label": "Clip 2",
+      "default_provider": "seedance", "fit": "cover", "audio_volume": 0.0,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_clip3", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 2,
+      "slot_name": "clip3", "slot_label": "Clip 3 (optional)",
+      "default_provider": "seedance", "fit": "cover", "audio_volume": 0.0,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_clip4", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 3,
+      "slot_name": "clip4", "slot_label": "Clip 4 (optional)",
+      "default_provider": "seedance", "fit": "cover", "audio_volume": 0.0,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_clip5", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 4,
+      "slot_name": "clip5", "slot_label": "Clip 5 (optional)",
+      "default_provider": "seedance", "fit": "cover", "audio_volume": 0.0,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    }
+  ],
+  "transitions": [],
+  "audio": {
+    "master_track": "silent",
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["montage", "film", "sequential", "seedance"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "voice_mode_hint": "alpha"
+  }
+}

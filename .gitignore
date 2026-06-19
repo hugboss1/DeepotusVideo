@@ -1,0 +1,50 @@
+# NOTE: this app ships the frontend COMPILED-ONLY. frontend/dist is the shipped
+# bundle (the source of record here), so we intentionally do NOT ignore dist/.
+
+# ── Bundled binaries (fetched/bundled at build time, not source) ──────────────
+/bin/
+/runtime/
+
+# ── Installer build output + uninstaller artifacts ────────────────────────────
+*.exe
+unins*.dat
+unins*.exe
+/release/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+.vite/
+
+# ── Database + logs (real DB lives in the per-machine data dir, not here) ──────
+*.db
+*.db-journal
+*.log
+logs/
+backend/outputs/
+
+# ── Secrets — your real keys + DB live per-machine in
+#    %LOCALAPPDATA%\DeepotusVideoGenData and are NEVER in this repo. These
+#    patterns are defensive; the *.example / *.template files are kept on purpose.
+.env
+.env.local
+.env.bak*
+*.corrupted
+!.env.example
+!.env.template
+
+# ── Local agent / editor / OS ─────────────────────────────────────────────────
+.claude/
+.vscode/
+.idea/
+*.bak
+*.swp
+Thumbs.db
+.DS_Store

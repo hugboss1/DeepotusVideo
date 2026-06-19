@@ -1,0 +1,60 @@
+{
+  "id": "tpl_timeline",
+  "name": "Timeline — clips + transitions + audio",
+  "description": "Timeline montage: order Seedance/existing clips, set each clip's length, pick transitions, optional audio track, choose the output format. Fill 2 to 4 clips (empty skipped).",
+  "version": 1,
+  "render_mode": "sequential",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 20
+  },
+  "regions": [
+    {
+      "id": "r_t1", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 0,
+      "slot_name": "clip1", "slot_label": "Clip 1",
+      "default_provider": "seedance", "fit": "cover",
+      "audio_volume": 0.0, "length_s": 5
+    },
+    {
+      "id": "r_t2", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 1,
+      "slot_name": "clip2", "slot_label": "Clip 2",
+      "default_provider": "seedance", "fit": "cover",
+      "audio_volume": 0.0, "length_s": 5,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_t3", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 2,
+      "slot_name": "clip3", "slot_label": "Clip 3 (optional)",
+      "default_provider": "seedance", "fit": "cover",
+      "audio_volume": 0.0, "length_s": 5,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_t4", "type": "video_slot", "x": 0, "y": 0,
+      "width": 1080, "height": 1920, "z_index": 0, "act": 3,
+      "slot_name": "clip4", "slot_label": "Clip 4 (optional)",
+      "default_provider": "seedance", "fit": "cover",
+      "audio_volume": 0.0, "length_s": 5,
+      "transition": { "type": "crossfade", "duration_s": 0.5 }
+    },
+    {
+      "id": "r_audio", "type": "audio_slot",
+      "slot_name": "music", "slot_label": "Audio track (optional)",
+      "volume": 0.8
+    }
+  ],
+  "transitions": [],
+  "audio": { "master_track": "track", "loudness_target_lufs": -14 },
+  "metadata": {
+    "tags": ["timeline", "montage", "film", "seedance"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "format": "9:16",
+    "voice_mode_hint": "alpha"
+  }
+}

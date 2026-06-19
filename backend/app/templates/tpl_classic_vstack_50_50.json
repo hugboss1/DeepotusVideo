@@ -1,0 +1,57 @@
+{
+  "id": "tpl_classic_vstack_50_50",
+  "name": "Classic VStack 50/50",
+  "description": "Replicates the v1.5 split_vstack: top half Seedance animation, bottom half HeyGen avatar. Reaction-style short.",
+  "version": 1,
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 8
+  },
+  "regions": [
+    {
+      "id": "r_top",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 960,
+      "z_index": 0,
+      "slot_name": "animation",
+      "slot_label": "Seedance animation (top)",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 0.0
+    },
+    {
+      "id": "r_bottom",
+      "type": "video_slot",
+      "x": 0,
+      "y": 960,
+      "width": 1080,
+      "height": 960,
+      "z_index": 0,
+      "slot_name": "avatar",
+      "slot_label": "HeyGen avatar (bottom)",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    }
+  ],
+  "transitions": [],
+  "audio": {
+    "master_track": "from_slot:avatar",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["reaction", "split", "classic"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "voice_mode_hint": "alpha"
+  }
+}

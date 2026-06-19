@@ -1,0 +1,74 @@
+{
+  "id": "tpl_alpha_reel_60_30_10",
+  "name": "Alpha Reel — 60/30/10",
+  "description": "Top 60% Seedance animation, mid 30% HeyGen avatar, bottom 10% brand strip with cashtag. Flagship alpha-announcement layout.",
+  "version": 1,
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 8
+  },
+  "regions": [
+    {
+      "id": "r_top",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1152,
+      "z_index": 0,
+      "slot_name": "animation",
+      "slot_label": "Seedance animation",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 0.0
+    },
+    {
+      "id": "r_mid",
+      "type": "video_slot",
+      "x": 0,
+      "y": 1152,
+      "width": 1080,
+      "height": 576,
+      "z_index": 0,
+      "slot_name": "avatar",
+      "slot_label": "HeyGen avatar speaking",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    },
+    {
+      "id": "r_bottom",
+      "type": "brand_strip",
+      "x": 0,
+      "y": 1728,
+      "width": 1080,
+      "height": 192,
+      "z_index": 1,
+      "background_color": "#02060d",
+      "items": [
+        { "type": "mark", "src": "marks/wordmark_cyan.png", "x": 64, "y": 60, "scale": 0.6 },
+        { "type": "text", "text": "$DEEPOTUS", "x": 800, "y": 95, "font": "JetBrains Mono", "size": 32, "color": "#00e5ff", "weight": 700 }
+      ]
+    }
+  ],
+  "transitions": [
+    { "type": "fade_in", "duration_s": 0.4, "target": "r_top" },
+    { "type": "fade_in", "duration_s": 0.6, "target": "r_mid", "delay_s": 0.4 }
+  ],
+  "audio": {
+    "master_track": "from_slot:avatar",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["alpha", "alert", "reaction"],
+    "target_platforms": ["instagram_reels", "youtube_shorts"],
+    "voice_mode_hint": "alpha"
+  }
+}

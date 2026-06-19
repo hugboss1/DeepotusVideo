@@ -1,0 +1,57 @@
+{
+  "id": "tpl_hstack_left_right_dialogue",
+  "name": "HStack Left/Right Dialogue",
+  "description": "50/50 horizontal split — avatar A on the left, avatar B on the right. Dialogue / debate format.",
+  "version": 1,
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 10
+  },
+  "regions": [
+    {
+      "id": "r_left",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 540,
+      "height": 1920,
+      "z_index": 0,
+      "slot_name": "avatar_left",
+      "slot_label": "Avatar A (left)",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    },
+    {
+      "id": "r_right",
+      "type": "video_slot",
+      "x": 540,
+      "y": 0,
+      "width": 540,
+      "height": 1920,
+      "z_index": 0,
+      "slot_name": "avatar_right",
+      "slot_label": "Avatar B (right)",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    }
+  ],
+  "transitions": [],
+  "audio": {
+    "master_track": "mix",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["dialogue", "debate", "hstack", "multi-avatar"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "voice_mode_hint": "memer"
+  }
+}

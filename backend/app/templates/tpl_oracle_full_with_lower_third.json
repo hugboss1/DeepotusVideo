@@ -1,0 +1,75 @@
+{
+  "id": "tpl_oracle_full_with_lower_third",
+  "name": "Oracle — Full + Lower Third",
+  "description": "Full-screen Seedance animation with a bottom lower-third strip and an animated text slot. Mystical / Oracle voice mode.",
+  "version": 1,
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 8
+  },
+  "regions": [
+    {
+      "id": "r_main",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1920,
+      "z_index": 0,
+      "slot_name": "animation",
+      "slot_label": "Full-screen animation (audio = VO)",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 1.0
+    },
+    {
+      "id": "r_lower_third_bg",
+      "type": "brand_strip",
+      "x": 0,
+      "y": 1560,
+      "width": 1080,
+      "height": 240,
+      "z_index": 1,
+      "background_color": "#050a17",
+      "items": [
+        { "type": "mark", "src": "marks/wordmark_cyan.png", "x": 64, "y": 40, "scale": 0.5 }
+      ]
+    },
+    {
+      "id": "r_lower_third_text",
+      "type": "text_slot",
+      "x": 64,
+      "y": 1650,
+      "width": 952,
+      "height": 120,
+      "z_index": 2,
+      "slot_name": "lower_third_text",
+      "slot_label": "Lower-third caption",
+      "font": "Space Grotesk",
+      "size": 56,
+      "color": "#00e5ff",
+      "weight": 700,
+      "default_text": "From the deep.",
+      "max_chars": 60
+    }
+  ],
+  "transitions": [
+    { "type": "fade_in", "duration_s": 0.5, "target": "r_lower_third_bg", "delay_s": 0.6 }
+  ],
+  "audio": {
+    "master_track": "from_slot:animation",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["oracle", "mystical", "lower-third"],
+    "target_platforms": ["instagram_reels", "youtube_shorts"],
+    "voice_mode_hint": "oracle"
+  }
+}

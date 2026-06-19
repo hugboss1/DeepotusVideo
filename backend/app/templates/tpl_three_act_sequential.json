@@ -1,0 +1,78 @@
+{
+  "id": "tpl_three_act_sequential",
+  "name": "Three-Act Sequential",
+  "description": "Three full-screen clips played in sequence (hook -> develop -> payoff) with cyan-flash transitions. Story-driven short.",
+  "version": 1,
+  "render_mode": "sequential",
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 18
+  },
+  "regions": [
+    {
+      "id": "r_hook",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1920,
+      "z_index": 0,
+      "act": 0,
+      "slot_name": "hook_clip",
+      "slot_label": "Act 1 — Hook",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 1.0
+    },
+    {
+      "id": "r_develop",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1920,
+      "z_index": 0,
+      "act": 1,
+      "slot_name": "develop_clip",
+      "slot_label": "Act 2 — Develop",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 1.0
+    },
+    {
+      "id": "r_payoff",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1920,
+      "z_index": 0,
+      "act": 2,
+      "slot_name": "payoff_clip",
+      "slot_label": "Act 3 — Payoff",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    }
+  ],
+  "transitions": [
+    { "type": "cyan_flash", "duration_s": 0.3, "target": "r_develop" },
+    { "type": "cyan_flash", "duration_s": 0.3, "target": "r_payoff" }
+  ],
+  "audio": {
+    "master_track": "sequential",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["story", "sequential", "three-act"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "voice_mode_hint": "alpha"
+  }
+}

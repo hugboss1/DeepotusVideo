@@ -1,0 +1,59 @@
+{
+  "id": "tpl_pip_corner_avatar",
+  "name": "PIP Corner Avatar",
+  "description": "Full-screen Seedance animation with a picture-in-picture HeyGen avatar in the bottom-right corner. Walkthrough / narration over animation.",
+  "version": 1,
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "background_color": "#02060d",
+    "fps": 30,
+    "duration_s": 8
+  },
+  "regions": [
+    {
+      "id": "r_main",
+      "type": "video_slot",
+      "x": 0,
+      "y": 0,
+      "width": 1080,
+      "height": 1920,
+      "z_index": 0,
+      "slot_name": "main_animation",
+      "slot_label": "Main animation (full-screen)",
+      "default_provider": "seedance",
+      "fit": "cover",
+      "audio_volume": 0.0
+    },
+    {
+      "id": "r_pip",
+      "type": "video_slot",
+      "x": 790,
+      "y": 1590,
+      "width": 250,
+      "height": 250,
+      "z_index": 1,
+      "slot_name": "avatar_pip",
+      "slot_label": "Avatar PIP (bottom-right)",
+      "default_provider": "heygen",
+      "fit": "cover",
+      "audio_volume": 1.0
+    }
+  ],
+  "transitions": [
+    { "type": "fade_in", "duration_s": 0.4, "target": "r_pip", "delay_s": 0.3 }
+  ],
+  "audio": {
+    "master_track": "from_slot:avatar_pip",
+    "background_music": null,
+    "ducking_db": -18,
+    "fade_in_s": 0.3,
+    "fade_out_s": 0.6,
+    "loudness_target_lufs": -14
+  },
+  "metadata": {
+    "tags": ["pip", "walkthrough", "narration"],
+    "target_platforms": ["instagram_reels", "youtube_shorts", "tiktok"],
+    "voice_mode_hint": "zen"
+  }
+}
