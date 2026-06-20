@@ -1870,18 +1870,60 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     PNG(s) into the images folder so they're immediately usable as Seedance
     start frames. Body: {prompt, n=1, size="portrait_16_9"}. Synchronous —
     FLUX schnell returns in ~2-4s per image."""
-    if not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
     prompt = (body.get("prompt") or "").strip()
     if not prompt:
         raise HTTPException(400, "prompt is required")
     n = max(1, min(4, int(body.get("n") or 1)))
     size = body.get("size") or "portrait_16_9"
+    model = (body.get("model") or "").strip().lower()
+    import httpx as _httpx
+
+    # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
+    if model.startswith("gpt-image") or model.startswith("dall-e"):
+        if not settings.OPENAI_API_KEY:
+            raise HTTPException(400, "OPENAI_API_KEY not configured. Add it in Settings.")
+        osize = ("1024x1536" if "portrait" in size
+                 else "1536x1024" if "landscape" in size else "1024x1024")
+        payload = {"model": model, "prompt": prompt, "n": n, "size": osize}
+        try:
+            async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=180.0) as client:
+                resp = await client.post(
+                    "https://api.openai.com/v1/images/generations",
+                    headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
+                    json=payload)
+        except Exception as e:
+            logger.error(f"OpenAI image gen failed: {e}")
+            raise HTTPException(502, f"Image generation failed: {e}")
+        if resp.status_code != 200:
+            logger.error(f"OpenAI image HTTP {resp.status_code}: {resp.text[:300]}")
+            raise HTTPException(502, f"OpenAI image error: {resp.text[:200]}")
+        data = (resp.json() or {}).get("data", [])
+        import base64 as _b64
+        saved: list[str] = []
+        for it in data:
+            fname = f"gen_{uuid4().hex[:8]}.png"
+            dest = settings.images_path / fname
+            if it.get("b64_json"):
+                dest.write_bytes(_b64.b64decode(it["b64_json"]))
+                saved.append(fname)
+            elif it.get("url"):
+                async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c2:
+                    rr = await c2.get(it["url"])
+                    rr.raise_for_status()
+                    dest.write_bytes(rr.content)
+                saved.append(fname)
+        if not saved:
+            raise HTTPException(502, "OpenAI returned no images")
+        logger.info(f"OpenAI {model}: saved {len(saved)} image(s): {saved}")
+        return {"images": saved, "prompt": prompt, "model": model}
+
+    # --- fal.ai FLUX path (default) ---------------------------------------
+    if not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
     if size not in ("square_hd", "square", "portrait_4_3", "portrait_16_9",
                     "landscape_4_3", "landscape_16_9"):
         size = "portrait_16_9"
     import fal_client
-    import httpx as _httpx
     try:
         result = await fal_client.subscribe_async(
             "fal-ai/flux/schnell",
@@ -1895,7 +1937,7 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             if im.get("url")]
     if not urls:
         raise HTTPException(502, "FLUX returned no images")
-    saved: list[str] = []
+    saved = []
     async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as client:
         for u in urls:
             fname = f"gen_{uuid4().hex[:8]}.png"
@@ -1905,4 +1947,24 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             dest.write_bytes(r.content)
             saved.append(fname)
     logger.info(f"FLUX: saved {len(saved)} image(s): {saved}")
-    return {"images": saved, "prompt": prompt}
+    return {"images": saved, "prompt": prompt, "model": "flux"}
+
+
+@router.get("/image-models")
+async def list_image_models():
+    """Image-generation models available given the registered API keys. The
+    Studio image picker uses this to show only usable models; the chosen id is
+    sent back as `model` to POST /images/generate. Persisted client-side."""
+    out = []
+    if settings.FAL_KEY:
+        out.append({"id": "flux", "label": "FLUX schnell",
+                    "provider": "fal", "note": "fast, low cost"})
+    if settings.OPENAI_API_KEY:
+        out.append({"id": "gpt-image-2", "label": "GPT Image 2",
+                    "provider": "openai", "note": "best quality"})
+        out.append({"id": "gpt-image-1", "label": "GPT Image 1",
+                    "provider": "openai", "note": "balanced"})
+        out.append({"id": "gpt-image-1-mini", "label": "GPT Image 1 mini",
+                    "provider": "openai", "note": "cheapest OpenAI"})
+    return {"models": out, "default": ("flux" if settings.FAL_KEY
+                                       else (out[0]["id"] if out else ""))}
