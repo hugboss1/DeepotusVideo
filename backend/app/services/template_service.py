@@ -51,6 +51,18 @@ _FONT_FILES = {
     "space grotesk": "SpaceGrotesk.ttf",
     "inter": "Inter.ttf",
     "jetbrains mono": "JetBrainsMono.ttf",
+    # Design fonts (OFL / Apache, redistributable) shipped for Studio overlays.
+    "bebas neue": "BebasNeue.ttf",
+    "anton": "Anton.ttf",
+    "archivo black": "ArchivoBlack.ttf",
+    "righteous": "Righteous.ttf",
+    "bungee": "Bungee.ttf",
+    "staatliches": "Staatliches.ttf",
+    "abril fatface": "AbrilFatface.ttf",
+    "pacifico": "Pacifico.ttf",
+    "permanent marker": "PermanentMarker.ttf",
+    "monoton": "Monoton.ttf",
+    "press start 2p": "PressStart2P.ttf",
 }
 _DEFAULT_FONT = "SpaceGrotesk.ttf"
 
