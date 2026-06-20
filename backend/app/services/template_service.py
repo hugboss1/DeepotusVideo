@@ -63,6 +63,7 @@ _FONT_FILES = {
     "permanent marker": "PermanentMarker.ttf",
     "monoton": "Monoton.ttf",
     "press start 2p": "PressStart2P.ttf",
+    "cinzel": "Cinzel.ttf",  # OFL Roman-capitals serif (Trajan-style)
 }
 _DEFAULT_FONT = "SpaceGrotesk.ttf"
 
