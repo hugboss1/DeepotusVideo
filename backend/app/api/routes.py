@@ -764,6 +764,7 @@ async def refine_text(body: dict):
     tone = str(body.get("tone") or "").strip()
     humor = str(body.get("humor") or "").strip()
     avoid = body.get("avoid") or []
+    mode = str(body.get("mode") or "spoken").strip().lower()
     language = str(body.get("language") or "").strip()
     from app.services import summarizer
     _LMAP = {"FR": "French", "EN": "English", "ES": "Spanish", "DE": "German",
@@ -775,22 +776,41 @@ async def refine_text(body: dict):
         lang = _LMAP.get(language.upper(), "English")
     else:
         lang = language  # already a full name from the voice (e.g. "French")
-    system = (
-        "You rewrite short scripts that an AI avatar will SPEAK ALOUD. "
-        "Optimize for natural, human spoken delivery and clean diction: "
-        "short sentences, easy-to-pronounce words, no tongue-twisters, no "
-        "markdown, no emojis, no stage directions, no quotation marks, no "
-        "preamble. Return ONLY the rewritten script."
-    )
-    parts = [f"Rewrite this script in {lang} for an avatar to read aloud."]
-    if tone:
-        parts.append(f"Tone: {tone}.")
-    if humor and humor.lower() != "none":
-        parts.append(f"Humor: {humor}.")
-    if isinstance(avoid, list) and avoid:
-        parts.append("Avoid: " + "; ".join(str(a) for a in avoid) + ".")
-    parts.append("Keep roughly the same length.")
-    prompt = " ".join(parts) + "\n\nScript:\n" + text[:4000]
+    if mode == "visual":
+        # Prompt node: expand an idea into a vivid image/video generation prompt.
+        system = (
+            "You write prompts for an AI image/video generator (Seedance). "
+            "Turn the idea into ONE vivid, concrete visual prompt: subject, "
+            "setting, action, camera angle/movement, lighting, color, and art "
+            "style. Use comma-separated descriptors, not narration. No "
+            "markdown, no preamble, no quotation marks. Return ONLY the prompt."
+        )
+        parts = ["Expand this into a single cinematic image/video generation prompt."]
+        if tone:
+            parts.append(f"Visual style: {tone}.")
+        if humor and humor.lower() != "none":
+            parts.append(f"Mood: {humor}.")
+        if isinstance(avoid, list) and avoid:
+            parts.append("Do NOT include: " + "; ".join(str(a) for a in avoid) + ".")
+        parts.append("Keep it under 60 words.")
+        prompt = " ".join(parts) + "\n\nIdea:\n" + text[:2000]
+    else:
+        system = (
+            "You rewrite short scripts that an AI avatar will SPEAK ALOUD. "
+            "Optimize for natural, human spoken delivery and clean diction: "
+            "short sentences, easy-to-pronounce words, no tongue-twisters, no "
+            "markdown, no emojis, no stage directions, no quotation marks, no "
+            "preamble. Return ONLY the rewritten script."
+        )
+        parts = [f"Rewrite this script in {lang} for an avatar to read aloud."]
+        if tone:
+            parts.append(f"Tone: {tone}.")
+        if humor and humor.lower() != "none":
+            parts.append(f"Humor: {humor}.")
+        if isinstance(avoid, list) and avoid:
+            parts.append("Avoid: " + "; ".join(str(a) for a in avoid) + ".")
+        parts.append("Keep roughly the same length.")
+        prompt = " ".join(parts) + "\n\nScript:\n" + text[:4000]
     try:
         out, prov = await asyncio.to_thread(
             summarizer._chat_dispatch, prompt, system, 800)
