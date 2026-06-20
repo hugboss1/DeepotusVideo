@@ -190,6 +190,12 @@ if _guide.is_dir():
     app.mount("/guide", _SF(directory=str(_guide), html=True), name="guide")
     logger.info(f"Serving guide from {_guide}")
 
+# ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
+_emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
+if _emoji_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFEmoji
+    app.mount("/emoji", _SFEmoji(directory=str(_emoji_dir)), name="emoji")
+
 # ── Packaging: serve the built frontend (frontend/dist) from this process.
 # One port, one process, no Node at runtime — the silent launcher just
 # starts uvicorn and opens http://127.0.0.1:8765 in the default browser.

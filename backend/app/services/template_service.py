@@ -403,6 +403,82 @@ def _drawtext(cur: str, out: str, *, font_name: str, textfile_name: str,
     )
 
 
+_EMOJI_DIR = Path(__file__).resolve().parent.parent / "assets" / "emoji"
+
+
+def _is_emoji_cp(o: int) -> bool:
+    return (0x1F000 <= o <= 0x1FAFF or 0x2600 <= o <= 0x27BF
+            or 0x2B00 <= o <= 0x2BFF or 0x2190 <= o <= 0x21FF
+            or 0x2300 <= o <= 0x23FF or o == 0xFE0F or o == 0x20E3
+            or 0x1F1E6 <= o <= 0x1F1FF)
+
+
+def _has_emoji(s) -> bool:
+    return any(_is_emoji_cp(ord(c)) for c in (s or ""))
+
+
+def _emoji_file(unit: str) -> str:
+    return "-".join("%x" % ord(c) for c in unit if ord(c) != 0xFE0F)
+
+
+def _segment_emoji(s: str):
+    """Split into [(kind, value)] runs: kind 'text' or 'emoji'. VS16 / ZWJ /
+    skin-tone modifiers stick to the preceding emoji unit."""
+    units: list[tuple[str, str]] = []
+    for ch in s or "":
+        o = ord(ch)
+        if (o == 0xFE0F or o == 0x200D or 0x1F3FB <= o <= 0x1F3FF) \
+                and units and units[-1][0] == "emoji":
+            units[-1] = ("emoji", units[-1][1] + ch)
+        elif _is_emoji_cp(o):
+            units.append(("emoji", ch))
+        elif units and units[-1][0] == "text":
+            units[-1] = ("text", units[-1][1] + ch)
+        else:
+            units.append(("text", ch))
+    return units
+
+
+def render_emoji_text_png(text, font_file, size, color_hex, out_path, stroke=3):
+    """Render one line of text + color emojis (bundled Twemoji PNGs) to a
+    transparent PNG. ffmpeg drawtext cannot draw color emoji, so emoji regions
+    are pre-rendered here and overlaid. Unbundled emojis are skipped.
+    Returns (width, height)."""
+    from PIL import Image, ImageDraw, ImageFont
+    size = int(size)
+    f = ImageFont.truetype(str(font_file), size)
+    pad = stroke + 2
+    height = size + 2 * pad
+    gap = max(2, size // 12)
+    plan, x = [], pad
+    for kind, val in _segment_emoji(text or ""):
+        if kind == "text":
+            plan.append(("text", val, x))
+            x += int(f.getlength(val))
+        else:
+            p = _EMOJI_DIR / (_emoji_file(val) + ".png")
+            if p.exists():
+                plan.append(("emoji", str(p), x))
+                x += size + gap
+    width = max(x + pad, 1)
+    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    fill = "#" + (color_hex or "ffffff")
+    for kind, val, px in plan:
+        if kind == "text":
+            d.text((px, pad), val, font=f, fill=fill,
+                   stroke_width=stroke, stroke_fill=(2, 6, 13, 180))
+        else:
+            try:
+                e = Image.open(val).convert("RGBA").resize(
+                    (size, size), Image.LANCZOS)
+                img.alpha_composite(e, (px, pad))
+            except Exception:
+                pass
+    img.save(out_path)
+    return img.width, img.height
+
+
 def build_ffmpeg_command(engine, template, slot_values, output_path, work):
     """Compile a (spatial) template + slot values into an ffmpeg command.
 
@@ -532,18 +608,27 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             n += 1
             size = int(r.get("size", 48))
             color = _hex(r.get("color"), "ffffff")
-            if r.get("align") == "center":
-                x_expr = f"{rx}+(({rw})-tw)/2"
+            if _has_emoji(txt):
+                ep = work / f"emojitxt{n}.png"
+                pw, _ph = render_emoji_text_png(
+                    txt, engine.font_path(r.get("font")), size, color, ep)
+                ox = rx + (rw - pw) // 2 if r.get("align") == "center" else rx
+                ei = _add_input(ep, still=True)
+                parts.append(f"[{ei}:v]format=rgba[ev{n}]")
+                _w(f"[{cur}][ev{n}]overlay={int(ox)}:{ry}[oe{n}]", f"oe{n}")
             else:
-                x_expr = str(rx)
-            alpha = None
-            if r.get("effect") == "pulse":
-                sp = float(r.get("effect_speed", 1.0))
-                alpha = f"0.5+0.5*sin(2*PI*t*{sp})"
-            _w(_drawtext(cur, f"d{n}",
-                         font_name=_font_in_work(r.get("font")),
-                         textfile_name=_textfile(txt), size=size, color=color,
-                         x=x_expr, y=str(ry), alpha=alpha), f"d{n}")
+                if r.get("align") == "center":
+                    x_expr = f"{rx}+(({rw})-tw)/2"
+                else:
+                    x_expr = str(rx)
+                alpha = None
+                if r.get("effect") == "pulse":
+                    sp = float(r.get("effect_speed", 1.0))
+                    alpha = f"0.5+0.5*sin(2*PI*t*{sp})"
+                _w(_drawtext(cur, f"d{n}",
+                             font_name=_font_in_work(r.get("font")),
+                             textfile_name=_textfile(txt), size=size, color=color,
+                             x=x_expr, y=str(ry), alpha=alpha), f"d{n}")
         elif r["type"] == "brand_strip":
             sbg = _hex(r.get("background_color"), bg)
             n += 1
@@ -584,21 +669,36 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             speed = float(r.get("speed", 120))
             size = int(r.get("size", 40))
             tcol = _hex(r.get("color"), "00e5ff")
-            y_expr = f"{ry}+({rh}-th)/2"
-            if r.get("direction") == "right":
-                x_expr = f"{rx}-tw+mod(t*{speed},{rw}+tw)"
+            tk_text = r.get("text", "")
+            if _has_emoji(tk_text):
+                ep = work / f"emojitk{n}.png"
+                pw, ph = render_emoji_text_png(
+                    tk_text, engine.font_path(r.get("font")), size, tcol, ep)
+                ei = _add_input(ep, still=True)
+                oy = ry + (rh - ph) // 2
+                if r.get("direction") == "right":
+                    xe = f"{rx}-{pw}+mod(t*{speed},{rw}+{pw})"
+                else:
+                    xe = f"{rx}+{rw}-mod(t*{speed},{rw}+{pw})"
+                n += 1
+                parts.append(f"[{ei}:v]format=rgba[ev{n}]")
+                _w(f"[{cur}][ev{n}]overlay=x='{xe}':y={oy}[ot{n}]", f"ot{n}")
             else:
-                x_expr = f"{rx}+{rw}-mod(t*{speed},{rw}+tw)"
-            alpha = None
-            if r.get("effect") == "pulse":
-                sp = float(r.get("effect_speed", 1.0))
-                alpha = f"0.5+0.5*sin(2*PI*t*{sp})"
-            n += 1
-            _w(_drawtext(cur, f"tt{n}",
-                         font_name=_font_in_work(r.get("font")),
-                         textfile_name=_textfile(r.get("text", "")),
-                         size=size, color=tcol,
-                         x=x_expr, y=y_expr, alpha=alpha), f"tt{n}")
+                y_expr = f"{ry}+({rh}-th)/2"
+                if r.get("direction") == "right":
+                    x_expr = f"{rx}-tw+mod(t*{speed},{rw}+tw)"
+                else:
+                    x_expr = f"{rx}+{rw}-mod(t*{speed},{rw}+tw)"
+                alpha = None
+                if r.get("effect") == "pulse":
+                    sp = float(r.get("effect_speed", 1.0))
+                    alpha = f"0.5+0.5*sin(2*PI*t*{sp})"
+                n += 1
+                _w(_drawtext(cur, f"tt{n}",
+                             font_name=_font_in_work(r.get("font")),
+                             textfile_name=_textfile(tk_text),
+                             size=size, color=tcol,
+                             x=x_expr, y=y_expr, alpha=alpha), f"tt{n}")
 
     parts.append(f"[{cur}]format=yuv420p[outv]")
 

@@ -171,6 +171,22 @@ async def render_layout_template(
     )
 
 
+@router.get("/emojis")
+async def list_emojis():
+    """Curated native emoji set (categories -> [{e: char, f: png basename}])
+    for the Studio emoji picker. PNGs are served at /emoji/<f>.png and used by
+    the renderer (Twemoji overlay) so picker and video match."""
+    import json
+    from pathlib import Path as _P
+    p = _P(__file__).resolve().parent.parent / "assets" / "emoji" / "manifest.json"
+    if p.exists():
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+    return []
+
+
 # ---- v1.7: News / RSS pipeline ----
 
 @router.get("/news/sources")
