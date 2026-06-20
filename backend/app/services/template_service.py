@@ -64,6 +64,14 @@ _FONT_FILES = {
     "monoton": "Monoton.ttf",
     "press start 2p": "PressStart2P.ttf",
     "cinzel": "Cinzel.ttf",  # OFL Roman-capitals serif (Trajan-style)
+    # User-supplied free fonts (Freeware / Public Domain / CC-BY / FFC).
+    "dripping marker": "DrippingMarker.ttf",
+    "graffiti brush": "GraffitiBrush.ttf",
+    "distant galaxy": "DistantGalaxy.ttf",
+    "hacked": "Hacked.ttf",
+    "super pencil": "SuperPencil.ttf",
+    "poland kaito": "PolandKaito.otf",
+    "super feel": "SuperFeel.ttf",
 }
 _DEFAULT_FONT = "SpaceGrotesk.ttf"
 

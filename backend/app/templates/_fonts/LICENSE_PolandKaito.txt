@@ -1,0 +1,15 @@
+Poland canned into Kaito
+Desgined by Heaven Castro
+
+-About the font-
+Poland canned into Kaito is a new installment of Poland canned into... series of fonts by me. Each letter is inside a black rectangle with variable sizes, rotation angles and scales, giving it a Persona 5 look.
+
+-Special character mappings-
+Use U+00C0 for Polandball variant of newly-redesigned CHMC logo.
+Use U+00C1 for "BWAHH" dingbat.
+
+-Available formats-
+This font is available in TrueType and OpenType formats. You can only choose one format at the time, as installing the same font with another format might replace from one another.
+
+-License-
+This font was released under FFC license, which means that can be used for any porpose (besides personal use), I could ask you to use this if needed.
