@@ -196,6 +196,13 @@ if _emoji_dir.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFEmoji
     app.mount("/emoji", _SFEmoji(directory=str(_emoji_dir)), name="emoji")
 
+# ── Custom emojis: user-imported PNGs in the DATA dir (survive reinstall),
+# served at /emoji-custom for the picker preview. Render reads them directly.
+_emoji_custom_dir = DATA_ROOT / "assets" / "emoji_custom"
+_emoji_custom_dir.mkdir(parents=True, exist_ok=True)
+from fastapi.staticfiles import StaticFiles as _SFEmojiC
+app.mount("/emoji-custom", _SFEmojiC(directory=str(_emoji_custom_dir)), name="emoji-custom")
+
 # ── Packaging: serve the built frontend (frontend/dist) from this process.
 # One port, one process, no Node at runtime — the silent launcher just
 # starts uvicorn and opens http://127.0.0.1:8765 in the default browser.

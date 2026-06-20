@@ -8,7 +8,7 @@ from uuid import uuid4
 
 import httpx
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, File, Form, Request, Response
 from fastapi.responses import FileResponse
 from PIL import Image as PILImage
 from loguru import logger
@@ -185,6 +185,69 @@ async def list_emojis():
         except Exception:
             pass
     return []
+
+
+def _emoji_custom_dir() -> Path:
+    from app.config import DATA_ROOT
+    p = DATA_ROOT / "assets" / "emoji_custom"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+@router.get("/emojis/custom")
+async def list_custom_emojis():
+    """User-imported custom emojis (stored in the data dir). Each entry ->
+    {name, file, url, code}. The picker inserts `code` (:name:) into ticker /
+    text-overlay text; the renderer resolves it to the PNG so video matches."""
+    d = _emoji_custom_dir()
+    out = [{"name": f.stem, "file": f.name,
+            "url": f"/emoji-custom/{f.name}", "code": f":{f.stem}:"}
+           for f in sorted(d.glob("*.png"))]
+    return {"emojis": out}
+
+
+@router.post("/emojis/custom")
+async def upload_custom_emoji(request: Request,
+                             file: UploadFile = File(...),
+                             name: str = Form("")):
+    """Import a custom emoji image -> RGBA PNG (<=160px) in the data dir under a
+    :shortcode: from `name` (or the filename). Survives app reinstall."""
+    _require_localhost(request)
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix not in (".png", ".jpg", ".jpeg", ".webp", ".gif"):
+        raise HTTPException(400, "Emoji must be .png, .jpg, .webp or .gif")
+    data = await file.read()
+    if len(data) > 5 * 1024 * 1024:
+        raise HTTPException(400, "Image too large (max 5 MB)")
+    base = _slug(name or Path(file.filename or "emoji").stem) or "emoji"
+    d = _emoji_custom_dir()
+    nm, i = base, 2
+    while (d / (nm + ".png")).exists():
+        nm = f"{base}-{i}"
+        i += 1
+    try:
+        import io
+        from PIL import Image as PILImg
+        img = PILImg.open(io.BytesIO(data)).convert("RGBA")
+        img.thumbnail((160, 160), PILImg.LANCZOS)
+        img.save(d / (nm + ".png"), format="PNG")
+    except Exception as e:
+        raise HTTPException(400, f"Not a valid image: {e}")
+    logger.info(f"custom emoji imported: {nm}")
+    return {"name": nm, "file": nm + ".png",
+            "url": f"/emoji-custom/{nm}.png", "code": f":{nm}:"}
+
+
+@router.delete("/emojis/custom/{name}")
+async def delete_custom_emoji(name: str, request: Request):
+    _require_localhost(request)
+    p = _emoji_custom_dir() / (_slug(name) + ".png")
+    if p.exists():
+        try:
+            p.unlink()
+        except Exception as e:
+            raise HTTPException(500, f"Could not delete: {e}")
+    return {"ok": True, "name": _slug(name)}
 
 
 # ---- v1.7: News / RSS pipeline ----

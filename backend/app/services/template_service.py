@@ -405,6 +405,17 @@ def _drawtext(cur: str, out: str, *, font_name: str, textfile_name: str,
 
 _EMOJI_DIR = Path(__file__).resolve().parent.parent / "assets" / "emoji"
 
+import re as _re_emoji
+from app.config import DATA_ROOT as _DATA_ROOT
+# User-imported custom emojis live in the DATA dir (survive reinstall), keyed by
+# a :shortcode: that the picker inserts and the renderer resolves to its PNG.
+_EMOJI_CUSTOM_DIR = _DATA_ROOT / "assets" / "emoji_custom"
+_SHORTCODE_RE = _re_emoji.compile(r":([a-z0-9_-]{1,40}):")
+
+
+def _custom_emoji_path(name: str) -> Path:
+    return _EMOJI_CUSTOM_DIR / (str(name) + ".png")
+
 
 def _is_emoji_cp(o: int) -> bool:
     return (0x1F000 <= o <= 0x1FAFF or 0x2600 <= o <= 0x27BF
@@ -414,17 +425,20 @@ def _is_emoji_cp(o: int) -> bool:
 
 
 def _has_emoji(s) -> bool:
-    return any(_is_emoji_cp(ord(c)) for c in (s or ""))
+    s = s or ""
+    if any(_is_emoji_cp(ord(c)) for c in s):
+        return True
+    return any(_custom_emoji_path(m.group(1)).exists()
+               for m in _SHORTCODE_RE.finditer(s))
 
 
 def _emoji_file(unit: str) -> str:
     return "-".join("%x" % ord(c) for c in unit if ord(c) != 0xFE0F)
 
 
-def _segment_emoji(s: str):
-    """Split into [(kind, value)] runs: kind 'text' or 'emoji'. VS16 / ZWJ /
+def _seg_unicode(s: str, units: list):
+    """Append unicode text/emoji runs from `s` onto `units`. VS16 / ZWJ /
     skin-tone modifiers stick to the preceding emoji unit."""
-    units: list[tuple[str, str]] = []
     for ch in s or "":
         o = ord(ch)
         if (o == 0xFE0F or o == 0x200D or 0x1F3FB <= o <= 0x1F3FF) \
@@ -436,6 +450,21 @@ def _segment_emoji(s: str):
             units[-1] = ("text", units[-1][1] + ch)
         else:
             units.append(("text", ch))
+
+
+def _segment_emoji(s: str):
+    """Split into [(kind, value)] runs: 'text', 'emoji' (unicode char), or
+    'cemoji' (custom emoji :shortcode: whose PNG exists in the data dir).
+    Unknown shortcodes stay as literal text."""
+    s = s or ""
+    units: list[tuple[str, str]] = []
+    pos = 0
+    for m in _SHORTCODE_RE.finditer(s):
+        if _custom_emoji_path(m.group(1)).exists():
+            _seg_unicode(s[pos:m.start()], units)
+            units.append(("cemoji", m.group(1)))
+            pos = m.end()
+    _seg_unicode(s[pos:], units)
     return units
 
 
@@ -453,25 +482,37 @@ def render_emoji_text_png(text, font_file, size, color_hex, out_path, stroke=3):
     plan, x = [], pad
     for kind, val in _segment_emoji(text or ""):
         if kind == "text":
-            plan.append(("text", val, x))
+            plan.append(("text", val, x, 0))
             x += int(f.getlength(val))
-        else:
+        elif kind == "emoji":
             p = _EMOJI_DIR / (_emoji_file(val) + ".png")
             if p.exists():
-                plan.append(("emoji", str(p), x))
+                plan.append(("emoji", str(p), x, size))
                 x += size + gap
+        else:  # cemoji — user-imported, aspect preserved (height = size)
+            p = _custom_emoji_path(val)
+            if p.exists():
+                cw = size
+                try:
+                    with Image.open(p) as _im:
+                        w0, h0 = _im.size
+                    cw = max(1, min(int(round(size * (w0 / max(1, h0)))), size * 3))
+                except Exception:
+                    cw = size
+                plan.append(("cemoji", str(p), x, cw))
+                x += cw + gap
     width = max(x + pad, 1)
     img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     fill = "#" + (color_hex or "ffffff")
-    for kind, val, px in plan:
+    for kind, val, px, w in plan:
         if kind == "text":
             d.text((px, pad), val, font=f, fill=fill,
                    stroke_width=stroke, stroke_fill=(2, 6, 13, 180))
         else:
             try:
-                e = Image.open(val).convert("RGBA").resize(
-                    (size, size), Image.LANCZOS)
+                dims = (size, size) if kind == "emoji" else (w, size)
+                e = Image.open(val).convert("RGBA").resize(dims, Image.LANCZOS)
                 img.alpha_composite(e, (px, pad))
             except Exception:
                 pass
