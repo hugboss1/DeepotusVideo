@@ -19,6 +19,9 @@ _PRICING_FILE = DATA_ROOT / "pricing.json"
 # Directional defaults (USD). Editable in Settings -> Pricing & budget.
 DEFAULTS = {
     "flux_image_usd": 0.003,          # fal.ai FLUX schnell, per image
+    "gpt_image_2_usd": 0.12,          # OpenAI gpt-image-2, per image (portrait, directional)
+    "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
+    "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
     "seedance_usd_per_s": 0.04,       # fal.ai Seedance, per second of video
     "heygen_credits_per_min": 6.0,    # HeyGen avatar credits per minute
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
@@ -31,6 +34,14 @@ DEFAULTS = {
         "gemini":    {"in": 0.075, "out": 0.30},
     },
     "monthly_budget_usd": 0.0,        # 0 = no cap
+}
+
+# image-gen model id -> (label, billing provider, pricing key in DEFAULTS)
+_IMAGE_MODELS = {
+    "flux":             ("FLUX image",       "fal",    "flux_image_usd"),
+    "gpt-image-2":      ("GPT Image 2",      "openai", "gpt_image_2_usd"),
+    "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
+    "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),
 }
 
 
@@ -85,8 +96,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
 
     if kind == "image":
         n = int(op.get("n", 1))
-        lines.append(_line("fal", f"FLUX image x{n}", n, "image",
-                           n * p["flux_image_usd"]))
+        model = str(op.get("model") or "flux").lower()
+        label, prov, key = _IMAGE_MODELS.get(model, _IMAGE_MODELS["flux"])
+        unit = p.get(key, p["flux_image_usd"])
+        lines.append(_line(prov, f"{label} x{n}", n, "image", n * unit))
     elif kind == "seedance":
         n = int(op.get("n", 1))
         dur = float(op.get("duration_s", 10)) * n
@@ -120,7 +133,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         # the cards usually reuse fetched images; add nothing unless generating
     elif kind == "marketing_plan":
         posts = int(op.get("posts", 1))
-        per_post = op.get("per_post") or [{"kind": "image"}, {"kind": "seedance", "duration_s": 10}]
+        _img = {"kind": "image"}
+        if op.get("model"):
+            _img["model"] = op["model"]
+        per_post = op.get("per_post") or [_img, {"kind": "seedance", "duration_s": 10}]
         for _ in range(posts):
             for sub in per_post:
                 lines.extend(estimate(sub, p)["breakdown"])
