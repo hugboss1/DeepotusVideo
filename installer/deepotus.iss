@@ -12,7 +12,7 @@
 ; ============================================================
 
 #define MyAppName "Deepotus Video Gen"
-#define MyAppVersion "1.15.4"
+#define MyAppVersion "1.15.5"
 #define MyAppPublisher "Deepotus"
 #define StageDir "C:\Users\olivi\dz"
 #define AppRoot StageDir + "\app"
