@@ -425,6 +425,23 @@ async def get_image_file(filename: str):
     return FileResponse(p)
 
 
+@router.delete("/images/{filename}")
+async def delete_image_file(filename: str):
+    """Delete a generated/uploaded image from the images folder."""
+    safe = Path(filename).name
+    p = settings.images_path / safe
+    try:
+        if not str(p.resolve()).startswith(str(settings.images_path.resolve())) \
+                or not p.is_file():
+            raise HTTPException(404, f"Image not found: {filename}")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(404, f"Image not found: {filename}")
+    p.unlink()
+    return {"deleted": safe}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
@@ -1623,6 +1640,33 @@ async def fire_scheduled_post(post_id: str):
     return result
 
 
+def _render_poster_frame(jobrec) -> str | None:
+    """Cached poster frame (~1s in) extracted from a render's video, used as the
+    post-preview hero when the render has no still image (e.g. HeyGen avatars).
+    Returns the PNG path or None."""
+    import subprocess
+    vp = getattr(jobrec, "final_video_path", None)
+    if not vp:
+        return None
+    src = Path(vp)
+    if not src.is_file():
+        return None
+    cache = settings.outputs_path / "_cache"
+    cache.mkdir(parents=True, exist_ok=True)
+    out = cache / f"poster_{jobrec.id}.png"
+    if out.is_file() and out.stat().st_mtime >= src.stat().st_mtime:
+        return str(out)
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-ss", "1", "-i", str(src),
+             "-frames:v", "1", "-q:v", "3", str(out)],
+            check=True, capture_output=True, timeout=30)
+        return str(out) if out.is_file() else None
+    except Exception as e:
+        logger.warning(f"poster extraction failed for {getattr(jobrec,'id','?')}: {e}")
+        return None
+
+
 @router.get("/schedule/{post_id}/preview.png")
 async def scheduled_post_preview(post_id: str, channel: str = "x",
                                  caption: str | None = None,
@@ -1656,10 +1700,13 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
             jr = await session.execute(
                 _select(JobRecord).where(JobRecord.id == eff_job))
             jobrec = jr.scalar_one_or_none()
-            if jobrec and jobrec.image_filename:
-                cand = settings.images_path / jobrec.image_filename
-                if cand.is_file():
-                    hero = str(cand)
+            if jobrec:
+                if jobrec.image_filename:
+                    cand = settings.images_path / jobrec.image_filename
+                    if cand.is_file():
+                        hero = str(cand)
+                if not hero:
+                    hero = _render_poster_frame(jobrec)
         caption = caption if caption is not None else (p.caption or p.title or "")
     brand = _read_branding()
     name = (brand.get("app_name") or "Deepotus").strip().title() or "Deepotus"
