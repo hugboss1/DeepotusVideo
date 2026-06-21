@@ -481,6 +481,30 @@ def _segment_emoji(s: str):
     return units
 
 
+def render_badge_bg_png(w, h, fill_hex, fill_alpha, border_hex, radius, out_path):
+    """Rounded-rectangle pill background (+ optional 2px border) as a
+    transparent PNG, for badge regions. fill_hex/border_hex are 6-char hex
+    (no #). Gives badges rounded corners (ffmpeg drawbox is rectangular)."""
+    from PIL import Image, ImageDraw
+
+    def _rgb(hx):
+        hx = (hx or "000000").lstrip("#")
+        return (int(hx[0:2], 16), int(hx[2:4], 16), int(hx[4:6], 16))
+
+    w, h = max(1, int(w)), max(1, int(h))
+    fa = int(max(0.0, min(1.0, float(fill_alpha))) * 255)
+    rad = max(0, min(int(radius), w // 2, h // 2))
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rounded_rectangle(
+        [0, 0, w - 1, h - 1], radius=rad,
+        fill=(_rgb(fill_hex) + (fa,)),
+        outline=((_rgb(border_hex) + (255,)) if border_hex else None),
+        width=(2 if border_hex else 0))
+    img.save(str(out_path), "PNG")
+    return w, h
+
+
 def render_emoji_text_png(text, font_file, size, color_hex, out_path, stroke=3):
     """Render one line of text + color emojis (bundled Twemoji PNGs) to a
     transparent PNG. ffmpeg drawtext cannot draw color emoji, so emoji regions
@@ -716,18 +740,20 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
                f"color=0x{scol}@1:t=fill[sep{n}]", f"sep{n}")
         elif r["type"] == "badge":
-            # Corner pill: bg box (@opacity) + optional border + centered text.
-            # effect=="pulse" animates the text alpha (the "LIVE" badge).
+            # Rounded pill background (Pillow PNG) + optional border, overlaid.
+            # The text below keeps its own alpha — effect=="pulse" animates it.
             bcol = _hex(r.get("background_color"), "0b0f1a")
             bop = float(r.get("bg_opacity", 0.82))
-            n += 1
-            _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
-               f"color=0x{bcol}@{bop}:t=fill[bd{n}]", f"bd{n}")
             bbor = r.get("border_color")
-            if bbor:
-                n += 1
-                _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
-                   f"color=0x{_hex(bbor)}@1:t=2[bdb{n}]", f"bdb{n}")
+            rad = int(r.get("radius", rh // 2))
+            bgp = work / f"badgebg_{rid}.png"
+            render_badge_bg_png(rw, rh, bcol, bop,
+                                _hex(bbor) if bbor else None, rad, bgp)
+            bgi = _add_input(bgp, still=True)
+            n += 1
+            parts.append(f"[{bgi}:v]format=rgba[bgp{n}]")
+            _w(f"[{cur}][bgp{n}]overlay={rx}:{ry}:eof_action=repeat[bd{n}]",
+               f"bd{n}")
             btxt = r.get("text", "")
             bsize = int(r.get("size", 34))
             btcol = _hex(r.get("color"), "ffffff")
