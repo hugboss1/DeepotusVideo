@@ -322,6 +322,19 @@ class TemplateEngine:
         logger.warning(f"Brand mark asset missing, skipping: {src}")
         return None
 
+    def image_path(self, src: str | None) -> Path | None:
+        """Resolve a sticker image `src` — a bare filename in the images dir
+        (where /images/upload and /images/generate save). Returns None if
+        absent so the renderer degrades gracefully."""
+        if not src:
+            return None
+        safe = Path(str(src)).name
+        p = (settings.images_path / safe).resolve()
+        if p.exists():
+            return p
+        logger.warning(f"Sticker image missing, skipping: {src}")
+        return None
+
     # ----- rendering -----
 
     def render(
@@ -739,6 +752,19 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                              font_name=_font_in_work(r.get("font")),
                              textfile_name=_textfile(btxt), size=bsize,
                              color=btcol, x=bx, y=by, alpha=balpha), f"bdt{n}")
+        elif r["type"] == "sticker":
+            # Corner image overlay (uploaded or AI-generated PNG), scaled to
+            # fit the region box preserving aspect, centered.
+            sp = engine.image_path(r.get("image_src") or r.get("src"))
+            if sp is not None:
+                i = _add_input(sp, still=True)
+                n += 1
+                parts.append(
+                    f"[{i}:v]scale={rw}:{rh}:force_original_aspect_ratio="
+                    f"decrease,format=rgba[stk{n}]")
+                _w(f"[{cur}][stk{n}]overlay="
+                   f"{rx}+({rw}-overlay_w)/2:{ry}+({rh}-overlay_h)/2:"
+                   f"eof_action=repeat[sto{n}]", f"sto{n}")
         elif r["type"] == "ticker":
             _tbgv = r.get("background_color")
             if _tbgv:  # empty/None -> no bar (the "none" background option)
