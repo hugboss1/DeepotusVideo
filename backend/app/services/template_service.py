@@ -702,6 +702,43 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             n += 1
             _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
                f"color=0x{scol}@1:t=fill[sep{n}]", f"sep{n}")
+        elif r["type"] == "badge":
+            # Corner pill: bg box (@opacity) + optional border + centered text.
+            # effect=="pulse" animates the text alpha (the "LIVE" badge).
+            bcol = _hex(r.get("background_color"), "0b0f1a")
+            bop = float(r.get("bg_opacity", 0.82))
+            n += 1
+            _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
+               f"color=0x{bcol}@{bop}:t=fill[bd{n}]", f"bd{n}")
+            bbor = r.get("border_color")
+            if bbor:
+                n += 1
+                _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
+                   f"color=0x{_hex(bbor)}@1:t=2[bdb{n}]", f"bdb{n}")
+            btxt = r.get("text", "")
+            bsize = int(r.get("size", 34))
+            btcol = _hex(r.get("color"), "ffffff")
+            balpha = None
+            if r.get("effect") == "pulse":
+                bsp = float(r.get("effect_speed", 1.2))
+                balpha = f"0.5+0.5*sin(2*PI*t*{bsp})"
+            if _has_emoji(btxt):
+                ep = work / f"emojibd{n}.png"
+                pw, ph = render_emoji_text_png(
+                    btxt, engine.font_path(r.get("font")), bsize, btcol, ep)
+                ox = rx + (rw - pw) // 2
+                oy = ry + (rh - ph) // 2
+                ei = _add_input(ep, still=True)
+                parts.append(f"[{ei}:v]format=rgba[bev{n}]")
+                _w(f"[{cur}][bev{n}]overlay={int(ox)}:{int(oy)}[bdo{n}]",
+                   f"bdo{n}")
+            else:
+                bx = f"{rx}+(({rw})-tw)/2"
+                by = f"{ry}+(({rh})-th)/2"
+                _w(_drawtext(cur, f"bdt{n}",
+                             font_name=_font_in_work(r.get("font")),
+                             textfile_name=_textfile(btxt), size=bsize,
+                             color=btcol, x=bx, y=by, alpha=balpha), f"bdt{n}")
         elif r["type"] == "ticker":
             _tbgv = r.get("background_color")
             if _tbgv:  # empty/None -> no bar (the "none" background option)
