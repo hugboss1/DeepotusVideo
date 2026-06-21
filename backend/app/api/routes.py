@@ -150,6 +150,17 @@ async def render_layout_template(
 
     job_id = str(uuid4())
 
+    if request.source_graph:
+        try:
+            import json as _json
+            gdir = settings.outputs_path / "_graphs"
+            gdir.mkdir(parents=True, exist_ok=True)
+            (gdir / f"{job_id}.json").write_text(
+                _json.dumps(request.source_graph, ensure_ascii=False),
+                encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"source_graph save failed for {job_id}: {e}")
+
     async def _run():
         try:
             await pipeline.render_template(
@@ -169,6 +180,22 @@ async def render_layout_template(
         job_id=job_id,
         message=f"Template render queued. Poll GET /api/jobs/{job_id}.",
     )
+
+
+@router.get("/jobs/{job_id}/graph")
+async def get_job_graph(job_id: str):
+    """The Studio node graph that produced this render (saved at render time),
+    for "Reopen in Studio". 404 if the render had no stored graph (older
+    renders, or non-Studio producers)."""
+    import json as _json
+    safe = Path(job_id).name
+    p = settings.outputs_path / "_graphs" / f"{safe}.json"
+    if not p.is_file():
+        raise HTTPException(404, "No source graph for this render")
+    try:
+        return _json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        raise HTTPException(500, "Graph unreadable")
 
 
 @router.get("/emojis")

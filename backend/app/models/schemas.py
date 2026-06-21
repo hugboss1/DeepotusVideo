@@ -394,6 +394,8 @@ class TemplateRenderRequest(BaseModel):
     template: Optional[dict] = None
     # Human label for the rendered job (queue / "existing" pickers).
     title: Optional[str] = Field(None, max_length=200)
+    # Studio node graph that produced this render (for "Reopen in Studio").
+    source_graph: Optional[dict] = None
 
 
 class TemplateRenderResponse(BaseModel):
