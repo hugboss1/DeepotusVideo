@@ -703,10 +703,12 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
                f"color=0x{scol}@1:t=fill[sep{n}]", f"sep{n}")
         elif r["type"] == "ticker":
-            tbg = _hex(r.get("background_color"), bg)
-            n += 1
-            _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
-               f"color=0x{tbg}@1:t=fill[tk{n}]", f"tk{n}")
+            _tbgv = r.get("background_color")
+            if _tbgv:  # empty/None -> no bar (the "none" background option)
+                tbg = _hex(_tbgv, bg)
+                n += 1
+                _w(f"[{cur}]drawbox=x={rx}:y={ry}:w={rw}:h={rh}:"
+                   f"color=0x{tbg}@1:t=fill[tk{n}]", f"tk{n}")
             speed = float(r.get("speed", 120))
             size = int(r.get("size", 40))
             tcol = _hex(r.get("color"), "00e5ff")
