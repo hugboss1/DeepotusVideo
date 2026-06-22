@@ -551,6 +551,7 @@ async def create_voiceover(request: Request):
     voice = VoiceoverService()
     if not voice.is_enabled():
         raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    voice_id = (payload.get("voice_id") or "").strip() or None
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
         lang = "en"
@@ -560,13 +561,42 @@ async def create_voiceover(request: Request):
     try:
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
-            None, lambda: voice.generate(text=script, output_path=dest, language=lang))
+            None, lambda: voice.generate_long(text=script, output_path=dest,
+                                              language=lang, voice_id=voice_id))
     except Exception as e:
         raise HTTPException(502, f"Voiceover failed: {e}")
     if not dest.is_file():
         raise HTTPException(502, "Voiceover produced no file")
     return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
             "size_kb": dest.stat().st_size // 1024}
+
+
+@router.get("/voices")
+async def list_voices():
+    """List ElevenLabs voices for the Episodes / voiceover voice picker."""
+    if not settings.has_voiceover:
+        return {"voices": [], "enabled": False}
+    try:
+        async with httpx.AsyncClient(timeout=15) as c:
+            r = await c.get("https://api.elevenlabs.io/v1/voices",
+                            headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
+            r.raise_for_status()
+            data = r.json()
+        out = []
+        for v in (data.get("voices") or []):
+            lbl = v.get("labels") or {}
+            out.append({
+                "voice_id": v.get("voice_id"),
+                "name": v.get("name"),
+                "category": v.get("category"),
+                "language": lbl.get("language") or lbl.get("accent"),
+                "labels": lbl,
+                "preview_url": v.get("preview_url"),
+            })
+        return {"voices": out, "enabled": True}
+    except Exception as e:
+        logger.warning(f"ElevenLabs voices fetch failed: {e}")
+        return {"voices": [], "enabled": True, "error": str(e)}
 
 
 @router.post("/videos/upload")

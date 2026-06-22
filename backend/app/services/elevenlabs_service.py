@@ -4,6 +4,10 @@ v1.3.1: Reads voice_ids and settings from persona JSON when available
 (consolidation pack). Falls back to .env settings if persona has no voice_ids.
 """
 import json
+import re
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -28,6 +32,36 @@ def _load_persona_voice_ids(persona_id: str = "deepotus") -> dict:
     except Exception as e:
         logger.warning(f"Could not load persona voice_ids: {e}")
         return {}
+
+
+def _chunk_text(text: str, max_chars: int = 2500) -> list[str]:
+    """Split long narration into <=max_chars chunks on sentence boundaries
+    (ElevenLabs caps text per request). Over-long single sentences are
+    hard-split as a fallback."""
+    text = (text or "").strip()
+    if len(text) <= max_chars:
+        return [text] if text else []
+    units = re.split(r"(?<=[.!?…])\s+", text)
+    chunks: list[str] = []
+    cur = ""
+    for u in units:
+        u = u.strip()
+        if not u:
+            continue
+        while len(u) > max_chars:  # a single giant sentence
+            if cur:
+                chunks.append(cur.strip())
+                cur = ""
+            chunks.append(u[:max_chars])
+            u = u[max_chars:].strip()
+        if len(cur) + len(u) + 1 > max_chars and cur:
+            chunks.append(cur.strip())
+            cur = u
+        else:
+            cur = (cur + " " + u).strip()
+    if cur.strip():
+        chunks.append(cur.strip())
+    return chunks
 
 
 class VoiceoverService:
@@ -110,3 +144,43 @@ class VoiceoverService:
                     f.write(chunk)
         logger.info(f"Voiceover saved: {output_path} ({output_path.stat().st_size // 1024} KB)")
         return output_path
+
+    def generate_long(
+        self,
+        text: str,
+        output_path: Path,
+        language: str = "EN",
+        voice_id: Optional[str] = None,
+        max_chars: int = 2500,
+    ) -> Path:
+        """Synthesize possibly-long narration: chunk on sentence boundaries,
+        TTS each chunk, then concat into a single mp3. Falls back to one
+        generate() call when the text fits in a single request."""
+        chunks = _chunk_text(text, max_chars)
+        if not chunks:
+            raise ValueError("Empty narration text")
+        if len(chunks) == 1:
+            return self.generate(text=chunks[0], output_path=output_path,
+                                  language=language, voice_id=voice_id)
+        tmpdir = Path(tempfile.mkdtemp(prefix="dz_vo_"))
+        try:
+            parts = []
+            for i, ch in enumerate(chunks):
+                part = tmpdir / f"part_{i:03d}.mp3"
+                self.generate(text=ch, output_path=part,
+                              language=language, voice_id=voice_id)
+                parts.append(part)
+            listfile = tmpdir / "concat.txt"
+            listfile.write_text(
+                "".join(f"file '{p.as_posix()}'\n" for p in parts),
+                encoding="utf-8")
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            subprocess.run(
+                ["ffmpeg", "-y", "-f", "concat", "-safe", "0",
+                 "-i", str(listfile), "-c", "copy", str(output_path)],
+                check=True, capture_output=True, timeout=180)
+            logger.info(f"Long narration: {len(chunks)} chunks -> {output_path} "
+                        f"({output_path.stat().st_size // 1024} KB)")
+            return output_path
+        finally:
+            shutil.rmtree(tmpdir, ignore_errors=True)

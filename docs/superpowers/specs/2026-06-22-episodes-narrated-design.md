@@ -55,7 +55,7 @@ Scene {
 |---|---|---|
 | `GET /voices` | **NOUVEAU** | Liste des voix ElevenLabs (pour le sélecteur) |
 | `POST /audio/voiceover` | **EXISTE** (à étendre) | TTS d'un texte → mp3 dans la Librairie. Étendre : texte long (découpe + concat) + `voice_id` |
-| `POST /episodes/scenes` | **NOUVEAU** | `{script, language}` → IA → `[{text, illustration_prompt}]` |
+| `POST /episodes/scenes` | **NOUVEAU** | `{script, language, method:"paragraph"\|"ai"}` → `[{text, illustration_prompt}]`. **paragraph** = découpe locale par paragraphes (gratuit, instantané ; prompts d'illustration dérivés simplement, éditables) ; **ai** = LLM (regroupement + prompts plus fins). Les deux générables et **comparables** avant de figer. |
 | `GET/POST/PUT /episodes`, `GET /episodes/{id}` | **NOUVEAU** | CRUD store JSON |
 | `POST /episodes/{id}/narrate` | **NOUVEAU** | TTS par scène (voice_id, langue) → durées → concat narration complète |
 | `POST /episodes/{id}/render` | **NOUVEAU** | Rend la vidéo chapitre (visuel par scène calé sur sa narration) |
@@ -78,7 +78,7 @@ Scene {
 Réutilise les primitives UI (`ie` sections, `O` fields, `K` boutons, `re` selects, `DzAudioPicker`, le pattern 3-colonnes de News). Étapes via un stepper :
 
 1. **Script & voix** — zone de texte (coller) + bouton « Téléverser .txt » ; sélecteurs **voix** (ElevenLabs) + **langue** ; bouton « Générer la narration » → lecteur audio + durée. Sauve l'épisode.
-2. **Scènes (storyboard)** — liste éditable des scènes (extrait + prompt d'illustration), réordonner / ajouter / supprimer / régénérer le découpage.
+2. **Scènes (storyboard)** — deux modes de découpage **comparables** : **Par paragraphe** (instantané, gratuit) et **Par l'IA** (LLM, plus fin). On génère l'un puis l'autre, on compare les deux découpages côte à côte, puis on **fige** celui retenu. Liste éditable (extrait + prompt d'illustration), réordonner / ajouter / supprimer.
 3. **Illustrations & animation** — par scène : « Générer l'illustration » (modèle d'image courant), choix **Ken Burns / Seedance / fixe**, aperçu. Régénérable individuellement.
 4. **Assemblage & export** — « Assembler l'épisode » → aperçu vidéo → « Envoyer au Scheduler » (préremplit titre/légende/vidéo).
 
