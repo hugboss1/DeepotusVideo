@@ -10,8 +10,56 @@
     <title>Deepotus Video Gen 🐙</title>
     <script type="module" crossorigin src="/assets/index-BEOJX8L5.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-CBtHJYWz.css">
+    <style>
+      #dz-splash{position:fixed;inset:0;z-index:2147483000;background:radial-gradient(ellipse 100% 78% at 50% 120%,#0d4159 0%,#05192b 40%,#01060d 74%);display:flex;align-items:center;justify-content:center;overflow:hidden;opacity:1;transition:opacity .7s ease;font-family:'Space Grotesk','Inter',system-ui,sans-serif}
+      #dz-splash.dz-hide{opacity:0;pointer-events:none}
+      #dz-splash .dz-layer{position:absolute;inset:0;overflow:hidden}
+      #dz-splash .dz-p{position:absolute;bottom:-14px;border-radius:50%;background:#3fe3ff;opacity:0;box-shadow:0 0 6px #2fe6d6;animation:dz-rise linear infinite}
+      @keyframes dz-rise{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}12%{opacity:.85}86%{opacity:.6}100%{transform:translateY(-106vh) translateX(16px) scale(.45);opacity:0}}
+      #dz-splash .dz-stage{position:relative;z-index:3;display:flex;flex-direction:column;align-items:center}
+      #dz-splash .dz-word{margin:16px 0 0;font-size:46px;font-weight:700;letter-spacing:.14em;color:#e3f7f8;text-shadow:0 0 22px rgba(47,230,214,.55),0 0 52px rgba(24,120,160,.4)}
+      #dz-splash .dz-tag{margin:12px 0 0;font-size:12px;letter-spacing:.4em;text-transform:uppercase;color:#5cb3bf}
+      #dz-splash .dz-bar{margin-top:28px;width:190px;height:3px;border-radius:3px;background:rgba(47,230,214,.16);overflow:hidden}
+      #dz-splash .dz-bar i{display:block;height:100%;width:38%;background:linear-gradient(90deg,transparent,#2fe6d6,transparent);animation:dz-sweep 1.5s ease-in-out infinite}
+      @keyframes dz-sweep{0%{transform:translateX(-130%)}100%{transform:translateX(360%)}}
+      #dz-splash .dz-oc{animation:dz-bob 4.6s ease-in-out infinite}
+      @keyframes dz-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+      #dz-splash .dz-eye{animation:dz-blink 3.2s ease-in-out infinite}
+      @keyframes dz-blink{0%,100%{opacity:.65}50%{opacity:1}}
+      @media (prefers-reduced-motion:reduce){#dz-splash .dz-p,#dz-splash .dz-bar i,#dz-splash .dz-oc,#dz-splash .dz-eye,#dz-splash polyline{animation:none}#dz-splash .dz-p{opacity:.4}}
+    </style>
   </head>
   <body class="bg-deep-950 text-slate-100 antialiased">
     <div id="root"></div>
+    <div id="dz-splash" role="status" aria-label="Chargement de Deepotus Video Gen">
+      <div class="dz-layer" id="dz-particles"></div>
+      <svg class="dz-layer" viewBox="0 0 1000 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <polyline points="40,840 230,730 380,775 545,560 720,395 960,190" fill="none" stroke="#4fd67a" stroke-width="3" stroke-linecap="round" opacity="0.5" stroke-dasharray="1500" stroke-dashoffset="1500"><animate attributeName="stroke-dashoffset" values="1500;0" dur="4s" repeatCount="indefinite"/></polyline>
+      </svg>
+      <div class="dz-stage">
+        <svg class="dz-oc" width="150" height="150" viewBox="0 0 240 240" aria-hidden="true">
+          <circle cx="120" cy="112" r="74" fill="#1a6a7a" opacity="0.16"/>
+          <path d="M78 122 C78 80 96 60 120 60 C144 60 162 80 162 122 C162 134 150 140 138 138 C150 154 140 170 126 162 C130 178 116 186 110 172 C104 186 90 178 96 162 C82 170 72 154 84 138 C72 140 78 134 78 122 Z" fill="#0e4d5e"/>
+          <g stroke="#0e4d5e" stroke-width="6" stroke-linecap="round" fill="none">
+            <path d="M96 152 C86 177 78 192 64 202"/><path d="M112 160 C108 187 104 207 98 222"/><path d="M128 160 C132 187 136 207 142 222"/><path d="M144 152 C154 177 162 192 176 202"/>
+          </g>
+          <circle class="dz-eye" cx="108" cy="110" r="7" fill="#2fe6d6"/><circle class="dz-eye" cx="132" cy="110" r="7" fill="#2fe6d6"/>
+          <circle cx="108" cy="110" r="2.6" fill="#02161c"/><circle cx="132" cy="110" r="2.6" fill="#02161c"/>
+        </svg>
+        <div class="dz-word">deepotus</div>
+        <div class="dz-tag">from the deep</div>
+        <div class="dz-bar"><i></i></div>
+      </div>
+    </div>
+    <script>
+      (function(){
+        var P=document.getElementById('dz-particles');
+        if(P){for(var i=0;i<14;i++){var d=document.createElement('div');d.className='dz-p';var sz=2+Math.random()*4;d.style.width=sz+'px';d.style.height=sz+'px';d.style.left=(Math.random()*100)+'%';d.style.animationDuration=(5+Math.random()*6)+'s';d.style.animationDelay=(-Math.random()*9)+'s';P.appendChild(d);}}
+        var s=document.getElementById('dz-splash'),r=document.getElementById('root'),t0=Date.now(),done=false;
+        function hide(){if(done)return;done=true;var wait=Math.max(0,1100-(Date.now()-t0));setTimeout(function(){s.classList.add('dz-hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},800);},wait);}
+        if(r&&window.MutationObserver){var obs=new MutationObserver(function(){if(r.children.length){obs.disconnect();hide();}});obs.observe(r,{childList:true});}
+        setTimeout(hide,9000);
+      })();
+    </script>
   </body>
 </html>
