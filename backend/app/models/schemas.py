@@ -144,6 +144,8 @@ class GenerateRequest(BaseModel):
     seed: Optional[int] = Field(None, description="Reuse a seed for reproducibility")
     prompt_source: PromptSource = PromptSource.TEMPLATE
     voice_mode: Optional[VoiceMode] = Field(None, description="Brand voice mode: oracle/alpha/zen/memer")
+    # Studio node graph that produced this render (for "Reopen in Studio").
+    source_graph: Optional[dict] = None
 
 
 class GenerateResponse(BaseModel):
@@ -201,6 +203,8 @@ class GenerateHeyGenRequest(BaseModel):
     use_avatar_iv: bool = False
     voice_mode: Optional[VoiceMode] = None
     custom_caption: Optional[str] = None
+    # Studio node graph that produced this render (for "Reopen in Studio").
+    source_graph: Optional[dict] = None
 
 
 class CompositionRequest(BaseModel):

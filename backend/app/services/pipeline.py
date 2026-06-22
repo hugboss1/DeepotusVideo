@@ -27,6 +27,20 @@ from app.services.news_illustration import news_illustration_engine
 from app.services.storage import JobRecord, async_session_factory
 
 
+def _save_source_graph(job_id: str, graph) -> None:
+    """Couple a Studio node graph to a render job (for 'Reopen in Studio')."""
+    if not graph:
+        return
+    try:
+        import json
+        gdir = settings.outputs_path / "_graphs"
+        gdir.mkdir(parents=True, exist_ok=True)
+        (gdir / f"{job_id}.json").write_text(
+            json.dumps(graph, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        logger.warning(f"source_graph save failed for {job_id}: {e}")
+
+
 class Pipeline:
     def __init__(self, persona_id: str = "deepotus"):
         self.engine = PromptEngine(persona_id=persona_id)
@@ -83,6 +97,7 @@ class Pipeline:
             )
             session.add(job)
             await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
 
             try:
                 # 1. Build prompt
@@ -260,6 +275,7 @@ class Pipeline:
             )
             session.add(job)
             await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
 
             try:
                 # 1. Build the script (apply voice-mode tone if requested)
