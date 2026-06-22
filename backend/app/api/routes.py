@@ -599,6 +599,48 @@ async def list_voices():
         return {"voices": [], "enabled": True, "error": str(e)}
 
 
+@router.post("/episodes/extract-text")
+async def extract_chapter_text(file: UploadFile = File(...)):
+    """Extract plain text from an uploaded chapter file (.txt / .docx / .pdf)
+    for the Episodes narration. Returns {text, words, chars}."""
+    import io as _io
+    name = (file.filename or "").lower()
+    data = await file.read()
+    if len(data) > 25 * 1024 * 1024:
+        raise HTTPException(400, "File too large (max 25 MB)")
+    text = ""
+    try:
+        if name.endswith(".docx"):
+            import docx
+            doc = docx.Document(_io.BytesIO(data))
+            text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+        elif name.endswith(".pdf"):
+            from pypdf import PdfReader
+            reader = PdfReader(_io.BytesIO(data))
+            parts = []
+            for pg in reader.pages:
+                t = (pg.extract_text() or "").strip()
+                if t:
+                    parts.append(t)
+            text = "\n\n".join(parts)
+        else:  # .txt or unknown → decode as plain text
+            for enc in ("utf-8", "utf-8-sig", "latin-1"):
+                try:
+                    text = data.decode(enc)
+                    break
+                except Exception:
+                    continue
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(422, f"Could not read this file: {e}")
+    text = (text or "").strip()
+    if not text:
+        raise HTTPException(
+            422, "No selectable text found (a scanned PDF is an image — export a text PDF).")
+    return {"text": text, "words": len(text.split()), "chars": len(text)}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
