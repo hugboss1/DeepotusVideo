@@ -469,6 +469,69 @@ async def delete_image_file(filename: str):
     return {"deleted": safe}
 
 
+_AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus"}
+
+
+def _audio_dir() -> Path:
+    """User audio assets (music / SFX / voice), in the stable data dir."""
+    p = settings.images_path.parent / "audio"
+    p.mkdir(parents=True, exist_ok=True)
+    return p
+
+
+@router.get("/audio")
+async def list_audio():
+    """List uploaded audio assets for the Library + Studio audio nodes."""
+    d = _audio_dir()
+    out = []
+    for p in sorted(d.glob("*"), key=lambda f: f.stat().st_mtime, reverse=True):
+        if p.is_file() and p.suffix.lower() in _AUDIO_EXTS:
+            out.append({"name": p.name, "url": f"/api/audio/{p.name}",
+                        "size_kb": p.stat().st_size // 1024})
+    return {"audio": out}
+
+
+@router.post("/audio/upload")
+async def upload_audio(file: UploadFile = File(...)):
+    folder = _audio_dir()
+    safe = Path(file.filename or "audio.mp3").name
+    if not safe or safe in (".", "..") or "/" in safe or "\\" in safe:
+        raise HTTPException(400, "Invalid filename")
+    if Path(safe).suffix.lower() not in _AUDIO_EXTS:
+        raise HTTPException(400, "Unsupported audio format")
+    contents = await file.read()
+    if len(contents) > 50 * 1024 * 1024:
+        raise HTTPException(400, "Audio too large (max 50 MB)")
+    dest = folder / safe
+    dest.write_bytes(contents)
+    return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
+
+
+@router.get("/audio/{filename}")
+async def get_audio_file(filename: str):
+    safe = Path(filename).name
+    p = _audio_dir() / safe
+    try:
+        if not str(p.resolve()).startswith(str(_audio_dir().resolve())) \
+                or not p.is_file():
+            raise HTTPException(404, f"Audio not found: {filename}")
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(404, f"Audio not found: {filename}")
+    return FileResponse(p)
+
+
+@router.delete("/audio/{filename}")
+async def delete_audio_file(filename: str):
+    safe = Path(filename).name
+    p = _audio_dir() / safe
+    if not p.is_file():
+        raise HTTPException(404, f"Audio not found: {filename}")
+    p.unlink()
+    return {"deleted": safe}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
