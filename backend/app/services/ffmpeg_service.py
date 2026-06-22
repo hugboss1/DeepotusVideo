@@ -56,16 +56,35 @@ class FFmpegMerger:
         return dst
 
     @staticmethod
+    def _has_audio(path: Path) -> bool:
+        """True if the media file carries at least one audio stream."""
+        try:
+            r = subprocess.run(
+                ["ffprobe", "-v", "error", "-select_streams", "a",
+                 "-show_entries", "stream=index", "-of", "csv=p=0", str(path)],
+                capture_output=True, text=True, timeout=30)
+            return bool(r.stdout.strip())
+        except Exception:
+            return False
+
+    @staticmethod
     def merge(
         video_path: Path,
         audio_path: Optional[Path],
         output_path: Path,
         loop_audio: bool = False,
+        music_path: Optional[Path] = None,
+        music_volume_db: float = -14.0,
+        keep_video_audio: bool = False,
     ) -> Path:
-        """Merge a video file with an optional audio track.
+        """Merge a video with an optional voiceover and/or looped background music.
 
-        - If audio_path is None: just copies the video as the final output.
-        - Audio is mixed at full volume; original video audio is replaced.
+        - audio_path: a voiceover track streamed over the video.
+        - music_path: a BGM track, looped (`-stream_loop -1`) to fill and mixed
+          in at `music_volume_db`. `-shortest` cuts the output to the video
+          length, so the music always matches the clip duration.
+        - keep_video_audio: mix in the video's own audio too (e.g. a HeyGen
+          avatar speaking) instead of dropping it.
         - Output is H.264/AAC mp4, web-friendly for X.
         """
         if not video_path.exists():
@@ -73,7 +92,10 @@ class FFmpegMerger:
 
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if audio_path is None or not audio_path.exists():
+        has_vo = audio_path is not None and Path(audio_path).exists()
+        has_bgm = music_path is not None and Path(music_path).exists()
+
+        if not has_vo and not has_bgm:
             logger.info(f"No audio — copying video to {output_path}")
             shutil.copy2(video_path, output_path)
             return output_path
@@ -83,31 +105,64 @@ class FFmpegMerger:
                 "ffmpeg not found on PATH. Run scripts/install.ps1 to install it."
             )
 
-        logger.info(f"Merging video + audio → {output_path}")
+        # Fast path: a single voiceover, nothing else → stream-copy video.
+        if has_vo and not has_bgm and not keep_video_audio:
+            cmd = [
+                "ffmpeg", "-y",
+                "-i", str(video_path),
+                "-i", str(audio_path),
+                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+                "-map", "0:v:0", "-map", "1:a:0",
+                "-shortest", "-movflags", "+faststart",
+                str(output_path),
+            ]
+        else:
+            inputs = ["-i", str(video_path)]
+            fc: list[str] = []
+            alabels: list[str] = []
+            idx = 1
+            if keep_video_audio and FFmpegMerger._has_audio(video_path):
+                fc.append("[0:a]aresample=async=1[avid]")
+                alabels.append("[avid]")
+            if has_vo:
+                inputs += ["-i", str(audio_path)]
+                fc.append(f"[{idx}:a]aresample=async=1[avo]")
+                alabels.append("[avo]")
+                idx += 1
+            if has_bgm:
+                inputs += ["-stream_loop", "-1", "-i", str(music_path)]
+                fc.append(f"[{idx}:a]volume={music_volume_db}dB,"
+                          f"aresample=async=1[abg]")
+                alabels.append("[abg]")
+                idx += 1
+            if not alabels:
+                logger.info(f"No usable audio — copying video to {output_path}")
+                shutil.copy2(video_path, output_path)
+                return output_path
+            if len(alabels) > 1:
+                fc.append(f"{''.join(alabels)}amix=inputs={len(alabels)}:"
+                          f"duration=longest:normalize=0[outa]")
+                amap = "[outa]"
+            else:
+                amap = alabels[0]
+            cmd = [
+                "ffmpeg", "-y", *inputs,
+                "-filter_complex", ";".join(fc),
+                "-map", "0:v:0", "-map", amap,
+                "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+                "-shortest", "-movflags", "+faststart",
+                str(output_path),
+            ]
 
-        # Get video duration first to know when to cut audio
-        cmd = [
-            "ffmpeg", "-y",
-            "-i", str(video_path),
-            "-i", str(audio_path),
-            "-c:v", "copy",                  # don't re-encode video
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-map", "0:v:0",
-            "-map", "1:a:0",
-            "-shortest",                      # cut to shortest stream
-            "-movflags", "+faststart",
-            str(output_path),
-        ]
-
+        logger.info(f"Merging → {output_path}")
         try:
             result = subprocess.run(
-                cmd, check=True, capture_output=True, text=True, timeout=120
+                cmd, check=True, capture_output=True, text=True, timeout=180
             )
-            logger.debug(f"ffmpeg stderr: {result.stderr[-500:] if result.stderr else ''}")
+            logger.debug(f"ffmpeg stderr: {result.stderr[-400:] if result.stderr else ''}")
         except subprocess.CalledProcessError as e:
             logger.error(f"ffmpeg failed: {e.stderr}")
-            raise RuntimeError(f"ffmpeg merge failed: {e.stderr[-300:]}") from e
+            raise RuntimeError(f"ffmpeg merge failed: {(e.stderr or '')[-300:]}") from e
 
         logger.info(f"Merge complete: {output_path} ({output_path.stat().st_size // 1024} KB)")
         return output_path

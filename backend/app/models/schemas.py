@@ -146,6 +146,8 @@ class GenerateRequest(BaseModel):
     voice_mode: Optional[VoiceMode] = Field(None, description="Brand voice mode: oracle/alpha/zen/memer")
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
+    # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
+    music: Optional[dict] = None
 
 
 class GenerateResponse(BaseModel):
@@ -205,6 +207,8 @@ class GenerateHeyGenRequest(BaseModel):
     custom_caption: Optional[str] = None
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
+    # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
+    music: Optional[dict] = None
 
 
 class CompositionRequest(BaseModel):

@@ -41,6 +41,26 @@ def _save_source_graph(job_id: str, graph) -> None:
         logger.warning(f"source_graph save failed for {job_id}: {e}")
 
 
+def _resolve_music(music) -> tuple[Path | None, float]:
+    """Resolve a {'file','volume_db'} BGM spec to (audio_dir path, volume_db).
+
+    Returns (None, -14.0) when no/invalid music so callers can pass it through
+    to merge() unconditionally. The file is looked up by basename in the shared
+    audio asset dir (same dir the Library + audio endpoints use)."""
+    vol = -14.0
+    if not music or not isinstance(music, dict) or not music.get("file"):
+        return None, vol
+    try:
+        vol = float(music.get("volume_db", -14) or -14)
+    except (TypeError, ValueError):
+        vol = -14.0
+    mp = settings.images_path.parent / "audio" / Path(str(music["file"])).name
+    if not mp.is_file():
+        logger.warning(f"BGM file not found, skipping: {music.get('file')}")
+        return None, vol
+    return mp, vol
+
+
 class Pipeline:
     def __init__(self, persona_id: str = "deepotus"):
         self.engine = PromptEngine(persona_id=persona_id)
@@ -214,7 +234,9 @@ class Pipeline:
                                    current_step="Merging audio + video",
                                    progress=92)
                 final_dest = settings.outputs_path / "final" / f"{job_id}.mp4"
-                self.merger.merge(video_dest, audio_dest, final_dest)
+                _mus_path, _mus_vol = _resolve_music(request.music)
+                self.merger.merge(video_dest, audio_dest, final_dest,
+                                  music_path=_mus_path, music_volume_db=_mus_vol)
                 await self._update(session, job, final_video_path=str(final_dest))
 
                 # 7. Save caption
@@ -333,9 +355,17 @@ class Pipeline:
                                    progress=80)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
                 await self.heygen.download_video(video_url, video_dest)
+                # Optional looped BGM under the talking avatar (keep its voice).
+                final_path = video_dest
+                _mus_path, _mus_vol = _resolve_music(request.music)
+                if _mus_path is not None:
+                    final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
+                    self.merger.merge(video_dest, None, final_path,
+                                      music_path=_mus_path, music_volume_db=_mus_vol,
+                                      keep_video_audio=True)
                 await self._update(session, job,
                                    video_path=str(video_dest),
-                                   final_video_path=str(video_dest),
+                                   final_video_path=str(final_path),
                                    progress=95)
 
                 # 5. Save caption

@@ -532,6 +532,43 @@ async def delete_audio_file(filename: str):
     return {"deleted": safe}
 
 
+@router.post("/audio/voiceover")
+async def create_voiceover(request: Request):
+    """Synthesize a voiceover (ElevenLabs) and save it as a reusable audio asset.
+
+    Used by Quick's "voix off seule" mode: the script is spoken by the app voice
+    engine and the .mp3 lands in the Library audio dir, selectable in audio nodes.
+    Body: {script, language?: "en"|"fr", name?}.
+    """
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    script = (payload.get("script") or "").strip()
+    if not script:
+        raise HTTPException(400, "Empty script")
+    from app.services.elevenlabs_service import VoiceoverService
+    voice = VoiceoverService()
+    if not voice.is_enabled():
+        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    lang = str(payload.get("language") or "en").lower()
+    if lang not in ("en", "fr"):
+        lang = "en"
+    base = re.sub(r"[^A-Za-z0-9_-]+", "_", str(payload.get("name") or "narration")).strip("_")[:40]
+    fn = f"{base or 'narration'}-{random.randint(100000, 999999)}.mp3"
+    dest = _audio_dir() / fn
+    try:
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(
+            None, lambda: voice.generate(text=script, output_path=dest, language=lang))
+    except Exception as e:
+        raise HTTPException(502, f"Voiceover failed: {e}")
+    if not dest.is_file():
+        raise HTTPException(502, "Voiceover produced no file")
+    return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
+            "size_kb": dest.stat().st_size // 1024}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
