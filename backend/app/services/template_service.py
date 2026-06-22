@@ -643,6 +643,19 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                         mark_inputs.append((r["id"], _add_input(mp, still=True),
                                             {**item, "_j": j}))
 
+    # BGM: a music track (from the audio block), looped + trimmed to the clip
+    # length so it always matches the render duration.
+    music = audio_blk.get("music") or {}
+    music_idx = None
+    if music.get("file"):
+        _mp = settings.images_path.parent / "audio" / Path(str(music["file"])).name
+        if _mp.is_file():
+            inputs.extend(["-stream_loop", "-1", "-i", str(_mp)])
+            music_idx = idx
+            idx += 1
+        else:
+            logger.warning(f"BGM file missing, skipping: {music.get('file')}")
+
     parts = [f"[0:v]format=yuv420p[base]"]
     cur = "base"
     n = 0
@@ -834,12 +847,17 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
 
     parts.append(f"[{cur}]format=yuv420p[outv]")
 
-    has_audio = len(audio_streams) > 0
+    has_audio = len(audio_streams) > 0 or music_idx is not None
     if has_audio:
         alabels = []
         for k, (ai, vol) in enumerate(audio_streams):
             parts.append(f"[{ai}:a]volume={vol},aresample=async=1[av{k}]")
             alabels.append(f"[av{k}]")
+        if music_idx is not None:
+            _mdb = float(music.get("volume_db", -14))
+            parts.append(f"[{music_idx}:a]volume={_mdb}dB,aresample=async=1,"
+                         f"atrim=0:{duration},asetpts=N/SR/TB[amus]")
+            alabels.append("[amus]")
         if len(alabels) > 1:
             parts.append(f"{''.join(alabels)}amix=inputs={len(alabels)}:"
                           f"duration=longest:normalize=0[amx]")
