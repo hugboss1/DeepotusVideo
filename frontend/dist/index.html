@@ -17,18 +17,16 @@
       #dz-hero.dz-on{animation:dz-emerge 1.7s cubic-bezier(.22,.61,.36,1) forwards,dz-float 7s ease-in-out 1.8s infinite}
       @keyframes dz-emerge{from{opacity:0;transform:translateY(17%)}to{opacity:1;transform:translateY(0)}}
       @keyframes dz-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.4%)}}
-      #dz-glow{position:absolute;left:50%;top:30%;width:58vmin;height:58vmin;transform:translate(-50%,-50%);z-index:2;background:radial-gradient(circle,rgba(56,170,255,.15) 0%,transparent 62%);opacity:0}
+      #dz-glow{position:absolute;left:50%;top:31%;width:56vmin;height:56vmin;transform:translate(-50%,-50%);z-index:2;background:radial-gradient(circle,rgba(56,170,255,.15) 0%,transparent 62%);opacity:0}
       #dz-splash.dz-go #dz-glow{animation:dz-breathe 5.5s ease-in-out 1.3s infinite}
-      @keyframes dz-breathe{0%,100%{opacity:.26}50%{opacity:.6}}
+      @keyframes dz-breathe{0%,100%{opacity:.24}50%{opacity:.56}}
       #dz-particles{position:absolute;inset:0;overflow:hidden;z-index:3;transition:opacity .9s ease}
       #dz-splash.dz-logo-in #dz-particles{opacity:0}
       #dz-splash .dz-p{position:absolute;bottom:-14px;border-radius:50%;background:#5fc6ff;opacity:0;box-shadow:0 0 6px #4db5ff;animation:dz-rise linear infinite}
       @keyframes dz-rise{0%{transform:translateY(0) scale(1);opacity:0}12%{opacity:.7}86%{opacity:.4}100%{transform:translateY(-110vh) scale(.4);opacity:0}}
-      #dz-noir{position:absolute;inset:0;z-index:4;background:#01060d;opacity:0;transition:opacity 1.2s ease}
-      #dz-splash.dz-noir-in #dz-noir{opacity:1}
-      #dz-logo{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);z-index:5;text-align:center}
-      #dz-logo .dz-word{margin:0;font-size:50px;font-weight:700;letter-spacing:.15em;color:#eef8ff;text-shadow:0 2px 16px rgba(0,8,18,.7),0 0 30px rgba(74,170,255,.5);opacity:0;transform:translateY(10px)}
-      #dz-logo .dz-ver{margin:10px 0 0;font-size:12px;letter-spacing:.24em;color:#6fa6cf;opacity:0;font-family:'JetBrains Mono',monospace;text-shadow:0 1px 8px rgba(0,8,18,.7)}
+      #dz-logo{position:absolute;left:0;right:0;top:21%;z-index:5;text-align:center}
+      #dz-logo .dz-word{margin:0;font-size:46px;font-weight:700;letter-spacing:.16em;color:#f1f9ff;text-shadow:0 2px 14px rgba(0,8,18,.85),0 0 30px rgba(74,170,255,.55);opacity:0;transform:translateY(8px)}
+      #dz-logo .dz-ver{margin:9px 0 0;font-size:12px;letter-spacing:.24em;color:#9cc6e8;opacity:0;font-family:'JetBrains Mono',monospace;text-shadow:0 1px 8px rgba(0,8,18,.85)}
       #dz-splash.dz-logo-in #dz-logo .dz-word{opacity:1;transform:translateY(0);transition:opacity 1.1s ease,transform 1.1s ease}
       #dz-splash.dz-logo-in #dz-logo .dz-ver{opacity:1;transition:opacity 1s ease .3s}
       @media (prefers-reduced-motion:reduce){#dz-hero{animation:none;opacity:1;transform:none}#dz-glow,#dz-particles .dz-p{animation:none}#dz-glow{opacity:.45}#dz-particles .dz-p{opacity:.35}}
@@ -40,23 +38,18 @@
       <img id="dz-hero" alt="" src="/assets/dz-splash.jpg" onload="this.classList.add('dz-on');document.getElementById('dz-splash').classList.add('dz-go');" onerror="this.style.display='none';document.getElementById('dz-splash').classList.add('dz-go');">
       <div id="dz-glow"></div>
       <div id="dz-particles"></div>
-      <div id="dz-noir"></div>
       <div id="dz-logo"><div class="dz-word">deepotus</div><div class="dz-ver">v1.15.5</div></div>
     </div>
     <script>
       (function(){
         var P=document.getElementById('dz-particles');
         if(P){for(var i=0;i<12;i++){var d=document.createElement('div');d.className='dz-p';var sz=2+Math.random()*4;d.style.width=sz+'px';d.style.height=sz+'px';d.style.left=(Math.random()*100)+'%';d.style.animationDuration=(5.5+Math.random()*6)+'s';d.style.animationDelay=(-Math.random()*9)+'s';P.appendChild(d);}}
-        var s=document.getElementById('dz-splash'),r=document.getElementById('root'),appReady=false,noirDone=false,hidden=false;
-        function tryHide(){
-          if(hidden||!appReady||!noirDone)return;hidden=true;
-          setTimeout(function(){s.classList.add('dz-hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},1050);},350);
-        }
-        setTimeout(function(){s.classList.add('dz-logo-in');},1600);
-        setTimeout(function(){s.classList.add('dz-noir-in');},2700);
-        setTimeout(function(){noirDone=true;tryHide();},3950);
+        var s=document.getElementById('dz-splash'),r=document.getElementById('root'),appReady=false,minDone=false,hidden=false;
+        function tryHide(){if(hidden||!appReady||!minDone)return;hidden=true;setTimeout(function(){s.classList.add('dz-hide');setTimeout(function(){if(s&&s.parentNode)s.parentNode.removeChild(s);},1050);},250);}
+        setTimeout(function(){s.classList.add('dz-logo-in');},1700);
+        setTimeout(function(){minDone=true;tryHide();},3000);
         if(r&&window.MutationObserver){var obs=new MutationObserver(function(){if(r.children.length){obs.disconnect();appReady=true;tryHide();}});obs.observe(r,{childList:true});}
-        setTimeout(function(){appReady=true;tryHide();},12000);
+        setTimeout(function(){appReady=true;tryHide();},10000);
       })();
     </script>
   </body>
