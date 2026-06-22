@@ -429,11 +429,20 @@ class Pipeline:
         async with async_session_factory() as session:
             first_img = next((s.get("image_filename") for s in scenes
                               if s.get("image_filename")), None)
+            # v1.15.6 — capture cost inputs so /cost/usage prices the episode
+            # correctly: N illustrations + the ElevenLabs narration (total
+            # chars). Ken Burns / still motion is local ffmpeg = free, so no
+            # Seedance line (unlike the old default "image + 10s seedance").
+            import json as _json
+            _ep_chars = sum(len((s.get("text") or "")) for s in scenes)
+            _ep_imgs = sum(1 for s in scenes if s.get("image_filename")) \
+                or max(1, len(scenes))
             job = JobRecord(
                 id=job_id, title=(title or "Épisode")[:200],
                 status=JobStatus.QUEUED.value,
                 image_filename=(first_img or "episode")[:255],
                 aspect_ratio="9:16", provider="episode",
+                cost_meta=_json.dumps({"images": _ep_imgs, "chars": _ep_chars}),
                 created_at=datetime.utcnow())
             session.add(job)
             await session.commit()

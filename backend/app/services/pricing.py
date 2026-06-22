@@ -83,6 +83,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"seedance","duration_s":10}
       {"kind":"heygen","chars":300}             -> avatar minutes from char count
       {"kind":"elevenlabs","chars":500}
+      {"kind":"episode","images":6,"chars":4200}  -> N illustrations + narration
       {"kind":"llm","provider":"openai","in_tok":1500,"out_tok":500}
       {"kind":"composition","parts":[op,...]}
       {"kind":"news_reel","items":3,"per_card_s":3.5}
@@ -116,6 +117,25 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         chars = float(op.get("chars", 0))
         lines.append(_line("elevenlabs", "Voiceover", chars, "chars",
                            chars * p["elevenlabs_usd_per_char"]))
+    elif kind == "episode":
+        # Narrated illustrated episode: N illustrations + the ElevenLabs
+        # narration. Ken Burns / still motion is local ffmpeg (free); only
+        # add Seedance if real animated scenes are billed (seedance_s).
+        imgs = int(op.get("images", op.get("scenes", 1)))
+        chars = float(op.get("chars", 0))
+        model = str(op.get("model") or "flux").lower()
+        ilabel, iprov, ikey = _IMAGE_MODELS.get(model, _IMAGE_MODELS["flux"])
+        iunit = p.get(ikey, p["flux_image_usd"])
+        if imgs:
+            lines.append(_line(iprov, f"{ilabel} x{imgs}", imgs, "image",
+                               imgs * iunit))
+        if chars:
+            lines.append(_line("elevenlabs", "Narration", chars, "chars",
+                               chars * p["elevenlabs_usd_per_char"]))
+        sd = float(op.get("seedance_s", 0))
+        if sd:
+            lines.append(_line("fal", "Seedance video", sd, "s",
+                               sd * p["seedance_usd_per_s"]))
     elif kind == "llm":
         prov = op.get("provider", "openai")
         rates = p["llm_usd_per_mtok"].get(prov, p["llm_usd_per_mtok"]["openai"])

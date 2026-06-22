@@ -48,6 +48,8 @@ class JobRecord(Base):
     batch_size: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    # v1.15.6 — JSON cost inputs for /cost/usage (episodes: images + narration chars)
+    cost_meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class ScheduledPost(Base):
@@ -114,6 +116,8 @@ V1_2_NEW_COLUMNS = [
     ("layer_index", "INTEGER"),
     # v1.7.2 additions
     ("title", "VARCHAR(200)"),
+    # v1.15.6 — episode/voiceover cost inputs (JSON: images + narration chars)
+    ("cost_meta", "TEXT"),
 ]
 
 

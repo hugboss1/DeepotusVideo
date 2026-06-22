@@ -2050,6 +2050,15 @@ def _job_to_cost(job, p):
     dur = job.duration_s or 10
     if prov == "heygen":
         return _pricing.estimate({"kind": "heygen", "minutes": max(0.2, dur / 60.0)}, p)
+    if prov == "episode":
+        import json as _json
+        try:
+            meta = _json.loads(job.cost_meta or "{}")
+        except Exception:
+            meta = {}
+        return _pricing.estimate({"kind": "episode",
+                                  "images": int(meta.get("images", 1) or 1),
+                                  "chars": float(meta.get("chars", 0) or 0)}, p)
     return _pricing.estimate({"kind": "campaign", "ops": [
         {"kind": "image"}, {"kind": "seedance", "duration_s": dur}]}, p)
 
