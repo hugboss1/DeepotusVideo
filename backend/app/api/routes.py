@@ -641,6 +641,86 @@ async def extract_chapter_text(file: UploadFile = File(...)):
     return {"text": text, "words": len(text.split()), "chars": len(text)}
 
 
+def _scene_prompt_from(text: str, limit: int = 160) -> str:
+    """Rough illustration prompt for paragraph mode: the first sentence."""
+    m = re.split(r"(?<=[.!?…])\s", text.strip(), maxsplit=1)
+    s = (m[0] if m else text).strip()
+    return (s[:limit].rstrip() + "…") if len(s) > limit else s
+
+
+def _paragraph_scenes(script: str) -> list[dict]:
+    paras = [p.strip() for p in re.split(r"\n\s*\n", script) if p.strip()]
+    if len(paras) <= 1:  # no blank-line paragraphs → fall back to single lines
+        paras = [p.strip() for p in script.splitlines() if p.strip()]
+    return [{"text": p, "illustration_prompt": _scene_prompt_from(p)}
+            for p in paras[:60]]
+
+
+def _ai_scenes(script: str, lang: str) -> list[dict]:
+    from app.services.summarizer import _chat_dispatch
+    langname = "French" if lang.startswith("fr") else "English"
+    n = max(3, min(12, len(script.split()) // 80 + 1))
+    system = ("You are a storyboard director for DEEPOTUS, a deep-sea / abyssal "
+              "themed brand. You split a narrated novel chapter into visual scenes "
+              "and write a vivid image prompt for each. Return ONLY valid JSON.")
+    prompt = (
+        f"Split this chapter into about {n} sequential scenes for a narrated video. "
+        f"For each scene return: \"text\" = the chapter text for that scene, COPIED "
+        f"VERBATIM and in order so concatenating all texts reproduces the chapter; "
+        f"and \"illustration_prompt\" = a vivid cinematic image prompt in {langname} "
+        f"(deep-sea, bioluminescent, atmospheric). Return ONLY a JSON array "
+        f"[{{\"text\":\"...\",\"illustration_prompt\":\"...\"}}].\n\nChapter:\n{script[:12000]}")
+    out, _prov = _chat_dispatch(prompt, system, 4000)
+    if not out:
+        return []
+    txt = out.strip()
+    if txt.startswith("```"):
+        txt = re.sub(r"^```[a-zA-Z]*\n?", "", txt)
+        txt = re.sub(r"\n?```$", "", txt).strip()
+    i, j = txt.find("["), txt.rfind("]")
+    if i >= 0 and j > i:
+        txt = txt[i:j + 1]
+    try:
+        data = json.loads(txt)
+    except Exception:
+        return []
+    scenes = []
+    for it in (data if isinstance(data, list) else []):
+        if isinstance(it, dict) and str(it.get("text") or "").strip():
+            scenes.append({"text": str(it["text"]).strip(),
+                           "illustration_prompt": str(it.get("illustration_prompt") or "").strip()})
+    return scenes
+
+
+@router.post("/episodes/scenes")
+async def episode_scenes(request: Request):
+    """Split a chapter into scenes for the storyboard.
+    Body: {script, language?, method:"paragraph"|"ai"}.
+    Returns {scenes:[{text, illustration_prompt}], method, count}."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    script = (payload.get("script") or "").strip()
+    if not script:
+        raise HTTPException(400, "Empty script")
+    method = (payload.get("method") or "paragraph").lower()
+    lang = str(payload.get("language") or "en").lower()
+    if method == "ai":
+        from app.services.summarizer import available
+        if not available():
+            return {"scenes": [], "method": "ai",
+                    "error": "Aucun LLM configuré (Réglages → clés API). Utilise le découpage par paragraphe."}
+        loop = asyncio.get_running_loop()
+        scenes = await loop.run_in_executor(None, lambda: _ai_scenes(script, lang))
+        if not scenes:
+            return {"scenes": [], "method": "ai",
+                    "error": "Le découpage IA a échoué — réessaie, ou utilise les paragraphes."}
+        return {"scenes": scenes, "method": "ai", "count": len(scenes)}
+    scenes = _paragraph_scenes(script)
+    return {"scenes": scenes, "method": "paragraph", "count": len(scenes)}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).
