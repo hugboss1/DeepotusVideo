@@ -40,12 +40,12 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.15</strong> · <a href="en.html">English version</a></p>
+<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.15.6</strong> · <a href="en.html">English version</a></p>
 
 <div class="lead">
   <p><strong>Vous n'avez jamais touché à un outil de montage ?</strong> Parfait — ce guide est écrit pour vous. Deepotus Video Gen transforme une idée en vidéo verticale prête à poster, sans logiciel à apprendre. Tout tourne <strong>sur votre ordinateur</strong> ; vous branchez vos propres clés API (vous payez vos fournisseurs, pas l'application).</p>
-  <p><strong>Quatre façons de fabriquer une vidéo</strong>, de la plus simple à la plus riche :</p>
-  <p>① une image animée en <strong>clip cinématique</strong> (Seedance) · ② un <strong>avatar qui parle</strong> votre script (HeyGen) · ③ <strong>votre propre vidéo</strong> filmée au téléphone (UGC) · ④ une <strong>composition</strong> qui combine plusieurs sources (Templates ou Studio). Puis le <strong>Scheduler</strong> planifie et publie tout seul.</p>
+  <p><strong>Cinq façons de fabriquer une vidéo</strong>, de la plus simple à la plus riche :</p>
+  <p>① une image animée en <strong>clip cinématique</strong> (Seedance) · ② un <strong>avatar qui parle</strong> votre script (HeyGen) · ③ <strong>votre propre vidéo</strong> filmée au téléphone (UGC) · ④ une <strong>composition</strong> qui combine plusieurs sources (Templates ou Studio) · ⑤ tout un <strong>chapitre de roman narré</strong> transformé en vidéo illustrée (Épisodes). Ajoutez par-dessus <strong>voix off et musique de fond</strong>, puis le <strong>Scheduler</strong> planifie et publie tout seul.</p>
 </div>
 
 <div class="toc">
@@ -55,13 +55,15 @@
   <a href="#c3">3 · Clip cinématique (Seedance)</a><br>
   <a href="#c4">4 · Avatar parlant (HeyGen)</a><br>
   <a href="#c5">5 · Votre propre vidéo (UGC)</a><br>
-  <a href="#c6">6 · Composer — Templates</a><br>
-  <a href="#c7">7 · Composer — Studio (nœuds)</a><br>
-  <a href="#c8">8 · Planifier &amp; publier</a><br>
-  <a href="#c9">9 · Moteurs d'IA (cloud &amp; Ollama)</a><br>
-  <a href="#c10">10 · Connecter vos comptes</a><br>
-  <a href="#c11">11 · Marque blanche</a><br>
-  <a href="#c12">12 · Dépannage &amp; recettes</a>
+  <a href="#c6">6 · Audio, voix off &amp; musique</a><br>
+  <a href="#c7">7 · Épisodes — roman narré</a><br>
+  <a href="#c8">8 · Composer — Templates</a><br>
+  <a href="#c9">9 · Composer — Studio (nœuds)</a><br>
+  <a href="#c10">10 · Planifier &amp; publier</a><br>
+  <a href="#c11">11 · Moteurs d'IA (cloud &amp; Ollama)</a><br>
+  <a href="#c12">12 · Connecter vos comptes</a><br>
+  <a href="#c13">13 · Marque blanche</a><br>
+  <a href="#c14">14 · Dépannage &amp; recettes</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Démarrage &amp; clés API</h2>
@@ -71,14 +73,15 @@
 <div class="step"><span class="n">1</span><div>L'application fonctionne en <strong>BYO keys</strong> (« apportez vos clés ») : vous utilisez vos propres comptes API. Une seule est <strong>obligatoire</strong> pour commencer — <strong>fal.ai</strong> (elle fait les images <em>et</em> les clips vidéo). Créez-la sur <code>fal.ai/dashboard/keys</code>.</div></div>
 <div class="step"><span class="n">2</span><div>Collez vos clés dans <strong>Settings → API keys</strong>, bouton <em>Save</em>, puis redémarrez l'app. Les pastilles en haut à droite (<code>fal</code> / <code>heygen</code> / <code>voice</code>) passent au <strong>vert</strong> quand une clé est active.</div></div>
 <img class="shot" src="img/settings-keys.png" alt="Settings - API keys">
-<p class="cap">Settings → API keys : chaque clé a un champ, un statut et un bouton Save. En bas, la carte <strong>Local LLM (Ollama)</strong> (chapitre 9).</p>
+<p class="cap">Settings → API keys : chaque clé a un champ, un statut et un bouton Save. En bas, la carte <strong>Local LLM (Ollama)</strong> (chapitre 11).</p>
 <h3>Combien ça coûte ? (ordres de grandeur)</h3>
 <table>
   <tr><th>Action</th><th>Service</th><th>Coût indicatif</th></tr>
   <tr><td>Créer une image</td><td>fal.ai (FLUX)</td><td>≈ $0.003</td></tr>
   <tr><td>Clip cinématique 10 s</td><td>fal.ai (Seedance)</td><td>≈ $0.30–0.60</td></tr>
   <tr><td>Avatar parlant 1 min</td><td>HeyGen</td><td>≈ 6 crédits</td></tr>
-  <tr><td>Uploader votre propre vidéo</td><td>—</td><td>gratuit</td></tr>
+  <tr><td>Voix off / narration</td><td>ElevenLabs</td><td>≈ aux caractères · offre gratuite dispo</td></tr>
+  <tr><td>Uploader votre vidéo / son</td><td>—</td><td>gratuit</td></tr>
   <tr><td>Résumé d'actu / plan marketing</td><td>Anthropic / OpenAI / Gemini / Ollama</td><td>≈ $0.01 / gratuit (Ollama)</td></tr>
   <tr><td>Publication Telegram / X</td><td>—</td><td>gratuit / vos crédits X</td></tr>
 </table>
@@ -88,10 +91,10 @@
   <tr><th>Clé API</th><th>Requis ?</th><th>Ce qu'elle débloque</th></tr>
   <tr><td><strong>fal.ai</strong></td><td><strong>Obligatoire</strong></td><td>Images (FLUX) <em>et</em> clips vidéo (Seedance) — la seule clé indispensable pour démarrer.</td></tr>
   <tr><td><strong>HeyGen</strong></td><td>Optionnel</td><td>Avatars parlants (vidéo type ②) et compositions avatar + clip.</td></tr>
-  <tr><td><strong>ElevenLabs</strong></td><td>Optionnel</td><td>Voix off / narration pour vos vidéos UGC.</td></tr>
-  <tr><td><strong>Anthropic, OpenAI ou Gemini</strong><br>(une seule suffit)</td><td>Optionnel</td><td>Résumés d'actu, plans marketing <strong>et scripts réellement écrits par IA</strong> (News &amp; Studio). Sans clé : version déterministe (gabarits de marque).</td></tr>
-  <tr><td><strong>Ollama</strong> (LLM local)</td><td>Optionnel</td><td>Mêmes usages IA que ci-dessus, <strong>100 % local et gratuit</strong> (chapitre 9).</td></tr>
-  <tr><td><strong>X</strong> (4 clés)</td><td>Optionnel</td><td>Publication automatique sur X/Twitter (chapitre 10).</td></tr>
+  <tr><td><strong>ElevenLabs</strong></td><td>Optionnel</td><td>Voix off / narration — pour vos vidéos UGC <strong>et la fonction Épisodes</strong> (chapitre 7), enregistrée directement dans la bibliothèque audio.</td></tr>
+  <tr><td><strong>Anthropic, OpenAI ou Gemini</strong><br>(une seule suffit)</td><td>Optionnel</td><td>Résumés d'actu, plans marketing <strong>et scripts réellement écrits par IA</strong> (News, Studio &amp; storyboards d'Épisodes). Sans clé : version déterministe (gabarits de marque).</td></tr>
+  <tr><td><strong>Ollama</strong> (LLM local)</td><td>Optionnel</td><td>Mêmes usages IA que ci-dessus, <strong>100 % local et gratuit</strong> (chapitre 11).</td></tr>
+  <tr><td><strong>X</strong> (4 clés)</td><td>Optionnel</td><td>Publication automatique sur X/Twitter (chapitre 12).</td></tr>
   <tr><td><strong>Telegram</strong> (bot token)</td><td>Optionnel</td><td>Publication automatique sur un canal Telegram.</td></tr>
 </table>
 <p class="cap">Astuce : commencez avec <strong>fal.ai</strong> seule, puis ajoutez des clés au fur et à mesure que vous explorez avatars, voix off, IA et publication.</p>
@@ -106,12 +109,12 @@
 <div class="step"><span class="n">2</span><div>Cliquez la carte pour l'<strong>activer</strong> — le persona actif est rappelé dans les écrans de génération.</div></div>
 
 <h2 id="c2"><span class="num">2</span>Créer vos premières images</h2>
-<p>Onglet <strong>Library</strong> : votre bibliothèque d'images, de rendus vidéo et de captions. C'est ici que tout atterrit.</p>
+<p>Onglet <strong>Library</strong> : votre bibliothèque d'images, de rendus vidéo, de sons et de captions. C'est ici que tout atterrit.</p>
 <img class="shot" src="img/library.png" alt="Library">
 <p class="cap">Library : créer une image (FLUX), le <strong>gestionnaire de prompt</strong>, <strong>Upload image</strong> et <strong>Upload video</strong> (votre propre clip). Survolez un rendu pour le lire.</p>
 <div class="step"><span class="n">1</span><div>Champ <em>« Describe an image to create »</em> → décrivez en une phrase, Entrée. L'image FLUX (~3 s) atterrit directement dans la bibliothèque.</div></div>
 <div class="step"><span class="n">2</span><div>À court d'inspiration ? Cliquez <strong>Prompt manager</strong> : choisissez des ingrédients (sujet, ambiance, lumière, mouvement…), « Random », ou « Refine with AI », puis <em>Use this prompt</em> — il <strong>remplace</strong> le champ pour un résultat plus personnel.</div></div>
-<div class="step"><span class="n">3</span><div>Vous avez déjà des visuels ? <strong>Upload image</strong> (ou glissez-déposez n'importe où). Pour vos vidéos, voir le chapitre 5.</div></div>
+<div class="step"><span class="n">3</span><div>Vous avez déjà des visuels ? <strong>Upload image</strong> (ou glissez-déposez n'importe où). Pour vos vidéos, voir le chapitre 5 ; pour vos sons, le chapitre 6.</div></div>
 <div class="tip">Exemples de prompts : « mascotte pieuvre rouge néon, fond abyssal, style cinéma » · « graphique de marché stylisé, ambiance bioluminescente » · « trône sous-marin, rayons de lumière, 9:16 ».</div>
 
 <h2 id="c3"><span class="num">3</span>Vidéo type ① — le clip cinématique (Seedance)</h2>
@@ -140,8 +143,8 @@
 
 <p>Le mode <strong>Composition</strong> combine les deux : clip Seedance + avatar HeyGen dans une seule vidéo (séquentiel ou écran partagé). L'<strong>anti-coupure</strong> est automatique : l'avatar finit toujours sa phrase.</p>
 
-<h2 id="c5"><span class="num">5</span>Vidéo type ③ — votre propre vidéo (UGC)<span class="new">NOUVEAU</span></h2>
-<p>Beaucoup de créateurs se filment au téléphone — un selfie, une réaction, un déballage. Deepotus accueille désormais ces clips bruts (<strong>UGC</strong>, <em>user-generated content</em>) et les marie à vos animations.</p>
+<h2 id="c5"><span class="num">5</span>Vidéo type ③ — votre propre vidéo (UGC)</h2>
+<p>Beaucoup de créateurs se filment au téléphone — un selfie, une réaction, un déballage. Deepotus accueille ces clips bruts (<strong>UGC</strong>, <em>user-generated content</em>) et les marie à vos animations.</p>
 <div class="step"><span class="n">1</span><div><strong>Le plus simple :</strong> Library → <strong>Upload video</strong>. Votre clip est importé, sa durée réelle est mesurée, et il apparaît dans l'onglet <em>Renders</em> comme n'importe quel rendu — réutilisable partout (Scheduler, Studio).</div></div>
 <div class="step"><span class="n">2</span><div><strong>Dans le Studio :</strong> faites glisser un nœud <strong>UGC video</strong> sur le canevas, cliquez-le, puis <em>Upload your video</em>. Une miniature peuple le nœud.</div></div>
 <img class="shot" src="img/studio-ugc.png" alt="Studio - composition UGC + durée master">
@@ -150,7 +153,50 @@
 <p>Quand vous activez <strong>⏱ Duration master</strong> sur votre clip, c'est <strong>sa durée réelle</strong> qui commande la vidéo finale. Les animations générées (Seedance) sont alors calibrées autour de votre clip : plus besoin de deviner « combien de secondes ? ». Vous parlez 12 secondes face caméra → la composition fait 12 secondes, votre animation d'illustration suit. C'est l'équivalent, pour vos propres vidéos, de l'anti-coupure des avatars.</p>
 <div class="tip"><strong>Recette éclair :</strong> Studio → starter « UGC + animation » → uploadez votre clip dans le nœud UGC video (master activé) → connectez une Image + Seedance comme moitié animée → <em>Run</em>. Sortie : votre vidéo en bas, l'animation en haut, le tout à la durée de votre clip.</div>
 
-<h2 id="c6"><span class="num">6</span>Vidéo type ④ — composer avec les Templates</h2>
+<h2 id="c6"><span class="num">6</span>Audio, voix off &amp; musique<span class="new">v1.15.6</span></h2>
+<p>Le son fait la vidéo. Deepotus possède désormais tout un <strong>volet audio</strong> : importez vos propres sons, transformez un texte en <strong>voix off</strong>, et posez une <strong>musique de fond</strong> sous n'importe quel rendu.</p>
+
+<h3>La bibliothèque audio</h3>
+<p>La <strong>Library</strong> dispose d'un onglet <strong>Audio</strong> à côté des Images et des Renders. Il rassemble tous les sons : fichiers importés, voix off générées et pistes musicales.</p>
+<div class="step"><span class="n">1</span><div><strong>Importer un son :</strong> le bouton <em>Importer un son</em> (ou glissez-déposez sur l'onglet Audio) → choisissez un <code>.mp3</code> / <code>.wav</code> / <code>.m4a</code> (et plus). Sa durée est mesurée ; il apparaît dans l'onglet Audio, lisible sur place, réutilisable partout.</div></div>
+<div class="step"><span class="n">2</span><div>L'onglet Audio liste aussi chaque <strong>voix off que vous générez</strong> : vos narrations et vos pistes importées vivent côte à côte.</div></div>
+<div class="tip">L'onglet Audio renvoie vers quelques <strong>banques de musique libres de droits</strong> (Pixabay Music, Freesound, Free Music Archive, YouTube Audio Library). N'ajoutez que de la musique que vous avez le droit d'utiliser — Deepotus ne peut pas embarquer de musique sous licence à votre place.</div>
+
+<h3>Voix off (ElevenLabs)</h3>
+<p>Transformez un texte en narration naturelle avec votre clé <strong>ElevenLabs</strong>.</p>
+<div class="step"><span class="n">1</span><div>Dans <strong>Quick</strong>, le bouton <strong>voice</strong> fait basculer HeyGen entre un <strong>avatar parlant</strong> complet et une <strong>voix off seule</strong> (sans visage) — parfait pour narrer par-dessus vos propres visuels.</div></div>
+<div class="step"><span class="n">2</span><div>Choisissez une <strong>voix</strong> et une <strong>langue</strong>, écrivez le texte, générez. La narration est <strong>enregistrée dans la bibliothèque audio</strong>, prête à réutiliser (Studio, Épisodes, Scheduler).</div></div>
+<div class="warn"><strong>Offre gratuite ElevenLabs :</strong> les voix « premade » intégrées (George, Sarah…) fonctionnent via l'API. Les voix personnalisées « library / community » nécessitent un forfait ElevenLabs payant — l'app vous prévient clairement quand une voix choisie est réservée au payant.</div>
+
+<h3>Musique de fond (BGM)</h3>
+<p>Posez un lit musical sous votre vidéo — l'app le mixe pour vous.</p>
+<div class="step"><span class="n">1</span><div><strong>Dans le Studio :</strong> ajoutez un nœud <strong>Piste audio</strong>, choisissez une piste dans la bibliothèque audio (avec un aperçu sur place), réglez son <strong>volume</strong> et activez <strong>boucler sur la durée</strong>. Reliez-le au nœud Render.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Sur le rendu simple aussi :</strong> vous pouvez attacher une piste de fond avant de générer, sans passer par le Studio.</div></div>
+<div class="step"><span class="n">3</span><div>La piste est automatiquement <strong>bouclée ou rognée à la durée exacte</strong> de la vidéo finale, puis mixée sous la voix/le clip. <em>Run</em> — votre rendu revient avec sa musique.</div></div>
+
+<h2 id="c7"><span class="num">7</span>Vidéo type ⑤ — Épisodes (un roman narré → vidéo)<span class="new">v1.15.6</span></h2>
+<p>Vous avez une histoire à raconter — un chapitre, un morceau de lore, un roman en feuilleton. La page <strong>Épisodes</strong> transforme un bloc de texte en <strong>vidéo verticale narrée et illustrée</strong>, scène par scène, prête pour le Scheduler. Ouvrez-la depuis la barre latérale (<strong>Épisodes</strong>). Un stepper cliquable vous guide en quatre étapes.</p>
+
+<h3>Étape 1 — le chapitre &amp; sa narration</h3>
+<div class="step"><span class="n">1</span><div>Donnez un <strong>titre</strong> à l'épisode, puis <strong>collez votre texte</strong> ou <em>téléversez</em> un <code>.txt</code>, <code>.docx</code> ou <code>.pdf</code> — le texte est extrait pour vous.</div></div>
+<div class="step"><span class="n">2</span><div>Choisissez une <strong>voix</strong> et une <strong>langue</strong> (écoutez une voix avec ▶).</div></div>
+<div class="step"><span class="n">3</span><div><em>Générer la narration</em> → tout le chapitre est lu par ElevenLabs et enregistré dans la bibliothèque audio. Les longs chapitres sont découpés puis recousus automatiquement.</div></div>
+
+<h3>Étape 2 — le storyboard (scènes)</h3>
+<p>Une vidéo a besoin de plans. L'app découpe votre chapitre en <strong>scènes</strong>, chacune = un bout de texte + sa propre illustration.</p>
+<div class="step"><span class="n">1</span><div>Choisissez le découpage : <strong>Par paragraphe</strong> (mot pour mot, instantané) ou <strong>Par l'IA</strong> (l'IA regroupe le texte en temps forts visuels et écrit pour chacun un prompt d'illustration riche). Vous pouvez <strong>générer les deux et comparer</strong> avant d'en figer un.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Éditez librement :</strong> ajustez le texte de chaque scène et son prompt d'illustration, réordonnez (↑ ↓), ajoutez ou retirez des scènes (＋ / ✕).</div></div>
+
+<h3>Étape 3 — illustrations &amp; animation</h3>
+<div class="step"><span class="n">1</span><div><em>Générer toutes les illustrations</em> (ou une par une) : une image par scène, avec le modèle d'image de votre choix (FLUX ou GPT Image).</div></div>
+<div class="step"><span class="n">2</span><div>Par scène, choisissez l'<strong>animation</strong> : <strong>Ken Burns</strong> (un lent zoom/travelling cinématique, par défaut), <strong>Seedance</strong> (un vrai clip animé) ou <strong>Image fixe</strong>.</div></div>
+
+<h3>Étape 4 — assembler &amp; envoyer</h3>
+<div class="step"><span class="n">1</span><div><em>Assembler l'épisode</em> : l'illustration de chaque scène est animée par-dessus sa tranche de narration, puis toutes les scènes sont concaténées en une vidéo verticale — suivez-la dans le Job Dock.</div></div>
+<div class="step"><span class="n">2</span><div>Prévisualisez le résultat, puis <em>Envoyer au Scheduler</em> → un brouillon de post sur <strong>YouTube</strong> et <strong>Instagram</strong>, prêt à légender et planifier.</div></div>
+<div class="tip">Un roman en feuilleton ? Gardez le même persona et la même voix sur toute la série pour la cohérence, puis publiez un épisode par jour depuis le Scheduler.</div>
+
+<h2 id="c8"><span class="num">8</span>Vidéo type ④ — composer avec les Templates</h2>
 <p>Onglet <strong>Templates</strong> : des mises en page 9:16 prêtes à l'emploi (news reel + avatar + bandeau de marque, écran partagé, coin PIP, triptyque…). Chaque vignette reflète sa <strong>vraie disposition</strong> de régions — elles sont toutes différentes.</p>
 <img class="shot" src="img/templates.png" alt="Templates">
 <p class="cap">Templates : galerie de layouts (vignettes distinctes), éditeur spatial à droite (glissez les régions ou leurs poignées).</p>
@@ -158,19 +204,19 @@
 <div class="step"><span class="n">2</span><div><em>Save layout</em> enregistre votre version — elle <strong>apparaît aussitôt</strong> dans la galerie. <em>New template</em> en crée un vierge.</div></div>
 <div class="step"><span class="n">3</span><div><em>Open in Studio</em> bascule vers l'éditeur de nœuds pour un montage plus poussé.</div></div>
 
-<h2 id="c7"><span class="num">7</span>Composer avec le Studio (éditeur de nœuds)<span class="new">ENRICHI</span></h2>
+<h2 id="c9"><span class="num">9</span>Composer avec le Studio (éditeur de nœuds)<span class="new">ENRICHI</span></h2>
 <p>Le <strong>Studio</strong> est l'atelier avancé : vous reliez des <em>nœuds</em> (sources → générateurs → montage → rendu) comme une recette visuelle. N'ayez pas peur — on commence toujours par un graphe de démarrage tout prêt.</p>
 <img class="shot" src="img/studio.png" alt="Studio">
 <p class="cap">Studio : la palette de nœuds à gauche, le canevas au centre, l'inspecteur à droite. En haut : <strong>New</strong>, <strong>Preview</strong>, <strong>Run</strong>.</p>
 <h3>Les gestes de base</h3>
 <div class="step"><span class="n">1</span><div><strong>Partir d'un modèle :</strong> dans la palette, section <em>Starter graphs</em>, cliquez « Seedance solo », « Avatar post », « UGC + animation », « News reel » ou « Timeline montage ».</div></div>
 <div class="step"><span class="n">2</span><div><strong>Partir de zéro :</strong> bouton <strong>New</strong> (barre du haut) → un canevas vierge avec juste le nœud de sortie <em>Render</em>. Le panneau de droite affiche le <strong>nom du graphe</strong>, éditable.</div></div>
-<div class="step"><span class="n">3</span><div><strong>Ajouter un nœud — glisser-déposer :</strong> attrapez n'importe quelle entrée de la palette (Image, Seedance, UGC video, Text…) et <strong>lâchez-la sur le canevas</strong>. Le nœud apparaît à l'endroit du lâcher.</div></div>
+<div class="step"><span class="n">3</span><div><strong>Ajouter un nœud — glisser-déposer :</strong> attrapez n'importe quelle entrée de la palette (Image, Seedance, UGC video, Piste audio, Text…) et <strong>lâchez-la sur le canevas</strong>. Le nœud apparaît à l'endroit du lâcher.</div></div>
 <div class="step"><span class="n">4</span><div><strong>Relier :</strong> tirez un trait d'un point de sortie (à droite d'un nœud) vers un point d'entrée (à gauche d'un autre). <strong>Déplacer :</strong> glissez le corps d'un nœud. <strong>Supprimer :</strong> la croix <strong>×</strong> dans l'en-tête du nœud (elle retire aussi ses connexions).</div></div>
 <div class="step"><span class="n">5</span><div><strong>Vérifier puis lancer :</strong> <em>Preview</em> montre les entrées/le rendu ; <em>Run</em> compile le graphe et lance le vrai rendu (suivez-le dans le Job Dock).</div></div>
-<div class="tip">Quand vous choisissez un asset dans un nœud (image de la Library, render existant, votre clip UGC), une <strong>miniature peuple le nœud</strong> : vous voyez d'un coup d'œil ce que l'enchaînement va produire.</div>
+<div class="tip">Quand vous choisissez un asset dans un nœud (image de la Library, render existant, votre clip UGC, une piste audio), une <strong>miniature peuple le nœud</strong> : vous voyez d'un coup d'œil ce que l'enchaînement va produire.</div>
 
-<h2 id="c8"><span class="num">8</span>Planifier &amp; publier votre semaine<span class="new">ENRICHI</span></h2>
+<h2 id="c10"><span class="num">10</span>Planifier &amp; publier votre semaine<span class="new">ENRICHI</span></h2>
 <p>Onglet <strong>Scheduler</strong> : le calendrier de publication, et le cœur du « human-in-the-loop » — <strong>rien ne part sans votre validation</strong> (sauf si vous le décidez).</p>
 <img class="shot" src="img/scheduler.png" alt="Scheduler">
 <p class="cap">Scheduler : semaine/mois, plan IA, import de document, graphe du post + inspecteur à droite.</p>
@@ -181,7 +227,7 @@
 <div class="step"><span class="n">2</span><div><strong>Import doc</strong> : déposez votre planning existant (.md, .docx, .pdf) — transcrit en posts datés, <strong>semaines préservées</strong>.</div></div>
 <img class="shot" src="img/plan-import.png" alt="Import strategy document">
 <p class="cap">« Import doc » : votre document de stratégie devient des posts de calendrier.</p>
-<div class="step"><span class="n">3</span><div><strong>New post</strong> ou <em>+ add post</em> sur un jour : création manuelle.</div></div>
+<div class="step"><span class="n">3</span><div><strong>New post</strong> ou <em>+ add post</em> sur un jour : création manuelle. Les Épisodes atterrissent aussi ici en brouillon (chapitre 7).</div></div>
 <h3>Générer le rendu — avant de poster</h3>
 <p>Sélectionnez un post : l'inspecteur de droite ouvre tout l'atelier du post. Bouton <strong>Produce</strong> : l'app fabrique l'image (FLUX) puis le clip (Seedance) à partir des idées du plan — ou réutilise la source que vous avez choisie. Une <strong>miniature</strong> du rendu apparaît sur le nœud <em>Render</em> du graphe du post, et un <strong>aperçu vidéo</strong> s'affiche dans l'inspecteur : vous voyez le résultat <strong>avant</strong> de cliquer Send ou d'activer Auto.</p>
 <img class="shot" src="img/scheduler-caption.png" alt="Inspecteur de post : caption, emojis, pack Premium">
@@ -193,8 +239,8 @@
 <h3>Auto ou assisté ?</h3>
 <p>Chaque post a un mode. <strong>Assisted</strong> (défaut) : à l'heure dite, le post passe en <code>READY</code> — vous cliquez <em>Send</em>. <strong>Auto</strong> : il part seul sur les canaux connectés (Telegram, X). Statut par couleur : gris = brouillon, cyan = planifié, ambre = prêt, vert = publié, rouge = échec.</p>
 
-<h2 id="c9"><span class="num">9</span>Choisir votre moteur d'IA (cloud &amp; local)<span class="new">v1.15</span></h2>
-<p>Deux usages font appel à un modèle de langage : le <strong>résumé d'actualités</strong> (News) et la <strong>génération de plans marketing</strong> (Scheduler). Depuis la v1.15, vous choisissez le <strong>fournisseur</strong> pour chacun.</p>
+<h2 id="c11"><span class="num">11</span>Choisir votre moteur d'IA (cloud &amp; local)<span class="new">v1.15</span></h2>
+<p>Plusieurs usages font appel à un modèle de langage : le <strong>résumé d'actualités</strong> (News), la <strong>génération de plans marketing</strong> (Scheduler) et les <strong>storyboards d'Épisodes</strong> (le découpage « Par l'IA »). Depuis la v1.15, vous choisissez le <strong>fournisseur</strong> pour chacun.</p>
 <h3>Fournisseurs cloud — Anthropic, OpenAI, Gemini</h3>
 <p>Collez la ou les clés voulues dans <strong>Settings → API keys</strong> : <strong>Anthropic</strong> (Claude), <strong>OpenAI</strong> (GPT) et/ou <strong>Google Gemini</strong>. Il suffit d'<strong>une seule</strong> pour activer le résumé et les plans IA ; renseignez-en plusieurs si vous voulez pouvoir basculer.</p>
 <div class="step"><span class="n">1</span><div>Dans <strong>Settings → Provider defaults</strong>, choisissez par rôle (résumeur, planificateur) le fournisseur à utiliser via un menu déroulant. Un rôle n'est marqué « missing » que si <strong>aucun</strong> de ses fournisseurs possibles n'a de clé.</div></div>
@@ -206,7 +252,7 @@
 <div class="step"><span class="n">2</span><div>Téléchargez un modèle : <code>ollama pull qwen2.5:14b-instruct</code>. <em>Recommandé : 14B ou plus.</em></div></div>
 <div class="step"><span class="n">3</span><div><strong>Settings → API keys → Local LLM (Ollama)</strong> : laissez l'URL par défaut, renseignez le <em>nom du modèle</em>, <em>Save</em>, redémarrez l'app.</div></div>
 
-<h2 id="c10"><span class="num">10</span>Connecter vos comptes (publier)</h2>
+<h2 id="c12"><span class="num">12</span>Connecter vos comptes (publier)</h2>
 <p><strong>Settings → Connected accounts</strong> : les identifiants utilisés par le Scheduler. Tout est stocké localement.</p>
 <img class="shot" src="img/settings-accounts.png" alt="Connected accounts">
 <p class="cap">Connected accounts : statut réel par canal — <span style="color:#178017">auto</span> (publication seule) ou <span style="color:#b8860b">assisted</span> (vous cliquez Send).</p>
@@ -217,25 +263,27 @@
 <h3>X (Twitter)</h3>
 <p>Créez vos 4 clés sur <code>developer.x.com</code> (écriture disponible en pay-per-use) et collez-les. Bouton <em>Verify credentials</em>. <strong>YouTube</strong> et <strong>Instagram</strong> restent en mode assisté.</p>
 
-<h2 id="c11"><span class="num">11</span>Marque blanche (rebrander le studio)</h2>
+<h2 id="c13"><span class="num">13</span>Marque blanche (rebrander le studio)</h2>
 <p><strong>Settings → Branding</strong> : nom, sous-titre, taglines, couleurs et logo s'appliquent au splash, à la barre latérale et à tous les accents de l'app.</p>
 <img class="shot" src="img/settings-branding.png" alt="Settings - Branding">
 <p class="cap">Branding : aperçu en direct du wordmark. Stocké dans le dossier de données — survit aux mises à jour.</p>
 <div class="step"><span class="n">1</span><div>Modifiez le nom, les taglines, la couleur primaire et l'accent.</div></div>
 <div class="step"><span class="n">2</span><div><em>Logo…</em> pour téléverser votre logo (normalisé automatiquement).</div></div>
 <div class="step"><span class="n">3</span><div><em>Save brand</em> — appliqué partout. <em>Reset to deepotus</em> restaure la marque par défaut.</div></div>
+<div class="tip">Votre logo apparaît aussi sur l'<strong>écran de chargement au démarrage</strong> : remplacez-le ici et c'est votre propre logo qui accueille vos utilisateurs à chaque lancement — le studio devient vraiment le vôtre.</div>
 
-<h2 id="c12"><span class="num">12</span>Dépannage</h2>
+<h2 id="c14"><span class="num">14</span>Dépannage</h2>
 <table>
   <tr><th>Symptôme</th><th>Solution</th></tr>
   <tr><td>Pastille <code>down</code> en haut à droite</td><td>Le moteur n'est pas lancé : relancez l'icône Bureau.</td></tr>
   <tr><td>Pastille rouge sur <code>fal</code>/<code>heygen</code>/<code>voice</code></td><td>Clé absente ou invalide : Settings → API keys, corrigez, redémarrez.</td></tr>
   <tr><td>Les avatars HeyGen sont longs à apparaître (ou la liste semble vide au début)</td><td><strong>Normal au tout premier chargement</strong> : HeyGen renvoie 1 000+ avatars et met jusqu'à ~1 min à répondre (lenteur de leur service). L'app précharge la liste au démarrage et la met en cache — patientez une fois, puis c'est instantané. Si le <strong>statut HeyGen</strong> est vert dans Settings, votre clé est bonne : ce n'est ni la clé, ni le réseau, ni l'antivirus.</td></tr>
-  <tr><td>Au redémarrage, clés/bibliothèque « disparues »</td><td>Aucune donnée n'est perdue (elle vit dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relancez l'app proprement via l'icône Bureau ; en v1.14 ce cas est corrigé.</td></tr>
-  <tr><td>Le plan utilise le planificateur intégré</td><td>Aucune clé Anthropic ni modèle Ollama (chapitres 9–10).</td></tr>
+  <tr><td>Une voix renvoie une erreur « paid plan »</td><td>Sur l'offre gratuite ElevenLabs, seules les voix « premade » fonctionnent via l'API ; les voix library/community demandent un forfait ElevenLabs payant. Choisissez une voix premade, ou passez à un forfait payant.</td></tr>
+  <tr><td>Au redémarrage, clés/bibliothèque « disparues »</td><td>Aucune donnée n'est perdue (elle vit dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>). Relancez l'app proprement via l'icône Bureau.</td></tr>
+  <tr><td>Le plan utilise le planificateur intégré</td><td>Aucune clé Anthropic ni modèle Ollama (chapitres 11–12).</td></tr>
   <tr><td>Erreur <code>CERTIFICATE_VERIFY_FAILED</code></td><td>Antivirus qui inspecte le HTTPS — géré automatiquement ; sinon désactivez l'inspection HTTPS.</td></tr>
   <tr><td>« Port 8765 already in use »</td><td>L'app tourne déjà — ouvrez <code>http://127.0.0.1:8765</code>.</td></tr>
-  <tr><td>Où sont mes fichiers ?</td><td>Images : <code>…\DeepotusVideoGenData\assets\images</code> · Vidéos : <code>…\assets\outputs\final</code> · Vos uploads : <code>…\assets\outputs\uploads</code>.</td></tr>
+  <tr><td>Où sont mes fichiers ?</td><td>Images : <code>…\DeepotusVideoGenData\assets\images</code> · Vidéos : <code>…\assets\outputs\final</code> · Vos uploads : <code>…\assets\outputs\uploads</code> · Sons : <code>…\assets\audio</code>.</td></tr>
 </table>
 
 <div class="recipe">
@@ -260,7 +308,14 @@
 <div class="step"><span class="n">3</span><div>Composez dans <strong>Templates</strong> → <em>Send to Scheduler</em> → planifiez ou publiez.</div></div>
 </div>
 
-<div class="footer">Deepotus Video Gen v1.15 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
+<div class="recipe">
+<h3>🍳 Recette D — un épisode de votre roman <span class="new">v1.15.6</span></h3>
+<div class="step"><span class="n">1</span><div><strong>Épisodes</strong> → titre + collez (ou téléversez) le chapitre → choisissez une voix &amp; une langue → <em>Générer la narration</em>.</div></div>
+<div class="step"><span class="n">2</span><div><strong>Par l'IA</strong> (ou Par paragraphe) → relisez les scènes → <em>Générer toutes les illustrations</em> → réglez l'animation de chaque scène (Ken Burns / Seedance).</div></div>
+<div class="step"><span class="n">3</span><div><em>Assembler l'épisode</em> → aperçu → <em>Envoyer au Scheduler</em> (brouillons YouTube + Instagram). Un épisode par jour, et c'est réglé.</div></div>
+</div>
+
+<div class="footer">Deepotus Video Gen v1.15.6 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
 
 </div>
 </body>
