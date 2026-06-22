@@ -721,6 +721,40 @@ async def episode_scenes(request: Request):
     return {"scenes": scenes, "method": "paragraph", "count": len(scenes)}
 
 
+@router.post("/episodes/render")
+async def render_episode(request: Request, background_tasks: BackgroundTasks):
+    """Assemble a narrated illustrated episode (per-scene TTS narration + Ken
+    Burns / still over each scene's image, concatenated into one 9:16 video).
+    Returns a job_id; poll GET /api/jobs/{job_id}.
+    Body: {title, voice_id, language, scenes:[{text, image_filename, motion}]}."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    scenes = payload.get("scenes") or []
+    if not isinstance(scenes, list) or not scenes:
+        raise HTTPException(400, "No scenes to render")
+    if not any((s.get("text") or "").strip() for s in scenes if isinstance(s, dict)):
+        raise HTTPException(400, "Scenes have no narration text")
+    if not settings.has_voiceover:
+        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    job_id = str(uuid4())
+
+    async def _run():
+        try:
+            await pipeline.run_episode(
+                job_id=job_id, title=payload.get("title"),
+                voice_id=(payload.get("voice_id") or "").strip() or None,
+                language=str(payload.get("language") or "en"),
+                scenes=scenes)
+        except Exception as e:
+            logger.exception(f"Episode render {job_id} failed: {e}")
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "job_id": job_id,
+            "message": f"Episode render queued. Poll GET /api/jobs/{job_id}."}
+
+
 @router.post("/videos/upload")
 async def upload_video(file: UploadFile = File(...)):
     """Upload a user-shot video (UGC — e.g. a phone selfie clip).

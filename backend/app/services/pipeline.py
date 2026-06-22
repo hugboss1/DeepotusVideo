@@ -417,6 +417,75 @@ class Pipeline:
 
     # ----- Composition pipeline (v1.4) -----
 
+    async def run_episode(self, *, job_id: str, title=None, voice_id=None,
+                          language: str = "en", scenes: list | None = None) -> str:
+        """Render a narrated illustrated episode: per-scene TTS narration + a
+        Ken Burns (or still) image clip, concatenated into one 9:16 video.
+        Seedance-marked scenes fall back to Ken Burns in v1."""
+        import asyncio
+        import shutil
+        scenes = scenes or []
+        loop = asyncio.get_running_loop()
+        async with async_session_factory() as session:
+            first_img = next((s.get("image_filename") for s in scenes
+                              if s.get("image_filename")), None)
+            job = JobRecord(
+                id=job_id, title=(title or "Épisode")[:200],
+                status=JobStatus.QUEUED.value,
+                image_filename=(first_img or "episode")[:255],
+                aspect_ratio="9:16", provider="episode",
+                created_at=datetime.utcnow())
+            session.add(job)
+            await session.commit()
+            try:
+                work = settings.outputs_path / "_tmp_episode" / job_id
+                if work.exists():
+                    shutil.rmtree(work, ignore_errors=True)
+                work.mkdir(parents=True, exist_ok=True)
+                n = max(1, len(scenes))
+                clips = []
+                for i, sc in enumerate(scenes):
+                    await self._update(
+                        session, job, status=JobStatus.GENERATING_VOICEOVER.value,
+                        current_step=f"Scène {i+1}/{n} — narration",
+                        progress=int(5 + (i / n) * 80))
+                    text = (sc.get("text") or "").strip()
+                    audio_i = work / f"a{i:03d}.mp3"
+                    if text and self.voice.is_enabled():
+                        await loop.run_in_executor(
+                            None, lambda t=text, a=audio_i: self.voice.generate_long(
+                                t, a, language=language, voice_id=voice_id))
+                    dur = self.merger.probe_dur(audio_i) if audio_i.exists() else 0.0
+                    if dur <= 0.1:
+                        dur = 3.0
+                    img = sc.get("image_filename")
+                    img_path = (settings.images_path / img) if img else None
+                    clip_i = work / f"c{i:03d}.mp4"
+                    a_arg = audio_i if audio_i.exists() else None
+                    motion = sc.get("motion") or "kenburns"
+                    await loop.run_in_executor(
+                        None, lambda ip=img_path, a=a_arg, o=clip_i, m=motion, d=dur:
+                        self.merger.scene_clip(ip, a, o, motion=m, dur=d))
+                    clips.append(clip_i)
+                await self._update(session, job, status=JobStatus.MERGING.value,
+                                   current_step="Assemblage de l'épisode", progress=90)
+                final = settings.outputs_path / "final" / f"{job_id}.mp4"
+                await loop.run_in_executor(
+                    None, lambda: self.merger.concat_clips(clips, final))
+                await self._update(
+                    session, job, status=JobStatus.DONE.value,
+                    current_step="Complete", final_video_path=str(final),
+                    progress=100, completed_at=datetime.utcnow())
+                logger.success(f"Episode {job_id} complete -> {final}")
+                shutil.rmtree(work, ignore_errors=True)
+            except Exception as e:
+                logger.exception(f"Episode {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value,
+                                   current_step="Failed", error=str(e),
+                                   completed_at=datetime.utcnow())
+                raise
+        return job_id
+
     async def run_composition(self, request: CompositionRequest) -> tuple[str, str, str]:
         """Generate both clips in parallel, then compose them.
 

@@ -166,3 +166,75 @@ class FFmpegMerger:
 
         logger.info(f"Merge complete: {output_path} ({output_path.stat().st_size // 1024} KB)")
         return output_path
+
+    # ── Episodes: narrated illustrated scenes ──────────────────────────────
+    @staticmethod
+    def probe_dur(path: Path) -> float:
+        """Media duration in seconds (0.0 on any error)."""
+        try:
+            r = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "default=nw=1:nk=1", str(path)],
+                capture_output=True, text=True, timeout=30)
+            return float((r.stdout or "0").strip() or 0)
+        except Exception:
+            return 0.0
+
+    @staticmethod
+    def scene_clip(image, audio, out: Path, *, motion: str = "kenburns",
+                   dur: float = 4.0, w: int = 1080, h: int = 1920,
+                   fps: int = 30, bg: str = "0a0a0a") -> Path:
+        """Render one episode scene: a still image with a slow Ken Burns zoom
+        (or static) over its narration audio, cut to `dur`. If `image` is
+        missing, a solid background is used so the narration still plays."""
+        out.parent.mkdir(parents=True, exist_ok=True)
+        dur = max(0.5, round(float(dur), 3))
+        frames = max(1, int(round(dur * fps)))
+        has_audio = audio is not None and Path(audio).exists()
+        if image and Path(image).exists():
+            if motion == "still":
+                vf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                      f"crop={w}:{h},format=yuv420p")
+            else:  # kenburns (also the v1 fallback for seedance scenes)
+                vf = (f"scale={w*2}:{h*2}:force_original_aspect_ratio=increase,"
+                      f"crop={w*2}:{h*2},zoompan=z='min(zoom+0.0010,1.12)':"
+                      f"d={frames}:s={w}x{h}:fps={fps},format=yuv420p")
+            ins = ["-loop", "1", "-i", str(image)]
+            vfilter = ["-vf", vf]
+        else:
+            ins = ["-f", "lavfi", "-i", f"color=c=0x{bg}:s={w}x{h}:r={fps}"]
+            vfilter = []
+        cmd = ["ffmpeg", "-y", *ins]
+        if has_audio:
+            cmd += ["-i", str(audio)]
+        cmd += vfilter + ["-map", "0:v"]
+        if has_audio:
+            cmd += ["-map", "1:a", "-c:a", "aac", "-b:a", "192k"]
+        else:
+            cmd += ["-an"]
+        cmd += ["-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                "-t", str(dur), "-r", str(fps), "-movflags", "+faststart", str(out)]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300)
+        except subprocess.CalledProcessError as e:
+            raise RuntimeError(f"scene_clip failed: {(e.stderr or '')[-300:]}") from e
+        return out
+
+    @staticmethod
+    def concat_clips(clips: list, out: Path) -> Path:
+        """Concatenate scene clips (same codec params) into the final video."""
+        out.parent.mkdir(parents=True, exist_ok=True)
+        lst = out.with_suffix(".concat.txt")
+        lst.write_text("".join(f"file '{Path(c).as_posix()}'\n" for c in clips),
+                       encoding="utf-8")
+        cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
+               "-c:v", "libx264", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+               "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(out)]
+        try:
+            subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=600)
+        finally:
+            try:
+                lst.unlink()
+            except Exception:
+                pass
+        return out
