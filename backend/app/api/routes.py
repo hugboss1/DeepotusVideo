@@ -198,6 +198,72 @@ async def get_job_graph(job_id: str):
         raise HTTPException(500, "Graph unreadable")
 
 
+# ── Studio named-graph store (v1.15.6): save / reload node graphs by name,
+# separate from the render-time source_graph dump. Lives in the data dir
+# (DATA_ROOT/assets/studio_graphs) so it survives updates/reinstalls.
+def _studio_graphs_dir():
+    d = settings.outputs_path.parent / "studio_graphs"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+@router.get("/studio-graphs")
+async def list_studio_graphs():
+    """Saved Studio graphs (metadata only, newest first)."""
+    import json as _json
+    out = []
+    for f in _studio_graphs_dir().glob("*.json"):
+        try:
+            d = _json.loads(f.read_text(encoding="utf-8"))
+            out.append({"id": d.get("id", f.stem),
+                        "name": d.get("name", f.stem),
+                        "updated_at": d.get("updated_at")})
+        except Exception:
+            continue
+    out.sort(key=lambda g: g.get("updated_at") or "", reverse=True)
+    return {"graphs": out}
+
+
+@router.get("/studio-graphs/{graph_id}")
+async def get_studio_graph(graph_id: str):
+    import json as _json
+    p = _studio_graphs_dir() / f"{Path(graph_id).name}.json"
+    if not p.is_file():
+        raise HTTPException(404, "Graph not found")
+    try:
+        return _json.loads(p.read_text(encoding="utf-8"))
+    except Exception:
+        raise HTTPException(500, "Graph unreadable")
+
+
+@router.post("/studio-graphs")
+async def save_studio_graph(body: dict, request: Request):
+    """Save or overwrite a named Studio graph. Body: {id?, name, graph}."""
+    _require_localhost(request)
+    import json as _json
+    from datetime import datetime as _dtnow
+    graph = body.get("graph")
+    if not isinstance(graph, dict) or not graph.get("nodes"):
+        raise HTTPException(400, "graph (with nodes) is required")
+    gid = (str(body.get("id") or "").strip()) or f"g_{uuid4().hex[:8]}"
+    gid = Path(gid).name
+    name = (str(body.get("name") or graph.get("name") or "Untitled graph").strip())[:120]
+    rec = {"id": gid, "name": name, "graph": graph,
+           "updated_at": _dtnow.utcnow().isoformat()}
+    (_studio_graphs_dir() / f"{gid}.json").write_text(
+        _json.dumps(rec, ensure_ascii=False), encoding="utf-8")
+    return {"id": gid, "name": name}
+
+
+@router.delete("/studio-graphs/{graph_id}")
+async def delete_studio_graph(graph_id: str):
+    p = _studio_graphs_dir() / f"{Path(graph_id).name}.json"
+    if not p.is_file():
+        raise HTTPException(404, "Graph not found")
+    p.unlink()
+    return {"deleted": graph_id}
+
+
 @router.get("/emojis")
 async def list_emojis():
     """Curated native emoji set (categories -> [{e: char, f: png basename}])
