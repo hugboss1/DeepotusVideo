@@ -103,6 +103,11 @@ def _scale_filter(fit: str, w: int, h: int, bg: str) -> str:
     if fit == "crop":
         return (f"scale='if(gt({w},iw),{w},iw)':'if(gt({h},ih),{h},ih)',"
                 f"crop={w}:{h}")
+    if fit == "cover_top":
+        # cover, but anchor the crop to the TOP (keeps a talking head's head
+        # in frame instead of centre-cropping it off).
+        return (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                f"crop={w}:{h}:(iw-{w})/2:0")
     # cover (default)
     return (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
             f"crop={w}:{h}")
