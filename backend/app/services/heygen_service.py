@@ -143,6 +143,16 @@ class HeyGenClient:
         logger.info(
             f"Got {len(avatars)} avatars + {len(norm_tps)} talking photos from HeyGen.")
         out = avatars + norm_tps
+        # Also surface the account's Photo-Avatar GROUPS (the user's *generated*
+        # avatars), which live outside /v2/avatars. Best-effort — a groups
+        # failure must never break the main avatar list.
+        try:
+            group_looks = await self._list_group_looks()
+            if group_looks:
+                logger.info(f"Merged {len(group_looks)} photo-avatar group looks.")
+                out = group_looks + out  # the user's own avatars first
+        except Exception as e:
+            logger.warning(f"Photo-avatar groups not merged: {e}")
         _LIST_CACHE["avatars"] = (time.monotonic(), out)
         return out
 
@@ -176,6 +186,51 @@ class HeyGenClient:
         result = await self._get("/v2/avatar_group.list")
         groups = result.get("avatar_group_list", []) if isinstance(result, dict) else []
         return groups
+
+    async def _list_group_looks(self, *, max_groups: int = 30) -> list[dict]:
+        """Fetch the looks inside the account's photo-avatar groups (the user's
+        generated avatars) and normalise them into the avatar-list shape so they
+        show up in the picker alongside stock/instant avatars."""
+        groups = await self.list_photo_avatar_groups()
+        out: list[dict] = []
+        for grp in groups[:max_groups]:
+            gid = grp.get("id") or grp.get("group_id")
+            if not gid:
+                continue
+            looks = []
+            for path in (f"/v2/avatar_group/{gid}/avatars",
+                         f"/v2/photo_avatar/avatar_group/avatars?group_id={gid}"):
+                try:
+                    res = await self._get(path, timeout=30.0)
+                except Exception:
+                    continue
+                looks = (res.get("avatar_list") or res.get("avatars") or []) \
+                    if isinstance(res, dict) else []
+                if looks:
+                    break
+            gname = grp.get("name") or "Photo avatar"
+            for lk in looks:
+                lid = lk.get("id") or lk.get("avatar_id")
+                if not lid:
+                    continue
+                lname = lk.get("name")
+                # names inside a group are often all identical ("Photo Avatar");
+                # identical avatar_names break find-by-name selection, so fall
+                # back to a short id suffix to keep every entry distinct.
+                disp = (f"{gname} · {lname}" if lname and lname != gname
+                        else f"{gname} ({str(lid)[-5:]})")
+                out.append({
+                    "avatar_id": lid,
+                    "avatar_name": disp,
+                    "name": gname,
+                    "gender": lk.get("gender"),
+                    "preview_image_url": (lk.get("image_url")
+                                          or lk.get("preview_image_url")),
+                    "preview_video_url": lk.get("motion_preview_url"),
+                    "avatar_type": "avatar",
+                    "from_group": True,
+                })
+        return out
 
     # ---------- VIDEO GENERATION ----------
 
