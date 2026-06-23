@@ -2448,6 +2448,33 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     return {"images": saved, "prompt": prompt, "model": "flux"}
 
 
+@router.post("/images/fetch")
+async def fetch_image(body: dict):
+    """Download a remote image URL into the images folder so it's usable as a
+    Studio slot (e.g. a news headline's own image). Body: {url}. -> {filename}."""
+    import httpx as _httpx
+    url = (body.get("url") or "").strip()
+    if not url.startswith(("http://", "https://")):
+        raise HTTPException(400, "A valid image URL is required")
+    try:
+        async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=30.0,
+                                      follow_redirects=True) as client:
+            r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
+            r.raise_for_status()
+    except Exception as e:
+        raise HTTPException(502, f"Image fetch failed: {e}")
+    ct = (r.headers.get("content-type") or "").lower()
+    low = url.lower().split("?")[0]
+    if "image" not in ct and not low.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
+        raise HTTPException(415, "That URL is not an image")
+    ext = ".jpg" if ("jpeg" in ct or "jpg" in ct or low.endswith((".jpg", ".jpeg"))) \
+        else ".webp" if ("webp" in ct or low.endswith(".webp")) else ".png"
+    fname = f"gen_{uuid4().hex[:8]}{ext}"
+    (settings.images_path / fname).write_bytes(r.content)
+    logger.info(f"Fetched image -> {fname} ({len(r.content) // 1024} KB)")
+    return {"filename": fname}
+
+
 @router.get("/image-models")
 async def list_image_models():
     """Image-generation models available given the registered API keys. The
