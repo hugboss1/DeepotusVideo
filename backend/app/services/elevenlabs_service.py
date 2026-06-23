@@ -129,19 +129,23 @@ class VoiceoverService:
             f'Synthesizing voiceover ({language}, voice={vid}, '
             f'stability={v_settings.get("stability")}): "{text[:60]}..."'
         )
-        audio_stream = client.text_to_speech.convert(
-            text=text,
-            voice_id=vid,
-            model_id="eleven_multilingual_v2",
-            output_format="mp3_44100_128",
-            voice_settings=v_settings,
-        )
-
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with output_path.open("wb") as f:
-            for chunk in audio_stream:
-                if chunk:
-                    f.write(chunk)
+        try:
+            audio_stream = client.text_to_speech.convert(
+                text=text,
+                voice_id=vid,
+                model_id="eleven_multilingual_v2",
+                output_format="mp3_44100_128",
+                voice_settings=v_settings,
+            )
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with output_path.open("wb") as f:
+                for chunk in audio_stream:
+                    if chunk:
+                        f.write(chunk)
+        except Exception as e:
+            # Prefix the provider so the UI surfaces a clear, linkable error
+            # for credit / paid-plan / quota failures on ElevenLabs.
+            raise RuntimeError(f"ElevenLabs: {e}") from e
         logger.info(f"Voiceover saved: {output_path} ({output_path.stat().st_size // 1024} KB)")
         return output_path
 

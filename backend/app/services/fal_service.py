@@ -149,12 +149,17 @@ class FalSeedanceClient:
         if end_image_url:
             arguments["end_image_url"] = end_image_url
 
-        result = await fal_client.subscribe_async(
-            endpoint,
-            arguments=arguments,
-            with_logs=True,
-            on_queue_update=lambda update: logger.debug(f"fal.ai update: {update}"),
-        )
+        try:
+            result = await fal_client.subscribe_async(
+                endpoint,
+                arguments=arguments,
+                with_logs=True,
+                on_queue_update=lambda update: logger.debug(f"fal.ai update: {update}"),
+            )
+        except Exception as e:
+            # Provider-prefix so the UI surfaces a clear, linkable error
+            # (credit / quota / billing failures on fal.ai).
+            raise RuntimeError(f"fal.ai: {e}") from e
         logger.info(f"Seedance job complete; result keys: {list(result.keys()) if isinstance(result, dict) else type(result)}")
         return result
 

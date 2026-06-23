@@ -2391,7 +2391,7 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
                     json=payload)
         except Exception as e:
             logger.error(f"OpenAI image gen failed: {e}")
-            raise HTTPException(502, f"Image generation failed: {e}")
+            raise HTTPException(502, f"OpenAI: image generation failed: {e}")
         if resp.status_code != 200:
             logger.error(f"OpenAI image HTTP {resp.status_code}: {resp.text[:300]}")
             raise HTTPException(502, f"OpenAI image error: {resp.text[:200]}")
@@ -2430,7 +2430,7 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         )
     except Exception as e:
         logger.error(f"FLUX generation failed: {e}")
-        raise HTTPException(502, f"Image generation failed: {e}")
+        raise HTTPException(502, f"fal.ai: image generation failed: {e}")
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
     if not urls:
