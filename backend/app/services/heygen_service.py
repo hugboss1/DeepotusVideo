@@ -213,15 +213,27 @@ class HeyGenClient:
             character["avatar_id"] = avatar_id
             character["avatar_style"] = "normal"
 
+        voice_obj = {
+            "type": "text",
+            "input_text": text[:4900],  # API limit ~5000 chars
+            "voice_id": voice_id,
+            "speed": speed,
+        }
+        # SSML pauses: when the script carries <break>/<speak> tags ("Precise"
+        # pacing in the News-script node), flag the voice as SSML so HeyGen
+        # honours the pauses instead of reading the tags aloud. Requires a
+        # voice with support_pause=true (otherwise HeyGen ignores the breaks).
+        _ssml = (text or "").strip()
+        if "<break" in _ssml or _ssml.startswith("<speak"):
+            if not _ssml.startswith("<speak"):
+                _ssml = "<speak>" + _ssml + "</speak>"
+            voice_obj["input_text"] = _ssml[:4900]
+            voice_obj["input_type"] = "ssml"
+
         body = {
             "video_inputs": [{
                 "character": character,
-                "voice": {
-                    "type": "text",
-                    "input_text": text[:4900],  # API limit ~5000 chars
-                    "voice_id": voice_id,
-                    "speed": speed,
-                },
+                "voice": voice_obj,
                 "background": {
                     "type": "color",
                     "value": background_color,
