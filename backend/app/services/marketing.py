@@ -632,6 +632,30 @@ async def _job_video_path(job_id: str | None) -> str | None:
         return j.final_video_path if j else None
 
 
+async def _resolve_post_image(post) -> str | None:
+    """Still image to attach when a post has no video: the explicit
+    source_image first, else the attached render job's image_filename.
+    Returns an absolute path (str) or None. Mirrors the hero-image
+    resolution used by GET /schedule/{id}/preview.png so what the user
+    previews is what actually gets published."""
+    # 1) user-attached / generated still
+    if getattr(post, "source_image", None):
+        cand = settings.images_path / post.source_image
+        if cand.is_file():
+            return str(cand)
+    # 2) the attached render's still frame
+    if getattr(post, "job_id", None):
+        async with async_session_factory() as session:
+            res = await session.execute(
+                select(JobRecord).where(JobRecord.id == post.job_id))
+            job = res.scalar_one_or_none()
+            if job and job.image_filename:
+                cand = settings.images_path / job.image_filename
+                if cand.is_file():
+                    return str(cand)
+    return None
+
+
 def auto_channels() -> set[str]:
     """Channels with a working auto-publish adapter given current keys."""
     out = set()
@@ -653,15 +677,21 @@ async def fire_post(post_id: str) -> dict:
             return {"ok": False, "error": "post not found"}
         channels = [c for c in (post.channels or "").split(",") if c]
         video = await _job_video_path(post.job_id)
+        # When there's no video, attach the post's still image (source_image
+        # or the attached render's frame) so X/Telegram get media, not just
+        # text. The adapters prefer video > image > text.
+        image = None if video else await _resolve_post_image(post)
         sent, errors = [], []
         for ch in channels:
             if ch == "telegram" and settings.has_telegram:
                 ok, detail = await publish_telegram(
-                    post.caption or post.title, video_path=video)
+                    post.caption or post.title,
+                    video_path=video, image_path=image)
                 (sent if ok else errors).append(f"{ch}: {detail}")
             elif ch == "x" and settings.has_x:
                 ok, detail, tid = await publish_x(
-                    post.caption or post.title, video_path=video)
+                    post.caption or post.title,
+                    video_path=video, image_path=image)
                 if ok and tid:
                     post.x_post_id = tid
                 (sent if ok else errors).append(f"{ch}: {detail}")
