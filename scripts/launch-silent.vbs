@@ -30,11 +30,12 @@ If Not fso.FileExists(py) Then
   WScript.Quit 1
 End If
 
-' Already running? Just open the browser.
-If HealthOk() Then
-  shell.Run url, 1, False
-  WScript.Quit 0
-End If
+' A relaunch must ALWAYS run the CURRENT code + the latest backend\.env
+' (saved API keys, channel creds). The old build short-circuited here when a
+' backend was already healthy, so a stale process kept serving old code and
+' saved settings never took effect until python was killed by hand. Instead,
+' stop any existing backend on :8765 first, then start a fresh one below.
+StopExistingBackend()
 
 ' Bundled ffmpeg (installer build): prepend <app>\bin to this process PATH —
 ' the spawned python inherits it.
@@ -80,3 +81,19 @@ Function HealthOk()
   If Err.Number = 0 And req.Status = 200 Then HealthOk = True
   On Error GoTo 0
 End Function
+
+' Stop a previously-launched backend so this run starts fresh. Fast no-op when
+' nothing is listening. Reuses scripts\stop.ps1 (kills the python holding
+' :8765), then waits for the port to free before the caller re-binds it.
+Sub StopExistingBackend()
+  On Error Resume Next
+  If Not HealthOk() Then Exit Sub
+  shell.Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File """ & appDir & "\scripts\stop.ps1""", 0, True
+  Dim tries
+  tries = 0
+  Do While HealthOk() And tries < 20
+    WScript.Sleep 250
+    tries = tries + 1
+  Loop
+  On Error GoTo 0
+End Sub
