@@ -198,6 +198,115 @@ async def get_job_graph(job_id: str):
         raise HTTPException(500, "Graph unreadable")
 
 
+async def _resolve_base_to_path(src):
+    """Resolve the Animation node's `base` source to an absolute clip path.
+
+    Accepts None, an absolute/relative path string, or a slot-source dict
+    ({source_kind:"job", job_id} / {"upload"|"file", upload_filename|file_path|
+    filename}). Mirrors the layout-render slot resolver. Returns a Path or None
+    (None -> the compositor falls back to a solid canvas)."""
+    if not src:
+        return None
+    from app.services.storage import JobRecord, async_session_factory
+    if isinstance(src, str):
+        p = Path(src)
+        if p.is_absolute() and p.exists():
+            return p
+        for d in (settings.images_path, settings.outputs_path):
+            q = d / src
+            if q.exists():
+                return q
+        return None
+    if isinstance(src, dict):
+        kind = src.get("source_kind")
+        jid = src.get("job_id")
+        if jid and kind in (None, "job"):
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, jid)
+            fp = jr and (jr.final_video_path or jr.video_path)
+            if fp and Path(fp).exists():
+                return Path(fp)
+            return None
+        name = src.get("upload_filename") or src.get("filename")
+        if name:
+            for d in (settings.images_path, settings.outputs_path):
+                q = d / name
+                if q.exists():
+                    return q
+        fpth = src.get("file_path")
+        if fpth and Path(fpth).exists():
+            return Path(fpth)
+    return None
+
+
+@router.post("/animate")
+async def animate(body: dict, background_tasks: BackgroundTasks):
+    """Render the Animation node: composite animated elements over a base clip.
+
+    Mirrors the layout-render flow — mint a job id, save the Studio source graph
+    (for "Reopen in Studio"), run the per-frame Pillow+ffmpeg compositor in the
+    background (off the event loop), and register the result as a finished
+    JobRecord so the Job Dock, Library and reopen-in-Studio all work unchanged.
+    Poll GET /api/jobs/{job_id}."""
+    from datetime import datetime as _dtu
+    from app.services.storage import JobRecord, async_session_factory
+    from app.services.animation_service import render_animation
+
+    job_id = str(uuid4())
+    short = job_id[:8]
+    aspect = str(body.get("aspect") or "9:16")
+    out_name = f"anim_{short}.mp4"
+
+    # Save the Studio node graph (same path layout-render uses) for reopen.
+    if body.get("source_graph"):
+        try:
+            gdir = settings.outputs_path / "_graphs"
+            gdir.mkdir(parents=True, exist_ok=True)
+            (gdir / f"{job_id}.json").write_text(
+                json.dumps(body["source_graph"], ensure_ascii=False), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"source_graph save failed for animate {job_id}: {e}")
+
+    # Pre-register a job so GET /api/jobs shows it immediately.
+    async with async_session_factory() as session:
+        session.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=(body.get("title") or "Animation"), image_filename=out_name,
+            aspect_ratio=aspect, provider="animation", current_step="Animating",
+        ))
+        await session.commit()
+
+    async def _run():
+        try:
+            base = await _resolve_base_to_path(body.get("base"))
+            payload = {**body, "base": (str(base) if base else None), "aspect": aspect}
+            out = await asyncio.to_thread(render_animation, payload, short)
+            dur = _probe_seconds(str(out)) or float(body.get("duration_s") or 0)
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.final_video_path = str(out)
+                jr.video_path = str(out)
+                jr.image_filename = out.name
+                jr.duration_s = int(round(dur)) if dur else None
+                jr.current_step = "Complete"
+                jr.completed_at = _dtu.utcnow()
+                await session.commit()
+        except Exception as e:
+            logger.exception(f"animate job {job_id} failed: {e}")
+            async with async_session_factory() as session:
+                jr = await session.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await session.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued"}
+
+
 # ── Studio named-graph store (v1.15.6): save / reload node graphs by name,
 # separate from the render-time source_graph dump. Lives in the data dir
 # (DATA_ROOT/assets/studio_graphs) so it survives updates/reinstalls.

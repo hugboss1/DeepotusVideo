@@ -151,6 +151,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         dur = items * per
         lines.append(_line("fal", "News reel (ffmpeg)", dur, "s", 0.0))  # local ffmpeg = free
         # the cards usually reuse fetched images; add nothing unless generating
+    elif kind == "animate":
+        # Animation node: per-frame Pillow + ffmpeg, all local compute, no
+        # external API -> $0 (kept in the breakdown so the cost pill is honest).
+        dur = float(op.get("duration_s", 8))
+        lines.append(_line("local", "Animation (ffmpeg)", dur, "s", 0.0))
     elif kind == "marketing_plan":
         posts = int(op.get("posts", 1))
         _img = {"kind": "image"}
