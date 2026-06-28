@@ -78,16 +78,39 @@ def lerp(a: float, b: float, e: float) -> float:
     return a + (b - a) * e
 
 
+def kfs_of(el: dict):
+    """Normalize an element to a sorted keyframe list. Accepts the Phase-2
+    `keyframes[]` shape or synthesizes one from the legacy `from`/`to`."""
+    kfs = el.get("keyframes")
+    if isinstance(kfs, list) and len(kfs) >= 2:
+        return sorted(kfs, key=lambda k: float(k.get("t", 0)))
+    f = el.get("from", {})
+    to = el.get("to", {})
+    base = {k: 0 for k in _KEYS}
+    k0 = {**base, **f, "t": 0.0, "easing": el.get("easing", "linear")}
+    k1 = {**base, **to, "t": 1.0}
+    return [k0, k1]
+
+
 def transform_at(el: dict, t: float):
     start = float(el.get("start", 0))
     dur = max(1e-3, float(el.get("dur", 1)))
     hold = float(el.get("hold", 0))
     if t < start or t > start + dur + hold:
         return None
+    kfs = kfs_of(el)
     u = (t - start) / dur
-    e = 1.0 if u >= 1 else ease(el.get("easing", "linear"), u)
-    f, to = el["from"], el["to"]
-    return {k: lerp(float(f[k]), float(to[k]), e) for k in _KEYS}
+    if u >= 1:
+        last = kfs[-1]
+        return {k: float(last[k]) for k in _KEYS}
+    i = 0
+    while i < len(kfs) - 2 and u > float(kfs[i + 1]["t"]):
+        i += 1
+    a, b = kfs[i], kfs[i + 1]
+    ta, tb = float(a["t"]), float(b["t"])
+    span = max(1e-9, tb - ta)
+    e = ease(a.get("easing", "linear"), (u - ta) / span)
+    return {k: lerp(float(a[k]), float(b[k]), e) for k in _KEYS}
 
 
 def _hex(c: str):

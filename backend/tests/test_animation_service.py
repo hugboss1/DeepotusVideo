@@ -73,3 +73,45 @@ def test_ease_cubic_bezier_midpoint_decelerates():
 def test_ease_bezier_unknown_falls_back_linear():
     from app.services.animation_service import ease
     assert abs(ease("cubic-bezier(bad)", 0.5) - 0.5) < 1e-9
+
+
+def test_kfs_of_legacy_from_to():
+    from app.services.animation_service import kfs_of
+    el = {"from": {"x": 0, "y": 0, "scale": 0, "rotation": 0, "opacity": 0},
+          "to": {"x": 100, "y": 50, "scale": 1, "rotation": 90, "opacity": 1}, "easing": "easeOut"}
+    kfs = kfs_of(el)
+    assert len(kfs) == 2 and kfs[0]["t"] == 0 and kfs[1]["t"] == 1
+    assert kfs[0]["x"] == 0 and kfs[1]["x"] == 100 and kfs[0]["easing"] == "easeOut"
+
+
+def test_kfs_of_sorts_keyframes():
+    from app.services.animation_service import kfs_of
+    el = {"keyframes": [{"t": 1, "x": 9}, {"t": 0, "x": 1}, {"t": 0.5, "x": 5}]}
+    ts = [k["t"] for k in kfs_of(el)]
+    assert ts == [0, 0.5, 1]
+
+
+def test_transform_at_multi_keyframe():
+    from app.services.animation_service import transform_at
+    el = {"start": 0, "dur": 2, "hold": 0, "keyframes": [
+        {"t": 0, "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 0, "easing": "linear"},
+        {"t": 0.5, "x": 100, "y": 0, "scale": 1, "rotation": 0, "opacity": 1, "easing": "linear"},
+        {"t": 1, "x": 0, "y": 0, "scale": 1, "rotation": 0, "opacity": 0}]}
+    a = transform_at(el, 0.5)
+    assert abs(a["x"] - 50) < 1e-6 and abs(a["opacity"] - 0.5) < 1e-6
+    b = transform_at(el, 1.0)
+    assert abs(b["x"] - 100) < 1e-6
+    c = transform_at(el, 1.5)
+    assert abs(c["x"] - 50) < 1e-6
+
+
+def test_transform_at_legacy_unchanged():
+    from app.services.animation_service import transform_at
+    el = {"start": 1, "dur": 1, "hold": 1, "easing": "linear",
+          "from": {"x": 0, "y": 0, "scale": 0, "rotation": 0, "opacity": 0},
+          "to": {"x": 100, "y": 50, "scale": 1, "rotation": 90, "opacity": 1}}
+    assert transform_at(el, 0.5) is None
+    mid = transform_at(el, 1.5)
+    assert abs(mid["x"] - 50) < 1e-6 and abs(mid["opacity"] - 0.5) < 1e-6
+    assert transform_at(el, 2.5) == {"x": 100, "y": 50, "scale": 1, "rotation": 90, "opacity": 1}
+    assert transform_at(el, 5.0) is None
