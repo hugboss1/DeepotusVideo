@@ -150,8 +150,8 @@ var MF=x.useState({}),manifests=MF[0],setManifests=MF[1];
 var RT=x.useState({}),rot=RT[0],setRot=RT[1];
 var BZ=x.useState(!1),busy=BZ[0],setBusy=BZ[1];
 var PP=x.useState({engine:"tripo",image_filename:"",subject:"",multiview:!1,views:3,textures:!0,tpose:!1,formats:["glb"]}),p=PP[0],setPP=PP[1];
-function set(k,v){setPP(function(o){var n=Object.assign({},o);n[k]=v;return n})}
-function refresh(){fetch("/api/jobs").then(function(r){return r.json()}).then(function(a){var L=(a||[]).filter(function(z){return z.provider==="asset3d"});setJobs(L);L.forEach(function(z){var sh=z.job_id.slice(0,8);if(z.status==="done"&&!manifests[sh]){fetch("/api/assets/3d/"+sh+"/manifest").then(function(r){return r.ok?r.json():null}).then(function(m){if(m)setManifests(function(o){var n=Object.assign({},o);n[sh]=m;return n})}).catch(function(){})}})}).catch(function(){})}
+var MO=x.useState("form"),mode=MO[0],setMode=MO[1];var AJ=x.useState(null),activeJob=AJ[0],setActiveJob=AJ[1];function set(k,v){setPP(function(o){var n=Object.assign({},o);n[k]=v;return n})}
+function refresh(){fetch("/api/jobs").then(function(r){return r.json()}).then(function(a){var L=(a||[]).filter(function(z){return z.provider==="asset3d"});setJobs(L);L.forEach(function(z){var sh=z.job_id.slice(0,8);if((z.status==="done"&&!manifests[sh])||z.status==="generating_video"){fetch("/api/assets/3d/"+sh+"/manifest").then(function(r){return r.ok?r.json():null}).then(function(m){if(m)setManifests(function(o){var n=Object.assign({},o);n[sh]=m;return n})}).catch(function(){})}})}).catch(function(){})}
 x.useEffect(function(){refresh();fetch("/api/images").then(function(r){return r.json()}).then(function(a){setImgs(((a&&a.images)||[]).slice(0,60))}).catch(function(){});var t=setInterval(refresh,4e3);return function(){clearInterval(t)}},[]);
 var ENG=[{value:"tripo",label:"Tripo3D v2.5 — game-ready topology, broad export (~$0.30)"},{value:"hunyuan",label:"Hunyuan3D — cleanest geometry (~$0.16–0.48)"},{value:"trellis",label:"TRELLIS — best textures (~$0.16–0.50)"},{value:"rodin",label:"Hyper3D Rodin — pro realism ($0.40)"},{value:"triposr",label:"TripoSR — fastest/cheapest ($0.07)"},{value:"meshy",label:"Meshy 6 — needs API key (Settings)"}];
 var FMTS=[["glb","Blender/Web"],["fbx","Unity/Unreal"],["obj","Universal"],["stl","3D printing"],["usdz","AR/USD"]];
@@ -159,7 +159,7 @@ function toggleFmt(fm){if(fm==="glb")return;set("formats",p.formats.indexOf(fm)>
 var RATES={tripo:p.textures?.3:.2,triposr:.07,hunyuan:p.textures?.48:.16,trellis:.35,rodin:.4,meshy:.35};
 var cost=(RATES[p.engine]||.3)+(p.multiview?p.views*.03:0);
 var meshyNoKey=p.engine==="meshy";
-function gen(){if(!p.image_filename||busy||meshyNoKey)return;setBusy(!0);fetch("/api/assets/3d",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).then(function(r){return r.json()}).then(function(){setTimeout(function(){setBusy(!1);refresh()},1500)}).catch(function(){setBusy(!1)})}
+function gen(){if(!p.image_filename||busy||meshyNoKey)return;setBusy(!0);fetch("/api/assets/3d",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(p)}).then(function(r){return r.json()}).then(function(j){setBusy(!1);setActiveJob({job_id:j.job_id,short:(j.job_id||"").slice(0,8),views:p.multiview?p.views:0,engine:p.engine});setMode("canvas");refresh()}).catch(function(){setBusy(!1)})}
 function saveShot(sh,i){fetch("/api/assets/3d/"+sh+"/shot/"+i+"/save",{method:"POST"}).then(function(r){return r.json()}).catch(function(){})}
 var picker=r.jsx("div",{style:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(58px,1fr))",gap:6,maxHeight:150,overflowY:"auto",padding:4,border:"1px solid var(--stroke)",borderRadius:8},children:imgs.map(function(im){var sel=p.image_filename===im.filename;return r.jsx("img",{src:D.imageUrl(im.filename),title:im.filename,onClick:function(){set("image_filename",im.filename)},style:{width:"100%",height:58,objectFit:"cover",borderRadius:6,cursor:"pointer",border:sel?"2px solid var(--cyan)":"2px solid transparent"}},im.filename)})});
 var panel=r.jsxs("div",{style:{background:"var(--surface-2)",border:"1px solid var(--stroke)",borderRadius:12,padding:16,marginBottom:24},children:[
@@ -181,7 +181,7 @@ var panel=r.jsxs("div",{style:{background:"var(--surface-2)",border:"1px solid v
 ]});
 var cards=jobs.map(function(z){var sh=z.job_id.slice(0,8),mf=manifests[sh]||{formats:[],shots:[]},done=z.status==="done",fail=z.status==="failed";
  return r.jsxs("div",{style:{background:"var(--bg-panel-2)",border:"1px solid var(--stroke)",borderRadius:12,padding:12,display:"flex",flexDirection:"column",gap:8},children:[
-  r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsx("span",{style:{fontSize:12,fontFamily:"var(--f-mono)",color:"var(--ink-strong)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"},children:z.title||("3D · "+sh)}),r.jsx("span",{style:{fontSize:10,color:fail?"var(--red)":done?"var(--green)":"var(--amber)"},children:fail?"failed":done?"done":"generating…"})]}),
+  r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8},children:[r.jsx("span",{onClick:function(){setActiveJob({job_id:z.job_id,short:sh,views:(mf.shots||[]).filter(function(x9){return x9>0}).length,engine:(z.title||"").replace("3D · ","")});setMode("canvas")},style:{fontSize:12,fontFamily:"var(--f-mono)",color:"var(--ink-strong)",flex:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",cursor:"pointer"},children:z.title||("3D · "+sh)}),r.jsx("span",{style:{fontSize:10,color:fail?"var(--red)":done?"var(--green)":"var(--amber)"},children:fail?"failed":done?"done":"generating…"})]}),
   r.jsx("div",{style:{position:"relative",width:"100%",height:240,borderRadius:8,overflow:"hidden",background:"#0b1016"},children:(done&&rot[sh])?r.jsx("model-viewer",{src:"/api/assets/3d/"+sh+"/glb","camera-controls":!0,"auto-rotate":!0,"shadow-intensity":"1",style:{width:"100%",height:"100%",background:"#0b1016"}}):r.jsx("img",{src:"/api/assets/3d/"+sh+"/shot/0",style:{width:"100%",height:"100%",objectFit:"contain"}})}),
   done?r.jsxs("div",{style:{display:"flex",flexWrap:"wrap",gap:6,alignItems:"center"},children:[
    r.jsx("button",{onClick:function(){setRot(function(o){var n=Object.assign({},o);n[sh]=!n[sh];return n})},style:{fontSize:11,padding:"4px 8px",borderRadius:6,cursor:"pointer",background:"var(--surface-2)",border:"1px solid var(--stroke)",color:"var(--ink)"},children:rot[sh]?"▣ Poster":"▶ Rotate"}),
@@ -189,7 +189,39 @@ var cards=jobs.map(function(z){var sh=z.job_id.slice(0,8),mf=manifests[sh]||{for
   ]}):null,
   (done&&(mf.shots||[]).length)?r.jsxs("div",{children:[r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",margin:"4px 0"},children:"Shots"}),r.jsx("div",{style:{display:"flex",gap:6,flexWrap:"wrap"},children:(mf.shots||[]).map(function(i){return r.jsxs("div",{style:{width:54,textAlign:"center"},children:[r.jsx("img",{src:"/api/assets/3d/"+sh+"/shot/"+i,style:{width:54,height:54,objectFit:"cover",borderRadius:6,border:"1px solid var(--stroke)"}}),r.jsxs("div",{style:{display:"flex",gap:3,justifyContent:"center",marginTop:2},children:[r.jsx("a",{href:"/api/assets/3d/"+sh+"/shot/"+i,download:!0,title:"Download shot",style:{fontSize:11,textDecoration:"none",color:"var(--cyan)"},children:"↓"}),r.jsx("span",{onClick:function(){saveShot(sh,i)},title:"Save to Library",style:{fontSize:11,cursor:"pointer",color:"var(--ink-soft)"},children:"★"})]})]},i)})})]}):null
  ]},z.job_id)});
-return r.jsxs("div",{style:{padding:24,maxWidth:1100,margin:"0 auto"},children:[
+function nodeColor(st){return st==="done"?"var(--cyan)":st==="run"?"var(--amber)":st==="fail"?"var(--red)":"var(--stroke)"}
+function canvasView(){
+var job=jobs.find(function(z){return z.job_id===activeJob.job_id})||{status:"generating_video",current_step:"",error:""};
+var sh=activeJob.short,mf=manifests[sh]||{shots:[],formats:[]},st=job.status,term=(st==="done"||st==="failed");
+function has(i){return (mf.shots||[]).indexOf(i)>=0}
+var glb=(mf.formats||[]).indexOf("glb")>=0,nv=activeJob.views||0;
+var allV=!0;for(var q=1;q<=nv;q++){if(!has(q))allV=!1}
+var inSt=has(0)?"done":"run";
+function vSt(i){return has(i)?"done":st==="failed"?"fail":"run"}
+var engSt=glb?"done":st==="failed"?"fail":(allV&&!term?"run":term?"fail":"pend");
+var respSt=st==="done"?"done":st==="failed"?"fail":"pend";
+var NW=158,NH=150,cx=[24,232,452,684],rows=Math.max(1,nv),H=Math.max(230,rows*(NH+26)),W=cx[3]+NW+24;
+var nodes=[{id:"in",x:cx[0],y:H/2-NH/2,kind:"img",i:0,label:"Input",st:inSt}];
+for(var i=1;i<=nv;i++)nodes.push({id:"v"+i,x:cx[1],y:(i-1)*(NH+26)+(H-rows*(NH+26))/2,kind:"img",i:i,label:"View "+i,st:vSt(i)});
+nodes.push({id:"eng",x:cx[2],y:H/2-NH/2,kind:"eng",label:activeJob.engine,st:engSt});
+nodes.push({id:"resp",x:cx[3],y:H/2-NH/2,kind:"resp",label:"Response",st:respSt});
+var byId={};nodes.forEach(function(n){byId[n.id]=n});
+var edges=[];
+if(nv){for(var i=1;i<=nv;i++){edges.push(["in","v"+i,vSt(i)]);edges.push(["v"+i,"eng",engSt])}}else{edges.push(["in","eng",engSt])}
+edges.push(["eng","resp",respSt]);
+function pth(a,b){var x1=a.x+NW,y1=a.y+NH/2,x2=b.x,y2=b.y+NH/2,dx=(x2-x1)/2;return "M"+x1+" "+y1+" C"+(x1+dx)+" "+y1+" "+(x2-dx)+" "+y2+" "+x2+" "+y2}
+var svg=r.jsx("svg",{width:W,height:H,style:{position:"absolute",left:0,top:0,pointerEvents:"none"},children:edges.map(function(e,k){var a=byId[e[0]],b=byId[e[1]],run=e[2]==="run";return r.jsx("path",{d:pth(a,b),fill:"none",stroke:run?"var(--amber)":e[2]==="done"?"var(--cyan)":"var(--stroke)",strokeWidth:2,strokeDasharray:run?"6 5":"none",style:run?{animation:"dzdash 1s linear infinite"}:void 0},k)})});
+var cards=nodes.map(function(n){
+var content;
+if(n.kind==="img")content=n.st==="done"?r.jsx("img",{src:"/api/assets/3d/"+sh+"/shot/"+n.i,style:{width:"100%",height:96,objectFit:"cover",borderRadius:6}}):r.jsx("div",{style:{height:96,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--ink-soft)",fontSize:11,animation:n.st==="run"?"dzpulse 1.2s ease-in-out infinite":void 0},children:n.st==="run"?"…generating":"waiting"});
+else if(n.kind==="eng")content=r.jsx("div",{style:{height:96,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,color:"var(--ink)",animation:n.st==="run"?"dzpulse 1.2s ease-in-out infinite":void 0},children:n.st==="run"?"⏳ "+n.label:n.st==="done"?"✓ "+n.label:n.label});
+else content=respSt==="done"?(rot[sh]?r.jsx("model-viewer",{src:"/api/assets/3d/"+sh+"/glb","camera-controls":!0,"auto-rotate":!0,style:{width:"100%",height:96,background:"#0b1016",borderRadius:6}}):r.jsx("img",{src:"/api/assets/3d/"+sh+"/shot/0",style:{width:"100%",height:96,objectFit:"contain"}})):r.jsx("div",{style:{height:96,display:"flex",alignItems:"center",justifyContent:"center",color:"var(--ink-soft)",fontSize:11},children:st==="failed"?"failed":"…"});
+var actions=void 0;
+if(n.kind==="img"&&n.st==="done")actions=r.jsxs("div",{style:{display:"flex",gap:6,justifyContent:"center",marginTop:4},children:[r.jsx("a",{href:"/api/assets/3d/"+sh+"/shot/"+n.i,download:!0,title:"Download",style:{fontSize:11,color:"var(--cyan)",textDecoration:"none"},children:"↓"}),r.jsx("span",{onClick:function(){saveShot(sh,n.i)},title:"Save to Library",style:{fontSize:11,cursor:"pointer",color:"var(--ink-soft)"},children:"★"})]});
+if(n.kind==="resp"&&respSt==="done")actions=r.jsxs("div",{style:{display:"flex",gap:5,justifyContent:"center",flexWrap:"wrap",marginTop:4},children:[r.jsx("button",{onClick:function(){setRot(function(o){var z2=Object.assign({},o);z2[sh]=!z2[sh];return z2})},style:{fontSize:10,padding:"2px 6px",borderRadius:5,cursor:"pointer",background:"var(--surface-2)",border:"1px solid var(--stroke)",color:"var(--ink)"},children:rot[sh]?"▣":"▶"})].concat((mf.formats||[]).map(function(fm){return r.jsx("a",{href:"/api/assets/3d/"+sh+"/"+fm,download:!0,style:{fontSize:10,color:"var(--cyan)",textDecoration:"none"},children:fm.toUpperCase()},fm)}))});
+return r.jsxs("div",{style:{position:"absolute",left:n.x,top:n.y,width:NW,background:"var(--bg-panel-2)",border:"2px solid "+nodeColor(n.st),borderRadius:10,padding:8,boxShadow:n.st==="run"?"0 0 0 3px rgba(245,158,11,.22)":"none"},children:[r.jsx("div",{style:{fontSize:11,color:"var(--ink-soft)",marginBottom:4},children:n.label}),content,actions]},n.id)});
+return r.jsxs("div",{style:{padding:24},children:[r.jsx("style",{children:"@keyframes dzdash{to{stroke-dashoffset:-22}}@keyframes dzpulse{0%,100%{opacity:1}50%{opacity:.5}}"}),r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:12,marginBottom:14},children:[r.jsx("button",{onClick:function(){setMode("form")},style:{fontSize:12,padding:"6px 12px",borderRadius:8,cursor:"pointer",background:"var(--surface-2)",border:"1px solid var(--stroke)",color:"var(--ink)"},children:"← New asset"}),r.jsx("h2",{style:{color:"var(--ink-strong)",margin:0,fontSize:16},children:"Pipeline · "+(activeJob.engine||"")}),r.jsx("span",{style:{fontSize:12,color:st==="failed"?"var(--red)":st==="done"?"var(--green)":"var(--amber)"},children:job.current_step||st})]}),(st==="failed"&&job.error)?r.jsx("div",{style:{fontSize:11,color:"var(--red)",marginBottom:10,fontFamily:"var(--f-mono)",maxWidth:900},children:String(job.error).slice(0,220)}):null,r.jsxs("div",{style:{position:"relative",width:W,height:H,overflow:"auto"},children:[svg].concat(cards)})]})}
+if(mode==="canvas"&&activeJob)return canvasView();return r.jsxs("div",{style:{padding:24,maxWidth:1100,margin:"0 auto"},children:[
  r.jsx("h2",{style:{color:"var(--ink-strong)",marginBottom:4},children:"Game Assets · 3D"}),
  r.jsx("div",{style:{fontSize:12,color:"var(--ink-soft)",marginBottom:16},children:"Image → 3D model (Tripo · Hunyuan3D · TRELLIS · Rodin · TripoSR). Export GLB/FBX/OBJ/STL/USDZ. Each view shot is downloadable."}),
  panel,
