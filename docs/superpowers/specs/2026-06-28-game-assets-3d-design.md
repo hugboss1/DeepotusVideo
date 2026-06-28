@@ -1,63 +1,79 @@
-# Game Assets (3D) — Design (image → multi-view → Hyper3D mesh)
+# Game Assets (3D) — Design (image → 3D mesh, multi-engine)
 
-> **Context:** A new top-level category in DeepotusVideoGen that turns a single character/object image into a downloadable, game-ready **3D model**, mirroring the fal.ai workflow (Seedream V4 Edit multi-view → Hyper3D/Rodin). Reuses the app's existing fal.ai plumbing (`fal_service.py`: `fal_client.upload_file_async` + `subscribe_async`), `FAL_KEY`, `JobRecord`, and job polling.
+> **Context:** A new top-level category in DeepotusVideoGen that turns a character/object image into a downloadable, game-ready **3D model**. Inspired by the fal.ai workflow (multi-view → Hyper3D), but with a **selectable 3D engine** (the fal-native models are ready out of the box; Meshy 6 is prepared via Settings). Reuses the app's fal plumbing (`fal_service.py`: `fal_client.upload_file_async` + `subscribe_async`), `FAL_KEY`, `JobRecord`, and job polling.
 
-**Goal:** From a new **"Game Assets"** page, pick/upload an image → choose options → generate a 3D mesh via fal.ai → rotate it in-app and download it in formats usable by **Blender, Unity, Unreal, or 3D printing**.
+**Goal:** From a new **"Game Assets"** page, pick/upload an image → choose a 3D engine + options → generate a mesh → rotate it in-app and download it in formats for **Blender, Unity, Unreal, or 3D printing**.
 
-**Tech stack:** FastAPI + `fal_client` (backend, pytest for pure helpers); compiled React bundle (count-guarded patches, `node --check`, deploy) + a **vendored** `<model-viewer>` web component for the live 3D preview.
-
----
-
-## 1. Pipeline (backend `asset3d_service.py` + route)
-
-`POST /api/assets/3d`, body `{ image_filename, subject?, views:N, quality, tpose, formats:[...] }` → background job, poll via `GET /api/jobs/{job_id}` (`provider="asset3d"`).
-
-1. **Resolve input** → upload to fal: a Library image (`images_path/filename`) or a fresh upload → `FalSeedanceClient.upload_image()` → fal URL.
-2. **Multi-view** (`views` = 1–4, default 3): run N `fal-ai/bytedance/seedream/v4/edit` calls, each `{image_urls:[src], prompt: <angle prompt> + subject, image_size, num_images:1}`. Angle prompts come from a pure helper `view_prompts(n, subject)` → e.g. front / back / 3⁄4-left / 3⁄4-right, sliced to N. Returns N consistent view URLs (the source is also included as a reference view).
-3. **Hyper3D** `fal-ai/hyper3d/rodin/v2` with `{input_image_urls:[views], geometry_file_format:"glb", material, quality_mesh_option:<quality>, TAPose:<tpose>, use_original_alpha:true, preview_render:true}`. GLB is always produced (preview + interchange).
-4. **Export formats:** for each requested non-GLB format in `formats` (`fbx|obj|stl|usdz`), produce it from Rodin. **Implementation note:** Rodin supports these via `geometry_file_format`; first verify whether one call returns multiple formats (`model_meshes`) — if so, request all in one call; otherwise issue one targeted Rodin call per extra format. Each produced file is downloaded alongside the GLB.
-5. **Store + register:** download `model_mesh` (GLB) + the `preview_render` image + any extra-format files + textures to `outputs/assets3d/{job_id}/` (`model.glb`, `model.fbx`, …, `preview.png`). Register a `JobRecord` (`provider="asset3d"`, GLB path in `final_video_path`, poster in `image_filename`, the available formats recorded in `cost_meta` JSON).
-6. **Serve:** `GET /api/assets/3d/{job_id}/{fmt}` streams the requested file (`glb|fbx|obj|stl|usdz`); the poster is served like other images.
-
-## 2. Format → target-use mapping (UI)
-
-The user multi-selects **targets**, which map to formats; GLB is always generated for the live preview.
-- **Real-time / Blender / Web** → `glb` (always).
-- **Unity / Unreal** → `fbx` (native; GLB/glTF also imports).
-- **Universal (Blender, DCC)** → `obj` (+ textures).
-- **3D printing** → `stl` (geometry only).
-- **AR / USD (optional)** → `usdz`.
-
-## 3. Frontend — new "Game Assets" category page
-
-- **Nav:** add a "Game Assets" entry to the top-level category list (the same array that holds Quick/Studio/Episodes/Scheduler/Templates/News/Library/Settings), rendering a new page component.
-- **Generator panel:** image source (reuse the Library image grid for picking, plus an upload button) → optional **subject** text → **views** slider (1–4) → **quality** select → **T-pose** toggle → **target formats** multi-select → **Generate** (disabled without `FAL_KEY`, mirroring Seedance gating) → progress (poll the job).
-- **Results grid:** past `asset3d` jobs as cards: the Hyper3D **poster image**, the model name, **▶ rotate** (opens the live `<model-viewer>` with the GLB), and a **Download ▾** menu listing the available formats. Delete + rename can reuse the Library patterns later (out of MVP scope).
-- **Library:** the "Renders" category is filtered to **exclude** `provider==="asset3d"` so GLBs are never treated as `<video>`.
-
-## 4. 3D preview — vendored `<model-viewer>`
-
-Vendor Google's `@google/model-viewer` minified ESM build into `frontend/dist/assets/model-viewer.min.js` (≈300 KB, committed) and load it once (`<script type="module">`) so re-viewing works offline. The viewer uses the GLB; the Hyper3D `preview_render` image is the poster shown before/without the live viewer. Non-GLB exports are download-only (no live spin needed — GLB always covers preview).
-
-## 5. Pricing
-
-Add an `asset3d` op to `pricing.py`: `N × seedream_edit_usd + 1 × hyper3d_usd` (+ one `hyper3d_usd` per extra format if separate Rodin calls are needed), with config-driven rates (`seedream_edit_usd`, `hyper3d_usd`) editable like the existing rates, surfaced in the cost pill.
+**Tech stack:** FastAPI + `fal_client` (backend, pytest for pure helpers); compiled React bundle (count-guarded patches, `node --check`, deploy) + a **vendored** `<model-viewer>` for the live preview.
 
 ---
 
-## 6. Scope / non-goals (MVP)
-- One asset at a time; single source image (+ AI multi-view).
-- Output: GLB always, plus user-chosen FBX/OBJ/STL/USDZ.
-- **No** rigging/skeleton/animation, retopology, or PBR-material editing.
-- **No** Studio-node version (Studio still owns node graphs; this is a guided generator).
-- Library cross-listing, batch generation, delete/rename of 3D assets: later.
+## 1. Selectable 3D engines
 
-## 7. Risks / open questions
-- **Rodin API specifics** — exact `geometry_file_format` options, whether `model_meshes` returns multiple formats per call, and result field names — **verified against a live fal.ai call during implementation** (a 1-view smoke), then the call count is optimized (prefer one multi-format call).
-- **Cost** — multi-view + Hyper3D is materially pricier than a Seedance clip; the views slider + the cost pill keep it explicit. Default 3 views.
-- **Large files** — GLB/FBX can be several MB; stored per-job under `outputs/assets3d/{job_id}/`, streamed on download, not held in memory.
-- **Offline preview** — vendored `<model-viewer>` works offline for re-viewing; generation itself always needs internet (fal.ai).
+The engine is a dropdown; each option shows a one-line description (UI help) so the user can choose. Prices are per generation, from each provider's docs (encoded as **config-driven rates**, editable like the existing pricing, and shown in the cost pill).
 
-## 8. Testing
-- Backend: pytest for `view_prompts(n, subject)` (count, angle ordering, subject injection) and the Hyper3D argument assembler (pure, mockable). A live smoke: real 1-view generation → a GLB + poster land under `outputs/assets3d/{id}/`.
-- Frontend: browser — Generate with 2 views + GLB+STL, watch progress, rotate the preview, download both formats; the asset appears in the Game Assets grid; Library Renders is unaffected; no console errors.
+| Engine | fal endpoint (verify at integration) | Cost / generation | Strength (UI description) | Ready in MVP |
+|---|---|---|---|---|
+| **Tripo3D v2.5** ⭐ default | `tripo3d/tripo/v2.5/image-to-3d` | $0.20 no-tex · $0.30 std-tex · $0.40 HD-tex | "Game-ready topology + clean UVs, broad export, optional rigging. Best all-round for game assets." | Yes (fal) |
+| **Hunyuan3D v2** | `fal-ai/hunyuan3d/v2` | $0.16 white mesh · $0.48 textured | "Exceptionally clean geometry for characters & organic shapes; minimal cleanup." | Yes (fal) |
+| **TRELLIS** | `fal-ai/trellis` | ~$0.16–$0.50 | "Best texture realism (Gaussian-splat); great for detailed, photoreal looks." | Yes (fal) |
+| **Hyper3D Rodin** | `fal-ai/hyper3d/rodin` | $0.40 | "Professional surface realism; the engine from the reference workflow." | Yes (fal) |
+| **TripoSR** | `fal-ai/triposr` | $0.07 | "Fastest & cheapest; rough prototype quality." | Yes (fal) |
+| **Meshy 6** | Meshy API (not fal) | ~15–20 credits/model (Pro $20/mo ≈ 1000 cr → ≈ $0.30–0.40 textured) | "Most polished all-in-one (PBR, topology, rigging, great for printing). Needs a Meshy API key." | **Prepared** (Settings key + link), adapter stubbed |
+
+All fal engines go through one `subscribe_async(endpoint, args)` path with an **engine adapter** that maps the common request (image URL, format, quality, textures, tpose) to that engine's argument names and reads its result URLs. Engines that don't support a requested export format fall back to GLB + local note.
+
+## 2. Pipeline (backend `asset3d_service.py` + route)
+
+`POST /api/assets/3d`, body `{ image_filename, engine, subject?, multiview:bool, views:N, quality, textures, tpose, formats:[...] }` → background job, poll via `GET /api/jobs/{job_id}` (`provider="asset3d"`).
+
+1. **Resolve input** → `FalSeedanceClient.upload_image()` → fal URL (or, for Meshy, pass the image per Meshy's API).
+2. **Optional multi-view "boost"** (`multiview`, default **off** — the strong engines do single-image well): if on, run `views` (1–4) `fal-ai/bytedance/seedream/v4/edit` calls with angle prompts from `view_prompts(n, subject)` (front/back/¾-left/¾-right) → extra view URLs fed to the engine for consistency.
+3. **3D engine** via the adapter for the chosen `engine`: produce **GLB always** (preview + interchange) plus any requested export formats (the engine's native `geometry_file_format`/equivalent; Tripo/Rodin/Hunyuan support FBX/OBJ/STL/USDZ — **exact options + whether one call returns multiple formats are verified against a live call during implementation**).
+4. **Store + register:** download mesh files + the engine's preview/render image + textures to `outputs/assets3d/{job_id}/` (`model.glb`, `model.fbx`, …, `preview.png`). Register a `JobRecord` (`provider="asset3d"`; GLB in `final_video_path`; poster in `image_filename`; `cost_meta` JSON records engine + available formats).
+5. **Serve:** `GET /api/assets/3d/{job_id}/{fmt}` streams `glb|fbx|obj|stl|usdz`.
+
+## 3. Format → target-use mapping (UI)
+GLB always; user multi-selects targets → formats: **Blender/Web** → `glb`; **Unity/Unreal** → `fbx` (GLB also imports); **Universal** → `obj`; **3D printing** → `stl`; **AR/USD** → `usdz`.
+
+## 4. Frontend — new "Game Assets" category page
+- **Nav:** add "Game Assets" to the top-level category array (with Quick/Studio/Episodes/Scheduler/Templates/News/Library/Settings).
+- **Generator:** image source (reuse Library grid + upload) → **engine dropdown** (each option renders its one-line description as helper text + the cost) → optional **subject** → **multi-view boost** toggle (+ views slider when on) → **quality** / **textures** / **T-pose** → **target formats** multi-select → live **cost estimate** → **Generate** (gated on `FAL_KEY`, or `MESHY_API_KEY` for Meshy) → progress.
+- **Results grid:** `asset3d` jobs as cards — poster image, name, **▶ rotate** (live `<model-viewer>` on the GLB), **Download ▾** (available formats).
+- **Library:** "Renders" filtered to exclude `provider==="asset3d"`.
+
+## 5. 3D preview — vendored `<model-viewer>`
+Vendor `@google/model-viewer` minified ESM into `frontend/dist/assets/model-viewer.min.js` (committed, ~300 KB) and load it once; offline-capable for re-viewing. GLB in the viewer; engine preview image as poster; non-GLB exports are download-only.
+
+## 6. Settings — Meshy preparation
+Add a **`MESHY_API_KEY`** field to Settings (the same keys form that holds FAL/HeyGen/etc.), with helper text + a link to **https://www.meshy.ai/api**. Backend reads `settings.MESHY_API_KEY`; the Meshy engine adapter is **implemented as a thin module** (request/poll/download via Meshy's REST) but only active when the key is set — selecting Meshy without a key shows the same "key required" note pattern Seedance uses. This makes Meshy a config-flip, not a future rewrite.
+
+## 7. Pricing
+Add an `asset3d` op to `pricing.py`, engine-aware: `cost = (multiview ? N × seedream_edit_usd : 0) + engine_cost(engine, textures)`. Config-driven rates seeded from the table above (`tripo_usd`/`tripo_hd_usd`, `hunyuan_usd`/`hunyuan_tex_usd`, `trellis_usd`, `rodin_usd`, `triposr_usd`, `seedream_edit_usd`; Meshy shown as "≈ credits via your Meshy plan"). Surfaced in the cost pill + the live estimate on the page.
+
+---
+
+## 8. Scope / non-goals (MVP)
+- One asset at a time; single source image (+ optional AI multi-view boost).
+- Engines: all fal models wired; **Meshy prepared** (Settings key + adapter), exercised only if the user adds a key.
+- Output: GLB always + chosen FBX/OBJ/STL/USDZ.
+- **No** rigging/animation, retopology, or PBR-material editing in-app.
+- **No** Studio-node version (guided generator; Studio still owns graphs).
+- Library cross-listing, batch, delete/rename of 3D assets: later.
+
+## 9. Risks / open questions
+- **Per-engine API specifics** (exact endpoints, arg names, format options, result fields, multi-format-per-call) — **verified per engine against a live fal/Meshy call during implementation**; the adapter isolates these so one engine's quirks don't leak.
+- **Cost** — surfaced live; default engine Tripo std-tex ≈ $0.30, multi-view off by default to keep it cheap.
+- **Large files** stored per-job under `outputs/assets3d/{job_id}/`, streamed on download.
+
+## 10. Testing
+- Backend: pytest for `view_prompts(n, subject)` and each engine adapter's **argument assembler + result parser** (pure, mockable). Live smoke: a real Tripo 1-image generation → GLB + poster land under `outputs/assets3d/{id}/`.
+- Frontend: browser — switch engines (descriptions + cost update), generate (GLB+STL), watch progress, rotate the preview, download both; asset appears in the grid; Settings shows the Meshy key field + link; Library Renders unaffected; no console errors.
+
+---
+
+## Sources (engine quality + pricing)
+- fal model pages: [Tripo3D v2.5](https://fal.ai/models/tripo3d/tripo/v2.5/image-to-3d), [Hunyuan3D v2](https://fal.ai/models/fal-ai/hunyuan3d/v2), [Hyper3D Rodin](https://fal.ai/models/fal-ai/hyper3d/rodin), [TripoSR](https://fal.ai/models/fal-ai/triposr), [fal 3D models](https://fal.ai/3d-models)
+- [Best 3D Model Generation APIs 2026 — 3DAI Studio](https://www.3daistudio.com/blog/best-3d-model-generation-apis-2026)
+- [Best AI 3D Model Generators 2026 — TRELLIS vs Meshy vs Tripo](https://trellis2.app/blog/best-ai-3d-model-generator)
+- Meshy: [API pricing](https://docs.meshy.ai/en/api/pricing), [credit costs](https://help.meshy.ai/en/articles/10000507-how-many-credits-does-each-generation-task-cost), [plans](https://www.meshy.ai/pricing), [3D AI price comparison — Sloyd](https://www.sloyd.ai/blog/3d-ai-price-comparison)
