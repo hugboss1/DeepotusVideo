@@ -30,3 +30,11 @@ def test_parse_result_picks_mesh_and_textures():
     res = {"model_mesh": {"url": "https://x/m.glb"}, "textures": [{"url": "https://x/t.png"}]}
     out = parse_engine_result("rodin", res)
     assert out["mesh_url"].endswith(".glb") and out["texture_urls"] == ["https://x/t.png"]
+
+
+def test_pricing_asset3d():
+    from app.services.pricing import estimate
+    r = estimate({"kind": "asset3d", "engine": "tripo", "textures": True, "multiview": True, "views": 3})
+    assert r["total_usd"] > 0
+    cheap = estimate({"kind": "asset3d", "engine": "triposr", "multiview": False})["total_usd"]
+    assert cheap < r["total_usd"]

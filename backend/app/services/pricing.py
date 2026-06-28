@@ -151,6 +151,18 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         dur = items * per
         lines.append(_line("fal", "News reel (ffmpeg)", dur, "s", 0.0))  # local ffmpeg = free
         # the cards usually reuse fetched images; add nothing unless generating
+    elif kind == "asset3d":
+        # Game Assets 3D: a 3D mesh generation (engine-priced) + optional
+        # multi-view edits. Rates seeded from each provider's docs (editable).
+        engine = str(op.get("engine") or "tripo").lower()
+        tex = bool(op.get("textures", True))
+        rates = {"tripo": 0.30 if tex else 0.20, "triposr": 0.07,
+                 "hunyuan": 0.48 if tex else 0.16, "trellis": 0.35, "rodin": 0.40}
+        unit = rates.get(engine, 0.30)
+        lines.append(_line("fal", f"3D mesh ({engine})", 1, "gen", unit))
+        if op.get("multiview"):
+            v = int(op.get("views", 3))
+            lines.append(_line("fal", "Multi-view edits", v, "img", v * 0.03))
     elif kind == "animate":
         # Animation node: per-frame Pillow + ffmpeg, all local compute, no
         # external API -> $0 (kept in the breakdown so the cost pill is honest).

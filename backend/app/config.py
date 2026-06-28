@@ -77,6 +77,7 @@ class Settings(BaseSettings):
 
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
+    MESHY_API_KEY: str = ""
 
     # Paths -- absolute used as-is; relative resolved under the data dir.
     IMAGES_FOLDER: str = "./assets/images"
@@ -160,6 +161,10 @@ class Settings(BaseSettings):
     @property
     def has_heygen(self) -> bool:
         return bool(self.HEYGEN_API_KEY.strip())
+
+    @property
+    def has_meshy(self) -> bool:
+        return bool(self.MESHY_API_KEY.strip())
 
     @property
     def has_summarizer(self) -> bool:
