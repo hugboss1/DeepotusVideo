@@ -46,3 +46,64 @@ def transform_at(el: dict, t: float):
     e = 1.0 if u >= 1 else ease(el.get("easing", "linear"), u)
     f, to = el["from"], el["to"]
     return {k: lerp(float(f[k]), float(to[k]), e) for k in _KEYS}
+
+
+def _hex(c: str):
+    c = (c or "#ffffff").lstrip("#")
+    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+
+
+def _font_path(name: str | None) -> str:
+    """Resolve a design-font name to its shipped TTF path, reusing
+    template_service's font table + fonts dir (no hardcoded path)."""
+    from pathlib import Path
+    from app.services import template_service as T
+    fn = T._FONT_FILES.get((name or "").strip().lower(), T._DEFAULT_FONT)
+    fonts = Path(T.__file__).parent.parent / "templates" / "_fonts"
+    p = fonts / fn
+    if not p.exists():
+        p = fonts / T._DEFAULT_FONT
+    return str(p)
+
+
+def render_element(el: dict, tr: dict, W: int, H: int):
+    """Render a single element at transform `tr` onto a fresh W×H RGBA layer."""
+    from PIL import Image, ImageDraw, ImageFont
+    layer = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    typ = el.get("type", "text")
+    if typ == "text":
+        st = el.get("style", {})
+        size = max(4, int(st.get("size", 48) * float(tr.get("scale", 1))))
+        font = ImageFont.truetype(_font_path(st.get("font", "JetBrains Mono")), size)
+        txt = el.get("text", "")
+        tmp = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        d = ImageDraw.Draw(tmp)
+        bb = d.textbbox((0, 0), txt, font=font)
+        tw, th = bb[2] - bb[0], bb[3] - bb[1]
+        ix = int(tr["x"] / 100 * W - tw / 2)
+        iy = int(tr["y"] / 100 * H - th / 2)
+        sc = int(st.get("stroke", 0) or 0)
+        d.text((ix, iy), txt, font=font, fill=_hex(st.get("color", "#ffffff")),
+               stroke_width=sc, stroke_fill=_hex(st.get("strokeColor", "#000000")))
+        el_img = tmp
+    else:  # sticker | image
+        from app.config import settings
+        src = settings.images_path / el.get("filename", "")
+        if not el.get("filename") or not src.exists():
+            return layer
+        im = Image.open(src).convert("RGBA")
+        s = float(tr.get("scale", 1))
+        im = im.resize((max(1, int(im.width * s)), max(1, int(im.height * s))))
+        el_img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        el_img.alpha_composite(im, (int(tr["x"] / 100 * W - im.width / 2),
+                                    int(tr["y"] / 100 * H - im.height / 2)))
+    rot = float(tr.get("rotation", 0) or 0)
+    if rot:
+        el_img = el_img.rotate(-rot, resample=Image.BICUBIC,
+                               center=(int(tr["x"] / 100 * W), int(tr["y"] / 100 * H)))
+    op = max(0.0, min(1.0, float(tr.get("opacity", 1))))
+    if op < 1:
+        a = el_img.split()[3].point(lambda v: int(v * op))
+        el_img.putalpha(a)
+    layer.alpha_composite(el_img)
+    return layer
