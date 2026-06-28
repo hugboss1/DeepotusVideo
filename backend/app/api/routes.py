@@ -307,6 +307,95 @@ async def animate(body: dict, background_tasks: BackgroundTasks):
     return {"job_id": job_id, "status": "queued"}
 
 
+@router.post("/assets/3d")
+async def assets_3d(body: dict, background_tasks: BackgroundTasks):
+    """Game Assets 3D: image -> (optional multi-view) -> 3D engine -> mesh + shots.
+    Mirrors /api/animate: pre-register an asset3d JobRecord, run in the background,
+    record the produced files/shots in cost_meta. Poll GET /api/jobs/{job_id}."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services.asset3d_service import generate_asset3d, ENGINES
+    from app.services.storage import JobRecord, async_session_factory
+
+    engine = str(body.get("engine") or "tripo").lower()
+    if engine == "meshy":
+        raise HTTPException(501, "Meshy engine is prepared but not yet wired. Use a fal engine.")
+    if engine not in ENGINES:
+        raise HTTPException(400, f"Unknown engine: {engine}")
+    if not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+
+    job_id = str(uuid4())
+    short = job_id[:8]
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=(body.get("title") or f"3D · {engine}"), image_filename=f"asset3d_{short}",
+            provider="asset3d", current_step="Generating 3D"))
+        await s.commit()
+
+    async def _run():
+        try:
+            r = await generate_asset3d(body, short)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                jr.status = JobStatus.DONE.value
+                jr.progress = 100
+                jr.final_video_path = r.get("glb")
+                jr.image_filename = "preview.png"
+                jr.current_step = "Complete"
+                jr.completed_at = _dtu.utcnow()
+                jr.cost_meta = _json.dumps({"engine": r["engine"], "files": r["files"],
+                                            "shots": r["shots"], "job": short})
+                await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/assets/3d/{job}/{fmt}")
+async def get_asset3d_file(job: str, fmt: str):
+    """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / f"model.{Path(fmt).name}"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/3d/{job}/shot/{i}")
+async def get_asset3d_shot(job: str, i: int):
+    """Stream an individual view shot image (shot_0 = source, shot_1..N = views)."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / f"shot_{int(i)}.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.post("/assets/3d/{job}/shot/{i}/save")
+async def save_asset3d_shot(job: str, i: int):
+    """Copy a shot into the Library images folder so it can be reused as a source."""
+    import shutil
+    src = settings.outputs_path / "assets3d" / Path(job).name / f"shot_{int(i)}.png"
+    if not src.is_file():
+        raise HTTPException(404, "Not found")
+    dest = settings.images_path / f"shot_{Path(job).name}_{int(i)}.png"
+    n = 2
+    while dest.exists():
+        dest = settings.images_path / f"shot_{Path(job).name}_{int(i)}_{n}.png"
+        n += 1
+    shutil.copy2(src, dest)
+    return {"filename": dest.name}
+
+
 # ── Studio named-graph store (v1.15.6): save / reload node graphs by name,
 # separate from the render-time source_graph dump. Lives in the data dir
 # (DATA_ROOT/assets/studio_graphs) so it survives updates/reinstalls.
