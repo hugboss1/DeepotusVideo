@@ -15,7 +15,7 @@
 
 ## 1. Architecture
 
-A new node **`Animation`** (registry category `compose`):
+A new node **`Animation`** in a **new palette family `motion`** (its own **"Animations"** section in the node palette, separate from `compose`). *Implementation note:* the palette groups nodes by their `cat`; add `motion` to the category list/order so the new section renders.
 - **Input port `base`** (`type:"av"`) — the render/clip (or image, via the existing image→av connect rule) to animate over. If nothing is connected, the engine uses a solid/transparent canvas at the render aspect.
 - **Output port `out`** (`type:"av"`) — the composited animated video; connects to `Render` / `SpatialCompose` like any clip.
 - **Pipeline position:** `Seedance/Render/Image → Animation → Render`. It is a compositor node, not part of SpatialCompose (keeps SpatialCompose focused on static layout; motion lives in its own node).
@@ -30,7 +30,7 @@ Node props:
 
 ```js
 Animation: {
-  cat: "compose", title: "Animation", desc: "animate text & stickers over a clip",
+  cat: "motion", title: "Animation", desc: "animate text & stickers over a clip",
   inPorts: [{ id: "base", type: "av" }],
   outPorts: [{ id: "out", type: "av" }],
   props: {
@@ -140,4 +140,4 @@ New module **`backend/app/services/animation_service.py`** + route **`POST /api/
 - **Compile integration** is the trickiest part: routing an `Animation` node through Run → `/api/animate` and feeding its output downstream. Mitigation: model it on the existing layout-render compile path (it already mints a job + saves the source graph).
 - **Render performance:** per-frame Python on 1080×1920. Mitigation: frame-by-frame streaming (no full-video in memory), bounded by `duration_s`; show it in the cost/ETA. If too slow, add the ffmpeg fast-path for position/opacity-only elements.
 - **Rotation + alpha quality** in Pillow (resampling) — use `Image.rotate(expand=True, resample=BICUBIC)` and premultiplied alpha to avoid fringing.
-- **Visual drag-positioning** in the compiled bundle is the biggest frontend lift — it's a self-contained draggable-over-thumbnail widget; de-risk by shipping numeric fields first, then the drag layer.
+- **Visual drag-positioning** in the compiled bundle is the biggest frontend lift — it's a self-contained draggable-over-thumbnail widget. Confirmed **in Phase 1 scope** (design review); build order *within* the phase: numeric `from`/`to` fields first, then the drag/handles layer on the preview canvas.
