@@ -1687,7 +1687,7 @@ async def health():
 #   - explicit "restart required" signal (pydantic-settings doesn't reload)
 
 _ALLOWED_ENV_KEYS = {
-    "FAL_KEY", "HEYGEN_API_KEY", "ELEVENLABS_API_KEY",
+    "FAL_KEY", "HEYGEN_API_KEY", "MESHY_API_KEY", "ELEVENLABS_API_KEY",
     "ELEVENLABS_VOICE_ID_EN", "ELEVENLABS_VOICE_ID_FR",
     "ANTHROPIC_API_KEY", "ANTHROPIC_MODEL",
     "OPENAI_API_KEY", "OPENAI_MODEL",
