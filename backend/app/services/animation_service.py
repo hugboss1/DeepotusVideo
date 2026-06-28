@@ -50,6 +50,10 @@ def transform_at(el: dict, t: float):
 
 def _hex(c: str):
     c = (c or "#ffffff").lstrip("#")
+    if len(c) == 3:  # #fff shorthand
+        c = "".join(ch * 2 for ch in c)
+    if len(c) != 6:
+        c = "ffffff"
     return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
 
 
@@ -107,3 +111,56 @@ def render_element(el: dict, tr: dict, W: int, H: int):
         el_img.putalpha(a)
     layer.alpha_composite(el_img)
     return layer
+
+
+def _wh(aspect: str):
+    return {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
+            "4:5": (1080, 1350)}.get(aspect, (1080, 1920))
+
+
+def render_animation(payload: dict, job_id: str):
+    """Composite animated elements over a (streamed) base into an mp4.
+
+    Per-frame: read one base RGBA frame (or a solid canvas), draw each visible
+    element, pipe the result into an ffmpeg H.264 encoder. Base audio is copied
+    through when a base clip is present. Returns the output Path."""
+    import subprocess
+    from PIL import Image
+    from app.config import settings
+    W, H = _wh(payload.get("aspect", "9:16"))
+    fps = int(payload.get("fps", 30))
+    dur = float(payload.get("duration_s", 8))
+    n = max(1, int(dur * fps))
+    els = payload.get("elements", [])
+    base = payload.get("base")  # absolute path to a clip, or None
+    out = settings.outputs_path / f"anim_{job_id}.mp4"
+    # base frame reader (rawvideo rgba) or None
+    bproc = None
+    if base:
+        bproc = subprocess.Popen(
+            ["ffmpeg", "-i", str(base), "-vf",
+             f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={fps}",
+             "-f", "rawvideo", "-pix_fmt", "rgba", "-"], stdout=subprocess.PIPE)
+    enc = subprocess.Popen(
+        ["ffmpeg", "-y", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{W}x{H}", "-r", str(fps), "-i", "-",
+         *(["-i", str(base), "-map", "0:v", "-map", "1:a?", "-shortest"] if base else []),
+         "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(out)], stdin=subprocess.PIPE)
+    fb = W * H * 4
+    for i in range(n):
+        t = i / fps
+        if bproc:
+            raw = bproc.stdout.read(fb)
+            frame = (Image.frombytes("RGBA", (W, H), raw) if len(raw) == fb
+                     else Image.new("RGBA", (W, H), (2, 6, 13, 255)))
+        else:
+            frame = Image.new("RGBA", (W, H), (2, 6, 13, 255))
+        for el in els:
+            tr = transform_at(el, t)
+            if tr is not None:
+                frame.alpha_composite(render_element(el, tr, W, H))
+        enc.stdin.write(frame.tobytes())
+    enc.stdin.close()
+    enc.wait()
+    if bproc:
+        bproc.terminate()
+    return out

@@ -39,3 +39,17 @@ def test_render_element_text_layer():
     # something was drawn near the centre, and opacity halved the alpha
     cx = layer.getpixel((100, 100))
     assert cx[3] <= 200  # alpha reduced by opacity 0.5 (<= ~half of 255 where text covers)
+
+
+def test_render_animation_blank_base(tmp_path, monkeypatch):
+    from app.services import animation_service as A
+    from app.config import settings
+    # outputs_path is a read-only @property -> patch it on the class to redirect output.
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    payload = {"aspect": "9:16", "fps": 2, "duration_s": 1, "base": None,
+               "elements": [{"type": "text", "text": "GO", "style": {"size": 64, "color": "#fff"},
+                             "start": 0, "dur": 0.5, "hold": 1, "easing": "linear",
+                             "from": {"x": 50, "y": 50, "scale": 1, "rotation": 0, "opacity": 1},
+                             "to": {"x": 50, "y": 50, "scale": 1, "rotation": 0, "opacity": 1}}]}
+    out = A.render_animation(payload, "testjob")
+    assert out.exists() and out.stat().st_size > 0
