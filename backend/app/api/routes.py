@@ -362,6 +362,28 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     return {"job_id": job_id, "status": "queued"}
 
 
+@router.get("/assets/3d/{job}/manifest")
+async def get_asset3d_manifest(job: str):
+    """List what a 3D asset job produced (read from disk — ground truth):
+    mesh formats, shot indices, and whether a preview image exists.
+    Declared before the /{fmt} route so it isn't captured as fmt='manifest'."""
+    d = settings.outputs_path / "assets3d" / Path(job).name
+    if not d.is_dir():
+        raise HTTPException(404, "Not found")
+    formats, shots = [], []
+    for f in d.iterdir():
+        n = f.name
+        if n.startswith("model.") and f.is_file():
+            formats.append(n.split(".", 1)[1].lower())
+        elif n.startswith("shot_") and n.endswith(".png"):
+            try:
+                shots.append(int(n[5:-4]))
+            except ValueError:
+                pass
+    return {"formats": sorted(set(formats)), "shots": sorted(set(shots)),
+            "has_preview": (d / "preview.png").is_file()}
+
+
 @router.get("/assets/3d/{job}/{fmt}")
 async def get_asset3d_file(job: str, fmt: str):
     """Stream a generated mesh file (glb|fbx|obj|stl|usdz)."""
