@@ -38,3 +38,32 @@ def test_pricing_asset3d():
     assert r["total_usd"] > 0
     cheap = estimate({"kind": "asset3d", "engine": "triposr", "multiview": False})["total_usd"]
     assert cheap < r["total_usd"]
+
+
+def test_generate_asset3d_writes_files(tmp_path, monkeypatch):
+    import asyncio
+    from app.services import asset3d_service as A
+    from app.config import settings
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    monkeypatch.setattr(type(settings), "images_path", property(lambda self: tmp_path))
+    (tmp_path / "src.png").write_bytes(b"\x89PNG\r\n\x1a\n0000")
+
+    async def fake_upload(p):
+        return "https://fal/src.png"
+
+    async def fake_run(engine, args):
+        return {"mesh_url": "https://x/m.glb", "format_urls": {}, "texture_urls": [], "preview_url": "https://x/p.png"}
+
+    def fake_download(url, dest):
+        dest.write_bytes(b"FILE")
+        return True
+
+    monkeypatch.setattr(A, "_upload", fake_upload)
+    monkeypatch.setattr(A, "_run_engine", fake_run)
+    monkeypatch.setattr(A, "_download", fake_download)
+
+    out = asyncio.run(A.generate_asset3d(
+        {"image_filename": "src.png", "engine": "triposr", "multiview": False, "formats": ["glb"]}, "job1"))
+    d = tmp_path / "assets3d" / "job1"
+    assert (d / "model.glb").exists() and (d / "shot_0.png").exists()
+    assert out["glb"].endswith("model.glb") and out["shots"] == ["shot_0.png"] and out["engine"] == "triposr"

@@ -80,3 +80,93 @@ def parse_engine_result(engine: str, res: dict) -> dict:
             preview = _url(res[key])
             break
     return {"mesh_url": mesh, "format_urls": meshes, "texture_urls": textures, "preview_url": preview}
+
+
+# ── orchestration seams (patched in tests; real impls call fal/HTTP) ──────────
+async def _upload(path):
+    from app.services.fal_service import FalSeedanceClient
+    return await FalSeedanceClient.upload_image(path)
+
+
+async def _run_engine(engine, args):
+    import fal_client
+    ep = ENGINES[engine]["endpoint"]
+    try:
+        res = await fal_client.subscribe_async(ep, arguments=args, with_logs=False)
+    except Exception as e:
+        raise RuntimeError(f"fal.ai: {e}") from e
+    return parse_engine_result(engine, res)
+
+
+async def _seedream_edit(image_url, prompt):
+    import fal_client
+    res = await fal_client.subscribe_async(
+        "fal-ai/bytedance/seedream/v4/edit",
+        arguments={"image_urls": [image_url], "prompt": prompt, "num_images": 1})
+    imgs = res.get("images") or []
+    return imgs[0].get("url") if imgs and isinstance(imgs[0], dict) else None
+
+
+def _download(url, dest):
+    import urllib.request
+    with urllib.request.urlopen(url) as r:
+        dest.write_bytes(r.read())
+    return True
+
+
+async def generate_asset3d(payload: dict, job_id: str):
+    """Upload image -> optional multi-view -> 3D engine -> download mesh formats,
+    shots and poster under outputs/assets3d/{job_id}/. Returns a summary dict."""
+    import shutil
+    from app.config import settings
+
+    engine = str(payload.get("engine") or "tripo").lower()
+    if engine not in ENGINES:
+        raise ValueError(f"Unknown engine: {engine}")
+    formats = [f.lower() for f in (payload.get("formats") or ["glb"])]
+    if "glb" not in formats:
+        formats = ["glb"] + formats  # GLB always (preview + interchange)
+
+    out_dir = settings.outputs_path / "assets3d" / job_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    src = settings.images_path / payload.get("image_filename", "")
+    src_url = await _upload(src)
+
+    # shots: shot_0 = source, shot_1..N = multi-view boost
+    shutil.copy2(src, out_dir / "shot_0.png")
+    shots = ["shot_0.png"]
+    image_urls = [src_url]
+    if payload.get("multiview"):
+        for i, pr in enumerate(view_prompts(int(payload.get("views", 3)), payload.get("subject", "")), 1):
+            u = await _seedream_edit(src_url, pr)
+            if u:
+                _download(u, out_dir / f"shot_{i}.png")
+                shots.append(f"shot_{i}.png")
+                image_urls.append(u)
+
+    base_opts = {"format": "glb", "textures": payload.get("textures", True),
+                 "quality": payload.get("quality", "medium"), "tpose": payload.get("tpose")}
+    result = await _run_engine(engine, build_engine_args(engine, image_urls, base_opts))
+
+    files = {}
+    if result.get("mesh_url"):
+        _download(result["mesh_url"], out_dir / "model.glb")
+        files["glb"] = str(out_dir / "model.glb")
+    for ext, url in (result.get("format_urls") or {}).items():
+        if ext in formats:
+            _download(url, out_dir / f"model.{ext}")
+            files[ext] = str(out_dir / f"model.{ext}")
+    # extra formats not returned by the first call -> targeted re-export
+    for f in formats:
+        if f != "glb" and f not in files and f in ENGINES[engine]["formats"]:
+            r2 = await _run_engine(engine, build_engine_args(engine, image_urls,
+                {"format": f, "textures": payload.get("textures", True)}))
+            if r2.get("mesh_url"):
+                _download(r2["mesh_url"], out_dir / f"model.{f}")
+                files[f] = str(out_dir / f"model.{f}")
+    if result.get("preview_url"):
+        _download(result["preview_url"], out_dir / "preview.png")
+
+    return {"glb": files.get("glb"), "files": files, "shots": shots,
+            "preview": str(out_dir / "preview.png"), "engine": engine}
