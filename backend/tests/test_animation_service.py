@@ -53,3 +53,23 @@ def test_render_animation_blank_base(tmp_path, monkeypatch):
                              "to": {"x": 50, "y": 50, "scale": 1, "rotation": 0, "opacity": 1}}]}
     out = A.render_animation(payload, "testjob")
     assert out.exists() and out.stat().st_size > 0
+
+
+def test_ease_cubic_bezier_endpoints():
+    from app.services.animation_service import ease
+    assert abs(ease("smooth", 0)) < 1e-6
+    assert abs(ease("smooth", 1) - 1) < 1e-6
+    assert abs(ease("cubic-bezier(0.4,0,0.2,1)", 0)) < 1e-6
+    assert abs(ease("cubic-bezier(0.4,0,0.2,1)", 1) - 1) < 1e-6
+
+
+def test_ease_cubic_bezier_midpoint_decelerates():
+    from app.services.animation_service import ease
+    y = ease("cubic-bezier(0.4,0,0.2,1)", 0.5)
+    assert 0 < y < 1
+    assert y > 0.5  # fast-out/slow-in -> ahead of linear at the midpoint
+
+
+def test_ease_bezier_unknown_falls_back_linear():
+    from app.services.animation_service import ease
+    assert abs(ease("cubic-bezier(bad)", 0.5) - 0.5) < 1e-9

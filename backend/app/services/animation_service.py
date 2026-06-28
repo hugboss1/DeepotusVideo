@@ -5,8 +5,50 @@ from __future__ import annotations
 _KEYS = ("x", "y", "scale", "rotation", "opacity")
 
 
+def _bezier_y_for_x(p1x, p1y, p2x, p2y, x):
+    """Cubic bezier with P0=(0,0), P3=(1,1): solve Bx(s)=x for s, return By(s)."""
+    def bx(s): return 3 * (1 - s) ** 2 * s * p1x + 3 * (1 - s) * s * s * p2x + s ** 3
+    def by(s): return 3 * (1 - s) ** 2 * s * p1y + 3 * (1 - s) * s * s * p2y + s ** 3
+    def dbx(s): return 3 * (1 - s) ** 2 * p1x + 6 * (1 - s) * s * (p2x - p1x) + 3 * s * s * (1 - p2x)
+    s = x
+    for _ in range(8):
+        err = bx(s) - x
+        if abs(err) < 1e-6:
+            break
+        d = dbx(s)
+        if abs(d) < 1e-6:
+            break
+        s -= err / d
+        s = 0.0 if s < 0 else 1.0 if s > 1 else s
+    if abs(bx(s) - x) > 1e-4:  # bisection fallback
+        lo, hi = 0.0, 1.0
+        for _ in range(40):
+            s = (lo + hi) / 2
+            if bx(s) < x:
+                lo = s
+            else:
+                hi = s
+    return by(s)
+
+
+_BEZIER = {
+    "smooth": (0.4, 0.0, 0.2, 1.0),
+    "easeInOutSine": (0.45, 0.05, 0.55, 0.95),
+    "anticipate": (0.36, 0.0, 0.66, -0.56),
+    "overshoot": (0.34, 1.56, 0.64, 1.0),
+}
+
+
 def ease(name: str, t: float) -> float:
     t = 0.0 if t < 0 else 1.0 if t > 1 else t
+    if name in _BEZIER:
+        return _bezier_y_for_x(*_BEZIER[name], t)
+    if isinstance(name, str) and name.startswith("cubic-bezier(") and name.endswith(")"):
+        try:
+            a, b, c, d = (float(v) for v in name[len("cubic-bezier("):-1].split(","))
+            return _bezier_y_for_x(a, b, c, d, t)
+        except Exception:
+            return t
     if name == "easeIn":
         return t * t
     if name == "easeOut":
