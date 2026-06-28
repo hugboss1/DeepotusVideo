@@ -120,11 +120,16 @@ def _download(url, dest):
     return True
 
 
-async def generate_asset3d(payload: dict, job_id: str):
+async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     """Upload image -> optional multi-view -> 3D engine -> download mesh formats,
-    shots and poster under outputs/assets3d/{job_id}/. Returns a summary dict."""
+    shots and poster under outputs/assets3d/{job_id}/. Returns a summary dict.
+    `on_step(label, pct)` (optional async) is awaited at each phase for live UI."""
     import shutil
     from app.config import settings
+
+    async def _step(label, pct):
+        if on_step:
+            await on_step(label, pct)
 
     engine = str(payload.get("engine") or "tripo").lower()
     if engine not in ENGINES:
@@ -136,6 +141,7 @@ async def generate_asset3d(payload: dict, job_id: str):
     out_dir = settings.outputs_path / "assets3d" / job_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
+    await _step("Uploading", 10)
     src = settings.images_path / payload.get("image_filename", "")
     src_url = await _upload(src)
 
@@ -144,13 +150,16 @@ async def generate_asset3d(payload: dict, job_id: str):
     shots = ["shot_0.png"]
     image_urls = [src_url]
     if payload.get("multiview"):
-        for i, pr in enumerate(view_prompts(int(payload.get("views", 3)), payload.get("subject", "")), 1):
+        _nv = int(payload.get("views", 3))
+        for i, pr in enumerate(view_prompts(_nv, payload.get("subject", "")), 1):
+            await _step(f"View {i}/{_nv}", 10 + int(40 * i / max(1, _nv)))
             u = await _seedream_edit(src_url, pr)
             if u:
                 _download(u, out_dir / f"shot_{i}.png")
                 shots.append(f"shot_{i}.png")
                 image_urls.append(u)
 
+    await _step(f"Running {engine}", 60)
     base_opts = {"format": "glb", "textures": payload.get("textures", True),
                  "quality": payload.get("quality", "medium"), "tpose": payload.get("tpose")}
     result = await _run_engine(engine, build_engine_args(engine, image_urls, base_opts))
@@ -174,5 +183,6 @@ async def generate_asset3d(payload: dict, job_id: str):
     if result.get("preview_url"):
         _download(result["preview_url"], out_dir / "preview.png")
 
+    await _step("Complete", 100)
     return {"glb": files.get("glb"), "files": files, "shots": shots,
             "preview": str(out_dir / "preview.png"), "engine": engine}

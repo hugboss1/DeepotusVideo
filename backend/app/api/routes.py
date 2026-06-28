@@ -334,9 +334,17 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
             provider="asset3d", current_step="Generating 3D"))
         await s.commit()
 
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step = label
+                jr2.progress = int(pct)
+                await s2.commit()
+
     async def _run():
         try:
-            r = await generate_asset3d(body, short)
+            r = await generate_asset3d(body, short, on_step=on_step)
             async with async_session_factory() as s:
                 jr = await s.get(JobRecord, job_id)
                 jr.status = JobStatus.DONE.value

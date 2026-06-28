@@ -74,3 +74,39 @@ def test_tripo_texture_is_literal_not_bool():
     assert build_engine_args("tripo", ["u"], {"textures": True, "quality": "medium"})["texture"] == "standard"
     assert build_engine_args("tripo", ["u"], {"textures": False})["texture"] == "no"
     assert build_engine_args("tripo", ["u"], {"textures": True, "quality": "high"})["texture"] == "HD"
+
+
+def test_generate_asset3d_reports_steps(tmp_path, monkeypatch):
+    import asyncio
+    from app.services import asset3d_service as A
+    from app.config import settings
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    monkeypatch.setattr(type(settings), "images_path", property(lambda self: tmp_path))
+    (tmp_path / "s.png").write_bytes(b"\x89PNG\r\n\x1a\n0")
+
+    async def up(p):
+        return "u"
+
+    async def run(e, a):
+        return {"mesh_url": "m", "format_urls": {}, "texture_urls": [], "preview_url": None}
+
+    async def sd(u, p):
+        return "v"
+
+    monkeypatch.setattr(A, "_upload", up)
+    monkeypatch.setattr(A, "_run_engine", run)
+    monkeypatch.setattr(A, "_seedream_edit", sd)
+    monkeypatch.setattr(A, "_download", lambda u, d: d.write_bytes(b"X") or True)
+    steps = []
+
+    async def on_step(label, pct):
+        steps.append((label, pct))
+
+    asyncio.run(A.generate_asset3d(
+        {"image_filename": "s.png", "engine": "triposr", "multiview": True, "views": 2, "formats": ["glb"]},
+        "j", on_step=on_step))
+    labels = [x[0] for x in steps]
+    assert any("Uploading" in l for l in labels) and any("View 1/2" in l for l in labels)
+    assert any("Running" in l for l in labels) and labels[-1] == "Complete"
+    pcts = [x[1] for x in steps]
+    assert pcts == sorted(pcts) and pcts[-1] == 100
