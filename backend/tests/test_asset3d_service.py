@@ -67,3 +67,10 @@ def test_generate_asset3d_writes_files(tmp_path, monkeypatch):
     d = tmp_path / "assets3d" / "job1"
     assert (d / "model.glb").exists() and (d / "shot_0.png").exists()
     assert out["glb"].endswith("model.glb") and out["shots"] == ["shot_0.png"] and out["engine"] == "triposr"
+
+
+def test_tripo_texture_is_literal_not_bool():
+    from app.services.asset3d_service import build_engine_args
+    assert build_engine_args("tripo", ["u"], {"textures": True, "quality": "medium"})["texture"] == "standard"
+    assert build_engine_args("tripo", ["u"], {"textures": False})["texture"] == "no"
+    assert build_engine_args("tripo", ["u"], {"textures": True, "quality": "high"})["texture"] == "HD"

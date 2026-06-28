@@ -40,8 +40,14 @@ def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
                 "material": "PBR", "quality_mesh_option": opts.get("quality", "medium"),
                 "TAPose": bool(opts.get("tpose")), "use_original_alpha": True, "preview_render": True}
     if engine == "tripo":
-        a = {"image_url": primary, "texture": bool(opts.get("textures", True)),
-             "output_format": fmt, "pbr": True}
+        # Tripo's `texture` is a literal: 'no' | 'standard' | 'HD' (not a bool).
+        if not opts.get("textures", True):
+            tex = "no"
+        elif str(opts.get("quality", "")).lower() in ("high", "hd"):
+            tex = "HD"
+        else:
+            tex = "standard"
+        a = {"image_url": primary, "texture": tex, "output_format": fmt, "pbr": True}
         if len(image_urls) > 1:
             a["multiview_images"] = image_urls
         return a
