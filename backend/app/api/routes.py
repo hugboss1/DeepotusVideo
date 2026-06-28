@@ -763,6 +763,47 @@ async def delete_image_file(filename: str):
     return {"deleted": safe}
 
 
+def _safe_rename_image(old_name: str, new_name: str) -> str:
+    """Rename an image in images_path. Keeps the source extension, sanitizes the
+    stem, strips any path components, auto-suffixes on collision, and refuses to
+    escape images_path. Returns the final filename. File-only (no ref rewrite)."""
+    src_name = Path(old_name).name
+    src = settings.images_path / src_name
+    if not src.is_file():
+        raise FileNotFoundError(src_name)
+    ext = src.suffix
+    raw = Path(new_name).name
+    raw_stem = raw[:-len(Path(raw).suffix)] if Path(raw).suffix else raw
+    stem = re.sub(r"[^A-Za-z0-9._ -]", "_", raw_stem)
+    stem = re.sub(r"_+", "_", stem).strip(" _") or "image"
+    dest = settings.images_path / f"{stem}{ext}"
+    if dest.resolve() == src.resolve():
+        return src_name  # no-op
+    n = 2
+    while dest.exists():
+        dest = settings.images_path / f"{stem}_{n}{ext}"
+        n += 1
+    if not str(dest.resolve()).startswith(str(settings.images_path.resolve())):
+        raise ValueError("Invalid destination")
+    src.rename(dest)
+    return dest.name
+
+
+@router.post("/images/{filename}/rename")
+async def rename_image_file(filename: str, body: dict):
+    """Rename an uploaded/generated image (file-only). Body: {new_name}."""
+    new = str(body.get("new_name") or "").strip()
+    if not new:
+        raise HTTPException(400, "new_name required")
+    try:
+        final = _safe_rename_image(filename, new)
+    except FileNotFoundError:
+        raise HTTPException(404, f"Image not found: {filename}")
+    except Exception as e:
+        raise HTTPException(400, str(e))
+    return {"old": Path(filename).name, "new": final}
+
+
 _AUDIO_EXTS = {".mp3", ".wav", ".m4a", ".aac", ".ogg", ".flac", ".opus"}
 
 
