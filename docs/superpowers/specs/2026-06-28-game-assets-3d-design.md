@@ -30,8 +30,8 @@ All fal engines go through one `subscribe_async(endpoint, args)` path with an **
 1. **Resolve input** → `FalSeedanceClient.upload_image()` → fal URL (or, for Meshy, pass the image per Meshy's API).
 2. **Optional multi-view "boost"** (`multiview`, default **off** — the strong engines do single-image well): if on, run `views` (1–4) `fal-ai/bytedance/seedream/v4/edit` calls with angle prompts from `view_prompts(n, subject)` (front/back/¾-left/¾-right) → extra view URLs fed to the engine for consistency.
 3. **3D engine** via the adapter for the chosen `engine`: produce **GLB always** (preview + interchange) plus any requested export formats (the engine's native `geometry_file_format`/equivalent; Tripo/Rodin/Hunyuan support FBX/OBJ/STL/USDZ — **exact options + whether one call returns multiple formats are verified against a live call during implementation**).
-4. **Store + register:** download mesh files + the engine's preview/render image + textures to `outputs/assets3d/{job_id}/` (`model.glb`, `model.fbx`, …, `preview.png`). Register a `JobRecord` (`provider="asset3d"`; GLB in `final_video_path`; poster in `image_filename`; `cost_meta` JSON records engine + available formats).
-5. **Serve:** `GET /api/assets/3d/{job_id}/{fmt}` streams `glb|fbx|obj|stl|usdz`.
+4. **Store + register:** download mesh files + the engine's preview/render image + textures **and every intermediate view image** to `outputs/assets3d/{job_id}/` (`model.glb`, `model.fbx`, …, `preview.png`, `shot_1.png`, `shot_2.png`, …). `shot_0` = the source image; `shot_1..N` = the Seedream multi-view outputs (always saved, even with the boost off there is at least `shot_0`). Register a `JobRecord` (`provider="asset3d"`; GLB in `final_video_path`; poster in `image_filename`; `cost_meta` JSON records engine, available formats, **and the list of shot files**).
+5. **Serve:** `GET /api/assets/3d/{job_id}/{fmt}` streams a mesh (`glb|fbx|obj|stl|usdz`); `GET /api/assets/3d/{job_id}/shot/{i}` streams an individual view image so **each generated shot is downloadable on its own** (always handy for reuse in the Library / other tools).
 
 ## 3. Format → target-use mapping (UI)
 GLB always; user multi-selects targets → formats: **Blender/Web** → `glb`; **Unity/Unreal** → `fbx` (GLB also imports); **Universal** → `obj`; **3D printing** → `stl`; **AR/USD** → `usdz`.
@@ -39,7 +39,7 @@ GLB always; user multi-selects targets → formats: **Blender/Web** → `glb`; *
 ## 4. Frontend — new "Game Assets" category page
 - **Nav:** add "Game Assets" to the top-level category array (with Quick/Studio/Episodes/Scheduler/Templates/News/Library/Settings).
 - **Generator:** image source (reuse Library grid + upload) → **engine dropdown** (each option renders its one-line description as helper text + the cost) → optional **subject** → **multi-view boost** toggle (+ views slider when on) → **quality** / **textures** / **T-pose** → **target formats** multi-select → live **cost estimate** → **Generate** (gated on `FAL_KEY`, or `MESHY_API_KEY` for Meshy) → progress.
-- **Results grid:** `asset3d` jobs as cards — poster image, name, **▶ rotate** (live `<model-viewer>` on the GLB), **Download ▾** (available formats).
+- **Results grid:** `asset3d` jobs as cards — poster image, name, **▶ rotate** (live `<model-viewer>` on the GLB), **Download ▾** (available mesh formats), and a **Shots** strip: a thumbnail per intermediate view (`shot_0..N`) each with its own download (and a "Save to Library" that copies the shot into `images_path`).
 - **Library:** "Renders" filtered to exclude `provider==="asset3d"`.
 
 ## 5. 3D preview — vendored `<model-viewer>`
