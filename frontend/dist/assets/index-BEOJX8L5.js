@@ -149,7 +149,7 @@ var IS=x.useState([]),imgs=IS[0],setImgs=IS[1];
 var MF=x.useState({}),manifests=MF[0],setManifests=MF[1];
 var RT=x.useState({}),rot=RT[0],setRot=RT[1];
 var BZ=x.useState(!1),busy=BZ[0],setBusy=BZ[1];
-var PP=x.useState({engine:"tripo",image_filename:"",subject:"",multiview:!1,views:3,textures:!0,tpose:!1,formats:["glb"]}),p=PP[0],setPP=PP[1];
+var PP=x.useState({engine:"tripo",image_filename:"",subject:"",multiview:!0,views:4,textures:!0,tpose:!1,formats:["glb"]}),p=PP[0],setPP=PP[1];
 var MO=x.useState("form"),mode=MO[0],setMode=MO[1];var AJ=x.useState(null),activeJob=AJ[0],setActiveJob=AJ[1];function set(k,v){setPP(function(o){var n=Object.assign({},o);n[k]=v;return n})}
 function refresh(){fetch("/api/jobs").then(function(r){return r.json()}).then(function(a){var L=(a||[]).filter(function(z){return z.provider==="asset3d"});setJobs(L);L.forEach(function(z){var sh=z.job_id.slice(0,8);if((z.status==="done"&&!manifests[sh])||z.status==="generating_video"){fetch("/api/assets/3d/"+sh+"/manifest").then(function(r){return r.ok?r.json():null}).then(function(m){if(m)setManifests(function(o){var n=Object.assign({},o);n[sh]=m;return n})}).catch(function(){})}})}).catch(function(){})}
 x.useEffect(function(){refresh();fetch("/api/images").then(function(r){return r.json()}).then(function(a){setImgs(((a&&a.images)||[]).slice(0,60))}).catch(function(){});var t=setInterval(refresh,4e3);return function(){clearInterval(t)}},[]);
