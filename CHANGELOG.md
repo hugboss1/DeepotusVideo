@@ -4,6 +4,21 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v1.15.7 "Studio Effects"
+
+## 🆕 What's new
+
+| Feature | Description |
+|---|---|
+| **Effects / Mask node** (Studio) | New Composition node wired to a new Render `fx` port. 21 ffmpeg effects: **LUT/grade** presets (Teal&Orange, Cyberpunk, Deep-sea, Noir, Vintage…) + user `.cube`, **VHS** (sequenceable line displacement, intensity/speed), **Colorize** presets, parametric **Gradients**, plus grain, vignette, chromatic aberration, glitch, bloom, halation, scanlines/CRT, letterbox, old film, sharpen, blur, dreamy, pixelate, camera shake, mirror, invert. **Thumbnail picker**; apply to the whole render or a **specific node/layer** (targeting resolved backend-side from the source graph). |
+| **Preview button** | The top-bar Preview now renders a **cheap, fast** version of the final composition — Seedance/HeyGen slots use their source still (no fal/HeyGen cost), short duration — so you can see framing + overlays + effects **before** the paid Run. |
+| **Overlays on every branch (fix)** | Text overlay / Ticker / Separator wired to the Render node now render on **all** composition branches (UGC, montage, spatial compose), not only spatial compose. Rebuilt backend-side from `source_graph` (`graph_overlays`/`graph_effects`). |
+| **Migration / export kit** | `export-migration.ps1` + `import-migration.ps1` + bilingual `MIGRATION.md` (Desktop `deepotus-migration`): move the app (with all new features), every generation, the **calendar + scheduled posts**, and API keys to another PC — with a consistent DB snapshot and automatic path-rewrite. Documented in the in-app guide (§16). |
+
+Backend: `effects_engine.py`, `graph_effects.py`, per-region + global `post_effects` in `build_ffmpeg_command`, `TemplateRenderRequest.preview`. Frontend bundle: `Effects` node + Render `fx` port + `DzEffectsPanel` (thumbnails) + Preview wiring. All verified end-to-end in the running app.
+
+---
+
 # 🐙 Deepotus Video Gen — v1.8.0 "Reef Edition"
 
 ## 🆕 What's new in v1.8.0

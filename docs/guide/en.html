@@ -63,7 +63,9 @@
   <a href="#c11">11 · AI engines (cloud &amp; Ollama)</a><br>
   <a href="#c12">12 · Connect your accounts</a><br>
   <a href="#c13">13 · White-label</a><br>
-  <a href="#c14">14 · Troubleshooting &amp; recipes</a>
+  <a href="#c14">14 · Troubleshooting &amp; recipes</a><br>
+  <a href="#c15">15 · Studio — Effects, masks &amp; preview</a><br>
+  <a href="#c16">16 · Moving to another PC — migration</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Start &amp; API keys</h2>
@@ -314,6 +316,28 @@
 <div class="step"><span class="n">2</span><div><strong>By AI</strong> (or By paragraph) → review the scenes → <em>Generate all illustrations</em> → set each scene's motion (Ken Burns / Seedance).</div></div>
 <div class="step"><span class="n">3</span><div><em>Assemble the episode</em> → preview → <em>Send to Scheduler</em> (YouTube + Instagram drafts). One episode a day, done.</div></div>
 </div>
+
+<h2 id="c15"><span class="num">15</span>Studio — Effects, masks &amp; preview <span class="new">new</span></h2>
+<p>Two additions to the node editor (Studio).</p>
+<h3>The “Effects / Mask” node</h3>
+<p>Drag the <strong>Effects / Mask</strong> node (<em>Composition</em> section) and wire its output to the new <strong>fx</strong> port on the <strong>Render</strong> node. The panel shows a <strong>thumbnail grid</strong> so you pick an effect at a glance.</p>
+<p><strong>Available effects:</strong> <strong>LUT / Grade</strong> (named grades — Teal&amp;Orange, Cyberpunk, Deep-sea, Noir, Vintage…), <strong>VHS</strong> (sequenceable line displacement, intensity + speed), <strong>Colorize</strong> (Sepia, Duotone, Matrix, Red-alert…), parametric <strong>Gradients</strong> (2 colors, angle, opacity, blend) — plus modern classics: grain, vignette, chromatic aberration, glitch, bloom, halation, scanlines/CRT, cinematic letterbox, old film, sharpen, blur, dreamy, pixelate, camera shake, mirror, invert.</p>
+<p>Under <strong>“Apply to”</strong>, choose <em>Whole render</em> (global post-pass) or <strong>a specific node</strong> (the targeted layer). Add several Effects nodes to stack effects or target different layers.</p>
+<div class="step"><span class="n">1</span><div>+ Effect → click a thumbnail → set intensity (and preset / speed depending on the effect).</div></div>
+<div class="step"><span class="n">2</span><div>Wire the output to the Render <strong>fx</strong> port, choose the target, then <em>Preview</em> or <em>Run</em>.</div></div>
+<h3>“Preview” button — see it before you pay</h3>
+<p>The <strong>Preview</strong> button (top bar) produces a <strong>free, fast</strong> render of the final composition: not-yet-generated <strong>Seedance/HeyGen</strong> clips are replaced by their <strong>source still</strong>. You see the framing, layers, <strong>overlays and effects</strong> exactly as in the final render — <em>before</em> the paid <strong>Run</strong>.</p>
+<div class="warn">Text overlays (Text overlay / Ticker / Separator) now apply on <strong>every</strong> composition at the Render node (UGC, montage, spatial compose), not only spatial compose.</div>
+
+<h2 id="c16"><span class="num">16</span>Moving to another PC — migration &amp; export <span class="new">new</span></h2>
+<p>Everything is stored <strong>locally</strong>: the app in <code>%LOCALAPPDATA%\DeepotusVideoGen</code>, and your data (generations, <strong>calendar + scheduled posts</strong>, API keys) in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. To continue on another PC (travel) <strong>without interrupting the schedule</strong>, a kit lives in <code>Desktop\deepotus-migration</code>.</p>
+<h3>With the scripts (recommended)</h3>
+<div class="step"><span class="n">1</span><div>On THIS PC, with a USB/external drive plugged in: <code>export-migration.ps1 -Dest "E:\deepotus-transfer"</code>. Copies the app + all data + a consistent DB snapshot.</div></div>
+<div class="step"><span class="n">2</span><div>Copy that folder to the other laptop, then: <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>. Installs everything, rewrites paths if the username differs, recreates the shortcut.</div></div>
+<div class="step"><span class="n">3</span><div>Launch <strong>Deepotus Video Gen</strong>: <em>Library</em> = your renders, <em>Scheduler</em> = your scheduled posts, <em>Settings</em> = your keys.</div></div>
+<h3>Manually</h3>
+<p>Close the app, copy the <strong>two folders</strong> above to the <strong>same</strong> <code>%LOCALAPPDATA%\</code> paths on the other PC, then run <code>scripts\create-desktop-shortcut.ps1</code> (or double-click <code>scripts\launch-silent.vbs</code>).</p>
+<div class="warn">Do <strong>not</strong> run the app on both PCs at once (scheduled posts could double-publish). Best: <strong>same Windows username</strong> on both (paths match; otherwise the import script rewrites them). The <strong>Scheduler runs while the app is open</strong> — keep it running around posting times on the travel laptop, and keep the old PC closed.</div>
 
 <div class="footer">Deepotus Video Gen v1.15.6 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
 
