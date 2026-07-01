@@ -196,6 +196,13 @@ if _emoji_dir.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFEmoji
     app.mount("/emoji", _SFEmoji(directory=str(_emoji_dir)), name="emoji")
 
+# ── Effect thumbnails: each effect/preset applied to a reference image, at
+# /effect-thumbs, for the Studio Effects node picker.
+_fxthumb_dir = Path(__file__).resolve().parent / "assets" / "effect_thumbs"
+if _fxthumb_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFFx
+    app.mount("/effect-thumbs", _SFFx(directory=str(_fxthumb_dir)), name="effect-thumbs")
+
 # ── Custom emojis: user-imported PNGs in the DATA dir (survive reinstall),
 # served at /emoji-custom for the picker preview. Render reads them directly.
 _emoji_custom_dir = DATA_ROOT / "assets" / "emoji_custom"
