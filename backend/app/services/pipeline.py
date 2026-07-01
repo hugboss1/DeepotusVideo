@@ -41,6 +41,59 @@ def _save_source_graph(job_id: str, graph) -> None:
         logger.warning(f"source_graph save failed for {job_id}: {e}")
 
 
+def _preview_placeholder() -> Path:
+    """A neutral avatar-ish still used in preview for HeyGen slots (no gen)."""
+    p = settings.outputs_path / "_preview_avatar.png"
+    if not p.exists():
+        try:
+            from PIL import Image, ImageDraw
+            im = Image.new("RGB", (720, 720), (18, 22, 30))
+            d = ImageDraw.Draw(im)
+            d.ellipse([270, 190, 450, 370], fill=(58, 68, 88))
+            d.rectangle([230, 400, 490, 640], fill=(58, 68, 88))
+            d.text((250, 660), "AVATAR (preview)", fill=(150, 170, 190))
+            p.parent.mkdir(parents=True, exist_ok=True)
+            im.save(p)
+        except Exception as e:
+            logger.warning(f"preview placeholder failed: {e}")
+    return p
+
+
+def _preview_slot_values(slot_values: dict) -> dict:
+    """Swap Seedance -> its source still, HeyGen -> a placeholder still, so a
+    preview renders the composition without paying for generation."""
+    from app.models.schemas import TemplateSlotValue
+    out = {}
+    for k, v in slot_values.items():
+        sk = getattr(v, "source_kind", None)
+        sd = getattr(v, "seedance", None)
+        img = getattr(sd, "image_filename", None) if sd else None
+        if sk == "seedance" and img:
+            out[k] = TemplateSlotValue(source_kind="upload", upload_filename=img)
+        elif sk == "heygen":
+            out[k] = TemplateSlotValue(source_kind="file", file=str(_preview_placeholder()))
+        else:
+            out[k] = v
+    return out
+
+
+def _shorten_for_preview(tpl: dict, secs: float = 3.0) -> dict:
+    """Cap the preview clip length and drop the 'from_slot' duration master
+    (a still has no media duration to key off)."""
+    t = dict(tpl)
+    c = dict(t.get("canvas") or {})
+    try:
+        c["duration_s"] = min(float(c.get("duration_s", secs) or secs), secs)
+    except (TypeError, ValueError):
+        c["duration_s"] = secs
+    t["canvas"] = c
+    a = dict(t.get("audio") or {})
+    if str(a.get("master_track", "")).startswith("from_slot"):
+        a.pop("master_track", None)
+    t["audio"] = a
+    return t
+
+
 def _resolve_music(music) -> tuple[Path | None, float]:
     """Resolve a {'file','volume_db'} BGM spec to (audio_dir path, volume_db).
 
@@ -612,6 +665,7 @@ class Pipeline:
         template: dict | None = None,
         title: str | None = None,
         source_graph: dict | None = None,
+        preview: bool = False,
     ) -> str:
         """Resolve every slot (Seedance/HeyGen in parallel, upload/file/text
         inline), then composite via the template engine. If `template` (an
@@ -641,6 +695,13 @@ class Pipeline:
                 tpl = graph_effects.inject_effects(tpl, source_graph, slot_values)
             except Exception as e:
                 logger.warning(f"effects injection skipped for {job_id}: {e}")
+        # Preview pass: swap Seedance/HeyGen slots for their source still (no
+        # fal/HeyGen cost) and shorten, so the composition/overlays/effects can
+        # be visualised before the paid Run. Done AFTER injections so effect
+        # node->region mapping still uses the real seedance slot_values.
+        if preview:
+            slot_values = _preview_slot_values(slot_values)
+            tpl = _shorten_for_preview(tpl)
         slots = self.template_engine.slots_from(tpl)
 
         async with async_session_factory() as session:

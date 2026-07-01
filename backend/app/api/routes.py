@@ -143,10 +143,11 @@ async def render_layout_template(
             raise HTTPException(400, f"Invalid template: {e}")
 
     kinds = {sv.source_kind for sv in request.slot_values.values()}
-    if "seedance" in kinds and not settings.FAL_KEY:
-        raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
-    if "heygen" in kinds and not settings.has_heygen:
-        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+    if not request.preview:  # preview uses source stills, no provider keys needed
+        if "seedance" in kinds and not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
+        if "heygen" in kinds and not settings.has_heygen:
+            raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
 
     job_id = str(uuid4())
 
@@ -171,6 +172,7 @@ async def render_layout_template(
                 template=request.template,
                 title=request.title,
                 source_graph=request.source_graph,
+                preview=request.preview,
             )
         except Exception as e:
             logger.exception(f"Template render {job_id} failed: {e}")

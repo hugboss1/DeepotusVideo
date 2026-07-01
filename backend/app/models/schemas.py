@@ -404,6 +404,9 @@ class TemplateRenderRequest(BaseModel):
     title: Optional[str] = Field(None, max_length=200)
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
+    # Cheap "what will it look like" pass: Seedance/HeyGen slots use their source
+    # still instead of generating (no fal/HeyGen cost), short duration.
+    preview: bool = False
 
 
 class TemplateRenderResponse(BaseModel):
