@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Single source of truth for the app version (health endpoint, FastAPI docs,
 # packaging scripts). Bump here only.
-APP_VERSION = "1.15.6"
+APP_VERSION = "1.15.7"
 
 
 def _data_root() -> Path:
