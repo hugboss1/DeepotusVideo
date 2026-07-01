@@ -196,7 +196,16 @@ def render_animation(payload: dict, job_id: str):
     fps = int(payload.get("fps", 30))
     dur = float(payload.get("duration_s", 8))
     n = max(1, int(dur * fps))
-    els = payload.get("elements", [])
+    els = list(payload.get("elements", []))
+    # TextOverlay nodes wired to the Render node also render on the animation
+    # path (fix: overlays applied on every render branch, not just compose).
+    sg = payload.get("source_graph")
+    if sg:
+        try:
+            from app.services.graph_overlays import overlay_elements
+            els = els + overlay_elements(sg, W, H)
+        except Exception:
+            pass
     base = payload.get("base")  # absolute path to a clip, or None
     out = settings.outputs_path / f"anim_{job_id}.mp4"
     # base frame reader (rawvideo rgba) or None

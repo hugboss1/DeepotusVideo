@@ -611,6 +611,7 @@ class Pipeline:
         job_id: str | None = None,
         template: dict | None = None,
         title: str | None = None,
+        source_graph: dict | None = None,
     ) -> str:
         """Resolve every slot (Seedance/HeyGen in parallel, upload/file/text
         inline), then composite via the template engine. If `template` (an
@@ -623,10 +624,18 @@ class Pipeline:
         job_id = job_id or str(uuid4())
         if template is not None:
             tpl = template
-            slots = self.template_engine.slots_from(tpl)
         else:
             tpl = self.template_engine.get_template(template_id)
-            slots = self.template_engine.list_slots(template_id)
+        # Overlays (TextOverlay/Ticker/Separator wired to the Render node) are
+        # rebuilt from the source graph so they apply on EVERY render branch
+        # (UGC, Concatenate, ...), not just Spatial compose. See graph_overlays.
+        if source_graph:
+            try:
+                from app.services import graph_overlays
+                tpl = graph_overlays.inject_overlays(tpl, source_graph)
+            except Exception as e:
+                logger.warning(f"overlay injection skipped for {job_id}: {e}")
+        slots = self.template_engine.slots_from(tpl)
 
         async with async_session_factory() as session:
             parent = JobRecord(
