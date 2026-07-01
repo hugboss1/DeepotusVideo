@@ -635,6 +635,12 @@ class Pipeline:
                 tpl = graph_overlays.inject_overlays(tpl, source_graph)
             except Exception as e:
                 logger.warning(f"overlay injection skipped for {job_id}: {e}")
+            # Effects/Mask nodes -> per-layer region effects + global post_effects.
+            try:
+                from app.services import graph_effects
+                tpl = graph_effects.inject_effects(tpl, source_graph, slot_values)
+            except Exception as e:
+                logger.warning(f"effects injection skipped for {job_id}: {e}")
         slots = self.template_engine.slots_from(tpl)
 
         async with async_session_factory() as session:
