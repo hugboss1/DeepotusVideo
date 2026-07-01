@@ -691,7 +691,13 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                       f"d=1:s={rw}x{rh}:fps={fps}")
             parts.append(
                 f"[{i}:v]{sf},setsar=1,fps={fps}{zp},format=yuv420p[s{n}]")
-            _w(f"[{cur}][s{n}]overlay={rx}:{ry}:eof_action=repeat[o{n}]", f"o{n}")
+            slbl = f"s{n}"
+            if r.get("effects"):   # per-layer mask/effects on this region's stream
+                from app.services import effects_engine as _fx
+                parts += _fx.build_chain(r["effects"], slbl, f"s{n}fx", f"rfx{n}",
+                                         {"w": rw, "h": rh})
+                slbl = f"s{n}fx"
+            _w(f"[{cur}][{slbl}]overlay={rx}:{ry}:eof_action=repeat[o{n}]", f"o{n}")
         elif r["type"] in ("text", "text_slot"):
             if r["type"] == "text_slot":
                 txt = _slot_text(slot_values, r["slot_name"],
@@ -850,6 +856,12 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
                              size=size, color=tcol,
                              x=x_expr, y=y_expr, alpha=alpha), f"tt{n}")
 
+    # Global post-effects (whole render) — the Effects node targeting "all".
+    post = template.get("post_effects") or template.get("effects")
+    if post:
+        from app.services import effects_engine as _fx
+        parts += _fx.build_chain(post, cur, "postfx", "gfx", {"w": w, "h": h})
+        cur = "postfx"
     parts.append(f"[{cur}]format=yuv420p[outv]")
 
     has_audio = len(audio_streams) > 0 or music_idx is not None
