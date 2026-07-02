@@ -6,6 +6,10 @@ adapters below isolate those quirks so the orchestrator stays engine-agnostic.
 """
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 _ANGLES = [
     "front view, full body, T-pose, plain neutral background",
     "back view, full body, plain neutral background",
@@ -113,9 +117,9 @@ async def _seedream_edit(image_url, prompt):
     return imgs[0].get("url") if imgs and isinstance(imgs[0], dict) else None
 
 
-def _download(url, dest):
+def _download(url, dest, timeout=120):
     import urllib.request
-    with urllib.request.urlopen(url) as r:
+    with urllib.request.urlopen(url, timeout=timeout) as r:
         dest.write_bytes(r.read())
     return True
 
@@ -124,7 +128,9 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     """Upload image -> optional multi-view -> 3D engine -> download mesh formats,
     shots and poster under outputs/assets3d/{job_id}/. Returns a summary dict.
     `on_step(label, pct)` (optional async) is awaited at each phase for live UI."""
+    import asyncio
     import shutil
+    from pathlib import Path
     from app.config import settings
 
     async def _step(label, pct):
@@ -142,7 +148,13 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     out_dir.mkdir(parents=True, exist_ok=True)
 
     await _step("Uploading", 10)
-    src = settings.images_path / payload.get("image_filename", "")
+    # basename + containment check: the raw payload value must never escape the
+    # Library folder (it gets uploaded to fal, so a traversal would exfiltrate it)
+    fn = Path(str(payload.get("image_filename") or "")).name
+    src = settings.images_path / fn
+    if not fn or not src.is_file() \
+            or not str(src.resolve()).startswith(str(settings.images_path.resolve())):
+        raise ValueError(f"Image not found in Library: {payload.get('image_filename')!r}")
     src_url = await _upload(src)
 
     # shots: shot_0 = source, shot_1..N = multi-view boost
@@ -150,12 +162,21 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     shots = ["shot_0.png"]
     image_urls = [src_url]
     if payload.get("multiview"):
-        _nv = int(payload.get("views", 3))
+        try:
+            _nv = max(1, min(4, int(payload.get("views", 3))))
+        except (TypeError, ValueError):
+            _nv = 3
         for i, pr in enumerate(view_prompts(_nv, payload.get("subject", "")), 1):
             await _step(f"View {i}/{_nv}", 10 + int(40 * i / max(1, _nv)))
-            u = await _seedream_edit(src_url, pr)
+            try:
+                u = await _seedream_edit(src_url, pr)
+            except Exception as e:
+                # the multi-view boost is best-effort: keep the views we already
+                # have instead of failing the whole (already partly paid) job
+                logger.warning(f"multi-view {i}/{_nv} failed (continuing): {e}")
+                u = None
             if u:
-                _download(u, out_dir / f"shot_{i}.png")
+                await asyncio.to_thread(_download, u, out_dir / f"shot_{i}.png")
                 shots.append(f"shot_{i}.png")
                 image_urls.append(u)
 
@@ -166,11 +187,11 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
 
     files = {}
     if result.get("mesh_url"):
-        _download(result["mesh_url"], out_dir / "model.glb")
+        await asyncio.to_thread(_download, result["mesh_url"], out_dir / "model.glb")
         files["glb"] = str(out_dir / "model.glb")
     for ext, url in (result.get("format_urls") or {}).items():
         if ext in formats:
-            _download(url, out_dir / f"model.{ext}")
+            await asyncio.to_thread(_download, url, out_dir / f"model.{ext}")
             files[ext] = str(out_dir / f"model.{ext}")
     # extra formats not returned by the first call -> targeted re-export
     for f in formats:
@@ -178,11 +199,14 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
             r2 = await _run_engine(engine, build_engine_args(engine, image_urls,
                 {"format": f, "textures": payload.get("textures", True)}))
             if r2.get("mesh_url"):
-                _download(r2["mesh_url"], out_dir / f"model.{f}")
+                await asyncio.to_thread(_download, r2["mesh_url"], out_dir / f"model.{f}")
                 files[f] = str(out_dir / f"model.{f}")
     if result.get("preview_url"):
-        _download(result["preview_url"], out_dir / "preview.png")
+        await asyncio.to_thread(_download, result["preview_url"], out_dir / "preview.png")
 
     await _step("Complete", 100)
+    preview_p = out_dir / "preview.png"
     return {"glb": files.get("glb"), "files": files, "shots": shots,
-            "preview": str(out_dir / "preview.png"), "engine": engine}
+            "preview": str(preview_p) if preview_p.is_file() else None,
+            "skipped_formats": [f for f in formats if f not in files],
+            "engine": engine}

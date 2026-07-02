@@ -40,7 +40,7 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v1.15.7</strong> · <a href="fr.html">Version française</a></p>
+<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v1.15.8</strong> · <a href="fr.html">Version française</a></p>
 
 <div class="lead">
   <p><strong>Never touched an editing tool?</strong> Good — this guide is written for you. Deepotus Video Gen turns an idea into a post-ready vertical video, with no software to learn. Everything runs <strong>on your computer</strong>; you plug in your own API keys (you pay your providers, not the app).</p>
@@ -65,7 +65,8 @@
   <a href="#c13">13 · White-label</a><br>
   <a href="#c14">14 · Troubleshooting &amp; recipes</a><br>
   <a href="#c15">15 · Studio — Effects, masks &amp; preview</a><br>
-  <a href="#c16">16 · Moving to another PC — migration</a>
+  <a href="#c16">16 · Moving to another PC — migration</a><br>
+  <a href="#c17">17 · Game Assets — 3D objects</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Start &amp; API keys</h2>
@@ -333,13 +334,27 @@
 <p>Everything is stored <strong>locally</strong>: the app in <code>%LOCALAPPDATA%\DeepotusVideoGen</code>, and your data (generations, <strong>calendar + scheduled posts</strong>, API keys) in <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. To continue on another PC (travel) <strong>without interrupting the schedule</strong>, a kit lives in <code>Desktop\deepotus-migration</code>.</p>
 <h3>With the scripts (recommended)</h3>
 <div class="step"><span class="n">1</span><div>On THIS PC, with a USB/external drive plugged in: <code>export-migration.ps1 -Dest "E:\deepotus-transfer"</code>. Copies the app + all data + a consistent DB snapshot.</div></div>
-<div class="step"><span class="n">2</span><div>Copy that folder to the other laptop, then: <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>. Installs everything, rewrites paths if the username differs, recreates the shortcut.</div></div>
+<div class="step"><span class="n">2</span><div>Copy that folder to the other laptop, then <strong>double-click <code>IMPORT-TOUT.cmd</code></strong> at its root: it restores <strong>everything in one click</strong> — app, generations, calendar, keys, <em>and</em> your Claude Code sessions if they are in the kit. (Manual equivalent: <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>.) The <code>DeepotusVideoGen-Setup-*.exe</code> installer is also bundled for a clean install on a third machine.</div></div>
 <div class="step"><span class="n">3</span><div>Launch <strong>Deepotus Video Gen</strong>: <em>Library</em> = your renders, <em>Scheduler</em> = your scheduled posts, <em>Settings</em> = your keys.</div></div>
 <h3>Manually</h3>
 <p>Close the app, copy the <strong>two folders</strong> above to the <strong>same</strong> <code>%LOCALAPPDATA%\</code> paths on the other PC, then run <code>scripts\create-desktop-shortcut.ps1</code> (or double-click <code>scripts\launch-silent.vbs</code>).</p>
 <div class="warn">Do <strong>not</strong> run the app on both PCs at once (scheduled posts could double-publish). Best: <strong>same Windows username</strong> on both (paths match; otherwise the import script rewrites them). The <strong>Scheduler runs while the app is open</strong> — keep it running around posting times on the travel laptop, and keep the old PC closed.</div>
 
-<div class="footer">Deepotus Video Gen v1.15.7 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
+<h2 id="c17"><span class="num">17</span>Game Assets — image → 3D object <span class="new">new</span></h2>
+<p>The <strong>Game Assets</strong> category (sidebar) turns an image from your Library into a <strong>textured 3D model</strong> ready for a game engine or 3D tool (Unity, Unreal, Godot, Blender…). Only the <strong>fal.ai</strong> key is required. Five generation engines, from cheapest to premium: <strong>TripoSR</strong> (≈ $0.07), <strong>Hunyuan3D</strong>, <strong>Tripo</strong> (default — best quality/price), <strong>TRELLIS</strong> and <strong>Rodin</strong>. The estimated cost is shown live before you start.</p>
+<img class="shot" src="img/game-assets.png" alt="Game Assets — form">
+<p class="cap">The Game Assets form: source image, engine (with description and rate), subject, options and export formats.</p>
+<div class="step"><span class="n">1</span><div>Pick a <strong>source image</strong> (your Library images — ideally a well-isolated character/object on a neutral background), then the <strong>engine</strong> from the dropdown.</div></div>
+<div class="step"><span class="n">2</span><div>Options: <strong>Multi-view</strong> (on by default, 4 views) first generates other angles via Seedream for a more faithful mesh; <strong>Textures</strong>; <strong>T-pose</strong> for characters you plan to rig; and the <strong>export formats</strong> — GLB always included, plus FBX / OBJ / STL / USDZ depending on the engine. A format the chosen engine cannot emit is flagged; each extra format can cost one more generation (the estimate shows it).</div></div>
+<div class="step"><span class="n">3</span><div><strong>Generate</strong> opens the <strong>pipeline canvas</strong>: the Input → Views → Engine → Response nodes animate and fill in live (also visible when reopening an asset via its card title).</div></div>
+<img class="shot" src="img/game-assets-canvas.png" alt="Game Assets — pipeline canvas">
+<p class="cap">The live pipeline: each node fills in as the generation progresses (views, engine, result).</p>
+<div class="step"><span class="n">4</span><div>On the result card: <strong>▶ Rotate</strong> spins the 3D model in the built-in viewer; each <strong>format</strong> downloads in one click; the <strong>Shots</strong> strip lets you download each view or send it to <em>Library → Images</em> (★) to reuse as a source. Rename (✎) or delete (🗑) the asset from its card header.</div></div>
+<div class="step"><span class="n">5</span><div>All your assets also live in <strong>Library → 3D tab</strong>: preview, full-size 3D rotation, GLB download, favorites ★, rename and delete.</div></div>
+<img class="shot" src="img/library-3d.png" alt="Library — 3D tab">
+<p class="cap">The Library 3D tab gathers all your generated assets.</p>
+<div class="warn">3D rendering runs in your browser (WebGL): keep the tab in the foreground for smooth rotation. Files live under <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> and follow your migration (chapter 16).</div>
+<div class="footer">Deepotus Video Gen v1.15.8 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
 
 </div>
 </body>

@@ -4,6 +4,29 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v1.15.8 "Game Assets Library"
+
+## 🆕 What's new
+
+| Feature | Description |
+|---|---|
+| **Library → 3D tab** | All generated 3D assets now have their own Library tab: preview thumbnail (engine preview render, falling back to the source shot), full-size **rotating 3D viewer** in the modal, one-click **GLB download**, favorites ★, **Rename** and **Delete**. 3D favorites also appear in *Favoris*. |
+| **Guide chapter 17** | New illustrated chapter (FR/EN) covering the whole Game Assets workflow — form, options, pipeline canvas, result cards, Library 3D tab — with fresh screenshots; §16 updated for the one-click import. |
+| **One-click migration import** | `IMPORT-TOUT.cmd` + `import-all.ps1`: double-click on the new PC restores app + generations + calendar + keys **and Claude Code sessions**, with a free-disk-space check. `export-migration.ps1` can now bundle the installer (`-Installer`) and Claude sessions (`-IncludeClaude`). |
+
+## 🛡 Security & fixes (code review pass)
+
+| Fix | Description |
+|---|---|
+| **Path traversal (High)** | `POST /api/assets/3d` accepted any `image_filename` path — a crafted value could upload an arbitrary local file (e.g. the API-keys `.env`) to the fal CDN. Now strictly validated (basename + Library containment) at both route and service level, with fail-fast 400s for bad `views`/`formats`. |
+| **Blocking downloads (High)** | Mesh/preview/shot downloads ran synchronously inside the event loop without a timeout: a large or stalled download froze the whole API. Now `asyncio.to_thread` + 120 s timeout. |
+| **Game Assets page overflow** | The page had no scroll container and painted over the Job dock — the ghost green "done" chips seen on empty rows at the bottom. Both form and canvas views now scroll properly. |
+| **3D jobs leaking as videos** | GLB assets no longer appear in the Studio "Existing render" picker nor in the Scheduler render list. |
+| **Robustness** | A failed multi-view boost no longer kills the whole (already paid) job; generation errors now surface as a clear message instead of an eternal "generating" canvas; manifest polling stops re-fetching completed assets every 4 s; unsupported export formats are reported (`skipped_formats`) and the cost estimate now counts extra-format re-exports; new `GET /api/assets/3d/{job}/preview` route. |
+
+Backend: `asset3d_service.py`, `routes.py`, `pricing.py` (+9 tests, 30 green). Frontend bundle: Library 3D tab, Game Assets scroll fix, error surfacing, filters. All verified end-to-end in the running app.
+
+---
 # 🐙 Deepotus Video Gen — v1.15.7 "Studio Effects"
 
 ## 🆕 What's new

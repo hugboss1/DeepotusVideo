@@ -10,7 +10,9 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$Dest,
-    [switch]$SkipOutputs
+    [switch]$SkipOutputs,
+    [switch]$IncludeClaude,        # also bundle Claude Code sessions/chats (~\.claude)
+    [string]$Installer = ""        # path to a Setup .exe to ship inside the bundle
 )
 $ErrorActionPreference = "Stop"
 $LA   = $env:LOCALAPPDATA
@@ -60,13 +62,29 @@ if (Test-Path $py) {
     "data=DeepotusVideoGenData"
 ) | Set-Content -Path (Join-Path $Dest "_migration-info.txt") -Encoding UTF8
 
-# bundle the import script + guide next to the transfer
-foreach ($f in @("import-migration.ps1", "MIGRATION.md")) {
+# bundle the import scripts + one-click launcher + guide next to the transfer
+foreach ($f in @("import-migration.ps1", "import-claude-sessions.ps1",
+                 "import-all.ps1", "IMPORT-TOUT.cmd", "MIGRATION.md")) {
     $p = Join-Path $PSScriptRoot $f
     if (Test-Path $p) { Copy-Item $p $Dest -Force }
+}
+
+# optional: Claude Code sessions/chats
+if ($IncludeClaude) {
+    $exc = Join-Path $PSScriptRoot "export-claude-sessions.ps1"
+    if (Test-Path $exc) {
+        Write-Host "3b/3  Claude Code sessions/chats..."
+        & powershell -ExecutionPolicy Bypass -NoProfile -File $exc -Dest $Dest
+    }
+}
+
+# optional: ship the ready-to-run installer inside the bundle
+if ($Installer -and (Test-Path $Installer)) {
+    Write-Host "3c/3  Bundling installer $(Split-Path -Leaf $Installer)..."
+    Copy-Item $Installer $Dest -Force
 }
 
 $gb = [math]::Round(((Get-ChildItem $Dest -Recurse -File -ErrorAction SilentlyContinue | Measure-Object Length -Sum).Sum) / 1GB, 2)
 Write-Host ""
 Write-Host "EXPORT DONE -> $Dest  ($gb GB)" -ForegroundColor Green
-Write-Host "Copy THIS folder to the other laptop, then run import-migration.ps1 inside it." -ForegroundColor Green
+Write-Host "Copy THIS folder to the other laptop, then double-click IMPORT-TOUT.cmd inside it." -ForegroundColor Green

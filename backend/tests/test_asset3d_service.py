@@ -69,6 +69,87 @@ def test_generate_asset3d_writes_files(tmp_path, monkeypatch):
     assert out["glb"].endswith("model.glb") and out["shots"] == ["shot_0.png"] and out["engine"] == "triposr"
 
 
+def test_generate_asset3d_rejects_traversal(tmp_path, monkeypatch):
+    import asyncio
+    import pytest
+    from app.services import asset3d_service as A
+    from app.config import settings
+    imgs = tmp_path / "imgs"
+    imgs.mkdir()
+    (tmp_path / "secret.env").write_text("FAL_KEY=leak")
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    monkeypatch.setattr(type(settings), "images_path", property(lambda self: imgs))
+
+    async def fake_upload(p):
+        raise AssertionError("must not upload outside the Library")
+
+    monkeypatch.setattr(A, "_upload", fake_upload)
+    for bad in ("..\\secret.env", str(tmp_path / "secret.env"), "", "missing.png"):
+        with pytest.raises(ValueError):
+            asyncio.run(A.generate_asset3d(
+                {"image_filename": bad, "engine": "triposr", "formats": ["glb"]}, "jx"))
+
+
+def test_generate_asset3d_survives_view_failure(tmp_path, monkeypatch):
+    import asyncio
+    from app.services import asset3d_service as A
+    from app.config import settings
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    monkeypatch.setattr(type(settings), "images_path", property(lambda self: tmp_path))
+    (tmp_path / "s.png").write_bytes(b"\x89PNG\r\n\x1a\n0")
+
+    async def up(p):
+        return "u"
+
+    async def run(e, a):
+        return {"mesh_url": "m", "format_urls": {}, "texture_urls": [], "preview_url": None}
+
+    async def sd_fail(u, p):
+        raise RuntimeError("fal.ai: 429 rate limited")
+
+    monkeypatch.setattr(A, "_upload", up)
+    monkeypatch.setattr(A, "_run_engine", run)
+    monkeypatch.setattr(A, "_seedream_edit", sd_fail)
+    monkeypatch.setattr(A, "_download", lambda u, d: d.write_bytes(b"X") or True)
+    out = asyncio.run(A.generate_asset3d(
+        {"image_filename": "s.png", "engine": "triposr", "multiview": True, "views": 2,
+         "formats": ["glb"]}, "jv"))
+    # views failed but the job still completes with the source shot + mesh
+    assert out["shots"] == ["shot_0.png"] and out["glb"].endswith("model.glb")
+
+
+def test_generate_asset3d_reports_skipped_formats(tmp_path, monkeypatch):
+    import asyncio
+    from app.services import asset3d_service as A
+    from app.config import settings
+    monkeypatch.setattr(type(settings), "outputs_path", property(lambda self: tmp_path))
+    monkeypatch.setattr(type(settings), "images_path", property(lambda self: tmp_path))
+    (tmp_path / "s.png").write_bytes(b"\x89PNG\r\n\x1a\n0")
+
+    async def up(p):
+        return "u"
+
+    async def run(e, a):
+        return {"mesh_url": "m", "format_urls": {}, "texture_urls": [], "preview_url": None}
+
+    monkeypatch.setattr(A, "_upload", up)
+    monkeypatch.setattr(A, "_run_engine", run)
+    monkeypatch.setattr(A, "_download", lambda u, d: d.write_bytes(b"X") or True)
+    out = asyncio.run(A.generate_asset3d(
+        {"image_filename": "s.png", "engine": "triposr", "formats": ["glb", "fbx"]}, "jf"))
+    # triposr can't emit fbx -> flagged, not silently dropped
+    assert out["skipped_formats"] == ["fbx"]
+    assert out["preview"] is None  # no preview_url -> no phantom preview path
+
+
+def test_pricing_asset3d_extra_formats():
+    from app.services.pricing import estimate
+    base = estimate({"kind": "asset3d", "engine": "tripo", "formats": ["glb"]})["total_usd"]
+    multi = estimate({"kind": "asset3d", "engine": "tripo",
+                      "formats": ["glb", "fbx", "obj"]})["total_usd"]
+    assert multi > base
+
+
 def test_tripo_texture_is_literal_not_bool():
     from app.services.asset3d_service import build_engine_args
     assert build_engine_args("tripo", ["u"], {"textures": True, "quality": "medium"})["texture"] == "standard"

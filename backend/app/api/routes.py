@@ -327,6 +327,17 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
         raise HTTPException(400, f"Unknown engine: {engine}")
     if not settings.FAL_KEY:
         raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+    # fail fast on bad input instead of accepting a job that dies in background
+    fn = Path(str(body.get("image_filename") or "")).name
+    if not fn or not (settings.images_path / fn).is_file():
+        raise HTTPException(400, f"image_filename not found in Library: {body.get('image_filename')!r}")
+    try:
+        int(body.get("views") or 3)
+    except (TypeError, ValueError):
+        raise HTTPException(400, "views must be an integer (1-4)")
+    fmts = body.get("formats") or ["glb"]
+    if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
+        raise HTTPException(400, "formats must be a list of strings")
 
     job_id = str(uuid4())
     short = job_id[:8]
@@ -350,15 +361,18 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
             r = await generate_asset3d(body, short, on_step=on_step)
             async with async_session_factory() as s:
                 jr = await s.get(JobRecord, job_id)
-                jr.status = JobStatus.DONE.value
-                jr.progress = 100
-                jr.final_video_path = r.get("glb")
-                jr.image_filename = "preview.png"
-                jr.current_step = "Complete"
-                jr.completed_at = _dtu.utcnow()
-                jr.cost_meta = _json.dumps({"engine": r["engine"], "files": r["files"],
-                                            "shots": r["shots"], "job": short})
-                await s.commit()
+                if jr is not None:
+                    jr.status = JobStatus.DONE.value
+                    jr.progress = 100
+                    jr.final_video_path = r.get("glb")
+                    if r.get("preview"):
+                        jr.image_filename = "preview.png"
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps({"engine": r["engine"], "files": r["files"],
+                                                "shots": r["shots"], "job": short,
+                                                "skipped_formats": r.get("skipped_formats") or []})
+                    await s.commit()
         except Exception as e:
             logger.exception(f"asset3d {job_id} failed: {e}")
             async with async_session_factory() as s:
@@ -393,6 +407,16 @@ async def get_asset3d_manifest(job: str):
                 pass
     return {"formats": sorted(set(formats)), "shots": sorted(set(shots)),
             "has_preview": (d / "preview.png").is_file()}
+
+
+@router.get("/assets/3d/{job}/preview")
+async def get_asset3d_preview(job: str):
+    """Stream the engine-generated preview render (if the engine returned one).
+    Declared before /{fmt} so it isn't captured as fmt='preview'."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / "preview.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
 
 
 @router.get("/assets/3d/{job}/{fmt}")

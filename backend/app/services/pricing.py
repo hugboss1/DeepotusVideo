@@ -160,6 +160,11 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                  "hunyuan": 0.48 if tex else 0.16, "trellis": 0.35, "rodin": 0.40}
         unit = rates.get(engine, 0.30)
         lines.append(_line("fal", f"3D mesh ({engine})", 1, "gen", unit))
+        # formats the first call doesn't return get re-exported = one more paid
+        # generation each (worst case), so surface them in the estimate
+        extra = len({str(f).lower() for f in (op.get("formats") or [])} - {"glb"})
+        if extra:
+            lines.append(_line("fal", "Extra format re-exports", extra, "gen", extra * unit))
         if op.get("multiview"):
             v = int(op.get("views", 3))
             lines.append(_line("fal", "Multi-view edits", v, "img", v * 0.03))

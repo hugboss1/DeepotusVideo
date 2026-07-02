@@ -40,7 +40,7 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.15.7</strong> · <a href="en.html">English version</a></p>
+<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.15.8</strong> · <a href="en.html">English version</a></p>
 
 <div class="lead">
   <p><strong>Vous n'avez jamais touché à un outil de montage ?</strong> Parfait — ce guide est écrit pour vous. Deepotus Video Gen transforme une idée en vidéo verticale prête à poster, sans logiciel à apprendre. Tout tourne <strong>sur votre ordinateur</strong> ; vous branchez vos propres clés API (vous payez vos fournisseurs, pas l'application).</p>
@@ -65,7 +65,8 @@
   <a href="#c13">13 · Marque blanche</a><br>
   <a href="#c14">14 · Dépannage &amp; recettes</a><br>
   <a href="#c15">15 · Studio — Effets, masques &amp; aperçu</a><br>
-  <a href="#c16">16 · Changer d'ordinateur — migration</a>
+  <a href="#c16">16 · Changer d'ordinateur — migration</a><br>
+  <a href="#c17">17 · Game Assets — objets 3D</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Démarrage &amp; clés API</h2>
@@ -333,13 +334,27 @@
 <p>Tout est stocké <strong>en local</strong> : l'application dans <code>%LOCALAPPDATA%\DeepotusVideoGen</code>, et vos données (générations, <strong>calendrier + posts planifiés</strong>, clés API) dans <code>%LOCALAPPDATA%\DeepotusVideoGenData</code>. Pour continuer sur un autre PC (voyage) <strong>sans interrompre le planning</strong>, un kit se trouve dans <code>Bureau\deepotus-migration</code>.</p>
 <h3>Avec les scripts (recommandé)</h3>
 <div class="step"><span class="n">1</span><div>Sur CE PC, un disque/clé branché : <code>export-migration.ps1 -Dest "E:\deepotus-transfer"</code>. Copie l'app + toutes les données + un snapshot cohérent de la base.</div></div>
-<div class="step"><span class="n">2</span><div>Copiez ce dossier sur l'autre portable, puis : <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>. Installe tout, réécrit les chemins si le nom d'utilisateur diffère, recrée le raccourci.</div></div>
+<div class="step"><span class="n">2</span><div>Copiez ce dossier sur l'autre portable, puis <strong>double-cliquez <code>IMPORT-TOUT.cmd</code></strong> à sa racine : il restaure <strong>tout en un clic</strong> — application, générations, calendrier, clés, <em>et</em> vos sessions Claude Code si elles sont dans le kit. (Équivalent manuel : <code>import-migration.ps1 -Src "E:\deepotus-transfer"</code>.) L'installateur <code>DeepotusVideoGen-Setup-*.exe</code> est aussi joint au kit pour une installation propre sur une 3e machine.</div></div>
 <div class="step"><span class="n">3</span><div>Lancez <strong>Deepotus Video Gen</strong> : <em>Library</em> = vos rendus, <em>Scheduler</em> = vos posts planifiés, <em>Settings</em> = vos clés.</div></div>
 <h3>À la main</h3>
 <p>Fermez l'app, copiez les <strong>deux dossiers</strong> ci-dessus vers les <strong>mêmes emplacements</strong> <code>%LOCALAPPDATA%\</code> sur l'autre PC, puis lancez <code>scripts\create-desktop-shortcut.ps1</code> (ou double-cliquez <code>scripts\launch-silent.vbs</code>).</p>
 <div class="warn">Ne faites <strong>pas</strong> tourner l'app sur les deux PC en même temps (risque de double-publication des posts planifiés). Idéal : <strong>même nom d'utilisateur Windows</strong> sur les deux (les chemins correspondent ; sinon le script d'import les réécrit). Le <strong>Scheduler s'exécute quand l'app est ouverte</strong> — gardez-la lancée aux heures de publication sur le portable de voyage, et l'ancien PC fermé.</div>
 
-<div class="footer">Deepotus Video Gen v1.15.7 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
+<h2 id="c17"><span class="num">17</span>Game Assets — image → objet 3D <span class="new">nouveau</span></h2>
+<p>La catégorie <strong>Game Assets</strong> (barre latérale) transforme une image de votre Library en <strong>modèle 3D texturé</strong> prêt pour un moteur de jeu ou un logiciel 3D (Unity, Unreal, Godot, Blender…). Seule la clé <strong>fal.ai</strong> est nécessaire. Cinq moteurs de génération au choix, du plus économique au plus haut de gamme : <strong>TripoSR</strong> (≈ $0.07), <strong>Hunyuan3D</strong>, <strong>Tripo</strong> (défaut — meilleur rapport qualité/prix), <strong>TRELLIS</strong> et <strong>Rodin</strong>. Le coût estimé s''affiche en direct avant de lancer.</p>
+<img class="shot" src="img/game-assets.png" alt="Game Assets — formulaire">
+<p class="cap">Le formulaire Game Assets : image source, moteur (avec description et tarif), sujet, options et formats d''export.</p>
+<div class="step"><span class="n">1</span><div>Choisissez une <strong>image source</strong> (vos images Library — idéalement un personnage/objet bien détouré sur fond neutre), puis le <strong>moteur</strong> dans la liste déroulante.</div></div>
+<div class="step"><span class="n">2</span><div>Options : <strong>Multi-view</strong> (activé par défaut, 4 vues) génère d''abord des vues sous d''autres angles via Seedream pour un mesh plus fidèle ; <strong>Textures</strong> ; <strong>T-pose</strong> pour les personnages à rigger ; et les <strong>formats d''export</strong> — GLB toujours inclus, plus FBX / OBJ / STL / USDZ selon le moteur. Un format non supporté par le moteur choisi est signalé ; chaque format supplémentaire peut coûter une génération de plus (l''estimation l''affiche).</div></div>
+<div class="step"><span class="n">3</span><div><strong>Generate</strong> ouvre le <strong>canvas pipeline</strong> : les nœuds Input → Views → Engine → Response s''animent et se remplissent en direct (visible aussi en rouvrant un asset via le titre de sa carte).</div></div>
+<img class="shot" src="img/game-assets-canvas.png" alt="Game Assets — canvas pipeline">
+<p class="cap">Le pipeline en direct : chaque nœud se remplit au fil de la génération (vues, moteur, résultat).</p>
+<div class="step"><span class="n">4</span><div>Sur la carte de résultat : <strong>▶ Rotate</strong> fait tourner le modèle 3D dans la visionneuse intégrée ; chaque <strong>format</strong> se télécharge d''un clic ; la bande <strong>Shots</strong> permet de télécharger chaque vue ou de l''envoyer dans <em>Library → Images</em> (★) pour la réutiliser comme source. Renommez (✎) ou supprimez (🗑) l''asset depuis l''en-tête de sa carte.</div></div>
+<div class="step"><span class="n">5</span><div>Tous vos assets se retrouvent aussi dans <strong>Library → onglet 3D</strong> : aperçu, rotation 3D en grand, téléchargement GLB, favoris ★, renommage et suppression.</div></div>
+<img class="shot" src="img/library-3d.png" alt="Library — onglet 3D">
+<p class="cap">L''onglet 3D de la Library regroupe tous vos assets générés.</p>
+<div class="warn">Le rendu 3D tourne dans votre navigateur (WebGL) : gardez l''onglet au premier plan pour que la rotation soit fluide. Les fichiers vivent dans <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> et suivent votre migration (chapitre 16).</div>
+<div class="footer">Deepotus Video Gen v1.15.8 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
 
 </div>
 </body>
