@@ -7,6 +7,8 @@ Ce qui est transféré :
 - **Toutes tes générations** (`assets/outputs`, images, audio, graphes Studio).
 - **La base** `deepotus.db` : jobs, **calendrier + posts planifiés (Scheduler)**, préférences.
 - **Tes clés** (`.env` : fal, ElevenLabs, HeyGen, OpenAI, Anthropic, X, Telegram).
+- **Tes sessions & chats Claude Code** (`claude-home` dans le kit, si exporté avec `-IncludeClaude`).
+- **L'installateur** `DeepotusVideoGen-Setup-1.15.8.exe` (joint au kit) pour une install propre sur une 3e machine.
 
 > ⚠️ **Ne fais PAS tourner l'app sur les deux PC en même temps** → risque de double-publication des posts planifiés. Une fois migré, utilise le nouveau portable ; garde l'ancien fermé.
 > ✅ **Idéal : même nom d'utilisateur Windows** sur les deux PC (les chemins des rendus correspondent). Sinon, le script d'import réécrit les chemins automatiquement.
@@ -22,11 +24,8 @@ powershell -ExecutionPolicy Bypass -File .\export-migration.ps1 -Dest "E:\deepot
 - ~2,4 Go (dont 1,9 Go de rendus). Pour un transfert léger sans les rendus : ajoute `-SkipOutputs`.
 - Le script copie l'app + les données + un **snapshot cohérent** de la base, et pose `import-migration.ps1` + ce guide dans le dossier.
 
-**Sur le NOUVEAU portable**, copie `E:\deepotus-transfer` en local (ou branche le disque), puis :
-```powershell
-powershell -ExecutionPolicy Bypass -File .\import-migration.ps1 -Src "E:\deepotus-transfer"
-```
-- Installe l'app, restaure les données, réécrit les chemins si l'utilisateur diffère, recrée le raccourci.
+**Sur le NOUVEAU portable**, copie `E:\deepotus-transfer` en local (ou branche le disque), puis **double-clique `IMPORT-TOUT.cmd`** à la racine du dossier : il restaure **tout en un clic** (app + données + calendrier + clés + sessions Claude Code), vérifie l'espace disque, réécrit les chemins si l'utilisateur diffère et recrée le raccourci.
+   (Équivalent manuel : `powershell -ExecutionPolicy Bypass -File .\import-migration.ps1 -Src "E:\deepotus-transfer"`.)
 - **Lance « Deepotus Video Gen »** (Bureau / Menu Démarrer). Vérifie : Library = tes rendus, Scheduler = tes posts planifiés, Settings = tes clés.
 
 ---
@@ -49,12 +48,9 @@ powershell -ExecutionPolicy Bypass -File .\import-migration.ps1 -Src "E:\deepotu
 ## Méthode C — Installation propre + données (utilisateur Windows différent)
 
 Si le nouveau portable a un **autre nom d'utilisateur** et que tu préfères une base saine :
-1. Installe avec `DeepotusVideoGen-Setup-1.15.6.exe` (dossier `Bureau\DeepotusVideoGen-Export`).
-2. Écrase le code par la version à jour : copie, depuis ce PC, les dossiers
-   `%LOCALAPPDATA%\DeepotusVideoGen\backend` et `...\frontend`
-   par-dessus la nouvelle install (apporte les nouveautés).
-3. Copie le dossier de données `DeepotusVideoGenData` (Méthode B, étape 2-3).
-4. Les chemins des anciens rendus pointant vers l'ancien utilisateur : lance
+1. Installe avec `DeepotusVideoGen-Setup-1.15.8.exe` (joint à ce kit, aussi dans `Bureau\DeepotusVideoGen-Export`) — il contient **déjà toutes les nouveautés**.
+2. Copie le dossier de données `DeepotusVideoGenData` (Méthode B, étape 2-3).
+3. Les chemins des anciens rendus pointant vers l'ancien utilisateur : lance
    `import-migration.ps1 -Src <dossier contenant _migration-info.txt>` pour les réécrire,
    ou régénère au besoin.
 
@@ -81,10 +77,7 @@ On **THIS PC**, with a USB/external drive (e.g. `E:`):
 powershell -ExecutionPolicy Bypass -File .\export-migration.ps1 -Dest "E:\deepotus-transfer"
 ```
 (~2.4 GB; add `-SkipOutputs` to skip the 1.9 GB of renders.)
-On the **NEW laptop**:
-```powershell
-powershell -ExecutionPolicy Bypass -File .\import-migration.ps1 -Src "E:\deepotus-transfer"
-```
+On the **NEW laptop**: **double-click `IMPORT-TOUT.cmd`** at the root of the folder — one click restores app + data + calendar + keys + Claude Code sessions. (Manual equivalent: `powershell -ExecutionPolicy Bypass -File .\import-migration.ps1 -Src "E:\deepotus-transfer"`.)
 Then launch **“Deepotus Video Gen”** and check Library / Scheduler / Settings.
 
 ### Method B — Manual copy
