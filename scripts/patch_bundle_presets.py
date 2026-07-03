@@ -55,6 +55,16 @@ def main():
     cast_e1 = anchor_e1 + 'r.jsx(O,{label:`Casting (${pr.length})`,children:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx("div",{style:{flex:1,minWidth:0},children:r.jsx(re,{value:"",options:[{value:"",label:pr.length?"— load a casting —":"— no casting saved —"},...pr.map(P=>({value:P.id,label:P.name}))],onChange:v=>{const P=pr.find(z=>z.id===v);if(P){Q(P.avatar_id);ne(P.voice_id)}}})}),r.jsx(K,{variant:"ghost",size:"sm",icon:"trash",title:"Delete first casting",disabled:!pr.length,onClick:()=>{const P=pr[0];if(P)fetch("/api/heygen/presets/"+P.id,{method:"DELETE"}).then(()=>fetch("/api/heygen/presets").then(R=>R.json()).then(d=>Pr((d&&d.presets)||[])))}})]})}),r.jsx(O,{label:"Save current as casting",children:r.jsxs("div",{style:{display:"flex",gap:6,alignItems:"center"},children:[r.jsx("div",{style:{flex:1,minWidth:0},children:r.jsx(le,{value:pn,onChange:Pn,placeholder:"Casting name (e.g. News Reel)"})}),r.jsx(K,{variant:"outline",size:"sm",icon:"save",title:"Save casting",disabled:!pn.trim()||!C||!ee,onClick:()=>{const _a=U.find(z=>z.avatar_id===C)||{};const _v=Y.find(z=>z.voice_id===ee)||{};fetch("/api/heygen/presets",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:pn.trim(),avatar_id:C,avatar_type:_a.avatar_type||"avatar",avatar_img:_a.preview_image_url||"",voice_id:ee,voice_name:(_v.name||"").trim(),voice_prev:_v.preview_audio||"",voice_lang:_v.language||"",speed:1})}).then(R=>R.ok?R.json():null).then(()=>{Pn("");return fetch("/api/heygen/presets").then(R=>R.json()).then(d=>Pr((d&&d.presets)||[]))})}})]})}),'
     s = apply(s, anchor_e1, cast_e1, "E1-quick-casting")
 
+    # ---- PATCH E2a (Studio): load presets in DzAvatarPick ----
+    anchor_e2a = 'const[list,setList]=x.useState(null),[voices,setVoices]=x.useState(null);'
+    add_e2a = 'const[list,setList]=x.useState(null),[voices,setVoices]=x.useState(null),[presets,setPresets]=x.useState([]);x.useEffect(()=>{let on=!0;fetch("/api/heygen/presets").then(R=>R.ok?R.json():{presets:[]}).then(d=>{if(on)setPresets((d&&d.presets)||[])}).catch(()=>{});return()=>{on=!1}},[]);'
+    s = apply(s, anchor_e2a, add_e2a, "E2a-studio-presets-load")
+
+    # ---- PATCH E2b (Studio): casting dropdown wired to set() ----
+    anchor_e2b = 'return r.jsxs(ie,{label:"Avatar",children:[r.jsx(O,{label:"Find avatar",'
+    add_e2b = 'return r.jsxs(ie,{label:"Avatar",children:[r.jsx(O,{label:`Casting (${presets.length})`,children:r.jsx(re,{value:"",options:[{value:"",label:presets.length?"— load a casting —":"— no casting saved —"},...presets.map(P=>({value:P.id,label:P.name}))],onChange:v=>{const P=presets.find(z=>z.id===v);if(!P)return;set("avatarId",P.avatar_id);set("avatarType",P.avatar_type||"avatar");set("avatarImg",P.avatar_img||"");const _a=(list||[]).find(z=>z.avatar_id===P.avatar_id);if(_a)set("avatar",_a.avatar_name);set("voiceId",P.voice_id);set("voice",P.voice_name||"");set("voicePrev",P.voice_prev||"");set("voiceLang",P.voice_lang||"");set("speedX",P.speed||1)}})}),r.jsx(O,{label:"Find avatar",'
+    s = apply(s, anchor_e2b, add_e2b, "E2b-studio-casting")
+
     BUNDLE.write_text(s, encoding="utf-8")
     print("patched OK")
 
