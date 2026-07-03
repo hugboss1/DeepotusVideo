@@ -1010,11 +1010,21 @@ def build_sequential_command(engine, template, slot_values, output_path):
             chain += (f",tpad=stop_mode=clone:stop_duration={forced[k]},"
                       f"trim=0:{forced[k]}")
         chain += ",setpts=PTS-STARTPTS"
-        parts.append(f"[{in_idx[k]}:v]{chain}[n{k}]")
+        # Per-region effects (an Effects node targeting THIS source): thread the
+        # act's stream through the effect chain, keeping the [n{k}] label so the
+        # xfade wiring below is unchanged.
+        reff = r.get("effects")
+        if reff:
+            from app.services import effects_engine as _fx
+            parts.append(f"[{in_idx[k]}:v]{chain}[n{k}pre]")
+            parts += _fx.build_chain(reff, f"n{k}pre", f"n{k}",
+                                     f"a{k}fx", {"w": w, "h": h})
+        else:
+            parts.append(f"[{in_idx[k]}:v]{chain}[n{k}]")
 
     starts: list[float] = [0.0] * len(acts)  # timeline start of each clip
     if len(acts) == 1:
-        parts.append("[n0]format=yuv420p[outv]")
+        final = "n0"
         total = durs[0]
     else:
         cur = "n0"
@@ -1035,8 +1045,18 @@ def build_sequential_command(engine, template, slot_values, output_path):
                 f"duration={round(tau,3)}:offset={offset}[{out}]")
             cur = out
             cumulative = cumulative + durs[k] - tau
-        parts.append(f"[{cur}]format=yuv420p[outv]")
+        final = cur
         total = cumulative
+    # Global post-effects (whole montage) — the Effects node targeting "all".
+    # build_sequential_command previously dropped both post_effects and
+    # per-region effects, so an Effects node on a Concatenate graph rendered
+    # with no effect. Mirrors the spatial builder.
+    post = template.get("post_effects") or template.get("effects")
+    if post:
+        from app.services import effects_engine as _fx
+        parts += _fx.build_chain(post, final, "postfx", "gfx", {"w": w, "h": h})
+        final = "postfx"
+    parts.append(f"[{final}]format=yuv420p[outv]")
 
     # Audio: an optional audio_slot track (upload/existing) mixed at its
     # volume and looped to cover the montage; else a silent stereo track.
