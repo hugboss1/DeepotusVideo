@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Integer, DateTime, Text, text
+from sqlalchemy import String, Integer, Float, DateTime, Text, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from loguru import logger
@@ -86,6 +86,27 @@ class ScheduledPost(Base):
     # the plan's Sources step; the Produce button uses it instead of
     # generating a fresh frame.
     source_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+
+class AvatarPreset(Base):
+    """v1.16 — a saved avatar+voice 'casting' reusable across Quick and Studio.
+    Stored in deepotus.db so it migrates with the export/import kit. The *_id
+    fields are the durable source of truth; the cached preview URLs
+    (avatar_img/voice_prev) are HeyGen signed URLs that may expire — the UI
+    tolerates a blank/stale preview and re-resolves by id from the live list."""
+    __tablename__ = "avatar_presets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    avatar_id: Mapped[str] = mapped_column(String(120))
+    avatar_type: Mapped[str] = mapped_column(String(20), default="avatar")
+    avatar_img: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    voice_id: Mapped[str] = mapped_column(String(120))
+    voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voice_lang: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    speed: Mapped[float] = mapped_column(Float, default=1.0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
