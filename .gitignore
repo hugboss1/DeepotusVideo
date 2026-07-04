@@ -48,3 +48,4 @@ backend/outputs/
 *.swp
 Thumbs.db
 .DS_Store
+frontend/dist/assets/*.js.bak
