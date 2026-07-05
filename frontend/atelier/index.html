@@ -12,6 +12,7 @@
   <div class="chapbar">
     <select id="chapterSelect" title="Chapitres"></select>
     <button id="newChapter" class="btn">+ Chapitre</button>
+    <button id="msBtn" class="btn primary" title="Importer un manuscrit complet : l'agent IA segmente les chapitres, remplit la bible (personnages, lieux, objets, dates, ambiances, décors) et surligne le texte">📚 Manuscrit</button>
     <input id="chapterTitle" placeholder="Titre du chapitre" title="Titre">
     <input id="chapterSeries" placeholder="Série (ex: Lost Abyss)" title="Série">
     <button id="deleteChapter" class="btn ghost" title="Supprimer ce chapitre">🗑</button>
@@ -39,6 +40,9 @@
       <button class="btn k-character" data-kind="character">➕ Personnage</button>
       <button class="btn k-place"     data-kind="place">➕ Lieu</button>
       <button class="btn k-object"    data-kind="object">➕ Objet</button>
+      <button class="btn k-date"      data-kind="date">➕ Date</button>
+      <button class="btn k-ambiance"  data-kind="ambiance">➕ Ambiance</button>
+      <button class="btn k-decor"     data-kind="decor">➕ Décor</button>
       <select id="linkSelect" title="Lier la sélection à une entité existante">
         <option value="">🔗 Lier à…</option>
       </select>
@@ -52,7 +56,10 @@
       <span class="chip k-character">Personnage</span>
       <span class="chip k-place">Lieu</span>
       <span class="chip k-object">Objet</span>
-      <span class="chip orphan">zone orpheline (texte modifié) — re-lier</span>
+      <span class="chip k-date">Date</span>
+      <span class="chip k-ambiance">Ambiance</span>
+      <span class="chip k-decor">Décor</span>
+      <span class="chip orphan">zone orpheline — re-lier</span>
     </div>
 
     <!-- ══════════ Mode Storyboard ══════════ -->
@@ -75,6 +82,9 @@
         <button class="tab active" data-kind="character">Personnages</button>
         <button class="tab" data-kind="place">Lieux</button>
         <button class="tab" data-kind="object">Objets</button>
+        <button class="tab" data-kind="date">Dates</button>
+        <button class="tab" data-kind="ambiance">Ambiances</button>
+        <button class="tab" data-kind="decor">Décors</button>
       </nav>
       <button id="addEntity" class="btn">＋ Nouveau</button>
     </div>
@@ -95,6 +105,39 @@
       </div>
     </div>
     <div id="libGrid" class="lib-grid"></div>
+  </div>
+</div>
+
+<!-- Modal Agent Manuscrit -->
+<div id="msModal" class="modal hidden">
+  <div class="modal-box ms-box">
+    <div class="modal-head">
+      <b>📚 Agent Manuscrit — ingestion complète</b>
+      <button id="msClose" class="btn ghost">✕</button>
+    </div>
+    <div class="ms-body">
+      <p class="ms-hint">L'agent lit le manuscrit entier : il <b>segmente les chapitres</b> (titres importés),
+      liste dans la bible <b>personnages, lieux, objets, dates, ambiances et décors</b> chapitre par chapitre,
+      fait une <b>relecture globale</b> pour consolider les descriptions (ton fichier de notes sert de référence),
+      puis <b>surligne</b> toutes les zones correspondantes dans le texte.</p>
+      <label class="ms-field">Manuscrit (txt / docx / pdf) — requis
+        <input type="file" id="msFile" accept=".txt,.md,.docx,.pdf">
+      </label>
+      <label class="ms-field">Fichier compagnon (notes de l'auteur) — optionnel, source d'autorité
+        <input type="file" id="msCompanion" accept=".txt,.md,.docx,.pdf">
+      </label>
+      <label class="ms-field">Nom de la série
+        <input type="text" id="msSeries" placeholder="(par défaut : nom du fichier)">
+      </label>
+      <div class="ms-actions">
+        <button id="msRun" class="btn primary">🚀 Lancer l'agent</button>
+        <span class="ms-warn">⏳ plusieurs minutes selon la taille (1 lecture IA par chapitre + consolidation)</span>
+      </div>
+      <div id="msProgress" class="ms-progress hidden">
+        <div class="ms-bar"><div id="msBarFill" class="ms-bar-fill"></div></div>
+        <div id="msStatus" class="ms-status">—</div>
+      </div>
+    </div>
   </div>
 </div>
 
