@@ -20,6 +20,7 @@ from app.models.schemas import (
     GenerateBatchRequest,
     GenerateBatchResponse,
     GenerateHeyGenRequest,
+    AvatarPresetCreate,
     CompositionRequest,
     CompositionResponse,
     JobStatus,
@@ -1359,6 +1360,63 @@ async def list_heygen_voices():
         raise HTTPException(502, f"HeyGen error: {e}")
     except (httpx.TimeoutException, httpx.HTTPError) as e:
         raise HTTPException(504, f"HeyGen timed out listing voices: {e}")
+
+
+@router.get("/heygen/presets")
+async def list_avatar_presets():
+    """List saved avatar+voice casting presets (newest first)."""
+    from app.services.storage import AvatarPreset, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        rows = (await session.execute(
+            select(AvatarPreset).order_by(AvatarPreset.created_at.desc())
+        )).scalars().all()
+    return {"presets": [{
+        "id": p.id, "name": p.name,
+        "avatar_id": p.avatar_id, "avatar_type": p.avatar_type,
+        "avatar_img": p.avatar_img,
+        "voice_id": p.voice_id, "voice_name": p.voice_name,
+        "voice_prev": p.voice_prev, "voice_lang": p.voice_lang,
+        "speed": p.speed,
+        "created_at": p.created_at.isoformat() if p.created_at else None,
+    } for p in rows]}
+
+
+@router.post("/heygen/presets")
+async def create_avatar_preset(body: AvatarPresetCreate):
+    """Save an avatar+voice casting preset."""
+    from app.services.storage import AvatarPreset, async_session_factory
+    from uuid import uuid4
+    pid = str(uuid4())
+    async with async_session_factory() as session:
+        session.add(AvatarPreset(
+            id=pid, name=body.name.strip(),
+            avatar_id=body.avatar_id, avatar_type=body.avatar_type,
+            avatar_img=body.avatar_img,
+            voice_id=body.voice_id, voice_name=body.voice_name,
+            voice_prev=body.voice_prev, voice_lang=body.voice_lang,
+            speed=body.speed,
+        ))
+        await session.commit()
+    return {"id": pid, "name": body.name.strip(),
+            "avatar_id": body.avatar_id, "avatar_type": body.avatar_type,
+            "avatar_img": body.avatar_img,
+            "voice_id": body.voice_id, "voice_name": body.voice_name,
+            "voice_prev": body.voice_prev, "voice_lang": body.voice_lang,
+            "speed": body.speed}
+
+
+@router.delete("/heygen/presets/{preset_id}")
+async def delete_avatar_preset(preset_id: str):
+    """Delete a casting preset by id."""
+    from app.services.storage import AvatarPreset, async_session_factory
+    async with async_session_factory() as session:
+        row = await session.get(AvatarPreset, preset_id)
+        if not row:
+            raise HTTPException(404, "Preset not found")
+        await session.delete(row)
+        await session.commit()
+    return {"ok": True}
 
 
 @router.post("/generate/heygen")

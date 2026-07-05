@@ -211,6 +211,19 @@ class GenerateHeyGenRequest(BaseModel):
     music: Optional[dict] = None
 
 
+class AvatarPresetCreate(BaseModel):
+    """Create an avatar+voice casting preset."""
+    name: str = Field(..., min_length=1, max_length=120)
+    avatar_id: str = Field(..., min_length=1)
+    avatar_type: Literal["avatar", "talking_photo"] = "avatar"
+    avatar_img: Optional[str] = None
+    voice_id: str = Field(..., min_length=1)
+    voice_name: Optional[str] = None
+    voice_prev: Optional[str] = None
+    voice_lang: Optional[str] = None
+    speed: float = Field(1.0, ge=0.5, le=2.0)
+
+
 class CompositionRequest(BaseModel):
     """Combine a Seedance generation with a HeyGen generation into one final.
 
