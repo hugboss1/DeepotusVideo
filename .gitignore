@@ -49,3 +49,4 @@ backend/outputs/
 Thumbs.db
 .DS_Store
 frontend/dist/assets/*.js.bak
+frontend/dist/assets/*.js.bak_engine

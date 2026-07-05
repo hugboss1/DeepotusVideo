@@ -1377,7 +1377,7 @@ async def list_avatar_presets():
         "avatar_img": p.avatar_img,
         "voice_id": p.voice_id, "voice_name": p.voice_name,
         "voice_prev": p.voice_prev, "voice_lang": p.voice_lang,
-        "speed": p.speed,
+        "speed": p.speed, "engine": p.engine or "",
         "created_at": p.created_at.isoformat() if p.created_at else None,
     } for p in rows]}
 
@@ -1395,7 +1395,7 @@ async def create_avatar_preset(body: AvatarPresetCreate):
             avatar_img=body.avatar_img,
             voice_id=body.voice_id, voice_name=body.voice_name,
             voice_prev=body.voice_prev, voice_lang=body.voice_lang,
-            speed=body.speed,
+            speed=body.speed, engine=(body.engine or None),
         ))
         await session.commit()
     return {"id": pid, "name": body.name.strip(),
@@ -1403,7 +1403,7 @@ async def create_avatar_preset(body: AvatarPresetCreate):
             "avatar_img": body.avatar_img,
             "voice_id": body.voice_id, "voice_name": body.voice_name,
             "voice_prev": body.voice_prev, "voice_lang": body.voice_lang,
-            "speed": body.speed}
+            "speed": body.speed, "engine": body.engine or ""}
 
 
 @router.delete("/heygen/presets/{preset_id}")

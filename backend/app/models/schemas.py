@@ -203,6 +203,12 @@ class GenerateHeyGenRequest(BaseModel):
     speed: float = Field(1.0, ge=0.5, le=2.0)
     background_color: str = "#02060d"
     use_avatar_iv: bool = False
+    # v1.16 — explicit HeyGen rendering engine (API v3). None => legacy v2
+    # pipeline, unchanged. Talking photos always stay on v2 (v3 mapping for
+    # talking_photo ids is undocumented).
+    engine: Optional[Literal["avatar_iii", "avatar_iv", "avatar_v"]] = None
+    motion_prompt: Optional[str] = None
+    expressiveness: Optional[Literal["high", "medium", "low"]] = None
     voice_mode: Optional[VoiceMode] = None
     custom_caption: Optional[str] = None
     # Studio node graph that produced this render (for "Reopen in Studio").
@@ -222,6 +228,8 @@ class AvatarPresetCreate(BaseModel):
     voice_prev: Optional[str] = None
     voice_lang: Optional[str] = None
     speed: float = Field(1.0, ge=0.5, le=2.0)
+    # v1.16 — preferred HeyGen rendering engine ("" / None = legacy pipeline)
+    engine: Optional[Literal["", "avatar_iii", "avatar_iv", "avatar_v"]] = None
 
 
 class CompositionRequest(BaseModel):
