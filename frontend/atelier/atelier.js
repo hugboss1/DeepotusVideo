@@ -117,9 +117,9 @@ function renderScript() {
   for (const sp of spans) {
     if (sp.start < pos) continue; // chevauchement: on garde la première
     const ent = entities.find(e => e.id === sp.entity_id);
-    const kind = ent ? ent.kind : "orphan";
+    const cls = ent ? "k-" + ent.kind : "orphan"; // entité supprimée -> rouge
     html += esc(text.substring(pos, sp.start));
-    html += `<mark class="k-${kind}">${esc(text.substring(sp.start, sp.end))}</mark>`;
+    html += `<mark class="${cls}">${esc(text.substring(sp.start, sp.end))}</mark>`;
     pos = sp.end;
   }
   html += esc(text.substring(pos));
