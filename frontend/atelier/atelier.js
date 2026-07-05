@@ -13,7 +13,8 @@ const api = {
   },
 };
 
-const KIND_LABEL = { character: "Personnage", place: "Lieu", object: "Objet" };
+const KIND_LABEL = { character: "Personnage", place: "Lieu", object: "Objet",
+                     date: "Date", ambiance: "Ambiance", decor: "Décor" };
 
 /* ───────── état ───────── */
 let chapters = [];          // [{id,title,series}]
@@ -223,6 +224,13 @@ async function renderBible() {
       </div>
       <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
       <input class="entity-style" placeholder="Notes de style (ex: style anime sombre, palette abyssale)" value="${esc(e.style_notes)}">
+      ${(e.aliases && e.aliases.length)
+        ? `<div class="entity-aliases">alias : ${e.aliases.map(esc).join(" · ")}</div>` : ""}
+      ${(e.evidence && e.evidence.length)
+        ? `<details class="entity-evidence"><summary>citations du manuscrit (${e.evidence.length})</summary>
+           ${e.evidence.slice(0, 8).map(v =>
+             `<blockquote>« ${esc(v.quote)} »${v.chapter ? ` — <i>${esc(v.chapter)}</i>` : ""}</blockquote>`).join("")}
+           </details>` : ""}
       <div class="insp-row">
         <span style="font-size:11px;color:var(--ink-soft)">Inspirations :</span>
         ${(e.inspiration_images || []).map(f =>
@@ -471,6 +479,65 @@ async function openLibrary(entityId) {
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
 }
 
+/* ═════════ agent manuscrit ═════════ */
+let msPolling = null;
+
+function msSetProgress(st) {
+  const phases = { "segmentation": 5, "extraction": 10, "consolidation": 75,
+                   "liens": 90, "terminé": 100, "échec": 100 };
+  let pct = phases[st.phase] ?? 0;
+  if (st.phase === "extraction" && st.chapter_n) {
+    pct = 10 + Math.round(60 * (st.chapter_i || 0) / st.chapter_n);
+  }
+  $("#msBarFill").style.width = pct + "%";
+  const where = st.phase === "extraction" && st.chapter_n
+    ? ` (chapitre ${st.chapter_i}/${st.chapter_n})` : "";
+  $("#msStatus").textContent = `${st.phase}${where} — ${st.message || ""}`;
+}
+
+async function msRun() {
+  const f = $("#msFile").files && $("#msFile").files[0];
+  if (!f) { toast("Choisis le fichier du manuscrit.", true); return; }
+  const fd = new FormData();
+  fd.append("manuscript", f);
+  const comp = $("#msCompanion").files && $("#msCompanion").files[0];
+  if (comp) fd.append("companion", comp);
+  fd.append("series", $("#msSeries").value.trim());
+  $("#msRun").disabled = true;
+  $("#msProgress").classList.remove("hidden");
+  $("#msStatus").textContent = "Envoi du manuscrit…";
+  try {
+    const r = await fetch("/api/atelier/manuscript", { method: "POST", body: fd });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || "envoi échoué");
+    toast(`Agent lancé sur « ${d.series} » (${Math.round(d.chars / 1000)}k caractères).`);
+    msPolling = setInterval(async () => {
+      try {
+        const st = await api.get("/atelier/manuscript/" + d.job_id);
+        msSetProgress(st);
+        if (st.done) {
+          clearInterval(msPolling); msPolling = null;
+          $("#msRun").disabled = false;
+          if (st.error) { toast("Agent en échec : " + st.error, true); return; }
+          const s = st.stats || {};
+          toast(`📚 Terminé : ${s.chapitres_crees || 0} chapitres créés` +
+                (s.chapitres_mis_a_jour ? ` (+${s.chapitres_mis_a_jour} mis à jour)` : "") +
+                `, ${s.entites_creees || 0} entités` +
+                (s.entites_enrichies ? ` (+${s.entites_enrichies} enrichies)` : "") +
+                `, ${s.zones_surlignees || 0} zones surlignées.`);
+          await loadEntities();
+          await loadChapters();
+          await renderBible();
+          setTimeout(() => $("#msModal").classList.add("hidden"), 1200);
+        }
+      } catch (e) { /* poll silencieux */ }
+    }, 2000);
+  } catch (e) {
+    $("#msRun").disabled = false;
+    toast("Agent manuscrit : " + e.message, true);
+  }
+}
+
 /* ═════════ utilitaires ═════════ */
 function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
 
@@ -543,6 +610,12 @@ window.addEventListener("DOMContentLoaded", async () => {
     const ent = await api.send("POST", "/bible/entities", { kind: curKind, name: name.trim() });
     entities.push(ent); renderBible();
   });
+
+  // agent manuscrit
+  $("#msBtn").addEventListener("click", () => $("#msModal").classList.remove("hidden"));
+  $("#msClose").addEventListener("click", () => $("#msModal").classList.add("hidden"));
+  $("#msModal").addEventListener("click", (e) => { if (e.target.id === "msModal") $("#msModal").classList.add("hidden"); });
+  $("#msRun").addEventListener("click", msRun);
 
   // modal
   $("#libClose").addEventListener("click", () => $("#libModal").classList.add("hidden"));
