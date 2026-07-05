@@ -145,6 +145,29 @@ class Chapter(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class Shot(Base):
+    """v1.18 (Atelier P2) — one storyboard shot of a chapter: the visual beat
+    (action), which bible entities are in frame, framing + camera + duration,
+    and a cheap sketch (image + locked seed) used to validate composition and
+    rhythm BEFORE any paid production render."""
+    __tablename__ = "shots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    idx: Mapped[int] = mapped_column(Integer, default=0)
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    entities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON ids
+    shot_type: Mapped[str] = mapped_column(String(30), default="medium")
+    camera_move: Mapped[str] = mapped_column(String(40), default="static, locked-off")
+    duration_s: Mapped[float] = mapped_column(Float, default=4.0)
+    sketch_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sketch_seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
