@@ -197,6 +197,14 @@ _atelier = Path(__file__).resolve().parent.parent.parent / "frontend" / "atelier
 if _atelier.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFAt
     app.mount("/atelier", _SFAt(directory=str(_atelier), html=True), name="atelier")
+
+    # The mount only matches "/atelier/..." — a bare "/atelier" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/atelier", include_in_schema=False)
+    async def _atelier_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/atelier/", status_code=307)
+
     logger.info(f"Serving atelier from {_atelier}")
 
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
