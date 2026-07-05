@@ -3145,3 +3145,299 @@ async def delete_chapter(chapter_id: str):
         await session.delete(ch)
         await session.commit()
     return {"ok": True}
+
+
+# ───────── Atelier P2 (v1.18): storyboard shots ─────────
+# Découpage du chapitre en plans (IA entity-aware ou paragraphes), croquis
+# low-cost par plan (validation cadrage/rythme AVANT toute prod payante).
+
+_SHOT_TYPES = ("establishing", "wide", "medium", "close-up",
+               "extreme close-up", "over-shoulder", "POV", "insert")
+_CAMERA_MOVES = ("slow push-in", "slow pull-out", "360-degree orbit",
+                 "tracking shot", "handheld with subtle shake",
+                 "static, locked-off", "low angle dramatic",
+                 "rack focus reveal", "dolly zoom (vertigo effect)",
+                 "whip pan transition", "crane shot descending")
+_SKETCH_STYLE = ("rough storyboard sketch, loose pencil strokes, monochrome "
+                 "gray, simple composition lines, no color, no text")
+
+
+def _shot_dict(s) -> dict:
+    import json as _json
+    try:
+        ents = _json.loads(s.entities) if s.entities else []
+    except Exception:
+        ents = []
+    return {"id": s.id, "chapter_id": s.chapter_id, "idx": s.idx,
+            "source_text": s.source_text or "", "action": s.action or "",
+            "entities": ents, "shot_type": s.shot_type,
+            "camera_move": s.camera_move, "duration_s": s.duration_s,
+            "sketch_image": s.sketch_image, "sketch_seed": s.sketch_seed,
+            "prompt": s.prompt or ""}
+
+
+async def _list_shots(session, chapter_id: str):
+    from app.services.storage import Shot
+    from sqlalchemy import select
+    return (await session.execute(
+        select(Shot).where(Shot.chapter_id == chapter_id)
+        .order_by(Shot.idx.asc()))).scalars().all()
+
+
+async def _reindex(session, chapter_id: str):
+    for i, s in enumerate(await _list_shots(session, chapter_id)):
+        s.idx = i
+
+
+def _paragraph_shots(script: str) -> list[dict]:
+    """Fallback sans LLM : un plan par paragraphe, durée estimée à la lecture
+    (~150 mots/min, bornée 3–12 s)."""
+    parts = [p.strip() for p in re.split(r"\n\s*\n", script) if p.strip()]
+    out = []
+    for p in parts:
+        words = len(p.split())
+        dur = max(3.0, min(12.0, round(words / 2.5, 1)))
+        out.append({"source_text": p, "action": p[:200], "entities": [],
+                    "shot_type": "medium", "camera_move": "static, locked-off",
+                    "duration_s": dur, "prompt": ""})
+    return out
+
+
+def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
+    """Découpage réalisateur : plans avec action, entités présentes (mappées
+    sur la bible), type de plan, caméra, durée, prompt d'illustration."""
+    from app.services.summarizer import _chat_dispatch
+    langname = "French" if lang.startswith("fr") else "English"
+    n = max(4, min(40, len(script.split()) // 60 + 2))
+    roster = "\n".join(f"- {e['name']} ({e['kind']}): {(e['description'] or '')[:120]}"
+                       for e in bible) or "(none)"
+    system = ("You are a film director doing the storyboard breakdown of a "
+              "narrated animation chapter. Return ONLY valid JSON.")
+    prompt = (
+        f"Break this chapter into about {n} sequential storyboard shots.\n"
+        f"Known entities (use these EXACT names when present in a shot):\n{roster}\n\n"
+        f"For each shot return an object with:\n"
+        f"\"source_excerpt\": the chapter text covered, copied verbatim, in order;\n"
+        f"\"action\": what we SEE, one vivid sentence in {langname};\n"
+        f"\"entities\": array of entity names present (from the list, may be empty);\n"
+        f"\"shot_type\": one of {list(_SHOT_TYPES)};\n"
+        f"\"camera_move\": one of {list(_CAMERA_MOVES)};\n"
+        f"\"duration_s\": number 3-12;\n"
+        f"\"prompt\": a cinematic illustration prompt in {langname}.\n"
+        f"Return ONLY a JSON array.\n\nChapter:\n{script[:12000]}")
+    out, _prov = _chat_dispatch(prompt, system, 6000)
+    if not out:
+        return []
+    txt = out.strip()
+    if txt.startswith("```"):
+        txt = re.sub(r"^```[a-zA-Z]*\n?", "", txt)
+        txt = re.sub(r"\n?```$", "", txt).strip()
+    i, j = txt.find("["), txt.rfind("]")
+    if i >= 0 and j > i:
+        txt = txt[i:j + 1]
+    try:
+        data = json.loads(txt)
+    except Exception:
+        return []
+    name2id = {e["name"].strip().lower(): e["id"] for e in bible}
+    shots = []
+    for it in (data if isinstance(data, list) else []):
+        if not isinstance(it, dict):
+            continue
+        st = str(it.get("shot_type") or "medium")
+        cm = str(it.get("camera_move") or "static, locked-off")
+        try:
+            dur = max(3.0, min(12.0, float(it.get("duration_s") or 4)))
+        except (TypeError, ValueError):
+            dur = 4.0
+        ents = [name2id[str(x).strip().lower()]
+                for x in (it.get("entities") or [])
+                if str(x).strip().lower() in name2id]
+        shots.append({
+            "source_text": str(it.get("source_excerpt") or "").strip(),
+            "action": str(it.get("action") or "").strip(),
+            "entities": ents,
+            "shot_type": st if st in _SHOT_TYPES else "medium",
+            "camera_move": cm if cm in _CAMERA_MOVES else "static, locked-off",
+            "duration_s": dur,
+            "prompt": str(it.get("prompt") or "").strip(),
+        })
+    return [s for s in shots if s["source_text"] or s["action"]]
+
+
+@router.get("/chapters/{chapter_id}/shots")
+async def list_chapter_shots(chapter_id: str):
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        return {"shots": [_shot_dict(s)
+                          for s in await _list_shots(session, chapter_id)]}
+
+
+@router.post("/chapters/{chapter_id}/storyboard/decoupe")
+async def storyboard_decoupe(chapter_id: str, body: dict):
+    """Découpe le chapitre en plans et REMPLACE le storyboard existant.
+    Body: {method: "ai"|"paragraph", language?}."""
+    from app.services.storage import Chapter, Shot, async_session_factory
+    import json as _json
+    method = (body.get("method") or "paragraph").lower()
+    lang = str(body.get("language") or "fr").lower()
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        script = (ch.script_text or "").strip()
+        if not script:
+            raise HTTPException(400, "Le chapitre est vide")
+        drafts = []
+        if method == "ai":
+            from app.services.summarizer import available
+            if not available():
+                return {"shots": [], "method": "ai",
+                        "error": "Aucun LLM configuré (Réglages → clés API). "
+                                 "Utilise le découpage par paragraphe."}
+            ents_resp = await list_bible_entities(None)
+            loop = asyncio.get_running_loop()
+            drafts = await loop.run_in_executor(
+                None, lambda: _ai_shots(script, ents_resp["entities"], lang))
+            if not drafts:
+                return {"shots": [], "method": "ai",
+                        "error": "Le découpage IA a échoué — réessaie ou "
+                                 "utilise les paragraphes."}
+        else:
+            drafts = _paragraph_shots(script)
+        for s in await _list_shots(session, chapter_id):
+            await session.delete(s)
+        rows = []
+        for i, d in enumerate(drafts):
+            s = Shot(id=str(uuid4()), chapter_id=chapter_id, idx=i,
+                     source_text=d["source_text"], action=d["action"],
+                     entities=_json.dumps(d["entities"]),
+                     shot_type=d["shot_type"], camera_move=d["camera_move"],
+                     duration_s=d["duration_s"], prompt=d["prompt"],
+                     created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+            session.add(s)
+            rows.append(s)
+        await session.commit()
+        return {"shots": [_shot_dict(s) for s in rows], "method": method}
+
+
+@router.post("/chapters/{chapter_id}/shots")
+async def insert_shot(chapter_id: str, body: dict):
+    """Insère un plan vide après `after_id` (ou en fin)."""
+    from app.services.storage import Chapter, Shot, async_session_factory
+    async with async_session_factory() as session:
+        if not await session.get(Chapter, chapter_id):
+            raise HTTPException(404, "Chapter not found")
+        shots = await _list_shots(session, chapter_id)
+        pos = len(shots)
+        after = body.get("after_id")
+        if after:
+            for i, s in enumerate(shots):
+                if s.id == after:
+                    pos = i + 1
+                    break
+        s = Shot(id=str(uuid4()), chapter_id=chapter_id, idx=pos,
+                 action=body.get("action") or "", entities="[]",
+                 created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+        for later in shots[pos:]:
+            later.idx += 1
+        session.add(s)
+        await session.commit()
+        await _reindex(session, chapter_id)
+        await session.commit()
+        await session.refresh(s)
+        return _shot_dict(s)
+
+
+@router.put("/shots/{shot_id}")
+async def update_shot(shot_id: str, body: dict):
+    from app.services.storage import Shot, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        for k in ("source_text", "action", "prompt"):
+            if k in body:
+                setattr(s, k, body[k] or "")
+        if "shot_type" in body and body["shot_type"] in _SHOT_TYPES:
+            s.shot_type = body["shot_type"]
+        if "camera_move" in body and body["camera_move"] in _CAMERA_MOVES:
+            s.camera_move = body["camera_move"]
+        if "duration_s" in body:
+            try:
+                s.duration_s = max(0.5, min(60.0, float(body["duration_s"])))
+            except (TypeError, ValueError):
+                pass
+        if "entities" in body:
+            s.entities = _json.dumps(body["entities"] or [])
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        return _shot_dict(s)
+
+
+@router.delete("/shots/{shot_id}")
+async def delete_shot(shot_id: str):
+    from app.services.storage import Shot, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        cid = s.chapter_id
+        await session.delete(s)
+        await session.commit()
+        await _reindex(session, cid)
+        await session.commit()
+    return {"ok": True}
+
+
+@router.post("/shots/{shot_id}/sketch")
+async def generate_shot_sketch(shot_id: str, body: dict):
+    """Croquis low-cost du plan (FLUX, style storyboard). Body: {seed?}."""
+    from app.services.storage import Shot, BibleEntity, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        s = await session.get(Shot, shot_id)
+        if not s:
+            raise HTTPException(404, "Shot not found")
+        action = (s.action or s.source_text or "").strip()
+        if not action:
+            raise HTTPException(400, "Décris l'action du plan avant le croquis")
+        try:
+            eids = _json.loads(s.entities) if s.entities else []
+        except Exception:
+            eids = []
+        descs = []
+        for eid in eids[:4]:
+            e = await session.get(BibleEntity, eid)
+            if e:
+                descs.append(f"{e.name}: {(e.description or '')[:100]}")
+        prompt = (f"{_SKETCH_STYLE}. Shot: {s.shot_type}, camera: "
+                  f"{s.camera_move}. {action}")
+        if descs:
+            prompt += ". Characters/places: " + "; ".join(descs)
+        seed = body.get("seed")
+        seed = int(seed) if isinstance(seed, (int, float)) else None
+        out = await _flux_generate(prompt, "portrait_16_9", 1, seed=seed)
+        s.sketch_image = out["images"][0]
+        s.sketch_seed = out.get("seed")
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        return _shot_dict(s)
+
+
+@router.post("/chapters/{chapter_id}/storyboard/reorder")
+async def reorder_shots(chapter_id: str, body: dict):
+    """Body: {ids: [shot ids dans le nouvel ordre]}."""
+    from app.services.storage import async_session_factory
+    ids = body.get("ids") or []
+    async with async_session_factory() as session:
+        shots = {s.id: s for s in await _list_shots(session, chapter_id)}
+        if set(ids) != set(shots):
+            raise HTTPException(400, "ids must be a permutation of the chapter's shots")
+        for i, sid in enumerate(ids):
+            shots[sid].idx = i
+        await session.commit()
+        return {"shots": [_shot_dict(shots[sid]) for sid in ids]}

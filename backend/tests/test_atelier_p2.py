@@ -66,10 +66,24 @@ async def main():
         assert shots[0]["source_text"].startswith("Elias Vane")
         assert shots[0]["duration_s"] > 0
 
-        # ---- découpage ai sans clé LLM -> erreur explicite ----
+        # ---- découpage ai avec LLM indisponible -> erreur explicite ----
+        # (available() est patché pour garder le test gratuit/déterministe —
+        # le chemin LLM réel a été validé en live le 2026-07-06.)
+        from app.services import summarizer as _sumz
+        _orig_avail = _sumz.available
+        _sumz.available = lambda: False
+        try:
+            r = await c.post(f"/api/chapters/{cid}/storyboard/decoupe",
+                             json={"method": "ai"})
+            assert r.status_code == 200 and r.json().get("error"), r.text
+        finally:
+            _sumz.available = _orig_avail
+        # re-découpe paragraphe pour repartir d'un état connu (l'appel ai
+        # ci-dessus n'a rien remplacé)
         r = await c.post(f"/api/chapters/{cid}/storyboard/decoupe",
-                         json={"method": "ai"})
-        assert r.status_code == 200 and r.json().get("error"), r.text
+                         json={"method": "paragraph"})
+        shots = r.json()["shots"]
+        assert len(shots) == 3
 
         # ---- PUT champs + entités ----
         s0 = shots[0]
