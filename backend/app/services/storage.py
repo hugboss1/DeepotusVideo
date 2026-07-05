@@ -106,6 +106,8 @@ class AvatarPreset(Base):
     voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     voice_lang: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
     speed: Mapped[float] = mapped_column(Float, default=1.0)
+    # v1.16 — preferred HeyGen rendering engine (avatar_iii/iv/v; NULL = legacy)
+    engine: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
@@ -165,6 +167,13 @@ SCHEDULED_POSTS_COLUMNS = [
     ("metrics", "TEXT"),
     # v1.12 additions
     ("source_image", "VARCHAR(255)"),
+]
+
+
+# v1.16 — columns added to avatar_presets after its initial ship (create_all
+# never alters an existing table, so pre-existing DBs get them via auto-ALTER).
+AVATAR_PRESETS_COLUMNS = [
+    ("engine", "VARCHAR(20)"),
 ]
 
 
@@ -237,7 +246,8 @@ async def _auto_migrate():
                 """))
 
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
-                               ("scheduled_posts", SCHEDULED_POSTS_COLUMNS)):
+                               ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
+                               ("avatar_presets", AVATAR_PRESETS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:
