@@ -3,6 +3,7 @@ import asyncio
 import json
 import random
 import re
+from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -2770,18 +2771,32 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         return {"images": saved, "prompt": prompt, "model": model}
 
     # --- fal.ai FLUX path (default) ---------------------------------------
+    seed = body.get("seed")
+    seed = int(seed) if isinstance(seed, (int, float)) else None
+    out = await _flux_generate(prompt, size, n, seed=seed)
+    return {"images": out["images"], "prompt": prompt, "model": "flux",
+            "seed": out.get("seed")}
+
+
+async def _flux_generate(prompt: str, size: str, n: int,
+                         seed: int | None = None) -> dict:
+    """FLUX schnell core (v1.17): generate n image(s) into the Library.
+    Optional seed for reproducibility (the Atelier bible locks it); returns
+    {"images": [filenames], "seed": <seed used, from fal when available>}."""
+    import httpx as _httpx
     if not settings.FAL_KEY:
         raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
     if size not in ("square_hd", "square", "portrait_4_3", "portrait_16_9",
                     "landscape_4_3", "landscape_16_9"):
         size = "portrait_16_9"
     import fal_client
+    arguments = {"prompt": prompt, "image_size": size,
+                 "num_images": n, "enable_safety_checker": True}
+    if seed is not None:
+        arguments["seed"] = seed
     try:
-        result = await fal_client.subscribe_async(
-            "fal-ai/flux/schnell",
-            arguments={"prompt": prompt, "image_size": size,
-                       "num_images": n, "enable_safety_checker": True},
-        )
+        result = await fal_client.subscribe_async("fal-ai/flux/schnell",
+                                                  arguments=arguments)
     except Exception as e:
         logger.error(f"FLUX generation failed: {e}")
         raise HTTPException(502, f"fal.ai: image generation failed: {e}")
@@ -2789,6 +2804,8 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             if im.get("url")]
     if not urls:
         raise HTTPException(502, "FLUX returned no images")
+    used_seed = result.get("seed")
+    used_seed = int(used_seed) if isinstance(used_seed, (int, float)) else seed
     saved = []
     async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as client:
         for u in urls:
@@ -2798,8 +2815,8 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             r.raise_for_status()
             dest.write_bytes(r.content)
             saved.append(fname)
-    logger.info(f"FLUX: saved {len(saved)} image(s): {saved}")
-    return {"images": saved, "prompt": prompt, "model": "flux"}
+    logger.info(f"FLUX: saved {len(saved)} image(s), seed={used_seed}: {saved}")
+    return {"images": saved, "seed": used_seed}
 
 
 @router.post("/images/fetch")
@@ -2847,3 +2864,225 @@ async def list_image_models():
                     "provider": "openai", "note": "cheapest OpenAI"})
     return {"models": out, "default": ("flux" if settings.FAL_KEY
                                        else (out[0]["id"] if out else ""))}
+
+
+# ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════
+# Persistent story bible (characters/places/objects with a seeded reference
+# image) + chapters (script text + annotated entity spans). Consumed by the
+# /atelier page. Spec: docs/superpowers/specs/2026-07-05-atelier-chapitre-design.md
+
+_ENTITY_KINDS = ("character", "place", "object")
+# reference image framing per kind: portrait for people, wide for places.
+_KIND_SIZE = {"character": "portrait_4_3", "place": "landscape_16_9",
+              "object": "square"}
+_KIND_PREFIX = {
+    "character": "character reference sheet, full body, neutral background",
+    "place": "establishing shot of the location, no characters",
+    "object": "prop reference on a neutral background",
+}
+
+
+def _entity_dict(e) -> dict:
+    import json as _json
+    try:
+        insp = _json.loads(e.inspiration_images) if e.inspiration_images else []
+    except Exception:
+        insp = []
+    return {"id": e.id, "kind": e.kind, "name": e.name,
+            "description": e.description or "",
+            "ref_image": e.ref_image, "seed": e.seed,
+            "style_notes": e.style_notes or "",
+            "inspiration_images": insp,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+            "updated_at": e.updated_at.isoformat() if e.updated_at else None}
+
+
+@router.get("/bible/entities")
+async def list_bible_entities(kind: str | None = None):
+    """List bible entities, optionally filtered by kind."""
+    from app.services.storage import BibleEntity, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        q = select(BibleEntity).order_by(BibleEntity.created_at.asc())
+        if kind in _ENTITY_KINDS:
+            q = q.where(BibleEntity.kind == kind)
+        rows = (await session.execute(q)).scalars().all()
+    return {"entities": [_entity_dict(e) for e in rows]}
+
+
+@router.post("/bible/entities")
+async def create_bible_entity(body: dict):
+    """Create an entity. Body: {kind, name, description?, style_notes?,
+    inspiration_images?}."""
+    from app.services.storage import BibleEntity, async_session_factory
+    import json as _json
+    kind = (body.get("kind") or "").strip()
+    name = (body.get("name") or "").strip()
+    if kind not in _ENTITY_KINDS:
+        raise HTTPException(400, f"kind must be one of {_ENTITY_KINDS}")
+    if not name:
+        raise HTTPException(400, "name is required")
+    e = None
+    async with async_session_factory() as session:
+        from app.services.storage import BibleEntity as BE
+        eid = str(uuid4())
+        e = BE(id=eid, kind=kind, name=name[:120],
+               description=body.get("description") or "",
+               style_notes=body.get("style_notes") or "",
+               inspiration_images=_json.dumps(
+                   body.get("inspiration_images") or []),
+               created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+        session.add(e)
+        await session.commit()
+        await session.refresh(e)
+    return _entity_dict(e)
+
+
+@router.put("/bible/entities/{entity_id}")
+async def update_bible_entity(entity_id: str, body: dict):
+    """Update name/description/style_notes/inspiration_images (partial)."""
+    from app.services.storage import BibleEntity, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        if "name" in body and (body["name"] or "").strip():
+            e.name = body["name"].strip()[:120]
+        if "description" in body:
+            e.description = body["description"] or ""
+        if "style_notes" in body:
+            e.style_notes = body["style_notes"] or ""
+        if "inspiration_images" in body:
+            e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return _entity_dict(e)
+
+
+@router.delete("/bible/entities/{entity_id}")
+async def delete_bible_entity(entity_id: str):
+    from app.services.storage import BibleEntity, async_session_factory
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        await session.delete(e)
+        await session.commit()
+    return {"ok": True}
+
+
+@router.post("/bible/entities/{entity_id}/generate")
+async def generate_bible_reference(entity_id: str, body: dict):
+    """Generate the entity's canonical reference image (FLUX + seed).
+
+    Body: {seed?: int}. Without a seed a random one is used — the seed
+    actually used is stored on the entity so it can be locked/re-rolled.
+    The image lands in the Library (usable everywhere in the app)."""
+    from app.services.storage import BibleEntity, async_session_factory
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        desc = (e.description or "").strip()
+        if not desc:
+            raise HTTPException(400, "Add a description before generating")
+        prompt = f"{_KIND_PREFIX.get(e.kind, '')}: {e.name}. {desc}"
+        if e.style_notes:
+            prompt += f". Style: {e.style_notes}"
+        seed = body.get("seed")
+        seed = int(seed) if isinstance(seed, (int, float)) else None
+        out = await _flux_generate(prompt, _KIND_SIZE.get(e.kind, "square"),
+                                   1, seed=seed)
+        e.ref_image = out["images"][0]
+        e.seed = out.get("seed")
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return _entity_dict(e)
+
+
+def _chapter_dict(ch) -> dict:
+    import json as _json
+    try:
+        spans = _json.loads(ch.spans) if ch.spans else []
+    except Exception:
+        spans = []
+    return {"id": ch.id, "title": ch.title, "series": ch.series,
+            "script_text": ch.script_text or "", "spans": spans,
+            "created_at": ch.created_at.isoformat() if ch.created_at else None,
+            "updated_at": ch.updated_at.isoformat() if ch.updated_at else None}
+
+
+@router.get("/chapters")
+async def list_chapters():
+    from app.services.storage import Chapter, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        rows = (await session.execute(
+            select(Chapter).order_by(Chapter.created_at.asc()))).scalars().all()
+    return {"chapters": [{"id": c.id, "title": c.title, "series": c.series,
+                          "updated_at": c.updated_at.isoformat()
+                          if c.updated_at else None} for c in rows]}
+
+
+@router.post("/chapters")
+async def create_chapter(body: dict):
+    from app.services.storage import Chapter, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        ch = Chapter(id=str(uuid4()),
+                     title=(body.get("title") or "Sans titre")[:200],
+                     series=(body.get("series") or None),
+                     script_text=body.get("script_text") or "",
+                     spans=_json.dumps(body.get("spans") or []),
+                     created_at=datetime.utcnow(), updated_at=datetime.utcnow())
+        session.add(ch)
+        await session.commit()
+        await session.refresh(ch)
+        return _chapter_dict(ch)
+
+
+@router.get("/chapters/{chapter_id}")
+async def get_chapter(chapter_id: str):
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        return _chapter_dict(ch)
+
+
+@router.put("/chapters/{chapter_id}")
+async def update_chapter(chapter_id: str, body: dict):
+    from app.services.storage import Chapter, async_session_factory
+    import json as _json
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        if "title" in body and (body["title"] or "").strip():
+            ch.title = body["title"].strip()[:200]
+        if "series" in body:
+            ch.series = body["series"] or None
+        if "script_text" in body:
+            ch.script_text = body["script_text"] or ""
+        if "spans" in body:
+            ch.spans = _json.dumps(body["spans"] or [])
+        ch.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(ch)
+        return _chapter_dict(ch)
+
+
+@router.delete("/chapters/{chapter_id}")
+async def delete_chapter(chapter_id: str):
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        await session.delete(ch)
+        await session.commit()
+    return {"ok": True}
