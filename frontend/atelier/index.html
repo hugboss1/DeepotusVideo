@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier Chapitre — Deepotus Video Gen</title>
+<link rel="stylesheet" href="atelier.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🐙 <b>Atelier Chapitre</b> <span class="tag">P1 · script → entités → bible</span></div>
+  <div class="chapbar">
+    <select id="chapterSelect" title="Chapitres"></select>
+    <button id="newChapter" class="btn">+ Chapitre</button>
+    <input id="chapterTitle" placeholder="Titre du chapitre" title="Titre">
+    <input id="chapterSeries" placeholder="Série (ex: Lost Abyss)" title="Série">
+    <button id="deleteChapter" class="btn ghost" title="Supprimer ce chapitre">🗑</button>
+    <span id="saveState" class="savestate">—</span>
+  </div>
+  <a class="backlink" href="/" title="Retour à l'app">← App</a>
+</header>
+
+<main class="panes">
+  <!-- ══════════ Volet gauche : le script ══════════ -->
+  <section class="pane script-pane">
+    <div class="pane-head">
+      <h2>Script</h2>
+      <div class="script-actions">
+        <label class="btn" for="importFile">📄 Importer (txt/docx/pdf)</label>
+        <input type="file" id="importFile" accept=".txt,.md,.docx,.pdf" hidden>
+      </div>
+    </div>
+    <div id="selBar" class="selbar hidden">
+      Sélection : <em id="selText"></em>
+      <button class="btn k-character" data-kind="character">➕ Personnage</button>
+      <button class="btn k-place"     data-kind="place">➕ Lieu</button>
+      <button class="btn k-object"    data-kind="object">➕ Objet</button>
+      <select id="linkSelect" title="Lier la sélection à une entité existante">
+        <option value="">🔗 Lier à…</option>
+      </select>
+    </div>
+    <div class="editor-wrap">
+      <div id="hl" class="hl" aria-hidden="true"></div>
+      <textarea id="script" spellcheck="false"
+        placeholder="Colle ton chapitre ici, ou importe un fichier.&#10;&#10;Puis sélectionne un mot ou une phrase (un personnage, un lieu, un objet) et crée l'entité — elle rejoindra la bible à droite et restera disponible pour tous les chapitres suivants."></textarea>
+    </div>
+    <div class="legend">
+      <span class="chip k-character">Personnage</span>
+      <span class="chip k-place">Lieu</span>
+      <span class="chip k-object">Objet</span>
+      <span class="chip orphan">zone orpheline (texte modifié) — re-lier</span>
+    </div>
+  </section>
+
+  <!-- ══════════ Volet droit : la bible ══════════ -->
+  <section class="pane bible-pane">
+    <div class="pane-head">
+      <h2>Bible</h2>
+      <nav class="tabs">
+        <button class="tab active" data-kind="character">Personnages</button>
+        <button class="tab" data-kind="place">Lieux</button>
+        <button class="tab" data-kind="object">Objets</button>
+      </nav>
+      <button id="addEntity" class="btn">＋ Nouveau</button>
+    </div>
+    <div id="entityList" class="entity-list"></div>
+  </section>
+</main>
+
+<!-- Modal Library (choix d'images d'inspiration) -->
+<div id="libModal" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-head">
+      <b>Ajouter une inspiration</b>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="btn" for="libUpload" title="Importer un fichier de ton PC (il rejoint la Library)">📤 Fichier</label>
+        <input type="file" id="libUpload" accept="image/png,image/jpeg,image/webp" hidden>
+        <button id="libUrl" class="btn" title="Importer depuis une URL web (elle rejoint la Library)">🔗 URL</button>
+        <button id="libClose" class="btn ghost">✕</button>
+      </div>
+    </div>
+    <div id="libGrid" class="lib-grid"></div>
+  </div>
+</div>
+
+<div id="toast" class="toast hidden"></div>
+<script src="atelier.js"></script>
+</body>
+</html>

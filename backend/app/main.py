@@ -190,6 +190,36 @@ if _guide.is_dir():
     app.mount("/guide", _SF(directory=str(_guide), html=True), name="guide")
     logger.info(f"Serving guide from {_guide}")
 
+# ── Atelier Chapitre (v1.17): script → entités → bible workspace, at /atelier.
+# A clean standalone page (frontend/atelier/) — rich text-selection UI lives
+# outside the compiled bundle on purpose.
+_atelier = Path(__file__).resolve().parent.parent.parent / "frontend" / "atelier"
+if _atelier.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFAt
+
+    class _AtelierStatic(_SFAt):
+        """no-cache like the SPA mount: atelier.js keeps a stable filename, so
+        without revalidation the browser would keep running a stale page after
+        an update (mixed old-JS/new-API sessions caused silent save failures)."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/atelier", _AtelierStatic(directory=str(_atelier), html=True), name="atelier")
+
+    # The mount only matches "/atelier/..." — a bare "/atelier" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/atelier", include_in_schema=False)
+    async def _atelier_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/atelier/", status_code=307)
+
+    logger.info(f"Serving atelier from {_atelier}")
+
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
 if _emoji_dir.is_dir():

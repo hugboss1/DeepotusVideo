@@ -111,6 +111,40 @@ class AvatarPreset(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class BibleEntity(Base):
+    """v1.17 (Atelier P1) — one entry of the persistent story bible: a
+    character, place or object shared by every chapter of a series. The
+    generated reference image (a Library filename) + its locked seed are the
+    consistency anchor reused by later storyboard/production phases."""
+    __tablename__ = "bible_entities"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(12), index=True)  # character|place|object
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ref_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    style_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    inspiration_images: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Chapter(Base):
+    """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
+    spans linking text zones to bible entities ([{start,end,text,entity_id}]
+    JSON, offsets over script_text)."""
+    __tablename__ = "chapters"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), default="")
+    script_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    spans: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    series: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
