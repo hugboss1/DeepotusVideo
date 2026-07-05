@@ -190,6 +190,15 @@ if _guide.is_dir():
     app.mount("/guide", _SF(directory=str(_guide), html=True), name="guide")
     logger.info(f"Serving guide from {_guide}")
 
+# ── Atelier Chapitre (v1.17): script → entités → bible workspace, at /atelier.
+# A clean standalone page (frontend/atelier/) — rich text-selection UI lives
+# outside the compiled bundle on purpose.
+_atelier = Path(__file__).resolve().parent.parent.parent / "frontend" / "atelier"
+if _atelier.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFAt
+    app.mount("/atelier", _SFAt(directory=str(_atelier), html=True), name="atelier")
+    logger.info(f"Serving atelier from {_atelier}")
+
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
 if _emoji_dir.is_dir():
