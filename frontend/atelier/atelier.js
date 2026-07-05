@@ -22,6 +22,15 @@ let entities = [];          // toute la bible
 let curKind = "character";  // onglet bible actif
 let saveTimer = null;
 let libTarget = null;       // entité en attente d'une image d'inspiration
+let shots = [];             // storyboard du chapitre ouvert
+let mode = "script";        // "script" | "board"
+
+const SHOT_TYPES = ["establishing", "wide", "medium", "close-up",
+  "extreme close-up", "over-shoulder", "POV", "insert"];
+const CAMERA_MOVES = ["slow push-in", "slow pull-out", "360-degree orbit",
+  "tracking shot", "handheld with subtle shake", "static, locked-off",
+  "low angle dramatic", "rack focus reveal", "dolly zoom (vertigo effect)",
+  "whip pan transition", "crane shot descending"];
 
 /* ───────── toast ───────── */
 let toastTimer = null;
@@ -49,6 +58,8 @@ async function openChapter(id) {
   $("#chapterSeries").value = chapter.series || "";
   $("#script").value = chapter.script_text || "";
   renderScript();
+  shots = [];
+  if (mode === "board") await loadShots(true);
 }
 
 function scheduleSave() {
@@ -174,7 +185,8 @@ function addSpan(sel, entityId) {
 /* ═════════ bible ═════════ */
 function setTab(kind) {
   curKind = kind;
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.kind === kind));
+  document.querySelectorAll(".bible-pane .tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.kind === kind));
 }
 
 async function loadEntities() {
@@ -274,6 +286,162 @@ async function generateRef(id, seed) {
   } catch (e) { toast("Génération échouée : " + e.message, true); }
 }
 
+/* ═════════ storyboard ═════════ */
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll("#modeTabs .tab").forEach(t =>
+    t.classList.toggle("active", t.dataset.mode === m));
+  const board = m === "board";
+  document.querySelector(".editor-wrap").classList.toggle("hidden", board);
+  $("#scriptLegend").classList.toggle("hidden", board);
+  $("#selBar").classList.add("hidden");
+  $("#board").classList.toggle("hidden", !board);
+  $("#boardTotal").classList.toggle("hidden", !board);
+  if (board) loadShots(true);
+}
+
+async function loadShots(render) {
+  if (!chapter) { shots = []; if (render) renderBoard(); return; }
+  shots = (await api.get(`/chapters/${chapter.id}/shots`)).shots;
+  if (render) renderBoard();
+}
+
+function fmtDur(s) {
+  const m = Math.floor(s / 60), r = Math.round(s % 60);
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+function entChips(ids) {
+  return (ids || []).map(id => {
+    const e = entities.find(x => x.id === id);
+    return e ? `<span class="chip k-${e.kind}">${esc(e.name.length > 22 ? e.name.slice(0, 22) + "…" : e.name)}</span>` : "";
+  }).join("");
+}
+
+function renderBoard() {
+  $("#boardTotal").textContent = "Σ " + fmtDur(shots.reduce((a, s) => a + (s.duration_s || 0), 0));
+  const list = $("#shotList");
+  if (!chapter) { list.innerHTML = `<div class="empty-note">Crée ou ouvre un chapitre d'abord.</div>`; return; }
+  if (!shots.length) {
+    list.innerHTML = `<div class="empty-note">Pas encore de storyboard.<br>
+      🎬 <b>Découper (IA)</b> lit le chapitre + la bible et propose les plans<br>
+      (ou ¶ Paragraphes pour un découpage simple sans IA).</div>`;
+    return;
+  }
+  list.innerHTML = shots.map((s, i) => `
+  <div class="shot-card" data-id="${s.id}">
+    <div class="thumb">
+      ${s.sketch_image
+        ? `<img src="/api/images/${encodeURIComponent(s.sketch_image)}" alt="croquis">`
+        : `<div class="noimg">pas de croquis<br>— 🎨 ⤵</div>`}
+      ${s.sketch_seed != null ? `<div class="seedtag">🔒 ${s.sketch_seed}</div>` : ""}
+      <div class="entity-actions">
+        <button class="btn primary act-sketch" title="Générer le croquis (même seed si déjà généré)">🎨</button>
+        <button class="btn act-resketch" title="Nouveau croquis (seed aléatoire)">🎲</button>
+      </div>
+    </div>
+    <div class="shot-main">
+      <div class="rowhead">
+        <span class="shot-no">PLAN ${i + 1}/${shots.length}</span>
+        <div class="shot-actions">
+          <button class="btn ghost act-up" title="Monter" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="btn ghost act-down" title="Descendre" ${i === shots.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="btn ghost act-insert" title="Insérer un plan après">＋</button>
+          <button class="btn ghost act-delshot" title="Supprimer le plan">🗑</button>
+        </div>
+      </div>
+      <textarea class="shot-action" placeholder="Action : ce que l'on VOIT dans ce plan">${esc(s.action)}</textarea>
+      <div class="shot-params">
+        <select class="shot-type" title="Type de plan">
+          ${SHOT_TYPES.map(t => `<option ${t === s.shot_type ? "selected" : ""}>${t}</option>`).join("")}
+        </select>
+        <select class="shot-cam" title="Mouvement de caméra">
+          ${CAMERA_MOVES.map(t => `<option ${t === s.camera_move ? "selected" : ""}>${t}</option>`).join("")}
+        </select>
+        <input class="shot-dur" type="number" min="0.5" max="60" step="0.5" value="${s.duration_s}" title="Durée (s)">
+      </div>
+      <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
+      ${s.source_text ? `<details class="shot-src"><summary>texte source</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
+    </div>
+  </div>`).join("");
+
+  list.querySelectorAll(".shot-card").forEach(card => {
+    const id = card.dataset.id;
+    const sh = () => shots.find(x => x.id === id);
+    const save = debounce(async (fields) => {
+      try {
+        const up = await api.send("PUT", "/shots/" + id, fields());
+        Object.assign(sh(), up);
+        $("#boardTotal").textContent = "Σ " + fmtDur(shots.reduce((a, s) => a + (s.duration_s || 0), 0));
+      } catch (e) { toast("Sauvegarde du plan échouée : " + e.message, true); }
+    }, 600);
+    const fields = () => ({
+      action: card.querySelector(".shot-action").value,
+      shot_type: card.querySelector(".shot-type").value,
+      camera_move: card.querySelector(".shot-cam").value,
+      duration_s: parseFloat(card.querySelector(".shot-dur").value) || sh().duration_s,
+    });
+    ["input", "change"].forEach(ev => {
+      card.querySelector(".shot-action").addEventListener(ev, () => save(fields));
+      card.querySelector(".shot-type").addEventListener(ev, () => save(fields));
+      card.querySelector(".shot-cam").addEventListener(ev, () => save(fields));
+      card.querySelector(".shot-dur").addEventListener(ev, () => save(fields));
+    });
+    card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
+    card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
+    card.querySelector(".act-insert").addEventListener("click", async () => {
+      await api.send("POST", `/chapters/${chapter.id}/shots`, { after_id: id });
+      await loadShots(true);
+    });
+    card.querySelector(".act-delshot").addEventListener("click", async () => {
+      if (!confirm(`Supprimer le plan ${sh().idx + 1} ?`)) return;
+      await api.send("DELETE", "/shots/" + id);
+      await loadShots(true);
+    });
+    card.querySelector(".act-up").addEventListener("click", () => moveShot(id, -1));
+    card.querySelector(".act-down").addEventListener("click", () => moveShot(id, +1));
+  });
+}
+
+async function moveShot(id, delta) {
+  const ids = shots.map(s => s.id);
+  const i = ids.indexOf(id), j = i + delta;
+  if (j < 0 || j >= ids.length) return;
+  [ids[i], ids[j]] = [ids[j], ids[i]];
+  const r = await api.send("POST", `/chapters/${chapter.id}/storyboard/reorder`, { ids });
+  shots = r.shots;
+  renderBoard();
+}
+
+async function sketchShot(id, seed) {
+  const s = shots.find(x => x.id === id);
+  if (!s) return;
+  if (!(s.action || s.source_text || "").trim()) { toast("Décris l'action du plan d'abord.", true); return; }
+  toast(`Croquis du plan ${s.idx + 1}… (~3 s)`);
+  try {
+    const up = await api.send("POST", `/shots/${id}/sketch`,
+                              seed != null ? { seed } : {});
+    Object.assign(s, up);
+    renderBoard();
+    toast(`Croquis du plan ${s.idx + 1} généré (seed ${up.sketch_seed}).`);
+  } catch (e) { toast("Croquis échoué : " + e.message, true); }
+}
+
+async function decoupe(method) {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!$("#script").value.trim()) { toast("Le chapitre est vide.", true); return; }
+  if (shots.length && !confirm("Re-découper remplacera le storyboard actuel. Continuer ?")) return;
+  toast(method === "ai" ? "Découpage IA en cours… (10-30 s)" : "Découpage par paragraphes…");
+  try {
+    const r = await api.send("POST", `/chapters/${chapter.id}/storyboard/decoupe`,
+                             { method, language: "fr" });
+    if (r.error) { toast(r.error, true); return; }
+    shots = r.shots;
+    renderBoard();
+    toast(`${shots.length} plans créés — ajuste, puis génère les croquis 🎨.`);
+  } catch (e) { toast("Découpage échoué : " + e.message, true); }
+}
+
 /* ═════════ Library modal ═════════ */
 async function attachInspiration(filename) {
   const ent = entities.find(x => x.id === libTarget);
@@ -355,8 +523,19 @@ window.addEventListener("DOMContentLoaded", async () => {
     e.target.value = "";
   });
 
+  // storyboard
+  document.querySelectorAll("#modeTabs .tab").forEach(t =>
+    t.addEventListener("click", () => setMode(t.dataset.mode)));
+  $("#cutAI").addEventListener("click", () => decoupe("ai"));
+  $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
+  $("#addShot").addEventListener("click", async () => {
+    if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+    await api.send("POST", `/chapters/${chapter.id}/shots`, {});
+    await loadShots(true);
+  });
+
   // bible
-  document.querySelectorAll(".tab").forEach(t =>
+  document.querySelectorAll(".bible-pane .tab").forEach(t =>
     t.addEventListener("click", () => { setTab(t.dataset.kind); renderBible(); }));
   $("#addEntity").addEventListener("click", async () => {
     const name = prompt(`Nom du nouveau ${KIND_LABEL[curKind].toLowerCase()} :`);
