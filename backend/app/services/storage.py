@@ -112,20 +112,25 @@ class AvatarPreset(Base):
 
 
 class BibleEntity(Base):
-    """v1.17 (Atelier P1) — one entry of the persistent story bible: a
-    character, place or object shared by every chapter of a series. The
-    generated reference image (a Library filename) + its locked seed are the
-    consistency anchor reused by later storyboard/production phases."""
+    """v1.17 (Atelier P1) — one entry of the persistent story bible, shared by
+    every chapter of a series. v1.19 kinds: character | place | object | date
+    (temporal markers) | ambiance (light/weather/mood) | decor (set dressing).
+    The generated reference image (a Library filename) + its locked seed are
+    the consistency anchor reused by storyboard/production phases."""
     __tablename__ = "bible_entities"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    kind: Mapped[str] = mapped_column(String(12), index=True)  # character|place|object
+    kind: Mapped[str] = mapped_column(String(12), index=True)
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ref_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     style_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     inspiration_images: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    # v1.19 (agent manuscrit) — alternative names found in the text, and the
+    # per-chapter verbatim evidence quotes collected during ingestion.
+    aliases: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON list
+    evidence: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON [{chapter,quote}]
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -234,6 +239,14 @@ AVATAR_PRESETS_COLUMNS = [
 ]
 
 
+# v1.19 — columns added to bible_entities after its initial ship (manuscript
+# ingestion agent: aliases + per-chapter evidence quotes).
+BIBLE_ENTITIES_COLUMNS = [
+    ("aliases", "TEXT"),
+    ("evidence", "TEXT"),
+]
+
+
 async def _auto_migrate():
     """Add new columns to existing tables without losing data."""
     async with _engine.begin() as conn:
@@ -304,7 +317,8 @@ async def _auto_migrate():
 
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
                                ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
-                               ("avatar_presets", AVATAR_PRESETS_COLUMNS)):
+                               ("avatar_presets", AVATAR_PRESETS_COLUMNS),
+                               ("bible_entities", BIBLE_ENTITIES_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

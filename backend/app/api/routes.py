@@ -2922,28 +2922,36 @@ async def list_image_models():
 # image) + chapters (script text + annotated entity spans). Consumed by the
 # /atelier page. Spec: docs/superpowers/specs/2026-07-05-atelier-chapitre-design.md
 
-_ENTITY_KINDS = ("character", "place", "object")
+_ENTITY_KINDS = ("character", "place", "object", "date", "ambiance", "decor")
 # reference image framing per kind: portrait for people, wide for places.
 _KIND_SIZE = {"character": "portrait_4_3", "place": "landscape_16_9",
-              "object": "square"}
+              "object": "square", "date": "landscape_16_9",
+              "ambiance": "landscape_16_9", "decor": "landscape_16_9"}
 _KIND_PREFIX = {
     "character": "character reference sheet, full body, neutral background",
     "place": "establishing shot of the location, no characters",
     "object": "prop reference on a neutral background",
+    "date": "period/era mood reference, evocative establishing image",
+    "ambiance": "atmosphere mood board frame: light, weather, tone",
+    "decor": "set-dressing reference: furniture, materials, textures",
 }
 
 
 def _entity_dict(e) -> dict:
     import json as _json
-    try:
-        insp = _json.loads(e.inspiration_images) if e.inspiration_images else []
-    except Exception:
-        insp = []
+
+    def _jload(v):
+        try:
+            return _json.loads(v) if v else []
+        except Exception:
+            return []
     return {"id": e.id, "kind": e.kind, "name": e.name,
             "description": e.description or "",
             "ref_image": e.ref_image, "seed": e.seed,
             "style_notes": e.style_notes or "",
-            "inspiration_images": insp,
+            "inspiration_images": _jload(e.inspiration_images),
+            "aliases": _jload(getattr(e, "aliases", None)),
+            "evidence": _jload(getattr(e, "evidence", None)),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3006,6 +3014,8 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.style_notes = body["style_notes"] or ""
         if "inspiration_images" in body:
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
+        if "aliases" in body:
+            e.aliases = _json.dumps(body["aliases"] or [])
         # v1.17.1 — allow re-linking a reference / pinning a seed directly
         # (used by recovery tooling and future "use this Library image as ref").
         if "ref_image" in body:
@@ -3441,3 +3451,212 @@ async def reorder_shots(chapter_id: str, body: dict):
             shots[sid].idx = i
         await session.commit()
         return {"shots": [_shot_dict(shots[sid]) for sid in ids]}
+
+
+# ───────── Atelier v1.19: agent d'ingestion de manuscrit ─────────
+# Manuscrit complet → segmentation en chapitres (titres importés) →
+# extraction LLM chapitre par chapitre (6 kinds) → relecture globale de
+# consolidation (avec le fichier compagnon de l'auteur en autorité) →
+# surlignage automatique. Job long: progression pollable.
+
+_MS_JOBS: dict[str, dict] = {}
+
+
+def _read_upload_text(name: str, data: bytes) -> str:
+    """Texte brut d'un upload txt/docx/pdf. Pour docx, les paragraphes stylés
+    Heading sont préfixés du marqueur \\x1f — le segmenteur les importe comme
+    titres de chapitres même sans convention typographique."""
+    import io as _io
+    name = (name or "").lower()
+    if name.endswith(".docx"):
+        import docx
+        doc = docx.Document(_io.BytesIO(data))
+        parts = []
+        for p in doc.paragraphs:
+            t = p.text.strip()
+            if not t:
+                continue
+            style = (p.style.name or "").lower() if p.style is not None else ""
+            if style.startswith("heading") or style.startswith("titre"):
+                parts.append("\x1f" + t)
+            else:
+                parts.append(t)
+        return "\n\n".join(parts)
+    if name.endswith(".pdf"):
+        from pypdf import PdfReader
+        reader = PdfReader(_io.BytesIO(data))
+        return "\n\n".join((pg.extract_text() or "").strip()
+                           for pg in reader.pages if (pg.extract_text() or "").strip())
+    for enc in ("utf-8", "utf-8-sig", "latin-1"):
+        try:
+            return data.decode(enc)
+        except Exception:
+            continue
+    return ""
+
+
+@router.post("/atelier/manuscript")
+async def import_manuscript(background_tasks: BackgroundTasks,
+                            manuscript: UploadFile = File(...),
+                            companion: UploadFile | None = File(None),
+                            series: str = Form("")):
+    """Lance l'agent d'ingestion sur un manuscrit complet (+ fichier compagnon
+    optionnel). Retourne {job_id} — suivre GET /atelier/manuscript/{job_id}."""
+    from app.services.summarizer import available
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API) — "
+                                 "l'agent manuscrit a besoin d'un modèle.")
+    raw = await manuscript.read()
+    if len(raw) > 30 * 1024 * 1024:
+        raise HTTPException(400, "Manuscrit trop lourd (max 30 MB)")
+    try:
+        text = _read_upload_text(manuscript.filename or "", raw).strip()
+    except Exception as e:
+        raise HTTPException(422, f"Lecture du manuscrit impossible: {e}")
+    if len(text) < 200:
+        raise HTTPException(400, "Le manuscrit semble vide (moins de 200 caractères)")
+    comp_text = ""
+    if companion is not None:
+        try:
+            comp_text = _read_upload_text(companion.filename or "",
+                                          await companion.read()).strip()
+        except Exception as e:
+            logger.warning(f"fichier compagnon illisible (ignoré): {e}")
+    stem = Path(manuscript.filename or "Manuscrit").stem
+    series = (series or "").strip() or stem
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "segmentation", "chapter_i": 0,
+                     "chapter_n": 0, "message": "Segmentation en chapitres…",
+                     "done": False, "error": None, "stats": {}, "series": series}
+    background_tasks.add_task(_run_manuscript_job, jid, text, comp_text, series)
+    return {"job_id": jid, "series": series, "chars": len(text),
+            "companion_chars": len(comp_text)}
+
+
+@router.get("/atelier/manuscript/{job_id}")
+async def manuscript_job_status(job_id: str):
+    st = _MS_JOBS.get(job_id)
+    if not st:
+        raise HTTPException(404, "Job inconnu")
+    return st
+
+
+async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (BibleEntity, Chapter,
+                                      async_session_factory)
+    from sqlalchemy import select
+    import json as _json
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    try:
+        loop = asyncio.get_running_loop()
+        # 1. segmentation
+        segs = MA.segment_chapters(text)
+        upd(phase="extraction", chapter_n=len(segs),
+            message=f"{len(segs)} chapitres détectés")
+        # roster initial = bible existante (stabilité des noms)
+        async with async_session_factory() as session:
+            existing = (await session.execute(select(BibleEntity))).scalars().all()
+            roster = [{"name": e.name, "kind": e.kind} for e in existing]
+        # 2. extraction chapitre par chapitre
+        raw: list[dict] = []
+        qmap: dict[tuple, list] = {}   # (kind, lower name/alias) -> evidence
+        for i, seg in enumerate(segs):
+            upd(chapter_i=i + 1, message=f"Extraction — {seg['title']}")
+            found = await loop.run_in_executor(
+                None, lambda s=seg: MA.extract_chapter(s["title"], s["text"], roster))
+            for f in found:
+                raw.append(f)
+                keys = [(f["kind"], f["name"].strip().lower())] + \
+                       [(f["kind"], a.strip().lower()) for a in f.get("aliases") or []]
+                for k in keys:
+                    qmap.setdefault(k, [])
+                for q in f.get("quotes") or []:
+                    qmap[keys[0]].append({"chapter": seg["title"], "quote": q})
+                if not any(r["name"].lower() == f["name"].lower()
+                           and r["kind"] == f["kind"] for r in roster):
+                    roster.append({"name": f["name"], "kind": f["kind"]})
+        if not raw:
+            raise RuntimeError("Aucune entité extraite — vérifie le manuscrit / le LLM")
+        # 3. relecture globale
+        upd(phase="consolidation", chapter_i=len(segs),
+            message=f"Relecture globale — consolidation de {len(raw)} mentions…")
+        final = await loop.run_in_executor(
+            None, lambda: MA.consolidate(raw, companion))
+        # 4. écriture bible (upsert) + chapitres + surlignage
+        upd(phase="liens", message="Écriture de la bible et surlignage…")
+        created_e = updated_e = created_c = updated_c = total_spans = 0
+        async with async_session_factory() as session:
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            by_key = {(e.kind, e.name.strip().lower()): e for e in rows}
+            ent_pairs = []
+            for fe in final:
+                key = (fe["kind"], fe["name"].strip().lower())
+                ev = list(qmap.get(key, []))
+                for a in fe.get("aliases") or []:
+                    ev.extend(qmap.get((fe["kind"], a.strip().lower()), []))
+                e = by_key.get(key)
+                if e:
+                    if fe.get("description") and \
+                            len(fe["description"]) > len(e.description or ""):
+                        e.description = fe["description"]
+                    old_alias = set(_json.loads(e.aliases) if e.aliases else [])
+                    e.aliases = _json.dumps(sorted(old_alias | set(fe.get("aliases") or [])))
+                    e.evidence = _json.dumps(ev[:20])
+                    e.updated_at = datetime.utcnow()
+                    updated_e += 1
+                else:
+                    e = BibleEntity(id=str(uuid4()), kind=fe["kind"],
+                                    name=fe["name"],
+                                    description=fe.get("description") or "",
+                                    aliases=_json.dumps(fe.get("aliases") or []),
+                                    evidence=_json.dumps(ev[:20]),
+                                    inspiration_images="[]",
+                                    created_at=datetime.utcnow(),
+                                    updated_at=datetime.utcnow())
+                    session.add(e)
+                    by_key[key] = e
+                    created_e += 1
+                ent_pairs.append((e, fe))
+            await session.commit()
+            for e, _fe in ent_pairs:
+                await session.refresh(e)
+            ents_for_spans = [{"id": e.id, "name": e.name,
+                               "aliases": _json.loads(e.aliases) if e.aliases else [],
+                               "quotes": fe.get("quotes") or []}
+                              for e, fe in ent_pairs]
+            ch_rows = (await session.execute(select(Chapter))).scalars().all()
+            ch_by_key = {(c.series or "", c.title): c for c in ch_rows}
+            for seg in segs:
+                spans = MA.compute_spans(seg["text"], ents_for_spans)
+                total_spans += len(spans)
+                key = (series, seg["title"][:200])
+                c = ch_by_key.get(key)
+                if c:
+                    c.script_text = seg["text"]
+                    c.spans = _json.dumps(spans)
+                    c.updated_at = datetime.utcnow()
+                    updated_c += 1
+                else:
+                    c = Chapter(id=str(uuid4()), title=seg["title"][:200],
+                                series=series, script_text=seg["text"],
+                                spans=_json.dumps(spans),
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow())
+                    session.add(c)
+                    ch_by_key[key] = c
+                    created_c += 1
+            await session.commit()
+        upd(phase="terminé", done=True,
+            message="Ingestion terminée — bible consolidée et chapitres surlignés.",
+            stats={"chapitres_crees": created_c, "chapitres_mis_a_jour": updated_c,
+                   "entites_creees": created_e, "entites_enrichies": updated_e,
+                   "zones_surlignees": total_spans})
+        logger.success(f"manuscrit {jid}: {created_c}+{updated_c} chapitres, "
+                       f"{created_e}+{updated_e} entités, {total_spans} spans")
+    except Exception as e:
+        logger.exception(f"manuscrit {jid} échec: {e}")
+        upd(phase="échec", done=True, error=str(e))
