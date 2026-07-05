@@ -71,8 +71,13 @@
 <div id="libModal" class="modal hidden">
   <div class="modal-box">
     <div class="modal-head">
-      <b>Images de la Library</b>
-      <button id="libClose" class="btn ghost">✕</button>
+      <b>Ajouter une inspiration</b>
+      <div style="display:flex;gap:8px;align-items:center">
+        <label class="btn" for="libUpload" title="Importer un fichier de ton PC (il rejoint la Library)">📤 Fichier</label>
+        <input type="file" id="libUpload" accept="image/png,image/jpeg,image/webp" hidden>
+        <button id="libUrl" class="btn" title="Importer depuis une URL web (elle rejoint la Library)">🔗 URL</button>
+        <button id="libClose" class="btn ghost">✕</button>
+      </div>
     </div>
     <div id="libGrid" class="lib-grid"></div>
   </div>

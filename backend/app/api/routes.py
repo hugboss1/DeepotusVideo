@@ -762,15 +762,17 @@ async def upload_image(file: UploadFile = File(...)):
 
 @router.get("/images/{filename}")
 async def get_image_file(filename: str):
+    # Containment via name sanitization only. The previous resolve()+startswith
+    # comparison broke under Windows filesystem virtualization (MSIX/sandboxed
+    # launchers redirect AppData\Local to a Packages\...\LocalCache view, so
+    # the file's resolve() no longer string-matches the base dir) -> every
+    # image 404'd. Path(filename).name strips any directory part, which
+    # already guarantees the path stays inside images_path.
     safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
     p = settings.images_path / safe
-    try:
-        if not str(p.resolve()).startswith(str(settings.images_path.resolve())) \
-                or not p.is_file():
-            raise HTTPException(404, f"Image not found: {filename}")
-    except HTTPException:
-        raise
-    except Exception:
+    if not p.is_file():
         raise HTTPException(404, f"Image not found: {filename}")
     return FileResponse(p)
 
@@ -778,11 +780,13 @@ async def get_image_file(filename: str):
 @router.delete("/images/{filename}")
 async def delete_image_file(filename: str):
     """Delete a generated/uploaded image from the images folder."""
+    # Same virtualization-safe containment check as get_image_file above.
     safe = Path(filename).name
+    if not safe or safe in (".", "..") or safe != filename:
+        raise HTTPException(400, "Invalid filename")
     p = settings.images_path / safe
     try:
-        if not str(p.resolve()).startswith(str(settings.images_path.resolve())) \
-                or not p.is_file():
+        if not p.is_file():
             raise HTTPException(404, f"Image not found: {filename}")
     except HTTPException:
         raise

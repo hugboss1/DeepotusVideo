@@ -260,6 +260,18 @@ async function generateRef(id, seed) {
 }
 
 /* ═════════ Library modal ═════════ */
+async function attachInspiration(filename) {
+  const ent = entities.find(x => x.id === libTarget);
+  if (!ent || !filename) return;
+  const insp = [...(ent.inspiration_images || [])];
+  if (!insp.includes(filename)) insp.push(filename);
+  const up = await api.send("PUT", "/bible/entities/" + libTarget, { inspiration_images: insp });
+  Object.assign(ent, up);
+  $("#libModal").classList.add("hidden");
+  renderBible();
+  toast(`Inspiration « ${filename} » ajoutée (elle est aussi dans la Library).`);
+}
+
 async function openLibrary(entityId) {
   libTarget = entityId;
   const grid = $("#libGrid");
@@ -271,15 +283,8 @@ async function openLibrary(entityId) {
     grid.innerHTML = files.length
       ? files.map(f => `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" title="${esc(f)}">`).join("")
       : `<div class="empty-note">Library vide.</div>`;
-    grid.querySelectorAll("img").forEach(img => img.addEventListener("click", async () => {
-      const ent = entities.find(x => x.id === libTarget);
-      const insp = [...(ent.inspiration_images || [])];
-      if (!insp.includes(img.dataset.f)) insp.push(img.dataset.f);
-      const up = await api.send("PUT", "/bible/entities/" + libTarget, { inspiration_images: insp });
-      Object.assign(ent, up);
-      $("#libModal").classList.add("hidden");
-      renderBible();
-    }));
+    grid.querySelectorAll("img").forEach(img =>
+      img.addEventListener("click", () => attachInspiration(img.dataset.f)));
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
 }
 
@@ -348,6 +353,32 @@ window.addEventListener("DOMContentLoaded", async () => {
   // modal
   $("#libClose").addEventListener("click", () => $("#libModal").classList.add("hidden"));
   $("#libModal").addEventListener("click", (e) => { if (e.target.id === "libModal") $("#libModal").classList.add("hidden"); });
+
+  // import externe → Library → inspiration (fichier local ou URL web)
+  $("#libUpload").addEventListener("change", async (e) => {
+    const f = e.target.files && e.target.files[0];
+    if (!f || !libTarget) return;
+    toast("Import du fichier…");
+    try {
+      const fd = new FormData(); fd.append("file", f);
+      const r = await fetch("/api/images/upload", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok || !d.filename) throw new Error(d.detail || "upload échoué");
+      await attachInspiration(d.filename);
+    } catch (err) { toast("Import échoué : " + err.message, true); }
+    e.target.value = "";
+  });
+  $("#libUrl").addEventListener("click", async () => {
+    if (!libTarget) return;
+    const url = prompt("URL de l'image (http…) :");
+    if (!url || !url.trim()) return;
+    toast("Téléchargement de l'image…");
+    try {
+      const d = await api.send("POST", "/images/fetch", { url: url.trim() });
+      if (!d.filename) throw new Error("réponse sans fichier");
+      await attachInspiration(d.filename);
+    } catch (err) { toast("Import URL échoué : " + err.message, true); }
+  });
 
   // boot
   try {
