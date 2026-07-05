@@ -196,7 +196,20 @@ if _guide.is_dir():
 _atelier = Path(__file__).resolve().parent.parent.parent / "frontend" / "atelier"
 if _atelier.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFAt
-    app.mount("/atelier", _SFAt(directory=str(_atelier), html=True), name="atelier")
+
+    class _AtelierStatic(_SFAt):
+        """no-cache like the SPA mount: atelier.js keeps a stable filename, so
+        without revalidation the browser would keep running a stale page after
+        an update (mixed old-JS/new-API sessions caused silent save failures)."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/atelier", _AtelierStatic(directory=str(_atelier), html=True), name="atelier")
 
     # The mount only matches "/atelier/..." — a bare "/atelier" would fall
     # through to the SPA catch-all (which serves the app UI). Redirect it.

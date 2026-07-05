@@ -75,6 +75,11 @@ async def main():
         assert r.status_code == 200 and "cicatrice" in r.json()["description"]
         assert r.json()["inspiration_images"] == ["insp1.png"]
 
+        # v1.17.1 — direct ref_image/seed re-link (recovery + manual pinning)
+        r = await c.put(f"/api/bible/entities/{eid}",
+                        json={"ref_image": "manual.png", "seed": 99})
+        assert r.json()["ref_image"] == "manual.png" and r.json()["seed"] == 99
+
         # ---- reference generation (stubbed FLUX) with seed passthrough ----
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 777})
         assert r.status_code == 200, r.text

@@ -2959,6 +2959,14 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.style_notes = body["style_notes"] or ""
         if "inspiration_images" in body:
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
+        # v1.17.1 — allow re-linking a reference / pinning a seed directly
+        # (used by recovery tooling and future "use this Library image as ref").
+        if "ref_image" in body:
+            e.ref_image = (Path(body["ref_image"]).name
+                           if body["ref_image"] else None)
+        if "seed" in body:
+            sd = body["seed"]
+            e.seed = int(sd) if isinstance(sd, (int, float)) else None
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)

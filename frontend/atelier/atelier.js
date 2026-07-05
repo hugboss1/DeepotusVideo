@@ -67,7 +67,22 @@ function scheduleSave() {
       $("#saveState").textContent = "enregistré ✓"; $("#saveState").className = "savestate saved";
       const c = chapters.find(x => x.id === chapter.id);
       if (c) { c.title = chapter.title; c.series = chapter.series; }
-    } catch (e) { $("#saveState").textContent = "échec !"; toast("Sauvegarde échouée : " + e.message, true); }
+    } catch (e) {
+      // Le chapitre n'existe plus côté serveur (session périmée / base
+      // changée) : on le re-crée avec le contenu courant — AUCUNE perte.
+      if (/Chapter not found/i.test(e.message)) {
+        try {
+          const fresh = await api.send("POST", "/chapters", {
+            title: chapter.title, series: chapter.series,
+            script_text: $("#script").value, spans: chapter.spans || [],
+          });
+          toast(`Chapitre re-créé côté serveur (« ${fresh.title} ») — contenu préservé.`);
+          await loadChapters(fresh.id);
+          return;
+        } catch (e2) { e = e2; }
+      }
+      $("#saveState").textContent = "échec !"; toast("Sauvegarde échouée : " + e.message, true);
+    }
   }, 800);
 }
 
