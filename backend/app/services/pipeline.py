@@ -472,6 +472,150 @@ class Pipeline:
 
         return job_id
 
+    async def run_heygen_image(self, request) -> str:
+        """v1.16 (D) — animate a Library still (HeyGen v3 type=image).
+
+        Same job lifecycle as run_heygen: record → submit → poll → download →
+        optional BGM merge → caption. request: GenerateHeyGenImageRequest."""
+        job_id = str(uuid4())
+        img_path = settings.images_path / request.image_filename
+        async with async_session_factory() as session:
+            job = JobRecord(
+                id=job_id,
+                status=JobStatus.QUEUED.value,
+                image_filename=request.image_filename,
+                aspect_ratio=request.aspect_ratio.value,
+                voice_mode=request.voice_mode.value if request.voice_mode else None,
+                provider=Provider.HEYGEN.value,
+                title=f"Animate · {request.image_filename}",
+                created_at=datetime.utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
+            try:
+                script = request.script.strip()
+                caption = request.custom_caption or self._heygen_caption_from_script(
+                    script, request.voice_mode)
+                await self._update(session, job,
+                                   status=JobStatus.GENERATING_VIDEO.value,
+                                   current_step="Submitting animated image (v3)",
+                                   final_prompt=script, caption_text=caption,
+                                   progress=20)
+                video_id = await self.heygen.generate_image_video_v3(
+                    img_path, script, request.voice_id,
+                    engine=request.engine,
+                    aspect_ratio=request.aspect_ratio.value,
+                    speed=request.speed,
+                    motion_prompt=request.motion_prompt,
+                    expressiveness=request.expressiveness,
+                    title=f"Animate {request.image_filename}",
+                )
+                await self._update(session, job,
+                                   current_step="Rendering on HeyGen servers",
+                                   progress=45)
+                result = await self.heygen.poll_video_status_v3(video_id)
+                video_url = result.get("video_url")
+                if not video_url:
+                    raise RuntimeError(f"No video_url in HeyGen v3 result: {result}")
+                await self._update(session, job,
+                                   status=JobStatus.DOWNLOADING.value,
+                                   current_step="Downloading video",
+                                   progress=80)
+                video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
+                await self.heygen.download_video(video_url, video_dest)
+                final_path = video_dest
+                _mus_path, _mus_vol = _resolve_music(request.music)
+                if _mus_path is not None:
+                    final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
+                    self.merger.merge(video_dest, None, final_path,
+                                      music_path=_mus_path,
+                                      music_volume_db=_mus_vol,
+                                      keep_video_audio=True)
+                await self._update(session, job,
+                                   video_path=str(video_dest),
+                                   final_video_path=str(final_path),
+                                   progress=95)
+                if caption:
+                    cap_dest = settings.outputs_path / "captions" / f"{job_id}.txt"
+                    cap_dest.parent.mkdir(parents=True, exist_ok=True)
+                    cap_dest.write_text(caption, encoding="utf-8")
+                    await self._update(session, job, caption_path=str(cap_dest))
+                await self._update(session, job, status=JobStatus.DONE.value,
+                                   current_step="Complete", progress=100,
+                                   completed_at=datetime.utcnow())
+                logger.success(f"HeyGen image job {job_id} complete -> {video_dest}")
+            except Exception as e:
+                logger.exception(f"HeyGen image job {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value,
+                                   current_step="Failed", error=str(e),
+                                   completed_at=datetime.utcnow())
+                raise
+        return job_id
+
+    async def run_heygen_cinematic(self, request) -> str:
+        """v1.16 (D) — HeyGen v3 cinematic avatar (prompt-driven, no script).
+        request: GenerateHeyGenCinematicRequest."""
+        job_id = str(uuid4())
+        refs = [settings.images_path / f for f in (request.reference_images or [])]
+        refs = [p for p in refs if p.exists()]
+        async with async_session_factory() as session:
+            job = JobRecord(
+                id=job_id,
+                status=JobStatus.QUEUED.value,
+                image_filename=(request.reference_images[0]
+                                if request.reference_images else "cinematic"),
+                aspect_ratio=request.aspect_ratio,
+                provider=Provider.HEYGEN.value,
+                title=f"Cinematic · {request.prompt[:60]}",
+                created_at=datetime.utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
+            try:
+                await self._update(session, job,
+                                   status=JobStatus.GENERATING_VIDEO.value,
+                                   current_step="Submitting cinematic video (v3)",
+                                   final_prompt=request.prompt,
+                                   caption_text=request.custom_caption,
+                                   progress=20)
+                video_id = await self.heygen.generate_cinematic_v3(
+                    request.prompt, request.look_ids,
+                    reference_paths=refs,
+                    duration_s=request.duration_s,
+                    auto_duration=request.auto_duration,
+                    aspect_ratio=request.aspect_ratio,
+                    resolution=request.resolution,
+                    title=f"Cinematic {job_id[:8]}",
+                )
+                await self._update(session, job,
+                                   current_step="Rendering on HeyGen servers",
+                                   progress=45)
+                result = await self.heygen.poll_video_status_v3(video_id)
+                video_url = result.get("video_url")
+                if not video_url:
+                    raise RuntimeError(f"No video_url in HeyGen v3 result: {result}")
+                await self._update(session, job,
+                                   status=JobStatus.DOWNLOADING.value,
+                                   current_step="Downloading video", progress=80)
+                video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
+                await self.heygen.download_video(video_url, video_dest)
+                await self._update(session, job,
+                                   video_path=str(video_dest),
+                                   final_video_path=str(video_dest),
+                                   status=JobStatus.DONE.value,
+                                   current_step="Complete", progress=100,
+                                   completed_at=datetime.utcnow())
+                logger.success(f"HeyGen cinematic job {job_id} complete -> {video_dest}")
+            except Exception as e:
+                logger.exception(f"HeyGen cinematic job {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value,
+                                   current_step="Failed", error=str(e),
+                                   completed_at=datetime.utcnow())
+                raise
+        return job_id
+
     def _heygen_caption_from_script(self, script: str, voice_mode) -> str:
         """Generate a basic caption from a HeyGen script, optionally voice-mode aware."""
         first_line = script.split(".")[0].strip()[:80]

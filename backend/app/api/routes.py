@@ -20,6 +20,8 @@ from app.models.schemas import (
     GenerateBatchRequest,
     GenerateBatchResponse,
     GenerateHeyGenRequest,
+    GenerateHeyGenImageRequest,
+    GenerateHeyGenCinematicRequest,
     AvatarPresetCreate,
     CompositionRequest,
     CompositionResponse,
@@ -1439,6 +1441,51 @@ async def generate_heygen(request: GenerateHeyGenRequest, background_tasks: Back
         status=JobStatus.QUEUED,
         message="HeyGen job queued. Poll GET /jobs to see status.",
     )
+
+
+@router.post("/generate/heygen-image")
+async def generate_heygen_image(request: GenerateHeyGenImageRequest,
+                                background_tasks: BackgroundTasks):
+    """v1.16 (D) — animate a Library still into a talking video (HeyGen v3)."""
+    if not settings.has_heygen:
+        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+    if not request.script.strip():
+        raise HTTPException(400, "Script must not be empty")
+    img = settings.images_path / request.image_filename
+    if not img.exists():
+        raise HTTPException(404, f"Image not found in Library: {request.image_filename}")
+
+    async def _run():
+        try:
+            await pipeline.run_heygen_image(request)
+        except Exception as e:
+            logger.error(f"Background HeyGen-image pipeline error: {e}")
+
+    background_tasks.add_task(_run)
+    return GenerateResponse(job_id="pending", status=JobStatus.QUEUED,
+                            message="HeyGen image-animation job queued. Poll GET /jobs.")
+
+
+@router.post("/generate/heygen-cinematic")
+async def generate_heygen_cinematic(request: GenerateHeyGenCinematicRequest,
+                                    background_tasks: BackgroundTasks):
+    """v1.16 (D) — HeyGen v3 cinematic avatar (prompt-driven, 1–3 looks)."""
+    if not settings.has_heygen:
+        raise HTTPException(400, "HEYGEN_API_KEY not configured. Add it to backend/.env")
+    missing = [f for f in (request.reference_images or [])
+               if not (settings.images_path / f).exists()]
+    if missing:
+        raise HTTPException(404, f"Reference image(s) not in Library: {missing}")
+
+    async def _run():
+        try:
+            await pipeline.run_heygen_cinematic(request)
+        except Exception as e:
+            logger.error(f"Background HeyGen-cinematic pipeline error: {e}")
+
+    background_tasks.add_task(_run)
+    return GenerateResponse(job_id="pending", status=JobStatus.QUEUED,
+                            message="HeyGen cinematic job queued. Poll GET /jobs.")
 
 
 @router.post("/generate/composition", response_model=CompositionResponse)
