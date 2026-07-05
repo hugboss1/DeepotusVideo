@@ -217,11 +217,45 @@ class GenerateHeyGenRequest(BaseModel):
     music: Optional[dict] = None
 
 
+class GenerateHeyGenImageRequest(BaseModel):
+    """v1.16 (D) — animate a Library still into a talking video (HeyGen v3
+    type=image): lip-sync + motion driven by an optional motion_prompt."""
+    image_filename: str = Field(..., min_length=1)
+    script: str = Field(..., max_length=4900)
+    voice_id: str = Field(..., min_length=1)
+    engine: Literal["avatar_iv", "avatar_v"] = "avatar_iv"
+    motion_prompt: Optional[str] = None
+    expressiveness: Optional[Literal["high", "medium", "low"]] = None
+    aspect_ratio: AspectRatio = AspectRatio.VERTICAL
+    speed: float = Field(1.0, ge=0.5, le=1.5)
+    voice_mode: Optional[VoiceMode] = None
+    custom_caption: Optional[str] = None
+    source_graph: Optional[dict] = None
+    music: Optional[dict] = None
+
+
+class GenerateHeyGenCinematicRequest(BaseModel):
+    """v1.16 (D) — HeyGen v3 cinematic avatar: prompt-driven motion with 1–3
+    avatar looks and optional Library reference images. No script/voice."""
+    prompt: str = Field(..., min_length=1, max_length=10000)
+    look_ids: List[str] = Field(..., min_length=1, max_length=3)
+    reference_images: List[str] = Field(default_factory=list, max_length=3)
+    duration_s: Optional[int] = Field(None, ge=4, le=15)
+    auto_duration: bool = False
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
+    resolution: Literal["720p", "1080p"] = "720p"
+    custom_caption: Optional[str] = None
+    source_graph: Optional[dict] = None
+
+
 class AvatarPresetCreate(BaseModel):
-    """Create an avatar+voice casting preset."""
+    """Create an avatar+voice casting preset.
+
+    avatar_type "image" (v1.16, D) = an animated-image casting: avatar_id is a
+    Library image filename, generated via /generate/heygen-image."""
     name: str = Field(..., min_length=1, max_length=120)
     avatar_id: str = Field(..., min_length=1)
-    avatar_type: Literal["avatar", "talking_photo"] = "avatar"
+    avatar_type: Literal["avatar", "talking_photo", "image"] = "avatar"
     avatar_img: Optional[str] = None
     voice_id: str = Field(..., min_length=1)
     voice_name: Optional[str] = None
