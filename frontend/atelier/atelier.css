@@ -81,6 +81,8 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .entity-card{background:var(--bg-panel-2);border:1px solid var(--stroke);border-radius:var(--r);padding:12px;display:grid;grid-template-columns:150px 1fr;gap:12px}
 .entity-card .refbox{display:flex;flex-direction:column;gap:6px}
 .entity-card .refimg{width:150px;height:150px;object-fit:cover;border-radius:8px;border:1px solid var(--stroke-strong);background:var(--bg-base)}
+.entity-card .refimg.board-ref{height:84px;object-fit:contain;background:#000;cursor:zoom-in}
+.entity-card .refimg.board-ref:hover{border-color:var(--cyan)}
 .entity-card .refimg.empty{display:flex;align-items:center;justify-content:center;color:var(--ink-muted);font-size:11px;text-align:center;padding:8px}
 .seedrow{display:flex;align-items:center;gap:6px;font-size:11px}
 .seedbadge{font-family:var(--f-mono);color:var(--amber);border:1px solid var(--stroke-strong);border-radius:6px;padding:2px 6px}

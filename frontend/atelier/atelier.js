@@ -208,14 +208,16 @@ async function renderBible() {
   <div class="entity-card" data-id="${e.id}">
     <div class="refbox">
       ${e.ref_image
-        ? `<img class="refimg" src="/api/images/${encodeURIComponent(e.ref_image)}" alt="ref">`
-        : `<div class="refimg empty">Pas encore de référence<br>— Générer ⤵</div>`}
+        ? `<a href="/api/images/${encodeURIComponent(e.ref_image)}" target="_blank" title="Ouvrir la planche en grand">
+             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.ref_image)}" alt="planche"></a>`
+        : `<div class="refimg empty">Pas encore de planche<br>— Générer ⤵</div>`}
       <div class="seedrow">
-        ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la référence">🔒 ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
+        ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">🔒 ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
       </div>
       <div class="entity-actions">
-        <button class="btn primary act-gen" title="Génère l'image de référence (FLUX). Re-générer avec le même seed reproduit la même image.">🎨 Générer</button>
-        <button class="btn act-roll" title="Re-génère avec un nouveau seed aléatoire">🎲</button>
+        <button class="btn primary act-gen" title="Génère la planche de référence multi-vues (personnage: face + profils + dos + gros plans visage — un seul seed pour tous les angles)">🎨 Planche</button>
+        <button class="btn act-roll" title="Nouvelle planche, seed aléatoire">🎲</button>
+        ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie">🔁</button>` : ""}
       </div>
     </div>
     <div class="entity-main">
@@ -263,6 +265,8 @@ async function renderBible() {
     });
     card.querySelector(".act-gen").addEventListener("click", () => generateRef(id, ent().seed));
     card.querySelector(".act-roll").addEventListener("click", () => generateRef(id, null));
+    const rbtn = card.querySelector(".act-recipe");
+    if (rbtn) rbtn.addEventListener("click", () => generateRef(id, null, true));
     card.querySelector(".act-del").addEventListener("click", async () => {
       if (!confirm(`Supprimer « ${ent().name} » de la bible ?`)) return;
       try {
@@ -282,17 +286,18 @@ async function renderBible() {
   });
 }
 
-async function generateRef(id, seed) {
+async function generateRef(id, seed, useRecipe) {
   const ent = entities.find(x => x.id === id);
   if (!ent) return;
-  if (!(ent.description || "").trim()) { toast("Ajoute une description avant de générer.", true); return; }
-  toast(`Génération de la référence de « ${ent.name} »… (~3 s)`);
+  if (!useRecipe && !(ent.description || "").trim()) { toast("Ajoute une description avant de générer.", true); return; }
+  toast(useRecipe ? `🔁 Recette exacte de « ${ent.name} »… (~3 s)`
+                  : `Planche de « ${ent.name} »… (~3 s)`);
   try {
-    const up = await api.send("POST", `/bible/entities/${id}/generate`,
-                              seed != null ? { seed } : {});
+    const body = useRecipe ? { use_recipe: true } : (seed != null ? { seed } : {});
+    const up = await api.send("POST", `/bible/entities/${id}/generate`, body);
     Object.assign(ent, up);
     await renderBible();
-    toast(`Référence de « ${ent.name} » générée — seed ${up.seed} 🔒 (🎲 pour varier).`);
+    toast(`Planche de « ${ent.name} » ${useRecipe ? "rejouée à l'identique" : "générée"} — seed ${up.seed} 🔒 (recette enregistrée 🔁).`);
   } catch (e) { toast("Génération échouée : " + e.message, true); }
 }
 

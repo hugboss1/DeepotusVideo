@@ -89,12 +89,30 @@ async def main():
         assert "oracle poulpe" in CALLS[-1]["arguments"]["prompt"]
         assert "abyssale" in CALLS[-1]["arguments"]["prompt"]  # style_notes in prompt
 
+        # v1.20 — la planche personnage: turnaround multi-vues + gros plans
+        p = CALLS[-1]["arguments"]["prompt"].lower()
+        assert "model sheet" in p and "turnaround" in p
+        assert "left profile" in p and "back view" in p
+        assert "face close-up" in p
+        assert CALLS[-1]["arguments"]["image_size"] == "landscape_16_9"
+
         # re-roll without seed -> a seed still comes back (from fal result)
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={})
         assert r.json()["seed"] == 424242
-        # entity persisted the new ref
+        # entity persisted the new ref + the exact recipe
         r = await c.get("/api/bible/entities?kind=character")
-        assert r.json()["entities"][0]["ref_image"], "ref not stored"
+        got0 = r.json()["entities"][0]
+        assert got0["ref_image"], "ref not stored"
+        assert got0["has_recipe"] is True
+
+        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT le même prompt + seed
+        last_prompt = CALLS[-1]["arguments"]["prompt"]
+        r = await c.post(f"/api/bible/entities/{eid}/generate",
+                         json={"use_recipe": True})
+        assert r.status_code == 200, r.text
+        assert CALLS[-1]["arguments"]["prompt"] == last_prompt
+        assert CALLS[-1]["arguments"]["seed"] == 424242
+        assert r.json()["seed"] == 424242
 
         # ---- /images/generate seed passthrough (FLUX branch) ----
         r = await c.post("/api/images/generate", json={

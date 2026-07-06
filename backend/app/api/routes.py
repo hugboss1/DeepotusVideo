@@ -2923,17 +2923,37 @@ async def list_image_models():
 # /atelier page. Spec: docs/superpowers/specs/2026-07-05-atelier-chapitre-design.md
 
 _ENTITY_KINDS = ("character", "place", "object", "date", "ambiance", "decor")
-# reference image framing per kind: portrait for people, wide for places.
-_KIND_SIZE = {"character": "portrait_4_3", "place": "landscape_16_9",
-              "object": "square", "date": "landscape_16_9",
+# v1.20 — chaque kind génère une PLANCHE DE RÉFÉRENCE multi-vues en UNE seule
+# image (un seul seed = identité cohérente sous tous les angles), à la manière
+# des model sheets de studio. La planche est l'ancre de cohérence; la recette
+# exacte (prompt+seed) est stockée et rejouable à l'identique.
+_KIND_SIZE = {"character": "landscape_16_9", "place": "landscape_16_9",
+              "object": "landscape_16_9", "date": "landscape_16_9",
               "ambiance": "landscape_16_9", "decor": "landscape_16_9"}
 _KIND_PREFIX = {
-    "character": "character reference sheet, full body, neutral background",
-    "place": "establishing shot of the location, no characters",
-    "object": "prop reference on a neutral background",
-    "date": "period/era mood reference, evocative establishing image",
-    "ambiance": "atmosphere mood board frame: light, weather, tone",
-    "decor": "set-dressing reference: furniture, materials, textures",
+    "character": ("character model sheet (turnaround), the SAME character "
+                  "drawn with identical proportions, outfit and colors in 4 "
+                  "full-body views side by side: front view, left profile, "
+                  "right profile, back view, neutral standing pose; below "
+                  "them a second row of face close-up portraits of the same "
+                  "character: front, left profile, right profile; flat "
+                  "neutral studio background, no text, no labels"),
+    "place": ("location reference board of the SAME location, consistent "
+              "architecture and palette: one wide establishing shot, one "
+              "alternate angle, one key detail close-up, no characters, "
+              "no text"),
+    "object": ("prop reference sheet, the SAME object with identical design "
+               "in 3 angles side by side: front, three-quarter, back, plus "
+               "one detail close-up; flat neutral background, no text"),
+    "date": ("era/period reference board: three evocative frames of the "
+             "same time period side by side (architecture, costume, "
+             "technology), consistent palette, no text"),
+    "ambiance": ("lighting and atmosphere mood board: three frames of the "
+                 "SAME mood side by side (light, weather, tone) plus a "
+                 "color palette strip, no text"),
+    "decor": ("set-dressing reference board: furniture, materials and "
+              "textures of the SAME set in 3 framed views plus one texture "
+              "close-up, consistent palette, no text"),
 }
 
 
@@ -2952,6 +2972,7 @@ def _entity_dict(e) -> dict:
             "inspiration_images": _jload(e.inspiration_images),
             "aliases": _jload(getattr(e, "aliases", None)),
             "evidence": _jload(getattr(e, "evidence", None)),
+            "has_recipe": bool(getattr(e, "prompt_recipe", None)),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3044,28 +3065,45 @@ async def delete_bible_entity(entity_id: str):
 
 @router.post("/bible/entities/{entity_id}/generate")
 async def generate_bible_reference(entity_id: str, body: dict):
-    """Generate the entity's canonical reference image (FLUX + seed).
+    """Generate the entity's canonical reference BOARD (multi-view sheet,
+    FLUX + seed).
 
-    Body: {seed?: int}. Without a seed a random one is used — the seed
-    actually used is stored on the entity so it can be locked/re-rolled.
-    The image lands in the Library (usable everywhere in the app)."""
+    Body: {seed?: int, use_recipe?: bool}. use_recipe=true rejoue la recette
+    stockée À L'IDENTIQUE (même prompt + même seed → même image, FLUX est
+    déterministe) — l'ancre de cohérence. Sans seed → aléatoire; le seed et
+    la recette exacte sont stockés sur l'entité."""
     from app.services.storage import BibleEntity, async_session_factory
+    import json as _json
     async with async_session_factory() as session:
         e = await session.get(BibleEntity, entity_id)
         if not e:
             raise HTTPException(404, "Entity not found")
-        desc = (e.description or "").strip()
-        if not desc:
-            raise HTTPException(400, "Add a description before generating")
-        prompt = f"{_KIND_PREFIX.get(e.kind, '')}: {e.name}. {desc}"
-        if e.style_notes:
-            prompt += f". Style: {e.style_notes}"
-        seed = body.get("seed")
-        seed = int(seed) if isinstance(seed, (int, float)) else None
-        out = await _flux_generate(prompt, _KIND_SIZE.get(e.kind, "square"),
-                                   1, seed=seed)
+        recipe = None
+        if body.get("use_recipe") and e.prompt_recipe:
+            try:
+                recipe = _json.loads(e.prompt_recipe)
+            except Exception:
+                recipe = None
+        if recipe:
+            prompt = recipe["prompt"]
+            size = recipe.get("size") or _KIND_SIZE.get(e.kind, "square")
+            seed = recipe.get("seed")
+        else:
+            desc = (e.description or "").strip()
+            if not desc:
+                raise HTTPException(400, "Add a description before generating")
+            prompt = f"{_KIND_PREFIX.get(e.kind, '')}. Subject: {e.name}. {desc}"
+            if e.style_notes:
+                prompt += f". Style: {e.style_notes}"
+            size = _KIND_SIZE.get(e.kind, "square")
+            seed = body.get("seed")
+            seed = int(seed) if isinstance(seed, (int, float)) else None
+        out = await _flux_generate(prompt, size, 1, seed=seed)
         e.ref_image = out["images"][0]
         e.seed = out.get("seed")
+        e.prompt_recipe = _json.dumps({"prompt": prompt, "size": size,
+                                       "seed": out.get("seed"),
+                                       "model": "flux"}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
