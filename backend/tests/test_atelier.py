@@ -35,10 +35,13 @@ from app.main import app                               # noqa: E402
 from app.services.storage import init_db               # noqa: E402
 
 # The FLUX path downloads each returned URL via httpx — stub the download.
+# (vrai PNG décodable: la composition PIL des planches l'ouvre réellement)
 _orig_get = _httpx.AsyncClient.get
-PNG = bytes.fromhex(
-    "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
-    "0000000d4944415478da63fcffff3f030005fe02fea75481840000000049454e44ae426082")
+import io as _io                                          # noqa: E402
+from PIL import Image as _PILImage                        # noqa: E402
+_buf = _io.BytesIO()
+_PILImage.new("RGB", (8, 8), (30, 60, 90)).save(_buf, "PNG")
+PNG = _buf.getvalue()
 
 
 async def _fake_get(self, url, *a, **kw):
@@ -85,78 +88,81 @@ async def main():
                         json={"ref_image": "manual.png", "seed": 99})
         assert r.json()["ref_image"] == "manual.png" and r.json()["seed"] == 99
 
-        # ---- reference generation (stubbed FLUX) with seed passthrough ----
+        # ═══ v1.20.2 — PLANCHE COMPOSITE (panneaux séparés + assemblage PIL) ═══
+        # personnage = 7 panneaux: front(DEV) + left/right/back + 3 visages
+        # (tous Kontext chaînés sur le front) → board composé par code.
+        CALLS.clear()
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 777})
         assert r.status_code == 200, r.text
         g = r.json()
-        assert g["seed"] == 777 and g["ref_image"], g
-        # (character = 2 passes: CALLS[-2] = turnaround, CALLS[-1] = visages)
-        assert CALLS and CALLS[-2]["arguments"].get("seed") == 777
-        assert "oracle poulpe" in CALLS[-2]["arguments"]["prompt"]
-        assert "abyssale" in CALLS[-2]["arguments"]["prompt"]  # style_notes in prompt
+        assert len(CALLS) == 7, f"{len(CALLS)} appels (7 attendus)"
+        front = CALLS[0]
+        assert front["model"] == "fal-ai/flux/dev"
+        assert front["arguments"].get("seed") == 777
+        assert front["arguments"]["image_size"] == "portrait_16_9"
+        fp = front["arguments"]["prompt"]
+        assert "front view" in fp and "seven and a half heads tall" in fp
+        assert "oracle poulpe" in fp and "abyssale" in fp     # sujet + style
+        assert "no titles" in fp and "sharp focus" in fp
+        keys = ["left profile", "right profile", "back view (seen from behind)",
+                "front view", "left profile", "right profile"]
+        for i, call in enumerate(CALLS[1:], start=1):
+            assert call["model"] == "fal-ai/flux-kontext/dev", f"panneau {i}"
+            assert call["arguments"]["image_url"].startswith("http://fal.test/")
+            assert "exact same" in call["arguments"]["prompt"].lower()
+            assert "image_size" not in call["arguments"]
+        assert "back view" in CALLS[4]["arguments"]["prompt"].lower() \
+            or any("back view" in c["arguments"]["prompt"].lower() for c in CALLS[1:5])
+        assert sum("head-and-shoulders" in c["arguments"]["prompt"]
+                   for c in CALLS[1:]) == 3                    # 3 visages
+        # board composé et stocké (PIL a réellement assemblé les panneaux)
+        assert g["ref_image"].startswith("board_")
+        img_dir_p = __import__("pathlib").Path(os.environ["IMAGES_FOLDER"])
+        assert (img_dir_p / g["ref_image"]).is_file()
+        from PIL import Image as _Img
+        with _Img.open(img_dir_p / g["ref_image"]) as bim:
+            assert bim.width > bim.height          # planche paysage 2 rangées
+        assert g["seed"] == 777 and g["has_recipe"] is True
+        assert g["face_image"] is None             # tout est dans le board
 
-        # v1.20.1 — personnage = DEUX passes chaînées:
-        # passe 1: turnaround une rangée (DEV, proportions réalistes)
-        p1 = CALLS[-2]["arguments"]["prompt"].lower()
-        assert "model sheet" in p1 and "turnaround" in p1
-        assert "exactly four full-body views" in p1 and "one single row" in p1
-        assert "seven and a half heads tall" in p1        # proportions
-        assert "no titles" in p1
-        assert CALLS[-2]["arguments"]["image_size"] == "landscape_16_9"
-        assert CALLS[-2]["model"] == "fal-ai/flux/dev"
-        # passe 2: gros plans via Kontext CONDITIONNÉ sur la passe 1
-        p2 = CALLS[-1]["arguments"]["prompt"].lower()
-        assert "exactly three head-and-shoulders" in p2
-        assert "exact same character" in p2
-        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
-        assert CALLS[-1]["arguments"]["image_url"].startswith("http://fal.test/")
-        assert g.get("face_image") or True  # face stockée (vérifiée plus bas)
-
-        # re-roll without seed -> a seed still comes back (from fal result)
-        r = await c.post(f"/api/bible/entities/{eid}/generate", json={})
-        assert r.json()["seed"] == 424242
-        assert r.json()["face_image"], "planche visages (passe 2) manquante"
-        # entity persisted the new ref + the exact recipe
-        r = await c.get("/api/bible/entities?kind=character")
-        got0 = r.json()["entities"][0]
-        assert got0["ref_image"], "ref not stored"
-        assert got0["has_recipe"] is True
-
-        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT les deux passes
-        # (turnaround: même prompt+seed+modèle; visages: même seed chaîné)
-        last_turn_prompt = CALLS[-2]["arguments"]["prompt"]
+        # 🔁 use_recipe rejoue les 7 panneaux avec les seeds figés
+        seeds_before = [c["arguments"].get("seed", None) or 424242 for c in CALLS]
+        prompts_before = [c["arguments"]["prompt"] for c in CALLS]
+        CALLS.clear()
         r = await c.post(f"/api/bible/entities/{eid}/generate",
                          json={"use_recipe": True})
         assert r.status_code == 200, r.text
-        assert CALLS[-2]["arguments"]["prompt"] == last_turn_prompt
-        assert CALLS[-2]["arguments"]["seed"] == 424242
-        assert CALLS[-2]["model"] == "fal-ai/flux/dev"
-        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"   # visages
-        assert CALLS[-1]["arguments"]["seed"] == 424242          # seed visages figé
-        assert r.json()["seed"] == 424242
+        assert len(CALLS) == 7
+        assert [c["arguments"]["prompt"] for c in CALLS] == prompts_before
+        assert [c["arguments"]["seed"] for c in CALLS] == seeds_before
 
-        # v1.20 — image d'inspiration PRÉSENTE sur disque → Kontext
-        # (génération conditionnée: l'identité de la référence est préservée)
+        # image d'inspiration PRÉSENTE → le panneau front passe sur Kontext
+        # conditionné par TA référence (identité préservée)
         import pathlib as _pl
-        img_dir = _pl.Path(os.environ["IMAGES_FOLDER"])
-        (img_dir / "elias-card.png").write_bytes(b"\x89PNG_fake")
+        (_pl.Path(os.environ["IMAGES_FOLDER"]) / "elias-card.png").write_bytes(PNG)
         r = await c.put(f"/api/bible/entities/{eid}",
                         json={"inspiration_images": ["elias-card.png"]})
         assert r.status_code == 200
+        CALLS.clear()
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 9})
         assert r.status_code == 200, r.text
-        # passe 1 (turnaround) = Kontext conditionné sur TA référence
-        assert CALLS[-2]["model"] == "fal-ai/flux-kontext/dev"
-        assert CALLS[-2]["arguments"]["image_url"] == "http://fal.test/uploaded-ref.png"
-        assert "image_size" not in CALLS[-2]["arguments"]  # kontext cadre sur la réf
-        assert "same subject, face and design" in CALLS[-2]["arguments"]["prompt"].lower().replace("exact ", "")
-        # passe 2 (visages) = Kontext chaîné sur la passe 1
-        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
-        # la recette mémorise le modèle + le fichier de référence + les seeds
-        r = await c.post(f"/api/bible/entities/{eid}/generate",
-                         json={"use_recipe": True})
-        assert CALLS[-2]["model"] == "fal-ai/flux-kontext/dev"
-        assert CALLS[-2]["arguments"]["seed"] == 9
+        assert CALLS[0]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[0]["arguments"]["image_url"] == "http://fal.test/uploaded-ref.png"
+        assert "same subject, face and design" in CALLS[0]["arguments"]["prompt"]
+        assert CALLS[0]["arguments"]["seed"] == 9
+
+        # ═══ lieu = board 3 panneaux (wide + angle + détail) ═══
+        CALLS.clear()
+        r = await c.put(f"/api/bible/entities/{pid}",
+                        json={"description": "caverne abyssale bleutée"})
+        r = await c.post(f"/api/bible/entities/{pid}/generate", json={})
+        assert r.status_code == 200, r.text
+        assert len(CALLS) == 3
+        assert "establishing shot" in CALLS[0]["arguments"]["prompt"]
+        assert CALLS[0]["arguments"]["image_size"] == "landscape_16_9"
+        assert "alternate camera angle" in CALLS[1]["arguments"]["prompt"].lower()
+        assert "detail" in CALLS[2]["arguments"]["prompt"].lower()
+        assert r.json()["ref_image"].startswith("board_")
 
         # ---- /images/generate seed passthrough (FLUX branch) ----
         r = await c.post("/api/images/generate", json={
