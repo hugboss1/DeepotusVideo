@@ -8,7 +8,7 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand">🐙 <b>Atelier Chapitre</b> <span class="tag">P1 · script → entités → bible</span></div>
+  <div class="brand">🐙 <b>Atelier Chapitre</b> <span class="tag">P2 · script → bible → storyboard</span></div>
   <div class="chapbar">
     <select id="chapterSelect" title="Chapitres"></select>
     <button id="newChapter" class="btn">+ Chapitre</button>
@@ -24,7 +24,11 @@
   <!-- ══════════ Volet gauche : le script ══════════ -->
   <section class="pane script-pane">
     <div class="pane-head">
-      <h2>Script</h2>
+      <nav class="tabs" id="modeTabs">
+        <button class="tab active" data-mode="script">Script</button>
+        <button class="tab" data-mode="board">Storyboard</button>
+      </nav>
+      <span id="boardTotal" class="board-total hidden" title="Durée totale du storyboard">Σ 0:00</span>
       <div class="script-actions">
         <label class="btn" for="importFile">📄 Importer (txt/docx/pdf)</label>
         <input type="file" id="importFile" accept=".txt,.md,.docx,.pdf" hidden>
@@ -44,11 +48,22 @@
       <textarea id="script" spellcheck="false"
         placeholder="Colle ton chapitre ici, ou importe un fichier.&#10;&#10;Puis sélectionne un mot ou une phrase (un personnage, un lieu, un objet) et crée l'entité — elle rejoindra la bible à droite et restera disponible pour tous les chapitres suivants."></textarea>
     </div>
-    <div class="legend">
+    <div class="legend" id="scriptLegend">
       <span class="chip k-character">Personnage</span>
       <span class="chip k-place">Lieu</span>
       <span class="chip k-object">Objet</span>
       <span class="chip orphan">zone orpheline (texte modifié) — re-lier</span>
+    </div>
+
+    <!-- ══════════ Mode Storyboard ══════════ -->
+    <div id="board" class="board hidden">
+      <div class="board-toolbar">
+        <button id="cutAI" class="btn primary" title="L'IA lit le chapitre et la bible, puis découpe en plans (action, entités, cadrage, caméra, durée, prompt)">🎬 Découper (IA)</button>
+        <button id="cutPara" class="btn" title="Un plan par paragraphe, sans IA">¶ Paragraphes</button>
+        <button id="addShot" class="btn" title="Ajouter un plan vide à la fin">＋ Plan</button>
+        <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
+      </div>
+      <div id="shotList" class="shot-list"></div>
     </div>
   </section>
 
