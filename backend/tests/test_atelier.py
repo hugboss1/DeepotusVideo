@@ -20,8 +20,13 @@ async def _fake_subscribe(model, arguments=None, **kw):
     return {"images": [{"url": "http://fal.test/img.png"}],
             "seed": arguments.get("seed", 424242)}
 
+
+async def _fake_upload(path):
+    return "http://fal.test/uploaded-ref.png"
+
 _stub = types.ModuleType("fal_client")
 _stub.subscribe_async = _fake_subscribe
+_stub.upload_file_async = _fake_upload
 sys.modules["fal_client"] = _stub
 
 from httpx import AsyncClient, ASGITransport          # noqa: E402
@@ -89,12 +94,16 @@ async def main():
         assert "oracle poulpe" in CALLS[-1]["arguments"]["prompt"]
         assert "abyssale" in CALLS[-1]["arguments"]["prompt"]  # style_notes in prompt
 
-        # v1.20 — la planche personnage: turnaround multi-vues + gros plans
+        # v1.20 — la planche personnage: turnaround multi-vues + gros plans,
+        # grille stricte, modèle DEV (adhérence layout) car pas d'inspiration
+        # existante sur disque
         p = CALLS[-1]["arguments"]["prompt"].lower()
         assert "model sheet" in p and "turnaround" in p
-        assert "left profile" in p and "back view" in p
-        assert "face close-up" in p
+        assert "exactly four full-body views" in p and "back view" in p
+        assert "exactly three head-and-" in p
+        assert "shared ground line" in p and "no overlapping" in p
         assert CALLS[-1]["arguments"]["image_size"] == "landscape_16_9"
+        assert CALLS[-1]["model"] == "fal-ai/flux/dev"
 
         # re-roll without seed -> a seed still comes back (from fal result)
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={})
@@ -105,14 +114,35 @@ async def main():
         assert got0["ref_image"], "ref not stored"
         assert got0["has_recipe"] is True
 
-        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT le même prompt + seed
+        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT le même prompt + seed + modèle
         last_prompt = CALLS[-1]["arguments"]["prompt"]
         r = await c.post(f"/api/bible/entities/{eid}/generate",
                          json={"use_recipe": True})
         assert r.status_code == 200, r.text
         assert CALLS[-1]["arguments"]["prompt"] == last_prompt
         assert CALLS[-1]["arguments"]["seed"] == 424242
+        assert CALLS[-1]["model"] == "fal-ai/flux/dev"
         assert r.json()["seed"] == 424242
+
+        # v1.20 — image d'inspiration PRÉSENTE sur disque → Kontext
+        # (génération conditionnée: l'identité de la référence est préservée)
+        import pathlib as _pl
+        img_dir = _pl.Path(os.environ["IMAGES_FOLDER"])
+        (img_dir / "elias-card.png").write_bytes(b"\x89PNG_fake")
+        r = await c.put(f"/api/bible/entities/{eid}",
+                        json={"inspiration_images": ["elias-card.png"]})
+        assert r.status_code == 200
+        r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 9})
+        assert r.status_code == 200, r.text
+        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[-1]["arguments"]["image_url"] == "http://fal.test/uploaded-ref.png"
+        assert "image_size" not in CALLS[-1]["arguments"]  # kontext cadre sur la réf
+        assert "same subject, face and design" in CALLS[-1]["arguments"]["prompt"].lower().replace("exact ", "")
+        # la recette mémorise le modèle + le fichier de référence
+        r = await c.post(f"/api/bible/entities/{eid}/generate",
+                         json={"use_recipe": True})
+        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[-1]["arguments"]["seed"] == 9
 
         # ---- /images/generate seed passthrough (FLUX branch) ----
         r = await c.post("/api/images/generate", json={

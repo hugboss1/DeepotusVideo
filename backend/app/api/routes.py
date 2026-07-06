@@ -2830,10 +2830,19 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
 
 
 async def _flux_generate(prompt: str, size: str, n: int,
-                         seed: int | None = None) -> dict:
-    """FLUX schnell core (v1.17): generate n image(s) into the Library.
-    Optional seed for reproducibility (the Atelier bible locks it); returns
-    {"images": [filenames], "seed": <seed used, from fal when available>}."""
+                         seed: int | None = None,
+                         model: str = "fal-ai/flux/schnell",
+                         image_path: Path | None = None) -> dict:
+    """Génération d'image fal → Library (v1.20: multi-modèles).
+
+    - schnell (défaut, /images/generate): rapide et pas cher.
+    - fal-ai/flux/dev: meilleure adhérence aux consignes de mise en page —
+      utilisé pour les planches de référence.
+    - fal-ai/flux-kontext/dev + image_path: génération CONDITIONNÉE par une
+      image de référence (préserve l'identité du sujet) — utilisé quand
+      l'entité a une image d'inspiration. Kontext cadre sur l'image d'entrée:
+      on n'envoie pas image_size dans ce cas.
+    Retourne {"images": [filenames], "seed": <seed utilisé>}."""
     import httpx as _httpx
     if not settings.FAL_KEY:
         raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
@@ -2841,16 +2850,20 @@ async def _flux_generate(prompt: str, size: str, n: int,
                     "landscape_4_3", "landscape_16_9"):
         size = "portrait_16_9"
     import fal_client
-    arguments = {"prompt": prompt, "image_size": size,
-                 "num_images": n, "enable_safety_checker": True}
+    arguments: dict = {"prompt": prompt, "num_images": n}
+    if image_path is not None:
+        from app.services.fal_service import FalSeedanceClient
+        arguments["image_url"] = await FalSeedanceClient.upload_image(image_path)
+    else:
+        arguments["image_size"] = size
+        arguments["enable_safety_checker"] = True
     if seed is not None:
         arguments["seed"] = seed
     try:
-        result = await fal_client.subscribe_async("fal-ai/flux/schnell",
-                                                  arguments=arguments)
+        result = await fal_client.subscribe_async(model, arguments=arguments)
     except Exception as e:
-        logger.error(f"FLUX generation failed: {e}")
-        raise HTTPException(502, f"fal.ai: image generation failed: {e}")
+        logger.error(f"image generation failed ({model}): {e}")
+        raise HTTPException(502, f"fal.ai ({model}): image generation failed: {e}")
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
     if not urls:
@@ -2931,13 +2944,16 @@ _KIND_SIZE = {"character": "landscape_16_9", "place": "landscape_16_9",
               "object": "landscape_16_9", "date": "landscape_16_9",
               "ambiance": "landscape_16_9", "decor": "landscape_16_9"}
 _KIND_PREFIX = {
-    "character": ("character model sheet (turnaround), the SAME character "
-                  "drawn with identical proportions, outfit and colors in 4 "
-                  "full-body views side by side: front view, left profile, "
-                  "right profile, back view, neutral standing pose; below "
-                  "them a second row of face close-up portraits of the same "
-                  "character: front, left profile, right profile; flat "
-                  "neutral studio background, no text, no labels"),
+    "character": ("character model sheet (turnaround) on a strict clean grid. "
+                  "TOP ROW: exactly FOUR full-body views of the SAME character, "
+                  "all standing on ONE shared ground line, evenly spaced, same "
+                  "scale — (1) front view, (2) left profile, (3) right profile, "
+                  "(4) back view — identical outfit, hairstyle, colors and "
+                  "proportions in all four views. BOTTOM ROW, clearly separated "
+                  "BELOW the ground line, smaller: exactly THREE head-and-"
+                  "shoulders close-up portraits — front, left profile, right "
+                  "profile. Flat light studio background, no text, no labels, "
+                  "no overlapping elements"),
     "place": ("location reference board of the SAME location, consistent "
               "architecture and palette: one wide establishing shot, one "
               "alternate angle, one key detail close-up, no characters, "
@@ -3084,10 +3100,22 @@ async def generate_bible_reference(entity_id: str, body: dict):
                 recipe = _json.loads(e.prompt_recipe)
             except Exception:
                 recipe = None
+        # image d'inspiration → génération conditionnée (identité préservée)
+        insp_file = None
+        try:
+            for f in (_json.loads(e.inspiration_images)
+                      if e.inspiration_images else []):
+                if (settings.images_path / Path(f).name).is_file():
+                    insp_file = Path(f).name
+                    break
+        except Exception:
+            insp_file = None
         if recipe:
             prompt = recipe["prompt"]
             size = recipe.get("size") or _KIND_SIZE.get(e.kind, "square")
             seed = recipe.get("seed")
+            model = recipe.get("model") or "fal-ai/flux/dev"
+            insp_file = recipe.get("ref_file") or insp_file
         else:
             desc = (e.description or "").strip()
             if not desc:
@@ -3095,15 +3123,27 @@ async def generate_bible_reference(entity_id: str, body: dict):
             prompt = f"{_KIND_PREFIX.get(e.kind, '')}. Subject: {e.name}. {desc}"
             if e.style_notes:
                 prompt += f". Style: {e.style_notes}"
+            if insp_file:
+                prompt = ("Using the exact same subject, face and design as "
+                          "the reference image, keep its identity and art "
+                          "style: " + prompt)
             size = _KIND_SIZE.get(e.kind, "square")
             seed = body.get("seed")
             seed = int(seed) if isinstance(seed, (int, float)) else None
-        out = await _flux_generate(prompt, size, 1, seed=seed)
+            # dev pour l'adhérence de mise en page; kontext quand une
+            # référence visuelle existe (elle prime sur tout le reste).
+            model = ("fal-ai/flux-kontext/dev" if insp_file
+                     else "fal-ai/flux/dev")
+        out = await _flux_generate(
+            prompt, size, 1, seed=seed, model=model,
+            image_path=(settings.images_path / insp_file) if insp_file else None)
         e.ref_image = out["images"][0]
         e.seed = out.get("seed")
         e.prompt_recipe = _json.dumps({"prompt": prompt, "size": size,
                                        "seed": out.get("seed"),
-                                       "model": "flux"}, ensure_ascii=False)
+                                       "model": model,
+                                       "ref_file": insp_file},
+                                      ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
