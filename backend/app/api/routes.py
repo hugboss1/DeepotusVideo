@@ -3113,7 +3113,13 @@ async def generate_bible_reference(entity_id: str, body: dict):
                 recipe = _json.loads(e.prompt_recipe)
             except Exception:
                 recipe = None
-        # image d'inspiration → génération conditionnée (identité préservée)
+        # v1.20.2 — PLANCHE COMPOSITE: chaque panneau est généré séparément
+        # (net, bien proportionné) puis la planche est assemblée PAR CODE —
+        # layout garanti. Identité: panneau 1 conditionné sur l'inspiration
+        # de l'utilisateur (Kontext) si présente, panneaux suivants chaînés
+        # sur le panneau 1.
+        from app.services import board_service as BS
+        plan = BS.PANEL_PLANS.get(e.kind) or BS.PANEL_PLANS["object"]
         insp_file = None
         try:
             for f in (_json.loads(e.inspiration_images)
@@ -3123,57 +3129,60 @@ async def generate_bible_reference(entity_id: str, body: dict):
                     break
         except Exception:
             insp_file = None
-        if recipe:
-            prompt = recipe["prompt"]
-            size = recipe.get("size") or _KIND_SIZE.get(e.kind, "square")
-            seed = recipe.get("seed")
-            model = recipe.get("model") or "fal-ai/flux/dev"
+        seeds_by_key: dict = {}
+        if recipe and recipe.get("v") == 2:
             insp_file = recipe.get("ref_file") or insp_file
-            faces_seed = (recipe.get("faces") or {}).get("seed")
-        else:
-            desc = (e.description or "").strip()
-            if not desc:
-                raise HTTPException(400, "Add a description before generating")
-            prompt = f"{_KIND_PREFIX.get(e.kind, '')}. Subject: {e.name}. {desc}"
-            if e.style_notes:
-                prompt += f". Style: {e.style_notes}"
-            if insp_file:
-                prompt = ("Using the exact same subject, face and design as "
-                          "the reference image, keep its identity and art "
-                          "style, but remove any text or lettering: " + prompt)
-            size = _KIND_SIZE.get(e.kind, "square")
-            seed = body.get("seed")
-            seed = int(seed) if isinstance(seed, (int, float)) else None
-            # dev pour l'adhérence de mise en page; kontext quand une
-            # référence visuelle existe (elle prime sur tout le reste).
-            model = ("fal-ai/flux-kontext/dev" if insp_file
-                     else "fal-ai/flux/dev")
-            faces_seed = None
-        out = await _flux_generate(
-            prompt, size, 1, seed=seed, model=model,
-            image_path=(settings.images_path / insp_file) if insp_file else None)
-        e.ref_image = out["images"][0]
-        e.seed = out.get("seed")
-        recipe_out = {"prompt": prompt, "size": size, "seed": out.get("seed"),
-                      "model": model, "ref_file": insp_file}
-        # Personnage: passe 2 — gros plans visage, Kontext CONDITIONNÉ sur le
-        # turnaround fraîchement généré (même visage garanti, jamais de
-        # rangée manquante). Best-effort: un échec ne perd pas la passe 1.
-        if e.kind == "character":
-            try:
-                fp = _FACES_PROMPT
-                if e.style_notes:
-                    fp += f". Style: {e.style_notes}"
-                out2 = await _flux_generate(
-                    fp, size, 1, seed=faces_seed,
-                    model="fal-ai/flux-kontext/dev",
-                    image_path=settings.images_path / e.ref_image)
-                e.face_image = out2["images"][0]
-                recipe_out["faces"] = {"prompt": fp, "seed": out2.get("seed"),
-                                       "model": "fal-ai/flux-kontext/dev"}
-            except Exception as fe:
-                logger.warning(f"face sheet failed for {e.name}: {fe}")
-        e.prompt_recipe = _json.dumps(recipe_out, ensure_ascii=False)
+            seeds_by_key = {p["key"]: p.get("seed")
+                            for p in (recipe.get("panels") or [])}
+        elif not recipe:
+            pass
+        desc = (e.description or "").strip()
+        if not desc and not (recipe and recipe.get("v") == 2):
+            raise HTTPException(400, "Add a description before generating")
+        subj = f" Subject: {e.name}. {desc}"
+        style = f". Style: {e.style_notes}" if e.style_notes else ""
+        req_seed = body.get("seed")
+        req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
+        panels: dict[str, str] = {}
+        recipe_panels = []
+        first_key = plan["panels"][0][0]
+        for key, ptxt, chained, p1size in plan["panels"]:
+            if chained:
+                prompt = ptxt + style
+                model = "fal-ai/flux-kontext/dev"
+                img = settings.images_path / panels[first_key]
+                size = "landscape_16_9"      # ignoré par kontext (cadre la réf)
+            else:
+                prompt = ptxt + "." + subj + style
+                if insp_file:
+                    prompt = ("Using the exact same subject, face and design "
+                              "as the reference image, keep its identity and "
+                              "art style, but remove any text or lettering: "
+                              + prompt)
+                    model = "fal-ai/flux-kontext/dev"
+                    img = settings.images_path / insp_file
+                else:
+                    model = "fal-ai/flux/dev"
+                    img = None
+                size = p1size or "landscape_16_9"
+            seed = seeds_by_key.get(key)
+            if seed is None and not chained:
+                seed = req_seed
+            out = await _flux_generate(prompt, size, 1, seed=seed,
+                                       model=model, image_path=img)
+            panels[key] = out["images"][0]
+            recipe_panels.append({"key": key, "prompt": prompt,
+                                  "seed": out.get("seed"), "model": model})
+        rows = [[panels[k] for k in row] for row in plan["rows"]]
+        board = BS.compose_board(
+            settings.images_path, rows, plan["row_heights"],
+            palette_from=(list(panels.values()) if plan.get("palette") else None))
+        e.ref_image = board
+        e.face_image = None            # tout est dans la planche composite
+        e.seed = recipe_panels[0].get("seed")
+        e.prompt_recipe = _json.dumps(
+            {"v": 2, "kind": e.kind, "ref_file": insp_file,
+             "panels": recipe_panels}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
