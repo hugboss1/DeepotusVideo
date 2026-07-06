@@ -26,6 +26,8 @@ let libTarget = null;       // entité en attente d'une image d'inspiration
 let shots = [];             // storyboard du chapitre ouvert
 let scenes = [];            // scénario (scènes) du chapitre ouvert
 let mode = "script";        // "script" | "screenplay" | "board"
+let voices11 = null;        // voix ElevenLabs du compte (lazy)
+let voiceAudio = null;      // pré-écoute en cours (un seul lecteur)
 
 const SHOT_TYPES = ["establishing", "wide", "medium", "close-up",
   "extreme close-up", "over-shoulder", "POV", "insert"];
@@ -232,6 +234,14 @@ async function renderBible() {
       </div>
       <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
       <input class="entity-style" placeholder="Style spécifique (vide = style global du projet)" title="Override ponctuel : si renseigné, cette entité est générée dans CE style au lieu du style global du projet" value="${esc(e.style_notes)}">
+      ${e.kind === "character" ? `
+      <div class="voice-row">
+        🎙 <span class="voice-name">${e.voice_name ? esc(e.voice_name) : "<i style='opacity:.55'>pas de voix</i>"}</span>
+        ${e.voice_prev ? `<button class="btn ghost act-voice-play" title="Pré-écouter la voix">▶</button>` : ""}
+        <button class="btn act-voice-suggest" title="L'agent croise la fiche du personnage (genre, âge, ton) avec les voix ElevenLabs de ton compte et propose la meilleure + des alternatives du même profil">🎙 Suggérer</button>
+        <button class="btn ghost act-voice-all" title="Choisir manuellement parmi toutes les voix du compte">⌄ Toutes</button>
+      </div>
+      <div class="voice-alts hidden"></div>` : ""}
       ${(e.aliases && e.aliases.length)
         ? `<div class="entity-aliases">alias : ${e.aliases.map(esc).join(" · ")}</div>` : ""}
       ${(e.evidence && e.evidence.length)
@@ -280,6 +290,13 @@ async function renderBible() {
         await renderBible(); renderScript(); scheduleSave();
       } catch (e) { toast("Suppression échouée : " + e.message, true); }
     });
+    // ── casting voix (personnages) ──
+    const vplay = card.querySelector(".act-voice-play");
+    if (vplay) vplay.addEventListener("click", () => playVoicePrev(ent().voice_prev));
+    const vsug = card.querySelector(".act-voice-suggest");
+    if (vsug) vsug.addEventListener("click", () => suggestVoice(id, card));
+    const vall = card.querySelector(".act-voice-all");
+    if (vall) vall.addEventListener("click", () => showAllVoices(id, card));
     card.querySelector(".act-add-insp").addEventListener("click", () => openLibrary(id));
     card.querySelectorAll(".act-rm-insp").forEach(img => img.addEventListener("click", async () => {
       const f = img.dataset.f;
@@ -575,6 +592,89 @@ async function openLibrary(entityId) {
     grid.querySelectorAll("img").forEach(img =>
       img.addEventListener("click", () => attachInspiration(img.dataset.f)));
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
+}
+
+/* ═════════ casting voix (B) ═════════ */
+function playVoicePrev(url) {
+  if (!url) return;
+  try {
+    if (voiceAudio) { voiceAudio.pause(); voiceAudio = null; }
+    voiceAudio = new Audio(url);
+    voiceAudio.play().catch(() => toast("Pré-écoute impossible.", true));
+  } catch (e) { /* silencieux */ }
+}
+
+async function loadVoices11() {
+  if (voices11) return voices11;
+  const d = await api.get("/voices");
+  if (!d.enabled) throw new Error("Clé ElevenLabs non configurée (Réglages).");
+  voices11 = d.voices || [];
+  return voices11;
+}
+
+function voiceChip(v, entityId) {
+  const lbl = v.labels || {};
+  const meta = [lbl.gender, lbl.age, lbl.accent].filter(Boolean).join(" · ");
+  return `<span class="voice-chip" data-vid="${v.voice_id}">
+    <b>${esc(v.name)}</b>${meta ? ` <i>${esc(meta)}</i>` : ""}
+    ${v.preview_url ? `<button class="btn ghost vc-play" data-prev="${esc(v.preview_url)}" title="Pré-écouter">▶</button>` : ""}
+    <button class="btn vc-pick" title="Attribuer cette voix">✓</button>
+  </span>`;
+}
+
+function wireVoiceChips(container, entityId) {
+  container.querySelectorAll(".vc-play").forEach(b =>
+    b.addEventListener("click", () => playVoicePrev(b.dataset.prev)));
+  container.querySelectorAll(".vc-pick").forEach(b =>
+    b.addEventListener("click", async () => {
+      const chip = b.closest(".voice-chip");
+      const vid = chip.dataset.vid;
+      const v = (voices11 || []).find(x => x.voice_id === vid);
+      const ent = entities.find(x => x.id === entityId);
+      const up = await api.send("PUT", "/bible/entities/" + entityId, {
+        voice_id: vid, voice_name: v ? v.name : vid,
+        voice_prev: v ? v.preview_url : null,
+      });
+      Object.assign(ent, up);
+      toast(`Voix « ${up.voice_name} » attribuée à ${ent.name}.`);
+      renderBible();
+    }));
+}
+
+async function suggestVoice(entityId, card) {
+  const ent = entities.find(x => x.id === entityId);
+  if (!ent) return;
+  if (!(ent.description || "").trim()) {
+    toast("Décris le personnage d'abord (genre, âge, ton…).", true); return;
+  }
+  toast(`Casting de « ${ent.name} »… (~5 s)`);
+  try {
+    await loadVoices11();
+    const d = await api.send("POST", `/bible/entities/${entityId}/suggest-voice`, {});
+    Object.assign(ent, d.entity);
+    await renderBible();
+    // ré-afficher les alternatives sur la carte re-rendue
+    const fresh = document.querySelector(`.entity-card[data-id="${entityId}"] .voice-alts`);
+    if (fresh) {
+      fresh.classList.remove("hidden");
+      fresh.innerHTML = `<div class="voice-why">${esc(d.why || "")}</div>` +
+        `<div class="voice-chiplist">${(d.alternates || []).map(v => voiceChip(v, entityId)).join("")}</div>`;
+      wireVoiceChips(fresh, entityId);
+    }
+    toast(`🎙 « ${d.suggested.name} » suggérée pour ${ent.name}` +
+          ((d.alternates || []).length ? ` (+${d.alternates.length} alternatives du même profil)` : "") + ".");
+  } catch (e) { toast("Casting échoué : " + e.message, true); }
+}
+
+async function showAllVoices(entityId, card) {
+  try {
+    const vs = await loadVoices11();
+    const alts = card.querySelector(".voice-alts");
+    alts.classList.toggle("hidden");
+    if (alts.classList.contains("hidden")) return;
+    alts.innerHTML = `<div class="voice-chiplist">${vs.map(v => voiceChip(v, entityId)).join("")}</div>`;
+    wireVoiceChips(alts, entityId);
+  } catch (e) { toast(e.message, true); }
 }
 
 /* ═════════ style global du projet ═════════ */

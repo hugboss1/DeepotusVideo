@@ -3034,6 +3034,9 @@ def _entity_dict(e) -> dict:
             "evidence": _jload(getattr(e, "evidence", None)),
             "has_recipe": bool(getattr(e, "prompt_recipe", None)),
             "face_image": getattr(e, "face_image", None),
+            "voice_id": getattr(e, "voice_id", None),
+            "voice_name": getattr(e, "voice_name", None),
+            "voice_prev": getattr(e, "voice_prev", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3098,6 +3101,10 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
         if "aliases" in body:
             e.aliases = _json.dumps(body["aliases"] or [])
+        # v1.21 — casting voix (choix manuel ou application d'une suggestion)
+        for vk in ("voice_id", "voice_name", "voice_prev"):
+            if vk in body:
+                setattr(e, vk, body[vk] or None)
         # v1.17.1 — allow re-linking a reference / pinning a seed directly
         # (used by recovery tooling and future "use this Library image as ref").
         if "ref_image" in body:
@@ -3230,6 +3237,89 @@ async def generate_bible_reference(entity_id: str, body: dict):
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+async def _fetch_11l_voices() -> list[dict]:
+    """Voix ElevenLabs du compte, avec labels (genre/âge/accent/description)
+    et preview_url — la matière du casting voix."""
+    if not settings.has_voiceover:
+        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get("https://api.elevenlabs.io/v1/voices",
+                        headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
+        r.raise_for_status()
+        data = r.json()
+    out = []
+    for v in (data.get("voices") or []):
+        lbl = v.get("labels") or {}
+        out.append({"voice_id": v.get("voice_id"), "name": v.get("name"),
+                    "category": v.get("category"), "labels": lbl,
+                    "preview_url": v.get("preview_url")})
+    return [v for v in out if v["voice_id"]]
+
+
+@router.post("/bible/entities/{entity_id}/suggest-voice")
+async def suggest_entity_voice(entity_id: str, body: dict):
+    """v1.21 (B) — casting voix: l'agent croise la fiche du personnage
+    (genre, âge, ton déduits de la description) avec les voix ElevenLabs du
+    compte et propose LA voix + des alternatives du même profil. La
+    suggestion est appliquée à l'entité (modifiable ensuite)."""
+    from app.services.storage import BibleEntity, async_session_factory
+    from app.services.summarizer import available, _chat_dispatch
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    voices = await _fetch_11l_voices()
+    if not voices:
+        raise HTTPException(502, "Aucune voix ElevenLabs disponible sur le compte.")
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        if e.kind != "character":
+            raise HTTPException(400, "Le casting voix ne s'applique qu'aux personnages.")
+        roster = [{"voice_id": v["voice_id"], "name": v["name"],
+                   "labels": v["labels"],
+                   } for v in voices][:120]
+        system = ("You are a casting director assigning narration/dialogue "
+                  "voices to characters of a narrated animation. Return ONLY "
+                  "valid JSON.")
+        prompt = (
+            f"Character sheet:\nName: {e.name}\nDescription: "
+            f"{(e.description or '')[:600]}\n\n"
+            f"Available ElevenLabs voices (with labels):\n"
+            f"{json.dumps(roster, ensure_ascii=False)}\n\n"
+            f"Pick the voice that best matches the character's gender, age "
+            f"and personality, plus up to 4 ALTERNATES of the same profile "
+            f"(same gender / similar age & tone). Return ONLY JSON: "
+            f"{{\"best\": \"<voice_id>\", \"alternates\": [\"<voice_id>\", …], "
+            f"\"why\": \"<one short sentence in French>\"}}")
+        loop = asyncio.get_running_loop()
+        out, _prov = await loop.run_in_executor(
+            None, lambda: _chat_dispatch(prompt, system, 1200))
+        txt = (out or "").strip()
+        if txt.startswith("```"):
+            txt = re.sub(r"^```[a-zA-Z]*\n?", "", txt)
+            txt = re.sub(r"\n?```$", "", txt).strip()
+        i, j = txt.find("{"), txt.rfind("}")
+        try:
+            data = json.loads(txt[i:j + 1]) if i >= 0 and j > i else {}
+        except Exception:
+            data = {}
+        by_id = {v["voice_id"]: v for v in voices}
+        best = by_id.get(str(data.get("best") or ""))
+        if not best:
+            raise HTTPException(502, "La suggestion de voix a échoué — réessaie.")
+        alternates = [by_id[a] for a in (data.get("alternates") or [])
+                      if a in by_id and a != best["voice_id"]][:4]
+        e.voice_id = best["voice_id"]
+        e.voice_name = best["name"]
+        e.voice_prev = best.get("preview_url")
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return {"entity": _entity_dict(e), "suggested": best,
+                "alternates": alternates,
+                "why": str(data.get("why") or "")[:300]}
 
 
 def _chapter_dict(ch) -> dict:
