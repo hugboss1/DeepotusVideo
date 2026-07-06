@@ -24,7 +24,8 @@ let curKind = "character";  // onglet bible actif
 let saveTimer = null;
 let libTarget = null;       // entité en attente d'une image d'inspiration
 let shots = [];             // storyboard du chapitre ouvert
-let mode = "script";        // "script" | "board"
+let scenes = [];            // scénario (scènes) du chapitre ouvert
+let mode = "script";        // "script" | "screenplay" | "board"
 
 const SHOT_TYPES = ["establishing", "wide", "medium", "close-up",
   "extreme close-up", "over-shoulder", "POV", "insert"];
@@ -59,8 +60,9 @@ async function openChapter(id) {
   $("#chapterSeries").value = chapter.series || "";
   $("#script").value = chapter.script_text || "";
   renderScript();
-  shots = [];
+  shots = []; scenes = [];
   if (mode === "board") await loadShots(true);
+  if (mode === "screenplay") await loadScenes(true);
 }
 
 function scheduleSave() {
@@ -299,13 +301,100 @@ function setMode(m) {
   mode = m;
   document.querySelectorAll("#modeTabs .tab").forEach(t =>
     t.classList.toggle("active", t.dataset.mode === m));
-  const board = m === "board";
-  document.querySelector(".editor-wrap").classList.toggle("hidden", board);
-  $("#scriptLegend").classList.toggle("hidden", board);
+  const board = m === "board", sp = m === "screenplay";
+  document.querySelector(".editor-wrap").classList.toggle("hidden", board || sp);
+  $("#scriptLegend").classList.toggle("hidden", board || sp);
   $("#selBar").classList.add("hidden");
   $("#board").classList.toggle("hidden", !board);
   $("#boardTotal").classList.toggle("hidden", !board);
+  $("#screenplay").classList.toggle("hidden", !sp);
   if (board) loadShots(true);
+  if (sp) loadScenes(true);
+}
+
+/* ═════════ scénario (adaptation) ═════════ */
+const TIMES_OF_DAY = ["JOUR", "NUIT", "AUBE", "CRÉPUSCULE", "MATIN", "SOIR"];
+
+async function loadScenes(render) {
+  if (!chapter) { scenes = []; if (render) renderScreenplay(); return; }
+  scenes = (await api.get(`/chapters/${chapter.id}/scenes`)).scenes;
+  $("#fountainDl").href = chapter
+    ? `/api/chapters/${chapter.id}/screenplay?format=fountain` : "#";
+  if (render) renderScreenplay();
+}
+
+function renderScreenplay() {
+  const list = $("#sceneList");
+  if (!chapter) { list.innerHTML = `<div class="empty-note">Crée ou ouvre un chapitre d'abord.</div>`; return; }
+  if (!scenes.length) {
+    list.innerHTML = `<div class="empty-note">Pas encore de scénario pour ce chapitre.<br>
+      🎭 <b>Adapter (IA)</b> transforme le roman en script de film (scènes, sluglines,
+      éclairages, caméra) — sans toucher au manuscrit.</div>`;
+    return;
+  }
+  list.innerHTML = scenes.map((s, i) => `
+  <div class="scene-card" data-id="${s.id}">
+    <div class="scene-slug">SCÈNE ${i + 1} · ${esc(s.slugline)}</div>
+    <div class="scene-meta">
+      <select class="sc-ie" title="INT/EXT">
+        ${["INT", "EXT", "INT/EXT"].map(v => `<option ${v === s.int_ext ? "selected" : ""}>${v}</option>`).join("")}
+      </select>
+      <select class="sc-tod" title="Moment">
+        ${TIMES_OF_DAY.map(v => `<option ${v === s.time_of_day ? "selected" : ""}>${v}</option>`).join("")}
+      </select>
+      <input class="sc-light" value="${esc(s.lighting)}" placeholder="éclairage" title="Type d'éclairage">
+      <input class="sc-mood" value="${esc(s.mood)}" placeholder="mood" title="Ambiance émotionnelle">
+    </div>
+    <div class="scene-cam">🎥 <input class="sc-cam" value="${esc(s.camera_notes)}" placeholder="intention caméra + pourquoi"></div>
+    <textarea class="scene-fountain" spellcheck="false">${esc(s.fountain_text)}</textarea>
+    <div class="scene-ents">${entChips(s.entities)}</div>
+    ${s.source_text ? `<div class="scene-src">source : « ${esc(s.source_text)}… »</div>` : ""}
+  </div>`).join("");
+
+  list.querySelectorAll(".scene-card").forEach(card => {
+    const id = card.dataset.id;
+    const save = debounce(async () => {
+      try {
+        const up = await api.send("PUT", "/scenes/" + id, {
+          int_ext: card.querySelector(".sc-ie").value,
+          time_of_day: card.querySelector(".sc-tod").value,
+          lighting: card.querySelector(".sc-light").value,
+          mood: card.querySelector(".sc-mood").value,
+          camera_notes: card.querySelector(".sc-cam").value,
+          fountain_text: card.querySelector(".scene-fountain").value,
+        });
+        const sc = scenes.find(x => x.id === id);
+        Object.assign(sc, up);
+        card.querySelector(".scene-slug").textContent =
+          `SCÈNE ${sc.idx + 1} · ${up.slugline}`;
+      } catch (e) { toast("Sauvegarde de la scène échouée : " + e.message, true); }
+    }, 700);
+    card.querySelectorAll("select,input,textarea").forEach(el =>
+      ["input", "change"].forEach(ev => el.addEventListener(ev, save)));
+  });
+}
+
+async function adaptChapter() {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (scenes.length && !confirm("Ré-adapter remplacera le scénario actuel de ce chapitre. Continuer ?")) return;
+  toast("🎭 Adaptation en scénario… (30-90 s)");
+  try {
+    const r = await api.send("POST", `/chapters/${chapter.id}/screenplay/adapt`,
+                             { language: "fr" });
+    const poll = setInterval(async () => {
+      try {
+        const st = await api.get("/atelier/manuscript/" + r.job_id);
+        if (!st.done) return;
+        clearInterval(poll);
+        if (st.error) { toast("Adaptation échouée : " + st.error, true); return; }
+        await loadEntities();
+        await loadScenes(true);
+        await renderBible();
+        toast(`🎭 ${st.stats.scenes} scènes — ` +
+              (st.stats.entites_creees ? `${st.stats.entites_creees} lieux/décors ajoutés à la bible.` : "bible réutilisée."));
+      } catch (e) { /* poll silencieux */ }
+    }, 2000);
+  } catch (e) { toast("Adaptation : " + e.message, true); }
 }
 
 async function loadShots(render) {
@@ -593,6 +682,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   // storyboard
   document.querySelectorAll("#modeTabs .tab").forEach(t =>
     t.addEventListener("click", () => setMode(t.dataset.mode)));
+  $("#adaptBtn").addEventListener("click", adaptChapter);
   $("#cutAI").addEventListener("click", () => decoupe("ai"));
   $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
   $("#addShot").addEventListener("click", async () => {

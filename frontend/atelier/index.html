@@ -27,6 +27,7 @@
     <div class="pane-head">
       <nav class="tabs" id="modeTabs">
         <button class="tab active" data-mode="script">Script</button>
+        <button class="tab" data-mode="screenplay">Scénario</button>
         <button class="tab" data-mode="board">Storyboard</button>
       </nav>
       <span id="boardTotal" class="board-total hidden" title="Durée totale du storyboard">Σ 0:00</span>
@@ -60,6 +61,16 @@
       <span class="chip k-ambiance">Ambiance</span>
       <span class="chip k-decor">Décor</span>
       <span class="chip orphan">zone orpheline — re-lier</span>
+    </div>
+
+    <!-- ══════════ Mode Scénario ══════════ -->
+    <div id="screenplay" class="board hidden">
+      <div class="board-toolbar">
+        <button id="adaptBtn" class="btn primary" title="L'agent adapte le chapitre en scénario (règles de l'art : show don't tell, sluglines, éclairages et caméra motivés par le narratif) — le manuscrit original n'est PAS modifié">🎭 Adapter (IA)</button>
+        <a id="fountainDl" class="btn" title="Télécharger le scénario au format .fountain (standard industrie)" download>⬇ .fountain</a>
+        <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
+      </div>
+      <div id="sceneList" class="shot-list"></div>
     </div>
 
     <!-- ══════════ Mode Storyboard ══════════ -->
