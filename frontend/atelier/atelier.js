@@ -358,9 +358,19 @@ function renderScreenplay() {
       éclairages, caméra) — sans toucher au manuscrit.</div>`;
     return;
   }
+  const totVo = scenes.reduce((a, s) => a + (s.duration_s || 0), 0);
+  const nVo = scenes.filter(s => s.vo_audio).length;
+  $("#voTotal").textContent = nVo
+    ? `Σ VO ${fmtDur(totVo)} (${nVo}/${scenes.length})` : "Σ VO —";
   list.innerHTML = scenes.map((s, i) => `
   <div class="scene-card" data-id="${s.id}">
-    <div class="scene-slug">SCÈNE ${i + 1} · ${esc(s.slugline)}</div>
+    <div class="scene-slug">SCÈNE ${i + 1} · ${esc(s.slugline)}
+      <span class="scene-vo">
+        ${s.duration_s ? `<span class="seedbadge" title="Durée réelle du voice-over — c'est la durée de la scène">⏱ ${fmtDur(s.duration_s)}</span>` : ""}
+        ${s.vo_audio ? `<button class="btn ghost sc-vo-play" title="Écouter le voice-over de la scène">▶</button>` : ""}
+        <button class="btn sc-vo-gen" title="Génère le voice-over de la scène : narration lue par le Narrateur, répliques par les voix castées des personnages. La durée réelle minute la scène.">🔊${s.vo_audio ? " ↻" : ""}</button>
+      </span>
+    </div>
     <div class="scene-meta">
       <select class="sc-ie" title="INT/EXT">
         ${["INT", "EXT", "INT/EXT"].map(v => `<option ${v === s.int_ext ? "selected" : ""}>${v}</option>`).join("")}
@@ -397,7 +407,58 @@ function renderScreenplay() {
     }, 700);
     card.querySelectorAll("select,input,textarea").forEach(el =>
       ["input", "change"].forEach(ev => el.addEventListener(ev, save)));
+    // voice-over de la scène
+    const vp = card.querySelector(".sc-vo-play");
+    if (vp) vp.addEventListener("click", () => {
+      const sc = scenes.find(x => x.id === id);
+      if (sc && sc.vo_audio) playVoicePrev("/api/audio/" + encodeURIComponent(sc.vo_audio));
+    });
+    card.querySelector(".sc-vo-gen").addEventListener("click", () => sceneVo(id));
   });
+}
+
+async function sceneVo(sceneId) {
+  const sc = scenes.find(x => x.id === sceneId);
+  if (!sc) return;
+  toast(`🔊 Voice-over de la scène ${sc.idx + 1}… (~10-30 s)`);
+  try {
+    const r = await api.send("POST", `/scenes/${sceneId}/voiceover`,
+                             { language: "fr" });
+    Object.assign(sc, r.scene);
+    renderScreenplay();
+    const who = [...new Set((r.segments || []).map(x => x.speaker).filter(Boolean))];
+    toast(`⏱ Scène ${sc.idx + 1} minutée : ${fmtDur(r.duration_s)}` +
+          (who.length ? ` — voix : ${who.join(", ")}` : "") + ".");
+  } catch (e) { toast("Voice-over échoué : " + e.message, true); }
+}
+
+async function chapterVo() {
+  if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+  if (!scenes.length) { toast("Pas de scénario — 🎭 Adapter d'abord.", true); return; }
+  const missing = scenes.filter(s => !s.vo_audio).length;
+  const force = missing === 0 &&
+    confirm("Toutes les scènes ont déjà un voice-over. Tout régénérer ?");
+  if (missing === 0 && !force) return;
+  toast(`🔊 Voice-over du chapitre (${force ? scenes.length : missing} scènes)…`);
+  try {
+    const r = await api.send("POST", `/chapters/${chapter.id}/voiceover`,
+                             { language: "fr", force });
+    const poll = setInterval(async () => {
+      try {
+        const st = await api.get("/atelier/manuscript/" + r.job_id);
+        if (!st.done) {
+          $("#voTotal").textContent = `🔊 ${st.chapter_i}/${st.chapter_n}…`;
+          await loadScenes(true);   // les durées apparaissent au fil de l'eau
+          return;
+        }
+        clearInterval(poll);
+        if (st.error) { toast("Voice-over : " + st.error, true); await loadScenes(true); return; }
+        await loadScenes(true);
+        toast(`⏱ Chapitre minuté : ${fmtDur(st.stats.duree_totale_s || 0)} ` +
+              `(${st.stats.scenes_generees} générées, ${st.stats.scenes_conservees} conservées).`);
+      } catch (e) { /* poll silencieux */ }
+    }, 2500);
+  } catch (e) { toast("Voice-over : " + e.message, true); }
 }
 
 async function adaptChapter() {
@@ -809,6 +870,7 @@ window.addEventListener("DOMContentLoaded", async () => {
   document.querySelectorAll("#modeTabs .tab").forEach(t =>
     t.addEventListener("click", () => setMode(t.dataset.mode)));
   $("#adaptBtn").addEventListener("click", adaptChapter);
+  $("#voAll").addEventListener("click", chapterVo);
   $("#cutAI").addEventListener("click", () => decoupe("ai"));
   $("#cutPara").addEventListener("click", () => decoupe("paragraph"));
   $("#addShot").addEventListener("click", async () => {

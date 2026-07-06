@@ -4016,6 +4016,187 @@ async def update_scene(scene_id: str, body: dict):
         return _scene_dict(s)
 
 
+# ───────── Atelier v1.22 (C): voice-over minuté par scène ─────────
+# Mode audiobook hybride: la narration est lue par le personnage
+# « Narrateur » (voix castée en B), chaque réplique par la voix castée de
+# son personnage. La durée réelle de l'audio devient la durée de la scène —
+# le storyboard et la production héritent de durées EXACTES.
+
+def _vo_audio_dir() -> Path:
+    d = settings.images_path.parent / "audio"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _concat_audio(paths: list, dest: Path) -> None:
+    """Concatène des mp3 en un seul (ré-encodage: robuste). Patchable en test."""
+    if len(paths) == 1:
+        import shutil as _sh
+        _sh.copy2(paths[0], dest)
+        return
+    from app.services.composition_service import _run_ffmpeg
+    cmd = ["ffmpeg", "-y"]
+    for p in paths:
+        cmd += ["-i", str(p)]
+    labels = "".join(f"[{i}:a]" for i in range(len(paths)))
+    cmd += ["-filter_complex", f"{labels}concat=n={len(paths)}:v=0:a=1[outa]",
+            "-map", "[outa]", "-c:a", "libmp3lame", "-b:a", "128k", str(dest)]
+    _run_ffmpeg(cmd, dest)
+
+
+def _audio_duration(path: Path) -> float:
+    from app.services.template_service import _probe_duration
+    return _probe_duration(path)
+
+
+def _fold_name(s: str) -> str:
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFD", (s or "").lower())
+                   if _ud.category(c) != "Mn").strip()
+
+
+async def _voice_cast(session) -> tuple:
+    """(narrateur {voice_id,name} | None, map nom/alias replié → voix perso)."""
+    from app.services.storage import BibleEntity
+    from sqlalchemy import select
+    import json as _json
+    rows = (await session.execute(
+        select(BibleEntity).where(BibleEntity.kind == "character"))).scalars().all()
+    narrator, cues = None, {}
+    for e in rows:
+        v = {"voice_id": e.voice_id, "name": e.name}
+        if _fold_name(e.name) in ("narrateur", "narrator"):
+            narrator = v if e.voice_id else None
+            continue
+        if not e.voice_id:
+            continue
+        cues[_fold_name(e.name)] = v
+        try:
+            for a in (_json.loads(e.aliases) if e.aliases else []):
+                cues.setdefault(_fold_name(a), v)
+        except Exception:
+            pass
+    return narrator, cues
+
+
+async def _generate_scene_vo(session, scene, lang: str) -> dict:
+    """Génère l'audio d'UNE scène (segments → TTS par voix → concat → durée)."""
+    from app.services import manuscript_agent as MA
+    from app.services.elevenlabs_service import VoiceoverService
+    import tempfile as _tf
+    segments = MA.parse_fountain_segments(scene.fountain_text or "")
+    segments = [s for s in segments if len(s["text"].strip()) >= 2]
+    if not segments:
+        raise HTTPException(400, "La scène n'a pas de texte à lire.")
+    narrator, cues = await _voice_cast(session)
+    if any(s["kind"] == "narration" for s in segments) and not narrator:
+        raise HTTPException(
+            400, "Crée un personnage « Narrateur » dans la bible et caste sa "
+                 "voix (🎙 Suggérer) — c'est lui qui lit la narration.")
+    voice = VoiceoverService()
+    if not voice.is_enabled():
+        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+    loop = asyncio.get_running_loop()
+    tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
+    parts, plan = [], []
+    l11 = "FR" if lang.startswith("fr") else "EN"
+    for i, seg in enumerate(segments):
+        if seg["kind"] == "dialogue":
+            v = cues.get(_fold_name(seg["character"] or ""))
+            vid = (v or narrator or {}).get("voice_id")
+            speaker = (v or narrator or {}).get("name")
+        else:
+            vid = narrator["voice_id"]
+            speaker = narrator["name"]
+        dest = tmp / f"part_{i:03d}.mp3"
+        await loop.run_in_executor(
+            None, lambda s=seg, d=dest, vv=vid: voice.generate_long(
+                text=s["text"], output_path=d, language=l11, voice_id=vv))
+        parts.append(dest)
+        plan.append({"kind": seg["kind"], "speaker": speaker,
+                     "chars": len(seg["text"])})
+    fname = f"vo_{scene.id[:8]}_{uuid4().hex[:6]}.mp3"
+    out = _vo_audio_dir() / fname
+    _concat_audio(parts, out)
+    dur = round(float(_audio_duration(out)), 2)
+    scene.vo_audio = fname
+    scene.duration_s = dur
+    scene.updated_at = datetime.utcnow()
+    await session.commit()
+    await session.refresh(scene)
+    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur}
+
+
+@router.post("/scenes/{scene_id}/voiceover")
+async def scene_voiceover(scene_id: str, body: dict):
+    """Génère le voice-over d'une scène. Body: {language?}."""
+    from app.services.storage import Scene, async_session_factory
+    lang = str(body.get("language") or "fr").lower()
+    async with async_session_factory() as session:
+        s = await session.get(Scene, scene_id)
+        if not s:
+            raise HTTPException(404, "Scene not found")
+        return await _generate_scene_vo(session, s, lang)
+
+
+@router.post("/chapters/{chapter_id}/voiceover")
+async def chapter_voiceover(chapter_id: str, body: dict,
+                            background_tasks: BackgroundTasks):
+    """Voice-over de TOUTES les scènes du chapitre (job). Body: {language?,
+    force?} — force=true régénère aussi les scènes déjà minutées. Suivre
+    GET /atelier/manuscript/{job_id} (job store commun)."""
+    from app.services.storage import Chapter, async_session_factory
+    from app.services.elevenlabs_service import VoiceoverService
+    if not VoiceoverService.is_enabled():
+        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+    async with async_session_factory() as session:
+        if not await session.get(Chapter, chapter_id):
+            raise HTTPException(404, "Chapter not found")
+        scenes = await _list_scenes(session, chapter_id)
+    if not scenes:
+        raise HTTPException(400, "Pas de scénario — lance 🎭 Adapter d'abord.")
+    lang = str(body.get("language") or "fr").lower()
+    force = bool(body.get("force"))
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "voice-over", "chapter_i": 0,
+                     "chapter_n": len(scenes), "message": "Voix en cours…",
+                     "done": False, "error": None, "stats": {}}
+    background_tasks.add_task(_run_vo_job, jid, chapter_id, lang, force)
+    return {"job_id": jid, "scenes": len(scenes)}
+
+
+async def _run_vo_job(jid: str, chapter_id: str, lang: str, force: bool):
+    from app.services.storage import async_session_factory
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    done = skipped = 0
+    total = 0.0
+    try:
+        async with async_session_factory() as session:
+            scenes = await _list_scenes(session, chapter_id)
+            for i, s in enumerate(scenes):
+                upd(chapter_i=i + 1,
+                    message=f"Scène {i + 1}/{len(scenes)} — {(s.slugline or '')[:50]}")
+                if s.vo_audio and s.duration_s and not force:
+                    skipped += 1
+                    total += float(s.duration_s or 0)
+                    continue
+                r = await _generate_scene_vo(session, s, lang)
+                total += r["duration_s"]
+                done += 1
+        upd(phase="terminé", done=True,
+            message="Voice-over terminé — les scènes sont minutées.",
+            stats={"scenes_generees": done, "scenes_conservees": skipped,
+                   "duree_totale_s": round(total, 1)})
+    except HTTPException as e:
+        upd(phase="échec", done=True, error=str(e.detail))
+    except Exception as e:
+        logger.exception(f"vo job {jid}: {e}")
+        upd(phase="échec", done=True, error=str(e))
+
+
 @router.delete("/chapters/{chapter_id}/scenes")
 async def reset_screenplay(chapter_id: str):
     """Réinitialise le scénario du chapitre (supprime toutes les scènes).

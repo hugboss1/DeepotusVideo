@@ -423,3 +423,54 @@ def compute_spans(chapter_text: str, entities: list[dict],
                 count += 1
     spans.sort(key=lambda s: s["start"])
     return spans
+
+
+# ───────────────── C. voice-over : segments Fountain ─────────────────
+
+_CUE_RE = re.compile(r"^[A-ZÀ-Ü][A-ZÀ-Ü0-9 .'\-]{1,38}(?:\s*\((?:V\.O\.|O\.S\.|CONT'D|V\.F\.)\))?$")
+
+
+def parse_fountain_segments(fountain_text: str) -> list[dict]:
+    """Découpe un texte de scène Fountain en segments audio ordonnés :
+    [{kind: "narration"|"dialogue", character: str|None, text: str}].
+
+    Convention Fountain : une réplique = un CUE en CAPITALES (précédé d'une
+    ligne vide) suivi de ses lignes de dialogue jusqu'à la ligne vide ; les
+    parenthéticals "(...)" sont des indications de jeu — non lus. Tout le
+    reste est de la narration (lue par le Narrateur)."""
+    lines = (fountain_text or "").splitlines()
+    segments: list[dict] = []
+    narr: list[str] = []
+
+    def flush_narr():
+        t = " ".join(x.strip() for x in narr if x.strip()).strip()
+        if t:
+            segments.append({"kind": "narration", "character": None, "text": t})
+        narr.clear()
+
+    i = 0
+    while i < len(lines):
+        ln = lines[i].strip()
+        prev_blank = i == 0 or not lines[i - 1].strip()
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if (prev_blank and ln and _CUE_RE.match(ln) and nxt
+                and not _CUE_RE.match(nxt)):
+            # bloc dialogue
+            cue = re.sub(r"\s*\(.*\)$", "", ln).strip()
+            i += 1
+            dlg: list[str] = []
+            while i < len(lines) and lines[i].strip():
+                t = lines[i].strip()
+                if not (t.startswith("(") and t.endswith(")")):
+                    dlg.append(t)
+                i += 1
+            flush_narr()
+            txt = " ".join(dlg).strip()
+            if txt:
+                segments.append({"kind": "dialogue", "character": cue,
+                                 "text": txt})
+            continue
+        narr.append(lines[i])
+        i += 1
+    flush_narr()
+    return segments
