@@ -96,25 +96,29 @@ async def main():
         assert r.status_code == 200, r.text
         g = r.json()
         assert len(CALLS) == 7, f"{len(CALLS)} appels (7 attendus)"
-        front = CALLS[0]
-        assert front["model"] == "fal-ai/flux/dev"
-        assert front["arguments"].get("seed") == 777
-        assert front["arguments"]["image_size"] == "portrait_16_9"
-        fp = front["arguments"]["prompt"]
-        assert "front view" in fp and "seven and a half heads tall" in fp
-        assert "oracle poulpe" in fp and "abyssale" in fp     # sujet + style
-        assert "no titles" in fp and "sharp focus" in fp
-        keys = ["left profile", "right profile", "back view (seen from behind)",
-                "front view", "left profile", "right profile"]
+        # v5: le HEADSHOT FACE est le panneau MAÎTRE (identité), généré en 1er
+        master = CALLS[0]
+        assert master["model"] == "fal-ai/flux/dev"
+        assert master["arguments"].get("seed") == 777
+        assert master["arguments"]["image_size"] == "portrait_4_3"
+        mp = master["arguments"]["prompt"]
+        assert "head-and-shoulders" in mp and "front view" in mp
+        assert "oracle poulpe" in mp and "abyssale" in mp     # sujet + style
+        assert "no titles" in mp and "sharp focus" in mp
         for i, call in enumerate(CALLS[1:], start=1):
             assert call["model"] == "fal-ai/flux-kontext/dev", f"panneau {i}"
             assert call["arguments"]["image_url"].startswith("http://fal.test/")
             assert "exact same" in call["arguments"]["prompt"].lower()
             assert "image_size" not in call["arguments"]
-        assert "back view" in CALLS[4]["arguments"]["prompt"].lower() \
-            or any("back view" in c["arguments"]["prompt"].lower() for c in CALLS[1:5])
+        # 3 headshots au total (maître + 2 profils), puis 4 corps dont le dos,
+        # et le corps face porte la consigne de proportions
         assert sum("head-and-shoulders" in c["arguments"]["prompt"]
-                   for c in CALLS[1:]) == 3                    # 3 visages
+                   for c in CALLS) == 3
+        assert sum("full body" in c["arguments"]["prompt"].lower()
+                   for c in CALLS) == 4
+        assert "seven and a half heads tall" in CALLS[3]["arguments"]["prompt"]
+        assert any("back view" in c["arguments"]["prompt"].lower()
+                   for c in CALLS[4:])
         # board composé et stocké (PIL a réellement assemblé les panneaux)
         assert g["ref_image"].startswith("board_")
         img_dir_p = __import__("pathlib").Path(os.environ["IMAGES_FOLDER"])
@@ -160,7 +164,7 @@ async def main():
         assert len(CALLS) == 3
         assert "establishing shot" in CALLS[0]["arguments"]["prompt"]
         assert CALLS[0]["arguments"]["image_size"] == "landscape_16_9"
-        assert "alternate camera angle" in CALLS[1]["arguments"]["prompt"].lower()
+        assert "reverse angle" in CALLS[1]["arguments"]["prompt"].lower()
         assert "detail" in CALLS[2]["arguments"]["prompt"].lower()
         assert r.json()["ref_image"].startswith("board_")
 
