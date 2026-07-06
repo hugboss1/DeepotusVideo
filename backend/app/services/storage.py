@@ -131,6 +131,10 @@ class BibleEntity(Base):
     # per-chapter verbatim evidence quotes collected during ingestion.
     aliases: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON list
     evidence: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON [{chapter,quote}]
+    # v1.20 — the exact generation recipe of the current reference (full
+    # prompt + seed + size): replaying it is guaranteed-identical (FLUX is
+    # deterministic at equal prompt+seed), THE consistency anchor.
+    prompt_recipe: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -272,6 +276,7 @@ AVATAR_PRESETS_COLUMNS = [
 BIBLE_ENTITIES_COLUMNS = [
     ("aliases", "TEXT"),
     ("evidence", "TEXT"),
+    ("prompt_recipe", "TEXT"),
 ]
 
 
