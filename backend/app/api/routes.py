@@ -2830,10 +2830,19 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
 
 
 async def _flux_generate(prompt: str, size: str, n: int,
-                         seed: int | None = None) -> dict:
-    """FLUX schnell core (v1.17): generate n image(s) into the Library.
-    Optional seed for reproducibility (the Atelier bible locks it); returns
-    {"images": [filenames], "seed": <seed used, from fal when available>}."""
+                         seed: int | None = None,
+                         model: str = "fal-ai/flux/schnell",
+                         image_path: Path | None = None) -> dict:
+    """Génération d'image fal → Library (v1.20: multi-modèles).
+
+    - schnell (défaut, /images/generate): rapide et pas cher.
+    - fal-ai/flux/dev: meilleure adhérence aux consignes de mise en page —
+      utilisé pour les planches de référence.
+    - fal-ai/flux-kontext/dev + image_path: génération CONDITIONNÉE par une
+      image de référence (préserve l'identité du sujet) — utilisé quand
+      l'entité a une image d'inspiration. Kontext cadre sur l'image d'entrée:
+      on n'envoie pas image_size dans ce cas.
+    Retourne {"images": [filenames], "seed": <seed utilisé>}."""
     import httpx as _httpx
     if not settings.FAL_KEY:
         raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
@@ -2841,16 +2850,20 @@ async def _flux_generate(prompt: str, size: str, n: int,
                     "landscape_4_3", "landscape_16_9"):
         size = "portrait_16_9"
     import fal_client
-    arguments = {"prompt": prompt, "image_size": size,
-                 "num_images": n, "enable_safety_checker": True}
+    arguments: dict = {"prompt": prompt, "num_images": n}
+    if image_path is not None:
+        from app.services.fal_service import FalSeedanceClient
+        arguments["image_url"] = await FalSeedanceClient.upload_image(image_path)
+    else:
+        arguments["image_size"] = size
+        arguments["enable_safety_checker"] = True
     if seed is not None:
         arguments["seed"] = seed
     try:
-        result = await fal_client.subscribe_async("fal-ai/flux/schnell",
-                                                  arguments=arguments)
+        result = await fal_client.subscribe_async(model, arguments=arguments)
     except Exception as e:
-        logger.error(f"FLUX generation failed: {e}")
-        raise HTTPException(502, f"fal.ai: image generation failed: {e}")
+        logger.error(f"image generation failed ({model}): {e}")
+        raise HTTPException(502, f"fal.ai ({model}): image generation failed: {e}")
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
     if not urls:
@@ -2922,28 +2935,105 @@ async def list_image_models():
 # image) + chapters (script text + annotated entity spans). Consumed by the
 # /atelier page. Spec: docs/superpowers/specs/2026-07-05-atelier-chapitre-design.md
 
-_ENTITY_KINDS = ("character", "place", "object")
-# reference image framing per kind: portrait for people, wide for places.
-_KIND_SIZE = {"character": "portrait_4_3", "place": "landscape_16_9",
-              "object": "square"}
+_ENTITY_KINDS = ("character", "place", "object", "date", "ambiance", "decor")
+# v1.20 — chaque kind génère une PLANCHE DE RÉFÉRENCE multi-vues en UNE seule
+# image (un seul seed = identité cohérente sous tous les angles), à la manière
+# des model sheets de studio. La planche est l'ancre de cohérence; la recette
+# exacte (prompt+seed) est stockée et rejouable à l'identique.
+_KIND_SIZE = {"character": "landscape_16_9", "place": "landscape_16_9",
+              "object": "landscape_16_9", "date": "landscape_16_9",
+              "ambiance": "landscape_16_9", "decor": "landscape_16_9"}
 _KIND_PREFIX = {
-    "character": "character reference sheet, full body, neutral background",
-    "place": "establishing shot of the location, no characters",
-    "object": "prop reference on a neutral background",
+    # Personnage v3 = DEUX passes chaînées (une rangée par image, jamais deux):
+    # 1) turnaround plein pied, 2) gros plans visage via Kontext conditionné
+    # sur la passe 1 (même visage garanti). Prompts ci-dessous.
+    "character": ("character model sheet (turnaround), wide landscape "
+                  "composition: exactly FOUR full-body views of the SAME "
+                  "character in ONE single row, all standing on one shared "
+                  "ground line, evenly spaced, same scale — (1) front view, "
+                  "(2) left profile, (3) right profile, (4) back view — "
+                  "identical outfit, hairstyle and colors in all four views; "
+                  "accurate realistic human proportions, figures about seven "
+                  "and a half heads tall, natural standing posture; flat "
+                  "light studio background; absolutely no text, no titles, "
+                  "no lettering, no logos"),
+    "place": ("location reference board of the SAME location, consistent "
+              "architecture and palette: one wide establishing shot, one "
+              "alternate angle, one key detail close-up, no characters, "
+              "no text"),
+    "object": ("prop reference sheet, the SAME object with identical design "
+               "in 3 angles side by side: front, three-quarter, back, plus "
+               "one detail close-up; flat neutral background, no text"),
+    "date": ("era/period reference board: three evocative frames of the "
+             "same time period side by side (architecture, costume, "
+             "technology), consistent palette, no text"),
+    "ambiance": ("lighting and atmosphere mood board: three frames of the "
+                 "SAME mood side by side (light, weather, tone) plus a "
+                 "color palette strip, no text"),
+    "decor": ("set-dressing reference board: furniture, materials and "
+              "textures of the SAME set in 3 framed views plus one texture "
+              "close-up, consistent palette, no text"),
 }
+
+# Passe 2 des personnages : gros plans visage, Kontext conditionné sur le
+# turnaround (identité de visage garantie par le chaînage).
+_FACES_PROMPT = ("using the EXACT same character as in the reference sheet — "
+                 "same face, same hairstyle, same outfit: one single row of "
+                 "exactly THREE head-and-shoulders close-up portraits, evenly "
+                 "spaced, same scale — (1) front view, (2) left profile, "
+                 "(3) right profile; flat light studio background; absolutely "
+                 "no text, no titles, no lettering")
+
+
+async def _atelier_setting(session, key: str) -> str:
+    from app.services.storage import AtelierSetting
+    row = await session.get(AtelierSetting, key)
+    return (row.value or "").strip() if row else ""
+
+
+@router.get("/atelier/settings")
+async def get_atelier_settings():
+    from app.services.storage import AtelierSetting, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        rows = (await session.execute(select(AtelierSetting))).scalars().all()
+        return {"settings": {r.key: r.value or "" for r in rows}}
+
+
+@router.put("/atelier/settings")
+async def put_atelier_settings(body: dict):
+    """Upsert de réglages {key: value}. Clés: global_style, …"""
+    from app.services.storage import AtelierSetting, async_session_factory
+    async with async_session_factory() as session:
+        for k, v in (body or {}).items():
+            if not isinstance(k, str) or len(k) > 60:
+                continue
+            row = await session.get(AtelierSetting, k)
+            if row:
+                row.value = str(v or "")
+            else:
+                session.add(AtelierSetting(key=k, value=str(v or "")))
+        await session.commit()
+    return await get_atelier_settings()
 
 
 def _entity_dict(e) -> dict:
     import json as _json
-    try:
-        insp = _json.loads(e.inspiration_images) if e.inspiration_images else []
-    except Exception:
-        insp = []
+
+    def _jload(v):
+        try:
+            return _json.loads(v) if v else []
+        except Exception:
+            return []
     return {"id": e.id, "kind": e.kind, "name": e.name,
             "description": e.description or "",
             "ref_image": e.ref_image, "seed": e.seed,
             "style_notes": e.style_notes or "",
-            "inspiration_images": insp,
+            "inspiration_images": _jload(e.inspiration_images),
+            "aliases": _jload(getattr(e, "aliases", None)),
+            "evidence": _jload(getattr(e, "evidence", None)),
+            "has_recipe": bool(getattr(e, "prompt_recipe", None)),
+            "face_image": getattr(e, "face_image", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3006,6 +3096,8 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.style_notes = body["style_notes"] or ""
         if "inspiration_images" in body:
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
+        if "aliases" in body:
+            e.aliases = _json.dumps(body["aliases"] or [])
         # v1.17.1 — allow re-linking a reference / pinning a seed directly
         # (used by recovery tooling and future "use this Library image as ref").
         if "ref_image" in body:
@@ -3034,28 +3126,106 @@ async def delete_bible_entity(entity_id: str):
 
 @router.post("/bible/entities/{entity_id}/generate")
 async def generate_bible_reference(entity_id: str, body: dict):
-    """Generate the entity's canonical reference image (FLUX + seed).
+    """Generate the entity's canonical reference BOARD (multi-view sheet,
+    FLUX + seed).
 
-    Body: {seed?: int}. Without a seed a random one is used — the seed
-    actually used is stored on the entity so it can be locked/re-rolled.
-    The image lands in the Library (usable everywhere in the app)."""
+    Body: {seed?: int, use_recipe?: bool}. use_recipe=true rejoue la recette
+    stockée À L'IDENTIQUE (même prompt + même seed → même image, FLUX est
+    déterministe) — l'ancre de cohérence. Sans seed → aléatoire; le seed et
+    la recette exacte sont stockés sur l'entité."""
     from app.services.storage import BibleEntity, async_session_factory
+    import json as _json
     async with async_session_factory() as session:
         e = await session.get(BibleEntity, entity_id)
         if not e:
             raise HTTPException(404, "Entity not found")
+        recipe = None
+        if body.get("use_recipe") and e.prompt_recipe:
+            try:
+                recipe = _json.loads(e.prompt_recipe)
+            except Exception:
+                recipe = None
+        # v1.20.2 — PLANCHE COMPOSITE: chaque panneau est généré séparément
+        # (net, bien proportionné) puis la planche est assemblée PAR CODE —
+        # layout garanti. Identité: panneau 1 conditionné sur l'inspiration
+        # de l'utilisateur (Kontext) si présente, panneaux suivants chaînés
+        # sur le panneau 1.
+        from app.services import board_service as BS
+        plan = BS.PANEL_PLANS.get(e.kind) or BS.PANEL_PLANS["object"]
+        insp_file = None
+        try:
+            for f in (_json.loads(e.inspiration_images)
+                      if e.inspiration_images else []):
+                if (settings.images_path / Path(f).name).is_file():
+                    insp_file = Path(f).name
+                    break
+        except Exception:
+            insp_file = None
+        seeds_by_key: dict = {}
+        if recipe and recipe.get("v") == 2:
+            insp_file = recipe.get("ref_file") or insp_file
+            seeds_by_key = {p["key"]: p.get("seed")
+                            for p in (recipe.get("panels") or [])}
+        elif not recipe:
+            pass
         desc = (e.description or "").strip()
-        if not desc:
+        if not desc and not (recipe and recipe.get("v") == 2):
             raise HTTPException(400, "Add a description before generating")
-        prompt = f"{_KIND_PREFIX.get(e.kind, '')}: {e.name}. {desc}"
-        if e.style_notes:
-            prompt += f". Style: {e.style_notes}"
-        seed = body.get("seed")
-        seed = int(seed) if isinstance(seed, (int, float)) else None
-        out = await _flux_generate(prompt, _KIND_SIZE.get(e.kind, "square"),
-                                   1, seed=seed)
-        e.ref_image = out["images"][0]
-        e.seed = out.get("seed")
+        subj = f" Subject: {e.name}. {desc}"
+        # style: l'override de l'entité prime, sinon le STYLE GLOBAL du projet
+        # (réglage atelier_settings.global_style) — cohérence de réalisation
+        # sur toutes les planches, override ponctuel par entité possible.
+        style_src = (e.style_notes or "").strip() or \
+            await _atelier_setting(session, "global_style")
+        style = f". Style: {style_src}" if style_src else ""
+        req_seed = body.get("seed")
+        req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
+        panels: dict[str, str] = {}
+        recipe_panels = []
+        for key, ptxt, chain_on, p1size in plan["panels"]:
+            if chain_on:
+                prompt = ptxt + style
+                model = "fal-ai/flux-kontext/dev"
+                img = settings.images_path / panels[chain_on]
+                size = "landscape_16_9"      # ignoré par kontext (cadre la réf)
+            else:
+                prompt = ptxt + "." + subj + style
+                if insp_file:
+                    prompt = ("Using the exact same subject, face and design "
+                              "as the reference image, keep its identity and "
+                              "art style, but remove any text or lettering: "
+                              + prompt)
+                    model = "fal-ai/flux-kontext/dev"
+                    img = settings.images_path / insp_file
+                else:
+                    model = "fal-ai/flux/dev"
+                    img = None
+                size = p1size or "landscape_16_9"
+            seed = seeds_by_key.get(key)
+            if seed is None and not chain_on:
+                seed = req_seed
+            out = await _flux_generate(prompt, size, 1, seed=seed,
+                                       model=model, image_path=img)
+            panels[key] = out["images"][0]
+            recipe_panels.append({"key": key, "prompt": prompt,
+                                  "seed": out.get("seed"), "model": model})
+        # profils droits = miroir logiciel du profil gauche (direction
+        # opposée garantie — la diffusion confond gauche/droite)
+        for tgt, src in (plan.get("mirrors") or {}).items():
+            panels[tgt] = BS.mirror_panel(settings.images_path, panels[src])
+        if plan.get("compose") == "character":
+            board = BS.compose_character_board(settings.images_path, panels)
+        else:
+            rows = [[panels[k] for k in row] for row in plan["rows"]]
+            board = BS.compose_board(
+                settings.images_path, rows, plan["row_heights"],
+                palette_from=(list(panels.values()) if plan.get("palette") else None))
+        e.ref_image = board
+        e.face_image = None            # tout est dans la planche composite
+        e.seed = recipe_panels[0].get("seed")
+        e.prompt_recipe = _json.dumps(
+            {"v": 2, "kind": e.kind, "ref_file": insp_file,
+             "panels": recipe_panels}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
@@ -3428,6 +3598,19 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         return _shot_dict(s)
 
 
+@router.delete("/chapters/{chapter_id}/shots")
+async def reset_storyboard(chapter_id: str):
+    """Réinitialise le storyboard du chapitre (supprime tous les plans)."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        n = 0
+        for s in await _list_shots(session, chapter_id):
+            await session.delete(s)
+            n += 1
+        await session.commit()
+    return {"ok": True, "deleted": n}
+
+
 @router.post("/chapters/{chapter_id}/storyboard/reorder")
 async def reorder_shots(chapter_id: str, body: dict):
     """Body: {ids: [shot ids dans le nouvel ordre]}."""
@@ -3441,3 +3624,430 @@ async def reorder_shots(chapter_id: str, body: dict):
             shots[sid].idx = i
         await session.commit()
         return {"shots": [_shot_dict(shots[sid]) for sid in ids]}
+
+
+# ───────── Atelier v1.19: agent d'ingestion de manuscrit ─────────
+# Manuscrit complet → segmentation en chapitres (titres importés) →
+# extraction LLM chapitre par chapitre (6 kinds) → relecture globale de
+# consolidation (avec le fichier compagnon de l'auteur en autorité) →
+# surlignage automatique. Job long: progression pollable.
+
+_MS_JOBS: dict[str, dict] = {}
+
+
+def _read_upload_text(name: str, data: bytes) -> str:
+    """Texte brut d'un upload txt/docx/pdf. Pour docx, les paragraphes stylés
+    Heading sont préfixés du marqueur \\x1f — le segmenteur les importe comme
+    titres de chapitres même sans convention typographique."""
+    import io as _io
+    name = (name or "").lower()
+    if name.endswith(".docx"):
+        import docx
+        doc = docx.Document(_io.BytesIO(data))
+        parts = []
+        for p in doc.paragraphs:
+            t = p.text.strip()
+            if not t:
+                continue
+            style = (p.style.name or "").lower() if p.style is not None else ""
+            if style.startswith("heading") or style.startswith("titre"):
+                parts.append("\x1f" + t)
+            else:
+                parts.append(t)
+        return "\n\n".join(parts)
+    if name.endswith(".pdf"):
+        from pypdf import PdfReader
+        reader = PdfReader(_io.BytesIO(data))
+        return "\n\n".join((pg.extract_text() or "").strip()
+                           for pg in reader.pages if (pg.extract_text() or "").strip())
+    for enc in ("utf-8", "utf-8-sig", "latin-1"):
+        try:
+            return data.decode(enc)
+        except Exception:
+            continue
+    return ""
+
+
+@router.post("/atelier/manuscript")
+async def import_manuscript(background_tasks: BackgroundTasks,
+                            manuscript: UploadFile = File(...),
+                            companion: UploadFile | None = File(None),
+                            series: str = Form("")):
+    """Lance l'agent d'ingestion sur un manuscrit complet (+ fichier compagnon
+    optionnel). Retourne {job_id} — suivre GET /atelier/manuscript/{job_id}."""
+    from app.services.summarizer import available
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API) — "
+                                 "l'agent manuscrit a besoin d'un modèle.")
+    raw = await manuscript.read()
+    if len(raw) > 30 * 1024 * 1024:
+        raise HTTPException(400, "Manuscrit trop lourd (max 30 MB)")
+    try:
+        text = _read_upload_text(manuscript.filename or "", raw).strip()
+    except Exception as e:
+        raise HTTPException(422, f"Lecture du manuscrit impossible: {e}")
+    if len(text) < 200:
+        raise HTTPException(400, "Le manuscrit semble vide (moins de 200 caractères)")
+    comp_text = ""
+    if companion is not None:
+        try:
+            comp_text = _read_upload_text(companion.filename or "",
+                                          await companion.read()).strip()
+        except Exception as e:
+            logger.warning(f"fichier compagnon illisible (ignoré): {e}")
+    stem = Path(manuscript.filename or "Manuscrit").stem
+    series = (series or "").strip() or stem
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "segmentation", "chapter_i": 0,
+                     "chapter_n": 0, "message": "Segmentation en chapitres…",
+                     "done": False, "error": None, "stats": {}, "series": series}
+    background_tasks.add_task(_run_manuscript_job, jid, text, comp_text, series)
+    return {"job_id": jid, "series": series, "chars": len(text),
+            "companion_chars": len(comp_text)}
+
+
+@router.get("/atelier/manuscript/{job_id}")
+async def manuscript_job_status(job_id: str):
+    st = _MS_JOBS.get(job_id)
+    if not st:
+        raise HTTPException(404, "Job inconnu")
+    return st
+
+
+async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (BibleEntity, Chapter,
+                                      async_session_factory)
+    from sqlalchemy import select
+    import json as _json
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    try:
+        loop = asyncio.get_running_loop()
+        # 1. segmentation
+        segs = MA.segment_chapters(text)
+        upd(phase="extraction", chapter_n=len(segs),
+            message=f"{len(segs)} chapitres détectés")
+        # roster initial = bible existante (stabilité des noms)
+        async with async_session_factory() as session:
+            existing = (await session.execute(select(BibleEntity))).scalars().all()
+            roster = [{"name": e.name, "kind": e.kind} for e in existing]
+        # 2. extraction chapitre par chapitre
+        raw: list[dict] = []
+        qmap: dict[tuple, list] = {}   # (kind, lower name/alias) -> evidence
+        for i, seg in enumerate(segs):
+            upd(chapter_i=i + 1, message=f"Extraction — {seg['title']}")
+            found = await loop.run_in_executor(
+                None, lambda s=seg: MA.extract_chapter(s["title"], s["text"], roster))
+            for f in found:
+                raw.append(f)
+                keys = [(f["kind"], f["name"].strip().lower())] + \
+                       [(f["kind"], a.strip().lower()) for a in f.get("aliases") or []]
+                for k in keys:
+                    qmap.setdefault(k, [])
+                for q in f.get("quotes") or []:
+                    qmap[keys[0]].append({"chapter": seg["title"], "quote": q})
+                if not any(r["name"].lower() == f["name"].lower()
+                           and r["kind"] == f["kind"] for r in roster):
+                    roster.append({"name": f["name"], "kind": f["kind"]})
+        if not raw:
+            raise RuntimeError("Aucune entité extraite — vérifie le manuscrit / le LLM")
+        # 3. relecture globale
+        upd(phase="consolidation", chapter_i=len(segs),
+            message=f"Relecture globale — consolidation de {len(raw)} mentions…")
+        final = await loop.run_in_executor(
+            None, lambda: MA.consolidate(raw, companion))
+        # 4. écriture bible (upsert) + chapitres + surlignage
+        upd(phase="liens", message="Écriture de la bible et surlignage…")
+        created_e = updated_e = created_c = updated_c = total_spans = 0
+        async with async_session_factory() as session:
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            by_key = {(e.kind, e.name.strip().lower()): e for e in rows}
+            ent_pairs = []
+            for fe in final:
+                key = (fe["kind"], fe["name"].strip().lower())
+                ev = list(qmap.get(key, []))
+                for a in fe.get("aliases") or []:
+                    ev.extend(qmap.get((fe["kind"], a.strip().lower()), []))
+                e = by_key.get(key)
+                if e:
+                    if fe.get("description") and \
+                            len(fe["description"]) > len(e.description or ""):
+                        e.description = fe["description"]
+                    old_alias = set(_json.loads(e.aliases) if e.aliases else [])
+                    e.aliases = _json.dumps(sorted(old_alias | set(fe.get("aliases") or [])))
+                    e.evidence = _json.dumps(ev[:20])
+                    e.updated_at = datetime.utcnow()
+                    updated_e += 1
+                else:
+                    e = BibleEntity(id=str(uuid4()), kind=fe["kind"],
+                                    name=fe["name"],
+                                    description=fe.get("description") or "",
+                                    aliases=_json.dumps(fe.get("aliases") or []),
+                                    evidence=_json.dumps(ev[:20]),
+                                    inspiration_images="[]",
+                                    created_at=datetime.utcnow(),
+                                    updated_at=datetime.utcnow())
+                    session.add(e)
+                    by_key[key] = e
+                    created_e += 1
+                ent_pairs.append((e, fe))
+            await session.commit()
+            for e, _fe in ent_pairs:
+                await session.refresh(e)
+            ents_for_spans = [{"id": e.id, "name": e.name,
+                               "aliases": _json.loads(e.aliases) if e.aliases else [],
+                               "quotes": fe.get("quotes") or []}
+                              for e, fe in ent_pairs]
+            ch_rows = (await session.execute(select(Chapter))).scalars().all()
+            ch_by_key = {(c.series or "", c.title): c for c in ch_rows}
+            for seg in segs:
+                spans = MA.compute_spans(seg["text"], ents_for_spans)
+                total_spans += len(spans)
+                key = (series, seg["title"][:200])
+                c = ch_by_key.get(key)
+                if c:
+                    c.script_text = seg["text"]
+                    c.spans = _json.dumps(spans)
+                    c.updated_at = datetime.utcnow()
+                    updated_c += 1
+                else:
+                    c = Chapter(id=str(uuid4()), title=seg["title"][:200],
+                                series=series, script_text=seg["text"],
+                                spans=_json.dumps(spans),
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow())
+                    session.add(c)
+                    ch_by_key[key] = c
+                    created_c += 1
+            await session.commit()
+        upd(phase="terminé", done=True,
+            message="Ingestion terminée — bible consolidée et chapitres surlignés.",
+            stats={"chapitres_crees": created_c, "chapitres_mis_a_jour": updated_c,
+                   "entites_creees": created_e, "entites_enrichies": updated_e,
+                   "zones_surlignees": total_spans})
+        logger.success(f"manuscrit {jid}: {created_c}+{updated_c} chapitres, "
+                       f"{created_e}+{updated_e} entités, {total_spans} spans")
+    except Exception as e:
+        logger.exception(f"manuscrit {jid} échec: {e}")
+        upd(phase="échec", done=True, error=str(e))
+
+
+# ───────── Atelier v1.20 (phase A): passe Scénario — adaptation ─────────
+# Roman → scènes de scénario (Fountain) SANS toucher le manuscrit : sluglines
+# INT/EXT + lieu de la bible + moment, éclairage/caméra/mood motivés par le
+# narratif, entités (perso + décor) liées et créées au besoin pour la
+# réutilisation inter-chapitres.
+
+def _scene_dict(s) -> dict:
+    import json as _json
+    try:
+        ents = _json.loads(s.entities) if s.entities else []
+    except Exception:
+        ents = []
+    return {"id": s.id, "chapter_id": s.chapter_id, "idx": s.idx,
+            "slugline": s.slugline, "int_ext": s.int_ext,
+            "location_entity_id": s.location_entity_id,
+            "time_of_day": s.time_of_day,
+            "fountain_text": s.fountain_text or "",
+            "lighting": s.lighting or "", "camera_notes": s.camera_notes or "",
+            "mood": s.mood or "", "entities": ents,
+            "source_text": s.source_text or "",
+            "duration_s": s.duration_s, "vo_audio": s.vo_audio}
+
+
+async def _list_scenes(session, chapter_id: str):
+    from app.services.storage import Scene
+    from sqlalchemy import select
+    return (await session.execute(
+        select(Scene).where(Scene.chapter_id == chapter_id)
+        .order_by(Scene.idx.asc()))).scalars().all()
+
+
+@router.get("/chapters/{chapter_id}/scenes")
+async def list_chapter_scenes(chapter_id: str):
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        return {"scenes": [_scene_dict(s)
+                           for s in await _list_scenes(session, chapter_id)]}
+
+
+@router.get("/chapters/{chapter_id}/screenplay")
+async def get_chapter_screenplay(chapter_id: str, format: str = "json"):
+    """Scénario Fountain assemblé du chapitre. ?format=fountain → texte brut
+    téléchargeable."""
+    from app.services import manuscript_agent as MA
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        scenes = [_scene_dict(s) for s in await _list_scenes(session, chapter_id)]
+    text = MA.assemble_fountain(ch.title, scenes)
+    if format == "fountain":
+        return Response(content=text, media_type="text/plain; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{ch.title[:60]}.fountain"'})
+    return {"title": ch.title, "fountain": text, "scene_count": len(scenes)}
+
+
+@router.put("/scenes/{scene_id}")
+async def update_scene(scene_id: str, body: dict):
+    from app.services.storage import Scene, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Scene, scene_id)
+        if not s:
+            raise HTTPException(404, "Scene not found")
+        for k in ("fountain_text", "camera_notes"):
+            if k in body:
+                setattr(s, k, body[k] or "")
+        for k, lim in (("lighting", 120), ("mood", 120)):
+            if k in body:
+                setattr(s, k, (body[k] or "")[:lim])
+        if "int_ext" in body and str(body["int_ext"]).upper() in ("INT", "EXT", "INT/EXT"):
+            s.int_ext = str(body["int_ext"]).upper()
+        if "time_of_day" in body and str(body["time_of_day"]).upper() in \
+                ("JOUR", "NUIT", "AUBE", "CRÉPUSCULE", "MATIN", "SOIR"):
+            s.time_of_day = str(body["time_of_day"]).upper()
+        if "location" in body and (body["location"] or "").strip():
+            loc = body["location"].strip().upper()[:150]
+            s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
+        else:
+            # slugline recomposée si int_ext / time_of_day ont changé
+            m = re.match(r"^(?:INT\.|EXT\.|INT\./EXT\.)\s*(.+?)\s*-\s*[A-ZÉÈ]+$",
+                         s.slugline or "")
+            loc = m.group(1) if m else (s.slugline or "LIEU")
+            s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        return _scene_dict(s)
+
+
+@router.delete("/chapters/{chapter_id}/scenes")
+async def reset_screenplay(chapter_id: str):
+    """Réinitialise le scénario du chapitre (supprime toutes les scènes).
+    Le manuscrit n'est évidemment pas touché."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        n = 0
+        for s in await _list_scenes(session, chapter_id):
+            await session.delete(s)
+            n += 1
+        await session.commit()
+    return {"ok": True, "deleted": n}
+
+
+@router.post("/chapters/{chapter_id}/screenplay/adapt")
+async def adapt_chapter_endpoint(chapter_id: str, body: dict,
+                                 background_tasks: BackgroundTasks):
+    """Lance la passe d'adaptation (roman → scénario) sur un chapitre.
+    REMPLACE les scènes existantes. Retourne {job_id} — suivre
+    GET /atelier/manuscript/{job_id} (job store commun)."""
+    from app.services.summarizer import available
+    from app.services.storage import Chapter, async_session_factory
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        if not (ch.script_text or "").strip():
+            raise HTTPException(400, "Le chapitre est vide")
+    lang = str(body.get("language") or "fr").lower()
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "adaptation", "chapter_i": 1,
+                     "chapter_n": 1, "message": "Adaptation en scénario…",
+                     "done": False, "error": None, "stats": {}}
+    background_tasks.add_task(_run_adapt_job, jid, chapter_id, lang)
+    return {"job_id": jid}
+
+
+async def _run_adapt_job(jid: str, chapter_id: str, lang: str):
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (BibleEntity, Chapter, Scene,
+                                      async_session_factory)
+    from sqlalchemy import select
+    import json as _json
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    try:
+        loop = asyncio.get_running_loop()
+        async with async_session_factory() as session:
+            ch = await session.get(Chapter, chapter_id)
+            title, text = ch.title, ch.script_text or ""
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            bible = [_entity_dict(e) for e in rows]
+        upd(message=f"Adaptation de « {title} »…")
+        drafts = await loop.run_in_executor(
+            None, lambda: MA.adapt_chapter(title, text, bible, lang))
+        if not drafts:
+            raise RuntimeError("L'adaptation n'a produit aucune scène — réessaie.")
+        upd(phase="liens", message="Scènes, lieux et décors…")
+        created_e = 0
+        async with async_session_factory() as session:
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            by_key = {}
+            for e in rows:
+                by_key[(e.kind, e.name.strip().lower())] = e
+                for a in (_json.loads(e.aliases) if e.aliases else []):
+                    by_key.setdefault((e.kind, a.strip().lower()), e)
+
+            def find_or_create(kind, name, desc=""):
+                nonlocal created_e
+                key = (kind, name.strip().lower())
+                # les lieux sont souvent cités en CAPS dans la slugline
+                e = by_key.get(key) or by_key.get((kind, name.strip().title().lower()))
+                if e:
+                    return e
+                e = BibleEntity(id=str(uuid4()), kind=kind, name=name[:120],
+                                description=desc, aliases="[]", evidence="[]",
+                                inspiration_images="[]",
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow())
+                session.add(e)
+                by_key[key] = e
+                created_e += 1
+                return e
+
+            for s in await _list_scenes(session, chapter_id):
+                await session.delete(s)
+            n_scenes = 0
+            for i, d in enumerate(drafts):
+                loc_ent = find_or_create(
+                    "place", d["slugline_location"].title(),
+                    f"Lieu établi par l'adaptation de « {title} ».")
+                ent_ids = [loc_ent.id]
+                for cn in d["characters"]:
+                    e = by_key.get(("character", cn.strip().lower()))
+                    if e:
+                        ent_ids.append(e.id)
+                for dn in d["decor"]:
+                    e = find_or_create("decor", dn,
+                                       f"Élément de décor — {d['slugline_location'].title()}.")
+                    ent_ids.append(e.id)
+                slug = f"{d['int_ext']}. {d['slugline_location'].upper()} - {d['time_of_day']}"
+                session.add(Scene(
+                    id=str(uuid4()), chapter_id=chapter_id, idx=i,
+                    slugline=slug, int_ext=d["int_ext"],
+                    location_entity_id=loc_ent.id,
+                    time_of_day=d["time_of_day"],
+                    fountain_text=d["fountain"], lighting=d["lighting"],
+                    camera_notes=d["camera_notes"], mood=d["mood"],
+                    entities=_json.dumps(list(dict.fromkeys(ent_ids))),
+                    source_text=d["source_excerpt"],
+                    created_at=datetime.utcnow(), updated_at=datetime.utcnow()))
+                n_scenes += 1
+            await session.commit()
+        upd(phase="terminé", done=True,
+            message=f"Scénario prêt — {n_scenes} scènes.",
+            stats={"scenes": n_scenes, "entites_creees": created_e})
+        logger.success(f"adaptation {jid}: {n_scenes} scènes, "
+                       f"{created_e} entités créées")
+    except Exception as e:
+        logger.exception(f"adaptation {jid} échec: {e}")
+        upd(phase="échec", done=True, error=str(e))

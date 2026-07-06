@@ -112,20 +112,32 @@ class AvatarPreset(Base):
 
 
 class BibleEntity(Base):
-    """v1.17 (Atelier P1) — one entry of the persistent story bible: a
-    character, place or object shared by every chapter of a series. The
-    generated reference image (a Library filename) + its locked seed are the
-    consistency anchor reused by later storyboard/production phases."""
+    """v1.17 (Atelier P1) — one entry of the persistent story bible, shared by
+    every chapter of a series. v1.19 kinds: character | place | object | date
+    (temporal markers) | ambiance (light/weather/mood) | decor (set dressing).
+    The generated reference image (a Library filename) + its locked seed are
+    the consistency anchor reused by storyboard/production phases."""
     __tablename__ = "bible_entities"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
-    kind: Mapped[str] = mapped_column(String(12), index=True)  # character|place|object
+    kind: Mapped[str] = mapped_column(String(12), index=True)
     name: Mapped[str] = mapped_column(String(120))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ref_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     style_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     inspiration_images: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    # v1.19 (agent manuscrit) — alternative names found in the text, and the
+    # per-chapter verbatim evidence quotes collected during ingestion.
+    aliases: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON list
+    evidence: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON [{chapter,quote}]
+    # v1.20 — the exact generation recipe of the current reference (full
+    # prompt + seed + size): replaying it is guaranteed-identical (FLUX is
+    # deterministic at equal prompt+seed), THE consistency anchor.
+    prompt_recipe: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    # v1.20.1 — characters: the face close-ups sheet (2nd pass, Kontext
+    # chained on the turnaround so the face is guaranteed identical).
+    face_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -166,6 +178,45 @@ class Shot(Base):
     prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Scene(Base):
+    """v1.20 (Atelier Adaptation) — one screenplay scene of a chapter, produced
+    by the adaptation pass WITHOUT touching the original manuscript. Carries
+    the film grammar (slugline INT/EXT + bible location + time of day,
+    lighting, camera notes, mood), the Fountain-format scene text, the bible
+    entities in frame (incl. decor — reusable across chapters), and later the
+    timed voice-over (phase C) that drives the storyboard."""
+    __tablename__ = "scenes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    idx: Mapped[int] = mapped_column(Integer, default=0)
+    slugline: Mapped[str] = mapped_column(String(200), default="")
+    int_ext: Mapped[str] = mapped_column(String(10), default="INT")
+    location_entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    time_of_day: Mapped[str] = mapped_column(String(20), default="JOUR")
+    fountain_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lighting: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    camera_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mood: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    entities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON ids
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    vo_audio: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AtelierSetting(Base):
+    """v1.20.4 — réglages globaux de l'Atelier (clé/valeur). Ex:
+    global_style = le style de réalisation du PROJET, injecté dans toutes
+    les générations (planches bible, et la production en P3) sauf quand une
+    entité définit son propre style (override ponctuel)."""
+    __tablename__ = "atelier_settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -231,6 +282,16 @@ SCHEDULED_POSTS_COLUMNS = [
 # never alters an existing table, so pre-existing DBs get them via auto-ALTER).
 AVATAR_PRESETS_COLUMNS = [
     ("engine", "VARCHAR(20)"),
+]
+
+
+# v1.19 — columns added to bible_entities after its initial ship (manuscript
+# ingestion agent: aliases + per-chapter evidence quotes).
+BIBLE_ENTITIES_COLUMNS = [
+    ("aliases", "TEXT"),
+    ("evidence", "TEXT"),
+    ("prompt_recipe", "TEXT"),
+    ("face_image", "VARCHAR(255)"),
 ]
 
 
@@ -304,7 +365,8 @@ async def _auto_migrate():
 
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
                                ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
-                               ("avatar_presets", AVATAR_PRESETS_COLUMNS)):
+                               ("avatar_presets", AVATAR_PRESETS_COLUMNS),
+                               ("bible_entities", BIBLE_ENTITIES_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:
