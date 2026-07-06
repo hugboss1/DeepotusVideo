@@ -95,8 +95,9 @@ async def main():
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 777})
         assert r.status_code == 200, r.text
         g = r.json()
-        assert len(CALLS) == 7, f"{len(CALLS)} appels (7 attendus)"
-        # v5: le HEADSHOT FACE est le panneau MAÎTRE (identité), généré en 1er
+        # v6: 5 générations (face_front maître, face_left, front, left, back)
+        # + 2 MIROIRS logiciels (face_right, right — jamais générés)
+        assert len(CALLS) == 5, f"{len(CALLS)} appels (5 attendus)"
         master = CALLS[0]
         assert master["model"] == "fal-ai/flux/dev"
         assert master["arguments"].get("seed") == 777
@@ -110,15 +111,17 @@ async def main():
             assert call["arguments"]["image_url"].startswith("http://fal.test/")
             assert "exact same" in call["arguments"]["prompt"].lower()
             assert "image_size" not in call["arguments"]
-        # 3 headshots au total (maître + 2 profils), puis 4 corps dont le dos,
-        # et le corps face porte la consigne de proportions
+        # 2 headshots générés (face + profil G), 3 corps (face/profil G/dos),
+        # aucun panneau "right" généré (dérivé par miroir), proportions OK
         assert sum("head-and-shoulders" in c["arguments"]["prompt"]
-                   for c in CALLS) == 3
+                   for c in CALLS) == 2
         assert sum("full body" in c["arguments"]["prompt"].lower()
-                   for c in CALLS) == 4
-        assert "seven and a half heads tall" in CALLS[3]["arguments"]["prompt"]
+                   for c in CALLS) == 3
+        assert not any("right profile" in c["arguments"]["prompt"].lower()
+                       for c in CALLS)
+        assert "seven and a half heads tall" in CALLS[2]["arguments"]["prompt"]
         assert any("back view" in c["arguments"]["prompt"].lower()
-                   for c in CALLS[4:])
+                   for c in CALLS[3:])
         # board composé et stocké (PIL a réellement assemblé les panneaux)
         assert g["ref_image"].startswith("board_")
         img_dir_p = __import__("pathlib").Path(os.environ["IMAGES_FOLDER"])
@@ -129,14 +132,14 @@ async def main():
         assert g["seed"] == 777 and g["has_recipe"] is True
         assert g["face_image"] is None             # tout est dans le board
 
-        # 🔁 use_recipe rejoue les 7 panneaux avec les seeds figés
+        # 🔁 use_recipe rejoue les 5 panneaux avec les seeds figés
         seeds_before = [c["arguments"].get("seed", None) or 424242 for c in CALLS]
         prompts_before = [c["arguments"]["prompt"] for c in CALLS]
         CALLS.clear()
         r = await c.post(f"/api/bible/entities/{eid}/generate",
                          json={"use_recipe": True})
         assert r.status_code == 200, r.text
-        assert len(CALLS) == 7
+        assert len(CALLS) == 5
         assert [c["arguments"]["prompt"] for c in CALLS] == prompts_before
         assert [c["arguments"]["seed"] for c in CALLS] == seeds_before
 
@@ -155,7 +158,13 @@ async def main():
         assert "same subject, face and design" in CALLS[0]["arguments"]["prompt"]
         assert CALLS[0]["arguments"]["seed"] == 9
 
-        # ═══ lieu = board 3 panneaux (wide + angle + détail) ═══
+        # ═══ lieu = board 3 panneaux + STYLE GLOBAL du projet ═══
+        # (l'entité lieu n'a pas de style propre → le style global s'applique;
+        #  le personnage ci-dessus avait un style_notes → il a primé)
+        r = await c.put("/api/atelier/settings",
+                        json={"global_style": "gravure abyssale monochrome"})
+        assert r.status_code == 200
+        assert r.json()["settings"]["global_style"] == "gravure abyssale monochrome"
         CALLS.clear()
         r = await c.put(f"/api/bible/entities/{pid}",
                         json={"description": "caverne abyssale bleutée"})
@@ -163,6 +172,7 @@ async def main():
         assert r.status_code == 200, r.text
         assert len(CALLS) == 3
         assert "establishing shot" in CALLS[0]["arguments"]["prompt"]
+        assert "gravure abyssale monochrome" in CALLS[0]["arguments"]["prompt"]
         assert CALLS[0]["arguments"]["image_size"] == "landscape_16_9"
         assert "reverse angle" in CALLS[1]["arguments"]["prompt"].lower()
         assert "detail" in CALLS[2]["arguments"]["prompt"].lower()

@@ -132,6 +132,11 @@ async def main():
         r = await c.post(f"/api/chapters/{cid}/storyboard/decoupe",
                          json={"method": "paragraph"})
         assert len(r.json()["shots"]) == 3
+
+        # ---- reset du storyboard ----
+        r = await c.delete(f"/api/chapters/{cid}/shots")
+        assert r.status_code == 200 and r.json()["deleted"] == 3
+        assert (await c.get(f"/api/chapters/{cid}/shots")).json()["shots"] == []
     print("ATELIER P2 TEST: PASS")
 
 asyncio.run(main())

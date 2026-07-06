@@ -208,6 +208,17 @@ class Scene(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class AtelierSetting(Base):
+    """v1.20.4 — réglages globaux de l'Atelier (clé/valeur). Ex:
+    global_style = le style de réalisation du PROJET, injecté dans toutes
+    les générations (planches bible, et la production en P3) sauf quand une
+    entité définit son propre style (override ponctuel)."""
+    __tablename__ = "atelier_settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 

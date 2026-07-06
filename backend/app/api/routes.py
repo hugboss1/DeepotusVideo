@@ -2985,6 +2985,38 @@ _FACES_PROMPT = ("using the EXACT same character as in the reference sheet — "
                  "no text, no titles, no lettering")
 
 
+async def _atelier_setting(session, key: str) -> str:
+    from app.services.storage import AtelierSetting
+    row = await session.get(AtelierSetting, key)
+    return (row.value or "").strip() if row else ""
+
+
+@router.get("/atelier/settings")
+async def get_atelier_settings():
+    from app.services.storage import AtelierSetting, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        rows = (await session.execute(select(AtelierSetting))).scalars().all()
+        return {"settings": {r.key: r.value or "" for r in rows}}
+
+
+@router.put("/atelier/settings")
+async def put_atelier_settings(body: dict):
+    """Upsert de réglages {key: value}. Clés: global_style, …"""
+    from app.services.storage import AtelierSetting, async_session_factory
+    async with async_session_factory() as session:
+        for k, v in (body or {}).items():
+            if not isinstance(k, str) or len(k) > 60:
+                continue
+            row = await session.get(AtelierSetting, k)
+            if row:
+                row.value = str(v or "")
+            else:
+                session.add(AtelierSetting(key=k, value=str(v or "")))
+        await session.commit()
+    return await get_atelier_settings()
+
+
 def _entity_dict(e) -> dict:
     import json as _json
 
@@ -3140,7 +3172,12 @@ async def generate_bible_reference(entity_id: str, body: dict):
         if not desc and not (recipe and recipe.get("v") == 2):
             raise HTTPException(400, "Add a description before generating")
         subj = f" Subject: {e.name}. {desc}"
-        style = f". Style: {e.style_notes}" if e.style_notes else ""
+        # style: l'override de l'entité prime, sinon le STYLE GLOBAL du projet
+        # (réglage atelier_settings.global_style) — cohérence de réalisation
+        # sur toutes les planches, override ponctuel par entité possible.
+        style_src = (e.style_notes or "").strip() or \
+            await _atelier_setting(session, "global_style")
+        style = f". Style: {style_src}" if style_src else ""
         req_seed = body.get("seed")
         req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
         panels: dict[str, str] = {}
@@ -3172,6 +3209,10 @@ async def generate_bible_reference(entity_id: str, body: dict):
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model})
+        # profils droits = miroir logiciel du profil gauche (direction
+        # opposée garantie — la diffusion confond gauche/droite)
+        for tgt, src in (plan.get("mirrors") or {}).items():
+            panels[tgt] = BS.mirror_panel(settings.images_path, panels[src])
         if plan.get("compose") == "character":
             board = BS.compose_character_board(settings.images_path, panels)
         else:
@@ -3557,6 +3598,19 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         return _shot_dict(s)
 
 
+@router.delete("/chapters/{chapter_id}/shots")
+async def reset_storyboard(chapter_id: str):
+    """Réinitialise le storyboard du chapitre (supprime tous les plans)."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        n = 0
+        for s in await _list_shots(session, chapter_id):
+            await session.delete(s)
+            n += 1
+        await session.commit()
+    return {"ok": True, "deleted": n}
+
+
 @router.post("/chapters/{chapter_id}/storyboard/reorder")
 async def reorder_shots(chapter_id: str, body: dict):
     """Body: {ids: [shot ids dans le nouvel ordre]}."""
@@ -3870,6 +3924,20 @@ async def update_scene(scene_id: str, body: dict):
         await session.commit()
         await session.refresh(s)
         return _scene_dict(s)
+
+
+@router.delete("/chapters/{chapter_id}/scenes")
+async def reset_screenplay(chapter_id: str):
+    """Réinitialise le scénario du chapitre (supprime toutes les scènes).
+    Le manuscrit n'est évidemment pas touché."""
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        n = 0
+        for s in await _list_scenes(session, chapter_id):
+            await session.delete(s)
+            n += 1
+        await session.commit()
+    return {"ok": True, "deleted": n}
 
 
 @router.post("/chapters/{chapter_id}/screenplay/adapt")
