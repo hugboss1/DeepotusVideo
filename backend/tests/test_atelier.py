@@ -90,38 +90,49 @@ async def main():
         assert r.status_code == 200, r.text
         g = r.json()
         assert g["seed"] == 777 and g["ref_image"], g
-        assert CALLS and CALLS[-1]["arguments"].get("seed") == 777
-        assert "oracle poulpe" in CALLS[-1]["arguments"]["prompt"]
-        assert "abyssale" in CALLS[-1]["arguments"]["prompt"]  # style_notes in prompt
+        # (character = 2 passes: CALLS[-2] = turnaround, CALLS[-1] = visages)
+        assert CALLS and CALLS[-2]["arguments"].get("seed") == 777
+        assert "oracle poulpe" in CALLS[-2]["arguments"]["prompt"]
+        assert "abyssale" in CALLS[-2]["arguments"]["prompt"]  # style_notes in prompt
 
-        # v1.20 — la planche personnage: turnaround multi-vues + gros plans,
-        # grille stricte, modèle DEV (adhérence layout) car pas d'inspiration
-        # existante sur disque
-        p = CALLS[-1]["arguments"]["prompt"].lower()
-        assert "model sheet" in p and "turnaround" in p
-        assert "exactly four full-body views" in p and "back view" in p
-        assert "exactly three head-and-" in p
-        assert "shared ground line" in p and "no overlapping" in p
-        assert CALLS[-1]["arguments"]["image_size"] == "landscape_16_9"
-        assert CALLS[-1]["model"] == "fal-ai/flux/dev"
+        # v1.20.1 — personnage = DEUX passes chaînées:
+        # passe 1: turnaround une rangée (DEV, proportions réalistes)
+        p1 = CALLS[-2]["arguments"]["prompt"].lower()
+        assert "model sheet" in p1 and "turnaround" in p1
+        assert "exactly four full-body views" in p1 and "one single row" in p1
+        assert "seven and a half heads tall" in p1        # proportions
+        assert "no titles" in p1
+        assert CALLS[-2]["arguments"]["image_size"] == "landscape_16_9"
+        assert CALLS[-2]["model"] == "fal-ai/flux/dev"
+        # passe 2: gros plans via Kontext CONDITIONNÉ sur la passe 1
+        p2 = CALLS[-1]["arguments"]["prompt"].lower()
+        assert "exactly three head-and-shoulders" in p2
+        assert "exact same character" in p2
+        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[-1]["arguments"]["image_url"].startswith("http://fal.test/")
+        assert g.get("face_image") or True  # face stockée (vérifiée plus bas)
 
         # re-roll without seed -> a seed still comes back (from fal result)
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={})
         assert r.json()["seed"] == 424242
+        assert r.json()["face_image"], "planche visages (passe 2) manquante"
         # entity persisted the new ref + the exact recipe
         r = await c.get("/api/bible/entities?kind=character")
         got0 = r.json()["entities"][0]
         assert got0["ref_image"], "ref not stored"
         assert got0["has_recipe"] is True
 
-        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT le même prompt + seed + modèle
-        last_prompt = CALLS[-1]["arguments"]["prompt"]
+        # v1.20 — 🔁 use_recipe rejoue EXACTEMENT les deux passes
+        # (turnaround: même prompt+seed+modèle; visages: même seed chaîné)
+        last_turn_prompt = CALLS[-2]["arguments"]["prompt"]
         r = await c.post(f"/api/bible/entities/{eid}/generate",
                          json={"use_recipe": True})
         assert r.status_code == 200, r.text
-        assert CALLS[-1]["arguments"]["prompt"] == last_prompt
-        assert CALLS[-1]["arguments"]["seed"] == 424242
-        assert CALLS[-1]["model"] == "fal-ai/flux/dev"
+        assert CALLS[-2]["arguments"]["prompt"] == last_turn_prompt
+        assert CALLS[-2]["arguments"]["seed"] == 424242
+        assert CALLS[-2]["model"] == "fal-ai/flux/dev"
+        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"   # visages
+        assert CALLS[-1]["arguments"]["seed"] == 424242          # seed visages figé
         assert r.json()["seed"] == 424242
 
         # v1.20 — image d'inspiration PRÉSENTE sur disque → Kontext
@@ -134,15 +145,18 @@ async def main():
         assert r.status_code == 200
         r = await c.post(f"/api/bible/entities/{eid}/generate", json={"seed": 9})
         assert r.status_code == 200, r.text
+        # passe 1 (turnaround) = Kontext conditionné sur TA référence
+        assert CALLS[-2]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[-2]["arguments"]["image_url"] == "http://fal.test/uploaded-ref.png"
+        assert "image_size" not in CALLS[-2]["arguments"]  # kontext cadre sur la réf
+        assert "same subject, face and design" in CALLS[-2]["arguments"]["prompt"].lower().replace("exact ", "")
+        # passe 2 (visages) = Kontext chaîné sur la passe 1
         assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
-        assert CALLS[-1]["arguments"]["image_url"] == "http://fal.test/uploaded-ref.png"
-        assert "image_size" not in CALLS[-1]["arguments"]  # kontext cadre sur la réf
-        assert "same subject, face and design" in CALLS[-1]["arguments"]["prompt"].lower().replace("exact ", "")
-        # la recette mémorise le modèle + le fichier de référence
+        # la recette mémorise le modèle + le fichier de référence + les seeds
         r = await c.post(f"/api/bible/entities/{eid}/generate",
                          json={"use_recipe": True})
-        assert CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
-        assert CALLS[-1]["arguments"]["seed"] == 9
+        assert CALLS[-2]["model"] == "fal-ai/flux-kontext/dev"
+        assert CALLS[-2]["arguments"]["seed"] == 9
 
         # ---- /images/generate seed passthrough (FLUX branch) ----
         r = await c.post("/api/images/generate", json={

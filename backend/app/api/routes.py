@@ -2944,16 +2944,19 @@ _KIND_SIZE = {"character": "landscape_16_9", "place": "landscape_16_9",
               "object": "landscape_16_9", "date": "landscape_16_9",
               "ambiance": "landscape_16_9", "decor": "landscape_16_9"}
 _KIND_PREFIX = {
-    "character": ("character model sheet (turnaround) on a strict clean grid. "
-                  "TOP ROW: exactly FOUR full-body views of the SAME character, "
-                  "all standing on ONE shared ground line, evenly spaced, same "
-                  "scale — (1) front view, (2) left profile, (3) right profile, "
-                  "(4) back view — identical outfit, hairstyle, colors and "
-                  "proportions in all four views. BOTTOM ROW, clearly separated "
-                  "BELOW the ground line, smaller: exactly THREE head-and-"
-                  "shoulders close-up portraits — front, left profile, right "
-                  "profile. Flat light studio background, no text, no labels, "
-                  "no overlapping elements"),
+    # Personnage v3 = DEUX passes chaînées (une rangée par image, jamais deux):
+    # 1) turnaround plein pied, 2) gros plans visage via Kontext conditionné
+    # sur la passe 1 (même visage garanti). Prompts ci-dessous.
+    "character": ("character model sheet (turnaround), wide landscape "
+                  "composition: exactly FOUR full-body views of the SAME "
+                  "character in ONE single row, all standing on one shared "
+                  "ground line, evenly spaced, same scale — (1) front view, "
+                  "(2) left profile, (3) right profile, (4) back view — "
+                  "identical outfit, hairstyle and colors in all four views; "
+                  "accurate realistic human proportions, figures about seven "
+                  "and a half heads tall, natural standing posture; flat "
+                  "light studio background; absolutely no text, no titles, "
+                  "no lettering, no logos"),
     "place": ("location reference board of the SAME location, consistent "
               "architecture and palette: one wide establishing shot, one "
               "alternate angle, one key detail close-up, no characters, "
@@ -2972,6 +2975,15 @@ _KIND_PREFIX = {
               "close-up, consistent palette, no text"),
 }
 
+# Passe 2 des personnages : gros plans visage, Kontext conditionné sur le
+# turnaround (identité de visage garantie par le chaînage).
+_FACES_PROMPT = ("using the EXACT same character as in the reference sheet — "
+                 "same face, same hairstyle, same outfit: one single row of "
+                 "exactly THREE head-and-shoulders close-up portraits, evenly "
+                 "spaced, same scale — (1) front view, (2) left profile, "
+                 "(3) right profile; flat light studio background; absolutely "
+                 "no text, no titles, no lettering")
+
 
 def _entity_dict(e) -> dict:
     import json as _json
@@ -2989,6 +3001,7 @@ def _entity_dict(e) -> dict:
             "aliases": _jload(getattr(e, "aliases", None)),
             "evidence": _jload(getattr(e, "evidence", None)),
             "has_recipe": bool(getattr(e, "prompt_recipe", None)),
+            "face_image": getattr(e, "face_image", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3116,6 +3129,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
             seed = recipe.get("seed")
             model = recipe.get("model") or "fal-ai/flux/dev"
             insp_file = recipe.get("ref_file") or insp_file
+            faces_seed = (recipe.get("faces") or {}).get("seed")
         else:
             desc = (e.description or "").strip()
             if not desc:
@@ -3126,7 +3140,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
             if insp_file:
                 prompt = ("Using the exact same subject, face and design as "
                           "the reference image, keep its identity and art "
-                          "style: " + prompt)
+                          "style, but remove any text or lettering: " + prompt)
             size = _KIND_SIZE.get(e.kind, "square")
             seed = body.get("seed")
             seed = int(seed) if isinstance(seed, (int, float)) else None
@@ -3134,16 +3148,32 @@ async def generate_bible_reference(entity_id: str, body: dict):
             # référence visuelle existe (elle prime sur tout le reste).
             model = ("fal-ai/flux-kontext/dev" if insp_file
                      else "fal-ai/flux/dev")
+            faces_seed = None
         out = await _flux_generate(
             prompt, size, 1, seed=seed, model=model,
             image_path=(settings.images_path / insp_file) if insp_file else None)
         e.ref_image = out["images"][0]
         e.seed = out.get("seed")
-        e.prompt_recipe = _json.dumps({"prompt": prompt, "size": size,
-                                       "seed": out.get("seed"),
-                                       "model": model,
-                                       "ref_file": insp_file},
-                                      ensure_ascii=False)
+        recipe_out = {"prompt": prompt, "size": size, "seed": out.get("seed"),
+                      "model": model, "ref_file": insp_file}
+        # Personnage: passe 2 — gros plans visage, Kontext CONDITIONNÉ sur le
+        # turnaround fraîchement généré (même visage garanti, jamais de
+        # rangée manquante). Best-effort: un échec ne perd pas la passe 1.
+        if e.kind == "character":
+            try:
+                fp = _FACES_PROMPT
+                if e.style_notes:
+                    fp += f". Style: {e.style_notes}"
+                out2 = await _flux_generate(
+                    fp, size, 1, seed=faces_seed,
+                    model="fal-ai/flux-kontext/dev",
+                    image_path=settings.images_path / e.ref_image)
+                e.face_image = out2["images"][0]
+                recipe_out["faces"] = {"prompt": fp, "seed": out2.get("seed"),
+                                       "model": "fal-ai/flux-kontext/dev"}
+            except Exception as fe:
+                logger.warning(f"face sheet failed for {e.name}: {fe}")
+        e.prompt_recipe = _json.dumps(recipe_out, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)

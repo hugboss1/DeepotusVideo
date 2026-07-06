@@ -208,9 +208,13 @@ async function renderBible() {
   <div class="entity-card" data-id="${e.id}">
     <div class="refbox">
       ${e.ref_image
-        ? `<a href="/api/images/${encodeURIComponent(e.ref_image)}" target="_blank" title="Ouvrir la planche en grand">
-             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.ref_image)}" alt="planche"></a>`
+        ? `<a href="/api/images/${encodeURIComponent(e.ref_image)}" target="_blank" title="Turnaround — ouvrir en grand">
+             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.ref_image)}" alt="turnaround"></a>`
         : `<div class="refimg empty">Pas encore de planche<br>— Générer ⤵</div>`}
+      ${e.face_image
+        ? `<a href="/api/images/${encodeURIComponent(e.face_image)}" target="_blank" title="Gros plans visage — ouvrir en grand">
+             <img class="refimg board-ref" src="/api/images/${encodeURIComponent(e.face_image)}" alt="visages"></a>`
+        : ""}
       <div class="seedrow">
         ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">🔒 ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
       </div>
