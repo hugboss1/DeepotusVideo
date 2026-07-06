@@ -135,6 +135,9 @@ class BibleEntity(Base):
     # prompt + seed + size): replaying it is guaranteed-identical (FLUX is
     # deterministic at equal prompt+seed), THE consistency anchor.
     prompt_recipe: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    # v1.20.1 — characters: the face close-ups sheet (2nd pass, Kontext
+    # chained on the turnaround so the face is guaranteed identical).
+    face_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -277,6 +280,7 @@ BIBLE_ENTITIES_COLUMNS = [
     ("aliases", "TEXT"),
     ("evidence", "TEXT"),
     ("prompt_recipe", "TEXT"),
+    ("face_image", "VARCHAR(255)"),
 ]
 
 
