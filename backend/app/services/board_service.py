@@ -34,6 +34,9 @@ _SHARP = (", sharp focus, crisp details, high detail, flat light studio "
 # corps face pour la constance de la tenue). Composition en COLONNES
 # ALIGNÉES: chaque visage au-dessus de son corps correspondant.
 PANEL_PLANS: dict[str, dict] = {
+    # v6: les profils DROITS sont dérivés par MIROIR logiciel du profil
+    # gauche (la diffusion confond gauche/droite — le miroir garantit une
+    # direction opposée au pixel près, et économise 2 générations).
     "character": {
         "panels": [
             ("face_front", "head-and-shoulders close-up portrait, front view, "
@@ -41,10 +44,8 @@ PANEL_PLANS: dict[str, dict] = {
              None, "portrait_4_3"),
             ("face_left", "the exact same person, same face, same hairstyle: "
                           "head-and-shoulders close-up portrait, LEFT PROFILE "
-                          "view" + _SHARP, "face_front", None),
-            ("face_right", "the exact same person, same face, same hairstyle: "
-                           "head-and-shoulders close-up portrait, RIGHT "
-                           "PROFILE view" + _SHARP, "face_front", None),
+                          "view, nose pointing to the left of the frame"
+                          + _SHARP, "face_front", None),
             ("front", "the exact same person, same face and hairstyle: FULL "
                       "BODY standing neutral pose, front view facing the "
                       "camera, arms relaxed, accurate realistic human "
@@ -52,18 +53,15 @@ PANEL_PLANS: dict[str, dict] = {
                       "figure visible from head to feet" + _SHARP,
              "face_front", None),
             ("left", "the exact same character, identical outfit, hairstyle "
-                     "and colors: full body LEFT PROFILE view, standing "
-                     "neutral pose, full figure head to feet" + _SHARP,
-             "front", None),
-            ("right", "the exact same character, identical outfit, hairstyle "
-                      "and colors: full body RIGHT PROFILE view, standing "
-                      "neutral pose, full figure head to feet" + _SHARP,
-             "front", None),
+                     "and colors: full body LEFT PROFILE view, nose pointing "
+                     "to the left of the frame, standing neutral pose, full "
+                     "figure head to feet" + _SHARP, "front", None),
             ("back", "the exact same character, identical outfit, hairstyle "
                      "and colors: full body BACK view (seen from behind), "
                      "standing neutral pose, full figure head to feet"
                      + _SHARP, "front", None),
         ],
+        "mirrors": {"face_right": "face_left", "right": "left"},
         "compose": "character",   # colonnes alignées visage↑corps
         "palette": False,
     },
@@ -160,6 +158,16 @@ def _palette_colors(images_path: Path, fnames: list[str], n: int = 8):
     q = strip.quantize(colors=n)
     pal = q.getpalette()[:n * 3]
     return [tuple(pal[i * 3:i * 3 + 3]) for i in range(n)]
+
+
+def mirror_panel(images_path: Path, fname: str) -> str:
+    """Profil droit = miroir logiciel du profil gauche: direction opposée
+    garantie au pixel près (la diffusion confond gauche/droite)."""
+    from PIL import ImageOps
+    out = ImageOps.mirror(_load(images_path, fname))
+    nf = f"gen_{uuid4().hex[:8]}.png"
+    out.save(images_path / nf)
+    return nf
 
 
 def compose_character_board(images_path: Path, panels: dict[str, str],

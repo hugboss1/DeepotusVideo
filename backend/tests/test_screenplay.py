@@ -113,6 +113,13 @@ async def main():
         assert st["stats"]["scenes"] == 2
         assert st["stats"]["entites_creees"] == 0, st["stats"]
         assert len((await c.get(f"/api/chapters/{ch['id']}/scenes")).json()["scenes"]) == 2
+
+        # reset du scénario (le manuscrit reste intact)
+        r = await c.delete(f"/api/chapters/{ch['id']}/scenes")
+        assert r.status_code == 200 and r.json()["deleted"] == 2
+        assert (await c.get(f"/api/chapters/{ch['id']}/scenes")).json()["scenes"] == []
+        assert (await c.get(f"/api/chapters/{ch['id']}")).json()["script_text"], \
+            "le manuscrit a été touché !"
     print("SCREENPLAY TEST: PASS")
 
 asyncio.run(main())

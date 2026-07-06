@@ -114,6 +114,14 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .scene-ents{display:flex;gap:5px;flex-wrap:wrap;font-size:11px}
 .scene-src{font-size:11px;color:var(--ink-muted);font-style:italic}
 
+/* ── style global du projet ── */
+.globalstyle{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid var(--stroke);font-size:13px}
+.globalstyle input{flex:1;background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:6px 9px;font-size:12px}
+
+/* ── modal lecture scénario ── */
+.sp-box{width:min(860px,94vw);max-height:86vh}
+.sp-text{flex:1;overflow-y:auto;margin:0;padding:22px 34px;font-family:var(--f-mono);font-size:13px;line-height:1.7;color:var(--ink-strong);white-space:pre-wrap}
+
 /* ── modal manuscrit ── */
 .ms-box{width:min(600px,92vw)}
 .ms-body{padding:14px;display:flex;flex-direction:column;gap:12px;overflow-y:auto}

@@ -231,7 +231,7 @@ async function renderBible() {
         <button class="btn ghost act-del" title="Supprimer l'entité">🗑</button>
       </div>
       <textarea class="entity-desc" placeholder="Description physique / visuelle (sert de prompt de référence)">${esc(e.description)}</textarea>
-      <input class="entity-style" placeholder="Notes de style (ex: style anime sombre, palette abyssale)" value="${esc(e.style_notes)}">
+      <input class="entity-style" placeholder="Style spécifique (vide = style global du projet)" title="Override ponctuel : si renseigné, cette entité est générée dans CE style au lieu du style global du projet" value="${esc(e.style_notes)}">
       ${(e.aliases && e.aliases.length)
         ? `<div class="entity-aliases">alias : ${e.aliases.map(esc).join(" · ")}</div>` : ""}
       ${(e.evidence && e.evidence.length)
@@ -577,6 +577,23 @@ async function openLibrary(entityId) {
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
 }
 
+/* ═════════ style global du projet ═════════ */
+async function loadGlobalStyle() {
+  try {
+    const d = await api.get("/atelier/settings");
+    $("#globalStyle").value = (d.settings && d.settings.global_style) || "";
+  } catch (e) { /* silencieux */ }
+}
+
+const saveGlobalStyle = debounce(async () => {
+  try {
+    $("#styleSaved").textContent = "…"; $("#styleSaved").className = "savestate saving";
+    await api.send("PUT", "/atelier/settings",
+                   { global_style: $("#globalStyle").value });
+    $("#styleSaved").textContent = "✓"; $("#styleSaved").className = "savestate saved";
+  } catch (e) { $("#styleSaved").textContent = "!"; toast("Style global : " + e.message, true); }
+}, 700);
+
 /* ═════════ agent manuscrit ═════════ */
 let msPolling = null;
 
@@ -710,6 +727,40 @@ window.addEventListener("DOMContentLoaded", async () => {
     entities.push(ent); renderBible();
   });
 
+  // style global du projet
+  $("#globalStyle").addEventListener("input", saveGlobalStyle);
+
+  // resets (storyboard + scénario)
+  $("#boardReset").addEventListener("click", async () => {
+    if (!chapter || !shots.length) { toast("Rien à réinitialiser.", true); return; }
+    if (!confirm(`Supprimer les ${shots.length} plans de ce storyboard ?`)) return;
+    await api.send("DELETE", `/chapters/${chapter.id}/shots`);
+    await loadShots(true);
+    toast("Storyboard réinitialisé — 🎬 Découper pour en régénérer un.");
+  });
+  $("#spReset").addEventListener("click", async () => {
+    if (!chapter || !scenes.length) { toast("Rien à réinitialiser.", true); return; }
+    if (!confirm(`Supprimer les ${scenes.length} scènes du scénario ? (le manuscrit reste intact)`)) return;
+    await api.send("DELETE", `/chapters/${chapter.id}/scenes`);
+    await loadScenes(true);
+    toast("Scénario réinitialisé — 🎭 Adapter pour en régénérer un.");
+  });
+
+  // lecture du scénario assemblé (le .fountain est un simple fichier texte —
+  // ce viewer intégré évite d'avoir besoin d'un logiciel externe)
+  $("#spPreview").addEventListener("click", async () => {
+    if (!chapter) { toast("Ouvre un chapitre d'abord.", true); return; }
+    try {
+      const d = await api.get(`/chapters/${chapter.id}/screenplay`);
+      if (!d.scene_count) { toast("Pas encore de scénario — 🎭 Adapter d'abord.", true); return; }
+      $("#spTitle").textContent = `Scénario — ${d.title} (${d.scene_count} scènes)`;
+      $("#spText").textContent = d.fountain;
+      $("#spModal").classList.remove("hidden");
+    } catch (e) { toast("Lecture : " + e.message, true); }
+  });
+  $("#spClose").addEventListener("click", () => $("#spModal").classList.add("hidden"));
+  $("#spModal").addEventListener("click", (e) => { if (e.target.id === "spModal") $("#spModal").classList.add("hidden"); });
+
   // agent manuscrit
   $("#msBtn").addEventListener("click", () => $("#msModal").classList.remove("hidden"));
   $("#msClose").addEventListener("click", () => $("#msModal").classList.add("hidden"));
@@ -748,6 +799,7 @@ window.addEventListener("DOMContentLoaded", async () => {
 
   // boot
   try {
+    await loadGlobalStyle();
     await loadEntities();
     await loadChapters();
     await renderBible();
