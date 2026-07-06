@@ -3660,3 +3660,207 @@ async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
     except Exception as e:
         logger.exception(f"manuscrit {jid} échec: {e}")
         upd(phase="échec", done=True, error=str(e))
+
+
+# ───────── Atelier v1.20 (phase A): passe Scénario — adaptation ─────────
+# Roman → scènes de scénario (Fountain) SANS toucher le manuscrit : sluglines
+# INT/EXT + lieu de la bible + moment, éclairage/caméra/mood motivés par le
+# narratif, entités (perso + décor) liées et créées au besoin pour la
+# réutilisation inter-chapitres.
+
+def _scene_dict(s) -> dict:
+    import json as _json
+    try:
+        ents = _json.loads(s.entities) if s.entities else []
+    except Exception:
+        ents = []
+    return {"id": s.id, "chapter_id": s.chapter_id, "idx": s.idx,
+            "slugline": s.slugline, "int_ext": s.int_ext,
+            "location_entity_id": s.location_entity_id,
+            "time_of_day": s.time_of_day,
+            "fountain_text": s.fountain_text or "",
+            "lighting": s.lighting or "", "camera_notes": s.camera_notes or "",
+            "mood": s.mood or "", "entities": ents,
+            "source_text": s.source_text or "",
+            "duration_s": s.duration_s, "vo_audio": s.vo_audio}
+
+
+async def _list_scenes(session, chapter_id: str):
+    from app.services.storage import Scene
+    from sqlalchemy import select
+    return (await session.execute(
+        select(Scene).where(Scene.chapter_id == chapter_id)
+        .order_by(Scene.idx.asc()))).scalars().all()
+
+
+@router.get("/chapters/{chapter_id}/scenes")
+async def list_chapter_scenes(chapter_id: str):
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        return {"scenes": [_scene_dict(s)
+                           for s in await _list_scenes(session, chapter_id)]}
+
+
+@router.get("/chapters/{chapter_id}/screenplay")
+async def get_chapter_screenplay(chapter_id: str, format: str = "json"):
+    """Scénario Fountain assemblé du chapitre. ?format=fountain → texte brut
+    téléchargeable."""
+    from app.services import manuscript_agent as MA
+    from app.services.storage import Chapter, async_session_factory
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        scenes = [_scene_dict(s) for s in await _list_scenes(session, chapter_id)]
+    text = MA.assemble_fountain(ch.title, scenes)
+    if format == "fountain":
+        return Response(content=text, media_type="text/plain; charset=utf-8",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{ch.title[:60]}.fountain"'})
+    return {"title": ch.title, "fountain": text, "scene_count": len(scenes)}
+
+
+@router.put("/scenes/{scene_id}")
+async def update_scene(scene_id: str, body: dict):
+    from app.services.storage import Scene, async_session_factory
+    async with async_session_factory() as session:
+        s = await session.get(Scene, scene_id)
+        if not s:
+            raise HTTPException(404, "Scene not found")
+        for k in ("fountain_text", "camera_notes"):
+            if k in body:
+                setattr(s, k, body[k] or "")
+        for k, lim in (("lighting", 120), ("mood", 120)):
+            if k in body:
+                setattr(s, k, (body[k] or "")[:lim])
+        if "int_ext" in body and str(body["int_ext"]).upper() in ("INT", "EXT", "INT/EXT"):
+            s.int_ext = str(body["int_ext"]).upper()
+        if "time_of_day" in body and str(body["time_of_day"]).upper() in \
+                ("JOUR", "NUIT", "AUBE", "CRÉPUSCULE", "MATIN", "SOIR"):
+            s.time_of_day = str(body["time_of_day"]).upper()
+        if "location" in body and (body["location"] or "").strip():
+            loc = body["location"].strip().upper()[:150]
+            s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
+        else:
+            # slugline recomposée si int_ext / time_of_day ont changé
+            m = re.match(r"^(?:INT\.|EXT\.|INT\./EXT\.)\s*(.+?)\s*-\s*[A-ZÉÈ]+$",
+                         s.slugline or "")
+            loc = m.group(1) if m else (s.slugline or "LIEU")
+            s.slugline = f"{s.int_ext}. {loc} - {s.time_of_day}"
+        s.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(s)
+        return _scene_dict(s)
+
+
+@router.post("/chapters/{chapter_id}/screenplay/adapt")
+async def adapt_chapter_endpoint(chapter_id: str, body: dict,
+                                 background_tasks: BackgroundTasks):
+    """Lance la passe d'adaptation (roman → scénario) sur un chapitre.
+    REMPLACE les scènes existantes. Retourne {job_id} — suivre
+    GET /atelier/manuscript/{job_id} (job store commun)."""
+    from app.services.summarizer import available
+    from app.services.storage import Chapter, async_session_factory
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    async with async_session_factory() as session:
+        ch = await session.get(Chapter, chapter_id)
+        if not ch:
+            raise HTTPException(404, "Chapter not found")
+        if not (ch.script_text or "").strip():
+            raise HTTPException(400, "Le chapitre est vide")
+    lang = str(body.get("language") or "fr").lower()
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "adaptation", "chapter_i": 1,
+                     "chapter_n": 1, "message": "Adaptation en scénario…",
+                     "done": False, "error": None, "stats": {}}
+    background_tasks.add_task(_run_adapt_job, jid, chapter_id, lang)
+    return {"job_id": jid}
+
+
+async def _run_adapt_job(jid: str, chapter_id: str, lang: str):
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (BibleEntity, Chapter, Scene,
+                                      async_session_factory)
+    from sqlalchemy import select
+    import json as _json
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    try:
+        loop = asyncio.get_running_loop()
+        async with async_session_factory() as session:
+            ch = await session.get(Chapter, chapter_id)
+            title, text = ch.title, ch.script_text or ""
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            bible = [_entity_dict(e) for e in rows]
+        upd(message=f"Adaptation de « {title} »…")
+        drafts = await loop.run_in_executor(
+            None, lambda: MA.adapt_chapter(title, text, bible, lang))
+        if not drafts:
+            raise RuntimeError("L'adaptation n'a produit aucune scène — réessaie.")
+        upd(phase="liens", message="Scènes, lieux et décors…")
+        created_e = 0
+        async with async_session_factory() as session:
+            rows = (await session.execute(select(BibleEntity))).scalars().all()
+            by_key = {}
+            for e in rows:
+                by_key[(e.kind, e.name.strip().lower())] = e
+                for a in (_json.loads(e.aliases) if e.aliases else []):
+                    by_key.setdefault((e.kind, a.strip().lower()), e)
+
+            def find_or_create(kind, name, desc=""):
+                nonlocal created_e
+                key = (kind, name.strip().lower())
+                # les lieux sont souvent cités en CAPS dans la slugline
+                e = by_key.get(key) or by_key.get((kind, name.strip().title().lower()))
+                if e:
+                    return e
+                e = BibleEntity(id=str(uuid4()), kind=kind, name=name[:120],
+                                description=desc, aliases="[]", evidence="[]",
+                                inspiration_images="[]",
+                                created_at=datetime.utcnow(),
+                                updated_at=datetime.utcnow())
+                session.add(e)
+                by_key[key] = e
+                created_e += 1
+                return e
+
+            for s in await _list_scenes(session, chapter_id):
+                await session.delete(s)
+            n_scenes = 0
+            for i, d in enumerate(drafts):
+                loc_ent = find_or_create(
+                    "place", d["slugline_location"].title(),
+                    f"Lieu établi par l'adaptation de « {title} ».")
+                ent_ids = [loc_ent.id]
+                for cn in d["characters"]:
+                    e = by_key.get(("character", cn.strip().lower()))
+                    if e:
+                        ent_ids.append(e.id)
+                for dn in d["decor"]:
+                    e = find_or_create("decor", dn,
+                                       f"Élément de décor — {d['slugline_location'].title()}.")
+                    ent_ids.append(e.id)
+                slug = f"{d['int_ext']}. {d['slugline_location'].upper()} - {d['time_of_day']}"
+                session.add(Scene(
+                    id=str(uuid4()), chapter_id=chapter_id, idx=i,
+                    slugline=slug, int_ext=d["int_ext"],
+                    location_entity_id=loc_ent.id,
+                    time_of_day=d["time_of_day"],
+                    fountain_text=d["fountain"], lighting=d["lighting"],
+                    camera_notes=d["camera_notes"], mood=d["mood"],
+                    entities=_json.dumps(list(dict.fromkeys(ent_ids))),
+                    source_text=d["source_excerpt"],
+                    created_at=datetime.utcnow(), updated_at=datetime.utcnow()))
+                n_scenes += 1
+            await session.commit()
+        upd(phase="terminé", done=True,
+            message=f"Scénario prêt — {n_scenes} scènes.",
+            stats={"scenes": n_scenes, "entites_creees": created_e})
+        logger.success(f"adaptation {jid}: {n_scenes} scènes, "
+                       f"{created_e} entités créées")
+    except Exception as e:
+        logger.exception(f"adaptation {jid} échec: {e}")
+        upd(phase="échec", done=True, error=str(e))

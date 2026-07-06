@@ -173,6 +173,34 @@ class Shot(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class Scene(Base):
+    """v1.20 (Atelier Adaptation) — one screenplay scene of a chapter, produced
+    by the adaptation pass WITHOUT touching the original manuscript. Carries
+    the film grammar (slugline INT/EXT + bible location + time of day,
+    lighting, camera notes, mood), the Fountain-format scene text, the bible
+    entities in frame (incl. decor — reusable across chapters), and later the
+    timed voice-over (phase C) that drives the storyboard."""
+    __tablename__ = "scenes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    idx: Mapped[int] = mapped_column(Integer, default=0)
+    slugline: Mapped[str] = mapped_column(String(200), default="")
+    int_ext: Mapped[str] = mapped_column(String(10), default="INT")
+    location_entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    time_of_day: Mapped[str] = mapped_column(String(20), default="JOUR")
+    fountain_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lighting: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    camera_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mood: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    entities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON ids
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    vo_audio: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
