@@ -3145,12 +3145,11 @@ async def generate_bible_reference(entity_id: str, body: dict):
         req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
         panels: dict[str, str] = {}
         recipe_panels = []
-        first_key = plan["panels"][0][0]
-        for key, ptxt, chained, p1size in plan["panels"]:
-            if chained:
+        for key, ptxt, chain_on, p1size in plan["panels"]:
+            if chain_on:
                 prompt = ptxt + style
                 model = "fal-ai/flux-kontext/dev"
-                img = settings.images_path / panels[first_key]
+                img = settings.images_path / panels[chain_on]
                 size = "landscape_16_9"      # ignoré par kontext (cadre la réf)
             else:
                 prompt = ptxt + "." + subj + style
@@ -3166,17 +3165,20 @@ async def generate_bible_reference(entity_id: str, body: dict):
                     img = None
                 size = p1size or "landscape_16_9"
             seed = seeds_by_key.get(key)
-            if seed is None and not chained:
+            if seed is None and not chain_on:
                 seed = req_seed
             out = await _flux_generate(prompt, size, 1, seed=seed,
                                        model=model, image_path=img)
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model})
-        rows = [[panels[k] for k in row] for row in plan["rows"]]
-        board = BS.compose_board(
-            settings.images_path, rows, plan["row_heights"],
-            palette_from=(list(panels.values()) if plan.get("palette") else None))
+        if plan.get("compose") == "character":
+            board = BS.compose_character_board(settings.images_path, panels)
+        else:
+            rows = [[panels[k] for k in row] for row in plan["rows"]]
+            board = BS.compose_board(
+                settings.images_path, rows, plan["row_heights"],
+                palette_from=(list(panels.values()) if plan.get("palette") else None))
         e.ref_image = board
         e.face_image = None            # tout est dans la planche composite
         e.seed = recipe_panels[0].get("seed")

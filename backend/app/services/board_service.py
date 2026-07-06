@@ -22,48 +22,61 @@ _BG = (242, 239, 233)   # fond papier clair, façon model sheet
 _SHARP = (", sharp focus, crisp details, high detail, flat light studio "
           "background, absolutely no text, no titles, no lettering")
 
-# Plans de panneaux par kind: (clé, prompt, chaîné_sur_panneau_1, taille_p1)
-# {S} = sujet+description+style — injecté par l'appelant sur le panneau 1;
+# Plans de panneaux par kind: (clé, prompt, chaîné_sur (None = panneau
+# maître, sinon clé du panneau de référence), taille du panneau maître).
+# Le sujet+description+style sont injectés par l'appelant sur le maître;
 # les panneaux chaînés reçoivent un rappel court + le style.
+#
+# Personnage v5 (retour terrain): le HEADSHOT d'abord — un gros plan porte
+# un signal d'identité bien plus fort pour le chaînage Kontext qu'une
+# silhouette plein pied. Ordre: visage face (maître) → visages profils →
+# corps face (chaîné sur le visage) → corps profils/dos (chaînés sur le
+# corps face pour la constance de la tenue). Composition en COLONNES
+# ALIGNÉES: chaque visage au-dessus de son corps correspondant.
 PANEL_PLANS: dict[str, dict] = {
     "character": {
         "panels": [
-            ("front", "full body character reference, standing neutral pose, "
-                      "front view facing the camera, arms relaxed, accurate "
-                      "realistic human proportions (about seven and a half "
-                      "heads tall), full figure visible from head to feet"
-                      + _SHARP, False, "portrait_16_9"),
+            ("face_front", "head-and-shoulders close-up portrait, front view, "
+                           "looking at the camera, centered" + _SHARP,
+             None, "portrait_4_3"),
+            ("face_left", "the exact same person, same face, same hairstyle: "
+                          "head-and-shoulders close-up portrait, LEFT PROFILE "
+                          "view" + _SHARP, "face_front", None),
+            ("face_right", "the exact same person, same face, same hairstyle: "
+                           "head-and-shoulders close-up portrait, RIGHT "
+                           "PROFILE view" + _SHARP, "face_front", None),
+            ("front", "the exact same person, same face and hairstyle: FULL "
+                      "BODY standing neutral pose, front view facing the "
+                      "camera, arms relaxed, accurate realistic human "
+                      "proportions (about seven and a half heads tall), full "
+                      "figure visible from head to feet" + _SHARP,
+             "face_front", None),
             ("left", "the exact same character, identical outfit, hairstyle "
                      "and colors: full body LEFT PROFILE view, standing "
-                     "neutral pose, full figure head to feet" + _SHARP, True, None),
+                     "neutral pose, full figure head to feet" + _SHARP,
+             "front", None),
             ("right", "the exact same character, identical outfit, hairstyle "
                       "and colors: full body RIGHT PROFILE view, standing "
-                      "neutral pose, full figure head to feet" + _SHARP, True, None),
+                      "neutral pose, full figure head to feet" + _SHARP,
+             "front", None),
             ("back", "the exact same character, identical outfit, hairstyle "
                      "and colors: full body BACK view (seen from behind), "
                      "standing neutral pose, full figure head to feet"
-                     + _SHARP, True, None),
-            ("face_front", "the exact same character: head-and-shoulders "
-                           "close-up portrait, front view" + _SHARP, True, None),
-            ("face_left", "the exact same character: head-and-shoulders "
-                          "close-up portrait, LEFT PROFILE view" + _SHARP, True, None),
-            ("face_right", "the exact same character: head-and-shoulders "
-                           "close-up portrait, RIGHT PROFILE view" + _SHARP, True, None),
+                     + _SHARP, "front", None),
         ],
-        "rows": [["front", "left", "right", "back"],
-                 ["face_front", "face_left", "face_right"]],
-        "row_heights": [520, 320],
+        "compose": "character",   # colonnes alignées visage↑corps
         "palette": False,
     },
     "place": {
         "panels": [
             ("wide", "wide establishing shot of the location, no characters"
-                     + _SHARP, False, "landscape_16_9"),
+                     + _SHARP, None, "landscape_16_9"),
             ("angle", "the exact same location, same architecture, palette "
-                      "and light: ALTERNATE camera angle, no characters"
-                      + _SHARP, True, None),
+                      "and light: REVERSE ANGLE seen from the opposite end, "
+                      "clearly different viewpoint, no characters" + _SHARP,
+             "wide", None),
             ("detail", "the exact same location: close-up on one key "
-                       "characteristic detail" + _SHARP, True, None),
+                       "characteristic detail" + _SHARP, "wide", None),
         ],
         "rows": [["wide", "angle", "detail"]],
         "row_heights": [400],
@@ -72,13 +85,13 @@ PANEL_PLANS: dict[str, dict] = {
     "object": {
         "panels": [
             ("front", "product-style reference of the object, front view, "
-                      "centered, plain background" + _SHARP, False, "square_hd"),
+                      "centered, plain background" + _SHARP, None, "square_hd"),
             ("three_quarter", "the exact same object, identical design: "
-                              "three-quarter view" + _SHARP, True, None),
+                              "three-quarter view" + _SHARP, "front", None),
             ("back", "the exact same object, identical design: back view"
-                     + _SHARP, True, None),
+                     + _SHARP, "front", None),
             ("detail", "the exact same object: macro close-up on a "
-                       "characteristic detail" + _SHARP, True, None),
+                       "characteristic detail" + _SHARP, "front", None),
         ],
         "rows": [["front", "three_quarter", "back", "detail"]],
         "row_heights": [360],
@@ -87,11 +100,12 @@ PANEL_PLANS: dict[str, dict] = {
     "ambiance": {
         "panels": [
             ("f1", "atmosphere keyframe: the light, weather and emotional "
-                   "tone of the mood" + _SHARP, False, "landscape_16_9"),
-            ("f2", "the exact same atmosphere, light and palette: a second "
-                   "framing" + _SHARP, True, None),
+                   "tone of the mood" + _SHARP, None, "landscape_16_9"),
+            ("f2", "the exact same atmosphere, light and palette: a clearly "
+                   "different framing from another viewpoint" + _SHARP,
+             "f1", None),
             ("f3", "the exact same atmosphere, light and palette: a third "
-                   "framing, closer" + _SHARP, True, None),
+                   "framing, much closer, intimate" + _SHARP, "f1", None),
         ],
         "rows": [["f1", "f2", "f3"]],
         "row_heights": [380],
@@ -100,28 +114,35 @@ PANEL_PLANS: dict[str, dict] = {
     "date": {
         "panels": [
             ("f1", "evocative era/period reference frame: architecture and "
-                   "street life of the time" + _SHARP, False, "landscape_16_9"),
+                   "street life of the time" + _SHARP, None, "landscape_16_9"),
             ("f2", "the exact same era and palette: costumes and people"
-                   + _SHARP, True, None),
+                   + _SHARP, "f1", None),
             ("f3", "the exact same era and palette: technology and objects "
-                   "of the time" + _SHARP, True, None),
+                   "of the time" + _SHARP, "f1", None),
         ],
         "rows": [["f1", "f2", "f3"]],
         "row_heights": [380],
         "palette": False,
     },
+    # Décor v5 (retour terrain): des ANGLES réellement différents — la
+    # variation vient de points de vue explicites, pas d'un vague "second
+    # framing" qui produisait trois images quasi identiques.
     "decor": {
         "panels": [
             ("v1", "set-dressing reference: overall view of the set "
-                   "elements, furniture and materials" + _SHARP, False,
-             "landscape_16_9"),
-            ("v2", "the exact same set, palette and materials: second "
-                   "framing" + _SHARP, True, None),
-            ("v3", "the exact same set: texture and material close-up"
-                   + _SHARP, True, None),
+                   "elements, furniture and materials, eye-level" + _SHARP,
+             None, "landscape_16_9"),
+            ("v2", "the exact same set, palette and materials: REVERSE "
+                   "ANGLE seen from the opposite side of the room, clearly "
+                   "different viewpoint" + _SHARP, "v1", None),
+            ("v3", "the exact same set: LOW ANGLE view from about 45 "
+                   "degrees to the side, dramatic perspective" + _SHARP,
+             "v1", None),
+            ("v4", "the exact same set: macro close-up on the most "
+                   "characteristic texture or material" + _SHARP, "v1", None),
         ],
-        "rows": [["v1", "v2", "v3"]],
-        "row_heights": [380],
+        "rows": [["v1", "v2", "v3", "v4"]],
+        "row_heights": [360],
         "palette": False,
     },
 }
@@ -139,6 +160,43 @@ def _palette_colors(images_path: Path, fnames: list[str], n: int = 8):
     q = strip.quantize(colors=n)
     pal = q.getpalette()[:n * 3]
     return [tuple(pal[i * 3:i * 3 + 3]) for i in range(n)]
+
+
+def compose_character_board(images_path: Path, panels: dict[str, str],
+                            face_h: int = 300, body_h: int = 560) -> str:
+    """Planche personnage en COLONNES ALIGNÉES: 4 colonnes (front, left,
+    right, back); le headshot correspondant est posé au-dessus de chaque
+    corps (pas de visage pour la colonne dos). Layout garanti par code."""
+    order = ["front", "left", "right", "back"]
+    face_of = {"front": "face_front", "left": "face_left",
+               "right": "face_right", "back": None}
+    bodies, faces = {}, {}
+    for k in order:
+        im = _load(images_path, panels[k])
+        w = max(1, round(im.width * body_h / im.height))
+        bodies[k] = im.resize((w, body_h), Image.LANCZOS)
+        fk = face_of[k]
+        if fk and fk in panels:
+            fim = _load(images_path, panels[fk])
+            fw = max(1, round(fim.width * face_h / fim.height))
+            faces[k] = fim.resize((fw, face_h), Image.LANCZOS)
+    col_w = {k: max(bodies[k].width, faces[k].width if k in faces else 0)
+             for k in order}
+    W = _GUTTER + sum(col_w.values()) + _GUTTER * (len(order) - 1) + _GUTTER
+    H = _GUTTER + face_h + _GUTTER + body_h + _GUTTER
+    board = Image.new("RGB", (W, H), _BG)
+    x = _GUTTER
+    for k in order:
+        if k in faces:
+            fx = x + (col_w[k] - faces[k].width) // 2
+            board.paste(faces[k], (fx, _GUTTER))
+        bx = x + (col_w[k] - bodies[k].width) // 2
+        board.paste(bodies[k], (bx, _GUTTER + face_h + _GUTTER))
+        x += col_w[k] + _GUTTER
+    fname = f"board_{uuid4().hex[:8]}.png"
+    board.save(images_path / fname)
+    logger.info(f"board personnage composé: {fname} ({W}x{H}, colonnes alignées)")
+    return fname
 
 
 def compose_board(images_path: Path, rows: list[list[str]],
