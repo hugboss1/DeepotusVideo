@@ -114,6 +114,23 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .scene-ents{display:flex;gap:5px;flex-wrap:wrap;font-size:11px}
 .scene-src{font-size:11px;color:var(--ink-muted);font-style:italic}
 
+/* ── direction artistique ── */
+.da-box{width:min(760px,94vw);max-height:88vh}
+.da-body{padding:14px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+.da-section{display:flex;flex-direction:column;gap:7px}
+.da-title{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);display:flex;align-items:center;gap:10px}
+.da-cards{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.da-card{border:1px solid var(--stroke);border-radius:10px;padding:10px;cursor:pointer;background:var(--bg-panel-2)}
+.da-card:hover{border-color:var(--cyan)}
+.da-card.sel{border-color:var(--cyan);background:var(--cyan-soft)}
+.da-card b{color:var(--ink-strong);font-size:13px}
+.da-card .da-sp{font-size:11px;color:var(--ink);margin:5px 0}
+.da-card .da-why{font-size:10.5px;color:var(--ink-muted);font-style:italic}
+#daStyle{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:8px 10px;font-size:12.5px;font-family:var(--f-ui);resize:vertical}
+#daProvider{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:7px 9px;font-size:12.5px}
+.da-note{font-size:11px;color:var(--ink-muted)}
+.da-refrow{display:flex;align-items:center;gap:8px}
+
 /* ── voice-over des scènes ── */
 .scene-vo{float:right;display:inline-flex;align-items:center;gap:6px;font-weight:400}
 .scene-vo .btn{padding:2px 8px;font-size:11.5px}

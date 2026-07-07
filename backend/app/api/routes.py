@@ -3000,6 +3000,57 @@ async def get_atelier_settings():
         return {"settings": {r.key: r.value or "" for r in rows}}
 
 
+@router.get("/atelier/providers")
+async def list_image_providers():
+    """Générateurs d'images disponibles (selon les clés configurées), avec
+    l'indicateur seeds (déterminisme des recettes)."""
+    from app.services import image_providers as IP
+    return {"providers": IP.available(), "default": "flux"}
+
+
+@router.post("/atelier/style/propose")
+async def propose_art_direction(body: dict):
+    """v1.23 (DA) — l'agent lit un extrait représentatif du manuscrit (ton,
+    époque, genre, indices visuels rédigés) et propose 4 directions
+    artistiques motivées. Persistées dans atelier_settings.style_proposals.
+    Body: {chapter_id?} — sinon: tous les chapitres, concaténés."""
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (Chapter, BibleEntity, AtelierSetting,
+                                      async_session_factory)
+    from app.services.summarizer import available
+    from sqlalchemy import select
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    async with async_session_factory() as session:
+        if body.get("chapter_id"):
+            ch = await session.get(Chapter, body["chapter_id"])
+            if not ch:
+                raise HTTPException(404, "Chapter not found")
+            texts = [ch.script_text or ""]
+        else:
+            rows = (await session.execute(select(Chapter))).scalars().all()
+            texts = [c.script_text or "" for c in rows]
+        excerpt = "\n\n".join(t[:3000] for t in texts if t.strip())[:9000]
+        if len(excerpt) < 200:
+            raise HTTPException(400, "Pas assez de texte — importe le manuscrit d'abord.")
+        ents = (await session.execute(select(BibleEntity))).scalars().all()
+        names = [e.name for e in ents]
+    loop = asyncio.get_running_loop()
+    props = await loop.run_in_executor(
+        None, lambda: MA.propose_styles(excerpt, names))
+    if not props:
+        raise HTTPException(502, "La proposition de DA a échoué — réessaie.")
+    async with async_session_factory() as session:
+        row = await session.get(AtelierSetting, "style_proposals")
+        val = json.dumps(props, ensure_ascii=False)
+        if row:
+            row.value = val
+        else:
+            session.add(AtelierSetting(key="style_proposals", value=val))
+        await session.commit()
+    return {"proposals": props, "presets": MA.STYLE_PRESETS}
+
+
 @router.put("/atelier/settings")
 async def put_atelier_settings(body: dict):
     """Upsert de réglages {key: value}. Clés: global_style, …"""
@@ -3169,8 +3220,15 @@ async def generate_bible_reference(entity_id: str, body: dict):
         except Exception:
             insp_file = None
         seeds_by_key: dict = {}
+        # provider du projet (réglage DA) — la recette fige le sien
+        provider = await _atelier_setting(session, "image_provider") or "flux"
+        style_ref = await _atelier_setting(session, "style_ref_image")
+        if style_ref and not (settings.images_path / Path(style_ref).name).is_file():
+            style_ref = ""
         if recipe and recipe.get("v") == 2:
             insp_file = recipe.get("ref_file") or insp_file
+            provider = recipe.get("provider") or provider
+            style_ref = recipe.get("style_ref") or style_ref
             seeds_by_key = {p["key"]: p.get("seed")
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
@@ -3189,12 +3247,12 @@ async def generate_bible_reference(entity_id: str, body: dict):
         req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
         panels: dict[str, str] = {}
         recipe_panels = []
+        from app.services import image_providers as IP
         for key, ptxt, chain_on, p1size in plan["panels"]:
             if chain_on:
                 prompt = ptxt + style
-                model = "fal-ai/flux-kontext/dev"
                 img = settings.images_path / panels[chain_on]
-                size = "landscape_16_9"      # ignoré par kontext (cadre la réf)
+                size = "landscape_16_9"      # les modèles edit cadrent la réf
             else:
                 prompt = ptxt + "." + subj + style
                 if insp_file:
@@ -3202,17 +3260,32 @@ async def generate_bible_reference(entity_id: str, body: dict):
                               "as the reference image, keep its identity and "
                               "art style, but remove any text or lettering: "
                               + prompt)
-                    model = "fal-ai/flux-kontext/dev"
                     img = settings.images_path / insp_file
+                elif style_ref:
+                    # référence de STYLE du projet (pas d'identité propre):
+                    # conditionne le panneau maître sur son rendu.
+                    prompt = ("Reproduce the exact ART STYLE of the "
+                              "reference image (medium, line, palette, "
+                              "rendering) applied to a NEW subject: " + prompt)
+                    img = settings.images_path / Path(style_ref).name
                 else:
-                    model = "fal-ai/flux/dev"
                     img = None
                 size = p1size or "landscape_16_9"
             seed = seeds_by_key.get(key)
             if seed is None and not chain_on:
                 seed = req_seed
-            out = await _flux_generate(prompt, size, 1, seed=seed,
-                                       model=model, image_path=img)
+            if provider == "flux":
+                model = ("fal-ai/flux-kontext/dev" if img is not None
+                         else "fal-ai/flux/dev")
+                out = await _flux_generate(prompt, size, 1, seed=seed,
+                                           model=model, image_path=img)
+            else:
+                model = provider
+                try:
+                    out = await IP.generate(provider, prompt, size, 1,
+                                            seed=seed, image_path=img)
+                except RuntimeError as pe:
+                    raise HTTPException(502, str(pe))
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model})
@@ -3232,6 +3305,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
         e.seed = recipe_panels[0].get("seed")
         e.prompt_recipe = _json.dumps(
             {"v": 2, "kind": e.kind, "ref_file": insp_file,
+             "provider": provider, "style_ref": style_ref or None,
              "panels": recipe_panels}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
@@ -3913,11 +3987,38 @@ async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
                     ch_by_key[key] = c
                     created_c += 1
             await session.commit()
+        # 5. direction artistique — l'agent propose 4 styles motivés par le
+        # manuscrit (best-effort: un échec n'invalide pas l'ingestion).
+        n_da = 0
+        try:
+            upd(phase="direction artistique",
+                message="Propositions de direction artistique…")
+            excerpt = "\n\n".join(s["text"][:3000] for s in segs[:4])[:9000]
+            names = [fe["name"] for fe in final]
+            props = await loop.run_in_executor(
+                None, lambda: MA.propose_styles(excerpt, names))
+            if props:
+                from app.services.storage import AtelierSetting
+                async with async_session_factory() as session:
+                    row = await session.get(AtelierSetting, "style_proposals")
+                    val = _json.dumps(props, ensure_ascii=False)
+                    if row:
+                        row.value = val
+                    else:
+                        session.add(AtelierSetting(key="style_proposals",
+                                                   value=val))
+                    await session.commit()
+                n_da = len(props)
+        except Exception as de:
+            logger.warning(f"DA proposals skipped: {de}")
         upd(phase="terminé", done=True,
-            message="Ingestion terminée — bible consolidée et chapitres surlignés.",
+            message="Ingestion terminée — bible consolidée, chapitres surlignés"
+                    + (f", {n_da} directions artistiques proposées (🎨)." if n_da
+                       else "."),
             stats={"chapitres_crees": created_c, "chapitres_mis_a_jour": updated_c,
                    "entites_creees": created_e, "entites_enrichies": updated_e,
-                   "zones_surlignees": total_spans})
+                   "zones_surlignees": total_spans,
+                   "directions_proposees": n_da})
         logger.success(f"manuscrit {jid}: {created_c}+{updated_c} chapitres, "
                        f"{created_e}+{updated_e} entités, {total_spans} spans")
     except Exception as e:

@@ -474,3 +474,69 @@ def parse_fountain_segments(fountain_text: str) -> list[dict]:
         i += 1
     flush_narr()
     return segments
+
+
+# ───────────────── DA. direction artistique proposée ─────────────────
+
+STYLE_PRESETS = [
+    {"id": "bd", "label": "BD franco-belge",
+     "style_prompt": "European comic book art (bande dessinée), clean ink "
+                     "outlines, flat cel colors, ligne claire influence, "
+                     "expressive faces, detailed backgrounds"},
+    {"id": "manga", "label": "Manga / Anime",
+     "style_prompt": "anime manga art style, sharp linework, cel shading, "
+                     "dramatic lighting, detailed eyes, cinematic anime "
+                     "composition"},
+    {"id": "comics", "label": "Comics US",
+     "style_prompt": "American comic book style, bold inks, dynamic "
+                     "shading, halftone textures, dramatic panel lighting"},
+    {"id": "realiste", "label": "Réaliste photo",
+     "style_prompt": "photorealistic, natural skin textures, realistic "
+                     "lighting, 85mm lens look, shallow depth of field"},
+    {"id": "cine", "label": "Cinématographique",
+     "style_prompt": "cinematic film still, anamorphic framing, filmic "
+                     "color grading, volumetric light, high production value"},
+    {"id": "sf", "label": "SF rétro-futuriste",
+     "style_prompt": "retro-futuristic science-fiction concept art, neon "
+                     "accents, brutalist megastructures, atmospheric haze"},
+    {"id": "aquarelle", "label": "Aquarelle",
+     "style_prompt": "watercolor illustration, soft washes, visible paper "
+                     "grain, delicate ink lines, muted palette"},
+    {"id": "noir", "label": "Noir encré",
+     "style_prompt": "high-contrast black and white ink illustration, film "
+                     "noir shadows, dramatic chiaroscuro, crosshatching"},
+]
+
+
+def propose_styles(excerpt: str, bible_names: list[str],
+                   lang: str = "fr") -> list[dict]:
+    """L'agent lit un extrait représentatif du manuscrit (ton, époque, genre,
+    indices visuels rédigés par l'auteur) et propose 4 directions
+    artistiques motivées. Retour: [{label, style_prompt, rationale}]."""
+    from app.services.summarizer import _chat_dispatch
+    roster = ", ".join(bible_names[:30]) or "(bible vide)"
+    system = ("You are the art director of an animation studio choosing the "
+              "visual identity of an adaptation. Return ONLY valid JSON.")
+    prompt = (
+        "Read this manuscript excerpt and its cast, then propose exactly 4 "
+        "distinct ART DIRECTIONS that fit the tone, era and genre WRITTEN in "
+        "the text (mood, settings, imagery the author describes).\n"
+        "For each: \"label\" = short name in French; \"style_prompt\" = a "
+        "generation-ready style description in English (medium, line/render, "
+        "palette, lighting, era references — usable verbatim in an image "
+        "prompt, 1-2 sentences, NO subject content); \"rationale\" = one "
+        "French sentence citing what in the manuscript motivates it.\n"
+        "Return ONLY a JSON array of 4 objects.\n\n"
+        f"Cast: {roster}\n\nManuscript excerpt:\n{excerpt[:9000]}")
+    out, _prov = _chat_dispatch(prompt, system, 3000)
+    data = _parse_json(out)
+    props = []
+    for it in (data if isinstance(data, list) else []):
+        if not isinstance(it, dict):
+            continue
+        lab = str(it.get("label") or "").strip()
+        sp = str(it.get("style_prompt") or "").strip()
+        if lab and sp:
+            props.append({"label": lab[:80], "style_prompt": sp[:500],
+                          "rationale": str(it.get("rationale") or "").strip()[:300]})
+    return props[:4]

@@ -105,7 +105,8 @@
       <button id="addEntity" class="btn">＋ Nouveau</button>
     </div>
     <div class="globalstyle">
-      🎬 <input id="globalStyle" placeholder="Style global du projet (ex: anime sombre réaliste, palette abyssale) — toutes les planches l'utilisent"
+      <button id="daBtn" class="btn primary" title="Direction artistique : propositions de l'agent (motivées par le manuscrit), styles présets (BD, manga, réaliste…), choix du générateur d'images et référence de style">🎨 DA</button>
+      <input id="globalStyle" placeholder="Style global du projet — toutes les planches l'utilisent (🎨 DA pour les propositions)"
         title="Style de réalisation appliqué à TOUTES les générations du projet. Une entité peut le surcharger ponctuellement via ses propres notes de style.">
       <span id="styleSaved" class="savestate">—</span>
     </div>
@@ -126,6 +127,48 @@
       </div>
     </div>
     <div id="libGrid" class="lib-grid"></div>
+  </div>
+</div>
+
+<!-- Modal Direction Artistique -->
+<div id="daModal" class="modal hidden">
+  <div class="modal-box da-box">
+    <div class="modal-head">
+      <b>🎨 Direction artistique du projet</b>
+      <button id="daClose" class="btn ghost">✕</button>
+    </div>
+    <div class="da-body">
+      <div class="da-section">
+        <div class="da-title">Propositions de l'agent <button id="daPropose" class="btn" title="L'agent relit le manuscrit (ton, époque, genre, indices visuels rédigés) et propose 4 directions motivées">✨ (Re)proposer</button></div>
+        <div id="daProposals" class="da-cards"><div class="empty-note">Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Styles présets</div>
+        <div id="daPresets" class="voice-chiplist"></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Style appliqué (modifiable)</div>
+        <textarea id="daStyle" rows="3" placeholder="Le style injecté dans toutes les générations du projet…"></textarea>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Générateur d'images</div>
+        <select id="daProvider"></select>
+        <div id="daProviderNote" class="da-note"></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Référence de style (optionnel)</div>
+        <div class="da-refrow">
+          <span id="daRefName" class="da-note">aucune</span>
+          <button id="daRefPick" class="btn">🖼 Choisir</button>
+          <button id="daRefClear" class="btn ghost">✕ Retirer</button>
+        </div>
+        <div class="da-note">Une image (planche BD, still de film…) dont le RENDU sert de modèle aux planches — utilisée quand l'entité n'a pas sa propre référence d'identité.</div>
+      </div>
+      <div class="ms-actions">
+        <button id="daApply" class="btn primary">✔ Appliquer au projet</button>
+        <span class="ms-warn">persiste et s'applique à toutes les générations — chaque entité peut garder son style spécifique</span>
+      </div>
+    </div>
   </div>
 </div>
 

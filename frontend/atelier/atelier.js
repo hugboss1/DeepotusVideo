@@ -626,7 +626,9 @@ async function decoupe(method) {
   } catch (e) { toast("Découpage échoué : " + e.message, true); }
 }
 
-/* ═════════ Library modal ═════════ */
+/* ═════════ Library modal (générique: callback au choix d'une image) ═════════ */
+let libOnPick = null;   // (filename) => void — posé par openLibrary
+
 async function attachInspiration(filename) {
   const ent = entities.find(x => x.id === libTarget);
   if (!ent || !filename) return;
@@ -634,13 +636,13 @@ async function attachInspiration(filename) {
   if (!insp.includes(filename)) insp.push(filename);
   const up = await api.send("PUT", "/bible/entities/" + libTarget, { inspiration_images: insp });
   Object.assign(ent, up);
-  $("#libModal").classList.add("hidden");
   renderBible();
   toast(`Inspiration « ${filename} » ajoutée (elle est aussi dans la Library).`);
 }
 
-async function openLibrary(entityId) {
+async function openLibrary(entityId, onPick) {
   libTarget = entityId;
+  libOnPick = onPick || attachInspiration;
   const grid = $("#libGrid");
   grid.innerHTML = `<div class="empty-note">Chargement…</div>`;
   $("#libModal").classList.remove("hidden");
@@ -651,7 +653,10 @@ async function openLibrary(entityId) {
       ? files.map(f => `<img src="/api/images/${encodeURIComponent(f)}" data-f="${esc(f)}" title="${esc(f)}">`).join("")
       : `<div class="empty-note">Library vide.</div>`;
     grid.querySelectorAll("img").forEach(img =>
-      img.addEventListener("click", () => attachInspiration(img.dataset.f)));
+      img.addEventListener("click", async () => {
+        $("#libModal").classList.add("hidden");
+        await libOnPick(img.dataset.f);
+      }));
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
 }
 
@@ -736,6 +741,93 @@ async function showAllVoices(entityId, card) {
     alts.innerHTML = `<div class="voice-chiplist">${vs.map(v => voiceChip(v, entityId)).join("")}</div>`;
     wireVoiceChips(alts, entityId);
   } catch (e) { toast(e.message, true); }
+}
+
+/* ═════════ direction artistique (DA) ═════════ */
+const STYLE_PRESETS = [
+  { label: "BD franco-belge", sp: "European comic book art (bande dessinée), clean ink outlines, flat cel colors, ligne claire influence, expressive faces, detailed backgrounds" },
+  { label: "Manga / Anime", sp: "anime manga art style, sharp linework, cel shading, dramatic lighting, detailed eyes, cinematic anime composition" },
+  { label: "Comics US", sp: "American comic book style, bold inks, dynamic shading, halftone textures, dramatic panel lighting" },
+  { label: "Réaliste photo", sp: "photorealistic, natural skin textures, realistic lighting, 85mm lens look, shallow depth of field" },
+  { label: "Cinématographique", sp: "cinematic film still, anamorphic framing, filmic color grading, volumetric light, high production value" },
+  { label: "SF rétro-futuriste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
+  { label: "Aquarelle", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
+  { label: "Noir encré", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
+];
+let daSettings = {};
+
+function daRenderProposals(props) {
+  const box = $("#daProposals");
+  if (!props || !props.length) {
+    box.innerHTML = `<div class="empty-note">Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div>`;
+    return;
+  }
+  box.innerHTML = props.map((p, i) => `
+    <div class="da-card" data-sp="${esc(p.style_prompt)}">
+      <b>${esc(p.label)}</b>
+      <div class="da-sp">${esc(p.style_prompt)}</div>
+      ${p.rationale ? `<div class="da-why">${esc(p.rationale)}</div>` : ""}
+    </div>`).join("");
+  box.querySelectorAll(".da-card").forEach(card =>
+    card.addEventListener("click", () => {
+      box.querySelectorAll(".da-card").forEach(c => c.classList.remove("sel"));
+      card.classList.add("sel");
+      $("#daStyle").value = card.dataset.sp;
+    }));
+}
+
+async function openDA() {
+  try {
+    const st = await api.get("/atelier/settings");
+    daSettings = st.settings || {};
+  } catch (e) { daSettings = {}; }
+  $("#daStyle").value = daSettings.global_style || $("#globalStyle").value || "";
+  let props = [];
+  try { props = JSON.parse(daSettings.style_proposals || "[]"); } catch (e) { }
+  daRenderProposals(props);
+  $("#daPresets").innerHTML = STYLE_PRESETS.map(p =>
+    `<span class="voice-chip da-preset" data-sp="${esc(p.sp)}" style="cursor:pointer"><b>${esc(p.label)}</b></span>`).join("");
+  document.querySelectorAll(".da-preset").forEach(chip =>
+    chip.addEventListener("click", () => { $("#daStyle").value = chip.dataset.sp; }));
+  // générateurs disponibles
+  try {
+    const pv = await api.get("/atelier/providers");
+    const cur = daSettings.image_provider || "flux";
+    $("#daProvider").innerHTML = pv.providers.map(p =>
+      `<option value="${p.id}" ${p.id === cur ? "selected" : ""}>${esc(p.label)}</option>`).join("");
+    const upd = () => {
+      const sel = pv.providers.find(p => p.id === $("#daProvider").value);
+      $("#daProviderNote").textContent = sel && !sel.seeds
+        ? "⚠ Ce générateur n'a pas de seeds : la recette 🔁 conserve les prompts et le chaînage d'image, mais pas la réplique au pixel (FLUX seul le garantit)."
+        : "Seeds disponibles — recettes 🔁 rejouables à l'identique.";
+    };
+    $("#daProvider").addEventListener("change", upd); upd();
+  } catch (e) { $("#daProvider").innerHTML = `<option value="flux">FLUX (fal)</option>`; }
+  $("#daRefName").textContent = daSettings.style_ref_image || "aucune";
+  $("#daModal").classList.remove("hidden");
+}
+
+async function daApply() {
+  try {
+    await api.send("PUT", "/atelier/settings", {
+      global_style: $("#daStyle").value.trim(),
+      image_provider: $("#daProvider").value,
+      style_ref_image: $("#daRefName").textContent === "aucune"
+        ? "" : $("#daRefName").textContent,
+    });
+    $("#globalStyle").value = $("#daStyle").value.trim();
+    $("#daModal").classList.add("hidden");
+    toast("🎨 Direction artistique appliquée — toutes les prochaines planches l'utilisent.");
+  } catch (e) { toast("DA : " + e.message, true); }
+}
+
+async function daPropose() {
+  toast("✨ L'agent relit le manuscrit… (~15 s)");
+  try {
+    const d = await api.send("POST", "/atelier/style/propose", {});
+    daRenderProposals(d.proposals);
+    toast(`✨ ${d.proposals.length} directions proposées — clique pour en choisir une.`);
+  } catch (e) { toast("Proposition DA : " + e.message, true); }
 }
 
 /* ═════════ style global du projet ═════════ */
@@ -892,6 +984,16 @@ window.addEventListener("DOMContentLoaded", async () => {
   // style global du projet
   $("#globalStyle").addEventListener("input", saveGlobalStyle);
 
+  // direction artistique
+  $("#daBtn").addEventListener("click", openDA);
+  $("#daClose").addEventListener("click", () => $("#daModal").classList.add("hidden"));
+  $("#daModal").addEventListener("click", (e) => { if (e.target.id === "daModal") $("#daModal").classList.add("hidden"); });
+  $("#daApply").addEventListener("click", daApply);
+  $("#daPropose").addEventListener("click", daPropose);
+  $("#daRefPick").addEventListener("click", () =>
+    openLibrary(null, async (f) => { $("#daRefName").textContent = f; $("#daModal").classList.remove("hidden"); }));
+  $("#daRefClear").addEventListener("click", () => { $("#daRefName").textContent = "aucune"; });
+
   // resets (storyboard + scénario)
   $("#boardReset").addEventListener("click", async () => {
     if (!chapter || !shots.length) { toast("Rien à réinitialiser.", true); return; }
@@ -933,29 +1035,31 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#libClose").addEventListener("click", () => $("#libModal").classList.add("hidden"));
   $("#libModal").addEventListener("click", (e) => { if (e.target.id === "libModal") $("#libModal").classList.add("hidden"); });
 
-  // import externe → Library → inspiration (fichier local ou URL web)
+  // import externe → Library → callback du picker (inspiration OU réf de style)
   $("#libUpload").addEventListener("change", async (e) => {
     const f = e.target.files && e.target.files[0];
-    if (!f || !libTarget) return;
+    if (!f || !libOnPick) return;
     toast("Import du fichier…");
     try {
       const fd = new FormData(); fd.append("file", f);
       const r = await fetch("/api/images/upload", { method: "POST", body: fd });
       const d = await r.json();
       if (!r.ok || !d.filename) throw new Error(d.detail || "upload échoué");
-      await attachInspiration(d.filename);
+      $("#libModal").classList.add("hidden");
+      await libOnPick(d.filename);
     } catch (err) { toast("Import échoué : " + err.message, true); }
     e.target.value = "";
   });
   $("#libUrl").addEventListener("click", async () => {
-    if (!libTarget) return;
+    if (!libOnPick) return;
     const url = prompt("URL de l'image (http…) :");
     if (!url || !url.trim()) return;
     toast("Téléchargement de l'image…");
     try {
       const d = await api.send("POST", "/images/fetch", { url: url.trim() });
       if (!d.filename) throw new Error("réponse sans fichier");
-      await attachInspiration(d.filename);
+      $("#libModal").classList.add("hidden");
+      await libOnPick(d.filename);
     } catch (err) { toast("Import URL échoué : " + err.message, true); }
   });
 
