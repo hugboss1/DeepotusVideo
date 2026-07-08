@@ -71,9 +71,28 @@ def test_builders():
     assert next(p for p in IP.available() if p["id"] == "nano-banana")["seeds"] is False
 
 
+def test_canons():
+    from app.services import manuscript_agent as MA
+    # chaque canon est complet (char/face/decor/label/kw) + presets valides
+    for cid, c in MA.PROPORTION_CANONS.items():
+        assert c["char"] and c["face"] and c["decor"] and c["label"], cid
+    for p in MA.STYLE_PRESETS:
+        assert p["canon"] in MA.PROPORTION_CANONS, p["id"]
+    # résolution: explicite > mots-clés du style > défaut De Vinci
+    assert MA.resolve_canon("anime manga art style") == "manga_shonen"
+    assert MA.resolve_canon("ligne claire influence, tintin") == "ligne_claire"
+    assert MA.resolve_canon("American comic book style, superhero") == "comics_heroic"
+    assert MA.resolve_canon("style Astérix, humour gros nez") == "gros_nez"
+    assert MA.resolve_canon("Moebius metal hurlant") == "bd_realiste"
+    assert MA.resolve_canon("gravure abyssale monochrome") == "davinci"
+    assert MA.resolve_canon("anime manga", explicit="chibi") == "chibi"
+    assert MA.resolve_canon("x", explicit="inexistant") == "davinci"
+
+
 PROPOSALS = json.dumps([
     {"label": "Anticipation froide", "style_prompt": "cold retro-futuristic "
      "cinematic style, desaturated steel palette, volumetric fog",
+     "canon": "cine",
      "rationale": "La pluie d'acier et la ville-machine du chapitre 1."},
     {"label": "Encre abyssale", "style_prompt": "inked noir illustration, "
      "deep blacks", "rationale": "Le ton noir du récit."},
@@ -98,6 +117,9 @@ async def main():
         assert r.status_code == 200, r.text
         assert len(r.json()["proposals"]) == 4
         assert r.json()["proposals"][0]["label"] == "Anticipation froide"
+        # canon: fourni par l'agent (cine) ou déduit du style_prompt
+        assert r.json()["proposals"][0]["canon"] == "cine"
+        assert all(p["canon"] for p in r.json()["proposals"])
         st = (await c.get("/api/atelier/settings")).json()["settings"]
         assert "Anticipation froide" in st["style_proposals"]
 
@@ -128,6 +150,35 @@ async def main():
         assert r.status_code == 200
         assert CALLS[0]["model"] == "fal-ai/nano-banana"
 
+        # ── canon de proportions injecté selon le style (DA2) ──
+        await c.put("/api/atelier/settings",
+                    json={"image_provider": "flux", "style_canon": "auto",
+                          "global_style": "anime manga art style, cel shading"})
+        perso = (await c.post("/api/bible/entities", json={
+            "kind": "character", "name": "Yuki",
+            "description": "jeune héroïne aux cheveux argentés"})).json()
+        CALLS.clear()
+        r = await c.post(f"/api/bible/entities/{perso['id']}/generate", json={})
+        assert r.status_code == 200, r.text
+        # style manga auto-détecté → canon shōnen: visage manga sur le
+        # headshot maître, 6,5-7 têtes sur le corps
+        assert "manga face" in CALLS[0]["arguments"]["prompt"]
+        assert any("6.5 to 7 heads" in cl["arguments"]["prompt"] for cl in CALLS)
+        # choix EXPLICITE gros nez → il prime sur la détection
+        await c.put("/api/atelier/settings", json={"style_canon": "gros_nez"})
+        CALLS.clear()
+        await c.post(f"/api/bible/entities/{perso['id']}/generate", json={})
+        assert any("4 to 5.5 heads" in cl["arguments"]["prompt"] for cl in CALLS)
+        assert "oversized round" in CALLS[0]["arguments"]["prompt"]  # gros nez
+        # la recette FIGE le canon: rejouer 🔁 ignore le réglage courant
+        await c.put("/api/atelier/settings", json={"style_canon": "chibi"})
+        CALLS.clear()
+        await c.post(f"/api/bible/entities/{perso['id']}/generate",
+                     json={"use_recipe": True})
+        assert any("4 to 5.5 heads" in cl["arguments"]["prompt"] for cl in CALLS)
+        await c.put("/api/atelier/settings",
+                    json={"style_canon": "auto", "global_style": ""})
+
         # ── référence de STYLE (flux, entité sans identité propre) ──
         (pathlib.Path(_tmp, "images") / "style-bd.png").write_bytes(PNG)
         await c.put("/api/atelier/settings",
@@ -140,8 +191,12 @@ async def main():
         assert r.status_code == 200, r.text
         assert CALLS[0]["model"] == "fal-ai/flux-kontext/dev"   # conditionné
         assert "ART STYLE of the reference image" in CALLS[0]["arguments"]["prompt"]
+        # décors: la perspective/échelle du canon (De Vinci par défaut) est
+        # injectée sur le panneau maître
+        assert "true human scale" in CALLS[0]["arguments"]["prompt"]
     print("STYLE DA TEST: PASS")
 
 
 test_builders()
+test_canons()
 asyncio.run(main())

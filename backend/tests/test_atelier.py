@@ -137,7 +137,10 @@ async def main():
                    for c in CALLS) == 3
         assert not any("right profile" in c["arguments"]["prompt"].lower()
                        for c in CALLS)
-        assert "seven and a half heads tall" in CALLS[2]["arguments"]["prompt"]
+        # canon de proportions (DA2): style_notes "style anime sombre" →
+        # canon manga shōnen auto-détecté (6,5-7 têtes, visage manga)
+        assert "6.5 to 7 heads" in CALLS[2]["arguments"]["prompt"]
+        assert "manga face" in CALLS[0]["arguments"]["prompt"]
         assert any("back view" in c["arguments"]["prompt"].lower()
                    for c in CALLS[3:])
         # board composé et stocké (PIL a réellement assemblé les panneaux)

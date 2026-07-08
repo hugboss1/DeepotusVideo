@@ -745,16 +745,41 @@ async function showAllVoices(entityId, card) {
 
 /* ═════════ direction artistique (DA) ═════════ */
 const STYLE_PRESETS = [
-  { label: "BD franco-belge", sp: "European comic book art (bande dessinée), clean ink outlines, flat cel colors, ligne claire influence, expressive faces, detailed backgrounds" },
-  { label: "Manga / Anime", sp: "anime manga art style, sharp linework, cel shading, dramatic lighting, detailed eyes, cinematic anime composition" },
-  { label: "Comics US", sp: "American comic book style, bold inks, dynamic shading, halftone textures, dramatic panel lighting" },
-  { label: "Réaliste photo", sp: "photorealistic, natural skin textures, realistic lighting, 85mm lens look, shallow depth of field" },
-  { label: "Cinématographique", sp: "cinematic film still, anamorphic framing, filmic color grading, volumetric light, high production value" },
-  { label: "SF rétro-futuriste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
-  { label: "Aquarelle", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
-  { label: "Noir encré", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
+  { label: "BD franco-belge", canon: "ligne_claire", sp: "European comic book art (bande dessinée), clean ink outlines, flat cel colors, ligne claire influence, expressive faces, detailed backgrounds" },
+  { label: "Manga / Anime", canon: "manga_shonen", sp: "anime manga art style, sharp linework, cel shading, dramatic lighting, detailed eyes, cinematic anime composition" },
+  { label: "Comics US", canon: "comics_heroic", sp: "American comic book style, bold inks, dynamic shading, halftone textures, dramatic panel lighting" },
+  { label: "Réaliste photo", canon: "davinci", sp: "photorealistic, natural skin textures, realistic lighting, 85mm lens look, shallow depth of field" },
+  { label: "Cinématographique", canon: "cine", sp: "cinematic film still, anamorphic framing, filmic color grading, volumetric light, high production value" },
+  { label: "SF rétro-futuriste", canon: "bd_realiste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
+  { label: "Aquarelle", canon: "davinci", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
+  { label: "Noir encré", canon: "davinci", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
+];
+// Miroir de PROPORTION_CANONS (backend) — canons de proportions issus des
+// grandes écoles: De Vinci, manga japonais, ligne claire belge, école
+// gros-nez franco-belge, Moebius, comics héroïques DC/Marvel…
+const PROPORTION_CANONS = [
+  { id: "auto", label: "Auto (déduit du style)", hint: "Le canon est détecté depuis le texte du style — manga → shōnen, tintin → ligne claire, etc." },
+  { id: "davinci", label: "Académique (De Vinci)", hint: "7,5–8 têtes, canon de Vitruve : envergure = taille, visage en tiers égaux." },
+  { id: "cine", label: "Cinéma réaliste", hint: "≈7,5 têtes, anatomie naturelle, visages de casting réel." },
+  { id: "manga_shonen", label: "Manga shōnen", hint: "6,5–7 têtes (ados ≈6), grands yeux placés bas, petit nez, menton pointu." },
+  { id: "manga_shojo", label: "Manga shōjo (élancé)", hint: "7–8 têtes très élancées, yeux immenses et lumineux, membres fins." },
+  { id: "chibi", label: "Chibi / SD", hint: "2,5–3 têtes, tête et yeux surdimensionnés, mains minuscules." },
+  { id: "ligne_claire", label: "Ligne claire (Hergé/Schuiten)", hint: "Corps RÉALISTES ≈7 têtes sous un visage simplifié : yeux-points, trait uniforme, aplats." },
+  { id: "gros_nez", label: "Comique franco-belge (gros nez)", hint: "4–5,5 têtes (Astérix, Gaston, Gotlib) : gros nez rond, membres élastiques, gros souliers." },
+  { id: "bd_realiste", label: "BD réaliste (Moebius)", hint: "≈8 têtes élégantes et élancées (Moebius/Jodorowsky), trait fin, hachures." },
+  { id: "comics_heroic", label: "Comics héroïque (DC/Marvel)", hint: "8,5–9 têtes, épaules de 3 têtes de large, torse en V, musculature dessinée." },
 ];
 let daSettings = {};
+
+function daSetCanon(id) {
+  const sel = $("#daCanon");
+  if (sel && [...sel.options].some(o => o.value === id)) sel.value = id;
+  daCanonNote();
+}
+function daCanonNote() {
+  const c = PROPORTION_CANONS.find(c => c.id === $("#daCanon").value);
+  $("#daCanonNote").textContent = c ? c.hint : "";
+}
 
 function daRenderProposals(props) {
   const box = $("#daProposals");
@@ -763,7 +788,7 @@ function daRenderProposals(props) {
     return;
   }
   box.innerHTML = props.map((p, i) => `
-    <div class="da-card" data-sp="${esc(p.style_prompt)}">
+    <div class="da-card" data-sp="${esc(p.style_prompt)}" data-canon="${esc(p.canon || "")}">
       <b>${esc(p.label)}</b>
       <div class="da-sp">${esc(p.style_prompt)}</div>
       ${p.rationale ? `<div class="da-why">${esc(p.rationale)}</div>` : ""}
@@ -773,6 +798,7 @@ function daRenderProposals(props) {
       box.querySelectorAll(".da-card").forEach(c => c.classList.remove("sel"));
       card.classList.add("sel");
       $("#daStyle").value = card.dataset.sp;
+      if (card.dataset.canon) daSetCanon(card.dataset.canon);
     }));
 }
 
@@ -786,9 +812,19 @@ async function openDA() {
   try { props = JSON.parse(daSettings.style_proposals || "[]"); } catch (e) { }
   daRenderProposals(props);
   $("#daPresets").innerHTML = STYLE_PRESETS.map(p =>
-    `<span class="voice-chip da-preset" data-sp="${esc(p.sp)}" style="cursor:pointer"><b>${esc(p.label)}</b></span>`).join("");
+    `<span class="voice-chip da-preset" data-sp="${esc(p.sp)}" data-canon="${esc(p.canon)}" style="cursor:pointer"><b>${esc(p.label)}</b></span>`).join("");
   document.querySelectorAll(".da-preset").forEach(chip =>
-    chip.addEventListener("click", () => { $("#daStyle").value = chip.dataset.sp; }));
+    chip.addEventListener("click", () => {
+      $("#daStyle").value = chip.dataset.sp;
+      daSetCanon(chip.dataset.canon);
+    }));
+  // canon de proportions (De Vinci, manga, ligne claire, gros nez, DC…)
+  $("#daCanon").innerHTML = PROPORTION_CANONS.map(c =>
+    `<option value="${c.id}" title="${esc(c.hint)}">${esc(c.label)}</option>`).join("");
+  $("#daCanon").value = daSettings.style_canon || "auto";
+  if ($("#daCanon").selectedIndex < 0) $("#daCanon").value = "auto";
+  $("#daCanon").onchange = daCanonNote;
+  daCanonNote();
   // générateurs disponibles
   try {
     const pv = await api.get("/atelier/providers");
@@ -812,6 +848,7 @@ async function daApply() {
     await api.send("PUT", "/atelier/settings", {
       global_style: $("#daStyle").value.trim(),
       image_provider: $("#daProvider").value,
+      style_canon: $("#daCanon").value,
       style_ref_image: $("#daRefName").textContent === "aucune"
         ? "" : $("#daRefName").textContent,
     });

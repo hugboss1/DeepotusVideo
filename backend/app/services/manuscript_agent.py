@@ -478,31 +478,32 @@ def parse_fountain_segments(fountain_text: str) -> list[dict]:
 
 # ───────────────── DA. direction artistique proposée ─────────────────
 
+# "canon" = canon de proportions par défaut du preset (PROPORTION_CANONS).
 STYLE_PRESETS = [
-    {"id": "bd", "label": "BD franco-belge",
+    {"id": "bd", "label": "BD franco-belge", "canon": "ligne_claire",
      "style_prompt": "European comic book art (bande dessinée), clean ink "
                      "outlines, flat cel colors, ligne claire influence, "
                      "expressive faces, detailed backgrounds"},
-    {"id": "manga", "label": "Manga / Anime",
+    {"id": "manga", "label": "Manga / Anime", "canon": "manga_shonen",
      "style_prompt": "anime manga art style, sharp linework, cel shading, "
                      "dramatic lighting, detailed eyes, cinematic anime "
                      "composition"},
-    {"id": "comics", "label": "Comics US",
+    {"id": "comics", "label": "Comics US", "canon": "comics_heroic",
      "style_prompt": "American comic book style, bold inks, dynamic "
                      "shading, halftone textures, dramatic panel lighting"},
-    {"id": "realiste", "label": "Réaliste photo",
+    {"id": "realiste", "label": "Réaliste photo", "canon": "davinci",
      "style_prompt": "photorealistic, natural skin textures, realistic "
                      "lighting, 85mm lens look, shallow depth of field"},
-    {"id": "cine", "label": "Cinématographique",
+    {"id": "cine", "label": "Cinématographique", "canon": "cine",
      "style_prompt": "cinematic film still, anamorphic framing, filmic "
                      "color grading, volumetric light, high production value"},
-    {"id": "sf", "label": "SF rétro-futuriste",
+    {"id": "sf", "label": "SF rétro-futuriste", "canon": "bd_realiste",
      "style_prompt": "retro-futuristic science-fiction concept art, neon "
                      "accents, brutalist megastructures, atmospheric haze"},
-    {"id": "aquarelle", "label": "Aquarelle",
+    {"id": "aquarelle", "label": "Aquarelle", "canon": "davinci",
      "style_prompt": "watercolor illustration, soft washes, visible paper "
                      "grain, delicate ink lines, muted palette"},
-    {"id": "noir", "label": "Noir encré",
+    {"id": "noir", "label": "Noir encré", "canon": "davinci",
      "style_prompt": "high-contrast black and white ink illustration, film "
                      "noir shadows, dramatic chiaroscuro, crosshatching"},
 ]
@@ -515,6 +516,8 @@ def propose_styles(excerpt: str, bible_names: list[str],
     artistiques motivées. Retour: [{label, style_prompt, rationale}]."""
     from app.services.summarizer import _chat_dispatch
     roster = ", ".join(bible_names[:30]) or "(bible vide)"
+    canons = "; ".join(f"\"{cid}\" = {c['label']}"
+                       for cid, c in PROPORTION_CANONS.items())
     system = ("You are the art director of an animation studio choosing the "
               "visual identity of an adaptation. Return ONLY valid JSON.")
     prompt = (
@@ -525,7 +528,9 @@ def propose_styles(excerpt: str, bible_names: list[str],
         "generation-ready style description in English (medium, line/render, "
         "palette, lighting, era references — usable verbatim in an image "
         "prompt, 1-2 sentences, NO subject content); \"rationale\" = one "
-        "French sentence citing what in the manuscript motivates it.\n"
+        "French sentence citing what in the manuscript motivates it; "
+        f"\"canon\" = the body-proportion canon fitting the direction, one "
+        f"of: {canons}.\n"
         "Return ONLY a JSON array of 4 objects.\n\n"
         f"Cast: {roster}\n\nManuscript excerpt:\n{excerpt[:9000]}")
     out, _prov = _chat_dispatch(prompt, system, 3000)
@@ -537,6 +542,163 @@ def propose_styles(excerpt: str, bible_names: list[str],
         lab = str(it.get("label") or "").strip()
         sp = str(it.get("style_prompt") or "").strip()
         if lab and sp:
+            cn = str(it.get("canon") or "").strip()
+            if cn not in PROPORTION_CANONS:
+                cn = resolve_canon(sp)
             props.append({"label": lab[:80], "style_prompt": sp[:500],
+                          "canon": cn,
                           "rationale": str(it.get("rationale") or "").strip()[:300]})
     return props[:4]
+
+
+# ───────────── DA2. canons de proportions par style ─────────────
+# Recherche 2026-07-08: canon académique (Vitruve/De Vinci) 7.5-8 têtes;
+# manga base 6.5 (shōnen 6.5-7, shōjo élancé 7-8, chibi 2-3); ligne claire
+# (Hergé/Schuiten): corps aux proportions RÉALISTES sous des visages
+# simplifiés; école gros-nez franco-belge (Uderzo/Franquin/Gotlib) 4-5.5
+# têtes caricaturales; Morris: silhouettes filiformes; Moebius: 8 têtes
+# élancées; comics héroïques (DC/Marvel) 8.5-9 têtes, épaules 3 têtes.
+PROPORTION_CANONS = {
+    "davinci": {
+        "label": "Académique (De Vinci)",
+        "char": ("accurate academic human proportions (Vitruvian canon): "
+                 "adult figures 7.5 to 8 heads tall, armspan equal to "
+                 "height, navel at the golden ratio, face divided in equal "
+                 "thirds (hairline-brow, brow-nose, nose-chin), shoulders "
+                 "two head-widths wide, natural anatomy"),
+        "face": ("classical facial proportions: face in equal thirds, eyes "
+                 "at the vertical midpoint of the head, one eye-width "
+                 "between the eyes, natural realistic features"),
+        "decor": ("architecture and props at true human scale, correct "
+                  "linear perspective with consistent vanishing points"),
+        "kw": ["réaliste", "realiste", "photoreal", "photo", "vinci",
+               "académique", "academic", "peinture", "renaissance"],
+    },
+    "cine": {
+        "label": "Cinéma réaliste",
+        "char": ("natural cinematic human proportions, adults about 7.5 "
+                 "heads tall, believable anatomy, no stylized exaggeration, "
+                 "casting-real faces"),
+        "face": ("natural photographic facial features, realistic skin "
+                 "texture, believable casting-real face"),
+        "decor": ("real-world production design scale, lens-true "
+                  "perspective, cinematic depth staging with foreground/"
+                  "midground/background layers"),
+        "kw": ["cinema", "cinéma", "cinematic", "cinémat", "film", "still",
+               "anamorphic"],
+    },
+    "manga_shonen": {
+        "label": "Manga shōnen",
+        "char": ("Japanese manga proportions: adult heroes 6.5 to 7 heads "
+                 "tall, teens about 6, larger expressive eyes set slightly "
+                 "low on the face, small nose and mouth, pointed chin, "
+                 "slim shoulders, dynamic hair masses"),
+        "face": ("manga face: large expressive eyes set slightly low on the "
+                 "face, small nose and mouth, pointed chin, clean cel-shaded "
+                 "features, dynamic hair"),
+        "decor": ("manga environment drawing: bold perspective, dramatic "
+                  "diagonals, screentone-like value zones, clean "
+                  "backgrounds that keep the character readable"),
+        "kw": ["manga", "anime", "shonen", "shōnen", "seinen", "japon"],
+    },
+    "manga_shojo": {
+        "label": "Manga shōjo (élancé)",
+        "char": ("shōjo manga proportions: elongated graceful figures 7 to "
+                 "8 heads tall, very slender limbs, large luminous eyes "
+                 "with highlights taking a third of the face height, "
+                 "delicate nose and mouth, flowing hair"),
+        "face": ("shōjo manga face: very large luminous eyes with sparkling "
+                 "highlights, tiny delicate nose and mouth, slender chin, "
+                 "flowing detailed hair"),
+        "decor": ("airy decorative backgrounds, soft floral or sparkle "
+                  "motifs, gentle perspective, high-key light"),
+        "kw": ["shojo", "shōjo", "romance", "élancé"],
+    },
+    "chibi": {
+        "label": "Chibi / SD",
+        "char": ("chibi super-deformed proportions: 2.5 to 3 heads tall, "
+                 "oversized head and eyes, tiny simplified hands and feet, "
+                 "rounded silhouette"),
+        "face": ("chibi face: huge round eyes filling half the face, tiny "
+                 "or absent nose, small simple mouth, soft round cheeks"),
+        "decor": ("simplified toy-like sets, rounded shapes, minimal "
+                  "perspective, bold flat colors"),
+        "kw": ["chibi", "sd", "kawaii", "mignon"],
+    },
+    "ligne_claire": {
+        "label": "Ligne claire (Hergé/Schuiten)",
+        "char": ("ligne claire proportions (Hergé school): REALISTIC adult "
+                 "body proportions about 7 heads tall under a simplified "
+                 "cartoon face — dot eyes, minimal nose line, uniform line "
+                 "weight, no hatching, flat colors, precise silhouettes"),
+        "face": ("ligne claire face (Hergé school): simplified rounded "
+                 "features, small dot eyes, minimal nose line, uniform thin "
+                 "black outline, flat colors, no shading"),
+        "decor": ("rigorous documentary decor in the Hergé/Schuiten "
+                  "manner: architecture drawn with exact perspective and "
+                  "uniform line weight, every prop plausible and precisely "
+                  "detailed, flat lighting, no texture noise"),
+        "kw": ["ligne claire", "tintin", "hergé", "herge", "schuiten",
+               "jacobs", "clair"],
+    },
+    "gros_nez": {
+        "label": "Comique franco-belge (gros nez)",
+        "char": ("French-Belgian comic caricature (Astérix/Gaston school): "
+                 "squat figures 4 to 5.5 heads tall, big round nose, "
+                 "expressive rubber-limbed poses, oversized shoes and "
+                 "hands, squash-and-stretch energy, silhouette-first "
+                 "design"),
+        "face": ("big-nose Franco-Belgian caricature face: oversized round "
+                 "nose dominating the face, expressive dot or bean eyes, "
+                 "elastic mouth, strong readable expression"),
+        "decor": ("lively caricatural sets: slightly bent perspective, "
+                  "rounded architecture, warm flat colors, props "
+                  "exaggerated for comedy but consistent across scenes"),
+        "kw": ["astérix", "asterix", "gaston", "franquin", "gotlib",
+               "uderzo", "comique", "gros nez", "spirou", "lucky luke",
+               "marcinelle", "humour"],
+    },
+    "bd_realiste": {
+        "label": "BD réaliste (Moebius)",
+        "char": ("realistic European graphic-novel proportions (Moebius/"
+                 "Jodorowsky school): elegant elongated figures about 8 "
+                 "heads tall, precise contour lines with fine hatching, "
+                 "naturalistic faces with strong character"),
+        "face": ("naturalistic strongly-characterized face in the Moebius "
+                 "manner, precise fine contour lines, subtle hatching"),
+        "decor": ("vast Moebius-like environments: immense scale contrast "
+                  "between figures and landscape, crystalline desert or "
+                  "megastructure vistas, fine-line detail, atmospheric "
+                  "depth"),
+        "kw": ["moebius", "mœbius", "jodorowsky", "incal", "giraud",
+               "blueberry", "métal hurlant", "metal hurlant", "graphic novel"],
+    },
+    "comics_heroic": {
+        "label": "Comics héroïque (DC/Marvel)",
+        "char": ("heroic American comics canon: idealized figures 8.5 to 9 "
+                 "heads tall, broad shoulders three head-widths wide, "
+                 "V-taper torso, defined musculature, strong jawlines, "
+                 "dynamic foreshortened poses"),
+        "face": ("heroic comics face: chiseled jawline, determined brow, "
+                 "bold ink lines with dramatic cast shadows"),
+        "decor": ("heroic comics staging: low dramatic camera angles, deep "
+                  "urban canyons, bold cast shadows, impact perspective"),
+        "kw": ["comics", "american comic", "superhero", "dc", "marvel",
+               "super", "héro", "hero"],
+    },
+}
+_DEFAULT_CANON = "davinci"
+
+
+def resolve_canon(style_text: str, explicit: str | None = None) -> str:
+    """Canon de proportions pour un style: choix explicite de l'utilisateur,
+    sinon détection par mots-clés du style global, sinon académique."""
+    if explicit and explicit in PROPORTION_CANONS:
+        return explicit
+    t = (style_text or "").lower()
+    best, score = _DEFAULT_CANON, 0
+    for cid, canon in PROPORTION_CANONS.items():
+        s = sum(1 for kw in canon["kw"] if kw in t)
+        if s > score:
+            best, score = cid, s
+    return best

@@ -39,17 +39,20 @@ PANEL_PLANS: dict[str, dict] = {
     # direction opposée au pixel près, et économise 2 générations).
     "character": {
         "panels": [
+            # {FACE} = traits du visage selon le canon du style (yeux manga,
+            # yeux-points ligne claire, gros nez…) — le maître fixe le style.
             ("face_front", "head-and-shoulders close-up portrait, front view, "
-                           "looking at the camera, centered" + _SHARP,
+                           "looking at the camera, centered, {FACE}" + _SHARP,
              None, "portrait_4_3"),
             ("face_left", "the exact same person, same face, same hairstyle: "
                           "head-and-shoulders close-up portrait, LEFT PROFILE "
                           "view, nose pointing to the left of the frame"
                           + _SHARP, "face_front", None),
+            # {PROPORTIONS} = canon de proportions du style (DA) injecté par
+            # l'appelant — De Vinci, manga, ligne claire, gros-nez, comics…
             ("front", "the exact same person, same face and hairstyle: FULL "
                       "BODY standing neutral pose, front view facing the "
-                      "camera, arms relaxed, accurate realistic human "
-                      "proportions (about seven and a half heads tall), full "
+                      "camera, arms relaxed, {PROPORTIONS}, full "
                       "figure visible from head to feet" + _SHARP,
              "face_front", None),
             ("left", "the exact same character, identical outfit, hairstyle "

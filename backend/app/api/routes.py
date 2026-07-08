@@ -3243,18 +3243,35 @@ async def generate_bible_reference(entity_id: str, body: dict):
         style_src = (e.style_notes or "").strip() or \
             await _atelier_setting(session, "global_style")
         style = f". Style: {style_src}" if style_src else ""
+        # canon de proportions (DA2): la recette fige le sien, sinon le
+        # réglage explicite style_canon, sinon auto-détection par mots-clés
+        # du style — défaut: canon académique De Vinci (7.5-8 têtes).
+        from app.services import manuscript_agent as MA
+        canon_pref = await _atelier_setting(session, "style_canon")
+        if recipe and recipe.get("v") == 2 and recipe.get("canon"):
+            canon_pref = recipe["canon"]
+        canon_key = MA.resolve_canon(
+            style_src, canon_pref if canon_pref != "auto" else None)
+        canon = MA.PROPORTION_CANONS[canon_key]
         req_seed = body.get("seed")
         req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
         panels: dict[str, str] = {}
         recipe_panels = []
         from app.services import image_providers as IP
         for key, ptxt, chain_on, p1size in plan["panels"]:
+            # injection du canon: proportions du corps ({PROPORTIONS}) et
+            # traits du visage ({FACE}) selon le style de la DA.
+            ptxt = ptxt.replace("{PROPORTIONS}", canon["char"]) \
+                       .replace("{FACE}", canon["face"])
             if chain_on:
                 prompt = ptxt + style
                 img = settings.images_path / panels[chain_on]
                 size = "landscape_16_9"      # les modèles edit cadrent la réf
             else:
                 prompt = ptxt + "." + subj + style
+                if e.kind in ("place", "decor", "ambiance", "date"):
+                    # lieux/décors: perspective et échelle du même canon
+                    prompt += ". " + canon["decor"]
                 if insp_file:
                     prompt = ("Using the exact same subject, face and design "
                               "as the reference image, keep its identity and "
@@ -3306,7 +3323,7 @@ async def generate_bible_reference(entity_id: str, body: dict):
         e.prompt_recipe = _json.dumps(
             {"v": 2, "kind": e.kind, "ref_file": insp_file,
              "provider": provider, "style_ref": style_ref or None,
-             "panels": recipe_panels}, ensure_ascii=False)
+             "canon": canon_key, "panels": recipe_panels}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
