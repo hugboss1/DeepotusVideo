@@ -2839,7 +2839,8 @@ async def _flux_generate(prompt: str, size: str, n: int,
                          seed: int | None = None,
                          model: str = "fal-ai/flux/schnell",
                          image_path: Path | None = None,
-                         ratio: str | None = None) -> dict:
+                         ratio: str | None = None,
+                         guidance: float | None = None) -> dict:
     """Génération d'image fal → Library (v1.20: multi-modèles).
 
     - schnell (défaut, /images/generate): rapide et pas cher.
@@ -2868,6 +2869,10 @@ async def _flux_generate(prompt: str, size: str, n: int,
     else:
         arguments["image_size"] = size
         arguments["enable_safety_checker"] = True
+    if guidance is not None:
+        # panneaux corps Kontext: adhérence renforcée aux consignes de
+        # proportions (défaut 2.5 — trop lâche, la tête de la réf gagne)
+        arguments["guidance_scale"] = guidance
     if seed is not None:
         arguments["seed"] = seed
     try:
@@ -3279,7 +3284,13 @@ async def generate_bible_reference(entity_id: str, body: dict):
             # injection du canon: proportions du corps ({PROPORTIONS}) et
             # traits du visage ({FACE}) selon le style de la DA.
             is_body = p1size == "CANON"      # panneau corps en pied (v7)
-            ptxt = ptxt.replace("{PROPORTIONS}", canon["char"]) \
+            # v1.25.1: le canon anatomique ("X heads tall") est doublé de sa
+            # contrainte en coordonnées IMAGE ("framing": la tête n'occupe
+            # qu'un N-ième de la hauteur du cadre) — la diffusion respecte
+            # mieux les fractions du cadre que les têtes anatomiques.
+            prop = canon["char"] + ("; " + canon["framing"]
+                                    if canon.get("framing") else "")
+            ptxt = ptxt.replace("{PROPORTIONS}", prop) \
                        .replace("{FACE}", canon["face"])
             ratio = None
             if chain_on:
@@ -3325,7 +3336,9 @@ async def generate_bible_reference(entity_id: str, body: dict):
                            else "fal-ai/flux/dev")
                     return mdl, await _flux_generate(
                         p, size, 1, seed=seed, model=mdl,
-                        image_path=img, ratio=ratio)
+                        image_path=img, ratio=ratio,
+                        guidance=(3.5 if is_body and img is not None
+                                  else None))
                 try:
                     return provider, await IP.generate(
                         provider, p, size, 1, seed=seed,
@@ -3335,19 +3348,24 @@ async def generate_bible_reference(entity_id: str, body: dict):
 
             model, out = await _gen(prompt)
             # QC proportions (panneau corps maître, hors rejeu de recette):
-            # un contrôle vision mesure le nombre de têtes; hors canon → UNE
-            # régénération corrective, et la leçon est persistée pour que
-            # l'agent ne reproduise plus l'erreur sur ce canon.
+            # un contrôle vision mesure le nombre de têtes; hors canon →
+            # jusqu'à DEUX régénérations correctives (seed libre: chaque
+            # retry explore une composition différente), on garde la
+            # meilleure mesure, et la leçon est persistée pour que l'agent
+            # ne reproduise plus l'erreur sur ce canon.
             if (is_body and key == "front" and e.kind == "character"
                     and not seeds_by_key):
                 import asyncio as _aio
                 m = await _aio.to_thread(
                     PQC.measure, settings.images_path / out["images"][0])
                 verdict = PQC.judge(m, canon)
-                if verdict and not verdict["ok"]:
+                had_fail, tries = False, 0
+                while verdict and not verdict["ok"] and tries < 2:
+                    tries += 1
+                    had_fail = True
                     fix = PQC.corrective_clause(verdict, canon)
                     logger.info(f"proportion QC {canon_key}: "
-                                f"{verdict['note']} → retry")
+                                f"{verdict['note']} → retry {tries}/2")
                     model2, out2 = await _gen(prompt + ". " + fix)
                     m2 = await _aio.to_thread(
                         PQC.measure, settings.images_path / out2["images"][0])
@@ -3357,10 +3375,9 @@ async def generate_bible_reference(entity_id: str, body: dict):
                         verdict = v2
                     lessons = PQC.record_lesson(lessons, canon_key,
                                                 verdict, fix)
-                    await put_atelier_settings(
-                        {"canon_lessons": PQC.dump_lessons(lessons)})
-                elif verdict and verdict["ok"]:
-                    lessons = PQC.record_success(lessons, canon_key)
+                if verdict:
+                    if verdict["ok"] and not had_fail:
+                        lessons = PQC.record_success(lessons, canon_key)
                     await put_atelier_settings(
                         {"canon_lessons": PQC.dump_lessons(lessons)})
             panels[key] = out["images"][0]

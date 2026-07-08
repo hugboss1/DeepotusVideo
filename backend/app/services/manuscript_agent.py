@@ -580,6 +580,12 @@ PROPORTION_CANONS = {
         "label": "Académique (De Vinci)",
         "frame": "portrait_16_9",
         "heads": (7.0, 8.5),
+        # framing = contrainte en coordonnées IMAGE (leçon it3: la diffusion
+        # obéit mieux aux fractions du cadre qu'aux têtes anatomiques)
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the legs alone span half of the "
+                    "frame height, like a full-length fashion catalog "
+                    "photograph taken from far away"),
         "char": ("accurate academic human proportions (Vitruvian canon): a "
                  "TALL adult figure exactly 7.5 to 8 heads tall — the head "
                  "is small, only one eighth of the total height; long legs "
@@ -600,6 +606,10 @@ PROPORTION_CANONS = {
         "label": "Cinéma réaliste",
         "frame": "portrait_16_9",
         "heads": (6.8, 8.5),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the legs alone span half of the "
+                    "frame height, full-length wide shot taken from far "
+                    "away"),
         "char": ("natural cinematic human proportions like a real actor "
                  "photographed head to toe: adult about 7.5 heads tall — "
                  "the head is only one eighth of the total height, legs "
@@ -618,6 +628,9 @@ PROPORTION_CANONS = {
         "label": "Manga shōnen",
         "frame": "portrait_16_9",
         "heads": (6.0, 7.5),
+        "framing": ("in the final image the head spans barely one seventh "
+                    "of the frame height and the legs alone span half of "
+                    "the frame height"),
         "char": ("Japanese manga proportions: adult heroes 6.5 to 7 heads "
                  "tall — the head is only one seventh of the total height, "
                  "long legs make up half the total height; teens about 6 "
@@ -635,6 +648,9 @@ PROPORTION_CANONS = {
         "label": "Manga shōjo (élancé)",
         "frame": "portrait_16_9",
         "heads": (6.8, 8.5),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height and the very long legs alone span "
+                    "more than half of the frame height"),
         "char": ("shōjo manga proportions: elongated graceful willowy "
                  "figure 7 to 8 heads tall — the head is only one eighth "
                  "of the total height, very long slender legs make up more "
@@ -651,6 +667,8 @@ PROPORTION_CANONS = {
         "label": "Chibi / SD",
         "frame": "portrait_4_3",
         "heads": (2.0, 3.5),
+        "framing": ("in the final image the oversized head spans a full "
+                    "third of the frame height"),
         "char": ("chibi super-deformed proportions: 2.5 to 3 heads tall, "
                  "oversized head and eyes, tiny simplified hands and feet, "
                  "rounded silhouette"),
@@ -664,6 +682,9 @@ PROPORTION_CANONS = {
         "label": "Ligne claire (Hergé/Schuiten)",
         "frame": "portrait_16_9",
         "heads": (6.2, 7.8),
+        "framing": ("in the final image the head spans barely one seventh "
+                    "of the frame height and the legs alone span half of "
+                    "the frame height"),
         "char": ("ligne claire proportions (Hergé school): REALISTIC adult "
                  "body about 7 heads tall under a simplified cartoon face "
                  "— the head is only one seventh of the total height, long "
@@ -684,6 +705,8 @@ PROPORTION_CANONS = {
         "label": "Comique franco-belge (gros nez)",
         "frame": "portrait_4_3",
         "heads": (3.8, 5.8),
+        "framing": ("in the final image the head spans about one fifth of "
+                    "the frame height"),
         "char": ("French-Belgian comic caricature (Astérix/Gaston school): "
                  "squat figures 4 to 5.5 heads tall — the head is about "
                  "one fifth of the total height, NOT a bobblehead; big "
@@ -704,6 +727,10 @@ PROPORTION_CANONS = {
         "label": "BD réaliste (Moebius)",
         "frame": "portrait_16_9",
         "heads": (7.3, 9.0),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the very long legs alone span "
+                    "half of the frame height, figure seen from far away "
+                    "as in a Moebius wide vista"),
         "char": ("realistic European graphic-novel proportions (Moebius/"
                  "Jodorowsky school): elegant elongated figure about 8 "
                  "heads tall — the head is only one eighth of the total "
@@ -723,7 +750,13 @@ PROPORTION_CANONS = {
     "comics_heroic": {
         "label": "Comics héroïque (DC/Marvel)",
         "frame": "portrait_16_9",
-        "heads": (7.8, 9.5),
+        # plancher 7.5 (éval it3/it4: mesure vision ±0.3 tête sur des
+        # figures pourtant conformes — évite les retries injustifiés)
+        "heads": (7.5, 9.5),
+        "framing": ("in the final image the small head spans barely one "
+                    "ninth of the frame height and the very long legs "
+                    "alone span more than half of the frame height, heroic "
+                    "low-angle full-length shot"),
         "char": ("heroic American comics canon: idealized TALL figure 8.5 "
                  "to 9 heads tall — the head is small, barely one ninth of "
                  "the total height, very long legs make up more than half "
