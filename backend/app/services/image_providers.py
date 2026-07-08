@@ -105,25 +105,32 @@ async def _openai_generate(model: str, prompt: str, size: str, n: int,
 # ───────────────────── Nano Banana (Gemini via fal) ─────────────────────
 
 def build_banana_request(prompt: str, size: str, n: int,
-                         image_url: str | None) -> tuple[str, dict]:
-    """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests."""
+                         image_url: str | None,
+                         ratio: str | None = None) -> tuple[str, dict]:
+    """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests.
+    `ratio` (ex. "9:16") force le cadre de sortie d'un EDIT — par défaut
+    l'edit suit le cadre de l'image d'entrée (leçon tests canons: un corps
+    en pied chaîné sur un headshot 3:4 sort tassé ou coupé)."""
     if image_url:
-        return ("fal-ai/nano-banana/edit",
-                {"prompt": prompt, "image_urls": [image_url],
-                 "num_images": n, "output_format": "png"})
+        args = {"prompt": prompt, "image_urls": [image_url],
+                "num_images": n, "output_format": "png"}
+        if ratio:
+            args["aspect_ratio"] = ratio
+        return ("fal-ai/nano-banana/edit", args)
     return ("fal-ai/nano-banana",
             {"prompt": prompt, "num_images": n, "output_format": "png",
              "aspect_ratio": _BANANA_ASPECT.get(size, "1:1")})
 
 
 async def _banana_generate(prompt: str, size: str, n: int,
-                           image_path: Path | None) -> list[str]:
+                           image_path: Path | None,
+                           ratio: str | None = None) -> list[str]:
     import fal_client
     image_url = None
     if image_path is not None:
         from app.services.fal_service import FalSeedanceClient
         image_url = await FalSeedanceClient.upload_image(image_path)
-    model, arguments = build_banana_request(prompt, size, n, image_url)
+    model, arguments = build_banana_request(prompt, size, n, image_url, ratio)
     result = await fal_client.subscribe_async(model, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
@@ -136,9 +143,12 @@ async def _banana_generate(prompt: str, size: str, n: int,
 
 async def generate(provider: str, prompt: str, size: str, n: int = 1,
                    seed: int | None = None,
-                   image_path: Path | None = None) -> dict:
+                   image_path: Path | None = None,
+                   ratio: str | None = None) -> dict:
     """Génère via le provider choisi. Retour: {"images":[filenames],
-    "seed": int|None} (seed None = provider non déterministe)."""
+    "seed": int|None} (seed None = provider non déterministe). `ratio`
+    (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
+    modèle edit suit le cadre de l'image d'entrée."""
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             raise RuntimeError("OPENAI_API_KEY manquante (Réglages).")
@@ -147,6 +157,6 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     if provider == "nano-banana":
         if not settings.FAL_KEY:
             raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _banana_generate(prompt, size, n, image_path)
+        imgs = await _banana_generate(prompt, size, n, image_path, ratio)
         return {"images": imgs, "seed": None}
     raise RuntimeError(f"Générateur inconnu: {provider}")

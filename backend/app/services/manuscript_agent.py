@@ -558,14 +558,36 @@ def propose_styles(excerpt: str, bible_names: list[str],
 # simplifiés; école gros-nez franco-belge (Uderzo/Franquin/Gotlib) 4-5.5
 # têtes caricaturales; Morris: silhouettes filiformes; Moebius: 8 têtes
 # élancées; comics héroïques (DC/Marvel) 8.5-9 têtes, épaules 3 têtes.
+#
+# ⚠ LEÇONS des tests A/B 2026-07-08 (9 canons × itérations, FLUX Kontext,
+# full-body chaîné sur headshot) — à respecter pour ne PAS régresser:
+# 1. Kontext sort par défaut dans le CADRE de l'image d'entrée
+#    (resolution_mode=match_input): un corps en pied hérité du cadre 3:4 du
+#    headshot sort TASSÉ (~5 têtes mesurées au lieu de 7.5-8) ou COUPÉ aux
+#    genoux. Chaque canon porte donc son cadre vertical "frame", transmis
+#    aux modèles edit (resolution_mode FLUX, aspect_ratio Nano Banana,
+#    size OpenAI) pour les panneaux full-body.
+# 2. Énoncer le rapport dans LES DEUX SENS ("X heads tall" + "the head is
+#    only 1/X of the total height") et la longueur des jambes ("legs make
+#    up half the total height"): le compte de têtes seul est ignoré.
+# 3. Toujours interdire explicitement le tassement ("never squat, never
+#    compressed, no oversized head") — sans négation le modèle retombe
+#    sur la grosse tête du headshot de référence.
+# 4. "heads" = plage attendue (min, max) mesurable — sert au contrôle
+#    vision post-génération (proportion_qc) et aux retries correctifs.
 PROPORTION_CANONS = {
     "davinci": {
         "label": "Académique (De Vinci)",
-        "char": ("accurate academic human proportions (Vitruvian canon): "
-                 "adult figures 7.5 to 8 heads tall, armspan equal to "
-                 "height, navel at the golden ratio, face divided in equal "
-                 "thirds (hairline-brow, brow-nose, nose-chin), shoulders "
-                 "two head-widths wide, natural anatomy"),
+        "frame": "portrait_16_9",
+        "heads": (7.0, 8.5),
+        "char": ("accurate academic human proportions (Vitruvian canon): a "
+                 "TALL adult figure exactly 7.5 to 8 heads tall — the head "
+                 "is small, only one eighth of the total height; long legs "
+                 "make up half the total height; armspan equal to height, "
+                 "navel at the golden ratio, shoulders two head-widths "
+                 "wide, natural realistic anatomy, elegant elongated "
+                 "silhouette — never squat, never compressed, no oversized "
+                 "head, no shortened legs"),
         "face": ("classical facial proportions: face in equal thirds, eyes "
                  "at the vertical midpoint of the head, one eye-width "
                  "between the eyes, natural realistic features"),
@@ -576,9 +598,14 @@ PROPORTION_CANONS = {
     },
     "cine": {
         "label": "Cinéma réaliste",
-        "char": ("natural cinematic human proportions, adults about 7.5 "
-                 "heads tall, believable anatomy, no stylized exaggeration, "
-                 "casting-real faces"),
+        "frame": "portrait_16_9",
+        "heads": (6.8, 8.5),
+        "char": ("natural cinematic human proportions like a real actor "
+                 "photographed head to toe: adult about 7.5 heads tall — "
+                 "the head is only one eighth of the total height, legs "
+                 "make up half the total height, believable real-world "
+                 "anatomy, no stylized exaggeration — never squat, never "
+                 "compressed, no oversized head"),
         "face": ("natural photographic facial features, realistic skin "
                  "texture, believable casting-real face"),
         "decor": ("real-world production design scale, lens-true "
@@ -589,10 +616,13 @@ PROPORTION_CANONS = {
     },
     "manga_shonen": {
         "label": "Manga shōnen",
+        "frame": "portrait_16_9",
+        "heads": (6.0, 7.5),
         "char": ("Japanese manga proportions: adult heroes 6.5 to 7 heads "
-                 "tall, teens about 6, larger expressive eyes set slightly "
-                 "low on the face, small nose and mouth, pointed chin, "
-                 "slim shoulders, dynamic hair masses"),
+                 "tall — the head is only one seventh of the total height, "
+                 "long legs make up half the total height; teens about 6 "
+                 "heads; slim shoulders, dynamic hair masses — NOT chibi, "
+                 "not super-deformed, never squat, no oversized head"),
         "face": ("manga face: large expressive eyes set slightly low on the "
                  "face, small nose and mouth, pointed chin, clean cel-shaded "
                  "features, dynamic hair"),
@@ -603,10 +633,13 @@ PROPORTION_CANONS = {
     },
     "manga_shojo": {
         "label": "Manga shōjo (élancé)",
-        "char": ("shōjo manga proportions: elongated graceful figures 7 to "
-                 "8 heads tall, very slender limbs, large luminous eyes "
-                 "with highlights taking a third of the face height, "
-                 "delicate nose and mouth, flowing hair"),
+        "frame": "portrait_16_9",
+        "heads": (6.8, 8.5),
+        "char": ("shōjo manga proportions: elongated graceful willowy "
+                 "figure 7 to 8 heads tall — the head is only one eighth "
+                 "of the total height, very long slender legs make up more "
+                 "than half the total height, slender limbs, flowing hair "
+                 "— never squat, never compressed, no oversized head"),
         "face": ("shōjo manga face: very large luminous eyes with sparkling "
                  "highlights, tiny delicate nose and mouth, slender chin, "
                  "flowing detailed hair"),
@@ -616,6 +649,8 @@ PROPORTION_CANONS = {
     },
     "chibi": {
         "label": "Chibi / SD",
+        "frame": "portrait_4_3",
+        "heads": (2.0, 3.5),
         "char": ("chibi super-deformed proportions: 2.5 to 3 heads tall, "
                  "oversized head and eyes, tiny simplified hands and feet, "
                  "rounded silhouette"),
@@ -627,10 +662,14 @@ PROPORTION_CANONS = {
     },
     "ligne_claire": {
         "label": "Ligne claire (Hergé/Schuiten)",
+        "frame": "portrait_16_9",
+        "heads": (6.2, 7.8),
         "char": ("ligne claire proportions (Hergé school): REALISTIC adult "
-                 "body proportions about 7 heads tall under a simplified "
-                 "cartoon face — dot eyes, minimal nose line, uniform line "
-                 "weight, no hatching, flat colors, precise silhouettes"),
+                 "body about 7 heads tall under a simplified cartoon face "
+                 "— the head is only one seventh of the total height, long "
+                 "legs make up half the total height; uniform line weight, "
+                 "no hatching, flat colors, precise silhouettes — the BODY "
+                 "is never caricatured, never squat, no oversized head"),
         "face": ("ligne claire face (Hergé school): simplified rounded "
                  "features, small dot eyes, minimal nose line, uniform thin "
                  "black outline, flat colors, no shading"),
@@ -643,11 +682,14 @@ PROPORTION_CANONS = {
     },
     "gros_nez": {
         "label": "Comique franco-belge (gros nez)",
+        "frame": "portrait_4_3",
+        "heads": (3.8, 5.8),
         "char": ("French-Belgian comic caricature (Astérix/Gaston school): "
-                 "squat figures 4 to 5.5 heads tall, big round nose, "
-                 "expressive rubber-limbed poses, oversized shoes and "
-                 "hands, squash-and-stretch energy, silhouette-first "
-                 "design"),
+                 "squat figures 4 to 5.5 heads tall — the head is about "
+                 "one fifth of the total height, NOT a bobblehead; big "
+                 "round nose, expressive rubber-limbed poses, oversized "
+                 "shoes and hands, squash-and-stretch energy, "
+                 "silhouette-first design"),
         "face": ("big-nose Franco-Belgian caricature face: oversized round "
                  "nose dominating the face, expressive dot or bean eyes, "
                  "elastic mouth, strong readable expression"),
@@ -660,10 +702,15 @@ PROPORTION_CANONS = {
     },
     "bd_realiste": {
         "label": "BD réaliste (Moebius)",
+        "frame": "portrait_16_9",
+        "heads": (7.3, 9.0),
         "char": ("realistic European graphic-novel proportions (Moebius/"
-                 "Jodorowsky school): elegant elongated figures about 8 "
-                 "heads tall, precise contour lines with fine hatching, "
-                 "naturalistic faces with strong character"),
+                 "Jodorowsky school): elegant elongated figure about 8 "
+                 "heads tall — the head is only one eighth of the total "
+                 "height, very long legs make up half the total height; "
+                 "precise contour lines with fine hatching, naturalistic "
+                 "faces with strong character — never squat, never "
+                 "compressed, no oversized head"),
         "face": ("naturalistic strongly-characterized face in the Moebius "
                  "manner, precise fine contour lines, subtle hatching"),
         "decor": ("vast Moebius-like environments: immense scale contrast "
@@ -675,10 +722,15 @@ PROPORTION_CANONS = {
     },
     "comics_heroic": {
         "label": "Comics héroïque (DC/Marvel)",
-        "char": ("heroic American comics canon: idealized figures 8.5 to 9 "
-                 "heads tall, broad shoulders three head-widths wide, "
-                 "V-taper torso, defined musculature, strong jawlines, "
-                 "dynamic foreshortened poses"),
+        "frame": "portrait_16_9",
+        "heads": (7.8, 9.5),
+        "char": ("heroic American comics canon: idealized TALL figure 8.5 "
+                 "to 9 heads tall — the head is small, barely one ninth of "
+                 "the total height, very long legs make up more than half "
+                 "the total height; broad shoulders three head-widths "
+                 "wide, V-taper torso, defined musculature, strong "
+                 "jawlines — never squat, never compressed, no oversized "
+                 "head"),
         "face": ("heroic comics face: chiseled jawline, determined brow, "
                  "bold ink lines with dramatic cast shadows"),
         "decor": ("heroic comics staging: low dramatic camera angles, deep "

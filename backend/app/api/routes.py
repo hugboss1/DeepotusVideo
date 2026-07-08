@@ -2829,10 +2829,17 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             "seed": out.get("seed")}
 
 
+# cadre → ratio des modèles edit (resolution_mode Kontext / aspect Banana)
+_EDIT_RATIO = {"portrait_16_9": "9:16", "portrait_4_3": "3:4",
+               "square_hd": "1:1", "square": "1:1",
+               "landscape_4_3": "4:3", "landscape_16_9": "16:9"}
+
+
 async def _flux_generate(prompt: str, size: str, n: int,
                          seed: int | None = None,
                          model: str = "fal-ai/flux/schnell",
-                         image_path: Path | None = None) -> dict:
+                         image_path: Path | None = None,
+                         ratio: str | None = None) -> dict:
     """Génération d'image fal → Library (v1.20: multi-modèles).
 
     - schnell (défaut, /images/generate): rapide et pas cher.
@@ -2840,8 +2847,10 @@ async def _flux_generate(prompt: str, size: str, n: int,
       utilisé pour les planches de référence.
     - fal-ai/flux-kontext/dev + image_path: génération CONDITIONNÉE par une
       image de référence (préserve l'identité du sujet) — utilisé quand
-      l'entité a une image d'inspiration. Kontext cadre sur l'image d'entrée:
-      on n'envoie pas image_size dans ce cas.
+      l'entité a une image d'inspiration. Kontext cadre par défaut sur
+      l'image d'entrée (match_input): `ratio` (ex. "9:16") force un autre
+      cadre via resolution_mode — indispensable pour les panneaux corps en
+      pied chaînés sur un headshot (sinon figure tassée ou coupée).
     Retourne {"images": [filenames], "seed": <seed utilisé>}."""
     import httpx as _httpx
     if not settings.FAL_KEY:
@@ -2854,6 +2863,8 @@ async def _flux_generate(prompt: str, size: str, n: int,
     if image_path is not None:
         from app.services.fal_service import FalSeedanceClient
         arguments["image_url"] = await FalSeedanceClient.upload_image(image_path)
+        if ratio:
+            arguments["resolution_mode"] = ratio
     else:
         arguments["image_size"] = size
         arguments["enable_safety_checker"] = True
@@ -3258,15 +3269,31 @@ async def generate_bible_reference(entity_id: str, body: dict):
         panels: dict[str, str] = {}
         recipe_panels = []
         from app.services import image_providers as IP
+        from app.services import proportion_qc as PQC
+        # leçons apprises (QC proportions passés): consigne corrective
+        # persistée par canon — appliquée d'office aux prompts corps.
+        lessons = PQC.load_lessons(await _atelier_setting(session,
+                                                          "canon_lessons"))
+        lesson_hint = PQC.lesson_hint(lessons, canon_key)
         for key, ptxt, chain_on, p1size in plan["panels"]:
             # injection du canon: proportions du corps ({PROPORTIONS}) et
             # traits du visage ({FACE}) selon le style de la DA.
+            is_body = p1size == "CANON"      # panneau corps en pied (v7)
             ptxt = ptxt.replace("{PROPORTIONS}", canon["char"]) \
                        .replace("{FACE}", canon["face"])
+            ratio = None
             if chain_on:
                 prompt = ptxt + style
+                if is_body and lesson_hint:
+                    prompt += ". " + lesson_hint
                 img = settings.images_path / panels[chain_on]
-                size = "landscape_16_9"      # les modèles edit cadrent la réf
+                if is_body:
+                    # cadre vertical du canon (leçon tests A/B: sans lui le
+                    # modèle edit garde le cadre du headshot → corps tassé)
+                    size = canon["frame"]
+                    ratio = _EDIT_RATIO.get(size)
+                else:
+                    size = "landscape_16_9"  # les modèles edit cadrent la réf
             else:
                 prompt = ptxt + "." + subj + style
                 if e.kind in ("place", "decor", "ambiance", "date"):
@@ -3291,18 +3318,51 @@ async def generate_bible_reference(entity_id: str, body: dict):
             seed = seeds_by_key.get(key)
             if seed is None and not chain_on:
                 seed = req_seed
-            if provider == "flux":
-                model = ("fal-ai/flux-kontext/dev" if img is not None
-                         else "fal-ai/flux/dev")
-                out = await _flux_generate(prompt, size, 1, seed=seed,
-                                           model=model, image_path=img)
-            else:
-                model = provider
+
+            async def _gen(p: str):
+                if provider == "flux":
+                    mdl = ("fal-ai/flux-kontext/dev" if img is not None
+                           else "fal-ai/flux/dev")
+                    return mdl, await _flux_generate(
+                        p, size, 1, seed=seed, model=mdl,
+                        image_path=img, ratio=ratio)
                 try:
-                    out = await IP.generate(provider, prompt, size, 1,
-                                            seed=seed, image_path=img)
+                    return provider, await IP.generate(
+                        provider, p, size, 1, seed=seed,
+                        image_path=img, ratio=ratio)
                 except RuntimeError as pe:
                     raise HTTPException(502, str(pe))
+
+            model, out = await _gen(prompt)
+            # QC proportions (panneau corps maître, hors rejeu de recette):
+            # un contrôle vision mesure le nombre de têtes; hors canon → UNE
+            # régénération corrective, et la leçon est persistée pour que
+            # l'agent ne reproduise plus l'erreur sur ce canon.
+            if (is_body and key == "front" and e.kind == "character"
+                    and not seeds_by_key):
+                import asyncio as _aio
+                m = await _aio.to_thread(
+                    PQC.measure, settings.images_path / out["images"][0])
+                verdict = PQC.judge(m, canon)
+                if verdict and not verdict["ok"]:
+                    fix = PQC.corrective_clause(verdict, canon)
+                    logger.info(f"proportion QC {canon_key}: "
+                                f"{verdict['note']} → retry")
+                    model2, out2 = await _gen(prompt + ". " + fix)
+                    m2 = await _aio.to_thread(
+                        PQC.measure, settings.images_path / out2["images"][0])
+                    v2 = PQC.judge(m2, canon)
+                    if PQC.better(v2, verdict):
+                        model, out, prompt = model2, out2, prompt + ". " + fix
+                        verdict = v2
+                    lessons = PQC.record_lesson(lessons, canon_key,
+                                                verdict, fix)
+                    await put_atelier_settings(
+                        {"canon_lessons": PQC.dump_lessons(lessons)})
+                elif verdict and verdict["ok"]:
+                    lessons = PQC.record_success(lessons, canon_key)
+                    await put_atelier_settings(
+                        {"canon_lessons": PQC.dump_lessons(lessons)})
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model})

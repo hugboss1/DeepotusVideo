@@ -74,8 +74,15 @@ def test_builders():
 def test_canons():
     from app.services import manuscript_agent as MA
     # chaque canon est complet (char/face/decor/label/kw) + presets valides
+    # + v1.25: cadre vertical (frame) et plage de têtes mesurable (heads)
     for cid, c in MA.PROPORTION_CANONS.items():
         assert c["char"] and c["face"] and c["decor"] and c["label"], cid
+        assert c["frame"] in ("portrait_16_9", "portrait_4_3",
+                              "square_hd"), cid
+        lo, hi = c["heads"]
+        assert 1.5 <= lo < hi <= 10, cid
+        # leçon tests A/B: le rapport doit être énoncé dans les deux sens
+        assert "heads tall" in c["char"], cid
     for p in MA.STYLE_PRESETS:
         assert p["canon"] in MA.PROPORTION_CANONS, p["id"]
     # résolution: explicite > mots-clés du style > défaut De Vinci
@@ -151,6 +158,8 @@ async def main():
         assert CALLS[0]["model"] == "fal-ai/nano-banana"
 
         # ── canon de proportions injecté selon le style (DA2) ──
+        from app.services import proportion_qc as PQC
+        PQC.measure = lambda p: None          # QC vision neutralisé ici
         await c.put("/api/atelier/settings",
                     json={"image_provider": "flux", "style_canon": "auto",
                           "global_style": "anime manga art style, cel shading"})
@@ -164,6 +173,54 @@ async def main():
         # headshot maître, 6,5-7 têtes sur le corps
         assert "manga face" in CALLS[0]["arguments"]["prompt"]
         assert any("6.5 to 7 heads" in cl["arguments"]["prompt"] for cl in CALLS)
+        # v1.25: les panneaux CORPS chaînés imposent le cadre du canon
+        # (resolution_mode Kontext) — leçon anti-tassement des tests A/B
+        body_calls = [cl for cl in CALLS
+                      if "FULL BODY" in cl["arguments"]["prompt"]
+                      or "full body" in cl["arguments"]["prompt"]]
+        assert body_calls, "aucun panneau corps généré"
+        assert all(cl["arguments"].get("resolution_mode") == "9:16"
+                   for cl in body_calls)      # manga_shonen → portrait_16_9
+        # les panneaux VISAGE chaînés gardent le cadre de la référence
+        face_chained = [cl for cl in CALLS
+                        if "LEFT PROFILE" in cl["arguments"]["prompt"]
+                        and "full body" not in cl["arguments"]["prompt"]]
+        assert all("resolution_mode" not in cl["arguments"]
+                   for cl in face_chained)
+
+        # ── v1.25 QC proportions: mesure hors canon → retry correctif + leçon
+        _mes = {"n": 0}
+
+        def _fake_measure(path):
+            _mes["n"] += 1
+            if _mes["n"] == 1:      # 1ʳᵉ mesure: corps tassé (4.6 têtes)
+                return {"heads": 4.6, "full_body": True, "feet_visible": True}
+            return {"heads": 6.8, "full_body": True, "feet_visible": True}
+
+        PQC.measure = _fake_measure
+        CALLS.clear()
+        r = await c.post(f"/api/bible/entities/{perso['id']}/generate", json={})
+        assert r.status_code == 200, r.text
+        # 5 panneaux + 1 retry correctif du corps
+        assert len(CALLS) == 6, len(CALLS)
+        retry = [cl for cl in CALLS
+                 if "PREVIOUS ATTEMPT FAILED" in cl["arguments"]["prompt"]]
+        assert len(retry) == 1 and "squashed at only 4.6" in \
+            retry[0]["arguments"]["prompt"]
+        # la leçon est persistée…
+        st = (await c.get("/api/atelier/settings")).json()["settings"]
+        lessons = json.loads(st["canon_lessons"])
+        assert lessons["manga_shonen"]["fails"] == 1
+        assert "PROPORTION GUARD" in lessons["manga_shonen"]["hint"]
+        # …et ré-appliquée d'office à la génération suivante du même canon
+        PQC.measure = lambda p: {"heads": 6.8, "full_body": True,
+                                 "feet_visible": True}
+        CALLS.clear()
+        await c.post(f"/api/bible/entities/{perso['id']}/generate", json={})
+        assert len(CALLS) == 5                # plus de retry nécessaire
+        assert any("PROPORTION GUARD (learned)" in cl["arguments"]["prompt"]
+                   for cl in CALLS)
+        PQC.measure = lambda p: None
         # choix EXPLICITE gros nez → il prime sur la détection
         await c.put("/api/atelier/settings", json={"style_canon": "gros_nez"})
         CALLS.clear()
