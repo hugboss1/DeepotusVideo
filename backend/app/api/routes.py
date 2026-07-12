@@ -3024,6 +3024,23 @@ async def list_image_providers():
     return {"providers": IP.available(), "default": "flux"}
 
 
+@router.get("/voice/providers")
+async def list_voice_providers():
+    """Fournisseurs de voix (spec voicebox 2026-07-11) : disponibilité de
+    chacun (clé ElevenLabs / Voicebox local joignable), réglage atelier
+    voice_provider et provider effectivement résolu."""
+    from app.services import voice_providers as VP
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        configured = await _atelier_setting(session, "voice_provider")
+    loop = asyncio.get_running_loop()
+    providers = await loop.run_in_executor(None, VP.available)
+    resolved = await loop.run_in_executor(
+        None, lambda: VP.resolve_provider(configured))
+    return {"providers": providers, "configured": configured,
+            "resolved": resolved}
+
+
 @router.post("/atelier/style/propose")
 async def propose_art_direction(body: dict):
     """v1.23 (DA) — l'agent lit un extrait représentatif du manuscrit (ton,

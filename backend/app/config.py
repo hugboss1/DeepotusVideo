@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     ELEVENLABS_VOICE_ID_EN: str = "21m00Tcm4TlvDq8ikWAM"
     ELEVENLABS_VOICE_ID_FR: str = "ThT5KcBeYPX3keUQqHPh"
 
+    # Voicebox (optional) — serveur TTS local; vide = http://127.0.0.1:17493
+    VOICEBOX_URL: str = ""
+
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
     MESHY_API_KEY: str = ""
