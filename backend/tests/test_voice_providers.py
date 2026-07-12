@@ -86,16 +86,30 @@ VP.httpx = types.SimpleNamespace(get=_module_get, Client=_FakeClient)
 
 PROFILE = {"id": "prof1", "name": "POC Kokoro FR", "language": "fr",
            "voice_type": "preset", "preset_engine": "kokoro",
+           "preset_voice_id": "ff_siwis",
            "default_engine": "kokoro", "description": "voix POC"}
+CLONE = {"id": "prof2", "name": "Clone Oracle", "language": "fr",
+         "voice_type": "cloned", "default_engine": "chatterbox",
+         "personality": "vieil oracle grave"}
 
 
 def test_builders():
     # catalogue : /profiles -> format casting (_fetch_11l_voices)
-    cat = VP.map_voicebox_profiles([PROFILE, {"name": "sans id"}])
-    assert len(cat) == 1 and cat[0]["voice_id"] == "prof1"
+    cat = VP.map_voicebox_profiles([PROFILE, CLONE, {"name": "sans id"}])
+    assert len(cat) == 2 and cat[0]["voice_id"] == "prof1"
     assert cat[0]["labels"]["language"] == "fr"
     assert cat[0]["labels"]["engine"] == "kokoro"
     assert cat[0]["category"] == "voicebox"
+    # étape 3 — genre déduit du preset Kokoro (ff_siwis = french female)
+    assert cat[0]["labels"]["gender"] == "female"
+    assert cat[0]["labels"]["voice_preset"] == "ff_siwis"
+    # clone: pas de preset -> pas de genre (le LLM infère du nom/description),
+    # labels vides filtrés, personality conservée
+    assert "gender" not in cat[1]["labels"]
+    assert "description" not in cat[1]["labels"]
+    assert cat[1]["labels"]["personality"] == "vieil oracle grave"
+    assert VP._preset_gender("am_adam") == "male"
+    assert VP._preset_gender(None) == ""
     # payload /generate : engine du PROFIL (jamais le défaut serveur qwen)
     p = VP.build_generate_payload(PROFILE, "Bonjour", "FR")
     assert p == {"profile_id": "prof1", "text": "Bonjour",

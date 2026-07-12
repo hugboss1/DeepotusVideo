@@ -943,30 +943,19 @@ async def create_voiceover(request: Request):
 
 @router.get("/voices")
 async def list_voices():
-    """List ElevenLabs voices for the Episodes / voiceover voice picker."""
-    if not settings.has_voiceover:
-        return {"voices": [], "enabled": False}
+    """Voice picker (Episodes / VO) — catalogue du provider de voix actif
+    (ElevenLabs ou Voicebox local, v1.26 étape 3). Même forme qu'avant :
+    {voice_id, name, category, language, labels, preview_url}."""
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get("https://api.elevenlabs.io/v1/voices",
-                            headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
-            r.raise_for_status()
-            data = r.json()
-        out = []
-        for v in (data.get("voices") or []):
-            lbl = v.get("labels") or {}
-            out.append({
-                "voice_id": v.get("voice_id"),
-                "name": v.get("name"),
-                "category": v.get("category"),
-                "language": lbl.get("language") or lbl.get("accent"),
-                "labels": lbl,
-                "preview_url": v.get("preview_url"),
-            })
-        return {"voices": out, "enabled": True}
+        provider, voices = await _fetch_casting_voices()
+    except HTTPException:                  # aucun provider utilisable
+        return {"voices": [], "enabled": False}
     except Exception as e:
-        logger.warning(f"ElevenLabs voices fetch failed: {e}")
+        logger.warning(f"voices fetch failed: {e}")
         return {"voices": [], "enabled": True, "error": str(e)}
+    out = [{**v, "language": (v.get("labels") or {}).get("language")
+            or (v.get("labels") or {}).get("accent")} for v in voices]
+    return {"voices": out, "enabled": True, "provider": provider}
 
 
 @router.post("/episodes/extract-text")
@@ -3443,19 +3432,43 @@ async def _fetch_11l_voices() -> list[dict]:
     return [v for v in out if v["voice_id"]]
 
 
+async def _fetch_casting_voices() -> tuple[str, list[dict]]:
+    """Catalogue de voix du provider actif (spec voicebox, étape 3) :
+    ElevenLabs (labels riches) ou Voicebox (/profiles mappés au même format).
+    Retourne (provider, voices) ; 400 si aucun provider utilisable."""
+    from app.services import voice_providers as VP
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        configured = await _atelier_setting(session, "voice_provider")
+    loop = asyncio.get_running_loop()
+    provider = await loop.run_in_executor(
+        None, lambda: VP.resolve_provider(configured))
+    if provider == "voicebox":
+        return "voicebox", await loop.run_in_executor(
+            None, VP.list_voicebox_voices)
+    if provider == "elevenlabs":
+        return "elevenlabs", await _fetch_11l_voices()
+    raise HTTPException(400, "Aucun fournisseur de voix disponible — "
+                             "configure la clé ElevenLabs ou lance Voicebox.")
+
+
 @router.post("/bible/entities/{entity_id}/suggest-voice")
 async def suggest_entity_voice(entity_id: str, body: dict):
     """v1.21 (B) — casting voix: l'agent croise la fiche du personnage
-    (genre, âge, ton déduits de la description) avec les voix ElevenLabs du
-    compte et propose LA voix + des alternatives du même profil. La
-    suggestion est appliquée à l'entité (modifiable ensuite)."""
+    (genre, âge, ton déduits de la description) avec le catalogue du provider
+    actif (ElevenLabs ou Voicebox, v1.26 étape 3) et propose LA voix + des
+    alternatives du même profil. La suggestion est appliquée à l'entité
+    (modifiable ensuite)."""
     from app.services.storage import BibleEntity, async_session_factory
     from app.services.summarizer import available, _chat_dispatch
     if not available():
         raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
-    voices = await _fetch_11l_voices()
+    provider, voices = await _fetch_casting_voices()
     if not voices:
-        raise HTTPException(502, "Aucune voix ElevenLabs disponible sur le compte.")
+        raise HTTPException(502, f"Aucune voix disponible ({provider}) — "
+                                 "crée des profils dans Voicebox (Voices)."
+                            if provider == "voicebox" else
+                            "Aucune voix ElevenLabs disponible sur le compte.")
     async with async_session_factory() as session:
         e = await session.get(BibleEntity, entity_id)
         if not e:
@@ -3471,11 +3484,15 @@ async def suggest_entity_voice(entity_id: str, body: dict):
         prompt = (
             f"Character sheet:\nName: {e.name}\nDescription: "
             f"{(e.description or '')[:600]}\n\n"
-            f"Available ElevenLabs voices (with labels):\n"
+            f"Available voices from provider '{provider}' (with labels):\n"
             f"{json.dumps(roster, ensure_ascii=False)}\n\n"
             f"Pick the voice that best matches the character's gender, age "
             f"and personality, plus up to 4 ALTERNATES of the same profile "
-            f"(same gender / similar age & tone). Return ONLY JSON: "
+            f"(same gender / similar age & tone). Some voices may have sparse "
+            f"labels (local/cloned voices): infer gender, age and tone from "
+            f"the voice name, description and personality fields; prefer a "
+            f"voice whose language matches the character sheet's language. "
+            f"Return ONLY JSON: "
             f"{{\"best\": \"<voice_id>\", \"alternates\": [\"<voice_id>\", …], "
             f"\"why\": \"<one short sentence in French>\"}}")
         loop = asyncio.get_running_loop()

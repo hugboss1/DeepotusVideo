@@ -97,19 +97,33 @@ def available() -> list[dict]:
 
 # ─────────────────────────── catalogue Voicebox ───────────────────────────
 
+def _preset_gender(preset_voice_id: str) -> str:
+    """Convention des presets Kokoro (af_bella, am_adam, ff_siwis…) :
+    2e lettre du préfixe = genre. Vide pour les clones (pas de preset)."""
+    m = re.match(r"^[a-z]([fm])_", (preset_voice_id or "").lower())
+    return {"f": "female", "m": "male"}[m.group(1)] if m else ""
+
+
 def map_voicebox_profiles(profiles: list[dict]) -> list[dict]:
     """Pur (testable) : GET /profiles → catalogue au format du casting
-    ({voice_id, name, category, labels, preview_url}, comme _fetch_11l_voices)."""
+    ({voice_id, name, category, labels, preview_url}, comme _fetch_11l_voices).
+    Étape 3 spec : labels plus pauvres qu'ElevenLabs — on récupère ce qu'on
+    peut (genre via le preset Kokoro, personality, description) et le prompt
+    du casting complète en inférant depuis le nom/la description."""
     out = []
     for p in profiles or []:
         labels = {
             "language": (p.get("language") or "").lower(),
+            "gender": _preset_gender(p.get("preset_voice_id")),
             "type": p.get("voice_type") or "",
             "engine": p.get("default_engine") or p.get("preset_engine") or "",
+            "voice_preset": p.get("preset_voice_id") or "",
+            "personality": p.get("personality") or "",
             "description": p.get("description") or "",
         }
         out.append({"voice_id": p.get("id"), "name": p.get("name"),
-                    "category": "voicebox", "labels": labels,
+                    "category": "voicebox",
+                    "labels": {k: v for k, v in labels.items() if v},
                     "preview_url": None})
     return [v for v in out if v["voice_id"]]
 
