@@ -42,13 +42,23 @@ def voicebox_url() -> str:
         or DEFAULT_VOICEBOX_URL
 
 
-def voicebox_reachable(timeout: float = 2.0) -> bool:
-    """Détection 'Voicebox lancé' (GET /health). Locale, pas de SSL."""
+_reach_cache = {"t": 0.0, "ok": False}
+
+
+def voicebox_reachable(timeout: float = 2.0, ttl: float = 5.0) -> bool:
+    """Détection 'Voicebox lancé' (GET /health). Locale, pas de SSL.
+    Résultat mis en cache `ttl` secondes : resolve_provider est appelé à
+    chaque segment d'une VO de scène et par /health — pas un ping par appel."""
+    now = time.monotonic()
+    if ttl > 0 and now - _reach_cache["t"] < ttl:
+        return _reach_cache["ok"]
     try:
         r = httpx.get(voicebox_url() + "/health", timeout=timeout)
-        return r.status_code == 200
+        ok = r.status_code == 200
     except Exception:
-        return False
+        ok = False
+    _reach_cache.update(t=now, ok=ok)
+    return ok
 
 
 def configured_provider() -> str:

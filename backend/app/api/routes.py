@@ -919,8 +919,10 @@ async def create_voiceover(request: Request):
         raise HTTPException(400, "Empty script")
     from app.services.elevenlabs_service import VoiceoverService
     voice = VoiceoverService()
-    if not voice.is_enabled():
-        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     voice_id = (payload.get("voice_id") or "").strip() or None
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
@@ -1095,8 +1097,11 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(400, "No scenes to render")
     if not any((s.get("text") or "").strip() for s in scenes if isinstance(s, dict)):
         raise HTTPException(400, "Scenes have no narration text")
-    if not settings.has_voiceover:
-        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    from app.services.elevenlabs_service import VoiceoverService
+    if not await asyncio.get_running_loop().run_in_executor(
+            None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     job_id = str(uuid4())
 
     async def _run():
@@ -1834,6 +1839,11 @@ async def download_job_video(job_id: str):
 
 @router.get("/health")
 async def health():
+    from app.services.elevenlabs_service import VoiceoverService
+    # provider-aware (v1.26 étape 4) : clé 11L OU Voicebox local joignable
+    # (détection cachée 5 s dans voice_providers — pas un ping par poll)
+    vo_enabled = await asyncio.get_running_loop().run_in_executor(
+        None, VoiceoverService.is_enabled)
     return {
         "ok": True,
         "version": APP_VERSION,
@@ -1841,7 +1851,7 @@ async def health():
         "x_enabled": settings.has_x,
         "ollama_enabled": settings.has_ollama,
         "fal_configured": bool(settings.FAL_KEY),
-        "voiceover_enabled": settings.has_voiceover,
+        "voiceover_enabled": vo_enabled,
         "heygen_enabled": settings.has_heygen,
         "summarizer_enabled": settings.has_summarizer,
         "has_summarizer": settings.has_summarizer,
@@ -2557,6 +2567,11 @@ async def cost_balances():
                              "usd": round((rem or 0) * p["heygen_credit_usd"], 2)}
         except Exception:
             out["heygen"] = {"available": False}
+    from app.services import voice_providers as _VP
+    if await asyncio.get_running_loop().run_in_executor(
+            None, _VP.voicebox_reachable):
+        # spec voicebox 2026-07-11 : statut abonnement = « local : gratuit »
+        out["voicebox"] = {"available": True, "local": True, "free": True}
     if settings.has_voiceover:
         try:
             async with httpx.AsyncClient(timeout=15.0, verify=SSL_VERIFY) as c:
@@ -4323,9 +4338,10 @@ async def _generate_scene_vo(session, scene, lang: str) -> dict:
             400, "Crée un personnage « Narrateur » dans la bible et caste sa "
                  "voix (🎙 Suggérer) — c'est lui qui lit la narration.")
     voice = VoiceoverService()
-    if not voice.is_enabled():
-        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
     loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
     parts, plan = [], []
     l11 = "FR" if lang.startswith("fr") else "EN"
@@ -4376,8 +4392,10 @@ async def chapter_voiceover(chapter_id: str, body: dict,
     GET /atelier/manuscript/{job_id} (job store commun)."""
     from app.services.storage import Chapter, async_session_factory
     from app.services.elevenlabs_service import VoiceoverService
-    if not VoiceoverService.is_enabled():
-        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+    if not await asyncio.get_running_loop().run_in_executor(
+            None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     async with async_session_factory() as session:
         if not await session.get(Chapter, chapter_id):
             raise HTTPException(404, "Chapter not found")

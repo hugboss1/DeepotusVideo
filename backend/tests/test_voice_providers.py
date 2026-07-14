@@ -131,11 +131,16 @@ def test_resolution():
     settings.ELEVENLABS_API_KEY = "k-test"
     assert VP.resolve_provider("") == "elevenlabs"
     assert VP.resolve_provider("voicebox") == "voicebox"
-    # voicebox demandé mais injoignable -> repli elevenlabs
+    # étape 4 — la détection est cachée (TTL): un /health tombé ne se voit
+    # qu'après expiration ; on invalide à la main dans les tests.
     ROUTES[("GET", "/health")] = _Resp(500, {})
+    assert VP.resolve_provider("voicebox") == "voicebox"      # cache encore chaud
+    VP._reach_cache["t"] = 0
+    # voicebox demandé mais injoignable -> repli elevenlabs
     assert VP.resolve_provider("voicebox") == "elevenlabs"
     # rien de disponible -> ""
     settings.ELEVENLABS_API_KEY = ""
+    VP._reach_cache["t"] = 0
     assert VP.resolve_provider("") == ""
     # réglage atelier lu en sqlite sync (requested=None)
     c = sqlite3.connect(_db)
@@ -144,6 +149,7 @@ def test_resolution():
     c.close()
     assert VP.configured_provider() == "voicebox"
     ROUTES[("GET", "/health")] = _Resp(200, {"status": "healthy"})
+    VP._reach_cache["t"] = 0
     assert VP.resolve_provider() == "voicebox"
     # registre disponibilité (pour l'UI)
     ids = {p["id"]: p["ready"] for p in VP.available()}

@@ -116,6 +116,7 @@ async def main():
         # aucun provider (voicebox coupé) -> 400 explicite, pas un 500
         VP.httpx = types.SimpleNamespace(
             get=lambda *a, **k: (_ for _ in ()).throw(ConnectionError("down")))
+        VP._reach_cache["t"] = 0        # invalider le cache de détection
         r = await c.post(f"/api/bible/entities/{eid}/suggest-voice", json={})
         assert r.status_code == 400, r.text
         r = await c.get("/api/voices")
