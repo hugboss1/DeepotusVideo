@@ -127,15 +127,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                 return None
             text = (r.json().get("choices") or [{}])[0].get(
                 "message", {}).get("content", "")
-            start = text.find("{")
-            end = text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            return plan_schema.clean_posts(posts, days)
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"openai plan error: {e}")
         return None

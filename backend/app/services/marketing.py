@@ -153,16 +153,8 @@ async def _anthropic_plan(prompt: str, days: int, posts_per_day: int,
                 return None
             text = "".join(
                 b.get("text", "") for b in r.json().get("content", []))
-            # Tolerate fences / prose around the JSON object.
-            start = text.find("{")
-            end = text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            return plan_schema.clean_posts(posts, days)
+            # Tolérant : fences/prose autour du JSON, et sortie tronquée.
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"plan: anthropic call failed: {e}")
         return None
@@ -210,14 +202,7 @@ async def _ollama_plan(prompt: str, days: int, posts_per_day: int,
                 logger.warning(f"plan: ollama {r.status_code}: {r.text[:200]}")
                 return None
             text = (r.json().get("message") or {}).get("content", "")
-            start, end = text.find("{"), text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            return plan_schema.clean_posts(posts, days)
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"plan: ollama call failed: {e}")
         return None
@@ -319,14 +304,23 @@ def extract_document_text(filename: str, data: bytes) -> str:
     if name.endswith((".md", ".txt", ".markdown")):
         return data.decode("utf-8", errors="replace")
     if name.endswith(".docx"):
+        # v1.27.1 — lecture directe de document.xml : python-docx (p.text)
+        # perdait les <w:br/> intra-paragraphe, soudant les lignes des
+        # captions ("PROPHECY.Tomorrow") et cassant les blocs KEY: value
+        # multi-lignes des documents structurés. Les tableaux restent
+        # couverts (leur texte est dans document.xml, dans l'ordre).
+        import html as _html
         import io
-        from docx import Document
-        doc = Document(io.BytesIO(data))
-        parts = [p.text for p in doc.paragraphs]
-        for table in doc.tables:
-            for row in table.rows:
-                parts.append(" | ".join(c.text for c in row.cells))
-        return "\n".join(p for p in parts if p and p.strip())
+        import zipfile
+        with zipfile.ZipFile(io.BytesIO(data)) as z:
+            xml = z.read("word/document.xml").decode("utf-8",
+                                                     errors="replace")
+        xml = re.sub(r"<w:(?:br|cr)\b[^>]*/?>", "\n", xml)
+        xml = re.sub(r"<w:tab\b[^>]*/?>", "\t", xml)
+        xml = re.sub(r"</w:p>", "\n", xml)
+        txt = _html.unescape(re.sub(r"<[^>]+>", "", xml))
+        return "\n".join(ln.rstrip() for ln in txt.splitlines()
+                         if ln.strip())
     if name.endswith(".pdf"):
         import io
         from pypdf import PdfReader
@@ -334,6 +328,135 @@ def extract_document_text(filename: str, data: bytes) -> str:
         return "\n".join((page.extract_text() or "") for page in reader.pages)
     raise ValueError(f"Unsupported file type: {filename}. "
                      "Use .md, .txt, .docx or .pdf")
+
+
+# v1.27.1 — import déterministe des documents « machine-friendly » (style
+# Sol) : blocs KEY: value, un post par POST_ID. Fidélité totale, zéro LLM.
+_BLOCK_KEYS = {
+    "POST_ID", "DATE_TIME", "PLATFORM", "PRIORITY", "LIVE_PHASE", "FORMAT",
+    "ASPECT_RATIO", "FILE_NAME_SUGGESTION", "OBJECTIVE", "VISUAL_PROMPT",
+    "ON_IMAGE_TEXT", "X_CAPTION", "TG_CAPTION", "CTA", "HASHTAGS", "LINKS",
+    "AVATAR_SCRIPT_SHORT", "AVATAR_SCRIPT_LONG", "SCHEDULING_NOTES",
+}
+_MONTHS = {m: i for i, m in enumerate(
+    ["jan", "feb", "mar", "apr", "may", "jun",
+     "jul", "aug", "sep", "oct", "nov", "dec"], 1)}
+_MONTHS.update({"fev": 2, "avr": 4, "mai": 5, "jui": 6, "aou": 8, "dec": 12})
+
+
+def _block_when(s: str) -> tuple[datetime | None, str | None]:
+    """'Wed 15 Jul 2026 — 19:30 CEST' → (date, 'HH:MM'). Les créneaux
+    relatifs ('60 min before live') n'ont ni date ni heure exploitables."""
+    m = re.search(r"(\d{1,2})\s+([A-Za-zéû]{3,9})\.?\s+(\d{4})", s or "")
+    d = None
+    if m and m.group(2)[:3].lower() in _MONTHS:
+        try:
+            d = datetime(int(m.group(3)), _MONTHS[m.group(2)[:3].lower()],
+                         int(m.group(1)))
+        except ValueError:
+            d = None
+    t = re.search(r"(\d{1,2})[:h](\d{2})", s or "")
+    hhmm = f"{int(t.group(1)):02d}:{t.group(2)}" if t else None
+    return d, hhmm
+
+
+def _block_format(fmt: str) -> str:
+    f = (fmt or "").lower()
+    if "avatar" in f:
+        return "heygen"
+    if any(w in f for w in ("video", "clip", "animated", "countdown")):
+        return "seedance"
+    return "image"
+
+
+def _block_channels(platform: str) -> list[str]:
+    p = (platform or "").lower()
+    out = []
+    if re.search(r"\bx\b|twitter", p):
+        out.append("x")
+    for ch in ("telegram", "youtube", "instagram"):
+        if ch in p:
+            out.append(ch)
+    return out or ["x"]
+
+
+def parse_structured_blocks(text: str) -> list[dict] | None:
+    """Découpe un document en blocs structurés 'KEY: value' (un post par
+    POST_ID, valeurs multi-lignes) et les mappe sur le schéma du planner.
+    Retourne None si le document n'est pas de ce format (< 2 blocs)."""
+    key_re = re.compile(r"^([A-Z][A-Z0-9_]{2,30})\s*:\s*(.*)$")
+    blocks: list[dict] = []
+    cur: dict | None = None
+    curkey: str | None = None
+    for raw in text.splitlines():
+        line = raw.strip()
+        m = key_re.match(line)
+        if m and m.group(1) in _BLOCK_KEYS:
+            k, v = m.group(1), m.group(2).strip()
+            if k == "POST_ID":
+                cur = {}
+                blocks.append(cur)
+                curkey = None
+            if cur is None:
+                continue
+            cur[k] = v
+            curkey = k
+        elif cur is not None and curkey and line \
+                and not re.fullmatch(r"P\d+[A-Z]?", line):
+            # continuation multi-ligne de la valeur courante
+            cur[curkey] = f"{cur[curkey]}\n{line}".strip()
+    blocks = [b for b in blocks
+              if b.get("X_CAPTION") or b.get("TG_CAPTION")
+              or b.get("OBJECTIVE")]
+    if len(blocks) < 2:
+        return None
+    # day_offset : relatif à la première date datée du document ; un bloc
+    # sans date (créneaux relatifs au live) hérite du dernier offset vu.
+    base = next((d for d, _ in
+                 (_block_when(b.get("DATE_TIME", "")) for b in blocks)
+                 if d), None)
+    posts, last_off = [], 0
+    for b in blocks:
+        d, hhmm = _block_when(b.get("DATE_TIME", ""))
+        off = (d - base).days if (d and base) else last_off
+        off = max(0, min(off, 365))
+        last_off = off
+        pid = b.get("POST_ID", "")
+        objective = b.get("OBJECTIVE", "")
+        notes = "; ".join(x for x in (
+            b.get("SCHEDULING_NOTES", ""),
+            f"Phase: {b['LIVE_PHASE']}" if b.get("LIVE_PHASE") else "",
+            f"Créneau: {b['DATE_TIME']}"
+            if b.get("DATE_TIME") and not hhmm else "",
+            f"Fichier: {b['FILE_NAME_SUGGESTION']}"
+            if b.get("FILE_NAME_SUGGESTION") else "",
+        ) if x)
+        posts.append({
+            "day_offset": off,
+            "time": hhmm or "12:00",
+            "title": (f"{pid} — {objective}" if pid and objective
+                      else pid or objective)[:200],
+            "format": _block_format(b.get("FORMAT", "")),
+            "hook": b.get("LIVE_PHASE") or objective,
+            "caption": b.get("X_CAPTION") or b.get("TG_CAPTION", ""),
+            "script_idea": b.get("AVATAR_SCRIPT_SHORT", ""),
+            "image_idea": b.get("VISUAL_PROMPT", ""),
+            "channels": _block_channels(b.get("PLATFORM", "")),
+            "objective": objective,
+            "priority": b.get("PRIORITY", ""),
+            "aspect_ratio": b.get("ASPECT_RATIO", ""),
+            "tg_caption": b.get("TG_CAPTION", ""),
+            "on_image_text": b.get("ON_IMAGE_TEXT", ""),
+            "cta": b.get("CTA", ""),
+            "hashtags": b.get("HASHTAGS", ""),
+            "links": b.get("LINKS", ""),
+            "avatar_script_long": b.get("AVATAR_SCRIPT_LONG", ""),
+            "scheduling_notes": notes,
+        })
+    # clean_posts borne les champs et garantit les hashtags en fin de
+    # caption ; days élargi pour ne PAS écraser les dates du document.
+    span = max(p["day_offset"] for p in posts) + 1
+    return plan_schema.clean_posts(posts, span)
 
 
 async def plan_from_document(text: str, *, days: int = 30,
@@ -347,14 +470,23 @@ async def plan_from_document(text: str, *, days: int = 30,
     doc = text.strip()
     if not doc:
         raise ValueError("Document is empty after extraction")
+    # v1.27.1 — un document déjà structuré (blocs KEY: value, style Sol) se
+    # parse fidèlement SANS LLM : chaque bloc devient un post, dates/champs
+    # du document préservés à l'identique.
+    structured = parse_structured_blocks(doc)
+    if structured:
+        logger.info(f"plan import: {len(structured)} posts parsés depuis "
+                    "les blocs structurés du document (sans LLM)")
+        return {"posts": structured, "engine": "document"}
     # Cap what we send to the LLM; strategy docs can be huge.
     doc = doc[:24000]
     prompt = (
         "Transcribe this existing marketing strategy document into the "
         "posting-plan schema. PRESERVE the document's own dates, themes, "
-        "milestones and copy ideas — do not invent a different strategy. "
-        f"Spread over up to {days} days (day_offset 0 = the plan's first "
-        "day). If the document defines weeks, keep the weekly structure.\n\n"
+        "milestones, links and copy — do not invent a different strategy. "
+        "Output ONE post per post the document defines (all of them). "
+        f"day_offset 0 = the plan's first day (max {days - 1}). If the "
+        "document defines weeks, keep the weekly structure.\n\n"
         f"DOCUMENT:\n{doc}"
     )
     pref = settings.PLANNER_PROVIDER.strip().lower()
@@ -366,7 +498,8 @@ async def plan_from_document(text: str, *, days: int = 30,
     for eng in order:
         fn = _PLAN_PROVIDERS.get(eng)
         if fn:
-            posts = await fn(prompt, days, 1, channels, language, persona)
+            # posts_per_day=0 : le nombre de posts suit le document.
+            posts = await fn(prompt, days, 0, channels, language, persona)
             if posts is not None:
                 engine = eng
                 break

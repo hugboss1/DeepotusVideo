@@ -128,15 +128,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
             parts = (candidates[0].get("content", {}).get("parts", [])
                      if candidates else [])
             text = "".join(p.get("text", "") for p in parts)
-            start = text.find("{")
-            end = text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            return plan_schema.clean_posts(posts, days)
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"gemini plan error: {e}")
         return None
