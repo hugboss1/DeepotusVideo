@@ -25,6 +25,7 @@ from loguru import logger
 from sqlalchemy import select
 
 from app.config import settings, SSL_VERIFY
+from app.services import plan_schema
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 
 # ---------------------------------------------------------------- plan gen
@@ -82,6 +83,17 @@ def _deterministic_plan(prompt: str, days: int, posts_per_day: int,
                 caption = (f"{theme}\n\n{f['hook']}\n"
                            f"{('— ' + pname) if pname else ''} "
                            f"{ticker}").strip()
+            # v1.27 — même sans LLM, un post reste un bloc structuré : les
+            # hashtags/liens sont dérivés du prompt, le reste est basique
+            # mais présent (le brief JSON garde le schéma homogène).
+            tags = " ".join(dict.fromkeys(
+                ([f"#{ticker[1:]}"] if ticker else [])
+                + re.findall(r"#\w{2,30}", prompt)))[:300]
+            links = " | ".join(dict.fromkeys(
+                re.findall(r"https?://\S+", prompt)))[:1000]
+            if tags and tags not in caption:
+                caption = f"{caption}\n\n{tags}"
+            script = f"{f['label']}: {theme}"
             posts.append({
                 "day_offset": d,
                 "time": _FORMATS[(k - 1) % len(_FORMATS)]["time"]
@@ -91,10 +103,21 @@ def _deterministic_plan(prompt: str, days: int, posts_per_day: int,
                 "format": f["format"],
                 "hook": f["hook"],
                 "caption": caption,
-                "script_idea": f"{f['label']}: {theme}",
+                "script_idea": script,
                 "image_idea": f"{pname} — {f['label'].lower()}, "
                               f"deep-sea palette, 9:16",
                 "channels": channels or ["x"],
+                "objective": f["hook"],
+                "priority": "Medium",
+                "aspect_ratio": "9:16",
+                "tg_caption": (caption + ("\n\n" + links if links else "")
+                               )[:4000],
+                "on_image_text": "",
+                "cta": "",
+                "hashtags": tags,
+                "links": links,
+                "avatar_script_long": "",
+                "scheduling_notes": "",
             })
     return posts
 
@@ -106,27 +129,8 @@ async def _anthropic_plan(prompt: str, days: int, posts_per_day: int,
     the caller falls back to the deterministic generator."""
     if not settings.has_summarizer:
         return None
-    pdesc = ""
-    if persona:
-        pdesc = (f"Persona: {persona.get('name', '')}. "
-                 f"Tone: {persona.get('tone', '')}. "
-                 f"Audience: {persona.get('audience', '')}. ")
-    sys = (
-        "You are a social media content strategist for short-form video "
-        "accounts (memecoins, creator brands). Produce a posting plan as "
-        "STRICT JSON, no prose. Schema: {\"posts\":[{\"day_offset\":int "
-        f"(0..{days - 1}),\"time\":\"HH:MM\",\"title\":str,"
-        "\"format\":\"image|seedance|heygen|composition|news\","
-        "\"hook\":str,\"caption\":str (ready to publish, with line breaks "
-        "and at most 2 emojis),\"script_idea\":str,\"image_idea\":str,"
-        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"]}]}. "
-        f"Exactly {days * posts_per_day} posts ({posts_per_day}/day over "
-        f"{days} days). Language: {language}. {pdesc}"
-        "Formats map to the user's video tool: image=meme still, "
-        "seedance=cinematic clip, heygen=talking avatar, composition="
-        "clip+avatar, news=news reaction reel. Vary formats and times "
-        "(morning/noon/evening). Captions must follow the persona voice."
-    )
+    sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                    plan_schema.persona_desc(persona))
     try:
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as client:
             r = await client.post(
@@ -138,7 +142,7 @@ async def _anthropic_plan(prompt: str, days: int, posts_per_day: int,
                 },
                 json={
                     "model": settings.ANTHROPIC_MODEL,
-                    "max_tokens": 4000,
+                    "max_tokens": plan_schema.MAX_TOKENS,
                     "system": sys,
                     "messages": [{"role": "user", "content": prompt}],
                 },
@@ -158,26 +162,7 @@ async def _anthropic_plan(prompt: str, days: int, posts_per_day: int,
             posts = data.get("posts")
             if not isinstance(posts, list) or not posts:
                 return None
-            clean = []
-            for p in posts:
-                try:
-                    clean.append({
-                        "day_offset": max(0, min(days - 1,
-                                                 int(p.get("day_offset", 0)))),
-                        "time": str(p.get("time", "12:00"))[:5],
-                        "title": str(p.get("title", ""))[:200],
-                        "format": str(p.get("format", "image")),
-                        "hook": str(p.get("hook", "")),
-                        "caption": str(p.get("caption", "")),
-                        "script_idea": str(p.get("script_idea", "")),
-                        "image_idea": str(p.get("image_idea", "")),
-                        "channels": [c for c in (p.get("channels") or ["x"])
-                                     if c in ("x", "telegram", "youtube",
-                                              "instagram")] or ["x"],
-                    })
-                except (TypeError, ValueError):
-                    continue
-            return clean or None
+            return plan_schema.clean_posts(posts, days)
     except Exception as e:
         logger.warning(f"plan: anthropic call failed: {e}")
         return None
@@ -204,22 +189,8 @@ async def _ollama_plan(prompt: str, days: int, posts_per_day: int,
     Plans never leave the machine. Returns None on ANY failure."""
     if not settings.has_ollama:
         return None
-    pdesc = ""
-    if persona:
-        pdesc = (f"Persona: {persona.get('name', '')}. "
-                 f"Tone: {persona.get('tone', '')}. "
-                 f"Audience: {persona.get('audience', '')}. ")
-    sys = (
-        "You are a social media content strategist. Output STRICT JSON only, "
-        "no prose, no markdown fences. Schema: {\"posts\":[{\"day_offset\":"
-        f"int (0..{days - 1}),\"time\":\"HH:MM\",\"title\":str,"
-        "\"format\":\"image|seedance|heygen|composition|news\",\"hook\":str,"
-        "\"caption\":str,\"script_idea\":str,\"image_idea\":str,"
-        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"]}]}. "
-        f"Exactly {days * posts_per_day} posts ({posts_per_day}/day over "
-        f"{days} days). Language: {language}. {pdesc}"
-        "Vary formats and times. Captions ready to publish."
-    )
+    sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                    plan_schema.persona_desc(persona))
     try:
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=180.0) as client:
             r = await client.post(
@@ -246,26 +217,7 @@ async def _ollama_plan(prompt: str, days: int, posts_per_day: int,
             posts = data.get("posts")
             if not isinstance(posts, list) or not posts:
                 return None
-            clean = []
-            for p in posts:
-                try:
-                    clean.append({
-                        "day_offset": max(0, min(days - 1,
-                                                 int(p.get("day_offset", 0)))),
-                        "time": str(p.get("time", "12:00"))[:5],
-                        "title": str(p.get("title", ""))[:200],
-                        "format": str(p.get("format", "image")),
-                        "hook": str(p.get("hook", "")),
-                        "caption": str(p.get("caption", "")),
-                        "script_idea": str(p.get("script_idea", "")),
-                        "image_idea": str(p.get("image_idea", "")),
-                        "channels": [c for c in (p.get("channels") or ["x"])
-                                     if c in ("x", "telegram", "youtube",
-                                              "instagram")] or ["x"],
-                    })
-                except (TypeError, ValueError):
-                    continue
-            return clean or None
+            return plan_schema.clean_posts(posts, days)
     except Exception as e:
         logger.warning(f"plan: ollama call failed: {e}")
         return None
@@ -330,6 +282,11 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
             local = base + timedelta(days=int(p.get("day_offset", 0)),
                                      hours=int(hh), minutes=int(mm))
             run_at = local + timedelta(minutes=tz_offset_minutes)
+            # v1.27 — les champs étendus du bloc structuré (tg_caption,
+            # visual prompt annexes, scripts avatar, hashtags, liens, notes)
+            # voyagent dans la colonne JSON `brief`.
+            brief = {k: p[k] for k in plan_schema.BRIEF_FIELDS
+                     if str(p.get(k) or "").strip()}
             row = ScheduledPost(
                 id=str(uuid4()),
                 title=p.get("title", "")[:200],
@@ -343,6 +300,7 @@ async def materialize_plan(posts: list[dict], *, start_date: str,
                 script_idea=p.get("script_idea"),
                 image_idea=p.get("image_idea"),
                 source_image=(p.get("source_image") or None),
+                brief=json.dumps(brief, ensure_ascii=False) if brief else None,
                 plan_id=plan_id,
             )
             session.add(row)
@@ -682,10 +640,18 @@ async def fire_post(post_id: str) -> dict:
         # text. The adapters prefer video > image > text.
         image = None if video else await _resolve_post_image(post)
         sent, errors = [], []
+        # v1.27 — le brief peut porter une caption Telegram dédiée
+        # (TG_CAPTION du plan structuré) : elle prime sur la caption X.
+        tg_caption = None
+        if post.brief:
+            try:
+                tg_caption = (json.loads(post.brief) or {}).get("tg_caption")
+            except (ValueError, TypeError):
+                tg_caption = None
         for ch in channels:
             if ch == "telegram" and settings.has_telegram:
                 ok, detail = await publish_telegram(
-                    post.caption or post.title,
+                    tg_caption or post.caption or post.title,
                     video_path=video, image_path=image)
                 (sent if ok else errors).append(f"{ch}: {detail}")
             elif ch == "x" and settings.has_x:

@@ -86,6 +86,11 @@ class ScheduledPost(Base):
     # the plan's Sources step; the Produce button uses it instead of
     # generating a fresh frame.
     source_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.27 — bloc structuré du plan (style Sol) : JSON {objective, priority,
+    # aspect_ratio, tg_caption, on_image_text, cta, hashtags, links,
+    # avatar_script_short, avatar_script_long, scheduling_notes}. La caption
+    # Telegram y prime sur `caption` à la publication (marketing.fire_post).
+    brief: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class AvatarPreset(Base):
@@ -280,6 +285,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("metrics", "TEXT"),
     # v1.12 additions
     ("source_image", "VARCHAR(255)"),
+    # v1.27 additions
+    ("brief", "TEXT"),
 ]
 
 

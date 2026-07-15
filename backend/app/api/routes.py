@@ -2294,7 +2294,14 @@ from app.services import marketing
 
 
 def _post_to_dict(p: ScheduledPost) -> dict:
+    brief = None
+    if getattr(p, "brief", None):
+        try:
+            brief = json.loads(p.brief)
+        except (ValueError, TypeError):
+            brief = None
     return {
+        "brief": brief,
         "id": p.id,
         "title": p.title,
         "caption": p.caption,
@@ -2356,6 +2363,9 @@ async def create_scheduled_post(body: dict):
         script_idea=body.get("script_idea"),
         image_idea=body.get("image_idea"),
         source_image=body.get("source_image") or None,
+        brief=(json.dumps(body["brief"], ensure_ascii=False)
+               if isinstance(body.get("brief"), dict) and body["brief"]
+               else None),
     )
     async with async_session_factory() as session:
         session.add(p)
@@ -2395,6 +2405,10 @@ async def update_scheduled_post(post_id: str, body: dict):
             p.format = body["format"] or None
         if "source_image" in body:
             p.source_image = body["source_image"] or None
+        if "brief" in body:
+            p.brief = (json.dumps(body["brief"], ensure_ascii=False)
+                       if isinstance(body["brief"], dict) and body["brief"]
+                       else None)
         await session.commit()
         await session.refresh(p)
         return _post_to_dict(p)
