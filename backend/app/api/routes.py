@@ -2848,12 +2848,179 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         logger.info(f"OpenAI {model}: saved {len(saved)} image(s): {saved}")
         return {"images": saved, "prompt": prompt, "model": model}
 
+    # --- Nano Banana (Gemini via fal) --------------------------------------
+    if model == "nano-banana":
+        from app.services import image_providers as IP
+        try:
+            out = await IP.generate("nano-banana", prompt, size, n)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        return {"images": out["images"], "prompt": prompt,
+                "model": "nano-banana"}
+
     # --- fal.ai FLUX path (default) ---------------------------------------
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
     out = await _flux_generate(prompt, size, n, seed=seed)
     return {"images": out["images"], "prompt": prompt, "model": "flux",
             "seed": out.get("seed")}
+
+
+_CROP_RATIOS = {"9:16": (9, 16), "16:9": (16, 9), "1:1": (1, 1),
+                "4:5": (4, 5), "3:4": (3, 4)}
+
+
+@router.post("/images/process")
+async def process_image(body: dict):
+    """Post-traitements des nœuds image du Studio. Body: {op, filename, ...}.
+    Ops:
+      - crop        {ratio "9:16"}            — recadrage centré, local (PIL)
+      - upscale     {mode "ai"|"simple", scale 2} — fal esrgan / PIL Lanczos
+      - remove-bg   {method "api"|"local"}    — fal rembg / lib rembg locale
+      - edit        {prompt, model, n=1}      — édition par prompt (gpt-image,
+                    nano-banana, ou FLUX Kontext par défaut)
+      - variations  {n=3, model, prompt?}     — N variantes proches
+    Retour {images:[filenames]} — sauvées dans la Library comme gen_*.png."""
+    op = (body.get("op") or "").strip().lower()
+    fname = (body.get("filename") or "").strip()
+    src = settings.images_path / fname
+    if not fname or not src.is_file():
+        raise HTTPException(400, f"Source image not found: {fname or '(none)'}")
+    from PIL import Image as _PILImage
+
+    def _save_png(img) -> str:
+        out_name = f"gen_{uuid4().hex[:8]}.png"
+        img.save(settings.images_path / out_name, format="PNG")
+        return out_name
+
+    if op == "crop":
+        ratio = body.get("ratio") or "9:16"
+        if ratio not in _CROP_RATIOS:
+            raise HTTPException(400, f"Unknown ratio: {ratio}")
+        rw, rh = _CROP_RATIOS[ratio]
+        img = _PILImage.open(src)
+        w, h = img.size
+        target = rw / rh
+        if w / h > target:   # trop large -> rogner les côtés
+            nw = int(h * target)
+            box = ((w - nw) // 2, 0, (w + nw) // 2, h)
+        else:                # trop haut -> rogner haut/bas
+            nh = int(w / target)
+            box = (0, (h - nh) // 2, w, (h + nh) // 2)
+        out_name = _save_png(img.crop(box))
+        logger.info(f"images/process crop {ratio}: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op}
+
+    if op == "upscale":
+        mode = (body.get("mode") or "ai").lower()
+        scale = max(2, min(4, int(body.get("scale") or 2)))
+        if mode == "simple":
+            img = _PILImage.open(src)
+            up = img.resize((img.width * scale, img.height * scale),
+                            _PILImage.LANCZOS)
+            out_name = _save_png(up)
+            logger.info(f"images/process upscale simple x{scale}: "
+                        f"{fname} -> {out_name}")
+            return {"images": [out_name], "op": op}
+        if not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                     "use the 'simple' mode instead.")
+        import fal_client
+        from app.services.fal_service import FalSeedanceClient
+        url = await FalSeedanceClient.upload_image(src)
+        try:
+            result = await fal_client.subscribe_async(
+                "fal-ai/esrgan", arguments={"image_url": url, "scale": scale})
+        except Exception as e:
+            logger.error(f"esrgan upscale failed: {e}")
+            raise HTTPException(502, f"fal.ai esrgan: {e}")
+        out_url = ((result or {}).get("image") or {}).get("url") or \
+            next((im.get("url") for im in (result or {}).get("images", [])
+                  if im.get("url")), None)
+        if not out_url:
+            raise HTTPException(502, "esrgan returned no image")
+        from app.services.image_providers import _download
+        saved = await _download([out_url])
+        logger.info(f"images/process upscale ai x{scale}: "
+                    f"{fname} -> {saved[0]}")
+        return {"images": saved, "op": op}
+
+    if op == "remove-bg":
+        method = (body.get("method") or "api").lower()
+        if method == "local":
+            try:
+                from rembg import remove as _rembg_remove
+            except ImportError:
+                raise HTTPException(
+                    400, "rembg is not installed in this runtime — use the "
+                         "'API cloud (fal)' method, or install it with: "
+                         "pip install rembg")
+            loop = asyncio.get_running_loop()
+            data = await loop.run_in_executor(
+                None, _rembg_remove, src.read_bytes())
+            out_name = f"gen_{uuid4().hex[:8]}.png"
+            (settings.images_path / out_name).write_bytes(data)
+            logger.info(f"images/process remove-bg local: "
+                        f"{fname} -> {out_name}")
+            return {"images": [out_name], "op": op}
+        if not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                     "use the 'local (rembg)' method.")
+        import fal_client
+        from app.services.fal_service import FalSeedanceClient
+        url = await FalSeedanceClient.upload_image(src)
+        try:
+            result = await fal_client.subscribe_async(
+                "fal-ai/imageutils/rembg", arguments={"image_url": url})
+        except Exception as e:
+            logger.error(f"fal rembg failed: {e}")
+            raise HTTPException(502, f"fal.ai rembg: {e}")
+        out_url = ((result or {}).get("image") or {}).get("url") or \
+            next((im.get("url") for im in (result or {}).get("images", [])
+                  if im.get("url")), None)
+        if not out_url:
+            raise HTTPException(502, "rembg returned no image")
+        from app.services.image_providers import _download
+        saved = await _download([out_url])
+        logger.info(f"images/process remove-bg api: {fname} -> {saved[0]}")
+        return {"images": saved, "op": op}
+
+    if op in ("edit", "variations"):
+        n = max(1, min(4, int(body.get("n") or (3 if op == "variations"
+                                                else 1))))
+        prompt = (body.get("prompt") or "").strip()
+        if op == "variations" and not prompt:
+            prompt = ("a close variation of the same subject, same style, "
+                      "same framing, slightly different details")
+        if not prompt:
+            raise HTTPException(400, "prompt is required for edit")
+        model = (body.get("model") or "").strip().lower()
+        if not model:
+            async with async_session_factory() as _s:
+                model = (await _atelier_setting(
+                    _s, "image_model_default")).strip().lower()
+        size = body.get("size") or "portrait_16_9"
+        if model.startswith("gpt-image") or model.startswith("dall-e") \
+                or model == "nano-banana":
+            from app.services import image_providers as IP
+            try:
+                out = await IP.generate(model, prompt, size, n,
+                                        image_path=src)
+            except RuntimeError as e:
+                raise HTTPException(502, str(e))
+            logger.info(f"images/process {op} via {model}: "
+                        f"{fname} -> {out['images']}")
+            return {"images": out["images"], "op": op, "model": model}
+        # défaut: FLUX Kontext (génération conditionnée par l'image)
+        ratio = _EDIT_RATIO.get(size)
+        out = await _flux_generate(prompt, size, n,
+                                   model="fal-ai/flux-kontext/dev",
+                                   image_path=src, ratio=ratio)
+        logger.info(f"images/process {op} via kontext: "
+                    f"{fname} -> {out['images']}")
+        return {"images": out["images"], "op": op, "model": "flux-kontext"}
+
+    raise HTTPException(400, f"Unknown op: {op}")
 
 
 # cadre → ratio des modèles edit (resolution_mode Kontext / aspect Banana)
@@ -2962,6 +3129,8 @@ async def list_image_models():
     if settings.FAL_KEY:
         out.append({"id": "flux", "label": "FLUX schnell",
                     "provider": "fal", "note": "fast, low cost"})
+        out.append({"id": "nano-banana", "label": "Nano Banana (Gemini)",
+                    "provider": "fal", "note": "strong edits"})
     if settings.OPENAI_API_KEY:
         out.append({"id": "gpt-image-2", "label": "GPT Image 2",
                     "provider": "openai", "note": "best quality"})
