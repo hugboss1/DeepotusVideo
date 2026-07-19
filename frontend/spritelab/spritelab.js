@@ -34,6 +34,7 @@ let stripState = [];       // true = frame gardée
 let lastClicked = 0;       // ancre du shift-clic
 let busyExtract = false, busyGen = false, busyAnim = false;
 let sheet = null;          // {short, manifest} du dernier sheet
+let savedSheet = null;     // {short, filename} du dernier Save to Library
 let prefsTimer = null, extractTimer = null;
 
 /* ───────── toast ───────── */
@@ -371,6 +372,7 @@ function showResult(short, m) {
   $("#dlGif").href = `/api/assets/sprite/${short}/preview`;
   $("#dlGif").setAttribute("download", `sprites_${short}.gif`);
   $("#sheetImg").src = `/api/assets/sprite/${short}/sheet?t=${Date.now()}`;
+  updateStudioBtn();                    // masque « → Studio » si sheet non sauvé
   buildPlayer(short, m);
 }
 
@@ -426,17 +428,48 @@ async function saveToLibrary() {
   if (!sheet) return;
   try {
     const d = await api.send("POST", `/assets/sprite/${sheet.short}/save`);
+    savedSheet = { short: sheet.short, filename: (d && d.filename) || null };
+    updateStudioBtn();
     toast(`Sheet copié dans la Library${d && d.filename ? " : " + d.filename : ""} ✓ — réutilisable dans le Studio (nœud Image).`);
   } catch (e) { toast("Save to Library échoué : " + e.message, true); }
 }
 
-/* ───────── hand-off (préparé pour 9d) ───────── */
+/* ───────── hand-off « → Studio » (9d) ─────────
+   Après Save to Library, le sheet est une image gen_*.png : on ouvre le
+   Studio du parent avec un graphe d'un seul nœud Image (même mécanisme
+   que « Rouvrir dans Studio » : window.__dzRenderGraph est lu au montage
+   du Studio). Bouton visible uniquement dans l'iframe du hub. */
+function updateStudioBtn() {
+  const ok = !!(savedSheet && savedSheet.filename && sheet
+                && savedSheet.short === sheet.short
+                && window.parent !== window);
+  $("#toStudio").classList.toggle("hidden", !ok);
+}
+function toStudio() {
+  if (!(savedSheet && savedSheet.filename)) return;
+  const p = window.parent;
+  if (!p || p === window) return;
+  try {
+    p.__dzRenderGraph = {
+      name: "spritesheet.graph",
+      nodes: [{ id: "simg1", type: "Image", x: 320, y: 220,
+                props: { filename: savedSheet.filename } }],
+      edges: [],
+    };
+    p.dispatchEvent(new p.CustomEvent("deepotus:navigate",
+                                      { detail: { view: "studio" } }));
+  } catch (e) { toast("Ouverture du Studio impossible : " + e.message, true); }
+}
+
+/* ───────── hand-off entrant (Library → Sprite Lab, 9d) ───────── */
 window.addEventListener("message", (ev) => {
   const d = ev && ev.data;
   if (!d || d.type !== "spritelab:source" || !d.source) return;
   if (d.source.kind === "job" && d.source.job_id) {
+    switchSrcTab("render");
     setSource({ kind: "job", job_id: d.source.job_id,
                 label: d.source.label || ("render " + d.source.job_id.slice(0, 8)) });
+    renderRenderList();                 // surligne le render si la liste est là
   } else if (d.source.kind === "image" && d.source.filename) {
     selImage = d.source.filename;
     switchSrcTab("image"); renderImgGrid();
@@ -488,15 +521,18 @@ function wire() {
   $("#pzoom").onchange = () => { applyZoom(); savePrefs(); };
   $("#pbg").onchange = () => { applyBg(); savePrefs(); };
   $("#saveLib").onclick = saveToLibrary;
+  $("#toStudio").onclick = toStudio;
 }
 
 /* poignée de debug / QA (harnais Puppeteer de la recette) */
 window.__sl = {
   get state() {
     return { source, extractShort, stripN, kept: keptIndices().length,
-             sheet: sheet && sheet.short, busyExtract, busyGen };
+             sheet: sheet && sheet.short, busyExtract, busyGen,
+             saved: savedSheet && savedSheet.filename };
   },
   setSource,
+  showResult,                     // recette 9d : préviz d'un sheet existant
 };
 
 (async function init() {
