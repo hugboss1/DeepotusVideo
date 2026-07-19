@@ -470,7 +470,8 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
     Body: {source: {kind: job|upload|video, ...}, fps_sample, max_frames,
     remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
-    columns: "auto"|int, title?}."""
+    columns: "auto"|int, pixel?: {target_px, colors|palette, dither} (9b),
+    title?}."""
     from datetime import datetime as _dtu
     import json as _json
     from app.services import sprite_service as SS
@@ -3050,6 +3051,11 @@ async def process_image(body: dict):
       - edit        {prompt, model, n=1}      — édition par prompt (gpt-image,
                     nano-banana, ou FLUX Kontext par défaut)
       - variations  {n=3, model, prompt?}     — N variantes proches
+      - pixel       {target_px, colors|palette, dither, scale} — pixel-art
+                    local (PIL, chantier 9b), palettes pico8/gameboy/nes/
+                    sweetie16/onebit
+      - tile-preview {grid 2|3}               — composite de raccord + score
+                    seam_score 0-100 (0 = tuile parfaite, base du 9e)
     Retour {images:[filenames]} — sauvées dans la Library comme gen_*.png."""
     op = (body.get("op") or "").strip().lower()
     fname = (body.get("filename") or "").strip()
@@ -3154,6 +3160,36 @@ async def process_image(body: dict):
         saved = await _download([out_url])
         logger.info(f"images/process remove-bg api: {fname} -> {saved[0]}")
         return {"images": saved, "op": op}
+
+    if op == "pixel":
+        from app.services.pixel_ops import normalize_pixel_opts, pixelate
+        try:
+            popts = normalize_pixel_opts(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        with _PILImage.open(src) as img:
+            out = pixelate(img, popts)
+        out_name = _save_png(out)
+        logger.info(f"images/process pixel {popts['palette'] or popts['colors']}"
+                    f"@{popts['target_px']}px: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "pixel": popts,
+                "size": list(out.size)}
+
+    if op == "tile-preview":
+        from app.services.pixel_ops import tile_preview
+        try:
+            grid = int(body.get("grid") or 2)
+        except (TypeError, ValueError):
+            grid = 0
+        if grid not in (2, 3):
+            raise HTTPException(400, "grid must be 2 or 3")
+        with _PILImage.open(src) as img:
+            comp, score = tile_preview(img, grid)
+        out_name = _save_png(comp)
+        logger.info(f"images/process tile-preview {grid}x{grid} "
+                    f"score={score}: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "grid": grid,
+                "seam_score": score}
 
     if op in ("edit", "variations"):
         n = max(1, min(4, int(body.get("n") or (3 if op == "variations"

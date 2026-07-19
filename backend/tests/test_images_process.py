@@ -3,7 +3,8 @@
 Couvre: crop local (PIL), upscale simple (PIL), upscale ai (fal esrgan),
 remove-bg api (fal rembg), remove-bg local sans rembg (400 clair),
 edit via gpt-image (OpenAI edits), variations via kontext (fal),
-et les erreurs (fichier manquant, op inconnue).
+pixel local 9b (PIL, palette preset), tile-preview 9b (métrique de raccord),
+et les erreurs (fichier manquant, op inconnue, pixel invalide).
 Run: <embedded python> backend/tests/test_images_process.py
 """
 import asyncio
@@ -157,12 +158,44 @@ async def main():
         assert FAL_CALLS[-1]["model"] == "fal-ai/flux-kontext/dev"
         assert FAL_CALLS[-1]["arguments"]["num_images"] == 3
 
-        # erreurs: fichier absent / op inconnue
+        # pixel (9b) — local PIL : 400x400, target 32, scale 2 -> 64x64,
+        # palette gameboy respectée
+        r = await client.post("/api/images/process",
+                              json={"op": "pixel", "filename": SRC,
+                                    "target_px": 32, "palette": "gameboy",
+                                    "scale": 2})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert j["pixel"]["palette"] == "gameboy"
+        out = j["images"][0]
+        with _PILImage.open(pathlib.Path(_settings.images_path) / out) as im:
+            assert im.size == (64, 64)
+            from app.services.pixel_ops import PALETTES
+            got = {(p[0], p[1], p[2]) for p in im.convert("RGBA").getdata()
+                   if p[3] >= 128}
+            assert got <= set(PALETTES["gameboy"]), sorted(got)[:4]
+
+        # tile-preview (9b) — composite 2x2 + métrique de raccord
+        r = await client.post("/api/images/process",
+                              json={"op": "tile-preview", "filename": SRC,
+                                    "grid": 2})
+        assert r.status_code == 200, r.text
+        j = r.json()
+        assert 0 <= j["seam_score"] <= 100
+        out = j["images"][0]
+        with _PILImage.open(pathlib.Path(_settings.images_path) / out) as im:
+            assert im.size == (800, 800)   # 2x2 de 400x400
+
+        # erreurs: fichier absent / op inconnue / pixel invalide
         r = await client.post("/api/images/process",
                               json={"op": "crop", "filename": "nope.png"})
         assert r.status_code == 400, r.text
         r = await client.post("/api/images/process",
                               json={"op": "blur", "filename": SRC})
+        assert r.status_code == 400, r.text
+        r = await client.post("/api/images/process",
+                              json={"op": "pixel", "filename": SRC,
+                                    "palette": "vga"})
         assert r.status_code == 400, r.text
 
         # /image-models expose nano-banana quand FAL_KEY est là
@@ -171,7 +204,7 @@ async def main():
         assert "nano-banana" in ids, ids
 
     print("OK — images/process: crop, upscale (simple/ai), remove-bg "
-          "(api/local-400), edit gpt, variations kontext, erreurs, "
-          "nano-banana liste")
+          "(api/local-400), edit gpt, variations kontext, pixel 9b, "
+          "tile-preview 9b, erreurs, nano-banana liste")
 
 asyncio.run(main())

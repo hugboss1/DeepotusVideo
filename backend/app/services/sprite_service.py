@@ -78,14 +78,17 @@ def normalize_opts(body: dict) -> dict:
         if not 1 <= columns <= 32:
             raise ValueError("columns must be 'auto' or an integer (1-32)")
 
-    # pixel-art per-frame op ships with chantier 9b (op "pixel" of
-    # /api/images/process, imported directly here) — reject explicitly until then.
-    if body.get("pixel"):
-        raise ValueError("L'option pixel-art arrive avec le chantier 9b — "
-                         "retirez `pixel` de la requête pour l'instant.")
+    # pixel-art per-frame op (chantier 9b): normalized by pixel_ops, applied
+    # per frame in generate_sprites (direct import, no HTTP). scale is forced
+    # to 1 — cell fitting handles the size (NEAREST keeps the pixels crisp).
+    pixel = body.get("pixel") or None
+    if pixel is not None:
+        from app.services.pixel_ops import normalize_pixel_opts
+        pixel = dict(normalize_pixel_opts(pixel), scale=1)
 
     return {"fps": fps, "max_frames": max_frames, "remove_bg": method,
-            "trim": trim, "cell_size": size, "align": align, "columns": columns}
+            "trim": trim, "cell_size": size, "align": align,
+            "columns": columns, "pixel": pixel}
 
 
 # ── source resolution (job render / user upload / on-disk video) ─────────────
@@ -215,17 +218,20 @@ def compute_grid(n: int, columns) -> tuple[int, int]:
     return cols, math.ceil(n / cols)
 
 
-def _fit_into_cell(img, size: int, align: str):
+def _fit_into_cell(img, size: int, align: str, resample=None):
     """Scale (contain) into a size×size transparent cell. Horizontal center;
     vertical: 'feet' anchors the content bottom to the cell bottom, 'center'
-    centers it."""
+    centers it. `resample`: NEAREST for pixel-art frames (LANCZOS would blend
+    the palette away), LANCZOS otherwise."""
     from PIL import Image
     w, h = img.size
     if not w or not h:
         return Image.new("RGBA", (size, size), (0, 0, 0, 0))
     scale = min(size / w, size / h)
     nw, nh = max(1, round(w * scale)), max(1, round(h * scale))
-    im2 = img.resize((nw, nh), Image.LANCZOS)
+    if resample is None:          # NB: Image.NEAREST == 0, donc pas de `or`
+        resample = Image.LANCZOS
+    im2 = img.resize((nw, nh), resample)
     if im2.mode != "RGBA":
         im2 = im2.convert("RGBA")
     cell = Image.new("RGBA", (size, size), (0, 0, 0, 0))
@@ -360,6 +366,7 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
     from PIL import Image
 
     size, align, trim = opts["cell_size"], opts["align"], opts["trim"]
+    resample = Image.NEAREST if opts.get("pixel") else Image.LANCZOS
 
     # pass 1 — union bbox of the content across frames (tight mode)
     union = None
@@ -386,7 +393,7 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
             im = im.convert("RGBA")
             if union:
                 im = im.crop(union)
-            cell = _fit_into_cell(im, size, align)
+            cell = _fit_into_cell(im, size, align, resample)
         fname = f"{i:03d}.png"
         cell.save(frames_dir / fname, format="PNG")
         x, y = (i % cols) * size, (i // cols) * size
@@ -414,6 +421,7 @@ def _assemble(frame_files: list[tuple[Path, bool]], opts: dict, out_dir: Path,
         "fps": fps,
         "trim": trim,
         "align": align,
+        "pixel": opts.get("pixel"),
         "created_at": datetime.now(timezone.utc)
                               .isoformat(timespec="seconds")
                               .replace("+00:00", "Z"),
@@ -512,6 +520,24 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                         30 + int(30 * (i + 1) / len(raw)))
     else:
         flags = [False] * len(raw)  # nothing detoured (and nothing failed)
+
+    # pixel-art per frame (9b) — local PIL, after remove-bg so the quantizer
+    # sees the final content, before trim/assembly which run on the result
+    if opts["pixel"]:
+        from PIL import Image
+        from app.services.pixel_ops import pixelate
+
+        def _pix_file(src_path: Path, dest: Path):
+            with Image.open(src_path) as im:
+                out = pixelate(im, opts["pixel"])
+            out.save(dest, format="PNG")
+
+        for i, path in enumerate(raw):
+            dest = raw_dir / f"pix_{i:04d}.png"
+            await asyncio.to_thread(_pix_file, path, dest)
+            raw[i] = dest
+            await _step(f"Pixel-art {i + 1}/{len(raw)}",
+                        60 + int(10 * (i + 1) / len(raw)))
 
     await _step("Assembling sheet", 75)
     source_info = {"kind": str((payload.get("source") or {}).get("kind") or ""),

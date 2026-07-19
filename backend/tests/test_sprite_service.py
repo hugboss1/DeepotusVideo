@@ -118,7 +118,7 @@ def test_normalize_defaults():
     o = S.normalize_opts({})
     assert o == {"fps": 8, "max_frames": 16, "remove_bg": "none",
                  "trim": "animation", "cell_size": 256, "align": "center",
-                 "columns": "auto"}
+                 "columns": "auto", "pixel": None}
 
 
 def test_normalize_rejects_out_of_range():
@@ -131,9 +131,18 @@ def test_normalize_rejects_out_of_range():
             S.normalize_opts(bad)
 
 
-def test_normalize_rejects_pixel_until_9b():
-    with pytest.raises(ValueError, match="9b"):
-        S.normalize_opts({"pixel": {"target_px": 64}})
+def test_normalize_pixel_9b():
+    # accepté et normalisé via pixel_ops ; scale forcé à 1 côté sprite
+    # (la mise à l'échelle est faite par la cellule, pas par l'op)
+    o = S.normalize_opts({"pixel": {"target_px": 48, "palette": "gameboy",
+                                    "scale": 8}})
+    assert o["pixel"] == {"target_px": 48, "colors": None,
+                          "palette": "gameboy", "dither": "none", "scale": 1}
+    for bad in ({"pixel": {"target_px": 4}}, {"pixel": {"palette": "vga"}},
+                {"pixel": {"colors": 8, "palette": "pico8"}},
+                {"pixel": "yes"}):
+        with pytest.raises(ValueError):
+            S.normalize_opts(bad)
 
 
 # ── résolution de source & path-traversal ────────────────────────────────────
@@ -272,6 +281,35 @@ def test_trim_tight_vs_animation(outputs, monkeypatch):
     assert op_t > op_a > 0
     # ancre 'feet' : le bas du contenu touche le bas de la cellule
     assert bb_t[3] >= 126
+
+
+def test_pixel_art_frames(outputs, monkeypatch):
+    """pixel gameboy : chaque frame du sheet reste dans la palette (4 couleurs
+    + transparent), alpha binaire — preuve que le fit cellule est en NEAREST
+    (un LANCZOS mélangerait les couleurs hors palette)."""
+    from app.services.pixel_ops import PALETTES
+    _patch_chroma_rembg(monkeypatch)
+    steps = []
+    r = _run(_payload(remove_bg="api",
+                      pixel={"target_px": 32, "palette": "gameboy"}),
+             "j-pix", steps)
+    d = outputs / "sprites" / "j-pix"
+
+    m = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    assert m["pixel"]["target_px"] == 32
+    assert m["pixel"]["palette"] == "gameboy"
+    assert any(lbl.startswith("Pixel-art") for lbl, _ in steps)
+
+    pal = set(PALETTES["gameboy"])
+    for f in m["frames"][:3]:
+        with Image.open(d / f["file"]) as im:
+            im = im.convert("RGBA")
+            assert im.size == (128, 128)
+            data = list(im.getdata())
+        opaque = {(px[0], px[1], px[2]) for px in data if px[3] >= 128}
+        assert opaque and opaque <= pal, sorted(opaque - pal)[:4]
+        assert {px[3] for px in data} <= {0, 255}
+    assert r["frames"] == len(m["frames"])
 
 
 # ── pricing ──────────────────────────────────────────────────────────────────
