@@ -32,7 +32,10 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .fld input,.fld select,.fld textarea{background:var(--bg-base);border:1px solid var(--stroke-strong);border-radius:8px;color:var(--ink-strong);padding:6px 9px;font-size:12.5px;font-family:var(--f-ui);width:100%}
 .fld textarea{resize:vertical}
 .fld.inline{flex-direction:row;align-items:center;gap:6px}
-.fld .unit{color:var(--ink-muted);font-size:10.5px}
+/* l'unité reste DANS la ligne du libellé : sans display:contents, le span
+   devient un item de la colonne flex et décale le champ de ~18px par rapport
+   aux voisins sans unité (bug d'alignement corrigé le 20/07/2026) */
+.fld .unit{display:contents;color:var(--ink-muted);font-size:10.5px}
 .hint{font-size:11px;color:var(--ink-muted);line-height:1.5}
 .status{font-size:12px;color:var(--ink);padding:8px 0}
 .status.err{color:var(--red)}
