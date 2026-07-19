@@ -118,7 +118,8 @@ def test_normalize_defaults():
     o = S.normalize_opts({})
     assert o == {"fps": 8, "max_frames": 16, "remove_bg": "none",
                  "trim": "animation", "cell_size": 256, "align": "center",
-                 "columns": "auto", "pixel": None}
+                 "columns": "auto", "pixel": None,
+                 "extract_only": False, "keep": None}
 
 
 def test_normalize_rejects_out_of_range():
@@ -126,9 +127,17 @@ def test_normalize_rejects_out_of_range():
                 {"max_frames": 3}, {"max_frames": 65},
                 {"remove_bg": "chroma"}, {"trim": "loose"},
                 {"cell": {"size": 300}}, {"cell": {"align": "top"}},
-                {"cell": "big"}, {"columns": 0}, {"columns": "three"}):
+                {"cell": "big"}, {"columns": 0}, {"columns": "three"},
+                {"keep": []}, {"keep": "0,1"}, {"keep": ["x"]},
+                {"keep": [-1]}, {"keep": [64]}):
         with pytest.raises(ValueError):
             S.normalize_opts(bad)
+
+
+def test_normalize_keep_9c():
+    # dédoublonné, trié, entiers — l'ordre temporel du filmstrip est préservé
+    o = S.normalize_opts({"keep": [5, 0, 5, "2"], "extract_only": 1})
+    assert o["keep"] == [0, 2, 5] and o["extract_only"] is True
 
 
 def test_normalize_pixel_9b():
@@ -310,6 +319,63 @@ def test_pixel_art_frames(outputs, monkeypatch):
         assert opaque and opaque <= pal, sorted(opaque - pal)[:4]
         assert {px[3] for px in data} <= {0, 255}
     assert r["frames"] == len(m["frames"])
+
+
+# ── 9c : sonde filmstrip (extract_only) + sélection de frames (keep) ─────────
+
+def test_extract_only_probe(outputs):
+    """extract_only : frames publiées telles qu'extraites (taille vidéo),
+    manifest léger, AUCUN sheet/preview/pack — la sonde du filmstrip UI."""
+    steps = []
+    r = _run(_payload(extract_only=True), "j-probe", steps)
+    d = outputs / "sprites" / "j-probe"
+
+    assert r["extract_only"] is True
+    assert r["frames"] == 8 and r["grid"] is None and r["sheet"] is None
+    for absent in ("sheet.png", "preview.gif", "sheet.unity.json",
+                   "SpriteSheetImporter.cs"):
+        assert not (d / absent).exists(), f"unexpected {absent}"
+    assert not (d / "_raw").exists()
+
+    m = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    assert m["extract_only"] is True and m["grid"] is None
+    assert [f["file"] for f in m["frames"]] == \
+        [f"frames/{i:03d}.png" for i in range(8)]
+    for f in m["frames"]:
+        with Image.open(d / f["file"]) as im:
+            assert im.size == (320, 240)     # brute, pas de cellule
+    assert steps[-1] == ("Complete", 100)
+
+
+def test_keep_filters_frames(outputs, monkeypatch):
+    """keep=[indices du filmstrip] : le run réel ne garde que ces frames-là,
+    et le choix est déterministe vis-à-vis de la sonde (le carré rouge de la
+    vidéo synthétique avance avec le temps -> bbox différente)."""
+    _patch_chroma_rembg(monkeypatch)
+    _run(_payload(remove_bg="api", keep=[0, 2, 5]), "j-keep")
+    d = outputs / "sprites" / "j-keep"
+    m = json.loads((d / "manifest.json").read_text(encoding="utf-8"))
+    assert len(m["frames"]) == 3
+    assert [f["index"] for f in m["frames"]] == [0, 1, 2]  # renuméroté
+    with Image.open(d / "preview.gif") as gif:
+        assert getattr(gif, "n_frames", 1) == 3
+
+    def content_x(job):
+        p = outputs / "sprites" / job / "frames" / "000.png"
+        with Image.open(p) as im:
+            return im.convert("RGBA").getchannel("A").getbbox()[0]
+
+    _run(_payload(remove_bg="api", keep=[0]), "j-k0")
+    _run(_payload(remove_bg="api", keep=[7]), "j-k7")
+    # frame 0 vs frame 7 : le contenu (carré) est plus à droite en fin de clip
+    assert content_x("j-k7") > content_x("j-k0")
+
+
+def test_keep_out_of_range_at_runtime(outputs):
+    # 8 frames échantillonnées : keep=[50] est valide statiquement (<64)
+    # mais ne laisse aucune frame -> erreur franche, jamais un run complet
+    with pytest.raises(RuntimeError, match="keep leaves no frames"):
+        _run(_payload(keep=[50]), "j-koor")
 
 
 # ── pricing ──────────────────────────────────────────────────────────────────

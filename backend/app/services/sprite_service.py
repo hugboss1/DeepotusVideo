@@ -86,9 +86,26 @@ def normalize_opts(body: dict) -> dict:
         from app.services.pixel_ops import normalize_pixel_opts
         pixel = dict(normalize_pixel_opts(pixel), scale=1)
 
+    # chantier 9c (UI Sprite Lab): `extract_only` publishes the sampled frames
+    # then stops (free local probe feeding the filmstrip); `keep` = indices of
+    # the filmstrip frames to keep on the real run (sampling order, so a probe
+    # and a run with identical fps/max_frames agree on the numbering).
+    extract_only = bool(body.get("extract_only"))
+    keep = body.get("keep")
+    if keep is not None:
+        if not isinstance(keep, (list, tuple)) or not keep:
+            raise ValueError("keep must be a non-empty list of frame indices")
+        try:
+            keep = sorted({int(i) for i in keep})
+        except (TypeError, ValueError):
+            raise ValueError("keep must be a list of integers")
+        if keep[0] < 0 or keep[-1] >= 64:
+            raise ValueError("keep indices must be within 0..63")
+
     return {"fps": fps, "max_frames": max_frames, "remove_bg": method,
             "trim": trim, "cell_size": size, "align": align,
-            "columns": columns, "pixel": pixel}
+            "columns": columns, "pixel": pixel,
+            "extract_only": extract_only, "keep": keep}
 
 
 # ── source resolution (job render / user upload / on-disk video) ─────────────
@@ -474,9 +491,52 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
         idx = [round(i * (len(raw) - 1) / (m - 1)) for i in range(m)]
         raw = [raw[i] for i in dict.fromkeys(idx)]
 
+    method = opts["remove_bg"]
+    source_info = {"kind": str((payload.get("source") or {}).get("kind") or ""),
+                   "file": src.name, "duration_s": round(duration, 2),
+                   "fps_sample": opts["fps"], "sampled": sampled,
+                   "remove_bg": method}
+
+    # 9c: filmstrip probe — publish the sampled frames as-is (no remove-bg /
+    # pixel / sheet) so the UI can show them and let the user tick them off.
+    if opts["extract_only"]:
+        frames_dir = out_dir / "frames"
+        frames_dir.mkdir(parents=True, exist_ok=True)
+        manifest_frames = []
+        for i, p in enumerate(raw):
+            dest = frames_dir / f"{i:03d}.png"
+            await asyncio.to_thread(shutil.copy2, p, dest)
+            manifest_frames.append({"index": i, "file": f"frames/{dest.name}"})
+        manifest = {
+            "version": 1, "source": source_info, "extract_only": True,
+            "grid": None, "frames": manifest_frames, "fps": opts["fps"],
+            "created_at": datetime.now(timezone.utc)
+                                  .isoformat(timespec="seconds")
+                                  .replace("+00:00", "Z"),
+        }
+        (out_dir / "manifest.json").write_text(
+            json.dumps(manifest, indent=2), encoding="utf-8")
+        await _step("Writing manifests", 90)
+        shutil.rmtree(raw_dir, ignore_errors=True)
+        await _step("Complete", 100)
+        return {"sheet": None, "preview": None,
+                "manifest": str(out_dir / "manifest.json"),
+                "frames": len(raw), "grid": None, "extract_only": True,
+                "bg_failed": [], "remove_bg": "none",
+                "out_dir": str(out_dir)}
+
+    # 9c: filmstrip selection — indices are in the sampled order shown by the
+    # probe. Out-of-range entries are ignored (shorter clip than expected);
+    # an empty selection is a hard error, never a silent full run.
+    if opts["keep"]:
+        sel = [i for i in opts["keep"] if i < len(raw)]
+        if not sel:
+            raise RuntimeError(
+                "keep leaves no frames (all indices out of range)")
+        raw = [raw[i] for i in sel]
+
     # remove-bg per frame (batch). One failed frame never kills the job: it is
     # kept un-detoured and flagged in the manifest (spec 9a).
-    method = opts["remove_bg"]
     flags = [None] * len(raw)  # None = pending; bool = detoured ok / kept as-is
     if method == "api":
         sem = asyncio.Semaphore(3)
@@ -540,10 +600,6 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                         60 + int(10 * (i + 1) / len(raw)))
 
     await _step("Assembling sheet", 75)
-    source_info = {"kind": str((payload.get("source") or {}).get("kind") or ""),
-                   "file": src.name, "duration_s": round(duration, 2),
-                   "fps_sample": opts["fps"], "sampled": sampled,
-                   "remove_bg": method}
     frame_files = list(zip(raw, [bool(f) for f in flags]))
     summary = await asyncio.to_thread(
         _assemble, frame_files, opts, out_dir, source_info)

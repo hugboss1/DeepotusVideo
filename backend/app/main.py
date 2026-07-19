@@ -220,6 +220,36 @@ if _atelier.is_dir():
 
     logger.info(f"Serving atelier from {_atelier}")
 
+# ── Sprite Lab (chantier 9c): Game Assets 2D — source vidéo → sprite sheet,
+# at /spritelab. Standalone page (frontend/spritelab/) outside the compiled
+# bundle, iframed by the SPA's Game Assets hub (patch_bundle_spritelab).
+_spritelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "spritelab"
+if _spritelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFSl
+
+    class _SpritelabStatic(_SFSl):
+        """no-cache like /atelier: spritelab.js keeps a stable filename, so
+        the browser must revalidate to pick up updates."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/spritelab", _SpritelabStatic(directory=str(_spritelab), html=True),
+              name="spritelab")
+
+    # The mount only matches "/spritelab/..." — a bare "/spritelab" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/spritelab", include_in_schema=False)
+    async def _spritelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/spritelab/", status_code=307)
+
+    logger.info(f"Serving spritelab from {_spritelab}")
+
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
 if _emoji_dir.is_dir():

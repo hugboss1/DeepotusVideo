@@ -471,7 +471,8 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
     Body: {source: {kind: job|upload|video, ...}, fps_sample, max_frames,
     remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
     columns: "auto"|int, pixel?: {target_px, colors|palette, dither} (9b),
-    title?}."""
+    extract_only?: bool (9c: frames-only probe for the filmstrip),
+    keep?: [indices] (9c: filmstrip selection, sampling order), title?}."""
     from datetime import datetime as _dtu
     import json as _json
     from app.services import sprite_service as SS
@@ -521,7 +522,8 @@ async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
                     jr.status = JobStatus.DONE.value
                     jr.progress = 100
                     jr.final_video_path = r.get("sheet")
-                    jr.image_filename = "sheet.png"
+                    if r.get("sheet"):   # extract_only probes have no sheet
+                        jr.image_filename = "sheet.png"
                     jr.current_step = "Complete"
                     jr.completed_at = _dtu.utcnow()
                     jr.cost_meta = _json.dumps({
