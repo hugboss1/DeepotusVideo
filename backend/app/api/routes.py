@@ -2798,6 +2798,15 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     n = max(1, min(4, int(body.get("n") or 1)))
     size = body.get("size") or "portrait_16_9"
     model = (body.get("model") or "").strip().lower()
+    if not model:
+        # Callers that drive the API directly (plan agents, scripts) send no
+        # model — honour the saved "Image generator" default instead of
+        # silently falling back to FLUX.
+        async with async_session_factory() as _s:
+            model = (await _atelier_setting(
+                _s, "image_model_default")).strip().lower()
+        logger.info("images/generate: no model in request, saved default -> "
+                    f"{model or 'flux (fallback)'}")
     import httpx as _httpx
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
@@ -2960,8 +2969,14 @@ async def list_image_models():
                     "provider": "openai", "note": "balanced"})
         out.append({"id": "gpt-image-1-mini", "label": "GPT Image 1 mini",
                     "provider": "openai", "note": "cheapest OpenAI"})
-    return {"models": out, "default": ("flux" if settings.FAL_KEY
-                                       else (out[0]["id"] if out else ""))}
+    async with async_session_factory() as _s:
+        configured = (await _atelier_setting(
+            _s, "image_model_default")).strip().lower()
+    if configured and configured not in {m["id"] for m in out}:
+        configured = ""  # stale default (key removed) — ignore it
+    return {"models": out, "configured": configured,
+            "default": configured or ("flux" if settings.FAL_KEY
+                                      else (out[0]["id"] if out else ""))}
 
 
 # ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════
