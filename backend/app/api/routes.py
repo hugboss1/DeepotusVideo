@@ -457,6 +457,167 @@ async def save_asset3d_shot(job: str, i: int):
     return {"filename": dest.name}
 
 
+# ---- Game Assets 2D — Sprite Lab (chantier 9a) ----
+
+def _sprite_dir(job: str) -> Path:
+    return settings.outputs_path / "sprites" / Path(job).name
+
+
+@router.post("/assets/sprite")
+async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
+    """Game Assets 2D: video render -> frames -> sprite sheet + pack Unity.
+    Mirrors /assets/3d: pre-register a sprite2d JobRecord, run in the
+    background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
+    Body: {source: {kind: job|upload|video, ...}, fps_sample, max_frames,
+    remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
+    columns: "auto"|int, title?}."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import sprite_service as SS
+    from app.services.storage import JobRecord, async_session_factory
+
+    # fail fast on bad input instead of accepting a job that dies in background
+    try:
+        opts = SS.normalize_opts(body)
+        src = await SS.resolve_source(body.get("source") or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if opts["remove_bg"] == "api" and not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                 "use remove_bg 'local' or 'none'.")
+    if opts["remove_bg"] == "local":
+        try:
+            import rembg  # noqa: F401
+        except ImportError:
+            raise HTTPException(
+                400, "rembg is not installed in this runtime — use remove_bg "
+                     "'api' (fal) or 'none', or install it with: pip install rembg")
+
+    job_id = str(uuid4())
+    short = job_id[:8]
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
+            title=(body.get("title") or f"Sprites · {src.stem}"),
+            image_filename=f"sprite_{short}",
+            provider="sprite2d", current_step="Extracting frames"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step = label
+                jr2.progress = int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await SS.generate_sprites(body, short, on_step=on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.DONE.value
+                    jr.progress = 100
+                    jr.final_video_path = r.get("sheet")
+                    jr.image_filename = "sheet.png"
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps({
+                        "job": short, "frames": r.get("frames"),
+                        "remove_bg": r.get("remove_bg"),
+                        "grid": r.get("grid"),
+                        "bg_failed": r.get("bg_failed") or []})
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"sprite2d {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/assets/sprite/{job}/manifest")
+async def get_sprite_manifest(job: str):
+    """The generated manifest (grid, frames, fps, offsets) + which files
+    actually exist on disk (ground truth)."""
+    d = _sprite_dir(job)
+    mf = d / "manifest.json"
+    if not mf.is_file():
+        raise HTTPException(404, "Not found")
+    data = json.loads(mf.read_text(encoding="utf-8"))
+    fdir = d / "frames"
+    data["files"] = {
+        "sheet": (d / "sheet.png").is_file(),
+        "preview": (d / "preview.gif").is_file(),
+        "unity_json": (d / "sheet.unity.json").is_file(),
+        "unity_importer": (d / "SpriteSheetImporter.cs").is_file(),
+        "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
+    }
+    return data
+
+
+@router.get("/assets/sprite/{job}/sheet")
+async def get_sprite_sheet(job: str):
+    p = _sprite_dir(job) / "sheet.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/preview")
+async def get_sprite_preview(job: str):
+    p = _sprite_dir(job) / "preview.gif"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/frame/{i}")
+async def get_sprite_frame(job: str, i: int):
+    p = _sprite_dir(job) / "frames" / f"{int(i):03d}.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/zip")
+async def get_sprite_zip(job: str):
+    """Full pack: sheet + frames + manifests + Unity importer."""
+    from app.services.sprite_service import build_zip_bytes
+    d = _sprite_dir(job)
+    if not (d / "sheet.png").is_file():
+        raise HTTPException(404, "Not found")
+    data = await asyncio.to_thread(build_zip_bytes, d)
+    return Response(
+        content=data, media_type="application/zip",
+        headers={"Content-Disposition":
+                 f'attachment; filename="sprites_{Path(job).name}.zip"'})
+
+
+@router.post("/assets/sprite/{job}/save")
+async def save_sprite_sheet(job: str):
+    """Copy sheet.png into the Library images folder so it can be reused as an
+    ordinary image (Studio node, Seedance start frame, ...)."""
+    import shutil
+    src = _sprite_dir(job) / "sheet.png"
+    if not src.is_file():
+        raise HTTPException(404, "Not found")
+    dest = settings.images_path / f"gen_sprite_{Path(job).name}.png"
+    n = 2
+    while dest.exists():
+        dest = settings.images_path / f"gen_sprite_{Path(job).name}_{n}.png"
+        n += 1
+    shutil.copy2(src, dest)
+    return {"filename": dest.name}
+
+
 # ── Studio named-graph store (v1.15.6): save / reload node graphs by name,
 # separate from the render-time source_graph dump. Lives in the data dir
 # (DATA_ROOT/assets/studio_graphs) so it survives updates/reinstalls.
@@ -2544,6 +2705,15 @@ def _job_to_cost(job, p):
         return _pricing.estimate({"kind": "episode",
                                   "images": int(meta.get("images", 1) or 1),
                                   "chars": float(meta.get("chars", 0) or 0)}, p)
+    if prov == "sprite2d":
+        import json as _json
+        try:
+            meta = _json.loads(job.cost_meta or "{}")
+        except Exception:
+            meta = {}
+        return _pricing.estimate({"kind": "sprite2d",
+                                  "frames": int(meta.get("frames", 0) or 0),
+                                  "remove_bg": meta.get("remove_bg", "none")}, p)
     return _pricing.estimate({"kind": "campaign", "ops": [
         {"kind": "image"}, {"kind": "seedance", "duration_s": dur}]}, p)
 
