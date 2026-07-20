@@ -44,10 +44,15 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .empty-note.tall{padding-top:60px}
 
 /* ── volets ── */
-.panes{display:grid;grid-template-columns:minmax(280px,340px) minmax(380px,1fr) minmax(320px,420px);height:calc(100vh - 47px)}
+/* 11d : minimums 980px -> 800px — dans l'iframe Game Assets sur fenêtre
+   étroite, la grille débordait (scroll horizontal, encarts coupés :
+   « Action à animer »). Couvert par la passe étroite 900px du harnais. */
+.panes{display:grid;grid-template-columns:minmax(240px,340px) minmax(280px,1fr) minmax(280px,420px);height:calc(100vh - 47px)}
 .pane{display:flex;flex-direction:column;min-width:0;overflow:hidden}
 .src-pane,.strip-pane{border-right:1px solid var(--stroke)}
-.pane-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--stroke)}
+/* 11d : flex-wrap — sur pane étroite, le bouton « Ré-extraire » passe à la
+   ligne au lieu de déborder de l'encart. */
+.pane-head{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--stroke);flex-wrap:wrap}
 .pane-head h2{margin:0;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);flex:1}
 .tabs{display:flex;gap:4px;flex:1}
 .tab{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--ink-soft);padding:6px 10px;font-size:12.5px;cursor:pointer}
