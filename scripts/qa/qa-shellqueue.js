@@ -13,6 +13,11 @@
    Q9  prefers-reduced-motion -> panneau en fade (transition opacity,
        transform none) + badge sans animation.
    Q10 poignée window.__dzQueue {open, close, toggle, state}.
+   Q11 (11b) chips rr jamais orphelines : 0 chip visible panneau fermé
+       (vue quick + Sprites 2D), panneau ouvert -> bounding-box rr ⊂ panneau
+       (axe horizontal ; le clip vertical de .scroll est légitime).
+       Bug d'origine pré-11a : l'iframe /spritelab/ débordait sous la rangée
+       du Job Dock et les chips absolute peignaient par-dessus Sprite Lab.
    Cleanup : DELETE uniquement des jobs sprite2d créés par CE run.
    Run : NODE_PATH=<scratchpad>/node_modules node scripts/qa/qa-shellqueue.js [outdir] */
 const puppeteer = require('puppeteer-core');
@@ -333,6 +338,65 @@ async function poll(fn, ok, ms, step) {
   T('Recette job terminé visible en Recent', doneJob.status === 'done' && rec.recent && rec.sprite,
     `(job=${doneJob.status})`);
   await page.screenshot({ path: OUT + '/after-panel-recent.png' });
+
+  /* ── Q11 (11b) — vignettes rr contenues, chips jamais orphelines.
+     Pré-11a, l'iframe /spritelab/ (840 px) débordait sous la rangée du Job
+     Dock : les corps de cartes passaient sous l'iframe mais les chips rr
+     (position:absolute) peignaient par-dessus Sprite Lab (chips OUT sans
+     carte). Le dock étant retiré du flux, ces assertions verrouillent la
+     non-régression. */
+  const scanChips = () => page.evaluate(() => {
+    const CHIP = /^(IMG|CLIP|AVT|WAV|OUT)$/;
+    const vis = el => {
+      for (let n = el; n && n !== document.documentElement; n = n.parentElement) {
+        const cs = getComputedStyle(n);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return false;
+      }
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.height > 0 && r.bottom > 0 && r.right > 0 &&
+        r.top < innerHeight && r.left < innerWidth;
+    };
+    const panel = document.querySelector('.dzq-panel');
+    const open = !!(panel && panel.className.includes('on'));
+    const pr = panel ? panel.getBoundingClientRect() : null;
+    const out = { open, visibles: 0, horsPanneau: 0, horsRectX: 0 };
+    for (const d of document.querySelectorAll('div')) {
+      if (d.childElementCount !== 0 || !CHIP.test((d.textContent || '').trim())) continue;
+      const cs = getComputedStyle(d);
+      if (cs.position !== 'absolute' || cs.fontSize !== '9px') continue;
+      if (!vis(d)) continue;
+      out.visibles++;
+      if (!d.closest('.dzq-panel') || !open) { out.horsPanneau++; continue; }
+      const cr = d.parentElement.getBoundingClientRect(); /* conteneur rr */
+      if (cr.left < pr.left - 2 || cr.right > pr.right + 2) out.horsRectX++;
+    }
+    return out;
+  });
+  await page.keyboard.press('Escape'); /* referme le panneau laissé ouvert */
+  await sleep(700);
+  const q11a = await scanChips();
+  T('Q11 aucune chip rr visible panneau fermé (vue quick)',
+    q11a.visibles === 0, JSON.stringify(q11a));
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('deepotus:navigate',
+    { detail: { view: 'assets3d' } })));
+  await sleep(1500);
+  await page.evaluate(() => {
+    const b = [...document.querySelectorAll('button')].find(x => x.textContent.includes('Sprites 2D'));
+    if (b) b.click();
+  });
+  await sleep(2200);
+  const q11b = await scanChips();
+  T('Q11 aucune chip rr par-dessus Sprite Lab (panneau fermé)',
+    q11b.visibles === 0, JSON.stringify(q11b));
+  await page.evaluate(() => window.__dzQueue.open());
+  await sleep(650);
+  const q11c = await scanChips();
+  T('Q11 panneau ouvert : chips présentes et rr ⊂ panneau (axe X)',
+    q11c.open && q11c.visibles > 0 && q11c.horsPanneau === 0 && q11c.horsRectX === 0,
+    JSON.stringify(q11c));
+  await page.screenshot({ path: OUT + '/after-11b-sprites.png' });
+  await page.keyboard.press('Escape');
+  await sleep(650);
 
   /* cleanup strict */
   const jobsAfter = await (await fetch(BASE + '/api/jobs?limit=60')).json();
