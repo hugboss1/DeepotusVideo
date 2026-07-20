@@ -524,6 +524,51 @@ function wire() {
   $("#toStudio").onclick = toStudio;
 }
 
+/* ───────── restauration après remontage (fix préviz 20/07) ─────────
+   L'iframe du hub est remontée à chaque navigation : sans ceci, un sheet
+   généré pendant qu'on a le dos tourné n'est JAMAIS montré (« préviz
+   vide ») et une génération en vol est perdue de vue. Au chargement :
+   reprendre le poll d'une génération en cours, sinon ré-afficher le
+   dernier sheet terminé (les sondes n'ont ni ce titre ni final_video_path). */
+const PROBE_TITLE = "Sprites · extraction";
+
+async function showShort(short) {
+  const m = await api.get("/assets/sprite/" + short + "/manifest");
+  if (!m || !m.grid || !(m.files && m.files.sheet)) return false;
+  showResult(short, m);
+  return true;
+}
+
+async function restoreLast() {
+  try {
+    const js = await api.get("/jobs?limit=100");
+    const mine = js.filter(j => j.provider === "sprite2d"
+      && !(j.title || "").startsWith(PROBE_TITLE));
+    const run = mine.find(j => j.status === "pending" || j.status === "processing");
+    if (run) {                              // génération abandonnée en plein vol
+      const st = $("#genStatus");
+      busyGen = true; updateGenEnabled();
+      try {
+        setStatus(st, "Génération en cours retrouvée…", false, 5);
+        const j = await pollJob(run.job_id, jj => setStatus(st,
+          `${jj.current_step || jj.status}…`, false, jj.progress || 5));
+        if (j.status !== "done") throw new Error(j.error || "génération échouée");
+        clearStatus(st);
+        if (await showShort(run.job_id.slice(0, 8))) toast("Sprite sheet généré ✓");
+      } catch (e) {
+        setStatus(st, "Échec : " + e.message, true);
+      }
+      busyGen = false; updateGenEnabled();
+      return;
+    }
+    const done = mine
+      .filter(j => j.status === "done" && j.final_video_path)
+      .sort((a, b) => (b.created_at || "").localeCompare(a.created_at || ""))[0];
+    if (done && await showShort(done.job_id.slice(0, 8)))
+      toast("Dernier sheet rechargé ✓");
+  } catch (e) { /* réseau/API indisponible : placeholder d'origine */ }
+}
+
 /* poignée de debug / QA (harnais Puppeteer de la recette) */
 window.__sl = {
   get state() {
@@ -540,4 +585,5 @@ window.__sl = {
   await loadPrefs();
   syncPixelSet();
   loadImages(); loadRenders();
+  restoreLast();               // préviz : survit au remontage de l'iframe
 })();
