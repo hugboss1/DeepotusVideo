@@ -2498,7 +2498,8 @@ async def upload_pack_icon(slot: str, request: Request, file: UploadFile = File(
 # ============ v1.9: MARKETING PLAN + SCHEDULER + IMAGE GEN ============
 
 from datetime import datetime as _dt, timedelta as _td
-from sqlalchemy import select as _select, delete as _delete
+from sqlalchemy import select as _select, delete as _delete, \
+    or_ as _or, and_ as _and
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 from app.services import marketing
 
@@ -2535,15 +2536,20 @@ def _post_to_dict(p: ScheduledPost) -> dict:
 
 
 @router.get("/schedule")
-async def list_schedule(days_back: int = 30, days_forward: int = 90):
-    """All scheduled posts in a window around now (UTC)."""
+async def list_schedule(days_back: int = 365, days_forward: int = 365):
+    """Scheduled posts. Les posts encore actionnables (draft/scheduled/ready)
+    sont TOUJOURS renvoyés quel que soit leur run_at : l'ancienne fenêtre
+    [−30 j, +90 j] les faisait « disparaître » silencieusement du Scheduler
+    dès qu'elle glissait au-delà (incident 20/07/2026 — rien n'était perdu
+    en base). La fenêtre ne borne plus que l'historique posted/failed."""
     lo = _dt.utcnow() - _td(days=days_back)
     hi = _dt.utcnow() + _td(days=days_forward)
     async with async_session_factory() as session:
         res = await session.execute(
             _select(ScheduledPost)
-            .where(ScheduledPost.run_at >= lo)
-            .where(ScheduledPost.run_at <= hi)
+            .where(_or(
+                ScheduledPost.status.in_(("draft", "scheduled", "ready")),
+                _and(ScheduledPost.run_at >= lo, ScheduledPost.run_at <= hi)))
             .order_by(ScheduledPost.run_at.asc()))
         return [_post_to_dict(p) for p in res.scalars().all()]
 
