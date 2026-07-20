@@ -402,6 +402,8 @@ async def get_asset3d_manifest(job: str):
     formats, shots = [], []
     for f in d.iterdir():
         n = f.name
+        if n == "model.opt.glb":
+            continue                    # le GLB optimisé a sa propre UI (10a)
         if n.startswith("model.") and f.is_file():
             formats.append(n.split(".", 1)[1].lower())
         elif n.startswith("shot_") and n.endswith(".png"):
@@ -421,6 +423,50 @@ async def get_asset3d_preview(job: str):
     if not p.is_file():
         raise HTTPException(404, "Not found")
     return FileResponse(p)
+
+
+# ---- Game Assets 3D — Optimize (chantier 10a) ----
+# Les routes /optimize et /opt-glb sont déclarées AVANT /{fmt} (même règle
+# que /preview) pour ne pas être capturées comme fmt="optimize"/"opt-glb".
+
+@router.post("/assets/3d/{job}/optimize")
+async def optimize_asset3d(job: str, body: dict = None):
+    """Simplify model.glb to a triangle budget (gltfpack, local & free).
+    Body: {preset: micro|small|prop|detailed|game|balanced|high|ultra}
+    OR {target_tris: int}. Returns before/after stats (persisted in
+    optimize.json next to the model)."""
+    from app.services import mesh_optimize as MO
+    body = body or {}
+    try:
+        info = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: MO.optimize_glb(
+                job, body.get("target_tris"), body.get("preset")))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
+    return info
+
+
+@router.get("/assets/3d/{job}/optimize")
+async def get_asset3d_optimize(job: str):
+    """Stats of the last optimize run for this job (optimize.json)."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / "optimize.json"
+    if not p.is_file():
+        raise HTTPException(404, "Not optimized yet")
+    import json as _json
+    return _json.loads(p.read_text(encoding="utf-8"))
+
+
+@router.get("/assets/3d/{job}/opt-glb")
+async def download_asset3d_optimized(job: str):
+    p = settings.outputs_path / "assets3d" / Path(job).name / "model.opt.glb"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="model/gltf-binary",
+                        filename=f"asset3d_{Path(job).name}_optimized.glb")
 
 
 @router.get("/assets/3d/{job}/{fmt}")
