@@ -14,7 +14,13 @@
 #define MyAppName "Deepotus Video Gen"
 #define MyAppVersion "1.16.0"
 #define MyAppPublisher "Deepotus"
-#define StageDir "C:\Users\olivi\dz"
+; StageDir est normalement fourni par build-installer.ps1 via /DStageDir=<...>
+; (stage court, D:\dz par défaut). Le define ci-dessous n'est qu'un secours
+; pour une compilation manuelle — un define en dur écraserait le /D et ferait
+; échouer ISCC sur un stage inexistant (incident build v1.16.0).
+#ifndef StageDir
+  #define StageDir "D:\dz"
+#endif
 #define AppRoot StageDir + "\app"
 
 [Setup]
