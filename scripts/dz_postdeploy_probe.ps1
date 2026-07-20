@@ -1,12 +1,13 @@
-# Sonde POST-DÉPLOIEMENT obligatoire (incident overlay MSIX 14/06-20/07/2026).
-# À lancer après chaque redéploiement/relance de l'app pour prouver que le
-# backend écrit bien dans le monde réel :
-#   1. GET /api/health -> fs_virtualized doit être false (garde interne) ;
-#   2. upload d'un PNG sonde -> il doit apparaître dans GET /api/images
-#      (un backend conteneurisé écrit dans l'overlay : la sonde disparaît
-#      du listing) ; la sonde est ensuite supprimée.
-# Sort avec code 1 si l'un des deux checks échoue. Utilisable depuis
+# Sonde POST-DEPLOIEMENT obligatoire (incident overlay MSIX 14/06-20/07/2026).
+# A lancer apres chaque redeploiement/relance de l'app pour prouver que le
+# backend ecrit bien dans le monde reel :
+#   1. GET /api/health -> fs_virtualized doit etre false (garde interne) ;
+#   2. upload d'un PNG sonde -> il doit apparaitre dans GET /api/images
+#      (un backend conteneurise ecrit dans l'overlay : la sonde disparait
+#      du listing) ; la sonde est ensuite supprimee.
+# Sort avec code 1 si l'un des deux checks echoue. Utilisable depuis
 # n'importe quel shell (la sonde passe par l'API, pas par le filesystem).
+# NB : fichier volontairement ASCII pur (PowerShell 5.1 lit sans BOM en ANSI).
 $api = "http://127.0.0.1:8765/api"
 $fail = $false
 
@@ -18,7 +19,7 @@ try {
 if ($h.fs_virtualized -eq $false) {
   Write-Host "[OK ] health.fs_virtualized = false"
 } else {
-  Write-Host "[FAIL] health.fs_virtualized = $($h.fs_virtualized) — backend conteneurisé ou garde absent !"
+  Write-Host "[FAIL] health.fs_virtualized = $($h.fs_virtualized) - backend conteneurise ou garde absent !"
   $fail = $true
 }
 
@@ -35,9 +36,9 @@ $lst = (Invoke-WebRequest -UseBasicParsing "$api/images" -TimeoutSec 10).Content
 $seen = ($lst.images | Where-Object filename -eq $name) -ne $null
 & $curl -s -X DELETE "$api/images/$name" | Out-Null
 if ($seen) {
-  Write-Host "[OK ] sonde upload visible dans le listing (écritures réelles)"
+  Write-Host "[OK ] sonde upload visible dans le listing (ecritures reelles)"
 } else {
-  Write-Host "[FAIL] sonde upload INVISIBLE du listing — écritures déviées vers l'overlay !"
+  Write-Host "[FAIL] sonde upload INVISIBLE du listing - ecritures deviees vers l'overlay !"
   $fail = $true
 }
 
