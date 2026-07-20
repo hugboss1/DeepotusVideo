@@ -2,8 +2,11 @@
 # scripts/patch_bundle_toolbars.py
 """Assert-guarded patcher : chantier 11c — toolbars (UI Shell Pro).
 
-BASELINE : bundle POST-patch voiceprov (dernier patch en date).
+BASELINE : bundle POST-patch spatialports (CR-3, dernier patch en date au
+20/07/2026 — .bak_spatialports 19:16 < .bak_toolbars 19:29).
 Backup dédié : .js.bak_toolbars (état juste avant CE patch).
+GARDE-CHAÎNE : refuse de tourner si un backup aval existe (sinon les patchs
+postérieurs seraient silencieusement effacés) — voir repatch_all.py.
 
 Deux volets (spec 11c + observation d'Olivier) :
 
@@ -13,9 +16,15 @@ Deux volets (spec 11c + observation d'Olivier) :
      tooltip natif clair du navigateur ne peut plus apparaître), timer 100 ms
      puis .dz-tip positionné sous l'élément (clamp viewport, flip au-dessus
      si pas la place) ;
-   - mouseout / mousedown / scroll / Escape -> masque ET RESTAURE title
-     (compat recettes existantes qui sélectionnent par [title=...] : un clic
-     Puppeteer déclenche mousedown, donc l'attribut revient aussitôt) ;
+   - mouseout / mousedown / scroll / Escape -> masque, RESTAURE title (compat
+     recettes existantes qui sélectionnent par [title=...] : un clic Puppeteer
+     déclenche mousedown, donc l'attribut revient aussitôt) et NETTOIE
+     data-dztip (sinon un title devenu conditionnellement absent côté React
+     serait ressuscité par la restauration — constat CR) ;
+   - timer d'affichage gardé par el.isConnected (élément démonté pendant les
+     100 ms -> pas de tooltip fantôme en 8,7) ; focusout ne masque que si
+     c'est BIEN l'élément courant qui perd le focus (le churn de focus de
+     l'app ne fait plus flicker les tooltips souris) ;
    - SELECT/OPTION exclus (spec : les selects gardent leur libellé visible,
      pas de couche par-dessus) ;
    - clavier : focusin :focus-visible -> même tooltip (a11y), focusout masque ;
@@ -30,12 +39,15 @@ Deux volets (spec 11c + observation d'Olivier) :
      rangée 2 : [statut/progress col 2] [actions col 3, calées à droite]
    + ellipsis 1 ligne sur titre (title= pour le tooltip), uuid et erreur.
 
-z-index tooltip : 400 (au-dessus de la modale préviz 200 et du panneau 151).
+z-index tooltip : 400 (au-dessus de la modale préviz 200 et du panneau 151 ;
+reste SOUS les overlays d'onboarding 900/9998/9999 — assumé, quasi aucun
+[title] n'y vit).
 
 Run : python scripts/patch_bundle_toolbars.py
 """
 import pathlib
 import shutil
+import sys
 
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 BAK = BUNDLE.parent / (BUNDLE.name + ".bak_toolbars")
@@ -46,6 +58,24 @@ def apply(s, anchor, replacement, tag):
     if n != 1:
         raise SystemExit(f"[{tag}] anchor count={n} (want 1). Aborting.")
     return s.replace(anchor, replacement)
+
+
+def guard_downstream(bak):
+    """Refuse de tourner si un patcher AVAL est déjà passé (constat CR chantier
+    11 : relancer un patcher amont restaure SON .bak et efface silencieusement
+    tous les patchs postérieurs). L'ordre de la chaîne = mtime des .bak_*
+    (copy2 préserve le mtime du bundle au moment du backup).
+    Pour rejouer la chaîne proprement : python scripts/repatch_all.py --from <tag>."""
+    if not bak.exists():
+        return
+    stem = bak.name.rsplit(".bak_", 1)[0]
+    for other in bak.parent.glob(stem + ".bak_*"):
+        if other != bak and other.stat().st_mtime > bak.stat().st_mtime:
+            raise SystemExit(
+                f"[garde-chaine] backup aval détecté : {other.name} (plus récent que "
+                f"{bak.name}). Relancer ce patcher seul écraserait les patchs "
+                f"postérieurs. Utiliser : python scripts/repatch_all.py --from "
+                f"{bak.name.rsplit('.bak_', 1)[1]}")
 
 
 # ---------------------------------------------------------------------------
@@ -66,8 +96,9 @@ TIP = (
     'function dztTip(){if(!dztEl){dztEl=document.createElement("div");dztEl.className="dz-tip";'
     'dztEl.setAttribute("role","tooltip");document.body.appendChild(dztEl)}return dztEl}'
     'function dztHide(){dztTmr&&(clearTimeout(dztTmr),dztTmr=0);'
-    'if(dztCur&&dztCur.getAttribute&&dztCur.getAttribute("data-dztip")&&!dztCur.getAttribute("title"))'
-    'dztCur.setAttribute("title",dztCur.getAttribute("data-dztip"));'
+    'if(dztCur&&dztCur.getAttribute&&dztCur.getAttribute("data-dztip")){'
+    'dztCur.getAttribute("title")||dztCur.setAttribute("title",dztCur.getAttribute("data-dztip"));'
+    'dztCur.removeAttribute("data-dztip")}'
     'dztCur=null;dztEl&&dztEl.classList.remove("on")}'
     'function dztPlace(el,txt){var t=dztTip();t.textContent=txt;t.style.left="0px";t.style.top="0px";t.classList.add("on");'
     'var r1=el.getBoundingClientRect(),tw=t.offsetWidth,th=t.offsetHeight,vw=window.innerWidth,vh=window.innerHeight,'
@@ -75,7 +106,7 @@ TIP = (
     'ty+th>vh-8&&(ty=Math.max(8,r1.top-th-7));t.style.left=Math.round(lx)+"px";t.style.top=Math.round(ty)+"px"}'
     'function dztArm(el,txt,steal){if(!txt)return;'
     'steal&&(el.setAttribute("data-dztip",txt),el.removeAttribute("title"));'
-    'dztCur=el;dztTmr=setTimeout(function(){dztTmr=0;dztCur===el&&dztPlace(el,txt)},100)}'
+    'dztCur=el;dztTmr=setTimeout(function(){dztTmr=0;dztCur===el&&el.isConnected&&dztPlace(el,txt)},100)}'
     'document.addEventListener("mouseover",function(ev){'
     'var el=ev.target&&ev.target.closest?ev.target.closest("[title],[data-dztip]"):null;'
     'if(el===dztCur)return;dztHide();if(!el)return;'
@@ -92,7 +123,7 @@ TIP = (
     'if(!el||el===dztCur)return;var fv=!1;try{fv=el.matches(":focus-visible")}catch(_e){}if(!fv)return;'
     'var tg=el.tagName;if(tg==="SELECT"||tg==="OPTION")return;dztHide();'
     'var ti=el.getAttribute("title");dztArm(el,ti||el.getAttribute("data-dztip"),!!ti)},!0);'
-    'document.addEventListener("focusout",function(){dztCur&&dztHide()},!0);'
+    'document.addEventListener("focusout",function(ev){ev.target===dztCur&&dztHide()},!0);'
     'window.__dzTip={get state(){return{visible:!!(dztEl&&dztEl.classList.contains("on")),'
     'text:dztEl?dztEl.textContent:""}}};'
     '}catch(_e){}})();'
@@ -100,6 +131,8 @@ TIP = (
 
 
 def main():
+    if "--force-unchained" not in sys.argv:
+        guard_downstream(BAK)
     if not BAK.exists():
         shutil.copy2(BUNDLE, BAK)
         print("backup ->", BAK)

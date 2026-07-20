@@ -14,8 +14,15 @@
    - row-misalign   : rangées toolbar (flex row <=48px, >=3 enfants dont >=2
                       contrôles), centres verticaux alignés à ±2.5 px.
    Sortie : result.json + un screenshot annoté (outline rouge) par vue en
-   défaut. Code sortie = nombre de vues en défaut (0 = vert).
-   Options : DZ_BUNDLE=<chemin> sert ce bundle (audit avant déploiement).
+   défaut. Code sortie = nombre de vues en défaut (0 = vert) ; 99 = zéro vue
+   en défaut MAIS erreurs console collectées (à lire dans result.json).
+   ANGLES MORTS assumés (un « 0 finding » ne couvre pas) : feuilles inline
+   (clientWidth=0) au scan text-overflow ; contenu coupé par le HAUT d'un
+   clip ; ancêtres à opacity:0 (enfants scannés quand même) ; absolute dont
+   le bloc conteneur saute un clippeur intermédiaire (viewport-spill borné
+   trop tôt). Constat CR 20/07/2026 — à durcir si un cas réel apparaît.
+   Options : DZ_BUNDLE=<chemin> sert ce bundle ; DZ_WEBROOT=<frontend/> sert
+   les pages standalone depuis le repo (audit avant déploiement).
    Run : NODE_PATH=<scratchpad>/node_modules node scripts/qa/qa-shell-audit.js [outdir] */
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
@@ -27,7 +34,6 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 /* Exclusions assumées (justifiées) — sélecteurs ancêtres ignorés par le scan. */
 const IGNORE = [
   '.dz-tip',            // tooltip fixe, hors flux par design
-  '#dzq-style', '#dztip-style',
   '.dz-studio-grid',    // canvas nodal pannable : le contenu déborde PAR DESIGN
   '[data-dzpreview]',   // régions des previews spatiaux (éditeur + minis) :
                         // représentation à l'échelle, labels clippés par design

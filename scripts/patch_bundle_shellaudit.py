@@ -30,6 +30,7 @@ Run : python scripts/patch_bundle_shellaudit.py
 """
 import pathlib
 import shutil
+import sys
 
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 BAK = BUNDLE.parent / (BUNDLE.name + ".bak_shellaudit")
@@ -40,6 +41,24 @@ def apply(s, anchor, replacement, tag):
     if n != 1:
         raise SystemExit(f"[{tag}] anchor count={n} (want 1). Aborting.")
     return s.replace(anchor, replacement)
+
+
+def guard_downstream(bak):
+    """Refuse de tourner si un patcher AVAL est déjà passé (constat CR chantier
+    11 : relancer un patcher amont restaure SON .bak et efface silencieusement
+    tous les patchs postérieurs). L'ordre de la chaîne = mtime des .bak_*
+    (copy2 préserve le mtime du bundle au moment du backup).
+    Pour rejouer la chaîne proprement : python scripts/repatch_all.py --from <tag>."""
+    if not bak.exists():
+        return
+    stem = bak.name.rsplit(".bak_", 1)[0]
+    for other in bak.parent.glob(stem + ".bak_*"):
+        if other != bak and other.stat().st_mtime > bak.stat().st_mtime:
+            raise SystemExit(
+                f"[garde-chaine] backup aval détecté : {other.name} (plus récent que "
+                f"{bak.name}). Relancer ce patcher seul écraserait les patchs "
+                f"postérieurs. Utiliser : python scripts/repatch_all.py --from "
+                f"{bak.name.rsplit('.bak_', 1)[1]}")
 
 
 # CSS scopé : les enfants de la grille REGION peuvent rétrécir sous leur
@@ -53,6 +72,8 @@ CSS = (
 
 
 def main():
+    if "--force-unchained" not in sys.argv:
+        guard_downstream(BAK)
     if not BAK.exists():
         shutil.copy2(BUNDLE, BAK)
         print("backup ->", BAK)
