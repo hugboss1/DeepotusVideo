@@ -1,5 +1,7 @@
-"""Chantier 9b — ops 2D locales : pixel-art ("pixel") et raccord de tuile
-("tile-preview") pour /api/images/process.
+"""Chantiers 9b/9e — ops 2D locales pour /api/images/process : pixel-art
+("pixel"), raccord de tuile ("tile-preview"), tuile seamless ("seamless",
+offset 50/50 fondu ou miroir 2×2) et clé chroma (détourage fond uni du
+Sprite Lab).
 
 Pur PIL (le runtime embarqué n'a pas numpy). Zéro réseau, zéro settings :
 sprite_service importe `pixelate` directement (par frame, sans HTTP) et la
@@ -14,7 +16,9 @@ from __future__ import annotations
 
 from PIL import Image, ImageChops, ImageStat
 
-__all__ = ["PALETTES", "normalize_pixel_opts", "pixelate", "tile_preview"]
+__all__ = ["PALETTES", "normalize_pixel_opts", "pixelate", "tile_preview",
+           "seam_score", "normalize_seamless_opts", "make_seamless",
+           "chroma_key"]
 
 
 def _hex(s: str) -> tuple[int, int, int]:
@@ -172,12 +176,10 @@ def pixelate(img: Image.Image, opts: dict) -> Image.Image:
     return out
 
 
-# ── op "tile-preview" ────────────────────────────────────────────────────────
-def tile_preview(img: Image.Image, grid: int = 2):
-    """(composite grid×grid, score de raccord 0-100 ; 0 = tuile parfaite).
-    Score = moyenne des diffs absolues entre bords opposés de l'image SOURCE
-    (pleine résolution) gauche/droite et haut/bas, normalisée sur 255.
-    Le composite d'aperçu plafonne la tuile à 512 px de côté."""
+# ── métrique de raccord (9b, publique depuis 9e) ─────────────────────────────
+def seam_score(img: Image.Image) -> float:
+    """Score de raccord 0-100 (0 = tuile parfaite) : moyenne des diffs
+    absolues entre bords opposés (gauche/droite, haut/bas), normalisée 255."""
     rgb = img.convert("RGB")
     w, h = rgb.size
 
@@ -187,7 +189,16 @@ def tile_preview(img: Image.Image, grid: int = 2):
 
     seam_v = _mean_abs(rgb.crop((0, 0, 1, h)), rgb.crop((w - 1, 0, w, h)))
     seam_h = _mean_abs(rgb.crop((0, 0, w, 1)), rgb.crop((0, h - 1, w, h)))
-    score = round((seam_v + seam_h) / 2 / 255 * 100, 2)
+    return round((seam_v + seam_h) / 2 / 255 * 100, 2)
+
+
+# ── op "tile-preview" ────────────────────────────────────────────────────────
+def tile_preview(img: Image.Image, grid: int = 2):
+    """(composite grid×grid, score de raccord 0-100 ; 0 = tuile parfaite).
+    Le composite d'aperçu plafonne la tuile à 512 px de côté."""
+    rgb = img.convert("RGB")
+    w, h = rgb.size
+    score = seam_score(rgb)
 
     tile = rgb
     if max(w, h) > 512:
@@ -199,3 +210,135 @@ def tile_preview(img: Image.Image, grid: int = 2):
         for gx in range(grid):
             comp.paste(tile, (gx * tile.width, gy * tile.height))
     return comp, score
+
+
+# ── op "seamless" (9e) ───────────────────────────────────────────────────────
+def normalize_seamless_opts(spec: dict) -> dict:
+    """Valide/normalise l'op seamless. ValueError lisible sinon (400 côté
+    route). target_px 0 = garder la taille source."""
+    if not isinstance(spec, dict):
+        raise ValueError("seamless must be an object "
+                         "{method, blend, target_px, square}")
+    method = str(spec.get("method") or "offset").lower()
+    if method not in ("offset", "mirror"):
+        raise ValueError("method must be 'offset' or 'mirror'")
+
+    def _int(name, default, lo, hi):
+        raw = spec.get(name)
+        if raw is None or raw == "":
+            return default
+        try:
+            v = int(raw)
+        except (TypeError, ValueError):
+            raise ValueError(f"{name} must be an integer ({lo}-{hi})")
+        return v
+
+    blend = _int("blend", 20, 5, 45)
+    if not 5 <= blend <= 45:
+        raise ValueError("blend must be between 5 and 45 (%)")
+    target = _int("target_px", 0, 64, 1024)
+    if target != 0 and not 64 <= target <= 1024:
+        raise ValueError("target_px must be 0 (source) or between 64 and 1024")
+    sq = spec.get("square")
+    square = True if sq is None else bool(sq)
+    return {"method": method, "blend": blend, "target_px": target,
+            "square": square}
+
+
+def _cross_mask(w: int, h: int, band: int) -> Image.Image:
+    """Masque L : tente à 255 sur les lignes x=w/2 et y=h/2, fondue à 0 à
+    `band` px de part et d'autre — le fondu de la croix du décalage 50/50."""
+    def _tent(n, c):
+        return bytes(max(0, min(255, round(255 * (1 - abs(i - c) / band))))
+                     for i in range(n))
+    v = Image.frombytes("L", (w, 1), _tent(w, w // 2)) \
+             .resize((w, h), Image.NEAREST)
+    hz = Image.frombytes("L", (1, h), _tent(h, h // 2)) \
+             .resize((w, h), Image.NEAREST)
+    return ImageChops.lighter(v, hz)
+
+
+def make_seamless(img: Image.Image, opts: dict) -> Image.Image:
+    """Tuile raccordable. `opts` vient de normalize_seamless_opts.
+    - offset : décalage 50/50 (les bords opposés deviennent des colonnes/
+      lignes adjacentes de la source) + fondu de la croix avec l'original
+      (bande `blend` % du petit côté). Les bords ne sont jamais fondus.
+    - mirror : mosaïque 2×2 de quadrants en miroir — raccord exactement nul,
+      rendu kaléidoscope (résolution des quadrants divisée par deux)."""
+    rgba = img.convert("RGBA")
+    if opts["square"]:
+        s = min(rgba.size)
+        w, h = rgba.size
+        x0, y0 = (w - s) // 2, (h - s) // 2
+        rgba = rgba.crop((x0, y0, x0 + s, y0 + s))
+    if opts["target_px"]:
+        t = opts["target_px"]
+        w, h = rgba.size
+        if w >= h:
+            nw, nh = t, max(1, round(h * t / w))
+        else:
+            nw, nh = max(1, round(w * t / h)), t
+        rgba = rgba.resize((nw, nh), Image.LANCZOS)
+    w, h = rgba.size                     # dimensions paires (miroir, 50/50)
+    if w % 2 or h % 2:
+        rgba = rgba.crop((0, 0, max(2, w - w % 2), max(2, h - h % 2)))
+        w, h = rgba.size
+
+    if opts["method"] == "mirror":
+        half = rgba.resize((w // 2, h // 2), Image.LANCZOS)
+        out = Image.new("RGBA", (w, h))
+        out.paste(half, (0, 0))
+        out.paste(half.transpose(Image.FLIP_LEFT_RIGHT), (w // 2, 0))
+        out.paste(half.transpose(Image.FLIP_TOP_BOTTOM), (0, h // 2))
+        out.paste(half.transpose(Image.ROTATE_180), (w // 2, h // 2))
+        return out
+
+    rolled = ImageChops.offset(rgba, w // 2, h // 2)
+    band = max(2, round(min(w, h) * opts["blend"] / 100))
+    return Image.composite(rgba, rolled, _cross_mask(w, h, band))
+
+
+# ── clé chroma (9e — détourage fond uni du Sprite Lab) ───────────────────────
+def chroma_key(img: Image.Image, tolerance: int = 28, feather: float = 1.6):
+    """(image RGBA, ok). Clé = couleur médiane du POURTOUR ; alpha 0 sous
+    `tolerance` (distance L de la diff), rampe linéaire jusqu'à
+    tolerance×feather. Garde-fous (ok=False, image d'origine conservée) :
+    pourtour pas assez uni (<60 % des échantillons proches de la clé) ou
+    couverture opaque hors [5 %, 95 %] — l'appelant marque la frame
+    `bg_failed` comme pour les échecs rembg (philosophie 9a)."""
+    rgba = img.convert("RGBA")
+    w, h = rgba.size
+    rgb = rgba.convert("RGB")
+    px = rgb.load()
+    step = max(1, (w + h) // 128)
+    samples = []
+    for x in range(0, w, step):
+        samples.append(px[x, 0])
+        samples.append(px[x, h - 1])
+    for y in range(0, h, step):
+        samples.append(px[0, y])
+        samples.append(px[w - 1, y])
+    rs = sorted(s[0] for s in samples)
+    gs = sorted(s[1] for s in samples)
+    bs = sorted(s[2] for s in samples)
+    key = (rs[len(rs) // 2], gs[len(gs) // 2], bs[len(bs) // 2])
+    near = sum(1 for s in samples
+               if abs(s[0] - key[0]) + abs(s[1] - key[1])
+               + abs(s[2] - key[2]) <= 3 * tolerance)
+    if near / len(samples) < 0.6:
+        return rgba, False
+
+    lo = int(tolerance)
+    hi = max(lo + 1, int(round(tolerance * feather)))
+    diff = ImageChops.difference(rgb, Image.new("RGB", (w, h), key)) \
+                     .convert("L")
+    lut = [0 if v <= lo else 255 if v >= hi
+           else int((v - lo) * 255 / (hi - lo)) for v in range(256)]
+    alpha = ImageChops.darker(rgba.getchannel("A"), diff.point(lut))
+    hist = alpha.histogram()
+    coverage = sum(hist[128:]) / float(w * h)
+    if not 0.05 <= coverage <= 0.95:
+        return rgba, False
+    out = rgba.copy()
+    out.putalpha(alpha)
+    return out, True

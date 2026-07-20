@@ -3104,6 +3104,9 @@ async def process_image(body: dict):
                     sweetie16/onebit
       - tile-preview {grid 2|3}               — composite de raccord + score
                     seam_score 0-100 (0 = tuile parfaite, base du 9e)
+      - seamless    {method offset|mirror, blend 5-45, target_px 0|64-1024,
+                    square} — tuile raccordable locale (PIL, chantier 9e) +
+                    seam_before/seam_after dans la réponse
     Retour {images:[filenames]} — sauvées dans la Library comme gen_*.png."""
     op = (body.get("op") or "").strip().lower()
     fname = (body.get("filename") or "").strip()
@@ -3221,6 +3224,26 @@ async def process_image(body: dict):
         logger.info(f"images/process pixel {popts['palette'] or popts['colors']}"
                     f"@{popts['target_px']}px: {fname} -> {out_name}")
         return {"images": [out_name], "op": op, "pixel": popts,
+                "size": list(out.size)}
+
+    if op == "seamless":
+        from app.services.pixel_ops import (make_seamless,
+                                            normalize_seamless_opts,
+                                            seam_score)
+        try:
+            sopts = normalize_seamless_opts(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        with _PILImage.open(src) as img:
+            before = seam_score(img)
+            out = make_seamless(img, sopts)
+        after = seam_score(out)
+        out_name = _save_png(out)
+        logger.info(f"images/process seamless {sopts['method']} "
+                    f"blend={sopts['blend']} seam {before}->{after}: "
+                    f"{fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "method": sopts["method"],
+                "seam_before": before, "seam_after": after,
                 "size": list(out.size)}
 
     if op == "tile-preview":

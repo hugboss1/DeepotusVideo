@@ -250,6 +250,32 @@ if _spritelab.is_dir():
 
     logger.info(f"Serving spritelab from {_spritelab}")
 
+# ── Tile Lab (chantier 9e): tuiles seamless — image Library → tuile
+# raccordable, at /tilelab. Même pattern standalone que /spritelab.
+_tilelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "tilelab"
+if _tilelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFTl
+
+    class _TilelabStatic(_SFTl):
+        """no-cache comme /spritelab : tilelab.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/tilelab", _TilelabStatic(directory=str(_tilelab), html=True),
+              name="tilelab")
+
+    @app.get("/tilelab", include_in_schema=False)
+    async def _tilelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/tilelab/", status_code=307)
+
+    logger.info(f"Serving tilelab from {_tilelab}")
+
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
 if _emoji_dir.is_dir():

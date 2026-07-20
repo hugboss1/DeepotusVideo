@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tile Lab — Deepotus Video Gen</title>
+<link rel="stylesheet" href="/spritelab/spritelab.css">
+<link rel="stylesheet" href="tilelab.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🧱 <b>Tile Lab</b> <span class="tag">image → tuile seamless · score de raccord</span></div>
+  <div class="srcchip" id="srcChip">aucune image — choisis une image de la Library</div>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+</header>
+
+<main class="panes tl-panes">
+  <!-- ══════════ 1. Source ══════════ -->
+  <section class="pane src-pane">
+    <div class="pane-head"><h2>Image source</h2></div>
+    <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
+    <div id="imgGrid" class="img-grid tall"><div class="empty-note">Chargement de la Library…</div></div>
+    <div class="hint">Textures sol/mur, motifs, feuillages… La tuile générée rejoint la Library (<i>gen_*.png</i>) et sert partout (Studio, Seedance, Sprite Lab).</div>
+  </section>
+
+  <!-- ══════════ 2. Réglages + résultat ══════════ -->
+  <section class="pane out-pane">
+    <div class="pane-head">
+      <h2>Tuile seamless</h2>
+      <span id="outInfo" class="counter">—</span>
+    </div>
+
+    <div class="settings">
+      <div class="grid2">
+        <label class="fld">Méthode
+          <select id="method">
+            <option value="offset" selected>Offset 50/50 + fondu (naturel)</option>
+            <option value="mirror">Miroir 2×2 (parfait, kaléidoscope)</option>
+          </select>
+        </label>
+        <label class="fld">Fondu <span class="unit">% du petit côté</span>
+          <input id="blend" type="number" min="5" max="45" value="20">
+        </label>
+        <label class="fld">Recadrage
+          <select id="square">
+            <option value="1" selected>Carré centré</option>
+            <option value="0">Garder les proportions</option>
+          </select>
+        </label>
+        <label class="fld">Taille <span class="unit">px</span>
+          <select id="targetPx">
+            <option value="0" selected>Source</option>
+            <option>128</option><option>256</option><option>512</option>
+          </select>
+        </label>
+      </div>
+
+      <fieldset class="pixelset">
+        <legend><label><input type="checkbox" id="pixelOn"> Pixel-art (9b) sur la tuile</label></legend>
+        <div class="grid2">
+          <label class="fld">Taille cible <span class="unit">px</span>
+            <input id="pixTarget" type="number" min="8" max="512" value="64">
+          </label>
+          <label class="fld">Palette
+            <select id="pixPalette">
+              <option value="">Adaptative (N couleurs)</option>
+              <option value="pico8">PICO-8 (16)</option>
+              <option value="gameboy">Game Boy (4)</option>
+              <option value="nes">NES (14)</option>
+              <option value="sweetie16" selected>Sweetie 16</option>
+              <option value="onebit">1-bit (2)</option>
+            </select>
+          </label>
+          <label class="fld">Couleurs <span class="unit">si adaptative</span>
+            <input id="pixColors" type="number" min="2" max="256" value="16">
+          </label>
+          <label class="fld">Dither
+            <select id="pixDither"><option value="none" selected>Aucun</option><option value="ordered">Ordered (Bayer)</option><option value="floyd">Floyd-Steinberg</option></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="genrow">
+        <button id="runBtn" class="btn primary big" disabled title="Local et gratuit (PIL) — la tuile rejoint la Library">🧱 Rendre seamless</button>
+        <span class="cost">gratuit · local</span>
+      </div>
+      <div id="runStatus" class="status hidden"></div>
+    </div>
+
+    <div id="outEmpty" class="empty-note tall">La tuile et son pavage 3×3 s'affichent ici, avec le score de raccord avant → après (0 = parfait).</div>
+
+    <div id="result" class="tl-result hidden">
+      <div class="tl-scores">
+        <span class="tl-chip">Raccord avant : <b id="scoreBefore">—</b></span>
+        <span class="tl-arrow">→</span>
+        <span class="tl-chip good">après : <b id="scoreAfter">—</b></span>
+      </div>
+      <div class="tl-imgs">
+        <figure><figcaption>Tuile (<span id="tileName">—</span>)</figcaption><img id="tileImg" alt="tuile seamless"></figure>
+        <figure><figcaption>Pavage 3×3</figcaption><canvas id="paveCv" width="600" height="600"></canvas></figure>
+      </div>
+      <div class="exports">
+        <a id="dlTile" class="btn" download title="La tuile PNG (déjà dans la Library)">⬇ Tuile PNG</a>
+        <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec cette tuile comme nœud Image">🎛 → Studio</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="tilelab.js"></script>
+</body>
+</html>

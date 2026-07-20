@@ -117,6 +117,7 @@ def outputs(tmp_path, monkeypatch, synth_video):
 def test_normalize_defaults():
     o = S.normalize_opts({})
     assert o == {"fps": 8, "max_frames": 16, "remove_bg": "none",
+                 "chroma_tolerance": 28,
                  "trim": "animation", "cell_size": 256, "align": "center",
                  "columns": "auto", "pixel": None,
                  "extract_only": False, "keep": None}
@@ -125,13 +126,21 @@ def test_normalize_defaults():
 def test_normalize_rejects_out_of_range():
     for bad in ({"fps_sample": 0}, {"fps_sample": 25}, {"fps_sample": "x"},
                 {"max_frames": 3}, {"max_frames": 65},
-                {"remove_bg": "chroma"}, {"trim": "loose"},
+                {"remove_bg": "magic"}, {"trim": "loose"},
+                {"chroma_tolerance": 3}, {"chroma_tolerance": 81},
+                {"chroma_tolerance": "x"},
                 {"cell": {"size": 300}}, {"cell": {"align": "top"}},
                 {"cell": "big"}, {"columns": 0}, {"columns": "three"},
                 {"keep": []}, {"keep": "0,1"}, {"keep": ["x"]},
                 {"keep": [-1]}, {"keep": [64]}):
         with pytest.raises(ValueError):
             S.normalize_opts(bad)
+
+
+def test_normalize_chroma_9e():
+    # 9e : la clé chroma locale (fond uni) est un mode de détourage valide
+    o = S.normalize_opts({"remove_bg": "chroma", "chroma_tolerance": 40})
+    assert o["remove_bg"] == "chroma" and o["chroma_tolerance"] == 40
 
 
 def test_normalize_keep_9c():

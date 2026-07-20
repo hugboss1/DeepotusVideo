@@ -49,8 +49,10 @@ def normalize_opts(body: dict) -> dict:
     max_frames = _int("max_frames", 16, 4, 64)
 
     method = str(body.get("remove_bg") or "none").lower()
-    if method not in ("none", "api", "local"):
-        raise ValueError("remove_bg must be one of: none, api, local")
+    if method not in ("none", "api", "local", "chroma"):
+        raise ValueError("remove_bg must be one of: none, api, local, chroma")
+    # 9e : clé chroma locale (fond uni) — tolérance de distance couleur
+    chroma_tol = _int("chroma_tolerance", 28, 4, 80)
 
     trim = str(body.get("trim") or "animation").lower()
     if trim not in ("animation", "tight"):
@@ -103,6 +105,7 @@ def normalize_opts(body: dict) -> dict:
             raise ValueError("keep indices must be within 0..63")
 
     return {"fps": fps, "max_frames": max_frames, "remove_bg": method,
+            "chroma_tolerance": chroma_tol,
             "trim": trim, "cell_size": size, "align": align,
             "columns": columns, "pixel": pixel,
             "extract_only": extract_only, "keep": keep}
@@ -577,6 +580,32 @@ async def generate_sprites(payload: dict, job_id: str, on_step=None) -> dict:
                                f"failed (kept as-is): {e}")
                 flags[i] = False
             await _step(f"Remove-BG {i + 1}/{len(raw)}",
+                        30 + int(30 * (i + 1) / len(raw)))
+    elif method == "chroma":
+        # 9e : clé chroma locale gratuite (fond uni Seedance) — les frames au
+        # pourtour non uni ou au keying aberrant sont conservées telles
+        # quelles et flaguées bg_failed, comme les échecs rembg.
+        from PIL import Image as _Img
+
+        from app.services.pixel_ops import chroma_key
+
+        def _chroma_file(src_path: Path, dest: Path) -> bool:
+            with _Img.open(src_path) as im:
+                out, ok = chroma_key(im, opts["chroma_tolerance"])
+            if ok:
+                out.save(dest, format="PNG")
+            return ok
+
+        for i, path in enumerate(raw):
+            dest = raw_dir / f"det_{i:04d}.png"
+            ok = await asyncio.to_thread(_chroma_file, path, dest)
+            if ok:
+                raw[i] = dest
+            else:
+                logger.warning(f"sprite {job_id}: chroma frame {i} — fond "
+                               f"non fiable, frame conservée telle quelle")
+            flags[i] = ok
+            await _step(f"Chroma {i + 1}/{len(raw)}",
                         30 + int(30 * (i + 1) / len(raw)))
     else:
         flags = [False] * len(raw)  # nothing detoured (and nothing failed)
