@@ -102,6 +102,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Images:     {settings.images_path}")
     logger.info(f"  Outputs:    {settings.outputs_path}")
     logger.info("=" * 60)
+    # Garde MSIX : un backend lancé depuis un conteneur écrit dans un overlay
+    # invisible (incident 14/06-20/07/2026) — détecter et hurler tout de suite.
+    from app.services.fs_guard import startup_check
+    startup_check(settings.images_path)
     await init_db()
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())

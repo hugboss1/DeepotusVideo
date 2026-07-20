@@ -51,6 +51,7 @@ from app.models.schemas import (
     NewsIllustrationResponse,
 )
 from app.services.pipeline import Pipeline
+from app.services.fs_guard import is_virtualized as fs_is_virtualized
 from app.services.heygen_service import HeyGenClient, HeyGenError, invalidate_list_cache
 from app.services.template_service import TemplateEngine
 from app.services.news_service import news_service
@@ -2070,6 +2071,9 @@ async def health():
         "any_llm": settings.has_any_llm,
         "images_folder": str(settings.images_path),
         "outputs_folder": str(settings.outputs_path),
+        # True = backend conteneurisé (MSIX) : ses écritures partent dans un
+        # overlay invisible → relancer hors conteneur (voir fs_guard).
+        "fs_virtualized": fs_is_virtualized(),
     }
 
 
