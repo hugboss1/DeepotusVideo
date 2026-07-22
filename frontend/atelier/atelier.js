@@ -26,6 +26,7 @@ let libTarget = null;       // entité en attente d'une image d'inspiration
 let shots = [];             // storyboard du chapitre ouvert
 let scenes = [];            // scénario (scènes) du chapitre ouvert
 let mode = "script";        // "script" | "screenplay" | "board"
+let shotcraft = null;       // {status, cards} — pont video-shotcraft (W-d)
 
 const SHOT_TYPES = ["establishing", "wide", "medium", "close-up",
   "extreme close-up", "over-shoulder", "POV", "insert"];
@@ -33,6 +34,8 @@ const CAMERA_MOVES = ["slow push-in", "slow pull-out", "360-degree orbit",
   "tracking shot", "handheld with subtle shake", "static, locked-off",
   "low angle dramatic", "rack focus reveal", "dolly zoom (vertigo effect)",
   "whip pan transition", "crane shot descending"];
+const ENERGY_LABELS = { 1: "1 · calme", 2: "2 · posé", 3: "3 · moyen",
+                        4: "4 · intense", 5: "5 · pic" };
 
 /* ───────── toast ───────── */
 let toastTimer = null;
@@ -306,6 +309,39 @@ async function generateRef(id, seed, useRecipe) {
 }
 
 /* ═════════ storyboard ═════════ */
+/* Pont video-shotcraft (W-d) : catalogue des recettes motion (fiches du
+   skill installé, sinon catalogue embarqué) + badge d'état. */
+async function loadShotcraft() {
+  if (shotcraft) return;
+  try { shotcraft = await api.get("/atelier/shotcraft"); }
+  catch (e) { shotcraft = { status: null, cards: [] }; }
+  const el = $("#shotcraftStatus");
+  if (el && shotcraft.status) {
+    el.textContent = `🎬 shotcraft · ${shotcraft.status.cards} fiches · ` +
+      (shotcraft.status.installed ? "skill installé" : "catalogue embarqué");
+    el.title = "Recettes motion video-shotcraft — l'IA de découpage les " +
+      "utilise (doctrine + catalogue), et chaque plan peut en porter une." +
+      (shotcraft.status.path ? "\n" + shotcraft.status.path : "");
+  }
+}
+
+function recipeOptions(cur) {
+  const cards = (shotcraft && shotcraft.cards) || [];
+  const opt = (c) => `<option value="${c.slug}"` +
+    `${c.slug === cur ? " selected" : ""} title="${esc(c.gloss)}">` +
+    `${c.slug}</option>`;
+  const anim = cards.filter(c => c.anim), other = cards.filter(c => !c.anim);
+  return `<option value=""${!cur ? " selected" : ""}>— recette motion —</option>` +
+    (anim.length ? `<optgroup label="Animation / récit">${anim.map(opt).join("")}</optgroup>` : "") +
+    (other.length ? `<optgroup label="Motion UI (promo)">${other.map(opt).join("")}</optgroup>` : "");
+}
+
+function energyOptions(cur) {
+  return `<option value=""${cur == null ? " selected" : ""}>⚡ —</option>` +
+    [1, 2, 3, 4, 5].map(v => `<option value="${v}"` +
+      `${v === cur ? " selected" : ""}>⚡ ${ENERGY_LABELS[v]}</option>`).join("");
+}
+
 function setMode(m) {
   mode = m;
   document.querySelectorAll("#modeTabs .tab").forEach(t =>
@@ -317,7 +353,7 @@ function setMode(m) {
   $("#board").classList.toggle("hidden", !board);
   $("#boardTotal").classList.toggle("hidden", !board);
   $("#screenplay").classList.toggle("hidden", !sp);
-  if (board) loadShots(true);
+  if (board) loadShotcraft().then(() => loadShots(true));
   if (sp) loadScenes(true);
 }
 
@@ -466,6 +502,10 @@ function renderBoard() {
         </select>
         <input class="shot-dur" type="number" min="0.5" max="60" step="0.5" value="${s.duration_s}" title="Durée (s)">
       </div>
+      <div class="shot-params shot-craft">
+        <select class="shot-recipe" title="Recette motion video-shotcraft (colore le croquis, et la production ensuite)">${recipeOptions(s.motion_recipe)}</select>
+        <select class="shot-energy" title="Énergie du plan (1 calme → 5 pic) — la courbe doit respirer">${energyOptions(s.energy)}</select>
+      </div>
       <div class="shot-ents">${entChips(s.entities) || "<span style='opacity:.5'>aucune entité détectée</span>"}</div>
       ${s.source_text ? `<details class="shot-src"><summary>texte source</summary><blockquote>${esc(s.source_text)}</blockquote></details>` : ""}
     </div>
@@ -486,12 +526,17 @@ function renderBoard() {
       shot_type: card.querySelector(".shot-type").value,
       camera_move: card.querySelector(".shot-cam").value,
       duration_s: parseFloat(card.querySelector(".shot-dur").value) || sh().duration_s,
+      motion_recipe: card.querySelector(".shot-recipe").value || null,
+      energy: card.querySelector(".shot-energy").value
+        ? parseInt(card.querySelector(".shot-energy").value, 10) : null,
     });
     ["input", "change"].forEach(ev => {
       card.querySelector(".shot-action").addEventListener(ev, () => save(fields));
       card.querySelector(".shot-type").addEventListener(ev, () => save(fields));
       card.querySelector(".shot-cam").addEventListener(ev, () => save(fields));
       card.querySelector(".shot-dur").addEventListener(ev, () => save(fields));
+      card.querySelector(".shot-recipe").addEventListener(ev, () => save(fields));
+      card.querySelector(".shot-energy").addEventListener(ev, () => save(fields));
     });
     card.querySelector(".act-sketch").addEventListener("click", () => sketchShot(id, sh().sketch_seed));
     card.querySelector(".act-resketch").addEventListener("click", () => sketchShot(id, null));
