@@ -45,6 +45,14 @@ DEFAULTS = {
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
     "heygen_chars_per_min": 850.0,    # ~speaking rate to map a script to minutes
     "elevenlabs_usd_per_char": 0.00024,
+    # W-b (v1.20) — multiplicateur de tarif par modèle TTS ElevenLabs,
+    # appliqué à elevenlabs_usd_per_char (flash v2.5 = −50 %, docs 22/07/2026).
+    # Keys mirror elevenlabs_service.ELEVEN_MODELS.
+    "elevenlabs_model_mult": {
+        "eleven_multilingual_v2": 1.0,
+        "eleven_v3": 1.0,
+        "eleven_flash_v2_5": 0.5,
+    },
     # LLM $ per 1M tokens (input/output) — used for plan/script estimates
     "llm_usd_per_mtok": {
         "anthropic": {"in": 0.80, "out": 4.00},
@@ -113,6 +121,28 @@ def video_rate(model_id: str, resolution: str = "1080p",
         return None
 
 
+def elevenlabs_mult(model_id: str | None, p: dict | None = None) -> float:
+    """W-b — multiplicateur de coût du modèle TTS (1.0 si inconnu/None),
+    pricing.json honoré."""
+    p = p or load()
+    mults = p.get("elevenlabs_model_mult") or {}
+    try:
+        return float(mults.get(model_id or "", 1.0))
+    except (TypeError, ValueError):
+        return 1.0
+
+
+def elevenlabs_rate(model_id: str | None = None, p: dict | None = None) -> float:
+    """W-b — $/caractère effectif d'un modèle TTS (base × multiplicateur)."""
+    p = p or load()
+    try:
+        base = float(p.get("elevenlabs_usd_per_char",
+                           DEFAULTS["elevenlabs_usd_per_char"]))
+    except (TypeError, ValueError):
+        base = DEFAULTS["elevenlabs_usd_per_char"]
+    return base * elevenlabs_mult(model_id, p)
+
+
 def _video_label_provider(model_id: str) -> tuple:
     """(display label, billing provider) from the registry; safe fallback."""
     try:
@@ -174,8 +204,10 @@ def estimate(op: dict, p: dict | None = None) -> dict:
                            credits * p["heygen_credit_usd"]))
     elif kind == "elevenlabs":
         chars = float(op.get("chars", 0))
-        lines.append(_line("elevenlabs", "Voiceover", chars, "chars",
-                           chars * p["elevenlabs_usd_per_char"]))
+        model = str(op.get("model") or "").strip()
+        label = f"Voiceover ({model})" if model else "Voiceover"
+        lines.append(_line("elevenlabs", label, chars, "chars",
+                           chars * elevenlabs_rate(model or None, p)))
     elif kind == "episode":
         # Narrated illustrated episode: N illustrations + the ElevenLabs
         # narration. Ken Burns / still motion is local ffmpeg (free); only

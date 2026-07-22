@@ -16,6 +16,7 @@ Gotchas du contrat Voicebox v0.5.0 figés derrière cette façade :
   téléchargé chez nous) → on lit default_engine/preset_engine du profil;
 - la sortie est du wav → conversion mp3 ffmpeg quand la destination l'exige.
 """
+import os
 import re
 import sqlite3
 import subprocess
@@ -236,19 +237,27 @@ def voicebox_tts(text: str, output_path: Path, language: str = "EN",
         wav = audio.content
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    if output_path.suffix.lower() == ".wav":
-        output_path.write_bytes(wav)
-    else:  # les pipelines attendent du mp3 (concat ffmpeg des VO par scène)
-        with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
-            tf.write(wav)
-            tmp = Path(tf.name)
-        try:
-            subprocess.run(
-                ["ffmpeg", "-y", "-i", str(tmp), "-b:a", "128k",
-                 str(output_path)],
-                check=True, capture_output=True, timeout=300)
-        finally:
-            tmp.unlink(missing_ok=True)
+    # W-b : écriture atomique .part → rename (un échec ne laisse jamais de
+    # fichier partiel/0 octet visible en Library).
+    tmp_out = output_path.with_name(output_path.name + ".part")
+    try:
+        if output_path.suffix.lower() == ".wav":
+            tmp_out.write_bytes(wav)
+        else:  # les pipelines attendent du mp3 (concat ffmpeg des VO par scène)
+            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tf:
+                tf.write(wav)
+                tmp = Path(tf.name)
+            try:
+                # .part n'est pas un suffixe connu de ffmpeg → format explicite.
+                subprocess.run(
+                    ["ffmpeg", "-y", "-i", str(tmp), "-b:a", "128k",
+                     "-f", "mp3", str(tmp_out)],
+                    check=True, capture_output=True, timeout=300)
+            finally:
+                tmp.unlink(missing_ok=True)
+        os.replace(tmp_out, output_path)
+    finally:
+        tmp_out.unlink(missing_ok=True)
     logger.info(f"Voicebox VO: {output_path} "
                 f"({output_path.stat().st_size // 1024} KB)")
     return output_path

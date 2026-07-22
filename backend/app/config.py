@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Single source of truth for the app version (health endpoint, FastAPI docs,
 # packaging scripts). Bump here only.
-APP_VERSION = "1.19.0"
+APP_VERSION = "1.20.0"
 
 
 def _data_root() -> Path:
@@ -74,6 +74,9 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID_EN: str = "nPczCjzI2devNBz1zQrb"
     ELEVENLABS_VOICE_ID_FR: str = "JBFqnCBsd6RMkjVDRZzb"
+    # W-b: modèle TTS par défaut (catalogue elevenlabs_service.ELEVEN_MODELS);
+    # valeur inconnue/vide = eleven_multilingual_v2.
+    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
 
     # Voicebox (optional) — serveur TTS local; vide = http://127.0.0.1:17493
     VOICEBOX_URL: str = ""

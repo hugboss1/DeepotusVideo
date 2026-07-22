@@ -1114,15 +1114,36 @@ async def delete_audio_file(filename: str):
     return {"deleted": safe}
 
 
+def _clean_vo_error(e: Exception) -> str:
+    """W-b — message actionnable pour les échecs fournisseur fréquents :
+    402 (voix library/community sur un plan sans crédit) et 403 (clé
+    restreinte). Le détail brut du provider reste joint, tronqué."""
+    msg = str(e)
+    low = msg.lower()
+    if ("payment_required" in low or "paid_plan" in low
+            or "status_code: 402" in low):
+        return ("Voiceover failed: cette voix exige un plan/crédit ElevenLabs "
+                "(402) — choisis une voix premade du catalogue ou recharge le "
+                f"compte. Détail : {msg[:200]}")
+    if "status_code: 403" in low or "forbidden" in low:
+        return ("Voiceover failed: accès refusé par ElevenLabs (403) — vérifie "
+                "la clé et ses permissions (Réglages → Clés). "
+                f"Détail : {msg[:200]}")
+    return f"Voiceover failed: {msg}"
+
+
 @router.post("/audio/voiceover")
 async def create_voiceover(request: Request):
     """Synthesize a voiceover (provider-aware) and save it as a reusable audio asset.
 
-    Used by Quick's « Voice Over » tab and the Chapitres flow: the script is
-    spoken by the active voice provider and the .mp3 lands in the Library audio
-    dir, selectable in audio nodes.
-    Body: {script, language?: "en"|"fr", name?, voice_id?} — voice_id omitted =
-    default voice from .env (ELEVENLABS_VOICE_ID_{EN,FR} per language).
+    Used by Quick's « Voice Over » tab, the Studio Voiceover node and the
+    Chapitres flow: the script is spoken by the active voice provider and the
+    .mp3 lands in the Library audio dir, selectable in audio nodes.
+    Body: {script, language?: "en"|"fr", name?, voice_id?, model?, settings?}
+    — voice_id omitted = default voice from .env (ELEVENLABS_VOICE_ID_{EN,FR}
+    per language) ; model omitted = ELEVENLABS_MODEL (W-b, catalogue
+    /api/voice-models) ; settings = {stability, similarity_boost, style,
+    speed} clampés/filtrés serveur selon le modèle.
     """
     try:
         payload = await request.json()
@@ -1138,6 +1159,10 @@ async def create_voiceover(request: Request):
         raise HTTPException(400, "Aucune voix disponible — configure la clé "
                                  "ElevenLabs ou lance Voicebox (Réglages).")
     voice_id = (payload.get("voice_id") or "").strip() or None
+    model = (payload.get("model") or "").strip() or None
+    v_settings = payload.get("settings")
+    if not isinstance(v_settings, dict):
+        v_settings = None
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
         lang = "en"
@@ -1148,13 +1173,43 @@ async def create_voiceover(request: Request):
         loop = asyncio.get_running_loop()
         await loop.run_in_executor(
             None, lambda: voice.generate_long(text=script, output_path=dest,
-                                              language=lang, voice_id=voice_id))
+                                              language=lang, voice_id=voice_id,
+                                              model_id=model,
+                                              settings_override=v_settings))
+    except ValueError as e:                       # modèle inconnu → 400 propre
+        raise HTTPException(400, str(e))
     except Exception as e:
-        raise HTTPException(502, f"Voiceover failed: {e}")
+        raise HTTPException(502, _clean_vo_error(e))
     if not dest.is_file():
         raise HTTPException(502, "Voiceover produced no file")
     return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
             "size_kb": dest.stat().st_size // 1024}
+
+
+@router.get("/voice-models")
+async def list_voice_models():
+    """W-b — modèles TTS ElevenLabs pour Quick Voice Over + nœud Voiceover.
+
+    Chaque entrée du catalogue sort avec `available` (clé ElevenLabs
+    présente), `max_chars` (borne le textarea et le chunking), la liste
+    `settings` des curseurs supportés par le modèle, et `usd_per_char`
+    (tarif × multiplicateur, overrides pricing.json honorés) pour le coût
+    affiché. Les Chapitres restent au défaut app (`default`)."""
+    from app.services.elevenlabs_service import ELEVEN_MODELS, default_model_id
+    from app.services import pricing as _pricing
+    p = _pricing.load()
+    out = []
+    for mid, m in ELEVEN_MODELS.items():
+        out.append({
+            "id": mid,
+            "label": m["label"],
+            "max_chars": m["max_chars"],
+            "settings": list(m["settings"]),
+            "mult": _pricing.elevenlabs_mult(mid, p),
+            "usd_per_char": _pricing.elevenlabs_rate(mid, p),
+            "available": settings.has_voiceover,
+        })
+    return {"models": out, "default": default_model_id()}
 
 
 @router.get("/voices")
