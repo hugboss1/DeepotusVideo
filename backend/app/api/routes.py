@@ -4235,7 +4235,8 @@ def _shot_dict(s) -> dict:
             "entities": ents, "shot_type": s.shot_type,
             "camera_move": s.camera_move, "duration_s": s.duration_s,
             "sketch_image": s.sketch_image, "sketch_seed": s.sketch_seed,
-            "prompt": s.prompt or ""}
+            "prompt": s.prompt or "",
+            "motion_recipe": s.motion_recipe, "energy": s.energy}
 
 
 async def _list_shots(session, chapter_id: str):
@@ -4261,23 +4262,32 @@ def _paragraph_shots(script: str) -> list[dict]:
         dur = max(3.0, min(12.0, round(words / 2.5, 1)))
         out.append({"source_text": p, "action": p[:200], "entities": [],
                     "shot_type": "medium", "camera_move": "static, locked-off",
-                    "duration_s": dur, "prompt": ""})
+                    "duration_s": dur, "prompt": "",
+                    "motion_recipe": None, "energy": None})
     return out
 
 
 def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
     """Découpage réalisateur : plans avec action, entités présentes (mappées
-    sur la bible), type de plan, caméra, durée, prompt d'illustration."""
+    sur la bible), type de plan, caméra, durée, prompt d'illustration, et
+    depuis v1.22 (W-d) la grammaire video-shotcraft (recette motion validée
+    contre le catalogue du skill installé + courbe d'énergie 1-5)."""
+    from app.services import shotcraft_service
     from app.services.summarizer import _chat_dispatch
     langname = "French" if lang.startswith("fr") else "English"
     n = max(4, min(40, len(script.split()) // 60 + 2))
     roster = "\n".join(f"- {e['name']} ({e['kind']}): {(e['description'] or '')[:120]}"
                        for e in bible) or "(none)"
+    sc_block = shotcraft_service.prompt_block()
     system = ("You are a film director doing the storyboard breakdown of a "
-              "narrated animation chapter. Return ONLY valid JSON.")
+              "narrated animation chapter"
+              + (", applying the video-shotcraft doctrine and motion recipe "
+                 "catalog provided" if sc_block else "")
+              + ". Return ONLY valid JSON.")
     prompt = (
         f"Break this chapter into about {n} sequential storyboard shots.\n"
-        f"Known entities (use these EXACT names when present in a shot):\n{roster}\n\n"
+        + (sc_block + "\n\n" if sc_block else "")
+        + f"Known entities (use these EXACT names when present in a shot):\n{roster}\n\n"
         f"For each shot return an object with:\n"
         f"\"source_excerpt\": the chapter text covered, copied verbatim, in order;\n"
         f"\"action\": what we SEE, one vivid sentence in {langname};\n"
@@ -4285,7 +4295,11 @@ def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
         f"\"shot_type\": one of {list(_SHOT_TYPES)};\n"
         f"\"camera_move\": one of {list(_CAMERA_MOVES)};\n"
         f"\"duration_s\": number 3-12;\n"
-        f"\"prompt\": a cinematic illustration prompt in {langname}.\n"
+        + (f"\"motion_recipe\": the catalog slug whose motion best serves "
+           f"this beat, or null;\n"
+           f"\"energy\": integer 1 (calm) to 5 (peak), designing a "
+           f"deliberate arc across the sequence;\n" if sc_block else "")
+        + f"\"prompt\": a cinematic illustration prompt in {langname}.\n"
         f"Return ONLY a JSON array.\n\nChapter:\n{script[:12000]}")
     out, _prov = _chat_dispatch(prompt, system, 6000)
     if not out:
@@ -4302,6 +4316,7 @@ def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
     except Exception:
         return []
     name2id = {e["name"].strip().lower(): e["id"] for e in bible}
+    sc_slugs = shotcraft_service.valid_slugs()
     shots = []
     for it in (data if isinstance(data, list) else []):
         if not isinstance(it, dict):
@@ -4315,6 +4330,11 @@ def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
         ents = [name2id[str(x).strip().lower()]
                 for x in (it.get("entities") or [])
                 if str(x).strip().lower() in name2id]
+        mr = str(it.get("motion_recipe") or "").strip().lower()
+        try:
+            en = max(1, min(5, int(it.get("energy"))))
+        except (TypeError, ValueError):
+            en = None
         shots.append({
             "source_text": str(it.get("source_excerpt") or "").strip(),
             "action": str(it.get("action") or "").strip(),
@@ -4323,6 +4343,8 @@ def _ai_shots(script: str, bible: list[dict], lang: str) -> list[dict]:
             "camera_move": cm if cm in _CAMERA_MOVES else "static, locked-off",
             "duration_s": dur,
             "prompt": str(it.get("prompt") or "").strip(),
+            "motion_recipe": mr if mr in sc_slugs else None,
+            "energy": en,
         })
     return [s for s in shots if s["source_text"] or s["action"]]
 
@@ -4376,6 +4398,8 @@ async def storyboard_decoupe(chapter_id: str, body: dict):
                      entities=_json.dumps(d["entities"]),
                      shot_type=d["shot_type"], camera_move=d["camera_move"],
                      duration_s=d["duration_s"], prompt=d["prompt"],
+                     motion_recipe=d.get("motion_recipe"),
+                     energy=d.get("energy"),
                      created_at=datetime.utcnow(), updated_at=datetime.utcnow())
             session.add(s)
             rows.append(s)
@@ -4431,6 +4455,15 @@ async def update_shot(shot_id: str, body: dict):
                 s.duration_s = max(0.5, min(60.0, float(body["duration_s"])))
             except (TypeError, ValueError):
                 pass
+        if "motion_recipe" in body:
+            from app.services import shotcraft_service
+            mr = str(body["motion_recipe"] or "").strip().lower()
+            s.motion_recipe = mr if mr in shotcraft_service.valid_slugs() else None
+        if "energy" in body:
+            try:
+                s.energy = max(1, min(5, int(body["energy"])))
+            except (TypeError, ValueError):
+                s.energy = None
         if "entities" in body:
             s.entities = _json.dumps(body["entities"] or [])
         s.updated_at = datetime.utcnow()
@@ -4477,6 +4510,16 @@ async def generate_shot_sketch(shot_id: str, body: dict):
                 descs.append(f"{e.name}: {(e.description or '')[:100]}")
         prompt = (f"{_SKETCH_STYLE}. Shot: {s.shot_type}, camera: "
                   f"{s.camera_move}. {action}")
+        if s.motion_recipe:
+            # v1.22 (W-d) — la recette shotcraft colore la composition du
+            # croquis (intention de mouvement + niveau d'énergie).
+            from app.services import shotcraft_service
+            prompt += f". Motion intent: {shotcraft_service.gloss(s.motion_recipe)}"
+        tone = {1: "calm, still composition", 2: "quiet composition",
+                4: "dynamic composition",
+                5: "explosive, high-energy composition"}.get(s.energy or 0)
+        if tone:
+            prompt += f", {tone}"
         if descs:
             prompt += ". Characters/places: " + "; ".join(descs)
         seed = body.get("seed")
@@ -4488,6 +4531,21 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         await session.commit()
         await session.refresh(s)
         return _shot_dict(s)
+
+
+@router.get("/atelier/shotcraft")
+async def shotcraft_info():
+    """v1.22 (W-d) — état du pont video-shotcraft + catalogue des recettes
+    motion (fiches du skill installé si présent, sinon catalogue embarqué).
+    Consommé par l'Atelier (badge + selects des plans)."""
+    from app.services import shotcraft_service
+    d = shotcraft_service.catalog()
+    cards = [{"slug": c["slug"], "cat": c.get("cat"),
+              "energy": c.get("energy"), "anim": bool(c.get("anim")),
+              "gloss": c.get("gloss") or ""}
+             for c in d["cards"].values()]
+    cards.sort(key=lambda c: (not c["anim"], c["cat"] or "", c["slug"]))
+    return {"status": shotcraft_service.status(), "cards": cards}
 
 
 @router.delete("/chapters/{chapter_id}/shots")

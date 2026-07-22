@@ -188,6 +188,10 @@ class Shot(Base):
     sketch_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sketch_seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # v1.22 (W-d) — video-shotcraft bridge: motion recipe card slug (validated
+    # against the installed skill's catalog) + 1-5 energy level of the beat.
+    motion_recipe: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    energy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -314,6 +318,14 @@ BIBLE_ENTITIES_COLUMNS = [
 ]
 
 
+# v1.22 (W-d) — columns added to shots after its initial ship (video-shotcraft
+# bridge: motion recipe card + energy level).
+SHOTS_COLUMNS = [
+    ("motion_recipe", "VARCHAR(60)"),
+    ("energy", "INTEGER"),
+]
+
+
 async def _auto_migrate():
     """Add new columns to existing tables without losing data."""
     async with _engine.begin() as conn:
@@ -385,7 +397,8 @@ async def _auto_migrate():
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
                                ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
                                ("avatar_presets", AVATAR_PRESETS_COLUMNS),
-                               ("bible_entities", BIBLE_ENTITIES_COLUMNS)):
+                               ("bible_entities", BIBLE_ENTITIES_COLUMNS),
+                               ("shots", SHOTS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

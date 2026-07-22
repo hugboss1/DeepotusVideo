@@ -128,6 +128,11 @@ class Settings(BaseSettings):
     SUMMARIZER_PROVIDER: str = ""
     PLANNER_PROVIDER: str = ""
 
+    # v1.22 (W-d): dossier du skill Claude « video-shotcraft » dont l'agent
+    # de découpage storyboard exploite les fiches de plans. Vide = détection
+    # auto (~/.claude/skills/video-shotcraft) ; absent = catalogue embarqué.
+    SHOTCRAFT_SKILL_DIR: str = ""
+
     # v1.9: publishing channels (all optional, BYO keys).
     # Telegram is the reference auto-publish channel: free, no review process.
     TELEGRAM_BOT_TOKEN: str = ""
