@@ -2,14 +2,22 @@
 # scripts/patch_bundle_version.py
 """Assert-guarded patcher : bump du libellé de version affiché par l'UI.
 
-BASELINE : bundle POST-patch shellaudit (11d + durcissement CR).
+BASELINE : bundle POST-patch quickvoice (chantier V-a).
 Backup dédié : .js.bak_version (état juste avant CE patch).
 
 Le bundle affiche « v<version> » en dur à 4 endroits (topbars, splash,
 badge Settings). La source de vérité runtime reste backend/app/config.py
 (/api/health) — ce patcher aligne les libellés statiques du bundle.
-Au prochain bump : éditer OLD/NEW ci-dessous et rejouer via
-  python scripts/repatch_all.py --from version
+
+Au prochain bump (le patch version doit TOUJOURS être le dernier maillon) :
+  1. éditer OLD/NEW ci-dessous (et APP_VERSION dans config.py) ;
+  2. archiver .bak_version HORS de frontend/dist/assets (sinon il reste dans
+     la chaîne détectée par repatch_all) ;
+  3. relancer : python scripts/patch_bundle_version.py — le backup frais
+     capture le bundle courant (post-derniers patchs) et le patch s'applique
+     en bout de chaîne. NE PAS utiliser repatch_all --from version pour un
+     re-bump : il restaurerait le bak HISTORIQUE (libellés de l'ancienne
+     version) et l'assert EXPECT échouerait (constat 22/07, chantier V-a).
 
 Run : python scripts/patch_bundle_version.py
 """
@@ -20,8 +28,8 @@ import sys
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 BAK = BUNDLE.parent / (BUNDLE.name + ".bak_version")
 
-OLD = "v1.15.8"
-NEW = "v1.16.0"
+OLD = "v1.16.0"
+NEW = "v1.17.0"
 EXPECT = 4  # occurrences exactes du libellé dans le bundle baseline
 
 

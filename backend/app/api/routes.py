@@ -1115,11 +1115,13 @@ async def delete_audio_file(filename: str):
 
 @router.post("/audio/voiceover")
 async def create_voiceover(request: Request):
-    """Synthesize a voiceover (ElevenLabs) and save it as a reusable audio asset.
+    """Synthesize a voiceover (provider-aware) and save it as a reusable audio asset.
 
-    Used by Quick's "voix off seule" mode: the script is spoken by the app voice
-    engine and the .mp3 lands in the Library audio dir, selectable in audio nodes.
-    Body: {script, language?: "en"|"fr", name?}.
+    Used by Quick's « Voice Over » tab and the Chapitres flow: the script is
+    spoken by the active voice provider and the .mp3 lands in the Library audio
+    dir, selectable in audio nodes.
+    Body: {script, language?: "en"|"fr", name?, voice_id?} — voice_id omitted =
+    default voice from .env (ELEVENLABS_VOICE_ID_{EN,FR} per language).
     """
     try:
         payload = await request.json()
