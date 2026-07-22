@@ -423,3 +423,367 @@ def compute_spans(chapter_text: str, entities: list[dict],
                 count += 1
     spans.sort(key=lambda s: s["start"])
     return spans
+
+
+# ───────────────── C. voice-over : segments Fountain ─────────────────
+
+_CUE_RE = re.compile(r"^[A-ZÀ-Ü][A-ZÀ-Ü0-9 .'\-]{1,38}(?:\s*\((?:V\.O\.|O\.S\.|CONT'D|V\.F\.)\))?$")
+
+
+def parse_fountain_segments(fountain_text: str) -> list[dict]:
+    """Découpe un texte de scène Fountain en segments audio ordonnés :
+    [{kind: "narration"|"dialogue", character: str|None, text: str}].
+
+    Convention Fountain : une réplique = un CUE en CAPITALES (précédé d'une
+    ligne vide) suivi de ses lignes de dialogue jusqu'à la ligne vide ; les
+    parenthéticals "(...)" sont des indications de jeu — non lus. Tout le
+    reste est de la narration (lue par le Narrateur)."""
+    lines = (fountain_text or "").splitlines()
+    segments: list[dict] = []
+    narr: list[str] = []
+
+    def flush_narr():
+        t = " ".join(x.strip() for x in narr if x.strip()).strip()
+        if t:
+            segments.append({"kind": "narration", "character": None, "text": t})
+        narr.clear()
+
+    i = 0
+    while i < len(lines):
+        ln = lines[i].strip()
+        prev_blank = i == 0 or not lines[i - 1].strip()
+        nxt = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if (prev_blank and ln and _CUE_RE.match(ln) and nxt
+                and not _CUE_RE.match(nxt)):
+            # bloc dialogue
+            cue = re.sub(r"\s*\(.*\)$", "", ln).strip()
+            i += 1
+            dlg: list[str] = []
+            while i < len(lines) and lines[i].strip():
+                t = lines[i].strip()
+                if not (t.startswith("(") and t.endswith(")")):
+                    dlg.append(t)
+                i += 1
+            flush_narr()
+            txt = " ".join(dlg).strip()
+            if txt:
+                segments.append({"kind": "dialogue", "character": cue,
+                                 "text": txt})
+            continue
+        narr.append(lines[i])
+        i += 1
+    flush_narr()
+    return segments
+
+
+# ───────────────── DA. direction artistique proposée ─────────────────
+
+# "canon" = canon de proportions par défaut du preset (PROPORTION_CANONS).
+STYLE_PRESETS = [
+    {"id": "bd", "label": "BD franco-belge", "canon": "ligne_claire",
+     "style_prompt": "European comic book art (bande dessinée), clean ink "
+                     "outlines, flat cel colors, ligne claire influence, "
+                     "expressive faces, detailed backgrounds"},
+    {"id": "manga", "label": "Manga / Anime", "canon": "manga_shonen",
+     "style_prompt": "anime manga art style, sharp linework, cel shading, "
+                     "dramatic lighting, detailed eyes, cinematic anime "
+                     "composition"},
+    {"id": "comics", "label": "Comics US", "canon": "comics_heroic",
+     "style_prompt": "American comic book style, bold inks, dynamic "
+                     "shading, halftone textures, dramatic panel lighting"},
+    {"id": "realiste", "label": "Réaliste photo", "canon": "davinci",
+     "style_prompt": "photorealistic, natural skin textures, realistic "
+                     "lighting, 85mm lens look, shallow depth of field"},
+    {"id": "cine", "label": "Cinématographique", "canon": "cine",
+     "style_prompt": "cinematic film still, anamorphic framing, filmic "
+                     "color grading, volumetric light, high production value"},
+    {"id": "sf", "label": "SF rétro-futuriste", "canon": "bd_realiste",
+     "style_prompt": "retro-futuristic science-fiction concept art, neon "
+                     "accents, brutalist megastructures, atmospheric haze"},
+    {"id": "aquarelle", "label": "Aquarelle", "canon": "davinci",
+     "style_prompt": "watercolor illustration, soft washes, visible paper "
+                     "grain, delicate ink lines, muted palette"},
+    {"id": "noir", "label": "Noir encré", "canon": "davinci",
+     "style_prompt": "high-contrast black and white ink illustration, film "
+                     "noir shadows, dramatic chiaroscuro, crosshatching"},
+]
+
+
+def propose_styles(excerpt: str, bible_names: list[str],
+                   lang: str = "fr") -> list[dict]:
+    """L'agent lit un extrait représentatif du manuscrit (ton, époque, genre,
+    indices visuels rédigés par l'auteur) et propose 4 directions
+    artistiques motivées. Retour: [{label, style_prompt, rationale}]."""
+    from app.services.summarizer import _chat_dispatch
+    roster = ", ".join(bible_names[:30]) or "(bible vide)"
+    canons = "; ".join(f"\"{cid}\" = {c['label']}"
+                       for cid, c in PROPORTION_CANONS.items())
+    system = ("You are the art director of an animation studio choosing the "
+              "visual identity of an adaptation. Return ONLY valid JSON.")
+    prompt = (
+        "Read this manuscript excerpt and its cast, then propose exactly 4 "
+        "distinct ART DIRECTIONS that fit the tone, era and genre WRITTEN in "
+        "the text (mood, settings, imagery the author describes).\n"
+        "For each: \"label\" = short name in French; \"style_prompt\" = a "
+        "generation-ready style description in English (medium, line/render, "
+        "palette, lighting, era references — usable verbatim in an image "
+        "prompt, 1-2 sentences, NO subject content); \"rationale\" = one "
+        "French sentence citing what in the manuscript motivates it; "
+        f"\"canon\" = the body-proportion canon fitting the direction, one "
+        f"of: {canons}.\n"
+        "Return ONLY a JSON array of 4 objects.\n\n"
+        f"Cast: {roster}\n\nManuscript excerpt:\n{excerpt[:9000]}")
+    out, _prov = _chat_dispatch(prompt, system, 3000)
+    data = _parse_json(out)
+    props = []
+    for it in (data if isinstance(data, list) else []):
+        if not isinstance(it, dict):
+            continue
+        lab = str(it.get("label") or "").strip()
+        sp = str(it.get("style_prompt") or "").strip()
+        if lab and sp:
+            cn = str(it.get("canon") or "").strip()
+            if cn not in PROPORTION_CANONS:
+                cn = resolve_canon(sp)
+            props.append({"label": lab[:80], "style_prompt": sp[:500],
+                          "canon": cn,
+                          "rationale": str(it.get("rationale") or "").strip()[:300]})
+    return props[:4]
+
+
+# ───────────── DA2. canons de proportions par style ─────────────
+# Recherche 2026-07-08: canon académique (Vitruve/De Vinci) 7.5-8 têtes;
+# manga base 6.5 (shōnen 6.5-7, shōjo élancé 7-8, chibi 2-3); ligne claire
+# (Hergé/Schuiten): corps aux proportions RÉALISTES sous des visages
+# simplifiés; école gros-nez franco-belge (Uderzo/Franquin/Gotlib) 4-5.5
+# têtes caricaturales; Morris: silhouettes filiformes; Moebius: 8 têtes
+# élancées; comics héroïques (DC/Marvel) 8.5-9 têtes, épaules 3 têtes.
+#
+# ⚠ LEÇONS des tests A/B 2026-07-08 (9 canons × itérations, FLUX Kontext,
+# full-body chaîné sur headshot) — à respecter pour ne PAS régresser:
+# 1. Kontext sort par défaut dans le CADRE de l'image d'entrée
+#    (resolution_mode=match_input): un corps en pied hérité du cadre 3:4 du
+#    headshot sort TASSÉ (~5 têtes mesurées au lieu de 7.5-8) ou COUPÉ aux
+#    genoux. Chaque canon porte donc son cadre vertical "frame", transmis
+#    aux modèles edit (resolution_mode FLUX, aspect_ratio Nano Banana,
+#    size OpenAI) pour les panneaux full-body.
+# 2. Énoncer le rapport dans LES DEUX SENS ("X heads tall" + "the head is
+#    only 1/X of the total height") et la longueur des jambes ("legs make
+#    up half the total height"): le compte de têtes seul est ignoré.
+# 3. Toujours interdire explicitement le tassement ("never squat, never
+#    compressed, no oversized head") — sans négation le modèle retombe
+#    sur la grosse tête du headshot de référence.
+# 4. "heads" = plage attendue (min, max) mesurable — sert au contrôle
+#    vision post-génération (proportion_qc) et aux retries correctifs.
+PROPORTION_CANONS = {
+    "davinci": {
+        "label": "Académique (De Vinci)",
+        "frame": "portrait_16_9",
+        "heads": (7.0, 8.5),
+        # framing = contrainte en coordonnées IMAGE (leçon it3: la diffusion
+        # obéit mieux aux fractions du cadre qu'aux têtes anatomiques)
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the legs alone span half of the "
+                    "frame height, like a full-length fashion catalog "
+                    "photograph taken from far away"),
+        "char": ("accurate academic human proportions (Vitruvian canon): a "
+                 "TALL adult figure exactly 7.5 to 8 heads tall — the head "
+                 "is small, only one eighth of the total height; long legs "
+                 "make up half the total height; armspan equal to height, "
+                 "navel at the golden ratio, shoulders two head-widths "
+                 "wide, natural realistic anatomy, elegant elongated "
+                 "silhouette — never squat, never compressed, no oversized "
+                 "head, no shortened legs"),
+        "face": ("classical facial proportions: face in equal thirds, eyes "
+                 "at the vertical midpoint of the head, one eye-width "
+                 "between the eyes, natural realistic features"),
+        "decor": ("architecture and props at true human scale, correct "
+                  "linear perspective with consistent vanishing points"),
+        "kw": ["réaliste", "realiste", "photoreal", "photo", "vinci",
+               "académique", "academic", "peinture", "renaissance"],
+    },
+    "cine": {
+        "label": "Cinéma réaliste",
+        "frame": "portrait_16_9",
+        "heads": (6.8, 8.5),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the legs alone span half of the "
+                    "frame height, full-length wide shot taken from far "
+                    "away"),
+        "char": ("natural cinematic human proportions like a real actor "
+                 "photographed head to toe: adult about 7.5 heads tall — "
+                 "the head is only one eighth of the total height, legs "
+                 "make up half the total height, believable real-world "
+                 "anatomy, no stylized exaggeration — never squat, never "
+                 "compressed, no oversized head"),
+        "face": ("natural photographic facial features, realistic skin "
+                 "texture, believable casting-real face"),
+        "decor": ("real-world production design scale, lens-true "
+                  "perspective, cinematic depth staging with foreground/"
+                  "midground/background layers"),
+        "kw": ["cinema", "cinéma", "cinematic", "cinémat", "film", "still",
+               "anamorphic"],
+    },
+    "manga_shonen": {
+        "label": "Manga shōnen",
+        "frame": "portrait_16_9",
+        "heads": (6.0, 7.5),
+        "framing": ("in the final image the head spans barely one seventh "
+                    "of the frame height and the legs alone span half of "
+                    "the frame height"),
+        "char": ("Japanese manga proportions: adult heroes 6.5 to 7 heads "
+                 "tall — the head is only one seventh of the total height, "
+                 "long legs make up half the total height; teens about 6 "
+                 "heads; slim shoulders, dynamic hair masses — NOT chibi, "
+                 "not super-deformed, never squat, no oversized head"),
+        "face": ("manga face: large expressive eyes set slightly low on the "
+                 "face, small nose and mouth, pointed chin, clean cel-shaded "
+                 "features, dynamic hair"),
+        "decor": ("manga environment drawing: bold perspective, dramatic "
+                  "diagonals, screentone-like value zones, clean "
+                  "backgrounds that keep the character readable"),
+        "kw": ["manga", "anime", "shonen", "shōnen", "seinen", "japon"],
+    },
+    "manga_shojo": {
+        "label": "Manga shōjo (élancé)",
+        "frame": "portrait_16_9",
+        "heads": (6.8, 8.5),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height and the very long legs alone span "
+                    "more than half of the frame height"),
+        "char": ("shōjo manga proportions: elongated graceful willowy "
+                 "figure 7 to 8 heads tall — the head is only one eighth "
+                 "of the total height, very long slender legs make up more "
+                 "than half the total height, slender limbs, flowing hair "
+                 "— never squat, never compressed, no oversized head"),
+        "face": ("shōjo manga face: very large luminous eyes with sparkling "
+                 "highlights, tiny delicate nose and mouth, slender chin, "
+                 "flowing detailed hair"),
+        "decor": ("airy decorative backgrounds, soft floral or sparkle "
+                  "motifs, gentle perspective, high-key light"),
+        "kw": ["shojo", "shōjo", "romance", "élancé"],
+    },
+    "chibi": {
+        "label": "Chibi / SD",
+        "frame": "portrait_4_3",
+        "heads": (2.0, 3.5),
+        "framing": ("in the final image the oversized head spans a full "
+                    "third of the frame height"),
+        "char": ("chibi super-deformed proportions: 2.5 to 3 heads tall, "
+                 "oversized head and eyes, tiny simplified hands and feet, "
+                 "rounded silhouette"),
+        "face": ("chibi face: huge round eyes filling half the face, tiny "
+                 "or absent nose, small simple mouth, soft round cheeks"),
+        "decor": ("simplified toy-like sets, rounded shapes, minimal "
+                  "perspective, bold flat colors"),
+        "kw": ["chibi", "sd", "kawaii", "mignon"],
+    },
+    "ligne_claire": {
+        "label": "Ligne claire (Hergé/Schuiten)",
+        "frame": "portrait_16_9",
+        "heads": (6.2, 7.8),
+        "framing": ("in the final image the head spans barely one seventh "
+                    "of the frame height and the legs alone span half of "
+                    "the frame height"),
+        "char": ("ligne claire proportions (Hergé school): REALISTIC adult "
+                 "body about 7 heads tall under a simplified cartoon face "
+                 "— the head is only one seventh of the total height, long "
+                 "legs make up half the total height; uniform line weight, "
+                 "no hatching, flat colors, precise silhouettes — the BODY "
+                 "is never caricatured, never squat, no oversized head"),
+        "face": ("ligne claire face (Hergé school): simplified rounded "
+                 "features, small dot eyes, minimal nose line, uniform thin "
+                 "black outline, flat colors, no shading"),
+        "decor": ("rigorous documentary decor in the Hergé/Schuiten "
+                  "manner: architecture drawn with exact perspective and "
+                  "uniform line weight, every prop plausible and precisely "
+                  "detailed, flat lighting, no texture noise"),
+        "kw": ["ligne claire", "tintin", "hergé", "herge", "schuiten",
+               "jacobs", "clair"],
+    },
+    "gros_nez": {
+        "label": "Comique franco-belge (gros nez)",
+        "frame": "portrait_4_3",
+        "heads": (3.8, 5.8),
+        "framing": ("in the final image the head spans about one fifth of "
+                    "the frame height"),
+        "char": ("French-Belgian comic caricature (Astérix/Gaston school): "
+                 "squat figures 4 to 5.5 heads tall — the head is about "
+                 "one fifth of the total height, NOT a bobblehead; big "
+                 "round nose, expressive rubber-limbed poses, oversized "
+                 "shoes and hands, squash-and-stretch energy, "
+                 "silhouette-first design"),
+        "face": ("big-nose Franco-Belgian caricature face: oversized round "
+                 "nose dominating the face, expressive dot or bean eyes, "
+                 "elastic mouth, strong readable expression"),
+        "decor": ("lively caricatural sets: slightly bent perspective, "
+                  "rounded architecture, warm flat colors, props "
+                  "exaggerated for comedy but consistent across scenes"),
+        "kw": ["astérix", "asterix", "gaston", "franquin", "gotlib",
+               "uderzo", "comique", "gros nez", "spirou", "lucky luke",
+               "marcinelle", "humour"],
+    },
+    "bd_realiste": {
+        "label": "BD réaliste (Moebius)",
+        "frame": "portrait_16_9",
+        "heads": (7.3, 9.0),
+        "framing": ("in the final image the head spans barely one eighth "
+                    "of the frame height, the very long legs alone span "
+                    "half of the frame height, figure seen from far away "
+                    "as in a Moebius wide vista"),
+        "char": ("realistic European graphic-novel proportions (Moebius/"
+                 "Jodorowsky school): elegant elongated figure about 8 "
+                 "heads tall — the head is only one eighth of the total "
+                 "height, very long legs make up half the total height; "
+                 "precise contour lines with fine hatching, naturalistic "
+                 "faces with strong character — never squat, never "
+                 "compressed, no oversized head"),
+        "face": ("naturalistic strongly-characterized face in the Moebius "
+                 "manner, precise fine contour lines, subtle hatching"),
+        "decor": ("vast Moebius-like environments: immense scale contrast "
+                  "between figures and landscape, crystalline desert or "
+                  "megastructure vistas, fine-line detail, atmospheric "
+                  "depth"),
+        "kw": ["moebius", "mœbius", "jodorowsky", "incal", "giraud",
+               "blueberry", "métal hurlant", "metal hurlant", "graphic novel"],
+    },
+    "comics_heroic": {
+        "label": "Comics héroïque (DC/Marvel)",
+        "frame": "portrait_16_9",
+        # plancher 7.5 (éval it3/it4: mesure vision ±0.3 tête sur des
+        # figures pourtant conformes — évite les retries injustifiés)
+        "heads": (7.5, 9.5),
+        "framing": ("in the final image the small head spans barely one "
+                    "ninth of the frame height and the very long legs "
+                    "alone span more than half of the frame height, heroic "
+                    "low-angle full-length shot"),
+        "char": ("heroic American comics canon: idealized TALL figure 8.5 "
+                 "to 9 heads tall — the head is small, barely one ninth of "
+                 "the total height, very long legs make up more than half "
+                 "the total height; broad shoulders three head-widths "
+                 "wide, V-taper torso, defined musculature, strong "
+                 "jawlines — never squat, never compressed, no oversized "
+                 "head"),
+        "face": ("heroic comics face: chiseled jawline, determined brow, "
+                 "bold ink lines with dramatic cast shadows"),
+        "decor": ("heroic comics staging: low dramatic camera angles, deep "
+                  "urban canyons, bold cast shadows, impact perspective"),
+        "kw": ["comics", "american comic", "superhero", "dc", "marvel",
+               "super", "héro", "hero"],
+    },
+}
+_DEFAULT_CANON = "davinci"
+
+
+def resolve_canon(style_text: str, explicit: str | None = None) -> str:
+    """Canon de proportions pour un style: choix explicite de l'utilisateur,
+    sinon détection par mots-clés du style global, sinon académique."""
+    if explicit and explicit in PROPORTION_CANONS:
+        return explicit
+    t = (style_text or "").lower()
+    best, score = _DEFAULT_CANON, 0
+    for cid, canon in PROPORTION_CANONS.items():
+        s = sum(1 for kw in canon["kw"] if kw in t)
+        if s > score:
+            best, score = cid, s
+    return best

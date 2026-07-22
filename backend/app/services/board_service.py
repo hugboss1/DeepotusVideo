@@ -37,29 +37,49 @@ PANEL_PLANS: dict[str, dict] = {
     # v6: les profils DROITS sont dérivés par MIROIR logiciel du profil
     # gauche (la diffusion confond gauche/droite — le miroir garantit une
     # direction opposée au pixel près, et économise 2 générations).
+    #
+    # v7 (leçon tests A/B canons): les panneaux CORPS portent la taille
+    # sentinelle "CANON" → l'appelant impose le cadre vertical du canon de
+    # proportions (resolution_mode Kontext / aspect_ratio Banana / size
+    # OpenAI). Sans cela le modèle edit sort dans le cadre 3:4 du headshot
+    # de référence → corps tassé (~5 têtes) ou coupé aux genoux. Les
+    # prompts corps DOIVENT: (1) commander un "zoom far out" (Kontext obéit
+    # aux instructions de recadrage), (2) exiger marge au-dessus de la tête
+    # ET sous les pieds, (3) placer {PROPORTIONS} — canon du style — après.
     "character": {
         "panels": [
+            # {FACE} = traits du visage selon le canon du style (yeux manga,
+            # yeux-points ligne claire, gros nez…) — le maître fixe le style.
             ("face_front", "head-and-shoulders close-up portrait, front view, "
-                           "looking at the camera, centered" + _SHARP,
+                           "looking at the camera, centered, {FACE}" + _SHARP,
              None, "portrait_4_3"),
             ("face_left", "the exact same person, same face, same hairstyle: "
                           "head-and-shoulders close-up portrait, LEFT PROFILE "
                           "view, nose pointing to the left of the frame"
                           + _SHARP, "face_front", None),
-            ("front", "the exact same person, same face and hairstyle: FULL "
-                      "BODY standing neutral pose, front view facing the "
-                      "camera, arms relaxed, accurate realistic human "
-                      "proportions (about seven and a half heads tall), full "
-                      "figure visible from head to feet" + _SHARP,
-             "face_front", None),
+            # {PROPORTIONS} = canon de proportions du style (DA) injecté par
+            # l'appelant — De Vinci, manga, ligne claire, gros-nez, comics…
+            ("front", "zoom far out to reveal the FULL BODY of the exact "
+                      "same person, same face and hairstyle: standing "
+                      "neutral pose seen from a distance, front view facing "
+                      "the camera, arms relaxed at the sides, the ENTIRE "
+                      "figure from the top of the hair to the soles of the "
+                      "feet inside the frame with empty margin above the "
+                      "head and below the feet, {PROPORTIONS}" + _SHARP,
+             "face_front", "CANON"),
             ("left", "the exact same character, identical outfit, hairstyle "
                      "and colors: full body LEFT PROFILE view, nose pointing "
-                     "to the left of the frame, standing neutral pose, full "
-                     "figure head to feet" + _SHARP, "front", None),
+                     "to the left of the frame, standing neutral pose, the "
+                     "entire figure head to feet inside the frame with "
+                     "margin above the head and below the feet, same body "
+                     "proportions as the reference" + _SHARP,
+             "front", "CANON"),
             ("back", "the exact same character, identical outfit, hairstyle "
                      "and colors: full body BACK view (seen from behind), "
-                     "standing neutral pose, full figure head to feet"
-                     + _SHARP, "front", None),
+                     "standing neutral pose, the entire figure head to feet "
+                     "inside the frame with margin above the head and below "
+                     "the feet, same body proportions as the reference"
+                     + _SHARP, "front", "CANON"),
         ],
         "mirrors": {"face_right": "face_left", "right": "left"},
         "compose": "character",   # colonnes alignées visage↑corps

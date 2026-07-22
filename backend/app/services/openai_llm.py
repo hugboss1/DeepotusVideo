@@ -100,24 +100,11 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                         persona: dict | None) -> list[dict] | None:
     if not available():
         return None
-    pdesc = ""
-    if persona:
-        pdesc = (f"Persona: {persona.get('name', '')}. "
-                 f"Tone: {persona.get('tone', '')}. "
-                 f"Audience: {persona.get('audience', '')}. ")
-    sys = (
-        "You are a social media content strategist for short-form video "
-        "accounts. Produce a posting plan as STRICT JSON, no prose. "
-        f"Schema: {{\"posts\":[{{\"day_offset\":int (0..{days - 1}),"
-        "\"time\":\"HH:MM\",\"title\":str,"
-        "\"format\":\"image|seedance|heygen|composition|news\","
-        "\"hook\":str,\"caption\":str,\"script_idea\":str,"
-        "\"image_idea\":str,"
-        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"]}}]}. "
-        f"Exactly {days * posts_per_day} posts ({posts_per_day}/day over "
-        f"{days} days). Language: {language}. {pdesc}"
-        "Vary formats and times (morning/noon/evening)."
-    )
+    # v1.27 — contrat de plan partagé (blocs structurés style Sol).
+    # Import local : marketing importe ce module, on évite le cycle.
+    from app.services import plan_schema
+    sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                    plan_schema.persona_desc(persona))
     try:
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as client:
             r = await client.post(
@@ -128,7 +115,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                 },
                 json={
                     "model": settings.OPENAI_MODEL,
-                    "max_tokens": 4000,
+                    "max_tokens": plan_schema.MAX_TOKENS,
                     "messages": [
                         {"role": "system", "content": sys},
                         {"role": "user", "content": prompt},
@@ -140,34 +127,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                 return None
             text = (r.json().get("choices") or [{}])[0].get(
                 "message", {}).get("content", "")
-            start = text.find("{")
-            end = text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            clean = []
-            for p in posts:
-                try:
-                    clean.append({
-                        "day_offset": max(0, min(days - 1,
-                                                 int(p.get("day_offset", 0)))),
-                        "time": str(p.get("time", "12:00"))[:5],
-                        "title": str(p.get("title", ""))[:200],
-                        "format": str(p.get("format", "image")),
-                        "hook": str(p.get("hook", "")),
-                        "caption": str(p.get("caption", "")),
-                        "script_idea": str(p.get("script_idea", "")),
-                        "image_idea": str(p.get("image_idea", "")),
-                        "channels": [c for c in (p.get("channels") or ["x"])
-                                     if c in ("x", "telegram", "youtube",
-                                              "instagram")] or ["x"],
-                    })
-                except (TypeError, ValueError):
-                    continue
-            return clean or None
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"openai plan error: {e}")
         return None

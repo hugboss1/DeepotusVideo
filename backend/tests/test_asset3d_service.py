@@ -32,6 +32,24 @@ def test_parse_result_picks_mesh_and_textures():
     assert out["mesh_url"].endswith(".glb") and out["texture_urls"] == ["https://x/t.png"]
 
 
+def test_parse_result_tripo_pbr_model_shape():
+    """Non-régression 20/07/2026 (job e9e150d2) : tripo v2.5 avec pbr:true
+    renvoie model_mesh null et le mesh texturé dans pbr_model — le parser
+    doit le trouver (schéma OpenAPI fal : task_id, model_mesh, base_model,
+    pbr_model, rendered_image)."""
+    res = {"task_id": "t1", "model_mesh": None,
+           "base_model": {"url": "https://x/base.glb"},
+           "pbr_model": {"url": "https://x/pbr.glb"},
+           "rendered_image": {"url": "https://x/prev.webp"}}
+    out = parse_engine_result("tripo", res)
+    assert out["mesh_url"] == "https://x/pbr.glb"      # pbr prioritaire
+    assert out["preview_url"] == "https://x/prev.webp"
+    res2 = {"task_id": "t2", "base_model": {"url": "https://x/base.glb"}}
+    assert parse_engine_result("tripo", res2)["mesh_url"] == "https://x/base.glb"
+    res3 = {"task_id": "t3", "rendered_image": {"url": "https://x/p.webp"}}
+    assert parse_engine_result("tripo", res3)["mesh_url"] is None
+
+
 def test_pricing_asset3d():
     from app.services.pricing import estimate
     r = estimate({"kind": "asset3d", "engine": "tripo", "textures": True, "multiview": True, "views": 3})

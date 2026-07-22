@@ -86,6 +86,11 @@ class ScheduledPost(Base):
     # the plan's Sources step; the Produce button uses it instead of
     # generating a fresh frame.
     source_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.27 — bloc structuré du plan (style Sol) : JSON {objective, priority,
+    # aspect_ratio, tg_caption, on_image_text, cta, hashtags, links,
+    # avatar_script_short, avatar_script_long, scheduling_notes}. La caption
+    # Telegram y prime sur `caption` à la publication (marketing.fire_post).
+    brief: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class AvatarPreset(Base):
@@ -138,6 +143,11 @@ class BibleEntity(Base):
     # v1.20.1 — characters: the face close-ups sheet (2nd pass, Kontext
     # chained on the turnaround so the face is guaranteed identical).
     face_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.21 (B — casting voix) : la voix ElevenLabs du personnage (suggérée
+    # par l'agent d'après la fiche, ou choisie manuellement).
+    voice_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -275,6 +285,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("metrics", "TEXT"),
     # v1.12 additions
     ("source_image", "VARCHAR(255)"),
+    # v1.27 additions
+    ("brief", "TEXT"),
 ]
 
 
@@ -292,6 +304,9 @@ BIBLE_ENTITIES_COLUMNS = [
     ("evidence", "TEXT"),
     ("prompt_recipe", "TEXT"),
     ("face_image", "VARCHAR(255)"),
+    ("voice_id", "VARCHAR(80)"),
+    ("voice_name", "VARCHAR(200)"),
+    ("voice_prev", "TEXT"),
 ]
 
 

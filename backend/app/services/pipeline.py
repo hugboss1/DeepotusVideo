@@ -27,6 +27,24 @@ from app.services.news_illustration import news_illustration_engine
 from app.services.storage import JobRecord, async_session_factory
 
 
+def _delete_provider_output_dir(job) -> None:
+    """sprite2d/asset3d write a whole per-job folder (frames, manifests,
+    previews) under outputs/{sprites,assets3d}/{short} — the four *_path
+    columns only cover single files, so deleting a job left the folder
+    behind (fix 20/07/2026)."""
+    sub = {"sprite2d": "sprites", "asset3d": "assets3d"}.get(job.provider or "")
+    if not sub:
+        return
+    d = settings.outputs_path / sub / job.id[:8]
+    try:
+        if d.is_dir():
+            import shutil
+            shutil.rmtree(d)
+            logger.info(f"Deleted output dir: {d}")
+    except Exception as e:
+        logger.warning(f"Could not delete output dir {d}: {e}")
+
+
 def _save_source_graph(job_id: str, graph) -> None:
     """Couple a Studio node graph to a render job (for 'Reopen in Studio')."""
     if not graph:
@@ -1164,6 +1182,7 @@ class Pipeline:
                             logger.info(f"Deleted file: {p}")
                     except Exception as e:
                         logger.warning(f"Could not delete {path_str}: {e}")
+            _delete_provider_output_dir(job)
 
             await session.execute(delete(JobRecord).where(JobRecord.id == job_id))
             await session.commit()
@@ -1189,6 +1208,7 @@ class Pipeline:
                                 p.unlink()
                         except Exception as e:
                             logger.warning(f"Could not delete {path_str}: {e}")
+                _delete_provider_output_dir(job)
                 count += 1
             await session.execute(
                 delete(JobRecord).where(JobRecord.batch_id == batch_id)

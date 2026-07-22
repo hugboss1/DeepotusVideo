@@ -23,6 +23,7 @@ DEFAULTS = {
     "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
     "seedance_usd_per_s": 0.04,       # fal.ai Seedance, per second of video
+    "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
     "heygen_credits_per_min": 6.0,    # HeyGen avatar credits per minute
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
     "heygen_chars_per_min": 850.0,    # ~speaking rate to map a script to minutes
@@ -89,6 +90,7 @@ def estimate(op: dict, p: dict | None = None) -> dict:
       {"kind":"news_reel","items":3,"per_card_s":3.5}
       {"kind":"marketing_plan","posts":7,"per_post":[op,...]}
       {"kind":"campaign","ops":[op,...]}
+      {"kind":"sprite2d","frames":16,"remove_bg":"api"}
     Returns {breakdown:[line...], total_usd, credits:{provider:n}}.
     """
     p = p or load()
@@ -168,6 +170,16 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         if op.get("multiview"):
             v = int(op.get("views", 3))
             lines.append(_line("fal", "Multi-view edits", v, "img", v * 0.03))
+    elif kind == "sprite2d":
+        # Game Assets 2D (Sprite Lab): ffmpeg extraction + PIL assembly are
+        # local (free); the only billable part is the per-frame fal remove-bg.
+        frames = int(op.get("frames", op.get("max_frames", 16)) or 0)
+        method = str(op.get("remove_bg") or "none").lower()
+        if method == "api" and frames:
+            lines.append(_line("fal", f"Remove-BG x{frames}", frames, "img",
+                               frames * p.get("rembg_api_usd",
+                                             DEFAULTS["rembg_api_usd"])))
+        lines.append(_line("local", "Sprite sheet (ffmpeg+PIL)", 1, "sheet", 0.0))
     elif kind == "animate":
         # Animation node: per-frame Pillow + ffmpeg, all local compute, no
         # external API -> $0 (kept in the breakdown so the cost pill is honest).

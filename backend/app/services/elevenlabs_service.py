@@ -73,7 +73,10 @@ class VoiceoverService:
 
     @staticmethod
     def is_enabled() -> bool:
-        return settings.has_voiceover
+        """Une voix est possible : ElevenLabs (clé) OU Voicebox local joignable,
+        selon le réglage atelier voice_provider (voir voice_providers)."""
+        from app.services import voice_providers as VP
+        return bool(VP.resolve_provider())
 
     def voice_id_for_language(self, language: str) -> str:
         """Resolve voice_id from persona (preferred) or .env fallback."""
@@ -113,10 +116,21 @@ class VoiceoverService:
     ) -> Path:
         """Synthesize voiceover audio from text and save to disk.
 
-        Returns the path to the generated mp3 file.
+        Routes to the configured voice provider (atelier voice_provider):
+        ElevenLabs (historical default when its key is set) or the local
+        Voicebox server. Returns the path to the generated audio file.
         """
-        if not self.is_enabled():
-            raise RuntimeError("ElevenLabs API key not configured")
+        from app.services import voice_providers as VP
+        provider = VP.resolve_provider()
+        if not provider:
+            raise RuntimeError(
+                "Aucune voix disponible : configure une clé ElevenLabs "
+                "(Réglages) ou lance Voicebox en local.")
+        if provider == "voicebox":
+            # voice_id = profil Voicebox; les ids ElevenLabs hérités sont
+            # ignorés proprement (repli profil par défaut) dans la façade.
+            return VP.voicebox_tts(text=text, output_path=output_path,
+                                   language=language, voice_id=voice_id)
 
         # Lazy import so the module loads even without elevenlabs installed
         from elevenlabs.client import ElevenLabs

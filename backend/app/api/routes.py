@@ -51,6 +51,7 @@ from app.models.schemas import (
     NewsIllustrationResponse,
 )
 from app.services.pipeline import Pipeline
+from app.services.fs_guard import is_virtualized as fs_is_virtualized
 from app.services.heygen_service import HeyGenClient, HeyGenError, invalidate_list_cache
 from app.services.template_service import TemplateEngine
 from app.services.news_service import news_service
@@ -402,6 +403,8 @@ async def get_asset3d_manifest(job: str):
     formats, shots = [], []
     for f in d.iterdir():
         n = f.name
+        if n == "model.opt.glb":
+            continue                    # le GLB optimisé a sa propre UI (10a)
         if n.startswith("model.") and f.is_file():
             formats.append(n.split(".", 1)[1].lower())
         elif n.startswith("shot_") and n.endswith(".png"):
@@ -421,6 +424,50 @@ async def get_asset3d_preview(job: str):
     if not p.is_file():
         raise HTTPException(404, "Not found")
     return FileResponse(p)
+
+
+# ---- Game Assets 3D — Optimize (chantier 10a) ----
+# Les routes /optimize et /opt-glb sont déclarées AVANT /{fmt} (même règle
+# que /preview) pour ne pas être capturées comme fmt="optimize"/"opt-glb".
+
+@router.post("/assets/3d/{job}/optimize")
+async def optimize_asset3d(job: str, body: dict = None):
+    """Simplify model.glb to a triangle budget (gltfpack, local & free).
+    Body: {preset: micro|small|prop|detailed|game|balanced|high|ultra}
+    OR {target_tris: int}. Returns before/after stats (persisted in
+    optimize.json next to the model)."""
+    from app.services import mesh_optimize as MO
+    body = body or {}
+    try:
+        info = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: MO.optimize_glb(
+                job, body.get("target_tris"), body.get("preset")))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(400, str(e))
+    return info
+
+
+@router.get("/assets/3d/{job}/optimize")
+async def get_asset3d_optimize(job: str):
+    """Stats of the last optimize run for this job (optimize.json)."""
+    p = settings.outputs_path / "assets3d" / Path(job).name / "optimize.json"
+    if not p.is_file():
+        raise HTTPException(404, "Not optimized yet")
+    import json as _json
+    return _json.loads(p.read_text(encoding="utf-8"))
+
+
+@router.get("/assets/3d/{job}/opt-glb")
+async def download_asset3d_optimized(job: str):
+    p = settings.outputs_path / "assets3d" / Path(job).name / "model.opt.glb"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="model/gltf-binary",
+                        filename=f"asset3d_{Path(job).name}_optimized.glb")
 
 
 @router.get("/assets/3d/{job}/{fmt}")
@@ -452,6 +499,170 @@ async def save_asset3d_shot(job: str, i: int):
     n = 2
     while dest.exists():
         dest = settings.images_path / f"shot_{Path(job).name}_{int(i)}_{n}.png"
+        n += 1
+    shutil.copy2(src, dest)
+    return {"filename": dest.name}
+
+
+# ---- Game Assets 2D — Sprite Lab (chantier 9a) ----
+
+def _sprite_dir(job: str) -> Path:
+    return settings.outputs_path / "sprites" / Path(job).name
+
+
+@router.post("/assets/sprite")
+async def assets_sprite(body: dict, background_tasks: BackgroundTasks):
+    """Game Assets 2D: video render -> frames -> sprite sheet + pack Unity.
+    Mirrors /assets/3d: pre-register a sprite2d JobRecord, run in the
+    background, record what was produced in cost_meta. Poll GET /api/jobs/{id}.
+    Body: {source: {kind: job|upload|video, ...}, fps_sample, max_frames,
+    remove_bg: none|api|local, trim: animation|tight, cell: {size, align},
+    columns: "auto"|int, pixel?: {target_px, colors|palette, dither} (9b),
+    extract_only?: bool (9c: frames-only probe for the filmstrip),
+    keep?: [indices] (9c: filmstrip selection, sampling order), title?}."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import sprite_service as SS
+    from app.services.storage import JobRecord, async_session_factory
+
+    # fail fast on bad input instead of accepting a job that dies in background
+    try:
+        opts = SS.normalize_opts(body)
+        src = await SS.resolve_source(body.get("source") or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if opts["remove_bg"] == "api" and not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                 "use remove_bg 'local' or 'none'.")
+    if opts["remove_bg"] == "local":
+        try:
+            import rembg  # noqa: F401
+        except ImportError:
+            raise HTTPException(
+                400, "rembg is not installed in this runtime — use remove_bg "
+                     "'api' (fal) or 'none', or install it with: pip install rembg")
+
+    job_id = str(uuid4())
+    short = job_id[:8]
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
+            title=(body.get("title") or f"Sprites · {src.stem}"),
+            image_filename=f"sprite_{short}",
+            provider="sprite2d", current_step="Extracting frames"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step = label
+                jr2.progress = int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await SS.generate_sprites(body, short, on_step=on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.DONE.value
+                    jr.progress = 100
+                    jr.final_video_path = r.get("sheet")
+                    if r.get("sheet"):   # extract_only probes have no sheet
+                        jr.image_filename = "sheet.png"
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps({
+                        "job": short, "frames": r.get("frames"),
+                        "remove_bg": r.get("remove_bg"),
+                        "grid": r.get("grid"),
+                        "bg_failed": r.get("bg_failed") or []})
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"sprite2d {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.get("/assets/sprite/{job}/manifest")
+async def get_sprite_manifest(job: str):
+    """The generated manifest (grid, frames, fps, offsets) + which files
+    actually exist on disk (ground truth)."""
+    d = _sprite_dir(job)
+    mf = d / "manifest.json"
+    if not mf.is_file():
+        raise HTTPException(404, "Not found")
+    data = json.loads(mf.read_text(encoding="utf-8"))
+    fdir = d / "frames"
+    data["files"] = {
+        "sheet": (d / "sheet.png").is_file(),
+        "preview": (d / "preview.gif").is_file(),
+        "unity_json": (d / "sheet.unity.json").is_file(),
+        "unity_importer": (d / "SpriteSheetImporter.cs").is_file(),
+        "frames": len(list(fdir.glob("*.png"))) if fdir.is_dir() else 0,
+    }
+    return data
+
+
+@router.get("/assets/sprite/{job}/sheet")
+async def get_sprite_sheet(job: str):
+    p = _sprite_dir(job) / "sheet.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/preview")
+async def get_sprite_preview(job: str):
+    p = _sprite_dir(job) / "preview.gif"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/frame/{i}")
+async def get_sprite_frame(job: str, i: int):
+    p = _sprite_dir(job) / "frames" / f"{int(i):03d}.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p)
+
+
+@router.get("/assets/sprite/{job}/zip")
+async def get_sprite_zip(job: str):
+    """Full pack: sheet + frames + manifests + Unity importer."""
+    from app.services.sprite_service import build_zip_bytes
+    d = _sprite_dir(job)
+    if not (d / "sheet.png").is_file():
+        raise HTTPException(404, "Not found")
+    data = await asyncio.to_thread(build_zip_bytes, d)
+    return Response(
+        content=data, media_type="application/zip",
+        headers={"Content-Disposition":
+                 f'attachment; filename="sprites_{Path(job).name}.zip"'})
+
+
+@router.post("/assets/sprite/{job}/save")
+async def save_sprite_sheet(job: str):
+    """Copy sheet.png into the Library images folder so it can be reused as an
+    ordinary image (Studio node, Seedance start frame, ...)."""
+    import shutil
+    src = _sprite_dir(job) / "sheet.png"
+    if not src.is_file():
+        raise HTTPException(404, "Not found")
+    dest = settings.images_path / f"gen_sprite_{Path(job).name}.png"
+    n = 2
+    while dest.exists():
+        dest = settings.images_path / f"gen_sprite_{Path(job).name}_{n}.png"
         n += 1
     shutil.copy2(src, dest)
     return {"filename": dest.name}
@@ -904,11 +1115,13 @@ async def delete_audio_file(filename: str):
 
 @router.post("/audio/voiceover")
 async def create_voiceover(request: Request):
-    """Synthesize a voiceover (ElevenLabs) and save it as a reusable audio asset.
+    """Synthesize a voiceover (provider-aware) and save it as a reusable audio asset.
 
-    Used by Quick's "voix off seule" mode: the script is spoken by the app voice
-    engine and the .mp3 lands in the Library audio dir, selectable in audio nodes.
-    Body: {script, language?: "en"|"fr", name?}.
+    Used by Quick's « Voice Over » tab and the Chapitres flow: the script is
+    spoken by the active voice provider and the .mp3 lands in the Library audio
+    dir, selectable in audio nodes.
+    Body: {script, language?: "en"|"fr", name?, voice_id?} — voice_id omitted =
+    default voice from .env (ELEVENLABS_VOICE_ID_{EN,FR} per language).
     """
     try:
         payload = await request.json()
@@ -919,8 +1132,10 @@ async def create_voiceover(request: Request):
         raise HTTPException(400, "Empty script")
     from app.services.elevenlabs_service import VoiceoverService
     voice = VoiceoverService()
-    if not voice.is_enabled():
-        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     voice_id = (payload.get("voice_id") or "").strip() or None
     lang = str(payload.get("language") or "en").lower()
     if lang not in ("en", "fr"):
@@ -943,30 +1158,19 @@ async def create_voiceover(request: Request):
 
 @router.get("/voices")
 async def list_voices():
-    """List ElevenLabs voices for the Episodes / voiceover voice picker."""
-    if not settings.has_voiceover:
-        return {"voices": [], "enabled": False}
+    """Voice picker (Episodes / VO) — catalogue du provider de voix actif
+    (ElevenLabs ou Voicebox local, v1.26 étape 3). Même forme qu'avant :
+    {voice_id, name, category, language, labels, preview_url}."""
     try:
-        async with httpx.AsyncClient(timeout=15) as c:
-            r = await c.get("https://api.elevenlabs.io/v1/voices",
-                            headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
-            r.raise_for_status()
-            data = r.json()
-        out = []
-        for v in (data.get("voices") or []):
-            lbl = v.get("labels") or {}
-            out.append({
-                "voice_id": v.get("voice_id"),
-                "name": v.get("name"),
-                "category": v.get("category"),
-                "language": lbl.get("language") or lbl.get("accent"),
-                "labels": lbl,
-                "preview_url": v.get("preview_url"),
-            })
-        return {"voices": out, "enabled": True}
+        provider, voices = await _fetch_casting_voices()
+    except HTTPException:                  # aucun provider utilisable
+        return {"voices": [], "enabled": False}
     except Exception as e:
-        logger.warning(f"ElevenLabs voices fetch failed: {e}")
+        logger.warning(f"voices fetch failed: {e}")
         return {"voices": [], "enabled": True, "error": str(e)}
+    out = [{**v, "language": (v.get("labels") or {}).get("language")
+            or (v.get("labels") or {}).get("accent")} for v in voices]
+    return {"voices": out, "enabled": True, "provider": provider}
 
 
 @router.post("/episodes/extract-text")
@@ -1106,8 +1310,11 @@ async def render_episode(request: Request, background_tasks: BackgroundTasks):
         raise HTTPException(400, "No scenes to render")
     if not any((s.get("text") or "").strip() for s in scenes if isinstance(s, dict)):
         raise HTTPException(400, "Scenes have no narration text")
-    if not settings.has_voiceover:
-        raise HTTPException(400, "ElevenLabs voice not configured — add the API key in Settings.")
+    from app.services.elevenlabs_service import VoiceoverService
+    if not await asyncio.get_running_loop().run_in_executor(
+            None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible — configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
     job_id = str(uuid4())
 
     async def _run():
@@ -1845,6 +2052,11 @@ async def download_job_video(job_id: str):
 
 @router.get("/health")
 async def health():
+    from app.services.elevenlabs_service import VoiceoverService
+    # provider-aware (v1.26 étape 4) : clé 11L OU Voicebox local joignable
+    # (détection cachée 5 s dans voice_providers — pas un ping par poll)
+    vo_enabled = await asyncio.get_running_loop().run_in_executor(
+        None, VoiceoverService.is_enabled)
     return {
         "ok": True,
         "version": APP_VERSION,
@@ -1852,7 +2064,7 @@ async def health():
         "x_enabled": settings.has_x,
         "ollama_enabled": settings.has_ollama,
         "fal_configured": bool(settings.FAL_KEY),
-        "voiceover_enabled": settings.has_voiceover,
+        "voiceover_enabled": vo_enabled,
         "heygen_enabled": settings.has_heygen,
         "summarizer_enabled": settings.has_summarizer,
         "has_summarizer": settings.has_summarizer,
@@ -1861,6 +2073,9 @@ async def health():
         "any_llm": settings.has_any_llm,
         "images_folder": str(settings.images_path),
         "outputs_folder": str(settings.outputs_path),
+        # True = backend conteneurisé (MSIX) : ses écritures partent dans un
+        # overlay invisible → relancer hors conteneur (voir fs_guard).
+        "fs_virtualized": fs_is_virtualized(),
     }
 
 
@@ -2289,13 +2504,21 @@ async def upload_pack_icon(slot: str, request: Request, file: UploadFile = File(
 # ============ v1.9: MARKETING PLAN + SCHEDULER + IMAGE GEN ============
 
 from datetime import datetime as _dt, timedelta as _td
-from sqlalchemy import select as _select, delete as _delete
+from sqlalchemy import select as _select, delete as _delete, \
+    or_ as _or, and_ as _and
 from app.services.storage import ScheduledPost, JobRecord, async_session_factory
 from app.services import marketing
 
 
 def _post_to_dict(p: ScheduledPost) -> dict:
+    brief = None
+    if getattr(p, "brief", None):
+        try:
+            brief = json.loads(p.brief)
+        except (ValueError, TypeError):
+            brief = None
     return {
+        "brief": brief,
         "id": p.id,
         "title": p.title,
         "caption": p.caption,
@@ -2319,15 +2542,20 @@ def _post_to_dict(p: ScheduledPost) -> dict:
 
 
 @router.get("/schedule")
-async def list_schedule(days_back: int = 30, days_forward: int = 90):
-    """All scheduled posts in a window around now (UTC)."""
+async def list_schedule(days_back: int = 365, days_forward: int = 365):
+    """Scheduled posts. Les posts encore actionnables (draft/scheduled/ready)
+    sont TOUJOURS renvoyés quel que soit leur run_at : l'ancienne fenêtre
+    [−30 j, +90 j] les faisait « disparaître » silencieusement du Scheduler
+    dès qu'elle glissait au-delà (incident 20/07/2026 — rien n'était perdu
+    en base). La fenêtre ne borne plus que l'historique posted/failed."""
     lo = _dt.utcnow() - _td(days=days_back)
     hi = _dt.utcnow() + _td(days=days_forward)
     async with async_session_factory() as session:
         res = await session.execute(
             _select(ScheduledPost)
-            .where(ScheduledPost.run_at >= lo)
-            .where(ScheduledPost.run_at <= hi)
+            .where(_or(
+                ScheduledPost.status.in_(("draft", "scheduled", "ready")),
+                _and(ScheduledPost.run_at >= lo, ScheduledPost.run_at <= hi)))
             .order_by(ScheduledPost.run_at.asc()))
         return [_post_to_dict(p) for p in res.scalars().all()]
 
@@ -2357,6 +2585,9 @@ async def create_scheduled_post(body: dict):
         script_idea=body.get("script_idea"),
         image_idea=body.get("image_idea"),
         source_image=body.get("source_image") or None,
+        brief=(json.dumps(body["brief"], ensure_ascii=False)
+               if isinstance(body.get("brief"), dict) and body["brief"]
+               else None),
     )
     async with async_session_factory() as session:
         session.add(p)
@@ -2396,6 +2627,10 @@ async def update_scheduled_post(post_id: str, body: dict):
             p.format = body["format"] or None
         if "source_image" in body:
             p.source_image = body["source_image"] or None
+        if "brief" in body:
+            p.brief = (json.dumps(body["brief"], ensure_ascii=False)
+                       if isinstance(body["brief"], dict) and body["brief"]
+                       else None)
         await session.commit()
         await session.refresh(p)
         return _post_to_dict(p)
@@ -2531,6 +2766,15 @@ def _job_to_cost(job, p):
         return _pricing.estimate({"kind": "episode",
                                   "images": int(meta.get("images", 1) or 1),
                                   "chars": float(meta.get("chars", 0) or 0)}, p)
+    if prov == "sprite2d":
+        import json as _json
+        try:
+            meta = _json.loads(job.cost_meta or "{}")
+        except Exception:
+            meta = {}
+        return _pricing.estimate({"kind": "sprite2d",
+                                  "frames": int(meta.get("frames", 0) or 0),
+                                  "remove_bg": meta.get("remove_bg", "none")}, p)
     return _pricing.estimate({"kind": "campaign", "ops": [
         {"kind": "image"}, {"kind": "seedance", "duration_s": dur}]}, p)
 
@@ -2568,6 +2812,11 @@ async def cost_balances():
                              "usd": round((rem or 0) * p["heygen_credit_usd"], 2)}
         except Exception:
             out["heygen"] = {"available": False}
+    from app.services import voice_providers as _VP
+    if await asyncio.get_running_loop().run_in_executor(
+            None, _VP.voicebox_reachable):
+        # spec voicebox 2026-07-11 : statut abonnement = « local : gratuit »
+        out["voicebox"] = {"available": True, "local": True, "free": True}
     if settings.has_voiceover:
         try:
             async with httpx.AsyncClient(timeout=15.0, verify=SSL_VERIFY) as c:
@@ -2780,6 +3029,15 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
     n = max(1, min(4, int(body.get("n") or 1)))
     size = body.get("size") or "portrait_16_9"
     model = (body.get("model") or "").strip().lower()
+    if not model:
+        # Callers that drive the API directly (plan agents, scripts) send no
+        # model — honour the saved "Image generator" default instead of
+        # silently falling back to FLUX.
+        async with async_session_factory() as _s:
+            model = (await _atelier_setting(
+                _s, "image_model_default")).strip().lower()
+        logger.info("images/generate: no model in request, saved default -> "
+                    f"{model or 'flux (fallback)'}")
     import httpx as _httpx
 
     # --- OpenAI gpt-image / dall-e path (per the selected model) -----------
@@ -2821,6 +3079,16 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         logger.info(f"OpenAI {model}: saved {len(saved)} image(s): {saved}")
         return {"images": saved, "prompt": prompt, "model": model}
 
+    # --- Nano Banana (Gemini via fal) --------------------------------------
+    if model == "nano-banana":
+        from app.services import image_providers as IP
+        try:
+            out = await IP.generate("nano-banana", prompt, size, n)
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+        return {"images": out["images"], "prompt": prompt,
+                "model": "nano-banana"}
+
     # --- fal.ai FLUX path (default) ---------------------------------------
     seed = body.get("seed")
     seed = int(seed) if isinstance(seed, (int, float)) else None
@@ -2829,10 +3097,233 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
             "seed": out.get("seed")}
 
 
+_CROP_RATIOS = {"9:16": (9, 16), "16:9": (16, 9), "1:1": (1, 1),
+                "4:5": (4, 5), "3:4": (3, 4)}
+
+
+@router.post("/images/process")
+async def process_image(body: dict):
+    """Post-traitements des nœuds image du Studio. Body: {op, filename, ...}.
+    Ops:
+      - crop        {ratio "9:16"}            — recadrage centré, local (PIL)
+      - upscale     {mode "ai"|"simple", scale 2} — fal esrgan / PIL Lanczos
+      - remove-bg   {method "api"|"local"}    — fal rembg / lib rembg locale
+      - edit        {prompt, model, n=1}      — édition par prompt (gpt-image,
+                    nano-banana, ou FLUX Kontext par défaut)
+      - variations  {n=3, model, prompt?}     — N variantes proches
+      - pixel       {target_px, colors|palette, dither, scale} — pixel-art
+                    local (PIL, chantier 9b), palettes pico8/gameboy/nes/
+                    sweetie16/onebit
+      - tile-preview {grid 2|3}               — composite de raccord + score
+                    seam_score 0-100 (0 = tuile parfaite, base du 9e)
+      - seamless    {method offset|mirror, blend 5-45, target_px 0|64-1024,
+                    square} — tuile raccordable locale (PIL, chantier 9e) +
+                    seam_before/seam_after dans la réponse
+    Retour {images:[filenames]} — sauvées dans la Library comme gen_*.png."""
+    op = (body.get("op") or "").strip().lower()
+    fname = (body.get("filename") or "").strip()
+    src = settings.images_path / fname
+    if not fname or not src.is_file():
+        raise HTTPException(400, f"Source image not found: {fname or '(none)'}")
+    from PIL import Image as _PILImage
+
+    def _save_png(img) -> str:
+        out_name = f"gen_{uuid4().hex[:8]}.png"
+        img.save(settings.images_path / out_name, format="PNG")
+        return out_name
+
+    if op == "crop":
+        ratio = body.get("ratio") or "9:16"
+        if ratio not in _CROP_RATIOS:
+            raise HTTPException(400, f"Unknown ratio: {ratio}")
+        rw, rh = _CROP_RATIOS[ratio]
+        img = _PILImage.open(src)
+        w, h = img.size
+        target = rw / rh
+        if w / h > target:   # trop large -> rogner les côtés
+            nw = int(h * target)
+            box = ((w - nw) // 2, 0, (w + nw) // 2, h)
+        else:                # trop haut -> rogner haut/bas
+            nh = int(w / target)
+            box = (0, (h - nh) // 2, w, (h + nh) // 2)
+        out_name = _save_png(img.crop(box))
+        logger.info(f"images/process crop {ratio}: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op}
+
+    if op == "upscale":
+        mode = (body.get("mode") or "ai").lower()
+        scale = max(2, min(4, int(body.get("scale") or 2)))
+        if mode == "simple":
+            img = _PILImage.open(src)
+            up = img.resize((img.width * scale, img.height * scale),
+                            _PILImage.LANCZOS)
+            out_name = _save_png(up)
+            logger.info(f"images/process upscale simple x{scale}: "
+                        f"{fname} -> {out_name}")
+            return {"images": [out_name], "op": op}
+        if not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                     "use the 'simple' mode instead.")
+        import fal_client
+        from app.services.fal_service import FalSeedanceClient
+        url = await FalSeedanceClient.upload_image(src)
+        try:
+            result = await fal_client.subscribe_async(
+                "fal-ai/esrgan", arguments={"image_url": url, "scale": scale})
+        except Exception as e:
+            logger.error(f"esrgan upscale failed: {e}")
+            raise HTTPException(502, f"fal.ai esrgan: {e}")
+        out_url = ((result or {}).get("image") or {}).get("url") or \
+            next((im.get("url") for im in (result or {}).get("images", [])
+                  if im.get("url")), None)
+        if not out_url:
+            raise HTTPException(502, "esrgan returned no image")
+        from app.services.image_providers import _download
+        saved = await _download([out_url])
+        logger.info(f"images/process upscale ai x{scale}: "
+                    f"{fname} -> {saved[0]}")
+        return {"images": saved, "op": op}
+
+    if op == "remove-bg":
+        method = (body.get("method") or "api").lower()
+        if method == "local":
+            try:
+                from rembg import remove as _rembg_remove
+            except ImportError:
+                raise HTTPException(
+                    400, "rembg is not installed in this runtime — use the "
+                         "'API cloud (fal)' method, or install it with: "
+                         "pip install rembg")
+            loop = asyncio.get_running_loop()
+            data = await loop.run_in_executor(
+                None, _rembg_remove, src.read_bytes())
+            out_name = f"gen_{uuid4().hex[:8]}.png"
+            (settings.images_path / out_name).write_bytes(data)
+            logger.info(f"images/process remove-bg local: "
+                        f"{fname} -> {out_name}")
+            return {"images": [out_name], "op": op}
+        if not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                     "use the 'local (rembg)' method.")
+        import fal_client
+        from app.services.fal_service import FalSeedanceClient
+        url = await FalSeedanceClient.upload_image(src)
+        try:
+            result = await fal_client.subscribe_async(
+                "fal-ai/imageutils/rembg", arguments={"image_url": url})
+        except Exception as e:
+            logger.error(f"fal rembg failed: {e}")
+            raise HTTPException(502, f"fal.ai rembg: {e}")
+        out_url = ((result or {}).get("image") or {}).get("url") or \
+            next((im.get("url") for im in (result or {}).get("images", [])
+                  if im.get("url")), None)
+        if not out_url:
+            raise HTTPException(502, "rembg returned no image")
+        from app.services.image_providers import _download
+        saved = await _download([out_url])
+        logger.info(f"images/process remove-bg api: {fname} -> {saved[0]}")
+        return {"images": saved, "op": op}
+
+    if op == "pixel":
+        from app.services.pixel_ops import normalize_pixel_opts, pixelate
+        try:
+            popts = normalize_pixel_opts(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        with _PILImage.open(src) as img:
+            out = pixelate(img, popts)
+        out_name = _save_png(out)
+        logger.info(f"images/process pixel {popts['palette'] or popts['colors']}"
+                    f"@{popts['target_px']}px: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "pixel": popts,
+                "size": list(out.size)}
+
+    if op == "seamless":
+        from app.services.pixel_ops import (make_seamless,
+                                            normalize_seamless_opts,
+                                            seam_score)
+        try:
+            sopts = normalize_seamless_opts(body)
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        with _PILImage.open(src) as img:
+            before = seam_score(img)
+            out = make_seamless(img, sopts)
+        after = seam_score(out)
+        out_name = _save_png(out)
+        logger.info(f"images/process seamless {sopts['method']} "
+                    f"blend={sopts['blend']} seam {before}->{after}: "
+                    f"{fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "method": sopts["method"],
+                "seam_before": before, "seam_after": after,
+                "size": list(out.size)}
+
+    if op == "tile-preview":
+        from app.services.pixel_ops import tile_preview
+        try:
+            grid = int(body.get("grid") or 2)
+        except (TypeError, ValueError):
+            grid = 0
+        if grid not in (2, 3):
+            raise HTTPException(400, "grid must be 2 or 3")
+        with _PILImage.open(src) as img:
+            comp, score = tile_preview(img, grid)
+        out_name = _save_png(comp)
+        logger.info(f"images/process tile-preview {grid}x{grid} "
+                    f"score={score}: {fname} -> {out_name}")
+        return {"images": [out_name], "op": op, "grid": grid,
+                "seam_score": score}
+
+    if op in ("edit", "variations"):
+        n = max(1, min(4, int(body.get("n") or (3 if op == "variations"
+                                                else 1))))
+        prompt = (body.get("prompt") or "").strip()
+        if op == "variations" and not prompt:
+            prompt = ("a close variation of the same subject, same style, "
+                      "same framing, slightly different details")
+        if not prompt:
+            raise HTTPException(400, "prompt is required for edit")
+        model = (body.get("model") or "").strip().lower()
+        if not model:
+            async with async_session_factory() as _s:
+                model = (await _atelier_setting(
+                    _s, "image_model_default")).strip().lower()
+        size = body.get("size") or "portrait_16_9"
+        if model.startswith("gpt-image") or model.startswith("dall-e") \
+                or model == "nano-banana":
+            from app.services import image_providers as IP
+            try:
+                out = await IP.generate(model, prompt, size, n,
+                                        image_path=src)
+            except RuntimeError as e:
+                raise HTTPException(502, str(e))
+            logger.info(f"images/process {op} via {model}: "
+                        f"{fname} -> {out['images']}")
+            return {"images": out["images"], "op": op, "model": model}
+        # défaut: FLUX Kontext (génération conditionnée par l'image)
+        ratio = _EDIT_RATIO.get(size)
+        out = await _flux_generate(prompt, size, n,
+                                   model="fal-ai/flux-kontext/dev",
+                                   image_path=src, ratio=ratio)
+        logger.info(f"images/process {op} via kontext: "
+                    f"{fname} -> {out['images']}")
+        return {"images": out["images"], "op": op, "model": "flux-kontext"}
+
+    raise HTTPException(400, f"Unknown op: {op}")
+
+
+# cadre → ratio des modèles edit (resolution_mode Kontext / aspect Banana)
+_EDIT_RATIO = {"portrait_16_9": "9:16", "portrait_4_3": "3:4",
+               "square_hd": "1:1", "square": "1:1",
+               "landscape_4_3": "4:3", "landscape_16_9": "16:9"}
+
+
 async def _flux_generate(prompt: str, size: str, n: int,
                          seed: int | None = None,
                          model: str = "fal-ai/flux/schnell",
-                         image_path: Path | None = None) -> dict:
+                         image_path: Path | None = None,
+                         ratio: str | None = None,
+                         guidance: float | None = None) -> dict:
     """Génération d'image fal → Library (v1.20: multi-modèles).
 
     - schnell (défaut, /images/generate): rapide et pas cher.
@@ -2840,8 +3331,10 @@ async def _flux_generate(prompt: str, size: str, n: int,
       utilisé pour les planches de référence.
     - fal-ai/flux-kontext/dev + image_path: génération CONDITIONNÉE par une
       image de référence (préserve l'identité du sujet) — utilisé quand
-      l'entité a une image d'inspiration. Kontext cadre sur l'image d'entrée:
-      on n'envoie pas image_size dans ce cas.
+      l'entité a une image d'inspiration. Kontext cadre par défaut sur
+      l'image d'entrée (match_input): `ratio` (ex. "9:16") force un autre
+      cadre via resolution_mode — indispensable pour les panneaux corps en
+      pied chaînés sur un headshot (sinon figure tassée ou coupée).
     Retourne {"images": [filenames], "seed": <seed utilisé>}."""
     import httpx as _httpx
     if not settings.FAL_KEY:
@@ -2854,9 +3347,15 @@ async def _flux_generate(prompt: str, size: str, n: int,
     if image_path is not None:
         from app.services.fal_service import FalSeedanceClient
         arguments["image_url"] = await FalSeedanceClient.upload_image(image_path)
+        if ratio:
+            arguments["resolution_mode"] = ratio
     else:
         arguments["image_size"] = size
         arguments["enable_safety_checker"] = True
+    if guidance is not None:
+        # panneaux corps Kontext: adhérence renforcée aux consignes de
+        # proportions (défaut 2.5 — trop lâche, la tête de la réf gagne)
+        arguments["guidance_scale"] = guidance
     if seed is not None:
         arguments["seed"] = seed
     try:
@@ -2919,6 +3418,8 @@ async def list_image_models():
     if settings.FAL_KEY:
         out.append({"id": "flux", "label": "FLUX schnell",
                     "provider": "fal", "note": "fast, low cost"})
+        out.append({"id": "nano-banana", "label": "Nano Banana (Gemini)",
+                    "provider": "fal", "note": "strong edits"})
     if settings.OPENAI_API_KEY:
         out.append({"id": "gpt-image-2", "label": "GPT Image 2",
                     "provider": "openai", "note": "best quality"})
@@ -2926,8 +3427,14 @@ async def list_image_models():
                     "provider": "openai", "note": "balanced"})
         out.append({"id": "gpt-image-1-mini", "label": "GPT Image 1 mini",
                     "provider": "openai", "note": "cheapest OpenAI"})
-    return {"models": out, "default": ("flux" if settings.FAL_KEY
-                                       else (out[0]["id"] if out else ""))}
+    async with async_session_factory() as _s:
+        configured = (await _atelier_setting(
+            _s, "image_model_default")).strip().lower()
+    if configured and configured not in {m["id"] for m in out}:
+        configured = ""  # stale default (key removed) — ignore it
+    return {"models": out, "configured": configured,
+            "default": configured or ("flux" if settings.FAL_KEY
+                                      else (out[0]["id"] if out else ""))}
 
 
 # ═════════════════════ Atelier Chapitre (v1.17, P1) ═════════════════════
@@ -3000,6 +3507,74 @@ async def get_atelier_settings():
         return {"settings": {r.key: r.value or "" for r in rows}}
 
 
+@router.get("/atelier/providers")
+async def list_image_providers():
+    """Générateurs d'images disponibles (selon les clés configurées), avec
+    l'indicateur seeds (déterminisme des recettes)."""
+    from app.services import image_providers as IP
+    return {"providers": IP.available(), "default": "flux"}
+
+
+@router.get("/voice/providers")
+async def list_voice_providers():
+    """Fournisseurs de voix (spec voicebox 2026-07-11) : disponibilité de
+    chacun (clé ElevenLabs / Voicebox local joignable), réglage atelier
+    voice_provider et provider effectivement résolu."""
+    from app.services import voice_providers as VP
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        configured = await _atelier_setting(session, "voice_provider")
+    loop = asyncio.get_running_loop()
+    providers = await loop.run_in_executor(None, VP.available)
+    resolved = await loop.run_in_executor(
+        None, lambda: VP.resolve_provider(configured))
+    return {"providers": providers, "configured": configured,
+            "resolved": resolved}
+
+
+@router.post("/atelier/style/propose")
+async def propose_art_direction(body: dict):
+    """v1.23 (DA) — l'agent lit un extrait représentatif du manuscrit (ton,
+    époque, genre, indices visuels rédigés) et propose 4 directions
+    artistiques motivées. Persistées dans atelier_settings.style_proposals.
+    Body: {chapter_id?} — sinon: tous les chapitres, concaténés."""
+    from app.services import manuscript_agent as MA
+    from app.services.storage import (Chapter, BibleEntity, AtelierSetting,
+                                      async_session_factory)
+    from app.services.summarizer import available
+    from sqlalchemy import select
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    async with async_session_factory() as session:
+        if body.get("chapter_id"):
+            ch = await session.get(Chapter, body["chapter_id"])
+            if not ch:
+                raise HTTPException(404, "Chapter not found")
+            texts = [ch.script_text or ""]
+        else:
+            rows = (await session.execute(select(Chapter))).scalars().all()
+            texts = [c.script_text or "" for c in rows]
+        excerpt = "\n\n".join(t[:3000] for t in texts if t.strip())[:9000]
+        if len(excerpt) < 200:
+            raise HTTPException(400, "Pas assez de texte — importe le manuscrit d'abord.")
+        ents = (await session.execute(select(BibleEntity))).scalars().all()
+        names = [e.name for e in ents]
+    loop = asyncio.get_running_loop()
+    props = await loop.run_in_executor(
+        None, lambda: MA.propose_styles(excerpt, names))
+    if not props:
+        raise HTTPException(502, "La proposition de DA a échoué — réessaie.")
+    async with async_session_factory() as session:
+        row = await session.get(AtelierSetting, "style_proposals")
+        val = json.dumps(props, ensure_ascii=False)
+        if row:
+            row.value = val
+        else:
+            session.add(AtelierSetting(key="style_proposals", value=val))
+        await session.commit()
+    return {"proposals": props, "presets": MA.STYLE_PRESETS}
+
+
 @router.put("/atelier/settings")
 async def put_atelier_settings(body: dict):
     """Upsert de réglages {key: value}. Clés: global_style, …"""
@@ -3034,6 +3609,9 @@ def _entity_dict(e) -> dict:
             "evidence": _jload(getattr(e, "evidence", None)),
             "has_recipe": bool(getattr(e, "prompt_recipe", None)),
             "face_image": getattr(e, "face_image", None),
+            "voice_id": getattr(e, "voice_id", None),
+            "voice_name": getattr(e, "voice_name", None),
+            "voice_prev": getattr(e, "voice_prev", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -3098,6 +3676,10 @@ async def update_bible_entity(entity_id: str, body: dict):
             e.inspiration_images = _json.dumps(body["inspiration_images"] or [])
         if "aliases" in body:
             e.aliases = _json.dumps(body["aliases"] or [])
+        # v1.21 — casting voix (choix manuel ou application d'une suggestion)
+        for vk in ("voice_id", "voice_name", "voice_prev"):
+            if vk in body:
+                setattr(e, vk, body[vk] or None)
         # v1.17.1 — allow re-linking a reference / pinning a seed directly
         # (used by recovery tooling and future "use this Library image as ref").
         if "ref_image" in body:
@@ -3162,8 +3744,15 @@ async def generate_bible_reference(entity_id: str, body: dict):
         except Exception:
             insp_file = None
         seeds_by_key: dict = {}
+        # provider du projet (réglage DA) — la recette fige le sien
+        provider = await _atelier_setting(session, "image_provider") or "flux"
+        style_ref = await _atelier_setting(session, "style_ref_image")
+        if style_ref and not (settings.images_path / Path(style_ref).name).is_file():
+            style_ref = ""
         if recipe and recipe.get("v") == 2:
             insp_file = recipe.get("ref_file") or insp_file
+            provider = recipe.get("provider") or provider
+            style_ref = recipe.get("style_ref") or style_ref
             seeds_by_key = {p["key"]: p.get("seed")
                             for p in (recipe.get("panels") or [])}
         elif not recipe:
@@ -3178,34 +3767,127 @@ async def generate_bible_reference(entity_id: str, body: dict):
         style_src = (e.style_notes or "").strip() or \
             await _atelier_setting(session, "global_style")
         style = f". Style: {style_src}" if style_src else ""
+        # canon de proportions (DA2): la recette fige le sien, sinon le
+        # réglage explicite style_canon, sinon auto-détection par mots-clés
+        # du style — défaut: canon académique De Vinci (7.5-8 têtes).
+        from app.services import manuscript_agent as MA
+        canon_pref = await _atelier_setting(session, "style_canon")
+        if recipe and recipe.get("v") == 2 and recipe.get("canon"):
+            canon_pref = recipe["canon"]
+        canon_key = MA.resolve_canon(
+            style_src, canon_pref if canon_pref != "auto" else None)
+        canon = MA.PROPORTION_CANONS[canon_key]
         req_seed = body.get("seed")
         req_seed = int(req_seed) if isinstance(req_seed, (int, float)) else None
         panels: dict[str, str] = {}
         recipe_panels = []
+        from app.services import image_providers as IP
+        from app.services import proportion_qc as PQC
+        # leçons apprises (QC proportions passés): consigne corrective
+        # persistée par canon — appliquée d'office aux prompts corps.
+        lessons = PQC.load_lessons(await _atelier_setting(session,
+                                                          "canon_lessons"))
+        lesson_hint = PQC.lesson_hint(lessons, canon_key)
         for key, ptxt, chain_on, p1size in plan["panels"]:
+            # injection du canon: proportions du corps ({PROPORTIONS}) et
+            # traits du visage ({FACE}) selon le style de la DA.
+            is_body = p1size == "CANON"      # panneau corps en pied (v7)
+            # v1.25.1: le canon anatomique ("X heads tall") est doublé de sa
+            # contrainte en coordonnées IMAGE ("framing": la tête n'occupe
+            # qu'un N-ième de la hauteur du cadre) — la diffusion respecte
+            # mieux les fractions du cadre que les têtes anatomiques.
+            prop = canon["char"] + ("; " + canon["framing"]
+                                    if canon.get("framing") else "")
+            ptxt = ptxt.replace("{PROPORTIONS}", prop) \
+                       .replace("{FACE}", canon["face"])
+            ratio = None
             if chain_on:
                 prompt = ptxt + style
-                model = "fal-ai/flux-kontext/dev"
+                if is_body and lesson_hint:
+                    prompt += ". " + lesson_hint
                 img = settings.images_path / panels[chain_on]
-                size = "landscape_16_9"      # ignoré par kontext (cadre la réf)
+                if is_body:
+                    # cadre vertical du canon (leçon tests A/B: sans lui le
+                    # modèle edit garde le cadre du headshot → corps tassé)
+                    size = canon["frame"]
+                    ratio = _EDIT_RATIO.get(size)
+                else:
+                    size = "landscape_16_9"  # les modèles edit cadrent la réf
             else:
                 prompt = ptxt + "." + subj + style
+                if e.kind in ("place", "decor", "ambiance", "date"):
+                    # lieux/décors: perspective et échelle du même canon
+                    prompt += ". " + canon["decor"]
                 if insp_file:
                     prompt = ("Using the exact same subject, face and design "
                               "as the reference image, keep its identity and "
                               "art style, but remove any text or lettering: "
                               + prompt)
-                    model = "fal-ai/flux-kontext/dev"
                     img = settings.images_path / insp_file
+                elif style_ref:
+                    # référence de STYLE du projet (pas d'identité propre):
+                    # conditionne le panneau maître sur son rendu.
+                    prompt = ("Reproduce the exact ART STYLE of the "
+                              "reference image (medium, line, palette, "
+                              "rendering) applied to a NEW subject: " + prompt)
+                    img = settings.images_path / Path(style_ref).name
                 else:
-                    model = "fal-ai/flux/dev"
                     img = None
                 size = p1size or "landscape_16_9"
             seed = seeds_by_key.get(key)
             if seed is None and not chain_on:
                 seed = req_seed
-            out = await _flux_generate(prompt, size, 1, seed=seed,
-                                       model=model, image_path=img)
+
+            async def _gen(p: str):
+                if provider == "flux":
+                    mdl = ("fal-ai/flux-kontext/dev" if img is not None
+                           else "fal-ai/flux/dev")
+                    return mdl, await _flux_generate(
+                        p, size, 1, seed=seed, model=mdl,
+                        image_path=img, ratio=ratio,
+                        guidance=(3.5 if is_body and img is not None
+                                  else None))
+                try:
+                    return provider, await IP.generate(
+                        provider, p, size, 1, seed=seed,
+                        image_path=img, ratio=ratio)
+                except RuntimeError as pe:
+                    raise HTTPException(502, str(pe))
+
+            model, out = await _gen(prompt)
+            # QC proportions (panneau corps maître, hors rejeu de recette):
+            # un contrôle vision mesure le nombre de têtes; hors canon →
+            # jusqu'à DEUX régénérations correctives (seed libre: chaque
+            # retry explore une composition différente), on garde la
+            # meilleure mesure, et la leçon est persistée pour que l'agent
+            # ne reproduise plus l'erreur sur ce canon.
+            if (is_body and key == "front" and e.kind == "character"
+                    and not seeds_by_key):
+                import asyncio as _aio
+                m = await _aio.to_thread(
+                    PQC.measure, settings.images_path / out["images"][0])
+                verdict = PQC.judge(m, canon)
+                had_fail, tries = False, 0
+                while verdict and not verdict["ok"] and tries < 2:
+                    tries += 1
+                    had_fail = True
+                    fix = PQC.corrective_clause(verdict, canon)
+                    logger.info(f"proportion QC {canon_key}: "
+                                f"{verdict['note']} → retry {tries}/2")
+                    model2, out2 = await _gen(prompt + ". " + fix)
+                    m2 = await _aio.to_thread(
+                        PQC.measure, settings.images_path / out2["images"][0])
+                    v2 = PQC.judge(m2, canon)
+                    if PQC.better(v2, verdict):
+                        model, out, prompt = model2, out2, prompt + ". " + fix
+                        verdict = v2
+                    lessons = PQC.record_lesson(lessons, canon_key,
+                                                verdict, fix)
+                if verdict:
+                    if verdict["ok"] and not had_fail:
+                        lessons = PQC.record_success(lessons, canon_key)
+                    await put_atelier_settings(
+                        {"canon_lessons": PQC.dump_lessons(lessons)})
             panels[key] = out["images"][0]
             recipe_panels.append({"key": key, "prompt": prompt,
                                   "seed": out.get("seed"), "model": model})
@@ -3225,11 +3907,123 @@ async def generate_bible_reference(entity_id: str, body: dict):
         e.seed = recipe_panels[0].get("seed")
         e.prompt_recipe = _json.dumps(
             {"v": 2, "kind": e.kind, "ref_file": insp_file,
-             "panels": recipe_panels}, ensure_ascii=False)
+             "provider": provider, "style_ref": style_ref or None,
+             "canon": canon_key, "panels": recipe_panels}, ensure_ascii=False)
         e.updated_at = datetime.utcnow()
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+async def _fetch_11l_voices() -> list[dict]:
+    """Voix ElevenLabs du compte, avec labels (genre/âge/accent/description)
+    et preview_url — la matière du casting voix."""
+    if not settings.has_voiceover:
+        raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
+    async with httpx.AsyncClient(timeout=20) as c:
+        r = await c.get("https://api.elevenlabs.io/v1/voices",
+                        headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
+        r.raise_for_status()
+        data = r.json()
+    out = []
+    for v in (data.get("voices") or []):
+        lbl = v.get("labels") or {}
+        out.append({"voice_id": v.get("voice_id"), "name": v.get("name"),
+                    "category": v.get("category"), "labels": lbl,
+                    "preview_url": v.get("preview_url")})
+    return [v for v in out if v["voice_id"]]
+
+
+async def _fetch_casting_voices() -> tuple[str, list[dict]]:
+    """Catalogue de voix du provider actif (spec voicebox, étape 3) :
+    ElevenLabs (labels riches) ou Voicebox (/profiles mappés au même format).
+    Retourne (provider, voices) ; 400 si aucun provider utilisable."""
+    from app.services import voice_providers as VP
+    from app.services.storage import async_session_factory
+    async with async_session_factory() as session:
+        configured = await _atelier_setting(session, "voice_provider")
+    loop = asyncio.get_running_loop()
+    provider = await loop.run_in_executor(
+        None, lambda: VP.resolve_provider(configured))
+    if provider == "voicebox":
+        return "voicebox", await loop.run_in_executor(
+            None, VP.list_voicebox_voices)
+    if provider == "elevenlabs":
+        return "elevenlabs", await _fetch_11l_voices()
+    raise HTTPException(400, "Aucun fournisseur de voix disponible — "
+                             "configure la clé ElevenLabs ou lance Voicebox.")
+
+
+@router.post("/bible/entities/{entity_id}/suggest-voice")
+async def suggest_entity_voice(entity_id: str, body: dict):
+    """v1.21 (B) — casting voix: l'agent croise la fiche du personnage
+    (genre, âge, ton déduits de la description) avec le catalogue du provider
+    actif (ElevenLabs ou Voicebox, v1.26 étape 3) et propose LA voix + des
+    alternatives du même profil. La suggestion est appliquée à l'entité
+    (modifiable ensuite)."""
+    from app.services.storage import BibleEntity, async_session_factory
+    from app.services.summarizer import available, _chat_dispatch
+    if not available():
+        raise HTTPException(400, "Aucun LLM configuré (Réglages → clés API).")
+    provider, voices = await _fetch_casting_voices()
+    if not voices:
+        raise HTTPException(502, f"Aucune voix disponible ({provider}) — "
+                                 "crée des profils dans Voicebox (Voices)."
+                            if provider == "voicebox" else
+                            "Aucune voix ElevenLabs disponible sur le compte.")
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if not e:
+            raise HTTPException(404, "Entity not found")
+        if e.kind != "character":
+            raise HTTPException(400, "Le casting voix ne s'applique qu'aux personnages.")
+        roster = [{"voice_id": v["voice_id"], "name": v["name"],
+                   "labels": v["labels"],
+                   } for v in voices][:120]
+        system = ("You are a casting director assigning narration/dialogue "
+                  "voices to characters of a narrated animation. Return ONLY "
+                  "valid JSON.")
+        prompt = (
+            f"Character sheet:\nName: {e.name}\nDescription: "
+            f"{(e.description or '')[:600]}\n\n"
+            f"Available voices from provider '{provider}' (with labels):\n"
+            f"{json.dumps(roster, ensure_ascii=False)}\n\n"
+            f"Pick the voice that best matches the character's gender, age "
+            f"and personality, plus up to 4 ALTERNATES of the same profile "
+            f"(same gender / similar age & tone). Some voices may have sparse "
+            f"labels (local/cloned voices): infer gender, age and tone from "
+            f"the voice name, description and personality fields; prefer a "
+            f"voice whose language matches the character sheet's language. "
+            f"Return ONLY JSON: "
+            f"{{\"best\": \"<voice_id>\", \"alternates\": [\"<voice_id>\", …], "
+            f"\"why\": \"<one short sentence in French>\"}}")
+        loop = asyncio.get_running_loop()
+        out, _prov = await loop.run_in_executor(
+            None, lambda: _chat_dispatch(prompt, system, 1200))
+        txt = (out or "").strip()
+        if txt.startswith("```"):
+            txt = re.sub(r"^```[a-zA-Z]*\n?", "", txt)
+            txt = re.sub(r"\n?```$", "", txt).strip()
+        i, j = txt.find("{"), txt.rfind("}")
+        try:
+            data = json.loads(txt[i:j + 1]) if i >= 0 and j > i else {}
+        except Exception:
+            data = {}
+        by_id = {v["voice_id"]: v for v in voices}
+        best = by_id.get(str(data.get("best") or ""))
+        if not best:
+            raise HTTPException(502, "La suggestion de voix a échoué — réessaie.")
+        alternates = [by_id[a] for a in (data.get("alternates") or [])
+                      if a in by_id and a != best["voice_id"]][:4]
+        e.voice_id = best["voice_id"]
+        e.voice_name = best["name"]
+        e.voice_prev = best.get("preview_url")
+        e.updated_at = datetime.utcnow()
+        await session.commit()
+        await session.refresh(e)
+        return {"entity": _entity_dict(e), "suggested": best,
+                "alternates": alternates,
+                "why": str(data.get("why") or "")[:300]}
 
 
 def _chapter_dict(ch) -> dict:
@@ -3823,11 +4617,38 @@ async def _run_manuscript_job(jid: str, text: str, companion: str, series: str):
                     ch_by_key[key] = c
                     created_c += 1
             await session.commit()
+        # 5. direction artistique — l'agent propose 4 styles motivés par le
+        # manuscrit (best-effort: un échec n'invalide pas l'ingestion).
+        n_da = 0
+        try:
+            upd(phase="direction artistique",
+                message="Propositions de direction artistique…")
+            excerpt = "\n\n".join(s["text"][:3000] for s in segs[:4])[:9000]
+            names = [fe["name"] for fe in final]
+            props = await loop.run_in_executor(
+                None, lambda: MA.propose_styles(excerpt, names))
+            if props:
+                from app.services.storage import AtelierSetting
+                async with async_session_factory() as session:
+                    row = await session.get(AtelierSetting, "style_proposals")
+                    val = _json.dumps(props, ensure_ascii=False)
+                    if row:
+                        row.value = val
+                    else:
+                        session.add(AtelierSetting(key="style_proposals",
+                                                   value=val))
+                    await session.commit()
+                n_da = len(props)
+        except Exception as de:
+            logger.warning(f"DA proposals skipped: {de}")
         upd(phase="terminé", done=True,
-            message="Ingestion terminée — bible consolidée et chapitres surlignés.",
+            message="Ingestion terminée — bible consolidée, chapitres surlignés"
+                    + (f", {n_da} directions artistiques proposées (🎨)." if n_da
+                       else "."),
             stats={"chapitres_crees": created_c, "chapitres_mis_a_jour": updated_c,
                    "entites_creees": created_e, "entites_enrichies": updated_e,
-                   "zones_surlignees": total_spans})
+                   "zones_surlignees": total_spans,
+                   "directions_proposees": n_da})
         logger.success(f"manuscrit {jid}: {created_c}+{updated_c} chapitres, "
                        f"{created_e}+{updated_e} entités, {total_spans} spans")
     except Exception as e:
@@ -3924,6 +4745,190 @@ async def update_scene(scene_id: str, body: dict):
         await session.commit()
         await session.refresh(s)
         return _scene_dict(s)
+
+
+# ───────── Atelier v1.22 (C): voice-over minuté par scène ─────────
+# Mode audiobook hybride: la narration est lue par le personnage
+# « Narrateur » (voix castée en B), chaque réplique par la voix castée de
+# son personnage. La durée réelle de l'audio devient la durée de la scène —
+# le storyboard et la production héritent de durées EXACTES.
+
+def _vo_audio_dir() -> Path:
+    d = settings.images_path.parent / "audio"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _concat_audio(paths: list, dest: Path) -> None:
+    """Concatène des mp3 en un seul (ré-encodage: robuste). Patchable en test."""
+    if len(paths) == 1:
+        import shutil as _sh
+        _sh.copy2(paths[0], dest)
+        return
+    from app.services.composition_service import _run_ffmpeg
+    cmd = ["ffmpeg", "-y"]
+    for p in paths:
+        cmd += ["-i", str(p)]
+    labels = "".join(f"[{i}:a]" for i in range(len(paths)))
+    cmd += ["-filter_complex", f"{labels}concat=n={len(paths)}:v=0:a=1[outa]",
+            "-map", "[outa]", "-c:a", "libmp3lame", "-b:a", "128k", str(dest)]
+    _run_ffmpeg(cmd, dest)
+
+
+def _audio_duration(path: Path) -> float:
+    from app.services.template_service import _probe_duration
+    return _probe_duration(path)
+
+
+def _fold_name(s: str) -> str:
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFD", (s or "").lower())
+                   if _ud.category(c) != "Mn").strip()
+
+
+async def _voice_cast(session) -> tuple:
+    """(narrateur {voice_id,name} | None, map nom/alias replié → voix perso)."""
+    from app.services.storage import BibleEntity
+    from sqlalchemy import select
+    import json as _json
+    rows = (await session.execute(
+        select(BibleEntity).where(BibleEntity.kind == "character"))).scalars().all()
+    narrator, cues = None, {}
+    for e in rows:
+        v = {"voice_id": e.voice_id, "name": e.name}
+        if _fold_name(e.name) in ("narrateur", "narrator"):
+            narrator = v if e.voice_id else None
+            continue
+        if not e.voice_id:
+            continue
+        cues[_fold_name(e.name)] = v
+        try:
+            for a in (_json.loads(e.aliases) if e.aliases else []):
+                cues.setdefault(_fold_name(a), v)
+        except Exception:
+            pass
+    return narrator, cues
+
+
+async def _generate_scene_vo(session, scene, lang: str) -> dict:
+    """Génère l'audio d'UNE scène (segments → TTS par voix → concat → durée)."""
+    from app.services import manuscript_agent as MA
+    from app.services.elevenlabs_service import VoiceoverService
+    import tempfile as _tf
+    segments = MA.parse_fountain_segments(scene.fountain_text or "")
+    segments = [s for s in segments if len(s["text"].strip()) >= 2]
+    if not segments:
+        raise HTTPException(400, "La scène n'a pas de texte à lire.")
+    narrator, cues = await _voice_cast(session)
+    if any(s["kind"] == "narration" for s in segments) and not narrator:
+        raise HTTPException(
+            400, "Crée un personnage « Narrateur » dans la bible et caste sa "
+                 "voix (🎙 Suggérer) — c'est lui qui lit la narration.")
+    voice = VoiceoverService()
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
+    tmp = Path(_tf.mkdtemp(prefix="dz_vo_"))
+    parts, plan = [], []
+    l11 = "FR" if lang.startswith("fr") else "EN"
+    for i, seg in enumerate(segments):
+        if seg["kind"] == "dialogue":
+            v = cues.get(_fold_name(seg["character"] or ""))
+            vid = (v or narrator or {}).get("voice_id")
+            speaker = (v or narrator or {}).get("name")
+        else:
+            vid = narrator["voice_id"]
+            speaker = narrator["name"]
+        dest = tmp / f"part_{i:03d}.mp3"
+        await loop.run_in_executor(
+            None, lambda s=seg, d=dest, vv=vid: voice.generate_long(
+                text=s["text"], output_path=d, language=l11, voice_id=vv))
+        parts.append(dest)
+        plan.append({"kind": seg["kind"], "speaker": speaker,
+                     "chars": len(seg["text"])})
+    fname = f"vo_{scene.id[:8]}_{uuid4().hex[:6]}.mp3"
+    out = _vo_audio_dir() / fname
+    _concat_audio(parts, out)
+    dur = round(float(_audio_duration(out)), 2)
+    scene.vo_audio = fname
+    scene.duration_s = dur
+    scene.updated_at = datetime.utcnow()
+    await session.commit()
+    await session.refresh(scene)
+    return {"scene": _scene_dict(scene), "segments": plan, "duration_s": dur}
+
+
+@router.post("/scenes/{scene_id}/voiceover")
+async def scene_voiceover(scene_id: str, body: dict):
+    """Génère le voice-over d'une scène. Body: {language?}."""
+    from app.services.storage import Scene, async_session_factory
+    lang = str(body.get("language") or "fr").lower()
+    async with async_session_factory() as session:
+        s = await session.get(Scene, scene_id)
+        if not s:
+            raise HTTPException(404, "Scene not found")
+        return await _generate_scene_vo(session, s, lang)
+
+
+@router.post("/chapters/{chapter_id}/voiceover")
+async def chapter_voiceover(chapter_id: str, body: dict,
+                            background_tasks: BackgroundTasks):
+    """Voice-over de TOUTES les scènes du chapitre (job). Body: {language?,
+    force?} — force=true régénère aussi les scènes déjà minutées. Suivre
+    GET /atelier/manuscript/{job_id} (job store commun)."""
+    from app.services.storage import Chapter, async_session_factory
+    from app.services.elevenlabs_service import VoiceoverService
+    if not await asyncio.get_running_loop().run_in_executor(
+            None, VoiceoverService.is_enabled):
+        raise HTTPException(400, "Aucune voix disponible : configure la clé "
+                                 "ElevenLabs ou lance Voicebox (Réglages).")
+    async with async_session_factory() as session:
+        if not await session.get(Chapter, chapter_id):
+            raise HTTPException(404, "Chapter not found")
+        scenes = await _list_scenes(session, chapter_id)
+    if not scenes:
+        raise HTTPException(400, "Pas de scénario — lance 🎭 Adapter d'abord.")
+    lang = str(body.get("language") or "fr").lower()
+    force = bool(body.get("force"))
+    jid = str(uuid4())
+    _MS_JOBS[jid] = {"job_id": jid, "phase": "voice-over", "chapter_i": 0,
+                     "chapter_n": len(scenes), "message": "Voix en cours…",
+                     "done": False, "error": None, "stats": {}}
+    background_tasks.add_task(_run_vo_job, jid, chapter_id, lang, force)
+    return {"job_id": jid, "scenes": len(scenes)}
+
+
+async def _run_vo_job(jid: str, chapter_id: str, lang: str, force: bool):
+    from app.services.storage import async_session_factory
+
+    def upd(**kw):
+        _MS_JOBS[jid].update(kw)
+
+    done = skipped = 0
+    total = 0.0
+    try:
+        async with async_session_factory() as session:
+            scenes = await _list_scenes(session, chapter_id)
+            for i, s in enumerate(scenes):
+                upd(chapter_i=i + 1,
+                    message=f"Scène {i + 1}/{len(scenes)} — {(s.slugline or '')[:50]}")
+                if s.vo_audio and s.duration_s and not force:
+                    skipped += 1
+                    total += float(s.duration_s or 0)
+                    continue
+                r = await _generate_scene_vo(session, s, lang)
+                total += r["duration_s"]
+                done += 1
+        upd(phase="terminé", done=True,
+            message="Voice-over terminé — les scènes sont minutées.",
+            stats={"scenes_generees": done, "scenes_conservees": skipped,
+                   "duree_totale_s": round(total, 1)})
+    except HTTPException as e:
+        upd(phase="échec", done=True, error=str(e.detail))
+    except Exception as e:
+        logger.exception(f"vo job {jid}: {e}")
+        upd(phase="échec", done=True, error=str(e))
 
 
 @router.delete("/chapters/{chapter_id}/scenes")
