@@ -2,14 +2,18 @@
 
 Same fail-safe contract: returns a result or None on ANY error.
 Direct httpx calls to the Gemini REST API — no google SDK dependency.
+W-c (v1.21): réutilise le client Google partagé posé par W-a
+(google_video.GOOGLE_API_BASE + google_headers) — la clé passe en header
+x-goog-api-key, plus jamais en query string (elle n'apparaît plus dans les
+URLs loggées) ; verify=SSL_VERIFY partout. Le modèle vient de
+settings.GEMINI_MODEL (défaut gemini-flash-latest, champ Settings → Clés).
 """
 import json
 import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
-
-_API = "https://generativelanguage.googleapis.com/v1beta/models"
+from app.services.google_video import GOOGLE_API_BASE, google_headers
 
 
 def available() -> bool:
@@ -17,7 +21,11 @@ def available() -> bool:
 
 
 def _url(action: str = "generateContent") -> str:
-    return f"{_API}/{settings.GEMINI_MODEL}:{action}?key={settings.GEMINI_API_KEY}"
+    return f"{GOOGLE_API_BASE}/models/{settings.GEMINI_MODEL}:{action}"
+
+
+def _headers() -> dict:
+    return {"Content-Type": "application/json", **google_headers()}
 
 
 def summarize(text: str, *, title: str = "", language: str = "EN",
@@ -39,7 +47,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
     try:
         r = httpx.post(
             _url(),
-            headers={"Content-Type": "application/json"},
+            headers=_headers(),
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {
@@ -48,6 +56,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
                 },
             },
             timeout=90.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"gemini summarizer HTTP {r.status_code}")
@@ -79,9 +88,10 @@ def chat(prompt: str, *, system: str = "", max_tokens: int = 600,
     try:
         r = httpx.post(
             _url(),
-            headers={"Content-Type": "application/json"},
+            headers=_headers(),
             json=body,
             timeout=60.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"gemini chat HTTP {r.status_code}")
@@ -110,7 +120,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=90.0) as client:
             r = await client.post(
                 _url(),
-                headers={"Content-Type": "application/json"},
+                headers=_headers(),
                 json={
                     "systemInstruction": {"parts": [{"text": sys}]},
                     "contents": [{"parts": [{"text": prompt}]}],

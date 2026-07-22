@@ -128,9 +128,9 @@ const MOCK_VOICES = {
   await page.goto(BASE + '/', { waitUntil: 'networkidle2', timeout: 45000 });
   await sleep(2000);
 
-  /* V1 — boot + libellé bundle */
-  const v1 = await page.evaluate(() => document.body.innerText.includes('v1.20.0'));
-  T('V1 boot : libellé v1.20.0 servi, zéro erreur de parse',
+  /* V1 — boot + libellé bundle (v1.21.0 depuis W-c) */
+  const v1 = await page.evaluate(() => document.body.innerText.includes('v1.21.0'));
+  T('V1 boot : libellé v1.21.0 servi, zéro erreur de parse',
     v1 && errors.length === 0, JSON.stringify({ v: v1, errs: errors.slice(0, 2) }));
 
   const navTo = (label) => page.evaluate(l => {

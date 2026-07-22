@@ -107,9 +107,9 @@ const MOCK_MODELS = {
   await page.goto(BASE + '/', { waitUntil: 'networkidle2', timeout: 45000 });
   await sleep(2000);
 
-  /* W1 — boot + libellé bundle (v1.20.0 depuis W-b) */
-  const w1 = await page.evaluate(() => document.body.innerText.includes('v1.20.0'));
-  T('W1 boot : libellé v1.20.0 servi, zéro erreur de parse',
+  /* W1 — boot + libellé bundle (v1.21.0 depuis W-c) */
+  const w1 = await page.evaluate(() => document.body.innerText.includes('v1.21.0'));
+  T('W1 boot : libellé v1.21.0 servi, zéro erreur de parse',
     w1 && errors.length === 0, JSON.stringify({ v: w1, errs: errors.slice(0, 2) }));
 
   const navTo = (label) => page.evaluate(l => {

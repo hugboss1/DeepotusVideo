@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Single source of truth for the app version (health endpoint, FastAPI docs,
 # packaging scripts). Bump here only.
-APP_VERSION = "1.20.0"
+APP_VERSION = "1.21.0"
 
 
 def _data_root() -> Path:
@@ -117,8 +117,11 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     # v1.15: Google Gemini (alternative summariser / planner)
+    # W-c (v1.21): défaut = alias stable de la doc Google (suit la dernière
+    # version flash sans re-config) ; vérifié présent via ListModels le
+    # 23/07/2026. Personnalisable dans Settings → Clés (« Gemini — modèle »).
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-flash-latest"
 
     # v1.15: provider selection per role. Values: "anthropic", "openai",
     # "gemini", "ollama". Empty = auto (first available in priority order).
