@@ -28,8 +28,8 @@ import sys
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 BAK = BUNDLE.parent / (BUNDLE.name + ".bak_version")
 
-OLD = "v1.17.0"
-NEW = "v1.18.0"
+OLD = "v1.18.0"
+NEW = "v1.19.0"
 EXPECT = 4  # occurrences exactes du libellé dans le bundle baseline
 
 

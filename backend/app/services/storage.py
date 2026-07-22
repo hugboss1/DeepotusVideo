@@ -50,6 +50,8 @@ class JobRecord(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     # v1.15.6 — JSON cost inputs for /cost/usage (episodes: images + narration chars)
     cost_meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # W-a (v1.19) — which video model rendered the clip (VIDEO_MODELS id)
+    video_model: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
 
 
 class ScheduledPost(Base):
@@ -259,6 +261,8 @@ V1_2_NEW_COLUMNS = [
     ("title", "VARCHAR(200)"),
     # v1.15.6 — episode/voiceover cost inputs (JSON: images + narration chars)
     ("cost_meta", "TEXT"),
+    # W-a (v1.19) — selected video model id
+    ("video_model", "VARCHAR(48)"),
 ]
 
 

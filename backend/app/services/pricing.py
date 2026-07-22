@@ -23,6 +23,23 @@ DEFAULTS = {
     "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
     "seedance_usd_per_s": 0.04,       # fal.ai Seedance, per second of video
+    # W-a (v1.19) — per-model $ / second of video, audio OFF where the model
+    # has a switch (the pipeline always turns it off; Veo-google audio is
+    # baked in and priced flat). Keys mirror fal_service.VIDEO_MODELS; "*"
+    # = flat whatever the resolution. Frozen 22/07/2026 from the fal catalog
+    # pricing strings; Google-native rates are directional estimates.
+    "video_usd_per_s": {
+        "seedance-v1-pro":     {"720p": 0.054, "1080p": 0.124},
+        "seedance-2":          {"720p": 0.3034, "1080p": 0.682},
+        "seedance-2-fast":     {"720p": 0.2419},
+        "kling-v3-pro":        {"*": 0.112},
+        "kling-v3-standard":   {"*": 0.084},
+        "pixverse-v6":         {"720p": 0.045, "1080p": 0.090},
+        "veo-3.1-fast-fal":    {"*": 0.10},
+        "veo-3.1-google":      {"*": 0.40},
+        "veo-3.1-fast-google": {"*": 0.15},
+        "veo-3.1-lite-google": {"*": 0.10},
+    },
     "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
     "heygen_credits_per_min": 6.0,    # HeyGen avatar credits per minute
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
@@ -76,6 +93,38 @@ def _line(provider, label, units, unit, usd):
             "units": round(units, 2), "unit": unit, "usd": round(usd, 4)}
 
 
+def video_rate(model_id: str, resolution: str = "1080p",
+               p: dict | None = None) -> float | None:
+    """W-a — $/s for a video model at a resolution, honoring pricing.json
+    overrides. None for unknown models (caller falls back to legacy)."""
+    p = p or load()
+    table = p.get("video_usd_per_s") or {}
+    rates = table.get(model_id)
+    if not isinstance(rates, dict) or not rates:
+        return None
+    v = rates.get(resolution)
+    if v is None:
+        v = rates.get("*")
+    if v is None:  # e.g. 1080p asked of a 720p-only model — price its max
+        v = max(rates.values())
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return None
+
+
+def _video_label_provider(model_id: str) -> tuple:
+    """(display label, billing provider) from the registry; safe fallback."""
+    try:
+        from app.services.fal_service import VIDEO_MODELS
+        m = VIDEO_MODELS.get(model_id)
+        if m:
+            return f"Video ({m['label']})", m["provider"]
+    except Exception:
+        pass
+    return f"Video ({model_id})", "fal"
+
+
 def estimate(op: dict, p: dict | None = None) -> dict:
     """Estimate the cost of an operation.
 
@@ -106,8 +155,16 @@ def estimate(op: dict, p: dict | None = None) -> dict:
     elif kind == "seedance":
         n = int(op.get("n", 1))
         dur = float(op.get("duration_s", 10)) * n
-        lines.append(_line("fal", "Seedance video", dur, "s",
-                           dur * p["seedance_usd_per_s"]))
+        model = str(op.get("model") or "").strip()
+        rate = video_rate(model, str(op.get("resolution") or "1080p"), p) \
+            if model else None
+        if rate is not None:
+            label, prov = _video_label_provider(model)
+            lines.append(_line(prov, label, dur, "s", dur * rate))
+        else:
+            # legacy path (no model sent) — unchanged
+            lines.append(_line("fal", "Seedance video", dur, "s",
+                               dur * p["seedance_usd_per_s"]))
     elif kind == "heygen":
         chars = float(op.get("chars", 0))
         mins = max(0.1, chars / max(1.0, p["heygen_chars_per_min"])) if chars \

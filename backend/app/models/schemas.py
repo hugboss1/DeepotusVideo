@@ -124,6 +124,11 @@ class GenerateRequest(BaseModel):
     template_id: Optional[str] = None
     custom_prompt: Optional[str] = None    # raw or builder-generated, used as-is
 
+    # W-a (v1.19) — which video model renders this clip. None = app default
+    # (Seedance 1.0 Pro, unchanged). Ids come from GET /api/video-models;
+    # unknown ids fail the job with a clean error listing valid ones.
+    video_model: Optional[str] = Field(None, max_length=48)
+
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
     lighting: Optional[Lighting] = None
@@ -374,6 +379,7 @@ class JobDetails(BaseModel):
     template_id: Optional[str] = None
     voiceover_language: Optional[str] = None
     voice_mode: Optional[str] = None
+    video_model: Optional[str] = None
     provider: Optional[str] = None
     composition_id: Optional[str] = None
     composition_layout: Optional[str] = None

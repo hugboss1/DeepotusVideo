@@ -1,5 +1,15 @@
 # Plan (validé 22/07/2026) — Chantiers W : modèles de génération « on the fly »
 
+> **W-a LIVRÉ 22/07/2026 (v1.19.0)** — registre 10 modèles (7 fal + 3 Google
+> natifs), recette prouvée (2 modèles ≠ sur le graphe pump → 2 artefacts,
+> `final_prompt` identique, erreur propre), tests 13/13, smoke 8/8, E2E 9/9.
+> Constats d'API du jour (étape « figer les ids ») : `gemini-omni-flash-preview`
+> ne génère PAS de vidéo (« only supports Interactions API ») → la voie Google
+> native est **Veo 3.1** (`veo-3.1[-fast|-lite]-generate-preview`,
+> predictLongRunning, facturation active sur la clé d'Olivier) ; Veo présent
+> aussi au catalogue fal (`fal-ai/veo3.1/fast/image-to-video` retenu) ; les
+> previews Veo 3.1 refusent `negativePrompt` (400) — jamais envoyé.
+
 Demande d'Olivier du 22/07/2026 (post-V-b) : (1) le Seedance du Studio « ne
 respecte pas le prompt » ; (2) choix du modèle de génération dans le nœud ou
 le panneau ; (3) exploiter les modèles/niveaux de précision ElevenLabs ; (4)

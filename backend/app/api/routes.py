@@ -1424,7 +1424,14 @@ async def build_prompt_from_intent(request: BuildPromptRequest):
 
 @router.post("/generate", response_model=GenerateResponse)
 async def generate(request: GenerateRequest, background_tasks: BackgroundTasks):
-    if not settings.FAL_KEY:
+    # W-a — the required key depends on the selected model's provider
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    _mdl = VIDEO_MODELS.get(request.video_model or DEFAULT_VIDEO_MODEL)
+    if _mdl and _mdl["provider"] == "google":
+        if not settings.has_gemini:
+            raise HTTPException(400, "GEMINI_API_KEY not configured. "
+                                     "Add it in Settings -> Keys")
+    elif not settings.FAL_KEY:
         raise HTTPException(400, "FAL_KEY not configured. Add it to backend/.env")
 
     image_path = settings.images_path / request.image_filename
@@ -1963,6 +1970,7 @@ def _job_to_dict(j) -> dict:
         "template_id": j.template_id,
         "voiceover_language": j.voiceover_language,
         "voice_mode": j.voice_mode,
+        "video_model": getattr(j, "video_model", None),
         "provider": j.provider,
         "composition_id": j.composition_id,
         "composition_layout": j.composition_layout,
@@ -2777,7 +2785,9 @@ def _job_to_cost(job, p):
                                   "frames": int(meta.get("frames", 0) or 0),
                                   "remove_bg": meta.get("remove_bg", "none")}, p)
     return _pricing.estimate({"kind": "campaign", "ops": [
-        {"kind": "image"}, {"kind": "seedance", "duration_s": dur}]}, p)
+        {"kind": "image"},
+        {"kind": "seedance", "duration_s": dur,
+         "model": getattr(job, "video_model", None) or ""}]}, p)
 
 
 @router.get("/cost/usage")
@@ -3408,6 +3418,38 @@ async def fetch_image(body: dict):
     (settings.images_path / fname).write_bytes(r.content)
     logger.info(f"Fetched image -> {fname} ({len(r.content) // 1024} KB)")
     return {"filename": fname}
+
+
+@router.get("/video-models")
+async def list_video_models():
+    """W-a — video-generation models for the Studio Generator node + Quick.
+
+    Every registry entry is returned with an `available` flag (fal entries
+    need FAL_KEY, Google-native ones need GEMINI_API_KEY) so the select can
+    show-but-disable what a missing key would unlock. `usd_per_s` reflects
+    pricing.json overrides; the card badge and topbar ≈$ derive from it."""
+    from app.services.fal_service import VIDEO_MODELS, DEFAULT_VIDEO_MODEL
+    from app.services import pricing as _pricing
+    p = _pricing.load()
+    rates = p.get("video_usd_per_s") or {}
+    out = []
+    for mid, m in VIDEO_MODELS.items():
+        available = (settings.has_gemini if m["provider"] == "google"
+                     else bool(settings.FAL_KEY))
+        out.append({
+            "id": mid,
+            "label": m["label"],
+            "provider": m["provider"],
+            "available": available,
+            "durations": m["durations"],
+            "ratios": m["ratios"],
+            "resolutions": m["resolutions"],
+            "end_image": m["end_image"],
+            "seed": m["seed"],
+            "audio_included": (m["provider"] == "google"),
+            "usd_per_s": rates.get(mid) or {},
+        })
+    return {"models": out, "default": DEFAULT_VIDEO_MODEL}
 
 
 @router.get("/image-models")

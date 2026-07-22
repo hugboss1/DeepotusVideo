@@ -16,7 +16,13 @@ from app.models.schemas import (
     JobStatus,
     Provider,
 )
-from app.services.fal_service import FalSeedanceClient
+from app.services.fal_service import (
+    FalSeedanceClient,
+    DEFAULT_VIDEO_MODEL,
+    clamp_duration,
+    resolve_video_model,
+)
+from app.services.google_video import GoogleVeoClient
 from app.services.heygen_service import HeyGenClient
 from app.services.composition_service import CompositionService
 from app.services.elevenlabs_service import VoiceoverService
@@ -169,12 +175,20 @@ class Pipeline:
         self.template_engine = TemplateEngine()
         # HeyGen client is lazily initialized (requires key)
         self._heygen: HeyGenClient | None = None
+        # W-a — Google-native video client (requires GEMINI_API_KEY)
+        self._google: GoogleVeoClient | None = None
 
     @property
     def heygen(self) -> HeyGenClient:
         if self._heygen is None:
             self._heygen = HeyGenClient()
         return self._heygen
+
+    @property
+    def google(self) -> GoogleVeoClient:
+        if self._google is None:
+            self._google = GoogleVeoClient()
+        return self._google
 
     async def _update(self, session: AsyncSession, job: JobRecord, **fields):
         for k, v in fields.items():
@@ -212,6 +226,8 @@ class Pipeline:
                 batch_index=batch_index,
                 batch_size=batch_size,
                 provider=Provider.SEEDANCE.value,
+                video_model=(getattr(request, "video_model", None)
+                             or DEFAULT_VIDEO_MODEL),
                 created_at=datetime.utcnow(),
             )
             session.add(job)
@@ -233,55 +249,94 @@ class Pipeline:
                                    caption_text=caption,
                                    progress=10)
 
-                # 2. Upload image(s)
+                # 2. Resolve the video model (W-a) and prepare image(s).
+                # fal uploads to fal storage; Google takes inline bytes (no
+                # third-party upload). Guards fail the job with a clean error.
+                model = resolve_video_model(getattr(request, "video_model", None))
+                if model["provider"] == "google" and not settings.has_gemini:
+                    raise RuntimeError(
+                        "google: GEMINI_API_KEY not configured "
+                        "(Settings -> Keys -> Google Gemini)")
+                if model["provider"] == "fal" and not settings.FAL_KEY:
+                    raise RuntimeError(
+                        "fal.ai: FAL_KEY is not configured. Set it in .env")
+
                 await self._update(session, job,
                                    status=JobStatus.UPLOADING.value,
-                                   current_step="Uploading start image",
+                                   current_step="Preparing start image",
                                    progress=15)
                 image_path = settings.images_path / request.image_filename
                 if not image_path.exists():
                     raise FileNotFoundError(f"Start image not found: {image_path}")
-                image_url = await self.fal.upload_image(image_path)
 
-                end_image_url = None
+                end_image_path = None
                 if request.image_filename_end:
-                    await self._update(session, job,
-                                       current_step="Uploading end image",
-                                       progress=20)
                     end_image_path = settings.images_path / request.image_filename_end
                     if not end_image_path.exists():
-                        raise FileNotFoundError(f"End image not found: {end_image_path}")
-                    end_image_url = await self.fal.upload_image(end_image_path)
+                        raise FileNotFoundError(
+                            f"End image not found: {end_image_path}")
+                    if not model["end_image"]:
+                        raise RuntimeError(
+                            f"{model['label']}: end frame (first-last) not "
+                            "supported by this model — use a Seedance model")
+
+                image_url = None
+                end_image_url = None
+                if model["provider"] == "fal":
+                    await self._update(session, job,
+                                       current_step="Uploading start image",
+                                       progress=18)
+                    image_url = await self.fal.upload_image(image_path)
+                    if end_image_path is not None:
+                        await self._update(session, job,
+                                           current_step="Uploading end image",
+                                           progress=21)
+                        end_image_url = await self.fal.upload_image(end_image_path)
 
                 await self._update(session, job, progress=25)
 
                 # 3. Generate video
-                step_label = ("Generating video (first-last frame)" if end_image_url
-                              else "Generating video (Seedance Pro)")
+                step_label = (f"Generating video ({model['label']}"
+                              + (", first-last)" if end_image_path else ")"))
                 await self._update(session, job,
                                    status=JobStatus.GENERATING_VIDEO.value,
                                    current_step=step_label,
                                    progress=30)
-                # Seedance generates <=10s natively; longer targets are
-                # extended via ffmpeg afterwards (1 generation, same cost).
-                FAL_MAX = 10
-                gen_dur = max(3, min(request.duration_s, FAL_MAX))
-                result = await self.fal.generate_video(
-                    image_url=image_url,
-                    end_image_url=end_image_url,
-                    prompt=prompt,
-                    negative_prompt=negative,
-                    duration=gen_dur,
-                    aspect_ratio=request.aspect_ratio.value,
-                    resolution=request.resolution,
-                    seed=request.seed,
-                )
-                video_url = self.fal.extract_video_url(result)
+                # Each model has its own native duration set (clamped here);
+                # longer targets are extended via ffmpeg afterwards
+                # (1 generation, same cost).
+                gen_dur = clamp_duration(model, max(3, request.duration_s))
+                if model["provider"] == "google":
+                    video_client = self.google
+                    result = await self.google.generate_video(
+                        image_path=image_path,
+                        prompt=prompt,
+                        negative_prompt=negative,
+                        duration=gen_dur,
+                        aspect_ratio=request.aspect_ratio.value,
+                        resolution=request.resolution,
+                        model=model["endpoint"],
+                    )
+                else:
+                    video_client = self.fal
+                    result = await self.fal.generate_video(
+                        image_url=image_url,
+                        end_image_url=end_image_url,
+                        prompt=prompt,
+                        negative_prompt=negative,
+                        duration=gen_dur,
+                        aspect_ratio=request.aspect_ratio.value,
+                        resolution=request.resolution,
+                        seed=request.seed,
+                        model_id=model["id"],
+                    )
+                video_url = video_client.extract_video_url(result)
                 if not video_url:
-                    raise RuntimeError(f"No video URL in fal.ai response: {result}")
+                    raise RuntimeError(
+                        f"No video URL in provider response: {result}")
 
                 # Persist seed used by the model (so user can regenerate)
-                used_seed = self.fal.extract_seed(result) or request.seed
+                used_seed = video_client.extract_seed(result) or request.seed
                 if used_seed is not None:
                     await self._update(session, job, seed=used_seed)
 
@@ -291,7 +346,7 @@ class Pipeline:
                                    current_step="Downloading video",
                                    progress=70)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
-                await self.fal.download_video(video_url, video_dest)
+                await video_client.download_video(video_url, video_dest)
 
                 # Extend to the requested 5s-increment target if longer than
                 # what Seedance produced (fit a HeyGen avatar length).
