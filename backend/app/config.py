@@ -72,8 +72,8 @@ class Settings(BaseSettings):
 
     # ElevenLabs (optional)
     ELEVENLABS_API_KEY: str = ""
-    ELEVENLABS_VOICE_ID_EN: str = "21m00Tcm4TlvDq8ikWAM"
-    ELEVENLABS_VOICE_ID_FR: str = "ThT5KcBeYPX3keUQqHPh"
+    ELEVENLABS_VOICE_ID_EN: str = "nPczCjzI2devNBz1zQrb"
+    ELEVENLABS_VOICE_ID_FR: str = "JBFqnCBsd6RMkjVDRZzb"
 
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
