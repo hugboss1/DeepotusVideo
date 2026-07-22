@@ -178,6 +178,7 @@ async def render_layout_template(
                 title=request.title,
                 source_graph=request.source_graph,
                 preview=request.preview,
+                voiceover=request.voiceover,
             )
         except Exception as e:
             logger.exception(f"Template render {job_id} failed: {e}")

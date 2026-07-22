@@ -208,6 +208,22 @@ Backend : petit maillon « voiceover jusqu'au merge ».
   un mp4 `lavfi testsrc` 1 s + mp3 court → ffprobe : piste AAC présente ;
   non-régression : requête sans `voiceover` → sortie identique à avant.
 
+> **Note d'implémentation (22/07, chantier V-b).** Le cadrage §6.2 visait les
+> 3 sites `merge` de pipeline.py — la vérification d'implémentation a montré
+> que le graphe de la recette pt 2 (source ExistingRender) compile vers le
+> **chemin template** (`renderLayoutTemplate` → `render_template`), pas vers
+> ces 3 sites. Extension livrée en conséquence : `voiceover` aussi sur
+> `TemplateRenderRequest`, et post-merge `_apply_voiceover_post` (sortie
+> `template_<job>_vo.mp4`, l'audio du composite — BGM/master — est conservé
+> sous la VO). Côté bundle, la capture se fait UNE fois dans la façade
+> `renderLayoutTemplate` via `dzGraphVoiceover(graph)` (même marche que le
+> compilateur audio, ports in/a/src/text) : les trois branches template (UGC,
+> montage, spatial) sont couvertes par un seul anchor ; les payloads directs
+> `/generate` et `/generate/heygen` reçoivent le même champ. Au passage, le
+> site merge Seedance alimentait DÉJÀ `audio_path` (VO persona quand
+> `voiceover_enabled` — jamais le cas depuis le Studio, qui envoie `!1`) : un
+> fichier explicite **remplace** la synthèse persona, pas de double piste.
+
 ### 6.3 Recette V-b (tout doit être vert)
 
 1. Graphe `Text → Voiceover` : le panneau montre l'extrait amont, Générer

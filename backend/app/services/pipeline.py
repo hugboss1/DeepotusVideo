@@ -132,6 +132,34 @@ def _resolve_music(music) -> tuple[Path | None, float]:
     return mp, vol
 
 
+def _resolve_voiceover(voiceover) -> Path | None:
+    """Resolve a {'file'} voice-over spec (pre-generated mp3, Studio Voiceover
+    node) to its path in the shared audio asset dir, or None.
+
+    Mirror of `_resolve_music` minus the volume: the VO track is mixed at
+    0 dB (v1 — ducking is a §9 follow-up). Basename-only lookup keeps the
+    file inside the audio dir (no path traversal)."""
+    if not voiceover or not isinstance(voiceover, dict) or not voiceover.get("file"):
+        return None
+    vp = settings.images_path.parent / "audio" / Path(str(voiceover["file"])).name
+    if not vp.is_file():
+        logger.warning(f"Voiceover file not found, skipping: {voiceover.get('file')}")
+        return None
+    return vp
+
+
+def _apply_voiceover_post(final_path: Path, vo_path: Path | None) -> Path:
+    """Mix a pre-generated voice-over over an already-composited render
+    (template path: the composite's own audio — BGM/master track — is kept
+    under the VO). No VO -> the input path is returned untouched; otherwise
+    a sibling `<stem>_vo.mp4` is written and returned."""
+    if vo_path is None:
+        return final_path
+    out = final_path.with_name(final_path.stem + "_vo.mp4")
+    FFmpegMerger.merge(final_path, vo_path, out, keep_video_audio=True)
+    return out
+
+
 class Pipeline:
     def __init__(self, persona_id: str = "deepotus"):
         self.engine = PromptEngine(persona_id=persona_id)
@@ -284,9 +312,13 @@ class Pipeline:
                 await self._update(session, job,
                                    video_path=str(video_dest), progress=78)
 
-                # 5. Voiceover (optional)
+                # 5. Voiceover (optional) — an explicit pre-generated file
+                # (request.voiceover, Studio Voiceover node) replaces persona
+                # synthesis: no double track, no surprise ElevenLabs cost.
+                vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
                 audio_dest = None
-                if request.voiceover_enabled and vo_script and self.voice.is_enabled():
+                if (request.voiceover_enabled and vo_script
+                        and self.voice.is_enabled() and vo_path is None):
                     await self._update(session, job,
                                        status=JobStatus.GENERATING_VOICEOVER.value,
                                        current_step="Synthesizing voiceover",
@@ -306,7 +338,7 @@ class Pipeline:
                                    progress=92)
                 final_dest = settings.outputs_path / "final" / f"{job_id}.mp4"
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                self.merger.merge(video_dest, audio_dest, final_dest,
+                self.merger.merge(video_dest, audio_dest or vo_path, final_dest,
                                   music_path=_mus_path, music_volume_db=_mus_vol)
                 await self._update(session, job, final_video_path=str(final_dest))
 
@@ -448,12 +480,14 @@ class Pipeline:
                                    progress=80)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
                 await self.heygen.download_video(video_url, video_dest)
-                # Optional looped BGM under the talking avatar (keep its voice).
+                # Optional looped BGM and/or pre-generated VO under the talking
+                # avatar (keep its voice: avatar + VO is the wanted mix).
                 final_path = video_dest
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                if _mus_path is not None:
+                _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
+                if _mus_path is not None or _vo_path is not None:
                     final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
-                    self.merger.merge(video_dest, None, final_path,
+                    self.merger.merge(video_dest, _vo_path, final_path,
                                       music_path=_mus_path, music_volume_db=_mus_vol,
                                       keep_video_audio=True)
                 await self._update(session, job,
@@ -544,9 +578,10 @@ class Pipeline:
                 await self.heygen.download_video(video_url, video_dest)
                 final_path = video_dest
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                if _mus_path is not None:
+                _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
+                if _mus_path is not None or _vo_path is not None:
                     final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
-                    self.merger.merge(video_dest, None, final_path,
+                    self.merger.merge(video_dest, _vo_path, final_path,
                                       music_path=_mus_path,
                                       music_volume_db=_mus_vol,
                                       keep_video_audio=True)
@@ -850,6 +885,7 @@ class Pipeline:
         title: str | None = None,
         source_graph: dict | None = None,
         preview: bool = False,
+        voiceover: dict | None = None,
     ) -> str:
         """Resolve every slot (Seedance/HeyGen in parallel, upload/file/text
         inline), then composite via the template engine. If `template` (an
@@ -1037,13 +1073,26 @@ class Pipeline:
                     template_id, resolved, out_path, template=tpl),
             )
 
+            # Phase 3b: mix the pre-generated voice-over (Studio Voiceover
+            # node) over the composite — its own audio (BGM/master) is kept.
+            final_out = out_path
+            vo_path = _resolve_voiceover(voiceover)
+            if vo_path is not None:
+                async with async_session_factory() as session:
+                    p = await session.get(JobRecord, job_id)
+                    p.current_step = "Mixing voice-over (ffmpeg)"
+                    p.progress = 90
+                    await session.commit()
+                final_out = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: _apply_voiceover_post(out_path, vo_path))
+
             # Phase 4: finalize parent
             async with async_session_factory() as session:
                 p = await session.get(JobRecord, job_id)
                 p.status = JobStatus.DONE.value
                 p.current_step = "Template render complete"
                 p.progress = 100
-                p.final_video_path = str(out_path)
+                p.final_video_path = str(final_out)
                 p.video_path = str(out_path)
                 if caption:
                     p.caption_text = caption

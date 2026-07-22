@@ -148,6 +148,9 @@ class GenerateRequest(BaseModel):
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over
+    # the final render at 0 dB: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateResponse(BaseModel):
@@ -215,6 +218,9 @@ class GenerateHeyGenRequest(BaseModel):
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed with
+    # the avatar's own voice: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateHeyGenImageRequest(BaseModel):
@@ -232,6 +238,8 @@ class GenerateHeyGenImageRequest(BaseModel):
     custom_caption: Optional[str] = None
     source_graph: Optional[dict] = None
     music: Optional[dict] = None
+    # Optional pre-generated voice-over: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateHeyGenCinematicRequest(BaseModel):
@@ -462,6 +470,9 @@ class TemplateRenderRequest(BaseModel):
     # Cheap "what will it look like" pass: Seedance/HeyGen slots use their source
     # still instead of generating (no fal/HeyGen cost), short duration.
     preview: bool = False
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over the
+    # composite after the template render: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class TemplateRenderResponse(BaseModel):
