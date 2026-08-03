@@ -79,7 +79,10 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .chapbar input::placeholder{color:var(--ink-muted)}
 .chapbar input:hover,.chapbar select:hover{border-color:var(--stroke-strong)}
 .chapbar input:focus,.chapbar select:focus{outline:none;border-color:var(--cyan);box-shadow:0 0 0 3px var(--cyan-soft)}
-#chapterTitle{width:220px}#chapterSeries{width:170px}#chapterSelect{max-width:230px}
+/* rétractables (durcissement chantier 11 conservé) — jamais de largeur figée */
+#chapterTitle{flex:0 1 220px;width:auto;min-width:80px}
+#chapterSeries{flex:0 1 170px;width:auto;min-width:60px}
+#chapterSelect{max-width:230px;flex:0 1 auto;min-width:80px}
 .savestate{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-muted);min-width:74px;letter-spacing:.04em}
 .savestate.saving{color:var(--amber)}.savestate.saved{color:var(--green)}
 .backlink{color:var(--ink-soft);text-decoration:none;font-size:12.5px;padding:5px 10px;border:1px solid transparent;border-radius:8px;transition:color .12s var(--ease),border-color .12s var(--ease)}
@@ -138,7 +141,7 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 .selbar .k-decor{border-color:var(--k-decor);color:var(--k-decor)}
 
 /* ── bible ───────────────────────────────────────────────────────────────── */
-.tabs{display:flex;gap:2px;flex:1}
+.tabs{display:flex;gap:2px;flex:1;min-width:0;overflow-x:auto}
 .tab{background:transparent;border:0;border-bottom:2px solid transparent;color:var(--ink-soft);padding:7px 11px;font-size:12.5px;font-family:var(--f-ui);cursor:pointer;transition:color .12s var(--ease),border-color .12s var(--ease)}
 .tab:hover{color:var(--ink-strong)}
 .tab.active{color:var(--ink-strong);border-bottom-color:var(--cyan)}
@@ -286,6 +289,13 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 /* ── toast ───────────────────────────────────────────────────────────────── */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--bg-panel-2);border:1px solid var(--stroke-strong);border-radius:var(--r);padding:10px 18px;color:var(--ink-strong);font-size:12.5px;z-index:60;max-width:70vw;box-shadow:0 16px 40px rgba(0,0,0,.5)}
 .toast.err{border-color:var(--red);color:var(--red)}
+
+/* ── ≤1000 px : la topbar tient sans défilement horizontal ───────────────── */
+@media (max-width:1000px){
+  .brand .tag{display:none}   /* étiquette décorative */
+  .savestate{min-width:0}
+  .chapbar{gap:6px}
+}
 
 /* ── 1366×768 : les deux volets restent utilisables ──────────────────────── */
 @media (max-width:1400px){

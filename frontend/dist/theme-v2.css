@@ -46,8 +46,11 @@
 }
 
 /* ── socle ────────────────────────────────────────────────────────────────── */
-/* fond plat : la direction Cinema ne garde aucun dégradé décoratif */
-body{background:var(--bg-base);font-family:var(--f-ui)}
+/* fond plat : la direction Cinema ne garde aucun dégradé décoratif.
+   Le bundle repose --cyan/--cyan-soft en STYLE INLINE sur <body> au boot :
+   seule une déclaration !important de feuille l'emporte sur l'inline.
+   (--brand reste le rouge du logo, non surchargé.) */
+body{background:var(--bg-base);font-family:var(--f-ui);--cyan:#f0b429 !important;--cyan-soft:#f0b42924 !important}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--stroke)}
 ::-webkit-scrollbar-thumb:hover{background:var(--stroke-strong)}
@@ -68,6 +71,14 @@ input::-moz-placeholder,textarea::-moz-placeholder{color:var(--ink-muted)}
 .btn-ghost{border-color:var(--stroke);background-color:#1c1c2199;color:var(--ink)}
 .btn-ghost:hover{border-color:var(--stroke-strong);background-color:var(--bg-panel-3)}
 .badge{border-color:var(--stroke);background-color:#23232899}
+
+/* ── CTA injectés par les patchers (accent cyan littéral en style inline) ──
+   Les boutons primaires du shell (Run, Continue…) posent leur dégradé cyan
+   en inline : seul un sélecteur d'attribut + !important peut les réaccorder.
+   Volontairement limité aux <button> — les aplats cyan des miniatures de
+   templates sont du CONTENU et doivent rester fidèles. */
+button[style*="linear-gradient(rgb(0, 229, 255)"]{background:var(--cyan) !important;border-color:var(--cyan) !important;color:var(--accent-ink) !important;box-shadow:0 0 22px var(--cyan-soft), inset 0 1px 0 #ffffff33 !important}
+button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient"]){border-color:var(--cyan) !important;color:var(--cyan) !important}
 
 /* ── utilitaires Tailwind réaccordés (générés depuis le CSS du bundle) ──── */
 .\!border-bio-violet{border-color:rgb(155 142 196 / var(--tw-border-opacity, 1))!important}
