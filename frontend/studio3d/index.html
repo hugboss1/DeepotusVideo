@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D Studio — Deepotus Video Gen</title>
+<link rel="stylesheet" href="studio3d.css">
+<script type="module" src="/assets/model-viewer.min.js"></script>
+</head>
+<body>
+<div class="studio" id="studio">
+
+  <!-- ══════════ rail gauche : moteur · coût · transport ══════════ -->
+  <aside class="rail-left">
+    <section>
+      <div class="dt-label">Moteur 3D</div>
+      <div class="engines" id="engines"></div>
+      <div class="engine-note" id="engineNote">…</div>
+      <button class="engine-goto hidden" id="engineGoto"
+              title="Les moteurs fal (une passe image → mesh) vivent dans Game Assets 3D">
+        → ouvrir Game Assets 3D (fal)</button>
+    </section>
+
+    <section>
+      <div class="dt-label">Coût de la série</div>
+      <div class="costs">
+        <div class="cost-row"><span>estimé</span><b id="mEstimate">— cr</b></div>
+        <div class="cost-row"><span>consommé</span><b class="used" id="mUsed">0 cr</b></div>
+        <div class="cost-row"><span>solde API</span><b id="mBalance">—</b></div>
+      </div>
+      <div class="cost-bar"><div id="mUsedBar" style="width:0%"></div></div>
+    </section>
+
+    <section>
+      <div class="dt-label">Transport</div>
+      <div class="transport">
+        <button id="btnPlay" title="Gèle / reprend l'animation du graphe et le rafraîchissement — les tâches Meshy, elles, continuent">❙❙ Pause</button>
+        <button id="btnReplay" title="Réinitialise l'affichage du graphe (aucune tâche annulée)">↺</button>
+      </div>
+      <button class="btn-run" id="btnRun" title="Le coût estimé est détaillé avant tout lancement">Lancer · — cr</button>
+    </section>
+
+    <section class="rail-bottom">
+      <div class="dt-label">Étape suivante</div>
+      <button class="next-step" id="goSprite">04 · Sprite Sheet →</button>
+    </section>
+  </aside>
+
+  <!-- ══════════ centre : header · graphe · journal ══════════ -->
+  <main class="center">
+    <header class="head">
+      <span class="head-title">3D Studio</span>
+      <span class="head-chip" id="mModelChip">meshy · meshy-6</span>
+      <span class="head-meta" id="mAssetMeta">prophet_octopus · —</span>
+      <div class="head-right">
+        <span class="head-eta" id="mEta">prêt</span>
+        <div class="head-host">
+          <span class="dt-dot idle" id="hostDot"></span>
+          <span id="hostLabel">api.meshy.ai</span>
+        </div>
+      </div>
+    </header>
+
+    <div class="canvas" id="canvas">
+      <div class="canvas-grid"></div>
+      <div class="canvas-center">
+        <div class="graph" id="graph">
+          <div class="graph-hint">graphe Meshy · double-clic pour éditer un nœud</div>
+          <svg viewBox="0 0 740 330" id="cables"></svg>
+          <!-- nœuds injectés par studio3d.js -->
+        </div>
+      </div>
+    </div>
+
+    <footer class="journal">
+      <div class="journal-head">
+        <span class="dt-label">Journal des tâches</span>
+        <span class="journal-meta">file d'attente <span id="mQueue">—</span> · consommé <b id="mUsed2">0 cr</b></span>
+      </div>
+      <div class="journal-rows" id="journal"></div>
+    </footer>
+  </main>
+
+  <!-- ══════════ panneau droit : aperçu · nœud actif · paramètres ══════════ -->
+  <aside class="rail-right">
+    <div class="dt-label">Aperçu</div>
+    <div class="preview" id="previewBox">
+      <div class="preview-ph" id="previewPh">en attente</div>
+      <span class="preview-hint">orbit · pan · zoom</span>
+    </div>
+
+    <div class="dt-label spaced">Nœud actif</div>
+    <div class="active-node" id="activeNode">
+      <div class="active-head">
+        <b id="mActName">—</b>
+        <span id="mActStatus" class="mono">—</span>
+      </div>
+      <div class="active-ep mono" id="mActEp">—</div>
+    </div>
+
+    <div class="dt-label spaced">Paramètres envoyés</div>
+    <div class="params" id="params"></div>
+
+    <div class="cost-box">
+      <span class="dt-label">Coût</span>
+      <b id="mActCost">—</b>
+    </div>
+
+    <div class="dt-label spaced">Actions Meshy appliquées</div>
+    <div class="actions" id="actions"></div>
+  </aside>
+</div>
+
+<!-- ══════════ éditeur de nœud (double-clic) ══════════ -->
+<div class="modal hidden" id="modal">
+  <div class="modal-card">
+    <div class="modal-head">
+      <b id="modalTitle">Éditer</b>
+      <span class="mono" id="modalCost"></span>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button id="modalCancel">Annuler</button>
+      <button class="primary" id="modalApply">Appliquer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ confirmation de lancement (coût AVANT action) ══════════ -->
+<div class="modal hidden" id="confirm">
+  <div class="modal-card">
+    <div class="modal-head"><b>Lancer la série Meshy</b><span class="mono" id="confirmHost"></span></div>
+    <div class="modal-body">
+      <div class="estimate-lines" id="confirmLines"></div>
+      <div class="estimate-total"><span>Total estimé</span><b id="confirmTotal">—</b></div>
+      <div class="estimate-note" id="confirmNote">Le coût réel comptabilisé est le consumed_credits de chaque tâche (une tâche échouée est remboursée).</div>
+    </div>
+    <div class="modal-foot">
+      <button id="confirmCancel">Annuler</button>
+      <button class="primary" id="confirmGo">Lancer · —</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="studio3d.js"></script>
+</body>
+</html>

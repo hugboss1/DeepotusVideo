@@ -54,6 +54,31 @@ class JobRecord(Base):
     video_model: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
 
 
+class MeshyTaskRecord(Base):
+    """v2.1 (3D Studio Meshy) — une tâche Meshy observée par le proxy.
+    Spec INTEGRATION-MESHY.md §6 : les tâches créées par l'API ne remontent
+    pas dans « My Assets » du web app Meshy et leurs URLs expirent — cette
+    table EST la bibliothèque DeepOtus (journal + fichiers rapatriés)."""
+    __tablename__ = "meshy_tasks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # id Meshy
+    kind: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # phase du graphe 3D Studio : preview|texture|remesh|rig|animate|export
+    phase: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="PENDING", index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    # consumed_credits de la réponse Meshy = seule vérité comptable (0 si FAILED)
+    consumed_credits: Mapped[int] = mapped_column(Integer, default=0)
+    model_urls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)         # JSON envoyé
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    # rapatriement : sous-dossier de outputs/meshy3d/ + carte {clé: fichier}
+    local_dir: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    local_files: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON
+
+
 class ScheduledPost(Base):
     """v1.9 — one planned publication. Created by hand in the Scheduler or
     materialized from a marketing plan. The schedule loop fires due posts:
