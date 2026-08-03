@@ -11,9 +11,14 @@ leave it.
 - **`backend/`** — FastAPI app (Python). Source of truth for `/api/*` and the
   app version (`app/config.py`). Frontend is served from here at `/`.
 - **`frontend/dist/`** — the **compiled** React bundle (`assets/index-*.js`) +
-  `index.html`. ⚠️ The React **source is not in this repo** — the app ships
-  compiled-only, and UI changes are made by surgically patching the minified
-  bundle. `package.json` is kept for reference.
+  `index.html`. ⚠️ `dist/` is still the **source of record for the UI**: every
+  feature since v1.15.1 was added by surgically patching the minified bundle
+  (`scripts/patch_bundle_*.py`), and those patches are NOT in `frontend/src`.
+- **`frontend/src/`** — the recovered **initial React source** (v1.15.1
+  pre-patch state). `npm run build` reproduces the pristine v1.15.1 assets
+  byte-for-byte — see `frontend/SOURCE.md` for provenance, proof and the gap
+  with today's bundle. Do **not** rebuild over `dist/` without replaying the
+  patches.
 - **`installer/deepotus.iss`** — Inno Setup script that packages the whole app
   into a one-file installer.
 - **`scripts/`** — silent launcher + `build-installer.ps1` (full build).

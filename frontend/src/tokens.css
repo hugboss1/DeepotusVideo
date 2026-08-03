@@ -1,0 +1,169 @@
+/* Deepotus Studio — tokens.css (per DESIGN.md §4) */
+
+:root {
+  /* Surfaces */
+  --bg-base:     #02060d;
+  --bg-panel:    #0a1422;
+  --bg-panel-2:  #0f1c30;
+  --bg-panel-3:  #14253e;
+  --bg-overlay:  #02060dcc;
+
+  /* Ink */
+  --ink-strong:  #e6f1ff;
+  --ink:         #b4c4d8;
+  --ink-soft:    #6b7a92;
+  --ink-muted:   #3e4a60;
+
+  /* Stroke */
+  --stroke:        #1a2740;
+  --stroke-strong: #2a3c5e;
+
+  /* Brand (red) — the deepotus mark */
+  --brand:       #ef4444;
+  --brand-soft:  #ef444422;
+  --brand-glow:  #ef444466;
+
+  /* Accents */
+  --cyan:        #00e5ff;
+  --cyan-soft:   #00e5ff22;
+  --cyan-glow:   #00e5ff55;
+  --violet:      #a855f7;
+  --violet-soft: #a855f722;
+  --amber:       #fbbf24;
+  --amber-soft:  #fbbf2422;
+  --green:       #22c55e;
+  --green-soft:  #22c55e22;
+  --red:         #ef4444;
+  --red-soft:    #ef444422;
+
+  /* Node port colors */
+  --node-image: var(--amber);
+  --node-video: var(--cyan);
+  --node-audio: var(--green);
+  --node-av:    var(--violet);
+  --node-text:  var(--ink);
+  --node-data:  #94a3b8;
+
+  /* Radii */
+  --r-sm:   6px;
+  --r:      10px;
+  --r-lg:   14px;
+  --r-pill: 999px;
+
+  /* Shadows */
+  --shadow-1: 0 1px 0 #ffffff08 inset, 0 8px 24px #0008;
+  --shadow-2: 0 1px 0 #ffffff10 inset, 0 16px 40px #000a;
+  --shadow-glow:        0 0 28px var(--cyan-soft);
+  --shadow-glow-violet: 0 0 28px var(--violet-soft);
+  --shadow-glow-amber:  0 0 28px var(--amber-soft);
+  --shadow-glow-green:  0 0 28px var(--green-soft);
+
+  /* Motion */
+  --ease:   cubic-bezier(.2,.7,.2,1);
+  --dur-1:  120ms;
+  --dur-2:  200ms;
+  --dur-3:  320ms;
+
+  /* Type */
+  --f-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --f-ui:      "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --f-mono:    "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+/* Global */
+*, *::before, *::after { box-sizing: border-box; }
+
+.deepotus {
+  font-family: var(--f-ui);
+  color: var(--ink);
+  background: var(--bg-base);
+  font-size: 13px;
+  line-height: 1.45;
+  letter-spacing: 0;
+  -webkit-font-smoothing: antialiased;
+}
+
+.deepotus h1, .deepotus h2, .deepotus h3, .deepotus .display {
+  font-family: var(--f-display);
+  letter-spacing: -0.01em;
+  color: var(--ink-strong);
+  margin: 0;
+}
+
+.deepotus .mono   { font-family: var(--f-mono); }
+.deepotus .upper  { text-transform: uppercase; letter-spacing: 0.06em; font-size: 10.5px; color: var(--ink-soft); font-weight: 500; }
+.deepotus .strong { color: var(--ink-strong); }
+.deepotus .soft   { color: var(--ink-soft); }
+.deepotus .muted  { color: var(--ink-muted); }
+
+.deepotus button { font-family: inherit; }
+.deepotus input, .deepotus textarea, .deepotus select {
+  font: inherit; color: inherit; background: transparent; border: 0; outline: 0;
+}
+.deepotus ::placeholder { color: var(--ink-muted); }
+
+/* Hide scrollbars but keep scroll */
+.deepotus .scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.deepotus .scroll::-webkit-scrollbar-track { background: transparent; }
+.deepotus .scroll::-webkit-scrollbar-thumb { background: var(--stroke); border-radius: 999px; }
+.deepotus .scroll::-webkit-scrollbar-thumb:hover { background: var(--stroke-strong); }
+
+/* Focus ring */
+.deepotus :focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ── Halo pulse (read --node-color from element) ── */
+@keyframes halo-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 var(--node-color, var(--cyan-soft)), 0 0 24px var(--node-color, var(--cyan-soft)); }
+  50%      { box-shadow: 0 0 0 4px transparent, 0 0 48px var(--node-color, var(--cyan-soft)); }
+}
+.deepotus .pulse { animation: halo-pulse 1666ms var(--ease) infinite; }
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.deepotus .shimmer {
+  background: linear-gradient(90deg, transparent 0%, var(--cyan-soft) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: shimmer 1800ms linear infinite;
+}
+
+@keyframes dot-march {
+  to { stroke-dashoffset: -20; }
+}
+.deepotus .edge-running { animation: dot-march 800ms linear infinite; }
+
+@keyframes flicker {
+  0%, 100% { opacity: 0.9; }
+  50%      { opacity: 1; }
+}
+
+/* Background depth */
+.deepotus .depth-bg {
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, #0a1e3866 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, #1a0f3866 0%, transparent 60%),
+    var(--bg-base);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deepotus .pulse, .deepotus .shimmer, .deepotus .edge-running { animation: none !important; }
+}
+
+/* User-controlled toggles from Settings → Appearance.
+   .no-motion: kills every halo, shimmer, edge cascade, splash zoom and
+   caustic animation. */
+html.no-motion .deepotus *,
+html.no-motion .deepotus *::before,
+html.no-motion .deepotus *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+}
+/* .no-halo: keep transitions but drop running-node halo pulse + glow. */
+html.no-halo .deepotus .pulse,
+html.no-halo .deepotus .edge-running { animation: none !important; }
