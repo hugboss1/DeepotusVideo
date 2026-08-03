@@ -4,6 +4,42 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.0.0 "Studio Cinema"
+
+## 🎨 Refonte UI v2 — direction Cinema (design « DeepOtus Studio »)
+
+La direction visuelle **Cinema** (surfaces neutres chaudes `#0a0a0c/#151519`,
+accent doré unique `#f0b429`, typo IBM Plex Sans / Space Grotesk / JetBrains
+Mono) remplace « Deep Lab » (cyan/bleu nuit) sur toutes les surfaces, sans
+toucher au JS du bundle ni à aucune fonctionnalité.
+
+| Surface | Mécanisme |
+|---|---|
+| **App React (bundle)** | `frontend/dist/theme-v2.css` chargé après le CSS du bundle : redéfinition des tokens Shell Pro (`--bg-*`, `--ink-*`, `--cyan`, `--node-*`…), composants (`.panel`, `.input`, `.btn-primary` aplat doré), 46 utilitaires Tailwind Deep Lab réaccordés. Réversible en retirant le `<link>` de `frontend/dist/index.html`. |
+| **Atelier Chapitre** | `frontend/atelier/atelier.css` réécrit (drop-in : 0 sélecteur manquant vs v1.22, `atelier.js` inchangé) + `preview.html` d'aperçu dev-only. |
+| **Sprite Lab / Tile Lab** | tokens `:root` de `spritelab.css` basculés Cinema (tilelab hérite). |
+| **Tokens partagés** | `frontend/shared/deepotus.tokens.css` (copie servie dans `dist/shared/`) : source unique, thème clair `data-theme="light"`, échappatoire `data-direction="deep"`. |
+
+Notes :
+- Les couleurs **de contenu** (overlays vidéo, fonds des templates de rendu,
+  color picker) ne changent pas — le thème n'affecte que le chrome de l'UI.
+- `IBMPlexSans.ttf` n'est pas encore embarqué dans `/fonts/` : repli propre
+  sur Inter (à déposer plus tard dans `frontend/dist/fonts/`).
+- Maquettes de référence : projet Claude Design « DeepOtus Studio »
+  (`DeepOtus Studio.dc.html`, direction verrouillée `cinema`).
+
+## 📦 Chantiers embarqués dans cette version (lignée d'intégration)
+
+Cette version scelle la lignée v1.16 → v1.22 restée en PR :
+Shell Pro (11), Quick Voice Over (V-a), nœud Studio Voiceover + mixage au
+render (V-b), casting voix par personnage + VO minuté (atelier-voices),
+modèles vidéo fal + Google natif à la volée (W-a), modèles/précision
+ElevenLabs + fix résidu 0 octet (W-b), Gemini `gemini-flash-latest` partout
+(W-c), pont video-shotcraft de l'agent de découpage (W-d), Sprite Lab,
+Tile Lab, Game Assets 3D.
+
+---
+
 # 🐙 Deepotus Video Gen — v1.15.8 "Game Assets Library"
 
 ## 🆕 What's new
