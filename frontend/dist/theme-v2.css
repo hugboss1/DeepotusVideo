@@ -72,6 +72,18 @@ input::-moz-placeholder,textarea::-moz-placeholder{color:var(--ink-muted)}
 .btn-ghost:hover{border-color:var(--stroke-strong);background-color:var(--bg-panel-3)}
 .badge{border-color:var(--stroke);background-color:#23232899}
 
+/* ── nœuds du Studio — carte de la maquette « DeepOtus Studio » ────────────
+   Style uniquement (drag/ports/run intacts). Hooks : la carte est le seul
+   élément [data-node-id] ; l'en-tête est son premier enfant. La maquette :
+   carte plate radius 11, en-tête sobre (filet bas seul), puce média 7×7
+   radius 2 pleine couleur (currentColor = couleur de catégorie inline).
+   NB : l'ancienne teinte d'en-tête (var(--cyan)+"1a" concaténé) était du CSS
+   invalide depuis la tokenisation Shell Pro — rien n'est perdu. */
+[data-node-id]{border-radius:11px !important;background:var(--bg-panel) !important}
+[data-node-id]>div:first-child{background:none !important;border-top-left-radius:10px !important;border-top-right-radius:10px !important}
+[data-node-id]>div:first-child>span:first-child{width:7px !important;height:7px !important;min-width:7px;border-radius:2px !important;background:currentColor !important;overflow:hidden}
+[data-node-id]>div:first-child>span:first-child svg{display:none !important}
+
 /* ── CTA injectés par les patchers (accent cyan littéral en style inline) ──
    Les boutons primaires du shell (Run, Continue…) posent leur dégradé cyan
    en inline : seul un sélecteur d'attribut + !important peut les réaccorder.
