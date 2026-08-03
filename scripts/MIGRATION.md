@@ -8,7 +8,7 @@ Ce qui est transféré :
 - **La base** `deepotus.db` : jobs, **calendrier + posts planifiés (Scheduler)**, préférences.
 - **Tes clés** (`.env` : fal, ElevenLabs, HeyGen, OpenAI, Anthropic, X, Telegram).
 - **Tes sessions & chats Claude Code** (`claude-home` dans le kit, si exporté avec `-IncludeClaude`).
-- **L'installateur** `DeepotusVideoGen-Setup-1.15.8.exe` (joint au kit) pour une install propre sur une 3e machine.
+- **L'installateur** `DeepotusVideoGen-Setup-<version>.exe` (joint au kit — v2.1.0 « 3D Studio » ou plus récent, aussi sur la [page Releases](https://github.com/hugboss1/DeepotusVideo/releases)) pour une install propre sur une 3e machine.
 
 > ⚠️ **Ne fais PAS tourner l'app sur les deux PC en même temps** → risque de double-publication des posts planifiés. Une fois migré, utilise le nouveau portable ; garde l'ancien fermé.
 > ✅ **Idéal : même nom d'utilisateur Windows** sur les deux PC (les chemins des rendus correspondent). Sinon, le script d'import réécrit les chemins automatiquement.
@@ -48,7 +48,7 @@ powershell -ExecutionPolicy Bypass -File .\export-migration.ps1 -Dest "E:\deepot
 ## Méthode C — Installation propre + données (utilisateur Windows différent)
 
 Si le nouveau portable a un **autre nom d'utilisateur** et que tu préfères une base saine :
-1. Installe avec `DeepotusVideoGen-Setup-1.15.8.exe` (joint à ce kit, aussi dans `Bureau\DeepotusVideoGen-Export`) — il contient **déjà toutes les nouveautés**.
+1. Installe avec le `DeepotusVideoGen-Setup-<version>.exe` joint à ce kit (le plus récent, aussi sur la [page Releases](https://github.com/hugboss1/DeepotusVideo/releases)) — il contient **déjà toutes les nouveautés**.
 2. Copie le dossier de données `DeepotusVideoGenData` (Méthode B, étape 2-3).
 3. Les chemins des anciens rendus pointant vers l'ancien utilisateur : lance
    `import-migration.ps1 -Src <dossier contenant _migration-info.txt>` pour les réécrire,
