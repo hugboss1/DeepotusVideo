@@ -1,11 +1,16 @@
-/* Sprite Lab — thème sombre aligné sur l'app (mêmes variables que /atelier). */
+/* Sprite Lab — direction CINEMA (refonte UI v2.1, mêmes tokens que /atelier).
+   Valeurs alignées sur frontend/shared/deepotus.tokens.css ; --bg-panel-3
+   garde son rôle « surface la plus claire » (élévation). */
+@font-face { font-family:"IBMPlex Local"; src:url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight:400 600; font-display:swap; }
+@font-face { font-family:"Inter Local";   src:url("/fonts/Inter.ttf")        format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"JBMono Local";  src:url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight:400 500; font-display:swap; }
 :root{
-  --bg-base:#02060d; --bg-panel:#0a1220; --bg-panel-2:#0e1728; --bg-panel-3:#142035;
-  --stroke:#1d2b42; --stroke-strong:#2a3d5c;
-  --ink:#c8d6ea; --ink-strong:#eef4fb; --ink-soft:#8fa3bd; --ink-muted:#5c7089;
-  --cyan:#4dd8e6; --cyan-soft:rgba(77,216,230,.12);
-  --amber:#ffb454; --red:#ff6b6b; --green:#59d499;
-  --r:10px; --f-ui:"Segoe UI",system-ui,sans-serif; --f-mono:Consolas,monospace;
+  --bg-base:#0a0a0c; --bg-panel:#151519; --bg-panel-2:#1c1c21; --bg-panel-3:#232328;
+  --stroke:#2a2930; --stroke-strong:#3d3b45;
+  --ink:#c4bfb6; --ink-strong:#f2efe9; --ink-soft:#8a857d; --ink-muted:#55514c;
+  --cyan:#f0b429; --cyan-soft:rgba(240,180,41,.14);
+  --amber:#f0b429; --red:#e35d4a; --green:#5ec8a0;
+  --r:10px; --f-ui:"IBMPlex Local","IBM Plex Sans","Inter Local","Segoe UI",system-ui,sans-serif; --f-mono:"JBMono Local","JetBrains Mono",Consolas,monospace;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-family:var(--f-ui);font-size:14px}
