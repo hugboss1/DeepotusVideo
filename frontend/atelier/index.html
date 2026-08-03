@@ -68,6 +68,8 @@
       <div class="board-toolbar">
         <button id="adaptBtn" class="btn primary" title="L'agent adapte le chapitre en scénario (règles de l'art : show don't tell, sluglines, éclairages et caméra motivés par le narratif) — le manuscrit original n'est PAS modifié">🎭 Adapter (IA)</button>
         <button id="spPreview" class="btn" title="Lire le scénario assemblé du chapitre, ici même">👁 Lire</button>
+        <button id="voAll" class="btn" title="Génère le voice-over de toutes les scènes (narration = Narrateur, répliques = voix castées) — chaque scène reçoit sa durée réelle">🔊 Voice-over</button>
+        <span id="voTotal" class="board-total" title="Durée totale du voice-over du chapitre">Σ VO —</span>
         <a id="fountainDl" class="btn" title="Export .fountain = simple fichier TEXTE (standard industrie). S'ouvre avec le Bloc-notes ou un logiciel de scénario (Fade In, Highland, Arc Studio). L'Atelier n'en a PAS besoin : le storyboard lit les scènes directement." download>⬇ .fountain</a>
         <button id="spReset" class="btn ghost" title="Supprimer toutes les scènes de ce chapitre (le manuscrit reste intact)">🗑 Réinitialiser</button>
         <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
@@ -83,6 +85,7 @@
         <button id="addShot" class="btn" title="Ajouter un plan vide à la fin">＋ Plan</button>
         <button id="boardReset" class="btn ghost" title="Supprimer tous les plans de ce storyboard pour repartir de zéro">🗑 Réinitialiser</button>
         <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
+        <span id="shotcraftStatus" title="Pont video-shotcraft"></span>
       </div>
       <div id="shotList" class="shot-list"></div>
     </div>
@@ -103,7 +106,8 @@
       <button id="addEntity" class="btn">＋ Nouveau</button>
     </div>
     <div class="globalstyle">
-      🎬 <input id="globalStyle" placeholder="Style global du projet (ex: anime sombre réaliste, palette abyssale) — toutes les planches l'utilisent"
+      <button id="daBtn" class="btn primary" title="Direction artistique : propositions de l'agent (motivées par le manuscrit), styles présets (BD, manga, réaliste…), choix du générateur d'images et référence de style">🎨 DA</button>
+      <input id="globalStyle" placeholder="Style global du projet — toutes les planches l'utilisent (🎨 DA pour les propositions)"
         title="Style de réalisation appliqué à TOUTES les générations du projet. Une entité peut le surcharger ponctuellement via ses propres notes de style.">
       <span id="styleSaved" class="savestate">—</span>
     </div>
@@ -124,6 +128,53 @@
       </div>
     </div>
     <div id="libGrid" class="lib-grid"></div>
+  </div>
+</div>
+
+<!-- Modal Direction Artistique -->
+<div id="daModal" class="modal hidden">
+  <div class="modal-box da-box">
+    <div class="modal-head">
+      <b>🎨 Direction artistique du projet</b>
+      <button id="daClose" class="btn ghost">✕</button>
+    </div>
+    <div class="da-body">
+      <div class="da-section">
+        <div class="da-title">Propositions de l'agent <button id="daPropose" class="btn" title="L'agent relit le manuscrit (ton, époque, genre, indices visuels rédigés) et propose 4 directions motivées">✨ (Re)proposer</button></div>
+        <div id="daProposals" class="da-cards"><div class="empty-note">Importe un manuscrit (📚) ou clique ✨ — l'agent proposera 4 directions motivées par le texte.</div></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Styles présets</div>
+        <div id="daPresets" class="voice-chiplist"></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Style appliqué (modifiable)</div>
+        <textarea id="daStyle" rows="3" placeholder="Le style injecté dans toutes les générations du projet…"></textarea>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Canon de proportions <span class="da-note" style="font-weight:normal">— morphologie des personnages selon les grandes écoles (De Vinci, manga, ligne claire, gros nez, Moebius, DC…)</span></div>
+        <select id="daCanon" title="Injecté dans chaque planche : nombre de têtes, traits du visage, perspective des décors — accordé au style général"></select>
+        <div id="daCanonNote" class="da-note"></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Générateur d'images</div>
+        <select id="daProvider"></select>
+        <div id="daProviderNote" class="da-note"></div>
+      </div>
+      <div class="da-section">
+        <div class="da-title">Référence de style (optionnel)</div>
+        <div class="da-refrow">
+          <span id="daRefName" class="da-note">aucune</span>
+          <button id="daRefPick" class="btn">🖼 Choisir</button>
+          <button id="daRefClear" class="btn ghost">✕ Retirer</button>
+        </div>
+        <div class="da-note">Une image (planche BD, still de film…) dont le RENDU sert de modèle aux planches — utilisée quand l'entité n'a pas sa propre référence d'identité.</div>
+      </div>
+      <div class="ms-actions">
+        <button id="daApply" class="btn primary">✔ Appliquer au projet</button>
+        <span class="ms-warn">persiste et s'applique à toutes les générations — chaque entité peut garder son style spécifique</span>
+      </div>
+    </div>
   </div>
 </div>
 

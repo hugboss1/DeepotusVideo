@@ -49,5 +49,7 @@ backend/outputs/
 Thumbs.db
 .DS_Store
 frontend/dist/assets/*.js.bak
-frontend/dist/assets/*.js.bak_engine
-frontend/dist/assets/*.js.bak_animate
+frontend/dist/assets/*.js.bak_*
+
+# ── Sorties locales d'outils (jamais versionnées) ─────────────────────────────
+graphify-out/

@@ -129,7 +129,11 @@ if (-not $iscc) { throw "ISCC.exe not found after install -- install Inno Setup 
 Write-Host "Compiling installer with: $iscc" -ForegroundColor Cyan
 & $iscc "/DStageDir=$stage" (Join-Path $instDir "deepotus.iss") | Select-Object -Last 4
 
-$out = Get-ChildItem (Join-Path $instDir "output") -Filter "*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+# The .iss decides where the exe lands (OutputDir= — currently the OneDrive
+# Desktop export folder); resolve it instead of assuming installer\output.
+$outDir = (Select-String -Path (Join-Path $instDir "deepotus.iss") -Pattern '^OutputDir=(.+)$').Matches.Groups[1].Value.Trim()
+if (-not $outDir) { $outDir = Join-Path $instDir "output" }
+$out = Get-ChildItem $outDir -Filter "*.exe" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($out) {
     Write-Host ""
     Write-Host "INSTALLER READY: $($out.FullName) ($([math]::Round($out.Length/1MB)) MB)" -ForegroundColor Green

@@ -50,6 +50,8 @@ class JobRecord(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     # v1.15.6 — JSON cost inputs for /cost/usage (episodes: images + narration chars)
     cost_meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # W-a (v1.19) — which video model rendered the clip (VIDEO_MODELS id)
+    video_model: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
 
 
 class ScheduledPost(Base):
@@ -86,6 +88,11 @@ class ScheduledPost(Base):
     # the plan's Sources step; the Produce button uses it instead of
     # generating a fresh frame.
     source_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.27 — bloc structuré du plan (style Sol) : JSON {objective, priority,
+    # aspect_ratio, tg_caption, on_image_text, cta, hashtags, links,
+    # avatar_script_short, avatar_script_long, scheduling_notes}. La caption
+    # Telegram y prime sur `caption` à la publication (marketing.fire_post).
+    brief: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class AvatarPreset(Base):
@@ -138,6 +145,11 @@ class BibleEntity(Base):
     # v1.20.1 — characters: the face close-ups sheet (2nd pass, Kontext
     # chained on the turnaround so the face is guaranteed identical).
     face_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.21 (B — casting voix) : la voix ElevenLabs du personnage (suggérée
+    # par l'agent d'après la fiche, ou choisie manuellement).
+    voice_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -176,6 +188,10 @@ class Shot(Base):
     sketch_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     sketch_seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # v1.22 (W-d) — video-shotcraft bridge: motion recipe card slug (validated
+    # against the installed skill's catalog) + 1-5 energy level of the beat.
+    motion_recipe: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    energy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -249,6 +265,8 @@ V1_2_NEW_COLUMNS = [
     ("title", "VARCHAR(200)"),
     # v1.15.6 — episode/voiceover cost inputs (JSON: images + narration chars)
     ("cost_meta", "TEXT"),
+    # W-a (v1.19) — selected video model id
+    ("video_model", "VARCHAR(48)"),
 ]
 
 
@@ -275,6 +293,8 @@ SCHEDULED_POSTS_COLUMNS = [
     ("metrics", "TEXT"),
     # v1.12 additions
     ("source_image", "VARCHAR(255)"),
+    # v1.27 additions
+    ("brief", "TEXT"),
 ]
 
 
@@ -292,6 +312,17 @@ BIBLE_ENTITIES_COLUMNS = [
     ("evidence", "TEXT"),
     ("prompt_recipe", "TEXT"),
     ("face_image", "VARCHAR(255)"),
+    ("voice_id", "VARCHAR(80)"),
+    ("voice_name", "VARCHAR(200)"),
+    ("voice_prev", "TEXT"),
+]
+
+
+# v1.22 (W-d) — columns added to shots after its initial ship (video-shotcraft
+# bridge: motion recipe card + energy level).
+SHOTS_COLUMNS = [
+    ("motion_recipe", "VARCHAR(60)"),
+    ("energy", "INTEGER"),
 ]
 
 
@@ -366,7 +397,8 @@ async def _auto_migrate():
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
                                ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
                                ("avatar_presets", AVATAR_PRESETS_COLUMNS),
-                               ("bible_entities", BIBLE_ENTITIES_COLUMNS)):
+                               ("bible_entities", BIBLE_ENTITIES_COLUMNS),
+                               ("shots", SHOTS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

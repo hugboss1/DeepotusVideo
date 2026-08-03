@@ -40,7 +40,7 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v1.15.8</strong> · <a href="fr.html">Version française</a></p>
+<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v1.16.0</strong> · <a href="fr.html">Version française</a></p>
 
 <div class="lead">
   <p><strong>Never touched an editing tool?</strong> Good — this guide is written for you. Deepotus Video Gen turns an idea into a post-ready vertical video, with no software to learn. Everything runs <strong>on your computer</strong>; you plug in your own API keys (you pay your providers, not the app).</p>
@@ -165,10 +165,10 @@
 <div class="step"><span class="n">2</span><div>The Audio tab also lists every <strong>voiceover you generate</strong>, so your narrations and your imported tracks live side by side.</div></div>
 <div class="tip">The Audio tab links a few <strong>royalty-free music banks</strong> (Pixabay Music, Freesound, Free Music Archive, YouTube Audio Library). Only add music you have the right to use — Deepotus cannot ship licensed music for you.</div>
 
-<h3>Voiceover (ElevenLabs)</h3>
+<h3>Voiceover (ElevenLabs)<span class="new">v1.17.0</span></h3>
 <p>Turn text into a natural narration with your <strong>ElevenLabs</strong> key.</p>
-<div class="step"><span class="n">1</span><div>In <strong>Quick</strong>, the <strong>voice</strong> toggle switches HeyGen between a full <strong>talking avatar</strong> and a <strong>voiceover only</strong> (no face) — perfect to narrate over your own visuals.</div></div>
-<div class="step"><span class="n">2</span><div>Pick a <strong>voice</strong> and a <strong>language</strong>, write the text, generate. The narration is <strong>saved to the audio Library</strong>, ready to reuse (Studio, Episodes, Scheduler).</div></div>
+<div class="step"><span class="n">1</span><div>In <strong>Quick</strong>, open the <strong>Voice Over</strong> tab: a voiceover <strong>on its own</strong> (no image, no video), perfect to narrate over your own visuals. Write a short script (up to 2,500 characters — for longer narrations use Chapters), pick the <strong>language</strong>; the counter and the <strong>estimated cost</strong> update live.</div></div>
+<div class="step"><span class="n">2</span><div>Pick a voice from the <strong>scrollable list</strong> (▶ to preview, filter field) or keep the <strong>app default voice</strong>, and save your voice + language combos as reusable <strong>castings</strong> (★ Save). <em>Generate voice</em> → the mp3 plays inline and is <strong>saved to Library → Audio</strong>, ready to reuse (Studio, Episodes, Scheduler).</div></div>
 <div class="warn"><strong>ElevenLabs free plan:</strong> the built-in "premade" voices (George, Sarah…) work via the API. Custom "library / community" voices require a paid ElevenLabs plan — the app tells you clearly when a chosen voice is paid-only.</div>
 
 <h3>Background music (BGM)</h3>
@@ -246,6 +246,7 @@
 <p>Several features call a language model: <strong>news summaries</strong> (News), <strong>marketing plan generation</strong> (Scheduler) and <strong>Episode storyboards</strong> (the "By AI" split). As of v1.15, you choose the <strong>provider</strong> for each.</p>
 <h3>Cloud providers — Anthropic, OpenAI, Gemini</h3>
 <p>Paste whichever key(s) you want in <strong>Settings → API keys</strong>: <strong>Anthropic</strong> (Claude), <strong>OpenAI</strong> (GPT) and/or <strong>Google Gemini</strong>. Just <strong>one</strong> is enough to enable summaries and AI plans; add several if you want to switch between them.</p>
+<div class="tip"><strong>Gemini model</strong> <span class="new">v1.21</span>: by default the app uses <code>gemini-flash-latest</code>, Google's stable alias that automatically tracks the latest Flash release — nothing to do. To pin a specific version (e.g. <code>gemini-2.0-flash</code>), fill the <strong>"Gemini — modèle"</strong> field in <em>Settings → API keys</em> and restart the backend. The same Gemini key also powers the Studio's native Google video models (Veo 3.1).</div>
 <div class="step"><span class="n">1</span><div>In <strong>Settings → Provider defaults</strong>, pick the provider per role (summarizer, planner) from a dropdown. A role is only marked "missing" when <strong>none</strong> of its possible providers has a key.</div></div>
 <div class="step"><span class="n">2</span><div><strong>Automatic fallback</strong>: if the chosen provider is unavailable (no key, outage), the app moves to the next available one — you're never stuck.</div></div>
 <div class="tip"><strong>Engine priority</strong>: your choice in <em>Provider defaults</em> first, then the default order <strong>Anthropic → OpenAI → Gemini → Ollama → built-in planner</strong> (deterministic). The plan badge shows which engine actually ran.</div>
@@ -354,7 +355,7 @@
 <img class="shot" src="img/library-3d.png" alt="Library — 3D tab">
 <p class="cap">The Library 3D tab gathers all your generated assets.</p>
 <div class="warn">3D rendering runs in your browser (WebGL): keep the tab in the foreground for smooth rotation. Files live under <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> and follow your migration (chapter 16).</div>
-<div class="footer">Deepotus Video Gen v1.15.8 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
+<div class="footer">Deepotus Video Gen v1.16.0 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
 
 </div>
 </body>

@@ -6,6 +6,7 @@ import asyncio, json, os, sys, tempfile, pathlib, types
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = f"sqlite+aiosqlite:///{pathlib.Path(_tmp,'t.db').as_posix()}"
 os.environ.setdefault("FAL_KEY", "test-key")          # FLUX path must be open
+os.environ.setdefault("ELEVENLABS_API_KEY", "test-11l")   # casting voix (B)
 os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
 pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -44,10 +45,27 @@ _PILImage.new("RGB", (8, 8), (30, 60, 90)).save(_buf, "PNG")
 PNG = _buf.getvalue()
 
 
+VOICES_11L = {"voices": [
+    {"voice_id": "v_geo", "name": "George", "category": "premade",
+     "labels": {"gender": "male", "age": "middle-aged", "accent": "british"},
+     "preview_url": "http://11l.test/geo.mp3"},
+    {"voice_id": "v_dan", "name": "Daniel", "category": "premade",
+     "labels": {"gender": "male", "age": "old", "accent": "deep"},
+     "preview_url": "http://11l.test/dan.mp3"},
+    {"voice_id": "v_ali", "name": "Alice", "category": "premade",
+     "labels": {"gender": "female", "age": "young", "accent": "french"},
+     "preview_url": "http://11l.test/ali.mp3"},
+]}
+
+
 async def _fake_get(self, url, *a, **kw):
-    if str(url).startswith("http://fal.test/"):
-        req = _httpx.Request("GET", str(url))
+    u = str(url)
+    if u.startswith("http://fal.test/"):
+        req = _httpx.Request("GET", u)
         return _httpx.Response(200, content=PNG, request=req)
+    if "api.elevenlabs.io/v1/voices" in u:
+        return _httpx.Response(200, json=VOICES_11L,
+                               request=_httpx.Request("GET", u))
     return await _orig_get(self, url, *a, **kw)
 
 _httpx.AsyncClient.get = _fake_get
@@ -119,7 +137,10 @@ async def main():
                    for c in CALLS) == 3
         assert not any("right profile" in c["arguments"]["prompt"].lower()
                        for c in CALLS)
-        assert "seven and a half heads tall" in CALLS[2]["arguments"]["prompt"]
+        # canon de proportions (DA2): style_notes "style anime sombre" →
+        # canon manga shōnen auto-détecté (6,5-7 têtes, visage manga)
+        assert "6.5 to 7 heads" in CALLS[2]["arguments"]["prompt"]
+        assert "manga face" in CALLS[0]["arguments"]["prompt"]
         assert any("back view" in c["arguments"]["prompt"].lower()
                    for c in CALLS[3:])
         # board composé et stocké (PIL a réellement assemblé les panneaux)
@@ -202,6 +223,31 @@ async def main():
         assert "éveil" in r.json()["title"]
         r = await c.delete(f"/api/chapters/{cid}")
         assert r.json()["ok"] is True
+
+        # ═══ v1.21 (B) — casting voix ElevenLabs ═══
+        from app.services import summarizer as SUMZ
+        SUMZ.available = lambda: True
+        SUMZ._chat_dispatch = lambda p, s, m: (
+            '{"best": "v_dan", "alternates": ["v_geo"], '
+            '"why": "Voix grave et âgée, assortie au vieil oracle."}', "stub")
+        r = await c.post(f"/api/bible/entities/{eid}/suggest-voice", json={})
+        assert r.status_code == 200, r.text
+        d = r.json()
+        assert d["suggested"]["voice_id"] == "v_dan"
+        assert d["entity"]["voice_name"] == "Daniel"
+        assert d["entity"]["voice_prev"] == "http://11l.test/dan.mp3"
+        assert [a["voice_id"] for a in d["alternates"]] == ["v_geo"]
+        assert "oracle" in d["why"]
+        # persistance + choix manuel (PUT) d'une alternative
+        got = (await c.get("/api/bible/entities?kind=character")).json()["entities"][0]
+        assert got["voice_id"] == "v_dan"
+        r = await c.put(f"/api/bible/entities/{eid}",
+                        json={"voice_id": "v_geo", "voice_name": "George",
+                              "voice_prev": "http://11l.test/geo.mp3"})
+        assert r.json()["voice_name"] == "George"
+        # casting sur un lieu -> refus explicite
+        r = await c.post(f"/api/bible/entities/{pid}/suggest-voice", json={})
+        assert r.status_code == 400
 
         # cleanup entity delete
         r = await c.delete(f"/api/bible/entities/{pid}")

@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Single source of truth for the app version (health endpoint, FastAPI docs,
 # packaging scripts). Bump here only.
-APP_VERSION = "1.15.8"
+APP_VERSION = "2.0.0"
 
 
 def _data_root() -> Path:
@@ -74,6 +74,12 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY: str = ""
     ELEVENLABS_VOICE_ID_EN: str = "nPczCjzI2devNBz1zQrb"
     ELEVENLABS_VOICE_ID_FR: str = "JBFqnCBsd6RMkjVDRZzb"
+    # W-b: modèle TTS par défaut (catalogue elevenlabs_service.ELEVEN_MODELS);
+    # valeur inconnue/vide = eleven_multilingual_v2.
+    ELEVENLABS_MODEL: str = "eleven_multilingual_v2"
+
+    # Voicebox (optional) — serveur TTS local; vide = http://127.0.0.1:17493
+    VOICEBOX_URL: str = ""
 
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
@@ -111,13 +117,21 @@ class Settings(BaseSettings):
     OPENAI_MODEL: str = "gpt-4o-mini"
 
     # v1.15: Google Gemini (alternative summariser / planner)
+    # W-c (v1.21): défaut = alias stable de la doc Google (suit la dernière
+    # version flash sans re-config) ; vérifié présent via ListModels le
+    # 23/07/2026. Personnalisable dans Settings → Clés (« Gemini — modèle »).
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-flash-latest"
 
     # v1.15: provider selection per role. Values: "anthropic", "openai",
     # "gemini", "ollama". Empty = auto (first available in priority order).
     SUMMARIZER_PROVIDER: str = ""
     PLANNER_PROVIDER: str = ""
+
+    # v1.22 (W-d): dossier du skill Claude « video-shotcraft » dont l'agent
+    # de découpage storyboard exploite les fiches de plans. Vide = détection
+    # auto (~/.claude/skills/video-shotcraft) ; absent = catalogue embarqué.
+    SHOTCRAFT_SKILL_DIR: str = ""
 
     # v1.9: publishing channels (all optional, BYO keys).
     # Telegram is the reference auto-publish channel: free, no review process.

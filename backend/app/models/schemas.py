@@ -124,6 +124,11 @@ class GenerateRequest(BaseModel):
     template_id: Optional[str] = None
     custom_prompt: Optional[str] = None    # raw or builder-generated, used as-is
 
+    # W-a (v1.19) — which video model renders this clip. None = app default
+    # (Seedance 1.0 Pro, unchanged). Ids come from GET /api/video-models;
+    # unknown ids fail the job with a clean error listing valid ones.
+    video_model: Optional[str] = Field(None, max_length=48)
+
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
     lighting: Optional[Lighting] = None
@@ -148,6 +153,9 @@ class GenerateRequest(BaseModel):
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over
+    # the final render at 0 dB: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateResponse(BaseModel):
@@ -215,6 +223,9 @@ class GenerateHeyGenRequest(BaseModel):
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed with
+    # the avatar's own voice: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateHeyGenImageRequest(BaseModel):
@@ -232,6 +243,8 @@ class GenerateHeyGenImageRequest(BaseModel):
     custom_caption: Optional[str] = None
     source_graph: Optional[dict] = None
     music: Optional[dict] = None
+    # Optional pre-generated voice-over: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateHeyGenCinematicRequest(BaseModel):
@@ -366,6 +379,7 @@ class JobDetails(BaseModel):
     template_id: Optional[str] = None
     voiceover_language: Optional[str] = None
     voice_mode: Optional[str] = None
+    video_model: Optional[str] = None
     provider: Optional[str] = None
     composition_id: Optional[str] = None
     composition_layout: Optional[str] = None
@@ -462,6 +476,9 @@ class TemplateRenderRequest(BaseModel):
     # Cheap "what will it look like" pass: Seedance/HeyGen slots use their source
     # still instead of generating (no fal/HeyGen cost), short duration.
     preview: bool = False
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over the
+    # composite after the template render: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class TemplateRenderResponse(BaseModel):

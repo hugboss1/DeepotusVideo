@@ -102,6 +102,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Images:     {settings.images_path}")
     logger.info(f"  Outputs:    {settings.outputs_path}")
     logger.info("=" * 60)
+    # Garde MSIX : un backend lancé depuis un conteneur écrit dans un overlay
+    # invisible (incident 14/06-20/07/2026) — détecter et hurler tout de suite.
+    from app.services.fs_guard import startup_check
+    startup_check(settings.images_path)
     await init_db()
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
@@ -219,6 +223,62 @@ if _atelier.is_dir():
         return RedirectResponse(url="/atelier/", status_code=307)
 
     logger.info(f"Serving atelier from {_atelier}")
+
+# ── Sprite Lab (chantier 9c): Game Assets 2D — source vidéo → sprite sheet,
+# at /spritelab. Standalone page (frontend/spritelab/) outside the compiled
+# bundle, iframed by the SPA's Game Assets hub (patch_bundle_spritelab).
+_spritelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "spritelab"
+if _spritelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFSl
+
+    class _SpritelabStatic(_SFSl):
+        """no-cache like /atelier: spritelab.js keeps a stable filename, so
+        the browser must revalidate to pick up updates."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/spritelab", _SpritelabStatic(directory=str(_spritelab), html=True),
+              name="spritelab")
+
+    # The mount only matches "/spritelab/..." — a bare "/spritelab" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/spritelab", include_in_schema=False)
+    async def _spritelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/spritelab/", status_code=307)
+
+    logger.info(f"Serving spritelab from {_spritelab}")
+
+# ── Tile Lab (chantier 9e): tuiles seamless — image Library → tuile
+# raccordable, at /tilelab. Même pattern standalone que /spritelab.
+_tilelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "tilelab"
+if _tilelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFTl
+
+    class _TilelabStatic(_SFTl):
+        """no-cache comme /spritelab : tilelab.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/tilelab", _TilelabStatic(directory=str(_tilelab), html=True),
+              name="tilelab")
+
+    @app.get("/tilelab", include_in_schema=False)
+    async def _tilelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/tilelab/", status_code=307)
+
+    logger.info(f"Serving tilelab from {_tilelab}")
 
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"

@@ -1,0 +1,748 @@
+{
+ "skill": "video-shotcraft",
+ "generated_from": "gallery/api/library.json (revision bdd94be16d60fa8f)",
+ "cards": [
+  {
+   "slug": "ai-stream-response",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "AI answer panel: summary lands first, evidence rows stream in"
+  },
+  {
+   "slug": "autolayout-gap-dial",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a spacing dial pushes the layout apart in real time"
+  },
+  {
+   "slug": "beat-cut-moves",
+   "cat": "rhythm",
+   "energy": "high",
+   "anim": true,
+   "gloss": "cuts as drumbeats: accelerating trailer cut-in, paparazzi flash burst"
+  },
+  {
+   "slug": "beat-step-list-theme-cycle",
+   "cat": "ui",
+   "energy": "high",
+   "anim": false,
+   "gloss": "list steps and theme swaps hammer on every beat"
+  },
+  {
+   "slug": "before-after-slider-scrub",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "before/after slider scrub comparison"
+  },
+  {
+   "slug": "bottom-push-stack-wipe",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "chapter change by bottom-push page stack"
+  },
+  {
+   "slug": "brand-frame-snap",
+   "cat": "brand",
+   "energy": "high",
+   "anim": false,
+   "gloss": "a brand frame wraps real footage, snapping color per mode"
+  },
+  {
+   "slug": "brand-ink-open",
+   "cat": "material",
+   "energy": "low",
+   "anim": true,
+   "gloss": "ink-press opening: the name stamped in ink before the story starts"
+  },
+  {
+   "slug": "bubble-swarm-takeover",
+   "cat": "transition",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "a swarm of themed shapes floods the frame as a scene-change curtain"
+  },
+  {
+   "slug": "canvas-materialize-moves",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "AI results materialize onto a canvas"
+  },
+  {
+   "slug": "card-flip-reveal",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "feature cards flip over to reveal their results"
+  },
+  {
+   "slug": "card-flock-tumble",
+   "cat": "ui",
+   "energy": "peak",
+   "anim": false,
+   "gloss": "a flock of cards tumbles into the brand slogan (peak energy)"
+  },
+  {
+   "slug": "cel-flash-stomp",
+   "cat": "title",
+   "energy": "high",
+   "anim": true,
+   "gloss": "words stomp in with cel-flash impact frames"
+  },
+  {
+   "slug": "chart-live-moves",
+   "cat": "data",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "living charts: axis rescale shock, dot-swarm regroup, oscilloscope stream"
+  },
+  {
+   "slug": "circle-match-iris",
+   "cat": "transition",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "iris match-cut through a circular element into the next scene"
+  },
+  {
+   "slug": "cloner-depth-echo",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "one card echoes into many clones in depth (one = many)"
+  },
+  {
+   "slug": "collab-cursor-moves",
+   "cat": "ui",
+   "energy": "varies",
+   "anim": false,
+   "gloss": "collaborator cursors act out teamwork on the canvas"
+  },
+  {
+   "slug": "color-block-step-wipe",
+   "cat": "transition",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "stepped color-block wipe, hard cuts, no easing"
+  },
+  {
+   "slug": "command-palette-summon",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a command palette summons the whole product into one input"
+  },
+  {
+   "slug": "crane-rise-reveal",
+   "cat": "camera",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "start on a detail, crane up to reveal the whole scene"
+  },
+  {
+   "slug": "crash-zoom-punch",
+   "cat": "camera",
+   "energy": "high",
+   "anim": true,
+   "gloss": "sudden crash zoom slamming attention onto the subject"
+  },
+  {
+   "slug": "dataviz-landscape-open",
+   "cat": "data",
+   "energy": "low",
+   "anim": false,
+   "gloss": "abstract data-landscape opening, slow rise"
+  },
+  {
+   "slug": "deck-deal-flyin",
+   "cat": "ui",
+   "energy": "high",
+   "anim": false,
+   "gloss": "cards dealt at speed into a growing wall"
+  },
+  {
+   "slug": "depth-layer-moves",
+   "cat": "camera",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "2.5D parallax depth layers; dolly-zoom for mounting dread"
+  },
+  {
+   "slug": "document-typewriter-reveal",
+   "cat": "title",
+   "energy": "mid-low",
+   "anim": true,
+   "gloss": "a document types itself, paced for reading"
+  },
+  {
+   "slug": "draw-svg-trace",
+   "cat": "material",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "the subject is drawn in as animated line strokes"
+  },
+  {
+   "slug": "edit-hook-moves",
+   "cat": "brand",
+   "energy": "low",
+   "anim": false,
+   "gloss": "logo sting on a button press (outro accent)"
+  },
+  {
+   "slug": "element-body-moves",
+   "cat": "impact",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "squash-and-stretch body language on fast entrances and hovers"
+  },
+  {
+   "slug": "fui-hud-moves",
+   "cat": "ui",
+   "energy": "varies",
+   "anim": false,
+   "gloss": "sci-fi HUD: panels unfold from lines, reticle lock-on"
+  },
+  {
+   "slug": "gauge-readout-moves",
+   "cat": "data",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "gauges boot and needles sweep; one big value jump"
+  },
+  {
+   "slug": "glow-flyline-moves",
+   "cat": "light",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "glowing fly-lines arc between points in a dark scene"
+  },
+  {
+   "slug": "gradient-word-sweep",
+   "cat": "title",
+   "energy": "high",
+   "anim": true,
+   "gloss": "one key word supercharged by a gradient sweep"
+  },
+  {
+   "slug": "graze-face-tour",
+   "cat": "camera",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "low grazing flight across a surface, landmarks rising past the lens"
+  },
+  {
+   "slug": "hashtag-to-pill-materialize",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a typed tag hardens into a UI pill and files itself"
+  },
+  {
+   "slug": "hires-rasterize-3d-text",
+   "cat": "technique",
+   "energy": "n/a",
+   "anim": false,
+   "gloss": "technique card: hi-res rasterized text for 3D zooms"
+  },
+  {
+   "slug": "icon-field-colorize",
+   "cat": "brand",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "an icon field floods with the brand color in one sweep"
+  },
+  {
+   "slug": "icon-performance-moves",
+   "cat": "ui",
+   "energy": "varies",
+   "anim": false,
+   "gloss": "icon-level punctuation: success pop, attention bounce"
+  },
+  {
+   "slug": "impact-feedback",
+   "cat": "impact",
+   "energy": "high",
+   "anim": true,
+   "gloss": "anime/game-grade hit feedback the instant something lands"
+  },
+  {
+   "slug": "input-trigger-moves",
+   "cat": "ui",
+   "energy": "varies",
+   "anim": false,
+   "gloss": "first-person input: keys and cursor trigger the product live"
+  },
+  {
+   "slug": "integration-hub-map",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "integration hub: pages flip and route into one product"
+  },
+  {
+   "slug": "letterspace-materialize",
+   "cat": "title",
+   "energy": "low",
+   "anim": true,
+   "gloss": "quiet letter-spaced title materializes (chapter card)"
+  },
+  {
+   "slug": "light-play-moves",
+   "cat": "light",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "light as a brush: sweep reveal, halo crowning, flash on impact"
+  },
+  {
+   "slug": "line-boil",
+   "cat": "material",
+   "energy": "low",
+   "anim": true,
+   "gloss": "hand-drawn line-boil wobble on held strokes"
+  },
+  {
+   "slug": "line-carry-transition",
+   "cat": "transition",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "a drawn line carries the eye from one scene into the next"
+  },
+  {
+   "slug": "list-stack-press",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "new items keep pressing into a living list"
+  },
+  {
+   "slug": "magician-card-flourish",
+   "cat": "impact",
+   "energy": "high",
+   "anim": true,
+   "gloss": "a magician's flourish materializes a single card or poster"
+  },
+  {
+   "slug": "marker-underline-title",
+   "cat": "title",
+   "energy": "low",
+   "anim": true,
+   "gloss": "hand-drawn marker underline emphasizes one word"
+  },
+  {
+   "slug": "montage-rhythm-moves",
+   "cat": "rhythm",
+   "energy": "high",
+   "anim": true,
+   "gloss": "montage breathing: build-and-burst, process quick-cuts, chain-reaction open"
+  },
+  {
+   "slug": "morph-from-primitive",
+   "cat": "material",
+   "energy": "mid-low",
+   "anim": true,
+   "gloss": "the subject morphs out of a primitive shape"
+  },
+  {
+   "slug": "neon-frame-forerun",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "a neon frame runs ahead, the panel lands inside it"
+  },
+  {
+   "slug": "neon-frame-orbit-drop",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "a neon frame orbits, then drops the UI into place"
+  },
+  {
+   "slug": "neon-triple-marquee",
+   "cat": "ui",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "three neon marquee lines pulse the closing slogan"
+  },
+  {
+   "slug": "odometer-digit-roll",
+   "cat": "data",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "a full-screen odometer rolls up the hero number"
+  },
+  {
+   "slug": "outro-group-photo-launch",
+   "cat": "outro",
+   "energy": "peak",
+   "anim": true,
+   "gloss": "finale group photo: every hero gathers, formation freeze, launch out"
+  },
+  {
+   "slug": "overhead-camera-moves",
+   "cat": "camera",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "top-down tabletop drop or slow tilt reveal"
+  },
+  {
+   "slug": "page-turn-transitions",
+   "cat": "transition",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "physical page turn between chapters (barn door, cube rotate)"
+  },
+  {
+   "slug": "page-waterfall-wall",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a waterfall wall of product pages flows past"
+  },
+  {
+   "slug": "panel-grid-moves",
+   "cat": "material",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "comic panel grid: beat-lit panels, grid reflow, multi-angle freeze"
+  },
+  {
+   "slug": "paper-craft-moves",
+   "cat": "material",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "paper-craft world: masking-tape slap, pop-up-book rise"
+  },
+  {
+   "slug": "paper-plane-messenger",
+   "cat": "transition",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "a paper plane flies the story from one scene to another"
+  },
+  {
+   "slug": "paper-title-card",
+   "cat": "title",
+   "energy": "high",
+   "anim": true,
+   "gloss": "paper title card as a breathing beat between louder shots"
+  },
+  {
+   "slug": "particle-celebrate-hits",
+   "cat": "particle",
+   "energy": "high",
+   "anim": true,
+   "gloss": "confetti / spark celebration burst, then clean stillness"
+  },
+  {
+   "slug": "particle-sand-fill",
+   "cat": "particle",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "the subject builds up from flowing sand-like particles"
+  },
+  {
+   "slug": "pill-slot-cycle",
+   "cat": "ui",
+   "energy": "peak",
+   "anim": false,
+   "gloss": "verb pills cycle through a slot-machine slot"
+  },
+  {
+   "slug": "print-texture-transitions",
+   "cat": "transition",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "ink-bleed / print texture develops the next scene"
+  },
+  {
+   "slug": "rhythm-interrupt-moves",
+   "cat": "rhythm",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "interruption as a beat: stutter push-in, strobe black frames"
+  },
+  {
+   "slug": "riso-print-hits",
+   "cat": "impact",
+   "energy": "high",
+   "anim": true,
+   "gloss": "risograph misregistration hit as a print-style accent"
+  },
+  {
+   "slug": "row-embed",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "structured rows grow into the page one by one"
+  },
+  {
+   "slug": "runway-ground-skim",
+   "cat": "camera",
+   "energy": "high",
+   "anim": true,
+   "gloss": "elements drop from above and snap upright as the camera skims the ground"
+  },
+  {
+   "slug": "sakuga-timing-shift",
+   "cat": "rhythm",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "sakuga timing: slow handcrafted build, then explosive release"
+  },
+  {
+   "slug": "scene-locked-title",
+   "cat": "title",
+   "energy": "mid-low",
+   "anim": true,
+   "gloss": "the title lives inside the 3D scene, locked to its space"
+  },
+  {
+   "slug": "scroll-brake-moves",
+   "cat": "ui",
+   "energy": "high",
+   "anim": false,
+   "gloss": "a long list scrolls fast, then brakes hard on the big entry"
+  },
+  {
+   "slug": "segmented-thumb-hero",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a segmented toggle close-up carried as the hero shot"
+  },
+  {
+   "slug": "shot-transitions",
+   "cat": "transition",
+   "energy": "n/a",
+   "anim": true,
+   "gloss": "handoff six-pack: whip pan, whip brake, mask wipe, portal wipe"
+  },
+  {
+   "slug": "skeleton-reveal",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "skeleton placeholders leap into the real, living UI"
+  },
+  {
+   "slug": "slam-entrance-moves",
+   "cat": "impact",
+   "energy": "high",
+   "anim": true,
+   "gloss": "hero subject slams into frame with perspective snap"
+  },
+  {
+   "slug": "smear-multiples",
+   "cat": "rhythm",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "comic smear frames and multiples sell extreme speed"
+  },
+  {
+   "slug": "space-camera-moves",
+   "cat": "camera",
+   "energy": "high",
+   "anim": true,
+   "gloss": "big 3D showpieces: drone dive landing, exploded view, snorricam lock"
+  },
+  {
+   "slug": "spectrum-morph-ui",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "an audio spectrum morphs into UI dividers, beat-synced"
+  },
+  {
+   "slug": "speed-ramp-freeze",
+   "cat": "rhythm",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "speed ramp into a freeze to hold the key instant"
+  },
+  {
+   "slug": "split-flap-title",
+   "cat": "title",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "mechanical split-flap board announces a title or date"
+  },
+  {
+   "slug": "spotlight-hero-card",
+   "cat": "light",
+   "energy": "high",
+   "anim": true,
+   "gloss": "a single hero object consecrated by slow light, premium and calm"
+  },
+  {
+   "slug": "spotlight-sweep-moves",
+   "cat": "light",
+   "energy": "mid-low",
+   "anim": true,
+   "gloss": "spotlight sweeps wake subjects out of darkness"
+  },
+  {
+   "slug": "steep-tilt-glide",
+   "cat": "camera",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "steep-perspective glide past successive zones, fixed camera"
+  },
+  {
+   "slug": "stroke-segment-build",
+   "cat": "title",
+   "energy": "low",
+   "anim": true,
+   "gloss": "abstract strokes assemble; the meaning lands late (suspense reveal)"
+  },
+  {
+   "slug": "tear-streak-transitions",
+   "cat": "transition",
+   "energy": "high",
+   "anim": true,
+   "gloss": "glitch tear-streaks rip into the next scene"
+  },
+  {
+   "slug": "tension-camera-moves",
+   "cat": "camera",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "emotional four: freeze-orbit awe, dutch-roll resolve, slow-push dread, pull-back isolation"
+  },
+  {
+   "slug": "text-as-mask",
+   "cat": "title",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "the scene lives inside the letters; text is a window"
+  },
+  {
+   "slug": "text-column-converge",
+   "cat": "ui",
+   "energy": "mid-low",
+   "anim": false,
+   "gloss": "a spec list converges into the product name"
+  },
+  {
+   "slug": "theme-switch-moves",
+   "cat": "ui",
+   "energy": "varies",
+   "anim": false,
+   "gloss": "the theme flips before your eyes and ripples across the UI"
+  },
+  {
+   "slug": "timeline-travel",
+   "cat": "camera",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "horizontal time-travel dash with a hard brake at now"
+  },
+  {
+   "slug": "title-demote-to-label",
+   "cat": "ui",
+   "energy": "mid-low",
+   "anim": false,
+   "gloss": "the big title shrinks into a corner label as content takes over"
+  },
+  {
+   "slug": "trailer-grammar-moves",
+   "cat": "rhythm",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "trailer skeleton: hook open, card/footage cadence, smash-cut climax"
+  },
+  {
+   "slug": "transition-hidden-cut",
+   "cat": "transition",
+   "energy": "n/a",
+   "anim": true,
+   "gloss": "invisible cut, light-leak burn, or versus slam between shots"
+  },
+  {
+   "slug": "transition-travel",
+   "cat": "transition",
+   "energy": "n/a",
+   "anim": true,
+   "gloss": "travel through a shared element (letterform zoom, element morph)"
+  },
+  {
+   "slug": "type-and-filter",
+   "cat": "ui",
+   "energy": "high",
+   "anim": false,
+   "gloss": "type, filter, open: one interaction chain told as a shot"
+  },
+  {
+   "slug": "type-assembly-moves",
+   "cat": "title",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "letterforms assemble: drift, split-stagger, on-path, tracking reveal"
+  },
+  {
+   "slug": "type-entrance-moves",
+   "cat": "title",
+   "energy": "mid-high",
+   "anim": true,
+   "gloss": "title entrances: letter-drop physics, scramble decode"
+  },
+  {
+   "slug": "type-rhythm-sync",
+   "cat": "title",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "words locked to the beat (weight pump) or to the voice (karaoke fill)"
+  },
+  {
+   "slug": "typewriter-moves",
+   "cat": "title",
+   "energy": "varies",
+   "anim": true,
+   "gloss": "terminal / typewriter text with corrections and retypes"
+  },
+  {
+   "slug": "ui-strip-away-outro",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "after the final click, all UI strips away to silence"
+  },
+  {
+   "slug": "ui-to-brand-morph",
+   "cat": "brand",
+   "energy": "mid-high",
+   "anim": false,
+   "gloss": "the daily UI morphs into the brand logo"
+  },
+  {
+   "slug": "voice-waveform-live",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a live waveform listens while you speak"
+  },
+  {
+   "slug": "wall-reveal-moves",
+   "cat": "ui",
+   "energy": "mid",
+   "anim": false,
+   "gloss": "a wall of features lights up in place"
+  },
+  {
+   "slug": "wipe-transitions",
+   "cat": "transition",
+   "energy": "mid",
+   "anim": true,
+   "gloss": "geometric wipes: clock wipe, blinds slice"
+  },
+  {
+   "slug": "word-relay-filmstrip",
+   "cat": "ui",
+   "energy": "mid-low",
+   "anim": false,
+   "gloss": "one subject, many verbs: a filmstrip relay of abilities"
+  }
+ ]
+}
