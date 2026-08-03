@@ -18,7 +18,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 # Single source of truth for the app version (health endpoint, FastAPI docs,
 # packaging scripts). Bump here only.
-APP_VERSION = "2.0.0"
+APP_VERSION = "2.1.0"
 
 
 def _data_root() -> Path:
@@ -84,6 +84,11 @@ class Settings(BaseSettings):
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
     MESHY_API_KEY: str = ""
+    # v2.1 (3D Studio) : MESHY_MOCK=1 = simulateur local fidèle aux réponses
+    # Meshy — le pipeline complet tourne sans clé ni crédits (démo, QA, tests).
+    # MESHY_MOCK_SPEED < 1 accélère les tâches simulées (0.01 dans les tests).
+    MESHY_MOCK: bool = False
+    MESHY_MOCK_SPEED: float = 1.0
 
     # Paths -- absolute used as-is; relative resolved under the data dir.
     IMAGES_FOLDER: str = "./assets/images"

@@ -280,6 +280,51 @@ if _tilelab.is_dir():
 
     logger.info(f"Serving tilelab from {_tilelab}")
 
+# ── 3D Studio Meshy (v2.1): écran 1 du design « DeepOtus Studio » — pipeline
+# prompt/réf → maillage → texture → remesh → rig → animations → export, at
+# /studio3d. Même pattern standalone que /spritelab. Le client de référence
+# meshy.client.js est servi à /meshy/ (chemin d'import de la spec
+# INTEGRATION-MESHY.md : import … from "/meshy/meshy.client.js").
+_studio3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "studio3d"
+if _studio3d.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFS3
+
+    class _Studio3dStatic(_SFS3):
+        """no-cache comme /spritelab : studio3d.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/studio3d", _Studio3dStatic(directory=str(_studio3d), html=True),
+              name="studio3d")
+
+    @app.get("/studio3d", include_in_schema=False)
+    async def _studio3d_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/studio3d/", status_code=307)
+
+    logger.info(f"Serving studio3d from {_studio3d}")
+
+_meshy_client = Path(__file__).resolve().parent.parent.parent / "frontend" / "meshy"
+if _meshy_client.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFMc
+
+    class _MeshyClientStatic(_SFMc):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/meshy", _MeshyClientStatic(directory=str(_meshy_client)),
+              name="meshy-client")
+
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"
 if _emoji_dir.is_dir():

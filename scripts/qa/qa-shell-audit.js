@@ -1,8 +1,9 @@
 /* Harnais d'audit shell 11d — débordements + alignements sur TOUTES les vues.
    Vues SPA : Quick, Studio, Chapitres, Scheduler, Templates, News, Library,
-   Game Assets (3D + wrappers Sprites 2D/Tuiles — leurs iframes sont audités
-   via les pages standalone), Settings. Standalone : /spritelab/, /tilelab/,
-   /atelier/.
+   Game Assets (3D + wrappers 3D Studio/Sprites 2D/Tuiles — leurs iframes sont
+   audités via les pages standalone), Settings. Standalone : /spritelab/,
+   /tilelab/, /atelier/, /studio3d/ (v2.1). DZ_BASE=<url> change le serveur
+   cible (défaut http://127.0.0.1:8765).
    Scans par vue :
    - page-hscroll   : scroll horizontal de la page entière ;
    - viewport-spill : élément qui sort du viewport à gauche/droite ;
@@ -27,7 +28,7 @@
 const puppeteer = require('puppeteer-core');
 const fs = require('fs');
 const path = require('path');
-const BASE = 'http://127.0.0.1:8765';
+const BASE = process.env.DZ_BASE || 'http://127.0.0.1:8765';
 const OUT = process.argv[2] || path.join(__dirname, 'shots-shell-audit');
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
@@ -196,7 +197,7 @@ function scanPage(ignore) {
         return rq.respond({ status: 200, contentType: 'application/javascript; charset=utf-8',
           body: fs.readFileSync(LOCAL_BUNDLE) });
       }
-      if (WEBROOT && /^\/(spritelab|tilelab|atelier)\//.test(pn)) {
+      if (WEBROOT && /^\/(spritelab|tilelab|atelier|studio3d|meshy)\//.test(pn)) {
         const rel = pn.endsWith('/') ? pn + 'index.html' : pn;
         const fp = path.join(WEBROOT, rel.replace(/^\//, ''));
         if (fs.existsSync(fp)) {
@@ -215,7 +216,7 @@ function scanPage(ignore) {
     /* iframes same-origin (Game Assets > Sprites 2D / Tuiles) : audit du
        document embarqué aussi — les débordements internes y vivent. */
     for (const f of page.frames()) {
-      if (f === page.mainFrame() || !/spritelab|tilelab|atelier/.test(f.url())) continue;
+      if (f === page.mainFrame() || !/spritelab|tilelab|atelier|studio3d/.test(f.url())) continue;
       try {
         const sub = await f.evaluate(scanPage, IGNORE);
         sub.forEach(x => { x.sel = 'iframe:' + x.sel; findings.push(x); });
@@ -254,7 +255,7 @@ function scanPage(ignore) {
   }
 
   await nav('Game Assets');
-  for (const tab of ['3D', 'Sprites 2D', 'Tuiles']) {
+  for (const tab of ['3D', '3D Studio', 'Sprites 2D', 'Tuiles']) {
     await page.evaluate(t => {
       const b = [...document.querySelectorAll('main button, button')]
         .find(x => (x.textContent || '').trim().endsWith(t));
@@ -265,7 +266,7 @@ function scanPage(ignore) {
   }
 
   /* — pages standalone — */
-  for (const u of ['/spritelab/', '/tilelab/', '/atelier/']) {
+  for (const u of ['/spritelab/', '/tilelab/', '/atelier/', '/studio3d/']) {
     await page.goto(BASE + u, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
     await sleep(2000);
     await audit('standalone' + u.replace(/\//g, '-'));
@@ -275,7 +276,7 @@ function scanPage(ignore) {
      iframe Game Assets sur fenêtre étroite : la grille .panes imposait
      980px de min et débordait). Rejouée sur les 3 pages standalone. — */
   await page.setViewport({ width: 900, height: 950 });
-  for (const u of ['/spritelab/', '/tilelab/', '/atelier/']) {
+  for (const u of ['/spritelab/', '/tilelab/', '/atelier/', '/studio3d/']) {
     await page.goto(BASE + u, { waitUntil: 'networkidle2', timeout: 30000 }).catch(() => {});
     await sleep(2000);
     await audit('narrow900' + u.replace(/\//g, '-'));

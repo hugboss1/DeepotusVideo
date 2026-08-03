@@ -328,7 +328,11 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
 
     engine = str(body.get("engine") or "tripo").lower()
     if engine == "meshy":
-        raise HTTPException(501, "Meshy engine is prepared but not yet wired. Use a fal engine.")
+        # Le pipeline Meshy complet (preview→refine→remesh→rig→animations)
+        # vit dans le 3D Studio (/studio3d + proxy /api/meshy/*), pas dans ce
+        # flux fal une-passe.
+        raise HTTPException(501, "Meshy runs in the 3D Studio (/studio3d). "
+                                 "Use a fal engine here.")
     if engine not in ENGINES:
         raise HTTPException(400, f"Unknown engine: {engine}")
     if not settings.FAL_KEY:
@@ -503,6 +507,142 @@ async def save_asset3d_shot(job: str, i: int):
         n += 1
     shutil.copy2(src, dest)
     return {"filename": dest.name}
+
+
+# ---- 3D Studio Meshy (v2.1) — proxy sécurisé + journal + bibliothèque ----
+# Spec : INTEGRATION-MESHY.md (projet Claude Design « DeepOtus Studio »).
+# La clé MESHY_API_KEY ne quitte jamais le serveur : le front (/studio3d +
+# frontend/meshy/meshy.client.js) parle à /api/meshy/* qui recopie vers
+# api.meshy.ai en injectant le Bearer, chemins allowlistés. Ce flux est
+# indépendant de Game Assets 3D (fal) ci-dessus, qui reste inchangé.
+
+
+@router.api_route("/meshy/{meshy_path:path}", methods=["GET", "POST", "DELETE"])
+async def meshy_proxy(meshy_path: str, request: Request):
+    from fastapi.responses import StreamingResponse
+    from app.services import meshy_service as MS
+
+    parsed = MS.parse_proxy_path(request.method, meshy_path)
+    if parsed is None:
+        raise HTTPException(403, f"Meshy path not allowed: {request.method} /{meshy_path}")
+    mock = MS.mock_enabled()
+    if not mock and not settings.has_meshy:
+        raise HTTPException(503, "MESHY_API_KEY not configured — add it in "
+                                 "Settings (or set MESHY_MOCK=1 for the local simulator)")
+
+    body = await request.body()
+    payload = None
+    if request.method == "POST":
+        try:
+            payload = json.loads(body) if body else {}
+        except ValueError:
+            raise HTTPException(400, "Invalid JSON body")
+
+    # SSE : relais en streaming — sinon le client retombe sur le polling.
+    if parsed["stream"]:
+        if mock:
+            async def _mock_events():
+                async for ev in MS.get_mock().stream(parsed["task_id"]):
+                    if ev.startswith("data:"):
+                        try:
+                            task = json.loads(ev[5:].strip())
+                            if task.get("status") in MS.TERMINAL:
+                                await MS.record_state(task, parsed["base"])
+                        except ValueError:
+                            pass
+                    yield ev
+            return StreamingResponse(_mock_events(), media_type="text/event-stream")
+        return StreamingResponse(MS.proxy_stream(meshy_path),
+                                 media_type="text/event-stream")
+
+    if mock:
+        mk = MS.get_mock()
+        if request.method == "POST":
+            code, data = mk.create(parsed["base"], payload or {})
+            if code < 400 and data.get("result"):
+                await MS.record_created(str(data["result"]), parsed["base"], payload)
+        elif request.method == "DELETE":
+            code, data = mk.delete(parsed["task_id"])
+        elif parsed["base"] == MS.BALANCE_PATH:
+            code, data = mk.balance()
+        elif parsed["task_id"]:
+            code, data = mk.get(parsed["task_id"])
+            if code == 200:
+                await MS.record_state(data, parsed["base"])
+        else:
+            code, data = 200, {"result": []}  # liste paginée non simulée
+        return Response(json.dumps(data), status_code=code,
+                        media_type="application/json")
+
+    code, content, ctype = await MS.proxy_request(
+        request.method, meshy_path, body, dict(request.query_params))
+    # Journal (spec §6) : créations + états qui transitent par le proxy.
+    try:
+        data = json.loads(content) if content else {}
+        if (request.method == "POST" and code < 400
+                and isinstance(data, dict) and data.get("result")):
+            await MS.record_created(str(data["result"]), parsed["base"], payload)
+        elif (request.method == "GET" and code == 200
+                and parsed["task_id"] and isinstance(data, dict)):
+            await MS.record_state(data, parsed["base"])
+    except ValueError:
+        pass
+    return Response(content, status_code=code, media_type=ctype)
+
+
+@router.post("/meshy3d/estimate")
+async def meshy3d_estimate(body: dict):
+    """Coût estimé AVANT lancement (règle produit) : total + détail lignes."""
+    from app.services import meshy_service as MS
+    return MS.estimate_pipeline(body or {})
+
+
+@router.get("/meshy3d/status")
+async def meshy3d_status():
+    from app.services import meshy_service as MS
+    mock = MS.mock_enabled()
+    return {"enabled": settings.has_meshy or mock, "mock": mock,
+            "configured": settings.has_meshy,
+            "host": "simulateur local" if mock else "api.meshy.ai"}
+
+
+@router.get("/meshy3d/tasks")
+async def meshy3d_tasks(limit: int = 60):
+    """Journal + bibliothèque persistée (les URLs Meshy expirent, pas nous)."""
+    from app.services import meshy_service as MS
+    rows = await MS.list_tasks(limit=limit)
+    return {"tasks": rows, "expiring": MS.expiring_soon(rows)}
+
+
+@router.post("/meshy3d/repatriate/{task_id}")
+async def meshy3d_repatriate(task_id: str):
+    """Rapatrie les binaires d'une tâche SUCCEEDED (normalement automatique)."""
+    from app.services import meshy_service as MS
+    try:
+        return await MS.repatriate(task_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/meshy3d/files/{task_dir}/{fname}")
+async def meshy3d_file(task_dir: str, fname: str):
+    """Sert un binaire rapatrié (bibliothèque locale, URLs stables)."""
+    from app.services import meshy_service as MS
+    p = MS.meshy3d_dir() / Path(task_dir).name / Path(fname).name
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    media = "model/gltf-binary" if p.suffix == ".glb" else None
+    return FileResponse(p, media_type=media)
+
+
+@router.get("/meshy3d/mockfile/{task_id}/{fname}")
+async def meshy3d_mockfile(task_id: str, fname: str):
+    """Binaires du simulateur (MESHY_MOCK=1) : GLB/PNG minimaux valides."""
+    from app.services import meshy_service as MS
+    if not MS.mock_enabled():
+        raise HTTPException(404, "Mock mode disabled")
+    data, media = MS.mock_file_bytes(Path(fname).name)
+    return Response(data, media_type=media)
 
 
 # ---- Game Assets 2D — Sprite Lab (chantier 9a) ----
@@ -2130,6 +2270,10 @@ async def health():
         "fal_configured": bool(settings.FAL_KEY),
         "voiceover_enabled": vo_enabled,
         "heygen_enabled": settings.has_heygen,
+        # v2.1 (3D Studio) : clé réelle OU simulateur local MESHY_MOCK
+        "has_meshy": settings.has_meshy,
+        "meshy_enabled": settings.has_meshy or bool(settings.MESHY_MOCK),
+        "meshy_mock": bool(settings.MESHY_MOCK),
         "summarizer_enabled": settings.has_summarizer,
         "has_summarizer": settings.has_summarizer,
         "openai_enabled": settings.has_openai,

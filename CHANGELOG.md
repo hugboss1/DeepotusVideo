@@ -4,6 +4,40 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.1.0 "3D Studio"
+
+## 🐙 3D Studio Meshy — écran 1 du design « DeepOtus Studio » (spec `INTEGRATION-MESHY.md`)
+
+Pipeline Meshy **réel** : prompt/réf → maillage (preview) → texture PBR
+(refine) → remesh quad → auto-rig → animations → export, rendu par le graphe
+8 nœuds de la maquette (câbles animés, journal des tâches, panneau nœud
+actif avec les noms de champs de l'API, rail moteur/coût/transport).
+
+| Pièce | Mécanisme |
+|---|---|
+| **Écran** | `frontend/studio3d/` (page standalone, direction Cinema via `deepotus.tokens.css`), montée à `/studio3d` et iframée par le hub Game Assets « 🐙 3D Studio » (`patch_bundle_studio3d.py`). Le sous-onglet 🧊 3D (fal) reste l'onglet par défaut, intact. |
+| **Client** | `frontend/meshy/meshy.client.js` (client de référence de la spec, servi à `/meshy/`) : tarifs officiels, `estimatePipeline`, orchestrateur `MeshyPipeline` — le graphe ne pilote rien, il rend l'état émis. |
+| **Proxy** | `/api/meshy/{path}` (backend/app/services/meshy_service.py) : la clé `MESHY_API_KEY` ne quitte jamais le serveur, chemins strictement allowlistés (surface docs.meshy.ai), relais SSE `/:id/stream` en streaming. |
+| **Coût** | estimé ligne à ligne AVANT chaque lancement (rail + modale de confirmation) ; après coup, seule vérité comptable = `consumed_credits` (tâche FAILED remboursée) ; solde `GET /balance` affiché. |
+| **Bibliothèque** | table `meshy_tasks` + rapatriement automatique des binaires dans `outputs/meshy3d/<task_id>/` dès `SUCCEEDED` (les URLs Meshy expirent), servis à `/api/meshy3d/files/…` ; journal `GET /api/meshy3d/tasks`. |
+| **Mode mock** | `MESHY_MOCK=1` : simulateur local fidèle (statuts, progress, crédits, GLB/PNG minimaux valides) — pipeline complet sans clé ni crédits, pour la démo et la QA. |
+
+Notes :
+- La clé se saisit dans **Réglages → « Meshy 6 (3D · optional) »** (allowlist
+  `.env` existante) ; `/api/health` expose `has_meshy` / `meshy_enabled` /
+  `meshy_mock`.
+- Game Assets 3D (fal tripo/rodin/hunyuan/trellis/triposr) est inchangé ;
+  `engine=meshy` sur `/api/assets/3d` renvoie toujours 501 en pointant vers
+  le 3D Studio.
+- QA : `scripts/qa/qa-studio3d.js` (parcours complet en mock, 15 checks +
+  5 captures) ; `qa-shell-audit.js` passe à 20 vues (hub « 3D Studio » +
+  `/studio3d/` large et 900px), `DZ_BASE` paramétrable.
+- Tests : `backend/tests/test_meshy_service.py` (23 assertions — pricing,
+  estimation, allowlist, pipeline mock de bout en bout via le proxy HTTP,
+  persistance, rapatriement, SSE, 403/503, non-régression ENGINES fal).
+
+---
+
 # 🐙 Deepotus Video Gen — v2.0.0 "Studio Cinema"
 
 ## 🎨 Refonte UI v2 — direction Cinema (design « DeepOtus Studio »)
