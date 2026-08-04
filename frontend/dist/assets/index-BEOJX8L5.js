@@ -621,6 +621,8 @@ function DzMontage(props){
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
+  var stF=x.useState(null),fxCat=stF[0],setFxCat=stF[1]; /* catalogue Effects/Mask */
+  var stFP=x.useState(!1),fxPick=stFP[0],setFxPick=stFP[1];
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
   var clipsRef=x.useRef(clips);clipsRef.current=clips;
@@ -643,6 +645,12 @@ function DzMontage(props){
       setProj({demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
         dur:Math.max(1,Number(d.duration)||1),mixDb:d.mix||SVM_DEMO_MIX});
     }).catch(function(){});
+    return function(){alive=!1}},[]);
+
+  /* catalogue du moteur Effects / Mask (sélecteur d'effets par clip) */
+  x.useEffect(function(){var alive=!0;
+    fetch("/api/montage/effects").then(function(res){return res.json()}).then(function(d){
+      if(alive&&d&&d.effects)setFxCat(d.effects)}).catch(function(){});
     return function(){alive=!1}},[]);
 
   var sel=clips.find(function(c){return c.id===selId})||null;
@@ -716,7 +724,10 @@ function DzMontage(props){
           ns=Math.min(durRef.current-len,Math.max(0,ns));
           return Object.assign({},k,{start:ns,end:ns+len})}
         if(edge==="l"){var v=Math.min(e0-.3,Math.max(0,doSnap(s0+ds)));
-          return Object.assign({},k,{start:v})}
+          var upd={start:v};
+          /* rognage gauche NLE : la source avance d'autant (clips réels) */
+          if(k.src)upd.srcIn=Math.max(0,(c.srcIn||0)+(v-s0));
+          return Object.assign({},k,upd)}
         var w=Math.max(s0+.3,Math.min(durRef.current,doSnap(e0+ds)));
         return Object.assign({},k,{end:w})}))}
     function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
@@ -737,7 +748,9 @@ function DzMontage(props){
       duration_master:durMaster,ducking:!0,mix:proj.mixDb,
       clips:clips.filter(function(c){return c.src}).map(function(c){
         return {tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
-          transition:c.transition||"cut",transition_s:c.transition_s||0}})}}
+          transition:c.transition||"cut",transition_s:c.transition_s||0,
+          effects:c.effects&&c.effects.length?c.effects:void 0,
+          opacity:c.opacity}})}}
   function launchRender(preview){
     if(proj.demo||(job&&job.status!=="failed"))return;
     setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
@@ -809,6 +822,25 @@ function DzMontage(props){
             onClick:function(){if(!busy)launchRender(!isR)},
             children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l'aperçu")})]})]})}
 
+  /* sélecteur d'effets — catalogue réel du moteur Effects / Mask */
+  function fxPicker(){
+    if(!fxPick||!fxCat)return null;
+    return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Ajouter un effet — moteur Effects / Mask"}),
+      r.jsx("div",{className:"svm-fxchips",style:{marginTop:10},children:
+        Object.keys(fxCat).map(function(t3){
+          return r.jsx("button",{className:"svm-fxchip",style:{cursor:"pointer"},
+            onClick:function(){
+              var id=selRef.current;
+              setClips(clipsRef.current.map(function(k){
+                if(k.id!==id)return k;
+                return Object.assign({},k,{effects:(k.effects||[]).concat([{type:t3,intensity:60}])})}));
+              setDirty(!0);setFxPick(!1);
+              fireNote("Effet « "+((fxCat[t3]&&fxCat[t3].label)||t3)+" » ajouté — appliqué au rendu du clip.")},
+            children:(fxCat[t3]&&fxCat[t3].label)||t3},t3)})}),
+      r.jsx("div",{className:"svm-poprow",children:
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})})]})}
+
   return r.jsxs("div",{className:"dzsvm svm-col","data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
@@ -820,6 +852,7 @@ function DzMontage(props){
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]})]}),
     popover(),
+    fxPicker(),
     /* lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
       r.jsxs("div",{className:"svm-playerzone",children:[
@@ -860,8 +893,23 @@ function DzMontage(props){
         r.jsxs("div",{className:"svm-fxchips",children:[
           (sel&&sel.fx?sel.fx:[]).map(function(f){
             return r.jsx("span",{className:"svm-fxchip","data-c":f.c,children:f.n},f.n)}),
+          (sel&&sel.effects?sel.effects:[]).map(function(f,fi){
+            var lbl=(fxCat&&fxCat[f.type]&&fxCat[f.type].label)||f.type;
+            return r.jsx("button",{className:"svm-fxchip","data-c":"c3d",
+              title:"Retirer l'effet",style:{cursor:"pointer"},
+              onClick:function(){
+                var id=selRef.current;
+                setClips(clipsRef.current.map(function(k){
+                  if(k.id!==id)return k;
+                  var fx=(k.effects||[]).slice();fx.splice(fi,1);
+                  return Object.assign({},k,{effects:fx})}));
+                setDirty(!0)},
+              children:lbl},f.type+fi)}),
           r.jsx("button",{className:"svm-fxadd",
-            onClick:function(){fireNote("Le sélecteur d'effets s'ouvrira sur le moteur Effects / Mask — câblage à l'étape suivante.")},
+            onClick:function(){
+              if(!sel||!sel.src){fireNote("Effets par clip : disponibles sur les clips réels (Bibliothèque) — la démo reste une maquette.");return}
+              if(!fxCat){fireNote("Catalogue d'effets indisponible — backend à relancer ?");return}
+              setFxPick(!fxPick)},
             children:"+ effet"})]})]})]}),
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[

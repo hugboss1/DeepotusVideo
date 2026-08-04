@@ -24,9 +24,16 @@ gèle sa dernière image plutôt que couper la voix. Les trous entre clips V1
 se referment au rendu (concat séquentiel) — le projet initial est généré
 sans trous, donc timeline et rendu coïncident.
 
-Non couvert (étapes suivantes) : piste V2 overlay (ignorée avec warning),
-effets par clip (moteur Effects/Mask), src_in audio. Tout est local ffmpeg
-→ 0 crédit, l'UI l'affiche avant déclenchement (règle produit).
+Piste V2 : overlays vidéo/image posés à leur position timeline (overlay
+enable='between(t,…)', cover du canvas, alpha préservé pour les PNG,
+opacité optionnelle), appliqués après le maître de durée. Effets par clip :
+moteur Effects/Mask existant (effects_engine.build_chain) sur chaque
+segment V1 — catalogue exposé par GET /api/montage/effects. src_in audio :
+les clips A1/A3 lisent leur source à partir de srcIn (atrim décalé).
+
+Tout est local ffmpeg → 0 crédit, l'UI l'affiche avant déclenchement
+(règle produit). Trous V1 : le concat séquentiel les referme (le projet
+initial est généré sans trous).
 """
 from __future__ import annotations
 
@@ -157,11 +164,23 @@ async def montage_project(limit: int = 4):
             "sources": {"videos": len(vids), "audio": len(audio)}}
 
 
+@router.get("/effects")
+async def montage_effects():
+    """Catalogue du moteur Effects / Mask pour le sélecteur d'effets par clip
+    de l'inspecteur (labels FR + paramètres par type)."""
+    from app.services import effects_engine
+    return {"effects": effects_engine.catalog()}
+
+
 # ----------------------------------------------------------------- render ---
+
+_IMAGE_EXTS = (".png", ".jpg", ".jpeg", ".webp")
+
 
 async def _resolve_src(src: dict | None) -> Path | None:
     """{job_id} → chemin du rendu fini ; {audio: name} → fichier du dossier
-    audio ; {file_path} absolu accepté s'il existe."""
+    audio ; {image: name} → fichier du dossier images (overlays V2) ;
+    {file_path} absolu accepté s'il existe."""
     if not isinstance(src, dict):
         return None
     jid = src.get("job_id")
@@ -170,6 +189,10 @@ async def _resolve_src(src: dict | None) -> Path | None:
             jr = await session.get(JobRecord, str(jid))
         fp = jr and (jr.final_video_path or jr.video_path)
         return Path(fp) if fp and Path(fp).exists() else None
+    img = src.get("image")
+    if img:
+        q = settings.images_path / Path(str(img)).name
+        return q if q.exists() else None
     name = src.get("audio") or src.get("filename")
     if name:
         q = _audio_dir() / Path(str(name)).name
@@ -181,10 +204,10 @@ async def _resolve_src(src: dict | None) -> Path | None:
     return None
 
 
-def _build_montage_command(v1, a_clips, music, *, w, h, fps, mix_db,
+def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out):
-    """Commande ffmpeg complète (sync, testable). v1/a_clips/music portent des
-    chemins déjà résolus + durées sondées."""
+    """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
+    des chemins déjà résolus + durées sondées."""
     inputs, parts = [], []
     idx = 0
 
@@ -202,11 +225,18 @@ def _build_montage_command(v1, a_clips, music, *, w, h, fps, mix_db,
         idx += 1
     sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
           f"crop={w}:{h},setsar=1,fps={fps},format=yuv420p")
+    from app.services import effects_engine as _fx
     for k, c in enumerate(v1):
-        parts.append(
-            f"[{seg_idx[k]}:v]{sf},"
-            f"tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
-            f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS[n{k}]")
+        chain = (f"{sf},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
+                 f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
+        reff = c.get("effects")
+        if reff:
+            # Effets par clip — même moteur que le node Effects / Mask.
+            parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
+            parts += _fx.build_chain(reff, f"n{k}pre", f"n{k}",
+                                     f"cfx{k}", {"w": w, "h": h})
+        else:
+            parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}]")
 
     starts = [0.0] * len(v1)
     if len(v1) == 1:
@@ -230,11 +260,14 @@ def _build_montage_command(v1, a_clips, music, *, w, h, fps, mix_db,
     # --- audio : voix/sfx posées à leur position, musique bouclée + ducking ---
     voice_lbl, sfx_lbl = [], []
     for n, c in enumerate(a_clips):
-        d = round(min(max(0.1, c["end"] - c["start"]), c["src_dur"]), 3)
+        sin = max(0.0, float(c.get("src_in") or 0))
+        avail = max(0.1, c["src_dur"] - sin)
+        d = round(min(max(0.1, c["end"] - c["start"]), avail), 3)
         inputs.extend(["-i", str(c["path"])])
         dly = int(round(c["start"] * 1000))
         parts.append(
-            f"[{idx}:a]atrim=0:{d},asetpts=PTS-STARTPTS,"
+            f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
+            f"asetpts=PTS-STARTPTS,"
             f"aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={c['gain']},"
             f"adelay={dly}|{dly}[{'va' if c['tr'] == 'a1' else 'sa'}{n}]")
@@ -251,6 +284,40 @@ def _build_montage_command(v1, a_clips, music, *, w, h, fps, mix_db,
                      f"stop_duration={round(audio_end - total, 3)}[vext]")
         cur = "vext"
         total = round(audio_end, 3)
+
+    # --- V2 : overlays posés à leur position timeline, après le maître de
+    # durée (ils couvrent aussi l'extension) et avant l'encodage final.
+    # Recette : setpts décalé + enable='between(t,…)' + eof_action=pass ;
+    # l'alpha des PNG est préservé (pas de format=yuv420p dans cette chaîne),
+    # opacité optionnelle via colorchannelmixer.
+    for j, o in enumerate(sorted(v2, key=lambda k2: k2["start"])):
+        want = max(0.1, o["end"] - o["start"])
+        if o["is_image"]:
+            d = round(min(want, max(0.1, total - o["start"])), 3)
+            inputs.extend(["-loop", "1", "-t", str(d), "-i", str(o["path"])])
+        else:
+            avail = max(0.1, o["src_dur"] - o["src_in"])
+            d = round(min(want, avail), 3)
+            if o["src_in"] > 0:
+                inputs.extend(["-ss", str(o["src_in"])])
+            inputs.extend(["-t", str(d), "-i", str(o["path"])])
+        st = round(max(0.0, o["start"]), 3)
+        en = round(st + d, 3)
+        och = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+               f"crop={w}:{h},setsar=1,fps={fps}")
+        op = o.get("opacity")
+        try:
+            op = None if op is None else float(op)
+        except (TypeError, ValueError):
+            op = None
+        if op is not None and 0.0 <= op < 1.0:
+            och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
+        och += f",setpts=PTS-STARTPTS+{st}/TB"
+        parts.append(f"[{idx}:v]{och}[ov{j}]")
+        parts.append(f"[{cur}][ov{j}]overlay=eof_action=pass:"
+                     f"enable='between(t,{st},{en})'[ob{j}]")
+        cur = f"ob{j}"
+        idx += 1
 
     music_lbl = None
     if music is not None:
@@ -331,9 +398,6 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     if not v1_in:
         raise HTTPException(400, "Timeline sans clip vidéo — ajoute au moins "
                                  "un rendu ou un upload en piste V1.")
-    if any(c.get("tr") == "v2" for c in clips):
-        logger.warning("montage: piste V2 (overlay) ignorée au rendu — "
-                       "câblage overlay = étape suivante")
 
     preview = bool(body.get("preview"))
     ratio = str(body.get("ratio") or "9:16")
@@ -389,7 +453,28 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "start": float(c.get("start") or 0),
                            "end": float(c.get("end") or 0),
                            "transition": c.get("transition"),
-                           "transition_s": c.get("transition_s")})
+                           "transition_s": c.get("transition_s"),
+                           "effects": (c.get("effects")
+                                       if isinstance(c.get("effects"), list)
+                                       else None)})
+            v2 = []
+            for c in clips:
+                if c.get("tr") != "v2":
+                    continue
+                p = await _resolve_src(c.get("src"))
+                if p is None:
+                    logger.warning(f"montage: overlay introuvable, ignoré — "
+                                   f"{c.get('label') or c.get('src')}")
+                    continue
+                is_img = p.suffix.lower() in _IMAGE_EXTS
+                sdur = (0.0 if is_img else
+                        await loop.run_in_executor(None, _probe_duration, p))
+                v2.append({"path": p, "is_image": is_img,
+                           "src_dur": sdur or 9999.0,
+                           "src_in": max(0.0, float(c.get("srcIn") or 0)),
+                           "start": max(0.0, float(c.get("start") or 0)),
+                           "end": float(c.get("end") or 0),
+                           "opacity": c.get("opacity")})
             a_clips, music = [], None
             for c in clips:
                 if c.get("tr") not in ("a1", "a2", "a3"):
@@ -406,6 +491,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     a_clips.append({
                         "tr": "a1" if c["tr"] == "a1" else "a3",
                         "path": p, "src_dur": sdur or 9999.0,
+                        "src_in": max(0.0, float(c.get("srcIn") or 0)),
                         "start": max(0.0, float(c.get("start") or 0)),
                         "end": float(c.get("end") or 0),
                         "gain": g_voice if c["tr"] == "a1" else g_sfx})
@@ -418,11 +504,13 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 await session.commit()
 
             cmd, total = _build_montage_command(
-                v1, a_clips, music, w=w, h=h, fps=fps,
+                v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
                 duration_master=duration_master, preview=preview, out=out)
-            logger.info(f"montage {short}: {len(v1)} clips V1, "
-                        f"{len(a_clips)} audio, musique={music is not None}, "
+            fx_n = sum(len(c["effects"] or []) for c in v1)
+            logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
+                        f"{len(v2)} overlays V2, {len(a_clips)} audio, "
+                        f"musique={music is not None}, "
                         f"total≈{total}s → {out_name}")
             await asyncio.to_thread(_run_ffmpeg, cmd, out)
 
