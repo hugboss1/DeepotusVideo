@@ -623,6 +623,10 @@ function DzMontage(props){
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
   var stF=x.useState(null),fxCat=stF[0],setFxCat=stF[1]; /* catalogue Effects/Mask */
   var stFP=x.useState(!1),fxPick=stFP[0],setFxPick=stFP[1];
+  var stFE=x.useState(null),fxEdit=stFE[0],setFxEdit=stFE[1]; /* {id,i} chip en édition */
+  var stO=x.useState(!1),ovPick=stO[0],setOvPick=stO[1];
+  var stS=x.useState(null),sources=stS[0],setSources=stS[1]; /* {images,videos} pour overlays */
+  var ovSeq=x.useRef(0);
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
   var clipsRef=x.useRef(clips);clipsRef.current=clips;
@@ -734,6 +738,32 @@ function DzMontage(props){
       if(moved)setDirty(!0)}
     tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
 
+  /* ── overlays V2 : sources (Bibliothèque) + ajout à la tête de lecture ── */
+  function openOvPicker(){
+    if(proj.demo){fireNote("Overlays : disponibles sur un projet réel — la démo reste une maquette.");return}
+    if(sources){setOvPick(!ovPick);return}
+    Promise.all([
+      fetch("/api/images").then(function(res){return res.json()}).catch(function(){return {}}),
+      fetch("/api/jobs").then(function(res){return res.json()}).catch(function(){return []})
+    ]).then(function(rr){
+      var imgs=((rr[0]&&rr[0].images)||[]).slice(0,24).map(function(im){return {name:im.filename}});
+      var vids=(Array.isArray(rr[1])?rr[1]:[]).filter(function(j3){
+        return j3.status==="done"&&(j3.video_path||j3.final_video_path)&&
+          !(j3.provider==="montage"&&String(j3.image_filename||"").indexOf("_preview")>=0)})
+        .slice(0,12).map(function(j3){return {job_id:j3.job_id,title:j3.title||j3.job_id,
+          dur:Number(j3.duration_real_s||j3.duration_s)||0}});
+      setSources({images:imgs,videos:vids});setOvPick(!0)});
+  }
+  function addOverlay(src,label,kind,vidDur){
+    var d=durRef.current,st=Math.min(Math.max(0,phRef.current),Math.max(0,d-1));
+    var len=kind==="image"?4:Math.min(6,vidDur||6);
+    var en=Math.min(d,st+len);if(en-st<.5)st=Math.max(0,en-1);
+    ovSeq.current++;
+    var id="v2u"+ovSeq.current+"_"+Math.round(st*10);
+    setClips(clipsRef.current.concat([{tr:"v2",id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
+    setSelId(id);setDirty(!0);setOvPick(!1);
+    fireNote("Overlay « "+label+" » ajouté à "+svmShort(st)+" — glissez / rognez sur la piste V2.")}
+
   /* sauts transport — points de coupe V1 */
   function jump(dir){var pts=[0,durRef.current];
     clips.forEach(function(c){if(c.tr==="v1")pts.push(c.start,c.end)});
@@ -841,6 +871,68 @@ function DzMontage(props){
       r.jsx("div",{className:"svm-poprow",children:
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})})]})}
 
+  /* réglage d'opacité (overlay V2 sélectionné) */
+  function opacityRow(){
+    var v=Math.round((sel.opacity==null?1:sel.opacity)*100);
+    return r.jsxs("div",{className:"svm-fxedit",children:[
+      r.jsx("span",{className:"svm-fxeditname",children:"Opacité"}),
+      r.jsx("input",{className:"svm-range",type:"range",min:10,max:100,step:5,value:v,
+        "aria-label":"Opacité de l'overlay",
+        onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;
+          setClips(clipsRef.current.map(function(k){return k.id===id?Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));
+          setDirty(!0)}}),
+      r.jsx("span",{className:"svm-rangeval",children:v+" %"})]})}
+
+  /* réglage d'intensité / retrait du chip d'effet en cours d'édition */
+  function fxEditRow(){
+    if(!fxEdit||!sel||fxEdit.id!==sel.id)return null;
+    var f=(sel.effects||[])[fxEdit.i];if(!f)return null;
+    var meta=(fxCat&&fxCat[f.type])||{};var lbl=meta.label||f.type;
+    var hasInt=(meta.params||[]).indexOf("intensity")>=0;
+    return r.jsxs("div",{className:"svm-fxedit",children:[
+      r.jsx("span",{className:"svm-fxeditname",children:lbl}),
+      hasInt?r.jsx("input",{className:"svm-range",type:"range",min:5,max:100,step:5,
+        value:Math.round(f.intensity!=null?f.intensity:60),
+        "aria-label":"Intensité de l'effet "+lbl,
+        onChange:function(e){var nv=Number(e.target.value);var id=selRef.current,i2=fxEdit.i;
+          setClips(clipsRef.current.map(function(k){
+            if(k.id!==id)return k;
+            var fx=(k.effects||[]).slice();fx[i2]=Object.assign({},fx[i2],{intensity:nv});
+            return Object.assign({},k,{effects:fx})}));
+          setDirty(!0)}}):
+        r.jsx("span",{className:"svm-note",style:{flex:1,marginTop:0},children:"sans réglage d'intensité"}),
+      hasInt?r.jsx("span",{className:"svm-rangeval",children:Math.round(f.intensity!=null?f.intensity:60)}):null,
+      r.jsx("button",{className:"svm-minibtn",onClick:function(){
+        var id=selRef.current,i2=fxEdit.i;
+        setClips(clipsRef.current.map(function(k){
+          if(k.id!==id)return k;
+          var fx=(k.effects||[]).slice();fx.splice(i2,1);
+          return Object.assign({},k,{effects:fx})}));
+        setFxEdit(null);setDirty(!0)},children:"retirer"})]})}
+
+  /* sélecteur d'overlay — images + rendus de la Bibliothèque */
+  function ovPicker(){
+    if(!ovPick||!sources)return null;
+    return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[
+      r.jsx("div",{className:"svm-poptitle",children:"Ajouter un overlay — piste V2"}),
+      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},children:"Posé à la tête de lecture ("+svmShort(ph)+"). Les PNG gardent leur transparence ; opacité réglable dans l'inspecteur."}),
+      r.jsx(SvmLabel,{style:{marginTop:12},children:"Images (Bibliothèque)"}),
+      sources.images.length?
+        r.jsx("div",{className:"svm-ovgrid",children:sources.images.map(function(im){
+          return r.jsx("button",{className:"svm-ovimg",title:im.name,
+            style:{backgroundImage:"url('/api/images/"+encodeURIComponent(im.name)+"')",backgroundSize:"cover",backgroundPosition:"center"},
+            onClick:function(){addOverlay({image:im.name},im.name,"image")}},im.name)})}):
+        r.jsx("div",{className:"svm-note",children:"aucune image dans la Bibliothèque"}),
+      r.jsx(SvmLabel,{style:{marginTop:12},children:"Rendus vidéo"}),
+      sources.videos.length?
+        r.jsx("div",{className:"svm-ovlist",children:sources.videos.map(function(v3){
+          return r.jsxs("button",{className:"svm-fxchip",style:{cursor:"pointer",textAlign:"left"},
+            onClick:function(){addOverlay({job_id:v3.job_id},v3.title,"video",v3.dur)},
+            children:[v3.title," · ",v3.dur?svmRuler(Math.round(v3.dur)):"—"]},v3.job_id)})}):
+        r.jsx("div",{className:"svm-note",children:"aucun rendu vidéo terminé"}),
+      r.jsx("div",{className:"svm-poprow",children:
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick(!1)},children:"Fermer"})})]})}
+
   return r.jsxs("div",{className:"dzsvm svm-col","data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
@@ -853,6 +945,7 @@ function DzMontage(props){
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]})]}),
     popover(),
     fxPicker(),
+    ovPicker(),
     /* lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
       r.jsxs("div",{className:"svm-playerzone",children:[
@@ -875,6 +968,7 @@ function DzMontage(props){
         ].map(function(p2){return r.jsxs("div",{className:"svm-prop",children:[
           r.jsx("div",{className:"svm-propk",children:p2.k}),
           r.jsx("div",{className:"svm-propv",children:p2.v})]},p2.k)})}),
+        sel&&sel.tr==="v2"&&sel.src?opacityRow():null,
         r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Mixage"}),
         r.jsx("div",{className:"svm-mix",children:mixRows.map(function(m){
           return r.jsxs("div",{children:[
@@ -895,22 +989,20 @@ function DzMontage(props){
             return r.jsx("span",{className:"svm-fxchip","data-c":f.c,children:f.n},f.n)}),
           (sel&&sel.effects?sel.effects:[]).map(function(f,fi){
             var lbl=(fxCat&&fxCat[f.type]&&fxCat[f.type].label)||f.type;
+            var editing=fxEdit&&fxEdit.id===sel.id&&fxEdit.i===fi;
             return r.jsx("button",{className:"svm-fxchip","data-c":"c3d",
-              title:"Retirer l'effet",style:{cursor:"pointer"},
+              title:"Régler / retirer l'effet",
+              style:{cursor:"pointer",borderColor:editing?"var(--accent)":void 0},
               onClick:function(){
-                var id=selRef.current;
-                setClips(clipsRef.current.map(function(k){
-                  if(k.id!==id)return k;
-                  var fx=(k.effects||[]).slice();fx.splice(fi,1);
-                  return Object.assign({},k,{effects:fx})}));
-                setDirty(!0)},
+                setFxEdit(editing?null:{id:selRef.current,i:fi})},
               children:lbl},f.type+fi)}),
           r.jsx("button",{className:"svm-fxadd",
             onClick:function(){
               if(!sel||!sel.src){fireNote("Effets par clip : disponibles sur les clips réels (Bibliothèque) — la démo reste une maquette.");return}
               if(!fxCat){fireNote("Catalogue d'effets indisponible — backend à relancer ?");return}
               setFxPick(!fxPick)},
-            children:"+ effet"})]})]})]}),
+            children:"+ effet"})]}),
+        fxEditRow()]})]}),
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[
       r.jsxs("div",{className:"svm-trans",children:[
@@ -938,7 +1030,10 @@ function DzMontage(props){
               r.jsxs("div",{className:"svm-thead",children:[
                 r.jsxs("div",{className:"svm-tnamerow",children:[
                   r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
-                  r.jsx("span",{className:"svm-tname",children:tr.name})]}),
+                  r.jsx("span",{className:"svm-tname",children:tr.name}),
+                  tr.id==="v2"?r.jsx("button",{className:"svm-ovadd",
+                    title:"Ajouter un overlay (image ou rendu) à la tête de lecture",
+                    onClick:openOvPicker,children:"+"}):null]}),
                 r.jsx("div",{className:"svm-ttype",children:tr.type})]}),
               r.jsx("div",{className:"svm-lane",children:
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){

@@ -299,6 +299,32 @@
 .svm-phline{position:absolute; top:0; bottom:0; width:1px; background:var(--accent);
   box-shadow:0 0 10px var(--accent); pointer-events:none; z-index:1}
 
+/* ajout d'overlay (piste V2) + réglages opacité / intensité */
+.svm-ovadd{width:16px; height:16px; border-radius:5px; border:1px solid var(--stroke2);
+  background:transparent; color:var(--ink3); font-size:10px; line-height:1; cursor:pointer;
+  padding:0; margin-left:auto; display:inline-flex; align-items:center; justify-content:center;
+  transition:all .12s var(--ease)}
+.svm-ovadd:hover{color:var(--ink); border-color:var(--accent)}
+.svm-ovgrid{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin-top:8px;
+  max-height:190px; overflow:auto}
+.svm-ovimg{width:100%; aspect-ratio:1; object-fit:cover; border-radius:6px;
+  border:1px solid var(--stroke); cursor:pointer; display:block; background:var(--panel3);
+  padding:0; transition:border-color .12s var(--ease)}
+.svm-ovimg:hover{border-color:var(--accent)}
+.svm-ovlist{display:flex; flex-direction:column; gap:6px; margin-top:8px;
+  max-height:150px; overflow:auto}
+.svm-fxedit{display:flex; align-items:center; gap:9px; margin-top:8px; padding:8px 10px;
+  border:1px solid var(--stroke); border-radius:8px; background:var(--panel2)}
+.svm-fxedit .svm-fxeditname{font-size:11.5px; color:var(--ink); flex:none}
+.svm-range{flex:1; min-width:0; accent-color:var(--accent); height:14px;
+  cursor:pointer; background:transparent}
+.svm-rangeval{font-family:var(--f-mono); font-size:10.5px; color:var(--ink3);
+  width:34px; text-align:right; flex:none}
+.svm-minibtn{padding:3px 9px; border-radius:6px; border:1px solid var(--stroke);
+  background:transparent; color:var(--ink3); font-family:var(--f-mono); font-size:10px;
+  cursor:pointer; flex:none; transition:all .12s var(--ease)}
+.svm-minibtn:hover{border-color:var(--red); color:var(--red)}
+
 /* render/preview confirm popover */
 .svm-pop{position:absolute; top:52px; right:18px; z-index:20; width:300px;
   background:var(--panel2); border:1px solid var(--stroke2); border-radius:12px;
