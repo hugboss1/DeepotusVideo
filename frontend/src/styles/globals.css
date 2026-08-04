@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes slidein {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.animate-slidein {
+  animation: slidein 0.25s ease-out;
+}
+
+@layer base {
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background:
+      radial-gradient(ellipse at top left, rgba(0, 224, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(123, 44, 255, 0.06) 0%, transparent 60%),
+      #020d24;
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #051226;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #0f2350;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #1a3470;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-deep-900/60 backdrop-blur-sm border border-deep-700/50 rounded-xl p-5;
+  }
+  .panel-title {
+    @apply text-xs uppercase tracking-[0.2em] text-bio-cyan/80 font-display font-semibold mb-3;
+  }
+  .input {
+    @apply w-full bg-deep-950/80 border border-deep-700 rounded-lg px-3 py-2 text-sm
+           focus:outline-none focus:border-bio-cyan/60 focus:ring-1 focus:ring-bio-cyan/30
+           placeholder:text-slate-500;
+  }
+  .btn-primary {
+    @apply bg-gradient-to-r from-bio-cyan to-bio-violet text-deep-950 font-semibold
+           px-5 py-2.5 rounded-lg shadow-glow hover:shadow-glow-violet
+           transition-all hover:-translate-y-0.5 active:translate-y-0
+           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0
+           disabled:shadow-none;
+  }
+  .btn-ghost {
+    @apply bg-deep-800/60 border border-deep-700 text-slate-200 px-4 py-2 rounded-lg
+           hover:bg-deep-700/60 hover:border-bio-cyan/40 transition-colors text-sm;
+  }
+  .badge {
+    @apply text-[10px] uppercase tracking-wider font-mono px-2 py-0.5 rounded
+           bg-deep-700/60 border border-deep-700;
+  }
+}
