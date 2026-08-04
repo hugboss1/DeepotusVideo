@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atelier Chapitre — aperçu du thème v2 (dev only)</title>
+<!-- preview only : les TTF sont servis depuis /fonts en prod -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="atelier.css" />
+</head>
+<body>
+<!-- ══════════════════════════════════════════════════════════════════════════
+     APERÇU STATIQUE — ne fait PAS partie de l'app.
+     Même balisage que index.html, données factices, aucun appel API.
+     Sert à valider atelier.css sans backend. Bouton ◐ = thème clair/sombre.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="brand">🐙 <b>Atelier Chapitre</b> <span class="tag">script → bible → storyboard</span></div>
+  <div class="chapbar">
+    <select id="chapterSelect"><option>Ch. 04 — La marée</option><option>Ch. 05 — Le rivage</option></select>
+    <button class="btn">+ Chapitre</button>
+    <button class="btn primary">📚 Manuscrit</button>
+    <input id="chapterTitle" value="La marée" placeholder="Titre du chapitre" />
+    <input id="chapterSeries" value="Lost Abyss" placeholder="Série" />
+    <button class="btn ghost">🗑</button>
+    <span class="savestate saved">enregistré</span>
+  </div>
+  <button class="btn ghost" id="themeBtn" title="Thème clair / sombre">◐</button>
+  <a class="backlink" href="/">← App</a>
+</header>
+
+<main class="panes">
+  <section class="pane script-pane">
+    <div class="pane-head">
+      <nav class="tabs" id="modeTabs">
+        <button class="tab active" data-mode="script">Script</button>
+        <button class="tab" data-mode="screenplay">Scénario</button>
+        <button class="tab" data-mode="board">Storyboard</button>
+      </nav>
+      <span id="boardTotal" class="board-total hidden">Σ 1:04</span>
+      <div class="script-actions"><label class="btn">📄 Importer (txt/docx/pdf)</label></div>
+    </div>
+
+    <div id="selBar" class="selbar">
+      Sélection : <em>le Prophète</em>
+      <button class="btn k-character">➕ Personnage</button>
+      <button class="btn k-place">➕ Lieu</button>
+      <button class="btn k-object">➕ Objet</button>
+      <button class="btn k-date">➕ Date</button>
+      <button class="btn k-ambiance">➕ Ambiance</button>
+      <button class="btn k-decor">➕ Décor</button>
+      <select id="linkSelect"><option>🔗 Lier à…</option></select>
+    </div>
+
+    <div class="editor-wrap" id="scriptWrap">
+      <div id="hl" class="hl" aria-hidden="true">Nuit d'encre sur <mark class="k-place">la baie de Kessel</mark>. La mer respire lentement, et sous la surface une lueur monte — <mark class="k-ambiance">froide, biolumineuse</mark>.
+
+<mark class="k-character">Le Prophète</mark> ne remonte pas : il s'installe. Les <mark class="k-object">tables de marée</mark> deviennent inutiles ; le rivage apprend une autre grammaire.
+
+<mark class="k-date">Le 14 du huitième mois</mark>, les écrans de <mark class="k-decor">la promenade basse</mark> se sont tous mis à clignoter en même temps. Personne n'a pensé à débrancher quoi que ce soit.
+
+<mark class="orphan">La vieille jetée</mark> — zone orpheline, à re-lier.</div>
+      <textarea id="script" spellcheck="false">Nuit d'encre sur la baie de Kessel. La mer respire lentement, et sous la surface une lueur monte — froide, biolumineuse.
+
+Le Prophète ne remonte pas : il s'installe. Les tables de marée deviennent inutiles ; le rivage apprend une autre grammaire.
+
+Le 14 du huitième mois, les écrans de la promenade basse se sont tous mis à clignoter en même temps. Personne n'a pensé à débrancher quoi que ce soit.
+
+La vieille jetée — zone orpheline, à re-lier.</textarea>
+    </div>
+    <div class="legend" id="scriptLegend">
+      <span class="chip k-character">Personnage</span>
+      <span class="chip k-place">Lieu</span>
+      <span class="chip k-object">Objet</span>
+      <span class="chip k-date">Date</span>
+      <span class="chip k-ambiance">Ambiance</span>
+      <span class="chip k-decor">Décor</span>
+      <span class="chip orphan">zone orpheline — re-lier</span>
+    </div>
+
+    <div id="screenplay" class="board hidden">
+      <div class="board-toolbar">
+        <button class="btn primary">🎭 Adapter (IA)</button>
+        <button class="btn">👁 Lire</button>
+        <a class="btn">⬇ .fountain</a>
+        <button class="btn ghost">🗑 Réinitialiser</button>
+        <span class="board-hint">le manuscrit reste intact — le scénario est un artefact dérivé</span>
+      </div>
+      <div id="sceneList" class="shot-list">
+        <div class="scene-card">
+          <div class="scene-slug">EXT. BAIE DE KESSEL — NUIT</div>
+          <div class="scene-meta">
+            <select><option>EXT.</option></select>
+            <select><option>NUIT</option></select>
+            <input value="Baie de Kessel" />
+            <input value="0:18" />
+          </div>
+          <div class="scene-cam">Caméra &amp; lumière
+            <input value="plongée lente, clé bleutée rasante, brume basse" />
+          </div>
+          <textarea class="scene-fountain">EXT. BAIE DE KESSEL - NUIT
+
+La mer respire. Sous la surface, une lueur froide monte, puis s'arrête.
+
+LE PROPHÈTE (V.O.)
+La marée ne demande pas la permission.</textarea>
+          <div class="scene-ents">
+            <span class="chip k-character">Le Prophète</span>
+            <span class="chip k-place">Baie de Kessel</span>
+            <span class="chip k-ambiance">froide, biolumineuse</span>
+          </div>
+          <div class="scene-src">dérivé des paragraphes 1–2 du chapitre</div>
+        </div>
+        <div class="scene-card">
+          <div class="scene-slug">EXT. PROMENADE BASSE — NUIT</div>
+          <div class="scene-meta">
+            <select><option>EXT.</option></select>
+            <select><option>NUIT</option></select>
+            <input value="Promenade basse" />
+            <input value="0:14" />
+          </div>
+          <div class="scene-cam">Caméra &amp; lumière
+            <input value="travelling latéral, néons cyan en contre-jour" />
+          </div>
+          <textarea class="scene-fountain">EXT. PROMENADE BASSE - NUIT
+
+Les écrans clignotent tous ensemble. La foule ne bouge pas.</textarea>
+          <div class="scene-ents">
+            <span class="chip k-decor">Promenade basse</span>
+            <span class="chip k-date">14 du huitième mois</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="board" class="board hidden">
+      <div class="board-toolbar">
+        <button class="btn primary">🎬 Découper (IA)</button>
+        <button class="btn">¶ Paragraphes</button>
+        <button class="btn">＋ Plan</button>
+        <button class="btn ghost">🗑 Réinitialiser</button>
+        <span class="board-hint">croquis = validation du cadrage et du rythme avant la production</span>
+      </div>
+      <div id="shotList" class="shot-list">
+        <div class="shot-card">
+          <div class="thumb">
+            <div class="noimg">croquis<br />non généré</div>
+            <span class="seedtag">seed 88213</span>
+          </div>
+          <div class="shot-main">
+            <div class="rowhead">
+              <span class="shot-no">Plan 01</span>
+              <span class="chip k-place">Baie de Kessel</span>
+              <div class="shot-actions">
+                <button class="btn">✎ Croquis</button>
+                <button class="btn ghost">🗑</button>
+              </div>
+            </div>
+            <textarea>Plongée nocturne sur la baie, lueur cyan sous la surface, particules en suspension.</textarea>
+            <div class="shot-params">
+              <select><option>Plongée</option></select>
+              <select><option>Fixe</option></select>
+              <input value="5 s" />
+            </div>
+            <div class="shot-ents">entités : <span class="chip k-ambiance">froide, biolumineuse</span></div>
+            <details class="shot-src"><summary>source</summary><blockquote>Nuit d'encre sur la baie de Kessel. La mer respire lentement…</blockquote></details>
+          </div>
+        </div>
+        <div class="shot-card">
+          <div class="thumb">
+            <div class="noimg">croquis<br />non généré</div>
+            <span class="seedtag">seed 88214</span>
+          </div>
+          <div class="shot-main">
+            <div class="rowhead">
+              <span class="shot-no">Plan 02</span>
+              <span class="chip k-character">Le Prophète</span>
+              <div class="shot-actions">
+                <button class="btn">✎ Croquis</button>
+                <button class="btn ghost">🗑</button>
+              </div>
+            </div>
+            <textarea>Gros plan sur l'œil du Prophète, reflet de la promenade dans la pupille.</textarea>
+            <div class="shot-params">
+              <select><option>Gros plan</option></select>
+              <select><option>Travelling avant</option></select>
+              <input value="5 s" />
+            </div>
+            <div class="shot-ents">entités : <span class="chip k-object">tables de marée</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="pane bible-pane">
+    <div class="pane-head">
+      <h2>Bible</h2>
+      <nav class="tabs">
+        <button class="tab active">Personnages</button>
+        <button class="tab">Lieux</button>
+        <button class="tab">Objets</button>
+        <button class="tab">Dates</button>
+        <button class="tab">Ambiances</button>
+        <button class="tab">Décors</button>
+      </nav>
+      <button class="btn">＋ Nouveau</button>
+    </div>
+    <div class="globalstyle">
+      🎬 <input value="anime sombre réaliste, palette abyssale, lumière biolumineuse" />
+      <span class="savestate saved">enregistré</span>
+    </div>
+    <div id="entityList" class="entity-list">
+      <div class="entity-card">
+        <div class="refbox">
+          <div class="refimg empty">référence<br />non générée</div>
+          <div class="seedrow">seed <span class="seedbadge">88213</span></div>
+          <div class="entity-actions">
+            <button class="btn">✨ Générer</button>
+            <button class="btn ghost">📎</button>
+          </div>
+        </div>
+        <div class="entity-main">
+          <div class="row1">
+            <span class="kinddot k-character"></span>
+            <input class="entity-name" value="Le Prophète" />
+          </div>
+          <div class="entity-aliases">alias : le Prophète, la créature, l'Écouteur</div>
+          <textarea>Céphalopode colossal, peau ardoise veinée de cyan. Bouge lentement, parle rarement. Toujours cadré en contre-jour.</textarea>
+          <div class="insp-row">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38'%3E%3Crect width='38' height='38' fill='%230f1c30'/%3E%3C/svg%3E" alt="" />
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='38' height='38'%3E%3Crect width='38' height='38' fill='%2308111d'/%3E%3C/svg%3E" alt="" />
+            <button class="btn ghost">＋ inspiration</button>
+          </div>
+          <details class="entity-evidence"><summary>occurrences (3)</summary><blockquote>Le Prophète ne remonte pas : il s'installe.</blockquote></details>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="refbox">
+          <div class="refimg empty">référence<br />non générée</div>
+          <div class="seedrow">seed <span class="seedbadge">41007</span></div>
+          <div class="entity-actions"><button class="btn">✨ Générer</button></div>
+        </div>
+        <div class="entity-main">
+          <div class="row1">
+            <span class="kinddot k-place"></span>
+            <input class="entity-name" value="Baie de Kessel" />
+          </div>
+          <div class="entity-aliases">alias : la baie, Kessel</div>
+          <textarea>Baie industrielle en fer à cheval, jetées rongées, eau noire très calme. Toujours de nuit.</textarea>
+        </div>
+      </div>
+      <div class="empty-note">Sélectionne un mot dans le script pour créer une entité.</div>
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast">Storyboard découpé — 12 plans, Σ 1:04</div>
+
+<script>
+  document.querySelectorAll('#modeTabs .tab').forEach(function (t) {
+    t.addEventListener('click', function () {
+      document.querySelectorAll('#modeTabs .tab').forEach(function (x) { x.classList.remove('active'); });
+      t.classList.add('active');
+      var m = t.dataset.mode;
+      document.getElementById('scriptWrap').classList.toggle('hidden', m !== 'script');
+      document.getElementById('selBar').classList.toggle('hidden', m !== 'script');
+      document.getElementById('scriptLegend').classList.toggle('hidden', m !== 'script');
+      document.getElementById('screenplay').classList.toggle('hidden', m !== 'screenplay');
+      document.getElementById('board').classList.toggle('hidden', m !== 'board');
+      document.getElementById('boardTotal').classList.toggle('hidden', m !== 'board');
+    });
+  });
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === 'light' ? '' : 'light';
+  });
+</script>
+</body>
+</html>

@@ -102,6 +102,10 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Images:     {settings.images_path}")
     logger.info(f"  Outputs:    {settings.outputs_path}")
     logger.info("=" * 60)
+    # Garde MSIX : un backend lancé depuis un conteneur écrit dans un overlay
+    # invisible (incident 14/06-20/07/2026) — détecter et hurler tout de suite.
+    from app.services.fs_guard import startup_check
+    startup_check(settings.images_path)
     await init_db()
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
@@ -181,6 +185,10 @@ async def _csrf_origin_guard(request, call_next):
 
 
 app.include_router(router, prefix="/api")
+# __DZ_MONTAGE_ROUTER_BEGIN__
+from app.services.montage_service import router as montage_router
+app.include_router(montage_router, prefix="/api/montage")
+# __DZ_MONTAGE_ROUTER_END__
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
@@ -189,6 +197,137 @@ if _guide.is_dir():
     from fastapi.staticfiles import StaticFiles as _SF
     app.mount("/guide", _SF(directory=str(_guide), html=True), name="guide")
     logger.info(f"Serving guide from {_guide}")
+
+# ── Atelier Chapitre (v1.17): script → entités → bible workspace, at /atelier.
+# A clean standalone page (frontend/atelier/) — rich text-selection UI lives
+# outside the compiled bundle on purpose.
+_atelier = Path(__file__).resolve().parent.parent.parent / "frontend" / "atelier"
+if _atelier.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFAt
+
+    class _AtelierStatic(_SFAt):
+        """no-cache like the SPA mount: atelier.js keeps a stable filename, so
+        without revalidation the browser would keep running a stale page after
+        an update (mixed old-JS/new-API sessions caused silent save failures)."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/atelier", _AtelierStatic(directory=str(_atelier), html=True), name="atelier")
+
+    # The mount only matches "/atelier/..." — a bare "/atelier" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/atelier", include_in_schema=False)
+    async def _atelier_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/atelier/", status_code=307)
+
+    logger.info(f"Serving atelier from {_atelier}")
+
+# ── Sprite Lab (chantier 9c): Game Assets 2D — source vidéo → sprite sheet,
+# at /spritelab. Standalone page (frontend/spritelab/) outside the compiled
+# bundle, iframed by the SPA's Game Assets hub (patch_bundle_spritelab).
+_spritelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "spritelab"
+if _spritelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFSl
+
+    class _SpritelabStatic(_SFSl):
+        """no-cache like /atelier: spritelab.js keeps a stable filename, so
+        the browser must revalidate to pick up updates."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/spritelab", _SpritelabStatic(directory=str(_spritelab), html=True),
+              name="spritelab")
+
+    # The mount only matches "/spritelab/..." — a bare "/spritelab" would fall
+    # through to the SPA catch-all (which serves the app UI). Redirect it.
+    @app.get("/spritelab", include_in_schema=False)
+    async def _spritelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/spritelab/", status_code=307)
+
+    logger.info(f"Serving spritelab from {_spritelab}")
+
+# ── Tile Lab (chantier 9e): tuiles seamless — image Library → tuile
+# raccordable, at /tilelab. Même pattern standalone que /spritelab.
+_tilelab = Path(__file__).resolve().parent.parent.parent / "frontend" / "tilelab"
+if _tilelab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFTl
+
+    class _TilelabStatic(_SFTl):
+        """no-cache comme /spritelab : tilelab.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/tilelab", _TilelabStatic(directory=str(_tilelab), html=True),
+              name="tilelab")
+
+    @app.get("/tilelab", include_in_schema=False)
+    async def _tilelab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/tilelab/", status_code=307)
+
+    logger.info(f"Serving tilelab from {_tilelab}")
+
+# ── 3D Studio Meshy (v2.1): écran 1 du design « DeepOtus Studio » — pipeline
+# prompt/réf → maillage → texture → remesh → rig → animations → export, at
+# /studio3d. Même pattern standalone que /spritelab. Le client de référence
+# meshy.client.js est servi à /meshy/ (chemin d'import de la spec
+# INTEGRATION-MESHY.md : import … from "/meshy/meshy.client.js").
+_studio3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "studio3d"
+if _studio3d.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFS3
+
+    class _Studio3dStatic(_SFS3):
+        """no-cache comme /spritelab : studio3d.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/studio3d", _Studio3dStatic(directory=str(_studio3d), html=True),
+              name="studio3d")
+
+    @app.get("/studio3d", include_in_schema=False)
+    async def _studio3d_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/studio3d/", status_code=307)
+
+    logger.info(f"Serving studio3d from {_studio3d}")
+
+_meshy_client = Path(__file__).resolve().parent.parent.parent / "frontend" / "meshy"
+if _meshy_client.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFMc
+
+    class _MeshyClientStatic(_SFMc):
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/meshy", _MeshyClientStatic(directory=str(_meshy_client)),
+              name="meshy-client")
 
 # ── Emoji: bundled Twemoji PNGs (CC-BY) for the Studio emoji picker, at /emoji.
 _emoji_dir = Path(__file__).resolve().parent / "assets" / "emoji"

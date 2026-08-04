@@ -2,14 +2,18 @@
 
 Same fail-safe contract: returns a result or None on ANY error.
 Direct httpx calls to the Gemini REST API — no google SDK dependency.
+W-c (v1.21): réutilise le client Google partagé posé par W-a
+(google_video.GOOGLE_API_BASE + google_headers) — la clé passe en header
+x-goog-api-key, plus jamais en query string (elle n'apparaît plus dans les
+URLs loggées) ; verify=SSL_VERIFY partout. Le modèle vient de
+settings.GEMINI_MODEL (défaut gemini-flash-latest, champ Settings → Clés).
 """
 import json
 import httpx
 from loguru import logger
 
 from app.config import settings, SSL_VERIFY
-
-_API = "https://generativelanguage.googleapis.com/v1beta/models"
+from app.services.google_video import GOOGLE_API_BASE, google_headers
 
 
 def available() -> bool:
@@ -17,7 +21,11 @@ def available() -> bool:
 
 
 def _url(action: str = "generateContent") -> str:
-    return f"{_API}/{settings.GEMINI_MODEL}:{action}?key={settings.GEMINI_API_KEY}"
+    return f"{GOOGLE_API_BASE}/models/{settings.GEMINI_MODEL}:{action}"
+
+
+def _headers() -> dict:
+    return {"Content-Type": "application/json", **google_headers()}
 
 
 def summarize(text: str, *, title: str = "", language: str = "EN",
@@ -39,7 +47,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
     try:
         r = httpx.post(
             _url(),
-            headers={"Content-Type": "application/json"},
+            headers=_headers(),
             json={
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {
@@ -48,6 +56,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
                 },
             },
             timeout=90.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"gemini summarizer HTTP {r.status_code}")
@@ -79,9 +88,10 @@ def chat(prompt: str, *, system: str = "", max_tokens: int = 600,
     try:
         r = httpx.post(
             _url(),
-            headers={"Content-Type": "application/json"},
+            headers=_headers(),
             json=body,
             timeout=60.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"gemini chat HTTP {r.status_code}")
@@ -101,34 +111,21 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
                         persona: dict | None) -> list[dict] | None:
     if not available():
         return None
-    pdesc = ""
-    if persona:
-        pdesc = (f"Persona: {persona.get('name', '')}. "
-                 f"Tone: {persona.get('tone', '')}. "
-                 f"Audience: {persona.get('audience', '')}. ")
-    sys = (
-        "You are a social media content strategist. Output STRICT JSON only, "
-        "no prose, no markdown fences. "
-        f"Schema: {{\"posts\":[{{\"day_offset\":int (0..{days - 1}),"
-        "\"time\":\"HH:MM\",\"title\":str,"
-        "\"format\":\"image|seedance|heygen|composition|news\","
-        "\"hook\":str,\"caption\":str,\"script_idea\":str,"
-        "\"image_idea\":str,"
-        "\"channels\":[\"x\"|\"telegram\"|\"youtube\"|\"instagram\"]}}]}. "
-        f"Exactly {days * posts_per_day} posts ({posts_per_day}/day over "
-        f"{days} days). Language: {language}. {pdesc}"
-        "Vary formats and times."
-    )
+    # v1.27 — contrat de plan partagé (blocs structurés style Sol).
+    # Import local : marketing importe ce module, on évite le cycle.
+    from app.services import plan_schema
+    sys = plan_schema.system_prompt(days, posts_per_day, language,
+                                    plan_schema.persona_desc(persona))
     try:
         async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=90.0) as client:
             r = await client.post(
                 _url(),
-                headers={"Content-Type": "application/json"},
+                headers=_headers(),
                 json={
                     "systemInstruction": {"parts": [{"text": sys}]},
                     "contents": [{"parts": [{"text": prompt}]}],
                     "generationConfig": {
-                        "maxOutputTokens": 4000,
+                        "maxOutputTokens": plan_schema.MAX_TOKENS,
                         "responseMimeType": "application/json",
                     },
                 },
@@ -141,34 +138,7 @@ async def generate_plan(prompt: str, days: int, posts_per_day: int,
             parts = (candidates[0].get("content", {}).get("parts", [])
                      if candidates else [])
             text = "".join(p.get("text", "") for p in parts)
-            start = text.find("{")
-            end = text.rfind("}")
-            if start < 0 or end <= start:
-                return None
-            data = json.loads(text[start:end + 1])
-            posts = data.get("posts")
-            if not isinstance(posts, list) or not posts:
-                return None
-            clean = []
-            for p in posts:
-                try:
-                    clean.append({
-                        "day_offset": max(0, min(days - 1,
-                                                 int(p.get("day_offset", 0)))),
-                        "time": str(p.get("time", "12:00"))[:5],
-                        "title": str(p.get("title", ""))[:200],
-                        "format": str(p.get("format", "image")),
-                        "hook": str(p.get("hook", "")),
-                        "caption": str(p.get("caption", "")),
-                        "script_idea": str(p.get("script_idea", "")),
-                        "image_idea": str(p.get("image_idea", "")),
-                        "channels": [c for c in (p.get("channels") or ["x"])
-                                     if c in ("x", "telegram", "youtube",
-                                              "instagram")] or ["x"],
-                    })
-                except (TypeError, ValueError):
-                    continue
-            return clean or None
+            return plan_schema.parse_llm_posts(text, days)
     except Exception as e:
         logger.warning(f"gemini plan error: {e}")
         return None

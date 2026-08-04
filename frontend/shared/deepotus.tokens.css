@@ -1,0 +1,109 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — tokens (v2.1) · direction CINEMA
+   Source unique de vérité. Importer en TÊTE de chaque feuille de module :
+       @import url("/shared/deepotus.tokens.css");
+   Sombre par défaut · <html data-theme="light"> = thème clair
+   <html data-direction="deep"> = ancienne direction Deep Lab (déprécié)
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@font-face { font-family:"IBMPlex Local";  src:url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight:400 600; font-display:swap; }
+@font-face { font-family:"Inter Local";    src:url("/fonts/Inter.ttf")        format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"Grotesk Local";  src:url("/fonts/SpaceGrotesk.ttf") format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"JBMono Local";   src:url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight:400 500; font-display:swap; }
+
+:root{
+  /* ── surfaces ─────────────────────────────────────────────────────────── */
+  --bg-base:#0a0a0c; --bg-panel:#151519; --bg-panel-2:#1c1c21; --bg-panel-3:#111114;
+  --stroke:#2a2930; --stroke-strong:#3d3b45;
+  /* ── encre ────────────────────────────────────────────────────────────── */
+  --ink-strong:#f2efe9; --ink:#c4bfb6; --ink-soft:#8a857d; --ink-muted:#55514c;
+  /* ── signal (accent doré, réservé aux actions et aux coûts) ───────────── */
+  --accent:#f0b429; --accent-soft:color-mix(in srgb,#f0b429 14%,transparent);
+  --accent-ink:#1a1206;
+  --amber:var(--accent); /* coût / avertissement = accent doré */
+  --green:#5ec8a0; --red:#e35d4a; --slate:#8a857d;
+  /* ── rampe CATÉGORIELLE — types de média, jamais un état ─────────────── */
+  --c-image:#c98f5a; --c-video:#6d9dc5; --c-audio:#7fb069;
+  --c-av:#9b8ec4; --c-3d:#c9738f; --c-text:#c9b7a0; --c-data:var(--slate);
+  --violet:var(--c-av); --blue:var(--c-video); /* alias compat */
+  /* alias de compatibilité — ancien nommage Deep Lab */
+  --cyan:var(--accent); --cyan-soft:var(--accent-soft);
+  /* ── entités de la bible ──────────────────────────────────────────────── */
+  --k-character:#f0b429; --k-place:#6fbf9b; --k-object:#c98f5a;
+  --k-date:#9b8ec4; --k-ambiance:#e35d4a; --k-decor:#6d9dc5;
+  /* ── forme ────────────────────────────────────────────────────────────── */
+  --r-sm:6px; --r:10px; --r-lg:14px;
+  --gap-sm:8px; --gap:14px; --gap-lg:20px;
+  --topbar:52px;
+  --f-ui:"IBMPlex Local","IBM Plex Sans","Inter Local","Segoe UI",system-ui,sans-serif;
+  --f-display:"Grotesk Local","Space Grotesk",var(--f-ui);
+  --f-mono:"JBMono Local","JetBrains Mono",Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+  --dur:.12s;
+  --shadow-1:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.55);
+}
+
+:root[data-theme="light"]{
+  --bg-base:#f2f0ec; --bg-panel:#ffffff; --bg-panel-2:#f7f5f1; --bg-panel-3:#eae7e1;
+  --stroke:#e0dcd4; --stroke-strong:#c6c1b7;
+  --ink-strong:#171512; --ink:#413d36; --ink-soft:#6f6a61; --ink-muted:#a8a29a;
+  --accent:#a06a00; --accent-soft:color-mix(in srgb,#a06a00 12%,transparent);
+  --accent-ink:#ffffff;
+  --amber:var(--accent); --green:#1f7a5c; --red:#b03a28; --slate:#6f6a61;
+  --c-image:#8a5a22; --c-video:#2f5f8a; --c-audio:#47702a;
+  --c-av:#5d4f96; --c-3d:#9c3f61; --c-text:#6b5c47; --c-data:var(--slate);
+  --violet:var(--c-av); --blue:var(--c-video);
+  --k-character:#8a6100; --k-place:#1f7a5c; --k-object:#8a5a22;
+  --k-date:#5d4f96; --k-ambiance:#b03a28; --k-decor:#2f5f8a;
+  --shadow-1:0 1px 2px rgba(23,21,18,.06), 0 10px 28px rgba(23,21,18,.10);
+}
+
+/* ── échappatoire : ancienne direction Deep Lab (comparaison uniquement) ─── */
+:root[data-direction="deep"]{
+  --bg-base:#04070e; --bg-panel:#0b1422; --bg-panel-2:#0f1c30; --bg-panel-3:#08111d;
+  --stroke:#1a2740; --stroke-strong:#2a3c5e;
+  --ink-strong:#e6f1ff; --ink:#b4c4d8; --ink-soft:#6b7a92; --ink-muted:#3e4a60;
+  --accent:#00e5ff; --accent-soft:color-mix(in srgb,#00e5ff 13%,transparent);
+  --accent-ink:#02060d;
+  --amber:#fbbf24; --green:#22c55e; --red:#ef4444;
+  --c-image:#fbbf24; --c-video:#00e5ff; --c-audio:#22c55e;
+  --c-av:#a855f7; --c-3d:#f472b6; --c-text:#94a3b8;
+  --violet:var(--c-av); --blue:var(--c-video);
+  --k-character:#00e5ff; --k-place:#22c55e; --k-object:#fbbf24;
+  --k-date:#a855f7; --k-ambiance:#f472b6; --k-decor:#60a5fa;
+}
+:root[data-direction="deep"][data-theme="light"]{
+  --bg-base:#eef1f6; --bg-panel:#ffffff; --bg-panel-2:#f4f7fb; --bg-panel-3:#e9eef6;
+  --stroke:#dde4ee; --stroke-strong:#c2cddf;
+  --ink-strong:#0a1523; --ink:#37455c; --ink-soft:#6b7a92; --ink-muted:#a3aec0;
+  --accent:#0086a3; --accent-soft:color-mix(in srgb,#0086a3 12%,transparent);
+  --accent-ink:#ffffff;
+  --amber:#b45309; --green:#15803d; --red:#dc2626;
+  --c-image:#b45309; --c-video:#0086a3; --c-audio:#15803d;
+  --c-av:#7c3aed; --c-3d:#be185d; --c-text:#6b5c47;
+  --violet:var(--c-av); --blue:var(--c-video);
+}
+
+/* ── socle commun ─────────────────────────────────────────────────────────── */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);
+  font-family:var(--f-ui);font-size:13.5px;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--ink-strong)}
+::selection{background:var(--accent-soft)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-radius:var(--r-sm)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--stroke);border:2px solid transparent;background-clip:content-box;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:var(--stroke-strong);background-clip:content-box}
+
+/* ── primitives partagées (mêmes noms dans tous les modules) ──────────────── */
+.dt-mono{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+.dt-label{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
+.dt-cost{font-family:var(--f-mono);font-size:11px;color:var(--accent);font-variant-numeric:tabular-nums}
+.dt-dot{width:6px;height:6px;border-radius:99px;display:inline-block;flex:none}
+.dt-dot.ok{background:var(--green)} .dt-dot.off{background:var(--red)} .dt-dot.idle{background:var(--ink-muted)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}

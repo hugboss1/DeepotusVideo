@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprite Lab — Deepotus Video Gen</title>
+<link rel="stylesheet" href="spritelab.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">🧩 <b>Sprite Lab</b> <span class="tag">image → animation → sprite sheet · pack Unity</span></div>
+  <div class="srcchip" id="srcChip">aucune source — choisis une image à animer, un render ou une vidéo</div>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+</header>
+
+<main class="panes">
+  <!-- ══════════ 1. Source ══════════ -->
+  <section class="pane src-pane" id="srcPane">
+    <div class="pane-head">
+      <nav class="tabs" id="srcTabs">
+        <button class="tab active" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni">🖼 Image</button>
+        <button class="tab" data-src="render" title="Partir d'un render vidéo existant">🎬 Render</button>
+        <button class="tab" data-src="upload" title="Importer une vidéo de ton PC">📤 Vidéo</button>
+      </nav>
+    </div>
+
+    <!-- Image de la Library → Animer -->
+    <div id="srcImage" class="src-body">
+      <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
+      <div id="imgGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
+      <div class="animer-box">
+        <label class="fld">Action à animer
+          <textarea id="animPrompt" rows="2" placeholder="Ex : the octopus mascot walks in place, side view"></textarea>
+        </label>
+        <div class="animer-row">
+          <label class="fld">Durée
+            <select id="animDur"><option value="3">3 s</option><option value="5" selected>5 s</option><option value="8">8 s</option><option value="10">10 s</option></select>
+          </label>
+          <label class="fld">Cadre
+            <select id="animRatio"><option value="1:1" selected>Carré 1:1</option><option value="9:16">Portrait 9:16</option><option value="16:9">Paysage 16:9</option></select>
+          </label>
+        </div>
+        <div class="hint">Preset sprite ajouté au prompt : <i>static camera, character animation loop, plain solid green background, full body visible</i></div>
+        <button id="animerBtn" class="btn primary" title="Lance une génération Seedance (coût selon les Réglages) puis enchaîne sur l'extraction des frames">🎬 Animer (Seedance, fond uni)</button>
+        <div id="animStatus" class="status hidden"></div>
+      </div>
+    </div>
+
+    <!-- Render existant -->
+    <div id="srcRender" class="src-body hidden">
+      <input id="renderSearch" class="search" placeholder="🔎 Filtrer les renders…">
+      <div id="renderList" class="render-list"><div class="empty-note">Chargement des renders…</div></div>
+    </div>
+
+    <!-- Upload vidéo -->
+    <div id="srcUpload" class="src-body hidden">
+      <div class="upload-box">
+        <p class="hint">La vidéo rejoint la Library (Renders) puis sert de source au sheet — idéal pour un clip tourné ou généré ailleurs.</p>
+        <label class="btn" for="vidFile">📤 Choisir une vidéo (mp4/mov/webm)</label>
+        <input type="file" id="vidFile" accept=".mp4,.mov,.webm,.m4v,.avi" hidden>
+        <div id="upStatus" class="status hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════ 2. Filmstrip + réglages ══════════ -->
+  <section class="pane strip-pane" id="stripPane">
+    <div class="pane-head">
+      <h2>Frames</h2>
+      <span id="stripCount" class="counter">—</span>
+      <button id="stripAll" class="btn ghost" title="Tout garder / tout enlever">☑ Tout</button>
+      <button id="extractBtn" class="btn" title="Ré-extraire les frames de la source avec les réglages fps / max ci-dessous (local, gratuit)">🔄 Ré-extraire</button>
+    </div>
+    <div id="strip" class="strip"><div class="empty-note">Choisis une source à gauche — les frames extraites s'affichent ici.<br><br>Clic = garder/enlever une frame · Shift-clic = plage</div></div>
+
+    <div class="settings">
+      <div class="grid2">
+        <label class="fld">Échantillonnage <span class="unit">img/s</span>
+          <input id="fps" type="number" min="1" max="24" value="8">
+        </label>
+        <label class="fld">Frames max
+          <input id="maxFrames" type="number" min="4" max="64" value="16">
+        </label>
+        <label class="fld">Détourage
+          <select id="removeBg">
+            <option value="api" selected>API cloud (fal)</option>
+            <option value="local">Local (rembg)</option>
+            <option value="chroma">Chroma (fond uni, local)</option>
+            <option value="none">Aucun</option>
+          </select>
+        </label>
+        <label class="fld">Recadrage
+          <select id="trim">
+            <option value="animation" selected>Animation (canvas commun)</option>
+            <option value="tight">Tight (au contenu)</option>
+          </select>
+        </label>
+        <label class="fld">Cellule <span class="unit">px</span>
+          <select id="cellSize"><option>128</option><option selected>256</option><option>512</option></select>
+        </label>
+        <label class="fld">Ancrage
+          <select id="cellAlign">
+            <option value="center" selected>Centré</option>
+            <option value="feet">Pieds (bas)</option>
+          </select>
+        </label>
+        <label class="fld">Colonnes
+          <select id="columns"><option value="auto" selected>auto (≈ carré)</option><option>1</option><option>2</option><option>4</option><option>8</option><option>16</option></select>
+        </label>
+      </div>
+
+      <fieldset class="pixelset">
+        <legend><label><input type="checkbox" id="pixelOn"> Pixel-art (9b)</label></legend>
+        <div class="grid2" id="pixelFields">
+          <label class="fld">Taille cible <span class="unit">px</span>
+            <input id="pixTarget" type="number" min="8" max="512" value="64">
+          </label>
+          <label class="fld">Palette
+            <select id="pixPalette">
+              <option value="">Adaptative (N couleurs)</option>
+              <option value="pico8">PICO-8 (16)</option>
+              <option value="gameboy">Game Boy (4)</option>
+              <option value="nes">NES (14)</option>
+              <option value="sweetie16" selected>Sweetie 16</option>
+              <option value="onebit">1-bit (2)</option>
+            </select>
+          </label>
+          <label class="fld">Couleurs <span class="unit">si adaptative</span>
+            <input id="pixColors" type="number" min="2" max="256" value="16">
+          </label>
+          <label class="fld">Dither
+            <select id="pixDither"><option value="none" selected>Aucun</option><option value="ordered">Ordered (Bayer)</option><option value="floyd">Floyd-Steinberg</option></select>
+          </label>
+        </div>
+      </fieldset>
+
+      <div class="genrow">
+        <button id="genBtn" class="btn primary big" disabled title="Assemble le sprite sheet avec les frames gardées et les réglages ci-dessus">🧩 Générer le sheet</button>
+        <span id="costHint" class="cost" title="Coût estimé (détourage API × frames gardées)"></span>
+      </div>
+      <div id="genStatus" class="status hidden"></div>
+    </div>
+  </section>
+
+  <!-- ══════════ 3. Préviz + exports ══════════ -->
+  <section class="pane out-pane" id="outPane">
+    <div class="pane-head">
+      <h2>Préviz</h2>
+      <span id="outInfo" class="counter">—</span>
+    </div>
+    <div id="outEmpty" class="empty-note tall">Le sheet généré et sa préviz animée s'affichent ici.</div>
+
+    <div id="player" class="player hidden">
+      <div id="stage" class="stage bg-checker"><canvas id="cv" width="256" height="256"></canvas></div>
+      <div class="pctrl">
+        <button id="playBtn" class="btn" title="Lecture / pause">⏸</button>
+        <label class="fld inline">FPS <input id="pfps" type="range" min="1" max="24" value="8"><span id="pfpsVal" class="unit">8</span></label>
+        <select id="pzoom" title="Zoom">
+          <option value="fit" selected>Ajusté</option><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option>
+        </select>
+        <select id="pbg" title="Fond de la préviz">
+          <option value="checker" selected>Damier</option><option value="#000000">Noir</option><option value="#ffffff">Blanc</option><option value="#00b140">Vert</option><option value="#ff00ff">Magenta</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="exports" class="exports hidden">
+      <a id="dlSheet" class="btn" download title="Le sprite sheet PNG (grille de cellules transparentes)">⬇ Sheet PNG</a>
+      <a id="dlZip" class="btn" download title="sheet + frames + manifest.json + sheet.unity.json + SpriteSheetImporter.cs">⬇ ZIP (frames + pack Unity)</a>
+      <a id="dlGif" class="btn" download title="La préviz animée GIF">🎞 GIF</a>
+      <button id="saveLib" class="btn primary" title="Copie le sheet dans la Library (réutilisable dans le Studio comme nœud Image)">💾 Save to Library</button>
+      <button id="toStudio" class="btn hidden" title="Ouvre le Studio avec ce sheet comme nœud Image">🎛 → Studio</button>
+    </div>
+
+    <div id="sheetWrap" class="sheetwrap hidden">
+      <div class="sheet-title">Sheet</div>
+      <img id="sheetImg" alt="sprite sheet">
+    </div>
+  </section>
+</main>
+
+<div id="toast" class="toast hidden"></div>
+<script src="spritelab.js"></script>
+</body>
+</html>

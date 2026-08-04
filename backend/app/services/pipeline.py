@@ -16,7 +16,13 @@ from app.models.schemas import (
     JobStatus,
     Provider,
 )
-from app.services.fal_service import FalSeedanceClient
+from app.services.fal_service import (
+    FalSeedanceClient,
+    DEFAULT_VIDEO_MODEL,
+    clamp_duration,
+    resolve_video_model,
+)
+from app.services.google_video import GoogleVeoClient
 from app.services.heygen_service import HeyGenClient
 from app.services.composition_service import CompositionService
 from app.services.elevenlabs_service import VoiceoverService
@@ -25,6 +31,24 @@ from app.services.prompt_engine import PromptEngine
 from app.services.template_service import TemplateEngine
 from app.services.news_illustration import news_illustration_engine
 from app.services.storage import JobRecord, async_session_factory
+
+
+def _delete_provider_output_dir(job) -> None:
+    """sprite2d/asset3d write a whole per-job folder (frames, manifests,
+    previews) under outputs/{sprites,assets3d}/{short} — the four *_path
+    columns only cover single files, so deleting a job left the folder
+    behind (fix 20/07/2026)."""
+    sub = {"sprite2d": "sprites", "asset3d": "assets3d"}.get(job.provider or "")
+    if not sub:
+        return
+    d = settings.outputs_path / sub / job.id[:8]
+    try:
+        if d.is_dir():
+            import shutil
+            shutil.rmtree(d)
+            logger.info(f"Deleted output dir: {d}")
+    except Exception as e:
+        logger.warning(f"Could not delete output dir {d}: {e}")
 
 
 def _save_source_graph(job_id: str, graph) -> None:
@@ -114,6 +138,34 @@ def _resolve_music(music) -> tuple[Path | None, float]:
     return mp, vol
 
 
+def _resolve_voiceover(voiceover) -> Path | None:
+    """Resolve a {'file'} voice-over spec (pre-generated mp3, Studio Voiceover
+    node) to its path in the shared audio asset dir, or None.
+
+    Mirror of `_resolve_music` minus the volume: the VO track is mixed at
+    0 dB (v1 — ducking is a §9 follow-up). Basename-only lookup keeps the
+    file inside the audio dir (no path traversal)."""
+    if not voiceover or not isinstance(voiceover, dict) or not voiceover.get("file"):
+        return None
+    vp = settings.images_path.parent / "audio" / Path(str(voiceover["file"])).name
+    if not vp.is_file():
+        logger.warning(f"Voiceover file not found, skipping: {voiceover.get('file')}")
+        return None
+    return vp
+
+
+def _apply_voiceover_post(final_path: Path, vo_path: Path | None) -> Path:
+    """Mix a pre-generated voice-over over an already-composited render
+    (template path: the composite's own audio — BGM/master track — is kept
+    under the VO). No VO -> the input path is returned untouched; otherwise
+    a sibling `<stem>_vo.mp4` is written and returned."""
+    if vo_path is None:
+        return final_path
+    out = final_path.with_name(final_path.stem + "_vo.mp4")
+    FFmpegMerger.merge(final_path, vo_path, out, keep_video_audio=True)
+    return out
+
+
 class Pipeline:
     def __init__(self, persona_id: str = "deepotus"):
         self.engine = PromptEngine(persona_id=persona_id)
@@ -123,12 +175,20 @@ class Pipeline:
         self.template_engine = TemplateEngine()
         # HeyGen client is lazily initialized (requires key)
         self._heygen: HeyGenClient | None = None
+        # W-a — Google-native video client (requires GEMINI_API_KEY)
+        self._google: GoogleVeoClient | None = None
 
     @property
     def heygen(self) -> HeyGenClient:
         if self._heygen is None:
             self._heygen = HeyGenClient()
         return self._heygen
+
+    @property
+    def google(self) -> GoogleVeoClient:
+        if self._google is None:
+            self._google = GoogleVeoClient()
+        return self._google
 
     async def _update(self, session: AsyncSession, job: JobRecord, **fields):
         for k, v in fields.items():
@@ -166,6 +226,8 @@ class Pipeline:
                 batch_index=batch_index,
                 batch_size=batch_size,
                 provider=Provider.SEEDANCE.value,
+                video_model=(getattr(request, "video_model", None)
+                             or DEFAULT_VIDEO_MODEL),
                 created_at=datetime.utcnow(),
             )
             session.add(job)
@@ -187,55 +249,94 @@ class Pipeline:
                                    caption_text=caption,
                                    progress=10)
 
-                # 2. Upload image(s)
+                # 2. Resolve the video model (W-a) and prepare image(s).
+                # fal uploads to fal storage; Google takes inline bytes (no
+                # third-party upload). Guards fail the job with a clean error.
+                model = resolve_video_model(getattr(request, "video_model", None))
+                if model["provider"] == "google" and not settings.has_gemini:
+                    raise RuntimeError(
+                        "google: GEMINI_API_KEY not configured "
+                        "(Settings -> Keys -> Google Gemini)")
+                if model["provider"] == "fal" and not settings.FAL_KEY:
+                    raise RuntimeError(
+                        "fal.ai: FAL_KEY is not configured. Set it in .env")
+
                 await self._update(session, job,
                                    status=JobStatus.UPLOADING.value,
-                                   current_step="Uploading start image",
+                                   current_step="Preparing start image",
                                    progress=15)
                 image_path = settings.images_path / request.image_filename
                 if not image_path.exists():
                     raise FileNotFoundError(f"Start image not found: {image_path}")
-                image_url = await self.fal.upload_image(image_path)
 
-                end_image_url = None
+                end_image_path = None
                 if request.image_filename_end:
-                    await self._update(session, job,
-                                       current_step="Uploading end image",
-                                       progress=20)
                     end_image_path = settings.images_path / request.image_filename_end
                     if not end_image_path.exists():
-                        raise FileNotFoundError(f"End image not found: {end_image_path}")
-                    end_image_url = await self.fal.upload_image(end_image_path)
+                        raise FileNotFoundError(
+                            f"End image not found: {end_image_path}")
+                    if not model["end_image"]:
+                        raise RuntimeError(
+                            f"{model['label']}: end frame (first-last) not "
+                            "supported by this model — use a Seedance model")
+
+                image_url = None
+                end_image_url = None
+                if model["provider"] == "fal":
+                    await self._update(session, job,
+                                       current_step="Uploading start image",
+                                       progress=18)
+                    image_url = await self.fal.upload_image(image_path)
+                    if end_image_path is not None:
+                        await self._update(session, job,
+                                           current_step="Uploading end image",
+                                           progress=21)
+                        end_image_url = await self.fal.upload_image(end_image_path)
 
                 await self._update(session, job, progress=25)
 
                 # 3. Generate video
-                step_label = ("Generating video (first-last frame)" if end_image_url
-                              else "Generating video (Seedance Pro)")
+                step_label = (f"Generating video ({model['label']}"
+                              + (", first-last)" if end_image_path else ")"))
                 await self._update(session, job,
                                    status=JobStatus.GENERATING_VIDEO.value,
                                    current_step=step_label,
                                    progress=30)
-                # Seedance generates <=10s natively; longer targets are
-                # extended via ffmpeg afterwards (1 generation, same cost).
-                FAL_MAX = 10
-                gen_dur = max(3, min(request.duration_s, FAL_MAX))
-                result = await self.fal.generate_video(
-                    image_url=image_url,
-                    end_image_url=end_image_url,
-                    prompt=prompt,
-                    negative_prompt=negative,
-                    duration=gen_dur,
-                    aspect_ratio=request.aspect_ratio.value,
-                    resolution=request.resolution,
-                    seed=request.seed,
-                )
-                video_url = self.fal.extract_video_url(result)
+                # Each model has its own native duration set (clamped here);
+                # longer targets are extended via ffmpeg afterwards
+                # (1 generation, same cost).
+                gen_dur = clamp_duration(model, max(3, request.duration_s))
+                if model["provider"] == "google":
+                    video_client = self.google
+                    result = await self.google.generate_video(
+                        image_path=image_path,
+                        prompt=prompt,
+                        negative_prompt=negative,
+                        duration=gen_dur,
+                        aspect_ratio=request.aspect_ratio.value,
+                        resolution=request.resolution,
+                        model=model["endpoint"],
+                    )
+                else:
+                    video_client = self.fal
+                    result = await self.fal.generate_video(
+                        image_url=image_url,
+                        end_image_url=end_image_url,
+                        prompt=prompt,
+                        negative_prompt=negative,
+                        duration=gen_dur,
+                        aspect_ratio=request.aspect_ratio.value,
+                        resolution=request.resolution,
+                        seed=request.seed,
+                        model_id=model["id"],
+                    )
+                video_url = video_client.extract_video_url(result)
                 if not video_url:
-                    raise RuntimeError(f"No video URL in fal.ai response: {result}")
+                    raise RuntimeError(
+                        f"No video URL in provider response: {result}")
 
                 # Persist seed used by the model (so user can regenerate)
-                used_seed = self.fal.extract_seed(result) or request.seed
+                used_seed = video_client.extract_seed(result) or request.seed
                 if used_seed is not None:
                     await self._update(session, job, seed=used_seed)
 
@@ -245,7 +346,7 @@ class Pipeline:
                                    current_step="Downloading video",
                                    progress=70)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
-                await self.fal.download_video(video_url, video_dest)
+                await video_client.download_video(video_url, video_dest)
 
                 # Extend to the requested 5s-increment target if longer than
                 # what Seedance produced (fit a HeyGen avatar length).
@@ -266,9 +367,13 @@ class Pipeline:
                 await self._update(session, job,
                                    video_path=str(video_dest), progress=78)
 
-                # 5. Voiceover (optional)
+                # 5. Voiceover (optional) — an explicit pre-generated file
+                # (request.voiceover, Studio Voiceover node) replaces persona
+                # synthesis: no double track, no surprise ElevenLabs cost.
+                vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
                 audio_dest = None
-                if request.voiceover_enabled and vo_script and self.voice.is_enabled():
+                if (request.voiceover_enabled and vo_script
+                        and self.voice.is_enabled() and vo_path is None):
                     await self._update(session, job,
                                        status=JobStatus.GENERATING_VOICEOVER.value,
                                        current_step="Synthesizing voiceover",
@@ -288,7 +393,7 @@ class Pipeline:
                                    progress=92)
                 final_dest = settings.outputs_path / "final" / f"{job_id}.mp4"
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                self.merger.merge(video_dest, audio_dest, final_dest,
+                self.merger.merge(video_dest, audio_dest or vo_path, final_dest,
                                   music_path=_mus_path, music_volume_db=_mus_vol)
                 await self._update(session, job, final_video_path=str(final_dest))
 
@@ -381,22 +486,44 @@ class Pipeline:
                                    status=JobStatus.GENERATING_VIDEO.value,
                                    current_step="Submitting HeyGen video",
                                    progress=25)
-                video_id = await self.heygen.generate_video(
-                    text=script,
-                    avatar_id=request.avatar_id,
-                    voice_id=request.voice_id,
-                    avatar_type=request.avatar_type,
-                    aspect_ratio=request.aspect_ratio.value,
-                    speed=request.speed,
-                    background_color=request.background_color,
-                    use_avatar_iv=request.use_avatar_iv,
-                )
+                # v1.16 — an explicit engine (avatar_iii/iv/v) routes through
+                # HeyGen API v3; no engine = untouched legacy v2 path. Talking
+                # photos always stay on v2 (v3 talking_photo mapping is
+                # undocumented).
+                use_v3 = bool(getattr(request, "engine", None)) \
+                    and request.avatar_type != "talking_photo"
+                if use_v3:
+                    video_id = await self.heygen.generate_video_v3(
+                        text=script,
+                        avatar_id=request.avatar_id,
+                        voice_id=request.voice_id,
+                        engine=request.engine,
+                        aspect_ratio=request.aspect_ratio.value,
+                        speed=request.speed,
+                        background_color=request.background_color,
+                        motion_prompt=getattr(request, "motion_prompt", None),
+                        expressiveness=getattr(request, "expressiveness", None),
+                    )
+                else:
+                    video_id = await self.heygen.generate_video(
+                        text=script,
+                        avatar_id=request.avatar_id,
+                        voice_id=request.voice_id,
+                        avatar_type=request.avatar_type,
+                        aspect_ratio=request.aspect_ratio.value,
+                        speed=request.speed,
+                        background_color=request.background_color,
+                        use_avatar_iv=request.use_avatar_iv,
+                    )
 
                 # 3. Poll until complete
                 await self._update(session, job,
                                    current_step="Rendering on HeyGen servers",
                                    progress=45)
-                result = await self.heygen.poll_video_status(video_id)
+                if use_v3:
+                    result = await self.heygen.poll_video_status_v3(video_id)
+                else:
+                    result = await self.heygen.poll_video_status(video_id)
                 video_url = result.get("video_url")
                 if not video_url:
                     raise RuntimeError(f"No video_url in HeyGen result: {result}")
@@ -408,12 +535,14 @@ class Pipeline:
                                    progress=80)
                 video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
                 await self.heygen.download_video(video_url, video_dest)
-                # Optional looped BGM under the talking avatar (keep its voice).
+                # Optional looped BGM and/or pre-generated VO under the talking
+                # avatar (keep its voice: avatar + VO is the wanted mix).
                 final_path = video_dest
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                if _mus_path is not None:
+                _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
+                if _mus_path is not None or _vo_path is not None:
                     final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
-                    self.merger.merge(video_dest, None, final_path,
+                    self.merger.merge(video_dest, _vo_path, final_path,
                                       music_path=_mus_path, music_volume_db=_mus_vol,
                                       keep_video_audio=True)
                 await self._update(session, job,
@@ -448,6 +577,151 @@ class Pipeline:
                 )
                 raise
 
+        return job_id
+
+    async def run_heygen_image(self, request) -> str:
+        """v1.16 (D) — animate a Library still (HeyGen v3 type=image).
+
+        Same job lifecycle as run_heygen: record → submit → poll → download →
+        optional BGM merge → caption. request: GenerateHeyGenImageRequest."""
+        job_id = str(uuid4())
+        img_path = settings.images_path / request.image_filename
+        async with async_session_factory() as session:
+            job = JobRecord(
+                id=job_id,
+                status=JobStatus.QUEUED.value,
+                image_filename=request.image_filename,
+                aspect_ratio=request.aspect_ratio.value,
+                voice_mode=request.voice_mode.value if request.voice_mode else None,
+                provider=Provider.HEYGEN.value,
+                title=f"Animate · {request.image_filename}",
+                created_at=datetime.utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
+            try:
+                script = request.script.strip()
+                caption = request.custom_caption or self._heygen_caption_from_script(
+                    script, request.voice_mode)
+                await self._update(session, job,
+                                   status=JobStatus.GENERATING_VIDEO.value,
+                                   current_step="Submitting animated image (v3)",
+                                   final_prompt=script, caption_text=caption,
+                                   progress=20)
+                video_id = await self.heygen.generate_image_video_v3(
+                    img_path, script, request.voice_id,
+                    engine=request.engine,
+                    aspect_ratio=request.aspect_ratio.value,
+                    speed=request.speed,
+                    motion_prompt=request.motion_prompt,
+                    expressiveness=request.expressiveness,
+                    title=f"Animate {request.image_filename}",
+                )
+                await self._update(session, job,
+                                   current_step="Rendering on HeyGen servers",
+                                   progress=45)
+                result = await self.heygen.poll_video_status_v3(video_id)
+                video_url = result.get("video_url")
+                if not video_url:
+                    raise RuntimeError(f"No video_url in HeyGen v3 result: {result}")
+                await self._update(session, job,
+                                   status=JobStatus.DOWNLOADING.value,
+                                   current_step="Downloading video",
+                                   progress=80)
+                video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
+                await self.heygen.download_video(video_url, video_dest)
+                final_path = video_dest
+                _mus_path, _mus_vol = _resolve_music(request.music)
+                _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
+                if _mus_path is not None or _vo_path is not None:
+                    final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
+                    self.merger.merge(video_dest, _vo_path, final_path,
+                                      music_path=_mus_path,
+                                      music_volume_db=_mus_vol,
+                                      keep_video_audio=True)
+                await self._update(session, job,
+                                   video_path=str(video_dest),
+                                   final_video_path=str(final_path),
+                                   progress=95)
+                if caption:
+                    cap_dest = settings.outputs_path / "captions" / f"{job_id}.txt"
+                    cap_dest.parent.mkdir(parents=True, exist_ok=True)
+                    cap_dest.write_text(caption, encoding="utf-8")
+                    await self._update(session, job, caption_path=str(cap_dest))
+                await self._update(session, job, status=JobStatus.DONE.value,
+                                   current_step="Complete", progress=100,
+                                   completed_at=datetime.utcnow())
+                logger.success(f"HeyGen image job {job_id} complete -> {video_dest}")
+            except Exception as e:
+                logger.exception(f"HeyGen image job {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value,
+                                   current_step="Failed", error=str(e),
+                                   completed_at=datetime.utcnow())
+                raise
+        return job_id
+
+    async def run_heygen_cinematic(self, request) -> str:
+        """v1.16 (D) — HeyGen v3 cinematic avatar (prompt-driven, no script).
+        request: GenerateHeyGenCinematicRequest."""
+        job_id = str(uuid4())
+        refs = [settings.images_path / f for f in (request.reference_images or [])]
+        refs = [p for p in refs if p.exists()]
+        async with async_session_factory() as session:
+            job = JobRecord(
+                id=job_id,
+                status=JobStatus.QUEUED.value,
+                image_filename=(request.reference_images[0]
+                                if request.reference_images else "cinematic"),
+                aspect_ratio=request.aspect_ratio,
+                provider=Provider.HEYGEN.value,
+                title=f"Cinematic · {request.prompt[:60]}",
+                created_at=datetime.utcnow(),
+            )
+            session.add(job)
+            await session.commit()
+            _save_source_graph(job_id, getattr(request, "source_graph", None))
+            try:
+                await self._update(session, job,
+                                   status=JobStatus.GENERATING_VIDEO.value,
+                                   current_step="Submitting cinematic video (v3)",
+                                   final_prompt=request.prompt,
+                                   caption_text=request.custom_caption,
+                                   progress=20)
+                video_id = await self.heygen.generate_cinematic_v3(
+                    request.prompt, request.look_ids,
+                    reference_paths=refs,
+                    duration_s=request.duration_s,
+                    auto_duration=request.auto_duration,
+                    aspect_ratio=request.aspect_ratio,
+                    resolution=request.resolution,
+                    title=f"Cinematic {job_id[:8]}",
+                )
+                await self._update(session, job,
+                                   current_step="Rendering on HeyGen servers",
+                                   progress=45)
+                result = await self.heygen.poll_video_status_v3(video_id)
+                video_url = result.get("video_url")
+                if not video_url:
+                    raise RuntimeError(f"No video_url in HeyGen v3 result: {result}")
+                await self._update(session, job,
+                                   status=JobStatus.DOWNLOADING.value,
+                                   current_step="Downloading video", progress=80)
+                video_dest = settings.outputs_path / "videos" / f"{job_id}.mp4"
+                await self.heygen.download_video(video_url, video_dest)
+                await self._update(session, job,
+                                   video_path=str(video_dest),
+                                   final_video_path=str(video_dest),
+                                   status=JobStatus.DONE.value,
+                                   current_step="Complete", progress=100,
+                                   completed_at=datetime.utcnow())
+                logger.success(f"HeyGen cinematic job {job_id} complete -> {video_dest}")
+            except Exception as e:
+                logger.exception(f"HeyGen cinematic job {job_id} failed: {e}")
+                await self._update(session, job, status=JobStatus.FAILED.value,
+                                   current_step="Failed", error=str(e),
+                                   completed_at=datetime.utcnow())
+                raise
         return job_id
 
     def _heygen_caption_from_script(self, script: str, voice_mode) -> str:
@@ -666,6 +940,7 @@ class Pipeline:
         title: str | None = None,
         source_graph: dict | None = None,
         preview: bool = False,
+        voiceover: dict | None = None,
     ) -> str:
         """Resolve every slot (Seedance/HeyGen in parallel, upload/file/text
         inline), then composite via the template engine. If `template` (an
@@ -853,13 +1128,26 @@ class Pipeline:
                     template_id, resolved, out_path, template=tpl),
             )
 
+            # Phase 3b: mix the pre-generated voice-over (Studio Voiceover
+            # node) over the composite — its own audio (BGM/master) is kept.
+            final_out = out_path
+            vo_path = _resolve_voiceover(voiceover)
+            if vo_path is not None:
+                async with async_session_factory() as session:
+                    p = await session.get(JobRecord, job_id)
+                    p.current_step = "Mixing voice-over (ffmpeg)"
+                    p.progress = 90
+                    await session.commit()
+                final_out = await asyncio.get_event_loop().run_in_executor(
+                    None, lambda: _apply_voiceover_post(out_path, vo_path))
+
             # Phase 4: finalize parent
             async with async_session_factory() as session:
                 p = await session.get(JobRecord, job_id)
                 p.status = JobStatus.DONE.value
                 p.current_step = "Template render complete"
                 p.progress = 100
-                p.final_video_path = str(out_path)
+                p.final_video_path = str(final_out)
                 p.video_path = str(out_path)
                 if caption:
                     p.caption_text = caption
@@ -998,6 +1286,7 @@ class Pipeline:
                             logger.info(f"Deleted file: {p}")
                     except Exception as e:
                         logger.warning(f"Could not delete {path_str}: {e}")
+            _delete_provider_output_dir(job)
 
             await session.execute(delete(JobRecord).where(JobRecord.id == job_id))
             await session.commit()
@@ -1023,6 +1312,7 @@ class Pipeline:
                                 p.unlink()
                         except Exception as e:
                             logger.warning(f"Could not delete {path_str}: {e}")
+                _delete_provider_output_dir(job)
                 count += 1
             await session.execute(
                 delete(JobRecord).where(JobRecord.batch_id == batch_id)

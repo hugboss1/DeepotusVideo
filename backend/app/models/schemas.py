@@ -124,6 +124,11 @@ class GenerateRequest(BaseModel):
     template_id: Optional[str] = None
     custom_prompt: Optional[str] = None    # raw or builder-generated, used as-is
 
+    # W-a (v1.19) — which video model renders this clip. None = app default
+    # (Seedance 1.0 Pro, unchanged). Ids come from GET /api/video-models;
+    # unknown ids fail the job with a clean error listing valid ones.
+    video_model: Optional[str] = Field(None, max_length=48)
+
     style: StylePreset = StylePreset.HYBRID
     camera: Optional[CameraMove] = None
     lighting: Optional[Lighting] = None
@@ -148,6 +153,9 @@ class GenerateRequest(BaseModel):
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over
+    # the final render at 0 dB: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class GenerateResponse(BaseModel):
@@ -203,12 +211,72 @@ class GenerateHeyGenRequest(BaseModel):
     speed: float = Field(1.0, ge=0.5, le=2.0)
     background_color: str = "#02060d"
     use_avatar_iv: bool = False
+    # v1.16 — explicit HeyGen rendering engine (API v3). None => legacy v2
+    # pipeline, unchanged. Talking photos always stay on v2 (v3 mapping for
+    # talking_photo ids is undocumented).
+    engine: Optional[Literal["avatar_iii", "avatar_iv", "avatar_v"]] = None
+    motion_prompt: Optional[str] = None
+    expressiveness: Optional[Literal["high", "medium", "low"]] = None
     voice_mode: Optional[VoiceMode] = None
     custom_caption: Optional[str] = None
     # Studio node graph that produced this render (for "Reopen in Studio").
     source_graph: Optional[dict] = None
     # Optional looped background music: {"file": <name in audio dir>, "volume_db": -14}
     music: Optional[dict] = None
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed with
+    # the avatar's own voice: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
+
+
+class GenerateHeyGenImageRequest(BaseModel):
+    """v1.16 (D) — animate a Library still into a talking video (HeyGen v3
+    type=image): lip-sync + motion driven by an optional motion_prompt."""
+    image_filename: str = Field(..., min_length=1)
+    script: str = Field(..., max_length=4900)
+    voice_id: str = Field(..., min_length=1)
+    engine: Literal["avatar_iv", "avatar_v"] = "avatar_iv"
+    motion_prompt: Optional[str] = None
+    expressiveness: Optional[Literal["high", "medium", "low"]] = None
+    aspect_ratio: AspectRatio = AspectRatio.VERTICAL
+    speed: float = Field(1.0, ge=0.5, le=1.5)
+    voice_mode: Optional[VoiceMode] = None
+    custom_caption: Optional[str] = None
+    source_graph: Optional[dict] = None
+    music: Optional[dict] = None
+    # Optional pre-generated voice-over: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
+
+
+class GenerateHeyGenCinematicRequest(BaseModel):
+    """v1.16 (D) — HeyGen v3 cinematic avatar: prompt-driven motion with 1–3
+    avatar looks and optional Library reference images. No script/voice."""
+    prompt: str = Field(..., min_length=1, max_length=10000)
+    look_ids: List[str] = Field(..., min_length=1, max_length=3)
+    reference_images: List[str] = Field(default_factory=list, max_length=3)
+    duration_s: Optional[int] = Field(None, ge=4, le=15)
+    auto_duration: bool = False
+    aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
+    resolution: Literal["720p", "1080p"] = "720p"
+    custom_caption: Optional[str] = None
+    source_graph: Optional[dict] = None
+
+
+class AvatarPresetCreate(BaseModel):
+    """Create an avatar+voice casting preset.
+
+    avatar_type "image" (v1.16, D) = an animated-image casting: avatar_id is a
+    Library image filename, generated via /generate/heygen-image."""
+    name: str = Field(..., min_length=1, max_length=120)
+    avatar_id: str = Field(..., min_length=1)
+    avatar_type: Literal["avatar", "talking_photo", "image"] = "avatar"
+    avatar_img: Optional[str] = None
+    voice_id: str = Field(..., min_length=1)
+    voice_name: Optional[str] = None
+    voice_prev: Optional[str] = None
+    voice_lang: Optional[str] = None
+    speed: float = Field(1.0, ge=0.5, le=2.0)
+    # v1.16 — preferred HeyGen rendering engine ("" / None = legacy pipeline)
+    engine: Optional[Literal["", "avatar_iii", "avatar_iv", "avatar_v"]] = None
 
 
 class CompositionRequest(BaseModel):
@@ -311,6 +379,7 @@ class JobDetails(BaseModel):
     template_id: Optional[str] = None
     voiceover_language: Optional[str] = None
     voice_mode: Optional[str] = None
+    video_model: Optional[str] = None
     provider: Optional[str] = None
     composition_id: Optional[str] = None
     composition_layout: Optional[str] = None
@@ -407,6 +476,9 @@ class TemplateRenderRequest(BaseModel):
     # Cheap "what will it look like" pass: Seedance/HeyGen slots use their source
     # still instead of generating (no fal/HeyGen cost), short duration.
     preview: bool = False
+    # Optional pre-generated voice-over (Studio Voiceover node), mixed over the
+    # composite after the template render: {"file": <name in audio dir>}
+    voiceover: Optional[dict] = None
 
 
 class TemplateRenderResponse(BaseModel):

@@ -73,10 +73,17 @@ def parse_engine_result(engine: str, res: dict) -> dict:
         return None
 
     mesh = None
-    for key in ("model_mesh", "mesh", "model", "glb", "model_glb", "output"):
+    # tripo v2.5 (pbr:true) livre le mesh texturé dans pbr_model — model_mesh
+    # peut être null (constaté le 20/07/2026, schéma OpenAPI fal à l'appui)
+    for key in ("model_mesh", "pbr_model", "base_model",
+                "mesh", "model", "glb", "model_glb", "output"):
         if key in res and _url(res[key]):
             mesh = _url(res[key])
             break
+    if mesh is None:
+        from loguru import logger
+        logger.warning(f"parse_engine_result[{engine}]: no mesh url in "
+                       f"keys={sorted(res.keys())}")
     meshes = {}
     for m in (res.get("model_meshes") or []):
         u = _url(m)
@@ -189,6 +196,12 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
     if result.get("mesh_url"):
         await asyncio.to_thread(_download, result["mesh_url"], out_dir / "model.glb")
         files["glb"] = str(out_dir / "model.glb")
+    else:
+        # sans mesh principal le job n'a aucune valeur : échouer visiblement
+        # plutôt que de terminer "done" avec un dossier sans model.glb
+        # (cas e9e150d2 du 20/07/2026 — pbr_model non parsé)
+        raise RuntimeError(
+            f"{engine}: aucun mesh dans la réponse fal (shots conservés)")
     for ext, url in (result.get("format_urls") or {}).items():
         if ext in formats:
             await asyncio.to_thread(_download, url, out_dir / f"model.{ext}")

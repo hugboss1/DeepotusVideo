@@ -186,11 +186,15 @@ Refonte de la navigation. Plus de 5 onglets côte à côte. À la place :
 - **Library** — la bibliothèque (images, audio, renders existants, captions).
 - **Settings** — clés API, persona, paths, defaults.
 
-**Job Dock (bottom)** — barre d'état permanente, hauteur 56 px collapsed,
-360 px ouverte. Affiche jusqu'à 3 rendus en cours en cards horizontales
-(progress + miniature + ETA), bouton **▴** pour étendre en liste complète.
-Toujours visible, peu importe le mode actif. C'est là qu'on **renomme** un
-rendu, qu'on le clone, qu'on le supprime, qu'on le rejoue en preview.
+**Render queue (révision 11a, 20/07/2026 — remplace le Job Dock bas d'écran)**
+— le dock permanent est supprimé : un studio de vidéos 9:16 verticales ne
+sacrifie pas sa hauteur à une barre horizontale. À la place : icône « file »
+en topbar + badge compteur N (pastille cyan, halo pulsé ~1.2 Hz pendant un
+run, rouge fixe si un job failed non lu — lu = ouverture du panneau, persisté
+localStorage), et panneau latéral DROIT 360 px en slide-in 320 ms `--ease`
+(scrim cliquable, Esc ferme, `prefers-reduced-motion` → fade). Les JobCards
+y gardent rename / clone / delete / preview, failed en tête. Poignée QA :
+`window.__dzQueue`.
 
 ---
 
@@ -519,8 +523,8 @@ toggles, reader fallback), `Appearance` (motion off pour accessibility).
   `Avatar master` est l'expression visible. Dans le Spatial-compose-node-
   inspector, un toggle "Use this clip as duration master" + slider tail-pad
   0-2 s.
-- **Empty Job Dock** : message "*Nothing rendering. Press `▶ Run` in Studio
-  or Quick.*" avec un 🐙 doux.
+- **Empty queue panel** (ex-Job Dock) : message "*Nothing rendering. Press
+  `▶ Run` in Studio or Quick.*" avec un 🐙 doux.
 - **Provider down** : si `/api/health` reporte un provider off, les nœuds
   correspondants apparaissent dimmed + tooltip "Set HEYGEN_API_KEY in
   backend/.env to enable. Restart backend."

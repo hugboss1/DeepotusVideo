@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Integer, DateTime, Text, text
+from sqlalchemy import String, Integer, Float, DateTime, Text, text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from loguru import logger
@@ -50,6 +50,33 @@ class JobRecord(Base):
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     # v1.15.6 — JSON cost inputs for /cost/usage (episodes: images + narration chars)
     cost_meta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # W-a (v1.19) — which video model rendered the clip (VIDEO_MODELS id)
+    video_model: Mapped[Optional[str]] = mapped_column(String(48), nullable=True)
+
+
+class MeshyTaskRecord(Base):
+    """v2.1 (3D Studio Meshy) — une tâche Meshy observée par le proxy.
+    Spec INTEGRATION-MESHY.md §6 : les tâches créées par l'API ne remontent
+    pas dans « My Assets » du web app Meshy et leurs URLs expirent — cette
+    table EST la bibliothèque DeepOtus (journal + fichiers rapatriés)."""
+    __tablename__ = "meshy_tasks"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # id Meshy
+    kind: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    # phase du graphe 3D Studio : preview|texture|remesh|rig|animate|export
+    phase: Mapped[Optional[str]] = mapped_column(String(24), nullable=True)
+    status: Mapped[str] = mapped_column(String(16), default="PENDING", index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    # consumed_credits de la réponse Meshy = seule vérité comptable (0 si FAILED)
+    consumed_credits: Mapped[int] = mapped_column(Integer, default=0)
+    model_urls: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON
+    thumbnail_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)         # JSON envoyé
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    # rapatriement : sous-dossier de outputs/meshy3d/ + carte {clé: fichier}
+    local_dir: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    local_files: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON
 
 
 class ScheduledPost(Base):
@@ -86,6 +113,151 @@ class ScheduledPost(Base):
     # the plan's Sources step; the Produce button uses it instead of
     # generating a fresh frame.
     source_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.27 — bloc structuré du plan (style Sol) : JSON {objective, priority,
+    # aspect_ratio, tg_caption, on_image_text, cta, hashtags, links,
+    # avatar_script_short, avatar_script_long, scheduling_notes}. La caption
+    # Telegram y prime sur `caption` à la publication (marketing.fire_post).
+    brief: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
+class AvatarPreset(Base):
+    """v1.16 — a saved avatar+voice 'casting' reusable across Quick and Studio.
+    Stored in deepotus.db so it migrates with the export/import kit. The *_id
+    fields are the durable source of truth; the cached preview URLs
+    (avatar_img/voice_prev) are HeyGen signed URLs that may expire — the UI
+    tolerates a blank/stale preview and re-resolves by id from the live list."""
+    __tablename__ = "avatar_presets"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    avatar_id: Mapped[str] = mapped_column(String(120))
+    avatar_type: Mapped[str] = mapped_column(String(20), default="avatar")
+    avatar_img: Mapped[Optional[str]] = mapped_column(String(1000), nullable=True)
+    voice_id: Mapped[str] = mapped_column(String(120))
+    voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    voice_lang: Mapped[Optional[str]] = mapped_column(String(40), nullable=True)
+    speed: Mapped[float] = mapped_column(Float, default=1.0)
+    # v1.16 — preferred HeyGen rendering engine (avatar_iii/iv/v; NULL = legacy)
+    engine: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class BibleEntity(Base):
+    """v1.17 (Atelier P1) — one entry of the persistent story bible, shared by
+    every chapter of a series. v1.19 kinds: character | place | object | date
+    (temporal markers) | ambiance (light/weather/mood) | decor (set dressing).
+    The generated reference image (a Library filename) + its locked seed are
+    the consistency anchor reused by storyboard/production phases."""
+    __tablename__ = "bible_entities"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(12), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ref_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    style_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    inspiration_images: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    # v1.19 (agent manuscrit) — alternative names found in the text, and the
+    # per-chapter verbatim evidence quotes collected during ingestion.
+    aliases: Mapped[Optional[str]] = mapped_column(Text, nullable=True)      # JSON list
+    evidence: Mapped[Optional[str]] = mapped_column(Text, nullable=True)     # JSON [{chapter,quote}]
+    # v1.20 — the exact generation recipe of the current reference (full
+    # prompt + seed + size): replaying it is guaranteed-identical (FLUX is
+    # deterministic at equal prompt+seed), THE consistency anchor.
+    prompt_recipe: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON
+    # v1.20.1 — characters: the face close-ups sheet (2nd pass, Kontext
+    # chained on the turnaround so the face is guaranteed identical).
+    face_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    # v1.21 (B — casting voix) : la voix ElevenLabs du personnage (suggérée
+    # par l'agent d'après la fiche, ou choisie manuellement).
+    voice_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
+    voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
+    voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Chapter(Base):
+    """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
+    spans linking text zones to bible entities ([{start,end,text,entity_id}]
+    JSON, offsets over script_text)."""
+    __tablename__ = "chapters"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    title: Mapped[str] = mapped_column(String(200), default="")
+    script_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    spans: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON list
+    series: Mapped[Optional[str]] = mapped_column(String(120), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Shot(Base):
+    """v1.18 (Atelier P2) — one storyboard shot of a chapter: the visual beat
+    (action), which bible entities are in frame, framing + camera + duration,
+    and a cheap sketch (image + locked seed) used to validate composition and
+    rhythm BEFORE any paid production render."""
+    __tablename__ = "shots"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    idx: Mapped[int] = mapped_column(Integer, default=0)
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    action: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    entities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON ids
+    shot_type: Mapped[str] = mapped_column(String(30), default="medium")
+    camera_move: Mapped[str] = mapped_column(String(40), default="static, locked-off")
+    duration_s: Mapped[float] = mapped_column(Float, default=4.0)
+    sketch_image: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    sketch_seed: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # v1.22 (W-d) — video-shotcraft bridge: motion recipe card slug (validated
+    # against the installed skill's catalog) + 1-5 energy level of the beat.
+    motion_recipe: Mapped[Optional[str]] = mapped_column(String(60), nullable=True)
+    energy: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Scene(Base):
+    """v1.20 (Atelier Adaptation) — one screenplay scene of a chapter, produced
+    by the adaptation pass WITHOUT touching the original manuscript. Carries
+    the film grammar (slugline INT/EXT + bible location + time of day,
+    lighting, camera notes, mood), the Fountain-format scene text, the bible
+    entities in frame (incl. decor — reusable across chapters), and later the
+    timed voice-over (phase C) that drives the storyboard."""
+    __tablename__ = "scenes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    chapter_id: Mapped[str] = mapped_column(String(36), index=True)
+    idx: Mapped[int] = mapped_column(Integer, default=0)
+    slugline: Mapped[str] = mapped_column(String(200), default="")
+    int_ext: Mapped[str] = mapped_column(String(10), default="INT")
+    location_entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    time_of_day: Mapped[str] = mapped_column(String(20), default="JOUR")
+    fountain_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    lighting: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    camera_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mood: Mapped[Optional[str]] = mapped_column(String(120), nullable=True)
+    entities: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # JSON ids
+    source_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_s: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    vo_audio: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AtelierSetting(Base):
+    """v1.20.4 — réglages globaux de l'Atelier (clé/valeur). Ex:
+    global_style = le style de réalisation du PROJET, injecté dans toutes
+    les générations (planches bible, et la production en P3) sauf quand une
+    entité définit son propre style (override ponctuel)."""
+    __tablename__ = "atelier_settings"
+
+    key: Mapped[str] = mapped_column(String(60), primary_key=True)
+    value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
@@ -118,6 +290,8 @@ V1_2_NEW_COLUMNS = [
     ("title", "VARCHAR(200)"),
     # v1.15.6 — episode/voiceover cost inputs (JSON: images + narration chars)
     ("cost_meta", "TEXT"),
+    # W-a (v1.19) — selected video model id
+    ("video_model", "VARCHAR(48)"),
 ]
 
 
@@ -144,6 +318,36 @@ SCHEDULED_POSTS_COLUMNS = [
     ("metrics", "TEXT"),
     # v1.12 additions
     ("source_image", "VARCHAR(255)"),
+    # v1.27 additions
+    ("brief", "TEXT"),
+]
+
+
+# v1.16 — columns added to avatar_presets after its initial ship (create_all
+# never alters an existing table, so pre-existing DBs get them via auto-ALTER).
+AVATAR_PRESETS_COLUMNS = [
+    ("engine", "VARCHAR(20)"),
+]
+
+
+# v1.19 — columns added to bible_entities after its initial ship (manuscript
+# ingestion agent: aliases + per-chapter evidence quotes).
+BIBLE_ENTITIES_COLUMNS = [
+    ("aliases", "TEXT"),
+    ("evidence", "TEXT"),
+    ("prompt_recipe", "TEXT"),
+    ("face_image", "VARCHAR(255)"),
+    ("voice_id", "VARCHAR(80)"),
+    ("voice_name", "VARCHAR(200)"),
+    ("voice_prev", "TEXT"),
+]
+
+
+# v1.22 (W-d) — columns added to shots after its initial ship (video-shotcraft
+# bridge: motion recipe card + energy level).
+SHOTS_COLUMNS = [
+    ("motion_recipe", "VARCHAR(60)"),
+    ("energy", "INTEGER"),
 ]
 
 
@@ -216,7 +420,10 @@ async def _auto_migrate():
                 """))
 
         for table, columns in (("jobs", V1_2_NEW_COLUMNS),
-                               ("scheduled_posts", SCHEDULED_POSTS_COLUMNS)):
+                               ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
+                               ("avatar_presets", AVATAR_PRESETS_COLUMNS),
+                               ("bible_entities", BIBLE_ENTITIES_COLUMNS),
+                               ("shots", SHOTS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

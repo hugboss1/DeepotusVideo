@@ -1,0 +1,141 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — theme-v2.css · direction CINEMA (refonte UI v2.1)
+   Surcharge du bundle React compilé, chargée APRÈS /assets/index-*.css
+   (INTEGRATION-UI-v2.md §3 : tokens d'abord, aucun JS touché).
+   Source des valeurs : frontend/shared/deepotus.tokens.css (design
+   « DeepOtus Studio »). Le shell Pro (chantier 11) expose déjà tous les
+   tokens --bg-*/--ink-*/--cyan/--node-* : on ne redéfinit que les valeurs.
+   Pour revenir à l'ancienne direction Deep Lab : retirer le <link> de ce
+   fichier dans frontend/dist/index.html.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* Polices auto-hébergées (aucun appel réseau dans l'app packagée).
+   IBMPlexSans.ttf n'est pas encore dans /fonts : repli propre sur Inter. */
+@font-face { font-family:"IBMPlex Local"; src:url("/fonts/IBMPlexSans.ttf")  format("truetype"); font-weight:400 600; font-display:swap; }
+@font-face { font-family:"Inter Local";   src:url("/fonts/Inter.ttf")        format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"Grotesk Local"; src:url("/fonts/SpaceGrotesk.ttf") format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"JBMono Local";  src:url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight:400 500; font-display:swap; }
+
+/* ── tokens Shell Pro → valeurs Cinema ────────────────────────────────────── */
+:root{
+  --bg-base:#0a0a0c;
+  --bg-panel:#151519;
+  --bg-panel-2:#1c1c21;
+  /* dans le bundle, panel-3 est la surface la PLUS claire (survol/élévation) :
+     on préserve ce rôle avec un gris chaud clair, pas le puits #111114 */
+  --bg-panel-3:#232328;
+  --bg-overlay:#0a0a0ccc;
+  --ink-strong:#f2efe9; --ink:#c4bfb6; --ink-soft:#8a857d; --ink-muted:#55514c;
+  --stroke:#2a2930; --stroke-strong:#3d3b45;
+  /* --brand reste le rouge du logo (identité), inchangé */
+  --cyan:#f0b429; --cyan-soft:#f0b42924; --cyan-glow:#f0b42955;
+  --violet:#9b8ec4; --violet-soft:#9b8ec422;
+  --amber:#f0b429; --amber-soft:#f0b42922;
+  --green:#5ec8a0; --green-soft:#5ec8a022;
+  --red:#e35d4a; --red-soft:#e35d4a22;
+  /* rampe catégorielle médias (graphe de nœuds, canaux, pistes) */
+  --node-image:#c98f5a; --node-video:#6d9dc5; --node-audio:#7fb069;
+  --node-av:#9b8ec4; --node-text:#c9b7a0; --node-data:#8a857d;
+  /* jetons propres au thème v2 */
+  --accent-ink:#1a1206;          /* texte sur bouton doré */
+  --well:#0a0a0ccc;              /* fond des champs (puits) */
+  --shadow-1:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.55);
+  --f-ui:"IBMPlex Local","IBM Plex Sans","Inter Local","Inter",ui-sans-serif,system-ui,sans-serif;
+  --f-display:"Grotesk Local","Space Grotesk",ui-sans-serif,system-ui,sans-serif;
+  --f-mono:"JBMono Local","JetBrains Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+
+/* ── socle ────────────────────────────────────────────────────────────────── */
+/* fond plat : la direction Cinema ne garde aucun dégradé décoratif.
+   Le bundle repose --cyan/--cyan-soft en STYLE INLINE sur <body> au boot :
+   seule une déclaration !important de feuille l'emporte sur l'inline.
+   (--brand reste le rouge du logo, non surchargé.) */
+body{background:var(--bg-base);font-family:var(--f-ui);--cyan:#f0b429 !important;--cyan-soft:#f0b42924 !important}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--stroke)}
+::-webkit-scrollbar-thumb:hover{background:var(--stroke-strong)}
+input::placeholder,textarea::placeholder{color:var(--ink-muted)}
+input::-moz-placeholder,textarea::-moz-placeholder{color:var(--ink-muted)}
+::selection{background:var(--cyan-soft)}
+
+/* ── composants du bundle ─────────────────────────────────────────────────── */
+/* panneau : surface pleine + filet 1px, sans flou d'arrière-plan */
+.panel{border-color:var(--stroke);background-color:var(--bg-panel);--tw-backdrop-blur:blur(0px)}
+/* étiquette de section : grammaire mono du design (10px, .16em, majuscules) */
+.panel-title{font-family:var(--f-mono);font-size:10px;letter-spacing:.16em;color:var(--ink-soft)}
+.input{border-color:var(--stroke);background-color:var(--well)}
+.input:focus{border-color:var(--cyan);--tw-ring-color:rgb(240 180 41 / .3)}
+/* action primaire : aplat doré (le dégradé cyan→violet disparaît) */
+.btn-primary{background-image:none;background-color:var(--cyan);color:var(--accent-ink);--tw-shadow:0 0 22px -2px rgba(240,180,41,.35);--tw-shadow-colored:0 0 22px -2px var(--tw-shadow-color)}
+.btn-primary:hover{--tw-shadow:0 0 26px -2px rgba(240,180,41,.5);--tw-shadow-colored:0 0 26px -2px var(--tw-shadow-color)}
+.btn-ghost{border-color:var(--stroke);background-color:#1c1c2199;color:var(--ink)}
+.btn-ghost:hover{border-color:var(--stroke-strong);background-color:var(--bg-panel-3)}
+.badge{border-color:var(--stroke);background-color:#23232899}
+
+/* ── nœuds du Studio — carte de la maquette « DeepOtus Studio » ────────────
+   Style uniquement (drag/ports/run intacts). Hooks : la carte est le seul
+   élément [data-node-id] ; l'en-tête est son premier enfant. La maquette :
+   carte plate radius 11, en-tête sobre (filet bas seul), puce média 7×7
+   radius 2 pleine couleur (currentColor = couleur de catégorie inline).
+   NB : l'ancienne teinte d'en-tête (var(--cyan)+"1a" concaténé) était du CSS
+   invalide depuis la tokenisation Shell Pro — rien n'est perdu. */
+[data-node-id]{border-radius:11px !important;background:var(--bg-panel) !important}
+[data-node-id]>div:first-child{background:none !important;border-top-left-radius:10px !important;border-top-right-radius:10px !important}
+[data-node-id]>div:first-child>span:first-child{width:7px !important;height:7px !important;min-width:7px;border-radius:2px !important;background:currentColor !important;overflow:hidden}
+[data-node-id]>div:first-child>span:first-child svg{display:none !important}
+
+/* ── CTA injectés par les patchers (accent cyan littéral en style inline) ──
+   Les boutons primaires du shell (Run, Continue…) posent leur dégradé cyan
+   en inline : seul un sélecteur d'attribut + !important peut les réaccorder.
+   Volontairement limité aux <button> — les aplats cyan des miniatures de
+   templates sont du CONTENU et doivent rester fidèles. */
+button[style*="linear-gradient(rgb(0, 229, 255)"]{background:var(--cyan) !important;border-color:var(--cyan) !important;color:var(--accent-ink) !important;box-shadow:0 0 22px var(--cyan-soft), inset 0 1px 0 #ffffff33 !important}
+button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient"]){border-color:var(--cyan) !important;color:var(--cyan) !important}
+
+/* ── utilitaires Tailwind réaccordés (générés depuis le CSS du bundle) ──── */
+.\!border-bio-violet{border-color:rgb(155 142 196 / var(--tw-border-opacity, 1))!important}
+.border-bio-cyan{border-color:rgb(240 180 41 / var(--tw-border-opacity, 1))}
+.border-bio-cyan\/30{border-color:#f0b4294d}
+.border-bio-cyan\/40{border-color:#f0b42966}
+.border-bio-cyan\/60{border-color:#f0b42999}
+.border-bio-violet{border-color:rgb(155 142 196 / var(--tw-border-opacity, 1))}
+.border-bio-violet\/20{border-color:#9b8ec433}
+.border-bio-violet\/30{border-color:#9b8ec44d}
+.border-bio-violet\/40{border-color:#9b8ec466}
+.border-deep-700{border-color:rgb(42 41 48 / var(--tw-border-opacity, 1))}
+.border-deep-700\/40{border-color:#2a293066}
+.border-deep-700\/50{border-color:#2a293080}
+.\!bg-bio-violet\/30{background-color:#9b8ec44d!important}
+.bg-bio-cyan{background-color:rgb(240 180 41 / var(--tw-bg-opacity, 1))}
+.bg-bio-cyan\/10{background-color:#f0b4291a}
+.bg-bio-cyan\/15{background-color:#f0b42926}
+.bg-bio-cyan\/20{background-color:#f0b42933}
+.bg-bio-cyan\/5{background-color:#f0b4290d}
+.bg-bio-violet{background-color:rgb(155 142 196 / var(--tw-bg-opacity, 1))}
+.bg-bio-violet\/20{background-color:#9b8ec433}
+.bg-bio-violet\/5{background-color:#9b8ec40d}
+.bg-deep-800\/80{background-color:#1c1c21cc}
+.bg-deep-900\/40{background-color:#15151966}
+.bg-deep-900\/60{background-color:#15151999}
+.bg-deep-950{background-color:rgb(10 10 12 / var(--tw-bg-opacity, 1))}
+.bg-deep-950\/40{background-color:#0a0a0c66}
+.bg-deep-950\/60{background-color:#0a0a0c99}
+.from-bio-cyan{--tw-gradient-from: #f0b429 var(--tw-gradient-from-position);--tw-gradient-to: rgb(240 180 41 / 0) var(--tw-gradient-to-position)}
+.to-bio-violet{--tw-gradient-to: #9b8ec4 var(--tw-gradient-to-position)}
+.text-bio-cyan{color:rgb(240 180 41 / var(--tw-text-opacity, 1))}
+.text-bio-cyan\/60{color:#f0b42999}
+.text-bio-cyan\/80{color:#f0b429cc}
+.text-bio-violet{color:rgb(155 142 196 / var(--tw-text-opacity, 1))}
+.text-bio-violet\/80{color:#9b8ec4cc}
+.text-deep-950{color:rgb(10 10 12 / var(--tw-text-opacity, 1))}
+.accent-bio-cyan{accent-color:#f0b429}
+.accent-bio-violet{accent-color:#9b8ec4}
+.shadow-glow{--tw-shadow: 0 0 24px -2px rgba(240,180,41, .4)}
+.shadow-glow-violet{--tw-shadow: 0 0 24px -2px rgba(155,142,196, .4)}
+.hover\:border-bio-cyan\/50:hover{border-color:#f0b42980}
+.hover\:border-bio-violet\/50:hover{border-color:#9b8ec480}
+.hover\:border-deep-700\/80:hover{border-color:#2a2930cc}
+.hover\:bg-bio-violet\/10:hover{background-color:#9b8ec41a}
+.hover\:bg-deep-800\/40:hover{background-color:#1c1c2166}
+.hover\:bg-deep-800\/60:hover{background-color:#1c1c2199}
+.hover\:text-bio-cyan:hover{color:rgb(240 180 41 / var(--tw-text-opacity, 1))}

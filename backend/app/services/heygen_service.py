@@ -232,7 +232,227 @@ class HeyGenClient:
                 })
         return out
 
-    # ---------- VIDEO GENERATION ----------
+    # ---------- VIDEO GENERATION (API v3) ----------
+    # v3 (`POST /v3/videos`) supports per-request engine selection:
+    # avatar_iii (digital twin / photo-avatar looks), avatar_iv (default,
+    # motion_prompt + expressiveness), avatar_v (highest quality). The legacy
+    # v2 path below stays the default; v3 is used only when an engine is
+    # explicitly requested. NOTE: v1/v2 endpoints sunset 2026-10-31.
+
+    @staticmethod
+    def build_v3_avatar_body(
+        text: str,
+        avatar_id: str,
+        voice_id: str,
+        *,
+        engine: str,
+        aspect_ratio: str = "9:16",
+        speed: float = 1.0,
+        background_color: str = "#02060d",
+        motion_prompt: Optional[str] = None,
+        expressiveness: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> dict:
+        """Build the /v3/videos request body (type=avatar). Pure + testable.
+
+        v3 clamps voice speed to 0.5–1.5 (v2 allowed up to 2.0);
+        motion_prompt / expressiveness only apply to photo avatars on IV/V —
+        harmless to omit otherwise, so they are only sent when provided.
+        """
+        body: dict = {
+            "type": "avatar",
+            "avatar_id": avatar_id,
+            "script": text[:4900],
+            "voice_id": voice_id,
+            "engine": {"type": engine},
+            "aspect_ratio": aspect_ratio,
+            "resolution": "1080p",
+            "background": {"type": "color", "value": background_color},
+            "voice_settings": {"speed": max(0.5, min(1.5, speed))},
+        }
+        if motion_prompt and engine in ("avatar_iv", "avatar_v"):
+            body["motion_prompt"] = motion_prompt
+        if expressiveness and engine == "avatar_iv":
+            body["expressiveness"] = expressiveness
+        if title:
+            body["title"] = title
+        return body
+
+    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30), reraise=True)
+    async def generate_video_v3(
+        self,
+        text: str,
+        avatar_id: str,
+        voice_id: str,
+        *,
+        engine: str = "avatar_iv",
+        aspect_ratio: str = "9:16",
+        speed: float = 1.0,
+        background_color: str = "#02060d",
+        motion_prompt: Optional[str] = None,
+        expressiveness: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> str:
+        """Submit a v3 avatar video with an explicit engine. Returns video_id."""
+        body = self.build_v3_avatar_body(
+            text, avatar_id, voice_id, engine=engine,
+            aspect_ratio=aspect_ratio, speed=speed,
+            background_color=background_color,
+            motion_prompt=motion_prompt, expressiveness=expressiveness,
+            title=title,
+        )
+        logger.info(f"Submitting HeyGen v3 video: engine={engine}, "
+                    f"avatar={avatar_id}, voice={voice_id}, aspect={aspect_ratio}")
+        result = await self._post("/v3/videos", body)
+        payload = result.get("data") if isinstance(result.get("data"), dict) else result
+        video_id = payload.get("video_id") or payload.get("id")
+        if not video_id:
+            raise HeyGenError(f"No video_id in HeyGen v3 response: {result}")
+        logger.info(f"HeyGen v3 video submitted: {video_id}")
+        return video_id
+
+    async def poll_video_status_v3(
+        self,
+        video_id: str,
+        *,
+        poll_every_s: float = 4.0,
+        timeout_s: float = 900.0,
+    ) -> dict:
+        """Poll GET /v3/videos/{id} until completed/failed. Returns the final
+        payload (contains a presigned video_url — download promptly)."""
+        elapsed = 0.0
+        last_status = None
+        while elapsed < timeout_s:
+            result = await self._get(f"/v3/videos/{video_id}")
+            payload = (result.get("data")
+                       if isinstance(result.get("data"), dict) else result)
+            status = payload.get("status")
+            last_status = status
+            if status == "completed":
+                logger.info(f"HeyGen v3 video {video_id} complete.")
+                return payload
+            if status == "failed":
+                err = payload.get("error") or {}
+                msg = err.get("message") if isinstance(err, dict) else str(err)
+                raise HeyGenError(f"HeyGen v3 video {video_id} failed: "
+                                  f"{msg or 'unknown error'}")
+            logger.debug(f"HeyGen v3 status {video_id}: {status} ({elapsed:.0f}s)")
+            await asyncio.sleep(poll_every_s)
+            elapsed += poll_every_s
+        raise HeyGenError(
+            f"HeyGen v3 video {video_id} timed out after {timeout_s}s "
+            f"(last status: {last_status})")
+
+    # ---------- v3: ANIMATE AN IMAGE / CINEMATIC (feature D) ----------
+
+    @staticmethod
+    def _b64_image(path: Path) -> dict:
+        """v3 inline-image payload (base64) from a local Library file."""
+        import base64
+        mt = {".png": "image/png", ".jpg": "image/jpeg",
+              ".jpeg": "image/jpeg", ".webp": "image/webp"}.get(
+                  path.suffix.lower(), "image/png")
+        return {"type": "base64", "media_type": mt,
+                "data": base64.b64encode(path.read_bytes()).decode()}
+
+    @staticmethod
+    def build_v3_image_body(
+        image_path: Path,
+        text: str,
+        voice_id: str,
+        *,
+        engine: str = "avatar_iv",
+        aspect_ratio: str = "9:16",
+        speed: float = 1.0,
+        motion_prompt: Optional[str] = None,
+        expressiveness: Optional[str] = None,
+        title: Optional[str] = None,
+    ) -> dict:
+        """/v3/videos body, type=image: animate ANY still (photo→talking video).
+        No background field — the image itself is the frame."""
+        body: dict = {
+            "type": "image",
+            "image": HeyGenClient._b64_image(image_path),
+            "script": text[:4900],
+            "voice_id": voice_id,
+            "engine": {"type": engine},
+            "aspect_ratio": aspect_ratio,
+            "resolution": "1080p",
+            "voice_settings": {"speed": max(0.5, min(1.5, speed))},
+        }
+        if motion_prompt:
+            body["motion_prompt"] = motion_prompt
+        if expressiveness and engine == "avatar_iv":
+            body["expressiveness"] = expressiveness
+        if title:
+            body["title"] = title
+        return body
+
+    async def generate_image_video_v3(self, image_path: Path, text: str,
+                                      voice_id: str, **kw) -> str:
+        """Animate a local image via v3. Returns video_id (poll with
+        poll_video_status_v3)."""
+        body = self.build_v3_image_body(image_path, text, voice_id, **kw)
+        logger.info(f"Submitting HeyGen v3 IMAGE video: {image_path.name}, "
+                    f"engine={body['engine']['type']}")
+        result = await self._post("/v3/videos", body)
+        payload = result.get("data") if isinstance(result.get("data"), dict) else result
+        video_id = payload.get("video_id") or payload.get("id")
+        if not video_id:
+            raise HeyGenError(f"No video_id in HeyGen v3 image response: {result}")
+        return video_id
+
+    @staticmethod
+    def build_v3_cinematic_body(
+        prompt: str,
+        look_ids: list[str],
+        *,
+        reference_paths: Optional[list[Path]] = None,
+        duration_s: Optional[int] = None,
+        auto_duration: bool = False,
+        aspect_ratio: str = "9:16",
+        resolution: str = "720p",
+        enhance_prompt: bool = True,
+        title: Optional[str] = None,
+    ) -> dict:
+        """/v3/videos body, type=cinematic_avatar: prompt-driven motion with
+        1–3 avatar looks and optional reference images. No script/voice —
+        motion comes from the prompt."""
+        body: dict = {
+            "type": "cinematic_avatar",
+            "prompt": prompt[:10000],
+            "avatar_id": list(look_ids)[:3],
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+        }
+        if auto_duration or not duration_s:
+            body["auto_duration"] = True
+        else:
+            body["duration"] = max(4, min(15, int(duration_s)))
+        refs = [HeyGenClient._b64_image(p) for p in (reference_paths or [])[:9]]
+        if refs:
+            body["references"] = refs
+        if enhance_prompt:
+            body["enhance_prompt"] = True
+        if title:
+            body["title"] = title
+        return body
+
+    async def generate_cinematic_v3(self, prompt: str, look_ids: list[str],
+                                    **kw) -> str:
+        """Cinematic avatar video via v3. Returns video_id."""
+        body = self.build_v3_cinematic_body(prompt, look_ids, **kw)
+        logger.info(f"Submitting HeyGen v3 CINEMATIC video: "
+                    f"{len(body['avatar_id'])} look(s), "
+                    f"{'auto' if body.get('auto_duration') else body.get('duration')}s")
+        result = await self._post("/v3/videos", body)
+        payload = result.get("data") if isinstance(result.get("data"), dict) else result
+        video_id = payload.get("video_id") or payload.get("id")
+        if not video_id:
+            raise HeyGenError(f"No video_id in HeyGen v3 cinematic response: {result}")
+        return video_id
+
+    # ---------- VIDEO GENERATION (legacy v2) ----------
 
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=2, min=4, max=30), reraise=True)
     async def generate_video(

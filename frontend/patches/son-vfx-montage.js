@@ -4,17 +4,9 @@
      r = react/jsx-runtime (r.jsx / r.jsxs / r.Fragment)
      x = React (hooks)
    Styles : /shared/son-vfx-montage.css (tokens Cinema scopés, .dzsvm).
-   Chaînes en français — la langue de l'app installée (v2.x) et de la maquette.
-
-   Câblage réel :
-   - Son & VFX : /api/voices (clonées en tête), /api/audio (dernier asset →
-     vrais pics WebAudio + lecture).
-   - Montage : /api/montage/project (timeline initiale depuis la Bibliothèque),
-     /api/montage/render (preview 480p gratuit / rendu final → JobRecord,
-     poll /api/jobs/{id}), aperçu joué dans le lecteur 9:16 synchronisé à la
-     timeline, « Rendre & publier » → rendu final + brouillon Scheduler.
-   Sans asset réel, l'écran garde la démo du handoff (« teaser_abyss ») et les
-   actions restent des cibles produit explicites. */
+   Chaînes en français — la langue de l'app installée (v2.0.0) et de la maquette.
+   Les données de démo (noms de clips, voix, sous-titre) sont du contenu projet
+   (« teaser_abyss »), pas du chrome UI. */
 
 /* ── helpers partagés ── */
 function svmPad2(n){n=Math.floor(n);return (n<10?"0":"")+n}
@@ -239,8 +231,8 @@ function DzSonVfx(props){
           r.jsxs("div",{className:"svm-grid2",children:[sfxCard,vfxCard]})]}):vfxCard]})]})]})}
 
 /* ═════════════════════ Écran 07 · Montage ═════════════════════ */
-var SVM_DEMO_DUR=64;
-function svmDemoClips(){return [
+var SVM_DUR=64;
+function svmClips(){return [
  {tr:"v2",id:"v2c1",label:"titre_intro",start:3.84,end:14.08},
  {tr:"v2",id:"v2c2",label:"glow doré",start:24.32,end:32},
  {tr:"v2",id:"v2c3",label:"logo_outro",start:49.92,end:61.44},
@@ -262,16 +254,15 @@ var SVM_TRACKS=[
  {id:"a1",name:"A1",type:"dialogue",h:40,c:"--c-audio",mix:13},
  {id:"a2",name:"A2",type:"musique",h:36,c:"--c-text",mix:8},
  {id:"a3",name:"A3",type:"sfx",h:36,c:"--c-3d",mix:13}];
-var SVM_DEMO_MIX={dialogue:-12,musique:-22,sfx:-18};
-var SVM_MIX_COLORS={dialogue:"--c-audio",musique:"--c-av",sfx:"--c-3d"};
+var SVM_MIX=[
+ {name:"dialogue",db:"−12 dB",w:78,c:"--c-audio"},
+ {name:"musique",db:"−22 dB",w:44,c:"--c-av"},
+ {name:"sfx",db:"−18 dB",w:58,c:"--c-3d"}];
 var SVM_ZOOMW=[100,150,220,320];
-function svmMixRows(mixDb){return ["dialogue","musique","sfx"].map(function(k){
-  var db=Number(mixDb&&mixDb[k]!=null?mixDb[k]:SVM_DEMO_MIX[k]);
-  return {name:k,db:"−"+Math.abs(db)+" dB",w:Math.max(8,Math.min(100,Math.round(78+3.4*(db+12)))),c:SVM_MIX_COLORS[k]}})}
 
 function DzMontage(props){
   var th=svmUseTheme(),theme=th[0],setTheme=th[1];
-  var st1=x.useState(svmDemoClips),clips=st1[0],setClips=st1[1];
+  var st1=x.useState(svmClips),clips=st1[0],setClips=st1[1];
   var st2=x.useState("v1c4"),selId=st2[0],setSelId=st2[1];
   var st3=x.useState(18.4),ph=st3[0],setPh=st3[1];
   var st4=x.useState(!1),playing=st4[0],setPlaying=st4[1];
@@ -281,58 +272,23 @@ function DzMontage(props){
   var st8=x.useState(!0),dirty=st8[0],setDirty=st8[1];
   var st9=x.useState(!0),durMaster=st9[0],setDurMaster=st9[1];
   var stA=x.useState(""),pop=stA[0],setPop=stA[1];
-  var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
-  var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
-  var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
   var clipsRef=x.useRef(clips);clipsRef.current=clips;
   var selRef=x.useRef(selId);selRef.current=selId;
-  var durRef=x.useRef(proj.dur);durRef.current=proj.dur;
-  var videoRef=x.useRef(null);
-  var dur=proj.dur;
-
-  /* projet initial — vrais assets de la Bibliothèque quand il y en a */
-  x.useEffect(function(){var alive=!0;
-    fetch("/api/montage/project").then(function(res){return res.json()}).then(function(d){
-      if(!alive||!d||!d.ok||!d.has_assets)return;
-      var cs=(d.clips||[]).map(function(c,i){
-        return {tr:c.tr,id:c.id||("c"+i),label:c.label||"clip",start:Number(c.start)||0,
-          end:Number(c.end)||0,src:c.src||null,srcIn:Number(c.srcIn)||0,
-          transition:c.transition||(c.tr==="v1"?"cut":void 0),
-          transition_s:Number(c.transition_s)||0}});
-      var first=cs.find(function(c){return c.tr==="v1"});
-      setClips(cs);setSelId(first?first.id:"");setPh(0);setDirty(!1);
-      setProj({demo:!1,name:d.name||"montage",version:"v1",ratio:d.ratio||"9:16",
-        dur:Math.max(1,Number(d.duration)||1),mixDb:d.mix||SVM_DEMO_MIX});
-    }).catch(function(){});
-    return function(){alive=!1}},[]);
 
   var sel=clips.find(function(c){return c.id===selId})||null;
-  var mixRows=svmMixRows(proj.mixDb);
 
-  /* boucle de lecture — pilotée par la vidéo d'aperçu quand elle existe */
+  /* boucle de lecture */
   x.useEffect(function(){
     if(!playing)return;
-    var v=videoRef.current;
-    if(v&&previewUrl){v.play().catch(function(){})}
     var last=performance.now();
     var step=function(now){var dt=(now-last)/1000;last=now;
-      var vd=videoRef.current;
-      if(vd&&previewUrl){
-        if(vd.ended){setPlaying(!1);return}
-        setPh(Math.min(durRef.current,vd.currentTime))}
-      else{
-        var p=phRef.current+dt;
-        if(p>=durRef.current){setPh(durRef.current);setPlaying(!1);return}
-        setPh(p)}
-      rafRef.current=requestAnimationFrame(step)};
+      var p=phRef.current+dt;
+      if(p>=SVM_DUR){setPh(SVM_DUR);setPlaying(!1);return}
+      setPh(p);rafRef.current=requestAnimationFrame(step)};
     rafRef.current=requestAnimationFrame(step);
-    return function(){if(rafRef.current)cancelAnimationFrame(rafRef.current);
-      var vd=videoRef.current;if(vd&&!vd.paused)vd.pause()}},[playing,previewUrl]);
-
-  function seekTo(p){setPh(p);var v=videoRef.current;
-    if(v&&previewUrl){try{v.currentTime=Math.min(p,v.duration||p)}catch(_e){}}}
+    return function(){if(rafRef.current)cancelAnimationFrame(rafRef.current)}},[playing]);
 
   /* lame (bouton + ⌥C) */
   var blade=x.useCallback(function(){
@@ -350,23 +306,23 @@ function DzMontage(props){
   /* scrub sur la règle */
   function phFromEvent(e,el){var rect=el.getBoundingClientRect();
     var f=(e.clientX-rect.left-88)/(rect.width-88);
-    return Math.min(durRef.current,Math.max(0,f*durRef.current))}
+    return Math.min(SVM_DUR,Math.max(0,f*SVM_DUR))}
   function rulerDown(e){var el=e.currentTarget;
     try{el.setPointerCapture&&el.setPointerCapture(e.pointerId)}catch(_c){}
-    seekTo(phFromEvent(e,el));
-    function mv(ev){seekTo(phFromEvent(ev,el))}
+    setPh(phFromEvent(e,el));
+    function mv(ev){setPh(phFromEvent(ev,el))}
     function up(){el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up)}
     el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up)}
 
   /* déplacement / rognage de clip (zones de bord 6 px) — magnétisme bords + tête */
   function clipDown(e,c,laneEl){
     e.stopPropagation();setSelId(c.id);
-    var rect=laneEl.getBoundingClientRect(),pxPerS=rect.width/durRef.current;
+    var rect=laneEl.getBoundingClientRect(),pxPerS=rect.width/SVM_DUR;
     var cRect=e.currentTarget.getBoundingClientRect();
     var edge=e.clientX-cRect.left<6?"l":cRect.right-e.clientX<6?"r":"m";
     var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;
     try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
-    var edges=[0,durRef.current,phRef.current];
+    var edges=[0,SVM_DUR,phRef.current];
     clipsRef.current.forEach(function(k){if(k.id!==c.id){edges.push(k.start,k.end)}});
     function doSnap(v){if(!snap)return v;var t=8/pxPerS,best=v;
       edges.forEach(function(g){if(Math.abs(g-v)<t){t=Math.abs(g-v);best=g}});return best}
@@ -376,107 +332,47 @@ function DzMontage(props){
         if(k.id!==c.id)return k;
         if(edge==="m"){var len=e0-s0,ns=doSnap(s0+ds);
           var nsEnd=doSnap(e0+ds);if(nsEnd!==e0+ds&&ns===s0+ds)ns=nsEnd-len;
-          ns=Math.min(durRef.current-len,Math.max(0,ns));
+          ns=Math.min(SVM_DUR-len,Math.max(0,ns));
           return Object.assign({},k,{start:ns,end:ns+len})}
         if(edge==="l"){var v=Math.min(e0-.3,Math.max(0,doSnap(s0+ds)));
           return Object.assign({},k,{start:v})}
-        var w=Math.max(s0+.3,Math.min(durRef.current,doSnap(e0+ds)));
+        var w=Math.max(s0+.3,Math.min(SVM_DUR,doSnap(e0+ds)));
         return Object.assign({},k,{end:w})}))}
     function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
       if(moved)setDirty(!0)}
     tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
 
   /* sauts transport — points de coupe V1 */
-  function jump(dir){var pts=[0,durRef.current];
+  function jump(dir){var pts=[0,SVM_DUR];
     clips.forEach(function(c){if(c.tr==="v1")pts.push(c.start,c.end)});
     pts.sort(function(a,b){return a-b});
     var p=phRef.current;
-    if(dir<0){for(var i=pts.length-1;i>=0;i--){if(pts[i]<p-.05){seekTo(pts[i]);return}}seekTo(0)}
-    else{for(var j2=0;j2<pts.length;j2++){if(pts[j2]>p+.05){seekTo(pts[j2]);return}}seekTo(durRef.current)}}
+    if(dir<0){for(var i=pts.length-1;i>=0;i--){if(pts[i]<p-.05){setPh(pts[i]);return}}setPh(0)}
+    else{for(var j2=0;j2<pts.length;j2++){if(pts[j2]>p+.05){setPh(pts[j2]);return}}setPh(SVM_DUR)}}
 
-  /* ── rendu réel : POST /api/montage/render + poll /api/jobs/{id} ── */
-  function renderPayload(preview){
-    return {name:proj.name,ratio:proj.ratio,preview:preview,
-      duration_master:durMaster,ducking:!0,mix:proj.mixDb,
-      clips:clips.filter(function(c){return c.src}).map(function(c){
-        return {tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
-          transition:c.transition||"cut",transition_s:c.transition_s||0}})}}
-  function launchRender(preview){
-    if(proj.demo||(job&&job.status!=="failed"))return;
-    setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
-    fetch("/api/montage/render",{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(renderPayload(preview))})
-      .then(function(res){return res.json().then(function(d){return {ok:res.ok,d:d}})})
-      .then(function(o){
-        if(!o.ok||!o.d.job_id){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",
-          error:(o.d&&(o.d.detail||o.d.error))||"échec du lancement"});return}
-        setJob({id:o.d.job_id,kind:preview?"preview":"final",status:"running",progress:10,step:"En file",error:null})})
-      .catch(function(e){setJob({id:null,kind:preview?"preview":"final",status:"failed",progress:0,step:"",error:String(e)})})}
-  x.useEffect(function(){
-    if(!job||!job.id||job.status==="done"||job.status==="failed")return;
-    var t=setInterval(function(){
-      fetch("/api/jobs/"+job.id).then(function(res){return res.json()}).then(function(d){
-        if(!d)return;
-        if(d.status==="done"){
-          clearInterval(t);
-          if(job.kind==="preview"){
-            setPreviewUrl("/api/jobs/"+job.id+"/video?t="+Date.now());
-            setJob(null);setPop("");seekTo(0);
-            fireNote("Aperçu 480p prêt — branché dans le lecteur ("+(d.duration_real_s||d.duration_s||"?")+" s).")}
-          else{
-            var run=new Date();run.setDate(run.getDate()+1);run.setHours(9,0,0,0);
-            fetch("/api/schedule",{method:"POST",headers:{"Content-Type":"application/json"},
-              body:JSON.stringify({title:proj.name,caption:proj.name+" 🐙",channels:["x","telegram"],
-                run_at:run.toISOString(),status:"draft",mode:"assisted",job_id:job.id})})
-              .then(function(res){return res.json()}).then(function(p2){
-                setJob(null);setPop("");setDirty(!1);
-                fireNote("Rendu final terminé — brouillon ajouté au Scheduler.");
-                if(p2&&p2.id){setTimeout(function(){
-                  window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:p2.id}}))},400)}
-                props.go&&setTimeout(function(){props.go("scheduler")},900)})
-              .catch(function(){setJob(null);setPop("");
-                fireNote("Rendu terminé (Bibliothèque) — création du brouillon Scheduler impossible.")})}}
-        else if(d.status==="failed"){clearInterval(t);
-          setJob(function(j){return Object.assign({},j,{status:"failed",error:d.error||"échec du rendu"})})}
-        else{setJob(function(j){return Object.assign({},j,{status:"running",
-          progress:Number(d.progress)||0,step:d.current_step||""})})}
-      }).catch(function(){})},1500);
-    return function(){clearInterval(t)}},[job&&job.id,job&&job.kind,job&&job.status==="failed"]);
-
-  var phFrac=dur?ph/dur:0;
-  var tickStep=[2,3,5,6,10,15,20,30,60].find(function(s){return dur/s<=11})||60;
-  var ticks=[];for(var t2=0;t2<=Math.floor(dur/tickStep)*tickStep&&ticks.length<40;t2+=tickStep)ticks.push(t2);
+  var phFrac=ph/SVM_DUR;
+  var ticks=[];for(var t2=0;t2<=60;t2+=6)ticks.push(t2);
 
   /* popover de confirmation — coût affiché avant tout déclenchement (règle produit) */
   function popover(){
     if(!pop)return null;
     var isR=pop==="render";
-    var busy=job&&job.kind===(isR?"final":"preview")&&job.status!=="failed";
-    var failed=job&&job.status==="failed";
     return r.jsxs("div",{className:"svm-pop",children:[
       r.jsx("div",{className:"svm-poptitle",children:isR?"Rendre & publier":"Preview 480p"}),
-      r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:isR?"rendu ffmpeg (local) · "+svmRuler(Math.round(dur)):"aperçu ffmpeg 480p (local) · "+svmRuler(Math.round(dur))}),r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),
-      isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · brouillon Scheduler"}),r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,
-      proj.demo?
-        r.jsx("div",{className:"svm-popnote",children:"Timeline de démonstration — aucune source réelle à rendre. Génère ou importe d'abord une vidéo (Studio, Quick, Épisodes ou upload) : la timeline se remplira depuis la Bibliothèque."}):
-        busy?r.jsxs("div",{className:"svm-popnote",children:["Rendu en cours — ",job.progress,"% · ",job.step||"…"]}):
-        failed?r.jsxs("div",{className:"svm-popnote",style:{color:"var(--red)"},children:["Échec : ",job.error]}):
-        r.jsx("div",{className:"svm-popnote",children:isR?
-          "Rendu local 1080 (aucun crédit consommé), puis brouillon dans le Scheduler — rien n'est publié sans ta validation.":
-          "L'aperçu basse résolution est gratuit et local — il ne consomme jamais de crédits. Le résultat se branche dans le lecteur."}),
+      r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:isR?"rendu ffmpeg (local)":"aperçu ffmpeg 480p (local)"}),r.jsx("span",{className:"svm-cost",children:"$0.00"})]}),
+      isR?r.jsxs("div",{className:"svm-popline",children:[r.jsx("span",{children:"publication · Scheduler"}),r.jsx("span",{className:"svm-cost",children:"gratuit"})]}):null,
+      r.jsx("div",{className:"svm-popnote",children:isR?
+        "L'estimation s'affiche avant tout déclenchement (règle produit). Le câblage de cette timeline vers le pipeline de rendu (/layout-templates, ffmpeg_service) est l'étape suivante du handoff — rien n'est déclenché pour l'instant.":
+        "L'aperçu basse résolution est gratuit et local — il ne consomme jamais de crédits. Câblage à l'étape suivante du handoff — rien n'est déclenché pour l'instant."}),
       r.jsxs("div",{className:"svm-poprow",children:[
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("");if(failed)setJob(null)},children:"Fermer"}),
-        proj.demo?null:
-          failed?r.jsx("button",{className:"svm-goldbtn",onClick:function(){launchRender(!isR)},children:"Réessayer"}):
-          r.jsx("button",{className:"svm-goldbtn",disabled:busy,style:busy?{opacity:.55,cursor:"default"}:null,
-            onClick:function(){if(!busy)launchRender(!isR)},
-            children:busy?(job.progress+"%"):(isR?"Rendre & publier":"Lancer l'aperçu")})]})]})}
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop("")},children:"Fermer"}),
+        r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop("")},children:"Compris"})]})]})}
 
   return r.jsxs("div",{className:"dzsvm svm-col","data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
       r.jsx("span",{className:"svm-title",children:"Montage"}),
-      r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))+" · "+proj.ratio}),
+      r.jsx("span",{className:"svm-projmeta",children:"teaser_abyss · v4 · 01:04 · 9:16"}),
       dirty?r.jsx("span",{className:"svm-unsaved",children:"NON ENREGISTRÉ"}):null,
       r.jsxs("div",{style:{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"},children:[
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
@@ -488,11 +384,8 @@ function DzMontage(props){
       r.jsxs("div",{className:"svm-playerzone",children:[
         note?r.jsx("div",{className:"svm-note",style:{position:"absolute",top:58,left:18,zIndex:5},children:note}):null,
         r.jsxs("div",{className:"svm-frame",children:[
-          previewUrl?r.jsx("video",{ref:videoRef,src:previewUrl,playsInline:!0,
-            style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"},
-            onEnded:function(){setPlaying(!1)}}):null,
           r.jsx("div",{className:"svm-caption",children:
-            r.jsx("div",{className:"svm-captiontext",children:proj.demo?"« La marée ne demande pas la permission. »":proj.name})}),
+            r.jsx("div",{className:"svm-captiontext",children:"« La marée ne demande pas la permission. »"})}),
           r.jsx("div",{className:"svm-frametc",children:svmShort(ph)})]})]}),
       r.jsxs("aside",{className:"svm-insp",children:[
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
@@ -506,7 +399,7 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-propk",children:p2.k}),
           r.jsx("div",{className:"svm-propv",children:p2.v})]},p2.k)})}),
         r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Mixage"}),
-        r.jsx("div",{className:"svm-mix",children:mixRows.map(function(m){
+        r.jsx("div",{className:"svm-mix",children:SVM_MIX.map(function(m){
           return r.jsxs("div",{children:[
             r.jsxs("div",{className:"svm-mixhead",children:[
               r.jsx("span",{style:{color:"var("+m.c+")"},children:m.name}),
@@ -542,7 +435,7 @@ function DzMontage(props){
           ["▁","▂","▃","▅"].map(function(g,i){
             return r.jsx("button",{className:"svm-zoomstep","data-on":zoom===i?"":void 0,
               title:"Niveau de zoom "+(i+1),onClick:function(){setZoom(i)},children:g},i)}),
-          " · "+svmRuler(Math.round(dur))+" total"]})]}),
+          " · 01:04 total"]})]}),
       r.jsx("div",{className:"svm-scroll",children:
         r.jsxs("div",{className:"svm-lanes",style:{width:SVM_ZOOMW[zoom]+"%"},children:[
           r.jsxs("div",{className:"svm-ruler",onPointerDown:rulerDown,children:[
@@ -559,7 +452,7 @@ function DzMontage(props){
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){
                   var isSel=c.id===selId;
                   return r.jsx("div",{className:"svm-clip",
-                    style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
+                    style:{left:c.start/SVM_DUR*100+"%",width:(c.end-c.start)/SVM_DUR*100+"%",
                       borderColor:isSel?"var(--accent)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
                       background:isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},
