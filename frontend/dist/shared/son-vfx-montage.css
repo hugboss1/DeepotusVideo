@@ -1,0 +1,318 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — Sound & VFX (06) · Edit (07) — module CSS
+   Design handoff « son_vfx_montage », refonte UI v2.1, direction CINEMA.
+
+   The app shell still runs the legacy Deep Lab tokens at :root, so the Cinema
+   values are SCOPED to these two screens under .dzsvm instead of being applied
+   globally. Canonical values: /shared/deepotus.tokens.css (single source of
+   truth for the future full re-skin — keep both in sync).
+
+   Both themes ship together: .dzsvm = dark (default),
+   .dzsvm[data-svm-theme="light"] = light. Alias naming follows the reference
+   DOM (--bg=--bg-base, --panel=--bg-panel, --ink=--ink-strong, …).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+@font-face { font-family:"IBMPlex Local";  src:url("/fonts/IBMPlexSans.ttf")   format("truetype"); font-weight:400 600; font-display:swap; }
+@font-face { font-family:"Inter Local";    src:url("/fonts/Inter.ttf")         format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"Grotesk Local";  src:url("/fonts/SpaceGrotesk.ttf")  format("truetype"); font-weight:400 700; font-display:swap; }
+@font-face { font-family:"JBMono Local";   src:url("/fonts/JetBrainsMono.ttf") format("truetype"); font-weight:400 500; font-display:swap; }
+
+.dzsvm{
+  /* surfaces */
+  --bg:#0a0a0c; --panel:#151519; --panel2:#1c1c21; --panel3:#111114;
+  --stroke:#2a2930; --stroke2:#3d3b45;
+  /* ink */
+  --ink:#f2efe9; --ink2:#c4bfb6; --ink3:#8a857d; --ink4:#55514c;
+  /* signal — one state, never a category */
+  --accent:#f0b429; --accent-ink:#1a1206; --amber:var(--accent);
+  --green:#5ec8a0; --red:#e35d4a; --slate:#8a857d;
+  /* categorical ramp — media type, never a state */
+  --c-image:#c98f5a; --c-video:#6d9dc5; --c-audio:#7fb069;
+  --c-av:#9b8ec4; --c-3d:#c9738f; --c-text:#c9b7a0;
+  /* type + motion */
+  --f-ui:"IBM Plex Sans","IBMPlex Local","Inter Local","Inter",system-ui,sans-serif;
+  --f-disp:"Space Grotesk","Grotesk Local",var(--f-ui);
+  --f-mono:"JetBrains Mono","JBMono Local",Consolas,monospace;
+  --ease:cubic-bezier(.2,.7,.2,1);
+}
+.dzsvm[data-svm-theme="light"]{
+  --bg:#f2f0ec; --panel:#ffffff; --panel2:#f7f5f1; --panel3:#eae7e1;
+  --stroke:#e0dcd4; --stroke2:#c6c1b7;
+  --ink:#171512; --ink2:#413d36; --ink3:#6f6a61; --ink4:#a8a29a;
+  --accent:#a06a00; --accent-ink:#ffffff;
+  --green:#1f7a5c; --red:#b03a28; --slate:#6f6a61;
+  --c-image:#8a5a22; --c-video:#2f5f8a; --c-audio:#47702a;
+  --c-av:#5d4f96; --c-3d:#9c3f61; --c-text:#6b5c47;
+}
+
+/* ── root ─────────────────────────────────────────────────────────────────── */
+.dzsvm{
+  position:absolute; inset:0; display:flex; min-height:0; overflow:hidden;
+  background:var(--bg); color:var(--ink2);
+  font-family:var(--f-ui); font-size:13.5px; line-height:normal;
+  -webkit-font-smoothing:antialiased;
+}
+.dzsvm.svm-col{flex-direction:column}
+.dzsvm *{box-sizing:border-box; margin:0}
+.dzsvm button{font-family:inherit; line-height:normal}
+.dzsvm :focus-visible{outline:2px solid var(--accent); outline-offset:1px; border-radius:6px}
+.dzsvm ::selection{background:color-mix(in srgb,var(--accent) 24%,transparent)}
+.dzsvm .svm-mono{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+
+/* ── section label (10px mono, .14em, uppercase) ──────────────────────────── */
+.svm-label{font-family:var(--f-mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--ink3)}
+
+/* ── left rail — generators (270px) ───────────────────────────────────────── */
+.svm-rail{width:270px; flex:none; border-right:1px solid var(--stroke);
+  background:var(--panel); padding:16px; overflow:auto; min-height:0}
+.svm-genlist{display:flex; flex-direction:column; gap:8px; margin-top:12px}
+.svm-gen{border:1px solid var(--stroke); border-radius:10px; background:var(--panel2);
+  padding:11px 12px; cursor:pointer; text-align:left; width:100%; display:block;
+  transition:border-color .12s var(--ease)}
+.svm-gen:hover:not([data-sel]){border-color:var(--stroke2)}
+.svm-gen[data-sel]{border-color:var(--accent)}
+.svm-genrow{display:flex; align-items:center; gap:8px}
+.svm-sq7{width:7px; height:7px; border-radius:2px; flex:none}
+.svm-genname{font-size:12.5px; color:var(--ink); font-weight:600}
+.svm-genprice{margin-left:auto; font-family:var(--f-mono); font-size:10px; color:var(--amber)}
+.svm-gendesc{font-size:11.5px; color:var(--ink3); margin-top:5px}
+
+/* voices */
+.svm-voicelist{display:flex; flex-direction:column; gap:7px}
+.svm-voice{display:flex; align-items:center; gap:9px; padding:8px 10px;
+  border:1px solid var(--stroke); border-radius:9px; background:var(--panel2);
+  cursor:pointer; width:100%; text-align:left; transition:border-color .12s var(--ease)}
+.svm-voice:hover:not([data-sel]){border-color:var(--stroke2)}
+.svm-voice[data-sel]{border-color:var(--accent)}
+.svm-avatar{width:22px; height:22px; border-radius:999px; background:var(--panel3);
+  border:1px solid var(--stroke); flex:none}
+.svm-vbody{flex:1; min-width:0}
+.svm-vname{font-size:12px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.svm-vmeta{font-family:var(--f-mono); font-size:10px; color:var(--ink3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+
+/* round play button (22px) */
+.svm-playbtn{width:22px; height:22px; border-radius:999px; border:1px solid var(--stroke2);
+  background:transparent; color:var(--ink2); cursor:pointer; font-size:8px; flex:none;
+  display:inline-flex; align-items:center; justify-content:center; padding:0;
+  transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-playbtn:hover{border-color:var(--stroke2); color:var(--ink)}
+.svm-playbtn[data-on]{background:var(--panel3); color:var(--ink)}
+
+/* ── title bar (48px) ─────────────────────────────────────────────────────── */
+.svm-main{flex:1; min-width:0; display:flex; flex-direction:column; min-height:0}
+.svm-titlebar{height:48px; flex:none; display:flex; align-items:center; gap:12px;
+  padding:0 18px; border-bottom:1px solid var(--stroke); background:var(--panel)}
+.svm-title{font-family:var(--f-disp); font-size:14px; color:var(--ink); font-weight:600}
+.svm-tabs{display:flex; gap:6px; font-family:var(--f-mono); font-size:10.5px}
+.svm-tab{padding:3px 8px; border-radius:6px; border:1px solid transparent;
+  background:transparent; color:var(--ink3); cursor:pointer; font-family:inherit;
+  font-size:inherit; transition:color .12s var(--ease)}
+.svm-tab:hover:not([data-on]){color:var(--ink2)}
+.svm-tab[data-on]{background:var(--panel2); border-color:var(--stroke); color:var(--ink2)}
+.svm-meter{margin-left:auto; font-family:var(--f-mono); font-size:10.5px; color:var(--ink3)}
+.svm-projmeta{font-family:var(--f-mono); font-size:10.5px; color:var(--ink3)}
+.svm-unsaved{font-family:var(--f-mono); font-size:10px; padding:2px 8px;
+  border-radius:999px; border:1px solid var(--amber); color:var(--amber)}
+
+/* theme chip (local dark/light switch — both themes ship together) */
+.svm-themechip{padding:2px 7px; border-radius:5px; border:1px solid var(--stroke);
+  background:transparent; color:var(--ink3); cursor:pointer;
+  font-family:var(--f-mono); font-size:10px; transition:all .12s var(--ease)}
+.svm-themechip:hover{border-color:var(--stroke2); color:var(--ink2)}
+
+/* ── content zone (06) ────────────────────────────────────────────────────── */
+.svm-content{flex:1; overflow:auto; padding:18px; min-height:0}
+.svm-card{border:1px solid var(--stroke); border-radius:12px; background:var(--panel); padding:16px}
+.svm-cardhead{display:flex; align-items:center; gap:10px}
+.svm-file{font-size:13px; color:var(--ink); font-weight:600}
+.svm-pill{font-family:var(--f-mono); font-size:10px; padding:2px 7px;
+  border-radius:999px; border:1px solid var(--green); color:var(--green)}
+.svm-time{margin-left:auto; font-family:var(--f-mono); font-size:10.5px; color:var(--ink3)}
+
+/* waveform (96px) */
+.svm-wave{height:96px; margin-top:14px; border-radius:9px; background:var(--panel3);
+  border:1px solid var(--stroke); position:relative; display:flex; align-items:center;
+  gap:2px; padding:0 10px; overflow:hidden; cursor:pointer}
+.svm-bar{flex:1; background:var(--green); opacity:.75; min-width:0}
+.svm-wavehead{position:absolute; top:0; bottom:0; width:1px; background:var(--accent);
+  box-shadow:0 0 10px var(--accent); pointer-events:none}
+
+/* editor toolbar */
+.svm-toolrow{display:flex; gap:8px; margin-top:12px; align-items:center}
+.svm-play30{width:30px; height:30px; border-radius:999px; border:none;
+  background:var(--accent); color:var(--accent-ink); cursor:pointer; font-size:11px;
+  flex:none; display:inline-flex; align-items:center; justify-content:center; padding:0}
+.svm-toolbtn{padding:6px 12px; border-radius:8px; border:1px solid var(--stroke);
+  background:var(--panel2); color:var(--ink2); font-family:inherit; font-size:11.5px;
+  cursor:pointer; transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-toolbtn:hover{border-color:var(--stroke2); color:var(--ink)}
+.svm-primarybtn{margin-left:auto; padding:7px 14px; border-radius:8px;
+  border:1px solid var(--stroke2); background:var(--panel2); color:var(--ink);
+  font-family:inherit; font-size:12px; cursor:pointer;
+  transition:border-color .12s var(--ease)}
+.svm-primarybtn:hover{border-color:var(--accent)}
+
+.svm-grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:16px}
+
+/* SFX pack rows */
+.svm-sfxlist{display:flex; flex-direction:column; gap:7px; margin-top:12px}
+.svm-sfx{display:flex; align-items:center; gap:10px; padding:8px 10px;
+  border-radius:8px; background:var(--panel2); border:1px solid var(--stroke)}
+.svm-sfxname{font-size:12px; color:var(--ink)}
+.svm-miniwave{flex:1; height:16px; display:flex; align-items:center; gap:1.5px; min-width:0}
+.svm-minibar{flex:1; background:var(--slate); opacity:.55; min-width:0}
+.svm-dur{font-family:var(--f-mono); font-size:10px; color:var(--ink3)}
+
+/* VFX tiles */
+.svm-vfxgrid{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px}
+.svm-vfxgrid.svm-wide{grid-template-columns:repeat(6,1fr)}
+.svm-vfx{border:1px solid var(--stroke); border-radius:9px; overflow:hidden;
+  background:var(--panel2); cursor:pointer; padding:0; text-align:left; width:100%;
+  transition:border-color .12s var(--ease)}
+.svm-vfx:hover:not([data-sel]){border-color:var(--stroke2)}
+.svm-vfx[data-sel]{border-color:var(--accent)}
+.svm-vfxprev{aspect-ratio:16/10;
+  background:repeating-linear-gradient(45deg,var(--panel3) 0 6px,var(--panel) 6px 12px)}
+.svm-vfxfoot{padding:7px 9px}
+.svm-vfxname{font-size:11.5px; color:var(--ink)}
+.svm-vfxtype{font-family:var(--f-mono); font-size:10px; color:var(--ink3); margin-top:2px}
+
+/* product-target empty state (backend not wired — never presented as functional) */
+.svm-target{border:1px dashed var(--stroke2); border-radius:12px; padding:22px 18px;
+  background:transparent; color:var(--ink3); font-size:12px; line-height:1.55}
+.svm-target .svm-targettag{font-family:var(--f-mono); font-size:10px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--amber); display:block;
+  margin-bottom:8px}
+
+/* inline notice (toast substitute, discreet) */
+.svm-note{margin-top:10px; font-family:var(--f-mono); font-size:10.5px; color:var(--ink3)}
+
+/* ── screen 07 · Edit ─────────────────────────────────────────────────────── */
+.svm-secbtn{padding:7px 13px; border-radius:8px; border:1px solid var(--stroke);
+  background:var(--panel2); color:var(--ink2); font-family:inherit; font-size:12px;
+  cursor:pointer; transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-secbtn:hover{border-color:var(--stroke2); color:var(--ink)}
+.svm-goldbtn{padding:7px 15px; border-radius:8px; border:none; background:var(--accent);
+  color:var(--accent-ink); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer}
+
+.svm-mid{flex:1; display:flex; min-height:0}
+.svm-playerzone{flex:1; min-width:0; display:flex; align-items:center;
+  justify-content:center; background:var(--bg); padding:20px}
+.svm-frame{height:100%; max-height:420px; aspect-ratio:9/16; border-radius:12px;
+  border:1px solid var(--stroke2); position:relative; overflow:hidden;
+  background:repeating-linear-gradient(45deg,var(--panel2) 0 10px,var(--panel3) 10px 20px)}
+.svm-caption{position:absolute; left:0; right:0; bottom:0; padding:12px;
+  background:linear-gradient(0deg,#000000cc,transparent)}
+.svm-captiontext{font-family:var(--f-mono); font-size:10px; color:var(--ink)}
+.dzsvm[data-svm-theme="light"] .svm-captiontext{color:#f2efe9} /* burned-in over media, media stays dark */
+.svm-frametc{position:absolute; left:10px; top:10px; font-family:var(--f-mono);
+  font-size:10px; padding:2px 7px; border-radius:5px; background:#000000aa; color:var(--accent)}
+.dzsvm[data-svm-theme="light"] .svm-frametc{color:#f0b429} /* over media: keep AA on the dark chip */
+
+/* inspector (300px) */
+.svm-insp{width:300px; flex:none; border-left:1px solid var(--stroke);
+  background:var(--panel); padding:16px; overflow:auto; min-height:0}
+.svm-clipname{font-size:13px; color:var(--ink); font-weight:600; margin-top:9px}
+.svm-props{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:12px}
+.svm-prop{background:var(--panel3); border:1px solid var(--stroke); border-radius:8px; padding:8px 10px}
+.svm-propk{font-size:10px; color:var(--ink3)}
+.svm-propv{font-family:var(--f-mono); font-size:12px; color:var(--ink); margin-top:3px}
+
+.svm-mix{display:flex; flex-direction:column; gap:10px}
+.svm-mixhead{display:flex; justify-content:space-between; font-family:var(--f-mono);
+  font-size:10.5px; color:var(--ink3)}
+.svm-mixrail{height:5px; border-radius:999px; background:var(--panel3); margin-top:6px}
+.svm-mixfill{height:100%; border-radius:999px}
+
+.svm-durmaster{display:flex; align-items:center; gap:9px; margin-top:16px;
+  padding:10px 11px; border:1px solid var(--stroke2); border-radius:9px;
+  background:var(--panel2); cursor:pointer; width:100%; text-align:left}
+.svm-switch{width:30px; height:17px; border-radius:999px; background:var(--accent);
+  position:relative; display:inline-block; flex:none; transition:background .12s var(--ease)}
+.svm-switch .svm-knob{position:absolute; right:2px; top:2px; width:13px; height:13px;
+  border-radius:999px; background:var(--accent-ink); transition:all .12s var(--ease)}
+.svm-switch[data-off]{background:var(--panel3); box-shadow:inset 0 0 0 1px var(--stroke2)}
+.svm-switch[data-off] .svm-knob{right:15px; background:var(--ink3)}
+.svm-dmtitle{font-size:12px; color:var(--ink)}
+.svm-dmhint{font-size:11px; color:var(--ink3)}
+
+.svm-fxchips{display:flex; flex-wrap:wrap; gap:6px}
+.svm-fxchip{font-family:var(--f-mono); font-size:10.5px; padding:4px 9px;
+  border-radius:999px; border:1px solid var(--stroke); color:var(--ink2);
+  background:transparent; display:inline-block}
+.svm-fxchip[data-c="c3d"]{border-color:var(--c-3d); color:var(--c-3d)}
+.svm-fxadd{border:1px dashed var(--stroke2); color:var(--ink3); cursor:pointer;
+  font-family:var(--f-mono); font-size:10.5px; padding:4px 9px; border-radius:999px;
+  background:transparent}
+.svm-fxadd:hover{color:var(--ink2)}
+
+/* ── timeline (274px per reference DOM) ───────────────────────────────────── */
+.svm-tl{flex:none; height:274px; border-top:1px solid var(--stroke);
+  background:var(--panel); display:flex; flex-direction:column; min-height:0}
+.svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;
+  padding:0 14px; border-bottom:1px solid var(--stroke)}
+.svm-tcmain{font-family:var(--f-mono); font-size:11px; color:var(--ink)}
+.svm-transbtns{display:flex; gap:5px}
+.svm-tbtn{width:24px; height:22px; border-radius:6px; border:1px solid var(--stroke);
+  background:var(--panel2); color:var(--ink2); cursor:pointer; font-size:9px;
+  display:inline-flex; align-items:center; justify-content:center; padding:0;
+  transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-tbtn:hover{border-color:var(--stroke2); color:var(--ink)}
+.svm-tbtn.svm-gold{border:none; background:var(--accent); color:var(--accent-ink)}
+.svm-toolchips{display:flex; gap:6px; font-family:var(--f-mono); font-size:10px; color:var(--ink3)}
+.svm-toolchip{padding:2px 7px; border-radius:5px; border:1px solid var(--stroke);
+  background:transparent; color:var(--ink3); cursor:pointer; font-family:inherit;
+  font-size:inherit; transition:all .12s var(--ease)}
+.svm-toolchip:hover:not([data-on]){border-color:var(--stroke2); color:var(--ink2)}
+.svm-toolchip[data-on]{background:var(--panel2); border-color:var(--stroke2); color:var(--ink2)}
+.svm-zoom{margin-left:auto; font-family:var(--f-mono); font-size:10px; color:var(--ink3);
+  display:inline-flex; align-items:center; gap:0; user-select:none}
+.svm-zoomstep{cursor:pointer; padding:0 1px; color:var(--ink4); background:none; border:none;
+  font-family:inherit; font-size:inherit}
+.svm-zoomstep[data-on]{color:var(--ink)}
+
+/* tracks scroller — ruler + 5 lanes share one h-scroll surface */
+.svm-scroll{flex:1; overflow:auto; position:relative; min-height:0}
+.svm-lanes{position:relative; min-width:100%}
+.svm-ruler{display:flex; height:18px; border-bottom:1px solid var(--stroke);
+  align-items:center; font-family:var(--f-mono); font-size:9px; color:var(--ink3);
+  cursor:pointer; user-select:none}
+.svm-gutter{width:88px; flex:none; align-self:stretch; position:sticky; left:0; z-index:2;
+  background:var(--panel)}
+.svm-tick{flex:1; border-left:1px solid var(--stroke); padding-left:5px; pointer-events:none}
+.svm-track{display:flex; border-bottom:1px solid var(--stroke)}
+.svm-thead{width:88px; flex:none; border-right:1px solid var(--stroke);
+  background:var(--panel2); padding:6px 9px; display:flex; flex-direction:column;
+  gap:3px; position:sticky; left:0; z-index:2}
+.svm-tnamerow{display:flex; align-items:center; gap:6px}
+.svm-sq6{width:6px; height:6px; border-radius:2px; flex:none}
+.svm-tname{font-family:var(--f-mono); font-size:10px; color:var(--ink)}
+.svm-ttype{font-family:var(--f-mono); font-size:8.5px; color:var(--ink3)}
+.svm-lane{flex:1; position:relative; padding:5px 0; min-width:0}
+.svm-clip{position:absolute; top:5px; bottom:5px; border-radius:6px; padding:4px 7px;
+  overflow:hidden; cursor:grab; border:1px solid transparent; touch-action:none}
+.svm-clip:active{cursor:grabbing}
+.svm-cliplabel{font-family:var(--f-mono); font-size:10px; color:var(--ink);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none}
+.svm-phline{position:absolute; top:0; bottom:0; width:1px; background:var(--accent);
+  box-shadow:0 0 10px var(--accent); pointer-events:none; z-index:1}
+
+/* render/preview confirm popover */
+.svm-pop{position:absolute; top:52px; right:18px; z-index:20; width:300px;
+  background:var(--panel2); border:1px solid var(--stroke2); border-radius:12px;
+  padding:14px; box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.55)}
+.dzsvm[data-svm-theme="light"] .svm-pop{box-shadow:0 1px 2px rgba(23,21,18,.06), 0 10px 28px rgba(23,21,18,.10)}
+.svm-poptitle{font-size:12.5px; color:var(--ink); font-weight:600}
+.svm-popline{display:flex; justify-content:space-between; font-family:var(--f-mono);
+  font-size:10.5px; color:var(--ink3); margin-top:8px}
+.svm-popline .svm-cost{color:var(--amber)}
+.svm-popnote{font-size:11px; color:var(--ink3); margin-top:10px; line-height:1.5}
+.svm-poprow{display:flex; gap:8px; margin-top:12px; justify-content:flex-end}
+
+@media (prefers-reduced-motion:reduce){
+  .dzsvm *, .dzsvm *::before, .dzsvm *::after{
+    animation-duration:.001ms!important; animation-iteration-count:1!important;
+    transition-duration:.001ms!important}
+}
