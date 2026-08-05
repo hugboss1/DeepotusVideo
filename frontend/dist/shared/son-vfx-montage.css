@@ -223,8 +223,12 @@
 .svm-mix{display:flex; flex-direction:column; gap:10px}
 .svm-mixhead{display:flex; justify-content:space-between; font-family:var(--f-mono);
   font-size:10.5px; color:var(--ink3)}
-.svm-mixrail{height:5px; border-radius:999px; background:var(--panel3); margin-top:6px}
-.svm-mixfill{height:100%; border-radius:999px}
+.svm-mixrail{height:5px; border-radius:999px; background:var(--panel3); margin-top:6px;
+  position:relative; cursor:ew-resize; touch-action:none}
+.svm-mixrail::before{content:""; position:absolute; inset:-7px 0} /* zone de saisie élargie */
+.svm-mixrail:hover .svm-mixfill{filter:brightness(1.15)}
+.svm-mixfill{height:100%; border-radius:999px; pointer-events:none;
+  transition:filter .12s var(--ease)}
 
 .svm-durmaster{display:flex; align-items:center; gap:9px; margin-top:16px;
   padding:10px 11px; border:1px solid var(--stroke2); border-radius:9px;

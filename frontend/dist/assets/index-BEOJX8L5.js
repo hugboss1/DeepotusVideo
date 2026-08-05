@@ -604,7 +604,8 @@ var SVM_MIX_COLORS={dialogue:"--c-audio",musique:"--c-av",sfx:"--c-3d"};
 var SVM_ZOOMW=[100,150,220,320];
 function svmMixRows(mixDb){return ["dialogue","musique","sfx"].map(function(k){
   var db=Number(mixDb&&mixDb[k]!=null?mixDb[k]:SVM_DEMO_MIX[k]);
-  return {name:k,db:"−"+Math.abs(db)+" dB",w:Math.max(8,Math.min(100,Math.round(78+3.4*(db+12)))),c:SVM_MIX_COLORS[k]}})}
+  return {name:k,dbNum:db,db:db===0?"0 dB":"−"+Math.abs(db)+" dB",
+    w:Math.max(8,Math.min(100,Math.round(78+3.4*(db+12)))),c:SVM_MIX_COLORS[k]}})}
 
 function DzMontage(props){
   var th=svmUseTheme(),theme=th[0],setTheme=th[1];
@@ -737,6 +738,25 @@ function DzMontage(props){
     function up(){tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
       if(moved)setDirty(!0)}
     tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
+
+  /* ── édition du mixage : glisser sur le rail = régler le dB du canal ──
+     Échelle visuelle de la maquette (w = 78 + 3.4·(dB+12)), inversée et
+     clampée à −40..0 dB ; les gains partent au rendu via mix → volume=. */
+  function svmMixSet(name,db){
+    db=Math.max(-40,Math.min(0,Math.round(db)));
+    setProj(function(p){var m=Object.assign({},p.mixDb);m[name]=db;
+      return Object.assign({},p,{mixDb:m})});
+    setDirty(!0)}
+  function mixDown(e,name){
+    var el=e.currentTarget;
+    try{el.setPointerCapture&&el.setPointerCapture(e.pointerId)}catch(_c){}
+    function apply(ev){var rect=el.getBoundingClientRect();
+      var w=(ev.clientX-rect.left)/Math.max(1,rect.width)*100;
+      svmMixSet(name,(Math.max(8,Math.min(100,w))-78)/3.4-12)}
+    apply(e);
+    function mv(ev){apply(ev)}
+    function up(){el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up)}
+    el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up)}
 
   /* ── overlays V2 : sources (Bibliothèque) + ajout à la tête de lecture ── */
   function openOvPicker(){
@@ -975,7 +995,16 @@ function DzMontage(props){
             r.jsxs("div",{className:"svm-mixhead",children:[
               r.jsx("span",{style:{color:"var("+m.c+")"},children:m.name}),
               r.jsx("span",{children:m.db})]}),
-            r.jsx("div",{className:"svm-mixrail",children:
+            r.jsx("div",{className:"svm-mixrail",role:"slider",tabIndex:0,
+              title:"Glisser pour régler le niveau "+m.name+" ("+m.db+")",
+              "aria-label":"Niveau "+m.name,"aria-valuemin":-40,"aria-valuemax":0,
+              "aria-valuenow":m.dbNum,"aria-valuetext":m.db,
+              onPointerDown:function(e){mixDown(e,m.name)},
+              onKeyDown:function(e){
+                var d=e.key==="ArrowLeft"||e.key==="ArrowDown"?-1:
+                      e.key==="ArrowRight"||e.key==="ArrowUp"?1:0;
+                if(!d)return;e.preventDefault();svmMixSet(m.name,m.dbNum+d)},
+              children:
               r.jsx("div",{className:"svm-mixfill",style:{width:m.w+"%",background:"var("+m.c+")"}})})]},m.name)})}),
         r.jsxs("button",{className:"svm-durmaster",onClick:function(){setDurMaster(!durMaster);setDirty(!0)},
           role:"switch","aria-checked":durMaster,children:[
