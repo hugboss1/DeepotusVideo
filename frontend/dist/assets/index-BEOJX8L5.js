@@ -618,6 +618,7 @@ function DzMontage(props){
   var st7=x.useState(!1),ripple=st7[0],setRipple=st7[1];
   var st8=x.useState(!0),dirty=st8[0],setDirty=st8[1];
   var st9=x.useState(!0),durMaster=st9[0],setDurMaster=st9[1];
+  var stDk=x.useState(!0),ducking=stDk[0],setDucking=stDk[1];
   var stA=x.useState(""),pop=stA[0],setPop=stA[1];
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
@@ -795,7 +796,7 @@ function DzMontage(props){
   /* ── rendu réel : POST /api/montage/render + poll /api/jobs/{id} ── */
   function renderPayload(preview){
     return {name:proj.name,ratio:proj.ratio,preview:preview,
-      duration_master:durMaster,ducking:!0,mix:proj.mixDb,
+      duration_master:durMaster,ducking:ducking,mix:proj.mixDb,
       clips:clips.filter(function(c){return c.src}).map(function(c){
         return {tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
@@ -903,13 +904,44 @@ function DzMontage(props){
           setDirty(!0)}}),
       r.jsx("span",{className:"svm-rangeval",children:v+" %"})]})}
 
-  /* réglage d'intensité / retrait du chip d'effet en cours d'édition */
+  /* réglage d'intensité / retrait du chip d'effet en cours d'édition,
+     + presets paramétrés (grade / colorize) et ratios letterbox */
+  var SVM_FX_DEFAULT_PRESET={grade:"teal_orange",colorize:"duotone"};
+  var SVM_LB_RATIOS=[2.39,2.35,1.85,1.78,1.33,1];
+  function svmSetFxParam(i2,patch){
+    var id=selRef.current;
+    setClips(clipsRef.current.map(function(k){
+      if(k.id!==id)return k;
+      var fx=(k.effects||[]).slice();fx[i2]=Object.assign({},fx[i2],patch);
+      return Object.assign({},k,{effects:fx})}));
+    setDirty(!0)}
+  function fxParamRow(f){
+    var meta=(fxCat&&fxCat[f.type])||{};
+    if(meta.presets&&meta.presets.length){
+      var cur2=f.preset||SVM_FX_DEFAULT_PRESET[f.type]||meta.presets[0];
+      return r.jsx("div",{className:"svm-fxchips",style:{marginTop:8},children:
+        meta.presets.map(function(p3){
+          return r.jsx("button",{className:"svm-fxchip",
+            style:{cursor:"pointer",borderColor:p3===cur2?"var(--accent)":void 0,
+              color:p3===cur2?"var(--accent)":void 0},
+            onClick:function(){svmSetFxParam(fxEdit.i,{preset:p3})},
+            children:p3},p3)})})}
+    if(f.type==="letterbox"){
+      var curR=Number(f.ratio)||2.35;
+      return r.jsx("div",{className:"svm-fxchips",style:{marginTop:8},children:
+        SVM_LB_RATIOS.map(function(rt){
+          return r.jsx("button",{className:"svm-fxchip",
+            style:{cursor:"pointer",borderColor:rt===curR?"var(--accent)":void 0,
+              color:rt===curR?"var(--accent)":void 0},
+            onClick:function(){svmSetFxParam(fxEdit.i,{ratio:rt})},
+            children:String(rt)},rt)})})}
+    return null}
   function fxEditRow(){
     if(!fxEdit||!sel||fxEdit.id!==sel.id)return null;
     var f=(sel.effects||[])[fxEdit.i];if(!f)return null;
     var meta=(fxCat&&fxCat[f.type])||{};var lbl=meta.label||f.type;
     var hasInt=(meta.params||[]).indexOf("intensity")>=0;
-    return r.jsxs("div",{className:"svm-fxedit",children:[
+    return r.jsxs(r.Fragment,{children:[r.jsxs("div",{className:"svm-fxedit",children:[
       r.jsx("span",{className:"svm-fxeditname",children:lbl}),
       hasInt?r.jsx("input",{className:"svm-range",type:"range",min:5,max:100,step:5,
         value:Math.round(f.intensity!=null?f.intensity:60),
@@ -928,7 +960,8 @@ function DzMontage(props){
           if(k.id!==id)return k;
           var fx=(k.effects||[]).slice();fx.splice(i2,1);
           return Object.assign({},k,{effects:fx})}));
-        setFxEdit(null);setDirty(!0)},children:"retirer"})]})}
+        setFxEdit(null);setDirty(!0)},children:"retirer"})]}),
+      fxParamRow(f)]})}
 
   /* sélecteur d'overlay — images + rendus de la Bibliothèque */
   function ovPicker(){
@@ -1006,6 +1039,13 @@ function DzMontage(props){
                 if(!d)return;e.preventDefault();svmMixSet(m.name,m.dbNum+d)},
               children:
               r.jsx("div",{className:"svm-mixfill",style:{width:m.w+"%",background:"var("+m.c+")"}})})]},m.name)})}),
+        r.jsxs("button",{className:"svm-durmaster",style:{marginTop:12},
+          onClick:function(){setDucking(!ducking);setDirty(!0)},
+          role:"switch","aria-checked":ducking,children:[
+          r.jsx("span",{className:"svm-switch","data-off":ducking?void 0:"",children:r.jsx("span",{className:"svm-knob"})}),
+          r.jsxs("div",{children:[
+            r.jsx("div",{className:"svm-dmtitle",children:"Ducking auto"}),
+            r.jsx("div",{className:"svm-dmhint",children:"La musique s'abaisse sous le dialogue"})]})]}),
         r.jsxs("button",{className:"svm-durmaster",onClick:function(){setDurMaster(!durMaster);setDirty(!0)},
           role:"switch","aria-checked":durMaster,children:[
           r.jsx("span",{className:"svm-switch","data-off":durMaster?void 0:"",children:r.jsx("span",{className:"svm-knob"})}),

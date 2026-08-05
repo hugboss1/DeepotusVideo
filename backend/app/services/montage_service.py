@@ -32,8 +32,9 @@ segment V1 — catalogue exposé par GET /api/montage/effects. src_in audio :
 les clips A1/A3 lisent leur source à partir de srcIn (atrim décalé).
 
 Tout est local ffmpeg → 0 crédit, l'UI l'affiche avant déclenchement
-(règle produit). Trous V1 : le concat séquentiel les referme (le projet
-initial est généré sans trous).
+(règle produit). Trous V1 : rendus en NOIR (segments lavfi à leur durée
+timeline, compensée du chevauchement xfade des frontières pour que le clip
+suivant retombe sur sa position — l'audio posé en adelay reste aligné).
 """
 from __future__ import annotations
 
@@ -211,25 +212,54 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     inputs, parts = [], []
     idx = 0
 
-    # --- V1 : segments -ss/-t, mise au canvas, chaîne xfade ---
-    seg_durs, seg_idx = [], []
+    def _tau_for(c):
+        _n, fixed = _XFADE.get(str(c.get("transition") or "cut")
+                               .split()[0].lower(), _XFADE["cut"])
+        return fixed if fixed is not None else float(
+            c.get("transition_s") or 0.4)
+
+    # --- V1 : les trous entre clips (et avant le premier) sont rendus en
+    # NOIR — segments lavfi à leur durée timeline + compensation du
+    # chevauchement xfade des deux frontières (cut entrant 0.04 + transition
+    # du clip suivant), pour que le clip d'après retombe sur sa position et
+    # que l'audio (adelay) reste aligné.
+    segs = []
+    prev_end = 0.0
     for c in v1:
-        want = max(0.1, c["end"] - c["start"])
-        avail = max(0.1, c["src_dur"] - c["src_in"])
-        d = round(min(want, avail), 3)
-        if c["src_in"] > 0:
-            inputs.extend(["-ss", str(c["src_in"])])
-        inputs.extend(["-t", str(d), "-i", str(c["path"])])
-        seg_durs.append(d)
+        g = c["start"] - prev_end
+        if g > 0.1:
+            segs.append({"gap": True,
+                         "dur": round(g + _tau_for(c) + 0.04, 3)})
+        segs.append(c)
+        prev_end = c["end"]
+
+    seg_durs, seg_idx = [], []
+    for s in segs:
+        if s.get("gap"):
+            inputs.extend(["-f", "lavfi", "-t", str(s["dur"]), "-i",
+                           f"color=c=black:s={w}x{h}:r={fps}"])
+            seg_durs.append(s["dur"])
+        else:
+            want = max(0.1, s["end"] - s["start"])
+            avail = max(0.1, s["src_dur"] - s["src_in"])
+            d = round(min(want, avail), 3)
+            if s["src_in"] > 0:
+                inputs.extend(["-ss", str(s["src_in"])])
+            inputs.extend(["-t", str(d), "-i", str(s["path"])])
+            seg_durs.append(d)
         seg_idx.append(idx)
         idx += 1
     sf = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
           f"crop={w}:{h},setsar=1,fps={fps},format=yuv420p")
     from app.services import effects_engine as _fx
-    for k, c in enumerate(v1):
+    for k, s in enumerate(segs):
+        if s.get("gap"):
+            parts.append(f"[{seg_idx[k]}:v]setsar=1,format=yuv420p,"
+                         f"setpts=PTS-STARTPTS[n{k}]")
+            continue
         chain = (f"{sf},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                  f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
-        reff = c.get("effects")
+        reff = s.get("effects")
         if reff:
             # Effets par clip — même moteur que le node Effects / Mask.
             parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
@@ -238,16 +268,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         else:
             parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}]")
 
-    starts = [0.0] * len(v1)
-    if len(v1) == 1:
+    starts = [0.0] * len(segs)
+    if len(segs) == 1:
         cur, total = "n0", seg_durs[0]
     else:
         cur, total = "n0", seg_durs[0]
-        for k in range(1, len(v1)):
-            name, fixed = _XFADE.get(str(v1[k].get("transition") or "cut")
-                                     .split()[0].lower(), _XFADE["cut"])
-            tau = fixed if fixed is not None else float(
-                v1[k].get("transition_s") or 0.4)
+        for k in range(1, len(segs)):
+            s = segs[k]
+            if s.get("gap"):
+                name, tau = _XFADE["cut"]
+            else:
+                name, fixed = _XFADE.get(str(s.get("transition") or "cut")
+                                         .split()[0].lower(), _XFADE["cut"])
+                tau = fixed if fixed is not None else float(
+                    s.get("transition_s") or 0.4)
             tau = max(0.04, min(tau, max(0.1, seg_durs[k] - 0.1),
                                 max(0.1, total - 0.1)))
             offset = max(0.0, round(total - tau, 3))
