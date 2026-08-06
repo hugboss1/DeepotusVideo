@@ -631,7 +631,7 @@ function DzMontage(props){
   var stF=x.useState(null),fxCat=stF[0],setFxCat=stF[1]; /* catalogue Effects/Mask */
   var stFP=x.useState(!1),fxPick=stFP[0],setFxPick=stFP[1];
   var stFE=x.useState(null),fxEdit=stFE[0],setFxEdit=stFE[1]; /* {id,i} chip en édition */
-  var stO=x.useState(!1),ovPick=stO[0],setOvPick=stO[1];
+  var stO=x.useState(""),ovPick=stO[0],setOvPick=stO[1]; /* "" = fermé, sinon l'id de la piste visée */
   var stS=x.useState(null),sources=stS[0],setSources=stS[1]; /* {images,videos} pour overlays */
   var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1]; /* zoom molette du viewport (≠ zoom timeline) */
   var ovSeq=x.useRef(0);
@@ -775,13 +775,19 @@ function DzMontage(props){
     function up(){el.removeEventListener("pointermove",mv);el.removeEventListener("pointerup",up)}
     el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up)}
 
-  /* ── overlays V2 : sources (Bibliothèque) + ajout à la tête de lecture ── */
-  function openOvPicker(){
-    if(proj.demo){fireNote("Overlays : disponibles sur un projet réel — la démo reste une maquette.");return}
-    if(sources){setOvPick(!ovPick);return}
+  /* ── ajout d'assets depuis la Bibliothèque, sur n'importe quelle piste ──
+     ovPick vaut "" (fermé) ou l'identifiant de la piste visée. Les sources
+     proposées suivent le type de la piste : une piste audio ne doit pas
+     proposer d'images, une piste vidéo ne doit pas proposer de .mp3. */
+  function trackKind(trId){return String(trId||"").charAt(0)==="a"?"audio":"video"}
+  function openPicker(trId){
+    if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}
+    if(ovPick===trId){setOvPick("");return}
+    if(sources){setOvPick(trId);return}
     Promise.all([
       fetch("/api/images").then(function(res){return res.json()}).catch(function(){return {}}),
-      fetch("/api/jobs").then(function(res){return res.json()}).catch(function(){return []})
+      fetch("/api/jobs").then(function(res){return res.json()}).catch(function(){return []}),
+      fetch("/api/audio").then(function(res){return res.json()}).catch(function(){return {}})
     ]).then(function(rr){
       var imgs=((rr[0]&&rr[0].images)||[]).slice(0,24).map(function(im){return {name:im.filename}});
       var vids=(Array.isArray(rr[1])?rr[1]:[]).filter(function(j3){
@@ -789,17 +795,47 @@ function DzMontage(props){
           !(j3.provider==="montage"&&String(j3.image_filename||"").indexOf("_preview")>=0)})
         .slice(0,12).map(function(j3){return {job_id:j3.job_id,title:j3.title||j3.job_id,
           dur:Number(j3.duration_real_s||j3.duration_s)||0}});
-      setSources({images:imgs,videos:vids});setOvPick(!0)});
+      var auds=((rr[2]&&rr[2].audio)||[]).slice(0,24).map(function(a3){
+        return {name:a3.name,kb:a3.size_kb}});
+      setSources({images:imgs,videos:vids,audios:auds});setOvPick(trId)});
   }
-  function addOverlay(src,label,kind,vidDur){
-    var d=durRef.current,st=Math.min(Math.max(0,phRef.current),Math.max(0,d-1));
-    var len=kind==="image"?4:Math.min(6,vidDur||6);
-    var en=Math.min(d,st+len);if(en-st<.5)st=Math.max(0,en-1);
+  /* durée par défaut d'un asset posé : une image n'en a pas, une vidéo et un
+     son sont bornés pour rester manipulables à la souris. */
+  function defaultLen(kind,srcDur){
+    if(kind==="image")return 4;
+    if(kind==="audio")return Math.min(8,srcDur||8);
+    return Math.min(6,srcDur||6);
+  }
+  function addAsset(src,label,kind,srcDur,trId,atTime){
+    var tr2=trId||"v2",d=durRef.current;
+    var st=atTime==null?phRef.current:atTime;
+    st=Math.min(Math.max(0,st),Math.max(0,d-1));
+    var en=Math.min(d,st+defaultLen(kind,srcDur));if(en-st<.5)st=Math.max(0,en-1);
     ovSeq.current++;
-    var id="v2u"+ovSeq.current+"_"+Math.round(st*10);
-    setClips(clipsRef.current.concat([{tr:"v2",id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
-    setSelId(id);setDirty(!0);setOvPick(!1);
-    fireNote("Overlay « "+label+" » ajouté à "+svmShort(st)+" — glissez / rognez sur la piste V2.")}
+    var id=tr2+"u"+ovSeq.current+"_"+Math.round(st*10);
+    setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
+    setSelId(id);setDirty(!0);setOvPick("");
+    fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "+svmShort(st)+" — glissez / rognez sur la piste.")}
+
+  /* ── glisser-déposer : le sélecteur est la source, les bandes et le
+     viewport sont les cibles. Le viewport vise la piste vidéo principale. ── */
+  var DZ_MIME="application/dz-asset";
+  function dragPayload(e,src,label,kind,srcDur){
+    try{e.dataTransfer.setData(DZ_MIME,JSON.stringify({src:src,label:label,kind:kind,dur:srcDur||0}));
+        e.dataTransfer.effectAllowed="copy"}catch(_e){}}
+  function readPayload(e){
+    try{var raw=e.dataTransfer.getData(DZ_MIME);return raw?JSON.parse(raw):null}catch(_e){return null}}
+  function dropOnTrack(e,trId,laneEl){
+    var p=readPayload(e);if(!p)return;
+    e.preventDefault();
+    /* un son ne se dépose pas sur une piste vidéo, et réciproquement */
+    if(trackKind(trId)!==(p.kind==="audio"?"audio":"video")){
+      fireNote(p.kind==="audio"?"Un son se dépose sur A1, A2 ou A3.":"Cet asset se dépose sur V1 ou V2.");return}
+    var t=null;
+    if(laneEl){var rect=laneEl.getBoundingClientRect();
+      if(rect.width>0)t=Math.max(0,(e.clientX-rect.left)/rect.width*durRef.current)}
+    addAsset(p.src,p.label,p.kind,p.dur,trId,t);
+  }
 
   /* sauts transport — points de coupe V1 */
   function jump(dir){var pts=[0,durRef.current];
@@ -979,28 +1015,43 @@ function DzMontage(props){
         setFxEdit(null);setDirty(!0)},children:"retirer"})]}),
       fxParamRow(f)]})}
 
-  /* sélecteur d'overlay — images + rendus de la Bibliothèque */
+  /* sélecteur d'assets — contenu filtré selon le type de la piste visée */
   function ovPicker(){
     if(!ovPick||!sources)return null;
+    var tr2=ovPick,audio=trackKind(tr2)==="audio";
     return r.jsxs("div",{className:"svm-pop",style:{top:96},children:[
-      r.jsx("div",{className:"svm-poptitle",children:"Ajouter un overlay — piste V2"}),
-      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},children:"Posé à la tête de lecture ("+svmShort(ph)+"). Les PNG gardent leur transparence ; opacité réglable dans l'inspecteur."}),
-      r.jsx(SvmLabel,{style:{marginTop:12},children:"Images (Bibliothèque)"}),
-      sources.images.length?
+      r.jsx("div",{className:"svm-poptitle",children:"Ajouter sur la piste "+tr2.toUpperCase()}),
+      r.jsx("div",{className:"svm-popnote",style:{marginTop:6},
+        children:audio?("Posé à la tête de lecture ("+svmShort(ph)+"). A1 = dialogue, A2 = musique (ducking auto), A3 = SFX.")
+                      :("Posé à la tête de lecture ("+svmShort(ph)+") — ou déposez directement sur une bande ou le viewport. Les PNG gardent leur transparence.")}),
+      audio?null:r.jsx(SvmLabel,{style:{marginTop:12},children:"Images (Bibliothèque)"}),
+      audio?null:(sources.images.length?
         r.jsx("div",{className:"svm-ovgrid",children:sources.images.map(function(im){
-          return r.jsx("button",{className:"svm-ovimg",title:im.name,
+          return r.jsx("button",{className:"svm-ovimg",title:im.name+" — cliquer ou glisser",draggable:!0,
+            onDragStart:function(e){dragPayload(e,{image:im.name},im.name,"image",0)},
             style:{backgroundImage:"url('/api/images/"+encodeURIComponent(im.name)+"')",backgroundSize:"cover",backgroundPosition:"center"},
-            onClick:function(){addOverlay({image:im.name},im.name,"image")}},im.name)})}):
-        r.jsx("div",{className:"svm-note",children:"aucune image dans la Bibliothèque"}),
-      r.jsx(SvmLabel,{style:{marginTop:12},children:"Rendus vidéo"}),
-      sources.videos.length?
+            onClick:function(){addAsset({image:im.name},im.name,"image",0,tr2)}},im.name)})}):
+        r.jsx("div",{className:"svm-note",children:"aucune image dans la Bibliothèque"})),
+      audio?null:r.jsx(SvmLabel,{style:{marginTop:12},children:"Rendus vidéo"}),
+      audio?null:(sources.videos.length?
         r.jsx("div",{className:"svm-ovlist",children:sources.videos.map(function(v3){
-          return r.jsxs("button",{className:"svm-fxchip",style:{cursor:"pointer",textAlign:"left"},
-            onClick:function(){addOverlay({job_id:v3.job_id},v3.title,"video",v3.dur)},
+          return r.jsxs("button",{className:"svm-fxchip",style:{cursor:"pointer",textAlign:"left"},draggable:!0,
+            title:v3.title+" — cliquer ou glisser",
+            onDragStart:function(e){dragPayload(e,{job_id:v3.job_id},v3.title,"video",v3.dur)},
+            onClick:function(){addAsset({job_id:v3.job_id},v3.title,"video",v3.dur,tr2)},
             children:[v3.title," · ",v3.dur?svmRuler(Math.round(v3.dur)):"—"]},v3.job_id)})}):
-        r.jsx("div",{className:"svm-note",children:"aucun rendu vidéo terminé"}),
+        r.jsx("div",{className:"svm-note",children:"aucun rendu vidéo terminé"})),
+      audio?r.jsx(SvmLabel,{style:{marginTop:12},children:"Sons (Bibliothèque)"}):null,
+      audio?((sources.audios&&sources.audios.length)?
+        r.jsx("div",{className:"svm-ovlist",children:sources.audios.map(function(a3){
+          return r.jsxs("button",{className:"svm-fxchip",style:{cursor:"pointer",textAlign:"left"},draggable:!0,
+            title:a3.name+" — cliquer ou glisser",
+            onDragStart:function(e){dragPayload(e,{audio:a3.name},a3.name,"audio",0)},
+            onClick:function(){addAsset({audio:a3.name},a3.name,"audio",0,tr2)},
+            children:[a3.name,a3.kb?" · "+a3.kb+" ko":""]},a3.name)})}):
+        r.jsx("div",{className:"svm-note",children:"aucun son — importez-en un depuis la Bibliothèque"})):null,
       r.jsx("div",{className:"svm-poprow",children:
-        r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick(!1)},children:"Fermer"})})]})}
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick("")},children:"Fermer"})})]})}
 
   return r.jsxs("div",{className:"dzsvm svm-col","data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
@@ -1033,7 +1084,11 @@ function DzMontage(props){
           /* le cadre suivait un aspect-ratio 9/16 figé en CSS : il suit
              désormais le format du projet */
           style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/")},
-          title:"Molette : zoom · double-clic : réinitialiser",
+          title:"Molette : zoom · double-clic : réinitialiser · déposez un asset pour l'ajouter",
+          /* dépôt sur le viewport : vise la piste vidéo principale, à la
+             tête de lecture (le viewport n'a pas d'axe temporel). */
+          onDragOver:function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],DZ_MIME)>=0){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
+          onDrop:function(e){dropOnTrack(e,"v1",null)},
           onWheel:function(e){
             e.preventDefault();
             setVzoom(function(z){
@@ -1142,11 +1197,16 @@ function DzMontage(props){
                 r.jsxs("div",{className:"svm-tnamerow",children:[
                   r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
                   r.jsx("span",{className:"svm-tname",children:tr.name}),
-                  tr.id==="v2"?r.jsx("button",{className:"svm-ovadd",
-                    title:"Ajouter un overlay (image ou rendu) à la tête de lecture",
-                    onClick:openOvPicker,children:"+"}):null]}),
+                  r.jsx("button",{className:"svm-ovadd",
+                    title:trackKind(tr.id)==="audio"
+                      ?"Ajouter un son de la Bibliothèque à la tête de lecture"
+                      :"Ajouter une image ou un rendu à la tête de lecture",
+                    onClick:function(){openPicker(tr.id)},children:"+"})]}),
                 r.jsx("div",{className:"svm-ttype",children:tr.type})]}),
-              r.jsx("div",{className:"svm-lane",children:
+              r.jsx("div",{className:"svm-lane",
+                onDragOver:function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],DZ_MIME)>=0){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
+                onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},
+                children:
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){
                   var isSel=c.id===selId;
                   return r.jsx("div",{className:"svm-clip",
