@@ -174,6 +174,14 @@ class Settings(BaseSettings):
         return p
 
     @property
+    def luts_path(self) -> Path:
+        """Custom .cube LUTs for the Studio Effects grade node. The only place
+        a user LUT may be read from — see effects_engine._lut_path."""
+        p = resolve_path(self.IMAGES_FOLDER).parent / "luts"
+        p.mkdir(parents=True, exist_ok=True)
+        return p
+
+    @property
     def has_voiceover(self) -> bool:
         return bool(self.ELEVENLABS_API_KEY.strip())
 

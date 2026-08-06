@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, Integer, Float, DateTime, Text, text
+from sqlalchemy import String, Integer, Float, DateTime, Text, text, event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from loguru import logger
@@ -262,6 +262,24 @@ class AtelierSetting(Base):
 
 _engine = create_async_engine(settings.DATABASE_URL, echo=False, future=True)
 async_session_factory = async_sessionmaker(_engine, expire_on_commit=False)
+
+
+@event.listens_for(_engine.sync_engine, "connect")
+def _sqlite_pragmas(dbapi_conn, _record):
+    """WAL + a real busy timeout on every connection.
+
+    A render holds its session open for the whole generation (minutes), so
+    with the default rollback journal a concurrent batch or a UI request hits
+    'database is locked' instead of waiting. WAL lets readers run during a
+    write; busy_timeout replaces the instant failure with a 5s wait.
+    """
+    cur = dbapi_conn.cursor()
+    try:
+        cur.execute("PRAGMA journal_mode=WAL")
+        cur.execute("PRAGMA busy_timeout=5000")
+        cur.execute("PRAGMA synchronous=NORMAL")
+    finally:
+        cur.close()
 
 
 # Columns added in v1.2 — for SQLite auto-migration from v1.1 DBs

@@ -36,6 +36,10 @@ DisableDirPage=yes
 PrivilegesRequired=lowest
 OutputDir=C:\Users\olivi\OneDrive\Bureau\DeepotusVideoGen-Export
 OutputBaseFilename=DeepotusVideoGen-Setup-{#MyAppVersion}
+; Customer-facing EULA. The repo LICENSE is the SOURCE licence and grants a
+; buyer nothing — this is the agreement the purchaser actually accepts, and
+; it must be shown at install time before any file is written.
+LicenseFile={#SourcePath}\EULA.txt
 SetupIconFile={#AppRoot}\assets\deepotus-logo.ico
 UninstallDisplayIcon={app}\assets\deepotus-logo.ico
 UninstallDisplayName={#MyAppName} {#MyAppVersion}

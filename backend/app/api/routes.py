@@ -62,6 +62,37 @@ pipeline = Pipeline(persona_id="deepotus")
 template_engine = TemplateEngine()
 
 
+# ---- Remote-URL fetching (SSRF guard) ----
+
+def _is_private_host(h: str | None) -> bool:
+    """True for hosts that must never be fetched on the user's behalf."""
+    import ipaddress as _ipaddr
+    h = (h or "").lower()
+    if h in ("localhost", "") or h.endswith(".local"):
+        return True
+    try:
+        ip = _ipaddr.ip_address(h)
+        return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
+    except ValueError:
+        return False  # plain hostname; DNS-rebinding out of scope for a desktop tool
+
+
+async def _block_private_redirect(response: httpx.Response) -> None:
+    """Re-check every hop: a public URL can 302 to a loopback address, which
+    would walk straight past a check made only on the original host."""
+    loc = response.headers.get("location")
+    if response.is_redirect and loc and _is_private_host(httpx.URL(loc).host):
+        raise HTTPException(400, "Refusing to follow a redirect to a private/loopback address")
+
+
+def _remote_image_client(**kw) -> httpx.AsyncClient:
+    """Client for user-supplied image URLs: TLS per settings, redirects
+    followed but re-validated at each hop."""
+    kw.setdefault("timeout", 30.0)
+    return httpx.AsyncClient(verify=SSL_VERIFY, follow_redirects=True,
+                             event_hooks={"response": [_block_private_redirect]}, **kw)
+
+
 # ---- Templates ----
 
 @router.get("/templates")
@@ -290,7 +321,7 @@ async def animate(body: dict, background_tasks: BackgroundTasks):
             base = await _resolve_base_to_path(body.get("base"))
             payload = {**body, "base": (str(base) if base else None), "aspect": aspect}
             out = await asyncio.to_thread(render_animation, payload, short)
-            dur = _probe_seconds(str(out)) or float(body.get("duration_s") or 0)
+            dur = await asyncio.to_thread(_probe_seconds, str(out)) or float(body.get("duration_s") or 0)
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
                 jr.status = JobStatus.DONE.value
@@ -1369,39 +1400,41 @@ async def list_voices():
     return {"voices": out, "enabled": True, "provider": provider}
 
 
+def _extract_chapter_text(name: str, data: bytes) -> str:
+    """Plain text of a .txt / .docx / .pdf chapter. Blocking (pypdf on a 25 MB
+    scan takes seconds) — call it off the event loop."""
+    import io as _io
+    if name.endswith(".docx"):
+        import docx
+        doc = docx.Document(_io.BytesIO(data))
+        return "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    if name.endswith(".pdf"):
+        from pypdf import PdfReader
+        reader = PdfReader(_io.BytesIO(data))
+        parts = []
+        for pg in reader.pages:
+            t = (pg.extract_text() or "").strip()
+            if t:
+                parts.append(t)
+        return "\n\n".join(parts)
+    for enc in ("utf-8", "utf-8-sig", "latin-1"):  # .txt or unknown
+        try:
+            return data.decode(enc)
+        except Exception:
+            continue
+    return ""
+
+
 @router.post("/episodes/extract-text")
 async def extract_chapter_text(file: UploadFile = File(...)):
     """Extract plain text from an uploaded chapter file (.txt / .docx / .pdf)
     for the Episodes narration. Returns {text, words, chars}."""
-    import io as _io
     name = (file.filename or "").lower()
     data = await file.read()
     if len(data) > 25 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 25 MB)")
-    text = ""
     try:
-        if name.endswith(".docx"):
-            import docx
-            doc = docx.Document(_io.BytesIO(data))
-            text = "\n\n".join(p.text for p in doc.paragraphs if p.text.strip())
-        elif name.endswith(".pdf"):
-            from pypdf import PdfReader
-            reader = PdfReader(_io.BytesIO(data))
-            parts = []
-            for pg in reader.pages:
-                t = (pg.extract_text() or "").strip()
-                if t:
-                    parts.append(t)
-            text = "\n\n".join(parts)
-        else:  # .txt or unknown → decode as plain text
-            for enc in ("utf-8", "utf-8-sig", "latin-1"):
-                try:
-                    text = data.decode(enc)
-                    break
-                except Exception:
-                    continue
-    except HTTPException:
-        raise
+        text = await asyncio.to_thread(_extract_chapter_text, name, data)
     except Exception as e:
         raise HTTPException(422, f"Could not read this file: {e}")
     text = (text or "").strip()
@@ -1559,7 +1592,7 @@ async def upload_video(file: UploadFile = File(...)):
     contents = await file.read()
     dest.write_bytes(contents)
 
-    dur = _probe_seconds(str(dest)) or 0.0
+    dur = await asyncio.to_thread(_probe_seconds, str(dest)) or 0.0
     job_id = str(uuid4())
     async with async_session_factory() as session:
         session.add(JobRecord(
@@ -2185,6 +2218,11 @@ async def list_jobs(limit: int = 50):
     return [_job_to_dict(j) for j in jobs]
 
 
+#: (path, mtime_ns) -> duration. A finished render never changes, and the
+#: dock re-polls /jobs/{id} until the user closes it.
+_PROBE_CACHE: dict[tuple[str, int], float] = {}
+
+
 def _probe_seconds(path: str | None) -> float | None:
     """Real media duration of a finished render (ffprobe). Used by the
     timeline 'Fit to avatar' so animation clips can be calibrated to the
@@ -2193,13 +2231,25 @@ def _probe_seconds(path: str | None) -> float | None:
         return None
     import subprocess
     try:
+        key = (str(path), Path(path).stat().st_mtime_ns)
+    except OSError:
+        return None
+    if key in _PROBE_CACHE:
+        return _PROBE_CACHE[key]
+    try:
+        # timeout: /jobs/{id} is polled continuously by the dock, so a hung
+        # ffprobe on a truncated file must not pin a worker thread forever.
         out = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(path)],
-            check=False, capture_output=True, text=True).stdout.strip()
-        return round(float(out), 3)
-    except (ValueError, FileNotFoundError, OSError):
+            check=False, capture_output=True, text=True, timeout=15).stdout.strip()
+        dur = round(float(out), 3)
+    except (ValueError, FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return None
+    if len(_PROBE_CACHE) > 512:
+        _PROBE_CACHE.clear()
+    _PROBE_CACHE[key] = dur
+    return dur
 
 
 @router.get("/jobs/{job_id}")
@@ -2208,7 +2258,7 @@ async def get_job(job_id: str):
     if not j:
         raise HTTPException(404, "Job not found")
     d = _job_to_dict(j)
-    d["duration_real_s"] = _probe_seconds(j.final_video_path)
+    d["duration_real_s"] = await asyncio.to_thread(_probe_seconds, j.final_video_path)
     return d
 
 
@@ -2921,7 +2971,7 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
         eff_job = job if job is not None else p.job_id
         hero = None
         if eff_src:
-            cand = settings.images_path / eff_src
+            cand = settings.images_path / Path(eff_src).name
             if cand.is_file():
                 hero = str(cand)
         if not hero and eff_job:
@@ -2930,18 +2980,19 @@ async def scheduled_post_preview(post_id: str, channel: str = "x",
             jobrec = jr.scalar_one_or_none()
             if jobrec:
                 if jobrec.image_filename:
-                    cand = settings.images_path / jobrec.image_filename
+                    cand = settings.images_path / Path(jobrec.image_filename).name
                     if cand.is_file():
                         hero = str(cand)
                 if not hero:
-                    hero = _render_poster_frame(jobrec)
+                    hero = await asyncio.to_thread(_render_poster_frame, jobrec)
         caption = caption if caption is not None else (p.caption or p.title or "")
     brand = _read_branding()
     name = (brand.get("app_name") or "Deepotus").strip().title() or "Deepotus"
     handle = re.sub(r"[^a-z0-9_]", "", name.lower())[:15] or "deepotus"
     try:
-        png = _pp.render_preview(channel=channel, caption=caption,
-                                 hero_path=hero, display_name=name, handle=handle)
+        png = await asyncio.to_thread(
+            _pp.render_preview, channel=channel, caption=caption,
+            hero_path=hero, display_name=name, handle=handle)
     except Exception as e:
         logger.exception("post preview render failed")
         raise HTTPException(500, f"Preview failed: {e}")
@@ -3115,7 +3166,8 @@ async def import_marketing_plan(
     if len(data) > 15 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 15 MB)")
     try:
-        text = marketing.extract_document_text(file.filename or "", data)
+        text = await asyncio.to_thread(
+            marketing.extract_document_text, file.filename or "", data)
     except ValueError as e:
         raise HTTPException(400, str(e))
     except Exception as e:
@@ -3186,22 +3238,10 @@ async def import_image_url(body: dict):
     url = (body or {}).get("url", "").strip()
     if not url or not url.lower().startswith(("http://", "https://")):
         raise HTTPException(400, "A valid image URL is required")
-    import httpx as _httpx
-    import ipaddress as _ipaddr
-    _host = (_httpx.URL(url).host or "").lower()
-
-    def _is_private(h: str) -> bool:
-        if h in ("localhost", "") or h.endswith(".local"):
-            return True
-        try:
-            ip = _ipaddr.ip_address(h)
-            return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved
-        except ValueError:
-            return False  # plain hostname; DNS-rebinding out of scope for a desktop tool
-    if _is_private(_host):
+    if _is_private_host(httpx.URL(url).host):
         raise HTTPException(400, "Refusing to fetch a private/loopback address")
     try:
-        async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=30.0, follow_redirects=True) as client:
+        async with _remote_image_client() as client:
             async with client.stream("GET", url, headers={"User-Agent": "Mozilla/5.0"}) as r:
                 r.raise_for_status()
                 ctype = r.headers.get("content-type", "")
@@ -3596,17 +3636,21 @@ async def _flux_generate(prompt: str, size: str, n: int,
 async def fetch_image(body: dict):
     """Download a remote image URL into the images folder so it's usable as a
     Studio slot (e.g. a news headline's own image). Body: {url}. -> {filename}."""
-    import httpx as _httpx
     url = (body.get("url") or "").strip()
     if not url.startswith(("http://", "https://")):
         raise HTTPException(400, "A valid image URL is required")
+    if _is_private_host(httpx.URL(url).host):
+        raise HTTPException(400, "Refusing to fetch a private/loopback address")
     try:
-        async with _httpx.AsyncClient(verify=SSL_VERIFY, timeout=30.0,
-                                      follow_redirects=True) as client:
+        async with _remote_image_client() as client:
             r = await client.get(url, headers={"User-Agent": "Mozilla/5.0"})
             r.raise_for_status()
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(502, f"Image fetch failed: {e}")
+    if len(r.content) > 25 * 1024 * 1024:
+        raise HTTPException(400, "Image too large (max 25 MB)")
     ct = (r.headers.get("content-type") or "").lower()
     low = url.lower().split("?")[0]
     if "image" not in ct and not low.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif")):
@@ -4162,7 +4206,7 @@ async def _fetch_11l_voices() -> list[dict]:
     et preview_url — la matière du casting voix."""
     if not settings.has_voiceover:
         raise HTTPException(400, "Clé ElevenLabs non configurée (Réglages).")
-    async with httpx.AsyncClient(timeout=20) as c:
+    async with httpx.AsyncClient(timeout=20, verify=SSL_VERIFY) as c:
         r = await c.get("https://api.elevenlabs.io/v1/voices",
                         headers={"xi-api-key": settings.ELEVENLABS_API_KEY})
         r.raise_for_status()
@@ -4729,6 +4773,20 @@ async def reorder_shots(chapter_id: str, body: dict):
 _MS_JOBS: dict[str, dict] = {}
 
 
+def _ms_register(jid: str, state: dict) -> dict:
+    """Register a manuscript/VO/adapt job, evicting finished ones first.
+
+    In-memory only (status is polled, never persisted), so without eviction a
+    long session grows this dict forever.
+    """
+    done = [k for k, v in _MS_JOBS.items()
+            if v.get("phase") in ("done", "error") and k != jid]
+    for k in done[:-20]:  # keep the last 20 finished for late pollers
+        _MS_JOBS.pop(k, None)
+    _MS_JOBS[jid] = state
+    return state
+
+
 def _read_upload_text(name: str, data: bytes) -> str:
     """Texte brut d'un upload txt/docx/pdf. Pour docx, les paragraphes stylés
     Heading sont préfixés du marqueur \\x1f — le segmenteur les importe comme
@@ -4777,7 +4835,8 @@ async def import_manuscript(background_tasks: BackgroundTasks,
     if len(raw) > 30 * 1024 * 1024:
         raise HTTPException(400, "Manuscrit trop lourd (max 30 MB)")
     try:
-        text = _read_upload_text(manuscript.filename or "", raw).strip()
+        text = (await asyncio.to_thread(
+            _read_upload_text, manuscript.filename or "", raw)).strip()
     except Exception as e:
         raise HTTPException(422, f"Lecture du manuscrit impossible: {e}")
     if len(text) < 200:
@@ -4785,16 +4844,17 @@ async def import_manuscript(background_tasks: BackgroundTasks,
     comp_text = ""
     if companion is not None:
         try:
-            comp_text = _read_upload_text(companion.filename or "",
-                                          await companion.read()).strip()
+            comp_text = (await asyncio.to_thread(
+                _read_upload_text, companion.filename or "",
+                await companion.read())).strip()
         except Exception as e:
             logger.warning(f"fichier compagnon illisible (ignoré): {e}")
     stem = Path(manuscript.filename or "Manuscrit").stem
     series = (series or "").strip() or stem
     jid = str(uuid4())
-    _MS_JOBS[jid] = {"job_id": jid, "phase": "segmentation", "chapter_i": 0,
-                     "chapter_n": 0, "message": "Segmentation en chapitres…",
-                     "done": False, "error": None, "stats": {}, "series": series}
+    _ms_register(jid, {"job_id": jid, "phase": "segmentation", "chapter_i": 0,
+                       "chapter_n": 0, "message": "Segmentation en chapitres…",
+                       "done": False, "error": None, "stats": {}, "series": series})
     background_tasks.add_task(_run_manuscript_job, jid, text, comp_text, series)
     return {"job_id": jid, "series": series, "chars": len(text),
             "companion_chars": len(comp_text)}
@@ -5192,9 +5252,9 @@ async def chapter_voiceover(chapter_id: str, body: dict,
     lang = str(body.get("language") or "fr").lower()
     force = bool(body.get("force"))
     jid = str(uuid4())
-    _MS_JOBS[jid] = {"job_id": jid, "phase": "voice-over", "chapter_i": 0,
-                     "chapter_n": len(scenes), "message": "Voix en cours…",
-                     "done": False, "error": None, "stats": {}}
+    _ms_register(jid, {"job_id": jid, "phase": "voice-over", "chapter_i": 0,
+                       "chapter_n": len(scenes), "message": "Voix en cours…",
+                       "done": False, "error": None, "stats": {}})
     background_tasks.add_task(_run_vo_job, jid, chapter_id, lang, force)
     return {"job_id": jid, "scenes": len(scenes)}
 
@@ -5263,9 +5323,9 @@ async def adapt_chapter_endpoint(chapter_id: str, body: dict,
             raise HTTPException(400, "Le chapitre est vide")
     lang = str(body.get("language") or "fr").lower()
     jid = str(uuid4())
-    _MS_JOBS[jid] = {"job_id": jid, "phase": "adaptation", "chapter_i": 1,
-                     "chapter_n": 1, "message": "Adaptation en scénario…",
-                     "done": False, "error": None, "stats": {}}
+    _ms_register(jid, {"job_id": jid, "phase": "adaptation", "chapter_i": 1,
+                       "chapter_n": 1, "message": "Adaptation en scénario…",
+                       "done": False, "error": None, "stats": {}})
     background_tasks.add_task(_run_adapt_job, jid, chapter_id, lang)
     return {"job_id": jid}
 

@@ -19,7 +19,7 @@ from uuid import uuid4
 from loguru import logger
 
 from app.config import settings
-from app.services.composition_service import _run_ffmpeg
+from app.services.composition_service import _run_ffmpeg, FFMPEG_TIMEOUT_S
 
 
 def _run_ffmpeg_in(cmd: list[str], output: Path, cwd: Path) -> Path:
@@ -30,7 +30,8 @@ def _run_ffmpeg_in(cmd: list[str], output: Path, cwd: Path) -> Path:
     """
     try:
         proc = subprocess.run(cmd, check=True, capture_output=True,
-                               text=True, cwd=str(cwd))
+                               text=True, cwd=str(cwd),
+                               timeout=FFMPEG_TIMEOUT_S)
         if not output.exists():
             raise RuntimeError(f"ffmpeg succeeded but output missing: {output}")
         logger.info(f"ffmpeg OK: {output} ({output.stat().st_size // 1024} KB)")
@@ -39,6 +40,9 @@ def _run_ffmpeg_in(cmd: list[str], output: Path, cwd: Path) -> Path:
         raise RuntimeError(
             f"ffmpeg failed (exit {e.returncode}):\n{(e.stderr or '')[-1500:]}"
         ) from e
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"ffmpeg timed out after {FFMPEG_TIMEOUT_S // 60} min — render aborted.")
     except FileNotFoundError:
         raise RuntimeError("ffmpeg not found in PATH. Install ffmpeg first.")
 
@@ -321,7 +325,13 @@ class TemplateEngine:
         Returns None if the asset is absent so the renderer can degrade
         gracefully instead of failing the whole job.
         """
-        p = (self.builtin_dir / src).resolve()
+        base = self.builtin_dir.resolve()
+        p = (base / src).resolve()
+        # A template JSON is data, not code: `src` must not climb out of the
+        # templates dir and pull an arbitrary local image into the render.
+        if not p.is_relative_to(base):
+            logger.warning(f"Brand mark asset outside templates dir, ignored: {src}")
+            return None
         if p.exists():
             return p
         logger.warning(f"Brand mark asset missing, skipping: {src}")

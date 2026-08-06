@@ -167,6 +167,12 @@ class CompositionService:
         return _run_ffmpeg(cmd, output)
 
 
+#: Ceiling for one composition / template / montage render. Generous (long
+#: timelines are legitimately slow) but finite: without it a wedged ffmpeg
+#: pins its worker thread and the job sits at "Compositing" forever.
+FFMPEG_TIMEOUT_S = 1800
+
+
 def _run_ffmpeg(cmd: list[str], output: Path) -> Path:
     """Execute ffmpeg, raise informative error on failure."""
     try:
@@ -175,6 +181,7 @@ def _run_ffmpeg(cmd: list[str], output: Path) -> Path:
             check=True,
             capture_output=True,
             text=True,
+            timeout=FFMPEG_TIMEOUT_S,
         )
         if not output.exists():
             raise RuntimeError(f"ffmpeg succeeded but output missing: {output}")
@@ -183,5 +190,8 @@ def _run_ffmpeg(cmd: list[str], output: Path) -> Path:
     except subprocess.CalledProcessError as e:
         stderr_tail = (e.stderr or "")[-1500:]
         raise RuntimeError(f"ffmpeg failed (exit {e.returncode}):\n{stderr_tail}") from e
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"ffmpeg timed out after {FFMPEG_TIMEOUT_S // 60} min — render aborted.")
     except FileNotFoundError:
         raise RuntimeError("ffmpeg not found in PATH. Install ffmpeg first.")

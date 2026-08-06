@@ -39,6 +39,25 @@ def _one(i, o, filt):
     return [f"[{i}]{filt}[{o}]"]
 
 
+def _lut_path(name):
+    """Resolve a user LUT name to a .cube inside the LUT folder, or None.
+
+    The value lands inside a -filter_complex argument, where a quote ends the
+    filter and lets the rest inject arbitrary filtergraph statements (movie=
+    reads any local file into the render). So: basename only, .cube only, and
+    it must already exist under the LUT dir — nothing else reaches ffmpeg.
+    """
+    if not name:
+        return None
+    from pathlib import Path
+    from app.config import settings
+    safe = Path(str(name)).name
+    if not safe or safe != str(name) or not safe.lower().endswith(".cube"):
+        return None
+    p = settings.luts_path / safe
+    return p if p.is_file() else None
+
+
 # ---- LUT / grade presets (ffmpeg-native, no .cube needed) -------------------
 GRADES = {
     "teal_orange": "curves=preset=increase_contrast,colorbalance=rs=-0.08:bs=0.10:gm=0.02:rm=0.06:bm=-0.06,eq=saturation=1.15",
@@ -66,8 +85,9 @@ COLORIZE = {
 
 # ---- effect builders : (eff, in_lbl, out_lbl, uid, ctx) -> [statements] ------
 def _grade(eff, i, o, u, ctx):
-    if eff.get("file"):                       # user .cube LUT
-        f = str(eff["file"]).replace("\\", "/").replace(":", "\\:")
+    lut = _lut_path(eff.get("file"))
+    if lut:                                   # user .cube LUT
+        f = str(lut).replace("\\", "/").replace(":", "\\:")
         return _one(i, o, f"lut3d=file='{f}'")
     return _one(i, o, GRADES.get(eff.get("preset", "teal_orange"), GRADES["teal_orange"]))
 

@@ -9,8 +9,15 @@ Le bundle affiche « v<version> » en dur à 4 endroits (topbars, splash,
 badge Settings). La source de vérité runtime reste backend/app/config.py
 (/api/health) — ce patcher aligne les libellés statiques du bundle.
 
+ATTENTION — le splash de démarrage vit dans frontend/dist/index.html
+(<div class="dz-ver">), PAS dans le bundle : ce patcher ne le touche pas.
+Il est resté affiché en v2.0.0 pendant tout le cycle 2.1.0 (audit 06/08).
+À chaque bump, l'éditer à la main aussi — étape 1 ci-dessous.
+
 Au prochain bump (le patch version doit TOUJOURS être le dernier maillon) :
-  1. éditer OLD/NEW ci-dessous (et APP_VERSION dans config.py) ;
+  1. éditer OLD/NEW ci-dessous, APP_VERSION dans backend/app/config.py,
+     MyAppVersion dans installer/deepotus.iss, le titre de README.md ET le
+     <div class="dz-ver"> de frontend/dist/index.html ;
   2. archiver .bak_version HORS de frontend/dist/assets (sinon il reste dans
      la chaîne détectée par repatch_all) ;
   3. relancer : python scripts/patch_bundle_version.py — le backup frais

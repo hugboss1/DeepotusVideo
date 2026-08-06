@@ -50,6 +50,7 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.models.schemas import JobStatus
+from app.services.composition_service import FFMPEG_TIMEOUT_S
 from app.services.storage import JobRecord, async_session_factory
 
 router = APIRouter()
@@ -410,7 +411,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:
-    r = subprocess.run(cmd, capture_output=True, text=True)
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           timeout=FFMPEG_TIMEOUT_S)
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(
+            f"ffmpeg a dépassé {FFMPEG_TIMEOUT_S // 60} min — rendu interrompu.")
     if r.returncode != 0 or not out.exists() or out.stat().st_size == 0:
         tail = (r.stderr or "")[-1200:]
         raise RuntimeError(f"ffmpeg a échoué ({r.returncode}) : {tail}")

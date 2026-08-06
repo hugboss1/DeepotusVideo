@@ -46,6 +46,7 @@ def summarize(text: str, *, title: str = "", language: str = "EN",
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=90.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"openai summarizer HTTP {r.status_code}")
@@ -82,6 +83,7 @@ def chat(prompt: str, *, system: str = "", max_tokens: int = 600,
                 "messages": msgs,
             },
             timeout=60.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"openai chat HTTP {r.status_code}")

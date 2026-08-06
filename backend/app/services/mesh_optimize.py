@@ -85,8 +85,15 @@ def glb_stats(path: Path) -> dict:
 def _gltfpack() -> str:
     exe = shutil.which("gltfpack")
     if not exe:
+        # Cherche aussi le bin/ de l'app même si le PATH du process ne l'a pas
+        # (backend relancé à la main, service tiers, PATH tronqué).
+        for cand in (Path(__file__).resolve().parents[3] / "bin" / "gltfpack.exe",
+                     Path(__file__).resolve().parents[4] / "bin" / "gltfpack.exe"):
+            if cand.is_file():
+                return str(cand)
         raise RuntimeError(
-            "gltfpack introuvable — le bin/ de l'app doit être sur le PATH")
+            "Optimisation 3D indisponible : gltfpack est absent de cette "
+            "installation. Réinstallez l'application pour l'obtenir.")
     return exe
 
 

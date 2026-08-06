@@ -17,6 +17,8 @@ Run: python scripts/patch_bundle_numbering.py
 """
 import pathlib, shutil
 
+from _patch_guard import assert_not_retired
+
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 
 
@@ -28,6 +30,7 @@ def apply(s, anchor, replacement, tag):
 
 
 def main():
+    assert_not_retired("patch_bundle_numbering", "shared untagged .js.bak; anchors consumed long ago")
     bak = BUNDLE.with_suffix(".js.bak")
     if not bak.exists():
         shutil.copy2(BUNDLE, bak)

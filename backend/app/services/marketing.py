@@ -22,7 +22,7 @@ from uuid import uuid4
 
 import httpx
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import select, update as _sa_update
 
 from app.config import settings, SSL_VERIFY
 from app.services import plan_schema
@@ -671,6 +671,14 @@ async def performance_context(limit: int = 12) -> str:
 
 # ---------------------------------------------------------------- telegram
 
+def _scrub_token(text: str) -> str:
+    """Redact the Telegram bot token from anything user- or log-facing."""
+    tok = (settings.TELEGRAM_BOT_TOKEN or "").strip()
+    if tok and tok in text:
+        text = text.replace(tok, "***")
+    return re.sub(r"/bot\d+:[A-Za-z0-9_-]+", "/bot***", text)
+
+
 async def publish_telegram(caption: str, *, video_path: str | None = None,
                            image_path: str | None = None) -> tuple[bool, str]:
     """Send to the configured Telegram chat. Video > photo > text.
@@ -708,9 +716,11 @@ async def publish_telegram(caption: str, *, video_path: str | None = None,
         j = r.json()
         if r.status_code == 200 and j.get("ok"):
             return True, "sent"
-        return False, f"telegram {r.status_code}: {str(j)[:200]}"
+        return False, f"telegram {r.status_code}: {_scrub_token(str(j))[:200]}"
     except Exception as e:
-        return False, f"telegram error: {e}"
+        # httpx puts the failing request URL in its errors — bot token
+        # included. This string is stored on the post, shown and logged.
+        return False, f"telegram error: {_scrub_token(str(e))}"
 
 
 async def _job_video_path(job_id: str | None) -> str | None:
@@ -760,6 +770,23 @@ def auto_channels() -> set[str]:
 async def fire_post(post_id: str) -> dict:
     """Publish a post NOW on its auto-capable channels. Returns a result
     dict; flips status to posted/ready/failed accordingly."""
+    # Claim the post first: publishing takes seconds (video upload), and the
+    # 60s scheduler tick or a double-clicked "publish now" would otherwise
+    # both read status='scheduled' and post the same content twice.
+    async with async_session_factory() as session:
+        claimed = await session.execute(
+            _sa_update(ScheduledPost)
+            .where(ScheduledPost.id == post_id)
+            .where(ScheduledPost.status != "posting")
+            .values(status="posting"))
+        await session.commit()
+        if claimed.rowcount == 0:
+            exists = await session.execute(
+                select(ScheduledPost.id).where(ScheduledPost.id == post_id))
+            if exists.scalar_one_or_none() is None:
+                return {"ok": False, "error": "post not found"}
+            return {"ok": False, "error": "already publishing",
+                    "status": "posting"}
     async with async_session_factory() as session:
         res = await session.execute(
             select(ScheduledPost).where(ScheduledPost.id == post_id))
@@ -767,35 +794,44 @@ async def fire_post(post_id: str) -> dict:
         if not post:
             return {"ok": False, "error": "post not found"}
         channels = [c for c in (post.channels or "").split(",") if c]
-        video = await _job_video_path(post.job_id)
-        # When there's no video, attach the post's still image (source_image
-        # or the attached render's frame) so X/Telegram get media, not just
-        # text. The adapters prefer video > image > text.
-        image = None if video else await _resolve_post_image(post)
         sent, errors = [], []
-        # v1.27 — le brief peut porter une caption Telegram dédiée
-        # (TG_CAPTION du plan structuré) : elle prime sur la caption X.
-        tg_caption = None
-        if post.brief:
-            try:
-                tg_caption = (json.loads(post.brief) or {}).get("tg_caption")
-            except (ValueError, TypeError):
-                tg_caption = None
-        for ch in channels:
-            if ch == "telegram" and settings.has_telegram:
-                ok, detail = await publish_telegram(
-                    tg_caption or post.caption or post.title,
-                    video_path=video, image_path=image)
-                (sent if ok else errors).append(f"{ch}: {detail}")
-            elif ch == "x" and settings.has_x:
-                ok, detail, tid = await publish_x(
-                    post.caption or post.title,
-                    video_path=video, image_path=image)
-                if ok and tid:
-                    post.x_post_id = tid
-                (sent if ok else errors).append(f"{ch}: {detail}")
-            else:
-                errors.append(f"{ch}: assisted (no auto adapter)")
+        try:
+            video = await _job_video_path(post.job_id)
+            # When there's no video, attach the post's still image
+            # (source_image or the attached render's frame) so X/Telegram get
+            # media, not just text. The adapters prefer video > image > text.
+            image = None if video else await _resolve_post_image(post)
+            # v1.27 — le brief peut porter une caption Telegram dédiée
+            # (TG_CAPTION du plan structuré) : elle prime sur la caption X.
+            tg_caption = None
+            if post.brief:
+                try:
+                    tg_caption = (json.loads(post.brief) or {}).get("tg_caption")
+                except (ValueError, TypeError):
+                    tg_caption = None
+            for ch in channels:
+                if ch == "telegram" and settings.has_telegram:
+                    ok, detail = await publish_telegram(
+                        tg_caption or post.caption or post.title,
+                        video_path=video, image_path=image)
+                    (sent if ok else errors).append(f"{ch}: {detail}")
+                elif ch == "x" and settings.has_x:
+                    ok, detail, tid = await publish_x(
+                        post.caption or post.title,
+                        video_path=video, image_path=image)
+                    if ok and tid:
+                        post.x_post_id = tid
+                    (sent if ok else errors).append(f"{ch}: {detail}")
+                else:
+                    errors.append(f"{ch}: assisted (no auto adapter)")
+        except Exception as e:
+            # Never leave the claim dangling: a post stuck in 'posting' can
+            # never be fired again (the loop only picks up 'scheduled').
+            post.status = "ready"
+            post.error = f"publish failed: {_scrub_token(str(e))}"[:500]
+            await session.commit()
+            logger.error(f"fire_post {post_id} failed: {post.error}")
+            return {"ok": False, "error": post.error, "status": post.status}
         if sent:
             post.status = "posted"
             post.posted_at = datetime.utcnow()

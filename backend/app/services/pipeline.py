@@ -359,9 +359,9 @@ class Pipeline:
                         progress=74)
                     ext = (settings.outputs_path / "videos"
                            / f"{job_id}_ext.mp4")
-                    self.merger.extend(video_dest, ext,
-                                       request.duration_s,
-                                       request.extend_mode)
+                    await asyncio.to_thread(self.merger.extend, video_dest, ext,
+                                            request.duration_s,
+                                            request.extend_mode)
                     video_dest = ext
 
                 await self._update(session, job,
@@ -379,7 +379,8 @@ class Pipeline:
                                        current_step="Synthesizing voiceover",
                                        progress=85)
                     audio_dest = settings.outputs_path / "audio" / f"{job_id}.mp3"
-                    self.voice.generate(
+                    await asyncio.to_thread(
+                        self.voice.generate,
                         text=vo_script,
                         output_path=audio_dest,
                         language=request.voiceover_language.value,
@@ -393,8 +394,9 @@ class Pipeline:
                                    progress=92)
                 final_dest = settings.outputs_path / "final" / f"{job_id}.mp4"
                 _mus_path, _mus_vol = _resolve_music(request.music)
-                self.merger.merge(video_dest, audio_dest or vo_path, final_dest,
-                                  music_path=_mus_path, music_volume_db=_mus_vol)
+                await asyncio.to_thread(
+                    self.merger.merge, video_dest, audio_dest or vo_path, final_dest,
+                    music_path=_mus_path, music_volume_db=_mus_vol)
                 await self._update(session, job, final_video_path=str(final_dest))
 
                 # 7. Save caption
@@ -542,9 +544,10 @@ class Pipeline:
                 _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
                 if _mus_path is not None or _vo_path is not None:
                     final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
-                    self.merger.merge(video_dest, _vo_path, final_path,
-                                      music_path=_mus_path, music_volume_db=_mus_vol,
-                                      keep_video_audio=True)
+                    await asyncio.to_thread(
+                        self.merger.merge, video_dest, _vo_path, final_path,
+                        music_path=_mus_path, music_volume_db=_mus_vol,
+                        keep_video_audio=True)
                 await self._update(session, job,
                                    video_path=str(video_dest),
                                    final_video_path=str(final_path),
@@ -636,10 +639,11 @@ class Pipeline:
                 _vo_path = _resolve_voiceover(getattr(request, "voiceover", None))
                 if _mus_path is not None or _vo_path is not None:
                     final_path = settings.outputs_path / "final" / f"{job_id}.mp4"
-                    self.merger.merge(video_dest, _vo_path, final_path,
-                                      music_path=_mus_path,
-                                      music_volume_db=_mus_vol,
-                                      keep_video_audio=True)
+                    await asyncio.to_thread(
+                        self.merger.merge, video_dest, _vo_path, final_path,
+                        music_path=_mus_path,
+                        music_volume_db=_mus_vol,
+                        keep_video_audio=True)
                 await self._update(session, job,
                                    video_path=str(video_dest),
                                    final_video_path=str(final_path),
@@ -843,8 +847,15 @@ class Pipeline:
 
         # Tag the Seedance job AFTER it's created with the composition_id.
         # We do this by waiting until both complete then patching.
-        seedance_job_id = await seedance_task
-        heygen_job_id = await heygen_task
+        # return_exceptions: awaiting them in sequence left the second task
+        # orphaned when the first raised — it kept spending provider credits
+        # with nobody to retrieve its result or its exception. Both layers are
+        # already in flight, so let both settle, then surface the failure.
+        seedance_job_id, heygen_job_id = await asyncio.gather(
+            seedance_task, heygen_task, return_exceptions=True)
+        for res in (seedance_job_id, heygen_job_id):
+            if isinstance(res, BaseException):
+                raise res
 
         # Tag the Seedance job with composition metadata
         async with async_session_factory() as session:

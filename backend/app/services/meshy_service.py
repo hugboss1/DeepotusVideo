@@ -446,11 +446,16 @@ async def record_state(task: dict, base: str | None = None) -> None:
         await s.commit()
     if schedule_fetch:
         # rapatriement AVANT expires_at — spec §6 ; en tâche de fond pour ne
-        # pas retarder la réponse proxifiée.
-        asyncio.create_task(_safe_repatriate(tid))
+        # pas retarder la réponse proxifiée. On garde une référence : sans
+        # elle le GC peut collecter la tâche en vol, et le binaire payé est
+        # perdu dès que l'URL Meshy expire.
+        t = asyncio.create_task(_safe_repatriate(tid))
+        _repatriate_tasks.add(t)
+        t.add_done_callback(_repatriate_tasks.discard)
 
 
 _fetching: set[str] = set()
+_repatriate_tasks: set[asyncio.Task] = set()
 
 
 async def _safe_repatriate(task_id: str) -> None:

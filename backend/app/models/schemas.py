@@ -1,8 +1,28 @@
 """Pydantic schemas for API I/O — v1.2 with end_image, seed, prompt builder."""
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Literal
-from pydantic import BaseModel, Field
+from pathlib import Path
+from typing import Annotated, Optional, List, Literal
+from pydantic import AfterValidator, BaseModel, Field
+
+
+def _media_name(v: str) -> str:
+    """Reject anything but a bare filename.
+
+    Media names arrive from the client and are joined onto images_path /
+    audio_path by the routes and the pipeline. An absolute path would replace
+    the base entirely (pathlib semantics) and `..` would climb out, which
+    turns a render into a file-read primitive: the resolved file is uploaded
+    to fal.ai / HeyGen. Same virtualization-safe idiom as get_image_file().
+    """
+    name = Path(v).name
+    if not name or name in (".", "..") or name != v:
+        raise ValueError("must be a bare filename (no path components)")
+    return name
+
+
+#: A client-supplied media filename, validated at the API boundary.
+MediaName = Annotated[str, AfterValidator(_media_name)]
 
 
 class StylePreset(str, Enum):
@@ -117,8 +137,8 @@ class PromptTemplate(BaseModel):
 # ============ Job request/response ============
 
 class GenerateRequest(BaseModel):
-    image_filename: str = Field(..., description="Start image filename")
-    image_filename_end: Optional[str] = Field(None, description="Optional end frame for transition video")
+    image_filename: MediaName = Field(..., description="Start image filename")
+    image_filename_end: Optional[MediaName] = Field(None, description="Optional end frame for transition video")
 
     # Prompt source — exactly one path:
     template_id: Optional[str] = None
@@ -231,7 +251,7 @@ class GenerateHeyGenRequest(BaseModel):
 class GenerateHeyGenImageRequest(BaseModel):
     """v1.16 (D) — animate a Library still into a talking video (HeyGen v3
     type=image): lip-sync + motion driven by an optional motion_prompt."""
-    image_filename: str = Field(..., min_length=1)
+    image_filename: MediaName = Field(..., min_length=1)
     script: str = Field(..., max_length=4900)
     voice_id: str = Field(..., min_length=1)
     engine: Literal["avatar_iv", "avatar_v"] = "avatar_iv"
@@ -252,7 +272,7 @@ class GenerateHeyGenCinematicRequest(BaseModel):
     avatar looks and optional Library reference images. No script/voice."""
     prompt: str = Field(..., min_length=1, max_length=10000)
     look_ids: List[str] = Field(..., min_length=1, max_length=3)
-    reference_images: List[str] = Field(default_factory=list, max_length=3)
+    reference_images: List[MediaName] = Field(default_factory=list, max_length=3)
     duration_s: Optional[int] = Field(None, ge=4, le=15)
     auto_duration: bool = False
     aspect_ratio: Literal["9:16", "16:9", "1:1"] = "9:16"
@@ -456,7 +476,7 @@ class TemplateSlotValue(BaseModel):
     source_kind: Literal["seedance", "heygen", "upload", "file", "job", "text"]
     seedance: Optional[GenerateRequest] = None
     heygen: Optional[GenerateHeyGenRequest] = None
-    upload_filename: Optional[str] = None
+    upload_filename: Optional[MediaName] = None
     file_path: Optional[str] = None
     job_id: Optional[str] = None
     text: Optional[str] = None

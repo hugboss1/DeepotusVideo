@@ -220,21 +220,38 @@ def render_animation(payload: dict, job_id: str):
          *(["-i", str(base), "-map", "0:v", "-map", "1:a?", "-shortest"] if base else []),
          "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", str(out)], stdin=subprocess.PIPE)
     fb = W * H * 4
-    for i in range(n):
-        t = i / fps
+    # try/finally: if the encoder dies mid-write (BrokenPipeError), the reader
+    # would otherwise stay alive holding the base clip open — an orphan ffmpeg
+    # that keeps the file locked on Windows.
+    try:
+        for i in range(n):
+            t = i / fps
+            if bproc:
+                raw = bproc.stdout.read(fb)
+                frame = (Image.frombytes("RGBA", (W, H), raw) if len(raw) == fb
+                         else Image.new("RGBA", (W, H), (2, 6, 13, 255)))
+            else:
+                frame = Image.new("RGBA", (W, H), (2, 6, 13, 255))
+            for el in els:
+                tr = transform_at(el, t)
+                if tr is not None:
+                    frame.alpha_composite(render_element(el, tr, W, H))
+            enc.stdin.write(frame.tobytes())
+        enc.stdin.close()
+        enc.wait(timeout=600)
+    except BaseException:
+        for p in (enc, bproc):
+            if p and p.poll() is None:
+                p.kill()
+        raise
+    finally:
         if bproc:
-            raw = bproc.stdout.read(fb)
-            frame = (Image.frombytes("RGBA", (W, H), raw) if len(raw) == fb
-                     else Image.new("RGBA", (W, H), (2, 6, 13, 255)))
-        else:
-            frame = Image.new("RGBA", (W, H), (2, 6, 13, 255))
-        for el in els:
-            tr = transform_at(el, t)
-            if tr is not None:
-                frame.alpha_composite(render_element(el, tr, W, H))
-        enc.stdin.write(frame.tobytes())
-    enc.stdin.close()
-    enc.wait()
-    if bproc:
-        bproc.terminate()
+            if bproc.poll() is None:
+                bproc.terminate()
+            try:
+                bproc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                bproc.kill()
+            if bproc.stdout:
+                bproc.stdout.close()
     return out

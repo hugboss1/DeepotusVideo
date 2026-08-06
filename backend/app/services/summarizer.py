@@ -7,7 +7,7 @@ Always fail-safe: returns None on any error.
 import httpx
 from loguru import logger
 
-from app.config import settings
+from app.config import settings, SSL_VERIFY
 
 
 def _anthropic(text: str, title: str, language: str,
@@ -35,6 +35,7 @@ def _anthropic(text: str, title: str, language: str,
                 "messages": [{"role": "user", "content": prompt}],
             },
             timeout=90.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"summarizer[anthropic] HTTP {r.status_code}")
@@ -138,6 +139,7 @@ def _anthropic_chat(prompt: str, system: str, max_tokens: int) -> str | None:
             },
             json=body,
             timeout=60.0,
+            verify=SSL_VERIFY,
         )
         if r.status_code != 200:
             logger.warning(f"rewrite[anthropic] HTTP {r.status_code}")

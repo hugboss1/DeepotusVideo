@@ -53,6 +53,37 @@ foreach ($d in @("frontend\src", "frontend\node_modules")) {
     $p = Join-Path $stageApp $d
     if (Test-Path $p) { Remove-Item $p -Recurse -Force }
 }
+
+# ---- 1b. Strip internal tooling from the shipped tree ----------------------
+# The buyer gets the app, not the workshop. Without this the installer ships
+# the whole bundle-patch chain, the migration/Claude-session kit, the QA
+# scripts and the internal design docs -- several of which embed the author's
+# machine paths. Only the three scripts the app itself invokes stay.
+$keepScripts = @("launch-silent.vbs", "stop.ps1", "create-desktop-shortcut.ps1")
+$stagedScripts = Join-Path $stageApp "scripts"
+if (Test-Path $stagedScripts) {
+    Get-ChildItem $stagedScripts -Force | Where-Object {
+        $_.PSIsContainer -or ($keepScripts -notcontains $_.Name)
+    } | Remove-Item -Recurse -Force
+    $kept = (Get-ChildItem $stagedScripts -File).Name
+    Write-Host "  scripts\ trimmed to: $($kept -join ', ')" -ForegroundColor Green
+}
+foreach ($d in @("docs\superpowers", "docs\plans", ".claude", ".pytest_cache")) {
+    $p = Join-Path $stageApp $d
+    if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed $d" -ForegroundColor Green }
+}
+# Backend tests are dev-only and pull in stub fixtures.
+$stagedTests = Join-Path $stageApp "backend\tests"
+if (Test-Path $stagedTests) { Remove-Item $stagedTests -Recurse -Force }
+$stagedConftest = Join-Path $stageApp "backend\conftest.py"
+if (Test-Path $stagedConftest) { Remove-Item $stagedConftest -Force }
+# Last line of defence: no personal path may reach a buyer's disk.
+$leaks = Get-ChildItem $stageApp -Recurse -File -Include *.ps1,*.cmd,*.vbs,*.py,*.md -ErrorAction SilentlyContinue |
+    Select-String -Pattern 'C:\\Users\\olivi' -List -ErrorAction SilentlyContinue
+if ($leaks) {
+    Write-Warning "Personal paths found in staged files:"
+    $leaks | ForEach-Object { Write-Warning "  $($_.Path)" }
+}
 if (-not (Test-Path (Join-Path $stageApp "frontend\dist\index.html"))) {
     throw "frontend\dist missing -- run 'npm run build' in frontend\ first"
 }
@@ -110,6 +141,35 @@ New-Item -ItemType Directory -Force -Path $binDir | Out-Null
 Copy-Item $ffBin.FullName $binDir -Force
 Copy-Item (Join-Path $ffBin.DirectoryName "ffprobe.exe") $binDir -Force
 Write-Host "  ffmpeg + ffprobe staged in app\bin" -ForegroundColor Green
+
+# ---- 4b. gltfpack (meshoptimizer) -------------------------------------------
+# app\services\mesh_optimize.py resolves it with shutil.which and the launcher
+# puts app\bin on PATH. Without this step the 3D "optimize mesh" action fails
+# on every install with "gltfpack introuvable" - the binary was documented as
+# bundled but never actually downloaded.
+$gpZip = Join-Path $cache "gltfpack-windows.zip"
+if (-not $SkipDownloads -or -not (Test-Path $gpZip)) {
+    $url = "https://github.com/zeux/meshoptimizer/releases/latest/download/gltfpack-windows.zip"
+    Write-Host "Downloading gltfpack: $url" -ForegroundColor Cyan
+    try {
+        Invoke-WebRequest $url -OutFile $gpZip -UseBasicParsing
+    } catch {
+        Write-Warning "gltfpack download failed ($($_.Exception.Message)). 3D mesh optimization will be unavailable in this build."
+        $gpZip = $null
+    }
+}
+if ($gpZip -and (Test-Path $gpZip)) {
+    $gpTmp = Join-Path $cache "gltfpack-x"
+    if (Test-Path $gpTmp) { Remove-Item $gpTmp -Recurse -Force }
+    Expand-Archive $gpZip -DestinationPath $gpTmp -Force
+    $gpBin = Get-ChildItem $gpTmp -Recurse -Filter "gltfpack.exe" | Select-Object -First 1
+    if ($gpBin) {
+        Copy-Item $gpBin.FullName $binDir -Force
+        Write-Host "  gltfpack staged in app\bin" -ForegroundColor Green
+    } else {
+        Write-Warning "gltfpack.exe not found in archive - 3D mesh optimization will be unavailable."
+    }
+}
 
 # ---- 5. Compile with Inno Setup ---------------------------------------------
 $iscc = @(

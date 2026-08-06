@@ -6,6 +6,8 @@ all patches compose from a clean base. Each patch asserts its anchor occurs
 exactly once. The file is written only after ALL patches succeed."""
 import pathlib, shutil
 
+from _patch_guard import assert_not_retired
+
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 
 
@@ -17,6 +19,7 @@ def apply(s, anchor, replacement, tag):
 
 
 def main():
+    assert_not_retired("patch_bundle_presets", "shared untagged .js.bak; anchors consumed long ago")
     bak = BUNDLE.with_suffix(".js.bak")
     if not bak.exists():
         shutil.copy2(BUNDLE, bak)

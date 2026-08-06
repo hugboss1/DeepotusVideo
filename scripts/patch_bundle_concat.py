@@ -12,6 +12,8 @@ Creates a .bak once (pristine bundle); on re-run restores from it so patches
 compose from a clean base. Writes the file only after all patches succeed."""
 import pathlib, shutil
 
+from _patch_guard import assert_not_retired
+
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 
 
@@ -23,6 +25,7 @@ def apply(s, anchor, replacement, tag):
 
 
 def main():
+    assert_not_retired("patch_bundle_concat", "shared untagged .js.bak; anchors consumed long ago")
     bak = BUNDLE.with_suffix(".js.bak")
     if not bak.exists():
         shutil.copy2(BUNDLE, bak)
