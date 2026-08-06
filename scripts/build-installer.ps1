@@ -68,9 +68,20 @@ if (Test-Path $stagedScripts) {
     $kept = (Get-ChildItem $stagedScripts -File).Name
     Write-Host "  scripts\ trimmed to: $($kept -join ', ')" -ForegroundColor Green
 }
-foreach ($d in @("docs\superpowers", "docs\plans", ".claude", ".pytest_cache")) {
+foreach ($d in @("docs\superpowers", "docs\plans", ".claude", ".pytest_cache",
+                 "frontend\patches", "frontend\public")) {
     $p = Join-Path $stageApp $d
     if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed $d" -ForegroundColor Green }
+}
+# Fichiers de developpement du frontend : le buyer recoit dist/, pas la chaine
+# de build. SOURCE.md documente la relation bundle<->sources pre-patch et
+# contient les chemins de la machine de dev.
+foreach ($f in @("frontend\SOURCE.md", "frontend\package.json",
+                 "frontend\package-lock.json", "frontend\vite.config.js",
+                 "frontend\tailwind.config.js", "frontend\postcss.config.js",
+                 "frontend\index.html")) {
+    $p = Join-Path $stageApp $f
+    if (Test-Path $p) { Remove-Item $p -Force; Write-Host "  removed $f" -ForegroundColor Green }
 }
 # Backend tests are dev-only and pull in stub fixtures.
 $stagedTests = Join-Path $stageApp "backend\tests"

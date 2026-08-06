@@ -260,10 +260,10 @@ From v1.2: Templates (20), Builder, first-last frame transitions, Job clone/dele
 `upgrade-from-v1.4.ps1` is a **full self-contained** upgrade: it backs up your install to `<path>.bak.<timestamp>`, swaps in the v1.6 codebase, and **preserves your user data** — `backend\.env`, `assets\images\`, `assets\outputs\`, `backend\deepotus.db`, and `backend\app\personas\deepotus.json` (never overwritten). No DB migration step (the DB auto-migrates on startup; v1.6 adds no new columns). It works from a v1.4 or v1.5 install.
 
 ```powershell
-cd D:\olivi\telechargements
+cd C:\path\to\your\downloads
 Expand-Archive deepotus-video-gen-v1.6.zip -DestinationPath . -Force
 cd deepotus-video-gen
-powershell -ExecutionPolicy Bypass -File .\scripts\upgrade-from-v1.4.ps1 -TargetPath "C:\Users\olivi\X-content\deepotus-video-gen"
+powershell -ExecutionPolicy Bypass -File .\scripts\upgrade-from-v1.4.ps1 -TargetPath "C:\path\to\your\install"
 ```
 
 ### Older installs (v1.0–v1.3)
@@ -279,14 +279,14 @@ powershell -ExecutionPolicy Bypass -File .\scripts\migrate-from-v1.ps1 -InstallP
 v1.6 adds **react-konva** (the visual editor). After any upgrade path, install frontend deps once:
 
 ```powershell
-cd C:\Users\olivi\X-content\deepotus-video-gen\frontend
+cd C:\path\to\your\install\frontend
 npm install
 ```
 
 ### Set up the Desktop launcher (optional, recommended)
 
 ```powershell
-cd C:\Users\olivi\X-content\deepotus-video-gen
+cd C:\path\to\your\install
 powershell -ExecutionPolicy Bypass -File .\scripts\create-desktop-shortcut.ps1
 ```
 

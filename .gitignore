@@ -10,6 +10,12 @@
 unins*.dat
 unins*.exe
 /release/
+# Téléchargements et staging du build (python embarqué, ffmpeg, gltfpack) :
+# régénérés à chaque build, et le zip ffmpeg dépasse à lui seul la limite de
+# 100 Mo de GitHub — un `git add -A` après un build fait échouer le push.
+/installer/_cache/
+/installer/stage/
+/installer/output/
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
