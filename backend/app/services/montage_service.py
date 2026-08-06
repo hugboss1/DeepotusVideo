@@ -78,10 +78,27 @@ def _probe_duration(path: Path) -> float:
         out = subprocess.run(
             ["ffprobe", "-v", "error", "-show_entries", "format=duration",
              "-of", "csv=p=0", str(path)],
-            check=False, capture_output=True, text=True).stdout.strip()
+            check=False, capture_output=True, text=True, timeout=30).stdout.strip()
         return max(0.0, float(out))
-    except (ValueError, FileNotFoundError, OSError):
+    except (ValueError, FileNotFoundError, OSError, subprocess.TimeoutExpired):
         return 0.0
+
+
+def _has_audio_stream(path: Path) -> bool:
+    """Vrai si le fichier porte au moins une piste audio.
+
+    Indispensable avant de poser un clip vidéo sur une piste audio : le
+    filtergraph référence [idx:a] et ffmpeg échoue sur tout le rendu si le
+    flux n'existe pas.
+    """
+    try:
+        out = subprocess.run(
+            ["ffprobe", "-v", "error", "-select_streams", "a",
+             "-show_entries", "stream=index", "-of", "csv=p=0", str(path)],
+            check=False, capture_output=True, text=True, timeout=30).stdout.strip()
+        return bool(out)
+    except (FileNotFoundError, OSError, subprocess.TimeoutExpired):
+        return False
 
 
 def _audio_dir() -> Path:
@@ -120,12 +137,22 @@ async def montage_project(limit: int = 4):
 
     loop = asyncio.get_running_loop()
     clips, t = [], 0.0
+    # Le mixage n'utilise QUE les pistes a1/a2/a3 : l'audio embarqué d'un clip
+    # V1 est ignoré par le graphe ffmpeg ([idx:v] seulement). Sans clip A1
+    # dérivé, un avatar parlant monté ici sort muet — on pose donc sa propre
+    # bande son en face de lui, quand elle existe.
+    v1_voices = []
     for j in vids:
         p = Path(j.final_video_path or j.video_path)
         dur = await loop.run_in_executor(None, _probe_duration, p)
         dur = round(dur or float(j.duration_s or 4.0), 3)
         if dur < 0.3:
             continue
+        if await loop.run_in_executor(None, _has_audio_stream, p):
+            v1_voices.append({"tr": "a1", "id": f"a1_{j.id[:8]}",
+                              "label": f"{(j.title or p.stem)[:40]} · son du plan",
+                              "start": round(t, 3), "end": round(t + dur, 3),
+                              "src": {"job_id": j.id}, "srcIn": 0})
         clips.append({"tr": "v1", "id": f"v1_{j.id[:8]}",
                       "label": (j.title or p.stem)[:48],
                       "start": round(t, 3), "end": round(t + dur, 3),
@@ -143,7 +170,11 @@ async def montage_project(limit: int = 4):
     music = next((a for a in audio
                   if any(h in a.name.lower() for h in _MUSIC_HINT)), None)
 
-    if voice is not None:
+    if v1_voices:
+        # Le son des plans prime : coller en plus un vieux fichier de voix off
+        # sans rapport, à t=0, est pire que le silence.
+        clips.extend(v1_voices)
+    elif voice is not None:
         vdur = await loop.run_in_executor(None, _probe_duration, voice)
         if vdur >= 0.3:
             clips.append({"tr": "a1", "id": "a1_vo",
@@ -523,6 +554,12 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                 if p is None:
                     logger.warning(f"montage: audio introuvable, ignoré — "
                                    f"{c.get('label') or c.get('src')}")
+                    continue
+                # Une piste audio peut viser une vidéo (son d'un plan V1) :
+                # sans flux audio, [idx:a] ferait échouer TOUT le rendu.
+                if not await loop.run_in_executor(None, _has_audio_stream, p):
+                    logger.warning(f"montage: source sans piste audio, ignorée — "
+                                   f"{c.get('label') or p.name}")
                     continue
                 sdur = await loop.run_in_executor(None, _probe_duration, p)
                 if c["tr"] == "a2" and music is None:

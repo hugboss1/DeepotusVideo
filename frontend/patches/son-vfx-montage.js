@@ -354,7 +354,7 @@ function DzMontage(props){
     var c=cs.find(function(k){return k.id===id});
     if(!c||p<=c.start+.05||p>=c.end-.05){fireNote("Lame : placez la tête de lecture dans le clip sélectionné.");return}
     setClips(cs.map(function(k){return k===c?Object.assign({},c,{end:p}):k})
-      .concat([Object.assign({},c,{id:c.id+"_b"+Math.round(p*10),start:p,fx:c.fx})]));
+      .concat([Object.assign({},c,{id:c.id+"_b"+Math.round(p*10),start:p,srcIn:(c.srcIn||0)+(p-c.start),fx:c.fx})]));
     setDirty(!0);fireNote("Clip coupé à "+svmShort(p))},[fireNote]);
   x.useEffect(function(){
     function onKey(e){if(e.altKey&&(e.key==="c"||e.key==="C"||e.code==="KeyC")){e.preventDefault();blade()}}
