@@ -91,8 +91,30 @@ from app.services.news_service import news_daily_loop
 from app.services.marketing import schedule_loop
 
 
+def _setup_file_logging() -> Path | None:
+    """Write a rotating log next to the user's data.
+
+    The shipped app is launched hidden by launch-silent.vbs, so uvicorn's
+    stdout/stderr go nowhere: a customer reporting "it failed" has literally
+    nothing to send. Keys are never logged (boot prints only "set"/"missing").
+    """
+    log_dir = DATA_ROOT / "logs"
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        logger.add(
+            log_dir / "deepotus-{time:YYYY-MM-DD}.log",
+            rotation="10 MB", retention="14 days", encoding="utf-8",
+            level="INFO", enqueue=True, backtrace=False, diagnose=False,
+        )
+        return log_dir
+    except Exception as e:  # never let logging setup stop the app
+        logger.warning(f"file logging unavailable: {e}")
+        return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _log_dir = _setup_file_logging()
     logger.info("=" * 60)
     logger.info(f"DEEPOTUS VIDEO GEN v{APP_VERSION} — starting")
     logger.info(f"  fal.ai key: {'✓ set' if settings.FAL_KEY else '✗ missing'}")
@@ -101,6 +123,8 @@ async def lifespan(app: FastAPI):
     logger.info(f"  Data dir:   {DATA_ROOT}")
     logger.info(f"  Images:     {settings.images_path}")
     logger.info(f"  Outputs:    {settings.outputs_path}")
+    if _log_dir:
+        logger.info(f"  Logs:       {_log_dir}")
     logger.info("=" * 60)
     # Garde MSIX : un backend lancé depuis un conteneur écrit dans un overlay
     # invisible (incident 14/06-20/07/2026) — détecter et hurler tout de suite.
@@ -143,19 +167,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow Vite dev server (5173) and any local frontend
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS — the Vite dev server only. A shipped install serves the UI from this
+# same origin and needs no cross-origin grant, so leaving credentialed access
+# open to :5173/:3000 would just hand any local process that binds those ports
+# a browser-context bridge to the API. Set DEEPOTUS_DEV=1 to develop.
+_DEV = os.environ.get("DEEPOTUS_DEV", "").strip().lower() in ("1", "true", "yes")
+if _DEV:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.warning("DEEPOTUS_DEV=1 — dev CORS origins enabled (do not ship)")
 
 
 # CSRF hardening (v1.15.1): the server binds loopback, but a malicious page in
