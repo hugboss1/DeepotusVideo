@@ -602,6 +602,11 @@ var SVM_TRACKS=[
 var SVM_DEMO_MIX={dialogue:-12,musique:-22,sfx:-18};
 var SVM_MIX_COLORS={dialogue:"--c-audio",musique:"--c-av",sfx:"--c-3d"};
 var SVM_ZOOMW=[100,150,220,320];
+/* Formats de sortie : doit rester aligné sur _CANVAS (montage_service.py).
+   Exposer ici une valeur absente de _CANVAS ferait retomber le rendu en
+   9:16 sans le dire — c'était le cas de 4:5 avant l'audit du 06/08. */
+var SVM_RATIOS=[["9:16","9:16 · vertical"],["4:5","4:5 · feed"],
+                ["1:1","1:1 · carré"],["16:9","16:9 · paysage"]];
 function svmMixRows(mixDb){return ["dialogue","musique","sfx"].map(function(k){
   var db=Number(mixDb&&mixDb[k]!=null?mixDb[k]:SVM_DEMO_MIX[k]);
   return {name:k,dbNum:db,db:db===0?"0 dB":"−"+Math.abs(db)+" dB",
@@ -628,6 +633,7 @@ function DzMontage(props){
   var stFE=x.useState(null),fxEdit=stFE[0],setFxEdit=stFE[1]; /* {id,i} chip en édition */
   var stO=x.useState(!1),ovPick=stO[0],setOvPick=stO[1];
   var stS=x.useState(null),sources=stS[0],setSources=stS[1]; /* {images,videos} pour overlays */
+  var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1]; /* zoom molette du viewport (≠ zoom timeline) */
   var ovSeq=x.useRef(0);
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
@@ -694,7 +700,17 @@ function DzMontage(props){
       .concat([Object.assign({},c,{id:c.id+"_b"+Math.round(p*10),start:p,srcIn:(c.srcIn||0)+(p-c.start),fx:c.fx})]));
     setDirty(!0);fireNote("Clip coupé à "+svmShort(p))},[fireNote]);
   x.useEffect(function(){
-    function onKey(e){if(e.altKey&&(e.key==="c"||e.key==="C"||e.code==="KeyC")){e.preventDefault();blade()}}
+    function onKey(e){
+      /* Un champ de saisie garde ses touches. L'écran contient des
+         <input type="range"> (opacité, intensité) qui consomment déjà
+         l'espace et les flèches : sans cette garde, espace basculerait la
+         lecture EN PLUS de déplacer le curseur qui a le focus. */
+      var el=e.target,tg=(el&&el.tagName||"").toLowerCase();
+      if(tg==="input"||tg==="textarea"||tg==="select"||(el&&el.isContentEditable))return;
+      if(e.altKey&&(e.key==="c"||e.key==="C"||e.code==="KeyC")){e.preventDefault();blade();return}
+      /* espace = lecture/pause ; preventDefault sinon la page défile */
+      if(e.code==="Space"||e.key===" "){e.preventDefault();setPlaying(function(p){return !p})}
+    }
     window.addEventListener("keydown",onKey);
     return function(){window.removeEventListener("keydown",onKey)}},[blade]);
 
@@ -990,9 +1006,19 @@ function DzMontage(props){
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
       r.jsx("span",{className:"svm-title",children:"Montage"}),
-      r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))+" · "+proj.ratio}),
+      r.jsx("span",{className:"svm-projmeta",children:proj.name+" · "+proj.version+" · "+svmRuler(Math.round(dur))}),
       dirty?r.jsx("span",{className:"svm-unsaved",children:"NON ENREGISTRÉ"}):null,
       r.jsxs("div",{style:{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"},children:[
+        /* Format : les 4 valeurs réellement rendues par _CANVAS côté backend.
+           4:5 y a été ajouté — il était proposé ailleurs dans l'app mais
+           retombait silencieusement en 9:16 au rendu. */
+        r.jsx("select",{className:"svm-secbtn",value:proj.ratio||"9:16",
+          title:"Format de sortie",
+          onChange:function(e){var v=e.target.value;
+            setProj(function(p){return Object.assign({},p,{ratio:v})});
+            setDirty(!0);fireNote("Format : "+v)},
+          children:SVM_RATIOS.map(function(rt){
+            return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]})]}),
@@ -1003,10 +1029,26 @@ function DzMontage(props){
     r.jsxs("div",{className:"svm-mid",children:[
       r.jsxs("div",{className:"svm-playerzone",children:[
         note?r.jsx("div",{className:"svm-note",style:{position:"absolute",top:58,left:18,zIndex:5},children:note}):null,
-        r.jsxs("div",{className:"svm-frame",children:[
+        r.jsxs("div",{className:"svm-frame",
+          /* le cadre suivait un aspect-ratio 9/16 figé en CSS : il suit
+             désormais le format du projet */
+          style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/")},
+          title:"Molette : zoom · double-clic : réinitialiser",
+          onWheel:function(e){
+            e.preventDefault();
+            setVzoom(function(z){
+              var n=z*(e.deltaY<0?1.12:1/1.12);
+              return n<1?1:n>6?6:n;   /* borné : en deçà de 1 le cadre se viderait */
+            });
+          },
+          onDoubleClick:function(){setVzoom(1)},
+          children:[
           previewUrl?r.jsx("video",{ref:videoRef,src:previewUrl,playsInline:!0,
-            style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"},
+            style:{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover",
+                   transform:"scale("+vzoom+")",transformOrigin:"center center"},
             onEnded:function(){setPlaying(!1)}}):null,
+          vzoom>1.01?r.jsx("div",{className:"svm-frametc",style:{left:12,right:"auto"},
+            children:"×"+vzoom.toFixed(1)}):null,
           r.jsx("div",{className:"svm-caption",children:
             r.jsx("div",{className:"svm-captiontext",children:proj.demo?"« La marée ne demande pas la permission. »":proj.name})}),
           r.jsx("div",{className:"svm-frametc",children:svmShort(ph)})]})]}),

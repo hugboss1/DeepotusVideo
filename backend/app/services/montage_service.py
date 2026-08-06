@@ -69,7 +69,10 @@ _XFADE = {
     "flash": ("fadewhite", None),
 }
 
-_CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080)}
+# 4:5 était proposé par les menus du bundle et géré par animation_service,
+# mais absent d'ici : un montage en 4:5 retombait silencieusement en 9:16.
+_CANVAS = {"9:16": (1080, 1920), "16:9": (1920, 1080), "1:1": (1080, 1080),
+           "4:5": (1080, 1350)}
 _MUSIC_HINT = ("theme", "music", "bgm", "track", "musique", "instrumental")
 
 

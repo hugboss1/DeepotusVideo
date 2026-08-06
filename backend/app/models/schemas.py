@@ -60,6 +60,7 @@ class AspectRatio(str, Enum):
     VERTICAL = "9:16"
     SQUARE = "1:1"
     HORIZONTAL = "16:9"
+    PORTRAIT_45 = "4:5"          # feed Instagram — rendu par le Montage
 
 
 class Language(str, Enum):
