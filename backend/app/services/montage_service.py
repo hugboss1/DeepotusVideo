@@ -298,8 +298,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if reff:
             # Effets par clip — même moteur que le node Effects / Mask.
             parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}pre]")
+            # dur : setpts=PTS-STARTPTS s'exécute AVANT les effets sur les
+            # segments V1, donc t est local au clip — les bornes t0/t1 des
+            # effets le sont aussi.
             parts += _fx.build_chain(reff, f"n{k}pre", f"n{k}",
-                                     f"cfx{k}", {"w": w, "h": h})
+                                     f"cfx{k}",
+                                     {"w": w, "h": h, "dur": seg_durs[k], "fps": fps})
         else:
             parts.append(f"[{seg_idx[k]}:v]{chain}[n{k}]")
 

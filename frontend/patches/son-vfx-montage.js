@@ -389,11 +389,18 @@ function DzMontage(props){
     el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up)}
 
   /* déplacement / rognage de clip (zones de bord 6 px) — magnétisme bords + tête */
+  /* Zone de préhension des bords. Elle valait 6 px sans aucun retour visuel :
+     le rognage existait mais était introuvable à la souris. Élargie, et bornée
+     au tiers du clip pour qu'un clip court garde une zone de déplacement. */
+  function svmEdgeAt(clientX,cRect){
+    var g=Math.min(10,Math.max(4,cRect.width/3));
+    return clientX-cRect.left<g?"l":cRect.right-clientX<g?"r":"m";
+  }
   function clipDown(e,c,laneEl){
     e.stopPropagation();setSelId(c.id);
     var rect=laneEl.getBoundingClientRect(),pxPerS=rect.width/durRef.current;
     var cRect=e.currentTarget.getBoundingClientRect();
-    var edge=e.clientX-cRect.left<6?"l":cRect.right-e.clientX<6?"r":"m";
+    var edge=svmEdgeAt(e.clientX,cRect);
     var x0=e.clientX,s0=c.start,e0=c.end,moved=!1,tgt=e.currentTarget;
     try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
     var edges=[0,durRef.current,phRef.current];
@@ -872,10 +879,23 @@ function DzMontage(props){
                 children:
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){
                   var isSel=c.id===selId;
-                  return r.jsx("div",{className:"svm-clip",
+                  return r.jsxs("div",{className:"svm-clip",
                     style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
                       borderColor:isSel?"var(--accent)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
                       background:isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},
-                    children:r.jsx("div",{className:"svm-cliplabel",children:c.label})},c.id)})})]},tr.id)}),
+                    /* curseur explicite : sans lui, rien n'indique que les
+                       bords rognent au lieu de déplacer */
+                    onPointerMove:function(e){
+                      if(e.buttons)return;
+                      var el=e.currentTarget;
+                      el.style.cursor=svmEdgeAt(e.clientX,el.getBoundingClientRect())==="m"?"grab":"col-resize"},
+                    title:c.label+" — bords : rogner / allonger · centre : déplacer",
+                    children:[
+                      r.jsx("div",{className:"svm-cliplabel",children:c.label}),
+                      /* poignées visibles sur le clip sélectionné */
+                      isSel?r.jsx("div",{style:{position:"absolute",left:0,top:0,bottom:0,width:4,
+                        background:"var(--accent)",borderRadius:"3px 0 0 3px",pointerEvents:"none"}}):null,
+                      isSel?r.jsx("div",{style:{position:"absolute",right:0,top:0,bottom:0,width:4,
+                        background:"var(--accent)",borderRadius:"0 3px 3px 0",pointerEvents:"none"}}):null]},c.id)})})]},tr.id)}),
           r.jsx("div",{className:"svm-phline",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}})]})})]})]})}

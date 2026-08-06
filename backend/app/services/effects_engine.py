@@ -217,7 +217,14 @@ def _dreamy(eff, i, o, u, ctx):
 def _pixelate(eff, i, o, u, ctx):
     t = _inten(eff, 50)
     d = max(2, int(4 + 40 * t))
-    return _one(i, o, f"scale=iw/{d}:ih/{d}:flags=neighbor,scale=iw*{d}:ih*{d}:flags=neighbor")
+    # On remonte aux dimensions EXACTES, pas à iw*d : la division entière ne
+    # retombe pas juste (568/32*32 = 544). Tant que l'effet occupait tout le
+    # clip la dérive passait inaperçue ; dès qu'on le mélange avec l'original
+    # les deux entrées n'ont plus la même taille et le rendu se bloque.
+    w = int((ctx or {}).get("w") or 0)
+    h = int((ctx or {}).get("h") or 0)
+    back = f"scale={w}:{h}:flags=neighbor" if w and h else f"scale=iw*{d}:ih*{d}:flags=neighbor"
+    return _one(i, o, f"scale=iw/{d}:ih/{d}:flags=neighbor,{back}")
 
 
 def _shake(eff, i, o, u, ctx):
@@ -252,9 +259,121 @@ EFFECTS = {
 }
 
 
+# ---- enveloppe temporelle (t0/t1 + courbes de Bézier) -----------------------
+#
+# ffmpeg ne rampe pas uniformément : sur les 20 effets, seuls vignette,
+# letterbox, shake et gradient acceptent une expression dépendant de `t` pour
+# leur paramètre ; d'autres n'y arrivent que par commandes différées, et
+# pixelate/mirror/vhs refusent même `enable=` (leur chaîne contient scale,
+# crop, pad ou hstack). Implémenter au cas par cas donnerait un comportement
+# différent selon l'effet choisi, découvert au rendu.
+#
+# On enveloppe donc TOUS les effets dans un fondu dry/wet, vérifié sur les 20 :
+#     [in]split=2[a][b]; [b]<effet>[p]; [a][p]blend=all_opacity=<rampe>[out]
+# L'opacité suit la courbe demandée, l'effet est absent hors de [t0,t1].
+#
+# La courbe elle-même ne peut pas être résolue dans ffmpeg (Bézier = calcul
+# itératif). On l'échantillonne côté Python : la rampe devient une expression
+# en escalier, imperceptible au pas retenu, et surtout EXACTEMENT la courbe
+# dessinée par l'utilisateur — pas une approximation qui divergerait en
+# silence.
+
+#: Pas d'échantillonnage des rampes, en secondes.
+_RAMP_STEP = 1.0 / 25.0
+
+#: Effets dont l'identité EST le paramètre : un fondu dry/wet les dédouble au
+#: lieu de les atténuer. Ils sont gated (enable=) mais pas fondus.
+_NO_CROSSFADE = ("shake",)
+
+
+def _ease_at(spec, u):
+    """Valeur 0..1 de la courbe en u. Réutilise `ease()` d'animation_service,
+    qui gère à la fois les presets nommés et la forme cubic-bezier(a,b,c,d)."""
+    from app.services.animation_service import ease
+    return ease(spec or "smooth", max(0.0, min(1.0, u)))
+
+
+def _opacity_cmds(target, t0, t1, fade_in, fade_out, ease_in, ease_out):
+    """Commandes sendcmd pilotant all_opacity du blend `target`.
+
+    all_opacity n'accepte PAS d'expression (option flottante) ; il est en
+    revanche commandable à l'exécution. On échantillonne donc la courbe côté
+    Python et on émet une commande par pas — évaluée une fois par image, là
+    où une expression `all_expr` coûterait un calcul par pixel.
+    """
+    cmds = []
+
+    def at(t, v):
+        cmds.append(f"{max(0.0, t):.3f} {target} all_opacity {max(0.0, min(1.0, v)):.4f}")
+
+    at(0.0, 0.0)                                   # effet absent avant t0
+    if fade_in > 0:
+        n = max(1, int(round(fade_in / _RAMP_STEP)))
+        for i in range(n + 1):
+            at(t0 + i * fade_in / n, _ease_at(ease_in, i / n))
+    else:
+        at(t0, 1.0)
+    if fade_out > 0:
+        n = max(1, int(round(fade_out / _RAMP_STEP)))
+        for i in range(n + 1):
+            at(t1 - fade_out + i * fade_out / n, 1.0 - _ease_at(ease_out, i / n))
+    else:
+        at(t1, 0.0)
+    at(t1 + 0.001, 0.0)                            # effet absent après t1
+    # sendcmd sépare ses intervalles par « ; », qui est aussi le séparateur de
+    # chaînes du filtergraph : il doit être échappé.
+    return "\\;".join(cmds)
+
+
+def _timed(eff, stmts, in_lbl, out_lbl, uid, ctx):
+    """Enveloppe une chaîne d'effet dans son intervalle et sa rampe.
+
+    Mécanisme unique pour les 20 effets : on duplique le flux, on applique
+    l'effet sur une copie, et on mélange les deux avec une opacité pilotée
+    dans le temps. `enable=` n'est PAS utilisé — pixelate, mirror, vhs et
+    shake le refusent (leur chaîne contient scale, crop, pad ou hstack).
+    """
+    try:
+        t0 = float(eff.get("t0"))
+        t1 = float(eff.get("t1"))
+    except (TypeError, ValueError):
+        return stmts                      # pas de bornes -> effet plein clip
+    dur = float((ctx or {}).get("dur") or 0) or None
+    t0 = max(0.0, t0)
+    t1 = min(t1, dur) if dur else t1
+    if t1 - t0 < 0.05:
+        return stmts
+    span = t1 - t0
+    fi = max(0.0, min(float(eff.get("fade_in", 0) or 0), span / 2))
+    fo = max(0.0, min(float(eff.get("fade_out", 0) or 0), span / 2))
+    if eff.get("type") in _NO_CROSSFADE:
+        # Mélanger une image secouée avec une image fixe la dédouble au lieu
+        # de l'atténuer : pour ceux-là, entrée et sortie franches.
+        fi = fo = 0.0
+
+    tag = f"blend@{uid}"
+    inner = f"{uid}w"
+    body = []
+    for st in stmts:
+        body.append(st.replace(f"[{in_lbl}]", f"[{uid}b]", 1)
+                      .replace(f"[{out_lbl}]", f"[{inner}]"))
+    cmds = _opacity_cmds(tag, t0, t1, fi, fo, eff.get("ease_in"), eff.get("ease_out"))
+    # Dans blend, la PREMIÈRE entrée est le calque du dessus et all_opacity
+    # est SON opacité : c'est donc l'effet qui doit venir en premier pour que
+    # l'opacité 0 laisse voir l'original.
+    return ([f"[{in_lbl}]split=2[{uid}a][{uid}b]"] + body +
+            [f"[{uid}a]sendcmd=c='{cmds}'[{uid}a2]",
+             f"[{inner}][{uid}a2]blend@{uid}=all_mode=normal:all_opacity=0[{out_lbl}]"])
+
+
 def build_chain(effects, in_lbl, out_lbl, uid, ctx):
     """Thread `effects` into a filtergraph from in_lbl to out_lbl.
-    Returns a list of filtergraph statements. Empty -> a passthrough copy."""
+    Returns a list of filtergraph statements. Empty -> a passthrough copy.
+
+    Un effet portant `t0`/`t1` (secondes, locales au clip) n'agit que sur cet
+    intervalle ; `fade_in`/`fade_out` et `ease_in`/`ease_out` y ajoutent une
+    rampe suivant une courbe de Bézier.
+    """
     effects = [e for e in (effects or []) if isinstance(e, dict) and e.get("type") in EFFECTS]
     if not effects:
         return [f"[{in_lbl}]null[{out_lbl}]"]
@@ -262,8 +381,10 @@ def build_chain(effects, in_lbl, out_lbl, uid, ctx):
     last = len(effects) - 1
     for idx, eff in enumerate(effects):
         nxt = out_lbl if idx == last else f"{uid}s{idx}"
+        uid_e = f"{uid}e{idx}"
         try:
-            stmts += EFFECTS[eff["type"]](eff, cur, nxt, f"{uid}e{idx}", ctx)
+            one = EFFECTS[eff["type"]](eff, cur, nxt, uid_e, ctx)
+            stmts += _timed(eff, one, cur, nxt, uid_e, ctx)
         except Exception:
             stmts.append(f"[{cur}]null[{nxt}]")
         cur = nxt
