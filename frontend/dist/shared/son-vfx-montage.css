@@ -341,6 +341,96 @@
 .svm-popnote{font-size:11px; color:var(--ink3); margin-top:10px; line-height:1.5}
 .svm-poprow{display:flex; gap:8px; margin-top:12px; justify-content:flex-end}
 
+/* ── timeline v2 : historique, aimant, trous V1, tête de lecture ──────────── */
+/* annuler / rétablir — pile vide */
+.svm-tbtn[data-off]{color:var(--ink4); border-color:var(--stroke);
+  cursor:default; pointer-events:none}
+/* ligne d'accroche de l'aimant (flash pendant le drag, sous la règle) */
+.svm-snapline{position:absolute; top:18px; bottom:0; width:1px;
+  background:var(--accent); pointer-events:none; z-index:4}
+/* tête triangulaire du playhead, dans la règle */
+.svm-phtri{position:absolute; top:0; width:0; height:0; margin-left:-5px;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-top:7px solid var(--accent); pointer-events:none; z-index:1}
+/* trou V1 (> 0,1 s) — hachuré discret, rendu en noir au final */
+.svm-gap{position:absolute; top:7px; bottom:7px; border-radius:6px; opacity:.55;
+  background:repeating-linear-gradient(-45deg,transparent 0 5px,var(--stroke) 5px 6px);
+  pointer-events:none}
+
+/* ── transitions de coupe : jonctions V1, étendue et popover de réglage ───── */
+/* losange de jonction (10 px tourné ≈ 14 px visuels), à cheval sur la coupe */
+.svm-junc{position:absolute; top:50%; width:10px; height:10px; padding:0;
+  margin-top:-5px; border-radius:2px; background:var(--panel2);
+  border:1px solid var(--stroke); cursor:pointer; touch-action:none;
+  transform:rotate(45deg);
+  transition:border-color .12s var(--ease), background-color .12s var(--ease)}
+.svm-junc::before{content:""; position:absolute; inset:-4px} /* zone de saisie élargie */
+.svm-junc:hover{border-color:var(--stroke2)}
+.svm-junc[data-on]{border-color:var(--accent);
+  background:color-mix(in srgb, var(--accent) 22%, var(--panel2))}
+.svm-junc[data-sel]{border-color:var(--accent)}
+/* étendue de la transition — la largeur suit transition_s à l'échelle du zoom */
+.svm-transspan{position:absolute; top:10px; bottom:10px; border-radius:6px;
+  background:color-mix(in srgb, var(--accent) 26%, transparent);
+  pointer-events:none}
+/* popover de jonction — motif .svm-pop compact, ancré au-dessus de la timeline */
+.svm-transpop{top:auto; bottom:282px; right:auto; width:248px; z-index:10; padding:12px}
+.svm-transgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px}
+.svm-transtile{padding:6px 8px; border-radius:6px; border:1px solid var(--stroke);
+  background:var(--panel3); color:var(--ink2); cursor:pointer; font-size:11px;
+  text-align:left; transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-transtile:hover:not([data-sel]){border-color:var(--stroke2); color:var(--ink)}
+.svm-transtile[data-sel]{border-color:var(--accent); color:var(--ink)}
+.svm-range:disabled{opacity:.4; cursor:default}
+/* inspecteur : bloc transition (clip V1) */
+.svm-transinsp{margin-top:12px; padding:9px 10px; border:1px solid var(--stroke);
+  border-radius:8px; background:var(--panel3)}
+.svm-transnone{font-size:11px; color:var(--ink4); margin-top:5px; line-height:1.4}
+.svm-transdur{width:58px; flex:none; padding:5px 6px; border-radius:6px;
+  border:1px solid var(--stroke); background:var(--panel2); color:var(--ink);
+  font-family:var(--f-mono); font-size:11px}
+.svm-transdur:disabled{color:var(--ink4); background:var(--panel3); cursor:default}
+
+/* ── lecteur vivant : frame source sous la tête, avant tout rendu ─────────── */
+/* Le média — et le noir des trous V1 — EST l'image rendue : couleurs en dur
+   assumées ici (surimpression sur le média), identiques dans les deux thèmes,
+   même parti pris que .svm-frametc. */
+.svm-live,.svm-liveov{position:absolute; inset:0; pointer-events:none; overflow:hidden}
+.svm-live{background:#000}
+.svm-livemedia{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; display:block}
+.svm-livegap{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  pointer-events:none; font-family:var(--f-mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; color:#ffffff45}
+/* badge d'état du lecteur — même motif que .svm-frametc, coin opposé */
+.svm-frametr{left:auto; right:10px}
+/* boutons du cadre (plein écran, zones sûres) — révélés au survol du cadre */
+.svm-framebtns{position:absolute; right:10px; top:32px; z-index:2; display:flex;
+  flex-direction:column; gap:6px; opacity:0}
+.svm-frame:hover .svm-framebtns,.svm-framebtns:focus-within{opacity:1}
+.svm-framebtn{width:24px; height:24px; border-radius:6px; border:1px solid #ffffff2e;
+  background:#000000aa; color:#f2efe9; cursor:pointer; font-size:11px; padding:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-framebtn:hover{border-color:#ffffff59}
+.svm-framebtn[data-on]{color:#f0b429; border-color:#f0b42999}
+.svm-frame:fullscreen{max-height:none; border-radius:0}
+/* zones sûres — tiers, centre, marges verticales 9:16 : lignes 1px sur le média */
+.svm-safe{position:absolute; inset:0; pointer-events:none}
+.svm-safe3v{position:absolute; top:0; bottom:0; width:1px; background:#ffffff38}
+.svm-safe3h{position:absolute; left:0; right:0; height:1px; background:#ffffff38}
+.svm-safectr{position:absolute; left:50%; top:50%; width:16px; height:16px;
+  margin:-8px 0 0 -8px; border:1px solid #ffffff59; border-radius:999px}
+.svm-safebox{position:absolute; left:6%; right:6%; top:10%; bottom:20%;
+  border:1px dashed #ffffff42; border-radius:8px}
+/* vitesse J/K/L près du timecode — un état : accent */
+.svm-spdchip{font-family:var(--f-mono); font-size:10px; padding:1px 6px;
+  border-radius:5px; border:1px solid var(--accent); color:var(--accent)}
+/* étiquette de survol de la règle (le vrai scrub reste au clic / drag) */
+.svm-hovertc{position:absolute; top:18px; display:none; padding:2px 6px;
+  border-radius:0 6px 6px 0; border:1px solid var(--stroke); border-left:2px solid var(--accent);
+  background:var(--panel2); color:var(--ink2); font-family:var(--f-mono); font-size:9px;
+  pointer-events:none; z-index:1; white-space:nowrap}
+
 @media (prefers-reduced-motion:reduce){
   .dzsvm *, .dzsvm *::before, .dzsvm *::after{
     animation-duration:.001ms!important; animation-iteration-count:1!important;
