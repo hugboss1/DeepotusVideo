@@ -69,6 +69,17 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--ink);font-f
 ::-webkit-scrollbar-thumb{background:var(--stroke);border:2px solid transparent;background-clip:content-box;border-radius:99px}
 ::-webkit-scrollbar-thumb:hover{background:var(--stroke-strong);background-clip:content-box}
 
+/* ── menus déroulants natifs — popup accordé au thème ─────────────────────
+   Le popup d'un <select> suit le color-scheme de l'élément, pas le CSS du
+   déclencheur (.chapbar select…) : sans déclaration il reste blanc tout en
+   héritant l'encre du thème sombre → options illisibles. Options via
+   variables : les remaps data-theme="light" / data-direction="deep"
+   s'appliquent tout seuls. */
+select{color-scheme:dark}
+:root[data-theme="light"] select{color-scheme:light}
+select option,select optgroup{background-color:var(--bg-panel-2);color:var(--ink-strong)}
+select option:disabled{color:var(--ink-muted)}
+
 /* ── top bar ─────────────────────────────────────────────────────────────── */
 .topbar{display:flex;align-items:center;gap:14px;height:var(--topbar);padding:0 16px;border-bottom:1px solid var(--stroke);background:var(--bg-panel)}
 .brand{color:var(--ink-strong);white-space:nowrap;font-family:var(--f-display);font-size:13.5px;letter-spacing:.01em}

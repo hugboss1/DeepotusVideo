@@ -11,6 +11,13 @@ html, body { height: 100%; overflow: hidden; }
 .hidden { display: none !important; }
 button { font-family: inherit; }
 
+/* menus déroulants natifs : popup accordé au thème (le popup suit le
+   color-scheme de l'élément, pas le CSS du déclencheur) + options
+   explicites — sans cela il reste blanc avec l'encre claire → illisible. */
+select { color-scheme: dark; }
+select option, select optgroup { background-color: var(--bg-panel-2); color: var(--ink-strong); }
+select option:disabled { color: var(--ink-muted); }
+
 .studio { display: flex; height: 100vh; min-height: 0; background: var(--bg-base); }
 
 /* ── rail gauche (196px) : moteur · coût · transport · étape suivante ────── */

@@ -58,6 +58,18 @@ input::placeholder,textarea::placeholder{color:var(--ink-muted)}
 input::-moz-placeholder,textarea::-moz-placeholder{color:var(--ink-muted)}
 ::selection{background:var(--cyan-soft)}
 
+/* ── menus déroulants natifs (<select>) ───────────────────────────────────
+   Le POPUP d'un select est peint par le moteur d'après le color-scheme de
+   l'élément — pas d'après le CSS du déclencheur. Sans déclaration il reste
+   BLANC (Windows en clair) tout en héritant l'encre claire du thème :
+   options illisibles. Double verrou : color-scheme sombre (popup accordé
+   Cinema) + couleurs explicites des options (contraste garanti même si le
+   moteur ignore le scheme). Écrans Son & VFX / Montage : règle bi-thème
+   dédiée dans /shared/son-vfx-montage.css (.dzsvm, remap clair). */
+select{color-scheme:dark}
+select option,select optgroup{background-color:var(--bg-panel-2);color:var(--ink-strong)}
+select option:disabled{color:var(--ink-muted)}
+
 /* ── composants du bundle ─────────────────────────────────────────────────── */
 /* panneau : surface pleine + filet 1px, sans flou d'arrière-plan */
 .panel{border-color:var(--stroke);background-color:var(--bg-panel);--tw-backdrop-blur:blur(0px)}

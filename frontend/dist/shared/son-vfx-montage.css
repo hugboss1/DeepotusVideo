@@ -59,6 +59,16 @@
 .dzsvm ::selection{background:color-mix(in srgb,var(--accent) 24%,transparent)}
 .dzsvm .svm-mono{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
 
+/* ── menus déroulants natifs — popup accordé au thème actif ───────────────
+   Le popup d'un <select> suit le color-scheme de l'élément, pas le CSS du
+   déclencheur (.svm-secbtn) : sans déclaration il reste blanc tout en
+   héritant l'encre du thème sombre → options illisibles. Les couleurs
+   d'option passent par les variables : le remap clair s'applique seul. */
+.dzsvm select{color-scheme:dark}
+.dzsvm[data-svm-theme="light"] select{color-scheme:light}
+.dzsvm select option,.dzsvm select optgroup{background-color:var(--panel2);color:var(--ink)}
+.dzsvm select option:disabled{color:var(--ink4)}
+
 /* ── section label (10px mono, .14em, uppercase) ──────────────────────────── */
 .svm-label{font-family:var(--f-mono); font-size:10px; letter-spacing:.14em;
   text-transform:uppercase; color:var(--ink3)}
