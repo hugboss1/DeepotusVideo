@@ -18,8 +18,10 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
 Mécanique vidéo : segments V1 ordonnés (src_in via -ss, durée exacte
 tpad/trim), enchaînés par xfade (map _XFADE de template_service, « cut » =
 fondu 1 image). Audio : clips A1/A3 posés à leur position timeline (adelay),
-musique A2 en boucle coupée à la durée, gains dB par canal, ducking auto
-(sidechaincompress musique sous dialogue), « Maître de durée » = la vidéo
+musique A2 en boucle coupée à la durée, gains dB par canal, mixage PAR CLIP
+optionnel (gain −24..+12 dB multiplié au gain de bus, fondus afade 0..3 s ;
+musique : fade_in au démarrage, fade_out calé sur la fin du rendu), ducking
+auto (sidechaincompress musique sous dialogue), « Maître de durée » = la vidéo
 gèle sa dernière image plutôt que couper la voix. Les trous entre clips V1
 se referment au rendu (concat séquentiel) — le projet initial est généré
 sans trous, donc timeline et rendu coïncident.
@@ -112,6 +114,30 @@ def _audio_dir() -> Path:
 
 def _db_to_gain(db: float) -> float:
     return round(10 ** (float(db) / 20.0), 4)
+
+
+def _clip_mix_params(c: dict) -> tuple[float, float, float]:
+    """Mixage PAR CLIP audio (champs optionnels du payload) : gain en dB
+    (clamp −24..+12, défaut 0), fade_in / fade_out en s (clamp 0..3).
+
+    Valeurs invalides (non numériques, NaN) ignorées avec warning — le clip
+    garde le comportement historique. Champs absents = strictement l'ancien
+    rendu (le gain 0 dB laisse le gain de bus intact, aucun afade inséré)."""
+    def _num(key: str, lo: float, hi: float) -> float:
+        v = c.get(key)
+        if v is None:
+            return 0.0
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            f = float("nan")
+        if f != f:  # NaN — jamais propagé dans un filtergraph
+            logger.warning(f"montage: {key} invalide ({v!r}), ignoré — "
+                           f"{c.get('label') or c.get('tr')}")
+            return 0.0
+        return max(lo, min(hi, f))
+    return (_num("gain", -24.0, 12.0), _num("fade_in", 0.0, 3.0),
+            _num("fade_out", 0.0, 3.0))
 
 
 # ---------------------------------------------------------------- project ---
@@ -338,9 +364,20 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         d = round(min(max(0.1, c["end"] - c["start"]), avail), 3)
         inputs.extend(["-i", str(c["path"])])
         dly = int(round(c["start"] * 1000))
+        # Fondus PAR CLIP (optionnels) — insérés après asetpts, sur l'horloge
+        # locale 0..d du clip (fade_out : st = durée − fondu). Sans fondu la
+        # chaîne reste octet pour octet celle d'avant (rétro-compat).
+        fi = min(float(c.get("fade_in") or 0), d)
+        fo = min(float(c.get("fade_out") or 0), d)
+        fades = ""
+        if fi > 0:
+            fades += f"afade=t=in:st=0:d={round(fi, 3)},"
+        if fo > 0:
+            fades += (f"afade=t=out:st={round(max(0.0, d - fo), 3)}:"
+                      f"d={round(fo, 3)},")
         parts.append(
             f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
-            f"asetpts=PTS-STARTPTS,"
+            f"asetpts=PTS-STARTPTS,{fades}"
             f"aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={c['gain']},"
             f"adelay={dly}|{dly}[{'va' if c['tr'] == 'a1' else 'sa'}{n}]")
@@ -395,8 +432,19 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     music_lbl = None
     if music is not None:
         inputs.extend(["-stream_loop", "-1", "-i", str(music["path"])])
+        # Fondus de la musique bouclée : entrée au démarrage, sortie calée
+        # sur la FIN du rendu (`total`, la boucle est coupée là par -t).
+        # Sans fondu la chaîne reste octet pour octet celle d'avant.
+        mfi = min(float(music.get("fade_in") or 0), max(0.0, total))
+        mfo = min(float(music.get("fade_out") or 0), max(0.0, total))
+        mf = ""
+        if mfi > 0:
+            mf += f"afade=t=in:st=0:d={round(mfi, 3)},"
+        if mfo > 0:
+            mf += (f"afade=t=out:st={round(max(0.0, total - mfo), 3)}:"
+                   f"d={round(mfo, 3)},")
         parts.append(
-            f"[{idx}:a]aresample=async=1,aformat=sample_rates=44100:"
+            f"[{idx}:a]{mf}aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
         music_lbl = "[mtrk]"
         idx += 1
@@ -465,7 +513,9 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
 async def montage_render(request: Request, background_tasks: BackgroundTasks):
     """Body: {name?, ratio?, preview?, duration_master?, ducking?,
     mix?:{dialogue,musique,sfx} (dB), clips:[{tr:v1|a1|a2|a3, src, start, end,
-    srcIn?, transition?, transition_s?}]}. → {job_id} ; poll /api/jobs/{id}."""
+    srcIn?, transition?, transition_s?, gain? (dB −24..+12, multiplié au bus),
+    fade_in?/fade_out? (s 0..3 ; musique A2 : sortie calée sur la fin du
+    rendu)}]}. → {job_id} ; poll /api/jobs/{id}."""
     try:
         body = await request.json()
     except Exception:
@@ -569,16 +619,26 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                    f"{c.get('label') or p.name}")
                     continue
                 sdur = await loop.run_in_executor(None, _probe_duration, p)
+                # Mixage PAR CLIP : le gain (dB) se MULTIPLIE avec le gain de
+                # bus (produit des linéaires) — 0 dB laisse le bus tel quel,
+                # au chiffre près (rétro-compat bit à bit sans les champs).
+                gdb, c_fi, c_fo = _clip_mix_params(c)
                 if c["tr"] == "a2" and music is None:
-                    music = {"path": p, "gain": g_music}
+                    music = {"path": p,
+                             "gain": g_music if not gdb else
+                             round(g_music * _db_to_gain(gdb), 4),
+                             "fade_in": c_fi, "fade_out": c_fo}
                 else:
+                    base = g_voice if c["tr"] == "a1" else g_sfx
                     a_clips.append({
                         "tr": "a1" if c["tr"] == "a1" else "a3",
                         "path": p, "src_dur": sdur or 9999.0,
                         "src_in": max(0.0, float(c.get("srcIn") or 0)),
                         "start": max(0.0, float(c.get("start") or 0)),
                         "end": float(c.get("end") or 0),
-                        "gain": g_voice if c["tr"] == "a1" else g_sfx})
+                        "gain": base if not gdb else
+                        round(base * _db_to_gain(gdb), 4),
+                        "fade_in": c_fi, "fade_out": c_fo})
 
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)

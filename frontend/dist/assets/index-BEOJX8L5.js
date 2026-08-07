@@ -358,6 +358,10 @@ function svmPad2(n){n=Math.floor(n);return (n<10?"0":"")+n}
 function svmClock(s){var c=Math.round(s*100),m=Math.floor(c/6000),r2=c%6000;return svmPad2(m)+":"+svmPad2(Math.floor(r2/100))+"."+svmPad2(r2%100)}
 function svmTc(s){var ms=Math.round(s*1000),m=Math.floor(ms/60000),r2=ms%60000;return svmPad2(m)+":"+svmPad2(Math.floor(r2/1000))+"."+String(r2%1000).padStart(3,"0")}
 function svmShort(s){var d=Math.round(s*10),m=Math.floor(d/600),r2=d%600;return svmPad2(m)+":"+svmPad2(Math.floor(r2/10))+"."+(r2%10)}
+/* timecode broadcast HH:MM:SS:FF à 30 i/s — transport (position / durée),
+   chip du cadre, survol de la règle ; svmTc / svmShort restent pour les durées */
+function svmTcFF(s){var f=Math.max(0,Math.round(s*30)),ff=f%30,t=(f-ff)/30,m=Math.floor(t/60);
+  return svmPad2(m/60)+":"+svmPad2(m%60)+":"+svmPad2(t%60)+":"+svmPad2(ff)}
 function svmRuler(s){var m=Math.floor(s/60);return m+":"+svmPad2(s-m*60)}
 function svmGetTheme(){try{return localStorage.getItem("dz_svm_theme")==="light"?"light":"dark"}catch(e){return "dark"}}
 function svmUseTheme(){var st=x.useState(svmGetTheme()),theme=st[0],setT=st[1];function set(t){setT(t);try{localStorage.setItem("dz_svm_theme",t)}catch(e){}}return [theme,set]}
@@ -652,6 +656,160 @@ function svmActiveV1(cs,t){var best=null;
   for(var i=0;i<cs.length;i++){var c=cs[i];
     if(c.tr==="v1"&&c.src&&(c.src.job_id||c.src.image)&&c.start<=t&&t<c.end&&(!best||c.start>=best.start))best=c}
   return best}
+/* musique A2 réelle (bouclée au rendu) — même règle que le backend : PREMIÈRE
+   occurrence a2 avec source dans l'ordre des clips ; son fade_out = fondu de
+   fin de rendu */
+function svmFirstA2Id(cs){for(var i=0;i<cs.length;i++){var c=cs[i];
+  if(c.tr==="a2"&&c.src&&(c.src.audio||c.src.job_id))return c.id}
+  return null}
+function svmDbTxt(g){return g>0?"+"+g+" dB":g<0?"−"+Math.abs(g)+" dB":"0 dB"}
+/* ratio largeur/hauteur numérique du canvas — sert au calcul CSS du cadre
+   (--svm-arw) et au choix du côté de la barre du lecteur (portrait) */
+function svmRatioW(rt){var p=String(rt||"9:16").split(":"),w=Number(p[0])||9,h=Number(p[1])||16;
+  return Math.round(w/h*1e4)/1e4}
+
+/* ── densité média : waveforms audio + vignettes vidéo dans les clips ──────
+   Caches au niveau module (une source n'est jamais décodée deux fois, une
+   frame jamais extraite deux fois), travaux SÉQUENTIELS lancés en idle
+   (requestIdleCallback, repli setTimeout 0) : aucun fetch / décodage ne
+   démarre pendant un drag. Échec de décodage (codec) : silencieux. */
+var SVM_TRACK_BUS={a1:"dialogue",a2:"musique",a3:"sfx"}; /* bus de mixage backend */
+function svmSrcKey(s){return s?(s.job_id?"j:"+s.job_id:s.audio?"a:"+s.audio:s.image?"i:"+s.image:""):""}
+function svmSrcUrl(s){return s.job_id?"/api/jobs/"+s.job_id+"/video"
+  :s.audio?"/api/audio/"+encodeURIComponent(s.audio)
+  :s.image?"/api/images/"+encodeURIComponent(s.image):""}
+var SVM_AC=null;
+function svmSharedAC(){var AC=window.AudioContext||window.webkitAudioContext;
+  if(!AC)return null;
+  if(!SVM_AC){try{SVM_AC=new AC()}catch(_e){return null}}
+  return SVM_AC}
+/* file de travaux médias — un seul à la fois, démarré hors interaction */
+var SVM_MQ=[],SVM_MQ_BUSY=!1;
+function svmIdle(fn){if(window.requestIdleCallback)window.requestIdleCallback(fn,{timeout:800});
+  else setTimeout(fn,0)}
+function svmMqKick(){if(SVM_MQ_BUSY||!SVM_MQ.length)return;SVM_MQ_BUSY=!0;
+  svmIdle(function(){var job=SVM_MQ.shift(),fired=!1;
+    var done=function(){if(fired)return;fired=!0;SVM_MQ_BUSY=!1;svmMqKick()};
+    if(!job){done();return}
+    try{job(done)}catch(_e){done()}})}
+function svmMqPush(job){SVM_MQ.push(job);svmMqKick()}
+/* pics par source — clé → {st:"pend"|"ok"|"err", peaks 0..1, dur, subs[]} */
+var SVM_WAVES=new Map();
+function svmWavePeaks(src,cb){
+  var key=svmSrcKey(src);if(!key)return null;
+  var e=SVM_WAVES.get(key);
+  if(e&&e.st==="ok")return e;
+  if(e&&e.st==="err")return null;
+  if(!e){e={st:"pend",subs:[]};SVM_WAVES.set(key,e);
+    svmMqPush(function(done){
+      var fin=function(ok){e.st=ok?"ok":"err";
+        var s=e.subs;e.subs=[];s.forEach(function(f){try{f()}catch(_e){}});done()};
+      fetch(svmSrcUrl(src)).then(function(res){
+        if(!res.ok)throw 0;return res.arrayBuffer()})
+      .then(function(buf){var ctx=svmSharedAC();if(!ctx)throw 0;
+        return ctx.decodeAudioData(buf)})
+      .then(function(ab){
+        var ch=ab.getChannelData(0),
+            n=Math.max(90,Math.min(720,Math.round(ab.duration*12))),
+            bl=Math.max(1,Math.floor(ch.length/n)),peaks=new Array(n),mx=0;
+        for(var i=0;i<n;i++){var v=0;
+          for(var j2=i*bl,jEnd=Math.min(ch.length,(i+1)*bl);j2<jEnd;j2+=32){
+            var a=Math.abs(ch[j2]);if(a>v)v=a}
+          peaks[i]=v;if(v>mx)mx=v}
+        if(mx)for(var k=0;k<n;k++)peaks[k]=peaks[k]/mx;
+        e.peaks=peaks;e.dur=ab.duration;fin(!0)})
+      .catch(function(){fin(!1)})})}
+  if(cb)e.subs.push(cb);
+  return null}
+/* vignettes vidéo — clé "source@seconde" → dataURL jpeg (ou "err") ;
+   extracteur <video> offscreen partagé, une extraction à la fois */
+var SVM_THUMBS=new Map(),SVM_THUMB_SUBS=new Map(),SVM_XTR=null;
+var SVM_THUMB_W=78,SVM_THUMB_H=44;
+function svmThumb(src,sec,cb){
+  var key=svmSrcKey(src)+"@"+sec,hit=SVM_THUMBS.get(key);
+  if(hit)return hit==="err"?null:hit;
+  if(SVM_THUMB_SUBS.has(key)){if(cb)SVM_THUMB_SUBS.get(key).push(cb);return null}
+  SVM_THUMB_SUBS.set(key,cb?[cb]:[]);
+  svmMqPush(function(done){
+    var fin=function(val){SVM_THUMBS.set(key,val||"err");
+      var s=SVM_THUMB_SUBS.get(key)||[];SVM_THUMB_SUBS.delete(key);
+      s.forEach(function(f){try{f()}catch(_e){}});done()};
+    var v=SVM_XTR;
+    if(!v){v=document.createElement("video");v.muted=!0;v.playsInline=!0;
+      v.preload="auto";SVM_XTR=v}
+    var url=svmSrcUrl(src);
+    var to=setTimeout(function(){clean();fin(null)},8000);
+    function clean(){v.onloadeddata=null;v.onseeked=null;v.onerror=null;clearTimeout(to)}
+    function grab(){
+      try{var c=document.createElement("canvas");
+        c.width=SVM_THUMB_W;c.height=SVM_THUMB_H;
+        var g=c.getContext("2d"),vw=v.videoWidth||1,vh=v.videoHeight||1,
+            sc=Math.max(SVM_THUMB_W/vw,SVM_THUMB_H/vh),dw=vw*sc,dh=vh*sc;
+        g.drawImage(v,(SVM_THUMB_W-dw)/2,(SVM_THUMB_H-dh)/2,dw,dh);
+        clean();fin(c.toDataURL("image/jpeg",.6))}
+      catch(_e){clean();fin(null)}}
+    function ready(){
+      var t=Math.min(Math.max(0,sec),Math.max(0,(v.duration||1)-.05));
+      if(v.readyState>=2&&Math.abs(v.currentTime-t)<.02){grab();return}
+      v.onseeked=grab;
+      try{v.currentTime=t}catch(_e){clean();fin(null)}}
+    v.onerror=function(){clean();fin(null)};
+    if(v._svmUrl===url&&v.readyState>=2)ready();
+    else{v._svmUrl=url;v.onloadeddata=ready;v.src=url;try{v.load()}catch(_e){}}})}
+/* canvas waveform d'un clip audio — les pics affichés = fenêtre
+   srcIn..srcIn+len de la source, à l'échelle du clip */
+function SvmWave(props){
+  var cv=x.useRef(null),st=x.useState(0),wtick=st[0],setWt=st[1];
+  x.useEffect(function(){
+    var alive=!0,c=cv.current;
+    var e=svmWavePeaks(props.src,function(){if(alive)setWt(function(t){return t+1})});
+    if(!c)return function(){alive=!1};
+    var g=c.getContext("2d");
+    if(!g)return function(){alive=!1};
+    if(!e){if(c.width)g.clearRect(0,0,c.width,c.height);return function(){alive=!1}}
+    var w=c.clientWidth,h=c.clientHeight;
+    if(!w||!h)return function(){alive=!1};
+    var dpr=Math.min(2,window.devicePixelRatio||1),
+        W=Math.max(1,Math.round(w*dpr)),H=Math.max(1,Math.round(h*dpr));
+    if(c.width!==W)c.width=W;
+    if(c.height!==H)c.height=H;
+    g.clearRect(0,0,W,H);
+    var col=(getComputedStyle(c).getPropertyValue(props.color)||"").trim()||"#7fb069";
+    g.fillStyle=col;g.globalAlpha=.55;
+    var bw=Math.max(1,Math.round(1.5*dpr)),gap=Math.max(1,Math.round(dpr)),
+        n=Math.max(1,Math.floor(W/(bw+gap))),
+        sd=e.dur||1,pk=e.peaks,len=Math.max(.01,props.len),s0=props.srcIn||0;
+    for(var i=0;i<n;i++){
+      var t0=s0+i/n*len,t1=s0+(i+1)/n*len,
+          p0=Math.max(0,Math.floor(t0/sd*pk.length)),
+          p1=Math.min(pk.length,Math.max(p0+1,Math.ceil(t1/sd*pk.length))),v=0;
+      for(var j2=p0;j2<p1;j2++){if(pk[j2]>v)v=pk[j2]}
+      var bh=Math.max(dpr,v*H*.92);
+      g.fillRect(i*(bw+gap),(H-bh)/2,bw,bh)}
+    return function(){alive=!1}},
+    [props.k,props.srcIn,props.len,props.color,props.theme,props.zoom,props.dur,wtick]);
+  return r.jsx("canvas",{className:"svm-clipwave","aria-hidden":!0,ref:cv})}
+/* filmstrip d'un clip V1 vidéo — une vignette ≈ toutes les 2,5 s de durée
+   AFFICHÉE (cap 12), générées en asynchrone via la file idle */
+function SvmFilmstrip(props){
+  var st=x.useState(0),setFt=st[1];
+  var len=Math.max(.1,props.len),
+      n=Math.max(1,Math.min(12,Math.ceil(len/2.5))),
+      secs=[],i;
+  for(i=0;i<n;i++)secs.push(Math.max(0,Math.round((props.srcIn||0)+(i+.5)*len/n)));
+  var sig=secs.join(",");
+  x.useEffect(function(){
+    var alive=!0;
+    /* extraction différée : rien ne part pendant un drag (200 ms de stabilité) */
+    var t=setTimeout(function(){if(!alive)return;
+      secs.forEach(function(s2){
+        svmThumb(props.src,s2,function(){if(alive)setFt(function(t2){return t2+1})})})},200);
+    return function(){alive=!1;clearTimeout(t)}},[props.k,sig]);
+  return r.jsx("div",{className:"svm-strip","aria-hidden":!0,children:
+    secs.map(function(s2,i2){
+      var d=SVM_THUMBS.get(svmSrcKey(props.src)+"@"+s2);
+      return d&&d!=="err"?r.jsx("img",{className:"svm-stripimg",src:d,alt:"",draggable:!1},i2)
+        :r.jsx("span",{className:"svm-stripimg"},i2)})})}
 
 function DzMontage(props){
   var th=svmUseTheme(),theme=th[0],setTheme=th[1];
@@ -670,6 +828,7 @@ function DzMontage(props){
   var stP=x.useState({demo:!0,name:"teaser_abyss",version:"v4",ratio:"9:16",dur:SVM_DEMO_DUR,mixDb:SVM_DEMO_MIX}),proj=stP[0],setProj=stP[1];
   var stJ=x.useState(null),job=stJ[0],setJob=stJ[1]; /* {id,kind,status,progress,step,error} */
   var stV=x.useState(null),previewUrl=stV[0],setPreviewUrl=stV[1];
+  var stVS=x.useState(null),prevSaved=stVS[0],setPrevSaved=stVS[1]; /* dernier aperçu 480p rendu — chip qualité source/480p */
   var stF=x.useState(null),fxCat=stF[0],setFxCat=stF[1]; /* catalogue Effects/Mask */
   var stFP=x.useState(!1),fxPick=stFP[0],setFxPick=stFP[1];
   var stFE=x.useState(null),fxEdit=stFE[0],setFxEdit=stFE[1]; /* {id,i} chip en édition */
@@ -678,7 +837,7 @@ function DzMontage(props){
   var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1]; /* zoom molette du viewport (≠ zoom timeline) */
   var ovSeq=x.useRef(0);
   var stTP=x.useState(null),transPop=stTP[0],setTransPop=stTP[1]; /* jonction en édition — {id: clip de DROITE, x: px du popover} */
-  var rootRef=x.useRef(null),transHistAt=x.useRef(0);
+  var rootRef=x.useRef(null),transHistAt=x.useRef(0),audioHistAt=x.useRef(0);
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
   var clipsRef=x.useRef(clips);clipsRef.current=clips;
@@ -697,7 +856,11 @@ function DzMontage(props){
   var stSp=x.useState(1),spd=stSp[0],setSpd=stSp[1]; /* vitesse signée ±1/2/4 */
   var spdRef=x.useRef(spd);spdRef.current=spd;
   var stSf=x.useState(!1),safeOn=stSf[0],setSafeOn=stSf[1];
-  var frameRef=x.useRef(null),hoverTcRef=x.useRef(null);
+  /* muet / verrou par piste — {trId:{pm:dB d'avant muet, l:verrou}} ; le
+     muet lui-même se lit dans proj.mixDb (bus ≤ −40 dB), source de vérité */
+  var stTS=x.useState({}),trackSt=stTS[0],setTrackSt=stTS[1];
+  var trackStRef=x.useRef(trackSt);trackStRef.current=trackSt;
+  var frameRef=x.useRef(null),hoverTcRef=x.useRef(null),transLabelRef=x.useRef(null);
   var liveHostRef=x.useRef(null),liveOvRef=x.useRef(null),liveVideoRef=x.useRef(null);
   var livePoolRef=x.useRef(null),liveSeqRef=x.useRef(0);
   var liveRafRef=x.useRef(0),livePendRef=x.useRef(null);
@@ -736,6 +899,8 @@ function DzMontage(props){
     var id=selRef.current,cs=clipsRef.current;
     var c=cs.find(function(k){return k.id===id});
     if(!c)return;
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
+      fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — déverrouillez-la pour supprimer.");return}
     pushHistory();
     var len=c.end-c.start;
     var next=cs.filter(function(k){return k.id!==id});
@@ -770,6 +935,7 @@ function DzMontage(props){
 
   var sel=clips.find(function(c){return c.id===selId})||null;
   var mixRows=svmMixRows(proj.mixDb);
+  var firstA2=svmFirstA2Id(clips); /* clip musique bouclée (fade_out = fin de rendu) */
 
   /* boucle de lecture — l'horloge suit le mode. Aperçu rendu (previewUrl) :
      le fichier composite reste maître. Projet réel sans aperçu : le <video>
@@ -817,6 +983,10 @@ function DzMontage(props){
 
   var seekTo=x.useCallback(function(p){setPh(p);var v=videoRef.current;
     if(v&&previewRef.current){try{v.currentTime=Math.min(p,v.duration||p)}catch(_e){}}},[]);
+  /* bascule source <-> 480p (chip qualité) : le <video> fraîchement monté
+     est recalé sur la tête de lecture, la position ne saute pas */
+  x.useEffect(function(){var v=videoRef.current;
+    if(v&&previewUrl){try{v.currentTime=Math.min(phRef.current,v.duration||phRef.current)}catch(_e){}}},[previewUrl]);
 
   /* ── lecteur vivant — la vraie frame des SOURCES sous la tête, avant tout
      rendu. Pool d'éléments média par source (préfixe de rôle b:/o:, cap 6,
@@ -885,7 +1055,17 @@ function DzMontage(props){
     if(lv&&c){
       lv._svmClip=c.id;
       var wt=(c.srcIn||0)+(t-c.start);
-      lv.muted=!run; /* muet pendant le scrub — le son du plan en lecture */
+      /* muet pendant le scrub — le son du plan en lecture ; muet aussi quand
+         le bus dialogue (A1 = le son du plan au rendu) est coupé */
+      var a1cut=Number(mixRef.current&&mixRef.current.dialogue!=null?mixRef.current.dialogue:0)<=-40;
+      lv.muted=!run||a1cut;
+      /* gain PAR CLIP du dialogue actif (clip A1 sous la tête) — approximation
+         honnête du « son du plan » : volume = 10^(gain/20), borné 0..1 */
+      var a1g=0;
+      for(var i4=0;i4<cs.length;i4++){var kg=cs[i4];
+        if(kg.tr==="a1"&&kg.src&&kg.gain&&kg.start<=t&&t<kg.end){a1g=kg.gain;break}}
+      var vol=a1g?Math.min(1,Math.max(0,Math.pow(10,a1g/20))):1;
+      if(lv.volume!==vol)lv.volume=vol;
       if(run){
         if(lv.playbackRate!==s)lv.playbackRate=s;
         if(Math.abs(lv.currentTime-wt)>.35){try{lv.currentTime=wt}catch(_e){}}
@@ -979,6 +1159,8 @@ function DzMontage(props){
     var p=phRef.current,cs=clipsRef.current,id=selRef.current;
     var c=cs.find(function(k){return k.id===id});
     if(!c||p<=c.start+.05||p>=c.end-.05){fireNote("Lame : placez la tête de lecture dans le clip sélectionné.");return}
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
+      fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — la lame est bloquée.");return}
     pushHistory();
     setClips(cs.map(function(k){return k===c?Object.assign({},c,{end:p}):k})
       /* la moitié droite démarre sur une jonction « cut » éditable (le losange) —
@@ -1004,10 +1186,11 @@ function DzMontage(props){
       /* espace = lecture/pause ; preventDefault sinon la page défile */
       if(e.code==="Space"||k===" "){e.preventDefault();setSpd(1);setPlaying(function(p){return !p});return}
       if(k==="Delete"||k==="Backspace"){e.preventDefault();delClip();return}
-      /* tête de lecture : ±1 image (1/30 s), Maj = ±10 images */
+      /* tête de lecture : ±1 image (1/30 s), Maj = ±10 images — arrondi
+         image-exact : FF bouge d'exactement ±1/±10 dans le timecode */
       if(k==="ArrowLeft"||k==="ArrowRight"){e.preventDefault();
-        var st=(e.shiftKey?10:1)/30*(k==="ArrowLeft"?-1:1);
-        seekTo(Math.min(durRef.current,Math.max(0,phRef.current+st)));return}
+        var stp=(e.shiftKey?10:1)*(k==="ArrowLeft"?-1:1);
+        seekTo(Math.min(durRef.current,Math.max(0,Math.round(phRef.current*30+stp)/30)));return}
       if(k==="ArrowUp"){e.preventDefault();jump(-1);return}
       if(k==="ArrowDown"){e.preventDefault();jump(1);return}
       if(k==="Home"){e.preventDefault();seekTo(0);return}
@@ -1027,6 +1210,8 @@ function DzMontage(props){
         return}
       if(!e.shiftKey&&!e.altKey&&(k==="k"||k==="K")){e.preventDefault();setSpd(1);setPlaying(!1);return}
       if(!e.shiftKey&&!e.altKey&&(k==="g"||k==="G")){setSafeOn(function(v){return !v});return}
+      /* F : plein écran du cadre (miroir du bouton de la barre du lecteur) */
+      if(!e.shiftKey&&!e.altKey&&(k==="f"||k==="F")){e.preventDefault();svmFullscreen();return}
     }
     window.addEventListener("keydown",onKey);
     return function(){window.removeEventListener("keydown",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply]);
@@ -1050,7 +1235,7 @@ function DzMontage(props){
     var rect=e.currentTarget.getBoundingClientRect();
     var fx=(e.clientX-rect.left-88)/Math.max(1,rect.width-88);
     if(fx<0||fx>1){el.style.display="none";return}
-    el.textContent=svmShort(fx*durRef.current);
+    el.textContent=svmTcFF(fx*durRef.current);
     el.style.left="calc(88px + (100% - 88px) * "+fx+")";
     el.style.display="block"}
   function rulerLeave(){var el=hoverTcRef.current;if(el)el.style.display="none"}
@@ -1065,6 +1250,8 @@ function DzMontage(props){
   }
   function clipDown(e,c,laneEl){
     e.stopPropagation();setSelId(c.id);
+    /* piste verrouillée : la sélection reste possible, tout geste est bloqué */
+    if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l)return;
     var rect=laneEl.getBoundingClientRect(),pxPerS=rect.width/durRef.current;
     var cRect=e.currentTarget.getBoundingClientRect();
     var edge=svmEdgeAt(e.clientX,cRect);
@@ -1133,6 +1320,85 @@ function DzMontage(props){
       pushHistory(h0)}
     el.addEventListener("pointermove",mv);el.addEventListener("pointerup",up)}
 
+  /* ── mixage PAR CLIP (pistes audio) : gain dB + fondus — le rendu multiplie
+     le gain du clip avec le gain de bus (jamais un remplacement). Glissière /
+     champs de l'inspecteur : une entrée d'historique par geste (fenêtre
+     600 ms, même logique que la durée de transition). 0 = neutre : le champ
+     est retiré du clip, le payload reste celui d'avant. ── */
+  function svmSetClipAudio(id,patch){
+    var now=Date.now();
+    if(now-audioHistAt.current>600)pushHistory();
+    audioHistAt.current=now;
+    setClips(clipsRef.current.map(function(k){
+      if(k.id!==id)return k;
+      var nk=Object.assign({},k,patch);
+      if(!nk.gain)delete nk.gain;
+      if(!nk.fade_in)delete nk.fade_in;
+      if(!nk.fade_out)delete nk.fade_out;
+      return nk}));
+    setDirty(!0)}
+  /* poignées de fondu : drag horizontal vers l'intérieur (0..3 s, clamp à la
+     moitié du clip, pas 0,1), rampe redessinée en direct sur la waveform,
+     étiquette flottante « 0.6 s » (motif .svm-hovertc via transHoverShow),
+     une seule entrée d'historique au relâchement ; stopPropagation — jamais
+     de clipDown sous une poignée */
+  function fadeDown(e,c,which,laneEl){
+    e.stopPropagation();e.preventDefault();
+    setSelId(c.id);
+    var tgt=e.currentTarget;
+    try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
+    var pxPerS=Math.max(1,laneEl.getBoundingClientRect().width)/durRef.current;
+    var len=Math.max(.2,c.end-c.start),fmax=Math.min(3,Math.floor(len*5)/10);
+    var isIn=which==="in",key=isIn?"fade_in":"fade_out";
+    var f0=Number(c[key])||0,x0=e.clientX,last=f0,moved=!1;
+    var h0={clips:clipsRef.current,mixDb:mixRef.current};
+    function lbl(v){transHoverShow(isIn?c.start+v:c.end-v,v.toFixed(1)+" s")}
+    lbl(f0);
+    function mv(ev){
+      if(Math.abs(ev.clientX-x0)>3)moved=!0;
+      if(!moved)return;
+      var v=f0+(isIn?1:-1)*(ev.clientX-x0)/pxPerS;
+      v=Math.max(0,Math.min(fmax,Math.round(v*10)/10));
+      lbl(v);
+      if(v===last)return;
+      last=v;
+      setClips(clipsRef.current.map(function(k){
+        if(k.id!==c.id)return k;
+        var nk=Object.assign({},k);
+        if(v)nk[key]=v;else delete nk[key];
+        return nk}))}
+    function up(){
+      tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
+      transHoverHide();
+      if(moved&&last!==f0){setDirty(!0);pushHistory(h0)}}
+    tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
+
+  /* ── muet / verrou de piste — honnêteté : le backend mixe par BUS
+     (A1=dialogue, A2=musique, A3=sfx), pas par piste-fichier. Muet = le bus
+     part à −40 dB dans payload.mix (visible dans la rangée de mixage) ;
+     re-cliquer restaure le niveau d'avant. Pas de muet V1/V2 : le rendu ne
+     le supporte pas. Le verrou est un état d'interface (aucun payload). */
+  function svmTrackMute(trId){
+    var bus=SVM_TRACK_BUS[trId];if(!bus)return;
+    var cur=Number(mixRef.current&&mixRef.current[bus]!=null?mixRef.current[bus]:SVM_DEMO_MIX[bus]);
+    pushHistory(); /* le mixage change : geste annulable */
+    if(cur<=-40){
+      var back=trackSt[trId]&&trackSt[trId].pm!=null?trackSt[trId].pm:SVM_DEMO_MIX[bus];
+      if(back<=-40)back=SVM_DEMO_MIX[bus];
+      svmMixSet(bus,back);
+      fireNote(trId.toUpperCase()+" réactivée — bus "+bus+" à "+(back===0?"0 dB":"−"+Math.abs(Math.round(back))+" dB")+".")}
+    else{
+      setTrackSt(function(m){var nm=Object.assign({},m);
+        nm[trId]=Object.assign({},nm[trId],{pm:cur});return nm});
+      svmMixSet(bus,-40);
+      fireNote(trId.toUpperCase()+" muette — bus "+bus+" à −40 dB dans le mixage.")}}
+  function svmTrackLock(trId){
+    var was=!!(trackSt[trId]&&trackSt[trId].l);
+    setTrackSt(function(m){var nm=Object.assign({},m);
+      nm[trId]=Object.assign({},nm[trId],{l:!was});return nm});
+    fireNote("Piste "+trId.toUpperCase()+(was?" déverrouillée."
+      :" verrouillée — déplacement, rognage, dépôt et suppression bloqués."))}
+
   /* ── édition des transitions de coupe (jonctions V1) ── */
   function svmSetTransType(id,t){
     pushHistory();
@@ -1160,19 +1426,61 @@ function DzMontage(props){
       return ids[k.id]?Object.assign({},k,{transition:t,transition_s:t==="cut"?0:s2}):k}));
     setDirty(!0);
     fireNote("Transition « "+svmTransLabel(t)+" » appliquée à "+n+" coupe"+(n>1?"s":""))}
-  function openTransPop(id,e){
+  /* étiquette flottante des jonctions (survol du losange + drag de durée) —
+     écritures impératives dans un seul élément (motif .svm-hovertc), rien de
+     coûteux par frame côté React */
+  function transHoverTxt(c,on,s2){
+    return svmTransLabel(c.transition)+(on?" · "+(Math.round(s2*100)/100)+" s":"")}
+  function transHoverShow(t,txt){var el=transLabelRef.current;if(!el)return;
+    el.textContent=txt;
+    el.style.left="calc(88px + (100% - 88px) * "+(t/durRef.current)+")";
+    el.style.display="block"}
+  function transHoverHide(){var el=transLabelRef.current;if(el)el.style.display="none"}
+  /* poignées du bloc doré : drag = durée de la transition, SYMÉTRIQUE autour
+     de la coupe (le bloc reste centré sur la jonction). Clamp 0,1..1 s, pas
+     0,05 ; une seule entrée d'historique au relâchement ; clic sans mouvement
+     = ouvrir le réglage (aux petits zooms le bloc couvre le losange). */
+  function transSpanDown(e,jc,edge,t){
+    e.stopPropagation();e.preventDefault();
+    var tgt=e.currentTarget,span=tgt.parentElement,
+        lane=span?span.parentElement:null;
+    if(!lane)return;
+    try{tgt.setPointerCapture&&tgt.setPointerCapture(e.pointerId)}catch(_c){}
+    var pxPerS=Math.max(1,lane.getBoundingClientRect().width)/durRef.current;
+    var sRect=span.getBoundingClientRect(),cx0=sRect.left+sRect.width/2;
+    var s0=svmTransS(jc),x0=e.clientX,last=s0,moved=!1;
+    var h0={clips:clipsRef.current,mixDb:mixRef.current};
+    transHoverShow(t,s0.toFixed(2)+" s");
+    function mv(ev){
+      if(Math.abs(ev.clientX-x0)>3)moved=!0;
+      if(!moved)return;
+      var v=s0+edge*2*(ev.clientX-x0)/pxPerS;
+      v=Math.min(1,Math.max(.1,Math.round(v*20)/20));
+      transHoverShow(t,v.toFixed(2)+" s");
+      if(v===last)return;
+      last=v;
+      setClips(clipsRef.current.map(function(k){
+        return k.id===jc.id?Object.assign({},k,{transition_s:v}):k}))}
+    function up(){
+      tgt.removeEventListener("pointermove",mv);tgt.removeEventListener("pointerup",up);
+      if(moved){setDirty(!0);pushHistory(h0);transHoverShow(t,transHoverTxt(jc,!0,last))}
+      else{transHoverHide();openTransPopAt(jc.id,cx0)}}
+    tgt.addEventListener("pointermove",mv);tgt.addEventListener("pointerup",up)}
+  function openTransPopAt(id,cx0){
     if(transPop&&transPop.id===id){setTransPop(null);return}
     var rr=rootRef.current?rootRef.current.getBoundingClientRect():null;
-    var bx=e.currentTarget.getBoundingClientRect();
-    var cx=rr?bx.left+bx.width/2-rr.left:bx.left;
+    var cx=rr?cx0-rr.left:cx0;
     var w=rr?rr.width:window.innerWidth;
-    setTransPop({id:id,x:Math.max(8,Math.min(w-256,cx-124))})}
+    setTransPop({id:id,x:Math.max(8,Math.min(w-284,cx-138))})}
+  function openTransPop(id,e){
+    var bx=e.currentTarget.getBoundingClientRect();
+    openTransPopAt(id,bx.left+bx.width/2)}
   /* fermeture du popover de jonction : clic extérieur ou Échap */
   x.useEffect(function(){
     if(!transPop)return;
     function onDown(e){var el=e.target;
       while(el&&el!==document){
-        if(el.classList&&(el.classList.contains("svm-transpop")||el.classList.contains("svm-junc")))return;
+        if(el.classList&&(el.classList.contains("svm-transpop")||el.classList.contains("svm-junc")||el.classList.contains("svm-transspan")))return;
         el=el.parentElement}
       setTransPop(null)}
     function onEsc(e){if(e.key==="Escape")setTransPop(null)}
@@ -1188,6 +1496,8 @@ function DzMontage(props){
   function trackKind(trId){return String(trId||"").charAt(0)==="a"?"audio":"video"}
   function openPicker(trId){
     if(proj.demo){fireNote("Ajout d'assets : disponible sur un projet réel — la démo reste une maquette.");return}
+    if(trackSt[trId]&&trackSt[trId].l){
+      fireNote("Piste "+trId.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}
     if(ovPick===trId){setOvPick("");return}
     if(sources){setOvPick(trId);return}
     Promise.all([
@@ -1214,6 +1524,8 @@ function DzMontage(props){
   }
   function addAsset(src,label,kind,srcDur,trId,atTime){
     var tr2=trId||"v2",d=durRef.current;
+    if(trackStRef.current[tr2]&&trackStRef.current[tr2].l){
+      fireNote("Piste "+tr2.toUpperCase()+" verrouillée — déverrouillez-la pour ajouter.");return}
     var st=atTime==null?phRef.current:atTime;
     st=Math.min(Math.max(0,st),Math.max(0,d-1));
     var en=Math.min(d,st+defaultLen(kind,srcDur));if(en-st<.5)st=Math.max(0,en-1);
@@ -1249,10 +1561,17 @@ function DzMontage(props){
     return {name:proj.name,ratio:proj.ratio,preview:preview,
       duration_master:durMaster,ducking:ducking,mix:proj.mixDb,
       clips:clips.filter(function(c){return c.src}).map(function(c){
-        return {tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
+        var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
           effects:c.effects&&c.effects.length?c.effects:void 0,
-          opacity:c.opacity}})}}
+          opacity:c.opacity};
+        /* mixage par clip (pistes audio) — joint seulement si non nul :
+           un projet sans réglage envoie exactement le payload d'avant */
+        if(trackKind(c.tr)==="audio"){
+          if(c.gain)o.gain=c.gain;
+          if(c.fade_in)o.fade_in=c.fade_in;
+          if(c.fade_out)o.fade_out=c.fade_out}
+        return o})}}
   function launchRender(preview){
     if(proj.demo||(job&&job.status!=="failed"))return;
     setJob({id:null,kind:preview?"preview":"final",status:"queued",progress:0,step:"Envoi…",error:null});
@@ -1272,7 +1591,8 @@ function DzMontage(props){
         if(d.status==="done"){
           clearInterval(t);
           if(job.kind==="preview"){
-            setPreviewUrl("/api/jobs/"+job.id+"/video?t="+Date.now());
+            var pu="/api/jobs/"+job.id+"/video?t="+Date.now();
+            setPreviewUrl(pu);setPrevSaved(pu); /* la chip qualité peut re-brancher ce rendu */
             setJob(null);setPop("");seekTo(0);
             fireNote("Aperçu 480p prêt — branché dans le lecteur ("+(d.duration_real_s||d.duration_s||"?")+" s).")}
           else{
@@ -1466,14 +1786,21 @@ function DzMontage(props){
     return r.jsxs("div",{className:"svm-pop svm-transpop",style:{left:transPop.x},children:[
       r.jsx("div",{className:"svm-poptitle",children:"Transition de coupe"}),
       r.jsx("div",{className:"svm-transgrid",children:SVM_TRANS.map(function(o){
-        return r.jsx("button",{className:"svm-transtile","data-sel":base===o[0]?"":void 0,
+        return r.jsxs("button",{className:"svm-transtile","data-sel":base===o[0]?"":void 0,
           title:o[1]+" ("+o[0]+")",
-          onClick:function(){svmSetTransType(jc.id,o[0])},children:o[1]},o[0])})}),
+          onClick:function(){svmSetTransType(jc.id,o[0])},children:[
+          /* micro-scène A/B — aperçu animé du type ; la tuile sélectionnée est
+             figée sur l'état final, reduced-motion la rend statique */
+          r.jsxs("span",{className:"svm-tprev","data-tt":o[0],"aria-hidden":!0,children:[
+            r.jsx("i",{className:"svm-ta"}),r.jsx("i",{className:"svm-tb"})]}),
+          r.jsx("span",{className:"svm-ttl",children:o[1]})]},o[0])})}),
       r.jsxs("div",{className:"svm-fxedit",style:{marginTop:10},children:[
         r.jsx("span",{className:"svm-fxeditname",children:"Durée"}),
+        r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"0.1 s"}),
         r.jsx("input",{className:"svm-range",type:"range",min:.1,max:1,step:.05,
           value:isCut?.4:s2,disabled:isCut,"aria-label":"Durée de la transition",
           onChange:function(e){svmSetTransDur(jc.id,Number(e.target.value))}}),
+        r.jsx("span",{className:"svm-transbound","aria-hidden":!0,children:"1.0 s"}),
         r.jsx("span",{className:"svm-rangeval",children:isCut?"—":s2.toFixed(2)+" s"})]}),
       r.jsx("div",{className:"svm-poprow",children:
         r.jsx("button",{className:"svm-secbtn",style:{width:"100%"},
@@ -1505,6 +1832,43 @@ function DzMontage(props){
         r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"s"})]}):
       r.jsx("div",{className:"svm-transnone",children:"première coupe / trou — pas de transition"})]})}
 
+  /* inspecteur — « Clip audio » : gain −24..+12 dB (multiplié au gain de bus
+     par le rendu, jamais un remplacement) + fondus 0..3 s bornés à la moitié
+     du clip ; la musique A2 bouclée garde sa note dédiée */
+  function audioInspector(){
+    if(!sel||trackKind(sel.tr)!=="audio"||!sel.src)return null;
+    var g=Math.round(Number(sel.gain)||0);
+    var len=Math.max(.2,sel.end-sel.start),fmax=Math.min(3,Math.floor(len*5)/10);
+    var isMus=sel.id===firstA2;
+    function setF(key,raw){
+      var v=Number(raw);if(!isFinite(v))return;
+      v=Math.max(0,Math.min(fmax,Math.round(v*10)/10));
+      var patch={};patch[key]=v;
+      svmSetClipAudio(sel.id,patch)}
+    return r.jsxs("div",{className:"svm-transinsp",children:[
+      r.jsx("div",{className:"svm-propk",children:"Clip audio"}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",children:"Gain"}),
+        r.jsx("input",{className:"svm-range",type:"range",min:-24,max:12,step:1,value:g,
+          title:"Gain du clip ("+svmDbTxt(g)+") — multiplié avec le bus "+(SVM_TRACK_BUS[sel.tr]||"")+" · flèches : ±1 dB",
+          "aria-label":"Gain du clip audio (dB)",
+          onChange:function(e){svmSetClipAudio(selRef.current,{gain:Math.round(Number(e.target.value))||0})}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:44},children:svmDbTxt(g)})]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",children:"Fondus"}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:fmax,step:.1,
+          value:Number(sel.fade_in)||0,
+          title:"Fondu d'entrée (0 à "+fmax+" s)","aria-label":"Fondu d'entrée (s)",
+          onChange:function(e){setF("fade_in",e.target.value)}}),
+        r.jsx("span",{className:"svm-fadesep","aria-hidden":!0,children:"in · out"}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:fmax,step:.1,
+          value:Number(sel.fade_out)||0,
+          title:(isMus?"Fondu de fin de rendu":"Fondu de sortie")+" (0 à "+fmax+" s)",
+          "aria-label":isMus?"Fondu de fin de rendu (s)":"Fondu de sortie (s)",
+          onChange:function(e){setF("fade_out",e.target.value)}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"s"})]}),
+      isMus?r.jsx("div",{className:"svm-transnone",children:"musique bouclée sur toute la durée — fondu de sortie calé sur la fin du rendu"}):null]})}
+
   return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
@@ -1531,12 +1895,18 @@ function DzMontage(props){
     transPopover(),
     /* lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
-      r.jsxs("div",{className:"svm-playerzone",children:[
+      r.jsxs("div",{className:"svm-playerzone",
+        /* formats portrait : la barre du lecteur passe dans la zone latérale
+           morte (colonne à droite), le cadre garde toute la hauteur */
+        "data-side":svmRatioW(proj.ratio)<1?"":void 0,children:[
         note?r.jsx("div",{className:"svm-note",style:{position:"absolute",top:58,left:18,zIndex:5},children:note}):null,
+        r.jsx("div",{className:"svm-stage",children:
         r.jsxs("div",{className:"svm-frame",ref:frameRef,
-          /* le cadre suivait un aspect-ratio 9/16 figé en CSS : il suit
-             désormais le format du projet */
-          style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/")},
+          /* le cadre suit le format du projet et remplit la hauteur disponible
+             (plus de cap 420px) — --svm-arw sert au calcul CSS
+             min(hauteur dispo, largeur dispo / ratio) */
+          style:{aspectRatio:String(proj.ratio||"9:16").replace(":","/"),
+                 "--svm-arw":String(svmRatioW(proj.ratio))},
           title:"Molette : zoom · double-clic : réinitialiser · déposez un asset pour l'ajouter",
           /* dépôt sur le viewport : vise la piste vidéo principale, à la
              tête de lecture (le viewport n'a pas d'axe temporel). */
@@ -1570,22 +1940,37 @@ function DzMontage(props){
             r.jsx("div",{className:"svm-safe3h",style:{top:"66.667%"}}),
             r.jsx("div",{className:"svm-safectr"}),
             proj.ratio==="9:16"?r.jsx("div",{className:"svm-safebox"}):null]}):null,
-          vzoom>1.01?r.jsx("div",{className:"svm-frametc",style:{top:34},
+          vzoom>1.01?r.jsx("div",{className:"svm-frametc",
             children:"×"+vzoom.toFixed(1)}):null,
           r.jsx("div",{className:"svm-caption",children:
             r.jsx("div",{className:"svm-captiontext",children:proj.demo?"« La marée ne demande pas la permission. »":proj.name})}),
-          /* badge d'état du lecteur — coin opposé au timecode ; rien en démo */
-          proj.demo?null:r.jsx("div",{className:"svm-frametc svm-frametr",
-            title:previewUrl?"aperçu rendu 480p branché dans le lecteur"
+          /* timecode image-exact — coin haut droit, seul overlay UI permanent */
+          r.jsx("div",{className:"svm-frametc svm-frametr",children:svmTcFF(ph)})]})}),
+        /* barre du lecteur — TOUJOURS visible (plus de boutons au survol) :
+           qualité source/480p, ratio du canvas, zones sûres, plein écran */
+        r.jsxs("div",{className:"svm-playerbar",role:"group","aria-label":"Contrôles du lecteur",children:[
+          r.jsx("button",{className:"svm-pchip","data-on":previewUrl?void 0:"",
+            title:previewUrl?"revenir à l'aperçu direct des sources"
               :"aperçu direct des sources — transitions, effets et mixage visibles après une Preview 480p",
-            children:previewUrl?"aperçu 480p":"aperçu source"}),
-          r.jsxs("div",{className:"svm-framebtns",children:[
-            r.jsx("button",{className:"svm-framebtn",title:"plein écran (Échap pour sortir)",
-              "aria-label":"Plein écran",onClick:svmFullscreen,children:"⛶"}),
-            r.jsx("button",{className:"svm-framebtn","data-on":safeOn?"":void 0,
-              title:"zones sûres (G)","aria-label":"Zones sûres",
-              onClick:function(){setSafeOn(!safeOn)},children:"▦"})]}),
-          r.jsx("div",{className:"svm-frametc",children:svmShort(ph)})]})]}),
+            onClick:function(){if(previewUrl)setPreviewUrl(null)},children:"source"}),
+          r.jsx("button",{className:"svm-pchip","data-on":previewUrl?"":void 0,
+            "data-off":!previewUrl&&!prevSaved?"":void 0,
+            title:previewUrl?"aperçu rendu 480p branché dans le lecteur"
+              :prevSaved?"rebrancher le dernier aperçu rendu 480p"
+              :"lancer Preview 480p (gratuit)",
+            onClick:function(){if(previewUrl)return;
+              if(prevSaved)setPreviewUrl(prevSaved);
+              else setPop(pop==="preview"?"":"preview")},children:"480p"}),
+          r.jsx("i",{className:"svm-pdiv","aria-hidden":!0}),
+          r.jsx("span",{className:"svm-pchip svm-pinfo",
+            title:"ratio du canvas — se change dans la barre de titre",
+            children:proj.ratio||"9:16"}),
+          r.jsx("i",{className:"svm-pdiv","aria-hidden":!0}),
+          r.jsx("button",{className:"svm-pchip","data-on":safeOn?"":void 0,
+            "aria-pressed":safeOn,title:"tiers, centre et marges sur le cadre",
+            onClick:function(){setSafeOn(!safeOn)},children:"zones sûres (G)"}),
+          r.jsx("button",{className:"svm-pchip",title:"plein écran du cadre (Échap pour sortir)",
+            onClick:svmFullscreen,children:"plein écran (F)"})]})]}),
       r.jsxs("aside",{className:"svm-insp",children:[
         r.jsx(SvmLabel,{children:"Clip sélectionné"}),
         r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:8,marginTop:9},children:[
@@ -1594,24 +1979,29 @@ function DzMontage(props){
           sel?r.jsx("button",{className:"svm-minibtn",title:"Supprimer le clip (Suppr)",
             "aria-label":"Supprimer "+sel.label,onClick:delClip,children:"🗑︎"}):null]}),
         r.jsx("div",{className:"svm-props",children:[
-          {k:"In",v:sel?svmShort(sel.srcIn!=null?sel.srcIn:0):"—"},
-          {k:"Out",v:sel?svmShort(sel.srcOut!=null?sel.srcOut:(sel.end-sel.start)):"—"},
-          {k:"Vitesse",v:sel&&sel.speed?sel.speed:"100 %"}
-        ].map(function(p2){return r.jsxs("div",{className:"svm-prop",children:[
+          {k:"In",v:sel?svmShort(sel.srcIn!=null?sel.srcIn:0):"—",t:sel?(sel.srcIn!=null?sel.srcIn:0):null},
+          {k:"Out",v:sel?svmShort(sel.srcOut!=null?sel.srcOut:(sel.end-sel.start)):"—",t:sel?(sel.srcOut!=null?sel.srcOut:(sel.end-sel.start)):null},
+          {k:"Vitesse",v:sel&&sel.speed?sel.speed:"100 %",t:null}
+        ].map(function(p2){return r.jsxs("div",{className:"svm-prop",
+          /* équivalent image-exact au survol — la valeur affichée reste une durée */
+          title:p2.t==null?void 0:"= "+svmTcFF(p2.t)+" · "+Math.round(p2.t*30)+" images (30 i/s)",
+          children:[
           r.jsx("div",{className:"svm-propk",children:p2.k}),
           r.jsx("div",{className:"svm-propv",children:p2.v})]},p2.k)})}),
         transInspector(),
         sel&&sel.tr==="v2"&&sel.src?opacityRow():null,
+        audioInspector(),
         r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Mixage"}),
         r.jsx("div",{className:"svm-mix",children:mixRows.map(function(m){
           return r.jsxs("div",{children:[
             r.jsxs("div",{className:"svm-mixhead",children:[
               r.jsx("span",{style:{color:"var("+m.c+")"},children:m.name}),
-              r.jsx("span",{children:m.db})]}),
+              r.jsx("span",{"data-off":m.dbNum<=-40?"":void 0,
+                children:m.dbNum<=-40?"muet":m.db})]}),
             r.jsx("div",{className:"svm-mixrail",role:"slider",tabIndex:0,
               title:"Glisser pour régler le niveau "+m.name+" ("+m.db+")",
               "aria-label":"Niveau "+m.name,"aria-valuemin":-40,"aria-valuemax":0,
-              "aria-valuenow":m.dbNum,"aria-valuetext":m.db,
+              "aria-valuenow":m.dbNum,"aria-valuetext":m.dbNum<=-40?"muet":m.db,
               onPointerDown:function(e){mixDown(e,m.name)},
               onKeyDown:function(e){
                 var d=e.key==="ArrowLeft"||e.key==="ArrowDown"?-1:
@@ -1655,18 +2045,19 @@ function DzMontage(props){
     /* timeline */
     r.jsxs("div",{className:"svm-tl",children:[
       r.jsxs("div",{className:"svm-trans",children:[
-        r.jsx("span",{className:"svm-tcmain",children:svmTc(ph)}),
+        r.jsxs("span",{className:"svm-tcmain",title:"position / durée totale — HH:MM:SS:image (30 i/s)",children:[
+          svmTcFF(ph),r.jsx("span",{className:"svm-tctotal",children:" / "+svmTcFF(dur)})]}),
         playing&&spd!==1?r.jsx("span",{className:"svm-spdchip",
           title:"vitesse de lecture (J / L, K pour pause)",
           children:(spd<0?"◀ ×":"×")+Math.abs(spd)}):null,
         r.jsxs("div",{className:"svm-transbtns",children:[
           r.jsx("button",{className:"svm-tbtn",title:"Coupe précédente (↑)",onClick:function(){jump(-1)},children:"◀◀"}),
           r.jsx("button",{className:"svm-tbtn",title:"Image précédente (←)","aria-label":"Reculer d'une image",
-            onClick:function(){seekTo(Math.max(0,phRef.current-1/30))},children:"|◀"}),
+            onClick:function(){seekTo(Math.max(0,Math.round(phRef.current*30-1)/30))},children:"|◀"}),
           r.jsx("button",{className:"svm-tbtn svm-gold",title:playing?"Pause (Espace · K)":"Lecture (Espace · L)",
             onClick:function(){setSpd(1);setPlaying(!playing)},children:playing?"▮▮":"▶"}),
           r.jsx("button",{className:"svm-tbtn",title:"Image suivante (→)","aria-label":"Avancer d'une image",
-            onClick:function(){seekTo(Math.min(durRef.current,phRef.current+1/30))},children:"▶|"}),
+            onClick:function(){seekTo(Math.min(durRef.current,Math.round(phRef.current*30+1)/30))},children:"▶|"}),
           r.jsx("button",{className:"svm-tbtn",title:"Coupe suivante (↓)",onClick:function(){jump(1)},children:"▶▶"})]}),
         r.jsxs("div",{className:"svm-transbtns",children:[
           r.jsx("button",{className:"svm-tbtn",title:"Annuler (Ctrl+Z)","aria-label":"Annuler",
@@ -1693,6 +2084,10 @@ function DzMontage(props){
             r.jsx("div",{className:"svm-gutter"}),
             ticks.map(function(t3){return r.jsx("div",{className:"svm-tick",children:svmRuler(t3)},t3)})]}),
           SVM_TRACKS.map(function(tr){
+            var bus=SVM_TRACK_BUS[tr.id];
+            var busDb=bus?Number(proj.mixDb&&proj.mixDb[bus]!=null?proj.mixDb[bus]:SVM_DEMO_MIX[bus]):0;
+            var muted=!!bus&&busDb<=-40;
+            var locked=!!(trackSt[tr.id]&&trackSt[tr.id].l);
             return r.jsxs("div",{className:"svm-track",style:{height:tr.h},children:[
               r.jsxs("div",{className:"svm-thead",children:[
                 r.jsxs("div",{className:"svm-tnamerow",children:[
@@ -1703,7 +2098,18 @@ function DzMontage(props){
                       ?"Ajouter un son de la Bibliothèque à la tête de lecture"
                       :"Ajouter une image ou un rendu à la tête de lecture",
                     onClick:function(){openPicker(tr.id)},children:"+"})]}),
-                r.jsx("div",{className:"svm-ttype",children:tr.type})]}),
+                r.jsxs("div",{className:"svm-ttyperow",children:[
+                  r.jsx("span",{className:"svm-ttype",children:tr.type}),
+                  bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
+                    "data-on":muted?"":void 0,"aria-pressed":muted,
+                    title:muted?"Réactiver "+tr.name+" (bus "+bus+" — niveau d'avant restauré)"
+                      :"Rendre "+tr.name+" muette (bus "+bus+" à −40 dB dans le mixage)",
+                    onClick:function(){svmTrackMute(tr.id)},children:"M"}):null,
+                  r.jsx("button",{className:"svm-minibtn svm-tkbtn",
+                    "data-on":locked?"":void 0,"aria-pressed":locked,
+                    title:locked?"Déverrouiller la piste "+tr.name
+                      :"Verrouiller la piste "+tr.name+" (bloque déplacement, rognage, dépôt, suppression)",
+                    onClick:function(){svmTrackLock(tr.id)},children:"🔒︎"})]})]}),
               r.jsxs("div",{className:"svm-lane",
                 onDragOver:function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],DZ_MIME)>=0){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
                 onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},
@@ -1711,7 +2117,29 @@ function DzMontage(props){
                 tr.id==="v1"?svmV1Gaps(clips,dur):null,
                 clips.filter(function(c){return c.tr===tr.id}).map(function(c){
                   var isSel=c.id===selId;
+                  /* fond média : waveform (pistes audio), filmstrip / image (V1) —
+                     pointer-events:none, la démo (sans src) reste inchangée */
+                  var media=null;
+                  if(c.src){
+                    if(trackKind(tr.id)==="audio"&&(c.src.audio||c.src.job_id))
+                      media=r.jsx(SvmWave,{src:c.src,k:svmSrcKey(c.src),srcIn:c.srcIn||0,
+                        len:c.end-c.start,color:tr.c,theme:theme,zoom:zoomPct,dur:dur});
+                    else if(tr.id==="v1"&&c.src.job_id)
+                      media=r.jsx(SvmFilmstrip,{src:c.src,k:svmSrcKey(c.src),
+                        srcIn:c.srcIn||0,len:c.end-c.start});
+                    else if(tr.id==="v1"&&c.src.image)
+                      media=r.jsx("div",{className:"svm-strip svm-stripbg","aria-hidden":!0,
+                        style:{backgroundImage:"url('/api/images/"+encodeURIComponent(c.src.image)+"')"}})}
+                  /* mixage par clip : rampes + poignées de fondu (clips audio
+                     réels seulement) — masquées si la piste est verrouillée */
+                  var aud=trackKind(tr.id)==="audio"&&c.src&&(c.src.audio||c.src.job_id);
+                  var fIn=aud?Number(c.fade_in)||0:0,fOut=aud?Number(c.fade_out)||0:0;
+                  var clen=Math.max(.01,c.end-c.start);
+                  var fiP=Math.min(100,fIn/clen*100),foP=Math.min(100,fOut/clen*100);
+                  var isMus=aud&&tr.id==="a2"&&c.id===firstA2;
                   return r.jsxs("div",{className:"svm-clip",
+                    "data-locked":locked?"":void 0,
+                    "data-media":media&&tr.id==="v1"?"":void 0,
                     style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
                       borderColor:isSel?"var(--accent)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
                       background:isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
@@ -1721,22 +2149,59 @@ function DzMontage(props){
                     onPointerMove:function(e){
                       if(e.buttons)return;
                       var el=e.currentTarget;
+                      if(locked){el.style.cursor="";return}
                       el.style.cursor=svmEdgeAt(e.clientX,el.getBoundingClientRect())==="m"?"grab":"col-resize"},
-                    title:c.label+" — bords : rogner / allonger · centre : déplacer",
+                    title:locked?c.label+" — piste verrouillée"
+                      :c.label+" — bords : rogner / allonger · centre : déplacer",
                     children:[
+                      media,
+                      /* rampes de fondu — triangles semi-transparents posés
+                         PAR-DESSUS la waveform (couleur de piste, alpha .3) */
+                      fIn>0?r.jsx("div",{className:"svm-fadeshade","aria-hidden":!0,
+                        style:{background:"color-mix(in srgb, var("+tr.c+") 30%, transparent)",
+                          clipPath:"polygon(0 0, "+fiP+"% 0, 0 100%)"}}):null,
+                      fOut>0?r.jsx("div",{className:"svm-fadeshade","aria-hidden":!0,
+                        style:{background:"color-mix(in srgb, var("+tr.c+") 30%, transparent)",
+                          clipPath:"polygon("+(100-foP)+"% 0, 100% 0, 100% 100%)"}}):null,
                       r.jsx("div",{className:"svm-cliplabel",children:c.label}),
                       /* poignées visibles sur le clip sélectionné */
                       isSel?r.jsx("div",{style:{position:"absolute",left:0,top:0,bottom:0,width:4,
                         background:"var(--accent)",borderRadius:"3px 0 0 3px",pointerEvents:"none"}}):null,
                       isSel?r.jsx("div",{style:{position:"absolute",right:0,top:0,bottom:0,width:4,
-                        background:"var(--accent)",borderRadius:"0 3px 3px 0",pointerEvents:"none"}}):null]},c.id)}),
+                        background:"var(--accent)",borderRadius:"0 3px 3px 0",pointerEvents:"none"}}):null,
+                      /* poignées de fondu — coins supérieurs, drag vers
+                         l'intérieur ; sur la musique A2 bouclée la droite
+                         règle le fondu de FIN DE RENDU */
+                      aud&&!locked?r.jsx("i",{className:"svm-fadeh",
+                        title:"Fondu d'entrée : "+fIn.toFixed(1)+" s — glisser vers l'intérieur",
+                        style:{left:"calc("+fiP+"% - 4px)"},
+                        onPointerDown:function(e){fadeDown(e,c,"in",e.currentTarget.parentElement.parentElement)}}):null,
+                      aud&&!locked?r.jsx("i",{className:"svm-fadeh",
+                        title:(isMus?"Fondu de fin de rendu (musique bouclée sur toute la durée) : "
+                          :"Fondu de sortie : ")+fOut.toFixed(1)+" s — glisser vers l'intérieur",
+                        style:{right:"calc("+foP+"% - 4px)"},
+                        onPointerDown:function(e){fadeDown(e,c,"out",e.currentTarget.parentElement.parentElement)}}):null]},c.id)}),
                 /* jonctions V1 : étendue de la transition + losange de réglage */
                 tr.id==="v1"?svmV1Junctions(clips).map(function(j2){
                   var on=svmTransBase(j2.right.transition)!=="cut";
                   var s2=on?svmTransS(j2.right):0;
                   return r.jsxs(r.Fragment,{children:[
-                    on?r.jsx("div",{className:"svm-transspan",
-                      style:{left:(j2.t-s2/2)/dur*100+"%",width:s2/dur*100+"%"}}):null,
+                    /* bloc doré interactif : clic = réglage, poignées 4 px =
+                       durée symétrique ; jamais de clipDown / scrub dessous */
+                    on?r.jsxs("div",{className:"svm-transspan",
+                      title:svmTransLabel(j2.right.transition)+" · "+s2.toFixed(2)+" s — poignées : durée · clic : régler",
+                      style:{left:(j2.t-s2/2)/dur*100+"%",width:s2/dur*100+"%"},
+                      onPointerDown:function(e){e.stopPropagation()},
+                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},
+                      onPointerLeave:transHoverHide,
+                      onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)},
+                      children:[
+                      r.jsx("i",{className:"svm-transhandle","data-side":"l","aria-hidden":!0,
+                        onClick:function(e){e.stopPropagation()},
+                        onPointerDown:function(e){transSpanDown(e,j2.right,-1,j2.t)}}),
+                      r.jsx("i",{className:"svm-transhandle","data-side":"r","aria-hidden":!0,
+                        onClick:function(e){e.stopPropagation()},
+                        onPointerDown:function(e){transSpanDown(e,j2.right,1,j2.t)}})]}):null,
                     r.jsx("button",{className:"svm-junc",
                       "data-on":on?"":void 0,
                       "data-sel":transPop&&transPop.id===j2.right.id?"":void 0,
@@ -1744,11 +2209,14 @@ function DzMontage(props){
                       title:"Transition : "+svmTransLabel(j2.right.transition)+(on?" · "+s2.toFixed(2)+" s":"")+" — cliquer pour régler",
                       "aria-label":"Transition entre "+j2.left.label+" et "+j2.right.label,
                       onPointerDown:function(e){e.stopPropagation()},
+                      onPointerEnter:function(){transHoverShow(j2.t,transHoverTxt(j2.right,on,s2))},
+                      onPointerLeave:transHoverHide,
                       onClick:function(e){e.stopPropagation();openTransPop(j2.right.id,e)}})]},"jx"+j2.right.id)}):null]})]},tr.id)}),
           snapT!=null?r.jsx("div",{className:"svm-snapline",style:{left:"calc(88px + (100% - 88px) * "+(snapT/dur)+")"}}):null,
           r.jsx("div",{className:"svm-phline",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
           r.jsx("div",{className:"svm-phtri",style:{left:"calc(88px + (100% - 88px) * "+phFrac+")"}}),
-          r.jsx("div",{className:"svm-hovertc",ref:hoverTcRef})]})})]})]})}
+          r.jsx("div",{className:"svm-hovertc",ref:hoverTcRef}),
+          r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]})]})}
 
 /*__DZ_SONVFX_END__*/
 const oa=(()=>{try{return new URLSearchParams(window.location.search)}catch{return new URLSearchParams}})(),Yu=["quick","studio","assets3d","episodes","sonvfx","montage","scheduler","templates","news","library","settings"],sg=Yu.includes(oa.get("view"))?oa.get("view"):null,ag=oa.get("nosplash")==="1";function lg({variant:e="abyssal",initialView:t="studio",initialSidebar:n=!1,initialDock:o=!1,motionOn:i=!0}){const[s,a]=x.useState(sg||(function(){try{var _v=localStorage.getItem("dz_view");return Yu.indexOf(_v)>=0?_v:t}catch(_e){return t}})()),[l,d]=x.useState(function(){try{var v1=localStorage.getItem("dz_nav_collapsed");return v1===null?n:v1==="1"}catch(_e){return n}}),[u,f]=x.useState(o),[m,y]=x.useState(!1),[w,v]=x.useState(!ag),[g,k]=x.useState(!1),[c,p]=x.useState([]),[h,b]=x.useState([]);x.useEffect(function(){try{localStorage.setItem("dz_view",s)}catch(_e){}},[s]);async function _(){const F=await D.listSchedule();p((Array.isArray(F)?F:[]).map(wh))}x.useEffect(()=>{_();const F=setInterval(_,6e4);return()=>clearInterval(F)},[]);const[z,N]=x.useState(()=>(rm||[]).slice()),[P,j]=x.useState("deepotus");function E(F){N(I=>I.some(M=>M.id===F.id)?I.map(M=>M.id===F.id?{...M,...F}:M):[...I,F]),j(F.id)}async function H(F){const I=new Date;I.setDate(I.getDate()+1),I.setHours(9,0,0,0);const A=await D.createScheduledPost({title:F.title||"New post from Studio",caption:F.caption||"New drop from the deep. 🐙",channels:["x","telegram"],run_at:I.toISOString(),status:"draft",mode:"assisted",job_id:F.jobId||null});await _(),a("scheduler"),A!=null&&A.id&&setTimeout(()=>{window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:A.id}}))},50)}return x.useEffect(()=>{function F(I){(I.metaKey||I.ctrlKey)&&I.key==="k"&&(I.preventDefault(),y(A=>!A))}return window.addEventListener("keydown",F),()=>window.removeEventListener("keydown",F)},[]),x.useEffect(()=>{function F(I){var V;const A=(V=I==null?void 0:I.detail)==null?void 0:V.view;try{var Tp=I&&I.detail&&I.detail.templateId;if(Tp)window.__dzTpl=Tp}catch(Z){}try{var Sb=I&&I.detail&&I.detail.subtab;if(Sb){window.__dzSubtab=Sb;setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:assets-subtab",{detail:{subtab:Sb}}))},80)}}catch(Z9){}A&&Yu.includes(A)&&a(A)}return window.addEventListener("deepotus:navigate",F),()=>window.removeEventListener("deepotus:navigate",F)},[]),r.jsxs("div",{className:"deepotus","data-variant":e,style:{width:"100%",height:"100%",display:"grid",gridTemplateColumns:"auto 1fr",gridTemplateRows:"1fr auto",background:"var(--bg-base)",overflow:"hidden",position:"relative"},children:[r.jsx("div",{style:{gridRow:"1 / 3"},children:r.jsx(tg,{view:s,setView:a,collapsed:l,setCollapsed:function(v1){try{localStorage.setItem("dz_nav_collapsed",v1?"1":"0")}catch(_e){}d(v1)}})}),r.jsxs("main",{style:{display:"flex",flexDirection:"column",minHeight:0},children:[r.jsx(ng,{view:s,setView:a,setCommandOpen:y,variant:e,onShowOnboarding:()=>k(!0)}),r.jsxs("div",{style:{flex:1,minHeight:0,position:"relative"},className:i?"":"no-motion",children:[s==="assets3d"&&r.jsx(DzGameAssetsHub,{variant:e}),s==="studio"&&r.jsx(Lh,{variant:e,onScheduleRender:H}),s==="quick"&&r.jsx(um,{variant:e,activePersona:z.find(F=>F.id===P)}),s==="scheduler"&&r.jsx(Lm,{variant:e,posts:c,setPosts:p,reloadPosts:_}),s==="news"&&r.jsx(pm,{variant:e,go:a}),s==="episodes"&&r.jsx(DzChapitres,{variant:e}),s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a}),s==="montage"&&r.jsx(DzMontage,{variant:e,go:a}),s==="templates"&&r.jsx(fm,{variant:e}),s==="library"&&r.jsx(vm,{variant:e,uploads:h,setUploads:b}),s==="settings"&&r.jsx(xm,{variant:e,personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})]}),r.jsx("div",{style:{gridColumn:"2 / 3"},children:r.jsx(rg,{expanded:u,setExpanded:f,variant:e})}),r.jsx(ig,{open:m,onClose:()=>y(!1),setView:a,onShowOnboarding:()=>k(!0)}),w&&r.jsx(Hm,{onDone:()=>{v(!1);try{localStorage.getItem("dz_onboarded")||k(!0)}catch(_e){k(!0)}}}),!w&&g&&r.jsx(Km,{onDone:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},onSkip:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})}function dg(){return x.useEffect(()=>{document.body.classList.add("deepotus"),document.body.classList.remove("bg-deep-950","text-slate-100","antialiased"),document.body.style.margin="0",document.body.style.minHeight="100vh";const e=document.documentElement;return localStorage.getItem("deepotus.motion.reduced")==="1"&&e.classList.add("no-motion"),localStorage.getItem("deepotus.motion.halo")==="0"&&e.classList.add("no-halo"),()=>{document.body.classList.remove("deepotus")}},[]),r.jsx(bh,{children:r.jsx("div",{className:"deepotus depth-bg",style:{width:"100vw",height:"100vh",overflow:"hidden"},children:r.jsx(lg,{variant:"reef",initialView:"studio"})})})}as.createRoot(document.getElementById("root")).render(r.jsx(yn.StrictMode,{children:r.jsx(dg,{})}));

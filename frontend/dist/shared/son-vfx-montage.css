@@ -198,11 +198,19 @@
   color:var(--accent-ink); font-family:inherit; font-size:12px; font-weight:600; cursor:pointer}
 
 .svm-mid{flex:1; display:flex; min-height:0}
-.svm-playerzone{flex:1; min-width:0; display:flex; align-items:center;
-  justify-content:center; background:var(--bg); padding:20px}
-.svm-frame{height:100%; max-height:420px; aspect-ratio:9/16; border-radius:12px;
+.svm-playerzone{flex:1; min-width:0; min-height:0; display:flex; flex-direction:column;
+  gap:8px; background:var(--bg); padding:10px}
+/* scène du lecteur — conteneur de taille : le cadre se calcule en unités cq */
+.svm-stage{flex:1; min-height:0; min-width:0; container-type:size;
+  display:flex; align-items:center; justify-content:center}
+/* le cadre remplit la hauteur disponible (plus de cap 420px), borné par la
+   largeur : height = min(100cqh, 100cqw / ratio) — --svm-arw posé par React */
+.svm-frame{height:100%; max-width:100%; aspect-ratio:9/16; border-radius:12px;
   border:1px solid var(--stroke2); position:relative; overflow:hidden;
   background:repeating-linear-gradient(45deg,var(--panel2) 0 10px,var(--panel3) 10px 20px)}
+@supports (width:1cqw){
+  .svm-frame{height:min(100cqh, calc(100cqw / var(--svm-arw,.5625)))}
+}
 .svm-caption{position:absolute; left:0; right:0; bottom:0; padding:12px;
   background:linear-gradient(0deg,#000000cc,transparent)}
 .svm-captiontext{font-family:var(--f-mono); font-size:10px; color:var(--ink)}
@@ -257,7 +265,9 @@
   background:var(--panel); display:flex; flex-direction:column; min-height:0}
 .svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;
   padding:0 14px; border-bottom:1px solid var(--stroke)}
-.svm-tcmain{font-family:var(--f-mono); font-size:11px; color:var(--ink)}
+.svm-tcmain{font-family:var(--f-mono); font-size:11px; color:var(--ink);
+  font-variant-numeric:tabular-nums; white-space:nowrap}
+.svm-tcmain .svm-tctotal{color:var(--ink3)} /* durée totale, en retrait visuel */
 .svm-transbtns{display:flex; gap:5px}
 .svm-tbtn{width:24px; height:22px; border-radius:6px; border:1px solid var(--stroke);
   background:var(--panel2); color:var(--ink2); cursor:pointer; font-size:9px;
@@ -299,7 +309,8 @@
   overflow:hidden; cursor:grab; border:1px solid transparent; touch-action:none}
 .svm-clip:active{cursor:grabbing}
 .svm-cliplabel{font-family:var(--f-mono); font-size:10px; color:var(--ink);
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none}
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;
+  position:relative; z-index:1} /* au-dessus du fond média (waveform / filmstrip) */
 .svm-phline{position:absolute; top:0; bottom:0; width:1px; background:var(--accent);
   box-shadow:0 0 10px var(--accent); pointer-events:none; z-index:1}
 
@@ -369,18 +380,98 @@
 .svm-junc[data-on]{border-color:var(--accent);
   background:color-mix(in srgb, var(--accent) 22%, var(--panel2))}
 .svm-junc[data-sel]{border-color:var(--accent)}
-/* étendue de la transition — la largeur suit transition_s à l'échelle du zoom */
+/* étendue de la transition — la largeur suit transition_s à l'échelle du zoom.
+   Le bloc n'est rendu que si la jonction porte une vraie transition (≠ cut) :
+   il est donc interactif — clic = ouvrir le réglage, poignées 4 px (motif
+   poignées de clip) = durée symétrique autour de la coupe. */
 .svm-transspan{position:absolute; top:10px; bottom:10px; border-radius:6px;
-  background:color-mix(in srgb, var(--accent) 26%, transparent);
-  pointer-events:none}
+  background:color-mix(in srgb, var(--accent) 26%, transparent); cursor:pointer}
+.svm-transhandle{position:absolute; top:0; bottom:0; width:4px; z-index:1;
+  background:var(--accent); cursor:ew-resize; touch-action:none;
+  transition:filter .12s var(--ease)}
+.svm-transhandle::before{content:""; position:absolute; inset:-4px -5px} /* zone de saisie élargie */
+.svm-transhandle:hover{filter:brightness(1.15)}
+.svm-transhandle[data-side="l"]{left:0; border-radius:3px 0 0 3px}
+.svm-transhandle[data-side="r"]{right:0; border-radius:0 3px 3px 0}
+/* étiquette de jonction (survol du losange / drag de durée) — motif
+   .svm-hovertc, centrée au-dessus de la coupe, accent vers la jonction */
+.svm-translabel{position:absolute; top:41px; display:none; transform:translateX(-50%);
+  padding:2px 6px; border-radius:6px; border:1px solid var(--stroke);
+  border-bottom:2px solid var(--accent); background:var(--panel2); color:var(--ink2);
+  font-family:var(--f-mono); font-size:9px; pointer-events:none; z-index:4;
+  white-space:nowrap}
 /* popover de jonction — motif .svm-pop compact, ancré au-dessus de la timeline */
-.svm-transpop{top:auto; bottom:282px; right:auto; width:248px; z-index:10; padding:12px}
+.svm-transpop{top:auto; bottom:282px; right:auto; width:276px; z-index:10; padding:12px}
 .svm-transgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px}
-.svm-transtile{padding:6px 8px; border-radius:6px; border:1px solid var(--stroke);
-  background:var(--panel3); color:var(--ink2); cursor:pointer; font-size:11px;
+.svm-transtile{display:flex; align-items:center; gap:6px; padding:6px 8px;
+  border-radius:6px; border:1px solid var(--stroke);
+  background:var(--panel3); color:var(--ink2); cursor:pointer; font-size:10.5px;
   text-align:left; transition:border-color .12s var(--ease), color .12s var(--ease)}
 .svm-transtile:hover:not([data-sel]){border-color:var(--stroke2); color:var(--ink)}
 .svm-transtile[data-sel]{border-color:var(--accent); color:var(--ink)}
+.svm-transtile .svm-ttl{flex:1; min-width:0; white-space:nowrap; overflow:hidden;
+  text-overflow:ellipsis}
+/* bornes du curseur de durée — micro-labels mono aux extrémités */
+.svm-transbound{font-family:var(--f-mono); font-size:9px; color:var(--ink4); flex:none}
+/* ── micro-scènes des 7 types : deux blocs A (--c-video) / B (--c-av) 34×20,
+   boucle 1,6 s. État de repos (et reduced-motion) : moitié A / moitié B.
+   Elles ne tournent que popover ouvert ou tuile survolée (play-state), et la
+   tuile sélectionnée est figée sur l'état final (B plein). ── */
+.svm-tprev{position:relative; width:34px; height:20px; flex:none; display:block;
+  border-radius:4px; overflow:hidden; border:1px solid var(--stroke);
+  background:var(--panel2)}
+.svm-tprev i{position:absolute; top:0; bottom:0; display:block}
+.svm-tprev .svm-ta{left:0; width:50%; background:var(--c-video)}
+.svm-tprev .svm-tb{right:0; width:50%; background:var(--c-av)}
+/* caches noir / blanc : ils représentent le média rendu — couleurs en dur
+   assumées, identiques dans les deux thèmes (même parti pris que .svm-frametc) */
+.svm-tprev[data-tt]::after{content:""; position:absolute; inset:0; opacity:0;
+  pointer-events:none}
+.svm-tprev[data-tt="fadeblack"]::after{background:#000; animation:svmtVeil 1.6s linear infinite}
+.svm-tprev[data-tt="flash"]::after{background:#fff; animation:svmtVeil 1.6s linear infinite}
+.svm-tprev[data-tt] .svm-ta{animation:svmtFull 1.6s linear infinite}
+.svm-tprev[data-tt="cut"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtCut 1.6s linear infinite}
+.svm-tprev[data-tt="fade"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtFade 1.6s linear infinite}
+.svm-tprev[data-tt="dissolve"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtDiss 1.6s linear infinite}
+.svm-tprev[data-tt="fadeblack"] .svm-tb,
+.svm-tprev[data-tt="flash"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtCutMid 1.6s linear infinite}
+.svm-tprev[data-tt="glitch"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtGlitch 1.6s steps(2,end) infinite;
+  image-rendering:pixelated}
+.svm-tprev[data-tt="slide"] .svm-tb{animation:svmtFull 1.6s linear infinite, svmtSlide 1.6s var(--ease) infinite}
+/* en pause par défaut… (après les raccourcis animation : même spécificité,
+   l'ordre tranche) */
+.svm-tprev[data-tt] .svm-ta,.svm-tprev[data-tt] .svm-tb,
+.svm-tprev[data-tt]::after{animation-play-state:paused}
+/* …elles tournent popover ouvert ou tuile survolée */
+.svm-transpop .svm-tprev[data-tt] .svm-ta,.svm-transpop .svm-tprev[data-tt] .svm-tb,
+.svm-transpop .svm-tprev[data-tt]::after,
+.svm-transtile:hover .svm-tprev[data-tt] .svm-ta,.svm-transtile:hover .svm-tprev[data-tt] .svm-tb,
+.svm-transtile:hover .svm-tprev[data-tt]::after{animation-play-state:running}
+/* tuile sélectionnée : scène en pause sur l'état final (B plein) */
+.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-ta,
+.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb,
+.svm-transtile[data-sel] .svm-tprev[data-tt]::after{animation:none}
+.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-ta{width:100%}
+.svm-transtile[data-sel] .svm-tprev[data-tt] .svm-tb{width:100%; opacity:1; transform:none}
+@keyframes svmtFull{0%,100%{width:100%}}
+@keyframes svmtCut{0%,49.9%{opacity:0}50%,100%{opacity:1}}
+@keyframes svmtFade{0%,30%{opacity:0}55%,100%{opacity:1}}
+@keyframes svmtCutMid{0%,41%{opacity:0}41.1%,100%{opacity:1}}
+@keyframes svmtVeil{0%,25%{opacity:0}40%,43%{opacity:1}58%,100%{opacity:0}}
+@keyframes svmtDiss{
+  0%,28%{opacity:0}
+  28.1%,41%{opacity:1;background:repeating-conic-gradient(var(--c-av) 0 25%,transparent 0 50%) 0 0/4px 4px}
+  41.1%,54%{opacity:1;background:repeating-conic-gradient(transparent 0 25%,var(--c-av) 0 50%) 0 0/3px 3px}
+  54.1%,100%{opacity:1;background:var(--c-av)}
+}
+@keyframes svmtGlitch{
+  0%,29.9%{opacity:0}
+  30%,37%{opacity:1;background:repeating-conic-gradient(var(--c-av) 0 25%,var(--c-video) 0 50%) 0 0/8px 8px}
+  37.1%,45%{opacity:1;background:repeating-conic-gradient(var(--c-video) 0 25%,var(--c-av) 0 50%) 2px 1px/6px 6px}
+  45.1%,54.9%{opacity:1;background:repeating-conic-gradient(var(--c-av) 0 25%,var(--c-video) 0 50%) 1px 2px/8px 8px}
+  55%,100%{opacity:1;background:var(--c-av)}
+}
+@keyframes svmtSlide{0%,30%{transform:translateX(101%)}55%,100%{transform:translateX(0)}}
 .svm-range:disabled{opacity:.4; cursor:default}
 /* inspecteur : bloc transition (clip V1) */
 .svm-transinsp{margin-top:12px; padding:9px 10px; border:1px solid var(--stroke);
@@ -401,18 +492,29 @@
 .svm-livegap{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
   pointer-events:none; font-family:var(--f-mono); font-size:10px; letter-spacing:.14em;
   text-transform:uppercase; color:#ffffff45}
-/* badge d'état du lecteur — même motif que .svm-frametc, coin opposé */
+/* chip timecode du cadre — coin haut droit, seul overlay UI permanent */
 .svm-frametr{left:auto; right:10px}
-/* boutons du cadre (plein écran, zones sûres) — révélés au survol du cadre */
-.svm-framebtns{position:absolute; right:10px; top:32px; z-index:2; display:flex;
-  flex-direction:column; gap:6px; opacity:0}
-.svm-frame:hover .svm-framebtns,.svm-framebtns:focus-within{opacity:1}
-.svm-framebtn{width:24px; height:24px; border-radius:6px; border:1px solid #ffffff2e;
-  background:#000000aa; color:#f2efe9; cursor:pointer; font-size:11px; padding:0;
-  display:inline-flex; align-items:center; justify-content:center;
-  transition:border-color .12s var(--ease), color .12s var(--ease)}
-.svm-framebtn:hover{border-color:#ffffff59}
-.svm-framebtn[data-on]{color:#f0b429; border-color:#f0b42999}
+/* barre du lecteur — rangée compacte TOUJOURS visible (plus de survol) :
+   qualité source/480p, ratio du canvas, zones sûres, plein écran */
+.svm-playerbar{flex:none; display:flex; align-items:center; justify-content:center;
+  gap:6px; flex-wrap:wrap}
+.svm-pchip{position:relative; font-family:var(--f-mono); font-size:10px; padding:3px 9px;
+  border-radius:6px; border:1px solid var(--stroke); background:transparent;
+  color:var(--ink3); cursor:pointer;
+  transition:color .12s var(--ease), border-color .12s var(--ease), background-color .12s var(--ease)}
+.svm-pchip::before{content:""; position:absolute; inset:-3px} /* zone de saisie élargie */
+.svm-pchip:hover:not([data-on]):not(.svm-pinfo){border-color:var(--stroke2); color:var(--ink2)}
+.svm-pchip[data-on]{background:var(--panel2); border-color:var(--stroke2); color:var(--ink)}
+.svm-pchip[data-off]{border-style:dashed; color:var(--ink4)} /* 480p pas encore rendu */
+.svm-pinfo{cursor:default} /* ratio : information, non interactif */
+.svm-pdiv{width:1px; height:14px; background:var(--stroke); flex:none}
+/* formats portrait (data-side) : la barre occupe la zone latérale morte en
+   colonne à droite du cadre — le cadre garde toute la hauteur */
+.svm-playerzone[data-side]{flex-direction:row}
+.svm-playerzone[data-side] .svm-playerbar{flex-direction:column; align-items:stretch;
+  justify-content:center; flex-wrap:nowrap}
+.svm-playerzone[data-side] .svm-pchip{text-align:center}
+.svm-playerzone[data-side] .svm-pdiv{width:auto; height:1px; align-self:stretch}
 .svm-frame:fullscreen{max-height:none; border-radius:0}
 /* zones sûres — tiers, centre, marges verticales 9:16 : lignes 1px sur le média */
 .svm-safe{position:absolute; inset:0; pointer-events:none}
@@ -431,8 +533,60 @@
   background:var(--panel2); color:var(--ink2); font-family:var(--f-mono); font-size:9px;
   pointer-events:none; z-index:1; white-space:nowrap}
 
+/* ── densité média : waveforms audio, filmstrips V1, muet / verrou piste ──── */
+/* fonds média d'un clip — sous le label, jamais interactifs */
+.svm-clipwave,.svm-strip{position:absolute; inset:0; z-index:0; pointer-events:none;
+  border-radius:5px; overflow:hidden}
+.svm-clipwave{width:100%; height:100%; display:block}
+.svm-strip{display:flex}
+.svm-stripimg{flex:1 1 0; min-width:0; height:100%; object-fit:cover; display:block}
+.svm-stripbg{background-size:auto 100%; background-repeat:repeat-x; opacity:.9}
+/* label sur filmstrip : surimpression sur média (même parti pris que
+   .svm-frametc) — léger dégradé sombre derrière le texte, identique en clair */
+.svm-clip[data-media] .svm-cliplabel{color:#f2efe9;
+  background:linear-gradient(90deg,#000000b0 0%,#00000000 78%);
+  border-radius:4px; margin:-1px -3px 0 -3px; padding:1px 8px 1px 3px}
+.dzsvm[data-svm-theme="light"] .svm-clip[data-media] .svm-cliplabel{color:#f2efe9}
+/* piste verrouillée : clips inertes */
+.svm-clip[data-locked],.svm-clip[data-locked]:active{opacity:.55; cursor:default}
+/* micro-boutons d'en-tête (muet / verrou) — 14 px, alignés à droite */
+.svm-ttyperow{display:flex; align-items:center; gap:4px; min-width:0}
+.svm-ttyperow .svm-ttype{flex:1 1 auto; min-width:0; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis}
+.svm-tkbtn{width:14px; height:14px; padding:0; border-radius:5px; font-size:8.5px;
+  display:inline-flex; align-items:center; justify-content:center; position:relative;
+  line-height:1}
+.svm-tkbtn::before{content:""; position:absolute; inset:-3px} /* zone de saisie élargie */
+.svm-tkbtn:hover{border-color:var(--stroke2); color:var(--ink2)} /* pas le rouge du minibtn */
+.svm-tkbtn[data-on]{border-color:var(--accent); color:var(--accent)}
+/* rangée de mixage d'un bus muet */
+.svm-mixhead span[data-off]{color:var(--ink4); text-transform:uppercase; letter-spacing:.08em}
+
+/* ── mixage par clip : poignées + rampes de fondu sur les clips audio ─────── */
+/* rampe (triangle) posée PAR-DESSUS la waveform — couleur de piste posée
+   inline (color-mix 30 %), jamais interactive ; même rayon que le fond média */
+.svm-fadeshade{position:absolute; inset:0; z-index:0; pointer-events:none;
+  border-radius:5px}
+/* poignée 8 px aux coins supérieurs — drag horizontal = durée du fondu ;
+   React ne la rend pas quand la piste est verrouillée */
+.svm-fadeh{position:absolute; top:1px; width:8px; height:8px; z-index:2;
+  border-radius:999px; background:var(--accent); border:1px solid var(--panel);
+  cursor:ew-resize; touch-action:none; display:block;
+  transition:filter .12s var(--ease)}
+.svm-fadeh::before{content:""; position:absolute; inset:-5px} /* zone de saisie élargie */
+.svm-fadeh:hover{filter:brightness(1.15)}
+/* inspecteur : rangées « Clip audio » (gain / fondus) */
+.svm-fadegain{display:flex; align-items:center; gap:7px; margin-top:6px}
+.svm-fadegain .svm-fxeditname{font-size:11px; color:var(--ink2); flex:none; width:44px}
+.svm-fadesep{font-family:var(--f-mono); font-size:9px; color:var(--ink4); flex:none}
+
 @media (prefers-reduced-motion:reduce){
   .dzsvm *, .dzsvm *::before, .dzsvm *::after{
     animation-duration:.001ms!important; animation-iteration-count:1!important;
     transition-duration:.001ms!important}
+  /* micro-scènes des transitions : statiques, moitié A / moitié B,
+     caches noir / blanc éteints */
+  .dzsvm .svm-tprev .svm-ta,.dzsvm .svm-tprev .svm-tb{animation:none!important;
+    width:50%!important; opacity:1!important; transform:none!important}
+  .dzsvm .svm-tprev::after{animation:none!important; opacity:0!important}
 }
