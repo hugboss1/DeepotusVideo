@@ -28,7 +28,11 @@ sans trous, donc timeline et rendu coïncident.
 
 Piste V2 : overlays vidéo/image posés à leur position timeline (overlay
 enable='between(t,…)', cover du canvas, alpha préservé pour les PNG,
-opacité optionnelle), appliqués après le maître de durée. Effets par clip :
+opacité optionnelle), appliqués après le maître de durée. Transformation
+optionnelle par overlay (x/y : centre en fraction du canvas, scale :
+largeur = scale·W hauteur auto, rotate : degrés sur fond transparent) —
+sans AUCUN de ces champs la chaîne cover historique reste strictement
+inchangée. Effets par clip :
 moteur Effects/Mask existant (effects_engine.build_chain) sur chaque
 segment V1 — catalogue exposé par GET /api/montage/effects. src_in audio :
 les clips A1/A3 lisent leur source à partir de srcIn (atrim décalé).
@@ -41,6 +45,7 @@ suivant retombe sur sa position — l'audio posé en adelay reste aligné).
 from __future__ import annotations
 
 import asyncio
+import math
 import subprocess
 from datetime import datetime as _dt
 from pathlib import Path
@@ -138,6 +143,37 @@ def _clip_mix_params(c: dict) -> tuple[float, float, float]:
         return max(lo, min(hi, f))
     return (_num("gain", -24.0, 12.0), _num("fade_in", 0.0, 3.0),
             _num("fade_out", 0.0, 3.0))
+
+
+def _ov_transform(c: dict) -> dict | None:
+    """Transformation optionnelle d'un overlay V2 (champs du payload) :
+    x / y = centre en fraction du canvas (défaut 0.5, clamp −0.5..1.5 — l'UI
+    autorise −0.2..1.2), scale = largeur relative au canvas (0.05..3, la
+    hauteur suit le ratio source), rotate = degrés (−180..180).
+
+    AUCUN champ valide présent → None : la chaîne cover historique reste
+    strictement inchangée (rétro-compat bit à bit). Valeur invalide (non
+    numérique, NaN) : ignorée avec warning, le champ retombe à son défaut."""
+    spec = {"x": (-0.5, 1.5, 0.5), "y": (-0.5, 1.5, 0.5),
+            "scale": (0.05, 3.0, 1.0), "rotate": (-180.0, 180.0, 0.0)}
+    out, seen = {}, False
+    for key, (lo, hi, dv) in spec.items():
+        v = c.get(key)
+        if v is None:
+            out[key] = dv
+            continue
+        try:
+            f = float(v)
+        except (TypeError, ValueError):
+            f = float("nan")
+        if f != f:  # NaN — jamais propagé dans un filtergraph
+            logger.warning(f"montage: overlay {key} invalide ({v!r}), ignoré — "
+                           f"{c.get('label') or c.get('tr')}")
+            out[key] = dv
+            continue
+        out[key] = max(lo, min(hi, f))
+        seen = True
+    return out if seen else None
 
 
 # ---------------------------------------------------------------- project ---
@@ -413,18 +449,40 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             inputs.extend(["-t", str(d), "-i", str(o["path"])])
         st = round(max(0.0, o["start"]), 3)
         en = round(st + d, 3)
-        och = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
-               f"crop={w}:{h},setsar=1,fps={fps}")
         op = o.get("opacity")
         try:
             op = None if op is None else float(op)
         except (TypeError, ValueError):
             op = None
-        if op is not None and 0.0 <= op < 1.0:
-            och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
-        och += f",setpts=PTS-STARTPTS+{st}/TB"
+        tf = o.get("tf")
+        if tf is None:
+            # Chaîne historique (cover plein cadre) — STRICTEMENT inchangée
+            # quand aucun champ de transformation n'est posé.
+            och = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                   f"crop={w}:{h},setsar=1,fps={fps}")
+            if op is not None and 0.0 <= op < 1.0:
+                och += f",format=yuva420p,colorchannelmixer=aa={round(op, 3)}"
+            och += f",setpts=PTS-STARTPTS+{st}/TB"
+            pos = ""
+        else:
+            # Overlay transformé : largeur = scale·W (paire, hauteur suit le
+            # ratio source), rotation sur fond transparent (rgba + c=none),
+            # centre posé à (x·W, y·H) via les constantes w/h du filtre
+            # overlay. L'opacité existante se compose (aa multiplie l'alpha),
+            # l'alpha des PNG est préservé de bout en bout.
+            ow2 = max(2, int(round(w * tf["scale"] / 2.0)) * 2)
+            och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
+            if op is not None and 0.0 <= op < 1.0:
+                och += f",colorchannelmixer=aa={round(op, 3)}"
+            if abs(tf["rotate"]) >= 0.05:
+                rad = round(tf["rotate"] * math.pi / 180.0, 6)
+                och += (f",rotate={rad}:ow=rotw({rad}):oh=roth({rad}):c=none")
+            och += f",setpts=PTS-STARTPTS+{st}/TB"
+            cx = round(w * tf["x"], 2)
+            cy = round(h * tf["y"], 2)
+            pos = f"x={cx}-w/2:y={cy}-h/2:"
         parts.append(f"[{idx}:v]{och}[ov{j}]")
-        parts.append(f"[{cur}][ov{j}]overlay=eof_action=pass:"
+        parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"
                      f"enable='between(t,{st},{en})'[ob{j}]")
         cur = f"ob{j}"
         idx += 1
@@ -512,10 +570,13 @@ def _run_ffmpeg(cmd, out: Path) -> Path:
 @router.post("/render")
 async def montage_render(request: Request, background_tasks: BackgroundTasks):
     """Body: {name?, ratio?, preview?, duration_master?, ducking?,
-    mix?:{dialogue,musique,sfx} (dB), clips:[{tr:v1|a1|a2|a3, src, start, end,
-    srcIn?, transition?, transition_s?, gain? (dB −24..+12, multiplié au bus),
-    fade_in?/fade_out? (s 0..3 ; musique A2 : sortie calée sur la fin du
-    rendu)}]}. → {job_id} ; poll /api/jobs/{id}."""
+    mix?:{dialogue,musique,sfx} (dB), clips:[{tr:v1|v2|a1|a2|a3, src, start,
+    end, srcIn?, transition?, transition_s?, gain? (dB −24..+12, multiplié au
+    bus), fade_in?/fade_out? (s 0..3 ; musique A2 : sortie calée sur la fin
+    du rendu), et pour les overlays V2 : opacity?, x?/y? (centre, fraction du
+    canvas), scale? (largeur relative 0.05..3), rotate? (degrés −180..180) —
+    sans x/y/scale/rotate l'overlay reste cover plein cadre comme avant}]}.
+    → {job_id} ; poll /api/jobs/{id}."""
     try:
         body = await request.json()
     except Exception:
@@ -602,7 +663,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "src_in": max(0.0, float(c.get("srcIn") or 0)),
                            "start": max(0.0, float(c.get("start") or 0)),
                            "end": float(c.get("end") or 0),
-                           "opacity": c.get("opacity")})
+                           "opacity": c.get("opacity"),
+                           "tf": _ov_transform(c)})
             a_clips, music = [], None
             for c in clips:
                 if c.get("tr") not in ("a1", "a2", "a3"):

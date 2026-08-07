@@ -28,6 +28,17 @@ function svmTcFF(s){var f=Math.max(0,Math.round(s*30)),ff=f%30,t=(f-ff)/30,m=Mat
 function svmRuler(s){var m=Math.floor(s/60);return m+":"+svmPad2(s-m*60)}
 function svmGetTheme(){try{return localStorage.getItem("dz_svm_theme")==="light"?"light":"dark"}catch(e){return "dark"}}
 function svmUseTheme(){var st=x.useState(svmGetTheme()),theme=st[0],setT=st[1];function set(t){setT(t);try{localStorage.setItem("dz_svm_theme",t)}catch(e){}}return [theme,set]}
+/* tiroir Narration : ouvert par défaut (choix mémorisé dz_narr_open) */
+function svmNarrInit(){try{return localStorage.getItem("dz_narr_open")!=="0"}catch(e){return !0}}
+/* durée réelle d'un audio (narration fraîchement synthétisée) — metadata
+   seule ; échec / timeout → 0, la longueur du bloc est alors conservée */
+function svmAudioDur(url){return new Promise(function(res){
+  var a=new Audio(),done=!1,to=setTimeout(function(){fin(0)},8000);
+  function fin(v){if(done)return;done=!0;clearTimeout(to);
+    a.onloadedmetadata=null;a.onerror=null;res(v)}
+  a.onloadedmetadata=function(){fin(isFinite(a.duration)?a.duration:0)};
+  a.onerror=function(){fin(0)};
+  try{a.src=url}catch(_e){fin(0)}})}
 function SvmThemeChip(props){return r.jsx("button",{className:"svm-themechip",title:"Prévisualiser l'autre thème (clair et sombre sont livrés ensemble)",onClick:function(){props.setTheme(props.theme==="dark"?"light":"dark")},children:props.theme==="dark"?"clair":"sombre"})}
 function svmBars(csv){return csv.split(",").map(Number)}
 function SvmLabel(props){return r.jsx("div",{className:"svm-label",style:props.style,children:props.children})}
@@ -254,14 +265,17 @@ function svmDemoClips(){return [
  {tr:"v1",id:"v1c4",label:"plan_04 · travelling",start:30.72,end:43.84,srcIn:16,srcOut:21,speed:"100 %",transition:"fade",transition_s:0.4,fx:[{n:"glow doré",c:"c3d"},{n:"grain 8 %"}]},
  {tr:"v1",id:"v1c5",label:"plan_05",start:43.84,end:55.68},
  {tr:"v1",id:"v1c6",label:"plan_06",start:56,end:63.68},
- {tr:"a1",id:"a1c1",label:"voice_scene_01",start:1.28,end:29.44},
- {tr:"a1",id:"a1c2",label:"voice_scene_03",start:30.72,end:56.32},
+ /* text : champ CLIENT du tiroir Narration — jamais envoyé au rendu */
+ {tr:"a1",id:"a1c1",label:"voice_scene_01",start:1.28,end:29.44,
+  text:"Sous la surface, quelque chose remue. La marée ne demande pas la permission — elle vient, et l'abysse s'ouvre."},
+ {tr:"a1",id:"a1c2",label:"voice_scene_03",start:30.72,end:56.32,
+  text:"Huit bras, une seule volonté. Le prophète des profondeurs a parlé : la houle porte déjà son nom."},
  {tr:"a2",id:"a2c1",label:"abyss_theme · ducking auto",start:0,end:63.36},
  {tr:"a3",id:"a3c1",label:"impact",start:7.68,end:10.88},
  {tr:"a3",id:"a3c2",label:"vague",start:22.4,end:27.52},
  {tr:"a3",id:"a3c3",label:"glitch",start:39.68,end:43.52}]}
 var SVM_TRACKS=[
- {id:"v2",name:"V2",type:"overlay / VFX",h:40,c:"--c-3d",mix:13},
+ {id:"v2",name:"V2",type:"overlay/VFX",h:40,c:"--c-3d",mix:13}, /* libellé compact : tient ENTIER dans l'en-tête 88 px */
  {id:"v1",name:"V1",type:"vidéo",h:54,c:"--c-video",mix:12},
  {id:"a1",name:"A1",type:"dialogue",h:40,c:"--c-audio",mix:13},
  {id:"a2",name:"A2",type:"musique",h:36,c:"--c-text",mix:8},
@@ -474,6 +488,56 @@ function SvmFilmstrip(props){
       return d&&d!=="err"?r.jsx("img",{className:"svm-stripimg",src:d,alt:"",draggable:!1},i2)
         :r.jsx("span",{className:"svm-stripimg"},i2)})})}
 
+/* ── overlays transformables (V2) — x/y : centre en fraction du canvas,
+   scale : largeur relative au canvas (hauteur auto, ratio source), rotate :
+   degrés. AUCUN champ posé sur le clip → null : l'overlay reste plein cadre
+   (cover), lecteur, payload et rendu strictement identiques à avant. */
+function svmOvTfOf(c){
+  if(!c||(c.x==null&&c.y==null&&c.scale==null&&c.rotate==null))return null;
+  function n(v,d){v=Number(v);return isFinite(v)?v:d}
+  return {x:Math.min(1.2,Math.max(-.2,n(c.x,.5))),
+          y:Math.min(1.2,Math.max(-.2,n(c.y,.5))),
+          scale:Math.min(3,Math.max(.05,n(c.scale,1))),
+          rotate:Math.min(180,Math.max(-180,n(c.rotate,0)))}}
+/* application impérative sur une couche live — même géométrie que le rendu
+   ffmpeg : largeur = scale·canvas, hauteur auto, centre posé en left/top %,
+   rotation autour du centre ; tf null = retour au cover plein cadre */
+function svmApplyTf(el,tf){
+  if(tf){el.setAttribute("data-svmtf","");
+    el.style.left=tf.x*100+"%";el.style.top=tf.y*100+"%";
+    el.style.width=tf.scale*100+"%";
+    el.style.transform="translate(-50%,-50%) rotate("+tf.rotate+"deg)"}
+  else{el.removeAttribute("data-svmtf");
+    el.style.left="";el.style.top="";el.style.width="";el.style.transform=""}}
+
+/* ── panneau « Raccourcis clavier » (?) — données statiques. Honnêteté :
+   raccourcis FIXES de l'éditeur, aucun remappage n'existe et le panneau ne le
+   prétend pas. Chaque ligne : [touches (chips <kbd>), libellé]. */
+var SVM_KEYS=[
+ ["Lecture",[
+  [["Espace"],"lecture / pause"],
+  [["J","K","L"],"arrière · pause · avant (×1 ×2 ×4)"],
+  [["←","→"],"reculer / avancer d'1 image"],
+  [["Maj","←","→"],"±10 images"],
+  [["↑","↓"],"coupe précédente / suivante"],
+  [["Home","End"],"début / fin"],
+  [["F"],"plein écran du cadre"],
+  [["G"],"zones sûres (tiers, centre, marges)"]]],
+ ["Montage",[
+  [["Suppr"],"supprimer le clip sélectionné"],
+  [["Alt","C"],"lame — couper à la tête"],
+  [["Ctrl","Z"],"annuler"],
+  [["Ctrl","Y"],"rétablir"],
+  [["N"],"aimanter (bords, tête, 0)"],
+  [["R"],"ripple — refermer les trous"],
+  [["bord de clip"],"glisser : rogner / allonger"]]],
+ ["Affichage",[
+  [["Ctrl","molette"],"zoom continu sur le curseur"],
+  [["Ctrl","+","−"],"crans de zoom"],
+  [["Maj","Z"],"zoom 100 %"],
+  [["T"],"panneau Narration (texte → voix)"],
+  [["?"],"ouvrir / fermer ce panneau"]]]];
+
 function DzMontage(props){
   var th=svmUseTheme(),theme=th[0],setTheme=th[1];
   var st1=x.useState(svmDemoClips),clips=st1[0],setClips=st1[1];
@@ -500,6 +564,9 @@ function DzMontage(props){
   var stVZ=x.useState(1),vzoom=stVZ[0],setVzoom=stVZ[1]; /* zoom molette du viewport (≠ zoom timeline) */
   var ovSeq=x.useRef(0);
   var stTP=x.useState(null),transPop=stTP[0],setTransPop=stTP[1]; /* jonction en édition — {id: clip de DROITE, x: px du popover} */
+  var stKb=x.useState(!1),kbOn=stKb[0],setKbOn=stKb[1]; /* panneau « Raccourcis clavier » (?) */
+  var kbRef=x.useRef(kbOn);kbRef.current=kbOn;
+  var vuRef=x.useRef(null); /* canvas du vu-mètre live (rangée MIXAGE) */
   var rootRef=x.useRef(null),transHistAt=x.useRef(0),audioHistAt=x.useRef(0);
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var rafRef=x.useRef(0),phRef=x.useRef(ph);phRef.current=ph;
@@ -523,10 +590,39 @@ function DzMontage(props){
      muet lui-même se lit dans proj.mixDb (bus ≤ −40 dB), source de vérité */
   var stTS=x.useState({}),trackSt=stTS[0],setTrackSt=stTS[1];
   var trackStRef=x.useRef(trackSt);trackStRef.current=trackSt;
+  /* ── tiroir « Narration » (T) — écriture texte-first pilotant la piste A1.
+     L'inverse assumé de Descript : on ÉCRIT, la synthèse pose l'audio et cale
+     le clip. clip.text est un champ CLIENT, jamais joint au payload de rendu. */
+  var stNo=x.useState(svmNarrInit),narrOn=stNo[0],setNarrOn=stNo[1];
+  var stNV=x.useState(null),narrVoices=stNV[0],setNarrVoices=stNV[1]; /* null = à charger */
+  var stNvi=x.useState(""),narrVoice=stNvi[0],setNarrVoice=stNvi[1];
+  var stNB=x.useState(""),narrBusy=stNB[0],setNarrBusy=stNB[1]; /* id du bloc en synthèse */
+  var stNA=x.useState(""),narrArm=stNA[0],setNarrArm=stNA[1]; /* confirmation de coût inline */
+  var stNE=x.useState(null),narrErr=stNE[0],setNarrErr=stNE[1]; /* {id,msg} détail backend */
+  var stNP=x.useState(""),narrPlayId=stNP[0],setNarrPlayId=stNP[1]; /* écoute de bloc */
+  var narrConfirmRef=x.useRef(0); /* coût accepté une fois par session */
+  var narrHistAt=x.useRef(0),narrScrollAt=x.useRef(0);
+  var narrRef=x.useRef(null),narrAudioRef=x.useRef(null);
+  var narrToggle=x.useCallback(function(){
+    setNarrOn(function(v){var nv=!v;
+      try{localStorage.setItem("dz_narr_open",nv?"1":"0")}catch(_e){}
+      return nv})},[]);
+  /* auto-grow des zones de texte — callback STABLE (un ref inline se
+     ré-attacherait à chaque frame de lecture) + réappliqué à la frappe */
+  var narrTaGrow=x.useCallback(function(el){
+    if(!el)return;
+    el.style.height="auto";
+    el.style.height=Math.min(190,el.scrollHeight+2)+"px"},[]);
   var frameRef=x.useRef(null),hoverTcRef=x.useRef(null),transLabelRef=x.useRef(null);
   var liveHostRef=x.useRef(null),liveOvRef=x.useRef(null),liveVideoRef=x.useRef(null);
   var livePoolRef=x.useRef(null),liveSeqRef=x.useRef(0);
   var liveRafRef=x.useRef(0),livePendRef=x.useRef(null);
+  /* overlays transformables : cadre de sélection + geste en cours (lecteur) */
+  var vzRef=x.useRef(vzoom);vzRef.current=vzoom;
+  var dragTfRef=x.useRef(null); /* {id,x,y,scale,rotate} pendant un geste — source de vérité du drag */
+  var tfBoxRef=x.useRef(null),tfGuideVRef=x.useRef(null),tfGuideHRef=x.useRef(null);
+  var tfBadgeRef=x.useRef(null),tfRoRef=x.useRef(null),tfSyncRef=x.useRef(null);
+  var ovHistAt=x.useRef(0); /* fenêtre 600 ms de l'inspecteur Overlay */
   var dur=proj.dur;
 
   /* ── historique — instantanés {clips, mixDb}, cap 60 de chaque côté.
@@ -556,10 +652,11 @@ function DzMontage(props){
     setClips(s.clips);
     setProj(function(p){return Object.assign({},p,{mixDb:s.mixDb})});
     setDirty(!0);setHistTick(function(t){return t+1})},[]);
-  /* suppression du clip sélectionné — ripple actif : les clips SUIVANTS de la
-     même piste remontent de la longueur du trou (piste principale magnétique) */
-  var delClip=x.useCallback(function(){
-    var id=selRef.current,cs=clipsRef.current;
+  /* suppression d'un clip (id explicite : Suppr, inspecteur, blocs de
+     narration) — ripple actif : les clips SUIVANTS de la même piste remontent
+     de la longueur du trou (piste principale magnétique) */
+  var delClipById=x.useCallback(function(id){
+    var cs=clipsRef.current;
     var c=cs.find(function(k){return k.id===id});
     if(!c)return;
     if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
@@ -572,6 +669,7 @@ function DzMontage(props){
         Object.assign({},k,{start:k.start-len,end:k.end-len}):k});
     setClips(next);setSelId("");setDirty(!0);
     fireNote("« "+c.label+" » supprimé"+(rippleRef.current?" — trou refermé (ripple)":""))},[fireNote,pushHistory]);
+  var delClip=x.useCallback(function(){delClipById(selRef.current)},[delClipById]);
 
   /* projet initial — vrais assets de la Bibliothèque quand il y en a */
   x.useEffect(function(){var alive=!0;
@@ -595,6 +693,39 @@ function DzMontage(props){
     fetch("/api/montage/effects").then(function(res){return res.json()}).then(function(d){
       if(alive&&d&&d.effects)setFxCat(d.effects)}).catch(function(){});
     return function(){alive=!1}},[]);
+
+  /* voix du tiroir Narration — même catalogue /api/voices que Son & VFX
+     (clonées en tête), chargé à la première ouverture du tiroir ; choix
+     mémorisé (dz_narr_voice). Clé absente : liste de démonstration, la
+     synthèse renverra l'erreur backend honnête. */
+  x.useEffect(function(){
+    if(!narrOn||narrVoices!==null)return;
+    var alive=!0;
+    fetch("/api/voices").then(function(res){return res.json()}).then(function(d){
+      if(!alive)return;
+      var list=(d&&d.voices||[]).map(function(v){
+        return {id:v.voice_id,name:v.name||v.voice_id,cloned:v.category==="cloned"}});
+      if(d&&d.enabled&&list.length){
+        list.sort(function(a,b){return (b.cloned?1:0)-(a.cloned?1:0)});
+        setNarrVoices({enabled:!0,list:list});
+        var saved=null;try{saved=localStorage.getItem("dz_narr_voice")}catch(_e){}
+        var pref=list.find(function(v){return v.id===saved})||
+          list.find(function(v){return /prophet/i.test(v.name)})||
+          list.find(function(v){return v.cloned})||list[0];
+        setNarrVoice(pref.id)}
+      else{setNarrVoices({enabled:!1,list:SVM_DEMO_VOICES});setNarrVoice("prophet")}
+    }).catch(function(){
+      if(alive){setNarrVoices({enabled:!1,list:SVM_DEMO_VOICES});setNarrVoice("prophet")}});
+    return function(){alive=!1}},[narrOn,narrVoices]);
+  /* un seul flux audible — la lecture principale coupe l'écoute de bloc,
+     fermer le tiroir l'arrête aussi */
+  x.useEffect(function(){
+    if(playing||!narrOn){
+      var a=narrAudioRef.current;
+      if(a){try{a.pause()}catch(_e){}narrAudioRef.current=null}
+      setNarrPlayId(function(p){return p?"":p})}},[playing,narrOn]);
+  x.useEffect(function(){return function(){var a=narrAudioRef.current;
+    if(a){try{a.pause()}catch(_e){}}}},[]);
 
   var sel=clips.find(function(c){return c.id===selId})||null;
   var mixRows=svmMixRows(proj.mixDb);
@@ -675,6 +806,10 @@ function DzMontage(props){
         pool.forEach(function(o,k2){if(o!==it&&!o.el.isConnected&&(!old||o.at<old.at)){old=o;ok=k2}});
         if(!old)break;
         if(old.video){try{old.el.pause();old.el.removeAttribute("src");old.el.load()}catch(_e){}}
+        /* vu-mètre : libère les nœuds WebAudio d'un élément évincé (jamais réutilisé) */
+        if(old.el._svmVuSrc){try{old.el._svmVuSrc.disconnect()}catch(_e){}
+          try{old.el._svmVuAn.disconnect()}catch(_e){}
+          old.el._svmVuSrc=null;old.el._svmVuAn=null;old.el._svmVuErr=1}
         pool.delete(ok)}}
     it.at=++liveSeqRef.current;
     return it}
@@ -744,14 +879,25 @@ function DzMontage(props){
     for(var i=ov.children.length-1;i>=0;i--){var ch=ov.children[i],kc=act[ch._svmId];
       if(!kc||livePoolKey(kc.src,"o")!==ch._svmKey){
         if(ch.tagName==="VIDEO"&&!ch.paused){try{ch.pause()}catch(_e){}}
+        if(tfRoRef.current)tfRoRef.current.unobserve(ch);
         ov.removeChild(ch)}}
     Object.keys(act).forEach(function(id){
       var k=act[id],el=null;
       for(var i2=0;i2<ov.children.length;i2++){
         if(ov.children[i2]._svmId===id){el=ov.children[i2];break}}
       if(!el){var it2=livePoolGet(k.src,"o");el=it2.el;
-        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el)}
+        el._svmId=id;el._svmKey=livePoolKey(k.src,"o");ov.appendChild(el);
+        if(tfRoRef.current)tfRoRef.current.observe(el)}
       el.style.opacity=k.opacity==null?"":String(k.opacity);
+      /* sélection + manipulation directe : la couche est saisissable ; la
+         transformation du clip (ou du geste en cours) est appliquée ici,
+         garde de signature — aucune écriture DOM quand rien ne change */
+      if(!el._svmTtl){el._svmTtl=1;
+        el.title="Overlay — glisser : déplacer · poignées : échelle / rotation · double-clic : plein cadre"}
+      el.onpointerdown=ovOvDown;el.ondblclick=ovOvDbl;
+      var ktf=dragTfRef.current&&dragTfRef.current.id===id?dragTfRef.current:svmOvTfOf(k);
+      var tsig=ktf?ktf.x+"|"+ktf.y+"|"+ktf.scale+"|"+ktf.rotate:"";
+      if(el._svmTfSig!==tsig){el._svmTfSig=tsig;svmApplyTf(el,ktf)}
       if(el.tagName==="VIDEO"){
         el.muted=!0; /* un overlay ne porte jamais le son */
         var wt2=(k.srcIn||0)+(t-k.start);
@@ -759,7 +905,8 @@ function DzMontage(props){
           if(el.playbackRate!==s)el.playbackRate=s;
           if(Math.abs(el.currentTime-wt2)>.35){try{el.currentTime=wt2}catch(_e){}}
           if(el.paused&&!el.ended)livePlay(el)}
-        else{if(!el.paused)el.pause();liveSeek(el,wt2)}}})}
+        else{if(!el.paused)el.pause();liveSeek(el,wt2)}}});
+    tfSyncBox()}
   x.useEffect(function(){liveSync()});
   /* préchauffe : les premières sources V1 (jusqu'au cap du pool) se chargent
      avant d'être atteintes — changement de plan instantané dès la 1re lecture */
@@ -774,8 +921,74 @@ function DzMontage(props){
     if(liveRafRef.current)cancelAnimationFrame(liveRafRef.current);
     var pool=livePoolRef.current;
     if(pool){pool.forEach(function(o){
-      if(o.video){try{o.el.pause();o.el.removeAttribute("src");o.el.load()}catch(_e){}}});
+      if(o.video){try{o.el.pause();o.el.removeAttribute("src");o.el.load()}catch(_e){}}
+      if(o.el._svmVuSrc){try{o.el._svmVuSrc.disconnect()}catch(_e){}
+        try{o.el._svmVuAn.disconnect()}catch(_e){}
+        o.el._svmVuSrc=null;o.el._svmVuAn=null;o.el._svmVuErr=1}});
       pool.clear()}}},[]);
+  /* ── vu-mètre live (rangée MIXAGE) — honnête : il mesure le flux réellement
+     audible (aperçu 480p composite, ou le son du plan V1 / bus dialogue en
+     lecture directe — musique et SFX ne jouent pas en live). WebAudio :
+     UN SEUL createMediaElementSource PAR ÉLÉMENT à vie (marqué sur l'élément,
+     jamais deux sources), branché analyser ET destination ; câblé uniquement
+     quand l'AudioContext partagé tourne (sinon la re-route couperait le son) ;
+     échec → dégradation silencieuse ; rAF SEULEMENT pendant la lecture. ── */
+  function svmVuWire(el){
+    if(!el)return null;
+    if(el._svmVuAn)return el._svmVuAn;
+    if(el._svmVuErr)return null;
+    var ctx=svmSharedAC();
+    if(!ctx){el._svmVuErr=1;return null}
+    if(ctx.state!=="running"){ /* pas de re-route tant que le contexte dort */
+      try{if(ctx.resume){var pr=ctx.resume();if(pr&&pr.catch)pr.catch(function(){})}}catch(_e){}
+      return null}
+    try{
+      var src=ctx.createMediaElementSource(el);
+      src.connect(ctx.destination); /* d'abord : le son continue de sortir */
+      var an=ctx.createAnalyser();an.fftSize=512;an.smoothingTimeConstant=.5;
+      src.connect(an);
+      el._svmVuSrc=src;el._svmVuAn=an;
+      return an}
+    catch(_e){el._svmVuErr=1;return null}}
+  x.useEffect(function(){
+    if(!playing)return;
+    var cv=vuRef.current;if(!cv)return;
+    var g;try{g=cv.getContext("2d")}catch(_e){g=null}
+    if(!g)return;
+    var dpr=Math.min(2,window.devicePixelRatio||1),
+        W=Math.round(60*dpr),H=Math.round(10*dpr),bh=Math.round(4*dpr);
+    if(cv.width!==W)cv.width=W;
+    if(cv.height!==H)cv.height=H;
+    var col=(getComputedStyle(cv).getPropertyValue("--green")||"").trim()||"#5ec8a0";
+    var raf=0,buf=null,pk=0,pkAt=0;
+    function lvlOf(v){ /* −42..0 dBFS → 0..1 */
+      if(!(v>0))return 0;
+      var db=20*Math.log(v)/Math.LN10;
+      return Math.max(0,Math.min(1,(db+42)/42))}
+    function step(now){
+      raf=requestAnimationFrame(step);
+      var el=previewRef.current?videoRef.current:liveVideoRef.current;
+      var an=el&&!el.muted?svmVuWire(el):null,rms=0,mx2=0;
+      if(an){
+        if(!buf||buf.length!==an.fftSize)buf=new Uint8Array(an.fftSize);
+        an.getByteTimeDomainData(buf);
+        var s=0;
+        for(var i=0;i<buf.length;i++){var v=(buf[i]-128)/128;s+=v*v;
+          var a2=v<0?-v:v;if(a2>mx2)mx2=a2}
+        rms=Math.sqrt(s/buf.length)}
+      var lvl=lvlOf(rms),pv=lvlOf(mx2);
+      if(pv>=pk||now-pkAt>900){pk=pv;pkAt=now} /* crête tenue 0,9 s */
+      g.clearRect(0,0,W,H);
+      g.fillStyle=col;
+      g.globalAlpha=.22;g.fillRect(0,0,W,bh);g.fillRect(0,H-bh,W,bh); /* rails fantômes */
+      var w=Math.round(lvl*W);
+      if(w>0){g.globalAlpha=.9;g.fillRect(0,0,w,bh);g.fillRect(0,H-bh,w,bh)}
+      if(pk>0){var px2=Math.min(W-1,Math.max(1,Math.round(pk*W)-1)),
+          pw=Math.max(1,Math.round(dpr));
+        g.globalAlpha=1;g.fillRect(px2,0,pw,bh);g.fillRect(px2,H-bh,pw,bh)}
+      g.globalAlpha=1}
+    raf=requestAnimationFrame(step);
+    return function(){if(raf)cancelAnimationFrame(raf)}},[playing,previewUrl]);
   function svmFullscreen(){
     var el=frameRef.current;if(!el)return;
     try{
@@ -783,6 +996,181 @@ function DzMontage(props){
         if(document.exitFullscreen){var pr2=document.exitFullscreen();if(pr2&&pr2.catch)pr2.catch(function(){})}}
       else if(el.requestFullscreen){var pr=el.requestFullscreen();if(pr&&pr.catch)pr.catch(function(){})}}
     catch(_e){}}
+
+  /* ── overlays transformables : cadre de sélection + gestes du lecteur ─────
+     La boîte (bordure --accent, 8 poignées d'échelle, poignée de rotation)
+     est repositionnée impérativement : liveSync l'appelle après chaque rendu
+     et chaque frame de lecture, les gestes la pilotent en direct — aucun
+     re-render React par frame. Elle vit HORS de l'échelle vzoom : centre
+     écran = 0.5 + (fraction − 0.5)·vzoom, les poignées gardent leur taille
+     et suivent l'overlay transformé à tout niveau de zoom. ── */
+  function tfSyncBox(){
+    var box=tfBoxRef.current,ov=liveOvRef.current,fr2=frameRef.current;
+    if(!box)return;
+    var id=selRef.current,el=null,k=null,i;
+    if(ov&&fr2&&id){
+      for(i=0;i<ov.children.length;i++){
+        if(ov.children[i]._svmId===id){el=ov.children[i];break}}
+      if(el){var cs=clipsRef.current;
+        for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}}}
+    if(!el||!k){if(box._svmShown){box._svmShown=0;box.style.display="none"}return}
+    var vz=vzRef.current,fw=fr2.clientWidth,fh=fr2.clientHeight;
+    var tf=dragTfRef.current&&dragTfRef.current.id===id?dragTfRef.current:svmOvTfOf(k);
+    var cx=fw/2+((tf?tf.x:.5)-.5)*fw*vz,cy=fh/2+((tf?tf.y:.5)-.5)*fh*vz;
+    var bw=el.offsetWidth*vz,bh=el.offsetHeight*vz,rot=tf?tf.rotate:0;
+    var sig=Math.round(cx*10)+"|"+Math.round(cy*10)+"|"+Math.round(bw*10)+"|"+
+            Math.round(bh*10)+"|"+Math.round(rot*10);
+    if(box._svmSig!==sig){box._svmSig=sig;
+      box.style.left=cx+"px";box.style.top=cy+"px";
+      box.style.width=bw+"px";box.style.height=bh+"px";
+      box.style.transform="translate(-50%,-50%) rotate("+rot+"deg)"}
+    if(!box._svmShown){box._svmShown=1;box.style.display="block"}}
+  tfSyncRef.current=tfSyncBox;
+  /* la boîte suit aussi ce qu'aucun rendu React ne voit : redimensionnement
+     du cadre (fenêtre, plein écran) et médias qui finissent de charger */
+  x.useEffect(function(){
+    if(typeof ResizeObserver==="undefined")return;
+    var ro=new ResizeObserver(function(){if(tfSyncRef.current)tfSyncRef.current()});
+    tfRoRef.current=ro;
+    if(frameRef.current)ro.observe(frameRef.current);
+    var ov=liveOvRef.current;
+    if(ov)for(var i=0;i<ov.children.length;i++)ro.observe(ov.children[i]);
+    return function(){tfRoRef.current=null;ro.disconnect()}},[]);
+  /* geste lecteur (déplacer / échelle / rotation) — écritures impératives
+     par frame via dragTfRef (liveSync et la boîte lisent le geste, jamais un
+     état périmé), setClips + pushHistory au relâchement UNIQUEMENT. La
+     capture du pointeur vit sur le CADRE : si la tête de lecture sort du
+     clip pendant le geste (couche retirée), le geste survit et se termine
+     proprement (lostpointercapture compris). */
+  function ovGesture(mode,e,k){
+    e.preventDefault();e.stopPropagation();
+    var fr2=frameRef.current;if(!fr2)return;
+    try{fr2.setPointerCapture&&fr2.setPointerCapture(e.pointerId)}catch(_c){}
+    var frect=fr2.getBoundingClientRect(),vz=vzRef.current;
+    var t0=svmOvTfOf(k)||{x:.5,y:.5,scale:1,rotate:0};
+    var h0={clips:clipsRef.current,mixDb:mixRef.current};
+    var x0=e.clientX,y0=e.clientY,moved=!1,fired=!1;
+    var cur={id:k.id,x:t0.x,y:t0.y,scale:t0.scale,rotate:t0.rotate};
+    var cpx=frect.left+frect.width/2+(t0.x-.5)*frect.width*vz,
+        cpy=frect.top+frect.height/2+(t0.y-.5)*frect.height*vz;
+    var d0=Math.max(8,Math.hypot(x0-cpx,y0-cpy)),a0=Math.atan2(y0-cpy,x0-cpx);
+    var badge=tfBadgeRef.current,gv=tfGuideVRef.current,gh=tfGuideHRef.current;
+    function guide(el2,val,ax){
+      if(!el2)return;
+      if(val==null){el2.style.display="none";return}
+      el2.style[ax==="v"?"left":"top"]=50+(val-.5)*100*vz+"%";
+      el2.style.display="block"}
+    function showBadge(ev,txt){if(!badge)return;badge.textContent=txt;
+      badge.style.left=ev.clientX-frect.left+"px";
+      badge.style.top=ev.clientY-frect.top+"px";
+      badge.style.display="block"}
+    function apply(){
+      dragTfRef.current=cur;
+      var ov=liveOvRef.current,el2=null,i;
+      if(ov)for(i=0;i<ov.children.length;i++){
+        if(ov.children[i]._svmId===k.id){el2=ov.children[i];break}}
+      if(el2){var tsig=cur.x+"|"+cur.y+"|"+cur.scale+"|"+cur.rotate;
+        if(el2._svmTfSig!==tsig){el2._svmTfSig=tsig;svmApplyTf(el2,cur)}}
+      tfSyncBox()}
+    function mv(ev){
+      if(!moved&&Math.abs(ev.clientX-x0)<3&&Math.abs(ev.clientY-y0)<3)return;
+      moved=!0;
+      var sv=null,sh=null;
+      if(mode==="move"){
+        /* aimants : lignes centrales (0.5) et bords (0 / 1) du canvas,
+           seuil 2 % — la ligne guide flashe au point d'accroche */
+        var nx=t0.x+(ev.clientX-x0)/Math.max(1,frect.width*vz),
+            ny=t0.y+(ev.clientY-y0)/Math.max(1,frect.height*vz);
+        [0,.5,1].forEach(function(g){
+          if(Math.abs(nx-g)<.02){nx=g;sv=g}
+          if(Math.abs(ny-g)<.02){ny=g;sh=g}});
+        cur.x=Math.min(1.2,Math.max(-.2,nx));
+        cur.y=Math.min(1.2,Math.max(-.2,ny))}
+      else if(mode==="scale"){
+        var d=Math.hypot(ev.clientX-cpx,ev.clientY-cpy);
+        cur.scale=Math.min(3,Math.max(.05,t0.scale*d/d0));
+        showBadge(ev,Math.round(cur.scale*100)+" %")}
+      else{
+        var na=Math.atan2(ev.clientY-cpy,ev.clientX-cpx);
+        var nr=t0.rotate+(na-a0)*180/Math.PI;
+        nr=((nr+180)%360+360)%360-180;
+        var sn=Math.round(nr/45)*45; /* aimant 0 / ±45 / ±90 / ±135 / 180 (seuil 3°) */
+        if(Math.abs(nr-sn)<3)nr=Math.min(180,Math.max(-180,sn));
+        cur.rotate=nr;
+        showBadge(ev,Math.round(nr)+"°")}
+      guide(gv,sv,"v");guide(gh,sh,"h");
+      apply()}
+    function up(){
+      if(fired)return;fired=!0;
+      fr2.removeEventListener("pointermove",mv);
+      fr2.removeEventListener("pointerup",up);
+      fr2.removeEventListener("lostpointercapture",up);
+      dragTfRef.current=null;
+      if(badge)badge.style.display="none";
+      guide(gv,null,"v");guide(gh,null,"h");
+      if(moved){setDirty(!0);pushHistory(h0);
+        var p={x:Math.round(cur.x*1e4)/1e4,y:Math.round(cur.y*1e4)/1e4,
+               scale:Math.round(cur.scale*1e4)/1e4,
+               rotate:Math.round(cur.rotate*10)/10};
+        setClips(clipsRef.current.map(function(c2){
+          return c2.id===cur.id?Object.assign({},c2,p):c2}))}
+      else tfSyncBox()}
+    fr2.addEventListener("pointermove",mv);
+    fr2.addEventListener("pointerup",up);
+    fr2.addEventListener("lostpointercapture",up)}
+  /* pointerdown / double-clic posés par liveSync sur chaque couche overlay :
+     clic = sélectionne le clip, drag = déplace, double-clic = plein cadre */
+  function ovOvDown(e){
+    var id=e.currentTarget._svmId,cs=clipsRef.current,k=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
+    if(!k)return;
+    e.stopPropagation();
+    if(selRef.current!==id)setSelId(id);
+    if(trackStRef.current.v2&&trackStRef.current.v2.l)return; /* verrou : sélection seule */
+    if(e.button!==0)return;
+    ovGesture("move",e,k)}
+  function ovOvDbl(e){
+    var id=e.currentTarget._svmId,cs=clipsRef.current,k=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
+    /* overlay plein cadre : rien à réinitialiser, le double-clic du cadre
+       (remise à zéro du zoom) garde la main */
+    if(!k||!svmOvTfOf(k))return;
+    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    e.stopPropagation();e.preventDefault();
+    svmOvTfReset(id)}
+  function ovHandleDown(e,mode){
+    var id=selRef.current,cs=clipsRef.current,k=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
+    if(!k||k.tr!=="v2"||!k.src)return;
+    if(trackStRef.current.v2&&trackStRef.current.v2.l)return;
+    if(e.button!==0)return;
+    ovGesture(mode,e,k)}
+  /* transformation — source de vérité UNIQUE du lecteur, de l'inspecteur et
+     du payload : les quatre champs sont posés ensemble sur le clip (l'échelle
+     est matérialisée même à 100 % — c'est elle qui distingue « transformé »
+     de « plein cadre »). Réinitialiser retire les quatre champs : le clip
+     redevient octet pour octet celui d'avant. */
+  function svmOvTfField(patch){
+    var id=selRef.current,now=Date.now();
+    if(now-ovHistAt.current>600)pushHistory();
+    ovHistAt.current=now;
+    setClips(clipsRef.current.map(function(k){
+      if(k.id!==id)return k;
+      var t=svmOvTfOf(k)||{x:.5,y:.5,scale:1,rotate:0};
+      return Object.assign({},k,{x:t.x,y:t.y,scale:t.scale,rotate:t.rotate},patch)}));
+    setDirty(!0)}
+  function svmOvTfReset(id){
+    var cs=clipsRef.current,k=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){k=cs[i];break}}
+    if(!k||!svmOvTfOf(k))return;
+    pushHistory();
+    setClips(cs.map(function(c2){
+      if(c2.id!==id)return c2;
+      var nk=Object.assign({},c2);
+      delete nk.x;delete nk.y;delete nk.scale;delete nk.rotate;
+      return nk}));
+    setDirty(!0);
+    fireNote("Overlay réinitialisé — plein cadre (cover).")}
 
   /* ── zoom continu 100..800 %, ancré sur un point (curseur ou centre du
      viewport) : le temps sous l'ancre reste sous l'ancre. L'axe temporel est
@@ -839,6 +1227,10 @@ function DzMontage(props){
       var el=e.target,tg=(el&&el.tagName||"").toLowerCase();
       if(tg==="input"||tg==="textarea"||tg==="select"||(el&&el.isContentEditable))return;
       var k=e.key;
+      /* panneau raccourcis : ? (Maj+/ sur AZERTY produit aussi "?") ; ouvert,
+         il ne garde que Échap et ? — les autres raccourcis dorment sous le voile */
+      if(k==="?"){e.preventDefault();setKbOn(function(v){return !v});return}
+      if(kbRef.current){if(k==="Escape"){e.preventDefault();setKbOn(!1)}return}
       if(e.ctrlKey||e.metaKey){
         if(k==="z"||k==="Z"){e.preventDefault();if(e.shiftKey)redo();else undo();return}
         if(k==="y"||k==="Y"){e.preventDefault();redo();return}
@@ -861,6 +1253,8 @@ function DzMontage(props){
       if(e.shiftKey&&(k==="z"||k==="Z")){e.preventDefault();zoomApply(100);return}
       if(!e.shiftKey&&!e.altKey&&(k==="n"||k==="N")){setSnap(function(s){return !s});return}
       if(!e.shiftKey&&!e.altKey&&(k==="r"||k==="R")){setRipple(function(v){return !v});return}
+      /* T : tiroir Narration (blocs texte liés aux clips A1) */
+      if(!e.shiftKey&&!e.altKey&&(k==="t"||k==="T")){narrToggle();return}
       /* J/K/L : molette de lecture — L avant ×1/×2/×4, K pause, J arrière
          (shuttle par seeks) ; G : zones sûres sur le cadre */
       if(!e.shiftKey&&!e.altKey&&(k==="l"||k==="L")){e.preventDefault();
@@ -877,7 +1271,7 @@ function DzMontage(props){
       if(!e.shiftKey&&!e.altKey&&(k==="f"||k==="F")){e.preventDefault();svmFullscreen();return}
     }
     window.addEventListener("keydown",onKey);
-    return function(){window.removeEventListener("keydown",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply]);
+    return function(){window.removeEventListener("keydown",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply,narrToggle]);
 
   /* scrub sur la règle */
   function phFromEvent(e,el){var rect=el.getBoundingClientRect();
@@ -1234,6 +1628,15 @@ function DzMontage(props){
           if(c.gain)o.gain=c.gain;
           if(c.fade_in)o.fade_in=c.fade_in;
           if(c.fade_out)o.fade_out=c.fade_out}
+        /* transformation d'overlay (V2) — l'échelle matérialise l'état
+           « transformé » (même à 100 %), x/y/rotate joints seulement hors
+           défaut ; un overlay jamais touché envoie le payload d'avant */
+        if(c.tr==="v2"){
+          var tf=svmOvTfOf(c);
+          if(tf){o.scale=tf.scale;
+            if(Math.abs(tf.x-.5)>1e-4)o.x=tf.x;
+            if(Math.abs(tf.y-.5)>1e-4)o.y=tf.y;
+            if(Math.abs(tf.rotate)>=.05)o.rotate=tf.rotate}}
         return o})}}
   function launchRender(preview){
     if(proj.demo||(job&&job.status!=="failed"))return;
@@ -1281,6 +1684,27 @@ function DzMontage(props){
   var phFrac=dur?ph/dur:0;
   var liveOn=!previewUrl&&!proj.demo; /* lecteur vivant : sources sous la tête */
   var liveClip=liveOn?svmActiveV1(clips,Math.min(ph,Math.max(0,dur-.001))):null;
+  /* bloc de narration « actif » : le clip A1 sous la tête — karaoké par bloc
+     pendant la lecture, repère de position à l'arrêt */
+  var narrActive=null;
+  if(narrOn){for(var iN=0;iN<clips.length;iN++){var cN=clips[iN];
+    if(cN.tr==="a1"&&cN.start<=ph&&ph<cN.end){narrActive=cN.id;break}}}
+  /* auto-scroll du fil vers le bloc actif (lecture) ou sélectionné —
+     scrollIntoView nearest, étranglé à 300 ms. Déclaré APRÈS le calcul de
+     narrActive : déclaré avant, les deps liraient la valeur du rendu
+     précédent (hoisting de var) et l'effet ne se déclencherait jamais. */
+  x.useEffect(function(){
+    if(!narrOn)return;
+    var id=null;
+    if(playing&&narrActive)id=narrActive;
+    else{var sc=clipsRef.current.find(function(k){return k.id===selId});
+      if(sc&&sc.tr==="a1")id=sc.id}
+    if(!id)return;
+    var now=Date.now();if(now-narrScrollAt.current<300)return;
+    narrScrollAt.current=now;
+    var host=narrRef.current,el=host&&host.querySelector('[data-nbid="'+id+'"]');
+    if(el&&el.scrollIntoView)try{el.scrollIntoView({block:"nearest"})}catch(_e){}},
+    [narrActive,playing,narrOn,selId]);
   var tickStep=[2,3,5,6,10,15,20,30,60].find(function(s){return dur/s<=11})||60;
   var ticks=[];for(var t2=0;t2<=Math.floor(dur/tickStep)*tickStep&&ticks.length<40;t2+=tickStep)ticks.push(t2);
 
@@ -1329,17 +1753,64 @@ function DzMontage(props){
       r.jsx("div",{className:"svm-poprow",children:
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setFxPick(!1)},children:"Fermer"})})]})}
 
-  /* réglage d'opacité (overlay V2 sélectionné) */
-  function opacityRow(){
-    var v=Math.round((sel.opacity==null?1:sel.opacity)*100);
-    return r.jsxs("div",{className:"svm-fxedit",children:[
-      r.jsx("span",{className:"svm-fxeditname",children:"Opacité"}),
-      r.jsx("input",{className:"svm-range",type:"range",min:10,max:100,step:5,value:v,
-        "aria-label":"Opacité de l'overlay",
-        onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;
-          setClips(clipsRef.current.map(function(k){return k.id===id?Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));
-          setDirty(!0)}}),
-      r.jsx("span",{className:"svm-rangeval",children:v+" %"})]})}
+  /* inspecteur — « Overlay » (clip V2 sélectionné) : position / échelle /
+     rotation / opacité. Même source de vérité que la manipulation directe
+     dans le lecteur (champs du clip), une entrée d'historique par rafale de
+     600 ms — cohérent avec la durée de transition et le mixage par clip. */
+  function ovInspector(){
+    if(!sel||sel.tr!=="v2"||!sel.src)return null;
+    var tf=svmOvTfOf(sel);
+    var t=tf||{x:.5,y:.5,scale:1,rotate:0};
+    var vOp=Math.round((sel.opacity==null?1:sel.opacity)*100);
+    function fieldNum(props){
+      return r.jsx("input",Object.assign({className:"svm-transdur",type:"number"},props))}
+    return r.jsxs("div",{className:"svm-transinsp",children:[
+      r.jsxs("div",{style:{display:"flex",alignItems:"center",gap:7},children:[
+        r.jsx("div",{className:"svm-propk",style:{flex:"1 1 auto"},children:"Overlay"}),
+        tf?r.jsx("button",{className:"svm-minibtn",
+          title:"Revenir au plein cadre (équivaut au double-clic sur l'overlay dans le lecteur)",
+          onClick:function(){svmOvTfReset(selRef.current)},children:"plein cadre"}):null]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Position"}),
+        fieldNum({min:0,max:100,step:1,value:Math.round(t.x*100),
+          title:"X du centre en % du canvas (50 = centré)","aria-label":"Position X (%)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(isFinite(v))svmOvTfField({x:Math.min(1.2,Math.max(-.2,v/100))})}}),
+        r.jsx("span",{className:"svm-fadesep","aria-hidden":!0,children:"x · y"}),
+        fieldNum({min:0,max:100,step:1,value:Math.round(t.y*100),
+          title:"Y du centre en % du canvas (50 = centré)","aria-label":"Position Y (%)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(isFinite(v))svmOvTfField({y:Math.min(1.2,Math.max(-.2,v/100))})}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"%"})]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Échelle"}),
+        fieldNum({min:5,max:300,step:1,value:Math.round(t.scale*100),
+          title:"Largeur de l'overlay en % de celle du canvas (100 = pleine largeur)",
+          "aria-label":"Échelle (%)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(isFinite(v)&&v>0)svmOvTfField({scale:Math.min(3,Math.max(.05,v/100))})}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"%"})]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Rotation"}),
+        fieldNum({min:-180,max:180,step:1,value:Math.round(t.rotate*10)/10,
+          title:"Rotation en degrés (−180 à 180) — aimant 0 / ±45 / 90 dans le lecteur",
+          "aria-label":"Rotation (degrés)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(isFinite(v))svmOvTfField({rotate:Math.min(180,Math.max(-180,v))})}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"°"})]}),
+      r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:50},children:"Opacité"}),
+        r.jsx("input",{className:"svm-range",type:"range",min:10,max:100,step:5,value:vOp,
+          title:"Opacité de l'overlay ("+vOp+" %)","aria-label":"Opacité de l'overlay",
+          onChange:function(e){var nv=Number(e.target.value)/100;var id=selRef.current;
+            var now=Date.now();
+            if(now-ovHistAt.current>600)pushHistory();
+            ovHistAt.current=now;
+            setClips(clipsRef.current.map(function(k){return k.id===id?Object.assign({},k,{opacity:nv>=1?void 0:nv}):k}));
+            setDirty(!0)}}),
+        r.jsx("span",{className:"svm-rangeval",children:vOp+" %"})]}),
+      tf?null:r.jsx("div",{className:"svm-transnone",
+        children:"plein cadre (cover) — saisissez l'overlay dans le lecteur pour le déplacer, le redimensionner ou le tourner"})]})}
 
   /* réglage d'intensité / retrait du chip d'effet en cours d'édition,
      + presets paramétrés (grade / colorize) et ratios letterbox */
@@ -1440,6 +1911,28 @@ function DzMontage(props){
       r.jsx("div",{className:"svm-poprow",children:
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setOvPick("")},children:"Fermer"})})]})}
 
+  /* panneau « Raccourcis clavier » — modal centré (motif .svm-pop, z 20),
+     voile léger, fermé par Échap, clic extérieur ou le bouton ; ouvert par ?
+     ou le bouton « ? » discret en fin de transport */
+  function kbPanel(){
+    if(!kbOn)return null;
+    return r.jsx("div",{className:"svm-kbscrim",onClick:function(){setKbOn(!1)},children:
+      r.jsxs("div",{className:"svm-pop svm-kbpop",role:"dialog","aria-modal":!0,
+        "aria-label":"Raccourcis clavier",
+        onClick:function(e){e.stopPropagation()},children:[
+        r.jsx("div",{className:"svm-poptitle",children:"Raccourcis clavier"}),
+        r.jsx("div",{className:"svm-kbsub",children:"Raccourcis fixes de l'éditeur — Échap ou clic à l'extérieur pour fermer."}),
+        r.jsx("div",{className:"svm-keys",children:SVM_KEYS.map(function(sec){
+          return r.jsxs("div",{className:"svm-keysec",children:[
+            r.jsx(SvmLabel,{children:sec[0]}),
+            sec[1].map(function(row,i2){
+              return r.jsxs("div",{className:"svm-keyrow",children:[
+                r.jsx("span",{className:"svm-kbds",children:row[0].map(function(kk,i3){
+                  return r.jsx("kbd",{children:kk},i3)})}),
+                r.jsx("span",{className:"svm-keylbl",children:row[1]})]},i2)})]},sec[0])})}),
+        r.jsx("div",{className:"svm-poprow",children:
+          r.jsx("button",{className:"svm-secbtn",onClick:function(){setKbOn(!1)},children:"Fermer"})})]})})}
+
   /* mini-popover de jonction — règle la transition du clip de DROITE */
   function transPopover(){
     if(!transPop)return null;
@@ -1532,6 +2025,210 @@ function DzMontage(props){
         r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"s"})]}),
       isMus?r.jsx("div",{className:"svm-transnone",children:"musique bouclée sur toute la durée — fondu de sortie calé sur la fin du rendu"}):null]})}
 
+  /* ── tiroir « Narration » — la narration s'écrit et se re-prend PAR LE
+     TEXTE, un bloc par clip A1. Honnêteté : aucune transcription automatique
+     n'existe — un clip « son du plan » l'affiche ; écrire puis Narrer
+     REMPLACE son audio par la voix de synthèse (ElevenLabs, payant, coût
+     affiché et confirmé inline à la première utilisation). ── */
+  function narrStop(){
+    var a=narrAudioRef.current;
+    if(a){try{a.pause()}catch(_e){}a.ontimeupdate=null;a.onended=null;
+      narrAudioRef.current=null}
+    setNarrPlayId(function(p){return p?"":p})}
+  function narrListen(c){
+    if(narrPlayId===c.id){narrStop();return}
+    narrStop();
+    if(!c.src)return;
+    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */
+    var a=new Audio(svmSrcUrl(c.src));narrAudioRef.current=a;
+    var s0=c.srcIn||0,s1=s0+Math.max(.1,c.end-c.start);
+    try{a.currentTime=s0}catch(_e){}
+    a.ontimeupdate=function(){if(a.currentTime>=s1-.02)narrStop()};
+    a.onended=function(){narrStop()};
+    setNarrPlayId(c.id);
+    a.play().catch(function(){narrStop();
+      fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})}
+  /* texte d'un bloc — champ client posé sur le clip, une entrée d'historique
+     par rafale de 600 ms (motif transition / mixage) ; ne touche pas à
+     « NON ENREGISTRÉ » : rien ne part au rendu tant qu'on ne narre pas */
+  function narrSetText(id,v){
+    var now=Date.now();
+    if(now-narrHistAt.current>600)pushHistory();
+    narrHistAt.current=now;
+    if(narrErr&&narrErr.id===id)setNarrErr(null);
+    setClips(clipsRef.current.map(function(k){
+      if(k.id!==id)return k;
+      var nk=Object.assign({},k);
+      if(v)nk.text=v;else delete nk.text;
+      return nk}))}
+  /* succès de synthèse : le clip reçoit src={audio}, sa fin suit la durée
+     réelle mesurée — ripple actif : les clips A1 suivants sont décalés du
+     delta ; sinon la fin est bornée au voisin A1 et au projet */
+  function narrApply(id,fn,dsec){
+    var cs=clipsRef.current,cur=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){cur=cs[i];break}}
+    if(!cur){fireNote("Bloc narré, mais son clip a disparu — « "+fn+" » reste dans la Bibliothèque (sons).");return}
+    pushHistory();
+    var d=durRef.current,oldEnd=cur.end,known=dsec>.05;
+    var len=known?Math.max(.2,Math.round(dsec*100)/100):cur.end-cur.start;
+    var newEnd=cur.start+len,delta=newEnd-oldEnd;
+    var doRip=rippleRef.current&&known&&Math.abs(delta)>.01;
+    if(!doRip){ /* clamp aux voisins : ni sur le clip A1 suivant, ni hors projet */
+      var nb=null;
+      cs.forEach(function(k){
+        if(k.tr==="a1"&&k.id!==id&&k.start>=oldEnd-.001&&(nb==null||k.start<nb))nb=k.start});
+      var lim=nb==null?d:Math.min(d,nb);
+      if(newEnd>lim)newEnd=Math.max(cur.start+.2,lim)}
+    setClips(cs.map(function(k){
+      if(k.id===id){
+        var nk=Object.assign({},k,{src:{audio:fn},srcIn:0,end:newEnd,narrDone:!0});
+        if(nk.narr&&nk.label==="bloc narration")nk.label=fn.replace(/\.mp3$/,"");
+        return nk}
+      if(doRip&&k.tr==="a1"&&k.id!==id&&k.start>=oldEnd-.001){
+        var ns=k.start+delta,ne=k.end+delta;
+        if(ns<0){ne-=ns;ns=0}
+        return Object.assign({},k,{start:ns,end:ne})}
+      return k}));
+    setSelId(id);setDirty(!0);
+    fireNote(known?"Bloc narré — "+svmShort(len)+(doRip?" · blocs suivants recalés (ripple)":"")
+      :"Bloc narré — durée non mesurée, longueur du bloc conservée.")}
+  function narrDo(id){
+    var cs=clipsRef.current,c=null,i;
+    for(i=0;i<cs.length;i++){if(cs[i].id===id){c=cs[i];break}}
+    if(!c)return;
+    var txt=(c.text||"").trim();if(!txt)return;
+    setNarrErr(null);setNarrBusy(id);
+    var body={script:txt,language:"fr",name:(proj.name||"montage")+"_narr"};
+    if(narrVoices&&narrVoices.enabled&&narrVoice)body.voice_id=narrVoice;
+    fetch("/api/audio/voiceover",{method:"POST",
+      headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){return {ok:res.ok,d:d}})})
+      .then(function(o){
+        if(!o.ok||!o.d||!o.d.filename)
+          throw new Error((o.d&&(o.d.detail||o.d.error))||"échec de la synthèse");
+        var fn=o.d.filename;
+        return svmAudioDur(o.d.url||("/api/audio/"+encodeURIComponent(fn)))
+          .then(function(ds){narrApply(id,fn,ds);setNarrBusy("")})})
+      .catch(function(e){setNarrBusy("");
+        setNarrErr({id:id,msg:String(e&&e.message||e)})})}
+  function narrClick(c){
+    if(proj.demo){fireNote("Narration : disponible sur un projet réel — la démo reste une maquette.");return}
+    if(trackStRef.current.a1&&trackStRef.current.a1.l){
+      fireNote("Piste A1 verrouillée — déverrouillez-la pour narrer.");return}
+    if(narrBusy)return;
+    if(!(c.text&&c.text.trim()))return;
+    if(!narrConfirmRef.current){setNarrArm(c.id);return}
+    narrDo(c.id)}
+  function narrAddBlock(){
+    if(proj.demo){fireNote("Blocs de narration : disponibles sur un projet réel — la démo reste une maquette.");return}
+    if(trackStRef.current.a1&&trackStRef.current.a1.l){
+      fireNote("Piste A1 verrouillée — déverrouillez-la pour ajouter.");return}
+    var d=durRef.current,cs=clipsRef.current,last=0;
+    cs.forEach(function(k){if(k.tr==="a1"&&k.end>last)last=k.end});
+    var st=Math.min(last,Math.max(0,d-.5)),en=Math.min(d,st+4);
+    if(en-st<.5){fireNote("Plus de place sur A1 — libérez la fin de la piste dialogue.");return}
+    ovSeq.current++;
+    var id="a1n"+ovSeq.current+"_"+Math.round(st*10);
+    pushHistory();
+    setClips(cs.concat([{tr:"a1",id:id,label:"bloc narration",start:st,end:en,narr:!0}]));
+    setSelId(id);setDirty(!0);
+    fireNote("Bloc narration ajouté à "+svmShort(st)+" — écrivez son texte puis « Narrer ».")}
+  function narrBlock(c,i){
+    var isSel=selId===c.id,isAct=narrActive===c.id;
+    var isPlan=!!(c.src&&c.src.job_id);
+    var hasText=!!(c.text&&c.text.trim());
+    var busy=narrBusy===c.id,arm=narrArm===c.id;
+    var err=narrErr&&narrErr.id===c.id?narrErr.msg:null;
+    var off=!hasText||!!narrBusy;
+    var tt=busy?"synthèse en cours…":
+      !hasText?"Écrivez d'abord le texte du bloc":
+      isPlan?"Remplace le son du plan par une narration (~$0.08 — crédits ElevenLabs)":
+      c.narrDone?"Re-synthétiser ce bloc (~$0.08 — crédits ElevenLabs)":
+      c.src?"Remplace ce son par la narration (~$0.08 — crédits ElevenLabs)":
+      "Synthétiser la voix de ce bloc (~$0.08 — crédits ElevenLabs)";
+    return r.jsxs("div",{className:"svm-nb","data-nbid":c.id,
+      "data-sel":isSel?"":void 0,"data-on":isAct?"":void 0,
+      "data-ph":c.src?void 0:"",
+      title:"Caler la tête de lecture au début du bloc",
+      onClick:function(){setSelId(c.id);seekTo(c.start)},
+      children:[
+      r.jsxs("div",{className:"svm-nbhead",children:[
+        r.jsx("span",{className:"svm-nbnum",children:svmPad2(i+1)}),
+        r.jsx("span",{className:"svm-nbtc",title:"début du bloc (HH:MM:SS:image, 30 i/s)",children:svmTcFF(c.start)}),
+        r.jsx("span",{className:"svm-nbdur",title:"durée du bloc",children:svmShort(c.end-c.start)})]}),
+      r.jsxs("div",{className:"svm-nblabel",children:[c.label,
+        c.src&&!hasText?r.jsx("span",{className:"svm-nbplanhint",
+          children:isPlan?" (son du plan — pas de texte)":" (son importé — pas de texte)"}):null]}),
+      r.jsx("textarea",{className:"svm-nbtext",rows:2,value:c.text||"",
+        placeholder:"Écris la narration de ce plan…",
+        "aria-label":"Texte de narration du bloc "+(i+1),
+        title:c.src&&!hasText?"Écrire ici puis « Narrer » remplace ce son par la voix de synthèse":void 0,
+        ref:narrTaGrow,
+        onClick:function(e){e.stopPropagation()},
+        onChange:function(e){narrSetText(c.id,e.target.value);narrTaGrow(e.target)}}),
+      err?r.jsx("div",{className:"svm-note svm-nberr",children:"Échec : "+err}):null,
+      arm?r.jsxs("div",{className:"svm-narrconfirm",onClick:function(e){e.stopPropagation()},children:[
+        r.jsx("span",{children:"Générer la voix (~$0.08) ?"}),
+        r.jsx("button",{className:"svm-nbgold",
+          onClick:function(e){e.stopPropagation();narrConfirmRef.current=1;setNarrArm("");narrDo(c.id)},
+          children:"Oui"}),
+        r.jsx("button",{className:"svm-minibtn",
+          onClick:function(e){e.stopPropagation();setNarrArm("")},children:"Non"})]}):
+      r.jsxs("div",{className:"svm-nbrow",children:[
+        r.jsx("button",{className:"svm-nbgold","data-off":off?"":void 0,title:tt,
+          onClick:function(e){e.stopPropagation();if(!off)narrClick(c)},
+          children:busy?"synthèse…":c.narrDone?"Re-narrer":"Narrer"}),
+        r.jsx("button",{className:"svm-minibtn svm-nbplay",
+          "data-on":narrPlayId===c.id?"":void 0,"data-off":c.src?void 0:"",
+          title:c.src?(narrPlayId===c.id?"Pause":"Écouter l'audio du bloc"):"rien à écouter — bloc non narré",
+          "aria-label":"Écouter le bloc "+(i+1),
+          onClick:function(e){e.stopPropagation();if(c.src)narrListen(c)},
+          children:narrPlayId===c.id?"▮▮":"▶"}),
+        r.jsx("button",{className:"svm-minibtn svm-nbdel",
+          title:"Supprimer le bloc et son clip A1 (ripple respecté)",
+          "aria-label":"Supprimer le bloc "+(i+1),
+          onClick:function(e){e.stopPropagation();
+            if(narrPlayId===c.id)narrStop();
+            delClipById(c.id)},
+          children:"🗑︎"})]})]},c.id)}
+  function narrPanel(){
+    if(!narrOn)return null;
+    var blocks=clips.filter(function(c){return c.tr==="a1"}).slice()
+      .sort(function(a,b){return a.start-b.start});
+    var vlist=(narrVoices&&narrVoices.list)||[];
+    var cloned=vlist.filter(function(v){return v.cloned}),
+        others=vlist.filter(function(v){return !v.cloned});
+    function opt(v){return r.jsx("option",{value:v.id,children:v.name},v.id)}
+    return r.jsxs("aside",{className:"svm-narr",ref:narrRef,children:[
+      r.jsxs("div",{className:"svm-narrhead",children:[
+        r.jsx(SvmLabel,{children:"Narration"}),
+        r.jsx("span",{className:"svm-narrcount",children:blocks.length+" bloc"+(blocks.length>1?"s":"")})]}),
+      r.jsxs("div",{className:"svm-narrvoice",children:[
+        r.jsx("span",{className:"svm-nbvlbl",children:"Voix"}),
+        narrVoices===null?
+          r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},children:"chargement des voix…"}):
+          r.jsxs("select",{className:"svm-secbtn svm-narrsel",value:narrVoice,
+            title:"Voix de la narration (choix mémorisé) — voix clonées en tête",
+            "aria-label":"Voix de narration",
+            onChange:function(e){var v=e.target.value;setNarrVoice(v);
+              try{localStorage.setItem("dz_narr_voice",v)}catch(_e){}},
+            children:[
+              cloned.length?r.jsx("optgroup",{label:"Voix clonées",children:cloned.map(opt)},"gcl"):null,
+              others.length?r.jsx("optgroup",{label:narrVoices.enabled?"Catalogue":"Voix (démo)",
+                children:others.map(opt)},"gcat"):null]})]}),
+      narrVoices&&!narrVoices.enabled?r.jsx("div",{className:"svm-note",style:{marginTop:7},
+        children:"voix de démonstration — connectez ElevenLabs (Réglages → Clés API) pour synthétiser"}):null,
+      r.jsx("div",{className:"svm-narrlist",children:
+        blocks.length?blocks.map(function(c,i){return narrBlock(c,i)}):
+        r.jsx("div",{className:"svm-transnone",style:{marginTop:0},
+          children:"aucun bloc — « + Ajouter un bloc » crée un plan de narration de 4 s sur A1"})}),
+      r.jsx("button",{className:"svm-narradd",
+        title:"Créer un clip A1 vide de 4 s en fin de piste — hachuré tant qu'il n'est pas narré",
+        onClick:narrAddBlock,children:"+ Ajouter un bloc"}),
+      r.jsx("div",{className:"svm-note",style:{marginTop:8},
+        children:"le texte reste local — seul « Narrer » envoie le bloc à ElevenLabs"})]})}
+
   return r.jsxs("div",{className:"dzsvm svm-col",ref:rootRef,"data-svm-theme":theme==="light"?"light":void 0,children:[
     /* barre de titre */
     r.jsxs("div",{className:"svm-titlebar",children:[
@@ -1551,13 +2248,19 @@ function DzMontage(props){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),
+        r.jsx("button",{className:"svm-themechip svm-narrchip","data-on":narrOn?"":void 0,
+          "aria-pressed":narrOn,
+          title:"Panneau Narration — écrire, synthétiser, caler la piste A1 (T)",
+          onClick:narrToggle,children:"narration"}),
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]})]}),
     popover(),
     fxPicker(),
     ovPicker(),
     transPopover(),
-    /* lecteur + inspecteur */
+    kbPanel(),
+    /* tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
+      narrPanel(),
       r.jsxs("div",{className:"svm-playerzone",
         /* formats portrait : la barre du lecteur passe dans la zone latérale
            morte (colonne à droite), le cadre garde toute la hauteur */
@@ -1595,6 +2298,23 @@ function DzMontage(props){
           liveOn?r.jsx("div",{className:"svm-liveov",ref:liveOvRef,
             style:{transform:"scale("+vzoom+")",transformOrigin:"center center"}}):null,
           liveOn&&!liveClip?r.jsx("div",{className:"svm-livegap",children:"trou"}):null,
+          /* cadre de sélection des overlays : boîte + 8 poignées (échelle) +
+             rotation, guides d'alignement et badge de geste — positionnés
+             impérativement (tfSyncBox / ovGesture), hors échelle vzoom */
+          liveOn?r.jsxs("div",{className:"svm-tf",children:[
+            r.jsx("i",{className:"svm-tfguide","data-ax":"v",ref:tfGuideVRef}),
+            r.jsx("i",{className:"svm-tfguide","data-ax":"h",ref:tfGuideHRef}),
+            r.jsx("div",{className:"svm-tfbox",ref:tfBoxRef,children:
+              ["nw","n","ne","e","se","s","sw","w"].map(function(hp){
+                return r.jsx("i",{className:"svm-tfh","data-p":hp,
+                  title:"Échelle — glisser (homothétique)",
+                  onPointerDown:function(e2){ovHandleDown(e2,"scale")}},hp)})
+              .concat([
+                r.jsx("i",{className:"svm-tfstem","aria-hidden":!0},"stem"),
+                r.jsx("i",{className:"svm-tfrot",
+                  title:"Rotation — glisser (aimant 0 / ±45 / 90°)",
+                  onPointerDown:function(e2){ovHandleDown(e2,"rotate")}},"rot")])}),
+            r.jsx("div",{className:"svm-tfbadge",ref:tfBadgeRef})]}):null,
           /* zones sûres (G) : tiers + centre + marges verticales 9:16 */
           safeOn?r.jsxs("div",{className:"svm-safe","aria-hidden":!0,children:[
             r.jsx("div",{className:"svm-safe3v",style:{left:"33.333%"}}),
@@ -1652,9 +2372,14 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-propk",children:p2.k}),
           r.jsx("div",{className:"svm-propv",children:p2.v})]},p2.k)})}),
         transInspector(),
-        sel&&sel.tr==="v2"&&sel.src?opacityRow():null,
+        ovInspector(),
         audioInspector(),
-        r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Mixage"}),
+        r.jsxs("div",{style:{display:"flex",alignItems:"center",margin:"20px 0 10px"},children:[
+          r.jsx(SvmLabel,{children:"Mixage"}),
+          /* vu-mètre live — seulement pendant la lecture d'un vrai flux */
+          playing&&!proj.demo?r.jsx("canvas",{className:"svm-vu",ref:vuRef,role:"img",
+            title:"niveau du flux en cours de lecture (mono, crête tenue 0,9 s)",
+            "aria-label":"Vu-mètre de lecture"}):null]}),
         r.jsx("div",{className:"svm-mix",children:mixRows.map(function(m){
           return r.jsxs("div",{children:[
             r.jsxs("div",{className:"svm-mixhead",children:[
@@ -1672,6 +2397,13 @@ function DzMontage(props){
                 if(!d)return;e.preventDefault();pushHistory();svmMixSet(m.name,m.dbNum+d)},
               children:
               r.jsx("div",{className:"svm-mixfill",style:{width:m.w+"%",background:"var("+m.c+")"}})})]},m.name)})}),
+        /* graduations du mixage — micro-labels alignés sur les ticks des rails
+           (échelle visuelle de la maquette : −30/−20/−10 dB à 16,8/50,8/84,8 %) ;
+           les extrémités physiques du rail ne valent PAS −40/0, les étiqueter
+           ainsi mentirait */
+        r.jsx("div",{className:"svm-mixscale","aria-hidden":!0,children:
+          [[-30,16.8],[-20,50.8],[-10,84.8]].map(function(g2){
+            return r.jsx("span",{style:{left:g2[1]+"%"},children:"−"+Math.abs(g2[0])},g2[0])})}),
         r.jsxs("button",{className:"svm-durmaster",style:{marginTop:12},
           onClick:function(){setDucking(!ducking);setDirty(!0)},
           role:"switch","aria-checked":ducking,children:[
@@ -1739,7 +2471,11 @@ function DzMontage(props){
           ["▁","▂","▃","▅"].map(function(g,i){
             return r.jsx("button",{className:"svm-zoomstep","data-on":Math.round(zoomPct)===SVM_ZOOMW[i]?"":void 0,
               title:"zoom "+SVM_ZOOMW[i]+" % (Ctrl+molette : continu)",onClick:function(){zoomApply(SVM_ZOOMW[i])},children:g},i)}),
-          " "+Math.round(zoomPct)+" % · "+svmRuler(Math.round(dur))+" total"]})]}),
+          " "+Math.round(zoomPct)+" % · "+svmRuler(Math.round(dur))+" total"]}),
+        /* bouton discret du panneau raccourcis — fin de transport */
+        r.jsx("button",{className:"svm-tbtn",title:"Raccourcis (?)",
+          "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
+          onClick:function(){setKbOn(!kbOn)},children:"?"})]}),
       r.jsx("div",{className:"svm-scroll",ref:tlScrollRef,children:
         r.jsxs("div",{className:"svm-lanes",style:{width:zoomPct+"%"},children:[
           r.jsxs("div",{className:"svm-ruler",onPointerDown:rulerDown,
@@ -1762,7 +2498,7 @@ function DzMontage(props){
                       :"Ajouter une image ou un rendu à la tête de lecture",
                     onClick:function(){openPicker(tr.id)},children:"+"})]}),
                 r.jsxs("div",{className:"svm-ttyperow",children:[
-                  r.jsx("span",{className:"svm-ttype",children:tr.type}),
+                  r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type}),
                   bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
                     "data-on":muted?"":void 0,"aria-pressed":muted,
                     title:muted?"Réactiver "+tr.name+" (bus "+bus+" — niveau d'avant restauré)"
@@ -1800,12 +2536,16 @@ function DzMontage(props){
                   var clen=Math.max(.01,c.end-c.start);
                   var fiP=Math.min(100,fIn/clen*100),foP=Math.min(100,fOut/clen*100);
                   var isMus=aud&&tr.id==="a2"&&c.id===firstA2;
+                  /* bloc narration pas encore narré : hachures pointillées
+                     (motif .svm-target), couleur de la piste */
+                  var isPh=!!(c.narr&&!c.src);
                   return r.jsxs("div",{className:"svm-clip",
                     "data-locked":locked?"":void 0,
+                    "data-narr":isPh?"":void 0,
                     "data-media":media&&tr.id==="v1"?"":void 0,
                     style:{left:c.start/dur*100+"%",width:(c.end-c.start)/dur*100+"%",
-                      borderColor:isSel?"var(--accent)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
-                      background:isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
+                      borderColor:isSel?"var(--accent)":isPh?"var(--stroke2)":"color-mix(in srgb, var("+tr.c+") 53%, transparent)",
+                      background:isPh?"repeating-linear-gradient(-45deg,transparent 0 5px, color-mix(in srgb, var("+tr.c+") 26%, transparent) 5px 6px)":isSel?"color-mix(in srgb, var(--accent) 20%, transparent)":"color-mix(in srgb, var("+tr.c+") "+tr.mix+"%, transparent)"},
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},
                     /* curseur explicite : sans lui, rien n'indique que les
                        bords rognent au lieu de déplacer */
@@ -1826,6 +2566,17 @@ function DzMontage(props){
                       fOut>0?r.jsx("div",{className:"svm-fadeshade","aria-hidden":!0,
                         style:{background:"color-mix(in srgb, var("+tr.c+") 30%, transparent)",
                           clipPath:"polygon("+(100-foP)+"% 0, 100% 0, 100% 100%)"}}):null,
+                      /* trait de courbe du fondu — diagonale --accent 1,5 px
+                         (épaisseur constante), lisible de loin comme la rampe
+                         des NLE pros ; hors clip-path pour ne pas être rognée */
+                      fIn>0?r.jsx("svg",{className:"svm-fadeline","aria-hidden":!0,
+                        viewBox:"0 0 100 100",preserveAspectRatio:"none",
+                        style:{left:0,width:fiP+"%"},children:
+                        r.jsx("line",{x1:0,y1:100,x2:100,y2:0,vectorEffect:"non-scaling-stroke"})}):null,
+                      fOut>0?r.jsx("svg",{className:"svm-fadeline","aria-hidden":!0,
+                        viewBox:"0 0 100 100",preserveAspectRatio:"none",
+                        style:{right:0,width:foP+"%"},children:
+                        r.jsx("line",{x1:0,y1:0,x2:100,y2:100,vectorEffect:"non-scaling-stroke"})}):null,
                       r.jsx("div",{className:"svm-cliplabel",children:c.label}),
                       /* poignées visibles sur le clip sélectionné */
                       isSel?r.jsx("div",{style:{position:"absolute",left:0,top:0,bottom:0,width:4,
