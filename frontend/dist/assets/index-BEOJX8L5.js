@@ -379,12 +379,54 @@ function svmAudioDur(url){return new Promise(function(res){
 function SvmThemeChip(props){return r.jsx("button",{className:"svm-themechip",title:"Prévisualiser l'autre thème (clair et sombre sont livrés ensemble)",onClick:function(){props.setTheme(props.theme==="dark"?"light":"dark")},children:props.theme==="dark"?"clair":"sombre"})}
 function svmBars(csv){return csv.split(",").map(Number)}
 function SvmLabel(props){return r.jsx("div",{className:"svm-label",style:props.style,children:props.children})}
+/* normalisation de recherche (cheatsheet) — minuscules sans accents */
+function svmNorm(s){s=String(s||"").toLowerCase();
+  try{s=s.normalize("NFD").replace(/[\u0300-\u036f]/g,"")}catch(_e){}
+  return s}
 
 /* ligne d'information transitoire (4,5 s) */
 function svmUseNote(){var st=x.useState(""),note=st[0],setN=st[1],ref=x.useRef(null);
   var fire=x.useCallback(function(msg){setN(msg);if(ref.current)clearTimeout(ref.current);ref.current=setTimeout(function(){setN("")},4500)},[]);
   x.useEffect(function(){return function(){if(ref.current)clearTimeout(ref.current)}},[]);
   return [note,fire]}
+
+/* ── couche SFX optionnelle (sfxstudio.js → window.DzSfx) — feature-detect
+   STRICT : couche absente, chaque point d'intégration retombe sur l'UI
+   d'avant, à l'octet près. Tout accès passe par ce helper, jamais en direct. */
+function svmSfx(){var d=window.DzSfx;return d&&d.ready?d:null}
+/* piste cible d'un item du tiroir Sons (voix→A1, musique→A2, sfx/import→A3) */
+function svmSfxTrackOf(kind){return kind==="voix"?"a1":kind==="musique"?"a2":"a3"}
+/* nom de fichier backend d'un item du tiroir (item.url = /api/audio/<fn>) */
+function svmSfxFileOf(item){
+  if(!item)return "";
+  if(item.filename)return String(item.filename);
+  var u=String(item.url||""),i=u.lastIndexOf("/");
+  var fn=(i>=0?u.slice(i+1):u).split("?")[0];
+  try{return decodeURIComponent(fn)}catch(_e){return fn}}
+/* hôte du métering DzSfx.Meter (barre transport du Montage) — isole les mises
+   à jour par frame : il relit la ref partagée (rms/peak/clip, écrits par la
+   boucle vu-mètre existante) dans SA propre boucle rAF et ne re-rend que le
+   Meter — jamais l'éditeur entier. */
+function SvmMeterHost(props){
+  var st=x.useState({rms:0,peak:0,clip:!1,lufsM:null}),lvl=st[0],setLvl=st[1];
+  x.useEffect(function(){
+    if(!props.engaged){setLvl({rms:0,peak:0,clip:!1,lufsM:null});return}
+    var raf=0;
+    var tick=function(){
+      raf=requestAnimationFrame(tick);
+      var v=props.srcRef.current;
+      if(v)setLvl(function(o){
+        var lm=v.lufsM==null?null:v.lufsM;
+        return o.rms===v.rms&&o.peak===v.peak&&o.clip===v.clip&&o.lufsM===lm?o
+          :{rms:v.rms,peak:v.peak,clip:v.clip,lufsM:lm}})};
+    raf=requestAnimationFrame(tick);
+    return function(){if(raf)cancelAnimationFrame(raf)}},[props.engaged]);
+  var d=svmSfx();
+  if(!d||!d.Meter)return null;
+  /* lufsM : LUFS momentané K-weighted (fenêtre 400 ms) calculé par la boucle
+     vu-mètre — null hors lecture, le Meter n'affiche alors rien */
+  return r.jsx(d.Meter,{level:lvl,engaged:props.engaged,lufs:props.lufs,
+    lufsM:lvl.lufsM,onMeasure:props.onMeasure,busy:props.busy})}
 
 /* ── données de design (relevées dans le DOM de référence — projet « teaser_abyss ») ── */
 var SVM_EDITOR_PEAKS=svmBars("18,43,62,70,66,53,37,23,21,20,25,36,45,45,36,19,42,63,77,79,69,50,27,28,40,42,36,25,20,23,19,32,50,65,72,68,52,28,33,54,66,66,56,41,26,19,19,25,36,46,49,42,26,33,56,73,80,74,57,36");
@@ -425,6 +467,19 @@ function DzSonVfx(props){
   var st6=x.useState(!1),playing=st6[0],setPlaying=st6[1];
   var st7=x.useState("goldburst"),selVfx=st7[0],setSelVfx=st7[1];
   var st8=x.useState(""),playingVoice=st8[0],setPlayingVoice=st8[1];
+  /* génération SFX réelle (couche DzSfx → /api/audio/sfx) — couche absente,
+     la carte démo du handoff reste exactement celle d'avant */
+  var stG1=x.useState(""),sfxPrompt=stG1[0],setSfxPrompt=stG1[1];
+  var stG2=x.useState(3),sfxDur=stG2[0],setSfxDur=stG2[1]; /* s · 0 = durée auto */
+  var stG3=x.useState(!1),sfxBusy=stG3[0],setSfxBusy=stG3[1];
+  var stG4=x.useState(null),sfxItems=stG4[0],setSfxItems=stG4[1];
+  var stG5=x.useState(""),sfxErr=stG5[0],setSfxErr=stG5[1];
+  var stG6=x.useState(""),sfxPlay=stG6[0],setSfxPlay=stG6[1]; /* url de l'item en écoute */
+  /* dernière mesure loudness RÉELLE (Montage → Mesurer, dz_last_lufs) — elle
+     remplace l'ancien libellé statique « −14 LUFS » qui ne mesurait rien */
+  var stLm=x.useState(function(){
+    try{return JSON.parse(localStorage.getItem("dz_last_lufs")||"null")}catch(_e){return null}}),
+    lastLufs=stLm[0];
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var audioRef=x.useRef(null),rafRef=x.useRef(0),simRef=x.useRef(0);
 
@@ -461,7 +516,7 @@ function DzSonVfx(props){
     return function(){alive=!1}},[]);
 
   /* un seul flux à la fois — fichier de l'éditeur (url réelle ou progression simulée) */
-  function stopAll(){setPlaying(!1);setPlayingVoice("");
+  function stopAll(){setPlaying(!1);setPlayingVoice("");setSfxPlay("");
     if(audioRef.current){audioRef.current.pause();audioRef.current=null}
     if(rafRef.current){cancelAnimationFrame(rafRef.current);rafRef.current=0}}
   x.useEffect(function(){return stopAll},[]);
@@ -488,6 +543,28 @@ function DzSonVfx(props){
       a.onended=function(){setPlayingVoice("")};
       a.play().catch(function(){setPlayingVoice("");fireNote("Aperçu de voix indisponible.")})}
     else fireNote("Les aperçus de voix arrivent avec ElevenLabs connecté (Réglages → clés API).")}
+  /* écoute d'un SFX généré — même règle « un seul flux » que tout l'écran */
+  function playSfxItem(it){
+    if(sfxPlay===it.url){stopAll();return}
+    stopAll();
+    var a=new Audio(it.url);audioRef.current=a;setSfxPlay(it.url);
+    a.onended=function(){setSfxPlay("")};
+    a.play().catch(function(){setSfxPlay("");
+      fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})}
+  /* génération : DzSfx.genSfx → POST /api/audio/sfx (2 variations) ; chaque
+     fichier rejoint la Bibliothèque (sons) et donc le tiroir Sons du Montage */
+  function genSfxGo(){
+    var d=svmSfx();if(!d||!d.genSfx)return;
+    var p=sfxPrompt.trim();
+    if(!p){setSfxErr("Décris d'abord le son — ex : « impact sourd et grave, réverbération courte ».");return}
+    if(sfxBusy)return;
+    setSfxBusy(!0);setSfxErr("");
+    d.genSfx({prompt:p,duration_s:sfxDur>0?sfxDur:null,prompt_influence:.3,variations:2})
+      .then(function(o){
+        var items=(o&&o.items)||[];
+        if(!items.length)throw new Error("aucun son retourné");
+        setSfxBusy(!1);setSfxItems(items)})
+      .catch(function(e){setSfxBusy(!1);setSfxErr(String(e&&e.message||e))})}
 
   var vfxTiles=tab==="vfx"?SVM_VFX.filter(function(v){return v.kind==="sprite"}):tab==="post"?SVM_VFX.filter(function(v){return v.kind==="post"}):SVM_VFX;
 
@@ -533,7 +610,11 @@ function DzSonVfx(props){
         title:playing?"Pause":"Lecture","aria-label":playing?"Pause":"Lecture",children:playing?"▮▮":"▶"}),
       ["Rogner","Fondu","Ducking","Normaliser","Dé-esser"].map(function(t){
         return r.jsx("button",{className:"svm-toolbtn",
-          onClick:function(){fireNote("« "+t+" » arrive avec le backend d'édition audio — cible produit, rien n'est facturé.")},
+          /* couche DzSfx chargée : ces outils EXISTENT, par clip dans le
+             Montage — la note pointe le vrai chemin au lieu d'une promesse */
+          onClick:function(){fireNote(svmSfx()
+            ?"« "+t+" » : disponible par clip dans le Montage — B ouvre le tiroir Sons, l'inspecteur Clip audio porte gain, fondus, vitesse et rack d'effets."
+            :"« "+t+" » arrive avec le backend d'édition audio — cible produit, rien n'est facturé.")},
           children:t},t)}),
       r.jsx("button",{className:"svm-primarybtn",
         onClick:function(){props.go&&props.go("montage")},children:"Envoyer au montage →"})]})]});
@@ -547,20 +628,68 @@ function DzSonVfx(props){
   var centerTop=
     selGen==="voiceover"?editorCard:
     selGen==="music"?targetPanel("La génération de musique n'est pas encore câblée","Aucun backend n'existe aujourd'hui pour la piste complète. La carte du rail montre l'estimation unitaire cible ($0.14 par piste) ; rien ne peut être déclenché ni facturé d'ici."):
-    selGen==="sfx"?targetPanel("La génération de packs SFX n'est pas encore câblée","Aucun backend n'existe aujourd'hui pour les packs d'effets. Estimation unitaire cible : $0.03 par pack ; rien ne peut être déclenché ni facturé d'ici."):
+    selGen==="sfx"?(svmSfx()?
+      r.jsxs("div",{className:"svm-target",children:[
+        r.jsx("span",{className:"svm-targettag",style:{color:"var(--green)"},children:"Branché"}),
+        r.jsx("div",{style:{color:"var(--ink2)",fontSize:12.5,fontWeight:600,marginBottom:6},children:"La génération de SFX est câblée (ElevenLabs)"}),
+        r.jsx("div",{children:"Décrivez un son dans la carte « Générer des SFX » ci-dessous : deux variations jouables, sauvegardées dans la Bibliothèque (sons) et prêtes pour le tiroir Sons du Montage (B)."})]})
+      :targetPanel("La génération de packs SFX n'est pas encore câblée","Aucun backend n'existe aujourd'hui pour les packs d'effets. Estimation unitaire cible : $0.03 par pack ; rien ne peut être déclenché ni facturé d'ici.")):
     selGen==="vfx"?targetPanel("La génération de sprites de particules n'est pas encore câblée","effects_engine couvre uniquement le post-traitement — les sprites/alpha de particules sont une cible produit. Estimation unitaire : $0.06 par élément."):
     targetPanel("Le post-traitement s'applique au rendu","Grain, glow, aberration et transitions passent par le moteur Effects / Mask existant sur le nœud Render (gratuit, ffmpeg local). À configurer dans Studio → Render.");
 
-  var sfxCard=r.jsxs("div",{className:"svm-card",children:[
-    r.jsx(SvmLabel,{children:"Pack SFX généré"}),
-    r.jsx("div",{className:"svm-sfxlist",children:SVM_SFX.map(function(s2){
-      return r.jsxs("div",{className:"svm-sfx",children:[
-        r.jsx("button",{className:"svm-playbtn",title:"Écouter","aria-label":"Écouter "+s2.name,
-          onClick:function(){fireNote("La génération de SFX n'a pas encore de backend — ces lignes sont la cible produit.")},children:"▶"}),
-        r.jsx("span",{className:"svm-sfxname",children:s2.name}),
-        r.jsx("div",{className:"svm-miniwave",children:s2.bars.map(function(h,i){
-          return r.jsx("div",{className:"svm-minibar",style:{height:h+"%"}},i)})}),
-        r.jsx("span",{className:"svm-dur",children:s2.dur})]},s2.id)})})]});
+  /* carte SFX — couche DzSfx chargée : VRAIE génération (prompt + durée +
+     2 variations jouables, « Ouvrir le Montage ») ; absente : maquette d'avant */
+  var sfxCard=svmSfx()?
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsxs("div",{className:"svm-cardhead",children:[
+        r.jsx(SvmLabel,{children:"Générer des SFX"}),
+        r.jsx("span",{className:"svm-genprice",
+          title:"2 variations par génération — crédits ElevenLabs",children:"$0.03"})]}),
+      r.jsxs("div",{className:"svm-sfxform",children:[
+        r.jsx("input",{className:"svm-sfxprompt",type:"text",maxLength:450,value:sfxPrompt,
+          placeholder:"Décris le son — « vague qui claque sur un rocher, grave »",
+          "aria-label":"Description du son à générer",
+          onChange:function(e){setSfxPrompt(e.target.value);if(sfxErr)setSfxErr("")},
+          onKeyDown:function(e){if(e.key==="Enter")genSfxGo()}}),
+        r.jsx("input",{className:"svm-transdur",type:"number",min:0,max:22,step:.5,value:sfxDur,
+          title:"Durée en secondes (0,5 à 22) — 0 : durée choisie par le modèle",
+          "aria-label":"Durée du son en secondes (0 : automatique)",
+          onChange:function(e){var v=Number(e.target.value);
+            if(isFinite(v))setSfxDur(Math.max(0,Math.min(22,v)))}}),
+        r.jsx("span",{className:"svm-dur",children:sfxDur>0?"s":"auto"}),
+        r.jsx("button",{className:"svm-nbgold","data-off":sfxBusy||!sfxPrompt.trim()?"":void 0,
+          title:"Générer 2 variations (~$0.03 — crédits ElevenLabs), sauvegardées dans la Bibliothèque (sons)",
+          onClick:function(){if(!sfxBusy)genSfxGo()},
+          children:sfxBusy?"génération…":"Générer"})]}),
+      sfxErr?r.jsx("div",{className:"svm-note",style:{color:"var(--red)"},children:"Échec : "+sfxErr}):null,
+      sfxItems&&sfxItems.length?r.jsxs(r.Fragment,{children:[
+        r.jsx("div",{className:"svm-sfxlist",children:sfxItems.map(function(it,i2){
+          return r.jsxs("div",{className:"svm-sfx",children:[
+            r.jsx("button",{className:"svm-playbtn","data-on":sfxPlay===it.url?"":void 0,
+              title:sfxPlay===it.url?"Pause":"Écouter",
+              "aria-label":"Écouter "+(it.name||"variation "+(i2+1)),
+              onClick:function(){playSfxItem(it)},children:sfxPlay===it.url?"▮▮":"▶"}),
+            r.jsx("span",{className:"svm-sfxname",children:it.name||("variation "+(i2+1))}),
+            r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
+              children:Number(it.dur)>0?svmShort(Number(it.dur)):"—"})]},it.url||i2)})}),
+        r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[
+          r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},
+            children:"sauvegardés dans la Bibliothèque (sons) — le tiroir Sons du Montage les liste"}),
+          r.jsx("button",{className:"svm-primarybtn",
+            onClick:function(){stopAll();props.go&&props.go("montage")},
+            children:"Ouvrir le Montage →"})]})]}):
+      r.jsx("div",{className:"svm-note",
+        children:"deux variations jouables par génération — chaque son rejoint la Bibliothèque et le tiroir Sons du Montage (B)"})]}):
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:"Pack SFX généré"}),
+      r.jsx("div",{className:"svm-sfxlist",children:SVM_SFX.map(function(s2){
+        return r.jsxs("div",{className:"svm-sfx",children:[
+          r.jsx("button",{className:"svm-playbtn",title:"Écouter","aria-label":"Écouter "+s2.name,
+            onClick:function(){fireNote("La génération de SFX n'a pas encore de backend — ces lignes sont la cible produit.")},children:"▶"}),
+          r.jsx("span",{className:"svm-sfxname",children:s2.name}),
+          r.jsx("div",{className:"svm-miniwave",children:s2.bars.map(function(h,i){
+            return r.jsx("div",{className:"svm-minibar",style:{height:h+"%"}},i)})}),
+          r.jsx("span",{className:"svm-dur",children:s2.dur})]},s2.id)})})]});
 
   var vfxCard=r.jsxs("div",{className:"svm-card",children:[
     r.jsx(SvmLabel,{children:"VFX · particules & post"}),
@@ -583,7 +712,15 @@ function DzSonVfx(props){
           r.jsx("button",{className:"svm-tab","data-on":tab==="audio"?"":void 0,onClick:function(){setTab("audio")},children:"Audio"}),
           r.jsx("button",{className:"svm-tab","data-on":tab==="vfx"?"":void 0,onClick:function(){setTab("vfx")},children:"VFX particules"}),
           r.jsx("button",{className:"svm-tab","data-on":tab==="post"?"":void 0,onClick:function(){setTab("post")},children:"Post-traitement"})]}),
-        r.jsx("span",{className:"svm-meter",children:"master −14 LUFS · vrai pic −1.2 dB"}),
+        /* loudness : seulement une MESURE réelle (Montage → Mesurer) — plus
+           jamais un chiffre décoratif ; sans mesure, l'emplacement reste vide
+           (le span garde le margin-left:auto qui cale la chip de thème) */
+        lastLufs&&isFinite(Number(lastLufs.i))?
+          r.jsx("span",{className:"svm-meter",
+            title:"dernière mesure ebur128"+(lastLufs.name?" — "+lastLufs.name:"")+" (Montage → Mesurer)",
+            children:"dernier mix "+(Math.round(Number(lastLufs.i)*10)/10)+" LUFS I"+
+              (isFinite(Number(lastLufs.tp))?" · pic vrai "+(Math.round(Number(lastLufs.tp)*10)/10)+" dBTP":"")}):
+          r.jsx("span",{className:"svm-meter","aria-hidden":!0}),
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]}),
       r.jsxs("div",{className:"svm-content",children:[
         note?r.jsx("div",{className:"svm-note",style:{marginTop:0,marginBottom:10},children:note}):null,
@@ -614,9 +751,10 @@ function svmDemoClips(){return [
 var SVM_TRACKS=[
  {id:"v2",name:"V2",type:"overlay/VFX",h:40,c:"--c-3d",mix:13}, /* libellé compact : tient ENTIER dans l'en-tête 88 px */
  {id:"v1",name:"V1",type:"vidéo",h:54,c:"--c-video",mix:12},
- {id:"a1",name:"A1",type:"dialogue",h:40,c:"--c-audio",mix:13},
- {id:"a2",name:"A2",type:"musique",h:36,c:"--c-text",mix:8},
- {id:"a3",name:"A3",type:"sfx",h:36,c:"--c-3d",mix:13}];
+ /* pistes audio réhaussées (R2/I3) : waveforms lisibles — .svm-tl suit (312px) */
+ {id:"a1",name:"A1",type:"dialogue",h:52,c:"--c-audio",mix:13},
+ {id:"a2",name:"A2",type:"musique",h:48,c:"--c-text",mix:8},
+ {id:"a3",name:"A3",type:"sfx",h:48,c:"--c-3d",mix:13}];
 var SVM_DEMO_MIX={dialogue:-12,musique:-22,sfx:-18};
 var SVM_MIX_COLORS={dialogue:"--c-audio",musique:"--c-av",sfx:"--c-3d"};
 var SVM_ZOOMW=[100,150,220,320];
@@ -625,10 +763,15 @@ var SVM_ZOOMW=[100,150,220,320];
    9:16 sans le dire — c'était le cas de 4:5 avant l'audit du 06/08. */
 var SVM_RATIOS=[["9:16","9:16 · vertical"],["4:5","4:5 · feed"],
                 ["1:1","1:1 · carré"],["16:9","16:9 · paysage"]];
+/* échelle visuelle commune des faders de bus (maquette : w = 78 + 3,4·(dB+12)) —
+   partagée entre la rangée MIXAGE de l'inspecteur et les mini-faders d'en-tête
+   de piste (R2/I1) : mêmes nombres, les deux UIs restent synchrones */
+function svmMixW(db){return Math.max(8,Math.min(100,Math.round(78+3.4*(db+12))))}
+function svmBusDbTxt(db){return db===0?"0 dB":"−"+Math.abs(Math.round(db))+" dB"}
 function svmMixRows(mixDb){return ["dialogue","musique","sfx"].map(function(k){
   var db=Number(mixDb&&mixDb[k]!=null?mixDb[k]:SVM_DEMO_MIX[k]);
   return {name:k,dbNum:db,db:db===0?"0 dB":"−"+Math.abs(db)+" dB",
-    w:Math.max(8,Math.min(100,Math.round(78+3.4*(db+12)))),c:SVM_MIX_COLORS[k]}})}
+    w:svmMixW(db),c:SVM_MIX_COLORS[k]}})}
 
 /* trous V1 (> 0,1 s entre deux clips) — hachures discrètes ; le rendu y met du noir */
 function svmV1Gaps(clips,dur){
@@ -677,6 +820,22 @@ function svmFirstA2Id(cs){for(var i=0;i<cs.length;i++){var c=cs[i];
   if(c.tr==="a2"&&c.src&&(c.src.audio||c.src.job_id))return c.id}
   return null}
 function svmDbTxt(g){return g>0?"+"+g+" dB":g<0?"−"+Math.abs(g)+" dB":"0 dB"}
+/* ── courbes de fondu par clip audio (R2/I4) — vocabulaire partagé backend :
+   lin (défaut, afade tri), douce (hsin), expo (exp), log (log). « lin » n'est
+   JAMAIS écrit sur le clip ni envoyé : payload d'avant, octet pour octet. */
+var SVM_FADE_CURVES=[["lin","linéaire"],["douce","douce"],["expo","expo"],["log","log"]];
+var SVM_FADE_CURVE_TT={lin:"linéaire — défaut du rendu",
+  douce:"douce — S sinusoïdal, entrée/sortie feutrées",
+  expo:"expo — décollage tardif, arrivée brusque",
+  log:"log — décollage rapide, arrivée feutrée"};
+/* tracé SVG de la rampe (viewBox 0..100, y=0 plein, y=100 silence) — le
+   linéaire garde la <line> historique ; approximation visuelle, le rendu
+   exact vit dans ffmpeg */
+function svmFadePath(curve,isIn){
+  if(curve==="douce")return isIn?"M0,100 C38,100 62,0 100,0":"M0,0 C38,0 62,100 100,100";
+  if(curve==="expo") return isIn?"M0,100 C70,98 92,55 100,0":"M0,0 C8,55 30,98 100,100";
+  if(curve==="log")  return isIn?"M0,100 C8,45 30,2 100,0":"M0,0 C70,2 92,45 100,100";
+  return null}
 /* ratio largeur/hauteur numérique du canvas — sert au calcul CSS du cadre
    (--svm-arw) et au choix du côté de la barre du lecteur (portrait) */
 function svmRatioW(rt){var p=String(rt||"9:16").split(":"),w=Number(p[0])||9,h=Number(p[1])||16;
@@ -723,8 +882,9 @@ function svmWavePeaks(src,cb){
       .then(function(buf){var ctx=svmSharedAC();if(!ctx)throw 0;
         return ctx.decodeAudioData(buf)})
       .then(function(ab){
+        /* densité ×1,3 (R2/I3) : pistes plus hautes → waveform plus définie */
         var ch=ab.getChannelData(0),
-            n=Math.max(90,Math.min(720,Math.round(ab.duration*12))),
+            n=Math.max(90,Math.min(900,Math.round(ab.duration*15.6))),
             bl=Math.max(1,Math.floor(ch.length/n)),peaks=new Array(n),mx=0;
         for(var i=0;i<n;i++){var v=0;
           for(var j2=i*bl,jEnd=Math.min(ch.length,(i+1)*bl);j2<jEnd;j2+=32){
@@ -873,7 +1033,16 @@ var SVM_KEYS=[
   [["Ctrl","+","−"],"crans de zoom"],
   [["Maj","Z"],"zoom 100 %"],
   [["T"],"panneau Narration (texte → voix)"],
-  [["?"],"ouvrir / fermer ce panneau"]]]];
+  [["?"],"ouvrir / fermer ce panneau"]]],
+ /* la rangée « B » (tiroir Sons) n'est ajoutée par kbPanel QUE si la couche
+    DzSfx est chargée — le panneau ne promet jamais un raccourci mort */
+ ["Audio",[
+  [["M"],"muet — piste du clip audio sélectionné"],
+  [["S"],"solo d'écoute (Maj+S : multi-solo)"],
+  [["D"],"fondu d'entrée — cycle 0 / 0,3 / 0,6 / 1 s"],
+  [["Maj","D"],"fondu de sortie — même cycle"],
+  [["Alt","←","→"],"décaler le clip d'1 image (Maj : 10)"],
+  [["Alt","↑","↓"],"gain du clip audio ±1 dB"]]]];
 
 function DzMontage(props){
   var th=svmUseTheme(),theme=th[0],setTheme=th[1];
@@ -927,6 +1096,38 @@ function DzMontage(props){
      muet lui-même se lit dans proj.mixDb (bus ≤ −40 dB), source de vérité */
   var stTS=x.useState({}),trackSt=stTS[0],setTrackSt=stTS[1];
   var trackStRef=x.useRef(trackSt);trackStRef.current=trackSt;
+  /* ── solo d'ÉCOUTE par piste audio ({a1:!0,…}) — état d'interface pur : il
+     coupe les autres bus pendant la lecture directe, ne touche JAMAIS le
+     payload de rendu ni l'historique. Maj+clic / Maj+S : multi-solo. ── */
+  var stSo=x.useState({}),solo=stSo[0],setSolo=stSo[1];
+  var soloRef=x.useRef(solo);soloRef.current=solo;
+  var soloTaughtRef=x.useRef(0); /* pédagogie « écoute seule » : une fois par session */
+  /* ── tiroir « Sons » (B) — DzSfx.Drawer, exclusif du tiroir Narration :
+     la fermeture croisée est SYNCHRONE (même lot de setState, zéro frame où
+     les deux tiroirs cohabitent) et n'écrase pas le choix dz_narr_open ── */
+  var stSx=x.useState(!1),sfxOn=stSx[0],setSfxOn=stSx[1];
+  var sfxToggle=x.useCallback(function(){
+    setSfxOn(function(v){return !v});
+    setNarrOn(!1)},[]);
+  /* ── métering — niveaux partagés (boucle vu-mètre → DzSfx.Meter) + dernière
+     mesure LUFS (/api/montage/measure) ; lufsM = LUFS momentané K-weighted
+     (fenêtre 400 ms, R2/I7), null hors lecture ── */
+  var vuLvlRef=x.useRef({rms:0,peak:0,clip:!1,lufsM:null});
+  var stLu=x.useState(null),lufs=stLu[0],setLufs=stLu[1]; /* {i,tp,lra} */
+  var stLb=x.useState(!1),lufsBusy=stLb[0],setLufsBusy=stLb[1];
+  /* ── rangée de hints transport (R2/I5) — masquée une fois pour toutes par ×
+     (dz_hints_off) ; recherche du cheatsheet (R2/I6) ── */
+  var stHo=x.useState(function(){
+    try{return localStorage.getItem("dz_hints_off")==="1"}catch(_e){return !1}}),
+    hintsOff=stHo[0],setHintsOff=stHo[1];
+  var stKq=x.useState(""),kbQuery=stKq[0],setKbQuery=stKq[1];
+  var mixWheelAt=x.useRef(0); /* fenêtre 600 ms de la molette des faders d'en-tête */
+  /* ── réglages ducking (presets + enveloppe) — proj.ducking reste ABSENT
+     tant que rien n'est personnalisé : le payload garde le booléen d'avant ── */
+  var stDkO=x.useState(!1),duckOpen=stDkO[0],setDuckOpen=stDkO[1];
+  var nudgeHistAt=x.useRef(0); /* fenêtre 600 ms du nudge Alt+flèches */
+  var kbAudioRef=x.useRef(null); /* actions clavier audio — closures fraîches par rendu */
+  var auditionRef=x.useRef(null); /* écoute rendue (blob /api/audio/audition) */
   /* ── tiroir « Narration » (T) — écriture texte-first pilotant la piste A1.
      L'inverse assumé de Descript : on ÉCRIT, la synthèse pose l'audio et cale
      le clip. clip.text est un champ CLIENT, jamais joint au payload de rendu. */
@@ -943,7 +1144,10 @@ function DzMontage(props){
   var narrToggle=x.useCallback(function(){
     setNarrOn(function(v){var nv=!v;
       try{localStorage.setItem("dz_narr_open",nv?"1":"0")}catch(_e){}
-      return nv})},[]);
+      return nv});
+    /* tiroirs gauche exclusifs : ouvrir Narration ferme Sons (l'inverse vit
+       dans sfxToggle) — fermer l'un ne rouvre jamais l'autre */
+    setSfxOn(!1)},[]);
   /* auto-grow des zones de texte — callback STABLE (un ref inline se
      ré-attacherait à chaque frame de lecture) + réappliqué à la frappe */
   var narrTaGrow=x.useCallback(function(el){
@@ -1147,6 +1351,10 @@ function DzMontage(props){
         if(old.el._svmVuSrc){try{old.el._svmVuSrc.disconnect()}catch(_e){}
           try{old.el._svmVuAn.disconnect()}catch(_e){}
           old.el._svmVuSrc=null;old.el._svmVuAn=null;old.el._svmVuErr=1}
+        if(old.el._svmVuKAn){try{old.el._svmVuKHp.disconnect()}catch(_e){}
+          try{old.el._svmVuKHs.disconnect()}catch(_e){}
+          try{old.el._svmVuKAn.disconnect()}catch(_e){}
+          old.el._svmVuKHp=null;old.el._svmVuKHs=null;old.el._svmVuKAn=null}
         pool.delete(ok)}}
     it.at=++liveSeqRef.current;
     return it}
@@ -1193,7 +1401,11 @@ function DzMontage(props){
       /* muet pendant le scrub — le son du plan en lecture ; muet aussi quand
          le bus dialogue (A1 = le son du plan au rendu) est coupé */
       var a1cut=Number(mixRef.current&&mixRef.current.dialogue!=null?mixRef.current.dialogue:0)<=-40;
-      lv.muted=!run||a1cut;
+      /* solo d'écoute : un solo actif ailleurs coupe A1 (le son du plan) —
+         écoute locale seulement, le payload de rendu ne bouge jamais */
+      var soloM=soloRef.current,anySoloLv=!1,skLv;
+      for(skLv in soloM){if(soloM[skLv]){anySoloLv=!0;break}}
+      lv.muted=!run||a1cut||(anySoloLv&&!soloM.a1);
       /* gain PAR CLIP du dialogue actif (clip A1 sous la tête) — approximation
          honnête du « son du plan » : volume = 10^(gain/20), borné 0..1 */
       var a1g=0;
@@ -1261,7 +1473,11 @@ function DzMontage(props){
       if(o.video){try{o.el.pause();o.el.removeAttribute("src");o.el.load()}catch(_e){}}
       if(o.el._svmVuSrc){try{o.el._svmVuSrc.disconnect()}catch(_e){}
         try{o.el._svmVuAn.disconnect()}catch(_e){}
-        o.el._svmVuSrc=null;o.el._svmVuAn=null;o.el._svmVuErr=1}});
+        o.el._svmVuSrc=null;o.el._svmVuAn=null;o.el._svmVuErr=1}
+      if(o.el._svmVuKAn){try{o.el._svmVuKHp.disconnect()}catch(_e){}
+        try{o.el._svmVuKHs.disconnect()}catch(_e){}
+        try{o.el._svmVuKAn.disconnect()}catch(_e){}
+        o.el._svmVuKHp=null;o.el._svmVuKHs=null;o.el._svmVuKAn=null}});
       pool.clear()}}},[]);
   /* ── vu-mètre live (rangée MIXAGE) — honnête : il mesure le flux réellement
      audible (aperçu 480p composite, ou le son du plan V1 / bus dialogue en
@@ -1285,19 +1501,35 @@ function DzMontage(props){
       var an=ctx.createAnalyser();an.fftSize=512;an.smoothingTimeConstant=.5;
       src.connect(an);
       el._svmVuSrc=src;el._svmVuAn=an;
+      /* chaîne K-weighting PARALLÈLE (R2/I7) : highpass 38 Hz (Q .5) →
+         highshelf 1500 Hz +4 dB → analyser dédiée — jamais vers destination,
+         le chemin audible ne change pas. Échec isolé : le vu classique vit,
+         lufsM reste null (dégradation propre). */
+      try{
+        var khp=ctx.createBiquadFilter();khp.type="highpass";
+        khp.frequency.value=38;khp.Q.value=.5;
+        var khs=ctx.createBiquadFilter();khs.type="highshelf";
+        khs.frequency.value=1500;khs.gain.value=4;
+        var kan=ctx.createAnalyser();kan.fftSize=1024;
+        src.connect(khp);khp.connect(khs);khs.connect(kan);
+        el._svmVuKHp=khp;el._svmVuKHs=khs;el._svmVuKAn=kan}
+      catch(_e2){}
       return an}
     catch(_e){el._svmVuErr=1;return null}}
   x.useEffect(function(){
-    if(!playing)return;
-    var cv=vuRef.current;if(!cv)return;
-    var g;try{g=cv.getContext("2d")}catch(_e){g=null}
-    if(!g)return;
+    if(!playing){vuLvlRef.current={rms:0,peak:0,clip:!1,lufsM:null};return}
+    /* canvas .svm-vu = repli sans DzSfx ; la boucle tourne même sans lui :
+       elle alimente vuLvlRef, lu par SvmMeterHost (DzSfx.Meter, barre
+       transport) — même analyser, deux affichages possibles */
+    var cv=vuRef.current,g=null;
+    if(cv){try{g=cv.getContext("2d")}catch(_e){g=null}}
     var dpr=Math.min(2,window.devicePixelRatio||1),
-        W=Math.round(60*dpr),H=Math.round(10*dpr),bh=Math.round(4*dpr);
-    if(cv.width!==W)cv.width=W;
-    if(cv.height!==H)cv.height=H;
-    var col=(getComputedStyle(cv).getPropertyValue("--green")||"").trim()||"#5ec8a0";
-    var raf=0,buf=null,pk=0,pkAt=0;
+        W=Math.round(60*dpr),H=Math.round(10*dpr),bh=Math.round(4*dpr),col="";
+    if(g){
+      if(cv.width!==W)cv.width=W;
+      if(cv.height!==H)cv.height=H;
+      col=(getComputedStyle(cv).getPropertyValue("--green")||"").trim()||"#5ec8a0"}
+    var raf=0,buf=null,pk=0,pkAt=0,kbuf=null,kwin=[],rmsSm=0,rmsAt=0;
     function lvlOf(v){ /* −42..0 dBFS → 0..1 */
       if(!(v>0))return 0;
       var db=20*Math.log(v)/Math.LN10;
@@ -1305,7 +1537,7 @@ function DzMontage(props){
     function step(now){
       raf=requestAnimationFrame(step);
       var el=previewRef.current?videoRef.current:liveVideoRef.current;
-      var an=el&&!el.muted?svmVuWire(el):null,rms=0,mx2=0;
+      var an=el&&!el.muted?svmVuWire(el):null,rms=0,mx2=0,lm=null;
       if(an){
         if(!buf||buf.length!==an.fftSize)buf=new Uint8Array(an.fftSize);
         an.getByteTimeDomainData(buf);
@@ -1313,7 +1545,33 @@ function DzMontage(props){
         for(var i=0;i<buf.length;i++){var v=(buf[i]-128)/128;s+=v*v;
           var a2=v<0?-v:v;if(a2>mx2)mx2=a2}
         rms=Math.sqrt(s/buf.length)}
-      var lvl=lvlOf(rms),pv=lvlOf(mx2);
+      /* LUFS momentané (R2/I7) — puissance moyenne K-weighted par frame,
+         fenêtre glissante 400 ms : lufsM = −0.691 + 10·log10(moyenne)
+         (approximation mono du BS.1770) ; silence / chaîne absente → null */
+      var kan=an&&el?el._svmVuKAn:null;
+      if(kan){
+        if(!kbuf||kbuf.length!==kan.fftSize)kbuf=new Uint8Array(kan.fftSize);
+        kan.getByteTimeDomainData(kbuf);
+        var ks=0;
+        for(var i2=0;i2<kbuf.length;i2++){var kv=(kbuf[i2]-128)/128;ks+=kv*kv}
+        kwin.push({t:now,p:ks/kbuf.length});
+        while(kwin.length&&kwin[0].t<now-400)kwin.shift();
+        var pm=0;
+        for(var i3=0;i3<kwin.length;i3++)pm+=kwin[i3].p;
+        pm/=kwin.length||1;
+        if(pm>0)lm=-.691+10*Math.log(pm)/Math.LN10}
+      else if(kwin.length)kwin.length=0;
+      /* RMS lissé (release ~250 ms) : aux frontières de clips / bascules du
+         pool l'analyser rend 0 pendant quelques frames — sans lissage le
+         readout flashe −∞ pendant que la crête tenue affiche encore une
+         valeur (incohérence relevée en duel R2). Montée instantanée. */
+      if(rms>=rmsSm)rmsSm=rms;
+      else{var rdt=rmsAt?(now-rmsAt)/1000:0;rmsSm=Math.max(rms,rmsSm*Math.exp(-rdt/.25))}
+      rmsAt=now;
+      /* niveaux partagés (linéaire 0..1) — consommés par SvmMeterHost */
+      vuLvlRef.current={rms:rmsSm,peak:mx2,clip:mx2>=.985,lufsM:lm};
+      if(!g)return; /* pas de canvas : DzSfx.Meter affiche, rien à dessiner ici */
+      var lvl=lvlOf(rmsSm),pv=lvlOf(mx2);
       if(pv>=pk||now-pkAt>900){pk=pv;pkAt=now} /* crête tenue 0,9 s */
       g.clearRect(0,0,W,H);
       g.fillStyle=col;
@@ -1325,7 +1583,8 @@ function DzMontage(props){
         g.globalAlpha=1;g.fillRect(px2,0,pw,bh);g.fillRect(px2,H-bh,pw,bh)}
       g.globalAlpha=1}
     raf=requestAnimationFrame(step);
-    return function(){if(raf)cancelAnimationFrame(raf)}},[playing,previewUrl]);
+    return function(){if(raf)cancelAnimationFrame(raf);
+      vuLvlRef.current={rms:0,peak:0,clip:!1,lufsM:null}}},[playing,previewUrl]);
   function svmFullscreen(){
     var el=frameRef.current;if(!el)return;
     try{
@@ -1533,6 +1792,28 @@ function DzMontage(props){
       zoomApply(zoomPctRef.current*Math.pow(1.0015,-e.deltaY),e.clientX)}
     el.addEventListener("wheel",onW,{passive:!1});
     return function(){el.removeEventListener("wheel",onW)}},[zoomApply]);
+  /* molette sur un mini-fader d'en-tête (R2/I1) : ±1 dB — même listener natif
+     non passif (délégué au scroller), disjoint du zoom (Ctrl y renvoie).
+     Une entrée d'historique par rafale de 600 ms (motif nudge). */
+  x.useEffect(function(){var el=tlScrollRef.current;if(!el)return;
+    function onW(e){
+      if(e.ctrlKey||e.metaKey)return;
+      var t=e.target&&e.target.closest?e.target.closest(".svm-thmix"):null;
+      if(!t)return;
+      /* pan horizontal du trackpad : laisser défiler la timeline */
+      if(Math.abs(e.deltaY)<=Math.abs(e.deltaX))return;
+      e.preventDefault();
+      var bus=t.getAttribute("data-bus");
+      if(!bus||!(bus in SVM_DEMO_MIX))return;
+      var cur=Number(mixRef.current&&mixRef.current[bus]!=null?mixRef.current[bus]:SVM_DEMO_MIX[bus]);
+      var now=Date.now();
+      if(now-mixWheelAt.current>600)pushHistory();
+      mixWheelAt.current=now;
+      svmMixSet(bus,cur+(e.deltaY<0?1:-1))}
+    el.addEventListener("wheel",onW,{passive:!1});
+    return function(){el.removeEventListener("wheel",onW)}},[pushHistory]);
+  /* fermer le panneau raccourcis remet la recherche à zéro (R2/I6) */
+  x.useEffect(function(){if(!kbOn)setKbQuery("")},[kbOn]);
 
   /* sauts transport — points de coupe V1 (aussi ↑ / ↓ au clavier) */
   var jump=x.useCallback(function(dir){var pts=[0,durRef.current];
@@ -1553,7 +1834,10 @@ function DzMontage(props){
     setClips(cs.map(function(k){return k===c?Object.assign({},c,{end:p}):k})
       /* la moitié droite démarre sur une jonction « cut » éditable (le losange) —
          sans quoi elle hériterait de la transition d'entrée du clip coupé */
-      .concat([Object.assign({},c,{id:c.id+"_b"+Math.round(p*10),start:p,srcIn:(c.srcIn||0)+(p-c.start),fx:c.fx,transition:"cut",transition_s:0})]));
+      .concat([Object.assign({},c,{id:c.id+"_b"+Math.round(p*10),start:p,
+        /* la source avance au rythme du clip : vitesse ×s consomme s fois plus */
+        srcIn:(c.srcIn||0)+(p-c.start)*(typeof c.speed==="number"&&c.speed>0?c.speed:1),
+        fx:c.fx,transition:"cut",transition_s:0})]));
     setDirty(!0);fireNote("Clip coupé à "+svmShort(p))},[fireNote,pushHistory]);
   x.useEffect(function(){
     function onKey(e){
@@ -1578,6 +1862,16 @@ function DzMontage(props){
       /* espace = lecture/pause ; preventDefault sinon la page défile */
       if(e.code==="Space"||k===" "){e.preventDefault();setSpd(1);setPlaying(function(p){return !p});return}
       if(k==="Delete"||k==="Backspace"){e.preventDefault();delClip();return}
+      /* Alt+flèches — actions CLIP, avant les flèches de tête de lecture
+         (Alt+flèche retombait silencieusement sur la tête : réassigné) :
+         ←/→ décale le clip sélectionné d'1 image (Maj : 10), ↑/↓ règle le
+         gain du clip audio ±1 dB. kbAudioRef porte des closures fraîches. */
+      if(e.altKey&&(k==="ArrowLeft"||k==="ArrowRight")){e.preventDefault();
+        if(kbAudioRef.current)kbAudioRef.current.nudge((e.shiftKey?10:1)*(k==="ArrowLeft"?-1:1));
+        return}
+      if(e.altKey&&(k==="ArrowUp"||k==="ArrowDown")){e.preventDefault();
+        if(kbAudioRef.current)kbAudioRef.current.gain(k==="ArrowUp"?1:-1);
+        return}
       /* tête de lecture : ±1 image (1/30 s), Maj = ±10 images — arrondi
          image-exact : FF bouge d'exactement ±1/±10 dans le timecode */
       if(k==="ArrowLeft"||k==="ArrowRight"){e.preventDefault();
@@ -1606,9 +1900,21 @@ function DzMontage(props){
       if(!e.shiftKey&&!e.altKey&&(k==="g"||k==="G")){setSafeOn(function(v){return !v});return}
       /* F : plein écran du cadre (miroir du bouton de la barre du lecteur) */
       if(!e.shiftKey&&!e.altKey&&(k==="f"||k==="F")){e.preventDefault();svmFullscreen();return}
+      /* ── audio — B tiroir Sons (seulement si la couche DzSfx est chargée),
+         M muet, S solo (Maj : multi-solo), D fondu-in / Maj+D fondu-out.
+         Vérifié : aucune de ces lettres n'était prise plus haut. */
+      if(!e.shiftKey&&!e.altKey&&(k==="b"||k==="B")){
+        if(svmSfx()){e.preventDefault();sfxToggle()}
+        return}
+      if(!e.shiftKey&&!e.altKey&&(k==="m"||k==="M")){e.preventDefault();
+        if(kbAudioRef.current)kbAudioRef.current.mute();return}
+      if(!e.altKey&&(k==="s"||k==="S")){e.preventDefault();
+        if(kbAudioRef.current)kbAudioRef.current.solo(e.shiftKey);return}
+      if(!e.altKey&&(k==="d"||k==="D")){e.preventDefault();
+        if(kbAudioRef.current)kbAudioRef.current.fade(e.shiftKey?"out":"in");return}
     }
     window.addEventListener("keydown",onKey);
-    return function(){window.removeEventListener("keydown",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply,narrToggle]);
+    return function(){window.removeEventListener("keydown",onKey)}},[blade,delClip,undo,redo,jump,seekTo,zoomApply,narrToggle,sfxToggle]);
 
   /* scrub sur la règle */
   function phFromEvent(e,el){var rect=el.getBoundingClientRect();
@@ -1729,6 +2035,14 @@ function DzMontage(props){
       if(!nk.gain)delete nk.gain;
       if(!nk.fade_in)delete nk.fade_in;
       if(!nk.fade_out)delete nk.fade_out;
+      /* courbes de fondu (R2/I4) : « lin » (défaut) ou fondu absent → clé
+         RETIRÉE — le payload redevient octet pour octet celui d'avant */
+      if(!nk.fade_in||!nk.fade_in_curve||nk.fade_in_curve==="lin")delete nk.fade_in_curve;
+      if(!nk.fade_out||!nk.fade_out_curve||nk.fade_out_curve==="lin")delete nk.fade_out_curve;
+      /* rack SFX + vitesse : au défaut (liste vide / ×1) le champ est RETIRÉ
+         du clip — le payload redevient octet pour octet celui d'avant */
+      if(nk.fx&&!nk.fx.length)delete nk.fx;
+      if(typeof nk.speed!=="number"||!(nk.speed>0)||Math.abs(nk.speed-1)<1e-6)delete nk.speed;
       return nk}));
     setDirty(!0)}
   /* poignées de fondu : drag horizontal vers l'intérieur (0..3 s, clamp à la
@@ -1792,6 +2106,67 @@ function DzMontage(props){
       nm[trId]=Object.assign({},nm[trId],{l:!was});return nm});
     fireNote("Piste "+trId.toUpperCase()+(was?" déverrouillée."
       :" verrouillée — déplacement, rognage, dépôt et suppression bloqués."))}
+  /* ── solo d'écoute — exclusif (clic / S) ou additif (Maj) ; état UI pur :
+     ni payload, ni historique, ni « NON ENREGISTRÉ » ── */
+  function svmTrackSolo(trId,additive){
+    if(!SVM_TRACK_BUS[trId])return;
+    var turnOn=!soloRef.current[trId];
+    setSolo(function(cur){
+      if(additive){var nm=Object.assign({},cur);
+        if(nm[trId])delete nm[trId];else nm[trId]=!0;
+        return nm}
+      if(cur[trId]&&Object.keys(cur).length===1)return {};
+      var one={};one[trId]=!0;return one});
+    if(turnOn&&!soloTaughtRef.current){soloTaughtRef.current=1;
+      fireNote("Solo d'écoute : les autres pistes sont coupées en lecture directe — le rendu, lui, ne change jamais.")}}
+  /* actions clavier audio (M / S / D / Alt+flèches) — kbAudioRef est réécrit à
+     CHAQUE rendu avec des closures fraîches : le handler clavier global les
+     appelle sans élargir ses dépendances ni capturer d'état périmé */
+  function svmKbSelClip(){var id=selRef.current;
+    return clipsRef.current.find(function(k){return k.id===id})||null}
+  kbAudioRef.current={
+    mute:function(){
+      var c=svmKbSelClip();
+      if(!c||!SVM_TRACK_BUS[c.tr]){fireNote("M : sélectionnez d'abord un clip audio (A1, A2 ou A3).");return}
+      svmTrackMute(c.tr)},
+    solo:function(add){
+      var c=svmKbSelClip();
+      if(!c||!SVM_TRACK_BUS[c.tr]){fireNote("S : sélectionnez d'abord un clip audio (A1, A2 ou A3).");return}
+      svmTrackSolo(c.tr,!!add)},
+    fade:function(which){
+      var c=svmKbSelClip();
+      if(!c||!SVM_TRACK_BUS[c.tr]||!c.src){fireNote("D : sélectionnez d'abord un clip audio réel (A1, A2 ou A3).");return}
+      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
+        fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — fondu bloqué.");return}
+      var key=which==="out"?"fade_out":"fade_in";
+      var len=Math.max(.2,c.end-c.start),fmax=Math.min(3,Math.floor(len*5)/10);
+      var steps=[0,.3,.6,1],cur=Number(c[key])||0,i=0;
+      for(;i<steps.length;i++){if(cur<steps[i]-.001)break}
+      var v=i>=steps.length?0:steps[i];
+      if(v>fmax)v=0; /* clip trop court pour le cran suivant : retour à 0 */
+      var patch={};patch[key]=v;
+      svmSetClipAudio(c.id,patch);
+      fireNote((which==="out"?"Fondu de sortie":"Fondu d'entrée")+" : "+(v?v.toFixed(1)+" s":"aucun")+" — "+c.label)},
+    nudge:function(fr){
+      var c=svmKbSelClip();
+      if(!c){fireNote("Alt+←/→ : sélectionnez d'abord un clip.");return}
+      if(trackStRef.current[c.tr]&&trackStRef.current[c.tr].l){
+        fireNote("Piste "+c.tr.toUpperCase()+" verrouillée — décalage bloqué.");return}
+      var len=c.end-c.start,d=durRef.current;
+      var ns=Math.min(Math.max(0,d-len),Math.max(0,c.start+fr/30));
+      ns=Math.round(ns*3000)/3000; /* multiple exact d'1/30 s : zéro dérive */
+      if(Math.abs(ns-c.start)<1e-6)return;
+      var now=Date.now();
+      if(now-nudgeHistAt.current>600)pushHistory();
+      nudgeHistAt.current=now;
+      setClips(clipsRef.current.map(function(k){
+        return k.id===c.id?Object.assign({},k,{start:ns,end:ns+len}):k}));
+      setDirty(!0)},
+    gain:function(dd){
+      var c=svmKbSelClip();
+      if(!c||!SVM_TRACK_BUS[c.tr]||!c.src){fireNote("Alt+↑/↓ : sélectionnez d'abord un clip audio réel (A1, A2 ou A3).");return}
+      var g=Math.max(-24,Math.min(12,(Math.round(Number(c.gain)||0))+dd));
+      svmSetClipAudio(c.id,{gain:g})}};
 
   /* ── édition des transitions de coupe (jonctions V1) ── */
   function svmSetTransType(id,t){
@@ -1929,6 +2304,15 @@ function DzMontage(props){
     setClips(clipsRef.current.concat([{tr:tr2,id:id,label:label,start:st,end:en,src:src,srcIn:0}]));
     setSelId(id);setDirty(!0);setOvPick("");
     fireNote("« "+label+" » ajouté sur "+tr2.toUpperCase()+" à "+svmShort(st)+" — glissez / rognez sur la piste.")}
+  /* insertion depuis le tiroir Sons (DzSfx.Drawer) — à la tête de lecture,
+     piste du type (voix→A1, musique→A2, sfx→A3 ; le tiroir peut imposer
+     opts.track) ; même moteur addAsset : historique, sélection, note */
+  function sfxInsert(item,opts){
+    if(proj.demo){fireNote("Insertion : disponible sur un projet réel — générez ou importez d'abord une vidéo, la timeline se remplira.");return}
+    var fn=svmSfxFileOf(item);
+    if(!fn){fireNote("Insertion impossible — fichier audio introuvable.");return}
+    var tr2=opts&&opts.track&&SVM_TRACK_BUS[opts.track]?opts.track:svmSfxTrackOf(item&&item.kind);
+    addAsset({audio:fn},(item&&item.name)||fn,"audio",Number(item&&item.dur)||0,tr2,null)}
 
   /* ── glisser-déposer : le sélecteur est la source, les bandes et le
      viewport sont les cibles. Le viewport vise la piste vidéo principale. ── */
@@ -1938,8 +2322,30 @@ function DzMontage(props){
         e.dataTransfer.effectAllowed="copy"}catch(_e){}}
   function readPayload(e){
     try{var raw=e.dataTransfer.getData(DZ_MIME);return raw?JSON.parse(raw):null}catch(_e){return null}}
+  /* cibles de drop valides — DZ_MIME (sélecteur d'assets) partout, items
+     « dz-audio » du tiroir Sons (DzSfx.Drawer) sur les pistes AUDIO seulement :
+     ailleurs le survol reste refusé (curseur no-drop, aucun faux espoir) */
+  function svmDragOk(e,trId){
+    var ts=e.dataTransfer&&e.dataTransfer.types;
+    if(!ts)return !1;
+    if(Array.prototype.indexOf.call(ts,DZ_MIME)>=0)return !0;
+    return Array.prototype.indexOf.call(ts,"dz-audio")>=0&&!!trId&&trackKind(trId)==="audio"}
   function dropOnTrack(e,trId,laneEl){
-    var p=readPayload(e);if(!p)return;
+    var p=readPayload(e);
+    if(!p){
+      /* item du tiroir Sons — même moteur addAsset que le sélecteur */
+      var pa=null;
+      try{var raw2=e.dataTransfer.getData("dz-audio");pa=raw2?JSON.parse(raw2):null}catch(_e){pa=null}
+      if(!pa)return;
+      e.preventDefault();
+      if(trackKind(trId)!=="audio"){fireNote("Un son se dépose sur A1, A2 ou A3.");return}
+      if(proj.demo){fireNote("Dépôt : disponible sur un projet réel — la démo reste une maquette.");return}
+      var fn2=svmSfxFileOf(pa);if(!fn2)return;
+      var t3=null;
+      if(laneEl){var rect3=laneEl.getBoundingClientRect();
+        if(rect3.width>0)t3=Math.max(0,(e.clientX-rect3.left)/rect3.width*durRef.current)}
+      addAsset({audio:fn2},pa.name||fn2,"audio",Number(pa.dur)||0,trId,t3);
+      return}
     e.preventDefault();
     /* un son ne se dépose pas sur une piste vidéo, et réciproquement */
     if(trackKind(trId)!==(p.kind==="audio"?"audio":"video")){
@@ -1953,7 +2359,11 @@ function DzMontage(props){
   /* ── rendu réel : POST /api/montage/render + poll /api/jobs/{id} ── */
   function renderPayload(preview){
     return {name:proj.name,ratio:proj.ratio,preview:preview,
-      duration_master:durMaster,ducking:ducking,mix:proj.mixDb,
+      duration_master:durMaster,
+      /* ducking : booléen historique tant que rien n'est personnalisé,
+         objet {enabled, ratio, attack_ms, release_ms, threshold} sinon */
+      ducking:proj.ducking?Object.assign({enabled:ducking},proj.ducking):ducking,
+      mix:proj.mixDb,
       clips:clips.filter(function(c){return c.src}).map(function(c){
         var o={tr:c.tr,src:c.src,start:c.start,end:c.end,srcIn:c.srcIn||0,
           transition:c.transition||"cut",transition_s:c.transition_s||0,
@@ -1964,7 +2374,15 @@ function DzMontage(props){
         if(trackKind(c.tr)==="audio"){
           if(c.gain)o.gain=c.gain;
           if(c.fade_in)o.fade_in=c.fade_in;
-          if(c.fade_out)o.fade_out=c.fade_out}
+          if(c.fade_out)o.fade_out=c.fade_out;
+          /* courbes de fondu (R2/I4) — jointes seulement si un fondu existe
+             ET que la courbe n'est pas « lin » : payload d'avant sinon */
+          if(c.fade_in&&c.fade_in_curve&&c.fade_in_curve!=="lin")o.fade_in_curve=c.fade_in_curve;
+          if(c.fade_out&&c.fade_out_curve&&c.fade_out_curve!=="lin")o.fade_out_curve=c.fade_out_curve;
+          /* rack SFX + vitesse — joints seulement hors défaut : un projet
+             jamais touché envoie exactement le payload d'avant */
+          if(c.fx&&c.fx.length)o.fx=c.fx;
+          if(typeof c.speed==="number"&&c.speed>0&&Math.abs(c.speed-1)>1e-6)o.speed=c.speed}
         /* transformation d'overlay (V2) — l'échelle matérialise l'état
            « transformé » (même à 100 %), x/y/rotate joints seulement hors
            défaut ; un overlay jamais touché envoie le payload d'avant */
@@ -2253,20 +2671,49 @@ function DzMontage(props){
      ou le bouton « ? » discret en fin de transport */
   function kbPanel(){
     if(!kbOn)return null;
+    /* couche DzSfx chargée : B (tiroir Sons) s'ajoute en tête d'« Audio » —
+       sans elle, le panneau n'affiche que des raccourcis réellement vivants */
+    var secs=SVM_KEYS.map(function(sec){
+      return sec[0]==="Audio"&&svmSfx()
+        ?["Audio",[[["B"],"tiroir Sons — bibliothèque + génération"]].concat(sec[1])]
+        :sec});
+    /* recherche (R2/I6) — filtre vivant touches + description, sans accents ;
+       compteur « visibles/total » ; Échap dans le champ : vide, puis ferme */
+    var total=0;secs.forEach(function(s2){total+=s2[1].length});
+    var q=svmNorm(kbQuery.trim());
+    var view=secs.map(function(sec){
+      return [sec[0],q?sec[1].filter(function(row){
+        return svmNorm(row[0].join(" ")+" "+row[1]).indexOf(q)>=0}):sec[1]]});
+    var shown=0;view.forEach(function(s2){shown+=s2[1].length});
     return r.jsx("div",{className:"svm-kbscrim",onClick:function(){setKbOn(!1)},children:
       r.jsxs("div",{className:"svm-pop svm-kbpop",role:"dialog","aria-modal":!0,
         "aria-label":"Raccourcis clavier",
         onClick:function(e){e.stopPropagation()},children:[
         r.jsx("div",{className:"svm-poptitle",children:"Raccourcis clavier"}),
         r.jsx("div",{className:"svm-kbsub",children:"Raccourcis fixes de l'éditeur — Échap ou clic à l'extérieur pour fermer."}),
-        r.jsx("div",{className:"svm-keys",children:SVM_KEYS.map(function(sec){
+        r.jsxs("div",{className:"svm-kbsearch",children:[
+          r.jsx("input",{className:"svm-kbfind",type:"text",value:kbQuery,autoFocus:!0,
+            placeholder:"Filtrer — touche ou action…",
+            "aria-label":"Filtrer les raccourcis",
+            onChange:function(e){setKbQuery(e.target.value)},
+            onKeyDown:function(e){
+              if(e.key!=="Escape")return;
+              e.preventDefault();e.stopPropagation();
+              if(kbQuery)setKbQuery("");else setKbOn(!1)}}),
+          r.jsx("span",{className:"svm-kbcount",
+            title:shown+" raccourci"+(shown>1?"s":"")+" affiché"+(shown>1?"s":"")+" sur "+total,
+            children:shown+"/"+total})]}),
+        shown?r.jsx("div",{className:"svm-keys",children:view.map(function(sec){
+          if(!sec[1].length)return null;
           return r.jsxs("div",{className:"svm-keysec",children:[
             r.jsx(SvmLabel,{children:sec[0]}),
             sec[1].map(function(row,i2){
               return r.jsxs("div",{className:"svm-keyrow",children:[
                 r.jsx("span",{className:"svm-kbds",children:row[0].map(function(kk,i3){
                   return r.jsx("kbd",{children:kk},i3)})}),
-                r.jsx("span",{className:"svm-keylbl",children:row[1]})]},i2)})]},sec[0])})}),
+                r.jsx("span",{className:"svm-keylbl",children:row[1]})]},i2)})]},sec[0])})}):
+        r.jsx("div",{className:"svm-transnone",style:{marginTop:14},
+          children:"aucun raccourci ne correspond — Échap efface le filtre"}),
         r.jsx("div",{className:"svm-poprow",children:
           r.jsx("button",{className:"svm-secbtn",onClick:function(){setKbOn(!1)},children:"Fermer"})})]})})}
 
@@ -2325,6 +2772,107 @@ function DzMontage(props){
         r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"s"})]}):
       r.jsx("div",{className:"svm-transnone",children:"première coupe / trou — pas de transition"})]})}
 
+  /* ── mesure loudness — /api/montage/measure : mix audio-only du payload
+     COURANT (mêmes clips, mix, ducking que le rendu) passé dans ebur128 ;
+     I/TP/LRA affichés par DzSfx.Meter et mémorisés (dz_last_lufs) pour
+     l'écran Son & VFX ── */
+  function doMeasure(){
+    if(proj.demo){fireNote("Mesure LUFS : disponible sur un projet réel — la démo reste une maquette.");return}
+    if(lufsBusy)return;
+    setLufsBusy(!0);
+    fetch("/api/montage/measure",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(renderPayload(!0))})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){return {ok:res.ok,d:d}})})
+      .then(function(o){
+        setLufsBusy(!1);
+        if(!o.ok||!o.d||o.d.ok===!1||o.d.lufs_i==null)
+          throw new Error((o.d&&(o.d.detail||o.d.error))||"mesure impossible");
+        var m={i:Number(o.d.lufs_i),tp:Number(o.d.tp),lra:Number(o.d.lra)};
+        setLufs(m);
+        try{localStorage.setItem("dz_last_lufs",JSON.stringify(
+          {i:m.i,tp:m.tp,lra:m.lra,at:Date.now(),name:proj.name}))}catch(_e){}
+        fireNote("Mesure : "+(Math.round(m.i*10)/10)+" LUFS I · pic vrai "+
+          (Math.round(m.tp*10)/10)+" dBTP · LRA "+(Math.round(m.lra*10)/10))})
+      .catch(function(e){setLufsBusy(!1);
+        fireNote("Mesure impossible : "+String(e&&e.message||e))})}
+  /* ── écoute rendue d'un clip audio (rack d'effets) — /api/audio/audition
+     renvoie un WAV traité par LA chaîne ffmpeg du rendu (parité deesser /
+     denoise / normalize) ; un seul flux à la fois, URL blob révoquée après ── */
+  function stopAudition(){
+    var o=auditionRef.current;
+    if(o){try{o.a.pause()}catch(_e){}
+      if(o.url){try{URL.revokeObjectURL(o.url)}catch(_e){}}
+      auditionRef.current=null}}
+  x.useEffect(function(){if(playing)stopAudition()},[playing]);
+  x.useEffect(function(){return stopAudition},[]);
+  function sfxAudition(fx){
+    var c=clipsRef.current.find(function(k){return k.id===selRef.current});
+    if(!c||!c.src||!c.src.audio){
+      fireNote("Écoute rendue : disponible pour les sons de la Bibliothèque — le son d'un plan vidéo s'entend via la Preview 480p.");return}
+    stopAudition();narrStop();
+    if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */
+    var body={filename:c.src.audio,src_in:c.srcIn||0,
+      len:Math.min(12,Math.max(.2,c.end-c.start)),
+      gain_db:Math.round(Number(c.gain)||0),
+      speed:typeof c.speed==="number"&&c.speed>0?c.speed:1,
+      fx:Array.isArray(fx)?fx:[]};
+    fetch("/api/audio/audition",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)})
+      .then(function(res){
+        if(!res.ok)return res.json().catch(function(){return {}}).then(function(d){
+          throw new Error((d&&(d.detail||d.error))||"audition impossible")});
+        return res.blob()})
+      .then(function(b){
+        var url=URL.createObjectURL(b),a=new Audio(url);
+        auditionRef.current={a:a,url:url};
+        a.onended=stopAudition;a.onerror=stopAudition;
+        a.play().catch(function(){stopAudition();
+          fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})})
+      .catch(function(e){fireNote("Audition : "+String(e&&e.message||e))})}
+  /* ── réglages ducking — proj.ducking (contrat : ratio 2–20, attaque
+     5–500 ms, retour 50–2000 ms, seuil 0.01–0.3) ; « défaut » retire l'objet
+     et le payload redevient le booléen historique ── */
+  function duckCfg(){var d2=proj.ducking||{};
+    return {ratio:Number(d2.ratio)||6,attack_ms:Number(d2.attack_ms)||50,
+      release_ms:Number(d2.release_ms)||400,threshold:Number(d2.threshold)||.05}}
+  function setDuck(patch){
+    setProj(function(p){
+      var base=p.ducking||{ratio:6,attack_ms:50,release_ms:400,threshold:.05};
+      return Object.assign({},p,{ducking:Object.assign({},base,patch)})});
+    setDirty(!0)}
+  function resetDuck(){
+    setProj(function(p){var np=Object.assign({},p);delete np.ducking;return np});
+    setDirty(!0);
+    fireNote("Ducking : réglages par défaut — le rendu reprend le comportement historique.")}
+  function duckPanel(){
+    var dk=duckCfg();
+    function dkRow(lbl,tt,min,max,step,val,txt,key){
+      return r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",style:{width:52},children:lbl}),
+        r.jsx("input",{className:"svm-range",type:"range",min:min,max:max,step:step,value:val,
+          title:tt,"aria-label":lbl+" du ducking",
+          onChange:function(e){var v=Number(e.target.value);
+            var patch={};patch[key]=v;setDuck(patch)}}),
+        r.jsx("span",{className:"svm-rangeval",style:{width:52},children:txt})]})}
+    return r.jsxs("div",{className:"svm-duckpanel",children:[
+      r.jsx("div",{className:"svm-fxchips",children:
+        [["Léger",3],["Moyen",6],["Fort",10]].map(function(p2){
+          return r.jsx("button",{className:"svm-fxchip",
+            style:{cursor:"pointer",borderColor:dk.ratio===p2[1]?"var(--accent)":void 0,
+              color:dk.ratio===p2[1]?"var(--accent)":void 0},
+            title:"La musique s'abaisse d'un rapport "+p2[1]+":1 sous le dialogue",
+            onClick:function(){setDuck({ratio:p2[1]})},
+            children:p2[0]+" "+p2[1]+":1"},p2[0])})}),
+      dkRow("Attaque","Vitesse d'abaissement quand le dialogue entre (5–500 ms)",
+        5,500,5,dk.attack_ms,Math.round(dk.attack_ms)+" ms","attack_ms"),
+      dkRow("Retour","Vitesse de remontée quand le dialogue se tait (50–2000 ms)",
+        50,2000,10,dk.release_ms,Math.round(dk.release_ms)+" ms","release_ms"),
+      dkRow("Seuil","Niveau de dialogue (0.01–0.30) au-delà duquel la musique s'abaisse",
+        .01,.3,.01,dk.threshold,dk.threshold.toFixed(2),"threshold"),
+      r.jsx("div",{className:"svm-transnone",style:{marginTop:8},
+        children:"jamais personnalisé, le rendu garde son comportement historique — « défaut » y revient"})]})}
+
   /* inspecteur — « Clip audio » : gain −24..+12 dB (multiplié au gain de bus
      par le rendu, jamais un remplacement) + fondus 0..3 s bornés à la moitié
      du clip ; la musique A2 bouclée garde sa note dédiée */
@@ -2333,6 +2881,8 @@ function DzMontage(props){
     var g=Math.round(Number(sel.gain)||0);
     var len=Math.max(.2,sel.end-sel.start),fmax=Math.min(3,Math.floor(len*5)/10);
     var isMus=sel.id===firstA2;
+    var dzsfx=svmSfx();
+    var spdv=typeof sel.speed==="number"&&sel.speed>0?sel.speed:1;
     function setF(key,raw){
       var v=Number(raw);if(!isFinite(v))return;
       v=Math.max(0,Math.min(fmax,Math.round(v*10)/10));
@@ -2360,7 +2910,46 @@ function DzMontage(props){
           "aria-label":isMus?"Fondu de fin de rendu (s)":"Fondu de sortie (s)",
           onChange:function(e){setF("fade_out",e.target.value)}}),
         r.jsx("span",{className:"svm-rangeval",style:{width:"auto"},children:"s"})]}),
-      isMus?r.jsx("div",{className:"svm-transnone",children:"musique bouclée sur toute la durée — fondu de sortie calé sur la fin du rendu"}):null]})}
+      /* courbes de fondu (R2/I4) — 4 chips par côté ACTIF (fade > 0) ; l'or
+         marque la courbe retenue, « lin » n'écrit rien sur le clip */
+      [["in","fade_in"],["out","fade_out"]].map(function(sd){
+        if(!(Number(sel[sd[1]])>0))return null;
+        var ck=sd[1]+"_curve",curCv=sel[ck]||"lin";
+        return r.jsxs("div",{className:"svm-curverow",children:[
+          r.jsx("span",{className:"svm-curvelbl","aria-hidden":!0,children:sd[0]}),
+          SVM_FADE_CURVES.map(function(o){
+            var on=curCv===o[0];
+            return r.jsx("button",{className:"svm-curvechip","data-on":on?"":void 0,
+              "aria-pressed":on,
+              title:"Courbe du fondu "+(sd[0]==="in"?"d'entrée":"de sortie")+" : "+SVM_FADE_CURVE_TT[o[0]],
+              onClick:function(){if(on)return;
+                var patch={};patch[ck]=o[0];
+                svmSetClipAudio(selRef.current,patch)},
+              children:o[1]},o[0])})]},sd[0])}),
+      isMus?r.jsx("div",{className:"svm-transnone",children:"musique bouclée sur toute la durée — fondu de sortie calé sur la fin du rendu"}):null,
+      /* vitesse + rack d'effets — servis par la couche DzSfx (atempo + chaîne
+         ffmpeg au rendu) ; couche absente : l'inspecteur reste celui d'avant */
+      dzsfx?r.jsxs("div",{className:"svm-fadegain",children:[
+        r.jsx("span",{className:"svm-fxeditname",children:"Vitesse"}),
+        r.jsx("input",{className:"svm-range",type:"range",min:.5,max:2,step:.05,value:spdv,
+          title:"Vitesse du clip ×"+spdv.toFixed(2)+" — tempo sans changer la hauteur (atempo au rendu)",
+          "aria-label":"Vitesse du clip audio (×0,5 à ×2)",
+          onChange:function(e){
+            svmSetClipAudio(selRef.current,{speed:Math.round(Number(e.target.value)*100)/100})}}),
+        r.jsx("button",{className:"svm-minibtn svm-spdreset","data-off":spdv===1?"":void 0,
+          title:spdv===1?"vitesse d'origine":"Revenir à ×1 (vitesse d'origine)",
+          "aria-label":"Vitesse ×1",
+          onClick:function(){if(spdv!==1)svmSetClipAudio(selRef.current,{speed:1})},
+          children:"×"+spdv.toFixed(2)})]}):null,
+      dzsfx&&dzsfx.Rack?r.jsxs(r.Fragment,{children:[
+        r.jsx(SvmLabel,{style:{margin:"14px 0 0"},children:"Effets"}),
+        r.jsx(dzsfx.Rack,{fx:sel.fx||[],
+          onChange:function(nextFx){
+            svmSetClipAudio(selRef.current,{fx:Array.isArray(nextFx)?nextFx:[]})},
+          clip:{url:svmSrcUrl(sel.src),srcIn:sel.srcIn||0,len:len,
+            gainDb:g,fadeIn:Number(sel.fade_in)||0,
+            fadeOut:Number(sel.fade_out)||0,speed:spdv},
+          onAudition:sfxAudition},sel.id)]}):null]})}
 
   /* ── tiroir « Narration » — la narration s'écrit et se re-prend PAR LE
      TEXTE, un bloc par clip A1. Honnêteté : aucune transcription automatique
@@ -2374,7 +2963,7 @@ function DzMontage(props){
     setNarrPlayId(function(p){return p?"":p})}
   function narrListen(c){
     if(narrPlayId===c.id){narrStop();return}
-    narrStop();
+    narrStop();stopAudition(); /* l'écoute rendue du rack se tait aussi */
     if(!c.src)return;
     if(playingRef.current)setPlaying(!1); /* jamais deux flux à la fois */
     var a=new Audio(svmSrcUrl(c.src));narrAudioRef.current=a;
@@ -2585,6 +3174,12 @@ function DzMontage(props){
             return r.jsx("option",{value:rt[0],children:rt[1]},rt[0])})}),
         r.jsx("button",{className:"svm-secbtn",onClick:function(){setPop(pop==="preview"?"":"preview")},children:"Preview 480p (gratuit)"}),
         r.jsx("button",{className:"svm-goldbtn",onClick:function(){setPop(pop==="render"?"":"render")},children:"Rendre & publier →"}),
+        /* tiroir Sons (DzSfx) — chip jumelle de « narration », les deux tiroirs
+           sont exclusifs ; sans la couche DzSfx la chip n'existe pas */
+        svmSfx()?r.jsx("button",{className:"svm-themechip svm-sfxchip","data-on":sfxOn?"":void 0,
+          "aria-pressed":sfxOn,
+          title:"Tiroir Sons — bibliothèque, génération, import (B)",
+          onClick:sfxToggle,children:"sons"}):null,
         r.jsx("button",{className:"svm-themechip svm-narrchip","data-on":narrOn?"":void 0,
           "aria-pressed":narrOn,
           title:"Panneau Narration — écrire, synthétiser, caler la piste A1 (T)",
@@ -2595,8 +3190,14 @@ function DzMontage(props){
     ovPicker(),
     transPopover(),
     kbPanel(),
-    /* tiroir narration + lecteur + inspecteur */
+    /* tiroir sons + tiroir narration + lecteur + inspecteur */
     r.jsxs("div",{className:"svm-mid",children:[
+      /* tiroir Sons (DzSfx.Drawer) — même emplacement que Narration, les deux
+         exclusifs ; l'insertion passe par addAsset (playhead / piste du type) */
+      (function(){var d2=svmSfx();
+        return d2&&d2.Drawer?r.jsx(d2.Drawer,{open:sfxOn,
+          onClose:function(){setSfxOn(!1)},
+          onInsert:sfxInsert,playheadSec:ph,defaultTab:"sfx"}):null})(),
       narrPanel(),
       r.jsxs("div",{className:"svm-playerzone",
         /* formats portrait : la barre du lecteur passe dans la zone latérale
@@ -2613,7 +3214,7 @@ function DzMontage(props){
           title:"Molette : zoom · double-clic : réinitialiser · déposez un asset pour l'ajouter",
           /* dépôt sur le viewport : vise la piste vidéo principale, à la
              tête de lecture (le viewport n'a pas d'axe temporel). */
-          onDragOver:function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],DZ_MIME)>=0){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
+          onDragOver:function(e){if(svmDragOk(e,"v1")){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
           onDrop:function(e){dropOnTrack(e,"v1",null)},
           onWheel:function(e){
             e.preventDefault();
@@ -2701,7 +3302,9 @@ function DzMontage(props){
         r.jsx("div",{className:"svm-props",children:[
           {k:"In",v:sel?svmShort(sel.srcIn!=null?sel.srcIn:0):"—",t:sel?(sel.srcIn!=null?sel.srcIn:0):null},
           {k:"Out",v:sel?svmShort(sel.srcOut!=null?sel.srcOut:(sel.end-sel.start)):"—",t:sel?(sel.srcOut!=null?sel.srcOut:(sel.end-sel.start)):null},
-          {k:"Vitesse",v:sel&&sel.speed?sel.speed:"100 %",t:null}
+          /* vitesse : les clips audio portent un facteur numérique (0,5–2),
+             la maquette vidéo une chaîne « 100 % » — les deux s'affichent en % */
+          {k:"Vitesse",v:sel&&sel.speed?(typeof sel.speed==="number"?Math.round(sel.speed*100)+" %":sel.speed):"100 %",t:null}
         ].map(function(p2){return r.jsxs("div",{className:"svm-prop",
           /* équivalent image-exact au survol — la valeur affichée reste une durée */
           title:p2.t==null?void 0:"= "+svmTcFF(p2.t)+" · "+Math.round(p2.t*30)+" images (30 i/s)",
@@ -2714,7 +3317,9 @@ function DzMontage(props){
         r.jsxs("div",{style:{display:"flex",alignItems:"center",margin:"20px 0 10px"},children:[
           r.jsx(SvmLabel,{children:"Mixage"}),
           /* vu-mètre live — seulement pendant la lecture d'un vrai flux */
-          playing&&!proj.demo?r.jsx("canvas",{className:"svm-vu",ref:vuRef,role:"img",
+          /* sans DzSfx : le petit canvas historique ; avec : DzSfx.Meter dans
+             la barre transport le remplace (même boucle d'analyse) */
+          playing&&!proj.demo&&!svmSfx()?r.jsx("canvas",{className:"svm-vu",ref:vuRef,role:"img",
             title:"niveau du flux en cours de lecture (mono, crête tenue 0,9 s)",
             "aria-label":"Vu-mètre de lecture"}):null]}),
         r.jsx("div",{className:"svm-mix",children:mixRows.map(function(m){
@@ -2748,6 +3353,21 @@ function DzMontage(props){
           r.jsxs("div",{children:[
             r.jsx("div",{className:"svm-dmtitle",children:"Ducking auto"}),
             r.jsx("div",{className:"svm-dmhint",children:"La musique s'abaisse sous le dialogue"})]})]}),
+        /* réglages du ducking — résumé toujours lisible + panneau presets /
+           enveloppe ; « défaut » ne s'affiche que si un réglage est posé */
+        r.jsxs("div",{className:"svm-duckrow",children:[
+          r.jsx("span",{className:"svm-duckcur",
+            title:proj.ducking?"réglages personnalisés — envoyés au rendu":"réglages par défaut du rendu",
+            children:(function(){var dk=duckCfg();
+              return "ratio "+dk.ratio+":1 · "+Math.round(dk.attack_ms)+"/"+Math.round(dk.release_ms)+" ms"})()}),
+          proj.ducking?r.jsx("button",{className:"svm-minibtn svm-duckbtn",
+            title:"Revenir aux réglages par défaut — le payload redevient le booléen historique",
+            onClick:resetDuck,children:"défaut"}):null,
+          r.jsx("button",{className:"svm-minibtn svm-duckbtn","data-on":duckOpen?"":void 0,
+            "aria-expanded":duckOpen,
+            title:"Régler le ducking — presets Léger / Moyen / Fort, attaque, retour, seuil",
+            onClick:function(){setDuckOpen(!duckOpen)},children:duckOpen?"fermer":"réglages"})]}),
+        duckOpen?duckPanel():null,
         r.jsxs("button",{className:"svm-durmaster",onClick:function(){setDurMaster(!durMaster);setDirty(!0)},
           role:"switch","aria-checked":durMaster,children:[
           r.jsx("span",{className:"svm-switch","data-off":durMaster?void 0:"",children:r.jsx("span",{className:"svm-knob"})}),
@@ -2756,7 +3376,9 @@ function DzMontage(props){
             r.jsx("div",{className:"svm-dmhint",children:"La voix off ne sera jamais coupée"})]})]}),
         r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Effets sur ce clip"}),
         r.jsxs("div",{className:"svm-fxchips",children:[
-          (sel&&sel.fx?sel.fx:[]).map(function(f){
+          /* chips fx de la maquette (clips VIDÉO) — le rack AUDIO (clé fx du
+             contrat) s'édite dans l'inspecteur « Clip audio », pas ici */
+          (sel&&sel.fx&&trackKind(sel.tr)!=="audio"?sel.fx:[]).map(function(f){
             return r.jsx("span",{className:"svm-fxchip","data-c":f.c,children:f.n},f.n)}),
           (sel&&sel.effects?sel.effects:[]).map(function(f,fi){
             var lbl=(fxCat&&fxCat[f.type]&&fxCat[f.type].label)||f.type;
@@ -2782,6 +3404,13 @@ function DzMontage(props){
         playing&&spd!==1?r.jsx("span",{className:"svm-spdchip",
           title:"vitesse de lecture (J / L, K pour pause)",
           children:(spd<0?"◀ ×":"×")+Math.abs(spd)}):null,
+        /* badge SOLO — visible dès qu'un solo d'écoute est actif */
+        (function(){var sks=Object.keys(solo).filter(function(kk){return solo[kk]});
+          return sks.length?r.jsx("span",{className:"svm-solochip",
+            title:"Solo d'écoute ("+sks.map(function(s3){return s3.toUpperCase()}).join(" + ")+
+              ") — lecture directe seulement, le rendu n'est jamais modifié"+
+              (previewUrl?" · sans effet sur l'aperçu 480p (mix composite)":""),
+            children:"SOLO "+sks.map(function(s3){return s3.toUpperCase()}).join("+")}):null})(),
         r.jsxs("div",{className:"svm-transbtns",children:[
           r.jsx("button",{className:"svm-tbtn",title:"Coupe précédente (↑)",onClick:function(){jump(-1)},children:"◀◀"}),
           r.jsx("button",{className:"svm-tbtn",title:"Image précédente (←)","aria-label":"Reculer d'une image",
@@ -2802,6 +3431,11 @@ function DzMontage(props){
           r.jsx("button",{className:"svm-toolchip",title:"couper le clip sélectionné à la tête (Alt+C)",onClick:blade,children:"lame ⌥C"}),
           r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,
             title:"refermer les trous — suppression et rognage droit sur V1 (R)",onClick:function(){setRipple(!ripple)},children:"ripple"})]}),
+        /* métering maître (DzSfx.Meter) — remplace le canvas .svm-vu ;
+           SvmMeterHost isole les rafraîchissements par frame */
+        svmSfx()?r.jsx("span",{className:"svm-meterslot",children:
+          r.jsx(SvmMeterHost,{srcRef:vuLvlRef,engaged:playing&&!proj.demo,
+            lufs:lufs,busy:lufsBusy,onMeasure:doMeasure})}):null,
         r.jsxs("span",{className:"svm-zoom",
           title:"Ctrl+molette : zoom continu centré sur le curseur · Ctrl+= / Ctrl+- : crans · Shift+Z : 100 %",
           children:["zoom ",
@@ -2809,6 +3443,17 @@ function DzMontage(props){
             return r.jsx("button",{className:"svm-zoomstep","data-on":Math.round(zoomPct)===SVM_ZOOMW[i]?"":void 0,
               title:"zoom "+SVM_ZOOMW[i]+" % (Ctrl+molette : continu)",onClick:function(){zoomApply(SVM_ZOOMW[i])},children:g},i)}),
           " "+Math.round(zoomPct)+" % · "+svmRuler(Math.round(dur))+" total"]}),
+        /* rappels permanents (R2/I5) — mono 10px discret, masquable par ×
+           (dz_hints_off, définitif) ; « B sons » seulement si la couche vit */
+        hintsOff?null:r.jsxs("span",{className:"svm-hints",children:[
+          r.jsx("span",{className:"svm-hintstxt",children:
+            "Espace lecture · "+(svmSfx()?"B sons · ":"")+"M muet · S solo · D fondu · ? tout"}),
+          r.jsx("button",{className:"svm-hintsx",
+            title:"Masquer ces rappels (le panneau ? reste)",
+            "aria-label":"Masquer les rappels de raccourcis",
+            onClick:function(){setHintsOff(!0);
+              try{localStorage.setItem("dz_hints_off","1")}catch(_e){}},
+            children:"×"})]}),
         /* bouton discret du panneau raccourcis — fin de transport */
         r.jsx("button",{className:"svm-tbtn",title:"Raccourcis (?)",
           "aria-label":"Raccourcis clavier","aria-haspopup":"dialog","aria-expanded":kbOn,
@@ -2824,30 +3469,67 @@ function DzMontage(props){
             var busDb=bus?Number(proj.mixDb&&proj.mixDb[bus]!=null?proj.mixDb[bus]:SVM_DEMO_MIX[bus]):0;
             var muted=!!bus&&busDb<=-40;
             var locked=!!(trackSt[tr.id]&&trackSt[tr.id].l);
-            return r.jsxs("div",{className:"svm-track",style:{height:tr.h},children:[
-              r.jsxs("div",{className:"svm-thead",children:[
-                r.jsxs("div",{className:"svm-tnamerow",children:[
-                  r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
-                  r.jsx("span",{className:"svm-tname",children:tr.name}),
-                  r.jsx("button",{className:"svm-ovadd",
-                    title:trackKind(tr.id)==="audio"
-                      ?"Ajouter un son de la Bibliothèque à la tête de lecture"
-                      :"Ajouter une image ou un rendu à la tête de lecture",
-                    onClick:function(){openPicker(tr.id)},children:"+"})]}),
-                r.jsxs("div",{className:"svm-ttyperow",children:[
-                  r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type}),
-                  bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
-                    "data-on":muted?"":void 0,"aria-pressed":muted,
-                    title:muted?"Réactiver "+tr.name+" (bus "+bus+" — niveau d'avant restauré)"
-                      :"Rendre "+tr.name+" muette (bus "+bus+" à −40 dB dans le mixage)",
-                    onClick:function(){svmTrackMute(tr.id)},children:"M"}):null,
-                  r.jsx("button",{className:"svm-minibtn svm-tkbtn",
-                    "data-on":locked?"":void 0,"aria-pressed":locked,
-                    title:locked?"Déverrouiller la piste "+tr.name
-                      :"Verrouiller la piste "+tr.name+" (bloque déplacement, rognage, dépôt, suppression)",
-                    onClick:function(){svmTrackLock(tr.id)},children:"🔒︎"})]})]}),
+            /* solo d'écoute : piste audio hors du solo → bande atténuée */
+            var anySolo=!1,skT;for(skT in solo){if(solo[skT]){anySolo=!0;break}}
+            var soloOn=!!solo[tr.id],soloExcl=anySolo&&!!bus&&!soloOn;
+            /* en-tête : éléments communs construits une fois — les pistes
+               AUDIO (R2/I1+I2) passent en 3 rangées compactes : nom + type
+               ENTIER, puis + / M / S / verrou, puis mini-fader de bus 46px
+               (même état proj.mixDb que la rangée MIXAGE, drag via mixDown,
+               molette ±1 dB via le listener natif du scroller) */
+            var thAdd=r.jsx("button",{className:"svm-ovadd",
+              title:trackKind(tr.id)==="audio"
+                ?"Ajouter un son de la Bibliothèque à la tête de lecture"
+                :"Ajouter une image ou un rendu à la tête de lecture",
+              onClick:function(){openPicker(tr.id)},children:"+"},"add");
+            var thType=r.jsx("span",{className:"svm-ttype",title:tr.type,children:tr.type},"type");
+            var thM=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn",
+              "data-on":muted?"":void 0,"aria-pressed":muted,
+              title:muted?"Réactiver "+tr.name+" (bus "+bus+" — niveau d'avant restauré)"
+                :"Rendre "+tr.name+" muette (bus "+bus+" à −40 dB dans le mixage)",
+              onClick:function(){svmTrackMute(tr.id)},children:"M"},"m"):null;
+            var thS=bus?r.jsx("button",{className:"svm-minibtn svm-tkbtn svm-tksolo",
+              "data-on":soloOn?"":void 0,"aria-pressed":soloOn,
+              title:soloOn?"Retirer le solo d'écoute de "+tr.name+" (S · Maj+clic : multi-solo)"
+                :"Solo d'écoute de "+tr.name+" — coupe les autres pistes en lecture, jamais le rendu (S · Maj+clic : multi-solo)",
+              onClick:function(e){svmTrackSolo(tr.id,e.shiftKey)},children:"S"},"s"):null;
+            var thLock=r.jsx("button",{className:"svm-minibtn svm-tkbtn",
+              "data-on":locked?"":void 0,"aria-pressed":locked,
+              title:locked?"Déverrouiller la piste "+tr.name
+                :"Verrouiller la piste "+tr.name+" (bloque déplacement, rognage, dépôt, suppression)",
+              onClick:function(){svmTrackLock(tr.id)},children:"🔒︎"},"lk");
+            var thFader=bus?r.jsx("div",{className:"svm-thfader",children:
+              r.jsx("div",{className:"svm-thmix","data-bus":bus,role:"slider",tabIndex:0,
+                title:"Bus "+bus+" : "+(muted?"muet":svmBusDbTxt(busDb))+" — glisser ou molette : ±1 dB (synchrone du panneau MIXAGE)",
+                "aria-label":"Niveau du bus "+bus+" (fader d'en-tête)",
+                "aria-orientation":"horizontal",
+                "aria-valuemin":-40,"aria-valuemax":0,"aria-valuenow":busDb,
+                "aria-valuetext":muted?"muet":svmBusDbTxt(busDb),
+                onPointerDown:function(e){mixDown(e,bus)},
+                onKeyDown:function(e){
+                  var d3=e.key==="ArrowLeft"||e.key==="ArrowDown"?-1:
+                        e.key==="ArrowRight"||e.key==="ArrowUp"?1:0;
+                  if(!d3)return;e.preventDefault();e.stopPropagation();
+                  pushHistory();svmMixSet(bus,busDb+d3)},
+                children:r.jsx("div",{className:"svm-thmixfill",
+                  style:{width:svmMixW(busDb)+"%",background:"var("+SVM_MIX_COLORS[bus]+")"}})})},"fd"):null;
+            return r.jsxs("div",{className:"svm-track","data-soloexcl":soloExcl?"":void 0,style:{height:tr.h},children:[
+              r.jsxs("div",{className:"svm-thead"+(bus?" svm-thead-a":""),children:
+                bus?[
+                  r.jsxs("div",{className:"svm-tnamerow",children:[
+                    r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
+                    r.jsx("span",{className:"svm-tname",children:tr.name}),
+                    thType]},"nr"),
+                  r.jsxs("div",{className:"svm-thbtns",children:[thAdd,thM,thS,thLock]},"br"),
+                  thFader]
+                :[
+                  r.jsxs("div",{className:"svm-tnamerow",children:[
+                    r.jsx("span",{className:"svm-sq6",style:{background:"var("+tr.c+")"}}),
+                    r.jsx("span",{className:"svm-tname",children:tr.name}),
+                    thAdd]},"nr"),
+                  r.jsxs("div",{className:"svm-ttyperow",children:[thType,thLock]},"tr")]}),
               r.jsxs("div",{className:"svm-lane",
-                onDragOver:function(e){if(e.dataTransfer&&Array.prototype.indexOf.call(e.dataTransfer.types||[],DZ_MIME)>=0){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
+                onDragOver:function(e){if(svmDragOk(e,tr.id)){e.preventDefault();e.dataTransfer.dropEffect="copy"}},
                 onDrop:function(e){dropOnTrack(e,tr.id,e.currentTarget)},
                 children:[
                 tr.id==="v1"?svmV1Gaps(clips,dur):null,
@@ -2859,7 +3541,10 @@ function DzMontage(props){
                   if(c.src){
                     if(trackKind(tr.id)==="audio"&&(c.src.audio||c.src.job_id))
                       media=r.jsx(SvmWave,{src:c.src,k:svmSrcKey(c.src),srcIn:c.srcIn||0,
-                        len:c.end-c.start,color:tr.c,theme:theme,zoom:zoomPct,dur:dur});
+                        /* vitesse ×s : la fenêtre source réellement consommée
+                           est s fois plus longue — la waveform reste honnête */
+                        len:(c.end-c.start)*(typeof c.speed==="number"&&c.speed>0?c.speed:1),
+                        color:tr.c,theme:theme,zoom:zoomPct,dur:dur});
                     else if(tr.id==="v1"&&c.src.job_id)
                       media=r.jsx(SvmFilmstrip,{src:c.src,k:svmSrcKey(c.src),
                         srcIn:c.srcIn||0,len:c.end-c.start});
@@ -2872,6 +3557,10 @@ function DzMontage(props){
                   var fIn=aud?Number(c.fade_in)||0:0,fOut=aud?Number(c.fade_out)||0:0;
                   var clen=Math.max(.01,c.end-c.start);
                   var fiP=Math.min(100,fIn/clen*100),foP=Math.min(100,fOut/clen*100);
+                  /* courbe de fondu (R2/I4) : path spécifique si ≠ lin, la
+                     <line> historique sinon — clip jamais touché : identique */
+                  var fiD=fIn>0?svmFadePath(c.fade_in_curve,!0):null,
+                      foD=fOut>0?svmFadePath(c.fade_out_curve,!1):null;
                   var isMus=aud&&tr.id==="a2"&&c.id===firstA2;
                   /* bloc narration pas encore narré : hachures pointillées
                      (motif .svm-target), couleur de la piste */
@@ -2909,11 +3598,13 @@ function DzMontage(props){
                       fIn>0?r.jsx("svg",{className:"svm-fadeline","aria-hidden":!0,
                         viewBox:"0 0 100 100",preserveAspectRatio:"none",
                         style:{left:0,width:fiP+"%"},children:
-                        r.jsx("line",{x1:0,y1:100,x2:100,y2:0,vectorEffect:"non-scaling-stroke"})}):null,
+                        fiD?r.jsx("path",{d:fiD,vectorEffect:"non-scaling-stroke"})
+                          :r.jsx("line",{x1:0,y1:100,x2:100,y2:0,vectorEffect:"non-scaling-stroke"})}):null,
                       fOut>0?r.jsx("svg",{className:"svm-fadeline","aria-hidden":!0,
                         viewBox:"0 0 100 100",preserveAspectRatio:"none",
                         style:{right:0,width:foP+"%"},children:
-                        r.jsx("line",{x1:0,y1:0,x2:100,y2:100,vectorEffect:"non-scaling-stroke"})}):null,
+                        foD?r.jsx("path",{d:foD,vectorEffect:"non-scaling-stroke"})
+                          :r.jsx("line",{x1:0,y1:0,x2:100,y2:100,vectorEffect:"non-scaling-stroke"})}):null,
                       r.jsx("div",{className:"svm-cliplabel",children:c.label}),
                       /* poignées visibles sur le clip sélectionné */
                       isSel?r.jsx("div",{style:{position:"absolute",left:0,top:0,bottom:0,width:4,
@@ -2970,4 +3661,1333 @@ function DzMontage(props){
           r.jsx("div",{className:"svm-translabel",ref:transLabelRef})]})})]})]})}
 
 /*__DZ_SONVFX_END__*/
+/*__DZ_SFXSTUDIO_BEGIN__*/
+/* ── SFX Studio — couche window.DzSfx (gauntlet SFX R1) ─────────────────────
+   Injecté dans frontend/dist/assets/index-*.js juste APRÈS le bloc sonvfx,
+   MÊME scope module : les alias du bundle (r.jsx / r.jsxs, x.useState…) et
+   les helpers sonvfx (svmSharedAC, svmWavePeaks, SVM_WAVES, svmSrcKey,
+   svmShort, svmAudioDur, svmUseNote, SvmLabel) sont accessibles directement.
+   Styles : /shared/sfxstudio.css (préfixe .svx-, scopé .dzsvm, thème clair
+   via .dzsvm[data-svm-theme="light"]).
+
+   Exporte (contrat gauntlet) :
+     window.DzSfx = { ready, Drawer, Rack, Meter, genSfx, fxPresets }
+   - Drawer({open,onClose,onInsert,playheadSec,defaultTab}) — tiroir Sons :
+     bibliothèque (onglets par type + compteurs réels, favoris ★ persistés
+     localStorage dz_sfx_favs + onglet ★ + tri favoris d'abord (R2/C1),
+     recherche, tri, préécoute waveform, insertion playhead + drag "dz-audio",
+     import, suppression confirmée inline) + onglet Générer (ElevenLabs SFX,
+     téléchargement par carte + coût réel après génération — R2/C2).
+   - Rack({fx,onChange,clip,onAudition}) — rack d'effets par clip audio,
+     vocabulaire ffmpeg partagé, audition live Web Audio dans le composant.
+   - Meter({level,engaged,lufs,lufsM,onMeasure,busy}) — métrologie maître
+     graduée −48..0 dBFS, crête tenue, LED clip, LUFS mesurés + LUFS
+     momentané « M » temps réel si fourni (R2/C3, tolérant null).
+   Aucune écoute globale sans cleanup ; un seul flux audio à la fois
+   (bus interne svxClaim, partagé préécoute / rack / cartes générées). */
+
+/* ── helpers ─────────────────────────────────────────────────────────────── */
+function svxClamp(v,a,b){v=Number(v);if(!isFinite(v))v=a;return v<a?a:v>b?b:v}
+function svxN(v,d){var n=Number(v);return isFinite(n)?n:d}
+function svxRound(v,dec){var m=Math.pow(10,dec||0);return Math.round(v*m)/m}
+/* dB affiché : "−18.4" (signe moins typographique, ∞ sous −96) */
+function svxDb1(db){
+  if(db==null||!isFinite(db)||db<=-96)return "−∞";
+  var v=svxRound(db,1),s=v<0?"−":v>0?"+":"";
+  return s+Math.abs(v).toFixed(1)}
+/* niveau reçu : linéaire 0..N (analyser) OU déjà en dBFS (négatif) */
+function svxToDb(v){
+  if(v==null)return -99;
+  v=Number(v);if(!isFinite(v))return -99;
+  if(v<0)return v;                       /* déjà des dBFS */
+  if(v<=0.0000158)return -99;            /* < −96 dB */
+  return 20*Math.log(v)/Math.LN10}
+function svxKo(kb){kb=svxN(kb,0);return kb>=1024?(Math.round(kb/102.4)/10)+" Mo":kb+" Ko"}
+function svxWaveEntry(src){
+  var e=SVM_WAVES.get(svmSrcKey(src));
+  return e&&e.st==="ok"?e:null}
+
+/* catégories de la bibliothèque — couleur = type de média, jamais un état */
+var SVX_KINDS={
+  sfx:{tag:"SFX",label:"Effet sonore",c:"--c-3d",track:"a3"},
+  voix:{tag:"VOIX",label:"Voix",c:"--c-audio",track:"a1"},
+  musique:{tag:"MUS",label:"Musique",c:"--c-av",track:"a2"},
+  import:{tag:"IMP",label:"Importé",c:"--c-text",track:"a3"}};
+function svxKindOf(name,metaMap){
+  var m=metaMap&&metaMap[name];
+  if(m&&m.kind){var k=String(m.kind).toLowerCase();
+    if(k==="sfx")return "sfx";
+    if(k==="voix"||k==="voice"||k==="voiceover"||k==="vo")return "voix";
+    if(k==="musique"||k==="music"||k==="bgm")return "musique";
+    if(k==="import"||k==="imported")return "import"}
+  var n=String(name||"").toLowerCase();
+  if(/^sfx[_-]/.test(n))return "sfx";
+  if(/^vo_|_narr-|^narration|voice|voix/.test(n))return "voix";
+  if(/music|musique|bgm|theme|soundtrack|_loop/.test(n))return "musique";
+  return "import"}
+function svxTrackOf(kind){return (SVX_KINDS[kind]||SVX_KINDS.import).track}
+
+/* ── favoris — localStorage dz_sfx_favs, tableau de filenames (R2/C1) ────── */
+function svxFavsLoad(){
+  try{
+    var arr=JSON.parse(localStorage.getItem("dz_sfx_favs")||"[]"),m={};
+    if(Array.isArray(arr))arr.forEach(function(n){if(typeof n==="string")m[n]=1});
+    return m}
+  catch(_e){return {}}}
+function svxFavsSave(m){
+  try{localStorage.setItem("dz_sfx_favs",JSON.stringify(Object.keys(m)))}catch(_e){}}
+
+/* ── bus de lecture partagé : une seule source audible à la fois ─────────── */
+var SVX_PLAY={cur:null};
+function svxClaim(stop){
+  if(SVX_PLAY.cur&&SVX_PLAY.cur!==stop){try{SVX_PLAY.cur()}catch(_e){}}
+  SVX_PLAY.cur=stop}
+function svxRelease(stop){if(SVX_PLAY.cur===stop)SVX_PLAY.cur=null}
+
+/* ── cache AudioBuffer par URL (audition du rack) ────────────────────────── */
+var SVX_BUFS=new Map();
+function svxBuf(url,cb){
+  var e=SVX_BUFS.get(url);
+  if(!e){e={st:"pend",buf:null,subs:[]};SVX_BUFS.set(url,e);
+    var fin=function(ok,b){e.st=ok?"ok":"err";e.buf=b||null;
+      var s=e.subs;e.subs=[];s.forEach(function(f){try{f()}catch(_e){}})};
+    fetch(url).then(function(res){if(!res.ok)throw 0;return res.arrayBuffer()})
+      .then(function(ab){var ctx=svmSharedAC();if(!ctx)throw 0;
+        return ctx.decodeAudioData(ab)})
+      .then(function(b){fin(!0,b)})
+      .catch(function(){fin(!1)})}
+  if(cb&&e.st==="pend")e.subs.push(cb);
+  return e}
+
+/* ── vocabulaire FX (contrat backend/frontend — noms et bornes EXACTS) ────
+   Ordre de chaîne fixe : filter → eq3 → denoise → deesser → compressor →
+   distortion → echo → reverb → stereo → normalize. live:1 = audible dans
+   l'audition Web Audio du rack ; live:0 = « Écouter (rendu) » (ffmpeg). */
+var SVX_FX_DEFS=[
+ {type:"filter",label:"Filtre",live:1,params:[
+   {k:"mode",kind:"seg",opts:[["low","grave"],["high","aigu"],["band","bande"]],d:"low"},
+   {k:"freq",label:"Fréq",min:20,max:20000,d:1000,step:1,unit:"Hz",log:1},
+   {k:"q",label:"Q",min:0.1,max:10,d:1,step:0.1,unit:""}]},
+ {type:"eq3",label:"Égaliseur",live:1,params:[
+   {k:"bass_db",label:"Graves",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"mid_db",label:"Médiums",min:-12,max:12,d:0,step:0.5,unit:"dB"},
+   {k:"treble_db",label:"Aigus",min:-12,max:12,d:0,step:0.5,unit:"dB"}]},
+ {type:"denoise",label:"Débruiteur",live:0,params:[
+   {k:"amount",label:"Réduction",min:0,max:97,d:12,step:1,unit:"dB"}]},
+ {type:"deesser",label:"Dé-esseur",live:0,params:[
+   {k:"intensity",label:"Intensité",min:0,max:100,d:50,step:1,unit:"%"}]},
+ {type:"compressor",label:"Compresseur",live:1,params:[
+   {k:"threshold_db",label:"Seuil",min:-60,max:0,d:-20,step:1,unit:"dB"},
+   {k:"ratio",label:"Ratio",min:1,max:20,d:4,step:0.5,unit:":1"},
+   {k:"attack_ms",label:"Attaque",min:1,max:500,d:50,step:1,unit:"ms"},
+   {k:"release_ms",label:"Relâche",min:10,max:2000,d:250,step:5,unit:"ms"}]},
+ {type:"distortion",label:"Distorsion",live:1,params:[
+   {k:"drive",label:"Drive",min:0,max:100,d:20,step:1,unit:"%"}]},
+ {type:"echo",label:"Écho",live:1,params:[
+   {k:"time_ms",label:"Temps",min:20,max:1500,d:300,step:5,unit:"ms"},
+   {k:"feedback",label:"Répét.",min:0,max:90,d:30,step:1,unit:"%"},
+   {k:"mix",label:"Mix",min:0,max:100,d:30,step:1,unit:"%"}]},
+ {type:"reverb",label:"Réverbe",live:1,params:[
+   {k:"mix",label:"Mix",min:0,max:100,d:30,step:1,unit:"%"},
+   {k:"decay_s",label:"Décrois.",min:0.2,max:8,d:2,step:0.1,unit:"s"}]},
+ {type:"stereo",label:"Stéréo",live:1,params:[
+   {k:"pan",label:"Pan",min:-100,max:100,d:0,step:1,unit:""},
+   {k:"width",label:"Largeur",min:0,max:200,d:100,step:1,unit:"%"}]},
+ {type:"normalize",label:"Normaliser",live:0,params:[
+   {k:"target_lufs",label:"Cible",min:-30,max:-10,d:-16,step:1,unit:"LUFS"}]}];
+var SVX_FX_BY={};
+SVX_FX_DEFS.forEach(function(d){SVX_FX_BY[d.type]=d});
+function svxFxDefaults(type){
+  var def=SVX_FX_BY[type],p={};
+  if(!def)return p;
+  def.params.forEach(function(pd){p[pd.k]=pd.d});
+  return p}
+/* params nettoyés, clés dans l'ordre du vocabulaire → JSON stable (égalité) */
+function svxCleanParams(type,raw){
+  var def=SVX_FX_BY[type],p={};
+  if(!def)return p;
+  raw=raw||{};
+  def.params.forEach(function(pd){
+    if(pd.kind==="seg"){
+      var v=String(raw[pd.k]!=null?raw[pd.k]:pd.d),ok=!1;
+      pd.opts.forEach(function(o){if(o[0]===v)ok=!0});
+      p[pd.k]=ok?v:pd.d}
+    else{
+      var n=svxClamp(svxN(raw[pd.k],pd.d),pd.min,pd.max);
+      p[pd.k]=svxRound(n,pd.step<1?1:0)}});
+  return p}
+function svxNormFx(list){
+  var on={},unknown=[];
+  (Array.isArray(list)?list:[]).forEach(function(en){
+    if(!en||typeof en.type!=="string")return;
+    if(SVX_FX_BY[en.type]){if(!on[en.type])on[en.type]=svxCleanParams(en.type,en.params)}
+    else unknown.push(en)});
+  return {on:on,unknown:unknown}}
+function svxEmitFx(on,unknown){
+  var out=[];
+  SVX_FX_DEFS.forEach(function(d){
+    if(on[d.type])out.push({type:d.type,params:Object.assign({},on[d.type])})});
+  return unknown&&unknown.length?out.concat(unknown):out}
+function svxFxSig(on){
+  try{return JSON.stringify(svxEmitFx(on,[]))}catch(_e){return ""}}
+/* résumé d'un module replié — mono, valeurs clés seulement */
+function svxModSummary(def,p){
+  if(!p)return "";
+  switch(def.type){
+    case "filter":{var mm={low:"grave",high:"aigu",band:"bande"};
+      return (mm[p.mode]||p.mode)+" "+Math.round(p.freq)+" Hz"}
+    case "eq3":return svxDb1(p.bass_db).replace(".0","")+" / "+svxDb1(p.mid_db).replace(".0","")+" / "+svxDb1(p.treble_db).replace(".0","");
+    case "denoise":return p.amount+" dB";
+    case "deesser":return p.intensity+" %";
+    case "compressor":return svxDb1(p.threshold_db).replace(".0","")+" dB · "+p.ratio+":1";
+    case "distortion":return p.drive+" %";
+    case "echo":return p.time_ms+" ms · "+p.mix+" %";
+    case "reverb":return p.mix+" % · "+p.decay_s+" s";
+    case "stereo":return (p.pan===0?"centre":(p.pan>0?"D +":"G −")+Math.abs(p.pan))+" · "+p.width+" %";
+    case "normalize":return p.target_lufs+" LUFS";
+    default:return ""}}
+
+/* ── presets français (contrat : ids exacts) — appliqués = remplacent la
+   chaîne entière ; params dans l'ordre de chaîne ─────────────────────────── */
+var svxFxPresets=[
+ {id:"radio",label:"Radio",fx:[
+   {type:"filter",params:{mode:"band",freq:1800,q:1.4}},
+   {type:"compressor",params:{threshold_db:-24,ratio:6,attack_ms:5,release_ms:120}},
+   {type:"distortion",params:{drive:14}}]},
+ {id:"telephone",label:"Téléphone",fx:[
+   {type:"filter",params:{mode:"band",freq:1700,q:2.2}},
+   {type:"compressor",params:{threshold_db:-20,ratio:8,attack_ms:3,release_ms:90}},
+   {type:"distortion",params:{drive:8}}]},
+ {id:"caverne",label:"Caverne",fx:[
+   {type:"eq3",params:{bass_db:2,mid_db:0,treble_db:-3}},
+   {type:"echo",params:{time_ms:210,feedback:35,mix:22}},
+   {type:"reverb",params:{mix:55,decay_s:3.5}}]},
+ {id:"sous_leau",label:"Sous l'eau",fx:[
+   {type:"filter",params:{mode:"low",freq:420,q:0.8}},
+   {type:"eq3",params:{bass_db:3,mid_db:-2,treble_db:-9}},
+   {type:"reverb",params:{mix:35,decay_s:2.6}}]},
+ {id:"punchy",label:"Punchy",fx:[
+   {type:"eq3",params:{bass_db:3,mid_db:0,treble_db:2}},
+   {type:"compressor",params:{threshold_db:-18,ratio:8,attack_ms:8,release_ms:140}},
+   {type:"distortion",params:{drive:10}}]},
+ {id:"voix_nette",label:"Voix nette",fx:[
+   {type:"filter",params:{mode:"high",freq:85,q:0.7}},
+   {type:"eq3",params:{bass_db:0,mid_db:2,treble_db:1}},
+   {type:"denoise",params:{amount:12}},
+   {type:"deesser",params:{intensity:55}},
+   {type:"compressor",params:{threshold_db:-22,ratio:3,attack_ms:15,release_ms:200}},
+   {type:"normalize",params:{target_lufs:-16}}]}];
+
+/* ── POST /api/audio/sfx — génération ElevenLabs ─────────────────────────── */
+function svxGenSfx(o){
+  o=o||{};
+  var body={prompt:String(o.prompt||"").slice(0,450)};
+  if(o.duration_s!=null)body.duration_s=svxClamp(o.duration_s,0.5,22);
+  if(o.prompt_influence!=null)body.prompt_influence=svxClamp(o.prompt_influence,0,1);
+  body.variations=Math.round(svxClamp(o.variations!=null?o.variations:1,1,4));
+  return fetch("/api/audio/sfx",{method:"POST",
+    headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(res){return res.json().catch(function(){return {}})
+      .then(function(d){return {ok:res.ok,status:res.status,d:d}})})
+    .then(function(o2){
+      if(!o2.ok)throw new Error((o2.d&&(o2.d.detail||o2.d.error))||("génération refusée (HTTP "+o2.status+")"));
+      var items=(o2.d&&o2.d.items||[]).map(function(it){
+        var fn=it.filename||it.name||"";
+        return {name:it.name||fn,filename:fn,
+          url:it.url||("/api/audio/"+encodeURIComponent(fn)),
+          dur:svxN(it.dur,0)}});
+      return {items:items}})}
+
+/* ── SvxWave — mini-waveform canvas (pics svmWavePeaks) + progression or ──
+   prog 0..1 = portion jouée (barres repeintes --accent : la lecture est un
+   ÉTAT) ; onReady est appelé quand les pics / la durée arrivent. */
+const SvxWave=(props)=>{
+  var cv=x.useRef(null),st=x.useState(0),tick=st[0],setTick=st[1];
+  var onReady=props.onReady;
+  x.useEffect(function(){
+    var alive=!0,c=cv.current;
+    var e=svmWavePeaks(props.src,function(){
+      if(!alive)return;
+      setTick(function(t){return t+1});
+      if(onReady)try{onReady()}catch(_e){}});
+    if(!c)return function(){alive=!1};
+    var g=c.getContext("2d");
+    if(!g)return function(){alive=!1};
+    var w=c.clientWidth,h=c.clientHeight;
+    if(!w||!h)return function(){alive=!1};
+    var dpr=Math.min(2,window.devicePixelRatio||1),
+        W=Math.max(1,Math.round(w*dpr)),H=Math.max(1,Math.round(h*dpr));
+    if(c.width!==W)c.width=W;
+    if(c.height!==H)c.height=H;
+    g.clearRect(0,0,W,H);
+    var cs=getComputedStyle(c),
+        col=(cs.getPropertyValue(props.color||"--c-audio")||"").trim()||"#7fb069",
+        acc=(cs.getPropertyValue("--accent")||"").trim()||"#f0b429";
+    var bw=Math.max(1,Math.round(1.5*dpr)),gap=Math.max(1,Math.round(dpr)),
+        n=Math.max(1,Math.floor(W/(bw+gap)));
+    if(!e){ /* pics pas encore décodés : ligne médiane fantôme */
+      g.fillStyle=col;g.globalAlpha=.25;
+      g.fillRect(0,Math.round(H/2)-dpr,W,Math.max(1,Math.round(dpr*1.5)));
+      g.globalAlpha=1;
+      return function(){alive=!1}}
+    var pk=e.peaks,pl=pk.length,
+        played=props.prog!=null?Math.round(svxClamp(props.prog,0,1)*n):-1;
+    for(var i=0;i<n;i++){
+      var p0=Math.floor(i/n*pl),
+          p1=Math.min(pl,Math.max(p0+1,Math.ceil((i+1)/n*pl))),v=0;
+      for(var j2=p0;j2<p1;j2++){if(pk[j2]>v)v=pk[j2]}
+      var bh=Math.max(dpr,v*H*.92);
+      g.fillStyle=i<played?acc:col;
+      g.globalAlpha=i<played?.95:.55;
+      g.fillRect(i*(bw+gap),(H-bh)/2,bw,bh)}
+    g.globalAlpha=1;
+    return function(){alive=!1}},
+    [props.k,props.color,props.prog,props.theme,tick]);
+  return r.jsx("canvas",{className:"svx-wave","aria-hidden":!0,
+    style:props.h?{height:props.h}:void 0,ref:cv})};
+
+/* ── exemples de prompts SFX (cliquables, onglet Générer) ────────────────── */
+var SVX_EXAMPLES=["verre brisé","vent dans une grotte","clic d'interface",
+  "pas sur du gravier","porte qui grince au ralenti","explosion sourde et lointaine"];
+var SVX_TABS=[["tous","Tous"],["fav","★"],["sfx","SFX"],["voix","Voix"],
+  ["musique","Musique"],["import","Importés"]];
+
+/* ═════════════════ Tiroir « Sons » — bibliothèque + Générer ═════════════ */
+const SvxDrawer=(props)=>{
+  var open=!!props.open;
+  var s1=x.useState(null),lib=s1[0],setLib=s1[1];          /* null = chargement */
+  var s2=x.useState(null),meta=s2[0],setMeta=s2[1];
+  var s3=x.useState(null),tabSel=s3[0],setTabSel=s3[1];
+  var s4=x.useState(""),query=s4[0],setQuery=s4[1];
+  var s5=x.useState("recent"),sort=s5[0],setSort=s5[1];
+  var s6=x.useState(null),prev=s6[0],setPrev=s6[1];        /* {name,pos,dur} */
+  var s7=x.useState(null),confirmDel=s7[0],setConfirmDel=s7[1];
+  var s8=x.useState(!1),upBusy=s8[0],setUpBusy=s8[1];
+  var s9=x.useState(0),durTick=s9[0],setDurTick=s9[1];
+  var s10=x.useState(!1),fileOver=s10[0],setFileOver=s10[1];
+  var s11=x.useState(svxFavsLoad),favs=s11[0],setFavs=s11[1];  /* {filename:1} */
+  /* onglet Générer — l'état vit ici : changer d'onglet ne perd rien */
+  var g1=x.useState(""),gPrompt=g1[0],setGPrompt=g1[1];
+  var g2=x.useState(!0),gAuto=g2[0],setGAuto=g2[1];
+  var g3=x.useState(3),gDur=g3[0],setGDur=g3[1];
+  var g4=x.useState(1),gVar=g4[0],setGVar=g4[1];
+  var g5=x.useState(30),gInf=g5[0],setGInf=g5[1];
+  var g6=x.useState(!1),gBusy=g6[0],setGBusy=g6[1];
+  var g7=x.useState([]),gRes=g7[0],setGRes=g7[1];
+  var g8=x.useState(null),renaming=g8[0],setRenaming=g8[1]; /* {name,val} */
+  var g9=x.useState(null),gCost=g9[0],setGCost=g9[1];       /* coût réel dernière génération */
+  var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
+  var rootRef=x.useRef(null),searchRef=x.useRef(null),fileRef=x.useRef(null),
+      audRef=x.useRef(null),lastPrevRef=x.useRef(null),ghostRef=x.useRef(null),
+      stopRef=x.useRef(null);
+  if(!stopRef.current)stopRef.current=function(){
+    var a=audRef.current;
+    if(a){try{a.pause()}catch(_e){}a.ontimeupdate=null;a.onended=null;audRef.current=null}
+    setPrev(null)};
+
+  var tab=tabSel!=null?tabSel:
+    (props.defaultTab==="generer"||props.defaultTab==="gen"?"gen":(props.defaultTab||"tous"));
+
+  function refresh(){
+    fetch("/api/audio").then(function(res){return res.json()})
+      .then(function(d){setLib({items:d&&d.audio||[]})})
+      .catch(function(){setLib(function(p){return p||{items:[],err:!0}})});
+    fetch("/api/audio/meta").then(function(res){return res.ok?res.json():{}})
+      .then(function(d){setMeta(d&&d.meta||{})})
+      .catch(function(){setMeta(function(p){return p||{}})})}
+  x.useEffect(function(){if(open)refresh()},[open]);
+  x.useEffect(function(){if(open&&props.defaultTab)setTabSel(null)},[open]);
+  x.useEffect(function(){
+    if(open&&rootRef.current)try{rootRef.current.focus({preventScroll:!0})}catch(_e){}},[open]);
+  x.useEffect(function(){if(!open){stopRef.current();svxRelease(stopRef.current)}},[open]);
+  x.useEffect(function(){return function(){
+    stopRef.current();svxRelease(stopRef.current);
+    var g=ghostRef.current;
+    if(g&&g.parentNode)g.parentNode.removeChild(g)}},[]);
+  /* persistance des favoris — point d'écriture unique (updaters purs) */
+  x.useEffect(function(){svxFavsSave(favs)},[favs]);
+
+  var waveTick=x.useCallback(function(){setDurTick(function(t){return t+1})},[]);
+
+  /* items classés — kind via meta sidecar puis heuristique de nommage */
+  var all=x.useMemo(function(){
+    return (lib&&lib.items||[]).map(function(a,i){
+      var m=meta&&meta[a.name],e=svxWaveEntry({audio:a.name});
+      return {name:a.name,url:a.url,kind:svxKindOf(a.name,meta),
+        dur:e?e.dur:0,size_kb:a.size_kb,
+        prompt:m&&m.prompt?String(m.prompt):void 0,
+        created:m&&m.created?String(m.created):"",idx:i}})},
+    [lib,meta,durTick]);
+  var qn=query.trim().toLowerCase();
+  var searched=x.useMemo(function(){
+    if(!qn)return all;
+    return all.filter(function(it){
+      return it.name.toLowerCase().indexOf(qn)>=0||
+        (it.prompt&&it.prompt.toLowerCase().indexOf(qn)>=0)})},[all,qn]);
+  var counts=x.useMemo(function(){
+    var c={tous:searched.length,fav:0,sfx:0,voix:0,musique:0,import:0};
+    searched.forEach(function(it){c[it.kind]++;if(favs[it.name])c.fav++});
+    return c},[searched,favs]);
+  var shown=x.useMemo(function(){
+    var rows=tab==="tous"||tab==="gen"?searched.slice()
+      :tab==="fav"?searched.filter(function(it){return !!favs[it.name]})
+      :searched.filter(function(it){return it.kind===tab});
+    if(sort==="nom")rows.sort(function(a,b){return a.name.localeCompare(b.name,"fr")});
+    else if(sort==="duree")rows.sort(function(a,b){
+      return (a.dur||1e9)-(b.dur||1e9)||a.idx-b.idx});
+    else if(sort==="fav")rows.sort(function(a,b){
+      return (favs[b.name]?1:0)-(favs[a.name]?1:0)||a.idx-b.idx});
+    return rows},[searched,tab,sort,favs]);
+  var history=x.useMemo(function(){
+    return all.filter(function(it){return it.kind==="sfx"&&it.prompt})
+      .sort(function(a,b){return String(b.created).localeCompare(String(a.created))})
+      .slice(0,6)},[all]);
+
+  /* préécoute — un seul lecteur, progression sur la mini-waveform */
+  function prevToggle(item){
+    if(!item)return;
+    if(prev&&prev.name===item.name){stopRef.current();svxRelease(stopRef.current);return}
+    stopRef.current();
+    svxClaim(stopRef.current);
+    var a=new Audio(item.url);audRef.current=a;lastPrevRef.current=item;
+    setPrev({name:item.name,pos:0,dur:item.dur||0});
+    a.ontimeupdate=function(){
+      setPrev(function(p){return p&&p.name===item.name
+        ?{name:item.name,pos:a.currentTime,
+          dur:isFinite(a.duration)&&a.duration>0?a.duration:p.dur}:p})};
+    a.onended=function(){stopRef.current();svxRelease(stopRef.current)};
+    a.play().catch(function(){stopRef.current();svxRelease(stopRef.current);
+      fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})}
+
+  function doInsert(item,mode){
+    if(!props.onInsert||!item)return;
+    props.onInsert({name:item.name,url:item.url,kind:item.kind,
+      dur:item.dur||0,prompt:item.prompt},
+      {track:svxTrackOf(item.kind),mode:mode||"playhead"})}
+
+  /* favoris — toggle pur, l'effet [favs] persiste dans localStorage */
+  function favToggle(name){
+    setFavs(function(m){
+      var nm=Object.assign({},m);
+      if(nm[name])delete nm[name];else nm[name]=1;
+      return nm})}
+  /* étoile — révélée au survol/focus, TOUJOURS visible quand favori (état=or) */
+  function favBtn(it){
+    var on=!!favs[it.name];
+    return r.jsx("button",{className:"svx-ifav","data-on":on?"":void 0,
+      tabIndex:-1,"aria-pressed":on,
+      title:on?"Retirer des favoris (F)":"Ajouter aux favoris (F)",
+      "aria-label":(on?"Retirer des favoris : ":"Ajouter aux favoris : ")+it.name,
+      onClick:function(e){e.stopPropagation();favToggle(it.name)},
+      children:on?"★":"☆"})}
+
+  function delGo(item){
+    setConfirmDel(null);
+    fetch("/api/audio/"+encodeURIComponent(item.name),{method:"DELETE"})
+      .then(function(res){return res.json().catch(function(){return {}})
+        .then(function(d){return {ok:res.ok,d:d}})})
+      .then(function(o){
+        if(!o.ok)throw new Error((o.d&&o.d.detail)||"suppression refusée");
+        if(prev&&prev.name===item.name){stopRef.current();svxRelease(stopRef.current)}
+        setGRes(function(rs){return rs.filter(function(g){return g.name!==item.name})});
+        setFavs(function(m){
+          if(!m[item.name])return m;
+          var nm=Object.assign({},m);delete nm[item.name];return nm});
+        refresh();fireNote("« "+item.name+" » supprimé.")})
+      .catch(function(e){fireNote("Suppression : "+String(e&&e.message||e))})}
+
+  function upFiles(files){
+    var fs=Array.prototype.slice.call(files||[]).filter(function(f){return f&&f.name});
+    if(!fs.length)return;
+    setUpBusy(!0);
+    var done=0,fail=[];
+    (function next(i){
+      if(i>=fs.length){
+        setUpBusy(!1);refresh();
+        fireNote(fail.length
+          ?("Import : "+done+" ok · "+fail.length+" échec — "+fail[0])
+          :(done+" fichier"+(done>1?"s":"")+" importé"+(done>1?"s":"")+"."));
+        return}
+      var fd=new FormData();fd.append("file",fs[i]);
+      fetch("/api/audio/upload",{method:"POST",body:fd})
+        .then(function(res){return res.json().catch(function(){return {}})
+          .then(function(d){return {ok:res.ok,d:d}})})
+        .then(function(o){if(o.ok)done++;else fail.push((o.d&&o.d.detail)||fs[i].name);next(i+1)})
+        .catch(function(){fail.push(fs[i].name);next(i+1)})})(0)}
+
+  /* drag natif — payload "dz-audio" du contrat + ghost lisible */
+  function dragStart(e,item){
+    try{
+      e.dataTransfer.setData("dz-audio",JSON.stringify({name:item.name,url:item.url,
+        kind:item.kind,dur:item.dur||0,prompt:item.prompt}));
+      e.dataTransfer.effectAllowed="copy";
+      var g=document.createElement("div");
+      g.textContent="♪ "+item.name+(item.dur?" · "+svmShort(item.dur):"");
+      g.setAttribute("style","position:fixed;top:-200px;left:-200px;z-index:9999;"+
+        "padding:6px 10px;border-radius:8px;background:#1c1c21;color:#f2efe9;"+
+        "border:1px solid #3d3b45;font:11px 'JetBrains Mono',Consolas,monospace;"+
+        "box-shadow:0 8px 20px rgba(0,0,0,.5);max-width:240px;white-space:nowrap;"+
+        "overflow:hidden;text-overflow:ellipsis;pointer-events:none");
+      document.body.appendChild(g);ghostRef.current=g;
+      e.dataTransfer.setDragImage(g,14,14)}catch(_e){}}
+  function dragEnd(){
+    var g=ghostRef.current;
+    if(g&&g.parentNode)g.parentNode.removeChild(g);
+    ghostRef.current=null}
+
+  /* dépôt de fichiers OS → import direct */
+  function isFileDrag(e){
+    var ts=e.dataTransfer&&e.dataTransfer.types;
+    return !!ts&&Array.prototype.indexOf.call(ts,"Files")>=0}
+
+  function rowItem(el){
+    var n=el&&el.closest?el.closest("[data-svx-item]"):null;
+    if(!n)return null;
+    var nm=n.getAttribute("data-svx-item");
+    for(var i=0;i<shown.length;i++){if(shown[i].name===nm)return shown[i]}
+    for(var j2=0;j2<gRes.length;j2++){if(gRes[j2].name===nm)return gRes[j2]}
+    return null}
+
+  /* clavier — TOUT passe par le tiroir (aucune écoute document) */
+  function onKey(e){
+    var t=e.target,tag=(t&&t.tagName||"").toLowerCase();
+    var inField=tag==="input"||tag==="textarea"||tag==="select";
+    if(e.key==="Escape"){
+      if(confirmDel){setConfirmDel(null);e.preventDefault();return}
+      if(renaming){setRenaming(null);e.preventDefault();return}
+      if(inField&&t===searchRef.current&&query){setQuery("");e.preventDefault();return}
+      if(props.onClose){props.onClose();e.preventDefault()}
+      return}
+    if(inField){
+      if(t===searchRef.current&&e.key==="Enter"){
+        var first=rootRef.current&&rootRef.current.querySelector("[data-svx-item]");
+        if(first){first.focus();e.preventDefault()}}
+      return}
+    /* un vrai <button> focalisé garde son Espace / Entrée natifs */
+    if(tag==="button"&&(e.key===" "||e.key==="Enter"))return;
+    if(e.key==="/"){
+      if(searchRef.current){searchRef.current.focus();e.preventDefault();e.stopPropagation()}
+      return}
+    if(e.key==="b"||e.key==="B"){
+      if(props.onClose){props.onClose();e.preventDefault();e.stopPropagation()}
+      return}
+    if(e.key==="f"||e.key==="F"){
+      /* même repli que Espace : rangée focalisée sinon dernier son préécouté.
+         TOUJOURS consommé tiroir ouvert — sinon le F global (plein écran) se déclenche. */
+      e.preventDefault();e.stopPropagation();
+      var itf=rowItem(t)||lastPrevRef.current;
+      if(itf)favToggle(itf.name);
+      return}
+    if(e.key===" "){
+      e.preventDefault();e.stopPropagation();
+      prevToggle(rowItem(t)||lastPrevRef.current);
+      return}
+    if(e.key==="Enter"){
+      var it=rowItem(t);
+      if(it){doInsert(it,"playhead");e.preventDefault();e.stopPropagation()}
+      return}
+    if(e.key==="Delete"||e.key==="Backspace"){
+      var it3=rowItem(t);
+      if(it3){setConfirmDel(it3.name);e.preventDefault();e.stopPropagation()}
+      return}
+    if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+      var rows=rootRef.current
+        ?Array.prototype.slice.call(rootRef.current.querySelectorAll("[data-svx-item]")):[];
+      if(!rows.length)return;
+      var i=rows.indexOf(document.activeElement),ni;
+      if(e.key==="ArrowDown")ni=i<0?0:Math.min(rows.length-1,i+1);
+      else ni=i<0?rows.length-1:Math.max(0,i-1);
+      rows[ni].focus();e.preventDefault();e.stopPropagation()}}
+
+  /* génération SFX */
+  function genGo(){
+    var p=gPrompt.trim();
+    if(!p||gBusy)return;
+    setGBusy(!0);
+    svxGenSfx({prompt:p,duration_s:gAuto?null:gDur,
+      prompt_influence:gInf/100,variations:gVar})
+      .then(function(d){
+        setGBusy(!1);
+        /* nom canonique = filename (les rangées et {audio:...} le réutilisent) */
+        var its=(d.items||[]).map(function(it){
+          return {name:it.filename||it.name,filename:it.filename,url:it.url,
+            dur:it.dur,kind:"sfx",prompt:p}});
+        setGRes(function(rs){return its.concat(rs).slice(0,24)});
+        /* coût réel estimé : 40 crédits × durée générée, sommé sur les variations */
+        var real=0;
+        its.forEach(function(gi){real+=40*svxN(gi.dur,0)});
+        setGCost(real>0?Math.round(real):null);
+        refresh();
+        fireNote(its.length+" variation"+(its.length>1?"s":"")+" générée"+
+          (its.length>1?"s":"")+" — cartes ci-dessous, insérables ou déplaçables.")})
+      .catch(function(e){setGBusy(!1);fireNote(String(e&&e.message||e))})}
+
+  function renameGo(item){
+    var ext=((item.name.match(/\.[a-z0-9]+$/i)||[".mp3"])[0]).toLowerCase();
+    var nb=String(renaming&&renaming.val||"").trim()
+      .replace(/[^\w.-]+/g,"_").replace(/^_+|_+$/g,"").slice(0,60);
+    if(!nb){fireNote("Nom vide — renommage annulé.");setRenaming(null);return}
+    var nn=nb.toLowerCase().slice(-ext.length)===ext?nb:nb+ext;
+    if(nn===item.name){setRenaming(null);return}
+    fetch(item.url).then(function(res){if(!res.ok)throw new Error("source introuvable");return res.blob()})
+      .then(function(bl){
+        var fd=new FormData();
+        fd.append("file",new File([bl],nn,{type:bl.type||"audio/mpeg"}));
+        return fetch("/api/audio/upload",{method:"POST",body:fd})})
+      .then(function(res){
+        if(!res.ok)return res.json().catch(function(){return {}})
+          .then(function(d){throw new Error(d.detail||"import refusé")});
+        return fetch("/api/audio/"+encodeURIComponent(item.name),{method:"DELETE"})})
+      .then(function(){
+        setGRes(function(rs){return rs.map(function(g){
+          return g.name===item.name
+            ?Object.assign({},g,{name:nn,filename:nn,url:"/api/audio/"+encodeURIComponent(nn)})
+            :g})});
+        /* le favori suit le renommage */
+        setFavs(function(m){
+          if(!m[item.name])return m;
+          var nm=Object.assign({},m);delete nm[item.name];nm[nn]=1;return nm});
+        setRenaming(null);refresh();fireNote("Renommé en « "+nn+" ».")})
+      .catch(function(e){fireNote("Renommage : "+String(e&&e.message||e))})}
+
+  /* ── rendus ── */
+  function itemRow(it){
+    var playing=prev&&prev.name===it.name;
+    if(confirmDel===it.name)
+      return r.jsxs("div",{className:"svx-item svx-confirm",role:"alert",children:[
+        r.jsxs("span",{className:"svx-conftxt",children:[
+          "Supprimer « ",r.jsx("b",{children:it.name})," » ?"]}),
+        r.jsx("button",{className:"svx-abtn svx-dangerfill",
+          onClick:function(){delGo(it)},children:"Supprimer"}),
+        r.jsx("button",{className:"svx-abtn",autoFocus:!0,
+          onClick:function(){setConfirmDel(null)},children:"Annuler"})]},it.name+"::c");
+    return r.jsxs("div",{className:"svx-item",tabIndex:0,role:"button",
+      "data-svx-item":it.name,"data-play":playing?"":void 0,
+      draggable:!0,
+      onDragStart:function(e){dragStart(e,it)},onDragEnd:dragEnd,
+      onClick:function(e){if(!e.defaultPrevented)prevToggle(it)},
+      title:"Clic / Espace : préécoute · glisser vers une piste A · Entrée : insérer",
+      "aria-label":SVX_KINDS[it.kind].label+" "+it.name,
+      children:[
+      r.jsx("button",{className:"svm-playbtn svx-iplay",tabIndex:-1,
+        "data-on":playing?"":void 0,
+        "aria-label":(playing?"Arrêter ":"Écouter ")+it.name,
+        onClick:function(e){e.stopPropagation();prevToggle(it)},
+        children:playing?"▮▮":"▶"}),
+      r.jsxs("div",{className:"svx-ibody",children:[
+        r.jsxs("div",{className:"svx-irow1",children:[
+          r.jsx("span",{className:"svx-iname",children:it.name}),
+          favBtn(it),
+          r.jsx("span",{className:"svx-ibadge","data-k":it.kind,
+            title:SVX_KINDS[it.kind].label,children:SVX_KINDS[it.kind].tag}),
+          r.jsx("span",{className:"svx-idur svm-mono",
+            children:it.dur?svmShort(it.dur):svxKo(it.size_kb)})]}),
+        r.jsx(SvxWave,{src:{audio:it.name},color:SVX_KINDS[it.kind].c,
+          prog:playing&&prev.dur?prev.pos/prev.dur:null,onReady:waveTick,k:it.name}),
+        it.prompt?r.jsx("div",{className:"svx-iprompt",title:it.prompt,
+          children:it.prompt}):null]}),
+      r.jsxs("div",{className:"svx-iact",children:[
+        props.onInsert?r.jsx("button",{className:"svx-abtn",tabIndex:-1,
+          title:"Insérer au playhead ("+svmShort(svxN(props.playheadSec,0))+
+            ") — piste "+svxTrackOf(it.kind).toUpperCase(),
+          onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
+          children:"⤵"}):null,
+        r.jsx("button",{className:"svx-abtn svx-danger",tabIndex:-1,
+          title:"Supprimer de la bibliothèque",
+          onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
+          children:"✕"})]})]},it.name)}
+
+  function emptyState(){
+    if(lib===null)
+      return r.jsxs("div",{className:"svx-skel",children:[
+        r.jsx("div",{className:"svx-skelrow"}),
+        r.jsx("div",{className:"svx-skelrow"}),
+        r.jsx("div",{className:"svx-skelrow"})]});
+    if(lib.err&&!(lib.items&&lib.items.length))
+      return r.jsxs("div",{className:"svx-empty",children:[
+        r.jsx("div",{className:"svx-emptytxt",
+          children:"Bibliothèque injoignable — le backend ne répond pas."}),
+        r.jsx("button",{className:"svm-secbtn",onClick:refresh,
+          children:"Réessayer"})]});
+    if(qn)
+      return r.jsxs("div",{className:"svx-empty",children:[
+        r.jsxs("div",{className:"svx-emptytxt",children:["Aucun résultat pour « ",qn," »."]}),
+        r.jsx("button",{className:"svm-secbtn",onClick:function(){setQuery("")},
+          children:"Effacer la recherche"})]});
+    if(tab==="fav")
+      return r.jsxs("div",{className:"svx-empty",children:[
+        r.jsx("div",{className:"svx-emptytxt",children:"Aucun favori pour l'instant."}),
+        r.jsx("div",{className:"svx-emptyhint",
+          children:"Survolez un son et cliquez ★ (ou touche F) pour l'épingler ici."})]});
+    var msg=tab==="voix"?"Aucune voix — narrez un bloc (tiroir Narration, T) ou importez une prise."
+      :tab==="musique"?"Aucune musique — importez un fichier : il se posera sur la piste A2."
+      :tab==="sfx"?"Aucun effet sonore pour l'instant."
+      :"Votre bibliothèque de sons est vide.";
+    return r.jsxs("div",{className:"svx-empty",children:[
+      r.jsx("div",{className:"svx-emptytxt",children:msg}),
+      r.jsxs("div",{className:"svx-emptyrow",children:[
+        r.jsx("button",{className:"svm-secbtn",
+          onClick:function(){if(fileRef.current)fileRef.current.click()},
+          children:"Importer un son"}),
+        r.jsx("button",{className:"svm-goldbtn",
+          onClick:function(){setTabSel("gen")},children:"Générer un SFX"})]}),
+      r.jsx("div",{className:"svx-emptyhint",
+        children:"Vous pouvez aussi déposer des fichiers audio ici."})]})}
+
+  function genCard(it){
+    var playing=prev&&prev.name===it.name;
+    var ren=renaming&&renaming.name===it.name;
+    if(confirmDel===it.name)return itemRow(it);
+    return r.jsxs("div",{className:"svx-gcard","data-svx-item":it.name,tabIndex:0,
+      role:"button","data-play":playing?"":void 0,draggable:!0,
+      onDragStart:function(e){dragStart(e,it)},onDragEnd:dragEnd,
+      onClick:function(e){if(!e.defaultPrevented&&!ren)prevToggle(it)},
+      title:"Clic / Espace : préécoute · glisser vers une piste A",
+      children:[
+      r.jsxs("div",{className:"svx-irow1",children:[
+        r.jsx("button",{className:"svm-playbtn svx-iplay",tabIndex:-1,
+          "data-on":playing?"":void 0,"aria-label":(playing?"Arrêter ":"Écouter ")+it.name,
+          onClick:function(e){e.stopPropagation();prevToggle(it)},
+          children:playing?"▮▮":"▶"}),
+        ren?r.jsx("input",{className:"svx-rename svm-mono",autoFocus:!0,
+          value:renaming.val,
+          onClick:function(e){e.stopPropagation()},
+          onChange:function(e){setRenaming({name:it.name,val:e.target.value})},
+          onKeyDown:function(e){
+            if(e.key==="Enter"){e.preventDefault();e.stopPropagation();renameGo(it)}
+            else if(e.key==="Escape"){e.preventDefault();e.stopPropagation();setRenaming(null)}
+            else e.stopPropagation()},
+          "aria-label":"Nouveau nom"})
+        :r.jsx("span",{className:"svx-iname",children:it.name}),
+        ren?null:favBtn(it),
+        r.jsx("span",{className:"svx-idur svm-mono",
+          children:it.dur?svmShort(it.dur):""})]}),
+      r.jsx(SvxWave,{src:{audio:it.name},color:"--c-3d",h:30,
+        prog:playing&&prev.dur?prev.pos/prev.dur:null,onReady:waveTick,k:it.name}),
+      r.jsxs("div",{className:"svx-gactions",children:[
+        props.onInsert?r.jsx("button",{className:"svx-abtn",
+          title:"Insérer au playhead — piste A3 (SFX)",
+          onClick:function(e){e.stopPropagation();doInsert(it,"playhead")},
+          children:"Insérer"}):null,
+        r.jsx("a",{className:"svx-abtn svx-dl",href:it.url,download:it.name,
+          draggable:!1,title:"Télécharger « "+it.name+" »",
+          onClick:function(e){e.stopPropagation()},
+          children:"Télécharger"}),
+        ren?r.jsx("button",{className:"svx-abtn",
+          onClick:function(e){e.stopPropagation();renameGo(it)},children:"Valider"})
+        :r.jsx("button",{className:"svx-abtn",
+          onClick:function(e){e.stopPropagation();
+            setRenaming({name:it.name,val:it.name.replace(/\.[a-z0-9]+$/i,"")})},
+          children:"Renommer"}),
+        r.jsx("button",{className:"svx-abtn svx-danger",
+          onClick:function(e){e.stopPropagation();setConfirmDel(it.name)},
+          children:"Supprimer"})]})]},it.name)}
+
+  function genPanel(){
+    var cost=gAuto?null:Math.round(40*gDur)*gVar;
+    return r.jsxs("div",{className:"svx-gen",children:[
+      r.jsx(SvmLabel,{children:"Décrire le son"}),
+      r.jsx("textarea",{className:"svx-gprompt",rows:3,value:gPrompt,
+        placeholder:"« verre brisé sur du carrelage », « vent dans une grotte »…",
+        maxLength:450,"aria-label":"Description du son à générer",
+        onChange:function(e){setGPrompt(e.target.value)},
+        onKeyDown:function(e){
+          if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)){e.preventDefault();genGo()}}}),
+      r.jsx("div",{className:"svx-gex",children:SVX_EXAMPLES.map(function(ex){
+        return r.jsx("button",{className:"svx-gexchip",
+          onClick:function(){setGPrompt(ex)},children:ex},ex)})}),
+      r.jsxs("div",{className:"svx-grow",children:[
+        r.jsx("span",{className:"svx-glabel",children:"Durée"}),
+        r.jsx("button",{className:"svx-gsegbtn","data-on":gAuto?"":void 0,
+          title:"ElevenLabs choisit la durée la plus naturelle",
+          onClick:function(){setGAuto(!gAuto)},children:"auto"}),
+        r.jsx("input",{className:"svx-gslider",type:"range",min:0.5,max:22,step:0.5,
+          value:gDur,disabled:gAuto,"aria-label":"Durée (secondes)",
+          onChange:function(e){setGDur(svxN(e.target.value,3));setGAuto(!1)}}),
+        r.jsx("input",{className:"svx-gnum svm-mono",type:"number",min:0.5,max:22,
+          step:0.1,value:gAuto?"":gDur,disabled:gAuto,placeholder:"—",
+          "aria-label":"Durée précise (secondes)",
+          onChange:function(e){
+            var v=svxN(e.target.value,gDur);
+            setGDur(svxClamp(v,0.5,22));setGAuto(!1)}}),
+        r.jsx("span",{className:"svx-gunit",children:"s"})]}),
+      r.jsxs("div",{className:"svx-grow",children:[
+        r.jsx("span",{className:"svx-glabel",children:"Variations"}),
+        r.jsx("div",{className:"svx-gseg",role:"radiogroup",
+          "aria-label":"Nombre de variations",children:[1,2,3,4].map(function(n){
+          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",
+            "aria-checked":gVar===n,"data-on":gVar===n?"":void 0,
+            onClick:function(){setGVar(n)},children:String(n)},n)})})]}),
+      r.jsxs("div",{className:"svx-grow",children:[
+        r.jsx("span",{className:"svx-glabel",children:"Fidélité"}),
+        r.jsx("input",{className:"svx-gslider",type:"range",min:0,max:100,step:5,
+          value:gInf,"aria-label":"Fidélité au texte (prompt influence)",
+          title:"Haut : colle au texte · bas : plus créatif (30 % par défaut)",
+          onChange:function(e){setGInf(svxN(e.target.value,30))}}),
+        r.jsx("span",{className:"svx-gval svm-mono",children:gInf+" %"})]}),
+      r.jsxs("div",{className:"svx-gfoot",children:[
+        r.jsx("span",{className:"svx-gcost svm-mono",
+          title:"Estimation avant génération — ~40 crédits ElevenLabs par seconde et par variation",
+          children:cost==null?"≈ 40 crédits/s · total selon durée générée":"≈ "+cost+" crédits"}),
+        r.jsx("button",{className:"svm-goldbtn svx-gold","data-busy":gBusy?"":void 0,
+          disabled:gBusy||!gPrompt.trim(),
+          onClick:genGo,
+          children:gBusy?r.jsxs(r.Fragment,{children:[
+            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),
+            "Génération… (~10 s)"]}):"Générer"})]}),
+      gRes.length?r.jsxs(r.Fragment,{children:[
+        r.jsxs("div",{className:"svx-gresrow",children:[
+          r.jsx(SvmLabel,{children:"Résultats"}),
+          gCost!=null?r.jsx("span",{className:"svx-gcost svm-mono",
+            title:"Coût réel estimé de la dernière génération — 40 crédits × durée générée × variations",
+            children:"≈ "+gCost+" crédits utilisés"}):null]}),
+        r.jsx("div",{className:"svx-gres",children:gRes.map(genCard)})]}):null,
+      history.length?r.jsxs(r.Fragment,{children:[
+        r.jsx(SvmLabel,{style:{margin:"16px 0 8px"},children:"Générations récentes"}),
+        r.jsx("div",{className:"svx-ghist",children:history.map(function(h){
+          return r.jsxs("button",{className:"svx-ghrow",
+            title:"Reprendre ce prompt",
+            onClick:function(){setGPrompt(h.prompt)},children:[
+            r.jsx("span",{className:"svx-ghprompt",children:h.prompt}),
+            r.jsx("span",{className:"svx-idur svm-mono",
+              children:h.dur?svmShort(h.dur):""})]},h.name)})})]}):null]})}
+
+  if(!open)return null;
+  return r.jsxs("aside",{className:"svx-drawer",ref:rootRef,tabIndex:-1,
+    onKeyDown:onKey,"aria-label":"Tiroir Sons",
+    "data-fileover":fileOver?"":void 0,
+    onDragOver:function(e){
+      if(isFileDrag(e)){e.preventDefault();e.dataTransfer.dropEffect="copy";
+        if(!fileOver)setFileOver(!0)}},
+    onDragLeave:function(e){
+      if(fileOver&&(!e.relatedTarget||!e.currentTarget.contains(e.relatedTarget)))
+        setFileOver(!1)},
+    onDrop:function(e){
+      if(isFileDrag(e)){e.preventDefault();setFileOver(!1);
+        upFiles(e.dataTransfer.files)}},
+    children:[
+    r.jsxs("div",{className:"svx-dhead",children:[
+      r.jsx("span",{className:"svx-dtitle",children:"Sons"}),
+      r.jsx("span",{className:"svx-dcount svm-mono",children:String(all.length)}),
+      r.jsx("button",{className:"svx-iconbtn",title:"Rafraîchir la bibliothèque",
+        "aria-label":"Rafraîchir",onClick:refresh,children:"⟳"}),
+      r.jsx("button",{className:"svx-iconbtn","data-busy":upBusy?"":void 0,
+        title:"Importer des fichiers audio (mp3, wav, m4a, ogg, flac…)",
+        "aria-label":"Importer un son",
+        onClick:function(){if(fileRef.current)fileRef.current.click()},
+        children:upBusy?r.jsx("span",{className:"svx-spin","aria-hidden":!0}):"⤒"}),
+      r.jsx("button",{className:"svx-iconbtn svx-dclose",title:"Fermer (B)",
+        "aria-label":"Fermer le tiroir Sons",
+        onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
+    r.jsxs("div",{className:"svx-tabs",role:"tablist",children:[
+      SVX_TABS.map(function(td){
+        return r.jsxs("button",{className:"svx-tab",role:"tab",
+          "aria-selected":tab===td[0],"data-on":tab===td[0]?"":void 0,
+          title:td[0]==="fav"?"Favoris":void 0,
+          "aria-label":td[0]==="fav"?"Favoris ("+counts.fav+")":void 0,
+          onClick:function(){setTabSel(td[0])},children:[
+          td[1],
+          r.jsx("span",{className:"svx-tcount svm-mono",children:String(counts[td[0]])})]},td[0])}),
+      r.jsx("span",{className:"svx-tsep","aria-hidden":!0}),
+      r.jsx("button",{className:"svx-tab svx-tabgen",role:"tab",
+        "aria-selected":tab==="gen","data-on":tab==="gen"?"":void 0,
+        onClick:function(){setTabSel("gen")},children:"Générer"})]}),
+    tab!=="gen"?r.jsxs("div",{className:"svx-filters",children:[
+      r.jsxs("div",{className:"svx-search",children:[
+        r.jsx("input",{className:"svx-searchin",ref:searchRef,type:"text",
+          value:query,placeholder:"Rechercher (nom, prompt)…",
+          "aria-label":"Rechercher un son",
+          onChange:function(e){setQuery(e.target.value)}}),
+        r.jsx("kbd",{className:"svx-kbd","aria-hidden":!0,children:"/"})]}),
+      r.jsxs("select",{className:"svx-select",value:sort,
+        "aria-label":"Trier la bibliothèque",title:"Tri",
+        onChange:function(e){setSort(e.target.value)},children:[
+        r.jsx("option",{value:"recent",children:"Récents"}),
+        r.jsx("option",{value:"nom",children:"Nom"}),
+        r.jsx("option",{value:"duree",children:"Durée"}),
+        r.jsx("option",{value:"fav",children:"Favoris d'abord"})]})]}):null,
+    r.jsx("div",{className:"svx-list",children:
+      tab==="gen"?genPanel():(shown.length?shown.map(itemRow):emptyState())}),
+    note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
+      children:note}):null,
+    r.jsxs("div",{className:"svx-hints","aria-hidden":!0,children:[
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"Espace"})," préécoute"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"↑↓"})," naviguer"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"Entrée"})," insérer"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"F"})," favori"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"Suppr"})," supprimer"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"/"})," recherche"]}),
+      r.jsxs("span",{children:[r.jsx("kbd",{children:"B"})," fermer"]})]}),
+    r.jsx("input",{className:"svx-file",ref:fileRef,type:"file",
+      accept:"audio/*,.mp3,.wav,.m4a,.aac,.ogg,.flac,.opus",multiple:!0,
+      "aria-hidden":!0,tabIndex:-1,
+      onChange:function(e){upFiles(e.target.files);e.target.value=""}})]})};
+
+/* ═════════════════ Rack d'effets par clip (audition Web Audio) ══════════ */
+function svxMakeIR(ctx,decay){
+  var rate=ctx.sampleRate,secs=svxClamp(decay,0.2,8),
+      n=Math.max(1,Math.floor(rate*secs)),
+      buf=ctx.createBuffer(2,n,rate);
+  for(var ch=0;ch<2;ch++){
+    var d=buf.getChannelData(ch);
+    for(var i=0;i<n;i++){d[i]=(Math.random()*2-1)*Math.pow(1-i/n,2.8)}}
+  return buf}
+function svxShaperCurve(drive){
+  var k=1+svxClamp(drive,0,100)*0.32,n=1024,c=new Float32Array(n),
+      den=Math.atan(k);
+  for(var i=0;i<n;i++){var v=i/(n-1)*2-1;c[i]=Math.atan(k*v)/den}
+  return c}
+
+const SvxRack=(props)=>{
+  var norm=svxNormFx(props.fx);
+  var clip=props.clip||{};
+  var e1=x.useState({}),expanded=e1[0],setExpanded=e1[1];
+  var e2=x.useState(null),lastPreset=e2[0],setLastPreset=e2[1];
+  var e3=x.useState(!1),playing=e3[0],setPlaying=e3[1];
+  var e4=x.useState(!1),loading=e4[0],setLoading=e4[1];
+  var e5=x.useState(!1),rBusy=e5[0],setRBusy=e5[1];
+  var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
+  var engineRef=x.useRef(null),wantRef=x.useRef(!1),revSchedRef=x.useRef(null),
+      lastParamsRef=x.useRef({}),fxRef=x.useRef(null),clipRef=x.useRef(null),
+      stopImplRef=x.useRef(null),wrapRef=x.useRef(null);
+  fxRef.current=norm.on;clipRef.current=clip;
+  if(!wrapRef.current)wrapRef.current=function(){
+    if(stopImplRef.current)stopImplRef.current()};
+
+  var activeCount=0;
+  SVX_FX_DEFS.forEach(function(d){if(norm.on[d.type])activeCount++});
+  var nonLiveOn=SVX_FX_DEFS.filter(function(d){return !d.live&&norm.on[d.type]})
+    .map(function(d){return d.label.toLowerCase()});
+  var fxSig=svxFxSig(norm.on);
+  var clipSig=[clip.url,clip.srcIn,clip.len,clip.gainDb,clip.speed].join("|");
+
+  function emit(on){
+    if(props.onChange)props.onChange(svxEmitFx(on,norm.unknown))}
+
+  function setParam(type,k,v){
+    var on=Object.assign({},fxRef.current),was=!!on[type];
+    var p=Object.assign({},on[type]||lastParamsRef.current[type]||svxFxDefaults(type));
+    p[k]=v;
+    on[type]=svxCleanParams(type,p);
+    emit(on);
+    if(!was)setExpanded(function(m){var nm=Object.assign({},m);nm[type]=1;return nm});
+    liveApply(on)}
+  function toggleMod(type){
+    var on=Object.assign({},fxRef.current);
+    if(on[type]){lastParamsRef.current[type]=on[type];delete on[type]}
+    else{on[type]=svxCleanParams(type,lastParamsRef.current[type]||svxFxDefaults(type));
+      setExpanded(function(m){var nm=Object.assign({},m);nm[type]=1;return nm})}
+    emit(on);
+    liveApply(on)}
+  function resetAll(){
+    Object.keys(fxRef.current).forEach(function(t){
+      lastParamsRef.current[t]=fxRef.current[t]});
+    emit({});
+    setLastPreset(null);
+    liveApply({});
+    fireNote("Chaîne d'effets réinitialisée.")}
+  function applyPreset(p){
+    var on={};
+    p.fx.forEach(function(en){on[en.type]=svxCleanParams(en.type,en.params)});
+    emit(on);
+    setLastPreset(p.id);
+    setExpanded(function(m){
+      var nm=Object.assign({},m);
+      p.fx.forEach(function(en){nm[en.type]=1});
+      return nm});
+    liveApply(on);
+    fireNote("Preset « "+p.label+" » appliqué — la chaîne précédente est remplacée (annulable).")}
+  function presetSig(p){
+    var on={};
+    p.fx.forEach(function(en){on[en.type]=svxCleanParams(en.type,en.params)});
+    return svxFxSig(on)}
+
+  /* ── moteur d'audition live ── */
+  function engineStop(){
+    var en=engineRef.current;
+    if(en){
+      try{en.src.stop()}catch(_e){}
+      try{en.src.disconnect()}catch(_e){}
+      en.nodes.forEach(function(n){try{n.disconnect()}catch(_e){}});
+      engineRef.current=null}
+    if(revSchedRef.current){clearTimeout(revSchedRef.current);revSchedRef.current=null}
+    wantRef.current=!1;
+    setLoading(!1);
+    setPlaying(!1)}
+  stopImplRef.current=engineStop;
+
+  function segBounds(buf){
+    var dur=buf.duration,s0=Math.max(0,svxN(clipRef.current.srcIn,0)),
+        len=svxN(clipRef.current.len,0),
+        s1=len>0?Math.min(dur,s0+len):dur;
+    if(s1-s0<0.05){s0=0;s1=dur}
+    return [s0,s1]}
+
+  function liveApply(on){
+    var en=engineRef.current;
+    if(!en)return;
+    var P=en.parts,ctx=en.ctx,t=ctx.currentTime,TC=0.02;
+    function ramp(param,v){
+      try{param.setTargetAtTime(v,t,TC)}
+      catch(_e){try{param.value=v}catch(_e2){}}}
+    var f=on.filter;
+    if(f){
+      var ft=f.mode==="high"?"highpass":f.mode==="band"?"bandpass":"lowpass";
+      if(P.flt.type!==ft)P.flt.type=ft;
+      ramp(P.flt.frequency,f.freq);ramp(P.flt.Q,f.q)}
+    else{if(P.flt.type!=="peaking")P.flt.type="peaking";ramp(P.flt.gain,0)}
+    var q3=on.eq3||{bass_db:0,mid_db:0,treble_db:0};
+    ramp(P.bass.gain,q3.bass_db);ramp(P.mid.gain,q3.mid_db);ramp(P.treb.gain,q3.treble_db);
+    var c=on.compressor;
+    if(c){ramp(P.comp.threshold,c.threshold_db);ramp(P.comp.ratio,c.ratio);
+      ramp(P.comp.knee,6);ramp(P.comp.attack,c.attack_ms/1000);
+      ramp(P.comp.release,c.release_ms/1000)}
+    else{ramp(P.comp.threshold,0);ramp(P.comp.ratio,1);ramp(P.comp.knee,0)}
+    var dd=on.distortion;
+    P.shp.curve=dd&&dd.drive>0?svxShaperCurve(dd.drive):null;
+    var eo=on.echo;
+    if(eo){ramp(P.dl.delayTime,eo.time_ms/1000);
+      ramp(P.fb.gain,svxClamp(eo.feedback,0,90)/100);
+      ramp(P.ewet.gain,eo.mix/100)}
+    else{ramp(P.ewet.gain,0);ramp(P.fb.gain,0)}
+    var rv=on.reverb;
+    if(rv){
+      ramp(P.rwet.gain,rv.mix/100);
+      if(Math.abs((en.irDecay||0)-rv.decay_s)>0.03&&!revSchedRef.current){
+        revSchedRef.current=setTimeout(function(){
+          revSchedRef.current=null;
+          var en2=engineRef.current,cur=fxRef.current.reverb;
+          if(!en2||!cur)return;
+          try{en2.parts.cv.buffer=svxMakeIR(en2.ctx,cur.decay_s);
+            en2.irDecay=cur.decay_s}catch(_e){}},140)}}
+    else ramp(P.rwet.gain,0);
+    var sw=on.stereo,w=sw?svxClamp(sw.width,0,200)/100:1;
+    ramp(P.sPos.gain,w);ramp(P.sNeg.gain,-w);
+    if(P.pan)ramp(P.pan.pan,sw?svxClamp(sw.pan,-100,100)/100:0);
+    ramp(P.out.gain,Math.pow(10,svxN(clipRef.current.gainDb,0)/20));
+    ramp(en.src.playbackRate,svxClamp(svxN(clipRef.current.speed,1),0.5,2));
+    try{
+      var sb=segBounds(en.src.buffer);
+      en.src.loopStart=sb[0];en.src.loopEnd=sb[1]}catch(_e){}}
+
+  function startEngine(){
+    wantRef.current=!1;
+    setLoading(!1);
+    var url=clipRef.current.url,e=url?SVX_BUFS.get(url):null;
+    if(!e||e.st!=="ok"||!e.buf){
+      fireNote("Décodage impossible (codec non lu par le navigateur).");return}
+    engineStop();
+    svxClaim(wrapRef.current);
+    var ctx=svmSharedAC();
+    if(!ctx)return;
+    try{if(ctx.resume){var pr=ctx.resume();if(pr&&pr.catch)pr.catch(function(){})}}catch(_e){}
+    var buf=e.buf,sb=segBounds(buf);
+    var src=ctx.createBufferSource();
+    src.buffer=buf;src.loop=!0;src.loopStart=sb[0];src.loopEnd=sb[1];
+    var flt=ctx.createBiquadFilter();
+    flt.type="peaking";flt.gain.value=0;flt.frequency.value=1000;
+    try{flt.channelCount=2;flt.channelCountMode="explicit"}catch(_e){}
+    var bass=ctx.createBiquadFilter();bass.type="lowshelf";bass.frequency.value=110;
+    var mid=ctx.createBiquadFilter();mid.type="peaking";mid.frequency.value=1000;mid.Q.value=1;
+    var treb=ctx.createBiquadFilter();treb.type="highshelf";treb.frequency.value=8000;
+    var comp=ctx.createDynamicsCompressor();
+    comp.threshold.value=0;comp.ratio.value=1;comp.knee.value=0;
+    var shp=ctx.createWaveShaper();
+    try{shp.oversample="2x"}catch(_e){}
+    var dry=ctx.createGain();dry.gain.value=1;
+    var sum=ctx.createGain();
+    var dl=ctx.createDelay(2);var fb=ctx.createGain();fb.gain.value=0;
+    var ewet=ctx.createGain();ewet.gain.value=0;
+    var cv2=ctx.createConvolver();var rwet=ctx.createGain();rwet.gain.value=0;
+    var spl=ctx.createChannelSplitter(2);
+    var mg=ctx.createGain(),sg=ctx.createGain();
+    var lm=ctx.createGain(),rm=ctx.createGain(),ls=ctx.createGain(),rs=ctx.createGain();
+    lm.gain.value=0.5;rm.gain.value=0.5;ls.gain.value=0.5;rs.gain.value=-0.5;
+    var sPos=ctx.createGain(),sNeg=ctx.createGain();
+    sPos.gain.value=1;sNeg.gain.value=-1;
+    var mrg=ctx.createChannelMerger(2);
+    var pan=null;
+    try{pan=ctx.createStereoPanner?ctx.createStereoPanner():null}catch(_e){}
+    var out=ctx.createGain();
+    src.connect(flt);flt.connect(bass);bass.connect(mid);mid.connect(treb);
+    treb.connect(comp);comp.connect(shp);
+    shp.connect(dry);dry.connect(sum);
+    shp.connect(dl);dl.connect(fb);fb.connect(dl);dl.connect(ewet);ewet.connect(sum);
+    shp.connect(cv2);cv2.connect(rwet);rwet.connect(sum);
+    sum.connect(spl);
+    spl.connect(lm,0);spl.connect(ls,0);
+    spl.connect(rm,1);spl.connect(rs,1);
+    lm.connect(mg);rm.connect(mg);ls.connect(sg);rs.connect(sg);
+    mg.connect(mrg,0,0);mg.connect(mrg,0,1);
+    sg.connect(sPos);sPos.connect(mrg,0,0);
+    sg.connect(sNeg);sNeg.connect(mrg,0,1);
+    if(pan){mrg.connect(pan);pan.connect(out)}else mrg.connect(out);
+    out.connect(ctx.destination);
+    engineRef.current={ctx:ctx,src:src,irDecay:0,
+      parts:{flt:flt,bass:bass,mid:mid,treb:treb,comp:comp,shp:shp,dl:dl,fb:fb,
+        ewet:ewet,cv:cv2,rwet:rwet,sPos:sPos,sNeg:sNeg,pan:pan,out:out},
+      nodes:[flt,bass,mid,treb,comp,shp,dry,sum,dl,fb,ewet,cv2,rwet,spl,mg,sg,
+        lm,rm,ls,rs,sPos,sNeg,mrg,pan,out].filter(Boolean)};
+    var rv=fxRef.current.reverb;
+    if(rv){try{cv2.buffer=svxMakeIR(ctx,rv.decay_s);
+      engineRef.current.irDecay=rv.decay_s}catch(_e){}}
+    liveApply(fxRef.current);
+    try{src.start(0,sb[0])}catch(_e){engineStop();return}
+    setPlaying(!0)}
+
+  function listenToggle(){
+    if(playing){engineStop();svxRelease(wrapRef.current);return}
+    var url=clip.url;
+    if(!url){fireNote("Pas de source audio sur ce clip.");return}
+    if(!svmSharedAC()){fireNote("Web Audio indisponible dans ce navigateur.");return}
+    var e=svxBuf(url,function(){if(wantRef.current)startEngine()});
+    if(e.st==="ok"){wantRef.current=!0;startEngine()}
+    else if(e.st==="err")fireNote("Décodage impossible (codec non lu par le navigateur).");
+    else{wantRef.current=!0;setLoading(!0)}}
+
+  function renderAudition(){
+    if(!props.onAudition||rBusy)return;
+    engineStop();svxRelease(wrapRef.current);
+    var p=null;
+    try{p=props.onAudition(svxEmitFx(fxRef.current,norm.unknown))}catch(_e){}
+    if(p&&p.then){
+      setRBusy(!0);
+      p.then(function(){setRBusy(!1)},function(err){setRBusy(!1);
+        if(err)fireNote(String(err&&err.message||err))})}}
+
+  /* params mis à jour EN DIRECT pendant la lecture (graphe conservé) */
+  x.useEffect(function(){if(engineRef.current)liveApply(fxRef.current)},[fxSig,clipSig]);
+  /* source changée → on coupe (le prochain Écouter décode la nouvelle) */
+  x.useEffect(function(){
+    if(engineRef.current||wantRef.current){engineStop();svxRelease(wrapRef.current)}},
+    [clip.url]);
+  x.useEffect(function(){return function(){
+    if(stopImplRef.current)stopImplRef.current();
+    svxRelease(wrapRef.current)}},[]);
+
+  function paramRow(def,pd,p,on){
+    var v=p[pd.k];
+    if(pd.kind==="seg")
+      return r.jsxs("div",{className:"svx-prow",children:[
+        r.jsx("span",{className:"svx-plabel",children:"Mode"}),
+        r.jsx("div",{className:"svx-gseg",role:"radiogroup","aria-label":"Mode du filtre",
+          children:pd.opts.map(function(o){
+          return r.jsx("button",{className:"svx-gsegbtn",role:"radio",
+            "aria-checked":v===o[0],"data-on":v===o[0]?"":void 0,
+            onClick:function(){setParam(def.type,pd.k,o[0])},children:o[1]},o[0])})})]},pd.k);
+    var sv,smin,smax,sstep;
+    if(pd.log){smin=0;smax=1000;sstep=1;
+      sv=Math.round(1000*Math.log(svxClamp(v,pd.min,pd.max)/pd.min)/Math.log(pd.max/pd.min))}
+    else{smin=pd.min;smax=pd.max;sstep=pd.step;sv=v}
+    var disp=pd.step<1?svxRound(v,1):Math.round(v);
+    return r.jsxs("div",{className:"svx-prow","data-dim":on?void 0:"",children:[
+      r.jsx("span",{className:"svx-plabel",children:pd.label}),
+      r.jsx("input",{className:"svx-prange",type:"range",min:smin,max:smax,step:sstep,
+        value:sv,"aria-label":def.label+" — "+pd.label,
+        onChange:function(e){
+          var nv=svxN(e.target.value,sv);
+          if(pd.log)nv=pd.min*Math.pow(pd.max/pd.min,nv/1000);
+          setParam(def.type,pd.k,svxClamp(nv,pd.min,pd.max))}}),
+      r.jsx("input",{className:"svx-pval svm-mono",type:"number",
+        min:pd.min,max:pd.max,step:pd.step,defaultValue:disp,
+        "aria-label":def.label+" — "+pd.label+" (valeur)",
+        onBlur:function(e){
+          var nv=svxN(e.target.value,disp);
+          if(nv!==disp)setParam(def.type,pd.k,svxClamp(nv,pd.min,pd.max))},
+        onKeyDown:function(e){
+          if(e.key==="Enter"){e.preventDefault();e.currentTarget.blur()}}},
+        def.type+"."+pd.k+":"+disp),
+      r.jsx("span",{className:"svx-punit",children:pd.unit})]},pd.k)}
+
+  function moduleRow(def){
+    var on=!!norm.on[def.type],exp=!!expanded[def.type],
+        p=norm.on[def.type]||lastParamsRef.current[def.type]||svxFxDefaults(def.type);
+    return r.jsxs("div",{className:"svx-mod","data-on":on?"":void 0,children:[
+      r.jsxs("div",{className:"svx-mhead",role:"button",tabIndex:0,
+        "aria-expanded":exp,
+        onClick:function(){setExpanded(function(m){
+          var nm=Object.assign({},m);
+          if(nm[def.type])delete nm[def.type];else nm[def.type]=1;
+          return nm})},
+        onKeyDown:function(e){
+          if(e.key==="Enter"||e.key===" "){e.preventDefault();e.currentTarget.click()}},
+        children:[
+        r.jsx("button",{className:"svx-sw",role:"switch","aria-checked":on,
+          "data-on":on?"":void 0,
+          title:(on?"Désactiver":"Activer")+" — "+def.label,
+          "aria-label":(on?"Désactiver ":"Activer ")+def.label,
+          onClick:function(e){e.stopPropagation();toggleMod(def.type)},
+          children:r.jsx("i",{className:"svx-swk"})}),
+        r.jsx("span",{className:"svx-mname",children:def.label}),
+        r.jsx("span",{className:"svx-mtag","data-live":def.live?"":void 0,
+          title:def.live?"Audible dans l'audition live Web Audio"
+            :"Audible via « Écouter (rendu) » (ffmpeg) uniquement",
+          children:def.live?"live":"rendu"}),
+        on&&!exp?r.jsx("span",{className:"svx-msum svm-mono",
+          children:svxModSummary(def,norm.on[def.type])}):null,
+        r.jsx("span",{className:"svx-mcaret","aria-hidden":!0,children:exp?"▾":"▸"})]}),
+      exp?r.jsx("div",{className:"svx-params",children:
+        def.params.map(function(pd){return paramRow(def,pd,p,on)})}):null]},def.type)}
+
+  return r.jsxs("div",{className:"svx-rack",children:[
+    r.jsxs("div",{className:"svx-rhead",children:[
+      r.jsx("span",{className:"svx-rcount svm-mono",
+        children:activeCount?activeCount+" actif"+(activeCount>1?"s":""):"aucun effet"}),
+      norm.unknown.length?r.jsx("span",{className:"svx-runk svm-mono",
+        title:"Effets d'une version plus récente — conservés tels quels dans le rendu",
+        children:"+"+norm.unknown.length+" inconnu"+(norm.unknown.length>1?"s":"")}):null,
+      r.jsx("button",{className:"svx-rreset","data-off":activeCount?void 0:"",
+        disabled:!activeCount,title:"Retirer tous les effets du clip (annulable)",
+        onClick:resetAll,children:"Réinitialiser"})]}),
+    r.jsx("div",{className:"svx-presets",children:svxFxPresets.map(function(p){
+      var match=activeCount>0&&presetSig(p)===fxSig;
+      var dirty=lastPreset===p.id&&!match&&activeCount>0;
+      return r.jsxs("button",{className:"svx-preset","data-on":match?"":void 0,
+        title:"Appliquer le preset « "+p.label+" » (remplace la chaîne)",
+        onClick:function(){applyPreset(p)},children:[
+        p.label,
+        dirty?r.jsx("span",{className:"svx-dirty",title:"Preset modifié depuis l'application",
+          children:"modifié"}):null]},p.id)})}),
+    r.jsxs("div",{className:"svx-listenrow",children:[
+      r.jsx("button",{className:"svx-listen","data-on":playing?"":void 0,
+        title:playing?"Arrêter l'audition"
+          :"Écouter le segment du clip en boucle, effets appliqués en direct (Web Audio) — fondus non simulés",
+        onClick:listenToggle,
+        children:loading?r.jsxs(r.Fragment,{children:[
+            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"chargement…"]})
+          :playing?"▮▮ Stop":"▶ Écouter"}),
+      props.onAudition?r.jsx("button",{className:"svx-listen svx-listenr",
+        "data-busy":rBusy?"":void 0,disabled:rBusy,
+        title:"Rendu ffmpeg exact du segment avec la chaîne complète (débruiteur, dé-esseur, normalisation compris)",
+        onClick:renderAudition,
+        children:rBusy?r.jsxs(r.Fragment,{children:[
+            r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"rendu…"]})
+          :"Écouter (rendu)"}):null,
+      playing?r.jsx("span",{className:"svx-liveled","aria-hidden":!0}):null]}),
+    nonLiveOn.length?r.jsx("div",{className:"svx-rnote",
+      children:nonLiveOn.join(" · ")+" : au rendu uniquement — passez par « Écouter (rendu) »."}):null,
+    r.jsx("div",{className:"svx-mods",children:SVX_FX_DEFS.map(moduleRow)}),
+    note?r.jsx("div",{className:"svx-note",role:"status","aria-live":"polite",
+      children:note}):null]})};
+
+/* ═════════════════ Métrologie maître (barre −48..0 dBFS + LUFS) ═════════ */
+var SVX_METER_MARKS=[-48,-36,-24,-18,-12,-6,0];
+function svxMeterPct(db){return svxClamp((db+48)/48,0,1)*100}
+
+const SvxMeter=(props)=>{
+  var engaged=!!props.engaged;
+  var m1=x.useState(!1),pin=m1[0],setPin=m1[1];
+  var m2=x.useState(!1),hov=m2[0],setHov=m2[1];
+  var m3=x.useState(!1),clipped=m3[0],setClipped=m3[1];
+  var rootRef=x.useRef(null),holdRef=x.useRef({v:-99,at:0});
+  var lv=props.level||{};
+  var rdb=engaged?svxToDb(lv.rms):-99,
+      pdb=engaged?svxToDb(lv.peak):-99;
+  var now=Date.now();
+  if(engaged){
+    if(pdb>=holdRef.current.v||now-holdRef.current.at>1500)
+      holdRef.current={v:pdb,at:now}}
+  else holdRef.current={v:-99,at:0};
+  var hold=holdRef.current.v;
+  x.useEffect(function(){
+    if(engaged&&(lv.clip||pdb>-0.05))setClipped(!0)},[engaged,lv.clip,pdb]);
+  /* écoute document UNIQUEMENT quand le popover est figé — cleanup garanti */
+  x.useEffect(function(){
+    if(!pin)return;
+    function onKeyD(e){if(e.key==="Escape")setPin(!1)}
+    function onDoc(e){
+      if(rootRef.current&&!rootRef.current.contains(e.target))setPin(!1)}
+    document.addEventListener("keydown",onKeyD,!0);
+    document.addEventListener("mousedown",onDoc,!0);
+    return function(){
+      document.removeEventListener("keydown",onKeyD,!0);
+      document.removeEventListener("mousedown",onDoc,!0)}},[pin]);
+
+  var zone=rdb>-3?"red":rdb>-12?"amber":"green";
+  var open=pin||hov;
+  var lufs=props.lufs&&isFinite(Number(props.lufs.i))?props.lufs:null;
+  var dev=lufs?svxRound(Number(lufs.i)+14,1):null;
+  /* LUFS momentané (R2/C3) — fourni par l'hôte (pondération K), null toléré */
+  var lufsM=props.lufsM!=null&&isFinite(Number(props.lufsM))?Number(props.lufsM):null;
+
+  function bar(big){
+    return r.jsxs("div",{className:"svx-mbar","data-big":big?"":void 0,children:[
+      r.jsx("div",{className:"svx-mzones","aria-hidden":!0}),
+      SVX_METER_MARKS.map(function(mk){
+        return r.jsx("i",{className:"svx-mtick",
+          style:{left:svxMeterPct(mk)+"%"}},mk)}),
+      r.jsx("i",{className:"svx-mtarget",style:{left:svxMeterPct(-14)+"%"},
+        title:"Cible réseaux sociaux : −14 LUFS (mesurée via « Mesurer le mix »)"}),
+      engaged?r.jsx("div",{className:"svx-mfill","data-z":zone,
+        style:{width:svxMeterPct(rdb)+"%"}}):null,
+      engaged&&hold>-96?r.jsx("i",{className:"svx-mpeak",
+        style:{left:svxMeterPct(hold)+"%"}}):null]})}
+
+  return r.jsxs("div",{className:"svx-meter",ref:rootRef,role:"group",
+    "aria-label":"Niveau de sortie maître","data-idle":engaged?void 0:"",
+    onMouseEnter:function(){setHov(!0)},onMouseLeave:function(){setHov(!1)},
+    children:[
+    r.jsx("button",{className:"svx-mled","data-on":clipped?"":void 0,
+      title:clipped?"Saturation détectée (≥ 0 dBFS) — cliquer pour réinitialiser"
+        :"Aucune saturation",
+      "aria-label":clipped?"Saturation détectée — réinitialiser":"Aucune saturation",
+      onClick:function(){setClipped(!1)}}),
+    r.jsx("button",{className:"svx-mbarbtn","aria-expanded":open,
+      title:engaged?"RMS "+svxDb1(rdb)+" · pic "+svxDb1(hold)+" dBFS — clic : détails"
+        :"Au repos — lancez la lecture pour le niveau · clic : détails",
+      onClick:function(){setPin(!pin)},
+      children:bar(!1)}),
+    r.jsxs("span",{className:"svx-mnums svm-mono","aria-live":"off",children:[
+      r.jsx("span",{className:"svx-mnum",children:engaged?"RMS "+svxDb1(rdb):"RMS —"}),
+      r.jsx("span",{className:"svx-mnum svx-mnump",children:engaged?"PIC "+svxDb1(hold):"PIC —"}),
+      engaged&&lufsM!=null?r.jsx("span",{className:"svx-mnum svx-mnumm",
+        title:"Loudness momentanée (fenêtre 400 ms, pondération K)",
+        children:"M "+svxDb1(lufsM)+" LUFS"}):null]}),
+    open?r.jsxs("div",{className:"svx-mpop",role:"dialog",
+      "aria-label":"Détails du niveau de sortie",children:[
+      r.jsxs("div",{className:"svx-mpophead",children:[
+        r.jsx(SvmLabel,{children:"Sortie maître"}),
+        pin?r.jsx("button",{className:"svx-iconbtn",title:"Fermer (Échap)",
+          "aria-label":"Fermer les détails",
+          onClick:function(){setPin(!1)},children:"✕"}):null]}),
+      bar(!0),
+      r.jsx("div",{className:"svx-mscale svm-mono","aria-hidden":!0,
+        children:SVX_METER_MARKS.map(function(mk){
+        return r.jsx("span",{style:{left:svxMeterPct(mk)+"%"},
+          children:mk===0?"0":String(mk)},mk)})}),
+      r.jsxs("div",{className:"svx-mreads svm-mono",children:[
+        r.jsx("span",{children:engaged?"RMS "+svxDb1(rdb)+" dBFS":"RMS — (au repos)"}),
+        r.jsx("span",{children:engaged?"PIC "+svxDb1(hold)+" dBFS":"PIC —"})]}),
+      r.jsxs("div",{className:"svx-mlufs",children:[
+        r.jsx(SvmLabel,{children:"Loudness du mix"}),
+        lufsM!=null?r.jsxs("div",{className:"svx-lufsm svm-mono",
+          title:"Loudness momentanée — temps réel pendant la lecture (fenêtre 400 ms, pondération K)",
+          children:[
+          r.jsx("span",{className:"svx-lufsmlbl",children:"momentané"}),
+          r.jsx("span",{children:svxDb1(lufsM)+" LUFS"})]}):null,
+        lufs?r.jsxs("div",{className:"svx-lufsrow svm-mono",children:[
+          r.jsx("span",{title:"Loudness intégrée",children:"I "+svxDb1(Number(lufs.i))+" LUFS"}),
+          r.jsx("span",{title:"Vrai pic",children:"TP "+svxDb1(Number(lufs.tp))+" dBTP"}),
+          r.jsx("span",{title:"Plage de loudness",children:"LRA "+svxRound(Number(lufs.lra),1)}),
+          r.jsx("span",{className:"svx-lufsdev","data-ok":Math.abs(dev)<=1?"":void 0,
+            title:"Écart à la cible réseaux sociaux (−14 LUFS)",
+            children:svxDb1(dev)+" dB vs cible"})]})
+        :r.jsx("div",{className:"svx-lufsnone",
+          children:"Pas encore mesuré — « Mesurer le mix » analyse le mix audio complet (ebur128, gratuit)."}),
+        r.jsxs("div",{className:"svx-mpoprow",children:[
+          r.jsx("span",{className:"svx-mtargetlbl svm-mono",children:"cible réseaux : −14 LUFS"}),
+          props.onMeasure?r.jsx("button",{className:"svm-goldbtn svx-measure",
+            disabled:!!props.busy,
+            onClick:function(){props.onMeasure()},
+            children:props.busy?r.jsxs(r.Fragment,{children:[
+                r.jsx("span",{className:"svx-spin","aria-hidden":!0}),"mesure…"]})
+              :"Mesurer le mix"}):null]})]}),
+      r.jsx("div",{className:"svx-mhint",
+        children:pin?"Échap ou clic dehors pour fermer":"clic sur la barre : figer le panneau"})]}):null]})};
+
+/* ── export contrat ──────────────────────────────────────────────────────── */
+window.DzSfx={ready:!0,Drawer:SvxDrawer,Rack:SvxRack,Meter:SvxMeter,
+  genSfx:svxGenSfx,fxPresets:svxFxPresets};
+
+/*__DZ_SFXSTUDIO_END__*/
 const oa=(()=>{try{return new URLSearchParams(window.location.search)}catch{return new URLSearchParams}})(),Yu=["quick","studio","assets3d","episodes","sonvfx","montage","scheduler","templates","news","library","settings"],sg=Yu.includes(oa.get("view"))?oa.get("view"):null,ag=oa.get("nosplash")==="1";function lg({variant:e="abyssal",initialView:t="studio",initialSidebar:n=!1,initialDock:o=!1,motionOn:i=!0}){const[s,a]=x.useState(sg||(function(){try{var _v=localStorage.getItem("dz_view");return Yu.indexOf(_v)>=0?_v:t}catch(_e){return t}})()),[l,d]=x.useState(function(){try{var v1=localStorage.getItem("dz_nav_collapsed");return v1===null?n:v1==="1"}catch(_e){return n}}),[u,f]=x.useState(o),[m,y]=x.useState(!1),[w,v]=x.useState(!ag),[g,k]=x.useState(!1),[c,p]=x.useState([]),[h,b]=x.useState([]);x.useEffect(function(){try{localStorage.setItem("dz_view",s)}catch(_e){}},[s]);async function _(){const F=await D.listSchedule();p((Array.isArray(F)?F:[]).map(wh))}x.useEffect(()=>{_();const F=setInterval(_,6e4);return()=>clearInterval(F)},[]);const[z,N]=x.useState(()=>(rm||[]).slice()),[P,j]=x.useState("deepotus");function E(F){N(I=>I.some(M=>M.id===F.id)?I.map(M=>M.id===F.id?{...M,...F}:M):[...I,F]),j(F.id)}async function H(F){const I=new Date;I.setDate(I.getDate()+1),I.setHours(9,0,0,0);const A=await D.createScheduledPost({title:F.title||"New post from Studio",caption:F.caption||"New drop from the deep. 🐙",channels:["x","telegram"],run_at:I.toISOString(),status:"draft",mode:"assisted",job_id:F.jobId||null});await _(),a("scheduler"),A!=null&&A.id&&setTimeout(()=>{window.dispatchEvent(new CustomEvent("deepotus:select-post",{detail:{id:A.id}}))},50)}return x.useEffect(()=>{function F(I){(I.metaKey||I.ctrlKey)&&I.key==="k"&&(I.preventDefault(),y(A=>!A))}return window.addEventListener("keydown",F),()=>window.removeEventListener("keydown",F)},[]),x.useEffect(()=>{function F(I){var V;const A=(V=I==null?void 0:I.detail)==null?void 0:V.view;try{var Tp=I&&I.detail&&I.detail.templateId;if(Tp)window.__dzTpl=Tp}catch(Z){}try{var Sb=I&&I.detail&&I.detail.subtab;if(Sb){window.__dzSubtab=Sb;setTimeout(function(){window.dispatchEvent(new CustomEvent("deepotus:assets-subtab",{detail:{subtab:Sb}}))},80)}}catch(Z9){}A&&Yu.includes(A)&&a(A)}return window.addEventListener("deepotus:navigate",F),()=>window.removeEventListener("deepotus:navigate",F)},[]),r.jsxs("div",{className:"deepotus","data-variant":e,style:{width:"100%",height:"100%",display:"grid",gridTemplateColumns:"auto 1fr",gridTemplateRows:"1fr auto",background:"var(--bg-base)",overflow:"hidden",position:"relative"},children:[r.jsx("div",{style:{gridRow:"1 / 3"},children:r.jsx(tg,{view:s,setView:a,collapsed:l,setCollapsed:function(v1){try{localStorage.setItem("dz_nav_collapsed",v1?"1":"0")}catch(_e){}d(v1)}})}),r.jsxs("main",{style:{display:"flex",flexDirection:"column",minHeight:0},children:[r.jsx(ng,{view:s,setView:a,setCommandOpen:y,variant:e,onShowOnboarding:()=>k(!0)}),r.jsxs("div",{style:{flex:1,minHeight:0,position:"relative"},className:i?"":"no-motion",children:[s==="assets3d"&&r.jsx(DzGameAssetsHub,{variant:e}),s==="studio"&&r.jsx(Lh,{variant:e,onScheduleRender:H}),s==="quick"&&r.jsx(um,{variant:e,activePersona:z.find(F=>F.id===P)}),s==="scheduler"&&r.jsx(Lm,{variant:e,posts:c,setPosts:p,reloadPosts:_}),s==="news"&&r.jsx(pm,{variant:e,go:a}),s==="episodes"&&r.jsx(DzChapitres,{variant:e}),s==="sonvfx"&&r.jsx(DzSonVfx,{variant:e,go:a}),s==="montage"&&r.jsx(DzMontage,{variant:e,go:a}),s==="templates"&&r.jsx(fm,{variant:e}),s==="library"&&r.jsx(vm,{variant:e,uploads:h,setUploads:b}),s==="settings"&&r.jsx(xm,{variant:e,personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})]}),r.jsx("div",{style:{gridColumn:"2 / 3"},children:r.jsx(rg,{expanded:u,setExpanded:f,variant:e})}),r.jsx(ig,{open:m,onClose:()=>y(!1),setView:a,onShowOnboarding:()=>k(!0)}),w&&r.jsx(Hm,{onDone:()=>{v(!1);try{localStorage.getItem("dz_onboarded")||k(!0)}catch(_e){k(!0)}}}),!w&&g&&r.jsx(Km,{onDone:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},onSkip:()=>{try{localStorage.setItem("dz_onboarded","1")}catch(_e){}k(!1)},personas:z,activePersonaId:P,setActivePersonaId:j,savePersona:E})]})}function dg(){return x.useEffect(()=>{document.body.classList.add("deepotus"),document.body.classList.remove("bg-deep-950","text-slate-100","antialiased"),document.body.style.margin="0",document.body.style.minHeight="100vh";const e=document.documentElement;return localStorage.getItem("deepotus.motion.reduced")==="1"&&e.classList.add("no-motion"),localStorage.getItem("deepotus.motion.halo")==="0"&&e.classList.add("no-halo"),()=>{document.body.classList.remove("deepotus")}},[]),r.jsx(bh,{children:r.jsx("div",{className:"deepotus depth-bg",style:{width:"100vw",height:"100vh",overflow:"hidden"},children:r.jsx(lg,{variant:"reef",initialView:"studio"})})})}as.createRoot(document.getElementById("root")).render(r.jsx(yn.StrictMode,{children:r.jsx(dg,{})}));

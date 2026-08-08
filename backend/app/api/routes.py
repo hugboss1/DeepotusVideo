@@ -1257,7 +1257,148 @@ async def upload_audio(file: UploadFile = File(...)):
         raise HTTPException(400, "Audio too large (max 50 MB)")
     dest = folder / safe
     dest.write_bytes(contents)
+    # R1 — sidecar meta (tags du tiroir Sons) : import ou musique selon le nom.
+    from app.services import sfx_service
+    await asyncio.get_running_loop().run_in_executor(
+        None, lambda: sfx_service.record_meta(safe, {
+            "kind": sfx_service.classify_kind(safe),
+            "created": datetime.now().isoformat(timespec="seconds")}))
     return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
+
+
+# ── R1 gauntlet SFX — meta, génération ElevenLabs, audition ────────────────
+# NB : /audio/meta DOIT être déclaré AVANT /audio/{filename} (ordre FastAPI).
+
+@router.get("/audio/meta")
+async def get_audio_meta():
+    """Sidecar _sfx_meta.json filtré aux fichiers présents — {meta:{<fn>:
+    {prompt?, kind, created, …}}}. Alimente tags + recherche du tiroir Sons."""
+    from app.services import sfx_service
+    meta = await asyncio.get_running_loop().run_in_executor(
+        None, sfx_service.known_meta)
+    return {"meta": meta}
+
+
+@router.post("/audio/sfx")
+async def generate_sfx_audio(request: Request):
+    """Génération de bruitages ElevenLabs (sound-generation).
+
+    Body: {prompt: str ≤ 450, duration_s: 0.5–22 | null (auto),
+    prompt_influence: 0..1 = 0.3, variations: 1..4 = 1}. Variations =
+    appels séquentiels ; chaque .mp3 atterrit dans le dossier audio de la
+    Bibliothèque (sidecar kind « sfx ») → {ok, items:[{filename, url, name,
+    size_kb, dur}], warning?}. Erreurs provider → 4xx {detail:
+    « ElevenLabs: … »} (toasts fournisseur)."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        raise HTTPException(400, "Décris le son à générer (prompt vide).")
+    if len(prompt) > 450:
+        raise HTTPException(400, "Prompt trop long (450 caractères max).")
+    raw_dur = payload.get("duration_s")
+    duration_s = None
+    if raw_dur not in (None, "", 0, "auto"):
+        try:
+            duration_s = float(raw_dur)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "duration_s invalide (0.5–22 s ou null).")
+    try:
+        prompt_influence = float(payload.get("prompt_influence", 0.3))
+    except (TypeError, ValueError):
+        prompt_influence = 0.3
+    try:
+        variations = int(payload.get("variations", 1))
+    except (TypeError, ValueError):
+        variations = 1
+    from app.services import sfx_service
+    loop = asyncio.get_running_loop()
+    try:
+        items, warning = await loop.run_in_executor(
+            None, lambda: sfx_service.generate_sfx(
+                prompt, duration_s=duration_s,
+                prompt_influence=prompt_influence, variations=variations))
+    except sfx_service.SfxError as e:
+        raise HTTPException(e.status, e.message)
+    except Exception as e:
+        raise HTTPException(502, f"ElevenLabs: {str(e)[:300]}")
+    out = {"ok": True, "items": items}
+    if warning:
+        out["warning"] = warning
+    return out
+
+
+@router.post("/audio/audition")
+async def audition_audio(request: Request):
+    """Aperçu « rendu » d'un extrait audio traité — parité ffmpeg du Rack.
+
+    Body: {filename (dossier audio) | job_id (son d'un plan), src_in: 0,
+    len: ≤ 12 s, gain_db: 0, speed: 1, fx: [...] (vocabulaire sfx_service)}.
+    → WAV 44.1 k stéréo (FileResponse, fichier temporaire nettoyé après
+    envoi). -ss avant -i + -t + aucun décodage vidéo : < ~2 s."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import sfx_service
+    src: Path | None = None
+    fn = str(payload.get("filename") or "").strip()
+    if fn:
+        p = _audio_dir() / Path(fn).name
+        if not p.is_file():
+            raise HTTPException(404, f"Audio introuvable : {fn}")
+        src = p
+    elif payload.get("job_id"):
+        from app.services.storage import JobRecord, async_session_factory
+        async with async_session_factory() as session:
+            jr = await session.get(JobRecord, str(payload["job_id"]))
+        fp = jr and (jr.final_video_path or jr.video_path)
+        if not fp or not Path(fp).exists():
+            raise HTTPException(404, "Rendu introuvable pour ce job_id.")
+        src = Path(fp)
+    else:
+        raise HTTPException(400, "filename (ou job_id) requis.")
+
+    def _f(key, dv, lo, hi):
+        try:
+            v = float(payload.get(key, dv))
+        except (TypeError, ValueError):
+            return dv
+        return dv if v != v else max(lo, min(hi, v))
+    src_in = _f("src_in", 0.0, 0.0, 36000.0)
+    length = _f("len", 6.0, 0.1, 12.0)
+    gain_db = _f("gain_db", 0.0, -24.0, 12.0)
+    speed = sfx_service.clamp_speed(payload.get("speed"))
+    fx = sfx_service.sanitize_fx(payload.get("fx"), "audition")
+
+    from app.services.montage_service import _has_audio_stream
+    loop = asyncio.get_running_loop()
+    if not await loop.run_in_executor(None, _has_audio_stream, src):
+        raise HTTPException(400, "Cette source n'a pas de piste audio.")
+    out = (settings.outputs_path / "audio"
+           / f"audition_{uuid4().hex[:10]}.wav")
+    cmd = sfx_service.build_audition_command(
+        src, out, src_in=src_in, length=length, gain_db=gain_db,
+        speed=speed, fx=fx)
+
+    def _run():
+        import subprocess
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    try:
+        r = await loop.run_in_executor(None, _run)
+    except Exception as e:
+        raise HTTPException(502, f"Audition impossible : {e}")
+    if r.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
+        out.unlink(missing_ok=True)
+        raise HTTPException(502, "Audition échouée : "
+                                 f"{(r.stderr or '')[-300:]}")
+    from starlette.background import BackgroundTask
+    return FileResponse(out, media_type="audio/wav",
+                        filename="audition.wav",
+                        background=BackgroundTask(
+                            lambda: out.unlink(missing_ok=True)))
 
 
 @router.get("/audio/{filename}")
@@ -1353,6 +1494,12 @@ async def create_voiceover(request: Request):
         raise HTTPException(502, _clean_vo_error(e))
     if not dest.is_file():
         raise HTTPException(502, "Voiceover produced no file")
+    # R1 — sidecar meta (tiroir Sons) : kind « voix » + début du script.
+    from app.services import sfx_service
+    await loop.run_in_executor(
+        None, lambda: sfx_service.record_meta(fn, {
+            "kind": "voix", "prompt": script[:200],
+            "created": datetime.now().isoformat(timespec="seconds")}))
     return {"ok": True, "filename": fn, "url": f"/api/audio/{fn}",
             "size_kb": dest.stat().st_size // 1024}
 

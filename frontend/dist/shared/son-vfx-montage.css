@@ -286,8 +286,10 @@
   background:transparent}
 .svm-fxadd:hover{color:var(--ink2)}
 
-/* ── timeline (274px per reference DOM) ───────────────────────────────────── */
-.svm-tl{flex:none; height:274px; border-top:1px solid var(--stroke);
+/* ── timeline (274px per reference DOM → 312px : pistes audio réhaussées
+   R2/I3 — règle 18 + pistes 40+54+52+48+48 + transport 34, plus 17px de
+   réserve pour l'ascenseur horizontal du zoom : jamais de double ascenseur) ── */
+.svm-tl{flex:none; height:312px; border-top:1px solid var(--stroke);
   background:var(--panel); display:flex; flex-direction:column; min-height:0}
 .svm-trans{height:34px; flex:none; display:flex; align-items:center; gap:12px;
   padding:0 14px; border-bottom:1px solid var(--stroke)}
@@ -330,8 +332,9 @@
 .svm-sq6{width:6px; height:6px; border-radius:2px; flex:none}
 .svm-tname{font-family:var(--f-mono); font-size:10px; color:var(--ink)}
 /* libellés de piste ENTIERS dans 88 px : 8 px resserré (+ padding 7 px) —
-   « dialogue », « musique », « overlay/VFX » tiennent avec M + verrou ;
-   title au survol en garde-fou */
+   pistes vidéo : « vidéo », « overlay/VFX » tiennent avec le verrou ; pistes
+   audio (R2/I2) : le type monte à côté du nom (.svm-thead-a), « dialogue »,
+   « musique », « sfx » entiers ; title au survol en garde-fou */
 .svm-ttype{font-family:var(--f-mono); font-size:8px; letter-spacing:-.02em; color:var(--ink3)}
 .svm-lane{flex:1; position:relative; padding:5px 0; min-width:0}
 .svm-clip{position:absolute; top:5px; bottom:5px; border-radius:6px; padding:4px 7px;
@@ -429,8 +432,9 @@
   border-bottom:2px solid var(--accent); background:var(--panel2); color:var(--ink2);
   font-family:var(--f-mono); font-size:9px; pointer-events:none; z-index:4;
   white-space:nowrap}
-/* popover de jonction — motif .svm-pop compact, ancré au-dessus de la timeline */
-.svm-transpop{top:auto; bottom:282px; right:auto; width:276px; z-index:10; padding:12px}
+/* popover de jonction — motif .svm-pop compact, ancré au-dessus de la timeline
+   (312px + 8 de marge) */
+.svm-transpop{top:auto; bottom:320px; right:auto; width:276px; z-index:10; padding:12px}
 .svm-transgrid{display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:10px}
 .svm-transtile{display:flex; align-items:center; gap:6px; padding:6px 8px;
   border-radius:6px; border:1px solid var(--stroke);
@@ -771,6 +775,108 @@
 /* clip A1 « bloc narration » pas encore narré — pointillés (hachures posées
    inline avec la couleur de piste, motif .svm-target) */
 .svm-clip[data-narr]{border-style:dashed}
+
+/* ── gauntlet SFX — intégration : tiroir Sons, solo d'écoute, réglages
+   ducking, slot du métering, formulaire SFX (écran 06). Tout passe par les
+   variables du thème : le remap clair s'applique seul ; les règles d'opacité
+   sont neutres au thème. ── */
+/* chip « sons » (barre de titre) — jumelle de .svm-narrchip */
+.svm-sfxchip[data-on]{border-color:var(--accent); color:var(--accent)}
+/* badge SOLO (barre transport) — or = état, mono comme la vitesse J/K/L */
+.svm-solochip{font-family:var(--f-mono); font-size:10px; padding:1px 6px;
+  border-radius:5px; border:1px solid var(--accent); color:var(--accent);
+  white-space:nowrap; flex:none}
+/* bouton S actif : vert (écoute positive) — distinct du M muet (or) */
+.svm-tksolo[data-on]{border-color:var(--green); color:var(--green)}
+/* pistes audio exclues du solo : bande et nom atténués (écoute seulement) */
+.svm-track[data-soloexcl] .svm-lane{opacity:.45}
+.svm-track[data-soloexcl] .svm-tname{color:var(--ink4)}
+/* réglages ducking — résumé + boutons neutres (pas le rouge destructif du
+   minibtn) + panneau inline sous le switch */
+.svm-duckrow{display:flex; align-items:center; gap:7px; margin-top:6px}
+.svm-duckcur{flex:1 1 auto; min-width:0; font-family:var(--f-mono); font-size:10px;
+  color:var(--ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.svm-duckbtn:hover{border-color:var(--stroke2); color:var(--ink2)}
+.svm-duckbtn[data-on]{border-color:var(--accent); color:var(--accent)}
+.svm-duckpanel{border:1px solid var(--stroke); border-radius:9px;
+  background:var(--panel2); padding:9px 10px; margin-top:6px}
+/* bouton-valeur de vitesse (inspecteur Clip audio) — mono, reset neutre */
+.svm-spdreset{font-family:var(--f-mono); font-size:10px; width:52px; flex:none;
+  padding:3px 0; text-align:center}
+.svm-spdreset:hover{border-color:var(--stroke2); color:var(--ink2)}
+.svm-spdreset[data-off]{color:var(--ink4); cursor:default}
+.svm-spdreset[data-off]:hover{border-color:var(--stroke); color:var(--ink4)}
+/* slot du métering DzSfx (barre transport 34px) — le composant garde sa
+   propre CSS (sfxstudio.css), le slot borne juste l'emprise */
+.svm-meterslot{display:inline-flex; align-items:center; min-width:0;
+  flex:0 1 auto; max-width:360px}
+/* écran 06 — formulaire de génération SFX (carte « Générer des SFX ») */
+.svm-sfxform{display:flex; align-items:center; gap:7px; margin-top:12px}
+.svm-sfxprompt{flex:1 1 auto; min-width:0; padding:7px 9px; border-radius:7px;
+  border:1px solid var(--stroke); background:var(--panel3); color:var(--ink);
+  font-family:var(--f-ui); font-size:12px;
+  transition:border-color .12s var(--ease)}
+.svm-sfxprompt::placeholder{color:var(--ink4)}
+.svm-sfxprompt:focus{border-color:var(--stroke2)}
+
+/* ── gauntlet SFX R2 — en-têtes audio 3 rangées (fader inline), courbes de
+   fondu, hints transport, recherche du cheatsheet. Tout passe par les tokens
+   du thème : le remap clair (.dzsvm[data-svm-theme="light"]) s'applique seul,
+   aucune couleur en dur. ── */
+/* en-têtes AUDIO (R2/I1+I2) — padding/gap resserrés : nom + type ENTIER sur
+   la 1re rangée (« dialogue », « musique », « sfx » sans troncature), boutons
+   + / M / S / verrou sur la 2e, mini-fader de bus sur la 3e ; tient dans
+   h52 (A1) / h48 (A2, A3) sans déborder — la colonne reste à 88px */
+.svm-thead-a{padding:4px 7px; gap:2px}
+.svm-thead-a .svm-tnamerow{gap:5px; min-width:0}
+.svm-thead-a .svm-tnamerow .svm-ttype{flex:1 1 auto; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.svm-thbtns{display:flex; align-items:center; gap:3px; min-width:0}
+.svm-thbtns .svm-ovadd{margin-left:0}
+/* mini-fader de bus (R2/I1) — même échelle visuelle que la rangée MIXAGE
+   (svmMixW), même état proj.mixDb ; 46×4px, zone de saisie élargie, valeur
+   dB au survol via title */
+.svm-thfader{display:flex; align-items:center; min-width:0}
+.svm-thmix{width:46px; height:4px; border-radius:999px; background:var(--panel3);
+  position:relative; cursor:ew-resize; touch-action:none; flex:none}
+/* zone de saisie élargie — asymétrique : -3px en haut (ne mord pas la rangée
+   de boutons au-dessus), -5px en bas (padding de l'en-tête) */
+.svm-thmix::before{content:""; position:absolute; inset:-3px 0 -5px}
+.svm-thmix:hover .svm-thmixfill,.svm-thmix:focus-visible .svm-thmixfill{filter:brightness(1.15)}
+.svm-thmixfill{position:absolute; left:0; top:0; bottom:0; border-radius:999px;
+  pointer-events:none; transition:filter .12s var(--ease)}
+/* chips de courbe de fondu (R2/I4, inspecteur Clip audio) — par côté actif ;
+   l'or marque la courbe retenue (état) */
+.svm-curverow{display:flex; align-items:center; gap:4px; margin-top:5px; min-width:0}
+.svm-curvelbl{font-family:var(--f-mono); font-size:9px; color:var(--ink4);
+  width:24px; text-align:right; flex:none}
+.svm-curvechip{font-family:var(--f-mono); font-size:9px; padding:2px 7px;
+  border-radius:999px; border:1px solid var(--stroke); background:transparent;
+  color:var(--ink3); cursor:pointer; flex:none;
+  transition:border-color .12s var(--ease), color .12s var(--ease)}
+.svm-curvechip:hover:not([data-on]){border-color:var(--stroke2); color:var(--ink2)}
+.svm-curvechip[data-on]{border-color:var(--accent); color:var(--accent)}
+/* tracé de courbe sur la rampe de fondu (timeline) — même trait que la <line>
+   linéaire historique */
+.svm-fadeline path{stroke:var(--accent); stroke-width:1.5px; fill:none}
+/* rappels de raccourcis (R2/I5, barre transport) — discrets, rétrécissables,
+   masqués définitivement par la croix (dz_hints_off) */
+.svm-hints{display:inline-flex; align-items:center; gap:4px; font-family:var(--f-mono);
+  font-size:10px; color:var(--ink4); white-space:nowrap; min-width:0;
+  overflow:hidden; flex:0 1 auto}
+.svm-hintstxt{overflow:hidden; text-overflow:ellipsis; min-width:0}
+.svm-hintsx{border:none; background:none; color:var(--ink4); cursor:pointer;
+  font-size:10px; padding:0 2px; font-family:inherit; flex:none; line-height:1}
+.svm-hintsx:hover{color:var(--ink2)}
+/* recherche du cheatsheet (R2/I6) — champ + compteur N/total */
+.svm-kbsearch{display:flex; align-items:center; gap:8px; margin-top:10px}
+.svm-kbfind{flex:1 1 auto; min-width:0; padding:6px 9px; border-radius:7px;
+  border:1px solid var(--stroke); background:var(--panel3); color:var(--ink);
+  font-family:var(--f-ui); font-size:12px; transition:border-color .12s var(--ease)}
+.svm-kbfind::placeholder{color:var(--ink4)}
+.svm-kbfind:focus{border-color:var(--stroke2)}
+.svm-kbcount{font-family:var(--f-mono); font-size:10px; color:var(--ink3);
+  font-variant-numeric:tabular-nums; flex:none}
 
 @media (prefers-reduced-motion:reduce){
   .dzsvm *, .dzsvm *::before, .dzsvm *::after{

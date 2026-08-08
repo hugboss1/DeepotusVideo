@@ -1,0 +1,420 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — SFX Studio (tiroir Sons · rack d'effets · métrologie)
+   Complément de /shared/son-vfx-montage.css — préfixe .svx-, scopé .dzsvm.
+
+   Tokens : ceux du bloc .dzsvm (surfaces, encres, --accent OR = état/action/
+   coût uniquement, catégories --c-audio voix / --c-av musique / --c-3d sfx /
+   --c-text importés). Tout chiffre en --f-mono + tabular-nums.
+   Thème clair : les règles ci-dessous n'emploient QUE des tokens (remappés
+   par .dzsvm[data-svm-theme="light"]) — les rares littéraux (ombres, voiles)
+   ont leur variante claire explicite dans le bloc « thème clair » en fin de
+   fichier. Hit-zones élargies ::before, :focus-visible hérité du module svm.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── tiroir « Sons » — panneau latéral 320px, colonne pleine hauteur ─────── */
+.dzsvm .svx-drawer{width:320px; flex:none; border-right:1px solid var(--stroke);
+  background:var(--panel); min-height:0; min-width:0; display:flex;
+  flex-direction:column; overflow:hidden; position:relative}
+.dzsvm .svx-drawer:focus{outline:none} /* focus programmatique du panneau */
+.dzsvm .svx-drawer[data-right]{border-right:0; border-left:1px solid var(--stroke)}
+/* dépôt de fichiers OS : liseré doré (action en cours) */
+.dzsvm .svx-drawer[data-fileover]::after{content:"Déposer pour importer";
+  position:absolute; inset:6px; z-index:5; display:flex; align-items:center;
+  justify-content:center; border:1.5px dashed var(--accent); border-radius:10px;
+  background:color-mix(in srgb,var(--accent) 10%,transparent); color:var(--accent);
+  font-family:var(--f-mono); font-size:11px; letter-spacing:.08em;
+  text-transform:uppercase; pointer-events:none}
+
+.dzsvm .svx-dhead{display:flex; align-items:center; gap:7px; padding:12px 12px 10px;
+  flex:none}
+.dzsvm .svx-dtitle{font-family:var(--f-disp); font-size:13.5px; color:var(--ink);
+  font-weight:600}
+.dzsvm .svx-dcount{font-size:10px; color:var(--ink4); margin-right:auto}
+.dzsvm .svx-iconbtn{width:22px; height:22px; padding:0; border-radius:6px;
+  border:1px solid var(--stroke); background:transparent; color:var(--ink3);
+  cursor:pointer; font-size:11px; line-height:1; position:relative; flex:none;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-iconbtn::before{content:""; position:absolute; inset:-4px}
+.dzsvm .svx-iconbtn:hover{border-color:var(--stroke2); color:var(--ink)}
+.dzsvm .svx-dclose:hover{border-color:var(--red); color:var(--red)}
+
+/* onglets par type + compteurs réels */
+.dzsvm .svx-tabs{display:flex; align-items:center; gap:4px; padding:0 12px 8px;
+  flex:none; flex-wrap:wrap}
+.dzsvm .svx-tab{display:inline-flex; align-items:baseline; gap:5px; padding:3px 8px;
+  border-radius:6px; border:1px solid transparent; background:transparent;
+  color:var(--ink3); cursor:pointer; font-family:var(--f-mono); font-size:10.5px;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-tab:hover:not([data-on]){color:var(--ink2)}
+.dzsvm .svx-tab[data-on]{background:var(--panel2); border-color:var(--stroke);
+  color:var(--ink)}
+.dzsvm .svx-tcount{font-size:9px; color:var(--ink4)}
+.dzsvm .svx-tab[data-on] .svx-tcount{color:var(--ink3)}
+.dzsvm .svx-tsep{width:1px; height:14px; background:var(--stroke); flex:none;
+  margin:0 2px}
+/* « Générer » : une action — l'or la signale sans devenir une catégorie */
+.dzsvm .svx-tabgen[data-on]{border-color:var(--accent); color:var(--accent)}
+
+/* recherche + tri */
+.dzsvm .svx-filters{display:flex; gap:6px; padding:0 12px 10px; flex:none}
+.dzsvm .svx-search{position:relative; flex:1; min-width:0}
+.dzsvm .svx-searchin{width:100%; padding:6px 26px 6px 9px; border-radius:7px;
+  border:1px solid var(--stroke); background:var(--panel3); color:var(--ink);
+  font-family:var(--f-ui); font-size:12px;
+  transition:border-color .12s var(--ease)}
+.dzsvm .svx-searchin::placeholder{color:var(--ink4)}
+.dzsvm .svx-searchin:focus{border-color:var(--stroke2)} /* l'anneau :focus-visible global reste */
+.dzsvm .svx-kbd{position:absolute; right:7px; top:50%; transform:translateY(-50%);
+  font-family:var(--f-mono); font-size:9px; color:var(--ink4); padding:1px 5px;
+  border:1px solid var(--stroke); border-radius:4px; background:var(--panel2);
+  pointer-events:none}
+.dzsvm .svx-select{padding:5px 7px; border-radius:7px; border:1px solid var(--stroke);
+  background:var(--panel2); color:var(--ink2); font-family:var(--f-ui);
+  font-size:11.5px; cursor:pointer; flex:none}
+
+/* fil de la bibliothèque */
+.dzsvm .svx-list{flex:1 1 auto; min-height:0; overflow:auto; padding:0 12px 10px;
+  display:flex; flex-direction:column; gap:7px}
+.dzsvm .svx-item{display:flex; align-items:flex-start; gap:9px; padding:8px 9px;
+  border:1px solid var(--stroke); border-radius:9px; background:var(--panel2);
+  cursor:pointer; flex:none; position:relative;
+  transition:border-color .12s var(--ease)}
+.dzsvm .svx-item:hover:not([data-play]){border-color:var(--stroke2)}
+.dzsvm .svx-item[data-play]{border-color:var(--accent)} /* lecture = état */
+.dzsvm .svx-item:active{cursor:grabbing}
+.dzsvm .svx-iplay{margin-top:2px}
+.dzsvm .svx-ibody{flex:1; min-width:0}
+.dzsvm .svx-irow1{display:flex; align-items:baseline; gap:7px; min-width:0}
+.dzsvm .svx-iname{font-size:12px; color:var(--ink); flex:1; min-width:0;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dzsvm .svx-ibadge{font-family:var(--f-mono); font-size:8.5px; letter-spacing:.1em;
+  padding:1px 5px; border-radius:4px; border:1px solid var(--stroke);
+  color:var(--ink3); flex:none}
+.dzsvm .svx-ibadge[data-k="sfx"]{border-color:var(--c-3d); color:var(--c-3d)}
+.dzsvm .svx-ibadge[data-k="voix"]{border-color:var(--c-audio); color:var(--c-audio)}
+.dzsvm .svx-ibadge[data-k="musique"]{border-color:var(--c-av); color:var(--c-av)}
+.dzsvm .svx-ibadge[data-k="import"]{border-color:var(--c-text); color:var(--c-text)}
+.dzsvm .svx-idur{font-size:10px; color:var(--ink3); flex:none}
+/* étoile favori (R2/C1) — révélée au survol/focus, TOUJOURS visible quand
+   active : le favori est un ÉTAT → l'or est légitime. Tokens uniquement. */
+.dzsvm .svx-ifav{width:16px; height:16px; padding:0; border:none; flex:none;
+  background:transparent; color:var(--ink4); cursor:pointer; font-size:12px;
+  line-height:1; position:relative; align-self:center; opacity:0;
+  transition:color .12s var(--ease), opacity .12s var(--ease)}
+.dzsvm .svx-ifav::before{content:""; position:absolute; inset:-4px}
+.dzsvm .svx-item:hover .svx-ifav, .dzsvm .svx-item:focus-within .svx-ifav,
+.dzsvm .svx-gcard:hover .svx-ifav, .dzsvm .svx-gcard:focus-within .svx-ifav,
+.dzsvm .svx-ifav:focus-visible, .dzsvm .svx-ifav[data-on]{opacity:1}
+.dzsvm .svx-ifav:hover{color:var(--ink2)}
+.dzsvm .svx-ifav[data-on]{color:var(--accent)}
+.dzsvm .svx-wave{display:block; width:100%; height:22px; margin-top:5px;
+  border-radius:4px; background:var(--panel3)}
+.dzsvm .svx-iprompt{font-size:10.5px; color:var(--ink4); margin-top:4px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-style:italic}
+/* actions — révélées au survol / focus, jamais du bruit permanent */
+.dzsvm .svx-iact{display:flex; flex-direction:column; gap:4px; flex:none;
+  opacity:0; transition:opacity .12s var(--ease)}
+.dzsvm .svx-item:hover .svx-iact,
+.dzsvm .svx-item:focus-within .svx-iact,
+.dzsvm .svx-item:focus .svx-iact{opacity:1}
+.dzsvm .svx-abtn{padding:3px 8px; border-radius:6px; border:1px solid var(--stroke);
+  background:var(--panel3); color:var(--ink2); cursor:pointer; position:relative;
+  font-family:var(--f-mono); font-size:10px; line-height:1.35; flex:none;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-abtn::before{content:""; position:absolute; inset:-3px}
+.dzsvm .svx-abtn:hover{border-color:var(--stroke2); color:var(--ink)}
+/* ancre « Télécharger » des cartes résultat (R2/C2) — même langage que .svx-abtn */
+.dzsvm a.svx-abtn{display:inline-flex; align-items:center; text-decoration:none}
+.dzsvm .svx-danger:hover{border-color:var(--red); color:var(--red)}
+.dzsvm .svx-dangerfill{border-color:var(--red); color:var(--red)}
+.dzsvm .svx-dangerfill:hover{background:var(--red); color:var(--panel);
+  border-color:var(--red)}
+/* confirmation inline de suppression — remplace la rangée, jamais de modal */
+.dzsvm .svx-confirm{align-items:center; border-color:var(--red); cursor:default}
+.dzsvm .svx-confirm .svx-iact{opacity:1}
+.dzsvm .svx-conftxt{flex:1; min-width:0; font-size:11.5px; color:var(--ink2)}
+.dzsvm .svx-conftxt b{color:var(--ink); font-weight:600; word-break:break-all}
+
+/* états vides utiles + squelette de chargement */
+.dzsvm .svx-empty{border:1px dashed var(--stroke2); border-radius:10px;
+  padding:18px 14px; text-align:center; color:var(--ink3); font-size:12px;
+  line-height:1.5; margin-top:4px}
+.dzsvm .svx-emptytxt{margin-bottom:12px}
+.dzsvm .svx-emptyrow{display:flex; gap:8px; justify-content:center; flex-wrap:wrap}
+.dzsvm .svx-emptyhint{margin-top:10px; font-family:var(--f-mono); font-size:10px;
+  color:var(--ink4)}
+.dzsvm .svx-skel{display:flex; flex-direction:column; gap:7px}
+.dzsvm .svx-skelrow{height:52px; border-radius:9px; border:1px solid var(--stroke);
+  background:linear-gradient(100deg,var(--panel2) 40%,var(--panel3) 50%,var(--panel2) 60%);
+  background-size:200% 100%; animation:svxShimmer 1.2s linear infinite}
+@keyframes svxShimmer{0%{background-position:120% 0}100%{background-position:-80% 0}}
+
+/* note transitoire + rappels de raccourcis (toujours visibles, discrets) */
+.dzsvm .svx-note{flex:none; padding:7px 12px; font-family:var(--f-mono);
+  font-size:10.5px; color:var(--ink2); border-top:1px solid var(--stroke);
+  background:var(--panel2); line-height:1.45; word-break:break-word}
+.dzsvm .svx-hints{flex:none; display:flex; gap:10px; flex-wrap:wrap;
+  padding:8px 12px; border-top:1px solid var(--stroke);
+  font-size:10px; color:var(--ink4)}
+.dzsvm .svx-hints kbd{font-family:var(--f-mono); font-size:9px; color:var(--ink3);
+  background:var(--panel3); border:1px solid var(--stroke); border-bottom-width:2px;
+  border-radius:4px; padding:0 4px; margin-right:2px; white-space:nowrap}
+.dzsvm .svx-file{display:none}
+
+/* ── onglet Générer ──────────────────────────────────────────────────────── */
+.dzsvm .svx-gen{display:flex; flex-direction:column; padding-top:2px}
+.dzsvm .svx-gprompt{width:100%; margin-top:8px; padding:8px 9px; border-radius:8px;
+  border:1px solid var(--stroke); background:var(--panel3); color:var(--ink);
+  font-family:var(--f-ui); font-size:12px; line-height:1.45; resize:vertical;
+  min-height:56px; max-height:160px; transition:border-color .12s var(--ease)}
+.dzsvm .svx-gprompt::placeholder{color:var(--ink4)}
+.dzsvm .svx-gprompt:focus{border-color:var(--stroke2)}
+.dzsvm .svx-gex{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px}
+.dzsvm .svx-gexchip{padding:3px 8px; border-radius:999px; border:1px dashed var(--stroke2);
+  background:transparent; color:var(--ink3); cursor:pointer; font-size:10.5px;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-gexchip:hover{color:var(--ink); border-color:var(--stroke2);
+  border-style:solid}
+.dzsvm .svx-grow{display:flex; align-items:center; gap:8px; margin-top:10px}
+.dzsvm .svx-glabel{font-size:11px; color:var(--ink2); width:64px; flex:none}
+.dzsvm .svx-gseg{display:inline-flex; gap:3px}
+.dzsvm .svx-gsegbtn{min-width:26px; padding:3px 7px; border-radius:6px;
+  border:1px solid var(--stroke); background:transparent; color:var(--ink3);
+  cursor:pointer; font-family:var(--f-mono); font-size:10.5px; position:relative;
+  transition:all .12s var(--ease)}
+.dzsvm .svx-gsegbtn::before{content:""; position:absolute; inset:-3px}
+.dzsvm .svx-gsegbtn:hover:not([data-on]){border-color:var(--stroke2); color:var(--ink2)}
+.dzsvm .svx-gsegbtn[data-on]{border-color:var(--accent); color:var(--accent)}
+.dzsvm .svx-gslider{flex:1; min-width:0; accent-color:var(--accent); height:14px;
+  cursor:pointer; background:transparent}
+.dzsvm .svx-gslider:disabled{opacity:.35; cursor:default}
+.dzsvm .svx-gnum{width:54px; flex:none; padding:4px 6px; border-radius:6px;
+  border:1px solid var(--stroke); background:var(--panel2); color:var(--ink);
+  font-size:11px; text-align:right}
+.dzsvm .svx-gnum:disabled{color:var(--ink4); background:var(--panel3)}
+.dzsvm .svx-gunit{font-family:var(--f-mono); font-size:10px; color:var(--ink4);
+  flex:none}
+.dzsvm .svx-gval{font-family:var(--f-mono); font-size:10.5px; color:var(--ink3);
+  width:40px; text-align:right; flex:none}
+.dzsvm .svx-gfoot{display:flex; align-items:center; gap:10px; margin-top:14px}
+/* le coût s'affiche AVANT de générer — l'or signale la dépense */
+.dzsvm .svx-gcost{font-size:10.5px; color:var(--amber); flex:1; min-width:0}
+.dzsvm .svx-gold{display:inline-flex; align-items:center; gap:7px}
+.dzsvm .svx-gold:disabled{opacity:.55; cursor:default}
+.dzsvm .svx-spin{width:10px; height:10px; border-radius:999px; flex:none;
+  border:2px solid currentColor; border-top-color:transparent; display:inline-block;
+  animation:svxSpin .7s linear infinite}
+@keyframes svxSpin{to{transform:rotate(360deg)}}
+/* rangée « Résultats » + coût réel de la dernière génération (R2/C2) */
+.dzsvm .svx-gresrow{display:flex; align-items:baseline; gap:10px; margin:16px 0 8px}
+.dzsvm .svx-gresrow .svx-gcost{flex:none}
+.dzsvm .svx-gres{display:flex; flex-direction:column; gap:8px}
+.dzsvm .svx-gcard{border:1px solid var(--stroke); border-radius:9px;
+  background:var(--panel2); padding:9px 10px; cursor:pointer; flex:none;
+  transition:border-color .12s var(--ease)}
+.dzsvm .svx-gcard:hover:not([data-play]){border-color:var(--stroke2)}
+.dzsvm .svx-gcard[data-play]{border-color:var(--accent)}
+.dzsvm .svx-gcard .svx-wave{height:30px; margin-top:7px}
+.dzsvm .svx-gactions{display:flex; gap:6px; margin-top:8px}
+.dzsvm .svx-rename{flex:1; min-width:0; padding:3px 6px; border-radius:6px;
+  border:1px solid var(--stroke2); background:var(--panel3); color:var(--ink);
+  font-size:11px}
+.dzsvm .svx-ghist{display:flex; flex-direction:column; gap:5px}
+.dzsvm .svx-ghrow{display:flex; align-items:baseline; gap:8px; padding:6px 9px;
+  border:1px solid var(--stroke); border-radius:7px; background:transparent;
+  color:var(--ink3); cursor:pointer; text-align:left; width:100%;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-ghrow:hover{color:var(--ink2); border-color:var(--stroke2)}
+.dzsvm .svx-ghprompt{flex:1; min-width:0; font-size:11px; white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; font-style:italic}
+
+/* ── rack d'effets par clip ──────────────────────────────────────────────── */
+.dzsvm .svx-rack{margin-top:8px; display:flex; flex-direction:column; gap:8px}
+.dzsvm .svx-rhead{display:flex; align-items:center; gap:8px}
+.dzsvm .svx-rcount{font-size:10px; color:var(--ink3)}
+.dzsvm .svx-runk{font-size:9.5px; color:var(--ink4)}
+.dzsvm .svx-rreset{margin-left:auto; padding:3px 9px; border-radius:6px;
+  border:1px solid var(--stroke); background:transparent; color:var(--ink3);
+  font-family:var(--f-mono); font-size:10px; cursor:pointer; position:relative;
+  transition:all .12s var(--ease)}
+.dzsvm .svx-rreset::before{content:""; position:absolute; inset:-3px}
+.dzsvm .svx-rreset:hover{border-color:var(--red); color:var(--red)}
+.dzsvm .svx-rreset[data-off]{color:var(--ink4); cursor:default; pointer-events:none}
+.dzsvm .svx-presets{display:flex; flex-wrap:wrap; gap:5px}
+.dzsvm .svx-preset{display:inline-flex; align-items:center; gap:5px; padding:3px 9px;
+  border-radius:999px; border:1px solid var(--stroke); background:transparent;
+  color:var(--ink2); cursor:pointer; font-size:10.5px; position:relative;
+  transition:color .12s var(--ease), border-color .12s var(--ease)}
+.dzsvm .svx-preset::before{content:""; position:absolute; inset:-3px}
+.dzsvm .svx-preset:hover:not([data-on]){border-color:var(--stroke2); color:var(--ink)}
+.dzsvm .svx-preset[data-on]{border-color:var(--accent); color:var(--accent)}
+/* badge « modifié » — divergence depuis l'application du preset (état : or) */
+.dzsvm .svx-dirty{font-family:var(--f-mono); font-size:8.5px; padding:0 4px;
+  border-radius:4px; border:1px solid var(--accent); color:var(--accent)}
+.dzsvm .svx-listenrow{display:flex; align-items:center; gap:6px}
+.dzsvm .svx-listen{display:inline-flex; align-items:center; gap:6px; padding:5px 11px;
+  border-radius:7px; border:1px solid var(--stroke2); background:var(--panel2);
+  color:var(--ink); cursor:pointer; font-size:11.5px;
+  transition:border-color .12s var(--ease)}
+.dzsvm .svx-listen:hover{border-color:var(--accent)}
+.dzsvm .svx-listen[data-on]{border-color:var(--accent); color:var(--accent)}
+.dzsvm .svx-listen:disabled{opacity:.6; cursor:default}
+.dzsvm .svx-listenr{font-size:11px; color:var(--ink2)}
+.dzsvm .svx-liveled{width:7px; height:7px; border-radius:999px; flex:none;
+  background:var(--accent); animation:svxPulse 1s ease-in-out infinite}
+@keyframes svxPulse{0%,100%{opacity:1}50%{opacity:.35}}
+.dzsvm .svx-rnote{font-family:var(--f-mono); font-size:9.5px; color:var(--ink4);
+  line-height:1.45}
+.dzsvm .svx-mods{display:flex; flex-direction:column; gap:5px}
+.dzsvm .svx-mod{border:1px solid var(--stroke); border-radius:8px;
+  background:var(--panel2); transition:border-color .12s var(--ease)}
+.dzsvm .svx-mod[data-on]{border-color:var(--stroke2)}
+.dzsvm .svx-mhead{display:flex; align-items:center; gap:7px; padding:6px 8px;
+  cursor:pointer; min-width:0}
+.dzsvm .svx-mhead:hover .svx-mcaret{color:var(--ink2)}
+.dzsvm .svx-mname{font-size:11.5px; color:var(--ink3); flex:none}
+.dzsvm .svx-mod[data-on] .svx-mname{color:var(--ink)}
+/* étiquette live / rendu — quel bouton d'écoute fait foi */
+.dzsvm .svx-mtag{font-family:var(--f-mono); font-size:8px; letter-spacing:.08em;
+  text-transform:uppercase; padding:0 4px; border-radius:3px; flex:none;
+  border:1px solid var(--stroke); color:var(--ink4)}
+.dzsvm .svx-mtag[data-live]{border-color:var(--green); color:var(--green)}
+.dzsvm .svx-msum{flex:1; min-width:0; text-align:right; font-size:9.5px;
+  color:var(--ink3); white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.dzsvm .svx-mcaret{font-size:9px; color:var(--ink4); flex:none; margin-left:auto}
+.dzsvm .svx-msum+.svx-mcaret{margin-left:0}
+/* interrupteur compact (24×14) — même langage que .svm-switch */
+.dzsvm .svx-sw{width:24px; height:14px; border-radius:999px; border:none;
+  background:var(--panel3); box-shadow:inset 0 0 0 1px var(--stroke2);
+  position:relative; cursor:pointer; flex:none; padding:0;
+  transition:background .12s var(--ease)}
+.dzsvm .svx-sw::before{content:""; position:absolute; inset:-5px}
+.dzsvm .svx-swk{position:absolute; left:2px; top:2px; width:10px; height:10px;
+  border-radius:999px; background:var(--ink3); display:block;
+  transition:all .12s var(--ease)}
+.dzsvm .svx-sw[data-on]{background:var(--accent); box-shadow:none}
+.dzsvm .svx-sw[data-on] .svx-swk{left:12px; background:var(--accent-ink)}
+.dzsvm .svx-params{padding:2px 8px 8px; display:flex; flex-direction:column; gap:2px}
+.dzsvm .svx-prow{display:flex; align-items:center; gap:7px; min-height:24px}
+.dzsvm .svx-prow[data-dim]{opacity:.55} /* module coupé : réglable, il s'activera */
+.dzsvm .svx-plabel{font-size:10.5px; color:var(--ink3); width:54px; flex:none}
+.dzsvm .svx-prange{flex:1; min-width:0; accent-color:var(--accent); height:12px;
+  cursor:pointer; background:transparent}
+.dzsvm .svx-pval{width:56px; flex:none; padding:2px 5px; border-radius:5px;
+  border:1px solid var(--stroke); background:var(--panel3); color:var(--ink);
+  font-size:10.5px; text-align:right}
+.dzsvm .svx-pval:focus{border-color:var(--stroke2)}
+.dzsvm .svx-punit{font-family:var(--f-mono); font-size:9px; color:var(--ink4);
+  width:30px; flex:none}
+/* masque les spinners natifs des champs numériques fins (les flèches clavier
+   restent actives — ±step) */
+.dzsvm .svx-pval::-webkit-outer-spin-button,
+.dzsvm .svx-pval::-webkit-inner-spin-button{-webkit-appearance:none; margin:0}
+.dzsvm .svx-pval{-moz-appearance:textfield; appearance:textfield}
+
+/* ── métrologie maître — compacte (26px), extensible en popover ──────────── */
+.dzsvm .svx-meter{position:relative; display:inline-flex; align-items:center;
+  gap:7px; height:26px; min-width:216px}
+.dzsvm .svx-meter[data-idle] .svx-mbar{opacity:.55}
+.dzsvm .svx-meter[data-idle] .svx-mnums{color:var(--ink4)}
+.dzsvm .svx-mled{width:9px; height:9px; border-radius:999px; flex:none; padding:0;
+  border:1px solid var(--stroke2); background:transparent; cursor:pointer;
+  position:relative; transition:all .12s var(--ease)}
+.dzsvm .svx-mled::before{content:""; position:absolute; inset:-5px}
+.dzsvm .svx-mled[data-on]{background:var(--red); border-color:var(--red);
+  box-shadow:0 0 7px color-mix(in srgb,var(--red) 70%,transparent)}
+.dzsvm .svx-mbarbtn{flex:1; min-width:110px; border:none; background:transparent;
+  padding:0; cursor:pointer; display:block}
+.dzsvm .svx-mbar{position:relative; height:10px; border-radius:3px;
+  background:var(--panel3); border:1px solid var(--stroke); overflow:hidden}
+.dzsvm .svx-mbar[data-big]{height:14px; margin-top:10px}
+/* zones : vert → ambre (> −12) → rouge (> −3) — teintes de fond discrètes */
+.dzsvm .svx-mzones{position:absolute; inset:0;
+  background:linear-gradient(90deg,
+    color-mix(in srgb,var(--green) 13%,transparent) 0 75%,
+    color-mix(in srgb,var(--accent) 15%,transparent) 75% 93.75%,
+    color-mix(in srgb,var(--red) 17%,transparent) 93.75% 100%)}
+.dzsvm .svx-mtick{position:absolute; top:0; bottom:0; width:1px;
+  background:var(--stroke); pointer-events:none}
+/* cible −14 LUFS — repère d'état : or */
+.dzsvm .svx-mtarget{position:absolute; top:-2px; bottom:-2px; width:1px;
+  background:var(--accent); pointer-events:none;
+  box-shadow:0 0 5px color-mix(in srgb,var(--accent) 60%,transparent)}
+/* aiguille RMS (remplissage) — la couleur suit la zone atteinte */
+.dzsvm .svx-mfill{position:absolute; left:0; top:0; bottom:0; border-radius:2px;
+  background:color-mix(in srgb,var(--green) 78%,transparent)}
+.dzsvm .svx-mfill[data-z="amber"]{background:color-mix(in srgb,var(--accent) 80%,transparent)}
+.dzsvm .svx-mfill[data-z="red"]{background:color-mix(in srgb,var(--red) 85%,transparent)}
+/* tick de crête, tenu 1,5 s */
+.dzsvm .svx-mpeak{position:absolute; top:0; bottom:0; width:2px; margin-left:-1px;
+  background:var(--ink); pointer-events:none}
+.dzsvm .svx-mnums{display:inline-flex; gap:8px; font-size:10px; color:var(--ink2);
+  flex:none; font-variant-numeric:tabular-nums}
+.dzsvm .svx-mnum{min-width:58px; text-align:right; white-space:nowrap}
+.dzsvm .svx-mnump{min-width:52px}
+/* « M −xx.x LUFS » — loudness momentanée en direct (R2/C3) */
+.dzsvm .svx-mnumm{min-width:86px}
+/* popover détaillé — s'ouvre vers le haut (barre d'outils de timeline) */
+.dzsvm .svx-mpop{position:absolute; bottom:calc(100% + 10px); right:0; z-index:20;
+  width:280px; background:var(--panel2); border:1px solid var(--stroke2);
+  border-radius:12px; padding:12px;
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.55)}
+/* pont de survol : l'écart de 10 px entre barre et popover ne ferme plus le
+   panneau quand le pointeur le traverse (ouverture au survol) */
+.dzsvm .svx-mpop::after{content:""; position:absolute; top:100%; left:0; right:0;
+  height:12px}
+.dzsvm .svx-mpophead{display:flex; align-items:center; justify-content:space-between}
+.dzsvm .svx-mscale{position:relative; height:12px; margin-top:3px;
+  font-size:8.5px; color:var(--ink4)}
+.dzsvm .svx-mscale span{position:absolute; top:0; transform:translateX(-50%)}
+.dzsvm .svx-mscale span:first-child{transform:none}
+.dzsvm .svx-mscale span:last-child{transform:translateX(-100%)}
+.dzsvm .svx-mreads{display:flex; justify-content:space-between; margin-top:8px;
+  font-size:11px; color:var(--ink)}
+.dzsvm .svx-mlufs{margin-top:12px; padding-top:10px; border-top:1px solid var(--stroke)}
+/* ligne « momentané » — au-dessus de la mesure intégrée (R2/C3) */
+.dzsvm .svx-lufsm{display:flex; justify-content:space-between; align-items:baseline;
+  margin-top:8px; font-size:10.5px; color:var(--ink2)}
+.dzsvm .svx-lufsmlbl{font-size:9px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink4)}
+.dzsvm .svx-lufsrow{display:flex; flex-wrap:wrap; gap:6px 12px; margin-top:8px;
+  font-size:10.5px; color:var(--ink2)}
+.dzsvm .svx-lufsdev{color:var(--amber)}
+.dzsvm .svx-lufsdev[data-ok]{color:var(--green)}
+.dzsvm .svx-lufsnone{font-size:11px; color:var(--ink4); margin-top:8px; line-height:1.5}
+.dzsvm .svx-mpoprow{display:flex; align-items:center; gap:8px; margin-top:10px}
+.dzsvm .svx-mtargetlbl{flex:1; font-size:9.5px; color:var(--ink3)}
+.dzsvm .svx-measure{display:inline-flex; align-items:center; gap:6px;
+  padding:5px 12px; font-size:11px}
+.dzsvm .svx-measure:disabled{opacity:.6; cursor:default}
+.dzsvm .svx-mhint{margin-top:10px; font-family:var(--f-mono); font-size:9px;
+  color:var(--ink4)}
+
+/* ── mouvement réduit : le module svm coupe déjà toute animation .dzsvm * ;
+   redites explicites pour les boucles svx (spin / pulse / shimmer) ───────── */
+@media (prefers-reduced-motion:reduce){
+  .dzsvm .svx-spin,.dzsvm .svx-liveled,.dzsvm .svx-skelrow{animation:none!important}
+}
+
+/* ── thème clair — variantes des littéraux (ombres, voiles) ; tout le reste
+   passe par les tokens remappés de .dzsvm[data-svm-theme="light"].
+   R2 : les nouvelles règles (.svx-ifav étoile favori, a.svx-abtn Télécharger,
+   .svx-gresrow coût, .svx-mnumm « M », .svx-lufsm momentané) n'emploient QUE
+   des tokens remappés (--accent clair = #a06a00 : contraste AA conservé) —
+   aucune redite nécessaire ici. ─────────────────────────────────────────── */
+.dzsvm[data-svm-theme="light"] .svx-mpop{
+  box-shadow:0 1px 2px rgba(23,21,18,.06), 0 10px 28px rgba(23,21,18,.10)}
+.dzsvm[data-svm-theme="light"] .svx-mpeak{background:var(--ink)}
+.dzsvm[data-svm-theme="light"] .svx-mled[data-on]{
+  box-shadow:0 0 7px color-mix(in srgb,var(--red) 45%,transparent)}
+.dzsvm[data-svm-theme="light"] .svx-mzones{
+  background:linear-gradient(90deg,
+    color-mix(in srgb,var(--green) 18%,transparent) 0 75%,
+    color-mix(in srgb,var(--accent) 20%,transparent) 75% 93.75%,
+    color-mix(in srgb,var(--red) 20%,transparent) 93.75% 100%)}
+.dzsvm[data-svm-theme="light"] .svx-drawer[data-fileover]::after{
+  background:color-mix(in srgb,var(--accent) 8%,transparent)}
+.dzsvm[data-svm-theme="light"] .svx-skelrow{
+  background:linear-gradient(100deg,var(--panel2) 40%,var(--panel3) 50%,var(--panel2) 60%);
+  background-size:200% 100%}
