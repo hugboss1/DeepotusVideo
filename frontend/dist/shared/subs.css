@@ -273,16 +273,19 @@
 /* les ecarts apercu/gravure, dans l'onglet Style */
 .sub-stywarns{display:flex; flex-direction:column; gap:4px; margin:8px 0 10px}
 .sub-stywarns .sub-seclabel{margin-bottom:2px}
+/* la DERNIÈRE ligne d'un « après » venait mourir sur le bord de la carte */
+.sub-stywarns .sub-warn{padding-bottom:6px}
 .sub-mhint[data-warn]{color:var(--sub-acc)}
 .sub-tbad[data-soft]{background:var(--sub-stroke2); color:var(--sub-ink2)}
 .sub-cpsout{font-family:var(--sub-mono); font-size:9.5px; color:var(--sub-ink4);
   white-space:nowrap}
 
-.sub-empty{padding:22px 14px; text-align:center;
+/* l'invitation ET la mesure doivent tenir dans le premier ecran */
+.sub-empty{padding:13px 14px; text-align:center;
   border:1px dashed var(--sub-stroke); border-radius:9px}
 .sub-emptytxt{color:var(--sub-ink2); font-size:11.5px; margin-bottom:5px}
 .sub-emptyhint{color:var(--sub-ink4); font-size:10px; line-height:1.45}
-.sub-emptyact{display:flex; justify-content:center; gap:6px; margin-top:12px;
+.sub-emptyact{display:flex; justify-content:center; gap:6px; margin-top:9px;
   flex-wrap:wrap}
 .sub-exportrow{display:flex; align-items:center; gap:6px; margin-top:11px;
   padding-top:10px; border-top:1px solid var(--sub-stroke); flex-wrap:wrap}
@@ -528,6 +531,13 @@
 .sub-plan[data-etat="partiel"] .sub-planst{color:var(--sub-ink4)}
 .sub-planact{display:flex; gap:4px; flex:1 0 100%; flex-wrap:wrap;
   margin:3px 0 0 19px}
+/* ── LA CONVENTION, ÉCRITE OÙ LE NOMBRE APPARAÎT ──────────────────────────
+   « 21 % → 30 % » était juste et invérifiable : deux conventions donnent deux
+   nombres, et rien ne disait laquelle s'applique. L'opération est ici, en
+   toutes lettres, avec le glyphe de la famille du geste qui la produit. */
+.sub-planmath{flex:1 0 100%; margin:3px 0 0 19px; font-size:9px;
+  line-height:1.4; color:var(--sub-ink4); font-variant-numeric:tabular-nums}
+.sub-planmath b{font-style:normal; color:var(--sub-ink3)}
 .sub-covign{display:flex; align-items:center; gap:7px; flex-wrap:wrap;
   padding-top:6px; border-top:1px solid var(--sub-stroke)}
 .sub-covigntxt{font-size:9.5px; color:var(--sub-ink4); flex:1 1 140px}
@@ -665,6 +675,24 @@
 .sub-trhint, .sub-trstep{flex:1 1 140px; min-width:0}
 .sub-trrow .sub-act{margin-left:0}
 .sub-planact .sub-act{margin-left:0}
+/* ── CE QUE LE TEXTE DIT DE SA PROPRE LANGUE ──────────────────────────────
+   Le bouton annonçait « français » au-dessus de treize répliques anglaises.
+   Cette ligne confronte le réglage au contenu, dit sur quoi elle se fonde et
+   combien de mots elle a reconnus, et laisse le geste à portée. Ambre quand
+   l'écran et son contenu se contredisent, discrète sinon. */
+.sub-lgnote{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
+  flex:none; margin:0 12px 7px; padding:4px 8px 5px; border-radius:8px;
+  border:1px solid var(--sub-stroke); background:var(--sub-well)}
+.sub-lgtxt{flex:1 1 180px; min-width:0; font-size:9.5px; line-height:1.4;
+  color:var(--sub-ink4)}
+.sub-lgnote[data-etat="contre"]{
+  border-color:color-mix(in srgb, var(--sub-acc) 55%, var(--sub-stroke));
+  background:color-mix(in srgb, var(--sub-acc) 8%, transparent)}
+.sub-lgnote[data-etat="contre"] .sub-lgtxt{color:var(--sub-ink2)}
+.sub-lgnote[data-etat="flou"] .sub-lgtxt,
+.sub-lgnote[data-etat="vide"] .sub-lgtxt{font-style:italic}
+.sub-lgfix{height:19px; padding:0 7px; font-size:9.5px; flex:none;
+  border-color:var(--sub-acc); color:var(--sub-acc)}
 .sub-warn .sub-act[data-fam="fix"]{margin-left:auto}
 
 /* ── thème clair ─────────────────────────────────────────────────────────── */

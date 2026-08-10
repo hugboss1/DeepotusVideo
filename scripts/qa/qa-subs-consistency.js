@@ -565,6 +565,85 @@ function chk(ok, label, detail) {
     "deux gestes opposés sont détectés et chacun nomme son objectif",
     JSON.stringify(arb));
 
+  /* ── TOUR 6 — une réplique VIDE ne couvre rien ────────────────────────────
+     Le geste « Écrire ici » pose une réplique sans texte sur la ligne même
+     dont l'avertissement dit « ils sortiront muets », et rien ne disait si
+     une réplique vide comptait comme couverte. La règle est tranchée : elle
+     ne couvre rien. On la mesure sur le VRAI calcul, pas sur le libellé —
+     même plan, même durée, un texte puis pas de texte. */
+  const vide = await p.evaluate(() => {
+    const d = window.DzSubs;
+    const plans = [{ id: "p1", tr: "v1", start: 0, end: 10, name: "plan" }];
+    const seg = (t) => [{ id: "s", tr: "s1", start: 0, end: 10, text: t }];
+    const cov = (t) => d.coverage(seg(t), plans, 10);
+    return {
+      plein: cov("du texte").pct, vide: cov("").pct,
+      espaces: cov("   \n  ").pct, masquee: d.coverage(
+        [{ id: "s", tr: "s1", start: 0, end: 10, text: "du texte",
+          hidden: true }], plans, 10).pct,
+    };
+  });
+  chk(vide.plein === 100 && vide.vide === 0 && vide.espaces === 0 &&
+      vide.masquee === 0,
+    "le verdict ne compte JAMAIS une réplique vide comme couverture",
+    JSON.stringify(vide));
+
+  /* ── TOUR 6 — tout pourcentage se refait à la main ────────────────────────
+     « 21 % » à côté de « 14,1 s sur 68,8 s » était juste et invérifiable :
+     14,1/68,8 rend 20 %. Le calcul se fait désormais sur les secondes
+     ARRONDIES — celles que l'écran montre — donc le refaire redonne le
+     chiffre affiché, au point près. */
+  const refait = await p.evaluate(() => {
+    const d = window.DzSubs;
+    /* couvert 14,14 s sur un plan de 21,63 s + un plan de 47,17 s : les
+       valeurs exactes donneraient un arrondi different de celui des valeurs
+       affichees si le calcul ne partait pas des secondes arrondies */
+    const plans = [
+      { id: "p1", tr: "v1", start: 0, end: 21.63, name: "a" },
+      { id: "p2", tr: "v1", start: 21.63, end: 68.8, name: "b" }];
+    const c = d.coverage(
+      [{ id: "s", tr: "s1", start: 0, end: 14.14, text: "x" }], plans, 68.8);
+    const r1 = (v) => Math.round(v * 10) / 10;
+    return { pct: c.pct, couvert: c.couvert, attendu: c.attendu,
+      aLaMain: Math.round(r1(c.couvert) / r1(c.attendu) * 100) };
+  });
+  chk(refait.pct === refait.aLaMain,
+    "le pourcentage affiché est celui qu'on retrouve avec les nombres affichés",
+    JSON.stringify(refait));
+
+  /* ── TOUR 6 — la langue est lue sur le contenu, jamais affirmée contre lui */
+  const lg = await p.evaluate(() => {
+    const d = window.DzSubs;
+    const seg = (t) => [{ id: "s", tr: "s1", start: 0, end: 4, text: t }];
+    const en = "One of the best decisions I made all year was to invest in " +
+      "tools that improve my productivity and this is when I found the " +
+      "platform which has helped my team and I make videos faster";
+    const fr = "Une des meilleures décisions que j'ai prises cette année a " +
+      "été d'investir dans des outils qui améliorent ma productivité et " +
+      "c'est là que j'ai trouvé la plateforme qui a aidé mon équipe";
+    return { en: d.detectLang(seg(en), []), fr: d.detectLang(seg(fr), []),
+      court: d.detectLang(seg("ok"), []), rien: d.detectLang([], []) };
+  });
+  chk(lg.en.code === "en" && lg.en.sur && lg.fr.code === "fr" && lg.fr.sur,
+    "la langue se lit sur le texte présent (anglais et français tranchés)",
+    JSON.stringify([lg.en.code, lg.en.hits, lg.fr.code, lg.fr.hits]));
+  chk(!lg.court.sur && !!lg.court.raison && !lg.rien.total,
+    "une détection incertaine le DIT au lieu de choisir en silence",
+    JSON.stringify([lg.court.raison, lg.rien.raison]));
+  /* et l'écran ne peut pas annoncer une langue que son propre contenu dément */
+  const lgDom = await p.evaluate(() => {
+    const n = document.querySelector(".sub-lgnote");
+    const sel = document.querySelector(".sub-trlang select");
+    const cost = document.querySelector(".sub-trrow .sub-actcost");
+    return n ? { etat: n.getAttribute("data-etat"),
+      txt: (n.innerText || "").replace(/\s+/g, " ").slice(0, 150),
+      sel: sel ? sel.value : "", cost: (cost && cost.textContent) || "" } : null;
+  });
+  chk(!!lgDom && !!lgDom.etat && /mots reconnus|à analyser|indécise/i
+      .test(lgDom.txt),
+    "l'écran dit sur quoi repose la langue qu'il annonce",
+    JSON.stringify(lgDom));
+
   chk(pageErrs.length === 0, "aucune erreur JS sur la page",
     pageErrs.join(" | ") || "0");
 

@@ -382,6 +382,10 @@ R_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":rippl
             if(!subsLayer())return null;
             var vd=subsVd(),C=vd.counts,cv=vd.cov||{connu:!1,complet:!0};
             var pl=function(n,u,p){return n+" "+(Math.abs(n)<2?u:(p||u+"s"))};
+            /* même précision que le tiroir : les deux termes de la division
+               doivent redonner le pourcentage affiché */
+            var f1=function(v){
+              return (Math.round(v*10)/10).toFixed(1).replace(".",",")};
             return r.jsxs("button",{className:"svm-toolchip","data-on":subsOn?"":void 0,
               "aria-pressed":subsOn,
               title:"Piste de sous-titres S1 — lignes, calage, style et karaoké. "+
@@ -389,7 +393,7 @@ R_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":rippl
                   ?pl(C.repliques,"réplique")+", "+pl(C.signalees,"signalée")+
                    " (dont "+pl(C.bloquantes,"bloquante")+")"+
                    (cv.connu
-                     ?". Couverture "+Math.round(cv.pct)+" % du montage"+
+                     ?". Couverture "+cv.pct+" % du montage"+
                       (C.plans_sans?" — "+pl(C.plans_sans,"plan")+
                         " sans la moindre réplique":"")
                      :"")
@@ -412,12 +416,16 @@ R_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":rippl
                  tiroir, et la piste S1 juste dessous le montre à l'œil. */
               cv.connu&&!cv.complet
                 ?r.jsx("span",{className:"sub-chipcov","data-sev":"warn",
-                  title:"Couverture du montage : "+Math.round(cv.pct)+" % — "+
-                    Math.round(cv.couvert)+" s de sous-titres sur "+
-                    Math.round(cv.attendu)+" s de plans à sous-titrer"+
+                  /* les DEUX termes de la division, à la précision affichée
+                     dans le tiroir : « 14 s sur 69 s » ne redonnait pas
+                     « 21 % », donc le chiffre de la chip semblait sorti de
+                     nulle part dès qu'on tentait de le refaire. */
+                  title:"Couverture du montage : "+f1(cv.couvert)+" s ÷ "+
+                    f1(cv.attendu)+" s de plans à sous-titrer = "+
+                    cv.pct+" %"+
                     (C.plans_sans?", "+pl(C.plans_sans,"plan")+
                       " sans la moindre réplique":""),
-                  children:Math.round(cv.pct)+" %"},"c"):null]})})()]}),'''
+                  children:cv.pct+" %"},"c"):null]})})()]}),'''
 
 # ── S12 : « + » de l'en-tête de piste ────────────────────────────────────────
 A_THADD = '''            var thAdd=r.jsx("button",{className:"svm-ovadd",

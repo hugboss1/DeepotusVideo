@@ -184,7 +184,13 @@ def test_les_gestes_opposes_sont_detectes_et_nommes():
     i_quick = body.index('className:"sub-quick"')
     i_arb = body.index("arbitrage,")
     i_ec = body.index("\n    ecarts,")
-    assert i_quick < i_arb < i_ec, \
+    # L'INVARIANT est « ENTRE », pas un sens de lecture : « Couper le fond »
+    # vit dans le bloc « Reglages », « Fond opaque » dans la carte des ecarts,
+    # et l'arbitrage se pose entre les deux — quel que soit celui des deux qui
+    # passe en premier. Au tour 6, la carte des ecarts est montee TOUT EN HAUT
+    # (sa preuve etait coupee par le bord du tiroir) : l'ordre s'est inverse,
+    # la regle n'a pas bouge.
+    assert min(i_quick, i_ec) < i_arb < max(i_quick, i_ec), \
         "l'arbitrage se pose ENTRE les deux gestes qui s'opposent"
 
 
@@ -237,11 +243,15 @@ def test_les_gestes_de_couverture_annoncent_aussi_leur_apres():
     # transcrire : ce qu'il ecrit et ce qu'il ne touche pas
     assert "les \"+\n            \"autres plans ne bougent pas" in row \
         or "autres plans ne bougent pas" in row
-    # ecrire ici : ce qu'il cree ne couvre RIEN tant qu'il est vide
-    assert "elle ne couvre rien" in row
+    # ecrire ici : ce qu'il cree ne couvre RIEN tant qu'il est vide, et il
+    # l'annonce DANS LA MEME CASE que les autres (« 20 % -> 20 % »), au meme
+    # format — « vide . 0 $ » se lisait comme un prix et ne disait rien de
+    # l'apres d'un geste offert sous « ils sortiront muets ».
+    assert "Une réplique SANS TEXTE ne couvre rien" in row
+    assert "cost:cov.pct+\" % → \"+cov.pct+\" %\"" in row
     # acquitter : le chiffre qu'il deplace, calcule
-    assert "pctAp=att>0" in row
-    assert "cost:Math.round(cov.pct)+\" % → \"+pctAp+\" %\"" in row
+    assert "pctAp=subsPctOf(cvt,att)" in row
+    assert "cost:cov.pct+\" % → \"+pctAp+\" %\"" in row
 
 
 # ---------------------------------------------------------------------------
@@ -312,3 +322,144 @@ def test_la_ligne_repliee_porte_debut_duree_et_mesure():
     css = _css()
     assert ".sub-rdur{" in css and ".sub-rmes{" in css
     assert '.sub-rmes[data-sev="err"]' in css
+
+
+# ---------------------------------------------------------------------------
+# 6. TOUR 6 — un nombre qu'on ne peut pas refaire se lit comme un nombre faux
+# ---------------------------------------------------------------------------
+
+def test_les_pourcentages_se_calculent_sur_les_valeurs_affichees():
+    """« "21 % -> 30 %" n'est reconstructible par aucune autre surface. »
+
+    Le chiffre etait JUSTE (acquitter retire le plan du total : 14,1 / (68,8 -
+    21,6) = 30 %) mais rien a l'ecran ne disait laquelle des deux conventions
+    s'applique, et le pourcentage etait calcule sur les secondes EXACTES puis
+    affiche a cote de secondes ARRONDIES — 14,1 / 68,8 rendait 20 % au lecteur
+    et 21 % au panneau.
+
+    Deux regles, verrouillees ici :
+      a. on arrondit AU DIXIEME d'abord — la precision que l'ecran montre —
+         et tout pourcentage se calcule SUR CES VALEURS-LA ;
+      b. les sommes sont des sommes de valeurs AFFICHEES.
+    """
+    src = _strip_comments(_layer())
+    assert src.count("function subsSec(") == 1
+    assert src.count("function subsPctOf(") == 1
+    pct = src.split("function subsPctOf(", 1)[1].split("\nfunction ", 1)[0]
+    assert "subsSec(couvert)" in pct and "subsSec(attendu)" in pct, \
+        "le pourcentage doit se calculer sur les secondes ARRONDIES"
+    cov = src.split("function subsCoverage(", 1)[1].split("\nfunction ", 1)[0]
+    assert "p.couvert=subsSec(" in cov
+    assert "p.pct=subsPctOf(p.couvert,p.dur)" in cov
+    assert "var attendu=subsSec(retenus.reduce(" in cov, \
+        "le total est la somme des durees AFFICHEES"
+    assert "var couvert=subsSec(retenus.reduce(" in cov
+    assert "var pct=subsPctOf(couvert,attendu)" in cov
+    # la duree d'un plan est arrondie UNE fois, a la source
+    pl = src.split("function subsPlans(", 1)[1].split("\nfunction ", 1)[0]
+    assert "dur:subsSec(Math.max(0,b-a))" in pl
+    # ... et plus aucune surface ne re-arrondit un pourcentage deja entier
+    assert "Math.round(cov.pct)" not in src
+    assert "Math.round(vd.cov.pct)" not in src
+
+
+def test_la_convention_de_l_acquittement_est_ecrite_ou_le_nombre_apparait():
+    """« Ecris la convention la ou le nombre apparait, et fais que le calcul
+    soit reconstructible depuis ce que l'ecran montre deja. »"""
+    src = _strip_comments(_layer())
+    segs = src.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    row = segs.split("function planRow(", 1)[1].split("\n  function ", 1)[0]
+    # la convention, en toutes lettres, avec l'operation
+    assert "RETIRE le plan des deux termes" in row
+    assert "jamais ajouté au couvert" in row
+    assert '" − "+subsFr(p.couvert,1)+") ÷ ("' in row
+    assert '" − "+subsFr(p.dur,1)+") = "+pctAp' in row
+    # ... et elle est A L'ECRAN, pas seulement dans une infobulle
+    assert 'className:"sub-planmath"' in row
+    assert ".sub-planmath{" in _css()
+    # les DEUX termes de la division vivent aussi sur la ligne du plan
+    assert 'subsFr(p.couvert,1)+" / "+subsFr(p.dur,1)' in row
+    # et l'en-tete du bloc porte la division, pas seulement son resultat
+    head = segs.split('children:"Couverture du montage"', 1)[1][:1400]
+    assert 'subsFr(cov.couvert,1)+" ÷ "+subsFr(cov.attendu,1)+" s = "' in head
+    assert "RETIRÉS du total" in segs, \
+        "la trace des acquittements doit nommer la meme convention"
+
+
+def test_une_replique_vide_ne_couvre_rien():
+    """« Decide et dis-le. » Une replique sans texte ne couvre rien : le
+    verdict la saute (comme une masquee), et le geste qui en pose une annonce
+    que le pourcentage NE BOUGE PAS."""
+    src = _strip_comments(_layer())
+    # 1. le calcul : l'union des repliques saute le vide ET le masque
+    u = src.split("function subsUnion(", 1)[1].split("\nfunction ", 1)[0]
+    assert 'if(s.hidden||!String(s.text||"").trim())return' in u
+    # 2. le geste le DIT, dans la case ou les autres disent leur apres
+    segs = src.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    row = segs.split("function planRow(", 1)[1].split("\n  function ", 1)[0]
+    assert 'label:"Écrire ici"' in row
+    assert 'cost:cov.pct+" % → "+cov.pct+" %"' in row, \
+        "le geste doit afficher qu'il ne deplace RIEN"
+    assert "vide · 0 $" not in row, "un prix n'est pas un apres"
+    assert "une réplique VIDE ne couvre rien" in row
+    # 3. et le compte des repliques ne se confond pas avec la couverture :
+    #    une replique vide EXISTE dans la liste, elle ne couvre simplement pas
+    vd = src.split("function subsVerdict(", 1)[1].split("\nfunction ", 1)[0]
+    assert "repliques:list.length" in vd
+
+
+def test_la_langue_est_detectee_sur_le_contenu_et_jamais_affirmee_contre_lui():
+    """« Le bouton dit "francais . ElevenLabs Scribe v1" au-dessus de treize
+    sous-titres manifestement anglais. » On detecte sur le texte present, on
+    propose, et si l'on doute on le DIT au lieu de choisir en silence."""
+    src = _strip_comments(_layer())
+    assert src.count("function subsGuessLang(") == 1
+    assert src.count("function subsDetectLang(") == 1
+    g = src.split("function subsGuessLang(", 1)[1].split("\nfunction ", 1)[0]
+    # deux seuils ECRITS, pas un flair
+    assert "SUBS_LG_MIN" in g and "SUBS_LG_LEAD" in g
+    assert "out.sur=score[p]>=SUBS_LG_MIN" in g
+    # la source du jugement est nommee (les repliques, sinon la narration)
+    ls = src.split("function subsLangSource(", 1)[1].split("\nfunction ", 1)[0]
+    assert "les répliques de la piste" in ls
+    assert 'c.tr==="a1"||c.tr==="a3"' in ls
+    drw = src.split("const SubsDrawer=", 1)[1]
+    assert "var det=x.useMemo(function(){" in drw
+    assert "subsDetectLang(segs,props.srcClips)" in drw
+    # on n'ecrase JAMAIS un choix explicite
+    assert "if(langPris||!det.sur||det.code===lang)return" in drw
+    assert 'localStorage.getItem("dz_subs_lang_pris")' in drw
+    assert 'localStorage.setItem("dz_subs_lang_pris","1")' in drw
+    # les quatre etats sont dits a l'ecran, avec le compte des mots reconnus
+    assert 'className:"sub-lgnote"' in drw
+    assert '"data-etat":etat' in drw
+    for etat in ('"vide"', '"flou"', '"ok"', '"contre"'):
+        assert etat in drw, "etat de detection manquant : %s" % etat
+    assert 'det.hits+" mots reconnus sur "+det.total' in drw
+    assert "Langue indécise" in drw, "le doute se DIT"
+    assert 'children:"passer en "+subsLangLab(det.code)' in drw
+    assert ".sub-lgnote{" in _css()
+
+
+def test_la_piece_a_conviction_tient_dans_le_premier_ecran():
+    """« La carte "LES ECARTS" est tronquee par le bord du panneau. » Ce qui
+    justifie un avertissement ne peut pas etre hors champ : la carte passe en
+    tete de l'onglet, et elle ne montre qu'un ecart a la fois."""
+    src = _strip_comments(_layer())
+    sty = src.split("const SubsStyle=", 1)[1].split("\nconst ", 1)[0]
+    body = sty.split("return r.jsxs(", 1)[1]
+    i_ec = body.index("\n    ecarts,")
+    i_quick = body.index('className:"sub-quick"')
+    i_grid = body.index('className:"sub-pgrid"')
+    assert i_ec < i_quick < i_grid, \
+        "la preuve passe devant les reglages, qui passent devant la galerie"
+    # un seul ecart deplie par defaut, les autres a un clic, avec leur nombre
+    assert "var ecVus=ecAll?issues:issues.slice(0,1)" in sty
+    assert 'subsPl(issues.length-1,"autre écart","autres écarts")' in sty
+    # et dans l'autre onglet, la mesure reste dans le premier ecran de la
+    # piste vide : l'invitation d'abord, compacte, la mesure juste dessous
+    segs = src.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    vide = segs.split("if(empty)", 1)[1][:1200]
+    assert vide.index('className:"sub-empty"') < vide.index("couverture]")
+    assert ".sub-empty{padding:13px" in _css(), \
+        "le bloc d'invitation a ete resserre pour que les deux tiennent"

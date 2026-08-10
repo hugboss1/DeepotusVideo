@@ -859,6 +859,20 @@ var SUBS_CHAMP={outW:"Contour",bgPad:"Marge intérieure",shOff:"Décalage",
    Marquer un plan « sans parole » n'efface donc pas le problème : il déplace
    la barre, et le chiffre le dit. */
 var SUBS_COV_OK=98;     /* % — au-dessus, la piste est dite complète */
+/* ═══════ UN NOMBRE QU'ON NE PEUT PAS REFAIRE SE LIT COMME UN NOMBRE FAUX ════
+   Le pourcentage se calculait sur les secondes EXACTES et s'affichait à côté
+   de secondes ARRONDIES au dixième. Un lecteur attentif refaisait 14,1 / 68,8
+   = 20 % et lisait « 21 % » : le chiffre était juste et invérifiable, ce qui
+   revient au même à l'écran.
+   Règle, tenue partout ici : on arrondit D'ABORD au dixième — la précision que
+   l'écran montre — et TOUT pourcentage se calcule SUR CES VALEURS-LÀ. Le
+   total est la somme des durées de plan affichées, le couvert la somme des
+   couverts affichés. Refaire l'opération à la main redonne le chiffre affiché,
+   au point près. */
+function subsSec(v){return subsRound(subsN(v,0),1)}
+function subsPctOf(couvert,attendu){
+  var c=subsSec(couvert),a=subsSec(attendu);
+  return a>0?Math.round(c/a*100):(c>0?100:0)}
 function subsUnion(segs){
   var out=[];
   subsSort(segs).forEach(function(s){
@@ -884,7 +898,10 @@ function subsPlans(clips,dur){
     if(d>0)b=Math.min(b,d);
     return {id:String(c.id||("p"+i)),n:i+1,
       nom:String(c.name||c.label||c.src||("plan "+(i+1))).split(/[\\/]/).pop(),
-      start:a,end:b,dur:Math.max(0,b-a),ignore:!!c.noSub,
+      /* la durée du plan est ARRONDIE au dixième ici, une fois : c'est la
+         valeur écrite sur la ligne, celle qui entre dans le total, et celle
+         que l'acquittement retranche. Trois lectures, un seul nombre. */
+      start:a,end:b,dur:subsSec(Math.max(0,b-a)),ignore:!!c.noSub,
       /* ce plan porte-t-il un texte de narration ? sinon, le calage gratuit
          n'a rien à caler et le bouton doit le dire au lieu de tourner à vide */
       texte:!!String(c.text||"").trim()}})
@@ -896,23 +913,25 @@ function subsCoverage(segs,clips,dur){
   var voix=(clips||[]).filter(function(c){
     return (c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()});
   plans.forEach(function(p){
-    p.couvert=subsSpan(iv,p.start,p.end);
-    p.pct=p.dur>0?p.couvert/p.dur*100:0;
+    p.couvert=subsSec(subsSpan(iv,p.start,p.end));
+    p.pct=subsPctOf(p.couvert,p.dur);
     if(!p.texte)p.texte=voix.some(function(c){
       return subsN(c.end,0)>p.start+.05&&subsN(c.start,0)<p.end-.05});
     p.etat=p.ignore?"ignore":p.couvert<.15?"sans":p.pct<50?"partiel":"ok"});
   var retenus=plans.filter(function(p){return !p.ignore});
-  var attendu=retenus.reduce(function(a,p){return a+p.dur},0);
-  var couvert=retenus.reduce(function(a,p){return a+p.couvert},0);
+  /* somme des valeurs AFFICHÉES, pas des valeurs exactes : le total écrit en
+     tête est exactement la somme des durées écrites sur les lignes */
+  var attendu=subsSec(retenus.reduce(function(a,p){return a+p.dur},0));
+  var couvert=subsSec(retenus.reduce(function(a,p){return a+p.couvert},0));
   if(!plans.length){                       /* aucun plan connu : le montage */
-    attendu=d>0?d:0;
-    couvert=d>0?subsSpan(iv,0,d):0}
-  var pct=attendu>0?subsRound(couvert/attendu*100,1):(couvert>0?100:0);
+    attendu=subsSec(d>0?d:0);
+    couvert=subsSec(d>0?subsSpan(iv,0,d):0)}
+  var pct=subsPctOf(couvert,attendu);
   return {plans:plans,
     sans:retenus.filter(function(p){return p.etat==="sans"}),
     partiels:retenus.filter(function(p){return p.etat==="partiel"}),
     ignores:plans.filter(function(p){return p.ignore}),
-    couvert:subsRound(couvert,2),attendu:subsRound(attendu,2),
+    couvert:couvert,attendu:attendu,
     dur:subsRound(d,2),pct:pct,connu:attendu>0,
     complet:attendu<=0||pct>=SUBS_COV_OK}}
 
@@ -1398,6 +1417,91 @@ function subsLangLab(c){
   var k=String(c||"fr");
   for(var i=0;i<SUBS_LANGS.length;i++)if(SUBS_LANGS[i][0]===k)return SUBS_LANGS[i][1];
   return k}
+
+/* ═══════ L'ÉCRAN N'AFFIRME PAS UNE LANGUE QUE SON CONTENU DÉMENT ════════════
+   Le bouton annonçait « français · ElevenLabs Scribe v1 » et le sélecteur
+   « français », treize répliques manifestement anglaises juste dessous. Le
+   réglage était un défaut d'usine (« fr », en dur), et rien ne le confrontait
+   jamais au texte de la piste.
+   On regarde donc le texte qui est LÀ — les répliques, et à défaut la
+   narration portée par les clips de voix — et on compte les MOTS-OUTILS de
+   chaque langue. Ce sont les mots les plus fréquents et les moins traduisibles
+   d'une langue à l'autre ; leur part tranche vite et se dit en clair
+   (« 46 mots reconnus sur 61 »), donc la détection est vérifiable comme le
+   reste du panneau.
+   Trois issues, et JAMAIS de choix silencieux :
+     sûre    → la langue est proposée, adoptée si l'on n'a jamais tranché
+               soi-même, et l'écran écrit sur quoi elle repose ;
+     indécise→ l'écran le DIT et ne touche à rien ;
+     absente → « aucun texte » : la détection est impossible, et ça se lit. */
+var SUBS_LGW={
+  fr:("le la les de des du un une et est en que qui dans pour pas sur au aux "+
+      "ce cette ces avec plus je tu il elle nous vous ils elles mais ou donc "+
+      "son sa ses mon ma mes tout tous fait être avoir cest ny na quil").split(" "),
+  en:("the of and to a in is it you that he was for on are with as his they i "+
+      "be this have from or one had by but not what all were we when your can "+
+      "there my been if would about who its did get like just dont im thats").split(" "),
+  es:("el la los las de del un una y es en que no se por con para su al lo "+
+      "como más pero sus le ya o este sí porque esta entre cuando muy sin "+
+      "sobre también me hasta hay donde han quien").split(" "),
+  de:("der die das den dem des ein eine und ist in zu von mit auf für nicht "+
+      "auch es sich als an werden aus er hat dass sie nach bei um noch wie "+
+      "über nur oder aber vor zum zur ich wir").split(" "),
+  it:("il lo la i gli le di del della un una e è in che non per con su come "+
+      "da si sono ma anche più ci se al alla nel questo questa loro suo mi ti "+
+      "ho hanno essere fare quando perché").split(" "),
+  pt:("o a os as de do da dos das um uma e é em que não para com por se mais "+
+      "como mas ao à no na você eu ele ela nós eles isso este esta seu sua "+
+      "quando porque muito já também até").split(" ")};
+var SUBS_LGSET=(function(){
+  var m={};
+  Object.keys(SUBS_LGW).forEach(function(k){
+    var s={};SUBS_LGW[k].forEach(function(w){s[w]=1});m[k]=s});
+  return m})();
+/* mots reconnus MINIMUM et avance MINIMALE sur la 2e langue : en dessous, on
+   ne tranche pas — on le dit. Deux seuils écrits, pas un flair. */
+var SUBS_LG_MIN=6,SUBS_LG_LEAD=1.5;
+function subsLangWords(txt){
+  return String(txt||"").toLowerCase()
+    .replace(/[’']/g,"")
+    .replace(/[^a-zà-öø-ÿ]+/g," ").trim().split(/\s+/)
+    .filter(function(w){return w.length>0})}
+function subsGuessLang(txt){
+  var mots=subsLangWords(txt),total=mots.length;
+  var out={code:"",sur:!1,total:total,hits:0,second:"",secondHits:0,
+    raison:total?"":"aucun texte"};
+  if(!total)return out;
+  var score={};
+  Object.keys(SUBS_LGSET).forEach(function(k){score[k]=0});
+  mots.forEach(function(w){
+    Object.keys(SUBS_LGSET).forEach(function(k){
+      if(SUBS_LGSET[k][w])score[k]++})});
+  var rang=Object.keys(score).sort(function(a,b){return score[b]-score[a]});
+  var p=rang[0],s=rang[1];
+  out.code=p;out.hits=score[p];out.second=s;out.secondHits=score[s];
+  out.sur=score[p]>=SUBS_LG_MIN&&score[p]>=Math.max(1,score[s])*SUBS_LG_LEAD;
+  out.raison=out.sur?""
+    :score[p]<SUBS_LG_MIN
+    ?"trop peu de mots reconnus ("+score[p]+", il en faut "+SUBS_LG_MIN+")"
+    :"« "+subsLangLab(p)+" » et « "+subsLangLab(s)+" » à égalité ("+
+     score[p]+" contre "+score[s]+")";
+  return out}
+/* le texte SUR LEQUEL on juge : les répliques d'abord (c'est ce que l'écran
+   montre), la narration des clips de voix ensuite quand la piste est vide —
+   c'est elle que le calage gratuit découpera. */
+function subsLangSource(segs,clips){
+  var t=(segs||[]).map(function(s){return String(s.text||"")}).join(" ").trim();
+  if(t)return {txt:t,ou:"les répliques de la piste"};
+  t=(clips||[]).filter(function(c){
+    return c&&(c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()})
+    .map(function(c){return String(c.text||"")}).join(" ").trim();
+  if(t)return {txt:t,ou:"la narration écrite sur les clips de voix"};
+  return {txt:"",ou:""}}
+function subsDetectLang(segs,clips){
+  var src=subsLangSource(segs,clips);
+  var g=subsGuessLang(src.txt);
+  g.ou=src.ou;
+  return g}
 var SUBS_EST={st:"?",ok:!1,label:"",model:"",usdMin:0,over:3,rt:.1,
   reason:"",busy:!1,subs:[]};
 function subsEstEmit(){
@@ -1468,10 +1572,17 @@ function subsCostOf(free,dur,lang,court){
   return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
       " · "+subsEta(eta),
     free:!1,usd:usd,eta:eta,
+    /* le PRIX et l'ATTENTE se refont eux aussi : le tarif à la minute et la
+       décomposition du délai sont écrits, pas seulement leur résultat. Deux
+       boutons voisins affichant 0,0077 $ et 0,0024 $ ne doivent pas demander
+       qu'on croie le rapport sur parole. */
     apres:"Appel PAYANT à "+SUBS_EST.label+
       (SUBS_EST.model?" ("+SUBS_EST.model+")":"")+", langue "+
-      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son, "+
-      subsEta(eta)+" d'attente."}}
+      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son ("+
+      subsUsd(SUBS_EST.usdMin)+" la minute annoncés par le moteur × "+
+      subsFr(d,1)+" ÷ 60), "+subsEta(eta)+" d'attente ("+
+      subsFr(SUBS_EST.over,1)+" s de mise en route + "+
+      subsFr(SUBS_EST.rt,2)+" s par seconde de son)."}}
 
 /* ── note interne ─────────────────────────────────────────────────────────── */
 function subsUseNote(){
@@ -1866,6 +1977,8 @@ const SubsStyle=(props)=>{
   /* modules repliés au départ : ce qui sert le plus est désormais À PLAT en
      haut (bloc « Réglages »), les modules ne portent que le détail */
   var s1=x.useState({}),exp=s1[0],setExp=s1[1];
+  /* les écarts au-delà du premier : repliés, comme les plans sans sous-titre */
+  var s2=x.useState(!1);
   function set(patch,heavy){if(props.onChange)props.onChange(patch,!!heavy)}
   function fold(id,label,sum,kids){
     var open=!!exp[id];
@@ -1990,6 +2103,22 @@ const SubsStyle=(props)=>{
      sous la galerie : le badge annonçait « 2 » et rien à l'écran ne les
      désignait tant qu'on n'avait pas déroulé. Ils passent donc EN TÊTE de
      l'onglet — un badge doit toujours pouvoir se pointer du doigt. */
+  /* ── ET « EN TÊTE » VEUT DIRE DANS LE PREMIER ÉCRAN ────────────────────────
+     La carte vivait bien avant la galerie, mais SOUS le bloc « Réglages » et
+     l'arbitrage : à 392 px de large et 383 px de haut, il n'en restait qu'un
+     liseré ambré coupé par le bord du tiroir. La seule pièce à conviction du
+     panneau était illisible sans défiler — et un avertissement dont la preuve
+     est hors champ ne vaut pas mieux qu'un avertissement sans preuve.
+     Deux décisions, et la carte tient :
+       1. elle passe TOUT EN HAUT quand elle existe (comme « Couverture du
+          montage » dans l'autre onglet : la preuve avant les réglages), et
+          elle disparaît dès qu'il n'y a plus d'écart — les réglages
+          retrouvent alors le haut de l'onglet ;
+       2. elle montre LE PREMIER écart entier, les autres à un clic, avec leur
+          nombre écrit — la même règle que les plans sans sous-titre, pour que
+          trois écarts ne mangent jamais l'écran entier. */
+  var ecAll=s2[0],setEcAll=s2[1];
+  var ecVus=ecAll?issues:issues.slice(0,1);
   var ecarts=issues.length
     ?r.jsxs("div",{className:"sub-stywarns",children:[
       r.jsxs("div",{className:"sub-sec",children:[
@@ -1998,7 +2127,7 @@ const SubsStyle=(props)=>{
         r.jsx("span",{className:"sub-secnote",
           title:"Le badge de cet onglet compte exactement ces écarts",
           children:issues.length+(issues.length>1?" écarts":" écart")},"n")]},"h"),
-      issues.map(function(w,k){
+      ecVus.map(function(w,k){
         /* ── TOUS les gestes, chacun avec sa CONSÉQUENCE écrite ─────────────
            Un seul bouton vivait ici, et il laissait l'écart voisin debout sans
            un mot : « Passer le fond en opaque » gardait le fond, donc gardait
@@ -2023,7 +2152,16 @@ const SubsStyle=(props)=>{
                 apres:p.apres||p.effect,
                 onClick:function(){set(Object.assign({},p.patch),!0)},
                 k:"p"+j})
-              :subsActNo(p.label,p.blocked,"p"+j)})]},"sw"+k)})]},"ec")
+              :subsActNo(p.label,p.blocked,"p"+j)})]},"sw"+k)}),
+      issues.length>1?r.jsx("button",{className:"sub-covmore",
+        "aria-expanded":ecAll,
+        title:ecAll?"Ne montrer que le premier écart"
+          :"Montrer les "+(issues.length-1)+" autres écarts entre l'aperçu et "+
+           "la gravure, avec leurs gestes",
+        onClick:function(){setEcAll(function(v){return !v})},
+        children:ecAll?"replier les écarts"
+          :"+ "+subsPl(issues.length-1,"autre écart","autres écarts")},
+        "more"):null]},"ec")
     :null;
 
   /* ── RÈGLE 2 : deux remèdes visibles ne poussent pas en sens inverse ───────
@@ -2056,6 +2194,15 @@ const SubsStyle=(props)=>{
 
   return r.jsxs("div",{className:"sub-style",children:[
     r.jsx(SubsAlert,{}),
+
+    /* LA PIÈCE À CONVICTION EN PREMIER — c'est elle que le point de l'onglet
+       annonce, et elle ne peut pas être hors champ. Elle n'existe que s'il y a
+       un écart : sans écart, l'onglet s'ouvre toujours sur les réglages. */
+    ecarts,
+
+    /* l'arbitrage se pose ENTRE les deux gestes qui s'opposent : ceux des
+       écarts au-dessus, celui du bloc « Réglages » au-dessous */
+    arbitrage,
 
     /* ── LES RÉGLAGES D'ABORD, LA GALERIE ENSUITE ──────────────────────────
        Tout ce qui était au-dessus de la ligne de flottaison était une galerie
@@ -2118,15 +2265,6 @@ const SubsStyle=(props)=>{
           children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
             "aussi vrai dans le fichier ASS que dans l'aperçu."},"mvh")
         :rng("marginV",0,45,.5," %","Marge du bord")]}),
-
-    /* l'arbitrage se pose ENTRE les deux gestes qui s'opposent : celui du
-       bloc « Réglages » au-dessus, ceux des écarts au-dessous */
-    arbitrage,
-
-    /* les écarts que compte le badge de cet onglet : juste sous les réglages
-       qu'ils concernent, et AVANT la galerie — le badge doit toujours pouvoir
-       se pointer du doigt sans qu'on déroule */
-    ecarts,
 
     r.jsxs("div",{className:"sub-sec",children:[
       r.jsx("span",{className:"sub-seclabel",children:"Préréglages"}),
@@ -2619,18 +2757,46 @@ const SubsSegments=(props)=>{
     /* la couverture APRÈS acquittement, calculée : on retire ce plan du
        dénominateur et le bouton annonce le chiffre que la ligne des comptes
        affichera. Un acquittement qui ne dit pas ce qu'il déplace est un
-       acquittement qui se fait passer pour un correctif. */
-    var att=Math.max(0,cov.attendu-p.dur),cvt=Math.max(0,cov.couvert-p.couvert);
-    var pctAp=att>0?Math.round(cvt/att*100):100;
+       acquittement qui se fait passer pour un correctif.
+       ── ET LA CONVENTION, ÉCRITE OÙ LE NOMBRE APPARAÎT ────────────────────
+       « 21 % → 30 % » était juste et INVÉRIFIABLE : deux conventions donnent
+       deux nombres (ajouter le plan au couvert : 52 % ; le retirer du total :
+       30 %) et rien à l'écran ne disait laquelle s'applique. Elle est
+       maintenant écrite en toutes lettres, avec l'opération, sous la ligne du
+       plan — et chacun de ses termes est déjà affiché ailleurs à l'écran :
+       le couvert et le total en tête du bloc, la durée du plan sur sa ligne. */
+    var att=subsSec(Math.max(0,cov.attendu-p.dur));
+    var cvt=subsSec(Math.max(0,cov.couvert-p.couvert));
+    var pctAp=subsPctOf(cvt,att);
     var ct=subsCostOf(!!p.texte,p.dur,props.lang||"fr",!0);
+    var calc=att<=0
+      ?"acquitter ce plan ne laisserait AUCUN plan à sous-titrer : la "+
+       "couverture n'aurait plus d'objet."
+      :"acquitter RETIRE le plan des deux termes (jamais ajouté au couvert) : ("+
+       subsFr(cov.couvert,1)+" − "+subsFr(p.couvert,1)+") ÷ ("+
+       subsFr(cov.attendu,1)+" − "+subsFr(p.dur,1)+") = "+pctAp+" %.";
     return r.jsxs("div",{className:"sub-plan","data-etat":p.etat,children:[
       r.jsxs("span",{className:"sub-plann",children:["n°"+p.n]},"n"),
-      r.jsxs("span",{className:"sub-planid",title:p.nom,children:[
-        p.nom," · ",subsTc(p.start)," → ",subsTc(p.end),
-        " (",subsFr(p.dur,1)," s)"]},"i"),
+      /* la durée du plan ne s'écrit plus DEUX fois sur la même ligne : elle
+         vit dans le jeton de droite, où elle est le dénominateur de la
+         division affichée. Écrite deux fois, elle se faisait tronquer là où
+         on en avait justement besoin pour refaire le calcul. */
+      r.jsxs("span",{className:"sub-planid",
+        title:p.nom+" — "+subsTc(p.start)+" → "+subsTc(p.end)+", "+
+          subsFr(p.dur,1)+" s",
+        children:[p.nom," · ",subsTc(p.start)," → ",subsTc(p.end)]},"i"),
+      /* LE COUVERT DE CE PLAN, EN SECONDES : sans lui, « couvert à 34 % »
+         était un pourcentage de plus qu'aucune autre surface ne produisait.
+         Avec lui, la ligne porte les deux termes de sa propre division. */
       r.jsx("span",{className:"sub-planst",
-        children:reste?"couvert à "+Math.round(p.pct)+" %"
-          :"aucune réplique"},"s"),
+        title:reste
+          ?subsFr(p.couvert,1)+" s de répliques visibles et non vides sur les "+
+           subsFr(p.dur,1)+" s du plan = "+p.pct+" %"
+          :"Aucune réplique visible et non vide sur les "+subsFr(p.dur,1)+
+           " s du plan.",
+        children:reste
+          ?subsFr(p.couvert,1)+" / "+subsFr(p.dur,1)+" s = "+p.pct+" %"
+          :"0 / "+subsFr(p.dur,1)+" s couvert"},"s"),
       r.jsxs("span",{className:"sub-planact",children:[
         /* CORRECTIF — il écrit dans le fichier livré, et il annonce sa
            langue, son moteur, son prix et sa durée, comme partout ailleurs */
@@ -2644,23 +2810,39 @@ const SubsSegments=(props)=>{
             "autres plans ne bougent pas. Sans parole détectée, rien n'est "+
             "écrit et le plan reste signalé.",
           onClick:function(){props.onPlanTranscribe(p)},k:"t"}):null,
-        /* CORRECTIF, mais honnête : ce qu'il crée ne couvre encore rien */
+        /* CORRECTIF, mais honnête : ce qu'il crée ne couvre encore rien — et
+           il l'annonce DANS LA MÊME CASE que les autres, avec le même format.
+           « vide · 0 $ » se lisait comme un prix et ne disait rien de l'après :
+           un geste offert sous l'avertissement « ils sortiront muets », qui
+           n'y change rien, doit afficher ce qu'il NE déplace pas. La règle est
+           tranchée et écrite : une réplique sans texte ne couvre rien
+           (`subsUnion` la saute, comme une réplique masquée). */
         subsActBtn({fam:"fix",label:"Écrire ici",but:"sous-titrer ce plan",
-          quiet:!0,cost:"vide · 0 $",
+          quiet:!0,cost:cov.pct+" % → "+cov.pct+" %",
           apres:"Pose une réplique VIDE au début du plan et y amène la tête "+
-            "de lecture. Tant qu'elle n'a pas de texte, elle ne couvre rien : "+
-            "la couverture ne bougera qu'une fois le texte tapé.",
+            "de lecture. Une réplique SANS TEXTE ne couvre rien — ni au rendu, "+
+            "ni dans ce calcul : la couverture reste à "+cov.pct+" % et le "+
+            "plan reste signalé jusqu'à ce que le texte soit tapé.",
           onClick:function(){writeIn(p)},k:"w"}),
         /* ACQUITTEMENT — forme différente, libellé « Acquitter », et le
            chiffre qu'il déplace écrit sur le bouton même */
         props.onPlanFlag?subsActBtn({fam:"ack",label:"sans parole",
           but:"assumer un plan muet",quiet:!0,
-          cost:Math.round(cov.pct)+" % → "+pctAp+" %",
+          cost:cov.pct+" % → "+pctAp+" %",
           apres:"N'écrit RIEN dans la vidéo : ce plan sortira muet, "+
-            "exactement comme maintenant. Il sort du dénominateur de la "+
-            "couverture ("+Math.round(cov.pct)+" % → "+pctAp+" %) et "+
-            "s'inscrit comme « acquitté » dans la ligne des comptes. Révocable.",
-          onClick:function(){props.onPlanFlag(p.id,!0)},k:"i"}):null]},"a")]},
+            "exactement comme maintenant. "+calc.charAt(0).toUpperCase()+
+            calc.slice(1)+" Le plan s'inscrit comme « acquitté » dans la "+
+            "ligne des comptes. Révocable.",
+          onClick:function(){props.onPlanFlag(p.id,!0)},k:"i"}):null]},"a"),
+      /* LES DEUX CONVENTIONS, TRANCHÉES ET ÉCRITES, sous les deux gestes qui
+         les portent. Un lecteur qui doute refait les deux divisions avec les
+         nombres déjà à l'écran et retrouve exactement ces pourcentages. */
+      r.jsxs("span",{className:"sub-planmath",children:[
+        r.jsx("b",{children:"✓ "},"g1"),calc," ",
+        r.jsx("b",{children:"✎ "},"g2"),
+        "écrire ici : une réplique VIDE ne couvre rien → ",
+        subsFr(cov.couvert,1)," ÷ ",subsFr(cov.attendu,1)," = ",cov.pct,
+        " % inchangé."]},"m")]},
       p.id)}
   function writeIn(p){
     var sl=subsFreeSlot(segs,p.start+.05,dur);
@@ -2680,12 +2862,21 @@ const SubsSegments=(props)=>{
       r.jsxs("div",{className:"sub-sec",children:[
         r.jsx("span",{className:"sub-seclabel",
           children:"Couverture du montage"},"l"),
+        /* LA DIVISION, pas seulement son résultat : « 21 % · 14,1 s sur
+           68,8 s » demandait encore de croire l'arrondi. Le signe ÷ et le
+           signe = suffisent à rendre la ligne refaisable de tête. */
         r.jsx("span",{className:"sub-secnote",
-          title:"Part des plans à sous-titrer réellement recouverte par des "+
-            "répliques visibles et non vides. Le chiffre de la ligne des "+
-            "comptes est celui-ci.",
-          children:Math.round(cov.pct)+" % · "+subsFr(cov.couvert,1)+" s sur "+
-            subsFr(cov.attendu,1)+" s"},"n")]},"h"),
+          title:"Couvert = secondes recouvertes par des répliques VISIBLES et "+
+            "NON VIDES. Total = somme des durées des "+
+            subsPl(cov.plans.length-cov.ignores.length,"plan")+" à "+
+            "sous-titrer"+(cov.ignores.length
+              ?", les "+subsPl(cov.ignores.length,"plan")+
+               " acquitté"+(cov.ignores.length>1?"s":"")+
+               " « sans parole » RETIRÉS du total (pas ajoutés au couvert)":"")+
+            ". Les deux nombres sont arrondis au dixième AVANT la division : "+
+            "refaire le calcul redonne ce pourcentage.",
+          children:subsFr(cov.couvert,1)+" ÷ "+subsFr(cov.attendu,1)+" s = "+
+            cov.pct+" %"},"n")]},"h"),
       r.jsx("div",{className:"sub-covbar","aria-hidden":!0,
         children:r.jsx("i",{style:{width:subsClamp(cov.pct,0,100)+"%"}})},"bar"),
       covBad.length?r.jsx("div",{className:"sub-covsay",
@@ -2709,9 +2900,10 @@ const SubsSegments=(props)=>{
           "écrit dans le fichier livré"]},"f"),
         r.jsxs("span",{className:"sub-covlegr","data-fam":"ack",
           title:"Un acquittement n'écrit rien : le plan sortira muet, "+
-            "exactement comme maintenant. Il quitte seulement le dénominateur "+
-            "— le pourcentage monte sans qu'une réplique soit née — et la "+
-            "ligne des comptes garde « plans acquittés ». Révocable.",children:[
+            "exactement comme maintenant. Il est RETIRÉ DU TOTAL — il n'est "+
+            "jamais compté comme couvert — donc le pourcentage monte sans "+
+            "qu'une réplique soit née, et la ligne des comptes garde "+
+            "« plans acquittés ». Révocable.",children:[
           r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✓"},"g"),
           "acquitte : n'écrit rien, trace révocable"]},"a")]},"leg"):null,
       /* On ne déroule pas neuf boutons d'un coup. Le PREMIER plan à traiter
@@ -2741,12 +2933,15 @@ const SubsSegments=(props)=>{
           children:subsPl(cov.ignores.length,"plan")+" acquitté"+
             (cov.ignores.length>1?"s":"")+" « sans parole » ("+
             cov.ignores.map(function(p){return "n°"+p.n}).join(", ")+") : "+
-            subsFr(cov.ignores.reduce(function(a,p){return a+p.dur},0),1)+
-            " s sortis du calcul, et toujours muets à la livraison."},"t"),
+            subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+
+            " s RETIRÉS du total "+subsFr(cov.attendu,1)+
+            " s — jamais comptés couverts — et toujours muets à la "+
+            "livraison."},"t"),
         props.onPlanFlag?r.jsx("button",{className:"sub-act","data-fam":"ack",
-          title:"Remet ces plans dans le calcul de couverture : le "+
-            "pourcentage redescend et ils redeviennent à sous-titrer. Le "+
-            "fichier livré ne change pas non plus dans ce sens.",
+          title:"Remet ces plans dans le total : il remonte de "+
+            subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+
+            " s, le pourcentage redescend et ces plans redeviennent à "+
+            "sous-titrer. Le fichier livré ne change pas non plus dans ce sens.",
           onClick:function(){cov.ignores.forEach(function(p){
             props.onPlanFlag(p.id,!1)})},
           children:"révoquer"},"r"):null]},"ig"):null]},"cov")
@@ -2761,6 +2956,12 @@ const SubsSegments=(props)=>{
      fait qui existe (« ce montage compte 4 plans, aucun n'est sous-titré »),
      et le point de sévérité de l'onglet ne doit jamais annoncer quelque chose
      que l'onglet ouvert ne montre pas. */
+  /* ── L'INVITATION ET LA MESURE TIENNENT ENSEMBLE ─────────────────────────
+     Les deux doivent être dans le premier écran : le geste qui lève l'absence,
+     ET le fait que le point de l'onglet annonce (« 4 plans sortiront muets »,
+     avec leur arithmétique). Le bloc d'invitation est donc réduit à deux
+     lignes — sa troisième répétait ce que la rangée de transcription dit
+     déjà, dix pixels plus haut. */
   if(empty)
     return r.jsxs("div",{className:"sub-segs",children:[
       r.jsx(SubsAlert,{}),
@@ -2768,9 +2969,10 @@ const SubsSegments=(props)=>{
       r.jsxs("div",{className:"sub-empty",children:[
         r.jsx("div",{className:"sub-emptytxt",children:"Aucun sous-titre sur la piste S1."}),
         r.jsx("div",{className:"sub-emptyhint",
-          children:"Écrivez la première réplique à la tête de lecture ("+
-            subsTc(ph)+"), reprenez un fichier existant, ou lancez la "+
-            "transcription automatique ci-dessus."}),
+          title:"La transcription automatique, elle, est la rangée juste "+
+            "au-dessus : elle annonce sa langue, son moteur et son prix.",
+          children:"Écrivez la première réplique à "+subsTc(ph)+
+            ", ou reprenez un fichier existant."}),
         r.jsxs("div",{className:"sub-emptyact",children:[btnAdd,btnImport]})]}),
       couverture]});
 
@@ -2942,10 +3144,22 @@ const SubsDrawer=(props)=>{
   var est=subsEstUse();
   var s1=x.useState("segments"),tab=s1[0],setTab=s1[1];
   var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];
-  /* la LANGUE : choisie, affichée sur chaque bouton qui dépense, et retenue */
+  /* la LANGUE : DÉTECTÉE sur le texte présent, proposée, affichée sur chaque
+     bouton qui dépense, et retenue. `langPris` retient qu'on a tranché
+     soi-même : tant que non, la détection a le dernier mot ; dès que oui, on
+     ne change plus rien dans le dos de personne — on signale seulement que le
+     texte dit autre chose. */
   var s3=x.useState(function(){
     try{return localStorage.getItem("dz_subs_lang")||"fr"}catch(_e){return "fr"}}),
     lang=s3[0],setLang=s3[1];
+  var s3b=x.useState(function(){
+    try{return localStorage.getItem("dz_subs_lang_pris")==="1"}catch(_e){return !1}}),
+    langPris=s3b[0],setLangPris=s3b[1];
+  function pickLang(v,pris){
+    setLang(v);
+    if(pris){setLangPris(!0);
+      try{localStorage.setItem("dz_subs_lang_pris","1")}catch(_e){}}
+    try{localStorage.setItem("dz_subs_lang",v)}catch(_e){}}
   /* Les avertissements de STYLE et les écarts aperçu/gravure viennent du même
      POST /api/subtitles/check que ceux des répliques. Le panneau les jetait
      faute d'index de segment : ils n'ont pas d'index PARCE QU'ils portent sur
@@ -2962,6 +3176,22 @@ const SubsDrawer=(props)=>{
      annonce un chiffre que la liste ne montre pas. */
   subsUseCheck(segs,style,props.dur,svc);
   var vd=subsUseVerdict(segs,style,props.dur,props.srcClips);
+
+  /* ── LA LANGUE, CONFRONTÉE AU TEXTE ────────────────────────────────────────
+     Détection sur le contenu réel, refaite quand le texte change (import,
+     transcription, frappe). Elle ne s'impose QUE si l'on n'a jamais choisi
+     soi-même : sinon elle se contente de dire que l'écran et son contenu ne
+     sont pas d'accord, et offre le geste. */
+  var det=x.useMemo(function(){
+    return subsDetectLang(segs,props.srcClips)},
+    [segs.map(function(s){return s.text||""}).join(""),props.srcClips]);
+  x.useEffect(function(){
+    if(langPris||!det.sur||det.code===lang)return;
+    setLang(det.code);
+    try{localStorage.setItem("dz_subs_lang",det.code)}catch(_e){}
+    fireNote("Langue détectée d'après "+det.ou+" : "+subsLangLab(det.code)+
+      " ("+det.hits+" mots reconnus sur "+det.total+
+      "). Le sélecteur reste maître.")},[det.code,det.sur,langPris]);
 
   x.useEffect(function(){if(open)subsProbe()},[open]);
   x.useEffect(function(){
@@ -3109,13 +3339,14 @@ const SubsDrawer=(props)=>{
          disait que 80 % de la vidéo sortirait muette. */
       vd.cov.connu?r.jsxs("span",{className:"sub-tal","data-k":"couverture",
         "data-sev":vd.cov.complet?void 0:"warn",
-        title:subsFr(vd.cov.couvert,1)+" s de sous-titres sur "+
-          subsFr(vd.cov.attendu,1)+" s de plans à sous-titrer"+
+        title:subsFr(vd.cov.couvert,1)+" s ÷ "+subsFr(vd.cov.attendu,1)+
+          " s de plans à sous-titrer = "+vd.cov.pct+" %"+
           (C.plans_ignores?" ("+subsPl(C.plans_ignores,"plan")+
-            " marqué« sans parole » exclus)":"")+
+            " acquitté« sans parole » RETIRÉ du total, pas ajouté au "+
+            "couvert)":"")+
           (C.plans_sans?" — "+subsPl(C.plans_sans,"plan")+
             " sans la moindre réplique, détail dans l'onglet Répliques":""),
-        children:[r.jsx("b",{children:String(Math.round(vd.cov.pct))+" %"}),
+        children:[r.jsx("b",{children:String(vd.cov.pct)+" %"}),
           "couvert"]},"c"):null,
       /* LES ACQUITTÉS — la trace qu'un acquittement laisse dans le verdict.
          « Sans parole » éteignait l'alerte « 3 plans sortiront muets » sans
@@ -3195,9 +3426,7 @@ const SubsDrawer=(props)=>{
           title:"Langue annoncée au moteur : elle change le découpage en mots "+
             "et le calage sur les silences. Elle est écrite sur chaque bouton "+
             "qui lance une transcription.",
-          onChange:function(e){
-            var v=e.target.value;setLang(v);
-            try{localStorage.setItem("dz_subs_lang",v)}catch(_e){}},
+          onChange:function(e){pickLang(e.target.value,!0)},
           children:SUBS_LANGS.map(function(o){
             return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),
       trJob&&trJob.busy
@@ -3215,6 +3444,42 @@ const SubsDrawer=(props)=>{
             ?"gratuit : texte déjà écrit, calé sur les silences"
             :est.ok?"écrire à la main reste gratuit"
             :est.reason||"coût indisponible"})]}),
+    /* ── CE QUE LE TEXTE DIT DE SA PROPRE LANGUE ───────────────────────────
+       Sous le bouton qui annonce « français » et le sélecteur réglé sur
+       « français », la ligne qui confronte les deux au contenu. Elle dit sur
+       QUOI elle se fonde et COMBIEN de mots elle a reconnus : la détection se
+       vérifie comme les autres chiffres du panneau. Quand elle ne tranche
+       pas, elle le dit — et ne touche à rien. */
+    tab!=="segments"?null:(function(){
+      var etat=!det.total?"vide":det.sur?(det.code===lang?"ok":"contre")
+        :"flou";
+      var txt=etat==="vide"
+        ?"Aucun texte à analyser : « "+subsLangLab(lang)+" » est le réglage, "+
+         "pas une lecture."
+        :etat==="flou"
+        ?"Langue indécise sur "+det.ou+" — "+det.raison+". Rien n'a été choisi "+
+         "à votre place : le panneau reste sur « "+subsLangLab(lang)+" »."
+        :etat==="ok"
+        ?"Langue détectée sur "+det.ou+" : "+subsLangLab(det.code)+" ("+
+         det.hits+" mots reconnus sur "+det.total+") — d'accord avec le "+
+         "sélecteur."
+        :"Le texte de la piste est en "+subsLangLab(det.code).toUpperCase()+
+         " ("+det.hits+" mots reconnus sur "+det.total+", contre "+
+         det.secondHits+" en "+subsLangLab(det.second)+"), et ce panneau "+
+         "annonce « "+subsLangLab(lang)+" » à chaque bouton qui dépense.";
+      return r.jsxs("div",{className:"sub-lgnote","data-etat":etat,children:[
+        r.jsx("span",{className:"sub-lgtxt",children:txt},"t"),
+        etat==="contre"
+          ?r.jsx("button",{className:"sub-btn sub-lgfix",
+            title:"Règle le sélecteur sur « "+subsLangLab(det.code)+" » — donc "+
+              "aussi la langue annoncée au moteur, le découpage en mots et le "+
+              "calage sur les silences. N'écrit RIEN dans la piste : aucune "+
+              "réplique n'est traduite ni retouchée.",
+            onClick:function(){pickLang(det.code,!0);
+              fireNote("Langue réglée sur "+subsLangLab(det.code)+
+                " — aucune réplique n'a été touchée.")},
+            children:"passer en "+subsLangLab(det.code)},"f")
+          :null]},"lg")})(),
     r.jsx("div",{className:"sub-body",children:
       tab==="segments"
         ?r.jsx(SubsSegments,{segments:segs,style:style,onChange:props.onChange,
@@ -3268,6 +3533,13 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      dépense — langue, moteur, prix, durée. */
   FAM:SUBS_FAM,planAfter:subsPlanAfter,goalConflicts:subsGoalConflicts,
   gestes:subsGestes,costOf:subsCostOf,est:SUBS_EST,LANGS:SUBS_LANGS,
+  /* ── LA LANGUE, LUE SUR LE CONTENU (tour 6) ─────────────────────────────
+     `guessLang(texte)` et `detectLang(segments, clips)` rendent
+     {code, sur, hits, total, second, secondHits, raison, ou} : la langue
+     dominante, si elle est SÛRE, sur combien de mots-outils reconnus, et
+     pourquoi elle ne tranche pas quand elle ne tranche pas. Aucune surface
+     n'a le droit d'annoncer une langue que ce résultat dément en silence. */
+  guessLang:subsGuessLang,detectLang:subsDetectLang,
   kindLabels:SUBS_KINDLAB,
   /* la COUVERTURE : quelle part du montage porte des sous-titres, et quels
      plans n'en portent aucun */
