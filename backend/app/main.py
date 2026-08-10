@@ -314,6 +314,33 @@ if _tilelab.is_dir():
 
     logger.info(f"Serving tilelab from {_tilelab}")
 
+# ── Material Forge : matières PBR (8 maps, raccord mesuré, export ZIP/GLB),
+# at /materialforge. Même pattern standalone que /tilelab.
+_materialforge = Path(__file__).resolve().parent.parent.parent / "frontend" / "materialforge"
+if _materialforge.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFMf
+
+    class _MaterialforgeStatic(_SFMf):
+        """no-cache comme /tilelab : materialforge.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/materialforge",
+              _MaterialforgeStatic(directory=str(_materialforge), html=True),
+              name="materialforge")
+
+    @app.get("/materialforge", include_in_schema=False)
+    async def _materialforge_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/materialforge/", status_code=307)
+
+    logger.info(f"Serving materialforge from {_materialforge}")
+
 # ── 3D Studio Meshy (v2.1): écran 1 du design « DeepOtus Studio » — pipeline
 # prompt/réf → maillage → texture → remesh → rig → animations → export, at
 # /studio3d. Même pattern standalone que /spritelab. Le client de référence

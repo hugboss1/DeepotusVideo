@@ -53,6 +53,14 @@ DEFAULTS = {
         "eleven_v3": 1.0,
         "eleven_flash_v2_5": 0.5,
     },
+    # Sous-titres — transcription (piste s1). $/minute d'audio, par
+    # fournisseur À HORODATAGE AU MOT (cf. transcribe_service.STT_PROVIDERS).
+    # Le calage d'un texte DÉJÀ connu (narration écrite dans le Montage) est
+    # local et gratuit : il n'apparaît pas ici, par construction.
+    "stt_usd_per_min": {
+        "elevenlabs": 0.0067,   # Scribe v1, ≈ 0,40 $/h
+        "openai": 0.006,        # whisper-1
+    },
     # LLM $ per 1M tokens (input/output) — used for plan/script estimates
     "llm_usd_per_mtok": {
         "anthropic": {"in": 0.80, "out": 4.00},
@@ -227,6 +235,22 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         if sd:
             lines.append(_line("fal", "Seedance video", sd, "s",
                                sd * p["seedance_usd_per_s"]))
+    elif kind == "transcribe":
+        # Sous-titres, chemin « texte inconnu ». Le chemin « texte connu »
+        # (calage local d'une narration déjà écrite) coûte 0 et le dit.
+        prov = str(op.get("provider") or "elevenlabs").lower()
+        mins = float(op.get("duration_s", 0)) / 60.0
+        rates = p.get("stt_usd_per_min") or DEFAULTS["stt_usd_per_min"]
+        try:
+            rate = float(rates.get(prov, DEFAULTS["stt_usd_per_min"]["openai"]))
+        except (TypeError, ValueError, AttributeError):
+            rate = DEFAULTS["stt_usd_per_min"]["openai"]
+        lines.append(_line(prov, "Transcription (mots horodatés)", mins,
+                           "min", mins * rate))
+    elif kind == "align":
+        # Calage d'un texte connu : ffmpeg + arithmétique locale = 0 $.
+        lines.append(_line("local", "Calage sous-titres (local)",
+                           float(op.get("duration_s", 0)), "s", 0.0))
     elif kind == "llm":
         prov = op.get("provider", "openai")
         rates = p["llm_usd_per_mtok"].get(prov, p["llm_usd_per_mtok"]["openai"])

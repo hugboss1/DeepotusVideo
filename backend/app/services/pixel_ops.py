@@ -247,22 +247,68 @@ def normalize_seamless_opts(spec: dict) -> dict:
 
 def _cross_mask(w: int, h: int, band: int) -> Image.Image:
     """Masque L : tente à 255 sur les lignes x=w/2 et y=h/2, fondue à 0 à
-    `band` px de part et d'autre — le fondu de la croix du décalage 50/50."""
+    `band` px de part et d'autre — le fondu de la croix du décalage 50/50.
+
+    Le masque est en plus ramené à 0 sur les `band/3` px du POURTOUR. Sans
+    cela la croix reste à 255 jusqu'aux bords le long de sa bande centrale :
+    le composite y reprend l'original et **réinjecte la couture d'origine**
+    sur `blend` % de la hauteur (mesuré : rampe 512², avant 50.0, après 9.97
+    = 20 % × 50). Avec l'atténuation, tout le pourtour vient du décalé, qui
+    lui est continu."""
     def _tent(n, c):
         return bytes(max(0, min(255, round(255 * (1 - abs(i - c) / band))))
                      for i in range(n))
+
+    edge = max(2, band // 3)
+
+    def _edge(n):
+        return bytes(max(0, min(255, round(255 * min(i, n - 1 - i) / edge)))
+                     for i in range(n))
+
     v = Image.frombytes("L", (w, 1), _tent(w, w // 2)) \
              .resize((w, h), Image.NEAREST)
     hz = Image.frombytes("L", (1, h), _tent(h, h // 2)) \
              .resize((w, h), Image.NEAREST)
-    return ImageChops.lighter(v, hz)
+    cross = ImageChops.lighter(v, hz)
+    ex = Image.frombytes("L", (w, 1), _edge(w)).resize((w, h), Image.NEAREST)
+    ey = Image.frombytes("L", (1, h), _edge(h)).resize((w, h), Image.NEAREST)
+    return ImageChops.multiply(cross, ImageChops.darker(ex, ey))
+
+
+def _close_loop(img: Image.Image) -> Image.Image:
+    """Ferme la boucle : la dernière colonne devient EXACTEMENT la première
+    (idem dernière ligne / première ligne), par un fondu court vers la copie
+    décalée d'un pixel.
+
+    Le décalage 50/50 laisse en bord deux colonnes ADJACENTES de la source
+    (x=w/2 et x=w/2-1) : proches mais pas égales, d'où un raccord résiduel de
+    2 à 5 (mesuré sur 14 images de la Library). Fondre sur `w/96` px vers
+    `offset(img, w-1, 0)` — c'est-à-dire l'image décalée d'un seul pixel —
+    rend le raccord exactement nul pour un flou local d'un pixel, invisible.
+    """
+    w, h = img.size
+    if w < 8 or h < 8:
+        return img
+
+    def _ramp(n: int, band: int) -> bytes:
+        start = n - 1 - band
+        return bytes(0 if i <= start
+                     else min(255, round(255 * (i - start) / band))
+                     for i in range(n))
+
+    bw, bh = max(2, w // 96), max(2, h // 96)
+    mx = Image.frombytes("L", (w, 1), _ramp(w, bw)).resize((w, h), Image.NEAREST)
+    out = Image.composite(ImageChops.offset(img, w - 1, 0), img, mx)
+    my = Image.frombytes("L", (1, h), _ramp(h, bh)).resize((w, h), Image.NEAREST)
+    return Image.composite(ImageChops.offset(out, 0, h - 1), out, my)
 
 
 def make_seamless(img: Image.Image, opts: dict) -> Image.Image:
     """Tuile raccordable. `opts` vient de normalize_seamless_opts.
     - offset : décalage 50/50 (les bords opposés deviennent des colonnes/
       lignes adjacentes de la source) + fondu de la croix avec l'original
-      (bande `blend` % du petit côté). Les bords ne sont jamais fondus.
+      (bande `blend` % du petit côté, masque nul sur le pourtour) puis
+      fermeture de boucle : le raccord tombe à 0.00 (mesuré).
     - mirror : mosaïque 2×2 de quadrants en miroir — raccord exactement nul,
       rendu kaléidoscope (résolution des quadrants divisée par deux)."""
     rgba = img.convert("RGBA")
@@ -295,7 +341,7 @@ def make_seamless(img: Image.Image, opts: dict) -> Image.Image:
 
     rolled = ImageChops.offset(rgba, w // 2, h // 2)
     band = max(2, round(min(w, h) * opts["blend"] / 100))
-    return Image.composite(rgba, rolled, _cross_mask(w, h, band))
+    return _close_loop(Image.composite(rgba, rolled, _cross_mask(w, h, band)))
 
 
 # ── clé chroma (9e — détourage fond uni du Sprite Lab) ───────────────────────

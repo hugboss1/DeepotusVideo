@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Material Forge — Deepotus Video Gen</title>
+<link rel="stylesheet" href="materialforge.css">
+<!-- visionneuse 3D embarquée (hors ligne, servie par l'app) -->
+<script type="module" src="/assets/model-viewer.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">✨ <b>Material Forge</b></div>
+  <button class="badge act" id="mapsBadge" type="button">MAPS PBR</button>
+  <span class="badge">RACCORD MESURÉ</span>
+  <div class="tb-spacer"></div>
+  <span class="srcchip" id="apiChip">connexion à l'API…</span>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app">← App</a>
+</header>
+
+<!-- bandeau d'erreur API (route absente, backend muet…) -->
+<div class="apibar hidden" id="apiBar">
+  <b id="apiBarTitle">API indisponible</b>
+  <span id="apiBarMsg"></span>
+  <button class="btn ghost sm" id="apiRetry">Réessayer</button>
+</div>
+
+<main class="mf">
+
+  <!-- ══════════════ 1. rail gauche — génération ══════════════ -->
+  <aside class="rail-left" id="railLeft">
+    <div class="rail-head"><h2>Génération</h2></div>
+    <div class="rail-body">
+
+      <div class="fld">
+        <span class="lbl">Source de l'image de base</span>
+        <select id="model"><option value="">—</option></select>
+        <p class="hint" id="modelNote">Seule cette étape est facturée. Les maps sont dérivées en local, hors ligne, re-calculables à volonté.</p>
+      </div>
+
+      <div class="fld">
+        <span class="lbl">Définition source <span class="opt">stockée sur disque</span></span>
+        <div class="seg tall" id="resSeg">
+          <button class="seg-b" data-res="1024"><b>1K</b><i>1024²</i></button>
+          <button class="seg-b active" data-res="2048"><b>2K</b><i>2048²</i></button>
+          <button class="seg-b" data-res="4096"><b>4K</b><i>4096²</i></button>
+        </div>
+        <p class="hint" id="resNote">—</p>
+      </div>
+
+      <div class="fld">
+        <span class="lbl">Image de référence <span class="opt">optionnelle</span></span>
+        <div class="ref-row">
+          <div class="drop" id="drop">
+            <span class="drop-ic">⬆</span>
+            <span class="drop-t">Dépose ou clique pour téléverser</span>
+          </div>
+          <button class="btn sm" id="libToggle" title="Choisir une image déjà présente dans la Library">📚 Library</button>
+        </div>
+        <input type="file" id="fileInput" accept="image/*" class="hidden">
+        <div class="ref-picked hidden" id="refPicked">
+          <img id="refThumb" alt="référence">
+          <span id="refName">—</span>
+          <button class="btn ghost sm" id="refClear" title="Retirer la référence">✕</button>
+        </div>
+        <div class="libbox hidden" id="libBox">
+          <input class="search sm" id="libSearch" placeholder="🔎 Filtrer les images…">
+          <div class="img-grid" id="libGrid"><div class="empty-note sm">Chargement…</div></div>
+        </div>
+      </div>
+
+      <div class="fld">
+        <label class="check" title="Ajoute au gabarit d'invite les consignes qui rendent une texture PBR exploitable (éclairage diffus, pas d'ombres cuites, micro-détail). Enrichissement local : aucun crédit."><input type="checkbox" id="enhance"> Enrichir l'invite <span class="muted">(gratuit)</span></label>
+        <label class="check"><input type="checkbox" id="seamless" checked> Raccord sans couture <span class="muted">(local, gratuit)</span></label>
+        <select id="seamMethod">
+          <option value="offset" selected>Offset 50/50 + fondu (naturel)</option>
+          <option value="mirror">Miroir 2×2 (parfait, kaléidoscope)</option>
+        </select>
+        <p class="hint">Le raccord n'est pas promis, il est <b>mesuré</b> : chaque matière porte le <b>rapport de jonction</b> — la marche au raccord divisée par la marche interne du motif (<b>1.00</b> = la jonction ne dépasse pas le grain de la matière ; visible à partir de <b>2.00</b>).</p>
+      </div>
+
+      <div class="fld grow">
+        <span class="lbl">Invite</span>
+        <textarea id="prompt" rows="3" placeholder="Décris la matière à forger, ou pioche une amorce ci-dessous."></textarea>
+        <div class="chips seeds" id="seedChips"></div>
+        <details class="fullp" id="fullpBox" open>
+          <summary>Invite exacte envoyée au modèle <i class="chev">▾</i></summary>
+          <code id="fullPrompt">—</code>
+        </details>
+      </div>
+    </div>
+
+    <div class="rail-foot">
+      <ol class="steps" id="steps"></ol>
+      <button class="btn primary big wide" id="genBtn">
+        <span id="genLabel">⚒ Forger la matière</span>
+        <b class="est-cost" id="estCost">— cr</b>
+        <i class="est-time" id="estTime">— s</i>
+      </button>
+      <div class="progress hidden" id="progWrap"><i id="progBar"></i></div>
+      <div class="status hidden" id="genStatus"></div>
+    </div>
+  </aside>
+
+  <!-- ══════════════ 2. centre — galerie / viewport ══════════════ -->
+  <section class="center">
+
+    <div class="center-head">
+      <div class="ch-left">
+        <button class="btn sm hidden" id="backGal" title="Retour à la galerie">← Galerie</button>
+        <span class="counter" id="count">0 matière</span>
+        <span class="hidden" id="edSeam"></span>
+        <span class="mono muted hidden" id="edMeta"></span>
+      </div>
+      <div class="ch-right">
+        <input class="search sm" id="galSearch" placeholder="🔎 Filtrer…">
+        <select class="sortsel" id="galSort" title="Trier la galerie"></select>
+        <label class="colslider" id="colsWrap">Colonnes
+          <input type="range" id="cols" min="2" max="6" step="1" value="3">
+          <b id="colsVal">3</b>
+        </label>
+      </div>
+    </div>
+
+    <!-- galerie -->
+    <div class="gallery" id="gallery"></div>
+    <div class="empty-note tall" id="galEmpty">
+      Aucune matière pour l'instant.<br>
+      Décris une matière dans le rail de gauche et lance la forge : la carte apparaît ici,
+      en aperçu 3D réel, avec ses maps et son score de raccord.
+    </div>
+
+    <!-- éditeur (viewport plein)
+         Les commandes NE FLOTTENT PLUS au-dessus du rendu : une barre d'outils
+         pleine au-dessus, un pied d'information plein en dessous, et entre les
+         deux une zone de rendu que rien ne mord. Une seule rangée d'outils :
+         les sept environnements passent en menu, les six maillages restent des
+         puces (c'est la commande qu'on manipule sans arrêt). -->
+    <div class="viewport hidden" id="viewport">
+
+      <div class="vp-bar" id="vpBar">
+        <span class="vp-lbl">Maillage</span>
+        <div class="chips" id="vpMeshChips"></div>
+        <span class="vp-sep" aria-hidden="true"></span>
+        <label class="vp-envwrap"><span class="vp-lbl">Environnement</span>
+          <select id="vpEnv" title="Environnement d'éclairage de l'aperçu"></select>
+        </label>
+        <button class="chip lightchip" id="vpLight" type="button"
+                title="Ajoute une source déplaçable : glisse le disque ☀ dans le rendu">☀ Lumière</button>
+      </div>
+
+      <div class="vp-stage" id="vpStage">
+        <model-viewer id="mv" camera-controls touch-action="pan-y" shadow-intensity="0"
+                      exposure="1" tone-mapping="neutral" interaction-prompt="none"
+                      field-of-view="32deg" min-field-of-view="12deg" max-field-of-view="48deg"
+                      min-camera-orbit="auto 12deg 2.2m" max-camera-orbit="auto 91deg 14m"
+                      interpolation-decay="120" ar-status="not-presenting"></model-viewer>
+        <div class="vp-vignette" aria-hidden="true"></div>
+        <div class="light-puck hidden" id="puck" title="Glisse pour déplacer la lumière">☀</div>
+        <div class="vp-load" id="vpLoad">chargement de l’aperçu 3D…</div>
+      </div>
+
+      <div class="vp-foot">
+        <span class="vp-tag" id="vpTag"></span>
+        <span class="vp-hint" id="vpHint">orbite · pan · zoom</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════ 3. inspecteur droit ══════════════ -->
+  <aside class="rail-right" id="railRight">
+    <div class="rail-head"><h2 id="inspTitle">Aperçu</h2></div>
+    <div class="rail-body" id="inspBody">
+
+      <!-- Mode GALERIE seulement : sans viewport, les commandes d'aperçu vivent
+           ici. En mode éditeur elles sont dans le viewport, pas en double. -->
+      <div class="viewbox" id="grpView">
+        <!-- Un seul choix, une seule pastille allumée. « Variés » ÉTAIT une case
+             à cocher posée plus bas : cochée, elle neutralisait la sélection de
+             maillage sans que rien ne le dise, et « Sphère » restait allumée en
+             ne gouvernant plus rien. C'est désormais la septième option de la
+             même rangée : ou bien toutes les cartes portent un maillage, ou
+             bien elles les prennent à tour de rôle. -->
+        <div class="fld">
+          <span class="lbl">Maillage des cartes de galerie</span>
+          <div class="chips" id="meshChips"></div>
+          <p class="hint" id="meshNote">—</p>
+        </div>
+        <div class="fld">
+          <span class="lbl">Environnement</span>
+          <div class="chips" id="envChips"></div>
+        </div>
+        <label class="check"><input type="checkbox" id="pointLight"> Lumière ponctuelle déplaçable</label>
+        <div class="fld sub hidden" id="lightBox">
+          <label class="mini">Intensité <input type="range" id="lightPow" min="0" max="3" step="0.05" value="1.4"></label>
+          <p class="hint">Glisse le disque ☀ dans le viewport : l'éclat spéculaire suit la lumière en temps réel.</p>
+        </div>
+        <div class="fld">
+          <span class="lbl">Rendu des cartes de galerie</span>
+          <label class="check tiny" title="Les cartes hors écran retombent sur leur vignette : la 3D n’est montée que pour ce qui est visible."><input type="checkbox" id="live3d" checked> Aperçus 3D vivants</label>
+          <label class="check tiny"><input type="checkbox" id="spin"> Rotation lente</label>
+          <p class="hint" id="liveNote">—</p>
+        </div>
+      </div>
+
+      <!-- matière sélectionnée -->
+      <div class="empty-note sm" id="inspEmpty">
+        Sélectionne une matière dans la galerie pour éditer ses propriétés, ses maps et son export.
+      </div>
+
+      <div class="hidden" id="inspMat">
+        <div class="mat-head">
+          <input id="matName" type="text" placeholder="sans nom" title="Nom de la matière">
+          <button class="btn sm" id="btnReset" title="Rétablir toutes les propriétés par défaut">↺ Défauts</button>
+          <!-- UN MOT PAR OBJET, TENU DANS TOUT L'ÉCRAN :
+                 · carte    = la tuile de la galerie (jamais une texture) ;
+                 · vignette = l'image fixe que porte cette carte (thumb.png) ;
+                 · map      = une texture PBR (jamais « carte ») ;
+                 · aperçu 3D = la scène model-viewer.
+               « Vignette » tout court se lisait comme un effet de vignettage,
+               et « Image de la carte » ne disait pas que c'était une capture :
+               l'objet est nommé en entier, l'action est portée par l'icône et
+               par l'infobulle. Les libellés du panneau d'aperçu disent
+               « cartes de galerie » en toutes lettres, puisqu'ils voisinent le
+               groupe des maps. -->
+          <button class="btn sm" id="btnThumb" title="Capture la vue actuelle du rendu 3D et en fait la vignette de cette matière : l'image fixe que porte sa carte dans la galerie. Sans rapport avec les maps de texture, qui se téléchargent depuis le groupe Maps.">⛶ Vignette de la carte</button>
+        </div>
+        <div class="insp-tools">
+          <select id="presetSel" title="Préréglage de matière"><option value="">Appliquer un préréglage…</option></select>
+          <button class="btn sm tool" id="allHelp" title="Afficher l'aide de toutes les propriétés d'un coup">? Aide</button>
+        </div>
+        <!-- « Filtrer » collé au menu des préréglages laissait croire qu'il
+             filtrait les préréglages, ou la texture. Il a sa propre ligne, et
+             son libellé dit sur quoi il porte. -->
+        <div class="insp-tools">
+          <input class="search" id="propSearch" placeholder="🔎 Filtrer les réglages de l'inspecteur"
+                 title="Cherche dans les libellés des réglages ET dans leurs textes d'aide">
+        </div>
+
+        <div id="groups"></div>
+
+        <!-- export -->
+        <details class="grp exp" id="grpExport" open>
+          <summary><i class="chev"></i><span class="grp-t">Export</span><b class="exp-tot mono" id="exTot">—</b></summary>
+          <div class="grp-body">
+
+            <span class="lbl">Format du livrable</span>
+            <div class="fmts" id="exFormat">
+              <button class="fmt active" data-v="zip" type="button">
+                <b>ZIP</b><em>dossier de maps</em>
+                <i>Les PNG nommés pour ton moteur + material.json + LISEZMOI.</i>
+              </button>
+              <button class="fmt" data-v="glb" type="button">
+                <b>GLB</b><em>scène binaire</em>
+                <i>Un seul fichier, textures embarquées. Blender, Unity, viewers.</i>
+              </button>
+              <button class="fmt" data-v="gltf" type="button">
+                <b>glTF</b><em>scène JSON</em>
+                <i>Même scène, lisible et diffable. Buffer en base64.</i>
+              </button>
+            </div>
+
+            <div class="fld" id="exNamingFld">
+              <span class="lbl">Convention de nommage</span>
+              <div class="seg sm" id="exNaming">
+                <button class="seg-b active" data-v="standard" type="button">Standard</button>
+                <!-- URP et HDRP ne lisent PAS les memes emplacements : URP Lit
+                     n'a aucune propriete Mask Map (Metallic Map + Occlusion Map
+                     separes), HDRP Lit range l'occlusion dans le canal V de son
+                     Mask Map. Un seul bouton « Unity » forcait donc un choix
+                     faux pour la moitie des projets. -->
+                <button class="seg-b" data-v="unity_urp" type="button">Unity URP</button>
+                <button class="seg-b" data-v="unity_hdrp" type="button">Unity HDRP</button>
+                <button class="seg-b" data-v="unreal" type="button">Unreal</button>
+                <button class="seg-b" data-v="godot" type="button">Godot</button>
+              </div>
+              <p class="hint" id="exNamingNote"></p>
+            </div>
+
+            <div class="grid2">
+              <div class="fld">
+                <span class="lbl">Taille à l'export</span>
+                <div class="seg sm" id="exRes">
+                  <button class="seg-b" data-v="512" type="button">512</button>
+                  <button class="seg-b" data-v="1024" type="button">1K</button>
+                  <button class="seg-b active" data-v="2048" type="button">2K</button>
+                  <button class="seg-b" data-v="4096" type="button">4K</button>
+                </div>
+              </div>
+              <div class="fld" id="exBitsFld">
+                <span class="lbl">Profondeur</span>
+                <div class="seg sm" id="exBits">
+                  <button class="seg-b active" data-v="8" type="button">8 bits</button>
+                  <button class="seg-b" data-v="16" type="button">16 bits</button>
+                </div>
+              </div>
+            </div>
+            <p class="hint" id="exResNote"></p>
+            <p class="hint" id="exBitsNote"></p>
+
+            <div class="mani-head">
+              <span class="lbl">Contenu de l'archive <b id="exCount"></b></span>
+              <button class="lnk" id="exAll" type="button">tout</button>
+              <button class="lnk" id="exNone" type="button">aucune</button>
+            </div>
+            <div class="mani" id="exMani"></div>
+            <p class="hint" id="exWeigh"></p>
+
+            <button class="btn strong wide big" id="btnExport">⬇ Télécharger</button>
+            <p class="hint" id="exFoot"></p>
+          </div>
+        </details>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- Preuve des maps : la pièce jointe des deux revendications de la galerie
+     (« n MAPS PBR » et le ZIP de chaque carte). Rien n'est affiché en
+     permanence : un jeton par carte l'ouvre, un clic hors du cadre la ferme. -->
+<div class="proof-back hidden" id="proofBack"></div>
+<aside class="proof hidden" id="proof" role="dialog" aria-modal="true" aria-labelledby="proofTitle">
+  <header class="proof-head">
+    <b id="proofTitle">Preuve des maps</b>
+    <button class="btn ghost sm" id="proofClose" type="button">Fermer</button>
+  </header>
+  <div class="proof-body" id="proofBody"></div>
+</aside>
+
+<div id="toast" class="toast hidden"></div>
+<script src="materialforge.js"></script>
+</body>
+</html>

@@ -704,8 +704,14 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
             slbl = f"s{n}"
             if r.get("effects"):   # per-layer mask/effects on this region's stream
                 from app.services import effects_engine as _fx
+                # fps + dur sont NÉCESSAIRES, pas décoratifs : les sources
+                # synthétiques des effets (gradients, color) prennent sinon
+                # leur cadence par défaut (25) et re-cadencent tout le clip,
+                # et sans `dur` les bornes t0/t1 ne sont plus rabotées à la
+                # durée réelle.
                 parts += _fx.build_chain(r["effects"], slbl, f"s{n}fx", f"rfx{n}",
-                                         {"w": rw, "h": rh})
+                                         {"w": rw, "h": rh, "fps": fps,
+                                          "dur": duration})
                 slbl = f"s{n}fx"
             _w(f"[{cur}][{slbl}]overlay={rx}:{ry}:eof_action=repeat[o{n}]", f"o{n}")
         elif r["type"] in ("text", "text_slot"):
@@ -870,7 +876,8 @@ def build_ffmpeg_command(engine, template, slot_values, output_path, work):
     post = template.get("post_effects") or template.get("effects")
     if post:
         from app.services import effects_engine as _fx
-        parts += _fx.build_chain(post, cur, "postfx", "gfx", {"w": w, "h": h})
+        parts += _fx.build_chain(post, cur, "postfx", "gfx",
+                                 {"w": w, "h": h, "fps": fps, "dur": duration})
         cur = "postfx"
     parts.append(f"[{cur}]format=yuv420p[outv]")
 
@@ -1027,8 +1034,11 @@ def build_sequential_command(engine, template, slot_values, output_path):
         if reff:
             from app.services import effects_engine as _fx
             parts.append(f"[{in_idx[k]}:v]{chain}[n{k}pre]")
-            parts += _fx.build_chain(reff, f"n{k}pre", f"n{k}",
-                                     f"a{k}fx", {"w": w, "h": h})
+            # setpts=PTS-STARTPTS est déjà passé : t est local au plan, donc
+            # dur = la durée de CE plan (et non celle du montage entier).
+            parts += _fx.build_chain(reff, f"n{k}pre", f"n{k}", f"a{k}fx",
+                                     {"w": w, "h": h, "fps": fps,
+                                      "dur": durs[k]})
         else:
             parts.append(f"[{in_idx[k]}:v]{chain}[n{k}]")
 
@@ -1064,7 +1074,8 @@ def build_sequential_command(engine, template, slot_values, output_path):
     post = template.get("post_effects") or template.get("effects")
     if post:
         from app.services import effects_engine as _fx
-        parts += _fx.build_chain(post, final, "postfx", "gfx", {"w": w, "h": h})
+        parts += _fx.build_chain(post, final, "postfx", "gfx",
+                                 {"w": w, "h": h, "fps": fps, "dur": total})
         final = "postfx"
     parts.append(f"[{final}]format=yuv420p[outv]")
 

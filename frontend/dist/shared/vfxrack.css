@@ -1,0 +1,301 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   DeepOtus Video — Rack VFX (panneau d'effets + pile par clip)
+   Préfixe .vfx-. Le rack vit dans DEUX contextes : le Montage (bloc .dzsvm,
+   tokens --panel/--ink/--stroke/--accent, thème clair par
+   .dzsvm[data-svm-theme="light"]) ET le nœud Effects du Studio (application
+   principale, tokens --bg-panel/--ink-strong/--stroke/--cyan). Toute couleur
+   passe donc par une chaîne de repli var(--a, var(--b, littéral)) : aucune
+   règle ne suppose un seul jeu de tokens.
+   Tout chiffre en --f-mono + tabular-nums.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.vfx-rack, .vfx-stack{
+  --vfx-panel:var(--panel2, var(--bg-panel-2, #1c1c21));
+  --vfx-panel2:var(--panel3, var(--bg-panel, #151519));
+  --vfx-well:var(--bg, var(--bg-base, #0a0a0c));
+  --vfx-stroke:var(--stroke, #2a2930);
+  --vfx-stroke2:var(--stroke2, var(--stroke-strong, #3d3b45));
+  --vfx-ink:var(--ink, var(--ink-strong, #f2efe9));
+  --vfx-ink2:var(--ink2, var(--ink, #c4bfb6));
+  --vfx-ink3:var(--ink3, var(--ink-soft, #8a857d));
+  --vfx-ink4:var(--ink4, var(--ink-muted, #55514c));
+  --vfx-acc:var(--accent, var(--cyan, #f0b429));
+  --vfx-red:var(--red, #e35d4a);
+  --vfx-mono:var(--f-mono, "JetBrains Mono", Consolas, monospace);
+  --vfx-ease:var(--ease, cubic-bezier(.2,.7,.2,1));
+  color:var(--vfx-ink2);
+  font-size:11.5px;
+}
+
+/* ── conteneurs ───────────────────────────────────────────────────────────── */
+.vfx-rack{display:flex; flex-direction:column; min-height:0;
+  background:var(--vfx-panel); border:1px solid var(--vfx-stroke2);
+  border-radius:12px; padding:12px; gap:9px}
+/* panneau flottant du Montage — ancré comme .svm-pop, au-dessus de la timeline */
+.vfx-rack.vfx-float{position:absolute; top:52px; right:18px; z-index:22;
+  width:392px; max-height:calc(100% - 96px);
+  box-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 10px 28px rgba(0,0,0,.55)}
+.vfx-rack.vfx-float:focus{outline:none}
+/* version encastrée — nœud Effects du Studio */
+.vfx-rack.vfx-inline{width:100%; border-radius:8px; padding:9px; gap:7px;
+  background:var(--vfx-panel2)}
+.dzsvm[data-svm-theme="light"] .vfx-rack.vfx-float{
+  box-shadow:0 1px 2px rgba(23,21,18,.06), 0 10px 28px rgba(23,21,18,.10)}
+
+/* ── en-têtes ─────────────────────────────────────────────────────────────── */
+.vfx-head, .vfx-shead{display:flex; align-items:center; gap:7px; flex:none;
+  flex-wrap:wrap}
+.vfx-title{font-family:var(--f-disp, var(--f-display, inherit)); font-size:13px;
+  font-weight:600; color:var(--vfx-ink); flex:none; white-space:nowrap}
+.vfx-count{font-family:var(--vfx-mono); font-variant-numeric:tabular-nums;
+  font-size:10px; color:var(--vfx-ink4)}
+.vfx-on{font-size:10.5px; color:var(--vfx-ink3); margin-left:auto;
+  max-width:150px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vfx-head .vfx-close{margin-left:6px}
+.vfx-head .vfx-on + .vfx-close{margin-left:0}
+.vfx-head > .vfx-count + .vfx-close{margin-left:auto}
+
+.vfx-iconbtn{width:22px; height:22px; padding:0; border-radius:6px; flex:none;
+  border:1px solid var(--vfx-stroke); background:transparent; color:var(--vfx-ink3);
+  cursor:pointer; font-size:10px; line-height:1; position:relative;
+  display:inline-flex; align-items:center; justify-content:center;
+  transition:color .12s var(--vfx-ease), border-color .12s var(--vfx-ease)}
+.vfx-iconbtn::before{content:""; position:absolute; inset:-3px}
+.vfx-iconbtn:hover:not(:disabled){border-color:var(--vfx-stroke2); color:var(--vfx-ink)}
+.vfx-iconbtn:disabled{opacity:.32; cursor:default}
+.vfx-close:hover{border-color:var(--vfx-red); color:var(--vfx-red)}
+.vfx-del:hover{border-color:var(--vfx-red); color:var(--vfx-red)}
+.vfx-bypass[data-on]{border-color:var(--vfx-acc); color:var(--vfx-acc)}
+
+.vfx-btn{padding:3px 9px; border-radius:6px; border:1px solid var(--vfx-stroke);
+  background:transparent; color:var(--vfx-ink2); cursor:pointer; font-size:10.5px;
+  font-family:inherit;
+  transition:color .12s var(--vfx-ease), border-color .12s var(--vfx-ease)}
+.vfx-btn:hover:not(:disabled){border-color:var(--vfx-stroke2); color:var(--vfx-ink)}
+.vfx-btn:disabled{opacity:.35; cursor:default}
+.vfx-add{border-color:var(--vfx-acc); color:var(--vfx-acc)}
+
+/* ── recherche ────────────────────────────────────────────────────────────── */
+.vfx-searchrow{position:relative; display:flex; align-items:center; flex:none}
+.vfx-search{flex:1 1 auto; min-width:0; padding:5px 26px 5px 9px; border-radius:7px;
+  border:1px solid var(--vfx-stroke); background:var(--vfx-well);
+  color:var(--vfx-ink); font-family:inherit; font-size:11.5px}
+.vfx-search:focus{outline:none; border-color:var(--vfx-acc)}
+.vfx-kbd, .vfx-hints kbd{font-family:var(--vfx-mono); font-size:9px;
+  color:var(--vfx-ink4); border:1px solid var(--vfx-stroke); border-radius:4px;
+  padding:0 3px}
+.vfx-kbd{position:absolute; right:7px; pointer-events:none}
+
+/* ── onglets de catégorie ─────────────────────────────────────────────────── */
+.vfx-tabs{display:flex; align-items:center; gap:4px; flex-wrap:wrap; flex:none}
+.vfx-tab{display:inline-flex; align-items:baseline; gap:5px; padding:3px 8px;
+  border-radius:6px; border:1px solid transparent; background:transparent;
+  color:var(--vfx-ink3); cursor:pointer; font-family:var(--vfx-mono);
+  font-size:10.5px;
+  transition:color .12s var(--vfx-ease), border-color .12s var(--vfx-ease)}
+.vfx-tab:hover:not([data-on]){color:var(--vfx-ink2)}
+.vfx-tab[data-on]{background:var(--vfx-panel2); border-color:var(--vfx-stroke);
+  color:var(--vfx-ink)}
+.vfx-tcount{font-size:9px; color:var(--vfx-ink4);
+  font-variant-numeric:tabular-nums}
+.vfx-tab[data-on] .vfx-tcount{color:var(--vfx-ink3)}
+
+/* ── grille de vignettes ──────────────────────────────────────────────────── */
+/* align-content:start + grid-auto-rows:max-content — sinon les rangées se
+   partagent la hauteur du panneau et le pied de vignette (nom + ★) est rogné */
+.vfx-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:7px;
+  align-content:start; grid-auto-rows:max-content;
+  overflow-y:auto; min-height:0; padding-right:2px}
+.vfx-inline .vfx-grid{grid-template-columns:repeat(2, 1fr); max-height:262px}
+.vfx-float .vfx-grid{max-height:none}
+.vfx-tile{position:relative; display:flex; flex-direction:column; gap:0;
+  border:1px solid var(--vfx-stroke); border-radius:8px; overflow:hidden;
+  background:var(--vfx-panel2); cursor:pointer; text-align:left;
+  transition:border-color .12s var(--vfx-ease), transform .12s var(--vfx-ease)}
+.vfx-tile:hover{border-color:var(--vfx-stroke2)}
+.vfx-tile:focus-visible{outline:none; border-color:var(--vfx-acc)}
+.vfx-tile:active{transform:translateY(1px)}
+.vfx-tile[data-used]{border-color:color-mix(in srgb, var(--vfx-acc) 55%, transparent)}
+.vfx-tileskel{height:104px; cursor:default; opacity:.5}
+.vfx-tilefoot{display:flex; flex:none; align-items:center; gap:4px;
+  padding:4px 5px 5px}
+.vfx-tilename{flex:1 1 auto; min-width:0; font-size:10.5px; color:var(--vfx-ink2);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vfx-tile:hover .vfx-tilename{color:var(--vfx-ink)}
+.vfx-tilebadge{position:absolute; top:4px; left:4px; padding:0 4px; border-radius:4px;
+  font-family:var(--vfx-mono); font-size:9px; line-height:14px;
+  background:var(--vfx-acc); color:var(--accent-ink, #1a1206)}
+/* étoile : révélée au survol/focus, TOUJOURS visible quand favori */
+.vfx-fav{flex:none; width:16px; height:16px; padding:0; border:0; background:none;
+  color:var(--vfx-ink4); cursor:pointer; font-size:11px; line-height:1;
+  opacity:0; transition:opacity .12s var(--vfx-ease), color .12s var(--vfx-ease)}
+.vfx-tile:hover .vfx-fav, .vfx-tile:focus-within .vfx-fav{opacity:1}
+.vfx-fav[data-on]{opacity:1; color:var(--vfx-acc)}
+.vfx-fav:hover{color:var(--vfx-acc)}
+
+/* ── vignette d'aperçu ────────────────────────────────────────────────────── */
+.vfx-thumb{position:relative; display:block; width:100%; height:74px; flex:none;
+  overflow:hidden; background:var(--vfx-well)}
+.vfx-mhead .vfx-thumb{width:42px; flex:none; border-radius:5px;
+  border:1px solid var(--vfx-stroke)}
+.vfx-mhead .vfx-thumboff{font-size:0; letter-spacing:0}
+.vfx-mhead .vfx-iconbtn{width:19px; height:19px}
+.vfx-thumbimg{width:100%; height:100%; object-fit:cover; display:block}
+.vfx-thumbskel{position:absolute; inset:0;
+  background:linear-gradient(90deg,
+    color-mix(in srgb, var(--vfx-ink4) 8%, transparent) 25%,
+    color-mix(in srgb, var(--vfx-ink4) 16%, transparent) 37%,
+    color-mix(in srgb, var(--vfx-ink4) 8%, transparent) 63%);
+  background-size:400% 100%; animation:vfx-shimmer 1.4s linear infinite}
+@keyframes vfx-shimmer{0%{background-position:100% 0}100%{background-position:0 0}}
+@media (prefers-reduced-motion: reduce){.vfx-thumbskel{animation:none}}
+/* pastille « gén. » : l'image vient du jeu statique, pas du plan de l'utilisateur */
+.vfx-thumbgen{position:absolute; right:2px; bottom:2px; padding:0 3px;
+  border-radius:3px; font-family:var(--vfx-mono); font-size:8px; line-height:11px;
+  color:var(--vfx-ink3); background:rgba(0,0,0,.62)}
+.vfx-mhead .vfx-thumbgen, .vfx-ptile .vfx-thumbgen{display:none}
+/* repli net : jamais d'image cassée, un libellé honnête */
+.vfx-thumboff{position:absolute; inset:0; display:flex; align-items:center;
+  justify-content:center; font-family:var(--vfx-mono); font-size:9px;
+  letter-spacing:.06em; color:var(--vfx-ink4);
+  background:repeating-linear-gradient(-45deg, transparent 0 6px,
+    color-mix(in srgb, var(--vfx-ink4) 10%, transparent) 6px 7px)}
+
+/* ── pile d'effets ────────────────────────────────────────────────────────── */
+.vfx-stack{display:flex; flex-direction:column; gap:8px; margin-top:8px}
+.vfx-ab{display:inline-flex; margin-left:auto; border:1px solid var(--vfx-stroke);
+  border-radius:6px; overflow:hidden; flex:none}
+.vfx-abbtn{padding:2px 8px; border:0; background:transparent; cursor:pointer;
+  color:var(--vfx-ink3); font-family:var(--vfx-mono); font-size:10px;
+  transition:color .12s var(--vfx-ease), background .12s var(--vfx-ease)}
+.vfx-abbtn + .vfx-abbtn{border-left:1px solid var(--vfx-stroke)}
+.vfx-abbtn[data-on]{background:var(--vfx-acc); color:var(--accent-ink, #1a1206)}
+.vfx-abbtn:disabled{opacity:.35; cursor:default}
+
+.vfx-mods{display:flex; flex-direction:column; gap:5px}
+.vfx-mod{border:1px solid var(--vfx-stroke); border-radius:8px;
+  background:var(--vfx-panel2); overflow:hidden}
+.vfx-mod[data-off]{opacity:.5}
+/* l'inspecteur du Montage fait ~266 px : la rangée doit pouvoir passer à la
+   ligne plutôt que d'être rognée par le overflow:hidden du module */
+.vfx-mhead{display:flex; align-items:center; gap:4px; padding:4px 5px;
+  flex-wrap:wrap}
+.vfx-mname{flex:1 1 80px; min-width:0; display:flex; align-items:center; gap:5px;
+  border:0; background:none; cursor:pointer; padding:2px 2px; text-align:left;
+  color:inherit; font-family:inherit}
+.vfx-mtxt{flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
+  align-items:flex-start; gap:1px}
+.vfx-mn{font-size:11.5px; color:var(--vfx-ink); max-width:100%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vfx-msum{max-width:100%; font-family:var(--vfx-mono); font-size:9.5px;
+  color:var(--vfx-ink4); font-variant-numeric:tabular-nums;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vfx-mbadge{max-width:100%; font-family:var(--vfx-mono); font-size:9px;
+  color:var(--vfx-acc); border:1px solid color-mix(in srgb, var(--vfx-acc) 45%, transparent);
+  border-radius:4px; padding:0 3px; font-variant-numeric:tabular-nums;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.vfx-mcaret{flex:none; font-size:9px; color:var(--vfx-ink4)}
+.vfx-mbody{padding:2px 8px 9px; display:flex; flex-direction:column; gap:6px;
+  border-top:1px solid var(--vfx-stroke)}
+.vfx-mhint{font-size:10.5px; color:var(--vfx-ink3); line-height:1.45; padding-top:6px}
+
+/* ── rangées de paramètres ────────────────────────────────────────────────── */
+.vfx-prow{display:flex; align-items:center; gap:7px}
+.vfx-prowwrap{align-items:flex-start}
+.vfx-plabel{flex:none; width:76px; font-size:10.5px; color:var(--vfx-ink3)}
+.vfx-range{flex:1 1 auto; min-width:40px; accent-color:var(--vfx-acc); height:16px}
+.vfx-pval{flex:none; width:46px; text-align:right; font-family:var(--vfx-mono);
+  font-size:10px; color:var(--vfx-ink2); font-variant-numeric:tabular-nums}
+.vfx-punit{flex:none; font-family:var(--vfx-mono); font-size:9.5px;
+  color:var(--vfx-ink4)}
+.vfx-num{width:62px; flex:none; padding:2px 5px; border-radius:5px;
+  border:1px solid var(--vfx-stroke); background:var(--vfx-well);
+  color:var(--vfx-ink); font-family:var(--vfx-mono); font-size:10px;
+  font-variant-numeric:tabular-nums}
+.vfx-num:focus{outline:none; border-color:var(--vfx-acc)}
+.vfx-sel{flex:1 1 auto; min-width:70px; padding:2px 5px; border-radius:5px;
+  border:1px solid var(--vfx-stroke); background:var(--vfx-well);
+  color:var(--vfx-ink); font-family:inherit; font-size:10.5px;
+  color-scheme:dark}
+.dzsvm[data-svm-theme="light"] .vfx-sel{color-scheme:light}
+.vfx-sel:disabled{opacity:.4}
+.vfx-color{width:30px; height:20px; flex:none; padding:0; border-radius:5px;
+  border:1px solid var(--vfx-stroke); background:var(--vfx-well); cursor:pointer}
+/* préréglages en vignettes — le choix se fait à l'œil, pas sur un nom */
+.vfx-pgroup{display:flex; flex-direction:column; gap:5px}
+.vfx-pgrid{display:grid; grid-template-columns:repeat(3, 1fr); gap:5px;
+  align-content:start; grid-auto-rows:max-content}
+.vfx-ptile{padding:0; border:1px solid var(--vfx-stroke); border-radius:6px;
+  background:var(--vfx-well); cursor:pointer; overflow:hidden; display:flex;
+  flex-direction:column; text-align:left;
+  transition:border-color .12s var(--vfx-ease)}
+.vfx-ptile:hover:not([data-on]){border-color:var(--vfx-stroke2)}
+.vfx-ptile[data-on]{border-color:var(--vfx-acc)}
+.vfx-ptile .vfx-thumb{height:38px}
+.vfx-pname{flex:none; padding:2px 4px 3px; font-family:var(--vfx-mono);
+  font-size:8.5px; color:var(--vfx-ink3); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap}
+.vfx-ptile[data-on] .vfx-pname{color:var(--vfx-acc)}
+
+.vfx-chips{display:flex; flex-wrap:wrap; gap:4px; flex:1 1 auto}
+.vfx-chip{padding:2px 7px; border-radius:5px; border:1px solid var(--vfx-stroke);
+  background:transparent; color:var(--vfx-ink3); cursor:pointer;
+  font-family:var(--vfx-mono); font-size:9.5px;
+  transition:color .12s var(--vfx-ease), border-color .12s var(--vfx-ease)}
+.vfx-chip:hover:not([data-on]){color:var(--vfx-ink2); border-color:var(--vfx-stroke2)}
+.vfx-chip[data-on]{border-color:var(--vfx-acc); color:var(--vfx-acc)}
+
+/* ── bornes t0/t1 ─────────────────────────────────────────────────────────── */
+.vfx-bounds{border-top:1px solid var(--vfx-stroke); padding-top:6px;
+  display:flex; flex-direction:column; gap:6px}
+.vfx-bhead{display:flex; align-items:center; gap:7px; width:100%; border:0;
+  background:none; cursor:pointer; padding:0; color:inherit; font-family:inherit}
+.vfx-blabel{font-size:10.5px; color:var(--vfx-ink2)}
+.vfx-bsum{margin-left:auto; font-family:var(--vfx-mono); font-size:9.5px;
+  color:var(--vfx-ink4); font-variant-numeric:tabular-nums}
+.vfx-bbody{display:flex; flex-direction:column; gap:6px}
+.vfx-bnote{font-size:10px; color:var(--vfx-ink4); line-height:1.45}
+.vfx-sw{flex:none; width:24px; height:13px; border-radius:7px;
+  border:1px solid var(--vfx-stroke2); background:var(--vfx-well);
+  position:relative; display:inline-block;
+  transition:background .12s var(--vfx-ease), border-color .12s var(--vfx-ease)}
+.vfx-sw[data-on]{background:var(--vfx-acc); border-color:var(--vfx-acc)}
+.vfx-swk{position:absolute; top:1px; left:1px; width:9px; height:9px;
+  border-radius:50%; background:var(--vfx-ink3);
+  transition:transform .12s var(--vfx-ease), background .12s var(--vfx-ease)}
+.vfx-sw[data-on] .vfx-swk{transform:translateX(11px);
+  background:var(--accent-ink, #1a1206)}
+
+/* ── états vides, notes, pied ─────────────────────────────────────────────── */
+.vfx-empty{padding:16px 8px; text-align:center;
+  display:flex; flex-direction:column; align-items:center; gap:7px}
+.vfx-emptytxt{font-size:11.5px; color:var(--vfx-ink2)}
+.vfx-emptyhint{font-size:10.5px; color:var(--vfx-ink4); line-height:1.45}
+.vfx-note{font-size:10.5px; color:var(--vfx-ink2); line-height:1.45;
+  border-left:2px solid var(--vfx-acc); padding-left:8px}
+
+/* bandeau de panne du service d'effets — il doit se voir, sans hurler */
+.vfx-alert{flex:none; display:flex; align-items:flex-start; gap:8px;
+  padding:8px 9px; border-radius:8px; border:1px solid var(--vfx-red);
+  background:color-mix(in srgb, var(--vfx-red) 11%, var(--vfx-panel));
+  box-shadow:inset 2px 0 0 var(--vfx-red)}
+.vfx-alerticon{flex:none; width:15px; height:15px; margin-top:1px;
+  border-radius:50%; border:1px solid var(--vfx-red); color:var(--vfx-red);
+  font-family:var(--vfx-mono); font-size:10px; font-weight:700; line-height:13px;
+  text-align:center}
+.vfx-alerttxt{flex:1 1 auto; min-width:0; display:flex; flex-direction:column;
+  gap:3px}
+.vfx-alerthead{font-size:11px; font-weight:600; color:var(--vfx-ink);
+  line-height:1.35}
+.vfx-alertsub{font-size:10px; color:var(--vfx-ink2); line-height:1.5}
+.vfx-alertwhen{font-family:var(--vfx-mono); font-size:9.5px;
+  font-variant-numeric:tabular-nums; color:var(--vfx-ink3)}
+.vfx-alertbtn{flex:none; align-self:flex-start; border-color:var(--vfx-red);
+  color:var(--vfx-red)}
+.vfx-alertbtn:hover:not(:disabled){border-color:var(--vfx-red);
+  color:var(--vfx-ink)}
+.vfx-foot{display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:none;
+  border-top:1px solid var(--vfx-stroke); padding-top:7px}
+.vfx-hints{font-size:9.5px; color:var(--vfx-ink4)}
+.vfx-src{margin-left:auto; font-family:var(--vfx-mono); font-size:9px;
+  color:var(--vfx-ink4)}

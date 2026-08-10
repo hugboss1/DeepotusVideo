@@ -1,0 +1,955 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Material Forge — lab standalone (gauntlet PBR).
+   Direction CINEMA : tous les tokens viennent de /shared/deepotus.tokens.css
+   (fond sombre, accent doré var(--accent), libellés capitales espacées,
+   cartes à filet 1 px). Aucune police ni script externe : l'app tourne hors
+   ligne. Trois zones : rail génération · galerie/viewport · inspecteur.
+   ═══════════════════════════════════════════════════════════════════════════ */
+@import url("/shared/deepotus.tokens.css");
+
+/* ── UN RÔLE PAR EMPLOI DE L'ACCENT ─────────────────────────────────────────
+   L'ambre servait ici à quatre choses à la fois (aide, valeur modifiée, badges,
+   sélection) : quatre significations pour un seul signal, donc plus de signal.
+   La règle tenue par cette feuille :
+
+     ambre plein   = l'état COURANT / l'option retenue (segment, puce, format).
+                     Plein et encré sombre : un choix se lit d'un coup d'oeil,
+                     jamais comme un aplat olive qu'on prend pour un grisé.
+     ambre texte   = ce que coûte l'action à venir (jeton de crédits) et le
+                     bouton qui la déclenche. C'est le contrat du jeton
+                     --accent : « actions et coûts ».
+     encre claire  = la valeur qui a quitté son défaut. Une modification est une
+                     mise en avant, pas une couleur.
+     gris          = l'aide contextuelle. Elle doit être trouvable, pas criarde.
+     vert          = la mesure qui passe (score de raccord).
+     rouge         = ce qui détruit.
+   ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --sel-bg: var(--accent);          /* option retenue : fond */
+  --sel-ink: var(--accent-ink);     /* option retenue : texte */
+  --mod: var(--ink-strong);         /* valeur hors défaut */
+  --help-line: var(--stroke-strong);
+}
+
+html, body { height: 100%; margin: 0; overflow: hidden;
+  background: var(--bg-base); color: var(--ink);
+  font-family: var(--f-ui); font-size: 14px; }
+* { box-sizing: border-box; }
+.hidden { display: none !important; }
+button { font-family: inherit; }
+.mono { font-family: var(--f-mono); }
+.muted { color: var(--ink-muted); }
+
+/* menus natifs : le popup suit color-scheme, pas le CSS du déclencheur */
+select { color-scheme: dark; }
+select option, select optgroup { background-color: var(--bg-panel-2); color: var(--ink-strong); }
+:root[data-theme="light"] select { color-scheme: light; }
+
+/* ── barre de titre ─────────────────────────────────────────────────────── */
+.topbar { display: flex; align-items: center; gap: 10px; height: 46px;
+  padding: 0 14px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel); }
+.brand { color: var(--ink-strong); white-space: nowrap; }
+.tb-spacer { flex: 1; }
+.badge { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); border: 1px solid var(--stroke); border-radius: 99px;
+  padding: 3px 8px; white-space: nowrap; }
+.srcchip { max-width: 40ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11.5px; color: var(--ink-soft); border: 1px solid var(--stroke);
+  border-radius: 99px; padding: 3px 11px; background: var(--bg-base); }
+.srcchip.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.srcchip.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.backlink { color: var(--ink-soft); text-decoration: none; font-size: 12.5px; }
+.backlink:hover { color: var(--accent); }
+
+/* bandeau d'erreur API */
+.apibar { display: flex; align-items: center; gap: 10px; padding: 7px 14px;
+  background: color-mix(in srgb, var(--red) 12%, var(--bg-panel));
+  border-bottom: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  color: var(--ink-strong); font-size: 12px; }
+.apibar b { color: var(--red); white-space: nowrap; }
+.apibar span { flex: 1; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+
+/* ── grille 3 zones ─────────────────────────────────────────────────────── */
+/* L'inspecteur est passé de 356 à 400 px pour une seule raison : la commande
+   qu'un artiste technique passe sa matinée à régler (la rugosité) tenait sur
+   96 px pour une plage 0..1, soit un centième par pixel de glissement. La
+   colonne du libellé est bornée, le curseur prend TOUT le reste. */
+.mf { display: grid; grid-template-columns: 296px minmax(0, 1fr) 400px;
+  height: calc(100vh - 46px); min-height: 0; }
+.rail-left  { border-right: 1px solid var(--stroke); }
+.rail-right { border-left: 1px solid var(--stroke); }
+.rail-left, .rail-right { display: flex; flex-direction: column; min-height: 0;
+  background: var(--bg-panel); }
+.rail-head { display: flex; align-items: center; gap: 8px; padding: 9px 13px;
+  border-bottom: 1px solid var(--stroke); }
+.rail-head h2 { margin: 0; font-size: 11px; letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ink-soft); flex: 1; }
+.rail-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 13px;
+  display: flex; flex-direction: column; gap: 12px; }
+.rail-foot { border-top: 1px solid var(--stroke); padding: 10px 13px 12px;
+  display: flex; flex-direction: column; gap: 8px; background: var(--bg-panel-2); }
+
+/* ── champs ─────────────────────────────────────────────────────────────── */
+.fld { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fld.grow { flex: 1; min-height: 0; }
+.fld.sub { padding-left: 10px; border-left: 1px solid var(--stroke); }
+.lbl { font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
+input[type=text], input[type=number], select, textarea {
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+  color: var(--ink-strong); padding: 6px 9px; font-size: 12.5px;
+  font-family: var(--f-ui); width: 100%; }
+textarea { resize: none; line-height: 1.45; flex: 1; min-height: 74px; }
+input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+.search { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+  color: var(--ink-strong); padding: 5px 9px; font-size: 12px; width: 100%; }
+.search.sm { width: 150px; }
+.row-tight { display: flex; gap: 6px; align-items: center; }
+.row-tight select { flex: 1; }
+.hint { margin: 0; font-size: 10.5px; color: var(--ink-muted); line-height: 1.5; }
+.hint b { color: var(--ink-soft); font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.sep { height: 1px; background: var(--stroke); margin: 4px 0 2px; }
+.check { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--ink); cursor: pointer; }
+.check input { accent-color: var(--accent); margin: 0; }
+.check.tiny { font-size: 11px; color: var(--ink-soft); }
+.empty-note { color: var(--ink-muted); font-size: 12.5px; padding: 18px; text-align: center; line-height: 1.65; }
+.empty-note.sm { font-size: 11.5px; padding: 12px 6px; }
+/* l’état vide occupe toute la zone centrale et reste centré (sinon il tombe
+   sous la grille, tout en bas de l’écran) */
+#galEmpty { flex: 1; min-height: 0; display: flex; align-items: center;
+  justify-content: center; max-width: 46ch; margin: 0 auto; }
+#galEmpty.hidden { display: none !important; }
+.empty-note.tall { padding-top: 0; }
+.status { font-size: 11.5px; color: var(--ink); }
+.status.err { color: var(--red); }
+.counter { font-family: var(--f-mono); font-size: 11.5px; color: var(--ink-strong);
+  border: 1px solid var(--stroke-strong); border-radius: 8px; padding: 2px 8px; white-space: nowrap; }
+/* la définition commune à toutes les cartes affichées : écrite ICI, une seule
+   fois, au lieu d'être répétée à l'identique sur chaque vignette */
+.counter .cnt-res { font-style: normal; font-size: 10.5px; color: var(--ink-muted);
+  border-left: 1px solid var(--stroke-strong); padding-left: 8px; margin-left: 5px; }
+
+/* ── boutons ────────────────────────────────────────────────────────────── */
+.btn { background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px;
+  color: var(--ink); padding: 6px 10px; font-size: 12.5px; cursor: pointer;
+  white-space: nowrap; text-decoration: none; display: inline-block; text-align: center; }
+.btn:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+.btn.sm { padding: 4px 8px; font-size: 11.5px; }
+.btn.big { padding: 9px 14px; font-size: 13.5px; }
+.btn.wide { width: 100%; }
+.btn.ghost { border-color: transparent; color: var(--ink-soft); }
+/* AMBRE = « cette action engage une dépense ». Un seul bouton de tout l'écran
+   le porte : « Forger la matière ». Tout le reste — y compris l'export, qui est
+   local et gratuit — est en encre neutre. Auparavant les deux gros boutons
+   étaient identiques : impossible de distinguer d'un coup d'oeil ce qui coûte
+   des crédits de ce qui n'en coûte pas. */
+.btn.primary { border-color: var(--accent); color: var(--accent); }
+.btn.primary:hover { background: var(--accent-soft); }
+.btn.strong { border-color: var(--ink-soft); color: var(--ink-strong); }
+.btn.strong:hover { background: var(--bg-panel-2); border-color: var(--ink); }
+.btn:disabled { opacity: .42; cursor: default; pointer-events: none; }
+.btn-row { display: flex; gap: 6px; }
+.btn-row .btn { flex: 1; }
+
+/* segmenté 1K / 2K / 4K */
+.seg { display: flex; border: 1px solid var(--stroke-strong); border-radius: 8px; overflow: hidden; }
+.seg-b { flex: 1; background: var(--bg-base); border: 0; border-right: 1px solid var(--stroke);
+  color: var(--ink-soft); padding: 6px 0; font-size: 12px; cursor: pointer; letter-spacing: .06em; }
+.seg-b:last-child { border-right: 0; }
+.seg-b:hover { color: var(--ink-strong); }
+.seg-b.active { background: var(--sel-bg); color: var(--sel-ink); font-weight: 600; }
+/* variante à deux lignes : le sigle et la taille réelle en pixels */
+.seg.tall .seg-b { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 5px 0 6px; }
+.seg.tall .seg-b b { font-size: 12.5px; font-weight: 600; letter-spacing: .08em; }
+.seg.tall .seg-b i { font-family: var(--f-mono); font-style: normal; font-size: 9.5px;
+  color: var(--ink-muted); }
+.seg.tall .seg-b.active i { color: color-mix(in srgb, var(--sel-ink) 72%, transparent); }
+/* le segment egal a la definition source de la matiere (bloc export) */
+.seg-b.nat { box-shadow: inset 0 -2px 0 var(--stroke-strong); }
+.seg-b.nat.active { box-shadow: none; }
+
+/* jetons (maillage, environnement) */
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip { background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 7px;
+  color: var(--ink-soft); padding: 4px 8px; font-size: 11px; cursor: pointer; }
+.chip:hover { border-color: var(--stroke-strong); color: var(--ink-strong); }
+.chip.active { border-color: var(--sel-bg); color: var(--sel-ink); background: var(--sel-bg);
+  font-weight: 600; }
+
+/* ── référence / library ────────────────────────────────────────────────── */
+.drop { border: 1px dashed var(--stroke-strong); border-radius: var(--r); padding: 14px 10px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+  text-align: center; background: var(--bg-base); }
+.drop:hover, .drop.over { border-color: var(--accent); background: var(--accent-soft); }
+.drop-ic { font-size: 15px; color: var(--ink-soft); }
+.drop-t { font-size: 11.5px; color: var(--ink); }
+.drop-s { font-size: 10px; color: var(--ink-muted); }
+.ref-picked { display: flex; align-items: center; gap: 8px; border: 1px solid var(--stroke);
+  border-radius: 8px; padding: 5px 7px; background: var(--bg-base); }
+.ref-picked img { width: 34px; height: 34px; object-fit: cover; border-radius: 5px; border: 1px solid var(--stroke); }
+.ref-picked span { flex: 1; font-size: 11px; color: var(--ink); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.libbox { border: 1px solid var(--stroke); border-radius: var(--r); padding: 7px;
+  display: flex; flex-direction: column; gap: 7px; background: var(--bg-base); }
+.img-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 6px; max-height: 168px; overflow-y: auto; }
+.img-grid img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px;
+  border: 1px solid var(--stroke); cursor: pointer; }
+.img-grid img:hover { border-color: var(--accent); }
+.img-grid img.sel { border: 2px solid var(--accent); }
+.img-grid .empty-note { grid-column: 1 / -1; }
+
+/* ── référence compacte (drop + Library sur une ligne) ──────────────────── */
+.ref-row { display: flex; gap: 6px; align-items: stretch; }
+.ref-row .drop { flex: 1; flex-direction: row; justify-content: center; gap: 7px; padding: 8px 8px; }
+.ref-row .btn { white-space: nowrap; }
+.opt { font-size: 9px; letter-spacing: .08em; color: var(--ink-muted); text-transform: none; }
+
+/* ── amorces d'invite + invite exacte ───────────────────────────────────── */
+.chips.seeds .chip { font-size: 10.5px; padding: 3px 7px; }
+.fullp { border: 1px solid var(--stroke); border-radius: 8px; background: var(--bg-base); }
+.fullp > summary { list-style: none; cursor: pointer; padding: 5px 8px; font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft);
+  display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.fullp > summary::-webkit-details-marker { display: none; }
+.fullp > summary:hover { color: var(--accent); }
+.fullp[open] > summary { border-bottom: 1px solid var(--stroke); color: var(--ink-strong); }
+.fullp[open] .chev { transform: rotate(180deg); }
+.fullp .chev { font-style: normal; color: var(--ink-muted); transition: transform var(--dur) var(--ease); }
+.fullp code { display: block; padding: 7px 8px; font-family: var(--f-mono); font-size: 10px;
+  line-height: 1.55; color: var(--ink-soft); word-break: break-word; }
+.fullp code em { font-style: normal; color: var(--accent); }
+
+/* ── parcours de génération ─────────────────────────────────────────────────
+   Le bloc annonçait quatre lignes de « 0 cr · N s » avant même qu'on ait
+   cliqué : trois colonnes de chiffres pour plaider la gratuité. Le prix et la
+   durée sont maintenant sur le bouton, une seule fois chacun ; le parcours ne
+   garde que ce qu'aucun autre élément ne dit — les quatre étapes, laquelle est
+   facturée, et, pendant la forge, laquelle tourne et en combien de temps. */
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.step { display: flex; align-items: center; gap: 7px; padding: 2px 0; position: relative; }
+.step::before { content: ""; position: absolute; left: 6px; top: 50%; bottom: -2px;
+  width: 1px; background: var(--stroke); }
+.step:last-child::before { display: none; }
+.step-dot { width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--stroke-strong);
+  background: var(--bg-panel); color: var(--ink-muted); font-family: var(--f-mono); font-size: 8px;
+  display: flex; align-items: center; justify-content: center; position: relative; z-index: 1;
+  flex: none; }
+.step-l { font-size: 11px; color: var(--ink-soft); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.step-tag { font-size: 8.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 99px; padding: 1px 6px; flex: none; }
+.step-r { font-family: var(--f-mono); font-size: 9.5px; color: var(--green); flex: none; }
+.step.run .step-dot { border-color: var(--accent); color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft); animation: stepPulse 1.15s var(--ease) infinite; }
+.step.run .step-l { color: var(--ink-strong); }
+.step.ok .step-dot { border-color: color-mix(in srgb, var(--green) 60%, transparent);
+  color: var(--green); }
+.step.ok .step-l { color: var(--ink); }
+@keyframes stepPulse { 50% { box-shadow: 0 0 0 6px transparent; } }
+
+/* ── estimation + progression ───────────────────────────────────────────── */
+.est-cost { font-family: var(--f-mono); font-size: 12px; color: var(--accent); }
+/* poids d'archive : même gabarit, encre neutre — ce n'est pas une dépense */
+.est-size { font-family: var(--f-mono); font-size: 12px; color: var(--ink-strong);
+  border-left: 1px solid var(--stroke-strong); margin-left: 8px; padding-left: 9px; }
+.est-time { font-family: var(--f-mono); font-style: normal; font-size: 11px; color: var(--ink-soft); }
+#genBtn { display: flex; align-items: center; justify-content: center; gap: 8px; }
+#genBtn .est-cost { border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  padding-left: 8px; }
+.progress { height: 6px; border-radius: 99px; background: var(--bg-base);
+  border: 1px solid var(--stroke); overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .35s var(--ease); }
+
+/* ── centre : entête ────────────────────────────────────────────────────── */
+.center { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg-base); }
+.center-head { display: flex; align-items: center; gap: 10px; padding: 8px 14px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel); flex-wrap: wrap; }
+.ch-left, .ch-right { display: flex; align-items: center; gap: 9px; min-width: 0; flex-wrap: wrap; }
+.ch-left { flex: 1 1 auto; }
+.ch-left .counter { flex: none; }
+/* la recherche cède avant le compteur quand la fenêtre se resserre */
+.ch-right .search.sm { flex: 0 1 150px; min-width: 74px; }
+.colslider { display: flex; align-items: center; gap: 6px; font-size: 10px;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.colslider input[type=range] { width: 92px; accent-color: var(--accent); }
+.colslider b { font-family: var(--f-mono); color: var(--ink); font-size: 11px; }
+/* ── score de raccord : deux nombres, chacun sous son mot ───────────────────
+   La pastille imprimait « couture 5.9 corrigée » : un seul nombre, dont rien à
+   l'écran ne disait s'il était l'avant ou l'après, pendant que le rail de
+   gauche promettait « avant → après ». Les deux termes sont là, étiquetés en
+   toutes lettres ; seul le second — celui qui décide — porte la couleur du
+   verdict, l'autre reste une mesure brute en encre neutre. */
+/* UNE COULEUR PAR PALIER, PAS UN BINAIRE. La pastille n'avait que « passe » et
+   « echoue » de part et d'autre de 2.0 : 0.33 invisible et 1.66 discret
+   sortaient du meme vert, alors que sa propre legende place le seuil de
+   confinement a 1.00. Le barreme publie a QUATRE paliers, la rampe en a quatre.
+   --sm-c porte la couleur du palier courant : texte, filet et jauge la
+   partagent, ils ne peuvent plus se contredire. */
+.seamv { --sm-c: var(--ink-soft);
+  display: inline-flex; align-items: baseline; gap: 4px; white-space: nowrap;
+  border-radius: 99px; padding: 2px 8px; font-family: var(--f-mono); overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--sm-c) 45%, transparent); }
+.seamv.t-invisible { --sm-c: var(--green); }
+.seamv.t-discret   { --sm-c: var(--accent); }
+.seamv.t-visible   { --sm-c: color-mix(in srgb, var(--accent) 42%, var(--red)); }
+.seamv.t-casse     { --sm-c: var(--red); }
+.seamv .sm-l { font-family: var(--f-ui); font-style: normal; font-size: 8.5px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted); }
+.seamv .sm-v { font-size: 11px; font-weight: 400; font-variant-numeric: tabular-nums;
+  color: var(--ink-soft); }
+.seamv .sm-v.res { color: var(--sm-c); font-weight: 600; }
+.seamv .sm-ar { color: var(--ink-muted); font-size: 10px; }
+/* le mot du palier, a cote du rapport : un nombre sans unite ne se lit pas
+   seul. « 0.95 invisible » se lit d'un coup d'oeil, y compris a six colonnes
+   ou l'etiquette « raccord » saute (voir la container query plus bas). */
+.seamv .sm-g { font-family: var(--f-ui); font-style: normal; font-size: 8.5px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--sm-c); }
+
+/* LA JAUGE : la longueur suit l'ecart REEL, pas le franchissement d'un mot.
+   L'echelle va de 0 au dernier seuil fini du bareme (4.00) ; les deux traits
+   clairs sont 1.00 (la jonction cesse d'etre contenue par le grain) et 2.00
+   (visible en aveugle). 0.33 remplit un huitieme, 1.66 en remplit cinq : un
+   ecart de 3x se voit comme un ecart de 3x, et les 4 % qui separent 0.98 de
+   1.02 se voient comme deux cheveux de part et d'autre du premier trait. */
+.seamv .sm-bar { position: relative; align-self: center; flex: none;
+  width: 38px; height: 5px; border-radius: 99px; overflow: hidden;
+  background: color-mix(in srgb, var(--ink-muted) 42%, transparent); }
+.seamv .sm-bar::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: var(--p, 0%); background: var(--sm-c); border-radius: 99px; }
+/* les deux seuils sont des ENCOCHES sombres : lisibles sur le remplissage
+   comme sur la piste vide, contrairement a un trait clair qui disparait des
+   qu'il tombe sur la partie remplie. */
+.seamv .sm-bar::after { content: ""; position: absolute; inset: 0;
+  background:
+    linear-gradient(90deg, transparent 0 calc(var(--t1, 25%) - 1px),
+      var(--bg-panel) calc(var(--t1, 25%) - 1px) calc(var(--t1, 25%) + 1px),
+      transparent calc(var(--t1, 25%) + 1px) calc(var(--t2, 50%) - 1px),
+      var(--bg-panel) calc(var(--t2, 50%) - 1px) calc(var(--t2, 50%) + 1px),
+      transparent calc(var(--t2, 50%) + 1px)); }
+
+/* la barre de galerie ne garde que compteur · filtre · tri · colonnes ; les
+   réglages de rendu des cartes sont à découvert dans le panneau « Aperçu » */
+.sortsel { width: auto; padding: 4px 8px; font-size: 11.5px; }
+.viewbox .check.tiny { color: var(--ink); }
+.viewbox .check.tiny input { accent-color: var(--sel-bg); }
+
+/* ── galerie ────────────────────────────────────────────────────────────── */
+/* grid-auto-rows: max-content — sinon, dès que la galerie déborde en hauteur,
+   Chrome comprime les rangées `auto` (la carte a overflow:hidden, donc un
+   minimum de 0) : les cartes se retrouvent tronquées à quelques dizaines de
+   pixels. Les rangées doivent valoir la hauteur de la carte, et la galerie
+   défiler. */
+.gallery { flex: 1; min-height: 0; overflow-y: auto; padding: 14px;
+  display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+  grid-auto-rows: max-content; gap: 14px; align-content: start; }
+.card { border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel);
+  overflow: hidden; display: flex; flex-direction: column; outline: none;
+  transition: border-color var(--dur) var(--ease), transform var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease); }
+.card:hover { border-color: var(--stroke-strong); transform: translateY(-1px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.42); }
+/* « Sélectionnée » n'est PAS « lance la dépense » : la carte retenue se signale
+   en encre claire (filet + repère), l'ambre reste au bouton qui coûte des
+   crédits. Deux signaux, deux couleurs. */
+.card:focus-visible { border-color: var(--ink-soft); box-shadow: 0 0 0 2px rgba(255,255,255,.10); }
+.card.sel { border-color: var(--ink-soft); }
+.card.sel .card-view::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--ink-strong); z-index: 2; }
+/* la carte qui revient de l'éditeur (ou la copie qui vient d'être créée) */
+.card.just { border-color: var(--ink-strong); animation: cardJust 1.4s var(--ease); }
+@keyframes cardJust {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  22% { box-shadow: 0 0 0 3px rgba(255,255,255,.16); }
+}
+
+/* flex: none — sans ça l'aperçu (dont tout le contenu est en position absolue)
+   se fait écraser par le pied de carte et il ne reste qu'un bandeau */
+/* Fond de vignette : une VRAIE toile de studio, pas un trou noir. Sur l'ancien
+   dégradé (#1c1c23 -> #0b0b0e) une matière sombre — obsidienne, tissu tactique,
+   cuivre patiné — n'avait plus de silhouette : noir sur noir. Le halo est
+   remonté d'un cran et centré derrière l'objet, l'ombre reste au pied : la
+   matière se détache, sans que la carte devienne un rectangle clair. */
+.card-view { position: relative; aspect-ratio: 1; flex: none; cursor: pointer; overflow: hidden;
+  container-type: inline-size;
+  background:
+    radial-gradient(72% 52% at 50% 97%, rgba(0,0,0,.60) 0%, transparent 64%),
+    radial-gradient(88% 72% at 50% 34%, #33333e 0%, #23232c 46%, #15151a 74%, #0d0d11 100%); }
+/* le poster (vignette ou base color) est là DÈS le premier octet : une carte
+   n'est jamais un rectangle gris qui attend un GLB */
+.card-view .poster { position: absolute; inset: 0; width: 100%; height: 100%;
+  object-fit: cover; opacity: .96; transition: opacity .45s var(--ease); }
+.card.live .card-view .poster { opacity: 0; }
+.card-view .mv-slot { position: absolute; inset: 0; }
+.card-view model-viewer { width: 100%; height: 100%; --poster-color: transparent;
+  background-color: transparent; }
+.card.noglb .card-view::after { content: "aperçu 3D indisponible"; position: absolute;
+  left: 0; right: 0; bottom: 0; padding: 4px 8px; font-size: 9.5px; text-align: center;
+  color: var(--ink-muted); background: rgba(8,8,10,.72); }
+.card-seam { position: absolute; top: 7px; left: 7px; z-index: 2;
+  background: rgba(8,8,10,.80); backdrop-filter: blur(3px);
+  max-width: calc(100% - 40px); }
+/* Cartes très étroites (galerie à 5-6 colonnes) : plutôt que de rogner la
+   pastille par la droite — et donc l'après, le nombre qui décide — on retire
+   le terme « avant ». Ce qui reste garde son étiquette : jamais de nombre nu. */
+@container (max-width: 200px) {
+  .card-seam .sm-l.raw, .card-seam .sm-v.raw, .card-seam .sm-ar { display: none; }
+  /* Sur une galerie a six colonnes il reste le nombre, la jauge et le mot du
+     palier : trois signaux qui ne disent pas la meme chose. La jauge maigrit
+     (ses deux encoches restent) et la pastille recupere la place laissee par
+     le bouton de suppression, plutot que de rogner « DISCRET » en « DI » — un
+     mot tronque ne vaut pas mieux qu'un nombre tronque. */
+  .card-seam { max-width: calc(100% - 30px); padding: 2px 6px; gap: 3px; }
+  .card-seam .sm-bar { width: 18px; }
+  .card-seam .sm-g { letter-spacing: .02em; }
+}
+/* Pastille d'EXCEPTION : elle n'apparaît que sur les cartes dont la définition
+   s'écarte de celle de la galerie. Elle se range sous le score, à gauche, et
+   non dans le coin droit où, sur une galerie dense, elle finissait tronquée en
+   « 8² » — un chiffre tronqué vaut moins que pas de chiffre. */
+.card-res { position: absolute; top: 31px; left: 7px; font-family: var(--f-mono); font-size: 10px;
+  padding: 2px 7px; border-radius: 99px; background: rgba(8,8,10,.80);
+  backdrop-filter: blur(3px); z-index: 2;
+  border: 1px solid var(--stroke-strong); color: var(--ink-strong); }
+.card-mesh { position: absolute; left: 8px; bottom: 8px; font-size: 9px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-muted); }
+.card-open { position: absolute; right: 8px; bottom: 8px; font-size: 10px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-strong); border: 1px solid var(--stroke-strong);
+  background: rgba(8,8,10,.74); backdrop-filter: blur(3px);
+  border-radius: 99px; padding: 2px 9px; transition: all var(--dur) var(--ease); }
+.card:hover .card-open, .card:focus-visible .card-open {
+  border-color: var(--ink-soft); color: var(--ink-strong); }
+
+/* Le destructif est SORTI de la rangée d'actions courantes : il ne se trouve
+   plus à quelques pixels de « Dupliquer » et de « ZIP ». Il vit dans le coin
+   haut droit de l'aperçu, discret au repos, rouge dès qu'on l'approche, et
+   s'arme en toutes lettres (« Supprimer ? ») avant d'agir. */
+.card-del { position: absolute; top: 7px; right: 7px; z-index: 3;
+  width: 19px; height: 19px; padding: 0; line-height: 1; font-size: 10px;
+  border-radius: 99px; cursor: pointer; opacity: .5;
+  background: rgba(8,8,10,.74); backdrop-filter: blur(3px);
+  border: 1px solid var(--stroke-strong); color: var(--ink-muted);
+  transition: all var(--dur) var(--ease); }
+.card:hover .card-del, .card:focus-within .card-del { opacity: 1; }
+.card-del:hover { border-color: var(--red); color: var(--red); }
+.card-del[data-arm="1"] { opacity: 1; width: auto; height: 19px; padding: 0 8px;
+  font-size: 9.5px; letter-spacing: .04em; background: var(--red);
+  border-color: var(--red); color: #fff; font-weight: 600; }
+
+.card-meta { padding: 8px 10px 8px; border-top: 1px solid var(--stroke); display: flex;
+  flex-direction: column; gap: 3px; min-width: 0; }
+.card-top { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.card-name { color: var(--ink-strong); font-size: 12.5px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.card-prompt { font-size: 10.5px; color: var(--ink-soft); line-height: 1.4; overflow: hidden;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 29px; }
+/* le modèle payant, quand il y en a un : c'est la seule mention de source qui
+   varie d'une carte à l'autre (une matière tirée de la Library n'en a pas, et
+   son fichier d'origine est déjà écrit sur la ligne au-dessus) */
+.card-model { font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-muted);
+  white-space: nowrap; max-width: 46%; overflow: hidden; text-overflow: ellipsis; }
+/* Actions de carte : trois boutons ÉTIQUETÉS, tous sans conséquence — copier,
+   télécharger, réutiliser l'invite. La suppression a quitté cette rangée : la
+   voisiner avec « Dupliquer » revenait à poser un cran de sûreté à côté d'une
+   détente. Elle est passée dans le coin de l'aperçu (.card-del). */
+/* flex-wrap : sur une galerie à six colonnes la rangée débordait et le dernier
+   bouton était coupé net. Un bouton tronqué n'est plus un bouton. */
+.card-foot { display: flex; align-items: center; gap: 4px; margin-top: 6px; flex-wrap: wrap;
+  border-top: 1px solid var(--stroke); padding-top: 7px; }
+.iact { padding: 3px 6px; line-height: 1.35; font-size: 10px; letter-spacing: .01em;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 6px;
+  color: var(--ink-soft); cursor: pointer; white-space: nowrap;
+  transition: all var(--dur) var(--ease); }
+.iact:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+/* le jeton de preuve : un compte AUDITE (maps porteuses / maps declarees), en
+   mono parce que c'est un chiffre mesure, et la porte du panneau de preuve. */
+.iact.pchip { font-family: var(--f-mono); font-size: 9.5px; color: var(--ink); }
+.iact.pchip:hover { border-color: var(--green); color: var(--ink-strong); }
+/* le suffixe du jeton : combien des maps livrees sont des champs unis. Plus
+   discret que le compte, parce qu'il QUALIFIE le jeu livre au lieu de le
+   retrancher — et assez court pour que le pied de carte tienne sur une ligne. */
+.iact.pchip { flex: 1 1 100%; text-align: left; }
+.iact.pchip .cst { font-style: normal; font-family: var(--f-ui); font-size: 9px;
+  color: var(--ink-muted); margin-left: 5px; padding-left: 5px;
+  border-left: 1px solid var(--stroke); }
+
+/* ── états vides ────────────────────────────────────────────────────────── */
+.empty-card { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  background: var(--bg-panel); padding: 26px 26px 22px; max-width: 44ch; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 9px; }
+.empty-ic { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-size: 18px; color: var(--accent);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  background: var(--accent-soft); }
+.empty-card h3 { margin: 0; font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-strong); font-weight: 500; }
+.empty-card p { margin: 0; font-size: 11.5px; color: var(--ink-soft); line-height: 1.6; }
+.empty-card b { color: var(--ink-strong); font-weight: 500; }
+.empty-chips { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-top: 2px; }
+.empty-foot { border-top: 1px solid var(--stroke); padding-top: 10px; margin-top: 4px !important;
+  font-size: 10.5px !important; color: var(--ink-muted) !important; }
+
+/* ── viewport (éditeur) : barre · rendu · pied ──────────────────────────────
+   Les commandes FLOTTAIENT sur l'image, en deux rangées empilées, et les deux
+   mentions du bas mordaient le rendu par en dessous : on ne savait pas où
+   commençait la zone qu'on juge. Elle a maintenant ses bornes — une barre
+   d'outils pleine au-dessus, un pied plein en dessous — et plus rien ne la
+   recouvre. Une SEULE rangée d'outils : les maillages restent des puces (on y
+   revient sans arrêt), les sept environnements passent en menu. */
+.viewport { position: relative; flex: 1; min-height: 0; display: flex;
+  flex-direction: column; background: var(--bg-base); }
+.vp-stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background:
+  radial-gradient(120% 90% at 50% 0%, #16161c 0%, #0a0a0c 70%); }
+.vp-stage model-viewer { width: 100%; height: 100%; --poster-color: transparent; }
+/* Vignette : le regard va au centre, les bords du décor s'éteignent dans le
+   fond de l'application. C'est ce qui raccorde le rendu 3D au reste de l'écran
+   au lieu de coller une fenêtre rectangulaire au milieu du panneau. */
+/* le dégradé haut n'a plus lieu d'être : plus rien ne flotte sur l'image, donc
+   plus besoin d'assombrir le rendu pour rendre des puces lisibles */
+.vp-vignette { position: absolute; inset: 0; pointer-events: none; z-index: 2;
+  background:
+    radial-gradient(130% 110% at 50% 46%, rgba(0,0,0,0) 46%, rgba(4,4,6,.50) 80%, rgba(4,4,6,.84) 100%); }
+
+/* barre d'outils du rendu — UNE rangée, pleine, hors de l'image */
+.vp-bar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 6px 12px; background: var(--bg-panel); border-bottom: 1px solid var(--stroke); }
+.vp-lbl { font-size: 8.5px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-muted); flex: none; }
+.vp-bar .chips { gap: 4px; }
+.vp-bar .chip { font-size: 10.5px; padding: 3px 8px; }
+.vp-sep { width: 1px; align-self: stretch; background: var(--stroke); margin: 0 2px; flex: none; }
+.vp-envwrap { display: flex; align-items: center; gap: 6px; flex: none; cursor: pointer; }
+.vp-envwrap select { width: auto; padding: 3px 7px; font-size: 11px; }
+.vp-bar .lightchip { margin-left: auto; }
+
+/* pied du rendu : la topologie et l'enroulement UV réellement servis (Meshy
+   affiche la topologie de son aperçu, Material Forge ne dit rien du sien), et
+   le rappel des gestes de caméra. Une rangée pleine, sous l'image. */
+.vp-foot { display: flex; align-items: center; gap: 10px; padding: 4px 14px;
+  background: var(--bg-panel); border-top: 1px solid var(--stroke); }
+.vp-tag { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--f-mono); font-size: 10px; letter-spacing: .10em;
+  text-transform: uppercase; color: var(--ink-soft); }
+.vp-hint { flex: none; font-size: 10px; color: var(--ink-muted); letter-spacing: .08em; }
+.vp-load { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: var(--ink-muted); font-size: 12px; letter-spacing: .06em; pointer-events: none; z-index: 4; }
+.vp-load.err { color: var(--red); }
+.light-puck { position: absolute; width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; cursor: grab;
+  background: color-mix(in srgb, var(--accent) 28%, rgba(8,8,10,.75));
+  border: 1px solid var(--accent); color: var(--accent); font-size: 13px;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--accent) 55%, transparent);
+  left: 70%; top: 24%; transform: translate(-50%, -50%); user-select: none; z-index: 3; }
+.light-puck:active { cursor: grabbing; }
+
+/* ── barre d'outils de l'inspecteur ─────────────────────────────────────── */
+#inspBody { gap: 10px; }
+/* Avant la première propriété il y avait QUATRE rangées de commandes, dont
+   deux boutons-icônes muets (« ↺ » et « 📷 ») et un compte de modifications qui
+   n'était que la somme des pastilles de groupe. Il en reste deux, étiquetées :
+   l'identité de la matière, puis les outils qui portent sur tout le panneau. */
+.mat-head { display: flex; gap: 5px; align-items: center; }
+.mat-head input { flex: 1 1 96px; min-width: 0; }
+.mat-head .btn { flex: none; padding: 5px 7px; font-size: 11px; }
+.insp-tools { display: flex; gap: 5px; align-items: center; }
+.insp-tools select { flex: 1 1 auto; min-width: 0; padding: 5px 7px; font-size: 11.5px; }
+/* le filtre porte un libellé entier : il lui faut sa propre ligne, sinon on
+   retombe sur le « Filtrer » nu, collé au menu des préréglages, qui ne disait
+   pas sur quoi il portait */
+.insp-tools .search { flex: 1 1 auto; min-width: 0; width: 100%; }
+.btn.tool { border-color: var(--stroke); color: var(--ink-soft); padding: 5px 8px;
+  font-size: 11px; letter-spacing: .04em; flex: none; }
+.btn.tool:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+.btn.tool.on { border-color: var(--ink-soft); background: var(--ink-soft); color: var(--bg-base); }
+
+/* ── groupes repliables de l'inspecteur ─────────────────────────────────────
+   Un groupe replié n'est pas muet : il porte le RÉSUMÉ de ce qu'il cache
+   (« 0.00 mét · 1.00 rug ») et, si des valeurs ont quitté le défaut, une
+   pastille comptant les modifications. La barre de référence n'affiche rien
+   d'autre que le titre — il faut ouvrir pour savoir. */
+.grp { border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-base);
+  margin-top: 6px; overflow: hidden; }
+.grp > summary { list-style: none; cursor: pointer; padding: 7px 10px; display: flex;
+  align-items: center; gap: 8px; font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-soft); background: var(--bg-panel-2); }
+.grp > summary::-webkit-details-marker { display: none; }
+.grp > summary span, .grp > summary .grp-t { flex: 1; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.grp > summary:hover { color: var(--ink-strong); }
+.grp[open] > summary { color: var(--ink-strong); border-bottom: 1px solid var(--stroke); }
+/* chevron dessiné en CSS : le glyphe ▾ manque à la police embarquée et
+   retombait sur un point à peine visible */
+.grp .chev { order: -1; flex: none; font-size: 0; width: 9px; height: 9px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform var(--dur) var(--ease); color: var(--ink-soft); }
+.grp .chev::before { content: ""; width: 5px; height: 5px; margin-top: -2px;
+  border-right: 1.4px solid currentColor; border-bottom: 1.4px solid currentColor;
+  transform: rotate(-45deg); }
+/* déplié = le chevron a tourné, et c'est tout : l'ambre n'a rien à faire ici,
+   ce n'est ni un choix parmi d'autres ni une dépense */
+.grp[open] .chev { transform: rotate(90deg); color: var(--ink-strong); }
+.grp > summary:hover .chev { color: var(--ink-strong); }
+.grp-dig { font-family: var(--f-mono); font-variant-numeric: tabular-nums;
+  font-size: 9.5px; letter-spacing: .02em; text-transform: none; color: var(--ink-muted);
+  font-weight: 400; white-space: nowrap; }
+.grp[open] .grp-dig { display: none; }
+.grp-mod { font-style: normal; font-family: var(--f-mono); font-size: 9px; line-height: 1;
+  color: var(--bg-base); background: var(--mod); border-radius: 99px;
+  padding: 2px 5px; flex: none; letter-spacing: 0; }
+/* ── groupe resté à ses valeurs neutres ─────────────────────────────────────
+   « aucun », « aucun », « éteinte », « opaque » : quatre résumés qui disaient
+   la même chose en quatre mots, donc quatre lectures pour apprendre quatre
+   fois rien. Un groupe neutre reçoit UN traitement commun — titre en gris, un
+   seul tiret — qui se saute d'un coup d'oeil pour tous ; le détail chiffré est
+   réservé aux groupes qui portent réellement quelque chose. Un groupe ouvert
+   reprend son apparence normale : on l'a ouvert, on veut le lire. */
+.grp.off:not([open]) { border-color: color-mix(in srgb, var(--stroke) 60%, transparent); }
+.grp.off:not([open]) > summary { background: transparent; }
+.grp.off:not([open]) > summary .grp-t { color: var(--ink-muted); }
+.grp.off:not([open]) > summary .chev { color: var(--stroke-strong); }
+.grp.off:not([open]) > summary .grp-dig { color: var(--stroke-strong); }
+.grp.off:not([open]) > summary:hover .grp-t,
+.grp.off:not([open]) > summary:hover .chev { color: var(--ink-soft); }
+
+/* La pastille « 3 » sur un groupe OUVERT recomptait les trois repères déjà
+   imprimés sur les lignes juste en dessous : un chiffre qu'on obtient en
+   regardant. Elle ne subsiste que sur un groupe replié, où elle apprend
+   quelque chose. */
+.grp[open] .grp-mod { display: none; }
+.grp-body { padding: 8px 10px 9px; display: flex; flex-direction: column; gap: 5px; }
+/* Commandes d'aperçu du rail : elles ne servent QU'EN mode galerie (en mode
+   éditeur elles sont ancrées dans le viewport). Pas de repli à ouvrir : ce
+   sont deux rangées de puces, visibles. */
+.viewbox { display: flex; flex-direction: column; gap: 10px;
+  border-bottom: 1px solid var(--stroke); padding-bottom: 12px; }
+
+/* ── une propriété = une SEULE ligne ────────────────────────────────────────
+   colonnes fixes : aide « ? » · libellé · curseur · valeur saisissable.
+   Les quatre colonnes sont partagées par toutes les lignes de tous les
+   groupes : les nombres forment une colonne parfaitement alignée, en chiffres
+   tabulaires, et se lisent en diagonale sans balayer l'écran. */
+.prop { display: flex; flex-direction: column; gap: 3px; }
+.prop-line { display: grid; grid-template-columns: 15px minmax(0, 104px) minmax(0, 1fr) 54px;
+  align-items: center; gap: 6px; min-height: 21px; }
+.prop.t-select .prop-line, .prop.t-check .prop-line { grid-template-columns: 15px 1fr auto; }
+.prop.t-select .prop-ctl, .prop.t-check .prop-ctl { grid-column: 3 / -1; justify-self: end; }
+
+/* ── LA LARGEUR DU CURSEUR, prise là où elle est ────────────────────────────
+   Le rail faisait 160 px pour une plage 0..1 : un centième tous les 1,6 px,
+   contre 255 px chez la référence. On était plus grossier au glisser, et l'on
+   ne s'en sortait que par la saisie au clavier. Le curseur passe donc SOUS son
+   libellé et prend toute la largeur utile du panneau — près de 350 px, une
+   fois et demie la référence. Le libellé et la valeur gardent leur ligne :
+   la colonne de nombres reste alignée d'un groupe à l'autre. */
+.prop.t-range .prop-line { grid-template-columns: 15px minmax(0, 1fr) 58px; row-gap: 1px; }
+.prop.t-range .prop-num { grid-column: 3; grid-row: 1; }
+.prop.t-range .prop-ctl { grid-column: 2 / -1; grid-row: 2; }
+.prop.t-range .prop-l { font-size: 11.5px; }
+.prop-l { font-size: 11px; color: var(--ink-soft); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; cursor: default; }
+.prop.mod .prop-l { color: var(--ink); }
+.prop-ctl { display: flex; align-items: center; min-width: 0; }
+
+/* le « ? » de chaque propriété — colonne de gauche, donc toujours au même x */
+.qmark { width: 15px; height: 15px; border-radius: 50%; border: 1px solid var(--stroke-strong);
+  background: transparent; color: var(--ink-soft); font-size: 9px; line-height: 1;
+  cursor: help; padding: 0; flex: none; }
+.qmark:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+.qmark.on { border-color: var(--ink-soft); color: var(--bg-base); background: var(--ink-soft); }
+.prop-help { font-size: 10.5px; color: var(--ink-soft); line-height: 1.5;
+  border-left: 2px solid var(--help-line); background: var(--bg-panel-2);
+  padding: 5px 8px 6px; margin: 1px 0 4px 21px; border-radius: 0 6px 6px 0; }
+#groups.showhelp .prop-help.hidden { display: block !important; }
+
+/* valeur : champ de saisie déguisé — on lit, on tape, on règle au clavier.
+   La référence n'offre que le glissement du curseur. */
+.prop-num { display: flex; align-items: center; justify-content: flex-end; gap: 1px; min-width: 0; }
+.unit { font-style: normal; font-size: 9px; color: var(--ink-muted); flex: none;
+  width: 11px; text-align: left; }
+.prop.mod .unit { color: var(--ink-soft); }
+/* Le champ ÉTAIT saisissable, mais rien ne le disait : ni filet, ni fond, ni
+   curseur texte au survol — il se lisait comme une étiquette et l'on retombait
+   sur le glissement du curseur. Il porte maintenant son filet et son fond en
+   permanence : c'est une case où l'on tape 0.37. */
+.prop-num .numv { font-family: var(--f-mono); font-variant-numeric: tabular-nums; font-size: 10.5px;
+  color: var(--ink); background: var(--bg-panel-2); border: 1px solid var(--stroke);
+  border-radius: 5px; padding: 1px 3px; width: 100%; text-align: right; cursor: text; }
+.prop-num .numv:hover { border-color: var(--stroke-strong); color: var(--ink-strong); }
+.prop-num .numv:focus { outline: none; border-color: var(--accent); background: var(--bg-panel-2);
+  color: var(--ink-strong); }
+.prop.mod .prop-num .numv { color: var(--mod); font-weight: 600; }
+/* un repere sobre a gauche de la ligne : « celle-ci a bouge » */
+.prop.mod .prop-l { box-shadow: -6px 0 0 -5px var(--mod); padding-left: 3px; }
+
+
+/* curseur : trait fin, poignée ronde, et un REPÈRE au défaut sur la piste */
+.rng { position: relative; width: 100%; display: flex; align-items: center; height: 16px; }
+.rng::before { content: ""; position: absolute; left: 0; right: 0; top: 50%;
+  height: 2px; margin-top: -1px; border-radius: 2px; background: var(--stroke-strong); }
+.rng::after { content: ""; position: absolute; top: 50%; width: 1px; height: 8px;
+  margin-top: -4px; left: calc(6px + (100% - 12px) * var(--dp, 0));
+  background: var(--ink-muted); }
+.rng input[type=range] { position: relative; width: 100%; margin: 0; height: 16px;
+  background: transparent; -webkit-appearance: none; appearance: none; }
+.rng input[type=range]::-webkit-slider-runnable-track { height: 16px; background: transparent; }
+.rng input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none;
+  width: 11px; height: 11px; margin-top: 2.5px; border-radius: 50%;
+  background: var(--ink-soft); border: 0; cursor: pointer;
+  box-shadow: 0 0 0 3px var(--bg-base); }
+.prop.mod .rng input[type=range]::-webkit-slider-thumb { background: var(--mod); }
+.rng input[type=range]:hover::-webkit-slider-thumb { background: var(--accent); }
+.rng input[type=range]:focus { outline: none; }
+.rng input[type=range]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px var(--bg-base), 0 0 0 4.5px var(--accent); }
+
+/* couleur : pastille + hexadécimal saisissable (la barre n'affiche que l'hexa) */
+.swatch { width: 22px; height: 16px; padding: 0; border: 1px solid var(--stroke-strong);
+  border-radius: 4px; background: transparent; cursor: pointer; flex: none; }
+.swatch::-webkit-color-swatch-wrapper { padding: 1px; }
+.swatch::-webkit-color-swatch { border: 0; border-radius: 3px; }
+.prop-line .hexv { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-soft);
+  background: transparent; border: 1px solid transparent; border-radius: 5px;
+  padding: 1px 3px; width: 100%; text-transform: lowercase; }
+.prop-line .hexv:hover { border-color: var(--stroke); }
+.prop-line .hexv:focus { outline: none; border-color: var(--accent); color: var(--ink-strong); }
+.prop.t-color .prop-ctl { gap: 6px; }
+
+/* interrupteur (dérivation : inverser Y, inverser la rugosité) */
+.sw { position: relative; width: 30px; height: 16px; flex: none; cursor: pointer; display: block; }
+.sw input { position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer; }
+.sw i { position: absolute; inset: 0; border-radius: 99px; background: var(--bg-panel-2);
+  border: 1px solid var(--stroke-strong); transition: var(--dur) var(--ease); }
+.sw i::after { content: ""; position: absolute; left: 2px; top: 2px; width: 10px; height: 10px;
+  border-radius: 50%; background: var(--ink-muted); transition: var(--dur) var(--ease); }
+.sw input:checked + i { border-color: var(--accent); background: var(--accent-soft); }
+.sw input:checked + i::after { left: 16px; background: var(--accent); }
+.prop select { padding: 3px 6px; font-size: 11px; width: auto; max-width: 172px; }
+.prop .check { font-size: 11.5px; }
+.mini { font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft);
+  display: flex; flex-direction: column; gap: 4px; }
+.mini input[type=range] { accent-color: var(--accent); }
+/* note d'en-tête d'un groupe (dérivation, maps) */
+.grp-note { margin: 0 0 2px; font-size: 10px; color: var(--ink-muted); line-height: 1.5; }
+.grp-note b { color: var(--ink); font-weight: 500; }
+.prop-empty { font-size: 11px; color: var(--ink-muted); padding: 2px 0; }
+
+/* maps de texture */
+.mapgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.mapcell { position: relative; border: 1px solid var(--stroke); border-radius: 7px;
+  overflow: hidden; background: var(--bg-panel-2); display: block; }
+.mapcell img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block;
+  background: repeating-conic-gradient(#1a1a1f 0% 25%, #131317 0% 50%) 0 0 / 10px 10px; }
+/* le nom de la map est posé SUR la vignette (scrim) : quatre colonnes tiennent
+   ainsi dans le rail sans écraser l'aperçu de la texture */
+.mapcell b { position: absolute; left: 0; right: 0; bottom: 0;
+  font-size: 8.5px; letter-spacing: .06em; text-transform: uppercase; line-height: 1.25;
+  color: var(--ink-strong); padding: 3px 2px; text-align: center; font-weight: 400;
+  background: rgba(8, 8, 10, .74); }
+.mapcell.off { opacity: .35; }
+/* map UNIFORME : le fichier existe, il ne porte rien. On ne l'efface pas (elle
+   part quand meme dans l'archive), on le DIT sur la vignette. */
+.mapcell.flat { border-style: dashed; }
+.mapcell.flat img { opacity: .5; }
+.mapcell .mapflat { position: absolute; left: 0; right: 0; top: 0;
+  font-family: var(--f-ui); font-style: normal; font-size: 8px; line-height: 1.3;
+  letter-spacing: .04em; padding: 2px 3px; text-align: center; color: var(--ink-muted);
+  background: rgba(8, 8, 10, .82); white-space: nowrap; overflow: hidden;
+  text-overflow: ellipsis; }
+.mapcell:hover { border-color: var(--stroke-strong); }
+.mapschk { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 8px; }
+.mapschk label { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--ink-soft); }
+.mapschk input { accent-color: var(--accent); margin: 0; }
+
+/* ── bloc export ────────────────────────────────────────────────────────────
+   La barre de référence n'offre qu'un « Download GLB ». Ici le parcours est
+   lisible de haut en bas : format → convention moteur → résolution/profondeur
+   → bordereau des fichiers réellement produits, avec leur nom moteur et leur
+   poids, puis le bouton qui répète le nom de l'archive et son poids. Rien à
+   deviner avant de cliquer. */
+/* Le bloc export n'est plus teinté d'ambre : exporter ne coûte rien (les maps
+   sont déjà sur le disque). Il se distingue par son filet et son en-tête, pas
+   par la couleur des dépenses. */
+.grp.exp { border-color: var(--stroke-strong); }
+.grp.exp > summary { background: var(--bg-panel-2); color: var(--ink-strong); }
+/* Le poids total s'écrivait trois fois : pastille d'en-tête, ligne « total »
+   du bordereau, bouton. Il n'en reste qu'un à la fois — la pastille quand le
+   bloc est replié, le bouton quand il est ouvert. Un poids est une donnée :
+   encre neutre. */
+.exp-tot { font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--ink-strong);
+  border: 1px solid var(--stroke-strong);
+  border-radius: 99px; padding: 1px 8px; white-space: nowrap; }
+.grp.exp[open] .exp-tot { display: none; }
+
+/* trois cartes de format : le nom, la nature, et à quoi ça sert */
+.fmts { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 5px; }
+.fmt { background: var(--bg-panel-2); border: 1px solid var(--stroke-strong); border-radius: 8px;
+  padding: 6px 6px 7px; cursor: pointer; text-align: left; display: flex;
+  flex-direction: column; gap: 1px; color: var(--ink-soft); min-width: 0; }
+.fmt b { font-size: 12px; color: var(--ink-strong); font-weight: 600; letter-spacing: .02em; }
+.fmt em { font-style: normal; font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--ink-soft); line-height: 1.3; }
+.fmt i { display: none; }
+.fmt:hover { border-color: color-mix(in srgb, var(--accent) 55%, transparent); }
+.fmt.active { border-color: var(--sel-bg); background: var(--sel-bg); }
+.fmt.active b, .fmt.active em { color: var(--sel-ink); }
+.fmt.active em { opacity: .85; }
+
+/* bordereau : une ligne = un fichier qui sera vraiment dans l'archive */
+.mani-head { display: flex; align-items: center; gap: 8px; }
+.mani-head .lbl { flex: 1; }
+.mani-head .lbl b { color: var(--ink); font-weight: 400; }
+.lnk { background: none; border: 0; padding: 0; cursor: pointer; font-size: 10px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted);
+  border-bottom: 1px solid transparent; }
+.lnk:hover { color: var(--accent); border-bottom-color: var(--accent); }
+.mani { border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel-2);
+  overflow: hidden; }
+.mrow { display: grid; grid-template-columns: 13px minmax(0, 1fr) auto;
+  column-gap: 7px; row-gap: 1px; align-items: center; padding: 5px 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 62%, transparent);
+  cursor: pointer; }
+.mani > *:last-child { border-bottom: 0; }
+.mrow:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.mrow input { accent-color: var(--accent); margin: 0; grid-row: 1 / span 2; }
+.mrow .mn { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-strong);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow .msz { font-family: var(--f-mono); font-size: 10.5px; color: var(--ink);
+  white-space: nowrap; text-align: right; }
+/* Deux lignes sous le nom de fichier, jamais une seule : ce que le fichier EST
+   (description + canaux + profondeur), puis dans quel ORDRE ses canaux sont
+   rangés. Le MaskMap sortait sans ni l'un ni l'autre — un « · RGBA 8 bits »
+   orphelin sur le seul fichier dont tout le sens est l'ordre de ses canaux. */
+.mrow .mr { grid-column: 2 / span 2; font-size: 9.5px; color: var(--ink-muted);
+  line-height: 1.35; min-width: 0; overflow: hidden; }
+.mrow .mr .rl { display: block; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.mrow .mr .mch { display: block; font-style: normal; font-family: var(--f-mono);
+  font-size: 9px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.mrow .mr b { color: var(--ink-soft); font-weight: 400; font-family: var(--f-mono); }
+/* l'etiquette du « ~ » : la RAISON du poids estime, sur la ligne meme. Sans
+   elle, trois fichiers 8 bits marques « ~ » cotoyaient un quatrieme, 8 bits
+   lui aussi, donne comme exact, sans rien qui les separe a l'ecran. */
+.wtag { display: inline-block; font-style: normal; font-family: var(--f-ui);
+  font-size: 8.5px; letter-spacing: .04em; color: var(--ink-muted);
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 0 5px;
+  margin-top: 2px; white-space: nowrap; }
+.ptab .wtag { margin-left: 0; }
+.mrow.off .mn, .mrow.off .msz { color: var(--ink-muted); text-decoration: line-through; }
+.mrow.off .mr { opacity: .5; }
+.mrow.extra { cursor: default; grid-template-columns: 13px minmax(0, 1fr) auto;
+  background: color-mix(in srgb, var(--ink) 3%, transparent); }
+.mrow.extra .mn { color: var(--ink-soft); }
+.mrow.extra .plus { font-size: 10px; color: var(--ink-muted); text-align: center; }
+.mani-empty { padding: 10px; font-size: 10.5px; color: var(--ink-muted); text-align: center; }
+/* la couleur de base ne se décoche pas : case verrouillée, raison écrite */
+.mrow.lock { cursor: default; }
+.mrow.lock input { opacity: .55; cursor: not-allowed; }
+.mrow .req { font-style: normal; font-family: var(--f-ui); font-size: 8.5px;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--ink-muted);
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 0 5px;
+  margin-left: 4px; vertical-align: 1px; }
+/* poids mesurés / poids estimés — la distinction est écrite, pas codée dans
+   un seul caractère « ≈ » */
+#exWeigh { margin-top: 1px; }
+#exWeigh.est { color: var(--ink-muted); border-left: 2px solid var(--stroke-strong);
+  padding-left: 7px; }
+.seg.sm .seg-b { padding: 5px 0; font-size: 11px; }
+.fld.off { opacity: .42; pointer-events: none; }
+
+/* ── PREUVE DES MAPS ────────────────────────────────────────────────────────
+   Au niveau galerie, « n MAPS PBR » et le bouton ZIP étaient deux affirmations
+   sans piece jointe. Ce panneau est la piece jointe : les PNG reels servis par
+   le backend, la mesure de l'API sous chacun, la correlation calculee dans la
+   page (invariante par gain : c'est exactement la manipulation qu'elle
+   detecte), et le contenu exact de l'archive. Rien de tout cela n'encombre la
+   carte : un seul jeton « n/8 maps » l'ouvre. */
+.proof-back { position: fixed; inset: 0; background: rgba(6,6,9,.62);
+  backdrop-filter: blur(2px); z-index: 70; }
+#proof { position: fixed; z-index: 71; top: 4vh; bottom: 4vh; left: 50%;
+  transform: translateX(-50%); width: min(760px, 92vw);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-panel); border: 1px solid var(--stroke-strong);
+  border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.55); }
+.proof-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2); }
+.proof-head b { flex: 1; color: var(--ink-strong); font-size: 13.5px; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.proof-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
+.proof-wait { color: var(--ink-muted); font-size: 12px; text-align: center; padding: 30px 0; }
+.proof-lead { margin: 0 0 12px; font-size: 12px; color: var(--ink); line-height: 1.5; }
+.proof-lead b { color: var(--ink-strong); font-weight: 600; }
+.proof-note { margin: 8px 0 0; font-size: 10.5px; color: var(--ink-muted); line-height: 1.5; }
+.proof-sub { margin: 2px 0 8px; font-size: 10.5px; color: var(--ink-muted); }
+.proof-h { margin: 20px 0 0; font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 500; }
+/* le verdict de correlation : vert tant qu'aucune paire n'est un simple gain,
+   rouge des qu'une l'est. La couleur suit la mesure, pas l'envie. */
+.proof-verdict { margin: 12px 0 0; padding: 9px 11px; font-size: 11.5px; line-height: 1.5;
+  border-radius: 8px; color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--green) 45%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, transparent); }
+.proof-verdict.bad { border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
+
+.pgrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.pcell { margin: 0; border: 1px solid var(--stroke); border-radius: 8px; overflow: hidden;
+  background: var(--bg-panel-2); }
+.pcell img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover;
+  background: var(--bg-base); }
+.pcell figcaption { display: block; padding: 6px 7px 7px; }
+.pcell b { display: block; font-size: 10.5px; color: var(--ink-strong); font-weight: 500; }
+.pcell i { display: block; font-style: normal; font-family: var(--f-mono); font-size: 8.5px;
+  line-height: 1.45; color: var(--ink-muted); }
+.pcell .pr { color: var(--ink-soft); }
+.pcell .pr.bad { color: var(--red); }
+.pcell .pnote { color: var(--accent); font-family: var(--f-ui); font-size: 9px; }
+.pcell.flat img { opacity: .45; }
+
+.ptab { width: 100%; border-collapse: collapse; margin-top: 6px; }
+.ptab td { padding: 4px 6px; font-size: 10px; vertical-align: top;
+  border-bottom: 1px solid color-mix(in srgb, var(--stroke) 60%, transparent); }
+.ptab td:nth-child(1) { font-family: var(--f-mono); color: var(--ink-strong); }
+.ptab td:nth-child(2) { font-family: var(--f-mono); color: var(--ink-soft); white-space: nowrap; }
+.ptab td.num { font-family: var(--f-mono); text-align: right; white-space: nowrap; color: var(--ink); }
+.ptab td:nth-child(4) { color: var(--ink-muted); }
+.ptab td .mch { display: block; font-style: normal; font-family: var(--f-mono);
+  font-size: 9px; color: var(--ink-soft); }
+.ptab tr.off td { opacity: .5; }
+/* l'audit d'independance : une ligne par map, le lien DECLARE a cote de la
+   mesure. La colonne qui decide est la derniere — le residu apres le meilleur
+   ajustement affine, en niveaux : un gain n'en laisse aucun. */
+.ptab.audit th { padding: 4px 6px; font-size: 8.5px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-muted); font-weight: 500;
+  text-align: left; border-bottom: 1px solid var(--stroke-strong); }
+.ptab.audit th:nth-child(3), .ptab.audit th:nth-child(4) { text-align: right; }
+.ptab.audit td:nth-child(1) { font-family: var(--f-ui); color: var(--ink-strong); }
+.ptab.audit td:nth-child(2) { font-family: var(--f-ui); }
+.ptab.audit td.kin { color: var(--ink-muted); font-size: 9.5px; }
+.ptab.audit td:nth-child(4) { color: var(--green); font-family: var(--f-mono); }
+.ptab.audit td.num.bad, .ptab.audit tr.bad td { color: var(--red); }
+.proof-body .btn.wide { margin-top: 14px; }
+/* le badge de titre est devenu une commande : il ouvre la meme preuve */
+.badge.act { cursor: pointer; background: none; font-family: inherit; }
+.badge.act:hover:not(:disabled) { color: var(--ink-strong); border-color: var(--ink-soft); }
+.badge.act:disabled { cursor: default; opacity: .6; }
+@media (max-width: 760px) { .pgrid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ── toast ──────────────────────────────────────────────────────────────── */
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  background: var(--bg-panel-3); border: 1px solid var(--stroke-strong); border-radius: 10px;
+  padding: 9px 16px; color: var(--ink-strong); font-size: 12.5px; z-index: 80; max-width: 70vw; }
+/* z-index 80 : au-dessus du panneau de preuve (71), sans quoi le retour du
+   telechargement lance DEPUIS ce panneau passait derriere lui. */
+.toast.err { border-color: var(--red); color: var(--red); }
+
+/* ── fenêtre étroite (iframe Game Assets sur petit écran) ───────────────── */
+@media (max-width: 1180px) {
+  .mf { grid-template-columns: 250px minmax(0, 1fr) 320px; }
+  .prop-line { grid-template-columns: 15px minmax(0, 88px) minmax(0, 1fr) 50px; }
+  .prop.t-range .prop-line { grid-template-columns: 15px minmax(0, 1fr) 52px; }
+  .search.sm { width: 110px; }
+  .vp-lbl { display: none; }
+}

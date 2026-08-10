@@ -1,5 +1,6 @@
 """FastAPI route definitions — v1.3 (batch multi-seeds)."""
 import asyncio
+import hashlib
 import json
 import random
 import re
@@ -5563,3 +5564,1473 @@ async def _run_adapt_job(jid: str, chapter_id: str, lang: str):
     except Exception as e:
         logger.exception(f"adaptation {jid} échec: {e}")
         upd(phase="échec", done=True, error=str(e))
+
+
+# ═════════════════════ Material Forge (matières PBR) ═════════════════════
+# SPEC Material Forge section 3. Une matière vit dans
+# outputs/materials/mat_xxxxxxxx/ (meta.json + 8 maps PNG) — cf.
+# app/services/material_store.py, seul endroit qui touche à ces chemins.
+#
+# Génération : prompt -> image (routage FLUX / OpenAI déjà en place) ou
+# fichier de la Library pris tel quel, puis raccord seamless (pixel_ops),
+# score de raccord avant/après, dérivation des maps (pbr_service), écriture.
+# Job asynchrone pollable, même patron que les jobs manuscrit (_MS_JOBS) :
+# état en mémoire, jamais persisté, éviction des terminés.
+
+_MAT_JOBS: dict[str, dict] = {}
+
+
+def _mat_job_register(jid: str, state: dict) -> dict:
+    done = [k for k, v in _MAT_JOBS.items()
+            if v.get("status") in ("done", "failed") and k != jid]
+    for k in done[:-20]:            # on garde les 20 derniers pour les retards
+        _MAT_JOBS.pop(k, None)
+    _MAT_JOBS[jid] = state
+    return state
+
+
+def _mat_or_404(mid: str) -> dict:
+    """Matière existante, ou l'erreur qui va bien. `mid` hors
+    ^mat_[0-9a-f]{8}$ = 400 (aucune traversée ne peut aller plus loin)."""
+    from app.services import material_store as MS
+    if not MS.is_valid_mid(mid):
+        raise HTTPException(400, "Identifiant de matière invalide")
+    mat = MS.read_material(mid)
+    if mat is None:
+        raise HTTPException(404, "Matière introuvable")
+    return mat
+
+
+def _mat_library_path(filename) -> Path:
+    """Fichier de la Library désigné par le client : basename uniquement +
+    confinement dans images_path (doctrine de l'audit sécurité)."""
+    fn = Path(str(filename or "")).name
+    if not fn:
+        raise HTTPException(400, "Nom de fichier manquant")
+    src = (settings.images_path / fn).resolve()
+    if not str(src).startswith(str(settings.images_path.resolve())) \
+            or not src.is_file():
+        raise HTTPException(400, f"Image introuvable dans la Librairie: {fn!r}")
+    return src
+
+
+def _mat_square(img: "PILImage.Image", res: int) -> "PILImage.Image":
+    """Recadrage centré carré puis mise à la résolution demandée."""
+    rgb = img.convert("RGB")
+    w, h = rgb.size
+    if w != h:
+        s = min(w, h)
+        x0, y0 = (w - s) // 2, (h - s) // 2
+        rgb = rgb.crop((x0, y0, x0 + s, y0 + s))
+    if rgb.size != (res, res):
+        rgb = rgb.resize((res, res), PILImage.LANCZOS)
+    return rgb
+
+
+def _mat_build_maps(base: "PILImage.Image", derive: dict) -> dict:
+    """basecolor + les 7 maps dérivées (pbr_service). Synchrone : appelé
+    dans un thread par les routes."""
+    from app.services import material_store as MS
+    from app.services import pbr_service as PBR
+    maps = PBR.derive_maps(base, derive, list(MS.SECONDARY_MAPS))
+    if not isinstance(maps, dict):
+        raise RuntimeError("pbr_service.derive_maps n'a pas renvoyé de maps")
+    out = {k: v for k, v in maps.items() if v is not None}
+    out["basecolor"] = base
+    return out
+
+
+@router.get("/materials")
+async def list_materials():
+    """Toutes les matières, plus récente d'abord."""
+    from app.services import material_store as MS
+    return {"materials": await asyncio.to_thread(MS.list_materials)}
+
+
+@router.get("/materials/presets")
+async def list_material_presets():
+    """Préréglages de matière (« Appliquer un préréglage »)."""
+    from app.services import material_store as MS
+    return {"presets": MS.PRESETS}
+
+
+@router.get("/materials/namings")
+async def list_material_namings():
+    """Les conventions d'export, avec l'emplacement de destination de chaque
+    fichier dans le moteur visé.
+
+    C'est ici que vit la vérité moteur, pas dans une chaîne écrite en dur à
+    l'écran. La version précédente annonçait « Slots URP / HDRP : BaseMap,
+    MaskMap, Occlusion » pour une cible « unity » unique — or la documentation
+    Unity dit autre chose :
+
+    - URP Lit n'a AUCUNE propriété Mask Map. Ses emplacements sont Base Map,
+      Metallic Map (R=métal, A=smoothness), Normal Map, Height Map,
+      Occlusion Map, Emission Map. Une texture packée est admise, à condition
+      d'être assignée aux DEUX emplacements Metallic et Occlusion.
+    - HDRP Lit lit un Mask Map (R=métal, V=occlusion, B=masque de détail,
+      A=smoothness) ; l'occlusion y est déjà, donc pas d'emplacement Occlusion
+      séparé.
+
+    Les deux cibles sont donc séparées, et chacune livre exactement ce que son
+    moteur branche."""
+    from app.services import material_store as MS
+    return {"namings": MS.naming_catalog(),
+            "aliases": dict(MS.NAMING_ALIASES),
+            "render_note": MS.RENDER_NOTE}
+
+
+@router.get("/materials/seam-scale")
+async def material_seam_scale():
+    """L'échelle du score de raccord — pour que l'écran n'invente ni seuil ni
+    couleur.
+
+    `pixel_ops.seam_score` (le couple `seam.before` / `seam.after`) compare la
+    colonne 0 à la colonne w-1 ; la passe seamless termine en les rendant
+    IDENTIQUES, donc l'« après » vaut 0.00 pour toute matière corrigée : c'est
+    une tautologie, pas une réussite. Le chiffre qui décide est
+    `seam.ratio` — la marche à la jonction rapportée à la marche interne
+    médiane du même motif, à trois échelles, le pire des trois. 1.00 = la
+    jonction ne dépasse pas le grain normal de la matière.
+
+    Les paliers viennent d'un test à deux alternatives en aveugle sur neuf
+    tuiles réelles (fenêtre de 256 px à cheval sur la jonction contre fenêtre
+    sans jonction) : 0 détection sur 3 à 0.96 / 0.98 / 1.36, 6 sur 6 de 1.27 à
+    6.23. La détection est donc certaine à partir de 2.0."""
+    from app.services import pbr_service as PBR
+    return {
+        "metric": "ratio",
+        "scales_px": list(PBR.SEAM_SCALES),
+        "grades": [{"max": limit, "grade": label,
+                    "label": {"invisible": "Invisible",
+                              "discret": "Discret",
+                              "visible": "Visible"}.get(label, label)}
+                   for limit, label in PBR.SEAM_GRADES]
+        + [{"max": None, "grade": "cassé", "label": "Cassé"}],
+        "visible_from": 2.0,
+        "note": ("1.00 = la jonction ne dépasse pas la variation interne du "
+                 "motif. Mesuré visible en aveugle à partir de 2.0."),
+        "edge_note": ("seam.before / seam.after sont l'ancien score de bord "
+                      "(0-100) ; l'après vaut 0.00 par construction."),
+    }
+
+
+@router.get("/materials/envs")
+async def list_material_envs():
+    """Les 7 ambiances du viewport."""
+    from app.services import material_store as MS
+    return {"envs": MS.env_list()}
+
+
+@router.get("/materials/envs/{name}.jpg")
+async def get_material_env(name: str):
+    """Équirectangulaire d'une ambiance (liste blanche, cache disque)."""
+    from app.services import material_store as MS
+    try:
+        data = await asyncio.to_thread(MS.env_jpeg, name)
+    except ValueError as e:
+        raise HTTPException(404, str(e))
+    return Response(content=data, media_type="image/jpeg",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@router.post("/materials/generate")
+async def generate_material(body: dict, background_tasks: BackgroundTasks):
+    """Lance une génération de matière. Corps :
+    {prompt?, filename?, model?, res, seamless, seam_method, enhance}.
+    `filename` (image de la Library) l'emporte sur `prompt`. Retour
+    {job_id} — suivre GET /materials/jobs/{job_id}."""
+    from app.services import material_store as MS
+
+    body = body or {}
+    filename = str(body.get("filename") or "").strip()
+    prompt = str(body.get("prompt") or "").strip()
+    res = MS.clean_res(body.get("res"), 2048)
+    seamless = bool(body.get("seamless", True))
+    method = str(body.get("seam_method") or "offset").strip().lower()
+    if method not in MS.SEAM_METHODS:
+        raise HTTPException(400, "seam_method doit valoir 'offset' ou 'mirror'")
+    enhance = bool(body.get("enhance"))
+
+    spec = {"res": res, "seamless": seamless, "seam_method": method,
+            "enhance": enhance, "name": MS.clean_name(
+                body.get("name") or prompt or Path(filename).stem or "Matière")}
+
+    if filename:
+        src = _mat_library_path(filename)      # fail fast (400 immédiat)
+        spec.update({"kind": "library", "filename": src.name,
+                     "prompt": prompt, "full_prompt": "", "model": None})
+    else:
+        if not prompt:
+            raise HTTPException(400, "prompt ou filename est requis")
+        model = MS.clean_model(body.get("model"))
+        if model.startswith("gpt-image") or model.startswith("dall-e"):
+            if not settings.OPENAI_API_KEY:
+                raise HTTPException(400, "OPENAI_API_KEY non configurée "
+                                         "(Réglages).")
+        elif not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY non configurée (Réglages).")
+        spec.update({"kind": "prompt", "filename": None, "prompt": prompt,
+                     "full_prompt": MS.build_full_prompt(prompt, enhance),
+                     "model": model})
+
+    jid = str(uuid4())
+    _mat_job_register(jid, {"job_id": jid, "status": "pending",
+                            "step": "En attente", "pct": 0,
+                            "material": None, "error": None})
+    background_tasks.add_task(_run_material_job, jid, spec)
+    return {"job_id": jid}
+
+
+@router.get("/materials/jobs/{job_id}")
+async def material_job_status(job_id: str):
+    st = _MAT_JOBS.get(job_id)
+    if not st:
+        raise HTTPException(404, "Job inconnu")
+    return st
+
+
+async def _run_material_job(jid: str, spec: dict):
+    """prompt|Library -> image carrée -> raccord seamless (score avant/après)
+    -> dérivation des 8 maps -> écriture disque."""
+    from app.services import material_store as MS
+    from app.services import pixel_ops as PX
+
+    def upd(**kw):
+        st = _MAT_JOBS.get(jid)
+        if st is not None:
+            st.update(kw)
+
+    mid = None
+    try:
+        res = spec["res"]
+        upd(status="running", step="Génération de l'image", pct=5)
+
+        # 1. image de base
+        if spec["kind"] == "library":
+            src = _mat_library_path(spec["filename"])
+        else:
+            model = spec["model"]
+            if model.startswith("gpt-image") or model.startswith("dall-e") \
+                    or model == "nano-banana":
+                from app.services import image_providers as IP
+                out = await IP.generate(model, spec["full_prompt"],
+                                        "square_hd", 1)
+            else:
+                out = await _flux_generate(spec["full_prompt"], "square_hd", 1)
+            names = out.get("images") or []
+            if not names:
+                raise RuntimeError("Le générateur n'a renvoyé aucune image")
+            src = settings.images_path / Path(names[0]).name
+            spec["filename"] = src.name
+
+        upd(step="Préparation", pct=40)
+        with PILImage.open(src) as im:
+            base = await asyncio.to_thread(_mat_square, im.copy(), res)
+
+        # 2. raccord + scores (un chiffre, pas une promesse)
+        upd(step="Raccord de tuile", pct=55)
+        seam_before = await asyncio.to_thread(PX.seam_score, base)
+        source_img = base
+        if spec["seamless"]:
+            opts = {"method": spec["seam_method"], "blend": 20,
+                    "target_px": 0, "square": True}
+            tiled = await asyncio.to_thread(PX.make_seamless, base, opts)
+            base = tiled.convert("RGB")
+            if base.size != (res, res):
+                base = base.resize((res, res), PILImage.LANCZOS)
+        seam_after = await asyncio.to_thread(PX.seam_score, base)
+
+        # 3. enregistrement (le dossier existe avant la dérivation, pour que
+        #    la source reste sur disque même si la dérivation échoue)
+        mat = await asyncio.to_thread(
+            MS.create_material, name=spec["name"], prompt=spec["prompt"],
+            full_prompt=spec["full_prompt"], res=res,
+            seamless=spec["seamless"],
+            seam={"before": seam_before, "after": seam_after},
+            source={"kind": spec["kind"], "model": spec.get("model"),
+                    "filename": spec.get("filename")})
+        mid = mat["id"]
+        await asyncio.to_thread(MS.write_source, mid, source_img)
+
+        # 4. dérivation des maps secondaires (PIL local, gratuit, hors ligne)
+        upd(step="Dérivation des maps", pct=70, material=mat)
+        maps = await asyncio.to_thread(_mat_build_maps, base, mat["derive"])
+
+        upd(step="Écriture des maps", pct=90)
+        await asyncio.to_thread(MS.save_maps, mid, maps)
+        # Niveaux de départ MESURÉS sur les maps produites, au lieu des 1.00 /
+        # 0.00 de principe : le curseur affiche dès l'ouverture la rugosité que
+        # la texture porte réellement, et la cuire ne change alors rien.
+        mat = await asyncio.to_thread(MS.read_material, mid)
+        mat["props"] = MS.merge_props(mat["props"],
+                                      MS.natural_levels(maps))
+        # Ce que chaque map contient VRAIMENT + le rapport de couture après
+        # correction : mesuré ici une fois, relu ensuite (l'écran n'invente
+        # aucun des deux).
+        mat = await asyncio.to_thread(MS.refresh_report, mat, maps)
+        await asyncio.to_thread(MS.write_material, mat)
+        mat = await asyncio.to_thread(MS.read_material, mid)
+
+        upd(status="done", step="Terminé", pct=100, material=mat)
+        logger.success(f"matière {mid} générée — raccord "
+                       f"{seam_before} -> {seam_after}")
+    except HTTPException as e:
+        logger.warning(f"matière {jid} refusée: {e.detail}")
+        upd(status="failed", step="Échec", error=str(e.detail))
+    except Exception as e:
+        logger.exception(f"matière {jid} échec: {e}")
+        upd(status="failed", step="Échec", error=str(e),
+            material=(MS.read_material(mid) if mid else None))
+
+
+@router.get("/materials/{mid}")
+async def get_material(mid: str):
+    return {"material": _mat_or_404(mid)}
+
+
+@router.patch("/materials/{mid}")
+async def patch_material(mid: str, body: dict):
+    """Fusion PARTIELLE de {name?, props?, derive?}. Toute valeur absente ou
+    invalide garde/reprend son défaut — jamais d'erreur 500."""
+    from app.services import material_store as MS
+    mat = _mat_or_404(mid)
+    body = body if isinstance(body, dict) else {}
+    if "name" in body:
+        mat["name"] = MS.clean_name(body.get("name"), fallback=mat["name"])
+    before = mat["props"]
+    if "props" in body:
+        mat["props"] = MS.merge_props(mat["props"], body.get("props"))
+    if "derive" in body:
+        mat["derive"] = MS.merge_derive(mat["derive"], body.get("derive"))
+    # metallic et roughness sont CUITS dans les maps livrées : changer le
+    # réglage change ce que valent metallic.png, roughness.png et l'ORM. Les
+    # statistiques annoncées doivent suivre, sinon l'écran reparlerait de
+    # l'ancien niveau. Recalcul analytique, aucune image relue.
+    if any(abs(mat["props"][k] - before[k]) > 1e-9
+           for k in ("metallic", "roughness")):
+        from app.services import pbr_service as PBR
+        stats = dict(mat.get("map_stats") or {})
+        eff = {}
+        for kind, key in (("metallic", "metallic"), ("roughness", "roughness"),
+                          ("orm", "roughness")):
+            st = stats.get(kind)
+            if not isinstance(st, dict) or not isinstance(st.get("pattern"), dict):
+                continue
+            new = PBR.level_stats(st["pattern"], mat["props"][key])
+            # Moyenne EXACTE des octets cuits, tiree de l'histogramme du motif.
+            # C'est elle qui alimente `render.effective` : sans ce recalcul, le
+            # curseur bougeait, le GLB suivait, et le bloc `render` continuait
+            # d'annoncer la valeur de la derniere derivation.
+            hist = st.get("pattern_hist")
+            if isinstance(hist, list) and len(hist) == 256:
+                m = PBR.level_mean(hist, mat["props"][key])
+                new["mean"] = round(m * 255.0, 2)
+                if kind in ("metallic", "roughness"):
+                    eff[key] = round(m, 3)
+            note = ""
+            if not new["informative"]:
+                note = (f"uniforme — {'la matière est ' if key == 'metallic' else 'rugosité '}"
+                        f"{mat['props'][key]:.2f}"
+                        f"{' métallique partout' if key == 'metallic' else ' partout'}")
+            stats[kind] = dict(st, **new, note=note)
+        mat["map_stats"] = stats
+        mat["maps_informative"] = sum(1 for v in stats.values()
+                                      if v.get("informative"))
+        # Le contrat de composition suit le curseur, ou se declare non mesure.
+        mat["render"] = MS.render_block(mat["props"])
+        if eff:
+            mat["render"]["effective"].update(eff)
+            mat["render"]["measured"] = True
+    await asyncio.to_thread(MS.write_material, mat)
+    return {"material": mat}
+
+
+@router.post("/materials/{mid}/derive")
+async def rederive_material(mid: str, body: dict = None):
+    """Re-dérive les maps secondaires depuis la basecolor. Corps
+    {derive?, res?}. Local et gratuit : la barre facture chaque ajustement."""
+    from app.services import material_store as MS
+    mat = _mat_or_404(mid)
+    body = body if isinstance(body, dict) else {}
+    if "derive" in body:
+        mat["derive"] = MS.merge_derive(mat["derive"], body.get("derive"))
+    base_p = MS.map_path(mid, "basecolor")
+    if not base_p.is_file():
+        raise HTTPException(409, "Cette matière n'a pas de basecolor sur "
+                                 "disque — relancer une génération")
+    res = MS.clean_res(body.get("res"), mat["res"]) if body.get("res") else mat["res"]
+    mat["res"] = res
+    try:
+        with PILImage.open(base_p) as im:
+            base = await asyncio.to_thread(_mat_square, im.copy(), res)
+        maps = await asyncio.to_thread(_mat_build_maps, base, mat["derive"])
+    except ImportError as e:
+        raise HTTPException(503, f"Module de dérivation indisponible: {e}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"re-dérivation {mid} échec: {e}")
+        raise HTTPException(500, f"Dérivation impossible: {e}")
+    await asyncio.to_thread(MS.save_maps, mid, maps)
+    mat = await asyncio.to_thread(MS.refresh_report, mat, maps)
+    await asyncio.to_thread(MS.write_material, mat)
+    return {"material": MS.read_material(mid)}
+
+
+@router.post("/materials/{mid}/duplicate")
+async def duplicate_material(mid: str):
+    from app.services import material_store as MS
+    _mat_or_404(mid)
+    mat = await asyncio.to_thread(MS.duplicate_material, mid)
+    if mat is None:
+        raise HTTPException(404, "Matière introuvable")
+    return {"material": mat}
+
+
+@router.put("/materials/{mid}/thumb")
+async def put_material_thumb(mid: str, request: Request):
+    """Vignette 512x512 poussée par le client (rendu du viewport), PNG brut."""
+    from app.services import material_store as MS
+    _mat_or_404(mid)
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "Corps vide (PNG attendu)")
+    if len(data) > 8 * 1024 * 1024:
+        raise HTTPException(400, "Vignette trop lourde (max 8 MB)")
+    ok, msg = await asyncio.to_thread(MS.write_thumb, mid, data)
+    if not ok:
+        raise HTTPException(400, f"Vignette invalide: {msg}")
+    mat = MS.read_material(mid)
+    if mat:
+        await asyncio.to_thread(MS.write_material, mat)
+    return {"ok": True}
+
+
+@router.get("/materials/{mid}/thumb.png")
+async def get_material_thumb(mid: str):
+    from app.services import material_store as MS
+    _mat_or_404(mid)
+    d = MS.material_dir(mid)
+    p = d / "thumb.png"
+    # Une vignette est un rendu 3D figé : perimee par un changement de
+    # geometrie/UV, elle remettrait a l'ecran la matiere d'avant (en miroir).
+    # On la tient pour absente ; la carte retombe sur la couleur de base.
+    if not MS.thumb_is_current(d):
+        raise HTTPException(404, "Pas de vignette")
+    return FileResponse(p, media_type="image/png")
+
+
+@router.delete("/materials/{mid}")
+async def delete_material(mid: str):
+    from app.services import material_store as MS
+    _mat_or_404(mid)
+    if not await asyncio.to_thread(MS.delete_material, mid):
+        raise HTTPException(500, "Suppression impossible")
+    return {"ok": True}
+
+
+@router.get("/materials/{mid}/map/{kind}.png")
+async def get_material_map(mid: str, kind: str, res: int = 0):
+    """Une map. `kind` est une liste blanche ; `res` (optionnel) redimensionne
+    à la volée."""
+    from app.services import material_store as MS
+    _mat_or_404(mid)
+    try:
+        p = MS.map_path(mid, kind)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not p.is_file():
+        raise HTTPException(404, "Map absente")
+    kind = kind.lower()
+    mat = MS.read_material(mid) or {}
+    target = MS.clean_preview_res(res, 1024) if res else 0
+
+    # La vignette de map servie ici est celle de l'EXPORT : mêmes niveaux cuits
+    # (bake_levels), donc ce que l'inspecteur montre sous « METALLIC » est le
+    # PNG que le moteur recevra. Le fichier brut sur disque ne porte que le
+    # motif — il n'est jamais servi tel quel pour ces deux maps.
+    def _served() -> bytes:
+        with PILImage.open(p) as im:
+            maps = {kind: im.copy()}
+            if kind == "orm":
+                maps[kind] = maps[kind].convert("RGB")
+            if target:
+                maps = MS.resize_maps(maps, target)
+            maps = MS.bake_levels(maps, mat.get("props"))
+        return MS.png_bytes(maps[kind], kind, 8)
+
+    if not res and kind not in ("metallic", "roughness", "orm"):
+        return FileResponse(p, media_type="image/png")
+    return Response(content=await asyncio.to_thread(_served),
+                    media_type="image/png")
+
+
+@router.get("/materials/{mid}/preview.glb")
+async def material_preview_glb(request: Request, mid: str,
+                               mesh: str = "sphere", res: int = 1024,
+                               stage: int = 0, scale: int = 1):
+    """GLB d'aperçu (maillage + matériau + textures embarquées).
+
+    La galerie demande un GLB par carte : sans cache, chaque scroll relance une
+    reconstruction PIL de ~0.9 s par carte. On cache sur disque (clé = maillage
+    + résolution + propriétés + mtime des maps) et on répond 304 quand le
+    navigateur a déjà le bon ETag."""
+    from app.services import material_store as MS
+    mat = _mat_or_404(mid)
+    mesh = str(mesh or "sphere").strip().lower()
+    if mesh not in MS.MESHES:
+        raise HTTPException(400, f"mesh doit être l'un de: "
+                                 f"{', '.join(MS.MESHES)}")
+    res = MS.clean_preview_res(res, 1024)
+    stage = 1 if str(stage) not in ("0", "false", "") else 0
+    scale = 0 if str(scale) in ("0", "false") else 1
+    key = await asyncio.to_thread(MS.preview_cache_key, mat, mesh, res)
+    # décor et échelle changent le GLB ; la version du décor aussi, sinon un
+    # cache disque servirait l'ancienne grille après retouche.
+    try:
+        from app.services.stage_service import STAGE_VERSION as _SV
+    except Exception:
+        _SV = 0
+    # L'échelle de matière fait partie de la géométrie servie : si MESH_UV
+    # change (la correction du pavage fractionnaire, par exemple), le cache
+    # disque doit se périmer tout seul — sinon on continuerait de servir
+    # l'ancien maillage, artefact compris.
+    try:
+        from app.services.gltf_builder import MESH_UV as _MUV
+        _uv = "x".join(str(v) for v in (_MUV.get(mesh) or (1, 1)))
+    except Exception:
+        _uv = "0"
+    # La clé composée doit rester HEXADÉCIMALE : material_store.preview_cache_get
+    # et preview_cache_put refusent (silencieusement) toute clé hors
+    # [0-9a-f]{1,40}. Concaténée telle quelle — « ...-s1v2u1-4.0x2.0 » — elle
+    # était rejetée aux deux bouts : le cache disque n'a jamais servi et chaque
+    # carte de galerie reconstruisait son GLB. On la ré-empreinte donc.
+    # `MESH_VERSION` entre dans l'empreinte : une géométrie qui change (la
+    # densité polaire de la sphère, par exemple) doit périmer le cache toute
+    # seule, sinon on continuerait de servir l'ancien maillage.
+    try:
+        from app.services.gltf_builder import MESH_VERSION as _MV
+    except Exception:
+        _MV = 0
+    key = hashlib.sha1(
+        f"{key}-s{stage}v{_SV}u{scale}-{_uv}-m{_MV}".encode("utf-8")
+    ).hexdigest()[:24]
+    etag = f'W/"{key}"'
+    head = {"Content-Disposition": f'inline; filename="{mat["id"]}.glb"',
+            "ETag": etag, "Cache-Control": "private, max-age=900"}
+    if request.headers.get("if-none-match", "").find(key) >= 0:
+        return Response(status_code=304, headers=head)
+    data = await asyncio.to_thread(MS.preview_cache_get, mat["id"], key)
+    if data is None:
+        data = await asyncio.to_thread(_mat_glb, mat, mesh, res, None,
+                                       bool(stage), bool(scale))
+        await asyncio.to_thread(MS.preview_cache_put, mat["id"], key, data)
+    return Response(content=data, media_type="model/gltf-binary", headers=head)
+
+
+def _mat_glb(mat: dict, mesh: str, res: int, kinds, stage: bool = False,
+             scale: bool = False) -> bytes:
+    """Construit le GLB via gltf_builder (textures PNG 8 bits embarquées).
+
+    `stage` ajoute le sol d'aperçu (grille + flaque de contact) et `scale`
+    applique l'échelle de matière par maillage : les deux ne servent QUE
+    l'aperçu du viewport. L'export reste une géométrie nue, UV 0..1, sans
+    décor — c'est ce qu'un moteur attend."""
+    from app.services import material_store as MS
+    try:
+        from app.services import gltf_builder as GB
+    except ImportError as e:
+        raise HTTPException(503, f"Module GLB indisponible: {e}")
+    # L'ORM est le seul canal par lequel glTF sait lire rugosité, métal et
+    # occlusion : on la garde toujours, même si la sélection d'export ne l'a
+    # pas cochée — sans elle le GLB retomberait sur des facteurs et perdrait
+    # la variation des maps.
+    if kinds:
+        kinds = list(dict.fromkeys(list(kinds) + ["orm"]))
+    maps = MS.load_maps(mat["id"], kinds)
+    if not maps:
+        raise HTTPException(409, "Cette matière n'a aucune map sur disque")
+    maps = MS.resize_maps(maps, res)
+    # niveaux cuits AVANT encodage : le GLB sort avec metallicFactor =
+    # roughnessFactor = 1.0 (gltf_builder), donc la map fait foi.
+    maps = MS.bake_levels(maps, mat["props"])
+    payload = {k: MS.png_bytes(v, k, 8) for k, v in maps.items()}
+    ground = None
+    if stage:
+        try:
+            from app.services import stage_service as ST
+            ground = ST.stage_png()
+        except Exception as e:                # un décor absent n'empêche rien
+            logger.warning(f"sol d'aperçu indisponible: {e}")
+    uvr = GB.MESH_UV.get(mesh) if scale else None
+    try:
+        return GB.build_glb(payload, mat["props"], mesh, stage_png=ground,
+                            uv_repeat=uvr)
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"GLB {mat['id']} échec: {e}")
+        raise HTTPException(500, f"Construction GLB impossible: {e}")
+
+
+@router.get("/materials/{mid}/export/manifest")
+async def export_material_manifest(mid: str, format: str = "zip",
+                                   naming: str = "standard", res: int = 0,
+                                   bits: int = 8, maps: str = "",
+                                   mesh: str = "sphere"):
+    """Le bordereau de l'export AVANT téléchargement : nom de l'archive, liste
+    des fichiers avec leur nom moteur, canaux, profondeur et poids, plus le
+    total. Aucune image n'est ré-encodée : c'est une lecture de tailles sur
+    disque (exactes) plus une mise à l'échelle quand la résolution change."""
+    from app.services import material_store as MS
+    mat = _mat_or_404(mid)
+    fmt = str(format or "zip").strip().lower()
+    if fmt not in MS.EXPORT_FORMATS:
+        raise HTTPException(400, f"format doit être l'un de: "
+                                 f"{', '.join(MS.EXPORT_FORMATS)}")
+    nm = str(naming or "standard").strip().lower()
+    # `unity` reste accepte (alias -> unity_urp) : une convention enregistree
+    # cote client ne doit pas se mettre a repondre 400 apres la separation
+    # URP / HDRP.
+    if nm not in MS.NAMINGS and nm not in MS.NAMING_ALIASES:
+        raise HTTPException(400, f"naming doit être l'un de: "
+                                 f"{', '.join(MS.NAMINGS)}")
+    nm = MS.clean_naming(nm)
+    ms = str(mesh or "sphere").strip().lower()
+    if ms not in MS.MESHES:
+        ms = "sphere"
+    wanted = [k.strip().lower() for k in str(maps or "").split(",") if k.strip()]
+    allowed = tuple(MS.MAP_KINDS) + MS.EXPORT_EXTRA_KINDS
+    bad = [k for k in wanted if k not in allowed]
+    if bad:
+        raise HTTPException(400, f"maps inconnues: {', '.join(bad)}")
+    return await asyncio.to_thread(MS.export_manifest, mat, fmt, nm,
+                                   res, bits, wanted or None, ms)
+
+
+@router.get("/materials/{mid}/export")
+async def export_material(mid: str, format: str = "zip",
+                          naming: str = "standard", res: int = 0,
+                          bits: int = 8, maps: str = "",
+                          mesh: str = "sphere"):
+    """Export : ZIP complet (maps + material.json + LISEZMOI), GLB, ou glTF
+    autonome. `naming` ∈ standard|unity_urp|unity_hdrp|unreal|godot, `bits` ∈ 8|16 (honoré
+    pour height et normal), `maps` = liste blanche séparée par des virgules."""
+    from app.services import material_store as MS
+    mat = _mat_or_404(mid)
+    fmt = str(format or "zip").strip().lower()
+    if fmt not in MS.EXPORT_FORMATS:
+        raise HTTPException(400, f"format doit être l'un de: "
+                                 f"{', '.join(MS.EXPORT_FORMATS)}")
+    nm = str(naming or "standard").strip().lower()
+    # `unity` reste accepte (alias -> unity_urp) : une convention enregistree
+    # cote client ne doit pas se mettre a repondre 400 apres la separation
+    # URP / HDRP.
+    if nm not in MS.NAMINGS and nm not in MS.NAMING_ALIASES:
+        raise HTTPException(400, f"naming doit être l'un de: "
+                                 f"{', '.join(MS.NAMINGS)}")
+    nm = MS.clean_naming(nm)
+    try:
+        bits = int(bits or 8)
+    except (TypeError, ValueError):
+        bits = 8
+    if bits not in (8, 16):
+        raise HTTPException(400, "bits doit valoir 8 ou 16")
+    wanted = [k.strip().lower() for k in str(maps or "").split(",") if k.strip()]
+    allowed = tuple(MS.MAP_KINDS) + MS.EXPORT_EXTRA_KINDS
+    bad = [k for k in wanted if k not in allowed]
+    if bad:
+        raise HTTPException(400, f"maps inconnues: {', '.join(bad)}")
+    kinds = wanted or None
+    target = MS.clean_res(res, mat["res"]) if res else mat["res"]
+    fname = MS.export_filename(mat, fmt, nm)
+
+    # Le maillage EXPORTÉ est celui qui a été jugé à l'écran. Il était figé sur
+    # "sphere" pendant que le bordereau annonçait « géométrie torus, 96 000 o » :
+    # l'écran promettait une géométrie que l'archive ne contenait pas.
+    ms = str(mesh or "sphere").strip().lower()
+    if ms not in MS.MESHES:
+        raise HTTPException(400, f"mesh doit être l'un de: "
+                                 f"{', '.join(MS.MESHES)}")
+
+    if fmt in ("glb", "gltf"):
+        # `scale=True` : la MÊME échelle de matière que l'aperçu. Sans elle, la
+        # sphère exportée portait UNE tuile étirée sur 0..1 là où le lab en
+        # montrait 4x2 — le fichier livré ne ressemblait pas à ce qui avait été
+        # validé. Le décor de scène (`stage`), lui, reste à l'aperçu : c'est du
+        # mobilier, pas de la matière.
+        glb = await asyncio.to_thread(_mat_glb, mat, ms, target, kinds,
+                                      False, True)
+        if fmt == "glb":
+            return Response(content=glb, media_type="model/gltf-binary",
+                            headers={"Content-Disposition":
+                                     f'attachment; filename="{fname}"'})
+        data = await asyncio.to_thread(MS.glb_to_gltf, glb)
+        return Response(content=data, media_type="model/gltf+json",
+                        headers={"Content-Disposition":
+                                 f'attachment; filename="{fname}"'})
+
+    def _zip() -> bytes:
+        want = kinds
+        if want is None:
+            want = [k for k in MS.default_export_maps(nm) if k in MS.MAP_KINDS]
+        need_mask = MS.MASKMAP in (kinds or MS.default_export_maps(nm))
+        # le MaskMap se fabrique à partir de metallic / ao / roughness : il
+        # faut les charger même si l'archive ne les emporte pas.
+        load = list(want) + (["metallic", "ao", "roughness"] if need_mask else [])
+        loaded = MS.load_maps(mid, list(dict.fromkeys(load)))
+        if not loaded:
+            raise HTTPException(409, "Cette matière n'a aucune map sur disque")
+        loaded = MS.resize_maps(loaded, target)
+        loaded = MS.bake_levels(loaded, mat["props"])
+        if need_mask:
+            mask = MS.build_maskmap(loaded)
+            loaded = {k: v for k, v in loaded.items() if k in want}
+            if mask is not None:
+                loaded[MS.MASKMAP] = mask
+        thumb_dir = MS.material_dir(mid)
+        thumb_p = thumb_dir / "thumb.png"
+        thumb = (thumb_p.read_bytes()
+                 if MS.thumb_is_current(thumb_dir) else None)
+        return MS.export_zip(mat, loaded, nm, bits, thumb)
+
+    return Response(content=await asyncio.to_thread(_zip),
+                    media_type="application/zip",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{fname}"'})
+
+
+# =============================================================================
+# Rack VFX — catalogue et APERÇUS d'effets
+#
+# Jusqu'ici un effet se choisissait sur son nom, appliqué à l'aveugle puis
+# jugé après un rendu complet. /effects/preview rend UNE image fixe passée par
+# la même chaîne ffmpeg que le rendu final : ce que la vignette montre est ce
+# que le rendu produira. Le résultat est mis en cache sur disque, donc la même
+# combinaison ne relance jamais ffmpeg.
+# =============================================================================
+
+@router.get("/effects/catalog")
+async def effects_catalog():
+    """Catalogue complet : catégories, libellés FR, paramètres et bornes."""
+    from app.services import effects_preview as FXP
+    return FXP.catalog_payload()
+
+
+@router.get("/effects/preview")
+async def effects_preview(request: Request):
+    """Vignette JPEG d'un effet.
+
+    Paramètres : `type` (obligatoire), `source` (`mire` par défaut,
+    `image:<nom>` pour une image de la Bibliothèque, `job:<id>` pour une frame
+    d'un rendu), `t` (instant, pour les effets animés), `w` (largeur), plus
+    les paramètres propres à l'effet (intensity, speed, angle, c0, ...).
+    """
+    from app.services import effects_preview as FXP
+
+    q = dict(request.query_params)
+    etype = q.pop("type", "")
+    source = q.pop("source", "") or ""
+    t = q.pop("t", FXP.T_DEFAULT)
+    width = q.pop("w", FXP.W_DEFAULT)
+
+    job_video = None
+    if str(source).startswith("job:"):
+        from app.services.storage import JobRecord, async_session_factory
+        jid = str(source)[4:]
+        async with async_session_factory() as session:
+            jr = await session.get(JobRecord, jid)
+        fp = jr and (jr.final_video_path or jr.video_path)
+        if not fp or not Path(fp).is_file():
+            raise HTTPException(404, "Rendu introuvable pour cet aperçu")
+        job_video = Path(fp)
+
+    try:
+        p = await asyncio.to_thread(
+            FXP.render_preview, etype, q, source=source, t=t, width=width,
+            job_video=job_video)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(500, str(e))
+    return FileResponse(p, media_type="image/jpeg",
+                        headers={"Cache-Control": "public, max-age=86400"})
+
+
+# =============================================================================
+# Sous-titres — piste S1 du Montage
+#
+# Trois couches, trois responsabilités :
+#   * `subtitle_service`  — le format (ASS/SRT/VTT, styles, karaoké, qualité) ;
+#   * `transcribe_service`— le CALAGE (texte connu → mots datés, gratuit ;
+#                           ou transcription payante quand le texte est inconnu) ;
+#   * `subtitle_ui`       — la traduction entre le vocabulaire du panneau
+#                           (`frontend/patches/subs.js`) et celui du moteur.
+#
+# Ces routes ne font que les brancher. Le vrai point d'arrivée est la GRAVURE :
+# `POST /api/montage/render` lit la clé `subtitles` du payload, écrit l'ASS et
+# le passe au filtre ffmpeg `subtitles=` — c'est là que le style vu dans
+# l'aperçu devient le style de la vidéo exportée.
+#
+# Toutes les entrées venant du client sont réduites au basename et vérifiées
+# contenues dans leur dossier (même garde-fou que `_lut_path`) — ici via
+# `transcribe_service.resolve_media` et la table close `FONT_FILES`.
+# =============================================================================
+
+#: Travaux de transcription en cours : id → {status, pct, step, segments, error}.
+#: En mémoire volontairement — un travail dure quelques secondes et le panneau
+#: interroge tout de suite ; rien à faire survivre à un redémarrage.
+_SUBS_JOBS: dict[str, dict] = {}
+_SUBS_JOBS_MAX = 40
+
+
+def _subs_track_path() -> Path:
+    """Piste de sous-titres persistée, à côté de `montage_saved.json`."""
+    return settings.images_path.parent / "subtitles_track.json"
+
+
+def _subs_canvas(ratio=None, preview: bool = False) -> tuple[int, int]:
+    from app.services import subtitle_ui as SU
+    return SU.canvas_for_ratio(ratio, preview)
+
+
+def _subs_body_style(body: dict, canvas: tuple[int, int]) -> dict:
+    """Style posté par le panneau → style du moteur, résolu."""
+    from app.services import subtitle_service as S
+    from app.services import subtitle_ui as SU
+    st = body.get("style")
+    if isinstance(st, str):                     # nom de préréglage moteur
+        return S.resolve_style(st)
+    return SU.ui_to_style(st if isinstance(st, dict) else {}, canvas)
+
+
+def _subs_body_segments(body: dict) -> list:
+    segs = body.get("segments")
+    if not isinstance(segs, list):
+        segs = body.get("clips") if isinstance(body.get("clips"), list) else []
+    return [s for s in segs if isinstance(s, dict)]
+
+
+#: Code du moteur → genre affiché par le panneau (sert au tri et au libellé
+#: de la puce, pas au geste : le geste vient du PLAN, qui porte lui-même son
+#: libellé, ses conséquences et ses `ops`).
+_SUBS_W_UI = {
+    "texte_vide": ("vide", None),
+    "duree_nulle": ("court", None),
+    "trop_court": ("court", None),
+    "trop_long": ("long", None),
+    "debit_eleve": ("vitesse", None),
+    "debit_illisible": ("vitesse", None),
+    "chevauchement": ("chevauche", None),
+    "intervalle_court": ("intervalle", None),
+    "ligne_trop_large": ("large", None),
+    "trop_de_lignes": ("lignes", None),
+    "mots_incoherents": ("mots", None),
+    "fond_translucide_karaoke": ("style", None),
+}
+_SUBS_SEV_UI = {"erreur": "err", "avertissement": "warn"}
+
+#: Correctif de STYLE du moteur → réglage du panneau, avec ce que le bouton
+#: fait. Un avertissement de style n'a pas d'index de segment : il se répare
+#: dans l'onglet Style, c'est là qu'on le pose.
+_SUBS_STYLE_FIX_UI = {
+    "back_opacity": lambda v: {
+        "champ": "bgOpacity", "valeur": int(round(float(v) * 100)),
+        "label": "Passer le fond en opaque",
+        "effect": "L'opacité du fond passe à 100 %. Les coutures entre les "
+                  "mots disparaissent au rendu ; le fond ne laissera plus "
+                  "voir l'image derrière."},
+}
+
+
+def _subs_plan_ui(plan: dict | None) -> dict | None:
+    """Plan négocié du moteur → contrat du panneau (mêmes mots, mêmes `ops`).
+
+    Les `ops` sont des DONNÉES, pas du code : `{op, index, id, start, end,
+    text}`. Le panneau les applique tel quel — il n'a rien à recalculer, donc
+    rien à faire dériver du moteur.
+    """
+    if not isinstance(plan, dict):
+        return None
+    out = {"action": plan.get("action"), "ok": bool(plan.get("ok")),
+           "label": str(plan.get("label") or ""),
+           "effect": str(plan.get("effect") or ""),
+           "ops": plan.get("ops") or [], "touches": plan.get("touches") or []}
+    if plan.get("blocked"):
+        out["blocked"] = str(plan["blocked"])
+    for k in ("granted", "requested"):
+        if plan.get(k) is not None:
+            out[k] = plan[k]
+    alt = plan.get("alt")
+    if isinstance(alt, dict) and alt.get("ok"):
+        out["alt"] = _subs_plan_ui(alt)
+    return out
+
+
+def _subs_warnings_ui(raw: list, segs: list) -> tuple[list, list]:
+    """Avertissements du moteur → vocabulaire du panneau.
+
+    **Aucun ré-ancrage.** L'ancienne version déplaçait `chevauchement` et
+    `intervalle_court` sur `index - 1` pour que le bouton « Séparer » tombe
+    sur le segment dont il raccourcissait la fin — mais le MESSAGE, lui,
+    restait écrit du point de vue du segment suivant. Résultat constaté :
+    « 60 ms depuis le segment précédent » s'affichait sur la carte 12 alors
+    que le seul écart de 60 ms précède la carte 13. Le message et la carte
+    doivent parler du même segment.
+
+    Désormais le moteur ancre chaque avertissement sur le segment qu'il
+    MESURE, nomme son partenaire par son rang dans le message, et le correctif
+    est un PLAN qui porte lui-même la liste des segments qu'il modifie
+    (`ops`) : plus personne n'a besoin de deviner qui bouge.
+
+    Retourne (avertissements de SEGMENT, avertissements de STYLE) — les
+    seconds n'ont pas d'index et se réparent dans l'onglet Style.
+    """
+    seg_w, style_w = [], []
+    for w in raw or []:
+        code = str(w.get("code") or "")
+        kind, _legacy = _SUBS_W_UI.get(code, (code or "regle", None))
+        sev = _SUBS_SEV_UI.get(str(w.get("severity")), "warn")
+        i = w.get("index")
+        msg = str(w.get("message") or "")
+        about = [int(x) for x in (w.get("about") or [])]
+        if i is None:
+            fx = w.get("fix") or {}
+            maker = _SUBS_STYLE_FIX_UI.get(str(fx.get("champ")))
+            d = {"kind": kind, "sev": sev, "msg": msg, "code": code,
+                 "style": w.get("style"), "about": about}
+            if maker and fx.get("valeur") is not None:
+                d["fix"] = maker(fx["valeur"])
+            style_w.append(d)
+            continue
+        i = int(i)
+        if i >= len(segs):
+            continue
+        if code == "trop_long":
+            sev = "info"
+        d = {"i": i, "id": segs[i].get("id"), "kind": kind, "sev": sev,
+             "msg": msg, "code": code, "about": about or [i]}
+        p = _subs_plan_ui(w.get("plan"))
+        if p:
+            d["plan"] = p
+        seg_w.append(d)
+    return seg_w, style_w
+
+
+# ------------------------------------------------------- styles et fontes ---
+
+@router.get("/subtitles/presets")
+async def subtitles_presets(ratio: str = "9:16"):
+    """Préréglages de style, dans le vocabulaire du panneau.
+
+    Une seule source de vérité (`subtitle_service.STYLES`, neuf préréglages
+    sur fontes EMBARQUÉES) : le panneau propose donc exactement les styles qui
+    savent se graver, au lieu de son repli local sur des fontes système que
+    libass ne trouvera pas forcément.
+    """
+    from app.services import subtitle_service as S
+    from app.services import subtitle_ui as SU
+    canvas = _subs_canvas(ratio)
+    fonts = S.check_fonts()
+    return {"ok": True, "ratio": ratio, "canvas": list(canvas),
+            "default": S.DEFAULT_STYLE,
+            "presets": SU.ui_presets(canvas),
+            "fonts_missing": fonts["missing"]}
+
+
+@router.get("/subtitles/fonts")
+async def subtitles_fonts():
+    """Fontes EMBARQUÉES gravables, avec l'URL du fichier.
+
+    L'URL sert à l'aperçu : le panneau déclare une `@font-face` par famille,
+    et le texte à l'écran est dessiné avec la fonte QUI SERA GRAVÉE. Sans
+    cela l'aperçu montrerait une fonte système et le rendu une autre.
+    """
+    from app.services import subtitle_service as S
+    st = S.check_fonts()
+    fonts = [{"id": fam, "label": fam, "file": S.FONT_FILES[fam],
+              "url": f"/api/subtitles/fonts/{fam}"}
+             for fam in st["ok"]]
+    return {"ok": True, "fonts": fonts, "dir": st["dir"],
+            "missing": st["missing"]}
+
+
+@router.get("/subtitles/fonts/{family}")
+async def subtitles_font_file(family: str):
+    """Fichier .ttf d'une famille embarquée.
+
+    Garde-fou : `family` doit être une clé de la table CLOSE `FONT_FILES` —
+    aucun chemin ne vient du client, donc rien d'autre que les fontes livrées
+    ne peut sortir.
+    """
+    from app.services import subtitle_service as S
+    fam = str(family or "").strip()
+    if fam.lower().endswith(".ttf"):
+        fam = fam[:-4]
+    p = S.font_path(fam)
+    if p is None:
+        raise HTTPException(404, f"Fonte inconnue ou non livrée : {family}")
+    return FileResponse(p, media_type="font/ttf",
+                        headers={"Cache-Control": "public, max-age=604800"})
+
+
+@router.post("/subtitles/style")
+async def subtitles_style(request: Request):
+    """Style du panneau → style du MOTEUR (diagnostic).
+
+    Renvoie le style ASS résolu, la fonte réellement retenue, et surtout
+    `unsupported` : ce que l'aperçu montre et que la gravure ne peut PAS
+    reproduire (coins arrondis, flou d'ombre, interligne, animations…).
+    """
+    from app.services import subtitle_ui as SU
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    canvas = _subs_canvas(body.get("ratio"), bool(body.get("preview")))
+    st = _subs_body_style(body, canvas)
+    return {"ok": True, "canvas": list(canvas), "style": st,
+            "karaoke": SU.ui_karaoke(body.get("style")),
+            "karaoke_mode": SU.ui_karaoke_mode(body.get("style")),
+            "unsupported": SU.ui_unsupported(
+                body.get("style") if isinstance(body.get("style"), dict) else {},
+                canvas)}
+
+
+# --------------------------------------------------------------- qualité ---
+
+@router.post("/subtitles/check")
+async def subtitles_check(request: Request):
+    """Avertissements de qualité, traduits pour le panneau.
+
+    Body : `{segments:[{start,end,text,words?}], style?, ratio?, dur?}`.
+    Le moteur mesure la largeur de ligne en PIXELS avec la vraie fonte (ce que
+    le calcul local du panneau ne sait pas faire) ; on lui rend donc la main
+    dès qu'il répond, plans de réparation compris.
+
+    `dur` (durée du montage) sert au dernier segment : sans plafond, un
+    étirement croirait disposer d'un silence infini après la fin de la vidéo.
+    """
+    from app.services import subtitle_service as S
+    from app.services import subtitle_ui as SU
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    canvas = _subs_canvas(body.get("ratio"))
+    segs_in = _subs_body_segments(body)
+    st = _subs_body_style(body, canvas)
+    kar = SU.ui_karaoke(body.get("style"))
+    try:
+        dur = float(body.get("dur"))
+        media_dur = dur if dur > 0 else None
+    except (TypeError, ValueError):
+        media_dur = None
+    # keep_empty=True : la MÊME indexation que `check_quality`, donc que les
+    # cartes du panneau. Écarter les segments vides ici décalerait tous les
+    # avertissements suivants d'un cran.
+    segs = S.normalize_segments(segs_in, sort=False, clamp_words=False,
+                                keep_empty=True)
+    raw = S.check_quality(segs_in, st, canvas, karaoke=kar, media_dur=media_dur)
+    seg_w, style_w = _subs_warnings_ui(raw, segs)
+    return {"ok": True, "warnings": seg_w, "style_warnings": style_w,
+            "unsupported": SU.ui_unsupported(
+                body.get("style") if isinstance(body.get("style"), dict) else {},
+                canvas),
+            "segments": len(segs)}
+
+
+@router.post("/subtitles/autofix")
+async def subtitles_autofix(request: Request):
+    """Correctifs TEMPORELS appliqués (chevauchements, segments trop courts,
+    ordre) — le texte n'est jamais touché sauf `split_long:true`."""
+    from app.services import subtitle_service as S
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    canvas = _subs_canvas(body.get("ratio"))
+    st = _subs_body_style(body, canvas)
+    segs = S.autofix(_subs_body_segments(body), st,
+                     split_long=bool(body.get("split_long")))
+    return {"ok": True, "segments": segs, "count": len(segs)}
+
+
+# ---------------------------------------------------------------- export ---
+
+_SUBS_MIME = {"srt": "application/x-subrip", "vtt": "text/vtt",
+              "ass": "text/x-ssa", "txt": "text/plain"}
+
+
+@router.post("/subtitles/export")
+async def subtitles_export(request: Request):
+    """Export d'une piste en `srt`, `vtt`, `ass` (ou `txt`).
+
+    L'ASS est le seul des trois qui porte le STYLE et le KARAOKÉ — c'est
+    exactement le fichier que ffmpeg grave au rendu, donc l'export permet de
+    vérifier hors de l'app ce qui sortira dans la vidéo.
+    Body : `{format, segments, style?, ratio?, karaoke?, name?}`.
+    """
+    from app.services import subtitle_service as S
+    from app.services import subtitle_ui as SU
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    fmt = str(body.get("format") or "srt").strip().lower().lstrip(".")
+    if fmt not in _SUBS_MIME:
+        raise HTTPException(400, f"Format inconnu : {fmt} — srt, vtt, ass ou txt.")
+    segs = _subs_body_segments(body)
+    if not segs:
+        raise HTTPException(400, "Aucun segment à exporter.")
+    canvas = _subs_canvas(body.get("ratio"))
+    st = _subs_body_style(body, canvas)
+    kar = (bool(body["karaoke"]) if "karaoke" in body
+           else SU.ui_karaoke(body.get("style")))
+    if fmt == "srt":
+        text = S.to_srt(segs)
+    elif fmt == "vtt":
+        text = S.to_vtt(segs, word_timings=kar)
+    elif fmt == "txt":
+        text = "\n".join(s["text"].replace("\n", " ")
+                         for s in S.normalize_segments(segs, with_words=False))
+    else:
+        text = S.to_ass(segs, st, canvas=canvas, karaoke=kar,
+                        karaoke_mode=SU.ui_karaoke_mode(body.get("style")))
+    base = re.sub(r"[^\w\-. ]+", "_", str(body.get("name") or "sous-titres"))[:60]
+    return Response(content=text.encode("utf-8"),
+                    media_type=f"{_SUBS_MIME[fmt]}; charset=utf-8",
+                    headers={"Content-Disposition":
+                             f'attachment; filename="{base}.{fmt}"'})
+
+
+@router.post("/subtitles/import")
+async def subtitles_import(request: Request):
+    """Lecture d'un .srt / .vtt collé → segments (mots relus si le VTT les
+    porte). Body : `{text}` ou `{content}`."""
+    from app.services import subtitle_service as S
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    text = str((body or {}).get("text") or (body or {}).get("content") or "")
+    if not text.strip():
+        raise HTTPException(400, "Rien à lire — collez un .srt ou un .vtt.")
+    fmt = S.sniff_format(text)
+    segs = S.parse_subtitles(text)
+    if not segs:
+        raise HTTPException(400, f"Aucun sous-titre lisible (format vu : {fmt}).")
+    return {"ok": True, "format": fmt, "segments": segs, "count": len(segs)}
+
+
+# ------------------------------------------------- lecture / écriture piste ---
+
+@router.get("/subtitles/track")
+async def subtitles_track_get():
+    """Piste enregistrée (segments + style), ou piste vide."""
+    p = _subs_track_path()
+    try:
+        if p.is_file():
+            data = json.loads(p.read_text(encoding="utf-8"))
+            if isinstance(data, dict) and isinstance(data.get("segments"), list):
+                return {"ok": True, "saved": True, **data}
+    except (OSError, ValueError):
+        logger.warning("subtitles: subtitles_track.json illisible — piste vide")
+    return {"ok": True, "saved": False, "segments": [], "style": None}
+
+
+@router.put("/subtitles/track")
+async def subtitles_track_put(request: Request):
+    """Écrit la piste (segments normalisés + style du panneau tel quel).
+
+    Écriture atomique (tmp voisin + replace), comme `montage_service`.
+    """
+    from app.services import subtitle_service as S
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        raise HTTPException(400, "Objet {segments:[…], style?} attendu.")
+    segs = S.normalize_segments(_subs_body_segments(body))
+    if len(segs) > 2000:
+        raise HTTPException(400, f"{len(segs)} segments — 2000 au maximum.")
+    data = {"segments": segs,
+            "style": body.get("style") if isinstance(body.get("style"), dict) else None,
+            "ratio": str(body.get("ratio") or "9:16")[:12],
+            "saved_at": datetime.utcnow().replace(microsecond=0).isoformat() + "Z"}
+    p = _subs_track_path()
+    tmp = p.with_name(f"{p.name}.{uuid4().hex[:8]}.tmp")
+    try:
+        await asyncio.to_thread(
+            tmp.write_text, json.dumps(data, ensure_ascii=False), "utf-8")
+        await asyncio.to_thread(tmp.replace, p)
+    except OSError as e:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise HTTPException(500, f"Écriture de la piste impossible : {e}")
+    return {"ok": True, "count": len(segs), "saved_at": data["saved_at"]}
+
+
+# ------------------------------------------------------ calage / transcription ---
+
+def _subs_audio_dir() -> Path:
+    return settings.images_path.parent / "audio"
+
+
+async def _subs_resolve(src) -> Path | None:
+    """Source du panneau → fichier réel, avec le garde-fou de chemin.
+
+    Accepte le même vocabulaire que le Montage (`{job_id}`, `{audio}`,
+    `{image}`, `{file_path}`) et, en plus, un simple nom de fichier — réduit
+    au basename et vérifié contenu dans le dossier audio ou dans
+    `outputs/uploads` (`transcribe_service.resolve_media`).
+    """
+    from app.services import transcribe_service as T
+    from app.services.montage_service import _resolve_src as _mres
+    if isinstance(src, dict):
+        p = await _mres(src)
+        if p is not None:
+            return p
+        src = src.get("name") or src.get("audio") or src.get("filename")
+    if isinstance(src, str) and src.strip():
+        for folder in (_subs_audio_dir(),
+                       settings.outputs_path / "uploads",
+                       settings.outputs_path / "videos"):
+            q = T.resolve_media(src.strip(), folder)
+            if q is not None:
+                return q
+    return None
+
+
+def _subs_cues_to_segments(cues: list) -> list:
+    from app.services import subtitle_service as S
+    return S.normalize_segments(
+        [{"start": c["start"], "end": c["end"], "text": c["text"],
+          "words": c.get("words")} for c in cues or []])
+
+
+@router.post("/subtitles/from-narration")
+async def subtitles_from_narration(request: Request):
+    """Sous-titres CRÉÉS depuis la narration — gratuit, hors ligne, exact.
+
+    Le texte de la voix off est déjà connu (c'est nous qui l'avons écrit et
+    fait dire) : le caler vaut mieux que le faire re-deviner par une
+    transcription payante, qui écrit « Dipotus » là où le script dit
+    « Deepotus ». Les silences RÉELS du fichier audio sont mesurés
+    (`silencedetect`) et les mots répartis entre les travées de parole au
+    prorata de leur poids syllabique.
+
+    Body : `{clips:[…]}` (modèle client du Montage) ou `{text, start, end |
+    src}` pour un bloc isolé ; `cps?` = caractères par réplique.
+    Sans `clips`, la sauvegarde du Montage (`montage_saved.json`) fait foi.
+    """
+    from app.services import transcribe_service as T
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    lang = str(body.get("lang") or "fr")[:5]
+    cps = int(body.get("cps") or T.CHARS_PER_SUBTITLE_DEFAULT)
+
+    text = str(body.get("text") or "").strip()
+    if text:
+        p = await _subs_resolve(body.get("src"))
+        start = max(0.0, float(body.get("start") or 0))
+        end = body.get("end")
+        if p is not None and end is None:
+            res = await asyncio.to_thread(T.align_to_audio, text, p,
+                                          start=start, lang=lang)
+        else:
+            if end is None:
+                raise HTTPException(400, "Sans audio résoluble, `end` (ou "
+                                         "`duration_s`) est nécessaire.")
+            res = await asyncio.to_thread(
+                T.align_known_text, text, start=start, end=float(end), lang=lang)
+        cues = T.group_words(res["words"], max_chars=cps)
+        return {"ok": True, "source": "align", "words": len(res["words"]),
+                "segments": _subs_cues_to_segments(cues)}
+
+    clips = body.get("clips")
+    if not isinstance(clips, list):
+        from app.services.montage_service import _load_saved
+        saved = await asyncio.to_thread(_load_saved)
+        clips = (saved or {}).get("clips") or []
+    clips = [dict(c) for c in clips if isinstance(c, dict)]
+    narr = [c for c in clips
+            if c.get("tr") in ("a1", "a3") and str(c.get("text") or "").strip()]
+    if not narr:
+        raise HTTPException(
+            400, "Aucun clip de narration porteur de texte sur A1/A3 — écrivez "
+                 "la voix off dans le tiroir Narration, ou lancez une "
+                 "transcription (POST /api/subtitles/transcribe).")
+    for c in narr:
+        c["_path"] = await _subs_resolve(c.get("src"))
+    res = await asyncio.to_thread(T.align_narration_clips, narr,
+                                  lambda c: c.get("_path"), lang=lang)
+    cues = T.group_words(res["words"], max_chars=cps)
+    return {"ok": True, "source": "align", "words": len(res["words"]),
+            "blocks": res["blocks"], "clips": len(narr),
+            "segments": _subs_cues_to_segments(cues)}
+
+
+@router.get("/subtitles/estimate")
+async def subtitles_estimate(duration_s: float = 0.0, provider: str = "",
+                             src: str = ""):
+    """COÛT et DURÉE d'une transcription, AVANT de la lancer (convention de
+    l'app). `ok:false` + `reason` si aucune clé n'est configurée — l'UI
+    propose alors le chemin gratuit (calage de la narration)."""
+    from app.services import transcribe_service as T
+    dur = float(duration_s or 0)
+    if src and dur <= 0:
+        p = await _subs_resolve(src)
+        if p is not None:
+            dur = await asyncio.to_thread(T.probe_duration, p)
+    try:
+        return T.estimate_transcription(dur, provider or None)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+def _subs_job_set(jid: str, **kw) -> None:
+    j = _SUBS_JOBS.setdefault(jid, {"status": "pending", "pct": 0, "step": ""})
+    j.update(kw)
+
+
+@router.post("/subtitles/transcribe")
+async def subtitles_transcribe(request: Request, background_tasks: BackgroundTasks):
+    """Sous-titres automatiques → `{job_id}`, puis GET /api/subtitles/jobs/{id}.
+
+    DEUX chemins, et le gratuit passe d'abord :
+
+    1. **Calage** (`align`) — des clips de narration portent leur texte : on
+       le cale sur les silences réels. Gratuit, hors ligne, orthographe exacte.
+    2. **Transcription** (`stt`) — texte inconnu : appel payant ElevenLabs
+       Scribe ou OpenAI Whisper, horodatage AU MOT.
+
+    Body : `{src?, clips?, lang?, cps?, provider?, mode?}` — `mode:"stt"`
+    force la transcription même si un texte est disponible.
+    """
+    from app.services import transcribe_service as T
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    lang = str(body.get("lang") or "fr")[:5]
+    cps = int(body.get("cps") or T.CHARS_PER_SUBTITLE_DEFAULT)
+    mode = str(body.get("mode") or "auto").lower()
+    provider = str(body.get("provider") or "") or None
+
+    clips = body.get("clips")
+    if not isinstance(clips, list):
+        from app.services.montage_service import _load_saved
+        saved = await asyncio.to_thread(_load_saved)
+        clips = (saved or {}).get("clips") or []
+    clips = [dict(c) for c in clips if isinstance(c, dict)]
+    narr = [c for c in clips
+            if c.get("tr") in ("a1", "a3") and str(c.get("text") or "").strip()]
+
+    src_path = await _subs_resolve(body.get("src"))
+    if src_path is None:
+        # rien d'explicite : la piste A1 du projet, puis la V1
+        for c in clips:
+            if c.get("tr") == "a1":
+                src_path = await _subs_resolve(c.get("src"))
+                if src_path is not None:
+                    break
+        if src_path is None:
+            for c in clips:
+                if c.get("tr") == "v1":
+                    src_path = await _subs_resolve(c.get("src"))
+                    if src_path is not None:
+                        break
+
+    use_align = bool(narr) and mode != "stt"
+    if not use_align:
+        if src_path is None:
+            raise HTTPException(
+                400, "Aucun média à transcrire : posez un plan ou une voix off "
+                     "sur la timeline, ou écrivez la narration (le calage d'un "
+                     "texte connu est gratuit et plus exact).")
+        if T.resolve_provider(provider) is None:
+            raise HTTPException(
+                400, "Aucune clé de transcription configurée (Réglages : "
+                     "ElevenLabs ou OpenAI). Le calage de la narration reste "
+                     "disponible, gratuit et hors ligne.")
+
+    for c in narr:
+        c["_path"] = await _subs_resolve(c.get("src"))
+
+    jid = uuid4().hex[:12]
+    if len(_SUBS_JOBS) > _SUBS_JOBS_MAX:
+        for k in list(_SUBS_JOBS)[:len(_SUBS_JOBS) - _SUBS_JOBS_MAX]:
+            _SUBS_JOBS.pop(k, None)
+    _subs_job_set(jid, status="pending", pct=5,
+                  step="calage de la narration" if use_align
+                       else "transcription", segments=None, error=None,
+                  source="align" if use_align else "stt")
+
+    async def _run():
+        try:
+            _subs_job_set(jid, status="running", pct=20)
+            if use_align:
+                res = await asyncio.to_thread(
+                    T.align_narration_clips, narr, lambda c: c.get("_path"),
+                    lang=lang)
+                _subs_job_set(jid, pct=75, step="découpe en répliques")
+                cues = T.group_words(res["words"], max_chars=cps)
+                src_kind = "align"
+                extra = {"words": len(res["words"]), "blocks": res["blocks"]}
+            else:
+                _subs_job_set(jid, pct=25,
+                              step=f"transcription de {src_path.name}")
+                res = await asyncio.to_thread(T.transcribe, src_path,
+                                              provider=provider, language=lang)
+                _subs_job_set(jid, pct=75, step="découpe en répliques")
+                cues = T.group_words(res["words"], max_chars=cps)
+                src_kind = "stt"
+                # `transcribe` nomme le fournisseur `source` (pas `provider`)
+                extra = {"words": len(res["words"]),
+                         "usd": res.get("usd_estimated"),
+                         "provider": res.get("source"),
+                         "text": res.get("text")}
+            segs = _subs_cues_to_segments(cues)
+            _subs_job_set(jid, status="done", pct=100, step="terminé",
+                          segments=segs, source=src_kind, **extra)
+        except Exception as e:                          # noqa: BLE001
+            logger.exception(f"subtitles job {jid} failed: {e}")
+            _subs_job_set(jid, status="failed", pct=100, step="échec",
+                          error=str(e))
+
+    background_tasks.add_task(_run)
+    return {"ok": True, "job_id": jid,
+            "source": "align" if use_align else "stt",
+            "message": ("Calage de la narration lancé (gratuit)."
+                        if use_align else
+                        f"Transcription lancée sur {src_path.name}.")}
+
+
+@router.get("/subtitles/jobs/{jid}")
+async def subtitles_job(jid: str):
+    """État d'un travail de sous-titrage : `{status, pct, step, segments?,
+    error?}` — `status` ∈ pending | running | done | failed."""
+    j = _SUBS_JOBS.get(str(jid))
+    if j is None:
+        raise HTTPException(404, "Travail de sous-titrage inconnu (ou expiré "
+                                 "avec le redémarrage du backend).")
+    return {"ok": True, "job_id": jid, **j}

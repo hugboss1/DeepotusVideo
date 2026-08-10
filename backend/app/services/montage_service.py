@@ -63,6 +63,17 @@ timeline par setpts=PTS/speed inséré AVANT la normalisation fps ; AUCUN
 atempo (l'audio des plans V1 n'entre pas dans le graphe — le clip A1 « son
 du plan » garde sa vitesse, l'UI signale la désynchronisation).
 
+Piste S1 (sous-titres) : le payload de rendu porte une clé `subtitles`
+HORS du tableau `clips` — `{style, segments:[{start,end,text,words?}]}`. Le
+style, exprimé dans le vocabulaire du panneau, est converti par
+`subtitle_ui.ui_to_style` AVEC le canevas réel du rendu, puis
+`subtitle_service.to_ass` écrit un fichier ASS (style + karaoké `\\k` par mot)
+que ffmpeg grave par le filtre `subtitles=` en DERNIER maillon de la chaîne
+vidéo (après les overlays V2, donc au-dessus de tout, extension du maître de
+durée comprise). `fontsdir` pointe les fontes EMBARQUÉES : sans lui libass
+retomberait en silence sur une fonte système et le rendu cesserait de
+ressembler à l'aperçu. Clé absente : commande historique intacte.
+
 Tout est local ffmpeg → 0 crédit, l'UI l'affiche avant déclenchement
 (règle produit). Trous V1 : rendus en NOIR (segments lavfi à leur durée
 timeline, compensée du chevauchement xfade des frontières pour que le clip
@@ -552,6 +563,8 @@ async def montage_project(limit: int = 4):
                    "clips": kept, "saved_at": saved.get("saved_at")}
             if isinstance(saved.get("ducking_cfg"), dict):
                 out["ducking_cfg"] = saved["ducking_cfg"]
+            if isinstance(saved.get("subs_style"), dict):
+                out["subs_style"] = saved["subs_style"]   # S1 (cf. POST /save)
             if pruned:
                 out["saved_pruned"] = True
                 out["pruned"] = pruned
@@ -689,6 +702,12 @@ async def montage_save(request: Request):
     }
     if isinstance(body.get("ducking_cfg"), dict):
         data["ducking_cfg"] = body["ducking_cfg"]
+    # S1 : style des sous-titres. Les SEGMENTS sont déjà dans `clips` (piste
+    # s1) et voyagent donc tels quels ; le style, lui, n'est pas un clip — sans
+    # cette clé il ne survivait qu'en localStorage et changeait de poste à
+    # poste. GET /project le resserre à l'éditeur (svmApplyProject le lit).
+    if isinstance(body.get("subs_style"), dict):
+        data["subs_style"] = body["subs_style"]
     if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
         raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
     try:
@@ -741,7 +760,7 @@ async def _resolve_src(src: dict | None) -> Path | None:
 
 def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                            ducking, duration_master, preview, out,
-                           audio_only=False):
+                           audio_only=False, subs_ass=None):
     """Commande ffmpeg complète (sync, testable). v1/v2/a_clips/music portent
     des chemins déjà résolus + durées sondées.
 
@@ -768,6 +787,11 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     et setpts=PTS/speed AVANT fps remet le flux à la durée timeline ; la
     durée du segment (seg_durs) et donc offsets xfade / total / adelay ne
     bougent pas ; AUCUN atempo (l'audio V1 n'entre pas dans le graphe).
+    S1 : `subs_ass` = chemin d'un fichier ASS déjà écrit (piste de
+    sous-titres). Il devient le DERNIER maillon de la chaîne vidéo, juste
+    avant `format=yuv420p` : le texte passe donc au-dessus des overlays V2 et
+    couvre l'extension du maître de durée. None (défaut) : chaîne historique
+    intacte, octet pour octet.
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -1158,7 +1182,18 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                "-f", "null", "-"]
         return cmd, total
 
-    parts.append(f"[{cur}]format=yuv420p[outv]")
+    # --- S1 : GRAVURE des sous-titres (dernier maillon de la chaîne vidéo) ---
+    # `fontsdir` n'est pas une précaution : sans lui libass cherche dans les
+    # fontes SYSTÈME, ne trouve pas les fontes embarquées (Anton, Bebas Neue,
+    # Archivo Black… ne sont pas des fontes Windows) et retombe SILENCIEUSEMENT
+    # sur une autre — le rendu cesserait de ressembler à l'aperçu sans qu'aucune
+    # erreur ffmpeg ne le signale. subtitles_filter() le pose toujours.
+    if subs_ass:
+        from app.services.subtitle_service import subtitles_filter
+        parts.append(f"[{cur}]{subtitles_filter(subs_ass)},"
+                     f"format=yuv420p[outv]")
+    else:
+        parts.append(f"[{cur}]format=yuv420p[outv]")
     preset, crf, abr = (("veryfast", "30", "128k") if preview
                         else ("medium", "20", "192k"))
     cmd = ["ffmpeg", "-y", *inputs,
@@ -1170,6 +1205,58 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
            "-r", str(fps), "-c:a", "aac", "-b:a", abr,
            "-movflags", "+faststart", str(out)]
     return cmd, total
+
+
+def _subs_ass(payload, canvas: tuple[int, int], stem: str) -> tuple[Path | None, dict]:
+    """Piste S1 du payload de rendu → fichier ASS sur le disque.
+
+    `payload` est la clé `subtitles` posée par l'éditeur, HORS du tableau
+    `clips` (un sous-titre n'est pas un média) :
+    `{style:{…vocabulaire du panneau…}, segments:[{start,end,text,words?}]}`.
+
+    Le style est traduit par `subtitle_ui.ui_to_style` AVEC le canevas réel :
+    le panneau exprime ses tailles en pixels de la LARGEUR de rendu, l'ASS en
+    pixels ramenés à 1080 de HAUT. Sans cette conversion, un « 42 px » réglé
+    dans l'aperçu sortirait à 75 px en 9:16 — l'aperçu mentirait.
+
+    Les temps des segments sont ceux de la TIMELINE, c'est-à-dire exactement
+    l'horloge sur laquelle l'audio est posé (`adelay`) : sous-titres et voix
+    partagent donc la même référence, quoi que fassent les transitions.
+
+    Retourne (chemin, infos) — (None, {}) si la piste est vide.
+    """
+    if not isinstance(payload, dict):
+        return None, {}
+    segs_in = [s for s in (payload.get("segments") or []) if isinstance(s, dict)]
+    if not segs_in:
+        return None, {}
+    from app.services import subtitle_service as S
+    from app.services import subtitle_ui as SU
+
+    ui = payload.get("style") if isinstance(payload.get("style"), dict) else {}
+    style = SU.ui_to_style(ui, canvas)
+    karaoke = SU.ui_karaoke(ui)
+    # Repli des lignes AVANT l'ASS, avec la regle du panneau : le fichier est
+    # ecrit en WrapStyle 2 (libass ne replie rien tout seul), donc sans ce
+    # passage une longue replique sortirait sur UNE ligne debordant du cadre
+    # alors que l'apercu la montrait sur trois. Vu a l'image, pas deduit.
+    segs_in = SU.ui_wrap_segments(segs_in, ui.get("maxChars"), style, canvas)
+    segs = S.normalize_segments(segs_in)
+    if not segs:
+        return None, {}
+    text = S.to_ass(segs, style, canvas=canvas, karaoke=karaoke,
+                    karaoke_mode=SU.ui_karaoke_mode(ui),
+                    anim=SU.ui_anim(ui))
+    d = settings.outputs_path / "subtitles"
+    d.mkdir(parents=True, exist_ok=True)
+    p = d / f"{stem}.ass"
+    # UTF-8 SANS BOM : libass lit le BOM comme un caractère et la première
+    # ligne du script s'en trouve décalée.
+    p.write_text(text, encoding="utf-8", newline="\n")
+    info = {"segments": len(segs), "karaoke": karaoke,
+            "font": style["font"], "font_fallback": style.get("font_fallback"),
+            "unsupported": sorted(SU.ui_unsupported(ui, canvas))}
+    return p, info
 
 
 def _run_ffmpeg(cmd, out: Path) -> Path:
@@ -1381,15 +1468,30 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                                    else "Rendu ffmpeg")
                 await session.commit()
 
+            # S1 : l'ASS est écrit AVANT la commande (le filtre en a besoin).
+            # Le canevas passé est celui du rendu RÉEL (aperçu 480p compris) :
+            # les tailles suivent, un aperçu reste un aperçu fidèle.
+            subs_ass, subs_info = await asyncio.to_thread(
+                _subs_ass, body.get("subtitles"), (w, h), f"montage_{short}")
+
             cmd, total = _build_montage_command(
                 v1, v2, a_clips, music, w=w, h=h, fps=fps,
                 mix_db=mix, ducking=ducking,
-                duration_master=duration_master, preview=preview, out=out)
+                duration_master=duration_master, preview=preview, out=out,
+                subs_ass=subs_ass)
             fx_n = sum(len(c["effects"] or []) for c in v1)
             logger.info(f"montage {short}: {len(v1)} clips V1 ({fx_n} effets), "
                         f"{len(v2)} overlays V2, {len(a_clips)} audio, "
                         f"musique={music is not None}, "
                         f"total≈{total}s → {out_name}")
+            if subs_ass:
+                logger.info(
+                    f"montage {short}: gravure de {subs_info['segments']} "
+                    f"sous-titres en {subs_info['font']} "
+                    f"(karaoké={subs_info['karaoke']}) → {subs_ass.name}"
+                    + (f" — non gravable : "
+                       f"{', '.join(subs_info['unsupported'])}"
+                       if subs_info["unsupported"] else ""))
             await asyncio.to_thread(_run_ffmpeg, cmd, out)
 
             dur = await loop.run_in_executor(None, _probe_duration, out)
