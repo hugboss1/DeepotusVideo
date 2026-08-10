@@ -218,6 +218,22 @@
 .sub-warn[data-sev="info"] .sub-warnicon{background:var(--sub-stroke2);
   color:var(--sub-ink2)}
 .sub-warnmsg{flex:1 1 auto; min-width:0}
+/* la carte passe en colonne des qu'un correctif annonce ses consequences :
+   le libelle du bouton dit CE QU'IL FAIT, la ligne dessous dit CE QUE CA
+   COUTE — y compris aux voisins. Les deux se lisent avant le clic. */
+.sub-warn{flex-wrap:wrap}
+.sub-warnwhat{flex:1 0 100%; margin:2px 0 0 19px; font-size:9.5px;
+  line-height:1.45; color:var(--sub-ink4)}
+.sub-warnwhat[data-blocked]{color:var(--sub-ink3)}
+.sub-minibtn.sub-fixalt{border-color:var(--sub-stroke2); color:var(--sub-ink3)}
+.sub-minibtn.sub-fixalt:hover{border-color:var(--sub-acc); color:var(--sub-acc)}
+/* les ecarts apercu/gravure, dans l'onglet Style */
+.sub-stywarns{display:flex; flex-direction:column; gap:4px; margin:8px 0 10px}
+.sub-stywarns .sub-seclabel{margin-bottom:2px}
+.sub-mhint[data-warn]{color:var(--sub-acc)}
+.sub-tbad[data-soft]{background:var(--sub-stroke2); color:var(--sub-ink2)}
+.sub-cpsout{font-family:var(--sub-mono); font-size:9.5px; color:var(--sub-ink4);
+  white-space:nowrap}
 
 .sub-empty{padding:22px 14px; text-align:center;
   border:1px dashed var(--sub-stroke); border-radius:9px}
@@ -380,12 +396,6 @@
 .sub-frh[data-p="w"]{left:-13px}
 .sub-frh[data-p="e"]{right:-13px}
 .sub-frh:hover{background:var(--accent, #f0b429)}
-.sub-frtag{position:absolute; left:0; top:-7px; transform:translateY(-100%);
-  padding:1px 5px; border-radius:4px; white-space:nowrap; font-style:normal;
-  font-family:var(--f-mono, Consolas, monospace); font-size:8.5px;
-  letter-spacing:.04em; text-transform:uppercase;
-  background:rgba(255,255,255,.92); color:#14141a; pointer-events:none}
-
 .sub-safe{position:absolute; inset:0; pointer-events:none; z-index:4;
   opacity:.5; transition:opacity .12s linear}
 .sub-safe[data-drag]{opacity:1}
@@ -403,8 +413,11 @@
   background:rgba(0,0,0,.42); border-radius:3px}
 .sub-safelab[data-k="soc"]{color:#ffbfb4}
 
-.sub-hud{position:absolute; left:50%; top:27px; transform:translateX(-50%);
-  z-index:7; padding:2px 8px; border-radius:9px; white-space:nowrap;
+.sub-hud{position:absolute; left:6px; right:6px; top:27px; z-index:7;
+  padding:2px 8px; border-radius:9px; text-align:center;
+  /* jamais tronque : sur un cadre etroit le bandeau passe a la ligne plutot
+     que d'avaler la valeur que l'on est justement en train de regler */
+  white-space:normal; line-height:1.4;
   font-family:var(--f-mono, Consolas, monospace); font-size:9px;
   font-variant-numeric:tabular-nums; pointer-events:none;
   background:rgba(10,10,12,.78); color:#f2efe9;

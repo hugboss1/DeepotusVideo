@@ -64,10 +64,14 @@ __all__ = [
     "canvas_for_ratio", "REF_W_PORTRAIT", "REF_W_LANDSCAPE",
 ]
 
-#: Interligne REEL de libass, mesure sur gravure : exactement 1,000 x le corps
-#: de la fonte, quelles que soient la fonte et la taille. L'apercu s'y cale ;
-#: le reglage « interligne » a disparu du panneau parce qu'il ne pouvait rien
-#: changer au fichier livre.
+#: Interligne REEL de libass, mesure sur gravure : exactement 1,000 x le
+#: `Fontsize` du fichier ASS, quelles que soient la fonte et la taille.
+#: Ce 1,0 est donc un rapport au CORPS DU FICHIER, pas a l'em dessine : depuis
+#: la correction d'echelle de `to_ass`, Fontsize = em x
+#: `S.font_line_height(fonte)`, et l'apercu doit poser CE rapport en
+#: `line-height` (il le recoit dans `/api/subtitles/fonts`). Le reglage
+#: « interligne » a disparu du panneau parce qu'il ne pouvait rien changer au
+#: fichier livre.
 UI_LINE_HEIGHT = 1.0
 
 #: Largeur de reference de l'apercu (subsOverlay : `canvasW`).

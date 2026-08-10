@@ -74,6 +74,7 @@ __all__ = [
     # styles / fontes
     "STYLES", "style_labels", "resolve_style", "ass_unsupported",
     "FONT_FILES", "fonts_dir", "ass_fontsdir", "font_path", "check_fonts",
+    "font_line_height",
     # ffmpeg
     "subtitles_filter",
 ]
@@ -133,6 +134,56 @@ def font_path(family: str | None) -> Path | None:
         return None
     p = fonts_dir() / fn
     return p if p.exists() else None
+
+
+#: Rapport MESURE entre le `Fontsize` d'un fichier ASS et l'em que libass
+#: dessine reellement. Ce n'est pas un reglage : c'est la convention
+#: VSFilter que libass reproduit — le corps ASS vaut la HAUTEUR DE LIGNE de
+#: la fonte (usWinAscent + usWinDescent), pas son em.
+#: Verifie a l'image sur huit familles embarquees (scratchpad/fontprobe3.py) :
+#:   Anton 1,7316 mesure / 1,7334 metrique · Bungee 2,5806 / 2,5740
+#:   Inter 1,4235 / 1,4302 · Bebas Neue 1,3029 / 1,3000
+#:   Press Start 2P 1,3746 / 1,3740 · Staatliches 1,3115 / 1,3120
+#: Sans cette correction, un « 110 px » regle au panneau sortait grave a
+#: 110 / 1,43 = 77 px en Inter, et a 63 px en Anton : le defaut d'echelle
+#: aperçu/rendu le plus visible de la piste.
+_LH_CACHE: dict[str, float] = {}
+_LH_FALLBACK = 1.2
+
+
+def font_line_height(family: str | None) -> float:
+    """Facteur `corps ASS / em dessine` de la fonte `family`.
+
+    Lu dans la table OS/2 du .ttf embarque (usWinAscent + usWinDescent divises
+    par head.unitsPerEm), en `struct` pur — pas de fontTools dans le runtime
+    embarque. Retombe sur 1.2 si le fichier est illisible : mieux vaut une
+    echelle approchee qu'une exception au milieu d'un rendu.
+    """
+    key = (family or "").strip().lower() or DEFAULT_FONT.lower()
+    if key in _LH_CACHE:
+        return _LH_CACHE[key]
+    val = _LH_FALLBACK
+    p = font_path(family) or font_path(DEFAULT_FONT)
+    if p is not None:
+        try:
+            import struct
+
+            b = p.read_bytes()
+            n = struct.unpack(">H", b[4:6])[0]
+            tabs = {}
+            for i in range(n):
+                o = 12 + 16 * i
+                tabs[b[o:o + 4]] = struct.unpack(">II", b[o + 8:o + 16])[0]
+            ho, o2 = tabs.get(b"head"), tabs.get(b"OS/2")
+            if ho and o2:
+                upm = struct.unpack(">H", b[ho + 18:ho + 20])[0]
+                wa, wd = struct.unpack(">HH", b[o2 + 74:o2 + 78])
+                if upm > 0 and (wa + wd) > 0:
+                    val = max(0.5, min(4.0, (wa + wd) / float(upm)))
+        except Exception:
+            val = _LH_FALLBACK
+    _LH_CACHE[key] = val
+    return val
 
 
 def check_fonts() -> dict:
@@ -260,14 +311,14 @@ DEFAULT_STYLE = "standard"
 #: dans le modele (l'apercu canvas les honore) mais on ne pretend pas les
 #: graver : `to_ass` les ignore et l'interface peut les griser.
 _ASS_UNSUPPORTED = {
-    "line_height": "L'ASS n'a pas d'interligne : libass fixe l'ecart des "
-                   "lignes d'apres le corps de la fonte.",
+    "line_height": "L'ASS n'a pas d'interligne : libass fixe l'écart des "
+                   "lignes d'après le corps de la fonte.",
     "back_mode:band": "Un fond pleine largeur n'existe pas en ASS ; le fond "
-                      "est une boite collee au texte (BorderStyle 3).",
-    "back_opacity:karaoke": "Fond translucide + karaoke : libass dessine une "
-                            "boite par mot, les recouvrements assombrissent "
-                            "une barre a chaque frontiere. Passer l'opacite "
-                            "du fond a 100 % ou couper le karaoke.",
+                      "est une boîte collée au texte (BorderStyle 3).",
+    "back_opacity:karaoke": "Fond translucide + karaoké : libass dessine une "
+                            "boîte par mot, les recouvrements assombrissent "
+                            "une barre à chaque frontière. Passez l'opacité "
+                            "du fond à 100 %, ou coupez le karaoké.",
 }
 
 
@@ -748,10 +799,16 @@ def _ass_style_line(name: str, st: dict, scale: float, karaoke: bool) -> str:
         else _ass_color(st["outline_color"])
     back_colour = _ass_color(st["shadow_color"],
                              0.55 if st["shadow"] > 0 else 0.0)
+    # Le corps ecrit dans le fichier N'EST PAS l'em voulu : libass dessine
+    # em = Fontsize / hauteur_de_ligne(fonte) (convention VSFilter, mesuree
+    # a l'image). On pre-multiplie pour que le px regle au panneau soit le px
+    # grave. Contour, ombre et interlettrage sont, eux, en pixels de script :
+    # ils ne passent PAS par ce facteur.
+    lh = font_line_height(st["font"])
     fields = [
         name,
         st["font"],
-        f"{st['size'] * scale:g}",
+        f"{st['size'] * scale * lh:g}",
         primary, secondary,
         outline_colour,
         back_colour,
@@ -1271,7 +1328,7 @@ def plan_stretch(segs, i, target_dur: float, *, min_gap: float = MIN_GAP,
     target = max(dur, float(target_dur))
     need = target - dur
     if need <= _EPS:
-        return _blocked("etirer", "Le segment dure deja assez longtemps.")
+        return _blocked("etirer", "Le segment dure déjà assez longtemps.")
 
     after = room_after(segs, i, min_gap, media_dur)
     before = room_before(segs, i, min_gap)
@@ -1289,8 +1346,8 @@ def plan_stretch(segs, i, target_dur: float, *, min_gap: float = MIN_GAP,
         if media_dur is not None and last_end > float(media_dur) + _EPS:
             alt = _blocked(
                 "etirer",
-                "Decaler les suivants sortirait le dernier sous-titre de la "
-                "video (%s de trop)." % _fr_ms(last_end - float(media_dur)))
+                "Décaler les suivants sortirait le dernier sous-titre de la "
+                "vidéo (%s de trop)." % _fr_ms(last_end - float(media_dur)))
         else:
             n = len(segs) - (i + 1)
             ops = [_set_op(segs, i, start=new_start,
@@ -1301,9 +1358,9 @@ def plan_stretch(segs, i, target_dur: float, *, min_gap: float = MIN_GAP,
                                    end=round(segs[j]["end"] + deficit, 4)))
             alt = _plan(
                 "etirer", True,
-                "Etirer a %s s en decalant la suite" % _fr(target),
-                "Decale les %d sous-titres suivants de %s. Leur texte ne "
-                "bougera plus avec la voix — a ne faire que si le montage "
+                "Étirer à %s s en décalant la suite" % _fr(target),
+                "Décale les %d sous-titres suivants de %s. Leur texte ne "
+                "bougera plus avec la voix — à ne faire que si le montage "
                 "suit." % (n, _fr_ms(deficit)),
                 ops, touches=list(range(i + 1, len(segs))),
                 granted=round(target, 3), requested=round(target, 3))
@@ -1324,8 +1381,8 @@ def plan_stretch(segs, i, target_dur: float, *, min_gap: float = MIN_GAP,
     else:
         eff = ("%s Il faudrait %s s : le voisin ne laisse pas plus. %s"
                % (_stretch_effect(take_before, take_after), _fr(target),
-                  "Le probleme sera reduit, pas efface."))
-    p = _plan("etirer", True, "Etirer a %s s" % _fr(got), eff,
+                  "Le problème sera réduit, pas effacé."))
+    p = _plan("etirer", True, "Étirer à %s s" % _fr(got), eff,
               [_set_op(segs, i, start=new_start, end=new_end)],
               granted=got, requested=round(target, 3))
     p["alt"] = alt
@@ -1335,7 +1392,7 @@ def plan_stretch(segs, i, target_dur: float, *, min_gap: float = MIN_GAP,
 def _stretch_effect(before: float, after: float) -> str:
     bits = []
     if after > 0.001:
-        bits.append("prend %s de silence apres" % _fr_ms(after))
+        bits.append("prend %s de silence après" % _fr_ms(after))
     if before > 0.001:
         bits.append("%s de silence avant" % _fr_ms(before))
     if not bits:
@@ -1346,11 +1403,11 @@ def _stretch_effect(before: float, after: float) -> str:
 def _gap_reason(segs, i, min_gap, media_dur) -> str:
     if i + 1 < len(segs):
         g = segs[i + 1]["start"] - segs[i]["end"]
-        return ("le %s commence %s apres la fin de celui-ci (plancher %s)"
+        return ("le %s commence %s après la fin de celui-ci (plancher %s)"
                 % (_rank(i + 1), _fr_ms(max(0.0, g)), _fr_ms(min_gap)))
     if media_dur is not None:
-        return "le segment finit deja avec la video"
-    return "le voisin est colle"
+        return "le segment finit déjà avec la vidéo"
+    return "le voisin est collé"
 
 
 def plan_boundary(segs, i, *, min_gap: float = MIN_GAP,
@@ -1368,7 +1425,7 @@ def plan_boundary(segs, i, *, min_gap: float = MIN_GAP,
     gap = cur["start"] - prev["end"]
     need = min_gap - gap
     if need <= _EPS:
-        return _blocked("separer", "La frontiere est deja assez large.")
+        return _blocked("separer", "La frontière est déjà assez large.")
 
     dp = prev["end"] - prev["start"]
     dc = cur["end"] - cur["start"]
@@ -1383,12 +1440,12 @@ def plan_boundary(segs, i, *, min_gap: float = MIN_GAP,
             take_c, take_p = give_c, need - give_c
         ops = [_set_op(segs, i - 1, end=round(prev["end"] - take_p, 4)),
                _set_op(segs, i, start=round(cur["start"] + take_c, 4))]
-        eff = ("Le %s perd %s a la fin, le %s %s au debut. Ecart final %s, "
+        eff = ("Le %s perd %s à la fin, le %s %s au début. Écart final %s, "
                "et les deux restent au-dessus de %s s."
                % (_rank(i - 1), _fr_ms(take_p), _rank(i), _fr_ms(take_c),
                   _fr_ms(min_gap), _fr(min_duration)))
         return _plan("separer", True,
-                     "Separer de %s" % _fr_ms(min_gap), eff, ops,
+                     "Séparer de %s" % _fr_ms(min_gap), eff, ops,
                      touches=[i - 1], granted=round(min_gap, 3),
                      requested=round(min_gap, 3))
 
@@ -1400,7 +1457,7 @@ def plan_boundary(segs, i, *, min_gap: float = MIN_GAP,
         fus = _plan(
             "fusionner", True, "Fusionner les deux",
             "Le %s et le %s deviennent un seul sous-titre de %s s. "
-            "Le texte est mis bout a bout, le calage par mot est refait."
+            "Le texte est mis bout à bout, le calage par mot est refait."
             % (_rank(i - 1), _rank(i), _fr(merged_dur)),
             [_set_op(segs, i - 1, end=round(cur["end"], 4), text=txt,
                      words=None),
@@ -1428,8 +1485,8 @@ def plan_split(segs, i, st: dict, *, max_lines: int = 2,
     parts = split_segment(segs[i], st["chars_per_line"], max_lines)
     if len(parts) < 2:
         return _blocked("decouper",
-                        "Le texte tient en un seul bloc de %d caracteres : "
-                        "rien a decouper." % st["chars_per_line"])
+                        "Le texte tient en un seul bloc de %d caractères : "
+                        "rien à découper." % st["chars_per_line"])
     for k in range(len(parts) - 1):
         a, b = parts[k], parts[k + 1]
         if b["start"] - a["end"] < min_gap - _EPS:
@@ -1440,8 +1497,8 @@ def plan_split(segs, i, st: dict, *, max_lines: int = 2,
                 w["start"] = min(w["start"], a["end"])
     durs = " + ".join(_fr(p["end"] - p["start"]) + " s" for p in parts)
     return _plan(
-        "decouper", True, "Decouper en %d sous-titres" % len(parts),
-        "Le segment devient %d sous-titres (%s), coupes sur les mots avec %s "
+        "decouper", True, "Découper en %d sous-titres" % len(parts),
+        "Le segment devient %d sous-titres (%s), coupés sur les mots avec %s "
         "de respiration entre eux. Les voisins ne bougent pas."
         % (len(parts), durs, _fr_ms(min_gap)),
         [{"op": "replace", "index": int(i), "id": segs[i].get("id"),
@@ -1465,17 +1522,17 @@ def plan_rewrap(segs, i, st: dict, *, max_lines: int = 2,
         new = "\n".join(lines)
         if new == segs[i]["text"]:
             return _blocked("replier",
-                            "Le texte est deja replie au mieux pour %d "
-                            "caracteres par ligne." % cpl)
+                            "Le texte est déjà replié au mieux pour %d "
+                            "caractères par ligne." % cpl)
         return _plan(
             "replier", True, "Replier en %d lignes" % len(lines),
-            "Le texte est replie a %d caracteres par ligne (%s). Le debut, la "
+            "Le texte est replié à %d caractères par ligne (%s). Le début, la "
             "fin et le calage par mot ne bougent pas."
             % (cpl, " / ".join("%d" % len(x) for x in lines)),
             [_set_op(segs, i, text=new)], granted=len(lines))
     p = plan_split(segs, i, dict(st, chars_per_line=cpl), max_lines=max_lines)
     if p["ok"]:
-        p["effect"] = ("Le texte fait %d lignes a %d caracteres : il ne tient "
+        p["effect"] = ("Le texte fait %d lignes à %d caractères : il ne tient "
                        "pas en %d. %s" % (len(lines), cpl, max_lines,
                                           p["effect"]))
     return p
@@ -1640,7 +1697,7 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
                                                  min_duration=min_duration)))
             elif gap < min_gap:
                 out.append(_w("intervalle_court", "avertissement", s, i,
-                              "Commence %s apres la fin du %s : sous %s le "
+                              "Commence %s après la fin du %s : sous %s le "
                               "changement se verra comme un clignotement."
                               % (_fr_ms(gap), _rank(i - 1), _fr_ms(min_gap)),
                               value=gap, limit=min_gap, about=[i - 1, i],
@@ -1654,30 +1711,30 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
             continue
         if dur <= 0:
             out.append(_w("duree_nulle", "erreur", s, i,
-                          "Le segment ne dure rien (fin <= debut).",
+                          "Le segment ne dure rien (fin <= début).",
                           value=dur,
                           plan=plan_stretch(segs, i, min_duration,
                                             min_gap=min_gap,
                                             media_dur=media_dur)))
         else:
-            if dur < min_duration:
+            if dur < min_duration - 1e-4:
                 out.append(_w("trop_court", "avertissement", s, i,
-                              "Segment de %s s : sous %s s l'oeil n'a pas le "
+                              "Segment de %s s : sous %s s l'œil n'a pas le "
                               "temps de se poser."
                               % (_fr(dur), _fr(min_duration)),
                               value=dur, limit=min_duration,
                               plan=plan_stretch(segs, i, min_duration,
                                                 min_gap=min_gap,
                                                 media_dur=media_dur)))
-            if dur > max_duration:
+            if dur > max_duration + 1e-4:
                 out.append(_w("trop_long", "avertissement", s, i,
-                              "Segment de %s s : au-dela de %s s il faut le "
+                              "Segment de %s s : au-delà de %s s il faut le "
                               "couper en deux."
                               % (_fr(dur), _fr(max_duration)),
                               value=dur, limit=max_duration,
                               plan=plan_split(segs, i, st, max_lines=max_lines)))
             cps = len(flat) / dur
-            if cps > cps_warn:
+            if cps > cps_warn + 1e-6:
                 need = len(flat) / cps_warn
                 plan = plan_stretch(segs, i, need, min_gap=min_gap,
                                     media_dur=media_dur)
@@ -1686,22 +1743,22 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
                     # dit au lieu d'agiter un bouton qui ne changerait rien.
                     plan = plan_split(segs, i, st, max_lines=max_lines) \
                         if len(flat) > st["chars_per_line"] else plan
-                if cps > cps_error:
+                if cps > cps_error + 1e-6:
                     out.append(_w("debit_illisible", "erreur", s, i,
-                                  "%s caracteres/seconde : illisible."
+                                  "%s caractères/seconde : illisible."
                                   % _fr(cps, 1), value=cps, limit=cps_error,
                                   plan=plan))
                 else:
                     out.append(_w("debit_eleve", "avertissement", s, i,
-                                  "%s caracteres/seconde : au-dela de %s, la "
-                                  "lecture decroche."
+                                  "%s caractères/seconde : au-delà de %s, la "
+                                  "lecture décroche."
                                   % (_fr(cps, 1), _fr(cps_warn)),
                                   value=cps, limit=cps_warn, plan=plan))
 
         lines = text.split("\n")
         if len(lines) > max_lines:
             out.append(_w("trop_de_lignes", "avertissement", s, i,
-                          "%d lignes affichees (maximum %d)."
+                          "%d lignes affichées (maximum %d)."
                           % (len(lines), max_lines),
                           value=len(lines), limit=max_lines,
                           plan=plan_rewrap(segs, i, st, max_lines=max_lines)))
@@ -1712,7 +1769,7 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
                 fit = max(8, int(len(ln) * usable_px / px))
                 out.append(_w("ligne_trop_large", "avertissement", s, i,
                               "Ligne de %d px pour %d px utiles en %s %d : "
-                              "elle depassera du cadre."
+                              "elle dépassera du cadre."
                               % (round(px), round(usable_px), st["font"],
                                  round(st["size"] * scale)),
                               value=px, limit=round(usable_px, 1),
@@ -1722,7 +1779,7 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
                 break
             if px is None and len(ln) > st["chars_per_line"]:
                 out.append(_w("ligne_trop_large", "avertissement", s, i,
-                              "Ligne de %d caracteres pour %d conseilles."
+                              "Ligne de %d caractères pour %d conseillés."
                               % (len(ln), st["chars_per_line"]),
                               value=len(ln), limit=st["chars_per_line"],
                               plan=plan_rewrap(segs, i, st,
@@ -1734,13 +1791,13 @@ def check_quality(segments, style=None, canvas: tuple[int, int] | None = None,
                if w["start"] < s["start"] - 1e-6 or w["end"] > s["end"] + 1e-6]
         if bad:
             out.append(_w("mots_incoherents", "erreur", s, i,
-                          "%d mot(s) cales hors des bornes du segment — le "
-                          "karaoke sortira faux." % len(bad),
+                          "%d mot(s) calés hors des bornes du segment — le "
+                          "karaoké sortira faux." % len(bad),
                           value=len(bad),
                           plan=_plan("recaler", True, "Recaler les mots",
                                      "Les timings par mot sont refaits dans "
                                      "les bornes du segment. Le texte, le "
-                                     "debut et la fin ne bougent pas.",
+                                     "début et la fin ne bougent pas.",
                                      [_set_op(segs, i, words=None)])))
     return out
 

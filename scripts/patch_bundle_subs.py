@@ -160,7 +160,7 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
     var c0=subsWRef.current;
     if(c0.k===cs&&c0.s===st)return c0.m;
     var m={};
-    if(d)d.warnings(subsSegsOf(cs),subsStyleNow()).forEach(function(w){
+    if(d)d.warnings(subsSegsOf(cs),subsStyleNow(),proj.dur).forEach(function(w){
       if(!m[w.id]||w.sev==="err")m[w.id]=w.sev});
     subsWRef.current={k:cs,s:st,m:m};
     return m}
@@ -229,7 +229,8 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
     var d=subsLayer();
     if(!d||!sel||sel.tr!=="s1")return null;
     var segs=subsSegsOf(clips);
-    var ws=d.warnings(segs,subsStyleNow()).filter(function(w){return w.id===sel.id});
+    var ws=d.warnings(segs,subsStyleNow(),proj.dur).filter(function(w){
+      return w.id===sel.id});
     return r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Sous-titre"}),
       r.jsx("textarea",{className:"sub-text",value:sel.text||"",rows:3,

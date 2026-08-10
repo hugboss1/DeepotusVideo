@@ -181,9 +181,9 @@ def test_le_cas_exact_du_verdict():
     # le bouton annonce la duree REELLEMENT atteinte, pas celle qu'il rate
     atteinte = apres[0]["end"] - apres[0]["start"]
     assert plan["granted"] == pytest.approx(atteinte, abs=0.002)
-    assert plan["label"].startswith("Etirer a")
+    assert plan["label"].startswith("Étirer à")
     # il emprunte le silence des DEUX cotes, et le detaille avant le clic
-    assert "230 ms de silence apres" in plan["effect"]
+    assert "230 ms de silence après" in plan["effect"]
     assert "de silence avant" in plan["effect"]
     assert "Aucun voisin ne bouge." in plan["effect"]
     assert plan["touches"] == []
@@ -203,7 +203,7 @@ def test_la_renegociation_apparait_quand_le_silence_ne_suffit_pas():
     plan = w["plan"]
     assert not plan["ok"] and "silence" in plan["blocked"]
     alt = plan["alt"]
-    assert alt and alt["ok"] and "decale" in alt["effect"].lower()
+    assert alt and alt["ok"] and "décale" in alt["effect"].lower()
     assert alt["touches"] == [1, 2]
     apres = apply_plan(piste, alt)
     assert _overlaps(apres) == 0 and _tight(apres) <= _tight(piste)
@@ -225,7 +225,7 @@ def test_pas_de_place_pas_de_bouton():
     assert plan["label"] == ""          # rien a cliquer
     # la renegociation, elle, existe et s'annonce
     assert plan["alt"] and plan["alt"]["ok"]
-    assert "decale" in plan["alt"]["effect"].lower()
+    assert "décale" in plan["alt"]["effect"].lower()
 
 
 def test_separer_repartit_l_effort_et_le_dit():
@@ -272,23 +272,31 @@ def test_decouper_ouvre_une_respiration_entre_les_morceaux():
     assert _tight(apres) == 0
 
 
-def test_un_plan_applique_fait_taire_son_avertissement():
+@pytest.mark.parametrize("nom", sorted(CORPUS))
+def test_un_plan_applique_fait_taire_son_avertissement(nom):
     """Un correctif qui laisse le meme avertissement en place est un bouton
-    decoratif."""
-    for nom in ("chevauchement", "trois_lignes", "trop_long"):
-        piste = CORPUS[nom]
-        for w, plan in _plans(check_quality(piste, "standard")):
-            if plan is not w["plan"]:
-                continue                     # les variantes ont leur propre but
-            apres = apply_plan(piste, plan)
-            restants = [x["code"] for x in check_quality(apres, "standard")]
-            if plan.get("granted") and plan["granted"] < plan.get(
-                    "requested", plan["granted"]):
-                continue                     # plan partiel : il l'annonce
-            assert restants.count(w["code"]) < [
-                x["code"] for x in check_quality(piste, "standard")
-            ].count(w["code"]), "%s / %s reste apres son propre correctif" % (
-                nom, w["code"])
+    decoratif. Il n'y a qu'une exception, et elle est ANNONCEE : un
+    etirement partiel, qui dit lui-meme « le probleme sera reduit, pas
+    efface ».
+
+    Ce test a attrape un vrai defaut de bord : un plan qui atteignait
+    EXACTEMENT 1,000 s laissait `trop_court` se redeclencher, parce que le
+    flottant rendait 0,9999999999999998.
+    """
+    piste = CORPUS[nom]
+    avant = [x["code"] for x in check_quality(piste, "standard")]
+    for w, plan in _plans(check_quality(piste, "standard")):
+        if plan is not w["plan"]:
+            continue                         # les variantes ont leur propre but
+        if (plan["action"] == "etirer"
+                and plan.get("granted", 0) < plan.get("requested", 0) - 0.005):
+            assert "pas effacé" in plan["effect"], plan["effect"]
+            continue
+        apres = apply_plan(piste, plan)
+        restants = [x["code"] for x in check_quality(apres, "standard")]
+        assert restants.count(w["code"]) < avant.count(w["code"]), (
+            "%s / %s (%s) reste apres son propre correctif"
+            % (nom, w["code"], plan["label"]))
 
 
 # ===========================================================================
@@ -427,7 +435,7 @@ def test_tout_plan_actif_porte_un_libelle_et_une_consequence():
             # tout plan qui touche un voisin le nomme dans sa consequence
             if plan["touches"]:
                 bas = plan["effect"].lower()
-                assert ("decal" in bas or "n°" in plan["effect"]
+                assert ("décal" in bas or "n°" in plan["effect"]
                         or "fusion" in bas), (
                     "%s / %s deplace %s sans le dire : %r"
                     % (nom, w["code"], plan["touches"], plan["effect"]))
@@ -458,6 +466,60 @@ def test_etirer_annonce_la_duree_reellement_atteinte():
             assert plan["granted"] == pytest.approx(reel, abs=0.003), (
                 "%s / %s : annonce %s s, produit %.3f s"
                 % (nom, w["code"], plan["granted"], reel))
+
+
+# ===========================================================================
+# 4. LA TRADUCTION VERS LE PANNEAU — c'est LA que l'ancrage se perdait
+# ===========================================================================
+
+def _ui(piste, style="standard", **kw):
+    from app.api import routes as R
+    segs = normalize_segments(piste, sort=False, keep_empty=True)
+    raw = check_quality(piste, style, **kw)
+    return R._subs_warnings_ui(raw, segs)
+
+
+def test_la_route_ne_re_ancre_plus_les_regles_de_frontiere():
+    """L'ancienne traduction déplaçait `intervalle_court` sur `index - 1` en
+    laissant le message écrit du point de vue du segment suivant : « 60 ms
+    depuis le segment précédent » atterrissait sur la carte d'avant."""
+    piste = [{"start": 0.0, "end": 1.0, "text": "Un"},
+             {"start": 1.5, "end": 2.5, "text": "Deux"},
+             {"start": 3.0, "end": 4.0, "text": "Trois"},
+             {"start": 4.06, "end": 5.0, "text": "Quatre"}]
+    seg_w, _ = _ui(piste)
+    ws = [w for w in seg_w if w["code"] == "intervalle_court"]
+    assert len(ws) == 1
+    assert ws[0]["i"] == 3, "la carte doit être celle qui commence trop tôt"
+    assert "60 ms" in ws[0]["msg"] and "n°3" in ws[0]["msg"]
+    assert ws[0]["about"] == [2, 3]
+    # l'id voyage : le panneau n'a plus à se fier à une position
+    assert ws[0]["id"] == normalize_segments(
+        piste, sort=False, keep_empty=True)[3]["id"]
+
+
+def test_la_route_transporte_le_plan_et_ses_consequences():
+    seg_w, _ = _ui(CORPUS["chevauchement"])
+    ch = [w for w in seg_w if w["code"] == "chevauchement"][0]
+    p = ch["plan"]
+    assert p["ok"] and p["label"] and p["effect"]
+    assert p["ops"] and all("id" in o for o in p["ops"])
+    assert p["touches"] == [0]
+
+
+def test_les_avertissements_de_style_sortent_avec_un_geste():
+    """Ils étaient calculés puis jetés faute d'index de segment. Ils n'en ont
+    pas parce qu'ils portent sur le style : leur geste est un réglage de
+    STYLE, dans le vocabulaire du panneau."""
+    piste = [{"start": 0.0, "end": 2.0, "text": "Un"},
+             {"start": 2.5, "end": 4.5, "text": "Deux"}]
+    seg_w, style_w = _ui(piste, "prime", karaoke=True)
+    assert not [w for w in seg_w if w["code"] == "fond_translucide_karaoke"]
+    assert len(style_w) == 1
+    w = style_w[0]
+    assert w["about"] == [0, 1], "il dit sur quelles répliques il porte"
+    assert w["fix"]["champ"] == "bgOpacity" and w["fix"]["valeur"] == 100
+    assert w["fix"]["label"] and len(w["fix"]["effect"]) > 20
 
 
 def test_plan_stretch_ne_prend_que_le_silence_libre():

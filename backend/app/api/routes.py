@@ -6549,7 +6549,13 @@ async def subtitles_fonts():
     """
     from app.services import subtitle_service as S
     st = S.check_fonts()
+    # `lh` : hauteur de ligne REELLE de libass, en multiples du corps demande.
+    # L'aperçu s'en sert comme `line-height` ; sans lui, deux lignes gravees
+    # seraient plus espacees a l'ecran qu'a l'image (mesure : libass avance
+    # d'exactement un Fontsize, or Fontsize = em x lh depuis la correction
+    # d'echelle de `to_ass`).
     fonts = [{"id": fam, "label": fam, "file": S.FONT_FILES[fam],
+              "lh": round(S.font_line_height(fam), 4),
               "url": f"/api/subtitles/fonts/{fam}"}
              for fam in st["ok"]]
     return {"ok": True, "fonts": fonts, "dir": st["dir"],

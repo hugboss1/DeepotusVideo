@@ -24,7 +24,8 @@ import pytest
 
 from app.services.subtitle_service import (
     STYLES, ass_fontsdir, ass_unsupported, auto_break, auto_break_lines,
-    autofix, check_fonts, check_quality, distribute_words, font_path,
+    autofix, check_fonts, check_quality, distribute_words, font_line_height,
+    font_path,
     fonts_dir, karaoke_spans, normalize_segments, parse_srt, parse_subtitles,
     parse_vtt, resolve_style, segment_cs, sniff_format, split_segment,
     split_segments, style_labels, subtitles_filter, to_ass, to_srt, to_vtt)
@@ -250,7 +251,11 @@ def test_ass_porte_le_style_reel():
     st = [l for l in out.split("\n") if l.startswith("Style:")][0]
     f = st.split("Style:", 1)[1].split(",")
     assert f[1] == "Anton"                        # Fontname = famille reelle
-    assert float(f[2]) == pytest.approx(92 * 1080 / 1080)
+    # Le corps ECRIT n'est pas l'em voulu : libass dessine
+    # em = Fontsize / hauteur_de_ligne(fonte) (convention VSFilter, mesuree a
+    # l'image). `to_ass` pre-multiplie pour que le px regle sorte grave.
+    assert float(f[2]) == pytest.approx(
+        92 * 1080 / 1080 * font_line_height("Anton"), rel=1e-4)
     assert f[3].startswith("&H") and len(f[3]) == 10   # &HAABBGGRR
     assert float(f[16]) > 0                       # Outline (contour)
     assert f[18] == "2"                           # Alignment 2 = bas-centre
@@ -264,7 +269,36 @@ def test_ass_met_le_style_a_l_echelle_du_canevas():
         [l for l in t.split("\n") if l.startswith("Style:")][0]
         .split(",")[2])
     assert fs(a) == fs(b)                       # l'echelle suit la HAUTEUR
-    assert fs(c) == pytest.approx(2 * fs(a))
+    # rel= et non abs= : le corps ecrit passe par `%g` (6 chiffres
+    # significatifs), et le facteur de fonte lui donne des decimales.
+    assert fs(c) == pytest.approx(2 * fs(a), rel=1e-5)
+
+
+def test_le_corps_ecrit_compense_la_hauteur_de_ligne_de_la_fonte():
+    """libass dessine `em = Fontsize / (usWinAscent+usWinDescent)/upm`.
+
+    Sans compensation, un « 110 px » regle au panneau sortait grave a 77 px en
+    Inter et a 63 px en Anton — l'ecart apercu/rendu le plus visible de la
+    piste. Le facteur est MESURE a l'image (scratchpad/fontprobe3.py) et lu
+    dans la table OS/2 : les deux concordent a 0,5 % pres sur huit familles.
+    """
+    for fam, attendu in (("Anton", 1.7334), ("Inter", 1.4302),
+                         ("Bebas Neue", 1.3000), ("Bungee", 2.5740)):
+        assert font_line_height(fam) == pytest.approx(attendu, abs=5e-3)
+    # famille inconnue : on retombe sur Inter, jamais d'exception en plein rendu
+    assert font_line_height("PoliceQuiNExistePas") > 0.5
+
+    out = to_ass(TRACK[:1], {"font": "Anton", "size": 100.0}, canvas=(1080, 1080))
+    f = [l for l in out.split("\n") if l.startswith("Style:")][0].split(",")
+    assert float(f[2]) == pytest.approx(100.0 * font_line_height("Anton"), rel=1e-4)
+    # contour, ombre et interlettrage restent en pixels de script : ils ne
+    # passent PAS par le facteur de fonte.
+    out2 = to_ass(TRACK[:1], {"font": "Anton", "size": 100.0, "outline": 4.0,
+                              "shadow": 3.0, "spacing": 2.0}, canvas=(1080, 1080))
+    g = [l for l in out2.split("\n") if l.startswith("Style:")][0].split(",")
+    assert float(g[16]) == pytest.approx(4.0)
+    assert float(g[17]) == pytest.approx(3.0)
+    assert float(g[13]) == pytest.approx(2.0)
 
 
 def test_ass_fond_opaque_utilise_borderstyle_3():
@@ -528,7 +562,7 @@ def test_avertissement_segment_trop_court():
     # le correctif est un PLAN negocie : seul, le segment peut s'etirer
     assert f["plan"]["ok"] and f["plan"]["action"] == "etirer"
     assert f["plan"]["granted"] == pytest.approx(1.0)
-    assert f["plan"]["label"] == "Etirer a 1 s"
+    assert f["plan"]["label"] == "Étirer à 1 s"
 
 
 def test_avertissement_segment_trop_long():

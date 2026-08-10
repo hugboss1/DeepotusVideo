@@ -70,6 +70,8 @@ function subsN(v,d){var n=Number(v);return isFinite(n)?n:d}
 function subsRound(v,dec){var m=Math.pow(10,dec||0);return Math.round(v*m)/m}
 function subsPad(n,w){var s=String(Math.floor(Math.abs(n)));
   while(s.length<w)s="0"+s;return s}
+/* accord en nombre — « 1 répliques » se lit comme une machine */
+function subsPl(n,un,plur){return n+" "+(Math.abs(n)<2?un:(plur||un+"s"))}
 /* 00:00.000 — le format EXACT des champs de la barre */
 function subsTc(s){
   s=Math.max(0,subsN(s,0));
@@ -248,46 +250,248 @@ function subsMergeAt(segs,id){
   out.splice(i,2,m);
   return out}
 
-/* ── avertissements de qualité ────────────────────────────────────────────
+/* ── avertissements de qualité et correctifs NÉGOCIÉS ──────────────────────
    Calculés ici, et affichés DANS la ligne fautive (jamais dans un rapport
-   séparé) : chaque avertissement porte le geste qui le répare. Le backend
-   peut renvoyer sa propre liste (POST /api/subtitles/check) ; elle gagne. */
+   séparé). Le backend peut renvoyer sa propre liste (POST /api/subtitles/check,
+   qui mesure en PIXELS avec la vraie fonte) ; elle gagne. Hors ligne, le
+   calcul local applique EXACTEMENT les mêmes règles — sinon le panneau
+   mentirait dès que le backend tousse.
+
+   ── Ce qu'un correctif n'a PAS le droit de faire ───────────────────────────
+   La piste est un système sous contraintes : chaque segment est borné par ses
+   voisins. « Étirer à 1,35 s » poussait la fin du n°1 à 01.609 alors que le
+   n°2 commence à 01.419 : 190 ms de chevauchement fabriqués par le bouton
+   censé réparer, pendant que la carte du dessous avertissait déjà que la
+   frontière était trop serrée. Le bouton mentait, et personne ne le voyait.
+
+   Un correctif est donc un PLAN, et un plan :
+     * ne prend que le silence RÉELLEMENT libre (jamais un écart déjà serré) ;
+     * dit dans `effect`, AVANT le clic, ce qu'il fait — y compris aux voisins ;
+     * annonce la valeur qu'il atteint VRAIMENT (`granted`), pas celle visée ;
+     * quand rien ne passe, n'affiche AUCUN bouton et explique (`blocked`),
+       en proposant la renégociation (`alt`) quand elle existe.
+   Les invariants sont verrouillés côté moteur par
+   `backend/tests/test_subtitle_fixes.py`. */
 var SUBS_CPS_MAX=20;    /* caractères/seconde lisibles (norme sous-titrage FR) */
-var SUBS_MIN_S=.7;      /* en deçà, l'œil n'a pas le temps de se poser */
+var SUBS_MIN_S=1;       /* en deçà, l'œil n'a pas le temps de se poser */
 var SUBS_MAX_S=7;       /* au-delà, le sous-titre traîne */
-function subsWarnings(segs,style){
+var SUBS_MIN_GAP=.08;   /* deux images à 25 i/s entre deux sous-titres */
+
+function subsFr(v,d){
+  var m=Math.pow(10,d==null?2:d),s=(Math.round(v*m)/m).toFixed(d==null?2:d);
+  if(s.indexOf(".")>=0)s=s.replace(/0+$/,"").replace(/\.$/,"");
+  return s.replace(".",",")}
+function subsFrMs(v){return Math.round(v*1000)+" ms"}
+function subsRank(i){return "n°"+(i+1)}
+
+/* place libre APRÈS le segment i : si l'écart avec le suivant est déjà sous
+   le seuil, elle vaut 0 — c'est ce zéro qui empêche un correctif de grignoter
+   une frontière déjà trop serrée. */
+function subsRoomAfter(list,i,dur){
+  if(i+1<list.length)return Math.max(0,list[i+1].start-SUBS_MIN_GAP-list[i].end);
+  return dur>0?Math.max(0,dur-list[i].end):Infinity}
+function subsRoomBefore(list,i){
+  if(i>0)return Math.max(0,list[i].start-SUBS_MIN_GAP-list[i-1].end);
+  return Math.max(0,list[i].start)}
+
+function subsPlan(action,ok,label,effect,ops,extra){
+  var p={action:action,ok:!!ok,label:label||"",effect:effect||"",
+    ops:ops||[],touches:[],alt:null};
+  if(extra)Object.keys(extra).forEach(function(k){p[k]=extra[k]});
+  return p}
+function subsBlockedPlan(action,why,extra){
+  return subsPlan(action,!1,"","",[],Object.assign({blocked:why},extra||{}))}
+function subsSetOp(s,f){return Object.assign({op:"set",id:s.id},f)}
+
+function subsPlanStretch(list,i,target,dur){
+  var s=list[i],len=s.end-s.start;
+  var want=Math.max(len,target),need=want-len;
+  if(need<=1e-6)return subsBlockedPlan("etirer","Le segment dure déjà assez longtemps.");
+  var after=subsRoomAfter(list,i,dur),before=subsRoomBefore(list,i);
+  var ta=Math.min(need,after),tb=Math.min(need-ta,before);
+  var got=len+ta+tb,deficit=Math.max(0,want-got);
+  var alt=null;
+  if(deficit>.001&&i+1<list.length){
+    var lastEnd=list[list.length-1].end+deficit;
+    if(dur>0&&lastEnd>dur+1e-6)
+      alt=subsBlockedPlan("etirer","Décaler les suivants sortirait le dernier "+
+        "sous-titre de la vidéo ("+subsFrMs(lastEnd-dur)+" de trop).");
+    else{
+      var ops=[subsSetOp(s,{start:subsRound(s.start-tb,3),
+        end:subsRound(s.end+ta+deficit,3)})],touches=[];
+      for(var j=i+1;j<list.length;j++){
+        ops.push(subsSetOp(list[j],{start:subsRound(list[j].start+deficit,3),
+          end:subsRound(list[j].end+deficit,3)}));
+        touches.push(j)}
+      alt=subsPlan("etirer",!0,"Étirer à "+subsFr(want)+" s en décalant la suite",
+        "Décale les "+(list.length-i-1)+" sous-titres suivants de "+
+        subsFrMs(deficit)+". Leur texte ne suivra plus la voix — à ne faire "+
+        "que si le montage suit.",ops,
+        {touches:touches,granted:subsRound(want,3),requested:subsRound(want,3)})}}
+  if(got<=len+1e-6){
+    var why=i+1<list.length
+      ?"le "+subsRank(i+1)+" commence "+subsFrMs(Math.max(0,list[i+1].start-s.end))+
+       " après la fin de celui-ci (plancher "+subsFrMs(SUBS_MIN_GAP)+")"
+      :"le segment finit déjà avec la vidéo";
+    return subsBlockedPlan("etirer","Aucun silence disponible : "+why+
+      ". Raccourcissez le texte, ou fusionnez avec le voisin.",{alt:alt})}
+  var bits=[];
+  if(ta>.001)bits.push("prend "+subsFrMs(ta)+" de silence après");
+  if(tb>.001)bits.push(subsFrMs(tb)+" de silence avant");
+  var eff=bits.length?"Le segment "+bits.join(" et ")+". Aucun voisin ne bouge."
+    :"Aucun voisin ne bouge.";
+  if(got<want-.005)
+    eff+=" Il faudrait "+subsFr(want)+" s : le voisin ne laisse pas plus. "+
+      "Le problème sera réduit, pas effacé.";
+  return subsPlan("etirer",!0,"Étirer à "+subsFr(got)+" s",eff,
+    [subsSetOp(s,{start:subsRound(s.start-tb,3),end:subsRound(s.end+ta,3)})],
+    {granted:subsRound(got,3),requested:subsRound(want,3),alt:alt})}
+
+function subsPlanBoundary(list,i){
+  if(i<1)return subsBlockedPlan("separer","Pas de voisin avant ce segment.");
+  var p=list[i-1],c=list[i],gap=c.start-p.end,need=SUBS_MIN_GAP-gap;
+  if(need<=1e-6)return subsBlockedPlan("separer","La frontière est déjà assez large.");
+  var dp=p.end-p.start,dc=c.end-c.start;
+  var gp=Math.max(0,dp-SUBS_MIN_S),gc=Math.max(0,dc-SUBS_MIN_S),tot=gp+gc;
+  if(tot>=need-1e-6){
+    var tp=tot>0?need*(gp/tot):0,tc=need-tp;
+    if(tc>gc){tc=gc;tp=need-gc}
+    return subsPlan("separer",!0,"Séparer de "+subsFrMs(SUBS_MIN_GAP),
+      "Le "+subsRank(i-1)+" perd "+subsFrMs(tp)+" à la fin, le "+subsRank(i)+
+      " "+subsFrMs(tc)+" au début. Écart final "+subsFrMs(SUBS_MIN_GAP)+
+      ", et les deux restent au-dessus de "+subsFr(SUBS_MIN_S)+" s.",
+      [subsSetOp(p,{end:subsRound(p.end-tp,3)}),
+       subsSetOp(c,{start:subsRound(c.start+tc,3)})],{touches:[i-1]})}
+  var fus=null,md=c.end-p.start;
+  if(md<=SUBS_MAX_S+1e-6)
+    fus=subsPlan("fusionner",!0,"Fusionner les deux",
+      "Le "+subsRank(i-1)+" et le "+subsRank(i)+" deviennent un seul "+
+      "sous-titre de "+subsFr(md)+" s. Le texte est mis bout à bout, le "+
+      "calage par mot est refait.",
+      [subsSetOp(p,{end:subsRound(c.end,3),
+        text:(String(p.text||"").trim()+" "+String(c.text||"").trim()).trim(),
+        words:null}),{op:"remove",id:c.id}],{touches:[i]});
+  return subsBlockedPlan("separer",
+    "Impossible sans passer sous "+subsFr(SUBS_MIN_S)+" s : le "+subsRank(i-1)+
+    " dure "+subsFr(dp)+" s, le "+subsRank(i)+" "+subsFr(dc)+" s, et il manque "+
+    subsFrMs(need-tot)+". Fusionnez-les, ou raccourcissez un texte.",{alt:fus})}
+
+/* découpe : les mots se touchent, donc une coupe brute collerait les deux
+   moitiés et fabriquerait l'avertissement suivant. On ouvre la respiration. */
+function subsPlanSplit(list,i,maxc,maxLines){
+  var s=list[i];
+  var parts=subsReflow([s],Math.max(10,maxc*Math.max(1,maxLines)));
+  if(parts.length<2)
+    return subsBlockedPlan("decouper","Le texte tient en un seul bloc de "+
+      maxc+" caractères : rien à découper.");
+  for(var k=0;k<parts.length-1;k++)
+    if(parts[k+1].start-parts[k].end<SUBS_MIN_GAP-1e-6)
+      parts[k].end=subsRound(Math.max(parts[k].start+.12,
+        parts[k+1].start-SUBS_MIN_GAP),3);
+  var durs=parts.map(function(p){return subsFr(p.end-p.start)+" s"}).join(" + ");
+  return subsPlan("decouper",!0,"Découper en "+parts.length+" sous-titres",
+    "Le segment devient "+parts.length+" sous-titres ("+durs+"), coupés sur "+
+    "les mots avec "+subsFrMs(SUBS_MIN_GAP)+" de respiration entre eux. Les "+
+    "voisins ne bougent pas.",
+    [{op:"replace",id:s.id,"with":parts.map(function(p){
+      return {start:p.start,end:p.end,text:subsLines(p.text,maxc).join("\n"),
+        words:p.words||null}})}],{granted:parts.length})}
+
+function subsPlanRewrap(list,i,maxc,maxLines){
+  var s=list[i],flat=String(s.text||"").replace(/\s+/g," ").trim();
+  var ln=subsLines(flat,maxc);
+  if(ln.length<=maxLines){
+    var nt=ln.join("\n");
+    if(nt===s.text)
+      return subsBlockedPlan("replier","Le texte est déjà replié au mieux "+
+        "pour "+maxc+" caractères par ligne.");
+    return subsPlan("replier",!0,"Replier en "+ln.length+" lignes",
+      "Le texte est replié à "+maxc+" caractères par ligne ("+
+      ln.map(function(x){return x.length}).join(" / ")+"). Le début, la fin "+
+      "et le calage par mot ne bougent pas.",
+      [subsSetOp(s,{text:nt})],{granted:ln.length})}
+  var p=subsPlanSplit(list,i,maxc,maxLines);
+  if(p.ok)p.effect="Le texte fait "+ln.length+" lignes à "+maxc+
+    " caractères : il ne tient pas en "+maxLines+". "+p.effect;
+  return p}
+
+/* application d'un plan — les `ops` sont des DONNÉES ({op,id,start,end,text}),
+   les mêmes que celles du moteur. Trois verbes, pas un de plus. */
+function subsApplyPlan(list,plan){
+  if(!plan||!plan.ok||!plan.ops||!plan.ops.length)return list;
+  var by={};plan.ops.forEach(function(o){if(o&&o.id!=null)by[o.id]=o});
+  var out=[];
+  subsSort(list).forEach(function(s){
+    var o=by[s.id];
+    if(!o){out.push(s);return}
+    if(o.op==="remove")return;
+    if(o.op==="replace"){
+      (o["with"]||[]).forEach(function(n){
+        var m=subsMake(subsN(n.start,s.start),subsN(n.end,s.end),String(n.text||""));
+        if(n.words&&n.words.length)m.words=n.words;
+        if(s.hidden)m.hidden=!0;
+        out.push(m)});
+      return}
+    var pt={};
+    if(o.start!=null)pt.start=subsN(o.start,s.start);
+    if(o.end!=null)pt.end=subsN(o.end,s.end);
+    if(o.text!=null)pt.text=String(o.text);
+    var ns=subsWith(s,pt);
+    /* bornes déplacées : le calage par mot hérité devient faux. On le laisse
+       se refaire au prorata plutôt que de laisser le karaoké dériver. */
+    if(Object.prototype.hasOwnProperty.call(o,"words")){
+      if(o.words==null)delete ns.words;else ns.words=o.words}
+    else if(o.start!=null||o.end!=null)delete ns.words;
+    out.push(ns)});
+  return subsSort(out)}
+
+function subsWarnings(segs,style,dur){
   var list=subsSort(segs),out=[],mc=Math.max(10,subsN(style&&style.maxChars,42));
   var maxLines=Math.max(1,subsN(style&&style.maxLines,2));
+  var d=subsN(dur,0);
+  function push(s,i,kind,sev,msg,plan,about){
+    out.push({id:s.id,i:i,kind:kind,sev:sev,msg:msg,plan:plan||null,
+      about:about||[i]})}
   list.forEach(function(s,i){
+    /* la FRONTIÈRE d'abord : elle ne dépend que des bornes, et un segment
+       encore vide ne doit pas masquer le chevauchement qu'il cause.
+       ANCRAGE : sur le segment qui COMMENCE trop tôt (le second), et le
+       message nomme l'autre par son rang — c'est le défaut « 60 ms depuis le
+       précédent affiché sur la mauvaise carte » qui est fermé ici. */
+    if(i){
+      var gap=s.start-list[i-1].end;
+      if(gap<-1e-6)
+        push(s,i,"chevauche","err","Commence "+subsFrMs(-gap)+" AVANT la fin "+
+          "du "+subsRank(i-1)+" : les deux s'afficheront ensemble.",
+          subsPlanBoundary(list,i),[i-1,i]);
+      else if(gap<SUBS_MIN_GAP)
+        push(s,i,"intervalle","warn","Commence "+subsFrMs(gap)+" après la fin "+
+          "du "+subsRank(i-1)+" : sous "+subsFrMs(SUBS_MIN_GAP)+" le "+
+          "changement se verra comme un clignotement.",
+          subsPlanBoundary(list,i),[i-1,i])}
     var len=Math.max(.001,s.end-s.start);
     var chars=String(s.text||"").replace(/\s+/g," ").trim().length;
     if(!chars){
-      out.push({id:s.id,i:i,kind:"vide",sev:"warn",
-        msg:"Segment sans texte — rien ne s'affichera."});return}
+      push(s,i,"vide","err","Segment sans texte : rien ne s'affichera, et il "+
+        "sortira de l'export.");return}
     var cps=chars/len;
-    if(cps>SUBS_CPS_MAX)
-      out.push({id:s.id,i:i,kind:"vitesse",sev:"err",
-        msg:Math.round(cps)+" car./s (max "+SUBS_CPS_MAX+") — illisible à la lecture.",
-        fix:"etirer",fixLabel:"Étirer à "+subsRound(chars/SUBS_CPS_MAX,1)+" s",
-        need:subsRound(chars/SUBS_CPS_MAX,2)});
-    if(len<SUBS_MIN_S)
-      out.push({id:s.id,i:i,kind:"court",sev:"warn",
-        msg:subsRound(len,2)+" s — sous "+SUBS_MIN_S+" s le sous-titre clignote.",
-        fix:"etirer",fixLabel:"Étirer à "+SUBS_MIN_S+" s",need:SUBS_MIN_S});
-    if(len>SUBS_MAX_S)
-      out.push({id:s.id,i:i,kind:"long",sev:"info",
-        msg:subsRound(len,1)+" s à l'écran — au-delà de "+SUBS_MAX_S+" s, découpez.",
-        fix:"decouper",fixLabel:"Découper en deux"});
+    if(cps>SUBS_CPS_MAX+1e-6){
+      var pl=subsPlanStretch(list,i,chars/SUBS_CPS_MAX,d);
+      if(!pl.ok&&!(pl.alt&&pl.alt.ok)&&chars>mc)
+        pl=subsPlanSplit(list,i,mc,maxLines);
+      push(s,i,"vitesse","err",subsFr(cps,1)+" caractères/seconde : au-delà de "+
+        SUBS_CPS_MAX+", la lecture décroche.",pl)}
+    if(len<SUBS_MIN_S-1e-4)
+      push(s,i,"court","warn",subsFr(len)+" s : sous "+subsFr(SUBS_MIN_S)+
+        " s l'œil n'a pas le temps de se poser.",
+        subsPlanStretch(list,i,SUBS_MIN_S,d));
+    if(len>SUBS_MAX_S+1e-4)
+      push(s,i,"long","info",subsFr(len,1)+" s à l'écran : au-delà de "+
+        SUBS_MAX_S+" s, découpez.",subsPlanSplit(list,i,mc,maxLines));
     var ln=subsLines(s.text,mc);
     if(ln.length>maxLines)
-      out.push({id:s.id,i:i,kind:"lignes",sev:"warn",
-        msg:ln.length+" lignes (max "+maxLines+") — le cadre va être mangé.",
-        fix:"recomposer",fixLabel:"Recomposer"});
-    var nx=list[i+1];
-    if(nx&&nx.start<s.end-.001)
-      out.push({id:s.id,i:i,kind:"chevauche",sev:"err",
-        msg:"Chevauche le segment suivant de "+subsRound(s.end-nx.start,2)+" s.",
-        fix:"separer",fixLabel:"Séparer",need:subsRound(nx.start,3)})});
+      push(s,i,"lignes","warn",ln.length+" lignes affichées (maximum "+
+        maxLines+").",subsPlanRewrap(list,i,mc,maxLines))});
   return out}
 function subsWarnBy(warns){
   var m={};(warns||[]).forEach(function(w){(m[w.id]=m[w.id]||[]).push(w)});return m}
@@ -355,19 +559,26 @@ var SUBS_FONTS_FB=[
   ["Franklin Gothic Medium","Franklin Gothic"],["Georgia","Georgia · sérif"],
   ["Trebuchet MS","Trebuchet MS"],["Verdana","Verdana"],["Tahoma","Tahoma"],
   ["Courier New","Courier New · mono"],["Comic Sans MS","Comic Sans MS"]];
-var SUBS_ANIMS=[["none","aucune"],["fade","fondu"],["pop","pop"],
-  ["up","montée"],["type","machine à écrire"]];
-var SUBS_KMODES=[["fill","remplissage"],["box","boîte"],["scale","échelle"]];
+/* Animations : SEULES celles que la gravure sait reproduire. « montée » et
+   « machine à écrire » ont été retirées — l'ASS n'a rien pour les rendre, et
+   un réglage qui n'agit pas sur la vidéo livrée n'a rien à faire ici.
+   « fondu » sort en ad, « pop » en 	 sur l'échelle : vérifiés à l'image
+   sur une vraie gravure ffmpeg (sonde libass). */
+var SUBS_ANIMS=[["none","aucune"],["fade","fondu"],["pop","pop"]];
+/* Karaoké : « échelle » (le mot grossit) retiré pour la même raison — l'ASS
+   ne sait que basculer une couleur. Restent le remplissage (\k) et la boîte
+   (\ko, qui colore la boîte du mot quand un fond est actif). */
+var SUBS_KMODES=[["fill","remplissage"],["box","boîte"]];
 var SUBS_ALIGN=[["left","gauche","⭰"],["center","centré","≡"],["right","droite","⭲"]];
 var SUBS_VALIGN=[["top","haut","⤒"],["middle","milieu","⇔"],["bottom","bas","⤓"]];
 
 function subsDefaultStyle(){
   return {preset:"defaut",font:"Inter",size:42,weight:700,italic:!1,underline:!1,
-    upper:!1,tracking:0,lh:1.15,align:"center",valign:"bottom",placed:!1,
+    upper:!1,tracking:0,align:"center",valign:"bottom",placed:!1,
     color:"#ffffff",maxChars:42,maxLines:2,width:84,marginV:9,
-    bgOn:!0,bgColor:"#000000",bgMode:"wrap",bgOpacity:64,bgRadius:10,bgPad:12,
+    bgOn:!0,bgColor:"#000000",bgOpacity:64,bgPad:12,
     outOn:!0,outColor:"#000000",outW:3,
-    shOn:!1,shColor:"#000000",shX:0,shY:3,shBlur:8,
+    shOn:!1,shColor:"#000000",shOff:3,
     karOn:!0,karColor:"#f0b429",karMode:"fill",karBox:"#f0b429",
     anim:"pop"}}
 /* préréglages nommés — mêmes intentions que la barre (Default, Pop Art,
@@ -376,34 +587,34 @@ var SUBS_PRESETS=[
   {id:"defaut",label:"Défaut",style:{}},
   {id:"popart",label:"Pop Art",style:{font:"Impact",size:52,weight:900,upper:!0,
     tracking:1,color:"#ffffff",bgOn:!1,outOn:!0,outColor:"#1b1b1f",outW:6,
-    shOn:!0,shColor:"#00000099",shX:0,shY:5,shBlur:0,
-    karOn:!0,karColor:"#ffd23f",karMode:"scale",anim:"pop"}},
+    shOn:!0,shColor:"#00000099",shOff:5,
+    karOn:!0,karColor:"#ffd23f",karMode:"fill",anim:"pop"}},
   {id:"surligneur",label:"Surligneur",style:{font:"Inter",size:44,weight:800,
-    upper:!1,color:"#111114",bgOn:!0,bgColor:"#f0b429",bgMode:"wrap",
-    bgOpacity:100,bgRadius:4,bgPad:10,outOn:!1,shOn:!1,
+    upper:!1,color:"#111114",bgOn:!0,bgColor:"#f0b429",
+    bgOpacity:100,bgPad:10,outOn:!1,shOn:!1,
     karOn:!0,karMode:"box",karBox:"#ffffff",karColor:"#111114",anim:"fade"}},
   {id:"beurre",label:"Beurre",style:{font:"Georgia",size:44,weight:700,
     color:"#ffe9a8",bgOn:!1,outOn:!0,outColor:"#3a2a06",outW:4,
-    shOn:!0,shColor:"#00000066",shX:0,shY:2,shBlur:10,
+    shOn:!0,shColor:"#00000066",shOff:2,
     karOn:!0,karColor:"#ffffff",karMode:"fill",anim:"fade"}},
   {id:"contour",label:"Contour sombre",style:{font:"Inter",size:42,weight:700,
     color:"#ffffff",bgOn:!1,outOn:!0,outColor:"#000000",outW:5,
-    shOn:!0,shColor:"#000000aa",shX:0,shY:2,shBlur:6,
+    shOn:!0,shColor:"#000000aa",shOff:2,
     karOn:!0,karColor:"#f0b429",karMode:"fill",anim:"none"}},
   {id:"prime",label:"Prime",style:{font:"Bahnschrift",size:48,weight:800,
-    upper:!0,tracking:2,color:"#ffffff",bgOn:!0,bgColor:"#101014",bgMode:"wrap",
-    bgOpacity:82,bgRadius:2,bgPad:14,outOn:!1,shOn:!1,
-    karOn:!0,karColor:"#4ad4ff",karMode:"fill",anim:"up"}},
+    upper:!0,tracking:2,color:"#ffffff",bgOn:!0,bgColor:"#101014",
+    bgOpacity:82,bgPad:14,outOn:!1,shOn:!1,
+    karOn:!0,karColor:"#4ad4ff",karMode:"fill",anim:"pop"}},
   {id:"abysse",label:"Abysse",style:{font:"Inter",size:44,weight:800,
-    color:"#e8f6ff",bgOn:!0,bgColor:"#04121c",bgMode:"fill",bgOpacity:70,
-    bgRadius:0,bgPad:16,outOn:!1,shOn:!0,shColor:"#00e5ff55",shX:0,shY:0,shBlur:18,
+    color:"#e8f6ff",bgOn:!0,bgColor:"#04121c",bgOpacity:70,
+    bgPad:16,outOn:!1,shOn:!1,
     karOn:!0,karColor:"#00e5ff",karMode:"fill",anim:"fade"}},
   {id:"machine",label:"Machine",style:{font:"Courier New",size:36,weight:700,
-    upper:!0,tracking:1,color:"#c9ffd0",bgOn:!0,bgColor:"#000000",bgMode:"wrap",
-    bgOpacity:88,bgRadius:0,bgPad:8,outOn:!1,shOn:!1,
-    karOn:!0,karColor:"#ffffff",karMode:"box",karBox:"#1f7a3a",anim:"type"}},
+    upper:!0,tracking:1,color:"#c9ffd0",bgOn:!0,bgColor:"#000000",
+    bgOpacity:88,bgPad:8,outOn:!1,shOn:!1,
+    karOn:!0,karColor:"#ffffff",karMode:"box",karBox:"#1f7a3a",anim:"none"}},
   {id:"nu",label:"Nu",style:{font:"Inter",size:38,weight:600,color:"#ffffff",
-    bgOn:!1,outOn:!1,shOn:!0,shColor:"#00000088",shX:0,shY:2,shBlur:5,
+    bgOn:!1,outOn:!1,shOn:!0,shColor:"#00000088",shOff:2,
     karOn:!1,anim:"none"}}];
 /* ── nommer un préréglage par ce qu'il FAIT ────────────────────────────────
    « Beurre » et « Prime » ne disent rien : ni la couleur, ni le fond, ni le
@@ -482,6 +693,19 @@ function subsFontFaces(list){
   if(!el){el=document.createElement("style");el.id="dz-subs-fonts";
     document.head.appendChild(el)}
   el.appendChild(document.createTextNode(css))}
+/* Hauteur de ligne RÉELLE de chaque famille, en multiples du corps : c'est
+   aussi le facteur qui sépare le corps écrit dans le fichier ASS de l'em que
+   libass dessine. Le moteur la sert dans `/api/subtitles/fonts` (`lh`) ; la
+   table ci-dessous n'est qu'un filet pour le premier rendu, avant la réponse,
+   et pour les familles système du repli. Valeurs mesurées à l'image. */
+var SUBS_LH_FB={"inter":1.4302,"anton":1.7334,"bebas neue":1.3,"staatliches":1.312,
+  "bungee":2.574,"press start 2p":1.374,"ibm plex sans":1.395,"pacifico":1.935};
+var SUBS_LH={};
+function subsFontLh(fam){
+  var k=String(fam||"Inter").trim().toLowerCase();
+  if(SUBS_LH[k]!=null)return SUBS_LH[k];
+  if(SUBS_LH_FB[k]!=null)return SUBS_LH_FB[k];
+  return 1.2}
 var SUBS_PROBE_MS=[1500,3000,5000,8000,12000,20000];
 function subsEmit(){SUBS_SVC.subs.slice().forEach(function(f){try{f()}catch(_e){}})}
 function subsProbeStop(){if(SUBS_SVC.timer){clearTimeout(SUBS_SVC.timer);SUBS_SVC.timer=null}}
@@ -508,6 +732,10 @@ function subsProbe(){
       if(f&&Array.isArray(f.fonts)&&f.fonts.length){
         SUBS_SVC.fonts=f.fonts.map(function(o){
           return [String(o.id||o.name),String(o.label||o.id||o.name)]});
+        f.fonts.forEach(function(o){
+          var v=parseFloat(o.lh);
+          if(isFinite(v)&&v>0.5&&v<4)
+            SUBS_LH[String(o.id||o.name).trim().toLowerCase()]=v});
         subsFontFaces(f.fonts)}
       subsEmit()},function(){});
     subsUp()},
@@ -753,9 +981,12 @@ const SubsOverlay=(props)=>{
        exactement comme le borderw d'ASS côté ffmpeg */
     [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].forEach(function(d){
       shadow.push((d[0]*w).toFixed(2)+"px "+(d[1]*w).toFixed(2)+"px 0 "+c)})}
-  if(style.shOn)
-    shadow.push(subsN(style.shX,0)*scale+"px "+subsN(style.shY,3)*scale+"px "+
-      subsN(style.shBlur,8)*scale+"px "+subsHex6(style.shColor));
+  /* l'ombre ASS est UNE copie décalée en bas à droite, d'une seule
+     profondeur : ni X/Y séparés, ni flou. L'aperçu fait pareil, sinon il
+     promet une ombre que la vidéo ne contiendra pas. */
+  if(style.shOn){
+    var so=subsClamp(subsN(style.shOff,subsN(style.shY,3)),0,20)*scale;
+    shadow.push(so.toFixed(2)+"px "+so.toFixed(2)+"px 0 "+subsHex6(style.shColor))}
   var wrapSty={
     position:"absolute",left:"50%",transform:"translateX(-50%)",
     width:subsClamp(style.width,20,100)+"%",
@@ -775,40 +1006,63 @@ const SubsOverlay=(props)=>{
     fontStyle:style.italic?"italic":"normal",
     textDecoration:style.underline?"underline":"none",
     letterSpacing:subsN(style.tracking,0)*scale+"px",
-    lineHeight:subsClamp(style.lh,.8,3),
+    /* interligne : libass avance d'exactement UN `Fontsize` par ligne (mesuré
+       à l'image sur Inter, Anton et Bebas, à deux tailles) — et depuis la
+       correction d'échelle, `Fontsize` vaut `em × hauteur de ligne de la
+       fonte`. L'aperçu se cale donc sur CE rapport, servi par
+       `/api/subtitles/fonts` (`lh`), et non sur 1. Le réglage a disparu du
+       panneau puisqu'il ne pouvait rien changer au fichier livré. */
+    lineHeight:subsFontLh(style.font),
     color:subsHex6(style.color),
     textShadow:shadow.length?shadow.join(", "):"none",
     padding:style.bgOn?(subsClamp(style.bgPad,0,60)*scale*.5).toFixed(1)+"px "+
       (subsClamp(style.bgPad,0,60)*scale).toFixed(1)+"px":0,
-    borderRadius:style.bgOn?(subsClamp(style.bgRadius,0,60)*scale).toFixed(1)+"px":0,
+    /* pas d'arrondi : la boîte ASS (BorderStyle 3) est à angles droits */
+    borderRadius:0,
     background:style.bgOn?subsHex8(style.bgColor,style.bgOpacity):"transparent",
     textTransform:style.upper?"uppercase":"none",
     boxDecorationBreak:"clone",WebkitBoxDecorationBreak:"clone",
-    maxWidth:"100%",wordBreak:"break-word"};
-  /* fond « plein » : une seule boîte derrière tout le bloc ;
-     fond « ajusté » : une boîte par ligne, épousant le texte */
-  var fill=style.bgOn&&style.bgMode==="fill";
-  var blockSty=fill?Object.assign({},txtSty,{width:"100%",display:"block"}):null;
-  if(fill){txtSty.background="transparent";txtSty.padding=0;txtSty.borderRadius=0}
+    maxWidth:"100%",
+    /* JAMAIS de coupure DANS un mot : libass n'en fait pas (le fichier est
+       écrit en WrapStyle 2, et `ui_wrap` côté moteur ne tronçonne aucun mot).
+       Avec `break-word`, l'aperçu remplissait joliment la largeur pendant que
+       la gravure débordait — mesuré : 16 points de % d'écart sur le bord
+       droit. Un mot trop long doit donc déborder ICI AUSSI, pour qu'on le
+       voie avant le rendu. */
+    wordBreak:"normal",overflowWrap:"normal"};
+  /* le fond « pleine largeur » n'existe plus : BorderStyle 4 rend
+     exactement comme le 3 chez libass (mesuré : 258 px contre 260 sur 640).
+     Une seule étendue, donc, celle qui se grave — la boîte ajustée. */
+  var fill=!1,blockSty=null;
+  /* karaoké : en ASS le surlignage est CUMULATIF (\k fait basculer chaque
+     mot et il le reste jusqu'à la fin de la réplique). L'aperçu n'allumait
+     que le mot courant — il montrait autre chose que la vidéo. */
   function word(gi,w){
-    var on=gi===act;
+    var on=act>=0&&gi<=act,cur=gi===act;
     var st={};
     if(on&&style.karMode==="fill")st.color=subsHex6(style.karColor);
     if(on&&style.karMode==="box"){st.background=subsHex6(style.karBox);
-      st.color=subsHex6(style.karColor);st.borderRadius=(4*scale)+"px";
+      st.color=subsHex6(style.karColor);st.borderRadius=0;
       st.padding="0 "+(4*scale)+"px";st.boxDecorationBreak="clone"}
-    if(on&&style.karMode==="scale"){st.color=subsHex6(style.karColor);
-      st.display="inline-block";st.transform="scale(1.14)"}
-    return r.jsxs("span",{className:"sub-w","data-on":on?"":void 0,style:st,
+    return r.jsxs("span",{className:"sub-w","data-on":on?"":void 0,
+      "data-cur":cur?"":void 0,style:st,
       children:[w," "]},"w"+gi)}
   var body=byLine.map(function(ids,li){
     var lw=lines[li].split(/\s+/).filter(Boolean);
     return r.jsx("span",{className:"sub-line",style:fill?void 0:txtSty,
       children:lw.map(function(w,k){return word(ids[k],w)})},"l"+li)});
   var inner=fill?r.jsx("span",{className:"sub-fill",style:blockSty,children:body}):body;
-  var mvTxt=style.valign==="middle"?"marge sans effet au milieu"
+  /* court : le bandeau tient sur une ligne, y compris sur un cadre 9:16
+     etroit — l'infobulle du bandeau dit le pourquoi en toutes lettres */
+  var mvTxt=style.valign==="middle"?"marge sans objet"
     :"marge "+subsRound(subsN(style.marginV,9),1)+" %";
-  var readout=SUBS_VLAB[style.valign]+" · "+SUBS_HLAB[style.align]+" · "+
+  /* UNE seule lecture des valeurs, dans le bandeau : une étiquette « placement »
+     collée au bloc en plus n'aurait fait que se cogner aux repères de zone sûre */
+  /* UNE seule lecture des valeurs, dans le bandeau : une étiquette « placement »
+     collée au bloc en plus n'aurait fait que se cogner aux repères de zone sûre.
+     Le bandeau n'existe QUE pendant le placement — inutile de le renommer. */
+  var readout=(ghost?"aucune réplique ici — ":"")+
+    SUBS_VLAB[style.valign]+" · "+SUBS_HLAB[style.align]+" · "+
     mvTxt+" · largeur "+Math.round(subsN(style.width,84))+" %";
   var block=r.jsxs("div",{className:"sub-ov",
     "data-anim":edit?"none":(style.anim||"none"),
@@ -845,8 +1099,7 @@ const SubsOverlay=(props)=>{
       title:"Largeur du bloc — les deux marges bougent ensemble",
       onPointerDown:function(e){subsDown(e,"e")},
       onPointerMove:subsMove,onPointerUp:subsUp,onPointerCancel:subsUp},"he"):null,
-    edit?r.jsx("i",{className:"sub-frtag",children:ghost?"placement (aucune réplique ici)"
-      :"placement"},"tag"):null]});
+    null]});
   if(!edit)return block;
   /* zones sûres — seulement en placement, sinon c'est du bruit sur l'aperçu */
   var portrait=fr.h>fr.w;
@@ -866,7 +1119,9 @@ const SubsOverlay=(props)=>{
         children:"UI réseaux"},"ls"):null]},"safe"),
     r.jsx("div",{className:"sub-hud","data-drag":drag||void 0,
       role:"status","aria-live":"off",
-      title:"Ce que le moteur gravera : ancrage, marge du bord et largeur du bloc",
+      title:"Ce que le moteur gravera : ancrage, marge du bord et largeur du "+
+        "bloc. Ancré au milieu, la marge du bord n'a pas d'effet — libass "+
+        "l'ignore, l'aperçu aussi.",
       children:readout},"hud"),
     block]})};
 
@@ -951,9 +1206,9 @@ const SubsStyle=(props)=>{
       var ow=Math.max(.5,subsN(ps.outW,0)*sc),oc=subsHex6(ps.outColor);
       [[-1,-1],[0,-1],[1,-1],[-1,0],[1,0],[-1,1],[0,1],[1,1]].forEach(function(d){
         shadow.push((d[0]*ow).toFixed(2)+"px "+(d[1]*ow).toFixed(2)+"px 0 "+oc)})}
-    if(ps.shOn)shadow.push((subsN(ps.shX,0)*sc).toFixed(1)+"px "+
-      (subsN(ps.shY,3)*sc).toFixed(1)+"px "+(subsN(ps.shBlur,0)*sc).toFixed(1)+
-      "px "+subsHex6(ps.shColor));
+    if(ps.shOn){
+      var pso=(subsClamp(subsN(ps.shOff,subsN(ps.shY,3)),0,20)*sc).toFixed(1);
+      shadow.push(pso+"px "+pso+"px 0 "+subsHex6(ps.shColor))}
     var wsty={fontFamily:"'"+String(ps.font||"Inter")+"', sans-serif",
       fontSize:fs.toFixed(1)+"px",fontWeight:subsClamp(ps.weight,100,900),
       fontStyle:ps.italic?"italic":"normal",
@@ -964,11 +1219,12 @@ const SubsStyle=(props)=>{
       background:ps.bgOn?subsHex8(ps.bgColor,ps.bgOpacity):"transparent",
       padding:ps.bgOn?(subsN(ps.bgPad,10)*sc*.45).toFixed(1)+"px "+
         (subsN(ps.bgPad,10)*sc).toFixed(1)+"px":0,
-      borderRadius:ps.bgOn?(subsN(ps.bgRadius,0)*sc).toFixed(1)+"px":0,
+      borderRadius:0,
       boxDecorationBreak:"clone",WebkitBoxDecorationBreak:"clone"};
     var ksty={};
     if(ps.karOn&&ps.karMode==="box"){ksty.background=subsHex6(ps.karBox);
-      ksty.color=subsHex6(ps.karColor);ksty.padding="0 "+(3*sc*10).toFixed(1)+"px"}
+      ksty.color=subsHex6(ps.karColor);ksty.borderRadius=0;
+      ksty.padding="0 "+(3*sc*10).toFixed(1)+"px"}
     else if(ps.karOn)ksty.color=subsHex6(ps.karColor);
     return r.jsxs("button",{className:"sub-ptile","data-on":on?"":void 0,
       title:"Préréglage « "+String(p.label||p.id)+" » ("+p.id+") — "+
@@ -985,6 +1241,11 @@ const SubsStyle=(props)=>{
       r.jsx("span",{className:"sub-pname",children:subsPresetName(p)}),
       r.jsx("span",{className:"sub-pspec",children:subsPresetSpec(ps)})]},p.id)}
 
+  /* avertissements de STYLE venus de /check, plus les écarts nommés entre
+     l'aperçu et la gravure. Rangés du plus actionnable au simple constat. */
+  var issues=subsStyleIssues({style:props.styleWarns,
+    unsupported:props.unsupported});
+
   return r.jsxs("div",{className:"sub-style",children:[
     r.jsx(SubsAlert,{}),
     r.jsxs("div",{className:"sub-sec",children:[
@@ -993,6 +1254,34 @@ const SubsStyle=(props)=>{
         title:"Origine de la liste de préréglages",
         children:SUBS_SVC.presets?"moteur":"local"})]}),
     r.jsx("div",{className:"sub-pgrid",ref:gref,children:presets.map(ptile)}),
+
+    /* ── CE QUE LA GRAVURE FERA D'AUTRE QUE L'APERÇU ───────────────────────
+       `POST /check` calcule ces avertissements sous `style_warnings` et
+       `unsupported`. Le panneau les jetait parce qu'ils n'ont pas d'index de
+       segment — ils n'en ont pas PARCE QU'ils portent sur le style entier.
+       Leur place est donc ici, à côté des réglages fautifs, avec le bouton
+       qui répare quand il existe. */
+    issues.length
+      ?r.jsxs("div",{className:"sub-stywarns",children:[
+        r.jsx("div",{className:"sub-seclabel",
+          children:"Aperçu et gravure : les écarts"}),
+        issues.map(function(w,k){
+          var fx=w.fix;
+          return r.jsxs("div",{className:"sub-warn","data-sev":w.sev,children:[
+            r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
+              children:"·"},"i"),
+            r.jsx("span",{className:"sub-warnmsg",
+              children:w.msg+(w.about&&w.about.length
+                ?" (" + w.about.length + " réplique" +
+                  (w.about.length>1?"s":"") + " concernée" +
+                  (w.about.length>1?"s":"") + ")":"")},"m"),
+            fx?r.jsx("button",{className:"sub-minibtn sub-fix",
+              title:fx.effect||"",
+              onClick:function(){var o={};o[fx.champ]=fx.valeur;set(o,!0)},
+              children:fx.label||"Corriger"},"f"):null,
+            fx&&fx.effect?r.jsx("span",{className:"sub-warnwhat",
+              children:fx.effect},"e"):null]},"sw"+k)})]})
+      :null,
 
     /* ── PLACEMENT — le même modèle que le cadre du lecteur ─────────────────
        Ces quatre réglages SONT ce que le moteur grave. Ils se règlent au
@@ -1052,16 +1341,20 @@ const SubsStyle=(props)=>{
           title:"Tout en majuscules",onClick:function(){set({upper:!st.upper},!0)},
           children:"AA"},"c")]},"c")],"fx"),
       rng("tracking",-2,12,.5," px","Interlettrage"),
-      rng("lh",.8,2.4,.05,"×","Interligne"),
+      /* pas de réglage d'interligne : libass fixe l'écart des lignes à
+         1,000 x le corps de la fonte (mesuré à l'image). Le curseur qui
+         existait ici ne changeait que l'aperçu. */
       col("color","Couleur")]),
 
-    fold("fond","Fond",st.bgOn?(st.bgMode==="fill"?"plein":"ajusté")+" · "+
-      Math.round(st.bgOpacity)+" %":"aucun",[
-      sw("bgOn","Fond derrière le texte","Boîte colorée derrière les lignes"),
+    /* Fond : ni « étendue », ni « arrondi ». libass ne dessine qu'une boîte
+       ajustée au texte, à angles droits (BorderStyle 3) ; BorderStyle 4 rend
+       exactement pareil, mesuré. Les deux réglages ne pouvaient rien changer
+       à la vidéo livrée : ils sont partis plutôt que de mentir. */
+    fold("fond","Fond",st.bgOn?"ajusté · "+Math.round(st.bgOpacity)+" %":"aucun",[
+      sw("bgOn","Fond derrière le texte",
+         "Boîte colorée ajustée au texte, angles droits — comme à la gravure"),
       st.bgOn?col("bgColor","Couleur du fond"):null,
-      st.bgOn?chips("bgMode",[["wrap","ajusté"],["fill","plein"]],"Étendue"):null,
       st.bgOn?rng("bgOpacity",0,100,1," %","Opacité"):null,
-      st.bgOn?rng("bgRadius",0,40,1," px","Arrondi"):null,
       st.bgOn?rng("bgPad",0,48,1," px","Marge intérieure"):null]),
 
     fold("bord","Contour et ombre",
@@ -1070,20 +1363,28 @@ const SubsStyle=(props)=>{
       sw("outOn","Contour du texte","Liseré autour des lettres — la lisibilité sur image claire"),
       st.outOn?col("outColor","Couleur du contour"):null,
       st.outOn?rng("outW",0,14,.5," px","Épaisseur"):null,
-      sw("shOn","Ombre portée","Ombre décalée sous le texte"),
+      /* L'ombre ASS est UNE copie décalée en bas à droite : un seul
+         décalage, et aucun flou. D'où un seul curseur, au lieu des trois
+         d'avant dont deux ne sortaient pas dans la vidéo. */
+      sw("shOn","Ombre portée",
+         "Copie du texte décalée en bas à droite — exactement ce que grave l'ASS"),
       st.shOn?col("shColor","Couleur de l'ombre"):null,
-      st.shOn?rng("shX",-20,20,1," px","Décalage X"):null,
-      st.shOn?rng("shY",-20,20,1," px","Décalage Y"):null,
-      st.shOn?rng("shBlur",0,40,1," px","Flou"):null]),
+      st.shOn?rng("shOff",0,20,1," px","Décalage"):null]),
 
-    fold("kar","Karaoké",st.karOn?"mot actif · "+
+    fold("kar","Karaoké",st.karOn?"cumulatif · "+
       (SUBS_KMODES.filter(function(m){return m[0]===st.karMode})[0]||["","—"])[1]
       :"désactivé",[
-      sw("karOn","Surligner le mot prononcé",
-        "Le mot actif change d'apparence pendant la lecture, dans l'aperçu"),
+      sw("karOn","Surligner les mots prononcés",
+        "Chaque mot bascule à son tour et le reste jusqu'à la fin de la "+
+        "réplique — c'est ce que grave l'ASS, et l'aperçu le montre pareil"),
       st.karOn?chips("karMode",SUBS_KMODES,"Mode"):null,
       st.karOn?col("karColor","Couleur du mot"):null,
       st.karOn&&st.karMode==="box"?col("karBox","Couleur de la boîte"):null,
+      st.karOn&&st.karMode==="box"&&!st.bgOn?r.jsx("div",{className:"sub-mhint",
+        "data-warn":"",
+        children:"Mode « boîte » sans fond : au rendu, la couleur ira sur le "+
+          "CONTOUR du mot, pas dans une boîte — la boîte du karaoké est celle "+
+          "du fond. Activez le fond, ou passez en « remplissage »."},"kw"):null,
       st.karOn?r.jsx("div",{className:"sub-mhint",
         children:"Sans timings par mot venus de la transcription, la répartition "+
           "est proportionnelle au nombre de caractères — chaque segment le dit."},
@@ -1091,6 +1392,10 @@ const SubsStyle=(props)=>{
 
     fold("anim","Animation",(SUBS_ANIMS.filter(function(a){return a[0]===st.anim})[0]||["","aucune"])[1],[
       chips("anim",SUBS_ANIMS,"Apparition"),
+      r.jsx("div",{className:"sub-mhint",
+        children:"Fondu et pop sont gravés dans la vidéo (\fad et \t de "+
+          "l'ASS). Les apparitions qui n'avaient aucun équivalent gravable "+
+          "— montée, machine à écrire — ont été retirées."},"ah"),
       row("Césure",[
         r.jsx("input",{className:"sub-num",type:"number",min:10,max:120,step:1,
           value:Math.round(subsN(st.maxChars,42)),
@@ -1116,7 +1421,6 @@ const SubsSegments=(props)=>{
   var style=Object.assign(subsDefaultStyle(),props.style||{});
   var s1=x.useState(""),query=s1[0],setQuery=s1[1];
   var s2=x.useState(null),reflowN=s2[0],setReflowN=s2[1];
-  var s3=x.useState(null),srvWarns=s3[0],setSrvWarns=s3[1];
   /* pli des lignes : 1 = ouverte de force, 0 = fermée de force, absente = elle
      suit la sélection. Trois états parce que deux ne suffisent pas : la ligne
      sélectionnée doit s'ouvrir seule SANS empêcher de la refermer. */
@@ -1128,6 +1432,11 @@ const SubsSegments=(props)=>{
   var searchRef=x.useRef(null),rowsRef=x.useRef(null);
   var ph=subsN(props.playhead,0);
   var dur=subsN(props.dur,0)||60;
+  /* durée RÉELLE du montage : 0 quand on ne la connaît pas. Le repli à 60 s
+     ci-dessus sert à placer un nouveau sous-titre ; il ne doit surtout pas
+     servir de plafond aux correctifs, sinon on refuserait d'étirer la
+     dernière réplique d'un montage de 3 minutes. */
+  var durReal=subsN(props.dur,0);
 
   /* la touche « / » que le badge annonce — un raccourci affiché doit exister */
   x.useEffect(function(){
@@ -1148,36 +1457,30 @@ const SubsSegments=(props)=>{
 
   /* avertissements : ceux du backend s'ils existent, les nôtres sinon. Le
      calcul local n'est jamais sauté — il faut que la ligne parle tout de
-     suite, même hors ligne. */
-  var warns=x.useMemo(function(){return subsWarnings(segs,style)},[segs,style]);
-  x.useEffect(function(){
-    /* backend connu injoignable : on n'envoie RIEN. Un POST toutes les 450 ms
-       vers une route absente remplit la console d'erreurs 405 sans rien
-       apporter — le calcul local, lui, tourne déjà. */
-    if(svc.st!=="ok")return;
-    var body={segments:segs.map(function(s){
-      return {start:s.start,end:s.end,text:s.text}}),style:style};
-    var dead=!1;
-    var h=setTimeout(function(){
-      subsPost("/api/subtitles/check",body).then(function(d){
-        if(!dead&&d&&Array.isArray(d.warnings))setSrvWarns(d.warnings)},
-        function(){if(!dead)setSrvWarns(null)})},450);
-    return function(){dead=!0;clearTimeout(h)}},[segs,style,svc.st,svc.tick]);
+     suite, même hors ligne. Le POST, lui, est lancé par le TIROIR : il sert
+     aussi l'onglet Style, qui doit rester à jour même quand la liste des
+     répliques n'est pas montée. */
+  var warns=x.useMemo(function(){
+    return subsWarnings(segs,style,durReal)},[segs,style,durReal]);
+  var srvWarns=props.srvWarns||null;
   var shownWarns=x.useMemo(function(){
     if(!srvWarns||!srvWarns.length)return warns;
-    /* le backend indexe par position ; on remet un id de segment dessus.
-       Son GESTE de réparation (fix/fixLabel/need) est repris tel quel : sans
-       lui, brancher /check ferait DISPARAÎTRE les boutons « Étirer à 3,4 s » /
-       « Séparer » que le calcul local affichait — un backend qui répond doit
-       ajouter, jamais amputer. */
+    /* Le backend ANCRE désormais chaque avertissement sur le segment qu'il
+       mesure, et l'identifie par son `id` — plus par sa position. C'est ce
+       qui ferme le décalage d'indice : un seul segment encore vide suffisait
+       à faire glisser toute la liste d'un cran, et « 60 ms depuis le segment
+       précédent » atterrissait sur la carte du voisin.
+       Le PLAN de réparation est repris tel quel : il porte son libellé, sa
+       conséquence annoncée et ses `ops`. */
+    var byId={};segs.forEach(function(s){byId[s.id]=s});
     return srvWarns.map(function(w){
-      var i=subsN(w.i,-1),s=segs[i];
-      var o={id:s?s.id:null,i:i,kind:String(w.kind||"regle"),
-        sev:String(w.sev||"warn"),msg:String(w.msg||"")};
-      if(w.fix){o.fix=String(w.fix);o.fixLabel=String(w.fixLabel||"Corriger");
-        if(w.need!=null)o.need=subsN(w.need,0)}
-      return o})
-      .filter(function(w){return !!w.id})},[srvWarns,warns,segs]);
+      var s=(w.id!=null&&byId[w.id])||segs[subsN(w.i,-1)];
+      if(!s)return null;
+      return {id:s.id,i:subsN(w.i,-1),kind:String(w.kind||"regle"),
+        sev:String(w.sev||"warn"),msg:String(w.msg||""),
+        about:Array.isArray(w.about)?w.about:[subsN(w.i,-1)],
+        plan:w.plan||null}})
+      .filter(Boolean)},[srvWarns,warns,segs]);
   var wby=x.useMemo(function(){return subsWarnBy(shownWarns)},[shownWarns]);
 
   var qn=query.trim().toLowerCase();
@@ -1217,18 +1520,14 @@ const SubsSegments=(props)=>{
     else{
       if(ph<=s.start+.05){note("La tête est avant le début du segment — déplacez-la d'abord.");return}
       patch(id,{end:ph},!0)}}
-  function applyFix(w){
-    var s=null;segs.forEach(function(k){if(k.id===w.id)s=k});
-    if(!s)return;
-    if(w.fix==="etirer"){patch(s.id,{end:subsRound(s.start+subsN(w.need,1),3)},!0);
-      note("Segment étiré — vérifiez qu'il ne mord pas sur le suivant.")}
-    else if(w.fix==="separer"){patch(s.id,{end:subsRound(subsN(w.need,s.end)-.04,3)},!0);
-      note("Chevauchement retiré.")}
-    else if(w.fix==="decouper")splitHere(s.id);
-    else if(w.fix==="recomposer"){
-      emit(subsReflow([s],style.maxChars).concat(
-        segs.filter(function(k){return k.id!==s.id})),!0);
-      note("Segment recomposé en lignes de "+Math.round(style.maxChars)+" caractères.")}}
+  /* un correctif = appliquer un PLAN, tel qu'il a été annoncé. Le panneau ne
+     recalcule rien : il exécute les `ops` que la carte affichait déjà, donc
+     ce qui se passe est EXACTEMENT ce qui était écrit sous le bouton. */
+  function applyPlan(plan){
+    if(!plan||!plan.ok)return;
+    var next=subsApplyPlan(segs,plan);
+    emit(next,!0);
+    note(plan.label+" — "+plan.effect)}
   function doReflow(n){
     setReflowN(n);
     emit(subsReflow(segs,n),!0)}
@@ -1253,7 +1552,8 @@ const SubsSegments=(props)=>{
       var got=subsParse(String(rd.result||""));
       if(!got.length){note("Aucun sous-titre lisible dans ce fichier (.srt ou .vtt attendu).");return}
       emit(got,!0);
-      note(got.length+" sous-titres importés depuis « "+f.name+" ».")};
+      note(subsPl(got.length,"sous-titre")+" importé"+(got.length>1?"s":"")+
+        " depuis « "+f.name+" ».")};
     rd.onerror=function(){note("Lecture du fichier impossible.")};
     rd.readAsText(f,"utf-8")}
 
@@ -1385,13 +1685,29 @@ const SubsSegments=(props)=>{
             :"Aucun timing par mot : la répartition du karaoké est proportionnelle au nombre de caractères.",
           children:aligned?"mots alignés":"mots répartis"},"src")]},"foot"),
       lw.length?r.jsx("div",{className:"sub-warns",children:lw.map(function(w,k){
+        /* un bouton de correction dit CE QU'IL FAIT avant le clic : son
+           libellé nomme l'action et son résultat (« Découper en 2 sous-titres »,
+           « Étirer à 1,2 s »), et la ligne dessous annonce la conséquence, y
+           compris sur les voisins. Pas de plan applicable = pas de bouton,
+           mais l'explication reste. */
+        var p=w.plan||null,alt=p&&p.alt&&p.alt.ok?p.alt:null;
         return r.jsxs("div",{className:"sub-warn","data-sev":w.sev,children:[
           r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
             children:w.sev==="err"?"!":"·"},"i"),
           r.jsx("span",{className:"sub-warnmsg",children:w.msg},"m"),
-          w.fix?r.jsx("button",{className:"sub-minibtn sub-fix",
-            title:"Corriger ici",onClick:function(){applyFix(w)},
-            children:w.fixLabel||"Corriger"},"f"):null]},"w"+k)})},"warns"):null]},s.id)}
+          p&&p.ok?r.jsx("button",{className:"sub-minibtn sub-fix",
+            title:p.effect,onClick:function(){applyPlan(p)},
+            children:p.label},"f"):null,
+          p&&p.ok?r.jsx("span",{className:"sub-warnwhat",children:p.effect},"e")
+            :null,
+          p&&!p.ok&&p.blocked
+            ?r.jsx("span",{className:"sub-warnwhat","data-blocked":"",
+              children:p.blocked},"b"):null,
+          alt?r.jsx("button",{className:"sub-minibtn sub-fixalt",
+            title:alt.effect,onClick:function(){applyPlan(alt)},
+            children:alt.label},"fa"):null,
+          alt?r.jsx("span",{className:"sub-warnwhat",children:alt.effect},"ae")
+            :null]},"w"+k)})},"warns"):null]},s.id)}
 
   var nOff=segs.filter(function(s){return s.hidden}).length;
   var nErr=shownWarns.filter(function(w){return w.sev==="err"}).length;
@@ -1437,9 +1753,11 @@ const SubsSegments=(props)=>{
       btnImport,
       r.jsx("button",{className:"sub-btn","data-on":cpsOn?"":void 0,
         "aria-expanded":cpsOn,
-        title:"Redécouper toute la piste à une longueur de ligne donnée",
+        title:"Redécouper TOUTE la piste : les répliques voisines sont remises "+
+          "bout à bout puis recoupées à la longueur choisie. Le nombre de "+
+          "sous-titres change ; le calage suit les mots.",
         onClick:function(){setCpsOn(function(v){return !v})},
-        children:"recomposer "+(cpsOn?"▾":"▸")},"rf")]}),
+        children:"redécouper toute la piste "+(cpsOn?"▾":"▸")},"rf")]}),
     cpsOn?r.jsxs("div",{className:"sub-cpsrow",children:[
       r.jsx("span",{className:"sub-plabel",children:"Caractères par sous-titre"}),
       r.jsx("input",{className:"sub-range",type:"range",min:12,max:96,step:1,
@@ -1448,7 +1766,12 @@ const SubsSegments=(props)=>{
         title:"Recompose la découpe en direct — les mots ne sont jamais coupés",
         onChange:function(e){doReflow(subsN(e.target.value,42))}}),
       r.jsx("span",{className:"sub-pval",
-        children:Math.round(subsN(reflowN!=null?reflowN:style.maxChars,42))})]}):null,
+        children:Math.round(subsN(reflowN!=null?reflowN:style.maxChars,42))}),
+      /* l'effet AVANT le geste : combien de sous-titres ce réglage produit */
+      r.jsx("span",{className:"sub-cpsout",
+        title:"Nombre de sous-titres que cette longueur produit sur la piste",
+        children:"→ "+subsReflow(segs,subsN(reflowN!=null?reflowN:style.maxChars,42))
+          .length+" sous-titres"})]}):null,
     /* recherche et filtres sur UNE ligne : le compte total est déjà dans
        l'en-tête du tiroir, il n'a pas à être redit ici */
     r.jsxs("div",{className:"sub-searchrow",children:[
@@ -1459,15 +1782,15 @@ const SubsSegments=(props)=>{
       r.jsx("kbd",{className:"sub-kbd",title:"Touche / — aller à la recherche",
         children:"/"},"k"),
       nOff?r.jsx("span",{className:"sub-statoff",
-        title:nOff+" répliques masquées : hors rendu et hors export",
-        children:nOff+" masquées"},"o"):null,
+        title:subsPl(nOff,"réplique")+" masquée(s) : hors rendu et hors export",
+        children:subsPl(nOff,"masquée")},"o"):null,
       nBad?r.jsx("button",{className:"sub-statfilt","data-on":onlyBad?"":void 0,
         "aria-pressed":onlyBad,
         title:onlyBad?"Revoir toute la piste"
-          :"N'afficher que les "+nBad+" répliques signalées, dont "+nErr+
-            " bloquantes — chacune porte son correctif",
+          :"N'afficher que les "+subsPl(nBad,"réplique")+" signalées, dont "+
+            subsPl(nErr,"bloquante")+" — chacune porte son correctif",
         onClick:function(){setOnlyBad(function(v){return !v})},
-        children:nBad+" signalées"},"b"):null,
+        children:subsPl(nBad,"signalée")},"b"):null,
       r.jsx("button",{className:"sub-statfilt",
         title:anyOpen?"Tout replier":"Tout déplier — bornes et correctifs",
         onClick:function(){
@@ -1492,16 +1815,70 @@ const SubsSegments=(props)=>{
           title:"Exporter en ."+f.toUpperCase()+" — fichier écrit ici, hors ligne",
           onClick:function(){doExport(f)},children:"."+f.toUpperCase()},f)})]})]})};
 
+/* ── le contrôle qualité du backend, une fois pour tout le tiroir ──────────
+   `POST /api/subtitles/check` rend TROIS choses : les avertissements par
+   réplique, ceux du STYLE (sans index de segment, parce qu'ils portent sur
+   le style entier) et les écarts nommés entre l'aperçu et la gravure.
+   Le POST vivait dans l'onglet Répliques : les deux derniers ne se
+   rafraîchissaient donc jamais pendant qu'on réglait le style — c'est-à-dire
+   exactement au moment où ils servent. Il vit maintenant dans le tiroir. */
+/* `style_warnings` et `unsupported` se recouvrent : le fond translucide sous
+   karaoké est à la fois une règle de qualité et un écart aperçu/gravure. Une
+   liste unique, dédoublonnée sur le texte, avec le geste quand il existe —
+   sinon le panneau afficherait deux fois le même problème et compterait 2. */
+function subsStyleIssues(chk){
+  var out=[],vus={};
+  ((chk&&chk.style)||[]).forEach(function(w){
+    var m=String(w.msg||"");
+    if(!m||vus[m])return;vus[m]=1;
+    out.push({msg:m,fix:w.fix||null,about:w.about||[],sev:w.sev||"warn"})});
+  var u=(chk&&chk.unsupported)||{};
+  Object.keys(u).forEach(function(k){
+    var m=String(u[k]||"");
+    if(!m||vus[m])return;vus[m]=1;
+    out.push({msg:m,fix:null,about:[],sev:"info",cle:k})});
+  return out}
+
+function subsUseCheck(segs,style,dur,svc){
+  var s0=x.useState(null),res=s0[0],setRes=s0[1];
+  var key=x.useMemo(function(){
+    return JSON.stringify([segs.map(function(s){
+      return [s.id,s.start,s.end,s.text]}),style,dur])},[segs,style,dur]);
+  x.useEffect(function(){
+    /* backend connu injoignable : on n'envoie RIEN. Un POST toutes les 450 ms
+       vers une route absente remplit la console d'erreurs sans rien apporter
+       — le calcul local, lui, tourne déjà. */
+    if(svc.st!=="ok"){setRes(null);return}
+    var body={segments:segs.map(function(s){
+      return {id:s.id,start:s.start,end:s.end,text:s.text}}),
+      style:style,dur:dur};
+    var dead=!1;
+    var h=setTimeout(function(){
+      subsPost("/api/subtitles/check",body).then(function(d){
+        if(dead)return;
+        setRes(d&&Array.isArray(d.warnings)
+          ?{warns:d.warnings,style:d.style_warnings||[],
+            unsupported:d.unsupported||{}}:null)},
+        function(){if(!dead)setRes(null)})},450);
+    return function(){dead=!0;clearTimeout(h)}},[key,svc.st,svc.tick]);
+  return res}
+
 /* ═════════════════ Tiroir — Segments · Style ════════════════════════════════ */
 const SubsDrawer=(props)=>{
   var svc=subsSvcUse();
   var s1=x.useState("segments"),tab=s1[0],setTab=s1[1];
   var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];
+  /* Les avertissements de STYLE et les écarts aperçu/gravure viennent du même
+     POST /api/subtitles/check que ceux des répliques. Le panneau les jetait
+     faute d'index de segment : ils n'ont pas d'index PARCE QU'ils portent sur
+     le style entier. On les remonte donc ici, pour les poser dans l'onglet
+     où l'on peut agir dessus — Style. */
   var nt=subsUseNote(),note=nt[0],fireNote=nt[1];
   var rootRef=x.useRef(null);
   var open=!!props.open;
   var segs=subsSort(props.segments||[]);
   var style=Object.assign(subsDefaultStyle(),props.style||{});
+  var chk=subsUseCheck(segs,style,subsN(props.dur,0),svc);
 
   x.useEffect(function(){if(open)subsProbe()},[open]);
   x.useEffect(function(){
@@ -1553,7 +1930,9 @@ const SubsDrawer=(props)=>{
           "un .srt, ou relancez DeepotusVideoGen.")})}
 
   if(!open)return null;
-  var nErr=subsWarnings(segs,style).filter(function(w){return w.sev==="err"}).length;
+  var nErr=subsWarnings(segs,style,props.dur).filter(function(w){
+    return w.sev==="err"}).length;
+  var nSty=subsStyleIssues(chk).length;
   return r.jsxs("aside",{className:"sub-drawer",ref:rootRef,tabIndex:-1,
     role:"group","aria-label":"Sous-titres",
     onKeyDown:function(e){
@@ -1566,7 +1945,7 @@ const SubsDrawer=(props)=>{
     r.jsxs("div",{className:"sub-head",children:[
       r.jsx("span",{className:"sub-title",children:"Sous-titres"}),
       segs.length?r.jsx("span",{className:"sub-count",
-        children:segs.length+" répliques"}):null,
+        children:subsPl(segs.length,"réplique")}):null,
       r.jsx("button",{className:"sub-iconbtn sub-close",title:"Fermer (Échap)",
         "aria-label":"Fermer le panneau de sous-titres",
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
@@ -1580,7 +1959,10 @@ const SubsDrawer=(props)=>{
       r.jsxs("button",{className:"sub-tab",role:"tab","aria-selected":tab==="style",
         "data-on":tab==="style"?"":void 0,
         onClick:function(){setTab("style")},children:[
-        "Style et placement"]},"style")]}),
+        "Style et placement",
+        nSty?r.jsx("span",{className:"sub-tbad","data-soft":"",
+          title:nSty+" écart(s) entre l'aperçu et la gravure — détail dans "+
+            "l'onglet",children:String(nSty)}):null]},"style")]}),
     r.jsxs("div",{className:"sub-trrow",children:[
       r.jsx("button",{className:"sub-btn sub-tr",disabled:!!(trJob&&trJob.busy),
         title:"Transcrire la bande son du montage (backend requis) — "+
@@ -1600,8 +1982,9 @@ const SubsDrawer=(props)=>{
              du lecteur, juste au-dessus de ce tiroir — deux fois le même
              message au même endroit, c'est du bruit */
           onSelect:props.onSelect,onSeek:props.onSeek,onNote:fireNote,
-          srcName:props.srcName})
-        :r.jsx(SubsStyle,{style:style,onChange:props.onStyle})}),
+          srvWarns:chk&&chk.warns,srcName:props.srcName})
+        :r.jsx(SubsStyle,{style:style,onChange:props.onStyle,
+          styleWarns:chk&&chk.style,unsupported:chk&&chk.unsupported})}),
     note?r.jsx("div",{className:"sub-note",role:"status","aria-live":"polite",
       children:note}):null]})};
 
