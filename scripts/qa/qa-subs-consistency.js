@@ -10,19 +10,33 @@
      surface 3  le verdict lui-même      (window.DzSubs.verdict(...))
      surface 4  l'inspecteur             (clip sélectionné → .sub-warn)
 
-   et TOUS les comptes affichés (badge d'onglet « Répliques », chip
-   « sous-titres » de la barre d'outils, filtre « n signalées », ligne des
-   comptes) doivent valoir exactement ce que le verdict a décidé — chacun avec
-   son unité écrite à côté.
+   et TOUS les comptes affichés (chip « sous-titres » de la barre d'outils,
+   ligne des comptes) doivent valoir exactement ce que le verdict a décidé —
+   chacun avec son unité écrite à côté.
 
    Le défaut fermé : ces nombres étaient calculés à quatre endroits qui se
    contredisaient DANS LA MÊME IMAGE (9 pastilles critiques sur la piste, 8
    ambre + 1 rouge dans la liste, « 9 » sur deux compteurs qui ne comptaient
    pas la même chose, 11 lignes marquées).
 
+   ── TOUR 4 : trois gardes de plus ──────────────────────────────────────────
+   A. UN NOMBRE COLLÉ À UN MOT COMPTE CE QUE CE MOT NOMME, ou il porte son
+      propre libellé — et il doit pouvoir se vérifier À L'ÉCRAN. L'onglet
+      affichait « Répliques 12 » sur une piste de 13 répliques, et « Style et
+      placement 2 » sans que rien d'affiché ne produise ce 2. On interdit donc
+      tout chiffre dans les onglets, l'en-tête et les filtres : la ligne des
+      comptes est le seul domicile d'un nombre agrégé, et chacun de ses nombres
+      doit être reproductible en comptant des éléments du DOM.
+   B. AUCUNE REDITE : « 12 signalées » était écrit trois fois dans une bande de
+      60 px. Un couple « nombre + mot » n'apparaît qu'une fois dans la bande.
+   C. LA COUVERTURE est un fait affiché : la part du montage réellement
+      sous-titrée, les plans qui ne le sont pas (dans le panneau ET sur la
+      timeline), et le geste qui les traite.
+
    Vérifie aussi que le défaut d'usine ne franchit pas le repère que l'aperçu
    trace lui-même (zone sûre 10 %) et que, s'il le franchissait, l'écran le
-   dirait.
+   dirait ; et qu'un réglage que la gravure ignore (le contour sous un fond,
+   mesuré) n'affiche AUCUNE valeur vivante.
 
    Lancement (backend DeepotusVideoGen sur 127.0.0.1:8765) :
        node scripts/qa/qa-subs-consistency.js [chemin.srt]
@@ -161,20 +175,52 @@ function chk(ok, label, detail) {
     const filt = [...document.querySelectorAll(".sub-statfilt")]
       .map((e) => (e.textContent || "").trim()).find((t) => /signalée/.test(t));
     const tally = {};
+    const tallyTxt = {};
     [...document.querySelectorAll(".sub-tally .sub-tal")].forEach((e) => {
       const b = e.querySelector("b");
-      tally[e.getAttribute("data-k")] = Number(b ? b.textContent : NaN);
+      const k = e.getAttribute("data-k");
+      tally[k] = Number(String(b ? b.textContent : "").replace(/[^\d.-]/g, ""));
+      tallyTxt[k] = (e.textContent || "").trim();
+    });
+    /* ── la BANDE : en-tête + comptes + onglets + barre de recherche. C'est
+       là que trois « 12 signalées » cohabitaient. ── */
+    const band = [".sub-head", ".sub-tally", ".sub-tabs", ".sub-searchrow"]
+      .map((s) => document.querySelector(".sub-drawer " + s))
+      .filter(Boolean);
+    /* tout couple « nombre + mot » de la bande, normalisé */
+    const couples = [];
+    band.forEach((el) => {
+      const t = (el.innerText || "").replace(/\s+/g, " ");
+      (t.match(/(\d+(?:[.,]\d+)?)\s*%?\s*([A-Za-zÀ-ÿ]+)/g) || [])
+        .forEach((m) => couples.push(m.trim().toLowerCase()));
     });
     return {
-      timeline, liste, tally,
+      timeline, liste, tally, tallyTxt, couples,
       head: ((document.querySelector(".sub-count") || {}).textContent || "").trim(),
+      /* les onglets ne portent plus de nombre : un point de sévérité, rien de
+         plus. Tout chiffre qui reviendrait ici serait un badge qui se trompe
+         sur ce que son mot nomme. */
+      tabTxt: [...document.querySelectorAll(".sub-drawer .sub-tab")]
+        .map((e) => (e.textContent || "").trim()),
+      tabDots: document.querySelectorAll(".sub-drawer .sub-tab .sub-tdot").length,
       tabBad: tabBad ? Number(tabBad.textContent) : 0,
-      tabBadSev: tabBad ? tabBad.getAttribute("data-sev") : null,
+      headTxt: ((document.querySelector(".sub-drawer .sub-head") || {}).innerText || "").trim(),
+      filtTxt: [...document.querySelectorAll(".sub-drawer .sub-statfilt")]
+        .map((e) => (e.textContent || "").trim()).join(" | "),
       chipN: chipN ? Number(chipN.textContent) : 0,
       chipBad: chipBad ? Number(chipBad.textContent) : 0,
       chipBadSev: chipBad ? chipBad.getAttribute("data-sev") : null,
+      chipCov: ((document.querySelector(".svm-toolchip .sub-chipcov") || {}).textContent || "").trim(),
       filt: filt ? Number((filt.match(/(\d+)/) || [])[1]) : null,
       source: ((document.querySelector(".sub-talsrc") || {}).textContent || "").trim(),
+      /* ── couverture ── */
+      covNote: ((document.querySelector(".sub-cov .sub-secnote") || {}).textContent || "").trim(),
+      covPlans: [...document.querySelectorAll(".sub-plan")].map((e) => ({
+        etat: e.getAttribute("data-etat"),
+        gestes: [...e.querySelectorAll("button")].map((x) => x.textContent.trim()),
+      })),
+      tlNoSub: [...document.querySelectorAll(".svm-clip[data-nosub]")]
+        .map((e) => e.getAttribute("data-nosub") || "sans"),
     };
   });
 
@@ -217,22 +263,48 @@ function chk(ok, label, detail) {
     "liste " + nSig + " / timeline " + nTlSig);
   chk(nBlk === nTlBlk, "même nombre de répliques bloquantes des deux côtés",
     "liste " + nBlk + " / timeline " + nTlBlk);
-  chk(snap.tabBad === nSig, "badge de l'onglet « Répliques » = répliques signalées",
-    "badge " + snap.tabBad + " / signalées " + nSig);
   chk(snap.chipBad === nSig, "pastille de la chip = répliques signalées",
     "chip " + snap.chipBad + " / signalées " + nSig);
   chk(snap.chipN === truth.ids.length, "compteur de la chip = répliques de la piste",
     "chip " + snap.chipN + " / piste " + truth.ids.length);
-  chk(snap.filt === null || snap.filt === nSig,
-    "filtre « n signalées » = répliques signalées",
-    "filtre " + snap.filt + " / signalées " + nSig);
   /* règle de couleur : les TOTAUX sont ambre, le rouge est réservé à ce qui
      EST bloquant (pastille d'une réplique, compte « n bloquantes »). Peindre
      en rouge un total de 12 dont une seule est bloquante remettrait la
      timeline et la liste en désaccord d'impression. */
-  chk(snap.tabBadSev === "warn" && snap.chipBadSev === "warn",
-    "les totaux sont ambre, le rouge reste réservé au bloquant",
-    "onglet " + snap.tabBadSev + " / chip " + snap.chipBadSev);
+  chk(snap.chipBadSev === "warn",
+    "le total de la chip est ambre, le rouge reste réservé au bloquant",
+    "chip " + snap.chipBadSev);
+
+  /* ════════ GARDE A — un badge ne peut pas se tromper sur ce qu'il nomme ════
+     L'onglet affichait « Répliques 12 » sur 13 répliques, et « Style et
+     placement 2 » sans que rien à l'écran ne produise ce 2. Plus aucun chiffre
+     hors de la ligne des comptes : un point de sévérité ne prétend rien
+     compter, et il ne peut donc pas mentir. */
+  const digits = (s) => (String(s).match(/\d/g) || []).length;
+  chk(snap.tabTxt.every((t) => digits(t) === 0),
+    "aucun onglet ne porte de nombre", JSON.stringify(snap.tabTxt));
+  chk(snap.tabDots > 0, "les onglets signalent par un point de sévérité",
+    snap.tabDots + " point(s)");
+  chk(snap.tabBad === 0, "l'ancien badge numéroté d'onglet a disparu");
+  chk(digits(snap.headTxt) === 0, "l'en-tête ne porte pas de nombre",
+    JSON.stringify(snap.headTxt));
+  chk(digits(snap.filtTxt) === 0,
+    "le filtre est un bouton d'action, pas un second compteur",
+    JSON.stringify(snap.filtTxt));
+
+  /* ════════ GARDE B — aucune redite dans la bande ═══════════════════════════
+     « 12 signalées » était écrit trois fois en 60 px. */
+  const vus = {}, redites = [];
+  snap.couples.forEach((c) => { if (vus[c]) redites.push(c); vus[c] = 1; });
+  chk(redites.length === 0,
+    "aucun couple « nombre + mot » répété dans l'en-tête du tiroir",
+    redites.length ? JSON.stringify(redites) : JSON.stringify(snap.couples));
+
+  /* chaque nombre de la ligne des comptes porte son mot */
+  const sansMot = Object.keys(snap.tallyTxt)
+    .filter((k) => !/[A-Za-zÀ-ÿ]{3}/.test(snap.tallyTxt[k]));
+  chk(sansMot.length === 0, "chaque nombre de la ligne des comptes porte son unité",
+    JSON.stringify(snap.tallyTxt));
 
   /* ── la ligne des comptes : chaque nombre a son unité, et vaut ce qu'il dit ── */
   chk(snap.tally["repliques"] === truth.ids.length,
@@ -251,6 +323,83 @@ function chk(ok, label, detail) {
   chk(sumPills === snap.tally["defauts"],
     "somme des pastilles numérotées = « n défauts »",
     "pastilles " + sumPills + " / défauts " + snap.tally["defauts"]);
+
+  /* ════════ GARDE C — LA COUVERTURE est affichée, et désigne les plans ══════
+     On auditait un clip et on facturait le verdict au montage entier. */
+  const covOk = await p.evaluate(() => {
+    const d = window.DzSubs;
+    /* un montage de 60 s, deux plans, des répliques sur le premier seulement */
+    const clips = [
+      { id: "v1a", tr: "v1", start: 0, end: 20, name: "plan A" },
+      { id: "v1b", tr: "v1", start: 20, end: 60, name: "plan B" },
+    ];
+    const segs = [d.make(0, 5, "un"), d.make(6, 12, "deux")];
+    const c = d.coverage(segs, clips, 60);
+    const marque = d.coverage(segs, clips.map((x) =>
+      x.id === "v1b" ? Object.assign({}, x, { noSub: true }) : x), 60);
+    return {
+      pct: Math.round(c.pct), sans: c.sans.length,
+      pctApres: Math.round(marque.pct), sansApres: marque.sans.length,
+      /* une réplique masquée ou vide ne couvre rien */
+      vide: Math.round(d.coverage([d.make(0, 20, "")], clips, 60).pct),
+    };
+  });
+  chk(covOk.pct === 18 && covOk.sans === 1,
+    "la couverture mesure la part du montage réellement sous-titrée",
+    "11 s sur 60 s = " + covOk.pct + " %, " + covOk.sans + " plan sans réplique");
+  chk(covOk.pctApres === 55 && covOk.sansApres === 0,
+    "marquer un plan « sans parole » déplace la barre au lieu de cacher le trou",
+    covOk.pct + " % -> " + covOk.pctApres + " %");
+  chk(covOk.vide === 0, "une réplique vide ne couvre rien", covOk.vide + " %");
+  chk(/couvert/.test(snap.tallyTxt["couverture"] || ""),
+    "la couverture est écrite dans la ligne des comptes",
+    snap.tallyTxt["couverture"] || "absente");
+  if (snap.covPlans.length) {
+    chk(snap.covPlans.every((x) => x.gestes.length >= 2),
+      "chaque plan non couvert porte les gestes qui le traitent",
+      JSON.stringify(snap.covPlans[0].gestes));
+    chk(snap.tlNoSub.length >= snap.covPlans.filter((x) => x.etat === "sans").length,
+      "les plans sans sous-titre sont aussi marqués sur la timeline",
+      "timeline " + snap.tlNoSub.length + " / panneau " +
+      snap.covPlans.filter((x) => x.etat === "sans").length);
+  } else {
+    chk(true, "couverture — ce montage n'a aucun plan à signaler");
+  }
+
+  /* ════════ GARDE D — un réglage que la gravure ignore n'affiche pas de
+     valeur vivante ═══════════════════════════════════════════════════════════
+     Mesuré à la gravure : sous un fond, le contour ne sort pas (0, 3 ou 8 px
+     donnent la même image au pixel près). Le curseur affichait « 3 px ». */
+  const mort = await p.evaluate(() => {
+    const d = window.DzSubs;
+    const st = Object.assign(d.defaultStyle(), { bgOn: true, outOn: true, outW: 3 });
+    const eff = d.effective(st);
+    const nu = d.effective(Object.assign({}, st, { bgOn: false }));
+    const n = d.neutralized(st);
+    return {
+      effOut: eff.outW, effOutOn: eff.outOn, nuOut: nu.outW,
+      /* l'ombre, elle, SURVIT au fond (mesuré : 4 516 px sous une boîte) */
+      effSh: d.effective(Object.assign({}, st, { shOn: true })).shOn,
+      champs: n.map((x) => x.champ),
+      dit: n.length > 0 && !!n[0].why && !!n[0].fix,
+      /* tout correctif de style annonce ce qu'il éteint / crée / laisse */
+      plans: d.styleRules(Object.assign(d.defaultStyle(), { karMode: "box", bgOn: false }))
+        .reduce((a, w) => a.concat((w.fixes || []).map((f) => d.stylePlan(
+          Object.assign(d.defaultStyle(), { karMode: "box", bgOn: false }), f))), [])
+        .map((pl) => (pl.ok ? pl.effect : pl.blocked)),
+    };
+  });
+  chk(mort.effOut === 0 && mort.effOutOn === false && mort.nuOut === 3,
+    "sous un fond le contour est éteint dans le style EFFECTIF, pas ailleurs",
+    "avec fond " + mort.effOut + " px / sans fond " + mort.nuOut + " px");
+  chk(mort.effSh === true, "l'ombre, elle, survit au fond (mesuré à la gravure)");
+  chk(mort.champs.indexOf("outW") >= 0 && mort.dit,
+    "le réglage éteint est nommé, expliqué, et porte le geste qui le rallume",
+    JSON.stringify(mort.champs));
+  chk(mort.plans.length >= 2 && mort.plans.every((t) =>
+    /Après|Cela crée|cessera d'agir|réduirait/.test(t)),
+    "chaque correctif de style annonce ce qu'il éteint, crée ou laisse",
+    JSON.stringify(mort.plans));
 
   /* ── l'inspecteur : mêmes avertissements que la ligne ── */
   const insp = await p.evaluate(() => {
@@ -283,9 +432,13 @@ function chk(ok, label, detail) {
   console.log(out.join("\n"));
   console.log(JSON.stringify({
     repliques: truth.ids.length, signalees: nSig, bloquantes: nBlk,
-    defauts: snap.tally["defauts"], tally: snap.tally,
-    badge_onglet: snap.tabBad, chip: [snap.chipN, snap.chipBad],
-    filtre: snap.filt, entete: snap.head, source_du_verdict: snap.source,
+    defauts: snap.tally["defauts"], tally: snap.tallyTxt,
+    onglets: snap.tabTxt, points: snap.tabDots,
+    chip: [snap.chipN, snap.chipBad, snap.chipCov],
+    filtre: snap.filtTxt, entete: snap.headTxt, source_du_verdict: snap.source,
+    couples_de_la_bande: snap.couples,
+    couverture: { note: snap.covNote, plans: snap.covPlans.map((x) => x.etat),
+      timeline: snap.tlNoSub },
     divergences: diffs, erreurs_page: pageErrs, ko: bad,
   }, null, 2));
   await b.close();

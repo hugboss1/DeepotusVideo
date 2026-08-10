@@ -593,11 +593,204 @@ function subsSafeIssues(style){
    dire AU MOMENT du geste, pas seulement dans l'onglet Style */
 function subsOutOfSafe(style){return subsSafeIssues(style).length>0}
 
+/* ── LES ÉCARTS DE STYLE, calculés ICI ─────────────────────────────────────
+   Miroir local des règles du moteur (`subtitle_ui.ui_unsupported`,
+   `subtitle_service._box_seams`), pour la même raison que le calcul local des
+   avertissements de temps : sans lui, un correctif ne pourrait pas dire ce
+   qu'il laisse derrière lui sans un aller-retour réseau à chaque survol.
+   Le moteur garde ce que lui seul sait (fonte absente, réglages HÉRITÉS d'un
+   style enregistré avant un retrait) ; ces clés-là ne sont pas modélisées ici.
+
+   Le contour sous un fond n'est PLUS un écart : il est éteint à la source
+   (`subsEffective`) et dit à côté de son curseur (`subsNeutralized`). Un
+   panneau qui ne promet rien n'a rien à démentir. */
+function subsStyleRules(st){
+  var s=Object.assign(subsDefaultStyle(),st||{}),out=[];
+  var op=subsClamp(subsN(s.bgOpacity,100),0,100);
+  if(s.bgOn&&op<100&&s.karOn)
+    out.push({cle:"fond_translucide_karaoke",sev:"warn",
+      msg:"Fond translucide ("+Math.round(op)+" %) sous le karaoké : la gravure "+
+        "posera une barre plus sombre à chaque frontière de mot.",
+      why:"L'ASS dessine une boîte PAR groupe de mots ; deux boîtes voisines se "+
+        "recouvrent, et si elles sont translucides les opacités s'additionnent. "+
+        "Mesuré à la gravure : une même ligne porte douze niveaux de fond à "+
+        Math.round(op)+" %, un seul à 100 %.",
+      fixes:[{champ:"bgOpacity",valeur:100,label:"Fond opaque"},
+             {champ:"karOn",valeur:!1,label:"Couper le karaoké"}]});
+  if(s.karOn&&String(s.karMode)==="box"&&!s.bgOn)
+    out.push({cle:"karaoke_boite_sans_fond",sev:"warn",
+      msg:"Karaoké « boîte » sans fond : la gravure colorera le CONTOUR du mot "+
+        "au lieu de peindre une boîte.",
+      why:"La boîte du mot EST celle du fond (l'ASS n'en a qu'une). Sans fond, "+
+        "le tag \\ko n'a plus de boîte à colorer et retombe sur le contour.",
+      /* « Activer le fond » tout seul RALLUMERAIT l'écart voisin (un fond à
+         64 % sous un karaoké fait des coutures) : le geste porte donc les DEUX
+         réglages d'un coup. C'est la règle même du tour — un correctif
+         respecte les autres contraintes du style. */
+      fixes:[op<100
+        ?{patch:{bgOn:!0,bgOpacity:100},label:"Activer un fond opaque"}
+        :{champ:"bgOn",valeur:!0,label:"Activer le fond"},
+        {champ:"karMode",valeur:"fill",label:"Passer en remplissage"}]});
+  return out}
+/* tous les écarts d'un style, la zone sûre comprise — une seule liste, un
+   seul ordre, un seul dédoublonnage par clé */
+function subsAllStyleRules(st){
+  return subsSafeIssues(st).map(function(w){
+    return {cle:w.cle,sev:w.sev,msg:w.msg,why:"",about:w.about||[],
+      fixes:w.fix?[w.fix]:[]}}).concat(subsStyleRules(st))}
+
+/* ── UN CORRECTIF DE STYLE EST UN PLAN ─────────────────────────────────────
+   Même règle que les correctifs de TEMPS (fermée au tour 2), appliquée ici au
+   STYLE : un correctif respecte les autres contraintes du style, ou annonce ce
+   qu'il casse, ou n'existe pas et laisse l'explication.
+   Le défaut fermé : « Passer le fond en opaque » était l'unique geste offert
+   sous un écart, et il laissait vivant l'écart voisin sans un mot, pendant
+   qu'un curseur affichait encore une valeur que la gravure jetait.
+   On SIMULE donc le style d'après, et le bouton dit :
+     * ce que le geste fait,
+     * ce qu'il ÉTEINT (un réglage qui cessera d'agir),
+     * ce qui RESTE, et ce qu'il CRÉE.
+   Un geste qui laisserait plus d'écarts qu'il n'en ferme n'a pas de bouton :
+   `ok:false` et `blocked` dit pourquoi. */
+var SUBS_FXEFF={
+  bgOpacity:function(v){return "L'opacité du fond passe à "+Math.round(v)+" %."},
+  bgOn:function(v){return v?"Le fond est activé derrière le texte."
+    :"Le fond est coupé."},
+  karOn:function(v){return v?"Le karaoké est réactivé."
+    :"Le karaoké est coupé : les mots ne se surligneront plus un à un."},
+  karMode:function(v){return v==="fill"
+    ?"Le karaoké passe en « remplissage » : c'est la couleur du mot qui bascule."
+    :"Le karaoké passe en « boîte »."}};
+function subsFxPatch(fx){
+  if(fx&&fx.patch)return fx.patch;
+  var o={};if(fx&&fx.champ)o[fx.champ]=fx.valeur;
+  return o}
+function subsStylePlan(st,fx){
+  var base=Object.assign(subsDefaultStyle(),st||{});
+  var pat=subsFxPatch(fx);
+  var apres=Object.assign({},base,pat);
+  var av={};subsAllStyleRules(base).forEach(function(w){av[w.cle]=w});
+  var reste=[],neuf=[];
+  subsAllStyleRules(apres).forEach(function(w){
+    (av[w.cle]?reste:neuf).push(w)});
+  var eff=fx.effect||Object.keys(pat).map(function(k){
+    return SUBS_FXEFF[k]?SUBS_FXEFF[k](pat[k]):null})
+    .filter(Boolean).join(" ")||"Le réglage est appliqué.";
+  /* ce que le geste ÉTEINT : un réglage encore vivant qui cessera d'agir */
+  var nAv={};subsNeutralized(base).forEach(function(n){nAv[n.champ]=1});
+  var tue=subsNeutralized(apres).filter(function(n){return !nAv[n.champ]});
+  var bits=[eff];
+  tue.forEach(function(n){
+    bits.push("Le réglage « "+SUBS_CHAMP[n.champ]+" » cessera d'agir ("+
+      n.court+").")});
+  if(neuf.length)
+    bits.push("Cela crée : "+neuf.map(function(w){return SUBS_ECLAB[w.cle]||w.cle})
+      .join(", ")+".");
+  if(reste.length)
+    bits.push("Il restera : "+reste.map(function(w){return SUBS_ECLAB[w.cle]||w.cle})
+      .join(", ")+".");
+  if(!neuf.length&&!reste.length)bits.push("Après : plus aucun écart.");
+  var plan={patch:pat,label:fx.label||"Corriger",
+    ok:!0,effect:bits.join(" "),cree:neuf.length,restant:reste.length};
+  if(neuf.length&&(neuf.length+reste.length)>=Object.keys(av).length){
+    plan.ok=!1;
+    plan.blocked="ne réduirait rien — il créerait "+
+      neuf.map(function(w){return SUBS_ECLAB[w.cle]||w.cle}).join(", ")+
+      " en échange. Prenez l'autre geste.";}
+  return plan}
+/* noms COURTS des écarts, pour les phrases « il restera : … » */
+var SUBS_ECLAB={
+  safe_width:"largeur hors zone sûre",
+  safe_margin:"marge hors zone sûre",
+  fond_translucide_karaoke:"fond translucide sous le karaoké",
+  karaoke_boite_sans_fond:"karaoké « boîte » sans fond"};
+/* noms des réglages, pour « le réglage X cessera d'agir » */
+var SUBS_CHAMP={outW:"Contour",bgPad:"Marge intérieure",shOff:"Décalage",
+  marginV:"Marge du bord",width:"Largeur du bloc"};
+
+/* ═════════════════ LA COUVERTURE — un fait mesurable ════════════════════════
+   On auditait UN clip et on facturait le verdict au montage entier : la piste
+   S1 s'arrêtait à 16 s sur une timeline d'1 min 09, les trois plans suivants
+   n'avaient aucune réplique, et pas un écran ne le disait. « 13 répliques »,
+   « 12 signalées », « 19 défauts » : tous ces nombres étaient exacts ET
+   silencieux sur le fait qu'ils ne parlaient que du premier cinquième.
+
+   La couverture se mesure comme le reste :
+     couvert  = union des répliques VISIBLES et non vides (les masquées ne
+                sortent ni au rendu ni à l'export : elles ne couvrent rien) ;
+     attendu  = durée des PLANS à sous-titrer — c'est-à-dire tous les plans
+                sauf ceux que l'on a marqués « sans parole ». Sans plan connu,
+                c'est la durée du montage.
+     pct      = couvert ∩ attendu / attendu.
+   Marquer un plan « sans parole » n'efface donc pas le problème : il déplace
+   la barre, et le chiffre le dit. */
+var SUBS_COV_OK=98;     /* % — au-dessus, la piste est dite complète */
+function subsUnion(segs){
+  var out=[];
+  subsSort(segs).forEach(function(s){
+    if(s.hidden||!String(s.text||"").trim())return;
+    var a=subsN(s.start,0),b=Math.max(a,subsN(s.end,a));
+    var last=out[out.length-1];
+    if(last&&a<=last[1]+1e-6)last[1]=Math.max(last[1],b);
+    else out.push([a,b])});
+  return out}
+function subsSpan(iv,a,b){
+  var n=0;
+  (iv||[]).forEach(function(p){
+    n+=Math.max(0,Math.min(p[1],b)-Math.max(p[0],a))});
+  return n}
+/* les PLANS : les clips de la piste image (V1), à défaut ceux de la voix (A1).
+   C'est l'unité que le monteur voit sur la timeline et qu'il peut désigner. */
+function subsPlans(clips,dur){
+  var all=(clips||[]).filter(function(c){return c&&c.tr==="v1"});
+  if(!all.length)all=(clips||[]).filter(function(c){return c&&c.tr==="a1"});
+  var d=subsN(dur,0);
+  return all.map(function(c,i){
+    var a=Math.max(0,subsN(c.start,0)),b=Math.max(a,subsN(c.end,a));
+    if(d>0)b=Math.min(b,d);
+    return {id:String(c.id||("p"+i)),n:i+1,
+      nom:String(c.name||c.label||c.src||("plan "+(i+1))).split(/[\\/]/).pop(),
+      start:a,end:b,dur:Math.max(0,b-a),ignore:!!c.noSub,
+      /* ce plan porte-t-il un texte de narration ? sinon, le calage gratuit
+         n'a rien à caler et le bouton doit le dire au lieu de tourner à vide */
+      texte:!!String(c.text||"").trim()}})
+    .filter(function(p){return p.dur>.05})}
+function subsCoverage(segs,clips,dur){
+  var iv=subsUnion(segs),d=subsN(dur,0);
+  var plans=subsPlans(clips,d);
+  /* un plan porte du texte si un clip de voix qui le recouvre en porte */
+  var voix=(clips||[]).filter(function(c){
+    return (c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()});
+  plans.forEach(function(p){
+    p.couvert=subsSpan(iv,p.start,p.end);
+    p.pct=p.dur>0?p.couvert/p.dur*100:0;
+    if(!p.texte)p.texte=voix.some(function(c){
+      return subsN(c.end,0)>p.start+.05&&subsN(c.start,0)<p.end-.05});
+    p.etat=p.ignore?"ignore":p.couvert<.15?"sans":p.pct<50?"partiel":"ok"});
+  var retenus=plans.filter(function(p){return !p.ignore});
+  var attendu=retenus.reduce(function(a,p){return a+p.dur},0);
+  var couvert=retenus.reduce(function(a,p){return a+p.couvert},0);
+  if(!plans.length){                       /* aucun plan connu : le montage */
+    attendu=d>0?d:0;
+    couvert=d>0?subsSpan(iv,0,d):0}
+  var pct=attendu>0?subsRound(couvert/attendu*100,1):(couvert>0?100:0);
+  return {plans:plans,
+    sans:retenus.filter(function(p){return p.etat==="sans"}),
+    partiels:retenus.filter(function(p){return p.etat==="partiel"}),
+    ignores:plans.filter(function(p){return p.ignore}),
+    couvert:subsRound(couvert,2),attendu:subsRound(attendu,2),
+    dur:subsRound(d,2),pct:pct,connu:attendu>0,
+    complet:attendu<=0||pct>=SUBS_COV_OK}}
+
 var SUBS_VD={k:null,v:null};
-function subsVerdict(segs,style,dur){
+function subsVerdict(segs,style,dur,clips){
   var list=subsSort(segs||[]),st=Object.assign(subsDefaultStyle(),style||{});
   var key=subsKeyOf(list,st,dur);
-  var ck=key+"#"+SUBS_CHK.tick;
+  /* la couverture dépend AUSSI des plans : leur signature entre dans la clé du
+     mémo, sinon marquer un plan « sans parole » ne rafraîchirait rien */
+  var ck=key+"#"+SUBS_CHK.tick+"#"+JSON.stringify((clips||[]).map(function(c){
+    return [c.id,c.tr,subsRound(subsN(c.start,0),3),subsRound(subsN(c.end,0),3),
+      c.noSub?1:0]}));
   if(SUBS_VD.k===ck)return SUBS_VD.v;
   /* Le calcul local tourne TOUJOURS : hors ligne il fait foi, en ligne il sert
      de repli tant que le moteur n'a pas répondu POUR CETTE piste. Le moteur
@@ -626,23 +819,33 @@ function subsVerdict(segs,style,dur){
     var e=bySeg[s.id];
     if(e.n)nSig++;
     if(e.nErr)nBlk++});
-  /* écarts aperçu/gravure : zone sûre d'abord (c'est nous qui la traçons),
-     puis ceux du moteur. Même liste, même dédoublonnage, un seul compte. */
-  var sty=subsStyleIssues({
-    style:(SUBS_CHK.key===key?SUBS_CHK.style:null),
-    unsupported:(SUBS_CHK.key===key?SUBS_CHK.unsupported:null),
-    safe:subsSafeIssues(st)});
-  var v={key:key,source:src,list:warns,bySeg:bySeg,style:sty,
+  /* écarts aperçu/gravure : les règles vivantes sont calculées ici, le moteur
+     n'ajoute que ce que lui seul sait. Une seule liste, un seul compte. */
+  var vus=[];
+  list.forEach(function(s,i){
+    if(!s.hidden&&String(s.text||"").trim())vus.push(i)});
+  var sty=subsStyleIssues(st,
+    {unsupported:(SUBS_CHK.key===key?SUBS_CHK.unsupported:null)},vus);
+  /* la couverture : un fait mesurable, au même rang que la lisibilité */
+  var cov=subsCoverage(list,clips,dur);
+  var v={key:key,source:src,list:warns,bySeg:bySeg,style:sty,cov:cov,
     counts:{repliques:list.length,
       masquees:list.filter(function(s){return !!s.hidden}).length,
-      signalees:nSig,bloquantes:nBlk,defauts:warns.length,ecarts:sty.length}};
+      signalees:nSig,bloquantes:nBlk,defauts:warns.length,ecarts:sty.length,
+      /* couverture : le pourcentage du montage réellement sous-titré, et le
+         nombre de PLANS qui n'ont aucune réplique */
+      couverture:cov.pct,plans:cov.plans.length,
+      plans_sans:cov.sans.length,plans_ignores:cov.ignores.length}};
   SUBS_VD={k:ck,v:v};
   return v}
 /* verdict VIDE — la forme exacte du plein, pour que l'hôte n'ait jamais à
    tester `null` avant de lire un compte */
 function subsVerdictNil(){
   return {key:"",source:"local",list:[],bySeg:{},style:[],
-    counts:{repliques:0,masquees:0,signalees:0,bloquantes:0,defauts:0,ecarts:0}}}
+    cov:{plans:[],sans:[],partiels:[],ignores:[],couvert:0,attendu:0,dur:0,
+      pct:0,connu:!1,complet:!0},
+    counts:{repliques:0,masquees:0,signalees:0,bloquantes:0,defauts:0,ecarts:0,
+      couverture:0,plans:0,plans_sans:0,plans_ignores:0}}}
 function subsSegState(v,id){
   return (v&&v.bySeg&&v.bySeg[id])||{sev:null,n:0,nErr:0,warns:[]}}
 
@@ -822,6 +1025,62 @@ function subsHex6(hex){
   var h=String(hex||"#000000");
   if(/^#[0-9a-f]{8}$/i.test(h))return h.slice(0,7);
   return /^#[0-9a-f]{6}$/i.test(h)?h:"#000000"}
+
+/* ═══════════ CE QUE LA GRAVURE GARDE — mesuré à l'image, pas déduit ═════════
+   Relevé du 10/08/2026 : 17 gravures ffmpeg en 1080×1920 par la chaîne RÉELLE
+   du Montage (`montage_service._subs_ass` + `subtitles_filter`), chaque couche
+   dans une couleur pure pour être comptée séparément.
+
+     fond   contour  ombre │ px contour  px ombre  boîte      empreinte
+     ────── ──────── ───── │ ────────── ───────── ────────── ──────────
+     non    0 px     non   │         0         0  611 × 50
+     non    3 px     non   │    10 040         0  617 × 54
+     non    8 px     non   │    21 595         0  627 × 66
+     non    0 px     oui   │         0     6 952  611 × 50
+     oui    0 px     non   │         0         0  644 × 118  a055e73d4de8
+     oui    3 px     non   │         0         0  644 × 118  a055e73d4de8
+     oui    8 px     non   │         0         0  644 × 118  a055e73d4de8
+     oui    3 px     oui   │         0     4 516  644 × 118  b7fce1ddf467
+
+   Trois faits, et tout ce que le panneau affiche en découle :
+
+   1. SANS fond, le contour agit — l'encre grossit avec l'épaisseur.
+   2. AVEC fond, le contour est MORT. À 0, 3 ou 8 px la gravure est le MÊME
+      fichier au pixel près (même empreinte `a055e73d4de8`). En BorderStyle 3
+      libass se sert de `Outline` comme rembourrage de la boîte, et c'est la
+      « marge intérieure » du panneau (`bgPad`) qui atterrit là — mesuré :
+      0 / 12 / 30 px de marge intérieure donnent 640 / 644 / 680 px de boîte.
+   3. L'ombre, elle, SURVIT au fond : elle décale la BOÎTE (4 516 px d'ombre
+      sous un fond). Elle n'est donc jamais neutralisée.
+
+   D'où la règle que ce module fait tenir : **un réglage qui ne survivra pas au
+   rendu n'affiche pas de valeur vivante**. `subsEffective` rend le style TEL
+   QU'IL SERA GRAVÉ ; l'aperçu du lecteur, les vignettes de préréglages et le
+   corps envoyé à `/api/subtitles/check` le lisent, donc aucune surface ne peut
+   plus dessiner un contour que la vidéo n'aura pas. `subsNeutralized` dit, à
+   côté du curseur, ce qui est éteint et le geste qui le rallume. */
+function subsEffective(st){
+  var o=Object.assign(subsDefaultStyle(),st||{});
+  /* fait 2 : le fond consomme le contour, quelle que soit son épaisseur */
+  if(o.bgOn){o.outOn=!1;o.outW=0}
+  return o}
+/* Réglages ÉTEINTS par le reste du style : le curseur garde sa valeur (on ne
+   détruit pas un réglage dans le dos), mais l'écran n'affiche plus un chiffre
+   vivant — il affiche « sans effet », dit pourquoi, et offre le geste qui le
+   remet en service. */
+function subsNeutralized(st){
+  var s=Object.assign(subsDefaultStyle(),st||{}),out=[];
+  if(s.bgOn&&s.outOn&&subsN(s.outW,0)>0)
+    out.push({champ:"outW",etat:"sans effet",
+      court:"le fond consomme le contour",
+      why:"Mesuré à la gravure : sous un fond, le contour ne sort pas. À 0, 3 "+
+        "ou 8 px la vidéo est le même fichier au pixel près — libass se sert "+
+        "de l'épaisseur de contour comme rembourrage de la boîte, et c'est la "+
+        "marge intérieure du fond qui la règle.",
+      fix:{champ:"bgOn",valeur:!1,label:"Couper le fond",
+        effect:"Le fond disparaît et le contour de "+
+          subsFr(subsN(s.outW,3),1)+" px se met à agir."}});
+  return out}
 
 /* ── santé du service — source unique, auto-réparation (patron du rack VFX) ─
    Ici la panne n'ampute PAS le cœur du travail : seule la transcription
@@ -1006,7 +1265,11 @@ var SUBS_HLAB={left:"gauche",center:"centré",right:"droite"};
    `edit` ajoute le cadre de sélection : prise au glisser, poignées de largeur,
    zones sûres, et la lecture en clair des valeurs du moteur. */
 const SubsOverlay=(props)=>{
-  var style=Object.assign(subsDefaultStyle(),props.style||{});
+  /* le style EFFECTIF : l'aperçu dessinait un contour de 3 px sous un fond,
+     que la gravure jette (mesuré : même image au pixel près à 0, 3 ou 8 px).
+     Un aperçu qui dessine ce que la vidéo n'aura pas est un mensonge de plus
+     qu'aucun avertissement ne rachète. */
+  var style=subsEffective(props.style);
   var t=subsN(props.t,0);
   var edit=!!props.edit&&typeof props.onStyle==="function";
   /* la taille de police est exprimée en pixels du CANEVAS DE RENDU (1080 de
@@ -1369,7 +1632,9 @@ const SubsStyle=(props)=>{
     if(placed)SUBS_POSKEYS.forEach(function(k){delete ps[k]});
     set(ps,!0)}
   function ptile(p){
-    var ps=Object.assign(subsDefaultStyle(),p.style||{});
+    /* vignette = ce que la GRAVURE fera de ce préréglage : un préréglage à
+       fond montrait ici un contour que la vidéo n'aurait pas */
+    var ps=subsEffective(p.style);
     var on=st.preset===p.id;
     var sc=gw/1080;                       /* px de tuile par px de canevas */
     var fs=Math.max(7,subsClamp(ps.size,8,400)*sc);
@@ -1433,24 +1698,41 @@ const SubsStyle=(props)=>{
           title:"Le badge de cet onglet compte exactement ces écarts",
           children:issues.length+(issues.length>1?" écarts":" écart")},"n")]},"h"),
       issues.map(function(w,k){
-        var fx=w.fix;
+        /* ── TOUS les gestes, chacun avec sa CONSÉQUENCE écrite ─────────────
+           Un seul bouton vivait ici, et il laissait l'écart voisin debout sans
+           un mot : « Passer le fond en opaque » gardait le fond, donc gardait
+           ce que le fond éteint. Un correctif de style est maintenant un PLAN
+           (`subsStylePlan`) : il dit ce qu'il éteint, ce qu'il crée et ce qui
+           reste. Un geste qui ne réduirait rien n'a pas de bouton — juste son
+           explication. */
         return r.jsxs("div",{className:"sub-warn","data-sev":w.sev,children:[
           r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
             children:"·"},"i"),
-          r.jsx("span",{className:"sub-warnmsg",
+          /* le MÉCANISME (pourquoi l'ASS fait ça, et la mesure) vit dans
+             l'infobulle : à l'écran, la conséquence et les gestes — la
+             démonstration n'a pas à pousser les boutons hors du cadre */
+          r.jsx("span",{className:"sub-warnmsg",title:w.why||void 0,
             children:w.msg+(w.about&&w.about.length
               ?" (" + w.about.length + " réplique" +
                 (w.about.length>1?"s":"") + " concernée" +
                 (w.about.length>1?"s":"") + ")":"")},"m"),
-          /* la conséquence du geste vit dans l'infobulle du bouton, pas sur une
-             ligne de plus : ici le MESSAGE dit déjà quoi faire (« passez
-             l'opacité à 100 %, ou coupez le karaoké »), et deux fois la même
-             phrase pousserait les préréglages hors de l'écran */
-          fx?r.jsx("button",{className:"sub-minibtn sub-fix",
-            title:fx.effect||"",
-            onClick:function(){var o={};o[fx.champ]=fx.valeur;set(o,!0)},
-            children:fx.label||"Corriger"},"f"):null]},"sw"+k)})]},"ec")
+          (w.plans||[]).map(function(p,j){
+            return p.ok
+              ?r.jsxs(r.Fragment,{children:[
+                r.jsx("button",{className:"sub-minibtn "+
+                  (j?"sub-fixalt":"sub-fix"),
+                  title:p.effect,
+                  onClick:function(){set(Object.assign({},p.patch),!0)},
+                  children:p.label},"b"),
+                r.jsx("span",{className:"sub-warnwhat",children:p.effect},"e")]},
+                "p"+j)
+              :r.jsx("span",{className:"sub-warnwhat","data-blocked":"",
+                children:"« "+p.label+" » "+p.blocked},"p"+j)})]},"sw"+k)})]},"ec")
     :null;
+
+  /* réglages ÉTEINTS par le reste du style : mesurés à la gravure, dits ici */
+  var morts={};
+  subsNeutralized(st).forEach(function(n){morts[n.champ]=n});
 
   return r.jsxs("div",{className:"sub-style",children:[
     r.jsx(SubsAlert,{}),
@@ -1479,18 +1761,36 @@ const SubsStyle=(props)=>{
       rng("size",12,200,1," px","Taille"),
       col("color","Couleur du texte"),
       /* épaisseur 0 = pas de contour : un curseur au lieu d'un interrupteur
-         PLUS un curseur, et le même réglage ne vit qu'à un seul endroit */
+         PLUS un curseur, et le même réglage ne vit qu'à un seul endroit.
+         ── ET SURTOUT : un réglage qui ne survivra pas au rendu n'affiche pas
+         de valeur vivante. Sous un fond, la gravure ignore le contour (mesuré :
+         à 0, 3 ou 8 px, le MÊME fichier au pixel près). Le curseur est donc
+         désactivé, il affiche « sans effet » au lieu d'un « 3 px » que la
+         vidéo jettera, il dit pourquoi, et il offre le geste qui le rallume.
+         La valeur, elle, est conservée : couper le fond la remet en service. */
       row("Contour",[
         r.jsx("input",{className:"sub-range",type:"range",min:0,max:14,step:.5,
           value:subsN(st.outW,0),"aria-label":"Épaisseur du contour",
-          title:"0 = aucun contour. La couleur du contour est dans le module "+
-            "« Contour et ombre ».",
+          disabled:!!morts.outW,
+          title:morts.outW?morts.outW.why
+            :"0 = aucun contour. La couleur du contour est dans le module "+
+             "« Contour et ombre ».",
           onChange:function(e){
             var v=subsN(e.target.value,0);
             set({outW:v,outOn:v>0})}},"r"),
-        r.jsx("span",{className:"sub-pval",
-          children:st.outOn&&subsN(st.outW,0)>0
+        r.jsx("span",{className:"sub-pval","data-dead":morts.outW?"":void 0,
+          title:morts.outW?morts.outW.why:void 0,
+          children:morts.outW?"sans effet"
+            :st.outOn&&subsN(st.outW,0)>0
             ?subsRound(subsN(st.outW,0),1)+" px":"aucun"},"v")],"outW"),
+      morts.outW?r.jsxs("div",{className:"sub-mhint","data-warn":"",children:[
+        r.jsx("span",{className:"sub-mhintxt",title:morts.outW.why,
+          children:"Éteint par le fond — mesuré : "+
+            subsFr(subsN(st.outW,3),1)+" px et 0 px, même image."},"t"),
+        r.jsx("button",{className:"sub-minibtn",
+          title:morts.outW.fix.effect,
+          onClick:function(){set({bgOn:!1},!0)},
+          children:morts.outW.fix.label},"b")]},"outdead"):null,
       st.valign==="middle"
         ?r.jsx("div",{className:"sub-mhint",
           children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
@@ -1578,24 +1878,42 @@ const SubsStyle=(props)=>{
          "Boîte colorée ajustée au texte, angles droits — comme à la gravure"),
       st.bgOn?col("bgColor","Couleur du fond"):null,
       st.bgOn?rng("bgOpacity",0,100,1," %","Opacité"):null,
-      st.bgOn?rng("bgPad",0,48,1," px","Marge intérieure"):null]),
+      st.bgOn?rng("bgPad",0,48,1," px","Marge intérieure"):null,
+      /* c'est CE curseur qui atterrit dans `Outline` du fichier ASS : mesuré,
+         0 / 12 / 30 px donnent 640 / 644 / 680 px de boîte. Le dire ici évite
+         de chercher pourquoi le curseur « Contour » ne fait rien. */
+      st.bgOn?r.jsx("div",{className:"sub-mhint",
+        children:"La marge intérieure est l'épaisseur réelle de la boîte à la "+
+          "gravure (mesuré : 0 / 12 / 30 px donnent 640 / 644 / 680 px de "+
+          "boîte). Tant qu'un fond est actif, c'est elle qui agit, pas le "+
+          "curseur « Contour »."},"bp"):null]),
 
     /* l'ÉPAISSEUR du contour est remontée dans « Réglages » (0 px = aucun
        contour, l'interrupteur d'avant n'avait plus de raison d'être) : ce
        module garde la couleur et toute l'ombre */
     fold("bord","Contour et ombre",
-      (st.outOn&&subsN(st.outW,0)>0
+      (morts.outW?"contour sans effet"
+        :st.outOn&&subsN(st.outW,0)>0
         ?"contour "+subsFr(subsN(st.outW,0),1)+" px":"sans contour")+
       (st.shOn?" · ombre":""),[
-      st.outOn&&subsN(st.outW,0)>0?col("outColor","Couleur du contour")
+      morts.outW?r.jsx("div",{className:"sub-mhint","data-warn":"",
+        children:"Le contour est éteint par le fond (mesuré à la gravure) : sa "+
+          "couleur ne changerait rien. Coupez le fond, dans le module « Fond », "+
+          "pour qu'il revienne."},"od")
+        :st.outOn&&subsN(st.outW,0)>0?col("outColor","Couleur du contour")
         :r.jsx("div",{className:"sub-mhint",
           children:"Aucun contour : réglez l'épaisseur au-dessus, dans "+
             "« Réglages », pour qu'il apparaisse."},"oh"),
       /* L'ombre ASS est UNE copie décalée en bas à droite : un seul
          décalage, et aucun flou. D'où un seul curseur, au lieu des trois
-         d'avant dont deux ne sortaient pas dans la vidéo. */
+         d'avant dont deux ne sortaient pas dans la vidéo.
+         Elle SURVIT au fond, elle — mesuré : 4 516 px d'ombre sous une boîte.
+         Le panneau ne l'éteint donc pas, contrairement au contour. */
       sw("shOn","Ombre portée",
          "Copie du texte décalée en bas à droite — exactement ce que grave l'ASS"),
+      st.shOn&&st.bgOn?r.jsx("div",{className:"sub-mhint",
+        children:"Sous un fond, l'ombre décale la BOÎTE, pas les lettres — "+
+          "elle agit, elle (mesuré à la gravure)."},"sb"):null,
       st.shOn?col("shColor","Couleur de l'ombre"):null,
       st.shOn?rng("shOff",0,20,1," px","Décalage"):null]),
 
@@ -1937,11 +2255,103 @@ const SubsSegments=(props)=>{
     onClick:function(){if(fileRef.current)fileRef.current.click()},
     children:"importer .srt / .vtt"},"imp");
 
+  var anyOpen=segs.some(function(s){return isOpen(s.id)});
+
+  /* ── LA COUVERTURE, DÉSIGNÉE PLAN PAR PLAN ────────────────────────────────
+     Le verdict la mesure ; ici on la montre et on donne les trois gestes
+     utiles. Elle est en TÊTE de l'onglet, avant la liste : un montage
+     sous-titré sur son premier cinquième doit le dire avant de faire relire
+     treize répliques impeccables.
+     Trois gestes, et pas un de plus :
+       « Transcrire ce plan » — le seul qui coûte le réseau, et il FUSIONNE
+         (il ne remplace pas la piste des autres plans) ;
+       « Écrire ici »        — une réplique vide posée au début du plan, la
+         tête de lecture s'y rend ;
+       « Sans parole »       — l'aveu volontaire. Il ne masque pas le problème :
+         il sort le plan du dénominateur, et le pourcentage bouge en le disant. */
+  function planRow(p){
+    var reste=p.etat==="partiel";
+    return r.jsxs("div",{className:"sub-plan","data-etat":p.etat,children:[
+      r.jsxs("span",{className:"sub-plann",children:["n°"+p.n]},"n"),
+      r.jsxs("span",{className:"sub-planid",title:p.nom,children:[
+        p.nom," · ",subsTc(p.start)," → ",subsTc(p.end),
+        " (",subsFr(p.dur,1)," s)"]},"i"),
+      r.jsx("span",{className:"sub-planst",
+        children:reste?"couvert à "+Math.round(p.pct)+" %"
+          :"aucune réplique"},"s"),
+      r.jsxs("span",{className:"sub-planact",children:[
+        props.onPlanTranscribe?r.jsx("button",{className:"sub-minibtn",
+          disabled:!!props.trBusy,
+          title:p.texte
+            ?"Caler la narration écrite de ce plan sur ses silences — gratuit, "+
+             "hors ligne, orthographe exacte. Les autres plans ne bougent pas."
+            :"Transcrire la bande son de ce plan (appel au moteur). Les autres "+
+             "plans ne bougent pas.",
+          onClick:function(){props.onPlanTranscribe(p)},
+          children:"Transcrire ce plan"},"t"):null,
+        r.jsx("button",{className:"sub-minibtn",
+          title:"Poser une réplique vide au début de ce plan et y amener la "+
+            "tête de lecture",
+          onClick:function(){writeIn(p)},children:"Écrire ici"},"w"),
+        props.onPlanFlag?r.jsx("button",{className:"sub-minibtn",
+          title:"Ce plan n'a pas de parole : il sort du calcul de couverture, "+
+            "et le pourcentage le dit. Réversible.",
+          onClick:function(){props.onPlanFlag(p.id,!0)},
+          children:"Sans parole"},"i"):null]},"a")]},p.id)}
+  function writeIn(p){
+    var sl=subsFreeSlot(segs,p.start+.05,dur);
+    if(sl.start>=p.end-.1){sl.start=subsRound(p.start,3);
+      sl.end=subsRound(Math.min(p.end,p.start+2),3)}
+    var s=subsMake(sl.start,Math.min(sl.end,p.end),"");
+    emit(segs.concat([s]),!0);
+    if(props.onSelect)props.onSelect(s.id);
+    if(props.onSeek)props.onSeek(sl.start);
+    note("Réplique vide posée à "+subsTc(sl.start)+" sur le plan n°"+p.n+
+      " — tapez le texte.")}
+  var cov=vd.cov||{plans:[],sans:[],partiels:[],ignores:[],connu:!1,complet:!0};
+  var covBad=cov.sans.concat(cov.partiels);
+  var couverture=cov.connu&&(covBad.length||cov.ignores.length)
+    ?r.jsxs("div",{className:"sub-cov","data-bad":covBad.length?"":void 0,
+      children:[
+      r.jsxs("div",{className:"sub-sec",children:[
+        r.jsx("span",{className:"sub-seclabel",
+          children:"Couverture du montage"},"l"),
+        r.jsx("span",{className:"sub-secnote",
+          title:"Part des plans à sous-titrer réellement recouverte par des "+
+            "répliques visibles et non vides. Le chiffre de la ligne des "+
+            "comptes est celui-ci.",
+          children:Math.round(cov.pct)+" % · "+subsFr(cov.couvert,1)+" s sur "+
+            subsFr(cov.attendu,1)+" s"},"n")]},"h"),
+      r.jsx("div",{className:"sub-covbar","aria-hidden":!0,
+        children:r.jsx("i",{style:{width:subsClamp(cov.pct,0,100)+"%"}})},"bar"),
+      covBad.length?r.jsx("div",{className:"sub-covsay",
+        children:covBad.length>1
+          ?covBad.length+" plans du montage ne portent pas de sous-titre. "+
+            "Ils sortiront muets."
+          :"1 plan du montage ne porte pas de sous-titre. Il sortira muet."},"s")
+        :null,
+      covBad.map(planRow),
+      cov.ignores.length?r.jsxs("div",{className:"sub-covign",children:[
+        r.jsx("span",{className:"sub-covigntxt",
+          children:subsPl(cov.ignores.length,"plan")+" marqué"+
+            (cov.ignores.length>1?"s":"")+" « sans parole » — hors du calcul : "+
+            cov.ignores.map(function(p){return "n°"+p.n}).join(", ")},"t"),
+        props.onPlanFlag?r.jsx("button",{className:"sub-minibtn",
+          title:"Remettre ces plans dans le calcul de couverture",
+          onClick:function(){cov.ignores.forEach(function(p){
+            props.onPlanFlag(p.id,!1)})},
+          children:"rétablir"},"r"):null]},"ig"):null]},"cov")
+    :null;
+
   /* ── PISTE VIDE ────────────────────────────────────────────────────────────
      L'absence se dit UNE fois, à l'endroit où on peut la lever, avec les
      gestes qui la lèvent. Recherche, découpe automatique, compteurs, filtres
      et export ne sont pas grisés : ils ne sont pas là — une commande qui ne
-     peut rien faire sur un ensemble vide n'a rien à occuper de la place. */
+     peut rien faire sur un ensemble vide n'a rien à occuper de la place.
+     La COUVERTURE, elle, reste : sur une piste vide c'est justement le seul
+     fait qui existe (« ce montage compte 4 plans, aucun n'est sous-titré »),
+     et le point de sévérité de l'onglet ne doit jamais annoncer quelque chose
+     que l'onglet ouvert ne montre pas. */
   if(empty)
     return r.jsxs("div",{className:"sub-segs",children:[
       r.jsx(SubsAlert,{}),
@@ -1952,12 +2362,13 @@ const SubsSegments=(props)=>{
           children:"Écrivez la première réplique à la tête de lecture ("+
             subsTc(ph)+"), reprenez un fichier existant, ou lancez la "+
             "transcription automatique ci-dessus."}),
-        r.jsxs("div",{className:"sub-emptyact",children:[btnAdd,btnImport]})]})]});
+        r.jsxs("div",{className:"sub-emptyact",children:[btnAdd,btnImport]})]}),
+      couverture]});
 
-  var anyOpen=segs.some(function(s){return isOpen(s.id)});
   return r.jsxs("div",{className:"sub-segs",children:[
     r.jsx(SubsAlert,{}),
     fileInput,
+    couverture,
     r.jsxs("div",{className:"sub-toolrow",children:[
       btnAdd,
       btnImport,
@@ -1994,15 +2405,18 @@ const SubsSegments=(props)=>{
       nOff?r.jsx("span",{className:"sub-statoff",
         title:subsPl(nOff,"réplique")+" masquée(s) : hors rendu et hors export",
         children:subsPl(nOff,"masquée")},"o"):null,
+      /* le FILTRE, pas un compteur : « 12 signalées » était déjà écrit dans la
+         ligne des comptes, 40 px plus haut. Un bouton dit ce qu'il FAIT ; le
+         nombre, lui, n'a qu'un seul domicile. */
       nBad?r.jsx("button",{className:"sub-statfilt",
         "data-on":onlyBad?"":void 0,"data-sev":"warn",
         "aria-pressed":onlyBad,
-        title:(onlyBad?"Revoir toute la piste. ":"N'afficher que ces répliques. ")+
-          subsPl(nBad,"réplique")+" signalée"+(nBad>1?"s":"")+" sur "+
-          vd.counts.repliques+", dont "+subsPl(nBlk,"bloquante")+
+        title:(onlyBad?"Revoir toute la piste. ":"N'afficher que les répliques "+
+          "signalées. ")+subsPl(nBad,"réplique")+" signalée"+(nBad>1?"s":"")+
+          " sur "+vd.counts.repliques+", dont "+subsPl(nBlk,"bloquante")+
           " — chacune porte son correctif",
         onClick:function(){setOnlyBad(function(v){return !v})},
-        children:subsPl(nBad,"signalée")},"b"):null,
+        children:onlyBad?"toute la piste":"signalées seulement"},"b"):null,
       r.jsx("button",{className:"sub-statfilt",
         title:anyOpen?"Tout replier":"Tout déplier — bornes et correctifs",
         onClick:function(){
@@ -2049,24 +2463,31 @@ const SubsSegments=(props)=>{
    Le POST vivait dans l'onglet Répliques : les deux derniers ne se
    rafraîchissaient donc jamais pendant qu'on réglait le style — c'est-à-dire
    exactement au moment où ils servent. Il vit maintenant dans le tiroir. */
-/* `style_warnings` et `unsupported` se recouvrent : le fond translucide sous
-   karaoké est à la fois une règle de qualité et un écart aperçu/gravure. Une
-   liste unique, dédoublonnée sur le texte, avec le geste quand il existe —
-   sinon le panneau afficherait deux fois le même problème et compterait 2. */
-function subsStyleIssues(chk){
+/* ── LES ÉCARTS APERÇU / GRAVURE, en une liste ─────────────────────────────
+   Les règles VIVANTES sont calculées ici (`subsAllStyleRules`), avec leurs
+   correctifs sous forme de PLANS : chaque bouton dit ce qu'il éteint, ce qu'il
+   crée et ce qu'il laisse. Du moteur on ne reprend QUE ce que lui seul sait —
+   la fonte absente et les réglages HÉRITÉS d'un style enregistré avant un
+   retrait (`legacy:*`). Les clés qu'il calcule aussi (contour sous un fond,
+   karaoké boîte, fond translucide) ne sont pas reprises : elles seraient le
+   même problème compté deux fois, et le corps envoyé à `/check` est déjà le
+   style EFFECTIF, donc le moteur ne les renvoie même plus. */
+function subsMoteurOnly(k){
+  return String(k).indexOf("legacy:")===0||k==="font"||k==="line_height"||
+    k==="back_mode"}
+function subsStyleIssues(st,chk,about){
   var out=[],vus={};
   function add(o){
-    var m=String(o&&o.msg||"");
-    if(!m||vus[m])return;vus[m]=1;out.push(o)}
-  /* La zone sûre d'abord : c'est NOTRE repère, tracé par NOTRE aperçu, et il
-     se répare d'un clic. */
-  ((chk&&chk.safe)||[]).forEach(add);
-  ((chk&&chk.style)||[]).forEach(function(w){
-    add({msg:String(w.msg||""),fix:w.fix||null,about:w.about||[],
-      sev:w.sev||"warn"})});
+    var k=String(o&&(o.cle||o.msg)||"");
+    if(!o||!o.msg||!k||vus[k])return;vus[k]=1;out.push(o)}
+  subsAllStyleRules(st).forEach(function(w){
+    add({cle:w.cle,msg:w.msg,sev:w.sev,why:w.why||"",
+      about:(w.about&&w.about.length)?w.about:(about||[]),
+      plans:(w.fixes||[]).map(function(f){return subsStylePlan(st,f)})})});
   var u=(chk&&chk.unsupported)||{};
   Object.keys(u).forEach(function(k){
-    add({msg:String(u[k]||""),fix:null,about:[],sev:"info",cle:k})});
+    if(!subsMoteurOnly(k))return;
+    add({cle:"moteur:"+k,msg:String(u[k]||""),sev:"info",about:[],plans:[]})});
   return out}
 
 /* Le POST ne rend plus rien à un appelant : il RANGE son résultat dans le
@@ -2080,9 +2501,13 @@ function subsUseCheck(segs,style,dur,svc){
        vers une route absente remplit la console d'erreurs sans rien apporter
        — le calcul local, lui, tourne déjà. */
     if(svc.st!=="ok"){subsChkClear();return}
+    /* on envoie le style EFFECTIF — celui qui sera gravé. Envoyer un contour
+       que la boîte de fond avale ferait répondre au moteur un écart que le
+       panneau a déjà éteint à côté de son curseur : le même problème compté
+       deux fois, à deux endroits qui ne se voient pas. */
     var body={segments:subsSort(segs).map(function(s){
       return {id:s.id,start:s.start,end:s.end,text:s.text}}),
-      style:style,dur:dur};
+      style:subsEffective(style),dur:dur};
     var dead=!1;
     var h=setTimeout(function(){
       subsPost("/api/subtitles/check",body).then(function(d){
@@ -2094,11 +2519,11 @@ function subsUseCheck(segs,style,dur,svc){
 /* Abonnement au magasin : une surface React qui lit le verdict doit se
    redessiner quand le moteur répond, sinon elle affiche encore le calcul local
    pendant que sa voisine affiche celui du moteur — la divergence par le retard. */
-function subsUseVerdict(segs,style,dur){
+function subsUseVerdict(segs,style,dur,clips){
   var s=x.useState(0),setT=s[1];
   x.useEffect(function(){
     return subsChkSub(function(){setT(function(t){return t+1})})},[]);
-  return subsVerdict(segs,style,dur)}
+  return subsVerdict(segs,style,dur,clips)}
 
 /* ═════════════════ Tiroir — Segments · Style ════════════════════════════════ */
 const SubsDrawer=(props)=>{
@@ -2120,7 +2545,7 @@ const SubsDrawer=(props)=>{
      ne calcule plus rien : c'est ce qui rend impossible qu'un badge d'onglet
      annonce un chiffre que la liste ne montre pas. */
   subsUseCheck(segs,style,props.dur,svc);
-  var vd=subsUseVerdict(segs,style,props.dur);
+  var vd=subsUseVerdict(segs,style,props.dur,props.srcClips);
 
   x.useEffect(function(){if(open)subsProbe()},[open]);
   x.useEffect(function(){
@@ -2130,15 +2555,25 @@ const SubsDrawer=(props)=>{
 
   /* transcription automatique — la SEULE fonction qui a besoin du backend.
      Absente : on le dit sans détour, et on rappelle l'issue locale. */
-  function transcribe(){
+  /* `plan` optionnel : transcrire UN plan et FUSIONNER le résultat dans la
+     piste, au lieu de la remplacer. C'est le geste que la couverture propose
+     en face d'un plan sans réplique — remplacer toute la piste pour combler un
+     trou effacerait le travail déjà fait sur les autres plans. */
+  function transcribe(plan){
     if(trJob&&trJob.busy)return;
-    setTrJob({busy:!0,step:"envoi…",pct:0});
+    setTrJob({busy:!0,step:plan?"plan "+plan.n+"…":"envoi…",pct:0});
     /* `clips` porte la timeline : le backend y trouve la NARRATION (texte déjà
        écrit) et cale dessus — gratuit, hors ligne, et orthographe exacte, là
        où une transcription payante écrit « Dipotus » pour « Deepotus ». Sans
        texte, il retombe sur la transcription du média `src`. */
+    var cl=props.srcClips||null,srcRef=props.srcRef||null;
+    if(plan&&cl){
+      cl=cl.filter(function(c){
+        return subsN(c.end,0)>plan.start+.05&&subsN(c.start,0)<plan.end-.05});
+      var av=cl.filter(function(c){return c.src&&(c.tr==="a1"||c.tr==="v1")});
+      if(av.length)srcRef=av[0].src}
     subsPost("/api/subtitles/transcribe",
-      {src:props.srcRef||null,clips:props.srcClips||null,
+      {src:srcRef,clips:cl,
        lang:"fr",cps:subsN(style.maxChars,42)})
       .then(function(d){
         var id=d&&d.job_id;
@@ -2152,6 +2587,23 @@ const SubsDrawer=(props)=>{
                 if(Array.isArray(o.words))s.words=o.words;
                 return s});
               setTrJob(null);
+              if(plan){
+                /* fenêtre du plan : on ne garde que ce qui y tombe, et on
+                   remplace ce que la piste y avait déjà — le reste du montage
+                   n'est pas touché. */
+                var dans=got.filter(function(s){
+                  return s.start<plan.end-.02&&s.end>plan.start+.02});
+                if(!dans.length){
+                  note2("Aucune parole détectée dans le plan n° "+plan.n+
+                    " ("+subsTc(plan.start)+" → "+subsTc(plan.end)+"). "+
+                    "Marquez-le « sans parole » s'il est muet.");return}
+                var reste=segs.filter(function(s){
+                  return !(s.start<plan.end-.02&&s.end>plan.start+.02)});
+                if(props.onChange)props.onChange(subsSort(reste.concat(dans)),!0);
+                note2(subsPl(dans.length,"réplique")+" ajoutée"+
+                  (dans.length>1?"s":"")+" sur le plan n° "+plan.n+
+                  " — relisez, la machine se trompe.");
+                return}
               if(!got.length){note2("Transcription terminée : aucune parole détectée.");return}
               if(props.onChange)props.onChange(subsSort(got),!0);
               note2(got.length+" sous-titres transcrits — relisez, la machine se trompe.")}
@@ -2184,21 +2636,28 @@ const SubsDrawer=(props)=>{
        comptent quelque chose. */
     r.jsxs("div",{className:"sub-head",children:[
       r.jsx("span",{className:"sub-title",children:"Sous-titres"}),
-      C.repliques?r.jsx("span",{className:"sub-count",
-        title:"Lignes posées sur la piste S1, masquées comprises",
-        children:subsPl(C.repliques,"réplique")}):null,
+      /* le compte des répliques vivait ICI **et** dans la ligne des comptes,
+         à 20 px l'un de l'autre : deux fois le même nombre, le même mot. Il
+         ne vit plus que dans la ligne des comptes, qui les porte tous. */
       r.jsx("button",{className:"sub-iconbtn sub-close",title:"Fermer (Échap)",
         "aria-label":"Fermer le panneau de sous-titres",
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
-    /* ── ce que chaque nombre COMPTE, écrit à côté du nombre ────────────────
-       Les badges d'onglet et la chip de la barre d'outils comptent tous des
-       RÉPLIQUES ; les défauts, eux, sont nommés « défauts ». Deux nombres
-       différents à l'écran ne peuvent donc plus désigner la même chose, et
-       aucun ne se lit sans son unité. Tous sortent du même verdict. */
+    /* ── LA LIGNE DES COMPTES : le SEUL endroit du tiroir où un nombre agrégé
+       s'affiche ────────────────────────────────────────────────────────────
+       Elle est au-dessus des onglets, donc VISIBLE quel que soit l'onglet
+       actif : c'est ce qui rend chaque nombre vérifiable sans changer d'écran.
+       Chaque nombre porte son unité en toutes lettres, et aucun n'est répété
+       ailleurs — « 12 signalées » était écrit trois fois dans une bande de
+       60 px (ici, sur l'onglet, et sur le filtre de la liste). Les onglets ne
+       portent donc plus de nombre du tout : un point de sévérité suffit à
+       dire « il y a quelque chose là-dedans », et le nombre est juste
+       au-dessus, écrit avec son mot. */
     C.repliques?r.jsxs("div",{className:"sub-tally",role:"status",
       title:"Signalées = répliques portant au moins un défaut. Bloquantes = "+
         "sous-ensemble des signalées, celles qui portent un défaut bloquant. "+
         "Défauts = total des défauts (une réplique peut en porter plusieurs). "+
+        "Écarts = différences entre l'aperçu et la gravure ; ils portent sur "+
+        "le style. Couvert = part du montage qui porte des sous-titres. "+
         "Tous ces chiffres sortent du même contrôle ("+
         (vd.source==="moteur"?"moteur":"calcul local")+").",children:[
       r.jsxs("span",{className:"sub-tal","data-k":"repliques",
@@ -2215,6 +2674,26 @@ const SubsDrawer=(props)=>{
       r.jsxs("span",{className:"sub-tal","data-k":"defauts",
         children:[r.jsx("b",{children:String(C.defauts)}),
           C.defauts<2?"défaut":"défauts"]},"d"),
+      /* les écarts de style : ils vivaient UNIQUEMENT sur le badge de l'onglet
+         Style, donc invisibles depuis l'onglet Répliques — un nombre que rien
+         à l'écran ne produisait tant qu'on n'avait pas changé d'onglet. */
+      r.jsxs("span",{className:"sub-tal","data-k":"ecarts",
+        "data-sev":C.ecarts?"warn":void 0,
+        children:[r.jsx("b",{children:String(C.ecarts)}),
+          C.ecarts<2?"écart":"écarts"]},"e"),
+      /* LA COUVERTURE : le chiffre qui manquait. Un montage sous-titré sur son
+         premier cinquième affichait douze compteurs exacts et pas un seul ne
+         disait que 80 % de la vidéo sortirait muette. */
+      vd.cov.connu?r.jsxs("span",{className:"sub-tal","data-k":"couverture",
+        "data-sev":vd.cov.complet?void 0:"warn",
+        title:subsFr(vd.cov.couvert,1)+" s de sous-titres sur "+
+          subsFr(vd.cov.attendu,1)+" s de plans à sous-titrer"+
+          (C.plans_ignores?" ("+subsPl(C.plans_ignores,"plan")+
+            " marqué« sans parole » exclus)":"")+
+          (C.plans_sans?" — "+subsPl(C.plans_sans,"plan")+
+            " sans la moindre réplique, détail dans l'onglet Répliques":""),
+        children:[r.jsx("b",{children:String(Math.round(vd.cov.pct))+" %"}),
+          "couvert"]},"c"):null,
       C.masquees?r.jsxs("span",{className:"sub-tal","data-k":"masquees",
         children:[r.jsx("b",{children:String(C.masquees)}),
           C.masquees<2?"masquée":"masquées"]},"m"):null,
@@ -2223,30 +2702,30 @@ const SubsDrawer=(props)=>{
     r.jsxs("div",{className:"sub-tabs",role:"tablist",children:[
       r.jsxs("button",{className:"sub-tab",role:"tab","aria-selected":tab==="segments",
         "data-on":tab==="segments"?"":void 0,
+        title:C.signalees?subsPl(C.signalees,"réplique")+" signalée"+
+          (C.signalees>1?"s":"")+", dont "+subsPl(C.bloquantes,"bloquante")+
+          " — le compte est écrit au-dessus, le détail sur chaque ligne"
+          :"La liste des répliques : bornes, texte, découpe, export",
         onClick:function(){setTab("segments")},children:[
         "Répliques",
-        /* Le badge compte des RÉPLIQUES SIGNALÉES — le même nombre que la chip
-           de la barre d'outils et que le compte de la ligne du dessus. Il
-           comptait autrefois des avertissements : trois surfaces, trois
-           chiffres, aucun ne désignait ce que la liste montrait.
-           COULEUR : ambre, toujours. Le rouge est réservé à ce qui EST
-           bloquant — une réplique en rouge sur la piste, une pastille rouge
-           sur sa ligne, et le compte « n bloquantes » ci-dessus. Peindre en
-           rouge un total de 12 dont une seule est bloquante remettrait la
-           timeline et la liste en désaccord, autrement. */
-        C.signalees?r.jsx("span",{className:"sub-tbad","data-sev":"warn",
-          title:subsPl(C.signalees,"réplique")+" signalée"+
-            (C.signalees>1?"s":"")+", dont "+subsPl(C.bloquantes,"bloquante")+
-            " (le détail est sur chaque ligne)",
-          children:String(C.signalees)}):null]},"segments"),
+        /* PAS de nombre ici. Le badge affichait « 12 » collé au mot
+           « Répliques » alors que la piste en portait 13 : un nombre collé à un
+           mot doit compter ce que ce mot nomme. Reste le POINT de sévérité —
+           il ne prétend compter rien, et le nombre qu'il annonce est écrit,
+           avec son unité, dans la ligne juste au-dessus.
+           COULEUR : ambre. Le rouge reste réservé à ce qui EST bloquant. */
+        C.signalees||C.plans_sans
+          ?r.jsx("span",{className:"sub-tdot","data-sev":"warn",
+            "aria-hidden":!0},"d"):null]},"segments"),
       r.jsxs("button",{className:"sub-tab",role:"tab","aria-selected":tab==="style",
         "data-on":tab==="style"?"":void 0,
+        title:C.ecarts?subsPl(C.ecarts,"écart")+" entre l'aperçu et la gravure "+
+          "— le compte est écrit au-dessus, le détail en tête de cet onglet"
+          :"Police, corps, couleur, fond, contour, karaoké et placement",
         onClick:function(){setTab("style")},children:[
         "Style et placement",
-        C.ecarts?r.jsx("span",{className:"sub-tbad","data-soft":"",
-          title:C.ecarts+" écart(s) entre l'aperçu et la gravure — ils portent "+
-            "sur le STYLE, pas sur une réplique ; le détail est dans l'onglet",
-          children:String(C.ecarts)}):null]},"style")]}),
+        C.ecarts?r.jsx("span",{className:"sub-tdot","data-soft":"",
+          "aria-hidden":!0},"d"):null]},"style")]}),
     r.jsxs("div",{className:"sub-trrow",children:[
       r.jsx("button",{className:"sub-btn sub-tr",disabled:!!(trJob&&trJob.busy),
         title:"Transcrire la bande son du montage (backend requis) — "+
@@ -2266,7 +2745,14 @@ const SubsDrawer=(props)=>{
              du lecteur, juste au-dessus de ce tiroir — deux fois le même
              message au même endroit, c'est du bruit */
           onSelect:props.onSelect,onSeek:props.onSeek,onNote:fireNote,
-          verdict:vd,srcName:props.srcName})
+          verdict:vd,srcName:props.srcName,
+          /* la couverture et ses trois gestes : transcrire CE plan (le tiroir
+             tient le job), écrire une réplique dedans (la liste sait le faire),
+             marquer le plan « sans parole » (c'est l'hôte qui porte le clip) */
+          onPlanTranscribe:props.srcClips&&svc.st==="ok"
+            ?function(p){setTab("segments");transcribe(p)}:null,
+          onPlanFlag:props.onPlanFlag||null,
+          trBusy:!!(trJob&&trJob.busy)})
         :r.jsx(SubsStyle,{style:style,onChange:props.onStyle,verdict:vd})}),
     note?r.jsx("div",{className:"sub-note",role:"status","aria-live":"polite",
       children:note}):null]})};
@@ -2285,6 +2771,16 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      `scripts/qa/subs-consistency.js`. */
   verdict:subsVerdict,verdictNil:subsVerdictNil,segState:subsSegState,
   keyOf:subsKeyOf,sevLabels:SUBS_SEVLAB,
+  /* ── ce que la GRAVURE garde, et ce qu'elle éteint ──────────────────────
+     `effective(style)` rend le style tel qu'il sera gravé (mesuré) ;
+     `neutralized(style)` rend les réglages éteints, avec la raison et le
+     geste qui les rallume ; `stylePlan(style, fix)` rend un correctif de
+     STYLE sous forme de plan (ce qu'il éteint, crée, laisse). */
+  effective:subsEffective,neutralized:subsNeutralized,
+  styleRules:subsAllStyleRules,stylePlan:subsStylePlan,
+  /* la COUVERTURE : quelle part du montage porte des sous-titres, et quels
+     plans n'en portent aucun */
+  coverage:subsCoverage,plansOf:subsPlans,
   chkTick:function(){return SUBS_CHK.tick},onVerdict:subsChkSub,
   safeIssues:subsSafeIssues,outOfSafe:subsOutOfSafe,
   SAFE:{action:SUBS_SAFE_ACTION,title:SUBS_SAFE_TITLE,social:SUBS_SOCIAL_BOT,

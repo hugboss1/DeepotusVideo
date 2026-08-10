@@ -493,3 +493,64 @@
 .dzsvm[data-svm-theme="light"] .sub-sel{color-scheme:light}
 .dzsvm[data-svm-theme="light"] .sub-warn[data-sev="warn"] .sub-warnicon{
   color:#17150f}
+
+/* ══ TOUR 4 ═══════════════════════════════════════════════════════════════════
+   1. les onglets ne portent plus de NOMBRE — un point de sévérité, et le
+      nombre (avec son mot) vit dans la ligne des comptes, juste au-dessus ;
+   2. la COUVERTURE du montage : le fait qui manquait ;
+   3. un réglage ÉTEINT par le reste du style n'affiche plus de valeur vivante.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* le point de sévérité d'un onglet : il ne compte rien, il signale */
+.sub-tdot{width:6px; height:6px; border-radius:50%; flex:none;
+  background:var(--sub-acc)}
+.sub-tdot[data-soft]{background:var(--sub-ink4)}
+.sub-tdot[data-sev="err"]{background:var(--sub-red)}
+
+/* ── COUVERTURE ─────────────────────────────────────────────────────────── */
+.sub-cov{margin:0 0 10px; padding:8px 9px 9px; border-radius:9px;
+  border:1px solid var(--sub-stroke); background:var(--sub-well)}
+.sub-cov[data-bad]{border-color:color-mix(in srgb, var(--sub-acc) 55%, var(--sub-stroke))}
+.sub-cov .sub-sec{margin:0 0 6px}
+.sub-covbar{height:5px; border-radius:3px; overflow:hidden;
+  background:var(--sub-stroke); margin:0 0 7px}
+.sub-covbar i{display:block; height:100%; background:var(--sub-acc)}
+.sub-covsay{font-size:10px; line-height:1.45; color:var(--sub-ink2);
+  margin:0 0 6px}
+.sub-plan{display:flex; align-items:center; gap:6px; flex-wrap:wrap;
+  padding:5px 0; border-top:1px solid var(--sub-stroke)}
+.sub-plann{font-family:var(--sub-mono); font-size:9px; color:var(--sub-ink4);
+  flex:none}
+.sub-planid{font-size:9.5px; color:var(--sub-ink3); flex:1 1 120px;
+  min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.sub-planst{font-family:var(--sub-mono); font-size:9px; flex:none;
+  color:var(--sub-acc)}
+.sub-plan[data-etat="partiel"] .sub-planst{color:var(--sub-ink4)}
+.sub-planact{display:flex; gap:5px; flex:1 0 100%; flex-wrap:wrap;
+  margin-left:19px}
+.sub-covign{display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  padding-top:6px; border-top:1px solid var(--sub-stroke)}
+.sub-covigntxt{font-size:9.5px; color:var(--sub-ink4); flex:1 1 140px}
+/* le plan sans sous-titre, VU SUR LA TIMELINE */
+.dzsvm .svm-clip[data-nosub]{
+  box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent, #f0b429) 70%, transparent)}
+.dzsvm .svm-clip[data-nosub]::after{content:"sans sous-titre"; position:absolute;
+  right:4px; bottom:2px; z-index:4; padding:0 4px; border-radius:3px;
+  font-family:var(--f-mono, Consolas, monospace); font-size:8px;
+  background:rgba(10,10,12,.72); color:var(--accent, #f0b429);
+  pointer-events:none}
+.dzsvm .svm-clip[data-nosub="off"]{box-shadow:none}
+.dzsvm .svm-clip[data-nosub="off"]::after{content:"sans parole";
+  color:var(--ink4, #8a8a94)}
+/* la couverture dans la chip de la barre d'outils */
+.dzsvm .svm-toolchip .sub-chipcov{margin-left:4px; display:inline-block;
+  padding:0 4px; border-radius:7px; font-family:var(--f-mono);
+  font-size:8.5px; line-height:13px; background:var(--accent, #f0b429);
+  color:#17150f}
+
+/* ── un réglage éteint ne montre pas de chiffre vivant ───────────────────── */
+.sub-pval[data-dead]{color:var(--sub-ink4); font-style:italic}
+.sub-range:disabled{opacity:.4; cursor:not-allowed}
+.sub-mhint[data-warn]{display:flex; align-items:center; gap:7px;
+  flex-wrap:wrap}
+.sub-mhintxt{flex:1 1 160px; min-width:0}

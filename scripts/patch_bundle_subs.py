@@ -190,12 +190,22 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
     var st=proj.subsStyle||null,du=proj.dur,tk=d.chkTick?d.chkTick():0;
     var c0=subsWRef.current;
     if(c0.v&&c0.k===clips&&c0.s===st&&c0.d===du&&c0.t===tk)return c0.v;
-    var v=d.verdict(subsSegsOf(clips),subsStyleNow(),du);
+    /* les PLANS entrent dans le verdict : la couverture du montage est un
+       fait mesurable au même titre que la lisibilité, et elle ne peut pas se
+       calculer sans savoir jusqu'où court le montage ni où sont ses plans. */
+    var v=d.verdict(subsSegsOf(clips),subsStyleNow(),du,subsSrcClips(clips));
     subsWRef.current={k:clips,s:st,d:du,t:tk,v:v};
     return v}
   function subsSev(id){
     var d=subsLayer();
     return (d&&d.segState?d.segState(subsVd(),id):null)||{sev:null,n:0}}
+  /* état de COUVERTURE d'un plan, pour la timeline : un plan que rien ne
+     sous-titre doit se voir LÀ OÙ ON MONTE, pas seulement dans un panneau.
+     « ignore » = marqué sans parole, dit et non alarmant. */
+  function subsCovOf(id){
+    var v=subsVd(),ps=(v&&v.cov&&v.cov.plans)||[];
+    for(var i=0;i<ps.length;i++)if(ps[i].id===id)return ps[i].etat;
+    return null}
   /* ce qui part au rendu : hors du tableau `clips` (un sous-titre n'est pas
      un média), masqués et lignes vides retirés. */
   function subsPayload(){
@@ -215,16 +225,33 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
      sur les silences réels (exact, hors ligne, 0 $) ; sinon il transcrit le
      média. On envoie donc la timeline réduite à ce qui sert, pas le modèle
      client entier. */
-  function subsSrcClips(){
-    return (clipsRef.current||[]).filter(function(c){
+  function subsSrcClips(cs){
+    return ((cs||clipsRef.current)||[]).filter(function(c){
       return c.tr==="a1"||c.tr==="a3"||c.tr==="v1"})
       .map(function(c){
         var o={id:c.id,tr:c.tr,src:c.src||null,
+               name:c.name||c.label||null,
                start:Math.round(subsNum(c.start)*1e3)/1e3,
                end:Math.round(subsNum(c.end)*1e3)/1e3};
         if(c.text)o.text=String(c.text);
+        /* « sans parole » : l'aveu volontaire vit sur LE CLIP, donc il se
+           sauvegarde et s'annule avec le reste du montage. Le ranger dans le
+           style des sous-titres l'aurait fait voyager d'un projet à l'autre. */
+        if(c.noSub)o.noSub=!0;
         return o})}
   function subsNum(v){var n=Number(v);return isFinite(n)?n:0}
+  /* marquer / démarquer un plan « sans parole » — une entrée d'historique,
+     comme toute autre écriture sur un clip */
+  function subsPlanFlag(id,on){
+    pushHistory();
+    setClips(clipsRef.current.map(function(c){
+      if(c.id!==id)return c;
+      var o=Object.assign({},c);
+      if(on)o.noSub=!0;else delete o.noSub;
+      return o}));
+    setDirty(!0);
+    fireNote(on?"Plan marqué « sans parole » — il sort du calcul de couverture."
+      :"Plan remis dans le calcul de couverture.")}
   function subsSrcRef(){
     var cs=clipsRef.current||[],i;
     for(i=0;i<cs.length;i++)if(cs[i].tr==="a1"&&cs[i].src)return cs[i].src;
@@ -240,7 +267,8 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
       onSelect:function(id){setSelId(id)},
       onSeek:function(t){seekTo(Math.max(0,Math.min(durRef.current,t)))},
       onNote:fireNote,srcName:proj.name,
-      srcRef:subsSrcRef(),srcClips:subsSrcClips()})}
+      srcRef:subsSrcRef(),srcClips:subsSrcClips(clips),
+      onPlanFlag:subsPlanFlag})}
   /* LE karaoké : le mot prononcé se surligne dans le lecteur, à l'échelle
      réelle du canevas de rendu (l'aperçu ne ment pas sur la taille).
      Le tiroir ouvert, le même bloc devient MANIPULABLE : cadre de sélection,
@@ -352,25 +380,44 @@ R_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":rippl
              notion, jamais d'accord. */
           (function(){
             if(!subsLayer())return null;
-            var C=subsVd().counts;
+            var vd=subsVd(),C=vd.counts,cv=vd.cov||{connu:!1,complet:!0};
+            var pl=function(n,u,p){return n+" "+(Math.abs(n)<2?u:(p||u+"s"))};
             return r.jsxs("button",{className:"svm-toolchip","data-on":subsOn?"":void 0,
               "aria-pressed":subsOn,
               title:"Piste de sous-titres S1 — lignes, calage, style et karaoké. "+
                 (C.repliques
-                  ?C.repliques+" répliques, "+C.signalees+" signalées (dont "+
-                   C.bloquantes+" bloquantes)"
+                  ?pl(C.repliques,"réplique")+", "+pl(C.signalees,"signalée")+
+                   " (dont "+pl(C.bloquantes,"bloquante")+")"+
+                   (cv.connu
+                     ?". Couverture "+Math.round(cv.pct)+" % du montage"+
+                      (C.plans_sans?" — "+pl(C.plans_sans,"plan")+
+                        " sans la moindre réplique":"")
+                     :"")
                   :"piste vide"),
               onClick:subsToggle,children:[
               "sous-titres",
               C.repliques?r.jsx("span",{className:"sub-chipn",
-                title:C.repliques+" répliques sur la piste",
+                title:pl(C.repliques,"réplique")+" sur la piste",
                 children:String(C.repliques)},"n"):null,
               /* ambre, toujours : le rouge ne sert qu'à ce qui EST bloquant
                  (la pastille du segment fautif sur la piste, juste dessous) */
               C.signalees?r.jsx("span",{className:"sub-chipbad","data-sev":"warn",
-                title:C.signalees+" répliques signalées, dont "+C.bloquantes+
-                  " bloquantes",
-                children:String(C.signalees)},"b"):null]})})()]}),'''
+                title:pl(C.signalees,"réplique")+" signalée, dont "+
+                  pl(C.bloquantes,"bloquante"),
+                children:String(C.signalees)},"b"):null,
+              /* LA COUVERTURE, visible sans ouvrir le tiroir : un montage
+                 sous-titré sur son premier cinquième ne doit pas pouvoir
+                 partir au rendu sans qu'un seul écran l'ait dit. Le « % »
+                 porte son unité ; le détail, plan par plan, est dans le
+                 tiroir, et la piste S1 juste dessous le montre à l'œil. */
+              cv.connu&&!cv.complet
+                ?r.jsx("span",{className:"sub-chipcov","data-sev":"warn",
+                  title:"Couverture du montage : "+Math.round(cv.pct)+" % — "+
+                    Math.round(cv.couvert)+" s de sous-titres sur "+
+                    Math.round(cv.attendu)+" s de plans à sous-titrer"+
+                    (C.plans_sans?", "+pl(C.plans_sans,"plan")+
+                      " sans la moindre réplique":""),
+                  children:Math.round(cv.pct)+" %"},"c"):null]})})()]}),'''
 
 # ── S12 : « + » de l'en-tête de piste ────────────────────────────────────────
 A_THADD = '''            var thAdd=r.jsx("button",{className:"svm-ovadd",
@@ -422,6 +469,12 @@ R_CLIPDIV = '''                    /* le problème se voit SUR la timeline. La p
                     "data-cid":tr.id==="s1"?c.id:void 0,
                     "data-warn":tr.id==="s1"?(subsSev(c.id).sev||void 0):void 0,
                     "data-hidden":tr.id==="s1"&&c.hidden?"":void 0,
+                    /* couverture : le plan qui ne porte aucune réplique se
+                       marque sur la timeline. « 16 s sous-titrées sur 1:09 »
+                       était vrai et invisible — trois plans muets, et pas un
+                       pixel pour le dire. */
+                    "data-nosub":tr.id==="v1"?(subsCovOf(c.id)==="sans"?""
+                      :subsCovOf(c.id)==="ignore"?"off":void 0):void 0,
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},'''
 
 # ── S17 : la piste S1 marquée pour la feuille de style ───────────────────────

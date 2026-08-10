@@ -107,8 +107,9 @@ def test_les_surfaces_de_l_hote_lisent_le_verdict():
     assert "subsWarnMap" not in src
     # la pastille de la timeline porte la SEVERITE decidee, pas un booleen
     assert 'subsSev(c.id).sev' in src
-    # la chip lit les comptes du verdict
-    assert "subsVd().counts" in src
+    # la chip lit les comptes du verdict (et sa couverture)
+    assert "var vd=subsVd(),C=vd.counts" in src
+    assert "vd.cov" in src, "la chip doit aussi porter la couverture du montage"
     # l'inspecteur lit les memes avertissements
     assert "subsSev(sel.id).warns" in src
 
@@ -145,7 +146,7 @@ def test_les_comptes_sont_nommes_et_distincts():
     src = _strip_comments(_layer())
     body = src.split("function subsVerdict(", 1)[1]
     for k in ("repliques", "masquees", "signalees", "bloquantes", "defauts",
-              "ecarts"):
+              "ecarts", "couverture", "plans", "plans_sans"):
         assert k + ":" in body, f"compte manquant dans le verdict : {k}"
     # bloquantes est un SOUS-ENSEMBLE de signalees : compte de repliques dans
     # les deux cas, jamais un compte d'avertissements
@@ -164,6 +165,45 @@ def test_un_badge_ne_peut_pas_annoncer_ce_que_rien_ne_montre():
     assert "sub-hidbad" in src
     assert "hiddenBad" in src
     assert "tout afficher" in src
+
+
+def test_aucun_nombre_hors_de_la_ligne_des_comptes():
+    """Un nombre colle a un mot compte ce que ce mot nomme, ou il porte son
+    propre libelle — et il doit pouvoir se verifier a l'ecran.
+
+    L'onglet affichait « Repliques 12 » sur une piste de 13 repliques : le
+    badge comptait les elements SIGNALES, pas ce que l'onglet nomme. L'onglet
+    voisin affichait « 2 » sans que rien a l'ecran ne produise ce 2 (les
+    ecarts vivaient dans l'autre onglet). Et « 12 signalees » etait ecrit
+    trois fois dans une bande de 60 px.
+
+    Structure retenue : la LIGNE DES COMPTES est le seul domicile d'un nombre
+    agrege ; elle est au-dessus des onglets, donc visible quel que soit
+    l'onglet actif. Les onglets ne portent qu'un POINT de severite, le filtre
+    est un bouton d'action, l'en-tete ne compte plus rien.
+    L'egalite avec le DOM reel est mesuree par `scripts/qa/subs-consistency.js`.
+    """
+    src = _strip_comments(_layer())
+    drw = src.split("const SubsDrawer=", 1)[1]
+    tabs = drw.split('className:"sub-tabs"', 1)[1].split('className:"sub-trrow"', 1)[0]
+    # plus aucun badge NUMEROTE sur un onglet
+    assert "sub-tbad" not in tabs, "un onglet ne doit plus porter de nombre"
+    assert "sub-tdot" in tabs, "l'onglet signale par un point de severite"
+    assert "String(C.signalees)" not in tabs
+    assert "String(C.ecarts)" not in tabs
+    # l'en-tete ne redit pas le compte des repliques
+    head = drw.split('className:"sub-head"', 1)[1].split('className:"sub-tally"', 1)[0]
+    assert "sub-count" not in head
+    # la ligne des comptes porte TOUS les agreges, ecarts et couverture compris
+    tally = drw.split('className:"sub-tally"', 1)[1].split('className:"sub-tabs"', 1)[0]
+    for k in ("repliques", "signalees", "bloquantes", "defauts", "ecarts",
+              "couverture"):
+        assert '"data-k":"%s"' % k in tally, f"compte absent de la ligne : {k}"
+    # le filtre de la liste ne redit pas le nombre
+    segs = src.split("const SubsSegments=", 1)[1].split("const ", 1)[0]
+    assert 'subsPl(nBad,"signalée")' not in segs, \
+        "le filtre ne doit pas etre un second compteur"
+    assert '"signalées seulement"' in segs
 
 
 # ---------------------------------------------------------------------------
@@ -202,8 +242,11 @@ def test_sortir_de_la_zone_sure_est_dit_a_l_ecran():
     autres defauts — avec le geste qui le ferme."""
     src = _strip_comments(_layer())
     assert "function subsSafeIssues(" in src
-    # dans les ecarts apercu/gravure, donc dans le badge de l'onglet Style
-    assert "safe:subsSafeIssues(st)" in src
+    # dans les ecarts apercu/gravure, donc dans le compte « n ecarts » : la
+    # zone sure passe par la MEME liste que les autres regles de style, avec
+    # les memes plans (ce qu'ils eteignent, creent, laissent)
+    assert "subsSafeIssues(st).map" in src
+    assert "subsAllStyleRules(st).forEach" in src
     # dans le bandeau du lecteur, pendant le geste
     assert "var safeBad=subsSafeIssues(style)" in src
     assert "hors zone sûre" in _layer()
@@ -246,3 +289,132 @@ def test_aucun_reglage_en_double():
     # l'epaisseur de contour vit dans le bloc du haut, l'interrupteur a disparu
     assert 'sw("outOn"' not in body
     assert '"aria-label":"Épaisseur du contour"' in quick
+
+
+# ---------------------------------------------------------------------------
+# 6. un reglage que la GRAVURE ignore n'affiche pas de valeur vivante
+# ---------------------------------------------------------------------------
+
+def test_le_style_effectif_est_la_source_de_l_apercu():
+    """MESURE (10/08/2026, 17 gravures ffmpeg 1080x1920, chaine reelle du
+    Montage) : sous un fond, le contour ne sort PAS. A 0, 3 ou 8 px la gravure
+    est le meme fichier au pixel pres (empreinte a055e73d4de8). L'apercu, lui,
+    dessinait un contour de 3 px, la vignette de prereglage aussi, et le
+    curseur affichait « 3 px ».
+
+    Une seule fonction decide desormais de ce qui survit — `subsEffective` —
+    et TOUTE surface qui dessine la lit. L'ombre, elle, survit au fond
+    (4 516 px d'ombre sous une boite) : elle n'est donc pas eteinte.
+    """
+    src = _strip_comments(_layer())
+    assert src.count("function subsEffective(") == 1
+    assert src.count("function subsNeutralized(") == 1
+    # ce que la fonction eteint, et ce qu'elle laisse
+    eff = src.split("function subsEffective(", 1)[1].split("function ", 1)[0]
+    assert "if(o.bgOn){o.outOn=!1;o.outW=0}" in eff.replace(" ", "")
+    assert "shOn" not in eff, "l'ombre survit au fond (mesure) : ne pas l'eteindre"
+    # l'apercu du lecteur dessine le style EFFECTIF
+    ov = src.split("const SubsOverlay=", 1)[1].split("const ", 1)[0]
+    assert "subsEffective(props.style)" in ov
+    assert "Object.assign(subsDefaultStyle(),props.style||{})" not in ov
+    # la vignette de prereglage aussi
+    sty = src.split("const SubsStyle=", 1)[1].split("const ", 1)[0]
+    assert "subsEffective(p.style)" in sty
+    # ... et le corps envoye au moteur : sinon il renverrait un ecart que le
+    # panneau a deja eteint a cote de son curseur
+    assert "style:subsEffective(style)" in src
+
+
+def test_le_reglage_eteint_le_dit_et_offre_le_geste():
+    """« Soit il est neutralise et le dit, soit il agit. » Le curseur reste,
+    sa VALEUR reste (on ne detruit pas un reglage dans le dos), mais l'ecran
+    n'affiche plus « 3 px » : il affiche « sans effet », dit pourquoi, et
+    porte le bouton qui le rallume."""
+    src = _layer()
+    n = _strip_comments(src).split("function subsNeutralized(", 1)[1] \
+                            .split("\nfunction ", 1)[0]
+    assert 'champ:"outW"' in n and "why:" in n and "fix:" in n
+    assert 'champ:"bgOn",valeur:!1' in n, "le geste qui rallume le contour"
+    sty = _strip_comments(src).split("const SubsStyle=", 1)[1].split("const ", 1)[0]
+    assert "subsNeutralized(st).forEach" in sty
+    assert 'disabled:!!morts.outW' in sty, "le curseur mort est desactive"
+    assert '"sans effet"' in sty, "et n'affiche plus de valeur vivante"
+    assert '"data-dead"' in sty
+
+
+def test_un_correctif_de_style_est_un_plan():
+    """Meme regle que les correctifs de TEMPS (fermee au tour 2), appliquee au
+    STYLE : un correctif respecte les autres contraintes, ou annonce ce qu'il
+    casse, ou n'existe pas et laisse l'explication.
+
+    Le defaut : « Passer le fond en opaque » etait l'unique geste offert sous
+    un ecart, et il laissait vivant l'ecart voisin sans un mot.
+    """
+    src = _strip_comments(_layer())
+    assert src.count("function subsStylePlan(") == 1
+    body = src.split("function subsStylePlan(", 1)[1].split("\nfunction ", 1)[0]
+    # il SIMULE l'apres et compare
+    assert "subsAllStyleRules(apres)" in body
+    assert "subsNeutralized(apres)" in body
+    # et il DIT : ce qu'il eteint, ce qu'il cree, ce qui reste
+    assert "cessera d'agir" in body
+    assert "Cela crée" in body
+    assert "Il restera" in body
+    assert "plus aucun écart" in body
+    # un geste qui ne reduirait rien n'a pas de bouton
+    assert "plan.ok=!1" in body and "plan.blocked=" in body
+    # l'onglet Style rend TOUS les plans, pas un seul bouton
+    sty = src.split("const SubsStyle=", 1)[1].split("const ", 1)[0]
+    assert "(w.plans||[]).map" in sty
+    assert "p.ok" in sty and "p.blocked" in sty
+
+
+# ---------------------------------------------------------------------------
+# 7. la COUVERTURE — le verdict ne parle plus d'un clip pour tout le montage
+# ---------------------------------------------------------------------------
+
+def test_la_couverture_est_mesuree_et_comptee():
+    """« On auditait un clip et on facturait le verdict au projet entier. »
+    La piste s'arretait a 16 s sur un montage d'1 min 09 : douze compteurs
+    exacts, et pas un ne disait que 80 % de la video sortirait muette."""
+    src = _strip_comments(_layer())
+    assert src.count("function subsCoverage(") == 1
+    body = src.split("function subsCoverage(", 1)[1].split("\nfunction ", 1)[0]
+    # denominateur = les plans a sous-titrer, les « sans parole » exclus
+    assert "p.ignore" in body
+    # etats nommes
+    for etat in ('"ignore"', '"sans"', '"partiel"', '"ok"'):
+        assert etat in body, f"etat de plan manquant : {etat}"
+    # une replique masquee ou vide ne couvre rien
+    u = src.split("function subsUnion(", 1)[1].split("\nfunction ", 1)[0]
+    assert "s.hidden" in u and "String(s.text||\"\").trim()" in u
+    # le verdict la porte, avec ses comptes
+    vd = src.split("function subsVerdict(", 1)[1].split("\nfunction ", 1)[0]
+    assert "subsCoverage(list,clips,dur)" in vd
+    assert "couverture:cov.pct" in vd and "plans_sans:cov.sans.length" in vd
+
+
+def test_les_plans_non_couverts_sont_designes_avec_le_geste():
+    """« Le panneau doit dire quelle part du montage est couverte, designer les
+    plans qui ne le sont pas, et proposer le geste utile. » Trois gestes, et
+    pas un de plus : transcrire CE plan (en fusionnant, jamais en remplacant),
+    ecrire une replique dedans, ou l'avouer muet."""
+    src = _layer()
+    segs = _strip_comments(src).split("const SubsSegments=", 1)[1].split("const ", 1)[0]
+    assert "function planRow(" in segs
+    assert "Transcrire ce plan" in segs
+    assert "Écrire ici" in segs
+    assert "Sans parole" in segs
+    assert "rétablir" in segs, "l'aveu « sans parole » doit etre reversible"
+    # la transcription d'UN plan fusionne au lieu de remplacer la piste
+    drw = _strip_comments(src).split("const SubsDrawer=", 1)[1]
+    assert "function transcribe(plan)" in drw
+    assert "reste.concat(dans)" in drw
+    # l'hote porte le drapeau SUR LE CLIP (donc sauvegarde et annulable)
+    pat = _patcher()
+    assert "function subsPlanFlag(" in pat
+    assert "o.noSub=!0" in pat
+    assert "onPlanFlag:subsPlanFlag" in pat
+    # les plans entrent dans le verdict, et se voient sur la timeline
+    assert "d.verdict(subsSegsOf(clips),subsStyleNow(),du,subsSrcClips(clips))" in pat
+    assert '"data-nosub"' in pat
