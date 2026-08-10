@@ -59,20 +59,41 @@ def test_une_seule_definition_du_verdict():
     assert src.count("function subsWarnings(") == 1
 
 
-def test_le_calcul_de_severite_ne_vit_que_dans_le_verdict():
-    """`subsWarnings` (le calcul brut) n'est appele QUE par `subsVerdict`.
+def _fn_body(src: str, name: str) -> str:
+    """Corps approximatif d'une fonction de premier niveau (jusqu'a la
+    prochaine declaration de premier niveau)."""
+    head = "function %s(" % name
+    assert head in src, "fonction introuvable : %s" % name
+    return src.split(head, 1)[1].split("\nfunction ", 1)[0]
 
+
+def test_le_calcul_de_severite_ne_vit_que_dans_le_verdict():
+    """`subsWarnings` (le calcul brut) n'est appele que par le MOTEUR.
+
+    Deux appelants autorises, et pas un de plus :
+      * `subsVerdict`   — le verdict de la piste reelle ;
+      * `subsPlanAfter` — la SIMULATION de la piste corrigee, qui sert a
+        ecrire l'APRES d'un correctif (ce qu'il eteint, cree, laisse).
     Toute autre surface qui l'appellerait se fabriquerait un second verdict :
     c'est exactement ce que faisaient la timeline, le badge d'onglet et
     l'inspecteur.
     """
     src = _strip_comments(_layer())
-    # appels = occurrences suivies de '(' moins la definition et l'export
     calls = re.findall(r"subsWarnings\(", src)
-    assert len(calls) == 2, f"appels a subsWarnings : {len(calls)} (definition + verdict attendus)"
-    body = src.split("function subsVerdict(", 1)[1]
-    assert "subsWarnings(list,st,dur)" in body[:2000], \
-        "subsVerdict doit etre le seul appelant de subsWarnings"
+    assert len(calls) == 4, (
+        "appels a subsWarnings : %d (definition + verdict + 2 simulations)"
+        % len(calls))
+    vd = _fn_body(src, "subsVerdict")
+    assert "subsWarnings(list,st,dur)" in vd
+    after = _fn_body(src, "subsPlanAfter")
+    assert after.count("subsWarnings(") == 2, \
+        "la simulation compare l'AVANT et l'APRES"
+    assert ",!0)" in after, \
+        "la simulation tourne en mode plat : aucun plan reconstruit, aucune recursion"
+    # aucun composant React n'appelle le calcul brut
+    for comp in ("SubsSegments", "SubsStyle", "SubsDrawer", "SubsOverlay"):
+        body = src.split("const %s=" % comp, 1)[1].split("\nconst ", 1)[0]
+        assert "subsWarnings(" not in body, "%s ne doit pas recalculer" % comp
 
 
 def test_les_surfaces_du_tiroir_lisent_le_verdict():
@@ -404,8 +425,12 @@ def test_les_plans_non_couverts_sont_designes_avec_le_geste():
     assert "function planRow(" in segs
     assert "Transcrire ce plan" in segs
     assert "Écrire ici" in segs
-    assert "Sans parole" in segs
-    assert "rétablir" in segs, "l'aveu « sans parole » doit etre reversible"
+    assert "sans parole" in segs
+    # tour 5 : l'aveu est devenu un ACQUITTEMENT nomme, et il se REVOQUE
+    # (« rétablir » ne disait pas ce qu'il rétablissait)
+    assert "révoquer" in segs, "l'acquittement « sans parole » doit etre reversible"
+    assert 'fam:"ack",label:"sans parole"' in segs, \
+        "« sans parole » ne change pas le fichier livre : il doit le DIRE"
     # la transcription d'UN plan fusionne au lieu de remplacer la piste
     drw = _strip_comments(src).split("const SubsDrawer=", 1)[1]
     assert "function transcribe(plan)" in drw

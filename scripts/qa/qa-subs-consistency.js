@@ -132,6 +132,19 @@ function chk(ok, label, detail) {
     if (c) c.click();
   });
   await sleep(1800);
+  /* ÉTAT NEUTRE : les acquittements « sans parole » vivent sur les clips, donc
+     ils se sauvegardent avec le montage. Une passe précédente ne doit pas
+     teinter les chiffres de celle-ci. */
+  for (let i = 0; i < 4; i++) {
+    const reste = await p.evaluate(() => {
+      const r = [...document.querySelectorAll(".sub-covign button")]
+        .find((e) => /révoquer/i.test(e.textContent || ""));
+      if (!r) return false;
+      r.click(); return true;
+    });
+    await sleep(1200);
+    if (!reste) break;
+  }
   for (let i = 0; i < 80; i++) {
     const done = await p.evaluate(() => {
       const r = document.querySelector(".sub-row");
@@ -425,6 +438,132 @@ function chk(ok, label, detail) {
       "sévérité de l'inspecteur = sévérité de la pastille du segment",
       "inspecteur " + maxSev + " / pastille " + insp.sev);
   }
+
+  /* ════════ GARDE E — TOUR 5 : LA RÈGLE DES GESTES ═════════════════════════
+     E1. Deux familles, distinguables PAR LA FORME (pas par le libellé seul) :
+         un correctif écrit dans le fichier livré, un acquittement ne fait que
+         taire l'alerte. Mesuré sur le style CALCULÉ des deux boutons.
+     E2. Aucun bouton de remède sans son APRÈS.
+     E3. Un bouton qui dépense annonce langue, moteur, prix et durée — les
+         quatre boutons par plan compris.
+     E4. Une ligne repliée porte début, DURÉE et la MESURE de sa pastille.
+     E5. L'acquittement laisse une trace chiffrée et révocable dans le verdict.
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* le contrôle doit être IDEMPOTENT : un acquittement laissé par une passe
+     précédente vit sur le clip (donc sauvegardé). On repart de zéro. */
+  await p.evaluate(() => {
+    const r = [...document.querySelectorAll(".sub-covign button")]
+      .find((e) => /révoquer/i.test(e.textContent || ""));
+    if (r) r.click();
+  });
+  await sleep(1500);
+
+  const fam = await p.evaluate(() => {
+    const lu = (sel) => {
+      const e = document.querySelector(sel);
+      if (!e) return null;
+      const s = getComputedStyle(e);
+      return { txt: (e.innerText || "").replace(/\s+/g, " ").trim().slice(0, 70),
+        radius: s.borderTopLeftRadius, style: s.borderTopStyle,
+        bg: s.backgroundColor, title: (e.getAttribute("title") || "").length };
+    };
+    return { fix: lu('.sub-drawer .sub-act[data-fam="fix"]'),
+      /* l'acquittement d'un PLAN (« révoquer » est aussi de la famille ack,
+         mais c'est le geste inverse : il ne s'annonce pas de la même façon) */
+      ack: lu('.sub-drawer .sub-plan .sub-act[data-fam="ack"]')
+        || lu('.sub-drawer .sub-act[data-fam="ack"]'),
+      nFix: document.querySelectorAll('.sub-drawer .sub-act[data-fam="fix"]').length,
+      nAck: document.querySelectorAll('.sub-drawer .sub-act[data-fam="ack"]').length,
+      muets: [...document.querySelectorAll(".sub-drawer .sub-act")]
+        .filter((e) => (e.getAttribute("title") || "").trim().length < 25)
+        .map((e) => (e.innerText || "").replace(/\s+/g, " ").trim()),
+      couts: [...document.querySelectorAll(".sub-drawer .sub-act")]
+        .filter((e) => /Transcrire|Caler la narration/i.test(e.innerText || ""))
+        .map((e) => ((e.querySelector(".sub-actcost") || {}).textContent || "")),
+    };
+  });
+  chk(fam.nFix > 0 && fam.nAck > 0, "les deux familles de gestes sont à l'écran",
+    fam.nFix + " correctifs, " + fam.nAck + " acquittements");
+  if (fam.fix && fam.ack) {
+    const formes = [fam.fix.style !== fam.ack.style,
+      fam.fix.radius !== fam.ack.radius, fam.fix.bg !== fam.ack.bg]
+      .filter(Boolean).length;
+    chk(formes >= 3, "les deux familles se distinguent PAR LA FORME",
+      "bord " + fam.fix.style + "/" + fam.ack.style + ", rayon " +
+      fam.fix.radius + "/" + fam.ack.radius);
+    chk(/Acquitter|révoquer/.test(fam.ack.txt),
+      "l'acquittement dit qu'il en est un", fam.ack.txt);
+  }
+  chk(fam.muets.length === 0, "aucun bouton de remède sans son APRÈS",
+    fam.muets.length ? JSON.stringify(fam.muets) : "tous annoncés");
+  chk(fam.couts.length > 0 && fam.couts.every((c) =>
+    /gratuit|\$/.test(c) &&
+    /français|anglais|espagnol|allemand|italien|portugais/.test(c)),
+    "chaque bouton qui dépense annonce langue, moteur, prix et durée",
+    JSON.stringify(fam.couts));
+
+  const lignes = await p.evaluate(() => [...document.querySelectorAll(".sub-row")]
+    .map((r) => ({ tc: ((r.querySelector(".sub-rtc") || {}).textContent || "").trim(),
+      dur: ((r.querySelector(".sub-rdur") || {}).textContent || "").trim(),
+      mes: ((r.querySelector(".sub-rmes") || {}).textContent || "").trim(),
+      bad: !!r.querySelector(".sub-rbadge[data-k]") })));
+  chk(lignes.length > 0 && lignes.every((l) => /\d\d:\d\d/.test(l.tc) && /s$/.test(l.dur)),
+    "chaque ligne repliée porte son début ET sa durée",
+    JSON.stringify(lignes.slice(0, 3)));
+  const marquees = lignes.filter((l) => l.bad);
+  chk(marquees.length > 0 && marquees.every((l) => l.mes.length > 0),
+    "toute ligne à pastille porte LA MESURE qui l'a motivée",
+    JSON.stringify(marquees.map((l) => l.mes).slice(0, 6)));
+
+  const acq = await p.evaluate(() => {
+    const a = [...document.querySelectorAll('.sub-plan .sub-act[data-fam="ack"]')][0];
+    if (!a) return { skip: true };
+    const annonce = ((a.querySelector(".sub-actcost") || {}).textContent || "").trim();
+    a.click();
+    return { skip: false, annonce: annonce };
+  });
+  await sleep(1800);
+  if (acq.skip) chk(true, "acquittement — aucun plan muet à acquitter ici");
+  else {
+    const trace = await p.evaluate(() => ({
+      chip: !!document.querySelector('.sub-tal[data-k="acquittes"]'),
+      txt: ((document.querySelector('.sub-tal[data-k="acquittes"]') || {}).innerText || "")
+        .replace(/\s+/g, " ").trim(),
+      ligne: ((document.querySelector(".sub-covign") || {}).innerText || "")
+        .replace(/\s+/g, " ").trim(),
+      revoc: !![...document.querySelectorAll(".sub-covign button")]
+        .find((e) => /révoquer/i.test(e.textContent || "")),
+      pct: Math.round(window.DzSubs ? 0 : 0),
+    }));
+    chk(trace.chip && /acquitt/i.test(trace.txt),
+      "l'acquittement laisse une trace CHIFFRÉE dans la ligne des comptes",
+      trace.txt || "absente");
+    chk(/acquitt/i.test(trace.ligne) && trace.revoc,
+      "la trace nomme les plans et se révoque", trace.ligne.slice(0, 120));
+    chk(/%/.test(acq.annonce),
+      "l'acquittement annonçait AVANT le clic le chiffre qu'il déplace",
+      acq.annonce);
+    /* on remet le montage dans l'état où on l'a trouvé — et on laisse
+       l'autosave écrire, sinon la passe suivante hériterait de l'aveu */
+    await p.evaluate(() => {
+      const r = [...document.querySelectorAll(".sub-covign button")]
+        .find((e) => /révoquer/i.test(e.textContent || ""));
+      if (r) r.click();
+    });
+    await sleep(3000);
+  }
+
+  /* deux remèdes visibles ne poussent pas en sens inverse sans nommer leur but */
+  const arb = await p.evaluate(() => {
+    const d = window.DzSubs;
+    const st = Object.assign(d.defaultStyle(),
+      { bgOn: true, bgOpacity: 64, karOn: true, outOn: true, outW: 3 });
+    return d.goalConflicts(st).map((c) => ({
+      trait: c.trait, a: c.a.label, aBut: c.a.but, b: c.b.label, bBut: c.b.but }));
+  });
+  chk(arb.length > 0 && arb.every((c) => c.aBut && c.bBut),
+    "deux gestes opposés sont détectés et chacun nomme son objectif",
+    JSON.stringify(arb));
 
   chk(pageErrs.length === 0, "aucune erreur JS sur la page",
     pageErrs.join(" | ") || "0");

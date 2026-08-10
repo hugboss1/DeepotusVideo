@@ -6431,6 +6431,50 @@ _SUBS_W_UI = {
 }
 _SUBS_SEV_UI = {"erreur": "err", "avertissement": "warn"}
 
+#: LA MESURE qui a motivé la pastille, en trois caractères ou presque.
+#: Une ligne repliée du panneau ne montrait qu'un temps de début : les chiffres
+#: qu'elle demandait de croire ne pouvaient être rattachés à aucun calage
+#: concret sans déplier. Le moteur mesure (`value`, `limit`) — il envoie donc
+#: SON chiffre, y compris là où le panneau ne sait pas le refaire : la largeur
+#: de ligne en PIXELS avec la vraie fonte (`ligne_trop_large`).
+def _subs_fr(v: float, dec: int = 2) -> str:
+    """Nombre à la française, zéros de queue retirés (« 1,35 », « 0,8 »)."""
+    s = ("%.*f" % (dec, float(v)))
+    if "." in s:
+        s = s.rstrip("0").rstrip(".")
+    return s.replace(".", ",") or "0"
+
+
+_SUBS_MES_UI = {
+    "texte_vide": lambda v, l: "0 car.",
+    "duree_nulle": lambda v, l: "0 s",
+    "trop_court": lambda v, l: _subs_fr(v) + " s",
+    "trop_long": lambda v, l: _subs_fr(v, 1) + " s",
+    "debit_eleve": lambda v, l: "%d c/s" % round(v),
+    "debit_illisible": lambda v, l: "%d c/s" % round(v),
+    "chevauchement": lambda v, l: "−%d ms" % round(abs(v) * 1000),
+    "intervalle_court": lambda v, l: "%d ms" % round(v * 1000),
+    "ligne_trop_large": lambda v, l: ("%d/%d px" % (round(v), round(l))
+                                      if l else "%d px" % round(v)),
+    "trop_de_lignes": lambda v, l: "%d lignes" % round(v),
+    "mots_incoherents": lambda v, l: "%d mots" % round(v),
+}
+
+
+def _subs_mes(code: str, w: dict) -> str:
+    """Mesure courte d'un avertissement, ou chaîne vide si le moteur n'en a
+    pas fourni (le panneau retombe alors sur son propre calcul local)."""
+    fn = _SUBS_MES_UI.get(str(code))
+    if fn is None:
+        return ""
+    try:
+        v = w.get("value")
+        if v is None and code not in ("texte_vide", "duree_nulle"):
+            return ""
+        return fn(float(v or 0.0), float(w.get("limit") or 0.0))
+    except (TypeError, ValueError):                    # noqa: BLE001
+        return ""
+
 #: Correctif de STYLE du moteur → réglage du panneau, avec ce que le bouton
 #: fait. Un avertissement de style n'a pas d'index de segment : il se répare
 #: dans l'onglet Style, c'est là qu'on le pose.
@@ -6510,7 +6554,9 @@ def _subs_warnings_ui(raw: list, segs: list) -> tuple[list, list]:
         if code == "trop_long":
             sev = "info"
         d = {"i": i, "id": segs[i].get("id"), "kind": kind, "sev": sev,
-             "msg": msg, "code": code, "about": about or [i]}
+             "msg": msg, "code": code, "about": about or [i],
+             # la MESURE, à afficher à côté de la pastille de la ligne repliée
+             "mes": _subs_mes(code, w)}
         p = _subs_plan_ui(w.get("plan"))
         if p:
             d["plan"] = p

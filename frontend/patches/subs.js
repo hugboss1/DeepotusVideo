@@ -294,6 +294,71 @@ function subsRoomBefore(list,i){
   if(i>0)return Math.max(0,list[i].start-SUBS_MIN_GAP-list[i-1].end);
   return Math.max(0,list[i].start)}
 
+/* ═══════════ LA RÈGLE DES GESTES — une fois, et pour tout le panneau ════════
+   Quatre tours de suite, un critique a retrouvé le même défaut sous un visage
+   neuf : un bouton posé sous un avertissement faisait autre chose que ce que
+   l'avertissement laissait croire. « Étirer » fabriquait le chevauchement
+   dénoncé juste dessous. « Passer le fond en opaque » fabriquait la condition
+   de l'écart voisin. « Sans parole » éteignait l'alerte « 3 plans sortiront
+   muets » SANS RIEN CHANGER au fichier livré, et rien ne disait que c'était un
+   acquittement. Ce n'est pas trois rattrapages qui manquaient : c'est UNE règle.
+
+   ── LA RÈGLE, en trois articles ────────────────────────────────────────────
+   1. DEUX FAMILLES, JAMAIS CONFONDUES.
+      Un geste attaché à un avertissement est soit un CORRECTIF (`fam:"fix"` —
+      il change le fichier livré), soit un ACQUITTEMENT (`fam:"ack"` — il ne
+      change RIEN au fichier livré, il éteint l'alerte et laisse une trace
+      révocable dans le verdict). Les deux se distinguent AU PREMIER COUP
+      D'ŒIL, par la FORME : le correctif est un rectangle plein marqué « ✎ »,
+      l'acquittement est une pastille à bord POINTILLÉ marquée « ✓ », et son
+      libellé commence par « Acquitter ». Aucun libellé n'a besoin d'être lu
+      pour trancher.
+   2. DEUX GESTES VISIBLES EN MÊME TEMPS NE PEUVENT PAS POUSSER EN SENS
+      INVERSE sans que chacun nomme son OBJECTIF (`but`). « Couper le fond » et
+      « Activer un fond opaque » écrivent le MÊME réglage à 60 px d'écart :
+      `subsGoalConflicts` les détecte et l'écran nomme les deux objectifs au
+      lieu de laisser choisir à pile ou face.
+   3. TOUT GESTE ANNONCE SON APRÈS AVANT LE CLIC (`apres`) : ce qu'il éteint,
+      ce qu'il crée, ce qui reste. Le mécanisme existait pour le style
+      (`subsStylePlan`) ; il est étendu ICI au TEMPS (`subsPlanAfter`, qui
+      simule la piste corrigée et compte les défauts d'après) et à la
+      COUVERTURE (`subsCovPlans`).
+   `backend/tests/test_subs_single_source.py` interdit qu'un bouton de remède
+   existe sans son plan, et `scripts/qa/qa-subs-consistency.js` mesure dans le
+   DOM que les deux familles ne se ressemblent pas. */
+var SUBS_FAM={
+  fix:{glyph:"✎",dit:"Ce geste ÉCRIT dans le fichier livré."},
+  ack:{glyph:"✓",dit:"Ce geste n'écrit RIEN dans le fichier livré : il "+
+    "acquitte l'alerte et laisse une trace révocable dans le verdict."}};
+/* Un bouton de remède = un `fam`, un `label`, un `apres`, et l'objectif qu'il
+   sert. Tout passe par ici : c'est ce qui rend la règle vérifiable. */
+function subsActBtn(o){
+  var fam=o.fam==="ack"?"ack":"fix";
+  var lab=fam==="ack"?"Acquitter — "+String(o.label||""):String(o.label||"");
+  var tip=(o.but?"Objectif : "+o.but+".\n":"")+SUBS_FAM[fam].dit+"\n"+
+    String(o.apres||"");
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("button",{className:"sub-act","data-fam":fam,
+      disabled:!!o.disabled,title:tip,
+      onClick:o.onClick,children:[
+      r.jsxs("span",{className:"sub-acthead",children:[
+        r.jsx("span",{className:"sub-actg","aria-hidden":!0,
+          children:SUBS_FAM[fam].glyph},"g"),
+        r.jsx("span",{className:"sub-actlab",children:lab},"l")]},"h"),
+      o.cost?r.jsx("span",{className:"sub-actcost",
+        "data-free":o.free?"":void 0,children:o.cost},"c"):null]},"b"),
+    o.quiet?null
+      :r.jsxs("span",{className:"sub-actwhat","data-fam":fam,children:[
+        o.but?r.jsx("b",{className:"sub-actbut",
+          children:"pour "+o.but+" — "},"u"):null,
+        String(o.apres||"")]},"w")]},o.k||"act")}
+/* geste IMPOSSIBLE : pas de bouton, mais l'explication reste — un bouton qui
+   ne pourrait rien faire est pire qu'un bouton absent */
+function subsActNo(label,why,k){
+  return r.jsxs("span",{className:"sub-actwhat","data-blocked":"",children:[
+    label?r.jsx("b",{className:"sub-actbut",children:"« "+label+" » "},"u"):null,
+    String(why||"")]},k||"no")}
+
 function subsPlan(action,ok,label,effect,ops,extra){
   var p={action:action,ok:!!ok,label:label||"",effect:effect||"",
     ops:ops||[],touches:[],alt:null};
@@ -336,9 +401,10 @@ function subsPlanStretch(list,i,target,dur){
     return subsBlockedPlan("etirer","Aucun silence disponible : "+why+
       ". Raccourcissez le texte, ou fusionnez avec le voisin.",{alt:alt})}
   var bits=[];
-  if(ta>.001)bits.push("prend "+subsFrMs(ta)+" de silence après");
+  if(ta>.001)bits.push(subsFrMs(ta)+" de silence après");
   if(tb>.001)bits.push(subsFrMs(tb)+" de silence avant");
-  var eff=bits.length?"Le segment "+bits.join(" et ")+". Aucun voisin ne bouge."
+  var eff=bits.length
+    ?"Le segment prend "+bits.join(" et ")+". Aucun voisin ne bouge."
     :"Aucun voisin ne bouge.";
   if(got<want-.005)
     eff+=" Il faudrait "+subsFr(want)+" s : le voisin ne laisse pas plus. "+
@@ -445,13 +511,21 @@ function subsApplyPlan(list,plan){
     out.push(ns)});
   return subsSort(out)}
 
-function subsWarnings(segs,style,dur){
+/* `flat` : calcul SANS correctifs. Il ne sert qu'à la SIMULATION (compter les
+   défauts de la piste d'après un plan) — construire les plans de la piste
+   simulée serait une récursion sans fin, et personne ne les afficherait. */
+function subsWarnings(segs,style,dur,flat){
   var list=subsSort(segs),out=[],mc=Math.max(10,subsN(style&&style.maxChars,42));
   var maxLines=Math.max(1,subsN(style&&style.maxLines,2));
   var d=subsN(dur,0);
-  function push(s,i,kind,sev,msg,plan,about){
-    out.push({id:s.id,i:i,kind:kind,sev:sev,msg:msg,plan:plan||null,
-      about:about||[i]})}
+  /* `mes` — LA MESURE qui a motivé la pastille, en trois caractères ou presque.
+     Une ligne repliée ne montrait qu'un temps de début : les chiffres qu'on
+     demandait de croire ne pouvaient être rattachés à aucun calage concret
+     sans déplier. La mesure voyage donc AVEC l'avertissement, et la ligne la
+     porte à côté de sa pastille. */
+  function push(s,i,kind,sev,msg,plan,about,mes){
+    out.push({id:s.id,i:i,kind:kind,sev:sev,msg:msg,plan:flat?null:(plan||null),
+      about:about||[i],mes:String(mes||"")})}
   list.forEach(function(s,i){
     /* la FRONTIÈRE d'abord : elle ne dépend que des bornes, et un segment
        encore vide ne doit pas masquer le chevauchement qu'il cause.
@@ -463,36 +537,87 @@ function subsWarnings(segs,style,dur){
       if(gap<-1e-6)
         push(s,i,"chevauche","err","Commence "+subsFrMs(-gap)+" AVANT la fin "+
           "du "+subsRank(i-1)+" : les deux s'afficheront ensemble.",
-          subsPlanBoundary(list,i),[i-1,i]);
+          flat?null:subsPlanBoundary(list,i),[i-1,i],"−"+subsFrMs(-gap));
       else if(gap<SUBS_MIN_GAP)
         push(s,i,"intervalle","warn","Commence "+subsFrMs(gap)+" après la fin "+
           "du "+subsRank(i-1)+" : sous "+subsFrMs(SUBS_MIN_GAP)+" le "+
           "changement se verra comme un clignotement.",
-          subsPlanBoundary(list,i),[i-1,i])}
+          flat?null:subsPlanBoundary(list,i),[i-1,i],subsFrMs(gap))}
     var len=Math.max(.001,s.end-s.start);
     var chars=String(s.text||"").replace(/\s+/g," ").trim().length;
     if(!chars){
       push(s,i,"vide","err","Segment sans texte : rien ne s'affichera, et il "+
-        "sortira de l'export.");return}
+        "sortira de l'export.",null,null,"0 car.");return}
     var cps=chars/len;
     if(cps>SUBS_CPS_MAX+1e-6){
-      var pl=subsPlanStretch(list,i,chars/SUBS_CPS_MAX,d);
-      if(!pl.ok&&!(pl.alt&&pl.alt.ok)&&chars>mc)
+      var pl=flat?null:subsPlanStretch(list,i,chars/SUBS_CPS_MAX,d);
+      if(pl&&!pl.ok&&!(pl.alt&&pl.alt.ok)&&chars>mc)
         pl=subsPlanSplit(list,i,mc,maxLines);
       push(s,i,"vitesse","err",subsFr(cps,1)+" caractères/seconde : au-delà de "+
-        SUBS_CPS_MAX+", la lecture décroche.",pl)}
+        SUBS_CPS_MAX+", la lecture décroche.",pl,null,
+        Math.round(cps)+" c/s")}
     if(len<SUBS_MIN_S-1e-4)
       push(s,i,"court","warn",subsFr(len)+" s : sous "+subsFr(SUBS_MIN_S)+
         " s l'œil n'a pas le temps de se poser.",
-        subsPlanStretch(list,i,SUBS_MIN_S,d));
+        flat?null:subsPlanStretch(list,i,SUBS_MIN_S,d),null,subsFr(len)+" s");
     if(len>SUBS_MAX_S+1e-4)
       push(s,i,"long","info",subsFr(len,1)+" s à l'écran : au-delà de "+
-        SUBS_MAX_S+" s, découpez.",subsPlanSplit(list,i,mc,maxLines));
+        SUBS_MAX_S+" s, découpez.",flat?null:subsPlanSplit(list,i,mc,maxLines),
+        null,subsFr(len,1)+" s");
     var ln=subsLines(s.text,mc);
     if(ln.length>maxLines)
       push(s,i,"lignes","warn",ln.length+" lignes affichées (maximum "+
-        maxLines+").",subsPlanRewrap(list,i,mc,maxLines))});
+        maxLines+").",flat?null:subsPlanRewrap(list,i,mc,maxLines),null,
+        ln.length+" lignes")});
   return out}
+
+/* ═════════ L'APRÈS D'UN CORRECTIF DE TEMPS — simulé, pas promis ═════════════
+   `subsStylePlan` savait déjà simuler le style d'après. Les correctifs de
+   TEMPS, eux, n'annonçaient que leur effet mécanique (« prend 190 ms de
+   silence après ») : ils ne disaient pas ce qu'ils ÉTEIGNENT, ce qu'ils
+   CRÉENT ailleurs, ni ce qui RESTE. On applique donc le plan à une copie de
+   la piste, on recompte les défauts (`flat` : sans reconstruire de plans), et
+   on écrit la différence. Un chiffre, pas une promesse. */
+var SUBS_KINDLAB={chevauche:"chevauchement",intervalle:"intervalle trop court",
+  vide:"réplique vide",vitesse:"lecture trop rapide",
+  court:"réplique trop courte",long:"réplique trop longue",
+  lignes:"trop de lignes"};
+function subsKindCount(ws){
+  var m={};(ws||[]).forEach(function(w){m[w.kind]=(m[w.kind]||0)+1});return m}
+function subsKindList(a){
+  return a.map(function(o){
+    return (SUBS_KINDLAB[o.kind]||o.kind)+(o.n>1?" ×"+o.n:"")}).join(", ")}
+/* mute le plan : lui ajoute `eteint` / `cree` / `reste` et la phrase `apres` */
+function subsPlanAfter(list,plan,style,dur){
+  if(!plan)return plan;
+  plan.fam="fix";
+  if(!plan.ok||!plan.ops||!plan.ops.length){
+    plan.apres=plan.apres||plan.effect||"";return plan}
+  if(list.length>150){plan.apres=plan.effect||"";return plan}
+  var av,ap;
+  try{
+    av=subsKindCount(subsWarnings(list,style,dur,!0));
+    ap=subsKindCount(subsWarnings(subsApplyPlan(list,plan),style,dur,!0))}
+  catch(_e){plan.apres=plan.effect||"";return plan}
+  var keys={},eteint=[],cree=[],reste=[];
+  Object.keys(av).forEach(function(k){keys[k]=1});
+  Object.keys(ap).forEach(function(k){keys[k]=1});
+  Object.keys(keys).sort().forEach(function(k){
+    var a=av[k]||0,b=ap[k]||0;
+    if(b<a)eteint.push({kind:k,n:a-b});
+    if(b>a)cree.push({kind:k,n:b-a});
+    if(b>0&&b<=a)reste.push({kind:k,n:b})});
+  plan.eteint=eteint;plan.cree=cree;plan.reste=reste;
+  var bits=[String(plan.effect||"")];
+  if(eteint.length)bits.push("Éteint : "+subsKindList(eteint)+".");
+  if(cree.length)bits.push("CRÉE : "+subsKindList(cree)+".");
+  if(reste.length)bits.push("Reste : "+subsKindList(reste)+" ailleurs sur la piste.");
+  if(!eteint.length&&!cree.length&&!reste.length)
+    bits.push("Après : plus aucun défaut sur la piste.");
+  else if(!eteint.length&&!cree.length)
+    bits.push("Ce geste ne ferme aucun défaut à lui seul.");
+  plan.apres=bits.join(" ");
+  return plan}
 /* ═══════════════════ LE VERDICT — la SEULE fonction qui décide ═══════════════
    La sévérité de chaque réplique ET tous les comptes affichés sont calculés
    ICI, une fois, pour une piste donnée. La timeline, la liste, les pastilles
@@ -576,7 +701,7 @@ function subsSafeIssues(style){
       "bords tombent à "+subsFr(side,1)+" % de l'image et sortent donc de la "+
       "zone sûre "+SUBS_SAFE_TITLE+" % que l'aperçu trace.",
       sev:"warn",about:[],cle:"safe_width",
-      fix:{champ:"width",valeur:wSafe,
+      fix:{champ:"width",valeur:wSafe,but:"tenir dans la zone sûre",
         label:"Rentrer dans la zone sûre",
         effect:"La largeur passe à "+wSafe+" % : les deux marges latérales "+
           "tombent exactement sur la ligne "+SUBS_SAFE_TITLE+" %."}});
@@ -584,7 +709,7 @@ function subsSafeIssues(style){
     out.push({msg:"Marge du bord "+subsFr(mv,1)+" % : le bord du texte passe "+
       "SOUS la ligne de zone sûre "+SUBS_SAFE_TITLE+" % que l'aperçu trace.",
       sev:"warn",about:[],cle:"safe_margin",
-      fix:{champ:"marginV",valeur:SUBS_SAFE_TITLE,
+      fix:{champ:"marginV",valeur:SUBS_SAFE_TITLE,but:"tenir dans la zone sûre",
         label:"Remonter à "+SUBS_SAFE_TITLE+" %",
         effect:"La marge du bord passe à "+SUBS_SAFE_TITLE+" % : le texte se "+
           "pose exactement sur la ligne de zone sûre."}});
@@ -615,8 +740,13 @@ function subsStyleRules(st){
         "recouvrent, et si elles sont translucides les opacités s'additionnent. "+
         "Mesuré à la gravure : une même ligne porte douze niveaux de fond à "+
         Math.round(op)+" %, un seul à 100 %.",
-      fixes:[{champ:"bgOpacity",valeur:100,label:"Fond opaque"},
-             {champ:"karOn",valeur:!1,label:"Couper le karaoké"}]});
+      /* chaque geste NOMME son objectif : c'est ce qui permet de le mettre en
+         face de « Couper le fond », qui écrit le même réglage en sens inverse
+         à 60 px d'ici (cf. subsGoalConflicts). */
+      fixes:[{champ:"bgOpacity",valeur:100,label:"Fond opaque",
+              but:"supprimer les coutures du karaoké"},
+             {champ:"karOn",valeur:!1,label:"Couper le karaoké",
+              but:"supprimer les coutures du karaoké"}]});
   if(s.karOn&&String(s.karMode)==="box"&&!s.bgOn)
     out.push({cle:"karaoke_boite_sans_fond",sev:"warn",
       msg:"Karaoké « boîte » sans fond : la gravure colorera le CONTOUR du mot "+
@@ -628,9 +758,12 @@ function subsStyleRules(st){
          réglages d'un coup. C'est la règle même du tour — un correctif
          respecte les autres contraintes du style. */
       fixes:[op<100
-        ?{patch:{bgOn:!0,bgOpacity:100},label:"Activer un fond opaque"}
-        :{champ:"bgOn",valeur:!0,label:"Activer le fond"},
-        {champ:"karMode",valeur:"fill",label:"Passer en remplissage"}]});
+        ?{patch:{bgOn:!0,bgOpacity:100},label:"Activer un fond opaque",
+          but:"obtenir une vraie boîte de karaoké"}
+        :{champ:"bgOn",valeur:!0,label:"Activer le fond",
+          but:"obtenir une vraie boîte de karaoké"},
+        {champ:"karMode",valeur:"fill",label:"Passer en remplissage",
+         but:"obtenir une vraie boîte de karaoké"}]});
   return out}
 /* tous les écarts d'un style, la zone sûre comprise — une seule liste, un
    seul ordre, un seul dédoublonnage par clé */
@@ -690,8 +823,9 @@ function subsStylePlan(st,fx){
     bits.push("Il restera : "+reste.map(function(w){return SUBS_ECLAB[w.cle]||w.cle})
       .join(", ")+".");
   if(!neuf.length&&!reste.length)bits.push("Après : plus aucun écart.");
-  var plan={patch:pat,label:fx.label||"Corriger",
+  var plan={patch:pat,label:fx.label||"Corriger",fam:"fix",but:fx.but||"",
     ok:!0,effect:bits.join(" "),cree:neuf.length,restant:reste.length};
+  plan.apres=plan.effect;
   if(neuf.length&&(neuf.length+reste.length)>=Object.keys(av).length){
     plan.ok=!1;
     plan.blocked="ne réduirait rien — il créerait "+
@@ -798,15 +932,31 @@ function subsVerdict(segs,style,dur,clips){
   var warns=subsWarnings(list,st,dur),src="local";
   if(SUBS_CHK.key===key&&SUBS_CHK.warns){
     var byId={};list.forEach(function(s){byId[s.id]=s});
+    /* LA MESURE reste locale, même quand le moteur gagne : c'est le chiffre
+       que la ligne repliée affiche à côté de sa pastille, et le moteur ne le
+       renvoie pas. Sans ce report, la pastille du verdict moteur demandait
+       encore de croire un verdict sans montrer le chiffre qui l'a produit. */
+    var mesBy={};
+    warns.forEach(function(w){mesBy[w.id+"|"+w.kind]=w.mes});
     warns=SUBS_CHK.warns.map(function(w){
       var s=(w&&w.id!=null&&byId[w.id])||list[subsN(w&&w.i,-1)];
       if(!s)return null;
-      return {id:s.id,i:subsN(w.i,-1),kind:String(w.kind||"regle"),
+      var kd=String(w.kind||"regle");
+      return {id:s.id,i:subsN(w.i,-1),kind:kd,
         sev:SUBS_SEVN[String(w.sev)]?String(w.sev):"warn",
         msg:String(w.msg||""),
+        mes:String(w.mes||mesBy[s.id+"|"+kd]||""),
         about:Array.isArray(w.about)?w.about:[subsN(w.i,-1)],
         plan:w.plan||null}}).filter(Boolean);
     src="moteur"}
+  /* TOUT correctif porte son APRÈS avant le clic — règle du tour 5, étendue
+     ici aux correctifs de TEMPS (ceux du style l'avaient déjà). La simulation
+     tourne une fois par plan, sur la piste réelle, au moment où le verdict est
+     calculé : les surfaces n'ont plus qu'à lire `plan.apres`. */
+  warns.forEach(function(w){
+    if(!w||!w.plan)return;
+    subsPlanAfter(list,w.plan,st,dur);
+    if(w.plan.alt)subsPlanAfter(list,w.plan.alt,st,dur)});
   var bySeg={},nSig=0,nBlk=0;
   list.forEach(function(s){bySeg[s.id]={sev:null,n:0,nErr:0,warns:[]}});
   warns.forEach(function(w){
@@ -835,7 +985,12 @@ function subsVerdict(segs,style,dur,clips){
       /* couverture : le pourcentage du montage réellement sous-titré, et le
          nombre de PLANS qui n'ont aucune réplique */
       couverture:cov.pct,plans:cov.plans.length,
-      plans_sans:cov.sans.length,plans_ignores:cov.ignores.length}};
+      plans_sans:cov.sans.length,plans_ignores:cov.ignores.length,
+      /* ACQUITTÉS — la trace que « Sans parole » laisse dans le verdict.
+         Un acquittement qui éteint une alerte sans rien changer au fichier
+         livré ne peut pas se solder par un silence : il se compte, il se
+         nomme, et il se révoque. */
+      acquittes:cov.ignores.length}};
   SUBS_VD={k:ck,v:v};
   return v}
 /* verdict VIDE — la forme exacte du plein, pour que l'hôte n'ait jamais à
@@ -845,7 +1000,7 @@ function subsVerdictNil(){
     cov:{plans:[],sans:[],partiels:[],ignores:[],couvert:0,attendu:0,dur:0,
       pct:0,connu:!1,complet:!0},
     counts:{repliques:0,masquees:0,signalees:0,bloquantes:0,defauts:0,ecarts:0,
-      couverture:0,plans:0,plans_sans:0,plans_ignores:0}}}
+      couverture:0,plans:0,plans_sans:0,plans_ignores:0,acquittes:0}}}
 function subsSegState(v,id){
   return (v&&v.bySeg&&v.bySeg[id])||{sev:null,n:0,nErr:0,warns:[]}}
 
@@ -1078,8 +1233,57 @@ function subsNeutralized(st){
         "de l'épaisseur de contour comme rembourrage de la boîte, et c'est la "+
         "marge intérieure du fond qui la règle.",
       fix:{champ:"bgOn",valeur:!1,label:"Couper le fond",
+        but:"rendre le contour visible",
         effect:"Le fond disparaît et le contour de "+
           subsFr(subsN(s.outW,3),1)+" px se met à agir."}});
+  return out}
+
+/* ═══ RÈGLE 2 — deux gestes visibles ne peuvent pas pousser en sens inverse ══
+   « Couper le fond » (sous le curseur Contour, bloc Réglages) et « Activer un
+   fond opaque » (dans les écarts, juste dessous) écrivent le MÊME réglage à
+   60 px l'un de l'autre, dans deux directions. Ils ne se contredisent pas par
+   erreur : ils servent deux OBJECTIFS différents. On les détecte donc
+   mécaniquement — même champ, valeurs différentes — et l'écran nomme les deux
+   objectifs au lieu de laisser choisir au hasard. */
+function subsGestes(st){
+  var out=[];
+  subsNeutralized(st).forEach(function(n){
+    if(n.fix)out.push({label:n.fix.label,but:n.fix.but||"",
+      patch:subsFxPatch(n.fix),ou:"réglage éteint : "+
+        (SUBS_CHAMP[n.champ]||n.champ)})});
+  subsAllStyleRules(st).forEach(function(w){
+    (w.fixes||[]).forEach(function(f){
+      out.push({label:f.label,but:f.but||"",patch:subsFxPatch(f),
+        ou:SUBS_ECLAB[w.cle]||w.cle})})});
+  return out}
+/* On ne compare pas les CLÉS écrites — « Couper le fond » écrit `bgOn`,
+   « Fond opaque » écrit `bgOpacity`, et pourtant ils s'annulent. On compare ce
+   que le style DEVIENT : trois traits observables à l'écran, dérivés du style
+   comme la gravure les dérive. Deux gestes s'opposent quand ils changent tous
+   les deux le MÊME trait, vers deux valeurs différentes. */
+var SUBS_TRAIT={fond:"le fond",contour:"le contour",karaoke:"le karaoké"};
+function subsTraits(st,pat){
+  var a=Object.assign(subsDefaultStyle(),st||{},pat||{});
+  var op=subsClamp(subsN(a.bgOpacity,100),0,100);
+  return {fond:a.bgOn?(op>=100?"opaque":"translucide"):"aucun",
+    /* le contour n'existe que si la gravure le garde (mesuré : sous un fond,
+       il ne sort pas) — c'est le trait VU, pas le réglage écrit */
+    contour:(!a.bgOn&&a.outOn&&subsN(a.outW,0)>0)?"actif":"éteint",
+    karaoke:a.karOn?String(a.karMode||"fill"):"aucun"}}
+function subsGoalConflicts(st){
+  var g=subsGestes(st),base=subsTraits(st,null),out=[],vus={};
+  g.forEach(function(o){o.tr=subsTraits(st,o.patch)});
+  for(var i=0;i<g.length;i++)for(var j=i+1;j<g.length;j++){
+    var a=g[i],b=g[j],ch=null;
+    Object.keys(base).forEach(function(k){
+      if(ch)return;
+      if(a.tr[k]!==base[k]&&b.tr[k]!==base[k]&&a.tr[k]!==b.tr[k])ch=k});
+    if(!ch||a.but===b.but)continue;
+    var sig=[a.label,b.label].sort().join("|");
+    if(vus[sig])continue;
+    vus[sig]=1;
+    out.push({champ:ch,trait:SUBS_TRAIT[ch]||ch,
+      va:a.tr[ch],vb:b.tr[ch],base:base[ch],a:a,b:b})}
   return out}
 
 /* ── santé du service — source unique, auto-réparation (patron du rack VFX) ─
@@ -1171,6 +1375,103 @@ function subsSvcUse(){
   return SUBS_SVC}
 function subsPresets(){return SUBS_SVC.presets||SUBS_PRESETS}
 function subsFonts(){return SUBS_SVC.fonts||SUBS_FONTS_FB}
+
+/* ═══════ LE COÛT, ANNONCÉ AVANT LE CLIC — notre convention, tenue ici ═══════
+   Partout ailleurs dans l'app, un bouton qui dépense annonce son COÛT et sa
+   DURÉE avant de partir. Ici, cinq boutons de transcription ne disaient ni la
+   langue, ni le moteur, ni le prix — sous un solde vivant et une rangée de
+   pastilles de fournisseurs, dans la même image.
+
+   `GET /api/subtitles/estimate?duration_s=N` rend {ok,label,model,usd,eta_s}.
+   Deux appels (60 s et 0 s) suffisent à en déduire le tarif à la minute et la
+   latence fixe ; ensuite CHAQUE bouton calcule le sien, pour SA fenêtre, sans
+   un aller-retour de plus — y compris les quatre boutons par plan.
+
+   Et le chemin GRATUIT existe, il faut le dire là où il est vrai : quand un
+   plan porte déjà son texte de narration, le moteur CALE ce texte sur les
+   silences réels du son (`/subtitles/transcribe` prend ce chemin de lui-même).
+   0 $, hors ligne, orthographe exacte — là où une transcription payante écrit
+   « Dipotus » pour « Deepotus ». */
+var SUBS_LANGS=[["fr","français"],["en","anglais"],["es","espagnol"],
+  ["de","allemand"],["it","italien"],["pt","portugais"]];
+function subsLangLab(c){
+  var k=String(c||"fr");
+  for(var i=0;i<SUBS_LANGS.length;i++)if(SUBS_LANGS[i][0]===k)return SUBS_LANGS[i][1];
+  return k}
+var SUBS_EST={st:"?",ok:!1,label:"",model:"",usdMin:0,over:3,rt:.1,
+  reason:"",busy:!1,subs:[]};
+function subsEstEmit(){
+  SUBS_EST.subs.slice().forEach(function(f){try{f()}catch(_e){}})}
+function subsEstLoad(force){
+  if(SUBS_EST.busy)return;
+  if(SUBS_EST.st!=="?"&&!force)return;
+  SUBS_EST.busy=!0;
+  subsJson("/api/subtitles/estimate?duration_s=60").then(function(a){
+    var fin=function(b){
+      SUBS_EST.busy=!1;
+      if(a&&a.ok){
+        SUBS_EST.ok=!0;SUBS_EST.st="ok";
+        SUBS_EST.label=String(a.label||a.provider||"moteur de transcription");
+        SUBS_EST.model=String(a.model||"");
+        SUBS_EST.usdMin=subsN(a.usd,0);
+        SUBS_EST.over=Math.max(0,subsN(b&&b.eta_s,3));
+        SUBS_EST.rt=Math.max(0,(subsN(a.eta_s,9)-SUBS_EST.over)/60);
+        SUBS_EST.reason=""}
+      else{
+        SUBS_EST.ok=!1;SUBS_EST.st="none";
+        SUBS_EST.reason=String((a&&a.reason)||
+          "Aucune clé de transcription configurée (Réglages : ElevenLabs ou "+
+          "OpenAI). Le calage d'un texte de narration reste gratuit.")}
+      subsEstEmit()};
+    subsJson("/api/subtitles/estimate?duration_s=0").then(fin,function(){fin(null)})},
+  function(){
+    SUBS_EST.busy=!1;SUBS_EST.st="down";SUBS_EST.ok=!1;
+    SUBS_EST.reason="Le moteur ne répond pas : le coût ne peut pas être "+
+      "annoncé, donc rien n'est lancé.";
+    subsEstEmit()})}
+function subsEstUse(){
+  var s=x.useState(0),setT=s[1];
+  x.useEffect(function(){
+    var f=function(){setT(function(t){return t+1})};
+    SUBS_EST.subs.push(f);subsEstLoad();
+    return function(){
+      var i=SUBS_EST.subs.indexOf(f);
+      if(i>=0)SUBS_EST.subs.splice(i,1)}},[]);
+  return SUBS_EST}
+function subsUsd(v){
+  v=Math.max(0,subsN(v,0));
+  if(v<=0)return "0 $";
+  return (v<.01?subsFr(v,4):subsFr(v,2))+" $"}
+function subsEta(s){
+  s=Math.max(1,Math.round(subsN(s,0)));
+  if(s<60)return "~"+s+" s";
+  var m=Math.floor(s/60),r2=s%60;
+  return "~"+m+" min"+(r2?" "+r2+" s":"")}
+/* la pastille de coût, DANS le bouton : langue · moteur · prix · durée.
+   `court` : les boutons par plan sont serrés — le moteur y perd son vendeur
+   (« ElevenLabs Scribe v1 » → « Scribe v1 »), jamais son nom, et le nom
+   complet reste dans l'infobulle du même bouton. */
+function subsMoteurNom(court){
+  var l=String(SUBS_EST.label||"moteur");
+  return court?l.replace(/^(ElevenLabs|OpenAI)\s+/,""):l}
+function subsCostOf(free,dur,lang,court){
+  if(free)return {txt:subsLangLab(lang)+" · calage local · gratuit",free:!0,
+    apres:"Le texte de narration est déjà écrit : le moteur le CALE sur les "+
+      "silences réels du son (langue "+subsLangLab(lang)+"). Aucun appel "+
+      "payant, aucun nom propre écorché, et ça marche hors ligne."};
+  if(!SUBS_EST.ok)return {txt:subsLangLab(lang)+" · coût indisponible",
+    free:!1,ko:!0,apres:SUBS_EST.reason||
+      "Aucun moteur de transcription configuré : le coût ne peut pas être "+
+      "annoncé, donc le geste n'est pas offert."};
+  var d=Math.max(0,subsN(dur,0));
+  var usd=d/60*SUBS_EST.usdMin,eta=SUBS_EST.over+SUBS_EST.rt*d;
+  return {txt:subsLangLab(lang)+" · "+subsMoteurNom(court)+" · "+subsUsd(usd)+
+      " · "+subsEta(eta),
+    free:!1,usd:usd,eta:eta,
+    apres:"Appel PAYANT à "+SUBS_EST.label+
+      (SUBS_EST.model?" ("+SUBS_EST.model+")":"")+", langue "+
+      subsLangLab(lang)+" : "+subsUsd(usd)+" pour "+subsFr(d,1)+" s de son, "+
+      subsEta(eta)+" d'attente."}}
 
 /* ── note interne ─────────────────────────────────────────────────────────── */
 function subsUseNote(){
@@ -1718,16 +2019,35 @@ const SubsStyle=(props)=>{
                 (w.about.length>1?"s":"") + ")":"")},"m"),
           (w.plans||[]).map(function(p,j){
             return p.ok
-              ?r.jsxs(r.Fragment,{children:[
-                r.jsx("button",{className:"sub-minibtn "+
-                  (j?"sub-fixalt":"sub-fix"),
-                  title:p.effect,
-                  onClick:function(){set(Object.assign({},p.patch),!0)},
-                  children:p.label},"b"),
-                r.jsx("span",{className:"sub-warnwhat",children:p.effect},"e")]},
-                "p"+j)
-              :r.jsx("span",{className:"sub-warnwhat","data-blocked":"",
-                children:"« "+p.label+" » "+p.blocked},"p"+j)})]},"sw"+k)})]},"ec")
+              ?subsActBtn({fam:"fix",label:p.label,but:p.but,
+                apres:p.apres||p.effect,
+                onClick:function(){set(Object.assign({},p.patch),!0)},
+                k:"p"+j})
+              :subsActNo(p.label,p.blocked,"p"+j)})]},"sw"+k)})]},"ec")
+    :null;
+
+  /* ── RÈGLE 2 : deux remèdes visibles ne poussent pas en sens inverse ───────
+     « Couper le fond » (sous le curseur Contour) et « Activer un fond opaque »
+     (dans les écarts, 60 px plus bas) écrivent le MÊME réglage à l'envers. Ils
+     ne s'annulent pas par erreur : ils servent deux objectifs. L'écran les
+     met donc face à face et NOMME les deux — c'est un arbitrage, pas un
+     piège. */
+  var arb=subsGoalConflicts(st);
+  var arbitrage=arb.length
+    ?r.jsxs("div",{className:"sub-arb",role:"note",children:[
+      r.jsx("span",{className:"sub-arbhead",
+        children:"Deux gestes tirent "+arb[0].trait+" (« "+arb[0].base+
+          " » aujourd'hui) en sens inverse — choisissez l'objectif"},"h"),
+      r.jsx("div",{className:"sub-arblist",children:arb.map(function(c,k){
+        return r.jsxs("div",{className:"sub-arbrow",children:[
+          r.jsxs("span",{className:"sub-arbside",
+            title:"« "+c.a.label+" » rend "+c.trait+" « "+c.va+" ».",children:[
+            "« ",c.a.label," » pour ",r.jsx("b",{children:c.a.but||"?"})]},"a"),
+          r.jsx("span",{className:"sub-arbvs",children:"contre"},"v"),
+          r.jsxs("span",{className:"sub-arbside",
+            title:"« "+c.b.label+" » rend "+c.trait+" « "+c.vb+" ».",children:[
+            "« ",c.b.label," » pour ",r.jsx("b",{children:c.b.but||"?"})]},"b")]},
+          "c"+k)})},"l")]},"arb")
     :null;
 
   /* réglages ÉTEINTS par le reste du style : mesurés à la gravure, dits ici */
@@ -1787,15 +2107,21 @@ const SubsStyle=(props)=>{
         r.jsx("span",{className:"sub-mhintxt",title:morts.outW.why,
           children:"Éteint par le fond — mesuré : "+
             subsFr(subsN(st.outW,3),1)+" px et 0 px, même image."},"t"),
-        r.jsx("button",{className:"sub-minibtn",
-          title:morts.outW.fix.effect,
-          onClick:function(){set({bgOn:!1},!0)},
-          children:morts.outW.fix.label},"b")]},"outdead"):null,
+        /* ce geste porte son OBJECTIF : il est la moitié de l'arbitrage
+           signalé juste en dessous, en face de « Activer un fond opaque » */
+        subsActBtn({fam:"fix",label:morts.outW.fix.label,
+          but:morts.outW.fix.but,
+          apres:subsStylePlan(st,morts.outW.fix).apres,
+          onClick:function(){set({bgOn:!1},!0)},k:"b"})]},"outdead"):null,
       st.valign==="middle"
         ?r.jsx("div",{className:"sub-mhint",
           children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
             "aussi vrai dans le fichier ASS que dans l'aperçu."},"mvh")
         :rng("marginV",0,45,.5," %","Marge du bord")]}),
+
+    /* l'arbitrage se pose ENTRE les deux gestes qui s'opposent : celui du
+       bloc « Réglages » au-dessus, ceux des écarts au-dessous */
+    arbitrage,
 
     /* les écarts que compte le badge de cet onglet : juste sous les réglages
        qu'ils concernent, et AVANT la galerie — le badge doit toujours pouvoir
@@ -1975,6 +2301,10 @@ const SubsSegments=(props)=>{
   /* la recomposition n'occupe la place que quand on s'en sert : ailleurs, un
      curseur permanent vole 55 px de liste à chaque ouverture du tiroir */
   var s6=x.useState(!1),cpsOn=s6[0],setCpsOn=s6[1];
+  /* la couverture montre les deux premiers plans à traiter ; les autres sont
+     à un clic. Douze boutons dépliés d'office chassaient la liste des
+     répliques hors de l'écran — un panneau qui cache son propre sujet. */
+  var s7=x.useState(!1),covAll=s7[0],setCovAll=s7[1];
   var searchRef=x.useRef(null),rowsRef=x.useRef(null);
   var ph=subsN(props.playhead,0);
   /* le repli à 60 s sert à PLACER un nouveau sous-titre quand la durée du
@@ -2131,6 +2461,16 @@ const SubsSegments=(props)=>{
     /* la pastille de la ligne SORT DU VERDICT : même sévérité, même compte et
        même couleur que la pastille du segment sur la timeline */
     var est=subsSegState(vd,s.id),lw=est.warns;
+    /* ── UNE LIGNE REPLIÉE DOIT POUVOIR SE JUGER ────────────────────────────
+       Elle ne montrait qu'un temps de DÉBUT : ni fin, ni durée, ni la mesure
+       qui a valu sa pastille — les chiffres agrégés du haut ne pouvaient donc
+       être rattachés à aucun calage concret sans déplier ligne par ligne.
+       Elle porte maintenant début, DURÉE, et LA MESURE du défaut le plus
+       grave (« 76 c/s », « 0,4 s », « −190 ms », « 3 lignes ») : trois jetons
+       monospacés, pas un panneau de plus. */
+    var pire=null;
+    lw.forEach(function(w){
+      if(!pire||(SUBS_SEVN[w.sev]||0)>(SUBS_SEVN[pire.sev]||0))pire=w});
     var open=isOpen(s.id);
     var txt=String(s.text||"").replace(/\s+/g," ").trim();
     var head=r.jsxs("div",{className:"sub-r1",role:"button",tabIndex:0,
@@ -2148,6 +2488,11 @@ const SubsSegments=(props)=>{
           subsTc(s.end)+", "+subsRound(len,2)+" s, "+Math.round(cps)+" car./s)",
         onClick:function(e){e.stopPropagation();if(props.onSeek)props.onSeek(s.start)},
         children:subsTc(s.start)},"tc"),
+      r.jsx("span",{className:"sub-rdur",
+        title:"Durée à l'écran : "+subsTc(s.start)+" → "+subsTc(s.end)+
+          " = "+subsFr(len,2)+" s ("+chars+" caractères, "+Math.round(cps)+
+          " car./s)",
+        children:subsFr(len,1)+" s"},"d"),
       r.jsx("span",{className:"sub-rtxt","data-empty":txt?void 0:"",
         title:txt||"Segment sans texte",
         children:txt||"(vide)"},"t"),
@@ -2157,6 +2502,11 @@ const SubsSegments=(props)=>{
          dont le nombre compte les DÉFAUTS DE CETTE RÉPLIQUE — l'infobulle le
          dit en toutes lettres, pour qu'aucun chiffre de l'écran ne puisse être
          confondu avec un autre. */
+      /* LA MESURE qui a motivé la pastille, à côté d'elle : sans ce jeton,
+         la pastille demandait de croire un verdict sans jamais montrer le
+         chiffre qui l'a produit. */
+      pire&&pire.mes?r.jsx("span",{className:"sub-rmes","data-sev":pire.sev,
+        title:pire.msg,children:pire.mes},"me"):null,
       est.sev?r.jsx("span",{className:"sub-rbadge","data-k":est.sev,
         title:subsPl(est.n,"défaut")+" sur cette réplique ("+
           (SUBS_SEVLAB[est.sev]||est.sev)+" au plus fort) : "+
@@ -2219,19 +2569,14 @@ const SubsSegments=(props)=>{
           r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
             children:w.sev==="err"?"!":"·"},"i"),
           r.jsx("span",{className:"sub-warnmsg",children:w.msg},"m"),
-          p&&p.ok?r.jsx("button",{className:"sub-minibtn sub-fix",
-            title:p.effect,onClick:function(){applyPlan(p)},
-            children:p.label},"f"):null,
-          p&&p.ok?r.jsx("span",{className:"sub-warnwhat",children:p.effect},"e")
-            :null,
-          p&&!p.ok&&p.blocked
-            ?r.jsx("span",{className:"sub-warnwhat","data-blocked":"",
-              children:p.blocked},"b"):null,
-          alt?r.jsx("button",{className:"sub-minibtn sub-fixalt",
-            title:alt.effect,onClick:function(){applyPlan(alt)},
-            children:alt.label},"fa"):null,
-          alt?r.jsx("span",{className:"sub-warnwhat",children:alt.effect},"ae")
-            :null]},"w"+k)})},"warns"):null]},s.id)}
+          p&&p.ok?subsActBtn({fam:"fix",label:p.label,
+            apres:p.apres||p.effect,but:p.but,
+            onClick:function(){applyPlan(p)},k:"f"}):null,
+          p&&!p.ok&&p.blocked?subsActNo(p.label,p.blocked,"b"):null,
+          alt?subsActBtn({fam:"fix",label:alt.label,
+            apres:alt.apres||alt.effect,but:alt.but,
+            onClick:function(){applyPlan(alt)},k:"fa"}):null]},"w"+k)})},
+      "warns"):null]},s.id)}
 
   /* tous les comptes viennent du verdict : aucun n'est refait ici */
   var nOff=vd.counts.masquees,nBad=vd.counts.signalees,nBlk=vd.counts.bloquantes;
@@ -2271,6 +2616,13 @@ const SubsSegments=(props)=>{
          il sort le plan du dénominateur, et le pourcentage bouge en le disant. */
   function planRow(p){
     var reste=p.etat==="partiel";
+    /* la couverture APRÈS acquittement, calculée : on retire ce plan du
+       dénominateur et le bouton annonce le chiffre que la ligne des comptes
+       affichera. Un acquittement qui ne dit pas ce qu'il déplace est un
+       acquittement qui se fait passer pour un correctif. */
+    var att=Math.max(0,cov.attendu-p.dur),cvt=Math.max(0,cov.couvert-p.couvert);
+    var pctAp=att>0?Math.round(cvt/att*100):100;
+    var ct=subsCostOf(!!p.texte,p.dur,props.lang||"fr",!0);
     return r.jsxs("div",{className:"sub-plan","data-etat":p.etat,children:[
       r.jsxs("span",{className:"sub-plann",children:["n°"+p.n]},"n"),
       r.jsxs("span",{className:"sub-planid",title:p.nom,children:[
@@ -2280,24 +2632,36 @@ const SubsSegments=(props)=>{
         children:reste?"couvert à "+Math.round(p.pct)+" %"
           :"aucune réplique"},"s"),
       r.jsxs("span",{className:"sub-planact",children:[
-        props.onPlanTranscribe?r.jsx("button",{className:"sub-minibtn",
-          disabled:!!props.trBusy,
-          title:p.texte
-            ?"Caler la narration écrite de ce plan sur ses silences — gratuit, "+
-             "hors ligne, orthographe exacte. Les autres plans ne bougent pas."
-            :"Transcrire la bande son de ce plan (appel au moteur). Les autres "+
-             "plans ne bougent pas.",
-          onClick:function(){props.onPlanTranscribe(p)},
-          children:"Transcrire ce plan"},"t"):null,
-        r.jsx("button",{className:"sub-minibtn",
-          title:"Poser une réplique vide au début de ce plan et y amener la "+
-            "tête de lecture",
-          onClick:function(){writeIn(p)},children:"Écrire ici"},"w"),
-        props.onPlanFlag?r.jsx("button",{className:"sub-minibtn",
-          title:"Ce plan n'a pas de parole : il sort du calcul de couverture, "+
-            "et le pourcentage le dit. Réversible.",
-          onClick:function(){props.onPlanFlag(p.id,!0)},
-          children:"Sans parole"},"i"):null]},"a")]},p.id)}
+        /* CORRECTIF — il écrit dans le fichier livré, et il annonce sa
+           langue, son moteur, son prix et sa durée, comme partout ailleurs */
+        props.onPlanTranscribe?subsActBtn({fam:"fix",
+          label:p.texte?"Caler la narration de ce plan":"Transcrire ce plan",
+          but:"sous-titrer ce plan",quiet:!0,
+          disabled:!!props.trBusy||(!p.texte&&!SUBS_EST.ok),
+          cost:ct.txt,free:ct.free,
+          apres:ct.apres+" Écrit des répliques entre "+subsTc(p.start)+" et "+
+            subsTc(p.end)+", en remplaçant ce que la piste y avait déjà ; les "+
+            "autres plans ne bougent pas. Sans parole détectée, rien n'est "+
+            "écrit et le plan reste signalé.",
+          onClick:function(){props.onPlanTranscribe(p)},k:"t"}):null,
+        /* CORRECTIF, mais honnête : ce qu'il crée ne couvre encore rien */
+        subsActBtn({fam:"fix",label:"Écrire ici",but:"sous-titrer ce plan",
+          quiet:!0,cost:"vide · 0 $",
+          apres:"Pose une réplique VIDE au début du plan et y amène la tête "+
+            "de lecture. Tant qu'elle n'a pas de texte, elle ne couvre rien : "+
+            "la couverture ne bougera qu'une fois le texte tapé.",
+          onClick:function(){writeIn(p)},k:"w"}),
+        /* ACQUITTEMENT — forme différente, libellé « Acquitter », et le
+           chiffre qu'il déplace écrit sur le bouton même */
+        props.onPlanFlag?subsActBtn({fam:"ack",label:"sans parole",
+          but:"assumer un plan muet",quiet:!0,
+          cost:Math.round(cov.pct)+" % → "+pctAp+" %",
+          apres:"N'écrit RIEN dans la vidéo : ce plan sortira muet, "+
+            "exactement comme maintenant. Il sort du dénominateur de la "+
+            "couverture ("+Math.round(cov.pct)+" % → "+pctAp+" %) et "+
+            "s'inscrit comme « acquitté » dans la ligne des comptes. Révocable.",
+          onClick:function(){props.onPlanFlag(p.id,!0)},k:"i"}):null]},"a")]},
+      p.id)}
   function writeIn(p){
     var sl=subsFreeSlot(segs,p.start+.05,dur);
     if(sl.start>=p.end-.1){sl.start=subsRound(p.start,3);
@@ -2330,17 +2694,62 @@ const SubsSegments=(props)=>{
             "Ils sortiront muets."
           :"1 plan du montage ne porte pas de sous-titre. Il sortira muet."},"s")
         :null,
-      covBad.map(planRow),
-      cov.ignores.length?r.jsxs("div",{className:"sub-covign",children:[
+      /* ── LA LÉGENDE DES DEUX FAMILLES, écrite UNE fois ──────────────────
+         Les trois gestes se répètent plan par plan : leur APRÈS s'écrit ici,
+         en toutes lettres, au lieu d'être recopié douze fois sous les
+         boutons. Chaque bouton, lui, porte sa forme (✎ ou ✓) et le SEUL
+         chiffre qui change d'un plan à l'autre — le prix, ou le pourcentage
+         que l'acquittement déplace. */
+      covBad.length?r.jsxs("div",{className:"sub-covleg",children:[
+        r.jsxs("span",{className:"sub-covlegr","data-fam":"fix",
+          title:"Un correctif écrit des répliques sur le plan : la couverture "+
+            "monte parce que la vidéo change. Une réplique VIDE, elle, ne "+
+            "couvre rien tant qu'elle n'a pas de texte.",children:[
+          r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✎"},"g"),
+          "écrit dans le fichier livré"]},"f"),
+        r.jsxs("span",{className:"sub-covlegr","data-fam":"ack",
+          title:"Un acquittement n'écrit rien : le plan sortira muet, "+
+            "exactement comme maintenant. Il quitte seulement le dénominateur "+
+            "— le pourcentage monte sans qu'une réplique soit née — et la "+
+            "ligne des comptes garde « plans acquittés ». Révocable.",children:[
+          r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✓"},"g"),
+          "acquitte : n'écrit rien, trace révocable"]},"a")]},"leg"):null,
+      /* On ne déroule pas neuf boutons d'un coup. Le PREMIER plan à traiter
+         est là, entier, avec ses trois gestes : la règle se juge sur lui. Les
+         autres sont à un clic, et leur nombre est écrit — la liste des
+         répliques, elle, reste visible sous le bloc, ce qui n'était plus le
+         cas quand la couverture dépliait tout. */
+      covBad.slice(0,covAll?covBad.length:1).map(planRow),
+      /* PAS la classe des filtres : ce bouton porte un nombre (« + 2 autres
+         plans »), et le nombre qu'il porte compte exactement ce que sa phrase
+         nomme — les filtres, eux, n'ont pas le droit d'être des compteurs. */
+      covBad.length>1?r.jsx("button",{className:"sub-covmore",
+        "aria-expanded":covAll,
+        title:covAll?"Ne montrer que le premier plan à traiter"
+          :"Montrer les "+(covBad.length-1)+" autres plans sans sous-titre, "+
+           "avec les mêmes gestes",
+        onClick:function(){setCovAll(function(v){return !v})},
+        children:covAll?"replier les plans"
+          :"+ "+subsPl(covBad.length-1,"autre plan","autres plans")+
+           " sans sous-titre"},
+        "more"):null,
+      /* la TRACE des acquittements : visible, chiffrée, révocable */
+      cov.ignores.length?r.jsxs("div",{className:"sub-covign",
+        "data-fam":"ack",children:[
+        r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✓"},"g"),
         r.jsx("span",{className:"sub-covigntxt",
-          children:subsPl(cov.ignores.length,"plan")+" marqué"+
-            (cov.ignores.length>1?"s":"")+" « sans parole » — hors du calcul : "+
-            cov.ignores.map(function(p){return "n°"+p.n}).join(", ")},"t"),
-        props.onPlanFlag?r.jsx("button",{className:"sub-minibtn",
-          title:"Remettre ces plans dans le calcul de couverture",
+          children:subsPl(cov.ignores.length,"plan")+" acquitté"+
+            (cov.ignores.length>1?"s":"")+" « sans parole » ("+
+            cov.ignores.map(function(p){return "n°"+p.n}).join(", ")+") : "+
+            subsFr(cov.ignores.reduce(function(a,p){return a+p.dur},0),1)+
+            " s sortis du calcul, et toujours muets à la livraison."},"t"),
+        props.onPlanFlag?r.jsx("button",{className:"sub-act","data-fam":"ack",
+          title:"Remet ces plans dans le calcul de couverture : le "+
+            "pourcentage redescend et ils redeviennent à sous-titrer. Le "+
+            "fichier livré ne change pas non plus dans ce sens.",
           onClick:function(){cov.ignores.forEach(function(p){
             props.onPlanFlag(p.id,!1)})},
-          children:"rétablir"},"r"):null]},"ig"):null]},"cov")
+          children:"révoquer"},"r"):null]},"ig"):null]},"cov")
     :null;
 
   /* ── PISTE VIDE ────────────────────────────────────────────────────────────
@@ -2528,8 +2937,15 @@ function subsUseVerdict(segs,style,dur,clips){
 /* ═════════════════ Tiroir — Segments · Style ════════════════════════════════ */
 const SubsDrawer=(props)=>{
   var svc=subsSvcUse();
+  /* le COÛT, annoncé avant le clic : langue, moteur, prix, durée — la même
+     convention que partout ailleurs dans l'app, enfin tenue ici */
+  var est=subsEstUse();
   var s1=x.useState("segments"),tab=s1[0],setTab=s1[1];
   var s2=x.useState(null),trJob=s2[0],setTrJob=s2[1];
+  /* la LANGUE : choisie, affichée sur chaque bouton qui dépense, et retenue */
+  var s3=x.useState(function(){
+    try{return localStorage.getItem("dz_subs_lang")||"fr"}catch(_e){return "fr"}}),
+    lang=s3[0],setLang=s3[1];
   /* Les avertissements de STYLE et les écarts aperçu/gravure viennent du même
      POST /api/subtitles/check que ceux des répliques. Le panneau les jetait
      faute d'index de segment : ils n'ont pas d'index PARCE QU'ils portent sur
@@ -2574,7 +2990,7 @@ const SubsDrawer=(props)=>{
       if(av.length)srcRef=av[0].src}
     subsPost("/api/subtitles/transcribe",
       {src:srcRef,clips:cl,
-       lang:"fr",cps:subsN(style.maxChars,42)})
+       lang:lang,cps:subsN(style.maxChars,42)})
       .then(function(d){
         var id=d&&d.job_id;
         if(!id)throw new Error("pas de job_id");
@@ -2625,6 +3041,13 @@ const SubsDrawer=(props)=>{
 
   if(!open)return null;
   var C=vd.counts;
+  /* QUEL CHEMIN le bouton du haut prendra : le backend choisit le calage
+     GRATUIT dès qu'un clip de voix porte son texte (`use_align`), sinon la
+     transcription payante. Le bouton doit donc annoncer le chemin RÉEL, pas
+     le plus flatteur. */
+  var trFree=(props.srcClips||[]).some(function(c){
+    return (c.tr==="a1"||c.tr==="a3")&&String(c.text||"").trim()});
+  var trAll=subsCostOf(trFree,subsN(props.dur,0),lang);
   return r.jsxs("aside",{className:"sub-drawer",ref:rootRef,tabIndex:-1,
     role:"group","aria-label":"Sous-titres",
     onKeyDown:function(e){
@@ -2694,6 +3117,20 @@ const SubsDrawer=(props)=>{
             " sans la moindre réplique, détail dans l'onglet Répliques":""),
         children:[r.jsx("b",{children:String(Math.round(vd.cov.pct))+" %"}),
           "couvert"]},"c"):null,
+      /* LES ACQUITTÉS — la trace qu'un acquittement laisse dans le verdict.
+         « Sans parole » éteignait l'alerte « 3 plans sortiront muets » sans
+         rien changer au fichier livré, et se soldait par un SILENCE : plus
+         d'alerte, plus de chiffre, rien. Un geste qui ne corrige pas doit
+         laisser sa marque là où vivent les nombres — visible depuis les deux
+         onglets, et révocable d'un bouton dans l'onglet Répliques. */
+      C.acquittes?r.jsxs("span",{className:"sub-tal","data-k":"acquittes",
+        "data-fam":"ack",
+        title:"Plans que vous avez déclarés muets : ils sortent du calcul de "+
+          "couverture mais sortiront muets à la livraison, exactement comme "+
+          "avant l'acquittement. Détail et révocation dans l'onglet Répliques, "+
+          "en tête de « Couverture du montage ».",
+        children:[r.jsx("b",{children:String(C.acquittes)}),
+          C.acquittes<2?"plan acquitté":"plans acquittés"]},"q"):null,
       C.masquees?r.jsxs("span",{className:"sub-tal","data-k":"masquees",
         children:[r.jsx("b",{children:String(C.masquees)}),
           C.masquees<2?"masquée":"masquées"]},"m"):null,
@@ -2726,17 +3163,58 @@ const SubsDrawer=(props)=>{
         "Style et placement",
         C.ecarts?r.jsx("span",{className:"sub-tdot","data-soft":"",
           "aria-hidden":!0},"d"):null]},"style")]}),
-    r.jsxs("div",{className:"sub-trrow",children:[
-      r.jsx("button",{className:"sub-btn sub-tr",disabled:!!(trJob&&trJob.busy),
-        title:"Transcrire la bande son du montage (backend requis) — "+
-          "tout le reste du panneau marche hors ligne",
-        onClick:transcribe,
-        children:trJob&&trJob.busy?"Transcription…":"Transcrire l'audio"}),
+    /* ── LE BOUTON QUI DÉPENSE ANNONCE CE QU'IL DÉPENSE ────────────────────
+       « Transcrire l'audio » ne disait ni la langue, ni le moteur, ni le prix,
+       ni l'attente — sous un solde vivant et des pastilles de fournisseurs
+       affichés dans la même image. Il les dit maintenant, et il dit surtout
+       QUEL CHEMIN il prendra : quand la narration est déjà écrite, le moteur
+       la CALE sur les silences réels au lieu de la faire re-deviner contre
+       paiement, et le bouton porte « gratuit ». */
+    /* la rangée qui DÉPENSE vit avec ce qu'elle produit — des répliques. Elle
+       occupait le haut des deux onglets, y compris celui du style, où elle
+       n'avait rien à faire et volait la place des écarts que le point de
+       l'onglet annonce. */
+    tab!=="segments"?null:r.jsxs("div",{className:"sub-trrow",children:[
+      subsActBtn({fam:"fix",
+        label:trAll.free?"Caler la narration écrite":"Transcrire l'audio",
+        but:"sous-titrer tout le montage",quiet:!0,
+        disabled:!!(trJob&&trJob.busy)||(!trAll.free&&!est.ok),
+        cost:trJob&&trJob.busy?"en cours…":trAll.txt,free:trAll.free,
+        apres:trAll.apres+" REMPLACE toute la piste S1 par le résultat ("+
+          (C.repliques?subsPl(C.repliques,"réplique")+" posée"+
+            (C.repliques>1?"s":"")+" aujourd'hui":"la piste est vide")+
+          "). Pour ne toucher qu'un seul plan, prenez le geste en face de ce "+
+          "plan, dans « Couverture du montage ».",
+        onClick:function(){transcribe()},k:"tr"}),
+      r.jsxs("label",{className:"sub-trlang",children:[
+        r.jsx("span",{className:"sub-trlangl",children:"langue"},"l"),
+        /* la langue est écrite sur chaque bouton qui dépense ; ce sélecteur
+           est là où on la change, à côté du bouton qui la porte */
+        r.jsx("select",{className:"sub-sel",value:lang,
+          "aria-label":"Langue de la transcription",
+          title:"Langue annoncée au moteur : elle change le découpage en mots "+
+            "et le calage sur les silences. Elle est écrite sur chaque bouton "+
+            "qui lance une transcription.",
+          onChange:function(e){
+            var v=e.target.value;setLang(v);
+            try{localStorage.setItem("dz_subs_lang",v)}catch(_e){}},
+          children:SUBS_LANGS.map(function(o){
+            return r.jsx("option",{value:o[0],children:o[1]},o[0])})},"s")]},"lg"),
       trJob&&trJob.busy
         ?r.jsx("span",{className:"sub-trstep",
           children:trJob.step+(trJob.pct?" · "+Math.round(trJob.pct)+" %":"")})
         :r.jsx("span",{className:"sub-trhint",
-          children:"ou écrivez à la main — c'est gratuit et hors ligne"})]}),
+          title:trAll.free
+            ?"Le texte de la narration est déjà écrit : le moteur le cale sur "+
+             "les silences réels du son. Rien n'est envoyé, rien n'est deviné, "+
+             "aucun nom propre n'est écorché."
+            :"Écrire, découper, caler, styler, le karaoké et l'export "+
+             ".SRT/.VTT/.TXT ne coûtent rien et marchent hors ligne : seule la "+
+             "transcription d'un son sans texte est payante.",
+          children:trAll.free
+            ?"gratuit : texte déjà écrit, calé sur les silences"
+            :est.ok?"écrire à la main reste gratuit"
+            :est.reason||"coût indisponible"})]}),
     r.jsx("div",{className:"sub-body",children:
       tab==="segments"
         ?r.jsx(SubsSegments,{segments:segs,style:style,onChange:props.onChange,
@@ -2752,6 +3230,7 @@ const SubsDrawer=(props)=>{
           onPlanTranscribe:props.srcClips&&svc.st==="ok"
             ?function(p){setTab("segments");transcribe(p)}:null,
           onPlanFlag:props.onPlanFlag||null,
+          lang:lang,
           trBusy:!!(trJob&&trJob.busy)})
         :r.jsx(SubsStyle,{style:style,onChange:props.onStyle,verdict:vd})}),
     note?r.jsx("div",{className:"sub-note",role:"status","aria-live":"polite",
@@ -2778,6 +3257,18 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      STYLE sous forme de plan (ce qu'il éteint, crée, laisse). */
   effective:subsEffective,neutralized:subsNeutralized,
   styleRules:subsAllStyleRules,stylePlan:subsStylePlan,
+  /* ── LA RÈGLE DES GESTES (tour 5) ───────────────────────────────────────
+     `FAM` : les deux familles et leur glyphe — un correctif écrit dans le
+     fichier livré, un acquittement ne fait que taire l'alerte ;
+     `planAfter(list, plan, style, dur)` : l'APRÈS d'un correctif de TEMPS,
+     simulé sur la piste (ce qu'il éteint, crée, laisse) ;
+     `goalConflicts(style)` : les couples de gestes visibles qui écrivent le
+     même réglage en sens inverse, avec l'objectif de chacun ;
+     `costOf(gratuit, durée, langue)` : la pastille de coût d'un bouton qui
+     dépense — langue, moteur, prix, durée. */
+  FAM:SUBS_FAM,planAfter:subsPlanAfter,goalConflicts:subsGoalConflicts,
+  gestes:subsGestes,costOf:subsCostOf,est:SUBS_EST,LANGS:SUBS_LANGS,
+  kindLabels:SUBS_KINDLAB,
   /* la COUVERTURE : quelle part du montage porte des sous-titres, et quels
      plans n'en portent aucun */
   coverage:subsCoverage,plansOf:subsPlans,

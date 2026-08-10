@@ -508,17 +508,17 @@
 .sub-tdot[data-sev="err"]{background:var(--sub-red)}
 
 /* ── COUVERTURE ─────────────────────────────────────────────────────────── */
-.sub-cov{margin:0 0 10px; padding:8px 9px 9px; border-radius:9px;
+.sub-cov{margin:0 0 8px; padding:7px 9px 8px; border-radius:9px;
   border:1px solid var(--sub-stroke); background:var(--sub-well)}
 .sub-cov[data-bad]{border-color:color-mix(in srgb, var(--sub-acc) 55%, var(--sub-stroke))}
 .sub-cov .sub-sec{margin:0 0 6px}
 .sub-covbar{height:5px; border-radius:3px; overflow:hidden;
-  background:var(--sub-stroke); margin:0 0 7px}
+  background:var(--sub-stroke); margin:0 0 5px}
 .sub-covbar i{display:block; height:100%; background:var(--sub-acc)}
-.sub-covsay{font-size:10px; line-height:1.45; color:var(--sub-ink2);
-  margin:0 0 6px}
-.sub-plan{display:flex; align-items:center; gap:6px; flex-wrap:wrap;
-  padding:5px 0; border-top:1px solid var(--sub-stroke)}
+.sub-covsay{font-size:10px; line-height:1.4; color:var(--sub-ink2);
+  margin:0 0 5px}
+.sub-plan{display:flex; align-items:center; gap:5px; flex-wrap:wrap;
+  padding:4px 0 5px; border-top:1px solid var(--sub-stroke)}
 .sub-plann{font-family:var(--sub-mono); font-size:9px; color:var(--sub-ink4);
   flex:none}
 .sub-planid{font-size:9.5px; color:var(--sub-ink3); flex:1 1 120px;
@@ -526,8 +526,8 @@
 .sub-planst{font-family:var(--sub-mono); font-size:9px; flex:none;
   color:var(--sub-acc)}
 .sub-plan[data-etat="partiel"] .sub-planst{color:var(--sub-ink4)}
-.sub-planact{display:flex; gap:5px; flex:1 0 100%; flex-wrap:wrap;
-  margin-left:19px}
+.sub-planact{display:flex; gap:4px; flex:1 0 100%; flex-wrap:wrap;
+  margin:3px 0 0 19px}
 .sub-covign{display:flex; align-items:center; gap:7px; flex-wrap:wrap;
   padding-top:6px; border-top:1px solid var(--sub-stroke)}
 .sub-covigntxt{font-size:9.5px; color:var(--sub-ink4); flex:1 1 140px}
@@ -554,3 +554,120 @@
 .sub-mhint[data-warn]{display:flex; align-items:center; gap:7px;
   flex-wrap:wrap}
 .sub-mhintxt{flex:1 1 160px; min-width:0}
+
+/* ══ TOUR 5 — LA RÈGLE DES GESTES ═════════════════════════════════════════════
+   Quatre tours, le même défaut sous quatre visages : un bouton posé sous un
+   avertissement faisait autre chose que ce que l'avertissement laissait croire.
+   La règle, tenue ici PAR LA FORME :
+
+     ✎  CORRECTIF     rectangle PLEIN, bord accent, fond teinté
+                      → il écrit dans le fichier livré
+     ✓  ACQUITTEMENT  pastille à bord POINTILLÉ, ronde, sans fond
+                      → il n'écrit rien : il tait l'alerte et laisse sa trace
+
+   Deux formes, deux rayons, deux styles de bord : on tranche sans lire.
+   ════════════════════════════════════════════════════════════════════════════ */
+.sub-act{display:inline-flex; align-items:center; gap:5px; height:20px;
+  padding:0 8px; cursor:pointer; font-size:10px; line-height:1;
+  border:1px solid var(--sub-stroke); background:transparent;
+  color:var(--sub-ink3); flex:none; max-width:100%}
+.sub-act:disabled{opacity:.4; cursor:not-allowed}
+.sub-acthead{display:inline-flex; align-items:center; gap:5px; min-width:0}
+.sub-actg{font-size:9px; line-height:1; flex:none}
+.sub-actlab{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+/* la ou la place manque (rangee de transcription, gestes par plan), le cout
+   passe SOUS le libelle : le bouton devient etroit et haut au lieu d'etre
+   tronque — un libelle coupe en « Transcrire l'a... » ne s'annonce plus. */
+.sub-trrow .sub-act, .sub-planact .sub-act{flex-direction:column;
+  align-items:flex-start; height:auto; gap:1px; padding:3px 7px;
+  line-height:1.25}
+/* ── correctif : angles droits adoucis, bord et encre accent, fond teinté ── */
+.sub-act[data-fam="fix"]{border-radius:5px; border-color:var(--sub-acc);
+  color:var(--sub-acc);
+  background:color-mix(in srgb, var(--sub-acc) 14%, transparent);
+  margin-left:auto}
+.sub-act[data-fam="fix"]:hover:not(:disabled){
+  background:color-mix(in srgb, var(--sub-acc) 26%, transparent);
+  color:var(--sub-ink)}
+/* ── acquittement : pastille ronde, bord POINTILLÉ, aucun fond ── */
+.sub-act[data-fam="ack"]{border-radius:999px; border-style:dashed;
+  border-color:var(--sub-ink4); color:var(--sub-ink4);
+  background:transparent; font-style:italic}
+.sub-act[data-fam="ack"]:hover:not(:disabled){
+  border-color:var(--sub-ink3); color:var(--sub-ink2)}
+/* le coût / le chiffre déplacé, DANS le bouton — jamais dans une infobulle */
+.sub-actcost{font-family:var(--sub-mono); font-size:8.5px; flex:none;
+  padding:0 4px; border-radius:6px; font-style:normal;
+  background:color-mix(in srgb, var(--sub-ink4) 26%, transparent);
+  color:var(--sub-ink2); font-variant-numeric:tabular-nums}
+.sub-actcost[data-free]{background:color-mix(in srgb, #4bd18a 26%, transparent);
+  color:#8ee7bb}
+/* l'APRÈS, écrit sous le bouton : ce qu'il éteint, crée, laisse */
+.sub-actwhat{flex:1 0 100%; margin:2px 0 0 19px; font-size:9.5px;
+  line-height:1.35; color:var(--sub-ink4)}
+.sub-actwhat[data-fam="ack"]{font-style:italic;
+  border-left:1px dashed var(--sub-stroke2); padding-left:7px; margin-left:12px}
+.sub-actwhat[data-blocked]{color:var(--sub-ink3)}
+.sub-actbut{color:var(--sub-ink3); font-weight:600}
+
+/* ── ARBITRAGE : deux gestes visibles qui poussent en sens inverse ────────── */
+.sub-arb{margin:0 0 7px; padding:5px 8px 6px; border-radius:8px;
+  border:1px dashed color-mix(in srgb, var(--sub-acc) 45%, var(--sub-stroke));
+  background:color-mix(in srgb, var(--sub-acc) 6%, transparent)}
+.sub-arbhead{display:block; font-size:9.5px; font-weight:600; line-height:1.35;
+  color:var(--sub-ink2); margin-bottom:3px}
+.sub-arblist{display:flex; flex-direction:column; gap:3px}
+.sub-arbrow{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
+  font-size:9.5px; color:var(--sub-ink3); line-height:1.35}
+.sub-arbside{flex:1 1 130px; min-width:0}
+.sub-arbside b{color:var(--sub-acc); font-weight:600}
+.sub-arbvs{flex:none; font-family:var(--sub-mono); font-size:8.5px;
+  color:var(--sub-ink4); text-transform:uppercase; letter-spacing:.08em}
+.sub-arbnote{display:block; margin-top:3px; font-size:9px;
+  color:var(--sub-ink4); line-height:1.3}
+
+/* ── la légende des deux familles, en tête de la couverture ──────────────
+   UNE ligne : la distinction se fait a l'oeil sur les boutons eux-memes,
+   cette ligne ne fait que la nommer. Le detail vit dans l'infobulle de
+   chaque moitie, et l'APRES complet dans celle de chaque bouton. */
+.sub-covleg{display:flex; gap:10px; flex-wrap:wrap; margin:0 0 6px;
+  padding:4px 7px; border-radius:7px; background:var(--sub-panel);
+  font-size:9px; line-height:1.35; color:var(--sub-ink4)}
+.sub-covlegr{display:inline-flex; gap:5px; align-items:center}
+.sub-covlegr[data-fam="fix"] .sub-actg{color:var(--sub-acc)}
+.sub-covlegr[data-fam="ack"]{font-style:italic}
+.sub-covmore{margin-top:6px; align-self:flex-start; height:18px;
+  padding:0 7px; border-radius:9px; cursor:pointer;
+  border:1px solid var(--sub-stroke); background:transparent;
+  color:var(--sub-ink3); font-family:var(--sub-mono); font-size:9.5px}
+.sub-covmore:hover{border-color:var(--sub-acc); color:var(--sub-ink)}
+.sub-covign[data-fam="ack"]{border-top-style:dashed}
+.sub-covign .sub-actg{flex:none; color:var(--sub-ink4)}
+/* le nombre d'acquittés dans la ligne des comptes : pointillé, comme le geste */
+.sub-tal[data-fam="ack"]{border-bottom:1px dashed var(--sub-stroke2);
+  font-style:italic}
+.sub-tal[data-fam="ack"] b{color:var(--sub-ink3)}
+
+/* ── la ligne repliée porte de quoi juger : début, DURÉE, MESURE ─────────── */
+.sub-rdur{flex:none; font-family:var(--sub-mono); font-size:9px;
+  color:var(--sub-ink4); font-variant-numeric:tabular-nums}
+.sub-rmes{flex:none; font-family:var(--sub-mono); font-size:8.5px;
+  color:var(--sub-ink3); font-variant-numeric:tabular-nums; white-space:nowrap}
+.sub-rmes[data-sev="err"]{color:var(--sub-red)}
+.sub-rmes[data-sev="warn"]{color:var(--sub-acc)}
+
+/* ── la rangée de transcription : bouton + langue + issue ────────────────── */
+.sub-trlang{display:inline-flex; align-items:center; gap:4px; flex:none}
+.sub-trlangl{font-family:var(--sub-mono); font-size:8.5px;
+  color:var(--sub-ink4)}
+.sub-trlang .sub-sel{height:20px; font-size:9.5px; padding:0 4px}
+.sub-trrow{flex-wrap:wrap; row-gap:3px}
+.sub-trhint, .sub-trstep{flex:1 1 140px; min-width:0}
+.sub-trrow .sub-act{margin-left:0}
+.sub-planact .sub-act{margin-left:0}
+.sub-warn .sub-act[data-fam="fix"]{margin-left:auto}
+
+/* ── thème clair ─────────────────────────────────────────────────────────── */
+.dzsvm[data-svm-theme="light"] .sub-actcost{color:var(--sub-ink3)}
+.dzsvm[data-svm-theme="light"] .sub-actcost[data-free]{color:#0d7a4c;
+  background:color-mix(in srgb, #4bd18a 30%, transparent)}
