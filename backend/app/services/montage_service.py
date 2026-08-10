@@ -14,6 +14,18 @@ Câblage « timeline → rendu » du handoff son_vfx_montage :
                               rapide) ou final 1080. Sortie dans
                               outputs/videos/, visible en Bibliothèque et
                               attachable à un post du Scheduler (job_id).
+  POST /api/montage/save      Sauvegarde de la timeline ÉDITÉE (autosave de
+                              l'écran 07) : le modèle CLIENT complet — textes
+                              de narration, gains/fondus/automation,
+                              transformations/trajectoires, vitesses, effets —
+                              écrit ATOMIQUEMENT (tmp + os.replace) dans
+                              montage_saved.json au répertoire de données
+                              (settings.images_path.parent, à côté d'audio/).
+  DELETE /api/montage/save    Efface la sauvegarde ; GET /project reconstruit
+                              alors depuis la Bibliothèque.
+                              GET /project sert d'abord la sauvegarde si elle
+                              existe (saved:true, sources vérifiées — clip à
+                              source disparue retiré avec saved_pruned).
 
 Mécanique vidéo : segments V1 ordonnés (src_in via -ss, durée exacte
 tpad/trim), enchaînés par xfade (map _XFADE de template_service, « cut » =
@@ -21,7 +33,10 @@ fondu 1 image). Audio : clips A1/A3 posés à leur position timeline (adelay),
 musique A2 en boucle coupée à la durée, gains dB par canal, mixage PAR CLIP
 optionnel (gain −24..+12 dB multiplié au gain de bus, fondus afade 0..3 s à
 courbe lin/douce/expo/log par côté — lin n'émet pas de curve= ;
-musique : fade_in au démarrage, fade_out calé sur la fin du rendu), ducking
+musique : fade_in au démarrage, fade_out calé sur la fin du rendu),
+automation de volume par clip (volume_points [{t, db}] → volume=expr
+:eval=frame, interpolation linéaire en dB multipliée aux gains — t local au
+clip, temps global du rendu pour la musique bouclée), ducking
 auto (sidechaincompress musique sous dialogue), « Maître de durée » = la vidéo
 gèle sa dernière image plutôt que couper la voix. Les trous entre clips V1
 se referment au rendu (concat séquentiel) — le projet initial est généré
@@ -33,10 +48,20 @@ opacité optionnelle), appliqués après le maître de durée. Transformation
 optionnelle par overlay (x/y : centre en fraction du canvas, scale :
 largeur = scale·W hauteur auto, rotate : degrés sur fond transparent) —
 sans AUCUN de ces champs la chaîne cover historique reste strictement
-inchangée. Effets par clip :
+inchangée. Keyframes de position par overlay (motion_points [{t, x, y,
+rotate?}], max 8) : x/y du filtre overlay deviennent des interpolations
+linéaires par morceaux du temps global (t local converti via start), la
+rotation s'anime en horloge locale du flux — l'échelle reste statique
+(pas de keyframe d'échelle). Effets par clip :
 moteur Effects/Mask existant (effects_engine.build_chain) sur chaque
 segment V1 — catalogue exposé par GET /api/montage/effects. src_in audio :
 les clips A1/A3 lisent leur source à partir de srcIn (atrim décalé).
+Vitesse par clip V1 (speed 0.25..4, défaut 1) : la durée TIMELINE du clip ne
+change jamais (offsets xfade, trous et adelay audio intacts) — la fenêtre
+SOURCE consommée devient durée×speed et le flux est remis à la durée
+timeline par setpts=PTS/speed inséré AVANT la normalisation fps ; AUCUN
+atempo (l'audio des plans V1 n'entre pas dans le graphe — le clip A1 « son
+du plan » garde sa vitesse, l'UI signale la désynchronisation).
 
 Tout est local ffmpeg → 0 crédit, l'UI l'affiche avant déclenchement
 (règle produit). Trous V1 : rendus en NOIR (segments lavfi à leur durée
@@ -46,6 +71,7 @@ suivant retombe sur sa position — l'audio posé en adelay reste aligné).
 from __future__ import annotations
 
 import asyncio
+import json
 import math
 import subprocess
 from datetime import datetime as _dt
@@ -171,6 +197,86 @@ def _fade_curve(c: dict, key: str) -> str:
     return f":curve={name}" if name else ""
 
 
+# R4 : automation de volume PAR CLIP audio — les losanges de l'UI deviennent
+# une expression volume=':eval=frame' (interpolation LINÉAIRE en dB entre
+# points, conversion pow(10, dB/20)). Ce filtre se MULTIPLIE aux volumes déjà
+# présents dans la chaîne (gain de clip × bus, plus loin) : jamais un
+# remplacement — deux filtres volume en série multiplient leurs gains.
+_VP_MAX_POINTS = 12
+
+
+def _volume_points(c: dict) -> list | None:
+    """Champ optionnel ``volume_points`` d'un clip audio : [{t, db}] → liste
+    TRIÉE de tuples (t, db) prête pour :func:`_vp_expr`, ou None.
+
+    t en secondes (clamp ≥ 0) : LOCALES au clip pour a1/a3 (0..durée, la même
+    horloge que les afade) ; pour la musique A2 bouclée, temps GLOBAL du rendu
+    0..total — le flux bouclé n'est jamais retrimé, son ``t`` est celui du
+    montage (l'UI convertit et l'affiche). db clampé −40..+12. Entrées
+    invalides (non-dict, non numériques, NaN) ignorées avec warning ; au-delà
+    de 12 points triés le surplus est ignoré (warning) ; doublons de t
+    (< 5 ms) fusionnés, le dernier gagne (une pente y diviserait par ~0).
+    Champ absent, vide ou entièrement invalide → None : la chaîne émise reste
+    STRICTEMENT l'historique (non-régression testée)."""
+    raw = c.get("volume_points")
+    if not raw:
+        return None
+    lbl = c.get("label") or c.get("tr") or "audio"
+    if not isinstance(raw, list):
+        logger.warning(f"montage: volume_points invalide "
+                       f"({type(raw).__name__}), ignoré — {lbl}")
+        return None
+    pts = []
+    for p in raw:
+        try:
+            t, db = float(p["t"]), float(p["db"])
+        except (TypeError, ValueError, KeyError, IndexError):
+            t = db = float("nan")
+        if t != t or db != db:  # NaN — jamais propagé dans un filtergraph
+            logger.warning(f"montage: point d'automation invalide ({p!r}), "
+                           f"ignoré — {lbl}")
+            continue
+        pts.append((max(0.0, round(t, 3)),
+                    max(-40.0, min(12.0, round(db, 2)))))
+    pts.sort(key=lambda q: q[0])
+    if len(pts) > _VP_MAX_POINTS:
+        logger.warning(f"montage: {len(pts)} points d'automation (max "
+                       f"{_VP_MAX_POINTS}), surplus ignoré — {lbl}")
+        pts = pts[:_VP_MAX_POINTS]
+    out: list = []
+    for t, db in pts:
+        if out and t - out[-1][0] < 0.005:
+            out[-1] = (out[-1][0], db)
+            continue
+        out.append((t, db))
+    return out or None
+
+
+def _vp_expr(pts: list) -> str:
+    """Expression du filtre volume (``:eval=frame``) pour des points (t, db)
+    triés : interpolation LINÉAIRE en dB — la droite que l'UI trace entre deux
+    losanges est exactement ce qui s'entend — constante avant le premier point
+    (db0) et après le dernier (dbN), conversion finale pow(10, dB/20).
+
+    ``t`` y est l'horloge du flux AU POINT D'INSERTION du filtre : locale au
+    clip pour a1/a3 (asetpts=PTS-STARTPTS l'a remise à zéro — après atempo le
+    cas échéant, la même horloge de sortie que les afade), globale au rendu
+    pour la musique bouclée. Les virgules de if(…) sont sans ambiguïté :
+    l'expression est posée entre quotes simples dans le filtergraph."""
+    n = sfx_service.fnum
+    if len(pts) == 1:
+        db_expr = n(pts[0][1])
+    else:
+        db_expr = n(pts[-1][1])
+        for k in range(len(pts) - 1, 0, -1):
+            t0, d0 = pts[k - 1]
+            t1, d1 = pts[k]
+            seg = f"{n(d0)}+({n(d1 - d0)})*(t-{n(t0)})/{n(t1 - t0)}"
+            db_expr = f"if(lt(t,{n(t1)}),{seg},{db_expr})"
+        db_expr = f"if(lt(t,{n(pts[0][0])}),{n(pts[0][1])},{db_expr})"
+    return f"pow(10,({db_expr})/20)"
+
+
 def _ov_transform(c: dict) -> dict | None:
     """Transformation optionnelle d'un overlay V2 (champs du payload) :
     x / y = centre en fraction du canvas (défaut 0.5, clamp −0.5..1.5 — l'UI
@@ -202,13 +308,259 @@ def _ov_transform(c: dict) -> dict | None:
     return out if seen else None
 
 
+# R4b : keyframes de position par overlay V2 — champ optionnel
+# ``motion_points`` : [{t, x, y, rotate?}] (max 8). t en secondes LOCALES au
+# clip (0..durée, clampé), x/y/rotate : mêmes clamps que _ov_transform. Au
+# rendu, les expressions x/y du filtre overlay deviennent des interpolations
+# LINÉAIRES par morceaux du temps GLOBAL du montage (le filtre overlay est
+# posé sur le flux composité : son t est celui de enable='between(t,st,en)' —
+# chaque point local devient start + t). La rotation s'anime sur l'horloge
+# LOCALE du flux overlay (le filtre rotate précède le setpts de décalage).
+# L'ÉCHELLE reste STATIQUE — aucune keyframe d'échelle : la largeur scale·W
+# est figée pour toute la durée de l'overlay (l'UI l'affiche tel quel).
+_MP_MAX_POINTS = 8
+
+
+def _motion_points(c: dict) -> list | None:
+    """Champ optionnel ``motion_points`` d'un overlay V2 : [{t, x, y,
+    rotate?}] → liste TRIÉE de tuples (t, x, y, rotate|None), ou None.
+
+    t clampé 0..durée du clip (end−start), x/y clampés −0.5..1.5, rotate
+    −180..180 (mêmes bornes que _ov_transform) — rotate absent reste None :
+    le point ne participe pas à l'animation d'angle. Entrées invalides
+    (non-dict, non numériques, NaN) ignorées avec warning ; au-delà de
+    8 points triés le surplus est ignoré (warning) ; doublons de t (< 5 ms)
+    fusionnés, le dernier gagne (une pente y diviserait par ~0). Champ
+    absent, vide ou entièrement invalide → None : la chaîne émise reste
+    STRICTEMENT l'historique (non-régression testée)."""
+    raw = c.get("motion_points")
+    if not raw:
+        return None
+    lbl = c.get("label") or c.get("tr") or "overlay"
+    if not isinstance(raw, list):
+        logger.warning(f"montage: motion_points invalide "
+                       f"({type(raw).__name__}), ignoré — {lbl}")
+        return None
+    try:
+        dur = max(0.0, float(c.get("end") or 0) - float(c.get("start") or 0))
+    except (TypeError, ValueError):
+        dur = 0.0
+    pts = []
+    for p in raw:
+        try:
+            t, xx, yy = float(p["t"]), float(p["x"]), float(p["y"])
+        except (TypeError, ValueError, KeyError, IndexError):
+            t = xx = yy = float("nan")
+        if t != t or xx != xx or yy != yy:  # NaN — jamais dans un filtergraph
+            logger.warning(f"montage: point de position invalide ({p!r}), "
+                           f"ignoré — {lbl}")
+            continue
+        rr = p.get("rotate") if isinstance(p, dict) else None
+        if rr is not None:
+            try:
+                rr = float(rr)
+            except (TypeError, ValueError):
+                rr = float("nan")
+            if rr != rr:
+                logger.warning(f"montage: rotate de point invalide, ignoré — "
+                               f"{lbl}")
+                rr = None
+            else:
+                rr = max(-180.0, min(180.0, rr))
+        t = max(0.0, round(t, 3))
+        if dur > 0:
+            t = min(t, round(dur, 3))
+        pts.append((t, max(-0.5, min(1.5, xx)), max(-0.5, min(1.5, yy)), rr))
+    pts.sort(key=lambda q: q[0])
+    if len(pts) > _MP_MAX_POINTS:
+        logger.warning(f"montage: {len(pts)} points de position (max "
+                       f"{_MP_MAX_POINTS}), surplus ignoré — {lbl}")
+        pts = pts[:_MP_MAX_POINTS]
+    out: list = []
+    for q in pts:
+        if out and q[0] - out[-1][0] < 0.005:
+            out[-1] = (out[-1][0], q[1], q[2], q[3])
+            continue
+        out.append(q)
+    return out or None
+
+
+def _mp_lerp_expr(pts: list) -> str:
+    """Interpolation linéaire par morceaux pour des paires (t, v) TRIÉES —
+    même gabarit d'expression que :func:`_vp_expr` (constante avant le
+    premier point / après le dernier), sans conversion finale : sert aux
+    expressions x/y (pixels, temps global) et a (radians, temps local) des
+    overlays animés. Toujours posée entre quotes simples dans le filtergraph
+    (les virgules de if(…) y sont sans ambiguïté)."""
+    n = sfx_service.fnum
+    if len(pts) == 1:
+        return n(pts[0][1])
+    expr = n(pts[-1][1])
+    for k in range(len(pts) - 1, 0, -1):
+        t0, v0 = pts[k - 1]
+        t1, v1 = pts[k]
+        seg = f"{n(v0)}+({n(v1 - v0)})*(t-{n(t0)})/{n(t1 - t0)}"
+        expr = f"if(lt(t,{n(t1)}),{seg},{expr})"
+    return f"if(lt(t,{n(pts[0][0])}),{n(pts[0][1])},{expr})"
+
+
+# C4 : vitesse par clip V1 — champ optionnel ``speed`` (0.25..4, défaut 1).
+# La durée TIMELINE du clip ne change JAMAIS (offsets xfade, trous, adelay
+# audio et maître de durée intacts) : c'est la fenêtre SOURCE consommée qui
+# devient durée×speed, et le flux est remis à la durée timeline par
+# setpts=PTS/speed inséré AVANT la normalisation fps (fps=30 rematérialise
+# ensuite un débit constant en dupliquant / sautant des frames — slow-motion
+# par duplication, accéléré par décimation, sans interpolation). L'audio des
+# plans V1 n'entre pas dans le graphe ([idx:v] seul) : AUCUN atempo — le
+# clip A1 « son du plan » garde sa vitesse (l'UI le signale).
+
+
+def _v1_speed(c: dict) -> float:
+    """clips V1 [].speed → 0.0 (= inchangé, chaîne historique octet pour
+    octet) ou 0.25..4 clampé. Invalide (non numérique, NaN, ≤ 0) : warning
+    et retour au comportement historique — jamais propagé au filtergraph."""
+    v = c.get("speed")
+    if v is None:
+        return 0.0
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        f = float("nan")
+    if f != f or f <= 0:
+        logger.warning(f"montage: speed V1 invalide ({v!r}), ignoré — "
+                       f"{c.get('label') or c.get('tr')}")
+        return 0.0
+    f = max(0.25, min(4.0, f))
+    return 0.0 if abs(f - 1.0) < 1e-6 else f
+
+
+# ------------------------------------------------------------------- save ---
+# A1 : sauvegarde de timeline — UN projet de montage persistant, posé dans le
+# répertoire de DONNÉES de l'app (settings.images_path.parent : le parent
+# commun d'images/ et audio/ — jamais dans le dépôt ni dans outputs/).
+# Écriture ATOMIQUE : fichier temporaire à côté puis os.replace (un crash ne
+# laisse jamais un JSON tronqué) ; lecture tolérante (absent / corrompu /
+# forme inattendue → None, la Bibliothèque reprend la main). Le contenu est
+# le modèle CLIENT complet (textes de narration, automation, trajectoires,
+# vitesses…) : le backend le stocke tel quel et ne l'interprète qu'au GET
+# /project pour vérifier que les sources existent encore.
+
+_SAVE_MAX_CLIPS = 400
+_SAVE_MAX_BYTES = 2_000_000
+
+
+def _saved_path() -> Path:
+    return settings.images_path.parent / "montage_saved.json"
+
+
+def _write_saved(data: dict) -> None:
+    """Écriture atomique (tmp voisin + replace) — laisse remonter OSError
+    (l'endpoint la traduit en 500, l'UI affiche « sauvegarde impossible »)."""
+    path = _saved_path()
+    tmp = path.with_name(f"{path.name}.{uuid4().hex[:8]}.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    try:
+        tmp.replace(path)
+    except OSError:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+
+
+def _load_saved() -> dict | None:
+    """Sauvegarde parsée, ou None (absente, illisible, corrompue, forme
+    inattendue) — None signifie toujours « la Bibliothèque fait foi »."""
+    path = _saved_path()
+    try:
+        if not path.is_file():
+            return None
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        logger.warning("montage: montage_saved.json illisible — retour "
+                       "Bibliothèque")
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("clips"), list):
+        logger.warning("montage: montage_saved.json de forme inattendue — "
+                       "retour Bibliothèque")
+        return None
+    return data
+
+
+def _delete_saved() -> bool:
+    """Vrai si un fichier de sauvegarde a réellement été supprimé."""
+    path = _saved_path()
+    try:
+        if path.is_file():
+            path.unlink()
+            return True
+    except OSError as e:
+        logger.warning(f"montage: suppression de la sauvegarde impossible : {e}")
+    return False
+
+
 # ---------------------------------------------------------------- project ---
 
 @router.get("/project")
 async def montage_project(limit: int = 4):
-    """Timeline initiale depuis la Bibliothèque : les `limit` derniers rendus/
-    uploads finis en V1 (bout à bout, sans trous), la voix off la plus récente
-    en A1, une musique (nom contenant theme/music/bgm/…) en A2."""
+    """Timeline de l'éditeur. Une sauvegarde (POST /save) existe → elle EST
+    le projet : renvoyée telle quelle (saved:true, modèle client complet),
+    après vérification que chaque source référencée existe encore (clip
+    retiré sinon, avec warning + saved_pruned). Sans sauvegarde exploitable :
+    construction historique depuis la Bibliothèque (saved:false) — les
+    `limit` derniers rendus/uploads finis en V1 (bout à bout, sans trous),
+    la voix off la plus récente en A1, une musique (nom contenant
+    theme/music/bgm/…) en A2."""
+    saved = await asyncio.to_thread(_load_saved)
+    if saved is not None:
+        kept, pruned = [], 0
+        for c in saved["clips"]:
+            if not isinstance(c, dict):
+                continue
+            if c.get("src"):
+                p = await _resolve_src(c.get("src"))
+                if p is None:
+                    logger.warning(
+                        f"montage: source de la sauvegarde disparue, clip "
+                        f"retiré — {c.get('label') or c.get('src')}")
+                    pruned += 1
+                    continue
+            kept.append(c)
+        if any(c.get("tr") == "v1" for c in kept):
+            try:
+                sdur = float(saved.get("duration") or 0)
+            except (TypeError, ValueError):
+                sdur = 0.0
+            if sdur != sdur or sdur <= 0:
+                ends = []
+                for c in kept:
+                    try:
+                        ends.append(float(c.get("end") or 0))
+                    except (TypeError, ValueError):
+                        pass
+                sdur = max(ends, default=1.0)
+            out = {"ok": True, "has_assets": True, "saved": True,
+                   "name": str(saved.get("name") or "montage"),
+                   "ratio": str(saved.get("ratio") or "9:16"),
+                   "duration": round(max(0.5, sdur), 3),
+                   "mix": (saved.get("mix")
+                           if isinstance(saved.get("mix"), dict) else
+                           {"dialogue": -6, "musique": -18, "sfx": -12}),
+                   "duration_master": saved.get("duration_master", True),
+                   "ducking": saved.get("ducking", True),
+                   "clips": kept, "saved_at": saved.get("saved_at")}
+            if isinstance(saved.get("ducking_cfg"), dict):
+                out["ducking_cfg"] = saved["ducking_cfg"]
+            if pruned:
+                out["saved_pruned"] = True
+                out["pruned"] = pruned
+            return out
+        # Sauvegarde présente mais plus AUCUN clip V1 à source valide : elle
+        # est inexploitable — la Bibliothèque reprend la main (le prochain
+        # autosave d'une édition réelle l'écrasera).
+        logger.warning("montage: sauvegarde sans clip V1 exploitable — "
+                       "timeline reconstruite depuis la Bibliothèque")
     async with async_session_factory() as session:
         res = await session.execute(
             select(JobRecord).where(JobRecord.status == JobStatus.DONE.value)
@@ -280,7 +632,7 @@ async def montage_project(limit: int = 4):
                       "src": {"audio": music.name}, "loop": True})
 
     has = bool([c for c in clips if c["tr"] == "v1"])
-    return {"ok": True, "has_assets": has,
+    return {"ok": True, "has_assets": has, "saved": False,
             "name": "montage_bibliotheque" if has else None,
             "ratio": "9:16", "duration": round(duration, 3),
             "clips": clips if has else [],
@@ -294,6 +646,65 @@ async def montage_effects():
     de l'inspecteur (labels FR + paramètres par type)."""
     from app.services import effects_engine
     return {"effects": effects_engine.catalog()}
+
+
+@router.post("/save")
+async def montage_save(request: Request):
+    """Autosave de l'éditeur Montage. Body : {name, ratio, duration, mix,
+    duration_master?, ducking? (bool), ducking_cfg? (objet), clips:[...]}
+    — les clips sont le modèle CLIENT complet (texte de narration,
+    gains/fondus/courbes, volume_points, x/y/scale/rotate/motion_points,
+    vitesse, effets, opacité…), stockés TELS QUELS et resservis par
+    GET /project (saved:true). Écriture atomique ; 400 si la forme est
+    invalide ou le volume déraisonnable (> 400 clips ou > 2 Mo)."""
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    if not isinstance(body, dict) or not isinstance(body.get("clips"), list):
+        raise HTTPException(400, "Sauvegarde invalide — objet {name, ratio, "
+                                 "duration, mix, clips[]} attendu.")
+    clips = [c for c in body["clips"] if isinstance(c, dict)]
+    if len(clips) > _SAVE_MAX_CLIPS:
+        raise HTTPException(400, f"Sauvegarde refusée — {len(clips)} clips "
+                                 f"(max {_SAVE_MAX_CLIPS}).")
+    try:
+        dur = float(body.get("duration") or 0)
+    except (TypeError, ValueError):
+        dur = 0.0
+    if dur != dur or dur < 0:  # NaN / négatif
+        dur = 0.0
+    ducking = body.get("ducking", True)
+    if not isinstance(ducking, (bool, dict)):
+        ducking = bool(ducking)
+    data = {
+        "name": str(body.get("name") or "montage")[:80],
+        "ratio": str(body.get("ratio") or "9:16")[:12],
+        "duration": round(dur, 3),
+        "mix": body.get("mix") if isinstance(body.get("mix"), dict) else {},
+        "duration_master": bool(body.get("duration_master", True)),
+        "ducking": ducking,
+        "clips": clips,
+        "saved_at": _dt.utcnow().replace(microsecond=0).isoformat() + "Z",
+    }
+    if isinstance(body.get("ducking_cfg"), dict):
+        data["ducking_cfg"] = body["ducking_cfg"]
+    if len(json.dumps(data, ensure_ascii=False).encode("utf-8")) > _SAVE_MAX_BYTES:
+        raise HTTPException(400, "Sauvegarde refusée — plus de 2 Mo.")
+    try:
+        await asyncio.to_thread(_write_saved, data)
+    except OSError as e:
+        logger.warning(f"montage: écriture de la sauvegarde impossible : {e}")
+        raise HTTPException(500, f"Écriture de la sauvegarde impossible : {e}")
+    return {"ok": True, "saved_at": data["saved_at"], "clips": len(clips)}
+
+
+@router.delete("/save")
+async def montage_save_delete():
+    """Efface la sauvegarde de timeline — GET /project reconstruira depuis la
+    Bibliothèque (bouton « bibliothèque » de l'éditeur, après confirmation)."""
+    deleted = await asyncio.to_thread(_delete_saved)
+    return {"ok": True, "deleted": deleted}
 
 
 # ----------------------------------------------------------------- render ---
@@ -341,6 +752,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
     {threshold, ratio, attack, release} (sfx_service.parse_ducking).
     R2 : `fade_in_curve` / `fade_out_curve` (lin|douce|expo|log, voir
     _fade_curve) sur a_clips ET music — lin/absent n'émet pas de curve=.
+    R4 : `volume_points` (liste (t, db) déjà sanitizée par _volume_points,
+    None sans automation) sur a_clips ET music — volume='expr':eval=frame
+    inséré après les afade, avant aresample (voir _vp_expr ; t local au clip,
+    global au rendu pour la musique bouclée), multiplié au gain statique.
+    R4b : `mp` sur v2 (liste (t, x, y, rotate|None) déjà sanitizée par
+    _motion_points, None sans keyframes) — x/y du filtre overlay deviennent
+    des interpolations linéaires par morceaux du temps GLOBAL (points posés
+    à start + t), la rotation s'anime en horloge LOCALE du flux overlay si
+    des points portent rotate (cadre fixe hypot(iw,ih)) ; scale reste la
+    valeur statique de `tf` (aucune keyframe d'échelle) ; `mp` sans `tf` :
+    défauts centre / échelle 1.
+    C4 : `speed` sur v1 (0.0 = inchangé, sinon 0.25..4 déjà clampé par
+    _v1_speed) — l'input lit d·speed s de source (-t, borné au disponible)
+    et setpts=PTS/speed AVANT fps remet le flux à la durée timeline ; la
+    durée du segment (seg_durs) et donc offsets xfade / total / adelay ne
+    bougent pas ; AUCUN atempo (l'audio V1 n'entre pas dans le graphe).
     Sans ces champs, la commande émise est identique octet pour octet à
     l'historique (non-régression testée).
 
@@ -384,11 +811,21 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         else:
             want = max(0.1, s["end"] - s["start"])
             avail = max(0.1, s["src_dur"] - s["src_in"])
-            d = round(min(want, avail), 3)
+            # C4 : vitesse V1 — à ×spd le segment lit want·spd s de SOURCE ;
+            # la durée TIMELINE d restituée est bornée par ce que la source
+            # peut couvrir (d_src/spd) : un plan trop court à ×2 couvre moins
+            # de timeline qu'avant (honnête), à ×0.5 il peut en couvrir plus.
+            # spd 0.0/absent : arithmétique historique, octet pour octet.
+            spd = float(s.get("speed") or 0.0)
+            if spd:
+                d_src = round(max(0.05, min(want * spd, avail)), 3)
+                d = round(max(0.1, min(want, d_src / spd)), 3)
+            else:
+                d_src = d = round(min(want, avail), 3)
             if not audio_only:
                 if s["src_in"] > 0:
                     inputs.extend(["-ss", str(s["src_in"])])
-                inputs.extend(["-t", str(d), "-i", str(s["path"])])
+                inputs.extend(["-t", str(d_src), "-i", str(s["path"])])
             seg_durs.append(d)
         if not audio_only:
             seg_idx.append(idx)
@@ -402,7 +839,22 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
                 parts.append(f"[{seg_idx[k]}:v]setsar=1,format=yuv420p,"
                              f"setpts=PTS-STARTPTS[n{k}]")
                 continue
-            chain = (f"{sf},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
+            # C4 : vitesse V1 — setpts=PTS/speed inséré AVANT fps : le
+            # retiming comprime (×>1) ou étire (×<1) les timestamps, puis
+            # fps={fps} rematérialise un débit constant (frames dupliquées ou
+            # sautées) ; tpad/trim/setpts-STARTPTS en aval (INCHANGÉS)
+            # garantissent la durée TIMELINE exacte seg_durs[k] — xfade et
+            # offsets ne voient aucune différence. Sans speed : préfixe sf
+            # historique, chaîne octet pour octet.
+            spd = float(s.get("speed") or 0.0)
+            if spd:
+                pre = (f"scale={w}:{h}:force_original_aspect_ratio=increase,"
+                       f"crop={w}:{h},setsar=1,"
+                       f"setpts=PTS/{sfx_service.fnum(spd)},"
+                       f"fps={fps},format=yuv420p")
+            else:
+                pre = sf
+            chain = (f"{pre},tpad=stop_mode=clone:stop_duration={seg_durs[k]},"
                      f"trim=0:{seg_durs[k]},setpts=PTS-STARTPTS")
             reff = s.get("effects")
             if reff:
@@ -478,9 +930,19 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         if fo > 0:
             fades += (f"afade=t=out:st={round(max(0.0, d_eff - fo), 3)}:"
                       f"d={round(fo, 3)}{_fade_curve(c, 'fade_out_curve')},")
+        # R4 : automation de volume (losanges) — volume=expr:eval=frame,
+        # inséré APRÈS les afade (l'automation est un geste de MIXAGE : elle
+        # se multiplie par-dessus les fondus, comme le gain statique — jamais
+        # à leur place) et AVANT aresample : t y est encore l'horloge locale
+        # posée par asetpts (celle des afade, après atempo le cas échéant),
+        # pas celle ré-échantillonnée par async=1. Le volume statique
+        # (gain clip × bus) reste où il était — deux filtres volume en série
+        # multiplient leurs gains. Sans points : chaîne octet pour octet.
+        vp = c.get("volume_points")
+        autom = f"volume='{_vp_expr(vp)}':eval=frame," if vp else ""
         parts.append(
             f"[{idx}:a]atrim={round(sin, 3)}:{round(sin + d, 3)},"
-            f"asetpts=PTS-STARTPTS,{proc}{fades}"
+            f"asetpts=PTS-STARTPTS,{proc}{fades}{autom}"
             f"aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={c['gain']},"
             f"adelay={dly}|{dly}[{'va' if c['tr'] == 'a1' else 'sa'}{n}]")
@@ -527,6 +989,12 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         except (TypeError, ValueError):
             op = None
         tf = o.get("tf")
+        mp = o.get("mp")
+        if mp and tf is None:
+            # R4b : keyframes sans champ statique — défauts de _ov_transform
+            # (centre, échelle 1). Jamais le cas d'un payload historique :
+            # motion_points est un champ nouveau, l'identité sans lui tient.
+            tf = {"x": 0.5, "y": 0.5, "scale": 1.0, "rotate": 0.0}
         if tf is None:
             # Chaîne historique (cover plein cadre) — STRICTEMENT inchangée
             # quand aucun champ de transformation n'est posé.
@@ -546,13 +1014,47 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
             och = f"scale={ow2}:-2,setsar=1,fps={fps},format=rgba"
             if op is not None and 0.0 <= op < 1.0:
                 och += f",colorchannelmixer=aa={round(op, 3)}"
-            if abs(tf["rotate"]) >= 0.05:
+            # R4b : la rotation s'anime si des points portent rotate — angle
+            # interpolé (radians) sur l'horloge LOCALE du flux overlay (le
+            # setpts de décalage vient après). Le cadre de sortie devient le
+            # carré FIXE hypot(iw,ih) (rotw/roth dépendraient de t, que les
+            # expressions ow/oh n'évaluent qu'à l'init) : le média reste
+            # centré dedans, la pose x/y « centre − w/2 » ne change pas.
+            rot_pts = ([(t, r) for (t, _x, _y, r) in mp if r is not None]
+                       if mp else [])
+            if rot_pts:
+                if max(abs(r) for _t, r in rot_pts) < 0.05:
+                    pass  # angles tous ≈ 0 : pas de filtre rotate
+                elif len({round(r, 2) for _t, r in rot_pts}) == 1:
+                    # tous les points portent le même angle : filtre statique
+                    # (cadre rotw/roth exact), l'angle des points fait foi
+                    rad = round(rot_pts[0][1] * math.pi / 180.0, 6)
+                    och += (f",rotate={rad}:ow=rotw({rad}):oh=roth({rad})"
+                            f":c=none")
+                else:
+                    rpts = [(t, round(r * math.pi / 180.0, 6))
+                            for t, r in rot_pts]
+                    och += (f",rotate='{_mp_lerp_expr(rpts)}'"
+                            f":ow='hypot(iw,ih)':oh=ow:c=none")
+            elif abs(tf["rotate"]) >= 0.05:
                 rad = round(tf["rotate"] * math.pi / 180.0, 6)
                 och += (f",rotate={rad}:ow=rotw({rad}):oh=roth({rad}):c=none")
             och += f",setpts=PTS-STARTPTS+{st}/TB"
-            cx = round(w * tf["x"], 2)
-            cy = round(h * tf["y"], 2)
-            pos = f"x={cx}-w/2:y={cy}-h/2:"
+            if mp:
+                # R4b : x/y animés — interpolation en temps GLOBAL du rendu
+                # (celui de enable=between) : chaque point local t devient
+                # st + t ; expressions quotées (virgules de if sans
+                # ambiguïté), évaluées par frame (défaut eval de overlay).
+                xpts = [(round(st + t, 3), round(w * x, 2))
+                        for (t, x, _y, _r) in mp]
+                ypts = [(round(st + t, 3), round(h * y, 2))
+                        for (t, _x, y, _r) in mp]
+                pos = (f"x='({_mp_lerp_expr(xpts)})-w/2'"
+                       f":y='({_mp_lerp_expr(ypts)})-h/2':")
+            else:
+                cx = round(w * tf["x"], 2)
+                cy = round(h * tf["y"], 2)
+                pos = f"x={cx}-w/2:y={cy}-h/2:"
         parts.append(f"[{idx}:v]{och}[ov{j}]")
         parts.append(f"[{cur}][ov{j}]overlay={pos}eof_action=pass:"
                      f"enable='between(t,{st},{en})'[ob{j}]")
@@ -585,8 +1087,17 @@ def _build_montage_command(v1, v2, a_clips, music, *, w, h, fps, mix_db,
         mfx = music.get("fx_chain") or ""
         if mfx:
             mproc += mfx + ","
+        # R4 : automation de volume de la musique — le flux bouclé n'est
+        # jamais retrimé : t = horloge GLOBALE du rendu (0..total), les
+        # points s'expriment donc en temps de MONTAGE (l'UI convertit et
+        # l'affiche). Même position que les clips : après les fondus, avant
+        # aresample ; se multiplie au gain statique. Sans points : chaîne
+        # octet pour octet historique.
+        mvp = music.get("volume_points")
+        mautom = f"volume='{_vp_expr(mvp)}':eval=frame," if mvp else ""
         parts.append(
-            f"[{idx}:a]{mproc}{mf}aresample=async=1,aformat=sample_rates=44100:"
+            f"[{idx}:a]{mproc}{mf}{mautom}"
+            f"aresample=async=1,aformat=sample_rates=44100:"
             f"channel_layouts=stereo,volume={music['gain']}[mtrk]")
         music_lbl = "[mtrk]"
         idx += 1
@@ -695,6 +1206,27 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
     douce|expo|log (défaut lin) → afade curve= tri|hsin|exp|log ; lin ou
     absent n'émet rien (commande historique intacte), et sans fondu > 0 la
     courbe est sans effet.
+    R4 : clips audio volume_points? = [{t, db}] (max 12, t s ≥ 0, db −40..
+    +12 ; invalides ignorés avec warning) → automation de volume par
+    interpolation LINÉAIRE en dB (volume='expr':eval=frame, après les afade,
+    avant aresample), MULTIPLIÉE au gain de clip × bus. t est LOCAL au clip
+    (0..durée) pour a1/a3 ; pour la musique A2 bouclée, t est le temps
+    GLOBAL du rendu (0..total — le flux bouclé n'est jamais retrimé). Champ
+    absent : commande historique intacte.
+    R4b : overlays V2 motion_points? = [{t, x, y, rotate?}] (max 8, t s
+    LOCAL au clip 0..durée, x/y −0.5..1.5, rotate −180..180 ; invalides
+    ignorés avec warning) → keyframes de position : x/y interpolés
+    linéairement par morceaux (constants avant le premier / après le dernier
+    point), rotation animée si des points portent rotate ; scale reste
+    STATIQUE (pas de keyframe d'échelle). Champ absent : commande
+    historique intacte (transformée statique ou cover, comme avant).
+    C4 : clips V1 speed? (0.25..4, défaut 1 ; invalide ignoré avec warning)
+    → la fenêtre source consommée devient (end−start)×speed (bornée au
+    disponible) et setpts=PTS/speed AVANT la normalisation fps remet la
+    vidéo à sa durée timeline — transitions, trous et audio ne bougent pas ;
+    AUCUN atempo (l'audio du plan V1 n'entre pas dans le graphe — le clip A1
+    « son du plan » garde sa vitesse, l'UI le signale). Champ absent ou 1 :
+    commande historique intacte.
     → {job_id} ; poll /api/jobs/{id}."""
     try:
         body = await request.json()
@@ -764,6 +1296,7 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "end": float(c.get("end") or 0),
                            "transition": c.get("transition"),
                            "transition_s": c.get("transition_s"),
+                           "speed": _v1_speed(c),  # C4 — 0.0 = historique
                            "effects": (c.get("effects")
                                        if isinstance(c.get("effects"), list)
                                        else None)})
@@ -785,7 +1318,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                            "start": max(0.0, float(c.get("start") or 0)),
                            "end": float(c.get("end") or 0),
                            "opacity": c.get("opacity"),
-                           "tf": _ov_transform(c)})
+                           "tf": _ov_transform(c),
+                           "mp": _motion_points(c)})
             a_clips, music = [], None
             for c in clips:
                 if c.get("tr") not in ("a1", "a2", "a3"):
@@ -812,6 +1346,9 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                     c.get("fx"), str(c.get("label") or c.get("tr"))))
                     if c.get("fx") else "")
                 spd = sfx_service.clamp_speed(c.get("speed"))
+                # R4 : volume_points sanitized ici (None sans le champ — la
+                # commande émise reste alors l'historique, bit à bit).
+                vp = _volume_points(c)
                 if c["tr"] == "a2" and music is None:
                     music = {"path": p,
                              "gain": g_music if not gdb else
@@ -819,7 +1356,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                              "fade_in": c_fi, "fade_out": c_fo,
                              "fade_in_curve": c.get("fade_in_curve"),
                              "fade_out_curve": c.get("fade_out_curve"),
-                             "fx_chain": fx_ch, "speed": spd}
+                             "fx_chain": fx_ch, "speed": spd,
+                             "volume_points": vp}
                 else:
                     base = g_voice if c["tr"] == "a1" else g_sfx
                     a_clips.append({
@@ -833,7 +1371,8 @@ async def montage_render(request: Request, background_tasks: BackgroundTasks):
                         "fade_in": c_fi, "fade_out": c_fo,
                         "fade_in_curve": c.get("fade_in_curve"),
                         "fade_out_curve": c.get("fade_out_curve"),
-                        "fx_chain": fx_ch, "speed": spd})
+                        "fx_chain": fx_ch, "speed": spd,
+                        "volume_points": vp})
 
             async with async_session_factory() as session:
                 jr = await session.get(JobRecord, job_id)
@@ -919,6 +1458,9 @@ async def montage_measure(request: Request):
                    "end": float(c.get("end") or 0),
                    "transition": c.get("transition"),
                    "transition_s": c.get("transition_s"),
+                   # C4 : la vitesse V1 peut changer la durée COUVERTE par un
+                   # segment (source trop courte) — la mesure suit le rendu.
+                   "speed": _v1_speed(c),
                    "effects": None})
     a_clips, music = [], None
     for c in clips:
@@ -939,6 +1481,7 @@ async def montage_measure(request: Request):
             c.get("fx"), str(c.get("label") or c.get("tr"))))
             if c.get("fx") else "")
         spd = sfx_service.clamp_speed(c.get("speed"))
+        vp = _volume_points(c)  # R4 : la mesure entend l'automation du rendu
         if c["tr"] == "a2" and music is None:
             music = {"path": p,
                      "gain": g_music if not gdb else
@@ -946,7 +1489,8 @@ async def montage_measure(request: Request):
                      "fade_in": c_fi, "fade_out": c_fo,
                      "fade_in_curve": c.get("fade_in_curve"),
                      "fade_out_curve": c.get("fade_out_curve"),
-                     "fx_chain": fx_ch, "speed": spd}
+                     "fx_chain": fx_ch, "speed": spd,
+                     "volume_points": vp}
         else:
             base = g_voice if c["tr"] == "a1" else g_sfx
             a_clips.append({
@@ -960,7 +1504,8 @@ async def montage_measure(request: Request):
                 "fade_in": c_fi, "fade_out": c_fo,
                 "fade_in_curve": c.get("fade_in_curve"),
                 "fade_out_curve": c.get("fade_out_curve"),
-                "fx_chain": fx_ch, "speed": spd})
+                "fx_chain": fx_ch, "speed": spd,
+                "volume_points": vp})
 
     cmd, total = _build_montage_command(
         v1, [], a_clips, music, w=1080, h=1920, fps=30, mix_db=mix,

@@ -707,8 +707,10 @@
   border-radius:4px; padding:1px 5px; white-space:nowrap}
 .svm-keylbl{font-size:11px; color:var(--ink3); min-width:0}
 
-/* ── vu-mètre live (rangée MIXAGE de l'inspecteur) — 60×10, 2 barres --green
-   + crête tenue, dessiné en rAF UNIQUEMENT pendant la lecture ── */
+/* ── vu-mètre live GRADUÉ (rangée MIXAGE de l'inspecteur) — 60×10, 2 barres
+   --green, ticks −30/−20/−10/−6/−3 dBFS (--ink4), zone rouge > −3 (--red)
+   et crête à retombée lente ; dessiné en rAF UNIQUEMENT pendant la lecture,
+   couleurs relues au changement de thème ── */
 .svm-vu{width:60px; height:10px; display:block; margin-left:auto; flex:none}
 
 /* ── tiroir « Narration » (T) — écriture texte-first pilotant la piste A1 ──
@@ -868,6 +870,41 @@
 .svm-hintsx{border:none; background:none; color:var(--ink4); cursor:pointer;
   font-size:10px; padding:0 2px; font-family:inherit; flex:none; line-height:1}
 .svm-hintsx:hover{color:var(--ink2)}
+/* ── gauntlet Montage R4 — automation de volume par clip (losanges) + rangée
+   MIXAGE : vu-mètre gradué. Tout passe par les variables du thème (le remap
+   clair s'applique seul) ; le canvas .svm-vu lit --green/--red/--ink4 au
+   getComputedStyle, relu au changement de thème. ── */
+/* ligne d'automation — polyline sur toute l'emprise du clip, −40..+12 dB
+   mappés sur sa hauteur ; couleur de piste posée inline PLEINE opacité,
+   1.5px constant (non-scaling-stroke) ; par-dessus waveform et rampes,
+   sous le label (DOM avant .svm-cliplabel), jamais interactive — la pose
+   passe par le double-clic du clip en mode ◇ */
+.svm-vpline{position:absolute; inset:0; z-index:1; overflow:visible;
+  pointer-events:none; display:block; width:100%; height:100%}
+.svm-vpline polyline{fill:none; stroke-width:1.5px}
+/* losange 7px (motif .svm-junc) — --accent, bordure --panel, centré sur son
+   point (marges négatives), drag t / dB ; hitbox élargie, sélection (Suppr
+   le retire) = anneau accent */
+.svm-vph{position:absolute; width:7px; height:7px; margin:-3.5px 0 0 -3.5px;
+  border-radius:1.5px; background:var(--accent); border:1px solid var(--panel);
+  transform:rotate(45deg); cursor:move; touch-action:none; z-index:1;
+  display:block; transition:filter .12s var(--ease), box-shadow .12s var(--ease)}
+.svm-vph::before{content:""; position:absolute; inset:-6px} /* zone de saisie élargie */
+.svm-vph:hover{filter:brightness(1.15)}
+.svm-vph[data-sel]{box-shadow:0 0 0 2px color-mix(in srgb, var(--accent) 45%, transparent)}
+/* inspecteur : liste compacte des points (sous le gain) — mono tabulaire,
+   poubelle par ligne + « aplatir » */
+.svm-vplist{margin-top:6px; display:flex; flex-direction:column; gap:3px}
+.svm-vprow{display:flex; align-items:center; gap:6px; font-family:var(--f-mono);
+  font-size:10px; color:var(--ink4); font-variant-numeric:tabular-nums; min-width:0}
+.svm-vprow .svm-vpt{color:var(--ink2)}
+.svm-vprow .svm-vpdb{color:var(--ink3)}
+.svm-vpdel{margin-left:auto; padding:1px 6px}
+/* bouton ◇ (mode automation) — toggle neutre (pas le rouge destructif du
+   minibtn, réservé à « aplatir » / poubelles) ; l'or marque le mode actif */
+.svm-vpbtn:hover{border-color:var(--stroke2); color:var(--ink2)}
+.svm-vpbtn[data-on]{border-color:var(--accent); color:var(--accent)}
+
 /* recherche du cheatsheet (R2/I6) — champ + compteur N/total */
 .svm-kbsearch{display:flex; align-items:center; gap:8px; margin-top:10px}
 .svm-kbfind{flex:1 1 auto; min-width:0; padding:6px 9px; border-radius:7px;
@@ -877,6 +914,104 @@
 .svm-kbfind:focus{border-color:var(--stroke2)}
 .svm-kbcount{font-family:var(--f-mono); font-size:10px; color:var(--ink3);
   font-variant-numeric:tabular-nums; flex:none}
+
+/* ── gauntlet Montage R4b — overlays : X/Y précis, grille d'alignement 3×3,
+   keyframes de position (trajectoire). Tout passe par les tokens du thème :
+   le remap clair (.dzsvm[data-svm-theme="light"]) s'applique seul. ── */
+/* grille d'alignement 3×3 (inspecteur Overlay) — micro-boutons 18px, le
+   point --ink3 marque la cible (coins / bords / centre, marge 4 %) et passe
+   à l'accent au survol ; jamais d'état persistant : l'alignement est un
+   geste, pas un mode */
+.svm-algrid{display:grid; grid-template-columns:repeat(3,18px); gap:3px}
+.svm-albtn{position:relative; width:18px; height:18px; padding:0; border-radius:5px;
+  border:1px solid var(--stroke); background:transparent; cursor:pointer;
+  transition:border-color .12s var(--ease)}
+.svm-albtn::before{content:""; position:absolute; inset:-2px} /* zone de saisie élargie */
+.svm-albtn:hover{border-color:var(--stroke2)}
+.svm-albtn i{position:absolute; width:4px; height:4px; margin:-2px 0 0 -2px;
+  border-radius:1.5px; background:var(--ink3); pointer-events:none; display:block;
+  transition:background-color .12s var(--ease)}
+.svm-albtn:hover i{background:var(--accent)}
+/* losange de trajectoire sur un clip V2 (motif .svm-vph, 7px --accent) —
+   clic : caler la tête sur le point ; l'édition vit dans le lecteur (drag)
+   et l'inspecteur (champs / liste), jamais ici */
+.svm-mph{position:absolute; top:50%; width:7px; height:7px; margin:-3.5px 0 0 -3.5px;
+  border-radius:1.5px; background:var(--accent); border:1px solid var(--panel);
+  transform:rotate(45deg); cursor:pointer; touch-action:none; z-index:1;
+  display:block; transition:filter .12s var(--ease)}
+.svm-mph::before{content:""; position:absolute; inset:-6px} /* zone de saisie élargie */
+.svm-mph:hover{filter:brightness(1.15)}
+
+/* ── gauntlet R4c — raccourcis REMAPPABLES (panneau ?) ─────────────────────
+   Chaque combo est un bouton : chips <kbd> cliquables, capture au clic
+   ([data-editing] : « appuyez sur une touche… » en accent), refus inline
+   (conflit / touche navigateur) en --red, « réinitialiser » par ligne quand
+   un override dz_svm_keymap est actif (barre basse or sur les caps). Tout
+   passe par les tokens : le remap clair s'applique seul. */
+.svm-kbdbtn{position:relative; display:inline-flex; flex:none; padding:0;
+  border:none; background:transparent; cursor:pointer; border-radius:5px}
+.svm-kbdbtn::before{content:""; position:absolute; inset:-3px} /* zone de saisie élargie */
+.svm-kbdbtn:hover .svm-kbds kbd{border-color:var(--stroke2); color:var(--ink)}
+/* override actif : la barre basse du cap passe à l'or — discret, lisible */
+.svm-kbds[data-user] kbd{border-bottom-color:var(--accent)}
+.svm-kbwait{font-family:var(--f-mono); font-size:9.5px; color:var(--accent);
+  border:1px dashed var(--accent); border-radius:4px; padding:1px 6px;
+  white-space:nowrap}
+.svm-kbmsg{display:block; font-family:var(--f-mono); font-size:10px;
+  color:var(--red); margin-top:2px}
+.svm-kbreset{margin-left:auto; padding:1px 6px; align-self:center; flex:none}
+.svm-kbreset[data-on]{color:var(--ink4)}
+.svm-kbreset:hover{border-color:var(--accent); color:var(--accent)}
+/* lignes non remappables (gestes souris, Échap) — caps éteints, pas de main */
+.svm-keyinfo .svm-kbds kbd{color:var(--ink4); border-bottom-width:1px}
+/* en-tête : « Réinitialiser tout » compact + confirmation inline */
+.svm-kbresetall{padding:5px 10px; font-size:11px; flex:none}
+.svm-kbconfirm{display:inline-flex; align-items:center; gap:6px; flex:none;
+  font-family:var(--f-mono); font-size:10px; color:var(--ink2)}
+.svm-kbno:hover{border-color:var(--stroke2); color:var(--ink2)}
+
+/* ── gauntlet R4d — persistance (badge d'autosave + bouton bibliothèque),
+   coût narration avant génération, vitesse par clip V1. Tout passe par les
+   tokens du thème : le remap clair (.dzsvm[data-svm-theme="light"])
+   s'applique seul. ── */
+/* badge « enregistré · HH:MM:SS » — mono discret SANS pastille (l'état
+   sauvegardé est le calme, pas un signal) ; l'échec garde la pastille
+   .svm-unsaved mais vire au rouge */
+.svm-savedchip{font-family:var(--f-mono); font-size:10px; color:var(--ink3);
+  font-variant-numeric:tabular-nums; white-space:nowrap}
+.svm-unsaved.svm-saveerr{border-color:var(--red); color:var(--red)}
+/* bouton « bibliothèque » — .svm-secbtn compacté à la hauteur des chips de
+   la barre de titre ; confirmation inline (motif .svm-kbconfirm), jamais de
+   modale pour un geste destructeur local */
+.svm-libbtn{padding:2px 8px; font-family:var(--f-mono); font-size:10px;
+  color:var(--ink3)}
+.svm-libbtn:hover{color:var(--ink2)}
+.svm-libconfirm{display:inline-flex; align-items:center; gap:6px; flex:none;
+  font-family:var(--f-mono); font-size:10px; color:var(--ink2)}
+/* ligne de coût d'un bloc narration — mono discret sous la zone de texte,
+   chiffres tabulaires (elle bouge à chaque frappe) */
+.svm-nbcost{font-family:var(--f-mono); font-size:10px; color:var(--ink4);
+  font-variant-numeric:tabular-nums; margin-top:5px}
+/* dépense de session — en-tête du tiroir ; il prend le margin auto, le
+   compteur de blocs (frère suivant) rend alors le sien */
+.svm-narrspent{margin-left:auto; font-family:var(--f-mono); font-size:10px;
+  color:var(--ink3); font-variant-numeric:tabular-nums; white-space:nowrap}
+.svm-narrspent+.svm-narrcount{margin-left:0}
+/* chip « désynchronisé (vitesse) » — ambre : avertissement, pas une erreur ;
+   posé sur un clip il flotte bas-droite AU-DESSUS du média (fond du panneau
+   translucide pour rester lisible sur la waveform — surimpression média) */
+.svm-desync{font-family:var(--f-mono); font-size:9px; letter-spacing:.02em;
+  color:var(--amber); border:1px solid var(--amber); border-radius:999px;
+  padding:1px 6px; white-space:nowrap; flex:none}
+.svm-clip .svm-desync{position:absolute; right:4px; bottom:3px; z-index:1;
+  background:color-mix(in srgb, var(--panel) 80%, transparent)}
+/* vitesse V1 éditable — select compact dans la carte .svm-prop, mêmes
+   chiffres mono que .svm-propv */
+.svm-vitsel{width:100%; margin-top:2px; padding:1px 2px; border-radius:6px;
+  border:1px solid var(--stroke); background:var(--panel2); color:var(--ink);
+  font-family:var(--f-mono); font-size:12px; font-variant-numeric:tabular-nums;
+  cursor:pointer; transition:border-color .12s var(--ease)}
+.svm-vitsel:hover{border-color:var(--stroke2)}
 
 @media (prefers-reduced-motion:reduce){
   .dzsvm *, .dzsvm *::before, .dzsvm *::after{
