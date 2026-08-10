@@ -135,7 +135,7 @@
   margin-left:auto; flex:none}
 
 /* ── recherche / outils ───────────────────────────────────────────────────── */
-.sub-searchrow{display:flex; align-items:center; gap:5px; margin:2px 0 6px}
+.sub-searchrow{display:flex; align-items:center; gap:5px; margin:2px 0 4px}
 .sub-search{flex:1 1 60px; min-width:0; height:24px; padding:0 8px;
   border-radius:7px; border:1px solid var(--sub-stroke);
   background:var(--sub-well); color:var(--sub-ink); font-size:11px}
@@ -511,15 +511,21 @@
 .sub-tdot[data-sev="err"]{background:var(--sub-red)}
 
 /* ── COUVERTURE ─────────────────────────────────────────────────────────── */
-.sub-cov{margin:0 0 8px; padding:7px 9px 8px; border-radius:9px;
+.sub-cov{margin:0 0 6px; padding:6px 9px 6px; border-radius:9px;
   border:1px solid var(--sub-stroke); background:var(--sub-well)}
 .sub-cov[data-bad]{border-color:color-mix(in srgb, var(--sub-acc) 55%, var(--sub-stroke))}
-.sub-cov .sub-sec{margin:0 0 6px}
+/* ACQUITTE N'EST PAS REGLE : tant qu'un plan du montage sortira muet, le bloc
+   ne redevient jamais neutre — il passe seulement en pointille, la forme de la
+   famille « acquittement ». Un acquittement retire du CALCUL, pas du CONSTAT. */
+.sub-cov[data-ack]{border-style:dashed;
+  border-color:color-mix(in srgb, var(--sub-acc) 40%, var(--sub-stroke))}
+.sub-cov .sub-sec{margin:0 0 5px}
 .sub-covbar{height:5px; border-radius:3px; overflow:hidden;
   background:var(--sub-stroke); margin:0 0 5px}
 .sub-covbar i{display:block; height:100%; background:var(--sub-acc)}
-.sub-covsay{font-size:10px; line-height:1.4; color:var(--sub-ink2);
-  margin:0 0 5px}
+.sub-covsay{font-size:10px; line-height:1.35; color:var(--sub-ink2);
+  margin:0 0 4px}
+.sub-covsay[data-ack]{font-style:italic; color:var(--sub-ink3)}
 .sub-plan{display:flex; align-items:center; gap:5px; flex-wrap:wrap;
   padding:4px 0 5px; border-top:1px solid var(--sub-stroke)}
 .sub-plann{font-family:var(--sub-mono); font-size:9px; color:var(--sub-ink4);
@@ -539,8 +545,42 @@
   line-height:1.4; color:var(--sub-ink4); font-variant-numeric:tabular-nums}
 .sub-planmath b{font-style:normal; color:var(--sub-ink3)}
 .sub-covign{display:flex; align-items:center; gap:7px; flex-wrap:wrap;
-  padding-top:6px; border-top:1px solid var(--sub-stroke)}
-.sub-covigntxt{font-size:9.5px; color:var(--sub-ink4); flex:1 1 140px}
+  padding-top:5px; border-top:1px solid var(--sub-stroke)}
+.sub-covigntxt{font-size:9.5px; line-height:1.35; color:var(--sub-ink4);
+  flex:1 1 140px}
+.sub-covigntxt b{color:var(--sub-ink3); font-weight:600}
+/* ── LES SEUILS DES PASTILLES, LUS ET REGLABLES (tour 7) ──────────────────
+   « On affiche les COMPTES sans jamais afficher les REGLES. » Une ligne, juste
+   au-dessus des pastilles qu'elle produit : les quatre seuils en clair, et le
+   reglage a un clic. Compacte par defaut — c'est une regle, pas un formulaire. */
+.sub-nrm{margin:0 0 4px; padding:3px 7px 4px; border-radius:7px;
+  border:1px solid var(--sub-stroke); background:var(--sub-well)}
+.sub-nrm[data-open]{padding-bottom:6px;
+  border-color:color-mix(in srgb, var(--sub-acc) 35%, var(--sub-stroke))}
+.sub-nrmhead{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap}
+.sub-nrmlab{flex:none; font-family:var(--sub-mono); font-size:8.5px;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--sub-ink4)}
+.sub-nrmval{flex:1 1 150px; min-width:0; font-family:var(--sub-mono);
+  font-size:9px; line-height:1.4; color:var(--sub-ink2);
+  font-variant-numeric:tabular-nums}
+.sub-nrmbtn{flex:none; height:16px; padding:0 6px; border-radius:8px;
+  cursor:pointer; border:1px solid var(--sub-stroke); background:transparent;
+  color:var(--sub-ink3); font-family:var(--sub-mono); font-size:9px}
+.sub-nrmbtn:hover{border-color:var(--sub-acc); color:var(--sub-ink)}
+.sub-nrmedit{margin-top:5px; padding-top:5px;
+  border-top:1px solid var(--sub-stroke); display:flex;
+  flex-direction:column; gap:4px}
+.sub-nrmrow{display:flex; align-items:center; gap:6px}
+.sub-nrmrow .sub-plabel{flex:0 0 66px}
+.sub-nrmrow .sub-range{flex:1 1 auto; min-width:0}
+.sub-nrmrow .sub-pval{flex:none; min-width:44px; text-align:right}
+.sub-nrmimg{flex:none; font-family:var(--sub-mono); font-size:8.5px;
+  color:var(--sub-ink4)}
+.sub-nrmfps{flex:none; width:62px}
+.sub-nrmfoot{display:flex; align-items:baseline; gap:7px; flex-wrap:wrap;
+  margin-top:2px}
+.sub-nrmnote{flex:1 1 160px; font-size:9px; line-height:1.3;
+  color:var(--sub-ink4)}
 /* le plan sans sous-titre, VU SUR LA TIMELINE */
 .dzsvm .svm-clip[data-nosub]{
   box-shadow:inset 0 0 0 1px color-mix(in srgb, var(--accent, #f0b429) 70%, transparent)}
@@ -549,8 +589,11 @@
   font-family:var(--f-mono, Consolas, monospace); font-size:8px;
   background:rgba(10,10,12,.72); color:var(--accent, #f0b429);
   pointer-events:none}
+/* ACQUITTE : l'etiquette dit la CONSEQUENCE, pas la propriete. « sans parole »
+   se lisait comme un reglage assumé et satisfait ; le plan, lui, sort toujours
+   muet. Le constat reste sur le clip, en gris (hors du calcul) mais ecrit. */
 .dzsvm .svm-clip[data-nosub="off"]{box-shadow:none}
-.dzsvm .svm-clip[data-nosub="off"]::after{content:"sans parole";
+.dzsvm .svm-clip[data-nosub="off"]::after{content:"muet (acquitté)";
   color:var(--ink4, #8a8a94)}
 /* la couverture dans la chip de la barre d'outils */
 .dzsvm .svm-toolchip .sub-chipcov{margin-left:4px; display:inline-block;
@@ -629,12 +672,25 @@
 .sub-arblist{display:flex; flex-direction:column; gap:3px}
 .sub-arbrow{display:flex; align-items:baseline; gap:6px; flex-wrap:wrap;
   font-size:9.5px; color:var(--sub-ink3); line-height:1.35}
-.sub-arbside{flex:1 1 130px; min-width:0}
+.sub-arbrow{align-items:flex-start}
+.sub-arbside{flex:1 1 130px; min-width:0; display:flex; flex-direction:column;
+  gap:2px}
 .sub-arbside b{color:var(--sub-acc); font-weight:600}
+.sub-arbbut{display:block; line-height:1.3}
+/* L'ARBITRAGE PORTE SES GESTES (tour 7) : il ne recopie plus un libelle qui
+   pouvait designer un bouton hors du cadre — il rend les deux boutons. Ils
+   s'alignent a gauche de leur moitie, sous l'objectif qu'ils servent. */
+.sub-arbside .sub-act{margin:0; align-self:flex-start}
 .sub-arbvs{flex:none; font-family:var(--sub-mono); font-size:8.5px;
-  color:var(--sub-ink4); text-transform:uppercase; letter-spacing:.08em}
-.sub-arbnote{display:block; margin-top:3px; font-size:9px;
+  color:var(--sub-ink4); text-transform:uppercase; letter-spacing:.08em;
+  align-self:center}
+.sub-arbnote{display:block; margin-top:4px; font-size:9px;
   color:var(--sub-ink4); line-height:1.3}
+/* le RENVOI laisse a la place du geste happe par l'arbitrage. Il ne NOMME pas
+   le bouton : un texte qui cite un libelle peut mentir sur sa presence a
+   l'ecran, une fleche vers un bloc voisin ne le peut pas. */
+.sub-arbptr{display:block; flex:1 0 100%; margin:2px 0 0; font-size:9px;
+  line-height:1.3; font-style:italic; color:var(--sub-ink4)}
 
 /* ── la légende des deux familles, en tête de la couverture ──────────────
    UNE ligne : la distinction se fait a l'oeil sur les boutons eux-memes,
@@ -646,7 +702,7 @@
 .sub-covlegr{display:inline-flex; gap:5px; align-items:center}
 .sub-covlegr[data-fam="fix"] .sub-actg{color:var(--sub-acc)}
 .sub-covlegr[data-fam="ack"]{font-style:italic}
-.sub-covmore{margin-top:6px; align-self:flex-start; height:18px;
+.sub-covmore{margin-top:4px; align-self:flex-start; height:18px;
   padding:0 7px; border-radius:9px; cursor:pointer;
   border:1px solid var(--sub-stroke); background:transparent;
   color:var(--sub-ink3); font-family:var(--sub-mono); font-size:9.5px}

@@ -7815,10 +7815,102 @@ function subsMergeAt(segs,id){
        en proposant la renégociation (`alt`) quand elle existe.
    Les invariants sont verrouillés côté moteur par
    `backend/tests/test_subtitle_fixes.py`. */
+/* ═══════ LES COMPTES SANS LEURS RÈGLES — le défaut fermé au tour 7 ══════════
+   « On affiche les COMPTES sans jamais afficher les RÈGLES. J'ai dû
+   rétro-concevoir les seuils : c/s ≥ 20 (la ligne 11 à 20,1 est marquée, la 12
+   à 19,9 ne l'est pas), écart < ~2 images à 30 i/s (60/40/20 ms marqués). »
+
+   Un monteur ne doit pas faire de statistiques sur ses propres lignes pour
+   apprendre pourquoi l'une est marquée. Le seuil qui déclenche une pastille
+   est donc LISIBLE À L'ÉCRAN, une fois, dans l'onglet où les pastilles vivent
+   — et RÉGLABLE, parce que les normes de sous-titrage varient selon le
+   diffuseur (l'EBU tolère 20 c/s, Netflix descend à 17 en français, les
+   réseaux montent à 25).
+
+   Une seule copie de ces quatre nombres, ici. Elle alimente :
+     * le calcul LOCAL (`subsWarnings`, tous les plans de correction) ;
+     * le MOTEUR — le corps de `POST /api/subtitles/check` porte `normes`,
+       sinon le panneau afficherait un seuil que le backend ignorerait, ce qui
+       est exactement le genre de divergence que ce fichier passe son temps à
+       fermer ;
+     * la clé du verdict (`subsKeyOf`), pour qu'un changement de seuil relance
+       le contrôle au lieu de laisser un résultat périmé à l'écran.
+   Les variables ci-dessous restent le point de lecture unique du reste du
+   fichier : `subsNormApply` les réécrit, personne d'autre. */
 var SUBS_CPS_MAX=20;    /* caractères/seconde lisibles (norme sous-titrage FR) */
 var SUBS_MIN_S=1;       /* en deçà, l'œil n'a pas le temps de se poser */
 var SUBS_MAX_S=7;       /* au-delà, le sous-titre traîne */
 var SUBS_MIN_GAP=.08;   /* deux images à 25 i/s entre deux sous-titres */
+/* le rapport « illisible / trop rapide » du moteur (27 pour 20) : il suit le
+   seuil réglé au lieu de rester figé quand on descend à 17 c/s */
+var SUBS_CPS_RATIO=1.35;
+var SUBS_NORM_DEF={cps:20,minS:1,maxS:7,gapMs:80,fps:25};
+/* Normes nommées : chacune dit d'où elle vient. « personnalisé » n'est pas
+   une entrée — c'est ce qui reste quand aucune ne correspond. */
+var SUBS_NORM_SETS=[
+  ["ebu","Diffusion FR / EBU",{cps:20,minS:1,maxS:7,gapMs:80,fps:25}],
+  ["netflix","Netflix (français)",{cps:17,minS:.85,maxS:7,gapMs:83,fps:24}],
+  ["reseaux","Réseaux sociaux",{cps:25,minS:.7,maxS:5,gapMs:67,fps:30}]];
+var SUBS_NORM=Object.assign({},SUBS_NORM_DEF);
+var SUBS_NORM_SUBS=[];
+function subsNormClamp(o){
+  var s=o||{};
+  var n={cps:subsClamp(subsN(s.cps,SUBS_NORM_DEF.cps),8,40),
+    minS:subsClamp(subsN(s.minS,SUBS_NORM_DEF.minS),.2,4),
+    maxS:subsClamp(subsN(s.maxS,SUBS_NORM_DEF.maxS),2,20),
+    gapMs:Math.round(subsClamp(subsN(s.gapMs,SUBS_NORM_DEF.gapMs),0,500)),
+    fps:subsClamp(subsN(s.fps,SUBS_NORM_DEF.fps),12,120)};
+  /* un minimum au-dessus du maximum ferait marquer TOUTES les lignes des deux
+     côtés à la fois : la borne basse cède */
+  if(n.minS>n.maxS-.1)n.minS=Math.max(.2,subsRound(n.maxS-.1,2));
+  return n}
+function subsNormApply(){
+  SUBS_CPS_MAX=SUBS_NORM.cps;SUBS_MIN_S=SUBS_NORM.minS;
+  SUBS_MAX_S=SUBS_NORM.maxS;SUBS_MIN_GAP=SUBS_NORM.gapMs/1000}
+/* signature : elle entre dans la clé du verdict, donc un seuil changé relance
+   le contrôle du moteur au lieu de garder un résultat calculé sous l'ancien */
+function subsNormSig(){
+  return [SUBS_NORM.cps,SUBS_NORM.minS,SUBS_NORM.maxS,SUBS_NORM.gapMs,
+    SUBS_NORM.fps].join("/")}
+/* ce que le moteur doit recevoir — mêmes noms que ses paramètres Python */
+function subsNormBody(){
+  return {cps_warn:SUBS_NORM.cps,
+    cps_error:subsRound(SUBS_NORM.cps*SUBS_CPS_RATIO,2),
+    min_duration:SUBS_NORM.minS,max_duration:SUBS_NORM.maxS,
+    min_gap:subsRound(SUBS_NORM.gapMs/1000,4)}}
+function subsNormNom(){
+  for(var i=0;i<SUBS_NORM_SETS.length;i++){
+    var v=SUBS_NORM_SETS[i][2];
+    if(v.cps===SUBS_NORM.cps&&v.minS===SUBS_NORM.minS&&
+       v.maxS===SUBS_NORM.maxS&&v.gapMs===SUBS_NORM.gapMs&&
+       v.fps===SUBS_NORM.fps)return SUBS_NORM_SETS[i][0]}
+  return "perso"}
+/* l'écart en IMAGES : c'est la lecture qu'un monteur fait vraiment. « 80 ms »
+   ne dit rien tant qu'on ne sait pas à quelle cadence on compte. */
+function subsNormImgs(){
+  return subsRound(SUBS_NORM.gapMs/1000*SUBS_NORM.fps,1)}
+function subsNormSub(f){
+  SUBS_NORM_SUBS.push(f);
+  return function(){var i=SUBS_NORM_SUBS.indexOf(f);
+    if(i>=0)SUBS_NORM_SUBS.splice(i,1)}}
+function subsNormSet(o){
+  SUBS_NORM=subsNormClamp(Object.assign({},SUBS_NORM,o||{}));
+  subsNormApply();
+  try{localStorage.setItem("dz_subs_normes",JSON.stringify(SUBS_NORM))}catch(_e){}
+  SUBS_NORM_SUBS.slice().forEach(function(f){try{f()}catch(_e){}})}
+function subsNormLoad(){
+  try{var j=JSON.parse(localStorage.getItem("dz_subs_normes")||"null");
+    if(j&&typeof j==="object")SUBS_NORM=subsNormClamp(j)}catch(_e){}
+  subsNormApply()}
+subsNormLoad();
+/* abonnement React : une surface qui affiche un seuil ou un compte doit se
+   redessiner quand le seuil change, sinon elle montre une pastille calculée
+   sous l'ancienne règle à côté de la nouvelle règle écrite. */
+function subsNormUse(){
+  var s=x.useState(0),setT=s[1];
+  x.useEffect(function(){
+    return subsNormSub(function(){setT(function(t){return t+1})})},[]);
+  return SUBS_NORM}
 
 function subsFr(v,d){
   var m=Math.pow(10,d==null?2:d),s=(Math.round(v*m)/m).toFixed(d==null?2:d);
@@ -8200,7 +8292,11 @@ function subsKeyOf(segs,style,dur){
   return JSON.stringify([subsSort(segs).map(function(s){
       return [s.id,subsRound(subsN(s.start,0),3),subsRound(subsN(s.end,0),3),
         String(s.text||""),s.hidden?1:0]}),
-    style||null,subsRound(subsN(dur,0),3)])}
+    style||null,subsRound(subsN(dur,0),3),
+    /* les SEUILS entrent dans la clé : changer « 20 c/s » en « 17 c/s » sans
+       cela laisserait à l'écran des pastilles calculées sous l'ancienne règle,
+       à côté de la nouvelle règle écrite en toutes lettres. */
+    subsNormSig()])}
 /* Résultat de POST /api/subtitles/check, rangé AVEC la clé de la piste qu'il
    mesure. Module-level : le tiroir n'en est plus le propriétaire — sinon la
    timeline lirait le calcul local pendant que la liste lit le moteur, ce qui
@@ -8832,8 +8928,22 @@ function subsTraits(st,pat){
        il ne sort pas) — c'est le trait VU, pas le réglage écrit */
     contour:(!a.bgOn&&a.outOn&&subsN(a.outW,0)>0)?"actif":"éteint",
     karaoke:a.karOn?String(a.karMode||"fill"):"aucun"}}
-function subsGoalConflicts(st){
-  var g=subsGestes(st),base=subsTraits(st,null),out=[],vus={};
+/* ═══ TOUR 7 — UN ARBITRAGE NE DÉSIGNE QUE DES BOUTONS PRÉSENTS ══════════════
+   Le bloc disait « choisissez entre "Couper le fond" et "Fond opaque" » alors
+   que les deux boutons à l'écran étaient « Fond opaque » et « Couper le
+   karaoké » : « Couper le fond » vivait bien, mais 300 px plus bas, sous le
+   curseur Contour, hors du cadre visible. Le défaut n'est pas le libellé —
+   c'est l'ENSEMBLE : la détection énumérait tous les gestes du MODÈLE, y
+   compris ceux qu'aucun pixel ne montrait.
+
+   La détection prend donc en entrée la liste des gestes RÉELLEMENT RENDUS
+   dans la passe en cours (`subsConflictsFrom`), et l'écran ne recopie plus
+   aucun libellé : il RE-RENDS les deux boutons dans le bloc d'arbitrage, et
+   chaque endroit d'où ils viennent affiche à leur place un renvoi sans nom.
+   Un texte qui cite un bouton peut mentir ; un bouton, non.
+   Mesuré dans le DOM par `qa-subs-consistency.js` (garde F). */
+function subsConflictsFrom(st,gestes){
+  var g=(gestes||[]).slice(),base=subsTraits(st,null),out=[],vus={};
   g.forEach(function(o){o.tr=subsTraits(st,o.patch)});
   for(var i=0;i<g.length;i++)for(var j=i+1;j<g.length;j++){
     var a=g[i],b=g[j],ch=null;
@@ -8847,6 +8957,9 @@ function subsGoalConflicts(st){
     out.push({champ:ch,trait:SUBS_TRAIT[ch]||ch,
       va:a.tr[ch],vb:b.tr[ch],base:base[ch],a:a,b:b})}
   return out}
+/* la détection au niveau du MODÈLE — elle répond « ces deux gestes existent et
+   s'opposent », ce qui n'est pas la même question que « l'écran les montre ». */
+function subsGoalConflicts(st){return subsConflictsFrom(st,subsGestes(st))}
 
 /* ── santé du service — source unique, auto-réparation (patron du rack VFX) ─
    Ici la panne n'ampute PAS le cœur du travail : seule la transcription
@@ -9662,6 +9775,34 @@ const SubsStyle=(props)=>{
           trois écarts ne mangent jamais l'écran entier. */
   var ecAll=s2[0],setEcAll=s2[1];
   var ecVus=ecAll?issues:issues.slice(0,1);
+
+  /* ── LES GESTES QUE CETTE PASSE REND VRAIMENT ─────────────────────────────
+     C'est la liste sur laquelle l'arbitrage a le droit de travailler : les
+     correctifs des écarts AFFICHÉS (`ecVus`, pas `issues` — un écart replié
+     n'a pas de bouton) et le geste du réglage éteint. Rien d'autre n'existe à
+     l'écran, donc rien d'autre ne peut être arbitré. */
+  var morts={};
+  subsNeutralized(st).forEach(function(n){morts[n.champ]=n});
+  var gestesVus=[];
+  ecVus.forEach(function(w,k){
+    (w.plans||[]).forEach(function(p,j){
+      if(!p.ok)return;
+      gestesVus.push({label:p.label,but:p.but||"",patch:p.patch,
+        apres:p.apres||p.effect,ou:"ec:"+k+":"+j,
+        onClick:function(){set(Object.assign({},p.patch),!0)}})})});
+  Object.keys(morts).forEach(function(ch){
+    var n=morts[ch];if(!n.fix)return;
+    var pl=subsStylePlan(st,n.fix);
+    gestesVus.push({label:n.fix.label,but:n.fix.but||"",
+      patch:subsFxPatch(n.fix),apres:pl.apres,ou:"mort:"+ch,
+      onClick:function(){set(subsFxPatch(n.fix),!0)}})});
+  var arb=subsConflictsFrom(st,gestesVus);
+  /* les gestes ENGAGÉS dans un arbitrage sont rendus UNE seule fois : dans le
+     bloc d'arbitrage. Partout où ils seraient nés, un renvoi les remplace —
+     sans les nommer, pour qu'aucun texte ne puisse citer un bouton absent. */
+  var arbPris={};
+  arb.forEach(function(c){arbPris[c.a.ou]=1;arbPris[c.b.ou]=1});
+
   var ecarts=issues.length
     ?r.jsxs("div",{className:"sub-stywarns",children:[
       r.jsxs("div",{className:"sub-sec",children:[
@@ -9690,6 +9831,14 @@ const SubsStyle=(props)=>{
                 (w.about.length>1?"s":"") + " concernée" +
                 (w.about.length>1?"s":"") + ")":"")},"m"),
           (w.plans||[]).map(function(p,j){
+            /* geste happé par l'arbitrage : il n'est pas dupliqué ici, et le
+               renvoi ne le nomme pas — le bouton est juste dessous, entier */
+            if(p.ok&&arbPris["ec:"+k+":"+j])
+              return r.jsx("span",{className:"sub-arbptr",
+                title:"Ce geste pousse en sens inverse d'un autre geste "+
+                  "affiché : les deux sont mis face à face dans l'arbitrage, "+
+                  "juste sous cette carte, avec l'objectif que chacun sert.",
+                children:"un de ses gestes est arbitré juste dessous ↓"},"p"+j);
             return p.ok
               ?subsActBtn({fam:"fix",label:p.label,but:p.but,
                 apres:p.apres||p.effect,
@@ -9708,32 +9857,44 @@ const SubsStyle=(props)=>{
     :null;
 
   /* ── RÈGLE 2 : deux remèdes visibles ne poussent pas en sens inverse ───────
-     « Couper le fond » (sous le curseur Contour) et « Activer un fond opaque »
-     (dans les écarts, 60 px plus bas) écrivent le MÊME réglage à l'envers. Ils
-     ne s'annulent pas par erreur : ils servent deux objectifs. L'écran les
-     met donc face à face et NOMME les deux — c'est un arbitrage, pas un
-     piège. */
-  var arb=subsGoalConflicts(st);
+     Deux gestes affichés écrivent le MÊME trait à l'envers. Ils ne s'annulent
+     pas par erreur : ils servent deux objectifs. L'écran les met face à face
+     et laisse choisir l'OBJECTIF — c'est un arbitrage, pas un piège.
+
+     ── ET UN ARBITRAGE PORTE SES GESTES ────────────────────────────────────
+     Tant qu'il se contentait d'écrire « "Couper le fond" contre "Fond
+     opaque" », il pouvait citer — et il citait — un bouton que le cadre
+     visible ne montrait pas. Il rend donc les DEUX boutons lui-même, pris
+     dans `gestesVus` (la liste des gestes réellement rendus par cette passe),
+     et il n'écrit plus un seul libellé : ce qu'on lit est ce qu'on clique. */
   var arbitrage=arb.length
     ?r.jsxs("div",{className:"sub-arb",role:"note",children:[
-      r.jsx("span",{className:"sub-arbhead",
-        children:"Deux gestes tirent "+arb[0].trait+" (« "+arb[0].base+
-          " » aujourd'hui) en sens inverse — choisissez l'objectif"},"h"),
+      r.jsxs("span",{className:"sub-arbhead",children:[
+        "Deux gestes tirent ",arb[0].trait," en sens inverse (",
+        r.jsx("b",{children:arb[0].base},"b"),
+        " aujourd'hui) — choisissez l'objectif"]},"h"),
       r.jsx("div",{className:"sub-arblist",children:arb.map(function(c,k){
+        function cote(g,val,cle){
+          return r.jsxs("span",{className:"sub-arbside",children:[
+            r.jsxs("span",{className:"sub-arbbut",
+              title:"Ce geste rend "+c.trait+" « "+val+" ».",
+              children:["pour ",r.jsx("b",{children:g.but||"?"},"b")]},"u"),
+            /* LE BOUTON, pas son nom recopié */
+            subsActBtn({fam:"fix",label:g.label,but:g.but,apres:g.apres,
+              quiet:!0,onClick:g.onClick,k:"b"})]},cle)}
         return r.jsxs("div",{className:"sub-arbrow",children:[
-          r.jsxs("span",{className:"sub-arbside",
-            title:"« "+c.a.label+" » rend "+c.trait+" « "+c.va+" ».",children:[
-            "« ",c.a.label," » pour ",r.jsx("b",{children:c.a.but||"?"})]},"a"),
+          cote(c.a,c.va,"a"),
           r.jsx("span",{className:"sub-arbvs",children:"contre"},"v"),
-          r.jsxs("span",{className:"sub-arbside",
-            title:"« "+c.b.label+" » rend "+c.trait+" « "+c.vb+" ».",children:[
-            "« ",c.b.label," » pour ",r.jsx("b",{children:c.b.but||"?"})]},"b")]},
-          "c"+k)})},"l")]},"arb")
+          cote(c.b,c.vb,"b")]},"c"+k)})},"l"),
+      r.jsx("span",{className:"sub-arbnote",
+        title:"Chacun de ces deux gestes est né ailleurs — sous un écart, ou "+
+          "sous le réglage qu'il rallume. Tant qu'ils s'opposent, ils sont "+
+          "réunis ici et leur place d'origine porte un renvoi : un arbitrage "+
+          "qui désigne un bouton hors du cadre ne sert à rien.",
+        children:"Ces deux boutons ne vivent qu'ici tant qu'ils s'opposent."},
+        "n")]},
+      "arb")
     :null;
-
-  /* réglages ÉTEINTS par le reste du style : mesurés à la gravure, dits ici */
-  var morts={};
-  subsNeutralized(st).forEach(function(n){morts[n.champ]=n});
 
   return r.jsxs("div",{className:"sub-style",children:[
     r.jsx(SubsAlert,{}),
@@ -9797,12 +9958,20 @@ const SubsStyle=(props)=>{
         r.jsx("span",{className:"sub-mhintxt",title:morts.outW.why,
           children:"Éteint par le fond — mesuré : "+
             subsFr(subsN(st.outW,3),1)+" px et 0 px, même image."},"t"),
-        /* ce geste porte son OBJECTIF : il est la moitié de l'arbitrage
-           signalé juste en dessous, en face de « Activer un fond opaque » */
-        subsActBtn({fam:"fix",label:morts.outW.fix.label,
-          but:morts.outW.fix.but,
-          apres:subsStylePlan(st,morts.outW.fix).apres,
-          onClick:function(){set({bgOn:!1},!0)},k:"b"})]},"outdead"):null,
+        /* ce geste porte son OBJECTIF ; quand il est engagé dans un arbitrage,
+           il n'est PAS dupliqué ici — le bouton entier vit en tête de l'onglet,
+           face à son contraire, et ce renvoi ne le nomme pas (un texte qui cite
+           un bouton peut mentir sur sa présence, un renvoi ne le peut pas). */
+        arbPris["mort:outW"]
+          ?r.jsx("span",{className:"sub-arbptr",
+            title:"Ce geste pousse en sens inverse d'un autre geste affiché : "+
+              "les deux sont mis face à face dans l'arbitrage, en tête de "+
+              "l'onglet, avec l'objectif que chacun sert.",
+            children:"le geste qui le rallume est arbitré en tête d'onglet ↑"},"b")
+          :subsActBtn({fam:"fix",label:morts.outW.fix.label,
+            but:morts.outW.fix.but,
+            apres:subsStylePlan(st,morts.outW.fix).apres,
+            onClick:function(){set({bgOn:!1},!0)},k:"b"})]},"outdead"):null,
       st.valign==="middle"
         ?r.jsx("div",{className:"sub-mhint",
           children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
@@ -9986,6 +10155,12 @@ const SubsSegments=(props)=>{
      à un clic. Douze boutons dépliés d'office chassaient la liste des
      répliques hors de l'écran — un panneau qui cache son propre sujet. */
   var s7=x.useState(!1),covAll=s7[0],setCovAll=s7[1];
+  /* les SEUILS : lus en une ligne, réglés à un clic. Le panneau affichait les
+     COMPTES sans jamais afficher les RÈGLES — il fallait rétro-concevoir
+     « ≥ 20 c/s » en comparant la ligne 11 (20,1, marquée) à la ligne 12
+     (19,9, pas marquée). */
+  var s8=x.useState(!1),nrmOn=s8[0],setNrmOn=s8[1];
+  var nrm=subsNormUse();
   var searchRef=x.useRef(null),rowsRef=x.useRef(null);
   var ph=subsN(props.playhead,0);
   /* le repli à 60 s sert à PLACER un nouveau sous-titre quand la durée du
@@ -10399,8 +10574,51 @@ const SubsSegments=(props)=>{
       " — tapez le texte.")}
   var cov=vd.cov||{plans:[],sans:[],partiels:[],ignores:[],connu:!1,complet:!0};
   var covBad=cov.sans.concat(cov.partiels);
+  /* ═══ CE QUI SORTIRA MUET — le CONSTAT, séparé du CALCUL ═══════════════════
+     Un acquittement retire un plan du CALCUL ; il ne retire rien du CONSTAT.
+     Les deux nombres sont donc additionnés ici, et la phrase du bloc les dit
+     ensemble : trois plans à traiter plus deux acquittés font cinq plans qui
+     sortiront muets, et l'écran n'a pas le droit de n'en montrer que trois
+     sous prétexte que les deux autres ont été assumés. */
+  var covMuets=covBad.length+cov.ignores.length;
+  var covSay=!covMuets?""
+    :covBad.length&&cov.ignores.length
+    ?subsPl(covMuets,"plan")+" du montage sortiront muets : "+
+      subsPl(covBad.length,"reste","restent")+" à traiter, "+
+      subsPl(cov.ignores.length,"acquitté")+" (hors du calcul, muet"+
+      (cov.ignores.length>1?"s":"")+" quand même)."
+    :covBad.length
+    ?covBad.length>1
+      ?covBad.length+" plans du montage ne portent pas de sous-titre. "+
+        "Ils sortiront muets."
+      :"1 plan du montage ne porte pas de sous-titre. Il sortira muet."
+    :subsPl(cov.ignores.length,"plan")+
+      (cov.ignores.length>1?" sortiront muets":" sortira muet")+
+      " : acquitté"+(cov.ignores.length>1?"s":"")+" « sans parole ». "+
+      "L'acquittement "+(cov.ignores.length>1?"les":"l'")+" a retiré"+
+      (cov.ignores.length>1?"s":"")+" du CALCUL, pas du montage.";
+  /* ═══ LE DIAGNOSTIC SE RÉSUME, LE CONTENU RESTE ═══════════════════════════
+     Au tour 6, la carte des écarts a été remontée pour ne plus être coupée ;
+     ici, la carte de couverture a fait la même chose et a poussé dehors ce que
+     le panneau sert à éditer : 260 px de diagnostic sur les 276 px du corps,
+     et PAS UNE ligne de réplique visible sur treize. Un écran d'édition doit
+     montrer ce qu'on édite.
+     Le bloc garde donc EN PERMANENCE ce qui est un fait — la division, la
+     barre, la phrase « ils sortiront muets », la trace des acquittements — et
+     replie ce qui est un ATELIER : la légende des familles et les lignes de
+     plan avec leurs trois gestes chacune. `qa-subs-consistency.js` mesure le
+     résultat en pixels : au moins trois lignes de réplique entières dans le
+     corps du tiroir, sans défiler, dans l'état par défaut. */
+  /* sans plan à traiter, l'atelier n'a rien à ouvrir : le pli hérité d'un
+     plan qu'on vient d'acquitter ne doit pas laisser une marque « déplié » sur
+     un bloc qui ne montre plus que son constat */
+  var covOpen=covAll&&covBad.length>0;
   var couverture=cov.connu&&(covBad.length||cov.ignores.length)
     ?r.jsxs("div",{className:"sub-cov","data-bad":covBad.length?"":void 0,
+      /* acquitté n'est pas « réglé » : le bloc ne redevient jamais neutre tant
+         qu'un plan du montage sortira muet */
+      "data-ack":cov.ignores.length?"":void 0,
+      "data-open":covOpen?"":void 0,
       children:[
       r.jsxs("div",{className:"sub-sec",children:[
         r.jsx("span",{className:"sub-seclabel",
@@ -10422,19 +10640,17 @@ const SubsSegments=(props)=>{
             cov.pct+" %"},"n")]},"h"),
       r.jsx("div",{className:"sub-covbar","aria-hidden":!0,
         children:r.jsx("i",{style:{width:subsClamp(cov.pct,0,100)+"%"}})},"bar"),
-      covBad.length?r.jsx("div",{className:"sub-covsay",
-        children:covBad.length>1
-          ?covBad.length+" plans du montage ne portent pas de sous-titre. "+
-            "Ils sortiront muets."
-          :"1 plan du montage ne porte pas de sous-titre. Il sortira muet."},"s")
-        :null,
+      /* LE CONSTAT, toujours au premier écran et sans rien déplier */
+      covSay?r.jsx("div",{className:"sub-covsay",
+        "data-ack":!covBad.length&&cov.ignores.length?"":void 0,
+        children:covSay},"s"):null,
       /* ── LA LÉGENDE DES DEUX FAMILLES, écrite UNE fois ──────────────────
          Les trois gestes se répètent plan par plan : leur APRÈS s'écrit ici,
          en toutes lettres, au lieu d'être recopié douze fois sous les
          boutons. Chaque bouton, lui, porte sa forme (✎ ou ✓) et le SEUL
          chiffre qui change d'un plan à l'autre — le prix, ou le pourcentage
          que l'acquittement déplace. */
-      covBad.length?r.jsxs("div",{className:"sub-covleg",children:[
+      covBad.length&&covOpen?r.jsxs("div",{className:"sub-covleg",children:[
         r.jsxs("span",{className:"sub-covlegr","data-fam":"fix",
           title:"Un correctif écrit des répliques sur le plan : la couverture "+
             "monte parce que la vidéo change. Une réplique VIDE, elle, ne "+
@@ -10449,37 +10665,46 @@ const SubsSegments=(props)=>{
             "« plans acquittés ». Révocable.",children:[
           r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✓"},"g"),
           "acquitte : n'écrit rien, trace révocable"]},"a")]},"leg"):null,
-      /* On ne déroule pas neuf boutons d'un coup. Le PREMIER plan à traiter
-         est là, entier, avec ses trois gestes : la règle se juge sur lui. Les
-         autres sont à un clic, et leur nombre est écrit — la liste des
-         répliques, elle, reste visible sous le bloc, ce qui n'était plus le
-         cas quand la couverture dépliait tout. */
-      covBad.slice(0,covAll?covBad.length:1).map(planRow),
-      /* PAS la classe des filtres : ce bouton porte un nombre (« + 2 autres
-         plans »), et le nombre qu'il porte compte exactement ce que sa phrase
+      /* L'ATELIER : les lignes de plan et leurs trois gestes chacune. Replié
+         par défaut — neuf boutons dépliés d'office mangeaient les 276 px du
+         corps et la liste des répliques n'apparaissait plus du tout. Le
+         diagnostic, lui, est resté au-dessus : on ne cache pas le fait, on
+         range l'outillage. */
+      covOpen?covBad.map(planRow):null,
+      /* PAS la classe des filtres : ce bouton porte un nombre (« traiter les
+         3 plans »), et le nombre qu'il porte compte exactement ce que sa phrase
          nomme — les filtres, eux, n'ont pas le droit d'être des compteurs. */
-      covBad.length>1?r.jsx("button",{className:"sub-covmore",
-        "aria-expanded":covAll,
-        title:covAll?"Ne montrer que le premier plan à traiter"
-          :"Montrer les "+(covBad.length-1)+" autres plans sans sous-titre, "+
-           "avec les mêmes gestes",
+      covBad.length?r.jsx("button",{className:"sub-covmore",
+        "aria-expanded":covOpen,
+        title:covOpen?"Replier les gestes et ne garder que le constat"
+          :"Déplier les gestes plan par plan : transcrire, écrire une réplique, "+
+           "ou acquitter. Le constat au-dessus ne bouge pas.",
         onClick:function(){setCovAll(function(v){return !v})},
-        children:covAll?"replier les plans"
-          :"+ "+subsPl(covBad.length-1,"autre plan","autres plans")+
-           " sans sous-titre"},
+        children:covOpen?"replier les gestes ▾"
+          :"traiter "+subsPl(covBad.length,"plan")+" ▸"},
         "more"):null,
-      /* la TRACE des acquittements : visible, chiffrée, révocable */
+      /* la TRACE des acquittements : visible SANS déplier, chiffrée, révocable.
+         Elle vit hors de l'atelier — un acquittement retire du CALCUL, jamais
+         du CONSTAT, donc sa trace ne peut pas se replier avec les gestes. */
       cov.ignores.length?r.jsxs("div",{className:"sub-covign",
         "data-fam":"ack",children:[
         r.jsx("span",{className:"sub-actg","aria-hidden":!0,children:"✓"},"g"),
-        r.jsx("span",{className:"sub-covigntxt",
-          children:subsPl(cov.ignores.length,"plan")+" acquitté"+
-            (cov.ignores.length>1?"s":"")+" « sans parole » ("+
-            cov.ignores.map(function(p){return "n°"+p.n}).join(", ")+") : "+
+        r.jsxs("span",{className:"sub-covigntxt",
+          title:subsPl(cov.ignores.length,"plan")+" acquitté"+
+            (cov.ignores.length>1?"s":"")+" « sans parole » : "+
             subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+
-            " s RETIRÉS du total "+subsFr(cov.attendu,1)+
-            " s — jamais comptés couverts — et toujours muets à la "+
-            "livraison."},"t"),
+            " s RETIRÉS du total "+subsFr(cov.attendu,1)+" s — jamais comptés "+
+            "couverts. Le fichier livré n'a pas changé : "+
+            (cov.ignores.length>1?"ces plans sortiront muets"
+              :"ce plan sortira muet")+" exactement comme avant "+
+            "l'acquittement.",
+          children:[subsPl(cov.ignores.length,"plan")+" acquitté"+
+            (cov.ignores.length>1?"s":"")+" ("+
+            cov.ignores.map(function(p){return "n°"+p.n}).join(", ")+") — ",
+            r.jsx("b",{children:subsFr(subsSec(cov.ignores.reduce(
+              function(a,p){return a+p.dur},0)),1)+" s"},"d"),
+            " RETIRÉES du total, muet"+(cov.ignores.length>1?"s":"")+
+            " à la livraison."]},"t"),
         props.onPlanFlag?r.jsx("button",{className:"sub-act","data-fam":"ack",
           title:"Remet ces plans dans le total : il remonte de "+
             subsFr(subsSec(cov.ignores.reduce(function(a,p){return a+p.dur},0)),1)+
@@ -10489,6 +10714,113 @@ const SubsSegments=(props)=>{
             props.onPlanFlag(p.id,!1)})},
           children:"révoquer"},"r"):null]},"ig"):null]},"cov")
     :null;
+
+  /* ── LES RÈGLES, À CÔTÉ DES COMPTES ───────────────────────────────────────
+     Une pastille sans son seuil oblige le monteur à faire des statistiques sur
+     ses propres lignes pour deviner pourquoi l'une est marquée et pas sa
+     voisine. Les quatre seuils qui décident de TOUTES les pastilles de cette
+     liste sont donc écrits ici, une fois, juste au-dessus d'elles — et
+     réglables, parce qu'une norme de sous-titrage dépend du diffuseur.
+     Le bloc porte ses valeurs en attributs : c'est ce qui permet au contrôle
+     `qa-subs-consistency.js` de vérifier que la règle AFFICHÉE est bien celle
+     qui a marqué les lignes, au lieu de croire le texte sur parole. */
+  function nrmRow(lab,k,min,max,step,unit,aide,fmt){
+    return r.jsxs("div",{className:"sub-nrmrow",children:[
+      r.jsx("span",{className:"sub-plabel",title:aide,children:lab},"l"),
+      r.jsx("input",{className:"sub-range",type:"range",min:min,max:max,
+        step:step,value:subsN(nrm[k],0),"aria-label":lab,title:aide,
+        onChange:function(e){
+          var o={};o[k]=subsN(e.target.value,nrm[k]);subsNormSet(o)}},"r"),
+      r.jsx("span",{className:"sub-pval",
+        children:(fmt?fmt(subsN(nrm[k],0)):subsFr(subsN(nrm[k],0),2))+unit},"v")]},
+      k)}
+  var nomNorme=subsNormNom();
+  var normes=r.jsxs("div",{className:"sub-nrm","data-open":nrmOn?"":void 0,
+    "data-cps":String(nrm.cps),"data-min":String(nrm.minS),
+    "data-max":String(nrm.maxS),"data-gap":String(nrm.gapMs),
+    "data-fps":String(nrm.fps),"data-norme":nomNorme,children:[
+    r.jsxs("div",{className:"sub-nrmhead",children:[
+      r.jsx("span",{className:"sub-nrmlab",
+        title:"Ces quatre seuils décident de chaque pastille de la liste et de "+
+          "chaque pastille de la piste S1. Ils partent AVEC le contrôle : le "+
+          "moteur mesure avec eux, pas avec les siens.",
+        children:"Seuils"},"l"),
+      r.jsx("span",{className:"sub-nrmval",
+        title:"Au-delà de "+subsFr(nrm.cps)+" caractères par seconde la lecture "+
+          "décroche ; sous "+subsFr(nrm.minS,2)+" s l'œil n'a pas le temps de "+
+          "se poser ; au-delà de "+subsFr(nrm.maxS)+" s le sous-titre traîne ; "+
+          "sous "+nrm.gapMs+" ms le changement se voit comme un clignotement.",
+        /* une LIGNE : les quatre seuils, dans l'ordre où ils se lisent sur une
+           ligne de la liste. La cadence de référence et les phrases complètes
+           vivent dans l'infobulle — une règle qui prend deux lignes de haut
+           reprend à la liste la place qu'on vient de lui rendre. */
+        children:subsFr(nrm.cps)+" c/s · "+subsFr(nrm.minS,2)+"–"+
+          subsFr(nrm.maxS)+" s · écart "+nrm.gapMs+" ms = "+
+          subsFr(subsNormImgs(),1)+" images"},"v"),
+      r.jsx("button",{className:"sub-nrmbtn","aria-expanded":nrmOn,
+        title:nrmOn?"Replier le réglage des seuils"
+          :"Régler les seuils — norme du diffuseur, ou valeurs à la main",
+        onClick:function(){setNrmOn(function(v){return !v})},
+        children:nrmOn?"replier ▾":"régler ▸"},"b")]},"h"),
+    nrmOn?r.jsxs("div",{className:"sub-nrmedit",children:[
+      r.jsxs("div",{className:"sub-nrmrow",children:[
+        r.jsx("span",{className:"sub-plabel",children:"Norme"},"l"),
+        r.jsxs("select",{className:"sub-sel",value:nomNorme,
+          "aria-label":"Norme de sous-titrage",
+          title:"Trois normes courantes. Toute valeur changée à la main bascule "+
+            "sur « personnalisé » : le panneau n'affichera jamais le nom d'une "+
+            "norme qu'il n'applique pas.",
+          onChange:function(e){
+            var v=e.target.value,f=SUBS_NORM_SETS.filter(function(o){
+              return o[0]===v})[0];
+            if(f)subsNormSet(f[2])},
+          children:SUBS_NORM_SETS.map(function(o){
+            return r.jsx("option",{value:o[0],children:o[1]},o[0])})
+            .concat([r.jsx("option",{value:"perso",disabled:!0,
+              children:"personnalisé"},"perso")])},"s")]},"set"),
+      nrmRow("Vitesse max","cps",8,40,.5," c/s",
+        "Caractères par seconde au-delà desquels la lecture décroche. EBU : 20. "+
+        "Netflix français : 17. Réseaux sociaux : 25.",
+        function(v){return subsFr(v,1)}),
+      nrmRow("Durée min","minS",.2,4,.05," s",
+        "En deçà, l'œil n'a pas le temps de se poser sur la réplique."),
+      nrmRow("Durée max","maxS",2,20,.5," s",
+        "Au-delà, le sous-titre traîne à l'écran et on le relit.",
+        function(v){return subsFr(v,1)}),
+      r.jsxs("div",{className:"sub-nrmrow",children:[
+        r.jsx("span",{className:"sub-plabel",
+          title:"Silence minimal entre deux répliques : en dessous, le "+
+            "changement se voit comme un clignotement.",
+          children:"Écart min"},"l"),
+        r.jsx("input",{className:"sub-range",type:"range",min:0,max:300,step:5,
+          value:Math.round(subsN(nrm.gapMs,80)),"aria-label":"Écart minimal",
+          onChange:function(e){subsNormSet({gapMs:subsN(e.target.value,80)})}},"r"),
+        r.jsx("span",{className:"sub-pval",
+          children:Math.round(nrm.gapMs)+" ms"},"v"),
+        /* le même seuil dans l'unité où un monteur le pense */
+        r.jsx("span",{className:"sub-nrmimg",
+          title:"Le même écart, compté en images à la cadence choisie — c'est "+
+            "l'unité dans laquelle une coupe se juge.",
+          children:"= "+subsFr(subsNormImgs(),1)+" images"},"i"),
+        r.jsxs("select",{className:"sub-sel sub-nrmfps",value:String(nrm.fps),
+          "aria-label":"Cadence de référence",
+          title:"Cadence servant à traduire l'écart en images. Elle ne change "+
+            "aucun seuil : elle change la façon de le LIRE.",
+          onChange:function(e){subsNormSet({fps:subsN(e.target.value,25)})},
+          children:[24,25,30,50,60].map(function(f){
+            return r.jsx("option",{value:String(f),children:f+" i/s"},String(f))})},
+          "f")]},"gap"),
+      r.jsxs("div",{className:"sub-nrmfoot",children:[
+        r.jsx("span",{className:"sub-nrmnote",
+          children:"Ces seuils partent avec le contrôle : le moteur mesure "+
+            "avec eux. Changer une valeur remarque la piste entière."},"n"),
+        r.jsx("button",{className:"sub-minibtn",
+          disabled:nomNorme==="ebu",
+          title:"Revenir à la norme de diffusion française (EBU) : "+
+            SUBS_NORM_DEF.cps+" c/s, "+SUBS_NORM_DEF.minS+" – "+
+            SUBS_NORM_DEF.maxS+" s, écart "+SUBS_NORM_DEF.gapMs+" ms.",
+          onClick:function(){subsNormSet(SUBS_NORM_DEF)},
+          children:"revenir à l'EBU"},"r")]},"foot")]},"e"):null]},"nrm");
 
   /* ── PISTE VIDE ────────────────────────────────────────────────────────────
      L'absence se dit UNE fois, à l'endroit où on peut la lever, avec les
@@ -10592,6 +10924,8 @@ const SubsSegments=(props)=>{
         title:"Effacer la recherche et le filtre pour voir toutes les répliques signalées",
         onClick:function(){setQuery("");setOnlyBad(!1)},
         children:"tout afficher"},"a")]},"hb"):null,
+    /* LA RÈGLE JUSTE AU-DESSUS DES PASTILLES QU'ELLE PRODUIT */
+    normes,
     shown.length
       ?r.jsx("div",{className:"sub-rows",ref:rowsRef,children:shown.map(segRow)})
       :r.jsxs("div",{className:"sub-empty",children:[
@@ -10648,8 +10982,12 @@ function subsStyleIssues(st,chk,about){
    magasin partagé, avec la clé de la piste mesurée. Toute surface qui demande
    le verdict de CETTE piste le verra ; aucune ne peut en avoir un autre. */
 function subsUseCheck(segs,style,dur,svc){
+  /* les seuils sont un ingrédient de la clé : on s'abonne, sinon le memo ne
+     serait jamais recalculé après un réglage et le moteur garderait l'ancienne
+     règle jusqu'à la prochaine frappe de texte. */
+  var nrm=subsNormUse();
   var key=x.useMemo(function(){
-    return subsKeyOf(segs,style,dur)},[segs,style,dur]);
+    return subsKeyOf(segs,style,dur)},[segs,style,dur,nrm,subsNormSig()]);
   x.useEffect(function(){
     /* backend connu injoignable : on n'envoie RIEN. Un POST toutes les 450 ms
        vers une route absente remplit la console d'erreurs sans rien apporter
@@ -10661,7 +10999,11 @@ function subsUseCheck(segs,style,dur,svc){
        deux fois, à deux endroits qui ne se voient pas. */
     var body={segments:subsSort(segs).map(function(s){
       return {id:s.id,start:s.start,end:s.end,text:s.text}}),
-      style:subsEffective(style),dur:dur};
+      style:subsEffective(style),dur:dur,
+      /* LES SEUILS PARTENT AVEC LA REQUÊTE. Sans eux, le panneau afficherait
+         « 17 c/s » pendant que le moteur continuerait de marquer à 20 : deux
+         règles dans la même image, c'est-à-dire aucune. */
+      normes:subsNormBody()};
     var dead=!1;
     var h=setTimeout(function(){
       subsPost("/api/subtitles/check",body).then(function(d){
@@ -10677,6 +11019,9 @@ function subsUseVerdict(segs,style,dur,clips){
   var s=x.useState(0),setT=s[1];
   x.useEffect(function(){
     return subsChkSub(function(){setT(function(t){return t+1})})},[]);
+  /* et quand les SEUILS bougent : le calcul local change sans que la piste ait
+     bougé d'un millième de seconde */
+  subsNormUse();
   return subsVerdict(segs,style,dur,clips)}
 
 /* ═════════════════ Tiroir — Segments · Style ════════════════════════════════ */
@@ -11003,14 +11348,22 @@ const SubsDrawer=(props)=>{
         ?"Langue indécise sur "+det.ou+" — "+det.raison+". Rien n'a été choisi "+
          "à votre place : le panneau reste sur « "+subsLangLab(lang)+" »."
         :etat==="ok"
-        ?"Langue détectée sur "+det.ou+" : "+subsLangLab(det.code)+" ("+
-         det.hits+" mots reconnus sur "+det.total+") — d'accord avec le "+
-         "sélecteur."
+        /* état d'accord : UNE ligne. La confrontation n'a rien à dénoncer,
+           elle n'a donc pas à occuper deux lignes de la bande d'en-tête au
+           détriment de la liste. Le « d'accord avec le sélecteur » vit dans
+           l'infobulle du bloc. */
+        ?"Langue lue sur "+det.ou+" : "+subsLangLab(det.code)+", "+
+         det.hits+" mots reconnus sur "+det.total+"."
         :"Le texte de la piste est en "+subsLangLab(det.code).toUpperCase()+
          " ("+det.hits+" mots reconnus sur "+det.total+", contre "+
          det.secondHits+" en "+subsLangLab(det.second)+"), et ce panneau "+
          "annonce « "+subsLangLab(lang)+" » à chaque bouton qui dépense.";
-      return r.jsxs("div",{className:"sub-lgnote","data-etat":etat,children:[
+      return r.jsxs("div",{className:"sub-lgnote","data-etat":etat,
+        title:etat==="ok"
+          ?"La langue lue sur le contenu est d'accord avec le sélecteur : "+
+           subsLangLab(det.code)+" ("+det.hits+" mots-outils reconnus sur "+
+           det.total+" mots examinés). Rien à arbitrer."
+          :void 0,children:[
         r.jsx("span",{className:"sub-lgtxt",children:txt},"t"),
         etat==="contre"
           ?r.jsx("button",{className:"sub-btn sub-lgfix",
@@ -11075,7 +11428,21 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
      `costOf(gratuit, durée, langue)` : la pastille de coût d'un bouton qui
      dépense — langue, moteur, prix, durée. */
   FAM:SUBS_FAM,planAfter:subsPlanAfter,goalConflicts:subsGoalConflicts,
+  /* `conflictsFrom(style, gestes)` : la MÊME détection, mais bornée aux gestes
+     qu'on lui donne. L'écran ne lui passe que ceux qu'il rend vraiment, ce qui
+     lui interdit de désigner un bouton absent du cadre (tour 7). */
+  conflictsFrom:subsConflictsFrom,
   gestes:subsGestes,costOf:subsCostOf,est:SUBS_EST,LANGS:SUBS_LANGS,
+  /* ── LES SEUILS, LUS ET RÉGLABLES (tour 7) ──────────────────────────────
+     `normes()` rend les quatre seuils qui décident de TOUTES les pastilles
+     (c/s, durée mini, durée maxi, écart mini) plus la cadence de lecture ;
+     `setNormes(o)` les change, réécrit le calcul local, relance le contrôle
+     du moteur (ils voyagent dans le corps de /check) et le persiste.
+     `NORMES` : les normes nommées ; `normeName()` : celle qui s'applique, ou
+     « perso ». Le panneau affichait les COMPTES sans jamais les RÈGLES. */
+  normes:function(){return Object.assign({},SUBS_NORM)},
+  setNormes:subsNormSet,NORMES:SUBS_NORM_SETS,normeName:subsNormNom,
+  normeBody:subsNormBody,normeImgs:subsNormImgs,
   /* ── LA LANGUE, LUE SUR LE CONTENU (tour 6) ─────────────────────────────
      `guessLang(texte)` et `detectLang(segments, clips)` rendent
      {code, sur, hits, total, second, secondHits, raison, ou} : la langue

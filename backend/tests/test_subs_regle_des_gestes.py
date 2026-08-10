@@ -166,21 +166,24 @@ def test_les_gestes_opposes_sont_detectes_et_nommes():
     """La detection ne compare pas les CLES ecrites (« Couper le fond » ecrit
     bgOn, « Fond opaque » ecrit bgOpacity) mais ce que le style DEVIENT."""
     src = _strip_comments(_layer())
+    assert src.count("function subsConflictsFrom(") == 1
     assert src.count("function subsGoalConflicts(") == 1
     assert src.count("function subsTraits(") == 1
     tr = src.split("function subsTraits(", 1)[1].split("\nfunction ", 1)[0]
     for trait in ("fond:", "contour:", "karaoke:"):
         assert trait in tr, "trait observable manquant : %s" % trait
-    gc = src.split("function subsGoalConflicts(", 1)[1].split("\nfunction ", 1)[0]
+    gc = src.split("function subsConflictsFrom(", 1)[1].split("\nfunction ", 1)[0]
     # un conflit = les DEUX changent le meme trait, vers deux valeurs
     assert "a.tr[k]!==base[k]&&b.tr[k]!==base[k]&&a.tr[k]!==b.tr[k]" in gc
     assert "a.but===b.but" in gc, "deux gestes du meme objectif ne s'opposent pas"
     # et l'ecran le dit, entre les deux boutons
     sty = src.split("const SubsStyle=", 1)[1].split("\nconst ", 1)[0]
-    assert "var arb=subsGoalConflicts(st)" in sty
+    assert "var arb=subsConflictsFrom(st,gestesVus)" in sty
     assert '"sub-arb"' in sty
     assert "en sens inverse" in sty
-    body = sty.split("return r.jsxs(", 1)[1]
+    # ancre EXPLICITE : depuis le tour 7 l'arbitrage contient une fonction
+    # interne qui commence elle aussi par « return r.jsxs( ».
+    body = sty.split('return r.jsxs("div",{className:"sub-style"', 1)[1]
     i_quick = body.index('className:"sub-quick"')
     i_arb = body.index("arbitrage,")
     i_ec = body.index("\n    ecarts,")
@@ -192,6 +195,160 @@ def test_les_gestes_opposes_sont_detectes_et_nommes():
     # la regle n'a pas bouge.
     assert min(i_quick, i_ec) < i_arb < max(i_quick, i_ec), \
         "l'arbitrage se pose ENTRE les deux gestes qui s'opposent"
+
+
+# ---------------------------------------------------------------------------
+# 7. TOUR 7 — un arbitrage ne designe que des boutons PRESENTS
+# ---------------------------------------------------------------------------
+
+def test_l_arbitrage_ne_travaille_que_sur_les_gestes_rendus():
+    """« Le bloc dit de choisir entre "Couper le fond" et "Fond opaque", mais
+    "Couper le fond" n'est pas l'un des deux boutons a l'ecran. »
+
+    Le libelle etait deja lu a la source ; le defaut etait l'ENSEMBLE. La
+    detection enumerait tous les gestes du MODELE (`subsGestes`), y compris
+    ceux qu'aucun pixel ne montrait — un ecart replie, ou un bouton rendu
+    300 px sous le bord du tiroir.
+
+    Deux verrous ici, le troisieme (la visibilite en PIXELS) etant mesure par
+    `scripts/qa/qa-subs-consistency.js`, garde F :
+      a. l'ecran passe a la detection la liste des gestes qu'il rend VRAIMENT,
+         construite depuis `ecVus` (les ecarts AFFICHES, pas `issues`) et les
+         reglages eteints ;
+      b. il ne recopie plus un seul libelle : il RE-REND les deux boutons.
+    """
+    src = _strip_comments(_layer())
+    sty = src.split("const SubsStyle=", 1)[1].split("\nconst ", 1)[0]
+    # a. la liste des gestes RENDUS, et rien d'autre
+    assert "var gestesVus=[]" in sty
+    assert "ecVus.forEach(" in sty, \
+        "les gestes viennent des ecarts AFFICHES, pas de tous les ecarts"
+    assert "if(!p.ok)return" in sty, "un plan bloque n'a pas de bouton"
+    assert "var arb=subsConflictsFrom(st,gestesVus)" in sty
+    assert "subsGoalConflicts(st)" not in sty, \
+        "l'ecran ne doit plus arbitrer sur le modele entier"
+    # b. le bloc PORTE ses boutons — via le helper commun, donc avec famille,
+    #    objectif et apres — et ne cite plus aucun libelle en dur
+    arb = sty.split('className:"sub-arb"', 1)[1].split('"arb")', 1)[0]
+    assert "subsActBtn({" in arb, "l'arbitrage doit rendre les vrais boutons"
+    assert "label:g.label" in arb
+    assert "c.a.label" not in arb and "c.b.label" not in arb, \
+        "un arbitrage ne recopie pas le libelle d'un bouton"
+    # c. la place d'origine porte un RENVOI, qui ne nomme pas le bouton
+    assert "var arbPris={}" in sty
+    assert 'className:"sub-arbptr"' in sty
+    ptr = sty.split('className:"sub-arbptr"', 1)[1].split("},", 1)[0]
+    assert "children:" in ptr
+    assert ".sub-arbptr{" in _css()
+    # d. et le geste happe n'est pas rendu deux fois
+    assert 'arbPris["ec:"+k+":"+j]' in sty
+    assert 'arbPris["mort:outW"]' in sty
+
+
+def test_les_seuils_sont_affiches_et_reglables():
+    """« On affiche les COMPTES sans jamais afficher les REGLES. J'ai du
+    retro-concevoir les seuils. »
+
+    Une seule copie des quatre seuils, ecrite a l'ecran, reglable, et qui
+    voyage jusqu'au moteur — sinon le panneau afficherait « 17 c/s » pendant
+    que le backend continuerait de marquer a 20.
+    """
+    src = _strip_comments(_layer())
+    # une seule definition, et les variables de lecture en descendent
+    assert src.count("var SUBS_NORM_DEF=") == 1
+    assert src.count("function subsNormApply(") == 1
+    ap = src.split("function subsNormApply(", 1)[1].split("\nfunction ", 1)[0]
+    for var in ("SUBS_CPS_MAX=", "SUBS_MIN_S=", "SUBS_MAX_S=", "SUBS_MIN_GAP="):
+        assert var in ap, "seuil non derive de la norme : %s" % var
+    # personne d'autre ne les reecrit
+    ns = _strip_comments(_layer())
+    for var in ("SUBS_CPS_MAX", "SUBS_MIN_S", "SUBS_MAX_S", "SUBS_MIN_GAP"):
+        ecritures = re.findall(r"(?<![A-Za-z_])%s\s*=" % var, ns)
+        assert len(ecritures) == 2, \
+            "%s doit etre ecrit deux fois seulement (declaration + " \
+            "subsNormApply), trouve %d" % (var, len(ecritures))
+    # ils entrent dans la CLE du verdict : un seuil change relance le controle
+    key = ns.split("function subsKeyOf(", 1)[1].split("\nfunction ", 1)[0]
+    assert "subsNormSig()" in key
+    # ... et ils PARTENT avec la requete au moteur
+    chk = ns.split("function subsUseCheck(", 1)[1].split("\nfunction ", 1)[0]
+    assert "normes:subsNormBody()" in chk
+    body = ns.split("function subsNormBody(", 1)[1].split("\nfunction ", 1)[0]
+    for k in ("cps_warn", "cps_error", "min_duration", "max_duration", "min_gap"):
+        assert k in body, "parametre moteur manquant : %s" % k
+    # l'ecran les ECRIT, avec l'ecart aussi compte EN IMAGES
+    segs = ns.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    assert 'className:"sub-nrm"' in segs
+    assert '"data-cps":String(nrm.cps)' in segs, \
+        "le seuil doit etre lisible par le controle DOM, pas seulement par l'oeil"
+    assert "subsNormImgs()" in segs, "l'ecart doit aussi se lire en images"
+    assert 'children:"régler ▸"' in segs or "régler ▸" in segs
+    # trois normes nommees, et « personnalise » n'est pas une norme
+    assert ns.count("var SUBS_NORM_SETS=") == 1
+    sets = ns.split("var SUBS_NORM_SETS=", 1)[1].split("];", 1)[0]
+    for nom in ("ebu", "netflix", "reseaux"):
+        assert '"%s"' % nom in sets
+    assert ".sub-nrm{" in _css()
+
+
+def test_l_acquittement_retire_du_calcul_jamais_du_constat():
+    """« "Acquitter — sans parole" rend l'alarme verte alors que le plan sort
+    toujours muet. »
+
+    Le constat ne se replie pas avec l'atelier, il additionne les plans a
+    traiter ET les plans acquittes, et le bloc ne redevient jamais neutre.
+    """
+    src = _strip_comments(_layer())
+    segs = src.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    # le CONSTAT compte les deux
+    assert "var covMuets=covBad.length+cov.ignores.length" in segs
+    assert "sortiront muets" in segs
+    assert "hors du calcul, muet" in segs, \
+        "un plan acquitte reste un plan muet, et la phrase doit le dire"
+    # ... et il vit HORS de l'atelier repliable
+    assert "covOpen?covBad.map(planRow):null" in segs, \
+        "les lignes de plan (l'atelier) se replient"
+    # le CONSTAT est conditionne par le constat lui-meme, jamais par le pli
+    assert 'covSay?r.jsx("div",{className:"sub-covsay"' in segs
+    say = segs.split('className:"sub-covsay"', 1)[1].split('},"s")', 1)[0]
+    assert "covOpen" not in say, "le constat ne se replie pas"
+    assert 'cov.ignores.length?r.jsxs("div",{className:"sub-covign"' in segs
+    ign = segs.split('className:"sub-covign"', 1)[1].split('},"ig")', 1)[0]
+    assert "covOpen" not in ign, "la trace des acquittements ne se replie pas"
+    assert "muet" in ign
+    # le bloc garde une marque tant qu'un plan sortira muet
+    assert '"data-ack":cov.ignores.length?"":void 0' in segs
+    assert ".sub-cov[data-ack]{" in _css()
+    # et la timeline dit la CONSEQUENCE, pas la propriete
+    assert 'content:"muet (acquitté)"' in _css(), \
+        "« sans parole » se lisait comme un reglage satisfait"
+
+
+def test_le_diagnostic_se_resume_le_contenu_reste():
+    """« Le panneau consacre la TOTALITE de ses ~470 px au resume d'audit et au
+    bloc couverture : PAS UNE SEULE ligne de replique n'est visible. »
+
+    Un ecran d'edition montre ce qu'on edite. La regle en pixels est mesuree
+    par `qa-subs-consistency.js` (garde G) ; ici on verrouille la MECANIQUE qui
+    la rend possible.
+    """
+    src = _strip_comments(_layer())
+    segs = src.split("const SubsSegments=", 1)[1].split("\nconst ", 1)[0]
+    # l'atelier est replie par defaut (l'etat part de faux)
+    assert "var s7=x.useState(!1),covAll=s7[0]" in src
+    assert "var covOpen=covAll" in segs
+    # la legende des familles fait partie de l'atelier, pas du constat
+    assert "covBad.length&&covOpen?" in segs
+    # le bouton dit ce qu'il ouvre, et porte le nombre de plans qu'il traite
+    assert 'children:covOpen?"replier les gestes ▾"' in segs
+    assert '"traiter "+subsPl(covBad.length,"plan")' in segs
+    # ordre dans l'onglet : le diagnostic, puis les outils, puis LA LISTE
+    body = segs.split("return r.jsxs(", 1)[-1]
+    i_cov = body.index("\n    couverture,")
+    i_nrm = body.index("\n    normes,")
+    i_rows = body.index("shown.length")
+    assert i_cov < i_nrm < i_rows, \
+        "la regle se lit juste au-dessus des pastilles qu'elle produit"
 
 
 # ---------------------------------------------------------------------------

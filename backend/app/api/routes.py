@@ -6412,6 +6412,49 @@ def _subs_body_segments(body: dict) -> list:
     return [s for s in segs if isinstance(s, dict)]
 
 
+def _subs_body_normes(body: dict) -> dict:
+    """Seuils de lisibilite POSTES par le panneau -> kwargs de `check_quality`.
+
+    Les normes de sous-titrage varient selon le diffuseur (EBU 20 c/s, Netflix
+    17 en francais, reseaux sociaux 25) : le panneau les AFFICHE et les laisse
+    regler, donc il doit pouvoir les faire suivre au moteur. Sans cela l'ecran
+    montrerait « 17 c/s » pendant que le moteur continuerait de marquer a 20 —
+    deux regles dans la meme image, c'est-a-dire aucune.
+
+    Toute valeur absente, non numerique ou hors bornes retombe sur la constante
+    du moteur : un corps hostile ne peut pas eteindre le controle qualite en
+    postant `{"cps_warn": 0}` ou une chaine.
+    """
+    from app.services import subtitle_service as S
+    src = body.get("normes")
+    if not isinstance(src, dict):
+        src = {}
+
+    def _b(key, default, lo, hi):
+        try:
+            v = float(src[key])
+        except (KeyError, TypeError, ValueError):
+            return default
+        if v != v or v in (float("inf"), float("-inf")) or not (lo <= v <= hi):
+            return default
+        return v
+
+    cps_warn = _b("cps_warn", S.CPS_WARN, 8.0, 40.0)
+    out = {
+        "cps_warn": cps_warn,
+        "cps_error": _b("cps_error", round(cps_warn * 1.35, 2),
+                        cps_warn, 120.0),
+        "min_duration": _b("min_duration", S.MIN_DURATION, 0.2, 4.0),
+        "max_duration": _b("max_duration", S.MAX_DURATION, 2.0, 20.0),
+        "min_gap": _b("min_gap", S.MIN_GAP, 0.0, 0.5),
+    }
+    # un minimum au-dessus du maximum marquerait TOUTES les repliques des deux
+    # cotes a la fois : la borne basse cede, comme dans le panneau.
+    if out["min_duration"] > out["max_duration"] - 0.1:
+        out["min_duration"] = max(0.2, round(out["max_duration"] - 0.1, 2))
+    return out
+
+
 #: Code du moteur → genre affiché par le panneau (sert au tri et au libellé
 #: de la puce, pas au geste : le geste vient du PLAN, qui porte lui-même son
 #: libellé, ses conséquences et ses `ops`).
@@ -6688,9 +6731,13 @@ async def subtitles_check(request: Request):
     # avertissements suivants d'un cran.
     segs = S.normalize_segments(segs_in, sort=False, clamp_words=False,
                                 keep_empty=True)
-    raw = S.check_quality(segs_in, st, canvas, karaoke=kar, media_dur=media_dur)
+    # LES SEUILS VIENNENT DU PANNEAU : ce sont ceux qu'il ECRIT a l'ecran.
+    normes = _subs_body_normes(body)
+    raw = S.check_quality(segs_in, st, canvas, karaoke=kar, media_dur=media_dur,
+                          **normes)
     seg_w, style_w = _subs_warnings_ui(raw, segs)
     return {"ok": True, "warnings": seg_w, "style_warnings": style_w,
+            "normes": normes,
             "unsupported": SU.ui_unsupported(
                 body.get("style") if isinstance(body.get("style"), dict) else {},
                 canvas),

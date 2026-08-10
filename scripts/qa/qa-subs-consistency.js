@@ -162,6 +162,17 @@ function chk(ok, label, detail) {
   /* laisser POST /check répondre : le verdict doit basculer sur le moteur, et
      TOUTES les surfaces avec lui — c'est le moment où elles divergeaient. */
   await sleep(4500);
+  /* TOUR 7 : la couverture RÉSUME son diagnostic par défaut et replie ses
+     lignes de plan (elles mangeaient les 276 px du corps et la liste des
+     répliques n'apparaissait plus du tout). Les gardes C et E ci-dessous
+     portent sur ces lignes-là : on déplie l'atelier pour les mesurer. L'état
+     PAR DÉFAUT, lui, est mesuré par la garde G, après un aller-retour
+     d'onglet qui remet le pli à zéro. */
+  await p.evaluate(() => {
+    const m = document.querySelector(".sub-drawer .sub-covmore");
+    if (m && !document.querySelector(".sub-drawer .sub-plan")) m.click();
+  });
+  await sleep(1200);
 
   /* ── relevé : chaque surface, réplique par réplique ── */
   const snap = await p.evaluate(() => {
@@ -643,6 +654,278 @@ function chk(ok, label, detail) {
       .test(lgDom.txt),
     "l'écran dit sur quoi repose la langue qu'il annonce",
     JSON.stringify(lgDom));
+
+  /* ══════════════════════════════════════════════════════════════════════════
+     TOUR 7 — trois gardes de plus, toutes mesurées EN PIXELS sur l'écran réel.
+
+     F. UN TEXTE D'ARBITRAGE NE CITE JAMAIS UN LIBELLÉ ABSENT DE L'ÉCRAN.
+        Le bloc disait « choisissez entre "Couper le fond" et "Fond opaque" »
+        pendant que les deux boutons affichés étaient « Fond opaque » et
+        « Couper le karaoké » : « Couper le fond » existait, 300 px plus bas,
+        hors du cadre visible. La règle est donc la même que la source de
+        vérité unique — ne jamais recopier ce qu'on peut lire.
+     G. UN ÉCRAN D'ÉDITION MONTRE CE QU'ON ÉDITE. Le diagnostic se résume, le
+        contenu reste : au moins trois lignes de réplique ENTIÈREMENT visibles
+        dans le corps du tiroir, sans défiler, dans l'état par défaut.
+     H. LES COMPTES AVEC LEURS RÈGLES. Le seuil qui déclenche une pastille est
+        lisible à l'écran, il vaut EXACTEMENT ce que le verdict applique, et le
+        changer change les pastilles.
+     ══════════════════════════════════════════════════════════════════════════ */
+
+  /* ── GARDE F ─────────────────────────────────────────────────────────────
+     On force un style qui met deux gestes en opposition (fond translucide +
+     karaoké + contour), on ouvre l'onglet Style, et on lit le bloc. */
+  await p.evaluate(() => {
+    const t = [...document.querySelectorAll(".sub-drawer .sub-tab")]
+      .find((e) => /Style/i.test(e.textContent));
+    if (t) t.click();
+  });
+  await sleep(1200);
+  /* le style D'USINE oppose déjà deux gestes (fond translucide sous karaoké,
+     donc contour éteint) : on repart de lui, par le bouton du panneau, plutôt
+     que d'écrire dans un état privé que l'UI ne connaîtrait pas. */
+  await p.evaluate(() => {
+    const r = [...document.querySelectorAll(".sub-drawer button")]
+      .find((e) => /Réinitialiser le style/i.test(e.textContent));
+    if (r) r.click();
+  });
+  await sleep(1400);
+  await p.evaluate(() => {
+    const b = document.querySelector(".sub-drawer .sub-body");
+    if (b) b.scrollTop = 0;
+  });
+  await sleep(500);
+  const arbDom = await p.evaluate(() => {
+    const box = document.querySelector(".sub-drawer .sub-arb");
+    if (!box) return { absent: true };
+    const body = document.querySelector(".sub-drawer .sub-body");
+    const br = body.getBoundingClientRect();
+    const visible = (e) => {
+      const r = e.getBoundingClientRect();
+      return r.top >= br.top - 1 && r.bottom <= br.bottom + 1 &&
+        r.width > 0 && r.height > 0;
+    };
+    /* tout libellé de geste RENDU dans le tiroir, avec sa visibilité */
+    const boutons = [...document.querySelectorAll(".sub-drawer .sub-act")]
+      .map((e) => ({
+        lab: ((e.querySelector(".sub-actlab") || {}).textContent || "").trim(),
+        vu: visible(e), dansArb: !!e.closest(".sub-arb"),
+      }));
+    /* toute citation « … » dans le texte de l'arbitrage */
+    const txt = (box.innerText || "").replace(/\s+/g, " ");
+    const cites = (txt.match(/«\s*([^»]+?)\s*»/g) || [])
+      .map((s) => s.replace(/[«»]/g, "").trim());
+    return {
+      absent: false, txt: txt.slice(0, 240), cites,
+      /* les gestes que l'arbitrage rend LUI-MÊME */
+      dedans: boutons.filter((b) => b.dansArb),
+      /* ceux qu'il rend et qui sont hors du cadre visible : zéro exigé */
+      dedansCaches: boutons.filter((b) => b.dansArb && !b.vu).map((b) => b.lab),
+      /* aucun doublon : un geste arbitré ne vit pas AUSSI ailleurs */
+      doublons: boutons.filter((b) => b.dansArb).map((b) => b.lab)
+        .filter((l) => boutons.filter((b) => b.lab === l).length > 1),
+      renvois: document.querySelectorAll(".sub-drawer .sub-arbptr").length,
+    };
+  });
+  if (arbDom.absent) {
+    chk(true, "arbitrage — ce style n'oppose aucun geste (rien à arbitrer)");
+  } else {
+    const labs = arbDom.dedans.map((b) => b.lab);
+    chk(arbDom.dedans.length >= 2,
+      "l'arbitrage PORTE les gestes qu'il oppose, il ne les cite pas",
+      JSON.stringify(labs));
+    chk(arbDom.dedansCaches.length === 0,
+      "aucun geste de l'arbitrage n'est hors du cadre visible",
+      JSON.stringify(arbDom.dedansCaches));
+    /* LE test demandé : toute citation entre guillemets dans le bloc doit
+       correspondre à un bouton VISIBLE. Par construction il n'y en a plus
+       aucune — le bloc ne recopie plus un seul libellé. */
+    const fantomes = arbDom.cites.filter((c) =>
+      !arbDom.dedans.some((b) => b.lab === c && b.vu));
+    chk(fantomes.length === 0,
+      "aucun libellé cité par l'arbitrage n'est absent de l'écran",
+      fantomes.length ? JSON.stringify(fantomes)
+        : "0 citation — " + JSON.stringify(labs));
+    chk(arbDom.doublons.length === 0,
+      "un geste arbitré n'est pas dupliqué ailleurs dans l'onglet",
+      JSON.stringify(arbDom.doublons));
+    chk(arbDom.renvois > 0,
+      "sa place d'origine porte un renvoi (qui ne le NOMME pas)",
+      arbDom.renvois + " renvoi(s)");
+  }
+
+  /* ── GARDE G — le panneau montre ce qu'il sert à éditer ────────────────── */
+  await p.evaluate(() => {
+    const t = [...document.querySelectorAll(".sub-drawer .sub-tab")]
+      .find((e) => /Répliques/i.test(e.textContent));
+    if (t) t.click();
+  });
+  await sleep(1200);
+  /* ÉTAT PAR DÉFAUT : toutes les lignes repliées. Une garde précédente a
+     sélectionné un segment sur la timeline (l'inspecteur), et la ligne
+     sélectionnée s'ouvre seule — ce n'est pas l'état d'un panneau qu'on vient
+     d'ouvrir, et une ligne dépliée fait 415 px à elle seule. */
+  await p.evaluate(() => {
+    const b = [...document.querySelectorAll(".sub-drawer .sub-statfilt")]
+      .find((e) => /replier/i.test(e.textContent || ""));
+    if (b) b.click();
+  });
+  await sleep(800);
+  await p.evaluate(() => {
+    const b = document.querySelector(".sub-drawer .sub-body");
+    if (b) b.scrollTop = 0;
+  });
+  await sleep(600);
+  const place = await p.evaluate(() => {
+    const body = document.querySelector(".sub-drawer .sub-body");
+    const br = body.getBoundingClientRect();
+    const rows = [...document.querySelectorAll(".sub-drawer .sub-row")];
+    const entieres = rows.filter((e) => {
+      const r = e.getBoundingClientRect();
+      return r.top >= br.top - 1 && r.bottom <= br.bottom + 1;
+    });
+    const cov = document.querySelector(".sub-drawer .sub-cov");
+    const R = (s) => {
+      const e = document.querySelector(".sub-drawer " + s);
+      if (!e) return null;
+      const r = e.getBoundingClientRect();
+      return Math.round(r.top) + "→" + Math.round(r.bottom);
+    };
+    return {
+      rows: rows.length, entieres: entieres.length,
+      corps: Math.round(br.height),
+      geo: { corps: Math.round(br.top) + "→" + Math.round(br.bottom),
+        cov: R(".sub-cov"), outils: R(".sub-toolrow"), rech: R(".sub-searchrow"),
+        seuils: R(".sub-nrm"), liste: R(".sub-rows"),
+        r1: rows[0] ? Math.round(rows[0].getBoundingClientRect().top) + "→" +
+          Math.round(rows[0].getBoundingClientRect().bottom) : null,
+        scroll: body.scrollTop },
+      cov: cov ? Math.round(cov.getBoundingClientRect().height) : 0,
+      covOuvert: cov ? cov.hasAttribute("data-open") : false,
+      /* le CONSTAT reste, lui, sans rien déplier */
+      say: ((document.querySelector(".sub-drawer .sub-covsay") || {}).innerText
+        || "").replace(/\s+/g, " ").trim(),
+    };
+  });
+  chk(place.rows === 0 || place.entieres >= 3,
+    "au moins 3 lignes de réplique entières sans défiler, état par défaut",
+    place.entieres + " entières sur " + place.rows + " — corps " +
+    place.corps + " px, couverture " + place.cov + " px " +
+    JSON.stringify(place.geo));
+  chk(!place.covOuvert,
+    "le diagnostic de couverture est RÉSUMÉ par défaut, pas déplié");
+  chk(place.cov === 0 || place.cov <= place.corps / 2,
+    "le diagnostic ne prend pas plus de la moitié du corps du tiroir",
+    place.cov + " px sur " + place.corps + " px");
+
+  /* ── GARDE H — la règle est écrite, elle vaut ce qu'elle dit, et elle agit ── */
+  const nrm = await p.evaluate(() => {
+    const el = document.querySelector(".sub-drawer .sub-nrm");
+    if (!el) return null;
+    const body = document.querySelector(".sub-drawer .sub-body");
+    const br = body.getBoundingClientRect(), r = el.getBoundingClientRect();
+    return {
+      cps: Number(el.getAttribute("data-cps")),
+      min: Number(el.getAttribute("data-min")),
+      max: Number(el.getAttribute("data-max")),
+      gap: Number(el.getAttribute("data-gap")),
+      txt: (el.innerText || "").replace(/\s+/g, " ").trim(),
+      vu: r.top >= br.top - 1 && r.bottom <= br.bottom + 1,
+      couche: window.DzSubs.normes(),
+    };
+  });
+  chk(!!nrm, "les seuils sont AFFICHÉS dans l'onglet des répliques",
+    nrm ? nrm.txt : "bloc absent");
+  if (nrm) {
+    chk(nrm.vu, "la règle est visible sans défiler, au-dessus des pastilles");
+    chk(nrm.cps === nrm.couche.cps && nrm.min === nrm.couche.minS &&
+        nrm.max === nrm.couche.maxS && nrm.gap === nrm.couche.gapMs,
+      "le seuil affiché est EXACTEMENT celui que le verdict applique",
+      JSON.stringify([nrm.cps, nrm.min, nrm.max, nrm.gap]) + " vs " +
+      JSON.stringify(nrm.couche));
+    /* chaque nombre écrit se retrouve dans le texte lisible du bloc */
+    const dit = [String(nrm.cps), String(nrm.gap)]
+      .filter((n) => nrm.txt.replace(",", ".").indexOf(n) < 0);
+    chk(dit.length === 0, "chaque seuil est écrit en clair, pas seulement en attribut",
+      dit.length ? JSON.stringify(dit) : nrm.txt);
+    /* ET IL AGIT : on descend le seuil, le nombre de lignes marquées monte */
+    const avant = await p.evaluate(() =>
+      document.querySelectorAll(".sub-drawer .sub-row .sub-rbadge[data-k]").length);
+    await p.evaluate(() => window.DzSubs.setNormes({ cps: 8 }));
+    await sleep(2600);
+    const apres = await p.evaluate(() => ({
+      marquees: document.querySelectorAll(
+        ".sub-drawer .sub-row .sub-rbadge[data-k]").length,
+      txt: ((document.querySelector(".sub-drawer .sub-nrm") || {}).innerText || "")
+        .replace(/\s+/g, " ").trim(),
+      source: ((document.querySelector(".sub-talsrc") || {}).textContent || "").trim(),
+    }));
+    chk(apres.marquees >= avant && /8/.test(apres.txt),
+      "changer le seuil change les pastilles ET ce qui est écrit",
+      "à " + nrm.cps + " c/s : " + avant + " marquées ; à 8 c/s : " +
+      apres.marquees + " (" + apres.source + ")");
+    await p.evaluate(() => window.DzSubs.setNormes(
+      { cps: 20, minS: 1, maxS: 7, gapMs: 80, fps: 25 }));
+    await sleep(2200);
+  }
+
+  /* ── GARDE I — L'ACQUITTEMENT RETIRE DU CALCUL, PAS DU CONSTAT ───────────
+     « Acquitter — sans parole » rendait l'alarme verte alors que le plan sort
+     toujours muet. Après acquittement, l'écran doit CONTINUER de dire, sans
+     rien déplier, que ces plans sortiront muets. */
+  const ack = await p.evaluate(() => {
+    const more = document.querySelector(".sub-drawer .sub-covmore");
+    if (more && !document.querySelector(".sub-drawer .sub-plan")) more.click();
+    return !!document.querySelector(".sub-drawer .sub-covmore");
+  });
+  await sleep(900);
+  const ackClic = await p.evaluate(() => {
+    const a = document.querySelector('.sub-drawer .sub-plan .sub-act[data-fam="ack"]');
+    if (!a) return false;
+    a.click();
+    return true;
+  });
+  await sleep(2000);
+  if (!ackClic) {
+    chk(true, "acquittement — aucun plan muet à acquitter sur ce montage", String(ack));
+  } else {
+    const constat = await p.evaluate(() => {
+      const body = document.querySelector(".sub-drawer .sub-body");
+      const br = body.getBoundingClientRect();
+      const vu = (s) => {
+        const e = document.querySelector(".sub-drawer " + s);
+        if (!e) return null;
+        const r = e.getBoundingClientRect();
+        return { txt: (e.innerText || "").replace(/\s+/g, " ").trim(),
+          vu: r.top >= br.top - 1 && r.bottom <= br.bottom + 1 };
+      };
+      const cov = document.querySelector(".sub-drawer .sub-cov");
+      return {
+        say: vu(".sub-covsay"), ign: vu(".sub-covign"),
+        ack: cov ? cov.hasAttribute("data-ack") : false,
+        tal: ((document.querySelector('.sub-tal[data-k="acquittes"]') || {})
+          .innerText || "").replace(/\s+/g, " ").trim(),
+        tlOff: [...document.querySelectorAll('.svm-clip[data-nosub="off"]')].length,
+      };
+    });
+    const dit = [constat.say, constat.ign].filter(Boolean)
+      .filter((o) => o.vu && /muet/i.test(o.txt));
+    chk(dit.length > 0,
+      "après acquittement, l'écran dit TOUJOURS que ces plans sortiront muets",
+      JSON.stringify([constat.say, constat.ign]));
+    chk(constat.ack,
+      "le bloc de couverture ne redevient pas neutre après un acquittement");
+    chk(/acquitt/i.test(constat.tal),
+      "la trace chiffrée reste dans la ligne des comptes", constat.tal);
+    chk(constat.tlOff > 0,
+      "le plan acquitté reste marqué sur la timeline", constat.tlOff + " clip(s)");
+    await p.evaluate(() => {
+      const r = [...document.querySelectorAll(".sub-covign button")]
+        .find((e) => /révoquer/i.test(e.textContent || ""));
+      if (r) r.click();
+    });
+    await sleep(3000);
+  }
 
   chk(pageErrs.length === 0, "aucune erreur JS sur la page",
     pageErrs.join(" | ") || "0");
