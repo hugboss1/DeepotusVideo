@@ -493,8 +493,158 @@ function subsWarnings(segs,style,dur){
       push(s,i,"lignes","warn",ln.length+" lignes affichées (maximum "+
         maxLines+").",subsPlanRewrap(list,i,mc,maxLines))});
   return out}
-function subsWarnBy(warns){
-  var m={};(warns||[]).forEach(function(w){(m[w.id]=m[w.id]||[]).push(w)});return m}
+/* ═══════════════════ LE VERDICT — la SEULE fonction qui décide ═══════════════
+   La sévérité de chaque réplique ET tous les comptes affichés sont calculés
+   ICI, une fois, pour une piste donnée. La timeline, la liste, les pastilles
+   de ligne, les badges d'onglet, la chip de la barre d'outils et l'inspecteur
+   LISENT ce résultat ; aucune surface ne refait le sien.
+
+   Pourquoi : quatre endroits calculaient leur propre verdict et se
+   contredisaient DANS LA MÊME IMAGE — la timeline peignait 9 pastilles
+   « critiques » (calcul local) pendant que la liste, juste à côté, en peignait
+   8 en ambre et une seule en rouge (calcul du moteur), et le badge d'onglet
+   annonçait un troisième chiffre (des AVERTISSEMENTS, pas des répliques) que
+   rien à l'écran ne désignait. Un panneau qui se contredit ne vaut rien.
+
+   ── Ce que compte chaque nombre affiché, nommé une fois pour toutes ─────────
+     repliques  — lignes posées sur la piste S1 (masquées comprises)
+     masquees   — lignes hors rendu et hors export
+     signalees  — lignes portant AU MOINS un défaut, quelle qu'en soit la gravité
+     bloquantes — lignes portant au moins un défaut BLOQUANT (sous-ensemble)
+     defauts    — défauts au total (une ligne peut en porter plusieurs)
+     ecarts     — écarts entre l'aperçu et la GRAVURE : ils portent sur le
+                  STYLE, pas sur une réplique, et ne sont jamais additionnés
+                  aux quatre précédents.
+   Deux nombres différents à l'écran ne désignent donc jamais la même chose,
+   et chacun porte son unité en toutes lettres. */
+var SUBS_SEVN={info:1,warn:2,err:3};
+var SUBS_SEVLAB={err:"bloquant",warn:"à vérifier",info:"remarque"};
+function subsSevMax(a,b){
+  if(!a)return b||null;
+  if(!b)return a;
+  return (SUBS_SEVN[b]||0)>(SUBS_SEVN[a]||0)?b:a}
+/* Signature de CONTENU : deux surfaces qui passent la même piste obtiennent le
+   même verdict, quelle que soit l'identité des objets. Elle sert aussi de clé
+   au contrôle backend — un résultat du moteur ne s'applique QU'À la piste pour
+   laquelle il a été calculé. Sans ce verrou, la liste affichait le verdict
+   d'une version précédente pendant que la timeline affichait celui d'aujourd'hui. */
+function subsKeyOf(segs,style,dur){
+  return JSON.stringify([subsSort(segs).map(function(s){
+      return [s.id,subsRound(subsN(s.start,0),3),subsRound(subsN(s.end,0),3),
+        String(s.text||""),s.hidden?1:0]}),
+    style||null,subsRound(subsN(dur,0),3)])}
+/* Résultat de POST /api/subtitles/check, rangé AVEC la clé de la piste qu'il
+   mesure. Module-level : le tiroir n'en est plus le propriétaire — sinon la
+   timeline lirait le calcul local pendant que la liste lit le moteur, ce qui
+   est exactement le défaut que ce bloc ferme. */
+var SUBS_CHK={key:null,warns:null,style:null,unsupported:null,tick:0,subs:[]};
+function subsChkEmit(){
+  SUBS_CHK.subs.slice().forEach(function(f){try{f()}catch(_e){}})}
+function subsChkPut(key,d){
+  SUBS_CHK.key=key||null;
+  SUBS_CHK.warns=d&&Array.isArray(d.warnings)?d.warnings:null;
+  SUBS_CHK.style=d&&Array.isArray(d.style_warnings)?d.style_warnings:null;
+  SUBS_CHK.unsupported=d&&d.unsupported&&typeof d.unsupported==="object"
+    ?d.unsupported:null;
+  SUBS_CHK.tick++;subsChkEmit()}
+function subsChkClear(){
+  if(SUBS_CHK.key===null&&!SUBS_CHK.warns&&!SUBS_CHK.style&&!SUBS_CHK.unsupported)
+    return;
+  subsChkPut(null,null)}
+function subsChkSub(f){
+  SUBS_CHK.subs.push(f);
+  return function(){
+    var i=SUBS_CHK.subs.indexOf(f);
+    if(i>=0)SUBS_CHK.subs.splice(i,1)}}
+
+/* ── zone sûre : le repère TRACÉ dans l'aperçu et les réglages doivent dire la
+   même chose ───────────────────────────────────────────────────────────────
+   L'aperçu dessinait une zone sûre à 10 % et posait simultanément le texte à
+   9 % de marge : le bas du sous-titre livré par défaut passait SOUS la ligne,
+   sans un mot. La ligne pleine « zone sûre 10 % » fait foi. Un réglage qui la
+   franchit devient un écart annoncé COMME LES AUTRES, avec le geste qui le
+   ferme — et le défaut d'usine se tient au-dessus des DEUX repères que
+   l'aperçu trace (10 % zone sûre, 13 % bande d'UI des réseaux en 9:16), parce
+   qu'un défaut d'usine qui déclenche son propre avertissement n'en est pas un. */
+function subsSafeIssues(style){
+  var st=Object.assign(subsDefaultStyle(),style||{}),out=[];
+  var side=subsRound((100-subsClamp(subsN(st.width,80),20,100))/2,1);
+  var mv=subsRound(subsN(st.marginV,SUBS_MARGIN_DEF),1);
+  var wSafe=100-2*SUBS_SAFE_TITLE;
+  if(side<SUBS_SAFE_TITLE-.05)
+    out.push({msg:"Largeur du bloc "+Math.round(subsN(st.width,80))+" % : ses "+
+      "bords tombent à "+subsFr(side,1)+" % de l'image et sortent donc de la "+
+      "zone sûre "+SUBS_SAFE_TITLE+" % que l'aperçu trace.",
+      sev:"warn",about:[],cle:"safe_width",
+      fix:{champ:"width",valeur:wSafe,
+        label:"Rentrer dans la zone sûre",
+        effect:"La largeur passe à "+wSafe+" % : les deux marges latérales "+
+          "tombent exactement sur la ligne "+SUBS_SAFE_TITLE+" %."}});
+  if(String(st.valign)!=="middle"&&mv<SUBS_SAFE_TITLE-.05)
+    out.push({msg:"Marge du bord "+subsFr(mv,1)+" % : le bord du texte passe "+
+      "SOUS la ligne de zone sûre "+SUBS_SAFE_TITLE+" % que l'aperçu trace.",
+      sev:"warn",about:[],cle:"safe_margin",
+      fix:{champ:"marginV",valeur:SUBS_SAFE_TITLE,
+        label:"Remonter à "+SUBS_SAFE_TITLE+" %",
+        effect:"La marge du bord passe à "+SUBS_SAFE_TITLE+" % : le texte se "+
+          "pose exactement sur la ligne de zone sûre."}});
+  return out}
+/* le même test, en booléen, pour l'aperçu : le bandeau de placement doit le
+   dire AU MOMENT du geste, pas seulement dans l'onglet Style */
+function subsOutOfSafe(style){return subsSafeIssues(style).length>0}
+
+var SUBS_VD={k:null,v:null};
+function subsVerdict(segs,style,dur){
+  var list=subsSort(segs||[]),st=Object.assign(subsDefaultStyle(),style||{});
+  var key=subsKeyOf(list,st,dur);
+  var ck=key+"#"+SUBS_CHK.tick;
+  if(SUBS_VD.k===ck)return SUBS_VD.v;
+  /* Le calcul local tourne TOUJOURS : hors ligne il fait foi, en ligne il sert
+     de repli tant que le moteur n'a pas répondu POUR CETTE piste. Le moteur
+     gagne quand il a répondu pour la MÊME clé — jamais pour une autre. */
+  var warns=subsWarnings(list,st,dur),src="local";
+  if(SUBS_CHK.key===key&&SUBS_CHK.warns){
+    var byId={};list.forEach(function(s){byId[s.id]=s});
+    warns=SUBS_CHK.warns.map(function(w){
+      var s=(w&&w.id!=null&&byId[w.id])||list[subsN(w&&w.i,-1)];
+      if(!s)return null;
+      return {id:s.id,i:subsN(w.i,-1),kind:String(w.kind||"regle"),
+        sev:SUBS_SEVN[String(w.sev)]?String(w.sev):"warn",
+        msg:String(w.msg||""),
+        about:Array.isArray(w.about)?w.about:[subsN(w.i,-1)],
+        plan:w.plan||null}}).filter(Boolean);
+    src="moteur"}
+  var bySeg={},nSig=0,nBlk=0;
+  list.forEach(function(s){bySeg[s.id]={sev:null,n:0,nErr:0,warns:[]}});
+  warns.forEach(function(w){
+    var e=bySeg[w.id];
+    if(!e)return;
+    e.warns.push(w);e.n++;
+    if(w.sev==="err")e.nErr++;
+    e.sev=subsSevMax(e.sev,w.sev)});
+  list.forEach(function(s){
+    var e=bySeg[s.id];
+    if(e.n)nSig++;
+    if(e.nErr)nBlk++});
+  /* écarts aperçu/gravure : zone sûre d'abord (c'est nous qui la traçons),
+     puis ceux du moteur. Même liste, même dédoublonnage, un seul compte. */
+  var sty=subsStyleIssues({
+    style:(SUBS_CHK.key===key?SUBS_CHK.style:null),
+    unsupported:(SUBS_CHK.key===key?SUBS_CHK.unsupported:null),
+    safe:subsSafeIssues(st)});
+  var v={key:key,source:src,list:warns,bySeg:bySeg,style:sty,
+    counts:{repliques:list.length,
+      masquees:list.filter(function(s){return !!s.hidden}).length,
+      signalees:nSig,bloquantes:nBlk,defauts:warns.length,ecarts:sty.length}};
+  SUBS_VD={k:ck,v:v};
+  return v}
+/* verdict VIDE — la forme exacte du plein, pour que l'hôte n'ait jamais à
+   tester `null` avant de lire un compte */
+function subsVerdictNil(){
+  return {key:"",source:"local",list:[],bySeg:{},style:[],
+    counts:{repliques:0,masquees:0,signalees:0,bloquantes:0,defauts:0,ecarts:0}}}
+function subsSegState(v,id){
+  return (v&&v.bySeg&&v.bySeg[id])||{sev:null,n:0,nErr:0,warns:[]}}
 
 /* ── formats de fichier — TOUT est fabriqué ici, hors ligne ────────────────
    C'est exactement là où la barre nous laisse la place : Kapwing met le
@@ -575,7 +725,11 @@ var SUBS_VALIGN=[["top","haut","⤒"],["middle","milieu","⇔"],["bottom","bas",
 function subsDefaultStyle(){
   return {preset:"defaut",font:"Inter",size:42,weight:700,italic:!1,underline:!1,
     upper:!1,tracking:0,align:"center",valign:"bottom",placed:!1,
-    color:"#ffffff",maxChars:42,maxLines:2,width:84,marginV:9,
+    /* marge et largeur d'usine = les repères que l'aperçu trace (voir
+       SUBS_MARGIN_DEF / SUBS_WIDTH_DEF) : le sous-titre livré sans réglage
+       est DANS la zone sûre, pas sous sa ligne. */
+    color:"#ffffff",maxChars:42,maxLines:2,
+    width:SUBS_WIDTH_DEF,marginV:SUBS_MARGIN_DEF,
     bgOn:!0,bgColor:"#000000",bgOpacity:64,bgPad:12,
     outOn:!0,outColor:"#000000",outW:3,
     shOn:!1,shColor:"#000000",shOff:3,
@@ -820,6 +974,14 @@ const SubsAlert=(props)=>{
 var SUBS_SAFE_ACTION=5;   /* % — zone d'action : tout écran la garde */
 var SUBS_SAFE_TITLE=10;   /* % — zone de titre : rien d'important au-delà */
 var SUBS_SOCIAL_BOT=13;   /* % — bande basse mangée par l'UI des réseaux (9:16) */
+/* Marge du bord PAR DÉFAUT : au-dessus des DEUX repères que l'aperçu trace
+   (zone sûre 10 %, bande d'UI des réseaux 13 %). Elle valait 9 % — le texte
+   d'usine passait donc sous la ligne pleine que le même écran dessinait.
+   Largeur par défaut : 80 % = marges latérales de 10 %, soit exactement la
+   zone sûre sur l'autre axe. Le défaut d'usine ne déclenche plus le
+   contrôle qu'il est censé respecter. */
+var SUBS_MARGIN_DEF=SUBS_SOCIAL_BOT;
+var SUBS_WIDTH_DEF=100-2*SUBS_SAFE_TITLE;
 function subsNearestSeg(segs,t){
   var best=null,bd=1/0;
   (segs||[]).forEach(function(s){
@@ -830,7 +992,7 @@ function subsNearestSeg(segs,t){
 /* marge : demi-points, aimantée sur les deux zones sûres */
 function subsSnapMv(v){
   v=subsClamp(v,0,45);
-  var snap=[SUBS_SAFE_ACTION,SUBS_SAFE_TITLE];
+  var snap=[SUBS_SAFE_ACTION,SUBS_SAFE_TITLE,SUBS_SOCIAL_BOT];
   for(var i=0;i<snap.length;i++)
     if(Math.abs(v-snap[i])<.9)return snap[i];
   return Math.round(v*2)/2}
@@ -1061,9 +1223,14 @@ const SubsOverlay=(props)=>{
   /* UNE seule lecture des valeurs, dans le bandeau : une étiquette « placement »
      collée au bloc en plus n'aurait fait que se cogner aux repères de zone sûre.
      Le bandeau n'existe QUE pendant le placement — inutile de le renommer. */
+  /* HORS ZONE SÛRE, dit AU MOMENT où ça arrive : le repère à 10 % est tracé
+     juste à côté ; un réglage qui le franchit doit s'annoncer là, pas
+     seulement dans l'onglet Style. Même règle, même chiffre — subsSafeIssues. */
+  var safeBad=subsSafeIssues(style);
   var readout=(ghost?"aucune réplique ici — ":"")+
     SUBS_VLAB[style.valign]+" · "+SUBS_HLAB[style.align]+" · "+
-    mvTxt+" · largeur "+Math.round(subsN(style.width,84))+" %";
+    mvTxt+" · largeur "+Math.round(subsN(style.width,SUBS_WIDTH_DEF))+" %"+
+    (safeBad.length?"  ⚠ hors zone sûre "+SUBS_SAFE_TITLE+" %":"");
   var block=r.jsxs("div",{className:"sub-ov",
     "data-anim":edit?"none":(style.anim||"none"),
     "data-seg":seg.id,"data-edit":edit?"":void 0,
@@ -1104,7 +1271,8 @@ const SubsOverlay=(props)=>{
   /* zones sûres — seulement en placement, sinon c'est du bruit sur l'aperçu */
   var portrait=fr.h>fr.w;
   return r.jsxs(r.Fragment,{children:[
-    r.jsxs("div",{className:"sub-safe","aria-hidden":!0,"data-drag":drag||void 0,children:[
+    r.jsxs("div",{className:"sub-safe","aria-hidden":!0,"data-drag":drag||void 0,
+      "data-out":safeBad.length?"":void 0,children:[
       r.jsx("i",{className:"sub-safebox","data-k":"action",
         style:{inset:SUBS_SAFE_ACTION+"%"}},"a"),
       r.jsx("i",{className:"sub-safebox","data-k":"title",
@@ -1115,11 +1283,13 @@ const SubsOverlay=(props)=>{
         style:{top:"calc("+SUBS_SAFE_TITLE+"% + 3px)"},
         children:"zone sûre 10 %"},"lt"),
       portrait?r.jsx("i",{className:"sub-safelab","data-k":"soc",
-        style:{bottom:"calc("+SUBS_SOCIAL_BOT+"% + 3px)"},
+        style:{bottom:"calc("+SUBS_SOCIAL_BOT+"% - 12px)"},
         children:"UI réseaux"},"ls"):null]},"safe"),
     r.jsx("div",{className:"sub-hud","data-drag":drag||void 0,
+      "data-out":safeBad.length?"":void 0,
       role:"status","aria-live":"off",
-      title:"Ce que le moteur gravera : ancrage, marge du bord et largeur du "+
+      title:(safeBad.length?safeBad.map(function(w){return w.msg}).join(" ")+" ":"")+
+        "Ce que le moteur gravera : ancrage, marge du bord et largeur du "+
         "bloc. Ancré au milieu, la marge du bord n'a pas d'effet — libass "+
         "l'ignore, l'aperçu aussi.",
       children:readout},"hud"),
@@ -1129,7 +1299,9 @@ const SubsOverlay=(props)=>{
 const SubsStyle=(props)=>{
   var svc=subsSvcUse();
   var st=Object.assign(subsDefaultStyle(),props.style||{});
-  var s1=x.useState({place:1,police:1}),exp=s1[0],setExp=s1[1];
+  /* modules repliés au départ : ce qui sert le plus est désormais À PLAT en
+     haut (bloc « Réglages »), les modules ne portent que le détail */
+  var s1=x.useState({}),exp=s1[0],setExp=s1[1];
   function set(patch,heavy){if(props.onChange)props.onChange(patch,!!heavy)}
   function fold(id,label,sum,kids){
     var open=!!exp[id];
@@ -1241,55 +1413,112 @@ const SubsStyle=(props)=>{
       r.jsx("span",{className:"sub-pname",children:subsPresetName(p)}),
       r.jsx("span",{className:"sub-pspec",children:subsPresetSpec(ps)})]},p.id)}
 
-  /* avertissements de STYLE venus de /check, plus les écarts nommés entre
-     l'aperçu et la gravure. Rangés du plus actionnable au simple constat. */
-  var issues=subsStyleIssues({style:props.styleWarns,
-    unsupported:props.unsupported});
+  /* écarts entre l'aperçu et la GRAVURE — zone sûre comprise. Ils sortent du
+     VERDICT, comme tout le reste : le badge de l'onglet et cette liste ne
+     peuvent donc plus annoncer deux chiffres différents. */
+  var issues=(props.verdict||subsVerdictNil()).style;
+
+  /* ── CE QUE LA GRAVURE FERA D'AUTRE QUE L'APERÇU ─────────────────────────
+     Ces écarts (zone sûre franchie, `style_warnings` et `unsupported` du
+     moteur) sont EXACTEMENT ce que compte le badge de cet onglet. Ils vivaient
+     sous la galerie : le badge annonçait « 2 » et rien à l'écran ne les
+     désignait tant qu'on n'avait pas déroulé. Ils passent donc EN TÊTE de
+     l'onglet — un badge doit toujours pouvoir se pointer du doigt. */
+  var ecarts=issues.length
+    ?r.jsxs("div",{className:"sub-stywarns",children:[
+      r.jsxs("div",{className:"sub-sec",children:[
+        r.jsx("span",{className:"sub-seclabel",
+          children:"Aperçu et gravure : les écarts"},"l"),
+        r.jsx("span",{className:"sub-secnote",
+          title:"Le badge de cet onglet compte exactement ces écarts",
+          children:issues.length+(issues.length>1?" écarts":" écart")},"n")]},"h"),
+      issues.map(function(w,k){
+        var fx=w.fix;
+        return r.jsxs("div",{className:"sub-warn","data-sev":w.sev,children:[
+          r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
+            children:"·"},"i"),
+          r.jsx("span",{className:"sub-warnmsg",
+            children:w.msg+(w.about&&w.about.length
+              ?" (" + w.about.length + " réplique" +
+                (w.about.length>1?"s":"") + " concernée" +
+                (w.about.length>1?"s":"") + ")":"")},"m"),
+          /* la conséquence du geste vit dans l'infobulle du bouton, pas sur une
+             ligne de plus : ici le MESSAGE dit déjà quoi faire (« passez
+             l'opacité à 100 %, ou coupez le karaoké »), et deux fois la même
+             phrase pousserait les préréglages hors de l'écran */
+          fx?r.jsx("button",{className:"sub-minibtn sub-fix",
+            title:fx.effect||"",
+            onClick:function(){var o={};o[fx.champ]=fx.valeur;set(o,!0)},
+            children:fx.label||"Corriger"},"f"):null]},"sw"+k)})]},"ec")
+    :null;
 
   return r.jsxs("div",{className:"sub-style",children:[
     r.jsx(SubsAlert,{}),
+
+    /* ── LES RÉGLAGES D'ABORD, LA GALERIE ENSUITE ──────────────────────────
+       Tout ce qui était au-dessus de la ligne de flottaison était une galerie
+       de huit préréglages : pas de taille, pas de couleur, pas d'épaisseur de
+       contour, pas de marge — on prenait une combinaison toute faite, ou on
+       déroulait vers l'inconnu. Un monteur qui ajuste une taille ne doit pas
+       chercher. Les cinq réglages qui servent le plus sont donc ici, à plat,
+       en haut ; la galerie garde sa place de RACCOURCI, juste dessous ; et le
+       détail (graisse, casse, fond, ombre, karaoké, animation, césure) vit
+       dans les modules repliables. Aucun réglage n'apparaît deux fois. */
+    r.jsxs("div",{className:"sub-sec",children:[
+      r.jsx("span",{className:"sub-seclabel",children:"Réglages"}),
+      r.jsx("span",{className:"sub-secnote",
+        title:"Le détail (graisse, casse, fond, ombre, karaoké, animation) est "+
+          "dans les modules, sous la galerie",
+        children:"les plus utilisés"})]}),
+    r.jsxs("div",{className:"sub-quick",children:[
+      row("Police",[r.jsx("select",{className:"sub-sel",value:st.font,
+        "aria-label":"Police des sous-titres",
+        onChange:function(e){set({font:e.target.value},!0)},
+        children:subsFonts().map(function(f){
+          return r.jsx("option",{value:f[0],children:f[1]},f[0])})},"s")],"font"),
+      rng("size",12,200,1," px","Taille"),
+      col("color","Couleur du texte"),
+      /* épaisseur 0 = pas de contour : un curseur au lieu d'un interrupteur
+         PLUS un curseur, et le même réglage ne vit qu'à un seul endroit */
+      row("Contour",[
+        r.jsx("input",{className:"sub-range",type:"range",min:0,max:14,step:.5,
+          value:subsN(st.outW,0),"aria-label":"Épaisseur du contour",
+          title:"0 = aucun contour. La couleur du contour est dans le module "+
+            "« Contour et ombre ».",
+          onChange:function(e){
+            var v=subsN(e.target.value,0);
+            set({outW:v,outOn:v>0})}},"r"),
+        r.jsx("span",{className:"sub-pval",
+          children:st.outOn&&subsN(st.outW,0)>0
+            ?subsRound(subsN(st.outW,0),1)+" px":"aucun"},"v")],"outW"),
+      st.valign==="middle"
+        ?r.jsx("div",{className:"sub-mhint",
+          children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
+            "aussi vrai dans le fichier ASS que dans l'aperçu."},"mvh")
+        :rng("marginV",0,45,.5," %","Marge du bord")]}),
+
+    /* les écarts que compte le badge de cet onglet : juste sous les réglages
+       qu'ils concernent, et AVANT la galerie — le badge doit toujours pouvoir
+       se pointer du doigt sans qu'on déroule */
+    ecarts,
+
     r.jsxs("div",{className:"sub-sec",children:[
       r.jsx("span",{className:"sub-seclabel",children:"Préréglages"}),
       r.jsx("span",{className:"sub-secnote",
-        title:"Origine de la liste de préréglages",
-        children:SUBS_SVC.presets?"moteur":"local"})]}),
+        title:"Raccourci : un préréglage écrit d'un coup police, corps, "+
+          "couleur, fond, contour et karaoké. Origine de la liste : "+
+          (SUBS_SVC.presets?"le moteur":"la table locale")+".",
+        children:"raccourcis · "+(SUBS_SVC.presets?"moteur":"local")})]}),
     r.jsx("div",{className:"sub-pgrid",ref:gref,children:presets.map(ptile)}),
-
-    /* ── CE QUE LA GRAVURE FERA D'AUTRE QUE L'APERÇU ───────────────────────
-       `POST /check` calcule ces avertissements sous `style_warnings` et
-       `unsupported`. Le panneau les jetait parce qu'ils n'ont pas d'index de
-       segment — ils n'en ont pas PARCE QU'ils portent sur le style entier.
-       Leur place est donc ici, à côté des réglages fautifs, avec le bouton
-       qui répare quand il existe. */
-    issues.length
-      ?r.jsxs("div",{className:"sub-stywarns",children:[
-        r.jsx("div",{className:"sub-seclabel",
-          children:"Aperçu et gravure : les écarts"}),
-        issues.map(function(w,k){
-          var fx=w.fix;
-          return r.jsxs("div",{className:"sub-warn","data-sev":w.sev,children:[
-            r.jsx("span",{className:"sub-warnicon","aria-hidden":!0,
-              children:"·"},"i"),
-            r.jsx("span",{className:"sub-warnmsg",
-              children:w.msg+(w.about&&w.about.length
-                ?" (" + w.about.length + " réplique" +
-                  (w.about.length>1?"s":"") + " concernée" +
-                  (w.about.length>1?"s":"") + ")":"")},"m"),
-            fx?r.jsx("button",{className:"sub-minibtn sub-fix",
-              title:fx.effect||"",
-              onClick:function(){var o={};o[fx.champ]=fx.valeur;set(o,!0)},
-              children:fx.label||"Corriger"},"f"):null,
-            fx&&fx.effect?r.jsx("span",{className:"sub-warnwhat",
-              children:fx.effect},"e"):null]},"sw"+k)})]})
-      :null,
 
     /* ── PLACEMENT — le même modèle que le cadre du lecteur ─────────────────
        Ces quatre réglages SONT ce que le moteur grave. Ils se règlent au
        chiffre ici, ou à la main dans l'aperçu ; les deux écrivent la même
        chose. */
     fold("place","Placement",
-      SUBS_VLAB[st.valign]+" · "+SUBS_HLAB[st.align]+" · "+
-      Math.round(subsN(st.width,84))+" %",[
+      SUBS_VLAB[st.valign]+" · "+SUBS_HLAB[st.align]+" · marge "+
+      subsFr(subsN(st.marginV,SUBS_MARGIN_DEF),1)+" % · largeur "+
+      Math.round(subsN(st.width,SUBS_WIDTH_DEF))+" %",[
       r.jsx("div",{className:"sub-mhint",
         children:"Le tiroir ouvert, le bloc s'attrape directement dans le "+
           "lecteur : glisser pour placer, poignées latérales pour la largeur, "+
@@ -1297,11 +1526,6 @@ const SubsStyle=(props)=>{
           "le geste."},"ph"),
       chips("align",SUBS_ALIGN,"Ancrage horizontal"),
       chips("valign",SUBS_VALIGN,"Ancrage vertical"),
-      st.valign==="middle"
-        ?r.jsx("div",{className:"sub-mhint",
-          children:"Ancré au milieu, la marge du bord n'a pas d'effet — c'est "+
-            "aussi vrai dans le fichier ASS que dans l'aperçu."},"mh")
-        :rng("marginV",0,45,.5," %","Marge du bord"),
       rng("width",20,100,1," %","Largeur du bloc"),
       r.jsx("div",{className:"sub-mhint",
         children:"Les marges latérales du moteur sont symétriques : la largeur "+
@@ -1318,13 +1542,13 @@ const SubsStyle=(props)=>{
           set(o,!0)},
         children:"Reprendre le placement du préréglage"},"rp"):null]),
 
-    fold("police","Police",st.font+" · "+Math.round(st.size)+" px",[
-      row("Police",[r.jsx("select",{className:"sub-sel",value:st.font,
-        "aria-label":"Police des sous-titres",
-        onChange:function(e){set({font:e.target.value},!0)},
-        children:subsFonts().map(function(f){
-          return r.jsx("option",{value:f[0],children:f[1]},f[0])})},"s")],"font"),
-      rng("size",12,200,1," px","Taille"),
+    /* police, corps et couleur sont remontés dans « Réglages » : ce module ne
+       garde que ce qui sert moins souvent — aucun réglage en double */
+    fold("police","Texte",
+      (Number(st.weight)>=900?"noir":Number(st.weight)>=700?"gras"
+        :Number(st.weight)>=600?"demi":"maigre")+
+      (st.upper?" · capitales":"")+(st.italic?" · italique":"")+
+      (subsN(st.tracking,0)?" · "+subsFr(subsN(st.tracking,0),1)+" px":""),[
       row("Graisse",[r.jsx("div",{className:"sub-chips",children:
         [[400,"maigre"],[600,"demi"],[700,"gras"],[900,"noir"]].map(function(o){
           return r.jsx("button",{className:"sub-chip",
@@ -1340,11 +1564,10 @@ const SubsStyle=(props)=>{
         r.jsx("button",{className:"sub-chip","data-on":st.upper?"":void 0,
           title:"Tout en majuscules",onClick:function(){set({upper:!st.upper},!0)},
           children:"AA"},"c")]},"c")],"fx"),
-      rng("tracking",-2,12,.5," px","Interlettrage"),
       /* pas de réglage d'interligne : libass fixe l'écart des lignes à
          1,000 x le corps de la fonte (mesuré à l'image). Le curseur qui
          existait ici ne changeait que l'aperçu. */
-      col("color","Couleur")]),
+      rng("tracking",-2,12,.5," px","Interlettrage")]),
 
     /* Fond : ni « étendue », ni « arrondi ». libass ne dessine qu'une boîte
        ajustée au texte, à angles droits (BorderStyle 3) ; BorderStyle 4 rend
@@ -1357,12 +1580,17 @@ const SubsStyle=(props)=>{
       st.bgOn?rng("bgOpacity",0,100,1," %","Opacité"):null,
       st.bgOn?rng("bgPad",0,48,1," px","Marge intérieure"):null]),
 
+    /* l'ÉPAISSEUR du contour est remontée dans « Réglages » (0 px = aucun
+       contour, l'interrupteur d'avant n'avait plus de raison d'être) : ce
+       module garde la couleur et toute l'ombre */
     fold("bord","Contour et ombre",
-      (st.outOn?"contour "+Math.round(st.outW)+" px":"sans contour")+
+      (st.outOn&&subsN(st.outW,0)>0
+        ?"contour "+subsFr(subsN(st.outW,0),1)+" px":"sans contour")+
       (st.shOn?" · ombre":""),[
-      sw("outOn","Contour du texte","Liseré autour des lettres — la lisibilité sur image claire"),
-      st.outOn?col("outColor","Couleur du contour"):null,
-      st.outOn?rng("outW",0,14,.5," px","Épaisseur"):null,
+      st.outOn&&subsN(st.outW,0)>0?col("outColor","Couleur du contour")
+        :r.jsx("div",{className:"sub-mhint",
+          children:"Aucun contour : réglez l'épaisseur au-dessus, dans "+
+            "« Réglages », pour qu'il apparaisse."},"oh"),
       /* L'ombre ASS est UNE copie décalée en bas à droite : un seul
          décalage, et aucun flou. D'où un seul curseur, au lieu des trois
          d'avant dont deux ne sortaient pas dans la vidéo. */
@@ -1431,12 +1659,11 @@ const SubsSegments=(props)=>{
   var s6=x.useState(!1),cpsOn=s6[0],setCpsOn=s6[1];
   var searchRef=x.useRef(null),rowsRef=x.useRef(null);
   var ph=subsN(props.playhead,0);
-  var dur=subsN(props.dur,0)||60;
-  /* durée RÉELLE du montage : 0 quand on ne la connaît pas. Le repli à 60 s
-     ci-dessus sert à placer un nouveau sous-titre ; il ne doit surtout pas
-     servir de plafond aux correctifs, sinon on refuserait d'étirer la
+  /* le repli à 60 s sert à PLACER un nouveau sous-titre quand la durée du
+     montage est inconnue ; il ne sert jamais de plafond aux correctifs (le
+     verdict, lui, reçoit la durée réelle), sinon on refuserait d'étirer la
      dernière réplique d'un montage de 3 minutes. */
-  var durReal=subsN(props.dur,0);
+  var dur=subsN(props.dur,0)||60;
 
   /* la touche « / » que le badge annonce — un raccourci affiché doit exister */
   x.useEffect(function(){
@@ -1455,43 +1682,21 @@ const SubsSegments=(props)=>{
   function patch(id,p,heavy){
     emit(segs.map(function(s){return s.id===id?subsWith(s,p):s}),heavy)}
 
-  /* avertissements : ceux du backend s'ils existent, les nôtres sinon. Le
-     calcul local n'est jamais sauté — il faut que la ligne parle tout de
-     suite, même hors ligne. Le POST, lui, est lancé par le TIROIR : il sert
-     aussi l'onglet Style, qui doit rester à jour même quand la liste des
-     répliques n'est pas montée. */
-  var warns=x.useMemo(function(){
-    return subsWarnings(segs,style,durReal)},[segs,style,durReal]);
-  var srvWarns=props.srvWarns||null;
-  var shownWarns=x.useMemo(function(){
-    if(!srvWarns||!srvWarns.length)return warns;
-    /* Le backend ANCRE désormais chaque avertissement sur le segment qu'il
-       mesure, et l'identifie par son `id` — plus par sa position. C'est ce
-       qui ferme le décalage d'indice : un seul segment encore vide suffisait
-       à faire glisser toute la liste d'un cran, et « 60 ms depuis le segment
-       précédent » atterrissait sur la carte du voisin.
-       Le PLAN de réparation est repris tel quel : il porte son libellé, sa
-       conséquence annoncée et ses `ops`. */
-    var byId={};segs.forEach(function(s){byId[s.id]=s});
-    return srvWarns.map(function(w){
-      var s=(w.id!=null&&byId[w.id])||segs[subsN(w.i,-1)];
-      if(!s)return null;
-      return {id:s.id,i:subsN(w.i,-1),kind:String(w.kind||"regle"),
-        sev:String(w.sev||"warn"),msg:String(w.msg||""),
-        about:Array.isArray(w.about)?w.about:[subsN(w.i,-1)],
-        plan:w.plan||null}})
-      .filter(Boolean)},[srvWarns,warns,segs]);
-  var wby=x.useMemo(function(){return subsWarnBy(shownWarns)},[shownWarns]);
+  /* AUCUN calcul d'avertissement ici : la liste LIT le verdict unique que le
+     tiroir lui passe (subsVerdict). C'est ce qui interdit qu'une réplique soit
+     « bloquante » sur la timeline et « à vérifier » dans la liste juste à
+     côté — les deux surfaces lisent le MÊME objet, réplique par réplique. */
+  var vd=props.verdict||subsVerdictNil();
 
   var qn=query.trim().toLowerCase();
   var shown=x.useMemo(function(){
     var l=segs;
     if(qn)l=l.filter(function(s){
       return String(s.text||"").toLowerCase().indexOf(qn)>=0});
-    /* « à corriger » : le filtre qui remplace le déroulement d'une liste
-       entière pour retrouver neuf lignes fautives */
-    if(onlyBad)l=l.filter(function(s){return !!(wby[s.id]||[]).length});
-    return l},[segs,qn,onlyBad,wby]);
+    /* « signalées » : le filtre qui remplace le déroulement d'une liste
+       entière pour retrouver les lignes fautives */
+    if(onlyBad)l=l.filter(function(s){return subsSegState(vd,s.id).n>0});
+    return l},[segs,qn,onlyBad,vd]);
 
   function addAt(){
     var sl=subsFreeSlot(segs,ph,dur);
@@ -1605,9 +1810,9 @@ const SubsSegments=(props)=>{
     var chars=String(s.text||"").replace(/\s+/g," ").trim().length;
     var len=Math.max(.001,s.end-s.start);
     var cps=chars/len;
-    var lw=wby[s.id]||[];
-    var nE=0,nW=0;
-    lw.forEach(function(w){if(w.sev==="err")nE++;else if(w.sev==="warn")nW++});
+    /* la pastille de la ligne SORT DU VERDICT : même sévérité, même compte et
+       même couleur que la pastille du segment sur la timeline */
+    var est=subsSegState(vd,s.id),lw=est.warns;
     var open=isOpen(s.id);
     var txt=String(s.text||"").replace(/\s+/g," ").trim();
     var head=r.jsxs("div",{className:"sub-r1",role:"button",tabIndex:0,
@@ -1630,14 +1835,15 @@ const SubsSegments=(props)=>{
         children:txt||"(vide)"},"t"),
       s.hidden?r.jsx("span",{className:"sub-rbadge","data-k":"off",
         title:"Masqué — hors rendu et hors export",children:"masqué"},"h"):null,
-      nE?r.jsx("span",{className:"sub-rbadge","data-k":"err",
-        title:lw.filter(function(w){return w.sev==="err"})
-          .map(function(w){return w.msg}).join(" · "),
-        children:"!"+(nE>1?nE:"")},"e"):null,
-      !nE&&nW?r.jsx("span",{className:"sub-rbadge","data-k":"warn",
-        title:lw.filter(function(w){return w.sev==="warn"})
-          .map(function(w){return w.msg}).join(" · "),
-        children:"·"+(nW>1?nW:"")},"w"):null,
+      /* UNE pastille par réplique, colorée par sa sévérité la PLUS forte, et
+         dont le nombre compte les DÉFAUTS DE CETTE RÉPLIQUE — l'infobulle le
+         dit en toutes lettres, pour qu'aucun chiffre de l'écran ne puisse être
+         confondu avec un autre. */
+      est.sev?r.jsx("span",{className:"sub-rbadge","data-k":est.sev,
+        title:subsPl(est.n,"défaut")+" sur cette réplique ("+
+          (SUBS_SEVLAB[est.sev]||est.sev)+" au plus fort) : "+
+          lw.map(function(w){return w.msg}).join(" · "),
+        children:(est.sev==="err"?"!":"·")+(est.n>1?est.n:"")},"b"):null,
       r.jsx("button",{className:"sub-rcar","aria-expanded":open,
         title:open?"Replier cette réplique":"Déplier — bornes, texte, correctifs",
         "aria-label":(open?"Replier":"Déplier")+" le sous-titre "+(i+1),
@@ -1709,9 +1915,13 @@ const SubsSegments=(props)=>{
           alt?r.jsx("span",{className:"sub-warnwhat",children:alt.effect},"ae")
             :null]},"w"+k)})},"warns"):null]},s.id)}
 
-  var nOff=segs.filter(function(s){return s.hidden}).length;
-  var nErr=shownWarns.filter(function(w){return w.sev==="err"}).length;
-  var nBad=segs.filter(function(s){return !!(wby[s.id]||[]).length}).length;
+  /* tous les comptes viennent du verdict : aucun n'est refait ici */
+  var nOff=vd.counts.masquees,nBad=vd.counts.signalees,nBlk=vd.counts.bloquantes;
+  /* signalées que le filtre ou la recherche cachent en ce moment : un badge
+     qui annonce des défauts pendant que rien à l'écran ne les désigne, c'est
+     le défaut qu'on ferme ici. */
+  var hiddenBad=nBad-shown.filter(function(s){
+    return subsSegState(vd,s.id).n>0}).length;
   var empty=!segs.length;
   /* le champ de fichier vit hors des deux états : il sert au bouton
      « importer » du plein comme du vide */
@@ -1784,11 +1994,13 @@ const SubsSegments=(props)=>{
       nOff?r.jsx("span",{className:"sub-statoff",
         title:subsPl(nOff,"réplique")+" masquée(s) : hors rendu et hors export",
         children:subsPl(nOff,"masquée")},"o"):null,
-      nBad?r.jsx("button",{className:"sub-statfilt","data-on":onlyBad?"":void 0,
+      nBad?r.jsx("button",{className:"sub-statfilt",
+        "data-on":onlyBad?"":void 0,"data-sev":"warn",
         "aria-pressed":onlyBad,
-        title:onlyBad?"Revoir toute la piste"
-          :"N'afficher que les "+subsPl(nBad,"réplique")+" signalées, dont "+
-            subsPl(nErr,"bloquante")+" — chacune porte son correctif",
+        title:(onlyBad?"Revoir toute la piste. ":"N'afficher que ces répliques. ")+
+          subsPl(nBad,"réplique")+" signalée"+(nBad>1?"s":"")+" sur "+
+          vd.counts.repliques+", dont "+subsPl(nBlk,"bloquante")+
+          " — chacune porte son correctif",
         onClick:function(){setOnlyBad(function(v){return !v})},
         children:subsPl(nBad,"signalée")},"b"):null,
       r.jsx("button",{className:"sub-statfilt",
@@ -1797,6 +2009,21 @@ const SubsSegments=(props)=>{
           var m={};segs.forEach(function(s){m[s.id]=anyOpen?0:1});
           setOpenMap(m)},
         children:anyOpen?"replier":"déplier"},"x")]}),
+    /* le badge de l'onglet compte TOUTE la piste ; la liste, elle, peut être
+       filtrée. Quand les deux ne montrent pas la même chose, on le dit et on
+       offre le geste — un badge sans rien à l'écran qui le désigne, c'est
+       exactement le défaut qu'on ferme. */
+    hiddenBad>0?r.jsxs("div",{className:"sub-hidbad",role:"status",children:[
+      r.jsx("span",{className:"sub-hidbadtxt",
+        children:hiddenBad>1
+          ?hiddenBad+" répliques signalées ne sont pas affichées : "+
+            (qn?"la recherche":"le filtre")+" les masque."
+          :"1 réplique signalée n'est pas affichée : "+
+            (qn?"la recherche":"le filtre")+" la masque."},"t"),
+      r.jsx("button",{className:"sub-minibtn",
+        title:"Effacer la recherche et le filtre pour voir toutes les répliques signalées",
+        onClick:function(){setQuery("");setOnlyBad(!1)},
+        children:"tout afficher"},"a")]},"hb"):null,
     shown.length
       ?r.jsx("div",{className:"sub-rows",ref:rowsRef,children:shown.map(segRow)})
       :r.jsxs("div",{className:"sub-empty",children:[
@@ -1828,40 +2055,50 @@ const SubsSegments=(props)=>{
    sinon le panneau afficherait deux fois le même problème et compterait 2. */
 function subsStyleIssues(chk){
   var out=[],vus={};
+  function add(o){
+    var m=String(o&&o.msg||"");
+    if(!m||vus[m])return;vus[m]=1;out.push(o)}
+  /* La zone sûre d'abord : c'est NOTRE repère, tracé par NOTRE aperçu, et il
+     se répare d'un clic. */
+  ((chk&&chk.safe)||[]).forEach(add);
   ((chk&&chk.style)||[]).forEach(function(w){
-    var m=String(w.msg||"");
-    if(!m||vus[m])return;vus[m]=1;
-    out.push({msg:m,fix:w.fix||null,about:w.about||[],sev:w.sev||"warn"})});
+    add({msg:String(w.msg||""),fix:w.fix||null,about:w.about||[],
+      sev:w.sev||"warn"})});
   var u=(chk&&chk.unsupported)||{};
   Object.keys(u).forEach(function(k){
-    var m=String(u[k]||"");
-    if(!m||vus[m])return;vus[m]=1;
-    out.push({msg:m,fix:null,about:[],sev:"info",cle:k})});
+    add({msg:String(u[k]||""),fix:null,about:[],sev:"info",cle:k})});
   return out}
 
+/* Le POST ne rend plus rien à un appelant : il RANGE son résultat dans le
+   magasin partagé, avec la clé de la piste mesurée. Toute surface qui demande
+   le verdict de CETTE piste le verra ; aucune ne peut en avoir un autre. */
 function subsUseCheck(segs,style,dur,svc){
-  var s0=x.useState(null),res=s0[0],setRes=s0[1];
   var key=x.useMemo(function(){
-    return JSON.stringify([segs.map(function(s){
-      return [s.id,s.start,s.end,s.text]}),style,dur])},[segs,style,dur]);
+    return subsKeyOf(segs,style,dur)},[segs,style,dur]);
   x.useEffect(function(){
     /* backend connu injoignable : on n'envoie RIEN. Un POST toutes les 450 ms
        vers une route absente remplit la console d'erreurs sans rien apporter
        — le calcul local, lui, tourne déjà. */
-    if(svc.st!=="ok"){setRes(null);return}
-    var body={segments:segs.map(function(s){
+    if(svc.st!=="ok"){subsChkClear();return}
+    var body={segments:subsSort(segs).map(function(s){
       return {id:s.id,start:s.start,end:s.end,text:s.text}}),
       style:style,dur:dur};
     var dead=!1;
     var h=setTimeout(function(){
       subsPost("/api/subtitles/check",body).then(function(d){
         if(dead)return;
-        setRes(d&&Array.isArray(d.warnings)
-          ?{warns:d.warnings,style:d.style_warnings||[],
-            unsupported:d.unsupported||{}}:null)},
-        function(){if(!dead)setRes(null)})},450);
-    return function(){dead=!0;clearTimeout(h)}},[key,svc.st,svc.tick]);
-  return res}
+        if(d&&Array.isArray(d.warnings))subsChkPut(key,d);else subsChkClear()},
+        function(){if(!dead)subsChkClear()})},450);
+    return function(){dead=!0;clearTimeout(h)}},[key,svc.st,svc.tick])}
+
+/* Abonnement au magasin : une surface React qui lit le verdict doit se
+   redessiner quand le moteur répond, sinon elle affiche encore le calcul local
+   pendant que sa voisine affiche celui du moteur — la divergence par le retard. */
+function subsUseVerdict(segs,style,dur){
+  var s=x.useState(0),setT=s[1];
+  x.useEffect(function(){
+    return subsChkSub(function(){setT(function(t){return t+1})})},[]);
+  return subsVerdict(segs,style,dur)}
 
 /* ═════════════════ Tiroir — Segments · Style ════════════════════════════════ */
 const SubsDrawer=(props)=>{
@@ -1878,7 +2115,12 @@ const SubsDrawer=(props)=>{
   var open=!!props.open;
   var segs=subsSort(props.segments||[]);
   var style=Object.assign(subsDefaultStyle(),props.style||{});
-  var chk=subsUseCheck(segs,style,subsN(props.dur,0),svc);
+  /* le POST range son résultat dans le magasin partagé ; le VERDICT est lu
+     une seule fois ici et descend tel quel dans les deux onglets. Le tiroir
+     ne calcule plus rien : c'est ce qui rend impossible qu'un badge d'onglet
+     annonce un chiffre que la liste ne montre pas. */
+  subsUseCheck(segs,style,props.dur,svc);
+  var vd=subsUseVerdict(segs,style,props.dur);
 
   x.useEffect(function(){if(open)subsProbe()},[open]);
   x.useEffect(function(){
@@ -1930,9 +2172,7 @@ const SubsDrawer=(props)=>{
           "un .srt, ou relancez DeepotusVideoGen.")})}
 
   if(!open)return null;
-  var nErr=subsWarnings(segs,style,props.dur).filter(function(w){
-    return w.sev==="err"}).length;
-  var nSty=subsStyleIssues(chk).length;
+  var C=vd.counts;
   return r.jsxs("aside",{className:"sub-drawer",ref:rootRef,tabIndex:-1,
     role:"group","aria-label":"Sous-titres",
     onKeyDown:function(e){
@@ -1944,25 +2184,69 @@ const SubsDrawer=(props)=>{
        comptent quelque chose. */
     r.jsxs("div",{className:"sub-head",children:[
       r.jsx("span",{className:"sub-title",children:"Sous-titres"}),
-      segs.length?r.jsx("span",{className:"sub-count",
-        children:subsPl(segs.length,"réplique")}):null,
+      C.repliques?r.jsx("span",{className:"sub-count",
+        title:"Lignes posées sur la piste S1, masquées comprises",
+        children:subsPl(C.repliques,"réplique")}):null,
       r.jsx("button",{className:"sub-iconbtn sub-close",title:"Fermer (Échap)",
         "aria-label":"Fermer le panneau de sous-titres",
         onClick:function(){if(props.onClose)props.onClose()},children:"✕"})]}),
+    /* ── ce que chaque nombre COMPTE, écrit à côté du nombre ────────────────
+       Les badges d'onglet et la chip de la barre d'outils comptent tous des
+       RÉPLIQUES ; les défauts, eux, sont nommés « défauts ». Deux nombres
+       différents à l'écran ne peuvent donc plus désigner la même chose, et
+       aucun ne se lit sans son unité. Tous sortent du même verdict. */
+    C.repliques?r.jsxs("div",{className:"sub-tally",role:"status",
+      title:"Signalées = répliques portant au moins un défaut. Bloquantes = "+
+        "sous-ensemble des signalées, celles qui portent un défaut bloquant. "+
+        "Défauts = total des défauts (une réplique peut en porter plusieurs). "+
+        "Tous ces chiffres sortent du même contrôle ("+
+        (vd.source==="moteur"?"moteur":"calcul local")+").",children:[
+      r.jsxs("span",{className:"sub-tal","data-k":"repliques",
+        children:[r.jsx("b",{children:String(C.repliques)}),
+          C.repliques<2?"réplique":"répliques"]},"r"),
+      r.jsxs("span",{className:"sub-tal","data-k":"signalees",
+        "data-sev":C.signalees?"warn":void 0,
+        children:[r.jsx("b",{children:String(C.signalees)}),
+          C.signalees<2?"signalée":"signalées"]},"s"),
+      r.jsxs("span",{className:"sub-tal","data-k":"bloquantes",
+        "data-sev":C.bloquantes?"err":void 0,
+        children:[r.jsx("b",{children:String(C.bloquantes)}),
+          C.bloquantes<2?"bloquante":"bloquantes"]},"b"),
+      r.jsxs("span",{className:"sub-tal","data-k":"defauts",
+        children:[r.jsx("b",{children:String(C.defauts)}),
+          C.defauts<2?"défaut":"défauts"]},"d"),
+      C.masquees?r.jsxs("span",{className:"sub-tal","data-k":"masquees",
+        children:[r.jsx("b",{children:String(C.masquees)}),
+          C.masquees<2?"masquée":"masquées"]},"m"):null,
+      r.jsx("span",{className:"sub-talsrc",
+        children:vd.source==="moteur"?"moteur":"local"},"o")]}):null,
     r.jsxs("div",{className:"sub-tabs",role:"tablist",children:[
       r.jsxs("button",{className:"sub-tab",role:"tab","aria-selected":tab==="segments",
         "data-on":tab==="segments"?"":void 0,
         onClick:function(){setTab("segments")},children:[
         "Répliques",
-        nErr?r.jsx("span",{className:"sub-tbad",title:nErr+" à corriger",
-          children:String(nErr)}):null]},"segments"),
+        /* Le badge compte des RÉPLIQUES SIGNALÉES — le même nombre que la chip
+           de la barre d'outils et que le compte de la ligne du dessus. Il
+           comptait autrefois des avertissements : trois surfaces, trois
+           chiffres, aucun ne désignait ce que la liste montrait.
+           COULEUR : ambre, toujours. Le rouge est réservé à ce qui EST
+           bloquant — une réplique en rouge sur la piste, une pastille rouge
+           sur sa ligne, et le compte « n bloquantes » ci-dessus. Peindre en
+           rouge un total de 12 dont une seule est bloquante remettrait la
+           timeline et la liste en désaccord, autrement. */
+        C.signalees?r.jsx("span",{className:"sub-tbad","data-sev":"warn",
+          title:subsPl(C.signalees,"réplique")+" signalée"+
+            (C.signalees>1?"s":"")+", dont "+subsPl(C.bloquantes,"bloquante")+
+            " (le détail est sur chaque ligne)",
+          children:String(C.signalees)}):null]},"segments"),
       r.jsxs("button",{className:"sub-tab",role:"tab","aria-selected":tab==="style",
         "data-on":tab==="style"?"":void 0,
         onClick:function(){setTab("style")},children:[
         "Style et placement",
-        nSty?r.jsx("span",{className:"sub-tbad","data-soft":"",
-          title:nSty+" écart(s) entre l'aperçu et la gravure — détail dans "+
-            "l'onglet",children:String(nSty)}):null]},"style")]}),
+        C.ecarts?r.jsx("span",{className:"sub-tbad","data-soft":"",
+          title:C.ecarts+" écart(s) entre l'aperçu et la gravure — ils portent "+
+            "sur le STYLE, pas sur une réplique ; le détail est dans l'onglet",
+          children:String(C.ecarts)}):null]},"style")]}),
     r.jsxs("div",{className:"sub-trrow",children:[
       r.jsx("button",{className:"sub-btn sub-tr",disabled:!!(trJob&&trJob.busy),
         title:"Transcrire la bande son du montage (backend requis) — "+
@@ -1982,9 +2266,8 @@ const SubsDrawer=(props)=>{
              du lecteur, juste au-dessus de ce tiroir — deux fois le même
              message au même endroit, c'est du bruit */
           onSelect:props.onSelect,onSeek:props.onSeek,onNote:fireNote,
-          srvWarns:chk&&chk.warns,srcName:props.srcName})
-        :r.jsx(SubsStyle,{style:style,onChange:props.onStyle,
-          styleWarns:chk&&chk.style,unsupported:chk&&chk.unsupported})}),
+          verdict:vd,srcName:props.srcName})
+        :r.jsx(SubsStyle,{style:style,onChange:props.onStyle,verdict:vd})}),
     note?r.jsx("div",{className:"sub-note",role:"status","aria-live":"polite",
       children:note}):null]})};
 
@@ -1993,6 +2276,19 @@ window.DzSubs={ready:!0,Drawer:SubsDrawer,Overlay:SubsOverlay,Style:SubsStyle,
   Segments:SubsSegments,Alert:SubsAlert,
   defaultStyle:subsDefaultStyle,PRESETS:SUBS_PRESETS,FONTS:SUBS_FONTS_FB,
   ANIMS:SUBS_ANIMS,words:subsWords,warnings:subsWarnings,reflow:subsReflow,
+  /* ── LE point d'accès au verdict unique ────────────────────────────────
+     `verdict(segments, style, dur)` rend {list, bySeg, style, counts, source}.
+     TOUTE surface — timeline du Montage, chip de la barre d'outils, liste du
+     tiroir, badges d'onglet, inspecteur — lit CE résultat. Aucune ne
+     recalcule le sien : c'est l'invariant que verrouille
+     `backend/tests/test_subs_single_source.py` et que mesure à l'écran
+     `scripts/qa/subs-consistency.js`. */
+  verdict:subsVerdict,verdictNil:subsVerdictNil,segState:subsSegState,
+  keyOf:subsKeyOf,sevLabels:SUBS_SEVLAB,
+  chkTick:function(){return SUBS_CHK.tick},onVerdict:subsChkSub,
+  safeIssues:subsSafeIssues,outOfSafe:subsOutOfSafe,
+  SAFE:{action:SUBS_SAFE_ACTION,title:SUBS_SAFE_TITLE,social:SUBS_SOCIAL_BOT,
+    marginDefault:SUBS_MARGIN_DEF,widthDefault:SUBS_WIDTH_DEF},
   splitAt:subsSplitAt,mergeAt:subsMergeAt,make:subsMake,sort:subsSort,
   freeSlot:subsFreeSlot,
   labelOf:subsLabelOf,at:subsAt,

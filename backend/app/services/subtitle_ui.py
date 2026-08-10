@@ -313,13 +313,18 @@ def ui_to_style(ui: dict | None, canvas: tuple[int, int] = (1080, 1920)) -> dict
         else:
             depth = max(abs(_num(u.get("shX"), 0)), abs(_num(u.get("shY"), 3)))
 
-    width_pct = max(20.0, min(100.0, _num(u.get("width"), 84)))
+    # Defauts alignes sur ceux du panneau (frontend/patches/subs.js) : largeur
+    # 80 % = marges laterales de 10 %, marge du bord 13 %. Les deux tombent
+    # au-dessus des reperes que l'apercu TRACE (zone sure 10 %, bande d'UI des
+    # reseaux 13 %) : un style incomplet ne doit pas se retrouver grave sous la
+    # ligne que le meme ecran dessine.
+    width_pct = max(20.0, min(100.0, _num(u.get("width"), 80)))
     w = int(canvas[0] or 1080)
     h = int(canvas[1] or 1920)
     # marge laterale : (100-width)/2 % de la LARGEUR reelle, exprimee @1080 de haut
     margin_h = ((100.0 - width_pct) / 200.0) * w * (S.REF_HEIGHT / float(h or 1080))
     # marge verticale : marginV % de la HAUTEUR reelle, exprimee @1080 de haut
-    margin_v = max(0.0, min(45.0, _num(u.get("marginV"), 9))) / 100.0 * S.REF_HEIGHT
+    margin_v = max(0.0, min(45.0, _num(u.get("marginV"), 13))) / 100.0 * S.REF_HEIGHT
 
     # En BorderStyle 3 (fond en boite), libass reutilise `Outline` comme
     # REMBOURRAGE de la boite : le contour du texte n'existe plus, et c'est le

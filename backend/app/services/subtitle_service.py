@@ -303,7 +303,10 @@ STYLES: dict[str, dict] = {
         color="#ffffff", karaoke_color="#ffffff",
         outline=0.0, shadow=0.0,
         back_mode="wrap", back_color="#000000", back_opacity=0.72,
-        margin_v=90, chars_per_line=44),
+        # 108 px @1080 = 10 % : le seul prereglage livre qui passait SOUS la
+        # zone sure que l'apercu trace (il etait a 90 px, soit 8,3 %). Un
+        # prereglage maison ne doit pas declencher notre propre avertissement.
+        margin_v=108, chars_per_line=44),
 }
 DEFAULT_STYLE = "standard"
 

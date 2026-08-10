@@ -19,6 +19,15 @@ sous-titres — segments posés sur la timeline (déplaçables, redimensionnable
 de style complet, karaoké du mot actif dans le lecteur, et les avertissements de
 qualité affichés là où on peut agir.
 
+UN SEUL VERDICT. La sévérité de chaque réplique et TOUS les comptes affichés
+sortent de `DzSubs.verdict(segments, style, dur)` — timeline, chip de la barre
+d'outils, badges d'onglet, liste du tiroir et inspecteur LISENT ce résultat.
+Aucune surface ne recalcule le sien : c'est ce qui interdit qu'une réplique soit
+« bloquante » sur la piste et « à vérifier » dans la liste juste à côté, ou
+qu'un badge annonce un chiffre que rien à l'écran ne désigne. L'invariant est
+verrouillé par `backend/tests/test_subs_single_source.py` (statique) et mesuré à
+l'écran par `scripts/qa/subs-consistency.js` (DOM réel, réplique par réplique).
+
 Sections :
   S1  injecte frontend/patches/subs.js (window.DzSubs) juste après le bloc
       vfxrack — même scope module, alias r/x du bundle disponibles ;
@@ -38,7 +47,9 @@ Sections :
   S13 inspecteur : les propriétés In/Out/Vitesse n'ont pas de sens sur S1 ;
   S14 inspecteur : section « Sous-titre » (texte, bornes, avertissements) ;
   S15 inspecteur : la pile d'effets ne s'affiche pas sur un clip S1 ;
-  S16 timeline : pastille d'alerte et opacité des segments masqués ;
+  S16 timeline : pastille d'alerte (SÉVÉRITÉ lue dans le verdict unique,
+      `data-warn="err|warn|info"`, plus `data-cid` pour que la non-régression
+      puisse apparier segment et ligne) et opacité des segments masqués ;
   S17 timeline : la piste S1 est marquée (`data-sub`) pour la feuille de style.
 
 Mécanique identique à patch_bundle_vfxrack.py : restauration du .bak dédié
@@ -82,9 +93,19 @@ R_STATE = '''  var stSx=x.useState(!1),sfxOn=stSx[0],setSfxOn=stSx[1];
      proj.subsStyle (et dans dz_subs_style : la sauvegarde serveur ne connaît
      pas encore la clé, on ne perd pas le réglage en attendant). ── */
   var stSu=x.useState(!1),subsOn=stSu[0],setSubsOn=stSu[1];
-  /* mémo des avertissements — recalculés seulement quand les clips ou le
-     style changent : la timeline en demande un par segment à chaque rendu */
-  var subsWRef=x.useRef({k:null,s:null,m:{}});'''
+  /* mémo du VERDICT — la timeline en demande un par segment à chaque rendu,
+     donc on ne refait le calcul que si les clips, le style, la durée ou le
+     contrôle du moteur ont bougé. Le contenu, lui, vient TOUJOURS de
+     DzSubs.verdict : la timeline ne décide rien. */
+  var subsWRef=x.useRef({k:null,s:null,d:null,t:-1,v:null});
+  /* le moteur répond en différé : sans cet abonnement, la timeline garderait
+     le calcul local pendant que le tiroir affiche celui du moteur — deux
+     verdicts sur la même image, ce qui est précisément le défaut fermé ici. */
+  var stVt=x.useState(0),setSubsVt=stVt[1];
+  x.useEffect(function(){
+    var d=window.DzSubs;
+    if(!d||!d.ready||!d.onVerdict)return;
+    return d.onVerdict(function(){setSubsVt(function(t){return t+1})})},[]);'''
 
 # ── S4 : la piste ────────────────────────────────────────────────────────────
 A_TRACKS = ' {id:"a3",name:"A3",type:"sfx",h:48,c:"--c-3d",mix:13}];'
@@ -152,18 +173,29 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
     fireNote("Sous-titre ajouté à "+d.tc(sl.start)+" — le texte s'écrit dans le tiroir.")}
   function subsToggle(){
     setSubsOn(function(v){return !v});setSfxOn(!1);setNarrOn(!1)}
-  /* avertissements de qualité (vitesse de lecture, segments trop courts,
-     chevauchements…) — mémoïsés sur l'identité de `clips` et du style : la
-     timeline en demande un par segment à chaque rendu. */
-  function subsWarnMap(){
-    var d=subsLayer(),cs=clipsRef.current,st=proj.subsStyle||null;
+  /* ── LE VERDICT, lu au même endroit que le tiroir ──────────────────────────
+     Sévérité par réplique et comptes affichés viennent d'UNE seule fonction
+     (DzSubs.verdict). La timeline, la chip de la barre d'outils et
+     l'inspecteur lisent CE résultat ; ils n'en calculent plus aucun.
+     Avant : la timeline peignait sa pastille d'après le calcul LOCAL pendant
+     que la liste du tiroir peignait la sienne d'après le MOTEUR — la même
+     réplique était « bloquante » d'un côté, « à vérifier » de l'autre, dans
+     la même image. On passe `clips` (la valeur du rendu en cours), jamais
+     `clipsRef.current`, pour que les deux surfaces regardent la même piste. */
+  function subsVd(){
+    var d=subsLayer();
+    if(!d||!d.verdict)return d&&d.verdictNil?d.verdictNil()
+      :{list:[],bySeg:{},style:[],
+        counts:{repliques:0,masquees:0,signalees:0,bloquantes:0,defauts:0,ecarts:0}};
+    var st=proj.subsStyle||null,du=proj.dur,tk=d.chkTick?d.chkTick():0;
     var c0=subsWRef.current;
-    if(c0.k===cs&&c0.s===st)return c0.m;
-    var m={};
-    if(d)d.warnings(subsSegsOf(cs),subsStyleNow(),proj.dur).forEach(function(w){
-      if(!m[w.id]||w.sev==="err")m[w.id]=w.sev});
-    subsWRef.current={k:cs,s:st,m:m};
-    return m}
+    if(c0.v&&c0.k===clips&&c0.s===st&&c0.d===du&&c0.t===tk)return c0.v;
+    var v=d.verdict(subsSegsOf(clips),subsStyleNow(),du);
+    subsWRef.current={k:clips,s:st,d:du,t:tk,v:v};
+    return v}
+  function subsSev(id){
+    var d=subsLayer();
+    return (d&&d.segState?d.segState(subsVd(),id):null)||{sev:null,n:0}}
   /* ce qui part au rendu : hors du tableau `clips` (un sous-titre n'est pas
      un média), masqués et lignes vides retirés. */
   function subsPayload(){
@@ -229,8 +261,9 @@ R_KIND = '''  /* « subs » est un TROISIÈME genre de piste, ni vidéo ni audio
     var d=subsLayer();
     if(!d||!sel||sel.tr!=="s1")return null;
     var segs=subsSegsOf(clips);
-    var ws=d.warnings(segs,subsStyleNow(),proj.dur).filter(function(w){
-      return w.id===sel.id});
+    /* mêmes avertissements, même sévérité, même ordre que dans le tiroir et
+       sur la timeline : ils sortent du verdict, pas d'un second calcul */
+    var ws=subsSev(sel.id).warns||[];
     return r.jsxs(r.Fragment,{children:[
       r.jsx(SvmLabel,{style:{margin:"20px 0 10px"},children:"Sous-titre"}),
       r.jsx("textarea",{className:"sub-text",value:sel.text||"",rows:3,
@@ -312,22 +345,32 @@ A_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":rippl
 R_RIPPLE = '''          r.jsx("button",{className:"svm-toolchip","data-on":ripple?"":void 0,
             title:"refermer les trous — suppression et rognage droit sur V1 ("+svmKeyLabel("ripple")+")",onClick:function(){setRipple(!ripple)},children:"ripple"}),
           /* sous-titres : la chip dit combien de lignes porte la piste et
-             combien clochent — le problème se voit à l'endroit où l'on
-             clique, pas dans un rapport que personne n'ouvre */
+             combien sont SIGNALÉES — les deux chiffres sortent du verdict,
+             donc ils valent exactement ceux du badge d'onglet du tiroir et
+             ceux des pastilles de la timeline. Le compteur comptait autrefois
+             autre chose que le badge voisin : deux nombres pour la même
+             notion, jamais d'accord. */
           (function(){
             if(!subsLayer())return null;
-            var n=subsSegsOf(clips).length,wm=subsWarnMap(),bad=0;
-            Object.keys(wm).forEach(function(k){if(wm[k]==="err")bad++});
+            var C=subsVd().counts;
             return r.jsxs("button",{className:"svm-toolchip","data-on":subsOn?"":void 0,
               "aria-pressed":subsOn,
-              title:"Piste de sous-titres S1 — lignes, calage, style et karaoké"+
-                (n?" ("+n+" lignes)":" (piste vide)"),
+              title:"Piste de sous-titres S1 — lignes, calage, style et karaoké. "+
+                (C.repliques
+                  ?C.repliques+" répliques, "+C.signalees+" signalées (dont "+
+                   C.bloquantes+" bloquantes)"
+                  :"piste vide"),
               onClick:subsToggle,children:[
               "sous-titres",
-              n?r.jsx("span",{className:"sub-chipn",children:String(n)},"n"):null,
-              bad?r.jsx("span",{className:"sub-chipbad",
-                title:bad+" sous-titre(s) à corriger",
-                children:String(bad)},"b"):null]})})()]}),'''
+              C.repliques?r.jsx("span",{className:"sub-chipn",
+                title:C.repliques+" répliques sur la piste",
+                children:String(C.repliques)},"n"):null,
+              /* ambre, toujours : le rouge ne sert qu'à ce qui EST bloquant
+                 (la pastille du segment fautif sur la piste, juste dessous) */
+              C.signalees?r.jsx("span",{className:"sub-chipbad","data-sev":"warn",
+                title:C.signalees+" répliques signalées, dont "+C.bloquantes+
+                  " bloquantes",
+                children:String(C.signalees)},"b"):null]})})()]}),'''
 
 # ── S12 : « + » de l'en-tête de piste ────────────────────────────────────────
 A_THADD = '''            var thAdd=r.jsx("button",{className:"svm-ovadd",
@@ -369,9 +412,15 @@ R_VFXSTACK = '''        (sel&&sel.tr==="s1"?null:vfxStackSection())]})]}),'''
 A_CLIPDIV = ('                    onPointerDown:function(e){clipDown(e,c,'
              'e.currentTarget.parentElement)},')
 
-R_CLIPDIV = '''                    /* le problème se voit SUR la timeline : pastille
-                       rouge sur le segment fautif, segment masqué en retrait */
-                    "data-warn":tr.id==="s1"&&subsWarnMap()[c.id]==="err"?"":void 0,
+R_CLIPDIV = '''                    /* le problème se voit SUR la timeline. La pastille porte
+                       la SÉVÉRITÉ que le verdict a décidée — la même que la
+                       pastille de la ligne dans le tiroir, réplique par
+                       réplique. Elle ne connaissait que « rouge ou rien » et
+                       la peignait d'après un calcul à elle : la piste appelait
+                       « critiques » neuf segments que la liste d'à côté
+                       rétrogradait en ambre. */
+                    "data-cid":tr.id==="s1"?c.id:void 0,
+                    "data-warn":tr.id==="s1"?(subsSev(c.id).sev||void 0):void 0,
                     "data-hidden":tr.id==="s1"&&c.hidden?"":void 0,
                     onPointerDown:function(e){clipDown(e,c,e.currentTarget.parentElement)},'''
 
