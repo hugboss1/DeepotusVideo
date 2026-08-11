@@ -4,6 +4,108 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.2.0 "Catalogue de démarrage"
+
+Les trois sous-catégories de **Son & VFX** étaient des promesses non câblées :
+SFX affichait cinq fausses lignes injouables, VFX particules six vignettes
+mortes annonçant « pas encore câblé — $0.06 par élément », Musique « aucun
+backend n'existe aujourd'hui ». Un acheteur sans clé ElevenLabs ni clé fal
+n'avait rien à essayer, seulement des tarifs.
+
+## Catalogue CC0 embarqué — 606 sons, 80 textures, 5 séquences (22 Mo)
+
+| Pièce | Mécanisme |
+|---|---|
+| **Source** | 10 packs [kenney.nl](https://kenney.nl), **Creative Commons Zero** — la seule licence redistribuable dans un installeur commercial sans attribution ni contrainte virale. Freesound/Pixabay ont été écartés : leurs licences sont décidées fichier par fichier, jamais récupérables en masse. |
+| **Fabrication** | `scripts/build_starter_catalog.py` : *fetch → vérification de la licence DANS chaque archive → curation → index → auto-vérification*. Le contrôle de licence n'est pas décoratif — une source qui cesserait d'être CC0 fait **échouer le build** au lieu de contaminer l'installeur. `--check` confronte `catalog.json` aux fichiers présents dans les deux sens (déclaré-absent ET présent-non-déclaré). |
+| **Durées** | lues dans l'en-tête Ogg (granule de la dernière page ÷ fréquence) au moment du build. 606 `ffprobe` au runtime auraient été 606 sous-processus à chaque affichage de liste. |
+| **Service** | montage statique sur `/starter` — traversée de chemin, requêtes Range (lecture audio) et en-têtes de cache déjà traités correctement, plutôt qu'une route maison à écrire. Index via `GET /api/starter/catalog`. |
+| **Import** | `POST /api/starter/import` recopie l'élément dans la Bibliothèque avec le même sidecar qu'un fichier importé. Il devient un asset utilisateur ordinaire : le tiroir Sons, le Montage et le rendu n'ont aucun cas particulier à connaître. |
+
+## Génération de sprites de particules — locale, gratuite, hors ligne
+
+Un système de particules est un **compositeur**, pas un modèle : il n'y avait
+rien à facturer. `particle_service.py` simule l'émetteur en PIL pur (le runtime
+embarqué n'a pas numpy) et repasse le résultat dans `sprite_service._assemble`,
+déjà écrit pour le Sprite Lab. La sortie est un job `sprite2d` ordinaire —
+l'onglet Sprites de la Bibliothèque, la visionneuse GIF, l'export ZIP et le
+pack Unity fonctionnent sans une ligne supplémentaire.
+
+**Le « $0.06 par élément » devient « gratuit · local ».** Un tarif qui survit au
+câblage est un mensonge d'interface.
+
+12 presets = (texture CC0 + réglages d'émetteur), donc la grille de sélection
+est directement exécutable au lieu d'être décorative.
+
+Trois défauts trouvés **en regardant des planches de contact**, invisibles au
+test unitaire :
+
+- **frame 0 entièrement transparente** sur les 12 presets — donc une vignette
+  noire partout dans l'app. Corrigé : la moitié d'un `burst` naît exactement à
+  t=0 (une explosion commence à pleine intensité), et les émetteurs `stream`
+  utilisent un temps **cyclique**, ce qui peuple la frame 0 *et* rend la boucle
+  réellement raccordée — le « alpha · boucle » des presets cesse d'être un
+  mensonge ;
+- **textures directionnelles tournées au hasard** — le départ de coup et la
+  traînée sont des formes qui pointent quelque part ; corrigé par un mode
+  `orient` explicite (`random` / `velocity` / `fixed`) ;
+- **effets d'ambiance émis d'un point** — la neige et les braises doivent
+  couvrir le cadre ; corrigé par une zone de naissance.
+
+## Musique — 4 modèles fal.ai sur la clé déjà configurée
+
+`fal-ai/lyria3` (défaut), `fal-ai/stable-audio-25/text-to-audio`,
+`fal-ai/minimax-music/v2.6`, `CassetteAI/music-generator`, plus 8 ambiances qui
+injectent genre, tempo et instrumentation — un prompt de musique vide donne
+toujours le même résultat tiède, et l'utilisateur ne devine pas ce qui compte.
+
+Chaque modèle **déclare ses capacités** (durée réglable ou imposée, paroles,
+instrumental, graine). Un réglage non supporté est retiré de la charge utile
+**et signalé** dans `notes` : taire des paroles ignorées est pire que les
+refuser. L'UI grise ce que le modèle sélectionné ne sait pas faire.
+
+## Correctifs
+
+- **Le rail de Son & VFX affichait les VOIX quel que soit le générateur
+  sélectionné.** Le rail et les onglets étaient deux états indépendants :
+  choisir « VFX particules » laissait une liste de comédiens à l'écran.
+  `pickGen`/`pickTab` partagent désormais une seule sélection, dans les deux
+  sens.
+- Côté SFX, le catalogue livré (gratuit) s'affiche **avant** la carte de
+  génération facturée : un utilisateur sans clé atteint quelque chose
+  d'utilisable avant d'atteindre un prix.
+- **Sprite Lab** : nouvel onglet « ✨ Démarrer », en première position — les
+  trois autres (Image / Render / Vidéo) sont vides pour un nouvel utilisateur.
+
+## Outillage
+
+`scripts/reapply_inblock_patches.py`. Rafraîchir le bloc `sonvfx` effaçait
+**silencieusement 22 correctifs** de `vfxrack` et `subs`, qui modifient
+l'*intérieur* de ce bloc : bundle syntaxiquement valide, quatre marqueurs
+présents, taille quasi identique — et pourtant la piste de sous-titres et le
+rack VFX avaient disparu de l'éditeur. `repatch_all.py --from sonvfx` ne répare
+pas ce cas (il donne aux patchers aval un `.bak` contenant déjà le résultat de
+leurs couples hors-bloc, dont les ancres sont alors introuvables).
+
+Le nouvel outil rafraîchit puis rejoue les couples **en ne cherchant les ancres
+qu'entre les bornes du bloc**, donc sans jamais dupliquer un couple hors-bloc.
+Idempotent, vérifié sur trois passes.
+
+Piège associé, documenté dans le README : les blocs injectés sont en **CRLF**.
+Une source de patch réécrite en LF fait échouer toutes les ancres multi-lignes,
+sans autre symptôme qu'un `anchor count=0`.
+
+## Tests
+
+47 nouveaux (`backend/tests/test_starter_particles.py`) : licence CC0 de chaque
+source, intégrité du catalogue dans les deux sens, exhaustivité des familles,
+frame 0 non vide de **chaque** preset, déterminisme à graine fixe, raccord de
+boucle, confinement des chemins d'assets, et contrat de chaque modèle de
+musique. Suite existante : 50/51 — le seul échec (`test_mesh_optimize`,
+gltfpack non provisionné) est antérieur.
+
+---
+
 # 🐙 Deepotus Video Gen — v2.1.0 "3D Studio"
 
 ## 🐙 3D Studio Meshy — écran 1 du design « DeepOtus Studio » (spec `INTEGRATION-MESHY.md`)

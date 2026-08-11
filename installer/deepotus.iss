@@ -12,7 +12,7 @@
 ; ============================================================
 
 #define MyAppName "Deepotus Video Gen"
-#define MyAppVersion "2.1.0"
+#define MyAppVersion "2.2.0"
 #define MyAppPublisher "Deepotus"
 ; StageDir est normalement fourni par build-installer.ps1 via /DStageDir=<...>
 ; (stage court, D:\dz par défaut). Le define ci-dessous n'est qu'un secours
