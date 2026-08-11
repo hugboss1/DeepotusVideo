@@ -59,3 +59,6 @@ frontend/dist/assets/*.js.bak_*
 
 # ── Sorties locales d'outils (jamais versionnées) ─────────────────────────────
 graphify-out/
+
+# Archives sources du catalogue de demarrage (retelechargeables : build_starter_catalog.py --fetch)
+.cache/

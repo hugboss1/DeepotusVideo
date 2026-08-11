@@ -1,0 +1,6404 @@
+{
+ "version": 1,
+ "generated_at": "2026-08-11T10:10:15Z",
+ "sources": [
+  {
+   "id": "kenney-particle-pack",
+   "name": "Particle Pack",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/particle-pack",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-smoke-particles",
+   "name": "Smoke Particles",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/smoke-particles",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-impact-sounds",
+   "name": "Impact Sounds",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/impact-sounds",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-interface-sounds",
+   "name": "Interface Sounds",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/interface-sounds",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-ui-audio",
+   "name": "UI Audio",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/ui-audio",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-digital-audio",
+   "name": "Digital Audio",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/digital-audio",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-sci-fi-sounds",
+   "name": "Sci-fi Sounds",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/sci-fi-sounds",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-rpg-audio",
+   "name": "RPG Audio",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/rpg-audio",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-music-jingles",
+   "name": "Music Jingles",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/music-jingles",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+   "id": "kenney-casino-audio",
+   "name": "Casino Audio",
+   "author": "Kenney",
+   "url": "https://kenney.nl/assets/casino-audio",
+   "license": "CC0-1.0",
+   "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  }
+ ],
+ "sfx_families": [
+  {
+   "id": "impacts",
+   "name": "Impacts & explosions",
+   "desc": "Chocs, coups, verre, métal, bois, explosions",
+   "count": 117
+  },
+  {
+   "id": "steps",
+   "name": "Pas & matières",
+   "desc": "Pas au sol, tissu, cuir, grincements, découpe",
+   "count": 55
+  },
+  {
+   "id": "interface",
+   "name": "Interface",
+   "desc": "Clics, bascules, confirmations, erreurs, survols",
+   "count": 151
+  },
+  {
+   "id": "digital",
+   "name": "Numérique & rétro",
+   "desc": "Zaps, bips, power-up, tonalités arcade",
+   "count": 62
+  },
+  {
+   "id": "scifi",
+   "name": "Science-fiction",
+   "desc": "Lasers, moteurs, champs de force, sas",
+   "count": 61
+  },
+  {
+   "id": "objects",
+   "name": "Objets & décor",
+   "desc": "Portes, livres, pièces, serrures, ustensiles",
+   "count": 21
+  },
+  {
+   "id": "cards",
+   "name": "Cartes & jetons",
+   "desc": "Cartes battues, jetons, dés",
+   "count": 54
+  },
+  {
+   "id": "jingles",
+   "name": "Jingles",
+   "desc": "Stingers courts — victoire, échec, transition",
+   "count": 85
+  }
+ ],
+ "particle_families": [
+  {
+   "id": "circle",
+   "name": "Disques",
+   "desc": "Disques doux — base de halo et de fumée",
+   "count": 5,
+   "cover": "circle_01"
+  },
+  {
+   "id": "dirt",
+   "name": "Poussière",
+   "desc": "Éclats de terre et de gravats",
+   "count": 3,
+   "cover": "dirt_01"
+  },
+  {
+   "id": "fire",
+   "name": "Feu",
+   "desc": "Boules de feu pleines",
+   "count": 2,
+   "cover": "fire_01"
+  },
+  {
+   "id": "flame",
+   "name": "Flammes",
+   "desc": "Langues de flamme étirées",
+   "count": 6,
+   "cover": "flame_01"
+  },
+  {
+   "id": "flare",
+   "name": "Halo",
+   "desc": "Halo lenticulaire",
+   "count": 1,
+   "cover": "flare_01"
+  },
+  {
+   "id": "light",
+   "name": "Lumière",
+   "desc": "Points lumineux et lueurs",
+   "count": 3,
+   "cover": "light_01"
+  },
+  {
+   "id": "magic",
+   "name": "Magie",
+   "desc": "Volutes et runes",
+   "count": 5,
+   "cover": "magic_01"
+  },
+  {
+   "id": "muzzle",
+   "name": "Départ de coup",
+   "desc": "Éclairs de bouche",
+   "count": 5,
+   "cover": "muzzle_01"
+  },
+  {
+   "id": "scorch",
+   "name": "Brûlure",
+   "desc": "Traces de suie",
+   "count": 3,
+   "cover": "scorch_01"
+  },
+  {
+   "id": "scratch",
+   "name": "Griffure",
+   "desc": "Rayures",
+   "count": 1,
+   "cover": "scratch_01"
+  },
+  {
+   "id": "slash",
+   "name": "Entaille",
+   "desc": "Coups de lame",
+   "count": 4,
+   "cover": "slash_01"
+  },
+  {
+   "id": "smoke",
+   "name": "Fumée",
+   "desc": "Bouffées douces",
+   "count": 10,
+   "cover": "smoke_01"
+  },
+  {
+   "id": "spark",
+   "name": "Étincelles",
+   "desc": "Grains lumineux",
+   "count": 7,
+   "cover": "spark_01"
+  },
+  {
+   "id": "star",
+   "name": "Étoiles",
+   "desc": "Étoiles et éclats",
+   "count": 9,
+   "cover": "star_01"
+  },
+  {
+   "id": "symbol",
+   "name": "Symboles",
+   "desc": "Glyphes",
+   "count": 2,
+   "cover": "symbol_01"
+  },
+  {
+   "id": "trace",
+   "name": "Traînées",
+   "desc": "Sillages et rubans",
+   "count": 7,
+   "cover": "trace_01"
+  },
+  {
+   "id": "twirl",
+   "name": "Spirales",
+   "desc": "Tourbillons",
+   "count": 3,
+   "cover": "twirl_01"
+  },
+  {
+   "id": "window",
+   "name": "Fenêtres",
+   "desc": "Cadres et bordures",
+   "count": 4,
+   "cover": "window_01"
+  }
+ ],
+ "particles": [
+  {
+   "id": "circle_01",
+   "family": "circle",
+   "name": "Disques 01",
+   "file": "particles/circle_01.png",
+   "thumb": "particles/thumb/circle_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "circle_02",
+   "family": "circle",
+   "name": "Disques 02",
+   "file": "particles/circle_02.png",
+   "thumb": "particles/thumb/circle_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "circle_03",
+   "family": "circle",
+   "name": "Disques 03",
+   "file": "particles/circle_03.png",
+   "thumb": "particles/thumb/circle_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "circle_04",
+   "family": "circle",
+   "name": "Disques 04",
+   "file": "particles/circle_04.png",
+   "thumb": "particles/thumb/circle_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "circle_05",
+   "family": "circle",
+   "name": "Disques 05",
+   "file": "particles/circle_05.png",
+   "thumb": "particles/thumb/circle_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "dirt_01",
+   "family": "dirt",
+   "name": "Poussière 01",
+   "file": "particles/dirt_01.png",
+   "thumb": "particles/thumb/dirt_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "dirt_02",
+   "family": "dirt",
+   "name": "Poussière 02",
+   "file": "particles/dirt_02.png",
+   "thumb": "particles/thumb/dirt_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "dirt_03",
+   "family": "dirt",
+   "name": "Poussière 03",
+   "file": "particles/dirt_03.png",
+   "thumb": "particles/thumb/dirt_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "fire_01",
+   "family": "fire",
+   "name": "Feu 01",
+   "file": "particles/fire_01.png",
+   "thumb": "particles/thumb/fire_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "fire_02",
+   "family": "fire",
+   "name": "Feu 02",
+   "file": "particles/fire_02.png",
+   "thumb": "particles/thumb/fire_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_01",
+   "family": "flame",
+   "name": "Flammes 01",
+   "file": "particles/flame_01.png",
+   "thumb": "particles/thumb/flame_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_02",
+   "family": "flame",
+   "name": "Flammes 02",
+   "file": "particles/flame_02.png",
+   "thumb": "particles/thumb/flame_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_03",
+   "family": "flame",
+   "name": "Flammes 03",
+   "file": "particles/flame_03.png",
+   "thumb": "particles/thumb/flame_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_04",
+   "family": "flame",
+   "name": "Flammes 04",
+   "file": "particles/flame_04.png",
+   "thumb": "particles/thumb/flame_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_05",
+   "family": "flame",
+   "name": "Flammes 05",
+   "file": "particles/flame_05.png",
+   "thumb": "particles/thumb/flame_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flame_06",
+   "family": "flame",
+   "name": "Flammes 06",
+   "file": "particles/flame_06.png",
+   "thumb": "particles/thumb/flame_06.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "flare_01",
+   "family": "flare",
+   "name": "Halo 01",
+   "file": "particles/flare_01.png",
+   "thumb": "particles/thumb/flare_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "light_01",
+   "family": "light",
+   "name": "Lumière 01",
+   "file": "particles/light_01.png",
+   "thumb": "particles/thumb/light_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "light_02",
+   "family": "light",
+   "name": "Lumière 02",
+   "file": "particles/light_02.png",
+   "thumb": "particles/thumb/light_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "light_03",
+   "family": "light",
+   "name": "Lumière 03",
+   "file": "particles/light_03.png",
+   "thumb": "particles/thumb/light_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "magic_01",
+   "family": "magic",
+   "name": "Magie 01",
+   "file": "particles/magic_01.png",
+   "thumb": "particles/thumb/magic_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "magic_02",
+   "family": "magic",
+   "name": "Magie 02",
+   "file": "particles/magic_02.png",
+   "thumb": "particles/thumb/magic_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "magic_03",
+   "family": "magic",
+   "name": "Magie 03",
+   "file": "particles/magic_03.png",
+   "thumb": "particles/thumb/magic_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "magic_04",
+   "family": "magic",
+   "name": "Magie 04",
+   "file": "particles/magic_04.png",
+   "thumb": "particles/thumb/magic_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "magic_05",
+   "family": "magic",
+   "name": "Magie 05",
+   "file": "particles/magic_05.png",
+   "thumb": "particles/thumb/magic_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "muzzle_01",
+   "family": "muzzle",
+   "name": "Départ de coup 01",
+   "file": "particles/muzzle_01.png",
+   "thumb": "particles/thumb/muzzle_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "muzzle_02",
+   "family": "muzzle",
+   "name": "Départ de coup 02",
+   "file": "particles/muzzle_02.png",
+   "thumb": "particles/thumb/muzzle_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "muzzle_03",
+   "family": "muzzle",
+   "name": "Départ de coup 03",
+   "file": "particles/muzzle_03.png",
+   "thumb": "particles/thumb/muzzle_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "muzzle_04",
+   "family": "muzzle",
+   "name": "Départ de coup 04",
+   "file": "particles/muzzle_04.png",
+   "thumb": "particles/thumb/muzzle_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "muzzle_05",
+   "family": "muzzle",
+   "name": "Départ de coup 05",
+   "file": "particles/muzzle_05.png",
+   "thumb": "particles/thumb/muzzle_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "scorch_01",
+   "family": "scorch",
+   "name": "Brûlure 01",
+   "file": "particles/scorch_01.png",
+   "thumb": "particles/thumb/scorch_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "scorch_02",
+   "family": "scorch",
+   "name": "Brûlure 02",
+   "file": "particles/scorch_02.png",
+   "thumb": "particles/thumb/scorch_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "scorch_03",
+   "family": "scorch",
+   "name": "Brûlure 03",
+   "file": "particles/scorch_03.png",
+   "thumb": "particles/thumb/scorch_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "scratch_01",
+   "family": "scratch",
+   "name": "Griffure 01",
+   "file": "particles/scratch_01.png",
+   "thumb": "particles/thumb/scratch_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "slash_01",
+   "family": "slash",
+   "name": "Entaille 01",
+   "file": "particles/slash_01.png",
+   "thumb": "particles/thumb/slash_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "slash_02",
+   "family": "slash",
+   "name": "Entaille 02",
+   "file": "particles/slash_02.png",
+   "thumb": "particles/thumb/slash_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "slash_03",
+   "family": "slash",
+   "name": "Entaille 03",
+   "file": "particles/slash_03.png",
+   "thumb": "particles/thumb/slash_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "slash_04",
+   "family": "slash",
+   "name": "Entaille 04",
+   "file": "particles/slash_04.png",
+   "thumb": "particles/thumb/slash_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_01",
+   "family": "smoke",
+   "name": "Fumée 01",
+   "file": "particles/smoke_01.png",
+   "thumb": "particles/thumb/smoke_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_02",
+   "family": "smoke",
+   "name": "Fumée 02",
+   "file": "particles/smoke_02.png",
+   "thumb": "particles/thumb/smoke_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_03",
+   "family": "smoke",
+   "name": "Fumée 03",
+   "file": "particles/smoke_03.png",
+   "thumb": "particles/thumb/smoke_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_04",
+   "family": "smoke",
+   "name": "Fumée 04",
+   "file": "particles/smoke_04.png",
+   "thumb": "particles/thumb/smoke_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_05",
+   "family": "smoke",
+   "name": "Fumée 05",
+   "file": "particles/smoke_05.png",
+   "thumb": "particles/thumb/smoke_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_06",
+   "family": "smoke",
+   "name": "Fumée 06",
+   "file": "particles/smoke_06.png",
+   "thumb": "particles/thumb/smoke_06.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_07",
+   "family": "smoke",
+   "name": "Fumée 07",
+   "file": "particles/smoke_07.png",
+   "thumb": "particles/thumb/smoke_07.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_08",
+   "family": "smoke",
+   "name": "Fumée 08",
+   "file": "particles/smoke_08.png",
+   "thumb": "particles/thumb/smoke_08.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_09",
+   "family": "smoke",
+   "name": "Fumée 09",
+   "file": "particles/smoke_09.png",
+   "thumb": "particles/thumb/smoke_09.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "smoke_10",
+   "family": "smoke",
+   "name": "Fumée 10",
+   "file": "particles/smoke_10.png",
+   "thumb": "particles/thumb/smoke_10.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_01",
+   "family": "spark",
+   "name": "Étincelles 01",
+   "file": "particles/spark_01.png",
+   "thumb": "particles/thumb/spark_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_02",
+   "family": "spark",
+   "name": "Étincelles 02",
+   "file": "particles/spark_02.png",
+   "thumb": "particles/thumb/spark_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_03",
+   "family": "spark",
+   "name": "Étincelles 03",
+   "file": "particles/spark_03.png",
+   "thumb": "particles/thumb/spark_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_04",
+   "family": "spark",
+   "name": "Étincelles 04",
+   "file": "particles/spark_04.png",
+   "thumb": "particles/thumb/spark_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_05",
+   "family": "spark",
+   "name": "Étincelles 05",
+   "file": "particles/spark_05.png",
+   "thumb": "particles/thumb/spark_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_06",
+   "family": "spark",
+   "name": "Étincelles 06",
+   "file": "particles/spark_06.png",
+   "thumb": "particles/thumb/spark_06.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "spark_07",
+   "family": "spark",
+   "name": "Étincelles 07",
+   "file": "particles/spark_07.png",
+   "thumb": "particles/thumb/spark_07.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_01",
+   "family": "star",
+   "name": "Étoiles 01",
+   "file": "particles/star_01.png",
+   "thumb": "particles/thumb/star_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_02",
+   "family": "star",
+   "name": "Étoiles 02",
+   "file": "particles/star_02.png",
+   "thumb": "particles/thumb/star_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_03",
+   "family": "star",
+   "name": "Étoiles 03",
+   "file": "particles/star_03.png",
+   "thumb": "particles/thumb/star_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_04",
+   "family": "star",
+   "name": "Étoiles 04",
+   "file": "particles/star_04.png",
+   "thumb": "particles/thumb/star_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_05",
+   "family": "star",
+   "name": "Étoiles 05",
+   "file": "particles/star_05.png",
+   "thumb": "particles/thumb/star_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_06",
+   "family": "star",
+   "name": "Étoiles 06",
+   "file": "particles/star_06.png",
+   "thumb": "particles/thumb/star_06.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_07",
+   "family": "star",
+   "name": "Étoiles 07",
+   "file": "particles/star_07.png",
+   "thumb": "particles/thumb/star_07.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_08",
+   "family": "star",
+   "name": "Étoiles 08",
+   "file": "particles/star_08.png",
+   "thumb": "particles/thumb/star_08.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "star_09",
+   "family": "star",
+   "name": "Étoiles 09",
+   "file": "particles/star_09.png",
+   "thumb": "particles/thumb/star_09.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "symbol_01",
+   "family": "symbol",
+   "name": "Symboles 01",
+   "file": "particles/symbol_01.png",
+   "thumb": "particles/thumb/symbol_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "symbol_02",
+   "family": "symbol",
+   "name": "Symboles 02",
+   "file": "particles/symbol_02.png",
+   "thumb": "particles/thumb/symbol_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_01",
+   "family": "trace",
+   "name": "Traînées 01",
+   "file": "particles/trace_01.png",
+   "thumb": "particles/thumb/trace_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_02",
+   "family": "trace",
+   "name": "Traînées 02",
+   "file": "particles/trace_02.png",
+   "thumb": "particles/thumb/trace_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_03",
+   "family": "trace",
+   "name": "Traînées 03",
+   "file": "particles/trace_03.png",
+   "thumb": "particles/thumb/trace_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_04",
+   "family": "trace",
+   "name": "Traînées 04",
+   "file": "particles/trace_04.png",
+   "thumb": "particles/thumb/trace_04.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_05",
+   "family": "trace",
+   "name": "Traînées 05",
+   "file": "particles/trace_05.png",
+   "thumb": "particles/thumb/trace_05.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_06",
+   "family": "trace",
+   "name": "Traînées 06",
+   "file": "particles/trace_06.png",
+   "thumb": "particles/thumb/trace_06.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "trace_07",
+   "family": "trace",
+   "name": "Traînées 07",
+   "file": "particles/trace_07.png",
+   "thumb": "particles/thumb/trace_07.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "twirl_01",
+   "family": "twirl",
+   "name": "Spirales 01",
+   "file": "particles/twirl_01.png",
+   "thumb": "particles/thumb/twirl_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "twirl_02",
+   "family": "twirl",
+   "name": "Spirales 02",
+   "file": "particles/twirl_02.png",
+   "thumb": "particles/thumb/twirl_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "twirl_03",
+   "family": "twirl",
+   "name": "Spirales 03",
+   "file": "particles/twirl_03.png",
+   "thumb": "particles/thumb/twirl_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "window_01",
+   "family": "window",
+   "name": "Fenêtres 01",
+   "file": "particles/window_01.png",
+   "thumb": "particles/thumb/window_01.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "window_02",
+   "family": "window",
+   "name": "Fenêtres 02",
+   "file": "particles/window_02.png",
+   "thumb": "particles/thumb/window_02.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "window_03",
+   "family": "window",
+   "name": "Fenêtres 03",
+   "file": "particles/window_03.png",
+   "thumb": "particles/thumb/window_03.png",
+   "source": "kenney-particle-pack"
+  },
+  {
+   "id": "window_04",
+   "family": "window",
+   "name": "Fenêtres 04",
+   "file": "particles/window_04.png",
+   "thumb": "particles/thumb/window_04.png",
+   "source": "kenney-particle-pack"
+  }
+ ],
+ "anims": [
+  {
+   "id": "black-smoke",
+   "name": "Fumée noire",
+   "frames": 25,
+   "dir": "anims/black-smoke",
+   "thumb": "anims/black-smoke/thumb.png",
+   "source": "kenney-smoke-particles"
+  },
+  {
+   "id": "explosion",
+   "name": "Explosion",
+   "frames": 9,
+   "dir": "anims/explosion",
+   "thumb": "anims/explosion/thumb.png",
+   "source": "kenney-smoke-particles"
+  },
+  {
+   "id": "low-puff",
+   "name": "Bouffée basse",
+   "frames": 9,
+   "dir": "anims/low-puff",
+   "thumb": "anims/low-puff/thumb.png",
+   "source": "kenney-smoke-particles"
+  },
+  {
+   "id": "flash",
+   "name": "Flash",
+   "frames": 9,
+   "dir": "anims/flash",
+   "thumb": "anims/flash/thumb.png",
+   "source": "kenney-smoke-particles"
+  },
+  {
+   "id": "white-puff",
+   "name": "Bouffée blanche",
+   "frames": 25,
+   "dir": "anims/white-puff",
+   "thumb": "anims/white-puff/thumb.png",
+   "source": "kenney-smoke-particles"
+  }
+ ],
+ "sfx": [
+  {
+   "id": "impact-sounds__footstep_carpet_000",
+   "family": "steps",
+   "name": "Pas sur tapis 000",
+   "stem": "footstep_carpet",
+   "file": "sfx/steps/impact-sounds__footstep_carpet_000.ogg",
+   "dur": 0.145,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_carpet_001",
+   "family": "steps",
+   "name": "Pas sur tapis 001",
+   "stem": "footstep_carpet",
+   "file": "sfx/steps/impact-sounds__footstep_carpet_001.ogg",
+   "dur": 0.145,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_carpet_002",
+   "family": "steps",
+   "name": "Pas sur tapis 002",
+   "stem": "footstep_carpet",
+   "file": "sfx/steps/impact-sounds__footstep_carpet_002.ogg",
+   "dur": 0.145,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_carpet_003",
+   "family": "steps",
+   "name": "Pas sur tapis 003",
+   "stem": "footstep_carpet",
+   "file": "sfx/steps/impact-sounds__footstep_carpet_003.ogg",
+   "dur": 0.145,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_carpet_004",
+   "family": "steps",
+   "name": "Pas sur tapis 004",
+   "stem": "footstep_carpet",
+   "file": "sfx/steps/impact-sounds__footstep_carpet_004.ogg",
+   "dur": 0.145,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_concrete_000",
+   "family": "steps",
+   "name": "Pas sur béton 000",
+   "stem": "footstep_concrete",
+   "file": "sfx/steps/impact-sounds__footstep_concrete_000.ogg",
+   "dur": 0.106,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_concrete_001",
+   "family": "steps",
+   "name": "Pas sur béton 001",
+   "stem": "footstep_concrete",
+   "file": "sfx/steps/impact-sounds__footstep_concrete_001.ogg",
+   "dur": 0.108,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_concrete_002",
+   "family": "steps",
+   "name": "Pas sur béton 002",
+   "stem": "footstep_concrete",
+   "file": "sfx/steps/impact-sounds__footstep_concrete_002.ogg",
+   "dur": 0.113,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_concrete_003",
+   "family": "steps",
+   "name": "Pas sur béton 003",
+   "stem": "footstep_concrete",
+   "file": "sfx/steps/impact-sounds__footstep_concrete_003.ogg",
+   "dur": 0.11,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_concrete_004",
+   "family": "steps",
+   "name": "Pas sur béton 004",
+   "stem": "footstep_concrete",
+   "file": "sfx/steps/impact-sounds__footstep_concrete_004.ogg",
+   "dur": 0.114,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_grass_000",
+   "family": "steps",
+   "name": "Pas sur herbe 000",
+   "stem": "footstep_grass",
+   "file": "sfx/steps/impact-sounds__footstep_grass_000.ogg",
+   "dur": 0.778,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_grass_001",
+   "family": "steps",
+   "name": "Pas sur herbe 001",
+   "stem": "footstep_grass",
+   "file": "sfx/steps/impact-sounds__footstep_grass_001.ogg",
+   "dur": 0.674,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_grass_002",
+   "family": "steps",
+   "name": "Pas sur herbe 002",
+   "stem": "footstep_grass",
+   "file": "sfx/steps/impact-sounds__footstep_grass_002.ogg",
+   "dur": 0.692,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_grass_003",
+   "family": "steps",
+   "name": "Pas sur herbe 003",
+   "stem": "footstep_grass",
+   "file": "sfx/steps/impact-sounds__footstep_grass_003.ogg",
+   "dur": 0.669,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_grass_004",
+   "family": "steps",
+   "name": "Pas sur herbe 004",
+   "stem": "footstep_grass",
+   "file": "sfx/steps/impact-sounds__footstep_grass_004.ogg",
+   "dur": 0.59,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_snow_000",
+   "family": "steps",
+   "name": "Pas dans la neige 000",
+   "stem": "footstep_snow",
+   "file": "sfx/steps/impact-sounds__footstep_snow_000.ogg",
+   "dur": 0.374,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_snow_001",
+   "family": "steps",
+   "name": "Pas dans la neige 001",
+   "stem": "footstep_snow",
+   "file": "sfx/steps/impact-sounds__footstep_snow_001.ogg",
+   "dur": 0.374,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_snow_002",
+   "family": "steps",
+   "name": "Pas dans la neige 002",
+   "stem": "footstep_snow",
+   "file": "sfx/steps/impact-sounds__footstep_snow_002.ogg",
+   "dur": 0.374,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_snow_003",
+   "family": "steps",
+   "name": "Pas dans la neige 003",
+   "stem": "footstep_snow",
+   "file": "sfx/steps/impact-sounds__footstep_snow_003.ogg",
+   "dur": 0.374,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_snow_004",
+   "family": "steps",
+   "name": "Pas dans la neige 004",
+   "stem": "footstep_snow",
+   "file": "sfx/steps/impact-sounds__footstep_snow_004.ogg",
+   "dur": 0.374,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_wood_000",
+   "family": "steps",
+   "name": "Pas sur bois 000",
+   "stem": "footstep_wood",
+   "file": "sfx/steps/impact-sounds__footstep_wood_000.ogg",
+   "dur": 0.25,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_wood_001",
+   "family": "steps",
+   "name": "Pas sur bois 001",
+   "stem": "footstep_wood",
+   "file": "sfx/steps/impact-sounds__footstep_wood_001.ogg",
+   "dur": 0.252,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_wood_002",
+   "family": "steps",
+   "name": "Pas sur bois 002",
+   "stem": "footstep_wood",
+   "file": "sfx/steps/impact-sounds__footstep_wood_002.ogg",
+   "dur": 0.251,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_wood_003",
+   "family": "steps",
+   "name": "Pas sur bois 003",
+   "stem": "footstep_wood",
+   "file": "sfx/steps/impact-sounds__footstep_wood_003.ogg",
+   "dur": 0.252,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__footstep_wood_004",
+   "family": "steps",
+   "name": "Pas sur bois 004",
+   "stem": "footstep_wood",
+   "file": "sfx/steps/impact-sounds__footstep_wood_004.ogg",
+   "dur": 0.248,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactBell_heavy_000",
+   "family": "impacts",
+   "name": "Cloche, lourd 000",
+   "stem": "impactBell_heavy",
+   "file": "sfx/impacts/impact-sounds__impactBell_heavy_000.ogg",
+   "dur": 1.48,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactBell_heavy_001",
+   "family": "impacts",
+   "name": "Cloche, lourd 001",
+   "stem": "impactBell_heavy",
+   "file": "sfx/impacts/impact-sounds__impactBell_heavy_001.ogg",
+   "dur": 1.741,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactBell_heavy_002",
+   "family": "impacts",
+   "name": "Cloche, lourd 002",
+   "stem": "impactBell_heavy",
+   "file": "sfx/impacts/impact-sounds__impactBell_heavy_002.ogg",
+   "dur": 0.697,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactBell_heavy_003",
+   "family": "impacts",
+   "name": "Cloche, lourd 003",
+   "stem": "impactBell_heavy",
+   "file": "sfx/impacts/impact-sounds__impactBell_heavy_003.ogg",
+   "dur": 0.654,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactBell_heavy_004",
+   "family": "impacts",
+   "name": "Cloche, lourd 004",
+   "stem": "impactBell_heavy",
+   "file": "sfx/impacts/impact-sounds__impactBell_heavy_004.ogg",
+   "dur": 0.301,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGeneric_light_000",
+   "family": "impacts",
+   "name": "Impact générique, léger 000",
+   "stem": "impactGeneric_light",
+   "file": "sfx/impacts/impact-sounds__impactGeneric_light_000.ogg",
+   "dur": 0.139,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGeneric_light_001",
+   "family": "impacts",
+   "name": "Impact générique, léger 001",
+   "stem": "impactGeneric_light",
+   "file": "sfx/impacts/impact-sounds__impactGeneric_light_001.ogg",
+   "dur": 0.118,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGeneric_light_002",
+   "family": "impacts",
+   "name": "Impact générique, léger 002",
+   "stem": "impactGeneric_light",
+   "file": "sfx/impacts/impact-sounds__impactGeneric_light_002.ogg",
+   "dur": 0.14,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGeneric_light_003",
+   "family": "impacts",
+   "name": "Impact générique, léger 003",
+   "stem": "impactGeneric_light",
+   "file": "sfx/impacts/impact-sounds__impactGeneric_light_003.ogg",
+   "dur": 0.138,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGeneric_light_004",
+   "family": "impacts",
+   "name": "Impact générique, léger 004",
+   "stem": "impactGeneric_light",
+   "file": "sfx/impacts/impact-sounds__impactGeneric_light_004.ogg",
+   "dur": 0.14,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_heavy_000",
+   "family": "impacts",
+   "name": "Verre, lourd 000",
+   "stem": "impactGlass_heavy",
+   "file": "sfx/impacts/impact-sounds__impactGlass_heavy_000.ogg",
+   "dur": 0.241,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_heavy_001",
+   "family": "impacts",
+   "name": "Verre, lourd 001",
+   "stem": "impactGlass_heavy",
+   "file": "sfx/impacts/impact-sounds__impactGlass_heavy_001.ogg",
+   "dur": 0.429,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_heavy_002",
+   "family": "impacts",
+   "name": "Verre, lourd 002",
+   "stem": "impactGlass_heavy",
+   "file": "sfx/impacts/impact-sounds__impactGlass_heavy_002.ogg",
+   "dur": 0.247,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_heavy_003",
+   "family": "impacts",
+   "name": "Verre, lourd 003",
+   "stem": "impactGlass_heavy",
+   "file": "sfx/impacts/impact-sounds__impactGlass_heavy_003.ogg",
+   "dur": 0.172,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_heavy_004",
+   "family": "impacts",
+   "name": "Verre, lourd 004",
+   "stem": "impactGlass_heavy",
+   "file": "sfx/impacts/impact-sounds__impactGlass_heavy_004.ogg",
+   "dur": 0.399,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_light_000",
+   "family": "impacts",
+   "name": "Verre, léger 000",
+   "stem": "impactGlass_light",
+   "file": "sfx/impacts/impact-sounds__impactGlass_light_000.ogg",
+   "dur": 0.21,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_light_001",
+   "family": "impacts",
+   "name": "Verre, léger 001",
+   "stem": "impactGlass_light",
+   "file": "sfx/impacts/impact-sounds__impactGlass_light_001.ogg",
+   "dur": 0.21,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_light_002",
+   "family": "impacts",
+   "name": "Verre, léger 002",
+   "stem": "impactGlass_light",
+   "file": "sfx/impacts/impact-sounds__impactGlass_light_002.ogg",
+   "dur": 0.21,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_light_003",
+   "family": "impacts",
+   "name": "Verre, léger 003",
+   "stem": "impactGlass_light",
+   "file": "sfx/impacts/impact-sounds__impactGlass_light_003.ogg",
+   "dur": 0.21,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_light_004",
+   "family": "impacts",
+   "name": "Verre, léger 004",
+   "stem": "impactGlass_light",
+   "file": "sfx/impacts/impact-sounds__impactGlass_light_004.ogg",
+   "dur": 0.21,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_medium_000",
+   "family": "impacts",
+   "name": "Verre, moyen 000",
+   "stem": "impactGlass_medium",
+   "file": "sfx/impacts/impact-sounds__impactGlass_medium_000.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_medium_001",
+   "family": "impacts",
+   "name": "Verre, moyen 001",
+   "stem": "impactGlass_medium",
+   "file": "sfx/impacts/impact-sounds__impactGlass_medium_001.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_medium_002",
+   "family": "impacts",
+   "name": "Verre, moyen 002",
+   "stem": "impactGlass_medium",
+   "file": "sfx/impacts/impact-sounds__impactGlass_medium_002.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_medium_003",
+   "family": "impacts",
+   "name": "Verre, moyen 003",
+   "stem": "impactGlass_medium",
+   "file": "sfx/impacts/impact-sounds__impactGlass_medium_003.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactGlass_medium_004",
+   "family": "impacts",
+   "name": "Verre, moyen 004",
+   "stem": "impactGlass_medium",
+   "file": "sfx/impacts/impact-sounds__impactGlass_medium_004.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_heavy_000",
+   "family": "impacts",
+   "name": "Métal, lourd 000",
+   "stem": "impactMetal_heavy",
+   "file": "sfx/impacts/impact-sounds__impactMetal_heavy_000.ogg",
+   "dur": 0.168,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_heavy_001",
+   "family": "impacts",
+   "name": "Métal, lourd 001",
+   "stem": "impactMetal_heavy",
+   "file": "sfx/impacts/impact-sounds__impactMetal_heavy_001.ogg",
+   "dur": 0.359,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_heavy_002",
+   "family": "impacts",
+   "name": "Métal, lourd 002",
+   "stem": "impactMetal_heavy",
+   "file": "sfx/impacts/impact-sounds__impactMetal_heavy_002.ogg",
+   "dur": 0.117,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_heavy_003",
+   "family": "impacts",
+   "name": "Métal, lourd 003",
+   "stem": "impactMetal_heavy",
+   "file": "sfx/impacts/impact-sounds__impactMetal_heavy_003.ogg",
+   "dur": 0.207,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_heavy_004",
+   "family": "impacts",
+   "name": "Métal, lourd 004",
+   "stem": "impactMetal_heavy",
+   "file": "sfx/impacts/impact-sounds__impactMetal_heavy_004.ogg",
+   "dur": 0.134,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_light_000",
+   "family": "impacts",
+   "name": "Métal, léger 000",
+   "stem": "impactMetal_light",
+   "file": "sfx/impacts/impact-sounds__impactMetal_light_000.ogg",
+   "dur": 0.351,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_light_001",
+   "family": "impacts",
+   "name": "Métal, léger 001",
+   "stem": "impactMetal_light",
+   "file": "sfx/impacts/impact-sounds__impactMetal_light_001.ogg",
+   "dur": 0.252,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_light_002",
+   "family": "impacts",
+   "name": "Métal, léger 002",
+   "stem": "impactMetal_light",
+   "file": "sfx/impacts/impact-sounds__impactMetal_light_002.ogg",
+   "dur": 0.236,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_light_003",
+   "family": "impacts",
+   "name": "Métal, léger 003",
+   "stem": "impactMetal_light",
+   "file": "sfx/impacts/impact-sounds__impactMetal_light_003.ogg",
+   "dur": 0.482,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_light_004",
+   "family": "impacts",
+   "name": "Métal, léger 004",
+   "stem": "impactMetal_light",
+   "file": "sfx/impacts/impact-sounds__impactMetal_light_004.ogg",
+   "dur": 0.213,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_medium_000",
+   "family": "impacts",
+   "name": "Métal, moyen 000",
+   "stem": "impactMetal_medium",
+   "file": "sfx/impacts/impact-sounds__impactMetal_medium_000.ogg",
+   "dur": 0.272,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_medium_001",
+   "family": "impacts",
+   "name": "Métal, moyen 001",
+   "stem": "impactMetal_medium",
+   "file": "sfx/impacts/impact-sounds__impactMetal_medium_001.ogg",
+   "dur": 0.143,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_medium_002",
+   "family": "impacts",
+   "name": "Métal, moyen 002",
+   "stem": "impactMetal_medium",
+   "file": "sfx/impacts/impact-sounds__impactMetal_medium_002.ogg",
+   "dur": 0.119,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_medium_003",
+   "family": "impacts",
+   "name": "Métal, moyen 003",
+   "stem": "impactMetal_medium",
+   "file": "sfx/impacts/impact-sounds__impactMetal_medium_003.ogg",
+   "dur": 0.254,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMetal_medium_004",
+   "family": "impacts",
+   "name": "Métal, moyen 004",
+   "stem": "impactMetal_medium",
+   "file": "sfx/impacts/impact-sounds__impactMetal_medium_004.ogg",
+   "dur": 0.109,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMining_000",
+   "family": "impacts",
+   "name": "Pioche 000",
+   "stem": "impactMining",
+   "file": "sfx/impacts/impact-sounds__impactMining_000.ogg",
+   "dur": 0.937,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMining_001",
+   "family": "impacts",
+   "name": "Pioche 001",
+   "stem": "impactMining",
+   "file": "sfx/impacts/impact-sounds__impactMining_001.ogg",
+   "dur": 0.869,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMining_002",
+   "family": "impacts",
+   "name": "Pioche 002",
+   "stem": "impactMining",
+   "file": "sfx/impacts/impact-sounds__impactMining_002.ogg",
+   "dur": 0.805,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMining_003",
+   "family": "impacts",
+   "name": "Pioche 003",
+   "stem": "impactMining",
+   "file": "sfx/impacts/impact-sounds__impactMining_003.ogg",
+   "dur": 0.992,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactMining_004",
+   "family": "impacts",
+   "name": "Pioche 004",
+   "stem": "impactMining",
+   "file": "sfx/impacts/impact-sounds__impactMining_004.ogg",
+   "dur": 0.83,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlank_medium_000",
+   "family": "impacts",
+   "name": "Planche, moyen 000",
+   "stem": "impactPlank_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlank_medium_000.ogg",
+   "dur": 0.779,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlank_medium_001",
+   "family": "impacts",
+   "name": "Planche, moyen 001",
+   "stem": "impactPlank_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlank_medium_001.ogg",
+   "dur": 0.779,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlank_medium_002",
+   "family": "impacts",
+   "name": "Planche, moyen 002",
+   "stem": "impactPlank_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlank_medium_002.ogg",
+   "dur": 0.779,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlank_medium_003",
+   "family": "impacts",
+   "name": "Planche, moyen 003",
+   "stem": "impactPlank_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlank_medium_003.ogg",
+   "dur": 0.779,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlank_medium_004",
+   "family": "impacts",
+   "name": "Planche, moyen 004",
+   "stem": "impactPlank_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlank_medium_004.ogg",
+   "dur": 0.779,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_heavy_000",
+   "family": "impacts",
+   "name": "Plaque, lourd 000",
+   "stem": "impactPlate_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPlate_heavy_000.ogg",
+   "dur": 0.489,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_heavy_001",
+   "family": "impacts",
+   "name": "Plaque, lourd 001",
+   "stem": "impactPlate_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPlate_heavy_001.ogg",
+   "dur": 0.352,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_heavy_002",
+   "family": "impacts",
+   "name": "Plaque, lourd 002",
+   "stem": "impactPlate_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPlate_heavy_002.ogg",
+   "dur": 0.494,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_heavy_003",
+   "family": "impacts",
+   "name": "Plaque, lourd 003",
+   "stem": "impactPlate_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPlate_heavy_003.ogg",
+   "dur": 0.347,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_heavy_004",
+   "family": "impacts",
+   "name": "Plaque, lourd 004",
+   "stem": "impactPlate_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPlate_heavy_004.ogg",
+   "dur": 0.559,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_light_000",
+   "family": "impacts",
+   "name": "Plaque, léger 000",
+   "stem": "impactPlate_light",
+   "file": "sfx/impacts/impact-sounds__impactPlate_light_000.ogg",
+   "dur": 0.542,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_light_001",
+   "family": "impacts",
+   "name": "Plaque, léger 001",
+   "stem": "impactPlate_light",
+   "file": "sfx/impacts/impact-sounds__impactPlate_light_001.ogg",
+   "dur": 0.655,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_light_002",
+   "family": "impacts",
+   "name": "Plaque, léger 002",
+   "stem": "impactPlate_light",
+   "file": "sfx/impacts/impact-sounds__impactPlate_light_002.ogg",
+   "dur": 0.489,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_light_003",
+   "family": "impacts",
+   "name": "Plaque, léger 003",
+   "stem": "impactPlate_light",
+   "file": "sfx/impacts/impact-sounds__impactPlate_light_003.ogg",
+   "dur": 0.528,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_light_004",
+   "family": "impacts",
+   "name": "Plaque, léger 004",
+   "stem": "impactPlate_light",
+   "file": "sfx/impacts/impact-sounds__impactPlate_light_004.ogg",
+   "dur": 0.657,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_medium_000",
+   "family": "impacts",
+   "name": "Plaque, moyen 000",
+   "stem": "impactPlate_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlate_medium_000.ogg",
+   "dur": 0.609,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_medium_001",
+   "family": "impacts",
+   "name": "Plaque, moyen 001",
+   "stem": "impactPlate_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlate_medium_001.ogg",
+   "dur": 0.616,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_medium_002",
+   "family": "impacts",
+   "name": "Plaque, moyen 002",
+   "stem": "impactPlate_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlate_medium_002.ogg",
+   "dur": 0.515,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_medium_003",
+   "family": "impacts",
+   "name": "Plaque, moyen 003",
+   "stem": "impactPlate_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlate_medium_003.ogg",
+   "dur": 0.654,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPlate_medium_004",
+   "family": "impacts",
+   "name": "Plaque, moyen 004",
+   "stem": "impactPlate_medium",
+   "file": "sfx/impacts/impact-sounds__impactPlate_medium_004.ogg",
+   "dur": 0.534,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_heavy_000",
+   "family": "impacts",
+   "name": "Coup de poing, lourd 000",
+   "stem": "impactPunch_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPunch_heavy_000.ogg",
+   "dur": 0.649,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_heavy_001",
+   "family": "impacts",
+   "name": "Coup de poing, lourd 001",
+   "stem": "impactPunch_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPunch_heavy_001.ogg",
+   "dur": 0.536,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_heavy_002",
+   "family": "impacts",
+   "name": "Coup de poing, lourd 002",
+   "stem": "impactPunch_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPunch_heavy_002.ogg",
+   "dur": 0.457,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_heavy_003",
+   "family": "impacts",
+   "name": "Coup de poing, lourd 003",
+   "stem": "impactPunch_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPunch_heavy_003.ogg",
+   "dur": 0.474,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_heavy_004",
+   "family": "impacts",
+   "name": "Coup de poing, lourd 004",
+   "stem": "impactPunch_heavy",
+   "file": "sfx/impacts/impact-sounds__impactPunch_heavy_004.ogg",
+   "dur": 0.536,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_medium_000",
+   "family": "impacts",
+   "name": "Coup de poing, moyen 000",
+   "stem": "impactPunch_medium",
+   "file": "sfx/impacts/impact-sounds__impactPunch_medium_000.ogg",
+   "dur": 0.431,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_medium_001",
+   "family": "impacts",
+   "name": "Coup de poing, moyen 001",
+   "stem": "impactPunch_medium",
+   "file": "sfx/impacts/impact-sounds__impactPunch_medium_001.ogg",
+   "dur": 0.405,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_medium_002",
+   "family": "impacts",
+   "name": "Coup de poing, moyen 002",
+   "stem": "impactPunch_medium",
+   "file": "sfx/impacts/impact-sounds__impactPunch_medium_002.ogg",
+   "dur": 0.541,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_medium_003",
+   "family": "impacts",
+   "name": "Coup de poing, moyen 003",
+   "stem": "impactPunch_medium",
+   "file": "sfx/impacts/impact-sounds__impactPunch_medium_003.ogg",
+   "dur": 0.455,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactPunch_medium_004",
+   "family": "impacts",
+   "name": "Coup de poing, moyen 004",
+   "stem": "impactPunch_medium",
+   "file": "sfx/impacts/impact-sounds__impactPunch_medium_004.ogg",
+   "dur": 0.543,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_heavy_000",
+   "family": "impacts",
+   "name": "Sourd, lourd 000",
+   "stem": "impactSoft_heavy",
+   "file": "sfx/impacts/impact-sounds__impactSoft_heavy_000.ogg",
+   "dur": 0.505,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_heavy_001",
+   "family": "impacts",
+   "name": "Sourd, lourd 001",
+   "stem": "impactSoft_heavy",
+   "file": "sfx/impacts/impact-sounds__impactSoft_heavy_001.ogg",
+   "dur": 0.572,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_heavy_002",
+   "family": "impacts",
+   "name": "Sourd, lourd 002",
+   "stem": "impactSoft_heavy",
+   "file": "sfx/impacts/impact-sounds__impactSoft_heavy_002.ogg",
+   "dur": 0.572,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_heavy_003",
+   "family": "impacts",
+   "name": "Sourd, lourd 003",
+   "stem": "impactSoft_heavy",
+   "file": "sfx/impacts/impact-sounds__impactSoft_heavy_003.ogg",
+   "dur": 0.544,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_heavy_004",
+   "family": "impacts",
+   "name": "Sourd, lourd 004",
+   "stem": "impactSoft_heavy",
+   "file": "sfx/impacts/impact-sounds__impactSoft_heavy_004.ogg",
+   "dur": 0.501,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_medium_000",
+   "family": "impacts",
+   "name": "Sourd, moyen 000",
+   "stem": "impactSoft_medium",
+   "file": "sfx/impacts/impact-sounds__impactSoft_medium_000.ogg",
+   "dur": 0.118,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_medium_001",
+   "family": "impacts",
+   "name": "Sourd, moyen 001",
+   "stem": "impactSoft_medium",
+   "file": "sfx/impacts/impact-sounds__impactSoft_medium_001.ogg",
+   "dur": 0.183,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_medium_002",
+   "family": "impacts",
+   "name": "Sourd, moyen 002",
+   "stem": "impactSoft_medium",
+   "file": "sfx/impacts/impact-sounds__impactSoft_medium_002.ogg",
+   "dur": 0.135,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_medium_003",
+   "family": "impacts",
+   "name": "Sourd, moyen 003",
+   "stem": "impactSoft_medium",
+   "file": "sfx/impacts/impact-sounds__impactSoft_medium_003.ogg",
+   "dur": 0.14,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactSoft_medium_004",
+   "family": "impacts",
+   "name": "Sourd, moyen 004",
+   "stem": "impactSoft_medium",
+   "file": "sfx/impacts/impact-sounds__impactSoft_medium_004.ogg",
+   "dur": 0.147,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactTin_medium_000",
+   "family": "impacts",
+   "name": "Tôle, moyen 000",
+   "stem": "impactTin_medium",
+   "file": "sfx/impacts/impact-sounds__impactTin_medium_000.ogg",
+   "dur": 0.159,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactTin_medium_001",
+   "family": "impacts",
+   "name": "Tôle, moyen 001",
+   "stem": "impactTin_medium",
+   "file": "sfx/impacts/impact-sounds__impactTin_medium_001.ogg",
+   "dur": 0.174,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactTin_medium_002",
+   "family": "impacts",
+   "name": "Tôle, moyen 002",
+   "stem": "impactTin_medium",
+   "file": "sfx/impacts/impact-sounds__impactTin_medium_002.ogg",
+   "dur": 0.134,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactTin_medium_003",
+   "family": "impacts",
+   "name": "Tôle, moyen 003",
+   "stem": "impactTin_medium",
+   "file": "sfx/impacts/impact-sounds__impactTin_medium_003.ogg",
+   "dur": 0.215,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactTin_medium_004",
+   "family": "impacts",
+   "name": "Tôle, moyen 004",
+   "stem": "impactTin_medium",
+   "file": "sfx/impacts/impact-sounds__impactTin_medium_004.ogg",
+   "dur": 0.179,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_heavy_000",
+   "family": "impacts",
+   "name": "Bois, lourd 000",
+   "stem": "impactWood_heavy",
+   "file": "sfx/impacts/impact-sounds__impactWood_heavy_000.ogg",
+   "dur": 0.313,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_heavy_001",
+   "family": "impacts",
+   "name": "Bois, lourd 001",
+   "stem": "impactWood_heavy",
+   "file": "sfx/impacts/impact-sounds__impactWood_heavy_001.ogg",
+   "dur": 0.313,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_heavy_002",
+   "family": "impacts",
+   "name": "Bois, lourd 002",
+   "stem": "impactWood_heavy",
+   "file": "sfx/impacts/impact-sounds__impactWood_heavy_002.ogg",
+   "dur": 0.313,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_heavy_003",
+   "family": "impacts",
+   "name": "Bois, lourd 003",
+   "stem": "impactWood_heavy",
+   "file": "sfx/impacts/impact-sounds__impactWood_heavy_003.ogg",
+   "dur": 0.313,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_heavy_004",
+   "family": "impacts",
+   "name": "Bois, lourd 004",
+   "stem": "impactWood_heavy",
+   "file": "sfx/impacts/impact-sounds__impactWood_heavy_004.ogg",
+   "dur": 0.313,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_light_000",
+   "family": "impacts",
+   "name": "Bois, léger 000",
+   "stem": "impactWood_light",
+   "file": "sfx/impacts/impact-sounds__impactWood_light_000.ogg",
+   "dur": 0.266,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_light_001",
+   "family": "impacts",
+   "name": "Bois, léger 001",
+   "stem": "impactWood_light",
+   "file": "sfx/impacts/impact-sounds__impactWood_light_001.ogg",
+   "dur": 0.266,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_light_002",
+   "family": "impacts",
+   "name": "Bois, léger 002",
+   "stem": "impactWood_light",
+   "file": "sfx/impacts/impact-sounds__impactWood_light_002.ogg",
+   "dur": 0.266,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_light_003",
+   "family": "impacts",
+   "name": "Bois, léger 003",
+   "stem": "impactWood_light",
+   "file": "sfx/impacts/impact-sounds__impactWood_light_003.ogg",
+   "dur": 0.266,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_light_004",
+   "family": "impacts",
+   "name": "Bois, léger 004",
+   "stem": "impactWood_light",
+   "file": "sfx/impacts/impact-sounds__impactWood_light_004.ogg",
+   "dur": 0.266,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_medium_000",
+   "family": "impacts",
+   "name": "Bois, moyen 000",
+   "stem": "impactWood_medium",
+   "file": "sfx/impacts/impact-sounds__impactWood_medium_000.ogg",
+   "dur": 0.333,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_medium_001",
+   "family": "impacts",
+   "name": "Bois, moyen 001",
+   "stem": "impactWood_medium",
+   "file": "sfx/impacts/impact-sounds__impactWood_medium_001.ogg",
+   "dur": 0.333,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_medium_002",
+   "family": "impacts",
+   "name": "Bois, moyen 002",
+   "stem": "impactWood_medium",
+   "file": "sfx/impacts/impact-sounds__impactWood_medium_002.ogg",
+   "dur": 0.333,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_medium_003",
+   "family": "impacts",
+   "name": "Bois, moyen 003",
+   "stem": "impactWood_medium",
+   "file": "sfx/impacts/impact-sounds__impactWood_medium_003.ogg",
+   "dur": 0.333,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "impact-sounds__impactWood_medium_004",
+   "family": "impacts",
+   "name": "Bois, moyen 004",
+   "stem": "impactWood_medium",
+   "file": "sfx/impacts/impact-sounds__impactWood_medium_004.ogg",
+   "dur": 0.333,
+   "source": "kenney-impact-sounds"
+  },
+  {
+   "id": "interface-sounds__back_001",
+   "family": "interface",
+   "name": "Retour 001",
+   "stem": "back",
+   "file": "sfx/interface/interface-sounds__back_001.ogg",
+   "dur": 0.064,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__back_002",
+   "family": "interface",
+   "name": "Retour 002",
+   "stem": "back",
+   "file": "sfx/interface/interface-sounds__back_002.ogg",
+   "dur": 0.07,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__back_003",
+   "family": "interface",
+   "name": "Retour 003",
+   "stem": "back",
+   "file": "sfx/interface/interface-sounds__back_003.ogg",
+   "dur": 0.093,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__back_004",
+   "family": "interface",
+   "name": "Retour 004",
+   "stem": "back",
+   "file": "sfx/interface/interface-sounds__back_004.ogg",
+   "dur": 0.073,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__bong_001",
+   "family": "interface",
+   "name": "Bong 001",
+   "stem": "bong",
+   "file": "sfx/interface/interface-sounds__bong_001.ogg",
+   "dur": 0.123,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__click_001",
+   "family": "interface",
+   "name": "Clic 001",
+   "stem": "click",
+   "file": "sfx/interface/interface-sounds__click_001.ogg",
+   "dur": 0.1,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__click_002",
+   "family": "interface",
+   "name": "Clic 002",
+   "stem": "click",
+   "file": "sfx/interface/interface-sounds__click_002.ogg",
+   "dur": 0.01,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__click_003",
+   "family": "interface",
+   "name": "Clic 003",
+   "stem": "click",
+   "file": "sfx/interface/interface-sounds__click_003.ogg",
+   "dur": 0.01,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__click_004",
+   "family": "interface",
+   "name": "Clic 004",
+   "stem": "click",
+   "file": "sfx/interface/interface-sounds__click_004.ogg",
+   "dur": 0.01,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__click_005",
+   "family": "interface",
+   "name": "Clic 005",
+   "stem": "click",
+   "file": "sfx/interface/interface-sounds__click_005.ogg",
+   "dur": 0.01,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__close_001",
+   "family": "interface",
+   "name": "Fermeture 001",
+   "stem": "close",
+   "file": "sfx/interface/interface-sounds__close_001.ogg",
+   "dur": 0.148,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__close_002",
+   "family": "interface",
+   "name": "Fermeture 002",
+   "stem": "close",
+   "file": "sfx/interface/interface-sounds__close_002.ogg",
+   "dur": 0.314,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__close_003",
+   "family": "interface",
+   "name": "Fermeture 003",
+   "stem": "close",
+   "file": "sfx/interface/interface-sounds__close_003.ogg",
+   "dur": 0.314,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__close_004",
+   "family": "interface",
+   "name": "Fermeture 004",
+   "stem": "close",
+   "file": "sfx/interface/interface-sounds__close_004.ogg",
+   "dur": 0.323,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__confirmation_001",
+   "family": "interface",
+   "name": "Confirmation 001",
+   "stem": "confirmation",
+   "file": "sfx/interface/interface-sounds__confirmation_001.ogg",
+   "dur": 0.29,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__confirmation_002",
+   "family": "interface",
+   "name": "Confirmation 002",
+   "stem": "confirmation",
+   "file": "sfx/interface/interface-sounds__confirmation_002.ogg",
+   "dur": 0.539,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__confirmation_003",
+   "family": "interface",
+   "name": "Confirmation 003",
+   "stem": "confirmation",
+   "file": "sfx/interface/interface-sounds__confirmation_003.ogg",
+   "dur": 0.322,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__confirmation_004",
+   "family": "interface",
+   "name": "Confirmation 004",
+   "stem": "confirmation",
+   "file": "sfx/interface/interface-sounds__confirmation_004.ogg",
+   "dur": 0.49,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__drop_001",
+   "family": "interface",
+   "name": "Dépôt 001",
+   "stem": "drop",
+   "file": "sfx/interface/interface-sounds__drop_001.ogg",
+   "dur": 0.11,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__drop_002",
+   "family": "interface",
+   "name": "Dépôt 002",
+   "stem": "drop",
+   "file": "sfx/interface/interface-sounds__drop_002.ogg",
+   "dur": 0.191,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__drop_003",
+   "family": "interface",
+   "name": "Dépôt 003",
+   "stem": "drop",
+   "file": "sfx/interface/interface-sounds__drop_003.ogg",
+   "dur": 0.191,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__drop_004",
+   "family": "interface",
+   "name": "Dépôt 004",
+   "stem": "drop",
+   "file": "sfx/interface/interface-sounds__drop_004.ogg",
+   "dur": 0.287,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_001",
+   "family": "interface",
+   "name": "Erreur 001",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_001.ogg",
+   "dur": 0.165,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_002",
+   "family": "interface",
+   "name": "Erreur 002",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_002.ogg",
+   "dur": 0.165,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_003",
+   "family": "interface",
+   "name": "Erreur 003",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_003.ogg",
+   "dur": 0.533,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_004",
+   "family": "interface",
+   "name": "Erreur 004",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_004.ogg",
+   "dur": 0.103,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_005",
+   "family": "interface",
+   "name": "Erreur 005",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_005.ogg",
+   "dur": 0.5,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_006",
+   "family": "interface",
+   "name": "Erreur 006",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_006.ogg",
+   "dur": 0.5,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_007",
+   "family": "interface",
+   "name": "Erreur 007",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_007.ogg",
+   "dur": 0.192,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__error_008",
+   "family": "interface",
+   "name": "Erreur 008",
+   "stem": "error",
+   "file": "sfx/interface/interface-sounds__error_008.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_001",
+   "family": "interface",
+   "name": "Verre 001",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_001.ogg",
+   "dur": 0.278,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_002",
+   "family": "interface",
+   "name": "Verre 002",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_002.ogg",
+   "dur": 0.125,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_003",
+   "family": "interface",
+   "name": "Verre 003",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_003.ogg",
+   "dur": 0.124,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_004",
+   "family": "interface",
+   "name": "Verre 004",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_004.ogg",
+   "dur": 0.692,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_005",
+   "family": "interface",
+   "name": "Verre 005",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_005.ogg",
+   "dur": 0.111,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glass_006",
+   "family": "interface",
+   "name": "Verre 006",
+   "stem": "glass",
+   "file": "sfx/interface/interface-sounds__glass_006.ogg",
+   "dur": 0.111,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glitch_001",
+   "family": "interface",
+   "name": "Glitch 001",
+   "stem": "glitch",
+   "file": "sfx/interface/interface-sounds__glitch_001.ogg",
+   "dur": 0.02,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glitch_002",
+   "family": "interface",
+   "name": "Glitch 002",
+   "stem": "glitch",
+   "file": "sfx/interface/interface-sounds__glitch_002.ogg",
+   "dur": 0.03,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glitch_003",
+   "family": "interface",
+   "name": "Glitch 003",
+   "stem": "glitch",
+   "file": "sfx/interface/interface-sounds__glitch_003.ogg",
+   "dur": 0.01,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__glitch_004",
+   "family": "interface",
+   "name": "Glitch 004",
+   "stem": "glitch",
+   "file": "sfx/interface/interface-sounds__glitch_004.ogg",
+   "dur": 0.023,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_001",
+   "family": "interface",
+   "name": "Agrandir 001",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_001.ogg",
+   "dur": 0.258,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_002",
+   "family": "interface",
+   "name": "Agrandir 002",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_002.ogg",
+   "dur": 0.258,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_003",
+   "family": "interface",
+   "name": "Agrandir 003",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_003.ogg",
+   "dur": 0.212,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_004",
+   "family": "interface",
+   "name": "Agrandir 004",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_004.ogg",
+   "dur": 0.418,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_005",
+   "family": "interface",
+   "name": "Agrandir 005",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_005.ogg",
+   "dur": 0.526,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_006",
+   "family": "interface",
+   "name": "Agrandir 006",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_006.ogg",
+   "dur": 0.38,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_007",
+   "family": "interface",
+   "name": "Agrandir 007",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_007.ogg",
+   "dur": 0.186,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_008",
+   "family": "interface",
+   "name": "Agrandir 008",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_008.ogg",
+   "dur": 0.225,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__maximize_009",
+   "family": "interface",
+   "name": "Agrandir 009",
+   "stem": "maximize",
+   "file": "sfx/interface/interface-sounds__maximize_009.ogg",
+   "dur": 0.225,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_001",
+   "family": "interface",
+   "name": "Réduire 001",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_001.ogg",
+   "dur": 0.258,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_002",
+   "family": "interface",
+   "name": "Réduire 002",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_002.ogg",
+   "dur": 0.258,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_003",
+   "family": "interface",
+   "name": "Réduire 003",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_003.ogg",
+   "dur": 0.212,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_004",
+   "family": "interface",
+   "name": "Réduire 004",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_004.ogg",
+   "dur": 0.418,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_005",
+   "family": "interface",
+   "name": "Réduire 005",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_005.ogg",
+   "dur": 0.526,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_006",
+   "family": "interface",
+   "name": "Réduire 006",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_006.ogg",
+   "dur": 0.38,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_007",
+   "family": "interface",
+   "name": "Réduire 007",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_007.ogg",
+   "dur": 0.186,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_008",
+   "family": "interface",
+   "name": "Réduire 008",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_008.ogg",
+   "dur": 0.225,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__minimize_009",
+   "family": "interface",
+   "name": "Réduire 009",
+   "stem": "minimize",
+   "file": "sfx/interface/interface-sounds__minimize_009.ogg",
+   "dur": 0.225,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__open_001",
+   "family": "interface",
+   "name": "Ouverture 001",
+   "stem": "open",
+   "file": "sfx/interface/interface-sounds__open_001.ogg",
+   "dur": 0.148,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__open_002",
+   "family": "interface",
+   "name": "Ouverture 002",
+   "stem": "open",
+   "file": "sfx/interface/interface-sounds__open_002.ogg",
+   "dur": 0.314,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__open_003",
+   "family": "interface",
+   "name": "Ouverture 003",
+   "stem": "open",
+   "file": "sfx/interface/interface-sounds__open_003.ogg",
+   "dur": 0.314,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__open_004",
+   "family": "interface",
+   "name": "Ouverture 004",
+   "stem": "open",
+   "file": "sfx/interface/interface-sounds__open_004.ogg",
+   "dur": 0.323,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__pluck_001",
+   "family": "interface",
+   "name": "Pincement 001",
+   "stem": "pluck",
+   "file": "sfx/interface/interface-sounds__pluck_001.ogg",
+   "dur": 0.102,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__pluck_002",
+   "family": "interface",
+   "name": "Pincement 002",
+   "stem": "pluck",
+   "file": "sfx/interface/interface-sounds__pluck_002.ogg",
+   "dur": 0.165,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__question_001",
+   "family": "interface",
+   "name": "Question 001",
+   "stem": "question",
+   "file": "sfx/interface/interface-sounds__question_001.ogg",
+   "dur": 0.491,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__question_002",
+   "family": "interface",
+   "name": "Question 002",
+   "stem": "question",
+   "file": "sfx/interface/interface-sounds__question_002.ogg",
+   "dur": 0.333,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__question_003",
+   "family": "interface",
+   "name": "Question 003",
+   "stem": "question",
+   "file": "sfx/interface/interface-sounds__question_003.ogg",
+   "dur": 0.332,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__question_004",
+   "family": "interface",
+   "name": "Question 004",
+   "stem": "question",
+   "file": "sfx/interface/interface-sounds__question_004.ogg",
+   "dur": 0.332,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scratch_001",
+   "family": "interface",
+   "name": "Grattement 001",
+   "stem": "scratch",
+   "file": "sfx/interface/interface-sounds__scratch_001.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scratch_002",
+   "family": "interface",
+   "name": "Grattement 002",
+   "stem": "scratch",
+   "file": "sfx/interface/interface-sounds__scratch_002.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scratch_003",
+   "family": "interface",
+   "name": "Grattement 003",
+   "stem": "scratch",
+   "file": "sfx/interface/interface-sounds__scratch_003.ogg",
+   "dur": 0.123,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scratch_004",
+   "family": "interface",
+   "name": "Grattement 004",
+   "stem": "scratch",
+   "file": "sfx/interface/interface-sounds__scratch_004.ogg",
+   "dur": 0.325,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scratch_005",
+   "family": "interface",
+   "name": "Grattement 005",
+   "stem": "scratch",
+   "file": "sfx/interface/interface-sounds__scratch_005.ogg",
+   "dur": 0.325,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scroll_001",
+   "family": "interface",
+   "name": "Défilement 001",
+   "stem": "scroll",
+   "file": "sfx/interface/interface-sounds__scroll_001.ogg",
+   "dur": 1.0,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scroll_002",
+   "family": "interface",
+   "name": "Défilement 002",
+   "stem": "scroll",
+   "file": "sfx/interface/interface-sounds__scroll_002.ogg",
+   "dur": 1.0,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scroll_003",
+   "family": "interface",
+   "name": "Défilement 003",
+   "stem": "scroll",
+   "file": "sfx/interface/interface-sounds__scroll_003.ogg",
+   "dur": 1.0,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scroll_004",
+   "family": "interface",
+   "name": "Défilement 004",
+   "stem": "scroll",
+   "file": "sfx/interface/interface-sounds__scroll_004.ogg",
+   "dur": 1.0,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__scroll_005",
+   "family": "interface",
+   "name": "Défilement 005",
+   "stem": "scroll",
+   "file": "sfx/interface/interface-sounds__scroll_005.ogg",
+   "dur": 1.0,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_001",
+   "family": "interface",
+   "name": "Sélection 001",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_001.ogg",
+   "dur": 0.043,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_002",
+   "family": "interface",
+   "name": "Sélection 002",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_002.ogg",
+   "dur": 0.043,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_003",
+   "family": "interface",
+   "name": "Sélection 003",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_003.ogg",
+   "dur": 0.383,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_004",
+   "family": "interface",
+   "name": "Sélection 004",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_004.ogg",
+   "dur": 0.383,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_005",
+   "family": "interface",
+   "name": "Sélection 005",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_005.ogg",
+   "dur": 0.383,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_006",
+   "family": "interface",
+   "name": "Sélection 006",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_006.ogg",
+   "dur": 1.944,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_007",
+   "family": "interface",
+   "name": "Sélection 007",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_007.ogg",
+   "dur": 0.047,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__select_008",
+   "family": "interface",
+   "name": "Sélection 008",
+   "stem": "select",
+   "file": "sfx/interface/interface-sounds__select_008.ogg",
+   "dur": 0.047,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_001",
+   "family": "interface",
+   "name": "Bascule 001",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_001.ogg",
+   "dur": 0.618,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_002",
+   "family": "interface",
+   "name": "Bascule 002",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_002.ogg",
+   "dur": 0.611,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_003",
+   "family": "interface",
+   "name": "Bascule 003",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_003.ogg",
+   "dur": 0.5,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_004",
+   "family": "interface",
+   "name": "Bascule 004",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_004.ogg",
+   "dur": 0.5,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_005",
+   "family": "interface",
+   "name": "Bascule 005",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_005.ogg",
+   "dur": 0.612,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_006",
+   "family": "interface",
+   "name": "Bascule 006",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_006.ogg",
+   "dur": 0.611,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__switch_007",
+   "family": "interface",
+   "name": "Bascule 007",
+   "stem": "switch",
+   "file": "sfx/interface/interface-sounds__switch_007.ogg",
+   "dur": 0.614,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__tick_001",
+   "family": "interface",
+   "name": "Tic 001",
+   "stem": "tick",
+   "file": "sfx/interface/interface-sounds__tick_001.ogg",
+   "dur": 0.023,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__tick_002",
+   "family": "interface",
+   "name": "Tic 002",
+   "stem": "tick",
+   "file": "sfx/interface/interface-sounds__tick_002.ogg",
+   "dur": 0.023,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__tick_004",
+   "family": "interface",
+   "name": "Tic 004",
+   "stem": "tick",
+   "file": "sfx/interface/interface-sounds__tick_004.ogg",
+   "dur": 0.055,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__toggle_001",
+   "family": "interface",
+   "name": "Interrupteur 001",
+   "stem": "toggle",
+   "file": "sfx/interface/interface-sounds__toggle_001.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__toggle_002",
+   "family": "interface",
+   "name": "Interrupteur 002",
+   "stem": "toggle",
+   "file": "sfx/interface/interface-sounds__toggle_002.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__toggle_003",
+   "family": "interface",
+   "name": "Interrupteur 003",
+   "stem": "toggle",
+   "file": "sfx/interface/interface-sounds__toggle_003.ogg",
+   "dur": 0.139,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "interface-sounds__toggle_004",
+   "family": "interface",
+   "name": "Interrupteur 004",
+   "stem": "toggle",
+   "file": "sfx/interface/interface-sounds__toggle_004.ogg",
+   "dur": 0.066,
+   "source": "kenney-interface-sounds"
+  },
+  {
+   "id": "ui-audio__click1",
+   "family": "interface",
+   "name": "Clic",
+   "stem": "click",
+   "file": "sfx/interface/ui-audio__click1.ogg",
+   "dur": 0.094,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__click2",
+   "family": "interface",
+   "name": "Clic",
+   "stem": "click",
+   "file": "sfx/interface/ui-audio__click2.ogg",
+   "dur": 0.056,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__click3",
+   "family": "interface",
+   "name": "Clic",
+   "stem": "click",
+   "file": "sfx/interface/ui-audio__click3.ogg",
+   "dur": 0.086,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__click4",
+   "family": "interface",
+   "name": "Clic",
+   "stem": "click",
+   "file": "sfx/interface/ui-audio__click4.ogg",
+   "dur": 0.037,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__click5",
+   "family": "interface",
+   "name": "Clic",
+   "stem": "click",
+   "file": "sfx/interface/ui-audio__click5.ogg",
+   "dur": 0.032,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__mouseclick1",
+   "family": "interface",
+   "name": "Clic souris",
+   "stem": "mouseclick",
+   "file": "sfx/interface/ui-audio__mouseclick1.ogg",
+   "dur": 0.059,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__mouserelease1",
+   "family": "interface",
+   "name": "Relâchement souris",
+   "stem": "mouserelease",
+   "file": "sfx/interface/ui-audio__mouserelease1.ogg",
+   "dur": 0.069,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover1",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover1.ogg",
+   "dur": 0.227,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover2",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover2.ogg",
+   "dur": 0.057,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover3",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover3.ogg",
+   "dur": 0.069,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover4",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover4.ogg",
+   "dur": 0.113,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover5",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover5.ogg",
+   "dur": 0.112,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__rollover6",
+   "family": "interface",
+   "name": "Survol",
+   "stem": "rollover",
+   "file": "sfx/interface/ui-audio__rollover6.ogg",
+   "dur": 0.174,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch1",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch1.ogg",
+   "dur": 0.315,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch10",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch10.ogg",
+   "dur": 0.367,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch11",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch11.ogg",
+   "dur": 0.297,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch12",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch12.ogg",
+   "dur": 0.054,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch13",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch13.ogg",
+   "dur": 0.028,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch14",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch14.ogg",
+   "dur": 0.033,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch15",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch15.ogg",
+   "dur": 0.256,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch16",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch16.ogg",
+   "dur": 0.359,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch17",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch17.ogg",
+   "dur": 0.333,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch18",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch18.ogg",
+   "dur": 0.435,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch19",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch19.ogg",
+   "dur": 0.384,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch2",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch2.ogg",
+   "dur": 0.297,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch20",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch20.ogg",
+   "dur": 0.359,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch21",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch21.ogg",
+   "dur": 0.41,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch22",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch22.ogg",
+   "dur": 0.359,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch23",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch23.ogg",
+   "dur": 0.384,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch24",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch24.ogg",
+   "dur": 0.282,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch25",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch25.ogg",
+   "dur": 0.384,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch26",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch26.ogg",
+   "dur": 0.23,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch27",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch27.ogg",
+   "dur": 0.282,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch28",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch28.ogg",
+   "dur": 0.205,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch29",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch29.ogg",
+   "dur": 0.307,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch3",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch3.ogg",
+   "dur": 0.367,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch30",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch30.ogg",
+   "dur": 0.359,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch31",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch31.ogg",
+   "dur": 0.435,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch32",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch32.ogg",
+   "dur": 0.435,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch33",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch33.ogg",
+   "dur": 0.512,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch34",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch34.ogg",
+   "dur": 0.461,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch35",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch35.ogg",
+   "dur": 0.333,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch36",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch36.ogg",
+   "dur": 0.307,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch37",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch37.ogg",
+   "dur": 0.307,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch38",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch38.ogg",
+   "dur": 0.424,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch4",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch4.ogg",
+   "dur": 0.42,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch5",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch5.ogg",
+   "dur": 0.315,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch6",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch6.ogg",
+   "dur": 0.35,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch7",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch7.ogg",
+   "dur": 0.192,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch8",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch8.ogg",
+   "dur": 0.332,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "ui-audio__switch9",
+   "family": "interface",
+   "name": "Bascule",
+   "stem": "switch",
+   "file": "sfx/interface/ui-audio__switch9.ogg",
+   "dur": 0.262,
+   "source": "kenney-ui-audio"
+  },
+  {
+   "id": "digital-audio__highDown",
+   "family": "digital",
+   "name": "Aigu descendant",
+   "stem": "highDown",
+   "file": "sfx/digital/digital-audio__highDown.ogg",
+   "dur": 0.522,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__highUp",
+   "family": "digital",
+   "name": "Aigu montant",
+   "stem": "highUp",
+   "file": "sfx/digital/digital-audio__highUp.ogg",
+   "dur": 0.549,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser1",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser1.ogg",
+   "dur": 1.1,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser2",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser2.ogg",
+   "dur": 1.091,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser3",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser3.ogg",
+   "dur": 0.984,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser4",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser4.ogg",
+   "dur": 1.132,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser5",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser5.ogg",
+   "dur": 1.014,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser6",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser6.ogg",
+   "dur": 0.971,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser7",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser7.ogg",
+   "dur": 0.933,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser8",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser8.ogg",
+   "dur": 0.987,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__laser9",
+   "family": "digital",
+   "name": "Laser",
+   "stem": "laser",
+   "file": "sfx/digital/digital-audio__laser9.ogg",
+   "dur": 1.009,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__lowDown",
+   "family": "digital",
+   "name": "Grave descendant",
+   "stem": "lowDown",
+   "file": "sfx/digital/digital-audio__lowDown.ogg",
+   "dur": 0.784,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__lowRandom",
+   "family": "digital",
+   "name": "Grave aléatoire",
+   "stem": "lowRandom",
+   "file": "sfx/digital/digital-audio__lowRandom.ogg",
+   "dur": 0.549,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__lowThreeTone",
+   "family": "digital",
+   "name": "Grave, trois tons",
+   "stem": "lowThreeTone",
+   "file": "sfx/digital/digital-audio__lowThreeTone.ogg",
+   "dur": 1.019,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__pepSound1",
+   "family": "digital",
+   "name": "Bip vif",
+   "stem": "pepSound",
+   "file": "sfx/digital/digital-audio__pepSound1.ogg",
+   "dur": 0.522,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__pepSound2",
+   "family": "digital",
+   "name": "Bip vif",
+   "stem": "pepSound",
+   "file": "sfx/digital/digital-audio__pepSound2.ogg",
+   "dur": 0.549,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__pepSound3",
+   "family": "digital",
+   "name": "Bip vif",
+   "stem": "pepSound",
+   "file": "sfx/digital/digital-audio__pepSound3.ogg",
+   "dur": 0.444,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__pepSound4",
+   "family": "digital",
+   "name": "Bip vif",
+   "stem": "pepSound",
+   "file": "sfx/digital/digital-audio__pepSound4.ogg",
+   "dur": 0.627,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__pepSound5",
+   "family": "digital",
+   "name": "Bip vif",
+   "stem": "pepSound",
+   "file": "sfx/digital/digital-audio__pepSound5.ogg",
+   "dur": 0.627,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaseJump1",
+   "family": "digital",
+   "name": "Saut de phase",
+   "stem": "phaseJump",
+   "file": "sfx/digital/digital-audio__phaseJump1.ogg",
+   "dur": 0.47,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaseJump2",
+   "family": "digital",
+   "name": "Saut de phase",
+   "stem": "phaseJump",
+   "file": "sfx/digital/digital-audio__phaseJump2.ogg",
+   "dur": 0.392,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaseJump3",
+   "family": "digital",
+   "name": "Saut de phase",
+   "stem": "phaseJump",
+   "file": "sfx/digital/digital-audio__phaseJump3.ogg",
+   "dur": 0.444,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaseJump4",
+   "family": "digital",
+   "name": "Saut de phase",
+   "stem": "phaseJump",
+   "file": "sfx/digital/digital-audio__phaseJump4.ogg",
+   "dur": 0.47,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaseJump5",
+   "family": "digital",
+   "name": "Saut de phase",
+   "stem": "phaseJump",
+   "file": "sfx/digital/digital-audio__phaseJump5.ogg",
+   "dur": 0.418,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserDown1",
+   "family": "digital",
+   "name": "Phaser descendant",
+   "stem": "phaserDown",
+   "file": "sfx/digital/digital-audio__phaserDown1.ogg",
+   "dur": 0.47,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserDown2",
+   "family": "digital",
+   "name": "Phaser descendant",
+   "stem": "phaserDown",
+   "file": "sfx/digital/digital-audio__phaserDown2.ogg",
+   "dur": 0.313,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserDown3",
+   "family": "digital",
+   "name": "Phaser descendant",
+   "stem": "phaserDown",
+   "file": "sfx/digital/digital-audio__phaserDown3.ogg",
+   "dur": 0.496,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp1",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp1.ogg",
+   "dur": 0.496,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp2",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp2.ogg",
+   "dur": 0.418,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp3",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp3.ogg",
+   "dur": 0.522,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp4",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp4.ogg",
+   "dur": 0.366,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp5",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp5.ogg",
+   "dur": 0.313,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp6",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp6.ogg",
+   "dur": 0.34,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__phaserUp7",
+   "family": "digital",
+   "name": "Phaser montant",
+   "stem": "phaserUp",
+   "file": "sfx/digital/digital-audio__phaserUp7.ogg",
+   "dur": 0.366,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp1",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp1.ogg",
+   "dur": 1.202,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp10",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp10.ogg",
+   "dur": 0.653,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp11",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp11.ogg",
+   "dur": 0.679,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp12",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp12.ogg",
+   "dur": 0.862,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp2",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp2.ogg",
+   "dur": 0.47,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp3",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp3.ogg",
+   "dur": 1.149,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp4",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp4.ogg",
+   "dur": 0.549,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp5",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp5.ogg",
+   "dur": 0.444,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp6",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp6.ogg",
+   "dur": 0.444,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp7",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp7.ogg",
+   "dur": 0.522,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp8",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp8.ogg",
+   "dur": 0.575,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__powerUp9",
+   "family": "digital",
+   "name": "Power-up",
+   "stem": "powerUp",
+   "file": "sfx/digital/digital-audio__powerUp9.ogg",
+   "dur": 0.549,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__spaceTrash1",
+   "family": "digital",
+   "name": "Parasite spatial",
+   "stem": "spaceTrash",
+   "file": "sfx/digital/digital-audio__spaceTrash1.ogg",
+   "dur": 1.451,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__spaceTrash2",
+   "family": "digital",
+   "name": "Parasite spatial",
+   "stem": "spaceTrash",
+   "file": "sfx/digital/digital-audio__spaceTrash2.ogg",
+   "dur": 1.475,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__spaceTrash3",
+   "family": "digital",
+   "name": "Parasite spatial",
+   "stem": "spaceTrash",
+   "file": "sfx/digital/digital-audio__spaceTrash3.ogg",
+   "dur": 1.535,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__spaceTrash4",
+   "family": "digital",
+   "name": "Parasite spatial",
+   "stem": "spaceTrash",
+   "file": "sfx/digital/digital-audio__spaceTrash4.ogg",
+   "dur": 1.477,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__spaceTrash5",
+   "family": "digital",
+   "name": "Parasite spatial",
+   "stem": "spaceTrash",
+   "file": "sfx/digital/digital-audio__spaceTrash5.ogg",
+   "dur": 1.426,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__threeTone1",
+   "family": "digital",
+   "name": "Trois tons",
+   "stem": "threeTone",
+   "file": "sfx/digital/digital-audio__threeTone1.ogg",
+   "dur": 0.827,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__threeTone2",
+   "family": "digital",
+   "name": "Trois tons",
+   "stem": "threeTone",
+   "file": "sfx/digital/digital-audio__threeTone2.ogg",
+   "dur": 0.866,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__tone1",
+   "family": "digital",
+   "name": "Tonalité",
+   "stem": "tone",
+   "file": "sfx/digital/digital-audio__tone1.ogg",
+   "dur": 0.661,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__twoTone1",
+   "family": "digital",
+   "name": "Deux tons",
+   "stem": "twoTone",
+   "file": "sfx/digital/digital-audio__twoTone1.ogg",
+   "dur": 0.724,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__twoTone2",
+   "family": "digital",
+   "name": "Deux tons",
+   "stem": "twoTone",
+   "file": "sfx/digital/digital-audio__twoTone2.ogg",
+   "dur": 0.731,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zap1",
+   "family": "digital",
+   "name": "Zap",
+   "stem": "zap",
+   "file": "sfx/digital/digital-audio__zap1.ogg",
+   "dur": 1.019,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zap2",
+   "family": "digital",
+   "name": "Zap",
+   "stem": "zap",
+   "file": "sfx/digital/digital-audio__zap2.ogg",
+   "dur": 1.228,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zapThreeToneDown",
+   "family": "digital",
+   "name": "Zap trois tons, descendant",
+   "stem": "zapThreeToneDown",
+   "file": "sfx/digital/digital-audio__zapThreeToneDown.ogg",
+   "dur": 1.332,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zapThreeToneUp",
+   "family": "digital",
+   "name": "Zap trois tons, montant",
+   "stem": "zapThreeToneUp",
+   "file": "sfx/digital/digital-audio__zapThreeToneUp.ogg",
+   "dur": 1.202,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zapTwoTone",
+   "family": "digital",
+   "name": "Zap deux tons",
+   "stem": "zapTwoTone",
+   "file": "sfx/digital/digital-audio__zapTwoTone.ogg",
+   "dur": 1.306,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "digital-audio__zapTwoTone2",
+   "family": "digital",
+   "name": "Zap deux tons",
+   "stem": "zapTwoTone",
+   "file": "sfx/digital/digital-audio__zapTwoTone2.ogg",
+   "dur": 1.202,
+   "source": "kenney-digital-audio"
+  },
+  {
+   "id": "sci-fi-sounds__computerNoise_000",
+   "family": "scifi",
+   "name": "Bruit d'ordinateur 000",
+   "stem": "computerNoise",
+   "file": "sfx/scifi/sci-fi-sounds__computerNoise_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__computerNoise_001",
+   "family": "scifi",
+   "name": "Bruit d'ordinateur 001",
+   "stem": "computerNoise",
+   "file": "sfx/scifi/sci-fi-sounds__computerNoise_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__computerNoise_002",
+   "family": "scifi",
+   "name": "Bruit d'ordinateur 002",
+   "stem": "computerNoise",
+   "file": "sfx/scifi/sci-fi-sounds__computerNoise_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__computerNoise_003",
+   "family": "scifi",
+   "name": "Bruit d'ordinateur 003",
+   "stem": "computerNoise",
+   "file": "sfx/scifi/sci-fi-sounds__computerNoise_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorClose_000",
+   "family": "scifi",
+   "name": "Porte qui se ferme 000",
+   "stem": "doorClose",
+   "file": "sfx/scifi/sci-fi-sounds__doorClose_000.ogg",
+   "dur": 0.532,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorClose_001",
+   "family": "scifi",
+   "name": "Porte qui se ferme 001",
+   "stem": "doorClose",
+   "file": "sfx/scifi/sci-fi-sounds__doorClose_001.ogg",
+   "dur": 0.529,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorClose_002",
+   "family": "scifi",
+   "name": "Porte qui se ferme 002",
+   "stem": "doorClose",
+   "file": "sfx/scifi/sci-fi-sounds__doorClose_002.ogg",
+   "dur": 0.533,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorOpen_000",
+   "family": "scifi",
+   "name": "Porte qui s'ouvre 000",
+   "stem": "doorOpen",
+   "file": "sfx/scifi/sci-fi-sounds__doorOpen_000.ogg",
+   "dur": 0.532,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorOpen_001",
+   "family": "scifi",
+   "name": "Porte qui s'ouvre 001",
+   "stem": "doorOpen",
+   "file": "sfx/scifi/sci-fi-sounds__doorOpen_001.ogg",
+   "dur": 0.529,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__doorOpen_002",
+   "family": "scifi",
+   "name": "Porte qui s'ouvre 002",
+   "stem": "doorOpen",
+   "file": "sfx/scifi/sci-fi-sounds__doorOpen_002.ogg",
+   "dur": 0.533,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__engineCircular_000",
+   "family": "scifi",
+   "name": "Moteur circulaire 000",
+   "stem": "engineCircular",
+   "file": "sfx/scifi/sci-fi-sounds__engineCircular_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__engineCircular_001",
+   "family": "scifi",
+   "name": "Moteur circulaire 001",
+   "stem": "engineCircular",
+   "file": "sfx/scifi/sci-fi-sounds__engineCircular_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__engineCircular_002",
+   "family": "scifi",
+   "name": "Moteur circulaire 002",
+   "stem": "engineCircular",
+   "file": "sfx/scifi/sci-fi-sounds__engineCircular_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__engineCircular_003",
+   "family": "scifi",
+   "name": "Moteur circulaire 003",
+   "stem": "engineCircular",
+   "file": "sfx/scifi/sci-fi-sounds__engineCircular_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__engineCircular_004",
+   "family": "scifi",
+   "name": "Moteur circulaire 004",
+   "stem": "engineCircular",
+   "file": "sfx/scifi/sci-fi-sounds__engineCircular_004.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__explosionCrunch_000",
+   "family": "impacts",
+   "name": "Explosion craquante 000",
+   "stem": "explosionCrunch",
+   "file": "sfx/impacts/sci-fi-sounds__explosionCrunch_000.ogg",
+   "dur": 0.777,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__explosionCrunch_001",
+   "family": "impacts",
+   "name": "Explosion craquante 001",
+   "stem": "explosionCrunch",
+   "file": "sfx/impacts/sci-fi-sounds__explosionCrunch_001.ogg",
+   "dur": 1.357,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__explosionCrunch_002",
+   "family": "impacts",
+   "name": "Explosion craquante 002",
+   "stem": "explosionCrunch",
+   "file": "sfx/impacts/sci-fi-sounds__explosionCrunch_002.ogg",
+   "dur": 1.256,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__explosionCrunch_003",
+   "family": "impacts",
+   "name": "Explosion craquante 003",
+   "stem": "explosionCrunch",
+   "file": "sfx/impacts/sci-fi-sounds__explosionCrunch_003.ogg",
+   "dur": 1.553,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__explosionCrunch_004",
+   "family": "impacts",
+   "name": "Explosion craquante 004",
+   "stem": "explosionCrunch",
+   "file": "sfx/impacts/sci-fi-sounds__explosionCrunch_004.ogg",
+   "dur": 1.98,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__forceField_000",
+   "family": "scifi",
+   "name": "Champ de force 000",
+   "stem": "forceField",
+   "file": "sfx/scifi/sci-fi-sounds__forceField_000.ogg",
+   "dur": 0.954,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__forceField_001",
+   "family": "scifi",
+   "name": "Champ de force 001",
+   "stem": "forceField",
+   "file": "sfx/scifi/sci-fi-sounds__forceField_001.ogg",
+   "dur": 0.953,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__forceField_002",
+   "family": "scifi",
+   "name": "Champ de force 002",
+   "stem": "forceField",
+   "file": "sfx/scifi/sci-fi-sounds__forceField_002.ogg",
+   "dur": 0.955,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__forceField_003",
+   "family": "scifi",
+   "name": "Champ de force 003",
+   "stem": "forceField",
+   "file": "sfx/scifi/sci-fi-sounds__forceField_003.ogg",
+   "dur": 0.956,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__forceField_004",
+   "family": "scifi",
+   "name": "Champ de force 004",
+   "stem": "forceField",
+   "file": "sfx/scifi/sci-fi-sounds__forceField_004.ogg",
+   "dur": 0.954,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__impactMetal_000",
+   "family": "impacts",
+   "name": "Impact métal 000",
+   "stem": "impactMetal",
+   "file": "sfx/impacts/sci-fi-sounds__impactMetal_000.ogg",
+   "dur": 0.635,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__impactMetal_001",
+   "family": "impacts",
+   "name": "Impact métal 001",
+   "stem": "impactMetal",
+   "file": "sfx/impacts/sci-fi-sounds__impactMetal_001.ogg",
+   "dur": 0.688,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__impactMetal_002",
+   "family": "impacts",
+   "name": "Impact métal 002",
+   "stem": "impactMetal",
+   "file": "sfx/impacts/sci-fi-sounds__impactMetal_002.ogg",
+   "dur": 0.471,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__impactMetal_003",
+   "family": "impacts",
+   "name": "Impact métal 003",
+   "stem": "impactMetal",
+   "file": "sfx/impacts/sci-fi-sounds__impactMetal_003.ogg",
+   "dur": 0.777,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__impactMetal_004",
+   "family": "impacts",
+   "name": "Impact métal 004",
+   "stem": "impactMetal",
+   "file": "sfx/impacts/sci-fi-sounds__impactMetal_004.ogg",
+   "dur": 0.39,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserLarge_000",
+   "family": "scifi",
+   "name": "Laser lourd 000",
+   "stem": "laserLarge",
+   "file": "sfx/scifi/sci-fi-sounds__laserLarge_000.ogg",
+   "dur": 0.677,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserLarge_001",
+   "family": "scifi",
+   "name": "Laser lourd 001",
+   "stem": "laserLarge",
+   "file": "sfx/scifi/sci-fi-sounds__laserLarge_001.ogg",
+   "dur": 0.721,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserLarge_002",
+   "family": "scifi",
+   "name": "Laser lourd 002",
+   "stem": "laserLarge",
+   "file": "sfx/scifi/sci-fi-sounds__laserLarge_002.ogg",
+   "dur": 0.744,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserLarge_003",
+   "family": "scifi",
+   "name": "Laser lourd 003",
+   "stem": "laserLarge",
+   "file": "sfx/scifi/sci-fi-sounds__laserLarge_003.ogg",
+   "dur": 0.716,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserLarge_004",
+   "family": "scifi",
+   "name": "Laser lourd 004",
+   "stem": "laserLarge",
+   "file": "sfx/scifi/sci-fi-sounds__laserLarge_004.ogg",
+   "dur": 0.693,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserRetro_000",
+   "family": "scifi",
+   "name": "Laser rétro 000",
+   "stem": "laserRetro",
+   "file": "sfx/scifi/sci-fi-sounds__laserRetro_000.ogg",
+   "dur": 0.235,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserRetro_001",
+   "family": "scifi",
+   "name": "Laser rétro 001",
+   "stem": "laserRetro",
+   "file": "sfx/scifi/sci-fi-sounds__laserRetro_001.ogg",
+   "dur": 0.236,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserRetro_002",
+   "family": "scifi",
+   "name": "Laser rétro 002",
+   "stem": "laserRetro",
+   "file": "sfx/scifi/sci-fi-sounds__laserRetro_002.ogg",
+   "dur": 0.255,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserRetro_003",
+   "family": "scifi",
+   "name": "Laser rétro 003",
+   "stem": "laserRetro",
+   "file": "sfx/scifi/sci-fi-sounds__laserRetro_003.ogg",
+   "dur": 0.255,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserRetro_004",
+   "family": "scifi",
+   "name": "Laser rétro 004",
+   "stem": "laserRetro",
+   "file": "sfx/scifi/sci-fi-sounds__laserRetro_004.ogg",
+   "dur": 0.279,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserSmall_000",
+   "family": "scifi",
+   "name": "Laser léger 000",
+   "stem": "laserSmall",
+   "file": "sfx/scifi/sci-fi-sounds__laserSmall_000.ogg",
+   "dur": 0.239,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserSmall_001",
+   "family": "scifi",
+   "name": "Laser léger 001",
+   "stem": "laserSmall",
+   "file": "sfx/scifi/sci-fi-sounds__laserSmall_001.ogg",
+   "dur": 0.247,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserSmall_002",
+   "family": "scifi",
+   "name": "Laser léger 002",
+   "stem": "laserSmall",
+   "file": "sfx/scifi/sci-fi-sounds__laserSmall_002.ogg",
+   "dur": 0.344,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserSmall_003",
+   "family": "scifi",
+   "name": "Laser léger 003",
+   "stem": "laserSmall",
+   "file": "sfx/scifi/sci-fi-sounds__laserSmall_003.ogg",
+   "dur": 0.3,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__laserSmall_004",
+   "family": "scifi",
+   "name": "Laser léger 004",
+   "stem": "laserSmall",
+   "file": "sfx/scifi/sci-fi-sounds__laserSmall_004.ogg",
+   "dur": 0.414,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__lowFrequency_explosion_000",
+   "family": "impacts",
+   "name": "Explosion basse fréquence 000",
+   "stem": "lowFrequency_explosion",
+   "file": "sfx/impacts/sci-fi-sounds__lowFrequency_explosion_000.ogg",
+   "dur": 2.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__lowFrequency_explosion_001",
+   "family": "impacts",
+   "name": "Explosion basse fréquence 001",
+   "stem": "lowFrequency_explosion",
+   "file": "sfx/impacts/sci-fi-sounds__lowFrequency_explosion_001.ogg",
+   "dur": 1.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__slime_000",
+   "family": "scifi",
+   "name": "Slime 000",
+   "stem": "slime",
+   "file": "sfx/scifi/sci-fi-sounds__slime_000.ogg",
+   "dur": 0.5,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__slime_001",
+   "family": "scifi",
+   "name": "Slime 001",
+   "stem": "slime",
+   "file": "sfx/scifi/sci-fi-sounds__slime_001.ogg",
+   "dur": 4.71,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLarge_000",
+   "family": "scifi",
+   "name": "Moteur spatial lourd 000",
+   "stem": "spaceEngineLarge",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLarge_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLarge_001",
+   "family": "scifi",
+   "name": "Moteur spatial lourd 001",
+   "stem": "spaceEngineLarge",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLarge_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLarge_002",
+   "family": "scifi",
+   "name": "Moteur spatial lourd 002",
+   "stem": "spaceEngineLarge",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLarge_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLarge_003",
+   "family": "scifi",
+   "name": "Moteur spatial lourd 003",
+   "stem": "spaceEngineLarge",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLarge_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLarge_004",
+   "family": "scifi",
+   "name": "Moteur spatial lourd 004",
+   "stem": "spaceEngineLarge",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLarge_004.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLow_000",
+   "family": "scifi",
+   "name": "Moteur spatial grave 000",
+   "stem": "spaceEngineLow",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLow_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLow_001",
+   "family": "scifi",
+   "name": "Moteur spatial grave 001",
+   "stem": "spaceEngineLow",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLow_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLow_002",
+   "family": "scifi",
+   "name": "Moteur spatial grave 002",
+   "stem": "spaceEngineLow",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLow_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLow_003",
+   "family": "scifi",
+   "name": "Moteur spatial grave 003",
+   "stem": "spaceEngineLow",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLow_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineLow_004",
+   "family": "scifi",
+   "name": "Moteur spatial grave 004",
+   "stem": "spaceEngineLow",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineLow_004.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineSmall_000",
+   "family": "scifi",
+   "name": "Moteur spatial léger 000",
+   "stem": "spaceEngineSmall",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineSmall_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineSmall_001",
+   "family": "scifi",
+   "name": "Moteur spatial léger 001",
+   "stem": "spaceEngineSmall",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineSmall_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineSmall_002",
+   "family": "scifi",
+   "name": "Moteur spatial léger 002",
+   "stem": "spaceEngineSmall",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineSmall_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineSmall_003",
+   "family": "scifi",
+   "name": "Moteur spatial léger 003",
+   "stem": "spaceEngineSmall",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineSmall_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngineSmall_004",
+   "family": "scifi",
+   "name": "Moteur spatial léger 004",
+   "stem": "spaceEngineSmall",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngineSmall_004.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngine_000",
+   "family": "scifi",
+   "name": "Moteur spatial 000",
+   "stem": "spaceEngine",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngine_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngine_001",
+   "family": "scifi",
+   "name": "Moteur spatial 001",
+   "stem": "spaceEngine",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngine_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngine_002",
+   "family": "scifi",
+   "name": "Moteur spatial 002",
+   "stem": "spaceEngine",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngine_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__spaceEngine_003",
+   "family": "scifi",
+   "name": "Moteur spatial 003",
+   "stem": "spaceEngine",
+   "file": "sfx/scifi/sci-fi-sounds__spaceEngine_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__thrusterFire_000",
+   "family": "scifi",
+   "name": "Propulseur 000",
+   "stem": "thrusterFire",
+   "file": "sfx/scifi/sci-fi-sounds__thrusterFire_000.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__thrusterFire_001",
+   "family": "scifi",
+   "name": "Propulseur 001",
+   "stem": "thrusterFire",
+   "file": "sfx/scifi/sci-fi-sounds__thrusterFire_001.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__thrusterFire_002",
+   "family": "scifi",
+   "name": "Propulseur 002",
+   "stem": "thrusterFire",
+   "file": "sfx/scifi/sci-fi-sounds__thrusterFire_002.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__thrusterFire_003",
+   "family": "scifi",
+   "name": "Propulseur 003",
+   "stem": "thrusterFire",
+   "file": "sfx/scifi/sci-fi-sounds__thrusterFire_003.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "sci-fi-sounds__thrusterFire_004",
+   "family": "scifi",
+   "name": "Propulseur 004",
+   "stem": "thrusterFire",
+   "file": "sfx/scifi/sci-fi-sounds__thrusterFire_004.ogg",
+   "dur": 5.0,
+   "source": "kenney-sci-fi-sounds"
+  },
+  {
+   "id": "rpg-audio__beltHandle1",
+   "family": "steps",
+   "name": "Ceinture",
+   "stem": "beltHandle",
+   "file": "sfx/steps/rpg-audio__beltHandle1.ogg",
+   "dur": 0.277,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__beltHandle2",
+   "family": "steps",
+   "name": "Ceinture",
+   "stem": "beltHandle",
+   "file": "sfx/steps/rpg-audio__beltHandle2.ogg",
+   "dur": 0.477,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookClose",
+   "family": "objects",
+   "name": "Livre refermé",
+   "stem": "bookClose",
+   "file": "sfx/objects/rpg-audio__bookClose.ogg",
+   "dur": 0.231,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookFlip1",
+   "family": "objects",
+   "name": "Page tournée",
+   "stem": "bookFlip",
+   "file": "sfx/objects/rpg-audio__bookFlip1.ogg",
+   "dur": 0.769,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookFlip2",
+   "family": "objects",
+   "name": "Page tournée",
+   "stem": "bookFlip",
+   "file": "sfx/objects/rpg-audio__bookFlip2.ogg",
+   "dur": 0.43,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookFlip3",
+   "family": "objects",
+   "name": "Page tournée",
+   "stem": "bookFlip",
+   "file": "sfx/objects/rpg-audio__bookFlip3.ogg",
+   "dur": 0.231,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookOpen",
+   "family": "objects",
+   "name": "Livre ouvert",
+   "stem": "bookOpen",
+   "file": "sfx/objects/rpg-audio__bookOpen.ogg",
+   "dur": 0.154,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookPlace1",
+   "family": "objects",
+   "name": "Livre posé",
+   "stem": "bookPlace",
+   "file": "sfx/objects/rpg-audio__bookPlace1.ogg",
+   "dur": 0.277,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookPlace2",
+   "family": "objects",
+   "name": "Livre posé",
+   "stem": "bookPlace",
+   "file": "sfx/objects/rpg-audio__bookPlace2.ogg",
+   "dur": 0.354,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__bookPlace3",
+   "family": "objects",
+   "name": "Livre posé",
+   "stem": "bookPlace",
+   "file": "sfx/objects/rpg-audio__bookPlace3.ogg",
+   "dur": 0.261,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__chop",
+   "family": "steps",
+   "name": "Coup de hache",
+   "stem": "chop",
+   "file": "sfx/steps/rpg-audio__chop.ogg",
+   "dur": 0.24,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__cloth1",
+   "family": "steps",
+   "name": "Tissu",
+   "stem": "cloth",
+   "file": "sfx/steps/rpg-audio__cloth1.ogg",
+   "dur": 0.661,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__cloth2",
+   "family": "steps",
+   "name": "Tissu",
+   "stem": "cloth",
+   "file": "sfx/steps/rpg-audio__cloth2.ogg",
+   "dur": 0.415,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__cloth3",
+   "family": "steps",
+   "name": "Tissu",
+   "stem": "cloth",
+   "file": "sfx/steps/rpg-audio__cloth3.ogg",
+   "dur": 0.477,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__cloth4",
+   "family": "steps",
+   "name": "Tissu",
+   "stem": "cloth",
+   "file": "sfx/steps/rpg-audio__cloth4.ogg",
+   "dur": 0.384,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__clothBelt",
+   "family": "steps",
+   "name": "Ceinture de tissu",
+   "stem": "clothBelt",
+   "file": "sfx/steps/rpg-audio__clothBelt.ogg",
+   "dur": 0.723,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__clothBelt2",
+   "family": "steps",
+   "name": "Ceinture de tissu",
+   "stem": "clothBelt",
+   "file": "sfx/steps/rpg-audio__clothBelt2.ogg",
+   "dur": 0.753,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__creak1",
+   "family": "steps",
+   "name": "Grincement",
+   "stem": "creak",
+   "file": "sfx/steps/rpg-audio__creak1.ogg",
+   "dur": 0.661,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__creak2",
+   "family": "steps",
+   "name": "Grincement",
+   "stem": "creak",
+   "file": "sfx/steps/rpg-audio__creak2.ogg",
+   "dur": 0.83,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__creak3",
+   "family": "steps",
+   "name": "Grincement",
+   "stem": "creak",
+   "file": "sfx/steps/rpg-audio__creak3.ogg",
+   "dur": 0.338,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorClose_1",
+   "family": "objects",
+   "name": "Porte qui se ferme 1",
+   "stem": "doorClose",
+   "file": "sfx/objects/rpg-audio__doorClose_1.ogg",
+   "dur": 0.675,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorClose_2",
+   "family": "objects",
+   "name": "Porte qui se ferme 2",
+   "stem": "doorClose",
+   "file": "sfx/objects/rpg-audio__doorClose_2.ogg",
+   "dur": 0.612,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorClose_3",
+   "family": "objects",
+   "name": "Porte qui se ferme 3",
+   "stem": "doorClose",
+   "file": "sfx/objects/rpg-audio__doorClose_3.ogg",
+   "dur": 0.714,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorClose_4",
+   "family": "objects",
+   "name": "Porte qui se ferme 4",
+   "stem": "doorClose",
+   "file": "sfx/objects/rpg-audio__doorClose_4.ogg",
+   "dur": 0.603,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorOpen_1",
+   "family": "objects",
+   "name": "Porte qui s'ouvre 1",
+   "stem": "doorOpen",
+   "file": "sfx/objects/rpg-audio__doorOpen_1.ogg",
+   "dur": 0.919,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__doorOpen_2",
+   "family": "objects",
+   "name": "Porte qui s'ouvre 2",
+   "stem": "doorOpen",
+   "file": "sfx/objects/rpg-audio__doorOpen_2.ogg",
+   "dur": 1.413,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__drawKnife1",
+   "family": "steps",
+   "name": "Lame dégainée",
+   "stem": "drawKnife",
+   "file": "sfx/steps/rpg-audio__drawKnife1.ogg",
+   "dur": 0.4,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__drawKnife2",
+   "family": "steps",
+   "name": "Lame dégainée",
+   "stem": "drawKnife",
+   "file": "sfx/steps/rpg-audio__drawKnife2.ogg",
+   "dur": 0.446,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__drawKnife3",
+   "family": "steps",
+   "name": "Lame dégainée",
+   "stem": "drawKnife",
+   "file": "sfx/steps/rpg-audio__drawKnife3.ogg",
+   "dur": 0.477,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__dropLeather",
+   "family": "steps",
+   "name": "Cuir lâché",
+   "stem": "dropLeather",
+   "file": "sfx/steps/rpg-audio__dropLeather.ogg",
+   "dur": 0.415,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep00",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep00.ogg",
+   "dur": 0.249,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep01",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep01.ogg",
+   "dur": 0.282,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep02",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep02.ogg",
+   "dur": 0.242,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep03",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep03.ogg",
+   "dur": 0.269,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep04",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep04.ogg",
+   "dur": 0.323,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep05",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep05.ogg",
+   "dur": 0.276,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep06",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep06.ogg",
+   "dur": 0.242,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep07",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep07.ogg",
+   "dur": 0.256,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep08",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep08.ogg",
+   "dur": 0.256,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__footstep09",
+   "family": "steps",
+   "name": "Pas",
+   "stem": "footstep",
+   "file": "sfx/steps/rpg-audio__footstep09.ogg",
+   "dur": 0.215,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__handleCoins",
+   "family": "objects",
+   "name": "Pièces manipulées",
+   "stem": "handleCoins",
+   "file": "sfx/objects/rpg-audio__handleCoins.ogg",
+   "dur": 0.846,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__handleCoins2",
+   "family": "objects",
+   "name": "Pièces manipulées",
+   "stem": "handleCoins",
+   "file": "sfx/objects/rpg-audio__handleCoins2.ogg",
+   "dur": 0.338,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__handleSmallLeather",
+   "family": "steps",
+   "name": "Petite bourse",
+   "stem": "handleSmallLeather",
+   "file": "sfx/steps/rpg-audio__handleSmallLeather.ogg",
+   "dur": 0.338,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__handleSmallLeather2",
+   "family": "steps",
+   "name": "Petite bourse",
+   "stem": "handleSmallLeather",
+   "file": "sfx/steps/rpg-audio__handleSmallLeather2.ogg",
+   "dur": 0.307,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__knifeSlice",
+   "family": "steps",
+   "name": "Coup de lame",
+   "stem": "knifeSlice",
+   "file": "sfx/steps/rpg-audio__knifeSlice.ogg",
+   "dur": 0.6,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__knifeSlice2",
+   "family": "steps",
+   "name": "Coup de lame",
+   "stem": "knifeSlice",
+   "file": "sfx/steps/rpg-audio__knifeSlice2.ogg",
+   "dur": 0.569,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__metalClick",
+   "family": "objects",
+   "name": "Clic métallique",
+   "stem": "metalClick",
+   "file": "sfx/objects/rpg-audio__metalClick.ogg",
+   "dur": 0.446,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__metalLatch",
+   "family": "objects",
+   "name": "Loquet métallique",
+   "stem": "metalLatch",
+   "file": "sfx/objects/rpg-audio__metalLatch.ogg",
+   "dur": 0.261,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__metalPot1",
+   "family": "objects",
+   "name": "Marmite",
+   "stem": "metalPot",
+   "file": "sfx/objects/rpg-audio__metalPot1.ogg",
+   "dur": 1.46,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__metalPot2",
+   "family": "objects",
+   "name": "Marmite",
+   "stem": "metalPot",
+   "file": "sfx/objects/rpg-audio__metalPot2.ogg",
+   "dur": 0.938,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "rpg-audio__metalPot3",
+   "family": "objects",
+   "name": "Marmite",
+   "stem": "metalPot",
+   "file": "sfx/objects/rpg-audio__metalPot3.ogg",
+   "dur": 0.907,
+   "source": "kenney-rpg-audio"
+  },
+  {
+   "id": "music-jingles__jingles_NES00",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES00.ogg",
+   "dur": 1.758,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES01",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES01.ogg",
+   "dur": 0.408,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES02",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES02.ogg",
+   "dur": 0.391,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES03",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES03.ogg",
+   "dur": 0.604,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES04",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES04.ogg",
+   "dur": 0.604,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES05",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES05.ogg",
+   "dur": 0.906,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES06",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES06.ogg",
+   "dur": 0.799,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES07",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES07.ogg",
+   "dur": 0.746,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES08",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES08.ogg",
+   "dur": 0.621,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES09",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES09.ogg",
+   "dur": 0.444,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES10",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES10.ogg",
+   "dur": 0.408,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES11",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES11.ogg",
+   "dur": 0.835,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES12",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES12.ogg",
+   "dur": 0.852,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES13",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES13.ogg",
+   "dur": 1.048,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES14",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES14.ogg",
+   "dur": 0.373,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES15",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES15.ogg",
+   "dur": 0.426,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_NES16",
+   "family": "jingles",
+   "name": "Jingle 8-bit",
+   "stem": "jingles_NES",
+   "file": "sfx/jingles/music-jingles__jingles_NES16.ogg",
+   "dur": 0.515,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT00",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT00.ogg",
+   "dur": 0.284,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT01",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT01.ogg",
+   "dur": 0.506,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT02",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT02.ogg",
+   "dur": 0.524,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT03",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT03.ogg",
+   "dur": 0.746,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT04",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT04.ogg",
+   "dur": 0.639,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT05",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT05.ogg",
+   "dur": 0.613,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT06",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT06.ogg",
+   "dur": 0.515,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT07",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT07.ogg",
+   "dur": 0.284,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT08",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT08.ogg",
+   "dur": 0.284,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT09",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT09.ogg",
+   "dur": 0.746,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT10",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT10.ogg",
+   "dur": 0.746,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT11",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT11.ogg",
+   "dur": 0.959,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT12",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT12.ogg",
+   "dur": 0.275,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT13",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT13.ogg",
+   "dur": 0.293,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT14",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT14.ogg",
+   "dur": 0.417,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT15",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT15.ogg",
+   "dur": 1.163,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_HIT16",
+   "family": "jingles",
+   "name": "Jingle percussif",
+   "stem": "jingles_HIT",
+   "file": "sfx/jingles/music-jingles__jingles_HIT16.ogg",
+   "dur": 0.293,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI00",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI00.ogg",
+   "dur": 0.494,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI01",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI01.ogg",
+   "dur": 1.002,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI02",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI02.ogg",
+   "dur": 0.956,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI03",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI03.ogg",
+   "dur": 1.147,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI04",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI04.ogg",
+   "dur": 0.564,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI05",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI05.ogg",
+   "dur": 0.536,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI06",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI06.ogg",
+   "dur": 0.69,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI07",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI07.ogg",
+   "dur": 1.324,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI08",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI08.ogg",
+   "dur": 0.569,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI09",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI09.ogg",
+   "dur": 0.569,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI10",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI10.ogg",
+   "dur": 0.797,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI11",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI11.ogg",
+   "dur": 0.793,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI12",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI12.ogg",
+   "dur": 0.993,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI13",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI13.ogg",
+   "dur": 0.881,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI14",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI14.ogg",
+   "dur": 0.923,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI15",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI15.ogg",
+   "dur": 0.811,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_PIZZI16",
+   "family": "jingles",
+   "name": "Jingle pizzicato",
+   "stem": "jingles_PIZZI",
+   "file": "sfx/jingles/music-jingles__jingles_PIZZI16.ogg",
+   "dur": 0.462,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX00",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX00.ogg",
+   "dur": 0.391,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX01",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX01.ogg",
+   "dur": 0.888,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX02",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX02.ogg",
+   "dur": 0.87,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX03",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX03.ogg",
+   "dur": 1.119,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX04",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX04.ogg",
+   "dur": 0.391,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX05",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX05.ogg",
+   "dur": 0.462,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX06",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX06.ogg",
+   "dur": 0.515,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX07",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX07.ogg",
+   "dur": 1.74,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX08",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX08.ogg",
+   "dur": 0.391,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX09",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX09.ogg",
+   "dur": 0.373,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX10",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX10.ogg",
+   "dur": 0.639,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX11",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX11.ogg",
+   "dur": 0.621,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX12",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX12.ogg",
+   "dur": 0.852,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX13",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX13.ogg",
+   "dur": 0.781,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX14",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX14.ogg",
+   "dur": 0.746,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX15",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX15.ogg",
+   "dur": 0.604,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_SAX16",
+   "family": "jingles",
+   "name": "Jingle saxophone",
+   "stem": "jingles_SAX",
+   "file": "sfx/jingles/music-jingles__jingles_SAX16.ogg",
+   "dur": 0.408,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL00",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL00.ogg",
+   "dur": 0.933,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL01",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL01.ogg",
+   "dur": 1.375,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL02",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL02.ogg",
+   "dur": 1.387,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL03",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL03.ogg",
+   "dur": 1.387,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL04",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL04.ogg",
+   "dur": 0.909,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL05",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL05.ogg",
+   "dur": 0.945,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL06",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL06.ogg",
+   "dur": 1.375,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL07",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL07.ogg",
+   "dur": 1.555,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL08",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL08.ogg",
+   "dur": 0.801,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL09",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL09.ogg",
+   "dur": 0.586,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL10",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL10.ogg",
+   "dur": 0.909,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL11",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL11.ogg",
+   "dur": 0.825,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL12",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL12.ogg",
+   "dur": 1.256,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL13",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL13.ogg",
+   "dur": 1.052,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL14",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL14.ogg",
+   "dur": 1.375,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL15",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL15.ogg",
+   "dur": 0.945,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "music-jingles__jingles_STEEL16",
+   "family": "jingles",
+   "name": "Jingle steel drum",
+   "stem": "jingles_STEEL",
+   "file": "sfx/jingles/music-jingles__jingles_STEEL16.ogg",
+   "dur": 0.909,
+   "source": "kenney-music-jingles"
+  },
+  {
+   "id": "casino-audio__card-fan-1",
+   "family": "cards",
+   "name": "Cartes en éventail",
+   "stem": "card-fan-",
+   "file": "sfx/cards/casino-audio__card-fan-1.ogg",
+   "dur": 0.721,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-fan-2",
+   "family": "cards",
+   "name": "Cartes en éventail",
+   "stem": "card-fan-",
+   "file": "sfx/cards/casino-audio__card-fan-2.ogg",
+   "dur": 1.307,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-place-1",
+   "family": "cards",
+   "name": "Carte posée",
+   "stem": "card-place-",
+   "file": "sfx/cards/casino-audio__card-place-1.ogg",
+   "dur": 0.689,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-place-2",
+   "family": "cards",
+   "name": "Carte posée",
+   "stem": "card-place-",
+   "file": "sfx/cards/casino-audio__card-place-2.ogg",
+   "dur": 0.459,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-place-3",
+   "family": "cards",
+   "name": "Carte posée",
+   "stem": "card-place-",
+   "file": "sfx/cards/casino-audio__card-place-3.ogg",
+   "dur": 0.883,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-place-4",
+   "family": "cards",
+   "name": "Carte posée",
+   "stem": "card-place-",
+   "file": "sfx/cards/casino-audio__card-place-4.ogg",
+   "dur": 0.601,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-shove-1",
+   "family": "cards",
+   "name": "Cartes poussées",
+   "stem": "card-shove-",
+   "file": "sfx/cards/casino-audio__card-shove-1.ogg",
+   "dur": 0.766,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-shove-2",
+   "family": "cards",
+   "name": "Cartes poussées",
+   "stem": "card-shove-",
+   "file": "sfx/cards/casino-audio__card-shove-2.ogg",
+   "dur": 0.767,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-shove-3",
+   "family": "cards",
+   "name": "Cartes poussées",
+   "stem": "card-shove-",
+   "file": "sfx/cards/casino-audio__card-shove-3.ogg",
+   "dur": 0.693,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-shove-4",
+   "family": "cards",
+   "name": "Cartes poussées",
+   "stem": "card-shove-",
+   "file": "sfx/cards/casino-audio__card-shove-4.ogg",
+   "dur": 0.809,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-shuffle",
+   "family": "cards",
+   "name": "Cartes battues",
+   "stem": "card-shuffle",
+   "file": "sfx/cards/casino-audio__card-shuffle.ogg",
+   "dur": 3.063,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-1",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-1.ogg",
+   "dur": 0.601,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-2",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-2.ogg",
+   "dur": 0.584,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-3",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-3.ogg",
+   "dur": 0.598,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-4",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-4.ogg",
+   "dur": 0.459,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-5",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-5.ogg",
+   "dur": 0.601,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-6",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-6.ogg",
+   "dur": 0.601,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-7",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-7.ogg",
+   "dur": 0.636,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__card-slide-8",
+   "family": "cards",
+   "name": "Carte glissée",
+   "stem": "card-slide-",
+   "file": "sfx/cards/casino-audio__card-slide-8.ogg",
+   "dur": 0.671,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__cards-pack-open-1",
+   "family": "cards",
+   "name": "Paquet ouvert",
+   "stem": "cards-pack-open-",
+   "file": "sfx/cards/casino-audio__cards-pack-open-1.ogg",
+   "dur": 0.937,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__cards-pack-open-2",
+   "family": "cards",
+   "name": "Paquet ouvert",
+   "stem": "cards-pack-open-",
+   "file": "sfx/cards/casino-audio__cards-pack-open-2.ogg",
+   "dur": 0.732,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__cards-pack-take-out-1",
+   "family": "cards",
+   "name": "Carte sortie du paquet",
+   "stem": "cards-pack-take-out-",
+   "file": "sfx/cards/casino-audio__cards-pack-take-out-1.ogg",
+   "dur": 0.496,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__cards-pack-take-out-2",
+   "family": "cards",
+   "name": "Carte sortie du paquet",
+   "stem": "cards-pack-take-out-",
+   "file": "sfx/cards/casino-audio__cards-pack-take-out-2.ogg",
+   "dur": 0.631,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chip-lay-1",
+   "family": "cards",
+   "name": "Jeton posé",
+   "stem": "chip-lay-",
+   "file": "sfx/cards/casino-audio__chip-lay-1.ogg",
+   "dur": 0.172,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chip-lay-2",
+   "family": "cards",
+   "name": "Jeton posé",
+   "stem": "chip-lay-",
+   "file": "sfx/cards/casino-audio__chip-lay-2.ogg",
+   "dur": 0.23,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chip-lay-3",
+   "family": "cards",
+   "name": "Jeton posé",
+   "stem": "chip-lay-",
+   "file": "sfx/cards/casino-audio__chip-lay-3.ogg",
+   "dur": 0.244,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-collide-1",
+   "family": "cards",
+   "name": "Jetons entrechoqués",
+   "stem": "chips-collide-",
+   "file": "sfx/cards/casino-audio__chips-collide-1.ogg",
+   "dur": 0.259,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-collide-2",
+   "family": "cards",
+   "name": "Jetons entrechoqués",
+   "stem": "chips-collide-",
+   "file": "sfx/cards/casino-audio__chips-collide-2.ogg",
+   "dur": 0.23,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-collide-3",
+   "family": "cards",
+   "name": "Jetons entrechoqués",
+   "stem": "chips-collide-",
+   "file": "sfx/cards/casino-audio__chips-collide-3.ogg",
+   "dur": 0.259,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-collide-4",
+   "family": "cards",
+   "name": "Jetons entrechoqués",
+   "stem": "chips-collide-",
+   "file": "sfx/cards/casino-audio__chips-collide-4.ogg",
+   "dur": 0.216,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-1",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-1.ogg",
+   "dur": 0.616,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-2",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-2.ogg",
+   "dur": 0.546,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-3",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-3.ogg",
+   "dur": 0.23,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-4",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-4.ogg",
+   "dur": 0.359,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-5",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-5.ogg",
+   "dur": 0.834,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-handle-6",
+   "family": "cards",
+   "name": "Jetons manipulés",
+   "stem": "chips-handle-",
+   "file": "sfx/cards/casino-audio__chips-handle-6.ogg",
+   "dur": 0.46,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-1",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-1.ogg",
+   "dur": 0.287,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-2",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-2.ogg",
+   "dur": 0.172,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-3",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-3.ogg",
+   "dur": 0.374,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-4",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-4.ogg",
+   "dur": 0.23,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-5",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-5.ogg",
+   "dur": 0.187,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__chips-stack-6",
+   "family": "cards",
+   "name": "Pile de jetons",
+   "stem": "chips-stack-",
+   "file": "sfx/cards/casino-audio__chips-stack-6.ogg",
+   "dur": 0.187,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-grab-1",
+   "family": "cards",
+   "name": "Dés ramassés",
+   "stem": "dice-grab-",
+   "file": "sfx/cards/casino-audio__dice-grab-1.ogg",
+   "dur": 0.704,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-grab-2",
+   "family": "cards",
+   "name": "Dés ramassés",
+   "stem": "dice-grab-",
+   "file": "sfx/cards/casino-audio__dice-grab-2.ogg",
+   "dur": 0.827,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-shake-1",
+   "family": "cards",
+   "name": "Dés secoués",
+   "stem": "dice-shake-",
+   "file": "sfx/cards/casino-audio__dice-shake-1.ogg",
+   "dur": 1.481,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-shake-2",
+   "family": "cards",
+   "name": "Dés secoués",
+   "stem": "dice-shake-",
+   "file": "sfx/cards/casino-audio__dice-shake-2.ogg",
+   "dur": 1.38,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-shake-3",
+   "family": "cards",
+   "name": "Dés secoués",
+   "stem": "dice-shake-",
+   "file": "sfx/cards/casino-audio__dice-shake-3.ogg",
+   "dur": 1.524,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-throw-1",
+   "family": "cards",
+   "name": "Dés lancés",
+   "stem": "dice-throw-",
+   "file": "sfx/cards/casino-audio__dice-throw-1.ogg",
+   "dur": 0.632,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-throw-2",
+   "family": "cards",
+   "name": "Dés lancés",
+   "stem": "dice-throw-",
+   "file": "sfx/cards/casino-audio__dice-throw-2.ogg",
+   "dur": 0.402,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__dice-throw-3",
+   "family": "cards",
+   "name": "Dés lancés",
+   "stem": "dice-throw-",
+   "file": "sfx/cards/casino-audio__dice-throw-3.ogg",
+   "dur": 0.575,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__die-throw-1",
+   "family": "cards",
+   "name": "Dé lancé",
+   "stem": "die-throw-",
+   "file": "sfx/cards/casino-audio__die-throw-1.ogg",
+   "dur": 0.532,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__die-throw-2",
+   "family": "cards",
+   "name": "Dé lancé",
+   "stem": "die-throw-",
+   "file": "sfx/cards/casino-audio__die-throw-2.ogg",
+   "dur": 0.647,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__die-throw-3",
+   "family": "cards",
+   "name": "Dé lancé",
+   "stem": "die-throw-",
+   "file": "sfx/cards/casino-audio__die-throw-3.ogg",
+   "dur": 0.733,
+   "source": "kenney-casino-audio"
+  },
+  {
+   "id": "casino-audio__die-throw-4",
+   "family": "cards",
+   "name": "Dé lancé",
+   "stem": "die-throw-",
+   "file": "sfx/cards/casino-audio__die-throw-4.ogg",
+   "dur": 0.474,
+   "source": "kenney-casino-audio"
+  }
+ ]
+}

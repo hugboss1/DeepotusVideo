@@ -841,6 +841,225 @@ async def save_sprite_sheet(job: str):
     return {"filename": dest.name}
 
 
+# ═══════════════════════════════════════════════════════════════════════════
+# Catalogue de démarrage (CC0) + génération locale de particules
+#
+# Raison d'être : sans clé ElevenLabs ni clé fal, l'écran Son & VFX était vide
+# et ne proposait que de dépenser. Ces routes servent un catalogue embarqué
+# (80 textures, 5 séquences, 606 bruitages, tous CC0) et un générateur de
+# particules 100 % local. Aucune n'exige de clé ni de réseau.
+# ═══════════════════════════════════════════════════════════════════════════
+
+@router.get("/starter/catalog")
+async def starter_catalog_index(kind: str = "", family: str = "",
+                                q: str = "", limit: int = 0):
+    """Catalogue de démarrage. Sans `kind`, renvoie l'index complet (familles
+    + sources) que l'UI charge une fois ; avec `kind`, la liste filtrée."""
+    from app.services import starter_catalog as SC
+    cat = SC.load()
+    if not kind:
+        return {
+            "available": cat.get("available", False),
+            "sources": cat.get("sources", []),
+            "sfx_families": cat.get("sfx_families", []),
+            "particle_families": cat.get("particle_families", []),
+            "anims": cat.get("anims", []),
+            "counts": {"particles": len(cat.get("particles", [])),
+                       "sfx": len(cat.get("sfx", [])),
+                       "anims": len(cat.get("anims", []))},
+        }
+    try:
+        items = SC.browse(kind, family=family, query=q, limit=limit)
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    return {"kind": kind, "items": items, "total": len(items)}
+
+
+@router.post("/starter/import")
+async def starter_import(body: dict):
+    """Copie des éléments du catalogue dans la Bibliothèque de l'utilisateur.
+
+    C'est le point qui évite un cas particulier permanent : une fois copié, un
+    son de démarrage est un son de la Bibliothèque comme un autre, et tout
+    l'aval (tiroir Sons, Montage, rendu) le traite sans rien savoir de lui.
+    Body: {kind: "sfx"|"particle", ids: [...]}"""
+    from app.services import starter_catalog as SC
+    kind = str((body or {}).get("kind") or "").strip()
+    ids = (body or {}).get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        raise HTTPException(400, "ids: liste non vide attendue.")
+    if len(ids) > 100:
+        raise HTTPException(400, "100 éléments maximum par import.")
+    fn = {"sfx": SC.import_sfx, "particle": SC.import_particle}.get(kind)
+    if fn is None:
+        raise HTTPException(400, "kind doit valoir 'sfx' ou 'particle'.")
+    try:
+        items = await asyncio.get_running_loop().run_in_executor(
+            None, lambda: fn([str(i) for i in ids]))
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+    return {"ok": True, "imported": len(items), "items": items}
+
+
+@router.get("/particles/presets")
+async def particles_presets():
+    """Presets de l'écran « VFX particules » : chacun est (texture CC0 +
+    réglages d'émetteur), donc directement exécutable."""
+    from app.services import particle_service as PS
+    from app.services import starter_catalog as SC
+    cat = SC.load()
+    thumbs = {p["id"]: p.get("thumb") for p in cat.get("particles", [])}
+    return {
+        "available": cat.get("available", False),
+        "presets": [{
+            "id": p["id"], "name": p["name"], "type": p["type"],
+            "desc": p["desc"], "texture": p["texture"],
+            "thumb": (f"/starter/{thumbs[p['texture']]}"
+                      if thumbs.get(p["texture"]) else None),
+            "frames": p["emitter"]["frames"], "fps": p["emitter"]["fps"],
+            "blend": p["emitter"]["blend"],
+        } for p in PS.PRESETS],
+        "anims": [{"id": a["id"], "name": a["name"], "frames": a["frames"],
+                   "thumb": f"/starter/{a['thumb']}"}
+                  for a in cat.get("anims", [])],
+    }
+
+
+def _sprite_job(title: str, step: str):
+    """Pré-enregistre un JobRecord sprite2d et rend (job_id, short, on_step).
+
+    Les particules et les séquences importées produisent EXACTEMENT le même
+    artefact que le Sprite Lab (planche + frames + GIF + pack Unity), donc
+    elles réutilisent le type de job `sprite2d` : l'onglet Sprites de la
+    Bibliothèque, la visionneuse et l'export ZIP marchent sans une ligne de
+    plus.
+    """
+    from app.services.storage import JobRecord, async_session_factory
+
+    job_id = str(uuid4())
+    short = job_id[:8]
+
+    async def register():
+        async with async_session_factory() as s:
+            s.add(JobRecord(
+                id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=5,
+                title=title, image_filename=f"sprite_{short}",
+                provider="sprite2d", current_step=step))
+            await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr = await s2.get(JobRecord, job_id)
+            if jr is not None:
+                jr.current_step = label
+                jr.progress = int(pct)
+                await s2.commit()
+
+    return job_id, short, register, on_step
+
+
+def _sprite_job_finisher(job_id: str, short: str, coro_factory, extra_meta):
+    """Exécute le travail et écrit l'issue dans le JobRecord (même contrat
+    d'erreur que /assets/sprite : un échec laisse un job FAILED lisible)."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services.storage import JobRecord, async_session_factory
+
+    async def _run():
+        try:
+            r = await coro_factory()
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.DONE.value
+                    jr.progress = 100
+                    jr.final_video_path = r.get("sheet")
+                    if r.get("sheet"):
+                        jr.image_filename = "sheet.png"
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps(dict(
+                        {"job": short, "frames": r.get("frames"),
+                         "grid": r.get("grid"), "webm": r.get("webm"),
+                         "usd": 0.0, "bg_failed": []},
+                        **extra_meta(r)))
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"sprite2d {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status = JobStatus.FAILED.value
+                    jr.error = str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    return _run
+
+
+@router.post("/assets/particles")
+async def assets_particles(body: dict, background_tasks: BackgroundTasks):
+    """Génère un sprite de particules — local, gratuit, sans clé ni réseau.
+
+    Body: {preset?: id, texture?: id, emitter?: {...}, seed?: int,
+    webm?: bool, title?: str}. Un preset seul suffit ; `emitter` ne surcharge
+    que les réglages fournis. Sondez ensuite GET /api/jobs/{id}."""
+    from app.services import particle_service as PS
+    from app.services import starter_catalog as SC
+
+    try:
+        opts = PS.normalize_opts(body or {})
+        SC.asset_path("particle", opts["texture"])   # fail-fast: texture connue
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+
+    label = PS.PRESET_BY_ID.get(opts["preset"], {}).get("name") \
+        or opts["texture"]
+    title = (body or {}).get("title") or f"Particules · {label}"
+    job_id, short, register, on_step = _sprite_job(
+        title, "Simulation des particules")
+    await register()
+    background_tasks.add_task(_sprite_job_finisher(
+        job_id, short,
+        lambda: PS.generate_particles(body or {}, short, on_step=on_step),
+        lambda r: {"preset": r.get("preset"), "texture": r.get("texture"),
+                   "seed": r.get("seed"), "kind": "particles"}))
+    return {"job_id": job_id, "status": "queued"}
+
+
+@router.post("/assets/starter-anim")
+async def assets_starter_anim(body: dict, background_tasks: BackgroundTasks):
+    """Assemble une séquence animée CC0 du catalogue en planche sprite2d,
+    sans simulation. Body: {anim: id, cell?: 128|256|512, title?: str}."""
+    from app.services import particle_service as PS
+    from app.services import starter_catalog as SC
+
+    anim = str((body or {}).get("anim") or "").strip()
+    cell = (body or {}).get("cell") or 512
+    try:
+        cell = int(cell)
+        item = SC.get("anim", anim)
+        SC.anim_frames(anim)
+        if cell not in (128, 256, 512):
+            raise ValueError("cell doit valoir 128, 256 ou 512")
+    except (TypeError, ValueError) as e:
+        raise HTTPException(400, str(e))
+    except SC.StarterError as e:
+        raise HTTPException(e.status, e.message)
+
+    title = (body or {}).get("title") or f"Séquence · {item['name']}"
+    job_id, short, register, on_step = _sprite_job(
+        title, "Assemblage de la planche")
+    await register()
+    background_tasks.add_task(_sprite_job_finisher(
+        job_id, short,
+        lambda: PS.import_anim(anim, short, cell=cell, on_step=on_step),
+        lambda r: {"anim": r.get("anim"), "kind": "starter-anim"}))
+    return {"job_id": job_id, "status": "queued"}
+
+
 # ── Studio named-graph store (v1.15.6): save / reload node graphs by name,
 # separate from the render-time source_graph dump. Lives in the data dir
 # (DATA_ROOT/assets/studio_graphs) so it survives updates/reinstalls.
@@ -1329,6 +1548,37 @@ async def generate_sfx_audio(request: Request):
     if warning:
         out["warning"] = warning
     return out
+
+
+@router.get("/music-models")
+async def list_music_models():
+    """Modèles de musique fal.ai + ambiances proposées. `enabled` dit si la
+    clé fal est configurée — l'UI grise la génération plutôt que de laisser
+    l'utilisateur découvrir l'échec après coup."""
+    from app.services import music_service
+    return music_service.catalog()
+
+
+@router.post("/audio/music")
+async def generate_music_audio(request: Request):
+    """Génération de musique via fal.ai (même clé que la vidéo).
+
+    Body: {model?: id, prompt: str, mood?: id, duration_s?: int,
+    instrumental?: bool, lyrics?: str, seed?: int}. La piste rejoint le
+    dossier audio de la Bibliothèque (sidecar kind « musique »), donc le
+    tiroir Sons du Montage et le sélecteur de piste de fond la voient
+    immédiatement. `notes` liste ce que le modèle choisi ne sait pas faire."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    from app.services import music_service
+    try:
+        return await music_service.generate_music(payload or {})
+    except music_service.MusicError as e:
+        raise HTTPException(e.status, e.message)
+    except Exception as e:
+        raise HTTPException(502, f"fal.ai: {str(e)[:300]}")
 
 
 @router.post("/audio/audition")

@@ -117,18 +117,371 @@ var SVM_VFX=[
  {id:"grain",name:"Grain 16 mm",type:"post · overlay",kind:"post"},
  {id:"bloom",name:"Glow bloom",type:"post · shader",kind:"post"},
  {id:"glitchrgb",name:"Glitch RGB",type:"post · transition",kind:"post"}];
+/* Le prix affiché est celui de CE QUE FAIT le bouton. « VFX particules » est
+   passé de « $0.06 » à « gratuit » parce que la génération est désormais une
+   simulation locale, et « SFX » à « gratuit » parce que 606 bruitages CC0 sont
+   livrés : la facturation ElevenLabs ne concerne plus que la génération sur
+   description. Un tarif qui survit au câblage est un mensonge d'interface. */
 var SVM_GENS=[
- {id:"music",name:"Musique",desc:"Piste complète, instrumentale ou chantée",price:"$0.14",c:"--c-audio",target:!0},
- {id:"sfx",name:"SFX",desc:"Pack d'effets depuis une description",price:"$0.03",c:"--c-audio",target:!0},
+ {id:"music",name:"Musique",desc:"Piste complète, instrumentale ou chantée — fal.ai",price:"~$0.10",c:"--c-audio"},
+ {id:"sfx",name:"SFX",desc:"606 bruitages livrés + génération sur description",price:"gratuit",c:"--c-audio"},
  {id:"voiceover",name:"Voix off",desc:"Voix IA ou clonage d'une voix humaine",price:"$0.08",c:"--c-audio"},
- {id:"vfx",name:"VFX particules",desc:"Explosions, fumée, éclats — sprite ou alpha",price:"$0.06",c:"--c-3d",target:!0},
+ {id:"vfx",name:"VFX particules",desc:"Explosions, fumée, éclats — simulation locale",price:"gratuit",c:"--c-3d"},
  {id:"post",name:"Post-traitement",desc:"Grain, glow, aberration, transitions",price:"gratuit",c:"--c-3d"}];
+/* onglet porté par chaque générateur : UNE sélection, deux affichages */
+var SVM_GEN_TAB={music:"audio",sfx:"audio",voiceover:"audio",vfx:"vfx",post:"post"};
 var SVM_DEMO_VOICES=[
  {id:"prophet",name:"Prophet (clonée)",meta:"fr · grave · 44.1 kHz",cloned:!0},
  {id:"tide",name:"Tide",meta:"en · neutre"},
  {id:"narrator",name:"Narrateur humain",meta:"importée · 12 prises"},
  {id:"abyss",name:"Abyss",meta:"fr · chuchotée"}];
 var SVM_DEMO_FILE={file:"voice_scene_03.wav",dur:14.32,pos:2.84,peaks:SVM_EDITOR_PEAKS,pill:"clonée · Prophet",url:null};
+
+/* ═══════════ Catalogue de démarrage CC0 (backend /api/starter) ═══════════
+   80 textures de particules, 5 séquences animées et 606 bruitages livrés AVEC
+   l'app, sous licence CC0. Ils existent pour une raison précise : sans clé
+   ElevenLabs ni clé fal, cet écran ne proposait que de dépenser. Ici tout est
+   jouable, assemblable et exportable sans une seule clé.
+
+   L'index est chargé UNE fois par session (promesse mémoïsée) : il ne bouge
+   jamais, il est produit au build. Catalogue absent (dépôt non construit) =
+   `available:false`, et chaque surface le dit au lieu d'afficher du vide. */
+var SVM_STARTER_IX=null,SVM_STARTER_LISTS={};
+function svmStarterIndex(){
+  if(!SVM_STARTER_IX)SVM_STARTER_IX=fetch("/api/starter/catalog")
+    .then(function(r){return r.json()})
+    .catch(function(){return {available:!1,sfx_families:[],particle_families:[],
+      anims:[],sources:[],counts:{particles:0,sfx:0,anims:0}}});
+  return SVM_STARTER_IX}
+function svmStarterList(kind,family){
+  var key=kind+"|"+(family||"");
+  if(!SVM_STARTER_LISTS[key])SVM_STARTER_LISTS[key]=
+    fetch("/api/starter/catalog?kind="+encodeURIComponent(kind)
+      +(family?"&family="+encodeURIComponent(family):""))
+      .then(function(r){return r.json()})
+      .then(function(d){return d.items||[]})
+      .catch(function(){return []});
+  return SVM_STARTER_LISTS[key]}
+/* recherche locale : la liste d'une famille tient en mémoire, inutile de
+   repasser par le réseau à chaque frappe */
+function svmStarterFilter(items,q){
+  var t=svmNorm(q).trim();if(!t)return items;
+  var terms=t.split(/\s+/);
+  return items.filter(function(it){
+    var hay=svmNorm([it.name,it.stem,it.id,it.family].join(" "));
+    return terms.every(function(w){return hay.indexOf(w)>=0})})}
+
+/* sondage d'un job sprite2d (particules / séquence) — même contrat que le
+   Sprite Lab : /api/jobs/{id} jusqu'à done|failed */
+function svmPollJob(jobId,onStep){
+  return new Promise(function(res,rej){
+    var tries=0;
+    (function tick(){
+      fetch("/api/jobs/"+jobId).then(function(r){return r.json()}).then(function(j){
+        if(onStep)onStep(j.current_step||"",j.progress||0);
+        if(j.status==="done")return res(j);
+        if(j.status==="failed")return rej(new Error(j.error||"échec du rendu"));
+        if(++tries>300)return rej(new Error("délai dépassé"));
+        setTimeout(tick,900)}).catch(function(e){rej(e)})})()})}
+
+/* ── rail contextuel ──────────────────────────────────────────────────────
+   Le défaut corrigé ici : le rail listait les VOIX quel que soit le
+   générateur sélectionné. Choisir « VFX particules » et lire une liste de
+   voix, c'est l'écran qui ment sur son propre état. Une seule sélection
+   (selGen) pilote désormais le panneau du bas ET le contenu central. */
+function SvmRailFamilies(props){
+  return r.jsx("div",{className:"svm-voicelist",children:
+    props.families.length?props.families.map(function(f){
+      return r.jsxs("div",{className:"svm-voice",role:"button",tabIndex:0,
+        "data-sel":props.sel===f.id?"":void 0,
+        title:f.desc||"",
+        onClick:function(){props.onPick(f.id)},
+        onKeyDown:function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();props.onPick(f.id)}},
+        children:[
+        r.jsx("span",{className:"svm-sq7",style:{background:"var("+(props.color||"--c-audio")+")"}}),
+        r.jsxs("div",{className:"svm-vbody",children:[
+          r.jsx("div",{className:"svm-vname",children:f.name}),
+          r.jsx("div",{className:"svm-vmeta",children:f.desc||""})]}),
+        r.jsx("span",{className:"svm-dur",children:f.count})]},f.id)})
+    :r.jsx("div",{className:"svm-note",children:"catalogue indisponible"})})}
+
+/* ── navigateur de bruitages (aucune clé requise) ───────────────────────── */
+function SvmSfxBrowser(props){
+  var s1=x.useState(null),items=s1[0],setItems=s1[1];
+  var s2=x.useState(""),q=s2[0],setQ=s2[1];
+  var s3=x.useState({}),added=s3[0],setAdded=s3[1];
+  var s4=x.useState(""),busy=s4[0],setBusy=s4[1];
+  x.useEffect(function(){var alive=!0;setItems(null);
+    svmStarterList("sfx",props.family).then(function(l){if(alive)setItems(l)});
+    return function(){alive=!1}},[props.family]);
+  var shown=x.useMemo(function(){
+    return items?svmStarterFilter(items,q).slice(0,240):[]},[items,q]);
+  function add(it){
+    if(busy)return;setBusy(it.id);
+    fetch("/api/starter/import",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({kind:"sfx",ids:[it.id]})})
+      .then(function(r2){if(!r2.ok)throw new Error("import refusé");return r2.json()})
+      .then(function(d){setBusy("");
+        setAdded(function(o){var n=Object.assign({},o);n[it.id]=d.items&&d.items[0];return n});
+        props.onNote("« "+it.name+" » est dans la Bibliothèque (sons) — le tiroir Sons du Montage le liste.")})
+      .catch(function(e){setBusy("");props.onNote("Import impossible : "+e.message)})}
+  return r.jsxs("div",{className:"svm-card",children:[
+    r.jsxs("div",{className:"svm-cardhead",children:[
+      r.jsx(SvmLabel,{children:"Bruitages livrés"}),
+      r.jsx("input",{className:"svm-kbsearch",type:"search",value:q,
+        placeholder:"Chercher — « verre », « porte », « laser »…",
+        "aria-label":"Chercher un bruitage",
+        onChange:function(e){setQ(e.target.value)}}),
+      r.jsx("span",{className:"svm-genprice",title:"catalogue CC0 embarqué — aucun crédit consommé",children:"gratuit"})]}),
+    items===null?r.jsx("div",{className:"svm-note",children:"chargement du catalogue…"}):
+    !shown.length?r.jsx("div",{className:"svm-note",children:
+      q?"aucun son pour « "+q+" »":"cette famille est vide"}):
+    r.jsx("div",{className:"svm-sfxlist svm-scrolllist",children:shown.map(function(it){
+      var url="/starter/"+it.file,on=props.playId===url;
+      return r.jsxs("div",{className:"svm-sfx",children:[
+        r.jsx("button",{className:"svm-playbtn","data-on":on?"":void 0,
+          title:on?"Pause":"Écouter","aria-label":"Écouter "+it.name,
+          onClick:function(){props.play(url)},children:on?"▮▮":"▶"}),
+        r.jsx("span",{className:"svm-sfxname",children:it.name}),
+        r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
+          children:it.dur>0?svmShort(it.dur):"—"}),
+        added[it.id]
+          ?r.jsx("span",{className:"svm-savedchip",title:"déjà dans la Bibliothèque",children:"ajouté"})
+          :r.jsx("button",{className:"svm-minibtn",
+            title:"Copier dans la Bibliothèque (sons) — utilisable dans le Montage",
+            "aria-label":"Ajouter "+it.name+" à la Bibliothèque",
+            onClick:function(){add(it)},
+            children:busy===it.id?"…":"+ Bibliothèque"})]},it.id)})}),
+    r.jsx("div",{className:"svm-note",children:
+      "Kenney · CC0 — usage commercial libre, aucune attribution exigée. "
+      +(items?items.length:0)+" sons dans cette famille."})]})}
+
+/* ── VFX particules : presets, textures, génération LOCALE ──────────────── */
+function SvmParticles(props){
+  var s1=x.useState(null),data=s1[0],setData=s1[1];   /* presets + anims */
+  var s2=x.useState("explosion"),sel=s2[0],setSel=s2[1];
+  var s3=x.useState(null),tex=s3[0],setTex=s3[1];     /* textures de la famille */
+  var s4=x.useState(""),busy=s4[0],setBusy=s4[1];
+  var s5=x.useState(""),step=s5[0],setStep=s5[1];
+  var s6=x.useState(null),out=s6[0],setOut=s6[1];
+  var s7=x.useState(""),err=s7[0],setErr=s7[1];
+  var s8=x.useState(512),cell=s8[0],setCell=s8[1];
+  x.useEffect(function(){var alive=!0;
+    fetch("/api/particles/presets").then(function(r2){return r2.json()})
+      .then(function(d){if(alive)setData(d)})
+      .catch(function(){if(alive)setData({available:!1,presets:[],anims:[]})});
+    return function(){alive=!1}},[]);
+  x.useEffect(function(){var alive=!0;setTex(null);
+    if(props.family)svmStarterList("particle",props.family)
+      .then(function(l){if(alive)setTex(l)});
+    return function(){alive=!1}},[props.family]);
+
+  function run(body,label){
+    if(busy)return;setBusy(label);setErr("");setOut(null);setStep("envoi…");
+    fetch(body.anim?"/api/assets/starter-anim":"/api/assets/particles",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)})
+      .then(function(r2){return r2.json().then(function(d){
+        if(!r2.ok)throw new Error(d.detail||"requête refusée");return d})})
+      .then(function(d){return svmPollJob(d.job_id,function(st){setStep(st)})})
+      .then(function(j){setBusy("");setStep("");
+        var short=String(j.job_id||j.id||"").slice(0,8);
+        setOut({short:short,title:j.title});
+        props.onNote("Sprite prêt — onglet Sprites de la Bibliothèque, avec la planche, le GIF et le pack Unity.")})
+      .catch(function(e){setBusy("");setStep("");setErr(e.message||String(e))})}
+
+  var presets=(data&&data.presets)||[],anims=(data&&data.anims)||[];
+  var cur=presets.filter(function(p){return p.id===sel})[0];
+
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsxs("div",{className:"svm-cardhead",children:[
+        r.jsx(SvmLabel,{children:"Effets prêts à générer"}),
+        r.jsx("span",{className:"svm-genprice",
+          title:"simulation locale (PIL + ffmpeg) — aucun appel réseau, aucun crédit",
+          children:"gratuit · local"})]}),
+      data===null?r.jsx("div",{className:"svm-note",children:"chargement des presets…"}):
+      !presets.length?r.jsx("div",{className:"svm-note",children:
+        "catalogue de démarrage absent — lancer scripts/build_starter_catalog.py --fetch"}):
+      r.jsx("div",{className:"svm-vfxgrid svm-wide",children:presets.map(function(p){
+        return r.jsxs("button",{className:"svm-vfx","data-sel":sel===p.id?"":void 0,
+          title:p.desc,onClick:function(){setSel(p.id)},children:[
+          r.jsx("div",{className:"svm-vfxprev svm-vfxprev-img",
+            style:p.thumb?{backgroundImage:"url("+p.thumb+")"}:null}),
+          r.jsxs("div",{className:"svm-vfxfoot",children:[
+            r.jsx("div",{className:"svm-vfxname",children:p.name}),
+            r.jsx("div",{className:"svm-vfxtype",children:p.type})]})]},p.id)})}),
+      cur?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:12},children:[
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},
+          children:cur.desc+" — texture « "+cur.texture+" », "+cur.frames+" images à "+cur.fps+" i/s, fusion "+cur.blend+"."}),
+        r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,
+          title:"Simule l'émetteur et assemble la planche — 100 % local",
+          onClick:function(){run({preset:cur.id},"preset")},
+          children:busy==="preset"?(step||"génération…"):"Générer le sprite"})]}):null,
+      err?r.jsx("div",{className:"svm-note",style:{color:"var(--red)"},children:"Échec : "+err}):null,
+      out?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[
+        r.jsx("img",{className:"svm-vfxresult",src:"/api/assets/sprite/"+out.short+"/preview",
+          alt:"aperçu animé du sprite généré"}),
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},
+          children:"planche, images, GIF et pack Unity prêts"}),
+        r.jsx("a",{className:"svm-secbtn",href:"/api/assets/sprite/"+out.short+"/zip",
+          children:"Télécharger le pack"}),
+        r.jsx("button",{className:"svm-primarybtn",
+          onClick:function(){props.go&&props.go("library")},
+          children:"Ouvrir la Bibliothèque →"})]}):null]}),
+
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsxs("div",{className:"svm-cardhead",children:[
+        r.jsx(SvmLabel,{children:"Séquences animées livrées"}),
+        r.jsxs("select",{className:"svm-cellsel",value:cell,
+          "aria-label":"Taille de cellule de la planche",
+          onChange:function(e){setCell(Number(e.target.value))},
+          children:[128,256,512].map(function(v){
+            return r.jsx("option",{value:v,children:v+" px"},v)})})]}),
+      r.jsx("div",{className:"svm-vfxgrid svm-wide",children:anims.map(function(a){
+        return r.jsxs("button",{className:"svm-vfx",
+          title:a.frames+" images — assemblage direct, sans simulation",
+          onClick:function(){run({anim:a.id,cell:cell},"anim:"+a.id)},children:[
+          r.jsx("div",{className:"svm-vfxprev svm-vfxprev-img",
+            style:{backgroundImage:"url("+a.thumb+")"}}),
+          r.jsxs("div",{className:"svm-vfxfoot",children:[
+            r.jsx("div",{className:"svm-vfxname",children:a.name}),
+            r.jsx("div",{className:"svm-vfxtype",children:
+              busy==="anim:"+a.id?(step||"…"):a.frames+" images"})]})]},a.id)})}),
+      r.jsx("div",{className:"svm-note",children:
+        "Ces cinq séquences sont déjà animées : un clic les assemble en planche, sans simulation."})]}),
+
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:"Textures de la famille sélectionnée"}),
+      tex===null?r.jsx("div",{className:"svm-note",children:"choisissez une famille dans le rail…"}):
+      r.jsxs(r.Fragment,{children:[
+        r.jsx("div",{className:"svm-texgrid",children:tex.map(function(t){
+          return r.jsx("button",{className:"svm-tex",title:t.name+" — générer avec les réglages du preset « "+(cur?cur.name:"—")+" »",
+            "aria-label":"Générer avec la texture "+t.name,
+            onClick:function(){if(cur)run({preset:cur.id,texture:t.id},"preset")},
+            children:r.jsx("img",{src:"/starter/"+t.thumb,alt:t.name,loading:"lazy"})},t.id)})}),
+        r.jsx("div",{className:"svm-note",children:
+          "Un clic relance le preset « "+(cur?cur.name:"—")+" » avec cette texture : c'est ainsi qu'on obtient une variante en une seconde."})]})]})]})}
+
+/* ── Musique : génération fal.ai sur la clé déjà configurée ─────────────── */
+function SvmMusic(props){
+  var s1=x.useState(null),cat=s1[0],setCat=s1[1];
+  var s2=x.useState(""),model=s2[0],setModel=s2[1];
+  var s3=x.useState(""),mood=s3[0],setMood=s3[1];
+  var s4=x.useState(""),prompt=s4[0],setPrompt=s4[1];
+  var s5=x.useState(60),dur=s5[0],setDur=s5[1];
+  var s6=x.useState(!0),inst=s6[0],setInst=s6[1];
+  var s7=x.useState(""),lyrics=s7[0],setLyrics=s7[1];
+  var s8=x.useState(!1),busy=s8[0],setBusy=s8[1];
+  var s9=x.useState(null),res=s9[0],setRes=s9[1];
+  var sA=x.useState(""),err=sA[0],setErr=sA[1];
+  x.useEffect(function(){var alive=!0;
+    fetch("/api/music-models").then(function(r2){return r2.json()})
+      .then(function(d){if(!alive)return;setCat(d);setModel(d.default||"")})
+      .catch(function(){if(alive)setCat({enabled:!1,models:[],moods:[]})});
+    return function(){alive=!1}},[]);
+  var m=cat&&cat.models.filter(function(v){return v.id===model})[0];
+  function go(){
+    if(busy||!m)return;
+    if(!prompt.trim()&&!mood){setErr("Choisis une ambiance ou décris la musique.");return}
+    setBusy(!0);setErr("");setRes(null);
+    fetch("/api/audio/music",{method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:model,prompt:prompt,mood:mood,
+        duration_s:m.duration?dur:null,instrumental:inst,
+        lyrics:m.lyrics&&!inst?lyrics:""})})
+      .then(function(r2){return r2.json().then(function(d){
+        if(!r2.ok)throw new Error(d.detail||"génération refusée");return d})})
+      .then(function(d){setBusy(!1);setRes(d);
+        props.onNote("Piste ajoutée à la Bibliothèque (sons) — disponible en musique de fond du Montage.")})
+      .catch(function(e){setBusy(!1);setErr(e.message||String(e))})}
+
+  if(cat===null)return r.jsx("div",{className:"svm-card",
+    children:r.jsx("div",{className:"svm-note",children:"chargement des modèles…"})});
+  if(!cat.enabled)return r.jsxs("div",{className:"svm-target",children:[
+    r.jsx("span",{className:"svm-targettag",children:"Clé requise"}),
+    r.jsx("div",{style:{color:"var(--ink2)",fontSize:12.5,fontWeight:600,marginBottom:6},
+      children:"La génération de musique passe par votre clé fal.ai"}),
+    r.jsxs("div",{children:["Le câblage est en place (",cat.models.length,
+      " modèles). Renseignez FAL_KEY dans Réglages → clés API : c'est la MÊME clé que la vidéo, il n'y a pas de compte supplémentaire à créer. ",
+      "En attendant, les jingles du catalogue livré sont utilisables tout de suite dans l'onglet SFX (famille « Jingles »), sans aucune clé."]})]});
+
+  var resUrl=res&&res.item&&res.item.url,on=props.playId===resUrl;
+  return r.jsxs(r.Fragment,{children:[
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsxs("div",{className:"svm-cardhead",children:[
+        r.jsx(SvmLabel,{children:"Ambiance"}),
+        r.jsx("span",{className:"svm-note",style:{marginTop:0},
+          children:"nommer un genre, un tempo et une instrumentation change tout — c'est ce que ces vignettes injectent"})]}),
+      r.jsx("div",{className:"svm-moodgrid",children:cat.moods.map(function(md){
+        return r.jsx("button",{className:"svm-mood","data-sel":mood===md.id?"":void 0,
+          title:md.prompt,
+          onClick:function(){setMood(mood===md.id?"":md.id)},
+          children:md.name},md.id)})}),
+      r.jsx("textarea",{className:"svm-musicprompt",rows:2,maxLength:1200,
+        value:prompt,"aria-label":"Description libre de la musique",
+        placeholder:"Précise à ta main — « nappe grave, cordes lointaines, un piano feutré qui entre à mi-parcours »",
+        onChange:function(e){setPrompt(e.target.value);if(err)setErr("")}})]}),
+
+    r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:"Modèle"}),
+      r.jsx("div",{className:"svm-modellist",children:cat.models.map(function(v){
+        return r.jsxs("button",{className:"svm-model","data-sel":model===v.id?"":void 0,
+          onClick:function(){setModel(v.id)},children:[
+          r.jsxs("div",{className:"svm-genrow",children:[
+            r.jsx("span",{className:"svm-genname",children:v.label}),
+            r.jsx("span",{className:"svm-genprice",children:"~$"+v.usd.toFixed(2)})]}),
+          r.jsx("div",{className:"svm-gendesc",children:v.desc}),
+          r.jsxs("div",{className:"svm-modelcaps",children:[
+            r.jsx("span",{className:"svm-cap","data-on":v.duration?"":void 0,
+              children:v.duration?"durée "+v.duration[0]+"–"+v.duration[1]+" s"
+                :(v.fixed_duration?v.fixed_duration+" s fixes":"durée imposée")}),
+            r.jsx("span",{className:"svm-cap","data-on":v.lyrics?"":void 0,children:"paroles"}),
+            r.jsx("span",{className:"svm-cap","data-on":v.instrumental?"":void 0,children:"instrumental"}),
+            r.jsx("span",{className:"svm-cap","data-on":v.seed?"":void 0,children:"graine"})]})]},v.id)})}),
+      m?r.jsxs("div",{className:"svm-toolrow",style:{marginTop:12,flexWrap:"wrap"},children:[
+        m.duration?r.jsxs(r.Fragment,{children:[
+          r.jsx("span",{className:"svm-dur",children:"durée"}),
+          r.jsx("input",{className:"svm-range",type:"range",min:m.duration[0],
+            max:m.duration[1],step:5,value:Math.min(m.duration[1],Math.max(m.duration[0],dur)),
+            "aria-label":"Durée de la piste en secondes",
+            onChange:function(e){setDur(Number(e.target.value))}}),
+          r.jsx("span",{className:"svm-rangeval",children:svmShort(Math.min(m.duration[1],Math.max(m.duration[0],dur)))})]}
+        ):r.jsx("span",{className:"svm-note",style:{marginTop:0},
+            children:m.fixed_duration?m.label+" produit "+m.fixed_duration+" s, sa durée n'est pas réglable"
+              :m.label+" choisit lui-même la durée"}),
+        m.instrumental?r.jsxs("label",{className:"svm-switchrow",children:[
+          r.jsx("input",{type:"checkbox",checked:inst,
+            onChange:function(e){setInst(e.target.checked)}}),
+          r.jsx("span",{children:"instrumental"})]}):null,
+        r.jsx("button",{className:"svm-nbgold","data-off":busy?"":void 0,
+          title:"Génère la piste et la dépose dans la Bibliothèque (sons)",
+          onClick:go,children:busy?"génération…":"Générer la musique"})]}):null,
+      m&&m.lyrics&&!inst?r.jsx("textarea",{className:"svm-musicprompt",rows:3,
+        maxLength:3500,value:lyrics,"aria-label":"Paroles",
+        placeholder:"[Verse]\nÉcris les paroles, ou laisse vide : le modèle les écrira depuis l'ambiance.\n[Chorus]",
+        onChange:function(e){setLyrics(e.target.value)}}):null,
+      err?r.jsx("div",{className:"svm-note",style:{color:"var(--red)"},children:"Échec : "+err}):null]}),
+
+    res?r.jsxs("div",{className:"svm-card",children:[
+      r.jsx(SvmLabel,{children:"Piste générée"}),
+      r.jsxs("div",{className:"svm-sfx",style:{marginTop:10},children:[
+        r.jsx("button",{className:"svm-playbtn","data-on":on?"":void 0,
+          title:on?"Pause":"Écouter","aria-label":"Écouter la piste générée",
+          onClick:function(){props.play(resUrl)},children:on?"▮▮":"▶"}),
+        r.jsx("span",{className:"svm-sfxname",children:res.item.name}),
+        r.jsx("span",{className:"svm-dur",style:{marginLeft:"auto"},
+          children:res.item.dur>0?svmShort(res.item.dur):"—"}),
+        r.jsx("span",{className:"svm-pill",children:res.model_label})]}),
+      (res.notes||[]).length?r.jsx("div",{className:"svm-note",style:{color:"var(--amber)"},
+        children:res.notes.join(" ")}):null,
+      r.jsxs("div",{className:"svm-toolrow",style:{marginTop:10},children:[
+        r.jsx("span",{className:"svm-note",style:{marginTop:0,flex:"1 1 auto"},
+          children:"dans la Bibliothèque (sons) — sélectionnable en musique de fond du Montage"}),
+        r.jsx("button",{className:"svm-primarybtn",
+          onClick:function(){props.go&&props.go("montage")},
+          children:"Ouvrir le Montage →"})]})]}):null]})}
 
 /* ═════════════════════ Écran 06 · Son & VFX ═════════════════════ */
 function DzSonVfx(props){
@@ -154,8 +507,21 @@ function DzSonVfx(props){
   var stLm=x.useState(function(){
     try{return JSON.parse(localStorage.getItem("dz_last_lufs")||"null")}catch(_e){return null}}),
     lastLufs=stLm[0];
+  /* catalogue de démarrage CC0 + familles sélectionnées dans le rail */
+  var stIx=x.useState(null),ix=stIx[0],setIx=stIx[1];
+  var stF1=x.useState("impacts"),sfxFam=stF1[0],setSfxFam=stF1[1];
+  var stF2=x.useState("fire"),partFam=stF2[0],setPartFam=stF2[1];
+  var stPl=x.useState(""),playId=stPl[0],setPlayId=stPl[1]; /* url en écoute */
   var nt=svmUseNote(),note=nt[0],fireNote=nt[1];
   var audioRef=x.useRef(null),rafRef=x.useRef(0),simRef=x.useRef(0);
+
+  x.useEffect(function(){var alive=!0;
+    svmStarterIndex().then(function(d){if(!alive)return;setIx(d);
+      if(d.sfx_families&&d.sfx_families[0])setSfxFam(function(f){
+        return d.sfx_families.some(function(x2){return x2.id===f})?f:d.sfx_families[0].id});
+      if(d.particle_families&&d.particle_families[0])setPartFam(function(f){
+        return d.particle_families.some(function(x2){return x2.id===f})?f:d.particle_families[0].id})});
+    return function(){alive=!1}},[]);
 
   /* voix — vraie liste ElevenLabs quand la clé est configurée */
   x.useEffect(function(){var alive=!0;
@@ -190,9 +556,20 @@ function DzSonVfx(props){
     return function(){alive=!1}},[]);
 
   /* un seul flux à la fois — fichier de l'éditeur (url réelle ou progression simulée) */
-  function stopAll(){setPlaying(!1);setPlayingVoice("");setSfxPlay("");
+  function stopAll(){setPlaying(!1);setPlayingVoice("");setSfxPlay("");setPlayId("");
     if(audioRef.current){audioRef.current.pause();audioRef.current=null}
     if(rafRef.current){cancelAnimationFrame(rafRef.current);rafRef.current=0}}
+  /* écoute générique (catalogue de démarrage, piste générée) — même règle
+     « un seul flux » que le reste de l'écran : rien ne se superpose */
+  var playUrl=x.useCallback(function(url){
+    if(!url)return;
+    if(playId===url){stopAll();return}
+    stopAll();
+    var a=new Audio(url);audioRef.current=a;setPlayId(url);
+    a.onended=function(){setPlayId("")};
+    a.play().catch(function(){setPlayId("");
+      fireNote("Lecture bloquée par le navigateur — cliquez d'abord dans la page.")})},
+    [playId]);
   x.useEffect(function(){return stopAll},[]);
   function toggleEditor(){
     if(playing){stopAll();return}
@@ -240,35 +617,68 @@ function DzSonVfx(props){
         setSfxBusy(!1);setSfxItems(items)})
       .catch(function(e){setSfxBusy(!1);setSfxErr(String(e&&e.message||e))})}
 
-  var vfxTiles=tab==="vfx"?SVM_VFX.filter(function(v){return v.kind==="sprite"}):tab==="post"?SVM_VFX.filter(function(v){return v.kind==="post"}):SVM_VFX;
+
+  /* Une seule sélection pilote l'écran. Avant, le rail et les onglets étaient
+     deux états indépendants : cliquer « VFX particules » laissait la liste des
+     VOIX en dessous et l'onglet Audio actif. Désormais choisir un générateur
+     déplace l'onglet, et choisir un onglet déplace le générateur. */
+  function pickGen(id){setSelGen(id);setTab(SVM_GEN_TAB[id]||"audio")}
+  function pickTab(t){setTab(t);
+    if(t==="vfx")setSelGen("vfx");
+    else if(t==="post")setSelGen("post");
+    else if(SVM_GEN_TAB[selGen]!=="audio")setSelGen("voiceover")}
+
+  /* panneau bas du rail — CONTEXTUEL au générateur sélectionné */
+  var railBottom=
+    selGen==="voiceover"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Voix"}),
+      r.jsx("div",{className:"svm-voicelist",children:
+        voices===null?r.jsx("div",{className:"svm-note",children:"chargement des voix…"}):
+        voices.list.map(function(v){
+          return r.jsxs("div",{className:"svm-voice",role:"button",tabIndex:0,
+            "data-sel":selVoice===v.id?"":void 0,
+            onClick:function(){setSelVoice(v.id)},
+            onKeyDown:function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelVoice(v.id)}},
+            children:[
+            r.jsx("span",{className:"svm-avatar"}),
+            r.jsxs("div",{className:"svm-vbody",children:[
+              r.jsx("div",{className:"svm-vname",children:v.name}),
+              r.jsx("div",{className:"svm-vmeta",children:v.meta})]}),
+            r.jsx("button",{className:"svm-playbtn","data-on":playingVoice===v.id?"":void 0,
+              title:"Écouter la voix","aria-label":"Écouter "+v.name,
+              onClick:function(e){playVoice(v,e)},children:playingVoice===v.id?"▮▮":"▶"})]},v.id)})})]}):
+    selGen==="sfx"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Familles de sons"}),
+      r.jsx(SvmRailFamilies,{families:(ix&&ix.sfx_families)||[],sel:sfxFam,
+        color:"--c-audio",onPick:setSfxFam})]}):
+    selGen==="vfx"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Familles de textures"}),
+      r.jsx(SvmRailFamilies,{families:(ix&&ix.particle_families)||[],sel:partFam,
+        color:"--c-3d",onPick:setPartFam})]}):
+    selGen==="music"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Sans clé, tout de suite"}),
+      r.jsx("div",{className:"svm-note",style:{marginTop:0},
+        children:"La famille « Jingles » du catalogue livré contient 85 stingers courts (victoire, échec, transition), utilisables sans aucune clé."}),
+      r.jsx("button",{className:"svm-secbtn",style:{marginTop:10,width:"100%"},
+        onClick:function(){setSfxFam("jingles");pickGen("sfx")},
+        children:"Ouvrir les jingles livrés →"})]}):
+    r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Où ça s'applique"}),
+      r.jsx("div",{className:"svm-note",style:{marginTop:0},
+        children:"Le post-traitement s'applique au rendu, via le nœud Render du Studio (moteur Effects / Mask, ffmpeg local, gratuit)."})]});
 
   /* rail gauche */
   var rail=r.jsxs("aside",{className:"svm-rail",children:[
     r.jsx(SvmLabel,{children:"Générateurs"}),
     r.jsx("div",{className:"svm-genlist",children:SVM_GENS.map(function(g){
       return r.jsxs("button",{className:"svm-gen","data-sel":selGen===g.id?"":void 0,
-        onClick:function(){setSelGen(g.id)},children:[
+        onClick:function(){pickGen(g.id)},children:[
         r.jsxs("div",{className:"svm-genrow",children:[
           r.jsx("span",{className:"svm-sq7",style:{background:"var("+g.c+")"}}),
           r.jsx("span",{className:"svm-genname",children:g.name}),
           r.jsx("span",{className:"svm-genprice",children:g.price})]}),
         r.jsx("div",{className:"svm-gendesc",children:g.desc})]},g.id)})}),
-    r.jsx(SvmLabel,{style:{margin:"22px 0 10px"},children:"Voix"}),
-    r.jsx("div",{className:"svm-voicelist",children:
-      voices===null?r.jsx("div",{className:"svm-note",children:"chargement des voix…"}):
-      voices.list.map(function(v){
-        return r.jsxs("div",{className:"svm-voice",role:"button",tabIndex:0,
-          "data-sel":selVoice===v.id?"":void 0,
-          onClick:function(){setSelVoice(v.id)},
-          onKeyDown:function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();setSelVoice(v.id)}},
-          children:[
-          r.jsx("span",{className:"svm-avatar"}),
-          r.jsxs("div",{className:"svm-vbody",children:[
-            r.jsx("div",{className:"svm-vname",children:v.name}),
-            r.jsx("div",{className:"svm-vmeta",children:v.meta})]}),
-          r.jsx("button",{className:"svm-playbtn","data-on":playingVoice===v.id?"":void 0,
-            title:"Écouter la voix","aria-label":"Écouter "+v.name,
-            onClick:function(e){playVoice(v,e)},children:playingVoice===v.id?"▮▮":"▶"})]},v.id)})})]});
+    railBottom]});
 
   /* carte éditeur de voix (le formulaire du générateur Voix off, tel que maquetté) */
   var editorCard=r.jsxs("div",{className:"svm-card",children:[
@@ -299,17 +709,7 @@ function DzSonVfx(props){
       r.jsx("span",{className:"svm-targettag",children:"Cible produit"}),
       r.jsx("div",{style:{color:"var(--ink2)",fontSize:12.5,fontWeight:600,marginBottom:6},children:title}),
       r.jsx("div",{children:body})]})}
-  var centerTop=
-    selGen==="voiceover"?editorCard:
-    selGen==="music"?targetPanel("La génération de musique n'est pas encore câblée","Aucun backend n'existe aujourd'hui pour la piste complète. La carte du rail montre l'estimation unitaire cible ($0.14 par piste) ; rien ne peut être déclenché ni facturé d'ici."):
-    selGen==="sfx"?(svmSfx()?
-      r.jsxs("div",{className:"svm-target",children:[
-        r.jsx("span",{className:"svm-targettag",style:{color:"var(--green)"},children:"Branché"}),
-        r.jsx("div",{style:{color:"var(--ink2)",fontSize:12.5,fontWeight:600,marginBottom:6},children:"La génération de SFX est câblée (ElevenLabs)"}),
-        r.jsx("div",{children:"Décrivez un son dans la carte « Générer des SFX » ci-dessous : deux variations jouables, sauvegardées dans la Bibliothèque (sons) et prêtes pour le tiroir Sons du Montage ("+svmKeyLabelNow("sounds_drawer")+")."})]})
-      :targetPanel("La génération de packs SFX n'est pas encore câblée","Aucun backend n'existe aujourd'hui pour les packs d'effets. Estimation unitaire cible : $0.03 par pack ; rien ne peut être déclenché ni facturé d'ici.")):
-    selGen==="vfx"?targetPanel("La génération de sprites de particules n'est pas encore câblée","effects_engine couvre uniquement le post-traitement — les sprites/alpha de particules sont une cible produit. Estimation unitaire : $0.06 par élément."):
-    targetPanel("Le post-traitement s'applique au rendu","Grain, glow, aberration et transitions passent par le moteur Effects / Mask existant sur le nœud Render (gratuit, ffmpeg local). À configurer dans Studio → Render.");
+  var postPanel=targetPanel("Le post-traitement s'applique au rendu","Grain, glow, aberration et transitions passent par le moteur Effects / Mask existant sur le nœud Render (gratuit, ffmpeg local). À configurer dans Studio → Render.");
 
   /* carte SFX — couche DzSfx chargée : VRAIE génération (prompt + durée +
      2 variations jouables, « Ouvrir le Montage ») ; absente : maquette d'avant */
@@ -365,17 +765,33 @@ function DzSonVfx(props){
             return r.jsx("div",{className:"svm-minibar",style:{height:h+"%"}},i)})}),
           r.jsx("span",{className:"svm-dur",children:s2.dur})]},s2.id)})})]});
 
-  var vfxCard=r.jsxs("div",{className:"svm-card",children:[
-    r.jsx(SvmLabel,{children:"VFX · particules & post"}),
-    r.jsx("div",{className:"svm-vfxgrid"+(tab!=="audio"?" svm-wide":""),children:vfxTiles.map(function(v){
+  /* presets de post-traitement — ils n'ont jamais eu de génération à câbler,
+     ils pointent vers le moteur Effects / Mask du nœud Render */
+  var postCard=r.jsxs("div",{className:"svm-card",children:[
+    r.jsx(SvmLabel,{children:"Presets de post-traitement"}),
+    r.jsx("div",{className:"svm-vfxgrid svm-wide",children:
+      SVM_VFX.filter(function(v){return v.kind==="post"}).map(function(v){
       return r.jsxs("button",{className:"svm-vfx","data-sel":selVfx===v.id?"":void 0,
         onClick:function(){setSelVfx(v.id)},children:[
         r.jsx("div",{className:"svm-vfxprev"}),
         r.jsxs("div",{className:"svm-vfxfoot",children:[
           r.jsx("div",{className:"svm-vfxname",children:v.name}),
           r.jsx("div",{className:"svm-vfxtype",children:v.type})]})]},v.id)})}),
-    tab==="vfx"?r.jsx("div",{className:"svm-note",children:"La génération de sprites de particules est une cible produit — les vignettes sont des emplacements média."}):null,
-    tab==="post"?r.jsx("div",{className:"svm-note",children:"Les presets post passent par le moteur Effects / Mask existant au rendu (gratuit)."}):null]});
+    r.jsx("div",{className:"svm-note",children:"Les presets post passent par le moteur Effects / Mask existant au rendu (gratuit)."})]});
+
+  /* Contenu central — piloté par LE générateur sélectionné, comme le rail.
+     Ordre volontaire côté SFX : le catalogue livré (gratuit, sans clé) passe
+     AVANT la génération facturée. Un nouvel utilisateur doit pouvoir écouter
+     et poser un son avant qu'on lui parle de crédits. */
+  var center=
+    selGen==="sfx"?r.jsxs(r.Fragment,{children:[
+      r.jsx(SvmSfxBrowser,{family:sfxFam,onNote:fireNote,play:playUrl,playId:playId}),
+      sfxCard]}):
+    selGen==="music"?r.jsx(SvmMusic,{onNote:fireNote,play:playUrl,playId:playId,go:props.go}):
+    selGen==="vfx"?r.jsx(SvmParticles,{family:partFam,onNote:fireNote,go:props.go}):
+    selGen==="post"?r.jsxs(r.Fragment,{children:[postPanel,postCard]}):
+    r.jsxs(r.Fragment,{children:[editorCard,
+      r.jsxs("div",{className:"svm-grid2",children:[sfxCard,postCard]})]});
 
   return r.jsxs("div",{className:"dzsvm","data-svm-theme":theme==="light"?"light":void 0,children:[
     rail,
@@ -383,9 +799,9 @@ function DzSonVfx(props){
       r.jsxs("div",{className:"svm-titlebar",children:[
         r.jsx("span",{className:"svm-title",children:"Son & VFX"}),
         r.jsxs("div",{className:"svm-tabs",children:[
-          r.jsx("button",{className:"svm-tab","data-on":tab==="audio"?"":void 0,onClick:function(){setTab("audio")},children:"Audio"}),
-          r.jsx("button",{className:"svm-tab","data-on":tab==="vfx"?"":void 0,onClick:function(){setTab("vfx")},children:"VFX particules"}),
-          r.jsx("button",{className:"svm-tab","data-on":tab==="post"?"":void 0,onClick:function(){setTab("post")},children:"Post-traitement"})]}),
+          r.jsx("button",{className:"svm-tab","data-on":tab==="audio"?"":void 0,onClick:function(){pickTab("audio")},children:"Audio"}),
+          r.jsx("button",{className:"svm-tab","data-on":tab==="vfx"?"":void 0,onClick:function(){pickTab("vfx")},children:"VFX particules"}),
+          r.jsx("button",{className:"svm-tab","data-on":tab==="post"?"":void 0,onClick:function(){pickTab("post")},children:"Post-traitement"})]}),
         /* loudness : seulement une MESURE réelle (Montage → Mesurer) — plus
            jamais un chiffre décoratif ; sans mesure, l'emplacement reste vide
            (le span garde le margin-left:auto qui cale la chip de thème) */
@@ -398,8 +814,7 @@ function DzSonVfx(props){
         r.jsx(SvmThemeChip,{theme:theme,setTheme:setTheme})]}),
       r.jsxs("div",{className:"svm-content",children:[
         note?r.jsx("div",{className:"svm-note",style:{marginTop:0,marginBottom:10},children:note}):null,
-        tab==="audio"?r.jsxs(r.Fragment,{children:[centerTop,
-          r.jsxs("div",{className:"svm-grid2",children:[sfxCard,vfxCard]})]}):vfxCard]})]})]})}
+        center]})]})]})}
 
 /* ═════════════════════ Écran 07 · Montage ═════════════════════ */
 var SVM_DEMO_DUR=64;

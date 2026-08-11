@@ -1023,3 +1023,93 @@
     width:50%!important; opacity:1!important; transform:none!important}
   .dzsvm .svm-tprev::after{animation:none!important; opacity:0!important}
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Catalogue de démarrage CC0 + génération de particules + musique (v2.2)
+
+   Règle de fond sur les aperçus : les textures de particules et les planches
+   générées sont des formes BLANCHES sur transparence. Sur le thème clair, un
+   fond suivant --panel les rendrait invisibles. Comme pour les sous-titres
+   incrustés (.svm-captiontext), le média garde donc son fond sombre dans les
+   DEUX thèmes — ce n'est pas un oubli de theming, c'est la seule façon de
+   voir un asset additif.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+/* liste longue (606 bruitages) — bornée pour ne jamais pousser la page */
+.svm-scrolllist{max-height:380px; overflow-y:auto; padding-right:4px}
+.svm-scrolllist::-webkit-scrollbar{width:8px}
+.svm-scrolllist::-webkit-scrollbar-thumb{background:var(--stroke2); border-radius:8px}
+
+/* champ de recherche du navigateur de sons (réutilise le gabarit cheatsheet) */
+.svm-cardhead .svm-kbsearch{flex:1 1 auto; min-width:0; max-width:340px}
+
+/* vignette d'un preset / d'une texture : fond sombre + damier, image contenue */
+.svm-vfxprev-img{
+  background-color:#08090d;
+  background-image:
+    linear-gradient(45deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.035) 75%),
+    linear-gradient(45deg,rgba(255,255,255,.035) 25%,transparent 25%,transparent 75%,rgba(255,255,255,.035) 75%);
+  background-size:14px 14px; background-position:0 0,7px 7px;
+}
+.svm-vfx .svm-vfxprev-img[style*="url"]{
+  background-repeat:no-repeat,no-repeat,no-repeat;
+  background-size:contain,14px 14px,14px 14px;
+  background-position:center,0 0,7px 7px;
+}
+/* aperçu animé du sprite produit (GIF transparent) */
+.svm-vfxresult{width:72px; height:72px; flex:none; border-radius:8px;
+  object-fit:contain; background:#08090d; border:1px solid var(--stroke)}
+
+/* grille des textures d'une famille — dense, cliquable, sans libellé :
+   l'image EST le libellé, et le titre au survol donne le nom */
+.svm-texgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(64px,1fr));
+  gap:8px; margin-top:12px}
+.svm-tex{padding:0; border:1px solid var(--stroke); border-radius:8px;
+  background:#08090d; cursor:pointer; aspect-ratio:1; overflow:hidden;
+  transition:border-color .12s var(--ease)}
+.svm-tex:hover{border-color:var(--accent)}
+.svm-tex img{width:100%; height:100%; object-fit:contain; display:block}
+
+/* sélecteur de taille de cellule */
+.svm-cellsel{margin-left:auto; background:var(--panel2); color:var(--ink2);
+  border:1px solid var(--stroke); border-radius:7px; padding:4px 8px;
+  font-family:var(--f-mono); font-size:11px}
+
+/* ── Musique ─────────────────────────────────────────────────────────────── */
+/* Les ambiances passent en premier parce qu'un prompt de musique vide donne
+   toujours le même résultat tiède : nommer un genre est le geste utile. */
+.svm-moodgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr));
+  gap:8px; margin-top:12px}
+.svm-mood{padding:9px 10px; border:1px solid var(--stroke); border-radius:9px;
+  background:var(--panel2); color:var(--ink2); font-size:12px; cursor:pointer;
+  text-align:left; transition:border-color .12s var(--ease),color .12s var(--ease)}
+.svm-mood:hover:not([data-sel]){border-color:var(--stroke2)}
+.svm-mood[data-sel]{border-color:var(--accent); color:var(--ink)}
+
+.svm-musicprompt{width:100%; margin-top:10px; resize:vertical;
+  background:var(--panel2); color:var(--ink); border:1px solid var(--stroke);
+  border-radius:9px; padding:9px 11px; font-family:var(--f-ui); font-size:12.5px;
+  line-height:1.5}
+.svm-musicprompt::placeholder{color:var(--ink4)}
+.svm-musicprompt:focus{outline:none; border-color:var(--accent)}
+
+.svm-modellist{display:grid; grid-template-columns:repeat(auto-fit,minmax(232px,1fr));
+  gap:8px; margin-top:12px}
+.svm-model{border:1px solid var(--stroke); border-radius:10px;
+  background:var(--panel2); padding:11px 12px; cursor:pointer; text-align:left;
+  transition:border-color .12s var(--ease)}
+.svm-model:hover:not([data-sel]){border-color:var(--stroke2)}
+.svm-model[data-sel]{border-color:var(--accent)}
+/* capacités du modèle : allumées = supportées. Elles sont affichées MÊME
+   éteintes, parce que « ce modèle ne fait pas de paroles » est l'information
+   qui évite de saisir des paroles qui seront silencieusement ignorées. */
+.svm-modelcaps{display:flex; flex-wrap:wrap; gap:5px; margin-top:8px}
+.svm-cap{font-family:var(--f-mono); font-size:9.5px; letter-spacing:.06em;
+  text-transform:uppercase; padding:2px 6px; border-radius:5px;
+  border:1px solid var(--stroke); color:var(--ink4)}
+.svm-cap[data-on]{color:var(--accent-ink); background:var(--accent);
+  border-color:var(--accent)}
+
+.svm-switchrow{display:flex; align-items:center; gap:6px; font-size:12px;
+  color:var(--ink2); cursor:pointer; user-select:none}
+.svm-switchrow input{accent-color:var(--accent); cursor:pointer}

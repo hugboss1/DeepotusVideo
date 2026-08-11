@@ -479,9 +479,81 @@ window.addEventListener("message", (ev) => {
 /* ───────── wiring ───────── */
 function switchSrcTab(which) {
   $$("#srcTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.src === which));
+  $("#srcStarter").classList.toggle("hidden", which !== "starter");
   $("#srcImage").classList.toggle("hidden", which !== "image");
   $("#srcRender").classList.toggle("hidden", which !== "render");
   $("#srcUpload").classList.toggle("hidden", which !== "upload");
+  if (which === "starter") loadStarter();
+}
+
+/* ───────── packs de démarrage CC0 ─────────
+   Même source que l'écran Son & VFX (/api/particles/presets) : un preset
+   choisi ici et un preset choisi là-bas produisent le même sprite. Une seule
+   liste, deux surfaces — sinon les deux dérivent et l'utilisateur ne sait plus
+   laquelle fait foi. */
+let starterData = null, busyStarter = false;
+
+async function loadStarter() {
+  if (starterData) return;
+  try {
+    starterData = await api.get("/particles/presets");
+  } catch (e) {
+    $("#starterGrid").innerHTML =
+      `<div class="empty-note">Catalogue indisponible : ${esc(e.message)}</div>`;
+    return;
+  }
+  renderStarter();
+}
+
+function starterTile(item, kind) {
+  const sub = kind === "preset" ? item.type : item.frames + " images";
+  return `<button class="starter-tile" data-kind="${kind}" data-id="${esc(item.id)}"
+    title="${esc(item.desc || item.name)}">
+    <span class="starter-thumb"${item.thumb ? ` style="background-image:url(${esc(item.thumb)})"` : ""}></span>
+    <span class="starter-name">${esc(item.name)}</span>
+    <span class="starter-sub">${esc(sub)}</span></button>`;
+}
+
+function renderStarter() {
+  const d = starterData || { presets: [], anims: [] };
+  if (!d.presets.length && !d.anims.length) {
+    $("#starterGrid").innerHTML = `<div class="empty-note">Catalogue de démarrage absent —
+      lance <code>python scripts/build_starter_catalog.py --fetch</code> puis relance l'app.</div>`;
+    return;
+  }
+  $("#starterCount").textContent = d.presets.length + " effets";
+  $("#starterGrid").innerHTML = d.presets.map(p => starterTile(p, "preset")).join("");
+  $("#starterAnims").innerHTML = d.anims.map(a => starterTile(a, "anim")).join("");
+  $$("#srcStarter .starter-tile").forEach(b => {
+    b.onclick = () => runStarter(b.dataset.kind, b.dataset.id, b);
+  });
+}
+
+async function runStarter(kind, id, btn) {
+  if (busyStarter) return;
+  busyStarter = true;
+  $$("#srcStarter .starter-tile").forEach(b => b.classList.toggle("busy", b === btn));
+  const st = $("#starterStatus");
+  try {
+    const cell = parseInt($("#cellSize").value, 10) || 512;
+    const body = kind === "anim" ? { anim: id, cell } : { preset: id };
+    setStatus(st, "Job lancé…", false, 3);
+    const path = kind === "anim" ? "/assets/starter-anim" : "/assets/particles";
+    const d = await api.send("POST", path, body);
+    const j = await pollJob(d.job_id, jj => setStatus(st,
+      `${jj.current_step || jj.status}…`, false, jj.progress || 5));
+    if (j.status !== "done") throw new Error(j.error || "génération échouée");
+    const short = d.job_id.slice(0, 8);
+    const m = await api.get("/assets/sprite/" + short + "/manifest");
+    clearStatus(st);
+    showResult(short, m);
+    toast("Sprite prêt ✓ — gratuit, généré en local");
+  } catch (e) {
+    setStatus(st, "Échec : " + e.message, true);
+    toast("Génération échouée : " + e.message, true);
+  }
+  busyStarter = false;
+  $$("#srcStarter .starter-tile").forEach(b => b.classList.remove("busy"));
 }
 function syncPixelSet() {
   $(".pixelset").classList.toggle("off", !$("#pixelOn").checked);
@@ -582,6 +654,10 @@ window.__sl = {
 
 (async function init() {
   wire();
+  // L'onglet « Démarrer » est celui d'ouverture : sans lui, un nouvel
+  // utilisateur tombe sur trois listes vides (pas d'image, pas de render, pas
+  // de vidéo) et n'a aucun moyen de voir ce que le Sprite Lab produit.
+  switchSrcTab("starter");
   await loadPrefs();
   syncPixelSet();
   loadImages(); loadRenders();

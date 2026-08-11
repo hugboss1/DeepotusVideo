@@ -399,6 +399,18 @@ if _fxthumb_dir.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFFx
     app.mount("/effect-thumbs", _SFFx(directory=str(_fxthumb_dir)), name="effect-thumbs")
 
+# ── Catalogue de démarrage CC0 (Son & VFX) : textures de particules, séquences
+# animées et bruitages livrés avec l'app, servis tels quels à /starter. Un
+# montage statique plutôt qu'une route maison : la traversée de chemin, les
+# requêtes Range (lecture audio) et les en-têtes de cache sont déjà traités.
+# Absent = le dépôt n'a pas été construit (scripts/build_starter_catalog.py) ;
+# l'index /api/starter/catalog répond alors « available: false » et l'UI le dit.
+_starter_dir = Path(__file__).resolve().parent / "assets" / "starter"
+if _starter_dir.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFStarter
+    app.mount("/starter", _SFStarter(directory=str(_starter_dir)),
+              name="starter")
+
 # ── Custom emojis: user-imported PNGs in the DATA dir (survive reinstall),
 # served at /emoji-custom for the picker preview. Render reads them directly.
 _emoji_custom_dir = DATA_ROOT / "assets" / "emoji_custom"

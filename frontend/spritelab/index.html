@@ -18,14 +18,32 @@
   <section class="pane src-pane" id="srcPane">
     <div class="pane-head">
       <nav class="tabs" id="srcTabs">
-        <button class="tab active" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni">🖼 Image</button>
+        <button class="tab active" data-src="starter" title="Packs CC0 livrés avec l'app — un sprite jouable sans aucune clé API">✨ Démarrer</button>
+        <button class="tab" data-src="image" title="Choisir une image de la Library et l'animer avec Seedance sur fond uni">🖼 Image</button>
         <button class="tab" data-src="render" title="Partir d'un render vidéo existant">🎬 Render</button>
         <button class="tab" data-src="upload" title="Importer une vidéo de ton PC">📤 Vidéo</button>
       </nav>
     </div>
 
+    <!-- Packs de démarrage CC0 — l'onglet d'ouverture, parce qu'un nouvel
+         utilisateur n'a NI image dans la Library NI render : les trois autres
+         onglets lui présentaient trois listes vides. Ce sont les MÊMES presets
+         que « VFX particules » dans l'écran Son & VFX. -->
+    <div id="srcStarter" class="src-body">
+      <div class="starter-intro">
+        Sprites générés en local à partir de textures Kenney (CC0) livrées avec
+        l'app — aucune clé API, aucun crédit, aucun réseau. Un clic produit la
+        planche, les images, le GIF et le pack Unity.
+      </div>
+      <div class="starter-sec">Effets de particules <span id="starterCount" class="counter">—</span></div>
+      <div id="starterGrid" class="starter-grid"><div class="empty-note">Chargement du catalogue…</div></div>
+      <div class="starter-sec">Séquences animées livrées</div>
+      <div id="starterAnims" class="starter-grid"></div>
+      <div id="starterStatus" class="status hidden"></div>
+    </div>
+
     <!-- Image de la Library → Animer -->
-    <div id="srcImage" class="src-body">
+    <div id="srcImage" class="src-body hidden">
       <input id="imgSearch" class="search" placeholder="🔎 Filtrer les images…">
       <div id="imgGrid" class="img-grid"><div class="empty-note">Chargement de la Library…</div></div>
       <div class="animer-box">
