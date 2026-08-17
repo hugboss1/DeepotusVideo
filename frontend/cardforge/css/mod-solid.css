@@ -1,0 +1,223 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 05 · Volume   [P5]   ·   REGLE 4 : tout selecteur porte
+   `.cf-solid`. Aucune regle sur body, :root, * ni sur un element nu — huit
+   feuilles cohabitent dans la meme page.
+
+   Zero couleur en dur cote interface : tout vient de /shared/deepotus.tokens.css
+   par la coquille, donc le theme clair marche sans une regle de plus. Les seuls
+   litteraux sont (a) le fond de la scene 3D, qui n'est pas de l'interface mais
+   un studio, et (b) les trois couleurs de la legende des ilots UV, qui doivent
+   etre les MEMES que celles peintes dans le modele.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-solid { padding: 0; gap: 0; overflow: hidden; }
+
+.cf-solid .cf-solid-wrap {
+  flex: 1; min-height: 0; min-width: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) 302px;
+}
+
+/* ── colonne de gauche : la visionneuse ──────────────────────────────────── */
+.cf-solid .cf-solid-view {
+  display: flex; flex-direction: column; min-width: 0; min-height: 0;
+  border-right: 1px solid var(--stroke);
+}
+.cf-solid .cf-solid-bar {
+  flex: none; display: flex; align-items: center; gap: 7px; flex-wrap: wrap;
+  padding: 8px 10px; border-bottom: 1px solid var(--stroke); background: var(--bg-panel);
+}
+.cf-solid .cf-solid-gap { flex: 1; }
+.cf-solid .cf-solid-inline { display: flex; align-items: center; gap: 6px; }
+.cf-solid .cf-solid-inline .lbl { white-space: nowrap; }
+.cf-solid .cf-solid-seg {
+  display: flex; border: 1px solid var(--stroke-strong); border-radius: 8px; overflow: hidden;
+}
+.cf-solid .cf-solid-seg .seg-b { padding: 5px 11px; font-size: 11.5px; }
+.cf-solid .cf-solid-sm .seg-b { padding: 4px 9px; font-size: 11px; }
+.cf-solid .cf-solid-sel { width: auto; min-width: 104px; padding: 4px 8px; font-size: 11.5px; }
+.cf-solid .cf-solid-envn { font-style: normal; font-size: 10px; color: var(--ink-muted);
+  font-family: var(--f-mono); white-space: nowrap; }
+
+/* Zoom : l'angle de champ EST le zoom, et il s'affiche entre les deux boutons
+   pour se relire sur une image arretee. */
+.cf-solid .cf-solid-zoom { display: flex; align-items: center; gap: 5px; }
+.cf-solid .cf-solid-zoom .btn { padding: 3px 8px; line-height: 1; font-size: 13px; }
+.cf-solid .cf-solid-zoom b { font-family: var(--f-mono); font-size: 11px;
+  color: var(--ink-soft); min-width: 30px; text-align: center; }
+.cf-solid .cf-solid-zh { font-style: normal; font-size: 9.5px; color: var(--ink-muted);
+  white-space: nowrap; }
+/* Les bornes du curseur d'epaisseur, a cote de son titre. */
+.cf-solid .cf-solid-bornes { font-style: normal; font-family: var(--f-mono);
+  font-size: 10px; color: var(--ink-muted); }
+
+/* ── la scene ────────────────────────────────────────────────────────────── */
+/* LA SCENE MESURE SA PROPRE LARGEUR. Les points de rupture etaient ceux de la
+   FENETRE ; or la scene ne fait que 565 px dans le lab a 1440 px (rail +
+   colonne d'apercu + commandes) et moins encore dans l'app. Le bandeau se
+   reglait donc sur une largeur qu'il n'avait pas, et son detail se repliait en
+   trois lignes par mesure — le « mur de texte » du grief, pose en travers de
+   l'objet meme du panneau. `container-type` fait porter la regle sur la SCENE
+   REELLE. */
+.cf-solid .cf-solid-stage {
+  position: relative; flex: 1; min-height: 220px; overflow: hidden;
+  container-type: inline-size; container-name: cf-solid-scene;
+  background:
+    radial-gradient(120% 90% at 50% 34%, rgba(255, 255, 255, .07), rgba(0, 0, 0, 0) 62%),
+    linear-gradient(160deg, #20232a 0%, #15171b 55%, #0d0e11 100%);
+}
+.cf-solid .cf-solid-mv {
+  width: 100%; height: 100%; display: block; background: transparent;
+  /* Le modele vient d'un blob local : il n'y a rien a attendre, et la barre de
+     chargement native restait affichee en travers de la scene a chaque
+     reconstruction. La progression qui compte ici (le tourne-disque) a sa
+     propre jauge. */
+  --progress-bar-height: 0px;
+  --progress-bar-color: transparent;
+  --progress-mask: transparent;
+}
+/* Mode capture : l'element garde sa taille de MISE EN PAGE (donc sa definition
+   de rendu) et n'est reduit que visuellement. Une transformation ne change pas
+   la taille de mise en page — c'est ce qui permet de filmer en 1080 px dans un
+   panneau de 400 px sans jamais reechantillonner vers le haut. */
+.cf-solid .cf-solid-mv.cap {
+  position: absolute; left: 50%; top: 50%; transform-origin: 50% 50%;
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* ── HUD : les chiffres que la barre n'affiche pas ───────────────────────── */
+.cf-solid .cf-solid-hud {
+  position: absolute; left: 12px; bottom: 12px; z-index: 3;
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 9px 12px; border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-panel) 84%, transparent);
+  border: 1px solid var(--stroke-strong); backdrop-filter: blur(6px);
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums; pointer-events: none;
+}
+.cf-solid .cf-solid-hl { display: flex; align-items: baseline; gap: 8px; font-size: 11px; }
+.cf-solid .cf-solid-hl span { color: var(--ink-muted); width: 62px; flex: none;
+  font-family: var(--f-ui); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; }
+.cf-solid .cf-solid-hl b { color: var(--ink-strong); font-weight: 600; font-size: 12px;
+  white-space: nowrap; }
+.cf-solid .cf-solid-hl i { color: var(--ink-soft); font-style: normal; font-size: 10.5px; }
+/* HIERARCHIE. Le grief : « aucune hierarchie : la phrase la plus importante du
+   panneau est composee exactement comme le chiffre qui ne sert a personne ; a
+   distance normale de lecture, l'essentiel est illisible ». Les trois lignes
+   qui decident d'un tirage — la taille physique, l'echelle du fichier, le sens
+   du verso — sont marquees `key` : filet d'accent, valeur plus grosse. Aucune
+   mesure n'est retiree, elles sont triees. */
+.cf-solid .cf-solid-hl.key { border-left: 2px solid var(--accent); padding-left: 6px;
+  margin-left: -8px; }
+.cf-solid .cf-solid-hl.key b { font-size: 14px; letter-spacing: -.01em; }
+.cf-solid .cf-solid-hl.key span { color: var(--ink-soft); }
+/* SCENE ETROITE : le detail des lignes SECONDAIRES se retire, les VALEURS
+   restent toutes, et les trois lignes de tete gardent leur explication. Rien
+   n'est tronque en silence : une mesure est soit entiere, soit absente avec sa
+   valeur toujours affichee. */
+@container cf-solid-scene (max-width: 720px) {
+  .cf-solid .cf-solid-hud .cf-solid-hl:not(.key) i { display: none; }
+  .cf-solid .cf-solid-hud .cf-solid-hl.key i { font-size: 9.5px; line-height: 1.3; }
+}
+
+.cf-solid .cf-solid-legend {
+  position: absolute; right: 12px; top: 12px; z-index: 3;
+  display: flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 99px;
+  background: color-mix(in srgb, var(--bg-panel) 84%, transparent);
+  border: 1px solid var(--stroke-strong); font-size: 10.5px; color: var(--ink-soft);
+}
+.cf-solid .cf-solid-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; margin-left: 6px; }
+
+.cf-solid .cf-solid-prog {
+  position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 4;
+  display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-radius: 10px;
+  background: var(--bg-panel-3); border: 1px solid var(--stroke-strong);
+  color: var(--ink-strong); font-size: 11.5px; white-space: nowrap;
+}
+.cf-solid .cf-solid-progbar { width: 168px; height: 5px; border-radius: 99px; background: var(--bg-base); overflow: hidden; }
+.cf-solid .cf-solid-progbar i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .12s linear; }
+
+/* ── colonne de droite : les commandes ──────────────────────────────────── */
+.cf-solid .cf-solid-ctl {
+  min-width: 0; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 11px;
+  background: var(--bg-base);
+}
+.cf-solid .cf-solid-grp {
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel);
+  padding: 10px; display: flex; flex-direction: column; gap: 9px;
+}
+.cf-solid .cf-solid-gh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.cf-solid .cf-solid-gh b { font-size: 10px; letter-spacing: .13em; text-transform: uppercase; color: var(--ink-strong); }
+.cf-solid .cf-solid-gv { margin-left: auto; font-family: var(--f-mono); font-size: 10.5px; color: var(--ink-muted); }
+.cf-solid .cf-solid-gv b { color: var(--accent); font-size: 11.5px; letter-spacing: 0; text-transform: none; }
+
+.cf-solid .cf-solid-row { display: flex; align-items: center; gap: 7px; }
+.cf-solid .cf-solid-lb { flex: none; width: 46px; }
+.cf-solid .cf-solid-rg { flex: 1; min-width: 0; accent-color: var(--accent); height: 18px; }
+.cf-solid .cf-solid-nb { width: 72px; flex: none; padding: 4px 6px; font-size: 11.5px;
+  font-family: var(--f-mono); cursor: ew-resize; }
+.cf-solid .cf-solid-nb.w { width: 100%; cursor: ew-resize; }
+.cf-solid .cf-solid-u { flex: none; font-style: normal; font-size: 10px; color: var(--ink-muted); width: 20px; }
+.cf-solid .cf-solid-col { width: 40px; height: 26px; flex: none; padding: 2px; border-radius: 7px;
+  border: 1px solid var(--stroke-strong); background: var(--bg-base); cursor: pointer; }
+.cf-solid .cf-solid-edge { gap: 8px; }
+.cf-solid .cf-solid-link { margin-left: auto; }
+
+.cf-solid .cf-solid-pre { gap: 4px; }
+.cf-solid .cf-solid-pre .chip { font-size: 10.5px; padding: 3px 7px; }
+.cf-solid .cf-solid-pre .chip b { font-family: var(--f-mono); color: var(--ink-muted); font-weight: 500; }
+.cf-solid .cf-solid-pre .chip.active b { color: var(--sel-ink); }
+
+.cf-solid .cf-solid-prof {
+  width: 100%; height: auto; display: block; border-radius: 8px;
+  background: var(--bg-base); border: 1px solid var(--stroke);
+}
+
+.cf-solid .cf-solid-out { border-left: 2px solid var(--accent); padding-left: 8px; }
+.cf-solid .cf-solid-out b { color: var(--ink-strong); }
+
+/* Ce que le fichier porte, ecrit en toutes lettres sous les commandes qui le
+   fabriquent : elevation reelle de la camera, et les quatre cartes de matiere
+   avec leur poids mesure. */
+.cf-solid .cf-solid-elev { margin: -2px 0 0; line-height: 1.35; }
+.cf-solid .cf-solid-elev b { color: var(--accent); font-family: var(--f-mono); }
+/* La convention du chanfrein, sous le curseur qui la fabrique : un imprimeur
+   lit « retrait » et « meplat », pas « biseau ». */
+.cf-solid .cf-solid-bev { margin: -4px 0 0; line-height: 1.4; }
+.cf-solid .cf-solid-bev b { color: var(--ink-strong); font-family: var(--f-mono); }
+.cf-solid .cf-solid-bev i { font-style: italic; }
+.cf-solid .cf-solid-maps { margin: 0; line-height: 1.4; border-left: 2px solid var(--stroke-strong); padding-left: 8px; }
+.cf-solid .cf-solid-maps b { color: var(--ink-strong); }
+
+.cf-solid .cf-solid-keys { margin: 0; display: grid; grid-template-columns: auto 1fr;
+  gap: 3px 10px; font-size: 10.5px; align-items: baseline; }
+.cf-solid .cf-solid-keys dt { font-family: var(--f-mono); color: var(--accent); white-space: nowrap; }
+.cf-solid .cf-solid-keys dd { margin: 0; color: var(--ink-soft); }
+
+/* ── fenetre etroite : les commandes passent sous la scene ──────────────── */
+@media (max-width: 1180px) {
+  .cf-solid .cf-solid-wrap { grid-template-columns: minmax(0, 1fr) 258px; }
+  .cf-solid .cf-solid-hud .cf-solid-hl i { display: none; }
+  /* la barre passait a trois lignes et mangeait la scene : l'aide de souris
+     n'est pas une mesure, c'est elle qui part en premier */
+  .cf-solid .cf-solid-zh { display: none; }
+}
+
+/* ── SCENE BASSE : le bandeau se met en DEUX COLONNES ─────────────────────
+   Dans l'app, l'onglet Cartes tient dans une iframe de ~508 px de haut ; la
+   scene tombe alors sous 300 px et sept lignes de bandeau la recouvraient
+   entierement. On ne retire aucune mesure — on les range en deux colonnes,
+   donc quatre lignes au lieu de sept. */
+@media (max-height: 660px) {
+  .cf-solid .cf-solid-hud {
+    display: grid; grid-template-columns: auto auto; gap: 2px 16px;
+    padding: 7px 10px; left: 8px; bottom: 8px;
+  }
+  .cf-solid .cf-solid-hl { font-size: 10px; }
+  .cf-solid .cf-solid-hl span { width: 54px; font-size: 9px; }
+  .cf-solid .cf-solid-hl b { font-size: 11px; }
+  .cf-solid .cf-solid-hl.key b { font-size: 12px; }
+  .cf-solid .cf-solid-hud .cf-solid-hl i { display: none; }
+}
+@media (max-width: 860px) {
+  .cf-solid .cf-solid-wrap { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(220px, 1fr) auto; }
+  .cf-solid .cf-solid-view { border-right: 0; border-bottom: 1px solid var(--stroke); }
+}

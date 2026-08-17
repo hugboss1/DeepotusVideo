@@ -1,0 +1,246 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 06 · Matières   [P6]
+   REGLE 4 : tout selecteur de ce fichier contient .cf-texture. Aucune regle sur
+   body, :root, * ou un element nu — sans quoi une piece repeindrait les sept
+   autres. Aucune couleur en dur : les tokens de /shared/deepotus.tokens.css
+   sont deja la, et c'est ce qui fait marcher html[data-theme="light"].
+
+   Les SEULES valeurs litterales de cette feuille sont des damiers et des
+   ombres neutres, construits en color-mix depuis les tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-texture { gap: 12px; }
+
+/* ── carte de section ───────────────────────────────────────────────────── */
+.cf-texture .cf-tx-card { border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel); padding: 11px 12px 12px; display: flex;
+  flex-direction: column; gap: 10px; }
+.cf-texture .cf-tx-th { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.cf-texture .cf-tx-th b { color: var(--ink-strong); font-size: 12px; font-weight: 600;
+  letter-spacing: .04em; }
+.cf-texture .cf-tx-th span { font-size: 10.5px; color: var(--ink-muted); }
+.cf-texture .cf-tx-th i { margin-left: auto; font-style: normal; font-size: 10px;
+  color: var(--ink-soft); border: 1px solid var(--stroke); border-radius: 99px;
+  padding: 2px 9px; white-space: nowrap; }
+
+/* ── en-tete du panneau ─────────────────────────────────────────────────── */
+.cf-texture .cf-tx-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cf-texture .cf-tx-hl { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 11.5px; color: var(--ink-soft); }
+.cf-texture .cf-tx-hl b { color: var(--ink-strong); font-size: 12.5px; font-weight: 600; }
+.cf-texture .cf-tx-dot { width: 3px; height: 3px; border-radius: 50%;
+  background: var(--ink-muted); display: inline-block; }
+.cf-texture .cf-tx-acts { margin-left: auto; display: flex; gap: 5px; }
+.cf-texture .cf-tx-mini { background: var(--bg-base); border: 1px solid var(--stroke-strong);
+  border-radius: 7px; color: var(--ink-soft); padding: 3px 8px; font-size: 11px;
+  cursor: pointer; white-space: nowrap; font-family: inherit; }
+.cf-texture .cf-tx-mini:hover { color: var(--ink-strong); border-color: var(--ink-soft); }
+.cf-texture .cf-tx-mini:disabled { opacity: .38; cursor: default; }
+
+/* ── barre de filtres ───────────────────────────────────────────────────── */
+.cf-texture .cf-tx-bar { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.cf-texture .cf-tx-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.cf-texture .cf-tx-chip { background: var(--bg-base); border: 1px solid var(--stroke);
+  border-radius: 7px; color: var(--ink-soft); padding: 3px 9px; font-size: 11px;
+  cursor: pointer; font-family: inherit; }
+.cf-texture .cf-tx-chip:hover { border-color: var(--stroke-strong); color: var(--ink-strong); }
+.cf-texture .cf-tx-chip.on { background: var(--accent); border-color: var(--accent);
+  color: var(--accent-ink); font-weight: 600; }
+.cf-texture .cf-tx-search { margin-left: auto; width: 132px; background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 7px; color: var(--ink-strong);
+  padding: 3px 8px; font-size: 11px; font-family: inherit; }
+
+/* ── catalogue de matieres ──────────────────────────────────────────────── */
+.cf-texture .cf-tx-grid { display: grid; gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(66px, 1fr)); }
+.cf-texture .cf-tx-mat { display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 4px 3px 5px; background: var(--bg-base); border: 1px solid var(--stroke);
+  border-radius: 8px; cursor: pointer; font-family: inherit; overflow: hidden; }
+.cf-texture .cf-tx-mat:hover { border-color: var(--ink-soft); }
+.cf-texture .cf-tx-mat.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.cf-texture .cf-tx-mat canvas { width: 100%; height: auto; aspect-ratio: 1 / 1;
+  border-radius: 5px; display: block; }
+.cf-texture .cf-tx-matl { font-size: 9px; color: var(--ink-soft); line-height: 1.2;
+  text-align: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; }
+.cf-texture .cf-tx-mat.on .cf-tx-matl { color: var(--ink-strong); }
+
+/* ── depose de fichier ──────────────────────────────────────────────────── */
+.cf-texture .cf-tx-drop { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 9px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; text-align: center; background: var(--bg-base); }
+.cf-texture .cf-tx-drop:hover, .cf-texture .cf-tx-drop.over { border-color: var(--accent);
+  background: var(--accent-soft); }
+.cf-texture .cf-tx-drop b { font-size: 11.5px; color: var(--ink-strong); font-weight: 600; }
+.cf-texture .cf-tx-drop span { font-size: 10px; color: var(--ink-muted); }
+.cf-texture .cf-tx-file { display: none; }
+
+/* ── controles : curseur + valeur EDITABLE ──────────────────────────────── */
+.cf-texture .cf-tx-ctl { display: flex; flex-direction: column; gap: 6px; }
+.cf-texture .cf-tx-row { display: flex; align-items: center; gap: 8px; min-height: 24px; }
+.cf-texture .cf-tx-rl { flex: 0 0 138px; font-size: 10.5px; color: var(--ink-soft);
+  letter-spacing: .02em; }
+.cf-texture .cf-tx-range { flex: 1; min-width: 60px; accent-color: var(--accent);
+  height: 16px; margin: 0; }
+.cf-texture .cf-tx-num { flex: 0 0 62px; background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 7px; color: var(--ink-strong);
+  padding: 2px 6px; font-size: 11.5px; font-family: var(--f-mono); }
+.cf-texture .cf-tx-unit { flex: 0 0 18px; font-style: normal; font-size: 10px;
+  color: var(--ink-muted); }
+.cf-texture .cf-tx-sel { flex: 1; background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 7px; color: var(--ink-strong);
+  padding: 3px 7px; font-size: 11.5px; font-family: inherit; }
+.cf-texture .cf-tx-color { flex: 0 0 34px; height: 22px; padding: 0; border-radius: 6px;
+  border: 1px solid var(--stroke-strong); background: var(--bg-base); cursor: pointer; }
+.cf-texture .cf-tx-hex { flex: 0 0 84px; background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 7px; color: var(--ink-strong);
+  padding: 2px 6px; font-size: 11.5px; font-family: var(--f-mono); }
+.cf-texture .cf-tx-check { display: flex; align-items: center; gap: 6px; font-size: 11.5px;
+  color: var(--ink); cursor: pointer; }
+.cf-texture .cf-tx-check input { accent-color: var(--accent); margin: 0; }
+.cf-texture .cf-tx-cl { color: var(--ink-soft); }
+.cf-texture .cf-tx-sep { height: 1px; background: var(--stroke); margin: 3px 0; }
+
+/* ── segmente (definition de sortie) ────────────────────────────────────── */
+.cf-texture .cf-tx-seg { display: flex; border: 1px solid var(--stroke-strong);
+  border-radius: 8px; overflow: hidden; }
+.cf-texture .cf-tx-segb { background: var(--bg-base); border: 0;
+  border-right: 1px solid var(--stroke); color: var(--ink-soft); padding: 4px 11px;
+  font-size: 11.5px; cursor: pointer; font-family: inherit; }
+.cf-texture .cf-tx-segb:last-child { border-right: 0; }
+.cf-texture .cf-tx-segb:hover { color: var(--ink-strong); }
+.cf-texture .cf-tx-segb.on { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+
+/* ── bloc PBR ───────────────────────────────────────────────────────────── */
+.cf-texture .cf-tx-run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.cf-texture .cf-tx-note { margin: 0; font-size: 10.5px; color: var(--ink-muted); line-height: 1.55; }
+.cf-texture .cf-tx-note b { color: var(--ink-soft); font-weight: 600; }
+.cf-texture .cf-tx-warn { margin: 0; font-size: 11px; color: var(--red); line-height: 1.5; }
+.cf-texture .cf-tx-det { border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel-3); }
+.cf-texture .cf-tx-det > summary { list-style: none; cursor: pointer; padding: 6px 10px;
+  font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-soft); }
+.cf-texture .cf-tx-det > summary::-webkit-details-marker { display: none; }
+.cf-texture .cf-tx-det > summary:hover { color: var(--accent); }
+.cf-texture .cf-tx-det[open] > summary { border-bottom: 1px solid var(--stroke);
+  color: var(--ink-strong); }
+.cf-texture .cf-tx-det .cf-tx-ctl { padding: 10px; }
+/* les definitions exactes vivent dans un depliant : elles ne sont pas
+   retirees (le nombre cesserait d'etre reproductible), elles sont rangees. */
+.cf-texture .cf-tx-det > .cf-tx-note { padding: 8px 10px 0; }
+.cf-texture .cf-tx-det > .cf-tx-note:last-child { padding-bottom: 10px; }
+
+/* ── les 8 vignettes de maps, chacune sous sa MESURE ────────────────────── */
+.cf-texture .cf-tx-maps { display: flex; flex-direction: column; gap: 8px; }
+.cf-texture .cf-tx-mhead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--ink-muted); }
+.cf-texture .cf-tx-mhead b { color: var(--ink-strong); font-size: 12px; }
+.cf-texture .cf-tx-mgrid { display: grid; gap: 7px;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.cf-texture .cf-tx-map { border: 1px solid var(--stroke); border-radius: 9px;
+  background: var(--bg-base); padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+.cf-texture .cf-tx-map.flat { opacity: .74; border-style: dashed; }
+.cf-texture .cf-tx-map img { width: 100%; aspect-ratio: 1 / 1; object-fit: contain;
+  display: block; border-radius: 5px; background-color: var(--bg-panel-3);
+  background-image:
+    linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%),
+    linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%);
+  background-size: 14px 14px; background-position: 0 0, 7px 7px; }
+/* `flex-wrap` : le badge de profondeur porte DEUX mesures (« 16 bits · 91.1 %
+   sous-niveaux · octet faible 5.82 b ») et ne tient plus sur la ligne du titre.
+   En `nowrap` il etait COUPE au bord de la vignette — un chiffre tronque est un
+   chiffre faux. Il passe donc a la ligne quand il ne tient pas. */
+.cf-texture .cf-tx-mt { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 2px 6px; flex-wrap: wrap; }
+.cf-texture .cf-tx-mt b { font-size: 11.5px; color: var(--ink-strong); font-weight: 600;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-texture .cf-tx-mt i { font-style: normal; font-size: 9px; color: var(--ink-muted);
+  min-width: 0; line-height: 1.35; }
+.cf-texture .cf-tx-mt i.cf-tx-b16 { color: var(--accent); }
+.cf-texture .cf-tx-mv { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 10px;
+  color: var(--ink-soft); }
+.cf-texture .cf-tx-mv b { color: var(--ink-strong); font-weight: 600; font-size: 11px; }
+.cf-texture .cf-tx-ok { color: var(--green); }
+.cf-texture .cf-tx-flat { color: var(--ink-muted); }
+.cf-texture .cf-tx-mn { margin: 0; font-size: 9.5px; color: var(--ink-muted); line-height: 1.4; }
+.cf-texture .cf-tx-mc { margin: 0; font-size: 9px; color: var(--ink-muted); opacity: .8; }
+.cf-texture .cf-tx-mrow { display: flex; gap: 5px; margin-top: auto; padding-top: 2px; }
+
+/* ── la CONVENTION, collee au chiffre ───────────────────────────────────────
+   « moy » ne veut pas dire la meme chose d'une map a l'autre. L'etiquette est
+   dans le meme <span> que le nombre pour qu'aucun retour a la ligne ne puisse
+   les separer : une definition sur une autre ligne, c'est une definition
+   absente. */
+/* LE CHIFFRE ET SON ETIQUETTE TIENNENT DANS LEUR CASE. `white-space: nowrap`
+   sur l'etiquette suffisait tant qu'elle disait « p95 − p5 » ; depuis qu'une
+   map 16 bits porte « p95 − p5 sur 16 bits, ÷ 257 », elle DEBORDAIT sur la
+   case voisine — mesure a l'ecran : « lu sur 16 bits » et « ÷ 257 » venaient
+   s'imprimer par-dessus le texte de la Rugosite, qui est en 8 bits. Une
+   etiquette de convention posee sur le chiffre du voisin est pire qu'absente :
+   elle attribue une profondeur a une map qui ne l'a pas. */
+.cf-texture .cf-tx-mv span { display: inline-flex; align-items: baseline; gap: 4px;
+  flex-wrap: wrap; max-width: 100%; min-width: 0; }
+.cf-texture .cf-tx-def { font-style: normal; font-size: 8.5px; color: var(--ink-muted);
+  opacity: .85; white-space: normal; overflow-wrap: anywhere; min-width: 0;
+  letter-spacing: .01em; }
+
+/* ── pourquoi cette map est vide, et quoi regler ─────────────────────────── */
+.cf-texture .cf-tx-hint { margin: 0; font-size: 9.5px; color: var(--accent);
+  line-height: 1.4; border-left: 2px solid var(--accent); padding-left: 6px; }
+
+/* ── mesure de la normale, sous sa vignette ─────────────────────────────── */
+.cf-texture .cf-tx-mu { margin: 0; font-size: 9px; color: var(--green); line-height: 1.4; }
+.cf-texture .cf-tx-mt i.cf-tx-warnb { color: var(--accent); border-bottom: 1px dotted var(--accent);
+  cursor: help; }
+
+/* ── raccord de tuile ───────────────────────────────────────────────────── */
+.cf-texture .cf-tx-seam { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.cf-texture .cf-tx-seamline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--ink-muted); }
+.cf-texture .cf-tx-seamline b { color: var(--ink-strong); font-size: 11px; font-weight: 600; }
+.cf-texture .cf-tx-seamall { flex-basis: 100%; display: flex; flex-direction: column; gap: 5px; }
+.cf-texture .cf-tx-seamgrid { display: grid; gap: 3px 10px; font-size: 9.5px;
+  grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
+/* la relecture du fichier exporte, a cote du chiffre de l'ecran */
+.cf-texture .cf-tx-tilechk { flex-basis: 100%; }
+/* L'AVERTISSEMENT SUR LA VIGNETTE QU'ON CLIQUE : le rapport en bas de page ne
+   suffit pas, on choisit sa matiere dans la grille. */
+.cf-texture .cf-tx-mat { position: relative; }
+.cf-texture .cf-tx-matseam { position: absolute; top: 3px; right: 3px;
+  font-style: normal; font-size: 8px; font-weight: 700; letter-spacing: .2px;
+  padding: 1px 3px; border-radius: 4px; color: #1b1206;
+  background: var(--warn, #f0b429); box-shadow: 0 1px 3px rgba(0, 0, 0, .45); }
+
+/* ── table lumineuse ────────────────────────────────────────────────────── */
+.cf-texture .cf-tx-lit { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+/* Le rendu est passe de 235 px a une vraie surface : « une map 4096 en 16
+   bits que personne ne peut inspecter dans l'outil qui l'a produite reste une
+   promesse ». La toile garde son ratio (attributs width/height du canvas) et
+   remplit la largeur disponible sans jamais depasser sa definition. */
+.cf-texture .cf-tx-litcv { flex: 1 1 300px; width: 100%; max-width: 420px; height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--stroke-strong); background: var(--bg-base); cursor: crosshair;
+  touch-action: none; display: block; }
+.cf-texture .cf-tx-benchout { display: flex; flex-direction: column; gap: 4px; }
+.cf-texture .cf-tx-benchout .cf-tx-note { margin: 0; }
+.cf-texture .cf-tx-litside { flex: 1 1 260px; display: flex; flex-direction: column; gap: 7px;
+  min-width: 240px; }
+.cf-texture .cf-tx-litinfo { margin: 0; font-size: 10.5px; color: var(--ink-soft); }
+.cf-texture .cf-tx-litinfo b { color: var(--ink-strong); font-weight: 600; }
+.cf-texture .cf-tx-cuts { display: flex; gap: 12px; flex-wrap: wrap; }
+.cf-texture .cf-tx-mini.on { background: var(--accent); border-color: var(--accent);
+  color: var(--accent-ink); font-weight: 600; }
+
+/* ── etat vide : il PROPOSE, il ne constate pas ─────────────────────────── */
+.cf-texture .cf-tx-empty { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 7px;
+  text-align: center; background: var(--bg-panel-3); }
+.cf-texture .cf-tx-empty b { font-size: 12.5px; color: var(--ink-strong); }
+.cf-texture .cf-tx-empty span { font-size: 11px; color: var(--ink-muted); line-height: 1.55;
+  max-width: 52ch; }
+
+/* ── fenetre etroite (iframe Game Assets) ───────────────────────────────── */
+@media (max-width: 1180px) {
+  .cf-texture .cf-tx-rl { flex-basis: 106px; }
+  .cf-texture .cf-tx-mgrid { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); }
+}

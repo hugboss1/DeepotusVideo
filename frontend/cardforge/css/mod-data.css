@@ -1,0 +1,511 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 04 · Données   [P4]
+   REGLE 4 : tout selecteur de ce fichier contient .cf-data. Aucune regle sur
+   body, :root, * ou un element nu — sans quoi une piece repeindrait les sept
+   autres. Aucune couleur en dur : les tokens de /shared/deepotus.tokens.css
+   sont deja la, et c'est ce qui fait marcher html[data-theme="light"].
+
+   UN ROLE PAR EMPLOI DE L'ACCENT (regle du lab) : l'ambre marque l'option
+   RETENUE (colonne mappee, colonne de quantite, tri actif). Aucune action de
+   cette piece ne depense de credits : il n'y a donc AUCUN .btn.primary ici.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-data { gap: 10px; }
+.cf-data .cf-data-wrap { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+
+/* ── compteur permanent ─────────────────────────────────────────────────────
+   Il ne disparait jamais : « compteur de cartes affiche en permanence ». */
+.cf-data .cf-data-meter { display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  padding: 8px 12px; border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel); flex: none; }
+.cf-data .cf-data-mnum { display: flex; align-items: baseline; gap: 5px; }
+.cf-data .cf-data-mv { font-family: var(--f-mono); font-size: 17px; font-weight: 600;
+  color: var(--ink-strong); font-variant-numeric: tabular-nums; }
+.cf-data .cf-data-ml { font-style: normal; font-size: 9.5px; letter-spacing: .13em;
+  text-transform: uppercase; color: var(--ink-soft); }
+.cf-data .cf-data-mcards .cf-data-mv { color: var(--accent); font-size: 20px; }
+.cf-data .cf-data-mtags { display: flex; gap: 5px; flex-wrap: wrap; margin-left: auto;
+  justify-content: flex-end; }
+.cf-data .cf-data-tag { font-size: 10px; color: var(--ink-muted); border: 1px solid var(--stroke);
+  border-radius: 99px; padding: 2px 8px; white-space: nowrap; }
+.cf-data .cf-data-tag.ok { color: var(--green);
+  border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-data .cf-data-tag.warn { color: var(--amber, var(--accent));
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.cf-data .cf-data-tag.err { color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+
+/* le 4e compteur : combien de slots la carte remplit AVEC LE GABARIT
+   et le 5e : le PRODUIT slots x cartes, c'est-a-dire le nombre de valeurs
+   inventees qui partiraient a l'impression. Les deux virent au vert quand le
+   mode « laisser vide » les a ramenes a zero : un compteur d'alerte qui ne
+   sait pas dire « rien a signaler » finit par etre ignore. */
+.cf-data .cf-data-mgab .cf-data-mv, .cf-data .cf-data-mfab .cf-data-mv { color: var(--ink-soft); }
+.cf-data .cf-data-mgab.bad .cf-data-mv, .cf-data .cf-data-mfab.bad .cf-data-mv { color: var(--red); }
+.cf-data .cf-data-mgab.bad .cf-data-ml, .cf-data .cf-data-mfab.bad .cf-data-ml { color: var(--red); }
+.cf-data .cf-data-mgab.good .cf-data-mv, .cf-data .cf-data-mfab.good .cf-data-mv { color: var(--green); }
+.cf-data .cf-data-mfab { cursor: help; }
+/* le decoupage du temps, ECRIT : une infobulle ne se mesure pas sur une
+   capture, et c'est sur une capture qu'« import 876 ms » a ete reproche */
+.cf-data .cf-data-tline { margin: 0; width: 100%; font-size: 9.5px;
+  font-family: var(--f-mono); color: var(--ink-muted); text-align: right;
+  line-height: 1.5; }
+.cf-data .cf-data-tline b { color: var(--ink-soft); font-weight: 400; }
+/* UNE RECONSTRUCTION EN VOL. Les quatre compteurs du MOTEUR sont ceux de la
+   construction PRECEDENTE tant qu'elle n'est pas revenue : pendant la
+   temporisation, ils decrivent une autre table que celle qu'on lit. On ne peut
+   pas les avancer — c'est le moteur qui les rend, en un exemplaire — alors on
+   les eteint et le bandeau le dit. « lignes » est EXCLU : il vient de la table
+   de maintenant, il est juste, et l'eteindre ferait douter d'un chiffre vrai.
+   Quatre s'eteignent, et le bandeau dit quatre. */
+.cf-data .cf-data-meter.stale .cf-data-mnum:not(.cf-data-mrows) .cf-data-mv { opacity: .34; }
+.cf-data .cf-data-meter.stale .cf-data-mnum:not(.cf-data-mrows) .cf-data-ml { opacity: .5; }
+
+/* ── CONTROLE DU MAPPAGE ────────────────────────────────────────────────────
+   Le seul chiffre de cet ecran qui fait rater une impression. Il n'a pas le
+   poids visuel d'une etiquette de nom de fichier : c'est un bandeau plein
+   largeur, juste sous les compteurs, jamais repliable. */
+.cf-data .cf-data-audit { flex: none; border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel); padding: 8px 12px 9px; display: flex; flex-direction: column;
+  gap: 7px; font-size: 11.5px; }
+.cf-data .cf-data-audit.bad { border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 8%, var(--bg-panel)); }
+.cf-data .cf-data-audit.good { border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-data .cf-data-audit.muted { color: var(--ink-muted); }
+.cf-data .cf-data-arow { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.cf-data .cf-data-ascore { font-family: var(--f-mono); font-size: 12px; color: var(--ink-strong);
+  white-space: nowrap; }
+.cf-data .cf-data-ascore.bad { color: var(--red); }
+.cf-data .cf-data-ascore.good { color: var(--green); }
+.cf-data .cf-data-ahint { color: var(--ink-muted); font-size: 10.5px; flex: 1 1 240px;
+  line-height: 1.5; }
+.cf-data .cf-data-ahint b { color: var(--ink-soft); }
+/* LE MOT DU CADRE. Il ne passe par aucun slot : aucun des cinq compteurs ne
+   pouvait le voir, et il partait sur toutes les cartes. Sa ligne a le meme
+   poids que le bandeau d'alerte, parce que c'est le meme degat. */
+.cf-data .cf-data-frameline { margin: 0; font-size: 11px; line-height: 1.65;
+  color: var(--ink-muted); border-left: 2px solid var(--stroke); padding-left: 9px; }
+.cf-data .cf-data-frameline b { color: var(--ink-strong); }
+.cf-data .cf-data-frameline code { font-family: var(--f-mono); color: var(--accent); }
+.cf-data .cf-data-frameline.bad { color: var(--red);
+  border-left-color: var(--red); }
+.cf-data .cf-data-frameline.bad b { color: var(--red); }
+.cf-data .cf-data-frameline.good { border-left-color:
+  color-mix(in srgb, var(--green) 55%, transparent); }
+.cf-data .cf-data-frameline.good b { color: var(--green); }
+.cf-data .cf-data-ptbl tr.clash .cf-data-pv { color: var(--red); }
+.cf-data .cf-data-ptbl tr.clash .cf-data-ps { color: var(--red); }
+
+/* LA MESURE SUR LE FICHIER LIVRE. Elle repond a la seule question qui compte
+   pour l'imprimeur — « qu'y a-t-il DANS le fichier » — et elle a le droit de
+   contredire le compteur d'a cote : c'est meme sa raison d'etre. */
+.cf-data .cf-data-mesb { flex: none; }
+.cf-data .cf-data-deliv { margin: 0; font-size: 10.5px; line-height: 1.65;
+  color: var(--ink-muted); font-family: var(--f-mono); }
+.cf-data .cf-data-deliv:empty { display: none; }
+.cf-data .cf-data-deliv b { color: var(--ink-strong); font-weight: 400; }
+.cf-data .cf-data-deliv.ok { color: var(--ink-soft); }
+.cf-data .cf-data-deliv.ok b { color: var(--green); }
+.cf-data .cf-data-deliv.warn b { color: var(--amber, var(--accent)); }
+.cf-data .cf-data-deliv.bad, .cf-data .cf-data-deliv.bad b { color: var(--red); }
+/* UNE MESURE PAR LIGNE. Le rapport tenait sur un paragraphe unique : quatre
+   faits differents (chunks, en-tete, profondeur effective, resolution) y
+   coulaient les uns dans les autres et personne ne les lisait separement. */
+.cf-data .cf-data-dl { display: block; }
+.cf-data .cf-data-dl + .cf-data-dl { margin-top: 3px; padding-top: 3px;
+  border-top: 1px dashed var(--stroke); }
+/* la geometrie SEULE, avant toute mesure de fichier : c'est une arithmetique
+   exacte, pas un resultat — elle ne prend donc ni le vert ni le rouge. */
+.cf-data .cf-data-deliv.geo { color: var(--ink-muted); }
+.cf-data .cf-data-deliv.geo b { color: var(--ink-soft); }
+.cf-data .cf-data-aline { margin: 0; color: var(--ink-muted); line-height: 1.7;
+  display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 11px; }
+.cf-data .cf-data-aline b { color: var(--ink-strong); }
+.cf-data .cf-data-aline code { font-family: var(--f-mono); color: var(--accent);
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 5px;
+  padding: 0 4px; font-size: 10.5px; }
+.cf-data .cf-data-awhy { color: var(--ink-muted); font-size: 10.5px; }
+.cf-data .cf-data-aslots { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+.cf-data .cf-data-aslots > .lbl { width: 100%; }
+.cf-data .cf-data-aholes, .cf-data .cf-data-aorph { display: flex; flex-direction: column; gap: 3px; }
+.cf-data .cf-data-uslot { display: flex; align-items: center; gap: 6px; min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--red) 40%, transparent); border-radius: 7px;
+  background: var(--bg-base); padding: 3px 4px 3px 8px; }
+.cf-data .cf-data-usl { color: var(--ink-strong); font-size: 11px; white-space: nowrap; }
+.cf-data .cf-data-usv { color: var(--red); font-size: 10.5px; max-width: 22ch; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-data .cf-data-usv.empty { color: var(--ink-muted); }
+.cf-data .cf-data-usel { min-width: 0; width: 122px; font-size: 10.5px; padding: 2px 5px; }
+/* trois etats, et ils ne se valent pas : le gabarit PARLE (rouge), le gabarit
+   est neutralise (neutre, barre), le gabarit n'a rien a dire (gris). */
+.cf-data .cf-data-uslot.muted { border-color: var(--stroke); }
+.cf-data .cf-data-uslot.muted .cf-data-usv { color: var(--ink-muted); }
+.cf-data .cf-data-uslot.muted .cf-data-usv s { color: var(--ink-soft); opacity: .65; }
+.cf-data .cf-data-uslot.mute { border-color: var(--stroke); opacity: .8; }
+.cf-data .cf-data-uslot.mute .cf-data-usv { color: var(--ink-muted); }
+
+/* ── LES DEUX GRANDS LIVRES ─────────────────────────────────────────────────
+   « 5 / 7 colonnes posées » sous « 4 / 9 alimentés » : deux chiffres justes
+   qui se contredisent a l'oeil valent deux chiffres faux. On ecrit donc les
+   ADDITIONS, avec leur total, pour qu'elles se refassent de tete. */
+.cf-data .cf-data-aledger { display: flex; flex-direction: column; gap: 5px; }
+.cf-data .cf-data-alnr { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cf-data .cf-data-alt { font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 400; white-space: nowrap; }
+.cf-data .cf-data-alt u { font-family: var(--f-mono); font-size: 13px; font-weight: 600;
+  color: var(--ink-strong); text-decoration: none; margin-left: 3px; }
+.cf-data .cf-data-aleq { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cf-data .cf-data-alp { font-style: normal; color: var(--ink-muted); font-size: 11px; }
+.cf-data .cf-data-alc { display: inline-flex; align-items: baseline; gap: 4px;
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 1px 9px;
+  background: var(--bg-base); cursor: help; }
+.cf-data .cf-data-alc b { font-family: var(--f-mono); font-size: 12px; color: var(--ink-strong); }
+.cf-data .cf-data-alc i { font-style: normal; font-size: 10px; color: var(--ink-muted); }
+.cf-data .cf-data-alc.good { border-color: color-mix(in srgb, var(--green) 42%, transparent); }
+.cf-data .cf-data-alc.good b { color: var(--green); }
+.cf-data .cf-data-alc.bad { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.cf-data .cf-data-alc.bad b, .cf-data .cf-data-alc.bad i { color: var(--red); }
+
+/* le mode « laisser vide » : un COMPORTEMENT, pas un avertissement de plus */
+.cf-data .cf-data-blank { display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 3px 11px 3px 8px;
+  background: var(--bg-base); font-size: 11px; white-space: nowrap; }
+.cf-data .cf-data-blank input { accent-color: var(--green); margin: 0; cursor: pointer; }
+.cf-data .cf-data-blank.on { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+.cf-data .cf-data-blank.off { border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 10%, var(--bg-base)); }
+.cf-data .cf-data-blankt { color: var(--ink-soft); }
+.cf-data .cf-data-blankt b { color: var(--ink-strong); }
+.cf-data .cf-data-blank.off .cf-data-blankt, .cf-data .cf-data-blank.off .cf-data-blankt b {
+  color: var(--red); }
+.cf-data .cf-data-osel { min-width: 0; width: 148px; font-size: 10.5px; padding: 2px 5px; }
+
+/* provenance : d'ou vient chaque valeur imprimee sur la carte affichee */
+.cf-data .cf-data-prov { font-size: 11px; }
+.cf-data .cf-data-prov > summary { cursor: pointer; color: var(--ink-soft); font-size: 10px;
+  letter-spacing: .09em; text-transform: uppercase; }
+.cf-data .cf-data-prov > summary:hover { color: var(--accent); }
+.cf-data .cf-data-ptbl { border-collapse: collapse; width: 100%; margin-top: 5px;
+  font-size: 10.5px; }
+.cf-data .cf-data-ptbl td { padding: 2px 6px; border-bottom: 1px solid var(--stroke);
+  vertical-align: top; }
+.cf-data .cf-data-ptbl tr.gab { background: color-mix(in srgb, var(--red) 9%, transparent); }
+/* « laissé vide » n'est pas « rempli par le gabarit » : ce n'est pas une
+   alerte, c'est la correction en train de marcher. */
+.cf-data .cf-data-ptbl tr.blanked { background: color-mix(in srgb, var(--green) 7%, transparent); }
+.cf-data .cf-data-ptbl tr.blanked .cf-data-ps b { color: var(--green); }
+.cf-data .cf-data-pside { font-style: normal; font-size: 9px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-muted); border: 1px solid var(--stroke);
+  border-radius: 4px; padding: 0 3px; }
+.cf-data .cf-data-pside.off { color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+
+/* LA PREUVE DE L'ALLER-RETOUR, mesuree sur les octets rendus par le backend :
+   une promesse d'infobulle ne se verifie pas sur une capture. */
+.cf-data .cf-data-proof { margin: 0; font-size: 10.5px; line-height: 1.6;
+  color: var(--ink-muted); }
+.cf-data .cf-data-proof:empty { display: none; }
+.cf-data .cf-data-proof.ok b { color: var(--green); font-family: var(--f-mono); }
+.cf-data .cf-data-proof.bad { color: var(--red); }
+.cf-data .cf-data-proof.bad b { color: var(--red); font-family: var(--f-mono); }
+/* LA COMPARAISON AUX OCTETS D'ORIGINE — sa propre couleur, parce que c'est une
+   AUTRE question que l'aller-retour : un fichier lu en Windows-1252 ressort en
+   UTF-8, memes cellules et autres octets. Repondre « oui » a l'une et « non »
+   a l'autre est la verite, pas une incoherence. */
+.cf-data .cf-data-srcmp { font-family: var(--f-mono); color: var(--ink-muted); }
+.cf-data .cf-data-srcmp i { color: var(--ink-soft); font-style: normal; }
+.cf-data .cf-data-srcmp.ok { color: var(--green); }
+.cf-data .cf-data-srcmp.warn { color: var(--amber, var(--accent)); }
+.cf-data .cf-data-pl { color: var(--ink-soft); white-space: nowrap; width: 16ch; }
+.cf-data .cf-data-pv { color: var(--ink-strong); font-family: var(--f-mono); }
+.cf-data .cf-data-pnil { color: var(--ink-muted); font-style: normal; }
+.cf-data .cf-data-ps { color: var(--ink-muted); white-space: nowrap; width: 20ch;
+  text-align: right; }
+.cf-data .cf-data-ptbl tr.gab .cf-data-ps b { color: var(--red); }
+.cf-data .cf-data-ps code { font-family: var(--f-mono); color: var(--accent); font-size: 10px; }
+
+.cf-data .cf-data-boom { color: var(--red); font-size: 11.5px; line-height: 1.6;
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent);
+  background: color-mix(in srgb, var(--red) 10%, var(--bg-panel));
+  border-radius: var(--r); padding: 9px 12px; margin: 0; }
+.cf-data .cf-data-boom b { color: var(--red); }
+
+/* ── source : depot + reglages de lecture ─────────────────────────────────── */
+.cf-data .cf-data-src { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.cf-data .cf-data-drop b { color: var(--ink-strong); font-size: 12.5px; }
+.cf-data .cf-data-drop .hint { max-width: 62ch; }
+.cf-data .cf-data-srow { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.cf-data .cf-data-fld { min-width: 128px; }
+.cf-data .cf-data-fldb { min-width: 0; }
+.cf-data .cf-data-grow { flex: 1 1 170px; }
+.cf-data .cf-data-grow2 { flex: 2 1 300px; }
+.cf-data .cf-data-sel { min-width: 128px; }
+.cf-data .cf-data-tiny { min-width: 0; }
+.cf-data .cf-data-tiny .cf-data-sel { min-width: 0; width: 116px; font-size: 11px;
+  padding: 4px 7px; }
+
+/* la bande compacte : une ligne, des que la table existe */
+.cf-data .cf-data-strip { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel);
+  padding: 6px 10px; }
+.cf-data .cf-data-strip.over { border-color: var(--accent); background: var(--accent-soft); }
+.cf-data .cf-data-sfile { font-family: var(--f-mono); font-size: 11px; color: var(--ink-strong);
+  align-self: center; margin-right: auto; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap; max-width: 34ch; }
+.cf-data .cf-data-fix { border-color: var(--red); color: var(--red); }
+
+/* la barre de selection : LINKMULTI + LINKSORT + LINKFILTER sur une ligne */
+.cf-data .cf-data-selbar { display: flex; flex-direction: column; gap: 5px; flex: none;
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel);
+  padding: 8px 10px 9px; }
+.cf-data .cf-data-selrow { align-items: flex-end; }
+
+/* ── etat vide : il propose ───────────────────────────────────────────────── */
+.cf-data .cf-data-empty { display: flex; flex-direction: column; gap: 10px; }
+.cf-data .cf-data-etitle { margin: 0; font-size: 12px; color: var(--ink-soft); }
+.cf-data .cf-data-samples { display: grid; gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
+.cf-data .cf-data-sample { display: flex; flex-direction: column; gap: 3px; text-align: left;
+  background: var(--bg-panel); border: 1px solid var(--stroke-strong); border-radius: var(--r);
+  padding: 10px 12px; cursor: pointer; color: var(--ink); font-family: inherit; }
+.cf-data .cf-data-sample:hover { border-color: var(--accent); background: var(--accent-soft); }
+.cf-data .cf-data-sample b { color: var(--ink-strong); font-size: 12px; }
+.cf-data .cf-data-sample .hint { font-size: 10.5px; }
+.cf-data .cf-data-sample em { font-style: normal; font-family: var(--f-mono); font-size: 9.5px;
+  color: var(--ink-muted); }
+/* « detecte sur les octets » : ce que la DETECTION a rendu sur ce jeu, mesure
+   par le moteur au moment de servir la vignette — pas un libelle recopie. */
+.cf-data .cf-data-sample em.det { color: var(--ink-soft); }
+.cf-data .cf-data-sample em.warn { color: var(--amber, var(--accent)); }
+/* CE QUE LES VIGNETTES PROUVENT ENSEMBLE. Le compte est fait SUR elles : il ne
+   peut pas se desynchroniser du jeu qu'il decrit. */
+.cf-data .cf-data-detsum { margin: 2px 0 0; line-height: 1.6; max-width: 760px; }
+.cf-data .cf-data-detsum b { color: var(--ink-soft); font-family: var(--f-mono); }
+.cf-data .cf-data-erow { max-width: 520px; }
+
+/* ── groupes ──────────────────────────────────────────────────────────────── */
+.cf-data .cf-data-grp { flex: none; }
+.cf-data .cf-data-body { gap: 9px; }
+.cf-data .cf-data-warnp { font-style: normal; text-transform: none; letter-spacing: 0;
+  font-size: 9.5px; color: var(--amber, var(--accent)); }
+.cf-data .cf-data-inp { width: 100%; }
+.cf-data .cf-data-filter { font-family: var(--f-mono); font-size: 12px; }
+.cf-data .cf-data-filter.bad { border-color: var(--red); }
+.cf-data .cf-data-fstate { min-height: 15px; }
+.cf-data .cf-data-fstate.bad { color: var(--red); }
+.cf-data .cf-data-fstate b { color: var(--ink-strong); }
+.cf-data .cf-data-same { font-style: normal; text-transform: none; letter-spacing: 0;
+  font-size: 9.5px; color: var(--ink-muted); }
+
+/* ── le constructeur de condition A LA SOURIS, et les conditions posees ─────
+   Le champ de filtre reste (on tape plus vite qu'on ne clique quand on sait),
+   mais il n'est plus la seule porte : le reproche des deux critiques etait
+   qu'ecrire etait OBLIGATOIRE. Les pastilles montrent le decoupage rendu par
+   le moteur, avec le poids mesure de chaque condition. */
+.cf-data .cf-data-fchips { display: none; }
+.cf-data .cf-data-fchips.on { display: flex; flex-wrap: wrap; align-items: center;
+  gap: 5px; padding: 2px 0 1px; }
+.cf-data .cf-data-fchips .lbl { width: 100%; }
+.cf-data .cf-data-fchip { display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--stroke-strong); border-radius: 99px;
+  background: var(--bg-panel); padding: 2px 3px 2px 9px; }
+.cf-data .cf-data-fchip.bad { border-color: var(--red); }
+.cf-data .cf-data-fchip code { font-family: var(--f-mono); font-size: 10.5px;
+  color: var(--ink-strong); }
+.cf-data .cf-data-fchip i { font-style: normal; font-size: 9.5px; color: var(--ink-muted); }
+.cf-data .cf-data-fx { border: 0; background: transparent; color: var(--ink-muted);
+  cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 6px; border-radius: 99px; }
+.cf-data .cf-data-fx:hover { color: var(--red); background: var(--bg-base); }
+.cf-data .cf-data-fnote { font-size: 9.5px; color: var(--ink-muted); }
+
+.cf-data .cf-data-fbuild { display: flex; flex-direction: column; gap: 4px;
+  border-top: 1px dashed var(--stroke); padding-top: 7px; margin-top: 2px; }
+.cf-data .cf-data-brow2 { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.cf-data .cf-data-bcol, .cf-data .cf-data-bop { min-width: 0; max-width: 190px; }
+.cf-data .cf-data-bval { width: auto; flex: 1 1 150px; min-width: 120px;
+  font-family: var(--f-mono); font-size: 11.5px; }
+.cf-data .cf-data-badd:disabled { opacity: .45; cursor: not-allowed; }
+.cf-data .cf-data-bpv { margin: 0; font-size: 10px; color: var(--ink-muted); }
+.cf-data .cf-data-bpv.bad { color: var(--red); }
+.cf-data .cf-data-bpv code { font-family: var(--f-mono); color: var(--ink-strong);
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 5px;
+  padding: 0 4px; font-size: 10px; }
+.cf-data .cf-data-bpv b { color: var(--ink-soft); }
+.cf-data .cf-data-help { font-size: 10.5px; }
+.cf-data .cf-data-help > summary b { color: var(--ink-strong); font-family: var(--f-mono); }
+.cf-data .cf-data-help > summary em { font-style: normal; text-transform: none;
+  letter-spacing: 0; color: var(--ink-muted); }
+/* les operateurs, deplies : on doit voir a l'ecran s'il y en a 2 ou 9 */
+.cf-data .cf-data-ops { display: grid; gap: 3px 12px; padding: 6px 0 2px;
+  grid-template-columns: repeat(auto-fit, minmax(215px, 1fr)); }
+.cf-data .cf-data-op { display: flex; align-items: baseline; gap: 7px; min-width: 0; }
+.cf-data .cf-data-op code { font-family: var(--f-mono); color: var(--ink-strong);
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 5px;
+  padding: 0 5px; font-size: 10px; white-space: nowrap; min-width: 9ch; }
+.cf-data .cf-data-op.join code { border-style: dashed; color: var(--accent); }
+.cf-data .cf-data-op i { font-style: normal; color: var(--ink-muted); font-size: 10px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-data .cf-data-helpn { margin: 6px 0 0; color: var(--ink-muted); line-height: 1.7; }
+.cf-data .cf-data-helpn b { color: var(--ink-soft); }
+.cf-data .cf-data-wb { font-size: 10.5px; color: var(--ink-soft); align-self: center;
+  border: 1px dashed var(--stroke-strong); border-radius: 99px; padding: 2px 9px; }
+.cf-data .cf-data-help > summary { cursor: pointer; color: var(--ink-soft); font-size: 10px;
+  letter-spacing: .1em; text-transform: uppercase; }
+.cf-data .cf-data-help > summary:hover { color: var(--accent); }
+.cf-data .cf-data-helpb { color: var(--ink-muted); line-height: 1.8; padding-top: 6px; }
+.cf-data .cf-data-helpb code { font-family: var(--f-mono); color: var(--ink-strong);
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 5px;
+  padding: 0 4px; font-size: 10px; }
+.cf-data .cf-data-helpb b { color: var(--ink-soft); }
+
+/* ── mappage : colonnes glissables -> slots deposables ────────────────────── */
+.cf-data .cf-data-maprow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  align-items: start; }
+.cf-data .cf-data-cols, .cf-data .cf-data-slots { display: flex; flex-direction: column; gap: 4px;
+  min-width: 0; }
+.cf-data .cf-data-vlbl { margin-top: 6px; }
+.cf-data .cf-data-chip { display: flex; align-items: baseline; gap: 7px; cursor: grab;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 7px;
+  padding: 5px 9px; font-size: 11.5px; color: var(--ink); min-width: 0; }
+.cf-data .cf-data-chip:hover { border-color: var(--stroke-strong); }
+.cf-data .cf-data-chip.dragging { opacity: .45; }
+.cf-data .cf-data-chip.mapped { border-color: color-mix(in srgb, var(--accent) 50%, transparent); }
+.cf-data .cf-data-chip.virt { border-style: dashed; }
+.cf-data .cf-data-cn { color: var(--ink-strong); font-family: var(--f-mono); font-size: 11px;
+  white-space: nowrap; }
+.cf-data .cf-data-cs { color: var(--ink-muted); font-size: 10px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.cf-data .cf-data-cm { font-style: normal; font-size: 10px; color: var(--accent);
+  white-space: nowrap; margin-left: auto; }
+.cf-data .cf-data-slot { display: flex; align-items: center; gap: 7px; min-height: 30px;
+  background: var(--bg-panel); border: 1px dashed var(--stroke-strong); border-radius: 7px;
+  padding: 4px 9px; font-size: 11.5px; }
+.cf-data .cf-data-slot.over { border-color: var(--accent); background: var(--accent-soft);
+  border-style: solid; }
+.cf-data .cf-data-slot.free { opacity: .74; }
+/* un slot libre dont le GABARIT imprime quelque chose n'est pas neutre */
+.cf-data .cf-data-slot.free.gab { opacity: 1;
+  border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.cf-data .cf-data-slot.free.gab .cf-data-sv { color: var(--red); }
+/* la liste des slots avait son propre bord de panneau pour horizon : elle
+   s'arretait sur « Vie » et on mappait a l'aveugle. */
+.cf-data .cf-data-slotlist { display: flex; flex-direction: column; gap: 4px;
+  max-height: 40vh; overflow: auto; padding-right: 2px; }
+.cf-data .cf-data-slot.res .cf-data-sl { color: var(--ink-muted); }
+.cf-data .cf-data-sl { color: var(--ink-soft); white-space: nowrap; }
+.cf-data .cf-data-sv { margin-left: auto; font-family: var(--f-mono); font-size: 10.5px;
+  color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-data .cf-data-x { background: none; border: 0; color: var(--ink-muted); cursor: pointer;
+  font-size: 13px; line-height: 1; padding: 0 2px; }
+.cf-data .cf-data-x:hover { color: var(--red); }
+
+/* ── la table editable ────────────────────────────────────────────────────── */
+.cf-data .cf-data-tbox { border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel); overflow: auto; max-height: 46vh; min-height: 120px; }
+.cf-data .cf-data-tbl { border-collapse: separate; border-spacing: 0; width: 100%;
+  font-size: 11.5px; }
+.cf-data .cf-data-tbl thead th { position: sticky; top: 0; z-index: 2;
+  background: var(--bg-panel-2); border-bottom: 1px solid var(--stroke-strong);
+  padding: 5px 6px; text-align: left; vertical-align: top; }
+.cf-data .cf-data-thn { width: 66px; min-width: 66px;
+  border-right: 1px solid var(--stroke); }
+.cf-data .cf-data-th { min-width: 132px; }
+.cf-data .cf-data-thead { display: flex; align-items: center; gap: 2px; }
+.cf-data .cf-data-cname { background: transparent; border: 1px solid transparent;
+  border-radius: 5px; color: var(--ink-strong); font-family: var(--f-mono); font-size: 11px;
+  padding: 2px 4px; width: 100%; min-width: 0; }
+.cf-data .cf-data-cname:hover { border-color: var(--stroke); }
+.cf-data .cf-data-cname:focus { border-color: var(--accent); background: var(--bg-base); }
+.cf-data .cf-data-sortb, .cf-data .cf-data-qb, .cf-data .cf-data-delc,
+.cf-data .cf-data-delr, .cf-data .cf-data-addc {
+  background: none; border: 1px solid transparent; border-radius: 5px; cursor: pointer;
+  color: var(--ink-muted); font-size: 10px; line-height: 1; padding: 3px 4px;
+  font-family: var(--f-ui); flex: none; }
+.cf-data .cf-data-sortb:hover, .cf-data .cf-data-qb:hover, .cf-data .cf-data-addc:hover {
+  color: var(--ink-strong); border-color: var(--stroke); }
+.cf-data .cf-data-delc:hover, .cf-data .cf-data-delr:hover { color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+.cf-data .cf-data-sortb.on, .cf-data .cf-data-qb.on { color: var(--sel-ink);
+  background: var(--sel-bg); border-color: var(--sel-bg); font-weight: 600; }
+.cf-data .cf-data-hsel { margin-top: 3px; width: 100%; font-size: 10.5px; padding: 3px 6px;
+  border-radius: 6px; }
+.cf-data .cf-data-thadd { width: 84px; min-width: 84px; }
+
+.cf-data .cf-data-tbody tr:nth-child(2n) { background: color-mix(in srgb, var(--bg-base) 45%, transparent); }
+.cf-data .cf-data-tr.off { opacity: .38; }
+.cf-data .cf-data-tr.out { opacity: .52; }
+.cf-data .cf-data-tr.out .cf-data-cell { text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--red) 60%, transparent); }
+.cf-data .cf-data-tr:hover { background: var(--bg-panel-2); }
+.cf-data .cf-data-tbl td { padding: 1px 3px; border-bottom: 1px solid var(--stroke);
+  vertical-align: middle; }
+.cf-data .cf-data-tdn { display: flex; align-items: center; gap: 5px; padding: 2px 6px !important;
+  border-right: 1px solid var(--stroke); }
+.cf-data .cf-data-onoff { display: flex; margin: 0; }
+.cf-data .cf-data-onoff input { accent-color: var(--accent); margin: 0; cursor: pointer; }
+.cf-data .cf-data-rn { font-style: normal; font-family: var(--f-mono); font-size: 9.5px;
+  color: var(--ink-muted); min-width: 20px; text-align: right; }
+.cf-data .cf-data-q { font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-muted);
+  font-weight: 400; min-width: 22px; }
+.cf-data .cf-data-q.many { color: var(--accent); font-weight: 600; }
+.cf-data .cf-data-cell { background: transparent; border: 1px solid transparent;
+  border-radius: 5px; color: var(--ink); padding: 3px 5px; font-size: 11.5px;
+  width: 100%; min-width: 92px; font-family: var(--f-ui); }
+.cf-data .cf-data-cell:hover { border-color: var(--stroke); }
+.cf-data .cf-data-cell:focus { border-color: var(--accent); background: var(--bg-base);
+  color: var(--ink-strong); }
+.cf-data .cf-data-td.art .cf-data-cell { color: var(--accent); font-family: var(--f-mono);
+  font-size: 10.5px; }
+/* la colonne image, RESOLUE vers la bibliotheque : point vert / point rouge */
+.cf-data .cf-data-tdart { position: relative; }
+.cf-data .cf-data-artdot { position: absolute; right: 5px; top: 50%; transform: translateY(-50%);
+  font-style: normal; font-size: 9px; line-height: 1; pointer-events: auto; cursor: help; }
+.cf-data .cf-data-tdart.ok .cf-data-artdot { color: var(--green); }
+.cf-data .cf-data-tdart.miss .cf-data-artdot { color: var(--red); }
+.cf-data .cf-data-tdart.miss .cf-data-cell { color: var(--red); }
+/* la cellule qui contient des retours a la ligne : le champ d'une ligne ne
+   sait pas les montrer, alors il l'avoue au lieu de faire semblant */
+.cf-data .cf-data-td.nl { position: relative; }
+.cf-data .cf-data-nl { position: absolute; right: 3px; top: 50%;
+  transform: translateY(-50%); font-size: 9px; font-style: normal;
+  color: var(--amber, var(--accent)); pointer-events: none; opacity: .85; }
+.cf-data .cf-data-td.nl .cf-data-cell { padding-right: 14px; }
+.cf-data .cf-data-tdx { width: 28px; }
+/* le motif du rejet, ligne par ligne : « barree » sans dire par quoi obligeait
+   a deviner sur un filtre a plusieurs conditions */
+.cf-data .cf-data-rwhy { font-family: var(--f-mono); font-size: 9px; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; max-width: 15ch; cursor: help; }
+.cf-data .cf-data-rwhy.out { color: var(--red); }
+.cf-data .cf-data-rwhy.off { color: var(--ink-muted); }
+.cf-data .cf-data-tr.out .cf-data-rwhy { text-decoration: none; }
+
+/* ── pied ─────────────────────────────────────────────────────────────────── */
+.cf-data .cf-data-foot { display: flex; flex-direction: column; gap: 7px; flex: none;
+  padding-bottom: 6px; }
+.cf-data .cf-data-brow { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+/* le BOM : un CHOIX affiche, plus une decision cachee dans un bouton */
+.cf-data .cf-data-bom { display: flex; align-items: center; gap: 5px; font-size: 10.5px;
+  color: var(--ink-soft); border: 1px solid var(--stroke); border-radius: 99px;
+  padding: 3px 10px 3px 8px; cursor: pointer; white-space: nowrap; }
+.cf-data .cf-data-bom input { accent-color: var(--accent); margin: 0; cursor: pointer; }
+.cf-data .cf-data-artline { margin: 0; font-size: 10.5px; color: var(--ink-muted); min-height: 1px; }
+.cf-data .cf-data-artline.ok { color: var(--green); }
+.cf-data .cf-data-artline.bad { color: var(--red); }
+.cf-data .cf-data-artline b { color: inherit; }
+.cf-data .cf-data-artline code { font-family: var(--f-mono); color: var(--accent); }
+/* `nowrap` sur les raccourcis : « double-clic » se coupait sur son trait
+   d'union, l'element en ligne s'etalait alors sur DEUX lignes visuelles et son
+   rectangle englobant recouvrait tout ce qui se trouvait entre les deux. Rien
+   ne se chevauchait a l'oeil, mais la mesure d'intersection de rectangles —
+   celle de l'audit d'integration — comptait 6 chevauchements. Un faux positif
+   se corrige comme un vrai : on le fait disparaitre. */
+.cf-data .cf-data-keys { line-height: 1.8; }
+.cf-data .cf-data-keys b { white-space: nowrap; font-family: var(--f-mono); color: var(--ink-soft);
+  border: 1px solid var(--stroke); border-radius: 4px; padding: 0 4px; font-weight: 400; }
+
+/* ── fenetre etroite : le mappage passe sur une colonne ───────────────────── */
+@media (max-width: 1180px) {
+  .cf-data .cf-data-maprow { grid-template-columns: 1fr; }
+  .cf-data .cf-data-mtags { margin-left: 0; justify-content: flex-start; }
+  .cf-data .cf-data-tbox { max-height: 40vh; }
+}

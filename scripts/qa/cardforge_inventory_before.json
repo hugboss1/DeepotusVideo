@@ -1,0 +1,88 @@
+{
+  "file": {
+    "path": "C:\\Users\\olivi\\DeepotusVideo\\frontend\\dist\\assets\\index-BEOJX8L5.js",
+    "bytes": 1366986,
+    "sha1": "e2206433e6afd7f3479365c694d36c11a246b81b",
+    "chars_raw": 1349438,
+    "chars_universal": 1337554,
+    "lines": 11885
+  },
+  "eol": {
+    "crlf": 11884,
+    "lf_isole": 0,
+    "cr_isole": 0
+  },
+  "functions": {
+    "regex": "function\\s+([A-Za-z_$][\\w$]*)\\s*\\(",
+    "declarations": 1395,
+    "distinct": 1228,
+    "sha1_names": "458e3d054a1a346d0edb1b0155f158f4581c89db",
+    "sha1_recipe": "sha1('\\n'.join(sorted(set(names))).utf-8)"
+  },
+  "hub": {
+    "region_chars": 2540,
+    "tabs": [
+      "3d",
+      "studio3d",
+      "sprites",
+      "tiles",
+      "materials"
+    ],
+    "init_states": [
+      "sprites",
+      "tiles",
+      "studio3d",
+      "materials"
+    ],
+    "relay_states": [
+      "3d",
+      "materials",
+      "sprites",
+      "studio3d",
+      "tiles"
+    ],
+    "pane_branches": [
+      "3d",
+      "sprites",
+      "tiles",
+      "materials"
+    ],
+    "iframes": [
+      "/spritelab/",
+      "/tilelab/",
+      "/materialforge/",
+      "/studio3d/"
+    ],
+    "react_keys": [
+      "p3d",
+      "p2d",
+      "ptl",
+      "pmf",
+      "ps3"
+    ]
+  },
+  "iframes_bundle": [
+    "/spritelab/",
+    "/tilelab/",
+    "/materialforge/",
+    "/studio3d/",
+    "/atelier"
+  ],
+  "anchors": {
+    "K1-init-state": 1,
+    "K2-relay-event": 1,
+    "K3-tab-btn": 1,
+    "K4-cards-pane": 1,
+    "K5-nav-desc": 1,
+    "MARK-cardforge-src": 0,
+    "MARK-cards-tab": 0,
+    "MARK-key-pcf": 0,
+    "STABLE-screen-switch": 1,
+    "STABLE-key-p3d": 1,
+    "STABLE-key-p2d": 1,
+    "STABLE-key-ptl": 1,
+    "STABLE-key-pmf": 1,
+    "STABLE-key-ps3": 1,
+    "STABLE-mf-iframe": 1
+  }
+}

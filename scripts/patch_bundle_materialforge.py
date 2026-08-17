@@ -79,6 +79,34 @@ def apply(s, anchor, replacement, tag):
     return s.replace(anchor, replacement)
 
 
+
+def guard_downstream(bak):
+    """Refuse de tourner si un patcher AVAL est deja passe.
+
+    CE MAILLON RESTAURE SON .bak PUIS REAPPLIQUE : sans cette garde, le
+    relancer seul remet le bundle a l'etat d'AVANT lui et efface EN SILENCE
+    tout ce que les maillons suivants ont ecrit. Mesure sur la chaine du
+    2026-08-11 : materialforge seul = 23 couples ancre->remplacement detruits
+    (21 in-bloc vfxrack/subs + 2 cardforge), vfxrack seul = 17, subs seul = 8.
+    Le bundle reste syntaxiquement valide, tous les marqueurs BEGIN/END
+    restent la, `node --check` passe : c'est exactement le mode de panne qui a
+    deja coute 22 correctifs a ce depot. `--force-unchained` la desarme —
+    c'est ce que passe repatch_all.py quand il rejoue TOUTE la chaine dans
+    l'ordre.
+    """
+    if not bak.exists():
+        return
+    stem = bak.name.rsplit(".bak_", 1)[0]
+    for other in sorted(bak.parent.glob(stem + ".bak_*")):
+        if other != bak and other.stat().st_mtime > bak.stat().st_mtime:
+            raise SystemExit(
+                f"[garde-chaine] backup aval detecte : {other.name} (plus "
+                f"recent que {bak.name}). Le relancer seul effacerait ce que "
+                "les maillons suivants ont ecrit — sans un mot. Rejouer la "
+                "chaine entiere (repatch_all) ou forcer avec "
+                "--force-unchained en connaissance de cause.")
+
+
 def main():
     args = sys.argv[1:]
     root = pathlib.Path(".")
@@ -90,6 +118,9 @@ def main():
     if not bundle.is_file():
         raise SystemExit(f"[{TAG}] bundle introuvable : {bundle}")
     bak = bundle.with_name(bundle.name + ".bak_" + TAG)
+
+    if "--force-unchained" not in args:
+        guard_downstream(bak)
 
     if check:
         # Contrôle à sec : on valide les ancres sur l'état PRÉ-patch

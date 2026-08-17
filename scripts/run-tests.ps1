@@ -24,12 +24,22 @@ $testsDir = Join-Path $backend "tests"
 if (-not $Python) {
     # Prefer the app's embedded runtime (same interpreter the product ships),
     # fall back to whatever python is on PATH.
-    $embedded = Join-Path $repo "runtime\python\python.exe"
-    if (Test-Path $embedded) { $Python = $embedded }
-    else {
+    #
+    # A plain source checkout has no runtime\ directory (it ships only in the
+    # installer payload), so look next to the INSTALLED app before giving up:
+    # a bare PATH python has none of the backend's dependencies and every test
+    # file dies at "ModuleNotFoundError: No module named 'loguru'" during
+    # collection. That reads like a code regression and is not one.
+    $candidates = @(
+        (Join-Path $repo "runtime\python\python.exe"),
+        (Join-Path $env:LOCALAPPDATA "DeepotusVideoGen\runtime\python\python.exe")
+    )
+    $Python = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $Python) {
         $onPath = Get-Command python -ErrorAction SilentlyContinue
         if (-not $onPath) { throw "No python found. Pass -Python <path>." }
         $Python = $onPath.Source
+        Write-Host "WARNING: falling back to PATH python; backend deps (loguru, fastapi) may be missing." -ForegroundColor Yellow
     }
 }
 Write-Host "python : $Python"

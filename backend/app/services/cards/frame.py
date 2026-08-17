@@ -1,0 +1,1253 @@
+# -*- coding: utf-8 -*-
+"""Card Forge — P2 « Bordures et cadres ». Backend.
+
+Monté par `cards/__init__.py` sous `/api/cards/{did}/frame`. Les chemins
+déclarés ici sont RELATIFS à ce préfixe.
+
+CE FICHIER APPARTIENT À P2. Aucun autre module ne l'importe, et il n'importe
+le routeur d'aucun autre (règle 8). Ce dont il a besoin vient de
+`cards/contract.py` (géométrie, `deck_dir`) et de `cards/core.py` (lecture du
+document) — jamais d'un voisin.
+
+CE QU'IL NE FAIT PAS, ET POURQUOI
+---------------------------------
+Il ne DESSINE rien. Le cadre est tracé par `js/mod-frame.js` dans le moteur
+unique de `core.js`, à `geom.canvas_px` — c'est-à-dire dans le fichier livré
+lui-même. Un second dessinateur ici, ce serait le bug WYSIWYG que ce dépôt a
+déjà payé (`test_export_wysiwyg.py`, risque 2 de la spec) : l'écran et le PDF
+divergeraient sans que rien ne le dise. Le backend tient donc deux choses, et
+seulement deux :
+
+  * `/catalog` — LE CATALOGUE, miroir mot pour mot du bloc
+    `CF-FRAME-CATALOG` de `js/mod-frame.js`. `test_cards_frame.py` EXTRAIT ce
+    bloc du JavaScript et le compare à celui-ci, identifiants ET libellés :
+    deux listes qui dérivent en silence, c'est un menu qui propose un cadre
+    que le backend ne connaît pas.
+  * `/metrics` — la conversion des millimètres du cadre en PIXELS DE TOILE,
+    par la seule règle du domaine (`contract.px` / `MM_PER_INCH`). L'écran
+    calcule les mêmes valeurs et les confronte à celles-ci à chaque
+    changement : même doctrine que `verifyGeom` pour la géométrie. Un filet de
+    0,9 mm doit faire le même nombre de pixels des deux côtés, sinon
+    l'épaisseur affichée dans l'interface n'est pas celle qui part chez
+    l'imprimeur.
+  * `/occupancy` — LE MODÈLE D'OCCUPATION. Chaque meuble du cadre (bandeau de
+    rareté, gemme, plaque, logements de statistiques, socles) est une BOÎTE
+    RÉSERVÉE en millimètres depuis la coupe ; les mentions de `doc.type.slots`
+    (pièce 03) en sont d'autres. Le module résout les recouvrements au tracé
+    et le reste est COMPTÉ. Sans ce compteur, chaque nouvelle famille de cadre
+    est une occasion de recouvrir en silence le nom de l'artiste.
+  * `/stamp` — LE CHUNK `pHYs`. Un PNG sans `pHYs` ne porte PAS ses 300 DPI :
+    Photoshop, InDesign ou un imprimeur lui appliquent 72 DPI par défaut et
+    lisent une carte de 28,7 x 39,1 cm. Le fichier 300 et le fichier 600 sont
+    alors indiscernables en aval. Cette route relit les octets, VÉRIFIE que
+    IHDR porte bien `geom.canvas_px`, puis écrit `pHYs` + `tEXt` (format, fond
+    perdu, zone sûre, boîtes de coupe). C'est la seule façon d'avoir le droit
+    d'écrire « 300 DPI » quelque part.
+
+Aucun corps mal formé ne doit produire un 500 : tout ce qui vient du client
+passe par `_len()` qui lève `ValueError`, transformé en 400 nommant la borne.
+"""
+from __future__ import annotations
+
+import math
+import struct
+import zlib
+
+from fastapi import APIRouter, HTTPException, Request, Response
+
+from .contract import FORMATS, MM_PER_INCH, R, geom, is_valid_did, rnd
+
+router = APIRouter()
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LE CATALOGUE — miroir du bloc CF-FRAME-CATALOG de js/mod-frame.js.
+# 6 familles x 6 raretés = 36 combinaisons vectorielles (la barre Clash of
+# Decks en sert TROIS, en PNG 638x1004, soit 255 DPI au format poker).
+# ═════════════════════════════════════════════════════════════════════════════
+FAMILIES = [
+    {"id": "runic", "label": "Runique",
+     "hint": "gravure fine, équerres, tirets runiques"},
+    {"id": "arcane", "label": "Arcane",
+     "hint": "volutes, fenêtre en arc, filigrane"},
+    {"id": "timber", "label": "Bois sculpté",
+     "hint": "veines, rivets, bande épaisse"},
+    {"id": "deco", "label": "Art déco",
+     "hint": "chevrons étagés, éventails, coins coupés"},
+    {"id": "neon", "label": "Néon",
+     "hint": "double trait lumineux, coins coupés"},
+    {"id": "sable", "label": "Épure",
+     "hint": "un seul filet, grande marge, rien d'autre"},
+]
+RARITIES = [
+    {"id": "common", "label": "Commune"},
+    {"id": "uncommon", "label": "Peu commune"},
+    {"id": "rare", "label": "Rare"},
+    {"id": "epic", "label": "Épique"},
+    {"id": "legendary", "label": "Légendaire"},
+    {"id": "mythic", "label": "Mythique"},
+]
+BACKS = [
+    {"id": "mirror", "label": "Miroir du recto"},
+    {"id": "lattice", "label": "Treillis"},
+    {"id": "guilloche", "label": "Guilloché"},
+    {"id": "sunburst", "label": "Soleil"},
+    {"id": "scales", "label": "Écailles"},
+    {"id": "chevron", "label": "Chevrons"},
+    {"id": "runes", "label": "Runes"},
+]
+CORNERS = [
+    {"id": "none", "label": "Aucun"},
+    {"id": "bracket", "label": "Équerre"},
+    {"id": "scroll", "label": "Volute"},
+    {"id": "stud", "label": "Rivet"},
+    {"id": "fleuron", "label": "Fleuron"},
+    {"id": "spike", "label": "Pointe"},
+]
+METALS = [
+    {"id": "gold", "label": "Or"},
+    {"id": "silver", "label": "Argent"},
+    {"id": "copper", "label": "Cuivre"},
+    {"id": "steel", "label": "Acier"},
+    {"id": "rose", "label": "Or rose"},
+]
+PRESETS = [
+    {"id": "sobre", "label": "Runique sobre"},
+    {"id": "heroique", "label": "Arcane légendaire"},
+    {"id": "cyber", "label": "Néon épique"},
+    {"id": "taverne", "label": "Bois commun"},
+    {"id": "musee", "label": "Épure rare"},
+]
+
+# Bornes des longueurs du cadre, en millimètres. `line_mm` et le rayon de
+# fenêtre vont de 0 à 8 mm : c'est le seuil chiffré de la pièce 02.
+# `edge_mm` s'arrêtait à 6 : un filet de 8 mm ne pouvait alors pas être rentré
+# de plus de 6 mm, et la combinaison des deux curseurs était amputée sans
+# qu'aucun écran ne le dise. Même borne haute que l'épaisseur.
+LIMITS = {
+    "line_mm": [0, 8],
+    "gap_mm": [0, 4],
+    "edge_mm": [0, 8],
+    "inner_mm": [0, 20],
+    "win_r_mm": [0, 8],
+    "corner_mm": [0, 8],
+    "plate_alpha": [0, 1],
+    "grad_angle": [0, 360],
+    "socle_alpha": [0, 1],
+}
+
+# ── LA BORNE QUE LE FORMAT IMPOSE ────────────────────────────────────────────
+# BUG TROUVÉ PAR LE BALAYAGE DES DOUZE FORMATS, mesuré avant correction :
+# format `micro` (31,75 x 44,45 mm) et marge intérieure au maximum du curseur
+# (20 mm) -> bande = 31,75 - 40 = -8,25 mm, soit -97 px à 300 DPI. Le tracé
+# retourne son rectangle, le découpage en anneau n'en est plus un et l'encre
+# sort sur toute la toile : cadre entièrement faux, sans une seule exception.
+# Les bornes des curseurs sont en millimètres ABSOLUS ; une carte, non.
+# La plaque de texte est posée à `band.x + 1,2 mm` et large de `band.w - 2,4` :
+# la bande doit garder au moins ces 2,4 mm plus de quoi l'y voir -> 4 mm.
+# Sur les douze formats livrés, cette borne ne mord que sur `micro`.
+# Bloc JUMEAU de `bandMaxMM` dans mod-frame.js, comparé par le test.
+BAND_MIN_MM = 4
+
+
+def band_max_mm(tw: float, th: float) -> float:
+    v = min(float(tw or 0), float(th or 0)) / 2 - BAND_MIN_MM / 2
+    return rnd(v, 2) if v > 0 else 0.0
+
+
+DEFAULTS = {
+    "line_mm": 0.9, "gap_mm": 1.1, "edge_mm": 1.6, "inner_mm": 5.5,
+}
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LE MODÈLE D'OCCUPATION — les constantes du GABARIT DE MEUBLES
+# Bloc EXTRAIT et comparé au bloc jumeau de `js/mod-frame.js` par le test.
+# Toutes les longueurs sont en MILLIMÈTRES depuis le coin de COUPE.
+# ═════════════════════════════════════════════════════════════════════════════
+# ═════ CF-FRAME-OCC-BEGIN ═════
+CLEAR_MM = 0.8        # jeu minimal entre un meuble mobile et une mention
+BANNER_H_MM = 5.2     # hauteur du bandeau de rareté
+BANNER_MIN_H_MM = 3.0  # ... jusqu'où il accepte de maigrir pour tenir
+BANNER_CH_MM = 3.4    # largeur réservée par caractère du libellé
+BANNER_PAD_CH = 4     # caractères de marge (les deux pointes du ruban)
+BANNER_MAX_F = 0.62   # largeur maxi du bandeau, en fraction de la rogne
+GEM_R_MM = 4.6        # rayon de la gemme de rareté
+GEM_OFF_F = 0.75      # centre de la gemme = marge + 0.75 x rayon
+PIP_STEP_MM = 1.5     # pas des crans de rareté à droite de la gemme
+PIP_R_MM = 0.5        # rayon d'un cran
+SOCLE_PAD_MM = 0.7    # débord du socle autour d'une mention
+SEAT_PAD_MM = 0.8     # débord d'un logement de statistique
+SEAT_MIN_FRAC = 0.30  # ... au-delà de cette part de la mention DANS l'anneau
+SOCLE_MIN_FRAC = 0.05  # ... et de cette part SUR l'illustration
+GEM_SEAT_RATIO = 1.6  # au-delà, l'écrin n'est plus un disque mais un cartouche
+TOL_MM2 = 0.5         # sous cette surface, un contact n'est pas une collision
+TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
+# ═════ CF-FRAME-OCC-END ═════
+
+
+def catalog() -> dict:
+    """Le catalogue complet. `combos` est CALCULÉ, jamais écrit à la main."""
+    return {
+        "families": FAMILIES,
+        "rarities": RARITIES,
+        "backs": BACKS,
+        "corners": CORNERS,
+        "metals": METALS,
+        "presets": PRESETS,
+        "limits": LIMITS,
+        # la borne que le FORMAT ajoute aux bornes absolues : au-delà, la bande
+        # s'inverserait. Publiée pour qu'elle soit vérifiable de l'extérieur.
+        "band_min_mm": BAND_MIN_MM,
+        "band_max_mm": {k: band_max_mm(v["trim_mm"][0], v["trim_mm"][1])
+                        for k, v in FORMATS.items()},
+        "defaults": dict(DEFAULTS),
+        "combos": len(FAMILIES) * len(RARITIES),
+        "vector": True,
+        "raster_assets": 0,
+        "note": ("Cadres tracés au canvas à geom.canvas_px : aucun bitmap, "
+                 "aucune résolution plafond. Le backend ne dessine pas — "
+                 "moteur unique, règle du WYSIWYG."),
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# MÉTRIQUES — millimètres du cadre -> pixels de la TOILE
+# ═════════════════════════════════════════════════════════════════════════════
+def _len(value, default: float, lo: float, hi: float, what: str) -> float:
+    """Longueur en mm venant du client. Jamais d'exception non maîtrisée,
+    jamais un 500 : hors bornes -> ValueError qui cite la borne."""
+    if value is None:
+        return float(default)
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{what} doit être un nombre de millimètres")
+    if not math.isfinite(v):
+        raise ValueError(f"{what} doit être un nombre de millimètres")
+    if v < lo or v > hi:
+        raise ValueError(
+            f"{what} doit tenir entre {lo:g} et {hi:g} mm (reçu {v:g})")
+    return v
+
+
+def _px(mm: float, dpi: int) -> float:
+    """mm -> px, SANS arrondi entier : un filet se dessine en sous-pixel,
+    exactement comme le trait de coupe à 37,5 px des formats impériaux.
+    L'ordre des opérations est celui de `mod-frame.js` — `v / 25.4 * dpi` —
+    parce que deux ordres différents ne donnent pas le même double."""
+    return rnd(mm / MM_PER_INCH * dpi, 2)
+
+
+def frame_metrics(g, line_mm: float, gap_mm: float, edge_mm: float,
+                  inner_mm: float, win: dict) -> dict:
+    """Le miroir exact de `localMetrics()` de js/mod-frame.js.
+
+    `win` est la fenêtre d'illustration en millimètres depuis le coin de
+    COUPE (la même origine que les slots de texte de P3) ; elle sort en
+    pixels depuis le coin de TOILE, fond perdu compris.
+    """
+    dpi = g.dpi
+    # Les pixels PUBLIÉS sont ceux du dessin : `model()` de mod-frame.js borne
+    # le retrait et la marge par le format (band_max_mm), donc ici aussi —
+    # sinon l'écran et le backend divergeraient sur le seul format concerné et
+    # la pastille de vérification passerait au rouge sans qu'un pixel bouge.
+    cap = band_max_mm(g.trim_mm[0], g.trim_mm[1])
+    return {
+        "line_px": _px(line_mm, dpi),
+        "gap_px": _px(gap_mm, dpi),
+        "edge_px": _px(min(edge_mm, cap), dpi),
+        "inner_px": _px(min(inner_mm, cap), dpi),
+        "corner_px": rnd(g.corner_px, 2),
+        "win_px": [
+            rnd(g.bleed_off_px[0] + win["x"] / MM_PER_INCH * dpi, 2),
+            rnd(g.bleed_off_px[1] + win["y"] / MM_PER_INCH * dpi, 2),
+            _px(win["w"], dpi),
+            _px(win["h"], dpi),
+            _px(win["r"], dpi),
+        ],
+        "canvas_px": [g.canvas_px[0], g.canvas_px[1]],
+    }
+
+
+def _win_of(raw, g) -> dict:
+    """La fenêtre par défaut est PROPORTIONNELLE au format : la pièce se tient
+    debout sur les 12 formats sans qu'on lui écrive 12 rectangles."""
+    tw, th = g.trim_mm
+    if not isinstance(raw, dict):
+        return {"x": rnd(tw * 0.105, 2), "y": rnd(th * 0.075, 2),
+                "w": rnd(tw * 0.79, 2), "h": rnd(th * 0.505, 2), "r": 2.5}
+    return {
+        "x": _len(raw.get("x"), 0.0, 0, 1000, "L'abscisse de la fenêtre"),
+        "y": _len(raw.get("y"), 0.0, 0, 1000, "L'ordonnée de la fenêtre"),
+        "w": _len(raw.get("w"), tw, 0, 1000, "La largeur de la fenêtre"),
+        "h": _len(raw.get("h"), th, 0, 1000, "La hauteur de la fenêtre"),
+        "r": _len(raw.get("r"), 2.5, LIMITS["win_r_mm"][0],
+                  LIMITS["win_r_mm"][1], "Le rayon de la fenêtre"),
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# OCCUPATION — meubles réservés, résolution des recouvrements, comptage
+#
+# Le défaut que ce bloc supprime : le bandeau de rareté était peint à une
+# position FIXE de la bande basse, et la signature de l'artiste passait
+# dessous. Mesuré sur le document par défaut : le bandeau recouvrait 72,7 %
+# de la boîte `artist` et 68,9 % de `num`, et la gemme 73,5 % de `cost` — sans
+# qu'aucun compteur ne le dise. Un meuble MOBILE choisit maintenant sa place
+# dans une voie libre ; ce qui reste est compté et affiché.
+# ═════════════════════════════════════════════════════════════════════════════
+def _ov(a, b) -> float:
+    """Surface commune de deux boîtes [x, y, w, h], en mm²."""
+    dx = min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0])
+    dy = min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1])
+    return dx * dy if dx > 0 and dy > 0 else 0.0
+
+
+def _box4(b) -> list | None:
+    """Une boîte de mention venue du document : [x, y, w, h] en mm, ou None.
+    Un slot mal formé n'est pas une erreur 500, c'est un slot ignoré."""
+    if not isinstance(b, (list, tuple)) or len(b) < 4:
+        return None
+    try:
+        v = [float(b[0]), float(b[1]), float(b[2]), float(b[3])]
+    except (TypeError, ValueError):
+        return None
+    if not all(math.isfinite(x) for x in v) or v[2] <= 0 or v[3] <= 0:
+        return None
+    return v
+
+
+def _mentions(slots) -> list[dict]:
+    """Les mentions obligatoires : les slots de texte de la pièce 03, lus en
+    LECTURE UNIVERSELLE (règle 3). Le cadre ne les déplace jamais — c'est lui
+    qui s'écarte."""
+    out = []
+    if not isinstance(slots, (list, tuple)):
+        return out
+    for s in slots:
+        if not isinstance(s, dict):
+            continue
+        box = _box4(s.get("box"))
+        if box is None:
+            continue
+        out.append({"id": str(s.get("id") or "slot"), "box": box})
+    return out
+
+
+def _free_lanes(occupied: list[tuple[float, float]], lo: float,
+                hi: float) -> list[tuple[float, float]]:
+    """Complément de `occupied` dans [lo, hi] : les intervalles LIBRES."""
+    segs = sorted((max(lo, a), min(hi, b)) for a, b in occupied if b > lo and a < hi)
+    lanes, cur = [], lo
+    for a, b in segs:
+        if a > cur:
+            lanes.append((cur, a))
+        cur = max(cur, b)
+    if cur < hi:
+        lanes.append((cur, hi))
+    return lanes
+
+
+def _place_banner(tw: float, th: float, inner: float, edge: float,
+                  label: str, mentions: list[dict], wbox: list,
+                  fit: bool) -> dict:
+    """Le bandeau garde sa largeur et son centrage ; il choisit son ORDONNÉE,
+    et il MAIGRIT si la seule voie libre est plus étroite que lui — c'est le
+    « la bande se scinde autour de lui » du cahier des charges, appliqué au
+    ruban lui-même. Déterministe : l'aperçu et le fichier livré sont le même
+    bitmap.
+
+    Deux leviers, dans cet ordre : (1) descendre/monter dans une voie libre de
+    sa colonne, (2) réduire sa hauteur jusqu'à BANNER_MIN_H_MM. Une voie qui
+    tombe sur l'illustration est pénalisée : mieux vaut un ruban plus fin en
+    bas de carte qu'un ruban pleine hauteur au milieu du dessin.
+    """
+    w = min(tw * BANNER_MAX_F, BANNER_CH_MM * (len(label) + BANNER_PAD_CH))
+    h = BANNER_H_MM
+    x = tw / 2.0 - w / 2.0
+    y0 = th - inner - h * 0.62
+    lo, hi = edge, th - edge
+    y, lane = y0, "naturelle"
+    if fit:
+        occ = [(m["box"][1] - CLEAR_MM, m["box"][1] + m["box"][3] + CLEAR_MM)
+               for m in mentions
+               if m["box"][0] < x + w and m["box"][0] + m["box"][2] > x]
+        lanes = [(a, b) for a, b in _free_lanes(occ, lo, hi)
+                 if b - a >= BANNER_MIN_H_MM]
+        best = None
+        for a, b in lanes:
+            hh = min(h, b - a)
+            cand = min(max(y0, a), b - hh)
+            # pénalité d'illustration : la moitié de la hauteur de rogne, donc
+            # toujours pire qu'un déplacement dans la moitié basse.
+            pen = th * 0.5 if _ov([x, cand, w, hh], wbox) > 0 else 0.0
+            d = abs((cand + hh / 2.0) - (y0 + h / 2.0)) + pen
+            if best is None or d < best[0] - 1e-9:
+                best = (d, cand, hh, pen)
+        if best is not None:
+            _, y, h, pen = best
+            if abs(y - y0) < 1e-9 and abs(h - BANNER_H_MM) < 1e-9:
+                lane = "naturelle"
+            elif h < BANNER_H_MM - 1e-9:
+                lane = "voie libre, ruban aminci"
+            else:
+                lane = "voie libre"
+        else:
+            lane = "aucune voie libre"
+    return {"id": "banner", "label": "bandeau de rareté", "z": 70,
+            "movable": True, "lane": lane,
+            "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
+
+
+def _place_gem(tw: float, th: float, inner: float, rank: int,
+               mentions: list[dict], fit: bool) -> dict:
+    """La gemme a quatre logements possibles : les quatre coins de la bande.
+
+    Si AUCUN coin n'est libre — c'est le cas dès que la pièce 03 pose un coût
+    et deux statistiques aux angles — la gemme ne se pose pas PAR-DESSUS le
+    chiffre : elle DEVIENT son logement. Elle passe alors en couche 40, sous
+    le texte, et le chiffre s'assied dedans. Un meuble de la couche 40 ne peut
+    pas masquer une mention : le recouvrement disparaît par construction, et
+    la carte y gagne le « logement réservé » que le cadre ne fournissait pas.
+    """
+    r = GEM_R_MM
+    reach = 1.5 * r + max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM
+    off = inner + r * GEM_OFF_F
+    cands = [
+        ("HG", off, off, 1), ("HD", tw - off, off, -1),
+        ("BG", off, th - off, 1), ("BD", tw - off, th - off, -1),
+    ]
+    best = None
+    for name, cx, cy, d in cands:
+        x = cx - r if d > 0 else cx - reach
+        box = [x, cy - r, r + reach, 2 * r]
+        cost = sum(_ov(box, m["box"]) for m in mentions)
+        if best is None or cost < best[0] - 1e-9:
+            best = (cost, name, box, cx, cy, d)
+        if not fit or cost <= 0.0:
+            break
+    cost, name, box, cx, cy, d = best
+    seat = fit and cost > TOL_MM2
+    shape, host = "disc", None
+    if seat:
+        # Le chiffre le plus recouvert devient l'hôte : la gemme s'aligne sur
+        # LUI et se range dessous. Un disque circonscrit à une mention large et
+        # plate (la signature : 17 x 3,7 mm) déborderait de la carte — au-delà
+        # de GEM_SEAT_RATIO, l'écrin devient un cartouche à la taille de la
+        # mention. Mesuré : sans cette règle, un rayon de 9,35 mm centré à
+        # 82,9 mm sortait à 92,26 mm sur une carte de 88,9 mm de haut.
+        host = max(mentions, key=lambda m: _ov(box, m["box"]))
+        hb = host["box"]
+        cx, cy = hb[0] + hb[2] / 2.0, hb[1] + hb[3] / 2.0
+        lo = min(hb[2], hb[3])
+        hi = max(hb[2], hb[3])
+        if hi <= GEM_SEAT_RATIO * lo:
+            r = hi / 2.0 + SEAT_PAD_MM
+            box = [cx - r, cy - r, 2 * r, 2 * r]
+        else:
+            shape = "rect"
+            r = lo / 2.0 + SEAT_PAD_MM
+            box = [hb[0] - SEAT_PAD_MM, hb[1] - SEAT_PAD_MM,
+                   hb[2] + 2 * SEAT_PAD_MM, hb[3] + 2 * SEAT_PAD_MM]
+        name = "logement de " + host["id"]
+    return {"id": "gem",
+            "label": ("gemme en logement de " + host["id"]) if seat
+                     else "gemme de rareté",
+            "z": 40 if seat else 70,
+            "movable": True, "lane": name, "dir": d, "seat": seat,
+            "shape": shape, "pips": 0 if seat else rank,
+            "cx": rnd(cx, 2), "cy": rnd(cy, 2), "r": rnd(r, 2),
+            "box": [rnd(box[0], 2), rnd(box[1], 2), rnd(box[2], 2), rnd(box[3], 2)]}
+
+
+def occupancy(g, f: dict, slots) -> dict:
+    """Le plan d'occupation complet : meubles placés, socles, logements, et le
+    COMPTEUR de recouvrements résiduels."""
+    tw, th = float(g.trim_mm[0]), float(g.trim_mm[1])
+    # La borne du FORMAT, appliquée exactement comme par `model()` de
+    # mod-frame.js : au-delà, la bande s'inverse et les meubles se placeraient
+    # par rapport à un anneau qui n'existe pas.
+    cap = band_max_mm(tw, th)
+    inner = min(float(f.get("inner_mm", DEFAULTS["inner_mm"])), cap)
+    edge = min(float(f.get("edge_mm", DEFAULTS["edge_mm"])), cap)
+    fit = bool(f.get("fit", True))
+    mentions = _mentions(slots)
+    win = f.get("window") if isinstance(f.get("window"), dict) else None
+    if win is None:
+        wbox = [rnd(tw * 0.105, 2), rnd(th * 0.075, 2),
+                rnd(tw * 0.79, 2), rnd(th * 0.505, 2)]
+    else:
+        wbox = [rnd(float(win.get("x", 0)), 2), rnd(float(win.get("y", 0)), 2),
+                rnd(float(win.get("w", tw)), 2), rnd(float(win.get("h", th)), 2)]
+
+    boxes = [{"id": "window", "label": "fenêtre d'illustration", "z": 40,
+              "movable": False, "lane": "posée", "box": wbox}]
+
+    rank = 1
+    for i, r in enumerate(RARITIES):
+        if r["id"] == f.get("rarity"):
+            rank = i + 1
+    if f.get("gem", True):
+        boxes.append(_place_gem(tw, th, inner, rank, mentions, fit))
+    if f.get("banner", True):
+        lab = str(f.get("banner_text") or "").strip()
+        if not lab:
+            lab = next((r["label"] for r in RARITIES
+                        if r["id"] == f.get("rarity")), "")
+        lab = lab.upper()
+        if lab:
+            boxes.append(_place_banner(tw, th, inner, edge, lab, mentions,
+                                       wbox, fit))
+
+    # Socles et logements : le cadre FOURNIT le fond dont la mention a besoin.
+    # Une mention posée sur l'illustration reçoit une plaque ; une mention qui
+    # déborde de la bande sur l'anneau reçoit un logement. Ce sont des meubles
+    # de la couche 40 : ils passent SOUS le texte, jamais dessus.
+    socles, seats = [], []
+    band = [inner, inner, tw - 2 * inner, th - 2 * inner]
+    # La gemme rangée en écrin EST le logement de son hôte : lui en dessiner un
+    # second superposerait deux contours autour du même chiffre.
+    gem_host = next((b["lane"][len("logement de "):] for b in boxes
+                     if b["id"] == "gem" and b.get("seat")), None)
+    for m in mentions:
+        b = m["box"]
+        area = b[2] * b[3]
+        if f.get("socles", True) and _ov(b, wbox) > SOCLE_MIN_FRAC * area:
+            socles.append({"id": "socle:" + m["id"], "label": "socle de " + m["id"],
+                           "z": 40, "movable": False, "lane": "sous la mention",
+                           "box": [rnd(b[0] - SOCLE_PAD_MM, 2), rnd(b[1] - SOCLE_PAD_MM, 2),
+                                   rnd(b[2] + 2 * SOCLE_PAD_MM, 2), rnd(b[3] + 2 * SOCLE_PAD_MM, 2)]})
+        # Un logement n'est PAS « la mention dépasse d'un cheveu » : c'est
+        # « la mention est assise sur l'anneau ». Sans ce seuil, les neuf
+        # slots recevaient un logement, la couronne était pavée de plaques
+        # identiques et la signature graphique des six familles disparaissait
+        # dessous (mesuré : Bois sculpté et Épure ne différaient plus que sur
+        # 0,87 % des pixels de la vignette).
+        ring = area - _ov(b, band)
+        if f.get("seats", True) and ring > SEAT_MIN_FRAC * area \
+                and m["id"] != gem_host:
+            seats.append({"id": "seat:" + m["id"], "label": "logement de " + m["id"],
+                          "z": 40, "movable": False, "lane": "dans l'anneau",
+                          "box": [rnd(b[0] - SEAT_PAD_MM, 2), rnd(b[1] - SEAT_PAD_MM, 2),
+                                  rnd(b[2] + 2 * SEAT_PAD_MM, 2), rnd(b[3] + 2 * SEAT_PAD_MM, 2)]})
+
+    # LE COMPTEUR. Ne compte QUE ce qui masque : un meuble de la couche 70,
+    # tracé par-dessus le texte de la pièce 03. Un socle ou un logement passe
+    # dessous : ce n'est pas un recouvrement, c'est le fond de la mention.
+    hits = []
+    for fb in boxes:
+        if fb.get("z") != 70:
+            continue
+        for m in mentions:
+            a = _ov(fb["box"], m["box"])
+            area = m["box"][2] * m["box"][3]
+            if a > TOL_MM2 and a > TOL_FRAC * area:
+                hits.append({"kind": "recouvrement", "a": fb["id"], "b": m["id"],
+                             "mm2": rnd(a, 2), "pct": rnd(100.0 * a / area, 1)})
+    hits.sort(key=lambda h: -h["mm2"])
+    return {
+        "boxes": boxes + socles + seats,
+        "mentions": [{"id": m["id"], "box": [rnd(v, 2) for v in m["box"]]}
+                     for m in mentions],
+        "collisions": hits,
+        "count": len(hits),
+        "socles": len(socles),
+        "seats": len(seats),
+        "fit": fit,
+    }
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# pHYs — LE FICHIER PORTE SA PROPRE GÉOMÉTRIE
+#
+# Un PNG dont les chunks sont IHDR + IDAT + IEND ne dit que « 815 x 1110
+# pixels ». Tout ce que l'interface affiche — 63 x 88 mm, 300 DPI, 3 mm de
+# fond perdu — meurt à la frontière du fichier, et un lecteur applique 72 DPI.
+# `pHYs` coûte 21 octets et transporte la définition ; `tEXt` transporte les
+# boîtes en clair, faute de pouvoir écrire un TrimBox dans un PNG.
+# ═════════════════════════════════════════════════════════════════════════════
+PNG_SIG = b"\x89PNG\r\n\x1a\n"
+
+
+def dpi_to_ppm(dpi: float) -> int:
+    """DPI -> pixels par mètre, par la règle du domaine (arrondi demi-haut).
+    300 -> 11811, 600 -> 23622, 150 -> 5906."""
+    return R(float(dpi) / 0.0254)
+
+
+def ppm_to_dpi(ppm: int) -> float:
+    """La réciproque, et la seule définition que le fichier porte VRAIMENT.
+
+    `pHYs` compte des pixels par MÈTRE ENTIERS : 300 DPI n'y est pas
+    représentable. 11811 px/m valent 299,9994 DPI. Écrire « 300 DPI » dans le
+    fichier serait exactement l'écart d'un millième de pour cent qu'on
+    reproche aux autres — on écrit donc la valeur réelle, et la demandée à
+    côté.
+    """
+    return round(float(ppm) * 0.0254, 4)
+
+
+def png_chunks(data: bytes) -> list[tuple[str, int]]:
+    """(type, longueur) de chaque chunk. Lève ValueError si ce n'est pas un
+    PNG : c'est ce qui empêche d'estampiller « 300 DPI » sur autre chose."""
+    if not isinstance(data, (bytes, bytearray)) or data[:8] != PNG_SIG:
+        raise ValueError("Ce ne sont pas des octets PNG (signature absente)")
+    out, p, n = [], 8, len(data)
+    while p + 8 <= n:
+        ln = struct.unpack(">I", data[p:p + 4])[0]
+        typ = data[p + 4:p + 8].decode("latin-1")
+        out.append((typ, ln))
+        if typ == "IEND":
+            return out
+        p += 12 + ln
+        if ln > n:
+            raise ValueError("Chunk PNG plus long que le fichier")
+    raise ValueError("PNG tronqué : aucun chunk IEND")
+
+
+def png_size(data: bytes) -> tuple[int, int]:
+    """Largeur et hauteur lues dans IHDR — LES OCTETS, pas une promesse."""
+    if data[:8] != PNG_SIG or data[12:16] != b"IHDR":
+        raise ValueError("Ce ne sont pas des octets PNG (IHDR absent)")
+    return struct.unpack(">II", data[16:24])
+
+
+def _chunk(typ: bytes, payload: bytes) -> bytes:
+    body = typ + payload
+    return struct.pack(">I", len(payload)) + body + struct.pack(
+        ">I", zlib.crc32(body) & 0xFFFFFFFF)
+
+
+def _latin1(s: str) -> str:
+    """`tEXt` est du Latin-1, point. Un tiret cadratin ou une apostrophe
+    typographique y lèverait — on les remplace AVANT d'encoder, sinon la seule
+    façon de s'en apercevoir est un 500 en production."""
+    rep = {"—": "-", "–": "-", "’": "'", "‘": "'",
+           "“": '"', "”": '"', " ": " ", "→": "->",
+           "×": "x", "…": "...", "≤": "<=", "≥": ">="}
+    out = []
+    for ch in str(s):
+        ch = rep.get(ch, ch)
+        try:
+            ch.encode("latin-1")
+        except UnicodeEncodeError:
+            ch = "?"
+        out.append(ch)
+    return "".join(out).replace("\n", " ").strip()
+
+
+def png_texts(data: bytes) -> dict:
+    """Les `tEXt` DÉJÀ présents dans les octets. Sert à rester idempotent :
+    estampiller deux fois doit rendre le même fichier, or la mention du canal
+    alpha ne peut plus être recalculée au second passage — le canal a déjà été
+    retiré au premier. On la relit plutôt que d'en inventer une autre."""
+    out, p = {}, 8
+    while p + 8 <= len(data):
+        ln = struct.unpack(">I", data[p:p + 4])[0]
+        typ = data[p + 4:p + 8]
+        if typ == b"tEXt":
+            k, _, v = data[p + 8:p + 8 + ln].partition(b"\x00")
+            out[k.decode("latin-1")] = v.decode("latin-1")
+        if typ == b"IEND":
+            break
+        p += 12 + ln
+    return out
+
+
+def png_stamp(data: bytes, dpi: float, texts) -> bytes:
+    """Réécrit le PNG avec `pHYs` (unité 1 = mètre) puis les `tEXt`, juste
+    après IHDR. Idempotent : un `pHYs`/`tEXt` déjà présent est remplacé, pas
+    empilé."""
+    chunks, p, n = [], 8, len(data)
+    if data[:8] != PNG_SIG:
+        raise ValueError("Ce ne sont pas des octets PNG (signature absente)")
+    while p + 8 <= n:
+        ln = struct.unpack(">I", data[p:p + 4])[0]
+        typ = data[p + 4:p + 8]
+        chunks.append((typ, data[p:p + 12 + ln]))
+        if typ == b"IEND":
+            break
+        p += 12 + ln
+    if not chunks or chunks[0][0] != b"IHDR":
+        raise ValueError("PNG sans IHDR en tête")
+    ppm = dpi_to_ppm(dpi)
+    head = [_chunk(b"pHYs", struct.pack(">IIB", ppm, ppm, 1))]
+    for key, val in texts:
+        k = _latin1(key)[:79].strip()
+        if not k:
+            continue
+        head.append(_chunk(b"tEXt", k.encode("latin-1") + b"\x00"
+                           + _latin1(val).encode("latin-1")))
+    out = [PNG_SIG, chunks[0][1]] + head
+    for typ, raw in chunks[1:]:
+        if typ in (b"pHYs", b"tEXt"):
+            continue
+        out.append(raw)
+    return b"".join(out)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LE QUATRIÈME CANAL — « soit on s'en sert, soit on livre en RGB »
+#
+# MESURE sur le fichier livré : type couleur 6 (RGBA), et l'alpha vaut 255 sur
+# les 904 650 pixels. Zéro information transportée, un quart des échantillons
+# en pure perte, dans un fichier destiné à une presse — qui n'a de toute façon
+# aucun usage d'un canal de transparence.
+#
+# On ne peut pas « s'en servir » : le seul masque qui aurait un sens serait la
+# découpe, et la rendre transparente effacerait le FOND PERDU, c'est-à-dire la
+# raison d'être du fichier. On livre donc en RGB — mais jamais sur parole :
+# la conversion est VÉRIFIÉE ici même, échantillon par échantillon, contre la
+# source. Si le moindre octet RGB bougeait, on rend les octets d'origine.
+# ═════════════════════════════════════════════════════════════════════════════
+def png_drop_constant_alpha(data: bytes) -> tuple[bytes, str]:
+    """RGBA dont l'alpha est constant à 255 -> RGB, sans toucher aux couleurs.
+
+    Rend `(octets, mention)`. `mention` est la phrase écrite dans le `tEXt`
+    `Alpha` : elle dit ce qui a été mesuré ET ce qui a été fait. En cas de
+    doute — n'importe quelle exception, un alpha utile, une vérification qui
+    ne retombe pas sur ses pieds — les octets d'ORIGINE sortent intacts.
+    """
+    try:
+        import io
+        from PIL import Image
+        with Image.open(io.BytesIO(data)) as im:
+            if im.mode != "RGBA":
+                return data, "aucun canal alpha dans le fichier (mode %s)" % im.mode
+            im.load()
+            lo, hi = im.getchannel("A").getextrema()
+            n = im.width * im.height
+            if not (lo == 255 and hi == 255):
+                return data, ("canal alpha UTILE (min %d, max %d sur %d pixels) : conserve"
+                              % (lo, hi, n))
+            rgb = im.convert("RGB")
+            attendu = rgb.tobytes()
+            buf = io.BytesIO()
+            rgb.save(buf, format="PNG", optimize=False, compress_level=6)
+            out = buf.getvalue()
+        with Image.open(io.BytesIO(out)) as relu:
+            relu.load()
+            if relu.mode != "RGB" or relu.size != (im.width, im.height) \
+                    or relu.tobytes() != attendu:
+                return data, ("verification de la conversion RGB en echec : "
+                              "octets d'origine conserves")
+        return out, ("alpha constant a 255 sur %d pixels (0 information) : "
+                     "retire ; les %d octets RGB sont identiques a la source, "
+                     "verifies un a un apres re-encodage" % (n, len(attendu)))
+    except Exception as e:                                  # noqa: BLE001
+        return data, "conversion RGB non tentee (%s) : octets d'origine" % (
+            type(e).__name__,)
+
+
+def stamp_texts(g, extra: dict | None = None) -> list[tuple[str, str]]:
+    """Ce que le fichier dira de lui-même. Chaque nombre vient de `geom`, donc
+    de la même règle que la toile : rien n'est écrit « en confiance ».
+
+    CE QUE CES CHAÎNES NE DOIVENT PAS PORTER. Un fichier livré part chez un
+    imprimeur, un client, un partenaire ; il n'a pas à emporter le nom de
+    l'atelier qui l'a produit ni la numérotation interne des écrans du
+    logiciel. La valeur `Software` nommait les deux. Elle ne décrit plus que
+    le FICHIER — ce qu'il est, comment il a été tracé — et ne permet plus de
+    remonter à son producteur. Les métadonnées d'un livrable se lisent, il
+    faut donc qu'elles ne disent que ce qu'on accepte de publier.
+    """
+    bx, by = g.bleed_off_px
+    sx, sy = g.safe_off_px
+    t = [
+        ("Software", "carte a jouer - cadre vectoriel trace a l'echelle 1, "
+                     "aucun bitmap"),
+        ("Format", "%s - rogne %g x %g mm" % (g.fmt, g.trim_mm[0], g.trim_mm[1])),
+        # `%g` tronquait 299.9994 en « 299.999 » : ecrire la valeur reelle
+        # puis en perdre la derniere decimale, c'est la meme faute en plus
+        # sournois. Quatre decimales, toujours.
+        ("Resolution", "%.4f DPI reels - pHYs %d px/m unite 1 - %d DPI demandes"
+                       % (ppm_to_dpi(dpi_to_ppm(g.dpi)), dpi_to_ppm(g.dpi),
+                          g.dpi)),
+        ("BleedBox", "0,0 %dx%d px - fond perdu %g mm"
+                     % (g.canvas_px[0], g.canvas_px[1], g.bleed_mm)),
+        ("TrimBox", "%g,%g %dx%d px - couper ici"
+                    % (bx, by, g.trim_px[0], g.trim_px[1])),
+        ("SafeBox", "%g,%g %dx%d px - zone sure %g mm"
+                    % (sx, sy, g.safe_px[0], g.safe_px[1], g.safe_mm)),
+    ]
+    for k, v in (extra or {}).items():
+        t.append((str(k), str(v)))
+    return t
+
+
+def _int(value, default: int, what: str) -> int:
+    if value is None:
+        return int(default)
+    try:
+        return int(value)
+    except (TypeError, ValueError, OverflowError):
+        # OverflowError : json.loads("1e999") rend inf, et int(inf) lève.
+        raise ValueError(f"{what} doit être un entier (reçu {value!r})")
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# L'ÉPREUVE DE CONTRÔLE — DE VRAIS TRAITS DE COUPE, ET AILLEURS QUE DANS L'ENCRE
+#
+# Reproche du tour précédent, mot pour mot : « Aucun trait de coupe ni repère de
+# registration dans le fichier livré : le fond perdu est bien peint, mais
+# l'imprimeur doit faire confiance à des décalages écrits en toutes lettres
+# dans une métadonnée au lieu de les voir sur la planche. »
+#
+# LE FICHIER D'IMPRESSION N'EN PORTERA JAMAIS, ET C'EST VOULU. La toile fait
+# exactement `canvas_px` : du trait de coupe au bord, il n'y a que du FOND
+# PERDU, c'est-à-dire de l'encre destinée à passer sous la lame. Y tracer un
+# repère, c'est mettre un trait noir dans la zone rognée — au mieux inutile, au
+# pire visible sur la tranche. Un repère de coupe se pose HORS du fond perdu ;
+# il faut donc du papier en plus, et un fichier de plus.
+#
+# C'est ce fichier-là. Il ajoute une marge de papier autour de la toile livrée,
+# y trace les huit traits de coupe alignés sur la rogne, quatre mires de
+# repérage et une légende chiffrée — et il ne touche PAS à un seul pixel de la
+# carte : la vérification est faite ici même, échantillon par échantillon,
+# avant de répondre. Si le moindre octet de la zone carte avait bougé, la route
+# refuse de livrer plutôt que de livrer une épreuve qui ment.
+# ═════════════════════════════════════════════════════════════════════════════
+MARGIN_MM = (5.0, 25.0)          # bornes de la marge de papier de l'épreuve
+MARK_MM = 5.0                    # longueur d'un trait de coupe
+MARK_W_MM = 0.25                 # épaisseur du trait (0,25 mm = la norme)
+
+
+def _mark_px(dpi: int) -> int:
+    """Épaisseur du trait de coupe, en pixels, au moins 1."""
+    return max(1, R(MARK_W_MM / MM_PER_INCH * dpi))
+
+
+def control_geometry(g, margin_mm: float) -> dict:
+    """Où tombe chaque trait, EN PIXELS DE L'ÉPREUVE, et de combien la coupe
+    est arrondie. `bleed_off_px` vaut 35,5 px au format poker : la coupe passe
+    ENTRE deux pixels. On trace sur la colonne entière la plus proche et on
+    écrit le résidu — plutôt que de laisser croire à un repère au pixel."""
+    m = R(float(margin_mm) / MM_PER_INCH * dpi_of(g))
+    bx, by = g.bleed_off_px
+    trim = [m + bx, m + by, m + bx + g.trim_px[0], m + by + g.trim_px[1]]
+    drawn = [R(v) for v in trim]
+    # TOUT CE QUI SE TRACE RESTE SUR LE PAPIER, ET C'EST BORNÉ ICI.
+    # Le trait de coupe ne peut pas être plus long que la marge, et la mire,
+    # centrée au milieu de la marge, ne peut pas déborder dessus non plus :
+    # son bras vaut 2r depuis le centre placé à m/2. Sans cette borne, une
+    # marge de 5 mm sur un petit format faisait mordre la mire SUR LA CARTE —
+    # la vérification octet à octet de `build_control_proof` l'a refusé net,
+    # ce qui est la bonne fin, mais un refus n'est pas une géométrie juste.
+    return {
+        "margin_px": m,
+        "canvas_px": [g.canvas_px[0] + 2 * m, g.canvas_px[1] + 2 * m],
+        "trim_exact": [rnd(v, 2) for v in trim],
+        "trim_drawn": drawn,
+        "residu_px": [rnd(abs(drawn[i] - trim[i]), 2) for i in range(4)],
+        # Le trait de coupe laisse toujours une bande de papier au cartouche :
+        # 15 px au minimum, une ligne de texte plus sa garde. Sur une marge de
+        # 10 mm a 300 DPI cela ne change rien (le trait fait ses 5 mm) ; sur la
+        # marge minimale de 5 mm, il se raccourcit plutot que d'effacer la
+        # mention « NE PAS IMPRIMER ».
+        "mark_px": min(max(1, m - max(15, m // 8)),
+                       R(MARK_MM / MM_PER_INCH * dpi_of(g))),
+        "mark_w_px": _mark_px(dpi_of(g)),
+        "mire_r_px": max(2, min(R(2.0 / MM_PER_INCH * dpi_of(g)),
+                                (m // 2 - 2) // 2)),
+    }
+
+
+def dpi_of(g) -> int:
+    """La définition de la géométrie, en entier — `g.dpi` est déjà entier, mais
+    ce petit passage évite de le supposer à cinq endroits."""
+    return int(g.dpi)
+
+
+MENTION_COURTE = "EPREUVE DE CONTROLE - NE PAS IMPRIMER"
+
+
+def _legende(d, out, txt: str, m: int, L: int) -> list[str]:
+    """Écrit la légende SOUS les traits de coupe, en la repliant pour qu'elle
+    tienne sur le papier. Rend les lignes réellement écrites (liste vide si
+    aucune police n'est disponible) : rien n'est affirmé au hasard.
+
+    Écrite d'un seul trait, elle sortait par la droite du fichier — 200 signes
+    pour la largeur d'une carte. Une mention coupée en plein milieu est une
+    mention qui ment par omission. On replie donc, et si le papier est trop
+    petit pour la légende complète (format micro, marge de 5 mm), on écrit au
+    moins la mention qui compte : celle qui dit que ce fichier ne s'imprime
+    pas.
+    """
+    try:
+        from PIL import ImageFont
+    except Exception:                                       # noqa: BLE001
+        return []
+    largeur = out.width - 2 * m                # la laisse alignée sur la toile
+    haut = out.height - m + L + 1
+    dispo = max(0, out.height - haut - 1)
+    for source in (txt, MENTION_COURTE):
+        mots = source.split(" ")
+        for taille in range(max(9, m // 5), 7, -1):
+            try:
+                police = ImageFont.load_default(size=taille)
+            except Exception:                               # noqa: BLE001
+                try:
+                    police = ImageFont.load_default()
+                except Exception:                           # noqa: BLE001
+                    return []
+            lignes, cur = [], ""
+            for mot in mots:
+                essai = (cur + " " + mot).strip()
+                if cur and d.textlength(essai, font=police) > largeur:
+                    lignes.append(cur)
+                    cur = mot
+                else:
+                    cur = essai
+            if cur:
+                lignes.append(cur)
+            # +2 px de garde : `pas` est un interligne calculé, pas la vraie
+            # descente de la police. Sans la garde, la dernière ligne frôlait
+            # le bord du papier.
+            pas = int(taille * 1.25) + 1
+            if len(lignes) * pas + 2 <= dispo and \
+                    max(d.textlength(x, font=police) for x in lignes) <= largeur:
+                for i, ligne in enumerate(lignes):
+                    d.text((m, haut + i * pas), ligne, fill=(60, 60, 60),
+                           font=police)
+                return lignes
+    return []
+
+
+def build_control_proof(data: bytes, g, margin_mm: float,
+                        face: str = "front") -> tuple[bytes, dict]:
+    """L'épreuve de contrôle. Rend `(octets, rapport)`.
+
+    `rapport["pixels_identiques"]` n'est pas une promesse : la zone carte de
+    l'épreuve est relue après encodage et comparée octet à octet à la source.
+    """
+    import io
+
+    from PIL import Image, ImageDraw
+
+    C = control_geometry(g, margin_mm)
+    m = C["margin_px"]
+    with Image.open(io.BytesIO(data)) as src:
+        src.load()
+        carte = src.convert("RGB")
+    if carte.size != (g.canvas_px[0], g.canvas_px[1]):
+        raise ValueError("La toile reçue fait %dx%d px au lieu de %dx%d"
+                         % (carte.width, carte.height,
+                            g.canvas_px[0], g.canvas_px[1]))
+    attendu = carte.tobytes()
+
+    out = Image.new("RGB", (C["canvas_px"][0], C["canvas_px"][1]),
+                    (255, 255, 255))
+    out.paste(carte, (m, m))
+    d = ImageDraw.Draw(out)
+    noir = (0, 0, 0)
+    w = C["mark_w_px"]
+    L = C["mark_px"]
+    x0, y0, x1, y1 = C["trim_drawn"]
+    # Les huit traits de coupe. Chacun part du BORD DE TOILE (donc du bord du
+    # fond perdu) et s'éloigne : pas un pixel de repère ne touche l'encre.
+    for x in (x0, x1):
+        d.rectangle([x - w // 2, m - L, x - w // 2 + w - 1, m - 1], fill=noir)
+        d.rectangle([x - w // 2, out.height - m, x - w // 2 + w - 1,
+                     out.height - m + L - 1], fill=noir)
+    for y in (y0, y1):
+        d.rectangle([m - L, y - w // 2, m - 1, y - w // 2 + w - 1], fill=noir)
+        d.rectangle([out.width - m, y - w // 2, out.width - m + L - 1,
+                     y - w // 2 + w - 1], fill=noir)
+    # Quatre mires de repérage, aux QUATRE COINS du papier. Le rayon est BORNÉ
+    # par `control_geometry` : bras de mire = 2r depuis un centre à m/2, donc
+    # une mire trop grande mordrait sur la carte.
+    #
+    # AUX COINS, ET PAS AU MILIEU DES CÔTÉS. Mesuré à l'écran sur l'épreuve
+    # livrée : une mire centrée sous la carte tombait exactement sur la bande
+    # où s'écrit la légende, et le texte lui passait au travers. Les coins sont
+    # libres — les traits de coupe, eux, sont sur la rogne, donc bien à
+    # l'intérieur — et la bande du bas reste entière pour le cartouche.
+    r = C["mire_r_px"]
+    for cx, cy in ((m // 2, m // 2), (out.width - m // 2, m // 2),
+                   (m // 2, out.height - m // 2),
+                   (out.width - m // 2, out.height - m // 2)):
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=noir, width=w)
+        d.rectangle([cx - w // 2, cy - r * 2, cx - w // 2 + w - 1, cy + r * 2],
+                    fill=noir)
+        d.rectangle([cx - r * 2, cy - w // 2, cx + r * 2, cy - w // 2 + w - 1],
+                    fill=noir)
+    # La légende : ce que l'épreuve est, et les nombres qu'elle montre.
+    txt = ("EPREUVE DE CONTROLE - NE PAS IMPRIMER  |  %s %g x %g mm  |  %s  |  "
+           "%d DPI demandes, %.4f DPI reels (pHYs %d px/m)  |  toile %dx%d px, "
+           "coupe %dx%d px a %g;%g  |  zone sure %dx%d px  |  fond perdu %g mm, "
+           "marge de l'epreuve %g mm"
+           % (g.fmt, g.trim_mm[0], g.trim_mm[1],
+              "verso" if face == "back" else "recto",
+              dpi_of(g), ppm_to_dpi(dpi_to_ppm(dpi_of(g))),
+              dpi_to_ppm(dpi_of(g)), g.canvas_px[0], g.canvas_px[1],
+              g.trim_px[0], g.trim_px[1], g.bleed_off_px[0], g.bleed_off_px[1],
+              g.safe_px[0], g.safe_px[1], g.bleed_mm, rnd(margin_mm, 2)))
+    # LA LÉGENDE DOIT TENIR SUR LE PAPIER. Écrite d'un trait, elle sortait par
+    # la droite : la phrase fait ~200 signes et la marge n'en offre que la
+    # largeur de la toile. Une mention coupée en plein milieu est une mention
+    # qui ment par omission — on choisit donc la plus grande taille qui rentre,
+    # puis on replie sur les lignes disponibles SOUS les traits de coupe.
+    lignes = _legende(d, out, txt, m, L)
+
+    buf = io.BytesIO()
+    out.save(buf, format="PNG", optimize=False, compress_level=6)
+    brut = buf.getvalue()
+    # LA VÉRIFICATION. On relit l'épreuve encodée et on recompare la zone
+    # carte à la source. C'est le seul moyen d'écrire « la carte n'a pas
+    # bougé » sans demander qu'on nous croie.
+    with Image.open(io.BytesIO(brut)) as relu:
+        relu.load()
+        dedans = relu.crop((m, m, m + g.canvas_px[0],
+                            m + g.canvas_px[1])).convert("RGB").tobytes()
+    identique = dedans == attendu
+    if not identique:
+        raise ValueError("la zone carte de l'epreuve differe de la source : "
+                         "refus de livrer une epreuve qui ment")
+    rapport = dict(C)
+    rapport["pixels_identiques"] = True
+    rapport["pixels_compares"] = len(attendu)
+    rapport["face"] = "verso" if face == "back" else "recto"
+    rapport["legende"] = lignes
+    return brut, rapport
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# ROUTES — chemins RELATIFS à /api/cards/{did}/frame
+# ═════════════════════════════════════════════════════════════════════════════
+@router.get("/catalog")
+async def get_catalog(did: str):
+    """Le catalogue des cadres. Volontairement servi même si le jeu n'existe
+    plus : un menu qui s'éteint parce qu'un deck a été supprimé est pire
+    qu'inutile — l'écran doit pouvoir proposer un cadre en toutes
+    circonstances."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    return {"catalog": catalog()}
+
+
+@router.post("/metrics")
+async def post_metrics(did: str, body: dict | None = None):
+    """Les millimètres du cadre, convertis en pixels de toile par la règle du
+    domaine. C'est ce que l'écran confronte à son propre calcul."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    from . import core as core_mod          # import paresseux (style routes.py)
+    if core_mod.read_deck(did) is None:
+        raise HTTPException(404, "Jeu introuvable")
+    b = body if isinstance(body, dict) else {}
+    try:
+        # `corner_mm` n'est PAS re-validé ici : c'est le rayon de la DÉCOUPE,
+        # il appartient au widget de format du CORE. `contract.geom` porte ses
+        # bornes ; les re-déclarer plus serrées ferait échouer la vérification
+        # de l'écran sur un document parfaitement légal.
+        g = geom(
+            str(b.get("fmt") or "poker_eu"),
+            _int(b.get("dpi"), 300, "La définition"),
+            b.get("bleed_mm"), b.get("safe_mm"), b.get("corner_mm"),
+        )
+        line = _len(b.get("line_mm"), DEFAULTS["line_mm"],
+                    LIMITS["line_mm"][0], LIMITS["line_mm"][1],
+                    "L'épaisseur du filet")
+        gap = _len(b.get("gap_mm"), DEFAULTS["gap_mm"], LIMITS["gap_mm"][0],
+                   LIMITS["gap_mm"][1], "L'écart entre filets")
+        edge = _len(b.get("edge_mm"), DEFAULTS["edge_mm"],
+                    LIMITS["edge_mm"][0], LIMITS["edge_mm"][1],
+                    "Le retrait du filet")
+        inner = _len(b.get("inner_mm"), DEFAULTS["inner_mm"],
+                     LIMITS["inner_mm"][0], LIMITS["inner_mm"][1],
+                     "La marge intérieure")
+        win = _win_of(b.get("window"), g)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    fam = b.get("family")
+    if fam is not None and fam != "none" and \
+            fam not in [f["id"] for f in FAMILIES]:
+        raise HTTPException(
+            400, "Famille de cadre inconnue: %r. Familles admises: %s"
+            % (fam, ", ".join(f["id"] for f in FAMILIES)))
+
+    return {"metrics": frame_metrics(g, line, gap, edge, inner, win),
+            "geom": g.to_dict()}
+
+
+@router.post("/occupancy")
+async def post_occupancy(did: str, body: dict | None = None):
+    """Le plan d'occupation et le compteur de recouvrements. L'écran calcule
+    le même et confronte : deux placements différents, ce serait un aperçu qui
+    ment sur le fichier."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    b = body if isinstance(body, dict) else {}
+    try:
+        g = geom(
+            str(b.get("fmt") or "poker_eu"),
+            _int(b.get("dpi"), 300, "La définition"),
+            b.get("bleed_mm"), b.get("safe_mm"), b.get("corner_mm"),
+        )
+        f = b.get("frame") if isinstance(b.get("frame"), dict) else {}
+        f = dict(f)
+        f["inner_mm"] = _len(f.get("inner_mm"), DEFAULTS["inner_mm"],
+                             LIMITS["inner_mm"][0], LIMITS["inner_mm"][1],
+                             "La marge intérieure")
+        f["edge_mm"] = _len(f.get("edge_mm"), DEFAULTS["edge_mm"],
+                            LIMITS["edge_mm"][0], LIMITS["edge_mm"][1],
+                            "Le retrait du filet")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return {"occupancy": occupancy(g, f, b.get("slots"))}
+
+
+@router.post("/stamp")
+async def post_stamp(did: str, request: Request, fmt: str = "poker_eu",
+                     dpi: int = 300, bleed_mm: float | None = None,
+                     safe_mm: float | None = None, corner_mm: float = 3.0,
+                     face: str = "front", collisions: int = 0,
+                     note: str = "", rgb: int = 1):
+    """Reçoit le PNG rendu par le moteur unique, VÉRIFIE que sa taille est
+    bien `geom.canvas_px`, et le rend estampillé `pHYs` + `tEXt`.
+
+    La vérification n'est pas une politesse : sans elle, cette route serait un
+    moyen d'écrire « 300 DPI » sur n'importe quel nombre de pixels — exactement
+    le badge menteur qu'on cherche à rendre impossible.
+    """
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    try:
+        g = geom(str(fmt or "poker_eu"), _int(dpi, 300, "La définition"),
+                 bleed_mm, safe_mm, corner_mm)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(400, "Aucun octet reçu : le PNG à estampiller "
+                                 "doit être le corps de la requête")
+    if len(raw) > 96 * 1024 * 1024:
+        raise HTTPException(400, "PNG trop lourd (plus de 96 Mo)")
+    try:
+        w, h = png_size(raw)
+        png_chunks(raw)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if [w, h] != [g.canvas_px[0], g.canvas_px[1]]:
+        raise HTTPException(
+            400, "La toile reçue fait %dx%d px alors que %s a %d DPI en fait "
+                 "%dx%d : refus d'estampiller une définition fausse."
+                 % (w, h, g.fmt, g.dpi, g.canvas_px[0], g.canvas_px[1]))
+    # Le quatrième canal, AVANT l'estampillage (sans quoi le ré-encodage
+    # emporterait pHYs et tEXt avec lui).
+    deja = png_texts(raw).get("Alpha", "")
+    if int(rgb or 0):
+        raw, alpha_note = png_drop_constant_alpha(raw)
+        # Second passage sur un fichier déjà converti : la mesure d'origine
+        # n'est plus possible (le canal n'existe plus). On garde la mention
+        # écrite au premier passage — sans quoi estampiller deux fois
+        # rendrait deux fichiers différents.
+        if deja and alpha_note.startswith("aucun canal alpha"):
+            alpha_note = deja
+        try:
+            w2, h2 = png_size(raw)
+            if [w2, h2] != [g.canvas_px[0], g.canvas_px[1]]:
+                raise ValueError("taille perdue")
+        except ValueError:
+            raise HTTPException(500, "conversion RGB incoherente : refus de "
+                                     "livrer un fichier non verifie")
+    else:
+        alpha_note = "conversion RGB desactivee par la requete (rgb=0)"
+    # `collisions` est DECLARE par le moteur de rendu, pas recalcule ici : la
+    # route ne reçoit pas les slots. On le dit, plutôt que de le faire passer
+    # pour une mesure du fichier — ce que seule la géométrie ci-dessus est.
+    extra = {"Face": "verso" if face == "back" else "recto",
+             "Collisions": "%d recouvrement(s) de mention, plan d'occupation "
+                           "du moteur de rendu" % max(0, int(collisions))}
+    if note:
+        extra["Comment"] = note
+    extra["Alpha"] = alpha_note
+    try:
+        out = png_stamp(raw, g.dpi, stamp_texts(g, extra))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(content=out, media_type="image/png", headers={
+        "X-Card-Canvas": "%dx%d" % (g.canvas_px[0], g.canvas_px[1]),
+        "X-Card-Ppm": str(dpi_to_ppm(g.dpi)),
+        "X-Card-Dpi-Reel": "%.4f" % ppm_to_dpi(dpi_to_ppm(g.dpi)),
+        "Content-Disposition": 'attachment; filename="carte.png"',
+    })
+
+
+@router.post("/control")
+async def post_control(did: str, request: Request, fmt: str = "poker_eu",
+                       dpi: int = 300, bleed_mm: float | None = None,
+                       safe_mm: float | None = None, corner_mm: float = 3.0,
+                       face: str = "front", margin_mm: float = 10.0):
+    """L'ÉPREUVE DE CONTRÔLE : la toile livrée, posée sur du papier, avec de
+    VRAIS traits de coupe et des mires — hors du fond perdu, donc hors de
+    l'encre. Ce n'est PAS le fichier d'impression, et le fichier retourné le
+    dit de lui-même, en clair, dans son `tEXt` et sur sa légende.
+    """
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    try:
+        g = geom(str(fmt or "poker_eu"), _int(dpi, 300, "La définition"),
+                 bleed_mm, safe_mm, corner_mm)
+        marge = _len(margin_mm, 10.0, MARGIN_MM[0], MARGIN_MM[1],
+                     "La marge de l'épreuve")
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(400, "Aucun octet reçu : le PNG à contrôler doit "
+                                 "être le corps de la requête")
+    if len(raw) > 96 * 1024 * 1024:
+        raise HTTPException(400, "PNG trop lourd (plus de 96 Mo)")
+    try:
+        w, h = png_size(raw)
+        png_chunks(raw)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if [w, h] != [g.canvas_px[0], g.canvas_px[1]]:
+        raise HTTPException(
+            400, "La toile reçue fait %dx%d px alors que %s a %d DPI en fait "
+                 "%dx%d : refus de poser des traits de coupe au mauvais endroit."
+                 % (w, h, g.fmt, g.dpi, g.canvas_px[0], g.canvas_px[1]))
+    try:
+        out, rap = build_control_proof(raw, g, marge, face)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except ImportError as e:
+        raise HTTPException(503, "Pillow indisponible : %s" % e)
+    extra = {
+        "Face": rap["face"],
+        "ControlProof": "EPREUVE DE CONTROLE - NE PAS IMPRIMER. Marge de "
+                        "papier %g mm ajoutee autour de la toile livree ; les "
+                        "traits de coupe et les mires sont HORS du fond perdu."
+                        % rnd(marge, 2),
+        "CropMarks": "coupe a %s px du bord de l'epreuve ; traits traces sur "
+                     "%s ; residu d'arrondi %s px ; longueur %d px, epaisseur "
+                     "%d px" % (rap["trim_exact"], rap["trim_drawn"],
+                                rap["residu_px"], rap["mark_px"],
+                                rap["mark_w_px"]),
+        "PixelCheck": "zone carte relue apres encodage et comparee a la "
+                      "source : %d octets identiques" % rap["pixels_compares"],
+        "Comment": "Le fichier d'impression, lui, ne porte AUCUN repere : du "
+                   "trait de coupe au bord de toile il n'y a que du fond "
+                   "perdu, et un repere y serait de l'encre sous la lame.",
+    }
+    # La toile de l'épreuve n'est PAS `canvas_px` : `stamp_texts` décrirait la
+    # carte, pas le papier. On écrit donc les deux, sans confusion possible.
+    textes = stamp_texts(g, extra)
+    textes.insert(1, ("ProofCanvas", "%dx%d px - toile livree %dx%d px + %g mm "
+                                     "de marge de chaque cote"
+                      % (rap["canvas_px"][0], rap["canvas_px"][1],
+                         g.canvas_px[0], g.canvas_px[1], rnd(marge, 2))))
+    try:
+        out = png_stamp(out, g.dpi, textes)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    return Response(content=out, media_type="image/png", headers={
+        "X-Proof-Canvas": "%dx%d" % (rap["canvas_px"][0], rap["canvas_px"][1]),
+        "X-Proof-Margin": str(rap["margin_px"]),
+        "X-Proof-Trim": ",".join(str(v) for v in rap["trim_drawn"]),
+        "X-Proof-Residu": ",".join(str(v) for v in rap["residu_px"]),
+        "X-Proof-Pixels": str(rap["pixels_compares"]),
+        "Content-Disposition": 'attachment; filename="epreuve-controle.png"',
+    })

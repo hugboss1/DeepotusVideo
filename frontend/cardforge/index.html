@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Forge — Deepotus Video Gen</title>
+<!-- COQUILLE [CORE] — gelee. Les 8 builders ne touchent JAMAIS ce fichier :
+     ils remplissent leur <div class="cf-host"> depuis js/mod-<id>.js.
+     Ordre des feuilles : la coquille d'abord (elle importe les tokens), les 8
+     modules ensuite — ainsi une regle de module l'emporte sur une primitive,
+     jamais l'inverse. -->
+<link rel="stylesheet" href="cardforge.css">
+<link rel="stylesheet" href="css/mod-face.css">
+<link rel="stylesheet" href="css/mod-frame.css">
+<link rel="stylesheet" href="css/mod-type.css">
+<link rel="stylesheet" href="css/mod-data.css">
+<link rel="stylesheet" href="css/mod-solid.css">
+<link rel="stylesheet" href="css/mod-texture.css">
+<link rel="stylesheet" href="css/mod-print.css">
+<link rel="stylesheet" href="css/mod-gltf.css">
+<!-- visionneuse 3D embarquee (hors ligne, servie par l'app) : P5 et P8 s'en
+     servent, elle est chargee ici une seule fois. -->
+<script type="module" src="/assets/model-viewer.min.js"></script>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">&#x1F0CF; <b>Card Forge</b></div>
+  <span class="badge">CONTRAT CF</span>
+  <input id="deckName" class="deckname" type="text" value="Nouveau jeu" title="Nom du jeu" maxlength="80">
+  <div class="tb-spacer"></div>
+  <span class="srcchip" id="apiChip">connexion à l'API…</span>
+  <button class="btn ghost sm" id="themeBtn" type="button" title="Thème clair / sombre">&#x25D0;</button>
+  <a class="backlink" href="/" target="_top" title="Retour à l'app">&#8592; App</a>
+</header>
+
+<!-- ══ widget de format — CORE SEUL. C'est le seul endroit de tout le lab d'ou
+     part un CF.setFormat ; les millimetres, les pouces et les pixels sont
+     affiches en permanence, jamais l'un sans les autres. ══ -->
+<div class="fmtbar">
+  <label class="fw"><span class="lbl">Format</span><select id="fmtSel"></select></label>
+  <label class="fw"><span class="lbl">Définition</span><div class="seg sm" id="dpiSeg"></div></label>
+  <label class="fw num"><span class="lbl">Fond perdu</span><input type="number" id="bleedInp" min="0" max="10" step="0.5"><i>mm</i></label>
+  <label class="fw num"><span class="lbl">Zone sûre</span><input type="number" id="safeInp" min="0" max="10" step="0.5"><i>mm</i></label>
+  <label class="fw num"><span class="lbl">Rayon de coin</span><input type="number" id="cornerInp" min="0" max="8" step="0.5"><i>mm</i></label>
+  <div class="fmt-read mono" id="fmtRead"></div>
+</div>
+
+<!-- bandeau d'erreur API (domaine /api/cards pas encore monte, backend muet…) -->
+<div class="apibar hidden" id="apiBar">
+  <b id="apiBarTitle">API cartes indisponible</b>
+  <span id="apiBarMsg"></span>
+</div>
+
+<main class="cf">
+
+  <!-- ══ 1. rail gauche : les 8 pieces, dans l'ordre gele ══ -->
+  <nav class="rail" id="rail"></nav>
+
+  <!-- ══ 2. scene : LE moteur unique. Ce qu'on voit ici est le meme appel a
+       CF.renderCard que le fichier exporte, a une autre echelle. ══ -->
+  <section class="stage">
+    <div class="stage-head">
+      <button class="chip" id="guidesBtn" type="button" title="Fond perdu / coupe / zone sûre — couche CORE z=90, jamais exportée">&#9635; Repères</button>
+      <button class="chip" id="sideBtn" type="button" title="Recto / verso">Recto</button>
+      <span class="stage-sep" aria-hidden="true"></span>
+      <button class="btn sm" id="prevBtn" type="button" title="Carte précédente">&#8249;</button>
+      <span class="counter" id="stageNav">carte 1 / 1</span>
+      <button class="btn sm" id="nextBtn" type="button" title="Carte suivante">&#8250;</button>
+      <span class="tb-spacer"></span>
+      <button class="btn strong sm" id="shotBtn" type="button" title="Rend cette carte à l'échelle 1 (le fichier livré) et la télécharge — local, gratuit">PNG 1:1</button>
+    </div>
+    <div class="stage-wrap" id="stageWrap">
+      <canvas id="stageCanvas" class="stage-canvas"></canvas>
+    </div>
+    <div class="stage-foot">
+      <div class="stage-read mono" id="stageRead"></div>
+      <div class="stage-err hidden" id="stageErr"></div>
+    </div>
+  </section>
+
+  <!-- ══ 3. plan de travail : 8 sections VIDES. Chaque .cf-host porte la classe
+       .cf-<id> — c'est ce qui rend la regle 4 (« tout selecteur de
+       css/mod-<id>.css contient .cf-<id> ») applicable sans effort. ══ -->
+  <section class="work" id="work">
+
+    <section class="cf-panel" id="cf-panel-face" data-mod="face">
+      <div class="panel-head"><b class="ph-n">01</b><h2>Face</h2><p class="hint">Illustration importée ou générée, recadrage, DPI effectif.</p></div>
+      <div class="cf-host cf-face" data-host="face"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-frame" data-mod="frame">
+      <div class="panel-head"><b class="ph-n">02</b><h2>Cadre</h2><p class="hint">Bordures vectorielles, raretés, fenêtre d'illustration, dos de carte.</p></div>
+      <div class="cf-host cf-frame" data-host="frame"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-type" data-mod="type">
+      <div class="panel-head"><b class="ph-n">03</b><h2>Typographie</h2><p class="hint">Slots de texte en mm depuis le coin de coupe, 23 polices locales.</p></div>
+      <div class="cf-host cf-type" data-host="type"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-data" data-mod="data">
+      <div class="panel-head"><b class="ph-n">04</b><h2>Données</h2><p class="hint">CSV / TSV, mappage colonne vers slot, quantité, filtre, tri.</p></div>
+      <div class="cf-host cf-data" data-host="data"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-solid" data-mod="solid">
+      <div class="panel-head"><b class="ph-n">05</b><h2>Volume</h2><p class="hint">Épaisseur, coins, maillage à 3 îlots UV, aperçu 3D et tourne-disque.</p></div>
+      <div class="cf-host cf-solid" data-host="solid"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-texture" data-mod="texture">
+      <div class="panel-head"><b class="ph-n">06</b><h2>Matières</h2><p class="hint">Papier, grain, foil, holo — et les 8 maps PBR mesurées.</p></div>
+      <div class="cf-host cf-texture" data-host="texture"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-print" data-mod="print">
+      <div class="panel-head"><b class="ph-n">07</b><h2>Impression</h2><p class="hint">Planche imposée, traits de coupe, PDF à TrimBox et BleedBox, contrôle avant vol.</p></div>
+      <div class="cf-host cf-print" data-host="print"></div>
+    </section>
+
+    <section class="cf-panel" id="cf-panel-gltf" data-mod="gltf">
+      <div class="panel-head"><b class="ph-n">08</b><h2>Export 3D</h2><p class="hint">GLB et glTF, ZIP des 8 maps, manifeste et dimensions physiques.</p></div>
+      <div class="cf-host cf-gltf" data-host="gltf"></div>
+    </section>
+
+  </section>
+
+  <!-- panneau lateral optionnel, cree a la demande par CF.aside() -->
+  <aside class="side hidden" id="side"></aside>
+</main>
+
+<div class="busy hidden" id="busy"><div class="busy-box"><i class="busy-spin"></i><span class="busy-l">traitement…</span></div></div>
+<div id="toast" class="toast hidden"></div>
+
+<!-- LE CONTRAT d'abord, les 8 pieces ensuite. Chaque module s'enregistre a
+     l'evaluation de son script ; le registre est gele au DOMContentLoaded. -->
+<script src="js/core.js"></script>
+<script src="js/mod-face.js"></script>
+<script src="js/mod-frame.js"></script>
+<script src="js/mod-type.js"></script>
+<script src="js/mod-data.js"></script>
+<script src="js/mod-solid.js"></script>
+<script src="js/mod-texture.js"></script>
+<script src="js/mod-print.js"></script>
+<script src="js/mod-gltf.js"></script>
+</body>
+</html>

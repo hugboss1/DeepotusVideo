@@ -1,0 +1,218 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 08 · Export 3D   [P8]
+   REGLE 4 : tout selecteur de ce fichier contient .cf-gltf. Aucune regle sur
+   body, :root, * ou un element nu — sans quoi une piece repeindrait les sept
+   autres. Aucune couleur en dur : les tokens de /shared/deepotus.tokens.css
+   sont deja la, et c'est ce qui fait marcher html[data-theme="light"].
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-gltf { gap: 12px; }
+
+/* ── grille : reglages a gauche, fichier livre a droite ─────────────────── */
+.cf-gltf .cf-gltf-wrap {
+  display: grid; gap: 12px; align-items: start;
+  grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+}
+@media (max-width: 1080px) {
+  .cf-gltf .cf-gltf-wrap { grid-template-columns: minmax(0, 1fr); }
+}
+.cf-gltf .cf-gltf-col { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+
+.cf-gltf .cf-gltf-card {
+  border: 1px solid var(--stroke); border-radius: var(--r);
+  background: var(--bg-panel); padding: 11px 12px;
+  display: flex; flex-direction: column; gap: 10px; min-width: 0;
+}
+.cf-gltf .cf-gltf-grow { min-height: 320px; }
+
+.cf-gltf .cf-gltf-h {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  border-bottom: 1px solid var(--stroke); padding-bottom: 7px;
+}
+.cf-gltf .cf-gltf-h > b {
+  font-size: 10px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink-strong);
+}
+.cf-gltf .cf-gltf-h > .btn, .cf-gltf .cf-gltf-h > .lnk { margin-left: auto; }
+.cf-gltf .cf-gltf-h > .check { margin-left: auto; }
+.cf-gltf .cf-gltf-sub { font-size: 10.5px; color: var(--ink-muted); }
+
+.cf-gltf .cf-gltf-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cf-gltf .cf-gltf-num { position: relative; display: inline-flex; }
+.cf-gltf .cf-gltf-num input {
+  width: 104px; padding-right: 26px;
+  background: var(--bg-base); border: 1px solid var(--stroke-strong);
+  border-radius: 8px; color: var(--ink-strong); font-family: var(--f-mono);
+  font-size: 12px; padding-left: 8px; padding-top: 5px; padding-bottom: 5px;
+}
+.cf-gltf .cf-gltf-num input:focus { outline: none; border-color: var(--accent); }
+.cf-gltf .cf-gltf-num i {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  font-style: normal; font-size: 10px; color: var(--ink-muted); pointer-events: none;
+}
+
+/* ── atlas ──────────────────────────────────────────────────────────────── */
+.cf-gltf .cf-gltf-atlas {
+  display: flex; gap: 12px; align-items: flex-start;
+  border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 10px; transition: border-color var(--dur) var(--ease);
+}
+.cf-gltf .cf-gltf-atlas.over { border-color: var(--accent); background: var(--accent-soft); }
+.cf-gltf .cf-gltf-atlas-cv {
+  width: 150px; height: 150px; flex: none; border-radius: var(--r-sm);
+  background: var(--bg-panel-3); border: 1px solid var(--stroke);
+  image-rendering: auto;
+}
+.cf-gltf .cf-gltf-atlas-side { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+
+.cf-gltf .cf-gltf-kv { display: flex; flex-direction: column; gap: 3px; }
+.cf-gltf .cf-gltf-kv > div { display: flex; align-items: baseline; gap: 6px; font-size: 11px; }
+.cf-gltf .cf-gltf-kv span { color: var(--ink-muted); min-width: 76px; flex: none; }
+.cf-gltf .cf-gltf-kv b {
+  color: var(--ink-strong); font-family: var(--f-mono); font-weight: 500;
+  /* la ligne « Coupe » porte une phrase, pas un nombre : elle doit passer a la
+     ligne au lieu de pousser la vignette de l'atlas hors du panneau. */
+  min-width: 0; overflow-wrap: anywhere;
+}
+
+/* La note de l'atlas passe SOUS la vignette, pleine largeur : glissee dans la
+   colonne de droite (~200 px), sa phrase poussait la vignette hors du cadre. */
+.cf-gltf .cf-gltf-note { margin: -2px 0 0; line-height: 1.6; }
+.cf-gltf .cf-gltf-note b { color: var(--ink-strong); }
+
+.cf-gltf .cf-gltf-stale {
+  font-size: 11px; color: var(--amber); background: var(--accent-soft);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: var(--r-sm); padding: 5px 8px;
+}
+.cf-gltf .cf-gltf-stale .lnk { color: var(--accent); }
+
+/* ── cases a cocher des livrables ───────────────────────────────────────── */
+.cf-gltf .cf-gltf-checks { display: flex; flex-direction: column; gap: 6px; }
+.cf-gltf .cf-gltf-checks .check { align-items: flex-start; }
+.cf-gltf .cf-gltf-checks span { display: flex; flex-direction: column; gap: 1px; }
+.cf-gltf .cf-gltf-checks span b { color: var(--ink-strong); font-weight: 600; font-size: 12px; }
+.cf-gltf .cf-gltf-checks span i {
+  font-style: normal; font-size: 10.5px; color: var(--ink-muted); line-height: 1.45;
+}
+
+.cf-gltf .cf-gltf-free {
+  margin: 0; display: flex; flex-direction: column; gap: 3px;
+  font-size: 10.5px; color: var(--ink-muted); line-height: 1.55;
+}
+.cf-gltf .cf-gltf-free b { color: var(--green); font-size: 11px; letter-spacing: .04em; }
+.cf-gltf .cf-gltf-free kbd {
+  font-family: var(--f-mono); font-size: 9.5px; border: 1px solid var(--stroke-strong);
+  border-radius: 4px; padding: 0 3px; color: var(--ink-soft);
+}
+
+/* ── visionneuse ────────────────────────────────────────────────────────── */
+.cf-gltf .cf-gltf-view {
+  flex: 1; min-height: 260px; border-radius: var(--r);
+  border: 1px solid var(--stroke); background: var(--bg-panel-3);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.cf-gltf .cf-gltf-view model-viewer {
+  width: 100%; height: 100%; min-height: 260px;
+  --poster-color: transparent; background: transparent;
+}
+.cf-gltf .cf-gltf-mes {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 11px;
+  color: var(--ink-muted);
+}
+.cf-gltf .cf-gltf-mes b { color: var(--ink-strong); font-size: 12px; }
+
+/* ── bordereau ──────────────────────────────────────────────────────────── */
+.cf-gltf .cf-gltf-tab { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.cf-gltf .cf-gltf-tab th {
+  text-align: left; font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 500; padding: 0 8px 6px 0;
+  border-bottom: 1px solid var(--stroke);
+}
+.cf-gltf .cf-gltf-tab td { padding: 6px 8px 6px 0; border-bottom: 1px solid var(--stroke); vertical-align: top; }
+.cf-gltf .cf-gltf-tab td b { color: var(--ink-strong); font-weight: 600; display: block; }
+.cf-gltf .cf-gltf-tab td i {
+  font-style: normal; color: var(--ink-muted); font-size: 10.5px; line-height: 1.4;
+}
+.cf-gltf .cf-gltf-tab .num { text-align: right; white-space: nowrap; color: var(--ink-strong); }
+.cf-gltf .cf-gltf-tab tfoot td { border-bottom: 0; color: var(--ink-muted); padding-top: 8px; }
+.cf-gltf .cf-gltf-tab tfoot b { color: var(--ink-strong); display: inline; }
+
+.cf-gltf .cf-gltf-detail { display: flex; flex-direction: column; gap: 7px; margin-top: 10px; }
+.cf-gltf .cf-gltf-detail h4 {
+  margin: 0; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); font-weight: 500;
+}
+.cf-gltf .cf-gltf-detail h4 i { font-style: normal; color: var(--ink-muted); text-transform: none; letter-spacing: 0; }
+.cf-gltf .cf-gltf-tex { display: flex; flex-wrap: wrap; gap: 5px; }
+.cf-gltf .cf-gltf-pill {
+  display: inline-flex; align-items: baseline; gap: 5px; font-size: 10.5px;
+  border: 1px solid var(--stroke); border-radius: 999px; padding: 2px 9px;
+  background: var(--bg-panel-2); color: var(--ink-muted); font-family: var(--f-mono);
+}
+.cf-gltf .cf-gltf-pill b { color: var(--ink-strong); font-family: var(--f-ui); font-weight: 600; }
+
+.cf-gltf .cf-gltf-kv2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 3px 16px; }
+.cf-gltf .cf-gltf-kv2 > div {
+  display: flex; align-items: baseline; gap: 6px; font-size: 11px; min-width: 0;
+}
+.cf-gltf .cf-gltf-kv2 span { color: var(--ink-muted); flex: none; }
+.cf-gltf .cf-gltf-kv2 b {
+  font-family: var(--f-mono); font-weight: 500; min-width: 0;
+  overflow-wrap: anywhere;   /* KHR_materials_clearcoat debordait sur la colonne voisine */
+}
+
+.cf-gltf .cf-gltf-maps { display: flex; flex-wrap: wrap; gap: 5px; }
+.cf-gltf .cf-gltf-map {
+  display: inline-flex; flex-direction: column; gap: 1px; min-width: 74px;
+  border: 1px solid var(--stroke); border-radius: var(--r-sm); padding: 4px 8px;
+  background: var(--bg-panel-2);
+}
+.cf-gltf .cf-gltf-map b { font-size: 10.5px; color: var(--ink-strong); font-weight: 600; }
+.cf-gltf .cf-gltf-map i { font-style: normal; font-size: 9.5px; color: var(--ink-muted); font-family: var(--f-mono); }
+.cf-gltf .cf-gltf-map.on { border-color: color-mix(in srgb, var(--green) 45%, transparent); }
+.cf-gltf .cf-gltf-map.off { opacity: .58; }
+
+.cf-gltf .cf-gltf-ok { color: var(--green); }
+.cf-gltf .cf-gltf-ko { color: var(--amber); }
+
+/* ── LES RESERVES : ce que le produit dit CONTRE lui ────────────────────────
+   Un pHYs pour trois ilots, deux archives qui se recopient. Ces lignes-la ne
+   sont pas des notes de bas de page a effacer : ce sont exactement celles
+   qu'un critique va chercher, et les cacher couterait plus cher que les
+   ecrire. Encadre discret, jamais un aplat rouge — c'est une reserve mesuree,
+   pas une panne. */
+.cf-gltf .cf-gltf-warn {
+  margin: 6px 0 0; padding: 6px 9px; line-height: 1.55;
+  border: 1px solid color-mix(in srgb, var(--amber) 40%, transparent);
+  border-left-width: 3px; border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--amber) 7%, transparent);
+  color: var(--ink-muted); font-size: 10.5px;
+}
+.cf-gltf .cf-gltf-warn b { color: var(--ink-strong); }
+.cf-gltf .cf-gltf-warn code {
+  font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft);
+}
+
+/* ── les releves chiffres sous les reglages ─────────────────────────────────
+   La ligne de definition porte maintenant TROIS nombres au lieu d'un (texels,
+   source, information reelle) : elle tient sur deux lignes et doit rester
+   lisible, sinon le chiffre honnete se perd dans le chiffre flatteur. */
+.cf-gltf .fld > .hint { line-height: 1.6; margin: 0; }
+.cf-gltf .fld > .hint b { color: var(--ink-strong); }
+.cf-gltf .fld > .hint i { font-style: normal; color: var(--ink-soft); }
+.cf-gltf #cf-gltf-bits-read, .cf-gltf #cf-gltf-missing {
+  margin: -2px 0 0; line-height: 1.55; font-size: 10.5px; color: var(--ink-muted);
+}
+.cf-gltf #cf-gltf-bits-read b, .cf-gltf #cf-gltf-missing b { color: var(--ink-strong); }
+
+/* ── etat vide : il PROPOSE, il ne constate pas ─────────────────────────── */
+.cf-gltf .cf-gltf-empty {
+  display: flex; flex-direction: column; gap: 8px; align-items: flex-start;
+  font-size: 12px; color: var(--ink); line-height: 1.6;
+}
+.cf-gltf .cf-gltf-empty p { margin: 0; }
+.cf-gltf .cf-gltf-empty ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.cf-gltf .cf-gltf-empty li { font-size: 11.5px; color: var(--ink-muted); }
+.cf-gltf .cf-gltf-empty li b { color: var(--ink-strong); }
+.cf-gltf .cf-gltf-empty li i { font-style: normal; color: var(--ink-soft); }

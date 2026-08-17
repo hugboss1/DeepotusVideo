@@ -1,0 +1,191 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 02 · Cadre   [P2]
+   REGLE 4 : tout selecteur de ce fichier contient .cf-frame. Aucune regle sur
+   body, :root, * ou un element nu — sans quoi une piece repeindrait les sept
+   autres. Aucune couleur en dur : les tokens de /shared/deepotus.tokens.css
+   sont deja la, et c'est ce qui fait marcher html[data-theme="light"].
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-frame { gap: 10px; }
+
+/* ── entete : combinaisons, annulation, verification ─────────────────────── */
+.cf-frame .cff-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding-bottom: 8px; border-bottom: 1px solid var(--stroke); }
+.cf-frame .cff-count { font-size: 11.5px; color: var(--ink-soft);
+  font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.cf-frame .cff-count b { color: var(--ink-strong); font-weight: 600; }
+.cf-frame .cff-count i { color: var(--ink-muted); font-style: normal; margin: 0 2px; }
+/* MESURE dans un panneau de 708 px (la largeur qu'il a DANS l'app) : cette
+   rangee de pastilles ne se repliait pas et poussait la largeur de defilement
+   du panneau a 868 px — 160 px de debordement horizontal, c'est-a-dire une
+   barre de defilement laterale sur un panneau de reglages. Elle se replie. */
+.cf-frame .cff-acts { display: flex; align-items: center; gap: 6px; margin-left: auto;
+  flex-wrap: wrap; justify-content: flex-end; min-width: 0; max-width: 100%; }
+.cf-frame .cff-verify { font-size: 10.5px; color: var(--ink-muted); border: 1px solid var(--stroke);
+  border-radius: 99px; padding: 2px 9px; white-space: nowrap; max-width: 34ch;
+  overflow: hidden; text-overflow: ellipsis; }
+.cf-frame .cff-verify.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-frame .cff-verify.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+
+/* ── etat vide : il PROPOSE ──────────────────────────────────────────────── */
+.cf-frame .cff-empty { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 10px 12px; background: var(--bg-panel); display: flex; flex-direction: column; gap: 8px; }
+.cf-frame .cff-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── les deux colonnes ───────────────────────────────────────────────────── */
+.cf-frame .cff-cols { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(300px, 380px);
+  gap: 14px; align-items: start; }
+.cf-frame .cff-colA, .cf-frame .cff-colB { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.cf-frame .cff-lbl { display: flex; align-items: baseline; gap: 8px; }
+.cf-frame .cff-lbl i { font-style: normal; font-size: 10px; color: var(--ink-muted); }
+
+/* ── catalogue de vignettes ──────────────────────────────────────────────── */
+.cf-frame .cff-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); gap: 7px; }
+.cf-frame .cff-allgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); gap: 6px; }
+.cf-frame .cff-cell { display: flex; flex-direction: column; gap: 3px; padding: 5px 5px 6px;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 9px;
+  cursor: pointer; text-align: center; min-width: 0; }
+.cf-frame .cff-cell:hover { border-color: var(--ink-soft); }
+.cf-frame .cff-cell.on { border-color: var(--accent); background: var(--accent-soft); }
+.cf-frame .cff-thumb { display: block; width: 100%; height: auto; border-radius: 3px;
+  background: var(--bg-panel-3); }
+.cf-frame .cff-cn { font-size: 10.5px; color: var(--ink); overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-frame .cff-cell.on .cff-cn { color: var(--ink-strong); font-weight: 600; }
+.cf-frame .cff-cs { font-style: normal; font-size: 9px; color: var(--ink-muted);
+  line-height: 1.3; overflow: hidden; display: block; }
+.cf-frame .cff-none { justify-content: center; align-items: center; min-height: 74px;
+  border-style: dashed; }
+
+/* ── loupe ───────────────────────────────────────────────────────────────── */
+.cf-frame .cff-loupecv { display: block; width: 100%; height: 250px; border-radius: 6px;
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-3); image-rendering: pixelated; }
+.cf-frame .cff-lord { margin-top: 6px; }
+.cf-frame .cff-lord b { color: var(--ink-strong); }
+
+/* ── lignes de reglage ───────────────────────────────────────────────────── */
+.cf-frame .cff-row { display: flex; gap: 9px; align-items: flex-end; flex-wrap: wrap; }
+.cf-frame .cff-row > * { min-width: 0; }
+.cf-frame .cff-fld { flex: 1 1 120px; }
+.cf-frame .cff-num { display: flex; flex-direction: column; gap: 3px; flex: 1 1 100%; }
+.cf-frame .cff-num.sm { flex: 1 1 140px; }
+.cf-frame .cff-numhead { display: flex; align-items: baseline; gap: 8px; }
+.cf-frame .cff-px { margin-left: auto; font-family: var(--f-mono); font-size: 10px;
+  color: var(--ink-soft); font-weight: 500; font-style: normal; white-space: nowrap; }
+.cf-frame .cff-px.sm { margin-left: 0; font-size: 9px; color: var(--ink-muted); }
+.cf-frame .cff-numrow { display: flex; align-items: center; gap: 7px; }
+.cf-frame .cff-rng { flex: 1; accent-color: var(--accent); min-width: 60px; }
+.cf-frame .cff-nb { width: 74px; flex: none; }
+.cf-frame .cff-unit { font-style: normal; font-size: 10px; color: var(--ink-muted); }
+.cf-frame .cff-check { flex: 0 0 auto; padding-bottom: 5px; }
+.cf-frame .cff-color { width: 46px; height: 28px; padding: 2px; flex: none;
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px; }
+.cf-frame .cff-sel { min-width: 110px; }
+.cf-frame .cff-txt { min-width: 110px; }
+.cf-frame .cff-seg { width: auto; }
+
+/* ── fenetre d'illustration : plan cliquable + valeurs editables ─────────── */
+.cf-frame .cff-winwrap { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
+.cf-frame .cff-map { flex: none; border: 1px solid var(--stroke-strong); border-radius: 8px;
+  background: var(--bg-base); cursor: crosshair; touch-action: none; }
+.cf-frame .cff-map:focus { outline: none; border-color: var(--accent); }
+.cf-frame .cff-winfields { flex: 1 1 190px; display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 7px; align-content: start; }
+.cf-frame .cff-wf { min-width: 0; }
+.cf-frame .cff-wf input { width: 100%; }
+.cf-frame .cff-wbtn { grid-column: 1 / -1; }
+.cf-frame .cff-winread b { color: var(--ink-strong); }
+
+/* ── occupation : le compteur de recouvrements et la table des meubles ───── */
+.cf-frame .cff-occ { font-size: 10.5px; font-family: var(--f-mono); color: var(--ink-muted);
+  border: 1px solid var(--stroke); background: var(--bg-base); border-radius: 99px;
+  padding: 2px 9px; white-space: nowrap; cursor: pointer; }
+.cf-frame .cff-occ.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-frame .cff-occ.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 12%, transparent); }
+/* la table est large : elle defile DANS son cadre, la page ne bouge pas —
+   sinon les boites en millimetres, qui sont tout l'interet, sont tronquees. */
+.cf-frame .cff-occtab { display: flex; flex-direction: column; gap: 1px; margin-top: 4px;
+  border: 1px solid var(--stroke); border-radius: 8px; overflow-x: auto; max-width: 100%; }
+.cf-frame .cff-occhd, .cf-frame .cff-occr { display: grid;
+  grid-template-columns: 26ch 5ch 26ch 30ch 30ch; min-width: max-content;
+  gap: 6px; padding: 3px 7px; font-size: 9.5px; font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums; }
+.cf-frame .cff-occhd { background: var(--bg-panel-2); color: var(--ink-muted); font-weight: 600;
+  position: sticky; top: 0; }
+.cf-frame .cff-occr { background: var(--bg-base); color: var(--ink-soft); }
+.cf-frame .cff-occr span, .cf-frame .cff-occhd span { white-space: nowrap; }
+.cf-frame .cff-occr.top { color: var(--ink); }
+.cf-frame .cff-occr.bad { color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+.cf-frame .cff-occread b, .cf-frame .cff-stamp b { color: var(--ink-strong); }
+.cf-frame .cff-bounds { font-style: normal; font-size: 9.5px; font-family: var(--f-mono);
+  color: var(--ink-muted); border: 1px solid var(--stroke); border-radius: 4px; padding: 0 4px; }
+
+/* ── badge des silhouettes : une MESURE, pas une declaration ─────────────── */
+.cf-frame .cff-sil { font-size: 10.5px; font-family: var(--f-mono); color: var(--ink-muted);
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 2px 9px; white-space: nowrap;
+  font-variant-numeric: tabular-nums; }
+.cf-frame .cff-sil.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-frame .cff-sil.ko { color: var(--amber, #e0a33c); border-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+
+/* ── preuve sur les octets ───────────────────────────────────────────────── */
+.cf-frame .cff-pbadge { font-size: 10.5px; font-family: var(--f-mono); color: var(--ink-muted);
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 2px 9px; white-space: nowrap; }
+.cf-frame .cff-pbadge.ok { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+.cf-frame .cff-pbadge.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 55%, transparent);
+  background: color-mix(in srgb, var(--red) 12%, transparent); }
+.cf-frame .cff-prooftab { display: flex; flex-direction: column; gap: 1px; margin-top: 6px;
+  border: 1px solid var(--stroke); border-radius: 8px; overflow-x: auto; max-width: 100%; }
+.cf-frame .cff-prooftab:empty { display: none; }
+.cf-frame .cff-proofhd, .cf-frame .cff-proofr { display: grid;
+  /* chaque ligne est sa PROPRE grille : des colonnes `auto` ne s'alignent
+     pas d'une ligne a l'autre. Largeurs fixes, calees sur le plus long
+     libelle (« Filet exterieur - largeur », 24 car.) et la plus longue
+     valeur annoncee (« 36 x 36 px encres sur les 4 bords », 32 car.) —
+     sans quoi un texte deborde sur la colonne voisine. */
+  /* elargi au tour 3 : « Lignes identiques a leur voisine » fait 31
+     caracteres et « < 50 % (un x2 au plus proche voisin en donne 50 %) » en
+     fait 49. La table defile deja horizontalement (overflow-x + min-width),
+     donc elargir ne pousse rien hors du panneau. */
+  /* tour 3 : les libelles ajoutes au tour depassaient 32ch et repeignaient la
+     colonne voisine (chevauchement verifie a l'ecran, pas suppose). Ils ont
+     ete RACCOURCIS a 32 caracteres — un libelle plus court vaut mieux qu'une
+     colonne qui s'elargit pour tout le monde — et la piste garde une borne
+     basse : si l'un repasse au-dessus, il pousse la table au lieu de la
+     recouvrir. */
+  grid-template-columns: 2ch minmax(32ch, max-content) 46ch minmax(40ch, 1fr);
+  min-width: max-content; gap: 6px; padding: 3px 7px;
+  font-size: 9.5px; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+/* LES LIGNES DU BALAYAGE ONT LEUR PROPRE GRILLE. Mesure a l'ecran : leur
+   quatrieme colonne — cinq ornements et cinq metaux chiffres — fait plus de
+   110 caracteres. Dans la grille commune (colonnes fixes + `nowrap`) elle
+   sortait de sa piste et repeignait la voisine : le libelle et la valeur se
+   chevauchaient a l'oeil. Ici la derniere colonne RENVOIE A LA LIGNE au lieu
+   de deborder, et les trois premieres restent etroites et alignees. */
+.cf-frame .cff-swhd, .cf-frame .cff-swr { grid-template-columns: 2ch 20ch 7ch minmax(0, 1fr);
+  /* `min-width: max-content` (herite) empechait tout retour a la ligne : la
+     ligne s'etirait jusqu'au bout de ses 110 caracteres et sortait du cadre. */
+  min-width: 0; }
+.cf-frame .cff-swr span:last-child { white-space: normal; line-height: 1.5; }
+.cf-frame .cff-swr i { font-style: normal; color: var(--ink-muted); }
+.cf-frame .cff-proofhd { background: var(--bg-panel-2); color: var(--ink-muted); font-weight: 600; }
+.cf-frame .cff-proofr { background: var(--bg-base); color: var(--ink-soft); }
+.cf-frame .cff-proofr span { white-space: nowrap; }
+.cf-frame .cff-proofr.ok .v { color: var(--green); }
+.cf-frame .cff-proofr.ko { background: color-mix(in srgb, var(--red) 10%, transparent); color: var(--red); }
+.cf-frame .cff-proofread b, .cf-frame .cff-edgeread b { color: var(--ink-strong); }
+/* separateur des trois preuves du panneau : la relecture du fichier livre,
+   les deux definitions, l'epreuve de controle. */
+.cf-frame .cff-sep { margin: 14px 0 6px; padding-top: 8px; border-top: 1px solid var(--stroke);
+  font-size: 10px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-muted); font-weight: 600; }
+
+/* ── raccourcis ──────────────────────────────────────────────────────────── */
+.cf-frame .cff-kbd { line-height: 1.9; }
+.cf-frame .cff-kbd kbd { font-family: var(--f-mono); font-size: 9.5px; color: var(--ink-soft);
+  border: 1px solid var(--stroke-strong); border-bottom-width: 2px; border-radius: 5px;
+  padding: 1px 5px; background: var(--bg-base); }
+
+@media (max-width: 1120px) {
+  .cf-frame .cff-cols { grid-template-columns: minmax(0, 1fr); }
+}

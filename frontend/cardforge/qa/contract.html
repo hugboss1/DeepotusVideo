@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Card Forge — banc du CONTRAT (qa)</title>
+<!-- BANC D'ESSAI DU CONTRAT [CORE]. Ce n'est pas le lab : c'est la page que
+     qa/test_core_contract.mjs ouvre dans un Chrome sans tete pour verifier
+     MECANIQUEMENT ce que core.js promet. Elle charge le VRAI core.js et de
+     FAUX modules (ci-contre) qui jouent le role des huit pieces — dont deux
+     franchement hostiles. `data-cf-modules="./"` declare que, pour CETTE
+     page, le dossier des modules est celui-ci : l'attribut se pose sur la
+     balise du CORE, donc seule une page (jamais un module) peut le dire. -->
+<style>
+  body { background:#111; color:#ddd; font:13px/1.5 ui-monospace,Consolas,monospace; margin:0; padding:12px; }
+  .cf-host, .cf-panel, .rail, .side { display:none; }
+  #stageWrap { width:420px; height:560px; }
+  canvas { max-width:100%; }
+  h1 { font-size:14px; margin:0 0 8px; }
+</style>
+</head>
+<body>
+<h1>Card Forge — banc du contrat (headless)</h1>
+
+<!-- la coquille MINIMALE dont core.js a besoin -->
+<div class="fmtbar">
+  <select id="fmtSel"></select><div id="dpiSeg"></div>
+  <input type="number" id="bleedInp"><input type="number" id="safeInp"><input type="number" id="cornerInp">
+  <div id="fmtRead"></div><input id="deckName" value="banc">
+</div>
+<div class="apibar hidden" id="apiBar"><b id="apiBarTitle"></b><span id="apiBarMsg"></span></div>
+<span id="apiChip"></span>
+<nav class="rail" id="rail"></nav>
+<div class="stage">
+  <button id="guidesBtn"></button><button id="sideBtn"></button>
+  <button id="prevBtn"></button><span id="stageNav"></span><button id="nextBtn"></button>
+  <button id="shotBtn"></button>
+  <div class="stage-wrap" id="stageWrap"><canvas id="stageCanvas"></canvas></div>
+  <div id="stageRead"></div><div class="hidden" id="stageErr"></div>
+</div>
+<section class="work">
+  <section class="cf-panel" data-mod="face"><div class="cf-host cf-face" data-host="face"></div></section>
+  <section class="cf-panel" data-mod="frame"><div class="cf-host cf-frame" data-host="frame"></div></section>
+  <section class="cf-panel" data-mod="type"><div class="cf-host cf-type" data-host="type"></div></section>
+  <section class="cf-panel" data-mod="data"><div class="cf-host cf-data" data-host="data"></div></section>
+  <section class="cf-panel" data-mod="solid"><div class="cf-host cf-solid" data-host="solid"></div></section>
+  <section class="cf-panel" data-mod="texture"><div class="cf-host cf-texture" data-host="texture"></div></section>
+  <section class="cf-panel" data-mod="print"><div class="cf-host cf-print" data-host="print"></div></section>
+  <section class="cf-panel" data-mod="gltf"><div class="cf-host cf-gltf" data-host="gltf"></div></section>
+</section>
+<aside class="side hidden" id="side"></aside>
+<div class="busy hidden" id="busy"><div class="busy-box"><i class="busy-spin"></i><span class="busy-l"></span></div></div>
+<div id="toast" class="toast hidden"></div>
+<pre id="log"></pre>
+
+<script>window.__CFQA = [];</script>
+<!-- LE CONTRAT, le vrai fichier, sans copie -->
+<script src="../js/core.js" data-cf-modules="./"></script>
+
+<!-- les modules d'essai. Ordre volontaire : `face` en premier, comme dans
+     index.html — c'est de la que partait l'annexion des sept autres. -->
+<script src="mod-face.js"></script>      <!-- P1 legitime : painter z=20 -->
+<script src="atk-squat.js"></script>     <!-- ATTAQUANT : tente d'enregistrer 'print' -->
+<script src="lib/mod-face.js"></script>  <!-- ATTAQUANT : bon nom, mauvais dossier -->
+<script src="mod-solid.js"></script>     <!-- MODE BACLE : doit etre refuse -->
+<script src="mod-frame.js"></script>     <!-- P2 legitime : mene les attaques inter-modules -->
+<script src="mod-type.js"></script>      <!-- P3 legitime : painter LENT (course) -->
+<script src="mod-texture.js"></script>   <!-- P6 legitime : painters hostiles a la demande -->
+<script src="mod-data.js"></script>      <!-- P4 legitime : setCards -->
+</body>
+</html>

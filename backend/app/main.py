@@ -219,6 +219,10 @@ app.include_router(router, prefix="/api")
 from app.services.montage_service import router as montage_router
 app.include_router(montage_router, prefix="/api/montage")
 # __DZ_MONTAGE_ROUTER_END__
+# __DZ_CARDS_ROUTER_BEGIN__
+from app.services.cards import router as cards_router
+app.include_router(cards_router, prefix="/api/cards")
+# __DZ_CARDS_ROUTER_END__
 
 # ── Guide: serve the illustrated getting-started guide (FR/EN HTML + PDF +
 # screenshots) at /guide. Linked from the sidebar footer.
@@ -340,6 +344,39 @@ if _materialforge.is_dir():
         return RedirectResponse(url="/materialforge/", status_code=307)
 
     logger.info(f"Serving materialforge from {_materialforge}")
+
+# __DZ_CARDS_STATIC_BEGIN__
+# ── Card Forge : éditeur de cartes à jouer (faces, cadres, typographie, CSV,
+# épaisseur 3D, textures PBR, planche imprimable, export glTF), at /cardforge.
+# Même pattern standalone que /materialforge — bloc recopié mot pour mot.
+# SANS ce montage, l'iframe de l'onglet Cartes affiche la SPA ENTIÈRE en
+# cascade : le symptôme trompeur d'un « onglet cassé ». Et il se crée au BOOT,
+# donc l'ajouter exige de relancer le python du :8765.
+_cardforge = Path(__file__).resolve().parent.parent.parent / "frontend" / "cardforge"
+if _cardforge.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFCf
+
+    class _CardforgeStatic(_SFCf):
+        """no-cache comme /materialforge : cardforge.js garde un nom stable."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/cardforge",
+              _CardforgeStatic(directory=str(_cardforge), html=True),
+              name="cardforge")
+
+    @app.get("/cardforge", include_in_schema=False)
+    async def _cardforge_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/cardforge/", status_code=307)
+
+    logger.info(f"Serving cardforge from {_cardforge}")
+# __DZ_CARDS_STATIC_END__
 
 # ── 3D Studio Meshy (v2.1): écran 1 du design « DeepOtus Studio » — pipeline
 # prompt/réf → maillage → texture → remesh → rig → animations → export, at

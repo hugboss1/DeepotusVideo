@@ -1,0 +1,291 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 03 · Typographie   [P3]
+   REGLE 4 : tout selecteur de ce fichier contient .cf-type. Aucune regle sur
+   body, :root, * ou un element nu — sans quoi une piece repeindrait les sept
+   autres. Aucune couleur en dur : les tokens de /shared/deepotus.tokens.css
+   sont deja la, et c'est ce qui fait marcher html[data-theme="light"].
+
+   Trois familles de surfaces ici :
+     .cf-type-*        le panneau (liste des slots, inspecteur, releve) ;
+     .cf-type-ov       le CALQUE D'EDITION pose sur l'apercu — cadres, poignees
+                       et lisere d'alerte. Il vit dans le DOM, jamais dans la
+                       toile : rien de ce qui s'y voit ne peut partir dans un
+                       PNG ni dans un PDF ;
+     .cf-type-fp/menu  les popups (selecteur de police, gabarits), en position
+                       fixe, donc hors du defilement du panneau.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.cf-type { gap: 10px; }
+
+/* ── barre d'outils ─────────────────────────────────────────────────────── */
+.cf-type .cf-type-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: none; }
+.cf-type .cf-type-count { font-size: 11px; color: var(--ink-muted); white-space: nowrap; }
+
+/* ── deux colonnes : la liste, puis l'inspecteur ────────────────────────── */
+/* chaque colonne defile POUR ELLE-MEME : sans quoi l'inspecteur, plus haut
+   que la fenetre, debordait par-dessus le releve du bas — celui qui porte
+   justement les chiffres qu'on vient verifier. */
+.cf-type .cf-type-cols { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.15fr);
+  gap: 12px; align-items: stretch; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.cf-type .cf-type-left,
+.cf-type .cf-type-insp { overflow-y: auto; padding-right: 4px; }
+.cf-type .cf-type-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.cf-type .cf-type-list { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cf-type .cf-type-insp { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+/* le memo clavier : replie par defaut, il rend au panneau les trois lignes
+   qu'il prenait pour redire ce que la souris apprend en une seconde. */
+.cf-type .cf-type-keys { line-height: 1.7; }
+.cf-type .cf-type-keys > summary { font-size: 9.5px; color: var(--ink-muted);
+  cursor: pointer; list-style: none; user-select: none; }
+.cf-type .cf-type-keys > summary::-webkit-details-marker { display: none; }
+.cf-type .cf-type-keys > summary::before { content: "\25B8"; margin-right: 5px; }
+.cf-type .cf-type-keys[open] > summary::before { content: "\25BE"; }
+.cf-type .cf-type-keys > summary:hover { color: var(--ink-soft); }
+.cf-type .cf-type-keys p { margin: 3px 0 0; }
+
+/* ── liste des slots ────────────────────────────────────────────────────── */
+.cf-type .cf-type-row { display: flex; align-items: center; gap: 7px; padding: 5px 7px;
+  border: 1px solid var(--stroke); border-radius: 8px; background: var(--bg-panel);
+  cursor: pointer; min-width: 0; }
+.cf-type .cf-type-row:hover { border-color: var(--stroke-strong); }
+.cf-type .cf-type-row.on { border-color: var(--ink-soft); background: var(--bg-panel-2); }
+.cf-type .cf-type-row.off { opacity: .45; }
+.cf-type .cf-type-row.drag { opacity: .4; }
+.cf-type .cf-type-row.over { border-color: var(--accent); }
+.cf-type .cf-type-eye { background: none; border: 0; color: var(--ink-soft); cursor: pointer;
+  font-size: 11px; padding: 0 1px; flex: none; }
+.cf-type .cf-type-row.on .cf-type-eye { color: var(--ink-strong); }
+.cf-type .cf-type-nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+.cf-type .cf-type-nm b { font-size: 12px; color: var(--ink-strong); font-weight: 600;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-type .cf-type-nm i { font-style: normal; font-size: 9.5px; color: var(--ink-muted); }
+.cf-type .cf-type-meta { font-size: 10px; color: var(--ink-soft); white-space: nowrap; flex: none; }
+.cf-type .cf-type-badge { font-style: normal; font-size: 9.5px; border-radius: 99px;
+  padding: 1px 7px; white-space: nowrap; flex: none; }
+.cf-type .cf-type-badge.bad { color: var(--red); border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); }
+.cf-type .cf-type-badge.ok { color: var(--green); border: 1px solid color-mix(in srgb, var(--green) 40%, transparent); }
+/* TROIS ETATS, PAS DEUX. Rouge = de l'encre part hors du cadre ou hors de la
+   zone sure (defaut de fabrication). Ambre = le fichier est juste et le bloc
+   ne se lira pas a taille reelle (defaut de lecture) : c'est exactement le cas
+   qu'un badge vert « ajuste » certifiait en silence. Vert = ni l'un ni
+   l'autre. */
+.cf-type .cf-type-badge.warn { color: var(--amber); border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent); }
+/* la marque du gras / italique synthetique : discrete, mais dans la ligne du
+   slot — c'est la que l'on choisit la police. */
+.cf-type .cf-type-syn { font-style: normal; color: var(--amber); cursor: help; }
+.cf-type .cf-type-tog .chip sup { font-size: 8px; color: var(--amber); margin-left: 1px; }
+.cf-type .cf-type-ops { display: flex; gap: 1px; flex: none; }
+.cf-type .cf-type-ops button { background: none; border: 0; color: var(--ink-muted);
+  cursor: pointer; font-size: 9px; padding: 2px 3px; line-height: 1; }
+.cf-type .cf-type-ops button:hover { color: var(--ink-strong); }
+.cf-type .cf-type-del:hover { color: var(--red); }
+
+/* ── etat vide : il PROPOSE, il ne constate pas ─────────────────────────── */
+.cf-type .cf-type-empty { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 16px; display: flex; flex-direction: column; gap: 9px; background: var(--bg-panel); }
+.cf-type .cf-type-empty b { color: var(--ink-strong); font-size: 12.5px; }
+.cf-type .cf-type-egal { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── inspecteur ─────────────────────────────────────────────────────────── */
+.cf-type .cf-type-ihead { display: flex; align-items: center; gap: 7px; }
+.cf-type .cf-type-label { flex: 1; }
+.cf-type .cf-type-id { font-size: 10px; flex: none; }
+.cf-type .cf-type-cc { float: right; font-style: normal; color: var(--ink-muted);
+  letter-spacing: 0; text-transform: none; }
+.cf-type .cf-type-text { min-height: 62px; font-size: 12px; }
+.cf-type .cf-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 7px; }
+.cf-type .cf-type-f { min-width: 0; }
+.cf-type .cf-type-f input[type=color] { padding: 2px; height: 28px; cursor: pointer;
+  background: var(--bg-base); border: 1px solid var(--stroke-strong); border-radius: 8px; width: 100%; }
+.cf-type .cf-type-fontf { grid-column: 1 / -1; }
+.cf-type .cf-type-font { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; width: 100%; text-align: left; }
+.cf-type .cf-type-font i { font-style: normal; font-size: 9.5px; color: var(--ink-muted);
+  border: 1px solid var(--stroke); border-radius: 99px; padding: 1px 7px; }
+.cf-type .cf-type-fs { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-type .cf-type-tog { display: flex; gap: 5px; flex-wrap: wrap; }
+.cf-type .cf-type-grp summary { font-size: 9.5px; }
+.cf-type .cf-type-bpx { margin-top: 2px; }
+
+/* ── le releve : les chiffres qui ont dessine le fichier ────────────────── */
+/* IL NE PREND JAMAIS PLUS DE LA MOITIE DU PANNEAU. Le releve etait `flex: none`
+   et les colonnes `min-height: 0` : chaque ligne gagnee par le releve etait
+   prise a la liste des slots, qui s'ecrasait sans rien dire — le defaut exact
+   releve par la verification d'integration sur un autre panneau (un volet
+   `min-height: 0` reduit a 0 px dans l'iframe courte de l'app). Le releve
+   defile chez lui, la liste garde sa place. */
+.cf-type .cf-type-proof { display: flex; flex-direction: column; gap: 6px;
+  flex: 0 1 auto; max-height: 46vh; overflow-y: auto; padding-right: 2px; }
+.cf-type .cf-type-pr { display: flex; flex-direction: column; gap: 3px;
+  border: 1px solid var(--stroke); border-radius: var(--r); background: var(--bg-panel); padding: 8px 10px; }
+.cf-type .cf-type-prow { display: flex; align-items: baseline; gap: 8px; font-size: 11px;
+  color: var(--ink); line-height: 1.55; }
+.cf-type .cf-type-prow i { font-style: normal; color: var(--green); flex: none; font-size: 11px; }
+.cf-type .cf-type-prow.bad i { color: var(--red); }
+/* le troisieme etat du releve, comme pour les badges : ambre = le fichier est
+   juste, le bloc ne se lira pas. Rouge reste reserve a l'encre qui part hors
+   du cadre ou hors de la zone sure. */
+.cf-type .cf-type-prow.warn i { color: var(--amber); }
+.cf-type .cf-type-prow.warn span b { color: var(--amber); }
+/* `flex: none` OBLIGATOIRE : un element flex se retrecit par defaut sous sa
+   largeur de contenu, et avec `white-space: nowrap` le libelle debordait de sa
+   boite et se peignait PAR-DESSUS le chiffre — « LISIBILITE (PHOTOME9 slots
+   relus… ». Le libelle le plus long de la piece fait 168 px. */
+.cf-type .cf-type-prow > b { color: var(--ink-soft); font-weight: 600; font-size: 9.5px;
+  letter-spacing: .1em; text-transform: uppercase; white-space: nowrap;
+  min-width: 108px; flex: none; }
+.cf-type .cf-type-prow span { color: var(--ink); }
+.cf-type .cf-type-prow span b { color: var(--ink-strong); font-size: 11px; letter-spacing: 0;
+  text-transform: none; min-width: 0; }
+.cf-type .cf-type-prow.bad span b { color: var(--red); }
+/* LA REGLE DU CALCUL, A COTE DU CHIFFRE. Discrete (elle ne doit pas voler la
+   vedette au releve) mais lisible : sans elle, un contraste annonce n'est pas
+   verifiable par celui qui recompte. */
+.cf-type .cf-type-meth { border-left: 2px solid var(--stroke-strong); padding-left: 8px; }
+.cf-type .cf-type-meth > summary { font-size: 9.5px; color: var(--ink-muted);
+  cursor: pointer; list-style: none; }
+.cf-type .cf-type-meth > summary::-webkit-details-marker { display: none; }
+.cf-type .cf-type-meth > summary::before { content: "\25B8"; margin-right: 5px; }
+.cf-type .cf-type-meth[open] > summary::before { content: "\25BE"; }
+.cf-type .cf-type-meth > summary:hover { color: var(--ink-soft); }
+.cf-type .cf-type-methb { margin: 4px 0 0; font-size: 9.5px; line-height: 1.6;
+  color: var(--ink-muted); }
+.cf-type .cf-type-methb b { color: var(--ink-soft); font-weight: 600; }
+.cf-type .cf-type-methb i { font-style: normal; color: var(--ink-soft); }
+.cf-type .cf-type-methb sup { font-size: 7.5px; vertical-align: super; line-height: 0; }
+.cf-type .cf-type-warn { margin: 0; font-size: 10.5px; line-height: 1.55; color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--red) 45%, transparent); border-radius: var(--r);
+  background: color-mix(in srgb, var(--red) 10%, var(--bg-panel)); padding: 7px 10px; }
+.cf-type .cf-type-warn b { color: var(--ink-strong); }
+
+/* ── LES REMEDES — ambre comme l'avertissement qu'ils reparent ───────────
+   Le bloc n'est pas rouge : le fichier n'est pas fautif, c'est la LECTURE qui
+   l'est. Un levier qui suffit s'ecrit en clair et porte son bouton ; un levier
+   insuffisant reste lisible mais s'efface (il porte quand meme son chiffre,
+   « atteint 9,2 pt » — sans lui, « insuffisant » ne dit rien). */
+/* BORNE EN HAUTEUR : trois blocs fautifs font cinq lignes chacun, et le relevé
+   est `flex: none` — sans ce plafond, les remèdes écrasaient la liste des slots
+   dans le panneau court de l'app (l'iframe n'y fait que ~500 px). Le bloc
+   défile chez lui. */
+.cf-type .cf-type-fix { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--amber) 45%, transparent); border-radius: var(--r);
+  background: color-mix(in srgb, var(--amber) 9%, var(--bg-panel)); padding: 7px 10px;
+  display: flex; flex-direction: column; gap: 3px; flex: none; }
+.cf-type .cf-type-fixh { margin: 0; color: var(--ink-soft); }
+.cf-type .cf-type-fixh b { color: var(--ink-strong); }
+.cf-type .cf-type-fixl { margin: 0 0 2px; padding-left: 15px; list-style: none; }
+.cf-type .cf-type-fixl li { position: relative; margin: 1px 0; }
+.cf-type .cf-type-fixl li::before { position: absolute; left: -14px; opacity: .8; }
+.cf-type .cf-type-fixl li.on::before { content: "\2192"; color: var(--amber); }
+.cf-type .cf-type-fixl li.info::before { content: "\00B7"; color: var(--ink-muted); }
+.cf-type .cf-type-fixl li.no { color: var(--ink-muted); }
+.cf-type .cf-type-fixl li.no::before { content: "\00D7"; color: var(--ink-muted); }
+.cf-type .cf-type-fixl li b { color: var(--ink-strong); }
+.cf-type .cf-type-fixl li i { font-style: normal; color: var(--ink-muted); }
+.cf-type .cf-type-fixb { font: inherit; font-size: 10px; cursor: pointer; margin-left: 4px;
+  padding: 1px 7px; border-radius: 99px; color: var(--ink-strong);
+  border: 1px solid color-mix(in srgb, var(--amber) 60%, transparent);
+  background: color-mix(in srgb, var(--amber) 16%, transparent); }
+.cf-type .cf-type-fixb:hover { background: color-mix(in srgb, var(--amber) 30%, transparent); }
+/* le bouton unique : plein, parce qu'il agit — les autres proposent. */
+.cf-type .cf-type-fixgo { font: inherit; font-size: 10px; font-weight: 600; cursor: pointer;
+  margin-left: 6px; padding: 2px 9px; border-radius: 99px; color: var(--bg-panel);
+  border: 1px solid var(--amber); background: var(--amber); }
+.cf-type .cf-type-fixgo:hover { filter: brightness(1.12); }
+
+/* ── controle photometrique : marge optique + liens du releve ───────────── */
+.cf-type .cf-type-opt { display: flex; align-items: center; gap: 5px; font-size: 10px;
+  color: var(--ink-muted); white-space: nowrap; flex: none; }
+.cf-type .cf-type-opt input { width: 62px; height: 26px; padding: 0 6px; font-size: 11px; }
+.cf-type .cf-type-opt i { font-style: normal; }
+.cf-type .cf-type-tools { margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.cf-type .cf-type-lnk { background: none; border: 0; padding: 0; cursor: pointer;
+  color: var(--accent); font: inherit; font-size: 10.5px; text-decoration: underline;
+  text-underline-offset: 2px; }
+.cf-type .cf-type-lnk:hover { color: var(--ink-strong); }
+
+/* ── CALQUE D'EDITION — pose sur l'apercu, jamais exporte ───────────────── */
+/* le calque est BORNE PAR LA CARTE : un slot pose hors de la toile se voit
+   coupe au bord, comme un fond perdu. Sans ce clip, sa boite — qui capte le
+   pointeur — se posait par-dessus le panneau et volait les clics. */
+.cf-type.cf-type-ov { position: fixed; z-index: 40; pointer-events: none; overflow: hidden; }
+.cf-type .cf-type-hbox { position: absolute; border: 1px dashed color-mix(in srgb, var(--ink-soft) 75%, transparent);
+  pointer-events: auto; cursor: move; }
+.cf-type .cf-type-hbox:hover { border-color: var(--ink-strong); background: color-mix(in srgb, var(--ink-soft) 8%, transparent); }
+.cf-type .cf-type-hbox.on { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.cf-type .cf-type-hbox.bad { border: 1px solid var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+.cf-type .cf-type-htag { position: absolute; left: 0; bottom: 100%; margin-bottom: 2px;
+  font-family: var(--f-ui); font-size: 9.5px; line-height: 1.4; white-space: nowrap;
+  color: var(--ink-strong); background: var(--bg-panel-3); border: 1px solid var(--stroke-strong);
+  border-radius: 5px; padding: 0 5px; opacity: 0; transition: opacity var(--dur) var(--ease); }
+.cf-type .cf-type-hbox:hover .cf-type-htag,
+.cf-type .cf-type-hbox.on .cf-type-htag,
+.cf-type .cf-type-hbox.bad .cf-type-htag { opacity: 1; }
+.cf-type .cf-type-hbox.bad .cf-type-htag { color: var(--red); border-color: var(--red); }
+.cf-type .cf-type-hh { position: absolute; width: 9px; height: 9px; margin: -5px 0 0 -5px;
+  background: var(--bg-panel); border: 1px solid var(--accent); border-radius: 2px; }
+.cf-type .cf-type-h-nw { left: 0; top: 0; cursor: nwse-resize; }
+.cf-type .cf-type-h-n { left: 50%; top: 0; cursor: ns-resize; }
+.cf-type .cf-type-h-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.cf-type .cf-type-h-e { left: 100%; top: 50%; cursor: ew-resize; }
+.cf-type .cf-type-h-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.cf-type .cf-type-h-s { left: 50%; top: 100%; cursor: ns-resize; }
+.cf-type .cf-type-h-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.cf-type .cf-type-h-w { left: 0; top: 50%; cursor: ew-resize; }
+
+/* ── selecteur de police : chaque famille rendue DANS SA FONTE ──────────── */
+.cf-type.cf-type-fp { position: fixed; z-index: 90; width: 328px; max-height: 372px;
+  display: flex; flex-direction: column; background: var(--bg-panel);
+  border: 1px solid var(--stroke-strong); border-radius: var(--r); box-shadow: var(--shadow-1);
+  overflow: hidden; }
+.cf-type .cf-type-fph { display: flex; align-items: center; gap: 7px; padding: 7px 8px;
+  border-bottom: 1px solid var(--stroke); }
+.cf-type .cf-type-fn { flex: none; font-size: 10px; }
+.cf-type .cf-type-fpl { overflow-y: auto; padding: 4px; }
+.cf-type .cf-type-fg { font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-muted); padding: 7px 8px 3px; }
+.cf-type .cf-type-fi { display: flex; align-items: baseline; justify-content: space-between;
+  gap: 10px; width: 100%; background: none; border: 1px solid transparent; border-radius: 7px;
+  padding: 5px 8px; cursor: pointer; text-align: left; color: var(--ink-strong); }
+.cf-type .cf-type-fi:hover, .cf-type .cf-type-fi.on { background: var(--bg-panel-2); border-color: var(--stroke-strong); }
+.cf-type .cf-type-fsample { font-size: 17px; line-height: 1.3; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-type .cf-type-flab { font-size: 10px; color: var(--ink-soft); white-space: nowrap; flex: none;
+  display: flex; align-items: baseline; gap: 5px; }
+.cf-type .cf-type-flab i { font-style: normal; font-size: 9px; color: var(--ink-muted); }
+/* Une famille qui ne porte PAS tout le repertoire francais : le compte de
+   signes manquants passe en ambre dans son libelle, et le specimen — qui
+   contient « Créature » — montre de lui-meme le repli du navigateur. */
+.cf-type .cf-type-fi.part .cf-type-flab i { color: var(--amber); }
+
+/* ── menu des gabarits ──────────────────────────────────────────────────── */
+.cf-type.cf-type-menu { position: fixed; z-index: 90; width: 380px; background: var(--bg-panel);
+  border: 1px solid var(--stroke-strong); border-radius: var(--r); box-shadow: var(--shadow-1);
+  padding: 5px; display: flex; flex-direction: column; gap: 2px; }
+.cf-type .cf-type-mi { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px;
+  background: none; border: 1px solid transparent; border-radius: 8px; padding: 7px 9px;
+  cursor: pointer; text-align: left; }
+.cf-type .cf-type-mi:hover { background: var(--bg-panel-2); border-color: var(--stroke-strong); }
+.cf-type .cf-type-mi b { font-size: 12px; color: var(--ink-strong); font-weight: 600; }
+.cf-type .cf-type-mi span { grid-column: 1 / -1; font-size: 10.5px; color: var(--ink-muted); line-height: 1.5; }
+.cf-type .cf-type-mi i { font-style: normal; font-size: 9.5px; color: var(--ink-soft); }
+
+
+/* ── controle de definition : le tableau 300 contre 600 DPI ──────────── */
+/* Le tableau porte SEPT colonnes de chiffres : il ne peut pas se replier sans
+   mentir sur ce qu'il compare. Il defile donc dans SA propre boite, jamais en
+   poussant le panneau (regle de la piece : rien ne deborde lateralement). */
+.cf-type .cf-type-defw { overflow-x: auto; margin: 4px 0 2px; }
+.cf-type .cf-type-deft { border-collapse: collapse; font-size: 9.5px; white-space: nowrap; }
+.cf-type .cf-type-deft th { text-align: left; font-weight: 600; color: var(--ink-muted);
+  font-size: 8.5px; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 9px 3px 0; border-bottom: 1px solid var(--stroke-strong); }
+.cf-type .cf-type-deft td { padding: 2px 9px 2px 0; color: var(--ink-soft);
+  border-bottom: 1px solid var(--stroke); }
+.cf-type .cf-type-deft tr.no td { color: var(--amber); }
+.cf-type .cf-type-deft td.mono { font-variant-numeric: tabular-nums; }
+
+/* ── fenetre etroite : une seule colonne ────────────────────────────────── */
+@media (max-width: 1180px) {
+  .cf-type .cf-type-cols { grid-template-columns: minmax(0, 1fr); }
+}

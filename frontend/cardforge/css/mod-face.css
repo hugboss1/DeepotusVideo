@@ -1,0 +1,209 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Card Forge — piece 01 · Face   [P1]   ·   feuille de la piece
+   REGLE 4 : tout selecteur de ce fichier contient `.cf-face`. Aucune regle sur
+   `body`, `:root`, `*` ni sur un element nu — huit feuilles cohabitent dans la
+   meme page et une seule regle globale suffirait a repeindre les sept autres.
+   Aucune couleur en dur : tout vient de /shared/deepotus.tokens.css, c'est ce
+   qui fait marcher le theme clair sans une ligne de plus.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── la jauge de DPI effectif : LE bloc, collé à la carte ───────────────── */
+.cf-face-gauge { display: flex; align-items: stretch; gap: 12px; flex: none;
+  border: 1px solid var(--stroke-strong); border-radius: var(--r);
+  background: var(--bg-panel); padding: 10px 12px; }
+.cf-face-gauge .cf-face-gnum { font-family: var(--f-mono); font-size: 30px; line-height: 1;
+  font-weight: 700; letter-spacing: -.02em; display: flex; align-items: center; gap: 3px;
+  min-width: 92px; justify-content: center; color: var(--ink-strong);
+  border-right: 1px solid var(--stroke); padding-right: 12px; }
+.cf-face-gauge .cf-face-gnum i { font-style: normal; font-size: 10px; letter-spacing: .12em;
+  align-self: flex-end; padding-bottom: 4px; color: var(--ink-muted); }
+.cf-face-gauge .cf-face-gbody { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.cf-face-gauge .cf-face-gbody b { font-size: 12px; color: var(--ink-strong); font-weight: 600; }
+.cf-face-gauge .cf-face-gbody span { font-size: 10.5px; color: var(--ink-muted); line-height: 1.5;
+  word-break: break-word; }
+/* MESURE : un `<b>` a l'interieur d'une ligne d'explication heritait des 12 px
+   de la regle ci-dessus dans un `<span>` a 10,5 px. Sa boite de ligne debordait
+   celle de ses voisines et deux textes se RECOUVRAIENT — releve a 1440x900,
+   « redessinee » par-dessus « image importee », 61 x 15 px. Un gras dans une
+   phrase prend la taille de la phrase. */
+.cf-face-gauge .cf-face-gbody span b { font-size: inherit; }
+.cf-face-gauge .cf-face-inf { font-style: normal; font-size: 9px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--green); border: 1px solid currentColor;
+  border-radius: 99px; padding: 1px 7px; margin-left: 6px; vertical-align: 1px; }
+.cf-face-gauge .cf-face-need { color: var(--ink-soft); }
+.cf-face-gauge .cf-face-need b { font-size: 10.5px; color: var(--red); }
+/* CE QUE LE CADRE LAISSE VOIR. Un recadrage silencieux est une perte que
+   l'utilisateur ne decouvre que chez l'imprimeur : la ligne est donc en
+   ambre, au meme rang que le DPI, et jamais reduite a l'etroit. */
+.cf-face-gauge .cf-face-crop { font-size: 10.5px; line-height: 1.45; color: var(--ink-soft); }
+.cf-face-gauge .cf-face-crop b { font-size: 10.5px; color: var(--amber); }
+.cf-face-gauge .cf-face-gbar { position: relative; height: 5px; border-radius: 99px;
+  background: var(--bg-panel-3); overflow: visible; margin: 1px 0 2px; }
+.cf-face-gauge .cf-face-gbar span { position: absolute; inset: 0 auto 0 0; border-radius: 99px;
+  background: currentColor; }
+.cf-face-gauge .cf-face-gbar em { position: absolute; top: -4px; width: 1px; height: 13px;
+  background: var(--ink-soft); font-style: normal; font-size: 0; }
+
+/* ── LE TIROIR DE MESURES ────────────────────────────────────────────────
+   REPROCHE : « le panneau deverse de la telemetrie interne dans la surface du
+   produit ; la seule phrase dont l'utilisateur a besoin est noyee dedans ».
+   Les chiffres nommes par le reproche descendent ici — aucun n'est supprime,
+   aucun n'est arrondi. Le resume porte un signe d'ouverture pour qu'on VOIE
+   qu'il reste quelque chose a lire : un tiroir qu'on ne devine pas equivaut a
+   avoir efface son contenu. */
+.cf-face-gauge .cf-face-det { margin-top: 1px; }
+.cf-face-gauge .cf-face-det > summary { font-size: 10px; letter-spacing: .06em;
+  color: var(--ink-muted); cursor: pointer; list-style: none; display: inline-flex;
+  align-items: center; gap: 5px; padding: 1px 0; }
+.cf-face-gauge .cf-face-det > summary::-webkit-details-marker { display: none; }
+.cf-face-gauge .cf-face-det > summary::before { content: "▸"; font-size: 9px; line-height: 1; }
+.cf-face-gauge .cf-face-det[open] > summary::before { content: "▾"; }
+.cf-face-gauge .cf-face-det > summary:hover { color: var(--ink-strong); }
+.cf-face-gauge .cf-face-det > span { display: block; margin-top: 4px; }
+
+.cf-face-ok .cf-face-gnum { color: var(--green); }
+.cf-face-ok .cf-face-gbar { color: var(--green); }
+.cf-face-ok.cf-face-gauge { border-color: color-mix(in srgb, var(--green) 46%, transparent);
+  background: color-mix(in srgb, var(--green) 8%, var(--bg-panel)); }
+.cf-face-low .cf-face-gnum { color: var(--red); }
+.cf-face-low .cf-face-gbar { color: var(--red); }
+.cf-face-low.cf-face-gauge { border-color: color-mix(in srgb, var(--red) 50%, transparent);
+  background: color-mix(in srgb, var(--red) 9%, var(--bg-panel)); }
+.cf-face-none .cf-face-gnum { color: var(--ink-muted); }
+/* L'ETAT « VECTORIEL » A DISPARU DE CETTE FEUILLE, ET C'EST UNE CORRECTION DE
+   FOND. Il peignait un cadre en pointilles autour de « ∞ · aucune perte
+   possible » : un etat neutre pour une jauge qui, disait-on, ne mesurait rien.
+   Mesure : a 150 DPI la toile rendue fait 407 x 555 px pour 69,0 x 94,0 mm, la
+   face vectorielle y est rasterisee a 150 DPI, et l'ecran affichait quand meme
+   « aucune perte possible ». Une face vectorielle a donc, elle aussi, une
+   densite de trame : elle se peint desormais en vert ou en rouge comme les
+   autres, avec les memes regles. */
+
+/* alerte NON BLOQUANTE — la barre, elle, refuse par alert() natif */
+.cf-face-warn { display: flex; flex-direction: column; gap: 6px; flex: none;
+  border: 1px solid color-mix(in srgb, var(--amber) 50%, transparent); border-radius: var(--r);
+  background: color-mix(in srgb, var(--amber) 10%, var(--bg-panel)); padding: 9px 11px; }
+.cf-face-warn b { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--amber); }
+.cf-face-warn span { font-size: 11px; color: var(--ink); line-height: 1.5; }
+
+/* ── onglets et volets ──────────────────────────────────────────────────── */
+.cf-face-tabs { flex: none; }
+/* CE QUI A CHANGE, ET LA MESURE QUI L'A IMPOSE. Le volet portait
+   `min-height: 0` et gardait le `flex-shrink: 1` par defaut. `.cf-host` est
+   une colonne flex : ses enfants sont donc RETRECIS avant que le panneau ne
+   se mette a defiler. Mesure au rechargement du lab a 1440x900, panneau
+   Face : volet 152,3 px de haut pour 211 px de contenu, `.cf-face-grid`
+   HAUTEUR 0 px pour 1386 px de contenu, 72 vignettes presentes mais
+   `elementFromPoint` au centre de la premiere rendant un INPUT — donc
+   INCLIQUABLE — et 27 paires de textes qui se recouvrent, le volet
+   debordant par dessus le bloc de placement. Le catalogue, livrable phare de
+   la piece, etait invisible dans l'app ET dans le lab.
+   La regle est desormais : un volet ne retrecit JAMAIS (flex: none), c'est
+   `.cf-host` (overflow-y: auto) qui defile. La grille garde sa hauteur bornee
+   et son propre ascenseur, avec un plancher pour ne pas pouvoir disparaitre. */
+.cf-face-pane { display: none; flex-direction: column; gap: 10px; flex: none; }
+.cf-face-pane.on { display: flex; }
+.cf-face-pane > * { flex: none; }
+.cf-face-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.cf-face-row .cf-face-search { flex: 1; min-width: 130px; width: auto; }
+/* 18 sujets en jetons prenaient trois lignes (53 px mesures) et repoussaient la
+   grille sous la ligne de flottaison : un menu tient sur la meme ligne. */
+.cf-face-row .cf-face-sub { flex: 1; min-width: 132px; width: auto; padding: 4px 7px;
+  font-size: 11.5px; }
+.cf-face-tags { max-height: 62px; overflow-y: auto; }
+
+/* ── grille de vignettes ────────────────────────────────────────────────────
+   Elle DEFILE CHEZ ELLE. Sans `max-height`, 72 vignettes poussaient le bloc de
+   placement hors de l'ecran (et le debordement de la grille repeignait par
+   dessus) : la jauge en haut et les reglages en bas doivent rester visibles en
+   permanence, c'est tout l'interet de les avoir a cote de la carte.
+   PLANCHER : une vignette fait 147 px (canevas 118 + libelle + marges). Le
+   plancher vaut une rangee pleine + le haut de la suivante, pour que la
+   grille annonce d'elle-meme qu'elle defile. `min-height` l'emporte sur
+   `max-height` : meme dans un cadre de 331 px (la hauteur reelle du panneau
+   dans l'app), la grille ne peut plus tomber a 0. */
+.cf-face-grid { display: grid; gap: 8px; align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(94px, 1fr));
+  max-height: 40vh; overflow-y: auto; overflow-x: hidden;
+  padding-right: 4px; }
+.cf-face-gfill { min-height: 172px; }
+.cf-face-grid .empty-note { grid-column: 1 / -1; }
+.cf-face-tile { position: relative; display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 6px 5px 5px; cursor: pointer; text-align: center;
+  background: var(--bg-panel); border: 1px solid var(--stroke); border-radius: 10px;
+  color: var(--ink-soft); font-family: var(--f-ui); }
+.cf-face-tile:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+.cf-face-tile.on { border-color: var(--accent); background: var(--accent-soft); color: var(--ink-strong); }
+.cf-face-tile canvas, .cf-face-tile img { display: block; width: 84px; height: 118px;
+  object-fit: cover; border-radius: 5px; background: var(--bg-base); }
+.cf-face-tile span { font-size: 9.5px; line-height: 1.25; max-width: 92px; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-face-tile em { font-style: normal; font-size: 9px; color: var(--ink-muted); }
+.cf-face-tile .cf-face-eok { color: var(--green); }
+.cf-face-tile .cf-face-elow { color: var(--red); }
+.cf-face-tile .cf-face-del { position: absolute; top: 3px; right: 3px; width: 18px; height: 18px;
+  line-height: 1; border-radius: 6px; border: 1px solid var(--stroke-strong);
+  background: var(--bg-base); color: var(--ink-soft); font-size: 12px; cursor: pointer; padding: 0; }
+.cf-face-tile .cf-face-del:hover { color: var(--red); border-color: var(--red); }
+
+.cf-face-drop { flex: none; }
+.cf-face-drop b { color: var(--ink-strong); font-size: 12.5px; }
+.cf-face-nodb { color: var(--red); }
+
+/* ── volet IA ───────────────────────────────────────────────────────────── */
+.cf-face-seeds { max-height: 84px; overflow-y: auto; }
+.cf-face-cost { color: var(--ink-soft); }
+.cf-face-cost b { color: var(--amber); }
+
+/* ── placement ──────────────────────────────────────────────────────────── */
+.cf-face-place { display: flex; flex-direction: column; gap: 9px; flex: none; }
+.cf-face-nums { display: grid; gap: 7px; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); }
+.cf-face-nums .fld { position: relative; }
+.cf-face-nums .fld input { padding-right: 22px; }
+.cf-face-nums .fld i { position: absolute; right: 8px; bottom: 7px; font-style: normal;
+  font-size: 9.5px; color: var(--ink-muted); pointer-events: none; }
+.cf-face-nums .cf-face-lockf i { display: none; }
+.cf-face-acts { flex-wrap: wrap; }
+.cf-face-keys { line-height: 1.7; }
+.cf-face-read { color: var(--ink-muted); font-size: 10px; word-break: break-all; }
+.cf-face-place select { width: auto; flex: 1; min-width: 150px; }
+
+/* ── ce qui se COMPTE, par opposition a ce qui s'affirme ────────────────── */
+.cf-face-count b { color: var(--ink-strong); }
+.cf-face-net { color: var(--ink-muted); font-size: 10px; line-height: 1.6; }
+.cf-face-net b { color: var(--green); }
+.cf-face-net .mono { color: var(--ink-soft); }
+
+/* ── recoloration : le meme dessin, une autre palette ───────────────────── */
+.cf-face-pal { max-height: 58px; overflow-y: auto; }
+.cf-face-pal .chip { display: inline-flex; align-items: center; gap: 5px; }
+.cf-face-pal .chip i { width: 10px; height: 10px; border-radius: 3px; display: inline-block;
+  border: 1px solid; }
+
+/* ── le fichier livre ──────────────────────────────────────────────────── */
+.cf-face-out { display: flex; flex-direction: column; gap: 7px; flex: none; }
+.cf-face-out .hint { color: var(--ink-muted); font-size: 10px; line-height: 1.6;
+  word-break: break-word; }
+.cf-face-out .hint b { color: var(--ink-strong); }
+
+/* la carte accepte le depot direct */
+.cf-face-over { outline: 2px dashed var(--accent); outline-offset: -6px; }
+
+@media (max-width: 1180px) {
+  .cf-face-grid { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+  .cf-face-gauge .cf-face-gnum { font-size: 24px; min-width: 74px; }
+}
+
+/* ── panneau court (l'app : iframe 508 px, panneau 361 px mesures) ──────────
+   MESURE : avec l'espacement normal, la grille commencait a 238 px dans un
+   hote de 361 px — la premiere rangee de vignettes etait coupee au tiers.
+   On resserre l'interligne et les marges, on ne RETIRE aucun texte et aucun
+   chiffre : rien de ce qui est mesure ne disparait a l'etroit, c'est
+   exactement ce qu'un ecran qui se vante de dire la verite ne doit pas faire. */
+@media (max-height: 640px) {
+  .cf-face-gauge { padding: 7px 10px; gap: 10px; }
+  .cf-face-gauge .cf-face-gbody { gap: 3px; }
+  .cf-face-gauge .cf-face-gbody span { font-size: 9.5px; line-height: 1.35; }
+  .cf-face-gauge .cf-face-gnum { font-size: 24px; min-width: 78px; }
+  .cf-face-pane { gap: 7px; }
+}

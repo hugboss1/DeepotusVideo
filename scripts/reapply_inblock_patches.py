@@ -51,7 +51,8 @@ Emploi après une édition de frontend/patches/son-vfx-montage.js :
 ATTENTION aux fins de ligne : les blocs injectés du bundle sont en CRLF (git
 normalise à l'extraction). Un éditeur qui réécrit son-vfx-montage.js en LF fait
 échouer toutes les ancres multi-lignes des patchers aval, sans autre symptôme
-qu'un compte d'ancre à 0. `--check` le signale explicitement.
+qu'un compte d'ancre à 0. `--check` le signale explicitement : il compte les couples
+trouvables, compare les fins de ligne des deux cotes et n'ecrit RIEN.
 """
 from __future__ import annotations
 
@@ -83,6 +84,10 @@ def main() -> int:
     ap.add_argument("--no-refresh", action="store_true",
                     help="ne pas appeler patch_bundle_sonvfx.py d'abord "
                          "(le bloc DOIT déjà être propre)")
+    ap.add_argument("--check", action="store_true",
+                    help="CONTROLE A SEC : n'ecrit RIEN, ne rafraichit RIEN. "
+                         "Compte les couples in-bloc trouvables et compare les "
+                         "fins de ligne des deux cotes.")
     args = ap.parse_args()
 
     bundle = pathlib.Path(args.root) / REL_BUNDLE
@@ -90,7 +95,7 @@ def main() -> int:
         print(f"[reapply] bundle introuvable : {bundle}")
         return 1
 
-    if not args.no_refresh:
+    if not args.no_refresh and not args.check:
         rc = subprocess.run(
             [sys.executable, str(REPO / "scripts" / "patch_bundle_sonvfx.py"),
              "--root", args.root]).returncode
@@ -118,8 +123,9 @@ def main() -> int:
             hi = s.index(END)
             n_in = s.count(a, lo, hi)
             if n_in == 1:
-                i = s.index(a, lo, hi)
-                s = s[:i] + r + s[i + len(a):]
+                if not args.check:
+                    i = s.index(a, lo, hi)
+                    s = s[:i] + r + s[i + len(a):]
                 applied.append(f"{mod.TAG}:{tag}")
             elif n_in == 0:
                 # hors du bloc (nœud Studio) : survit au rafraîchissement,
@@ -143,6 +149,24 @@ def main() -> int:
               "  multi-lignes échouent sans autre symptôme. Reconvertir la "
               "source en CRLF et relancer.")
         return 1
+    if args.check:
+        # LE piège, mesuré et nommé : le bloc du bundle est en CRLF ; une
+        # source réécrite en LF fait échouer TOUTES les ancres multi-lignes
+        # sans autre symptôme qu'un compte à 0.
+        src = REPO / "frontend" / "patches" / "son-vfx-montage.js"
+        if src.is_file():
+            raw_src = src.read_bytes()
+            n_crlf = raw_src.count(b"\r\n")
+            n_lf = raw_src.count(b"\n") - n_crlf
+            print(f"[reapply] bloc du bundle : {'CRLF' if crlf else 'LF'} ; "
+                  f"{src.name} : CRLF={n_crlf} LF-isole={n_lf}")
+            if crlf and n_lf and not n_crlf:
+                print("[reapply] FINS DE LIGNE INCOMPATIBLES : la source est "
+                      "en LF pur, le bloc du bundle en CRLF. Toutes les ancres "
+                      "multi-lignes echoueront. Reconvertir en CRLF.")
+                return 1
+        print("[reapply] --check : rien n'a ete ecrit.")
+        return 0
     out = s.encode("utf-8")
     bundle.write_bytes(b"\xef\xbb\xbf" + out if bom else out)
     print(f"[reapply] bundle réécrit ({bundle.stat().st_size} o)")
