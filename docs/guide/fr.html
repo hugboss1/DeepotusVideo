@@ -40,7 +40,7 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v1.16.0</strong> · <a href="en.html">English version</a></p>
+<p class="sub">Guide complet — du double-clic au premier post publié automatiquement. <strong>v2.3.0</strong> · <a href="en.html">English version</a></p>
 
 <div class="lead">
   <p><strong>Vous n'avez jamais touché à un outil de montage ?</strong> Parfait — ce guide est écrit pour vous. Deepotus Video Gen transforme une idée en vidéo verticale prête à poster, sans logiciel à apprendre. Tout tourne <strong>sur votre ordinateur</strong> ; vous branchez vos propres clés API (vous payez vos fournisseurs, pas l'application).</p>
@@ -66,7 +66,8 @@
   <a href="#c14">14 · Dépannage &amp; recettes</a><br>
   <a href="#c15">15 · Studio — Effets, masques &amp; aperçu</a><br>
   <a href="#c16">16 · Changer d'ordinateur — migration</a><br>
-  <a href="#c17">17 · Game Assets — objets 3D</a>
+  <a href="#c17">17 · Game Assets — objets 3D</a><br>
+  <a href="#c18">18 · Card Forge — éditeur de cartes</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Démarrage &amp; clés API</h2>
@@ -355,7 +356,18 @@
 <img class="shot" src="img/library-3d.png" alt="Library — onglet 3D">
 <p class="cap">L''onglet 3D de la Library regroupe tous vos assets générés.</p>
 <div class="warn">Le rendu 3D tourne dans votre navigateur (WebGL) : gardez l''onglet au premier plan pour que la rotation soit fluide. Les fichiers vivent dans <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> et suivent votre migration (chapitre 16).</div>
-<div class="footer">Deepotus Video Gen v1.16.0 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
+<h2 id="c18"><span class="num">18</span>Card Forge — éditeur de cartes à jouer <span class="new">nouveau</span></h2>
+<p>Le sous-onglet <strong>Card Forge</strong> (dans <strong>Game Assets</strong>, à côté de 3D / Sprites / Tuiles / Matières) est un éditeur de cartes à jouer complet : face, cadre, typographie, données CSV, volume 3D, matières PBR, export impression et export 3D — huit modules dans un même document. Aucune clé n'est nécessaire ; seule la <strong>génération de face par IA</strong> utilise votre clé fal.ai existante.</p>
+<img class="shot" src="img/cardforge-face.png" alt="Card Forge — module Face">
+<p class="cap">Le module Face : catalogue local de 108 illustrations, import, génération par IA, jauge de définition effective en direct.</p>
+<div class="step"><span class="n">1</span><div>En haut du lab, choisissez le <strong>format</strong> (poker, bridge, tarot, domino…), la <strong>définition</strong> (150 / 300 / 600 DPI), le <strong>fond perdu</strong> et la <strong>zone sûre</strong> — ces réglages s'appliquent aux huit modules et à l'export final.</div></div>
+<div class="step"><span class="n">2</span><div>Parcourez les modules dans le rail de gauche : <strong>01 Face</strong> (illustration importée, générée par IA ou piochée dans le catalogue local), <strong>02 Cadre</strong> (bordures, rareté, dos de carte), <strong>03 Typographie</strong> (titre, encadré de règles, texte d'ambiance, 23 polices déjà embarquées), <strong>04 Données</strong> (import CSV → colonnes vers champs → deck complet), <strong>05 Volume</strong> (aperçu 3D avec épaisseur et tranche réelles), <strong>06 Matières</strong> (8 canaux de texture PBR calculés localement).</div></div>
+<div class="step"><span class="n">3</span><div><strong>07 Impression</strong> lance un <strong>contrôle avant vol</strong> sur la planche et sur le fichier produit : fond perdu, traits de coupe, <code>TrimBox</code>/<code>BleedBox</code> du PDF, densité <code>pHYs</code> du PNG (300 DPI = 11811 px/m) — chaque ligne est vérifiée sur les octets du fichier livré, jamais sur un réglage affiché à l'écran.</div></div>
+<img class="shot" src="img/cardforge-print.png" alt="Card Forge — module Impression">
+<p class="cap">Le contrôle avant vol : 0 erreur, TrimBox et BleedBox présents dans le PDF, densité du PNG vérifiée octet par octet.</p>
+<div class="step"><span class="n">4</span><div><strong>08 Export 3D</strong> exporte un <code>.glb</code> <strong>et</strong> un <code>.gltf</code> autonome avec le jeu complet de maps PBR (couleur de base, normale, rugosité, métallique, occlusion, hauteur, émissive, ORM), prêts pour Unity, Unreal, Godot ou Blender.</div></div>
+<div class="warn">Le canal <strong>émission</strong> est produit dans l'archive de textures mais n'est pas encore câblé dans le fichier de maillage : il n'apparaît pas dans un moteur de rendu tant que vous ne le reliez pas vous-même au matériau. Le cadrage par défaut d'une illustration peut aussi laisser une partie de la face sous le cadre selon le gabarit choisi — la jauge de définition du module Face vous le signale en pourcentage.</div>
+<div class="footer">Deepotus Video Gen v2.3.0 — guide généré depuis l'application réelle. Tout fonctionne en local sur votre machine ; seuls les appels aux fournisseurs (fal.ai, HeyGen, ElevenLabs, Anthropic) et vos publications sortent de chez vous. Avec Ollama, même les plans restent locaux. · <a href="en.html">English version</a></div>
 
 </div>
 </body>

@@ -1,4 +1,4 @@
-# 🐙 Deepotus Video Gen — v2.2.0
+# 🐙 Deepotus Video Gen — v2.3.0
 
 Local Windows studio for generating 9:16 crypto/Web3 videos — Seedance clips,
 HeyGen talking avatars, spatial compositions, and RSS→reel news posts — with a
@@ -74,6 +74,13 @@ before any key is configured:
 Everything above is Creative Commons Zero ([Kenney](https://kenney.nl)):
 free for commercial use, no attribution required. Attributions are shipped in
 `backend/app/assets/starter/NOTICE.txt` anyway.
+
+Since v2.3.0, **Card Forge** — the playing-card editor under Game Assets — is
+fully usable with no key at all too: 300 DPI print exports with bleed and safe
+zone (`TrimBox`/`BleedBox`, cut marks), CSV-driven decks, PBR textures (8
+maps), and glTF/GLB 3D export with real card thickness, all computed locally
+(Pillow + pypdf). Only the optional AI face generation uses your existing
+fal.ai key.
 
 ## Required API keys (bring-your-own)
 **fal.ai** is required (images + video, and **music generation** since v2.2.0 —

@@ -40,7 +40,7 @@
 <div class="page">
 
 <h1>🐙 Deepotus Video Gen</h1>
-<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v1.16.0</strong> · <a href="fr.html">Version française</a></p>
+<p class="sub">Complete guide — from double-click to your first auto-published post. <strong>v2.3.0</strong> · <a href="fr.html">Version française</a></p>
 
 <div class="lead">
   <p><strong>Never touched an editing tool?</strong> Good — this guide is written for you. Deepotus Video Gen turns an idea into a post-ready vertical video, with no software to learn. Everything runs <strong>on your computer</strong>; you plug in your own API keys (you pay your providers, not the app).</p>
@@ -66,7 +66,8 @@
   <a href="#c14">14 · Troubleshooting &amp; recipes</a><br>
   <a href="#c15">15 · Studio — Effects, masks &amp; preview</a><br>
   <a href="#c16">16 · Moving to another PC — migration</a><br>
-  <a href="#c17">17 · Game Assets — 3D objects</a>
+  <a href="#c17">17 · Game Assets — 3D objects</a><br>
+  <a href="#c18">18 · Card Forge — card editor</a>
 </div>
 
 <h2 id="c0"><span class="num">0</span>Start &amp; API keys</h2>
@@ -355,7 +356,18 @@
 <img class="shot" src="img/library-3d.png" alt="Library — 3D tab">
 <p class="cap">The Library 3D tab gathers all your generated assets.</p>
 <div class="warn">3D rendering runs in your browser (WebGL): keep the tab in the foreground for smooth rotation. Files live under <code>DeepotusVideoGenData\assets\outputs\assets3d\</code> and follow your migration (chapter 16).</div>
-<div class="footer">Deepotus Video Gen v1.16.0 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
+<h2 id="c18"><span class="num">18</span>Card Forge — playing-card editor <span class="new">new</span></h2>
+<p>The <strong>Card Forge</strong> sub-tab (inside <strong>Game Assets</strong>, next to 3D / Sprites / Tiles / Materials) is a full playing-card editor: face, frame, typography, CSV data, 3D volume, PBR materials, print export and 3D export — eight modules in one document. No key is required; only <strong>AI face generation</strong> uses your existing fal.ai key.</p>
+<img class="shot" src="img/cardforge-face.png" alt="Card Forge — Face module">
+<p class="cap">The Face module: a local catalog of 108 illustrations, import, AI generation, and a live effective-resolution gauge.</p>
+<div class="step"><span class="n">1</span><div>At the top of the lab, pick the <strong>format</strong> (poker, bridge, tarot, domino…), the <strong>resolution</strong> (150 / 300 / 600 DPI), the <strong>bleed</strong> and the <strong>safe zone</strong> — these settings apply to all eight modules and to the final export.</div></div>
+<div class="step"><span class="n">2</span><div>Browse the modules in the left rail: <strong>01 Face</strong> (imported illustration, AI-generated, or picked from the local catalog), <strong>02 Frame</strong> (borders, rarity, card back), <strong>03 Typography</strong> (title, rules box, flavor text, 23 already-bundled fonts), <strong>04 Data</strong> (CSV import → columns to fields → full deck), <strong>05 Volume</strong> (3D preview with real thickness and edge), <strong>06 Materials</strong> (8 PBR texture channels computed locally).</div></div>
+<div class="step"><span class="n">3</span><div><strong>07 Print</strong> runs a <strong>preflight check</strong> on both the sheet and the produced file: bleed, cut marks, the PDF's <code>TrimBox</code>/<code>BleedBox</code>, the PNG's <code>pHYs</code> density (300 DPI = 11811 px/m) — every line is verified against the delivered file's bytes, never against an on-screen setting.</div></div>
+<img class="shot" src="img/cardforge-print.png" alt="Card Forge — Print module">
+<p class="cap">The preflight check: 0 errors, TrimBox and BleedBox present in the PDF, PNG density verified byte by byte.</p>
+<div class="step"><span class="n">4</span><div><strong>08 3D Export</strong> exports both a <code>.glb</code> <strong>and</strong> a standalone <code>.gltf</code> with the full PBR map set (base color, normal, roughness, metallic, occlusion, height, emissive, ORM), ready for Unity, Unreal, Godot or Blender.</div></div>
+<div class="warn">The <strong>emissive</strong> channel is produced inside the texture archive but is not yet wired into the mesh file: it won't show up in a rendering engine until you connect it to the material yourself. The default crop of an illustration can also leave part of the face under the frame depending on the chosen template — the Face module's resolution gauge reports it as a percentage.</div>
+<div class="footer">Deepotus Video Gen v2.3.0 — guide generated from the real application. Everything runs locally on your machine; only provider calls (fal.ai, HeyGen, ElevenLabs, Anthropic) and your publications leave your computer. With Ollama, even plans stay local. · <a href="fr.html">Version française</a></div>
 
 </div>
 </body>

@@ -4,6 +4,44 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.3.0 "Cardforge"
+
+**Card Forge**, nouveau 9ᵉ sous-onglet du hub **Game Assets** : un éditeur de
+cartes à jouer complet, des faces importées ou générées par IA jusqu'à
+l'export imprimeur et l'export 3D façon NFT — huit modules indépendants
+(face, cadre, typographie, données, volume, matières, impression, export 3D)
+partageant un même contrat d'état pour rester isolés les uns des autres.
+
+## Ce qui est garanti, mesuré sur les fichiers produits
+
+| Exigence | Preuve |
+|---|---|
+| **300 DPI réels** | PNG à `canvas_px` exact avec chunk `pHYs` à 11811 px/m (299,9994 DPI) |
+| **Fond perdu + zone de sécurité** | 12 formats de carte + planches A4/Letter/A3, tolérance **0 pixel** contre l'arithmétique du domaine |
+| **PDF prêt imprimeur** | `MediaBox` **+ TrimBox + BleedBox** sur chaque page, traits de coupe vectoriels — ce que la référence gratuite du domaine (nanDECK) n'a pas |
+| **glTF/GLB avec jeu PBR complet** | `.glb` **et** `.gltf` autonome, 8 maps nommées (basecolor, normal, roughness, metallic, ao, height, emissive, orm), attribut `TANGENT` |
+
+## Comment c'est jugé
+
+Chaque module a été construit et vérifié par un protocole de **duel aveugle
+certifié** contre un produit réel et gratuit du domaine (Clash of Decks pour
+la face/le cadre/la typographie, nanDECK pour le CSV et l'impression, Meshy
+pour la 3D, Sorceress Material Forge pour les textures) : deux critiques sans
+accès au dépôt ni au web comparent une planche recadrée sur le seul panneau
+jugé, à l'aveugle, côtés tirés au sort. **Les 8 modules sont acquis, sur 32
+duels sans une seule exception.**
+
+## Reste connu, non corrigé
+
+- Le canal d'émission du GLB est produit et livré dans l'archive, mais n'est
+  câblé par aucun fichier de maillage (`emissiveFactor 0 0 0`, pas de
+  `emissiveTexture`/`map_Ke`) : présent mais invisible dans un moteur.
+- Le cadrage par défaut de la pose d'illustration laisse jusqu'à 70 % de la
+  face sous le cadre selon le gabarit choisi ; le panneau le chiffre, mais
+  n'offre pas encore de correction en un clic.
+
+---
+
 # 🐙 Deepotus Video Gen — v2.2.0 "Catalogue de démarrage"
 
 Les trois sous-catégories de **Son & VFX** étaient des promesses non câblées :
