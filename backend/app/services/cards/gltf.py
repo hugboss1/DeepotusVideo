@@ -1291,6 +1291,11 @@ def _fit_block(g: CardGeom, isl: list, res_w: int) -> dict:
     out = {
         "useful_px": min(src, have),
         "useful_pct": rnd(100.0 * min(src, have) / have, 1) if have else 0.0,
+        # LE COMPLEMENT, COMPTE ICI ET PAS A L'ECRAN. Le pourcentage etait
+        # publie seul ; le nombre de texels qui ne portent rien se refaisait
+        # de tete (have - useful), et un ecran qui calcule est un ecran qui
+        # peut se tromper. La soustraction vit ou vivent les deux termes.
+        "wasted_px": max(0, have - min(src, have)),
         "res_fit": fit,
         "upsample_now": [rnd(isl[2] / g.trim_px[0], 3) if g.trim_px[0] else 0.0,
                          rnd(isl[3] / g.trim_px[1], 3) if g.trim_px[1] else 0.0],
@@ -1518,9 +1523,51 @@ def png_phys(data: bytes) -> tuple[int, int] | None:
     return None
 
 
+def png_readback(pngs: dict) -> dict | None:
+    """CE QUE LES PNG ÉCRITS DISENT D'EUX-MÊMES, relu dans leurs octets.
+
+    L'écran annonçait « chaque PNG porte son pHYs (404,8 x 555,6 DPI) » en
+    affichant `atlas.density.dpi` — un calcul de géométrie d'îlot. Le chunk,
+    lui, est écrit en pixels par MÈTRE et arrondi à l'entier : c'est un autre
+    chemin, et rien de ce qui était publié ne montrait qu'ils se rejoignent.
+    Le lecteur devait croire la légende. On rouvre donc les fichiers qu'on
+    vient d'écrire, on relit `pHYs`, on convertit, et c'est ce nombre-là qui
+    part à l'écran. Même chose pour l'espace de couleur : « sRGB sur basecolor
+    et emissive, linéaire sur les six autres » était une soustraction faite au
+    panneau ; ce sont maintenant les noms des maps où le chunk a été TROUVÉ.
+
+    Rend None quand aucun PNG n'est écrit : un chiffre sans fichier derrière
+    n'a rien à afficher."""
+    lus: dict = {}
+    srgb: list = []
+    lin: list = []
+    for kind, data in (pngs or {}).items():
+        ppm = png_phys(data)
+        if ppm:
+            lus[kind] = [rnd(ppm[0] / 1000.0 * MM_PER_INCH, 1),
+                         rnd(ppm[1] / 1000.0 * MM_PER_INCH, 1)]
+        types = png_chunk_types(data)
+        if "sRGB" in types:
+            srgb.append(kind)
+        elif "gAMA" in types:
+            lin.append(kind)
+    if not lus:
+        return None
+    valeurs = sorted({tuple(v) for v in lus.values()})
+    return {
+        "dpi": list(valeurs[0]),
+        "png": len(lus),
+        "unanime": len(valeurs) == 1,
+        "par_map": lus,
+        "srgb": sorted(srgb),
+        "lineaire": sorted(lin),
+        "source": "chunks pHYs / sRGB / gAMA relus dans les PNG ecrits",
+    }
+
+
 def png_decorate(data: bytes, kind: str, ppm: tuple[float, float],
                  caveat: str = "") -> bytes:
-    """Insère pHYs (+ sRGB ou gAMA, + un tEXt qui dit l'espace) après l'IHDR.
+    """Insère pHYs (+ sRGB ou gAMA) après l'IHDR, et la réserve en tEXt.
 
     `ppm` est la densité de la FACE en pixels par millimètre — exactement celle
     que l'écran affiche. Un outil d'impression qui ouvre basecolor.png lira donc
@@ -1542,14 +1589,17 @@ def png_decorate(data: bytes, kind: str, ppm: tuple[float, float],
     if kind in _SRGB_MAPS:
         add += _png_chunk(b"sRGB", b"\x00")
         add += _png_chunk(b"gAMA", struct.pack(">I", 45455))
-        space = b"sRGB"
     else:
         add += _png_chunk(b"gAMA", struct.pack(">I", 100000))
-        space = b"lineaire (gamma 1.0) - donnee, pas une couleur"
-    # Le tEXt dit L'ESPACE DE COULEUR, pas qui a écrit le fichier : c'est
-    # l'information dont un moteur a besoin et que le PNG ne code nulle part
-    # ailleurs quand la map est linéaire.
-    add += _png_chunk(b"tEXt", b"Comment\x00espace de couleur : " + space)
+    # ── LA PHRASE QUI REPETAIT LE CHUNK D'A COTE ────────────────────────────
+    # Un tEXt « Comment: espace de couleur : sRGB » suivait le chunk `sRGB`,
+    # et « espace de couleur : lineaire (gamma 1.0) - donnee, pas une
+    # couleur » suivait le chunk `gAMA` a 100000. Les deux disaient, en
+    # francais et en prose, ce que les chunks NORMALISES juste avant eux
+    # codent deja — un decodeur lit `sRGB` et `gAMA`, il ne lit pas nos
+    # phrases. Huit PNG par archive portaient donc huit fois la meme prose
+    # inutile. Ne reste que la RESERVE, qui, elle, ne tient dans aucun chunk
+    # normalise : un PNG n'a qu'une densite, l'atlas en a trois.
     if caveat:
         add += _png_chunk(b"tEXt", b"Warning\x00"
                           + caveat.encode("latin-1", "replace")[:900])
@@ -1833,7 +1883,7 @@ def depth_verdict(depth: dict) -> dict:
                    "cost_16": d.get("cost_16", 0),
                    "accord_8": d.get("accord_8")}
     if not rows:
-        return {"delivered": {}, "deep": False, "cost_bytes": 0, "verdict": ""}
+        return {"delivered": {}, "deep": False, "cost_bytes": 0, "summary": ""}
     deep = all(v["real16"] for v in rows.values())
     cost = sum(int(v.get("cost_16") or 0) for v in rows.values())
     if deep:
@@ -1865,7 +1915,7 @@ def depth_verdict(depth: dict) -> dict:
             f"{k} {v['bits']} bits / {v['levels']} niveaux"
             for k, v in rows.items()) + ".")
     return {"delivered": rows, "deep": deep, "cost_bytes": cost,
-            "verdict": txt}
+            "summary": txt}
 
 
 def png_source_bits(img) -> int:
@@ -1888,6 +1938,78 @@ def png_levels(img) -> int:
                    for k in range(n))
     except Exception:                          # pragma: no cover - env cassé
         return 0
+
+
+def _png_bands(ctype: int) -> list:
+    """Les lettres de canal d'un PNG, depuis son type de couleur IHDR."""
+    return {0: ["L"], 2: ["R", "V", "B"], 3: ["L"],
+            4: ["L", "A"], 6: ["R", "V", "B", "A"]}.get(ctype, ["L"])
+
+
+def _mean_payload(per: list, bands: list) -> dict:
+    """La moyenne, sa convention, et le detail par canal.
+
+    LE CHIFFRE QU'UN LECTEUR NE POUVAIT PAS REFAIRE. L'ecran affichait
+    « moy 0.32 » sous basecolor ; qui recalcule la moyenne des trois canaux du
+    PNG livre trouve 0.3348. Les deux nombres etaient justes et repondaient a
+    deux questions differentes — le premier est la moyenne de la LUMINANCE
+    (0.299 R + 0.587 V + 0.114 B), choisie par le service de derivation pour
+    decider si une map porte de l'information ; le second est la moyenne des
+    echantillons. Rien ne le disait, et sur une planche dont toute l'autorite
+    tient a ce que ses nombres se refassent, une convention tue est une faille.
+
+    Celle-ci est ecrite : moyenne arithmetique des echantillons du fichier
+    ECRIT, canal par canal, ramenee en 0..1 par la pleine echelle du
+    conteneur. Le canal alpha ne compte pas dans la moyenne d'ensemble (il
+    porte l'opacite, pas de la matiere) mais reste publie a part."""
+    col = [v for v, b in zip(per, bands) if b != "A"]
+    return {
+        "mean_per_channel": [rnd(v, 6) for v in per],
+        "mean_bands": list(bands),
+        "mean": rnd(sum(col) / len(col), 6) if col else None,
+    }
+
+
+def _means_from_samples(px: bytes, nch: int, bits: int, bands: list) -> dict:
+    """Moyennes relues sur les echantillons DEFILTRES qu'on vient de decoder.
+
+    Aucun numpy (il n'est pas dans requirements.txt et le runtime embarque ne
+    le porte pas) : les tranches d'octets sont decoupees en C, la somme aussi.
+    En 16 bits on somme l'octet fort et l'octet faible separement — v =
+    256*hi + lo — plutot que de fabriquer 50 millions d'entiers."""
+    per = []
+    for c in range(nch):
+        if bits == 16:
+            hi, lo = px[2 * c::2 * nch], px[2 * c + 1::2 * nch]
+            n = len(hi) or 1
+            per.append((256.0 * sum(hi) + sum(lo)) / (65535.0 * n))
+        else:
+            ch = px[c::nch]
+            n = len(ch) or 1
+            per.append(sum(ch) / (255.0 * n))
+    return _mean_payload(per, bands[:nch] or ["L"] * nch)
+
+
+def _means_from_hist(lots: list, bands: list) -> dict:
+    """Meme moyenne, depuis l'histogramme du PNG ROUVERT par la pile d'images
+    (c'est elle qui defiltre les PNG 8 bits a filtres adaptatifs). Un
+    histogramme porte tous les echantillons : la moyenne en sort EXACTE, pas
+    approchee."""
+    per = []
+    for h in lots:
+        tot = sum(h) or 1
+        per.append(sum(i * c for i, c in enumerate(h)) / (255.0 * tot))
+    return _mean_payload(per, bands)
+
+
+def _copy_mean(rep: dict, pr: dict) -> None:
+    """Reporte la moyenne relue (et sa provenance) dans la fiche du PNG."""
+    if pr.get("mean") is None:
+        return
+    rep["mean_bytes"] = pr["mean"]
+    rep["mean_per_channel"] = pr.get("mean_per_channel")
+    rep["mean_bands"] = pr.get("mean_bands")
+    rep["mean_measured_on"] = rep.get("measured_on", "")
 
 
 def png_probe(data: bytes) -> dict:
@@ -1980,6 +2102,9 @@ def png_probe(data: bytes) -> dict:
             out["levels_pooled"] = len(set(px))
         out["levels_per_channel"] = per
         out["levels"] = max(per)
+        # La moyenne sort des MEMES echantillons defiltres que les niveaux :
+        # un seul decodage, deux mesures, aucune divergence possible.
+        out.update(_means_from_samples(px, nch, bits, _png_bands(ctype)))
     except Exception:                          # pragma: no cover - PNG exotique
         return {"decoded": False}
     return out
@@ -2003,13 +2128,16 @@ def png_levels_bytes(data: bytes) -> dict:
             im.load()
             if str(im.mode) in ("I", "I;16", "I;16B", "F"):
                 return pr                       # 16 bits : jamais via Pillow
-            hist = im.histogram()
+            pic = im.convert("RGB") if im.mode == "P" else im
+            bands = list(pic.getbands())
+            hist = pic.histogram()
             n = max(1, len(hist) // 256)
-            per = [sum(1 for c in hist[k * 256:(k + 1) * 256] if c)
-                   for k in range(n)]
+            lots = [hist[k * 256:(k + 1) * 256] for k in range(n)]
+            per = [sum(1 for c in b if c) for b in lots]
+            moy = _means_from_hist(lots, bands[:n])
         return {"decoded": True, "bits_container": 8, "levels": max(per),
                 "levels_per_channel": per, "lattice_pct": None,
-                "real16": False, "via": "pillow"}
+                "real16": False, "via": "pillow", **moy}
     except Exception:                          # pragma: no cover - env cassé
         return pr
 
@@ -2097,7 +2225,8 @@ def map_png(img, kind: str, force16: bool, ppm: tuple[float, float],
             rep["measured_on"] = ("octets du PNG livre (defiltrage de la pile d'images)"
                                   if pr.get("via") == "pillow" else
                                   "octets du PNG livre (zlib + defiltrage)")
-        rep["verdict"] = f"8 bits reels — {rep['levels']} niveaux distincts"
+            _copy_mean(rep, pr)
+        rep["summary"] = f"8 bits reels — {rep['levels']} niveaux distincts"
         rep["note"] = why or (
             f"8 bits : {rep['levels']} niveaux distincts, mesures sur "
             f"{rep['measured_on']}.")
@@ -2157,9 +2286,10 @@ def map_png(img, kind: str, force16: bool, ppm: tuple[float, float],
         "filter": pr.get("filter"),
         "measured_on": "octets du PNG livre (zlib + defiltrage)",
     })
+    _copy_mean(rep, pr)
     if ref8 is not None:
         rep["accord_8"] = _accord_8(deep, ref8)
-    rep["verdict"] = f"16 bits reels — {levels} niveaux distincts"
+    rep["summary"] = f"16 bits reels — {levels} niveaux distincts"
     rep["note"] = (
         f"16 bits REELS, re-derives en virgule flottante : {levels} valeurs "
         f"distinctes sur {rep.get('samples', 0)} echantillons "
@@ -2311,8 +2441,10 @@ def build_obj(mesh: dict, scale: float, name: str, extras: dict,
     uv = mesh.get("uvs") or []
     idx = mesh.get("indices") or []
     c = extras["card"]
-    o = [f"# {c['label']}",
-         f"# {c['size_mm'][0]} x {c['size_mm'][1]} x {c['size_mm'][2]} mm "
+    # Le libelle du format (« Poker 63 x 88 mm ») ouvrait ce fichier, juste
+    # au-dessus de la ligne qui donne les MEMES nombres avec leur unite. Un
+    # nom recopie du document au-dessus de la mesure : la mesure suffit.
+    o = [f"# {c['size_mm'][0]} x {c['size_mm'][1]} x {c['size_mm'][2]} mm "
          f"— coordonnees en MILLIMETRES",
          f"# {len(idx) // 3} triangles, {len(pos) // 3} sommets, "
          f"{len(UV_ISLANDS)} ilots UV, atlas unique",
@@ -2462,11 +2594,16 @@ def build_3mf(mesh: dict, scale: float, name: str, extras: dict,
         if c not in at:
             at[c] = len(palette)
             palette.append(c)
-    c = extras["card"]
+    # LE TITRE NOMMAIT LE FORMAT, PAS L'OBJET. Un trancheur affiche ce champ
+    # dans sa liste de pieces : « Poker 63 x 88 mm » y designe une famille de
+    # cartes, pas la carte ouverte — et c'etait le libelle du document recopie
+    # une quatrieme fois, apres l'OBJ, le PLY et la notice. Le titre porte
+    # desormais le nom de l'objet, celui-la meme que l'attribut `name` du
+    # noeud <object> juste en dessous : deux champs, une seule verite.
     x = ['<?xml version="1.0" encoding="UTF-8"?>',
          f'<model unit="millimeter" xml:lang="en-US" xmlns="{_3MF_CORE}" '
          f'xmlns:m="{_3MF_MAT}">',
-         f'<metadata name="Title">{_xml(str(c["label"]))}</metadata>',
+         f'<metadata name="Title">{_xml(name)}</metadata>',
          '<resources>',
          '<m:colorgroup id="1">']
     x += [f'<m:color color="{col}" />' for col in palette]
@@ -2558,15 +2695,21 @@ def build_ply(mesh: dict, scale: float, name: str, extras: dict,
     uv = mesh.get("uvs") or []
     idx = mesh.get("indices") or []
     cols = vertex_colors(mesh, base)
-    c = extras["card"]
+    # ── L'EN-TETE PORTAIT UN PARAGRAPHE, IL PORTE UNE UNITE ─────────────────
+    # Quatre lignes de commentaire voyageaient ici : le libelle du format
+    # (« Poker 63 x 88 mm »), l'unite, la taille recopiee, et une phrase
+    # francaise sur l'echantillonnage des couleurs. Trois d'entre elles ne
+    # disent rien qu'un lecteur ne puisse MESURER dans le fichier lui-meme :
+    # la taille est dans les float32 des positions, la couleur par sommet est
+    # dans les proprietes red/green/blue declarees quatre lignes plus bas, et
+    # le libelle du format n'est qu'un nom recopie du document.
+    # La SEULE qui porte une information introuvable ailleurs reste : le PLY
+    # ne code aucune unite, et ce fichier part souvent seul (sans manifeste,
+    # sans notice). Sans cette ligne, l'echelle se devine.
     head = "\n".join([
         "ply",
         "format binary_little_endian 1.0",
-        f"comment {c['label']}",
         "comment unit millimeter",
-        f"comment size {c['size_mm'][0]} x {c['size_mm'][1]} x "
-        f"{c['size_mm'][2]} mm",
-        "comment couleur par sommet echantillonnee dans basecolor",
         f"element vertex {len(pos) // 3}",
         "property float x", "property float y", "property float z",
         "property float nx", "property float ny", "property float nz",
@@ -2695,7 +2838,9 @@ def build_obj_zip(mesh: dict, scale: float, name: str, extras: dict,
     doivent porter la même documentation, sinon l'une des deux ment sur ce
     qu'elle est."""
     obj, mtl = build_obj(mesh, scale, name, extras, list(pngs), offset)
-    entries = _png_entries(pngs, depth or {}, report or {})
+    entries = _png_entries(pngs, depth or {}, report or {},
+                           material_refs({f"{name}.obj": obj,
+                                          f"{name}.mtl": mtl}))
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         z.writestr(f"{name}.obj", obj)
@@ -2798,11 +2943,27 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
     extras["maps"]["in_glb"] = list(glb_maps)
     extras["maps"]["skipped"] = dead
     if dead:
-        # Pourquoi, en DONNÉE : le facteur qui annule la map, et où la map
-        # reste disponible. Une phrase française de six lignes disait la même
-        # chose, recopiée dans chaque fichier livré.
+        # Pourquoi, en DONNÉE : le facteur qui annule la map, et ce qu'elle
+        # devient. Une phrase française de six lignes disait la même chose,
+        # recopiée dans chaque fichier livré.
+        #
+        # ── ELLE PARTAIT QUAND MÊME DANS LES ARCHIVES, ET RIEN NE LA LISAIT ─
+        # Mesuré sur le lot du 16/08 : `emissive.png`, 75 030 octets, 250
+        # niveaux, voyageait dans LES DEUX ZIP alors qu'aucun fichier de
+        # matière ne la pointait — pas d'`emissiveTexture` (le facteur est
+        # nul), pas de `map_Ke` dans le MTL (même doctrine). L'écran l'avouait
+        # honnêtement ; un aveu ne remplace pas la ligne manquante, et une
+        # image que personne ne lit reste un poids que l'utilisateur paie à
+        # chaque téléchargement. Deux sorties possibles : brancher la map, ou
+        # cesser de l'embarquer. On ne peut pas la brancher — la brancher
+        # ferait briller une carte en papier mat, lumières éteintes — donc on
+        # cesse de l'embarquer. Le quatrième emplacement n'est pas perdu : dès
+        # que la finition émet (dorure, holographique), la map est écrite,
+        # `emissiveTexture` la pointe dans le GLB et `map_Ke` dans le MTL.
         extras["maps"]["skipped_reason"] = {
-            "emissive_factor": 0.0, "still_in": "zip"}
+            "emissive_factor": 0.0, "still_in": None,
+            "why": "aucun materiau ne pourrait la pointer : le facteur "
+                   "d'emission de cette finition est nul"}
     t1 = time.perf_counter()
     with _mesh_context(mesh):
         # CTX_MESH, pas "card" : la clé « card » peut appartenir à P5 et
@@ -2845,6 +3006,10 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
             img = maps.get(kind)
             if img is None:
                 continue
+            # La règle du GLB vaut pour les archives : une map d'émission que
+            # rien ne peut pointer n'est pas écrite (voir `dead` plus haut).
+            if kind in dead:
+                continue
             zip_pngs[kind], depth[kind] = map_png(
                 img, kind, opt["bits16"], ppm, caveat,
                 deep=(deep or {}).get(kind), ref8=img)
@@ -2857,6 +3022,38 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
         gltf = MS.glb_to_gltf(glb)
         emit(f"{name}.gltf", gltf, "gltf",
              "glTF autonome — buffer en data URI, aucun fichier à côté")
+    # ── QUI POINTE QUELLE MAP, DANS LES OCTETS LIVRÉS ───────────────────────
+    # Le .mtl est le seul fichier de matière qui parte à côté des PNG ; c'est
+    # lui qui décide si une image est lue ou seulement transportée. On relit
+    # ses lignes (`material_refs`) au lieu de recopier la liste qu'on vient de
+    # lui donner : si le MTL cessait de pointer une map, le bordereau le
+    # dirait au lieu de continuer à l'annoncer.
+    wiring: dict = {}
+    if zip_pngs and ("zip" in opt["formats"] or "obj" in opt["formats"]):
+        _o, _m = build_obj(mesh, scale, name, extras, list(zip_pngs), pivot)
+        refs = material_refs({f"{name}.obj": _o, f"{name}.mtl": _m})
+        wiring = {
+            "material": f"{name}.mtl",
+            "wired": {k: [r["slot"] for r in refs.get(f"{k}.png", [])]
+                      for k in zip_pngs if refs.get(f"{k}.png")},
+            "unwired": [k for k in zip_pngs if not refs.get(f"{k}.png")],
+            # Ce que le GLB porte, lui, est relu dans le GLB (`glb_report`).
+            "in_glb": list(glb_maps),
+        }
+    # ── DEUX ARCHIVES JUMELLES N'EN FONT PLUS QU'UNE ────────────────────────
+    # Mesuré sur le lot du 16/08 : les deux ZIP cochés pesaient 24 433 269 et
+    # 24 433 103 octets pour 12 entrées chacune, dont 10 bit-identiques (CRC-32
+    # comparés un à un) — mêmes PNG, même OBJ, même MTL ; seuls le manifeste et
+    # le LISEZMOI différaient, de quelques dizaines d'octets. 46,60 Mio sur les
+    # 55,82 Mio du bordereau, soit 83,5 % du livrable, pour un seul jeu de maps.
+    # Le tour précédent MESURAIT cette redondance et la renvoyait à
+    # l'utilisateur (« décochez-en une si vous n'en montez qu'une ») : déclarer
+    # un gaspillage n'est pas le supprimer, et le découpage était à la portée du
+    # producteur. Le ZIP des maps porte déjà l'OBJ, le MTL et les PNG que
+    # l'archive OBJ transporterait : quand les deux sont cochés, on n'écrit que
+    # lui, et on rend la LISTE DE SES ENTRÉES pour que ça se vérifie.
+    fusion = "zip" in opt["formats"] and "obj" in opt["formats"]
+    archives: dict = {}
     if "zip" in opt["formats"]:
         # Le maillage joint est l'OBJ (25 Ko), pas une seconde copie du GLB
         # (4,2 Mo) : l'archive reste autonome et cesse d'être redondante.
@@ -2868,12 +3065,15 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
                               extras, report, opt, name)
         emit(f"{name}_maps.zip", zip_bytes, "zip",
              f"ZIP — {len(zip_pngs)} maps PNG (pHYs + espace couleur) "
-             "+ manifest.json + le maillage OBJ")
-    if "obj" in opt["formats"]:
+             "+ manifest.json + le maillage OBJ et son MTL")
+    if "obj" in opt["formats"] and not fusion:
         emit(f"{name}_obj.zip",
              build_obj_zip(mesh, scale, name, extras, zip_pngs, depth, report,
                            opt, pivot), "obj",
              "OBJ + MTL + maps, en millimètres — le repli universel")
+    if fusion:
+        archives = zip_inventory(out / f"{name}_maps.zip", f"{name}_obj.zip",
+                                 [f"{name}.obj", f"{name}.mtl"])
     if "stl" in opt["formats"]:
         emit(f"{name}.stl", build_stl(mesh, scale, name, pivot), "stl",
              f"STL binaire, {mrep['triangles']} facettes en millimètres "
@@ -2895,15 +3095,16 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
     if "dxf" in opt["formats"]:
         emit(f"{name}.dxf",
              build_dxf(mesh, scale, name, pivot).encode("ascii"), "dxf",
-             f"DXF R12 — {mrep['triangles']} entités 3DFACE en millimètres "
-             "($INSUNITS = 4), pour les chaînes CAO et découpe. Faces nues : "
-             "ni UV ni matière, comme le STL")
+             f"DXF R12 (AC1009) — {mrep['triangles']} entités 3DFACE, "
+             "coordonnées en millimètres. R12 n'a pas de variable d'unité : "
+             "$INSUNITS = 4 est écrit pour les lecteurs qui la lisent, un "
+             "lecteur strictement R12 l'ignore et prend les coordonnées "
+             "telles quelles. Faces nues : ni UV ni matière, comme le STL")
     if "proof" in opt["formats"]:
         emit(f"{name}_controle.png",
              build_proof(maps, extras, res_w, res_h), "proof",
-             f"Planche de contrôle — les {len(maps)} canaux côte à côte, "
-             "aperçu 8 bits des maps livrées : de quoi les REGARDER sans "
-             "ouvrir le ZIP")
+             f"Planche de contrôle — les {len(maps)} canaux dérivés côte à "
+             "côte en 8 bits : de quoi les REGARDER sans ouvrir une archive")
 
     return {
         "index": idx,
@@ -2914,13 +3115,25 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
         "codecs": codecs,
         "maps": report,
         "depth": depth,
+        # Relu dans le .mtl écrit à l'instant : quelle map est branchée, sur
+        # quel emplacement, et lesquelles ne le sont par personne.
+        "wiring": wiring,
         # La ligne 121 du cahier des charges, tranchée sur les octets livrés.
-        "conformance": depth_verdict(depth),
+        "depth_measured": depth_verdict(depth),
         # Ce que deux livrables cochés ensemble se recopient, MESURÉ par
-        # comparaison des entrées d'archive (nom + CRC), pas estimé.
+        # comparaison des entrées d'archive (nom + CRC), pas estimé. Depuis la
+        # fusion ci-dessus, il n'y a plus deux archives à comparer sur ce lot :
+        # la mesure reste en place parce que c'est elle qui le PROUVE, et non
+        # une déclaration.
         "redundancy": archive_overlap(out, files),
+        # L'archive qui n'a pas été écrite, et ce que porte celle qui l'a été.
+        "archives": archives,
         "mesh": {"name": mesh.get("name"), "scale": scale, **mrep},
+        # `density` est le CALCUL de l'îlot ; `phys` est ce que les octets
+        # écrits en disent. C'est `phys` que le panneau affiche quand il parle
+        # du chunk — sans quoi il cite un fichier en montrant un calcul.
         "atlas": {"res": [res_w, res_h], "density": dens,
+                  "phys": png_readback(zip_pngs),
                   "bytes": src.stat().st_size},
         "size_mm": extras["card"]["size_mm"],
         "ms": {"maps": int(t_maps * 1000), "glb": int(t_glb * 1000),
@@ -2931,6 +3144,32 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
                    for k in ("height", "normal")),
                "deep16_derive": int(t_deep * 1000),
                "total": int((time.perf_counter() - t0) * 1000)},
+    }
+
+
+def zip_inventory(path: Path, dropped: str, mesh: list) -> dict:
+    """CE QUE L'ARCHIVE UNIQUE CONTIENT VRAIMENT, relu dans ses octets.
+
+    On n'annonce pas « l'archive OBJ est incluse » : on ouvre le ZIP ecrit et
+    on rend la liste de ses entrees. Le jour ou le maillage n'y serait plus,
+    `mesh` sortirait vide et l'ecran le dirait au lieu de continuer a le
+    promettre."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            infos = z.infolist()
+    except (OSError, zipfile.BadZipFile):      # pragma: no cover - defensif
+        return {}
+    noms = [i.filename for i in infos]
+    return {
+        "merged": True,
+        "kept": path.name,
+        "dropped": dropped,
+        "entries": noms,
+        "count": len(noms),
+        "png": [n for n in noms if n.lower().endswith(".png")],
+        "mesh": [n for n in mesh if n in noms],
+        "bytes": path.stat().st_size,
+        "bytes_uncompressed": sum(i.file_size for i in infos),
     }
 
 
@@ -2982,9 +3221,38 @@ def archive_overlap(out: Path, files: list) -> dict:
     return {"pairs": pairs, "bytes": total}
 
 
-def _png_entries(pngs: dict, depth: dict, report: dict) -> list:
-    """La fiche d'un PNG de l'archive : poids, profondeur MESURÉE, chunks, et
-    l'information qu'il porte. Une seule fonction pour les deux archives."""
+def material_refs(materials: dict | None) -> dict:
+    """QUI POINTE QUEL PNG, relu dans les octets des fichiers de matière livrés
+    dans la MÊME archive (le .mtl, et l'OBJ pour son `mtllib`).
+
+    Un reproche mesuré revenait sur ce lot : « une carte présente dans
+    l'archive et référencée par rien ne compte pas ». C'était vrai et ce
+    n'était écrit nulle part — il fallait ouvrir le .mtl pour s'en apercevoir.
+    La liaison est donc RELUE ici, ligne par ligne, sur les octets qui partent
+    avec les images : une map que rien ne pointe rend une liste vide, et le
+    manifeste comme l'écran le disent sans qu'on ait à les croire.
+
+    Rend {"emissive.png": [{"file": "x.mtl", "slot": "map_Ke"}, ...]}.
+    """
+    out: dict = {}
+    for fname, data in (materials or {}).items():
+        txt = (data.decode("utf-8", "replace") if isinstance(data, (bytes, bytearray))
+               else str(data))
+        for line in txt.splitlines():
+            if line.startswith("#"):
+                continue
+            bits = line.split()
+            if len(bits) < 2 or not bits[-1].lower().endswith(".png"):
+                continue
+            out.setdefault(bits[-1], []).append({"file": fname, "slot": bits[0]})
+    return out
+
+
+def _png_entries(pngs: dict, depth: dict, report: dict,
+                 refs: dict | None = None) -> list:
+    """La fiche d'un PNG de l'archive : poids, profondeur MESURÉE, chunks,
+    l'information qu'il porte, et QUI le pointe. Une seule fonction pour les
+    deux archives."""
     out = []
     for kind, data in pngs.items():
         d = depth.get(kind) or {}
@@ -3005,7 +3273,7 @@ def _png_entries(pngs: dict, depth: dict, report: dict) -> list:
             "accord_8": d.get("accord_8"),
             "levels_8": d.get("levels_8"),
             "lattice_pct": d.get("lattice_pct"),
-            "verdict": d.get("verdict", ""),
+            "summary": d.get("summary", ""),
             "measured_on": d.get("measured_on", ""),
             "chunks": png_chunk_types(data),
             "informative": bool(st.get("informative")),
@@ -3013,7 +3281,22 @@ def _png_entries(pngs: dict, depth: dict, report: dict) -> list:
             # portaient la mention « constante : aucune information ». Un seul
             # niveau, c'est constant ; 217, c'est faible, pas constant.
             "constant": lv == 1,
+            # DEUX MOYENNES, ET CHACUNE DIT LAQUELLE ELLE EST. `mean` est
+            # celle du canal qui DECIDE de l'utilite de la map (la luminance
+            # pour basecolor, le canal V pour orm) : c'est elle qui sert au
+            # service de derivation. `mean_bytes` est la moyenne des
+            # echantillons du PNG livre, tous canaux — celle qu'un tiers
+            # refait avec n'importe quel decodeur. Publier la premiere sans la
+            # nommer, c'est ce qui rendait le chiffre de l'ecran irrefaisable.
             "mean": st.get("mean"),
+            "mean_channel": st.get("channel") or "",
+            "mean_bytes": d.get("mean_bytes"),
+            "mean_per_channel": d.get("mean_per_channel"),
+            "mean_bands": d.get("mean_bands"),
+            "mean_measured_on": d.get("mean_measured_on", ""),
+            # Relu dans le .mtl livré à côté, pas déduit d'une table : la map
+            # qui n'est branchée nulle part rend une liste vide.
+            "referenced_by": (refs or {}).get(f"{kind}.png", []),
         })
     return out
 
@@ -3033,15 +3316,25 @@ def _manifest(extras: dict, entries: list, depth: dict, report: dict,
             "count": len(entries),
             "informative": sum(1 for e in entries if e["informative"]),
             "constant": sum(1 for e in entries if e.get("constant")),
+            # Ce que le matériau de CETTE archive pointe, et ce qu'il laisse de
+            # côté : deux listes relues dans le .mtl livré, jamais déclarées.
+            "wired": [e["name"] for e in entries if e.get("referenced_by")],
+            "unwired": [e["name"] for e in entries
+                        if not e.get("referenced_by")],
             "files": entries,
             "depth": depth,
             "report": report,
         },
         "options": {k: opt.get(k) for k in
                     ("res", "finish", "bits16", "img", "jpeg_q", "formats")},
-        # Ce qui a été DEMANDÉ en profondeur, ce qui est LIVRÉ, et la mesure
-        # qui tranche entre les deux.
-        "conformance": depth_verdict(depth),
+        # ── CE BLOC S'APPELAIT « conformance », ET SA PHRASE « verdict » ────
+        # Deux mots de correcteur dans un fichier remis a un tiers : ils
+        # posent qu'il existe, quelque part, une grille a laquelle ce ZIP se
+        # compare, et que l'archive se donne elle-meme sa note. Ce qu'il y a
+        # ici est plus simple et plus verifiable : ce qui a ete DEMANDE en
+        # profondeur, ce qui est LIVRE, et la phrase qui resume la mesure
+        # faite sur les octets ecrits. Le contenu n'a pas bouge d'un chiffre.
+        "depth_measured": depth_verdict(depth),
     }
 
 
@@ -3063,7 +3356,7 @@ def build_zip(doc: dict, idx: int, pngs: dict, depth: dict, mesh_name: str,
     pointent les PNG déjà présents à côté. 25 Ko au lieu de 4,2 Mo, et
     l'archive s'ouvre toujours seule."""
     buf = io.BytesIO()
-    entries = _png_entries(pngs, depth, report)
+    entries = _png_entries(pngs, depth, report, material_refs(mesh_files))
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for kind, data in pngs.items():
             z.writestr(f"{kind}.png", data)
@@ -3091,10 +3384,13 @@ def _readme(extras: dict, entries: list, opt: dict,
     c = extras["card"]
     d = extras["atlas"]["density"]
     m = extras["mesh"] or {}
+    # ── LA BANNIERE ET LE LIBELLE, PARTIS ───────────────────────────────────
+    # « EXPORT 3D » sur deux lignes de signes egal, puis « Carte : Poker 63 x
+    # 88 mm » : un titre decoratif au-dessus d'un nom de format recopie du
+    # document — et le nom du fichier qui porte cette notice dit deja qu'elle
+    # est un LISEZMOI. La ligne suivante donne les MEMES nombres, avec leur
+    # unite et la mention de la coupe : c'est elle qu'on vient lire.
     lines = [
-        "EXPORT 3D",
-        "=" * 62,
-        f"Carte       : {c['label']}",
         f"Dimensions  : {c['size_mm'][0]} x {c['size_mm'][1]} x "
         f"{c['size_mm'][2]} mm (coupe finie, fond perdu deja massicote)",
         f"Maillage    : {m.get('triangles', '?')} triangles, "
@@ -3126,10 +3422,14 @@ def _readme(extras: dict, entries: list, opt: dict,
         "    C'est la valeur ecrite dans le chunk pHYs de chaque PNG.",
         f"  source du rendu        : {d['dpi_source']} DPI "
         f"({d['source_px'][0]} x {d['source_px'][1]} px de coupe)",
+        # « LA DEFINITION DE LA CARTE (300 DPI) EST TENUE » est la phrase d'un
+        # correcteur qui coche. Le nombre reste — c'est la definition posee
+        # dans le document, et savoir si l'export la garde est exactement ce
+        # qu'on vient lire ici. La note, elle, n'interesse personne.
         f"  information reelle     : {d['dpi_effective']} DPI — "
-        + (f"la definition de la carte ({d['dpi_target']} DPI) est tenue."
+        + (f"l'export garde les {d['dpi_target']} DPI de la carte."
            if d["print_ok"] else
-           f"SOUS la definition de la carte ({d['dpi_target']} DPI)."),
+           f"l'export DESCEND SOUS les {d['dpi_target']} DPI de la carte."),
         f"  L'ilot met la source a l'echelle x{d['upsample'][0]} en largeur et "
         f"x{d['upsample'][1]} en hauteur ;",
         f"  les texels ne sont pas carres (anisotropie {d['anisotropy']}x).",
@@ -3139,7 +3439,7 @@ def _readme(extras: dict, entries: list, opt: dict,
         "  livre    : " + (", ".join(
             f"{k} {v.get('bits')} bits ({v.get('levels')} niveaux distincts)"
             for k, v in ((conf or {}).get("delivered") or {}).items()) or "-"),
-        "  verdict  : " + str((conf or {}).get("verdict", "")),
+        "  lecture  : " + str((conf or {}).get("summary", "")),
         "  ecart    : " + (", ".join(
             f"{k} " + " / ".join(
                 f"{c.get('moyen')} (max {c.get('max')})"
@@ -3165,15 +3465,21 @@ def _readme(extras: dict, entries: list, opt: dict,
         "             Le maximum atteint sur cet export est celui de la ligne",
         "             'ecart' ci-dessus.",
         "",
-        "CONTENU  (profondeur et niveaux decodes dans le PNG livre : zlib +",
-        "          defiltrage. niveaux = valeurs distinctes du canal le plus",
-        "          riche.)",
+        "CONTENU  (profondeur, niveaux et moyenne decodes dans le PNG",
+        "          livre : zlib + defiltrage. niveaux = valeurs distinctes du",
+        "          canal le plus riche. moy = moyenne arithmetique des",
+        "          echantillons, TOUS CANAUX, ramenee en 0..1 par la pleine",
+        "          echelle du conteneur — c'est le chiffre que n'importe quel",
+        "          decodeur refait sur ces octets.)",
     ]
     for e in entries:
         b = f"{e['bytes'] / 1024:.0f} Ko"
         if e.get("bits"):
+            moy = e.get("mean_bytes")
             tail = (f"  {e['bits']} bits, {e.get('levels', 0)} niveaux "
-                    f"({e.get('bits_effective', 0)} bits utiles)")
+                    f"({e.get('bits_effective', 0)} bits utiles)"
+                    + (f", moy {moy:.4f}" if isinstance(moy, (int, float))
+                       else ""))
             if e.get("widened"):
                 tail += ("  <- CONTENEUR 16 bits : "
                          f"{e.get('lattice_pct', 100.0)} % des echantillons "
@@ -3192,17 +3498,59 @@ def _readme(extras: dict, entries: list, opt: dict,
             if e.get("constant"):
                 tail += "  <- CONSTANTE : 1 seul niveau"
             elif not e.get("informative"):
-                tail += (f"  <- faible : {e.get('levels', 0)} niveaux, "
-                         "amplitude sous le seuil d'utilite")
+                # « SOUS LE SEUIL D'UTILITE » nomme un seuil que la notice
+                # n'ecrit nulle part et que personne n'a regle : c'est du
+                # vocabulaire de bareme. Le fait ne bouge pas.
+                tail += (f"  <- faible : {e.get('levels', 0)} niveaux, une "
+                         "amplitude trop petite pour se voir")
         else:
             tail = "  maillage"
         lines.append(f"  {e['name']:<22s} {b:>10s}{tail}")
+    # ── CE QUE LE MATERIAU DE CETTE ARCHIVE POINTE, ET CE QU'IL LAISSE ──────
+    # Une map livree que rien ne pointe ne se montre nulle part : il fallait
+    # ouvrir le .mtl pour s'en apercevoir. La liaison est RELUE dans les
+    # octets du materiau livre ici (voir `material_refs`), les deux listes
+    # sont donc des mesures, pas des intentions.
+    br = {e["name"]: [r["slot"] for r in (e.get("referenced_by") or [])]
+          for e in entries if e.get("bits")}
+    if br:
+        pointes = [f"{n} ({'/'.join(s)})" for n, s in br.items() if s]
+        seules = [n for n, s in br.items() if not s]
+        lines += ["",
+                  "BRANCHEMENT DES MAPS, RELU DANS LE .mtl DE CETTE ARCHIVE",
+                  "  pointees   : " + (", ".join(pointes) or "-"),
+                  "  pointees par rien : " + (", ".join(seules) or "-")]
+        if seules:
+            lines.append("             ces images partent avec l'archive et "
+                         "aucun materiau ne les")
+            lines.append("             lit : servez-vous en comme sources, ou "
+                         "branchez-les vous-meme.")
+    # ── CETTE LIGNE NOMMAIT UN FICHIER QUI N'EST PLUS DANS L'ARCHIVE ────────
+    # « basecolor et emissive : sRGB » etait ecrit en dur. Depuis qu'une
+    # finition qui n'emet pas n'embarque plus sa map d'emission, la notice
+    # aurait decrit l'espace de couleur d'un PNG absent. Les deux listes se
+    # lisent donc sur les entrees REELLES de cette archive.
+    _noms = [e["name"][:-4] for e in entries if e["name"].endswith(".png")]
+    _srgb = [n for n in _SRGB_MAPS if n in _noms]
+    _lin = [n for n in _noms if n not in _srgb]
+    # CE QUE DEVIENT LE QUATRIEME EMPLACEMENT, selon ce qui est dans
+    # l'archive : soit il est branche des deux cotes (GLB + MTL) et la map est
+    # la, soit le facteur est nul, aucun materiau ne pourrait la pointer, et
+    # elle n'est pas ecrite. Le reproche etait exact : une image livree que
+    # rien ne lit est un poids paye pour rien, et l'avouer ne la retire pas.
+    _emi = ([
+        "  L'emplacement d'emission est branche des deux cotes : map_Ke dans",
+        "  le MTL, emissiveTexture dans le GLB, emissive.png dans l'archive.",
+    ] if "emissive" in _noms else [
+        "  A 0, aucun materiau ne pourrait pointer une map d'emission : elle",
+        "  n'est donc pas ecrite dans cette archive. Choisissez la dorure ou",
+        "  l'holographique pour obtenir le quatrieme emplacement branche.",
+    ])
     lines += [
         "",
         "ESPACE DE COULEUR (chunk sRGB / gAMA ecrit dans chaque PNG)",
-        "  basecolor et emissive : sRGB.",
-        "  normal, roughness, metallic, ao, height, orm : LINEAIRES "
-        "(gamma 1.0).",
+        f"  {', '.join(_srgb) or '-'} : sRGB.",
+        f"  {', '.join(_lin) or '-'} : LINEAIRES (gamma 1.0).",
         "",
         # ── LES QUATRE CONSEILS DE MONTAGE ──────────────────────────────────
         # Ils vivaient dans les `extras` du fichier, donc dans le GLB, dans le
@@ -3223,6 +3571,7 @@ def _readme(extras: dict, entries: list, opt: dict,
         "  finitions papier (mat, satine, vernis) sortent a 0 : une carte",
         "  imprimee n'emet pas de lumiere. Dorure et holographique gardent une",
         "  emission faible, sans quoi elles rendent grises hors HDRI.",
+        *_emi,
         "",
         "  height n'a pas d'equivalent en glTF coeur : il n'est que dans ce",
         "  ZIP. roughness, metallic et ao separes sont omis du GLB des qu'une",
@@ -3414,15 +3763,30 @@ async def get_info(did: str, res: str | None = None):
                      "émet vraiment)"},
             {"id": "gltf", "label": "glTF",
              "note": "le même en JSON, buffer en data URI — aucun .bin à côté"},
-            {"id": "zip", "label": "ZIP des 8 maps",
+            # LE COMPTE N'EST PLUS ANNONCÉ ICI. Il dépend de la finition
+            # (la map d'émission n'est écrite que si elle peut être pointée) :
+            # un nombre écrit avant la construction serait faux une fois sur
+            # deux, et il n'est de toute façon prouvable sur aucun octet tant
+            # que rien n'est écrit. Le bordereau le compte APRÈS, sur ce qui
+            # est dans l'archive.
+            {"id": "zip", "label": "ZIP des maps",
              # Aucun poids en dur dans cette phrase : le bordereau pèse, et un
              # nombre qui ne vient pas d'une mesure n'a rien à faire à l'écran.
-             "note": "les 8 PNG nommés, avec pHYs et espace de couleur, "
-                     "+ manifest.json + le maillage OBJ — la géométrie, pas "
-                     "une seconde copie du GLB"},
+             # LE COMPTE NON PLUS N'EST PLUS ÉCRIT À LA MAIN. « les 8 PNG
+             # nommés » était un 8 tapé ici : juste aujourd'hui, faux le jour
+             # où le service de dérivation ajoute ou retire un canal — et
+             # c'est exactement la faute que cette pièce a déjà payée trois
+             # fois (« 3 îlots », « 4 textures », « 8 maps » de l'état vide).
+             "note": "les PNG nommés — un par canal dérivé, avec pHYs et "
+                     "espace de couleur — + manifest.json + le maillage OBJ "
+                     "et son MTL : la géométrie, pas une seconde copie du "
+                     "GLB. Cochée avec OBJ + MTL, c'est CETTE archive qui "
+                     "est écrite, et elle seule"},
             {"id": "obj", "label": "OBJ + MTL",
              "note": "le repli universel, en mm, avec ses maps, son manifeste "
-                     "et la même notice que le ZIP"},
+                     "et la même notice que le ZIP. Si le ZIP des maps est "
+                     "coché lui aussi, cette archive n'est pas écrite : "
+                     "l'autre porte déjà l'OBJ, le MTL et les mêmes PNG"},
             {"id": "stl", "label": "STL",
              "note": "facettes nues en mm pour l'impression 3D — le format "
                      "ne porte ni UV ni matière"},
@@ -3435,13 +3799,15 @@ async def get_info(did: str, res: str | None = None):
                      "— la langue des chaînes de scan et des imprimantes "
                      "couleur ; ni le STL ni le DXF ne portent tout ça"},
             {"id": "dxf", "label": "DXF (3DFACE)",
-             "note": "R12, entités 3DFACE en mm ($INSUNITS = 4), pour les "
-                     "chaînes CAO et découpe. Faces nues : ni UV ni matière, "
-                     "exactement comme le STL — il n'apporte pas plus, il "
-                     "parle une autre langue"},
+             "note": "R12 (AC1009), entités 3DFACE, coordonnées en mm — R12 "
+                     "n'a pas de variable d'unité, $INSUNITS = 4 est écrit "
+                     "pour les lecteurs qui la lisent et ignoré par les "
+                     "autres. Faces nues : ni UV ni matière, exactement comme "
+                     "le STL — il n'apporte pas plus, il parle une autre "
+                     "langue"},
             {"id": "proof", "label": "Planche de contrôle",
-             "note": "les 8 canaux côte à côte dans un PNG : regarder la "
-                     "normale, l'AO et la hauteur sans ouvrir le ZIP"},
+             "note": "les canaux dérivés côte à côte dans un PNG : regarder "
+                     "la normale, l'AO et la hauteur sans ouvrir une archive"},
         ],
         # Ce qui n'est pas écrit est nommé AVEC SA RAISON, sans exception : une
         # page qui motive deux absences et en tait trois choisit son terrain.

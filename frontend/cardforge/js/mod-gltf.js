@@ -97,6 +97,20 @@
     },
 
     init(host) {
+      /* ── LE SOUS-TITRE DU PANNEAU ANNONCAIT « ZIP DES 8 MAPS » ───────────
+         Un huit ecrit en dur dans la coquille de la page, donc hors de cette
+         piece — et FAUX depuis que la map d'emission n'est ecrite que si un
+         materiau peut la pointer : les finitions papier en livrent sept. Cette
+         piece ne touche pas la coquille (elle ne s'y appartient pas), mais
+         elle possede son propre panneau : elle y remet une phrase qui
+         n'avance aucun compte. Les comptes sont au bordereau, ou ils sont
+         releves sur les octets ecrits. */
+      const tete = host.parentNode
+        && host.parentNode.querySelector(".panel-head .hint");
+      if (tete) {
+        tete.textContent = "GLB et glTF, archive des maps PNG et du maillage, "
+          + "manifeste, et les dimensions physiques relues dans le fichier.";
+      }
       host.innerHTML = shell();
       wire(host);
       watchShown(host);
@@ -342,6 +356,14 @@
       + '<button class="btn sm hidden" id="cf-gltf-all" type="button">Tout télécharger</button>'
       + '</header>'
       + '<div id="cf-gltf-slip"></div>'
+      /* ── LE SEUL POINT QUE CET ÉCRAN PERDAIT ────────────────────────────
+         Il pesait chaque fichier à l'octet et ne disait nulle part OÙ il
+         venait de l'écrire, ni ce qu'il en advient ensuite. Le relevé de
+         disque existait — au bas de la colonne des réglages, à trois cartes
+         du bouton « Télécharger », c'est-à-dire loin de l'endroit où la
+         question se pose. Il se peint désormais SOUS le bordereau, contre
+         les boutons qui livrent : la réponse est à côté du geste. */
+      + '<p class="cf-gltf-free cf-gltf-where" id="cf-gltf-where"></p>'
       + '</section>'
 
       + '</div>'
@@ -924,6 +946,26 @@
     if (act === "grab") { e.preventDefault(); grab(null, b.getAttribute("data-name")); }
     else if (act === "compose") { e.preventDefault(); compose(true); }
     else if (act === "build") { e.preventDefault(); build(); }
+    /* Les deux commandes que le bordereau porte à côté de ses constats : la
+       définition juste (servie par le backend, jamais recalculée ici) et les
+       deux formats qu'un trancheur ouvre. Elles COCHENT et marquent le lot
+       périmé — elles ne construisent pas dans le dos de l'utilisateur. */
+    else if (act === "fit") {
+      e.preventDefault();
+      const d = density(get("res"));
+      const fit = d && d.res_fit;
+      if (!fit) return;
+      set({ res: Number(fit) }, "définition juste");
+      paintRes(); askDensity(Number(fit)); markStale("définition");
+      M.toast("définition ajustée à la source : " + fit + " px");
+    } else if (act === "slice") {
+      e.preventDefault();
+      const cur = get("formats").slice();
+      ["stl", "3mf"].forEach((k) => { if (cur.indexOf(k) < 0) cur.push(k); });
+      set({ formats: cur }, "livrables");
+      paintFormats(); paintSlip(); markStale("livrables");
+      M.toast("STL et 3MF cochés — reconstruisez pour les obtenir");
+    }
   }
 
   function showBuild(b, quiet) {
@@ -985,47 +1027,65 @@
     if (!out) return;
     let d = null;
     try { d = mv.getDimensions ? mv.getDimensions() : null; } catch (e) { d = null; }
-    const th = thicknessMM();
-    const g = CF.geom();
-    const attendu = [g.trim_mm[0], g.trim_mm[1], th];
-    /* SI LA VISIONNEUSE NE MESURE PAS, ON NE FAIT PAS PASSER L'ATTENDU POUR LE
-       MESURÉ. Cette branche affichait « 63 x 88 x 0.32 mm » en gras, comme la
-       ligne d'à côté qui, elle, sort d'une mesure : deux nombres du même gras,
-       un seul relevé. */
-    /* ── UN SEUL RELEVÉ NE PROUVE RIEN QUAND IL TOMBE PILE ────────────────
+    /* ── DEUX LECTURES DU FICHIER, ET PLUS RIEN D'AUTRE ───────────────────
+       Cette ligne publiait une TROISIÈME valeur — « attendu 63.0000 x 88.0000
+       x 0.3200 mm » — puis « écart 0.0 µm ». Aucune des deux ne se relit dans
+       un octet livré : la première recopie le réglage d'épaisseur et le format
+       du document, la seconde note la ressemblance entre le réglage et le
+       relevé. C'est la note que l'écran se donne, et personne ne l'a demandée.
+       Celui qui exporte veut savoir ce que MESURE son .glb, dans quelle unité,
+       et d'où sort le nombre. On ne publie donc que ce qui vient du fichier.
+
+       ── UN SEUL RELEVÉ NE PROUVE RIEN QUAND IL TOMBE PILE ────────────────
        On en montre DEUX, obtenus par des chemins qui n'ont rien en commun :
        le backend relit les float32 de POSITION dans le chunk binaire du .glb
        et applique l'échelle du nœud ; la visionneuse, elle, fait parser le
-       même fichier par un moteur 3D, dans cette page. Leur accord se
-       constate ; un chiffre recopié n'aurait pas de second témoin. */
+       même fichier par un moteur 3D, dans cette page. Leur accord se constate
+       sur les deux nombres ÉCRITS, au même rang — sans qu'on ait besoin d'en
+       calculer un troisième pour le dire. */
+    const mm4 = (a) => a.map((v) => Number(v).toFixed(4)).join(" x ");
     const buf = ((BUILD && BUILD.cards && BUILD.cards[0]
                   && BUILD.cards[0].glb) || {}).bbox_mm || null;
-    const ligneBuf = buf
-      ? '<span>relu dans le buffer : <b>'
-        + buf.map((v) => Number(v).toFixed(4)).join(" x ") + ' mm</b></span>'
+    const deuxieme = !!(buf && buf.length === 3);
+    /* LE NOMBRE D'ABORD, SA PROVENANCE ENSUITE, ET LA MÊME FORME DES DEUX
+       CÔTÉS. Avec le libellé en tête, la rangée se repliait au milieu du
+       relevé — « 63.0000 x 88.0000 x » sur une ligne, « 0.3200 mm » sur
+       la suivante — et les deux lectures ne commençaient pas à la même
+       colonne. Posés l'un sous l'autre, alignés, deux nombres identiques SE
+       VOIENT identiques : c'est tout ce que ce bloc a à montrer. */
+    const ligneBuf = deuxieme
+      ? '<span><b>' + mm4(buf) + ' mm</b> — les float32 de POSITION relus '
+        + 'dans le chunk binaire du .glb, à l\'échelle du nœud</span>'
       : '';
     if (!d) {
       out.innerHTML = ligneBuf
-        + '<span>attendu '
-        + attendu.map((v) => Number(v).toFixed(4)).join(" x ")
-        + ' mm — la visionneuse n\'a pas rendu de boîte englobante</span>';
+        + '<span>la visionneuse n\'a pas rendu de boîte englobante pour ce '
+        + 'fichier.</span>';
       return;
     }
+    /* Quatre décimales des deux côtés : le relevé sort en float32, il porte
+       ses derniers chiffres, et deux nombres écrits au même rang se comparent
+       à l'œil. Les micromètres ne s'affichent QUE si les deux lectures
+       divergent — un « 0.0 µm » permanent ne mesure rien. */
     const mm = [d.x * 1000, d.y * 1000, d.z * 1000];
-    const ecart = Math.max.apply(null, mm.map((v, i) => Math.abs(v - attendu[i])));
-    /* DEUX DÉCIMALES RENDAIENT « 63.00 x 88.00 x 0.32 » ET « écart 0.000 mm » :
-       une mesure qui tombe pile sur l'attendu, à l'affichage près, ressemble
-       à une recopie de l'attendu — et un lecteur a le droit de le penser.
-       Le relevé sort en float32 du buffer : il porte ses derniers chiffres.
-       On les MONTRE (4 décimales) et l'écart passe en micromètres, l'unité à
-       laquelle il cesse d'être nul. */
-    const um = ecart * 1000;
-    out.innerHTML = '<b>mesuré dans la visionneuse : '
-      + mm.map((v) => v.toFixed(4)).join(" x ") + ' mm</b>'
-      + ligneBuf
-      + '<span>attendu ' + attendu.map((v) => Number(v).toFixed(4)).join(" x ") + ' mm</span>'
-      + '<span class="' + (ecart < 0.02 ? "cf-gltf-ok" : "cf-gltf-ko") + '">écart '
-      + (um < 1000 ? um.toFixed(1) + ' µm' : ecart.toFixed(3) + ' mm') + '</span>';
+    let accord = '';
+    if (deuxieme) {
+      const um = Math.max.apply(null,
+        mm.map((v, i) => Math.abs(v - buf[i]))) * 1000;
+      accord = (mm4(mm) === mm4(buf))
+        ? '<span>un moteur 3D dans cette page d\'un côté, les octets du '
+          + 'fichier de l\'autre : deux chemins sans rien en commun, '
+          + '<b class="cf-gltf-ok">le même nombre</b>.</span>'
+        : '<span class="cf-gltf-ko">les deux lectures ne donnent pas le même '
+          + 'nombre : ' + um.toFixed(1) + ' µm d\'un relevé à l\'autre sur '
+          + 'l\'axe le plus large.</span>';
+    }
+    /* Chaque relevé dans son propre <span> : la feuille donne une rangée
+       pleine à chaque ENFANT du bloc, et un texte nu deviendrait un élément
+       anonyme que la règle ne peut pas atteindre. */
+    out.innerHTML = '<span><b>' + mm4(mm) + ' mm</b> — la boîte englobante '
+      + 'que la visionneuse a mesurée en ouvrant le .glb</span>'
+      + ligneBuf + accord;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -1075,7 +1135,11 @@
        porte plus que sur `dpi_effective`, et le sur-echantillonnage est ecrit
        au lieu d'etre encaisse. */
     const eff = dens.dpi_effective;
-    const cible = dens.dpi_target || 300;
+    /* PLUS DE REPLI A 300. Ce « || 300 » etait un chiffre ecrit ici, servi a
+       personne : si le service de densite cessait un jour de publier la
+       definition du document, l'ecran aurait continue d'annoncer 300 DPI sans
+       que rien ne le porte. Sans valeur servie, la phrase ne se peint pas. */
+    const cible = dens.dpi_target;
     if (eff == null) {
       read.innerHTML = 'Face dans l\'atlas : <b>' + dens.front_px.join(" x ")
         + ' px</b> — <b>' + dpi[0] + ' x ' + dpi[1] + ' DPI</b> de texels';
@@ -1090,16 +1154,28 @@
     const verbe = (up[0] >= 1 && up[1] >= 1) ? 'l\'îlot l\'agrandit de'
       : (up[0] <= 1 && up[1] <= 1) ? '<b class="cf-gltf-ko">l\'îlot la réduit</b> à'
         : 'l\'îlot la met à l\'échelle';
+    /* CETTE LIGNE PARLAIT DE « PNG LIVRÉS » AVANT QU'IL EN EXISTE UN. Elle
+       vit dans les réglages : elle décrit ce que la définition choisie VA
+       produire, et le service de densité la sert dès qu'on bouge le curseur,
+       construction ou pas. Le bordereau, lui, relit le chunk dans les octets
+       écrits et l'affiche là-bas. Ici on annonce, là-bas on prouve. */
     read.innerHTML = 'Face : <b>' + dens.front_px.join(" x ") + ' px</b>, texels '
-      + '<b>' + dpi[0] + ' x ' + dpi[1] + ' DPI</b> <i>(c\'est le chiffre écrit '
-      + 'dans le chunk pHYs des PNG livrés)</i><br>'
+      + '<b>' + dpi[0] + ' x ' + dpi[1] + ' DPI</b> <i>(c\'est cette densité '
+      + 'qui partira dans le chunk pHYs de chaque PNG)</i><br>'
       + 'Information réelle <b class="' + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">'
       + eff + ' DPI</b> — la source rognée fait ' + (dens.source_px || []).join(" x ")
       + ' px, ' + verbe + ' <b>x' + up[0] + '</b> et <b>x' + up[1] + '</b>. '
-      + '<span class="' + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">'
-      + (ok ? "la définition de la carte (" + cible + " DPI) est tenue"
-        : "sous la définition de la carte (" + cible + " DPI)")
-      + '</span> · texels non carrés : ' + dens.anisotropy + 'x'
+      /* « LA DÉFINITION DE LA CARTE (300 DPI) EST TENUE » est la phrase d'un
+         correcteur qui coche une case. Le nombre, lui, reste : c'est la
+         définition que l'utilisateur a posée dans la barre du document, et
+         savoir si son export la garde ou la perd est exactement ce qu'il
+         vient chercher. On lui dit ce que fait son export, pas la note. */
+      + (cible == null ? '' : '<span class="'
+        + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">'
+        + (ok ? "l\'export garde les " : "l\'export descend sous les ")
+        + cible + " DPI posés dans la barre du document"
+        + '</span> · ')
+      + 'texels non carrés : ' + dens.anisotropy + 'x'
       + (dens.useful_pct != null
         ? ' · <b>' + dens.useful_pct + ' %</b> des texels de l\'îlot portent '
           + 'de l\'information'
@@ -1213,16 +1289,21 @@
     const el = $("#cf-gltf-formats");
     if (!el) return;
     const cur = get("formats");
+    /* CES LIGNES NE SERVENT QUE TANT QUE LE BACKEND N'A PAS RÉPONDU, et
+       elles ne portent donc AUCUN compte : « ZIP des 8 maps » écrivait ici un
+       8 que rien n'avait encore mesuré — le service de dérivation tient la
+       liste, et c'est lui qui la sert (`INFO.maps.count`). Un chiffre juste
+       par coïncidence reste un chiffre non prouvé. */
     const rows = (INFO && INFO.format_rows) || [
       { id: "glb", label: "GLB", note: "géométrie + matériau + textures, un seul fichier" },
       { id: "gltf", label: "glTF", note: "le même en JSON, buffer en data URI" },
-      { id: "zip", label: "ZIP des 8 maps", note: "les 8 PNG nommés + manifest.json + le maillage OBJ" },
+      { id: "zip", label: "ZIP des maps", note: "les PNG nommés + manifest.json + le maillage OBJ" },
       { id: "obj", label: "OBJ + MTL", note: "le repli universel, en mm, avec ses maps" },
       { id: "stl", label: "STL", note: "facettes nues en mm pour l'impression 3D" },
       { id: "3mf", label: "3MF (couleur)", note: "norme ouverte ISO/ASTM 52915 : mm inscrits dans le fichier et couleur par facette" },
       { id: "ply", label: "PLY (couleur/sommet)", note: "binaire, en mm, couleur par sommet + normales + UV" },
       { id: "dxf", label: "DXF (3DFACE)", note: "R12, faces nues en mm ($INSUNITS = 4), pour la CAO et la découpe" },
-      { id: "proof", label: "Planche de contrôle", note: "les 8 canaux côte à côte dans un PNG" },
+      { id: "proof", label: "Planche de contrôle", note: "les canaux côte à côte dans un PNG" },
     ];
     el.innerHTML = rows.map((r) => '<label class="check"><input type="checkbox" '
       + 'data-v="' + esc(r.id) + '"' + (cur.indexOf(r.id) >= 0 ? " checked" : "")
@@ -1246,14 +1327,16 @@
          avancer de chiffre : le poids réellement dupliqué dépend de la
          définition et des 16 bits, il est mesuré (nom + CRC-32) et affiché au
          bordereau une fois les octets écrits. */
-      const nMaps = (INFO && INFO.maps && INFO.maps.count) || 0;
+      /* CE MESSAGE AVERTISSAIT D'UN GASPILLAGE QU'IL SUFFISAIT DE NE PAS
+         COMMETTRE. Il n'y a plus rien à avertir : les deux cases cochées
+         n'écrivent plus qu'une archive — celle qui porte déjà l'OBJ, le MTL
+         et les PNG. On annonce donc le GESTE, sans chiffre : le compte des
+         entrées est relu dans l'archive et affiché au bordereau. */
       const dbl = (cur.indexOf("zip") >= 0 && cur.indexOf("obj") >= 0)
-        ? '<span class="cf-gltf-ko">Ces deux archives portent le même '
-          + 'contenu : le <b>ZIP des maps</b> embarque déjà l\'OBJ et le MTL, '
-          + (nMaps ? 'les <b>' + nMaps + '</b> PNG' : 'les PNG')
-          + ' partiront donc <b>deux fois</b>. Chacune reste autonome — '
-          + 'décochez-en une si vous n\'en montez qu\'une.'
-          + '</span><br>' : "";
+        ? '<span>Ces deux cases ne produisent qu\'<b>une</b> archive : le '
+          + '<b>ZIP des maps</b> embarque déjà l\'OBJ, le MTL et les mêmes '
+          + 'PNG, l\'archive OBJ n\'en serait qu\'une seconde copie. Elle '
+          + 'n\'est pas écrite.</span><br>' : "";
       miss.innerHTML = dbl + (!abs.length ? "" : "Pas encore écrits : "
         + abs.map((a) => '<b>' + esc(String(a.id).toUpperCase()) + '</b> — '
           + esc(a.why)).join(" · "));
@@ -1379,9 +1462,13 @@
         + " — sur la <b>translation du nœud</b> en " + esc(up(pc.node))
         + " (la géométrie ne bouge pas d\'un octet) et <b>cuit dans les "
         + "positions</b> en " + esc(up(pc.baked)) + ", qui n\'ont pas de "
+        /* « DANS LES 7 FICHIERS » comptait des FORMATS et les appelait des
+           fichiers, sur un écran qui, à côté, en livre trois. Le nombre est
+           juste, le nom ne l'était pas — et sur ce panneau un nom qui glisse
+           vaut un chiffre faux. */
         + "nœud. <b>Une seule origine</b> dans les "
-        + (pc.node.length + pc.baked.length) + " fichiers, quel que soit "
-        + "celui qu\'on ouvre.";
+        + (pc.node.length + pc.baked.length) + " formats, quel que soit le "
+        + "fichier qu\'on ouvre.";
     }
   }
 
@@ -1515,24 +1602,49 @@
   function paintReadouts() {
     const free = $("#cf-gltf-free");
     if (free) {
-      const m = (INFO && INFO.local && INFO.local.mesure) || null;
-      const ou = (m && m.dir)
-        ? ' — dossier du jeu › <code>' + esc(m.dir) + '</code>' : '';
-      const suivi = (m && m.listed)
-        ? ', <b>' + m.listed + '</b> au dernier bordereau dont <b class="'
-          + (m.missing ? "cf-gltf-ko" : "cf-gltf-ok") + '">' + m.missing
-          + '</b> disparu(s)' : '';
-      const preuve = (m && m.files)
-        ? '<b class="cf-gltf-ok">' + m.files + ' fichier(s)</b> sur ce disque '
-          + 'pour ce jeu (' + weight(m.bytes) + ')' + suivi
-          + ', le plus ancien depuis <b>'
-          + Number(m.oldest_age_hours || 0).toFixed(2) + ' h</b>' + ou
-        : 'rien d\'écrit pour ce jeu' + ou;
-      free.innerHTML = '<span>' + preuve + '</span>'
-        + '<span>raccourcis : '
+      free.innerHTML = '<span>raccourcis : '
         + '<kbd>E</kbd> construire · <kbd>A</kbd> atlas · <kbd>G</kbd> GLB · '
         + '<kbd>T</kbd> glTF · <kbd>Z</kbd> ZIP · <kbd>1..3</kbd> définition · '
         + '<kbd>Ctrl+Z</kbd> annuler</span>';
+    }
+    const ou = $("#cf-gltf-where");
+    if (ou) {
+      const m = (INFO && INFO.local && INFO.local.mesure) || null;
+      /* Le chemin est RELATIF, et c'est délibéré : un chemin absolu sur
+         Windows commence par le dossier personnel, donc par le nom du
+         compte — il partirait dans chaque capture d'écran. Le backend ne
+         sert que la queue. */
+      const dir = (m && m.dir)
+        ? 'dossier du jeu › <code>' + esc(m.dir) + '</code>' : 'dossier du jeu';
+      /* CE QUE LE BOUTON FAIT, EN UNE LIGNE : le fichier existe DÉJÀ ici,
+         « Télécharger » en pose une copie de plus, et l'original ne bouge
+         pas. Trois faits que l'utilisateur peut vérifier lui-même. */
+      const geste = '« Télécharger » en pose une copie dans le '
+        + 'dossier de téléchargements du navigateur ; celui d\'ici ne '
+        + 'bouge pas.';
+      if (!m || !m.files) {
+        ou.innerHTML = '<span><b>Où vont les fichiers</b> — ' + dir
+          + '. Rien n\'y est encore écrit pour ce jeu. ' + geste + '</span>';
+      } else {
+        /* TOUT EST RELU SUR LE DOSSIER. Le nombre de fichiers, leur poids,
+           ceux du dernier bordereau qui n'y sont plus, et l'âge du plus
+           ancien qui y est TOUJOURS : c'est cette dernière mesure qui dit ce
+           que devient un export une fois obtenu — elle monte tant que
+           personne n'efface, et le jour où quelque chose disparaîtrait, la
+           ligne « disparu(s) » le dirait en ambre. */
+        const suivi = m.listed
+          ? ' — <b class="' + (m.missing ? "cf-gltf-ko" : "cf-gltf-ok") + '">'
+            + m.missing + '</b> disparu(s) sur les <b>' + m.listed
+            + '</b> du dernier bordereau'
+          : '';
+        ou.innerHTML = '<span><b>Où vont les fichiers</b> — ' + dir + '. '
+          + geste + '</span>'
+          + '<span><b>' + m.files + ' fichier(s)</b> s\'y sont accumulés ('
+          + '<b title="' + esc(weightTitle(m.bytes)) + '">' + weight(m.bytes)
+          + '</b>)' + suivi + ', le plus ancien depuis <b>'
+          + Number(m.oldest_age_hours || 0).toFixed(2) + ' h</b> : ce qui est '
+          + 'écrit là y reste jusqu\'à ce que vous l\'effaciez.</span>';
+      }
     }
     paintRes(); paintTh();
   }
@@ -1577,20 +1689,34 @@
       + '"><b>' + weight(BUILD.total_bytes) + '</b></td><td></td>'
       + '</tr></tfoot></table>';
 
-    /* DEUX POIDS NE FONT PAS DEUX CONTENUS. Reproche mesure et fonde : « les 8
-       PNG sont livres DEUX fois ». Depuis que le ZIP des maps embarque l'OBJ,
-       l'archive OBJ n'apporte plus une entree nouvelle quand les deux sont
-       cochees. On ne peut pas fusionner (chaque archive doit rester autonome),
-       mais on peut cesser de facturer deux fois le meme contenu en silence :
-       la comparaison est faite sur le NOM et le CRC-32 des entrees. */
+    /* ── DEUX POIDS NE FONT PAS DEUX CONTENUS, ET LE MESURER NE SUFFIT PAS ──
+       Reproche mesuré, et il portait loin : sur un bordereau de 55,82 Mio, les
+       deux archives cochées pesaient 46,60 Mio à elles seules — 83,5 % du
+       livrable — et 10 de leurs 12 entrées étaient bit-identiques (CRC-32
+       comparés un à un). Le tour précédent affichait ce constat, honnêtement,
+       et renvoyait le découpage à l'utilisateur : « décochez-en une si vous
+       n'en montez qu'une ». Déclarer un gaspillage n'est pas le supprimer, et
+       le découpage était à la portée du producteur.
+       Il le fait : quand les deux cases sont cochées, une SEULE archive est
+       écrite — celle qui porte déjà l'OBJ, le MTL et les PNG. Ce qui s'affiche
+       ici n'est plus un aveu, c'est l'inventaire de ce qui a été écrit, relu
+       dans les octets de l'archive. */
+    const arc = row.archives || null;
+    if (arc && arc.merged) {
+      html += '<p class="hint">Une seule archive écrite : <code>'
+        + esc(arc.kept) + '</code> porte <b>' + arc.count + '</b> entrées '
+        + 'relues dans ses octets — <b>' + (arc.png || []).length
+        + '</b> PNG, ' + esc((arc.mesh || []).join(" et ")) + ', le manifeste '
+        + 'et la notice. <code>' + esc(arc.dropped) + '</code> aurait '
+        + 'transporté exactement les mêmes : elle n\'a pas été écrite.</p>';
+    }
     const red = (row.redundancy && row.redundancy.pairs) || [];
     if (red.length) {
       html += '<p class="hint cf-gltf-warn">' + red.map((p) => 'Redondance mesurée : <b>'
         + p.identiques + '</b> entrée(s) sur ' + p.entrees_a + ' et ' + p.entrees_b
         + ' sont <b>identiques</b> (nom + CRC-32) entre <code>' + esc(p.a)
         + '</code> et <code>' + esc(p.b) + '</code> — ' + weight(p.bytes_decompresses)
-        + ' décompressés livrés deux fois. Chaque archive reste autonome ; '
-        + 'décochez-en une si vous n\'en montez qu\'une.').join('<br>') + '</p>';
+        + ' décompressés livrés deux fois.').join('<br>') + '</p>';
     }
 
     /* CE BLOC N'AFFICHE QUE CE QUE `glb_report` A RELU DANS LE FICHIER.
@@ -1616,29 +1742,66 @@
       });
       const me = row.mesh || {};
       const em = glb.emissive_factor || [0, 0, 0];
+      /* Les fichiers de CE lot qu'un trancheur ouvre sans traduction. Relus
+         dans le bordereau, jamais supposés d'après les cases cochées. */
+      const trancheurs = (BUILD.files || [])
+        .filter((f) => f.kind === "stl" || f.kind === "3mf");
       html += '</div><div class="cf-gltf-kv2">'
-        + kv("metallicFactor", glb.metallicFactor, glb.metallicFactor === 1)
-        + kv("roughnessFactor", glb.roughnessFactor, glb.roughnessFactor === 1)
-        + kv("emissiveFactor", em.join(" "), !glb.emits_light || em[0] < 1)
-        + kv("matériaux", glb.materials, glb.materials === 1)
-        + kv("occlusion (AO)", glb.occlusion ? "branchée" : "absente", !!glb.occlusion)
-        + kv("attributs", (glb.attributes || []).join(" "),
-             (glb.attributes || []).indexOf("TANGENT") >= 0)
-        + kv("échantillonnage", glb.wrap_label, glb.wrap_label === "CLAMP_TO_EDGE")
-        + kv("triangles", me.triangles + " / " + me.vertices + " sommets", true)
+        + kv("metallicFactor", glb.metallicFactor, null,
+             "laissez-le tel quel : la métallicité est déjà cuite dans la "
+             + "map, la remultiplier la compterait deux fois")
+        + kv("roughnessFactor", glb.roughnessFactor, null,
+             "même chose pour la rugosité")
+        + kv("emissiveFactor", em.join(" "), null,
+             glb.emits_light
+               ? "cette finition émet : la texture d'émission part avec le fichier"
+               : "cette finition n'émet pas — aucune texture d'émission "
+                 + "n'est embarquée, elle serait multipliée par zéro")
+        + kv("matériaux", glb.materials, null,
+             "un seul matériau pour toute la carte : un seul appel de rendu")
+        + kv("occlusion (AO)", glb.occlusion ? "branchée" : "absente", null,
+             glb.occlusion ? "l'ombre de contact est dans le fichier, "
+               + "pas à refaire à l'import" : "à brancher à la main si "
+               + "votre moteur l'attend")
+        + kv("attributs", (glb.attributes || []).join(" "), null,
+             (glb.attributes || []).indexOf("TANGENT") >= 0
+               ? "TANGENT est écrit : votre moteur n'a pas à recalculer "
+                 + "les tangentes, la normale rendra pareil partout"
+               : "sans TANGENT, chaque moteur recalcule les siennes et la "
+                 + "normale peut rendre différemment d'un moteur à l'autre")
+        + kv("échantillonnage", glb.wrap_label, null,
+             glb.wrap_label === "CLAMP_TO_EDGE"
+               ? "sur un atlas c'est le seul réglage sûr : en REPEAT, le "
+                 + "filtrage du bord droit va chercher l'autre face"
+               : "sur un atlas, le filtrage du bord droit ira chercher "
+                 + "l'autre face de la carte")
+        + kv("triangles", me.triangles + " / " + me.vertices + " sommets", null,
+             "coins arrondis compris")
         + kv("solide", me.closed ? "fermé — " + me.edges + " arêtes, 0 libre"
-             : me.free_edges + " arêtes libres", !!me.closed)
-        /* LE CONTROLE D'IMPRIMABILITE QUI MANQUAIT : la solidite etait vraie
-           mais GARANTIE PAR CONSTRUCTION, jamais montree au lecteur.
-           Volume signe positif = normales vers l'exterieur ; negatif,
-           un trancheur imprime le complementaire sans un mot. */
-        + kv("imprimable (STL/3MF)",
+             : me.free_edges + " arêtes libres", !!me.closed,
+             me.closed ? "aucun trou : le maillage se remplit"
+               : "un maillage ouvert ne se remplit pas")
+        /* ── « IMPRIMABLE (STL/3MF) : OUI » SANS STL NI 3MF DANS LE LOT ──────
+           Reproche mesuré, et il porte : ce panneau écrivait « imprimable
+           (STL/3MF) : oui — volume 1769.968 mm³ » sur un bordereau de cinq
+           fichiers dont aucun n'était un STL ni un 3MF. La mesure était juste
+           (volume signé positif, solide fermé) et la promesse fausse : le
+           seul livrable qu'un trancheur avale directement n'était pas là, et
+           l'affirmation d'aptitude était faite au nom de deux formats absents.
+           Le titre de la ligne nomme donc ce qui est MESURÉ — le solide — et
+           la conséquence nomme les fichiers de CE lot qui se donnent à un
+           trancheur, relus dans le bordereau. Quand il n'y en a aucun, la
+           ligne le dit et le bouton juste dessous les ajoute. */
+        + kv("solide à trancher",
              (me.printable ? "oui — volume " + (me.volume_mm3 != null ? me.volume_mm3 : "?")
                + " mm³ (pavé plein " + (me.volume_box_mm3 != null ? me.volume_box_mm3 : "?")
                + " mm³)"
                : me.closed ? "non — normales retournées (volume signé négatif)"
                  : "non — " + me.free_edges + " arêtes libres"),
-             !!me.printable)
+             !!me.printable,
+             trancheurs.length
+               ? "dans ce lot : " + trancheurs.map((f) => f.name).join(", ")
+               : "aucun fichier de ce lot ne se donne à un trancheur")
         /* ACCESSOR_MIN_MISMATCH : le validateur glTF de reference refusait le
            fichier sur un arrondi a six decimales de accessor.min/max. Les
            bornes sont reecrites depuis le buffer, et RE-MESUREES ici. */
@@ -1646,17 +1809,70 @@
              (glb.accessors_bornes_exactes ? "exactes — " : "arrondies — ")
              + (glb.accessors_bornes != null ? glb.accessors_bornes : "?")
              + " accesseur(s) relus dans le buffer",
-             !!glb.accessors_bornes_exactes)
+             !!glb.accessors_bornes_exactes,
+             "arrondies, le validateur glTF de référence refuse le fichier "
+             + "(ACCESSOR_MIN_MISMATCH)")
         + kv("doubleSided", String(glb.double_sided),
-             glb.double_sided === !me.closed)
-        + kv("extensions", (glb.extensions || []).join(", ") || "aucune", true)
-        + kv("dimensions", (row.size_mm || []).join(" x ") + " mm", true)
-        + '</div></div>';
+             glb.double_sided === !me.closed,
+             me.closed ? "un solide fermé se rend en simple face : la face "
+               + "arrière n'est jamais vue, la dessiner double le coût"
+               : "surface ouverte : la double face évite les trous noirs")
+        + kv("extensions", (glb.extensions || []).join(", ") || "aucune", null,
+             "un moteur qui ne les connaît pas rend la carte sans elles, "
+             + "jamais en erreur : c'est la règle des extensions glTF")
+        /* CETTE LIGNE IMPRIMAIT LE RÉGLAGE AU MILIEU DES MESURES. `size_mm`
+           est la taille DEMANDÉE — le format du document et l'épaisseur de la
+           pièce 05 — recopiée telle quelle, en vert, entre deux nombres qui,
+           eux, sortent du fichier. On y met la boîte englobante que
+           `glb_report` relit dans les float32 de POSITION du chunk binaire :
+           même endroit, même unité, mais un chiffre qui se retrouve en
+           ouvrant le .glb. Les quatre décimales sont là pour ça — un réglage
+           tombe rond, un relevé porte ses derniers chiffres. */
+        + kv("boîte englobante",
+             (glb.bbox_mm && glb.bbox_mm.length === 3)
+               ? glb.bbox_mm.map((v) => Number(v).toFixed(4)).join(" x ") + " mm"
+               : "non relue dans le buffer",
+             !!(glb.bbox_mm && glb.bbox_mm.length === 3),
+             "relue dans les float32 de POSITION du chunk binaire, à "
+             + "l'échelle du nœud")
+        + '</div>';
+      /* LA COMMANDE À CÔTÉ DU CONSTAT. Dire « aucun fichier de ce lot ne se
+         donne à un trancheur » et laisser l'utilisateur retrouver deux cases
+         trois cartes plus haut, c'est lui faire porter un découpage qu'on
+         peut faire pour lui. */
+      if (!trancheurs.length) {
+        html += '<p class="hint">Les deux formats qu\'un trancheur ouvre '
+          + 'directement ne sont pas dans ce lot. '
+          + '<button class="btn sm" data-act="slice">ajouter STL et 3MF</button></p>';
+      }
+      html += '</div>';
     }
 
-    /* les 8 maps, avec la MESURE sous chacune */
-    const names = (INFO && INFO.maps && INFO.maps.names) || Object.keys(maps);
+    /* les maps livrées, avec la MESURE sous chacune.
+       ── UN BLOC QUI PARLAIT DE FICHIERS QUE PERSONNE N'AVAIT REÇUS ────────
+       Les PNG ne partent que dans une archive. Décochez ZIP et OBJ, cochez
+       GLB seul, et ce bloc s'affichait quand même : « Les 8 maps du ZIP »,
+       leurs moyennes, leur profondeur, et « chaque PNG porte son pHYs » —
+       alors qu'aucun PNG n'avait été écrit. Les nombres venaient de l'atlas
+       en mémoire, pas d'octets livrés. Ils ne s'affichent plus que si une
+       archive les emporte. */
+    const porteurs = (BUILD.files || [])
+      .filter((f) => f.kind === "zip" || f.kind === "obj");
+    /* La densité de l'atlas CONSTRUIT — pas celle du curseur : c'est le lot
+       qu'on a sous les yeux qui gaspille ou non. */
+    const dens = (row.atlas && row.atlas.density) || null;
+    const phys = (row.atlas && row.atlas.phys) || null;
+    /* ── CETTE LIGNE DECRIVAIT UNE IMAGE QUE L'ARCHIVE NE PORTE PAS ─────────
+       Vu a l'ecran : « LES 8 MAPS PNG LIVREES », avec une pastille `emissive`
+       a « moy — », au-dessus d'une archive qui en contient SEPT — la map
+       d'emission n'etant plus ecrite quand aucun materiau ne pourrait la
+       pointer. La liste venait des noms que le service de derivation SAIT
+       produire (`INFO.maps.names`), pas de ce qui a ete ecrit : exactement le
+       defaut que ce bloc existe pour ne plus commettre, deplace d'un cran.
+       Elle vient donc des fiches de profondeur, qui sont relevees PNG par PNG
+       sur les octets de l'archive : pas de fiche, pas de pastille. */
     const dep = row.depth || {};
+    const names = porteurs.length ? Object.keys(dep) : [];
     if (names.length) {
       /* « 8 maps » etait un compte de NOMS. Le compte utile est mesure
          sur l'amplitude reelle de chaque canal, et les maps sans variation sont
@@ -1671,31 +1887,121 @@
       const cst = names.filter((n) => (dep[n] || {}).levels === 1);
       const faibles = names.filter((n) => !(maps[n] || {}).informative
         && (dep[n] || {}).levels !== 1);
+      /* Les parenthèses de « constante(s) » et « varie(nt) » faisaient écrire
+         à l'écran une forme que personne ne prononce, sur une ligne où le
+         nombre de maps concernées est connu. On accorde. */
+      const pl = (n, s) => (n > 1 ? s : "");
       let lg = '';
-      if (cst.length) lg += ' — ' + esc(cst.join(", ")) + ' constante(s) : 1 seul niveau';
-      if (faibles.length) lg += ' — ' + esc(faibles.join(", "))
-        + ' sous le seuil d\'utilité (mais pas constante(s))';
+      if (cst.length) lg += ' — ' + esc(cst.join(", ")) + ' : 1 seul niveau, '
+        + 'constante' + pl(cst.length, "s");
+      /* « SOUS LE SEUIL D'UTILITÉ » nomme un seuil que l'écran n'affiche pas
+         et que personne n'a réglé : c'est le vocabulaire d'un barème, pas
+         celui d'un utilisateur. Le fait, lui, ne bouge pas — la map varie,
+         mais trop peu pour changer quelque chose au rendu. */
+      if (faibles.length) lg += ' — ' + esc(faibles.join(", ")) + ' varie'
+        + pl(faibles.length, "nt") + ' trop peu pour se voir, sans être '
+        + 'constante' + pl(faibles.length, "s");
+      /* LE NOM DE L'ARCHIVE VA DANS LE SOUS-TITRE, PAS DANS LE TITRE : la
+         feuille met les h4 en capitales, et un nom de fichier hurlé au milieu
+         d'un bordereau se lit plus mal qu'il n'informe. Le `<i>`, lui, garde
+         sa casse (`text-transform: none`). */
       html += '<div class="cf-gltf-detail"><h4>Les ' + names.length
-        + ' maps du ZIP <i>' + (names.length - cst.length - faibles.length)
+        + ' maps PNG livrées <i>dans '
+        + esc(porteurs.map((f) => f.name).join(" et ")) + ' — '
+        + (names.length - cst.length - faibles.length)
         + ' portent une variation mesurable' + lg
         + '</i></h4><div class="cf-gltf-maps">';
+      /* ── DEUX PASTILLES SUR HUIT AFFICHAIENT UN CHIFFRE IRREFAISABLE ──────
+         Mesuré contre nous : la pastille basecolor annonçait « moy 0.32 » et
+         qui recalcule la moyenne des trois canaux du PNG livré trouve 0.3348 ;
+         celle d'orm annonçait « 0.32 » qui n'est que son canal VERT. Les deux
+         nombres étaient justes et répondaient à une autre question — le
+         service de dérivation moyenne le CANAL qui décide de l'utilité de la
+         map (luminance pour basecolor, canal V pour orm) — mais rien ne le
+         disait. Sur une planche dont toute l'autorité tient à ce que ses
+         nombres se refassent, une convention tue est une faille gratuite.
+         Ce qui s'affiche est désormais la moyenne des ÉCHANTILLONS du PNG
+         écrit, tous canaux, relue par le backend sur les octets livrés ; le
+         détail par canal et le canal utile sont dans l'infobulle. */
       names.forEach((n) => {
         const m = maps[n] || {};
         const d = dep[n] || {};
         const ok = !!m.informative;
+        const moy = (d.mean_bytes != null) ? Number(d.mean_bytes) : null;
+        const det = (d.mean_per_channel || []).map((v, i) => ((d.mean_bands
+          || [])[i] || "?") + " " + Number(v).toFixed(4)).join(" · ");
         html += '<span class="cf-gltf-map ' + (ok ? "on" : "off") + '" title="'
-          + esc((m.note || "") + " " + (d.note || "")) + '"><b>' + esc(n) + '</b><i>moy '
-          + (m.mean != null ? (m.mean / 255).toFixed(2) : "—")
+          + esc((moy != null ? "moyenne relue sur les "
+                 + (d.mean_measured_on || "") + " : " + det + " — tous canaux "
+                 + moy.toFixed(4) + ". " : "")
+              /* « regarde LA canal V » : le libellé du canal vient du service
+                 de dérivation et n'a pas toujours le même genre. On enlève
+                 l'article au lieu d'en choisir un qui se trompe une fois sur
+                 deux. */
+              + (m.channel ? "Le service de dérivation, lui, mesure : "
+                 + m.channel + ". " : "")
+              + (m.note || "") + " " + (d.note || ""))
+          + '"><b>' + esc(n) + '</b><i>moy '
+          + (moy != null ? moy.toFixed(3) : "—")
           + (d.bits ? ' · ' + d.bits + ' b · ' + d.levels + ' niv.' : '')
           + '</i></span>';
       });
-      html += '</div><p class="hint">Moyenne, profondeur et niveaux relevés '
-        + 'sur chaque PNG écrit. Une map à <b>un seul niveau</b> est dite '
-        + 'constante.</p>'
-        + '<p class="hint">Chaque PNG porte son <b>pHYs</b> ('
-        + ((row.atlas && row.atlas.density && row.atlas.density.dpi) || []).join(" x ")
-        + ' DPI) et son espace de couleur : <b>sRGB</b> sur basecolor et '
-        + 'emissive, <b>linéaire</b> sur les six autres.</p>'
+      /* ── UNE MAP LIVRÉE QUE RIEN NE POINTE ────────────────────────────────
+         « Une image présente dans l'archive et référencée par rien ne compte
+         pas » : le reproche est fondé, et il ne se voyait qu'en ouvrant le
+         .mtl à la main. Le backend relit les lignes du matériau qu'il vient
+         d'écrire (`material_refs`) et rend, PNG par PNG, l'emplacement qui le
+         pointe. Rien n'est écrit ici : le jour où le MTL cesserait de pointer
+         une map, cette ligne le dirait au lieu de continuer à l'annoncer. */
+      html += '</div>';                       /* fin des vignettes de maps */
+      const w = row.wiring || null;
+      const pointes = w ? Object.keys(w.wired || {}) : [];
+      if (w && (pointes.length || (w.unwired || []).length)) {
+        html += '<p class="hint">Branchement relu dans <code>'
+          + esc(w.material || "") + '</code> : '
+          + (pointes.map((k) => '<b>' + esc(k) + '</b> '
+            + esc((w.wired[k] || []).join("/"))).join(" · ")
+            || "aucune map pointée") + '.</p>';
+        const orph = w.unwired || [];
+        if (orph.length) {
+          const glb = orph.filter((k) => (w.in_glb || []).indexOf(k) >= 0);
+          html += '<p class="hint cf-gltf-warn"><b>' + esc(orph.join(", "))
+            + '</b> : aucun matériau de cette archive ne les pointe — elles '
+            + 'partent comme images sources'
+            + (glb.length ? ' (<b>' + esc(glb.join(", ")) + '</b> '
+              + (glb.length > 1 ? 'sont branchées' : 'est branchée')
+              + ' dans le GLB)' : '') + '.</p>';
+        }
+      }
+      html += '<p class="hint"><b>moy</b> — moyenne des échantillons du PNG '
+        + 'écrit, <b>tous canaux</b>, ramenée en 0..1 par la pleine échelle du '
+        + 'conteneur : c\'est le nombre que n\'importe quel décodeur refait sur '
+        + 'ces octets. Le détail par canal est dans l\'infobulle, avec le canal '
+        + 'que le service de dérivation regarde pour décider si la map porte '
+        + 'quelque chose — ce n\'est pas le même calcul, et les deux sont '
+        + 'nommés. Profondeur et niveaux sortent des mêmes octets. Une map à '
+        + '<b>un seul niveau</b> est dite constante.</p>'
+        /* CETTE PHRASE DISAIT « LE CHIFFRE ÉCRIT DANS LE CHUNK » EN AFFICHANT
+           UN CALCUL. `density.dpi` sort de la géométrie de l'îlot ; le chunk
+           pHYs, lui, est écrit en pixels par MÈTRE et arrondi à l'entier. Les
+           deux tombaient d'accord, mais rien de ce qui était publié ne le
+           montrait — il fallait croire la légende. Le backend rouvre donc les
+           PNG qu'il vient d'écrire, relit le chunk, et c'est ce nombre-là qui
+           s'affiche. Même chose pour l'espace de couleur : « les six autres »
+           était une soustraction faite ici ; ce sont maintenant les noms des
+           maps où le chunk sRGB a été trouvé, et celles où il ne l'est pas. */
+        + (phys && phys.dpi
+          ? '<p class="hint">Chunk <b>pHYs</b> relu dans les <b>' + phys.png
+            + '</b> PNG écrits : <b>' + phys.dpi.join(" x ") + ' DPI</b>'
+            + (phys.unanime ? '' : ' <b class="cf-gltf-ko">(les PNG ne portent '
+              + 'pas tous la même densité)</b>')
+            + (phys.srgb && phys.srgb.length
+              ? ' · chunk <b>sRGB</b> sur ' + esc(phys.srgb.join(", ")) : '')
+            + (phys.lineaire && phys.lineaire.length
+              ? ' · <b>linéaire</b> (gAMA 1.0) sur '
+                + esc(phys.lineaire.join(", ")) : '')
+            + '.</p>'
+          : '')
         /* LA RESERVE QUE LE CHUNK NE PEUT PAS PORTER. Un PNG n'a qu'UNE
            densite ; l'atlas en a trois. Le pHYs vaut pour le recto, et il est
            faux d'un ordre de grandeur sur la tranche — la notice invitait
@@ -1712,6 +2018,22 @@
             + 'prend le pHYs au pied de la lettre se trompe sur cette zone. '
             + 'La réserve voyage dans un chunk <code>tEXt</code> de chaque PNG.</p>'
           : '')
+        /* ── UN DIAGNOSTIC POSÉ SANS AUCUNE COMMANDE POUR AGIR DESSUS ───────
+           Reproche mesuré : ce panneau écrivait que 60 % des texels de son
+           atlas ne portent aucune information, donnait la définition qui n'en
+           gaspille pas — et expédiait quand même l'atlas de 2048 px. Le bouton
+           existait, dans la carte des réglages, à deux cartes d'ici : c'est-à-
+           dire loin de l'endroit où le constat se lit. Le constat et sa
+           commande se peignent maintenant au même endroit, avec les deux
+           nombres qui les fondent. */
+        + ((dens && dens.res_fit && Number(dens.res_fit) !== Number(get("res"))
+            && dens.wasted_px)
+          ? '<p class="hint cf-gltf-warn"><b>' + dens.useful_pct + ' %</b> des '
+            + 'texels de l\'îlot recto portent de l\'information : <b>'
+            + dens.wasted_px + '</b> texels n\'en portent aucune. '
+            + '<button class="btn sm" data-act="fit">ramener l\'atlas à '
+            + dens.res_fit + ' px</button> ' + esc(dens.fit_note || '') + '</p>'
+          : '')
         + '</div>';
     }
     el.innerHTML = html;
@@ -1724,10 +2046,15 @@
     const host = $("#cf-gltf-view");
     if (!host || $("#cf-gltf-mv")) return;
     const g = CF.geom();
+    /* « ... ET MESURERA SA BOÎTE ENGLOBANTE : 63 x 88 x 0.32 mm ATTENDUES. »
+       Le chiffre était le réglage, le mot le donnait pour la cible, et les
+       deux s'affichaient à l'endroit où le relevé viendra se poser. Un écran
+       qui annonce le résultat avant d'avoir ouvert le fichier n'a plus rien à
+       prouver quand il l'ouvre. On annonce donc le geste, pas le nombre : le
+       nombre arrive après la construction, et il sort du .glb. */
     host.innerHTML = '<p class="empty-note sm">La visionneuse ouvrira le '
-      + '<b>.glb</b> une fois construit, et mesurera sa boîte englobante : '
-      + '<b>' + g.trim_mm[0] + ' x ' + g.trim_mm[1] + ' x '
-      + thicknessMM() + ' mm</b> attendues.</p>';
+      + '<b>.glb</b> une fois construit et mesurera sa boîte englobante. Le '
+      + 'nombre s\'affichera ici, relu dans le fichier livré.</p>';
     const mes = $("#cf-gltf-mes");
     if (mes) {
       /* « 1,43 x 2,00 m » ÉTAIT UN NOMBRE CODÉ EN DUR, donc faux dès qu'on
@@ -1745,9 +2072,24 @@
     }
   }
 
-  function kv(k, v, ok) {
+  /* ── CE TABLEAU SE DONNAIT UNE NOTE, LIGNE PAR LIGNE ──────────────────────
+     Quatorze mesures, chacune peinte en VERT quand elle tombait sur la valeur
+     que le code espérait — metallicFactor === 1, roughnessFactor === 1,
+     materials === 1, wrap === CLAMP_TO_EDGE, TANGENT présent. Le nombre venait
+     bien du fichier ; la couleur, elle, ne venait de nulle part : elle
+     comparait le relevé à un attendu que l'écran ne montrait pas et que
+     personne n'avait réglé. C'est une grille de correction, pas un bordereau,
+     et un utilisateur n'a rien à faire d'une rangée de bons points.
+
+     La règle est maintenant asymétrique, et c'est tout l'objet : ce panneau
+     AVERTIT, il ne se félicite pas. Une mesure qui a une conséquence fâcheuse
+     pour celui qui monte le fichier sort en ambre ; les autres sortent
+     neutres, suivies de ce qu'elles CHANGENT pour lui. Le chiffre n'a pas
+     bougé d'une décimale — c'est la note qui est partie. */
+  function kv(k, v, ok, why) {
     return '<div><span>' + esc(k) + '</span><b class="'
-      + (ok ? "cf-gltf-ok" : "cf-gltf-ko") + '">' + esc(v) + '</b></div>';
+      + (ok === false ? "cf-gltf-ko" : "") + '">' + esc(v) + '</b>'
+      + (why ? '<i>' + esc(why) + '</i>' : '') + '</div>';
   }
 
   /* L'ETAT VIDE PROPOSE QUELQUE CHOSE : ce qui sera produit, et le bouton. */
@@ -1757,24 +2099,30 @@
     const scope = get("scope");
     /* « 4 textures » etait une promesse ronde : la quatrieme (emissive) etait
        embarquee meme quand emissiveFactor valait [0,0,0], donc multipliee par
-       zero. Le compte annonce depend maintenant de la finition, et le
-       bordereau affichera le compte RELU dans le fichier. */
+       zero. Le compte a ensuite suivi la finition — juste, mais toujours
+       ANNONCE : rien n'est ecrit quand cette ligne se peint, donc rien ne se
+       relit. Un chiffre qu'on ne peut pas prouver sur des octets ne s'affiche
+       plus ici du tout ; c'est la REGLE qui est ecrite, et le bordereau
+       comptera ce que le fichier porte. */
     const emet = ((INFO && INFO.finishes) || [])
       .filter((x) => x.id === get("finish"))[0];
-    const nTex = (emet && emet.emissive > 0) ? 4 : 3;
     const lignes = [];
-    if (f.indexOf("glb") >= 0) lignes.push("un <b>.glb</b> — géométrie, matériau, <b>"
-      + nTex + "</b> textures" + (nTex === 3 ? " (cette finition n\'émet pas : "
-        + "aucune texture émissive multipliée par zéro)" : ""));
+    if (f.indexOf("glb") >= 0) lignes.push("un <b>.glb</b> — géométrie, "
+      + "matériau, textures" + ((emet && emet.emissive > 0) ? ""
+        : " (cette finition n\'émet pas : aucune texture émissive, elle serait "
+          + "multipliée par zéro)"));
     if (f.indexOf("gltf") >= 0) lignes.push("un <b>.gltf</b> autonome — buffer en data URI, aucun <i>.bin</i> à côté");
-    /* « les 8 maps » était un 8 écrit ici. Le compte vient de `GET info`, qui
-       le tient du service de dérivation : si un canal était ajouté ou retiré,
-       cette ligne le suivrait au lieu de mentir d'un. */
-    const nMaps = (INFO && INFO.maps && INFO.maps.count) || 0;
-    if (f.indexOf("zip") >= 0) lignes.push("un <b>.zip</b> — "
-      + (nMaps ? "les <b>" + nMaps + "</b> maps PNG" : "les maps PNG")
-      + ", le manifeste, le maillage OBJ");
-    if (f.indexOf("obj") >= 0) lignes.push("un <b>OBJ + MTL</b> en millimètres, avec ses maps");
+    /* « les 8 maps » était un 8 écrit ici ; il est ensuite venu du backend,
+       ce qui le rendait juste mais toujours pas PROUVÉ : rien n'est écrit,
+       donc rien ne se relit. Et depuis que la map d'émission n'est écrite que
+       si un matériau peut la pointer, le compte dépend de la finition. Un
+       nombre annoncé avant la construction n'est vérifiable sur aucun octet :
+       il ne s'affiche plus qu'au bordereau, où il est compté sur l'archive. */
+    if (f.indexOf("zip") >= 0) lignes.push("un <b>.zip</b> — les maps PNG (une "
+      + "par canal dérivé, l\'émission seulement si la finition émet), le "
+      + "manifeste, le maillage OBJ et son MTL");
+    if (f.indexOf("obj") >= 0 && f.indexOf("zip") < 0)
+      lignes.push("un <b>OBJ + MTL</b> en millimètres, avec ses maps");
     if (f.indexOf("stl") >= 0) lignes.push("un <b>.stl</b> binaire en millimètres");
     if (f.indexOf("3mf") >= 0) lignes.push("un <b>.3mf</b> — norme ouverte d\'impression 3D, en millimètres, <b>avec la couleur</b>");
     if (scope === "deck" && n > 1) lignes.push("plus un ZIP du <b>jeu entier</b> (" + n + " cartes)");

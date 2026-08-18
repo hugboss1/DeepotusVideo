@@ -101,6 +101,21 @@
   font-size: 10.5px; color: var(--ink-muted); line-height: 1.55;
 }
 .cf-gltf .cf-gltf-free b { color: var(--green); font-size: 11px; letter-spacing: .04em; }
+
+/* ── OÙ VA LE FICHIER ───────────────────────────────────────────────────────
+   Sous le bordereau, contre les boutons qui livrent : c'est là que la
+   question se pose. Un filet au-dessus, rien d'autre — cette ligne est une
+   mesure du dossier, pas une alerte. */
+.cf-gltf .cf-gltf-where {
+  border-top: 1px solid var(--stroke); padding-top: 8px; margin-top: 10px;
+}
+.cf-gltf .cf-gltf-where b { color: var(--ink-strong); font-size: inherit; letter-spacing: 0; }
+.cf-gltf .cf-gltf-where b.cf-gltf-ok { color: var(--green); }
+.cf-gltf .cf-gltf-where b.cf-gltf-ko { color: var(--amber); }
+.cf-gltf .cf-gltf-where code {
+  font-family: var(--f-mono); font-size: 10px; color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
 .cf-gltf .cf-gltf-free kbd {
   font-family: var(--f-mono); font-size: 9.5px; border: 1px solid var(--stroke-strong);
   border-radius: 4px; padding: 0 3px; color: var(--ink-soft);
@@ -116,10 +131,16 @@
   width: 100%; height: 100%; min-height: 260px;
   --poster-color: transparent; background: transparent;
 }
+/* UNE LECTURE PAR LIGNE. Ce bloc alignait ses morceaux a la suite et les
+   laissait se replier ou ils pouvaient : « attendu ... » et « ecart ... »
+   partageaient une rangee, et les deux releves independants finissaient
+   melanges a la prose. Il ne reste que des lectures du fichier, une par
+   rangee, dans l'ordre ou on les obtient. */
 .cf-gltf .cf-gltf-mes {
-  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 11px;
-  color: var(--ink-muted);
+  display: flex; align-items: baseline; gap: 3px 10px; flex-wrap: wrap;
+  font-size: 11px; color: var(--ink-muted);
 }
+.cf-gltf .cf-gltf-mes > * { flex: 1 0 100%; }
 .cf-gltf .cf-gltf-mes b { color: var(--ink-strong); font-size: 12px; }
 
 /* ── bordereau ──────────────────────────────────────────────────────────── */
@@ -152,14 +173,26 @@
 }
 .cf-gltf .cf-gltf-pill b { color: var(--ink-strong); font-family: var(--f-ui); font-weight: 600; }
 
-.cf-gltf .cf-gltf-kv2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 3px 16px; }
+/* ── LA CONSEQUENCE SOUS LA MESURE ─────────────────────────────────────────
+   Ce tableau alignait quatorze mesures peintes en vert quand elles tombaient
+   sur la valeur que le code esperait : une grille de correction, pas un
+   bordereau. Chaque rangee porte desormais, sous son nombre, ce que ce nombre
+   CHANGE pour qui monte le fichier. La colonne s'elargit d'autant (250 -> 330
+   px) : une phrase de deux lignes dans une colonne de 250 px se lit moins bien
+   qu'une coche, et l'echange serait perdant. */
+.cf-gltf .cf-gltf-kv2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 7px 20px; }
 .cf-gltf .cf-gltf-kv2 > div {
-  display: flex; align-items: baseline; gap: 6px; font-size: 11px; min-width: 0;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px;
+  font-size: 11px; min-width: 0;
 }
 .cf-gltf .cf-gltf-kv2 span { color: var(--ink-muted); flex: none; }
 .cf-gltf .cf-gltf-kv2 b {
   font-family: var(--f-mono); font-weight: 500; min-width: 0;
   overflow-wrap: anywhere;   /* KHR_materials_clearcoat debordait sur la colonne voisine */
+}
+.cf-gltf .cf-gltf-kv2 i {
+  flex: 1 0 100%; font-style: normal; font-size: 10px; line-height: 1.4;
+  color: var(--ink-muted); opacity: .82;
 }
 
 .cf-gltf .cf-gltf-maps { display: flex; flex-wrap: wrap; gap: 5px; }

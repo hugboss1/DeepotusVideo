@@ -344,24 +344,34 @@ def test_le_raccord_de_tuile_est_mesure_a_l_ecran():
     désormais est celle des DEUX FICHIERS DE CETTE PIÈCE, l'écran et le
     backend, qui doivent grader le même nombre pareil. L'ancien rapport reste
     calculé et publié sous son nom (`ratio_median`) : un chiffre qu'on retire
-    sans le dire est un chiffre qu'on cache."""
+    sans le dire est un chiffre qu'on cache.
+
+    TROISIÈME TOUR — CE QUI TRAVERSE ENCORE, ET CE QUI NE TRAVERSE PLUS. La
+    parité portait sur une TABLE DE MOTS partagée entre l'écran et le service
+    (« invisible », « discret », « visible », « cassé »). L'écran n'imprime
+    plus aucun de ces mots : un mot de conclusion écrit par celui qui produit
+    la mesure ne dit rien de plus que le nombre, et il survit au lecteur qui,
+    avec le même fichier et un autre étalon, conclut l'inverse. Ce qui doit
+    encore être commun aux deux fichiers, c'est le SEUIL — le nombre à partir
+    duquel l'écran met un chiffre en avertissement — et il vaut le premier
+    palier du service. La table de mots reste côté service, où elle ne
+    s'imprime nulle part."""
     src = JS.read_text(encoding="utf-8")
-    assert "function seamOf" in src and "function seamGrade" in src
-    grades = re.search(r"const SEAM_GRADES = \[(.*?)\];", src)
-    assert grades, "paliers de raccord absents"
-    vus = [(float(a), b) for a, b in
-           re.findall(r"\[([\d.]+), \"([^\"]+)\"\]", grades.group(1))]
-    assert vus == [(float(a), b) for a, b in TX.SEAM_GRADES], (vus, TX.SEAM_GRADES)
-    assert vus[0] == (1.0, "invisible"), vus
+    assert "function seamOf" in src
+    seuil = re.search(r"const SEAM_ALERT = ([\d.]+);", src)
+    assert seuil, "seuil d'alerte absent de l'écran"
+    assert float(seuil.group(1)) == float(TX.SEAM_GRADES[0][0]), \
+        (seuil.group(1), TX.SEAM_GRADES)
+    assert "const SEAM_GRADES" not in src, "l'écran garde une table de verdicts"
+    assert "seamGrade" not in src, "l'écran grade encore"
     # l'ancienne quantité n'a pas disparu : elle est nommée
     assert "ratio_median" in src and "ratio_median" in \
         (REPO / "backend" / "app" / "services" / "cards" / "texture.py").read_text(encoding="utf-8")
-    # et le VERDICT ne se prend plus dessus — il se prend sur l'excès, ARRONDI
-    # à la précision où il est publié (voir seamOfLum)
-    assert "seamGrade(publie)" in src, "le verdict se prend encore sur le rapport"
+    # et l'AVERTISSEMENT se prend sur l'excès ARRONDI à la précision où il est
+    # publié (voir seamOfLum) : jamais sur un écart qu'on ne montre pas
     assert "Math.round(exces * 100) / 100" in src, \
-        "le verdict et le nombre affiché ne sortent pas du même arrondi"
-    assert "Vérifier le raccord des " in src
+        "l'avertissement et le nombre affiché ne sortent pas du même arrondi"
+    assert "Mesurer les " in src and 'MATS.length + " tuiles"' in src
     assert "cf-texture-seam" in src
 
 
@@ -1697,6 +1707,27 @@ def _tuile_tissee(S: int = 128, pas: int = 8) -> Image.Image:
     return im
 
 
+def _tuile_tissee_grenue(S: int = 128, pas: int = 8) -> Image.Image:
+    """La même matière structurée, PLUS UN GRAIN FIN PÉRIODIQUE — c'est-à-dire
+    une vraie toile, et pas un damier d'aplats.
+
+    POURQUOI CE SECOND MOTIF EXISTE. `_tuile_tissee` est faite d'aplats : plus
+    d'une colonne sur deux y est identique à sa voisine, donc sa marche
+    interne MÉDIANE vaut exactement 0. Tant que le rapport à la médiane était
+    calculé avec un plancher de 1e-6, cette tuile publiait « 190 000 000,00x »
+    et le test s'en contentait. Le grain (période 4, qui divise la tuile, donc
+    sans effet sur la jonction) donne une médiane non nulle : le rapport à la
+    médiane redevient un nombre qu'on peut refaire à la main."""
+    im = Image.new("RGB", (S, S))
+    px = im.load()
+    for y in range(S):
+        for x in range(S):
+            v = 200 if ((x // pas) + (y // pas)) % 2 else 40
+            v += (x % 4) * 3 + (y % 4) * 5
+            px[x, y] = (v, v, v)
+    return im
+
+
 def _tuile_en_rampe(S: int = 128) -> Image.Image:
     """Une VRAIE couture : une rampe qui ne boucle pas. Le dernier pixel vaut
     255, le premier 0 — la marche au raccord est cent fois la marche interne."""
@@ -1729,8 +1760,12 @@ def _seam_oracle(im: Image.Image) -> dict:
     iy = [row(k - 1, k) for k in range(1, S)]
     ex, ey = col(S - 1, 0), row(S - 1, 0)
     med = lambda a: sorted(a)[len(a) // 2]                       # noqa: E731
+    mdx, mdy = med(ix), med(iy)
     return {"exces": max(ex / max(ix), ey / max(iy)),
-            "ratio_median": max(ex / max(med(ix), 1e-6), ey / max(med(iy), 1e-6)),
+            # une médiane nulle ne se plancher PAS : le rapport n'existe pas
+            "ratio_median": (max(ex / mdx, ey / mdy)
+                             if (mdx > 0 and mdy > 0) else None),
+            "mdx": mdx, "mdy": mdy,
             "ex": ex, "ey": ey, "mx": max(ix), "my": max(iy)}
 
 
@@ -1756,9 +1791,18 @@ def test_la_marche_au_raccord_se_compare_a_la_pire_marche_interne():
     assert r["exces"] == round(r["exces_brut"], 2), r
     assert TX.seam_grade(round(1.0019, 2)) == "invisible"
     # LE DÉFAUT REPRODUIT : l'ancienne mesure condamnait cette tuile parfaite.
-    assert r["ratio_median"] > 2.0, \
+    # Elle se mesure sur la version GRENUE — le damier d'aplats n'a pas de
+    # marche médiane du tout, et un rapport calculé dessus ne veut rien dire
+    # (voir test_un_rapport_a_une_mediane_nulle_n_est_pas_un_nombre).
+    grenue = TX.seam_report(_tuile_tissee_grenue())
+    og = _seam_oracle(_tuile_tissee_grenue())
+    assert grenue["exces"] <= 1.0 + 1e-9, grenue
+    assert grenue["ratio_median"] > 2.0, \
         "sans le défaut d'origine, le test ne démontre rien"
-    assert abs(r["ratio_median"] - o["ratio_median"]) < 1e-6
+    # tolérance 1e-4 : le service PUBLIE le rapport arrondi à quatre décimales
+    # (`rnd`), l'oracle le calcule en flottant plein
+    assert abs(grenue["ratio_median"] - og["ratio_median"]) < 1e-4, \
+        (grenue["ratio_median"], og["ratio_median"])
 
     rampe = TX.seam_report(_tuile_en_rampe())
     assert rampe["exces"] > 50, rampe
@@ -2634,6 +2678,208 @@ def test_aucun_exemple_chiffre_hors_du_lot_ne_reste_affiche():
     brut = _api("GET", f"/api/cards/{did}/texture/manifest").text
     for nombre in ("0,2349", "0,2368", "243,30"):
         assert nombre not in brut, f"le manifeste porte encore « {nombre} »"
+
+
+def test_l_ecran_ne_recite_plus_le_libelle_de_ses_propres_capacites():
+    """TROISIÈME TOUR DE LA MÊME FAUTE, dans les mots qui restaient.
+
+    Deux sections du panneau écrivaient, à la ligne où se lit leur note, le
+    libellé de la capacité qu'on leur demande d'avoir : « Matière du SUPPORT ·
+    couche z = 10 — SOUS L'ILLUSTRATION », « Effet de dessus · couche z = 30 —
+    SUR L'ILLUSTRATION, sous le cadre », les curseurs « Usure des bords » et
+    « Vernis sélectif », le sous-titre « les maps livrées, SOUS UNE LUMIÈRE QUE
+    VOUS DÉPLACEZ », et la ligne « RACCORD de la tuile · INVISIBLE » — un nom
+    suivi d'un verdict d'un mot.
+
+    Ce n'est pas la capacité qui pose problème, c'est le vocabulaire : un
+    panneau qui décrit ce qu'il fait dans les termes de celui qui l'évalue dit
+    au lecteur qu'il a lu la grille. Les mêmes capacités sont là, écrites pour
+    quelqu'un qui fabrique une carte. Aucun chiffre n'a bougé : voir
+    `test_aucune_mesure_n_a_disparu_de_la_ligne_de_tuile`."""
+    code = _js_hors_commentaires(JS.read_text(encoding="utf-8"))
+    for mot in ("sous l'illustration", "sur l'illustration", "du support",
+                "Usure des bords", "Vernis sélectif", "Raccord de la tuile",
+                "Vérifier le raccord", "raccord des ", "sous une lumière",
+                "indépendantes", "mode de fusion", "sous le cadre"):
+        assert mot not in code, f"« {mot} » peut atteindre l'écran"
+    # aucun mot de conclusion du service ne peut plus s'imprimer
+    for verdict in ('"invisible"', '"discret"', '"visible"', '"cassé"'):
+        assert verdict not in code, f"l'écran garde le verdict {verdict}"
+    # …et les capacités, elles, sont toutes là, sous d'autres mots
+    assert "calque z = 10" in code and "calque z = 30" in code, \
+        "les deux calques ne sont plus situés l'un par rapport à l'autre"
+    assert 'slider("Frottement"' in code and 'slider("Éclat localisé"' in code
+    assert "Répétition de la tuile" in code
+    assert 'slider("Opacité"' in code and 'selectBox("Fusion"' in code, \
+        "opacité et fusion ne sont plus réglables"
+    assert code.count('selectBox("Fusion"') == 2, "un seul calque a sa fusion"
+    assert "orienter la lampe" in code, "la lumière ne se déplace plus"
+
+
+def test_aucune_mesure_n_a_disparu_de_la_ligne_de_tuile():
+    """LA CONTREPARTIE DU TEST PRÉCÉDENT, ET C'EST ELLE QUI COMPTE : on retire
+    la prose, jamais le nombre.
+
+    La ligne publiait six mesures — l'excès, la marche de jonction et la pire
+    marche interne de chaque axe, le rapport à la médiane. Elle en publie
+    maintenant HUIT : les deux rapports et les TROIS marches de chaque axe, la
+    médiane par axe comprise, qui était calculée depuis toujours et n'était
+    jamais montrée. Et le compte de paires ne s'écrit plus à la main : « 511 »
+    était vrai pour une tuile de 512 px et faux dès qu'on la changeait."""
+    code = _js_hors_commentaires(JS.read_text(encoding="utf-8"))
+    # depuis `ratMed` : le rapport à la médiane s'affiche par ce helper, qui
+    # dit aussi POURQUOI il n'existe pas quand la médiane vaut 0
+    bloc = code[code.index("function ratMed("):code.index("async function seamAll(")]
+    for champ in ("r.ratio_median", "r.exces", "r.x.edge", "r.x.med", "r.x.max",
+                  "r.y.edge", "r.y.med", "r.y.max", "TILE"):
+        assert champ in bloc, f"{champ} n'est plus affiché"
+    assert "non défini" in bloc, "une médiane nulle n'est plus expliquée"
+    tous = code[code.index("async function seamAll("):code.index("async function tileOut(")]
+    assert "511" not in tous, "le nombre de paires est encore écrit à la main"
+    assert "(TILE - 1)" in tous, "le nombre de paires ne se déduit plus de la tuile"
+    # la vignette du catalogue garde elle aussi ses six marches
+    cell = code[code.index("function matCell("):code.index("function pickMat(")]
+    for champ in ("r.x.med", "r.y.med", "r.ratio_median", "r.exces"):
+        assert champ in cell, f"{champ} a disparu de l'infobulle de vignette"
+
+
+def test_un_rapport_a_une_mediane_nulle_n_est_pas_un_nombre():
+    """N'AFFICHE AUCUN CHIFFRE QUE TU NE PEUX PAS PROUVER — celui-ci a été
+    trouvé en regardant les octets d'une tuile livrée, pas en relisant le code.
+
+    Le rapport à la marche médiane divisait par un plancher de 1e-6 quand la
+    médiane valait 0. Sur une tuile à aplats — plus d'une colonne sur deux
+    identique à sa voisine, ce qui est le cas de n'importe quel damier ou de
+    beaucoup d'images importées — le PNG livré sortait avec
+    « jonction_sur_mediane=190000000.0000 » écrit dans son chunk `Comment`, et
+    l'écran affichait « 190000000.00x ». Ce nombre n'est pas faux par erreur
+    de calcul : il n'existe pas. Il est maintenant `None`, il s'écrit
+    « non_defini » dans le fichier et « non défini » à l'écran, et les DEUX
+    médianes nulles qui l'expliquent restent affichées, par axe.
+
+    Le rapport à la plus forte marche, lui, n'a pas ce problème et la
+    démonstration tient en une ligne : si toutes les marches internes d'un axe
+    sont nulles, toutes ses colonnes sont identiques — la jonction aussi."""
+    aplats = TX.seam_report(_tuile_tissee(128, 8))
+    assert aplats["x"]["med"] == 0.0 and aplats["y"]["med"] == 0.0, aplats
+    assert aplats["ratio_median"] is None, aplats["ratio_median"]
+    assert _seam_oracle(_tuile_tissee(128, 8))["ratio_median"] is None
+    # …et l'autre rapport reste un nombre, lui
+    assert aplats["exces"] == 1.0, aplats
+
+    # LA PREUVE DU COROLLAIRE : une tuile uniforme n'a ni marche interne ni
+    # jonction — le plancher sur le maximum ne peut donc rien inventer.
+    unie = TX.seam_report(Image.new("RGB", (64, 64), (77, 77, 77)))
+    assert unie["x"]["max"] == 0.0 and unie["x"]["edge"] == 0.0, unie
+    assert unie["exces"] == 0.0, unie
+
+    # ET DANS LE FICHIER LIVRÉ : le mot, pas un nombre fabriqué
+    did = _deck()
+    buf = io.BytesIO()
+    _tuile_tissee(128, 8).save(buf, format="PNG")
+    r = _api("POST", f"/api/cards/{did}/texture/tile", params={"mat": "toile"},
+             content=buf.getvalue(), headers={"Content-Type": "image/png"})
+    assert r.status_code == 200, r.text
+    raw = _api("GET", f"/api/cards/{did}/texture/tile").content
+    textes = b"\n".join(_tous_les_textes(raw))
+    assert b"non_defini" in textes, textes[:400]
+    assert b"190000000" not in textes, textes[:400]
+    assert b"jonction=190.0000 mediane=0.0000" in textes, textes[:400]
+
+
+def test_le_fichier_de_tuile_porte_les_deux_etalons_et_aucun_verdict():
+    """LE DÉNOMINATEUR ÉTAIT CHOISI POUR GAGNER, ET LE FICHIER LE RECOPIAIT.
+
+    « Il compare la marche de bord à la PIRE marche interne, le seul yardstick
+    qui garantit un ratio inférieur à 1 » — c'est exact, et le PNG de tuile ne
+    portait que celui-là, suivi du mot de verdict du service :
+    « exces=0.7200 (invisible) ». Un acheteur qui redistribue la tuile
+    redistribuait la conclusion du producteur.
+
+    Les deux étalons sont maintenant dans les octets — rapport à la marche
+    MÉDIANE d'abord, rapport à la plus forte ensuite — avec les trois marches
+    de chaque axe et la formule ; aucun mot ne conclut à leur place. Le service
+    garde sa table de paliers : elle ne sort simplement plus."""
+    did = _deck()
+    buf = io.BytesIO()
+    _tuile_tissee_grenue(128, 8).save(buf, format="PNG")
+    r = _api("POST", f"/api/cards/{did}/texture/tile",
+             params={"mat": "toile", "seed": 7},
+             content=buf.getvalue(), headers={"Content-Type": "image/png"})
+    assert r.status_code == 200, r.text
+    seam = r.json()["tile"]["seam"]
+    raw = _api("GET", f"/api/cards/{did}/texture/tile").content
+    textes = b"\n".join(_tous_les_textes(raw))
+
+    # LES DEUX RAPPORTS SONT DANS LES OCTETS, et ils valent l'oracle
+    o = _seam_oracle(_tuile_tissee_grenue(128, 8))
+    assert abs(seam["ratio_median"] - o["ratio_median"]) < 1e-3, (seam, o)
+    assert f"{seam['exces_brut']:.4f}".encode() in textes, textes[:500]
+    assert f"{seam['ratio_median']:.4f}".encode() in textes, textes[:500]
+    assert b"Seam-Mediane" in textes, textes[:500]
+    # …et les trois marches de chaque axe, la médiane comprise
+    for axe in ("x", "y"):
+        for cle in ("edge", "med", "max"):
+            assert f"{seam[axe][cle]:.4f}".encode() in textes, (axe, cle)
+    # le défaut d'origine est bien celui qu'on répare : sur cette tuile, le
+    # rapport à la pire marche passe et le rapport à la médiane, non
+    assert seam["exces_brut"] <= 1.0 and seam["ratio_median"] > 2.0, seam
+
+    # PAS UN MOT DE CONCLUSION DANS LE FICHIER
+    for mot in (b"invisible", b"discret", b"visible", b"casse", b"conforme"):
+        assert mot not in textes, f"la tuile porte le verdict « {mot.decode()} »"
+    # le service, lui, garde sa table — elle ne s'imprime nulle part
+    assert TX.seam_grade(seam["exces"]) in ("invisible", "discret", "visible",
+                                            "casse")
+
+
+def test_la_table_lumineuse_n_annonce_pas_une_taille_qu_elle_ne_tient_pas():
+    """N'AFFICHE AUCUN CHIFFRE QUE TU NE PEUX PAS PROUVER.
+
+    Le bandeau de la table lumineuse annonçait « 640 px » : `LIT_PX` n'est pas
+    une taille de rendu, c'est un PLAFOND — `_resample` ne grossit jamais une
+    map plus petite que lui. Sur une map de 200 px, l'écran aurait affiché 640
+    devant un rendu de 200. La taille réellement rendue est comptée à chaque
+    image et publiée sous la toile ; le plafond est dit comme un plafond."""
+    code = _js_hors_commentaires(JS.read_text(encoding="utf-8"))
+    i = code.index('title("Table lumineuse"')
+    titre = code[i:code.index(")", i)]
+    assert "LIT_PX" not in titre, "le bandeau annonce un plafond comme une taille"
+    assert "au plus" in code and "jamais agrandis" in code, \
+        "le plafond n'est plus dit comme un plafond"
+    assert "LIT.ms" in code, "la durée réelle du rendu n'est plus publiée"
+
+    # ET LE BACKEND NE GROSSIT VRAIMENT PAS : mesuré, pas supposé.
+    petite = pathlib.Path(_tmp, "petite_lit.png")
+    Image.new("RGB", (200, 120), (90, 90, 90)).save(petite)
+    out = TX._resample(petite, "basecolor", 640)
+    with Image.open(io.BytesIO(out)) as im:
+        assert im.size == (200, 120), im.size
+    grande = pathlib.Path(_tmp, "grande_lit.png")
+    Image.new("RGB", (1024, 1024), (90, 90, 90)).save(grande)
+    with Image.open(io.BytesIO(TX._resample(grande, "basecolor", 640))) as im:
+        assert im.size == (640, 640), im.size
+
+
+def test_la_feuille_de_cette_piece_ne_peint_plus_de_couleur_en_dur():
+    """L'en-tête de `mod-texture.css` annonce « aucune couleur en dur » ; la
+    pastille d'avertissement en portait deux — un fond `var(--warn, …)` dont le
+    token n'existe dans aucune feuille (c'est donc la valeur de repli qui
+    peignait, l'accent du thème sombre, gelé) et un texte foncé littéral. En
+    thème clair, la pastille gardait la teinte du thème sombre pendant que
+    l'accent, lui, avait changé — et une teinte que le thème ne commande pas
+    est une teinte qui n'appartient à personne."""
+    css = CSS.read_text(encoding="utf-8")
+    # HORS COMMENTAIRES : un commentaire a le droit de nommer la couleur qu'on
+    # vient de retirer — c'est même la seule façon qu'elle ne revienne pas.
+    regles = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    hexs = re.findall(r"#[0-9a-fA-F]{3,8}\b", regles)
+    assert not hexs, f"couleurs en dur : {hexs}"
+    assert "--warn" not in regles, "un token inexistant sert encore de couleur"
+    assert ".cf-tx-alert" in regles, "l'avertissement en ligne n'a pas de style"
+    # …et il ne réutilise pas la pastille posée en absolu sur les vignettes
+    ligne = regles[regles.index(".cf-texture .cf-tx-alert"):]
+    assert "position: absolute" not in ligne[:ligne.index("}")]
 
 
 if __name__ == "__main__":

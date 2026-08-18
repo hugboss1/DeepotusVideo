@@ -146,10 +146,11 @@
     linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%),
     linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%);
   background-size: 14px 14px; background-position: 0 0, 7px 7px; }
-/* `flex-wrap` : le badge de profondeur porte DEUX mesures (« 16 bits · 91.1 %
-   sous-niveaux · octet faible 5.82 b ») et ne tient plus sur la ligne du titre.
-   En `nowrap` il etait COUPE au bord de la vignette — un chiffre tronque est un
-   chiffre faux. Il passe donc a la ligne quand il ne tient pas. */
+/* `flex-wrap` : le badge de profondeur a porte ses deux mesures sur la ligne du
+   titre, ou il etait COUPE au bord de la vignette — un chiffre tronque est un
+   chiffre faux. Les mesures sont descendues dans le bloc de valeurs, chacune
+   avec son etiquette ; le badge ne dit plus que la profondeur. Le retour a la
+   ligne reste, pour les noms de map longs. */
 .cf-texture .cf-tx-mt { display: flex; align-items: baseline; justify-content: space-between;
   gap: 2px 6px; flex-wrap: wrap; }
 .cf-texture .cf-tx-mt b { font-size: 11.5px; color: var(--ink-strong); font-weight: 600;
@@ -193,11 +194,18 @@
 .cf-texture .cf-tx-mt i.cf-tx-warnb { color: var(--accent); border-bottom: 1px dotted var(--accent);
   cursor: help; }
 
-/* ── raccord de tuile ───────────────────────────────────────────────────── */
+/* ── repetition de tuile ────────────────────────────────────────────────── */
 .cf-texture .cf-tx-seam { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cf-texture .cf-tx-seamline { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
-  font-size: 10.5px; color: var(--ink-muted); }
+.cf-texture .cf-tx-seamline { display: flex; align-items: baseline; gap: 8px 14px;
+  flex-wrap: wrap; font-size: 10.5px; color: var(--ink-muted); }
 .cf-texture .cf-tx-seamline b { color: var(--ink-strong); font-size: 11px; font-weight: 600; }
+/* MEME PIEGE QUE SOUS LES VIGNETTES DE MAPS, MEME REMEDE. L'etiquette de
+   definition vit DANS le <span> du chiffre pour qu'aucun retour a la ligne ne
+   l'en separe — mais sans `inline-flex` + `gap` elle vient se coller au
+   dernier caractere du nombre : « 0,36xtuile 512 px » se lit a l'ecran comme
+   un nombre faux. */
+.cf-texture .cf-tx-seamline span { display: inline-flex; align-items: baseline;
+  gap: 4px 6px; flex-wrap: wrap; max-width: 100%; min-width: 0; }
 .cf-texture .cf-tx-seamall { flex-basis: 100%; display: flex; flex-direction: column; gap: 5px; }
 .cf-texture .cf-tx-seamgrid { display: grid; gap: 3px 10px; font-size: 9.5px;
   grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); }
@@ -206,10 +214,23 @@
 /* L'AVERTISSEMENT SUR LA VIGNETTE QU'ON CLIQUE : le rapport en bas de page ne
    suffit pas, on choisit sa matiere dans la grille. */
 .cf-texture .cf-tx-mat { position: relative; }
+/* LA COULEUR EN DUR EST PARTIE. Le fond etait `var(--warn, <litteral>)` et le
+   token `--warn` n'existe dans aucune feuille : c'est donc la valeur de repli
+   qui peignait — l'accent du theme sombre, gele — sur un texte fonce lui aussi
+   litteral. En theme clair, la pastille gardait la teinte du theme sombre
+   pendant que l'accent, lui, avait change. L'en-tete de cette feuille annonce
+   « aucune couleur en dur » ; elle en portait deux. */
 .cf-texture .cf-tx-matseam { position: absolute; top: 3px; right: 3px;
   font-style: normal; font-size: 8px; font-weight: 700; letter-spacing: .2px;
-  padding: 1px 3px; border-radius: 4px; color: #1b1206;
-  background: var(--warn, #f0b429); box-shadow: 0 1px 3px rgba(0, 0, 0, .45); }
+  padding: 1px 3px; border-radius: 4px; color: var(--accent-ink);
+  background: var(--accent);
+  box-shadow: 0 1px 3px color-mix(in srgb, var(--ink-strong) 45%, transparent); }
+/* le meme avertissement, mais DANS le flux : la pastille de la grille est
+   posee en absolu sur sa vignette, la reutiliser sur une ligne de texte
+   l'aurait envoyee se coller au coin de la carte de section. */
+.cf-texture .cf-tx-alert { font-size: 10px; font-weight: 700; letter-spacing: .2px;
+  padding: 1px 5px; border-radius: 4px; color: var(--accent-ink);
+  background: var(--accent); font-family: var(--f-mono); }
 
 /* ── table lumineuse ────────────────────────────────────────────────────── */
 .cf-texture .cf-tx-lit { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }

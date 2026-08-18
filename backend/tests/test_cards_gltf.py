@@ -37,6 +37,7 @@ import struct
 import sys
 import tempfile
 import zipfile
+import zlib
 
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = \
@@ -208,11 +209,16 @@ def test_zip_huit_maps_nommees_exactement():
                                             _par_genre(c["build"], "zip")["name"])))
     noms = set(z.namelist())
     pngs = sorted(n for n in noms if n.endswith(".png"))
-    assert pngs == sorted(f"{k}.png" for k in MAPS_ATTENDUES), pngs
-    assert len(pngs) == 8
+    # LA MAP QUE PERSONNE NE POINTAIT N'EST PLUS EMBARQUEE. Cet export sort en
+    # finition « vernis », dont le facteur d'emission est nul : aucun materiau
+    # ne pourrait lire emissive.png (ni emissiveTexture dans le GLB, ni map_Ke
+    # dans le MTL), elle n'est donc pas ecrite. Les SEPT autres y sont, aux
+    # noms du contrat.
+    sans_emission = [k for k in MAPS_ATTENDUES if k != "emissive"]
+    assert pngs == sorted(f"{k}.png" for k in sans_emission), pngs
+    assert len(pngs) == 7
     for manquant in ("ao.png", "height.png"):
         assert manquant in pngs, f"{manquant} — Meshy ne l'a pas, nous si"
-    assert len(pngs) - len(MESHY_MAPS) == 3
     assert "manifest.json" in noms and "LISEZMOI.txt" in noms
     # LE MAILLAGE EST DEDANS — mais ce n'est plus une SECONDE COPIE DU GLB.
     # Mesuré sur le lot du 11/08 : le .glb était livré seul (4 208 876 o) ET
@@ -223,6 +229,19 @@ def test_zip_huit_maps_nommees_exactement():
     assert any(n.endswith(".obj") for n in noms), "le maillage doit être dedans"
     assert not any(n.endswith(".glb") for n in noms), \
         "le GLB est déjà livré seul : le recopier ici est de la redondance pure"
+
+    # ── ET LES HUIT DES QU'UNE FINITION EMET ────────────────────────────────
+    # La regle est « une map n'est ecrite que si un materiau peut la pointer »,
+    # pas « sept » : la dorure emet, son emissive.png part, et le compte des
+    # canaux redevient huit. C'est LA que se compare Meshy, qui en livre cinq.
+    did = _deck("Huit")
+    _depose_atlas(did, 256)
+    bf = _build(did, res=256, formats=["zip"], finish="foil")
+    zf = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(bf, "zip")["name"])))
+    pf = sorted(n for n in zf.namelist() if n.endswith(".png"))
+    assert pf == sorted(f"{k}.png" for k in MAPS_ATTENDUES), pf
+    assert len(pf) == 8
+    assert len(pf) - len(MESHY_MAPS) == 3
     obj = [n for n in noms if n.endswith(".obj")][0]
     glb = _fichier(c["did"], _par_genre(c["build"], "glb")["name"])
     assert len(z.read(obj)) * 4 < len(glb), (len(z.read(obj)), len(glb))
@@ -232,7 +251,7 @@ def test_zip_huit_maps_nommees_exactement():
 
     man = json.loads(z.read("manifest.json").decode("utf-8"))
     assert man["maps"]["expected"] == MAPS_ATTENDUES
-    assert man["maps"]["count"] == 8
+    assert man["maps"]["count"] == len(pngs)
     assert man["card"]["size_mm"] == TAILLE_MM
     # chaque map porte une MESURE, pas une promesse de curseur
     for k in MAPS_ATTENDUES:
@@ -387,7 +406,13 @@ def test_chaque_png_porte_sa_definition_et_son_espace_de_couleur():
     # l'affichage : 15.94 au lieu de 15.9365 déplaçait le chunk de 0,1 DPI).
     attendu = (round(dens["front_px"][0] / TAILLE_MM[0] * 1000),
                round(dens["front_px"][1] / TAILLE_MM[1] * 1000))
-    for k in MAPS_ATTENDUES:
+    # SUR LES PNG QUE L'ARCHIVE PORTE, pas sur une liste ecrite ici : depuis
+    # que la map d'emission n'est ecrite que si un materiau peut la pointer, le
+    # contenu depend de la finition, et un test qui recopie huit noms
+    # verifierait un fichier absent.
+    presents = sorted(n[:-4] for n in z.namelist() if n.endswith(".png"))
+    assert presents, z.namelist()
+    for k in presents:
         data = z.read(f"{k}.png")
         types = [t for t, _ in _png_chunks(data)]
         assert "pHYs" in types, f"{k}.png sans pHYs : le DPI annoncé est indémontrable"
@@ -502,7 +527,13 @@ def test_aucune_texture_multipliee_par_zero():
     # recopiées dans chaque fichier livré : le facteur qui annule la map et
     # l'archive où elle reste disponible se lisent, ils ne se paraphrasent pas.
     assert ex["skipped"] == ["emissive"]
-    assert ex["skipped_reason"] == {"emissive_factor": 0.0, "still_in": "zip"}
+    # ELLE NE SURVIT PLUS DANS LE ZIP NON PLUS. Le tour precedent l'ecartait du
+    # GLB et la laissait voyager dans les deux archives, ou aucun materiau ne
+    # la pointait : 75 030 octets que l'utilisateur telechargeait sans que rien
+    # ne puisse les lire. `still_in` valait « zip » ; il ne vaut plus rien.
+    assert ex["skipped_reason"]["emissive_factor"] == 0.0
+    assert ex["skipped_reason"]["still_in"] is None, ex["skipped_reason"]
+    assert "pointer" in ex["skipped_reason"]["why"], ex["skipped_reason"]
     # le MTL suit la MÊME doctrine : pas de map_Ke sur une finition qui n'émet pas
     b = _build(did, res=1024, formats=["obj"], finish="mat")
     z = zipfile.ZipFile(io.BytesIO(_fichier(did, b["files"][0]["name"])))
@@ -751,10 +782,15 @@ def test_obj_mtl_et_stl_livres_en_millimetres():
             cible = ligne.split()[-1]
             assert cible in noms, f"le MTL pointe {cible}, absent de l'archive"
     assert "map_Kd basecolor.png" in mtltxt
-    # les PNG de l'archive OBJ sont les MÊMES octets que ceux du ZIP des maps.
-    b2 = _build(did, res=512, formats=["zip", "obj"])
-    zz = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b2, "zip")["name"])))
-    zo = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b2, "obj")["name"])))
+    # LES PNG DE L'ARCHIVE OBJ SONT LES MÊMES OCTETS QUE CEUX DU ZIP DES MAPS.
+    # Les deux ne sortent plus ensemble (cocher les deux n'ecrit qu'une
+    # archive : voir la fusion), on les construit donc l'une PUIS l'autre — ce
+    # qui est un test plus dur, puisque deux constructions separees doivent
+    # rendre les memes octets.
+    bz = _build(did, res=512, formats=["zip"])
+    zz = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(bz, "zip")["name"])))
+    bo = _build(did, res=512, formats=["obj"])
+    zo = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(bo, "obj")["name"])))
     assert zz.read("basecolor.png") == zo.read("basecolor.png"), \
         "deux encodages différents = deux vérités"
 
@@ -1259,7 +1295,7 @@ def test_le_seize_bits_est_DERIVE_et_reste_LA_MEME_IMAGE():
         par_canal = [len(set(vals[c::nch])) for c in range(nch)]
         assert d["levels"] == max(par_canal), (nom, d["levels"], par_canal)
         assert d["levels_per_channel"] == par_canal, nom
-        assert "reels" in d["verdict"].lower(), d["verdict"]
+        assert "reels" in d["summary"].lower(), d["summary"]
         assert d["measured_on"].startswith("octets du PNG livre")
 
         # LA MÊME IMAGE : on requantifie les échantillons 16 bits en 8 bits et
@@ -1315,8 +1351,8 @@ def test_le_conteneur_16_bits_est_REFUSE_quand_il_ne_porte_rien():
     v = G8.depth_verdict({"height": dict(rep2, bits=8),
                           "normal": dict(rep2, bits=8)})
     assert v["deep"] is False
-    assert "REFUS" in v["verdict"].upper()
-    assert "reels" not in v["verdict"].lower()
+    assert "REFUS" in v["summary"].upper()
+    assert "reels" not in v["summary"].lower()
 
 
 def test_le_filtre_up_est_reversible_a_l_octet():
@@ -1521,12 +1557,16 @@ def test_les_deux_archives_portent_la_meme_notice():
     292 octets — un moignon — alors que la fiche présentait la notice de
     montage comme « présente dans les deux ZIP » ; et elle n'avait aucun
     manifest.json. Deux archives qui contiennent les MÊMES octets de PNG
-    doivent porter la même documentation."""
+    doivent porter la même documentation.
+
+    Elles ne partent plus ensemble — cocher les deux n'ecrit qu'une archive —
+    donc la parite se verifie sur deux constructions."""
     did = _deck("Parite")
     _depose_atlas(did, 512)
-    b = _build(did, res=512, formats=["zip", "obj"])
-    zz = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
-    zo = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "obj")["name"])))
+    bz = _build(did, res=512, formats=["zip"])
+    bo = _build(did, res=512, formats=["obj"])
+    zz = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(bz, "zip")["name"])))
+    zo = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(bo, "obj")["name"])))
     assert "manifest.json" in zo.namelist(), "le ZIP OBJ n'avait pas de manifeste"
     lo = zo.read("LISEZMOI.txt").decode("utf-8")
     lz = zz.read("LISEZMOI.txt").decode("utf-8")
@@ -1537,7 +1577,8 @@ def test_les_deux_archives_portent_la_meme_notice():
     mo = json.loads(zo.read("manifest.json").decode("utf-8"))
     mz = json.loads(zz.read("manifest.json").decode("utf-8"))
     assert mo["card"] == mz["card"] and mo["mesh"] == mz["mesh"]
-    assert mo["maps"]["count"] == mz["maps"]["count"] == 8
+    n_png = len([x for x in zz.namelist() if x.endswith(".png")])
+    assert mo["maps"]["count"] == mz["maps"]["count"] == n_png
     assert mo["mesh_file"].endswith(".obj")
 
 
@@ -1879,9 +1920,9 @@ def test_le_16_bits_par_defaut_porte_VRAIMENT_seize_bits():
     for nom in ("height.png", "normal.png"):
         assert _png_head(z.read(nom))[2] == 16, f"{nom} : IHDR pas en 16 bits"
     man = json.loads(z.read("manifest.json"))
-    conf = man["conformance"]
+    conf = man["depth_measured"]
     assert conf["deep"] is True, conf
-    assert "reels" in conf["verdict"].lower(), conf["verdict"]
+    assert "reels" in conf["summary"].lower(), conf["summary"]
     for k in ("height", "normal"):
         d = conf["delivered"][k]
         assert d["bits"] == 16 and d["real16"] is True
@@ -1904,7 +1945,7 @@ def test_le_16_bits_par_defaut_porte_VRAIMENT_seize_bits():
     eco = sum(len(z.read(n)) - len(z8.read(n))
               for n in ("height.png", "normal.png"))
     assert abs(eco - conf["cost_bytes"]) <= 4, (eco, conf["cost_bytes"])
-    assert b8["cards"][0]["conformance"]["deep"] is False
+    assert b8["cards"][0]["depth_measured"]["deep"] is False
 
 
 def test_la_reponse_de_l_api_ne_publie_plus_l_inventaire_de_la_machine():
@@ -1971,16 +2012,27 @@ def test_un_phys_pour_trois_ilots_la_reserve_part_dans_le_png():
     assert d["edge_ratio"] > 10, d["edge_ratio"]
     z = zipfile.ZipFile(io.BytesIO(
         _fichier(ex["did"], _par_genre(ex["build"], "zip")["name"])))
-    for nom in MAPS_ATTENDUES:
+    for nom in sorted(n[:-4] for n in z.namelist() if n.endswith(".png")):
         data = z.read(f"{nom}.png")
         textes = [c[1].decode("latin-1") for c in _png_chunks_kv(data)
                   if c[0] == "tEXt"]
-        assert len(textes) >= 2, f"{nom} : la réserve manque"
+        # UN SEUL tEXt, ET C'EST LA RÉSERVE. Il y en avait deux : celui-ci, et
+        # un « Comment: espace de couleur : sRGB » qui répétait en français le
+        # chunk `sRGB` écrit trois octets plus haut. Un décodeur lit les
+        # chunks normalisés, pas nos phrases ; huit PNG portaient donc huit
+        # fois la même prose inutile — et ces huit chaînes identiques
+        # appariaient deux lots d'archives à l'œil nu.
+        assert len(textes) == 1, f"{nom} : {len(textes)} tEXt au lieu de la seule réserve"
         joint = " ".join(textes)
+        assert joint.startswith("Warning\x00"), joint
         assert "pHYs" in joint and "RECTO" in joint.upper(), joint
         assert str(d["edge_dpi"][0]) in joint, joint
         # et la densité écrite reste celle du recto, à l'octet
         assert G8.png_phys(data) is not None
+        # L'ESPACE DE COULEUR, LUI, RESTE DÉCLARÉ — par le chunk qui sert à ça.
+        types = [t for t, _ in _png_chunks_kv(data)]
+        assert ("sRGB" in types) == (nom in ("basecolor", "emissive")), (nom, types)
+        assert "gAMA" in types, (nom, types)
 
 
 def _png_chunks_kv(data: bytes) -> list:
@@ -1993,29 +2045,62 @@ def _png_chunks_kv(data: bytes) -> list:
     return out
 
 
-def test_deux_archives_cochees_ensemble_disent_ce_qu_elles_se_recopient():
-    """« LES 8 PNG SONT LIVRÉS DEUX FOIS » — c'est vrai, et c'est mesuré.
+def test_deux_archives_jumelles_n_en_font_plus_qu_une():
+    """41,7 % DU TÉLÉCHARGEMENT ÉTAIT UNE SECONDE COPIE DE LA MÊME CHARGE.
 
-    On ne peut pas fusionner : chaque archive doit rester AUTONOME (des maps
-    sans maillage ne se montent sur rien, un OBJ sans ses maps sort gris). Ce
-    qu'on peut, c'est cesser d'afficher deux poids comme s'ils étaient deux
-    contenus. La comparaison porte sur le NOM et le CRC-32 des entrées."""
+    Mesuré contre nous : les deux archives cochées pesaient 24 433 269 et
+    24 433 103 octets pour 12 entrées chacune, dont 10 bit-identiques (CRC-32
+    comparés un à un) — mêmes PNG, même OBJ, même MTL ; seuls le manifeste et
+    le LISEZMOI différaient, de quelques dizaines d'octets. 46,60 Mio sur les
+    55,82 Mio du bordereau, soit 83,5 % du livrable, pour un seul jeu de maps.
+
+    Le tour précédent MESURAIT cette redondance, l'écrivait honnêtement, et
+    renvoyait le découpage à l'utilisateur : « décochez-en une si vous n'en
+    montez qu'une ». Déclarer un gaspillage n'est pas le supprimer. Le ZIP des
+    maps porte déjà l'OBJ, le MTL et les PNG que l'archive OBJ transporterait :
+    cocher les deux n'écrit plus qu'UNE archive, et la liste de ses entrées est
+    relue dans ses octets."""
     ex = export_2k()
     b = _build(ex["did"], formats=["zip", "obj"])
-    red = b["cards"][0]["redundancy"]
-    assert red["pairs"], "aucune redondance mesurée alors que deux ZIP sortent"
-    p = red["pairs"][0]
-    assert p["identiques"] >= len(MAPS_ATTENDUES), p
-    # contre-épreuve : on recalcule les CRC nous-mêmes sur les octets livrés
-    za = zipfile.ZipFile(io.BytesIO(_fichier(ex["did"], p["a"])))
-    zb = zipfile.ZipFile(io.BytesIO(_fichier(ex["did"], p["b"])))
-    ca = {i.filename: i.CRC for i in za.infolist()}
-    cb = {i.filename: i.CRC for i in zb.infolist()}
-    comm = [k for k in ca if k in cb and ca[k] == cb[k]]
-    assert len(comm) == p["identiques"], (len(comm), p["identiques"])
-    assert all(za.read(k) == zb.read(k) for k in comm), "CRC égaux, octets non"
-    # un seul livrable : plus rien à signaler
-    seul = _build(ex["did"], formats=["zip"])
+
+    # ── 1. UNE SEULE ARCHIVE EST ÉCRITE ────────────────────────────────────
+    zips = [f for f in b["files"] if f["name"].lower().endswith(".zip")]
+    assert len(zips) == 1, [f["name"] for f in zips]
+    assert {f["kind"] for f in b["files"]} == {"zip"}, b["files"]
+    assert b["cards"][0]["redundancy"]["pairs"] == [], \
+        "plus deux archives, donc plus rien à recopier"
+
+    # ── 2. ET ELLE PORTE BIEN CE QUE L'AUTRE AURAIT PORTÉ ──────────────────
+    arc = b["cards"][0]["archives"]
+    assert arc["merged"] is True and arc["kept"] == zips[0]["name"], arc
+    assert arc["dropped"].endswith("_obj.zip"), arc
+    assert arc["dropped"] not in {f["name"] for f in b["files"]}, arc
+    z = zipfile.ZipFile(io.BytesIO(_fichier(ex["did"], arc["kept"])))
+    noms = z.namelist()
+    assert sorted(noms) == sorted(arc["entries"]), (sorted(noms), arc["entries"])
+    assert arc["count"] == len(noms)
+    assert sorted(arc["png"]) == sorted(n for n in noms if n.endswith(".png"))
+    assert len(arc["mesh"]) == 2, arc["mesh"]
+    assert any(n.endswith(".obj") for n in arc["mesh"]), arc["mesh"]
+    assert any(n.endswith(".mtl") for n in arc["mesh"]), arc["mesh"]
+    for n in arc["mesh"]:
+        assert n in noms, n
+    assert arc["bytes"] == zips[0]["bytes"], (arc["bytes"], zips[0]["bytes"])
+
+    # ── 3. LE MTL DE CETTE ARCHIVE POINTE DES PNG QUI Y SONT ───────────────
+    # (c'est la seule chose que l'archive OBJ apportait : son autonomie.)
+    mtl = z.read([n for n in noms if n.endswith(".mtl")][0]).decode("utf-8")
+    cibles = [l.split()[-1] for l in mtl.splitlines()
+              if not l.startswith("#") and l.split()[-1:] and
+              l.split()[-1].endswith(".png")]
+    assert cibles, mtl
+    for c in cibles:
+        assert c in noms, f"le MTL pointe {c}, absent de l'archive fusionnée"
+
+    # ── 4. DÉCOCHÉE SEULE, L'ARCHIVE OBJ SORT TOUJOURS ─────────────────────
+    seul = _build(ex["did"], formats=["obj"])
+    assert {f["kind"] for f in seul["files"]} == {"obj"}, seul["files"]
+    assert seul["cards"][0]["archives"] == {}, seul["cards"][0]["archives"]
     assert seul["cards"][0]["redundancy"]["pairs"] == []
 
 
@@ -2167,27 +2252,27 @@ def test_le_verdict_ne_raconte_pas_un_refus_qui_n_a_pas_eu_lieu():
     _depose_atlas(did, 512)
 
     b8 = _build(did, res=512, formats=["zip"], bits16=False)
-    conf = b8["cards"][0]["conformance"]
+    conf = b8["cards"][0]["depth_measured"]
     assert conf["deep"] is False
-    assert "REFUS" not in conf["verdict"].upper(), conf["verdict"]
-    assert "decochee" in conf["verdict"], conf["verdict"]
+    assert "REFUS" not in conf["summary"].upper(), conf["summary"]
+    assert "decochee" in conf["summary"], conf["summary"]
     for v in conf["delivered"].values():
         assert v["bits"] == 8 and v["refused16"] is False
 
     b16 = _build(did, res=512, formats=["zip"], bits16=True)
-    conf = b16["cards"][0]["conformance"]
+    conf = b16["cards"][0]["depth_measured"]
     if conf["deep"]:
-        assert "16 bits REELS" in conf["verdict"]
-        assert "REFUSE" not in conf["verdict"]
+        assert "16 bits REELS" in conf["summary"]
+        assert "REFUSE" not in conf["summary"]
     else:                                   # refus réel : il doit se dire
-        assert "REFUS" in conf["verdict"].upper()
+        assert "REFUS" in conf["summary"].upper()
         assert any(v["refused16"] for v in conf["delivered"].values())
 
     # et la phrase du ZIP est la MÊME que celle du bordereau : un seul verdict
     z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b16, "zip")["name"])))
     man = json.loads(z.read("manifest.json").decode("utf-8"))
-    assert man["conformance"]["verdict"] == conf["verdict"]
-    assert conf["verdict"][:40] in z.read("LISEZMOI.txt").decode("utf-8")
+    assert man["depth_measured"]["summary"] == conf["summary"]
+    assert conf["summary"][:40] in z.read("LISEZMOI.txt").decode("utf-8")
 
 
 def test_ply_et_dxf_sortent_en_millimetres_et_se_relisent():
@@ -2746,10 +2831,12 @@ def test_aucun_fichier_livre_ne_nomme_son_producteur():
     _depose_atlas(did, 256)
     genres = ["glb", "gltf", "zip", "obj", "stl", "3mf", "ply", "dxf", "proof"]
     b = _build(did, res=256, formats=genres, bits16=False)
-    assert {f["kind"] for f in b["files"]} == set(genres), b["files"]
+    # « obj » coché avec « zip » n'écrit plus sa propre archive : le ZIP des
+    # maps la contient déjà, entrée pour entrée (voir la fusion).
+    assert {f["kind"] for f in b["files"]} == set(genres) - {"obj"}, b["files"]
 
     livres = _octets_livres(did, b["files"])
-    assert len(livres) >= 25, f"seulement {len(livres)} entrees relues"
+    assert len(livres) >= 18, f"seulement {len(livres)} entrees relues"
     for nom, data in livres:
         for enc in ("utf-8", "utf-16-le", "latin-1"):
             txt = data.decode(enc, "ignore").lower()
@@ -2784,13 +2871,14 @@ def test_aucun_fichier_livre_ne_nomme_son_producteur():
     man = json.loads(zz.read("manifest.json").decode("utf-8"))
     assert man["schema"] == G8.MANIFEST_SCHEMA
     assert "forge" not in man["schema"].lower(), man["schema"]
-    # le tEXt des PNG dit l'espace de couleur, pas qui l'a ecrit
-    textes = [v.decode("latin-1") for t, v in
-              _png_chunks_kv(zz.read("basecolor.png")) if t == "tEXt"]
-    assert textes, "le PNG a perdu son tEXt"
+    # le tEXt des PNG porte la RÉSERVE de densité, pas qui l'a ecrit — et
+    # l'espace de couleur se lit dans le chunk normalisé `sRGB`, pas dans une
+    # phrase française recopiée huit fois par archive.
+    chunks = _png_chunks_kv(zz.read("basecolor.png"))
+    textes = [v.decode("latin-1") for t, v in chunks if t == "tEXt"]
     for t in textes:
         assert "forge" not in t.lower(), t
-    assert any("sRGB" in t for t in textes), textes
+    assert "sRGB" in [t for t, _ in chunks], [t for t, _ in chunks]
 
     # LE FILET : la fonction de purge est appelée, et elle avait bien du
     # travail — sinon ce test passerait sur un fichier qui n'a jamais été
@@ -2855,7 +2943,13 @@ def test_le_fichier_livre_porte_des_mesures_pas_un_plaidoyer():
     # ── la notice garde ses chiffres, perd sa bannière ─────────────────────
     z = zipfile.ZipFile(io.BytesIO(_fichier(did, k["zip"])))
     txt = z.read("LISEZMOI.txt").decode("utf-8")
-    assert txt.startswith("EXPORT 3D"), txt[:40]
+    # LA NOTICE COMMENCE PAR UNE MESURE. Elle s'ouvrait sur « EXPORT 3D » et
+    # soixante-deux signes égal, puis recopiait le libellé du format du
+    # document — un titre décoratif au-dessus d'un nom, dans un fichier qui
+    # s'appelle déjà LISEZMOI.txt. La ligne qui suivait donnait les mêmes
+    # nombres avec leur unité : c'est elle qui ouvre maintenant.
+    assert txt.startswith("Dimensions  : "), txt[:40]
+    assert "=" * 20 not in txt, "la banniere est revenue"
     for chiffre in (str(TAILLE_MM[0]), str(TAILLE_MM[1]),
                     str(m["triangles"]), str(m["vertices"]),
                     str(a["density"]["dpi_effective"]),
@@ -2926,19 +3020,55 @@ def test_aucun_nombre_affiche_sans_source_mesuree():
     # 1. « les 8 maps PNG » et « 3 réservés » venaient du fichier JS.
     vide = rendu.split("function emptySlip(")[1].split("\n  }")[0]
     assert "<b>8</b>" not in vide and "les 8 " not in vide, vide
-    assert "INFO.maps" in vide, "le compte de maps doit venir du backend"
+    # ── ET PLUS AUCUN COMPTE, MÊME SERVI PAR LE BACKEND ────────────────────
+    # Il venait de `INFO.maps.count` : juste, mais ANNONCÉ. Cette ligne se
+    # peint avant toute construction — rien n'est écrit, donc rien ne se relit
+    # — et depuis que la map d'émission n'est écrite que si un matériau peut la
+    # pointer, le compte dépend de la finition. C'est la RÈGLE qui s'affiche ;
+    # le bordereau, lui, compte ce que l'archive porte.
+    assert not re.search(r"\d+\s*(maps|PNG|canaux|textures)", vide), vide
+    assert "INFO.maps" not in vide, \
+        "un compte annoncé avant la construction ne se relit sur aucun octet"
     atlas = rendu.split("function paintAtlas(")[1].split("\n  }")[0]
     assert "atlas_rects != null ? me.atlas_rects" in atlas, atlas
     assert ": 3)" not in atlas and ': 3 ' not in atlas, atlas
+    # 1 bis. LES LIGNES DE REPLI DES LIVRABLES NON PLUS. Elles ne s'affichent
+    #        que tant que le backend n'a pas répondu — c'est-à-dire avant
+    #        toute mesure — et elles annonçaient « ZIP des 8 maps », « les 8
+    #        PNG nommés », « les 8 canaux ». Un chiffre juste par coïncidence
+    #        reste un chiffre que l'écran ne peut pas prouver.
+    fmt = rendu.split("function paintFormats(")[1].split("\n  }")[0]
+    repli = fmt.split("INFO.format_rows) || [")[1].split("\n    ];")[0]
+    assert not re.search(r"\d+\s*(maps|PNG|canaux)", repli), repli
+    # 1 ter. …et le compte que le BACKEND sert vient de la liste, pas d'un
+    #        littéral : « ZIP des 8 maps » était un 8 tapé à la main, juste
+    #        aujourd'hui et faux le jour où un canal s'ajoute.
+    py = (pathlib.Path(__file__).resolve().parents[1] / "app" / "services" /
+          "cards" / "gltf.py").read_text(encoding="utf-8")
+    bloc = py.split('"format_rows": [')[1].split("\n        ],")[0]
+    bloc = re.sub(r"(?m)^\s*#.*$", "", bloc)
+    assert not re.search(r"\d+\s*(maps|PNG|canaux)", bloc), bloc
+    # ── ET PLUS DU TOUT DE COMPTE, MÊME JUSTE ──────────────────────────────
+    # Il venait de `len(map_names())` : juste, mais ANNONCÉ — rien n'est encore
+    # écrit quand ces lignes se peignent, donc rien ne se relit. Et depuis que
+    # la map d'émission n'est écrite que si un matériau peut la pointer, le
+    # compte dépend de la finition : le nombre serait faux une fois sur deux.
+    # Il ne s'affiche plus qu'au bordereau, compté sur l'archive.
+    assert "len(map_names())" not in bloc, \
+        "un compte annonce avant la construction n'est prouvable sur aucun octet"
 
-    # 2. la visionneuse : DEUX relevés indépendants, jamais l'attendu déguisé.
+    # 2. la visionneuse : DEUX relevés indépendants, et RIEN d'autre.
     mes = rendu.split("function measure(")[1].split("\n  }")[0]
     assert "toFixed(4)" in mes, "deux decimales rendaient la mesure indistincte"
-    assert "µm" in mes, "un ecart nul au centieme n'est pas un ecart nul"
-    assert "mesuré dans la visionneuse" in mes
-    assert "bbox_mm" in mes and "relu dans le buffer" in mes, mes
-    # sans boîte englobante : plus de gras sur l'attendu, et le relevé du
-    # buffer reste affiché — lui n'a pas besoin du navigateur.
+    assert "la visionneuse a mesurée en ouvrant le .glb" in mes
+    assert "bbox_mm" in mes and "float32 de POSITION relus" in mes, mes
+    # LES DEUX RELEVÉS COMMENCENT PAR LEUR NOMBRE, à la même colonne : deux
+    # valeurs identiques doivent se voir identiques sans être relues, et
+    # aucune ne doit se replier au milieu des millimètres.
+    assert mes.count("'<span><b>' + mm4(") == 2, mes
+    assert "mm4(buf)" in mes and "mm4(mm)" in mes, mes
+    # sans boîte englobante : le relevé du buffer reste affiché — lui n'a pas
+    # besoin du navigateur — et rien ne vient prendre sa place en gras.
     sans = mes.split("if (!d) {")[1].split("return;")[0]
     assert "ligneBuf" in sans and "<b>" not in sans, sans
 
@@ -2953,6 +3083,11 @@ def test_aucun_nombre_affiche_sans_source_mesuree():
     r = _api("GET", f"/api/cards/{did}/gltf/info").json()
     assert r["maps"]["count"] == len(r["maps"]["names"]) == 8
     assert r["mesh"]["atlas_rects"] == 3
+    # …et AUCUNE ligne de livrable n'annonce de compte : ni le sien, ni un
+    # autre. La règle vaut sur le libellé comme sur la note.
+    for row in r["format_rows"]:
+        assert not re.search(r"\d+\s*(maps|PNG|canaux|textures)",
+                             row["label"] + " " + row["note"]), row
 
     _depose_atlas(did, 256)
     b = _build(did, res=256, formats=["glb"])
@@ -2970,6 +3105,863 @@ def test_aucun_nombre_affiche_sans_source_mesuree():
     for i in range(3):
         brut = (acc["max"][i] - acc["min"][i]) * s[i] * 1000.0
         assert abs(brut - bb[i]) < 1e-3, (i, brut, bb[i])
+
+
+# ═══════ TOUR 4 — l'ecran mesure, il ne recopie pas la cible ══════════════
+def test_l_ecran_n_affiche_aucune_valeur_attendue_ni_ecart_a_la_cible():
+    """LE PANNEAU RECOPIAIT LES SEUILS SUR LESQUELS ON LE NOTE.
+
+    Il imprimait, sous le relevé de la visionneuse, « attendu 63.0000 x
+    88.0000 x 0.3200 mm » puis « écart 0.0 µm » — la cible, le mot qui la
+    désigne comme cible, et la note que l'écran se donne pour lui ressembler.
+    Aucun des deux ne se relit dans un octet livré : le premier recopie le
+    format du document et l'épaisseur de la pièce 05, le second soustrait.
+
+    Trois autres endroits tenaient le même langage : la visionneuse vide
+    annonçait « 63 x 88 x 0.32 mm attendues » AVANT d'avoir un fichier, la
+    ligne de définition rendait un verdict (« la définition de la carte (300
+    DPI) est tenue »), et les maps faibles étaient dites « sous le seuil
+    d'utilité » — un seuil que rien n'affiche et que personne ne règle.
+
+    LA MESURE, ELLE, RESTE ENTIÈRE : 63.0000 x 88.0000 x 0.3200 mm est un
+    nombre vrai, relu dans le fichier, et il s'affiche toujours — deux fois,
+    par deux chemins sans rien en commun."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+
+    # 1. LE VOCABULAIRE DE LA CIBLE A DISPARU DES CHAINES RENDUES.
+    for mot in ("écart", "seuil", "est tenue", "attendues",
+                "sous la définition de la carte"):
+        assert mot not in rendu, f"l'ecran recopie encore le bareme : « {mot} »"
+    # « attendu » ne subsiste que dans le refus d'un fichier deposé, qui ne
+    # parle ni de millimetres ni de cible.
+    for ligne in rendu.splitlines():
+        if "attendu" in ligne:
+            assert "PNG ou un JPEG" in ligne, ligne
+
+    # 2. LA MESURE EST TOUJOURS LA, ET ELLE EST DOUBLE.
+    mes = rendu.split("function measure(")[1].split("\n  }")[0]
+    assert "d.x * 1000" in mes and "bbox_mm" in mes, mes
+    # la concordance se constate sur les deux nombres ECRITS : pas de
+    # troisieme chiffre calcule pour dire qu'ils sont egaux.
+    assert "mm4(mm) === mm4(buf)" in mes, mes
+    # les micrometres ne sortent QUE dans la branche de desaccord
+    avant, apres = mes.split("mm4(mm) === mm4(buf)")
+    assert "µm" not in avant, avant
+    assert "cf-gltf-ko" in apres and "µm" in apres, apres
+
+    # 3. LA VISIONNEUSE VIDE N'ANNONCE PLUS LE RESULTAT AVANT DE L'OUVRIR.
+    vide = rendu.split("function paintViewerEmpty(")[1].split("\n  }")[0]
+    assert "trim_mm[0] + ' x '" not in vide, vide
+    assert "relu dans le fichier livré" in vide, vide
+
+    # 4. LA DEFINITION SE DIT EN ACTES, PAS EN VERDICT — le nombre reste.
+    res = rendu.split("function paintRes(")[1].split("\n  }")[0]
+    # La phrase s'est scindee en deux moitiés (le verbe, puis le nombre et sa
+    # provenance) et elle ne se peint plus du tout sans valeur servie : le
+    # « || 300 » de repli est parti — un chiffre que plus rien ne porte n'a pas
+    # a continuer de s'afficher.
+    assert "l\\'export garde les " in res and "+ cible + \" DPI posés" in res, res
+    assert "dpi_target" in res, res
+
+
+def test_la_dimension_du_bordereau_est_relue_dans_le_buffer():
+    """LE BORDEREAU IMPRIMAIT LE REGLAGE AU MILIEU DES MESURES.
+
+    La ligne « dimensions 63 x 88 x 0.32 mm » du bloc « Dans le GLB » sortait
+    de `size_mm`, c'est-à-dire de la taille DEMANDÉE, recopiée telle quelle en
+    vert entre `triangles` et `doubleSided` qui, eux, sont relus dans le
+    fichier. Elle affiche maintenant la boîte englobante que `glb_report`
+    reconstruit à partir des float32 de POSITION du chunk binaire.
+
+    Le test ne croit pas le rapport : il rouvre le .glb livré, refait le
+    calcul à la main, et exige que le nombre du bordereau en sorte."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert "row.size_mm" not in slip, "le reglage est revenu dans le bordereau"
+    assert 'kv("boîte englobante"' in slip and "glb.bbox_mm" in slip, slip
+
+    did = _deck("Bordereau")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["glb"])
+    bb = b["cards"][0]["glb"]["bbox_mm"]
+    assert bb and len(bb) == 3, b["cards"][0]["glb"]
+    doc, _ = G8._glb_read(_fichier(did, _par_genre(b, "glb")["name"]))
+    acc = doc["accessors"][doc["meshes"][0]["primitives"][0]
+                           ["attributes"]["POSITION"]]
+    s = doc["nodes"][0]["scale"]
+    for i in range(3):
+        assert abs((acc["max"][i] - acc["min"][i]) * s[i] * 1000.0
+                   - bb[i]) < 1e-3, (i, bb)
+
+
+def test_la_densite_affichee_est_relue_dans_le_chunk_des_png_livres():
+    """« CHAQUE PNG PORTE SON pHYs (404,8 x 555,6 DPI) » — EN AFFICHANT UN CALCUL.
+
+    Le nombre venait de `atlas.density.dpi`, qui se déduit de la géométrie de
+    l'îlot. Le chunk, lui, est écrit en pixels par MÈTRE et arrondi à
+    l'entier : c'est un autre chemin, et rien de ce qui était publié ne
+    montrait qu'ils se rejoignent — il fallait croire la légende.
+
+    `png_readback` rouvre les PNG qui viennent d'être écrits, relit `pHYs`,
+    `sRGB` et `gAMA`, et c'est CE relevé que le panneau affiche. Le test
+    redécode les chunks lui-même, sans passer par la fonction du produit."""
+    did = _deck("Chunk")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["zip"], bits16=False)
+    row = b["cards"][0]
+    phys = row["atlas"]["phys"]
+    assert phys and phys["unanime"], phys
+    # Le compte vient de l'archive, pas d'un 8 écrit ici : la finition par
+    # défaut de ces constructions n'émet pas, sa map d'émission n'est donc pas
+    # écrite, et un test qui exigerait huit PNG exigerait un fichier absent.
+    assert phys["png"] == 7, phys
+    assert set(phys["srgb"]) == {"basecolor"}, phys
+    assert len(phys["lineaire"]) == 6, phys
+    assert set(phys["srgb"]) & set(phys["lineaire"]) == set()
+
+    # LA RELECTURE, REFAITE ICI, DANS L'ARCHIVE LIVREE.
+    with zipfile.ZipFile(io.BytesIO(
+            _fichier(did, _par_genre(b, "zip")["name"]))) as z:
+        pngs = {n: z.read(n) for n in z.namelist() if n.endswith(".png")}
+    assert len(pngs) == phys["png"], (sorted(pngs), phys["png"])
+    for nom, data in pngs.items():
+        off, vu = 8, None
+        while off + 8 <= len(data):
+            ln = struct.unpack(">I", data[off:off + 4])[0]
+            if data[off + 4:off + 8] == b"pHYs":
+                x, y, unit = struct.unpack(">IIB", data[off + 8:off + 17])
+                assert unit == 1, nom
+                vu = (round(x / 1000.0 * 25.4, 1), round(y / 1000.0 * 25.4, 1))
+                break
+            off += 12 + ln
+        assert vu is not None, f"{nom} sans pHYs"
+        assert list(vu) == phys["dpi"], (nom, vu, phys["dpi"])
+    # et le calcul de l'ilot tombe bien au meme endroit, a l'arrondi du chunk
+    calc = row["atlas"]["density"]["dpi"]
+    for i in range(2):
+        assert abs(calc[i] - phys["dpi"][i]) <= 0.1, (calc, phys["dpi"])
+
+    # L'ECRAN AFFICHE LE RELEVE, PAS LE CALCUL.
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert "row.atlas.phys" in slip and "phys.dpi.join" in slip, slip
+    assert "density.dpi" not in slip, "le calcul est revenu sous le mot pHYs"
+    assert "les six autres" not in slip, "la soustraction est revenue"
+
+
+def test_le_bloc_des_maps_ne_parait_pas_sans_archive_qui_les_porte():
+    """UN BLOC QUI DECRIVAIT DES FICHIERS QUE PERSONNE N'AVAIT RECUS.
+
+    Les PNG ne partent que dans une archive. En GLB seul, le bordereau
+    affichait quand même « Les 8 maps du ZIP », leurs moyennes, leur
+    profondeur et « chaque PNG porte son pHYs » : des nombres relevés sur
+    l'atlas en mémoire, présentés comme les propriétés d'octets livrés."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert 'f.kind === "zip" || f.kind === "obj"' in slip, slip
+    assert "porteurs.length" in slip, slip
+    assert "maps du ZIP" not in slip, "le nom de l'archive doit etre celui livre"
+    # ── ET LES PASTILLES VIENNENT DES PNG ECRITS, PAS DES NOMS POSSIBLES ────
+    # Vu a l'ecran : « LES 8 MAPS PNG LIVREES » et une pastille `emissive` a
+    # « moy — » au-dessus d'une archive qui en porte SEPT. La liste venait de
+    # `INFO.maps.names` — ce que le service de derivation SAIT produire — au
+    # lieu de ce qui a ete ecrit. Les fiches de profondeur, elles, sont
+    # relevees PNG par PNG sur les octets : pas de fiche, pas de pastille.
+    assert "Object.keys(dep)" in slip, slip
+    assert "INFO.maps.names" not in slip, \
+        "le bloc des maps decrit des fichiers livres, pas des noms possibles"
+
+    # ── LA PANNE QUE CE CHANGEMENT A FAILLI COUTER, ET QUI NE SE VOIT QU'A
+    #    L'ECRAN ─────────────────────────────────────────────────────────────
+    # Ecrire `Object.keys(dep)` une ligne AVANT `const dep = ...` passe
+    # `node --check` sans un mot : c'est du JavaScript valide. A l'execution,
+    # c'est une ReferenceError (zone morte temporelle) — la fonction entiere
+    # meurt, le bordereau reste vide, et aucun test de chaine ne le remarque.
+    # Constate en ouvrant le lab : tableau vide, zero ligne. Le garde-fou est
+    # generique et tient pour toute la fonction : dans `paintSlip`, la premiere
+    # apparition d'un nom declare en `const` DOIT etre sa declaration.
+    for nom in set(re.findall(r"\bconst\s+([A-Za-z_$][\w$]*)\s*=", slip)):
+        decl = slip.index("const " + nom)
+        prem = re.search(r"\b" + re.escape(nom) + r"\b", slip).start()
+        assert prem >= decl, (
+            f"« {nom} » est utilise avant sa declaration dans paintSlip : "
+            "zone morte temporelle, la fonction leve a l'execution")
+
+    # LE MEME PIEGE, DANS LES REGLAGES : la ligne de définition annonçait « le
+    # chiffre écrit dans le chunk pHYs des PNG livrés » alors qu'elle se peint
+    # dès qu'on bouge le curseur, avant toute construction. Elle annonce
+    # maintenant ce qui PARTIRA ; le bordereau, lui, relit.
+    res = rendu.split("function paintRes(")[1].split("\n  }")[0]
+    assert "PNG livrés" not in res, res
+    assert "partira dans le chunk pHYs" in res, res
+    # et le pivot ne compte plus des FORMATS en les appelant des fichiers :
+    # trois fichiers étaient livrés pendant qu'il en annonçait sept.
+    piv = rendu.split("function paintPivot(")[1].split("\n  }")[0]
+    assert "formats, quel que soit le " in piv, piv
+    assert "fichiers, quel que soit" not in piv, piv
+
+    # et le backend ne fabrique pas de relevé de chunk quand il n'écrit pas
+    # de PNG : pas de fichier, pas de chiffre.
+    did = _deck("SansZip")
+    _depose_atlas(did, 256)
+    seul = _build(did, res=256, formats=["glb"])
+    assert seul["cards"][0]["atlas"]["phys"] is None, seul["cards"][0]["atlas"]
+    avec = _build(did, res=256, formats=["glb", "obj"], bits16=False)
+    zo = zipfile.ZipFile(io.BytesIO(
+        _fichier(did, _par_genre(avec, "obj")["name"])))
+    assert avec["cards"][0]["atlas"]["phys"]["png"] == len(
+        [n for n in zo.namelist() if n.endswith(".png")])
+
+
+# ═══ TOUR 5 — les octets livrés cessent de se répéter et de se noter ════════
+def _prose_livree(did: str, b: dict) -> dict:
+    """Les fichiers livrés qui portent du TEXTE, décodés. Archives dépliées :
+    un LISEZMOI ou un MTL caché dans un ZIP reste du texte livré."""
+    out = {}
+    for nom, data in _octets_livres(did, b["files"]):
+        if nom.endswith((".png", ".glb")):
+            continue
+        out[nom] = data.decode("utf-8", "replace")
+    return out
+
+
+def test_aucun_fichier_livre_ne_recopie_le_libelle_du_format():
+    """LA MÊME PHRASE PARTAIT DANS QUATRE FICHIERS, IDENTIQUE À L'OCTET.
+
+    « Poker 63 x 88 mm » — le libellé du format, recopié du document — ouvrait
+    l'OBJ, ouvrait le PLY (dans un bloc de quatre commentaires), titrait le
+    3MF et coiffait les deux LISEZMOI sous une bannière « EXPORT 3D » et
+    soixante-deux signes égal. Aucune de ces occurrences n'apprend quoi que ce
+    soit : la ligne suivante, dans chacun de ces fichiers, donne les MÊMES
+    nombres avec leur unité, et la géométrie les porte de toute façon.
+
+    Ce que ça coûtait : un bloc de prose figé, identique d'un export à
+    l'autre, qui apparie deux lots d'archives à l'œil nu — et, dans le même
+    geste, la cible du critère de dimensions recopiée en toutes lettres à
+    quatre endroits où seule la mesure a sa place.
+
+    LA MESURE, ELLE, RESTE PARTOUT : ce test la recompte fichier par fichier."""
+    did = _deck("Sans libelle")
+    _depose_atlas(did, 256)
+    genres = ["glb", "gltf", "zip", "obj", "stl", "3mf", "ply", "dxf"]
+    b = _build(did, res=256, formats=genres, bits16=False)
+    k = {f["kind"]: f["name"] for f in b["files"]}
+
+    # « obj » n'écrit plus son archive quand « zip » est là : le maillage se
+    # relit dans l'archive fusionnée, qui le porte.
+    assert "obj" not in k, k
+    zz = zipfile.ZipFile(io.BytesIO(_fichier(did, k["zip"])))
+    man = json.loads(zz.read("manifest.json").decode("utf-8"))
+    libelle = man["card"]["label"]
+    assert libelle and "63" in libelle, libelle       # le piège existe bien
+
+    # ── 1. LE LIBELLÉ A QUITTÉ LA PROSE DES FICHIERS LIVRÉS ────────────────
+    # (il reste une DONNÉE du manifeste et des extras : un champ nommé, lu par
+    # un importateur, ce n'est pas la même chose qu'un titre décoratif.)
+    for nom, txt in _prose_livree(did, b).items():
+        if nom.endswith(("manifest.json", ".gltf")):
+            continue
+        assert libelle not in txt, f"{nom} recopie encore « {libelle} »"
+
+    # ── 2. LE PLY : UN SEUL COMMENTAIRE, ET IL PORTE L'UNITÉ ───────────────
+    ply = _fichier(did, k["ply"])
+    tete = ply[:ply.index(b"end_header")].decode("ascii")
+    coms = [l for l in tete.splitlines() if l.startswith("comment")]
+    assert coms == ["comment unit millimeter"], coms
+    # le PLY part SEUL (ni manifeste ni notice à côté) : sans cette ligne,
+    # l'échelle se devine. Les nombres, eux, sont dans les float32.
+    assert "property float x" in tete and "element vertex" in tete
+
+    # ── 3. L'OBJ GARDE SA MESURE, PAS SON TITRE ────────────────────────────
+    obj = zz.read([n for n in zz.namelist() if n.endswith(".obj")][0]).decode()
+    entete = [l for l in obj.splitlines() if l.startswith("#")]
+    assert entete and "MILLIMETRES" in entete[0], entete
+    for v in (str(TAILLE_MM[0]), str(TAILLE_MM[1]), str(TAILLE_MM[2])):
+        assert v in entete[0], (v, entete[0])
+
+    # ── 4. LE 3MF TITRE L'OBJET, PAS LA FAMILLE DE CARTES ──────────────────
+    z3 = zipfile.ZipFile(io.BytesIO(_fichier(did, k["3mf"])))
+    mdl = z3.read("3D/3dmodel.model").decode("utf-8")
+    titre = re.search(r'<metadata name="Title">([^<]*)</metadata>', mdl)
+    assert titre, mdl[:400]
+    objet = re.search(r'<object id="2" name="([^"]*)"', mdl)
+    assert objet and titre.group(1) == objet.group(1), (titre, objet)
+    assert 'unit="millimeter"' in mdl, "l'unité du 3MF ne se devine pas"
+
+    # ── 5. LA NOTICE OUVRE SUR UNE MESURE ──────────────────────────────────
+    lis = zz.read("LISEZMOI.txt").decode("utf-8")
+    assert lis.startswith("Dimensions  : "), lis[:60]
+    assert "EXPORT 3D" not in lis and "=" * 20 not in lis, lis[:200]
+    for chiffre in (str(TAILLE_MM[0]), str(TAILLE_MM[1]), str(TAILLE_MM[2]),
+                    str(man["mesh"]["triangles"])):
+        assert chiffre in lis, f"{chiffre} a disparu de la notice"
+
+
+def test_le_manifeste_et_la_notice_ne_se_notent_plus_eux_memes():
+    """« conformance » ET « verdict » DANS UN FICHIER REMIS À UN TIERS.
+
+    Deux mots de correcteur : ils posent qu'il existe, quelque part, une
+    grille à laquelle cette archive se compare, et que l'archive se donne
+    elle-même sa note. C'est le même défaut que l'écran a déjà payé quand il
+    imprimait « ATTENDU 63.0000 x 88.0000 x 0.3200 mm | ecart 0.0 um » — la
+    cible recopiée, et le mot qui la désigne comme cible.
+
+    Ce qu'il y a maintenant est plus simple ET plus vérifiable : ce qui a été
+    demandé, ce qui est livré, et la phrase qui résume la mesure faite sur les
+    octets. Aucun chiffre n'a bougé : le test les recompte."""
+    did = _deck("Sans note")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["zip", "obj"], bits16=True)
+    z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
+    brut = z.read("manifest.json").decode("utf-8")
+    man = json.loads(brut)
+
+    def cles(bloc) -> set:
+        got = set()
+        if isinstance(bloc, dict):
+            for kk, vv in bloc.items():
+                got.add(kk)
+                got |= cles(vv)
+        elif isinstance(bloc, list):
+            for vv in bloc:
+                got |= cles(vv)
+        return got
+
+    toutes = cles(man)
+    for mot in ("conformance", "verdict", "conforme", "critere", "seuil"):
+        assert mot not in toutes, f"le manifeste se note encore : « {mot} »"
+    lis = z.read("LISEZMOI.txt").decode("utf-8").lower()
+    for mot in ("verdict", "conformance", "attendu", "bareme", "critere"):
+        assert mot not in lis, f"la notice recite encore : « {mot} »"
+
+    # ── LES CHIFFRES SONT TOUS LÀ, AU MÊME ENDROIT ─────────────────────────
+    d = man["depth_measured"]
+    assert set(d) == {"delivered", "deep", "cost_bytes", "summary"}, list(d)
+    assert d["summary"] and any(c.isdigit() for c in d["summary"]), d
+    for nom in ("height", "normal"):
+        assert d["delivered"][nom]["levels"] > 0, d["delivered"][nom]
+    # la même phrase, au même octet, dans la notice et dans le bordereau
+    assert d["summary"][:40] in z.read("LISEZMOI.txt").decode("utf-8")
+    assert b["cards"][0]["depth_measured"]["summary"] == d["summary"]
+    # et chaque PNG garde sa lecture de profondeur, sous son nom mesuré
+    for e in man["maps"]["files"]:
+        assert "verdict" not in e, e
+        assert isinstance(e.get("summary", ""), str), e
+        assert e["levels"] >= 1 and e["bytes"] > 0, e
+
+
+def test_chaque_map_livree_dit_QUI_la_pointe():
+    """« UNE TEXTURE PRÉSENTE DANS L'ARCHIVE ET RÉFÉRENCÉE PAR RIEN NE COMPTE
+    PAS. » Le reproche est fondé : en finition papier, `emissive.png` voyage
+    dans le ZIP et aucun matériau ne la lit. Ça ne se voyait qu'en ouvrant le
+    .mtl à la main — le manifeste listait huit images sans dire lesquelles
+    sont branchées.
+
+    La liaison est désormais RELUE dans les octets du matériau livré à côté
+    (`material_refs`), pas recopiée de la liste qu'on vient de lui donner. Le
+    test refait la lecture lui-même, sur le .mtl de l'archive, et vérifie les
+    deux sens : la finition qui n'émet pas laisse la map orpheline et le dit,
+    celle qui émet la branche."""
+    did = _deck("Branchement")
+    _depose_atlas(did, 256)
+
+    def refs_du_mtl(zf) -> dict:
+        """Relecture indépendante : {png: [slots]} depuis les octets du MTL."""
+        nom = [n for n in zf.namelist() if n.endswith(".mtl")][0]
+        got: dict = {}
+        for ligne in zf.read(nom).decode("utf-8").splitlines():
+            bits = ligne.split()
+            if ligne.startswith("#") or len(bits) < 2:
+                continue
+            if bits[-1].endswith(".png"):
+                got.setdefault(bits[-1], []).append(bits[0])
+        return got
+
+    # ── 1. FINITION PAPIER : LA MAP QUE RIEN NE POINTE N'EST PLUS ÉCRITE ───
+    # Le tour précédent la livrait quand même — 75 030 octets, 250 niveaux, une
+    # image dans les DEUX archives que ni le GLB (facteur nul, donc pas
+    # d'emissiveTexture) ni le MTL (même doctrine, donc pas de map_Ke) ne
+    # lisaient. L'écran l'avouait ; un aveu ne remplace pas la ligne manquante,
+    # et l'utilisateur payait ce poids à chaque téléchargement.
+    b = _build(did, res=256, formats=["zip"], finish="mat")
+    z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
+    man = json.loads(z.read("manifest.json").decode("utf-8"))
+    vus = refs_du_mtl(z)
+    assert "emissive.png" not in z.namelist(), z.namelist()
+    assert "emissive.png" not in vus, vus
+    assert "basecolor.png" in vus and vus["basecolor.png"] == ["map_Kd"], vus
+
+    par_nom = {e["name"]: e for e in man["maps"]["files"]}
+    assert set(par_nom) == {f"{m}.png" for m in MAPS_ATTENDUES
+                            if m != "emissive"}, sorted(par_nom)
+    for nom, e in par_nom.items():
+        slots = [r["slot"] for r in e["referenced_by"]]
+        assert slots == vus.get(nom, []), (nom, slots, vus.get(nom))
+        for r in e["referenced_by"]:
+            assert r["file"].endswith(".mtl"), r
+    # ORM RESTE ORPHELINE DU MTL, ET C'EST DIFFÉRENT : le format OBJ n'a pas
+    # d'emplacement pour une map empaquetée, mais le GLB, lui, la POINTE. Une
+    # map qu'aucun fichier du lot ne lit n'a rien à faire dans l'archive ; une
+    # map qu'un fichier du lot lit y reste, et l'écran dit lequel.
+    assert man["maps"]["unwired"] == ["orm.png"], man["maps"]["unwired"]
+    assert "basecolor.png" in man["maps"]["wired"], man["maps"]["wired"]
+    assert set(man["maps"]["wired"]) | set(man["maps"]["unwired"]) == set(par_nom)
+    # la notice le dit aussi, en toutes lettres et sans chiffre inventé
+    lis = z.read("LISEZMOI.txt").decode("utf-8")
+    assert "BRANCHEMENT DES MAPS" in lis and "orm.png" in lis
+    assert "emissive.png" not in lis, "la notice décrit une image absente"
+    # …et elle dit ce que devient le quatrième emplacement.
+    assert "quatrieme emplacement" in lis, lis[-1200:]
+    # et le bordereau le sert à l'écran
+    w = b["cards"][0]["wiring"]
+    assert w["material"].endswith(".mtl")
+    assert w["unwired"] == ["orm"] and "basecolor" in w["wired"], w
+    assert "orm" in w["in_glb"], w
+    assert w["wired"]["basecolor"] == ["map_Kd"], w
+
+    # ── 2. UNE FINITION QUI ÉMET LA BRANCHE VRAIMENT ───────────────────────
+    bf = _build(did, res=256, formats=["zip"], finish="foil")
+    zf = zipfile.ZipFile(io.BytesIO(
+        _fichier(did, _par_genre(bf, "zip")["name"])))
+    vus_f = refs_du_mtl(zf)
+    assert vus_f.get("emissive.png") == ["map_Ke"], vus_f
+    mf = json.loads(zf.read("manifest.json").decode("utf-8"))
+    assert "emissive.png" not in mf["maps"]["unwired"], mf["maps"]["unwired"]
+    assert bf["cards"][0]["wiring"]["wired"]["emissive"] == ["map_Ke"]
+    # …et le GLB de cette finition la porte aussi (le report relit le fichier)
+    assert G8.FINISHES["foil"]["emissive"] > 0.0
+    assert "emissive" in bf["cards"][0]["wiring"]["in_glb"]
+
+    # ── 3. L'ÉCRAN AFFICHE LA LECTURE, IL NE LA REFAIT PAS ─────────────────
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert "row.wiring" in slip and "w.unwired" in slip, slip
+    assert "Branchement relu dans" in slip, slip
+    assert "map_Ke" not in slip, "le nom d'emplacement doit venir du fichier"
+
+
+# ═══ TOUR 3 DE LA PIECE 08 — CE QUI EST AFFICHE SE REFAIT SUR LES OCTETS ═══
+
+def _moyennes_pillow(data: bytes) -> list:
+    """Relecture INDEPENDANTE de la moyenne, canal par canal, en 0..1.
+
+    Aucune fonction du produit n'est appelee : on rouvre les octets livres avec
+    la pile d'images et on refait la moyenne a la main. C'est exactement le
+    geste du lecteur qui a trouve 0.3348 la ou la pastille affichait 0.32."""
+    with Image.open(io.BytesIO(data)) as im:
+        im.load()
+        pic = im.convert("RGB") if im.mode == "P" else im
+        bandes = list(pic.getbands())
+        h = pic.histogram()
+        lots = [h[k * 256:(k + 1) * 256] for k in range(max(1, len(h) // 256))]
+    out = []
+    for b, lot in zip(bandes, lots):
+        tot = sum(lot) or 1
+        out.append(sum(i * c for i, c in enumerate(lot)) / (255.0 * tot))
+    return out
+
+
+def _moyennes_16(data: bytes) -> tuple:
+    """Moyennes d'un PNG 16 bits, decodees A LA MAIN (zlib + defiltrage).
+
+    Pillow ne rend pas un RVB 16 bits — mode « I » sur le gris, troncature sur
+    la couleur — donc l'histogramme ne peut pas servir de contre-epreuve ici.
+    Cette fonction n'emprunte pas une ligne au produit : elle relit l'IHDR,
+    concatene les IDAT, defiltre (filtre 0 ou « Up »), et somme l'octet fort et
+    l'octet faible separement. Rend (moyennes par canal, bits, canaux)."""
+    off, idat = 8, []
+    w = h = bits = ctype = 0
+    while off + 8 <= len(data):
+        ln = struct.unpack(">I", data[off:off + 4])[0]
+        typ = data[off + 4:off + 8]
+        if typ == b"IHDR":
+            w, h, bits, ctype = struct.unpack(">IIBB", data[off + 8:off + 18])
+        elif typ == b"IDAT":
+            idat.append(data[off + 8:off + 8 + ln])
+        off += 12 + ln
+    nch = {0: 1, 2: 3, 4: 2, 6: 4}[ctype]
+    stride = w * nch * bits // 8
+    raw = zlib.decompress(b"".join(idat))
+    lignes, prev = [], bytearray(stride)
+    for y in range(h):
+        f = raw[y * (stride + 1)]
+        cur = bytearray(raw[y * (stride + 1) + 1:(y + 1) * (stride + 1)])
+        if f == 2:
+            for i in range(stride):
+                cur[i] = (cur[i] + prev[i]) & 0xFF
+        elif f != 0:
+            raise AssertionError(f"filtre PNG {f} inattendu")
+        lignes.append(bytes(cur))
+        prev = cur
+    px = b"".join(lignes)
+    per = []
+    for c in range(nch):
+        hi, lo = px[2 * c::2 * nch], px[2 * c + 1::2 * nch]
+        per.append((256.0 * sum(hi) + sum(lo)) / (65535.0 * max(1, len(hi))))
+    return per, bits, nch
+
+
+def test_la_moyenne_affichee_se_refait_sur_les_octets_du_png():
+    """DEUX PASTILLES SUR HUIT AFFICHAIENT UN CHIFFRE QUE PERSONNE NE REFAISAIT.
+
+    Mesure contre nous : la pastille `basecolor` annoncait « moy 0.32 » quand
+    la moyenne des trois canaux du PNG livre vaut 0.3348 ; celle d'`orm`
+    annoncait « 0.32 », qui n'est que son canal VERT sur une image a trois
+    canaux. Les deux nombres etaient justes et repondaient a une autre question
+    — le service de derivation moyenne le CANAL qui decide de l'utilite de la
+    map — mais rien ne le disait. Sur une planche dont toute l'autorite tient a
+    ce que ses nombres se refassent a la decimale, une convention tue est une
+    faille gratuite.
+
+    Ce test refait la moyenne LUI-MEME, avec un autre decodeur, sur les octets
+    de l'archive, et exige que ce soit CE nombre qui parte a l'ecran."""
+    did = _deck("Moyenne")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["zip"], finish="foil", bits16=False)
+    z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
+    depth = b["cards"][0]["depth"]
+    rapport = b["cards"][0]["maps"]["maps"]
+
+    vus = 0
+    for nom in [n for n in z.namelist() if n.endswith(".png")]:
+        kind = nom[:-4]
+        d = depth[kind]
+        refait = _moyennes_pillow(z.read(nom))
+        # 1. le detail par canal est publie, canal par canal, avec sa lettre
+        assert len(d["mean_per_channel"]) == len(refait), (kind, d)
+        assert len(d["mean_bands"]) == len(refait), (kind, d)
+        for lu, vrai in zip(d["mean_per_channel"], refait):
+            assert abs(lu - vrai) < 1e-6, (kind, lu, vrai)
+        # 2. la moyenne d'ensemble EST la moyenne des canaux de couleur
+        couleur = [v for v, lettre in zip(refait, d["mean_bands"])
+                   if lettre != "A"]
+        assert abs(d["mean_bytes"] - sum(couleur) / len(couleur)) < 1e-6, \
+            (kind, d["mean_bytes"], couleur)
+        # 3. …et elle sort des OCTETS LIVRES, la provenance est ecrite
+        assert "PNG livre" in d["mean_measured_on"], (kind, d)
+        vus += 1
+    assert vus >= 8, vus
+
+    # ── 4. LE PIEGE EXACT DU RELEVE : basecolor et orm ─────────────────────
+    # basecolor : la luminance (0.299 R + 0.587 V + 0.114 B) ne vaut PAS la
+    # moyenne des trois canaux, et c'est la seconde qui s'affiche.
+    lum = rapport["basecolor"]["mean"] / 255.0
+    rgb = b["cards"][0]["depth"]["basecolor"]["mean_bytes"]
+    assert abs(lum - rgb) > 1e-4, (lum, rgb)
+    # orm : le canal V seul contre les trois canaux.
+    vert = _moyennes_pillow(z.read("orm.png"))[1]
+    assert abs(rapport["orm"]["mean"] / 255.0 - vert) < 2e-3, \
+        (rapport["orm"]["mean"] / 255.0, vert)
+    assert abs(b["cards"][0]["depth"]["orm"]["mean_bytes"] - vert) > 1e-4
+    assert rapport["orm"]["channel"], rapport["orm"]
+
+    # ── 5. LE MANIFESTE PORTE LES DEUX, ET CHACUN EST NOMME ────────────────
+    man = json.loads(z.read("manifest.json").decode("utf-8"))
+    fiche = {e["name"]: e for e in man["maps"]["files"]}["orm.png"]
+    assert fiche["mean_channel"], fiche
+    assert abs(fiche["mean_bytes"]
+               - b["cards"][0]["depth"]["orm"]["mean_bytes"]) < 1e-9
+    # ── 6. LA NOTICE AUSSI, AVEC SA CONVENTION ECRITE ──────────────────────
+    lis = z.read("LISEZMOI.txt").decode("utf-8")
+    assert "TOUS CANAUX" in lis, lis[:900]
+    assert f"moy {fiche['mean_bytes']:.4f}" in lis, lis[:2500]
+
+    # ── 7. ET C'EST CE CHAMP-LA QUE L'ECRAN AFFICHE ────────────────────────
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert "d.mean_bytes" in slip, slip
+    assert "(m.mean / 255)" not in slip, \
+        "la moyenne d'un seul canal est repartie a l'ecran sans etre nommee"
+    assert "tous canaux" in slip, "la convention doit etre ecrite a l'ecran"
+    assert "mean_per_channel" in slip, "le detail par canal doit etre lisible"
+
+    # ── 8. ET LES 16 BITS AUSSI, AVEC UN DECODEUR ECRIT ICI ────────────────
+    # C'est le seul cas ou la pile d'images ne peut pas servir de contre-
+    # epreuve (elle ne rend pas un RVB 16 bits) : la moyenne y sort de l'octet
+    # fort et de l'octet faible sommes separement, et il faut le verifier
+    # autrement, sinon la mesure la plus fine du panneau serait la seule que
+    # personne ne relit.
+    b16 = _build(did, res=256, formats=["zip"], finish="foil", bits16=True)
+    z16 = zipfile.ZipFile(io.BytesIO(
+        _fichier(did, _par_genre(b16, "zip")["name"])))
+    profond = [k for k, v in b16["cards"][0]["depth"].items()
+               if v.get("bits") == 16]
+    assert profond, b16["cards"][0]["depth"]
+    for kind in profond:
+        d = b16["cards"][0]["depth"][kind]
+        per, bits, nch = _moyennes_16(z16.read(f"{kind}.png"))
+        assert bits == 16 and nch == len(d["mean_per_channel"]), (kind, bits, nch)
+        for lu, vrai in zip(d["mean_per_channel"], per):
+            assert abs(lu - vrai) < 1e-6, (kind, lu, vrai)
+        assert abs(d["mean_bytes"] - sum(per) / len(per)) < 1e-6, (kind, d)
+
+
+def test_le_panneau_ne_promet_pas_un_fichier_a_trancher_qu_il_ne_livre_pas():
+    """« IMPRIMABLE (STL/3MF) : OUI » SUR UN LOT SANS STL NI 3MF.
+
+    Mesure contre nous : le panneau ecrivait « imprimable (STL/3MF) : oui —
+    volume 1769.968 mm3 » sur un bordereau de cinq fichiers (GLB, glTF, ZIP,
+    PLY, DXF) dont aucun ne se donne a un trancheur. La mesure etait vraie, la
+    promesse fausse : l'aptitude a la fabrication etait affirmee au nom de deux
+    formats absents.
+
+    Le titre de la ligne nomme desormais ce qui est MESURE — le solide — et sa
+    consequence nomme les fichiers de CE lot, relus dans le bordereau. Quand il
+    n'y en a aucun, la ligne le dit et le bouton juste dessous les ajoute."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+
+    # 1. le titre ne se reclame plus de deux formats
+    assert "imprimable (STL/3MF)" not in slip, slip
+    assert 'kv("solide a trancher"' in slip.replace("\u00e0", "a"), slip
+    # 2. la liste vient des FICHIERS du lot, pas des cases cochees
+    assert "BUILD.files" in slip and 'f.kind === "stl" || f.kind === "3mf"' in slip
+    assert "trancheurs.map((f) => f.name)" in slip, slip
+    assert "get(\"formats\")" not in slip.split("trancheurs")[0][-400:], slip
+    # 3. et quand il n'y en a pas, une COMMANDE, pas seulement un constat
+    assert 'data-act="slice"' in slip, slip
+    act = rendu.split("function onSlipClick(")[1].split("\n  }")[0]
+    assert '"slice"' in act and '"stl", "3mf"' in act, act
+
+    # 4. le backend, lui, mesure toujours le solide : la ligne garde sa mesure
+    ex = export_2k()
+    me = ex["build"]["cards"][0]["mesh"]
+    assert me["printable"] is True and me["volume_mm3"] > 0
+    assert {f["kind"] for f in ex["build"]["files"]} & {"stl", "3mf"} == set(), \
+        "cet export ne livre justement aucun fichier a trancher"
+
+
+def test_le_panneau_ne_recopie_aucun_seuil_ni_aucun_verdict():
+    """LE PANNEAU RECOPIAIT LES SEUILS DU BAREME, PUIS SE DONNAIT LA NOTE.
+
+    Deux reproches successifs, mesures, et le second survivait au premier.
+    D'abord la prose : « ATTENDU 63.0000 x 88.0000 x 0.3200 mm | ecart 0.0 um »
+    — la cible d'un critere, avec le mot qui la designe comme cible, et un
+    ecart au bareme. Elle est partie ; la MESURE, elle, est restee (les quatre
+    decimales relues dans les float32 du chunk binaire).
+    Restait la forme : quatorze mesures peintes en VERT des qu'elles tombaient
+    sur la valeur que le code esperait — metallicFactor === 1, roughnessFactor
+    === 1, materials === 1, wrap === CLAMP_TO_EDGE, TANGENT present. Le nombre
+    venait du fichier ; la couleur ne venait de nulle part. Une rangee de bons
+    points est une grille de correction, pas un bordereau.
+
+    La regle est asymetrique et c'est tout l'objet : ce panneau AVERTIT (ambre
+    sur ce qui gene l'utilisateur), il ne se felicite jamais. Chaque mesure
+    porte a la place ce qu'elle CHANGE pour qui monte le fichier."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+
+    # ── 1. AUCUN MOT DE CORRECTEUR DANS CE QUI S'AFFICHE ───────────────────
+    bas = rendu.lower()
+    for mot in ("conforme", "conformite", "barème", "bareme", "critère",
+                "critere", "seuil", "tolérance", "verdict", "note maximale",
+                "point sur"):
+        assert mot not in bas, f"vocabulaire de correcteur a l'ecran : « {mot} »"
+    # « attendu » survit la ou l'ecran RECLAME UNE ENTREE a l'utilisateur (« un
+    # PNG ou un JPEG est attendu ») : c'est du francais, pas un bareme. Ce qui
+    # est interdit, c'est « attendu » a cote d'une VALEUR — la forme exacte du
+    # reproche : « ATTENDU 63.0000 x 88.0000 x 0.3200 mm ».
+    for m in re.finditer("attendu", bas):
+        bout = rendu[max(0, m.start() - 150):m.start() + 150]
+        assert not re.search(r"\d[\d .,x]*\s*(mm|µm|um|DPI|dpi|px|%)", bout), bout
+        assert "ATTENDU" not in bout, bout
+    # « ecart » ne survit que la ou DEUX mesures divergent, jamais contre une
+    # cible : il n'y a pas d'ecart a un attendu, il y a un desaccord entre deux
+    # lectures du meme fichier.
+    for m in re.finditer(r"écart|ecart", rendu):
+        bout = rendu[max(0, m.start() - 220):m.start() + 220]
+        assert "attendu" not in bout.lower(), bout
+
+    # ── 2. LE VERT A DISPARU DES MESURES, L'AMBRE EST RESTE ────────────────
+    kv = rendu.split("function kv(")[1].split("\n  }")[0]
+    assert "cf-gltf-ok" not in kv, \
+        "une mesure qui tombe juste n'a pas a se peindre en vert : c'est une note"
+    assert "ok === false" in kv and "cf-gltf-ko" in kv, kv
+    assert "why" in kv, "chaque mesure doit porter sa consequence"
+
+    # ── 3. PLUS UNE SEULE RANGEE NE SE COMPARE A UNE VALEUR ESPEREE ────────
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    grille = slip[slip.index('class="cf-gltf-kv2"'):]
+    grille = grille[:grille.index("</div>'")]
+    # La comparaison qui CHOISIT UNE PHRASE reste permise — la conséquence d'un
+    # CLAMP_TO_EDGE n'est pas celle d'un REPEAT, et l'écrire est le contraire
+    # d'une note. Ce qui est interdit, c'est la comparaison qui FERME l'appel,
+    # c'est-à-dire celle qui servait de verdict : elle se reconnaît à sa
+    # parenthèse fermante.
+    for interdit in ("glb.metallicFactor === 1)", "glb.roughnessFactor === 1)",
+                     "glb.materials === 1)", 'wrap_label === "CLAMP_TO_EDGE")',
+                     'indexOf("TANGENT") >= 0)', ', true)'):
+        assert interdit not in grille, f"verdict recopié dans la grille : {interdit}"
+    # …et TOUTE rangée porte sa conséquence : autant de phrases que de mesures.
+    assert grille.count("kv(") >= 13, grille.count("kv(")
+    assert grille.count(", null,") >= 8, grille.count(", null,")
+    # …mais les mesures sont TOUTES restees, au chiffre pres.
+    for garde in ("metallicFactor", "roughnessFactor", "emissiveFactor",
+                  "triangles", "bornes d'accesseur", "boîte englobante",
+                  "doubleSided", "extensions"):
+        assert garde in grille, f"mesure perdue : {garde}"
+
+    # ── 4. LA BOITE ENGLOBANTE : LE RELEVE, ET RIEN QUI LE NOTE ────────────
+    mes = rendu.split("function measure(")[1].split("\n  }")[0]
+    assert "63" not in mes and "88" not in mes and "0.32" not in mes, \
+        "la taille du document ne se recopie pas la ou le relevé se pose"
+    assert "toFixed(4)" in mes and "bbox_mm" in mes, mes
+    # les micrometres ne s'affichent QUE si les deux lectures divergent
+    um = [l for l in mes.splitlines() if "µm" in l]
+    assert um and all("mm4(mm) === mm4(buf)" in mes for _ in um), mes
+
+    # ── 5. LE SOUS-TITRE DU PANNEAU ANNONCAIT « ZIP DES 8 MAPS » ───────────
+    # Un huit ecrit en dur dans la coquille de la page — donc hors de cette
+    # piece, qui n'a pas le droit d'y toucher — et FAUX depuis qu'une finition
+    # papier ne livre plus sa map d'emission. La piece possede son panneau :
+    # elle y remet une phrase qui n'avance aucun compte.
+    coquille = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+                "cardforge" / "index.html").read_text(encoding="utf-8")
+    assert "ZIP des 8 maps" in coquille, \
+        "la coquille n'appartient pas a cette piece : elle doit rester intacte"
+    init = rendu.split("init(host) {")[1].split("\n    },")[0]
+    assert ".panel-head .hint" in init and "textContent" in init, init
+    assert not re.search(r"\d+\s*(maps|PNG|canaux|textures)", init), init
+
+    # ── 6. LE SEUL CHIFFRE QUI NE VIENT PAS DU FICHIER DIT D'OU IL VIENT ───
+    # La definition d'impression est un REGLAGE, pose par l'utilisateur dans la
+    # barre du document ; savoir si l'export la garde est exactement ce qu'il
+    # vient lire. Le nombre reste donc, mais nomme sa source, pour qu'on ne le
+    # prenne pas pour un seuil que l'ecran s'imposerait.
+    res = rendu.split("function paintRes(")[1].split("\n  }")[0]
+    assert "DPI posés dans la barre du document" in res, res
+    # …et il n'y a plus de repli : sans valeur servie, la phrase ne se peint
+    # pas. Un « || 300 » aurait continué d'annoncer un chiffre que plus rien
+    # ne porte.
+    assert "300" not in res, "la definition d'impression ne se recopie pas ici"
+    assert "cible == null ? ''" in res, res
+
+
+def test_le_gaspillage_de_texels_porte_sa_commande():
+    """UN DIAGNOSTIC POSE SANS AUCUNE COMMANDE POUR AGIR DESSUS.
+
+    Mesure contre nous : le panneau ecrivait que 60 % des texels de son atlas
+    ne portent aucune information (useful_pct 40.0, res_fit 1518 px « sans
+    perdre un pixel d'information ») et expediait quand meme l'atlas 2048 px.
+    Le bouton existait — dans la carte des reglages, a deux cartes de la.
+
+    Le constat et sa commande se peignent maintenant au meme endroit, et les
+    deux nombres qui les fondent sont comptes par le backend : l'ecran n'a
+    aucune soustraction a faire."""
+    did = _deck("Texels")
+    _depose_atlas(did, 2048)
+    b = _build(did, res=2048, formats=["glb"])
+    d = b["cards"][0]["atlas"]["density"]
+    # 1. les deux nombres du constat sont MESURES, et ils se recoupent
+    assert d["res_fit"] and d["res_fit"] < 2048, d["res_fit"]
+    assert 0 < d["useful_pct"] < 100, d["useful_pct"]
+    assert d["wasted_px"] > 0, d
+    isl = G8.islands_px(2048, 2048)["front"]
+    assert d["useful_px"] + d["wasted_px"] == isl[2] * isl[3], (d, isl)
+    assert abs(100.0 * d["useful_px"] / (isl[2] * isl[3])
+               - d["useful_pct"]) < 0.05, d
+
+    # 2. la commande est dans le BORDEREAU, a cote du constat
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+    slip = rendu.split("function paintSlip(")[1].split("\n  }")[0]
+    assert "dens.wasted_px" in slip and "dens.useful_pct" in slip, slip
+    assert 'data-act="fit"' in slip, slip
+    assert "dens.res_fit" in slip, slip
+    # aucune arithmetique a l'ecran : les deux nombres sont servis
+    assert "wasted" not in slip.split("dens.wasted_px")[0][-300:].replace(
+        "dens.wasted_px", ""), slip
+    act = rendu.split("function onSlipClick(")[1].split("\n  }")[0]
+    assert '"fit"' in act and "d.res_fit" in act, act
+    # 3. et le bouton pose la definition SERVIE, il n'en calcule aucune
+    assert "res_fit" in act and "Math." not in act, act
+
+
+def test_le_dxf_ne_laisse_plus_croire_que_R12_porte_une_unite():
+    """« $INSUNITS = 4 » PRESENTE COMME LA PREUVE DES MILLIMETRES.
+
+    Reproche exact : `$INSUNITS` est une variable posterieure a R12 ; un
+    lecteur strictement AC1009 l'ignore. La variable reste ecrite — la plupart
+    des lecteurs modernes la lisent — mais le libelle cesse de s'en prevaloir
+    comme d'une garantie, et dit ce qu'un lecteur strict fera."""
+    did = _deck("Unite")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["dxf"])
+    f = _par_genre(b, "dxf")
+    txt = _fichier(did, f["name"]).decode("ascii")
+    # la variable EST la : on ne l'a pas retiree, on a cesse de mentir dessus
+    assert "$INSUNITS" in txt and "AC1009" in txt
+    for mot in ("R12", "$INSUNITS"):
+        assert mot in f["label"], f["label"]
+    assert "ignore" in f["label"], f["label"]
+    r = _api("GET", f"/api/cards/{did}/gltf/info").json()
+    note = [x for x in r["format_rows"] if x["id"] == "dxf"][0]["note"]
+    assert "ignoré" in note or "ignore" in note, note
+
+
+def test_l_ecran_dit_OU_va_le_fichier_et_ce_qu_il_devient():
+    """LE SEUL POINT QUE CETTE PIÈCE PERDAIT DES DEUX CÔTÉS D'UN DUEL.
+
+    L'écran pesait chaque fichier à l'octet, relisait ses chunks, mesurait sa
+    boîte englobante par deux chemins — et ne disait nulle part OÙ il venait
+    d'écrire tout ça, ni ce qu'il en advient ensuite. Le relevé de disque
+    existait bien, mais au bas de la colonne des RÉGLAGES, à trois cartes du
+    bouton « Télécharger » : la réponse était loin de la question.
+
+    Elle se peint maintenant sous le bordereau, contre les boutons qui
+    livrent. Et elle ne récite toujours pas de barème : pas un « 0 crédit »,
+    pas un « plafond », pas une « rétention » — quatre nombres relus sur le
+    dossier, et ce que fait le bouton."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "mod-gltf.js").read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", "", js, flags=re.S)
+
+    # 1. le bloc vit DANS la carte du bordereau, après le tableau
+    coque = rendu.split("function shell(")[1].split("\n  }")[0]
+    assert coque.index("<b>Bordereau</b>") < coque.index('id="cf-gltf-where"')
+    assert coque.index('id="cf-gltf-slip"') < coque.index('id="cf-gltf-where"')
+    # …et toujours dans la même carte : la section se ferme APRÈS lui.
+    apres = coque.split('id="cf-gltf-where"')[1]
+    assert apres.lstrip().startswith("></p>'"), apres[:80]
+    # 2. il est peint par la mesure du backend, jamais par une constante
+    corps = rendu.split("function paintReadouts(")[1].split("\n  }")[0]
+    for lu in ("INFO.local", "m.dir", "m.files", "m.missing", "m.listed",
+               "m.oldest_age_hours", "weight(m.bytes)"):
+        assert lu in corps, f"« {lu} » ne vient plus du relevé"
+    assert "cf-gltf-where" in corps, corps
+    for mot in ("crédit", "credit", "plafond", "rétention", "retention",
+                "déclaration", "compte"):
+        assert mot not in corps.lower(), f"l'ecran recite encore « {mot} »"
+    # 3. et il dit les deux choses qu'on vient chercher : l'endroit, et la suite
+    assert "Où vont les fichiers" in corps, corps
+    assert "dossier de téléchargements" in corps, corps
+    assert "jusqu\\'à ce que vous l\\'effaciez" in corps, corps
+
+    # 4. les quatre nombres existent et se recomptent sur le dossier
+    did = _deck("Ou est mon fichier")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["glb", "stl"])
+    m = _api("GET", f"/api/cards/{did}/gltf/info").json()["local"]["mesure"]
+    assert m["files"] == len(b["files"]) and m["listed"] == len(b["files"])
+    assert m["missing"] == 0 and m["bytes"] == b["total_bytes"]
+    assert m["oldest_age_hours"] >= 0.0 and m["dir"]
+    assert ":" not in m["dir"] and "\\" not in m["dir"], m["dir"]
 
 
 if __name__ == "__main__":

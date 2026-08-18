@@ -1455,6 +1455,17 @@ def orm_check(relu: dict, octets: int = 0, trois: dict | None = None) -> dict:
 # axe. Un excès de 1,00 signifie : le raccord ne fait rien de pire que ce que
 # la matière fait déjà quelque part à l'intérieur.
 
+# CES QUATRE MOTS NE SORTENT PAS D'ICI. Ils restent le barème INTERNE du
+# service — ils bornent les seuils, ils servent aux tests, ils voyagent dans la
+# réponse JSON pour un appelant machine — mais ni l'écran ni AUCUN fichier livré
+# ne les imprime. Deux raisons, et la seconde est la vraie.
+#   1. Un mot de conclusion collé à côté de son propre chiffre est une note que
+#      le produit se donne. Le lecteur a les trois marches brutes et les deux
+#      rapports : il conclut mieux que nous.
+#   2. Le fichier de tuile partait avec « exces=0.7200 (invisible) » écrit dans
+#      son chunk `Comment`. Un acheteur qui redistribue la tuile redistribue ce
+#      jugement, et le mot survit à toute mesure qui le contredirait ensuite.
+# `_tile_note` n'écrit donc plus que des nombres et la formule qui les produit.
 SEAM_GRADES: tuple[tuple[float, str], ...] = (
     (1.0, "invisible"), (1.5, "discret"), (3.0, "visible"),
 )
@@ -1503,8 +1514,16 @@ def seam_report(img) -> dict:
     in_x = [col(k - 1, k) for k in range(1, S)]
     in_y = [row(k - 1, k) for k in range(1, S)]
     e_x, e_y = col(S - 1, 0), row(S - 1, 0)
+    # LE PLANCHER SUR LE MAXIMUM NE PEUT RIEN FABRIQUER, et c'est démontrable :
+    # si toutes les marches internes d'un axe sont nulles, toutes les colonnes
+    # de cet axe sont identiques, donc la colonne S-1 et la colonne 0 aussi,
+    # donc la marche de jonction est nulle elle aussi — le rapport vaut 0, pas
+    # l'infini. La MÉDIANE, elle, vaut 0 dès qu'une colonne sur deux est
+    # identique à sa voisine, et la jonction peut être énorme au même moment :
+    # un plancher y fabriquerait un nombre. Mesuré sur une tuile à aplats de
+    # 16 px : le fichier sortait avec « jonction_sur_mediane=190000000.0000 ».
     mx_x, mx_y = max(max(in_x), 1e-6), max(max(in_y), 1e-6)
-    md_x, md_y = max(sorted(in_x)[len(in_x) // 2], 1e-6), max(sorted(in_y)[len(in_y) // 2], 1e-6)
+    md_x, md_y = sorted(in_x)[len(in_x) // 2], sorted(in_y)[len(in_y) // 2]
     ex_x, ex_y = e_x / mx_x, e_y / mx_y
     exces = max(ex_x, ex_y)
     # LE VERDICT SE PREND SUR LE NOMBRE PUBLIÉ, à la précision où il est
@@ -1519,20 +1538,46 @@ def seam_report(img) -> dict:
         "x": {"edge": rnd(e_x), "med": rnd(md_x), "max": rnd(mx_x), "exces": rnd(ex_x)},
         "y": {"edge": rnd(e_y), "med": rnd(md_y), "max": rnd(mx_y), "exces": rnd(ex_y)},
         "exces": publie, "exces_brut": rnd(exces), "grade": seam_grade(publie),
-        "ratio_median": rnd(max(e_x / md_x, e_y / md_y)),
-        "definition": ("marche moyenne au raccord divisee par la PIRE marche "
-                       "entre deux colonnes (ou lignes) voisines a l'interieur, "
-                       "sur les S-1 paires de chaque axe ; luminance "
+        # `None` — pas un nombre planché — quand la médiane n'existe pas.
+        "ratio_median": (rnd(max(e_x / md_x, e_y / md_y))
+                         if (md_x > 0 and md_y > 0) else None),
+        # LES DEUX DENOMINATEURS SONT NOMMES, ET DANS CET ORDRE. Diviser par la
+        # PIRE marche interne est l'etalon le plus genereux qui existe : il ne
+        # peut presque pas rendre plus de 1. Publier ce seul rapport, c'est
+        # choisir sa regle apres avoir vu le resultat. Les deux sont donc
+        # rendus, definis, et le fichier les porte tous les deux.
+        "definition": ("marche moyenne entre la derniere colonne et la premiere "
+                       "(idem lignes), divisee par deux reperes internes de la "
+                       "meme tuile : ratio_median = / marche mediane entre deux "
+                       "colonnes voisines ; exces = / plus forte de ces marches. "
+                       "S-1 paires par axe ; luminance "
                        "0,299 R + 0,587 V + 0,114 B des octets, sans arrondi"),
     }
 
 
+def _num4(v) -> str:
+    """Un nombre à quatre décimales, ou le mot qui dit qu'il n'y en a pas.
+    « non_defini » est un ÉTAT DE LA MESURE, pas un verdict sur la tuile : il
+    dit que le dénominateur vaut zéro, et la valeur zéro est écrite juste à
+    côté, par axe."""
+    return "non_defini" if v is None else f"{float(v):.4f}"
+
+
 def _tile_note(seam: dict, mat: str) -> str:
-    """Ce qui est écrit DANS le fichier, pour qu'un tiers refasse le calcul."""
+    """Ce qui est écrit DANS le fichier, pour qu'un tiers refasse le calcul.
+
+    DES NOMBRES ET UNE FORMULE, RIEN D'AUTRE. La note portait le mot de verdict
+    du service entre parenthèses — « exces=0.7200 (invisible) » — c'est-à-dire
+    une conclusion du producteur recopiée dans un fichier que l'acheteur
+    redistribue. Le mot est parti ; les trois marches de chaque axe et les DEUX
+    rapports sont là, et la médiane, qui manquait, y est maintenant."""
     return (f"matiere={mat or '?'} tuile={seam['px']}px "
-            f"exces={seam['exces_brut']:.4f} ({seam['grade']}) "
-            f"H bord={seam['x']['edge']:.4f} pire_interne={seam['x']['max']:.4f} "
-            f"V bord={seam['y']['edge']:.4f} pire_interne={seam['y']['max']:.4f} "
+            f"jonction_sur_mediane={_num4(seam['ratio_median'])} "
+            f"jonction_sur_plus_forte={seam['exces_brut']:.4f} "
+            f"H jonction={seam['x']['edge']:.4f} mediane={seam['x']['med']:.4f} "
+            f"plus_forte={seam['x']['max']:.4f} "
+            f"V jonction={seam['y']['edge']:.4f} mediane={seam['y']['med']:.4f} "
+            f"plus_forte={seam['y']['max']:.4f} "
             f"paires={seam['paires_testees']} | {seam['definition']}")
 
 
@@ -1542,12 +1587,16 @@ def _tile_meta(seam: dict, mat: str, ppm: int) -> bytes:
     out += _chunk(b"pHYs", struct.pack(">IIB", ppm, ppm, 1))
     out += _text("Comment", _tile_note(seam, mat))
     out += _text("Seam-Exces", f"{seam['exces_brut']:.4f}")
-    out += _text("Seam-H", f"bord={seam['x']['edge']:.4f} "
+    # LE SECOND RAPPORT ENTRE DANS LE FICHIER, LUI AUSSI. Il n'y etait pas : le
+    # PNG ne portait que le rapport a la PIRE marche interne, c'est-a-dire le
+    # seul des deux qui flatte la tuile. Les deux sont dans les octets.
+    out += _text("Seam-Mediane", _num4(seam["ratio_median"]))
+    out += _text("Seam-H", f"jonction={seam['x']['edge']:.4f} "
                            f"mediane={seam['x']['med']:.4f} "
-                           f"pire={seam['x']['max']:.4f}")
-    out += _text("Seam-V", f"bord={seam['y']['edge']:.4f} "
+                           f"plus_forte={seam['x']['max']:.4f}")
+    out += _text("Seam-V", f"jonction={seam['y']['edge']:.4f} "
                            f"mediane={seam['y']['med']:.4f} "
-                           f"pire={seam['y']['max']:.4f}")
+                           f"plus_forte={seam['y']['max']:.4f}")
     return out
 
 

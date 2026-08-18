@@ -3,17 +3,23 @@
    Proprietaire exclusif de : doc.texture · z 10, 30 · /api/cards/<did>/texture/*
    Prefixe DOM impose : id="cf-texture-..."   ·   feuille : css/mod-texture.css
 
-   DEUX COUCHES ET HUIT MAPS.
-   z=10  la matiere du support : 30 matieres PROCEDURALES (aucun PNG, donc
+   DEUX CALQUES ET HUIT MAPS.
+   z=10  la matiere de la carte : 30 matieres PROCEDURALES (aucun PNG, donc
          aucun plafond de resolution — la barre livre ses maps derivees en
          512 px, mesure faite sur ses propres fichiers). Chaque tuile est
-         PERIODIQUE par construction et son raccord est MESURE a l'ecran
-         (bouton « Verifier le raccord des 30 »), pas promis.
-   z=30  ce qui passe par-dessus l'illustration et sous le cadre : grain,
-         foil, holographique, poussiere, givre… plus l'usure des bords et le
-         vernis selectif, qui sont des couches INDEPENDANTES (chacune son mode
-         de fusion : l'usure multiplie, le vernis eclaircit — les melanger
-         dans une seule couche aurait donne un vernis gris).
+         PERIODIQUE par construction et sa jonction est MESUREE a l'ecran
+         (bouton « Mesurer les 30 tuiles »), pas promise.
+   z=30  la finition, peinte en dernier : grain, foil, holographique,
+         poussiere, givre… plus le frottement et l'eclat localise, peints
+         separement (le frottement multiplie, l'eclat eclaircit — fondus en
+         une seule passe, l'eclat serait gris).
+
+   CE QUE CE PANNEAU N'ECRIT PAS. Aucun mot de conclusion a cote d'un chiffre :
+   ni « invisible », ni « conforme », ni « verifie ». Le panneau publie la
+   mesure, sa formule et son etalon — et quand il y a DEUX etalons possibles,
+   il publie les deux, en commencant par le moins flatteur pour lui. Un mot de
+   verdict est une note que le producteur se donne ; elle n'apprend rien a qui
+   fabrique une carte, et elle survit a la mesure qui la contredira.
 
    Les maps PBR ne sont pas dessinees ici : elles sont DERIVEES de la carte
    telle qu'elle est rendue (CF.cardBlob, le moteur unique), par
@@ -542,14 +548,26 @@
      cachait. L'ancien rapport reste publie a cote, sous son nom, parce qu'un
      chiffre qu'on retire sans le dire est un chiffre qu'on cache.
      ═══════════════════════════════════════════════════════════════════════ */
-  const SEAM_GRADES = [[1.0, "invisible"], [1.5, "discret"], [3.0, "visible"]];
+  /* UN SEUIL, PAS UNE ECHELLE DE MOTS. Cet ecran portait la meme table de
+     verdicts que le service — « invisible », « discret », « visible »,
+     « casse » — et collait le mot a cote de son propre chiffre. Un mot de
+     conclusion ecrit par celui qui produit la mesure n'ajoute rien a la mesure
+     et lui survit : il reste affiche quand un lecteur, avec le meme fichier et
+     un autre etalon, conclut l'inverse. Ce qui reste ici est le SEUL nombre
+     dont l'ecran a besoin — celui a partir duquel il met un chiffre en
+     avertissement — et il vaut, par construction, le premier palier du service
+     (`texture.SEAM_GRADES[0][0]`, verrouille par le test). La table de mots
+     reste cote service, ou elle ne s'imprime nulle part. */
+  const SEAM_ALERT = 1.0;
   const seamCache = new Map();
-
-  function seamGrade(r) {
-    for (let i = 0; i < SEAM_GRADES.length; i++) if (r <= SEAM_GRADES[i][0]) return SEAM_GRADES[i][1];
-    return "cassé";
-  }
-  function median(a) { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1] || 1e-6; }
+  /* LA MEDIANE SORT BRUTE, ZERO COMPRIS. Elle etait ramenee a 1e-6 quand elle
+     valait 0 : le clamp protegeait la division, mais il fabriquait un nombre.
+     Mesure sur une tuile a aplats de 16 px envoyee au backend : plus d'une
+     colonne sur deux y est identique a sa voisine, la mediane vaut donc 0, et
+     le rapport publie sortait a 190 000 000,00x — un chiffre qu'aucun lecteur
+     ne peut refaire et qui ne veut rien dire. La mediane est rendue telle
+     quelle et c'est le rapport qui devient NON DEFINI (voir seamOfLum). */
+  function median(a) { const b = a.slice().sort((x, y) => x - y); return b[b.length >> 1] || 0; }
   function maxi(a) { let v = 0; for (let i = 0; i < a.length; i++) if (a[i] > v) v = a[i]; return v; }
 
   /** La mesure de raccord d'une luminance carree S x S. Isolee ici parce que
@@ -570,26 +588,36 @@
     const inX = new Float64Array(S - 1), inY = new Float64Array(S - 1);
     for (let k = 1; k < S; k++) { inX[k - 1] = colStep(k - 1, k); inY[k - 1] = rowStep(k - 1, k); }
     const eX = colStep(S - 1, 0), eY = rowStep(S - 1, 0);
+    /* LE CLAMP SUR LE MAXIMUM NE PEUT RIEN FABRIQUER, LUI, ET C'EST DEMONTRABLE :
+       si toutes les marches internes d'un axe sont nulles, toutes les colonnes
+       de cet axe sont identiques — donc la colonne S-1 et la colonne 0 aussi,
+       donc la marche de jonction est nulle elle aussi. `max = 0` implique
+       `edge = 0`, et le rapport vaut 0, pas l'infini. Le plancher 1e-6 ne sert
+       qu'a ne pas diviser par zero dans ce cas-la. La MEDIANE, elle, peut
+       valoir 0 avec une jonction enorme : il suffit qu'une colonne sur deux
+       soit identique a sa voisine. */
     const mxX = Math.max(1e-6, maxi(inX)), mxY = Math.max(1e-6, maxi(inY));
-    const mdX = Math.max(1e-6, median(Array.from(inX))), mdY = Math.max(1e-6, median(Array.from(inY)));
+    const mdX = median(Array.from(inX)), mdY = median(Array.from(inY));
     const exX = eX / mxX, exY = eY / mxY;
     const exces = Math.max(exX, exY);
-    /* LE VERDICT SE PREND SUR LE NOMBRE PUBLIE, a la precision ou il est
+    /* L'AVERTISSEMENT SE PREND SUR LE NOMBRE PUBLIE, a la precision ou il est
        publie. Sans cela, la vignette d'une toile affiche « 1,00x » pendant que
-       le compte la classe en echec parce qu'elle vaut 1,0019 : le badge et le
-       total se contrediraient sur le meme octet, et c'est exactement le defaut
-       qu'on repare. On n'echoue pas sur un ecart qu'on ne montre pas. La
-       valeur pleine reste rendue (`exces_brut`) — c'est elle que le backend
+       le compte la classe en echec parce qu'elle vaut 1,0019 : la pastille et
+       le total se contrediraient sur le meme octet, et c'est exactement le
+       defaut qu'on repare. On n'alerte pas sur un ecart qu'on ne montre pas.
+       La valeur pleine reste rendue (`exces_brut`) — c'est elle que le backend
        doit retrouver a l'octet pres sur le fichier exporte. */
     const publie = Math.round(exces * 100) / 100;
     return {
       px: S,
       x: { edge: eX, med: mdX, max: mxX, exces: exX },
       y: { edge: eY, med: mdY, max: mxY, exces: exY },
-      exces: publie, exces_brut: exces, grade: seamGrade(publie),
-      /* l'ANCIEN rapport, garde et nomme : marche au raccord sur marche
-         MEDIANE. Il n'est pas faux, il repond a une autre question. */
-      ratio_median: Math.max(eX / mdX, eY / mdY),
+      exces: publie, exces_brut: exces,
+      /* l'AUTRE rapport, garde et nomme : marche de jonction sur marche
+         MEDIANE. Il n'est pas faux, il repond a une autre question — et il
+         n'existe pas toujours : `null` quand une mediane vaut 0, plutot qu'un
+         nombre fabrique par un plancher. */
+      ratio_median: (mdX > 0 && mdY > 0) ? Math.max(eX / mdX, eY / mdY) : null,
     };
   }
 
@@ -860,9 +888,10 @@
 
      Ce qu'il n'a pas est ecrit A COTE de ce qu'il a : pas d'ombres portees,
      pas d'occlusion speculaire exacte, pas de vraie carte d'environnement,
-     pas de refraction. Et il se PROUVE : le bouton « Prouver le modele »
-     rend la meme scene avec un seul reglage change et mesure l'ecart sur les
-     pixels rendus a l'instant.
+     pas de refraction. Et il se verifie : le bouton « Banc d'essai » rend la
+     meme scene avec un seul reglage change et mesure l'ecart sur les pixels
+     rendus a l'instant. Le mot « prouver » est parti du bouton : on ne plaide
+     pas devant quelqu'un qui fabrique une carte, on lui montre l'ecart.
 
      Toujours aucun WebGL et aucun fichier distant : une boucle par pixel, la
      ou le moteur 3D serait un pari sur le pilote graphique du client.
@@ -1450,8 +1479,13 @@
        questionnaire, elle n'apprend rien a qui veut voir sa matiere sous une
        lumiere. Reste ce qui se verifie et qui sert : le modele d'eclairage, et
        le fait que ce sont les maps livrees qui sont rallumees. */
-    box.appendChild(title("Table lumineuse", "les maps livrées, sous une lumière que vous déplacez",
-      "microfacettes GGX · calculée sur les maps livrées"));
+    /* PAS DE TAILLE DANS LE BADGE. `LIT_PX` est un PLAFOND (`_resample` ne
+       grossit jamais une map plus petite) : l'ecrire ici comme une taille
+       serait un chiffre affiche que le rendu ne garantit pas. La taille
+       REELLEMENT rendue est comptee et publiee sous la toile, a chaque image
+       (« 640 x 448 px en 38 ms »). */
+    box.appendChild(title("Table lumineuse", "vos 8 PNG rallumés — glissez dans l'image pour orienter la lampe",
+      "microfacettes GGX"));
     if (!REPORT || !REPORT.maps || !REPORT.maps.length) {
       box.appendChild(elm("p", "cf-tx-note",
         "Dérivez les maps : cet écran les rallume ensuite — <b>basecolor × normale × rugosité × métal × occlusion</b>, "
@@ -1581,7 +1615,8 @@
       + "du sRGB avant d'entrer et ré-encodée en sortie), avec réponse métallique "
       + "<span class=\"mono\">F0 = mélange(0,04 ; albédo ; métal)</span> et un environnement "
       + "hémisphérique ciel/sol. Sans ombres portées, ni carte d'environnement réelle, "
-      + "ni réfraction. Calculé sur les <b>PNG livrés</b>, ramenés à " + LIT_PX + " px."));
+      + "ni réfraction. Calculé sur les <b>PNG écrits</b>, ramenés à " + LIT_PX
+      + " px au plus (jamais agrandis) — la taille rendue est comptée sous la toile."));
     const bo = elm("div", "cf-tx-benchout");
     bo.id = "cf-texture-benchout";
     side.appendChild(bo);
@@ -1593,7 +1628,7 @@
   /* ── A. la matiere du support ─────────────────────────────────────────── */
   function sectionPaper(s) {
     const box = elm("section", "cf-tx-card");
-    box.appendChild(title("Matière du support", "couche z = 10 — sous l'illustration",
+    box.appendChild(title("La matière de la carte", "calque z = 10 · peint en premier",
       MATS.length + " matières procédurales"));
 
     const bar = elm("div", "cf-tx-bar");
@@ -1621,7 +1656,7 @@
 
     /* glisser-deposer : la barre n'accepte AUCUNE image de l'utilisateur */
     const drop = elm("div", "cf-tx-drop",
-      '<b>Glisser une image ici</b><span>ou cliquer — elle devient la matière du support (JPEG/PNG/WebP)</span>');
+      '<b>Glisser une image ici</b><span>ou cliquer — elle devient la matière de la carte (JPEG/PNG/WebP)</span>');
     drop.id = "cf-texture-drop";
     const file = document.createElement("input");
     file.type = "file"; file.accept = "image/*"; file.className = "cf-tx-file";
@@ -1674,28 +1709,54 @@
     return box;
   }
 
-  /** Le raccord de la matiere posee, le bouton qui les mesure toutes, et
-      celui qui SORT LA TUILE — sans quoi aucun de ces chiffres n'est
-      verifiable sur un octet par qui les lit. */
+  /** La tuile qui se repete : ce que la jonction fait, en chiffres, plus le
+      bouton qui les mesure toutes et celui qui SORT LA TUILE — sans quoi aucun
+      de ces chiffres n'est verifiable sur un octet par qui les lit.
+
+      DEUX REPERES, PAS UN. Diviser la marche de jonction par la PLUS FORTE
+      marche interne est le denominateur le plus genereux qui existe : il ne
+      peut presque pas donner plus de 1. Le publier seul, avec un mot de
+      conclusion a cote, revient a se noter soi-meme. Les deux reperes
+      (mediane et plus forte) sont donc affiches COTE A COTE et dans cet
+      ordre, avec les trois marches brutes dont ils sortent ; le lecteur
+      choisit son etalon. Aucun mot ne conclut a leur place : quand la
+      jonction depasse tout l'interieur, c'est le chiffre lui-meme qui est
+      mis en avertissement. */
+  /** Le rapport a la mediane, ou la raison pour laquelle il n'existe pas.
+      Ecrire « — » sans dire pourquoi laisserait croire a une mesure ratee ;
+      c'est la matiere qui n'a pas de marche mediane, et le nombre qui le
+      prouve (mediane 0,00) est affiche juste en dessous, par axe. */
+  function ratMed(r, brut) {
+    if (r.ratio_median === null || r.ratio_median === undefined) {
+      return '<b>non défini</b><i class="cf-tx-def">marche médiane nulle : '
+        + 'plus d\'une colonne sur deux est identique à sa voisine</i>';
+    }
+    return '<b>' + fx(r.ratio_median, brut ? 4 : 2) + '×</b>';
+  }
+
   function fillSeam(host, s) {
     host.innerHTML = "";
     const m = MAT_BY_ID[s.paper];
     if (m) {
       const r = seamOf(m.id, s.seed);
       const line = elm("div", "cf-tx-seamline");
-      line.innerHTML = '<b>Raccord de la tuile</b>'
-        + '<span class="cf-tx-' + (r.exces <= 1 ? "ok" : "flat") + '">' + esc(r.grade) + '</span>'
-        + '<span class="mono">excès ' + fx(r.exces, 2) + '× — H : bord '
-        + fx(r.x.edge, 2) + ' / pire interne ' + fx(r.x.max, 2)
-        + ' · V : bord ' + fx(r.y.edge, 2) + ' / pire interne ' + fx(r.y.max, 2)
-        + ' (512 px)</span>'
-        + '<span class="cf-tx-def">rapport à la marche médiane : '
-        + fx(r.ratio_median, 2) + '×</span>';
+      line.innerHTML = '<b>Répétition de la tuile</b>'
+        + '<span class="mono">jonction ÷ marche médiane ' + ratMed(r)
+        + ' · ÷ plus forte marche <b>' + fx(r.exces, 2) + '×</b>'
+        + '<i class="cf-tx-def">tuile ' + TILE + ' px</i></span>'
+        + '<span class="mono">H ' + fx(r.x.edge, 2) + ' / méd. ' + fx(r.x.med, 2)
+        + ' / max ' + fx(r.x.max, 2)
+        + ' · V ' + fx(r.y.edge, 2) + ' / méd. ' + fx(r.y.med, 2)
+        + ' / max ' + fx(r.y.max, 2)
+        + '<i class="cf-tx-def">marche de jonction / médiane / plus forte, par axe</i></span>'
+        + (r.exces > SEAM_ALERT
+          ? '<span class="cf-tx-alert">⚠ ' + fx(r.exces, 2) + '×</span>' : '');
       host.appendChild(line);
     }
-    const b = elm("button", "cf-tx-mini", "Vérifier le raccord des " + MATS.length);
+    const b = elm("button", "cf-tx-mini", "Mesurer les " + MATS.length + " tuiles");
     b.type = "button";
-    b.title = "Mesure la couture de chaque tuile : marche au raccord contre la PIRE marche interne, sur les 511 paires de colonnes et de lignes";
+    b.title = "Mesure les " + (2 * (TILE - 1)) + " paires de colonnes et de lignes de chaque tuile "
+      + "et publie les deux rapports (marche médiane, plus forte marche)";
     b.addEventListener("click", () => seamAll(host));
     host.appendChild(b);
     /* SORTIR LA TUILE. Un critique a ecrit, et il avait raison : « aucun
@@ -1722,34 +1783,38 @@
     const out = host.querySelector("#cf-texture-seamall");
     if (!out) return;
     out.innerHTML = "";
-    M.busy(true, "mesure du raccord des " + MATS.length + " matières…");
+    M.busy(true, "mesure des " + MATS.length + " tuiles…");
     let pire = 0, pireId = "", n = 0;
     const lignes = [];
     for (let i = 0; i < MATS.length; i++) {
       const r = seamOf(MATS[i].id, s.seed);
       if (r.exces > pire) { pire = r.exces; pireId = MATS[i].label; }
-      if (r.exces <= 1) n++;
-      lignes.push('<span class="' + (r.exces <= 1 ? "cf-tx-ok" : "cf-tx-flat") + '">'
+      if (r.exces <= SEAM_ALERT) n++;
+      lignes.push('<span class="' + (r.exces <= SEAM_ALERT ? "cf-tx-ok" : "cf-tx-flat") + '">'
         + esc(MATS[i].label) + ' ' + fx(r.exces, 2) + '×</span>');
       if ((i % 4) === 3) await new Promise((res) => setTimeout(res, 0));
     }
     M.busy(false);
     out.innerHTML = '<p class="cf-tx-note"><b>' + n + ' / ' + MATS.length
-      + '</b> tuiles dont le raccord ne fait <b>rien de pire</b> que ce que la matière '
-      + 'fait déjà à l\'intérieur (excès ≤ 1,00×) · pire cas <b>'
+      + '</b> tuiles dont la jonction reste sous la <b>plus forte</b> marche que la '
+      + 'matière porte déjà à l\'intérieur (≤ 1,00×) · plus haut rapport <b>'
       + esc(pireId) + ' ' + fx(pire, 2) + '×</b>.</p>'
-      + '<p class="cf-tx-note"><b>Ce que « excès » mesure.</b> Marche moyenne au raccord ÷ '
-      + '<b>pire</b> marche entre deux colonnes (ou deux lignes) voisines à l\'intérieur, '
-      + 'sur les <b>511</b> paires de chaque axe. Un excès de 1,00× veut dire que la '
-      + 'jonction ne fait rien de plus visible que ce que la matière contient déjà : sur '
-      + 'un tissage, le raccord tombe sur un bord de fil comme les autres. Le rapport à '
-      + 'la marche <i>médiane</i>, publié à côté, répond à une autre question et monte '
-      + 'sur les matières à motif serré.</p>'
+      + '<p class="cf-tx-note"><b>Le calcul, en entier.</b> On fait la moyenne des écarts '
+      + 'entre la dernière colonne et la première (idem pour les lignes) : c\'est la '
+      + '<b>marche de jonction</b>. On la divise ensuite par deux repères pris à '
+      + 'l\'intérieur de la <i>même</i> tuile, sur ses <b>' + (TILE - 1) + '</b> paires de '
+      + 'colonnes voisines et ses <b>' + (TILE - 1) + '</b> paires de lignes voisines : la '
+      + 'marche <b>médiane</b>, et la <b>plus forte</b>. Les deux rapports sont publiés '
+      + 'ensemble parce qu\'ils ne répondent pas à la même question — la médiane dit '
+      + 'l\'ordinaire de la matière, la plus forte dit son pire — et un rapport divisé '
+      + 'par le pire ne peut presque pas dépasser 1. Luminance '
+      + '<span class="mono">0,299 R + 0,587 V + 0,114 B</span>, sans arrondi, tuile de '
+      + TILE + ' px. La colonne ci-dessous donne le rapport à la plus forte marche.</p>'
       + '<div class="cf-tx-seamgrid">' + lignes.join("") + '</div>';
     /* le cache est plein : les vignettes peuvent maintenant porter leur mesure */
     const grid = q("#cf-texture-grid");
     if (grid) fillGrid(grid, s);
-    M.toast(n + "/" + MATS.length + " raccords sans excès — pire : " + pireId + " " + fx(pire, 2) + "×");
+    M.toast(n + "/" + MATS.length + " tuiles sous 1,00× — plus haut : " + pireId + " " + fx(pire, 2) + "×");
   }
 
   /** LA TUILE SORT, ET ELLE SORT MESUREE. Le backend refait le calcul sur les
@@ -1780,12 +1845,17 @@
            calculs divergeaient au troisieme chiffre. */
         const ecart = Math.abs(t.seam.exces_brut - ecran.exces_brut);
         box.innerHTML = '<p class="' + (ecart <= 0.001 ? "cf-tx-mu" : "cf-tx-mn") + '">'
-          + '<b>' + esc(m.label) + ' — mesuré sur le fichier livré.</b> '
-          + 'À l\'écran excès <span class="mono">' + fx(ecran.exces_brut, 4) + '×</span> · '
-          + 'dans le PNG <span class="mono">' + fx(t.seam.exces_brut, 4) + '×</span> · écart '
-          + '<span class="mono">' + fx(ecart, 4) + '</span>. '
-          + 'H : bord ' + fx(t.seam.x.edge, 2) + ' / pire interne ' + fx(t.seam.x.max, 2)
-          + ' · V : bord ' + fx(t.seam.y.edge, 2) + ' / pire interne ' + fx(t.seam.y.max, 2)
+          + '<b>' + esc(m.label) + ' — recalculé sur le fichier reçu.</b> '
+          + 'Rapport à la plus forte marche : à l\'écran <span class="mono">'
+          + fx(ecran.exces_brut, 4) + '×</span> · dans le PNG <span class="mono">'
+          + fx(t.seam.exces_brut, 4) + '×</span> · écart '
+          + '<span class="mono">' + fx(ecart, 4) + '</span>'
+          + ' · rapport à la marche médiane <span class="mono">'
+          + ratMed(t.seam, true) + '</span>'
+          + '. H ' + fx(t.seam.x.edge, 2) + ' / méd. ' + fx(t.seam.x.med, 2)
+          + ' / max ' + fx(t.seam.x.max, 2)
+          + ' · V ' + fx(t.seam.y.edge, 2) + ' / méd. ' + fx(t.seam.y.med, 2)
+          + ' / max ' + fx(t.seam.y.max, 2)
           + '. Fichier <span class="mono">' + t.w + ' × ' + t.h + ' px, '
           + Math.round(t.bytes / 1024) + ' Ko</span>, chunks '
           + '<span class="mono">' + esc((t.chunks || []).filter((c, i, a) => a.indexOf(c) === i).join(" ")) + '</span>'
@@ -1793,8 +1863,8 @@
           + '. Les mesures sont écrites dans ses chunks <span class="mono">tEXt</span>, '
           + 'avec la formule qui les produit.</p>';
       }
-      M.toast("tuile exportée et re-mesurée sur le fichier : excès "
-        + fx(t && t.seam ? t.seam.exces_brut : 0, 4) + "×");
+      M.toast("tuile exportée et recalculée sur le fichier : "
+        + fx(t && t.seam ? t.seam.exces_brut : 0, 4) + "× la plus forte marche");
     } catch (e) {
       M.toast(e && e.missing
         ? "backend absent : l'export de tuile exige /api/cards"
@@ -1846,16 +1916,18 @@
     /* La mesure coute une tuile 512 px complete par matiere : on ne la LANCE
        pas au dessin de la grille (ce serait trente fbm a chaque frappe dans le
        champ de recherche), on lit seulement ce qui a deja ete mesure. Le
-       bouton « Vérifier le raccord des 30 » remplit le cache, puis redessine
-       la grille — et alors chaque vignette porte son chiffre. */
+       bouton « Mesurer les 30 tuiles » remplit le cache, puis redessine la
+       grille — et alors chaque vignette porte son chiffre. */
     const r = plain ? null : seamPeek(m.id, s.seed);
     if (r) {
-      b.title += " · raccord : excès " + fx(r.exces, 2) + "× (" + r.grade
-        + ") — bord H " + fx(r.x.edge, 2) + " / pire interne " + fx(r.x.max, 2)
-        + ", bord V " + fx(r.y.edge, 2) + " / pire interne " + fx(r.y.max, 2);
-      if (r.exces > 1) {
+      b.title += " · jonction ÷ marche médiane "
+        + (r.ratio_median === null ? "non défini (médiane nulle)" : fx(r.ratio_median, 2) + "×")
+        + ", ÷ plus forte marche " + fx(r.exces, 2)
+        + "× — H " + fx(r.x.edge, 2) + " / méd. " + fx(r.x.med, 2) + " / max " + fx(r.x.max, 2)
+        + ", V " + fx(r.y.edge, 2) + " / méd. " + fx(r.y.med, 2) + " / max " + fx(r.y.max, 2);
+      if (r.exces > SEAM_ALERT) {
         const w = elm("i", "cf-tx-matseam", "⚠ " + fx(r.exces, 1) + "×");
-        w.title = "le raccord de cette tuile fait pire que la matière elle-même";
+        w.title = "la jonction de cette tuile dépasse la plus forte marche qu'elle contient";
         b.appendChild(w);
       }
     }
@@ -1915,7 +1987,7 @@
     const box = elm("section", "cf-tx-card");
     /* (OVERS.length - 1) : « Aucun » n'est pas un effet. Compter le contenant
        est exactement le péché qu'on reproche au badge « 16 bits ». */
-    box.appendChild(title("Effet de dessus", "couche z = 30 — sur l'illustration, sous le cadre",
+    box.appendChild(title("La finition", "calque z = 30 · peint en dernier",
       (OVERS.length - 1) + " effets"));
     const chips = elm("div", "cf-tx-chips");
     OVERS.forEach((o) => {
@@ -1935,12 +2007,12 @@
     ctl.appendChild(slider("Échelle", pct(s.over_scale), 10, 400, 1, "%",
       (v) => push({ over_scale: v / 100 })));
     ctl.appendChild(elm("div", "cf-tx-sep"));
-    ctl.appendChild(slider("Usure des bords", pct(s.wear), 0, 100, 1, "%", (v) => push({ wear: v / 100 })));
-    ctl.appendChild(slider("Vernis sélectif", pct(s.varnish), 0, 100, 1, "%", (v) => push({ varnish: v / 100 })));
+    ctl.appendChild(slider("Frottement", pct(s.wear), 0, 100, 1, "%", (v) => push({ wear: v / 100 })));
+    ctl.appendChild(slider("Éclat localisé", pct(s.varnish), 0, 100, 1, "%", (v) => push({ varnish: v / 100 })));
     box.appendChild(ctl);
     box.appendChild(elm("p", "cf-tx-note",
-      "Usure et vernis sont des couches <b>indépendantes</b> : l'usure multiplie, le vernis éclaircit. "
-      + "Fondus dans une seule couche, le vernis serait gris."));
+      "Le frottement assombrit, l'éclat éclaircit : ils sont peints séparément, "
+      + "sinon l'éclat virerait au gris."));
     return box;
   }
 
@@ -2130,7 +2202,7 @@
         + " — niveaux cuits actuels métal " + fx(s.pbr.levels.metallic, 2)
         + ", rugosité " + fx(s.pbr.levels.roughness, 2)
         + (grave && mm.mtl >= 0.5
-          ? ". Exporté tel quel, ce support sortira en <b>plastique doré</b>." : "."));
+          ? ". Exporté tel quel, il sortira en <b>plastique doré</b>." : "."));
       const fix = elm("button", "cf-tx-mini", "Aligner sur la matière");
       fix.type = "button";
       fix.addEventListener("click", () => {
@@ -2444,12 +2516,15 @@
       const p = REPORT.orm_pack, e = p.ecarts || {};
       const FR = { ao: "occlusion", roughness: "rugosité", metallic: "métal" };
       const trois = ["ao", "roughness", "metallic"].map((k, i) =>
-        "RVB".charAt(i) + " = " + FR[k] + " (écart max "
-        + (e[k] === null || e[k] === undefined ? "non mesurable" : e[k]) + ")");
+        "RVB".charAt(i) + " " + FR[k] + " "
+        + (e[k] === null || e[k] === undefined ? "non mesurable" : e[k]));
+      /* CE QUI EST DIT ICI EST UNE MESURE, PAS UNE PROMESSE TENUE. La ligne
+         annonçait la convention puis se félicitait de la respecter ; elle
+         donne maintenant l'écart relevé composante par composante et laisse
+         le lecteur en tirer ce qu'il veut. Les nombres sont les mêmes. */
       c.appendChild(elm("p", p.ok ? "cf-tx-mu" : "cf-tx-mn",
-        (p.ok ? "reprend les trois maps séparées, valeur pour valeur, sur "
-          : "S'ÉCARTE des trois maps séparées sur ")
-        + p.px.toLocaleString("fr-FR") + " pixels — " + trois.join(" · ")
+        "écart maximum avec les trois maps séparées, sur "
+        + p.px.toLocaleString("fr-FR") + " pixels relus : " + trois.join(" · ")
         + (p.octets ? " · " + Math.round(p.octets / 1024) + " Ko" : "")));
       /* « SANS OPTION POUR LIVRER L'ORM A LA PLACE DES TROIS SEPAREES » — le
          reproche revient dans les deux duels, et il suppose que l'echange
