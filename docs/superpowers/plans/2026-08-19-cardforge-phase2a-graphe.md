@@ -156,9 +156,13 @@ def clean_graph(raw) -> dict:
     for i, n in enumerate(g.get("nodes") or [] if isinstance(g.get("nodes"), list) else []):
         if not isinstance(n, dict) or n.get("kind") not in kinds:
             continue
-        node = {"id": str(n.get("id") or f"n{i + 1}")[:24], "kind": n["kind"]}
-        if node["id"] in ids:
-            node["id"] = f"n{i + 1}x"
+        brut = re.sub(r"[^A-Za-z0-9._-]", "_", str(n.get("id") or f"n{i + 1}"))[:24]
+        node = {"id": brut or f"n{i + 1}", "kind": n["kind"]}
+        # resynthese SANS collision possible : "n2x" + "n2x" donnait "n2x" deux
+        # fois (mesure en revue) — on suffixe jusqu'a unicite, borne par la
+        # longueur d'entree deja tronquee.
+        while node["id"] in ids:
+            node["id"] += "x"
         ids.add(node["id"])
         if n["kind"] == "layer":
             node["role"] = n.get("role") if n.get("role") in roles else None
