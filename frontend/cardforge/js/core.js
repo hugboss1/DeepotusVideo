@@ -648,6 +648,8 @@
     const o = opt || {};
     const guides = !!o.guides;
     const side = o.face === "back" ? "back" : "front";
+    const only = Array.isArray(o.only_z) ? o.only_z : null;
+    const paper = o.paper !== false;
     const g = geom();
     const cd = card(typeof i === "number" ? i : CUR);
     const w = Math.max(1, g.canvas_px[0]);
@@ -658,12 +660,16 @@
     ctx.imageSmoothingEnabled = true;
     try { ctx.imageSmoothingQuality = "high"; } catch (e) { /* moteurs anciens */ }
 
-    /* le support : plein cadre, fond perdu compris (la decoupe vient apres). */
-    ctx.fillStyle = PAPER;
-    ctx.fillRect(0, 0, w, h);
+    /* le support : plein cadre, fond perdu compris (la decoupe vient apres).
+       `paper:false` (rendu par couches, P9) : toile TRANSPARENTE — la couche
+       ne porte que ses propres pixels. */
+    if (paper) {
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(0, 0, w, h);
+    }
     let draws = false;
     for (let k = 0; k < PAINTERS.length; k++) if (PAINTERS[k].z !== Z_GUIDES) { draws = true; break; }
-    if (!draws) emptyPlate(ctx, g);
+    if (!draws && paper && !only) emptyPlate(ctx, g);
 
     const d = doc();
     /* SIDE est une variable partagee : elle ne vaut que parce que les rendus
@@ -676,6 +682,7 @@
     for (let k = 0; k < PAINTERS.length; k++) {
       const p = PAINTERS[k];
       if (p.z === Z_GUIDES) continue;               /* reserve au CORE */
+      if (only && only.indexOf(p.z) < 0) continue;   /* filtre P9, couche par couche */
       ctx.save();
       try {
         ctx.setTransform(1, 0, 0, 1, 0, 0);

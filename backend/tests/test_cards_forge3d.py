@@ -121,5 +121,22 @@ def test_le_core_connait_la_piece_forge3d():
     assert ids[-1] == "forge3d" and len(ids) == 9, ids
 
 
+CORE = ROOT / "frontend" / "cardforge" / "js" / "core.js"
+
+
+def test_le_moteur_sait_rendre_un_sous_ensemble_sur_toile_nue():
+    """`renderRaw({only_z, paper:false})` : le rendu par couches est un filtre
+    du MOTEUR UNIQUE, pas un second moteur qui divergerait (règle WYSIWYG)."""
+    src = CORE.read_text(encoding="utf-8")
+    corps = src.split("async function renderRaw(")[1].split("\n  }")[0]
+    assert "only_z" in corps, "le filtre de painters manque"
+    assert "o.paper" in corps, "l'option de support papier manque"
+    # le filtre s'applique DANS la boucle des painters, apres le garde z=90
+    boucle = corps.split("for (let k = 0; k < PAINTERS.length; k++) {")[1]
+    assert "only" in boucle.split("ctx.save()")[0]
+    # le papier reste le defaut : paper !== false
+    assert 'o.paper !== false' in corps
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
