@@ -36,6 +36,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest                                                     # noqa: E402
 from httpx import AsyncClient, ASGITransport                     # noqa: E402
+import hashlib                                                    # noqa: E402
+import io                                                         # noqa: E402
+import json                                                       # noqa: E402
+import zipfile                                                    # noqa: E402
+from PIL import Image, ImageDraw                                 # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 JS = ROOT / "frontend" / "cardforge" / "js" / "mod-forge3d.js"
@@ -172,6 +177,83 @@ def test_cf_layers_verifie_couche_par_couche_et_avoue_le_mode():
     assert "RENDER_CHAIN" in corps
     # l'API est publique et les blobs de couche sont mintes (provenance)
     assert re.search(r"layers:\s*layers", src), "CF.layers non exposee"
+
+
+def _couches_synthetiques(w=815, h=1110):
+    """6 couches + composite qui empilent exactement, en PIL pur."""
+    fond = Image.new("RGBA", (w, h), (250, 246, 238, 255))
+    couches = {"fond-matiere": fond}
+    for nom, boite, teinte in (
+            ("illustration", (80, 120, w - 80, 620), (196, 148, 74, 255)),
+            ("voile-matiere", (0, 0, w, h), (0, 0, 0, 0)),        # couche VIDE
+            ("cadre", (30, 30, w - 30, h - 30), (60, 80, 140, 255)),
+            ("typographie", (120, 700, w - 120, 780), (240, 236, 228, 255)),
+            ("ornements", (40, 40, 140, 140), (220, 190, 90, 255))):
+        im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        if teinte[3]:
+            ImageDraw.Draw(im).rectangle(boite, fill=teinte)
+        couches[nom] = im
+    composite = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    for nom in ("fond-matiere", "illustration", "voile-matiere", "cadre",
+                "typographie", "ornements"):
+        composite = Image.alpha_composite(composite, couches[nom])
+    return couches, composite
+
+
+def _png(im):
+    buf = io.BytesIO()
+    im.save(buf, "PNG")
+    return buf.getvalue()
+
+
+def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
+    did = _deck("Couches")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front",
+            "modes": json.dumps({n: "isolee" for n in couches}),
+            "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    b = r.json()["layers"]
+
+    # le manifeste : schema, roles ordonnes, SHA-256 et boites RECALCULES ici
+    assert b["schema"] == "card-3d/layers-manifest@1"
+    assert [l["role"] for l in b["layers"]] == [
+        "fond-matiere", "illustration", "voile-matiere", "cadre",
+        "typographie", "ornements"]
+    # contre-preuve backend : empilement PIL == composite, ecart mesure nul
+    assert b["proof"]["backend"]["diff_px"] == 0
+    assert b["proof"]["client"]["stack_ok"] is True
+    # la couche vide est LIVREE et mesuree, pas devinee
+    voile = [l for l in b["layers"] if l["role"] == "voile-matiere"][0]
+    assert voile["coverage_pct"] == 0.0 and voile["bbox_px"] is None
+
+    # le ZIP existe, ses entrees portent les 7 PNG + manifeste, les SHA collent
+    rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
+    assert rz.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(rz.content))
+    noms = sorted(z.namelist())
+    assert "layers.json" in noms and "composite_front.png" in noms
+    man = json.loads(z.read("layers.json").decode("utf-8"))
+    for l in man["layers"]:
+        h = hashlib.sha256(z.read(l["file"])).hexdigest()
+        assert h == l["sha256"], l["file"]
+    # chaque PNG livre porte son pHYs (300 DPI reels, patron P1/P8)
+    px = z.read("illustration_front.png")
+    assert b"pHYs" in px
+
+
+def test_une_trame_fausse_fait_409_jamais_500():
+    did = _deck("Trame fausse")
+    im = Image.new("RGBA", (100, 100), (255, 0, 0, 255))
+    files = [("layers", ("fond-matiere.png", _png(im), "image/png")),
+             ("composite", ("composite.png", _png(im), "image/png"))]
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r.status_code == 409, r.text
 
 
 if __name__ == "__main__":
