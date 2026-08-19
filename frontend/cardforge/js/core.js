@@ -74,7 +74,7 @@
   const VERSION = "2.0.0";
 
   /* ── les huit ids geles, dans l'ordre du rail (= numero de piece) ───────── */
-  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf"];
+  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d"];
   const ORDER = {};
   MODULES.forEach((id, i) => { ORDER[id] = i + 1; });
 

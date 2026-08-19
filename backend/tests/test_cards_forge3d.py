@@ -95,3 +95,23 @@ def test_la_table_des_couches_est_identique_des_deux_cotes():
     assert "Z_TABLE" in core
     tous = sorted(z for row in F9.LAYER_ROLES for z in row["z"])
     assert tous == [10, 20, 30, 40, 60, 70], tous
+
+
+def test_le_core_connait_la_piece_forge3d():
+    """Le registre du CORE est gelé : une pièce absente de sa table lève au
+    premier CF.register dans un vrai navigateur — le lint et les routes ne
+    l'attrapent pas (constat de la tâche 1).
+
+    `ORDER` (core.js ~78-79) et `assertId()` (core.js ~226-230) dérivent tous
+    deux de la table `MODULES` littérale : il n'y a qu'UNE table à tenir à
+    jour, pas trois. On la cible directement, pas un commentaire voisin."""
+    core = (ROOT / "frontend" / "cardforge" / "js" / "core.js").read_text(encoding="utf-8")
+    m = re.search(r"const MODULES = \[([^\]]*)\];", core)
+    assert m, "core.js : table MODULES introuvable (structure inattendue)"
+    ids = re.findall(r'"([a-z0-9]+)"', m.group(1))
+    assert "forge3d" in ids, (
+        "forge3d absent de la table MODULES gelée du CORE — "
+        "CF.register(\"forge3d\", ...) lèvera dans un vrai navigateur")
+    # le rail est dans l'ordre de MODULES (core.js:1349-1350) : forge3d doit
+    # occuper le rang 9, en dernier de la liste gelée.
+    assert ids[-1] == "forge3d" and len(ids) == 9, ids
