@@ -898,5 +898,147 @@ def test_le_glb_assemble_est_relisible_par_un_lecteur_tiers():
         assert 0 <= tex["source"] < len(doc["images"])
 
 
+def test_le_graphe_gratuit_produit_un_glb_et_son_metadata():
+    """Bout en bout backend : couches livrées (réutilise l'export de la
+    phase 1) -> graphe par défaut -> GLB assemblé + metadata.json ERC-721 +
+    bordereau ; STL refusé avec MOTIF (des plans ne sont pas un solide)."""
+    did = _deck("Graphe gratuit")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "card": "0", "paper": "#ffffff",
+                   "modes": json.dumps({n: "isolee" for n in couches}),
+                   "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})})
+    assert r.status_code == 200, r.text
+
+    graphe = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "fond-matiere", "side": "front"},
+        {"id": "t1", "kind": "plane", "depth_mm": 0.0},
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3, "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "essai3d"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"},
+                  {"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": graphe, "card": 0})
+    assert r2.status_code == 200, r2.text
+    b = r2.json()["artifact"]
+
+    # le GLB : relu, 2 éléments nommés par leurs rôles, échelle physique
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
+    doc, _ = _read_glb(glb)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    assert [doc["nodes"][k]["name"] for k in racine["children"]] == \
+        ["fond-matiere", "cadre"]
+    # metadata.json : ERC-721 compatible, attributs mesurés
+    meta = json.loads(_api("GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
+    assert meta["name"] and meta["image"] and meta["animation_url"]
+    types = {a["trait_type"]: a["value"] for a in meta["attributes"]}
+    assert types["deck"] and types["elements_3d"] == 2 and types["engines"] == "local"
+    # STL : REFUSÉ avec motif (le plan n'est pas fermé) — jamais un fichier faux
+    assert b["stl"]["written"] is False
+    assert "ferme" in b["stl"]["why"] or "fermé" in b["stl"]["why"]
+
+    # le graphe 100 % relief, lui, obtient son STL
+    graphe2 = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3, "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "relief3d"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": graphe2, "card": 0})
+    b3 = r3.json()["artifact"]
+    assert b3["stl"]["written"] is True
+    stl = _api("GET", f"/api/cards/{did}/forge3d/file/{b3['stl']['name']}").content
+    assert len(stl) == 84 + 50 * struct.unpack("<I", stl[80:84])[0]
+
+
+def test_un_graphe_sans_couches_livrees_fait_409_motive():
+    did = _deck("Sans couches")
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": {"nodes": [], "edges": []}, "card": 0})
+    assert r.status_code == 409
+    assert "couches" in r.json()["detail"]
+
+
+def test_le_plafond_de_12_elements_fait_400_avant_tout_travail():
+    """OBLIGATION de revue (tâche 4) : le plafond (6 rôles x 2 côtés) est
+    vérifié AVANT tout travail lourd — même un did SANS aucune couche
+    livrée doit obtenir 400, jamais un 409/500 provoqué par le décodage
+    d'image (aucun fichier n'est même touché avant ce garde-fou)."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Trop d'elements")
+    roles = [r["role"] for r in F9.LAYER_ROLES]
+    nodes, edges = [], []
+    for i in range(13):
+        role = roles[i % len(roles)]
+        s, t = f"s{i}", f"t{i}"
+        nodes.append({"id": s, "kind": "layer", "role": role, "side": "front"})
+        nodes.append({"id": t, "kind": "plane", "depth_mm": 0.0})
+        edges.append({"from": s, "to": t})
+        edges.append({"from": t, "to": "asm"})
+    nodes.append({"id": "asm", "kind": "assemble"})
+    nodes.append({"id": "art", "kind": "artifact", "name": "trop"})
+    edges.append({"from": "asm", "to": "art"})
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": {"nodes": nodes, "edges": edges}, "card": 0})
+    assert r.status_code == 400, r.text
+    assert "13" in r.json()["detail"]
+
+
+def test_une_couche_manquante_fait_409_distinct_du_graphe_vide():
+    """OBLIGATION de revue (tâche 4) : le 409 « couche introuvable sur
+    disque » (graphe bien câblé, mais le fichier livré manque) doit se
+    DISTINGUER du 409 « graphe vide » (aucune chaîne résolue, couvert par
+    le test soeur ci-dessus) — deux motifs NOMMÉS, jamais le même message
+    générique recyclé pour deux causes différentes."""
+    did = _deck("Couche manquante")
+    graphe = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t1", "kind": "plane", "depth_mm": 0.0},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "jamaislivre"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": graphe, "card": 0})
+    assert r.status_code == 409, r.text
+    detail = r.json()["detail"]
+    # le motif NOMME LE FICHIER attendu — la preuve qu'il ne s'agit pas du
+    # message générique "graphe vide" (qui, lui, ne cite aucun fichier).
+    assert "cadre_c01_front.png" in detail
+
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": {"nodes": [], "edges": []}, "card": 0})
+    assert r2.status_code == 409, r2.text
+    assert r2.json()["detail"] != detail
+
+
+def test_preview_refuse_un_corps_trop_lourd_et_un_faux_png():
+    """Route sœur `POST /preview/{art}` : corps brut borné à 8 Mo (413),
+    signature PNG vérifiée (400) — mêmes gardes que `gltf.py:post_atlas`.
+    Le succès écrit `{art}_preview.png` tel quel, sans rien redessiner côté
+    serveur, et le rend aussitôt livrable par `/file` (patron P8)."""
+    did = _deck("Apercu")
+    gros = b"\x89PNG\r\n\x1a\n" + b"0" * (8 * 1024 * 1024 + 1)
+    r1 = _api("POST", f"/api/cards/{did}/forge3d/preview/essai3d", content=gros)
+    assert r1.status_code == 413, r1.text
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/preview/essai3d",
+              content=b"pas un png")
+    assert r2.status_code == 400, r2.text
+    png = _png(Image.new("RGBA", (4, 4), (10, 20, 30, 255)))
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/preview/essai3d", content=png)
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["preview"]["name"] == "essai3d_preview.png"
+    r4 = _api("GET", f"/api/cards/{did}/forge3d/file/essai3d_preview.png")
+    assert r4.status_code == 200 and r4.content == png
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

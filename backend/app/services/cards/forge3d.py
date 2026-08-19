@@ -20,7 +20,7 @@ import zlib
 from functools import reduce
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
 from loguru import logger
 
@@ -29,6 +29,7 @@ from .contract import deck_dir
 router = APIRouter()
 
 MANIFEST_SCHEMA = "card-3d/layers-manifest@1"
+ARTIFACT_SCHEMA = "card-3d/artifact@1"
 
 # ── LA TABLE DES COUCHES — BLOC MIROIR ──────────────────────────────────────
 # ═══ CF-FORGE3D-LAYERS-BEGIN ═══
@@ -83,6 +84,14 @@ LAYER_MODES = {"isolee", "empreinte"}  # vocabulaire FERMÉ du CORE (core.js) ;
                                         # un autre mot est un bug à révéler,
                                         # pas une valeur à archiver
 
+# ── bornes du graphe (Task 4) — vérifiées AVANT tout décodage d'image ───────
+MAX_GRAPH_ELEMENTS = 12              # 6 rôles connus x 2 côtés — au-delà,
+                                      # 400 nommé avant tout travail lourd
+MAX_PREVIEW_BYTES = 8 * 1024 * 1024  # une capture d'écran model-viewer,
+                                      # pas un film — même patron que
+                                      # gltf.py:post_atlas (copie, règle 8)
+_ART_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,60}$")
+
 
 @router.get("/info")
 async def get_info(did: str):
@@ -101,6 +110,7 @@ async def get_info(did: str):
                "relief_base_mm": list(RELIEF_BASE_MM),
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
+               "max_elements": MAX_GRAPH_ELEMENTS,
             }}
 
 
@@ -484,6 +494,45 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     return out
 
 
+# ── L'IMPRESSION 3D — STL LOCAL (Task 4) ────────────────────────────────────
+# `_write_stl_binary` : copie RÉDUITE du principe de `gltf.py:build_stl`
+# (règle 8, zéro import pièce->pièce, même patron que le reste de ce
+# fichier) — positions déjà en MILLIMÈTRES (nos meshes locaux, contrairement
+# à ceux de P8, ne portent pas d'échelle mesh->mm à part), en-tête 80 octets
+# SANS nom d'outil (le nom de l'artefact, comme gltf.py:build_stl), une
+# normale par facette recalculée depuis la géométrie (le format n'a ni UV ni
+# matière). Le SEUL appelant (build3d) ne le convoque qu'après avoir vérifié
+# que TOUS les éléments portent `closed: True` — gate sur le drapeau DÉCLARÉ
+# par les constructeurs de maillage, jamais une re-mesure ici.
+def _write_stl_binary(elements: list, name: str) -> bytes:
+    """STL binaire local, en millimètres — `z_mm` de chaque élément (l'écart
+    de pile porté par SON nœud, comme dans le GLB) est appliqué aux positions
+    puisque le format STL n'a pas de nœud pour le porter."""
+    tris = []
+    for el in elements:
+        pos = el["mesh"]["positions"]
+        idx = el["mesh"]["indices"]
+        z = float(el.get("z_mm") or 0.0)
+        for t in range(0, len(idx) - 2, 3):
+            tris.append([(pos[idx[t + k] * 3], pos[idx[t + k] * 3 + 1],
+                         pos[idx[t + k] * 3 + 2] + z) for k in range(3)])
+    out = bytearray()
+    head = f"{name} - millimetres - {len(tris)} triangles".encode(
+        "ascii", "ignore")
+    out += head[:80].ljust(80, b"\x00")
+    out += struct.pack("<I", len(tris))
+    for p in tris:
+        ux, uy, uz = (p[1][0] - p[0][0], p[1][1] - p[0][1], p[1][2] - p[0][2])
+        vx, vy, vz = (p[2][0] - p[0][0], p[2][1] - p[0][1], p[2][2] - p[0][2])
+        nx, ny, nz = (uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
+        ln = math.sqrt(nx * nx + ny * ny + nz * nz) or 1.0
+        out += struct.pack("<3f", nx / ln, ny / ln, nz / ln)
+        for q in p:
+            out += struct.pack("<3f", *q)
+        out += struct.pack("<H", 0)
+    return bytes(out)
+
+
 _HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
@@ -842,6 +891,250 @@ async def post_layers(did: str,
     return {"layers": manifest}
 
 
+# ── L'ASSEMBLEUR — LE GRAPHE GRATUIT EXÉCUTÉ, L'ARTEFACT LIVRÉ (Task 4) ─────
+# `post_build3d` résout les chaînes layer->(plane|relief)->assemble d'un
+# graphe NETTOYÉ (clean_graph, l'UNIQUE porte d'entrée), assemble le résultat
+# en UN GLB (write_scene_glb, Task 3), écrit un metadata.json compatible
+# ERC-721 et tente le STL (gate sur le drapeau `closed` DÉCLARÉ par les
+# constructeurs de maillage — Task 2 — jamais une re-mesure ici : coûte 7 s +
+# ~340 Mo de pic par élément au grid max, mesuré en revue de la tâche 2).
+def _resolve_graph_elements(graph: dict) -> list[tuple[dict, dict]]:
+    """Chaque chaîne layer->(plane|relief)->assemble devient un candidat
+    (nœud de traitement, nœud layer source), dans l'ORDRE DES NŒUDS du
+    graphe (pas l'ordre des edges, pas l'ordre de résolution). Aucune E/S
+    ici : c'est une garde, elle tourne AVANT tout travail lourd."""
+    nodes_by_id = {n["id"]: n for n in graph["nodes"]}
+    incoming: dict[str, list[str]] = {}
+    outgoing: dict[str, list[str]] = {}
+    for e in graph["edges"]:
+        incoming.setdefault(e["to"], []).append(e["from"])
+        outgoing.setdefault(e["from"], []).append(e["to"])
+    candidats = []
+    for n in graph["nodes"]:
+        if n["kind"] not in ("plane", "relief"):
+            continue
+        src = None
+        for fid in incoming.get(n["id"], []):
+            sn = nodes_by_id.get(fid)
+            if sn is not None and sn["kind"] == "layer":
+                src = sn
+                break
+        if src is None:
+            continue
+        relie_assemble = any(
+            nodes_by_id.get(tid, {}).get("kind") == "assemble"
+            for tid in outgoing.get(n["id"], []))
+        if relie_assemble:
+            candidats.append((n, src))
+    return candidats
+
+
+def _layer_filename(layer_node: dict, card_label: str) -> str:
+    """Le nom de fichier ESTAMPILLÉ que `post_layers` a écrit (phase 1) pour
+    cette source : la couche composite si `composite: true`, sinon le rôle."""
+    side = layer_node["side"]
+    if layer_node.get("composite"):
+        return f"composite_{card_label}_{side}.png"
+    return f"{layer_node['role']}_{card_label}_{side}.png"
+
+
+@router.post("/build3d")
+async def post_build3d(did: str, body: dict | None = None):
+    """Exécute le graphe 100 % GRATUIT : GLB assemblé + metadata.json
+    ERC-721 + STL prouvé-ou-refusé-motivé, bordereau chiffré (poids réels,
+    jamais estimés). `graph_used` est le graphe NETTOYÉ — celui qui a
+    réellement tourné, pas l'entrée brute du client."""
+    from .core import read_deck, geom_of
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    doc = read_deck(did)
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
+    body = body if isinstance(body, dict) else {}
+    idx = _card_idx(body.get("card"))
+    card_label = f"c{idx + 1:02d}"
+    graph = clean_graph(body.get("graph"))
+
+    # ── résolution du graphe : PURE, sans E/S — borne AVANT tout travail ────
+    candidats = _resolve_graph_elements(graph)
+    # MOTIF 1/2 (distinct du "couche introuvable" ci-dessous, en revue) : le
+    # graphe lui-même ne produit AUCUN élément — structurellement vide (aucun
+    # nœud plane/relief) ou mal câblé (une source, ou l'assemblage, manque).
+    # Un GLB à 0 élément est invalide au schéma glTF (minItems 1).
+    if not candidats:
+        raise HTTPException(
+            409, "graphe vide : 0 element resolu (aucun noeud plane/relief "
+                 "relie a la fois a une couche source et a l'assemblage) - "
+                 "exporte les couches d'abord et relie "
+                 "layer -> plane/relief -> assemble")
+    if len(candidats) > MAX_GRAPH_ELEMENTS:
+        raise HTTPException(
+            400, f"trop d'elements ({len(candidats)}, maximum "
+                 f"{MAX_GRAPH_ELEMENTS})")
+
+    art_node = next((n for n in graph["nodes"] if n["kind"] == "artifact"),
+                    None)
+    art_name = art_node["name"] if art_node else "artefact"
+    g = geom_of(doc)
+    w_mm, h_mm = g.trim_mm
+    doc_name = doc.get("name") or did
+
+    def work() -> dict:
+        from PIL import Image
+        t0 = time.perf_counter()
+
+        def _ouvre(raw: bytes, nom: str):
+            try:
+                im = Image.open(io.BytesIO(raw))
+                im.load()
+            except Exception as e:
+                raise HTTPException(400, f"{nom} : PNG illisible ({e})")
+            fmt = (im.format or "").upper()
+            if fmt != "PNG":
+                raise HTTPException(
+                    400, f"{nom} : PNG attendu, {fmt or 'format inconnu'} recu")
+            return im.convert("RGBA")
+
+        out = _out_dir(did, create=True)
+        elements = []
+        for proc, layer in candidats:
+            fname = _layer_filename(layer, card_label)
+            p = out / fname
+            # MOTIF 2/2 (distinct du "graphe vide" ci-dessus) : le graphe est
+            # bien câblé, mais LA couche qu'il vise n'a jamais été livrée
+            # pour cette carte/ce côté — exporte-les d'abord (phase 1).
+            if not p.is_file():
+                raise HTTPException(
+                    409, f"exporte les couches d'abord : {fname} absent "
+                         f"(POST /layers)")
+            raw = p.read_bytes()
+            im = _ouvre(raw, fname)
+            nom_el = layer.get("role") or "composite"
+            if proc["kind"] == "plane":
+                mesh = quad_mesh(w_mm, h_mm)
+                elements.append({"name": nom_el, "mesh": mesh, "png": raw,
+                                 "alpha": True, "z_mm": proc["depth_mm"]})
+            else:
+                alpha_img = im.getchannel("A")
+                mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
+                                   proc["base_mm"], proc["grid"])
+                elements.append({"name": nom_el, "mesh": mesh, "png": raw,
+                                 "alpha": False, "z_mm": 0.0})
+        t_resolve = time.perf_counter()
+
+        extras = {"deck": doc_name, "card": card_label, "format": g.fmt,
+                  "size_mm": [w_mm, h_mm], "unit": "metre",
+                  "schema": ARTIFACT_SCHEMA}
+        glb = write_scene_glb(elements, name=art_name, extras=extras)
+        glb_name = f"{art_name}.glb"
+        (out / glb_name).write_bytes(glb)
+        t_glb = time.perf_counter()
+
+        meta = {
+            "name": f"{doc_name} - carte {card_label}",
+            "description": "Carte 3D par elements separes, construite localement.",
+            "image": f"{art_name}_preview.png",
+            "animation_url": glb_name,
+            "attributes": [
+                {"trait_type": "deck", "value": doc_name},
+                {"trait_type": "carte", "value": card_label},
+                {"trait_type": "elements_3d", "value": len(elements)},
+                {"trait_type": "engines", "value": "local"},
+                {"trait_type": "schema", "value": ARTIFACT_SCHEMA},
+            ],
+        }
+        meta_bytes = json.dumps(meta, ensure_ascii=False,
+                                indent=2).encode("utf-8")
+        meta_name = f"{art_name}.metadata.json"
+        (out / meta_name).write_bytes(meta_bytes)
+
+        # ── STL : gate sur le drapeau `closed` DÉCLARÉ par les constructeurs
+        #    de maillage (relief_mesh -> True, quad_mesh -> False), jamais
+        #    une re-mesure de `mesh_measures` ici (l'instrument des TESTS,
+        #    pas de la route — coût mesuré en revue de la tâche 2). ─────────
+        tous_fermes = all(bool(el["mesh"].get("closed")) for el in elements)
+        if tous_fermes:
+            stl_bytes = _write_stl_binary(elements, art_name)
+            stl_name = f"{art_name}.stl"
+            (out / stl_name).write_bytes(stl_bytes)
+            stl_bordereau = {"written": True, "name": stl_name,
+                             "bytes": len(stl_bytes)}
+        else:
+            stl_bordereau = {
+                "written": False,
+                "why": "au moins un element n'est pas un solide ferme "
+                       "(un plan texture n'a pas de volume) - le STL est "
+                       "refuse plutot que livre casse"}
+        t_stl = time.perf_counter()
+
+        return {"artifact": {
+            "glb": {"name": glb_name, "bytes": len(glb)},
+            "metadata": {"name": meta_name, "bytes": len(meta_bytes)},
+            "stl": stl_bordereau,
+            # honnête : l'aperçu n'existe qu'après la capture client
+            # (POST /preview/{art}, ci-dessous) — jamais un mensonge.
+            "preview": {"expected": f"{art_name}_preview.png",
+                       "written": False},
+            "elements": len(elements),
+            "graph_used": graph,
+            "ms": {"resolve": int((t_resolve - t0) * 1000),
+                  "glb": int((t_glb - t_resolve) * 1000),
+                  "stl": int((t_stl - t_glb) * 1000),
+                  "total": int((t_stl - t0) * 1000)},
+        }}
+
+    try:
+        return await asyncio.to_thread(work)
+    except HTTPException:
+        raise
+    except ModuleNotFoundError as e:           # pragma: no cover - env casse
+        raise HTTPException(503, f"Module requis absent : {e}")
+    except Exception as e:
+        logger.exception("cards/forge3d: construction du graphe impossible")
+        raise HTTPException(500, f"Construction du graphe impossible : {e}")
+
+
+@router.post("/preview/{art}")
+async def post_preview(did: str, art: str, request: Request):
+    """Reçoit la capture d'aperçu du navigateur (model-viewer `.toBlob()`) et
+    l'écrit telle quelle — RIEN de la carte n'est rendu au serveur (patron du
+    domaine). Corps brut, borné, PNG vérifié : mêmes gardes que
+    gltf.py:post_atlas (règle 8, copie locale)."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
+    if not _ART_NAME_RE.match(art or ""):
+        raise HTTPException(400, "Nom d'artefact invalide")
+    data = await request.body()
+    if not data:
+        raise HTTPException(400, "Corps vide : le PNG d'apercu est attendu tel quel")
+    if len(data) > MAX_PREVIEW_BYTES:
+        raise HTTPException(
+            413, f"apercu trop lourd ({len(data)} o, maximum "
+                 f"{MAX_PREVIEW_BYTES} o)")
+    if data[:8] != b"\x89PNG\r\n\x1a\n":
+        raise HTTPException(400, "PNG attendu (signature absente)")
+
+    def work() -> dict:
+        out = _out_dir(did, create=True)
+        name = f"{art}_preview.png"
+        (out / name).write_bytes(data)
+        return {"name": name, "bytes": len(data)}
+
+    try:
+        info = await asyncio.to_thread(work)
+    except HTTPException:
+        raise
+    except OSError as e:
+        logger.exception("cards/forge3d: ecriture de l'apercu impossible")
+        raise HTTPException(500, f"Ecriture de l'apercu impossible : {e}")
+    return {"preview": info}
+
+
 @router.get("/file/{name}")
 async def get_file(did: str, name: str):
     """Un livrable, tel qu'il a été construit (patron P8)."""
@@ -857,8 +1150,11 @@ async def get_file(did: str, name: str):
     p = _out_dir(did) / name
     if not p.is_file():
         raise HTTPException(404, "Fichier inconnu")
-    kind = "application/zip" if name.endswith(".zip") else \
-        "image/png" if name.endswith(".png") else "application/json"
+    kind = ("model/gltf-binary" if name.endswith(".glb") else
+            "model/stl" if name.endswith(".stl") else
+            "application/zip" if name.endswith(".zip") else
+            "image/png" if name.endswith(".png") else
+            "application/json")
     return Response(p.read_bytes(), media_type=kind, headers={
         "Content-Disposition": f'attachment; filename="{p.name}"',
         "Cache-Control": "no-store"})
