@@ -848,6 +848,30 @@ champs de `CardGeom` (`canvas_px`, `trim_mm`, `bleed_mm`) dans
 `backend/app/services/cards/contract.py` — si `bleed_mm` porte un autre nom, la
 densité `ppm` s'aligne sur le calcul de `face.py:stamp_png` (le recopier).
 
+NOTE de revue (obligatoire, apprise sur la première implémentation) :
+1. **Travail lourd HORS event loop** — patron des sœurs : `await up.read()` en
+   async, puis TOUT le reste (décodage, empilement, mesures, estampilles, zip,
+   écritures) dans un `def work():` passé à `asyncio.to_thread`, avec
+   `except HTTPException: raise` (P7 `print.py:3668+`, P8 `gltf.py:3961+`).
+   Mesuré : l'inline gèle le backend 0,45 s (poker 300) à 2,6 s+ (tarot 600).
+2. **Bornes AVANT décodage** : constante locale 64 Mo par fichier (précédent
+   `gltf.py:MAX_ATLAS_BYTES`, copie règle 8) → 413 ; plafond de compte
+   (12 fichiers) → 400 ; rôle inconnu ou en double → 400 (le seul producteur
+   légitime est core.js, un autre nom est un bug à révéler).
+3. **Jamais 500, chemins mesurés** : `modes`/`client_proof` normalisés après
+   parse (`isinstance(dict)` sinon `{}` ; `diff_px` par garde numérique) ;
+   `modes` validé contre le vocabulaire fermé {isolee, empreinte} (400 sinon) ;
+   `_stamp_phys` borné (`while off + 8 <= len(png)`, arrêt à IEND — un PNG à
+   queue parasite passe PIL puis plantait struct) ; `_ouvre` exige
+   `im.format == "PNG"` (400 nommé — un JPEG ne doit pas traverser la
+   contre-preuve) ; `GET /file` garde `is_valid_did`/`read_deck` comme /info.
+4. **Mesures idiomatiques** : `diff.getbbox() is None` en fast-path puis
+   `reduce(ImageChops.lighter, diff.split()).histogram()[0]` ; coverage par
+   `w*h - alpha.histogram()[0]` — exact, ~10× plus rapide, et `getdata()` est
+   déprécié (retrait Pillow 14). Le ZIP écrit les octets EN MÉMOIRE
+   (`z.writestr(r["file"], data)`), jamais une relecture disque.
+5. `GET /file` : `Content-Disposition` + `Cache-Control` comme P8.
+
 - [ ] **Step 4 : tests verts**
 
 ```powershell
