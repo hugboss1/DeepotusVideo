@@ -734,5 +734,33 @@ def test_clean_graph_repare_et_ne_leve_jamais():
     assert len(ids4) == len(set(ids4)), f"ids en collision : {ids4}"
 
 
+def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
+    """La dalle en relief est FERMÉE PAR CONSTRUCTION — on le PROUVE sur les
+    arêtes (chacune partagée par exactement 2 triangles) et sur le volume
+    signé positif, les mesures du domaine (doctrine P8), en copie locale."""
+    from PIL import Image, ImageDraw
+    from app.services.cards import forge3d as F9
+    # une silhouette réaliste : un anneau (trou au centre)
+    im = Image.new("L", (64, 64), 0)
+    d = ImageDraw.Draw(im)
+    d.ellipse([4, 4, 60, 60], fill=255)
+    d.ellipse([20, 20, 44, 44], fill=0)
+    m = F9.relief_mesh(im, w_mm=63.0, h_mm=88.0, depth_mm=1.0, base_mm=0.3,
+                       grid=48)
+    rep = F9.mesh_measures(m)
+    assert rep["closed"] is True, rep
+    assert rep["volume_mm3"] > 0.0
+    # le relief est borné : base <= z <= base+depth, xy dans la carte
+    xs = m["positions"][0::3]; ys = m["positions"][1::3]; zs = m["positions"][2::3]
+    assert min(zs) == 0.0 and max(zs) <= 0.3 + 1.0 + 1e-6
+    assert max(xs) <= 63.0 + 1e-6 and max(ys) <= 88.0 + 1e-6
+    # UV : couvertes 0..1 pour plaquer la texture de couche
+    assert 0.0 <= min(m["uvs"]) and max(m["uvs"]) <= 1.0
+
+    q = F9.quad_mesh(w_mm=63.0, h_mm=88.0)
+    assert len(q["positions"]) == 4 * 3 and len(q["indices"]) == 6
+    assert F9.mesh_measures(q)["closed"] is False     # un plan n'est pas un solide
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

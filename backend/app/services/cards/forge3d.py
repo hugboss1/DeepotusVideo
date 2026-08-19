@@ -234,6 +234,128 @@ def clean_graph(raw) -> dict:
     return {"nodes": nodes, "edges": edges}
 
 
+# ── LA GÉOMÉTRIE LOCALE — PLAN, RELIEF, MESURES ─────────────────────────────
+# `quad_mesh`/`relief_mesh` produisent le maillage minimal qu'un traitement
+# `plane`/`relief` du graphe fabrique ; `mesh_measures` en tire la preuve de
+# fermeture/volume — COPIE LOCALE réduite du principe de `mesh_report` de P8
+# (règle 8 : zéro import pièce->pièce, même patron que `_dpi_to_ppm`/`_num`
+# ci-dessus). Type commun aux trois : {positions, normals, uvs, indices},
+# consommé plus loin par `write_scene_glb` (Task 3).
+def quad_mesh(w_mm: float, h_mm: float) -> dict:
+    """Un quad aux dimensions de la carte, UV pleines, normale +z."""
+    return {
+        "positions": [0.0, 0.0, 0.0, w_mm, 0.0, 0.0, w_mm, h_mm, 0.0,
+                      0.0, h_mm, 0.0],
+        "normals": [0.0, 0.0, 1.0] * 4,
+        "uvs": [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],   # v inversé (image)
+        "indices": [0, 1, 2, 0, 2, 3],
+    }
+
+
+def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
+                base_mm: float, grid: int) -> dict:
+    """LA DALLE EN RELIEF : une grille (grid x grid') dont la face du dessus
+    est déplacée par l'alpha de la couche (0 -> base, 255 -> base+depth), face
+    du dessous plate à z=0, murs périphériques — un solide FERMÉ PAR
+    CONSTRUCTION : chaque arête appartient à exactement deux triangles parce
+    que dessus, dessous et murs partagent leurs anneaux de bord. C'est
+    l'« extrusion » gratuite v1 : un vrai suivi de contour (marching squares +
+    triangulation à trous) viendra si le besoin le prouve."""
+    gx = max(2, int(grid))
+    gy = max(2, int(round(grid * (h_mm / w_mm))))
+    a = alpha_img.convert("L").resize((gx + 1, gy + 1))
+    px = list(a.getdata())          # (gx+1)*(gy+1) échantillons
+
+    def z_at(i, j):
+        return base_mm + (px[j * (gx + 1) + i] / 255.0) * depth_mm
+
+    pos, uv = [], []
+    # dessus : (gx+1)*(gy+1) sommets déplacés
+    for j in range(gy + 1):
+        for i in range(gx + 1):
+            pos += [i / gx * w_mm, (1.0 - j / gy) * h_mm, z_at(i, j)]
+            uv += [i / gx, j / gy]
+    top = lambda i, j: j * (gx + 1) + i                      # noqa: E731
+    n_top = (gx + 1) * (gy + 1)
+    # dessous : mêmes (x, y), z=0 (UV répliquées, sans importance au dos)
+    for j in range(gy + 1):
+        for i in range(gx + 1):
+            pos += [i / gx * w_mm, (1.0 - j / gy) * h_mm, 0.0]
+            uv += [i / gx, j / gy]
+    bot = lambda i, j: n_top + j * (gx + 1) + i              # noqa: E731
+
+    # ÉCART AU PLAN (winding corrigé, prouvé par ce fichier de test) : le
+    # sens des sommets ci-dessous est l'INVERSE de celui écrit dans le plan.
+    # Avec x croissant vers +i et y DÉCROISSANT vers +j (j=0 = haut de la
+    # carte), le repère (x, y, z) est direct ; l'ordre du plan
+    # [aa, bb, cc, aa, cc, dd] pour le dessus calcule une aire signée
+    # négative (sens horaire vu depuis +z) — sa normale pointe donc -z, VERS
+    # l'intérieur du solide, et symétriquement le dessous du plan pointait
+    # +z. Les deux étaient donc inversées (mesuré : volume_mm3 négatif alors
+    # que `closed` restait vrai — une inversion UNIFORME du maillage ne
+    # casse pas le partage d'arêtes, seulement le signe). Corrigé ici en
+    # permutant les deux derniers sommets de chaque triangle, dessus comme
+    # dessous comme murs — la fermeture ET le volume positif sont
+    # maintenant prouvés par `test_le_relief_est_un_solide_ferme_...`.
+    idx = []
+    for j in range(gy):
+        for i in range(gx):
+            aa, bb = top(i, j), top(i + 1, j)
+            cc, dd = top(i + 1, j + 1), top(i, j + 1)
+            idx += [aa, cc, bb, aa, dd, cc]                  # dessus, +z
+            a2, b2 = bot(i, j), bot(i + 1, j)
+            c2, d2 = bot(i + 1, j + 1), bot(i, j + 1)
+            idx += [a2, b2, c2, a2, c2, d2]                  # dessous, -z
+    # murs : les 4 bords, quads entre anneau du dessus et anneau du dessous
+    def wall(t1, t2, b1, b2):
+        idx.extend([t1, b2, b1, t1, t2, b2])
+    for i in range(gx):                                       # j=0 et j=gy
+        wall(top(i, 0), top(i + 1, 0), bot(i, 0), bot(i + 1, 0))
+        wall(top(i + 1, gy), top(i, gy), bot(i + 1, gy), bot(i, gy))
+    for j in range(gy):                                       # i=0 et i=gx
+        wall(top(0, j + 1), top(0, j), bot(0, j + 1), bot(0, j))
+        wall(top(gx, j), top(gx, j + 1), bot(gx, j), bot(gx, j + 1))
+
+    # normales : dessus par gradient discret, dessous -z, murs approximés par
+    # renormalisation des sommets partagés — suffisant, le glTF les porte.
+    nrm = [0.0] * len(pos)
+    for t in range(0, len(idx), 3):
+        i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
+        ux, uy, uz = (pos[i1] - pos[i0], pos[i1 + 1] - pos[i0 + 1], pos[i1 + 2] - pos[i0 + 2])
+        vx, vy, vz = (pos[i2] - pos[i0], pos[i2 + 1] - pos[i0 + 1], pos[i2 + 2] - pos[i0 + 2])
+        cx, cy, cz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+        for k in (i0, i1, i2):
+            nrm[k] += cx; nrm[k + 1] += cy; nrm[k + 2] += cz
+    for k in range(0, len(nrm), 3):
+        ln = math.sqrt(nrm[k] ** 2 + nrm[k + 1] ** 2 + nrm[k + 2] ** 2) or 1.0
+        nrm[k] /= ln; nrm[k + 1] /= ln; nrm[k + 2] /= ln
+    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx}
+
+
+def mesh_measures(mesh: dict) -> dict:
+    """Fermeture et volume signé, MESURES locales — copie du principe de
+    `mesh_report` de P8 (règle 8 : pas d'import pièce->pièce), réduite aux
+    deux chiffres dont l'artefact a besoin (closed, volume)."""
+    pos, idx = mesh["positions"], mesh["indices"]
+    edges: dict = {}
+    vol = 0.0
+    for t in range(0, len(idx) - 2, 3):
+        tri = (idx[t], idx[t + 1], idx[t + 2])
+        for k in range(3):
+            a, b = tri[k], tri[(k + 1) % 3]
+            ka = (round(pos[a * 3], 6), round(pos[a * 3 + 1], 6), round(pos[a * 3 + 2], 6))
+            kb = (round(pos[b * 3], 6), round(pos[b * 3 + 1], 6), round(pos[b * 3 + 2], 6))
+            e = (ka, kb) if ka <= kb else (kb, ka)
+            edges[e] = edges.get(e, 0) + 1
+        a3, b3, c3 = tri[0] * 3, tri[1] * 3, tri[2] * 3
+        vol += (pos[a3] * (pos[b3 + 1] * pos[c3 + 2] - pos[b3 + 2] * pos[c3 + 1])
+                - pos[a3 + 1] * (pos[b3] * pos[c3 + 2] - pos[b3 + 2] * pos[c3])
+                + pos[a3 + 2] * (pos[b3] * pos[c3 + 1] - pos[b3 + 1] * pos[c3])) / 6.0
+    closed = bool(edges) and all(n == 2 for n in edges.values())
+    return {"closed": closed, "volume_mm3": vol,
+            "triangles": len(idx) // 3, "vertices": len(pos) // 3}
+
+
 _HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
