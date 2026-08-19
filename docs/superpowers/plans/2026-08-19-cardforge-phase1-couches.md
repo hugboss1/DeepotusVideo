@@ -72,7 +72,14 @@ def test_info_publie_les_roles_de_couches():
     assert par_role["typographie"] == [60] and par_role["ornements"] == [70]
 ```
 
-(le helper `_deck` : copier `_deck` de `test_cards_gltf.py:125-128`.)
+(le helper `_deck` : copier `_deck` de `test_cards_gltf.py:125-128`. Terminer le
+fichier par le bloc des sœurs — sans lui, une exécution directe « passe » sans
+lancer un seul test :
+```python
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))
+```
+)
 
 - [ ] **Step 2 : vérifier l'échec**
 
@@ -118,8 +125,11 @@ Créer `frontend/cardforge/js/mod-forge3d.js` (CRLF) :
 "use strict";
 /* ═══════════════════════════════════════════════════════════════════════════
    CARD FORGE — P9 « Forge 3D ». Export par couches (phase 1).
-   Ce module n'a AUCUN painter : il lit le rendu, il n'y dessine jamais.
+   Proprietaire exclusif de : doc.forge3d · AUCUN z (ce module ne peint pas) ·
+   /api/cards/<did>/forge3d/* · prefixe DOM cf-forge3d-.
    ═══════════════════════════════════════════════════════════════════════════ */
+const CF = (typeof window !== "undefined") ? window.CF : null;
+if (!CF) throw new Error("mod-forge3d: js/core.js doit etre charge avant ce fichier");
 (() => {
   /* ── LA TABLE DES COUCHES — BLOC MIROIR ─────────────────────────────────
      ═══ CF-FORGE3D-LAYERS-BEGIN ═══
@@ -181,9 +191,9 @@ Créer `frontend/cardforge/css/mod-forge3d.css` (chaque sélecteur porte `.cf-fo
 règle 4) :
 ```css
 /* P9 Forge 3D — règle 4 : tout sélecteur contient .cf-forge3d */
-.cf-forge3d .cf-forge3d-card { border: 1px solid var(--line, #2a2f3a); border-radius: 10px; padding: 12px; }
+.cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; }
 .cf-forge3d .cf-forge3d-h { margin-bottom: 8px; }
-.cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line, #2a2f3a); }
+.cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }
 ```
 
@@ -200,7 +210,7 @@ n'importe le routeur d'aucun autre.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
@@ -224,7 +234,14 @@ LAYER_ROLES = [
 
 @router.get("/info")
 async def get_info(did: str):
-    """Ce que l'écran doit savoir sans rien recalculer."""
+    """Ce que l'écran doit savoir sans rien recalculer. Scopé au deck comme
+    toute route du domaine : un id invalide fait 400, un deck absent 404."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
     return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES}
 ```
 
@@ -246,8 +263,8 @@ router.include_router(forge3d.router, prefix="/{did}/forge3d",
 Ajouter à `test_cards_forge3d.py` (patron de `test_cards_type.py`) :
 ```python
 def test_la_table_des_couches_est_identique_des_deux_cotes():
-    """Bloc miroir JS <-> py : une table recopiée qui dérive est un mensonge."""
-    import json as _json
+    """Bloc miroir JS <-> py, comparé champ à champ ET dans l'ordre : une
+    table recopiée qui dérive est un mensonge."""
     from app.services.cards import forge3d as F9
     src = JS.read_text(encoding="utf-8")
     bloc = src.split("CF-FORGE3D-LAYERS-BEGIN")[1].split("CF-FORGE3D-LAYERS-END")[0]
