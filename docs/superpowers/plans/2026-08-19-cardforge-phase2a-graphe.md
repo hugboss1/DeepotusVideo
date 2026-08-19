@@ -309,17 +309,23 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     bot = lambda i, j: n_top + j * (gx + 1) + i              # noqa: E731
 
     idx = []
+    # WINDING CORRIGÉ EN REVUE (tâche 2) : la première version de ce plan
+    # sortait un maillage à l'ENVERS (normales vers l'intérieur, volume signé
+    # NÉGATIF — mesuré : -4557,89 mm³ sur l'anneau de test). Avec
+    # `y = (1 - j/gy) * h_mm`, j=0 est le HAUT de carte : l'ordre ci-dessous
+    # est celui qui donne aire signée positive vue de +z. Prouvé par le test
+    # (closed ET volume > 0 sur silhouette à trou).
     for j in range(gy):
         for i in range(gx):
             aa, bb = top(i, j), top(i + 1, j)
             cc, dd = top(i + 1, j + 1), top(i, j + 1)
-            idx += [aa, bb, cc, aa, cc, dd]                  # dessus, +z
+            idx += [aa, cc, bb, aa, dd, cc]                  # dessus, +z
             a2, b2 = bot(i, j), bot(i + 1, j)
             c2, d2 = bot(i + 1, j + 1), bot(i, j + 1)
-            idx += [a2, c2, b2, a2, d2, c2]                  # dessous, -z
+            idx += [a2, b2, c2, a2, c2, d2]                  # dessous, -z
     # murs : les 4 bords, quads entre anneau du dessus et anneau du dessous
     def wall(t1, t2, b1, b2):
-        idx.extend([t1, b1, b2, t1, b2, t2])
+        idx.extend([t1, b2, b1, t1, t2, b2])
     for i in range(gx):                                       # j=0 et j=gy
         wall(top(i, 0), top(i + 1, 0), bot(i, 0), bot(i + 1, 0))
         wall(top(i + 1, gy), top(i, gy), bot(i + 1, gy), bot(i, gy))
