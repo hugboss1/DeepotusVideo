@@ -235,6 +235,9 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     # le ZIP existe, ses entrees portent les 7 PNG + manifeste, les SHA collent
     rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
     assert rz.status_code == 200
+    # patron P8 : Content-Disposition + Cache-Control sur le livrable
+    assert rz.headers.get("content-disposition", "").startswith("attachment")
+    assert rz.headers.get("cache-control") == "no-store"
     z = zipfile.ZipFile(io.BytesIO(rz.content))
     noms = sorted(z.namelist())
     assert "layers.json" in noms and "composite_front.png" in noms
@@ -283,6 +286,142 @@ def test_un_png_illisible_fait_400_jamais_500():
                      ("composite", ("composite.png", b"pas un png", "image/png"))],
               data={"side": "front", "modes": "{}", "client_proof": "{}"})
     assert r2.status_code == 400, r2.text
+
+
+def test_modes_ou_preuve_malformes_sont_repares_jamais_500():
+    """C1 : `modes`/`client_proof` en JSON VALIDE mais pas un objet (liste,
+    nombre, chaine) faisait lever AttributeError/TypeError plus loin dans la
+    route - 500 non attrape, reproduit en revue (scratchpad/repro_500.py).
+    Repare en {} / valeur numerique par defaut, jamais une erreur serveur."""
+    did = _deck("Formes malformees")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "modes": "[]",
+            "client_proof": json.dumps({"diff_px": "abc"})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    b = r.json()["layers"]
+    # diff_px non numerique -> garde numerique -> 0, pas une exception
+    assert b["proof"]["client"]["diff_px"] == 0
+    # modes="[]" n'est pas un objet -> repare en {} -> mode par defaut partout
+    assert all(l["mode"] == "isolee" for l in b["layers"])
+
+
+def test_un_png_a_queue_parasite_est_estampille_correctement():
+    """C2 : un PNG valide + des octets APRES IEND (navigateurs et outils en
+    ecrivent) est accepte par PIL mais faisait planter `struct.unpack` dans
+    `_stamp_phys` - 500 non attrape, reproduit en revue. La boucle bornee
+    doit s'arreter proprement et estampiller quand meme le bon pHYs."""
+    did = _deck("Queue parasite")
+    couches, composite = _couches_synthetiques()
+    files = []
+    for nom, im in couches.items():
+        raw = _png(im)
+        if nom == "fond-matiere":
+            raw = raw + b"xy"          # queue parasite apres IEND
+        files.append(("layers", (f"{nom}.png", raw, "image/png")))
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "modes": json.dumps({n: "isolee" for n in couches}),
+            "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    b = r.json()["layers"]
+    rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
+    assert rz.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(rz.content))
+    px = z.read("fond-matiere_front.png")
+    i = px.find(b"pHYs")
+    assert i >= 0, "pHYs absent"
+    ppm_x, ppm_y, unite = struct.unpack(">IIB", px[i + 4:i + 13])
+    assert (ppm_x, ppm_y, unite) == (11811, 11811, 1)
+
+
+def test_get_file_avec_did_invalide_fait_400_jamais_500():
+    """C3 : `deck_dir` leve un ValueError sur un `did` syntaxiquement
+    invalide - 500 non attrape, reproduit en revue. Meme garde que /info."""
+    r = _api("GET", "/api/cards/nimportequoi/forge3d/file/x.zip")
+    assert r.status_code == 400, r.text
+    # syntaxiquement valide mais aucun deck derriere -> 404, pas 500 non plus
+    r2 = _api("GET", "/api/cards/deck_00000000/forge3d/file/x.zip")
+    assert r2.status_code == 404, r2.text
+
+
+def test_plus_de_douze_fichiers_fait_400():
+    """I2 : plafond de compte AVANT tout decodage - 13 couches, meme toutes
+    valides, sont refusees d'emblee."""
+    did = _deck("Trop de couches")
+    raw = _png(Image.new("RGBA", (815, 1110), (1, 2, 3, 255)))
+    files = [("layers", (f"c{i}.png", raw, "image/png")) for i in range(13)]
+    files.append(("composite", ("composite.png", raw, "image/png")))
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r.status_code == 400, r.text
+
+
+def test_un_fichier_trop_lourd_fait_413(monkeypatch):
+    """I2 : borne de poids par fichier. La constante de production (64 Mo)
+    n'est pas testable a taille reelle ; on l'abaisse pour ce test (idiome
+    pytest monkeypatch), la constante nominale reste en vigueur ailleurs."""
+    from app.services.cards import forge3d as F9
+    monkeypatch.setattr(F9, "MAX_LAYER_BYTES", 200)
+    did = _deck("Trop lourd")
+    raw = _png(Image.new("RGBA", (815, 1110), (10, 20, 30, 255)))
+    assert len(raw) > 200, "le PNG de test doit depasser la borne abaissee"
+    files = [("layers", ("fond-matiere.png", raw, "image/png")),
+             ("composite", ("composite.png", raw, "image/png"))]
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r.status_code == 413, r.text
+
+
+def test_mode_hors_vocabulaire_ferme_fait_400():
+    """I3 : le seul producteur de `modes` est core.js, dont le vocabulaire
+    est {isolee, empreinte}. Un autre mot est un bug a reveler, pas a
+    archiver dans le manifeste."""
+    did = _deck("Mode invalide")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "modes": json.dumps({"fond-matiere": "xyz"}),
+            "client_proof": "{}"}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 400, r.text
+
+
+def test_role_inconnu_ou_duplique_fait_400_nomme():
+    """M4 : un role hors table ou envoye deux fois est un bug a reveler
+    (coherent avec I3) - jamais silencieusement ignore ou ecrase."""
+    did = _deck("Role invalide")
+    raw = _png(Image.new("RGBA", (815, 1110), (1, 2, 3, 255)))
+    r1 = _api("POST", f"/api/cards/{did}/forge3d/layers",
+              files=[("layers", ("pas-un-role.png", raw, "image/png")),
+                     ("composite", ("composite.png", raw, "image/png"))],
+              data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r1.status_code == 400, r1.text
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/layers",
+              files=[("layers", ("fond-matiere.png", raw, "image/png")),
+                     ("layers", ("fond-matiere.png", raw, "image/png")),
+                     ("composite", ("composite.png", raw, "image/png"))],
+              data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r2.status_code == 400, r2.text
+
+
+def test_jpeg_ne_traverse_pas_la_contre_preuve():
+    """M3 : `_ouvre` exige `im.format == "PNG"` - un JPEG ne doit pas
+    atteindre la contre-preuve d'empilement."""
+    did = _deck("JPEG refuse")
+    buf = io.BytesIO()
+    Image.new("RGB", (815, 1110), (10, 20, 30)).save(buf, "JPEG")
+    jpg = buf.getvalue()
+    png = _png(Image.new("RGBA", (815, 1110), (1, 2, 3, 255)))
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers",
+             files=[("layers", ("fond-matiere.png", jpg, "image/png")),
+                    ("composite", ("composite.png", png, "image/png"))],
+             data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r.status_code == 400, r.text
 
 
 if __name__ == "__main__":
