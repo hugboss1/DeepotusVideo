@@ -34,7 +34,8 @@
     icon: "⬢",
     order: 9,
     state: {
-      last_export: null,        /* bordereau du dernier export de couches */
+      last_export: null,        /* horodatage et compte de faces du dernier
+                                    export ; le bordereau n'est pas persisté */
     },
     init(host) {
       host.innerHTML = shell();
@@ -80,19 +81,26 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
-     EXPORT — les DEUX faces, chacune prouvee AVANT d'etre televersee.
-     Le CORE a deja empile en STRICT (CF.layers) ; une preuve qui echoue, ou
-     un painter qui a leve une erreur pendant le rendu, arrete tout et NOMME
-     la couche en cause — rien ne part sur le reseau. Un ZIP construit sur un
-     empilement non prouve serait pire qu'un echec dit.
-     ═══════════════════════════════════════════════════════════════════════ */
+     EXPORT — DEUX TEMPS, pour que « rien n'a été envoyé » soit vrai PAR
+     CONSTRUCTION et non par discipline de lecture du code.
+     Temps 1 (preuve) : les DEUX faces sont rendues et prouvées (CF.layers) ;
+     la moindre erreur de painter ou le moindre echec d'empilement NOMME la
+     face fautive et REND (aucun FormData, aucun fetch n'existe encore a cet
+     instant du code — pas seulement « avant d'etre appele »). Temps 2
+     (envoi) : uniquement atteint si les deux faces ont passe le temps 1 —
+     chaque face part alors avec SA preuve mesuree.
+     Note memoire : les toiles des deux faces (12 couches + 2 composites, au
+     lieu de 6+1) restent retenues entre les deux temps — un geste ponctuel
+     sur clic, pas une boucle : acceptable. */
   async function exportLayers() {
     const status = $("#cf-forge3d-status");
     const btn = $("#cf-forge3d-export");
     btn.disabled = true;
     try {
       const sides = ["front", "back"];
-      const results = [];
+
+      /* ── TEMPS 1 : PREUVE DES DEUX FACES, AUCUN RESEAU ────────────────── */
+      const preuves = [];
       for (let s = 0; s < sides.length; s++) {
         const face = sides[s];
         status.textContent = "rendu des couches ("
@@ -100,9 +108,10 @@
         const L = await CF.layers(CF.current(), { face: face, groups: LAYER_ROLES });
         if (L.errors && L.errors.length) {
           /* une couche rendue avec une erreur de painter n'est pas une couche
-             de confiance : on nomme et on n'envoie rien. */
+             de confiance : on nomme (face + painters) et on n'envoie rien. */
           status.textContent = "erreur de painter pendant le rendu des couches ("
-            + L.errors.map((e) => e.id + " z=" + e.z).join(", ") + ") — rien n'a été envoyé.";
+            + face + " : " + L.errors.map((e) => e.id + " z=" + e.z).join(", ")
+            + ") — rien n'a été envoyé.";
           M.toast("rendu des couches en erreur : export refusé", true);
           return;
         }
@@ -116,6 +125,13 @@
           M.toast("empilement non reproduit : export refusé", true);
           return;
         }
+        preuves.push({ face: face, L: L });
+      }
+
+      /* ── TEMPS 2 : LES DEUX FACES SONT PROUVEES — ON ENVOIE ───────────── */
+      const results = [];
+      for (let p = 0; p < preuves.length; p++) {
+        const face = preuves[p].face, L = preuves[p].L;
         const fd = new FormData();
         for (let k = 0; k < L.layers.length; k++) {
           const lay = L.layers[k];
@@ -126,7 +142,7 @@
         const modes = {};
         L.layers.forEach((l) => { modes[l.role] = l.mode; });
         fd.append("modes", JSON.stringify(modes));
-        fd.append("client_proof", JSON.stringify({ stack_ok: true, diff_px: 0 }));
+        fd.append("client_proof", JSON.stringify({ stack_ok: L.stack_ok, diff_px: 0 }));
         status.textContent = "téléversement (" + face + ")…";
         const rep = await M.api.post("layers", fd);
         results.push(rep.layers);
@@ -153,13 +169,14 @@
     if (!slip) return;
     slip.innerHTML = results.map((man) => {
       const rows = man.layers.map((l) =>
-        '<div class="cf-forge3d-lay"><img src="' + M.api.url("file/" + l.file)
-        + '" alt="">'
+        '<div class="cf-forge3d-lay"><img src="'
+        + esc(M.api.url("file/" + encodeURIComponent(l.file)))
+        + '" alt="" loading="lazy" decoding="async">'
         + '<span class="mono">' + esc(l.role) + " · " + esc(l.mode) + " · "
-        + l.coverage_pct + " % · " + weight(l.bytes) + "</span></div>").join("");
+        + Number(l.coverage_pct) + " % · " + weight(l.bytes) + "</span></div>").join("");
       return '<h4>' + (man.side === "front" ? "Recto" : "Verso") + '</h4>' + rows
         + '<p class="mono">empilement : navigateur strict OK · second avis PIL '
-        + man.proof.backend.diff_px + ' px d\'écart · '
+        + Number(man.proof.backend.diff_px) + ' px d\'écart · '
         + '<button class="btn sm" type="button" data-act="grab-zip" data-name="'
         + esc(man.zip.name) + '">' + esc(man.zip.name) + " ("
         + weight(man.zip.bytes) + ')</button></p>';
@@ -173,7 +190,7 @@
   async function grabZip(name) {
     if (!name) return;
     try {
-      const b = await M.api.blob("GET", "file/" + name);
+      const b = await M.api.blob("GET", "file/" + encodeURIComponent(name));
       M.download(b, name);
     } catch (e) {
       M.toast(String(e && e.message || e), true);
