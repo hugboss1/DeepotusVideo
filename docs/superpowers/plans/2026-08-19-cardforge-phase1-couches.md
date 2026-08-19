@@ -731,17 +731,25 @@ async def post_layers(did: str,
     except ValueError:
         modes_d, proof_c = {}, {}
 
+    def _ouvre(raw: bytes, nom: str) -> "Image.Image":
+        """Des octets illisibles font 400, jamais 500 (doctrine du domaine,
+        spec 2.5) — PIL lève UnidentifiedImageError sur un corps corrompu."""
+        try:
+            return Image.open(io.BytesIO(raw)).convert("RGBA")
+        except Exception:
+            raise HTTPException(400, f"{nom} : PNG illisible")
+
     par_role: dict[str, bytes] = {}
     images: dict[str, "Image.Image"] = {}
     for up in layers:
         nom = (up.filename or "").rsplit(".", 1)[0]
         raw = await up.read()
-        im = Image.open(io.BytesIO(raw)).convert("RGBA")
+        im = _ouvre(raw, nom)
         if im.size != (w, h):
             raise HTTPException(409, f"{nom} : trame {im.size} != {(w, h)}")
         par_role[nom], images[nom] = raw, im
     raw_comp = await composite.read()
-    comp = Image.open(io.BytesIO(raw_comp)).convert("RGBA")
+    comp = _ouvre(raw_comp, "composite")
     if comp.size != (w, h):
         raise HTTPException(409, f"composite : trame {comp.size} != {(w, h)}")
 
@@ -757,8 +765,14 @@ async def post_layers(did: str,
     diff = ImageChops.difference(pile, comp)
     diff_px = sum(1 for p in diff.getdata() if p != (0, 0, 0, 0))
 
-    ppm = (g.canvas_px[0] / (g.trim_mm[0] + 2 * g.bleed_mm) * 1000.0,
-           g.canvas_px[1] / (g.trim_mm[1] + 2 * g.bleed_mm) * 1000.0)
+    # LA DENSITÉ EST CELLE DE P1, PAS UNE RE-DÉRIVATION. La formule
+    # « canvas_px / mm » réinjecte le bruit d'arrondi entier de canvas_px
+    # (mesuré : poker_eu 300 DPI -> (11812, 11809) au lieu de 11811, 5 formats
+    # sur 12 divergent). Copie LOCALE de la formule de P1 (précédents :
+    # frame.py, print.py — zéro import pièce->pièce dans le domaine), avec
+    # assertion de parité 300 -> 11811 dans le test.
+    ppm_v = round(float(g.dpi) / 25.4 * 1000.0)   # px/m, valeur nominale isotrope
+    ppm = (float(ppm_v), float(ppm_v))
     out = _out_dir(did, create=True)
     rows = []
     for nom in ordre:
