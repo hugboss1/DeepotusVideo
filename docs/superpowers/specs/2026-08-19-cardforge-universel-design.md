@@ -36,6 +36,8 @@ archétypes du catalogue.
 | Archétype = point de départ, jamais un verrou | un modèle instancie un deck ORDINAIRE ; chaque élément reste éditable (ajout/retrait, couleur de fond, typo, corps… par slot) | amendement utilisateur du 19/08 |
 | `deepotus-fragments` | gabarit hybride propre (arcane mystique × créature à évolutions), construit en phase 4 depuis la **carte type fournie par l'utilisateur** (« The Patriarch of the Old Houses », anatomie §7.2) | réponses de clarification + carte du 19/08 |
 | Contour holographique « Sceau prismatique » | pack TRANSVERSAL famille de cadre + finition, très haute qualité, combinable avec tout archétype (§6.2bis) | demande utilisateur du 19/08 |
+| Portée du Sceau prismatique | activable PAR SURFACE (écran / impression / 3D) ; « 3D uniquement en bout de chaîne » est une configuration de premier rang — celle de `deepotus-fragments` ; épaisseur réglable ; motifs/symboles incrustables dans l'hologramme | amendement utilisateur du 19/08 (relecture) |
+| Verso personnalisé | image importée + un ou PLUSIEURS calques de texture/motif, édités comme le recto, présents dans l'export par couches et sur le dos de l'objet 3D (§6.2ter) | amendement utilisateur du 19/08 (relecture) |
 | Phasage | 1 export-couches → 2 graphe → 3 archétypes/decks → 4 import + fragments | priorités 4 puis 5 ; chaque phase livrable seule |
 
 ## 3. Architecture
@@ -336,10 +338,45 @@ simeydotme (gradients + masques + pointeur).
   de référence et vérifie que les franges varient avec l'angle (deux captures, deux
   distributions de teinte — mesure, pas déclaration).
 
+**d) Portée, épaisseur, motifs incrustés (amendements de relecture) :**
+- **Portée PAR SURFACE** : trois interrupteurs indépendants — écran / impression / 3D.
+  « 3D uniquement » est une configuration de premier rang (le défaut du modèle
+  `deepotus-fragments`) : l'écran et l'impression montrent alors le contour dans sa
+  base calme (or/argent non holo), et SEUL le nœud 3D de bout de chaîne reçoit le
+  matériau iridescent. L'écran dit toujours quelle portée est active.
+- **Épaisseur réglable**, deux grandeurs distinctes nommées à l'écran : la LARGEUR de
+  bande du filigrane (mm, 2D — validée ≥ 0,2 mm si la portée impression est active) et
+  la PROFONDEUR d'extrusion du contour 3D (mm, réglée sur le nœud `extrude` du graphe).
+- **Motif dans l'hologramme** : un ou PLUSIEURS calques de motif/symbole (image
+  importée — ex. le sigle du poulpe —, motif du catalogue, ou texture Material Forge)
+  encodés dans le canal G de l'`iridescenceThicknessTexture` (addition bornée des
+  épaisseurs, ordre des calques = ordre d'addition) + ondulation normale douce : le
+  symbole se RÉVÈLE dans les franges selon l'angle, comme un vrai foil à motif embarqué.
+  Déterministe (mêmes calques → mêmes octets), aperçu 3D à l'appui.
+
 **Barre de qualité mesurable** : trait vectoriel ≥ 0,2 mm vérifié avant tout export ;
 aperçu == fichier (phase canonique) ; preuve d'empilement inchangée ; GLB : extension
 dans `extensionsUsed`, franges angulaires mesurées dans le viewer embarqué, dégradation
-propre confirmée en désactivant l'extension.
+propre confirmée en désactivant l'extension ; motif incrusté : relu dans le canal G du
+fichier livré, pas dans l'intention.
+
+### 6.2ter Verso personnalisé (amendement de relecture)
+
+Le dos de carte sort du seul catalogue (7 dos P2) : `back: "custom"` —
+- **une image importée** (même chemin d'import que le recto : dépôt/collage local,
+  réduction 4096 px, stockage local au deck) ;
+- **un ou PLUSIEURS calques** au-dessus : motif du catalogue P2, texture importée, ou
+  matière Material Forge — chacun avec opacité, échelle, fusion (les modes de fusion
+  autorisés restent ceux qui EMPILENT : source-over/multiply-précomposé, pour ne pas
+  casser la preuve d'empilement) ;
+- édité dans P2 (le dos appartient au cadre), aperçu par le bouton recto/verso
+  existant ; le verso custom est SAUVÉ dans les modèles de deck (celui de
+  `deepotus-fragments` en fait partie).
+
+Conséquences en aval, déjà couvertes par construction : l'export par couches livre le
+verso (§4.1 — recto ET verso) ; en 3D, **l'assemblage pose le composite verso sur la
+face arrière** de la carte (plan texturé par défaut — voir §10 amendé), et le verso
+peut recevoir ses propres nœuds de traitement comme le recto.
 
 ### 6.3 Génération IA des cadres
 
@@ -407,9 +444,18 @@ son chemin est fourni (suggestion : `.superpowers/samples/patriarch.png`, hors d
 | palette | noirs #0b0a08–#141210, ors #8a6a2e→#d8b76a | palette du modèle |
 
 Modèle `deepotus-fragments` = format poker_eu, full-art, famille « filigrane-instrument »
-+ Sceau prismatique, slots titre/épithète ci-dessus, palette d'éléments : anneau de halo,
++ Sceau prismatique **en portée « 3D uniquement »** (§6.2bis-d — écran et impression en
+or calme), slots titre/épithète ci-dessus, palette d'éléments : anneau de halo,
 cartouche à chiffres romains (arcane gravée), blason, badge PV et bloc d'attaques
 (créature à évolutions) — le tout ajoutable et modifiable slot par slot (§6.1).
+
+**Parcours guidé à l'instanciation du modèle** (amendement de relecture) :
+1. **importer l'illustration** (dépôt direct P1, ou carte complète via P10 + adoption) ;
+2. **choisir ou importer le type de bordure** : famille du catalogue, bordure isolée
+   d'une carte importée (P10 → « adopter »), ou décor généré par IA (§6.3) ;
+3. **régler le Sceau prismatique** : portée (3D seule par défaut ici), largeur de bande,
+   profondeur d'extrusion, motif(s) incrusté(s) dans l'hologramme (sigle Deepotus…) ;
+4. **éditer le verso** : image importée + calques de texture/motif (§6.2ter).
 
 Parcours de preuve, en clôture de phase 4 : import de la carte type → isolation →
 gabarit hybride → « enregistré comme modèle » → export par couches → graphe
@@ -475,9 +521,10 @@ communication « qualité NFT professionnelle ».
 - Toute inscription on-chain (mint, wallet).
 - `KHR_materials_emissive_strength` (émission > 1) — reste connu de P8.
 - L'archétype « Champion de taverne » (2e fournée).
-- Le rendu 3D des VERSOS dans le graphe (l'export par couches les livre ; l'assemblage
-  recto/verso en un objet double-face est une extension naturelle de `assemble`, non
-  requise pour la v1).
+- ~~Le rendu 3D des versos~~ — ENTRÉ AU PÉRIMÈTRE par l'amendement verso (§6.2ter) :
+  l'assemblage pose le composite verso sur la face arrière (plan texturé par défaut) ;
+  seul le traitement par nœuds AVANCÉ du verso (mesh 3D par élément de dos) reste une
+  extension ultérieure.
 
 ## 11. Annexe légale — les trois règles (recherche du 19/08)
 
