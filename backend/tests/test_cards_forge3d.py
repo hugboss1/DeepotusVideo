@@ -254,6 +254,24 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     # la couche vide est LIVREE et mesuree, pas devinee
     voile = [l for l in b["layers"] if l["role"] == "voile-matiere"][0]
     assert voile["coverage_pct"] == 0.0 and voile["bbox_px"] is None
+    assert voile["bbox_mm"] is None    # boite vide : None des deux cotes
+
+    # reliquat de revue phase 1 : le manifeste porte le format du deck et la
+    # densite pHYs REELLEMENT ecrite (memes octets que ceux relus plus bas),
+    # et chaque couche non vide porte sa boite convertie en mm a cote de sa
+    # boite en pixels — deck par defaut : poker_eu, 300 DPI.
+    assert b["format"] == "poker_eu"
+    assert b["phys_ppm"] == 11811
+    cadre = [l for l in b["layers"] if l["role"] == "cadre"][0]
+    assert cadre["bbox_px"] is not None and cadre["bbox_mm"] is not None
+    # bbox_mm = bbox_px * dimensions physiques TOTALES / canvas_px — poker_eu
+    # a 300 DPI : canvas = 815 x 1110 px pour 69 x 94 mm (trim + fond perdu
+    # des deux cotes), donc c'est bien la trame w x h qui divise, pas trim_mm
+    # seul (qui sous-evaluerait toute couche qui deborde dans le fond perdu).
+    bx = cadre["bbox_px"]
+    attendu_mm = [round(bx[0] * 69.0 / 815, 2), round(bx[1] * 94.0 / 1110, 2),
+                 round(bx[2] * 69.0 / 815, 2), round(bx[3] * 94.0 / 1110, 2)]
+    assert cadre["bbox_mm"] == attendu_mm
 
     # le ZIP existe, ses entrees portent les 7 PNG + manifeste, les SHA collent
     rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
@@ -610,6 +628,12 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
     assert "return" in corps.split("stack_ok")[1].split("FormData")[0]
     # provenance : les blobs passent par CF.layerBlob (mintes)
     assert "CF.layerBlob" in corps
+    # l'identite de carte et la base papier partent bel et bien avec chaque
+    # envoi — des defauts backend (card="0", paper="#ffffff") rendraient
+    # leur suppression invisible aux tests d'integration (200 quand meme) :
+    # ce test cible litteralement l'appel, pas seulement son effet observe.
+    assert 'fd.append("card"' in corps
+    assert 'fd.append("paper"' in corps
     # le bordereau est peint depuis la REPONSE (mesure), pas depuis l'intention
     assert "cf-forge3d-slip" in rendu
     assert "weight" in rendu or "Kio" in rendu

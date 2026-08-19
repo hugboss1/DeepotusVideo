@@ -93,6 +93,11 @@
      lieu de 6+1) restent retenues entre les deux temps — un geste ponctuel
      sur clic, pas une boucle : acceptable. */
   async function exportLayers() {
+    /* la carte courante, lue UNE SEULE FOIS en tete de fonction : un
+       changement de carte au rail pendant l'export (temps 1 -> temps 2) ne
+       peut plus desynchroniser la preuve (CF.layers) de l'etiquette envoyee
+       (fd.append("card", ...)) — les deux lisaient CF.current() separement. */
+    const carte = (CF.current ? CF.current() : 0);
     const status = $("#cf-forge3d-status");
     const btn = $("#cf-forge3d-export");
     btn.disabled = true;
@@ -105,7 +110,7 @@
         const face = sides[s];
         status.textContent = "rendu des couches ("
           + (face === "front" ? "recto" : "verso") + ")…";
-        const L = await CF.layers(CF.current(), { face: face, groups: LAYER_ROLES });
+        const L = await CF.layers(carte, { face: face, groups: LAYER_ROLES });
         if (L.errors && L.errors.length) {
           /* une couche rendue avec une erreur de painter n'est pas une couche
              de confiance : on nomme (face + painters) et on n'envoie rien. */
@@ -139,7 +144,7 @@
         }
         fd.append("composite", await CF.layerBlob(L.composite), "composite.png");
         fd.append("side", face);
-        fd.append("card", String(CF.current ? CF.current() : 0));
+        fd.append("card", String(carte));
         fd.append("paper", L.paper || "#ffffff");
         const modes = {};
         L.layers.forEach((l) => { modes[l.role] = l.mode; });

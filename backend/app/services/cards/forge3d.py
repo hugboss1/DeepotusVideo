@@ -377,6 +377,14 @@ async def post_layers(did: str,
             diff_px = w * h - fusion.histogram()[0]
 
         ppm = float(_dpi_to_ppm(g.dpi))
+        phys_ppm = int(round(ppm))    # la valeur EXACTE que `_phys_chunk`
+                                       # écrit dans les octets (même arrondi)
+        # dimensions physiques TOTALES de la trame (w, h) == canvas_px, donc
+        # trim + fond perdu des DEUX côtés — pas trim_mm seul, qui ne couvre
+        # que la carte coupée et sous-évaluerait bbox_mm sur toute couche qui
+        # déborde dans le fond perdu.
+        size_mm_totale = (g.trim_mm[0] + 2.0 * g.bleed_mm,
+                          g.trim_mm[1] + 2.0 * g.bleed_mm)
         zip_entries: dict[str, bytes] = {}
         rows = []
         for nom in ordre:
@@ -388,6 +396,15 @@ async def post_layers(did: str,
             # coverage : w*h - (pixels d'alpha nul), même mesure histogramme
             cover = ((w * h - alpha.histogram()[0]) / float(w * h) * 100.0)
             meta = next(r for r in LAYER_ROLES if r["role"] == nom)
+            # bbox_mm : la MEME boîte, convertie par les dimensions physiques
+            # (bbox_px * size_mm_totale / canvas_px) — None si bbox_px l'est,
+            # jamais une conversion inventée sur une couche vide.
+            bbox_mm = None if bbox is None else [
+                round(bbox[0] * size_mm_totale[0] / w, 2),
+                round(bbox[1] * size_mm_totale[1] / h, 2),
+                round(bbox[2] * size_mm_totale[0] / w, 2),
+                round(bbox[3] * size_mm_totale[1] / h, 2),
+            ]
             rows.append({
                 "role": nom, "z": meta["z"], "module": meta["module"],
                 "file": fn,
@@ -395,6 +412,7 @@ async def post_layers(did: str,
                 "sha256": hashlib.sha256(data).hexdigest(),
                 "bytes": len(data),
                 "bbox_px": list(bbox) if bbox else None,
+                "bbox_mm": bbox_mm,
                 "coverage_pct": round(cover, 2),
             })
         comp_fn = f"composite_{card_label}_{face}.png"
@@ -406,10 +424,12 @@ async def post_layers(did: str,
             "deck": {"id": did, "name": doc.get("name")},
             "card": {"index": idx, "label": card_label},
             "side": face,
+            "format": g.fmt,
             "paper": paper_hex,
             "canvas_px": [w, h],
             "size_mm": [g.trim_mm[0], g.trim_mm[1]],
             "bleed_mm": g.bleed_mm,
+            "phys_ppm": phys_ppm,
             "layers": rows,
             "composite": {"file": comp_fn,
                           "sha256": hashlib.sha256(comp_data).hexdigest(),
