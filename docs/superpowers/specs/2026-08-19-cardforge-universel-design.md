@@ -34,7 +34,8 @@ archétypes du catalogue.
 | Isolation à l'import | **Hybride** : analyse locale PIL gratuite par défaut + détourage IA opt-in (rembg fal ~0,003 $/image, prix affiché) | patron maison : gratuit par défaut, payant affiché |
 | Archétypes 1re fournée | **7/8** : superstar, duel, créature, arcane, monstre, légende, gravée (sélection utilisateur) ; « taverne » en 2e fournée | clics de sélection du 19/08 |
 | Archétype = point de départ, jamais un verrou | un modèle instancie un deck ORDINAIRE ; chaque élément reste éditable (ajout/retrait, couleur de fond, typo, corps… par slot) | amendement utilisateur du 19/08 |
-| `deepotus-fragments` | gabarit hybride propre (arcane mystique × créature à évolutions), construit en phase 4 depuis la **carte type fournie par l'utilisateur** | réponses de clarification |
+| `deepotus-fragments` | gabarit hybride propre (arcane mystique × créature à évolutions), construit en phase 4 depuis la **carte type fournie par l'utilisateur** (« The Patriarch of the Old Houses », anatomie §7.2) | réponses de clarification + carte du 19/08 |
+| Contour holographique « Sceau prismatique » | pack TRANSVERSAL famille de cadre + finition, très haute qualité, combinable avec tout archétype (§6.2bis) | demande utilisateur du 19/08 |
 | Phasage | 1 export-couches → 2 graphe → 3 archétypes/decks → 4 import + fragments | priorités 4 puis 5 ; chaque phase livrable seule |
 
 ## 3. Architecture
@@ -87,7 +88,7 @@ livrée le 19/08 : publication différée, gardée par comparaison, jamais de bo
 |---|---|
 | `asset3d_service` (5 moteurs fal : tripo, hunyuan, trellis, rodin, triposr) | nœuds « mesh 3D » de P9 — menu déroulant + prix |
 | Material Forge (`pbr_service`, `material_store`, export GLB) | nœuds « matière » de P9 |
-| `gltf_builder` (`_BUILDERS` extensible, contexte verrouillé façon P8 `CTX_MESH`) | + un builder « extrusion de silhouette » (Ph2) |
+| `gltf_builder` (`_BUILDERS` extensible, contexte verrouillé façon P8 `CTX_MESH`) | + un builder « extrusion de silhouette » (Ph2) + les extensions `KHR_materials_iridescence` / `KHR_materials_anisotropy` (§6.2bis — le model-viewer embarqué 3.3.3 les rend, vérifié sur les octets du bundle) |
 | `CF.images` + patron `face.py:ai-models` (tarifs `pricing.py`) | menu déroulant de génération IA des cadres (Ph3) et vues (Ph2) |
 | `pixel_ops.chroma_key`, `pbr_service._micro_contrast/stats/correlation` | briques d'isolation (Ph4) |
 | rembg (fal `imageutils/rembg` 0,003 $/img, ou local si installé) | détourage IA opt-in (Ph4) |
@@ -274,6 +275,72 @@ P3 nouveau (bloc miroir), palette, finition par défaut. Le contrôle de **dista
 silhouettes** de la QA P2 doit rester sain (une famille nouvelle trop proche d'une
 existante dégrade le pire couple — mesuré, pas décrété).
 
+### 6.2bis « Sceau prismatique » — contour holographique très haute qualité (transversal)
+
+Pas un archétype de mise en page : un **pack famille-de-cadre + finition**, combinable
+avec TOUT archétype (case « contour holographique » dans le panneau Cadre), mis en avant
+par `deepotus-fragments`. Recherche du 19/08, chiffres vérifiés sur sources d'imprimeurs
+réels et sur la spec Khronos ; support iridescence/anisotropy CONFIRMÉ dans le
+model-viewer embarqué (v3.3.3, occurrences relevées dans le bundle).
+
+**Une seule source de vérité : le TRACÉ VECTORIEL du contour** (le chemin que P2 dessine).
+Trois rasterisations dérivées, jamais le même fichier :
+
+| usage | cadre | résolution | anti-aliasing |
+|---|---|---|---|
+| masque imprimeur | coupe + FOND PERDU | vectoriel (spot) sinon 1 bit ≥ 600 dpi | **NON** (seuil 50 %) |
+| masque 3D (iridescence) | coupe SEULE | 1024–2048 px | **OUI**, niveaux de gris pleine surface (pas d'alpha), espace LINÉAIRE |
+| aperçu écran | toile | écran × dpr | oui |
+
+*(Le piège des deux cadres est réel : un même PNG réutilisé décale le contour en 3D ou
+fait déborder le foil en impression.)*
+
+**a) Écran (painter P2, canvas 2D, DÉTERMINISTE)** — pile de rendu :
+1. clip par le tracé du contour ; 2. base arc-en-ciel (dégradé linéaire ou conique HSL,
+saturation 70-90 %, phase = f(pointeur) en aperçu) ; 3. bande de reflet
+blanc-transparent en `overlay` ; 4. paillettes : champ de points au PRNG SEEDÉ
+(mulberry32, seed = id de carte — jamais `Math.random`, règle du `prng` de P2) allumées
+par `hash(x, y, floor(phase × N))`. **La phase du fichier livré est CANONIQUE (0.35) et
+l'aperçu animé passe par elle** : l'utilisateur voit littéralement la frame livrée —
+c'est ce qui garde la preuve d'empilement de §4.2 valable (le painter reste
+déterministe à phase fixée). Référence visuelle du domaine : les holo-cards CSS de
+simeydotme (gradients + masques + pointeur).
+
+**b) Impression (P7)** — livrable « masque de foil » :
+- vectoriel d'abord : couche spot nommée **« Foil »**, Overprint activé (conventions
+  Mixam / MakePlayingCards / PrintNinja) ; repli raster : PNG/TIFF noir 100 % **sans
+  anti-aliasing**, 600-1200 dpi, fond perdu inclus ;
+- contraintes VALIDÉES EN VECTORIEL avant rasterisation (ajoutées au préflight P7
+  existant) : trait ≥ 0,2 mm, espacement entre zones ≥ 0,25 mm, distance au trait de
+  coupe ≥ 3,2 mm (variance de fabrication 1-2 mm : l'écran l'écrit) ;
+- motif holo : **rainbow uni** imposé pour un filigrane fin — les motifs à grandes
+  cellules (cracked ice, honeycomb) ont un pas supérieur à la largeur du trait ;
+- l'écran DIT la limite produit relevée : chez certains imprimeurs le spot cold foil
+  pur exclut la couleur sur la même face (le produit foil + CMJN existe, plus cher).
+
+**c) 3D (P9 / `gltf_builder`)** — matériau iridescent physique :
+- `KHR_materials_iridescence` dans **`extensionsUsed` uniquement, JAMAIS
+  `extensionsRequired`** (un viewer sans support ignore proprement et rend la base —
+  cas Unreal/glTFast documentés) : la base doit être belle seule (chrome poli) ;
+- recette **argent holographique** : baseColor [0.95, 0.95, 0.97], metallic 1.0,
+  roughness 0.12, iridescenceFactor 1.0, iridescenceIor 1.8, épaisseur 200→900 nm ;
+  recette **dorure holographique** : baseColor [1.0, 0.84, 0.55], IOR 1.6,
+  200→600 nm ; clearcoat 1.0 / rugosité 0.06 par-dessus = le vernis laminé ;
+- l'arc-en-ciel spatial vient d'une **`iridescenceThicknessTexture`** (canal G,
+  linéaire) en secteurs radiaux N = 24-64 à 1024² — mip-stable, zéro moiré — plutôt
+  que d'un réseau fin dans la normal map (dont la moyenne mip ÉTEINT l'effet à
+  distance ; ne garder qu'une ondulation basse fréquence, période 32-64 texels) ;
+- option « métal brossé » : `KHR_materials_anisotropy` strength 0.7-1.0, direction
+  TANGENTE au périmètre (texture RG), l'attribut TANGENT étant déjà exporté ;
+- rendu PROUVÉ dans le viewer embarqué : le test capture l'aperçu model-viewer du GLB
+  de référence et vérifie que les franges varient avec l'angle (deux captures, deux
+  distributions de teinte — mesure, pas déclaration).
+
+**Barre de qualité mesurable** : trait vectoriel ≥ 0,2 mm vérifié avant tout export ;
+aperçu == fichier (phase canonique) ; preuve d'empilement inchangée ; GLB : extension
+dans `extensionsUsed`, franges angulaires mesurées dans le viewer embarqué, dégradation
+propre confirmée en désactivant l'extension.
+
 ### 6.3 Génération IA des cadres
 
 Dans P2 (ou P10 pour un cadre importé) : « générer le décor de cadre par IA » — menu
@@ -325,11 +392,29 @@ même mécanique qu'une matière de support importée). Prix affiché avant l'ap
 
 ### 7.2 `deepotus-fragments` (la preuve de bout en bout)
 
-Construit en clôture de phase 4, depuis la **carte type fournie par l'utilisateur**
-(chemin à fournir au démarrage de l'implémentation) : import → isolation → gabarit
-hybride (arcane mystique × créature à évolutions, palette Deepotus) → « enregistré comme
-modèle » → export par couches → graphe (illustration en mesh 3D, cadre en extrusion
-dorée Material Forge, typo en relief fin) → GLB + metadata.json + STL. Chaque étape du
+**Carte type fournie le 19/08** : « The Patriarch of the Old Houses / He Who Guards the
+Aged Walls » — portrait gravé sombre, filigrane or à instruments. Anatomie mesurée sur
+l'image (≈ 1060×1500 px, rapport 0,707 ≈ poker 63×88), à recaler sur le FICHIER dès que
+son chemin est fourni (suggestion : `.superpowers/samples/patriarch.png`, hors dépôt) :
+
+| zone | mesure (mm) | rôle |
+|---|---|---|
+| filigrane double | filets à ~2,1 et ~3,2 du bord, instruments de coin, médaillons de mi-chant | famille P2 nouvelle « filigrane-instrument », **Sceau prismatique** (§6.2bis) par défaut |
+| titre | y 4,4–11,5, deux lignes, capitales or ESPACÉES, capitale ~2,8 | slot P3 (Cinzel/Cormorant SC), or #d8b76a |
+| anneau de halo | centre (31,4 ; 27,1), rayon ~13,9, trait fin or | élément AJOUTABLE de la palette du modèle (position/rayon réglables) |
+| illustration | pleine carte sous les cartouches (full-art, fenêtre = toile) | pose P1, gravure sombre |
+| épithète | y ~76–78,5, une ligne, serif or, casse mixte | slot P3 |
+| palette | noirs #0b0a08–#141210, ors #8a6a2e→#d8b76a | palette du modèle |
+
+Modèle `deepotus-fragments` = format poker_eu, full-art, famille « filigrane-instrument »
++ Sceau prismatique, slots titre/épithète ci-dessus, palette d'éléments : anneau de halo,
+cartouche à chiffres romains (arcane gravée), blason, badge PV et bloc d'attaques
+(créature à évolutions) — le tout ajoutable et modifiable slot par slot (§6.1).
+
+Parcours de preuve, en clôture de phase 4 : import de la carte type → isolation →
+gabarit hybride → « enregistré comme modèle » → export par couches → graphe
+(illustration en mesh 3D, filigrane en extrusion + matériau Sceau prismatique, typo en
+relief fin doré) → GLB + metadata.json + STL + masque de foil imprimeur. Chaque étape du
 workflow réel, mesurée. AUCUNE donnée personnelle réelle dans les gabarits (pseudonyme
 fixe — incident du gauntlet précédent).
 
