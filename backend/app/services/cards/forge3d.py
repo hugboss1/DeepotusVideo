@@ -91,14 +91,14 @@ async def get_info(did: str):
     if read_deck(did) is None:
         raise HTTPException(404, "Deck introuvable")
     return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES,
-           "node_kinds": NODE_KINDS,
-           "graph_limits": {
+            "node_kinds": NODE_KINDS,
+            "graph_limits": {
                "plane_depth_mm": list(PLANE_DEPTH_MM),
                "relief_depth_mm_max": RELIEF_DEPTH_MM_MAX,
                "relief_base_mm": list(RELIEF_BASE_MM),
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
-           }}
+            }}
 
 
 def _out_dir(did: str, create: bool = False) -> Path:
@@ -175,18 +175,33 @@ def clean_graph(raw) -> dict:
     « poubelle » du test (qui n'utilisait que des chaînes). D'où le
     `isinstance(..., str)` AVANT tout `in kinds`/`in roles` ci-dessous :
     un TypeError sur une entrée hostile serait exactement le 500 que cette
-    fonction existe pour empêcher."""
+    fonction existe pour empêcher.
+
+    I1/M1 (revue) : l'id est DÉSINFECTÉ comme `artifact.name` (même charset
+    `[A-Za-z0-9._-]`) avant toute comparaison — un id brut du client peut
+    porter n'importe quel caractère. La resynthèse anti-collision suffixe
+    en BOUCLE jusqu'à unicité : un simple `f"n{i+1}x"` ne suffisait pas —
+    mesuré en revue, deux nœuds bruts d'id "n2x" retombaient tous les deux
+    sur EXACTEMENT "n2x" (la deuxième collision n'était jamais reconsidérée),
+    et l'arête qui visait l'un des deux devenait ambiguë entre les deux."""
     g = raw if isinstance(raw, dict) else {}
     kinds = {k["kind"] for k in NODE_KINDS}
     roles = {r["role"] for r in LAYER_ROLES}
     nodes, ids = [], set()
-    for i, n in enumerate(g.get("nodes") or [] if isinstance(g.get("nodes"), list) else []):
-        k_val = n.get("kind") if isinstance(n, dict) else None
-        if not isinstance(n, dict) or not isinstance(k_val, str) or k_val not in kinds:
+    nodes_in = g.get("nodes")
+    nodes_in = nodes_in if isinstance(nodes_in, list) else []
+    for i, n in enumerate(nodes_in):
+        if not isinstance(n, dict):
             continue
-        node = {"id": str(n.get("id") or f"n{i + 1}")[:24], "kind": n["kind"]}
-        if node["id"] in ids:
-            node["id"] = f"n{i + 1}x"
+        k_val = n.get("kind")
+        if not isinstance(k_val, str) or k_val not in kinds:
+            continue
+        brut = re.sub(r"[^A-Za-z0-9._-]", "_", str(n.get("id") or f"n{i + 1}"))[:24]
+        node = {"id": brut or f"n{i + 1}", "kind": n["kind"]}
+        # resynthese SANS collision possible : "n2x" + "n2x" donnait "n2x" deux
+        # fois (mesure en revue) — on suffixe jusqu'a unicite.
+        while node["id"] in ids:
+            node["id"] += "x"
         ids.add(node["id"])
         if n["kind"] == "layer":
             r_val = n.get("role")
@@ -206,7 +221,9 @@ def clean_graph(raw) -> dict:
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
         nodes.append(node)
     edges = []
-    for e in (g.get("edges") or [] if isinstance(g.get("edges"), list) else []):
+    edges_in = g.get("edges")
+    edges_in = edges_in if isinstance(edges_in, list) else []
+    for e in edges_in:
         if not isinstance(e, dict):
             continue
         ef, et = e.get("from"), e.get("to")
@@ -494,6 +511,9 @@ async def post_layers(did: str,
             # bbox_mm : la MEME boîte, convertie par les dimensions physiques
             # (bbox_px * size_mm_totale / canvas_px) — None si bbox_px l'est,
             # jamais une conversion inventée sur une couche vide.
+            # ORIGINE (I2, revue) : coin de TOILE (fond perdu compris), comme
+            # bbox_px — PAS le coin de COUPE de P2/P3 (frame.py:164) ;
+            # soustraire bleed_mm pour la convention slots.
             bbox_mm = None if bbox is None else [
                 round(bbox[0] * size_mm_totale[0] / w, 2),
                 round(bbox[1] * size_mm_totale[1] / h, 2),
@@ -522,6 +542,7 @@ async def post_layers(did: str,
             "format": g.fmt,
             "paper": paper_hex,
             "canvas_px": [w, h],
+            "canvas_mm": [size_mm_totale[0], size_mm_totale[1]],
             "size_mm": [g.trim_mm[0], g.trim_mm[1]],
             "bleed_mm": g.bleed_mm,
             "phys_ppm": phys_ppm,

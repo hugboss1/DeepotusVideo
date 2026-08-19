@@ -272,15 +272,21 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     # boite en pixels — deck par defaut : poker_eu, 300 DPI.
     assert b["format"] == "poker_eu"
     assert b["phys_ppm"] == 11811
+    # I2 (revue) : la trame physique totale, miroir de canvas_px — poker_eu
+    # a 300 DPI : 63 x 88 mm de trim + 3 mm de fond perdu des DEUX cotes.
+    assert b["canvas_mm"] == [69.0, 94.0]
     cadre = [l for l in b["layers"] if l["role"] == "cadre"][0]
     assert cadre["bbox_px"] is not None and cadre["bbox_mm"] is not None
     # bbox_mm = bbox_px * dimensions physiques TOTALES / canvas_px — poker_eu
     # a 300 DPI : canvas = 815 x 1110 px pour 69 x 94 mm (trim + fond perdu
     # des deux cotes), donc c'est bien la trame w x h qui divise, pas trim_mm
     # seul (qui sous-evaluerait toute couche qui deborde dans le fond perdu).
+    # ORIGINE (I2, revue) : coin de TOILE (fond perdu compris), comme
+    # bbox_px — PAS le coin de COUPE de P2/P3 (frame.py:164) ; soustraire
+    # bleed_mm pour la convention slots.
     bx = cadre["bbox_px"]
     attendu_mm = [round(bx[0] * 69.0 / 815, 2), round(bx[1] * 94.0 / 1110, 2),
-                 round(bx[2] * 69.0 / 815, 2), round(bx[3] * 94.0 / 1110, 2)]
+                  round(bx[2] * 69.0 / 815, 2), round(bx[3] * 94.0 / 1110, 2)]
     assert cadre["bbox_mm"] == attendu_mm
 
     # le ZIP existe, ses entrees portent les 7 PNG + manifeste, les SHA collent
@@ -706,6 +712,26 @@ def test_clean_graph_repare_et_ne_leve_jamais():
     out3 = F9.clean_graph(hostile)     # ne lève pas non plus
     assert isinstance(out3, dict) and "nodes" in out3 and "edges" in out3
     assert out3["edges"] == []         # aucune arête à bouts non-chaîne ne survit
+    # I1/M1 (revue) : l'id BRUT {"a": 1} (déjà dans `hostile` ci-dessus,
+    # kind="assemble", 2e survivant sur les 3) est DÉSINFECTÉ comme
+    # artifact.name — aucune accolade, guillemet ni espace ne doit survivre
+    # dans l'id qui sort.
+    assemble_ids = [n["id"] for n in out3["nodes"] if n["kind"] == "assemble"]
+    assert len(assemble_ids) == 3
+    id_moche = assemble_ids[1]         # né de {"id": {"a": 1}, ...}
+    assert not any(c in id_moche for c in "{}'\" "), f"id non desinfecte : {id_moche!r}"
+
+    # I1 (revue) : deux nœuds d'id BRUT "n2x" — la resynthese anti-collision
+    # doit suffixer en BOUCLE jusqu'a unicite (mesure en revue : un simple
+    # "n{i+1}x" retombait sur EXACTEMENT "n2x" pour LES DEUX, et l'arête
+    # visant l'un des deux devenait ambiguë entre les deux).
+    doublon = {"nodes": [{"id": "n2x", "kind": "assemble"},
+                        {"id": "n2x", "kind": "assemble"}],
+              "edges": []}
+    out4 = F9.clean_graph(doublon)
+    assert len(out4["nodes"]) == 2, "les deux noeuds doivent etre conserves"
+    ids4 = [n["id"] for n in out4["nodes"]]
+    assert len(ids4) == len(set(ids4)), f"ids en collision : {ids4}"
 
 
 if __name__ == "__main__":
