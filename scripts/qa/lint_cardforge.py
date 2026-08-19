@@ -3,7 +3,7 @@
 """Fait respecter MECANIQUEMENT les regles de cloisonnement de Card Forge.
 
 Spec : docs/superpowers/specs/2026-08-11-cardforge-design.md (§2.2, LES 10
-REGLES). Huit builders travaillent en parallele sur un meme document et un
+REGLES). Neuf builders travaillent en parallele sur un meme document et un
 meme canevas : sans controle automatique, deux modules ecrivent le meme
 sous-arbre ou la meme couche et le dernier gagne EN SILENCE (risque 1 de la
 spec). Ce script est le garde-fou. Sortie non nulle = build rejete.

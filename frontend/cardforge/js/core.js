@@ -170,7 +170,7 @@
   const SELF_SRC = (SELF_TAG && SELF_TAG.src)
     ? String(SELF_TAG.src).replace(/[?#].*$/, "") : "";
   /* Le dossier des modules est celui de core.js. Une PAGE — et une page seule,
-     jamais un module : les huit builders ne touchent pas au HTML — peut le
+     jamais un module : les neuf builders ne touchent pas au HTML — peut le
      declarer autrement par `data-cf-modules` sur la balise du CORE. C'est ce
      qui permet a qa/contract.html de faire tourner de VRAIS modules d'essai,
      avec painters et schemas, sans ouvrir la moindre porte : l'attribut est
