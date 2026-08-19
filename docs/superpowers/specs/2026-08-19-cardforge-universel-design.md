@@ -143,7 +143,9 @@ Une couche n'est digne de confiance que si l'empilement des couches REPRODUIT la
   `face.py:stamp_png`), écrit `outputs/decks/{did}/forge3d/layers/{side}/…` + le ZIP.
 - **Manifeste** `layers.json`, schéma `card-3d/layers-manifest@1` : par couche → rôle,
   module, plage z, fichier, SHA-256, boîte des pixels non transparents (px et mm),
-  `coverage` %, profondeur ; global → deck/carte/format, `canvas_px`, dimensions mm,
+  `coverage` % (la « profondeur » n'est PAS un champ du manifeste : c'est un choix de
+  traitement 3D, elle appartient au graphe — tranché en revue de phase 1) ; global →
+  deck/carte/format, `canvas_px`, dimensions mm,
   pHYs, les deux mesures de preuve, date. Aucun nom de producteur (règle P8,
   `scrub_identity`).
 - Bordereau chiffré à l'écran avant téléchargement (patron P8). Le ZIP est l'ENTRÉE
