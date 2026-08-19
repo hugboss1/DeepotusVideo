@@ -648,8 +648,11 @@
     const o = opt || {};
     const guides = !!o.guides;
     const side = o.face === "back" ? "back" : "front";
+    /* only_z : [] = AUCUN painter (le cumulatif C0 de P9 en depend — [] est
+       truthy en JS), null/absent = tous. Ne JAMAIS coercer [] en null. */
     const only = Array.isArray(o.only_z) ? o.only_z : null;
     const paper = o.paper !== false;
+    const partial = (only !== null) || !paper;
     const g = geom();
     const cd = card(typeof i === "number" ? i : CUR);
     const w = Math.max(1, g.canvas_px[0]);
@@ -708,8 +711,17 @@
       ctx.restore();
     }
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    LAST_ERRORS = errors;
-    emitCore("core:render", { i: cd.i, side: side, w: w, h: h, guides: guides, errors: errors.slice() });
+    /* un rendu PARTIEL (couches P9) n'ecrase pas le bandeau d'erreurs et
+       n'emet pas core:render : quatre modules y accrochent leur peremption
+       (checkStale), et un export par couches declencherait N+1 fausses
+       alertes « la carte a change ». Les erreurs d'un rendu partiel sont
+       rendues a l'appelant par la valeur de retour de CF.layers (tache 3). */
+    if (!partial) {
+      LAST_ERRORS = errors;
+      emitCore("core:render", { i: cd.i, side: side, w: w, h: h, guides: guides, errors: errors.slice() });
+    }
+    /* les erreurs voyagent avec la toile : un rendu partiel n'a plus d'autre canal */
+    cv.cfErrors = errors;
     return cv;
   }
 

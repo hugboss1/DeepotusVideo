@@ -136,6 +136,23 @@ def test_le_moteur_sait_rendre_un_sous_ensemble_sur_toile_nue():
     assert "only" in boucle.split("ctx.save()")[0]
     # le papier reste le defaut : paper !== false
     assert 'o.paper !== false' in corps
+    # I1 : la normalisation doit garder [] tel quel : [] = aucun painter,
+    # null = tous — un .length ici casserait le cumulatif C0
+    assert "Array.isArray(o.only_z) ? o.only_z : null" in corps, \
+        "la normalisation doit garder [] tel quel : [] = aucun painter, null = tous — un .length ici casserait le cumulatif C0"
+
+
+def test_un_rendu_partiel_ne_pollue_ni_evenement_ni_bandeau():
+    """M1 : un rendu PARTIEL (only_z et/ou paper:false, donc P9) n'ecrase pas
+    LAST_ERRORS et n'emet pas core:render — quatre modules y accrochent leur
+    peremption (checkStale), un export par couches ne doit pas les alerter."""
+    src = CORE.read_text(encoding="utf-8")
+    corps = src.split("async function renderRaw(")[1].split("\n  }")[0]
+    assert "const partial" in corps
+    assert "if (!partial)" in corps
+    j = corps.index("if (!partial)")
+    assert "LAST_ERRORS" in corps[j:] and "emitCore(\"core:render\"" in corps[j:]
+    assert "cv.cfErrors = errors" in corps
 
 
 if __name__ == "__main__":
