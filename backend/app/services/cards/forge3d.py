@@ -12,6 +12,7 @@ import hashlib
 import io
 import json
 import math
+import re
 import struct
 import time
 import zipfile
@@ -90,6 +91,22 @@ def _dpi_to_ppm(dpi: float) -> int:
     return int(math.floor(d / 0.0254 + 0.5))
 
 
+def _card_idx(raw) -> int:
+    """Garde entière ≥ 0 — COPIE LOCALE du patron de `_num` ci-dessous (même
+    règle 8) : `card` non numérique (« abc ») ou négatif retombe sur 0,
+    JAMAIS une exception (spec 2.5, C1). C'est cet index qui distingue les
+    fichiers d'une carte de ceux d'une autre dans le même deck — un
+    `int(raw)` nu levait `ValueError` sur toute entrée non numérique."""
+    try:
+        v = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    if not math.isfinite(v):
+        return 0
+    n = int(v)
+    return n if n >= 0 else 0
+
+
 def _num(raw, default: float, lo: float, hi: float) -> float:
     """Garde numérique — COPIE LOCALE de `gltf.py:_num` (même règle 8 que
     `_dpi_to_ppm` ci-dessus : zéro import pièce->pièce). Toute entrée qui
@@ -105,15 +122,80 @@ def _num(raw, default: float, lo: float, hi: float) -> float:
     return float(lo if v < lo else hi if v > hi else v)
 
 
+_HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _paper_hex(raw) -> str:
+    """Validation STRICTE `^#[0-9a-fA-F]{6}$` — toute entrée qui n'est pas
+    EXACTEMENT de cette forme (mot CSS, court #fff, casse invalide, absent)
+    retombe sur "#ffffff", jamais une exception (C2, même discipline que
+    `_card_idx`/`_num`)."""
+    s = str(raw or "")
+    return s if _HEX6_RE.match(s) else "#ffffff"
+
+
+def _paper_rgba(hexcolor: str) -> tuple[int, int, int, int]:
+    """Le papier validé, en RGBA OPAQUE — la base d'empilement de la
+    contre-preuve (C2) : la preuve client empile sur PAPER (le fond que le
+    moteur peint réellement, core.js) ; empiler sur transparent ici ne
+    reproduisait pas le composite dès que le papier de la pièce Matières
+    passe à « none » (couche fond-matière entièrement transparente)."""
+    r = int(hexcolor[1:3], 16)
+    g = int(hexcolor[3:5], 16)
+    b = int(hexcolor[5:7], 16)
+    return (r, g, b, 255)
+
+
 def _phys_chunk(ppm_x: int, ppm_y: int) -> bytes:
     data = struct.pack(">IIB", ppm_x, ppm_y, 1)
     return (struct.pack(">I", len(data)) + b"pHYs" + data
             + struct.pack(">I", zlib.crc32(b"pHYs" + data) & 0xFFFFFFFF))
 
 
+# ── L'espace de couleur — COPIE LOCALE de `face.py:png_srgb_chunks` (règle 8
+# : zéro import pièce->pièce, même patron que `_dpi_to_ppm`/`_num` ci-dessus,
+# chacune sa propre copie, chacune sa parité testée contre P1). C3 : les
+# deux critiques de P1 avaient relevé « ni iCCP, ni sRGB, ni gAMA, ni cHRM » —
+# `_stamp_phys` d'ici n'écrivait jusqu'ici que pHYs, la moitié d'un fichier
+# de prépresse (spec §4.3). Les couches sont des rendus d'ÉCRAN (canvas 2D,
+# jamais un scan étalonné) : intention de rendu PERCEPTUELLE, gamma 1/2,2
+# (x100000, valeur libpng) et primaires + point blanc sRGB — les valeurs
+# EXACTES que P1 écrit (face.py:671-676 — SRGB_INTENT_PERCEPTUAL/SRGB_GAMA/
+# SRGB_CHRM), copiées ici à l'octet, jamais réinventées.
+SRGB_INTENT_PERCEPTUAL = 0
+SRGB_GAMA = 45455                  # 1/2,2 x 100000, valeur libpng
+SRGB_CHRM = (31270, 32900,         # point blanc D65
+             64000, 33000,         # rouge
+             30000, 60000,         # vert
+             15000, 6000)          # bleu
+
+
+def _chunk(typ: str, payload: bytes) -> bytes:
+    t = typ.encode("ascii")
+    return (struct.pack(">I", len(payload)) + t + payload
+            + struct.pack(">I", zlib.crc32(t + payload) & 0xFFFFFFFF))
+
+
+def _srgb_chunks() -> list[bytes]:
+    """`sRGB` + `gAMA` + `cHRM`, dans l'ordre où libpng (et P1) les écrivent."""
+    return [
+        _chunk("sRGB", bytes([SRGB_INTENT_PERCEPTUAL])),
+        _chunk("gAMA", struct.pack(">I", SRGB_GAMA)),
+        _chunk("cHRM", struct.pack(">8I", *SRGB_CHRM)),
+    ]
+
+
+# les 4 chunks de prépresse que `_stamp_phys` pose : un PNG qui en porte déjà
+# un est réécrit, jamais doublé (même logique pour les 4, pas seulement pHYs)
+_PREPRESS_TYPES = {b"pHYs", b"sRGB", b"gAMA", b"cHRM"}
+
+
 def _stamp_phys(png: bytes, ppm: tuple[float, float]) -> bytes:
-    """Insère un pHYs après l'IHDR — même densité que l'écran (patron P1/P8),
-    relue dans les octets par les tests. Un PNG déjà estampillé est réécrit.
+    """Insère sRGB + gAMA + cHRM puis pHYs après l'IHDR — ordre P1 (IHDR ·
+    sRGB · gAMA · cHRM · pHYs, `face.py:png_finalize`) : même espace de
+    couleur et même densité que l'écran, relus dans les octets par les
+    tests. Un PNG déjà estampillé (n'importe lequel des 4 chunks) est
+    réécrit, jamais doublé.
 
     La boucle est BORNÉE et s'arrête à IEND : un PNG à queue parasite (des
     octets après IEND — navigateurs et outils en écrivent bel et bien) passe
@@ -123,6 +205,7 @@ def _stamp_phys(png: bytes, ppm: tuple[float, float]) -> bytes:
         raise HTTPException(400, "PNG attendu")
     ihdr_end = 8 + 8 + struct.unpack(">I", png[8:12])[0] + 4
     out, off = [png[:ihdr_end]], ihdr_end
+    out.extend(_srgb_chunks())
     out.append(_phys_chunk(int(round(ppm[0])), int(round(ppm[1]))))
     while off + 8 <= len(png):
         ln = struct.unpack(">I", png[off:off + 4])[0]
@@ -130,7 +213,7 @@ def _stamp_phys(png: bytes, ppm: tuple[float, float]) -> bytes:
         end = off + 8 + ln + 4
         if end > len(png):
             break
-        if typ != b"pHYs":
+        if typ not in _PREPRESS_TYPES:
             out.append(png[off:end])
         off = end
         if typ == b"IEND":
@@ -143,12 +226,24 @@ async def post_layers(did: str,
                       layers: list[UploadFile] = File(...),
                       composite: UploadFile = File(...),
                       side: str = Form("front"),
+                      card: str = Form("0"),
+                      paper: str = Form("#ffffff"),
                       modes: str = Form("{}"),
                       client_proof: str = Form("{}")):
     """N couches PNG alpha + composite -> contre-preuve PIL, estampille,
     ZIP + manifeste. Le navigateur a DÉJÀ prouvé l'empilement chez lui
     (même moteur, pixel strict) ; ici on ré-empile en second avis et on
     écrit LES DEUX mesures dans le manifeste.
+
+    `card` (C1) : l'index de la carte courante, tel que l'écran l'a rendu
+    (même valeur que le temps de preuve). Sans lui, les sorties ne portaient
+    que deck+side : exporter la carte B écrasait les fichiers de la carte A.
+    Les noms de sortie et le manifeste portent désormais `c{idx+1:02d}`.
+
+    `paper` (C2) : la base RÉELLEMENT peinte par le moteur (`PAPER` de
+    core.js, jamais une constante recopiée ailleurs). La contre-preuve
+    empilait sur transparent ; le ZIP seul ne reproduisait alors pas le
+    composite dès que le papier de la pièce Matières passe à « none ».
 
     `await up.read()` reste async (c'est de l'E/S) ; tout le reste — décodage,
     empilement, mesures, estampilles, zip, écritures — est du calcul pur et
@@ -166,6 +261,14 @@ async def post_layers(did: str,
     g = geom_of(doc)
     w, h = g.canvas_px
     face = "back" if str(side).strip().lower() == "back" else "front"
+    # C1 : l'identite de la CARTE dans toute la chaine — sans elle, exporter
+    # la carte B ecrase les fichiers de la carte A (sorties nommees par
+    # deck+side seulement, avant ce correctif).
+    idx = _card_idx(card)
+    card_label = f"c{idx + 1:02d}"
+    # C2 : la base papier — validee AVANT le calcul, jamais recalculee dans
+    # `work()` a partir d'une valeur non sure.
+    paper_hex = _paper_hex(paper)
 
     # ── bornes AVANT décodage : compte, puis rôle — aucune des deux ne lit
     #    un octet du corps du fichier ─────────────────────────────────────
@@ -254,7 +357,12 @@ async def post_layers(did: str,
             raise HTTPException(409, "aucune couche reconnue")
 
         # ── contre-preuve : empilement PIL, ecart MESURE au composite ──────
-        pile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        # C2 : la base est le PAPIER reellement peint par le moteur (validee
+        # en amont dans `paper_hex`), pas transparent — le composite REEL
+        # (cote navigateur) est peint sur ce meme papier avant les couches ;
+        # empiler sur transparent divergeait en masse des que la couche
+        # fond-matiere ne couvre plus tout le canevas (papier « none »).
+        pile = Image.new("RGBA", (w, h), _paper_rgba(paper_hex))
         for nom in ordre:
             pile = Image.alpha_composite(pile, images[nom])
         diff = ImageChops.difference(pile, comp)
@@ -273,7 +381,7 @@ async def post_layers(did: str,
         rows = []
         for nom in ordre:
             data = _stamp_phys(raw_par_role[nom], (ppm, ppm))
-            fn = f"{nom}_{face}.png"
+            fn = f"{nom}_{card_label}_{face}.png"
             zip_entries[fn] = data
             alpha = images[nom].getchannel("A")
             bbox = alpha.getbbox()
@@ -289,14 +397,16 @@ async def post_layers(did: str,
                 "bbox_px": list(bbox) if bbox else None,
                 "coverage_pct": round(cover, 2),
             })
-        comp_fn = f"composite_{face}.png"
+        comp_fn = f"composite_{card_label}_{face}.png"
         comp_data = _stamp_phys(raw_comp, (ppm, ppm))
         zip_entries[comp_fn] = comp_data
 
         manifest = {
             "schema": MANIFEST_SCHEMA,
             "deck": {"id": did, "name": doc.get("name")},
+            "card": {"index": idx, "label": card_label},
             "side": face,
+            "paper": paper_hex,
             "canvas_px": [w, h],
             "size_mm": [g.trim_mm[0], g.trim_mm[1]],
             "bleed_mm": g.bleed_mm,
@@ -321,7 +431,7 @@ async def post_layers(did: str,
                 z.writestr(fn, data)
             z.writestr("layers.json", json.dumps(manifest, ensure_ascii=False,
                                                  indent=2))
-        zname = f"couches_{face}.zip"
+        zname = f"couches_{card_label}_{face}.zip"
         zip_bytes = zbuf.getvalue()
         manifest["zip"] = {"name": zname, "bytes": len(zip_bytes)}
 
@@ -329,7 +439,7 @@ async def post_layers(did: str,
         for fn, data in zip_entries.items():
             (out / fn).write_bytes(data)
         (out / zname).write_bytes(zip_bytes)
-        (out / f"layers_{face}.json").write_text(
+        (out / f"layers_{card_label}_{face}.json").write_text(
             json.dumps(manifest, ensure_ascii=False, indent=2),
             encoding="utf-8")
         return manifest

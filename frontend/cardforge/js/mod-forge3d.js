@@ -139,6 +139,8 @@
         }
         fd.append("composite", await CF.layerBlob(L.composite), "composite.png");
         fd.append("side", face);
+        fd.append("card", String(CF.current ? CF.current() : 0));
+        fd.append("paper", L.paper || "#ffffff");
         const modes = {};
         L.layers.forEach((l) => { modes[l.role] = l.mode; });
         fd.append("modes", JSON.stringify(modes));

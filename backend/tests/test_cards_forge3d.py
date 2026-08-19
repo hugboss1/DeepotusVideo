@@ -207,6 +207,24 @@ def _png(im):
     return buf.getvalue()
 
 
+def _couches_papier_none(w=815, h=1110):
+    """C2 : meme jeu que `_couches_synthetiques`, mais la couche
+    fond-matiere est ENTIEREMENT TRANSPARENTE — le papier de la piece
+    Matieres mis a « none ». Le composite REEL (cote navigateur) ne redevient
+    blanc que parce que le MOTEUR peint PAPER (core.js) avant les couches ;
+    aucune couche ne porte ce blanc. Discrimine la base d'empilement de la
+    contre-preuve : une base transparente cote backend divergerait en masse
+    la ou aucune couche ne couvre, une base blanche (paper) ne diverge pas."""
+    couches, _ = _couches_synthetiques(w, h)
+    couches = dict(couches)
+    couches["fond-matiere"] = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    composite = Image.new("RGBA", (w, h), (255, 255, 255, 255))
+    for nom in ("fond-matiere", "illustration", "voile-matiere", "cadre",
+                "typographie", "ornements"):
+        composite = Image.alpha_composite(composite, couches[nom])
+    return couches, composite
+
+
 def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     did = _deck("Couches")
     couches, composite = _couches_synthetiques()
@@ -225,6 +243,11 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     assert [l["role"] for l in b["layers"]] == [
         "fond-matiere", "illustration", "voile-matiere", "cadre",
         "typographie", "ornements"]
+    # C1 : identite de carte — par defaut card="0", donc c01
+    assert b["card"] == {"index": 0, "label": "c01"}
+    # C2 : la base papier REELLEMENT peinte par le moteur voyage dans le
+    # manifeste (defaut du formulaire : blanc, PAPER de core.js)
+    assert b["paper"] == "#ffffff"
     # contre-preuve backend : empilement PIL == composite, ecart mesure nul
     assert b["proof"]["backend"]["diff_px"] == 0
     assert b["proof"]["client"]["stack_ok"] is True
@@ -240,7 +263,7 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     assert rz.headers.get("cache-control") == "no-store"
     z = zipfile.ZipFile(io.BytesIO(rz.content))
     noms = sorted(z.namelist())
-    assert "layers.json" in noms and "composite_front.png" in noms
+    assert "layers.json" in noms and "composite_c01_front.png" in noms
     man = json.loads(z.read("layers.json").decode("utf-8"))
     for l in man["layers"]:
         h = hashlib.sha256(z.read(l["file"])).hexdigest()
@@ -250,12 +273,164 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     # par defaut est a 300 DPI). Parite : copie locale == 11811 == pHYs reel.
     from app.services.cards import forge3d as F9
     assert F9._dpi_to_ppm(300) == 11811
-    px = z.read("illustration_front.png")
+    px = z.read("illustration_c01_front.png")
     i = px.find(b"pHYs")
     assert i >= 0, "pHYs absent"
     ppm_x, ppm_y, unite = struct.unpack(">IIB", px[i + 4:i + 13])
     assert (ppm_x, ppm_y, unite) == (F9._dpi_to_ppm(300), F9._dpi_to_ppm(300), 1) \
         == (11811, 11811, 1)
+
+
+def test_deux_cartes_ne_s_ecrasent_pas():
+    """C1 : aujourd'hui, exporter la carte B ecrase les fichiers de la carte
+    A (sorties nommees par deck+side seulement). Deux exports successifs,
+    carte 0 puis carte 1 : les fichiers de c01 doivent EXISTER ENCORE apres
+    l'export de c02, et chaque manifeste doit porter son propre index."""
+    did = _deck("Deux cartes")
+    couches, composite = _couches_synthetiques()
+
+    def _envoie(idx):
+        files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+                 for nom, im in couches.items()]
+        files.append(("composite", ("composite.png", _png(composite), "image/png")))
+        data = {"side": "front", "card": str(idx),
+                "modes": json.dumps({n: "isolee" for n in couches}),
+                "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+        r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+        assert r.status_code == 200, r.text
+        return r.json()["layers"]
+
+    man0 = _envoie(0)
+    assert man0["card"] == {"index": 0, "label": "c01"}
+    zip0 = man0["zip"]["name"]
+    assert zip0 == "couches_c01_front.zip"
+
+    man1 = _envoie(1)
+    assert man1["card"] == {"index": 1, "label": "c02"}
+    zip1 = man1["zip"]["name"]
+    assert zip1 == "couches_c02_front.zip"
+    assert zip1 != zip0
+
+    # les fichiers de c01 existent ENCORE apres l'export de c02 — plus
+    # d'ecrasement croise entre cartes du meme deck.
+    rz0 = _api("GET", f"/api/cards/{did}/forge3d/file/{zip0}")
+    assert rz0.status_code == 200
+    z0 = zipfile.ZipFile(io.BytesIO(rz0.content))
+    assert "composite_c01_front.png" in z0.namelist()
+    rz1 = _api("GET", f"/api/cards/{did}/forge3d/file/{zip1}")
+    assert rz1.status_code == 200
+    z1 = zipfile.ZipFile(io.BytesIO(rz1.content))
+    assert "composite_c02_front.png" in z1.namelist()
+
+
+def test_card_non_numerique_ou_negatif_retombe_sur_zero_jamais_500():
+    """C1 : garde numerique LOCALE sur `card` — un formulaire qui envoie
+    « abc » (ou un index negatif) ne doit jamais faire 500, seulement
+    retomber sur la carte 0 (meme patron que `_num` pour diff_px)."""
+    did = _deck("Carte non numerique")
+    couches, composite = _couches_synthetiques()
+
+    def _envoie(card_raw):
+        files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+                 for nom, im in couches.items()]
+        files.append(("composite", ("composite.png", _png(composite), "image/png")))
+        data = {"side": "front", "card": card_raw,
+                "modes": json.dumps({n: "isolee" for n in couches}),
+                "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+        return _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+
+    r1 = _envoie("abc")
+    assert r1.status_code == 200, r1.text
+    assert r1.json()["layers"]["card"] == {"index": 0, "label": "c01"}
+    r2 = _envoie("-5")
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["layers"]["card"] == {"index": 0, "label": "c01"}
+
+
+def test_papier_none_la_contre_preuve_empile_sur_la_base_papier():
+    """C2 : la preuve client empile sur PAPER (#ffffff, le fond que peint le
+    moteur) ; sans ce correctif, la contre-preuve backend empilait sur
+    TRANSPARENT — le ZIP seul ne reproduisait pas le composite des que le
+    papier de la piece Matieres passe a « none ». Fond-matiere ENTIEREMENT
+    transparent, composite construit sur base blanche (comme le moteur) :
+    la contre-preuve doit rendre diff_px == 0."""
+    did = _deck("Papier none")
+    couches, composite = _couches_papier_none()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "paper": "#ffffff",
+            "modes": json.dumps({n: "isolee" for n in couches}),
+            "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    b = r.json()["layers"]
+    assert b["proof"]["backend"]["diff_px"] == 0, (
+        "la contre-preuve doit empiler sur la base papier, pas sur transparent")
+    assert b["paper"] == "#ffffff"
+
+
+def test_papier_invalide_retombe_sur_blanc_jamais_500():
+    """C2 : validation hex STRICTE (`^#[0-9a-fA-F]{6}$`) — toute entree qui
+    n'est pas exactement de cette forme retombe sur #ffffff, jamais une
+    exception (meme discipline que la garde de `card`, I3, `_num`)."""
+    did = _deck("Papier invalide")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "paper": "rouge",
+            "modes": json.dumps({n: "isolee" for n in couches}),
+            "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    assert r.json()["layers"]["paper"] == "#ffffff"
+
+
+def test_chaque_png_porte_srgb_gama_et_chrm():
+    """C3 : `_stamp_phys` n'ecrivait que pHYs - « la moitie d'un fichier de
+    prepresse » (spec §4.3). Les couches sont des rendus d'ecran (sRGB) :
+    intention perceptuelle, gamma 1/2,2 x 100000, primaires + point blanc
+    sRGB — les memes octets EXACTS que P1 (face.py:SRGB_INTENT_PERCEPTUAL /
+    SRGB_GAMA / SRGB_CHRM), relus dans le fichier livre, pas seulement leur
+    presence. Ordre des chunks : IHDR . sRGB . gAMA . cHRM . pHYs (patron P1,
+    face.py:png_finalize)."""
+    did = _deck("Espace de couleur")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    data = {"side": "front", "modes": json.dumps({n: "isolee" for n in couches}),
+            "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})}
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files, data=data)
+    assert r.status_code == 200, r.text
+    b = r.json()["layers"]
+    rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
+    assert rz.status_code == 200
+    z = zipfile.ZipFile(io.BytesIO(rz.content))
+    px = z.read("illustration_c01_front.png")
+
+    i_srgb = px.find(b"sRGB")
+    assert i_srgb >= 0, "sRGB absent"
+    (intent,) = struct.unpack(">B", px[i_srgb + 4:i_srgb + 5])
+    assert intent == 0, "intention de rendu : 0 = perceptuel (P1)"
+
+    i_gama = px.find(b"gAMA")
+    assert i_gama >= 0, "gAMA absent"
+    (gama,) = struct.unpack(">I", px[i_gama + 4:i_gama + 8])
+    assert gama == 45455, "1/2,2 x 100000, valeur libpng (P1)"
+
+    i_chrm = px.find(b"cHRM")
+    assert i_chrm >= 0, "cHRM absent"
+    chrm = struct.unpack(">8I", px[i_chrm + 4:i_chrm + 36])
+    assert chrm == (31270, 32900, 64000, 33000, 30000, 60000, 15000, 6000), (
+        "primaires + point blanc sRGB, memes octets que P1")
+
+    # l'ordre des chunks est celui de la spec / P1 : IHDR . sRGB . gAMA .
+    # cHRM . pHYs — tous APRES IHDR, avant le premier IDAT.
+    i_phys = px.find(b"pHYs")
+    assert i_phys >= 0, "pHYs absent"
+    assert i_srgb < i_gama < i_chrm < i_phys
 
 
 def test_une_trame_fausse_fait_409_jamais_500():
@@ -331,7 +506,7 @@ def test_un_png_a_queue_parasite_est_estampille_correctement():
     rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
     assert rz.status_code == 200
     z = zipfile.ZipFile(io.BytesIO(rz.content))
-    px = z.read("fond-matiere_front.png")
+    px = z.read("fond-matiere_c01_front.png")
     i = px.find(b"pHYs")
     assert i >= 0, "pHYs absent"
     ppm_x, ppm_y, unite = struct.unpack(">IIB", px[i + 4:i + 13])

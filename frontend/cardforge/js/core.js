@@ -817,6 +817,10 @@
       let below = await renderRaw(i, { face: face, only_z: [], paper: true });
       const out = { face: face, w: below.width, h: below.height,
                     layers: [], composite: null, stack_ok: false, errors: [] };
+      /* la base papier REELLEMENT peinte par le moteur (pas une constante
+         recopiee ailleurs) : la contre-preuve backend en a besoin pour
+         empiler sur la meme base que le composite (C2). */
+      out.paper = PAPER;
       const vus = new Set();
       const takeErrors = (cv) => {
         if (!cv || !cv.cfErrors) return;
