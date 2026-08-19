@@ -377,7 +377,11 @@ git commit -m "feat(cardforge): renderRaw only_z + paper:false - le moteur uniqu
 
 **Le contrat de `CF.layers(i, {face, groups})`** — `groups` = la table de P9
 (`[{role, z:[...]}]`). Retour :
-`{face, w, h, stack_ok, layers: [{role, z, mode: "isolee"|"empreinte", canvas}], composite}`.
+`{face, w, h, stack_ok, layers: [{role, z, mode: "isolee"|"empreinte", canvas}], composite, errors}`.
+NOTE (revue tâche 2) : un rendu partiel n'émet plus `core:render` et n'écrase plus
+`LAST_ERRORS` — ses erreurs voyagent sur la toile (`cv.cfErrors`). `CF.layers` DOIT
+les collecter (union des `cfErrors` de tous ses rendus) et les rendre dans `errors` ;
+une couche rendue avec erreur de painter n'est pas une couche de confiance.
 Algorithme : C0 = papier seul ; pour chaque groupe k, C_k = cumulatif(z ≤ groupe k,
 papier) ; solo_k = groupe k seul sur toile nue ; si `C_(k-1) + solo_k == C_k` au pixel
 STRICT → mode « isolee » (la couche est un vrai isolat) ; sinon mode « empreinte » =
@@ -466,7 +470,13 @@ Après `cardBlob` (ligne ~740), ajouter :
     const run = async () => {
       let below = await renderRaw(i, { face: face, only_z: [], paper: true });
       const out = { face: face, w: below.width, h: below.height,
-                    layers: [], composite: null, stack_ok: false };
+                    layers: [], composite: null, stack_ok: false, errors: [] };
+      const takeErrors = (cv) => {
+        if (cv && cv.cfErrors && cv.cfErrors.length) {
+          out.errors.push.apply(out.errors, cv.cfErrors);
+        }
+      };
+      takeErrors(below);
       let stack = below;
       const zSoFar = [];
       for (let k = 0; k < groups.length; k++) {
@@ -474,6 +484,7 @@ Après `cardBlob` (ligne ~740), ajouter :
         for (let j = 0; j < grp.z.length; j++) zSoFar.push(grp.z[j]);
         const cum = await renderRaw(i, { face: face, only_z: zSoFar.slice(), paper: true });
         const solo = await renderRaw(i, { face: face, only_z: grp.z.slice(), paper: false });
+        takeErrors(cum); takeErrors(solo);
         const isolee = samePixels(stackOnto(below, solo), cum);
         const cv = isolee ? solo : deltaCanvas(below, cum);
         out.layers.push({ role: String(grp.role || ("z" + grp.z.join("-"))),
@@ -482,6 +493,8 @@ Après `cardBlob` (ligne ~740), ajouter :
         stack = stackOnto(stack, cv);
         below = cum;
       }
+      /* le composite passe par le rendu PUBLIC (plein, evenement compris) :
+         c'est le meme appel que le fichier livre. */
       out.composite = await renderRaw(i, { face: face, paper: true });
       out.stack_ok = samePixels(stack, out.composite);
       return out;
@@ -886,6 +899,14 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
         status.textContent = "rendu des couches (" + (face === "front" ? "recto" : "verso") + ")…";
         const L = await CF.layers(CF.current ? CF.current() : 0,
           { face: face, groups: LAYER_ROLES });
+        if (L.errors && L.errors.length) {
+          /* une couche rendue avec une erreur de painter n'est pas une couche
+             de confiance : on nomme et on n'envoie rien. */
+          status.textContent = "erreur de painter pendant le rendu des couches ("
+            + L.errors.map(e => e.id + " z=" + e.z).join(", ") + ") — rien n'a été envoyé.";
+          M.toast("rendu des couches en erreur : export refusé", true);
+          return;
+        }
         if (!L.stack_ok) {
           /* la preuve a echoue : on NOMME et on n'envoie RIEN — un ZIP faux
              est pire qu'un echec dit. */
