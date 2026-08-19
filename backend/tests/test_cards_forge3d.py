@@ -769,5 +769,120 @@ def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
     assert q["closed"] == F9.mesh_measures(q)["closed"]
 
 
+def _read_glb(data: bytes):
+    import struct as _s
+    assert data[:4] == b"glTF"
+    doc_len = _s.unpack("<I", data[12:16])[0]
+    doc = json.loads(data[20:20 + doc_len].decode("utf-8").rstrip("\x00 "))
+    off = 20 + doc_len
+    binv = b""
+    if off < len(data):
+        blen = _s.unpack("<I", data[off:off + 4])[0]
+        binv = data[off + 8:off + 8 + blen]
+    return doc, binv
+
+
+def test_le_glb_assemble_est_propre_des_l_ecriture():
+    """Bornes EXACTES, zéro identité, CLAMP, échelle physique — pas une
+    rustine post-hoc : le writer écrit juste du premier coup, et ce test
+    relit les octets pour le prouver (doctrine P8, re-mesurée ici)."""
+    from PIL import Image
+    from app.services.cards import forge3d as F9
+    png = io.BytesIO(); Image.new("RGBA", (8, 8), (200, 30, 30, 255)).save(png, "PNG")
+    elements = [
+        {"name": "cadre", "mesh": F9.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+         "alpha": True, "z_mm": 0.0},
+        {"name": "relief", "mesh": F9.relief_mesh(Image.new("L", (16, 16), 255),
+                                                  63.0, 88.0, 1.0, 0.3, 8),
+         "png": png.getvalue(), "alpha": False, "z_mm": 0.4},
+    ]
+    glb = F9.write_scene_glb(elements, name="carte3d",
+                             extras={"deck": "test", "unit": "metre"})
+    doc, binv = _read_glb(glb)
+    # 1. identité : AUCUN champ interdit, nulle part
+    plat = json.dumps(doc)
+    for mot in ("generator", "copyright", "author", "producer"):
+        assert f'"{mot}"' not in plat, mot
+    # 2. bornes exactes : re-mesure des float32 du buffer, écart zéro exigé
+    import struct as _s
+    for acc in doc["accessors"]:
+        if acc.get("componentType") != 5126 or "min" not in acc:
+            continue
+        bv = doc["bufferViews"][acc["bufferView"]]
+        off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        n = {"VEC3": 3, "VEC2": 2, "SCALAR": 1}[acc["type"]]
+        lo = [float("inf")] * n; hi = [float("-inf")] * n
+        for e in range(acc["count"]):
+            vals = _s.unpack_from("<" + "f" * n, binv, off + e * n * 4)
+            for c in range(n):
+                lo[c] = min(lo[c], vals[c]); hi[c] = max(hi[c], vals[c])
+        assert acc["min"] == lo and acc["max"] == hi, "bornes inexactes"
+    # 3. CLAMP partout, échelle physique sur la racine, enfants nommés
+    for s in doc.get("samplers", []):
+        assert s["wrapS"] == 33071 and s["wrapT"] == 33071
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    assert racine["scale"] == [0.001, 0.001, 0.001]
+    noms = [doc["nodes"][k]["name"] for k in racine["children"]]
+    assert noms == ["cadre", "relief"]
+    # 4. l'écart z du second élément est porté par SON nœud (translation mm)
+    assert doc["nodes"][racine["children"][1]]["translation"][2] == 0.4
+    # 5. matériaux : BLEND pour le plan, OPAQUE non double face pour le relief
+    m_plan = doc["materials"][doc["meshes"][0]["primitives"][0]["material"]]
+    m_rel = doc["materials"][doc["meshes"][1]["primitives"][0]["material"]]
+    assert m_plan["alphaMode"] == "BLEND" and m_plan["doubleSided"] is True
+    assert m_rel.get("alphaMode", "OPAQUE") == "OPAQUE" and not m_rel.get("doubleSided")
+    # 6. taille de scene : le GLB a UN seul element pris isolement doit aussi
+    #    passer (racine + 1 enfant, pas de translation quand z_mm == 0.0)
+    seul = F9.write_scene_glb(
+        [{"name": "solo", "mesh": F9.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+         "alpha": False, "z_mm": 0.0}], name="carte3d", extras={})
+    doc1, bin1 = _read_glb(seul)
+    racine1 = doc1["nodes"][doc1["scenes"][0]["nodes"][0]]
+    assert len(racine1["children"]) == 1
+    assert doc1["nodes"][racine1["children"][0]]["name"] == "solo"
+    # 7. la taille declaree du buffer couvre EXACTEMENT les donnees du chunk
+    #    BIN — sur les deux tailles (1 et 2 elements)
+    assert doc1["buffers"][0]["byteLength"] == len(bin1)
+    assert doc["buffers"][0]["byteLength"] == len(binv)
+
+
+def test_le_glb_assemble_est_relisible_par_un_lecteur_tiers():
+    """Preuve supplémentaire, INDÉPENDANTE du re-empaquetage du test
+    précédent : si `pygltflib` est présent dans le runtime embarqué, on lui
+    fait recharger le GLB (un vrai lecteur tiers, pas notre propre parseur).
+    Absent (cas attendu ici, mesuré), on valide honnêtement ce qu'on PEUT
+    vérifier sans lui : la cohérence RÉFÉRENTIELLE du document — chaque
+    index cité (bufferView, byteOffset+byteLength, material, image) reste
+    DANS les bornes des tableaux qu'il vise. Ce n'est pas une conformité
+    glTF complète, seulement des invariants de cohérence croisée."""
+    from PIL import Image
+    from app.services.cards import forge3d as F9
+    png = io.BytesIO(); Image.new("RGBA", (4, 4), (10, 20, 30, 255)).save(png, "PNG")
+    elements = [{"name": f"e{i}", "mesh": F9.quad_mesh(63.0, 88.0),
+                "png": png.getvalue(), "alpha": bool(i % 2), "z_mm": float(i)}
+               for i in range(6)]
+    glb = F9.write_scene_glb(elements, name="six", extras={})
+    doc, binv = _read_glb(glb)
+    try:
+        import pygltflib
+    except ImportError:
+        pygltflib = None
+    if pygltflib is not None:
+        rechargeur = pygltflib.GLTF2.load_from_bytes(glb)
+        assert len(rechargeur.meshes) == len(elements)
+        return
+    # pas de lecteur tiers dans ce runtime : mini-validateur de cohérence
+    # référentielle, honnête sur ce qu'il vérifie.
+    for acc in doc["accessors"]:
+        assert 0 <= acc["bufferView"] < len(doc["bufferViews"])
+    for bv in doc["bufferViews"]:
+        assert bv.get("byteOffset", 0) + bv["byteLength"] <= len(binv)
+    for mesh in doc["meshes"]:
+        for prim in mesh["primitives"]:
+            assert 0 <= prim["material"] < len(doc["materials"])
+    for tex in doc["textures"]:
+        assert 0 <= tex["source"] < len(doc["images"])
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

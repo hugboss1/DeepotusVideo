@@ -363,6 +363,108 @@ def mesh_measures(mesh: dict) -> dict:
             "triangles": len(idx) // 3, "vertices": len(pos) // 3}
 
 
+# ── L'ASSEMBLAGE — UN document glTF binaire, écrit JUSTE (Task 3) ──────────
+# `write_scene_glb` consomme le type commun de `quad_mesh`/`relief_mesh`
+# (positions/normals/uvs/indices — `closed` et tout champ surnuméraire sont
+# IGNORÉS) et produit un GLB PROPRE dès l'écriture : bornes d'accesseurs
+# EXACTES (calculées sur les float32 réellement empaquetés, pas sur les
+# float64 Python d'avant arrondi), AUCUN champ d'identité (generator,
+# copyright, author, producer — ce writer n'en émet simplement jamais),
+# samplers CLAMP_TO_EDGE, racine à l'échelle physique mm -> m (0.001), un
+# enfant nommé par élément, translation z (mm) portée par le nœud de
+# l'élément. À la différence du constructeur générique du dépôt
+# (gltf_builder, qui exige des rustines post-hoc — finalize_glb de P8), rien
+# ici n'est corrigé après coup.
+def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
+    """UN document glTF multi-éléments, écrit JUSTE du premier coup :
+    bornes exactes (calculées ici même sur les floats empaquetés), aucun champ
+    d'identité (ce writer n'en émet simplement jamais), samplers CLAMP, racine
+    à l'échelle physique mm->m, un enfant nommé par élément, translation z en
+    mm portée par le nœud de l'élément. Textures : les PNG estampillés de la
+    phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste)."""
+    buf = bytearray()
+    views, accessors, images, textures, materials, meshes, nodes = [], [], [], [], [], [], []
+
+    def pad4():
+        while len(buf) % 4:
+            buf.append(0)
+
+    def add_view(data: bytes, target=None) -> int:
+        pad4()
+        views.append({"buffer": 0, "byteOffset": len(buf), "byteLength": len(data),
+                      **({"target": target} if target else {})})
+        buf.extend(data)
+        return len(views) - 1
+
+    def add_accessor(vals, n, ctype, atype, target) -> int:
+        data = struct.pack("<" + "f" * len(vals), *vals) if ctype == 5126 \
+            else struct.pack("<" + "I" * len(vals), *vals)
+        v = add_view(data, target)
+        acc = {"bufferView": v, "componentType": ctype,
+               "count": len(vals) // n, "type": atype}
+        if ctype == 5126:
+            # les bornes sont posées sur les float32 EXACTS : repasser par
+            # struct garantit la valeur que le lecteur relira (un float
+            # Python 64 bits arrondi en float32 changerait de valeur)
+            packed = struct.unpack("<" + "f" * len(vals), data)
+            acc["min"] = [min(packed[i::n]) for i in range(n)]
+            acc["max"] = [max(packed[i::n]) for i in range(n)]
+        accessors.append(acc)
+        return len(accessors) - 1
+
+    sampler = 0   # un seul sampler CLAMP
+    for k, el in enumerate(elements):
+        m = el["mesh"]
+        ip = add_accessor(m["positions"], 3, 5126, "VEC3", 34962)
+        inm = add_accessor(m["normals"], 3, 5126, "VEC3", 34962)
+        iuv = add_accessor(m["uvs"], 2, 5126, "VEC2", 34962)
+        iix = add_accessor(m["indices"], 1, 5125, "SCALAR", 34963)
+        img = add_view(el["png"])
+        images.append({"bufferView": img, "mimeType": "image/png",
+                       "name": el["name"]})
+        textures.append({"sampler": sampler, "source": len(images) - 1})
+        materials.append({
+            "name": el["name"],
+            "pbrMetallicRoughness": {
+                "baseColorTexture": {"index": len(textures) - 1},
+                "metallicFactor": 0.0, "roughnessFactor": 0.9},
+            **({"alphaMode": "BLEND", "doubleSided": True} if el.get("alpha")
+               else {})})
+        meshes.append({"name": el["name"], "primitives": [{
+            "attributes": {"POSITION": ip, "NORMAL": inm, "TEXCOORD_0": iuv},
+            "indices": iix, "material": len(materials) - 1}]})
+        nodes.append({"name": el["name"], "mesh": len(meshes) - 1,
+                      **({"translation": [0.0, 0.0, float(el.get("z_mm") or 0.0)]}
+                         if el.get("z_mm") else {})})
+    # PIÈGE DU SQUELETTE (auto-revue) : le buffer doit être aligné à 4 AVANT
+    # que `buffers[0].byteLength` ne soit figé dans le JSON — la dernière
+    # écriture de la boucle (un PNG, taille arbitraire) laisse `buf`
+    # potentiellement désaligné. Padder ICI, avant de construire `doc`, pas
+    # après l'avoir sérialisé : sinon le JSON porte un byteLength trop petit
+    # (mesuré avant coup) pendant que le chunk BIN réellement écrit, lui,
+    # est plus long (padding déjà ajouté) — total et byteLength dérivent l'un
+    # de l'autre. Ici, `len(buf)` à la construction de `doc` EST déjà la
+    # longueur finale du chunk BIN : plus rien ne l'allonge après.
+    pad4()
+    racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
+              "children": list(range(len(nodes))), "extras": extras}
+    nodes.append(racine)
+    doc = {"asset": {"version": "2.0", "extras": extras},
+           "scene": 0, "scenes": [{"name": str(name)[:60], "nodes": [len(nodes) - 1]}],
+           "nodes": nodes, "meshes": meshes, "materials": materials,
+           "textures": textures, "images": images,
+           "samplers": [{"wrapS": 33071, "wrapT": 33071}],
+           "accessors": accessors, "bufferViews": views,
+           "buffers": [{"byteLength": len(buf)}]}
+    js = json.dumps(doc, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    js += b" " * ((4 - len(js) % 4) % 4)
+    total = 12 + 8 + len(js) + 8 + len(buf)
+    out = struct.pack("<III", 0x46546C67, 2, total)
+    out += struct.pack("<II", len(js), 0x4E4F534A) + js
+    out += struct.pack("<II", len(buf), 0x004E4942) + bytes(buf)
+    return out
+
+
 _HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
 
