@@ -804,6 +804,12 @@
       c.drawImage(layer, 0, 0);          /* source-over, seul mode autorise */
       return out;
     }
+    /* CONTRAINTE MEMOIRE : une toile pleine trame pese ~21 Mo en tarot
+       600 DPI ; sans liberation, les 26-32 toiles transitoires d'un appel
+       font monter le pic a 2-3 Go en 1200 DPI. width=height=0 relache le
+       bitmap tout de suite, sans attendre le GC. Regle de surete : ne
+       JAMAIS liberer une toile retenue par out.layers ou out.composite. */
+    function release(cv) { if (cv) { cv.width = 0; cv.height = 0; } }
     const o = opt || {};
     const groups = Array.isArray(o.groups) ? o.groups : [];
     const face = o.face === "back" ? "back" : "front";
@@ -811,9 +817,15 @@
       let below = await renderRaw(i, { face: face, only_z: [], paper: true });
       const out = { face: face, w: below.width, h: below.height,
                     layers: [], composite: null, stack_ok: false, errors: [] };
+      const vus = new Set();
       const takeErrors = (cv) => {
-        if (cv && cv.cfErrors && cv.cfErrors.length) {
-          out.errors.push.apply(out.errors, cv.cfErrors);
+        if (!cv || !cv.cfErrors) return;
+        for (let j = 0; j < cv.cfErrors.length; j++) {
+          const e = cv.cfErrors[j];
+          const cle = e.id + "\u0000" + e.z + "\u0000" + e.message;
+          if (vus.has(cle)) continue;   /* panne persistante : une seule ligne, la premiere */
+          vus.add(cle);
+          out.errors.push(e);
         }
       };
       takeErrors(below);
@@ -825,19 +837,34 @@
         const cum = await renderRaw(i, { face: face, only_z: zSoFar.slice(), paper: true });
         const solo = await renderRaw(i, { face: face, only_z: grp.z.slice(), paper: false });
         takeErrors(cum); takeErrors(solo);
-        const isolee = samePixels(stackOnto(below, solo), cum);
+        const essai = stackOnto(below, solo);   /* toile-test, toujours jetable */
+        const isolee = samePixels(essai, cum);
+        release(essai);
         const cv = isolee ? solo : deltaCanvas(below, cum);
+        if (!isolee) release(solo);             /* la couche gardee est le delta */
         out.layers.push({ role: String(grp.role || ("z" + grp.z.join("-"))),
                           z: grp.z.slice(), mode: isolee ? "isolee" : "empreinte",
                           canvas: cv });
+        const pileAvant = stack;
         stack = stackOnto(stack, cv);
+        /* pileAvant : soit C0 a l'iteration 1 (MEME objet que below — c'est
+           `below = cum` qui le liberera), soit un produit de stackOnto —
+           jamais dans out.layers (seuls solo/delta y entrent). */
+        if (pileAvant !== below) release(pileAvant);
+        const dessousAvant = below;
         below = cum;
+        /* dessousAvant : C0 ou le cum precedent — jamais retenus non plus. */
+        release(dessousAvant);
       }
       /* le composite passe par le rendu PLEIN (evenement compris) :
          c'est le meme appel que le fichier livre. */
       out.composite = await renderRaw(i, { face: face, paper: true });
       takeErrors(out.composite);
       out.stack_ok = samePixels(stack, out.composite);
+      /* la pile de verification et le dernier cumulatif sont transitoires eux
+         aussi (groups vide : stack === below === C0, release est idempotent). */
+      release(stack);
+      if (below !== stack) release(below);
       return out;
     };
     const p = RENDER_CHAIN.then(run, run);

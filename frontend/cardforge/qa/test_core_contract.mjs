@@ -250,7 +250,7 @@ const BATTERIE = `(async () => {
     say("layers : empilement reproduit le rendu", L.stack_ok === true ? "TENU" : "OUVERT",
         (L.stack_ok === true ? "stack_ok" : "ECHEC stack_ok=false")
         + (L.errors.length ? " erreurs=" + JSON.stringify(L.errors) : ""));
-    say("layers : modes avoues", "TENU", L.layers.map((l) => l.role + "=" + l.mode).join(" "));
+    say("layers : modes avoues", "NOTE", L.layers.map((l) => l.role + "=" + l.mode).join(" "));
     try { const lb = await CF.layerBlob(L.layers[0].canvas); CF.download(lb, "couche_qa.png");
           say("layers : blob de couche MINTE accepte par CF.download", "TENU", lb.size + " o"); }
     catch (e) { say("layers : blob de couche MINTE accepte par CF.download", "OUVERT", e.message); }
