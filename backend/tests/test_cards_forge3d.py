@@ -150,9 +150,28 @@ def test_un_rendu_partiel_ne_pollue_ni_evenement_ni_bandeau():
     corps = src.split("async function renderRaw(")[1].split("\n  }")[0]
     assert "const partial" in corps
     assert "if (!partial)" in corps
-    j = corps.index("if (!partial)")
-    assert "LAST_ERRORS" in corps[j:] and "emitCore(\"core:render\"" in corps[j:]
+    garde = corps.split("if (!partial) {")[1].split("\n    }")[0]
+    assert "LAST_ERRORS" in garde and 'emitCore("core:render"' in garde, \
+        "la garde doit ENGLOBER le bandeau ET l'evenement - un demi-revert la viderait"
     assert "cv.cfErrors = errors" in corps
+
+
+def test_cf_layers_verifie_couche_par_couche_et_avoue_le_mode():
+    """Chaque couche est prouvée : isolée si elle EMPILE (pixel strict), sinon
+    empreinte (delta de cumulatifs, exact par construction). Le mode est un
+    constat mesuré, jamais une intention."""
+    src = CORE.read_text(encoding="utf-8")
+    assert "function layers(" in src or "async function layers(" in src
+    corps = src.split("function layers(")[1].split("\n  }")[0]
+    for attendu in ("only_z", '"isolee"', '"empreinte"', "stack_ok",
+                    "getImageData"):
+        assert attendu in corps, f"il manque {attendu}"
+    # la comparaison est STRICTE : aucun seuil, aucune tolerance
+    assert "tolerance" not in corps and "seuil" not in corps
+    # les rendus passent par la MEME file serialisee que tout le monde
+    assert "RENDER_CHAIN" in corps
+    # l'API est publique et les blobs de couche sont mintes (provenance)
+    assert re.search(r"layers:\s*layers", src), "CF.layers non exposee"
 
 
 if __name__ == "__main__":

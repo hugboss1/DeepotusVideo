@@ -237,6 +237,25 @@ const BATTERIE = `(async () => {
   await CF.renderCard(0, {});
   say("le moteur repart apres l'incident", "TENU", "rendu suivant obtenu");
 
+  /* ── P9 : couches prouvees sur les painters du banc. Les groupes = la table
+     LAYER_ROLES de la piece forge3d : ils doivent COUVRIR tous les z qui
+     peignent (10, 20, 30, 40, 60), sinon l'empilement ne peut pas reproduire
+     le composite PLEIN. z=70 n'a pas de painter au banc : couche vide,
+     transparente, isolee — valide. */
+  try {
+    const L = await CF.layers(0, { face: "front", groups: [
+      { role: "fond-matiere", z: [10] }, { role: "illustration", z: [20] },
+      { role: "voile-matiere", z: [30] }, { role: "cadre", z: [40] },
+      { role: "typographie", z: [60] }, { role: "ornements", z: [70] }] });
+    say("layers : empilement reproduit le rendu", L.stack_ok === true ? "TENU" : "OUVERT",
+        (L.stack_ok === true ? "stack_ok" : "ECHEC stack_ok=false")
+        + (L.errors.length ? " erreurs=" + JSON.stringify(L.errors) : ""));
+    say("layers : modes avoues", "TENU", L.layers.map((l) => l.role + "=" + l.mode).join(" "));
+    try { const lb = await CF.layerBlob(L.layers[0].canvas); CF.download(lb, "couche_qa.png");
+          say("layers : blob de couche MINTE accepte par CF.download", "TENU", lb.size + " o"); }
+    catch (e) { say("layers : blob de couche MINTE accepte par CF.download", "OUVERT", e.message); }
+  } catch (e) { say("layers", "OUVERT", e.message); }
+
   /* le module en mode bâclé n'a pas demarre et ses couches ont quitte la pile */
   const hote = document.querySelector('.cf-host[data-host="solid"]');
   say("module sans \\"use strict\\" : init NON appelee",

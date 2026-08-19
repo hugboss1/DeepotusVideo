@@ -758,6 +758,101 @@
     return mint(b);
   }
 
+  /* ── P9 : LE RENDU PAR COUCHES, PROUVE COUCHE PAR COUCHE ────────────────
+     Une couche n'est digne de confiance que si l'empilement REPRODUIT la
+     carte. Or la piece Matieres pose multiply/overlay/screen (mesure) : une
+     couche isolee n'empile pas toujours. Chaque groupe est donc VERIFIE au
+     pixel strict : below + solo == cumulatif ? -> "isolee" ; sinon
+     -> "empreinte" (les pixels que le groupe a CHANGES, alpha plein), exacte
+     par construction. Aucun seuil : la difference est stricte, comme la
+     passe temoin de la mesure de masquage de P1. */
+  async function layers(i, opt) {
+    if (!hasDOM) throw new Error("cardforge: CF.layers exige un DOM (canvas)");
+    /* les aides vivent DANS layers : la preuve de source lit le corps de la
+       fonction et doit y voir la comparaison au pixel elle-meme. */
+    function samePixels(a, b) {
+      const w = a.width, h = a.height;
+      if (b.width !== w || b.height !== h) return false;
+      const da = a.getContext("2d").getImageData(0, 0, w, h).data;
+      const db = b.getContext("2d").getImageData(0, 0, w, h).data;
+      for (let j = 0; j < da.length; j++) if (da[j] !== db[j]) return false;
+      return true;
+    }
+    function deltaCanvas(below, cum) {
+      const w = cum.width, h = cum.height;
+      const out = document.createElement("canvas");
+      out.width = w; out.height = h;
+      const dB = below.getContext("2d").getImageData(0, 0, w, h).data;
+      const img = cum.getContext("2d").getImageData(0, 0, w, h);
+      const dC = img.data;
+      for (let j = 0; j < dC.length; j += 4) {
+        if (dC[j] === dB[j] && dC[j + 1] === dB[j + 1]
+          && dC[j + 2] === dB[j + 2] && dC[j + 3] === dB[j + 3]) {
+          dC[j] = 0; dC[j + 1] = 0; dC[j + 2] = 0; dC[j + 3] = 0;
+        } else {
+          dC[j + 3] = 255;   /* l'empreinte porte le pixel FINAL, opaque */
+        }
+      }
+      out.getContext("2d").putImageData(img, 0, 0);
+      return out;
+    }
+    function stackOnto(base, layer) {
+      const out = document.createElement("canvas");
+      out.width = base.width; out.height = base.height;
+      const c = out.getContext("2d");
+      c.drawImage(base, 0, 0);
+      c.drawImage(layer, 0, 0);          /* source-over, seul mode autorise */
+      return out;
+    }
+    const o = opt || {};
+    const groups = Array.isArray(o.groups) ? o.groups : [];
+    const face = o.face === "back" ? "back" : "front";
+    const run = async () => {
+      let below = await renderRaw(i, { face: face, only_z: [], paper: true });
+      const out = { face: face, w: below.width, h: below.height,
+                    layers: [], composite: null, stack_ok: false, errors: [] };
+      const takeErrors = (cv) => {
+        if (cv && cv.cfErrors && cv.cfErrors.length) {
+          out.errors.push.apply(out.errors, cv.cfErrors);
+        }
+      };
+      takeErrors(below);
+      let stack = below;
+      const zSoFar = [];
+      for (let k = 0; k < groups.length; k++) {
+        const grp = groups[k];
+        for (let j = 0; j < grp.z.length; j++) zSoFar.push(grp.z[j]);
+        const cum = await renderRaw(i, { face: face, only_z: zSoFar.slice(), paper: true });
+        const solo = await renderRaw(i, { face: face, only_z: grp.z.slice(), paper: false });
+        takeErrors(cum); takeErrors(solo);
+        const isolee = samePixels(stackOnto(below, solo), cum);
+        const cv = isolee ? solo : deltaCanvas(below, cum);
+        out.layers.push({ role: String(grp.role || ("z" + grp.z.join("-"))),
+                          z: grp.z.slice(), mode: isolee ? "isolee" : "empreinte",
+                          canvas: cv });
+        stack = stackOnto(stack, cv);
+        below = cum;
+      }
+      /* le composite passe par le rendu PLEIN (evenement compris) :
+         c'est le meme appel que le fichier livre. */
+      out.composite = await renderRaw(i, { face: face, paper: true });
+      takeErrors(out.composite);
+      out.stack_ok = samePixels(stack, out.composite);
+      return out;
+    };
+    const p = RENDER_CHAIN.then(run, run);
+    RENDER_CHAIN = p.then(() => { }, () => { });
+    return p;
+  }
+
+  /* blob d'une toile de couche, MINTE : CF.download/M.api.blob l'acceptent. */
+  async function layerBlob(cv) {
+    const b = await new Promise((res, rej) => {
+      cv.toBlob((x) => x ? res(x) : rej(new Error("cardforge: encodage impossible")), "image/png");
+    });
+    return mint(b);
+  }
+
   /* ── invalidation coalescee sur une frame ──────────────────────────────── */
   let pending = null;
   function invalidate(id) {
@@ -1464,6 +1559,7 @@
     current: () => CUR,
     side: () => SIDE,
     renderCard: renderCard, cardBlob: cardBlob,
+    layers: layers, layerBlob: layerBlob,
     renderErrors: () => LAST_ERRORS.slice(),
     on: on, off: off,
     toast: toast, busy: busy, show: show,
