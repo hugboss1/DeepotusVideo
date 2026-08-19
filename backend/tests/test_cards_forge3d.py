@@ -84,6 +84,16 @@ def test_info_publie_les_roles_de_couches():
     assert par_role["fond-matiere"] == [10] and par_role["illustration"] == [20]
     assert par_role["voile-matiere"] == [30] and par_role["cadre"] == [40]
     assert par_role["typographie"] == [60] and par_role["ornements"] == [70]
+    # le vocabulaire du graphe (P2a) et ses bornes : publiés ici pour que
+    # l'écran ne recopie JAMAIS une borne en dur.
+    from app.services.cards import forge3d as F9
+    assert info["node_kinds"] == F9.NODE_KINDS
+    lim = info["graph_limits"]
+    assert lim["plane_depth_mm"] == list(F9.PLANE_DEPTH_MM)
+    assert lim["relief_depth_mm_max"] == F9.RELIEF_DEPTH_MM_MAX
+    assert lim["relief_base_mm"] == list(F9.RELIEF_BASE_MM)
+    assert lim["relief_grid"] == list(F9.RELIEF_GRID)
+    assert lim["relief_grid_default"] == F9.RELIEF_GRID_DEFAULT
     # /info est scopée au deck comme toute route du domaine (règle §2.5) :
     # un id syntaxiquement invalide lève 400, un id valide mais absent 404.
     assert _api("GET", "/api/cards/nimportequoi/forge3d/info").status_code == 400
@@ -637,6 +647,65 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
     # le bordereau est peint depuis la REPONSE (mesure), pas depuis l'intention
     assert "cf-forge3d-slip" in rendu
     assert "weight" in rendu or "Kio" in rendu
+
+
+def test_le_vocabulaire_du_graphe_est_identique_des_deux_cotes():
+    """Bloc miroir CF-FORGE3D-NODES : les genres de nœuds et leurs paramètres
+    bornés, champ à champ et dans l'ordre — comme la table des couches."""
+    from app.services.cards import forge3d as F9
+    src = JS.read_text(encoding="utf-8")
+    bloc = src.split("CF-FORGE3D-NODES-BEGIN")[1].split("CF-FORGE3D-NODES-END")[0]
+    js_rows = re.findall(r'\{ kind: "([a-z0-9]+)", params: \[([^\]]*)\] \}', bloc)
+    js_table = [{"kind": k, "params": [p.strip().strip('"') for p in ps.split(",") if p.strip()]}
+                for k, ps in js_rows]
+    assert js_table == F9.NODE_KINDS, (js_table, F9.NODE_KINDS)
+    assert [r["kind"] for r in F9.NODE_KINDS] == ["layer", "plane", "relief",
+                                                  "assemble", "artifact"]
+
+
+def test_clean_graph_repare_et_ne_leve_jamais():
+    """Un graphe mal formé ne fait jamais 500 : nettoyeur clé par clé, patron
+    clean_options de P8. Les bornes sont celles du bloc miroir."""
+    from app.services.cards import forge3d as F9
+    # graphe sain : conservé tel quel (aux arrondis près)
+    g = {"nodes": [
+        {"id": "n1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "n2", "kind": "relief", "depth_mm": 1.2, "base_mm": 0.3},
+        {"id": "n3", "kind": "assemble"}],
+        "edges": [{"from": "n1", "to": "n2"}, {"from": "n2", "to": "n3"}]}
+    out = F9.clean_graph(g)
+    assert [n["kind"] for n in out["nodes"]] == ["layer", "relief", "assemble"]
+    assert out["nodes"][1]["depth_mm"] == 1.2
+    # poubelle : kinds inconnus jetés, bornes appliquées, ids resynthétisés,
+    # edges orphelines jetées, JAMAIS d'exception
+    sale = {"nodes": [{"kind": "teleport"}, {"kind": "relief", "depth_mm": 99},
+                      {"id": "x", "kind": "layer", "role": "inexistant"}],
+            "edges": [{"from": "fantome", "to": "x"}], "extra": object}
+    out2 = F9.clean_graph(sale)   # ne lève pas
+    kinds = [n["kind"] for n in out2["nodes"]]
+    assert "teleport" not in kinds
+    relief = [n for n in out2["nodes"] if n["kind"] == "relief"][0]
+    assert relief["depth_mm"] <= F9.RELIEF_DEPTH_MM_MAX
+    assert out2["edges"] == []
+    assert F9.clean_graph(None) == {"nodes": [], "edges": []}
+    assert F9.clean_graph("n'importe quoi") == {"nodes": [], "edges": []}
+    # constaté en auto-revue, absent du graphe « poubelle » ci-dessus (qui
+    # n'utilise que des chaînes) : `x in un_set` HACHE x avant de comparer —
+    # un `kind`/`role`/`id` de bord NON HACHABLE (liste, dict) au lieu d'une
+    # chaîne levait TypeError avant garde, un vrai chemin puisque ces valeurs
+    # viennent telles quelles du JSON client. Repris ici jusqu'aux arêtes.
+    hostile = {
+        "nodes": [{"kind": ["layer"]}, {"kind": {"x": 1}},
+                 {"kind": "layer", "role": ["cadre"]},
+                 {"kind": "layer", "role": {"a": 1}},
+                 {"id": ["a"], "kind": "assemble"},
+                 {"id": {"a": 1}, "kind": "assemble"},
+                 {"id": 1, "kind": "assemble"}],
+        "edges": [{"from": ["x"], "to": "y"}, {"from": 1, "to": 1}],
+    }
+    out3 = F9.clean_graph(hostile)     # ne lève pas non plus
+    assert isinstance(out3, dict) and "nodes" in out3 and "edges" in out3
+    assert out3["edges"] == []         # aucune arête à bouts non-chaîne ne survit
 
 
 if __name__ == "__main__":

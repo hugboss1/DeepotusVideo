@@ -45,6 +45,31 @@ LAYER_ROLES = [
 ]
 # ═══ CF-FORGE3D-LAYERS-END ═══
 
+# ── LE VOCABULAIRE DU GRAPHE — BLOC MIROIR ──────────────────────────────────
+# ═══ CF-FORGE3D-NODES-BEGIN ═══
+# Miroir JS dans mod-forge3d.js ; test de parité champ à champ.
+# `layer`    : source — une couche du manifeste (role + side).
+# `plane`    : plan texturé, GRATUIT (quad aux dimensions de la carte).
+# `relief`   : dalle en relief, GRATUITE — grille déplacée par l'alpha,
+#              solide FERMÉ par construction (imprimable).
+# `assemble` : fusionne les amonts en une scène.
+# `artifact` : sorties (GLB + metadata + aperçu + STL si fermé).
+NODE_KINDS = [
+    {"kind": "layer", "params": ["role", "side"]},
+    {"kind": "plane", "params": ["depth_mm"]},
+    {"kind": "relief", "params": ["depth_mm", "base_mm", "grid"]},
+    {"kind": "assemble", "params": []},
+    {"kind": "artifact", "params": ["name"]},
+]
+# ═══ CF-FORGE3D-NODES-END ═══
+
+# Bornes des paramètres (publiées par /info, jamais recopiées à l'écran).
+PLANE_DEPTH_MM = (0.0, 5.0)          # écart z entre plans empilés
+RELIEF_DEPTH_MM_MAX = 3.0            # relief au-dessus de la base
+RELIEF_BASE_MM = (0.1, 2.0)          # épaisseur de la dalle
+RELIEF_GRID = (48, 256)              # subdivisions de la grille
+RELIEF_GRID_DEFAULT = 160
+
 # ── bornes d'entrée — vérifiées AVANT tout décodage (spec 2.5) ──────────────
 MAX_LAYER_BYTES = 64 * 1024 * 1024   # un PNG de carte, pas un film — même
                                       # chiffre que le précédent du domaine,
@@ -65,7 +90,15 @@ async def get_info(did: str):
         raise HTTPException(400, "Identifiant de deck invalide")
     if read_deck(did) is None:
         raise HTTPException(404, "Deck introuvable")
-    return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES}
+    return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES,
+           "node_kinds": NODE_KINDS,
+           "graph_limits": {
+               "plane_depth_mm": list(PLANE_DEPTH_MM),
+               "relief_depth_mm_max": RELIEF_DEPTH_MM_MAX,
+               "relief_base_mm": list(RELIEF_BASE_MM),
+               "relief_grid": list(RELIEF_GRID),
+               "relief_grid_default": RELIEF_GRID_DEFAULT,
+           }}
 
 
 def _out_dir(did: str, create: bool = False) -> Path:
@@ -120,6 +153,68 @@ def _num(raw, default: float, lo: float, hi: float) -> float:
     if not math.isfinite(v):
         return float(default)
     return float(lo if v < lo else hi if v > hi else v)
+
+
+def clean_graph(raw) -> dict:
+    """Le graphe, réparé clé par clé — patron `clean_options` de P8. Un nœud
+    inconnu est jeté, un paramètre hors bornes est ramené, une arête orpheline
+    tombe. Ne lève JAMAIS (doctrine 2.5).
+
+    Écart assumé au plan : le plan proposait une garde numérique `_num_or`
+    dédiée, au corps STRICTEMENT identique à `_num` ci-dessus. La dupliquer
+    dans ce même fichier n'a rien à voir avec la règle 8 (zéro import
+    PIÈCE->PIÈCE, qui ne concerne que les frontières ENTRE modules) — ce
+    serait juste deux fonctions qui dérivent l'une de l'autre sans raison.
+    `clean_graph` réutilise donc `_num` telle quelle.
+
+    Garde supplémentaire (constatée en auto-revue, absente du plan et de son
+    test) : `n.get("kind") not in kinds` — et de même pour `role` — LÈVE si
+    la valeur reçue est un type non hachable (une liste, un dict : un client
+    qui envoie `{"kind": ["layer"]}` au lieu d'une chaîne). `x in un_set`
+    hache `x` avant de comparer ; ce n'était pas couvert par le graphe
+    « poubelle » du test (qui n'utilisait que des chaînes). D'où le
+    `isinstance(..., str)` AVANT tout `in kinds`/`in roles` ci-dessous :
+    un TypeError sur une entrée hostile serait exactement le 500 que cette
+    fonction existe pour empêcher."""
+    g = raw if isinstance(raw, dict) else {}
+    kinds = {k["kind"] for k in NODE_KINDS}
+    roles = {r["role"] for r in LAYER_ROLES}
+    nodes, ids = [], set()
+    for i, n in enumerate(g.get("nodes") or [] if isinstance(g.get("nodes"), list) else []):
+        k_val = n.get("kind") if isinstance(n, dict) else None
+        if not isinstance(n, dict) or not isinstance(k_val, str) or k_val not in kinds:
+            continue
+        node = {"id": str(n.get("id") or f"n{i + 1}")[:24], "kind": n["kind"]}
+        if node["id"] in ids:
+            node["id"] = f"n{i + 1}x"
+        ids.add(node["id"])
+        if n["kind"] == "layer":
+            r_val = n.get("role")
+            node["role"] = r_val if isinstance(r_val, str) and r_val in roles else None
+            node["side"] = "back" if n.get("side") == "back" else "front"
+            node["composite"] = bool(n.get("composite"))
+            if node["role"] is None and not node["composite"]:
+                continue                      # une source sans source n'est rien
+        elif n["kind"] == "plane":
+            node["depth_mm"] = _num(n.get("depth_mm"), 0.0, *PLANE_DEPTH_MM)
+        elif n["kind"] == "relief":
+            node["depth_mm"] = _num(n.get("depth_mm"), 0.6, 0.05, RELIEF_DEPTH_MM_MAX)
+            node["base_mm"] = _num(n.get("base_mm"), 0.3, *RELIEF_BASE_MM)
+            node["grid"] = int(_num(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
+        elif n["kind"] == "artifact":
+            nom = str(n.get("name") or "artefact")
+            node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
+        nodes.append(node)
+    edges = []
+    for e in (g.get("edges") or [] if isinstance(g.get("edges"), list) else []):
+        if not isinstance(e, dict):
+            continue
+        ef, et = e.get("from"), e.get("to")
+        # même garde qu'au-dessus : `x in ids` hache x AVANT de comparer —
+        # {"from": ["x"]} lève sinon (un id ne peut être qu'une chaîne).
+        if isinstance(ef, str) and isinstance(et, str) and ef in ids and et in ids:
+            edges.append({"from": ef, "to": et})
+    return {"nodes": nodes, "edges": edges}
 
 
 _HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")

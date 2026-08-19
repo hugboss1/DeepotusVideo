@@ -28,6 +28,35 @@
   ];
   /* ═══ CF-FORGE3D-LAYERS-END ═══ */
 
+  /* ═══ CF-FORGE3D-NODES-BEGIN ═══
+     Miroir Python dans forge3d.py ; parité testée champ à champ. */
+  const NODE_KINDS = [
+    { kind: "layer", params: ["role", "side"] },
+    { kind: "plane", params: ["depth_mm"] },
+    { kind: "relief", params: ["depth_mm", "base_mm", "grid"] },
+    { kind: "assemble", params: [] },
+    { kind: "artifact", params: ["name"] },
+  ];
+  /* ═══ CF-FORGE3D-NODES-END ═══ */
+
+  /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
+     100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
+  function defaultGraph(man) {
+    const nodes = [], edges = [];
+    let k = 0;
+    (man.layers || []).forEach((l, i) => {
+      const src = "s" + (++k), tr = "t" + k;
+      nodes.push({ id: src, kind: "layer", role: l.role, side: man.side });
+      nodes.push({ id: tr, kind: "plane", depth_mm: Math.round(i * 0.35 * 100) / 100 });
+      edges.push({ from: src, to: tr });
+      edges.push({ from: tr, to: "asm" });
+    });
+    nodes.push({ id: "asm", kind: "assemble" });
+    nodes.push({ id: "art", kind: "artifact", name: "carte3d" });
+    edges.push({ from: "asm", to: "art" });
+    return { nodes: nodes, edges: edges };
+  }
+
   const M = CF.register({
     id: "forge3d",
     title: "Forge 3D",
@@ -36,6 +65,9 @@
     state: {
       last_export: null,        /* horodatage et compte de faces du dernier
                                     export ; le bordereau n'est pas persisté */
+      graph: null,               /* le graphe {nodes, edges} — null = jamais
+                                    construit ; le graphe PAR DÉFAUT est
+                                    proposé dès qu'un export de couches existe */
     },
     init(host) {
       host.innerHTML = shell();
