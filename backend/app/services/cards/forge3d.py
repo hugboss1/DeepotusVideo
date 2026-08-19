@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import io
 import json
+import math
 import struct
 import time
 import zipfile
@@ -60,6 +61,22 @@ def _out_dir(did: str, create: bool = False) -> Path:
     return d
 
 
+def _dpi_to_ppm(dpi: float) -> int:
+    """DPI -> pixels par mètre, arrondi demi-haut. 300 -> 11811, 600 -> 23622.
+
+    COPIE LOCALE de la formule de `face.py:dpi_to_ppm` — le domaine impose
+    ZÉRO import pièce->pièce (règle 8) : c'est déjà le patron établi par
+    `frame.py:dpi_to_ppm` et `print.py:phys_ppm`, chacune sa propre copie,
+    chacune sa parité testée contre P1. Le pHYs de cette pièce DOIT porter la
+    même densité que celui de P1 pour la même carte : recalculer `ppm` depuis
+    `canvas_px / (trim_mm + 2*bleed_mm)` (comme le proposait le plan) dérive
+    de l'arrondi ENTIER de `canvas_px` — mesuré jusqu'à 9 px/m d'écart sur
+    poker_eu/tarot_eu/mini/square_eu, et une densité X != Y sur plusieurs
+    formats. La seule source qui ne dérive jamais est le DPI nominal lui-même."""
+    d = float(dpi)
+    return int(math.floor(d / 0.0254 + 0.5))
+
+
 def _phys_chunk(ppm_x: int, ppm_y: int) -> bytes:
     data = struct.pack(">IIB", ppm_x, ppm_y, 1)
     return (struct.pack(">I", len(data)) + b"pHYs" + data
@@ -98,9 +115,20 @@ async def post_layers(did: str,
         from PIL import Image
     except Exception as e:                     # pragma: no cover - env casse
         raise HTTPException(503, f"PIL indisponible : {e}")
+
+    def _ouvre(raw: bytes, nom: str):
+        """Un corps mal formé fait 400, JAMAIS 500 (spec 2.5). `Image.open`
+        lève sur tout ce qui n'EST pas un format qu'il reconnaît — capturé
+        ici, sinon c'est le 500 non attrapé qu'une trame de bruit produisait
+        avant ce correctif (mesuré : le layer ET le composite y sont exposés
+        de la même façon, donc les deux passent par ce même garde)."""
+        try:
+            return Image.open(io.BytesIO(raw)).convert("RGBA")
+        except Exception as e:
+            raise HTTPException(400, f"{nom} : PNG illisible ({e})")
+
     from .core import read_deck, geom_of
     from .contract import is_valid_did
-    from .face import dpi_to_ppm
     if not is_valid_did(did):
         raise HTTPException(400, "Identifiant de deck invalide")
     doc = read_deck(did)
@@ -120,12 +148,12 @@ async def post_layers(did: str,
     for up in layers:
         nom = (up.filename or "").rsplit(".", 1)[0]
         raw = await up.read()
-        im = Image.open(io.BytesIO(raw)).convert("RGBA")
+        im = _ouvre(raw, nom)
         if im.size != (w, h):
             raise HTTPException(409, f"{nom} : trame {im.size} != {(w, h)}")
         par_role[nom], images[nom] = raw, im
     raw_comp = await composite.read()
-    comp = Image.open(io.BytesIO(raw_comp)).convert("RGBA")
+    comp = _ouvre(raw_comp, "composite")
     if comp.size != (w, h):
         raise HTTPException(409, f"composite : trame {comp.size} != {(w, h)}")
 
@@ -141,13 +169,8 @@ async def post_layers(did: str,
     diff = ImageChops.difference(pile, comp)
     diff_px = sum(1 for p in diff.getdata() if p != (0, 0, 0, 0))
 
-    # Densité pHYs : LA MÊME que P1/P8 (patron face.py:stamp_png), donc
-    # dérivée du DPI nominal du format — pas recalculée depuis canvas_px et
-    # trim_mm/bleed_mm, dont l'arrondi entier diverge de dpi_to_ppm(dpi) sur
-    # la plupart des formats (mesuré : jusqu'à 9 px/m d'écart sur poker_eu,
-    # tarot_eu, mini...). Un pHYs qui ne dit pas la même chose que P1 pour la
-    # même carte serait le mensonge que l'estampille existe pour empêcher.
-    ppm = float(dpi_to_ppm(g.dpi))
+    # Densité pHYs : voir _dpi_to_ppm — copie locale, même densité que P1.
+    ppm = float(_dpi_to_ppm(g.dpi))
     out = _out_dir(did, create=True)
     rows = []
     for nom in ordre:

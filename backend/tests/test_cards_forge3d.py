@@ -39,6 +39,7 @@ from httpx import AsyncClient, ASGITransport                     # noqa: E402
 import hashlib                                                    # noqa: E402
 import io                                                         # noqa: E402
 import json                                                       # noqa: E402
+import struct                                                     # noqa: E402
 import zipfile                                                    # noqa: E402
 from PIL import Image, ImageDraw                                 # noqa: E402
 
@@ -241,9 +242,17 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     for l in man["layers"]:
         h = hashlib.sha256(z.read(l["file"])).hexdigest()
         assert h == l["sha256"], l["file"]
-    # chaque PNG livre porte son pHYs (300 DPI reels, patron P1/P8)
+    # chaque PNG livre porte son pHYs, et la VALEUR relue dans les octets
+    # est celle de P1 - pas seulement sa presence (patron P1/P8, la deck
+    # par defaut est a 300 DPI). Parite : copie locale == 11811 == pHYs reel.
+    from app.services.cards import forge3d as F9
+    assert F9._dpi_to_ppm(300) == 11811
     px = z.read("illustration_front.png")
-    assert b"pHYs" in px
+    i = px.find(b"pHYs")
+    assert i >= 0, "pHYs absent"
+    ppm_x, ppm_y, unite = struct.unpack(">IIB", px[i + 4:i + 13])
+    assert (ppm_x, ppm_y, unite) == (F9._dpi_to_ppm(300), F9._dpi_to_ppm(300), 1) \
+        == (11811, 11811, 1)
 
 
 def test_une_trame_fausse_fait_409_jamais_500():
@@ -254,6 +263,26 @@ def test_une_trame_fausse_fait_409_jamais_500():
     r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
              data={"side": "front", "modes": "{}", "client_proof": "{}"})
     assert r.status_code == 409, r.text
+
+
+def test_un_png_illisible_fait_400_jamais_500():
+    """Spec 2.5 : un corps mal forme fait 400, JAMAIS 500. Un octet qui
+    n'EST pas un PNG (ni une trame de la bonne taille, ni autre chose de
+    decodable) doit lever avant meme d'atteindre le controle de taille."""
+    did = _deck("PNG illisible")
+    bon = _png(Image.new("RGBA", (815, 1110), (10, 20, 30, 255)))
+    # la couche est du bruit, jamais un PNG
+    r1 = _api("POST", f"/api/cards/{did}/forge3d/layers",
+              files=[("layers", ("fond-matiere.png", b"pas un png", "image/png")),
+                     ("composite", ("composite.png", bon, "image/png"))],
+              data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r1.status_code == 400, r1.text
+    # le composite est du bruit, la couche est valide
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/layers",
+              files=[("layers", ("fond-matiere.png", bon, "image/png")),
+                     ("composite", ("composite.png", b"pas un png", "image/png"))],
+              data={"side": "front", "modes": "{}", "client_proof": "{}"})
+    assert r2.status_code == 400, r2.text
 
 
 if __name__ == "__main__":
