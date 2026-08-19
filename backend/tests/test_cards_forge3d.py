@@ -844,6 +844,20 @@ def test_le_glb_assemble_est_propre_des_l_ecriture():
     #    BIN — sur les deux tailles (1 et 2 elements)
     assert doc1["buffers"][0]["byteLength"] == len(bin1)
     assert doc["buffers"][0]["byteLength"] == len(binv)
+    # 8. zéro identité VRAIE pour TOUT appelant : le writer filtre lui-même
+    #    "generator" même quand l'APPELANT en glisse un dans extras — et la
+    #    racine porte l'extras FILTRÉ (pas l'original), aux deux étages
+    #    (asset.extras ET racine.extras — les DCC divergent sur lequel ils
+    #    gardent).
+    sale = F9.write_scene_glb(
+        [{"name": "x", "mesh": F9.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+         "alpha": False, "z_mm": 0.0}], name="carte3d",
+        extras={"deck": "test", "generator": "espion"})
+    doc_sale, _ = _read_glb(sale)
+    assert '"generator"' not in json.dumps(doc_sale)
+    racine_sale = doc_sale["nodes"][doc_sale["scenes"][0]["nodes"][0]]
+    assert racine_sale["extras"] == {"deck": "test"}
+    assert doc_sale["asset"]["extras"] == {"deck": "test"}
 
 
 def test_le_glb_assemble_est_relisible_par_un_lecteur_tiers():

@@ -375,13 +375,28 @@ def mesh_measures(mesh: dict) -> dict:
 # l'élément. À la différence du constructeur générique du dépôt
 # (gltf_builder, qui exige des rustines post-hoc — finalize_glb de P8), rien
 # ici n'est corrigé après coup.
+
+# Clés d'`extras` qui nomment un producteur — COPIE LOCALE de gltf.py:198
+# (règle 8, zéro import pièce->pièce) : filtrées ICI, dans le writer, pour
+# que « zéro identité » reste vrai pour TOUT appelant, pas seulement celui
+# qui pense à nettoyer son propre extras avant l'appel.
+_IDENTITY_KEYS = ("generator", "producer", "author", "software", "application",
+                  "copyright", "artist", "company", "vendor")
+
+
 def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     """UN document glTF multi-éléments, écrit JUSTE du premier coup :
     bornes exactes (calculées ici même sur les floats empaquetés), aucun champ
     d'identité (ce writer n'en émet simplement jamais), samplers CLAMP, racine
     à l'échelle physique mm->m, un enfant nommé par élément, translation z en
     mm portée par le nœud de l'élément. Textures : les PNG estampillés de la
-    phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste)."""
+    phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste).
+
+    Précondition : `elements` exige AU MOINS UN élément — un GLB à zéro
+    élément est invalide au schéma glTF (minItems 1) ; la route build3d fait
+    409 avant d'appeler ce writer (tâche 4)."""
+    # zéro identité VRAIE pour tout appelant, pas seulement le nôtre
+    extras = {k: v for k, v in (extras or {}).items() if k not in _IDENTITY_KEYS}
     buf = bytearray()
     views, accessors, images, textures, materials, meshes, nodes = [], [], [], [], [], [], []
 
@@ -413,14 +428,14 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         return len(accessors) - 1
 
     sampler = 0   # un seul sampler CLAMP
-    for k, el in enumerate(elements):
+    for el in elements:
         m = el["mesh"]
         ip = add_accessor(m["positions"], 3, 5126, "VEC3", 34962)
         inm = add_accessor(m["normals"], 3, 5126, "VEC3", 34962)
         iuv = add_accessor(m["uvs"], 2, 5126, "VEC2", 34962)
         iix = add_accessor(m["indices"], 1, 5125, "SCALAR", 34963)
-        img = add_view(el["png"])
-        images.append({"bufferView": img, "mimeType": "image/png",
+        v_png = add_view(el["png"])
+        images.append({"bufferView": v_png, "mimeType": "image/png",
                        "name": el["name"]})
         textures.append({"sampler": sampler, "source": len(images) - 1})
         materials.append({
@@ -434,7 +449,7 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
             "attributes": {"POSITION": ip, "NORMAL": inm, "TEXCOORD_0": iuv},
             "indices": iix, "material": len(materials) - 1}]})
         nodes.append({"name": el["name"], "mesh": len(meshes) - 1,
-                      **({"translation": [0.0, 0.0, float(el.get("z_mm") or 0.0)]}
+                      **({"translation": [0.0, 0.0, float(el["z_mm"])]}
                          if el.get("z_mm") else {})})
     # PIÈGE DU SQUELETTE (auto-revue) : le buffer doit être aligné à 4 AVANT
     # que `buffers[0].byteLength` ne soit figé dans le JSON — la dernière
@@ -446,6 +461,10 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     # de l'autre. Ici, `len(buf)` à la construction de `doc` EST déjà la
     # longueur finale du chunk BIN : plus rien ne l'allonge après.
     pad4()
+    # extras posé aux DEUX etages (asset ET racine), assumé : les DCC gardent
+    # node.extras en propriétés custom et JETTENT asset.extras (Blender) ;
+    # three.js expose node.extras en userData — un seul emplacement ne
+    # survivrait pas partout.
     racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
               "children": list(range(len(nodes))), "extras": extras}
     nodes.append(racine)
