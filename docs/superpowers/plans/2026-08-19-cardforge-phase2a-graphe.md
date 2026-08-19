@@ -335,8 +335,9 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
         wall(top(0, j + 1), top(0, j), bot(0, j + 1), bot(0, j))
         wall(top(gx, j), top(gx, j + 1), bot(gx, j), bot(gx, j + 1))
 
-    # normales : dessus par gradient discret, dessous -z, murs approximés par
-    # renormalisation des sommets partagés — suffisant, le glTF les porte.
+    # normales : accumulation de normales de faces ponderees par l'aire sur les
+    # sommets partages ; l'anneau de bord melange mur et face (arete du pourtour
+    # adoucie a l'ombrage — geometrie exacte, STL non affecte).
     nrm = [0.0] * len(pos)
     for t in range(0, len(idx), 3):
         i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
@@ -536,6 +537,10 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         nodes.append({"name": el["name"], "mesh": len(meshes) - 1,
                       **({"translation": [0.0, 0.0, float(el.get("z_mm") or 0.0)]}
                          if el.get("z_mm") else {})})
+    # PAD FINAL AVANT de figer buffers[0].byteLength : l'ordre inverse declare
+    # un byteLength plus court que le chunk BIN reellement ecrit (mesure en
+    # tache 3 : 12359 declare vs 12360 ecrit, PNG de 79 octets non aligne).
+    pad4()
     racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
               "children": list(range(len(nodes))), "extras": extras}
     nodes.append(racine)
@@ -548,7 +553,6 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
            "buffers": [{"byteLength": len(buf)}]}
     js = json.dumps(doc, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     js += b" " * ((4 - len(js) % 4) % 4)
-    pad4()
     total = 12 + 8 + len(js) + 8 + len(buf)
     out = struct.pack("<III", 0x46546C67, 2, total)
     out += struct.pack("<II", len(js), 0x4E4F534A) + js
