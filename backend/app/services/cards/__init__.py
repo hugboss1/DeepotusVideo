@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from . import core
-from . import face, frame, data, solid, texture, gltf
+from . import face, frame, data, solid, texture, gltf, forge3d
 from . import type as type_mod
 from . import print as print_mod
 
@@ -56,6 +56,8 @@ router.include_router(texture.router, prefix="/{did}/texture",
 router.include_router(print_mod.router, prefix="/{did}/print",
                       tags=["cards:print"])
 router.include_router(gltf.router, prefix="/{did}/gltf", tags=["cards:gltf"])
+router.include_router(forge3d.router, prefix="/{did}/forge3d",
+                      tags=["cards:forge3d"])
 
 
 # ── le filet, EN DERNIER ────────────────────────────────────────────────────

@@ -1,0 +1,97 @@
+# -*- coding: utf-8 -*-
+"""Card Forge — P9 « Forge 3D ». Squelette de la pièce (phase 1).
+
+Ce fichier verrouille, pour l'instant, ce que le squelette DOIT tenir avant
+que la moindre logique d'export par couches ne s'écrive (§4 de
+docs/superpowers/plans/2026-08-19-cardforge-phase1-couches.md, Task 1) :
+
+  1. La pièce respecte la règle 1 du lab (1 JS + 1 CSS + 1 py + 1 test) et
+     passe le lint mécanique — c'est LUI le juge, pas ce fichier.
+  2. `GET /api/cards/{did}/forge3d/info` publie les six rôles de couches et
+     leurs z, ceux de la Z_TABLE gelée du CORE.
+  3. Le bloc miroir JS <-> py (marqueurs CF-FORGE3D-LAYERS-*) est identique
+     MOT POUR MOT des deux côtés : une table recopiée à la main qui dérive
+     est un mensonge.
+
+Run : <python embarqué> backend/tests/test_cards_forge3d.py
+      .\\scripts\\run-tests.ps1 -Filter cards_forge3d
+"""
+import asyncio
+import os
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+
+_tmp = tempfile.mkdtemp()
+os.environ["DATABASE_URL"] = \
+    f"sqlite+aiosqlite:///{pathlib.Path(_tmp, 't.db').as_posix()}"
+os.environ.setdefault("FAL_KEY", "test-key")
+os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
+os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
+pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
+pathlib.Path(_tmp, "outputs").mkdir(exist_ok=True)
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+
+from httpx import AsyncClient, ASGITransport                     # noqa: E402
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+JS = ROOT / "frontend" / "cardforge" / "js" / "mod-forge3d.js"
+
+
+def _api(method: str, path: str, **kw):
+    """Un appel HTTP réel contre l'application montée, en process."""
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t", timeout=180.0) as c:
+            return await c.request(method, path, **kw)
+    return asyncio.run(go())
+
+
+def _deck(nom: str = "Forge") -> str:
+    r = _api("POST", "/api/cards/decks", json={"name": nom})
+    assert r.status_code == 200, r.text
+    return r.json()["deck"]["id"]
+
+
+def test_la_piece_est_complete_et_passe_le_lint():
+    """Règle 1 : 1 JS + 1 CSS + 1 py + 1 test. Le lint est le juge, pas nous."""
+    r = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "qa" / "lint_cardforge.py"),
+         "--module", "forge3d"],
+        capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
+def test_info_publie_les_roles_de_couches():
+    did = _deck("Forge")
+    info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
+    assert info["schema"] == "card-3d/layers-manifest@1"
+    roles = [r["role"] for r in info["layer_roles"]]
+    assert roles == ["fond-matiere", "illustration", "voile-matiere",
+                     "cadre", "typographie", "ornements"]
+    # les z de chaque rôle sont ceux de la table gelée du CORE
+    par_role = {r["role"]: r["z"] for r in info["layer_roles"]}
+    assert par_role["fond-matiere"] == [10] and par_role["illustration"] == [20]
+    assert par_role["voile-matiere"] == [30] and par_role["cadre"] == [40]
+    assert par_role["typographie"] == [60] and par_role["ornements"] == [70]
+
+
+def test_la_table_des_couches_est_identique_des_deux_cotes():
+    """Bloc miroir JS <-> py : une table recopiée qui dérive est un mensonge."""
+    import json as _json
+    from app.services.cards import forge3d as F9
+    src = JS.read_text(encoding="utf-8")
+    bloc = src.split("CF-FORGE3D-LAYERS-BEGIN")[1].split("CF-FORGE3D-LAYERS-END")[0]
+    js_rows = re.findall(
+        r'\{ role: "([a-z-]+)", z: \[([0-9, ]+)\], module: "([a-z]+)" \}', bloc)
+    js_table = [{"role": r, "z": [int(x) for x in z.split(",")], "module": m}
+                for r, z, m in js_rows]
+    assert js_table == F9.LAYER_ROLES, (js_table, F9.LAYER_ROLES)
+    # ...et les z sont un sous-ensemble EXACT de la table gelée du CORE
+    core = (ROOT / "frontend" / "cardforge" / "js" / "core.js").read_text(encoding="utf-8")
+    assert "Z_TABLE" in core
+    tous = sorted(z for row in F9.LAYER_ROLES for z in row["z"])
+    assert tous == [10, 20, 30, 40, 60, 70], tous

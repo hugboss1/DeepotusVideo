@@ -65,9 +65,10 @@ Z_TABLE = {
     "solid": set(),
     "print": set(),
     "gltf": set(),
+    "forge3d": set(),
 }
 MODULES = ["face", "frame", "type", "data", "solid", "texture", "print",
-           "gltf"]          # ordre = rang dans le rail (= numero de piece)
+           "gltf", "forge3d"]  # ordre = rang dans le rail (= numero de piece)
 Z_CORE = 90                 # reperes fond perdu / coupe / zone sure
 
 FRONT_DIR = pathlib.Path("frontend/cardforge")

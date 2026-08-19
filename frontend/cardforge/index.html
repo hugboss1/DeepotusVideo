@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="css/mod-texture.css">
 <link rel="stylesheet" href="css/mod-print.css">
 <link rel="stylesheet" href="css/mod-gltf.css">
+<link rel="stylesheet" href="css/mod-forge3d.css">
 <!-- visionneuse 3D embarquee (hors ligne, servie par l'app) : P5 et P8 s'en
      servent, elle est chargee ici une seule fois. -->
 <script type="module" src="/assets/model-viewer.min.js"></script>
@@ -124,6 +125,11 @@
       <div class="cf-host cf-gltf" data-host="gltf"></div>
     </section>
 
+    <section class="cf-panel" id="cf-panel-forge3d" data-mod="forge3d">
+      <div class="panel-head"><b class="ph-n">09</b><h2>Forge 3D</h2><p class="hint">Couches PNG alpha par élément, preuve d'empilement, manifeste — l'entrée du graphe 3D.</p></div>
+      <div class="cf-host cf-forge3d" data-host="forge3d"></div>
+    </section>
+
   </section>
 
   <!-- panneau lateral optionnel, cree a la demande par CF.aside() -->
@@ -144,5 +150,6 @@
 <script src="js/mod-texture.js"></script>
 <script src="js/mod-print.js"></script>
 <script src="js/mod-gltf.js"></script>
+<script src="js/mod-forge3d.js"></script>
 </body>
 </html>
