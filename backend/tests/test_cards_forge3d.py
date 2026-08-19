@@ -750,6 +750,11 @@ def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
     rep = F9.mesh_measures(m)
     assert rep["closed"] is True, rep
     assert rep["volume_mm3"] > 0.0
+    # le relief DÉCLARE sa fermeture (drapeau topologique, économise la
+    # remesure côté route — ~7 s au grid max) : la déclaration DOIT coïncider
+    # avec la mesure, sinon le raccourci de build3d mentirait au client.
+    assert m["closed"] is True
+    assert m["closed"] == rep["closed"]
     # le relief est borné : base <= z <= base+depth, xy dans la carte
     xs = m["positions"][0::3]; ys = m["positions"][1::3]; zs = m["positions"][2::3]
     assert min(zs) == 0.0 and max(zs) <= 0.3 + 1.0 + 1e-6
@@ -759,7 +764,9 @@ def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
 
     q = F9.quad_mesh(w_mm=63.0, h_mm=88.0)
     assert len(q["positions"]) == 4 * 3 and len(q["indices"]) == 6
-    assert F9.mesh_measures(q)["closed"] is False     # un plan n'est pas un solide
+    assert q["closed"] is False       # un plan n'est pas un solide
+    assert F9.mesh_measures(q)["closed"] is False
+    assert q["closed"] == F9.mesh_measures(q)["closed"]
 
 
 if __name__ == "__main__":

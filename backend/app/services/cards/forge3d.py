@@ -67,7 +67,10 @@ NODE_KINDS = [
 PLANE_DEPTH_MM = (0.0, 5.0)          # écart z entre plans empilés
 RELIEF_DEPTH_MM_MAX = 3.0            # relief au-dessus de la base
 RELIEF_BASE_MM = (0.1, 2.0)          # épaisseur de la dalle
-RELIEF_GRID = (48, 256)              # subdivisions de la grille
+RELIEF_GRID = (48, 256)              # subdivisions de la grille — axe X (gx)
+                                      # SEUL ; gy suit le ratio h_mm/w_mm de
+                                      # la carte (un tarot portrait à 256
+                                      # donne gy=439, ~452k triangles)
 RELIEF_GRID_DEFAULT = 160
 
 # ── bornes d'entrée — vérifiées AVANT tout décodage (spec 2.5) ──────────────
@@ -249,6 +252,7 @@ def quad_mesh(w_mm: float, h_mm: float) -> dict:
         "normals": [0.0, 0.0, 1.0] * 4,
         "uvs": [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],   # v inversé (image)
         "indices": [0, 1, 2, 0, 2, 3],
+        "closed": False,             # un plan n'est pas un solide
     }
 
 
@@ -260,7 +264,11 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     CONSTRUCTION : chaque arête appartient à exactement deux triangles parce
     que dessus, dessous et murs partagent leurs anneaux de bord. C'est
     l'« extrusion » gratuite v1 : un vrai suivi de contour (marching squares +
-    triangulation à trous) viendra si le besoin le prouve."""
+    triangulation à trous) viendra si le besoin le prouve.
+
+    Préconditions : bornes garanties par `clean_graph` (base_mm/depth_mm/grid)
+    — hors de ce chemin, base_mm=0 dégénère les murs et w_mm=0 divise par
+    zéro."""
     gx = max(2, int(grid))
     gy = max(2, int(round(grid * (h_mm / w_mm))))
     a = alpha_img.convert("L").resize((gx + 1, gy + 1))
@@ -284,19 +292,11 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
             uv += [i / gx, j / gy]
     bot = lambda i, j: n_top + j * (gx + 1) + i              # noqa: E731
 
-    # ÉCART AU PLAN (winding corrigé, prouvé par ce fichier de test) : le
-    # sens des sommets ci-dessous est l'INVERSE de celui écrit dans le plan.
-    # Avec x croissant vers +i et y DÉCROISSANT vers +j (j=0 = haut de la
-    # carte), le repère (x, y, z) est direct ; l'ordre du plan
-    # [aa, bb, cc, aa, cc, dd] pour le dessus calcule une aire signée
-    # négative (sens horaire vu depuis +z) — sa normale pointe donc -z, VERS
-    # l'intérieur du solide, et symétriquement le dessous du plan pointait
-    # +z. Les deux étaient donc inversées (mesuré : volume_mm3 négatif alors
-    # que `closed` restait vrai — une inversion UNIFORME du maillage ne
-    # casse pas le partage d'arêtes, seulement le signe). Corrigé ici en
-    # permutant les deux derniers sommets de chaque triangle, dessus comme
-    # dessous comme murs — la fermeture ET le volume positif sont
-    # maintenant prouvés par `test_le_relief_est_un_solide_ferme_...`.
+    # WINDING : avec y=(1-j/gy)*h, j=0 est le HAUT de carte ; l'ordre ci-dessous
+    # donne une aire signée POSITIVE vue de +z (normales dehors), prouvé par le
+    # test (closed ET volume>0 sur silhouette à trou). Garde-fou : une inversion
+    # UNIFORME du maillage garde closed=True et ne flippe QUE le signe du volume
+    # — c'est l'assertion volume>0 qui protège contre une régression, pas closed.
     idx = []
     for j in range(gy):
         for i in range(gx):
@@ -316,8 +316,10 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
         wall(top(0, j + 1), top(0, j), bot(0, j + 1), bot(0, j))
         wall(top(gx, j), top(gx, j + 1), bot(gx, j), bot(gx, j + 1))
 
-    # normales : dessus par gradient discret, dessous -z, murs approximés par
-    # renormalisation des sommets partagés — suffisant, le glTF les porte.
+    # normales : accumulation de normales de faces pondérées par l'aire sur
+    # les sommets partagés ; connu : l'anneau de bord mélange mur et face,
+    # l'arête du pourtour s'ombre adoucie — géométrie exacte, STL non affecté
+    # (normales de facette recalculées).
     nrm = [0.0] * len(pos)
     for t in range(0, len(idx), 3):
         i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
@@ -329,7 +331,12 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     for k in range(0, len(nrm), 3):
         ln = math.sqrt(nrm[k] ** 2 + nrm[k + 1] ** 2 + nrm[k + 2] ** 2) or 1.0
         nrm[k] /= ln; nrm[k + 1] /= ln; nrm[k + 2] /= ln
-    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx}
+    # "closed": fermeture TOPOLOGIQUE, indépendante du contenu alpha —
+    # prouvée une fois pour toutes par le test unitaire ; la route build3d
+    # gate le STL sur ce drapeau au lieu de re-mesurer : 7 s + ~340 Mo de pic
+    # par élément au grid max, mesuré en revue.
+    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx,
+            "closed": True}
 
 
 def mesh_measures(mesh: dict) -> dict:
