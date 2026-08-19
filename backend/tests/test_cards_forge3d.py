@@ -424,5 +424,21 @@ def test_jpeg_ne_traverse_pas_la_contre_preuve():
     assert r.status_code == 400, r.text
 
 
+def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    corps = rendu.split("async function exportLayers(")[1].split("\n  }")[0]
+    # les DEUX faces partent, avec la preuve client par face
+    assert 'CF.layers' in corps and '"front"' in corps and '"back"' in corps
+    assert "stack_ok" in corps
+    # l'echec de preuve NOMME la couche et n'envoie RIEN
+    assert "return" in corps.split("stack_ok")[1].split("FormData")[0]
+    # provenance : les blobs passent par CF.layerBlob (mintes)
+    assert "CF.layerBlob" in corps
+    # le bordereau est peint depuis la REPONSE (mesure), pas depuis l'intention
+    assert "cf-forge3d-slip" in rendu
+    assert "weight" in rendu or "Kio" in rendu
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
