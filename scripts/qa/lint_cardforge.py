@@ -38,7 +38,7 @@ l'autorite) : un painter enregistre dynamiquement, un id DOM construit par
 concatenation, une route montee par reflexion. Le lint est un filet statique,
 pas une preuve.
 
-Comportement sur arborescence vide : les 8 modules sont declares mais aucun
+Comportement sur arborescence vide : les 9 modules sont declares mais aucun
 fichier n'existe encore -> tout est signale « absent », rien n'est en faute,
 code de retour 0. C'est voulu : le lint doit tourner des le jour 1.
 
@@ -55,7 +55,7 @@ import re
 import sys
 
 # --- TABLE Z GELEE (spec §2.2) ------------------------------------------
-# data, solid, print, gltf n'ont AUCUN painter : ils ne dessinent pas la carte.
+# data, solid, print, gltf, forge3d n'ont AUCUN painter : ils ne dessinent pas la carte.
 Z_TABLE = {
     "texture": {10, 30},
     "face": {20},

@@ -1,5 +1,5 @@
 /* P9 Forge 3D — règle 4 : tout sélecteur contient .cf-forge3d */
-.cf-forge3d .cf-forge3d-card { border: 1px solid var(--line, #2a2f3a); border-radius: 10px; padding: 12px; }
+.cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; }
 .cf-forge3d .cf-forge3d-h { margin-bottom: 8px; }
-.cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line, #2a2f3a); }
+.cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }

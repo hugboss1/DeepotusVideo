@@ -6,7 +6,7 @@
 <title>Card Forge — Deepotus Video Gen</title>
 <!-- COQUILLE [CORE] — gelee. Les 8 builders ne touchent JAMAIS ce fichier :
      ils remplissent leur <div class="cf-host"> depuis js/mod-<id>.js.
-     Ordre des feuilles : la coquille d'abord (elle importe les tokens), les 8
+     Ordre des feuilles : la coquille d'abord (elle importe les tokens), les 9
      modules ensuite — ainsi une regle de module l'emporte sur une primitive,
      jamais l'inverse. -->
 <link rel="stylesheet" href="cardforge.css">
@@ -55,7 +55,7 @@
 
 <main class="cf">
 
-  <!-- ══ 1. rail gauche : les 8 pieces, dans l'ordre gele ══ -->
+  <!-- ══ 1. rail gauche : les 9 pieces, dans l'ordre gele ══ -->
   <nav class="rail" id="rail"></nav>
 
   <!-- ══ 2. scene : LE moteur unique. Ce qu'on voit ici est le meme appel a
@@ -80,7 +80,7 @@
     </div>
   </section>
 
-  <!-- ══ 3. plan de travail : 8 sections VIDES. Chaque .cf-host porte la classe
+  <!-- ══ 3. plan de travail : 9 sections VIDES. Chaque .cf-host porte la classe
        .cf-<id> — c'est ce qui rend la regle 4 (« tout selecteur de
        css/mod-<id>.css contient .cf-<id> ») applicable sans effort. ══ -->
   <section class="work" id="work">
@@ -139,7 +139,7 @@
 <div class="busy hidden" id="busy"><div class="busy-box"><i class="busy-spin"></i><span class="busy-l">traitement…</span></div></div>
 <div id="toast" class="toast hidden"></div>
 
-<!-- LE CONTRAT d'abord, les 8 pieces ensuite. Chaque module s'enregistre a
+<!-- LE CONTRAT d'abord, les 9 pieces ensuite. Chaque module s'enregistre a
      l'evaluation de son script ; le registre est gele au DOMContentLoaded. -->
 <script src="js/core.js"></script>
 <script src="js/mod-face.js"></script>

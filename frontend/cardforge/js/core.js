@@ -59,8 +59,8 @@
      10 texture (papier sous l'illustration) · 20 face (illustration)
      30 texture (grain/foil au-dessus) · 40 frame (cadre) · 60 type (tout le
      texte) · 70 frame (ornements de dessus) · 90 CORE (reperes, jamais exporte)
-   data · solid · print · gltf n'ont AUCUN painter : ils ne dessinent pas la
-   carte.
+   data · solid · print · gltf · forge3d n'ont AUCUN painter : ils ne
+   dessinent pas la carte.
 
    Aucune dependance externe, aucun CDN, aucun build. Le bloc de geometrie est
    chargeable tel quel dans Node (aucun acces au DOM au chargement) : c'est ce
@@ -73,7 +73,7 @@
 
   const VERSION = "2.0.0";
 
-  /* ── les huit ids geles, dans l'ordre du rail (= numero de piece) ───────── */
+  /* ── les neuf ids geles, dans l'ordre du rail (= numero de piece) ───────── */
   const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d"];
   const ORDER = {};
   MODULES.forEach((id, i) => { ORDER[id] = i + 1; });

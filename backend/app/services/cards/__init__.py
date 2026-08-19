@@ -2,7 +2,7 @@
 """Card Forge — le domaine « cartes », monté sous `/api/cards`.
 
 CE FICHIER APPARTIENT À CORE et ne bouge plus : il assemble, il n'implémente
-rien. Les huit pièces remplissent leur propre `<id>.py` et n'en sortent pas.
+rien. Les neuf pièces remplissent leur propre `<id>.py` et n'en sortent pas.
 
 Le domaine vit HORS de `app/api/routes.py` — ce fichier passe déjà 6 500
 lignes, et huit builders qui l'éditent en parallèle, c'est huit conflits.
@@ -22,6 +22,7 @@ Assemblage (règle 8 de la spec) :
     /api/cards/{did}/texture/…    P6     texture.py
     /api/cards/{did}/print/…      P7     print.py
     /api/cards/{did}/gltf/…       P8     gltf.py
+    /api/cards/{did}/forge3d/…    P9     forge3d.py
 
 Chaque sous-module déclare `router = APIRouter()` avec des chemins RELATIFS
 et n'importe le routeur d'aucun autre : le préfixe `{did}` est posé ici, une
@@ -68,7 +69,7 @@ router.include_router(forge3d.router, prefix="/{did}/forge3d",
 # domaine avant d'atteindre le garde-fou 400 de `_deck_or_404` et rendait
 # 200 text/html. Aucune traversée n'était possible (le double garde-fou de
 # `deck_dir` n'était même pas sollicité), mais une API qui répond du HTML est
-# un piège. Déclaré APRÈS les huit sous-routeurs : Starlette apparie dans
+# un piège. Déclaré APRÈS les neuf sous-routeurs : Starlette apparie dans
 # l'ordre, il ne peut donc rien masquer.
 @router.api_route("/{rest:path}",
                   methods=["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"],

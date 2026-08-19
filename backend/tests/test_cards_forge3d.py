@@ -10,8 +10,8 @@ docs/superpowers/plans/2026-08-19-cardforge-phase1-couches.md, Task 1) :
   2. `GET /api/cards/{did}/forge3d/info` publie les six rôles de couches et
      leurs z, ceux de la Z_TABLE gelée du CORE.
   3. Le bloc miroir JS <-> py (marqueurs CF-FORGE3D-LAYERS-*) est identique
-     MOT POUR MOT des deux côtés : une table recopiée à la main qui dérive
-     est un mensonge.
+     champ à champ et dans l'ordre des deux côtés : une table recopiée à la
+     main qui dérive est un mensonge.
 
 Run : <python embarqué> backend/tests/test_cards_forge3d.py
       .\\scripts\\run-tests.ps1 -Filter cards_forge3d
@@ -34,6 +34,7 @@ pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 pathlib.Path(_tmp, "outputs").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+import pytest                                                     # noqa: E402
 from httpx import AsyncClient, ASGITransport                     # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -77,11 +78,14 @@ def test_info_publie_les_roles_de_couches():
     assert par_role["fond-matiere"] == [10] and par_role["illustration"] == [20]
     assert par_role["voile-matiere"] == [30] and par_role["cadre"] == [40]
     assert par_role["typographie"] == [60] and par_role["ornements"] == [70]
+    # /info est scopée au deck comme toute route du domaine (règle §2.5) :
+    # un id syntaxiquement invalide lève 400, un id valide mais absent 404.
+    assert _api("GET", "/api/cards/nimportequoi/forge3d/info").status_code == 400
+    assert _api("GET", "/api/cards/deck_00000000/forge3d/info").status_code == 404
 
 
 def test_la_table_des_couches_est_identique_des_deux_cotes():
     """Bloc miroir JS <-> py : une table recopiée qui dérive est un mensonge."""
-    import json as _json
     from app.services.cards import forge3d as F9
     src = JS.read_text(encoding="utf-8")
     bloc = src.split("CF-FORGE3D-LAYERS-BEGIN")[1].split("CF-FORGE3D-LAYERS-END")[0]
@@ -115,3 +119,7 @@ def test_le_core_connait_la_piece_forge3d():
     # le rail est dans l'ordre de MODULES (core.js:1349-1350) : forge3d doit
     # occuper le rang 9, en dernier de la liste gelée.
     assert ids[-1] == "forge3d" and len(ids) == 9, ids
+
+
+if __name__ == "__main__":
+    raise SystemExit(pytest.main([__file__, "-q"]))

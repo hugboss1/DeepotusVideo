@@ -1,13 +1,22 @@
 "use strict";
 /* ═══════════════════════════════════════════════════════════════════════════
-   CARD FORGE — P9 « Forge 3D ». Export par couches (phase 1).
-   Ce module n'a AUCUN painter : il lit le rendu, il n'y dessine jamais.
+   Card Forge — piece 09 · Forge 3D   [P9]
+   Proprietaire exclusif de : doc.forge3d · AUCUN z (ce module ne peint pas) ·
+   /api/cards/<did>/forge3d/* · prefixe DOM cf-forge3d-
+   feuille : css/mod-forge3d.css (tout selecteur y contient .cf-forge3d)
+
+   Export par couches (phase 1). Ce module n'a AUCUN painter : il lit le
+   rendu, il n'y dessine jamais.
    ═══════════════════════════════════════════════════════════════════════════ */
 (() => {
+  const CF = (typeof window !== "undefined") ? window.CF : null;
+  if (!CF) throw new Error("mod-forge3d: js/core.js doit etre charge avant ce fichier");
+
   /* ── LA TABLE DES COUCHES — BLOC MIROIR ─────────────────────────────────
      ═══ CF-FORGE3D-LAYERS-BEGIN ═══
      Le miroir Python est dans backend/app/services/cards/forge3d.py, entre
-     les mêmes marqueurs ; test_cards_forge3d compare les deux MOT POUR MOT.
+     les mêmes marqueurs ; test_cards_forge3d compare les deux champ à champ
+     et dans l'ordre.
      Les z sont ceux de la Z_TABLE gelée du CORE (core.js:82). */
   const LAYER_ROLES = [
     { role: "fond-matiere", z: [10], module: "texture" },
