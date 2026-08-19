@@ -113,7 +113,9 @@ NODE_KINDS = [
 PLANE_DEPTH_MM = (0.0, 5.0)          # écart z entre plans empilés
 RELIEF_DEPTH_MM_MAX = 3.0            # relief au-dessus de la base
 RELIEF_BASE_MM = (0.1, 2.0)          # épaisseur de la dalle
-RELIEF_GRID = (48, 256)              # subdivisions de la grille
+RELIEF_GRID = (48, 256)              # subdivisions — borne sur l'axe X seul :
+                                     # gy suit le rapport h/w (tarot portrait à
+                                     # 256 -> gy=439, ~452k triangles, mesuré)
 RELIEF_GRID_DEFAULT = 160
 ```
 
@@ -674,9 +676,16 @@ Points imposés (le corps suit les patrons déjà en place dans ce fichier) :
   (l'aperçu est déclaré par NOM ; il n'existe qu'après la capture client de la
   Task 5 — le bordereau dit `preview: {expected: name, written: false}` tant qu'il
   n'est pas téléversé : une déclaration honnête, pas un mensonge) ;
-- **STL** : uniquement si TOUS les éléments sont fermés (`mesh_measures`), sinon
-  `{"written": False, "why": "…pas un solide ferme…"}` — writer binaire local
-  (~20 lignes, en mm, patron du domaine : en-tête 80 octets SANS nom d'outil) ;
+- **STL** : gate sur le drapeau `closed` DÉCLARÉ PAR LES CONSTRUCTEURS de maillage
+  (`relief_mesh` pose `"closed": True` dans son dict — fermeture topologique prouvée
+  une fois pour toutes par son test unitaire, indépendante du contenu alpha ;
+  `quad_mesh` pose `False`). JAMAIS de re-mesure par requête : `mesh_measures` à
+  grid max coûte 7 s + ~340 Mo de pic PAR ÉLÉMENT (mesuré en revue) pour re-prouver
+  un théorème structurel — il reste l'instrument des TESTS. La route ne fait
+  jamais elle-même une affirmation de fermeture sur un maillage qu'elle n'a pas
+  construit. Si un élément n'est pas fermé : `{"written": False, "why": "…pas un
+  solide ferme…"}` — writer binaire local (~20 lignes, en mm, en-tête 80 octets
+  SANS nom d'outil) ;
 - bordereau : fichiers écrits `{name}.glb`, `{name}.metadata.json`, `{name}.stl?`
   sous `outputs/decks/{did}/forge3d/`, pesés ; `graph_used` = le graphe NETTOYÉ
   (celui qui a réellement tourné) ;
