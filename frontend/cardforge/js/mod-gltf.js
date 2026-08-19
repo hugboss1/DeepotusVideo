@@ -87,6 +87,10 @@
          d'octets vides ; decocher n'achete que du poids en moins. */
       bits16: true,
       finish: "mat",                 /* mat | satin | vernis | foil | holo */
+      /* null = l'emission de la finition. Un nombre 0..1 PRIME sur elle :
+         c'est le geste qui manquait — le quatrieme emplacement n'etait
+         atteignable qu'en changeant TOUTE la matiere (dorure/holo). */
+      emissive: null,
       img: "auto",                   /* auto | png | jpeg (textures du GLB) */
       jpeg_q: 92,
       scope: "card",                 /* card | deck */
@@ -179,9 +183,19 @@
 
   const M_STATE_DEFAULT = {
     res: 2048, formats: ["glb", "gltf", "zip"], bits16: true, finish: "mat",
-    img: "auto", jpeg_q: 92, scope: "card", thickness_mm: null,
+    emissive: null, img: "auto", jpeg_q: 92, scope: "card", thickness_mm: null,
     pivot: "centre", edge: "#f2efe6", spin: true,
   };
+
+  /* L'emission EFFECTIVE de l'export : le reglage s'il est pose, sinon celle
+     de la finition (publiee par /info, jamais recopiee ici). */
+  function emissiveEff() {
+    const ov = get("emissive");
+    if (typeof ov === "number" && isFinite(ov)) return ov;
+    const f = ((INFO && INFO.finishes) || [])
+      .filter((x) => x.id === get("finish"))[0];
+    return (f && f.emissive != null) ? Number(f.emissive) : 0;
+  }
 
   /* Ecriture + PILE D'ANNULATION : chaque reglage est annulable, au bouton
      comme au Ctrl+Z. */
@@ -291,6 +305,17 @@
       + '<div class="fld"><span class="lbl">Finition</span>'
       + '<div class="chips" id="cf-gltf-finish"></div>'
       + '<p class="hint" id="cf-gltf-finish-read"></p></div>'
+
+      /* LE QUATRIEME EMPLACEMENT DEVIENT UN GESTE. La doctrine « le papier
+         n'emet pas » reste le defaut ; ce champ la surcharge sans changer la
+         matiere : encre luminescente sur papier mat, ou dorure eteinte. */
+      + '<div class="fld"><span class="lbl">Émission</span>'
+      + '<div class="cf-gltf-row">'
+      + '<label class="cf-gltf-num"><input type="number" id="cf-gltf-emi" '
+      + 'min="0" max="1" step="0.05"><i>0..1</i></label>'
+      + '<button class="btn sm" id="cf-gltf-emi-fin" type="button">celle de la finition</button>'
+      + '</div>'
+      + '<p class="hint" id="cf-gltf-emi-read"></p></div>'
 
       + '<div class="fld"><span class="lbl">Épaisseur</span>'
       + '<div class="cf-gltf-row">'
@@ -405,6 +430,13 @@
       set({ thickness_mm: v }, "épaisseur"); paintTh(); markStale("épaisseur");
     });
     numField("#cf-gltf-q", 60, 100, (v) => { set({ jpeg_q: v }, "qualité"); });
+    numField("#cf-gltf-emi", 0, 1, (v) => {
+      set({ emissive: v }, "émission"); paintFinish(); paintEmissive();
+    });
+    $("#cf-gltf-emi-fin").addEventListener("click", () => {
+      set({ emissive: null }, "émission");
+      paintFinish(); paintEmissive();
+    });
 
     const drop = $("#cf-gltf-drop");
     ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => {
@@ -906,6 +938,10 @@
       if (!deck) body.cards = [CF.current ? CF.current() : 0];
       const th = get("thickness_mm");
       if (typeof th === "number" && th > 0) body.thickness_mm = th;
+      /* ABSENT veut dire « celle de la finition » : la cle ne part que si le
+         reglage est pose, le backend ne recoit jamais un defaut recopie. */
+      const emi = get("emissive");
+      if (typeof emi === "number" && isFinite(emi)) body.emissive = emi;
       const d = await M.api.post("build", body);
       BUILD = d.build;
       showBuild(BUILD, false);
@@ -1092,7 +1128,7 @@
      8. PEINTURE
      ═══════════════════════════════════════════════════════════════════════ */
   function paintAll() {
-    paintRes(); paintFinish(); paintTh(); paintImg(); paintFormats();
+    paintRes(); paintFinish(); paintEmissive(); paintTh(); paintImg(); paintFormats();
     paintScope(); paintAtlas(); paintSlip(); paintReadouts(); paintUndo();
     paintViewerEmpty(); paintBits(); paintPivot(); paintViewSeg();
     paintDerive();
@@ -1220,7 +1256,7 @@
       + '">' + esc(f.label) + '</button>').join("");
     $$("#cf-gltf-finish .chip").forEach((b) => b.addEventListener("click", () => {
       set({ finish: b.getAttribute("data-v") }, "finition");
-      paintFinish();
+      paintFinish(); paintEmissive();
     }));
     const read = $("#cf-gltf-finish-read");
     const f = list.filter((x) => x.id === cur)[0];
@@ -1232,14 +1268,49 @@
          clic. Meme chose pour les extensions : la liste vient du backend, donc
          l'ecran ne peut pas promettre un KHR_* qui ne sera pas emis. */
       const ext = (f.extensions || []);
+      const ov = get("emissive");
+      const eff = emissiveEff();
       read.innerHTML = 'rugosité <b>' + f.roughness + '</b> · métal <b>' + f.metallic
         + '</b> · vernis <b>' + f.clearcoat + '</b> · émission <b'
-        + (f.emissive ? '' : ' class="cf-gltf-ok"') + '>' + (f.emissive != null ? f.emissive : 0)
-        + '</b>' + (f.emissive ? '' : ' <i>(le papier n\'émet pas de lumière)</i>')
+        + (eff ? '' : ' class="cf-gltf-ok"') + '>' + eff + '</b>'
+        + (ov != null ? ' <i>(réglage local — prime sur la finition)</i>'
+          : (eff ? '' : ' <i>(le papier n\'émet pas de lumière)</i>'))
         + '<br>cuits dans les maps, facteurs glTF à 1.0 · extensions écrites : <b>'
         + (ext.length ? esc(ext.join(", ")) : "aucune") + '</b>';
     } else if (read) {
       read.textContent = "les niveaux sont cuits dans les maps ; les facteurs glTF restent à 1.0";
+    }
+  }
+
+  function paintEmissive() {
+    const inp = $("#cf-gltf-emi");
+    const ov = get("emissive");
+    const lim = (INFO && INFO.emissive_limits) || [0, 1];
+    if (inp) {
+      inp.min = String(lim[0]);
+      inp.max = String(lim[1]);
+      if (document.activeElement !== inp) {
+        inp.value = (typeof ov === "number") ? String(ov) : "";
+      }
+      inp.placeholder = String(emissiveEff());
+    }
+    const btn = $("#cf-gltf-emi-fin");
+    if (btn) btn.disabled = (ov == null);
+    const read = $("#cf-gltf-emi-read");
+    if (!read) return;
+    if (ov == null) {
+      read.innerHTML = 'celle de la finition : <b>' + emissiveEff() + '</b>'
+        + (emissiveEff() > 0
+          ? ' — la map émission part câblée (emissiveTexture + map_Ke)'
+          : ' — à 0, aucune map émission n\'est écrite. Posez une valeur pour '
+            + 'la câbler sans changer la matière (encre luminescente).');
+    } else if (ov > 0) {
+      read.innerHTML = 'réglage local <b>' + ov + '</b> — la map émission part '
+        + 'câblée des deux côtés (emissiveTexture dans le GLB, map_Ke dans le '
+        + 'MTL), le facteur du fichier vaudra [' + ov + ', ' + ov + ', ' + ov + ']';
+    } else {
+      read.innerHTML = 'réglage local <b>0</b> — émission éteinte, la map '
+        + 'n\'est pas écrite (même sur dorure ou holographique)';
     }
   }
 
@@ -2104,13 +2175,11 @@
        relit. Un chiffre qu'on ne peut pas prouver sur des octets ne s'affiche
        plus ici du tout ; c'est la REGLE qui est ecrite, et le bordereau
        comptera ce que le fichier porte. */
-    const emet = ((INFO && INFO.finishes) || [])
-      .filter((x) => x.id === get("finish"))[0];
     const lignes = [];
     if (f.indexOf("glb") >= 0) lignes.push("un <b>.glb</b> — géométrie, "
-      + "matériau, textures" + ((emet && emet.emissive > 0) ? ""
-        : " (cette finition n\'émet pas : aucune texture émissive, elle serait "
-          + "multipliée par zéro)"));
+      + "matériau, textures" + (emissiveEff() > 0 ? ""
+        : " (émission à zéro : aucune texture émissive, elle serait "
+          + "multipliée par zéro — voir le réglage Émission)"));
     if (f.indexOf("gltf") >= 0) lignes.push("un <b>.gltf</b> autonome — buffer en data URI, aucun <i>.bin</i> à côté");
     /* « les 8 maps » était un 8 écrit ici ; il est ensuite venu du backend,
        ce qui le rendait juste mais toujours pas PROUVÉ : rien n'est écrit,
@@ -2119,8 +2188,8 @@
        nombre annoncé avant la construction n'est vérifiable sur aucun octet :
        il ne s'affiche plus qu'au bordereau, où il est compté sur l'archive. */
     if (f.indexOf("zip") >= 0) lignes.push("un <b>.zip</b> — les maps PNG (une "
-      + "par canal dérivé, l\'émission seulement si la finition émet), le "
-      + "manifeste, le maillage OBJ et son MTL");
+      + "par canal dérivé, l\'émission seulement si elle est non nulle — "
+      + "finition ou réglage), le manifeste, le maillage OBJ et son MTL");
     if (f.indexOf("obj") >= 0 && f.indexOf("zip") < 0)
       lignes.push("un <b>OBJ + MTL</b> en millimètres, avec ses maps");
     if (f.indexOf("stl") >= 0) lignes.push("un <b>.stl</b> binaire en millimètres");

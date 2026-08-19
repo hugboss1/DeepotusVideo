@@ -1959,7 +1959,11 @@ def test_la_portee_des_niveaux_cuits_est_ecrite_et_reste_vraie():
     txt = voisin.read_text(encoding="utf-8")
     j = txt.index("def build_maps(")
     corps = txt[j:j + 700]
-    assert "props_of(opt[\"finish\"])" in corps, corps
+    # préfixe, pas l'appel entier : le réglage d'émission de l'export s'est
+    # ajouté en second argument (opt.get("emissive")) et il vient LUI AUSSI
+    # d'`opt` — la garantie reste : les niveaux recuits de l'Export 3D
+    # viennent de SA finition, jamais de `texture.pbr`.
+    assert "props_of(opt[\"finish\"]" in corps, corps
     assert "texture" not in corps, \
         "l'export 3D lit desormais texture.pbr : notre phrase est perimee"
 

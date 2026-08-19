@@ -2345,7 +2345,12 @@
       ? '<span class="mono">Fenêtre d\'illustration : la pose y tient entière, aucun recadrage.</span>'
       : '<span class="cf-face-crop"><b>' + fmt1(p) + ' % de la pose tient dans la fenêtre '
         + 'd\'illustration</b> — les ' + fmt1(100 - p) + ' % restants en sortent et sont '
-        + 'coupés. Passez en « Contenir » pour tout garder, ou déplacez la pose.</span>';
+        + 'coupés. Passez en « Contenir » pour tout garder, ou déplacez la pose.'
+        /* le chiffre etait honnete, le geste manquait : la correction s'offre
+           A COTE de la mesure, et seulement si elle changerait quelque chose. */
+        + (poseCalee() ? '' : ' <button class="btn sm" type="button" '
+          + 'data-fix="window">Recadrer sur la fenêtre</button>')
+        + '</span>';
     return dans + maskLine();
   }
 
@@ -2605,6 +2610,31 @@
     M.patch({ fit: "free", scale: g.dpi / DPI_TARGET, scale_y: g.dpi / DPI_TARGET });
     CF.toast("posée à " + DPI_TARGET + " DPI exactement");
     renderPanel();
+  }
+
+  /* ── LA CORRECTION EN UN CLIC QUI MANQUAIT ──────────────────────────────
+     Reste connu du commit de cloture, nomme par les critiques : le cadrage
+     par defaut laissait jusqu'a 70 % de l'illustration sous le cadre selon le
+     gabarit — le panneau le CHIFFRAIT honnetement (cropLine / maskLine) sans
+     offrir le geste qui corrige. Le voici : la pose revient au centre de la
+     fenetre d'illustration EFFECTIVE (celle que P2 publie desormais sous
+     `frame.art_window` — voir `frameWindow`), en « couvrir », echelle 1.
+     Par construction la fenetre est couverte sans trou ; seul le debord de
+     format (cover) reste, et la ligne de mesure continue de le chiffrer. */
+  function fixWindow() {
+    if (!LAST.has) return;
+    pushUndo();
+    M.patch({ win: "auto", fit: "cover", x: 0, y: 0, scale: 1, scale_y: 1 });
+    CF.toast("pose recadrée sur la fenêtre d'illustration");
+    renderPanel();
+  }
+
+  /* la pose est-elle deja calee sur la fenetre ? (le bouton ne s'offre pas
+     pour un geste qui ne changerait rien) */
+  function poseCalee() {
+    const f = CF.doc().face || {};
+    return f.fit === "cover" && !Number(f.x) && !Number(f.y)
+      && Number(f.scale) === 1 && String(f.win || "auto") === "auto";
   }
 
   /* ── grilles ──────────────────────────────────────────────────────────── */
@@ -3015,6 +3045,9 @@
       + '</div>'
       + '<div class="btn-row cf-face-acts">'
       + '<button class="btn sm" type="button" id="cf-face-center">Recentrer</button>'
+      + '<button class="btn sm" type="button" id="cf-face-fitwin" '
+      + 'title="pose en « couvrir » au centre de la fenêtre d\'illustration">'
+      + 'Recadrer sur la fenêtre</button>'
       + '<button class="btn sm" type="button" id="cf-face-reset">Réinitialiser</button>'
       + '<button class="btn sm" type="button" id="cf-face-undo">Annuler</button>'
       + '<button class="btn sm" type="button" id="cf-face-redo">Rétablir</button>'
@@ -3655,6 +3688,13 @@
       renderPanel();
     });
     q("#cf-face-center").addEventListener("click", () => { pushUndo(); M.patch({ x: 0, y: 0 }); renderPanel(); });
+    q("#cf-face-fitwin").addEventListener("click", fixWindow);
+    /* la jauge repeint son HTML a chaque mesure : le clic est delegue au
+       conteneur, qui survit aux repeintures. */
+    q("#cf-face-gauge").addEventListener("click", (e) => {
+      const b = e.target.closest('button[data-fix="window"]');
+      if (b) fixWindow();
+    });
     q("#cf-face-reset").addEventListener("click", () => {
       pushUndo();
       M.patch({ x: 0, y: 0, scale: 1, scale_y: 1, rot: 0, fit: "cover", lock: true });
@@ -3776,9 +3816,15 @@
       const g = CF.geom(), f = CF.doc().face;
       const s = prevScale(cv);
       const r = cv.getBoundingClientRect();
-      /* zoom SOUS LE CURSEUR : le point vise ne bouge pas. */
-      const px = ((e.clientX - r.left) / s) - g.canvas_px[0] / 2;
-      const py = ((e.clientY - r.top) / s) - g.canvas_px[1] / 2;
+      /* zoom SOUS LE CURSEUR : le point vise ne bouge pas. Le repere est le
+         CENTRE DE LA FENETRE d'illustration — le meme que celui du painter
+         (`ctx.translate(bx + bw/2 + ox, ...)`). Il valait `canvas_px / 2` :
+         exact tant que la fenetre « auto » retombait sur la toile entiere,
+         faux au premier cadre qui publie la sienne — le point sous le curseur
+         aurait derive a chaque cran de molette. */
+      const win = artWindow(g);
+      const px = ((e.clientX - r.left) / s) - (win[0] + win[2] / 2);
+      const py = ((e.clientY - r.top) / s) - (win[1] + win[3] / 2);
       const old = clampNum(f.scale, SCALE_MIN, SCALE_MAX, 1);
       const k = Math.exp(-e.deltaY * 0.0016);
       const ns = clampNum(old * k, SCALE_MIN, SCALE_MAX, old);

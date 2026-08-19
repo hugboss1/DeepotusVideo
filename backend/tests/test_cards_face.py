@@ -2575,5 +2575,49 @@ def test_l_inventaire_des_metadonnees_du_fichier_livre_est_fige():
     assert "C:\\" not in entier and "/Users/" not in entier
 
 
+def test_le_cadrage_se_corrige_en_un_clic():
+    """RESTE CONNU DU COMMIT DE CLÔTURE, nommé par les critiques : le cadrage
+    par défaut laissait jusqu'à 70 % de l'illustration sous le cadre selon le
+    gabarit — le panneau le chiffrait honnêtement, sans offrir la correction.
+
+    Trois choses se vérifient dans la source servie :
+    1. le geste existe, aux DEUX endroits : un bouton permanent dans la rangée
+       d'actions, et une offre contextuelle À CÔTÉ du chiffre (data-fix), qui
+       ne s'affiche pas quand la pose est déjà calée — un bouton qui ne
+       changerait rien serait du décor ;
+    2. la correction est un patch de pose complet (fenêtre auto, couvrir,
+       centre, échelle 1) avec annulation — le patron de `fixShrink` ;
+    3. le zoom molette se réfère au centre de la FENÊTRE, le même repère que
+       le painter — `canvas_px / 2` n'était exact que tant que le mode auto
+       retombait sur la toile entière (la fenêtre du cadre est désormais
+       publiée, voir test_cards_frame)."""
+    code = js_code()
+
+    # 1. les deux offres
+    assert 'id="cf-face-fitwin"' in code, "le bouton permanent manque"
+    corps = code.split("function cropLine(")[1].split("\n  }")[0]
+    assert 'data-fix="window"' in corps, "l'offre n'est plus à côté du chiffre"
+    assert "poseCalee()" in corps, \
+        "le bouton doit s'effacer quand la pose est déjà calée"
+
+    # 2. la correction, patron fixShrink : pushUndo -> patch -> toast -> rendu
+    fx = code.split("function fixWindow(")[1].split("\n  }")[0]
+    assert "pushUndo()" in fx
+    for cle in ('win: "auto"', 'fit: "cover"', "x: 0", "y: 0", "scale: 1"):
+        assert cle in fx, f"fixWindow ne pose plus {cle}"
+    assert "renderPanel()" in fx
+    # ...et le clic délégué survit aux repeintures de la jauge
+    assert 'closest(\'button[data-fix="window"]\')' in code
+
+    # 3. la molette zoome au centre de la fenêtre, pas de la toile
+    roue = code.split('addEventListener("wheel"')[1].split("passive")[0]
+    assert "artWindow(g)" in roue, "la molette ignore la fenêtre"
+    assert "canvas_px[0] / 2" not in roue, \
+        "le zoom se réfère encore au centre de la toile"
+
+    # le contrat a deux bouts : P1 lit ce que P2 publie (lecture inchangée)
+    assert 'CF.get("frame.art_window"' in code
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

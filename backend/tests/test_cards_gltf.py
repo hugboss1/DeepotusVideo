@@ -3964,5 +3964,105 @@ def test_l_ecran_dit_OU_va_le_fichier_et_ce_qu_il_devient():
     assert ":" not in m["dir"] and "\\" not in m["dir"], m["dir"]
 
 
+def test_l_emission_reglee_a_la_main_prime_sur_la_finition():
+    """LE QUATRIÈME EMPLACEMENT N'ÉTAIT ATTEIGNABLE PAR AUCUN GESTE. La
+    doctrine « le papier n'émet pas » est juste et reste le DÉFAUT — mais elle
+    faisait de la finition le seul chemin vers l'émission : pour qu'une map
+    parte câblée il fallait changer TOUTE la matière (dorure ou holographique,
+    avec leur métal et leur clearcoat). Une carte en papier mat à encre
+    luminescente n'avait aucun fichier possible.
+
+    Le réglage `emissive` (0..1) prime sur la finition. Tout se vérifie sur
+    les octets : le facteur du GLB, la texture pointée, la map dans l'archive,
+    le map_Ke relu dans le MTL, et le POIDS — l'émission branchée coûte sa
+    texture, comme pour la dorure (c'est l'assertion qui donne son autorité à
+    `test_aucune_texture_multipliee_par_zero`)."""
+    did = _deck("Encre luminescente")
+    _depose_atlas(did, 256)
+
+    temoin = _build(did, res=256, formats=["glb", "zip"], finish="mat")
+    o_mat = _par_genre(temoin, "glb")["bytes"]
+    # relu MAINTENANT : le build suivant écrase les fichiers du même nom
+    doc0, _ = G8._glb_read(_fichier(did, _par_genre(temoin, "glb")["name"]))
+
+    b = _build(did, res=256, formats=["glb", "zip"], finish="mat",
+               emissive=0.55)
+    # le GLB : facteur réglé, texture pointée — relu dans les octets
+    doc, _ = G8._glb_read(_fichier(did, _par_genre(b, "glb")["name"]))
+    m = doc["materials"][0]
+    assert m["emissiveFactor"] == [0.55, 0.55, 0.55], m["emissiveFactor"]
+    assert m.get("emissiveTexture") is not None
+    rep = b["cards"][0]["glb"]
+    assert rep["emits_light"] is True and rep["texture_count"] == 4, rep
+    assert _par_genre(b, "glb")["bytes"] > o_mat, \
+        "l'émission branchée doit peser PLUS : c'est la texture en question"
+
+    # l'archive : la map est là, et le MTL la pointe (relecture indépendante)
+    z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
+    assert "emissive.png" in z.namelist()
+    nom_mtl = [n for n in z.namelist() if n.endswith(".mtl")][0]
+    lignes = z.read(nom_mtl).decode("utf-8").splitlines()
+    assert any(l.split() == ["map_Ke", "emissive.png"] for l in lignes), lignes
+    assert b["cards"][0]["wiring"]["wired"]["emissive"] == ["map_Ke"]
+
+    # la valeur réglée arrive dans les manifestes — celui de l'archive et le
+    # bordereau — et les extras DU FICHIER LIVRÉ disent d'où elle vient
+    man = json.loads(z.read("manifest.json").decode("utf-8"))
+    assert man["options"]["emissive"] == 0.55, man["options"]
+    assert b["options"]["emissive"] == 0.55
+    ex = (doc.get("asset") or {}).get("extras", {}).get("render", {})
+    assert ex.get("emissive") == 0.55, ex
+    assert "réglage" in str(ex.get("emissive_source")), ex
+
+    # ...et le mat SANS réglage n'avait pas bougé d'un octet de doctrine
+    assert doc0["materials"][0]["emissiveFactor"] == [0.0, 0.0, 0.0]
+
+
+def test_l_emission_forcee_a_zero_eteint_une_dorure():
+    """LE MÊME RÉGLAGE, DANS L'AUTRE SENS : à 0 sur une dorure, la carte garde
+    son métal et son clearcoat mais n'émet plus — et la map redevient ce
+    qu'elle est quand rien ne peut la pointer : absente, pas orpheline."""
+    did = _deck("Dorure eteinte")
+    _depose_atlas(did, 256)
+    b = _build(did, res=256, formats=["glb", "zip"], finish="foil", emissive=0)
+    doc, _ = G8._glb_read(_fichier(did, _par_genre(b, "glb")["name"]))
+    m = doc["materials"][0]
+    assert m["emissiveFactor"] == [0.0, 0.0, 0.0]
+    assert m.get("emissiveTexture") is None
+    assert b["cards"][0]["glb"]["texture_count"] == 3
+    z = zipfile.ZipFile(io.BytesIO(_fichier(did, _par_genre(b, "zip")["name"])))
+    assert "emissive.png" not in z.namelist(), z.namelist()
+    assert b"map_Ke" not in z.read(
+        [n for n in z.namelist() if n.endswith(".mtl")][0])
+    # le métal de la dorure, lui, n'a pas bougé : le réglage ne touche QUE
+    # l'émission
+    assert b["cards"][0]["glb"]["metallicFactor"] == 1.0
+    assert "KHR_materials_clearcoat" in b["cards"][0]["glb"]["extensions"]
+
+
+def test_le_reglage_d_emission_est_borne_publie_et_jamais_500():
+    """Les bornes sont PUBLIÉES par `/info` (jamais recopiées par l'écran), et
+    un corps mal formé ne fait jamais 500 (spec 2.5) : n'importe quoi vaut
+    « celle de la finition », l'infini aussi, et 2.5 est ramené à 1.0."""
+    assert G8.clean_emissive(None) is None
+    assert G8.clean_emissive("n'importe quoi") is None
+    assert G8.clean_emissive(float("inf")) is None
+    assert G8.clean_emissive(-3) == 0.0
+    assert G8.clean_emissive(2.5) == 1.0
+    assert G8.clean_emissive(0.4) == 0.4
+
+    did = _deck("Bornes emission")
+    _depose_atlas(did, 256)
+    info = _api("GET", f"/api/cards/{did}/gltf/info").json()
+    assert info["emissive_limits"] == [0.0, 1.0], info.get("emissive_limits")
+
+    # garbage dans le corps -> même comportement qu'absent, en 200
+    r = _api("POST", f"/api/cards/{did}/gltf/build",
+             json={"res": 256, "formats": ["glb"], "finish": "mat",
+                   "emissive": {"tres": "mal forme"}})
+    assert r.status_code == 200, r.text
+    assert r.json()["build"]["options"]["emissive"] is None
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

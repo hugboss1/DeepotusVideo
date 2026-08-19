@@ -2710,3 +2710,42 @@ def test_le_fichier_livre_ne_nomme_pas_son_producteur():
         for mot in interdits:
             assert mot not in (k + " " + v).lower(), \
                 f"stamp_texts porte encore {mot!r} dans {k}"
+
+
+def test_la_fenetre_effective_est_publiee_pour_les_autres_pieces():
+    """LE CONTRAT QUE P1 ATTENDAIT DEPUIS LE PREMIER JOUR. `mod-face.js` lit
+    `frame.art_window` pour caler la pose sur ce que le cadre laisse voir --
+    la cle n'etait jamais ecrite : le mode << auto >> de la fenetre
+    d'illustration retombait TOUJOURS sur la toile entiere, et la pose par
+    defaut laissait jusqu'a 70 % de l'illustration sous le cadre (reste connu
+    du commit de cloture du gauntlet).
+
+    La piece publie desormais la fenetre EFFECTIVE (auto ou manuelle), la
+    meme que `winMM` fait dessiner -- une mesure du calcul qui peint, pas une
+    seconde formule -- differee et gardee par comparaison (un painter qui
+    patche sans garde est une boucle de rendu), et null quand aucune famille
+    ne masque rien."""
+    src = JS.read_text(encoding="utf-8")
+    code = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+
+    # la cle est au schema : sans elle, patchAs refuserait l'ecriture
+    assert "art_window: null" in code
+
+    pub = code.split("function publishWindow(")[1].split("\n  }")[0]
+    # la valeur publiee vient de winMM -- jamais d'une seconde formule
+    assert "winMM(g, f)" in pub
+    assert "0.105" not in pub and "0.79" not in pub, \
+        "la publication recopie la formule au lieu de relire winMM"
+    # null quand rien ne masque
+    assert '"none"' in pub
+    # differee et gardee par comparaison : pas de boucle de rendu
+    assert "setTimeout" in pub and "clearTimeout" in pub
+    assert "M.patch({ art_window: pub })" in pub
+
+    # le painter la publie a chaque rendu (bloc `painters:` du registre)
+    peintres = code.split("painters: [")[1].split("state: DEFAULTS")[0]
+    assert "publishWindow(geom, f)" in peintres
+
+    # le contrat a deux bouts : P1 la lit telle quelle
+    face = (JS.parent / "mod-face.js").read_text(encoding="utf-8")
+    assert 'CF.get("frame.art_window"' in face

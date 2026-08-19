@@ -31,14 +31,38 @@ accès au dépôt ni au web comparent une planche recadrée sur le seul panneau
 jugé, à l'aveugle, côtés tirés au sort. **Les 8 modules sont acquis, sur 32
 duels sans une seule exception.**
 
-## Reste connu, non corrigé
+## Reste connu — soldé le 19/08/2026
 
-- Le canal d'émission du GLB est produit et livré dans l'archive, mais n'est
-  câblé par aucun fichier de maillage (`emissiveFactor 0 0 0`, pas de
-  `emissiveTexture`/`map_Ke`) : présent mais invisible dans un moteur.
-- Le cadrage par défaut de la pose d'illustration laisse jusqu'à 70 % de la
-  face sous le cadre selon le gabarit choisi ; le panneau le chiffre, mais
-  n'offre pas encore de correction en un clic.
+Les deux restes nommés par les critiques à la clôture du gauntlet sont soldés,
+mesures sur les octets à l'appui :
+
+- **Canal d'émission.** Le reproche littéral (« produit et livré dans
+  l'archive, câblé par rien ») ne se reproduisait déjà plus au moment où la
+  note ci-dessus a été écrite : une émission nulle n'embarque plus la map (ni
+  `emissiveTexture`, ni `map_Ke`, ni le PNG), une émission non nulle la livre
+  **câblée des deux côtés** — la note avait une version de retard sur le
+  code, faute d'avoir été re-mesurée. Le trou réel était ailleurs : aucun
+  geste ne permettait d'atteindre le canal sans changer toute la matière
+  (dorure ou holographique). Nouveau réglage **Émission (0..1)** dans
+  l'export 3D, qui prime sur la finition : encre luminescente sur papier mat,
+  ou dorure éteinte — `emissiveFactor` réglé, map câblée dans GLB, glTF et
+  MTL, valeur écrite dans les manifestes, bornes publiées par `/info`, le
+  défaut ne changeant aucun octet. Trois tests sur les octets livrés.
+- **Cadrage de la pose (pièce 01).** Cause première trouvée : le cadre n'a
+  **jamais publié sa fenêtre** — `frame.art_window`, la clé que la face lit
+  depuis le premier jour, n'était écrite par personne, donc le mode « auto »
+  retombait toujours sur la toile entière et la pose par défaut passait sous
+  le cadre. Le cadre publie désormais sa fenêtre effective (relue sur le
+  calcul qui peint, pas une seconde formule), la molette zoome dans le repère
+  de la fenêtre (le même que le painter), et la correction s'offre **en un
+  clic** — bouton du panneau et offre contextuelle à côté du chiffre de
+  masquage, qui s'efface quand la pose est déjà calée.
+
+Reste connu, non corrigé : l'émission est bornée à 1.0
+(`KHR_materials_emissive_strength` n'est pas implémenté — un halo plus fort
+ne s'exporte pas), et le contenu de la map d'émission reste dérivé de la
+luminance de la carte (seuil réglable) : pas encore de masque d'émission
+peint à la main.
 
 ---
 

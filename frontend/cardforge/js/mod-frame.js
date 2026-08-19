@@ -128,6 +128,13 @@
     corner: "scroll", gem: true, banner: true, banner_text: "",
     plate: true, plate_alpha: 0.92,
     window: null, win_lock: false,
+    /* la fenetre EFFECTIVE, publiee pour les autres pieces : [x, y, w, h] en
+       mm depuis la coupe, ou null quand aucun cadre ne masque rien. C'est le
+       contrat que P1 lit (`frame.art_window`) depuis le premier jour — la
+       cle n'existait pas, la lecture tombait toujours sur la toile entiere,
+       et la pose par defaut laissait jusqu'a 70 % de l'illustration sous le
+       cadre. Publiee par `publishWindow`, jamais saisie a la main. */
+    art_window: null,
     back: "guilloche", back_same: true, back_label: true,
     /* le modele d'occupation — actif par defaut : livrer un fichier ou la
        signature de l'artiste passe sous le ruban n'est pas un reglage. */
@@ -234,6 +241,32 @@
       };
     }
     return { x: r2(tw * 0.105), y: r2(th * 0.075), w: r2(tw * 0.79), h: r2(th * 0.505), r: 2.5, auto: true };
+  }
+
+  /* ── LA FENETRE, PUBLIEE — le contrat que P1 attendait deja ──────────────
+     `mod-face.js` lit `frame.art_window` pour caler la pose sur ce que le
+     cadre laisse voir. La cle n'etait jamais ecrite : le mode « auto » de la
+     pose retombait TOUJOURS sur la toile entiere, et une carte a cadre posait
+     son illustration en cover sur 100 % de la toile pour n'en montrer que la
+     fenetre. On publie donc la fenetre EFFECTIVE (auto ou manuelle, la meme
+     que `winMM` fait dessiner), en mm depuis la coupe — une mesure du calcul
+     qui peint, pas une seconde formule. Differee et gardee par comparaison :
+     un painter qui patche sans garde serait une boucle de rendu. */
+  let WINPUB = null;
+  function publishWindow(g, f) {
+    const w = (f.family === "none") ? null : winMM(g, f);
+    const pub = w ? [r2(w.x), r2(w.y), r2(w.w), r2(w.h)] : null;
+    const cur = CF.get("frame.art_window", null);
+    const same = (pub === null)
+      ? (cur === null || cur === undefined)
+      : (Array.isArray(cur) && cur.length === 4
+        && cur.every((v, i) => Math.abs(Number(v) - pub[i]) < 0.005));
+    if (same) return;
+    if (WINPUB) clearTimeout(WINPUB);
+    WINPUB = setTimeout(() => {
+      WINPUB = null;
+      M.patch({ art_window: pub });
+    }, 120);
   }
 
   function model(g, f) {
@@ -1780,6 +1813,7 @@
       {
         z: 40, fn(ctx, geom, doc, card, side) {
           const f = st(doc);
+          publishWindow(geom, f);
           if (side === "back") paintBack(ctx, geom, f, card, doc);
           else paintFront(ctx, geom, f, card, doc);
         },

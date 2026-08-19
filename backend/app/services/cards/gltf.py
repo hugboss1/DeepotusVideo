@@ -882,6 +882,39 @@ def clean_finish(raw) -> str:
     return s if s in FINISHES else DEFAULT_FINISH
 
 
+def clean_emissive(raw) -> float | None:
+    """Émission réglée à la main, 0..1. None = « celle de la finition ».
+
+    LE QUATRIÈME EMPLACEMENT N'ÉTAIT ATTEIGNABLE PAR AUCUN GESTE. La doctrine
+    « le papier n'émet pas » est juste, et elle reste le DÉFAUT — mais elle
+    faisait de la finition le seul chemin vers l'émission : pour qu'une map
+    d'émission parte câblée, il fallait changer TOUTE la matière (dorure ou
+    holographique, avec leur métal et leur clearcoat). Une carte en papier mat
+    à encre luminescente n'avait aucun fichier possible. Le réglage prime sur
+    la finition quand il est posé ; absent, rien ne bouge d'un octet."""
+    if raw is None:
+        return None
+    try:
+        v = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(v):
+        return None
+    return float(0.0 if v < 0.0 else 1.0 if v > 1.0 else v)
+
+
+def emissive_of(opt: dict) -> float:
+    """L'émission EFFECTIVE d'un export : le réglage s'il est posé, sinon
+    celle de la finition. C'est la SEULE source — GLB, MTL, archives et
+    notices la lisent tous d'ici (deux tables pour un même réglage, c'est un
+    curseur qui ment)."""
+    ov = opt.get("emissive")
+    if ov is not None:
+        return float(ov)
+    f = FINISHES.get(opt.get("finish")) or FINISHES[DEFAULT_FINISH]
+    return float(f.get("emissive", 0.0))
+
+
 def clean_formats(raw) -> list[str]:
     """Liste blanche, ordre stable, jamais vide (glb au minimum)."""
     if isinstance(raw, str):
@@ -918,6 +951,9 @@ def clean_options(body) -> dict:
         "thickness_mm": (None if b.get("thickness_mm") is None else
                          _num(b.get("thickness_mm"), THICKNESS_MM_DEFAULT,
                               THICKNESS_MM_MIN, THICKNESS_MM_MAX)),
+        # ABSENT veut dire « celle de la finition ». Voir `clean_emissive` :
+        # le défaut ne change pas un octet des exports existants.
+        "emissive": clean_emissive(b.get("emissive")),
         "pivot": (str(b.get("pivot") or "").strip().lower()
                   if str(b.get("pivot") or "").strip().lower() in PIVOTS
                   else DEFAULT_PIVOT),
@@ -928,12 +964,15 @@ def clean_options(body) -> dict:
     }
 
 
-def props_of(finish: str) -> dict:
+def props_of(finish: str, emissive: float | None = None) -> dict:
     """Props de matière pour `gltf_builder.build_glb`.
 
     `tiling` reste à 1.0 et `rotation` à 0.0 : un `KHR_texture_transform` sur
     un ATLAS ferait déborder les îlots recto / verso / tranche les uns sur les
-    autres (piège 12 de la spec)."""
+    autres (piège 12 de la spec).
+
+    `emissive` : le réglage de l'export (0..1) quand il est posé — il PRIME
+    sur la finition. None = celle de la finition, à l'octet près comme avant."""
     f = FINISHES.get(finish) or FINISHES[DEFAULT_FINISH]
     p = {
         "color": "#ffffff", "opacity": 1.0,
@@ -941,7 +980,8 @@ def props_of(finish: str) -> dict:
         # `emissive_strength` MULTIPLIE la couleur : à 0.0 le fichier porte
         # `emissiveFactor = [0,0,0]` et la carte n'émet rien. Voir FINISHES.
         "emissive": "#ffffff",
-        "emissive_strength": float(f.get("emissive", 0.0)),
+        "emissive_strength": (float(f.get("emissive", 0.0))
+                              if emissive is None else float(emissive)),
         "clearcoat": f["clearcoat"],
         "clearcoat_roughness": f["clearcoat_roughness"],
         "sheen": f.get("sheen", 0.0),
@@ -2362,7 +2402,15 @@ def card_extras(g: CardGeom, th_mm: float, res_w: int, res_h: int,
             "roughness": fin["roughness"],
             "metallic": fin["metallic"],
             "clearcoat": fin["clearcoat"],
-            "emissive": float(fin.get("emissive", 0.0)),
+            # L'ÉMISSION EFFECTIVE, pas celle de la table : le MTL (`build_obj`
+            # lit `extras["render"]["emissive"]`) et le GLB (`props_of`) la
+            # tirent tous deux d'`emissive_of` — s'ils lisaient deux tables,
+            # un réglage manuel les ferait diverger et la map redeviendrait
+            # orpheline dans l'une des deux archives.
+            "emissive": emissive_of(opt),
+            "emissive_source": ("réglage de l'export"
+                                if opt.get("emissive") is not None
+                                else "finition"),
             "wrap": "CLAMP_TO_EDGE",
         },
         "maps": {
@@ -2385,7 +2433,7 @@ def build_maps(atlas, opt: dict, derive: dict) -> tuple[dict, dict]:
     """Les 8 maps, cuites. Rend (maps, rapport)."""
     from app.services import pbr_service as PBR
     maps = PBR.derive_maps(atlas, derive)
-    maps = PBR.bake_levels(maps, props_of(opt["finish"]))
+    maps = PBR.bake_levels(maps, props_of(opt["finish"], opt.get("emissive")))
     report = PBR.map_report(maps, base=maps.get("basecolor"))
     report["effective"] = PBR.effective_levels(maps)
     return maps, report
@@ -2909,7 +2957,7 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
     # objets, et le volume en mm3 n'existait que dans l'un des deux.
     if isinstance(extras.get("mesh"), dict):
         mrep = extras["mesh"]
-    props = props_of(opt["finish"])
+    props = props_of(opt["finish"], opt.get("emissive"))
     name = f"{slug_of(doc)}_c{idx + 1:02d}"
     dens = atlas_density(g, res_w, res_h, th, mesh)
     # Le pHYs se calcule sur le rapport EXACT, pas sur `px_per_mm` qui est
@@ -2961,9 +3009,10 @@ def build_one(doc: dict, idx: int, opt: dict) -> dict:
         # que la finition émet (dorure, holographique), la map est écrite,
         # `emissiveTexture` la pointe dans le GLB et `map_Ke` dans le MTL.
         extras["maps"]["skipped_reason"] = {
-            "emissive_factor": 0.0, "still_in": None,
+            "emissive_factor": float(props.get("emissive_strength") or 0.0),
+            "still_in": None,
             "why": "aucun materiau ne pourrait la pointer : le facteur "
-                   "d'emission de cette finition est nul"}
+                   "d'emission de cet export est nul"}
     t1 = time.perf_counter()
     with _mesh_context(mesh):
         # CTX_MESH, pas "card" : la clé « card » peut appartenir à P5 et
@@ -3326,7 +3375,8 @@ def _manifest(extras: dict, entries: list, depth: dict, report: dict,
             "report": report,
         },
         "options": {k: opt.get(k) for k in
-                    ("res", "finish", "bits16", "img", "jpeg_q", "formats")},
+                    ("res", "finish", "emissive", "bits16", "img", "jpeg_q",
+                     "formats")},
         # ── CE BLOC S'APPELAIT « conformance », ET SA PHRASE « verdict » ────
         # Deux mots de correcteur dans un fichier remis a un tiers : ils
         # posent qu'il existe, quelque part, une grille a laquelle ce ZIP se
@@ -3543,8 +3593,9 @@ def _readme(extras: dict, entries: list, opt: dict,
         "  le MTL, emissiveTexture dans le GLB, emissive.png dans l'archive.",
     ] if "emissive" in _noms else [
         "  A 0, aucun materiau ne pourrait pointer une map d'emission : elle",
-        "  n'est donc pas ecrite dans cette archive. Choisissez la dorure ou",
-        "  l'holographique pour obtenir le quatrieme emplacement branche.",
+        "  n'est donc pas ecrite dans cette archive. Montez le reglage",
+        "  d'emission de l'export — ou choisissez la dorure ou",
+        "  l'holographique — pour obtenir le quatrieme emplacement branche.",
     ])
     lines += [
         "",
@@ -3567,10 +3618,13 @@ def _readme(extras: dict, entries: list, opt: dict,
         "  bord droit va chercher la colonne 0, c'est-a-dire l'autre face de",
         "  la carte.",
         "",
-        f"  Emission de cette finition : {extras['render']['emissive']}. Les",
-        "  finitions papier (mat, satine, vernis) sortent a 0 : une carte",
-        "  imprimee n'emet pas de lumiere. Dorure et holographique gardent une",
-        "  emission faible, sans quoi elles rendent grises hors HDRI.",
+        f"  Emission de ce fichier : {extras['render']['emissive']}"
+        f" ({extras['render']['emissive_source']}).",
+        "  Les finitions papier (mat, satine, vernis) sortent a 0 par defaut :",
+        "  une carte imprimee n'emet pas de lumiere. Dorure et holographique",
+        "  gardent une emission faible, sans quoi elles rendent grises hors",
+        "  HDRI. Le reglage d'emission de l'export prime sur la finition",
+        "  quand il est pose.",
         *_emi,
         "",
         "  height n'a pas d'equivalent en glTF coeur : il n'est que dans ce",
@@ -3595,8 +3649,9 @@ def build_deck_zip(doc: dict, rows: list, opt: dict) -> dict:
             "schema": DECK_MANIFEST_SCHEMA,
             "deck": {"id": did, "name": doc.get("name"),
                      "cards": len(rows)},
-            "options": {k: opt[k] for k in ("res", "finish", "bits16", "img",
-                                            "jpeg_q", "formats")},
+            "options": {k: opt[k] for k in ("res", "finish", "emissive",
+                                            "bits16", "img", "jpeg_q",
+                                            "formats")},
             "files": [{"card": r["name"], "files": r["files"]} for r in rows],
         }, ensure_ascii=False, indent=2))
     data = buf.getvalue()
@@ -3759,8 +3814,9 @@ async def get_info(did: str, res: str | None = None):
         "format_rows": [
             {"id": "glb", "label": "GLB",
              "note": "géométrie + matériau + textures, un seul fichier "
-                     "(la texture émissive n'est embarquée que si la finition "
-                     "émet vraiment)"},
+                     "(la texture émissive n'est embarquée que si l'émission "
+                     "est non nulle — celle de la finition, ou le réglage "
+                     "de l'export)"},
             {"id": "gltf", "label": "glTF",
              "note": "le même en JSON, buffer en data URI — aucun .bin à côté"},
             # LE COMPTE N'EST PLUS ANNONCÉ ICI. Il dépend de la finition
@@ -3840,6 +3896,10 @@ async def get_info(did: str, res: str | None = None):
                    "keys_known": list(derive_keys())},
         "img_formats": list(IMG_FORMATS),
         "thickness_limits": [THICKNESS_MM_MIN, THICKNESS_MM_MAX],
+        # Le réglage d'émission : bornes publiées ICI, jamais recopiées par
+        # l'écran (même motif que `thickness_limits`). None = « celle de la
+        # finition » — le défaut, qui ne change aucun octet.
+        "emissive_limits": [0.0, 1.0],
         # ── CE QUI SE MESURE, ET RIEN D'AUTRE ──────────────────────────────
         # Cette clé servait deux choses au même endroit : une auto-déclaration
         # (« 0 crédit, 0 compte, 0 plafond, 0 rétention ») et un relevé de
