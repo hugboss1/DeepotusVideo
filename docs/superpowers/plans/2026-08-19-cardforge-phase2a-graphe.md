@@ -659,6 +659,12 @@ Points imposés (le corps suit les patrons déjà en place dans ce fichier) :
   absente → 409 motivé (« exporte les couches d'abord ») ;
 - `plane` → `quad_mesh` + z du nœud ; `relief` → `relief_mesh` sur le canal alpha de
   la couche + z ; l'ORDRE des éléments = l'ordre des nœuds du graphe ;
+- OBLIGATIONS héritées de la revue du writer (chiffrées) : **409 motivé si ZÉRO
+  élément résolu** (couches livrées mais toutes les sources jetées — un GLB à 0
+  élément est invalide au schéma glTF, minItems 1) ; **plafond de 12 éléments**
+  (6 rôles × 2 côtés — au-delà, 400 nommé) ; le POIDS de chaque fichier au
+  bordereau (déjà prévu — pire cas mesuré : ~40 Mo à 300 DPI avec 2 reliefs au
+  grid max, ~12,7 Mo de géométrie par relief) ;
 - `write_scene_glb(elements, name, extras)` avec extras {deck, card, format,
   size_mm, unit: "metre", schema: "card-3d/artifact@1"} ;
 - **metadata.json ERC-721** :
