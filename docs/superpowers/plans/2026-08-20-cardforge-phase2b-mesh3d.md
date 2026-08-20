@@ -1087,6 +1087,25 @@ git commit -m "feat(cardforge): job mesh3d par noeud - 5 moteurs fal + meshy-6/7
 
 ### Task 5: Matières, transform et finitions holographiques dans le writer
 
+> **LIVRÉE (eb8fd47) — amendements actés, qui PRÉVALENT sur les extraits
+> ci-dessous. FAUTE DU PLAN corrigée :** la texture d'anisotropie du plan
+> mettait **B = 0** — or `KHR_materials_anisotropy` MULTIPLIE
+> `anisotropyStrength` par le canal BLEU de la texture : à B=0 l'effet est
+> invisiblement mort. Livré : **B = 255** (force pleine, modulée par le
+> facteur 0.85). **Autres amendements :** (1) `tile_maps` vit dans
+> `forge3d.py`, PAS dans le module scène — il dépend de `material_store`, la
+> pureté du module scène (prouvée par test) prime sur le placement littéral ;
+> `material_pngs`/`holo_finish`/`HOLO_KINDS` sont réexportés par forge3d.py ;
+> (2) textures holo VECTORISÉES (bytearray par lignes + frombytes, octets
+> IDENTIQUES prouvés : 4,49 s → ~1,1 s au 1024²) ; `out_px` borné 8..4096 ;
+> `holo_finish` lève une ValueError nommée sur kind inconnu ; `tile_maps`
+> refuse les dimensions non positives (jamais un ZeroDivisionError nu) ;
+> (3) sortie 2a inchangée PROUVÉE à l'octet (module parallèle chargé depuis
+> HEAD) ; TANGENT VEC4 aux bornes exactes. **Legs à la Task 6 :** mémo
+> `(kind, aniso, px)` sur holo_finish si appelé par élément (1,26 s pièce) ;
+> l'assert de pas de tuilage du test est creux (map uniforme) — à durcir en
+> passe de finition. Étapes cochées.
+
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py`
 - Test: `backend/tests/test_cards_forge3d.py`
@@ -1098,7 +1117,7 @@ aucun KHR_texture_transform à porter). Finitions §6.2bis-c : recettes argent/d
 `KHR_materials_iridescence` + `KHR_materials_clearcoat` (+ `KHR_materials_anisotropy`
 si demandé, avec l'attribut TANGENT), le tout dans **`extensionsUsed` UNIQUEMENT**.
 
-- [ ] **Step 1 : tests en RED**
+- [x] **Step 1 : tests en RED**
 
 ```python
 def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
@@ -1235,7 +1254,7 @@ def test_le_transform_porte_le_trs_du_noeud():
 
 Run : FAIL (material_pngs/tile_maps/holo_finish absents, writer ignore les clés).
 
-- [ ] **Step 2 : implémentation dans forge3d_scene.py**
+- [x] **Step 2 : implémentation dans forge3d_scene.py**
 
 ```python
 def material_pngs(maps: dict) -> dict:
@@ -1375,7 +1394,7 @@ pour UNE génération par build, mais si la mesure locale dépasse ~2 s, vectori
 - alpha : un élément avec `finish` reste au mode de son `alpha` (les plans du sceau
   seront opaques par leurs nœuds — pas de règle cachée ici).
 
-- [ ] **Step 3 : GREEN + commit**
+- [x] **Step 3 : GREEN + commit**
 
 ```bash
 git add backend/app/services/cards/forge3d_scene.py backend/tests/test_cards_forge3d.py
