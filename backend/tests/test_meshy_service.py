@@ -6,10 +6,15 @@ HTTP (ASGITransport, zéro réseau), enregistrement meshy_tasks, rapatriement
 des binaires (spec INTEGRATION-MESHY.md §6), SSE mock, 403 hors allowlist,
 503 sans clé. Run: python backend/tests/test_meshy_service.py"""
 import asyncio
+import json as _json
 import os
 import pathlib
+import shutil
+import subprocess
 import sys
 import tempfile
+
+import httpx
 
 sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
@@ -73,13 +78,46 @@ assert MS.credits_text_to_3d_preview("meshy-7") == 20
 assert MS.credits_text_to_3d_preview("meshy-7", ultra=True) == 25
 ok("meshy-7 : grille HD (20/30/35) + ultra +5 (v7/latest seulement)")
 
-# le miroir JS porte les mêmes valeurs (bloc CREDITS)
+# le miroir JS porte les mêmes valeurs — confronté PAR VALEUR via node, pas
+# par simple présence de sous-chaîne (le docstring du module promet mieux).
 _js_path = (pathlib.Path(__file__).resolve().parent.parent.parent
            / "frontend" / "meshy" / "meshy.client.js")
-_js = _js_path.read_text(encoding="utf-8")
-_bloc = _js.split("export const CREDITS")[1].split("};")[0]
-assert "meshy-7" in _bloc and "ultra" in _bloc
-ok("miroir CREDITS de meshy.client.js : meshy-7 + ultra présents")
+if shutil.which("node") is None:
+    _js = _js_path.read_text(encoding="utf-8")
+    _bloc = _js.split("export const CREDITS")[1].split("};")[0]
+    assert "meshy-7" in _bloc and "ultra" in _bloc
+    ok("miroir JS non confronté : node absent (substring seulement)")
+else:
+    _js_url = "file:///" + str(_js_path.resolve()).replace("\\", "/")
+    _node_script = f"""
+const M = await import(new URL({_json.dumps(_js_url)}));
+const models = ["meshy-5", "meshy-6", "meshy-7", "latest"];
+const modelTypes = ["standard", "lowpoly", "smart-topology"];
+const out = [];
+for (const aiModel of models)
+  for (const modelType of modelTypes)
+    for (const shouldTexture of [true, false])
+      for (const textureResolution of ["2k", "8k"])
+        for (const ultra of [true, false]) {{
+          out.push({{
+            aiModel, modelType, shouldTexture, textureResolution, ultra,
+            img: M.CREDITS.imageTo3d({{ aiModel, modelType, shouldTexture, textureResolution, ultra }}),
+            prev: M.CREDITS.textTo3dPreview({{ aiModel, modelType, ultra }})
+          }});
+        }}
+console.log(JSON.stringify(out));
+"""
+    _r = subprocess.run(["node", "--input-type=module"], input=_node_script,
+                        capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert _r.returncode == 0, _r.stderr
+    _combos = _json.loads(_r.stdout)
+    _bad = [c for c in _combos if
+           MS.credits_image_to_3d(c["aiModel"], c["modelType"], c["shouldTexture"],
+                                  c["textureResolution"], ultra=c["ultra"]) != c["img"]
+           or MS.credits_text_to_3d_preview(c["aiModel"], c["modelType"],
+                                            ultra=c["ultra"]) != c["prev"]]
+    assert not _bad, _bad[:5]
+    ok(f"miroir CREDITS confronté par node : {len(_combos)} combinaisons, 0 divergence")
 
 # helpers serveur mock-aware (P9 s'en servira ; ici on prouve le contrat)
 settings.MESHY_MOCK = True
@@ -92,18 +130,21 @@ async def _create_and_wait_ultra():
         "image_url": "data:image/png;base64,AAAA", "ai_model": "meshy-7",
         "should_texture": True, "ultra_mode": True})
     assert tid.startswith("mock-")
-    while True:
+    for _ in range(500):
         t = await MS.get_task("openapi/v1/image-to-3d", tid)
         if t["status"] in MS.TERMINAL:
             return t
         await asyncio.sleep(0.02)
+    else:
+        raise AssertionError("tâche mock jamais terminale")
 
 
 _final_task = asyncio.run(_create_and_wait_ultra())
 assert _final_task["status"] == "SUCCEEDED" and _final_task["consumed_credits"] == 35
 assert _final_task["model_urls"]["glb"].startswith(MS.MOCK_FILE_PREFIX)
 ok("create_task/get_task serveur : mock-aware, crédits ultra comptés")
-settings.MESHY_MOCK = True   # restaure : main() plus bas suppose le mock actif
+settings.MESHY_MOCK = True    # restaure : main() plus bas suppose le mock actif
+settings.MESHY_MOCK_SPEED = 0.02   # restaure : valeur d'origine (env, ligne ~24)
 MS._mock = None
 
 # ══ 2 · estimate_pipeline — coût AVANT lancement (règle produit) ════════════
@@ -339,6 +380,77 @@ async def main():
         assert seen["url"] == "https://api.meshy.ai/openapi/v1/balance"
         assert seen["headers"]["Authorization"] == "Bearer msy-test-key"
         ok("Bearer injecté côté serveur, cible api.meshy.ai (la clé ne sort pas)")
+
+        print("— create_task/get_task hors mock : erreurs et allowlist —")
+        settings.MESHY_API_KEY = "msy-test-key"
+        settings.MESHY_MOCK = False
+
+        class _RaisingClient:
+            def __init__(self, **kw):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **kw):
+                raise httpx.ConnectError("boom")
+
+            async def get(self, *a, **kw):
+                raise httpx.ConnectError("boom")
+
+        class _UnauthResp:
+            status_code = 401
+            text = '{"error": "Unauthorized"}'
+
+            def json(self):
+                return {"error": "Unauthorized"}
+
+        class _UnauthClient:
+            def __init__(self, **kw):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *a):
+                return False
+
+            async def post(self, *a, **kw):
+                return _UnauthResp()
+
+            async def get(self, *a, **kw):
+                return _UnauthResp()
+
+        try:
+            MS.httpx.AsyncClient = _RaisingClient
+            try:
+                await MS.create_task("openapi/v1/image-to-3d", {})
+                raise AssertionError("aurait dû lever ConnectError")
+            except RuntimeError as e:
+                assert str(e).startswith("meshy: ConnectError"), str(e)
+            # allowlist rejette AVANT tout réseau — même client (qui casserait
+            # sinon avec ConnectError) le prouve : jamais appelé ici.
+            try:
+                await MS.get_task("openapi/v1/../../evil", "x")
+                raise AssertionError("aurait dû lever chemin non autorisé")
+            except RuntimeError as e:
+                assert "chemin non autorisé" in str(e), str(e)
+
+            MS.httpx.AsyncClient = _UnauthClient
+            try:
+                await MS.create_task("openapi/v1/image-to-3d", {})
+                raise AssertionError("aurait dû lever Unauthorized")
+            except RuntimeError as e:
+                assert "Unauthorized" in str(e) and "None" not in str(e), str(e)
+        finally:
+            MS.httpx.AsyncClient = real_client
+            settings.MESHY_MOCK = True
+            settings.MESHY_API_KEY = ""
+            MS._mock = None
+        ok("hors mock : ConnectError/401 préfixés meshy:, allowlist get_task sans réseau")
 
     # garde anti-régression : Game Assets 3D (fal) intact
     from app.services.asset3d_service import ENGINES

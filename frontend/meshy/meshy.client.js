@@ -95,15 +95,15 @@ export class MeshyClient {
 
   /* ── Génération ─────────────────────────────────────────────────────────── */
 
-  /** Text to 3D, étape 1 : maillage sans texture. 20 cr (meshy-6). */
+  /** Text to 3D, étape 1 : maillage sans texture. 20 cr (meshy-6/7) ; +5 cr en ultra (meshy-7/latest). */
   textTo3dPreview({ prompt, aiModel = "meshy-6", modelType = "standard", topology, targetPolycount,
                     decimationMode, shouldRemesh, poseMode = "", targetFormats, autoSize, originAt,
-                    alphaThumbnail, moderation = true }) {
+                    alphaThumbnail, ultra = false, moderation = true }) {
     return this.request("POST", "/openapi/v2/text-to-3d", clean({
       mode: "preview", prompt, ai_model: aiModel, model_type: modelType, topology,
       target_polycount: targetPolycount, decimation_mode: decimationMode, should_remesh: shouldRemesh,
       pose_mode: poseMode, target_formats: targetFormats, auto_size: autoSize, origin_at: originAt,
-      alpha_thumbnail: alphaThumbnail, moderation
+      alpha_thumbnail: alphaThumbnail, ultra_mode: ultra ? true : undefined, moderation
     })).then(r => r.result);
   }
 
@@ -377,14 +377,16 @@ export class MeshyPipeline {
       const t = await this._run("preview", "image-to-3d", () => this.client.imageTo3d({
         imageUrl: c.imageUrl, aiModel: c.aiModel, modelType: c.modelType,
         shouldTexture: c.withTexture !== false, enablePbr: c.enablePbr !== false,
-        textureResolution: c.textureResolution, poseMode: c.poseMode, targetFormats: c.exportFormats
+        textureResolution: c.textureResolution, poseMode: c.poseMode, targetFormats: c.exportFormats,
+        ultra: c.ultra
       }));
       out.modelUrls = t.model_urls; out.textures = t.texture_urls; out.thumbnail = t.thumbnail_url;
       this._set("texture", { status: "SUCCEEDED", progress: 100, credits: 0, note: "inclus dans image-to-3d" });
     } else {
       const prev = await this._run("preview", "text-to-3d", () => this.client.textTo3dPreview({
         prompt: c.prompt, aiModel: c.aiModel, modelType: c.modelType, topology: c.topology,
-        targetPolycount: c.targetPolycount, poseMode: c.poseMode, targetFormats: c.exportFormats
+        targetPolycount: c.targetPolycount, poseMode: c.poseMode, targetFormats: c.exportFormats,
+        ultra: c.ultra
       }));
       out.previewTaskId = prev.id; out.thumbnail = prev.thumbnail_url;
       if (c.withTexture !== false) {

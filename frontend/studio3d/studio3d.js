@@ -590,7 +590,7 @@ async function openEditor(id) {
       + `</div><div class="fld-row">`
       + fld("topology", `<select id="f-topo"><option${c.topology === "quad" ? " selected" : ""}>quad</option><option${c.topology === "triangle" ? " selected" : ""}>triangle</option></select>`)
       + fld("target_polycount", `<input type="number" id="f-poly" value="${c.targetPolycount}" min="1000" step="1000">`)
-      + `</div><div class="fld-note">meshy-7 : 30 cr texturé (grille meshy-6), alignement image→3D supérieur, ultra +5 cr (exposé dans la Forge 3D des cartes). meshy-6 : 20 cr le preview, sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.</div>`;
+      + `</div><div class="fld-note">meshy-7 : même grille que meshy-6 (20 cr le preview, 30 cr texturé), alignement image→3D supérieur ; ultra +5 cr (Forge 3D des cartes). meshy-6 : sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.</div>`;
     apply = () => {
       c.aiModel = $("#f-model").value; c.poseMode = $("#f-pose").value;
       c.topology = $("#f-topo").value;
