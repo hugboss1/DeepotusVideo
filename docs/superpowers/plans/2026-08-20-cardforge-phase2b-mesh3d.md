@@ -1452,7 +1452,16 @@ git commit -m "feat(cardforge): matieres tuilees (pack MR glTF), finitions holo 
 > l'ancien `{art}.stl` est DÉLIÉ (même argument legs 4 que l'aperçu) ; la
 > description du metadata cesse de dire « construite localement » quand un
 > moteur a contribué ; `elements` reste un INT (l'écran 2a le concatène),
-> le détail par élément vit dans `elements_detail`. Étapes cochées.
+> le détail par élément vit dans `elements_detail`. **CLOSE (11b25a9 +
+> correctifs 9d95155, re-revue APPROUVÉE)** : le STL honore le trs local
+> (même monde que le GLB, bbox recalculée de zéro en re-revue), allowlist
+> `_EXIG_CONNUES` des extensions exigées fusionnables (le refus nommé tombe
+> exactement sur la couture meshopt — les deux branches justes), éventail de
+> frères avoué, profondeur de scène nommée, variants réindexés + déclarations
+> doc-niveau avouées, canvas_mm/bleed_mm du manifeste, 73/73, 23+2 mutants
+> tués. Reste d'une ligne replié en tête de Task 7 : garde componentType
+> float32 dans `_accessor_floats` (le couplage allowlist↔lecteur devient
+> explicite). Étapes cochées.
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py` (fusion)
