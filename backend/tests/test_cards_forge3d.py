@@ -1561,18 +1561,40 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
     pose_carte = [i for i, l in enumerate(src_lignes)
                   if re.search(r"MANIFEST_CARD\s*=[^=]", l)]
     assert pose_man and pose_carte
-    for i in pose_man:
-        ecart = min(abs(i - j) for j in pose_carte)
-        assert ecart <= 10, (
-            f"ligne {i + 1} pose LAST_MANIFEST sans poser MANIFEST_CARD "
-            f"a cote (plus proche : {ecart} lignes) — l'appariement "
-            f"manifeste/carte se casse la : {src_lignes[i].strip()}")
+    # SYMETRIQUE (N6) : la paire se casse aussi bien en posant l'etiquette
+    # seule (l'ecran se croit a jour sur un manifeste qui ne l'est pas) qu'en
+    # posant le manifeste seul. Les deux sens sont donc verifies.
+    for gauche, droite, quoi in ((pose_man, pose_carte, "LAST_MANIFEST"),
+                                 (pose_carte, pose_man, "MANIFEST_CARD")):
+        autre = "MANIFEST_CARD" if quoi == "LAST_MANIFEST" else "LAST_MANIFEST"
+        for i in gauche:
+            ecart = min(abs(i - j) for j in droite)
+            assert ecart <= 10, (
+                f"ligne {i + 1} pose {quoi} sans poser {autre} a cote (plus "
+                f"proche : {ecart} lignes) — l'appariement manifeste/carte se "
+                f"casse la : {src_lignes[i].strip()}")
 
-    # le poll s'arrête aux DEUX états terminaux du contrat, nommément — un
-    # « failed » oublié laisserait une boucle tourner pour toujours, un
-    # « served » oublié ferait repoller un job fini jusqu'à la fin des temps.
+    # le poll s'arrête aux DEUX états terminaux du contrat — et la DISJONCTION
+    # est le fond de l'affaire : avec un « et » à la place du « ou », aucun job
+    # ne satisfait plus la condition et la boucle tourne pour toujours, à un
+    # GET toutes les 1,2 s, sans qu'aucun état affiché ne bouge. Épingler les
+    # deux mots ne suffisait donc pas : on épingle l'opérateur.
     poll = rendu.split("function pollMesh3d(")[1].split("\n  }")[0]
     assert '"served"' in poll and '"failed"' in poll, poll
+    assert re.search(r'status\s*===\s*"served"\s*\|\|', poll), poll
+
+    # LES CHAINES ECRITES PAR LE BACKEND (error, step, closed_note) sont
+    # rendues ECHAPPEES : ce sont les seules valeurs de chipHtml qui ne
+    # viennent ni d'un Number() ni d'un litteral d'ici, et un `<` dans un
+    # message d'erreur de moteur casse la mise en page — au mieux.
+    chip = rendu.split("function chipHtml(")[1].split("\n  }")[0]
+    for champ in ("job.error", "job.step", "job.closed_note"):
+        assert champ in chip, f"{champ} a disparu de chipHtml — pin obsolete"
+        for m in re.finditer(re.escape(champ), chip):
+            avant = chip[:m.start()]
+            assert re.search(r"esc\(\s*(?:[\w.]+\s*\|\|\s*)?$", avant), (
+                f"{champ} interpole sans esc() dans chipHtml : "
+                f"...{chip[max(0, m.start() - 60):m.end() + 20]}")
     # l'échec d'un job est montré LITTÉRAL (error du job.json)
     assert "job.error" in rendu or 'job["error"]' in rendu
     # les legs d'affichage : degraded affiché tel quel, jamais un select vide muet

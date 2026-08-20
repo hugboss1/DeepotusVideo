@@ -52,8 +52,11 @@
       graphe gratuit n'y a donc pas droit — il reste en encre d'aide. */
 .cf-forge3d #cf-forge3d-cost { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--stroke); color: var(--ink-muted); }
 .cf-forge3d #cf-forge3d-cost.cf-forge3d-payant { color: var(--accent); }
-/* le plafond d'elements : un refus a venir, dit avant d'etre rencontre */
-.cf-forge3d .cf-forge3d-trop { color: var(--red); margin-top: 8px; }
+/* le plafond d'elements : un refus a venir, dit avant d'etre rencontre. Encre
+   d'aide et non ROUGE -- la feuille reserve le rouge a ce qui DETRUIT (un role
+   par couleur, cardforge.css) ; une capacite depassee se corrige, elle ne
+   casse rien. */
+.cf-forge3d .cf-forge3d-trop { color: var(--ink-soft); margin-top: 8px; }
 
 /* ── le bordereau de build3d : un fichier par ligne, provenance connue ───── */
 .cf-forge3d .cf-forge3d-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }

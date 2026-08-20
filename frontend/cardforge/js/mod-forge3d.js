@@ -823,6 +823,16 @@
       ? ('<i class="cf-forge3d-src"> · ' + esc((job.source.role || "composite")
         + " " + ((job.source.side === "back") ? "verso" : "recto")) + '</i>')
       : "";
+    /* ÉCHAPPER À LA FRONTIÈRE, UNE FOIS. `step`, `error` et `closed_note` sont
+       les SEULES valeurs de cette fonction écrites par le backend (tout le
+       reste est un littéral d'ici ou passe par Number()). On les convertit en
+       texte SÛR dès leur lecture, et plus bas on ne manipule que du sûr : un
+       `esc()` par champ, à un endroit, plutôt qu'un `esc()` à retrouver dans
+       chaque branche — c'est aussi ce qui rend la garantie vérifiable d'un
+       coup d'œil (et épinglable par un test de source). */
+    const pas = esc(job.step || "");
+    const echec = esc(job.error || "sans motif rendu par le backend");
+    const note = esc(job.closed_note || "");
     const st = job.status;
     if (st === "queued") {
       return html + '<span class="cf-forge3d-chip file"' + dit + '>en file'
@@ -830,21 +840,19 @@
     }
     if (st === "running") {
       return html + '<span class="cf-forge3d-chip cours"' + dit + '>en cours '
-        + Number(job.progress || 0) + ' %' + esc(job.step ? " · " + job.step : "")
+        + Number(job.progress || 0) + ' %' + (pas ? " · " + pas : "")
         + quoi + '</span>';
     }
     if (st === "served") {
       const cr = (job.consumed_credits != null)
         ? " · " + Number(job.consumed_credits) + " cr" : "";
       return html + '<span class="cf-forge3d-chip servi"' + dit + '>servi'
-        + esc(cr) + quoi + '</span>'
-        + (job.closed_note
-          ? '<span class="cf-forge3d-chip note">' + esc(job.closed_note) + '</span>'
-          : "");
+        + cr + quoi + '</span>'
+        + (note ? '<span class="cf-forge3d-chip note">' + note + '</span>' : "");
     }
     if (st === "failed") {
       return html + '<span class="cf-forge3d-chip echec"' + dit + '>échec : '
-        + esc(job.error || "sans motif rendu par le backend") + quoi + '</span>';
+        + echec + quoi + '</span>';
     }
     return html + '<span class="cf-forge3d-chip"' + dit + '>' + esc(st)
       + quoi + '</span>';
@@ -996,13 +1004,20 @@
      mensonge que ce pied de page puisse commettre. */
   function sacoche() { return { usdFal: 0, credits: 0, usdMeshy: 0, inconnus: 0, n: 0 }; }
 
-  function montantTxt(s) {
+  function montantTxt(s, appendice) {
     const bouts = [];
     if (s.usdFal > 0) bouts.push(usdTxt(s.usdFal));
     if (s.credits > 0) bouts.push(s.credits + " cr Meshy (~" + usdTxt(s.usdMeshy) + ")");
     if (s.inconnus > 0) {
-      bouts.push(s.inconnus + " nœud(s) au prix inconnu (table des moteurs "
-        + "indisponible)");
+      /* N7 — LA MÊME LACUNE, DEUX POSITIONS GRAMMATICALES. En tête on ÉNUMÈRE
+         (« Coût à lancer : 0,30 $ + 2 nœud(s) au prix inconnu ») ; en appendice
+         on complète un verbe (« relancer coûterait … »), où cette énumération
+         ne se dit pas. Un aveu qu'on ne peut pas lire n'avoue rien. */
+      bouts.push(appendice
+        ? ("un montant inconnu pour " + s.inconnus + " nœud(s) (table des "
+          + "moteurs indisponible)")
+        : (s.inconnus + " nœud(s) au prix inconnu (table des moteurs "
+          + "indisponible)"));
     }
     return bouts.join(" + ");
   }
@@ -1022,8 +1037,8 @@
       if (!p) { s.inconnus += 1; return; }
       if (eng.provider === "meshy") { s.credits += p.credits; s.usdMeshy += p.usd; } else s.usdFal += p.usd;
     });
-    const tete = montantTxt(alancer);
-    const differe = montantTxt(servis);
+    const tete = montantTxt(alancer, false);
+    const differe = montantTxt(servis, true);   /* complète « coûterait … » */
     /* I4 — LE COÛT DIFFÉRÉ SE DIT AUSSI. Un nœud déjà servi ne gonfle pas le
        devis (il est payé), mais son bouton « relancer » est là, actif, et
        recliquer dessus REDÉPENSE. Taire ce chiffre laissait un écran affirmer
@@ -1301,7 +1316,11 @@
   /* TOUS les maillons (matière/placement) atteignables en aval d'un
      traitement — pas seulement ceux que la chaîne retient. C'est ce qui
      permet à `rewireRow` de distinguer le maillon GARDÉ des surnuméraires.
-     Balayage en largeur, borné par `CHAIN_MAX` comme la descente du backend. */
+     Balayage en largeur, borné par `CHAIN_MAX` comme la descente du backend.
+     N5, LIMITE AVOUÉE : un graphe CHARGÉ À LA MAIN (l'API brute est ouverte,
+     cet écran ne produit jamais cette topologie) peut partager un maillon
+     entre deux rangées — le retrait suit alors l'intention de LA rangée
+     éditée, et `clean_graph` comme le bordereau `ignored` avouent le reste. */
   function maillonsAval(g, procId) {
     const byId = {};
     (g.nodes || []).forEach((n) => { byId[n.id] = n; });
@@ -1405,10 +1424,20 @@
     if (btn) btn.disabled = true;
     ERRS[nid] = null;
     RUNS[nid] = false;
+    /* N1 — LA GARDE DE GÉNÉRATION SUR LE CHEMIN QUI DÉPENSE. C'est le seul
+       endroit de l'écran qui engage de l'argent, et il traverse un await : si
+       la carte (ou le deck) change pendant le POST, écrire le job au retour
+       poserait l'état d'un job de la carte 1 dans l'écran de la carte 2 — la
+       chip mentirait sur ce qui a été servi, et le pied de coût SOUS-ESTIMERAIT
+       (un nœud compté « servi » alors qu'il ne l'est pas pour cette carte-ci).
+       Le job, lui, existe bel et bien côté serveur : il n'est pas perdu, il
+       sera relu par la sonde quand on reviendra sur SA carte. */
+    const gen = GEN;
     try {
       const carte = (CF.current ? CF.current() : 0);
       const rep = await M.api.post("mesh3d/" + encodeURIComponent(nid),
                                    { graph: graph, card: carte });
+      if (gen !== GEN) return;   /* cette carte n'est plus à l'écran */
       /* on ne peint QUE ce que le backend a rendu : pas de job, pas de chip
          inventée — le poll qui suit dira l'état depuis le disque. */
       JOBS[nid] = (rep && rep.job) || null;
@@ -1417,6 +1446,7 @@
       paintCost();
       pollMesh3d(nid);
     } catch (e) {
+      if (gen !== GEN) return;
       ERRS[nid] = String(e && e.message || e);
       paintChip(nid);
       M.toast(ERRS[nid], true);
@@ -1431,6 +1461,17 @@
      telle quelle, et c'est le `detail` du backend qui tranche. */
   async function fetchJob(nid) {
     const r = await M.api.raw("GET", "mesh3d/" + encodeURIComponent(nid));
+    /* N2 — ET LA GARDE QUE LE CORE AVAIT, REPRISE : en sortant de `M.api.get`
+       on a perdu son contrôle de type de contenu (core.js:1161). Sans lui, un
+       backend absent derrière un attrape-tout SPA rend 200 + du HTML, `json()`
+       échoue, `d` vaut null, et `r.ok` déclare le nœud « jamais lancé » — une
+       réponse fausse et CONFIANTE, exactement ce que la distinction des deux
+       404 existait pour empêcher. Un 200 qui n'est pas du JSON est une route
+       absente, pas un job absent. */
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (r.ok && ct.indexOf("json") < 0) {
+      return { erreur: "route absente sur ce backend (reponse non JSON)" };
+    }
     let d = null;
     try { d = await r.json(); } catch (e) { d = null; }
     if (r.ok) return { job: d || null };
@@ -1445,7 +1486,14 @@
      ailleurs » ne pouvait plus jamais se déclencher, alors que c'est
      précisément après la fin d'un job qu'un autre onglet le relance. */
   function aResonder(nid) {
-    if (!Object.prototype.hasOwnProperty.call(JOBS, nid)) return true;
+    if (!Object.prototype.hasOwnProperty.call(JOBS, nid)) {
+      /* N4 — MÊME CADENCE POUR L'ÉCHEC. Une sonde qui a échoué (transport
+         coupé, route absente) ne laisse PAS de clé dans `JOBS` : sans cette
+         limite, chaque peinture relançait aussitôt une requête vouée au même
+         échec. `SEEN` est posé par toutes les issues du poll, y compris
+         celle-là : c'est lui qui espace les reprises. */
+      return !SEEN[nid] || (Date.now() - SEEN[nid]) > REPROBE_MS;
+    }
     const job = JOBS[nid];
     if (job && (job.status === "queued" || job.status === "running")) return false;
     return (Date.now() - (SEEN[nid] || 0)) > REPROBE_MS;
@@ -1519,9 +1567,14 @@
     build3d.busy = true;
     if (btn) btn.disabled = true;
     if (status) status.textContent = "construction…";
+    /* N1 (même forme, enjeu moindre) : le bordereau d'une construction décrit
+       LA carte pour laquelle elle a tourné — le peindre dans l'écran d'une
+       autre attribuerait ses fichiers et son aperçu à la mauvaise. */
+    const gen = GEN;
     try {
       const carte = (CF.current ? CF.current() : 0);
       const rep = await M.api.post("build3d", { graph: graph, card: carte });
+      if (gen !== GEN) return;
       ARTIFACT = rep.artifact;
       paintArtifact(ARTIFACT);
       if (status) status.textContent = ARTIFACT.elements + " élément(s) — "
