@@ -1635,6 +1635,12 @@ MESH3D_LAUNCH_GRACE_S = 30.0          # délai au-delà duquel un marqueur de
 MESH3D_POLL_RETRIES = 5               # reprises d'un poll Meshy en échec : un
                                        # blip réseau ne doit pas tuer un job
                                        # DÉJÀ PAYÉ de vingt minutes
+# Relectures de job.json quand l'écriture concurrente le tient (Windows :
+# `os.replace` fait échouer l'ouverture de la destination en PermissionError).
+# Trois essais espacés de 20 ms couvrent trois fois la fenêtre mesurée, sans
+# jamais retarder le cas courant : seule cette erreur-là est retentée.
+_JOB_READ_ESSAIS = 3
+_JOB_READ_PAUSE_S = 0.02
 # charset ET longueur de `clean_graph` — un nid qui passe ici traverse le
 # nettoyeur INCHANGÉ — MOINS les noms qui ne sont QUE des points. Constaté en
 # auto-revue, absent du plan : `..` satisfait `[A-Za-z0-9._-]{1,24}`, et ce
@@ -1702,16 +1708,39 @@ def _job_write(did: str, nid: str, job: dict) -> dict:
 
 def _job_read(did: str, nid: str) -> dict | None:
     """Le job sur disque, ou None. Un fichier illisible (tronqué à la main,
-    disque en panne) vaut ABSENT — jamais une exception qui deviendrait 500."""
+    disque en panne) vaut ABSENT — jamais une exception qui deviendrait 500.
+
+    MAIS « momentanément verrouillé » N'EST PAS « absent ». Sous Windows,
+    pendant l'`os.replace` de `_job_write`, ouvrir le fichier DESTINATION
+    échoue en `PermissionError` (violation de partage) : les octets sont là,
+    ils sont juste hors d'atteinte pendant une fraction de milliseconde. Le
+    confondre avec l'absence faisait rendre 404 « aucun job sur ce noeud »
+    PENDANT qu'un job PAYANT tournait — et l'écran, qui a raison de tenir un
+    job nul pour terminal, concluait « jamais lancé » et ARRÊTAIT son poll :
+    le nœud finissait sa course en dépensant, sans laisser une trace à
+    l'écran, et le pied de coût le recomptait comme restant à lancer.
+    On retente donc brièvement, et seulement sur ce refus-là : le chemin
+    courant (aucun job, `is_file()` faux) ne paie pas un millième de seconde,
+    et une vraie corruption vaut toujours ABSENT, du premier coup."""
     p = _node_dir(did, nid) / "job.json"
-    if not p.is_file():
-        return None
-    try:
-        j = json.loads(p.read_text(encoding="utf-8"))
-    except (ValueError, OSError, UnicodeDecodeError):
-        logger.exception(f"cards/forge3d: job.json illisible ({did}/{nid})")
-        return None
-    return j if isinstance(j, dict) else None
+    for reste in range(_JOB_READ_ESSAIS - 1, -1, -1):
+        if not p.is_file():
+            return None
+        try:
+            j = json.loads(p.read_text(encoding="utf-8"))
+        except PermissionError:
+            # le seul cas retentable : l'écriture concurrente tient le fichier
+            if reste:
+                time.sleep(_JOB_READ_PAUSE_S)
+                continue
+            logger.warning(f"cards/forge3d: job.json verrouille apres "
+                           f"{_JOB_READ_ESSAIS} essais ({did}/{nid})")
+            return None
+        except (ValueError, OSError, UnicodeDecodeError):
+            logger.exception(f"cards/forge3d: job.json illisible ({did}/{nid})")
+            return None
+        return j if isinstance(j, dict) else None
+    return None
 
 
 def _job_write_si(did: str, nid: str, job: dict, run_id: str) -> bool:

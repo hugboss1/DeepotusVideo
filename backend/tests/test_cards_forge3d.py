@@ -3516,5 +3516,68 @@ def test_les_exigences_de_l_externe_survivent_et_ses_variants_sont_reindexes():
                for w in motifs), b["ignored"]
 
 
+def test_un_job_verrouille_par_l_ecriture_n_est_pas_declare_absent(monkeypatch):
+    """CONSTATÉ EN NAVIGATEUR (2 lancements sur 2, trace serveur à l'appui) :
+    sous Windows, `os.replace` fait échouer en `PermissionError` l'ouverture du
+    `job.json` DESTINATION pendant l'écriture concurrente du runner. Rendu
+    comme « fichier absent », ce refus devenait un 404 « aucun job sur ce
+    noeud » PENDANT qu'un job PAYANT tournait : l'écran — qui a raison de tenir
+    un job nul pour terminal — affichait « jamais lancé », arrêtait son poll,
+    et le nœud finissait sa course en dépensant sans laisser de trace, le pied
+    de coût le recomptant comme restant à lancer.
+
+    Un verrou passager doit donc être RETENTÉ, et lui seul : l'absence vraie
+    répond du premier coup, une corruption vaut toujours ABSENT."""
+    import time
+    from app.services.cards import forge3d as F9
+    did = _deck("Verrou passager")
+    base = _dossier_noeud(did, "m1")
+    base.mkdir(parents=True, exist_ok=True)
+    job = {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "tripo",
+           "run_id": "e" * 32, "status": "served", "progress": 100}
+    (base / "job.json").write_text(json.dumps(job), encoding="utf-8")
+
+    vrai_read_text = pathlib.Path.read_text
+    refus = {"n": 0}
+
+    def read_text_verrouille(self, *a, **k):
+        # UNIQUEMENT le job.json de ce nœud, et seulement les deux premières
+        # fois : la troisième doit réussir, sinon le test ne prouve pas la
+        # reprise mais l'abandon.
+        if self.name == "job.json" and refus["n"] < 2:
+            refus["n"] += 1
+            raise PermissionError(13, "Permission denied")
+        return vrai_read_text(self, *a, **k)
+
+    monkeypatch.setattr(pathlib.Path, "read_text", read_text_verrouille)
+    r = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/m1")
+    assert refus["n"] == 2, "le verrou simule n'a pas ete rencontre"
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "served"
+    assert r.json()["run_id"] == "e" * 32
+
+    # ...et le verrou QUI NE LÂCHE PAS ne devient pas un 500 : il retombe sur
+    # l'absence, après avoir vraiment épuisé les essais.
+    refus["n"] = 0
+    monkeypatch.setattr(pathlib.Path, "read_text",
+                        lambda self, *a, **k: (_ for _ in ()).throw(
+                            PermissionError(13, "Permission denied"))
+                        if self.name == "job.json"
+                        else vrai_read_text(self, *a, **k))
+    r2 = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/m1")
+    assert r2.status_code == 404, r2.text
+    assert "aucun job" in r2.json()["detail"]
+
+    # LE CHEMIN COURANT NE PAIE RIEN : un nœud jamais lancé répond sans
+    # attendre — `is_file()` est faux, aucune reprise n'est tentée.
+    monkeypatch.setattr(pathlib.Path, "read_text", vrai_read_text)
+    assert F9._JOB_READ_ESSAIS >= 2 and F9._JOB_READ_PAUSE_S > 0
+    debut = time.monotonic()
+    r3 = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/jamais")
+    ecoule = time.monotonic() - debut
+    assert r3.status_code == 404
+    assert ecoule < F9._JOB_READ_ESSAIS * F9._JOB_READ_PAUSE_S, ecoule
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
