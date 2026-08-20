@@ -1635,12 +1635,15 @@ MESH3D_LAUNCH_GRACE_S = 30.0          # délai au-delà duquel un marqueur de
 MESH3D_POLL_RETRIES = 5               # reprises d'un poll Meshy en échec : un
                                        # blip réseau ne doit pas tuer un job
                                        # DÉJÀ PAYÉ de vingt minutes
-# Relectures de job.json quand l'écriture concurrente le tient (Windows :
-# `os.replace` fait échouer l'ouverture de la destination en PermissionError).
-# Trois essais espacés de 20 ms couvrent trois fois la fenêtre mesurée, sans
-# jamais retarder le cas courant : seule cette erreur-là est retentée.
-_JOB_READ_ESSAIS = 3
-_JOB_READ_PAUSE_S = 0.02
+# Reprises des DEUX SENS de l'accès à job.json. Sous Windows, lecteur et
+# écrivain se disputent le fichier DESTINATION : le lecteur qui perd voit
+# PermissionError à l'ouverture, l'écrivain qui perd voit `os.replace` échouer
+# (WinError 5). Les deux sont PASSAGERS et n'ont rien à voir avec l'absence ni
+# avec la panne. Trois essais espacés de 20 ms couvrent largement la fenêtre
+# mesurée, sans jamais retarder le cas courant : seule cette erreur-là est
+# retentée, dans un cas comme dans l'autre.
+_JOB_IO_ESSAIS = 3
+_JOB_IO_PAUSE_S = 0.02
 # charset ET longueur de `clean_graph` — un nid qui passe ici traverse le
 # nettoyeur INCHANGÉ — MOINS les noms qui ne sont QUE des points. Constaté en
 # auto-revue, absent du plan : `..` satisfait `[A-Za-z0-9._-]{1,24}`, et ce
@@ -1697,12 +1700,28 @@ def _node_dir(did: str, nid: str, create: bool = False) -> Path:
 def _job_write(did: str, nid: str, job: dict) -> dict:
     """job.json écrit ATOMIQUEMENT (fichier temporaire + `os.replace`) : un
     poll concurrent lit toujours un JSON ENTIER, jamais la moitié d'une
-    écriture en cours — l'écran poll pendant que la tâche de fond écrit."""
+    écriture en cours — l'écran poll pendant que la tâche de fond écrit.
+
+    L'AUTRE MOITIÉ DE LA COURSE, mesurée elle aussi : quand c'est le poll qui
+    tient le fichier DESTINATION, c'est `os.replace` qui échoue (WinError 5).
+    Laissée telle quelle, l'exception remontait jusqu'à `_run_mesh3d`, qui
+    déclarait le job FAILED avec le WinError pour motif : un simple poll
+    tuait un job PAYÉ, et le crédit était consommé pour rien. On retente donc
+    ce refus-là, exactement comme `_job_read` retente le sien ; s'il persiste
+    au-delà des essais, il repart tel quel — un disque vraiment bloqué reste
+    une panne, et l'aveu doit le dire."""
     d = _node_dir(did, nid, create=True)
     tmp = d / "job.json.tmp"
     tmp.write_text(json.dumps(job, ensure_ascii=False, indent=2),
                    encoding="utf-8")
-    os.replace(tmp, d / "job.json")
+    for reste in range(_JOB_IO_ESSAIS - 1, -1, -1):
+        try:
+            os.replace(tmp, d / "job.json")
+            return job
+        except PermissionError:
+            if not reste:
+                raise
+            time.sleep(_JOB_IO_PAUSE_S)
     return job
 
 
@@ -1723,7 +1742,7 @@ def _job_read(did: str, nid: str) -> dict | None:
     courant (aucun job, `is_file()` faux) ne paie pas un millième de seconde,
     et une vraie corruption vaut toujours ABSENT, du premier coup."""
     p = _node_dir(did, nid) / "job.json"
-    for reste in range(_JOB_READ_ESSAIS - 1, -1, -1):
+    for reste in range(_JOB_IO_ESSAIS - 1, -1, -1):
         if not p.is_file():
             return None
         try:
@@ -1731,10 +1750,10 @@ def _job_read(did: str, nid: str) -> dict | None:
         except PermissionError:
             # le seul cas retentable : l'écriture concurrente tient le fichier
             if reste:
-                time.sleep(_JOB_READ_PAUSE_S)
+                time.sleep(_JOB_IO_PAUSE_S)
                 continue
             logger.warning(f"cards/forge3d: job.json verrouille apres "
-                           f"{_JOB_READ_ESSAIS} essais ({did}/{nid})")
+                           f"{_JOB_IO_ESSAIS} essais ({did}/{nid})")
             return None
         except (ValueError, OSError, UnicodeDecodeError):
             logger.exception(f"cards/forge3d: job.json illisible ({did}/{nid})")

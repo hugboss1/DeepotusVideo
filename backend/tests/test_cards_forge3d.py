@@ -3571,12 +3571,40 @@ def test_un_job_verrouille_par_l_ecriture_n_est_pas_declare_absent(monkeypatch):
     # LE CHEMIN COURANT NE PAIE RIEN : un nœud jamais lancé répond sans
     # attendre — `is_file()` est faux, aucune reprise n'est tentée.
     monkeypatch.setattr(pathlib.Path, "read_text", vrai_read_text)
-    assert F9._JOB_READ_ESSAIS >= 2 and F9._JOB_READ_PAUSE_S > 0
+    assert F9._JOB_IO_ESSAIS >= 2 and F9._JOB_IO_PAUSE_S > 0
     debut = time.monotonic()
     r3 = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/jamais")
     ecoule = time.monotonic() - debut
     assert r3.status_code == 404
-    assert ecoule < F9._JOB_READ_ESSAIS * F9._JOB_READ_PAUSE_S, ecoule
+    assert ecoule < F9._JOB_IO_ESSAIS * F9._JOB_IO_PAUSE_S, ecoule
+
+    # ── L'AUTRE MOITIÉ DE LA COURSE, mesurée elle aussi en navigateur : quand
+    # c'est le POLL qui tient le fichier, c'est `os.replace` qui échoue
+    # (WinError 5). L'exception remontait jusqu'à `_run_mesh3d`, qui déclarait
+    # FAILED un job PAYÉ — un simple poll suffisait à le tuer.
+    vrai_replace = os.replace
+    refus_w = {"n": 0}
+
+    def replace_verrouille(src, dst, *a, **k):
+        if str(dst).endswith("job.json") and refus_w["n"] < 2:
+            refus_w["n"] += 1
+            raise PermissionError(5, "Acces refuse")
+        return vrai_replace(src, dst, *a, **k)
+
+    monkeypatch.setattr(os, "replace", replace_verrouille)
+    job2 = dict(job, status="running", progress=42)
+    assert F9._job_write(did, "m1", job2) is job2
+    assert refus_w["n"] == 2, "le verrou d'ecriture simule n'a pas ete rencontre"
+    disque = json.loads((base / "job.json").read_text(encoding="utf-8"))
+    assert disque["progress"] == 42 and disque["status"] == "running"
+
+    # ...et un verrou qui NE LÂCHE JAMAIS reste une panne : elle repart telle
+    # quelle (l'aveu doit dire la vérité), elle n'est pas avalée en silence.
+    monkeypatch.setattr(os, "replace", lambda src, dst, *a, **k: (
+        (_ for _ in ()).throw(PermissionError(5, "Acces refuse"))
+        if str(dst).endswith("job.json") else vrai_replace(src, dst, *a, **k)))
+    with pytest.raises(PermissionError):
+        F9._job_write(did, "m1", dict(job, progress=99))
 
 
 if __name__ == "__main__":
