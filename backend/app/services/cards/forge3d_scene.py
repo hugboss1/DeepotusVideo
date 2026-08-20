@@ -408,6 +408,13 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
     }
 
 
+def _quat_z(deg) -> list:
+    """Le quaternion d'une rotation autour de +z — le SEUL axe qui ait un sens
+    sur une pile de couches planes. Rend l'identité pour 0°."""
+    demi = math.radians(_f(deg)) / 2.0
+    return [0.0, 0.0, math.sin(demi), math.cos(demi)]
+
+
 def _node_trs(el: dict) -> dict:
     """Les champs TRS du nœud d'un élément.
 
@@ -433,7 +440,7 @@ def _node_trs(el: dict) -> dict:
         out["translation"] = [0.0, 0.0, float(el["z_mm"])]
     demi = math.radians(_f(trs.get("rotate_deg"))) / 2.0
     if demi:
-        out["rotation"] = [0.0, 0.0, math.sin(demi), math.cos(demi)]
+        out["rotation"] = _quat_z(trs.get("rotate_deg"))
     s = _f(trs.get("scale"), 1.0)
     if s != 1.0:
         out["scale"] = [s, s, s]
@@ -461,7 +468,359 @@ _IDENTITY_KEYS = ("generator", "producer", "author", "software", "application",
                   "copyright", "artist", "company", "vendor")
 
 
-def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
+# ── LA FUSION D'UN GLB EXTERNE (Task 6, 2b) ─────────────────────────────────
+# Un moteur image->3D (mesh3d, Task 4) rend UN GLB entier : son propre buffer,
+# ses vues, ses accesseurs, ses images, ses matériaux, son arbre de nœuds. Le
+# fusionner dans NOTRE document, c'est le RÉINDEXER de bout en bout — pas le
+# recoller à côté. Toute référence d'indice qu'on oublierait de décaler pointe
+# alors une donnée du VOISIN : un GLB parfaitement valide, qui montre la
+# mauvaise chose. D'où les cartes de décalage explicites ci-dessous, et un
+# refus NOMMÉ (jamais un IndexError nu) dès qu'un indice sort des clous.
+_PROF_MAX = 12          # borne ANTI-GEL des balayages récursifs : un document
+                         # hostile à un million de niveaux ne doit pas faire
+                         # sauter la pile (une RecursionError deviendrait un
+                         # 500 chez l'appelant, ce que ce module s'interdit).
+
+
+def _decale(carte: dict, i, quoi: str) -> int:
+    """L'indice `i` vu par le décalage `carte`, ou ValueError NOMMÉE. Un GLB
+    de moteur qui référence une donnée absente est une entrée douteuse, pas un
+    bug d'ici : elle se refuse, elle ne lève pas un IndexError nu."""
+    if isinstance(i, bool) or not isinstance(i, int) or i not in carte:
+        raise ValueError(f"GLB externe : {quoi} hors bornes ({i!r})")
+    return carte[i]
+
+
+def _reindex_cles(obj, cles: dict, prof: int = 0) -> None:
+    """Réécrit RÉCURSIVEMENT, SUR PLACE, les clés d'indice nommées dans
+    `cles` ({nom de clé: carte de décalage}).
+
+    Deux usages, deux clés : `index` dans un dict de MATÉRIAU (là, `index` ne
+    désigne QUE des textures — `textureInfo`, `normalTextureInfo`,
+    `occlusionTextureInfo` — y compris au fond des `extensions` : clearcoat,
+    iridescence, anisotropie, specular... les balayer une par une serait une
+    liste à tenir à jour contre le registre Khronos) et `source` dans les
+    `extensions` d'une TEXTURE (KHR_texture_basisu porte SA propre image)."""
+    if prof > _PROF_MAX:
+        raise ValueError("GLB externe : document trop imbriqué")
+    if isinstance(obj, dict):
+        for cle, carte in cles.items():
+            if cle in obj:
+                obj[cle] = _decale(carte, obj[cle], cle)
+        for v in obj.values():
+            _reindex_cles(v, cles, prof + 1)
+    elif isinstance(obj, list):
+        for v in obj:
+            _reindex_cles(v, cles, prof + 1)
+
+
+def _scrub_extras(obj, prof: int = 0) -> None:
+    """`extras` JETÉS partout, récursivement : c'est là que vivent les champs
+    d'identité d'un exportateur tiers (auteur, outil, licence). Le writer
+    promet « zéro identité » pour TOUT le document — la promesse ne peut pas
+    s'arrêter à la frontière du GLB importé."""
+    if prof > _PROF_MAX:
+        raise ValueError("GLB externe : document trop imbriqué")
+    if isinstance(obj, dict):
+        obj.pop("extras", None)
+        for v in obj.values():
+            _scrub_extras(v, prof + 1)
+    elif isinstance(obj, list):
+        for v in obj:
+            _scrub_extras(v, prof + 1)
+
+
+def _merge_external(doc, buf, views, accessors, images, textures, materials,
+                    meshes, nodes, samplers, ext) -> tuple:
+    """Réindexation complète d'UN GLB externe dans le document EN COURS.
+
+    `doc` porte les champs de NIVEAU DOCUMENT (`extensionsUsed` et
+    `extensionsRequired`, deux ensembles) ; les autres paramètres sont les
+    tableaux en construction du writer, complétés SUR PLACE. Rend
+    `(indice du nœud parent, ignorés)`.
+
+      · bufferViews recopiées VUE PAR VUE (pad4 avant chacune, `byteOffset`
+        au point de recopie) — jamais le buffer entier : les paddings d'ORIGINE
+        ne sont pas les nôtres, et une vue peut parfaitement en chevaucher une
+        autre chez le voisin ;
+      · images par bufferView OBLIGATOIRES — une image `uri` lève une
+        ValueError NOMMÉE : RIEN ne se télécharge à l'assemblage (idem pour un
+        buffer externe, qui emporterait la géométrie avec lui) ;
+      · samplers du doc externe PRÉSERVÉS — leurs textures tuilent parfois en
+        REPEAT, c'est LEUR matériau ; notre CLAMP ne vaut que pour NOS couches
+        (dont le tuilage est cuit dans les pixels). Une texture externe sans
+        sampler reçoit un `{}` AJOUTÉ (le défaut glTF = REPEAT), jamais notre
+        CLAMP recyclé ;
+      · hiérarchie de nœuds interne GARDÉE (enfants décalés), re-basée sous UN
+        parent au TRS du fit ; animations / squelettes / caméras JETÉS et
+        AVOUÉS (rien ici ne sait les rejouer) ;
+      · asset, generator, copyright et tous les `extras` du doc externe JETÉS
+        (nous gardons NOTRE asset) ; `extensionsUsed` en union ; ses
+        `extensionsRequired` CONSERVÉES telles quelles — honnêteté : le
+        document fusionné les exige VRAIMENT. Les NÔTRES (iridescence,
+        clearcoat, anisotropie) n'y entrent jamais, elles restent des
+        enjolivures.
+
+    LIMITE CONNUE, nommée plutôt que masquée : les `attributes` d'une
+    primitive compressée Draco sont des identifiants DRACO, pas des
+    accesseurs — seule sa `bufferView` est décalée. Un GLB Draco garde donc
+    son `extensionsRequired`, et c'est au lecteur de savoir le décompresser."""
+    src, binv = read_glb(ext.get("glb") if isinstance(ext, dict) else None)
+    _scrub_extras(src)
+    ignores: list = []
+
+    def tab(cle) -> list:
+        v = src.get(cle)
+        return v if isinstance(v, list) else []
+
+    nom_ext = str((ext or {}).get("name") or "externe")[:60]
+    for i, im in enumerate(tab("images")):
+        if isinstance(im, dict) and im.get("uri"):
+            raise ValueError(
+                f"GLB à ressources externes (uri) non supporté : l'image {i} "
+                f"de {nom_ext!r} vit au bout d'une URL — rien ne se télécharge "
+                f"à l'assemblage")
+    for i, bf in enumerate(tab("buffers")):
+        if isinstance(bf, dict) and bf.get("uri"):
+            raise ValueError(
+                f"GLB à ressources externes (uri) non supporté : le buffer {i} "
+                f"de {nom_ext!r} vit au bout d'une URL")
+
+    def pad4():
+        while len(buf) % 4:
+            buf.append(0)
+
+    # ── les vues : recopiées une par une DANS notre buffer ──────────────────
+    dv: dict = {}
+    for i, bv in enumerate(tab("bufferViews")):
+        if not isinstance(bv, dict):
+            raise ValueError(f"GLB externe : bufferView {i} illisible")
+        off = int(_f(bv.get("byteOffset"), 0.0))
+        ln = int(_f(bv.get("byteLength"), 0.0))
+        if off < 0 or ln < 0 or off + ln > len(binv):
+            raise ValueError(
+                f"GLB externe tronqué : bufferView {i} déborde du chunk BIN "
+                f"({off}+{ln} > {len(binv)})")
+        pad4()
+        neuve = {"buffer": 0, "byteOffset": len(buf), "byteLength": ln}
+        for cle in ("byteStride", "target"):
+            if cle in bv:
+                neuve[cle] = bv[cle]
+        buf.extend(binv[off:off + ln])
+        views.append(neuve)
+        dv[i] = len(views) - 1
+
+    # ── les accesseurs : bornes et octets INTACTS, seule la vue se décale ───
+    da: dict = {}
+    for i, acc in enumerate(tab("accessors")):
+        if not isinstance(acc, dict):
+            raise ValueError(f"GLB externe : accesseur {i} illisible")
+        if "bufferView" in acc:
+            acc["bufferView"] = _decale(dv, acc["bufferView"],
+                                        f"bufferView de l'accesseur {i}")
+        sp = acc.get("sparse")
+        if isinstance(sp, dict):
+            for cle in ("indices", "values"):
+                part = sp.get(cle)
+                if isinstance(part, dict) and "bufferView" in part:
+                    part["bufferView"] = _decale(
+                        dv, part["bufferView"],
+                        f"bufferView sparse.{cle} de l'accesseur {i}")
+        accessors.append(acc)
+        da[i] = len(accessors) - 1
+
+    # ── les images : par bufferView, sans un mot de leur provenance ─────────
+    di: dict = {}
+    for i, im in enumerate(tab("images")):
+        if not isinstance(im, dict) or "bufferView" not in im:
+            raise ValueError(
+                f"GLB externe : image {i} sans bufferView (seules les images "
+                f"EMBARQUÉES sont fusionnables)")
+        neuve = {"bufferView": _decale(dv, im["bufferView"],
+                                       f"bufferView de l'image {i}"),
+                 "mimeType": str(im.get("mimeType") or "image/png")}
+        if im.get("name"):
+            neuve["name"] = str(im["name"])[:60]
+        images.append(neuve)
+        di[i] = len(images) - 1
+
+    # ── les samplers : les SIENS, ou un défaut glTF (REPEAT) ajouté ─────────
+    ds: dict = {}
+    for i, sm in enumerate(tab("samplers")):
+        samplers.append(dict(sm) if isinstance(sm, dict) else {})
+        ds[i] = len(samplers) - 1
+    defaut: list = [None]
+
+    def sampler_defaut() -> int:
+        if defaut[0] is None:
+            samplers.append({})        # wrap par défaut glTF = REPEAT
+            defaut[0] = len(samplers) - 1
+        return defaut[0]
+
+    dt: dict = {}
+    for i, tx in enumerate(tab("textures")):
+        tx = tx if isinstance(tx, dict) else {}
+        if "source" in tx:
+            tx["source"] = _decale(di, tx["source"],
+                                   f"source de la texture {i}")
+        tx["sampler"] = (ds[tx["sampler"]] if tx.get("sampler") in ds
+                         else sampler_defaut())
+        _reindex_cles(tx.get("extensions"), {"source": di})
+        textures.append(tx)
+        dt[i] = len(textures) - 1
+
+    dm: dict = {}
+    for i, mt in enumerate(tab("materials")):
+        mt = mt if isinstance(mt, dict) else {}
+        _reindex_cles(mt, {"index": dt})
+        materials.append(mt)
+        dm[i] = len(materials) - 1
+
+    dh: dict = {}
+    for i, mh in enumerate(tab("meshes")):
+        mh = mh if isinstance(mh, dict) else {}
+        prims = mh.get("primitives")
+        if not isinstance(prims, list) or not prims:
+            raise ValueError(f"GLB externe : mesh {i} sans primitive")
+        for prim in prims:
+            if not isinstance(prim, dict):
+                raise ValueError(f"GLB externe : primitive illisible (mesh {i})")
+            attrs = prim.get("attributes")
+            if not isinstance(attrs, dict):
+                raise ValueError(
+                    f"GLB externe : primitive sans attributs (mesh {i})")
+            prim["attributes"] = {
+                k: _decale(da, v, f"attribut {k} du mesh {i}")
+                for k, v in attrs.items()}
+            if prim.get("indices") is not None:
+                prim["indices"] = _decale(da, prim["indices"],
+                                          f"indices du mesh {i}")
+            if prim.get("material") is not None:
+                prim["material"] = _decale(dm, prim["material"],
+                                           f"matériau du mesh {i}")
+            cibles = prim.get("targets")
+            if isinstance(cibles, list):
+                prim["targets"] = [
+                    {k: _decale(da, v, f"cible de morph du mesh {i}")
+                     for k, v in t.items()}
+                    for t in cibles if isinstance(t, dict)]
+            draco = (prim.get("extensions")
+                     or {}).get("KHR_draco_mesh_compression")
+            if isinstance(draco, dict) and "bufferView" in draco:
+                draco["bufferView"] = _decale(dv, draco["bufferView"],
+                                              f"vue Draco du mesh {i}")
+        meshes.append(mh)
+        dh[i] = len(meshes) - 1
+
+    # ── les nœuds : hiérarchie gardée, tout le reste sur liste blanche ──────
+    # (une liste BLANCHE et pas noire : `camera`, `skin`, `extensions` — une
+    # lumière KHR_lights_punctual pointerait un tableau que nous ne copions
+    # pas — tombent d'eux-mêmes, sans qu'il faille les avoir prévus.)
+    gardes = ("name", "translation", "rotation", "scale", "matrix", "weights")
+    dn: dict = {}
+    s_nodes = tab("nodes")
+    for i, nd in enumerate(s_nodes):
+        nd = nd if isinstance(nd, dict) else {}
+        neuf = {k: v for k, v in nd.items() if k in gardes}
+        if "name" in neuf:
+            neuf["name"] = str(neuf["name"])[:60]
+        nodes.append(neuf)
+        dn[i] = len(nodes) - 1
+    perdus = 0
+    for i, nd in enumerate(s_nodes):
+        nd = nd if isinstance(nd, dict) else {}
+        neuf = nodes[dn[i]]
+        if nd.get("mesh") is not None:
+            neuf["mesh"] = _decale(dh, nd["mesh"], f"mesh du noeud {i}")
+        enf = nd.get("children")
+        if isinstance(enf, list) and enf:
+            neuf["children"] = [_decale(dn, c, f"enfant du noeud {i}")
+                                for c in enf]
+        perdus += 1 if (nd.get("camera") is not None
+                        or nd.get("skin") is not None) else 0
+
+    # ── les racines : celles des scènes ; à défaut, les nœuds sans parent ───
+    racines: list = []
+    vus: set = set()
+    for sc in tab("scenes"):
+        for k in ((sc.get("nodes") if isinstance(sc, dict) else None) or []):
+            if k in dn and k not in vus:
+                vus.add(k)
+                racines.append(dn[k])
+    if not racines:
+        enfants_de: set = set()
+        for nd in s_nodes:
+            if isinstance(nd, dict):
+                for c in (nd.get("children") or []):
+                    enfants_de.add(c)
+        racines = [dn[i] for i in sorted(dn) if i not in enfants_de]
+    if not racines:
+        raise ValueError(f"GLB externe sans aucun noeud de scène ({nom_ext!r})")
+
+    for cle, quoi in (("animations", "animations"), ("skins", "squelettes"),
+                      ("cameras", "cameras")):
+        n = len(tab(cle))
+        if n:
+            ignores.append(f"{quoi} x{n}")
+    if perdus:
+        ignores.append(f"attaches camera/squelette de {perdus} noeud(s)")
+
+    doc["extensionsUsed"].update(x for x in tab("extensionsUsed")
+                                 if isinstance(x, str))
+    exig = {x for x in tab("extensionsRequired") if isinstance(x, str)}
+    doc["extensionsRequired"].update(exig)
+    doc["extensionsUsed"].update(exig)   # une exigée est forcément utilisée
+
+    # LE PARENT : translation ET échelle TOUJOURS écrites, même à l'identité —
+    # ce ne sont pas des valeurs par défaut sous-entendues mais un FIT CALCULÉ,
+    # et un fit qu'on ne peut pas relire dans le fichier n'est pas auditable.
+    fit = (ext or {}).get("fit")
+    fit = fit if isinstance(fit, dict) else {}
+    s = _f(fit.get("scale"), 1.0)
+    t = fit.get("translate")
+    t = ([_f(v) for v in t] if isinstance(t, (list, tuple)) and len(t) == 3
+         else [0.0, 0.0, 0.0])
+    parent = {"name": nom_ext, "children": racines, "translation": t,
+              "scale": [s, s, s]}
+    if math.radians(_f(fit.get("rotate_deg"))) / 2.0:
+        parent["rotation"] = _quat_z(fit.get("rotate_deg"))   # 0° = identité,
+                                                               # sous-entendue
+    nodes.append(parent)
+    return len(nodes) - 1, ignores
+
+
+def apply_fit_inplace(mesh: dict, fit: dict) -> dict:
+    """Le TRS d'un fit appliqué AUX POSITIONS, SUR PLACE — ordre glTF d'un
+    nœud : p' = T + R(S.p). Le format STL n'a pas de nœud pour porter un
+    transform : un externe doit y entrer DÉJÀ placé.
+
+    SUR PLACE, ET C'EST LE POINT (choix mesuré, Task 6) : le plan prescrivait
+    d'étendre `_write_stl_binary` d'un paramètre `externals` transformant
+    sommet par sommet à l'emballage. Or `glb_scene_mesh` a DÉJÀ matérialisé
+    la liste des positions — la transformer ici n'alloue RIEN de plus, tandis
+    que le paramètre en plus ajoutait une passe et un chemin à tester au
+    writer STL pour zéro octet gagné. Le writer garde donc son contrat
+    d'octets intact, et l'externe entre comme un élément ordinaire."""
+    fit = fit if isinstance(fit, dict) else {}
+    s = _f(fit.get("scale"), 1.0)
+    t = fit.get("translate")
+    tx, ty, tz = ([_f(v) for v in t]
+                  if isinstance(t, (list, tuple)) and len(t) == 3
+                  else [0.0, 0.0, 0.0])
+    ang = math.radians(_f(fit.get("rotate_deg")))
+    ca, sa = math.cos(ang), math.sin(ang)
+    pos = mesh["positions"]
+    for k in range(0, len(pos) - 2, 3):
+        x, y, z = pos[k] * s, pos[k + 1] * s, pos[k + 2] * s
+        pos[k] = x * ca - y * sa + tx
+        pos[k + 1] = x * sa + y * ca + ty
+        pos[k + 2] = z + tz
+    return mesh
+
+
+def write_scene_glb(elements: list, name: str, extras: dict,
+                    externals: list | None = None,
+                    out_ignored: list | None = None) -> bytes:
     """UN document glTF multi-éléments, écrit JUSTE du premier coup :
     bornes exactes (calculées ici même sur les floats empaquetés), aucun champ
     d'identité (ce writer n'en émet simplement jamais), samplers CLAMP, racine
@@ -483,13 +842,31 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
       · `trs`     — translation/rotation/échelle du nœud ; sans elle, seul le
         `z_mm` de la 2a est écrit (voir `_node_trs`).
 
-    Précondition : `elements` exige AU MOINS UN élément — un GLB à zéro
-    élément est invalide au schéma glTF (minItems 1) ; la route build3d fait
-    409 avant d'appeler ce writer (tâche 4)."""
+    `externals` (2b, Task 6) — les GLB des MOTEURS, fusionnés APRÈS les
+    éléments locaux, chaque entrée `{"name", "glb": bytes, "fit": {...}}` (voir
+    `_merge_external`). Absent = comportement 2a mot pour mot.
+
+    `out_ignored` — liste FACULTATIVE à laquelle sont AJOUTÉES les pertes de
+    la fusion, en dicts `{"name": <l'externe>, "why": "animations x2 : ..."}`.
+    Le plan montrait des chaînes nues ; un aveu doit être ATTRIBUABLE — la
+    route doit dire QUEL nœud a perdu quoi, et retrouver le nom en découpant
+    une chaîne serait un couplage par la ponctuation. Choix DÉLIBÉRÉ, aussi,
+    contre un tuple de retour :
+    rendre `(bytes, ignored)` dès qu'il y a des externes ferait deux types de
+    retour pour une même fonction — un appelant 2a qui écrirait le résultat
+    tel quel produirait un GLB corrompu le jour où un externe apparaît. Un
+    paramètre de sortie, lui, ne casse personne et ne se lit que si on le
+    demande.
+
+    Précondition : AU MOINS UN élément (local ou externe) — un GLB vide est
+    invalide au schéma glTF ; la route build3d fait 409 avant d'appeler ce
+    writer (tâche 4)."""
     # zéro identité VRAIE pour tout appelant, pas seulement le nôtre
     extras = {k: v for k, v in (extras or {}).items() if k not in _IDENTITY_KEYS}
     buf = bytearray()
     views, accessors, images, textures, materials, meshes, nodes = [], [], [], [], [], [], []
+    samplers: list = [{"wrapS": 33071, "wrapT": 33071}]   # NOTRE sampler CLAMP
+    exts_required: set = set()
 
     def pad4():
         while len(buf) % 4:
@@ -518,7 +895,9 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         accessors.append(acc)
         return len(accessors) - 1
 
-    sampler = 0   # un seul sampler CLAMP
+    sampler = 0   # NOS couches : le sampler CLAMP, toujours l'indice 0 (les
+                   # samplers d'un GLB externe s'ajoutent APRÈS, jamais à sa
+                   # place — voir `_merge_external`)
     exts_used: set = set()
 
     # MEMO DE TEXTURES, PAR APPEL (revue Task 5) : deux éléments finis avec la
@@ -557,6 +936,14 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         cc = cc if isinstance(cc, dict) else None
         ani = (fin or {}).get("anisotropy")
         ani = ani if isinstance(ani, dict) else None
+        # LA FINITION EST-ELLE ACTIVE ? (résidu de re-revue Task 5) — c'est la
+        # présence d'une RECETTE (le bloc `pbr`) qui compte, pas la simple
+        # vérité du dictionnaire. Le saut de la map MR plus bas repose sur
+        # « la finition écrit les facteurs de micro-surface » : un paquet MAL
+        # FORMÉ n'en écrit AUCUN, et jeter pour lui une map MR parfaitement
+        # valide reviendrait à dégrader DEUX fois pour une seule donnée
+        # douteuse (la finition perdue ET la matière perdue).
+        fin_actif = isinstance(fin, dict) and isinstance(fin.get("pbr"), dict)
         if ani and m.get("uv_axis_aligned") is not True:
             # GARDE (Task 6) : la tangente constante ci-dessous n'est vraie que
             # sur nos plans et nos reliefs. Sur un maillage de moteur (mesh3d,
@@ -586,6 +973,24 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
             # et le vert d'une normal map s'inverse sur tout élément qui porte
             # à la fois `mat_maps.normal` et une finition anisotrope.
             #
+            # DOCTRINE TANGENT, DÉCISION CONSIGNÉE (résidu de re-revue Task 5)
+            # — ce writer n'émet TANGENT que SOUS ANISOTROPIE, jamais pour une
+            # simple normal map. Le constructeur générique du dépôt
+            # (gltf_builder.py) tient la tangente pour « pas optionnelle » ;
+            # nous divergeons EN CONNAISSANCE DE CAUSE : sans TANGENT, un
+            # client conforme DÉRIVE la base tangente des UV du triangle
+            # (glTF 2.0, « When tangents are not specified, client
+            # implementations SHOULD calculate tangents using default MikkTSpace
+            # algorithms »), et sur des UV comme les nôtres — alignées sur les
+            # axes, v inversé — la tangente dérivée tombe sur EXACTEMENT la
+            # même main que celle écrite ici (w = -1). Mieux, même : la
+            # dérivation par triangle donne une tangente JUSTE sur les jupes de
+            # relief, là où notre constante est dégénérée (voir juste en
+            # dessous). L'anisotropie, elle, n'a pas ce luxe — son extension
+            # EXIGE l'attribut, faute de quoi le peigne suit la caméra. À
+            # rouvrir si un visualiseur réel prouve le contraire, et alors avec
+            # de VRAIES tangentes PAR SOMMET, pas avec cette constante.
+            #
             # DÉGÉNÉRESCENCE ASSUMÉE : sur les murs i=0 et i=gx d'un relief, la
             # normale est ±x — donc PARALLÈLE à cette tangente, et le repère
             # TBN y est plat. La jupe fait 0,3 mm et ne reçoit aucun peigne
@@ -613,7 +1018,7 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         # holographique REMPLACE la micro-surface (MR) de la matière, mais
         # laisse parler son RELIEF (normale) et son OCCLUSION — c'est ce que
         # fait une vraie dorure à chaud sur un carton texturé.
-        if mm.get("mr") and not fin:
+        if mm.get("mr") and not fin_actif:
             pbr["metallicRoughnessTexture"] = {
                 "index": add_texture(mm["mr"], f"{nom}-mr", True)}
             # glTF calcule rugosité = roughnessFactor x texture.G et
@@ -677,6 +1082,27 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
             "attributes": attrs, "indices": iix,
             "material": len(materials) - 1}]})
         nodes.append({"name": nom, "mesh": len(meshes) - 1, **_node_trs(el)})
+    # LES ENFANTS DE LA RACINE, ÉNUMÉRÉS : un élément local = un nœud, mais un
+    # externe en apporte tout un ARBRE — prendre `range(len(nodes))` comme en
+    # 2a hisserait chacun de ses nœuds internes au rang de racine (la carte
+    # exploserait en pièces détachées, chacune à l'origine).
+    enfants = list(range(len(nodes)))
+    doc_ext = {"extensionsUsed": exts_used, "extensionsRequired": exts_required}
+    for i_ext, ext in enumerate(externals or []):
+        parent, perdus = _merge_external(
+            doc_ext, buf, views, accessors, images, textures, materials,
+            meshes, nodes, samplers, ext)
+        enfants.append(parent)
+        if isinstance(out_ignored, list):
+            nom_ext = str((ext or {}).get("name") or "externe")[:60]
+            # `index` : le RANG dans `externals`, seule clé qui ne peut pas
+            # collisionner (deux couches homonymes des deux côtés d'une carte
+            # portent le MÊME nom d'élément — attribuer l'aveu par le nom
+            # l'accrocherait alors au mauvais nœud).
+            out_ignored.extend(
+                {"index": i_ext, "name": nom_ext,
+                 "why": f"{p} : non repris de l'element externe"}
+                for p in perdus)
     # PIÈGE DU SQUELETTE (auto-revue) : le buffer doit être aligné à 4 AVANT
     # que `buffers[0].byteLength` ne soit figé dans le JSON — la dernière
     # écriture de la boucle (un PNG, taille arbitraire) laisse `buf`
@@ -692,21 +1118,34 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     # three.js expose node.extras en userData — un seul emplacement ne
     # survivrait pas partout.
     racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
-              "children": list(range(len(nodes))), "extras": extras}
+              "children": enfants, "extras": extras}
     nodes.append(racine)
     # `extensionsUsed` : l'union TRIÉE de ce qui a RÉELLEMENT servi, et la clé
     # DISPARAÎT quand rien n'a servi — un GLB de la 2a reste un GLB de la 2a,
     # sans un tableau vide qui laisserait croire à des extensions.
-    # Et JAMAIS `extensionsRequired` : iridescence, clearcoat et anisotropie
-    # sont des ENJOLIVURES. Les EXIGER ferait REFUSER le fichier par tout
-    # lecteur qui ne les connaît pas, alors qu'il l'afficherait très bien sans
-    # elles (dégradation propre — la carte perd son reflet, pas son existence).
+    # Et JAMAIS `extensionsRequired` DES NÔTRES : iridescence, clearcoat et
+    # anisotropie sont des ENJOLIVURES. Les EXIGER ferait REFUSER le fichier
+    # par tout lecteur qui ne les connaît pas, alors qu'il l'afficherait très
+    # bien sans elles (dégradation propre — la carte perd son reflet, pas son
+    # existence). Celles d'un GLB EXTERNE, en revanche, sont CONSERVÉES telles
+    # quelles : si son maillage est compressé Draco, le document fusionné
+    # l'exige VRAIMENT — le taire livrerait un fichier qui s'ouvre sur du vide.
+    #
+    # Les tableaux VIDES sont OMIS (glTF impose minItems 1 partout) : une scène
+    # 100 % moteur sans un seul matériau produirait sinon un `"materials": []`
+    # qui fait échouer la validation. Sur une scène 2a, aucun de ces tableaux
+    # n'est vide — les octets d'un GLB 2a ne bougent pas d'un bit.
     doc = {"asset": {"version": "2.0", "extras": extras},
            **({"extensionsUsed": sorted(exts_used)} if exts_used else {}),
+           **({"extensionsRequired": sorted(exts_required)}
+              if exts_required else {}),
            "scene": 0, "scenes": [{"name": str(name)[:60], "nodes": [len(nodes) - 1]}],
-           "nodes": nodes, "meshes": meshes, "materials": materials,
-           "textures": textures, "images": images,
-           "samplers": [{"wrapS": 33071, "wrapT": 33071}],
+           "nodes": nodes,
+           **({"meshes": meshes} if meshes else {}),
+           **({"materials": materials} if materials else {}),
+           **({"textures": textures} if textures else {}),
+           **({"images": images} if images else {}),
+           "samplers": samplers,
            "accessors": accessors, "bufferViews": views,
            "buffers": [{"byteLength": len(buf)}]}
     js = json.dumps(doc, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
@@ -788,14 +1227,126 @@ def _accessor_indices(doc: dict, binv: bytes, idx: int) -> list[int]:
         raise ValueError(f"accesseur d'indices {idx!r} illisible ({e})") from e
 
 
+def _mesh_prims(mesh):
+    """Les primitives TRIANGLES d'UN mesh (mode 4, le défaut glTF)."""
+    if not isinstance(mesh, dict):
+        return
+    for prim in mesh.get("primitives") or []:
+        if isinstance(prim, dict) and prim.get("mode", 4) == 4:
+            yield prim
+
+
 def _triangle_prims(doc: dict):
-    """Les primitives TRIANGLES du document (mode 4, le défaut glTF)."""
+    """Les primitives TRIANGLES du document, TOUS meshes confondus — sans
+    regarder qui les instancie. C'est ce qu'il faut pour une mesure de
+    TOPOLOGIE (`closed`), qu'aucun transform de nœud ne change."""
     for mesh in doc.get("meshes") or []:
-        if not isinstance(mesh, dict):
+        yield from _mesh_prims(mesh)
+
+
+# ── LES TRANSFORMS DE NŒUDS, COMPOSÉS (Task 6) ──────────────────────────────
+# La topologie se moque des transforms ; le PLACEMENT, lui, en vit. Mesurer un
+# GLB de moteur sur ses positions BRUTES revient à parier que sa scène est à
+# l'identité — pari perdu dès qu'un exportateur pose une conversion d'axes
+# (Y-up -> Z-up) ou une échelle d'unité sur son nœud racine : le fit calculé
+# sur du brut placerait alors la pièce couchée, ou mille fois trop petite.
+# Composer les matrices rend le fit JUSTE quelle que soit l'unité du moteur —
+# un GLB en mètres, en centimètres ou en pouces tient dans la même boîte de
+# couche, puisque c'est sa taille RENDUE qu'on mesure.
+_IDENT4 = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+           0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+def _mat4_mul(a: list, b: list) -> list:
+    """`a x b` en convention glTF (COLONNE par colonne) : le résultat applique
+    `b` PUIS `a` — l'ordre parent x enfant d'une descente de scène."""
+    out = [0.0] * 16
+    for c in range(4):
+        for r in range(4):
+            out[c * 4 + r] = (a[r] * b[c * 4]
+                              + a[4 + r] * b[c * 4 + 1]
+                              + a[8 + r] * b[c * 4 + 2]
+                              + a[12 + r] * b[c * 4 + 3])
+    return out
+
+
+def _node_matrix(nd: dict) -> list:
+    """La matrice d'UN nœud : sa `matrix` si elle existe, sinon T x R x S
+    (l'ordre imposé par glTF 2.0). Toute valeur douteuse retombe sur
+    l'identité — jamais une exception (ce module lit des octets tiers)."""
+    m = nd.get("matrix")
+    if isinstance(m, (list, tuple)) and len(m) == 16:
+        return [_f(v) for v in m]
+    t = nd.get("translation")
+    t = ([_f(v) for v in t] if isinstance(t, (list, tuple)) and len(t) == 3
+         else [0.0, 0.0, 0.0])
+    s = nd.get("scale")
+    s = ([_f(v, 1.0) for v in s] if isinstance(s, (list, tuple)) and len(s) == 3
+         else [1.0, 1.0, 1.0])
+    q = nd.get("rotation")
+    x, y, z, w = ([_f(v) for v in q]
+                  if isinstance(q, (list, tuple)) and len(q) == 4
+                  else [0.0, 0.0, 0.0, 1.0])
+    r = [1 - 2 * (y * y + z * z), 2 * (x * y + z * w), 2 * (x * z - y * w),
+         2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w),
+         2 * (x * z + y * w), 2 * (y * z - x * w), 1 - 2 * (x * x + y * y)]
+    return [r[0] * s[0], r[1] * s[0], r[2] * s[0], 0.0,
+            r[3] * s[1], r[4] * s[1], r[5] * s[1], 0.0,
+            r[6] * s[2], r[7] * s[2], r[8] * s[2], 0.0,
+            t[0], t[1], t[2], 1.0]
+
+
+def _meshes_du_monde(doc: dict) -> list:
+    """`(indice de mesh, matrice MONDE)` pour chaque mesh atteint depuis les
+    scènes. Descente BORNÉE en profondeur ET par un ensemble de nœuds déjà
+    vus : glTF interdit qu'un nœud ait deux parents, un document malformé (ou
+    hostile) ne s'en prive pas — un `children` qui reboucle ferait tourner la
+    descente sans fin."""
+    nodes = doc.get("nodes")
+    nodes = nodes if isinstance(nodes, list) else []
+    depart: list = []
+    for sc in (doc.get("scenes") or []):
+        for k in ((sc.get("nodes") if isinstance(sc, dict) else None) or []):
+            if isinstance(k, int) and 0 <= k < len(nodes):
+                depart.append(k)
+    if not depart:                    # aucune scène : tous les nœuds sans parent
+        enfants: set = set()
+        for nd in nodes:
+            if isinstance(nd, dict):
+                for c in (nd.get("children") or []):
+                    enfants.add(c)
+        depart = [i for i in range(len(nodes)) if i not in enfants]
+    out: list = []
+    vus: set = set()
+    pile = [(k, _IDENT4, 0) for k in depart]
+    while pile:
+        i, parent, prof = pile.pop()
+        if i in vus or prof > _PROF_MAX or not (0 <= i < len(nodes)):
             continue
-        for prim in mesh.get("primitives") or []:
-            if isinstance(prim, dict) and prim.get("mode", 4) == 4:
-                yield prim
+        vus.add(i)
+        nd = nodes[i] if isinstance(nodes[i], dict) else {}
+        monde = _mat4_mul(parent, _node_matrix(nd))
+        if isinstance(nd.get("mesh"), int) and not isinstance(nd.get("mesh"), bool):
+            out.append((nd["mesh"], monde))
+        for c in (nd.get("children") or []):
+            if isinstance(c, int):
+                pile.append((c, monde, prof + 1))
+    return out
+
+
+def _applique_mat4(pts: list, m: list) -> list:
+    """Les positions passées à la moulinette d'une matrice 4x4 (colonnes
+    glTF). L'identité rend la MÊME liste : le cas de très loin le plus
+    fréquent ne paie pas une recopie."""
+    if m == _IDENT4:
+        return pts
+    out = [0.0] * len(pts)
+    for k in range(0, len(pts) - 2, 3):
+        x, y, z = pts[k], pts[k + 1], pts[k + 2]
+        out[k] = m[0] * x + m[4] * y + m[8] * z + m[12]
+        out[k + 1] = m[1] * x + m[5] * y + m[9] * z + m[13]
+        out[k + 2] = m[2] * x + m[6] * y + m[10] * z + m[14]
+    return out
 
 
 def glb_triangle_estimate(doc: dict) -> int:
@@ -815,27 +1366,46 @@ def glb_triangle_estimate(doc: dict) -> int:
     return total
 
 
-def glb_scene_mesh(data: bytes) -> dict:
-    """Concatène POSITION+indices de TOUTES les primitives triangles d'un GLB
-    en un mesh {positions, indices} pour `mesh_measures`/STL. Les transforms de
-    nœuds INTERNES sont ignorés (les GLB des moteurs sont un maillage centré —
-    limitation documentée ; le bordereau relit les octets de toute façon).
-    ValueError nommée si rien n'est mesurable.
+def glb_scene_mesh(data: bytes, world: bool = False) -> dict:
+    """Concatène POSITION+indices des primitives triangles d'un GLB en un mesh
+    {positions, indices} pour `mesh_measures`/STL. ValueError nommée si rien
+    n'est mesurable.
+
+    `world=False` (défaut, contrat de la tâche 4) : TOUTES les primitives du
+    document, positions BRUTES, transforms de nœuds IGNORÉS. C'est ce qu'il
+    faut pour une mesure de TOPOLOGIE — `closed` ne dépend d'aucun transform,
+    et un mesh que rien n'instancie compte quand même comme géométrie livrée.
+
+    `world=True` (tâche 6) : la scène TELLE QU'ELLE SERA VUE — descente du
+    graphe de nœuds, matrices COMPOSÉES, positions dans le repère de la scène.
+    C'est ce qu'il faut pour PLACER (fit) et pour IMPRIMER (STL), les deux
+    devant montrer la même chose que le GLB. Repli automatique sur le
+    balayage brut si AUCUN nœud n'instancie de mesh (le GLB du simulateur
+    Meshy, entre autres) : une géométrie orpheline vaut mieux que rien.
 
     Une primitive SANS `indices` n'est PAS une faute : glTF 2.0 la définit
     comme un tirage NON INDEXÉ, ses sommets se suivant dans l'ordre. Le GLB du
     simulateur Meshy est exactement cela (un triangle nu) — la refuser ferait
     échouer une mesure parfaitement calculable."""
     doc, binv = read_glb(data)
+    couples: list = []
+    if world:
+        meshes = doc.get("meshes")
+        meshes = meshes if isinstance(meshes, list) else []
+        for mi, monde in _meshes_du_monde(doc):
+            if 0 <= mi < len(meshes):
+                couples.extend((prim, monde) for prim in _mesh_prims(meshes[mi]))
+    if not couples:
+        couples = [(prim, None) for prim in _triangle_prims(doc)]
     positions: list[float] = []
     indices: list[int] = []
-    for prim in _triangle_prims(doc):
+    for prim, monde in couples:
         attrs = prim.get("attributes")
         if not isinstance(attrs, dict) or "POSITION" not in attrs:
             raise ValueError("primitive triangle sans POSITION")
         base = len(positions) // 3
         pts = _accessor_floats(doc, binv, attrs["POSITION"])
-        positions += pts
+        positions += pts if monde is None else _applique_mat4(pts, monde)
         if prim.get("indices") is None:
             indices += list(range(base, base + len(pts) // 3))
         else:

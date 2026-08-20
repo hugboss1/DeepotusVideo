@@ -2391,7 +2391,7 @@ def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
     assert not any(im["name"].endswith("-mr") for im in doc2["images"])
 
 
-def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe():
+def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe(monkeypatch):
     """Une matière de la boutique, tuilée à tile_mm sur le ratio carte :
     mêmes octets à chaque appel ; le motif se répète au pas attendu.
     (tile_maps vit dans forge3d.py — décision de pureté du module scène.)
@@ -2439,6 +2439,28 @@ def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe():
         gros = F9.tile_maps(mat["id"], ("basecolor",), 32.0, 64.0, 64.0,
                             out_px=99999)["basecolor"]
         assert gros.size == (F9.HOLO_PX[1], F9.HOLO_PX[1]) == (2048, 2048)
+        # LA BORNE DE L'ALLOCATION DÉRIVÉE (résidu de re-revue Task 5) : à
+        # tile_mm=200 sur une carte mini de 31,75 mm, `W x tile_mm / w_mm`
+        # visait 12 900 px de côté — une tuile de ~500 Mo en RGB, depuis des
+        # entrées PARFAITEMENT LÉGALES (les deux sont dans les bornes
+        # publiées). Le pixel rendu, lui, ne change pas d'un poil : une tuile
+        # plus grande que la toile est collée UNE fois puis rognée. La seule
+        # trace observable est donc la taille DEMANDÉE au rééchantillonnage —
+        # espionnée ici, faute de quoi la borne ne serait qu'un commentaire.
+        demandes = []
+        vrai_resize = Image.Image.resize
+
+        def resize_espion(self, size, *a, **kw):
+            demandes.append(tuple(size))
+            return vrai_resize(self, size, *a, **kw)
+
+        monkeypatch.setattr(Image.Image, "resize", resize_espion)
+        petit = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=200.0,
+                             w_mm=31.75, h_mm=44.45, out_px=256)["basecolor"]
+        monkeypatch.undo()
+        assert petit.size == (183, 256)      # ratio de la carte mini
+        assert demandes, "aucun reechantillonnage observe"
+        assert max(max(s) for s in demandes) <= max(petit.size), demandes
     finally:
         MSTORE.delete_material(mat["id"])
 
@@ -2501,10 +2523,18 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     assert len(gs) >= 3, gs
     # LE PEIGNE EST TANGENT AU PÉRIMÈTRE, pas radial : le produit scalaire
     # (R-127,5 ; G-127,5).(dx ; dy) est nul aux arrondis près (borne exacte :
-    # 0,5 par canal). Un champ RADIAL — ce que produirait une tangente de
-    # mauvaise main — y donnerait ~127,5 x r, deux ordres de grandeur plus
-    # haut. C'est CE test qui sépare le métal brossé en cercle du nœud
-    # papillon, l'assertion sur les secteurs ne le voit pas.
+    # 0,5 par canal). Un champ RADIAL — une texture d'anisotropie qui porterait
+    # la DIRECTION du rayon au lieu de sa perpendiculaire — y donnerait
+    # ~127,5 x r, deux ordres de grandeur plus haut.
+    #
+    # RECTIFICATIF (re-revue Task 5) : cet assert et le `tw == -1` ci-dessus
+    # sont COMPLÉMENTAIRES, pas redondants — ne jamais supprimer le second en
+    # le croyant couvert par celui-ci. Ils mesurent deux objets différents :
+    # `tw` épingle la MAIN du repère tangent (l'attribut du maillage), celui-ci
+    # épingle le CHAMP dans l'espace des pixels (les octets de la texture). Une
+    # tangente de mauvaise main laisse cette texture PARFAITEMENT
+    # perpendiculaire — elle ne la touche pas — et ne se voit que sur `tw` ;
+    # inversement une texture radiale passerait le `tw`. Il faut les deux.
     i_ani = doc["textures"][ani["anisotropyTexture"]["index"]]["source"]
     bva = doc["bufferViews"][doc["images"][i_ani]["bufferView"]]
     tex_a = Image.open(io.BytesIO(
@@ -2573,13 +2603,30 @@ def test_l_anisotropie_exige_un_maillage_aux_uv_alignees():
                                           "KHR_materials_clearcoat"}
     assert "TANGENT" not in doc["meshes"][0]["primitives"][0]["attributes"]
     # un paquet de finition MAL FORMÉ dégrade en « pas de finition » : jamais
-    # un .get sur un booléen, jamais un 500 sur une donnée d'entrée.
-    doc2, _ = _read_glb(SC.write_scene_glb(
-        [dict(base, finish={"anisotropy": True, "clearcoat": "oui",
-                            "iridescence": None, "pbr": 3})],
+    # un .get sur un booléen, jamais un 500 sur une donnée d'entrée. ET IL NE
+    # DOIT RIEN EMPORTER AVEC LUI (résidu de re-revue Task 5) : le saut de la
+    # map MR est conditionné à une RECETTE présente (`pbr` en dict), pas à la
+    # simple vérité du dictionnaire — sans quoi une seule donnée douteuse
+    # dégradait DEUX fois, la finition perdue ET la matière valide jetée.
+    maps_temoin = SC.material_pngs({"roughness": Image.new("L", (8, 8), 90),
+                                    "metallic": Image.new("L", (8, 8), 200)})
+    doc2, binv2 = _read_glb(SC.write_scene_glb(
+        [dict(base, mat_maps=maps_temoin,
+              finish={"anisotropy": True, "clearcoat": "oui",
+                      "iridescence": None, "pbr": 3})],
         name="x", extras={}))
     assert "extensions" not in doc2["materials"][0]
     assert "extensionsUsed" not in doc2
+    # la map MR a SURVÉCU au paquet poubelle — et ce sont bien SES octets
+    pbr2 = doc2["materials"][0]["pbrMetallicRoughness"]
+    assert "metallicRoughnessTexture" in pbr2
+    assert pbr2["metallicFactor"] == 1.0 and pbr2["roughnessFactor"] == 1.0
+    i2 = doc2["textures"][pbr2["metallicRoughnessTexture"]["index"]]["source"]
+    bv2 = doc2["bufferViews"][doc2["images"][i2]["bufferView"]]
+    px2 = Image.open(io.BytesIO(
+        binv2[bv2["byteOffset"]:bv2["byteOffset"] + bv2["byteLength"]])
+    ).convert("RGB").getpixel((2, 2))
+    assert px2[1] == 90 and px2[2] == 200
 
 
 def test_les_textures_de_finition_sont_mutualisees_pas_celles_des_couches():
@@ -2622,6 +2669,445 @@ def test_le_transform_porte_le_trs_du_noeud():
     q = node["rotation"]                      # quaternion z pour 90°
     assert abs(q[2] - 0.7071067811865476) < 1e-12 and abs(q[3] - 0.7071067811865476) < 1e-12
     assert q[0] == 0.0 and q[1] == 0.0
+
+
+# ── LA FUSION DES GLB EXTERNES (Task 6) — chaînes, STL mixte, moteurs ───────
+# AUCUN de ces tests ne dépense un crédit ni ne touche le réseau : le « GLB du
+# moteur » est écrit par NOTRE writer (bornes connues par construction) ou
+# fabriqué à la main, et le job `served` est POSÉ sur disque exactement comme
+# `_run_mesh3d` l'aurait écrit.
+
+def _dossier_forge3d(did):
+    """`.../forge3d` du deck, par le chemin du domaine (contract.deck_dir) —
+    jamais une recomposition locale qui dériverait."""
+    from app.services.cards.contract import deck_dir
+    return deck_dir(did) / "forge3d"
+
+
+def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None,
+               note=None, octets=None):
+    """Pose un nœud mesh3d SERVI sur disque, avec la forme EXACTE de job.json
+    qu'écrit `_run_mesh3d` (Task 4) — `bytes` compris : c'est LUI que le gate
+    de taille de la fusion relit, sans ouvrir le fichier. `octets` permet de
+    mentir sur cette taille (le gate doit croire le job, pas le disque)."""
+    base = _dossier_noeud(did, nid)
+    (base / "textures").mkdir(parents=True, exist_ok=True)
+    (base / "model.glb").write_bytes(glb)
+    job = {"schema": "card-3d/mesh3d-job@1", "node": nid, "engine": engine,
+           "provider": "meshy" if str(engine).startswith("meshy") else "fal",
+           "run_id": "essai-" + nid, "status": "served", "progress": 100,
+           "step": "Livré", "error": None, "closed": closed,
+           "closed_note": note, "triangles": 0,
+           "bytes": len(glb) if octets is None else int(octets),
+           "files": {"glb": "model.glb"}}
+    if credits is not None:
+        job["consumed_credits"] = credits
+    (base / "job.json").write_text(json.dumps(job, ensure_ascii=False),
+                                   encoding="utf-8")
+    return job
+
+
+def _glb_externe_63x88():
+    """L'« externe » des tests : un relief FERMÉ écrit par notre writer, aux
+    cotes CONNUES 63x88x(0,3..1,3) — le fit attendu se calcule donc de tête."""
+    from app.services.cards import forge3d_scene as SC
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0,
+                            0.3, 4)
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    return SC.write_scene_glb([{"name": "brut", "mesh": relief,
+                                "png": png.getvalue(), "alpha": False,
+                                "z_mm": 0.0}], name="brut", extras={})
+
+
+def test_l_assemblage_fusionne_le_glb_externe_a_sa_place_de_couche():
+    """Chaîne layer->mesh3d->transform->assemble : l'élément externe est
+    réindexé sous un parent au TRS calculé (ajusté à la BOÎTE MM de sa couche,
+    centré, à z du transform), l'identité du doc externe est jetée, les
+    accesseurs restent exacts, le STL mixte sort quand tout est fermé."""
+    did = _deck("Fusion")
+    _exporter_couches(did)
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="meshy-7",
+               credits=30)
+
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "m1", "kind": "mesh3d", "engine": "meshy-7",
+         "texture_prompt": "", "ultra": False},
+        {"id": "tr", "kind": "transform", "x_mm": 0, "y_mm": 0, "z_mm": 2.0,
+         "rot_deg": 0, "scale": 1.0},
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "fusion3d"}],
+        "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "tr"},
+                  {"from": "tr", "to": "asm"}, {"from": "s2", "to": "t2"},
+                  {"from": "t2", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
+    doc, binv = _read_glb(glb)
+    # l'identité du document externe est JETÉE : le nôtre n'en émet aucune, le
+    # sien n'en apporte pas.
+    plat = json.dumps(doc)
+    for mot in ("generator", "copyright", "author", "producer"):
+        assert f'"{mot}"' not in plat, mot
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    noms = [doc["nodes"][k]["name"] for k in racine["children"]]
+    # DEUX enfants de racine, et deux SEULEMENT : les nœuds INTERNES du GLB
+    # externe restent sous SON parent — les hisser au rang de racine ferait
+    # exploser la carte en pièces détachées, chacune à l'origine.
+    assert sorted(noms) == ["cadre", "illustration"], noms
+    parent_ext = doc["nodes"][racine["children"][noms.index("illustration")]]
+    assert [doc["nodes"][k]["name"] for k in parent_ext["children"]] == ["brut"]
+    # LE FIT, RECALCULÉ DEPUIS LE MANIFESTE : la boîte de la couche
+    # illustration est mesurée à l'export (champ `bbox_mm`, repère TOILE —
+    # origine au coin de toile, y vers le BAS, fond perdu compris) ; l'externe
+    # (63x88) y est mis à l'échelle, centré, et posé à z du transform.
+    man = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/layers_c01_front.json").content)
+    boite = next(l for l in man["layers"]
+                 if l["role"] == "illustration")["bbox_mm"]
+    bw = boite[2] - boite[0]
+    bh = boite[3] - boite[1]
+    # NOTE D'ÉCHELLE, et ce n'est PAS un détail : ce faux-moteur est écrit par
+    # NOTRE writer, dont la racine porte le mm->m (0,001). Sa scène mesure donc
+    # 0,063 x 0,088, pas 63 x 88 — et c'est la taille RENDUE que le fit doit
+    # mesurer. Un fit calculé sur les positions BRUTES rendrait ici une pièce
+    # mille fois trop petite dans un GLB structurellement irréprochable.
+    mw, mh = 63.0 * 0.001, 88.0 * 0.001
+    s = min(bw / mw, bh / mh)
+    assert abs(parent_ext["scale"][0] - s) < 1e-9
+    assert parent_ext["scale"] == [parent_ext["scale"][0]] * 3   # UNIFORME
+    # TOUT le z vient du transform (le fit ne le compte pas deux fois) : la
+    # base de l'externe est à z=0, donc translation z == 2.0 EXACTEMENT.
+    assert abs(parent_ext["translation"][2] - 2.0) < 1e-9
+    # ...et le centrage est celui de la boîte RAMENÉE au repère COUPE du
+    # maillage (origine coin de coupe, y vers le HAUT) : sans ce changement de
+    # repère, l'élément serait décalé du fond perdu sur les deux axes.
+    saignee = man["bleed_mm"]
+    cx = (boite[0] + boite[2]) / 2.0 - saignee - s * mw / 2.0
+    cy = (man["canvas_mm"][1] - (boite[1] + boite[3]) / 2.0) - saignee - s * mh / 2.0
+    assert abs(parent_ext["translation"][0] - cx) < 1e-6
+    assert abs(parent_ext["translation"][1] - cy) < 1e-6
+    # BORNES DES ACCESSEURS DU DOC FUSIONNÉ : toujours EXACTES (re-mesurées
+    # ici, pas relues du document) — la recopie vue par vue décale les
+    # offsets, elle ne doit toucher NI les octets NI les bornes.
+    vus = 0
+    for acc in doc["accessors"]:
+        if acc.get("componentType") != 5126 or "min" not in acc:
+            continue
+        bv = doc["bufferViews"][acc["bufferView"]]
+        off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
+        lo = [float("inf")] * n
+        hi = [float("-inf")] * n
+        for e2 in range(acc["count"]):
+            vals = struct.unpack_from("<" + "f" * n, binv, off + e2 * n * 4)
+            for c in range(n):
+                lo[c] = min(lo[c], vals[c])
+                hi[c] = max(hi[c], vals[c])
+        assert acc["min"] == lo and acc["max"] == hi, acc
+        vus += 1
+    assert vus >= 6, vus            # 3 par élément au minimum, deux éléments
+    # RÉINDEXATION PROUVÉE : le matériau du maillage externe vise SON image
+    # (celle embarquée avec lui), pas celle du voisin local — un indice oublié
+    # au décalage donnerait un GLB parfaitement valide montrant la mauvaise
+    # texture, ce qu'aucun contrôle de structure ne verrait.
+    # (le faux-moteur est un GLB de NOTRE writer : sous son parent de fusion
+    # vient SA racine mm->m, et sous elle seulement le nœud porteur du mesh —
+    # la hiérarchie interne est GARDÉE telle quelle, pas aplatie)
+    n_brut = doc["nodes"][doc["nodes"][parent_ext["children"][0]]["children"][0]]
+    prim = doc["meshes"][n_brut["mesh"]]["primitives"][0]
+    tex_ext = doc["materials"][prim["material"]]["pbrMetallicRoughness"][
+        "baseColorTexture"]["index"]
+    assert doc["images"][doc["textures"][tex_ext]["source"]]["name"] == "brut"
+    # ...et son SAMPLER est le SIEN, ajouté, jamais notre CLAMP recyclé
+    tex_loc = doc["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+    assert doc["textures"][tex_loc]["sampler"] == 0
+    assert doc["textures"][tex_ext]["sampler"] != 0
+    assert len(doc["samplers"]) >= 2
+    # metadata : les moteurs RÉELLEMENT utilisés, mesurés
+    meta = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
+    types = {a["trait_type"]: a["value"] for a in meta["attributes"]}
+    assert types["engines"] == "local+meshy-7"
+    assert types["elements_3d"] == 2
+    # le bordereau dit QUI est local et QUI vient d'un moteur, et ce qu'il a coûté
+    detail = {e["name"]: e for e in b["elements_detail"]}
+    assert detail["cadre"]["kind"] == "local"
+    assert detail["illustration"]["kind"] == "externe"
+    assert detail["illustration"]["engine"] == "meshy-7"
+    assert detail["illustration"]["credits"] == 30
+    assert b["elements"] == 2
+    # STL : les DEUX éléments sont fermés -> écrit, longueur exacte
+    assert b["stl"]["written"] is True, b["stl"]
+    stl = _api("GET", f"/api/cards/{did}/forge3d/file/{b['stl']['name']}").content
+    n_tri = struct.unpack("<I", stl[80:84])[0]
+    assert len(stl) == 84 + 50 * n_tri
+    # LE MAILLAGE EXTERNE EST DANS LE STL, ET À SA PLACE. Le compte : celui
+    # des deux éléments réunis — mesuré en rebâtissant le MÊME graphe amputé
+    # de sa chaîne moteur (aucun chiffre recopié à la main).
+    from app.services.cards import forge3d_scene as SC
+    ext_tris = len(SC.glb_scene_mesh(_glb_externe_63x88())["indices"]) // 3
+    g_local = {"nodes": [n for n in g["nodes"] if n["id"] not in ("s1", "m1", "tr")],
+               "edges": [e for e in g["edges"]
+                         if e["from"] not in ("s1", "m1", "tr")]}
+    g_local["nodes"] = [dict(n, name="fusion3d_local") if n["kind"] == "artifact"
+                        else n for n in g_local["nodes"]]
+    r_l = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+               json={"graph": g_local, "card": 0})
+    assert r_l.status_code == 200, r_l.text
+    stl_l = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                 + r_l.json()["artifact"]["stl"]["name"]).content
+    assert n_tri == struct.unpack("<I", stl_l[80:84])[0] + ext_tris
+    # ...et à SA place : l'externe est posé à z=2.0 + son épaisseur mise à
+    # l'échelle, bien au-dessus du relief local (qui plafonne à 1,3 mm).
+    zmax = max(max(struct.unpack_from("<f", stl, k + 20)[0],
+                   struct.unpack_from("<f", stl, k + 32)[0],
+                   struct.unpack_from("<f", stl, k + 44)[0])
+               for k in range(84, 84 + 50 * n_tri, 50))
+    assert abs(zmax - (2.0 + s * 1.3 * 0.001)) < 1e-3, zmax
+
+
+def test_un_noeud_mesh3d_sans_glb_servi_refuse_l_assemblage():
+    did = _deck("Trou")
+    _exporter_couches(did)
+    g = _graphe_mesh3d("meshy-7")
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.text
+    assert "m1" in r.json()["detail"] and "servi" in r.json()["detail"]
+
+
+def test_le_stl_mixte_refuse_un_externe_ouvert_ou_non_mesure():
+    """Le gate STL relit le `closed` CACHÉ au job (jamais une re-mesure) :
+    `False` refuse pour non-fermeture, `None` refuse pour non-MESURE, avec la
+    note du job — deux motifs distincts, jamais le même message recyclé."""
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Ouvert")
+    _exporter_couches(did)
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    q = SC.quad_mesh(63.0, 88.0)
+    ext = SC.write_scene_glb([{"name": "plan", "mesh": q,
+                               "png": png.getvalue(), "alpha": True,
+                               "z_mm": 0.0}], name="p", extras={})
+    _job_servi(did, "m1", ext, closed=False)
+    g = _graphe_mesh3d("meshy-7")
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    assert b["stl"]["written"] is False and "ferm" in b["stl"]["why"]
+    assert "m1" in b["stl"]["why"] or "illustration" in b["stl"]["why"]
+    # un graphe SANS aucun élément local : les moteurs seuls font le metadata
+    meta = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
+    types = {a["trait_type"]: a["value"] for a in meta["attributes"]}
+    assert types["engines"] == "meshy-7" and types["elements_3d"] == 1
+    # closed=None (non mesuré) refuse aussi, motif DIFFÉRENT — et la note du
+    # job voyage jusqu'au bordereau (le « pourquoi » du pourquoi).
+    _job_servi(did, "m1", ext, closed=None,
+               note="fermeture non mesurée : maillage trop lourd (2 triangles)")
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 200, r2.text
+    pourquoi = r2.json()["artifact"]["stl"]
+    assert pourquoi["written"] is False
+    assert "mesur" in pourquoi["why"] and "trop lourd" in pourquoi["why"]
+    assert pourquoi["why"] != b["stl"]["why"]
+
+
+def test_le_rebuild_efface_l_apercu_perime():
+    """Legs 4 : rebâtir `carte3d` supprime carte3d_preview.png — le metadata
+    ne montre plus jamais l'aperçu d'un GLB qui n'existe plus."""
+    did = _deck("Perime")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "carte3d"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+    fdir = _dossier_forge3d(did)
+    (fdir / "carte3d_preview.png").write_bytes(_png(Image.new("RGBA", (4, 4))))
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    assert not (fdir / "carte3d_preview.png").exists()
+    # le bordereau reste HONNÊTE : l'aperçu est attendu, pas écrit
+    assert r.json()["artifact"]["preview"] == {
+        "expected": "carte3d_preview.png", "written": False}
+
+
+def test_le_glb_externe_a_images_uri_est_refuse_motive():
+    """Rien ne se télécharge à l'assemblage : un GLB dont les images vivent
+    au bout d'une URL est REFUSÉ NOMMÉMENT, pas silencieusement dépouillé de
+    ses textures."""
+    did = _deck("Uri")
+    _exporter_couches(did)
+    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
+           "nodes": [{"mesh": 0}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0},
+                                       "indices": 1}]}],
+           "accessors": [
+               {"componentType": 5126, "count": 3, "type": "VEC3",
+                "bufferView": 0, "min": [0, 0, 0], "max": [1, 1, 0]},
+               {"componentType": 5125, "count": 3, "type": "SCALAR",
+                "bufferView": 1}],
+           "images": [{"uri": "https://ailleurs.example/tex.png"}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36},
+                           {"buffer": 0, "byteOffset": 36, "byteLength": 12}],
+           "buffers": [{"byteLength": 48}]}
+    binv = (struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0.5, 1, 0)
+            + struct.pack("<3I", 0, 1, 2))
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    glb = (struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binv))
+           + struct.pack("<II", len(js), 0x4E4F534A) + js
+           + struct.pack("<II", len(binv), 0x004E4942) + binv)
+    _job_servi(did, "m1", glb, closed=False)
+    g = _graphe_mesh3d("meshy-7")
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.text
+    assert "uri" in r.json()["detail"].lower()
+
+
+def test_la_fusion_gate_sur_la_taille_du_job_sans_ouvrir_le_fichier(monkeypatch):
+    """LEGS TASK 4 : `served` n'implique plus « utilisable ». Un GLB au-delà
+    de MAX_EXT_GLB_BYTES arrive SERVI (closed None + note) ; la fusion doit le
+    refuser sur la taille RELUE AU JOB, sans jamais ouvrir le fichier — ici
+    prouvé par un model.glb réduit à du charabia : s'il était lu, le refus
+    serait un 409 de lecture, pas le 400 de la borne."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Trop lourd")
+    _exporter_couches(did)
+    _job_servi(did, "m1", b"ceci n'est pas un GLB", closed=None,
+               note="fermeture non mesurée : GLB trop lourd",
+               octets=99_000_000)
+    monkeypatch.setattr(F9, "MAX_EXT_GLB_BYTES", 1024)
+    g = _graphe_mesh3d("meshy-7")
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 400, r.text
+    detail = r.json()["detail"]
+    assert "99000000" in detail and "1024" in detail and "m1" in detail
+    # sous la borne, le MÊME charabia part en 409 de LECTURE — la preuve que
+    # le 400 ci-dessus n'a pas ouvert le fichier.
+    monkeypatch.setattr(F9, "MAX_EXT_GLB_BYTES", 64 * 1024 * 1024)
+    _job_servi(did, "m1", b"ceci n'est pas un GLB", closed=None)
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 409, r2.text
+    assert "glTF" in r2.json()["detail"] or "GLB" in r2.json()["detail"]
+
+
+def test_la_chaine_matiere_et_transform_habille_l_element_local():
+    """layer -> relief -> material(matière + finition + aniso) -> transform ->
+    assemble : les maps TUILÉES et la recette holo arrivent sur le matériau
+    glTF de CET élément, et le TRS du transform sur son nœud."""
+    from app.services import material_store as MSTORE
+    did = _deck("Chaine locale")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="chaine-2b")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (120, 90, 60)),
+            "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
+            "roughness": Image.new("L", (32, 32), 70),
+            "metallic": Image.new("L", (32, 32), 210),
+            "ao": Image.new("L", (32, 32), 180)})
+        g = {"nodes": [
+            {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+             "grid": 48},
+            {"id": "mt", "kind": "material", "mat": mat["id"],
+             "tile_mm": 31.5, "finish": "argent", "aniso": True},
+            {"id": "tr", "kind": "transform", "x_mm": 4.0, "y_mm": -2.0,
+             "z_mm": 1.5, "rot_deg": 0.0, "scale": 1.0},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "habille"}],
+            "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "mt"},
+                      {"from": "mt", "to": "tr"}, {"from": "tr", "to": "asm"},
+                      {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        b = r.json()["artifact"]
+        assert b["ignored"] == [], b["ignored"]
+        doc, _ = _read_glb(_api(
+            "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+        m = doc["materials"][0]
+        assert "normalTexture" in m and "occlusionTexture" in m
+        # la finition SAUTE la map MR (doctrine Task 5) et pose SA recette
+        assert "metallicRoughnessTexture" not in m["pbrMetallicRoughness"]
+        assert m["pbrMetallicRoughness"]["baseColorFactor"] == \
+            [0.95, 0.95, 0.97, 1.0]
+        assert set(doc["extensionsUsed"]) == {"KHR_materials_iridescence",
+                                              "KHR_materials_clearcoat",
+                                              "KHR_materials_anisotropy"}
+        assert "extensionsRequired" not in doc
+        # le TRS du transform, sur le nœud de l'élément
+        assert doc["nodes"][0]["translation"] == [4.0, -2.0, 1.5]
+        # les maps sont TUILÉES au ratio carte, pas collées telles quelles
+        i_nrm = doc["textures"][m["normalTexture"]["index"]]["source"]
+        assert doc["images"][i_nrm]["name"] == "cadre-normal"
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_les_chaines_impossibles_sont_avouees_sans_faire_tomber_l_artefact():
+    """Deux aveux, deux motifs : une matière chaînée sur un mesh3d (le GLB du
+    moteur porte DÉJÀ ses matériaux) et une matière introuvable sur disque
+    (l'élément passe SANS maps, jamais un 500 ni un silence)."""
+    did = _deck("Chaines ignorees")
+    _exporter_couches(did)
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="tripo")
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "m1", "kind": "mesh3d", "engine": "tripo",
+         "texture_prompt": "", "ultra": False},
+        {"id": "mt", "kind": "material", "mat": "mat_deadbeef",
+         "tile_mm": 63.0, "finish": "aucune", "aniso": False},
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "mt2", "kind": "material", "mat": "mat_deadbeef",
+         "tile_mm": 63.0, "finish": "aucune", "aniso": False},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "ignores2b"}],
+        "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "mt"},
+                  {"from": "mt", "to": "asm"}, {"from": "s2", "to": "t2"},
+                  {"from": "t2", "to": "mt2"}, {"from": "mt2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    motifs = {i["node"]: i["why"] for i in b["ignored"]}
+    assert set(motifs) == {"mt", "mt2"}, motifs
+    assert "moteur" in motifs["mt"]                    # matière sur un mesh3d
+    assert "introuvable" in motifs["mt2"]              # matière absente du disque
+    # l'artefact EXISTE quand même, et l'élément local passe SANS maps
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+    local = next(m for m in doc["materials"] if m["name"] == "cadre")
+    assert "normalTexture" not in local and "occlusionTexture" not in local
+    assert "extensionsUsed" not in doc
+    types = {a["trait_type"]: a["value"] for a in json.loads(_api(
+        "GET",
+        f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content
+    )["attributes"]}
+    assert types["engines"] == "local+tripo" and types["elements_3d"] == 2
 
 
 if __name__ == "__main__":

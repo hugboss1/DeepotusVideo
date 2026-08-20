@@ -37,7 +37,8 @@ from .contract import deck_dir
 from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
-                            material_pngs, holo_finish, HOLO_KINDS, HOLO_PX)
+                            material_pngs, holo_finish, apply_fit_inplace,
+                            HOLO_KINDS, HOLO_PX)
 
 router = APIRouter()
 
@@ -489,7 +490,14 @@ def tile_maps(mid, kinds, tile_mm, w_mm, h_mm, out_px=1024):
     # carte 63x88.
     W = out_px if w_mm >= h_mm else max(8, int(round(out_px * w_mm / h_mm)))
     H = out_px if h_mm > w_mm else max(8, int(round(out_px * h_mm / w_mm)))
-    tpx = max(4, int(round(W * tile_mm / w_mm)))
+    # BORNE L'ALLOCATION DÉRIVÉE (résidu de re-revue Task 5) : mêmes entrées
+    # légales, jamais 127 Mo d'intermédiaire — même classe que la faute des
+    # bornes d'entrée. `tile_mm` va jusqu'à 200 mm et `w_mm` peut valoir
+    # 31,75 mm (mini US) : `W * tile_mm / w_mm` atteignait 12 900 px pour une
+    # toile de 2048, soit une tuile de 500 Mo en RGB. Une tuile PLUS GRANDE
+    # que la toile est de toute façon collée une fois puis rognée — la borner
+    # au grand côté de la toile ne change RIEN au pixel rendu.
+    tpx = max(4, min(max(W, H), int(round(W * tile_mm / w_mm))))
     out = {}
     from PIL import Image as _I
     for kind in kinds:
@@ -896,29 +904,71 @@ async def post_layers(did: str,
 # ERC-721 et tente le STL (gate sur le drapeau `closed` DÉCLARÉ par les
 # constructeurs de maillage — Task 2 — jamais une re-mesure ici : coûte 7 s +
 # ~340 Mo de pic par élément au grid max, mesuré en revue de la tâche 2).
-def _resolve_graph_elements(graph: dict) -> tuple[list[tuple[dict, dict]], list[dict]]:
-    """Chaque chaîne layer->(plane|relief)->assemble devient un candidat
-    (nœud de traitement, nœud layer source), dans l'ORDRE DES NŒUDS du
-    graphe (pas l'ordre des edges, pas l'ordre de résolution). Aucune E/S
-    ici : c'est une garde, elle tourne AVANT tout travail lourd.
+_PROC_KINDS = ("plane", "relief", "mesh3d")
+_CHAIN_MAX = 4        # material + transform + assemble, et une marge : la
+                       # boucle de `_chaine_aval` ne suppose PAS le graphe
+                       # acyclique (`clean_graph` ne coupe pas les cycles — un
+                       # aller-retour d'arêtes ferait tourner un `while` nu).
 
-    Rend AUSSI `ignored` (REQUIS, revue) : le contrat `artifact@1` se fige à
-    CETTE tâche — taire un nœud écarté serait un mensonge par omission, et
-    l'argument « l'écran ne PEUT PAS produire ces topologies » expire dès la
-    tâche 5 (2b). Trois motifs, chacun nommé : une source SURNUMÉRAIRE (la
-    première arête entrante gagne, patron déjà en vigueur — les suivantes
-    sont d'authentiques pertes, pas un bug) ; un traitement SANS AUCUNE
-    source ; un traitement bien sourcé mais qui NE REJOINT PAS d'assemble."""
+
+def _chaine_aval(nid: str, nodes_by_id: dict, outgoing: dict) -> tuple:
+    """La chaîne AVAL d'un traitement : `material` puis `transform` (0 ou 1 de
+    chacun, dans N'IMPORTE QUEL ordre), jusqu'à `assemble`. Rend
+    `(noeud material|None, noeud transform|None, atteint l'assemblage)`.
+
+    LE MODIFICATEUR PASSE AVANT L'ASSEMBLAGE quand les deux partent du même
+    nœud : un graphe câblé à la fois `-> material` et `-> assemble` est
+    ambigu, et prendre l'assemblage y jetterait la matière EN SILENCE. Deux
+    matières (ou deux transforms) sur une même chaîne : refus — la seconde ne
+    peut pas gagner sans que la première mente."""
+    mat = trs = None
+    cur = nid
+    for _ in range(_CHAIN_MAX):
+        suivants = [nodes_by_id[t] for t in outgoing.get(cur, [])
+                    if t in nodes_by_id]
+        nxt = next((s for s in suivants
+                    if s["kind"] in ("material", "transform")), None)
+        if nxt is None:
+            return mat, trs, any(s["kind"] == "assemble" for s in suivants)
+        if nxt["kind"] == "material":
+            if mat is not None:
+                return mat, trs, False
+            mat = nxt
+        else:
+            if trs is not None:
+                return mat, trs, False
+            trs = nxt
+        cur = nxt["id"]
+    return mat, trs, False
+
+
+def _resolve_graph_elements(graph: dict) -> tuple[list[dict], list[dict]]:
+    """Chaque chaîne layer->(plane|relief|mesh3d)->[material]->[transform]->
+    assemble devient UN candidat `{proc, layer, mat, trs}`, dans l'ORDRE DES
+    NŒUDS du graphe (pas l'ordre des edges, pas l'ordre de résolution). Aucune
+    E/S ici : c'est une garde, elle tourne AVANT tout travail lourd — le
+    plafond `MAX_GRAPH_ELEMENTS` s'applique sur ce qu'elle rend, moteurs
+    compris.
+
+    Rend AUSSI `ignored` (REQUIS, revue) : le contrat `artifact@1` s'est figé à
+    la tâche 4 — taire un nœud écarté serait un mensonge par omission. Quatre
+    motifs, chacun nommé : une source SURNUMÉRAIRE (la première arête entrante
+    gagne, patron déjà en vigueur — les suivantes sont d'authentiques pertes,
+    pas un bug) ; un traitement SANS AUCUNE source ; un traitement bien sourcé
+    mais dont la chaîne NE REJOINT PAS d'assemble (chaîne cassée, deux matières
+    empilées, cycle) ; et, 2b, une MATIÈRE chaînée sur un `mesh3d` — le GLB du
+    moteur porte déjà ses propres matériaux, la nôtre ne s'y substituerait pas,
+    elle s'y ajouterait sans rien habiller."""
     nodes_by_id = {n["id"]: n for n in graph["nodes"]}
     incoming: dict[str, list[str]] = {}
     outgoing: dict[str, list[str]] = {}
     for e in graph["edges"]:
         incoming.setdefault(e["to"], []).append(e["from"])
         outgoing.setdefault(e["from"], []).append(e["to"])
-    candidats: list[tuple[dict, dict]] = []
+    candidats: list[dict] = []
     ignores: list[dict] = []
     for n in graph["nodes"]:
-        if n["kind"] not in ("plane", "relief"):
+        if n["kind"] not in _PROC_KINDS:
             continue
         sources = []
         for fid in incoming.get(n["id"], []):
@@ -937,15 +987,140 @@ def _resolve_graph_elements(graph: dict) -> tuple[list[tuple[dict, dict]], list[
                 "node": autre["id"],
                 "why": f"source surnumeraire pour {n['id']} : {src['id']} "
                        "deja retenu (premiere arete gagnante)"})
-        relie_assemble = any(
-            nodes_by_id.get(tid, {}).get("kind") == "assemble"
-            for tid in outgoing.get(n["id"], []))
+        mat, trs, relie_assemble = _chaine_aval(n["id"], nodes_by_id, outgoing)
         if not relie_assemble:
             ignores.append({"node": n["id"],
                             "why": "traitement non relie a un assemble"})
             continue
-        candidats.append((n, src))
+        if mat is not None and n["kind"] == "mesh3d":
+            ignores.append({
+                "node": mat["id"],
+                "why": "matiere ignoree : le GLB du moteur porte deja ses "
+                       "materiaux (chaine une matiere sur un plan ou un "
+                       "relief)"})
+            mat = None
+        candidats.append({"proc": n, "layer": src, "mat": mat, "trs": trs})
     return candidats, ignores
+
+
+def _trs_dict(node) -> dict | None:
+    """Le nœud `transform` du graphe, traduit pour le writer (millimètres).
+    Absent = None, et le writer garde alors le `z_mm` de la 2a."""
+    if not isinstance(node, dict):
+        return None
+    return {"translate": [node["x_mm"], node["y_mm"], node["z_mm"]],
+            "rotate_deg": node["rot_deg"], "scale": node["scale"]}
+
+
+def _lire_manifeste(out: Path, card_label: str, side: str) -> dict | None:
+    """Le manifeste d'export d'un côté, ou None. Illisible vaut ABSENT —
+    jamais une exception qui deviendrait un 500 (même discipline que
+    `_job_read`)."""
+    p = out / f"layers_{card_label}_{side}.json"
+    if not p.is_file():
+        return None
+    try:
+        m = json.loads(p.read_text(encoding="utf-8"))
+    except (ValueError, OSError, UnicodeDecodeError):
+        logger.warning(f"cards/forge3d: manifeste illisible ({p.name})")
+        return None
+    return m if isinstance(m, dict) else None
+
+
+def _layer_box_mm(manifest, layer_node: dict, w_mm: float, h_mm: float,
+                  bleed_mm: float) -> list:
+    """La boîte mm de LA couche d'un élément, DANS LE REPÈRE DU MAILLAGE.
+
+    DEUX REPÈRES, ET C'EST LE PIÈGE : le manifeste mesure `bbox_mm` dans celui
+    de la TOILE — origine au coin de toile (fond perdu COMPRIS), y vers le BAS
+    comme les pixels dont elle est tirée. Nos maillages, eux, vivent dans celui
+    de la COUPE — origine au coin de coupe, y vers le HAUT. Poser un GLB de
+    moteur sur la boîte brute le décalerait du fond perdu sur les deux axes ET
+    le retournerait en y : même famille de défaut que la fenêtre UV
+    coupe/toile de la 2a, et tout aussi invisible sur une carte sans fond
+    perdu (celle sur laquelle on regarde toujours en premier).
+
+    Couche absente du manifeste, boîte NON MESURÉE (couche entièrement
+    transparente) ou couverture NULLE : TOUTE LA CARTE. Une couche vide n'a
+    pas de place à elle, et rétrécir un maillage sur une boîte vide n'aurait
+    aucun sens."""
+    plein = [0.0, 0.0, float(w_mm), float(h_mm)]
+    role = layer_node.get("role")
+    if not isinstance(manifest, dict) or layer_node.get("composite") or not role:
+        return plein
+    rows = manifest.get("layers")
+    row = next((r for r in (rows if isinstance(rows, list) else [])
+                if isinstance(r, dict) and r.get("role") == role), None)
+    if not isinstance(row, dict) or _num(row.get("coverage_pct"), 0.0, 0.0, 100.0) <= 0:
+        return plein
+    b = row.get("bbox_mm")
+    if not isinstance(b, (list, tuple)) or len(b) != 4:
+        return plein
+    x0, y0, x1, y1 = (_num(v, 0.0, -1e6, 1e6) for v in b)
+    # hauteur de TOILE : la même formule que l'export (trim + 2 x fond perdu),
+    # jamais une deuxième dérivation depuis les pixels (le domaine a déjà
+    # mesuré la dérive d'un recalcul redondant — voir `_dpi_to_ppm`).
+    toile_h = float(h_mm) + 2.0 * float(bleed_mm)
+    boite = [x0 - bleed_mm, toile_h - y1 - bleed_mm,
+             x1 - bleed_mm, toile_h - y0 - bleed_mm]
+    if boite[2] - boite[0] <= 0 or boite[3] - boite[1] <= 0:
+        return plein
+    return boite
+
+
+def _fit_external(glb: bytes, box_mm: list, trs: dict | None) -> dict:
+    """LE PLACEMENT d'un GLB de moteur : échelle UNIFORME pour tenir dans la
+    boîte mm de SA couche (max-fit, proportions gardées), centré sur cette
+    boîte, posé à z. Le transform de l'utilisateur COMPOSE : son échelle
+    MULTIPLIE, sa rotation et sa translation S'AJOUTENT.
+
+    `trs` est le NŒUD `transform` DU GRAPHE (x_mm/y_mm/z_mm/rot_deg/scale),
+    pas le dict TRS du writer (`_trs_dict`) : un externe n'a pas de nœud à
+    lui dans lequel poser un transform séparé — le fit et le transform de
+    l'utilisateur se composent en UN SEUL TRS, celui du parent de fusion.
+
+    POLITIQUE, pas mécanique — d'où sa place ICI et non dans le module scène
+    (même partage des rôles que `tile_maps`) : la scène sait POSER un TRS,
+    elle n'a pas à décider LEQUEL.
+
+    TOUT le z vient du transform, et il n'y a PAS de paramètre `z_mm` : le
+    plan en prévoyait un, que sa propre règle épinglait à 0.0 (« ne pas le
+    compter deux fois »). Un paramètre qui doit TOUJOURS valoir zéro n'est pas
+    un paramètre, c'est un piège — le premier appelant qui y passe autre chose
+    double le décalage sans qu'aucun test ne s'en aperçoive. La base du
+    maillage est POSÉE SUR le plan z du transform (`z - s x min(z)`), jamais
+    enfoncée dedans.
+
+    Une cote nulle (maillage parfaitement plat sur un axe) vaut 1.0 plutôt
+    qu'un refus : un décalque est un maillage légitime, et le rapport
+    d'échelle d'un axe sans épaisseur n'a simplement pas de sens — c'est
+    l'AUTRE axe qui décide alors, ce que le `min` fait déjà.
+
+    LA MESURE EST FAITE DANS LE REPÈRE DE LA SCÈNE (`world=True`), pas sur les
+    positions brutes : c'est la taille RENDUE qui doit tenir dans la boîte.
+    Un exportateur qui pose une conversion d'axes ou une échelle d'unité sur
+    son nœud racine — le nôtre le fait, avec son mm->m — rendrait un fit
+    calculé sur du brut faux de plusieurs ordres de grandeur, et la pièce
+    invisible dans l'artefact sans qu'aucune structure ne soit fautive."""
+    m = glb_scene_mesh(glb, world=True)
+    pos = m["positions"]
+    xs, ys, zs = pos[0::3], pos[1::3], pos[2::3]
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    mw = (x1 - x0) or 1.0
+    mh = (y1 - y0) or 1.0
+    bw = (box_mm[2] - box_mm[0]) or 1.0
+    bh = (box_mm[3] - box_mm[1]) or 1.0
+    t = trs if isinstance(trs, dict) else {}
+    s = min(bw / mw, bh / mh) * _num(t.get("scale"), 1.0, *TRANSFORM_SCALE)
+    cx = (box_mm[0] + box_mm[2]) / 2.0 - s * (x0 + x1) / 2.0
+    cy = (box_mm[1] + box_mm[3]) / 2.0 - s * (y0 + y1) / 2.0
+    cz = -s * min(zs)
+    return {"scale": s,
+            "translate": [cx + _num(t.get("x_mm"), 0.0, *TRANSFORM_XY_MM),
+                          cy + _num(t.get("y_mm"), 0.0, *TRANSFORM_XY_MM),
+                          cz + _num(t.get("z_mm"), 0.0, *TRANSFORM_Z_MM)],
+            "rotate_deg": _num(t.get("rot_deg"), 0.0, *TRANSFORM_ROT_DEG)}
 
 
 def _layer_filename(layer_node: dict, card_label: str) -> str:
@@ -955,6 +1130,112 @@ def _layer_filename(layer_node: dict, card_label: str) -> str:
     if layer_node.get("composite"):
         return f"composite_{card_label}_{side}.png"
     return f"{layer_node['role']}_{card_label}_{side}.png"
+
+
+def _efface(p: Path) -> None:
+    """Un livrable PÉRIMÉ, retiré — un fichier qu'on vient de refuser ne doit
+    pas rester servi par `/file`. Une erreur d'effacement ne fait JAMAIS
+    échouer la construction (l'artefact, lui, est bon) : elle se journalise."""
+    try:
+        p.unlink()
+    except FileNotFoundError:
+        pass
+    except OSError:
+        logger.warning(f"cards/forge3d: {p.name} perime non efface")
+
+
+def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
+             ignores: list) -> None:
+    """La MATIÈRE et la FINITION d'un élément local, posées sur son
+    dictionnaire (`mat_maps` / `finish`). Aucune des deux n'est vitale : une
+    matière effacée de la boutique depuis que le graphe a été câblé, ou une
+    recette de finition inconnue, laissent passer l'élément SANS habillage et
+    entrent dans `ignores` avec leur motif — refuser tout l'artefact pour un
+    accessoire absent serait disproportionné, le taire serait un mensonge."""
+    if not isinstance(mat_n, dict):
+        return
+    if mat_n.get("mat"):
+        try:
+            el["mat_maps"] = material_pngs(tile_maps(
+                mat_n["mat"],
+                ("normal", "roughness", "metallic", "ao", "emissive"),
+                mat_n["tile_mm"], w_mm, h_mm))
+            if not el["mat_maps"]:
+                # une matière qui n'a QUE sa couleur de base n'habille RIEN
+                # ici (la base, c'est LA COUCHE — spec §5.2) : le dire, sinon
+                # le réglage semble avoir pris et n'a rien fait.
+                ignores.append({
+                    "node": mat_n["id"],
+                    "why": "matiere sans aucune map utilisable (normale, "
+                           "rugosite, metal, occlusion, emission) : la "
+                           "couleur de base vient de la couche, pas de la "
+                           "matiere"})
+        except ValueError as e:
+            ignores.append({"node": mat_n["id"],
+                            "why": f"matiere introuvable ou illisible sur "
+                                   f"disque, element laisse nu : {e}"})
+    if mat_n.get("finish") and mat_n["finish"] != "aucune":
+        try:
+            el["finish"] = holo_finish(mat_n["finish"],
+                                       bool(mat_n.get("aniso")))
+        except ValueError as e:
+            ignores.append({"node": mat_n["id"],
+                            "why": f"finition ignoree : {e}"})
+
+
+def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
+                     box_mm: list, trs_n) -> dict:
+    """UN GLB de moteur, prêt pour la fusion — ou un refus NOMMÉ.
+
+    LEGS DE LA TÂCHE 4, l'asymétrie I4 : `served` n'implique PLUS
+    « utilisable ». Un GLB au-delà de `MAX_EXT_GLB_BYTES` arrive bel et bien
+    `served` (il est PAYÉ, on ne le jette pas) avec `closed: None` et une note.
+    Le gate de taille se fait donc ICI, sur le chiffre RELU AU JOB — sans
+    OUVRIR le fichier : l'ouvrir pour décider s'il est trop gros à ouvrir
+    serait exactement la borne qu'on prétend poser. Le job.json de la tâche 4
+    porte ce chiffre dans `bytes` (le `stat` du binaire au moment de la
+    livraison) ; un job plus ancien qui n'en aurait pas retombe sur un `stat`
+    — une mesure de métadonnée, toujours pas une lecture."""
+    nid = proc["id"]
+    job = _job_read(did, nid)
+    if not isinstance(job, dict) or job.get("status") != "served":
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
+                 f"(POST mesh3d/{nid})")
+    fichiers = job.get("files")
+    nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
+    nom_glb = str(nom_glb or "model.glb")
+    if not re.match(r"^[A-Za-z0-9._-]{1,90}$", nom_glb) or set(nom_glb) == {"."}:
+        raise HTTPException(
+            409, f"le noeud {nid} annonce un fichier de nom invalide "
+                 f"({nom_glb!r}) - relance le noeud")
+    p_glb = _node_dir(did, nid) / nom_glb
+    if not p_glb.is_file():
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — {nom_glb} a disparu "
+                 f"du noeud, relance-le")
+    # LE JOB DIT, LE DISQUE CONFIRME — et c'est le PLUS GRAND des deux qui
+    # décide. Un `stat` n'ouvre rien (c'est une métadonnée, pas un octet de
+    # contenu) : le prendre en second avis ferme le trou d'un job.json édité à
+    # la main qui annoncerait 12 o devant un fichier de 700 Mo. Un job plus
+    # ancien, sans le champ `bytes` de la tâche 4, retombe sur le seul `stat`.
+    taille = job.get("bytes")
+    if isinstance(taille, bool) or not isinstance(taille, (int, float)) \
+            or taille < 0:
+        taille = 0
+    taille = max(int(taille), p_glb.stat().st_size)
+    if taille > MAX_EXT_GLB_BYTES:
+        raise HTTPException(
+            400, f"le noeud {nid} porte un GLB trop lourd ({int(taille)} o, "
+                 f"maximum {MAX_EXT_GLB_BYTES} o) : non fusionnable - "
+                 f"relance-le sur un maillage plus leger")
+    raw = p_glb.read_bytes()
+    credits = job.get("consumed_credits")
+    return {"name": nom_el, "node": nid, "glb": raw,
+            "fit": _fit_external(raw, box_mm, trs_n),
+            "engine": job.get("engine"), "closed": job.get("closed"),
+            "closed_note": job.get("closed_note"),
+            "credits": credits if isinstance(credits, int) else None}
 
 
 @router.post("/build3d")
@@ -983,10 +1264,10 @@ async def post_build3d(did: str, body: dict | None = None):
     # Un GLB à 0 élément est invalide au schéma glTF (minItems 1).
     if not candidats:
         raise HTTPException(
-            409, "graphe vide : 0 element resolu (aucun noeud plane/relief "
-                 "relie a la fois a une couche source et a l'assemblage) - "
-                 "exporte les couches d'abord et relie "
-                 "layer -> plane/relief -> assemble")
+            409, "graphe vide : 0 element resolu (aucun noeud "
+                 "plane/relief/mesh3d relie a la fois a une couche source et "
+                 "a l'assemblage) - exporte les couches d'abord et relie "
+                 "layer -> plane/relief/mesh3d -> assemble")
     if len(candidats) > MAX_GRAPH_ELEMENTS:
         raise HTTPException(
             400, f"trop d'elements ({len(candidats)}, maximum "
@@ -1015,8 +1296,28 @@ async def post_build3d(did: str, body: dict | None = None):
         t0 = time.perf_counter()
 
         out = _out_dir(did, create=True)
-        elements = []
-        for proc, layer in candidats:
+        elements: list[dict] = []
+        externes: list[dict] = []
+        bordereau: list[dict] = []
+        manifestes: dict = {}
+        for ch in candidats:
+            proc, layer = ch["proc"], ch["layer"]
+            mat_n, trs_n = ch["mat"], ch["trs"]
+            nom_el = layer.get("role") or "composite"
+            if proc["kind"] == "mesh3d":
+                side = layer["side"]
+                if side not in manifestes:
+                    manifestes[side] = _lire_manifeste(out, card_label, side)
+                externes.append(_element_externe(
+                    did, proc, layer, nom_el,
+                    _layer_box_mm(manifestes[side], layer, w_mm, h_mm,
+                                  g.bleed_mm),
+                    trs_n))
+                ex = externes[-1]
+                bordereau.append({"name": nom_el, "kind": "externe",
+                                  "node": proc["id"], "engine": ex["engine"],
+                                  "credits": ex["credits"]})
+                continue
             fname = _layer_filename(layer, card_label)
             p = out / fname
             # MOTIF 2/2 (distinct du "graphe vide" ci-dessus) : le graphe est
@@ -1028,11 +1329,10 @@ async def post_build3d(did: str, body: dict | None = None):
                          f"(POST /layers)")
             raw = p.read_bytes()
             im = _open_png(raw, fname)
-            nom_el = layer.get("role") or "composite"
             if proc["kind"] == "plane":
                 mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
-                elements.append({"name": nom_el, "mesh": mesh, "png": raw,
-                                 "alpha": True, "z_mm": proc["depth_mm"]})
+                el = {"name": nom_el, "mesh": mesh, "png": raw,
+                      "alpha": True, "z_mm": proc["depth_mm"]}
             else:
                 # la géométrie/silhouette du relief ne doit voir QUE la
                 # coupe — cropper la TOILE au rectangle de coupe (mêmes
@@ -1045,15 +1345,36 @@ async def post_build3d(did: str, body: dict | None = None):
                 mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
                                    proc["base_mm"], proc["grid"],
                                    uv_window=uv_window)
-                elements.append({"name": nom_el, "mesh": mesh, "png": raw,
-                                 "alpha": False, "z_mm": 0.0})
+                el = {"name": nom_el, "mesh": mesh, "png": raw,
+                      "alpha": False, "z_mm": 0.0}
+            _habille(el, mat_n, w_mm, h_mm, ignores)
+            trs = _trs_dict(trs_n)
+            if trs is not None:
+                el["trs"] = trs
+            elements.append(el)
+            bordereau.append({"name": nom_el, "kind": "local",
+                              "node": proc["id"]})
         t_resolve = time.perf_counter()
 
         extras = {"deck": doc_name, "card": card_label, "format": g.fmt,
                   "size_mm": [w_mm, h_mm], "unit": "metre",
                   "schema": ARTIFACT_SCHEMA}
-        glb = write_scene_glb(elements, name=art_name, extras=extras)
+        perdus: list[dict] = []
+        glb = write_scene_glb(elements, name=art_name, extras=extras,
+                              externals=externes or None, out_ignored=perdus)
+        for p_ig in perdus:
+            rang = p_ig.get("index")
+            ignores.append({
+                "node": (externes[rang]["node"]
+                         if isinstance(rang, int) and 0 <= rang < len(externes)
+                         else art_name),
+                "why": p_ig.get("why")})
         glb_name = f"{art_name}.glb"
+        # ── APERÇU PÉRIMÉ (legs 4) : la capture précédente montre l'ANCIEN
+        #    GLB. La laisser, c'est laisser le metadata (`image`) pointer une
+        #    vignette qui MENT sur le fichier qu'elle est censée illustrer —
+        #    le bordereau, lui, redit honnêtement `written: false`.
+        _efface(out / f"{art_name}_preview.png")
         (out / glb_name).write_bytes(glb)
         t_glb = time.perf_counter()
 
@@ -1062,14 +1383,30 @@ async def post_build3d(did: str, body: dict | None = None):
             # la prose est accentué — json.dumps ci-dessous est en
             # ensure_ascii=False, le fichier livré porte déjà des accents.
             "name": f"{doc_name} - carte {card_label}",
-            "description": "Carte 3D par éléments séparés, construite localement.",
+            # « construite localement » N'EST PLUS VRAI dès qu'un moteur a
+            # livré un élément (2b) : la phrase suit ce qui s'est réellement
+            # passé, elle ne le décrit pas de mémoire.
+            "description": (
+                "Carte 3D par éléments séparés, construite localement."
+                if not externes else
+                "Carte 3D par éléments séparés : assemblage local, maillages "
+                "de moteur fusionnés à leur couche."),
             "image": f"{art_name}_preview.png",
             "animation_url": glb_name,
             "attributes": [
                 {"trait_type": "deck", "value": doc_name},
                 {"trait_type": "carte", "value": card_label},
-                {"trait_type": "elements_3d", "value": len(elements)},
-                {"trait_type": "engines", "value": "local"},
+                {"trait_type": "elements_3d",
+                 "value": len(elements) + len(externes)},
+                # MESURÉ, jamais annoncé : « local » n'apparaît que s'il y a
+                # vraiment un élément construit ici, et chaque moteur n'y est
+                # que s'il a vraiment livré un GLB fusionné. Trié pour que
+                # deux constructions du même graphe portent la même chaîne.
+                {"trait_type": "engines",
+                 "value": "+".join(sorted(
+                     ({"local"} if elements else set())
+                     | {str(ex["engine"] or "moteur") for ex in externes}))
+                     or "local"},
                 {"trait_type": "schema", "value": ARTIFACT_SCHEMA},
             ],
         }
@@ -1082,19 +1419,51 @@ async def post_build3d(did: str, body: dict | None = None):
         #    de maillage (relief_mesh -> True, quad_mesh -> False), jamais
         #    une re-mesure de `mesh_measures` ici (l'instrument des TESTS,
         #    pas de la route — coût mesuré en revue de la tâche 2). ─────────
-        tous_fermes = all(bool(el["mesh"].get("closed")) for el in elements)
-        if tous_fermes:
-            stl_bytes = _write_stl_binary(elements, art_name)
+        #
+        #    LES EXTERNES (2b) : le `closed` CACHÉ AU JOB par la tâche 4,
+        #    RELU — jamais re-mesuré non plus. Trois états et non deux (legs
+        #    de la tâche 4) : True imprimable, False ouvert, et None « pas
+        #    mesuré » — un GLB trop lourd ou trop dense arrive `served` sans
+        #    verdict, et un verdict absent n'est PAS un verdict favorable.
+        motif = None
+        if not all(bool(el["mesh"].get("closed")) for el in elements):
+            motif = ("au moins un element n'est pas un solide ferme "
+                     "(un plan texture n'a pas de volume) - le STL est "
+                     "refuse plutot que livre casse")
+        for ex in externes:
+            if motif is not None or ex["closed"] is True:
+                continue
+            if ex["closed"] is False:
+                motif = (f"l'element externe {ex['name']} (noeud "
+                         f"{ex['node']}) n'est pas un solide ferme - le STL "
+                         f"est refuse plutot que livre casse")
+            else:
+                motif = (f"fermeture non mesuree pour l'element externe "
+                         f"{ex['name']} (noeud {ex['node']}) : "
+                         + str(ex["closed_note"]
+                               or "le moteur n'a pas rendu la mesure"))
+        if motif is None:
+            pieces = list(elements)
+            for ex in externes:
+                # le STL n'a pas de nœud pour porter un transform : l'externe
+                # y entre DÉJÀ placé (voir `apply_fit_inplace`). `world=True`
+                # comme pour le fit — le STL et le GLB doivent montrer la
+                # MÊME chose, au même endroit, à la même échelle.
+                pieces.append({"name": ex["name"], "z_mm": 0.0,
+                               "mesh": apply_fit_inplace(
+                                   glb_scene_mesh(ex["glb"], world=True),
+                                   ex["fit"])})
+            stl_bytes = _write_stl_binary(pieces, art_name)
             stl_name = f"{art_name}.stl"
             (out / stl_name).write_bytes(stl_bytes)
             stl_bordereau = {"written": True, "name": stl_name,
                              "bytes": len(stl_bytes)}
         else:
-            stl_bordereau = {
-                "written": False,
-                "why": "au moins un element n'est pas un solide ferme "
-                       "(un plan texture n'a pas de volume) - le STL est "
-                       "refuse plutot que livre casse"}
+            # MÊME raison que l'aperçu périmé ci-dessus : un STL d'une passe
+            # précédente que cette passe-ci REFUSE reste servi par /file et
+            # contredit le bordereau qui vient de dire « non ».
+            _efface(out / f"{art_name}.stl")
+            stl_bordereau = {"written": False, "why": motif}
         t_stl = time.perf_counter()
 
         return {"artifact": {
@@ -1105,7 +1474,12 @@ async def post_build3d(did: str, body: dict | None = None):
             # (POST /preview/{art}, ci-dessous) — jamais un mensonge.
             "preview": {"expected": f"{art_name}_preview.png",
                        "written": False},
-            "elements": len(elements),
+            # `elements` reste un NOMBRE : l'écran 2a le concatène dans une
+            # phrase (mod-forge3d.js, « N élément(s) — ») et en changer le
+            # type y afficherait « [object Object] ». Le détail par élément
+            # vit à côté, dans `elements_detail`.
+            "elements": len(elements) + len(externes),
+            "elements_detail": bordereau,
             # REQUIS (revue) : chaque nœud écarté de la résolution, avoué —
             # jamais tu. Liste vide si rien n'a été ignoré (pas absente).
             "ignored": ignores,
@@ -1122,6 +1496,15 @@ async def post_build3d(did: str, body: dict | None = None):
         raise
     except ModuleNotFoundError as e:           # pragma: no cover - env casse
         raise HTTPException(503, f"Module requis absent : {e}")
+    except ValueError as e:
+        # LA FUSION ET LES LECTEURS GLB refusent par `ValueError` NOMMÉE
+        # (image `uri`, chunk tronqué, indice hors bornes, mesh sans
+        # primitive) — c'est leur contrat, écrit dans forge3d_scene.py : un
+        # module PUR n'a pas de code HTTP à rendre. Le message part TEL QUEL,
+        # jamais réécrit : il nomme déjà exactement ce qui cloche dans le
+        # binaire du moteur, et le paraphraser ne ferait que le diluer.
+        logger.warning(f"cards/forge3d: GLB externe refuse : {_panne(e)}")
+        raise HTTPException(409, _panne(e))
     except Exception as e:
         logger.exception("cards/forge3d: construction du graphe impossible")
         raise HTTPException(500, f"Construction du graphe impossible : {e}")
