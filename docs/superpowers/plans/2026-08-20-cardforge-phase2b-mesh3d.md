@@ -1765,12 +1765,46 @@ git commit -m "feat(cardforge): fusion des GLB externes dans l artefact - fit a 
 
 ### Task 7: L'écran 2b — chaînes de nœuds, prix AVANT, Lancer/poll, legs 5
 
+> **CLOSE (9414eb4 + 6d321cf + b315ec3 + bdec22f) — amendements actés, qui
+> PRÉVALENT sur les extraits ci-dessous :** (1) le point 5 disait « AUCUN
+> nouveau listener global » — FAUX à l'usage : rien ne poussait la fraîcheur
+> au changement de carte ; l'écran s'abonne à `core:render` (le patron des 4
+> pièces sœurs, seul événement qui porte l'index, et le rendu PARTIEL de
+> l'export ne l'émet pas — pas d'auto-alerte), garde = comparaison d'étiquette,
+> gratuite quand rien n'a bougé ; le seed ATTEND la vérification avant de
+> consommer le manifeste ; (2) l'INVARIANT D'APPARIEMENT
+> `LAST_MANIFEST`↔`MANIFEST_CARD` est épinglé SYMÉTRIQUEMENT par test de
+> source (l'export l'avait cassé par sa porte) ; (3) GARDES DE GÉNÉRATION sur
+> TOUS les chemins asynchrones qui écrivent l'état (charge du manifeste,
+> Lancer — le seul chemin qui dépense —, build3d, polls à jeton de
+> génération) : un changement de carte à mi-vol ne ment jamais ; les
+> registres de jobs sont vidés au changement de carte (un job est lié à SA
+> carte) et le backend REFUSE (409 aux deux noms) un GLB servi pour une autre
+> couche ; (4) la sonde re-sonde (30 s par nœud terminal, purge sur échec de
+> build) — « relancé ailleurs » est atteignable ; (5) le pied de coût dit
+> AUSSI le coût différé (« déjà servi — relancer coûterait ») ; jamais
+> « 100 % gratuit » sous un bouton payant actif ; (6) la case ultra est
+> pilotée par `ultra_extra_credits > 0` (contrat), PAS par l'id du moteur ;
+> l'éligibilité ultra de `clean_graph` dérive de `MS._ultra_extra` (une seule
+> source) ; (7) nouvelle règle lint **R14 « échappement »** (interpolation en
+> valeur d'attribut, masqueur JS maison, 0 faux positif sur les 9 modules,
+> morsure prouvée par mutation dans 2 modules) + épingles de source pour la
+> position TEXTE (esc aux frontières de chipHtml) et le terminal du poll
+> (l'opérateur, pas les mots) ; résidu avoué : ~30 interpolations numériques
+> en position texte dans mod-gltf (nombres servis par le backend, sans risque
+> aujourd'hui) ; (8) fetchJob garde le content-type (une route absente est
+> DITE, jamais « jamais lancé ») — le sniff du détail 404 est un couplage au
+> message, à durcir par un champ `code` (consigné pour plus tard) ; (9)
+> Step 3 : `--geom` exécuté, `--contract` reporté à la Task 8 (backend
+> requis). 77 tests, lint complet 0, mutants esc/poll/appariement/C1/I2 tous
+> tués. Étapes cochées.
+
 **Files:**
 - Modify: `frontend/cardforge/js/mod-forge3d.js`
 - Modify: `frontend/cardforge/css/mod-forge3d.css`
 - Test: `backend/tests/test_cards_forge3d.py`
 
-- [ ] **Step 1 : test de source en RED**
+- [x] **Step 1 : test de source en RED**
 
 ```python
 def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
@@ -1802,7 +1836,7 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
 
 Run : FAIL.
 
-- [ ] **Step 2 : implémentation (suit les patrons DU fichier — paintGraph/rowHtml/
+- [x] **Step 2 : implémentation (suit les patrons DU fichier — paintGraph/rowHtml/
 editGraph/M.patch/M.api, exigences fixées par le test et par ce qui suit)**
 
 1. **Modèle de rangées chaînées** : `rowModel(graph)` → pour chaque paire 2a
@@ -1845,7 +1879,7 @@ editGraph/M.patch/M.api, exigences fixées par le test et par ce qui suit)**
 7. CSS : chips d'état (file/cours/servi/échec), blocs repliés des rangées, pied de
    coût — tout scopé `.cf-forge3d`, styles sobres existants.
 
-- [ ] **Step 3 : GREEN + vérifications + commit**
+- [x] **Step 3 : GREEN + vérifications + commit**
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-tests.ps1 -Filter cards_forge3d
