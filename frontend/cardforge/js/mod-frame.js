@@ -2465,6 +2465,13 @@
       M.patch({ window: n });          /* <= 1 patch par frame (spec 9.6-1) */
     };
     cv.addEventListener("pointerdown", (ev) => {
+      /* un second pointeur pendant un geste deja en cours : ignore, plutot
+         que d'ecraser `drag` (tactile multi-doigts, desormais possible —
+         touch-action: none l'autorise sur ce canevas ; revue 7bis, item
+         4d). Sans ce garde, un second doigt pouvait faire basculer le MODE
+         du glisser (redimensionner <-> deplacer <-> dessiner) au milieu du
+         geste du premier. */
+      if (drag) return;
       const g = CF.geom(), w = winMM(g, f()), p = toMM(ev), mg = mapGeom();
       cv.setPointerCapture(ev.pointerId);
       const hit = mapHit(w, p, mg);

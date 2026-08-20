@@ -1245,7 +1245,7 @@ def _js_fn(src: str, nom: str) -> str:
 
 
 def test_le_parseur_png_ne_porte_plus_d_octet_nul_brut():
-    """Spec 9.6-5 (barre de fluidite, amendement du 20/08) : `pngHeader` /
+    r"""Spec 9.6-5 (barre de fluidite, amendement du 20/08) : `pngHeader` /
     `pngChunks` savent lire un chunk `tEXt`, dont le separateur mot-cle/texte
     du format PNG est un octet NUL -- ce fichier en portait un brut, litteral
     entre les guillemets d'un `String.prototype.indexOf(...)`. Legal en JS,

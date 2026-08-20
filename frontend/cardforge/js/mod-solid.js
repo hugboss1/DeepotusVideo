@@ -540,8 +540,53 @@
     });
 
     qa(".cf-solid-rg").forEach((r) => {
-      r.addEventListener("input", () => setNum(r.dataset.k, r.value, false));
-      r.addEventListener("change", () => setNum(r.dataset.k, r.value, true));
+      /* meme remede que .cf-solid-nb juste en dessous (revue 7bis, item 3) :
+         le retour visuel est DEJA local et gratuit ici (le curseur natif du
+         slider suit la souris sans notre aide — spec 9.6-2 n'a rien a faire
+         de plus), mais l'ecriture au document tournait a un patch par
+         evenement "input", jusqu'a autant d'evenements que le glisser du
+         pouce en produit. Coalescee a la frame comme partout ailleurs. */
+      let pending = null, rafId = 0, before0 = null;
+      const hasRAF = typeof requestAnimationFrame === "function";
+      const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+      const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
+      const flush = () => {
+        rafId = 0;
+        if (pending === null) return;
+        const v = pending; pending = null;
+        setNum(r.dataset.k, v, false);   /* <= 1 patch par frame (spec 9.6-1) */
+      };
+      r.addEventListener("input", () => {
+        /* capture PARESSEUSE de l'avant-geste : le premier "input" d'un
+           geste neuf (before0 encore nul) fixe l'etat de depart. Marche
+           aussi bien pour la souris/le tactile (pas de "pointerdown" a
+           cabler, l'evenement natif suffit) que pour le clavier (chaque
+           fleche est son propre geste atomique : "change" suit "input"
+           avant la moindre frame, before0 lit donc encore l'etat
+           PRE-frappe au moment du push, plus bas). */
+        if (before0 === null) {
+          before0 = {};
+          patchKeysOf(r.dataset.k).forEach((kk) => { before0[kk] = S(kk, null); });
+        }
+        pending = r.value;
+        if (!rafId) rafId = scheduleFrame(flush);
+      });
+      r.addEventListener("change", () => {
+        if (rafId) { cancelFrame(rafId); rafId = 0; }
+        pending = null;
+        /* etat FINAL exact, ecrit en direct DANS TOUS LES CAS (idempotent si
+           un flush recent l'a deja pose) — puis l'entree d'annulation est
+           poussee ICI, EXPLICITEMENT : put() verrait « avant == apres » (le
+           glisse a deja ecrit le doc en direct a chaque frame ecoulee) et
+           sauterait l'entree en silence — le meme defaut que .cf-solid-nb
+           ci-dessous, meme remede (spec 9.6-4, revue 7bis Important 1). */
+        setNum(r.dataset.k, r.value, false);
+        if (before0) {
+          UNDO.push({ before: before0, label: r.dataset.k });
+          if (UNDO.length > 40) UNDO.shift();
+        }
+        before0 = null;
+      });
     });
     qa(".cf-solid-nb").forEach((n) => {
       n.addEventListener("change", () => setNum(n.dataset.k, n.value, true));
@@ -553,7 +598,7 @@
         const st = Number(n.step) || 1;
         setNum(n.dataset.k, Number(n.value || 0) + (e.deltaY < 0 ? st : -st), true);
       }, { passive: false });
-      let dx = 0, x0 = 0, v0 = 0, on = false, pendingVal = null, rafId = 0;
+      let dx = 0, x0 = 0, v0 = 0, on = false, pendingVal = null, rafId = 0, before0 = null;
       /* repli setTimeout si rAF est absent, annulation SYMETRIQUE (le meme
          drapeau sert a programmer et a annuler). Meme patron que core.js:158,
          reproduit ICI en local — chaque piece est un fichier a part, sans
@@ -570,6 +615,13 @@
       n.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
         on = true; x0 = e.clientX; v0 = Number(n.value || 0); dx = 0; pendingVal = null;
+        /* avant-geste, capture UNE FOIS ici (jamais retouchee pendant le
+           glisse) : le doc s'ecrit en direct a chaque frame ecoulee
+           (flushScrub ci-dessous), put() ne pourrait donc plus le relire
+           correctement au relachement — voir endScrub (revue 7bis,
+           Important 1). */
+        before0 = {};
+        patchKeysOf(n.dataset.k).forEach((kk) => { before0[kk] = S(kk, null); });
         n.setPointerCapture(e.pointerId);
       });
       n.addEventListener("pointermove", (e) => {
@@ -591,10 +643,26 @@
         if (rafId) { cancelFrame(rafId); rafId = 0; }
         pendingVal = null;
         try { n.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
-        /* etat FINAL exact (spec 9.6-1) : n.value a ete tenu a jour a CHAQUE
-           evenement ci-dessus, il porte deja la derniere position — inutile
-           de reciter pendingVal ici. */
-        if (Math.abs(dx) >= 3) setNum(n.dataset.k, n.value, true);
+        if (Math.abs(dx) >= 3) {
+          /* etat FINAL exact, ecrit en direct DANS TOUS LES CAS (idempotent
+             si le dernier flush l'a deja pose ; necessaire si le rAF annule
+             ci-dessus n'a pas eu le temps de le faire) — puis l'entree
+             d'annulation est poussee ICI, EXPLICITEMENT, plutot que via
+             put(commit=true) : le glisse a ecrit le doc en direct a chaque
+             frame (M.patch, hors put()), donc au relachement put() verrait
+             « avant == apres » et sauterait l'entree EN SILENCE (mesure :
+             tout glisse de plus d'une frame ne s'annulait plus — Ctrl+Z
+             defaisait alors une action anterieure sans rapport ; spec
+             9.6-4, revue 7bis Important 1). before0, capture au pointerdown
+             et jamais retouchee depuis, porte la vraie valeur de depart.
+             Le cas SOUS-frame (aucun flush n'a encore eu lieu pendant tout
+             le geste) reste correct lui aussi : setNum(...,false) ecrit
+             alors le doc pour la PREMIERE fois ici, before0 est deja la
+             bonne valeur de depart — UNE seule entree, dans les deux cas. */
+          setNum(n.dataset.k, n.value, false);
+          UNDO.push({ before: before0, label: n.dataset.k });
+          if (UNDO.length > 40) UNDO.shift();
+        }
       };
       n.addEventListener("pointerup", endScrub);
       n.addEventListener("pointercancel", endScrub);
@@ -656,11 +724,20 @@
     else n = Math.round(n * 1000) / 1000;
     return n;
   }
+  /* Les cles REELLEMENT ecrites par un patch de `k` — corner_mm entraine
+     aussi corner_link a false s'il valait vrai. UNE SEULE formule, relue par
+     setNum() (qui l'applique) ET par la capture d'avant-geste des deux
+     surfaces de glisse ci-dessous (qui doit savoir QUOI snapshoter pour que
+     Ctrl+Z restaure aussi corner_link, pas seulement k) : deux copies
+     auraient fini par diverger (revue 7bis, Important 1). */
+  function patchKeysOf(k) {
+    return (k === "corner_mm" && S("corner_link", true)) ? [k, "corner_link"] : [k];
+  }
   function setNum(k, v, commit) {
     const n = normNum(k, v);
     if (n === null) return;
     const o = { [k]: n };
-    if (k === "corner_mm" && S("corner_link", true)) o.corner_link = false;
+    if (patchKeysOf(k).length > 1) o.corner_link = false;
     if (commit) put(o, k);
     else { M.patch(o); }        /* glisse continu : une seule entree d'annulation au relachement */
   }

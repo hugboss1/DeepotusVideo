@@ -4075,6 +4075,13 @@
     }).join("");
   }
   function onOvDown(e) {
+    /* un second pointeur pendant un geste deja en cours : ignore, plutot que
+       d'ecraser dragState (tactile multi-doigts, desormais possible —
+       touch-action: none l'autorise sur cette surface ; revue 7bis, item
+       4d). Sans ce garde, un second doigt sur UNE AUTRE boite aurait aussi
+       change la selection (mpatch ci-dessous) au milieu du glisser en
+       cours. */
+    if (dragState) return;
     const hb = e.target.closest(".cf-type-hbox");
     if (!hb) return;
     const id = hb.dataset.id;
@@ -4098,6 +4105,14 @@
     e.preventDefault();
   }
   let dragRaf = 0;
+  /* repli setTimeout si rAF est absent, annulation SYMETRIQUE (le meme
+     drapeau sert a programmer et a annuler — cancelAnimationFrame sur un
+     identifiant de setTimeout ne fait rien, autre registre). Meme patron
+     que core.js:158 et les trois autres surfaces de glisse du labo,
+     reproduit ICI en local pour l'uniformite (revue 7bis, item 4b). */
+  const hasRAF = typeof requestAnimationFrame === "function";
+  const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+  const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
   function onOvMove(e) {
     if (!dragState) return;
     const g = CF.geom();
@@ -4125,9 +4140,19 @@
        bon marche, c'est juste le DOM du calque, pas un repaint de carte. */
     paintOverlay(dragState.id, dragState.next);
     if (dragRaf) return;
-    dragRaf = requestAnimationFrame(() => {
+    dragRaf = scheduleFrame(() => {
       dragRaf = 0;
-      if (dragState && dragState.next) patchSlot(dragState.id, { box: dragState.next }, true);
+      if (dragState && dragState.next) {
+        patchSlot(dragState.id, { box: dragState.next }, true);
+        /* vide APRES application : sans ca, onOvUp (ci-dessous) trouvait
+           encore un dragState.next non nul quand ce rAF avait deja fini son
+           travail avant le relachement, et repatchait EN DOUBLE la meme
+           boite, identique, a chaque fin de glisse de plus d'une frame
+           (revue 7bis, item 4a — inoffensif mais gaspille un patch complet).
+           dragState.moved, lui, ne bouge pas : la decision UNDO.pop() plus
+           bas en depend toujours. */
+        dragState.next = null;
+      }
     });
   }
   function onOvUp() {
@@ -4139,7 +4164,7 @@
        relachement) perdait sinon la toute derniere position — dragState
        redevenait null AVANT que le rAF ne s'execute, et son garde
        `if (dragState && dragState.next)` avalait le patch en silence. */
-    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
+    if (dragRaf) { cancelFrame(dragRaf); dragRaf = 0; }
     if (dragState && dragState.next) { patchSlot(dragState.id, { box: dragState.next }, true); }
     if (dragState && !dragState.moved) UNDO.pop();
     dragState = null;

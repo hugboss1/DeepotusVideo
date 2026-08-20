@@ -35,21 +35,29 @@ Regles verifiees ici :
   R13 « Octets sains » (barre de fluidite §9.6-5, amendement du 20/08) :
       aucun octet NUL brut dans les sources du labo (grep et consorts
       traitent le fichier comme du binaire des le premier — un litteral
-      `"\x00"` s'ECRIT echappe), et aucun retour chariot CRLF dans le BLOB
-      COMMIS (HEAD). Le controle NUL porte sur les octets d'ARBRE DE TRAVAIL
-      (c'est ce que lit tout outil, maintenant) ; le controle CRLF porte sur
-      le blob HEAD et non l'arbre de travail, expres : mesure sur les
-      machines de ce chantier, `core.autocrlf` y convertit la plupart des
-      fichiers texte en CRLF AU CHECKOUT alors que le depot les stocke en LF
-      (filtre "clean" a l'ecriture) — un controle CRLF sur l'arbre de travail
-      serait donc FAUX POSITIF en permanence sur la quasi-totalite du labo,
-      sur CE genre de poste. Le blob HEAD, lui, est ce que quiconque clone le
-      depot relira reellement : c'est la qu'une regression CRLF (attribut
-      gitattributes mal pose, autocrlf desactive au moment d'un commit,
-      renormalisation ratee) compte. Si HEAD est indisponible (pas un depot
-      git, fichier neuf non suivi, `git` absent du PATH) le controle CRLF est
-      SAUTE pour ce fichier ; le controle NUL, lui, reste actif dans tous les
-      cas, seul a ne pas dependre de l'historique. Voir check_r13().
+      `"\x00"` s'ECRIT echappe), et aucun retour chariot CRLF dans l'INDEX
+      git. Couverture : TOUT frontend/cardforge/**/*.{js,mjs,css,html} (un
+      parcours d'arbre, pas une liste par module — core.js, cardforge.css,
+      index.html et les 8 fichiers de qa/ y comptent autant que les 9
+      mod-<id>.{js,css} ; une carte par module les manquait tous, corrige
+      revue 7bis Important 2) + chaque {mid}.py / test_cards_{mid}.py / le
+      sidecar EXTRA_PY. Le controle NUL porte sur les octets d'ARBRE DE
+      TRAVAIL (c'est ce que lit tout outil, maintenant) ; le controle CRLF
+      porte sur L'INDEX git (`git ls-files --eol`, colonne `i/...`, lue en
+      UN SEUL appel pour tout le labo — 3 s de spawns `git show` par fichier
+      mesures a ~0,15 s en lot) et non l'arbre de travail, expres : mesure
+      sur les machines de ce chantier, `core.autocrlf` y convertit la
+      plupart des fichiers texte en CRLF AU CHECKOUT alors que le depot les
+      stocke en LF (filtre "clean" a l'ecriture) — un controle CRLF sur
+      l'arbre de travail serait donc FAUX POSITIF en permanence sur la
+      quasi-totalite du labo, sur CE genre de poste. L'index, lui, est ce
+      qui partira au prochain commit : c'est la qu'une regression CRLF
+      (attribut gitattributes mal pose, autocrlf desactive au moment d'un
+      commit, renormalisation ratee) compte. Si l'index est indisponible
+      (pas un depot git, `git` absent du PATH) ou que ce fichier precis n'y
+      figure pas (neuf, jamais suivi) le controle CRLF est SAUTE pour lui ;
+      le controle NUL, lui, reste actif dans tous les cas, seul a ne pas
+      dependre de l'historique. Voir check_r13() et _index_eol_map().
 
 Ce que le script ne peut PAS voir (le contrat runtime de core.js reste
 l'autorite) : un painter enregistre dynamiquement, un id DOM construit par
@@ -102,9 +110,20 @@ TEST_DIR = pathlib.Path("backend/tests")
 # LE py du module, un fichier interne en plus.
 EXTRA_PY = {"forge3d": ["forge3d_scene.py"]}
 
-# Harnais QA en .mjs : UN SEUL fichier, simple (pas de sous-arbre a explorer)
-# -- R13 le lit comme les sources des 10 modules, meme regle d'octets sains.
-QA_MJS = FRONT_DIR / "qa" / "test_core_contract.mjs"
+# R13 (octets sains) couvre TOUT le labo frontend, pas seulement les 9
+# fichiers mod-<id>.{js,css} + le harnais .mjs : core.js, cardforge.css,
+# index.html et les 8 fichiers de frontend/cardforge/qa/ (dont lib/) restaient
+# des angles morts avec la carte par module (revue 7bis, Important 2 — la
+# premiere version de ce commentaire disait « UN SEUL fichier », c'etait
+# faux). D'ou le parcours en arbre ci-dessous plutot qu'une liste de chemins.
+R13_FRONT_EXTS = {".js", ".mjs", ".css", ".html"}
+
+# Racines suivies par git dont R13 peut avoir besoin (js/css/html du labo +
+# les .py cote backend + ce script lui-meme) -- UN SEUL appel `git ls-files
+# --eol` en couvre l'ensemble (voir _index_eol_map) plutot qu'un `git show`
+# par fichier : mesure sur ce depot, 3 s de spawns => ~0,15 s en lot.
+R13_GIT_ROOTS = ("frontend/cardforge", "backend/app/services/cards",
+                  "backend/tests", "scripts/qa")
 
 # At-rules dont le contenu porte de vrais selecteurs : on descend dedans.
 COND_AT = {"media", "supports", "layer", "container", "scope", "document"}
@@ -404,18 +423,55 @@ def check_r8(mid, path, text, add, require_router=True):
             "include_router() n'appartient qu'a cards/__init__.py")
 
 
-def _git_blob_bytes(root, relpath):
-    """Octets du blob HEAD pour <relpath>, ou None si indisponible.
+def _index_eol_map(root, pathspecs):
+    """{chemin relatif POSIX: eol} pour tous les fichiers SUIVIS sous
+    <pathspecs>, en UN SEUL appel `git ls-files --eol` (revue 7bis, Important
+    2 -- mesure sur ce depot : ~3 s en spawns `git show` par fichier, ~0,15 s
+    en lot). `eol` vient de la colonne `i/...` -- l'INDEX (ce qui SERA commis
+    au prochain `git commit`), PAS `HEAD:<chemin>` : un fichier deja `git
+    add`e mais pas encore commis doit etre controle sur ce qu'il va devenir,
+    pas sur l'ancien commit. Valeurs possibles : "lf", "crlf", "mixed",
+    "-text" (git le traite comme binaire, hors sujet ici), ou absent (non
+    suivi -- see check_r13, semantique de silence).
 
-    Aucune exception ne remonte : pas un depot git, fichier neuf jamais
-    commis, `git` absent du PATH, ou tout simplement un `root` qui n'est pas
-    la racine du depot (le tantot-Export sans .git mentionne au-dessus) sont
-    tous des cas legitimes ou R13 doit se taire sur le controle CRLF plutot
-    que de faire echouer tout le lint pour une raison qui lui est etrangere.
-    """
+    Format de sortie de `git ls-files --eol`, verifie sur ce depot (les
+    colonnes sont alignees par ESPACES de largeur variable, PAS par
+    tabulations -- seule la toute derniere colonne, le chemin, est precedee
+    d'une VRAIE tabulation) :
+        i/lf    w/crlf  attr/                 <TAB>chemin/du/fichier
+
+    Dictionnaire VIDE (jamais d'exception) si git est absent du PATH, si
+    <root> n'est pas un depot (le tantot-Export sans .git), ou si la commande
+    echoue pour toute autre raison -- R13 se rabat alors sur le controle NUL
+    seul (voir check_r13)."""
     try:
         r = subprocess.run(
-            ["git", "show", f"HEAD:{relpath}"],
+            ["git", "ls-files", "--eol", "--"] + list(pathspecs),
+            cwd=str(root), capture_output=True, timeout=10)
+    except Exception:
+        return {}
+    if r.returncode != 0:
+        return {}
+    out = {}
+    for line in r.stdout.decode("utf-8", errors="replace").splitlines():
+        meta, sep, filename = line.partition("\t")
+        if not sep:
+            continue
+        cols = meta.split()          # ["i/lf", "w/crlf", "attr/", ...]
+        if not cols or "/" not in cols[0]:
+            continue
+        out[filename] = cols[0].split("/", 1)[1]
+    return out
+
+
+def _index_blob_bytes(root, relpath):
+    """Octets du blob de L'INDEX pour <relpath> (`git show :<chemin>`), ou
+    None. Appele UNIQUEMENT quand `_index_eol_map` a deja signale une
+    violation probable pour ce fichier -- sert seulement a SITUER la ligne
+    dans le message d'erreur ; le lot rapide, lui, a deja rendu le verdict."""
+    try:
+        r = subprocess.run(
+            ["git", "show", f":{relpath}"],
             cwd=str(root), capture_output=True, timeout=5)
     except Exception:
         return None
@@ -424,7 +480,7 @@ def _git_blob_bytes(root, relpath):
     return r.stdout
 
 
-def check_r13(path, add, root):
+def check_r13(path, add, root, index_eol=None):
     """R13 « octets sains » (spec 9.6-5) : ni NUL brut, ni CRLF.
 
     NUL : controle sur les octets d'ARBRE DE TRAVAIL — c'est ce que lit tout
@@ -433,21 +489,23 @@ def check_r13(path, add, root):
     textuels (grep s'y est deja arrete une fois sur mod-frame.js) ; ecrit
     besoin, la sequence ECHAPPEE `\\x00` dit la meme chose sans ce cout.
 
-    CRLF : controle sur le BLOB GIT (HEAD:<chemin>), PAS sur l'arbre de
-    travail — choix deliberatif, documente ici (cf. R13 dans l'entete du
-    fichier) : mesure sur les machines de ce chantier, `core.autocrlf` y
-    convertit la plupart des fichiers texte du labo en CRLF AU CHECKOUT alors
-    que le depot les STOCKE en LF (filtre "clean" a l'ecriture) — un controle
-    CRLF sur l'arbre de travail serait donc FAUX POSITIF en permanence sur la
-    quasi-totalite du labo, tout le temps, sur ce genre de poste : le lint
-    n'y serait alors plus jamais vert, pour une raison qui ne regarde aucun
-    changement reel. Le blob HEAD, lui, EST ce que quiconque clone le depot
-    relira reellement — c'est la qu'une regression CRLF (gitattributes mal
-    pose, autocrlf desactive au moment precis d'un commit, renormalisation
-    ratee) compte. Si HEAD est indisponible pour ce fichier (pas un depot
-    git, fichier neuf non suivi, `git` absent du PATH) le controle CRLF est
-    SAUTE pour lui — le controle NUL, seul a ne pas dependre de l'historique,
-    reste actif dans tous les cas.
+    CRLF : controle sur L'INDEX GIT (`git ls-files --eol`, colonne `i/...`,
+    lue en LOT par l'appelant -- voir `_index_eol_map` -- et passee ici via
+    `index_eol`), PAS sur l'arbre de travail — choix deliberatif, documente
+    ici (cf. R13 dans l'entete du fichier) : mesure sur les machines de ce
+    chantier, `core.autocrlf` y convertit la plupart des fichiers texte du
+    labo en CRLF AU CHECKOUT alors que le depot les STOCKE en LF (filtre
+    "clean" a l'ecriture) — un controle CRLF sur l'arbre de travail serait
+    donc FAUX POSITIF en permanence sur la quasi-totalite du labo, tout le
+    temps, sur ce genre de poste : le lint n'y serait alors plus jamais vert,
+    pour une raison qui ne regarde aucun changement reel. L'index, lui, EST
+    ce qui partira au prochain commit — c'est la qu'une regression CRLF
+    (gitattributes mal pose, autocrlf desactive au moment precis d'un commit,
+    renormalisation ratee) compte. Si `index_eol` est None (appelant qui n'a
+    pas pu batir la carte -- pas un depot git, `git` absent du PATH) ou si ce
+    fichier precis n'y figure pas (neuf, jamais suivi) le controle CRLF est
+    SAUTE pour lui — le controle NUL, seul a ne pas dependre de
+    l'historique, reste actif dans tous les cas.
     """
     try:
         raw = path.read_bytes()
@@ -458,19 +516,24 @@ def check_r13(path, add, root):
         add("R13", path, line,
             "octet NUL brut (le fichier passe pour du binaire aux outils "
             "textuels) -- ecrire la sequence ECHAPPEE \\x00")
+    if not index_eol:
+        return
     try:
         relpath = path.relative_to(root).as_posix()
     except ValueError:
         relpath = path.as_posix()
-    blob = _git_blob_bytes(root, relpath)
-    if blob is None:
+    eol = index_eol.get(relpath)
+    if eol not in ("crlf", "mixed"):
         return
-    if b"\r" in blob:
-        line = blob.count(b"\n", 0, blob.index(b"\r")) + 1
-        add("R13", path, line,
-            "retour chariot (CRLF) dans le blob commis (HEAD) -- le depot "
-            "attend du LF ; verifier .gitattributes / core.autocrlf au "
-            "moment du commit")
+    # violation confirmee par le lot -- UN appel git de PLUS, ICI SEULEMENT,
+    # pour situer la ligne dans le message (le lot ne rend que le verdict).
+    blob = _index_blob_bytes(root, relpath)
+    line = (blob.count(b"\n", 0, blob.index(b"\r")) + 1
+            if (blob and b"\r" in blob) else 0)
+    add("R13", path, line,
+        f"retour chariot (CRLF) dans l'INDEX git (eol={eol!r}) -- le depot "
+        "attend du LF ; verifier .gitattributes / core.autocrlf avant le "
+        "prochain commit")
 
 
 # =========================================================================
@@ -482,6 +545,12 @@ def run(root, only=None):
     def add(rule, path, line, msg, warn=False):
         findings.append({"rule": rule, "file": str(path), "line": line,
                          "msg": msg, "warn": bool(warn)})
+
+    # UN SEUL appel git pour tout R13 (voir _index_eol_map) : calcule une
+    # fois, reutilise par chaque check_r13() ci-dessous quel que soit le
+    # fichier ou le module -- {} silencieux si indisponible (pas un depot,
+    # git absent), R13 se rabat alors sur le controle NUL seul par fichier.
+    index_eol = _index_eol_map(root, R13_GIT_ROOTS)
 
     for mid in MODULES:
         if only and mid != only:
@@ -496,20 +565,24 @@ def run(root, only=None):
         if files["css"].is_file():
             check_r4(mid, files["css"], files["css"].read_text(
                 encoding="utf-8", errors="replace"), add)
-            check_r13(files["css"], add, root)
         if files["js"].is_file():
             t = files["js"].read_text(encoding="utf-8", errors="replace")
             check_r5(mid, files["js"], t, add)
             check_r7(mid, files["js"], t, add)
             check_r11(mid, files["js"], t, add)
             check_r12(mid, files["js"], t, add)
-            check_r13(files["js"], add, root)
+        # R13 pour js/css : voir le parcours en arbre de frontend/cardforge
+        # plus bas, qui couvre ces deux fichiers ET tout ce que la carte par
+        # module ne peut pas voir (core.js, cardforge.css, index.html,
+        # qa/*) -- pas la peine de les re-lister ici (revue 7bis, Important
+        # 2). py et test, eux, sont HORS de cet arbre : la carte par module
+        # reste la seule a les voir.
         if files["py"].is_file():
             check_r8(mid, files["py"], files["py"].read_text(
                 encoding="utf-8", errors="replace"), add)
-            check_r13(files["py"], add, root)
+            check_r13(files["py"], add, root, index_eol)
         if files["test"].is_file():
-            check_r13(files["test"], add, root)
+            check_r13(files["test"], add, root, index_eol)
         # sidecar geometrie de forge3d (couture legs 6, revue 2a) : soumis a
         # R8 comme le py canonique -- require_router=False, c'est un fichier
         # PURES (zero dependance HTTP) par construction, pas une deuxieme
@@ -520,12 +593,22 @@ def run(root, only=None):
                 check_r8(mid, p, p.read_text(
                     encoding="utf-8", errors="replace"), add,
                     require_router=False)
-                check_r13(p, add, root)
-    # harnais QA .mjs (UN SEUL fichier, simple) : meme regle d'octets sains,
-    # hors boucle par module puisqu'il n'appartient a aucun d'eux.
-    qa_mjs = root / QA_MJS
-    if (not only) and qa_mjs.is_file():
-        check_r13(qa_mjs, add, root)
+                check_r13(p, add, root, index_eol)
+
+    # R13 sur TOUT frontend/cardforge (js/mjs/css/html), en un parcours
+    # d'arbre plutot que la carte par module : c'est ce qui attrape core.js,
+    # cardforge.css, index.html et les 8 fichiers de qa/ (dont lib/), tous
+    # invisibles a la carte {mid}.js/{mid}.css (revue 7bis, Important 2).
+    # INCONDITIONNEL (pas de garde `if not only`) : l'hygiene d'octets est
+    # une propriete du labo ENTIER, pas d'un module — un `--module forge3d`
+    # doit lui aussi attraper un NUL/CRLF introduit ailleurs. Peu couteux
+    # depuis que le CRLF se lit sur la carte precalculee ci-dessus plutot
+    # qu'un `git show` par fichier.
+    front_root = root / FRONT_DIR
+    if front_root.is_dir():
+        for p in sorted(front_root.rglob("*")):
+            if p.is_file() and p.suffix in R13_FRONT_EXTS:
+                check_r13(p, add, root, index_eol)
     return findings, present
 
 
