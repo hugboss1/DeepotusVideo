@@ -266,20 +266,29 @@ def clean_graph(raw) -> dict:
 # (règle 8 : zéro import pièce->pièce, même patron que `_dpi_to_ppm`/`_num`
 # ci-dessus). Type commun aux trois : {positions, normals, uvs, indices},
 # consommé plus loin par `write_scene_glb` (Task 3).
-def quad_mesh(w_mm: float, h_mm: float) -> dict:
-    """Un quad aux dimensions de la carte, UV pleines, normale +z."""
+def quad_mesh(w_mm: float, h_mm: float,
+             uv_window: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
+             ) -> dict:
+    """Un quad aux dimensions de la carte, normale +z. `uv_window`
+    (u0, v0, u1, v1) — défaut plein 0..1, rétrocompatible — INSET les UV
+    émises dans cette fenêtre au lieu de la texture entière : voir le
+    commentaire-contrainte au point d'appel (`post_build3d`) sur la
+    différence toile/coupe que cette fenêtre réconcilie."""
+    u0, v0, u1, v1 = uv_window
     return {
         "positions": [0.0, 0.0, 0.0, w_mm, 0.0, 0.0, w_mm, h_mm, 0.0,
                       0.0, h_mm, 0.0],
         "normals": [0.0, 0.0, 1.0] * 4,
-        "uvs": [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],   # v inversé (image)
+        "uvs": [u0, v1, u1, v1, u1, v0, u0, v0],   # v inversé (image)
         "indices": [0, 1, 2, 0, 2, 3],
         "closed": False,             # un plan n'est pas un solide
     }
 
 
 def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
-                base_mm: float, grid: int) -> dict:
+                base_mm: float, grid: int,
+                uv_window: tuple[float, float, float, float] = (0.0, 0.0, 1.0, 1.0)
+                ) -> dict:
     """LA DALLE EN RELIEF : une grille (grid x grid') dont la face du dessus
     est déplacée par l'alpha de la couche (0 -> base, 255 -> base+depth), face
     du dessous plate à z=0, murs périphériques — un solide FERMÉ PAR
@@ -288,9 +297,18 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     l'« extrusion » gratuite v1 : un vrai suivi de contour (marching squares +
     triangulation à trous) viendra si le besoin le prouve.
 
+    `alpha_img` doit déjà être la région de COUPE (pas la toile — c'est
+    l'appelant, `post_build3d`, qui croppe avant d'appeler ici : cette
+    fonction n'a pas la géométrie du deck pour le faire elle-même).
+    `uv_window` (u0, v0, u1, v1) — défaut plein 0..1, rétrocompatible — INSET
+    les UV dans cette fenêtre pour que la texture (le PNG de toile complet,
+    octets intacts) se plaque correctement sur une géométrie qui, elle, ne
+    couvre que la coupe.
+
     Préconditions : bornes garanties par `clean_graph` (base_mm/depth_mm/grid)
     — hors de ce chemin, base_mm=0 dégénère les murs et w_mm=0 divise par
     zéro."""
+    u0, v0, u1, v1 = uv_window
     gx = max(2, int(grid))
     gy = max(2, int(round(grid * (h_mm / w_mm))))
     a = alpha_img.convert("L").resize((gx + 1, gy + 1))
@@ -304,14 +322,14 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     for j in range(gy + 1):
         for i in range(gx + 1):
             pos += [i / gx * w_mm, (1.0 - j / gy) * h_mm, z_at(i, j)]
-            uv += [i / gx, j / gy]
+            uv += [u0 + (i / gx) * (u1 - u0), v0 + (j / gy) * (v1 - v0)]
     top = lambda i, j: j * (gx + 1) + i                      # noqa: E731
     n_top = (gx + 1) * (gy + 1)
     # dessous : mêmes (x, y), z=0 (UV répliquées, sans importance au dos)
     for j in range(gy + 1):
         for i in range(gx + 1):
             pos += [i / gx * w_mm, (1.0 - j / gy) * h_mm, 0.0]
-            uv += [i / gx, j / gy]
+            uv += [u0 + (i / gx) * (u1 - u0), v0 + (j / gy) * (v1 - v0)]
     bot = lambda i, j: n_top + j * (gx + 1) + i              # noqa: E731
 
     # WINDING : avec y=(1-j/gy)*h, j=0 est le HAUT de carte ; l'ordre ci-dessous
@@ -1023,6 +1041,18 @@ async def post_build3d(did: str, body: dict | None = None):
     art_name = art_node["name"] if art_node else "artefact"
     g = geom_of(doc)
     w_mm, h_mm = g.trim_mm
+    # ── fenêtre UV coupe/toile (défaut de couture, revue finale 2a) : les
+    # PNG couvrent la TOILE (fond perdu compris, canvas_px), le maillage
+    # couvre la COUPE (trim_mm) — la fenêtre UV inset réconcilie les deux ;
+    # sans elle, le fond perdu s'affiche sur l'artefact avec ~2,5 % de
+    # distorsion anisotrope (63/69 != 88/94), mesuré en revue finale.
+    # `bleed_px` vient de `g.bleed_off_px`, DÉJÀ la conversion canonique
+    # (canvas_px - trim_px)/2 de contract.py:geom — pas une deuxième
+    # dérivation locale (le domaine a déjà mesuré la dérive d'un recalcul
+    # redondant : voir `_dpi_to_ppm` plus haut dans ce fichier).
+    bleed_px = (round(g.bleed_off_px[0]), round(g.bleed_off_px[1]))
+    u0, v0 = bleed_px[0] / g.canvas_px[0], bleed_px[1] / g.canvas_px[1]
+    uv_window = (u0, v0, 1.0 - u0, 1.0 - v0)
     doc_name = doc.get("name") or did
 
     def work() -> dict:
@@ -1044,13 +1074,21 @@ async def post_build3d(did: str, body: dict | None = None):
             im = _open_png(raw, fname)
             nom_el = layer.get("role") or "composite"
             if proc["kind"] == "plane":
-                mesh = quad_mesh(w_mm, h_mm)
+                mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
                 elements.append({"name": nom_el, "mesh": mesh, "png": raw,
                                  "alpha": True, "z_mm": proc["depth_mm"]})
             else:
-                alpha_img = im.getchannel("A")
+                # la géométrie/silhouette du relief ne doit voir QUE la
+                # coupe — cropper la TOILE au rectangle de coupe (mêmes
+                # bornes que `bleed_px` ci-dessus) AVANT l'échantillonnage,
+                # sinon le fond perdu pèse sur la hauteur ET la silhouette.
+                cx0, cy0 = bleed_px
+                cx1 = g.canvas_px[0] - cx0
+                cy1 = g.canvas_px[1] - cy0
+                alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
                 mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
-                                   proc["base_mm"], proc["grid"])
+                                   proc["base_mm"], proc["grid"],
+                                   uv_window=uv_window)
                 elements.append({"name": nom_el, "mesh": mesh, "png": raw,
                                  "alpha": False, "z_mm": 0.0})
         t_resolve = time.perf_counter()

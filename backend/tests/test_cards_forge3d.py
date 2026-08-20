@@ -1112,6 +1112,113 @@ def test_les_elements_ignores_du_graphe_sont_avoues_au_bordereau():
     assert r3.json()["artifact"]["ignored"] == []
 
 
+def test_la_fenetre_uv_reconcilie_coupe_et_toile_le_fond_perdu_ne_fuit_pas():
+    """Défaut de couture (revue finale 2a) : les PNG de couche couvrent la
+    TOILE (fond perdu compris, canvas_px), le maillage (quad_mesh/relief_mesh)
+    couvre la COUPE (trim_mm) — sans fenêtre UV inset, le fond perdu
+    s'affichait sur l'artefact avec ~2,5 % de distorsion anisotrope
+    (63/69 != 88/94), et l'alpha du fond perdu pesait sur la silhouette du
+    relief. Ce test le prouve sur les DEUX faces du bug, avec une silhouette
+    SENTINELLE : alpha=255 UNIQUEMENT dans le fond perdu, alpha=0 dans la
+    coupe.
+      1. chaque accessor TEXCOORD_0 du GLB reste DANS la fenêtre [u0..u1] x
+         [v0..v1] calculée depuis la géométrie RÉELLE du deck (jamais une
+         constante) ;
+      2. le relief reste PLAT (volume == trim_w * trim_h * base_mm, à
+         tolérance de flottant près) — la preuve que l'alpha du fond perdu
+         n'influence plus la géométrie, lue dans les OCTETS du GLB livré."""
+    from app.services.cards.contract import geom
+    from app.services.cards import forge3d as F9
+    g = geom("poker_eu", 300)                 # le format par défaut du deck
+    w_px, h_px = g.canvas_px                   # (815, 1110) — toile
+    bx, by = round(g.bleed_off_px[0]), round(g.bleed_off_px[1])   # (36, 36)
+    u0, v0 = bx / w_px, by / h_px
+    u1, v1 = 1.0 - u0, 1.0 - v0
+
+    # "fond-matiere" : un plan quelconque, présent pour vérifier que TOUS les
+    # accessors TEXCOORD_0 (pas seulement celui du relief) sont insetés.
+    fond = Image.new("RGBA", (w_px, h_px), (250, 246, 238, 255))
+    # "cadre" : silhouette SENTINELLE — alpha=255 UNIQUEMENT dans le fond
+    # perdu (l'anneau extérieur), alpha=0 dans la zone de coupe (le
+    # rectangle intérieur, EXACTEMENT la boîte que la route est censée
+    # cropper). Si la géométrie du relief lit encore le fond perdu, la
+    # dalle ne sera plus plate.
+    cadre = Image.new("RGBA", (w_px, h_px), (200, 30, 30, 255))
+    ImageDraw.Draw(cadre).rectangle([bx, by, w_px - bx - 1, h_px - by - 1],
+                                    fill=(0, 0, 0, 0))
+    couches = {"fond-matiere": fond, "cadre": cadre}
+    composite = Image.alpha_composite(fond.copy(), cadre)
+
+    did = _deck("Fenetre UV")
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "card": "0", "paper": "#ffffff",
+                   "modes": json.dumps({n: "isolee" for n in couches}),
+                   "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})})
+    assert r.status_code == 200, r.text
+
+    graphe = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "fond-matiere", "side": "front"},
+        {"id": "t1", "kind": "plane", "depth_mm": 0.0},
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "fenetreuv"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"},
+                  {"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": graphe, "card": 0})
+    assert r2.status_code == 200, r2.text
+    b = r2.json()["artifact"]
+
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
+    doc, binv = _read_glb(glb)
+
+    # 1. TOUS les accessors TEXCOORD_0 restent DANS la fenêtre — aucune fuite
+    #    du fond perdu vers la texture visible.
+    texcoord_accs = sorted({prim["attributes"]["TEXCOORD_0"]
+                            for mesh in doc["meshes"]
+                            for prim in mesh["primitives"]})
+    assert texcoord_accs, "aucun accessor TEXCOORD_0 trouve"
+    for ai in texcoord_accs:
+        acc = doc["accessors"][ai]
+        bv = doc["bufferViews"][acc["bufferView"]]
+        off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        for e in range(acc["count"]):
+            u, v = struct.unpack_from("<2f", binv, off + e * 8)
+            assert u0 - 1e-6 <= u <= u1 + 1e-6, (ai, e, u, u0, u1)
+            assert v0 - 1e-6 <= v <= v1 + 1e-6, (ai, e, v, v0, v1)
+
+    # 2. le relief (2e élément : "cadre") reste PLAT — l'alpha du fond perdu,
+    #    seul porteur de sentinelle, n'influence plus la géométrie livrée.
+    #    Relu depuis les OCTETS du GLB (pas un rejeu local) : positions et
+    #    indices du 2e mesh, mesuré par mesh_measures (même instrument que
+    #    la tâche 2).
+    def _read_accessor(idx):
+        acc = doc["accessors"][idx]
+        bv = doc["bufferViews"][acc["bufferView"]]
+        off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        n = {"VEC3": 3, "VEC2": 2, "SCALAR": 1}[acc["type"]]
+        count = acc["count"] * n
+        code = "f" if acc["componentType"] == 5126 else "I"
+        return list(struct.unpack_from("<" + code * count, binv, off))
+
+    prim = doc["meshes"][1]["primitives"][0]
+    positions = _read_accessor(prim["attributes"]["POSITION"])
+    indices = _read_accessor(prim["indices"])
+    rep = F9.mesh_measures({"positions": positions, "indices": indices})
+    assert rep["closed"] is True, rep
+    w_mm, h_mm = g.trim_mm
+    base_mm = 0.3
+    vol_attendu = w_mm * h_mm * base_mm
+    assert abs(rep["volume_mm3"] - vol_attendu) < 0.5, \
+        (rep["volume_mm3"], vol_attendu)
+
+
 def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     """Test de SOURCE (Tache 5) : l'ecran ne peut pas exister sans ces
     quatre engagements — un rang par noeud de traitement construit depuis
