@@ -590,6 +590,14 @@ async def proxy_request(method: str, path: str, body: bytes | None,
     return r.status_code, r.content, r.headers.get("content-type", "application/json")
 
 
+def _meshy_detail(code: int, res: dict | str) -> str:
+    """Message d'erreur littéral, jamais `None` : message → error → HTTP+corps."""
+    if isinstance(res, dict):
+        return (res.get("message") or res.get("error")
+                or f"HTTP {code} · {str(res)[:200]}")
+    return str(res)[:200]
+
+
 async def create_task(base: str, payload: dict) -> str:
     """Crée une tâche Meshy CÔTÉ SERVEUR (P9 Forge 3D) — mock-aware, même
     surface allowlistée que le proxy. Retourne l'id ; RuntimeError au message
@@ -599,33 +607,47 @@ async def create_task(base: str, payload: dict) -> str:
     if mock_enabled():
         code, res = get_mock().create(base, payload)
     else:
-        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as c:
-            r = await c.post(f"{MESHY_API}/{base}", headers=_headers(), json=payload)
+        if not settings.MESHY_API_KEY.strip():
+            raise RuntimeError("meshy: MESHY_API_KEY absente — Réglages")
+        try:
+            async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as c:
+                r = await c.post(f"{MESHY_API}/{base}", headers=_headers(), json=payload)
             code = r.status_code
             try:
                 res = r.json()
             except ValueError:
                 res = {"message": r.text[:400]}
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"meshy: {type(e).__name__}: {e}") from e
     if code not in (200, 202) or not isinstance(res, dict) or not res.get("result"):
-        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+        raise RuntimeError(f"meshy: {_meshy_detail(code, res)}")
     return str(res["result"])
 
 
 async def get_task(base: str, task_id: str) -> dict:
     """État d'une tâche Meshy côté serveur — mock-aware. RuntimeError littérale
     sur code HTTP hors 200 (la tâche de fond de P9 la journalise telle quelle)."""
+    if base not in ALLOWED_BASES:
+        raise RuntimeError(f"meshy: chemin non autorisé {base!r}")
+    if not _TASK_ID_RE.match(str(task_id)):
+        raise RuntimeError(f"meshy: identifiant de tâche invalide {task_id!r}")
     if mock_enabled():
         code, res = get_mock().get(task_id)
     else:
-        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c:
-            r = await c.get(f"{MESHY_API}/{base}/{task_id}", headers=_headers())
+        if not settings.MESHY_API_KEY.strip():
+            raise RuntimeError("meshy: MESHY_API_KEY absente — Réglages")
+        try:
+            async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c:
+                r = await c.get(f"{MESHY_API}/{base}/{task_id}", headers=_headers())
             code = r.status_code
             try:
                 res = r.json()
             except ValueError:
                 res = {"message": r.text[:400]}
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"meshy: {type(e).__name__}: {e}") from e
     if code != 200 or not isinstance(res, dict):
-        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+        raise RuntimeError(f"meshy: {_meshy_detail(code, res)}")
     return res
 
 
