@@ -4075,13 +4075,19 @@
     }).join("");
   }
   function onOvDown(e) {
-    /* un second pointeur pendant un geste deja en cours : ignore, plutot que
-       d'ecraser dragState (tactile multi-doigts, desormais possible —
-       touch-action: none l'autorise sur cette surface ; revue 7bis, item
-       4d). Sans ce garde, un second doigt sur UNE AUTRE boite aurait aussi
-       change la selection (mpatch ci-dessous) au milieu du glisser en
-       cours. */
-    if (dragState) return;
+    /* un second pointeur (tactile multi-doigts, desormais possible —
+       touch-action: none l'autorise sur cette surface) pendant un geste deja
+       en cours : ignore, plutot qu'ecraser dragState et changer la selection
+       (mpatch ci-dessous) au milieu du glisser en cours. `isPrimary`, pas un
+       garde d'etat (`if (dragState) return;`, la version d'origine) : ICI,
+       dragState est pose AVANT le setPointerCapture protege par try/catch —
+       si la capture leve ET que le relachement arrive HORS d'une boite (OV
+       est pointer-events:none en dehors), onOvUp (le seul point qui remet
+       dragState a null) ne serait JAMAIS appele : le calque se coincerait
+       DEFINITIVEMENT, tout glisser futur silencieusement refuse jusqu'au
+       rechargement. `isPrimary` se lit sur l'EVENEMENT, jamais sur un etat
+       qui pourrait rester coince (revue 7bis, re-revue, item 1). */
+    if (!e.isPrimary) return;
     const hb = e.target.closest(".cf-type-hbox");
     if (!hb) return;
     const id = hb.dataset.id;

@@ -556,14 +556,27 @@
         const v = pending; pending = null;
         setNum(r.dataset.k, v, false);   /* <= 1 patch par frame (spec 9.6-1) */
       };
+      r.addEventListener("pointerdown", () => {
+        /* remise a zero EXPLICITE au debut d'un geste souris/tactile : sans
+           ca, before0 ne se videait qu'en "change", or certains moteurs
+           SAUTENT "change" quand le glisser revient exactement a sa valeur
+           de depart (aucun changement NET) — before0, alors jamais efface,
+           survivait au geste suivant et Ctrl+Z pouvait redescendre plus loin
+           qu'une edition intercalee entre les deux (case jumelee, preset,
+           synchro corner_link) : avant-etat perime pousse pour un geste qui
+           n'avait rien a voir. Le clavier, lui, reste sur la capture
+           paresseuse ci-dessous (pas de "pointerdown" pour une fleche —
+           revue 7bis, re-revue, item 2). */
+        before0 = null;
+      });
       r.addEventListener("input", () => {
         /* capture PARESSEUSE de l'avant-geste : le premier "input" d'un
-           geste neuf (before0 encore nul) fixe l'etat de depart. Marche
-           aussi bien pour la souris/le tactile (pas de "pointerdown" a
-           cabler, l'evenement natif suffit) que pour le clavier (chaque
-           fleche est son propre geste atomique : "change" suit "input"
-           avant la moindre frame, before0 lit donc encore l'etat
-           PRE-frappe au moment du push, plus bas). */
+           geste neuf (before0 encore nul, remis a zero au "pointerdown"
+           ci-dessus ou jamais rempli — cas clavier) fixe l'etat de depart.
+           Le clavier n'a pas de "pointerdown" du tout : chaque fleche est
+           son propre geste atomique, "change" suit "input" avant la moindre
+           frame, before0 lit donc encore l'etat PRE-frappe au moment du
+           push, plus bas. */
         if (before0 === null) {
           before0 = {};
           patchKeysOf(r.dataset.k).forEach((kk) => { before0[kk] = S(kk, null); });
