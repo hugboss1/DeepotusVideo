@@ -50,7 +50,7 @@ const CABLES = [
   { id: "k8", d: "M588,93 C598,93 598,176 608,176", phase: "export", kind: "--c-video" },
 ];
 const ENGINES3D = [
-  { id: "meshy", name: "Meshy", meta: "meshy-6 · api" },
+  { id: "meshy", name: "Meshy", meta: "meshy-6/7 · api" },
   { id: "tripo", name: "tripo", meta: "glb fbx obj" },
   { id: "rodin", name: "rodin", meta: "glb fbx obj" },
   { id: "hunyuan", name: "hunyuan", meta: "glb obj" },
@@ -585,12 +585,12 @@ async function openEditor(id) {
     $("#modalTitle").textContent = "01 · maillage — text/image-to-3d";
     $("#modalCost").textContent = cost("preview");
     html = `<div class="fld-row">`
-      + fld("ai_model", `<select id="f-model"><option${c.aiModel === "meshy-6" ? " selected" : ""}>meshy-6</option><option${c.aiModel === "meshy-5" ? " selected" : ""}>meshy-5</option></select>`)
+      + fld("ai_model", `<select id="f-model"><option${c.aiModel === "meshy-7" ? " selected" : ""}>meshy-7</option><option${c.aiModel === "meshy-6" ? " selected" : ""}>meshy-6</option><option${c.aiModel === "meshy-5" ? " selected" : ""}>meshy-5</option></select>`)
       + fld("pose_mode", `<select id="f-pose"><option value="a-pose"${c.poseMode === "a-pose" ? " selected" : ""}>a-pose (meilleur rig)</option><option value="t-pose"${c.poseMode === "t-pose" ? " selected" : ""}>t-pose</option><option value=""${!c.poseMode ? " selected" : ""}>libre</option></select>`)
       + `</div><div class="fld-row">`
       + fld("topology", `<select id="f-topo"><option${c.topology === "quad" ? " selected" : ""}>quad</option><option${c.topology === "triangle" ? " selected" : ""}>triangle</option></select>`)
       + fld("target_polycount", `<input type="number" id="f-poly" value="${c.targetPolycount}" min="1000" step="1000">`)
-      + `</div><div class="fld-note">meshy-6 : 20 cr le preview, sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.</div>`;
+      + `</div><div class="fld-note">meshy-7 : 30 cr texturé (grille meshy-6), alignement image→3D supérieur, ultra +5 cr (exposé dans la Forge 3D des cartes). meshy-6 : 20 cr le preview, sortie haute précision souvent &gt; 300 000 faces → remesh obligatoire avant le rig. meshy-5 : 5 cr.</div>`;
     apply = () => {
       c.aiModel = $("#f-model").value; c.poseMode = $("#f-pose").value;
       c.topology = $("#f-topo").value;

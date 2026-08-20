@@ -94,12 +94,20 @@ def parse_proxy_path(method: str, path: str) -> Optional[dict]:
 # entre les deux est un bug : test_meshy_service les confronte.
 
 def _is_hd_model(ai_model: str, model_type: str) -> bool:
-    return ai_model in ("meshy-6", "latest") or model_type == "lowpoly"
+    # meshy-7 rejoint la grille HD le 10/08/2026 ; `latest` EST meshy-7.
+    return ai_model in ("meshy-6", "meshy-7", "latest") or model_type == "lowpoly"
+
+
+def _ultra_extra(ai_model: str, ultra: bool) -> int:
+    """docs.meshy.ai/en/api/pricing : Ultra n'existe QUE sur meshy-7/latest — +5 cr."""
+    return 5 if ultra and ai_model in ("meshy-7", "latest") else 0
 
 
 def credits_text_to_3d_preview(ai_model: str = "meshy-6",
-                               model_type: str = "standard") -> int:
-    return 20 if _is_hd_model(ai_model, model_type) else 5
+                               model_type: str = "standard",
+                               ultra: bool = False) -> int:
+    return (20 if _is_hd_model(ai_model, model_type) else 5) \
+        + _ultra_extra(ai_model, ultra)
 
 
 def credits_text_to_3d_refine(texture_resolution: str = "2k") -> int:
@@ -108,13 +116,16 @@ def credits_text_to_3d_refine(texture_resolution: str = "2k") -> int:
 
 def credits_image_to_3d(ai_model: str = "meshy-6", model_type: str = "standard",
                         should_texture: bool = True,
-                        texture_resolution: str = "2k") -> int:
+                        texture_resolution: str = "2k",
+                        ultra: bool = False) -> int:
     smart = model_type == "smart-topology"
     if not should_texture:
-        return 5 if smart else (20 if _is_hd_model(ai_model, model_type) else 5)
-    if texture_resolution == "8k":
-        return 20 if smart else 35
-    return 15 if smart else (30 if _is_hd_model(ai_model, model_type) else 15)
+        base = 5 if smart else (20 if _is_hd_model(ai_model, model_type) else 5)
+    elif texture_resolution == "8k":
+        base = 20 if smart else 35
+    else:
+        base = 15 if smart else (30 if _is_hd_model(ai_model, model_type) else 15)
+    return base + _ultra_extra(ai_model, ultra)
 
 
 def credits_retexture(texture_resolution: str = "2k") -> int:
@@ -146,20 +157,21 @@ def estimate_pipeline(cfg: dict) -> dict:
     with_texture = bool(_cfg(cfg, "withTexture", "with_texture", True))
     with_remesh = bool(_cfg(cfg, "withRemesh", "with_remesh", True))
     with_rig = bool(_cfg(cfg, "withRig", "with_rig", True))
+    ultra = bool(_cfg(cfg, "ultra", "ultra", False))
     actions = _cfg(cfg, "animationActions", "animation_actions", []) or []
     formats = _cfg(cfg, "exportFormats", "export_formats", ["glb", "fbx"]) or []
 
     lines: list[dict] = []
     if source == "text":
         lines.append({"id": "preview", "label": "Maillage · text-to-3d preview",
-                      "credits": credits_text_to_3d_preview(ai_model, model_type)})
+                      "credits": credits_text_to_3d_preview(ai_model, model_type, ultra)})
         if with_texture:
             lines.append({"id": "texture", "label": f"Texture PBR {res} · refine",
                           "credits": credits_text_to_3d_refine(res)})
     else:
         lines.append({"id": "preview", "label": "Maillage + texture · image-to-3d",
                       "credits": credits_image_to_3d(ai_model, model_type,
-                                                     with_texture, res)})
+                                                     with_texture, res, ultra)})
     if with_remesh:
         lines.append({"id": "remesh", "label": "Remesh · topologie",
                       "credits": CREDITS_FLAT["remesh"]})
@@ -257,14 +269,16 @@ class MeshyMock:
     def _credits(self, kind: str, payload: dict) -> int:
         if kind == "text-to-3d:preview":
             return credits_text_to_3d_preview(payload.get("ai_model", "meshy-6"),
-                                              payload.get("model_type", "standard"))
+                                              payload.get("model_type", "standard"),
+                                              ultra=bool(payload.get("ultra_mode")))
         if kind == "text-to-3d:refine":
             return credits_text_to_3d_refine(payload.get("texture_resolution", "2k"))
         if kind in ("image-to-3d", "multi-image-to-3d"):
             return credits_image_to_3d(payload.get("ai_model", "meshy-6"),
                                        payload.get("model_type", "standard"),
                                        payload.get("should_texture", True),
-                                       payload.get("texture_resolution", "2k"))
+                                       payload.get("texture_resolution", "2k"),
+                                       ultra=bool(payload.get("ultra_mode")))
         if kind == "retexture":
             return credits_retexture(payload.get("texture_resolution", "2k"))
         if kind == "convert":
@@ -574,6 +588,45 @@ async def proxy_request(method: str, path: str, body: bytes | None,
         r = await c.request(method, url, headers=_headers(),
                             content=body or None, params=params or None)
     return r.status_code, r.content, r.headers.get("content-type", "application/json")
+
+
+async def create_task(base: str, payload: dict) -> str:
+    """Crée une tâche Meshy CÔTÉ SERVEUR (P9 Forge 3D) — mock-aware, même
+    surface allowlistée que le proxy. Retourne l'id ; RuntimeError au message
+    LITTÉRAL préfixé `meshy:` sinon (doctrine erreurs du lab)."""
+    if base not in ALLOWED_BASES:
+        raise RuntimeError(f"meshy: chemin non autorisé {base!r}")
+    if mock_enabled():
+        code, res = get_mock().create(base, payload)
+    else:
+        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as c:
+            r = await c.post(f"{MESHY_API}/{base}", headers=_headers(), json=payload)
+            code = r.status_code
+            try:
+                res = r.json()
+            except ValueError:
+                res = {"message": r.text[:400]}
+    if code not in (200, 202) or not isinstance(res, dict) or not res.get("result"):
+        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+    return str(res["result"])
+
+
+async def get_task(base: str, task_id: str) -> dict:
+    """État d'une tâche Meshy côté serveur — mock-aware. RuntimeError littérale
+    sur code HTTP hors 200 (la tâche de fond de P9 la journalise telle quelle)."""
+    if mock_enabled():
+        code, res = get_mock().get(task_id)
+    else:
+        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c:
+            r = await c.get(f"{MESHY_API}/{base}/{task_id}", headers=_headers())
+            code = r.status_code
+            try:
+                res = r.json()
+            except ValueError:
+                res = {"message": r.text[:400]}
+    if code != 200 or not isinstance(res, dict):
+        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+    return res
 
 
 async def proxy_stream(path: str) -> AsyncIterator[str]:

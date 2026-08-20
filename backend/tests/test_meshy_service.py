@@ -61,6 +61,51 @@ assert MS.CREDITS_FLAT == {"remesh": 5, "convert": 1, "resize": 1,
                            "uv-unwrap": 1, "rigging": 5, "animations": 3}
 ok("retexture 10/15 · flat remesh 5, rig 5, anim 3, convert 1")
 
+print("— meshy-7 + ultra —")
+assert MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
+assert MS.credits_image_to_3d("meshy-7", "standard", True, "8k") == 35
+assert MS.credits_image_to_3d("meshy-7", "standard", False) == 20
+assert MS.credits_image_to_3d("meshy-7", "standard", True, "2k", ultra=True) == 35
+assert MS.credits_image_to_3d("meshy-7", "standard", True, "8k", ultra=True) == 40
+assert MS.credits_image_to_3d("meshy-6", "standard", True, "2k", ultra=True) == 30  # ultra ignoré hors v7/latest
+assert MS.credits_image_to_3d("latest", "standard", True, "2k", ultra=True) == 35
+assert MS.credits_text_to_3d_preview("meshy-7") == 20
+assert MS.credits_text_to_3d_preview("meshy-7", ultra=True) == 25
+ok("meshy-7 : grille HD (20/30/35) + ultra +5 (v7/latest seulement)")
+
+# le miroir JS porte les mêmes valeurs (bloc CREDITS)
+_js_path = (pathlib.Path(__file__).resolve().parent.parent.parent
+           / "frontend" / "meshy" / "meshy.client.js")
+_js = _js_path.read_text(encoding="utf-8")
+_bloc = _js.split("export const CREDITS")[1].split("};")[0]
+assert "meshy-7" in _bloc and "ultra" in _bloc
+ok("miroir CREDITS de meshy.client.js : meshy-7 + ultra présents")
+
+# helpers serveur mock-aware (P9 s'en servira ; ici on prouve le contrat)
+settings.MESHY_MOCK = True
+settings.MESHY_MOCK_SPEED = 0.01
+MS._mock = None                      # repartir d'un simulateur neuf, vitesse test
+
+
+async def _create_and_wait_ultra():
+    tid = await MS.create_task("openapi/v1/image-to-3d", {
+        "image_url": "data:image/png;base64,AAAA", "ai_model": "meshy-7",
+        "should_texture": True, "ultra_mode": True})
+    assert tid.startswith("mock-")
+    while True:
+        t = await MS.get_task("openapi/v1/image-to-3d", tid)
+        if t["status"] in MS.TERMINAL:
+            return t
+        await asyncio.sleep(0.02)
+
+
+_final_task = asyncio.run(_create_and_wait_ultra())
+assert _final_task["status"] == "SUCCEEDED" and _final_task["consumed_credits"] == 35
+assert _final_task["model_urls"]["glb"].startswith(MS.MOCK_FILE_PREFIX)
+ok("create_task/get_task serveur : mock-aware, crédits ultra comptés")
+settings.MESHY_MOCK = True   # restaure : main() plus bas suppose le mock actif
+MS._mock = None
+
 # ══ 2 · estimate_pipeline — coût AVANT lancement (règle produit) ════════════
 print("— estimate_pipeline —")
 REF = {  # enchaînement de référence INTEGRATION-MESHY.md §5

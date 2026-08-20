@@ -18,14 +18,17 @@ export const MESHY_API = "https://api.meshy.ai";
 
 /* ── Tarifs officiels, en crédits Meshy (docs.meshy.ai/en/api/pricing) ──────── */
 export const CREDITS = {
-  textTo3dPreview: ({ aiModel = "meshy-6", modelType = "standard" } = {}) =>
-    aiModel === "meshy-6" || aiModel === "latest" || modelType === "lowpoly" ? 20 : 5,
+  _hd: (m, t) => m === "meshy-6" || m === "meshy-7" || m === "latest" || t === "lowpoly",
+  _ultra: (m, u) => (u && (m === "meshy-7" || m === "latest") ? 5 : 0),
+  textTo3dPreview: ({ aiModel = "meshy-6", modelType = "standard", ultra = false } = {}) =>
+    (CREDITS._hd(aiModel, modelType) ? 20 : 5) + CREDITS._ultra(aiModel, ultra),
   textTo3dRefine: ({ textureResolution = "2k" } = {}) => (textureResolution === "8k" ? 15 : 10),
-  imageTo3d: ({ aiModel = "meshy-6", modelType = "standard", shouldTexture = true, textureResolution = "2k" } = {}) => {
+  imageTo3d: ({ aiModel = "meshy-6", modelType = "standard", shouldTexture = true, textureResolution = "2k", ultra = false } = {}) => {
     const smart = modelType === "smart-topology";
-    if (!shouldTexture) return smart ? 5 : (aiModel === "meshy-6" || aiModel === "latest" || modelType === "lowpoly" ? 20 : 5);
-    if (textureResolution === "8k") return smart ? 20 : 35;
-    return smart ? 15 : (aiModel === "meshy-6" || aiModel === "latest" || modelType === "lowpoly" ? 30 : 15);
+    const base = !shouldTexture ? (smart ? 5 : (CREDITS._hd(aiModel, modelType) ? 20 : 5))
+      : textureResolution === "8k" ? (smart ? 20 : 35)
+      : (smart ? 15 : (CREDITS._hd(aiModel, modelType) ? 30 : 15));
+    return base + CREDITS._ultra(aiModel, ultra);
   },
   multiImageTo3d: (o = {}) => CREDITS.imageTo3d(o),
   retexture: ({ textureResolution = "2k" } = {}) => (textureResolution === "8k" ? 15 : 10),
@@ -116,12 +119,12 @@ export class MeshyClient {
     })).then(r => r.result);
   }
 
-  /** Image to 3D — une seule passe (pas de preview/refine). 30 cr texturé meshy-6. */
+  /** Image to 3D — une seule passe (pas de preview/refine). 30 cr texturé (meshy-6/7) ; +5 cr en ultra (meshy-7/latest). */
   imageTo3d({ imageUrl, inputTaskId, modelType = "standard", aiModel = "meshy-6", shouldTexture = true,
               enablePbr = true, textureResolution = "2k", texturePrompt, textureImageUrl,
               shouldRemesh, topology, targetPolycount, decimationMode, savePreRemeshedModel,
               poseMode = "", imageEnhancement, removeLighting, targetFormats, autoSize, originAt,
-              alphaThumbnail, multiViewThumbnails, moderation = true }) {
+              alphaThumbnail, multiViewThumbnails, ultra = false, moderation = true }) {
     return this.request("POST", "/openapi/v1/image-to-3d", clean({
       image_url: imageUrl, input_task_id: inputTaskId, model_type: modelType, ai_model: aiModel,
       should_texture: shouldTexture, enable_pbr: enablePbr, texture_resolution: textureResolution,
@@ -130,7 +133,8 @@ export class MeshyClient {
       save_pre_remeshed_model: savePreRemeshedModel, pose_mode: poseMode,
       image_enhancement: imageEnhancement, remove_lighting: removeLighting,
       target_formats: targetFormats, auto_size: autoSize, origin_at: originAt,
-      alpha_thumbnail: alphaThumbnail, multi_view_thumbnails: multiViewThumbnails, moderation
+      alpha_thumbnail: alphaThumbnail, multi_view_thumbnails: multiViewThumbnails,
+      ultra_mode: ultra ? true : undefined, moderation
     })).then(r => r.result);
   }
 
@@ -285,14 +289,15 @@ export function estimatePipeline(cfg = {}) {
   const {
     source = "text", aiModel = "meshy-6", modelType = "standard",
     textureResolution = "2k", withTexture = true, withRemesh = true,
-    withRig = true, animationActions = [], exportFormats = ["glb", "fbx"]
+    withRig = true, animationActions = [], exportFormats = ["glb", "fbx"],
+    ultra = false
   } = cfg;
   const lines = [];
   if (source === "text") {
-    lines.push({ id: "preview", label: "Maillage · text-to-3d preview", credits: CREDITS.textTo3dPreview({ aiModel, modelType }) });
+    lines.push({ id: "preview", label: "Maillage · text-to-3d preview", credits: CREDITS.textTo3dPreview({ aiModel, modelType, ultra }) });
     if (withTexture) lines.push({ id: "texture", label: `Texture PBR ${textureResolution} · refine`, credits: CREDITS.textTo3dRefine({ textureResolution }) });
   } else {
-    lines.push({ id: "preview", label: `Maillage + texture · image-to-3d`, credits: CREDITS.imageTo3d({ aiModel, modelType, shouldTexture: withTexture, textureResolution }) });
+    lines.push({ id: "preview", label: `Maillage + texture · image-to-3d`, credits: CREDITS.imageTo3d({ aiModel, modelType, shouldTexture: withTexture, textureResolution, ultra }) });
   }
   if (withRemesh) lines.push({ id: "remesh", label: "Remesh · topologie", credits: CREDITS.remesh() });
   if (withRig) lines.push({ id: "rig", label: "Auto-rig humanoïde", credits: CREDITS.rigging() });
