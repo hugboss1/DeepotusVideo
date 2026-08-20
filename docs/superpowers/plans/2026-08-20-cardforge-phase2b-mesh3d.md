@@ -2080,6 +2080,30 @@ git commit -m "perf(cardforge): un patch par frame pendant les gestes souris, po
 
 ---
 
+## REVUE FINALE DE COUTURE (clôture de phase, 20/08 soir)
+
+La leçon 2a re-confirmée : la revue d'ensemble a attrapé UN défaut de couture
+invisible aux revues par tâche — **le placement « neutre » d'un plan écrasait
+son z d'empilement** (editTrs semait z_mm: 0 ; _node_trs REMPLACE z_mm par
+translate ; le graphe par défaut porte depth_mm jusqu'à 1,75 mm → un seul champ
+édité aplatissait la parallaxe, GLB et STL d'accord entre eux et faux tous les
+deux). Corrigé par la règle PARTAGÉE `zEmpilement(proc)` lue par le semis ET
+l'affichage (la divergence des deux ÉTAIT le bug), épinglée par source + 14
+assertions de harnais + mutant tué des deux côtés (25da56c, poussé). Aussi :
+défauts servis rendus (jamais un champ vide qui ment), naissance d'un maillon
+= repaint structurel, et le lint REFUSE les drapeaux inconnus (« un outil de
+contrôle qui répond conforme à une question qu'il n'a pas comprise fabrique
+de la preuve » — le réviseur de couture s'y était fait prendre lui-même).
+Toutes les autres coutures marchées et déclarées PROPRES avec preuves :
+contrats job.json producteur→consommateurs, chemin de l'argent bout en bout
+(35 cr sans divergence à aucun saut), stabilité aller-retour du modèle de
+graphe, writer (une seule transformation par chemin), composition R13/R14/
+EXTRA_PY, l'accumulateur de molette 93987ab (session-puce) validé a
+posteriori, résidu de test hors code. **Bilan final : 78 tests forge3d,
+lint 9/9 0 violation, ~50 commits, phase 2b PRÊTE** (restes manuels de la
+Task 8 : chatoiement visuel, bloc fluidité au pointeur réel, capture
+d'aperçu, cas deux-onglets).
+
 ## Auto-revue du plan
 
 - **Périmètre 2b couvert** : mesh3d 7 moteurs + jobs + prix avant (§5.2/§5.3, Tasks
