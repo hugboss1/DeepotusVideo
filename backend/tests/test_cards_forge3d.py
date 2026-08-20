@@ -1501,6 +1501,44 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert "paintGraph()" in apres_commit
 
 
+def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
+    """Test de SOURCE (Task 7) : l'écran 2b ne peut pas exister sans ces
+    engagements — le prix AVANT (servi par /info, jamais recopié), le
+    lancement et le poll d'un job payant, la clé manquante DITE avant le 503
+    du backend, les chaînes matière/transform bornées par /info, le manifeste
+    qui suit LA CARTE (legs 5), l'échec montré LITTÉRAL, une dégradation
+    affichée telle quelle plutôt qu'un select vide muet, et le `run_id`
+    comparé entre deux polls (une relance d'un autre onglet est DITE)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # le sélecteur de traitement offre mesh3d, les moteurs viennent de /info
+    # (jamais une liste recopiée), le prix est affiché sur le nœud ET sommé
+    assert "mesh3d" in rendu
+    assert 'INFO.mesh3d' in rendu and "engines" in rendu
+    assert 'id="cf-forge3d-cost"' in rendu
+    # Lancer -> POST mesh3d/{nid}, puis poll GET jusqu'au terminal
+    corps = rendu.split("async function launchMesh3d(")[1].split("\n  }")[0]
+    assert 'M.api.post("mesh3d/"' in corps
+    assert "pollMesh3d" in rendu
+    # crédit/clé : l'écran DIT quand la clé manque (has_meshy) et n'invente rien
+    assert "has_meshy" in rendu
+    # texture_prompt et ultra existent (meshy), bornés par prompt_max de /info
+    assert "texture_prompt" in rendu and "ultra" in rendu and "prompt_max" in rendu
+    # matière + finition + aniso + tile, transform x/y/z/rot/scale : édités par
+    # M.patch via le graphe (annulable), bornes lues de /info
+    for champ in ("material_limits", "transform_limits", "finish", "aniso",
+                  "tile_mm", "rot_deg"):
+        assert champ in rendu, champ
+    # legs 5 : le manifeste est rechargé quand la CARTE change, pas au boot seul
+    assert "LAST_MANIFEST" in rendu and "cardChanged" in rendu
+    # l'échec d'un job est montré LITTÉRAL (error du job.json)
+    assert "job.error" in rendu or 'job["error"]' in rendu
+    # les legs d'affichage : degraded affiché tel quel, jamais un select vide muet
+    assert "degraded" in rendu
+    # run_id comparé entre deux polls (une relance d'un autre onglet est DITE)
+    assert "run_id" in rendu
+
+
 def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_garde_son_contrat_d_octets():
     """Legs 6 : la couture intra-pièce. Le module scène n'importe pas FastAPI ;
     forge3d réexporte (compat) ; le writer STL garde son CONTRAT D'OCTETS —
@@ -3196,6 +3234,27 @@ def test_le_glb_externe_aux_exigences_inconnues_ou_trop_profond_est_refuse():
               json={"graph": g, "card": 0})
     assert r2.status_code == 409, r2.text
     assert "profonde" in r2.json()["detail"]
+
+
+def test_un_accesseur_de_positions_non_float32_est_refuse_nomme():
+    """Résidu de re-revue (Task 6) : le lecteur de flottants ne décode QUE du
+    float32. Un accesseur quantifié (KHR_mesh_quantization, componentType
+    5123) relu comme des flottants rendrait des positions ABSURDES SANS lever
+    — un GLB valide qui mesure et imprime la mauvaise chose. Le refus est
+    NOMMÉ, et il rend explicite le couplage avec `_EXIG_CONNUES` (qui exclut
+    l'extension pour exactement cette raison)."""
+    from app.services.cards import forge3d_scene as SC
+    # même GLB minimal, mais l'accesseur POSITION se DÉCLARE en entiers courts
+    quantifie = _glb_bricole(accessors=[
+        {"componentType": 5123, "count": 3, "type": "VEC3", "bufferView": 0,
+         "normalized": True, "min": [0, 0, 0], "max": [1, 1, 0]},
+        {"componentType": 5125, "count": 3, "type": "SCALAR", "bufferView": 1}])
+    with pytest.raises(ValueError) as ex:
+        SC.glb_scene_mesh(quantifie)
+    assert "non float32" in str(ex.value), str(ex.value)
+    assert "5123" in str(ex.value), str(ex.value)
+    # et l'allowlist des exigences ne la laisse pas entrer par la porte d'à côté
+    assert "KHR_mesh_quantization" not in SC._EXIG_CONNUES
 
 
 def test_les_maillons_surnumeraires_d_une_chaine_sont_avoues():

@@ -12,6 +12,24 @@
    preview/<art>), bordereau qui peint UNIQUEMENT la reponse mesuree — jamais
    l'intention envoyee. Ce module n'a AUCUN painter : il lit le rendu, il n'y
    dessine jamais.
+
+   Phase 2b — LES CHAINES ET L'ARGENT. Un rang devient une CHAINE
+   couche -> traitement -> [matiere] -> [placement] -> assemblage, et le
+   traitement peut desormais etre un MOTEUR 3D payant (mesh3d). D'ou trois
+   engagements que cet ecran tient AVANT toute depense :
+     · LE PRIX EST DIT AVANT. Moteurs, tarifs, credits, surcout ultra, bornes
+       et matieres viennent TOUS de GET /info — aucune grille recopiee ici
+       (le bloc miroir NODE_KINDS reste la seule table partagee). Le pied de
+       page somme ce que « Lancer » coutera, nœud par nœud, et il compte
+       comme PAYANT tout nœud dont il ne connait pas le prix.
+     · LA PANNE EST DITE, PAS AVALEE. Cle Meshy absente (has_meshy), boutique
+       de matieres ou grille de prix en panne (degraded / materials_degraded),
+       refus HTTP du lancement (400/409/503/413) : le message part TEL QUEL a
+       l'ecran, jamais un select vide muet ni un bouton qui echoue en silence.
+     · L'ETAT VIENT DU JOB, PAS DE L'INTENTION. La chip d'un nœud est peinte
+       depuis job.json (POST mesh3d/<nid> puis poll GET), et le `run_id` —
+       opaque mais COMPARABLE — est confronte d'un poll a l'autre : s'il
+       change, un AUTRE onglet a relance ce nœud, et on le DIT.
    ═══════════════════════════════════════════════════════════════════════════ */
 (() => {
   const CF = (typeof window !== "undefined") ? window.CF : null;
@@ -46,6 +64,17 @@
     { kind: "artifact", params: ["name"] },
   ];
   /* ═══ CF-FORGE3D-NODES-END ═══ */
+
+  /* LES TRAITEMENTS — miroir de `_PROC_KINDS` (forge3d.py:907) : ce qui peut
+     s'intercaler entre une couche et l'assemblage, et donc ce qui merite un
+     rang. La 2a l'ecrivait deja en dur dans `graphRows` (plane|relief) ; la 2b
+     y ajoute le moteur. Ce n'est PAS une grille de prix ni un roster de
+     moteurs (ceux-la viennent de /info) : c'est le vocabulaire du graphe. */
+  const PROC_KINDS = ["plane", "relief", "mesh3d"];
+  const PROC_LABELS = { plane: "plan", relief: "relief", mesh3d: "mesh 3D (moteur)" };
+  /* borne ANTI-GEL de la descente de chaine — miroir de `_CHAIN_MAX` */
+  const CHAIN_MAX = 4;
+  const POLL_MS = 1200;         /* periode du poll d'un job (plan 2b) */
 
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
      100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
@@ -93,11 +122,32 @@
                                     relu du disque au boot (refreshManifest,
                                     I2) ; seed du graphe, bouton seed/re-seed
                                     n'existe que s'il est posé */
+  let MANIFEST_CARD = null;     /* l'étiquette de carte (c01, c02…) POUR
+                                    LAQUELLE `LAST_MANIFEST` a été chargé —
+                                    legs 5 : c'est elle qu'on confronte à la
+                                    carte courante à chaque peinture */
   let ARTIFACT = null;          /* le dernier bordereau de build3d */
   let PREVIEW_URL = null;       /* objectURL du GLB monté dans model-viewer —
                                     révoquée avant d'en poser une nouvelle */
   const HIST = [];              /* pile d'annulation des éditions du graphe —
                                     patron mod-gltf.js:HIST, 40 entrées max */
+  /* ── L'ÉTAT DES JOBS mesh3d, par nœud — LU, jamais inventé ──────────────
+     JOBS[nid] : le DERNIER job.json reçu (objet), ou `null` quand le backend
+     a répondu 404 (« jamais lancé » — une réponse, pas une panne). La clé
+     ABSENTE veut dire « pas encore sondé » : c'est ce qui déclenche le
+     sondage d'une seule requête au premier rendu (un GET, gratuit).
+     POLLS[nid] : un poll par nœud (relance idempotente).
+     RUNS[nid]  : vrai dès qu'un poll a vu le `run_id` CHANGER — un autre
+     onglet a relancé ce nœud, et l'écran le dit au lieu d'un flip muet.
+     ERRS[nid]  : le refus HTTP LITTÉRAL du dernier lancement/poll (la
+     famille nommée 400/409/503/413), effacé au premier succès. */
+  const JOBS = {};
+  const POLLS = {};
+  const RUNS = {};
+  const ERRS = {};
+  let GEN = 0;                  /* génération de deck : un poll d'un deck
+                                    précédent se tait au lieu d'écrire dans
+                                    l'écran du suivant */
 
   function get(k) { return CF.get("forge3d." + k, null); }
 
@@ -119,10 +169,12 @@
       + '<button class="lnk" id="cf-forge3d-undo" type="button" '
       + 'title="annule la dernière édition du graphe">↶ annuler</button>'
       + '</header>'
-      + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit) '
-      + 'ou relief extrudé (gratuit, solide fermé imprimable). Chaque champ édité '
-      + 'patche aussitôt le graphe — annulable.</p>'
+      + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit), '
+      + 'relief extrudé (gratuit, solide fermé imprimable) ou moteur 3D (payant, '
+      + 'prix annoncé avant). Chaque rang porte sa chaîne — matière et placement. '
+      + 'Chaque champ édité patche aussitôt le graphe — annulable.</p>'
       + '<div id="cf-forge3d-graph"></div>'
+      + '<p class="hint" id="cf-forge3d-cost"></p>'
       + '</section>'
 
       + '<section class="cf-forge3d-card">'
@@ -166,7 +218,15 @@
     CF.on("core:deck", () => {
       HIST.length = 0;
       LAST_MANIFEST = null;
+      MANIFEST_CARD = null;
       ARTIFACT = null;
+      /* les jobs sont DECK-LOCAUX (nodes/<nid>/job.json sous le deck) : ceux
+         du deck précédent ne disent plus rien de celui-ci. `GEN` fait taire
+         les polls déjà en vol au lieu de les laisser peindre par-dessus. */
+      GEN += 1;
+      [JOBS, POLLS, RUNS, ERRS].forEach((reg) => {
+        Object.keys(reg).forEach((k) => { delete reg[k]; });
+      });
       if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
     });
     refreshInfo();
@@ -357,70 +417,394 @@
      pour cette carte, toléré EN SILENCE (ce n'est pas une panne, le hint
      le dit déjà). `M.api.blob` rend un Blob de provenance connue ; on le
      relit en texte puis en JSON (pas de route JSON dédiée à ce fichier). */
-  async function refreshManifest() {
+  function cardLabel() {
     const carte = (CF.current ? CF.current() : 0);
-    const label = "c" + String(carte + 1).padStart(2, "0");
+    return "c" + String(carte + 1).padStart(2, "0");
+  }
+
+  async function refreshManifest() {
+    /* un seul chargement à la fois : `wire()` en lance un ET peint dans la
+       foulée, et cette peinture appelle `cardChanged()` — sans ce verrou,
+       le boot partait en DOUBLE requête sur le même fichier. */
+    if (refreshManifest.busy) return;
+    refreshManifest.busy = true;
+    const label = cardLabel();
     try {
       const blob = await M.api.blob("GET", "file/layers_" + label + "_front.json");
       LAST_MANIFEST = JSON.parse(await blob.text());
     } catch (e) {
       LAST_MANIFEST = null;
+    } finally {
+      /* l'étiquette est posée MÊME en échec : un 404 est une réponse (« jamais
+         exporté pour cette carte »), pas une raison de re-demander en boucle
+         à chaque peinture. */
+      MANIFEST_CARD = label;
+      refreshManifest.busy = false;
     }
     paintGraph();
   }
 
-  /* {layer, proc} pour chaque edge layer -> (plane|relief) : c'est la MEME
-     regle de resolution que le backend (_resolve_graph_elements) — la
-     premiere arete entrante d'un traitement en dicte la source affichee ;
-     les sources surnumeraires restent dans le graphe (le backend les avoue
-     au bordereau via `ignored` apres construction), l'ecran ne les cache
-     pas, il ne leur donne simplement pas de second rang. */
-  function graphRows(graph) {
+  /* LEGS 5 — LE MANIFESTE SUIT LA CARTE, pas seulement le boot. `LAST_MANIFEST`
+     ne se chargeait qu'à l'initialisation du panneau : changer de carte au rail
+     laissait donc l'écran proposer (ou refuser) un graphe par défaut d'après
+     les couches d'une AUTRE carte. On confronte l'étiquette de la carte
+     courante à celle du manifeste chargé, dans le chemin de peinture appelé à
+     chaque rendu — AUCUN nouveau listener global, et la peinture suivante est
+     déclenchée par `refreshManifest` lui-même. */
+  function cardChanged() {
+    if (refreshManifest.busy || cardLabel() === MANIFEST_CARD) return false;
+    refreshManifest();
+    return true;
+  }
+
+  /* LE MODÈLE D'UN RANG — la CHAÎNE d'un traitement, résolue exactement comme
+     le backend la résoudra : `_resolve_graph_elements` pour la source (la
+     PREMIÈRE arête layer -> traitement gagne) et `_chaine_aval` pour l'aval
+     (`material` puis `transform`, 0 ou 1 de chacun, dans n'importe quel ordre,
+     première arête gagnante là aussi). Les maillons surnuméraires restent dans
+     le graphe — le backend les avoue au bordereau via `ignored` après
+     construction ; l'écran ne les cache pas, il ne leur donne simplement pas
+     de rang. Rendre `{layer, proc, mat, trs}` : c'est la seule forme que
+     l'affichage ET l'édition manipulent. */
+  function rowModel(graph, procId) {
     const byId = {};
-    graph.nodes.forEach((n) => { byId[n.id] = n; });
-    const rows = [];
-    graph.edges.forEach((e) => {
-      const from = byId[e.from], to = byId[e.to];
-      if (from && to && from.kind === "layer"
-        && (to.kind === "plane" || to.kind === "relief")
-        && !rows.some((r) => r.proc.id === to.id)) {
-        rows.push({ layer: from, proc: to });
+    (graph.nodes || []).forEach((n) => { byId[n.id] = n; });
+    const proc = byId[procId];
+    if (!proc || PROC_KINDS.indexOf(proc.kind) < 0) return null;
+    const edges = graph.edges || [];
+    let layer = null;
+    for (let i = 0; i < edges.length && !layer; i++) {
+      const f = byId[edges[i].from];
+      if (edges[i].to === procId && f && f.kind === "layer") layer = f;
+    }
+    let mat = null, trs = null, cur = procId;
+    for (let k = 0; k < CHAIN_MAX; k++) {
+      let nxt = null;
+      for (let i = 0; i < edges.length && !nxt; i++) {
+        const t = (edges[i].from === cur) ? byId[edges[i].to] : null;
+        if (t && (t.kind === "material" || t.kind === "transform")) nxt = t;
       }
+      if (!nxt) break;
+      /* deux matières (ou deux transforms) sur une même chaîne : on s'arrête,
+         comme le backend — la seconde ne peut pas gagner sans que la première
+         mente. */
+      if (nxt.kind === "material") { if (mat) break; mat = nxt; } else { if (trs) break; trs = nxt; }
+      cur = nxt.id;
+    }
+    return { layer: layer, proc: proc, mat: mat, trs: trs };
+  }
+
+  /* les rangs, DANS L'ORDRE DES NŒUDS du graphe — le même ordre que celui où
+     le backend listera les éléments du bordereau. Un traitement sans aucune
+     couche source n'a pas de rang (le backend l'avoue en `ignored`). */
+  function graphRows(graph) {
+    const rows = [];
+    (graph.nodes || []).forEach((n) => {
+      if (PROC_KINDS.indexOf(n.kind) < 0) return;
+      const r = rowModel(graph, n.id);
+      if (r && r.layer) rows.push(r);
     });
     return rows;
+  }
+
+  /* ── LES PRIX : SERVIS PAR /info, JAMAIS RECOPIÉS ───────────────────────
+     `engineOf` cherche un moteur dans la table servie ; `engineFor` résout
+     CELUI d'un nœud comme le fera `clean_graph` (le sien s'il est connu,
+     sinon le défaut du contrat). Un seul résolveur pour l'affichage, le prix
+     et le lancement — sinon l'écran annonce un prix et le backend en facture
+     un autre. */
+  function mesh3dInfo() { return (INFO && INFO.mesh3d) || null; }
+
+  function engineOf(id) {
+    const m = mesh3dInfo();
+    const tab = (m && m.engines) || [];
+    return tab.filter((e) => e && e.id === id)[0] || null;
+  }
+
+  function engineFor(proc) {
+    const m = mesh3dInfo();
+    const tab = (m && m.engines) || [];
+    if (!tab.length) return null;
+    return engineOf(proc && proc.engine) || engineOf(m.default_engine) || tab[0];
+  }
+
+  function defaultEngine() {
+    const m = mesh3dInfo();
+    return (m && m.default_engine) || "";
+  }
+
+  /* le surcoût ultra vient du contrat (`ultra_extra_credits`), jamais d'un id
+     de moteur écrit ici : la grille partagée de meshy_service en est la seule
+     vérité, et elle ne l'accorde qu'aux moteurs qui le proposent. */
+  function ultraCredits(eng) {
+    return (eng && Number(eng.ultra_extra_credits)) || 0;
+  }
+
+  function engPrice(eng, ultra) {
+    if (!eng) return null;
+    if (eng.provider !== "meshy") return { usd: Number(eng.price_usd) || 0, credits: 0 };
+    const base = Number(eng.credits) || 0;
+    const cr = base + (ultra ? ultraCredits(eng) : 0);
+    /* le taux crédit -> $ n'est pas une constante d'ici : il se DÉDUIT du
+       couple servi (`price_usd` vaut exactement `credits x taux`, cf.
+       forge3d.py:_engine_table). Zéro crédit annoncé = zéro équivalent. */
+    const taux = base > 0 ? (Number(eng.price_usd) || 0) / base : 0;
+    return { usd: Math.round(cr * taux * 10000) / 10000, credits: cr };
+  }
+
+  function usdTxt(v) {
+    return (Number(v) || 0).toFixed(2).replace(".", ",") + " $";
+  }
+
+  /* le prix d'UN nœud, dans les mots de son fournisseur */
+  function priceTxt(eng, ultra) {
+    const p = engPrice(eng, ultra);
+    if (!p) return "prix inconnu";
+    return (eng.provider === "meshy")
+      ? (p.credits + " cr (~" + usdTxt(p.usd) + ")")
+      : usdTxt(p.usd);
+  }
+
+  /* un champ numérique borné PAR /info — jamais des bornes écrites ici */
+  function numHtml(label, field, value, bornes, step, unite, off) {
+    /* les bornes viennent de /info : ABSENTES, on n'en invente pas (un
+       min=0/max=0 de repli verrouillerait le champ en prétendant que c'est
+       la règle du domaine). */
+    const b = (bornes && bornes.length === 2
+      && isFinite(bornes[0]) && isFinite(bornes[1])) ? bornes : null;
+    return '<label class="cf-forge3d-num">' + esc(label)
+      + '<input type="number" data-field="' + esc(field) + '" value="'
+      + esc(value != null ? value : "") + '"'
+      + (b ? ' min="' + Number(b[0]) + '" max="' + Number(b[1]) + '"' : "")
+      + ' step="' + esc(step) + '"' + (off ? " disabled" : "")
+      + '>' + (unite ? "<i>" + esc(unite) + "</i>" : "") + '</label>';
   }
 
   function rowHtml(r, lim) {
     const proc = r.proc, layer = r.layer;
     const isRelief = proc.kind === "relief";
+    const isMesh = proc.kind === "mesh3d";
     const pd = (lim && lim.plane_depth_mm) || [0, 0];
     const rdMax = lim ? lim.relief_depth_mm_max : 0;
     const rb = (lim && lim.relief_base_mm) || [0, 0];
     const rg = (lim && lim.relief_grid) || [0, 0];
     const depthMin = isRelief ? 0 : pd[0];
     const depthMax = isRelief ? rdMax : pd[1];
+    /* un moteur ne s'extrude pas : sa géométrie vient du GLB livré, pas d'une
+       profondeur d'ici — les champs du relief n'ont donc rien à dire sur ce
+       rang (ils restent sur le nœud, `clean_graph` ne garde que ceux du kind
+       retenu : revenir en arrière ne perd rien). */
+    const geoHtml = isMesh ? ""
+      : (numHtml("profondeur", "depth_mm", proc.depth_mm, [depthMin, depthMax],
+                 "0.05", "mm")
+        + (isRelief
+          ? (numHtml("base", "base_mm", proc.base_mm, rb, "0.05", "mm")
+            + numHtml("grille", "grid", proc.grid, rg, "1", ""))
+          : ""));
     return '<div class="cf-forge3d-row" data-proc="' + esc(proc.id) + '">'
+      + '<div class="cf-forge3d-line">'
       + '<span class="mono cf-forge3d-role">' + esc(layer.role || "composite") + '</span>'
       + '<select class="cf-forge3d-kind" data-field="kind">'
-      + '<option value="plane"' + (isRelief ? "" : " selected") + '>plan</option>'
-      + '<option value="relief"' + (isRelief ? " selected" : "") + '>relief</option>'
+      + PROC_KINDS.map((k) => '<option value="' + esc(k) + '"'
+        + (proc.kind === k ? " selected" : "") + '>' + esc(PROC_LABELS[k])
+        + '</option>').join("")
       + '</select>'
-      + '<label class="cf-forge3d-num">profondeur<input type="number" data-field="depth_mm" '
-      + 'value="' + esc(proc.depth_mm != null ? proc.depth_mm : "") + '" '
-      + 'min="' + depthMin + '" max="' + depthMax + '" step="0.05"><i>mm</i></label>'
-      + (isRelief
-        ? ('<label class="cf-forge3d-num">base<input type="number" data-field="base_mm" '
-          + 'value="' + esc(proc.base_mm != null ? proc.base_mm : "") + '" '
-          + 'min="' + rb[0] + '" max="' + rb[1] + '" step="0.05"><i>mm</i></label>'
-          + '<label class="cf-forge3d-num">grille<input type="number" data-field="grid" '
-          + 'value="' + esc(proc.grid != null ? proc.grid : "") + '" '
-          + 'min="' + rg[0] + '" max="' + rg[1] + '" step="1"></label>')
-        : "")
+      + geoHtml
       + '<select class="cf-forge3d-side" data-field="side">'
       + '<option value="front"' + (layer.side === "back" ? "" : " selected") + '>recto</option>'
       + '<option value="back"' + (layer.side === "back" ? " selected" : "") + '>verso</option>'
       + '</select>'
+      + '</div>'
+      + (isMesh ? mesh3dHtml(proc) : "")
+      + matHtml(r, isMesh)
+      + trsHtml(r)
       + '</div>';
+  }
+
+  /* ── LE BLOC MOTEUR — la SEULE dépense de cet écran ─────────────────────
+     Tout y vient de `INFO.mesh3d` : le roster, les libellés, les prix, le
+     surcoût ultra, la longueur du prompt, la présence de la clé. Rien n'y est
+     écrit en dur. Et quand la table est VIDE, on affiche la panne TELLE
+     QUELLE — jamais un <select> vide muet, qui se relit « aucun moteur
+     n'existe » alors qu'il veut dire « la grille de prix est tombée ». */
+  function mesh3dHtml(proc) {
+    const m = mesh3dInfo();
+    const engines = (m && m.engines) || [];
+    if (!engines.length) {
+      return '<div class="cf-forge3d-blk cf-forge3d-mesh"><p class="hint">'
+        + '<b>moteurs 3D indisponibles</b> — ' + esc((m && m.degraded)
+          || "le contrat /info n'a pas été chargé (backend injoignable ?)")
+        + '</p></div>';
+    }
+    const eng = engineFor(proc);
+    const cle = !m.has_meshy;
+    const opts = engines.map((e) => '<option value="' + esc(e.id) + '"'
+      + (e.id === eng.id ? " selected" : "") + '>' + esc(e.label) + " · "
+      + esc(priceTxt(e, false))
+      + esc(e.provider === "meshy" && cle ? " — clé requise (Réglages)" : "")
+      + '</option>').join("");
+    const ultraCr = ultraCredits(eng);
+    const promptMax = Number((m && m.prompt_max) || 0);
+    return '<div class="cf-forge3d-blk cf-forge3d-mesh">'
+      + '<label class="cf-forge3d-sel">moteur<select data-field="engine">'
+      + opts + '</select></label>'
+      + '<span class="cf-forge3d-price mono">' + esc(priceTxt(eng, proc.ultra))
+      + '</span>'
+      + (ultraCr > 0
+        ? ('<label class="cf-forge3d-chk"><input type="checkbox" data-field="ultra"'
+          + (proc.ultra ? " checked" : "") + '> ultra <i>+' + Number(ultraCr)
+          + ' cr</i></label>')
+        : "")
+      + '<label class="cf-forge3d-txt">texture<input type="text" '
+      + 'data-field="texture_prompt"'
+      + (promptMax > 0 ? ' maxlength="' + promptMax + '"' : "")
+      + ' value="' + esc(proc.texture_prompt || "") + '" '
+      + 'placeholder="ce que le moteur doit peindre"></label>'
+      + '<span class="cf-forge3d-run" data-nid="' + esc(proc.id) + '">'
+      + runHtml(proc) + '</span>'
+      + (m.meshy_mock
+        ? '<p class="hint">simulateur Meshy local actif — aucun crédit réel '
+          + 'n\'est débité.</p>'
+        : "")
+      + '</div>';
+  }
+
+  /* le bouton et la chip d'un nœud, peints DEPUIS le job (jamais l'intention
+     envoyée). `runHtml` est le seul endroit qui décide de désactiver Lancer :
+     un job en cours (le backend refuserait en 409) et une clé Meshy absente
+     (il refuserait en 503) — l'écran le DIT avant de faire perdre un aller-
+     retour à l'utilisateur. */
+  function runHtml(proc) {
+    const m = mesh3dInfo();
+    const eng = engineFor(proc);
+    const meshy = !!(eng && eng.provider === "meshy");
+    const sansCle = meshy && !(m && m.has_meshy);
+    const connu = Object.prototype.hasOwnProperty.call(JOBS, proc.id);
+    const job = connu ? JOBS[proc.id] : undefined;
+    const court = !!(job && (job.status === "queued" || job.status === "running"));
+    return '<button class="btn primary sm" type="button" data-act="launch" '
+      + 'data-nid="' + esc(proc.id) + '"'
+      + ((court || sansCle || !eng) ? " disabled" : "") + '>'
+      + (job ? "relancer" : "lancer") + '</button>'
+      + (sansCle
+        ? '<span class="cf-forge3d-chip echec">clé Meshy absente — Réglages</span>'
+        : "")
+      + chipHtml(proc.id, job);
+  }
+
+  function chipHtml(nid, job) {
+    let html = "";
+    if (RUNS[nid]) {
+      html += '<span class="cf-forge3d-chip ailleurs">relancé ailleurs — un '
+        + 'autre onglet a repris ce nœud</span>';
+    }
+    if (ERRS[nid]) {
+      /* le refus du backend TEL QUEL : la famille nommée 400 (nœud/couche/clé
+         fal), 409 (job déjà en cours, couches absentes), 503 (clé Meshy),
+         413 (couche trop lourde). Le paraphraser le diluerait. */
+      return html + '<span class="cf-forge3d-chip echec">' + esc(ERRS[nid])
+        + '</span>';
+    }
+    if (job === undefined) return html;              /* pas encore sondé */
+    if (job === null) {
+      return html + '<span class="cf-forge3d-chip">jamais lancé</span>';
+    }
+    const st = job.status;
+    if (st === "queued") return html + '<span class="cf-forge3d-chip file">en file</span>';
+    if (st === "running") {
+      return html + '<span class="cf-forge3d-chip cours">en cours '
+        + Number(job.progress || 0) + ' %' + esc(job.step ? " · " + job.step : "")
+        + '</span>';
+    }
+    if (st === "served") {
+      const cr = (job.consumed_credits != null)
+        ? " · " + Number(job.consumed_credits) + " cr" : "";
+      return html + '<span class="cf-forge3d-chip servi">servi' + esc(cr) + '</span>'
+        + (job.closed_note
+          ? '<span class="cf-forge3d-chip">' + esc(job.closed_note) + '</span>'
+          : "");
+    }
+    if (st === "failed") {
+      return html + '<span class="cf-forge3d-chip echec">échec : '
+        + esc(job.error || "sans motif rendu par le backend") + '</span>';
+    }
+    return html + '<span class="cf-forge3d-chip">' + esc(st) + '</span>';
+  }
+
+  /* ── MATIÈRE ET FINITION — bornes et roster servis par /info ────────────
+     Même règle que `clean_graph` : une matière sans matière NI finition n'est
+     rien. `tuile` et `anisotropie` ne deviennent donc éditables qu'une fois
+     l'une des deux posée — sans quoi le nœud naîtrait vide, serait jeté, et
+     la case cochée mentirait sur un graphe qui ne la porte pas. */
+  function finishLabel(f) {
+    /* la seule finition qui ne soit pas holographique est l'absence de
+       finition — le libellé se DÉRIVE de la liste servie, il ne la recopie
+       pas (une recette de plus côté serveur s'affichera toute seule). */
+    return (f === "aucune") ? "aucune" : (f + " holographique");
+  }
+
+  function matHtml(r, isMesh) {
+    const mats = (INFO && INFO.materials) || [];
+    const lim = (INFO && INFO.material_limits) || null;
+    const panne = INFO ? INFO.materials_degraded : null;
+    const mat = r.mat;
+    const finitions = (lim && lim.finishes) || [];
+    const pose = !!mat;
+    const matSel = mats.length
+      ? ('<label class="cf-forge3d-sel">matière<select data-field="mat">'
+        + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>aucune</option>'
+        + mats.map((x) => '<option value="' + esc(x.id) + '"'
+          + (mat && mat.mat === x.id ? " selected" : "") + '>' + esc(x.name)
+          + '</option>').join("")
+        + '</select></label>')
+      /* jamais un select vide muet : la panne (ou la boutique vide) est dite */
+      : ('<span class="hint"><b>aucune matière</b> — ' + esc(panne
+        || (INFO ? "la boutique de matières est vide (aucune matière installée)."
+                 : "contrat /info non chargé.")) + '</span>');
+    const finSel = finitions.length
+      ? ('<label class="cf-forge3d-sel">finition<select data-field="finish">'
+        + finitions.map((f) => '<option value="' + esc(f) + '"'
+          + (((mat && mat.finish) || "aucune") === f ? " selected" : "") + '>'
+          + esc(finishLabel(f)) + '</option>').join("")
+        + '</select></label>')
+      : '<span class="hint">finitions inconnues (contrat /info non chargé).</span>';
+    return '<details class="cf-forge3d-blk"><summary>matière'
+      + (mat ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
+      + '<div class="cf-forge3d-line">' + matSel + finSel
+      + numHtml("tuile", "tile_mm", mat ? mat.tile_mm : null,
+                lim && lim.tile_mm, "1", "mm", !pose)
+      + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="aniso"'
+      + (mat && mat.aniso ? " checked" : "") + (pose ? "" : " disabled")
+      + '> anisotropie</label></div>'
+      + '<p class="hint">matière sur plan/relief seulement — un GLB moteur '
+      + 'garde la sienne.' + (isMesh && mat
+        ? ' Ce rang est un moteur : la matière chaînée sera avouée comme '
+          + 'ignorée au bordereau.' : "")
+      + (pose ? "" : ' Tuile et anisotropie s\'activent dès qu\'une matière ou '
+        + 'une finition est posée.') + '</p>'
+      + '</details>';
+  }
+
+  function trsHtml(r) {
+    const lim = (INFO && INFO.transform_limits) || null;
+    const t = r.trs;
+    if (!lim) {
+      return '<details class="cf-forge3d-blk"><summary>placement</summary>'
+        + '<p class="hint">bornes inconnues (contrat /info non chargé).</p>'
+        + '</details>';
+    }
+    return '<details class="cf-forge3d-blk"><summary>placement'
+      + (t ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
+      + '<div class="cf-forge3d-line">'
+      + numHtml("x", "x_mm", t ? t.x_mm : null, lim.xy_mm, "0.5", "mm")
+      + numHtml("y", "y_mm", t ? t.y_mm : null, lim.xy_mm, "0.5", "mm")
+      + numHtml("z", "z_mm", t ? t.z_mm : null, lim.z_mm, "0.1", "mm")
+      + numHtml("rotation", "rot_deg", t ? t.rot_deg : null, lim.rot_deg, "1", "°")
+      + numHtml("échelle", "scale", t ? t.scale : null, lim.scale, "0.05", "")
+      + '</div>'
+      + '<p class="hint">un placement absent laisse l\'élément là où son '
+      + 'traitement le pose.</p>'
+      + '</details>';
   }
 
   /* le bouton seed : identique dans les deux branches (graphe absent ou déjà
@@ -435,6 +819,10 @@
   function paintGraph() {
     const host = $("#cf-forge3d-graph");
     if (!host) return;
+    /* legs 5 : la carte a pu changer au rail depuis le dernier chargement du
+       manifeste — on le confronte ICI, dans le chemin de peinture appelé à
+       chaque rendu, plutôt que d'ajouter un listener global de plus. */
+    cardChanged();
     const graph = get("graph");
     if (!graph) {
       host.innerHTML = LAST_MANIFEST
@@ -442,6 +830,7 @@
           + seedButtonHtml("cf-forge3d-graph-seed", "construire le graphe par défaut"))
         : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
           + 'pour proposer un graphe par défaut.</p>';
+      paintCost();
       return;
     }
     const rows = graphRows(graph);
@@ -449,7 +838,7 @@
     const body = rows.length
       ? rows.map((r) => rowHtml(r, lim)).join("")
       : '<p class="hint">Graphe sans traitement — aucune couche reliée à un '
-        + 'plan ou un relief.</p>';
+        + 'plan, un relief ou un moteur.</p>';
     /* le re-seed reste OFFERT même une fois le graphe construit : abîmer son
        graphe n'est plus une impasse — et comme il passe par setGraph, il
        reste lui-même annulable. */
@@ -457,17 +846,118 @@
       ? seedButtonHtml("cf-forge3d-reseed", "reconstruire le graphe par défaut")
       : "";
     host.innerHTML = body + reseed;
+    /* l'état des nœuds moteur vient du DISQUE, pas de la mémoire de l'onglet :
+       un nœud jamais sondé l'est UNE fois (un GET, gratuit), sans quoi un job
+       servi d'une session précédente resterait invisible et serait recompté
+       comme payant par le pied de coût. */
+    rows.forEach((r) => {
+      if (r.proc.kind === "mesh3d") pollMesh3d(r.proc.id, true);
+    });
+    paintCost();
+  }
+
+  /* ── LE PIED DE COÛT — CE QUE « LANCER » COÛTERA, AVANT ────────────────
+     Somme des nœuds moteur NON SERVIS (un job déjà livré est payé : le
+     relancer coûterait, mais tant qu'on ne le relance pas il ne doit pas
+     gonfler le devis). fal en $, Meshy en crédits + équivalent $ déduit du
+     contrat. Un nœud dont le prix est INCONNU (table des moteurs tombée) est
+     compté comme payant et NOMMÉ — dire « 100 % gratuit » là serait le seul
+     mensonge que ce pied de page puisse commettre. */
+  function costLine() {
+    const graph = get("graph");
+    if (!graph) return "";     /* pas de graphe, pas de devis à annoncer */
+    const rows = graphRows(graph);
+    let usdFal = 0, credits = 0, usdMeshy = 0, inconnus = 0;
+    rows.forEach((r) => {
+      if (r.proc.kind !== "mesh3d") return;
+      const job = Object.prototype.hasOwnProperty.call(JOBS, r.proc.id)
+        ? JOBS[r.proc.id] : undefined;
+      if (job && job.status === "served") return;
+      const eng = engineFor(r.proc);
+      const p = engPrice(eng, r.proc.ultra);
+      if (!p) { inconnus += 1; return; }
+      if (eng.provider === "meshy") { credits += p.credits; usdMeshy += p.usd; } else usdFal += p.usd;
+    });
+    const bouts = [];
+    if (usdFal > 0) bouts.push(usdTxt(usdFal));
+    if (credits > 0) bouts.push(credits + " cr Meshy (~" + usdTxt(usdMeshy) + ")");
+    if (inconnus > 0) {
+      bouts.push(inconnus + " nœud(s) au prix inconnu (table des moteurs "
+        + "indisponible)");
+    }
+    return bouts.length ? ("Coût à lancer : " + bouts.join(" + "))
+                        : "Graphe 100 % gratuit.";
+  }
+
+  function paintCost() {
+    const el = $("#cf-forge3d-cost");
+    if (el) el.textContent = costLine();
+  }
+
+  /* le rang d'un nœud dans le DOM, retrouvé par comparaison d'attribut et non
+     par sélecteur construit : un id de nœud est une donnée, jamais un
+     fragment de sélecteur (un point y suffirait à tout casser). */
+  function findByAttr(cls, attr, val) {
+    const host = $("#cf-forge3d-graph");
+    if (!host) return null;
+    const tab = Array.prototype.slice.call(host.querySelectorAll(cls));
+    for (let i = 0; i < tab.length; i++) {
+      if (tab[i].getAttribute(attr) === val) return tab[i];
+    }
+    return null;
+  }
+
+  /* REPEINDRE UN SEUL RANG (et rien d'autre) : le moteur et l'ultra changent
+     ce que le rang AFFICHE au-delà de la valeur saisie (prix, case ultra,
+     bouton). Repeindre la liste entière y référerait les tiroirs ouverts des
+     AUTRES rangs et volerait le focus — le piège syncInputs/renderPanel de
+     mod-face. On préserve donc les deux choses que le DOM porte et que le
+     graphe ne dit pas : les blocs dépliés et l'élément focalisé. */
+  function paintRow(procId, focusField) {
+    const graph = get("graph");
+    const old = findByAttr(".cf-forge3d-row", "data-proc", procId);
+    const r = graph ? rowModel(graph, procId) : null;
+    if (!old || !r || !r.layer || !old.parentNode) { paintGraph(); return; }
+    const ouverts = Array.prototype.slice.call(old.querySelectorAll("details"))
+      .map((d) => !!d.open);
+    const tmp = document.createElement("div");
+    tmp.innerHTML = rowHtml(r, (INFO && INFO.graph_limits) || null);
+    const neuf = tmp.firstChild;
+    old.parentNode.replaceChild(neuf, old);
+    Array.prototype.slice.call(neuf.querySelectorAll("details"))
+      .forEach((d, i) => { if (ouverts[i]) d.open = true; });
+    if (focusField) {
+      const f = neuf.querySelector('[data-field="' + focusField + '"]');
+      if (f && f.focus) f.focus();
+    }
+    paintCost();
+  }
+
+  /* la zone bouton+chip d'un nœud moteur, repeinte SEULE par le poll : c'est
+     ce qui permet à un job de couler pendant que l'utilisateur écrit dans le
+     champ texture du même rang sans jamais perdre son curseur. */
+  function paintChip(nid) {
+    const zone = findByAttr(".cf-forge3d-run", "data-nid", nid);
+    if (!zone) return;
+    const graph = get("graph");
+    const proc = graph ? (graph.nodes || []).filter((n) => n.id === nid)[0] : null;
+    if (!proc) return;
+    zone.innerHTML = runHtml(proc);
   }
 
   function onGraphClick(e) {
     const b = e.target.closest ? e.target.closest("[data-act]") : null;
     if (!b) return;
-    if (b.getAttribute("data-act") === "seed-default") {
+    const act = b.getAttribute("data-act");
+    if (act === "seed-default") {
       e.preventDefault();
       if (LAST_MANIFEST) {
         setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
         paintGraph();   /* structurel : la liste entière change de forme */
       }
+    } else if (act === "launch") {
+      e.preventDefault();
+      launchMesh3d(b.getAttribute("data-nid"));
     }
   }
 
@@ -476,7 +966,8 @@
     if (!row) return;
     const field = e.target.getAttribute("data-field");
     if (!field) return;
-    editGraph(row.getAttribute("data-proc"), field, e.target.value);
+    const val = (e.target.type === "checkbox") ? e.target.checked : e.target.value;
+    editGraph(row.getAttribute("data-proc"), field, val);
   }
 
   /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo, paintUndo
@@ -511,6 +1002,11 @@
     M.toast("annulé : " + h.label);
   }
 
+  const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso"];
+  const TRS_FIELDS = ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"];
+  /* les champs qui changent l'AFFICHAGE du rang au-delà de leur propre valeur */
+  const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish"];
+
   /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
      qu'il est posé (schema simple, fusion superficielle) — une mutation en
      place lèverait TypeError en mode strict.
@@ -521,7 +1017,11 @@
      chaque changement de <select> (side) perd le focus et le curseur de
      saisie. Le DOM porte déjà la valeur commise par le navigateur : seul
      `kind` change la STRUCTURE du rang (base/grille apparaissent ou
-     disparaissent) et exige donc, lui seul, un repaint. */
+     disparaissent) et exige donc, lui seul, un repaint. La 2b ajoute deux
+     champs qui changent ce que le rang AFFICHE sans changer sa valeur
+     (moteur, ultra : prix, case ultra, bouton) et deux qui font naître ou
+     mourir un maillon (matière, finition) : ceux-là repeignent LE RANG SEUL,
+     focus restauré, tiroirs conservés. */
   function editGraph(procId, field, rawValue) {
     const graph = get("graph");
     if (!graph || !procId) return;
@@ -529,7 +1029,12 @@
     const proc = next.nodes.filter((n) => n.id === procId)[0];
     if (!proc) return;
     if (field === "kind") {
-      proc.kind = (rawValue === "relief") ? "relief" : "plane";
+      proc.kind = (PROC_KINDS.indexOf(rawValue) >= 0) ? rawValue : "plane";
+      /* les paramètres des autres traitements RESTENT sur le nœud (patron 2a :
+         `clean_graph` ne garde que ceux du kind retenu, revenir en arrière ne
+         perd rien). Le moteur, lui, doit exister dès le premier rendu du bloc,
+         et il vient de /info — jamais d'une constante d'ici. */
+      if (proc.kind === "mesh3d" && !proc.engine) proc.engine = defaultEngine();
     } else if (field === "side") {
       const edge = next.edges.filter((e) => e.to === procId)[0];
       const layer = edge ? next.nodes.filter((n) => n.id === edge.from)[0] : null;
@@ -540,9 +1045,194 @@
     } else if (field === "depth_mm" || field === "base_mm") {
       const v = Number(rawValue);
       if (isFinite(v)) proc[field] = v; else delete proc[field];
+    } else if (field === "engine") {
+      proc.engine = String(rawValue || "");
+      /* MÊME conservatisme que `clean_graph` sur l'axe qui coûte : l'ultra ne
+         se reconduit jamais tout seul vers un moteur qui ne le propose pas —
+         l'utilisateur n'a pas consenti à un surcoût qu'il n'a pas nommé. */
+      if (ultraCredits(engineOf(proc.engine)) <= 0) delete proc.ultra;
+    } else if (field === "ultra") {
+      proc.ultra = !!rawValue;
+    } else if (field === "texture_prompt") {
+      const max = Number((mesh3dInfo() && mesh3dInfo().prompt_max) || 0);
+      const t = String(rawValue == null ? "" : rawValue);
+      proc.texture_prompt = max > 0 ? t.slice(0, max) : t;
+    } else if (MAT_FIELDS.indexOf(field) >= 0) {
+      editMat(next, procId, field, rawValue);
+    } else if (TRS_FIELDS.indexOf(field) >= 0) {
+      editTrs(next, procId, field, rawValue);
     }
     setGraph(next, field);
     if (field === "kind") paintGraph();
+    else if (STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
+    else paintCost();
+  }
+
+  /* ── LA CHAÎNE D'UN RANG, RECONSTRUITE ─────────────────────────────────
+     On ne touche QU'À l'aval : les arêtes ENTRANTES du traitement (les
+     sources, y compris une source surnuméraire que le backend avoue) ne nous
+     appartiennent pas. L'ordre canonique est celui du contrat serveur :
+     traitement -> [matière] -> [placement] -> assemblage.
+     `morts` porte les maillons que l'édition vient de RETIRER : leurs arêtes
+     doivent tomber avec eux, sinon le graphe local garde des arêtes pendantes
+     vers un nœud absent — `clean_graph` les jetterait côté serveur, mais
+     l'écran, lui, montrerait une chaîne qui n'existe plus. */
+  function rewireRow(g, procId, matId, trsId, morts) {
+    const purge = {};
+    (morts || []).forEach((id) => { if (id) purge[id] = 1; });
+    if (matId) purge[matId] = 1;
+    if (trsId) purge[trsId] = 1;
+    g.edges = (g.edges || []).filter((e) => !(
+      e.from === procId || purge[e.from] || purge[e.to]));
+    const asm = (g.nodes || []).filter((n) => n.kind === "assemble")[0];
+    const suite = [procId];
+    if (matId) suite.push(matId);
+    if (trsId) suite.push(trsId);
+    if (asm) suite.push(asm.id);
+    for (let i = 0; i + 1 < suite.length; i++) {
+      g.edges.push({ from: suite[i], to: suite[i + 1] });
+    }
+  }
+
+  /* un id LIBRE au charset du backend (`clean_graph` désinfecte sur
+     [A-Za-z0-9._-] et tronque à 24) : le fabriquer déjà conforme évite qu'un
+     nettoyage serveur ne renomme un nœud dont nos arêtes parlent encore. */
+  function freeId(nodes, base) {
+    const pris = {};
+    (nodes || []).forEach((n) => { pris[n.id] = 1; });
+    const racine = String(base).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 20) || "n";
+    if (!pris[racine]) return racine;
+    for (let k = 2; k < 500; k++) {
+      if (!pris[racine + k]) return racine + k;
+    }
+    return racine + "999";     /* inatteignable : un graphe d'écran tient en
+                                  quelques nœuds (MAX_GRAPH_ELEMENTS = 12) */
+  }
+
+  function editMat(g, procId, field, rawValue) {
+    const r = rowModel(g, procId);
+    if (!r) return;
+    let mat = r.mat;
+    if (!mat) {
+      mat = { id: freeId(g.nodes, procId + "m"), kind: "material" };
+      g.nodes.push(mat);
+    }
+    if (field === "mat") mat.mat = String(rawValue || "") || null;
+    else if (field === "finish") mat.finish = String(rawValue || "aucune");
+    else if (field === "aniso") mat.aniso = !!rawValue;
+    else if (field === "tile_mm") {
+      const v = Number(rawValue);
+      if (isFinite(v)) mat.tile_mm = v; else delete mat.tile_mm;
+    }
+    /* MÊME règle que `clean_graph` : une matière sans matière NI finition
+       n'est rien. On retire le maillon plutôt que de laisser dans le graphe un
+       nœud que le serveur jetterait en silence — l'écran montrerait alors une
+       chaîne que la construction ne suivrait pas. */
+    const vide = !mat.mat && (!mat.finish || mat.finish === "aucune");
+    if (vide) g.nodes = g.nodes.filter((n) => n.id !== mat.id);
+    rewireRow(g, procId, vide ? null : mat.id, r.trs ? r.trs.id : null,
+              [mat.id]);
+  }
+
+  function editTrs(g, procId, field, rawValue) {
+    const r = rowModel(g, procId);
+    if (!r) return;
+    let trs = r.trs;
+    if (!trs) {
+      /* l'IDENTITÉ, pas un défaut inventé : un nœud transform doit porter un
+         TRS complet (`_trs_dict` côté serveur), et l'élément neutre est le
+         seul jeu de valeurs qui ne déplace rien de ce que l'utilisateur
+         voyait avant de toucher le champ. */
+      trs = { id: freeId(g.nodes, procId + "t"), kind: "transform",
+              x_mm: 0, y_mm: 0, z_mm: 0, rot_deg: 0, scale: 1 };
+      g.nodes.push(trs);
+    }
+    const v = Number(rawValue);
+    if (isFinite(v)) trs[field] = v;
+    rewireRow(g, procId, r.mat ? r.mat.id : null, trs.id);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LES JOBS mesh3d — LA SEULE DÉPENSE DE CET ÉCRAN
+     Lancer POSTe le graphe COURANT (le backend le renettoie et n'en retient
+     que le nœud visé) ; l'état, lui, ne vient jamais de ce qu'on a envoyé :
+     il est POLLÉ sur `GET mesh3d/<nid>` jusqu'au terminal.
+     ═══════════════════════════════════════════════════════════════════════ */
+  async function launchMesh3d(nid) {
+    const graph = get("graph");
+    if (!nid || !graph) return;
+    if (POLLS[nid]) {
+      /* un clic pendant la lecture d'un état (ou pendant un job vivant) ne
+         disparaît pas en silence : le backend refuserait en 409, l'écran le
+         dit d'abord. */
+      M.toast("état de ce nœud en cours de lecture — réessayez");
+      return;
+    }
+    const zone = findByAttr(".cf-forge3d-run", "data-nid", nid);
+    const btn = zone ? zone.querySelector("[data-act='launch']") : null;
+    if (btn) btn.disabled = true;
+    ERRS[nid] = null;
+    RUNS[nid] = false;
+    try {
+      const carte = (CF.current ? CF.current() : 0);
+      const rep = await M.api.post("mesh3d/" + encodeURIComponent(nid),
+                                   { graph: graph, card: carte });
+      /* on ne peint QUE ce que le backend a rendu : pas de job, pas de chip
+         inventée — le poll qui suit dira l'état depuis le disque. */
+      JOBS[nid] = (rep && rep.job) || null;
+      paintChip(nid);
+      paintCost();
+      pollMesh3d(nid);
+    } catch (e) {
+      ERRS[nid] = String(e && e.message || e);
+      paintChip(nid);
+      M.toast(ERRS[nid], true);
+    }
+  }
+
+  /* UN poll par nœud (registre `POLLS`) : recliquer Lancer pendant qu'un job
+     court ne peut pas empiler deux boucles. `immediat` sert au SONDAGE d'un
+     nœud jamais vu — une seule requête, qui se prolonge en boucle uniquement
+     si le job trouvé est encore vivant. */
+  function pollMesh3d(nid, immediat) {
+    if (!nid || POLLS[nid]) return;
+    if (immediat && Object.prototype.hasOwnProperty.call(JOBS, nid)) return;
+    POLLS[nid] = true;
+    const gen = GEN;
+    const tick = async () => {
+      if (gen !== GEN) { delete POLLS[nid]; return; }
+      let job = null;
+      try {
+        job = await M.api.get("mesh3d/" + encodeURIComponent(nid));
+      } catch (e) {
+        delete POLLS[nid];
+        /* 404 = « aucun job sur ce nœud » : une RÉPONSE, pas une panne — on la
+           note pour ne pas resonder à chaque peinture. Tout le reste est un
+           refus nommé, montré tel quel. */
+        if (e && e.missing) { JOBS[nid] = null; ERRS[nid] = null; } else ERRS[nid] = String(e && e.message || e);
+        paintChip(nid);
+        paintCost();
+        return;
+      }
+      const avant = JOBS[nid];
+      /* `run_id` est OPAQUE (jamais inventé ni renvoyé par l'écran) mais
+         COMPARABLE : s'il a changé entre deux polls, ce n'est pas notre job
+         qui progresse — un AUTRE onglet a relancé ce nœud. On le DIT plutôt
+         que de laisser l'état basculer en silence. */
+      if (avant && avant.run_id && job.run_id && avant.run_id !== job.run_id) {
+        RUNS[nid] = true;
+      }
+      JOBS[nid] = job;
+      ERRS[nid] = null;
+      paintChip(nid);
+      paintCost();
+      if (job.status === "served" || job.status === "failed") {
+        delete POLLS[nid];
+        return;
+      }
+      setTimeout(tick, POLL_MS);
+    };
+    if (immediat) tick(); else setTimeout(tick, POLL_MS);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -618,6 +1308,21 @@
     const previewHtml = '<p class="hint">aperçu : ' + (art.preview.written
       ? "figé — " + esc(art.preview.expected)
       : "en attente (" + esc(art.preview.expected) + ")") + '</p>';
+    /* 2b — CE QUI A ÉTÉ ASSEMBLÉ, ÉLÉMENT PAR ÉLÉMENT : `elements` reste le
+       NOMBRE (la phrase de la 2a le concatène) et le détail vit dans
+       `elements_detail`. Le moteur et les crédits RÉELLEMENT consommés y sont
+       ceux du job.json de chaque nœud — la comptabilité du fournisseur, pas
+       le devis annoncé avant. */
+    const detail = (art.elements_detail && art.elements_detail.length)
+      ? ('<p class="hint">éléments assemblés :</p>'
+        + '<ul class="cf-forge3d-elems">'
+        + art.elements_detail.map((d) => '<li class="mono">' + esc(d.name)
+          + " · " + esc(d.kind) + " · " + esc(d.node)
+          + (d.engine ? " · " + esc(d.engine) : "")
+          + (d.credits != null ? " · " + Number(d.credits) + " cr" : "")
+          + "</li>").join("")
+        + "</ul>")
+      : "";
     const ignoredHtml = (art.ignored && art.ignored.length)
       ? ('<p class="hint"><b>éléments ignorés</b> — avoués, jamais tus :</p>'
         + '<ul class="cf-forge3d-ignored">'
@@ -625,7 +1330,7 @@
           + esc(i.why) + "</li>").join("")
         + "</ul>")
       : "";
-    slip.innerHTML = rows + stlHtml + previewHtml + ignoredHtml;
+    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoredHtml;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════

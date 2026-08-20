@@ -7,19 +7,51 @@
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }
 
 /* ── le graphe : une liste de rangs, pas un canvas nodal (Task 5) ────────── */
-.cf-forge3d .cf-forge3d-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--stroke); }
+.cf-forge3d .cf-forge3d-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-row:last-child { border-bottom: none; }
+.cf-forge3d .cf-forge3d-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .cf-forge3d .cf-forge3d-role { min-width: 100px; text-transform: uppercase; font-size: 10.5px; letter-spacing: .06em; color: var(--ink-strong); }
 .cf-forge3d .cf-forge3d-kind, .cf-forge3d .cf-forge3d-side { font: inherit; }
 .cf-forge3d .cf-forge3d-num { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); }
 .cf-forge3d .cf-forge3d-num input { width: 62px; }
 .cf-forge3d .cf-forge3d-num i { font-style: normal; }
+.cf-forge3d .cf-forge3d-sel { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); }
+.cf-forge3d .cf-forge3d-chk { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); }
+.cf-forge3d .cf-forge3d-chk i { font-style: normal; color: var(--accent); }
+.cf-forge3d .cf-forge3d-txt { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); flex: 1 1 200px; }
+.cf-forge3d .cf-forge3d-txt input { flex: 1 1 auto; min-width: 120px; }
 .cf-forge3d #cf-forge3d-reseed { margin-top: 8px; }
+
+/* ── les blocs d'une chaine : moteur toujours visible (il coute), matiere et
+      placement replies — un rang complet tient sur une ligne au repos ─────── */
+.cf-forge3d .cf-forge3d-blk { border-left: 2px solid var(--stroke); margin-left: 8px; padding: 4px 0 4px 10px; }
+.cf-forge3d .cf-forge3d-mesh { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; border-left-color: color-mix(in srgb, var(--accent) 45%, transparent); }
+.cf-forge3d details.cf-forge3d-blk > summary { cursor: pointer; font-size: 11px; color: var(--ink-muted); list-style: none; }
+.cf-forge3d details.cf-forge3d-blk > summary::-webkit-details-marker { display: none; }
+.cf-forge3d details.cf-forge3d-blk > summary::before { content: "\25B8"; display: inline-block; width: 12px; color: var(--ink-muted); }
+.cf-forge3d details.cf-forge3d-blk[open] > summary::before { content: "\25BE"; }
+.cf-forge3d .cf-forge3d-on { color: var(--accent); }
+.cf-forge3d .cf-forge3d-price { font-size: 11px; color: var(--accent); white-space: nowrap; }
+
+/* ── l'etat d'un job, peint depuis job.json : file / cours / servi / echec,
+      plus l'aveu d'une relance venue d'un autre onglet ────────────────────── */
+.cf-forge3d .cf-forge3d-run { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.cf-forge3d .cf-forge3d-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--stroke); color: var(--ink-muted); }
+.cf-forge3d .cf-forge3d-chip.file { border-color: var(--stroke-strong); color: var(--ink); }
+.cf-forge3d .cf-forge3d-chip.cours { border-color: color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); }
+.cf-forge3d .cf-forge3d-chip.servi { border-color: color-mix(in srgb, var(--green) 45%, transparent); color: var(--green); }
+.cf-forge3d .cf-forge3d-chip.echec { border-color: color-mix(in srgb, var(--red) 45%, transparent); color: var(--red); }
+.cf-forge3d .cf-forge3d-chip.ailleurs { border-style: dashed; border-color: var(--stroke-strong); color: var(--ink); }
+
+/* ── le pied de cout : ce que « Lancer » coutera, AVANT ──────────────────── */
+.cf-forge3d #cf-forge3d-cost { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--stroke); color: var(--accent); }
 
 /* ── le bordereau de build3d : un fichier par ligne, provenance connue ───── */
 .cf-forge3d .cf-forge3d-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-ignored { margin: 4px 0 0; padding-left: 18px; }
 .cf-forge3d .cf-forge3d-ignored li { padding: 1px 0; }
+.cf-forge3d .cf-forge3d-elems { margin: 4px 0 0; padding-left: 18px; }
+.cf-forge3d .cf-forge3d-elems li { padding: 1px 0; font-size: 11px; color: var(--ink-muted); }
 
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
 .cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }

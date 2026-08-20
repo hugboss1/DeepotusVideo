@@ -482,7 +482,14 @@ _IDENTITY_KEYS = ("generator", "producer", "author", "software", "application",
 # compressée est décalée), Basisu (sa `source` d'image est réindexée dans les
 # extensions de texture), unlit (aucun indice du tout). EXT_meshopt_compression
 # n'y est PAS : son bloc vit dans les `extensions` d'une bufferView, que cette
-# fusion ne recopie pas.
+# fusion ne recopie pas. KHR_mesh_quantization n'y est PAS NON PLUS, et pour une
+# raison de LECTEUR, pas de recopie : `_accessor_floats` ne décode que du
+# float32 (5126) et refuse nommément tout le reste — accepter l'extension ici
+# promettrait une mesure que le lecteur ne sait pas faire.
+# Ce que chaque entrée engage : draco et basisu sont LUS par le code de fusion
+# ci-dessous (vue compressée décalée, `source` d'image réindexée) ; unlit, lui,
+# ne porte aucun indice — il n'est tenu QUE par le test de source (il passe
+# parce qu'il n'y a rien à réindexer, pas parce qu'on le traite).
 _EXIG_CONNUES = {"KHR_draco_mesh_compression", "KHR_texture_basisu",
                  "KHR_materials_unlit"}
 
@@ -1258,6 +1265,17 @@ def _accessor_view(doc: dict, idx: int) -> tuple[dict, int]:
 
 def _accessor_floats(doc: dict, binv: bytes, idx: int) -> list[float]:
     acc, off = _accessor_view(doc, idx)
+    # LE COUPLAGE, RENDU EXPLICITE (résidu de la re-revue Task 6) : ce lecteur
+    # ne décode QUE du float32 (5126). Un accesseur quantifié
+    # (KHR_mesh_quantization : 5120/5121/5122/5123) relu ici en flottants
+    # rendrait des positions ABSURDES sans lever — un GLB parfaitement valide
+    # qui mesure et imprime la mauvaise chose. C'est LA raison pour laquelle
+    # `_EXIG_CONNUES` n'accueille pas cette extension : la garde et l'allowlist
+    # disent maintenant la même chose, chacune à son étage.
+    ct = acc.get("componentType") if isinstance(acc, dict) else None
+    if ct != 5126:
+        raise ValueError(f"accesseur {idx!r} non float32 (componentType "
+                         f"{ct!r}) — quantization non fusionnable")
     try:
         n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
         return list(struct.unpack_from("<" + "f" * (int(acc["count"]) * n),
