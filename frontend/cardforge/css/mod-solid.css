@@ -153,7 +153,7 @@
 .cf-solid .cf-solid-lb { flex: none; width: 46px; }
 .cf-solid .cf-solid-rg { flex: 1; min-width: 0; accent-color: var(--accent); height: 18px; }
 .cf-solid .cf-solid-nb { width: 72px; flex: none; padding: 4px 6px; font-size: 11.5px;
-  font-family: var(--f-mono); cursor: ew-resize; }
+  font-family: var(--f-mono); cursor: ew-resize; touch-action: none; }
 .cf-solid .cf-solid-nb.w { width: 100%; cursor: ew-resize; }
 .cf-solid .cf-solid-u { flex: none; font-style: normal; font-size: 10px; color: var(--ink-muted); width: 20px; }
 .cf-solid .cf-solid-col { width: 40px; height: 26px; flex: none; padding: 2px; border-radius: 7px;

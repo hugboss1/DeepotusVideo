@@ -3764,7 +3764,29 @@
     const cv = document.querySelector("#stageCanvas");
     const wrap = document.querySelector("#stageWrap");
     if (!cv || !wrap) return;
-    let drag = null;
+    /* touch-action: none EN JS, pas en CSS : #stageCanvas est la scene
+       PARTAGEE (cardforge.css, hors de mod-face.css), et la regle 4 du lint
+       (scripts/qa/lint_cardforge.py) interdit tout selecteur de mod-face.css
+       qui ne porte pas .cf-face — un `#stageCanvas { touch-action: none }`
+       la-bas serait rejete au build. C'est aussi la seule piece qui glisse
+       DIRECTEMENT sur cette toile (P2 a sa propre mini-carte, P3 son calque
+       flottant) : la portee reste correcte cote comportement. */
+    cv.style.touchAction = "none";
+    let drag = null, pendingPatch = null, rafId = 0;
+    /* repli setTimeout si rAF est absent, annulation SYMETRIQUE (le meme
+       drapeau sert a programmer et a annuler — cancelAnimationFrame sur un
+       identifiant de setTimeout ne fait rien, autre registre). Meme patron
+       que core.js:158, reproduit ICI en local (fichiers separes, sans
+       import partage entre pieces). */
+    const hasRAF = typeof requestAnimationFrame === "function";
+    const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+    const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
+    const flushDrag = () => {
+      rafId = 0;
+      if (!pendingPatch) return;
+      const p = pendingPatch; pendingPatch = null;
+      M.patch(p);                      /* <= 1 patch par frame (spec 9.6-1) */
+    };
 
     cv.addEventListener("pointerdown", (e) => {
       if (!panelActive() || !LAST.has) return;
@@ -3783,21 +3805,29 @@
     cv.addEventListener("pointermove", (e) => {
       if (!drag) return;
       const g = CF.geom(), s = prevScale(cv);
+      let p;
       if (drag.alt) {
         const a = Math.atan2(e.clientY - drag.cy, e.clientX - drag.cx);
         let deg = drag.rot + (a - drag.a0) * 180 / Math.PI;
         deg = ((deg + 180) % 360 + 360) % 360 - 180;
         if (!drag.moved) { pushUndo(); drag.moved = true; }
-        M.patch({ rot: Math.round(deg * 10) / 10 });
+        p = { rot: Math.round(deg * 10) / 10 };
       } else {
         const dx = g.px2mm((e.clientX - drag.x0) / s), dy = g.px2mm((e.clientY - drag.y0) / s);
         if (!drag.moved && Math.abs(e.clientX - drag.x0) + Math.abs(e.clientY - drag.y0) > 2) { pushUndo(); drag.moved = true; }
-        M.patch({ x: Math.round((drag.fx + dx) * 100) / 100, y: Math.round((drag.fy + dy) * 100) / 100 });
+        p = { x: Math.round((drag.fx + dx) * 100) / 100, y: Math.round((drag.fy + dy) * 100) / 100 };
       }
+      /* pas de mini-carte ici : la scene EST l'apercu, il n'y a pas de proxy
+         moins cher a redessiner a part — coalescer le patch suffit, le
+         repaint du canevas est deja lisse au rAF (core.js:889). */
+      pendingPatch = p;
+      if (!rafId) rafId = scheduleFrame(flushDrag);
     });
     const end = (e) => {
       if (!drag) return;
       drag = null;
+      if (rafId) { cancelFrame(rafId); rafId = 0; }
+      if (pendingPatch) { M.patch(pendingPatch); pendingPatch = null; }
       syncInputs();
       try { cv.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
     };

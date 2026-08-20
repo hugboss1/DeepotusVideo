@@ -1244,6 +1244,29 @@ def _js_fn(src: str, nom: str) -> str:
     raise AssertionError("accolades non equilibrees pour " + nom)
 
 
+def test_le_parseur_png_ne_porte_plus_d_octet_nul_brut():
+    """Spec 9.6-5 (barre de fluidite, amendement du 20/08) : `pngHeader` /
+    `pngChunks` savent lire un chunk `tEXt`, dont le separateur mot-cle/texte
+    du format PNG est un octet NUL -- ce fichier en portait un brut, litteral
+    entre les guillemets d'un `String.prototype.indexOf(...)`. Legal en JS,
+    mais l'octet fait passer TOUT le fichier pour du binaire aux outils
+    textuels (grep s'y est deja arrete une fois) ; la sequence ECHAPPEE
+    `\x00` dit exactement la meme chose sans ce cout. Octets bruts, pas texte
+    decode : un decodage UTF-8 rendrait le NUL invisible a une simple
+    recherche de sous-chaine, ce test doit lire ce que lit vraiment un outil
+    binaire (grep, un octet-scan) sur le fichier livre. Le lint (R13, scripts
+    /qa/lint_cardforge.py) porte la meme regle sur les 10 pieces du labo ;
+    cette assertion-ci l'epingle sur CETTE piece precisement, la ou l'octet
+    a ete trouve et corrige."""
+    raw = JS.read_bytes()
+    assert b"\x00" not in raw, (
+        "mod-frame.js contient a nouveau un octet NUL brut -- l'ecrire "
+        'echappe : "\\x00" (4 caracteres), pas le caractere de controle')
+    assert b'indexOf("\\x00")' in raw, (
+        "le separateur mot-cle/texte du chunk PNG tEXt (fonction "
+        "pngHeader) ne porte plus la forme echappee attendue")
+
+
 BANC_FILET = r"""
 import { readFileSync } from "node:fs";
 const CODE = readFileSync(process.argv[2], "utf8");

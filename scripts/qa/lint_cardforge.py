@@ -32,6 +32,24 @@ Regles verifiees ici :
       par `CF.register` (`const M = CF.register({…}); M.patch({…})`) : c'est
       lui qui porte l'identite, la pile d'appel ne la portait pas (un
       `//# sourceURL` suffisait a la contrefaire).
+  R13 « Octets sains » (barre de fluidite §9.6-5, amendement du 20/08) :
+      aucun octet NUL brut dans les sources du labo (grep et consorts
+      traitent le fichier comme du binaire des le premier — un litteral
+      `"\x00"` s'ECRIT echappe), et aucun retour chariot CRLF dans le BLOB
+      COMMIS (HEAD). Le controle NUL porte sur les octets d'ARBRE DE TRAVAIL
+      (c'est ce que lit tout outil, maintenant) ; le controle CRLF porte sur
+      le blob HEAD et non l'arbre de travail, expres : mesure sur les
+      machines de ce chantier, `core.autocrlf` y convertit la plupart des
+      fichiers texte en CRLF AU CHECKOUT alors que le depot les stocke en LF
+      (filtre "clean" a l'ecriture) — un controle CRLF sur l'arbre de travail
+      serait donc FAUX POSITIF en permanence sur la quasi-totalite du labo,
+      sur CE genre de poste. Le blob HEAD, lui, est ce que quiconque clone le
+      depot relira reellement : c'est la qu'une regression CRLF (attribut
+      gitattributes mal pose, autocrlf desactive au moment d'un commit,
+      renormalisation ratee) compte. Si HEAD est indisponible (pas un depot
+      git, fichier neuf non suivi, `git` absent du PATH) le controle CRLF est
+      SAUTE pour ce fichier ; le controle NUL, lui, reste actif dans tous les
+      cas, seul a ne pas dependre de l'historique. Voir check_r13().
 
 Ce que le script ne peut PAS voir (le contrat runtime de core.js reste
 l'autorite) : un painter enregistre dynamiquement, un id DOM construit par
@@ -52,6 +70,7 @@ Codes : 0 = conforme, 1 = violation(s), 2 = erreur d'usage.
 import json
 import pathlib
 import re
+import subprocess
 import sys
 
 # --- TABLE Z GELEE (spec §2.2) ------------------------------------------
@@ -82,6 +101,10 @@ TEST_DIR = pathlib.Path("backend/tests")
 # compte PAS pour la regle 1 (1 JS + 1 CSS + 1 py + 1 test) : ce n'est pas
 # LE py du module, un fichier interne en plus.
 EXTRA_PY = {"forge3d": ["forge3d_scene.py"]}
+
+# Harnais QA en .mjs : UN SEUL fichier, simple (pas de sous-arbre a explorer)
+# -- R13 le lit comme les sources des 10 modules, meme regle d'octets sains.
+QA_MJS = FRONT_DIR / "qa" / "test_core_contract.mjs"
 
 # At-rules dont le contenu porte de vrais selecteurs : on descend dedans.
 COND_AT = {"media", "supports", "layer", "container", "scope", "document"}
@@ -381,6 +404,75 @@ def check_r8(mid, path, text, add, require_router=True):
             "include_router() n'appartient qu'a cards/__init__.py")
 
 
+def _git_blob_bytes(root, relpath):
+    """Octets du blob HEAD pour <relpath>, ou None si indisponible.
+
+    Aucune exception ne remonte : pas un depot git, fichier neuf jamais
+    commis, `git` absent du PATH, ou tout simplement un `root` qui n'est pas
+    la racine du depot (le tantot-Export sans .git mentionne au-dessus) sont
+    tous des cas legitimes ou R13 doit se taire sur le controle CRLF plutot
+    que de faire echouer tout le lint pour une raison qui lui est etrangere.
+    """
+    try:
+        r = subprocess.run(
+            ["git", "show", f"HEAD:{relpath}"],
+            cwd=str(root), capture_output=True, timeout=5)
+    except Exception:
+        return None
+    if r.returncode != 0:
+        return None
+    return r.stdout
+
+
+def check_r13(path, add, root):
+    """R13 « octets sains » (spec 9.6-5) : ni NUL brut, ni CRLF.
+
+    NUL : controle sur les octets d'ARBRE DE TRAVAIL — c'est ce que lit tout
+    outil (grep, l'IDE, ce lint) MAINTENANT, quel que soit l'historique. Un
+    octet NUL brut fait passer le fichier pour du binaire aux yeux d'outils
+    textuels (grep s'y est deja arrete une fois sur mod-frame.js) ; ecrit
+    besoin, la sequence ECHAPPEE `\\x00` dit la meme chose sans ce cout.
+
+    CRLF : controle sur le BLOB GIT (HEAD:<chemin>), PAS sur l'arbre de
+    travail — choix deliberatif, documente ici (cf. R13 dans l'entete du
+    fichier) : mesure sur les machines de ce chantier, `core.autocrlf` y
+    convertit la plupart des fichiers texte du labo en CRLF AU CHECKOUT alors
+    que le depot les STOCKE en LF (filtre "clean" a l'ecriture) — un controle
+    CRLF sur l'arbre de travail serait donc FAUX POSITIF en permanence sur la
+    quasi-totalite du labo, tout le temps, sur ce genre de poste : le lint
+    n'y serait alors plus jamais vert, pour une raison qui ne regarde aucun
+    changement reel. Le blob HEAD, lui, EST ce que quiconque clone le depot
+    relira reellement — c'est la qu'une regression CRLF (gitattributes mal
+    pose, autocrlf desactive au moment precis d'un commit, renormalisation
+    ratee) compte. Si HEAD est indisponible pour ce fichier (pas un depot
+    git, fichier neuf non suivi, `git` absent du PATH) le controle CRLF est
+    SAUTE pour lui — le controle NUL, seul a ne pas dependre de l'historique,
+    reste actif dans tous les cas.
+    """
+    try:
+        raw = path.read_bytes()
+    except OSError:
+        return
+    if b"\x00" in raw:
+        line = raw.count(b"\n", 0, raw.index(b"\x00")) + 1
+        add("R13", path, line,
+            "octet NUL brut (le fichier passe pour du binaire aux outils "
+            "textuels) -- ecrire la sequence ECHAPPEE \\x00")
+    try:
+        relpath = path.relative_to(root).as_posix()
+    except ValueError:
+        relpath = path.as_posix()
+    blob = _git_blob_bytes(root, relpath)
+    if blob is None:
+        return
+    if b"\r" in blob:
+        line = blob.count(b"\n", 0, blob.index(b"\r")) + 1
+        add("R13", path, line,
+            "retour chariot (CRLF) dans le blob commis (HEAD) -- le depot "
+            "attend du LF ; verifier .gitattributes / core.autocrlf au "
+            "moment du commit")
+
+
 # =========================================================================
 # Pilote
 # =========================================================================
@@ -404,15 +496,20 @@ def run(root, only=None):
         if files["css"].is_file():
             check_r4(mid, files["css"], files["css"].read_text(
                 encoding="utf-8", errors="replace"), add)
+            check_r13(files["css"], add, root)
         if files["js"].is_file():
             t = files["js"].read_text(encoding="utf-8", errors="replace")
             check_r5(mid, files["js"], t, add)
             check_r7(mid, files["js"], t, add)
             check_r11(mid, files["js"], t, add)
             check_r12(mid, files["js"], t, add)
+            check_r13(files["js"], add, root)
         if files["py"].is_file():
             check_r8(mid, files["py"], files["py"].read_text(
                 encoding="utf-8", errors="replace"), add)
+            check_r13(files["py"], add, root)
+        if files["test"].is_file():
+            check_r13(files["test"], add, root)
         # sidecar geometrie de forge3d (couture legs 6, revue 2a) : soumis a
         # R8 comme le py canonique -- require_router=False, c'est un fichier
         # PURES (zero dependance HTTP) par construction, pas une deuxieme
@@ -423,6 +520,12 @@ def run(root, only=None):
                 check_r8(mid, p, p.read_text(
                     encoding="utf-8", errors="replace"), add,
                     require_router=False)
+                check_r13(p, add, root)
+    # harnais QA .mjs (UN SEUL fichier, simple) : meme regle d'octets sains,
+    # hors boucle par module puisqu'il n'appartient a aucun d'eux.
+    qa_mjs = root / QA_MJS
+    if (not only) and qa_mjs.is_file():
+        check_r13(qa_mjs, add, root)
     return findings, present
 
 
@@ -464,7 +567,8 @@ def main():
                                                           "test"))
         print(f"  {mid:8s} {state}  {marks}")
     print(f"  -> {nfull}/{len(present)} module(s) complet(s)")
-    print("=== VIOLATIONS (R4 css · R5 ids DOM · R7 couches z · R8 routeur · R11 use strict · R12 jeton)")
+    print("=== VIOLATIONS (R4 css · R5 ids DOM · R7 couches z · R8 routeur · R11 use strict · "
+          "R12 jeton · R13 octets sains)")
     if not findings:
         print("  aucune")
     for f in findings:

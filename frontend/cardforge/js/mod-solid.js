@@ -553,10 +553,23 @@
         const st = Number(n.step) || 1;
         setNum(n.dataset.k, Number(n.value || 0) + (e.deltaY < 0 ? st : -st), true);
       }, { passive: false });
-      let dx = 0, x0 = 0, v0 = 0, on = false;
+      let dx = 0, x0 = 0, v0 = 0, on = false, pendingVal = null, rafId = 0;
+      /* repli setTimeout si rAF est absent, annulation SYMETRIQUE (le meme
+         drapeau sert a programmer et a annuler). Meme patron que core.js:158,
+         reproduit ICI en local — chaque piece est un fichier a part, sans
+         import partage entre modules. */
+      const hasRAF = typeof requestAnimationFrame === "function";
+      const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+      const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
+      const flushScrub = () => {
+        rafId = 0;
+        if (pendingVal === null) return;
+        const v = pendingVal; pendingVal = null;
+        setNum(n.dataset.k, v, false);   /* <= 1 patch par frame (spec 9.6-1) */
+      };
       n.addEventListener("pointerdown", (e) => {
         if (e.button !== 0) return;
-        on = true; x0 = e.clientX; v0 = Number(n.value || 0); dx = 0;
+        on = true; x0 = e.clientX; v0 = Number(n.value || 0); dx = 0; pendingVal = null;
         n.setPointerCapture(e.pointerId);
       });
       n.addEventListener("pointermove", (e) => {
@@ -564,14 +577,27 @@
         dx = e.clientX - x0;
         if (Math.abs(dx) < 3) return;
         const st = Number(n.step) || 1;
-        setNum(n.dataset.k, v0 + Math.round(dx / 4) * st, false);
+        const nn = normNum(n.dataset.k, v0 + Math.round(dx / 4) * st);
+        if (nn === null) return;
+        n.value = nn;               /* retour local immediat (spec 9.6-2) : le
+                                        champ suit CHAQUE evenement, meme si
+                                        le document ne suit qu'a la frame */
+        pendingVal = nn;
+        if (!rafId) rafId = scheduleFrame(flushScrub);
       });
-      n.addEventListener("pointerup", (e) => {
+      const endScrub = (e) => {
         if (!on) return;
         on = false;
+        if (rafId) { cancelFrame(rafId); rafId = 0; }
+        pendingVal = null;
         try { n.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
+        /* etat FINAL exact (spec 9.6-1) : n.value a ete tenu a jour a CHAQUE
+           evenement ci-dessus, il porte deja la derniere position — inutile
+           de reciter pendingVal ici. */
         if (Math.abs(dx) >= 3) setNum(n.dataset.k, n.value, true);
-      });
+      };
+      n.addEventListener("pointerup", endScrub);
+      n.addEventListener("pointercancel", endScrub);
     });
 
     q("#cf-solid-link").addEventListener("change", (e) => {
@@ -613,9 +639,14 @@
     q("#cf-solid-ttfmt").addEventListener("change", (e) => put({ tt_fmt: e.target.value }, "format vidéo"));
   }
 
-  function setNum(k, v, commit) {
+  /* LES BORNES, SEULES : extraites de setNum() pour que l'apercu du glisser
+     (n.value, au rythme de CHAQUE evenement — spec 9.6-2) et le patch au
+     document (au rythme de la frame — spec 9.6-1) arrondissent EXACTEMENT
+     pareil, une seule formule plutot que deux copies qui auraient fini par
+     diverger. */
+  function normNum(k, v) {
     let n = Number(v);
-    if (!isFinite(n)) return;
+    if (!isFinite(n)) return null;
     if (LIM[k]) n = clamp(k, n);
     else {
       const B = { exposure: [0.3, 2], shadow: [0, 1.5], tt_frames: [24, 600], tt_fps: [12, 60], tt_up: [ELEV_MIN, ELEV_MAX] }[k];
@@ -623,6 +654,11 @@
     }
     if (k === "segments" || k === "tt_frames" || k === "tt_fps" || k === "tt_up") n = Math.round(n);
     else n = Math.round(n * 1000) / 1000;
+    return n;
+  }
+  function setNum(k, v, commit) {
+    const n = normNum(k, v);
+    if (n === null) return;
     const o = { [k]: n };
     if (k === "corner_mm" && S("corner_link", true)) o.corner_link = false;
     if (commit) put(o, k);

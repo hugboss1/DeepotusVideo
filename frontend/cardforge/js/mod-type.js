@@ -4045,12 +4045,17 @@
     const r = cv.getBoundingClientRect();
     return r.width / g.canvas_px[0];
   }
-  function paintOverlay() {
+  /* `liveId`/`liveBox` : pendant un geste, la boite EN COURS DE GLISSE est
+     substituee localement — feedback immediat (spec 9.6-2), sans attendre le
+     patch coalesce au rAF ni le repaint complet de la carte qui le suit.
+     Appel par defaut (sans argument) : inchange, lit le document. */
+  function paintOverlay(liveId, liveBox) {
     if (!OV || OV.classList.contains("hidden")) return;
     const g = CF.geom(), k = ovScale(), sel = selId(), side = MEAS_SIDE;
     const sr = safeRectPx(g);
     OV.innerHTML = slots().filter((s) => s.on && (s.side === "both" || s.side === side)).map((s) => {
-      const b = boxPx(s, g), m = MEAS[s.id];
+      const live = (liveId && s.id === liveId) ? Object.assign({}, s, { box: liveBox }) : s;
+      const b = boxPx(live, g), m = MEAS[s.id];
       const outSafe = m && anyOut(outsideBy(m.ink, sr));
       const bad = m && (m.over || outSafe);
       /* LE LISERE D'ALERTE EST ICI, PAS DANS LA TOILE : ce calque est du DOM
@@ -4116,6 +4121,9 @@
     }
     dragState.moved = true;
     dragState.next = nb.map((v) => Math.round(v * 1e3) / 1e3);
+    /* retour local immediat (spec 9.6-2) : le calque suit CHAQUE evenement —
+       bon marche, c'est juste le DOM du calque, pas un repaint de carte. */
+    paintOverlay(dragState.id, dragState.next);
     if (dragRaf) return;
     dragRaf = requestAnimationFrame(() => {
       dragRaf = 0;
@@ -4126,6 +4134,13 @@
     OV.removeEventListener("pointermove", onOvMove);
     OV.removeEventListener("pointerup", onOvUp);
     OV.removeEventListener("pointercancel", onOvUp);
+    /* etat FINAL exact au relachement (spec 9.6-1) : un dragRaf encore en
+       attente ICI (le dernier pointermove est arrive a moins d'une frame du
+       relachement) perdait sinon la toute derniere position — dragState
+       redevenait null AVANT que le rAF ne s'execute, et son garde
+       `if (dragState && dragState.next)` avalait le patch en silence. */
+    if (dragRaf) { cancelAnimationFrame(dragRaf); dragRaf = 0; }
+    if (dragState && dragState.next) { patchSlot(dragState.id, { box: dragState.next }, true); }
     if (dragState && !dragState.moved) UNDO.pop();
     dragState = null;
     renderAll();

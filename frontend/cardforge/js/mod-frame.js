@@ -2395,7 +2395,11 @@
     const s = Math.min((MAP.w - 2 * pad) / g.trim_mm[0], (MAP.h - 2 * pad) / g.trim_mm[1]);
     return { g: g, s: s, ox: (MAP.w - g.trim_mm[0] * s) / 2, oy: (MAP.h - g.trim_mm[1] * s) / 2 };
   }
-  function drawMap() {
+  /* `w` est la fenetre A DESSINER, pas forcement celle du document : pendant
+     un geste, l'appelant passe la fenetre CANDIDATE (locale) pour que la
+     mini-carte suive chaque evenement sans attendre le patch coalesce au rAF
+     (barre 9.6-2). `drawMap()` reste l'appel « etat courant du document ». */
+  function drawMapWith(w) {
     const cv = UI.map;
     if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -2404,7 +2408,7 @@
     const c = cv.getContext("2d");
     c.setTransform(dpr, 0, 0, dpr, 0, 0);
     c.clearRect(0, 0, MAP.w, MAP.h);
-    const mg = mapGeom(), g = mg.g, f0 = f(), w = winMM(g, f0);
+    const mg = mapGeom(), g = mg.g;
     const cs = getComputedStyle(document.documentElement);
     const ink = (cs.getPropertyValue("--ink-soft") || "#8b93a1").trim();
     const strong = (cs.getPropertyValue("--ink-strong") || "#fff").trim();
@@ -2427,24 +2431,58 @@
     c.textAlign = "center";
     c.fillText(r1(w.w) + " x " + r1(w.h) + " mm", MAP.w / 2, MAP.h - 2);
   }
+  function drawMap() { drawMapWith(winMM(CF.geom(), f())); }
+
+  /* ── quelle prise la souris tient-elle ? UNE SEULE formule, relue au
+        pointerdown ET au survol (curseur contextuel) : deux copies auraient
+        fini par diverger (poignee agrandie d'un cote, oubliee de l'autre). */
+  function mapHit(w, p, mg) {
+    const hx = w.x + w.w, hy = w.y + w.h;
+    /* poignee : zone de saisie 12 px a l'ecran (barre 9.6-3 ; etait 8 px). */
+    if (Math.abs(p.x - hx) * mg.s < 12 && Math.abs(p.y - hy) * mg.s < 12) return "size";
+    if (p.x > w.x && p.x < hx && p.y > w.y && p.y < hy) return "move";
+    return "draw";
+  }
   function wireMap(cv) {
-    let drag = null;
+    let drag = null, pendingWin = null, rafId = 0;
+    /* repli setTimeout si rAF est absent (essais hors navigateur), et
+       annulation SYMETRIQUE : cancelAnimationFrame sur un identifiant de
+       setTimeout ne fait rien (autre registre) — le meme drapeau sert donc a
+       programmer ET a annuler. Meme patron que le raf() de core.js:158,
+       reproduit ICI en local : chaque piece est un fichier a part, sans
+       import partage entre modules. */
+    const hasRAF = typeof requestAnimationFrame === "function";
+    const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+    const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
     const toMM = (ev) => {
       const r = cv.getBoundingClientRect(), mg = mapGeom();
       return { x: (ev.clientX - r.left - mg.ox) / mg.s, y: (ev.clientY - r.top - mg.oy) / mg.s };
     };
+    const flushWin = () => {
+      rafId = 0;
+      if (!pendingWin) return;
+      const n = pendingWin; pendingWin = null;
+      M.patch({ window: n });          /* <= 1 patch par frame (spec 9.6-1) */
+    };
     cv.addEventListener("pointerdown", (ev) => {
       const g = CF.geom(), w = winMM(g, f()), p = toMM(ev), mg = mapGeom();
-      const hx = w.x + w.w, hy = w.y + w.h;
       cv.setPointerCapture(ev.pointerId);
-      if (Math.abs(p.x - hx) * mg.s < 8 && Math.abs(p.y - hy) * mg.s < 8) drag = { mode: "size", w: w };
-      else if (p.x > w.x && p.x < hx && p.y > w.y && p.y < hy) drag = { mode: "move", w: w, dx: p.x - w.x, dy: p.y - w.y };
+      const hit = mapHit(w, p, mg);
+      if (hit === "size") drag = { mode: "size", w: w };
+      else if (hit === "move") drag = { mode: "move", w: w, dx: p.x - w.x, dy: p.y - w.y };
       else drag = { mode: "draw", w: w, ox: p.x, oy: p.y };
       MAPDRAG = true;
       ev.preventDefault();
     });
     cv.addEventListener("pointermove", (ev) => {
-      if (!drag) return;
+      if (!drag) {
+        /* hors geste : curseur contextuel seulement — handler LEGER, aucun
+           patch, aucun redessin de la carte (spec 9.6-3). */
+        const g = CF.geom(), w = winMM(g, f()), p = toMM(ev), mg = mapGeom();
+        const hit = mapHit(w, p, mg);
+        cv.style.cursor = hit === "size" ? "nwse-resize" : hit === "move" ? "move" : "crosshair";
+        return;
+      }
       const g = CF.geom(), tw = g.trim_mm[0], th = g.trim_mm[1], p = toMM(ev), w = drag.w;
       let n;
       if (drag.mode === "move") n = { x: p.x - drag.dx, y: p.y - drag.dy, w: w.w, h: w.h, r: w.r };
@@ -2458,14 +2496,17 @@
       n.w = cl(n.w, 2, tw); n.h = cl(n.h, 2, th);
       n.x = cl(n.x, 0, tw - n.w); n.y = cl(n.y, 0, th - n.h);
       ["x", "y", "w", "h", "r"].forEach((q) => { n[q] = r2(n[q]); });
-      M.patch({ window: n });
-      drawMap();
+      pendingWin = n;
+      if (!rafId) rafId = scheduleFrame(flushWin);
+      drawMapWith(n);                  /* retour local immediat (spec 9.6-2) */
     });
     const end = (ev) => {
       MAPDRAG = false;
       if (!drag) return;
       const prev = drag.w;
       drag = null;
+      if (rafId) { cancelFrame(rafId); rafId = 0; }
+      if (pendingWin) { M.patch({ window: pendingWin }); pendingWin = null; }
       /* une seule entree d'annulation par geste, pas une par pixel */
       HIST.push({ before: { window: { x: prev.x, y: prev.y, w: prev.w, h: prev.h, r: prev.r } }, label: "fenêtre" });
       REDO.length = 0;
@@ -3413,7 +3454,7 @@
     const texts = c.chunks.filter((x) => x.t === "tEXt").map((x) => {
       let s = "";
       for (let i = x.at; i < x.at + x.len; i++) s += String.fromCharCode(buf[i]);
-      const z = s.indexOf(" ");
+      const z = s.indexOf("\x00");
       return { k: z < 0 ? s : s.slice(0, z), v: z < 0 ? "" : s.slice(z + 1) };
     });
     return {
