@@ -91,6 +91,16 @@ MAX_PREVIEW_BYTES = 8 * 1024 * 1024  # une capture d'écran model-viewer,
                                       # pas un film — même patron que
                                       # gltf.py:post_atlas (copie, règle 8)
 _ART_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,60}$")
+_GRAPH_ITER_MAX = 200                 # borne ANTI-GEL de clean_graph (revue) :
+                                       # un graphe UI réel tient en ~15 nœuds ;
+                                       # 200 est une borne large, JAMAIS
+                                       # atteinte par un usage légitime — elle
+                                       # existe pour qu'un JSON hostile à un
+                                       # million de nœuds ne gèle pas la boucle
+                                       # d'évènements. Le plafond MÉTIER
+                                       # (MAX_GRAPH_ELEMENTS) s'applique APRÈS
+                                       # résolution, dans build3d — deux
+                                       # bornes, deux étages, pas la même chose.
 
 
 @router.get("/info")
@@ -203,6 +213,7 @@ def clean_graph(raw) -> dict:
     nodes, ids = [], set()
     nodes_in = g.get("nodes")
     nodes_in = nodes_in if isinstance(nodes_in, list) else []
+    nodes_in = nodes_in[:_GRAPH_ITER_MAX]      # borne anti-gel (_GRAPH_ITER_MAX)
     for i, n in enumerate(nodes_in):
         if not isinstance(n, dict):
             continue
@@ -236,6 +247,7 @@ def clean_graph(raw) -> dict:
     edges = []
     edges_in = g.get("edges")
     edges_in = edges_in if isinstance(edges_in, list) else []
+    edges_in = edges_in[:_GRAPH_ITER_MAX]      # même borne anti-gel
     for e in edges_in:
         if not isinstance(e, dict):
             continue
@@ -632,6 +644,34 @@ def _stamp_phys(png: bytes, ppm: tuple[float, float]) -> bytes:
     return b"".join(out)
 
 
+def _open_png(raw: bytes, nom: str):
+    """Ouvre un PNG et le convertit en RGBA, ou lève 400 — JAMAIS 500 (spec
+    2.5). `format` est lu AVANT `convert()` : la conversion RGBA renvoie une
+    image NEUVE dont `.format` vaut None — le vérifier après serait un
+    contrôle qui ne contrôle rien.
+
+    COPIE UNIQUE (revue) : `post_layers` et `post_build3d` portaient chacun
+    leur propre `_ouvre` imbriquée, quasi identiques — la duplication
+    INTRA-fichier contredit la doctrine écrite dans la docstring de
+    `clean_graph` (deux fonctions qui dérivent l'une de l'autre sans raison,
+    ce que la règle 8 ne couvre PAS puisqu'elle ne concerne que les
+    frontières ENTRE modules). La dérive avait déjà commencé : l'une disait
+    « reçu », l'autre « recu » — unifiée ici sur « reçu ». `post_preview`
+    la consomme aussi, pour un PNG VRAIMENT vérifié (décodé, pas seulement
+    sa signature magique)."""
+    from PIL import Image
+    try:
+        im = Image.open(io.BytesIO(raw))
+        im.load()
+    except Exception as e:
+        raise HTTPException(400, f"{nom} : PNG illisible ({e})")
+    fmt = (im.format or "").upper()
+    if fmt != "PNG":
+        raise HTTPException(
+            400, f"{nom} : PNG attendu, {fmt or 'format inconnu'} reçu")
+    return im.convert("RGBA")
+
+
 @router.post("/layers")
 async def post_layers(did: str,
                       layers: list[UploadFile] = File(...),
@@ -737,29 +777,13 @@ async def post_layers(did: str,
     def work() -> dict:
         from PIL import Image, ImageChops
 
-        def _ouvre(raw: bytes, nom: str):
-            """Un corps mal formé fait 400, JAMAIS 500 (spec 2.5). `format`
-            est lu AVANT `convert()` : la conversion RGBA renvoie une image
-            neuve dont `.format` vaut None — le vérifier après serait un
-            contrôle qui ne contrôle rien."""
-            try:
-                im = Image.open(io.BytesIO(raw))
-                im.load()
-            except Exception as e:
-                raise HTTPException(400, f"{nom} : PNG illisible ({e})")
-            fmt = (im.format or "").upper()
-            if fmt != "PNG":
-                raise HTTPException(
-                    400, f"{nom} : PNG attendu, {fmt or 'format inconnu'} reçu")
-            return im.convert("RGBA")
-
         images: dict[str, "Image.Image"] = {}
         for nom, raw in raw_par_role.items():
-            im = _ouvre(raw, nom)
+            im = _open_png(raw, nom)
             if im.size != (w, h):
                 raise HTTPException(409, f"{nom} : trame {im.size} != {(w, h)}")
             images[nom] = im
-        comp = _ouvre(raw_comp, "composite")
+        comp = _open_png(raw_comp, "composite")
         if comp.size != (w, h):
             raise HTTPException(409, f"composite : trame {comp.size} != {(w, h)}")
 
@@ -898,35 +922,56 @@ async def post_layers(did: str,
 # ERC-721 et tente le STL (gate sur le drapeau `closed` DÉCLARÉ par les
 # constructeurs de maillage — Task 2 — jamais une re-mesure ici : coûte 7 s +
 # ~340 Mo de pic par élément au grid max, mesuré en revue de la tâche 2).
-def _resolve_graph_elements(graph: dict) -> list[tuple[dict, dict]]:
+def _resolve_graph_elements(graph: dict) -> tuple[list[tuple[dict, dict]], list[dict]]:
     """Chaque chaîne layer->(plane|relief)->assemble devient un candidat
     (nœud de traitement, nœud layer source), dans l'ORDRE DES NŒUDS du
     graphe (pas l'ordre des edges, pas l'ordre de résolution). Aucune E/S
-    ici : c'est une garde, elle tourne AVANT tout travail lourd."""
+    ici : c'est une garde, elle tourne AVANT tout travail lourd.
+
+    Rend AUSSI `ignored` (REQUIS, revue) : le contrat `artifact@1` se fige à
+    CETTE tâche — taire un nœud écarté serait un mensonge par omission, et
+    l'argument « l'écran ne PEUT PAS produire ces topologies » expire dès la
+    tâche 5 (2b). Trois motifs, chacun nommé : une source SURNUMÉRAIRE (la
+    première arête entrante gagne, patron déjà en vigueur — les suivantes
+    sont d'authentiques pertes, pas un bug) ; un traitement SANS AUCUNE
+    source ; un traitement bien sourcé mais qui NE REJOINT PAS d'assemble."""
     nodes_by_id = {n["id"]: n for n in graph["nodes"]}
     incoming: dict[str, list[str]] = {}
     outgoing: dict[str, list[str]] = {}
     for e in graph["edges"]:
         incoming.setdefault(e["to"], []).append(e["from"])
         outgoing.setdefault(e["from"], []).append(e["to"])
-    candidats = []
+    candidats: list[tuple[dict, dict]] = []
+    ignores: list[dict] = []
     for n in graph["nodes"]:
         if n["kind"] not in ("plane", "relief"):
             continue
-        src = None
+        sources = []
         for fid in incoming.get(n["id"], []):
             sn = nodes_by_id.get(fid)
             if sn is not None and sn["kind"] == "layer":
-                src = sn
-                break
-        if src is None:
+                sources.append(sn)
+        if not sources:
+            ignores.append({
+                "node": n["id"],
+                "why": "traitement sans couche source (aucune arete layer "
+                       "entrante)"})
             continue
+        src, surnumeraires = sources[0], sources[1:]
+        for autre in surnumeraires:
+            ignores.append({
+                "node": autre["id"],
+                "why": f"source surnumeraire pour {n['id']} : {src['id']} "
+                       "deja retenu (premiere arete gagnante)"})
         relie_assemble = any(
             nodes_by_id.get(tid, {}).get("kind") == "assemble"
             for tid in outgoing.get(n["id"], []))
-        if relie_assemble:
-            candidats.append((n, src))
-    return candidats
+        if not relie_assemble:
+            ignores.append({"node": n["id"],
+                            "why": "traitement non relie a un assemble"})
+            continue
+        candidats.append((n, src))
+    return candidats, ignores
 
 
 def _layer_filename(layer_node: dict, card_label: str) -> str:
@@ -957,7 +1002,7 @@ async def post_build3d(did: str, body: dict | None = None):
     graph = clean_graph(body.get("graph"))
 
     # ── résolution du graphe : PURE, sans E/S — borne AVANT tout travail ────
-    candidats = _resolve_graph_elements(graph)
+    candidats, ignores = _resolve_graph_elements(graph)
     # MOTIF 1/2 (distinct du "couche introuvable" ci-dessous, en revue) : le
     # graphe lui-même ne produit AUCUN élément — structurellement vide (aucun
     # nœud plane/relief) ou mal câblé (une source, ou l'assemblage, manque).
@@ -981,20 +1026,7 @@ async def post_build3d(did: str, body: dict | None = None):
     doc_name = doc.get("name") or did
 
     def work() -> dict:
-        from PIL import Image
         t0 = time.perf_counter()
-
-        def _ouvre(raw: bytes, nom: str):
-            try:
-                im = Image.open(io.BytesIO(raw))
-                im.load()
-            except Exception as e:
-                raise HTTPException(400, f"{nom} : PNG illisible ({e})")
-            fmt = (im.format or "").upper()
-            if fmt != "PNG":
-                raise HTTPException(
-                    400, f"{nom} : PNG attendu, {fmt or 'format inconnu'} recu")
-            return im.convert("RGBA")
 
         out = _out_dir(did, create=True)
         elements = []
@@ -1009,7 +1041,7 @@ async def post_build3d(did: str, body: dict | None = None):
                     409, f"exporte les couches d'abord : {fname} absent "
                          f"(POST /layers)")
             raw = p.read_bytes()
-            im = _ouvre(raw, fname)
+            im = _open_png(raw, fname)
             nom_el = layer.get("role") or "composite"
             if proc["kind"] == "plane":
                 mesh = quad_mesh(w_mm, h_mm)
@@ -1032,8 +1064,11 @@ async def post_build3d(did: str, body: dict | None = None):
         t_glb = time.perf_counter()
 
         meta = {
+            # tiret ASCII GARDÉ (contrainte d'encodage maison) ; le reste de
+            # la prose est accentué — json.dumps ci-dessous est en
+            # ensure_ascii=False, le fichier livré porte déjà des accents.
             "name": f"{doc_name} - carte {card_label}",
-            "description": "Carte 3D par elements separes, construite localement.",
+            "description": "Carte 3D par éléments séparés, construite localement.",
             "image": f"{art_name}_preview.png",
             "animation_url": glb_name,
             "attributes": [
@@ -1077,6 +1112,9 @@ async def post_build3d(did: str, body: dict | None = None):
             "preview": {"expected": f"{art_name}_preview.png",
                        "written": False},
             "elements": len(elements),
+            # REQUIS (revue) : chaque nœud écarté de la résolution, avoué —
+            # jamais tu. Liste vide si rien n'a été ignoré (pas absente).
+            "ignored": ignores,
             "graph_used": graph,
             "ms": {"resolve": int((t_resolve - t0) * 1000),
                   "glb": int((t_glb - t_resolve) * 1000),
@@ -1120,6 +1158,12 @@ async def post_preview(did: str, art: str, request: Request):
         raise HTTPException(400, "PNG attendu (signature absente)")
 
     def work() -> dict:
+        # `_open_png` decode VRAIMENT le corps (pas seulement sa signature
+        # magique, deja verifiee ci-dessus en garde rapide) : un PNG tronque
+        # ou corrompu derriere un en-tete valide est aussi refuse ici, pas
+        # seulement ecrit tel quel en esperant qu'il soit bon (revue,
+        # dedoublonnage de `_ouvre` -> `_open_png`, patron unique du fichier).
+        _open_png(data, "apercu")
         out = _out_dir(did, create=True)
         name = f"{art}_preview.png"
         (out / name).write_bytes(data)

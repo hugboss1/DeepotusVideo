@@ -1040,5 +1040,67 @@ def test_preview_refuse_un_corps_trop_lourd_et_un_faux_png():
     assert r4.status_code == 200 and r4.content == png
 
 
+def test_les_elements_ignores_du_graphe_sont_avoues_au_bordereau():
+    """REQUIS (revue) : `ignored` au bordereau — le contrat `artifact@1` se
+    fige a CETTE tache, « l'ecran ne peut pas produire ces topologies »
+    expire des la tache 5/2b. Deux motifs distincts, chacun avoue son nœud :
+    une source SURNUMERAIRE (deux couches vers le meme traitement — la
+    premiere arete gagne, la seconde est jetee AVEC un motif, jamais tue) et
+    un traitement ORPHELIN (aucune couche source) a cote d'une chaine
+    valide. Les deux cohabitent avec un artefact construit normalement
+    (200) : ignorer n'est pas echouer."""
+    did = _deck("Ignores")
+    couches, composite = _couches_synthetiques()
+    files = [("layers", (f"{nom}.png", _png(im), "image/png"))
+             for nom, im in couches.items()]
+    files.append(("composite", ("composite.png", _png(composite), "image/png")))
+    r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
+             data={"side": "front", "card": "0",
+                   "modes": json.dumps({n: "isolee" for n in couches}),
+                   "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})})
+    assert r.status_code == 200, r.text
+
+    graphe = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "s1b", "kind": "layer", "role": "fond-matiere", "side": "front"},
+        {"id": "t1", "kind": "plane", "depth_mm": 0.0},
+        # t2 : orphelin, aucune arete entrante — a cote d'une chaine valide
+        {"id": "t2", "kind": "plane", "depth_mm": 0.0},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "ignores3d"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "s1b", "to": "t1"},
+                  {"from": "t1", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": graphe, "card": 0})
+    assert r2.status_code == 200, r2.text
+    b = r2.json()["artifact"]
+
+    # l'element retenu porte le role du GAGNANT (premiere arete : s1, cadre)
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
+    doc, _ = _read_glb(glb)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    assert [doc["nodes"][k]["name"] for k in racine["children"]] == ["cadre"]
+
+    # le PERDANT (s1b) et l'ORPHELIN (t2) sont tous deux avoues, chacun avec
+    # un motif nomme, non vide
+    ignores_par_noeud = {i["node"]: i["why"] for i in b["ignored"]}
+    assert set(ignores_par_noeud) == {"s1b", "t2"}
+    assert isinstance(ignores_par_noeud["s1b"], str) and ignores_par_noeud["s1b"]
+    assert isinstance(ignores_par_noeud["t2"], str) and ignores_par_noeud["t2"]
+
+    # un graphe SANS rien a ignorer rend une liste VIDE, jamais absente
+    graphe_propre = {"nodes": [
+        {"id": "s3", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t3", "kind": "plane", "depth_mm": 0.0},
+        {"id": "asm3", "kind": "assemble"},
+        {"id": "art3", "kind": "artifact", "name": "propre3d"}],
+        "edges": [{"from": "s3", "to": "t3"}, {"from": "t3", "to": "asm3"},
+                  {"from": "asm3", "to": "art3"}]}
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": graphe_propre, "card": 0})
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["artifact"]["ignored"] == []
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
