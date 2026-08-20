@@ -462,7 +462,13 @@ git commit -m "feat(assets): grille Meshy 7 + ultra des deux cotes du miroir, he
 > (monkeypatch MESHY_MOCK False→True, assert False puis True), pas un miroir de
 > l'expression. **Report à la Task 7** : l'écran doit avoir une branche pour
 > `engines: []` + `degraded` renseigné (message affiché tel quel, pas un select
-> vide muet).
+> vide muet). **Legs Task 4 pour l'écran** : le 413 (couche trop lourde) rejoint
+> la famille des refus nommés (400/409/503/413 affichés tels quels) ; `run_id`
+> du job est opaque mais COMPARABLE entre deux polls — s'il change, un autre
+> onglet a relancé le nœud (le dire, plutôt qu'un flip silencieux d'état) ;
+> `record_state` déclenche le rapatriement meshy3d (stockage DOUBLE voulu :
+> filet de sécurité, le dossier nœud est rasé à chaque relance — rétention à
+> arbitrer plus tard, hors 2b).
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d.py`
@@ -1360,6 +1366,16 @@ git commit -m "feat(cardforge): matieres tuilees (pack MR glTF), finitions holo 
 ---
 
 ### Task 6: `build3d` chaîné — fusion des GLB externes, STL mixte, metadata moteurs
+
+> **LEGS DE LA TASK 4 (revue du 20/08) — OBLIGATOIRE ici :** depuis l'asymétrie
+> I4, un job fal `served` n'implique PLUS « utilisable » : un GLB au-delà de
+> `MAX_EXT_GLB_BYTES` arrive `served` avec `closed: None` + `closed_note` et
+> `source/bytes` au job. La FUSION doit donc GATER sur `job["bytes"]` (refus
+> 400 nommé au-delà de la borne — sans OUVRIR le fichier) et traiter
+> `closed is None` comme non-imprimable (refus STL motivé par la note), en
+> plus du `closed is False` déjà prévu. Le schéma job : `run_id` est OPAQUE
+> (jamais inventé/envoyé par l'écran) et `source.sha256` est null tant que
+> `queued`.
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py` (fusion)
