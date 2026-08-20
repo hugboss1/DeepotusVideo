@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+# NB (revue) : le test de pureté scanne TOUT ce fichier, commentaires compris
+# — le nom du framework HTTP du projet ne doit apparaître nulle part ici,
+# même en prose (voir test_cards_forge3d.py, l'assertion sur ce mot en
+# minuscules : un rappel de SON nom ici la ferait échouer).
 """P9 Forge 3D — géométrie et écriture de scène, PURES (zéro dépendance HTTP).
 
 Couture intra-pièce actée par la revue finale de la 2a (legs 6) : forge3d.py
@@ -304,9 +308,18 @@ def _write_stl_binary(elements: list, name: str) -> bytes:
     d'intermédiaires par relief au grid max, mesuré en 2a). Même sortie, au
     bit près (couture legs 6, revue finale 2a). `z_mm` de chaque élément
     (l'écart de pile porté par SON nœud, comme dans le GLB) est appliqué aux
-    positions puisque le format STL n'a pas de nœud pour le porter."""
+    positions puisque le format STL n'a pas de nœud pour le porter.
+
+    `elements` est parcouru DEUX FOIS (le comptage, puis l'emballage) : une
+    LISTE (ou toute séquence re-parcourable), jamais un générateur à usage
+    unique — la seconde passe le trouverait épuisé et écrirait un buffer de
+    la bonne taille mais rempli de zéros après le premier élément."""
     total = sum(len(el["mesh"]["indices"]) // 3 for el in elements)
     out = bytearray(84 + 50 * total)
+    # [:80] n'est pas cosmétique : le compte de triangles est empaqueté à
+    # l'offset FIXE 80 juste en dessous (struct.pack_into("<I", out, 80, ...))
+    # -- une entête qui déborderait au-delà de 80 octets décalerait ce champ
+    # (et toute la suite du buffer), le corrompant silencieusement.
     entete = f"{name} - millimetres - {total} triangles".encode(
         "ascii", "ignore")[:80]
     out[0:len(entete)] = entete

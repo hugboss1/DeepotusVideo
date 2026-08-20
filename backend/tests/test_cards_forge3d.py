@@ -1267,12 +1267,14 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert "paintGraph()" in apres_commit
 
 
-def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_est_deux_passes():
+def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_garde_son_contrat_d_octets():
     """Legs 6 : la couture intra-pièce. Le module scène n'importe pas FastAPI ;
-    forge3d réexporte (compat) ; le writer STL ne matérialise plus la
-    géométrie en tuples (mesure : l'ancien écrivait ~160 Mo d'intermédiaires
-    par relief au grid max) — on prouve l'ÉQUIVALENCE des octets et la
-    structure."""
+    forge3d réexporte (compat) ; le writer STL garde son CONTRAT D'OCTETS —
+    structure, normale unitaire, ordre des sommets, z_mm appliqué, en-tête
+    sans horodatage — pas seulement sa taille (mutants tués en revue)."""
+    # stratégie deux-passes mesurée en revue : pic 267 Mo → 57 Mo sur 575k
+    # triangles — propriété d'implémentation, pas d'assert ici (un budget
+    # mémoire flakerait).
     import importlib
     from app.services.cards import forge3d as F9
     scene = importlib.import_module("app.services.cards.forge3d_scene")
@@ -1283,17 +1285,31 @@ def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_est_deux_passes():
                 "write_scene_glb", "_write_stl_binary"):
         assert getattr(F9, nom) is getattr(scene, nom), nom
 
-    from PIL import Image
     m = scene.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0, 0.3, 8)
     m["closed"] = True
-    q = scene.quad_mesh(63.0, 88.0)
-    q["closed"] = False
     stl = scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": 0.0}], "x")
     n = struct.unpack("<I", stl[80:84])[0]
     assert n == len(m["indices"]) // 3
     assert len(stl) == 84 + 50 * n
     # déterminisme : deux appels, mêmes octets
     assert stl == scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": 0.0}], "x")
+
+    # Le CONTRAT d'octets de la facette, pas seulement sa taille : normale
+    # UNITAIRE, sommets dans l'ORDRE du triangle, z_mm APPLIQUÉ (le format STL
+    # n'a pas de nœud pour le porter) et en-tête SANS horodatage. Sans ça, une
+    # réécriture du writer passe la suite en inversant le winding, en perdant
+    # l'empilement ou en datant le fichier (mutants mesurés en revue).
+    assert stl[:80].rstrip(b"\x00") == f"x - millimetres - {n} triangles".encode()
+    dz = 4.25
+    stl_z = scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": dz}], "x")
+    f0 = struct.unpack_from("<12fH", stl_z, 84)
+    pos, idx = m["positions"], m["indices"]
+    for s, iv in enumerate((idx[0] * 3, idx[1] * 3, idx[2] * 3)):
+        for k in range(3):
+            attendu = pos[iv + k] + (dz if k == 2 else 0.0)
+            assert f0[3 + s * 3 + k] == pytest.approx(attendu, abs=1e-4), (s, k)
+    assert sum(v * v for v in f0[:3]) == pytest.approx(1.0, abs=1e-5)
+    assert f0[12] == 0
 
 
 if __name__ == "__main__":

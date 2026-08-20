@@ -75,6 +75,14 @@ FRONT_DIR = pathlib.Path("frontend/cardforge")
 BACK_DIR = pathlib.Path("backend/app/services/cards")
 TEST_DIR = pathlib.Path("backend/tests")
 
+# Fichiers .py SUPPLEMENTAIRES par module, au-dela du {mid}.py canonique --
+# forge3d_scene.py est le sidecar geometrie de forge3d (couture legs 6, revue
+# 2a) : soumis a R8 comme le py canonique, sinon il reste un angle mort
+# JUSTE avant que ~1000 lignes de GLB/materiaux (2b) n'y atterrissent. Ne
+# compte PAS pour la regle 1 (1 JS + 1 CSS + 1 py + 1 test) : ce n'est pas
+# LE py du module, un fichier interne en plus.
+EXTRA_PY = {"forge3d": ["forge3d_scene.py"]}
+
 # At-rules dont le contenu porte de vrais selecteurs : on descend dedans.
 COND_AT = {"media", "supports", "layer", "container", "scope", "document"}
 BARE_ELEMENT = re.compile(r"^[a-z][a-z0-9]*$")
@@ -325,8 +333,14 @@ ROUTE_DEC = re.compile(
     r"@router\.(get|post|put|patch|delete|head|options)\(\s*([\"'])(.*?)\2")
 
 
-def check_r8(mid, path, text, add):
-    if not ROUTER_OK.search(text):
+def check_r8(mid, path, text, add, require_router=True):
+    # require_router=False : sidecar (EXTRA_PY) — un fichier interne au
+    # module qui n'est PAS le py canonique n'a pas a declarer SON router (il
+    # n'en a pas, par construction : forge3d_scene.py est PURES, zero
+    # dependance HTTP). Le reste de R8 (aucun import du router d'une AUTRE
+    # piece, aucune route a chemin absolu, aucun include_router) s'applique
+    # quand meme, inchange.
+    if require_router and not ROUTER_OK.search(text):
         if ROUTER_ANY.search(text):
             add("R8", path, text.count(
                 "\n", 0, ROUTER_ANY.search(text).start()) + 1,
@@ -399,6 +413,16 @@ def run(root, only=None):
         if files["py"].is_file():
             check_r8(mid, files["py"], files["py"].read_text(
                 encoding="utf-8", errors="replace"), add)
+        # sidecar geometrie de forge3d (couture legs 6, revue 2a) : soumis a
+        # R8 comme le py canonique -- require_router=False, c'est un fichier
+        # PURES (zero dependance HTTP) par construction, pas une deuxieme
+        # route pour le module.
+        for extra in EXTRA_PY.get(mid, []):
+            p = root / BACK_DIR / extra
+            if p.is_file():
+                check_r8(mid, p, p.read_text(
+                    encoding="utf-8", errors="replace"), add,
+                    require_router=False)
     return findings, present
 
 
