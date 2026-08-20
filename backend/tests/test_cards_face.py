@@ -2619,5 +2619,55 @@ def test_le_cadrage_se_corrige_en_un_clic():
     assert 'CF.get("frame.art_window"' in code
 
 
+def test_la_molette_p1_coalesce_son_zoom_a_la_frame():
+    """Résidu (1) de la revue 7bis (plan 2b, Task 7bis), ROUVERT : les
+    molettes haute résolution et les flings de trackpad livrent PLUSIEURS
+    événements wheel par frame d'affichage — chacun faisait un `M.patch`
+    complet (clone + core:doc diffusé aux ~10 pièces + scheduleSave), le même
+    défaut que les glissers soignés par la spec §9.6-1. Le report était
+    motivé par un risque nommé : le geste est INCRÉMENTAL (chaque cran lit
+    l'état courant et compose échelle ET point-sous-curseur), le coalescer
+    exige un accumulateur local {scale, x, y} qui serve de base au cran
+    suivant tant que la frame n'a pas écrit le document — sans lui, N crans
+    tombés dans la même frame n'en zooment qu'UN (base périmée relue N fois).
+
+    Quatre choses s'épinglent dans la source servie :
+    1. plus aucun patch direct dans le gestionnaire wheel — l'écriture passe
+       par l'accumulateur (`wheelPending`) vidé au rAF (`flushWheel`, défini
+       hors du gestionnaire, seul endroit qui patche) ;
+    2. la base de composition est l'accumulateur S'IL EXISTE (`wheelPending
+       || f`) : la composition reste identique à la version un-patch-par-cran
+       — le doc rendait exactement ce que le patch venait d'y poser (x/y
+       arrondis au centième AVANT écriture, scale non arrondi), l'invariant
+       point-sous-curseur (déjà réparé une fois) ne bouge pas ;
+    3. le groupe d'annulation wheelArmed/420 ms est CONSERVÉ (une entrée par
+       rafale, §9.6-4) et sa clôture pousse D'ABORD l'état FINAL exact
+       (`flushWheel()` avant `wheelArmed = false`) — l'équivalent du
+       pointerup des glissers (§9.6-1) ;
+    4. le repère du zoom reste la fenêtre d'illustration, pas la toile (le
+       test précédent le tient déjà — re-épinglé ici car la tranche est la
+       même)."""
+    code = js_code()
+    roue = code.split('addEventListener("wheel"')[1].split("passive")[0]
+    # 1. l'écriture est coalescée, plus de patch par cran
+    assert "M.patch(" not in roue, \
+        "le gestionnaire wheel patche encore le document à chaque cran"
+    assert "wheelPending" in roue, \
+        "l'accumulateur local promis par la revue 7bis manque"
+    # ...et le vidage applique bien le patch, hors du gestionnaire
+    flux = code.split("const flushWheel = ")[1].split("};")[0]
+    assert "M.patch(" in flux, "flushWheel n'écrit pas le document"
+    # 2. la base de composition consulte l'accumulateur avant le doc
+    assert "wheelPending || f" in roue, \
+        "N crans dans une même frame n'en composeraient qu'un (base périmée)"
+    # 3. groupe d'annulation conservé, clôture = état final exact d'abord
+    assert "pushUndo()" in roue and "wheelArmed" in roue, \
+        "le groupage d'annulation wheelArmed/420 ms a disparu"
+    assert roue.index("flushWheel()") < roue.index("wheelArmed = false"), \
+        "la clôture désarme l'annulation avant d'avoir écrit l'état final"
+    # 4. l'invariant sous-le-curseur ne bouge pas
+    assert "artWindow(g)" in roue, "la molette ignore à nouveau la fenêtre"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

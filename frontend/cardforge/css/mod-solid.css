@@ -151,7 +151,7 @@
 
 .cf-solid .cf-solid-row { display: flex; align-items: center; gap: 7px; }
 .cf-solid .cf-solid-lb { flex: none; width: 46px; }
-.cf-solid .cf-solid-rg { flex: 1; min-width: 0; accent-color: var(--accent); height: 18px; }
+.cf-solid .cf-solid-rg { flex: 1; min-width: 0; accent-color: var(--accent); height: 18px; touch-action: none; }
 .cf-solid .cf-solid-nb { width: 72px; flex: none; padding: 4px 6px; font-size: 11.5px;
   font-family: var(--f-mono); cursor: ew-resize; touch-action: none; }
 .cf-solid .cf-solid-nb.w { width: 100%; cursor: ew-resize; }

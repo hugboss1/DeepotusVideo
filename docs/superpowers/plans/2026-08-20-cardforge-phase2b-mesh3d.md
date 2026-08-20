@@ -1801,17 +1801,23 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
 > R13 en sémantique INDEX, 50 fichiers couverts, 60x plus vite ; isPrimary aux
 > pointerdown (anti-coincement) ; before0 du slider remis à zéro par geste.
 > **Résidus NOMMÉS de la revue du 20/08 :** (1) molette de zoom P1
-> (mod-face.js:3843) : coalescence DIFFÉRÉE — le geste est INCRÉMENTAL (lit le
-> doc à chaque événement, compose échelle ET point-sous-curseur), la coalescer
-> exige un accumulateur local {scale, x, y} interverrouillé avec le groupage
-> d'annulation wheelArmed/420 ms ; les événements wheel arrivent ≈ à la
-> cadence des frames, le gain est faible devant le risque de casser
-> l'invariant point-sous-curseur (déjà réparé une fois). À rouvrir si un
-> trackpad le prouve nécessaire. (2) le slider `.cf-solid-rg`, lui, EST
-> coalescé (correctifs de revue) — même rangée, même clé, même coût que le
-> champ voisin. (3) `--contract` et la vérification navigateur interactive
-> restent dus à la Task 8 (backend :8765 éteint pendant la tâche — skip
-> honnête, constaté par deux réviseurs).
+> (mod-face.js:3843) : coalescence d'abord DIFFÉRÉE (geste INCRÉMENTAL, risque
+> nommé sur l'invariant point-sous-curseur), ROUVERTE et CLOSE le 20/08 même —
+> les molettes haute résolution et les flings de trackpad livrent bien
+> plusieurs événements par frame. Livrée avec l'accumulateur local annoncé :
+> `wheelPending` est l'état courant tant que la frame n'a pas écrit le doc et
+> sert de base au cran suivant (composition identique cran par cran à la
+> version séquentielle — x/y relus déjà arrondis au centième, scale non
+> arrondi) ; groupage wheelArmed/420 ms CONSERVÉ, sa clôture pousse l'état
+> FINAL exact AVANT de désarmer (l'équivalent du pointerup) ; épinglé par
+> test_la_molette_p1_coalesce_son_zoom_a_la_frame ; la vérification navigateur
+> interactive, elle, reste due à la Task 8 (backend :8765 encore éteint).
+> (2) le slider `.cf-solid-rg`, lui, EST coalescé (correctifs de revue) — même
+> rangée, même clé, même coût que le champ voisin ; il porte désormais aussi
+> son `touch-action: none` (spec 9.6-3, parité avec le scrub voisin — épinglé
+> par test_le_slider_p6_est_une_surface_de_drag_declaree). (3) `--contract` et
+> la vérification navigateur interactive restent dus à la Task 8 (backend
+> :8765 éteint pendant la tâche — skip honnête, constaté par deux réviseurs).
 
 **Files:**
 - Modify: `frontend/cardforge/js/mod-frame.js` (fenêtre du cadre — la plainte d'origine)

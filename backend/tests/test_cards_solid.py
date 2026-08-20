@@ -2200,5 +2200,27 @@ def test_la_cote_de_la_coupe_mesure_ce_quelle_annonce():
           "0,32 mm 23,7 / 24,19 ; 0,62 mm 43,4 / 44,35 ; 1,00 mm 44,0 / 44,35")
 
 
+def test_le_slider_p6_est_une_surface_de_drag_declaree():
+    """Spec §9.6-3 (barre de fluidité) : `touch-action: none` sur les
+    surfaces de drag. Le champ voisin `.cf-solid-nb` (scrub horizontal) le
+    porte depuis la passe 9.6 ; le slider `.cf-solid-rg` — même rangée, même
+    clé, et coalescé depuis la revue 7bis — ne le portait PAS : au doigt, le
+    glisser du pouce dispute le geste au défilement de la colonne
+    (`.cf-solid-ctl` est `overflow-y: auto`), là où la souris ne montre
+    rien. La déclaration rejoint la règle existante, déjà scopée `.cf-solid`
+    (règle 4 du lint)."""
+    css = (pathlib.Path(__file__).resolve().parents[2]
+           / "frontend" / "cardforge" / "css" / "mod-solid.css")
+    if not css.is_file():
+        pytest.skip("frontend absent de cette arborescence")
+    feuille = css.read_text(encoding="utf-8")
+    rg = feuille.split(".cf-solid .cf-solid-rg")[1].split("}")[0]
+    assert "touch-action: none" in rg, \
+        "le slider n'annonce pas touch-action: none (spec 9.6-3)"
+    nb = feuille.split(".cf-solid .cf-solid-nb")[1].split("}")[0]
+    assert "touch-action: none" in nb, \
+        "la parité avec le champ voisin (scrub) est cassée"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q", "-s"]))

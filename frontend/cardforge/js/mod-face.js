@@ -3840,6 +3840,24 @@
       syncInputs();
     });
 
+    /* molette : residu (1) de la revue 7bis, ROUVERT — molettes haute
+       resolution et flings de trackpad livrent PLUSIEURS evenements par
+       frame, chacun payait un patch complet. Le geste est INCREMENTAL
+       (chaque cran compose echelle ET point vise a partir de l'etat
+       courant) : le coalescer exige l'accumulateur local annonce par la
+       revue — wheelPending EST l'etat courant tant que la frame n'a pas
+       ecrit le document, et sert de base au cran suivant. La composition
+       reste identique a la version un-patch-par-cran : le doc rendait
+       exactement ce que le patch venait d'y poser (x/y arrondis au centieme
+       AVANT ecriture, scale non arrondi), l'invariant point-sous-curseur
+       (deja repare une fois) ne bouge pas. */
+    let wheelPending = null, wheelRafId = 0;
+    const flushWheel = () => {
+      wheelRafId = 0;
+      if (!wheelPending) return;
+      const p = wheelPending; wheelPending = null;
+      M.patch(p);                    /* <= 1 patch par frame (spec 9.6-1) */
+    };
     cv.addEventListener("wheel", (e) => {
       if (!panelActive() || !LAST.has) return;
       e.preventDefault();
@@ -3855,17 +3873,27 @@
       const win = artWindow(g);
       const px = ((e.clientX - r.left) / s) - (win[0] + win[2] / 2);
       const py = ((e.clientY - r.top) / s) - (win[1] + win[3] / 2);
-      const old = clampNum(f.scale, SCALE_MIN, SCALE_MAX, 1);
+      const base = wheelPending || f;   /* le cran precedent, meme pas encore ecrit */
+      const old = clampNum(base.scale, SCALE_MIN, SCALE_MAX, 1);
       const k = Math.exp(-e.deltaY * 0.0016);
       const ns = clampNum(old * k, SCALE_MIN, SCALE_MAX, old);
-      const ox = g.mm2px(f.x), oy = g.mm2px(f.y);
+      const ox = g.mm2px(base.x), oy = g.mm2px(base.y);
       const nx = px - (px - ox) * (ns / old), ny = py - (py - oy) * (ns / old);
       if (!wheelArmed) { pushUndo(); wheelArmed = true; }
       clearTimeout(wheelTimer);
-      wheelTimer = setTimeout(() => { wheelArmed = false; syncInputs(); }, 420);
+      wheelTimer = setTimeout(() => {
+        /* clot la rafale comme pointerup clot le glisser : etat FINAL exact
+           pousse AVANT de desarmer le groupe d'annulation (spec 9.6-1 /
+           9.6-4) — puis les champs relisent le document a jour. */
+        if (wheelRafId) cancelFrame(wheelRafId);
+        flushWheel();
+        wheelArmed = false;
+        syncInputs();
+      }, 420);
       const p = { scale: ns, x: Math.round(g.px2mm(nx) * 100) / 100, y: Math.round(g.px2mm(ny) * 100) / 100 };
       if (CF.get("face.lock", true) !== false) p.scale_y = ns;
-      M.patch(p);
+      wheelPending = p;
+      if (!wheelRafId) wheelRafId = scheduleFrame(flushWheel);
     }, { passive: false });
 
     ["dragenter", "dragover"].forEach((n) => wrap.addEventListener(n, (e) => {
