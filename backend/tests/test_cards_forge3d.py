@@ -1583,6 +1583,21 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
     assert '"served"' in poll and '"failed"' in poll, poll
     assert re.search(r'status\s*===\s*"served"\s*\|\|', poll), poll
 
+    # I1 — LA COUTURE writer<->ecran. Cote writer, `translate` REMPLACE le
+    # `z_mm` de l'element (_node_trs) : il ne s'y AJOUTE pas. Semer un nœud
+    # placement a z=0 sur un PLAN n'est donc pas « neutre » — ca l'aplatit sur
+    # la couche du dessous (le cadre du graphe par defaut vit a 1,05 mm), et il
+    # suffit d'ouvrir le tiroir Placement et de pousser x pour perdre la
+    # parallaxe. Le neutre d'un plan, c'est SON z d'empilement.
+    trs_corps = rendu.split("function editTrs(")[1].split("\n  }")[0]
+    assert re.search(r"z_mm:\s*zEmpilement\(", trs_corps), trs_corps
+    assert not re.search(r"z_mm:\s*0\b", trs_corps), trs_corps
+    # ... et cette regle est CELLE que l'ecran affiche : une seule fonction,
+    # lue par le semis ET par le rendu, sinon les deux derivent.
+    zemp = rendu.split("function zEmpilement(")[1].split("\n  }")[0]
+    assert "depth_mm" in zemp and '"plane"' in zemp, zemp
+    assert "zEmpilement(" in rendu.split("function trsHtml(")[1].split("\n  }")[0]
+
     # LES CHAINES ECRITES PAR LE BACKEND (error, step, closed_note) sont
     # rendues ECHAPPEES : ce sont les seules valeurs de chipHtml qui ne
     # viennent ni d'un Number() ni d'un litteral d'ici, et un `<` dans un

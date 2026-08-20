@@ -74,6 +74,11 @@
   const PROC_LABELS = { plane: "plan", relief: "relief", mesh3d: "mesh 3D (moteur)" };
   /* borne ANTI-GEL de la descente de chaine — miroir de `_CHAIN_MAX` */
   const CHAIN_MAX = 4;
+  /* le pas de tuilage que `clean_graph` posera si le noeud matiere n'en porte
+     pas (forge3d.py:404). /info sert les BORNES (material_limits.tile_mm), pas
+     ce defaut — d'ou cette copie, nommee, plutot qu'un champ vide qui ferait
+     croire que rien ne sera construit. */
+  const TILE_DEFAUT = 63;
   const POLL_MS = 1200;         /* periode du poll d'un job (plan 2b) */
 
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
@@ -898,7 +903,8 @@
     return '<details class="cf-forge3d-blk"><summary>matière'
       + (mat ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
       + '<div class="cf-forge3d-line">' + matSel + finSel
-      + numHtml("tuile", "tile_mm", mat ? mat.tile_mm : null,
+      + numHtml("tuile", "tile_mm",
+                (mat && mat.tile_mm != null) ? mat.tile_mm : TILE_DEFAUT,
                 lim && lim.tile_mm, "1", "mm", !pose)
       + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="aniso"'
       + (mat && mat.aniso ? " checked" : "") + (pose ? "" : " disabled")
@@ -912,6 +918,17 @@
       + '</details>';
   }
 
+  /* LE z EFFECTIF D'UN ÉLÉMENT SANS NŒUD `transform` — c'est-à-dire ce que le
+     writer posera de toute façon : pour un PLAN, sa profondeur d'empilement
+     (`_node_trs` traduit `z_mm` en translation) ; pour un relief ou un GLB de
+     moteur, zéro. UNE seule règle, lue par le SEMIS du nœud (`editTrs`) ET par
+     son AFFICHAGE (`trsHtml`) : les laisser diverger, c'est exactement la faute
+     que cette fonction existe pour tuer. */
+  function zEmpilement(proc) {
+    const d = Number(proc && proc.depth_mm);
+    return (proc && proc.kind === "plane" && isFinite(d)) ? d : 0;
+  }
+
   function trsHtml(r) {
     const lim = (INFO && INFO.transform_limits) || null;
     const t = r.trs;
@@ -920,17 +937,26 @@
         + '<p class="hint">bornes inconnues (contrat /info non chargé).</p>'
         + '</details>';
     }
+    /* M1 — CE QUI SERA CONSTRUIT, JAMAIS UN CHAMP VIDE. Même sans nœud
+       `transform`, le writer POSE un placement : identité en x/y/rotation,
+       échelle 1, et en z l'empilement du traitement. Un champ blanc se relit
+       « rien de défini » là où quelque chose l'est très précisément — et c'est
+       ce z-là qu'un semis à zéro écrasait. Les défauts que /info ne sert pas
+       sont ceux de `clean_graph` (forge3d.py:410-414). */
+    const d = t || { x_mm: 0, y_mm: 0, z_mm: zEmpilement(r.proc),
+                     rot_deg: 0, scale: 1 };
     return '<details class="cf-forge3d-blk"><summary>placement'
       + (t ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
       + '<div class="cf-forge3d-line">'
-      + numHtml("x", "x_mm", t ? t.x_mm : null, lim.xy_mm, "0.5", "mm")
-      + numHtml("y", "y_mm", t ? t.y_mm : null, lim.xy_mm, "0.5", "mm")
-      + numHtml("z", "z_mm", t ? t.z_mm : null, lim.z_mm, "0.1", "mm")
-      + numHtml("rotation", "rot_deg", t ? t.rot_deg : null, lim.rot_deg, "1", "°")
-      + numHtml("échelle", "scale", t ? t.scale : null, lim.scale, "0.05", "")
+      + numHtml("x", "x_mm", d.x_mm, lim.xy_mm, "0.5", "mm")
+      + numHtml("y", "y_mm", d.y_mm, lim.xy_mm, "0.5", "mm")
+      + numHtml("z", "z_mm", d.z_mm, lim.z_mm, "0.1", "mm")
+      + numHtml("rotation", "rot_deg", d.rot_deg, lim.rot_deg, "1", "°")
+      + numHtml("échelle", "scale", d.scale, lim.scale, "0.05", "")
       + '</div>'
       + '<p class="hint">un placement absent laisse l\'élément là où son '
-      + 'traitement le pose.</p>'
+      + 'traitement le pose — les valeurs ci-dessus sont celles qui seront '
+      + 'construites.</p>'
       + '</details>';
   }
 
@@ -1224,6 +1250,11 @@
     const next = JSON.parse(JSON.stringify(graph));
     const proc = next.nodes.filter((n) => n.id === procId)[0];
     if (!proc) return;
+    /* M1b — la NAISSANCE d'un maillon est STRUCTURELLE même quand le champ
+       édité, lui, ne l'est pas : le tiroir gagne sa puce, tuile/anisotropie
+       s'activent, et le z semé par `editTrs` doit se voir TOUT DE SUITE (sans
+       quoi l'écran afficherait 0 pendant que le graphe porte l'empilement). */
+    let naissance = false;
     if (field === "kind") {
       proc.kind = (PROC_KINDS.indexOf(rawValue) >= 0) ? rawValue : "plane";
       /* les paramètres des autres traitements RESTENT sur le nœud (patron 2a :
@@ -1254,13 +1285,13 @@
       const t = String(rawValue == null ? "" : rawValue);
       proc.texture_prompt = max > 0 ? t.slice(0, max) : t;
     } else if (MAT_FIELDS.indexOf(field) >= 0) {
-      editMat(next, procId, field, rawValue);
+      naissance = editMat(next, procId, field, rawValue);
     } else if (TRS_FIELDS.indexOf(field) >= 0) {
-      editTrs(next, procId, field, rawValue);
+      naissance = editTrs(next, procId, field, rawValue);
     }
     setGraph(next, field);
     if (field === "kind") paintGraph();
-    else if (STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
+    else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
     else paintCost();
   }
 
@@ -1362,9 +1393,10 @@
 
   function editMat(g, procId, field, rawValue) {
     const r = rowModel(g, procId);
-    if (!r) return;
+    if (!r) return false;
     let mat = r.mat;
-    if (!mat) {
+    const neuf = !mat;
+    if (neuf) {
       mat = { id: freeId(g.nodes, procId + "m"), kind: "material" };
       g.nodes.push(mat);
     }
@@ -1383,24 +1415,34 @@
     if (vide) g.nodes = g.nodes.filter((n) => n.id !== mat.id);
     rewireRow(g, procId, vide ? null : mat.id, r.trs ? r.trs.id : null,
               [mat.id]);
+    /* la NAISSANCE (comme la mort) d'un maillon change ce que le rang montre :
+       la puce du tiroir, l'activation de tuile/anisotropie. */
+    return neuf || vide;
   }
 
   function editTrs(g, procId, field, rawValue) {
     const r = rowModel(g, procId);
-    if (!r) return;
+    if (!r) return false;
     let trs = r.trs;
-    if (!trs) {
-      /* l'IDENTITÉ, pas un défaut inventé : un nœud transform doit porter un
-         TRS complet (`_trs_dict` côté serveur), et l'élément neutre est le
-         seul jeu de valeurs qui ne déplace rien de ce que l'utilisateur
-         voyait avant de toucher le champ. */
+    const neuf = !trs;
+    if (neuf) {
+      /* I1 — L'ÉLÉMENT NEUTRE D'UN PLAN PORTE SON z D'EMPILEMENT. Côté writer,
+         `translate` REMPLACE le `z_mm` de l'élément (`_node_trs`) : il ne s'y
+         ajoute pas. Semer un z à zéro n'était donc pas « neutre » du tout — ça
+         APLATISSAIT le plan sur la couche du dessous (le cadre du graphe par
+         défaut vit à 1,05 mm), et il suffisait d'ouvrir le tiroir Placement
+         pour pousser x de 2 mm afin de perdre la parallaxe et gagner du
+         z-fighting : le GLB et le STL d'accord entre eux, et tous deux en
+         désaccord avec ce que l'utilisateur voyait une frappe plus tôt.
+         `zEmpilement` est la MÊME règle que celle qu'affiche `trsHtml`. */
       trs = { id: freeId(g.nodes, procId + "t"), kind: "transform",
-              x_mm: 0, y_mm: 0, z_mm: 0, rot_deg: 0, scale: 1 };
+              x_mm: 0, y_mm: 0, z_mm: zEmpilement(r.proc), rot_deg: 0, scale: 1 };
       g.nodes.push(trs);
     }
     const v = Number(rawValue);
     if (isFinite(v)) trs[field] = v;
     rewireRow(g, procId, r.mat ? r.mat.id : null, trs.id);
+    return neuf;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════

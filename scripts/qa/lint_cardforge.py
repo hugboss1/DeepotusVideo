@@ -822,8 +822,38 @@ def run(root, only=None):
     return findings, present
 
 
+USAGE = ("usage : lint_cardforge.py [--root <dir>] [--module <id>] [--json]\n"
+         f"        modules : {', '.join(MODULES)}")
+
+
 def main():
     args = sys.argv[1:]
+    # UN DRAPEAU INCONNU EST UN REFUS, pas un silence. `--module bidon` etait
+    # deja rejete ; le RESTE de argv, lui, etait ignore -- si bien que
+    # `lint_cardforge.py --geom` (un drapeau du harnais VOISIN,
+    # qa/test_core_contract.mjs) imprimait un rapport tout vert sans avoir rien
+    # verifie de ce qu'on croyait lui demander. Un outil de controle qui repond
+    # « conforme » a une question qu'il n'a pas comprise est pire qu'absent :
+    # il fabrique une preuve. Constate en revue de couture, sur ce depot.
+    PORTEURS = {"--root", "--module"}      # drapeaux suivis d'une valeur
+    SEULS = {"--json"}
+    i, inconnus = 0, []
+    while i < len(args):
+        a = args[i]
+        if a in PORTEURS:
+            if i + 1 >= len(args):
+                print(f"{a} attend une valeur\n{USAGE}", file=sys.stderr)
+                return 2
+            i += 2
+            continue
+        if a not in SEULS:
+            inconnus.append(a)
+        i += 1
+    if inconnus:
+        print(f"argument(s) inconnu(s) : {', '.join(inconnus)}\n{USAGE}",
+              file=sys.stderr)
+        return 2
+
     if "--root" in args:
         root = pathlib.Path(args[args.index("--root") + 1]).resolve()
     else:
@@ -832,7 +862,8 @@ def main():
             pathlib.Path(__file__).resolve().parent.parent.parent
     only = args[args.index("--module") + 1] if "--module" in args else None
     if only and only not in MODULES:
-        print(f"module inconnu {only!r} ; connus : {MODULES}", file=sys.stderr)
+        print(f"module inconnu {only!r} ; connus : {MODULES}\n{USAGE}",
+              file=sys.stderr)
         return 2
 
     findings, present = run(root, only)
