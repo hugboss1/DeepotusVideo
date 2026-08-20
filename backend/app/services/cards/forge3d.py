@@ -98,6 +98,10 @@ MESH3D_ENGINES = [
 ]
 MESH3D_DEFAULT_ENGINE = "meshy-7"     # la demande d'origine : « pour les textures »
 MESH3D_PROMPT_MAX = 600
+# littéraux PARTAGÉS entre le prix de /info (_engine_table) et le payload du
+# job (Task 4) — une seule vérité, jamais recopiés d'un côté à l'autre.
+MESH3D_TEXTURE_RES = "2k"
+MESH3D_SHOULD_TEXTURE = True
 MESH3D_UPLOAD_PX = 2048               # côté long envoyé aux moteurs — un moteur
                                       # texture en 2k, le 300 DPI n'y gagne rien
 MESH3D_POLL_S = 4.0                   # période de poll Meshy (0.05 en mock)
@@ -155,9 +159,13 @@ def _engine_table() -> list[dict]:
             row["price_usd"] = pricing.estimate(
                 {"kind": "asset3d", "engine": e["id"]}, p)["total_usd"]
         else:
-            cr = MS.credits_image_to_3d(e["id"], "standard", True, "2k")
+            cr = MS.credits_image_to_3d(e["id"], "standard", MESH3D_SHOULD_TEXTURE,
+                                        MESH3D_TEXTURE_RES)
             row["credits"] = cr
-            row["ultra_extra_credits"] = 5 if e["id"] == "meshy-7" else 0
+            # M1 (revue) : la grille PARTAGÉE est la seule source du surcoût
+            # ultra — jamais recopiée en dur ici (la docstring promet « jamais
+            # recopiés », l'ancien `5 if ... else 0` la trahissait).
+            row["ultra_extra_credits"] = MS._ultra_extra(e["id"], True)
             row["price_usd"] = round(cr * float(p.get("meshy_credit_usd", 0.02)), 4)
         rows.append(row)
     return rows
@@ -174,6 +182,28 @@ async def get_info(did: str):
         raise HTTPException(400, "Identifiant de deck invalide")
     if read_deck(did) is None:
         raise HTTPException(404, "Deck introuvable")
+
+    # Important 1 (revue) : le prix des moteurs (pricing.json + la grille
+    # meshy_service) et la liste des matières (disque) sont tous deux de
+    # l'IO — DÉPORTÉS par to_thread (même patron que post_layers/post_build3d
+    # plus bas) : mesuré, 584 ms de boucle bloquée à 200 matières sans ce
+    # détour. Important 2 (revue) : chacun dégrade PLUTÔT que de faire tomber
+    # toute la route (doctrine 2.5, jamais 500) — une grille de prix ou une
+    # boutique en panne ne doit pas priver l'écran du reste du contrat ; la
+    # panne est NOMMÉE (mesh3d.degraded), jamais avalée en silence.
+    try:
+        engines = await asyncio.to_thread(_engine_table)
+        mesh3d_degraded = None
+    except Exception as e:
+        logger.exception("cards/forge3d: table des moteurs mesh3d indisponible")
+        engines = []
+        mesh3d_degraded = str(e)
+    try:
+        materials_raw = await asyncio.to_thread(material_store.list_materials)
+    except Exception:
+        logger.exception("cards/forge3d: liste des matieres indisponible")
+        materials_raw = []
+
     return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES,
             "node_kinds": NODE_KINDS,
             "graph_limits": {
@@ -185,15 +215,16 @@ async def get_info(did: str):
                "max_elements": MAX_GRAPH_ELEMENTS,
             },
             "mesh3d": {
-                "engines": _engine_table(),
+                "engines": engines,
                 "default_engine": MESH3D_DEFAULT_ENGINE,
                 "has_fal": bool(settings.FAL_KEY),
                 "has_meshy": settings.has_meshy or bool(settings.MESHY_MOCK),
                 "meshy_mock": bool(settings.MESHY_MOCK),
                 "prompt_max": MESH3D_PROMPT_MAX,
+                "degraded": mesh3d_degraded,
             },
             "materials": [{"id": m["id"], "name": m["name"]}
-                          for m in material_store.list_materials()],
+                          for m in materials_raw],
             "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
                                 "finishes": list(MATERIAL_FINISHES)},
             "transform_limits": {"xy_mm": list(TRANSFORM_XY_MM),
@@ -321,10 +352,14 @@ def clean_graph(raw) -> dict:
             node["grid"] = int(_num(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
         elif n["kind"] == "mesh3d":
             eng = str(n.get("engine") or "")
-            node["engine"] = eng if eng in {e["id"] for e in MESH3D_ENGINES} \
-                else MESH3D_DEFAULT_ENGINE
+            connu = eng in {e["id"] for e in MESH3D_ENGINES}
+            node["engine"] = eng if connu else MESH3D_DEFAULT_ENGINE
             node["texture_prompt"] = str(n.get("texture_prompt") or "").strip()[:MESH3D_PROMPT_MAX]
-            node["ultra"] = bool(n.get("ultra")) and node["engine"] == "meshy-7"
+            # amendement du contrôleur (plan 2b) : un moteur inconnu est
+            # réparé vers le défaut, mais un drapeau PAYANT ne survit jamais
+            # à une réparation — l'utilisateur n'a pas consenti à l'ultra
+            # d'un moteur qu'il n'a pas nommé.
+            node["ultra"] = bool(n.get("ultra")) and connu and node["engine"] == "meshy-7"
         elif n["kind"] == "material":
             mid = str(n.get("mat") or "")
             node["mat"] = mid if material_store.is_valid_mid(mid) else None
@@ -343,6 +378,17 @@ def clean_graph(raw) -> dict:
             nom = str(n.get("name") or "artefact")
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
         nodes.append(node)
+    # Important 3 (revue, amendement du contrôleur) : une arête ne doit
+    # survivre que si SES DEUX BOUTS ont survécu au nettoyage. `ids` porte
+    # TOUT id vu (y compris un nœud jeté par une branche kind-spécifique :
+    # layer sans source, material sans matière ni finition) — filtrer les
+    # arêtes dessus laissait des arêtes PENDANTES vers un nœud absent de
+    # `nodes` (le graphe 2a en portait déjà, sans test pour le révéler).
+    # `vivants` est le sous-ensemble RÉELLEMENT présent dans la sortie.
+    # L'id d'un nœud jeté reste « brûlé » dans `ids` (la boucle anti-collision
+    # ci-dessus l'a déjà consommé) : c'est acceptable, ça ne fait que décaler
+    # une resynthèse future, jamais une collision.
+    vivants = {n["id"] for n in nodes}
     edges = []
     edges_in = g.get("edges")
     edges_in = edges_in if isinstance(edges_in, list) else []
@@ -351,9 +397,9 @@ def clean_graph(raw) -> dict:
         if not isinstance(e, dict):
             continue
         ef, et = e.get("from"), e.get("to")
-        # même garde qu'au-dessus : `x in ids` hache x AVANT de comparer —
+        # même garde qu'au-dessus : `x in vivants` hache x AVANT de comparer —
         # {"from": ["x"]} lève sinon (un id ne peut être qu'une chaîne).
-        if isinstance(ef, str) and isinstance(et, str) and ef in ids and et in ids:
+        if isinstance(ef, str) and isinstance(et, str) and ef in vivants and et in vivants:
             edges.append({"from": ef, "to": et})
     return {"nodes": nodes, "edges": edges}
 

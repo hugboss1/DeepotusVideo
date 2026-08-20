@@ -685,8 +685,11 @@ def test_clean_graph_borne_les_nouveaux_noeuds():
     n = {x["id"]: x for x in out["nodes"]}
     assert n["m"]["engine"] == "meshy-7" and n["m"]["ultra"] is True
     assert n["m"]["texture_prompt"] == "or ancien, gravure"
-    # moteur inconnu -> défaut meshy-7 ; ultra HORS meshy-7 -> False
+    # moteur inconnu -> défaut meshy-7 ; ET l'ultra ne survit pas à la
+    # réparation (amendement contrôleur) : un drapeau PAYANT ne peut pas
+    # naître du repli sur le défaut, l'utilisateur n'a pas nommé ce moteur.
     assert n["m2"]["engine"] == "meshy-7"
+    assert n["m2"]["ultra"] is False
     assert F9.clean_graph({"nodes": [{"id": "x", "kind": "mesh3d",
         "engine": "tripo", "ultra": True}], "edges": []})["nodes"][0]["ultra"] is False
     # matière : mid invalide -> None, mais la FINITION la garde en vie
@@ -704,29 +707,107 @@ def test_clean_graph_borne_les_nouveaux_noeuds():
     assert n["tr"]["z_mm"] == 0.0
 
 
+def test_clean_graph_ne_laisse_plus_d_aretes_pendantes():
+    """Important 3 (revue, amendement du contrôleur) : une arête ne doit
+    survivre que si SES DEUX BOUTS ont survécu au nettoyage — filtrer sur
+    `ids` (tout id VU, y compris un nœud jeté par une branche kind-spécifique)
+    laissait des arêtes PENDANTES vers un nœud absent du graphe nettoyé."""
+    from app.services.cards import forge3d as F9
+    g = {"nodes": [
+        {"id": "src", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "matvide", "kind": "material", "mat": "!!", "finish": "aucune"},
+        {"id": "asm", "kind": "assemble"}],
+        "edges": [{"from": "src", "to": "matvide"},
+                 {"from": "matvide", "to": "asm"}]}
+    out = F9.clean_graph(g)
+    ids = {n["id"] for n in out["nodes"]}
+    assert "matvide" not in ids                  # la matière vide est jetée
+    assert "src" in ids and "asm" in ids          # les deux voisins survivent
+    # aucune arête ne nomme plus le nœud jeté, des deux côtés
+    for e in out["edges"]:
+        assert e["from"] != "matvide" and e["to"] != "matvide"
+    assert out["edges"] == []                     # les DEUX arêtes de matvide tombent
+
+
 def test_info_publie_moteurs_prix_matieres_et_bornes():
     """7 moteurs, prix fal en $ depuis pricing, crédits Meshy depuis la grille
     partagée (+ conversion $ directionnelle meshy_credit_usd), matières de la
     boutique, bornes matière/transform — l'écran ne recopie RIEN."""
-    from app.services import pricing, meshy_service as MS
+    from app.config import settings
+    from app.services import pricing, meshy_service as MS, material_store
+    from app.services import asset3d_service as A3D
+    from app.services.cards import forge3d as F9
     did = _deck("Info 2b")
-    info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
-    eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
-    assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
-                         "meshy-6", "meshy-7"]
-    p = pricing.load()
-    attendu = pricing.estimate({"kind": "asset3d", "engine": "tripo"}, p)["total_usd"]
-    assert eng["tripo"]["provider"] == "fal" and eng["tripo"]["price_usd"] == attendu
-    assert eng["meshy-7"]["provider"] == "meshy"
-    assert eng["meshy-7"]["credits"] == MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
-    assert eng["meshy-7"]["ultra_extra_credits"] == 5
-    assert eng["meshy-6"]["ultra_extra_credits"] == 0
-    assert eng["meshy-7"]["price_usd"] == round(30 * float(p["meshy_credit_usd"]), 4)
-    assert isinstance(info["mesh3d"]["has_meshy"], bool)
-    assert isinstance(info["mesh3d"]["has_fal"], bool)
-    assert isinstance(info["materials"], list)     # [] accepté : boutique vide
-    assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
-    assert info["transform_limits"]["scale"] == [0.1, 4.0]
+    mat = material_store.create_material(name="essai-info")
+    try:
+        info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
+        eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
+        assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
+                             "meshy-6", "meshy-7"]
+        # roster lock (M4) : les moteurs fal du miroir 2b sont un
+        # SOUS-ENSEMBLE du registre asset3d_service — jamais un moteur que
+        # le job (Task 4) ne saurait pas router.
+        assert {e["id"] for e in F9.MESH3D_ENGINES if e["provider"] == "fal"} \
+            <= set(A3D.ENGINES)
+        p = pricing.load()
+        attendu = pricing.estimate({"kind": "asset3d", "engine": "tripo"}, p)["total_usd"]
+        assert eng["tripo"]["provider"] == "fal" and eng["tripo"]["price_usd"] == attendu
+        assert eng["meshy-7"]["provider"] == "meshy"
+        assert eng["meshy-7"]["credits"] == MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
+        assert eng["meshy-7"]["ultra_extra_credits"] == 5
+        assert eng["meshy-6"]["ultra_extra_credits"] == 0
+        assert eng["meshy-7"]["price_usd"] == round(30 * float(p["meshy_credit_usd"]), 4)
+        assert info["mesh3d"]["default_engine"] == "meshy-7"
+        assert info["mesh3d"]["has_meshy"] == (settings.has_meshy or bool(settings.MESHY_MOCK))
+        assert info["mesh3d"]["has_fal"] == bool(settings.FAL_KEY)
+        assert info["mesh3d"]["degraded"] is None
+        # la boutique n'est plus vide (M3) : la matière créée voyage telle
+        # quelle, et CHAQUE entrée n'expose que id/name — jamais les maps.
+        assert isinstance(info["materials"], list)
+        assert all(set(m.keys()) == {"id", "name"} for m in info["materials"])
+        assert {"id": mat["id"], "name": "essai-info"} in info["materials"]
+        # bornes matière/transform, épinglées littéralement (M6)
+        assert info["material_limits"]["tile_mm"] == [10.0, 200.0]
+        assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
+        assert info["transform_limits"]["xy_mm"] == [-100.0, 100.0]
+        assert info["transform_limits"]["z_mm"] == [0.0, 10.0]
+        assert info["transform_limits"]["rot_deg"] == [-180.0, 180.0]
+        assert info["transform_limits"]["scale"] == [0.1, 4.0]
+    finally:
+        material_store.delete_material(mat["id"])
+
+
+def test_info_degrade_au_lieu_de_500_si_prix_ou_matieres_explosent(monkeypatch):
+    """Important 2 (revue, amendement du contrôleur) : une panne de la grille
+    de prix OU de la boutique de matières ne doit JAMAIS faire tomber /info
+    en 500 — chacune dégrade isolément, et le nom de la panne est publié
+    (mesh3d.degraded), jamais avalé en silence."""
+    from app.services import material_store, pricing
+    did = _deck("Info degrade")
+
+    def _casse_disque(*a, **k):
+        raise OSError("disque HS")
+    monkeypatch.setattr(material_store, "list_materials", _casse_disque)
+    r1 = _api("GET", f"/api/cards/{did}/forge3d/info")
+    assert r1.status_code == 200, r1.text
+    b1 = r1.json()
+    assert b1["materials"] == []
+    # le reste du payload reste INTACT : la panne de la boutique ne touche
+    # pas la table des moteurs (les deux dégradent ISOLÉMENT)
+    assert len(b1["mesh3d"]["engines"]) == 7
+    assert b1["mesh3d"]["degraded"] is None
+    monkeypatch.undo()
+
+    def _casse_prix(op, p=None):
+        raise KeyError("meshy_credit_usd")
+    monkeypatch.setattr(pricing, "estimate", _casse_prix)
+    r2 = _api("GET", f"/api/cards/{did}/forge3d/info")
+    assert r2.status_code == 200, r2.text
+    b2 = r2.json()
+    assert b2["mesh3d"]["engines"] == []
+    assert "meshy_credit_usd" in b2["mesh3d"]["degraded"]
+    # la boutique, elle, n'est pas touchée par la panne de prix
+    assert b2["materials"] == []
 
 
 def test_clean_graph_repare_et_ne_leve_jamais():
