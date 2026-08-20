@@ -66,6 +66,21 @@ Stockage : `outputs/decks/{did}/forge3d/nodes/{nid}/` = `job.json`, `upload_src.
 
 ### Task 1: La découpe `forge3d_scene.py` + le writer STL deux-passes (legs 6)
 
+> **LIVRÉE (91e7ddd + correctifs de revue b559512) — amendements actés en revue,
+> qui prévalent sur les extraits ci-dessous :** (1) le test s'appelle
+> `test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_garde_son_contrat_d_octets`
+> et porte EN PLUS un bloc « contrat d'octets de la facette » (en-tête sans
+> horodatage, sommets dans l'ordre, z_mm appliqué, normale unitaire — mutants
+> winding/z_mm/normales/timestamp TUÉS, mesuré) ; (2) l'en-tête STL réel est
+> `f"{name} - millimetres - {total} triangles"` (le code existant avait raison,
+> comme prévu) ; (3) le lint scanne AUSSI le sidecar : `EXTRA_PY = {"forge3d":
+> ["forge3d_scene.py"]}` + `check_r8(..., require_router=False)` pour lui (R8
+> complet sauf l'exigence d'un routeur propre, absent par conception) ; (4) le
+> module porte un avertissement : le test de pureté scanne TOUT le source, le
+> nom du framework HTTP ne doit apparaître nulle part, même en prose ; deux-passes
+> mesuré 267→57 Mo de pic sur 575k triangles (propriété d'implémentation, pas
+> d'assert). Étapes cochées ci-dessous.
+
 **Files:**
 - Create: `backend/app/services/cards/forge3d_scene.py`
 - Modify: `backend/app/services/cards/forge3d.py`
