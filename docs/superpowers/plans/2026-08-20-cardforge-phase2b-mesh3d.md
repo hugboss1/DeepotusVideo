@@ -227,6 +227,21 @@ git commit -m "refactor(cardforge): decoupe forge3d_scene (geometrie pure) + wri
 
 ### Task 2: La grille Meshy 6/7 des DEUX côtés du miroir + helpers serveur (gamme Assets)
 
+> **LIVRÉE (f84fa0a + correctifs de revue 572a1e8/e9f4a78/7ba3449) — amendements
+> actés en revue, qui prévalent sur les extraits ci-dessous :** (1) la restauration
+> de fin de bloc test est `settings.MESHY_MOCK = True` (PAS False — le main() du
+> fichier suppose le mock actif) + `MESHY_MOCK_SPEED = 0.02` restauré ; boucle de
+> poll BORNÉE (500 itérations) via asyncio.run (l'API get_event_loop est dépréciée
+> sur le runtime 3.13) ; (2) le miroir CREDITS est CONFRONTÉ PAR VALEURS via node
+> (96 combinaisons, 0 divergence ; repli substring honnête si node absent) — le
+> substring seul ne confrontait rien ; (3) les helpers tiennent le contrat
+> `meshy:` sur TOUTE panne (httpx.HTTPError enveloppé, `_meshy_detail` message→
+> error→HTTP code+corps tronqué, garde clé absente nommée) et get_task porte
+> allowlist + validation d'id AVANT le dispatch mock ; (4) `ultra` est câblé de
+> bout en bout sur les TROIS méthodes client (textTo3dPreview, imageTo3d,
+> multiImageTo3d → ultra_mode) ET les deux branches de MeshyPipeline.start —
+> partout où le devis compte l'ultra, la requête l'envoie. Étapes cochées.
+
 **Files:**
 - Modify: `backend/app/services/meshy_service.py`
 - Modify: `frontend/meshy/meshy.client.js`
@@ -240,7 +255,7 @@ Grille OFFICIELLE (docs.meshy.ai/en/api/pricing, relevée le 20/08/2026) : image
 5/15. `ai_model` accepté par l'API : meshy-5/meshy-6/meshy-7/latest (vérifié sur
 docs.meshy.ai/en/api/image-to-3d).
 
-- [ ] **Step 1 : asserts en RED dans test_meshy_service.py** (fichier script : ajouter
+- [x] **Step 1 : asserts en RED dans test_meshy_service.py** (fichier script : ajouter
 sous les asserts de grille existants, style du fichier)
 
 ```python
@@ -291,7 +306,7 @@ asyncio/un helper `run`, s'y conformer.)
 
 Run : `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-tests.ps1 -Filter meshy` — FAIL attendu (signatures sans `ultra`, helpers absents).
 
-- [ ] **Step 2 : meshy_service.py — la grille**
+- [x] **Step 2 : meshy_service.py — la grille**
 
 ```python
 def _is_hd_model(ai_model: str, model_type: str) -> bool:
@@ -331,7 +346,7 @@ passer à `credits_text_to_3d_preview(ai_model, model_type, ultra)` et à
 `MeshyMock._credits` : passer `payload.get("ultra_mode")` en `ultra=` aux deux mêmes
 appels (le simulateur facture comme la vraie API).
 
-- [ ] **Step 3 : meshy_service.py — les helpers serveur**
+- [x] **Step 3 : meshy_service.py — les helpers serveur**
 
 Sous `proxy_request` (même section « proxy vers l'API réelle ») :
 
@@ -375,7 +390,7 @@ async def get_task(base: str, task_id: str) -> dict:
     return res
 ```
 
-- [ ] **Step 4 : meshy.client.js — le miroir**
+- [x] **Step 4 : meshy.client.js — le miroir**
 
 Dans le bloc `export const CREDITS` (mêmes valeurs, mêmes conditions ; le test de
 Step 1 vérifie la présence, la discipline du port exact vérifie les chiffres) :
@@ -401,7 +416,7 @@ lit `ultra` de la config et le passe aux deux fonctions ; la méthode `imageTo3d
 client API ajoute `ultra_mode` au corps quand il est vrai — suivre le style de
 construction de corps déjà dans le fichier.)
 
-- [ ] **Step 5 : studio3d.js — l'option meshy-7 (cohérence gamme Assets)**
+- [x] **Step 5 : studio3d.js — l'option meshy-7 (cohérence gamme Assets)**
 
 Trois retouches, style du fichier :
 - ligne du catalogue (~53) : `meta: "meshy-6 · api"` → `meta: "meshy-6/7 · api"` ;
@@ -411,7 +426,7 @@ Trois retouches, style du fichier :
 - la note (~593) : préfixer par « meshy-7 : 30 cr texturé (grille meshy-6), alignement
   image→3D supérieur, ultra +5 cr (exposé dans la Forge 3D des cartes). ».
 
-- [ ] **Step 6 : GREEN + commit**
+- [x] **Step 6 : GREEN + commit**
 
 Run : run-tests -Filter meshy → PASS (toutes les sections du fichier script).
 ```bash
