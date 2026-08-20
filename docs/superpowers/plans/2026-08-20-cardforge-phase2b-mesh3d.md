@@ -454,7 +454,15 @@ git commit -m "feat(assets): grille Meshy 7 + ultra des deux cotes du miroir, he
 > constantes PARTAGÉES avec le payload du job de la Task 4 (une seule vérité) ;
 > (5) tests épinglés : has_meshy/has_fal par égalité, default_engine, une
 > matière réelle listée, les 4 bornes en littéral, verrou de roster
-> `MESH3D_ENGINES(fal) ⊆ asset3d_service.ENGINES`.
+> `MESH3D_ENGINES(fal) ⊆ asset3d_service.ENGINES`. **Résidus de re-revue REPRIS
+> EN TÊTE DE TASK 4** : (a) l'assert d'isolation de la panne de prix doit
+> prouver l'isolation avec une matière témoin PRÉSENTE (pas une boutique vide) ;
+> (b) une panne de la boutique matières est SIGNALÉE (`materials_degraded` au
+> message littéral), pas avalée ; (c) has_meshy piloté par les DEUX états
+> (monkeypatch MESHY_MOCK False→True, assert False puis True), pas un miroir de
+> l'expression. **Report à la Task 7** : l'écran doit avoir une branche pour
+> `engines: []` + `degraded` renseigné (message affiché tel quel, pas un select
+> vide muet).
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d.py`
@@ -462,7 +470,7 @@ git commit -m "feat(assets): grille Meshy 7 + ultra des deux cotes du miroir, he
 - Modify: `backend/app/services/pricing.py`
 - Test: `backend/tests/test_cards_forge3d.py`
 
-- [ ] **Step 1 : tests en RED**
+- [x] **Step 1 : tests en RED**
 
 ```python
 def test_le_vocabulaire_2b_est_identique_des_deux_cotes():
@@ -541,7 +549,7 @@ def test_info_publie_moteurs_prix_matieres_et_bornes():
 
 Run : run-tests -Filter cards_forge3d → FAIL.
 
-- [ ] **Step 2 : pricing.py**
+- [x] **Step 2 : pricing.py**
 
 Dans `DEFAULTS`, sous `rembg_api_usd` :
 ```python
@@ -551,7 +559,7 @@ Dans `DEFAULTS`, sous `rembg_api_usd` :
                                       # vérité comptable est consumed_credits
 ```
 
-- [ ] **Step 3 : forge3d.py — vocabulaire + bornes + clean_graph**
+- [x] **Step 3 : forge3d.py — vocabulaire + bornes + clean_graph**
 
 Bloc miroir (les DEUX côtés, mêmes rangs, commentaires par genre comme l'existant) :
 ```python
@@ -627,7 +635,7 @@ Branches de `clean_graph` (dans la boucle existante, style des branches 2a) :
 (`import material_store` en tête de fichier plutôt qu'en ligne si le style du fichier
 le permet — service partagé, spec §3.5.)
 
-- [ ] **Step 4 : `/info` enrichi**
+- [x] **Step 4 : `/info` enrichi**
 
 ```python
 def _engine_table() -> list[dict]:
@@ -672,14 +680,14 @@ La réponse de `get_info` gagne :
 (`settings` est déjà importé ou s'importe de `app.config` selon l'existant du fichier ;
 `list_materials()` ne lève pas sur boutique vide — elle rend `[]`.)
 
-- [ ] **Step 5 : mettre à jour le test de parité 2a**
+- [x] **Step 5 : mettre à jour le test de parité 2a**
 
 Le test existant `test_le_vocabulaire_du_graphe_est_identique_des_deux_cotes` affirme
 l'ordre 2a (`["layer", "plane", "relief", "assemble", "artifact"]`) : le NOUVEAU test
 le remplace — supprimer l'ancien assert d'ordre (garder le reste du test s'il vérifie
 autre chose, sinon retirer l'ancien test au profit du nouveau, une seule source).
 
-- [ ] **Step 6 : GREEN + commit**
+- [x] **Step 6 : GREEN + commit**
 
 Run : run-tests -Filter cards_forge3d → PASS ; lint --module forge3d → 0.
 ```bash
