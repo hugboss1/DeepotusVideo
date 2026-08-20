@@ -699,6 +699,29 @@ git commit -m "feat(cardforge): vocabulaire 2b (mesh3d/material/transform) en mi
 
 ### Task 4: Le job `mesh3d` — routes, runner fal, runner Meshy, `closed` mesuré UNE fois
 
+> **LIVRÉE (a5578da) — amendements actés, qui PRÉVALENT sur les extraits
+> ci-dessous. FAUTE DU PLAN corrigée par l'implémenteur :** le `_NID_RE` du plan
+> (`^[A-Za-z0-9._-]{1,24}$`) **acceptait `..`** — et `clean_graph` normalise les
+> ids vers ce même charset, donc un nœud nommé `..` survivait au nettoyage ;
+> `_node_dir(did, "..")` remontait sur `forge3d/` et la réinitialisation
+> (`shutil.rmtree`) aurait DÉTRUIT tous les exports du deck en un POST. Régle
+> livrée : `^(?!\.+$)[A-Za-z0-9._-]{1,24}$` + DOUBLE garde de confinement dans
+> `_node_dir` (doctrine `deck_dir` du contrat) — les deux prouvés par mutation.
+> **Autres amendements :** (1) `BackgroundTasks` retenu (sondé empiriquement :
+> `asyncio.create_task` meurt avec la boucle du client de test) ; le task ne
+> démarrant qu'APRÈS l'envoi de la réponse, la route pose un MARQUEUR de
+> lancement dans le registre (expiration `MESH3D_LAUNCH_GRACE_S`) que le runner
+> remplace — sinon un poll rapide déclarait l'orphelin à tort ; (2)
+> `glb_scene_mesh` accepte les primitives NON indexées (dessin légal glTF 2.0 —
+> le tiny_glb du mock en est ; les assertions du plan étaient insatisfiables
+> sinon) en synthétisant `range(count)` ; (3) `glb_triangle_estimate` décide la
+> borne `MESH3D_CLOSED_TRI_MAX` sur les MÉTADONNÉES d'accesseurs AVANT toute
+> allocation ; (4) un GLB imparsable/trop lourd DÉGRADE (`closed: None` +
+> `closed_note`, job `served`) au lieu d'échouer — le binaire est payé ; (5) le
+> 409 de concurrence EST testé (neutraliser le runner tient la fenêtre ouverte) ;
+> (6) GET rend le job à plat, POST rend `{"job": …}` (asymétrie des tests du
+> plan, documentée). Étapes cochées.
+
 **Files:**
 - Modify: `backend/app/services/cards/forge3d.py`
 - Modify: `backend/app/services/cards/forge3d_scene.py` (extraction GLB→mesh)
@@ -1725,6 +1748,19 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
 ---
 
 ### Task 7bis: Fluidité des manipulations à la souris (spec §9.6 — toutes les surfaces de drag du lab)
+
+> **Résidus NOMMÉS de la revue du 20/08 :** (1) molette de zoom P1
+> (mod-face.js:3843) : coalescence DIFFÉRÉE — le geste est INCRÉMENTAL (lit le
+> doc à chaque événement, compose échelle ET point-sous-curseur), la coalescer
+> exige un accumulateur local {scale, x, y} interverrouillé avec le groupage
+> d'annulation wheelArmed/420 ms ; les événements wheel arrivent ≈ à la
+> cadence des frames, le gain est faible devant le risque de casser
+> l'invariant point-sous-curseur (déjà réparé une fois). À rouvrir si un
+> trackpad le prouve nécessaire. (2) le slider `.cf-solid-rg`, lui, EST
+> coalescé (correctifs de revue) — même rangée, même clé, même coût que le
+> champ voisin. (3) `--contract` et la vérification navigateur interactive
+> restent dus à la Task 8 (backend :8765 éteint pendant la tâche — skip
+> honnête, constaté par deux réviseurs).
 
 **Files:**
 - Modify: `frontend/cardforge/js/mod-frame.js` (fenêtre du cadre — la plainte d'origine)
