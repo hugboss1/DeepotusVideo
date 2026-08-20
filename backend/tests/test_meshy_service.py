@@ -438,6 +438,15 @@ async def main():
                 raise AssertionError("aurait dû lever chemin non autorisé")
             except RuntimeError as e:
                 assert "chemin non autorisé" in str(e), str(e)
+            # verrou : clé absente → RuntimeError nommée, jamais un appel voué
+            # au 401 (même client, qui casserait sinon avec ConnectError).
+            settings.MESHY_API_KEY = ""
+            try:
+                await MS.create_task("openapi/v1/image-to-3d", {})
+                raise AssertionError("aurait dû lever MESHY_API_KEY absente")
+            except RuntimeError as e:
+                assert "MESHY_API_KEY absente" in str(e), str(e)
+            settings.MESHY_API_KEY = "msy-test-key"
 
             MS.httpx.AsyncClient = _UnauthClient
             try:
@@ -450,7 +459,7 @@ async def main():
             settings.MESHY_MOCK = True
             settings.MESHY_API_KEY = ""
             MS._mock = None
-        ok("hors mock : ConnectError/401 préfixés meshy:, allowlist get_task sans réseau")
+        ok("hors mock : ConnectError/401 préfixés meshy:, clé absente nommée, allowlist get_task sans réseau")
 
     # garde anti-régression : Game Assets 3D (fal) intact
     from app.services.asset3d_service import ENGINES

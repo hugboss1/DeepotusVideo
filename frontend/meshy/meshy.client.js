@@ -139,9 +139,9 @@ export class MeshyClient {
   }
 
   /** Multi Image to 3D — jusqu'à 4 vues cardinales du même sujet. */
-  multiImageTo3d({ imageUrls, ...rest }) {
+  multiImageTo3d({ imageUrls, ultra = false, ...rest }) {
     return this.request("POST", "/openapi/v1/multi-image-to-3d", clean({
-      image_urls: imageUrls, ...snakeRest(rest)
+      image_urls: imageUrls, ultra_mode: ultra ? true : undefined, ...snakeRest(rest)
     })).then(r => r.result);
   }
 
