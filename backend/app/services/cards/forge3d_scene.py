@@ -282,6 +282,139 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     return out
 
 
+# ── LA RELECTURE — UN GLB DE MOTEUR, RAMENÉ AU TYPE COMMUN (Task 4, 2b) ─────
+# Le writer ci-dessus fabrique nos propres GLB ; ces lecteurs-là relisent ceux
+# des MOTEURS (Meshy, fal), dont nous ne contrôlons pas un octet. C'est ce qui
+# permet de mesurer `closed` UNE fois à l'import (et de le cacher dans le job)
+# au lieu de le redemander à chaque écran — et de refuser un STL MOTIVÉ sur un
+# maillage ouvert, exactement comme la 2a le fait sur nos maillages locaux.
+#
+# DISCIPLINE : ces fonctions lèvent `ValueError` NOMMÉE sur toute entrée
+# douteuse — jamais `struct.error`, `KeyError` ni `IndexError` nus. L'appelant
+# (une route) en fait un refus motivé ; une exception anonyme, elle, devient un
+# 500 (doctrine 2.5 du domaine : jamais 500 sur une donnée d'entrée).
+
+def read_glb(data: bytes) -> tuple[dict, bytes]:
+    """Document JSON + chunk BIN d'un GLB. ValueError NOMMÉE sinon (la route
+    la transforme en refus motivé, jamais un 500).
+
+    Le chunk BIN est FACULTATIF (un GLB peut n'avoir que du JSON) : absent,
+    on rend b"" plutôt que de lever — c'est `glb_scene_mesh` qui décidera si
+    l'absence de géométrie est une faute, avec SON message."""
+    if not isinstance(data, (bytes, bytearray)):
+        raise ValueError("pas un GLB (octets attendus)")
+    data = bytes(data)
+    if len(data) < 20 or data[:4] != b"glTF":
+        raise ValueError("pas un GLB (magie glTF absente)")
+    doc_len = struct.unpack("<I", data[12:16])[0]
+    if 20 + doc_len > len(data):
+        raise ValueError("GLB tronqué (chunk JSON)")
+    try:
+        doc = json.loads(data[20:20 + doc_len].decode("utf-8").rstrip("\x00 "))
+    except (ValueError, UnicodeDecodeError) as e:
+        raise ValueError(f"GLB au document JSON illisible ({e})") from e
+    if not isinstance(doc, dict):
+        raise ValueError("GLB au document JSON qui n'est pas un objet")
+    off = 20 + doc_len
+    binv = b""
+    if off + 8 <= len(data):
+        blen = struct.unpack("<I", data[off:off + 4])[0]
+        binv = data[off + 8:off + 8 + blen]
+    return doc, binv
+
+
+def _accessor_view(doc: dict, idx: int) -> tuple[dict, int]:
+    """(accesseur, offset absolu dans le chunk BIN) — bornes vérifiées."""
+    try:
+        acc = doc["accessors"][idx]
+        bv = doc["bufferViews"][acc["bufferView"]]
+        return acc, int(bv.get("byteOffset", 0)) + int(acc.get("byteOffset", 0))
+    except (KeyError, IndexError, TypeError, ValueError) as e:
+        raise ValueError(f"accesseur {idx!r} illisible ({e})") from e
+
+
+def _accessor_floats(doc: dict, binv: bytes, idx: int) -> list[float]:
+    acc, off = _accessor_view(doc, idx)
+    try:
+        n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
+        return list(struct.unpack_from("<" + "f" * (int(acc["count"]) * n),
+                                       binv, off))
+    except (KeyError, TypeError, ValueError, struct.error) as e:
+        raise ValueError(f"accesseur flottant {idx!r} illisible ({e})") from e
+
+
+def _accessor_indices(doc: dict, binv: bytes, idx: int) -> list[int]:
+    acc, off = _accessor_view(doc, idx)
+    try:
+        fmt = {5121: "B", 5123: "H", 5125: "I"}[acc["componentType"]]
+        return list(struct.unpack_from("<" + fmt * int(acc["count"]), binv, off))
+    except (KeyError, TypeError, ValueError, struct.error) as e:
+        raise ValueError(f"accesseur d'indices {idx!r} illisible ({e})") from e
+
+
+def _triangle_prims(doc: dict):
+    """Les primitives TRIANGLES du document (mode 4, le défaut glTF)."""
+    for mesh in doc.get("meshes") or []:
+        if not isinstance(mesh, dict):
+            continue
+        for prim in mesh.get("primitives") or []:
+            if isinstance(prim, dict) and prim.get("mode", 4) == 4:
+                yield prim
+
+
+def glb_triangle_estimate(doc: dict) -> int:
+    """Le nombre de triangles ANNONCÉ par les accesseurs — sans décoder un
+    seul octet de géométrie. Les bornes AVANT décodage sont la doctrine du
+    domaine : `mesh_measures` alloue ~3 entrées de dictionnaire par triangle,
+    décider APRÈS avoir tout déplié serait décider trop tard."""
+    total = 0
+    for prim in _triangle_prims(doc):
+        ai = prim.get("indices")
+        if ai is None:
+            ai = (prim.get("attributes") or {}).get("POSITION")
+        try:
+            total += int(doc["accessors"][ai]["count"]) // 3
+        except (KeyError, IndexError, TypeError, ValueError):
+            continue                 # un accesseur illisible sera NOMMÉ plus bas
+    return total
+
+
+def glb_scene_mesh(data: bytes) -> dict:
+    """Concatène POSITION+indices de TOUTES les primitives triangles d'un GLB
+    en un mesh {positions, indices} pour `mesh_measures`/STL. Les transforms de
+    nœuds INTERNES sont ignorés (les GLB des moteurs sont un maillage centré —
+    limitation documentée ; le bordereau relit les octets de toute façon).
+    ValueError nommée si rien n'est mesurable.
+
+    Une primitive SANS `indices` n'est PAS une faute : glTF 2.0 la définit
+    comme un tirage NON INDEXÉ, ses sommets se suivant dans l'ordre. Le GLB du
+    simulateur Meshy est exactement cela (un triangle nu) — la refuser ferait
+    échouer une mesure parfaitement calculable."""
+    doc, binv = read_glb(data)
+    positions: list[float] = []
+    indices: list[int] = []
+    for prim in _triangle_prims(doc):
+        attrs = prim.get("attributes")
+        if not isinstance(attrs, dict) or "POSITION" not in attrs:
+            raise ValueError("primitive triangle sans POSITION")
+        base = len(positions) // 3
+        pts = _accessor_floats(doc, binv, attrs["POSITION"])
+        positions += pts
+        if prim.get("indices") is None:
+            indices += list(range(base, base + len(pts) // 3))
+        else:
+            indices += [base + i
+                        for i in _accessor_indices(doc, binv, prim["indices"])]
+    if not indices:
+        raise ValueError("aucune primitive triangle dans le GLB")
+    # dernier garde-fou AVANT que `mesh_measures` n'indexe : un indice hors
+    # bornes (GLB de moteur malformé) y lèverait un IndexError nu — donc un
+    # 500 chez l'appelant, exactement ce que ce module s'interdit.
+    if (max(indices) + 1) * 3 > len(positions):
+        raise ValueError("GLB aux indices hors bornes (maillage incohérent)")
+    return {"positions": positions, "indices": indices}
+
+
 # ── L'IMPRESSION 3D — STL LOCAL (Task 4) ────────────────────────────────────
 # `_write_stl_binary` : copie RÉDUITE du principe de `gltf.py:build_stl`
 # (règle 8, zéro import pièce->pièce, même patron que le reste de ce
