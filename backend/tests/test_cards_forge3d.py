@@ -1066,10 +1066,16 @@ def test_les_elements_ignores_du_graphe_sont_avoues_au_bordereau():
         {"id": "t1", "kind": "plane", "depth_mm": 0.0},
         # t2 : orphelin, aucune arete entrante — a cote d'une chaine valide
         {"id": "t2", "kind": "plane", "depth_mm": 0.0},
+        # s4/t4 : source VALIDE mais t4 ne rejoint AUCUN assemble — motif
+        # distinct du "sans source" ci-dessus (revue : decouvert non teste)
+        {"id": "s4", "kind": "layer", "role": "typographie", "side": "front"},
+        {"id": "t4", "kind": "relief", "depth_mm": 0.5, "base_mm": 0.3,
+         "grid": 48},
         {"id": "asm", "kind": "assemble"},
         {"id": "art", "kind": "artifact", "name": "ignores3d"}],
         "edges": [{"from": "s1", "to": "t1"}, {"from": "s1b", "to": "t1"},
-                  {"from": "t1", "to": "asm"}, {"from": "asm", "to": "art"}]}
+                  {"from": "t1", "to": "asm"}, {"from": "asm", "to": "art"},
+                  {"from": "s4", "to": "t4"}]}
     r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
               json={"graph": graphe, "card": 0})
     assert r2.status_code == 200, r2.text
@@ -1081,12 +1087,16 @@ def test_les_elements_ignores_du_graphe_sont_avoues_au_bordereau():
     racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
     assert [doc["nodes"][k]["name"] for k in racine["children"]] == ["cadre"]
 
-    # le PERDANT (s1b) et l'ORPHELIN (t2) sont tous deux avoues, chacun avec
-    # un motif nomme, non vide
+    # le PERDANT (s1b), l'ORPHELIN (t2) et le NON-RELIE-A-UN-ASSEMBLE (t4)
+    # sont tous avoues, chacun avec un motif nomme, non vide
     ignores_par_noeud = {i["node"]: i["why"] for i in b["ignored"]}
-    assert set(ignores_par_noeud) == {"s1b", "t2"}
+    assert set(ignores_par_noeud) == {"s1b", "t2", "t4"}
     assert isinstance(ignores_par_noeud["s1b"], str) and ignores_par_noeud["s1b"]
     assert isinstance(ignores_par_noeud["t2"], str) and ignores_par_noeud["t2"]
+    # t4 a une source valide (s4) MAIS ne rejoint aucun assemble : motif
+    # distinct de celui de t2 (t2 n'a AUCUNE source), jusqu'ici jamais
+    # verifie par une assertion — decouvert en revue.
+    assert "non relie a un assemble" in ignores_par_noeud["t4"]
 
     # un graphe SANS rien a ignorer rend une liste VIDE, jamais absente
     graphe_propre = {"nodes": [
@@ -1100,6 +1110,31 @@ def test_les_elements_ignores_du_graphe_sont_avoues_au_bordereau():
               json={"graph": graphe_propre, "card": 0})
     assert r3.status_code == 200, r3.text
     assert r3.json()["artifact"]["ignored"] == []
+
+
+def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
+    """Test de SOURCE (Tache 5) : l'ecran ne peut pas exister sans ces
+    quatre engagements — un rang par noeud de traitement construit depuis
+    `defaultGraph`, un POST `build3d` qui part avec le graphe de l'etat et
+    peint le bordereau depuis la reponse (`artifact`), un apercu REEL
+    (model-viewer, jamais un rendu invente), une capture qui part au
+    serveur (`toBlob` + `preview/`) et un motif STL affiche TEL QUEL."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # un rang par couche : traitement + profondeur, bornés par /info (jamais
+    # de bornes recopiées en dur dans le HTML)
+    assert 'id="cf-forge3d-graph"' in rendu
+    assert "defaultGraph(" in rendu
+    # le POST part avec le graphe de l'état, la réponse peint le bordereau
+    corps = rendu.split("async function build3d(")[1].split("\n  }")[0]
+    assert 'M.api.post("build3d"' in corps
+    assert "artifact" in corps
+    # l'aperçu est le VRAI fichier livré, chargé dans model-viewer par blob
+    assert "model-viewer" in rendu
+    # la capture d'aperçu part au serveur (rien n'est rendu côté serveur)
+    assert "toBlob" in rendu and "preview/" in rendu
+    # STL refusé : le motif du backend est AFFICHÉ, jamais réécrit
+    assert "stl.why" in rendu or 'stl["why"]' in rendu or "stl && !" in rendu
 
 
 if __name__ == "__main__":

@@ -1,5 +1,25 @@
 /* P9 Forge 3D — règle 4 : tout sélecteur contient .cf-forge3d */
+.cf-forge3d .cf-forge3d-wrap { display: flex; flex-direction: column; gap: 12px; }
 .cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; }
-.cf-forge3d .cf-forge3d-h { margin-bottom: 8px; }
+.cf-forge3d .cf-forge3d-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.cf-forge3d .cf-forge3d-h > .btn { margin-left: auto; }
 .cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }
+
+/* ── le graphe : une liste de rangs, pas un canvas nodal (Task 5) ────────── */
+.cf-forge3d .cf-forge3d-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px dashed var(--stroke); }
+.cf-forge3d .cf-forge3d-row:last-child { border-bottom: none; }
+.cf-forge3d .cf-forge3d-role { min-width: 100px; text-transform: uppercase; font-size: 10.5px; letter-spacing: .06em; color: var(--ink-strong); }
+.cf-forge3d .cf-forge3d-kind, .cf-forge3d .cf-forge3d-side { font: inherit; }
+.cf-forge3d .cf-forge3d-num { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); }
+.cf-forge3d .cf-forge3d-num input { width: 62px; }
+.cf-forge3d .cf-forge3d-num i { font-style: normal; }
+
+/* ── le bordereau de build3d : un fichier par ligne, provenance connue ───── */
+.cf-forge3d .cf-forge3d-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
+.cf-forge3d .cf-forge3d-ignored { margin: 4px 0 0; padding-left: 18px; }
+.cf-forge3d .cf-forge3d-ignored li { padding: 1px 0; }
+
+/* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
+.cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }
+.cf-forge3d .cf-forge3d-view model-viewer { width: 100%; height: 300px; display: block; }
