@@ -1661,6 +1661,10 @@ async def get_mesh3d(did: str, nid: str):
         job.update({"status": "failed", "step": "Interrompu",
                     "error": "interrompu (aucune tache vivante) - "
                              "relancer le noeud",
+                    # l'aveu est DÉFINITIF : un runner en retard ne peut plus
+                    # le contredire — sa clôture échoue et il abandonne sans
+                    # dépenser.
+                    "run_id": None,
                     "finished": _iso_now()})
         try:
             await asyncio.to_thread(_job_write, did, nid, job)

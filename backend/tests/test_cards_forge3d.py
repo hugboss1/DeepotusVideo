@@ -2104,7 +2104,7 @@ def test_les_refus_du_job_mesh3d_sont_nommes(monkeypatch):
     assert (deck_dir(did) / "forge3d" / "illustration_c01_front.png").is_file()
 
 
-def test_un_job_running_orphelin_apres_redemarrage_est_avoue():
+def test_un_job_running_orphelin_apres_redemarrage_est_avoue(monkeypatch):
     """Le registre mémoire ne survit pas au processus : un `running` sur
     disque sans tâche vivante est un ORPHELIN — avoué, jamais laissé tourner
     en rond dans l'écran."""
@@ -2114,8 +2114,9 @@ def test_un_job_running_orphelin_apres_redemarrage_est_avoue():
     base = _dossier_noeud(did, "m1")
     base.mkdir(parents=True, exist_ok=True)
     (base / "job.json").write_text(json.dumps(
-        {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "meshy-7",
-         "status": "running", "progress": 50}), encoding="utf-8")
+        {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "tripo",
+         "run_id": "d" * 32, "status": "running", "progress": 50}),
+        encoding="utf-8")
 
     # L'AUTRE moitié du garde-fou, celle qui ne doit PAS se déclencher : tant
     # que le marqueur de lancement est frais (la tâche de fond n'a pas encore
@@ -2144,6 +2145,27 @@ def test_un_job_running_orphelin_apres_redemarrage_est_avoue():
     # quel (sinon l'écran verrait « running » à chaque rechargement).
     disque = json.loads((base / "job.json").read_text(encoding="utf-8"))
     assert disque["status"] == "failed" and "interrompu" in disque["error"]
+
+    # ...et il est DÉFINITIF : le run_id est invalidé, donc un runner en retard
+    # (envoi de réponse resté coincé au-delà de la péremption du marqueur) qui
+    # démarrerait enfin ne peut PLUS contredire ce que l'écran vient de
+    # montrer — sa clôture échoue et il abandonne SANS DÉPENSER.
+    assert r.json()["run_id"] is None
+    assert disque["run_id"] is None
+    from app.services import asset3d_service as A3D
+
+    async def jamais(*a, **k):
+        raise AssertionError("un runner en retard ne doit RIEN depenser")
+
+    monkeypatch.setattr(A3D, "_upload", jamais)
+    monkeypatch.setattr(A3D, "_run_engine", jamais)
+    fige = (base / "job.json").read_bytes()
+    asyncio.run(F9._run_mesh3d(
+        did, "m1", {"id": "m1", "kind": "mesh3d", "engine": "tripo",
+                    "texture_prompt": "", "ultra": False}, "fal",
+        {"role": "illustration", "side": "front",
+         "file": "illustration_c01_front.png", "sha256": None}, "d" * 32))
+    assert (base / "job.json").read_bytes() == fige, "l'aveu a ete contredit"
 
 
 def test_le_marqueur_de_lancement_protege_le_job_qui_demarre(monkeypatch):
