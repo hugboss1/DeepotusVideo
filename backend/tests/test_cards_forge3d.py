@@ -1046,15 +1046,71 @@ def test_le_glb_assemble_est_relisible_par_un_lecteur_tiers():
     vérifier sans lui : la cohérence RÉFÉRENTIELLE du document — chaque
     index cité (bufferView, byteOffset+byteLength, material, image) reste
     DANS les bornes des tableaux qu'il vise. Ce n'est pas une conformité
-    glTF complète, seulement des invariants de cohérence croisée."""
+    glTF complète, seulement des invariants de cohérence croisée.
+
+    SCÈNE MIXTE (revue Task 5) : parmi les six quads, l'un porte une finition
+    et un autre une matière. C'est la SEULE configuration où les index
+    d'images, de textures et d'accesseurs peuvent dériver les uns des autres —
+    un élément habillé en insère deux à trois AU MILIEU de la boucle. Les
+    quatre autres doivent rester, au champ près, des éléments de la 2a."""
     from PIL import Image
     from app.services.cards import forge3d as F9
     png = io.BytesIO(); Image.new("RGBA", (4, 4), (10, 20, 30, 255)).save(png, "PNG")
+    fin = F9.holo_finish("argent", aniso=True, out_px=64)
+    mm = F9.material_pngs({"normal": Image.new("RGB", (8, 8), (128, 128, 255)),
+                           "roughness": Image.new("L", (8, 8), 90),
+                           "ao": Image.new("L", (8, 8), 210)})
     elements = [{"name": f"e{i}", "mesh": F9.quad_mesh(63.0, 88.0),
                 "png": png.getvalue(), "alpha": bool(i % 2), "z_mm": float(i)}
                for i in range(6)]
+    elements[2]["finish"] = fin
+    elements[4]["mat_maps"] = mm
     glb = F9.write_scene_glb(elements, name="six", extras={})
     doc, binv = _read_glb(glb)
+
+    # 1. les éléments NUS restent des éléments de la 2a — aucune contagion
+    for i in (0, 1, 3, 5):
+        m = doc["materials"][doc["meshes"][i]["primitives"][0]["material"]]
+        assert "extensions" not in m, i
+        assert "normalTexture" not in m and "occlusionTexture" not in m, i
+        assert m["pbrMetallicRoughness"]["roughnessFactor"] == 0.9, i
+        assert "TANGENT" not in doc["meshes"][i]["primitives"][0]["attributes"]
+    # 2. le document ne déclare QUE ce qui a réellement servi
+    assert set(doc["extensionsUsed"]) == {"KHR_materials_iridescence",
+                                          "KHR_materials_clearcoat",
+                                          "KHR_materials_anisotropy"}
+    assert "extensionsRequired" not in doc
+    # 3. chaque élément pointe SA propre image de couche, dans l'ordre : les
+    #    six PNG sont octet pour octet identiques et NE SONT PAS mutualisés
+    #    (l'identité des couches est un contrat de la 2a).
+    for i in range(6):
+        m = doc["materials"][doc["meshes"][i]["primitives"][0]["material"]]
+        src = doc["textures"][
+            m["pbrMetallicRoughness"]["baseColorTexture"]["index"]]["source"]
+        assert doc["images"][src]["name"] == f"e{i}", i
+    # 4. les textures de matière d'e4 portent SES noms, pas ceux d'un voisin
+    m4 = doc["materials"][doc["meshes"][4]["primitives"][0]["material"]]
+    assert "metallicRoughnessTexture" in m4["pbrMetallicRoughness"]
+    for cle, suffixe in (("normalTexture", "-normal"),
+                         ("occlusionTexture", "-ao")):
+        src = doc["textures"][m4[cle]["index"]]["source"]
+        assert doc["images"][src]["name"] == "e4" + suffixe
+    # 5. bornes EXACTES sur TOUS les accesseurs flottants, TANGENT compris —
+    #    la table de types du test 2a n'a pas d'entrée VEC4 : ce contrôle-ci
+    #    est le seul qui couvre l'accesseur ajouté par une finition.
+    import struct as _s2
+    for acc in doc["accessors"]:
+        if acc.get("componentType") != 5126:
+            continue
+        n = {"VEC4": 4, "VEC3": 3, "VEC2": 2, "SCALAR": 1}[acc["type"]]
+        bv = doc["bufferViews"][acc["bufferView"]]
+        off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
+        lo = [float("inf")] * n; hi = [float("-inf")] * n
+        for e in range(acc["count"]):
+            vals = _s2.unpack_from("<" + "f" * n, binv, off + e * n * 4)
+            for c in range(n):
+                lo[c] = min(lo[c], vals[c]); hi[c] = max(hi[c], vals[c])
+        assert acc["min"] == lo and acc["max"] == hi, acc["type"]
     try:
         import pygltflib
     except ImportError:
@@ -2317,11 +2373,35 @@ def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
     for s in doc["samplers"]:
         assert s["wrapS"] == 33071 and s["wrapT"] == 33071
 
+    # UNE FINITION SAUTE LE PACK MR (décision de revue Task 5). glTF MULTIPLIE
+    # facteur x texture : garder les deux donnerait rugosité = 0,12 x G/255 —
+    # une dorure posée sur une matière mate virerait au miroir noir, l'inverse
+    # de ce que les deux réglages disent séparément. Sémantique : la feuille
+    # holo REMPLACE la micro-surface, le RELIEF et l'OCCLUSION parlent encore.
+    el2 = dict(el, name="sceau",
+               finish=SC.holo_finish("dorure", aniso=False, out_px=64))
+    doc2, _ = _read_glb(SC.write_scene_glb([el2], name="x", extras={}))
+    m2 = doc2["materials"][0]
+    pbr2 = m2["pbrMetallicRoughness"]
+    assert "metallicRoughnessTexture" not in pbr2          # sauté, pas empilé
+    assert pbr2["roughnessFactor"] == 0.12 and pbr2["metallicFactor"] == 1.0
+    assert pbr2["baseColorFactor"] == [1.0, 0.84, 0.55, 1.0]
+    assert "normalTexture" in m2 and "occlusionTexture" in m2   # relief + AO
+    # la map MR n'est même plus EMBARQUÉE : rien ne la référencerait
+    assert not any(im["name"].endswith("-mr") for im in doc2["images"])
+
 
 def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe():
     """Une matière de la boutique, tuilée à tile_mm sur le ratio carte :
     mêmes octets à chaque appel ; le motif se répète au pas attendu.
-    (tile_maps vit dans forge3d.py — décision de pureté du module scène.)"""
+    (tile_maps vit dans forge3d.py — décision de pureté du module scène.)
+
+    COTES À DIVISION EXACTE (correctif de revue Task 5) : 64x128 mm, pas de
+    32 mm, 256 px -> toile 128x256, tuile de 64 px. La première version
+    comparait x et x + W//2 sur 183 px de large pour une tuile de 92 — DEUX
+    TEXELS QUI NE SE CORRESPONDENT PAS, d'un texel près ; l'assertion ne
+    tenait que parce que la map demandée (`roughness`) était UNIFORME. Ici on
+    compare des TUILES ENTIÈRES, sur la map qui porte vraiment un motif."""
     from app.services import material_store as MSTORE
     from app.services.cards import forge3d as F9
     mat = MSTORE.create_material(name="essai-2b")
@@ -2330,19 +2410,35 @@ def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe():
         tuile.paste(Image.new("RGB", (8, 8), (250, 250, 250)), (0, 0))
         MSTORE.save_maps(mat["id"], {"basecolor": tuile,
                                      "roughness": Image.new("L", (64, 64), 100)})
-        a = F9.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
-                         w_mm=63.0, h_mm=88.0, out_px=256)
-        b = F9.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
-                         w_mm=63.0, h_mm=88.0, out_px=256)
-        assert a["roughness"].tobytes() == b["roughness"].tobytes()
-        # 63 mm / 31.5 mm = 2 tuiles sur la largeur : (x) et (x + w/2) pareils
-        im = a["roughness"]
-        w, h = im.size
-        assert im.getpixel((3, 3)) == im.getpixel((3 + w // 2, 3))
-        # matière introuvable -> ValueError nommée
+        a = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=32.0,
+                         w_mm=64.0, h_mm=128.0, out_px=256)
+        b = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=32.0,
+                         w_mm=64.0, h_mm=128.0, out_px=256)
+        assert a["basecolor"].tobytes() == b["basecolor"].tobytes()
+        im = a["basecolor"]
+        assert im.size == (128, 256)          # ratio carte, division exacte
+        # 64 mm / 32 mm = 2 tuiles de 64 px : les tuiles voisines sont
+        # identiques OCTET POUR OCTET, à l'horizontale comme à la verticale.
+        coin = im.crop((0, 0, 64, 64)).tobytes()
+        assert im.crop((64, 0, 128, 64)).tobytes() == coin
+        assert im.crop((0, 64, 64, 128)).tobytes() == coin
+        # ...et le motif est bien LÀ : sans ça les égalités ci-dessus seraient
+        # vraies d'une toile unie (le piège exact de la version précédente).
+        assert im.getpixel((2, 2))[0] > im.getpixel((40, 40))[0] + 100
         import pytest as _pt
+        # matière introuvable -> ValueError nommée
         with _pt.raises(ValueError):
-            F9.tile_maps("mat_inexistant00", ("roughness",), 63.0, 63.0, 88.0)
+            F9.tile_maps("mat_inexistant00", ("basecolor",), 63.0, 63.0, 88.0)
+        # cote nulle, négative, ou PAS NUMÉRIQUE : refus NOMMÉ — jamais un
+        # ZeroDivisionError ni un TypeError nus (ce serait un 500).
+        for cotes in ((0.0, 63.0, 88.0), (31.5, -1.0, 88.0),
+                      (31.5, 63.0, 0.0), ("31,5", 63.0, 88.0)):
+            with _pt.raises(ValueError):
+                F9.tile_maps(mat["id"], ("basecolor",), *cotes)
+        # out_px borné au MÊME plafond que les finitions (bornes symétriques)
+        gros = F9.tile_maps(mat["id"], ("basecolor",), 32.0, 64.0, 64.0,
+                            out_px=99999)["basecolor"]
+        assert gros.size == (F9.HOLO_PX[1], F9.HOLO_PX[1]) == (2048, 2048)
     finally:
         MSTORE.delete_material(mat["id"])
 
@@ -2381,6 +2477,19 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     assert "TANGENT" in prim["attributes"]
     acc = doc["accessors"][prim["attributes"]["TANGENT"]]
     assert acc["type"] == "VEC4" and acc["count"] == 4
+    # LE SIGNE DE w : -1, PAS +1 — relu dans les OCTETS, pas déduit du code.
+    # Nos UV sont inversées en v (`quad_mesh`), donc dP/dv = -y quand
+    # cross(N, T) = cross(+z, +x) = +y : la règle glTF (w = signe de
+    # dot(cross(N,T), B)) donne -1, ce que `gltf_builder.py:485` calcule déjà
+    # pour les maillages du dépôt. Avec +1 le champ anisotrope devient RADIAL
+    # sur les diagonales et le vert d'une normal map s'inverse.
+    bvt = doc["bufferViews"][acc["bufferView"]]
+    offt = bvt.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    for k in range(acc["count"]):
+        tx, ty, tz, tw = struct.unpack_from("<4f", binv, offt + k * 16)
+        assert (tx, ty, tz) == (1.0, 0.0, 0.0), (k, tx, ty, tz)
+        assert tw == -1.0, (k, tw)
+    assert acc["min"][3] == -1.0 and acc["max"][3] == -1.0
     # l'épaisseur varie AUTOUR du centre : 4 angles -> >= 3 valeurs G distinctes
     img_idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
     bv = doc["bufferViews"][doc["images"][img_idx]["bufferView"]]
@@ -2390,6 +2499,25 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     gs = {tex.getpixel((cx + r, cy))[1], tex.getpixel((cx - r, cy))[1],
           tex.getpixel((cx, cy + r))[1], tex.getpixel((cx + int(r * 0.7), cy + int(r * 0.7)))[1]}
     assert len(gs) >= 3, gs
+    # LE PEIGNE EST TANGENT AU PÉRIMÈTRE, pas radial : le produit scalaire
+    # (R-127,5 ; G-127,5).(dx ; dy) est nul aux arrondis près (borne exacte :
+    # 0,5 par canal). Un champ RADIAL — ce que produirait une tangente de
+    # mauvaise main — y donnerait ~127,5 x r, deux ordres de grandeur plus
+    # haut. C'est CE test qui sépare le métal brossé en cercle du nœud
+    # papillon, l'assertion sur les secteurs ne le voit pas.
+    i_ani = doc["textures"][ani["anisotropyTexture"]["index"]]["source"]
+    bva = doc["bufferViews"][doc["images"][i_ani]["bufferView"]]
+    tex_a = Image.open(io.BytesIO(
+        binv[bva["byteOffset"]:bva["byteOffset"] + bva["byteLength"]]))
+    ca = tex_a.size[0] // 2
+    for dx, dy in ((60, 0), (0, 60), (42, 42), (-42, 42), (-55, -20),
+                   (30, -70), (-70, 30)):
+        rr, gg, bb = tex_a.getpixel((ca + dx, ca + dy))[:3]
+        scal = (rr - 127.5) * dx + (gg - 127.5) * dy
+        assert abs(scal) <= 0.5 * (abs(dx) + abs(dy)) + 1.0, (dx, dy, scal)
+        # et le canal B reste à 255 : l'extension MULTIPLIE la force par lui,
+        # à 0 la finition serait invisible partout (amendement Task 5).
+        assert bb == 255, (dx, dy, bb)
     # la dorure a SA recette
     fd = SC.holo_finish("dorure", aniso=False, out_px=128)
     assert fd["pbr"]["baseColorFactor"] == [1.0, 0.84, 0.55, 1.0]
@@ -2402,6 +2530,83 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
            "alpha": True, "z_mm": 0.0}
     doc2, _ = _read_glb(SC.write_scene_glb([el2], name="x", extras={}))
     assert "extensionsUsed" not in doc2 and "extensions" not in doc2["materials"][0]
+    # LES DEUX GARDES, PROUVÉES et pas seulement écrites (revue Task 5) : une
+    # finition inconnue est REFUSÉE (la remplacer en douce par l'argent
+    # livrerait une carte fausse sans que personne le sache), et out_px est
+    # ramené au plafond §6.2bis au lieu de cuire 4096² pour rien.
+    with pytest.raises(ValueError):
+        SC.holo_finish("cuivre", aniso=False, out_px=128)
+    borne = SC.holo_finish("argent", aniso=False, out_px=99999)
+    assert Image.open(io.BytesIO(borne["iridescence"]["png"])).size == \
+        (SC.HOLO_PX[1], SC.HOLO_PX[1]) == (2048, 2048)
+    assert Image.open(io.BytesIO(
+        SC.holo_finish("argent", aniso=False, out_px=1)["iridescence"]["png"]
+    )).size == (SC.HOLO_PX[0], SC.HOLO_PX[0])
+
+
+def test_l_anisotropie_exige_un_maillage_aux_uv_alignees():
+    """Garde Task 6 : la tangente CONSTANTE du writer n'est vraie que sur les
+    maillages du lab (plans et reliefs, u sur +x). Sur un maillage de moteur
+    (mesh3d, UV dépaquetées par un atlas) elle peignerait n'importe comment —
+    refus NOMMÉ plutôt qu'un reflet faux livré sans un mot."""
+    from app.services.cards import forge3d_scene as SC
+    png = io.BytesIO(); Image.new("RGBA", (4, 4), (7, 7, 7, 255)).save(png, "PNG")
+    # les maillages du lab PORTENT le drapeau, les deux
+    assert SC.quad_mesh(63.0, 88.0)["uv_axis_aligned"] is True
+    assert SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0,
+                          1.0, 0.3, 4)["uv_axis_aligned"] is True
+    etranger = {"positions": [0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0, 1.0, 0.0],
+                "normals": [0.0, 0.0, 1.0] * 3, "uvs": [0.0] * 6,
+                "indices": [0, 1, 2]}
+    base = {"name": "moteur", "mesh": etranger, "png": png.getvalue(),
+            "alpha": False, "z_mm": 0.0}
+    with pytest.raises(ValueError) as e:
+        SC.write_scene_glb([dict(base, finish=SC.holo_finish(
+            "argent", aniso=True, out_px=64))], name="x", extras={})
+    assert "uv" in str(e.value).lower()
+    # SANS anisotropie, le même maillage étranger passe : ni l'iridescence ni
+    # le clearcoat n'ont besoin d'une tangente.
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [dict(base, finish=SC.holo_finish("argent", aniso=False, out_px=64))],
+        name="x", extras={}))
+    assert set(doc["extensionsUsed"]) == {"KHR_materials_iridescence",
+                                          "KHR_materials_clearcoat"}
+    assert "TANGENT" not in doc["meshes"][0]["primitives"][0]["attributes"]
+    # un paquet de finition MAL FORMÉ dégrade en « pas de finition » : jamais
+    # un .get sur un booléen, jamais un 500 sur une donnée d'entrée.
+    doc2, _ = _read_glb(SC.write_scene_glb(
+        [dict(base, finish={"anisotropy": True, "clearcoat": "oui",
+                            "iridescence": None, "pbr": 3})],
+        name="x", extras={}))
+    assert "extensions" not in doc2["materials"][0]
+    assert "extensionsUsed" not in doc2
+
+
+def test_les_textures_de_finition_sont_mutualisees_pas_celles_des_couches():
+    """Deux éléments finis à la MÊME recette portent les mêmes octets
+    d'iridescence : les embarquer deux fois double le GLB pour rien. Le
+    partage s'arrête aux textures de matière et de finition — le PNG de
+    COUCHE garde son image propre, même identique à celle du voisin
+    (l'identité des couches est un contrat de la 2a)."""
+    from app.services.cards import forge3d_scene as SC
+    png = io.BytesIO(); Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    fin = SC.holo_finish("argent", aniso=True, out_px=64)
+    els = [{"name": f"s{i}", "mesh": SC.quad_mesh(63.0, 88.0),
+            "png": png.getvalue(), "alpha": False, "z_mm": float(i),
+            "finish": fin} for i in range(3)]
+    doc, _ = _read_glb(SC.write_scene_glb(els, name="x", extras={}))
+    noms = [im["name"] for im in doc["images"]]
+    # 3 couches distinctes + 1 iridescence + 1 anisotropie, PAS 3 + 3 + 3
+    assert noms == ["s0", "s0-iridescence", "s0-anisotropie", "s1", "s2"], noms
+    # ...et les trois matériaux visent bien LA texture partagée
+    cibles = {doc["materials"][i]["extensions"]
+              ["KHR_materials_iridescence"]["iridescenceThicknessTexture"]["index"]
+              for i in range(3)}
+    assert len(cibles) == 1, cibles
+    # chaque élément garde SA propre couche
+    bases = {doc["materials"][i]["pbrMetallicRoughness"]
+             ["baseColorTexture"]["index"] for i in range(3)}
+    assert len(bases) == 3, bases
 
 
 def test_le_transform_porte_le_trs_du_noeud():

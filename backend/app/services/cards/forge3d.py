@@ -37,7 +37,7 @@ from .contract import deck_dir
 from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
-                            material_pngs, holo_finish, HOLO_KINDS)
+                            material_pngs, holo_finish, HOLO_KINDS, HOLO_PX)
 
 router = APIRouter()
 
@@ -118,7 +118,10 @@ MESH3D_CLOSED_TRI_MAX = 1_500_000     # au-delà : closed=None (« non mesuré �
 MAX_EXT_GLB_BYTES = 64 * 1024 * 1024  # même chiffre que MAX_LAYER_BYTES
 
 MATERIAL_TILE_MM = (10.0, 200.0)
-MATERIAL_FINISHES = ("aucune", "argent", "dorure")
+# UNE seule vérité pour les finitions : les recettes vivent dans le module
+# scène, l'écran en reçoit la liste par /info. « aucune » est le seul mot que
+# ce fichier ajoute (l'absence de finition n'est pas une recette).
+MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -458,13 +461,24 @@ def tile_maps(mid, kinds, tile_mm, w_mm, h_mm, out_px=1024):
     motif.
 
     `mid` introuvable -> ValueError NOMMÉE (l'appelant en fait un refus motivé,
-    jamais un 500 — doctrine 2.5). Idem pour une cote nulle ou négative : les
-    trois divisions ci-dessous lèveraient sinon un ZeroDivisionError NU, donc
-    un 500, sur une simple donnée d'entrée."""
+    jamais un 500 — doctrine 2.5). Idem pour une cote nulle, négative ou pas
+    numérique du tout : les cotes passent d'abord par `_num` (qui ne lève
+    JAMAIS — une chaîne y devient 0.0), et c'est la garde de positivité qui
+    refuse, NOMMÉMENT. Sans ce passage, `"31,5"` sortait en TypeError nu sur
+    la comparaison, et les trois divisions plus bas en ZeroDivisionError :
+    deux 500 sur une simple donnée d'entrée.
+
+    `out_px` est borné à `SC.HOLO_PX` (8..2048) — LE MÊME plafond que les
+    finitions, exprès : les deux textures habillent la même carte, un plafond
+    dissymétrique n'aurait aucun sens (bornes symétriques, revue Task 5)."""
     from app.services import material_store as MSTORE
+    tile_mm = _num(tile_mm, 0.0, -1e6, 1e6)
+    w_mm = _num(w_mm, 0.0, -1e6, 1e6)
+    h_mm = _num(h_mm, 0.0, -1e6, 1e6)
     if tile_mm <= 0 or w_mm <= 0 or h_mm <= 0:
         raise ValueError(f"cotes de tuilage invalides : tile={tile_mm} "
                          f"w={w_mm} h={h_mm} (toutes strictement positives)")
+    out_px = int(_num(out_px, 1024.0, *HOLO_PX))
     mat = MSTORE.read_material(mid)
     if mat is None:
         raise ValueError(f"matière introuvable : {mid}")
@@ -488,7 +502,15 @@ def tile_maps(mid, kinds, tile_mm, w_mm, h_mm, out_px=1024):
         # raison d'être de cette fonction. Coût connu : une normale
         # rééchantillonnée n'est plus exactement unitaire (`resize_maps`, lui,
         # renormalise) ; l'écart est sous le bruit d'un octet à ces tailles.
-        tuile = src.resize((tpx, tpx))
+        #
+        # Filtre EXPLICITE, convention de `material_store.resize_maps:1033` :
+        # LANCZOS pour les maps de couleur, BICUBIC pour les maps de données.
+        # Le défaut de PIL a déjà changé d'une version à l'autre — l'implicite
+        # ferait dépendre nos octets de la version de Pillow installée, et le
+        # déterminisme est une PROMESSE ici.
+        filtre = (_I.LANCZOS if kind in ("basecolor", "emissive")
+                  else _I.BICUBIC)
+        tuile = src.resize((tpx, tpx), filtre)
         toile = _I.new(src.mode, (W, H))
         for y in range(0, H, tpx):
             for x in range(0, W, tpx):
