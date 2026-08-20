@@ -1135,6 +1135,18 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert "toBlob" in rendu and "preview/" in rendu
     # STL refusé : le motif du backend est AFFICHÉ, jamais réécrit
     assert "stl.why" in rendu or 'stl["why"]' in rendu or "stl && !" in rendu
+    # « annulable » : le plan l'exige, patron du lab (mod-gltf.js et quatre
+    # autres modules) — pile d'annulation + bouton, pas juste un mot dans un
+    # commentaire.
+    assert "HIST" in rendu
+    assert 'id="cf-forge3d-undo"' in rendu
+    # le re-seed reste OFFERT une fois le graphe DÉJÀ construit (pas
+    # seulement dans la branche « graph est null ») : on le vérifie en
+    # coupant le corps de paintGraph après l'appel à graphRows(graph), qui ne
+    # peut s'exécuter QUE dans la branche « le graphe existe ».
+    corps_graph = rendu.split("function paintGraph(")[1].split("\n  }")[0]
+    apres_rows = corps_graph.split("graphRows(graph)")[1]
+    assert "cf-forge3d-reseed" in apres_rows
 
 
 if __name__ == "__main__":

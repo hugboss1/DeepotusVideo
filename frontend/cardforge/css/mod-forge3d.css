@@ -2,7 +2,7 @@
 .cf-forge3d .cf-forge3d-wrap { display: flex; flex-direction: column; gap: 12px; }
 .cf-forge3d .cf-forge3d-card { border: 1px solid var(--stroke); border-radius: 10px; padding: 12px; }
 .cf-forge3d .cf-forge3d-h { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-.cf-forge3d .cf-forge3d-h > .btn { margin-left: auto; }
+.cf-forge3d .cf-forge3d-h > .btn, .cf-forge3d .cf-forge3d-h > .lnk { margin-left: auto; }
 .cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }
 
@@ -14,6 +14,7 @@
 .cf-forge3d .cf-forge3d-num { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-muted); }
 .cf-forge3d .cf-forge3d-num input { width: 62px; }
 .cf-forge3d .cf-forge3d-num i { font-style: normal; }
+.cf-forge3d #cf-forge3d-reseed { margin-top: 8px; }
 
 /* ── le bordereau de build3d : un fichier par ligne, provenance connue ───── */
 .cf-forge3d .cf-forge3d-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }

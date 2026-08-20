@@ -91,6 +91,8 @@
   let ARTIFACT = null;          /* le dernier bordereau de build3d */
   let PREVIEW_URL = null;       /* objectURL du GLB monté dans model-viewer —
                                     révoquée avant d'en poser une nouvelle */
+  const HIST = [];              /* pile d'annulation des éditions du graphe —
+                                    patron mod-gltf.js:HIST, 40 entrées max */
 
   function get(k) { return CF.get("forge3d." + k, null); }
 
@@ -108,10 +110,13 @@
       + '</section>'
 
       + '<section class="cf-forge3d-card">'
-      + '<header class="cf-forge3d-h"><b>Graphe 3D</b></header>'
+      + '<header class="cf-forge3d-h"><b>Graphe 3D</b>'
+      + '<button class="lnk" id="cf-forge3d-undo" type="button" '
+      + 'title="annule la dernière édition du graphe">↶ annuler</button>'
+      + '</header>'
       + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit) '
       + 'ou relief extrudé (gratuit, solide fermé imprimable). Chaque champ édité '
-      + 'patche aussitôt le graphe.</p>'
+      + 'patche aussitôt le graphe — annulable.</p>'
       + '<div id="cf-forge3d-graph"></div>'
       + '</section>'
 
@@ -143,6 +148,8 @@
       graphHost.addEventListener("change", onGraphChange);
       graphHost.addEventListener("click", onGraphClick);
     }
+    const undoBtn = $("#cf-forge3d-undo");
+    if (undoBtn) undoBtn.addEventListener("click", () => undoGraph());
     $("#cf-forge3d-build").addEventListener("click", () => build3d());
     const buildSlip = $("#cf-forge3d-build-slip");
     if (buildSlip) buildSlip.addEventListener("click", onSlipClick);
@@ -238,9 +245,12 @@
         status.textContent = "téléversement (" + face + ")…";
         const rep = await M.api.post("layers", fd);
         results.push(rep.layers);
-        /* le DERNIER manifeste reçu — seed du graphe par défaut (Task 5) : le
-           bouton seed n'apparaît que s'il existe. */
-        LAST_MANIFEST = rep.layers;
+        /* seed du graphe par défaut (Task 5) : le RECTO fait foi (le backend
+           défaut side="front", l'écran affiche recto par défaut, et l'aperçu
+           figé devient l'image ERC-721 — l'identité d'une carte est sa
+           face) ; on ne retombe sur le verso que si le recto, pour une
+           raison quelconque, n'a jamais été reçu. */
+        if (face === "front" || !LAST_MANIFEST) LAST_MANIFEST = rep.layers;
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
@@ -376,6 +386,15 @@
       + '</div>';
   }
 
+  /* le bouton seed : identique dans les deux branches (graphe absent ou déjà
+     posé), seul l'id et le libellé changent — le re-seed d'un graphe déjà
+     construit passe par la MÊME pile d'annulation que toute autre édition
+     (patron « re-seed = juste une édition de plus »). */
+  function seedButtonHtml(id, label) {
+    return '<button class="btn sm" id="' + id + '" type="button" '
+      + 'data-act="seed-default">' + esc(label) + '</button>';
+  }
+
   function paintGraph() {
     const host = $("#cf-forge3d-graph");
     if (!host) return;
@@ -383,20 +402,24 @@
     if (!graph) {
       host.innerHTML = LAST_MANIFEST
         ? ('<p class="hint">Aucun graphe construit pour le moment.</p>'
-          + '<button class="btn sm" id="cf-forge3d-graph-seed" type="button" '
-          + 'data-act="seed-default">construire le graphe par défaut</button>')
+          + seedButtonHtml("cf-forge3d-graph-seed", "construire le graphe par défaut"))
         : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
           + 'pour proposer un graphe par défaut.</p>';
       return;
     }
     const rows = graphRows(graph);
-    if (!rows.length) {
-      host.innerHTML = '<p class="hint">Graphe sans traitement — aucune couche '
-        + 'reliée à un plan ou un relief.</p>';
-      return;
-    }
     const lim = (INFO && INFO.graph_limits) || null;
-    host.innerHTML = rows.map((r) => rowHtml(r, lim)).join("");
+    const body = rows.length
+      ? rows.map((r) => rowHtml(r, lim)).join("")
+      : '<p class="hint">Graphe sans traitement — aucune couche reliée à un '
+        + 'plan ou un relief.</p>';
+    /* le re-seed reste OFFERT même une fois le graphe construit : abîmer son
+       graphe n'est plus une impasse — et comme il passe par setGraph, il
+       reste lui-même annulable. */
+    const reseed = LAST_MANIFEST
+      ? seedButtonHtml("cf-forge3d-reseed", "reconstruire le graphe par défaut")
+      : "";
+    host.innerHTML = body + reseed;
   }
 
   function onGraphClick(e) {
@@ -404,10 +427,7 @@
     if (!b) return;
     if (b.getAttribute("data-act") === "seed-default") {
       e.preventDefault();
-      if (LAST_MANIFEST) {
-        M.patch({ graph: defaultGraph(LAST_MANIFEST) });
-        paintGraph();
-      }
+      if (LAST_MANIFEST) setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
     }
   }
 
@@ -419,9 +439,28 @@
     editGraph(row.getAttribute("data-proc"), field, e.target.value);
   }
 
-  /* clone + modifie + patch : `graph` est deep-freeze par le CORE dès qu'il
-     est posé (schema simple, fusion superficielle) — une mutation en place
-     lèverait TypeError en mode strict. */
+  /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo) : chaque
+     édition du graphe — champ par champ, ou un re-seed entier — pousse
+     l'ANCIEN graphe sur `HIST` avant de patcher, jamais après : c'est cette
+     valeur-là que `undoGraph` restaure. */
+  function setGraph(next, label) {
+    HIST.push({ before: get("graph"), label: label || "graphe" });
+    if (HIST.length > 40) HIST.shift();
+    M.patch({ graph: next });
+    paintGraph();
+  }
+
+  function undoGraph() {
+    const h = HIST.pop();
+    if (!h) { M.toast("rien à annuler"); return; }
+    M.patch({ graph: h.before });
+    paintGraph();
+    M.toast("annulé : " + h.label);
+  }
+
+  /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
+     qu'il est posé (schema simple, fusion superficielle) — une mutation en
+     place lèverait TypeError en mode strict. */
   function editGraph(procId, field, rawValue) {
     const graph = get("graph");
     if (!graph || !procId) return;
@@ -441,8 +480,7 @@
       const v = Number(rawValue);
       if (isFinite(v)) proc[field] = v; else delete proc[field];
     }
-    M.patch({ graph: next });
-    paintGraph();
+    setGraph(next, field);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
