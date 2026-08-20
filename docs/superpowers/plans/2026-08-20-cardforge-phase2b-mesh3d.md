@@ -1115,7 +1115,15 @@ git commit -m "feat(cardforge): job mesh3d par noeud - 5 moteurs fal + meshy-6/7
 > `HOLO_KINDS`, drapeau `uv_axis_aligned` sur quad/relief + ValueError nommée
 > si anisotropie sur maillage sans le drapeau (garde pour la fusion Task 6),
 > assert de pas de tuilage REFAIT en dimensions divisibles (l'ancien comparait
-> des texels non correspondants). Étapes cochées.
+> des texels non correspondants). Étapes cochées. **RE-REVUE APPROUVÉE (8f62d31)** — résidus repliés en
+> tête de Task 6 : borne du tpx dérivé (127 Mo d'intermédiaire possible depuis
+> des entrées légales — même classe que la faute corrigée), commentaire du test
+> de perpendicularité à rectifier (les DEUX asserts sont complémentaires, pas
+> redondants — ne jamais supprimer le tw==-1), saut de MR conditionné à une
+> recette PRÉSENTE (pas à la simple vérité du dict), et DÉCISION À CONSIGNER :
+> le writer P9 n'émet TANGENT que sous anisotropie (une normal map seule laisse
+> le client dériver — divergence assumée avec la doctrine gltf_builder, à
+> justifier en commentaire).
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py`
