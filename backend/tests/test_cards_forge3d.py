@@ -1531,6 +1531,20 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
         assert champ in rendu, champ
     # legs 5 : le manifeste est rechargé quand la CARTE change, pas au boot seul
     assert "LAST_MANIFEST" in rendu and "cardChanged" in rendu
+    # ... et ce rechargement est POUSSÉ, pas seulement tiré : le rail émet
+    # `core:render` (jamais `core:deck`), l'évènement auquel mod-gltf/type/
+    # print/data accrochent déjà leur péremption de carte. Sans cet abonnement
+    # le contrôle de fraîcheur n'était appelé que depuis paintGraph, que rien
+    # ne déclenchait quand l'utilisateur changeait de carte.
+    assert 'CF.on("core:render"' in rendu
+    handler = rendu.split('CF.on("core:render"')[1][:160]
+    assert "cardChanged" in handler, handler
+    # le seed CONSOMME le manifeste : il attend la vérification de fraîcheur
+    # AVANT de le lire, sinon « construire le graphe par défaut » juste après
+    # un changement de carte sème depuis les couches de la carte PRÉCÉDENTE.
+    seed = rendu.split("async function seedDefault(")[1].split("\n  }")[0]
+    assert "cardChanged" in seed and "defaultGraph(" in seed, seed
+    assert seed.index("cardChanged") < seed.index("defaultGraph("), seed
     # l'échec d'un job est montré LITTÉRAL (error du job.json)
     assert "job.error" in rendu or 'job["error"]' in rendu
     # les legs d'affichage : degraded affiché tel quel, jamais un select vide muet

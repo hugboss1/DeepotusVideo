@@ -229,6 +229,21 @@
       });
       if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
     });
+    /* LEGS 5, CÔTÉ POUSSÉE — sans cet abonnement la fraîcheur du manifeste
+       n'était qu'un contrôle TIRÉ depuis `paintGraph`, que rien ne déclenchait :
+       le rail (#prevBtn/#nextBtn) change `CUR` puis appelle `invalidate("core")`,
+       qui redessine l'aperçu et émet `core:render {i}` — JAMAIS `core:deck`, le
+       seul évènement auquel P9 s'abonnait. Résultat : changer de carte l'onglet
+       Forge 3D ouvert ne rafraîchissait rien.
+       `core:render` est L'ÉVÈNEMENT ÉTABLI pour ça (core.js:715 le dit :
+       « quatre modules y accrochent leur péremption » — mod-gltf:checkStale,
+       mod-type, mod-print, mod-data) ; P9 y devient le cinquième. Il est aussi
+       le bon pour NOUS : un rendu PARTIEL (l'export par couches de ce module)
+       ne l'émet volontairement pas, donc exporter ne déclenche pas N+1 fausses
+       alertes de changement de carte.
+       Le handler est GRATUIT quand rien ne bouge : `cardChanged` compare les
+       étiquettes d'abord et rend `null` sans rien toucher. */
+    CF.on("core:render", () => { cardChanged(); });
     refreshInfo();
     refreshManifest();
     paintUndo();
@@ -422,12 +437,18 @@
     return "c" + String(carte + 1).padStart(2, "0");
   }
 
-  async function refreshManifest() {
-    /* un seul chargement à la fois : `wire()` en lance un ET peint dans la
-       foulée, et cette peinture appelle `cardChanged()` — sans ce verrou,
-       le boot partait en DOUBLE requête sur le même fichier. */
-    if (refreshManifest.busy) return;
-    refreshManifest.busy = true;
+  /* un seul chargement à la fois, et `busy` porte LA PROMESSE en cours (pas
+     un booléen) : `wire()` en lance un ET peint dans la foulée, et cette
+     peinture appelle `cardChanged()` — sans ce verrou, le boot partait en
+     DOUBLE requête. Rendre la promesse permet en plus à un appelant qui va
+     CONSOMMER le manifeste (le seed) d'attendre le chargement au lieu de lire
+     l'ancien. */
+  function refreshManifest() {
+    if (!refreshManifest.busy) refreshManifest.busy = chargeManifeste();
+    return refreshManifest.busy;
+  }
+
+  async function chargeManifeste() {
     const label = cardLabel();
     try {
       const blob = await M.api.blob("GET", "file/layers_" + label + "_front.json");
@@ -439,7 +460,7 @@
          exporté pour cette carte »), pas une raison de re-demander en boucle
          à chaque peinture. */
       MANIFEST_CARD = label;
-      refreshManifest.busy = false;
+      refreshManifest.busy = null;
     }
     paintGraph();
   }
@@ -447,14 +468,20 @@
   /* LEGS 5 — LE MANIFESTE SUIT LA CARTE, pas seulement le boot. `LAST_MANIFEST`
      ne se chargeait qu'à l'initialisation du panneau : changer de carte au rail
      laissait donc l'écran proposer (ou refuser) un graphe par défaut d'après
-     les couches d'une AUTRE carte. On confronte l'étiquette de la carte
-     courante à celle du manifeste chargé, dans le chemin de peinture appelé à
-     chaque rendu — AUCUN nouveau listener global, et la peinture suivante est
-     déclenchée par `refreshManifest` lui-même. */
+     les couches d'une AUTRE carte.
+
+     LE COMPARATEUR EST LE GARDE, et il est le PREMIER geste : tant que
+     l'étiquette de la carte courante est celle du manifeste chargé, cette
+     fonction ne touche à RIEN — ni réseau, ni DOM, ni focus (le piège
+     syncInputs/renderPanel de mod-face : un abonné qui repeint à chaque tic de
+     rendu volerait le curseur de l'utilisateur des dizaines de fois par
+     minute). Elle rend la promesse du rechargement quand il a lieu (ou celle
+     du rechargement DÉJÀ en vol), `null` quand il n'y a rien à faire — c'est
+     ce qui permet au seed de l'ATTENDRE. */
   function cardChanged() {
-    if (refreshManifest.busy || cardLabel() === MANIFEST_CARD) return false;
-    refreshManifest();
-    return true;
+    if (refreshManifest.busy) return refreshManifest.busy;
+    if (cardLabel() === MANIFEST_CARD) return null;
+    return refreshManifest();
   }
 
   /* LE MODÈLE D'UN RANG — la CHAÎNE d'un traitement, résolue exactement comme
@@ -819,9 +846,10 @@
   function paintGraph() {
     const host = $("#cf-forge3d-graph");
     if (!host) return;
-    /* legs 5 : la carte a pu changer au rail depuis le dernier chargement du
-       manifeste — on le confronte ICI, dans le chemin de peinture appelé à
-       chaque rendu, plutôt que d'ajouter un listener global de plus. */
+    /* legs 5, second filet : l'abonnement `core:render` de `wire()` est ce qui
+       DÉCLENCHE la fraîcheur ; ce contrôle-ci rattrape les peintures qui
+       n'ont pas de rendu de carte derrière elles (arrivée sur l'onglet,
+       réponse tardive de /info). Il est gratuit quand rien n'a bougé. */
     cardChanged();
     const graph = get("graph");
     if (!graph) {
@@ -951,14 +979,38 @@
     const act = b.getAttribute("data-act");
     if (act === "seed-default") {
       e.preventDefault();
-      if (LAST_MANIFEST) {
-        setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
-        paintGraph();   /* structurel : la liste entière change de forme */
-      }
+      seedDefault();
     } else if (act === "launch") {
       e.preventDefault();
       launchMesh3d(b.getAttribute("data-nid"));
     }
+  }
+
+  /* LE SEED CONSOMME LE MANIFESTE : il doit donc ATTENDRE la vérification de
+     fraîcheur avant de le lire, pas seulement se fier au dernier repaint. Sans
+     cette attente, la séquence « je change de carte, je clique aussitôt sur
+     construire le graphe par défaut » sème depuis les couches de la carte
+     PRÉCÉDENTE — exactement le défaut que le legs 5 existe pour tuer, et que
+     l'abonnement à `core:render` seul ne couvre pas (le clic peut arriver
+     avant que le rechargement déclenché ne soit revenu).
+     La boucle est BORNÉE et son cas d'usage est précis : si un chargement pour
+     l'ANCIENNE carte était déjà en vol, `cardChanged` rend cette promesse-là —
+     l'attendre ne suffit pas, il faut un second tour pour la carte courante. */
+  async function seedDefault() {
+    for (let k = 0; k < 3 && cardLabel() !== MANIFEST_CARD; k++) await cardChanged();
+    if (cardLabel() !== MANIFEST_CARD) {
+      M.toast("manifeste de cette carte non chargé — réessayez", true);
+      return;
+    }
+    if (!LAST_MANIFEST) {
+      /* la carte courante n'a pas de couches livrées : le bouton lui-même
+         n'aurait pas dû être là — on repeint pour dire la vérité. */
+      M.toast("aucune couche exportée pour cette carte", true);
+      paintGraph();
+      return;
+    }
+    setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
+    paintGraph();     /* structurel : la liste entière change de forme */
   }
 
   function onGraphChange(e) {
