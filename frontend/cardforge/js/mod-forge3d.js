@@ -85,8 +85,10 @@
   /* état éphémère du panneau — AUCUN n'est persisté (patron mod-gltf.js :
      INFO/BUILD/ATLAS/BUSY sont eux aussi hors de `state`). */
   let INFO = null;              /* dernière réponse de GET info (graph_limits) */
-  let LAST_MANIFEST = null;     /* le manifeste du DERNIER export reçu (POST
-                                    layers) — seed du graphe ; le bouton seed
+  let LAST_MANIFEST = null;     /* le manifeste RECTO de la carte courante —
+                                    reçu d'un POST layers de cette session, OU
+                                    relu du disque au boot (refreshManifest,
+                                    I2) ; seed du graphe, bouton seed/re-seed
                                     n'existe que s'il est posé */
   let ARTIFACT = null;          /* le dernier bordereau de build3d */
   let PREVIEW_URL = null;       /* objectURL du GLB monté dans model-viewer —
@@ -154,7 +156,19 @@
     const buildSlip = $("#cf-forge3d-build-slip");
     if (buildSlip) buildSlip.addEventListener("click", onSlipClick);
     $("#cf-forge3d-freeze").addEventListener("click", () => freezePreview());
+    /* ASSURANCE : un changement de deck recharge la page aujourd'hui (donc
+       ce module repart de zéro par construction) — mais si ça change un
+       jour, un undo ou un seed cross-deck serait un bug sérieux. mod-frame
+       et mod-texture s'abonnent déjà à cet événement pour la même raison. */
+    CF.on("core:deck", () => {
+      HIST.length = 0;
+      LAST_MANIFEST = null;
+      ARTIFACT = null;
+      if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
+    });
     refreshInfo();
+    refreshManifest();
+    paintUndo();
     paintGraph();
   }
 
@@ -245,12 +259,11 @@
         status.textContent = "téléversement (" + face + ")…";
         const rep = await M.api.post("layers", fd);
         results.push(rep.layers);
-        /* seed du graphe par défaut (Task 5) : le RECTO fait foi (le backend
-           défaut side="front", l'écran affiche recto par défaut, et l'aperçu
-           figé devient l'image ERC-721 — l'identité d'une carte est sa
-           face) ; on ne retombe sur le verso que si le recto, pour une
-           raison quelconque, n'a jamais été reçu. */
-        if (face === "front" || !LAST_MANIFEST) LAST_MANIFEST = rep.layers;
+        /* seed du graphe par défaut (Task 5) : le RECTO fait foi, jamais le
+           dernier reçu — le backend défaut side="front", l'écran affiche
+           recto par défaut, et l'aperçu figé devient l'image ERC-721
+           (l'identité d'une carte est sa face). */
+        if (face === "front") LAST_MANIFEST = rep.layers;
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
@@ -332,6 +345,27 @@
     paintGraph();
   }
 
+  /* I2 — LE MANIFESTE SE CHARGE AU BOOT : `LAST_MANIFEST` ne vivait qu'en
+     mémoire de module, donc un F5 après un export réel faisait mentir le
+     hint « exportez les couches d'abord » et effaçait le bouton de re-seed
+     alors que les couches, elles, sont bel et bien sur le disque. On relit
+     le manifeste RECTO de la carte courante (le même fichier que
+     `post_layers` écrit, `layers_c{NN}_front.json`) — 404 = jamais exporté
+     pour cette carte, toléré EN SILENCE (ce n'est pas une panne, le hint
+     le dit déjà). `M.api.blob` rend un Blob de provenance connue ; on le
+     relit en texte puis en JSON (pas de route JSON dédiée à ce fichier). */
+  async function refreshManifest() {
+    const carte = (CF.current ? CF.current() : 0);
+    const label = "c" + String(carte + 1).padStart(2, "0");
+    try {
+      const blob = await M.api.blob("GET", "file/layers_" + label + "_front.json");
+      LAST_MANIFEST = JSON.parse(await blob.text());
+    } catch (e) {
+      LAST_MANIFEST = null;
+    }
+    paintGraph();
+  }
+
   /* {layer, proc} pour chaque edge layer -> (plane|relief) : c'est la MEME
      regle de resolution que le backend (_resolve_graph_elements) — la
      premiere arete entrante d'un traitement en dicte la source affichee ;
@@ -369,14 +403,14 @@
       + '<option value="relief"' + (isRelief ? " selected" : "") + '>relief</option>'
       + '</select>'
       + '<label class="cf-forge3d-num">profondeur<input type="number" data-field="depth_mm" '
-      + 'value="' + (proc.depth_mm != null ? proc.depth_mm : "") + '" '
+      + 'value="' + esc(proc.depth_mm != null ? proc.depth_mm : "") + '" '
       + 'min="' + depthMin + '" max="' + depthMax + '" step="0.05"><i>mm</i></label>'
       + (isRelief
         ? ('<label class="cf-forge3d-num">base<input type="number" data-field="base_mm" '
-          + 'value="' + (proc.base_mm != null ? proc.base_mm : "") + '" '
+          + 'value="' + esc(proc.base_mm != null ? proc.base_mm : "") + '" '
           + 'min="' + rb[0] + '" max="' + rb[1] + '" step="0.05"><i>mm</i></label>'
           + '<label class="cf-forge3d-num">grille<input type="number" data-field="grid" '
-          + 'value="' + (proc.grid != null ? proc.grid : "") + '" '
+          + 'value="' + esc(proc.grid != null ? proc.grid : "") + '" '
           + 'min="' + rg[0] + '" max="' + rg[1] + '" step="1"></label>')
         : "")
       + '<select class="cf-forge3d-side" data-field="side">'
@@ -427,7 +461,10 @@
     if (!b) return;
     if (b.getAttribute("data-act") === "seed-default") {
       e.preventDefault();
-      if (LAST_MANIFEST) setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
+      if (LAST_MANIFEST) {
+        setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
+        paintGraph();   /* structurel : la liste entière change de forme */
+      }
     }
   }
 
@@ -439,28 +476,49 @@
     editGraph(row.getAttribute("data-proc"), field, e.target.value);
   }
 
-  /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo) : chaque
-     édition du graphe — champ par champ, ou un re-seed entier — pousse
-     l'ANCIEN graphe sur `HIST` avant de patcher, jamais après : c'est cette
-     valeur-là que `undoGraph` restaure. */
+  /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo, paintUndo
+     ~ligne 1623) : chaque édition du graphe — champ par champ, ou un
+     re-seed entier — pousse l'ANCIEN graphe sur `HIST` avant de patcher,
+     jamais après : c'est cette valeur-là que `undoGraph` restaure.
+     `setGraph` NE REPEINT JAMAIS la liste par elle-même (patron exact de
+     mod-gltf.js:set — c'est TOUJOURS l'appelant qui décide) : c'est ce
+     découplage qui rend le correctif I1 possible juste en dessous. */
   function setGraph(next, label) {
     HIST.push({ before: get("graph"), label: label || "graphe" });
     if (HIST.length > 40) HIST.shift();
     M.patch({ graph: next });
-    paintGraph();
+    paintUndo();
+  }
+
+  /* le bouton reflète la pile (patron mod-gltf.js:paintUndo) : désactivé si
+     rien à annuler, sinon étiqueté par le label de la PROCHAINE annulation. */
+  function paintUndo() {
+    const b = $("#cf-forge3d-undo");
+    if (!b) return;
+    b.disabled = !HIST.length;
+    b.textContent = HIST.length ? "↶ annuler " + HIST[HIST.length - 1].label : "↶ annuler";
   }
 
   function undoGraph() {
     const h = HIST.pop();
     if (!h) { M.toast("rien à annuler"); return; }
     M.patch({ graph: h.before });
+    paintUndo();
     paintGraph();
     M.toast("annulé : " + h.label);
   }
 
   /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
      qu'il est posé (schema simple, fusion superficielle) — une mutation en
-     place lèverait TypeError en mode strict. */
+     place lèverait TypeError en mode strict.
+
+     I1 — NE PLUS TUER LE FOCUS : c'est le piège syncInputs/renderPanel de
+     mod-face — un repaint de la LISTE à chaque édition détruit et recrée
+     l'input focalisé, donc chaque pas de spinner (depth_mm/base_mm/grid) ou
+     chaque changement de <select> (side) perd le focus et le curseur de
+     saisie. Le DOM porte déjà la valeur commise par le navigateur : seul
+     `kind` change la STRUCTURE du rang (base/grille apparaissent ou
+     disparaissent) et exige donc, lui seul, un repaint. */
   function editGraph(procId, field, rawValue) {
     const graph = get("graph");
     if (!graph || !procId) return;
@@ -481,6 +539,7 @@
       if (isFinite(v)) proc[field] = v; else delete proc[field];
     }
     setGraph(next, field);
+    if (field === "kind") paintGraph();
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -506,7 +565,7 @@
       const rep = await M.api.post("build3d", { graph: graph, card: carte });
       ARTIFACT = rep.artifact;
       paintArtifact(ARTIFACT);
-      status.textContent = ARTIFACT.elements + " élément(s) — "
+      if (status) status.textContent = ARTIFACT.elements + " élément(s) — "
         + weight(ARTIFACT.glb.bytes) + " · " + ARTIFACT.ms.total + " ms.";
       await mountPreview(ARTIFACT.glb.name);
     } catch (e) {

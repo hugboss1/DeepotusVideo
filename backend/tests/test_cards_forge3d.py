@@ -1147,6 +1147,17 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     corps_graph = rendu.split("function paintGraph(")[1].split("\n  }")[0]
     apres_rows = corps_graph.split("graphRows(graph)")[1]
     assert "cf-forge3d-reseed" in apres_rows
+    # I1 — NE PLUS TUER LE FOCUS (revue qualité) : editGraph distingue
+    # explicitement les deux chemins — l'état est TOUJOURS commis
+    # (setGraph), un repaint de la liste ne suit QUE si `kind` a changé la
+    # structure du rang (base/grille apparues/disparues) ; les autres champs
+    # (depth_mm/base_mm/grid/side) ne repeignent jamais, sans quoi chaque pas
+    # de spinner détruirait l'input focalisé (le piège syncInputs/renderPanel
+    # de mod-face).
+    corps_edit = rendu.split("function editGraph(")[1].split("\n  }")[0]
+    apres_commit = corps_edit.split("setGraph(next, field)")[1]
+    assert 'field === "kind"' in apres_commit
+    assert "paintGraph()" in apres_commit
 
 
 if __name__ == "__main__":
