@@ -2284,5 +2284,140 @@ def test_le_lecteur_glb_extrait_un_maillage_et_nomme_ses_refus():
         SC.glb_scene_mesh(faux)
 
 
+def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
+    """normal/MR/ao câblées ; le pack MR suit la convention glTF (G=rugosité,
+    B=métal — doctrine pbr_service) ; relu dans les OCTETS du GLB."""
+    from app.services.cards import forge3d_scene as SC
+    png = io.BytesIO(); Image.new("RGBA", (8, 8), (200, 30, 30, 255)).save(png, "PNG")
+    maps = {
+        "normal": Image.new("RGB", (16, 16), (128, 128, 255)),
+        "roughness": Image.new("L", (16, 16), 64),
+        "metallic": Image.new("L", (16, 16), 255),
+        "ao": Image.new("L", (16, 16), 200),
+    }
+    el = {"name": "cadre", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+          "alpha": True, "z_mm": 0.0,
+          "mat_maps": SC.material_pngs(maps)}
+    glb = SC.write_scene_glb([el], name="x", extras={"unit": "metre"})
+    doc, binv = _read_glb(glb)
+    m = doc["materials"][0]
+    pbr = m["pbrMetallicRoughness"]
+    assert "metallicRoughnessTexture" in pbr and "normalTexture" in m
+    assert "occlusionTexture" in m
+    # quand une map MR existe, les FACTEURS repassent à 1.0 (les niveaux sont
+    # dans la map — convention pbr_service)
+    assert pbr["metallicFactor"] == 1.0 and pbr["roughnessFactor"] == 1.0
+    # relire le PNG MR du buffer : G=64 (rugosité), B=255 (métal)
+    img_idx = doc["textures"][pbr["metallicRoughnessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][img_idx]["bufferView"]]
+    mr_png = binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]]
+    px = Image.open(io.BytesIO(mr_png)).convert("RGB").getpixel((4, 4))
+    assert px[1] == 64 and px[2] == 255
+    # et le sampler reste CLAMP (le tuilage est CUIT, pas répété)
+    for s in doc["samplers"]:
+        assert s["wrapS"] == 33071 and s["wrapT"] == 33071
+
+
+def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe():
+    """Une matière de la boutique, tuilée à tile_mm sur le ratio carte :
+    mêmes octets à chaque appel ; le motif se répète au pas attendu.
+    (tile_maps vit dans forge3d.py — décision de pureté du module scène.)"""
+    from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
+    mat = MSTORE.create_material(name="essai-2b")
+    try:
+        tuile = Image.new("RGB", (64, 64), (10, 10, 10))
+        tuile.paste(Image.new("RGB", (8, 8), (250, 250, 250)), (0, 0))
+        MSTORE.save_maps(mat["id"], {"basecolor": tuile,
+                                     "roughness": Image.new("L", (64, 64), 100)})
+        a = F9.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
+                         w_mm=63.0, h_mm=88.0, out_px=256)
+        b = F9.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
+                         w_mm=63.0, h_mm=88.0, out_px=256)
+        assert a["roughness"].tobytes() == b["roughness"].tobytes()
+        # 63 mm / 31.5 mm = 2 tuiles sur la largeur : (x) et (x + w/2) pareils
+        im = a["roughness"]
+        w, h = im.size
+        assert im.getpixel((3, 3)) == im.getpixel((3 + w // 2, 3))
+        # matière introuvable -> ValueError nommée
+        import pytest as _pt
+        with _pt.raises(ValueError):
+            F9.tile_maps("mat_inexistant00", ("roughness",), 63.0, 63.0, 88.0)
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
+    """§6.2bis-c : extensions dans extensionsUsed UNIQUEMENT, facteurs exacts,
+    épaisseur en secteurs radiaux relue dans le canal G, TANGENT présent quand
+    l'anisotropie est demandée, clearcoat posé. Déterminisme prouvé."""
+    from app.services.cards import forge3d_scene as SC
+    png = io.BytesIO(); Image.new("RGBA", (8, 8), (220, 220, 220, 255)).save(png, "PNG")
+    f1 = SC.holo_finish("argent", aniso=True, out_px=256)
+    f2 = SC.holo_finish("argent", aniso=True, out_px=256)
+    assert f1["iridescence"]["png"] == f2["iridescence"]["png"]   # mêmes octets
+    el = {"name": "sceau", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+          "alpha": False, "z_mm": 0.0, "finish": f1}
+    glb = SC.write_scene_glb([el], name="x", extras={"unit": "metre"})
+    doc, binv = _read_glb(glb)
+    assert "extensionsRequired" not in doc
+    assert set(doc["extensionsUsed"]) == {"KHR_materials_iridescence",
+                                          "KHR_materials_clearcoat",
+                                          "KHR_materials_anisotropy"}
+    m = doc["materials"][0]
+    pbr = m["pbrMetallicRoughness"]
+    assert pbr["baseColorFactor"] == [0.95, 0.95, 0.97, 1.0]
+    assert pbr["metallicFactor"] == 1.0 and pbr["roughnessFactor"] == 0.12
+    iri = m["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceFactor"] == 1.0 and iri["iridescenceIor"] == 1.8
+    assert iri["iridescenceThicknessMinimum"] == 200.0
+    assert iri["iridescenceThicknessMaximum"] == 900.0
+    cc = m["extensions"]["KHR_materials_clearcoat"]
+    assert cc["clearcoatFactor"] == 1.0 and cc["clearcoatRoughnessFactor"] == 0.06
+    ani = m["extensions"]["KHR_materials_anisotropy"]
+    assert ani["anisotropyStrength"] == 0.85 and "anisotropyTexture" in ani
+    # TANGENT écrit (VEC4, un par sommet)
+    prim = doc["meshes"][0]["primitives"][0]
+    assert "TANGENT" in prim["attributes"]
+    acc = doc["accessors"][prim["attributes"]["TANGENT"]]
+    assert acc["type"] == "VEC4" and acc["count"] == 4
+    # l'épaisseur varie AUTOUR du centre : 4 angles -> >= 3 valeurs G distinctes
+    img_idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][img_idx]["bufferView"]]
+    tex = Image.open(io.BytesIO(binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]]))
+    cx = cy = tex.size[0] // 2
+    r = tex.size[0] // 3
+    gs = {tex.getpixel((cx + r, cy))[1], tex.getpixel((cx - r, cy))[1],
+          tex.getpixel((cx, cy + r))[1], tex.getpixel((cx + int(r * 0.7), cy + int(r * 0.7)))[1]}
+    assert len(gs) >= 3, gs
+    # la dorure a SA recette
+    fd = SC.holo_finish("dorure", aniso=False, out_px=128)
+    assert fd["pbr"]["baseColorFactor"] == [1.0, 0.84, 0.55, 1.0]
+    assert fd["iridescence"]["ior"] == 1.6
+    assert fd["iridescence"]["thickness"] == [200.0, 600.0]
+    assert fd.get("anisotropy") is None
+    # SANS finition ni matière : AUCUNE extension n'apparaît (dégradation
+    # propre : un GLB 2a reste un GLB 2a)
+    el2 = {"name": "nu", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+           "alpha": True, "z_mm": 0.0}
+    doc2, _ = _read_glb(SC.write_scene_glb([el2], name="x", extras={}))
+    assert "extensionsUsed" not in doc2 and "extensions" not in doc2["materials"][0]
+
+
+def test_le_transform_porte_le_trs_du_noeud():
+    from app.services.cards import forge3d_scene as SC
+    png = io.BytesIO(); Image.new("RGBA", (4, 4), (1, 2, 3, 255)).save(png, "PNG")
+    el = {"name": "e", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+          "alpha": True, "z_mm": 0.0,
+          "trs": {"translate": [5.0, -3.0, 2.0], "rotate_deg": 90.0, "scale": 2.0}}
+    doc, _ = _read_glb(SC.write_scene_glb([el], name="x", extras={}))
+    node = doc["nodes"][0]
+    assert node["translation"] == [5.0, -3.0, 2.0]
+    assert node["scale"] == [2.0, 2.0, 2.0]
+    q = node["rotation"]                      # quaternion z pour 90°
+    assert abs(q[2] - 0.7071067811865476) < 1e-12 and abs(q[3] - 0.7071067811865476) < 1e-12
+    assert q[0] == 0.0 and q[1] == 0.0
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

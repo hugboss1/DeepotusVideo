@@ -36,7 +36,8 @@ from .contract import deck_dir
 # (routes, bornes, blocs miroir).
 from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
-                            read_glb, glb_scene_mesh, glb_triangle_estimate)
+                            read_glb, glb_scene_mesh, glb_triangle_estimate,
+                            material_pngs, holo_finish, HOLO_KINDS)
 
 router = APIRouter()
 
@@ -434,6 +435,66 @@ def clean_graph(raw) -> dict:
 # `_write_stl_binary` vivent maintenant dans forge3d_scene.py (couture
 # legs 6, revue finale 2a) — importés/réexportés en haut de ce fichier.
 # Ce module garde le contrat HTTP : routes, bornes, blocs miroir.
+#
+# `tile_maps`, LUI, VIT ICI et pas là-bas (décision de revue Task 5, 2b) : il
+# a besoin de la BOUTIQUE de matières (`material_store`) pour aller chercher
+# les maps et cuire les niveaux, quand forge3d_scene.py, lui, est PUR — il ne
+# reçoit que des images et rend des octets. Le plan 2b plaçait cette fonction
+# dans le module scène ; la pureté de ce module a primé sur la lettre du plan.
+
+
+def tile_maps(mid, kinds, tile_mm, w_mm, h_mm, out_px=1024):
+    """Les maps d'une matière de la boutique, TUILÉES au pas physique
+    `tile_mm` sur une toile au ratio de la carte — collage par pavage PIL,
+    donc DÉTERMINISTE (aucun aléa, aucun bruit : deux appels rendent les mêmes
+    octets). Les niveaux de la matière sont CUITS (`bake_levels`), comme sur
+    tous les chemins de sortie du lab Matières : l'écran et le moteur
+    reçoivent le même pixel.
+
+    LE TUILAGE EST CUIT DANS LES PIXELS, et c'est le point : le sampler du GLB
+    peut rester CLAMP_TO_EDGE partout (invariant de `write_scene_glb` depuis
+    la 2a) au lieu de basculer en REPEAT pour ces textures-là — un REPEAT sur
+    une carte dont les UV débordent d'un cheveu répéterait le bord, pas le
+    motif.
+
+    `mid` introuvable -> ValueError NOMMÉE (l'appelant en fait un refus motivé,
+    jamais un 500 — doctrine 2.5). Idem pour une cote nulle ou négative : les
+    trois divisions ci-dessous lèveraient sinon un ZeroDivisionError NU, donc
+    un 500, sur une simple donnée d'entrée."""
+    from app.services import material_store as MSTORE
+    if tile_mm <= 0 or w_mm <= 0 or h_mm <= 0:
+        raise ValueError(f"cotes de tuilage invalides : tile={tile_mm} "
+                         f"w={w_mm} h={h_mm} (toutes strictement positives)")
+    mat = MSTORE.read_material(mid)
+    if mat is None:
+        raise ValueError(f"matière introuvable : {mid}")
+    maps = MSTORE.load_maps(mid, kinds=list(set(kinds) | {"basecolor"}))
+    maps = MSTORE.bake_levels(maps, mat.get("props"))
+    # la toile prend le RATIO de la carte : `out_px` est le GRAND côté, l'autre
+    # s'en déduit — une toile carrée étirerait le motif d'un tiers sur une
+    # carte 63x88.
+    W = out_px if w_mm >= h_mm else max(8, int(round(out_px * w_mm / h_mm)))
+    H = out_px if h_mm > w_mm else max(8, int(round(out_px * h_mm / w_mm)))
+    tpx = max(4, int(round(W * tile_mm / w_mm)))
+    out = {}
+    from PIL import Image as _I
+    for kind in kinds:
+        src = maps.get(kind)
+        if src is None:
+            continue
+        # `resize` NU, et pas `material_store.resize_maps` : celui-ci passe par
+        # `clean_preview_res`, qui SNAPPERAIT `tpx` sur la liste blanche des
+        # tailles servies (128/256/...) et détruirait le pas physique — la
+        # raison d'être de cette fonction. Coût connu : une normale
+        # rééchantillonnée n'est plus exactement unitaire (`resize_maps`, lui,
+        # renormalise) ; l'écart est sous le bruit d'un octet à ces tailles.
+        tuile = src.resize((tpx, tpx))
+        toile = _I.new(src.mode, (W, H))
+        for y in range(0, H, tpx):
+            for x in range(0, W, tpx):
+                toile.paste(tuile, (x, y))
+        out[kind] = toile
+    return out
 
 
 _HEX6_RE = re.compile(r"^#[0-9a-fA-F]{6}$")

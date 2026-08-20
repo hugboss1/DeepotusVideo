@@ -12,6 +12,7 @@ d'une autre pièce du lab.
 """
 from __future__ import annotations
 
+import io
 import json
 import math
 import struct
@@ -161,6 +162,238 @@ def mesh_measures(mesh: dict) -> dict:
             "triangles": len(idx) // 3, "vertices": len(pos) // 3}
 
 
+# ── LES MATIÈRES ET LES FINITIONS — DES OCTETS PRÊTS POUR LE WRITER (2b) ────
+# `material_pngs` et `holo_finish` ne connaissent NI la boutique de matières NI
+# les routes : elles reçoivent des images PIL (ou rien du tout) et rendent des
+# OCTETS PNG que `write_scene_glb` embarque tels quels. C'est ce qui garde ce
+# module PUR (règle 8 : zéro import d'une autre pièce du lab).
+#
+# COROLLAIRE, ACTÉ EN REVUE DE LA TASK 5 : le tuilage au pas physique, lui, a
+# besoin de la boutique (`material_store`) pour aller chercher les maps d'une
+# matière et cuire ses niveaux. Il vit donc dans forge3d.py, à côté du contrat
+# HTTP (`tile_maps`), et pas ici — le plan 2b le plaçait dans ce fichier, la
+# pureté du module a primé. Le partage des rôles reste net : forge3d.py va
+# chercher les images, ce module les transforme en octets.
+
+
+def _f(raw, default: float = 0.0) -> float:
+    """Un flottant, ou le défaut — JAMAIS une exception sur une entrée
+    douteuse (même discipline que `_num` côté contrat HTTP). NaN et infinis
+    retombent aussi sur le défaut : écrits dans un GLB ils y seraient du JSON
+    invalide (`NaN` n'existe pas dans la grammaire JSON)."""
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return default
+    if v != v or v in (float("inf"), float("-inf")):
+        return default
+    return v
+
+
+def _png_bytes(img) -> bytes:
+    """Une image PIL en octets PNG — le seul format que le writer embarque."""
+    out = io.BytesIO()
+    img.save(out, format="PNG")
+    return out.getvalue()
+
+
+def material_pngs(maps: dict) -> dict:
+    """Les maps d'une matière, CUITES en PNG pour le writer.
+
+    Sortie : `{"normal", "mr", "ao", "emissive"}` en octets PNG — SEULEMENT
+    ce qui existe en entrée (une matière sans normale ne fabrique pas une
+    normale plate pour faire nombre). Le pack `mr` suit la convention glTF,
+    celle que le lab Matières applique déjà à son ORM (R=AO, G=Roughness,
+    B=Metallic) : ici R est neutre (255), G porte la rugosité, B la
+    métallicité. L'occlusion voyage à part parce que le writer la câble sur
+    SON entrée dédiée (`occlusionTexture`), pas dans le pack.
+
+    Rugosité ou métallicité SEULE : le canal manquant prend le neutre du
+    MOTEUR — rugosité 255 (entièrement mate) et métallicité 0 (diélectrique).
+    Un zéro par défaut dans les deux cas rendrait un MIROIR PARFAIT à qui ne
+    fournit qu'une rugosité.
+
+    Les niveaux sont DANS les octets : c'est le writer qui remet
+    metallicFactor/roughnessFactor à 1.0 (doctrine `RENDER_NOTE` du lab
+    Matières — appliquer le curseur EN PLUS le compterait deux fois)."""
+    # PIL importé LOCALEMENT : ce module ne dépend de PIL que là où il
+    # FABRIQUE une image ; la géométrie, elle, en reçoit et n'a rien à
+    # importer (patron déjà en place dans `relief_mesh`).
+    from PIL import Image
+    out: dict = {}
+    nrm = maps.get("normal")
+    if nrm is not None:
+        out["normal"] = _png_bytes(nrm.convert("RGB"))
+    ao = maps.get("ao")
+    if ao is not None:
+        out["ao"] = _png_bytes(ao.convert("L").convert("RGB"))
+    emi = maps.get("emissive")
+    if emi is not None:
+        out["emissive"] = _png_bytes(emi.convert("RGB"))
+    rough, metal = maps.get("roughness"), maps.get("metallic")
+    if rough is not None or metal is not None:
+        # taille de RÉFÉRENCE : la première des deux qui existe (rugosité
+        # d'abord) ; l'autre s'y aligne — un pack RGB exige trois canaux de
+        # même dimension, et `Image.merge` lèverait sinon.
+        taille = (rough if rough is not None else metal).size
+        g = (rough.convert("L") if rough is not None
+             else Image.new("L", taille, 255))
+        b = (metal.convert("L") if metal is not None
+             else Image.new("L", taille, 0))
+        if g.size != taille:
+            g = g.resize(taille)
+        if b.size != taille:
+            b = b.resize(taille)
+        out["mr"] = Image.merge("RGB", (Image.new("L", taille, 255), g, b))
+        out["mr"] = _png_bytes(out["mr"])
+    return out
+
+
+# §6.2bis-c — les DEUX recettes de finition, chiffres de la spec, relus au bit
+# près par le test.
+_HOLO_RECIPES = {
+    "argent": {"base": [0.95, 0.95, 0.97, 1.0], "rough": 0.12, "ior": 1.8,
+               "thickness": [200.0, 900.0]},
+    "dorure": {"base": [1.0, 0.84, 0.55, 1.0], "rough": 0.12, "ior": 1.6,
+               "thickness": [200.0, 600.0]},
+}
+_HOLO_SECTORS = 48   # secteurs radiaux : mip-stables, zéro moiré (§6.2bis-c)
+_HOLO_CYCLE = 8          # niveaux d'épaisseur, un cycle complet tous les 8
+_HOLO_ANISO_STRENGTH = 0.85
+_HOLO_CLEARCOAT_ROUGH = 0.06
+
+# La liste blanche PUBLIÉE : l'appelant borne son entrée avec elle au lieu de
+# recopier deux noms qui dériveront (même patron que les blocs miroir).
+HOLO_KINDS = tuple(_HOLO_RECIPES)
+
+
+def _holo_thickness_png(out_px: int) -> bytes:
+    """L'épaisseur du film, en SECTEURS RADIAUX, dans le canal G — le seul
+    que lise KHR_materials_iridescence. R et B restent à 0 : l'octet neutre
+    du « canal inutilisé », pour qu'aucun outil n'aille y lire un empaquetage
+    qui n'existe pas.
+
+    Pourquoi des secteurs et pas un dégradé continu : une MARCHE survit au
+    mip-mapping, un dégradé fin moire dès le second niveau (§6.2bis-c). 48
+    secteurs sur un cycle de 8 niveaux = 6 tours d'arc-en-ciel autour de la
+    carte.
+
+    ZÉRO ALÉA : la valeur d'un pixel ne dépend que de son ANGLE au centre —
+    deux appels rendent les mêmes octets, ce que le test prouve. Écriture par
+    RANGÉES (bytearray + `frombytes`) plutôt que pixel par pixel : même
+    sortie AU BIT PRÈS (vérifiée avant de choisir), 2,20 s -> 0,33 s à 1024²
+    sur le runtime embarqué — et un aperçu de carte en demande deux."""
+    from PIL import Image
+    c = out_px / 2.0
+    pi = math.pi
+    atan2 = math.atan2
+    lut = [round(255 * ((s % _HOLO_CYCLE) / (_HOLO_CYCLE - 1)))
+           for s in range(_HOLO_SECTORS)]
+    data = bytearray(out_px * out_px * 3)
+    off = 0
+    for y in range(out_px):
+        dy = y - c
+        for x in range(out_px):
+            ang = atan2(dy, x - c)
+            # le `% _HOLO_SECTORS` n'est pas décoratif : à ang == +pi
+            # exactement (la rangée du centre, à gauche) le produit vaut 48.
+            data[off + 1] = lut[int(((ang + pi) / (2.0 * pi)) * _HOLO_SECTORS)
+                                % _HOLO_SECTORS]
+            off += 3
+    return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
+
+
+def _holo_aniso_png(out_px: int) -> bytes:
+    """La direction du peigne anisotrope : TANGENTE au périmètre — le reflet
+    tourne AUTOUR du sceau, comme un métal brossé en cercle. R et G portent la
+    direction remappée en 0..1 dans le plan tangent/bitangent.
+
+    B = 255, ET PAS 0 : KHR_materials_anisotropy MULTIPLIE `anisotropyStrength`
+    par le canal BLEU de cette texture. À 0, la force effective vaut zéro
+    partout — la finition ne se verrait NULLE PART et le 0.85 du document ne
+    serait qu'une décoration. (Amendement Task 5 au plan 2b, qui écrivait
+    B=0 : mesuré contre le texte de l'extension, pas recopié.)
+
+    Même écriture par rangées, mêmes raisons (2,30 s -> 0,75 s à 1024²)."""
+    from PIL import Image
+    c = out_px / 2.0
+    atan2, cos, sin = math.atan2, math.cos, math.sin
+    quart = math.pi / 2.0
+    data = bytearray(out_px * out_px * 3)
+    off = 0
+    for y in range(out_px):
+        dy = y - c
+        for x in range(out_px):
+            ang = atan2(dy, x - c) + quart
+            data[off] = round((cos(ang) * 0.5 + 0.5) * 255)
+            data[off + 1] = round((sin(ang) * 0.5 + 0.5) * 255)
+            data[off + 2] = 255
+            off += 3
+    return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
+
+
+def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
+    """UNE finition holographique de la spec (§6.2bis-c), prête pour le
+    writer : facteurs PBR, bloc iridescence (+ sa texture d'épaisseur),
+    clearcoat, et l'anisotropie SEULEMENT si on la demande.
+
+    `kind` hors `HOLO_KINDS` lève une ValueError NOMMÉE : une finition
+    inconnue silencieusement remplacée par l'argent livrerait une carte FAUSSE
+    sans que personne ne le sache. C'est à l'appelant de borner son entrée
+    AVANT (doctrine 2.5) — `HOLO_KINDS` lui donne la liste sans la recopier.
+
+    `out_px` est borné à 8..4096 : la texture est fabriquée pixel par pixel en
+    Python ; un chiffre non borné venu d'un graphe serait une bombe mémoire
+    (4096² = 50 Mo d'octets bruts, déjà le plafond raisonnable)."""
+    r = _HOLO_RECIPES.get(str(kind))
+    if r is None:
+        raise ValueError(f"finition holographique inconnue : {kind!r} "
+                         f"(connues : {', '.join(HOLO_KINDS)})")
+    px = max(8, min(4096, int(_f(out_px, 1024.0))))
+    return {
+        "pbr": {"baseColorFactor": list(r["base"]),
+                "metallicFactor": 1.0, "roughnessFactor": r["rough"]},
+        "iridescence": {"factor": 1.0, "ior": r["ior"],
+                        "thickness": list(r["thickness"]),
+                        "png": _holo_thickness_png(px)},
+        "clearcoat": {"factor": 1.0, "rough": _HOLO_CLEARCOAT_ROUGH},
+        "anisotropy": ({"strength": _HOLO_ANISO_STRENGTH,
+                        "png": _holo_aniso_png(px)} if aniso else None),
+    }
+
+
+def _node_trs(el: dict) -> dict:
+    """Les champs TRS du nœud d'un élément.
+
+    SANS `trs`, le comportement de la 2a est gardé À L'IDENTIQUE : une
+    translation z (en mm) et rien d'autre, et seulement quand `z_mm` est non
+    nul — un GLB de la 2a doit rester, octet pour octet, un GLB de la 2a.
+
+    AVEC `trs` : `translate` REMPLACE cette translation (qui pose un transform
+    complet porte lui-même son z), `rotate_deg` tourne autour de +z — le seul
+    axe qui ait un sens sur une pile de couches planes — et `scale` est
+    UNIFORME, un facteur par axe déformerait la carte. Ni la rotation ni
+    l'échelle ne sont écrites quand elles ne font rien : 0° et x1 sont
+    l'identité, que glTF sous-entend déjà."""
+    trs = el.get("trs")
+    if not isinstance(trs, dict):
+        return ({"translation": [0.0, 0.0, float(el["z_mm"])]}
+                if el.get("z_mm") else {})
+    out: dict = {}
+    t = trs.get("translate")
+    if isinstance(t, (list, tuple)) and len(t) == 3:
+        out["translation"] = [_f(v) for v in t]
+    elif el.get("z_mm"):
+        out["translation"] = [0.0, 0.0, float(el["z_mm"])]
+    demi = math.radians(_f(trs.get("rotate_deg"))) / 2.0
+    if demi:
+        out["rotation"] = [0.0, 0.0, math.sin(demi), math.cos(demi)]
+    s = _f(trs.get("scale"), 1.0)
+    if s != 1.0:
+        out["scale"] = [s, s, s]
+    return out
+
+
 # ── L'ASSEMBLAGE — UN document glTF binaire, écrit JUSTE (Task 3) ──────────
 # `write_scene_glb` consomme le type commun de `quad_mesh`/`relief_mesh`
 # (positions/normals/uvs/indices — `closed` et tout champ surnuméraire sont
@@ -189,6 +422,17 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     à l'échelle physique mm->m, un enfant nommé par élément, translation z en
     mm portée par le nœud de l'élément. Textures : les PNG estampillés de la
     phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste).
+
+    TROIS CLÉS FACULTATIVES par élément (2b), toutes ABSENTES = comportement
+    de la 2a mot pour mot :
+      · `mat_maps` — le paquet de `material_pngs` : normale, pack MR, AO,
+        émissive. Le pack MR ramène metallicFactor/roughnessFactor à 1.0 (les
+        niveaux sont dans les octets, pas dans les facteurs).
+      · `finish`  — le paquet de `holo_finish` : ses facteurs PBR PRIMENT sur
+        ceux du pack MR, et ses trois extensions n'apparaissent QUE dans
+        `extensionsUsed`, jamais dans `extensionsRequired`.
+      · `trs`     — translation/rotation/échelle du nœud ; sans elle, seul le
+        `z_mm` de la 2a est écrit (voir `_node_trs`).
 
     Précondition : `elements` exige AU MOINS UN élément — un GLB à zéro
     élément est invalide au schéma glTF (minItems 1) ; la route build3d fait
@@ -226,29 +470,109 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         return len(accessors) - 1
 
     sampler = 0   # un seul sampler CLAMP
+    exts_used: set = set()
+
+    def add_texture(png: bytes, nom: str) -> int:
+        """Un PNG embarqué + SA texture, sur LE sampler CLAMP unique. Le
+        tuilage des matières est CUIT dans les octets (`tile_maps`, côté
+        contrat HTTP) : rien ici n'a jamais besoin de REPEAT."""
+        v = add_view(png)
+        images.append({"bufferView": v, "mimeType": "image/png", "name": nom})
+        textures.append({"sampler": sampler, "source": len(images) - 1})
+        return len(textures) - 1
+
     for el in elements:
         m = el["mesh"]
+        nom = el["name"]
+        fin = el.get("finish") if isinstance(el.get("finish"), dict) else None
+        ani = (fin or {}).get("anisotropy")
         ip = add_accessor(m["positions"], 3, 5126, "VEC3", 34962)
         inm = add_accessor(m["normals"], 3, 5126, "VEC3", 34962)
         iuv = add_accessor(m["uvs"], 2, 5126, "VEC2", 34962)
         iix = add_accessor(m["indices"], 1, 5125, "SCALAR", 34963)
-        v_png = add_view(el["png"])
-        images.append({"bufferView": v_png, "mimeType": "image/png",
-                       "name": el["name"]})
-        textures.append({"sampler": sampler, "source": len(images) - 1})
-        materials.append({
-            "name": el["name"],
-            "pbrMetallicRoughness": {
-                "baseColorTexture": {"index": len(textures) - 1},
-                "metallicFactor": 0.0, "roughnessFactor": 0.9},
-            **({"alphaMode": "BLEND", "doubleSided": True} if el.get("alpha")
-               else {})})
-        meshes.append({"name": el["name"], "primitives": [{
-            "attributes": {"POSITION": ip, "NORMAL": inm, "TEXCOORD_0": iuv},
-            "indices": iix, "material": len(materials) - 1}]})
-        nodes.append({"name": el["name"], "mesh": len(meshes) - 1,
-                      **({"translation": [0.0, 0.0, float(el["z_mm"])]}
-                         if el.get("z_mm") else {})})
+        attrs = {"POSITION": ip, "NORMAL": inm, "TEXCOORD_0": iuv}
+        if ani:
+            # TANGENT EXIGÉ par KHR_materials_anisotropy : sans lui le moteur
+            # improvise une tangente d'écran et le peigne du sceau tourne avec
+            # la caméra. Nos quads et nos dalles ont leurs UV alignées sur +x :
+            # la tangente est CONSTANTE, w=+1 (bitangente = n x t, droite).
+            attrs["TANGENT"] = add_accessor(
+                [1.0, 0.0, 0.0, 1.0] * (len(m["positions"]) // 3),
+                4, 5126, "VEC4", 34962)
+        pbr = {"baseColorTexture": {"index": add_texture(el["png"], nom)},
+               "metallicFactor": 0.0, "roughnessFactor": 0.9}
+        mat = {"name": nom, "pbrMetallicRoughness": pbr,
+               **({"alphaMode": "BLEND", "doubleSided": True}
+                  if el.get("alpha") else {})}
+        # LA MATIÈRE (`mat_maps`) : des PNG déjà cuits par `material_pngs`.
+        mm = el.get("mat_maps")
+        mm = mm if isinstance(mm, dict) else {}
+        if mm.get("normal"):
+            mat["normalTexture"] = {
+                "index": add_texture(mm["normal"], f"{nom}-normal")}
+        if mm.get("mr"):
+            pbr["metallicRoughnessTexture"] = {
+                "index": add_texture(mm["mr"], f"{nom}-mr")}
+            # glTF calcule rugosité = roughnessFactor x texture.G et
+            # métallicité = metallicFactor x texture.B : garder le 0.9/0.0 par
+            # défaut MULTIPLIERAIT la map par le niveau une seconde fois
+            # (doctrine `RENDER_NOTE` du lab Matières). Les niveaux sont dans
+            # les octets — les facteurs redeviennent neutres.
+            pbr["metallicFactor"] = 1.0
+            pbr["roughnessFactor"] = 1.0
+        if mm.get("ao"):
+            mat["occlusionTexture"] = {
+                "index": add_texture(mm["ao"], f"{nom}-ao")}
+        if mm.get("emissive"):
+            mat["emissiveTexture"] = {
+                "index": add_texture(mm["emissive"], f"{nom}-emissive")}
+            mat["emissiveFactor"] = [1.0, 1.0, 1.0]
+        # LA FINITION (`finish`) EN DERNIER, EXPRÈS : ses facteurs de recette
+        # PRIMENT sur le 1.0 neutre que le pack MR vient de poser — une dorure
+        # garde SA teinte et SA rugosité même par-dessus une matière tuilée.
+        if fin:
+            rec = fin.get("pbr") or {}
+            base = rec.get("baseColorFactor")
+            if isinstance(base, (list, tuple)) and len(base) == 4:
+                # RECOPIÉ, jamais partagé : le document ne doit pas garder une
+                # référence vers la liste de l'appelant.
+                pbr["baseColorFactor"] = [_f(v) for v in base]
+            for cle in ("metallicFactor", "roughnessFactor"):
+                if cle in rec:
+                    pbr[cle] = _f(rec[cle], pbr[cle])
+            ext: dict = {}
+            iri = fin.get("iridescence")
+            if iri:
+                ep = iri.get("thickness")
+                ep = (ep if isinstance(ep, (list, tuple)) and len(ep) == 2
+                      else [100.0, 400.0])
+                bloc = {"iridescenceFactor": _f(iri.get("factor"), 1.0),
+                        "iridescenceIor": _f(iri.get("ior"), 1.3),
+                        "iridescenceThicknessMinimum": _f(ep[0]),
+                        "iridescenceThicknessMaximum": _f(ep[1])}
+                if iri.get("png"):
+                    bloc["iridescenceThicknessTexture"] = {
+                        "index": add_texture(iri["png"], f"{nom}-iridescence")}
+                ext["KHR_materials_iridescence"] = bloc
+            cc = fin.get("clearcoat")
+            if cc:
+                ext["KHR_materials_clearcoat"] = {
+                    "clearcoatFactor": _f(cc.get("factor"), 1.0),
+                    "clearcoatRoughnessFactor": _f(cc.get("rough"), 0.03)}
+            if ani:
+                bloc = {"anisotropyStrength": _f(ani.get("strength"), 0.5)}
+                if ani.get("png"):
+                    bloc["anisotropyTexture"] = {
+                        "index": add_texture(ani["png"], f"{nom}-anisotropie")}
+                ext["KHR_materials_anisotropy"] = bloc
+            if ext:
+                mat["extensions"] = ext
+                exts_used.update(ext)
+        materials.append(mat)
+        meshes.append({"name": nom, "primitives": [{
+            "attributes": attrs, "indices": iix,
+            "material": len(materials) - 1}]})
+        nodes.append({"name": nom, "mesh": len(meshes) - 1, **_node_trs(el)})
     # PIÈGE DU SQUELETTE (auto-revue) : le buffer doit être aligné à 4 AVANT
     # que `buffers[0].byteLength` ne soit figé dans le JSON — la dernière
     # écriture de la boucle (un PNG, taille arbitraire) laisse `buf`
@@ -266,7 +590,15 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
               "children": list(range(len(nodes))), "extras": extras}
     nodes.append(racine)
+    # `extensionsUsed` : l'union TRIÉE de ce qui a RÉELLEMENT servi, et la clé
+    # DISPARAÎT quand rien n'a servi — un GLB de la 2a reste un GLB de la 2a,
+    # sans un tableau vide qui laisserait croire à des extensions.
+    # Et JAMAIS `extensionsRequired` : iridescence, clearcoat et anisotropie
+    # sont des ENJOLIVURES. Les EXIGER ferait REFUSER le fichier par tout
+    # lecteur qui ne les connaît pas, alors qu'il l'afficherait très bien sans
+    # elles (dégradation propre — la carte perd son reflet, pas son existence).
     doc = {"asset": {"version": "2.0", "extras": extras},
+           **({"extensionsUsed": sorted(exts_used)} if exts_used else {}),
            "scene": 0, "scenes": [{"name": str(name)[:60], "nodes": [len(nodes) - 1]}],
            "nodes": nodes, "meshes": meshes, "materials": materials,
            "textures": textures, "images": images,
