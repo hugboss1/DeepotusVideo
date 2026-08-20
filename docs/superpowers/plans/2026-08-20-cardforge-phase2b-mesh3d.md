@@ -2020,12 +2020,43 @@ git commit -m "perf(cardforge): un patch par frame pendant les gestes souris, po
 
 ### Task 8: Intégration finale 2b
 
-- [ ] Suite complète : `run-tests.ps1 -Filter cards` → tout vert ; `-Filter meshy` → vert.
-- [ ] `lint_cardforge.py` complet → 0 violation ; `--geom` et `--contract` → tenus.
-- [ ] `cf_deploy.ps1` : déployer, puis `-Check` → 0 écart. Redémarrer le backend
+> **FAITE (DONE_WITH_CONCERNS) — et la vérification navigateur a PAYÉ : deux
+> vrais bugs de course Windows trouvés EN VIVANT, corrigés (f635d73, 3f0dbf3),
+> prouvés sous 250 GET concurrents.** `os.replace` du job.json contre un
+> `open()` concurrent : côté LECTEUR (PermissionError → _job_read rendait None
+> → un job PAYÉ en cours se lisait « jamais lancé », le polling s'arrêtait à
+> jamais et le pied de coût recomptait 35 crédits déjà consommés) ; côté
+> ÉCRIVAIN (WinError 5 sur os.replace → l'exception marquait le job payé
+> FAILED — **le poll tuait le job**). Remède : 3 essais bornés à 20 ms des
+> deux côtés + test de régression bidirectionnel (mutation-vérifié ×2).
+> Le TestClient sérialisé ne pouvait PAS voir ces courses — leçon : la vérif
+> navigateur réelle est un instrument de mesure, pas une formalité.
+> Portails : 10/10 fichiers cards (534 s), meshy vert, lint 9/9 0 violation,
+> --geom 4/4, --contract TENU (backend vivant), cf_deploy -Check 0 écart
+> (le script gère lui-même le piège du snapshot : lock + kill :8765 +
+> relance + health), MESHY_MOCK posé/restauré à l'octet près, ZÉRO dépense
+> réelle, 45 commits poussés (0 ahead). Parcours navigateur : manifests
+> recto/verso 0 px d'écart, 7 moteurs aux prix de /info, 35 cr affichés
+> AVANT, job mock servi ~9 s, bordereau engines local+meshy-7 aux crédits
+> RÉELS, STL refusé au motif littéral nommant le nœud, extensions
+> iridescence/clearcoat/aniso relues dans les octets du GLB fusionné, fit à
+> sa place de couche (T=[11.9, 36.9, 0], échelle 39.97).
+> **RESTE À VÉRIFIER À LA MAIN (l'outillage capture/pointeur du navigateur
+> est mort en cours de session)** : le CHATOIEMENT visuel des franges en
+> tournant le viewer (les octets sont justes, l'œil n'a pas tranché) ; le
+> bloc FLUIDITÉ 7bis au pointeur réel (drags rapides, poignées 12 px, un
+> undo par geste, scrub P6, molette P1) ; la capture d'aperçu (« figer ») ;
+> les cas à deux onglets (« relancé ailleurs », route absente) ; les
+> branches degraded/clé-requise hors mock. Résidu de test assumé sur le
+> deck réel deck_e273a971 (graphe + job mock t2 + carte3d/solide3d.glb —
+> gratuit, reproductible, non destructif).
+
+- [x] Suite complète : `run-tests.ps1 -Filter cards` → tout vert ; `-Filter meshy` → vert.
+- [x] `lint_cardforge.py` complet → 0 violation ; `--geom` et `--contract` → tenus.
+- [x] `cf_deploy.ps1` : déployer, puis `-Check` → 0 écart. Redémarrer le backend
       installé (piège du processus orphelin sur :8765 — le tuer d'abord, sinon les
       réglages/routes restent d'hier).
-- [ ] **Vérification navigateur RÉELLE, zéro dépense** : poser `MESHY_MOCK=1` dans le
+- [x] **Vérification navigateur RÉELLE, zéro dépense** : poser `MESHY_MOCK=1` dans le
       `.env` des données de l'app (le noter), redémarrer le backend, puis dans le lab :
       exporter les couches d'un deck réel → passer l'illustration en « mesh 3D »
       moteur meshy-7 + ultra → le nœud affiche « 35 cr (~0,70 $) » et le pied de
@@ -2039,11 +2070,11 @@ git commit -m "perf(cardforge): un patch par frame pendant les gestes souris, po
       retirer `MESHY_MOCK` du .env, re-redémarrer. Rapporter chaque étape. Dans la
       même session navigateur : re-vérifier la FLUIDITÉ (Task 7bis) sur la fenêtre du
       cadre et un slot P3 à mouvements rapides.
-- [ ] Mémoire du chantier : mettre à jour `cardforge-universel.md` (2b livrée, restes
+- [x] Mémoire du chantier : mettre à jour `cardforge-universel.md` (2b livrée, restes
       éventuels), et le plan (cases cochées, amendements à la source si des fautes de
       plan ont été trouvées en route).
-- [ ] Commit de clôture éventuel + PUSH de la branche du chantier.
-- [ ] Dire à l'utilisateur : la clé Meshy se colle dans Réglages (champ existant du
+- [x] Commit de clôture éventuel + PUSH de la branche du chantier.
+- [x] Dire à l'utilisateur : la clé Meshy se colle dans Réglages (champ existant du
       3D Studio, `MESHY_API_KEY`) ; proposer — SANS le faire — un premier tir réel
       meshy-7 (30-35 cr) sur une carte de son choix.
 
