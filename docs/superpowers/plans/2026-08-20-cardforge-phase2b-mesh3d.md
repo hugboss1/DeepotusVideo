@@ -438,6 +438,24 @@ git commit -m "feat(assets): grille Meshy 7 + ultra des deux cotes du miroir, he
 
 ### Task 3: Le vocabulaire 2b (miroir), `clean_graph`, `pricing`, `/info`
 
+> **LIVRÉE (edf355a + correctifs de revue) — amendements actés en revue, qui
+> PRÉVALENT sur les extraits ci-dessous :** (1) `clean_graph`/mesh3d : un moteur
+> INCONNU est réparé vers `MESH3D_DEFAULT_ENGINE`, mais **`ultra` ne survit
+> JAMAIS à cette réparation** (`connu and engine == "meshy-7"`) — conservateur
+> sur l'axe qui coûte de l'argent, l'utilisateur n'a pas consenti à l'ultra d'un
+> moteur qu'il n'a pas nommé ; (2) les arêtes sont filtrées contre les nœuds
+> SURVIVANTS (`vivants`), plus d'arêtes pendantes quand un nœud est jeté (le
+> chemin 2a layer en profite aussi) ; (3) `/info` fait son IO en
+> `asyncio.to_thread` (584 ms de blocage mesurés à 200 matières sinon) et NE
+> FAIT JAMAIS 500 : `_engine_table`/matières dégradent en `[]` + champ
+> `degraded` au message littéral ; (4) `_engine_table` tire l'ultra de
+> `MS._ultra_extra` (grille partagée, jamais recopiée) et les littéraux du prix
+> deviennent `MESH3D_TEXTURE_RES = "2k"` / `MESH3D_SHOULD_TEXTURE = True`,
+> constantes PARTAGÉES avec le payload du job de la Task 4 (une seule vérité) ;
+> (5) tests épinglés : has_meshy/has_fal par égalité, default_engine, une
+> matière réelle listée, les 4 bornes en littéral, verrou de roster
+> `MESH3D_ENGINES(fal) ⊆ asset3d_service.ENGINES`.
+
 **Files:**
 - Modify: `backend/app/services/cards/forge3d.py`
 - Modify: `frontend/cardforge/js/mod-forge3d.js` (bloc miroir seul ici)
