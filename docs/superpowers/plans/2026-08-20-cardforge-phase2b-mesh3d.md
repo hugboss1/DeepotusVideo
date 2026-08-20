@@ -1840,8 +1840,18 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
 > version séquentielle — x/y relus déjà arrondis au centième, scale non
 > arrondi) ; groupage wheelArmed/420 ms CONSERVÉ, sa clôture pousse l'état
 > FINAL exact AVANT de désarmer (l'équivalent du pointerup) ; épinglé par
-> test_la_molette_p1_coalesce_son_zoom_a_la_frame ; la vérification navigateur
-> interactive, elle, reste due à la Task 8 (backend :8765 encore éteint).
+> test_la_molette_p1_coalesce_son_zoom_a_la_frame ; vérification navigateur
+> FAITE le 20/08 sur instance isolée du dépôt (:8799, DEEPOTUS_DATA_DIR
+> scratch — l'app :8765 de l'utilisateur jamais touchée), mesures au vrai
+> labo sur la carte seed : 6 crans dans un même tick → 0 patch synchrone,
+> 1 seul core:doc, échelle finale = e^0.96 exacte au bit (les 6 crans
+> composent — le risque « base périmée » est mort) ; 30 crans étalés sur
+> 6 frames → 6 core:doc (30 avant le fix) ; centre du zoom résolu depuis
+> deux curseurs distincts stable à < 0,8 px (point-sous-curseur tenu,
+> fenêtre publiée par le cadre) ; un seul Ctrl+Z restaure l'état
+> d'avant-rafale à l'identité et la rafale rejouée est déterministe ;
+> clamp SCALE_MAX atteint proprement au fling ; touch-action calculé du
+> slider P6 = "none".
 > (2) le slider `.cf-solid-rg`, lui, EST coalescé (correctifs de revue) — même
 > rangée, même clé, même coût que le champ voisin ; il porte désormais aussi
 > son `touch-action: none` (spec 9.6-3, parité avec le scrub voisin — épinglé
