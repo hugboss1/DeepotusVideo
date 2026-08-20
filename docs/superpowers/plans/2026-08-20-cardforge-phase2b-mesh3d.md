@@ -1433,13 +1433,33 @@ git commit -m "feat(cardforge): matieres tuilees (pack MR glTF), finitions holo 
 > plus du `closed is False` déjà prévu. Le schéma job : `run_id` est OPAQUE
 > (jamais inventé/envoyé par l'écran) et `source.sha256` est null tant que
 > `queued`.
+>
+> **LIVRÉE (11b25a9) — écarts plan-vs-réalité corrigés, qui PRÉVALENT :**
+> (1) le manifeste dit **`bbox_mm`** (pas box_mm), fichier `layers_c01_front`
+> (carte 0 → c01) ; surtout, `bbox_mm` est en espace **TOILE** (fond perdu
+> inclus, y vers le BAS) alors que les maillages vivent en espace **COUPE**
+> (y vers le haut) — `_layer_box_mm` convertit, sans quoi chaque maillage
+> moteur atterrissait décalé du fond perdu et en MIROIR vertical ; (2) le fit
+> du plan mesurait les positions BRUTES — l'étalon du plan lui-même (écrit par
+> notre writer, racine ×0.001) était 1000× trop petit : `glb_scene_mesh`
+> gagne `world=True` (descente du graphe de scène, matrices composées, garde
+> de profondeur + visités, repli plat) et le fit devient AGNOSTIQUE AUX UNITÉS
+> (le défaut `world=False` garde la mesure `closed` de la Task 4 inchangée à
+> l'octet) ; (3) gate de taille sur `max(job["bytes"], stat)` (métadonnée,
+> jamais un open — prouvé sur GLB corrompu : 400 au-dessus, 409 en-dessous) ;
+> (4) `out_ignored` non cassant sur le writer, entrées par INDEX (deux
+> couches homonymes recto/verso ne collisionnent pas) ; (5) STL refusé →
+> l'ancien `{art}.stl` est DÉLIÉ (même argument legs 4 que l'aperçu) ; la
+> description du metadata cesse de dire « construite localement » quand un
+> moteur a contribué ; `elements` reste un INT (l'écran 2a le concatène),
+> le détail par élément vit dans `elements_detail`. Étapes cochées.
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py` (fusion)
 - Modify: `backend/app/services/cards/forge3d.py` (résolution de chaînes + route)
 - Test: `backend/tests/test_cards_forge3d.py`
 
-- [ ] **Step 1 : tests en RED**
+- [x] **Step 1 : tests en RED**
 
 ```python
 def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None):
@@ -1617,7 +1637,7 @@ suivre l'existant.)
 
 Run : FAIL.
 
-- [ ] **Step 2 : la fusion dans forge3d_scene.py**
+- [x] **Step 2 : la fusion dans forge3d_scene.py**
 
 `write_scene_glb` gagne un paramètre `externals: list | None = None`, traité APRÈS les
 éléments locaux, chaque entrée `{"name", "glb": bytes, "fit": {"scale": s,
@@ -1683,7 +1703,7 @@ def _fit_external(glb: bytes, box_mm: list, z_mm: float, trs: dict | None) -> di
 la règle : `z_mm` passé à `_fit_external` = 0.0 et TOUT le z vient de `t["z_mm"]`.
 Le test l'épingle : translation z == 2.0 exactement.)
 
-- [ ] **Step 3 : forge3d.py — résolution de chaînes + route**
+- [x] **Step 3 : forge3d.py — résolution de chaînes + route**
 
 `_resolve_graph_elements` v2 (garder la signature de sortie `(elements, ignored)` en
 l'étendant) :
@@ -1725,7 +1745,7 @@ Route `build3d` :
   credits?}` + `ignored` ;
 - plafond `MAX_GRAPH_ELEMENTS` inchangé (locaux + externes confondus).
 
-- [ ] **Step 4 : GREEN + commit**
+- [x] **Step 4 : GREEN + commit**
 
 ```bash
 git add backend/app/services/cards/forge3d.py backend/app/services/cards/forge3d_scene.py backend/tests/test_cards_forge3d.py
