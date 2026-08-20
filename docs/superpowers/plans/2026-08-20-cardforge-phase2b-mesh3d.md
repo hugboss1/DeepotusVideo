@@ -1101,10 +1101,21 @@ git commit -m "feat(cardforge): job mesh3d par noeud - 5 moteurs fal + meshy-6/7
 > `holo_finish` lève une ValueError nommée sur kind inconnu ; `tile_maps`
 > refuse les dimensions non positives (jamais un ZeroDivisionError nu) ;
 > (3) sortie 2a inchangée PROUVÉE à l'octet (module parallèle chargé depuis
-> HEAD) ; TANGENT VEC4 aux bornes exactes. **Legs à la Task 6 :** mémo
-> `(kind, aniso, px)` sur holo_finish si appelé par élément (1,26 s pièce) ;
-> l'assert de pas de tuilage du test est creux (map uniforme) — à durcir en
-> passe de finition. Étapes cochées.
+> HEAD) ; TANGENT VEC4 aux bornes exactes. **2e passe de revue — DEUX FAUTES
+> DU PLAN de plus, corrigées :** (a) le plan prescrivait `TANGENT w=+1` — or
+> ces maillages ont les UV à V INVERSÉ : la règle glTF (et gltf_builder.py:485
+> du dépôt lui-même) donne **w = −1** ; à +1 le champ anisotrope devenait
+> RADIAL sur les diagonales (nœud papillon au lieu du brossé circulaire) et le
+> vert des normal maps s'inversait ; (b) la sémantique finition×matière :
+> glTF MULTIPLIE facteurs × textures — décision actée : **la finition SAUTE la
+> map MR** de la matière (une feuille holo remplace la micro-surface mais
+> laisse parler le relief/normal et l'occlusion). Aussi actés : lru_cache sur
+> les deux PNG holo (octets immuables), dédup des textures par appel, cap
+> out_px 2048 partout, resample explicites, `MATERIAL_FINISHES` dérivé de
+> `HOLO_KINDS`, drapeau `uv_axis_aligned` sur quad/relief + ValueError nommée
+> si anisotropie sur maillage sans le drapeau (garde pour la fusion Task 6),
+> assert de pas de tuilage REFAIT en dimensions divisibles (l'ancien comparait
+> des texels non correspondants). Étapes cochées.
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d_scene.py`
