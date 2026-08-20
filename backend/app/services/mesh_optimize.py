@@ -13,6 +13,7 @@ aggressive (-sa) uniquement si le résultat dépasse la cible de +15 %.
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import struct
 import subprocess
@@ -86,9 +87,13 @@ def _gltfpack() -> str:
     exe = shutil.which("gltfpack")
     if not exe:
         # Cherche aussi le bin/ de l'app même si le PATH du process ne l'a pas
-        # (backend relancé à la main, service tiers, PATH tronqué).
+        # (backend relancé à la main, service tiers, PATH tronqué), puis le
+        # bin de l'app INSTALLÉE — même règle que effects_preview.ffmpeg_bin —
+        # pour un checkout source, qui ne versionne pas bin/.
         for cand in (Path(__file__).resolve().parents[3] / "bin" / "gltfpack.exe",
-                     Path(__file__).resolve().parents[4] / "bin" / "gltfpack.exe"):
+                     Path(__file__).resolve().parents[4] / "bin" / "gltfpack.exe",
+                     Path(os.path.expandvars(
+                         r"%LOCALAPPDATA%\DeepotusVideoGen\bin\gltfpack.exe"))):
             if cand.is_file():
                 return str(cand)
         raise RuntimeError(

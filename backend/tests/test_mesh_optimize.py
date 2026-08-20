@@ -1,10 +1,12 @@
 """Recette chantier 10a — mesh_optimize (budgets de triangles, gltfpack).
 
-Lancé avec le python embarqué de l'app installée, gltfpack du bin de l'app sur
-le PATH, et outputs isolé :
+Lancé avec le python embarqué de l'app installée et outputs isolé :
 
-  set PATH=C:\\Users\\olivi\\AppData\\Local\\DeepotusVideoGen\\bin;%PATH%
   runtime\\python\\python.exe -m pytest backend/tests/test_mesh_optimize.py -v
+
+gltfpack est résolu par mesh_optimize lui-même : PATH, bin/ de l'app, sinon le
+bin de l'app installée (%LOCALAPPDATA%\\DeepotusVideoGen\\bin) — préfixer le
+PATH n'est plus nécessaire sur un checkout source.
 
 Couvre : stats GLB exactes sur un tore synthétique aux comptes connus,
 simplification vers la cible (vrai gltfpack, ±20 %), passe aggressive,
@@ -102,8 +104,12 @@ def torus_job(outputs):
 # ── tests ────────────────────────────────────────────────────────────────────
 
 def test_gltfpack_on_path():
-    assert shutil.which("gltfpack"), \
-        "gltfpack introuvable sur le PATH — préfixer avec le bin de l'app"
+    """gltfpack résolu — PATH, bin/ de l'app, ou app installée (même contrat
+    que solid.has_ffmpeg) ; _gltfpack() lève avec le message utilisateur s'il
+    est vraiment absent partout."""
+    exe = MO._gltfpack()
+    assert shutil.which(exe) or Path(exe).is_file(), \
+        f"gltfpack résolu vers {exe!r} mais introuvable sur disque"
 
 
 def test_glb_stats_exact(torus_job, outputs):
