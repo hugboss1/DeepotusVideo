@@ -58,6 +58,14 @@ Regles verifiees ici :
       figure pas (neuf, jamais suivi) le controle CRLF est SAUTE pour lui ;
       le controle NUL, lui, reste actif dans tous les cas, seul a ne pas
       dependre de l'historique. Voir check_r13() et _index_eol_map().
+  R14 « Echappement » : dans un corps de fonction dont le nom contient Html ou
+      paint, aucune lecture de champ (`a.b`) ne peut etre concatenee TELLE
+      QUELLE a l'ouverture d'une valeur d'attribut HTML. C'est la seule classe
+      d'injection que ce script peut juger MECANIQUEMENT, et c'est la plus
+      grave : un guillemet dans la valeur ferme l'attribut et pose ce qu'on
+      veut sur la balise. La position TEXTE est hors perimetre (voir le pave
+      au-dessus de check_r14 : il faudrait savoir si le champ porte un nombre
+      ou une chaine, ce qu'aucun regex ne sait). Cliquet, pas preuve.
 
 Ce que le script ne peut PAS voir (le contrat runtime de core.js reste
 l'autorite) : un painter enregistre dynamiquement, un id DOM construit par
@@ -369,6 +377,207 @@ def check_r12(mid, path, text, add):
              "setFormat" if m.group(1) == "setFormat" else m.group(1)) + "(...)")
 
 
+# ── R14 « echappement » ─────────────────────────────────────────────────────
+# CE QUE CETTE REGLE EXISTE POUR ATTRAPER : une donnee interpolee TELLE QUELLE
+# dans une chaine de HTML. Les modules construisent leur DOM par concatenation
+# de chaines (`'<span>' + x + '</span>'`) ; toute valeur qui n'est pas passee
+# par esc() y injecte ses `<`, `&` et `"`. Le mode le plus courant n'est meme
+# pas malveillant : un nom de fichier ou un message d'erreur du backend qui
+# contient un chevron casse silencieusement la mise en page, et personne ne
+# relie jamais le symptome a la ligne fautive. Un mutant survivant de la revue
+# 2b : remplacer esc(x.y) par x.y ne faisait tomber AUCUN test.
+#
+# CE QU'ELLE NE PEUT PAS VOIR (filet statique, pas une preuve — meme doctrine
+# que le reste du script) : une valeur passee par une variable intermediaire
+# (`const n = art.name;` puis `+ n +`), une fonction a corps d'expression, une
+# concatenation construite par reduce/join. Elle vise le motif LITTERAL, qui
+# est celui que l'on ecrit neuf fois sur dix.
+#
+# LES ENVELOPPES SURES sont reconnues STRUCTURELLEMENT et non par liste : un
+# appel (`esc(`, `Number(`, `weight(`, `String(`, `encodeURIComponent(`…) fait
+# suivre son identifiant d'une PARENTHESE — la regle ecarte donc tout ce qui se
+# termine par un appel, sans liste a maintenir a jour.
+#
+# PERIMETRE : LA POSITION D'ATTRIBUT, et elle seule. C'est le seul endroit que
+# ce script peut juger MECANIQUEMENT — le litteral qui precede se termine par
+# `attribut="`, donc la valeur atterrit dans une valeur d'attribut, ou un
+# guillemet suffit a s'echapper et a poser un `onerror=` sur l'element voisin.
+# La position TEXTE (`'<b>' + x.y + '</b>'`) est deliberement HORS perimetre :
+# elle demande de savoir si `x.y` est un nombre mesure par le backend ou une
+# chaine venue de l'exterieur, et aucun regex ne le sait. La signaler aurait
+# noyé la regle sous les compteurs (mesure sur ce depot : 188 signalements,
+# dont ~180 des relevés numériques de mod-gltf) — un lint qu'on desactive ne
+# protege plus rien. C'est un CLIQUET sur la classe la plus grave, pas une
+# preuve d'echappement global (meme doctrine que le reste du script).
+R14_NOMS = re.compile(r"Html|paint", re.I)
+R14_DECL = re.compile(
+    r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\("
+    r"|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*"
+    r"(?:async\s+)?(?:function\s*)?\(")
+# un litteral, `+`, puis une CHAINE de membres (`a.b`, `a.b.c`) : c'est la
+# lecture d'une valeur. Un identifiant nu (`+ x +`) n'est pas vise : il n'a pas
+# de provenance lisible ici, et le motif de la faute est l'acces a un champ.
+R14_CHAINE = re.compile(
+    r"([\"'`])\s*\+\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)+)")
+# le litteral se termine sur l'ouverture d'une valeur d'attribut
+R14_ATTR_FIN = re.compile(r"[\w-]+\s*=\s*[\"']?$")
+# membres STRUCTURELLEMENT numeriques : aucun balisage ne peut en sortir
+R14_SURS = ("length",)
+# `prev` significatif apres lequel un « / » ouvre une expression reguliere et
+# non une division : sans ca, le masquage se desynchronise sur `a / b`.
+R14_AVANT_RE = set("(,=:[!&|?{};+-*%~^<>")
+
+
+def _js_masque(text):
+    """Rend (sans_commentaires, sans_chaines), offsets et sauts de ligne
+    PRESERVES dans les deux. `sans_chaines` blanchit aussi le CONTENU des
+    litteraux (delimiteurs gardes) : c'est lui qui sert a apparier les
+    accolades, sans quoi une accolade de commentaire ou de chaine fait deriver
+    le decoupage. `sans_commentaires` garde les chaines : R14 a besoin de lire
+    la fin du litteral pour savoir s'il ouvre une valeur d'attribut. Ecrit a la
+    main faute de parseur JS dans ce depot."""
+    sans_com = list(text)
+    out = list(text)
+    n = len(text)
+    i, prev = 0, ""
+
+    def blanchir(a, b, aussi_com=False):
+        for k in range(a, min(b, n)):
+            if out[k] != "\n":
+                out[k] = " "
+                if aussi_com:
+                    sans_com[k] = " "
+
+    while i < n:
+        c = text[i]
+        if c == "/" and i + 1 < n and text[i + 1] == "/":
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            blanchir(i, j, True)
+            i = j
+            continue
+        if c == "/" and i + 1 < n and text[i + 1] == "*":
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            blanchir(i, j, True)
+            i = j
+            continue
+        if c in "\"'`":
+            j = i + 1
+            while j < n:
+                if text[j] == "\\":
+                    j += 2
+                    continue
+                if text[j] == c:
+                    break
+                j += 1
+            blanchir(i + 1, j)
+            i = min(j, n) + 1
+            prev = c
+            continue
+        if c == "/" and (prev == "" or prev in R14_AVANT_RE):
+            j, classe = i + 1, False
+            while j < n:
+                d = text[j]
+                if d == "\\":
+                    j += 2
+                    continue
+                if d == "[":
+                    classe = True
+                elif d == "]":
+                    classe = False
+                elif d == "\n" or (d == "/" and not classe):
+                    break
+                j += 1
+            if j < n and text[j] == "/":
+                blanchir(i + 1, j, True)
+                i = j + 1
+                prev = "/"
+                continue
+        if not c.isspace():
+            prev = c
+        i += 1
+    return "".join(sans_com), "".join(out)
+
+
+def _litteral_avant(s, q):
+    """Le CONTENU du litteral dont le delimiteur fermant est en `q`, ou None."""
+    c = s[q]
+    k = q - 1
+    while k >= 0:
+        if s[k] == "\n" and c != "`":
+            return None
+        if s[k] == c:
+            n_ech, j = 0, k - 1
+            while j >= 0 and s[j] == "\\":
+                n_ech += 1
+                j -= 1
+            if n_ech % 2 == 0:
+                return s[k + 1:q]
+        k -= 1
+    return None
+
+
+def _apparie(masque, i, ouvre, ferme):
+    """L'index du delimiteur fermant apparie a `masque[i] == ouvre`, ou -1."""
+    prof = 0
+    for k in range(i, len(masque)):
+        if masque[k] == ouvre:
+            prof += 1
+        elif masque[k] == ferme:
+            prof -= 1
+            if prof == 0:
+                return k
+    return -1
+
+
+def _corps_fonction(masque, i_paren):
+    """(debut, fin) du corps `{...}` d'une fonction dont la liste de parametres
+    ouvre a `i_paren`. Rend None si le corps n'est pas un bloc — une fleche a
+    corps d'EXPRESSION n'est pas analysee plutot que d'etre mal decoupee."""
+    fin_p = _apparie(masque, i_paren, "(", ")")
+    if fin_p < 0:
+        return None
+    reste = masque[fin_p + 1:fin_p + 12]
+    depart = fin_p + 1 + (reste.index("{") if "{" in reste else -1)
+    if "{" not in reste or reste[:reste.index("{")].strip() not in ("", "=>"):
+        return None
+    fin = _apparie(masque, depart, "{", "}")
+    return None if fin < 0 else (depart, fin)
+
+
+def check_r14(mid, path, text, add):
+    sans_com, masque = _js_masque(text)
+    for m in R14_DECL.finditer(masque):
+        nom = m.group(1) or m.group(2)
+        if not nom or not R14_NOMS.search(nom):
+            continue
+        corps = _corps_fonction(masque, m.end() - 1)
+        if corps is None:
+            continue
+        for h in R14_CHAINE.finditer(sans_com, corps[0], corps[1]):
+            # le motif doit etre du CODE : dans `sans_com` les chaines sont
+            # intactes, donc un texte qui contiendrait `" + a.b` se lirait
+            # comme du code. `masque`, lui, l'a blanchi -- il tranche.
+            if masque[h.start(2)] != sans_com[h.start(2)]:
+                continue
+            reste = sans_com[h.end():h.end() + 3].lstrip()
+            if reste[:1] == "(":          # appel de methode, pas une valeur lue
+                continue
+            chaine = re.sub(r"\s+", "", h.group(2))
+            if chaine.rsplit(".", 1)[-1] in R14_SURS:
+                continue
+            litteral = _litteral_avant(sans_com, h.start(1))
+            if litteral is None or not R14_ATTR_FIN.search(litteral):
+                continue                  # position TEXTE : hors perimetre
+            add("R14", path, sans_com.count("\n", 0, h.start()) + 1,
+                f"« {chaine} » ouvre une valeur d'ATTRIBUT dans le HTML de "
+                f"{nom}() sans passer par esc() : un guillemet dans cette "
+                f"valeur ferme l'attribut et pose ce qu'on veut sur la balise "
+                f"(un onerror=, par exemple). L'envelopper : esc(...) pour du "
+                f"texte, Number(...)/weight(...) pour un chiffre.")
+
+
 ROUTER_OK = re.compile(r"^\s*router\s*=\s*APIRouter\(\s*\)\s*$", re.M)
 ROUTER_ANY = re.compile(r"APIRouter\s*\(")
 ROUTE_DEC = re.compile(
@@ -571,6 +780,7 @@ def run(root, only=None):
             check_r7(mid, files["js"], t, add)
             check_r11(mid, files["js"], t, add)
             check_r12(mid, files["js"], t, add)
+            check_r14(mid, files["js"], t, add)
         # R13 pour js/css : voir le parcours en arbre de frontend/cardforge
         # plus bas, qui couvre ces deux fichiers ET tout ce que la carte par
         # module ne peut pas voir (core.js, cardforge.css, index.html,
@@ -651,7 +861,7 @@ def main():
         print(f"  {mid:8s} {state}  {marks}")
     print(f"  -> {nfull}/{len(present)} module(s) complet(s)")
     print("=== VIOLATIONS (R4 css · R5 ids DOM · R7 couches z · R8 routeur · R11 use strict · "
-          "R12 jeton · R13 octets sains)")
+          "R12 jeton · R13 octets sains · R14 echappement)")
     if not findings:
         print("  aucune")
     for f in findings:

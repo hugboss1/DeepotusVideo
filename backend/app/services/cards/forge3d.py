@@ -347,6 +347,7 @@ def clean_graph(raw) -> dict:
     sur EXACTEMENT "n2x" (la deuxième collision n'était jamais reconsidérée),
     et l'arête qui visait l'un des deux devenait ambiguë entre les deux."""
     from app.services import material_store
+    from app.services import meshy_service as MS
     g = raw if isinstance(raw, dict) else {}
     kinds = {k["kind"] for k in NODE_KINDS}
     roles = {r["role"] for r in LAYER_ROLES}
@@ -389,7 +390,14 @@ def clean_graph(raw) -> dict:
             # réparé vers le défaut, mais un drapeau PAYANT ne survit jamais
             # à une réparation — l'utilisateur n'a pas consenti à l'ultra
             # d'un moteur qu'il n'a pas nommé.
-            node["ultra"] = bool(n.get("ultra")) and connu and node["engine"] == "meshy-7"
+            # M8 : UNE SEULE SOURCE D'ÉLIGIBILITÉ À L'ULTRA — la grille
+            # partagée de `meshy_service`, celle-là même qui FACTURE le
+            # surcoût et que `/info` publie en `ultra_extra_credits`. L'ancien
+            # `== "meshy-7"` recopiait ici une règle de tarification : le jour
+            # où un moteur de plus le propose, le devis l'annoncerait et le
+            # nettoyage l'effacerait, chacun sûr d'avoir raison.
+            node["ultra"] = (bool(n.get("ultra")) and connu
+                             and MS._ultra_extra(node["engine"], True) > 0)
         elif n["kind"] == "material":
             mid = str(n.get("mat") or "")
             node["mat"] = mid if material_store.is_valid_mid(mid) else None
@@ -1220,7 +1228,7 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
 
 
 def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
-                     box_mm: list, trs_n) -> dict:
+                     box_mm: list, trs_n, card_label: str) -> dict:
     """UN GLB de moteur, prêt pour la fusion — ou un refus NOMMÉ.
 
     LEGS DE LA TÂCHE 4, l'asymétrie I4 : `served` n'implique PLUS
@@ -1238,6 +1246,22 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
         raise HTTPException(
             409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
                  f"(POST mesh3d/{nid})")
+    # I2 — UN GLB EST LIÉ À SA CARTE. Le job dit de QUELLE couche il est né
+    # (`source.file`, écrit par la route au lancement) ; la chaîne, elle, vise
+    # la couche de la carte qu'on construit MAINTENANT. Quand les deux
+    # divergent — le nœud a été lancé sur la carte 1, on assemble la carte 2,
+    # ou le côté du nœud `layer` a changé depuis — fusionner produirait un
+    # artefact où l'illustration d'une AUTRE carte est présentée comme celle-ci.
+    # Aucune mesure ne rattraperait ça après coup : c'est le bon fichier, au
+    # mauvais endroit. Refus NOMMÉ, avec les deux noms, pour que le motif soit
+    # actionnable (relancer le nœud) plutôt que mystérieux.
+    attendu = _layer_filename(layer, card_label)
+    servi = (job.get("source") or {}).get("file") if isinstance(
+        job.get("source"), dict) else None
+    if isinstance(servi, str) and servi and servi != attendu:
+        raise HTTPException(
+            409, f"le GLB du noeud {nid} a ete servi pour {servi} — cette "
+                 f"construction attend {attendu} : relance-le pour cette carte")
     fichiers = job.get("files")
     nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
     nom_glb = str(nom_glb or "model.glb")
@@ -1360,7 +1384,7 @@ async def post_build3d(did: str, body: dict | None = None):
                     did, proc, layer, nom_el,
                     _layer_box_mm(manifestes[side], layer, w_mm, h_mm,
                                   g.bleed_mm),
-                    trs_n))
+                    trs_n, card_label))
                 ex = externes[-1]
                 bordereau.append({"name": nom_el, "kind": "externe",
                                   "node": proc["id"], "engine": ex["engine"],

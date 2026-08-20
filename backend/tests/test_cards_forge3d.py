@@ -1545,6 +1545,34 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
     seed = rendu.split("async function seedDefault(")[1].split("\n  }")[0]
     assert "cardChanged" in seed and "defaultGraph(" in seed, seed
     assert seed.index("cardChanged") < seed.index("defaultGraph("), seed
+
+    # L'INVARIANT D'APPARIEMENT, ÉPINGLÉ SUR LA SOURCE ENTIÈRE (et pas sur les
+    # seuls chemins auxquels on a pensé) : `LAST_MANIFEST` et `MANIFEST_CARD`
+    # forment une PAIRE — le manifeste et la carte POUR LAQUELLE il vaut. Poser
+    # l'un sans l'autre fige un appariement faux que le comparateur de
+    # `cardChanged` valide ensuite pour toujours ; c'est exactement ce qui est
+    # arrivé au chemin de l'export (il posait `LAST_MANIFEST = rep.layers` seul,
+    # à 123 lignes du plus proche `MANIFEST_CARD =`). Toute écriture de l'un
+    # doit donc voisiner une écriture de l'autre. Mesuré : le plus grand écart
+    # LÉGITIME est de 7 lignes.
+    src_lignes = src.splitlines()
+    pose_man = [i for i, l in enumerate(src_lignes)
+                if re.search(r"LAST_MANIFEST\s*=[^=]", l)]
+    pose_carte = [i for i, l in enumerate(src_lignes)
+                  if re.search(r"MANIFEST_CARD\s*=[^=]", l)]
+    assert pose_man and pose_carte
+    for i in pose_man:
+        ecart = min(abs(i - j) for j in pose_carte)
+        assert ecart <= 10, (
+            f"ligne {i + 1} pose LAST_MANIFEST sans poser MANIFEST_CARD "
+            f"a cote (plus proche : {ecart} lignes) — l'appariement "
+            f"manifeste/carte se casse la : {src_lignes[i].strip()}")
+
+    # le poll s'arrête aux DEUX états terminaux du contrat, nommément — un
+    # « failed » oublié laisserait une boucle tourner pour toujours, un
+    # « served » oublié ferait repoller un job fini jusqu'à la fin des temps.
+    poll = rendu.split("function pollMesh3d(")[1].split("\n  }")[0]
+    assert '"served"' in poll and '"failed"' in poll, poll
     # l'échec d'un job est montré LITTÉRAL (error du job.json)
     assert "job.error" in rendu or 'job["error"]' in rendu
     # les legs d'affichage : degraded affiché tel quel, jamais un select vide muet
@@ -2737,7 +2765,7 @@ def _dossier_forge3d(did):
 
 
 def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None,
-               note=None, octets=None):
+               note=None, octets=None, source=None):
     """Pose un nœud mesh3d SERVI sur disque, avec la forme EXACTE de job.json
     qu'écrit `_run_mesh3d` (Task 4) — `bytes` compris : c'est LUI que le gate
     de taille de la fusion relit, sans ouvrir le fichier. `octets` permet de
@@ -2754,6 +2782,11 @@ def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None,
            "files": {"glb": "model.glb"}}
     if credits is not None:
         job["consumed_credits"] = credits
+    if source is not None:
+        # `source` dit de QUELLE couche ce GLB est né (la route l'écrit au
+        # lancement) — le laisser absent garde le comportement historique des
+        # tests qui ne s'y intéressent pas.
+        job["source"] = source
     (base / "job.json").write_text(json.dumps(job, ensure_ascii=False),
                                    encoding="utf-8")
     return job
@@ -3248,6 +3281,66 @@ def test_le_glb_externe_aux_exigences_inconnues_ou_trop_profond_est_refuse():
               json={"graph": g, "card": 0})
     assert r2.status_code == 409, r2.text
     assert "profonde" in r2.json()["detail"]
+
+
+def test_un_glb_servi_pour_une_autre_couche_est_refuse_nomme():
+    """I2 — un GLB de moteur est lié à SA carte : il est né d'UNE couche
+    précise, que le job nomme (`source.file`). L'assembler dans la
+    construction d'une AUTRE carte (ou d'un autre côté) livrerait l'illustration
+    de la carte 7 présentée comme celle de la carte 1 — le bon fichier, au
+    mauvais endroit, qu'aucune mesure ne rattrape après coup. Refus NOMMÉ, avec
+    LES DEUX noms, pour que le motif soit actionnable."""
+    did = _deck("Appariement")
+    _exporter_couches(did)
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="meshy-7",
+               credits=30,
+               source={"role": "illustration", "side": "front",
+                       "file": "illustration_c07_front.png",
+                       "bytes": 10, "sha256": None})
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
+    assert r.status_code == 409, r.text
+    d = r.json()["detail"]
+    assert "illustration_c07_front.png" in d, d      # ce qui a ete servi
+    assert "illustration_c01_front.png" in d, d      # ce qui est attendu
+    assert "m1" in d, d
+
+    # ... et le MEME job, servi pour la bonne couche, passe : le gate discrimine
+    # bien la carte, il ne casse pas la fusion.
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="meshy-7",
+               credits=30,
+               source={"role": "illustration", "side": "front",
+                       "file": "illustration_c01_front.png",
+                       "bytes": 10, "sha256": None})
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
+    assert r2.status_code == 200, r2.text
+
+
+def test_l_eligibilite_a_l_ultra_a_une_seule_source():
+    """M8 — `clean_graph` ne recopie plus « meshy-7 » : il interroge la grille
+    partagee qui FACTURE le surcout (et que /info publie en
+    `ultra_extra_credits`). Deux verites divergentes sur un axe payant, c'est
+    un devis qui annonce ce que le nettoyage efface."""
+    from app.services.cards import forge3d as F9
+    from app.services import meshy_service as MS
+
+    def ultra_de(engine):
+        g = F9.clean_graph({"nodes": [{"id": "m1", "kind": "mesh3d",
+                                       "engine": engine, "ultra": True}],
+                            "edges": []})
+        return g["nodes"][0]["ultra"], g["nodes"][0]["engine"]
+
+    for e in F9.MESH3D_ENGINES:
+        ultra, moteur = ultra_de(e["id"])
+        assert moteur == e["id"]
+        # LA grille est l'arbitre, des deux cotes de l'assertion
+        assert ultra is (MS._ultra_extra(e["id"], True) > 0), e["id"]
+    # un moteur INCONNU est repare vers le defaut, et l'ultra ne survit pas a
+    # une reparation, meme si le defaut, lui, l'accepterait
+    ultra, moteur = ultra_de("warp-drive")
+    assert moteur == F9.MESH3D_DEFAULT_ENGINE
+    assert ultra is False, "l'ultra ne se reconduit pas vers un moteur non nomme"
 
 
 def test_un_accesseur_de_positions_non_float32_est_refuse_nomme():

@@ -42,9 +42,18 @@
 .cf-forge3d .cf-forge3d-chip.servi { border-color: color-mix(in srgb, var(--green) 45%, transparent); color: var(--green); }
 .cf-forge3d .cf-forge3d-chip.echec { border-color: color-mix(in srgb, var(--red) 45%, transparent); color: var(--red); }
 .cf-forge3d .cf-forge3d-chip.ailleurs { border-style: dashed; border-color: var(--stroke-strong); color: var(--ink); }
+/* une note de mesure REFUSEE n'est ni une panne ni un succes : elle informe */
+.cf-forge3d .cf-forge3d-chip.note { color: var(--ink-soft); }
+/* ce que le job a servi — la couche, jamais tue sous un simple « servi » */
+.cf-forge3d .cf-forge3d-src { font-style: normal; color: var(--ink-soft); }
 
-/* ── le pied de cout : ce que « Lancer » coutera, AVANT ──────────────────── */
-.cf-forge3d #cf-forge3d-cost { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--stroke); color: var(--accent); }
+/* ── le pied de cout : ce que « Lancer » coutera, AVANT ────────────────────
+      L'AMBRE EST UN ROLE (cardforge.css) : « ce que l'action va COUTER ». Un
+      graphe gratuit n'y a donc pas droit — il reste en encre d'aide. */
+.cf-forge3d #cf-forge3d-cost { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--stroke); color: var(--ink-muted); }
+.cf-forge3d #cf-forge3d-cost.cf-forge3d-payant { color: var(--accent); }
+/* le plafond d'elements : un refus a venir, dit avant d'etre rencontre */
+.cf-forge3d .cf-forge3d-trop { color: var(--red); margin-top: 8px; }
 
 /* ── le bordereau de build3d : un fichier par ligne, provenance connue ───── */
 .cf-forge3d .cf-forge3d-file { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }

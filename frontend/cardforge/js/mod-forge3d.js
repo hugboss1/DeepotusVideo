@@ -136,18 +136,41 @@
      a répondu 404 (« jamais lancé » — une réponse, pas une panne). La clé
      ABSENTE veut dire « pas encore sondé » : c'est ce qui déclenche le
      sondage d'une seule requête au premier rendu (un GET, gratuit).
-     POLLS[nid] : un poll par nœud (relance idempotente).
+     POLLS[nid] : la GÉNÉRATION du poll en cours (pas un booléen) — un poll
+     par nœud, et un tic rassis ne retire que SA PROPRE entrée, jamais celle
+     de son successeur (même doctrine que `_MESH3D_RUNNING.get(cle) is moi`
+     côté serveur).
+     SEEN[nid]  : l'instant du dernier état LU — c'est lui qui autorise une
+     re-sonde d'un job terminal (sans quoi « relancé ailleurs » ne pourrait
+     jamais se déclencher : une fois le poll arrêté, plus personne ne
+     regarde).
      RUNS[nid]  : vrai dès qu'un poll a vu le `run_id` CHANGER — un autre
      onglet a relancé ce nœud, et l'écran le dit au lieu d'un flip muet.
      ERRS[nid]  : le refus HTTP LITTÉRAL du dernier lancement/poll (la
      famille nommée 400/409/503/413), effacé au premier succès. */
   const JOBS = {};
   const POLLS = {};
+  const SEEN = {};
   const RUNS = {};
   const ERRS = {};
-  let GEN = 0;                  /* génération de deck : un poll d'un deck
-                                    précédent se tait au lieu d'écrire dans
-                                    l'écran du suivant */
+  const REPROBE_MS = 30000;     /* au-delà, l'état terminal d'un nœud est
+                                    RELU une fois par peinture — c'est ce qui
+                                    laisse voir la relance d'un autre onglet */
+  let GEN = 1;                  /* génération : un poll d'un deck (ou d'une
+                                    carte) précédent se tait au lieu d'écrire
+                                    dans l'écran du suivant. Commence à 1 :
+                                    zéro serait un jeton FAUX dans POLLS. */
+
+  /* OUBLIER LES JOBS — appelé quand ce qu'ils décrivent n'est plus à l'écran
+     (changement de deck, changement de carte). `GEN` d'abord : les tics déjà
+     en vol se taisent, et les nouvelles sondes repartent sous un jeton neuf
+     que ces tics-là ne peuvent plus retirer. */
+  function oublieLesJobs() {
+    GEN += 1;
+    [JOBS, POLLS, SEEN, RUNS, ERRS].forEach((reg) => {
+      Object.keys(reg).forEach((k) => { delete reg[k]; });
+    });
+  }
 
   function get(k) { return CF.get("forge3d." + k, null); }
 
@@ -220,13 +243,14 @@
       LAST_MANIFEST = null;
       MANIFEST_CARD = null;
       ARTIFACT = null;
+      /* M1 — un chargement de manifeste en vol appartient au deck PRÉCÉDENT :
+         on coupe le verrou, sinon le deck suivant se croit « déjà en train de
+         charger » et n'en redemande jamais. Le chargement rassis, lui, jette
+         son propre résultat (il compare sa génération). */
+      refreshManifest.busy = null;
       /* les jobs sont DECK-LOCAUX (nodes/<nid>/job.json sous le deck) : ceux
-         du deck précédent ne disent plus rien de celui-ci. `GEN` fait taire
-         les polls déjà en vol au lieu de les laisser peindre par-dessus. */
-      GEN += 1;
-      [JOBS, POLLS, RUNS, ERRS].forEach((reg) => {
-        Object.keys(reg).forEach((k) => { delete reg[k]; });
-      });
+         du deck précédent ne disent plus rien de celui-ci. */
+      oublieLesJobs();
       if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
     });
     /* LEGS 5, CÔTÉ POUSSÉE — sans cet abonnement la fraîcheur du manifeste
@@ -340,8 +364,20 @@
         /* seed du graphe par défaut (Task 5) : le RECTO fait foi, jamais le
            dernier reçu — le backend défaut side="front", l'écran affiche
            recto par défaut, et l'aperçu figé devient l'image ERC-721
-           (l'identité d'une carte est sa face). */
-        if (face === "front") LAST_MANIFEST = rep.layers;
+           (l'identité d'une carte est sa face).
+
+           C1 — L'APPARIEMENT SE POSE ICI AUSSI, sans quoi le legs 5 rentre
+           par la porte de l'export : poser `LAST_MANIFEST` seul laissait
+           `MANIFEST_CARD` sur l'ancienne carte (ou `null`), et un changement
+           de carte PENDANT l'export figeait une paire fausse que le
+           comparateur de `cardChanged` valide pour toujours — `seedDefault`
+           semait alors depuis les couches d'une autre carte. C'est `carte`,
+           l'index figé en tête de fonction, qui étiquette (pas le rail, qui
+           a pu bouger). */
+        if (face === "front") {
+          LAST_MANIFEST = rep.layers;
+          MANIFEST_CARD = cardLabel(carte);
+        }
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
@@ -432,9 +468,14 @@
      pour cette carte, toléré EN SILENCE (ce n'est pas une panne, le hint
      le dit déjà). `M.api.blob` rend un Blob de provenance connue ; on le
      relit en texte puis en JSON (pas de route JSON dédiée à ce fichier). */
-  function cardLabel() {
-    const carte = (CF.current ? CF.current() : 0);
-    return "c" + String(carte + 1).padStart(2, "0");
+  /* L'ÉTIQUETTE D'UNE CARTE — une seule règle de formatage pour tout le
+     module (`c01`, `c02`… : celle de `post_layers`, qui nomme
+     `layers_c{NN}_front.json`). L'index est un PARAMÈTRE : `exportLayers` a
+     déjà figé le sien en tête de fonction et doit étiqueter CE numéro-là, pas
+     celui que le rail affiche au moment où l'appariement se pose. */
+  function cardLabel(carte) {
+    const i = (carte == null) ? (CF.current ? CF.current() : 0) : carte;
+    return "c" + String(i + 1).padStart(2, "0");
   }
 
   /* un seul chargement à la fois, et `busy` porte LA PROMESSE en cours (pas
@@ -450,18 +491,28 @@
 
   async function chargeManifeste() {
     const label = cardLabel();
+    const gen = GEN;
+    let recu = null;
     try {
       const blob = await M.api.blob("GET", "file/layers_" + label + "_front.json");
-      LAST_MANIFEST = JSON.parse(await blob.text());
+      recu = JSON.parse(await blob.text());
     } catch (e) {
-      LAST_MANIFEST = null;
-    } finally {
-      /* l'étiquette est posée MÊME en échec : un 404 est une réponse (« jamais
-         exporté pour cette carte »), pas une raison de re-demander en boucle
-         à chaque peinture. */
-      MANIFEST_CARD = label;
-      refreshManifest.busy = null;
+      recu = null;
     }
+    /* M1 — CE CHARGEMENT PEUT ÊTRE RASSIS : un changement de deck pendant la
+       requête a incrémenté `GEN`. Écrire son résultat poserait un manifeste —
+       et surtout un APPARIEMENT — appartenant à ce qui n'est plus à l'écran.
+       Il se jette, il ne se peint pas ; et il ne TOUCHE PAS au verrou, que le
+       handler `core:deck` a déjà libéré (le nuller ici tuerait celui du
+       chargement suivant, déjà parti). Le chemin `cardChanged`, lui, ne peut
+       pas rassir : il incrémente `GEN` AVANT de lancer sa requête. */
+    if (gen !== GEN) return;
+    LAST_MANIFEST = recu;
+    /* l'étiquette est posée MÊME en échec : un 404 est une réponse (« jamais
+       exporté pour cette carte »), pas une raison de re-demander en boucle
+       à chaque peinture. */
+    MANIFEST_CARD = label;
+    refreshManifest.busy = null;
     paintGraph();
   }
 
@@ -481,6 +532,13 @@
   function cardChanged() {
     if (refreshManifest.busy) return refreshManifest.busy;
     if (cardLabel() === MANIFEST_CARD) return null;
+    /* I2 — UN JOB EST LIÉ À SA CARTE. Le GLB d'un nœud a été fabriqué depuis
+       LA couche d'une carte précise (le job le dit lui-même : `source.file`).
+       Garder les chips en changeant de carte afficherait « servi · 30 cr » sur
+       un nœud qui, pour LA carte affichée, n'a rien servi du tout — et le pied
+       de coût compterait ce nœud comme déjà payé. Le chip d'une autre carte
+       serait un mensonge : on oublie, et on re-sonde. */
+    oublieLesJobs();
     return refreshManifest();
   }
 
@@ -658,10 +716,16 @@
     const m = mesh3dInfo();
     const engines = (m && m.engines) || [];
     if (!engines.length) {
+      /* M2 — LA ZONE D'ÉTAT SURVIT À LA PANNE. La table des moteurs est
+         tombée, mais un job PAYÉ, lui, ne disparaît pas avec elle : faire
+         s'évaporer sa chip effacerait la seule trace à l'écran de ce qui a été
+         dépensé. `runHtml` sait déjà se désactiver sans moteur — il rend un
+         bouton mort et l'état lu du disque. */
       return '<div class="cf-forge3d-blk cf-forge3d-mesh"><p class="hint">'
         + '<b>moteurs 3D indisponibles</b> — ' + esc((m && m.degraded)
           || "le contrat /info n'a pas été chargé (backend injoignable ?)")
-        + '</p></div>';
+        + '</p><span class="cf-forge3d-run" data-nid="' + esc(proc.id) + '">'
+        + runHtml(proc) + '</span></div>';
     }
     const eng = engineFor(proc);
     const cle = !m.has_meshy;
@@ -719,7 +783,22 @@
       + chipHtml(proc.id, job);
   }
 
+  /* I2 — CE QU'UN JOB A SERVI, dit par le job lui-même. `source` porte la
+     couche ET le fichier de carte depuis lesquels ce GLB a été fabriqué : une
+     chip muette là-dessus laisse croire qu'un « servi » vaut pour la carte
+     affichée, alors qu'un GLB est lié à SA carte (le backend refuse d'ailleurs
+     la fusion quand les deux ne coïncident plus). */
+  function sourceTxt(job) {
+    const s = (job && job.source) || null;
+    if (!s) return "";
+    return (s.role || "composite") + " · "
+      + ((s.side === "back") ? "verso" : "recto")
+      + (s.file ? " · " + s.file : "");
+  }
+
   function chipHtml(nid, job) {
+    const src = sourceTxt(job);
+    const dit = src ? (' title="servi depuis ' + esc(src) + '"') : "";
     let html = "";
     if (RUNS[nid]) {
       html += '<span class="cf-forge3d-chip ailleurs">relancé ailleurs — un '
@@ -736,26 +815,39 @@
     if (job === null) {
       return html + '<span class="cf-forge3d-chip">jamais lancé</span>';
     }
+    /* la provenance suit TOUTES les chips d'un job : ce qu'il a servi, ce
+       qu'il sert, ce sur quoi il a échoué — jamais un état muet sur SA
+       couche. Le texte court reste lisible, le fichier complet est en
+       infobulle. */
+    const quoi = src
+      ? ('<i class="cf-forge3d-src"> · ' + esc((job.source.role || "composite")
+        + " " + ((job.source.side === "back") ? "verso" : "recto")) + '</i>')
+      : "";
     const st = job.status;
-    if (st === "queued") return html + '<span class="cf-forge3d-chip file">en file</span>';
+    if (st === "queued") {
+      return html + '<span class="cf-forge3d-chip file"' + dit + '>en file'
+        + quoi + '</span>';
+    }
     if (st === "running") {
-      return html + '<span class="cf-forge3d-chip cours">en cours '
+      return html + '<span class="cf-forge3d-chip cours"' + dit + '>en cours '
         + Number(job.progress || 0) + ' %' + esc(job.step ? " · " + job.step : "")
-        + '</span>';
+        + quoi + '</span>';
     }
     if (st === "served") {
       const cr = (job.consumed_credits != null)
         ? " · " + Number(job.consumed_credits) + " cr" : "";
-      return html + '<span class="cf-forge3d-chip servi">servi' + esc(cr) + '</span>'
+      return html + '<span class="cf-forge3d-chip servi"' + dit + '>servi'
+        + esc(cr) + quoi + '</span>'
         + (job.closed_note
-          ? '<span class="cf-forge3d-chip">' + esc(job.closed_note) + '</span>'
+          ? '<span class="cf-forge3d-chip note">' + esc(job.closed_note) + '</span>'
           : "");
     }
     if (st === "failed") {
-      return html + '<span class="cf-forge3d-chip echec">échec : '
-        + esc(job.error || "sans motif rendu par le backend") + '</span>';
+      return html + '<span class="cf-forge3d-chip echec"' + dit + '>échec : '
+        + esc(job.error || "sans motif rendu par le backend") + quoi + '</span>';
     }
-    return html + '<span class="cf-forge3d-chip">' + esc(st) + '</span>';
+    return html + '<span class="cf-forge3d-chip"' + dit + '>' + esc(st)
+      + quoi + '</span>';
   }
 
   /* ── MATIÈRE ET FINITION — bornes et roster servis par /info ────────────
@@ -873,7 +965,18 @@
     const reseed = LAST_MANIFEST
       ? seedButtonHtml("cf-forge3d-reseed", "reconstruire le graphe par défaut")
       : "";
-    host.innerHTML = body + reseed;
+    /* M5 — LE PLAFOND D'ÉLÉMENTS EST DIT, PAS DÉCOUVERT AU REFUS. `build3d`
+       rend un 400 nommé au-delà de `max_elements` ; ce chiffre est SERVI par
+       /info (jamais recopié ici), et l'écran le rappelle dès que le graphe
+       courant le dépasse — sinon l'utilisateur monte un graphe entier avant
+       d'apprendre qu'il ne se construira pas. */
+    const maxEl = Number(lim && lim.max_elements) || 0;
+    const trop = (maxEl > 0 && rows.length > maxEl)
+      ? ('<p class="hint cf-forge3d-trop"><b>' + rows.length + ' éléments</b> — '
+        + 'le maximum construisible est ' + maxEl
+        + ' : retire des rangs, la construction refuserait.</p>')
+      : "";
+    host.innerHTML = body + trop + reseed;
     /* l'état des nœuds moteur vient du DISQUE, pas de la mémoire de l'onglet :
        un nœud jamais sondé l'est UNE fois (un GET, gratuit), sans quoi un job
        servi d'une session précédente resterait invisible et serait recompté
@@ -891,35 +994,61 @@
      contrat. Un nœud dont le prix est INCONNU (table des moteurs tombée) est
      compté comme payant et NOMMÉ — dire « 100 % gratuit » là serait le seul
      mensonge que ce pied de page puisse commettre. */
+  function sacoche() { return { usdFal: 0, credits: 0, usdMeshy: 0, inconnus: 0, n: 0 }; }
+
+  function montantTxt(s) {
+    const bouts = [];
+    if (s.usdFal > 0) bouts.push(usdTxt(s.usdFal));
+    if (s.credits > 0) bouts.push(s.credits + " cr Meshy (~" + usdTxt(s.usdMeshy) + ")");
+    if (s.inconnus > 0) {
+      bouts.push(s.inconnus + " nœud(s) au prix inconnu (table des moteurs "
+        + "indisponible)");
+    }
+    return bouts.join(" + ");
+  }
+
   function costLine() {
     const graph = get("graph");
-    if (!graph) return "";     /* pas de graphe, pas de devis à annoncer */
-    const rows = graphRows(graph);
-    let usdFal = 0, credits = 0, usdMeshy = 0, inconnus = 0;
-    rows.forEach((r) => {
+    if (!graph) return null;   /* pas de graphe, pas de devis à annoncer */
+    const alancer = sacoche(), servis = sacoche();
+    graphRows(graph).forEach((r) => {
       if (r.proc.kind !== "mesh3d") return;
       const job = Object.prototype.hasOwnProperty.call(JOBS, r.proc.id)
         ? JOBS[r.proc.id] : undefined;
-      if (job && job.status === "served") return;
+      const s = (job && job.status === "served") ? servis : alancer;
+      s.n += 1;
       const eng = engineFor(r.proc);
       const p = engPrice(eng, r.proc.ultra);
-      if (!p) { inconnus += 1; return; }
-      if (eng.provider === "meshy") { credits += p.credits; usdMeshy += p.usd; } else usdFal += p.usd;
+      if (!p) { s.inconnus += 1; return; }
+      if (eng.provider === "meshy") { s.credits += p.credits; s.usdMeshy += p.usd; } else s.usdFal += p.usd;
     });
-    const bouts = [];
-    if (usdFal > 0) bouts.push(usdTxt(usdFal));
-    if (credits > 0) bouts.push(credits + " cr Meshy (~" + usdTxt(usdMeshy) + ")");
-    if (inconnus > 0) {
-      bouts.push(inconnus + " nœud(s) au prix inconnu (table des moteurs "
-        + "indisponible)");
+    const tete = montantTxt(alancer);
+    const differe = montantTxt(servis);
+    /* I4 — LE COÛT DIFFÉRÉ SE DIT AUSSI. Un nœud déjà servi ne gonfle pas le
+       devis (il est payé), mais son bouton « relancer » est là, actif, et
+       recliquer dessus REDÉPENSE. Taire ce chiffre laissait un écran affirmer
+       « 100 % gratuit » à côté d'un bouton payant : le seul mensonge que ce
+       pied de page puisse commettre. */
+    if (tete) {
+      return { txt: "Coût à lancer : " + tete + (differe
+        ? (" · " + servis.n + " nœud(s) déjà servi(s) — relancer coûterait "
+          + differe) : ""), payant: true };
     }
-    return bouts.length ? ("Coût à lancer : " + bouts.join(" + "))
-                        : "Graphe 100 % gratuit.";
+    if (differe) {
+      return { txt: "Graphe construit — relancer " + servis.n + " nœud(s) "
+        + "moteur coûterait " + differe + ".", payant: true };
+    }
+    return { txt: "Graphe 100 % gratuit.", payant: false };
   }
 
   function paintCost() {
     const el = $("#cf-forge3d-cost");
-    if (el) el.textContent = costLine();
+    if (!el) return;
+    const c = costLine();
+    el.textContent = c ? c.txt : "";
+    /* M4 — l'ambre est le rôle « ce que l'action va COÛTER » (cardforge.css :
+       un rôle par emploi de l'accent) : un graphe gratuit n'y a pas droit. */
+    el.classList.toggle("cf-forge3d-payant", !!(c && c.payant));
   }
 
   /* le rang d'un nœud dans le DOM, retrouvé par comparaison d'attribut et non
@@ -1128,10 +1257,33 @@
      `morts` porte les maillons que l'édition vient de RETIRER : leurs arêtes
      doivent tomber avec eux, sinon le graphe local garde des arêtes pendantes
      vers un nœud absent — `clean_graph` les jetterait côté serveur, mais
-     l'écran, lui, montrerait une chaîne qui n'existe plus. */
+     l'écran, lui, montrerait une chaîne qui n'existe plus.
+
+     M6 — LES MAILLONS SURNUMÉRAIRES PARTENT AVEC LA RÉÉCRITURE. L'API brute
+     autorise deux matières en éventail sur un même traitement ; le backend
+     retient la première et AVOUE la seconde dans `ignored`. Mais dès que
+     l'utilisateur édite ce rang, son geste EST l'intention : garder un
+     deuxième maillon que la chaîne réécrite n'emprunte plus laisserait dans
+     le graphe un nœud que `build3d` dénoncerait à chaque construction, sans
+     que l'écran ne l'ait jamais montré. On le retire — le rang affiché et le
+     graphe disent alors la même chose. */
   function rewireRow(g, procId, matId, trsId, morts) {
+    const garde = {};
+    if (matId) garde[matId] = 1;
+    if (trsId) garde[trsId] = 1;
+    /* LES SURNUMÉRAIRES QUITTENT LE GRAPHE — eux seuls. `morts`, lui, ne
+       purge que des ARÊTES : son nœud a déjà été retiré par l'appelant, et
+       il porte aussi l'id d'un maillon qui vient de NAÎTRE (le retirer ici
+       effacerait la matière que l'utilisateur vient de poser). */
+    const surnum = maillonsAval(g, procId).filter((id) => !garde[id]);
+    if (surnum.length) {
+      const off = {};
+      surnum.forEach((id) => { off[id] = 1; });
+      g.nodes = (g.nodes || []).filter((n) => !off[n.id]);
+    }
     const purge = {};
     (morts || []).forEach((id) => { if (id) purge[id] = 1; });
+    surnum.forEach((id) => { purge[id] = 1; });
     if (matId) purge[matId] = 1;
     if (trsId) purge[trsId] = 1;
     g.edges = (g.edges || []).filter((e) => !(
@@ -1146,6 +1298,30 @@
     }
   }
 
+  /* TOUS les maillons (matière/placement) atteignables en aval d'un
+     traitement — pas seulement ceux que la chaîne retient. C'est ce qui
+     permet à `rewireRow` de distinguer le maillon GARDÉ des surnuméraires.
+     Balayage en largeur, borné par `CHAIN_MAX` comme la descente du backend. */
+  function maillonsAval(g, procId) {
+    const byId = {};
+    (g.nodes || []).forEach((n) => { byId[n.id] = n; });
+    const vus = {};
+    let front = [procId];
+    for (let k = 0; k < CHAIN_MAX && front.length; k++) {
+      const suiv = [];
+      (g.edges || []).forEach((e) => {
+        if (front.indexOf(e.from) < 0) return;
+        const t = byId[e.to];
+        if (!t || (t.kind !== "material" && t.kind !== "transform")) return;
+        if (vus[t.id]) return;
+        vus[t.id] = 1;
+        suiv.push(t.id);
+      });
+      front = suiv;
+    }
+    return Object.keys(vus);
+  }
+
   /* un id LIBRE au charset du backend (`clean_graph` désinfecte sur
      [A-Za-z0-9._-] et tronque à 24) : le fabriquer déjà conforme évite qu'un
      nettoyage serveur ne renomme un nœud dont nos arêtes parlent encore. */
@@ -1157,8 +1333,12 @@
     for (let k = 2; k < 500; k++) {
       if (!pris[racine + k]) return racine + k;
     }
-    return racine + "999";     /* inatteignable : un graphe d'écran tient en
-                                  quelques nœuds (MAX_GRAPH_ELEMENTS = 12) */
+    /* M5 — inatteignable, et pour la bonne raison : ce ne sont pas les
+       ÉLÉMENTS (`graph_limits.max_elements`, le plafond métier appliqué APRÈS
+       résolution par build3d) qui bornent ce compteur, mais les NŒUDS, que
+       `clean_graph` tronque à `_GRAPH_ITER_MAX` (200). 500 candidats ne
+       peuvent donc pas être tous pris. */
+    return racine + "999";
   }
 
   function editMat(g, procId, field, rawValue) {
@@ -1232,6 +1412,7 @@
       /* on ne peint QUE ce que le backend a rendu : pas de job, pas de chip
          inventée — le poll qui suit dira l'état depuis le disque. */
       JOBS[nid] = (rep && rep.job) || null;
+      SEEN[nid] = Date.now();
       paintChip(nid);
       paintCost();
       pollMesh3d(nid);
@@ -1242,44 +1423,77 @@
     }
   }
 
+  /* M7 — LES DEUX 404 NE DISENT PAS LA MÊME CHOSE, et `M.api.get` les
+     confond : le CORE lève `ApiMissing` sur le statut AVANT même de lire le
+     corps, donc « aucun job sur ce noeud » (jamais lancé — une RÉPONSE) et
+     « Deck introuvable » / route absente (une PANNE) arrivent avec le même
+     message générique. On passe donc par `M.api.raw`, qui rend la réponse
+     telle quelle, et c'est le `detail` du backend qui tranche. */
+  async function fetchJob(nid) {
+    const r = await M.api.raw("GET", "mesh3d/" + encodeURIComponent(nid));
+    let d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    if (r.ok) return { job: d || null };
+    const detail = (d && (d.detail || d.error)) || (r.status + " " + r.statusText);
+    if (r.status === 404 && /aucun job/i.test(String(detail))) return { job: null };
+    return { erreur: String(detail) };
+  }
+
+  /* I3b — FAUT-IL RE-SONDER CE NŒUD ? Jamais vu : oui. Job vivant : non, une
+     boucle le suit déjà. Job TERMINAL : oui, mais au plus une fois par
+     `REPROBE_MS` — sans cela, l'état gelait au dernier poll et « relancé
+     ailleurs » ne pouvait plus jamais se déclencher, alors que c'est
+     précisément après la fin d'un job qu'un autre onglet le relance. */
+  function aResonder(nid) {
+    if (!Object.prototype.hasOwnProperty.call(JOBS, nid)) return true;
+    const job = JOBS[nid];
+    if (job && (job.status === "queued" || job.status === "running")) return false;
+    return (Date.now() - (SEEN[nid] || 0)) > REPROBE_MS;
+  }
+
   /* UN poll par nœud (registre `POLLS`) : recliquer Lancer pendant qu'un job
-     court ne peut pas empiler deux boucles. `immediat` sert au SONDAGE d'un
-     nœud jamais vu — une seule requête, qui se prolonge en boucle uniquement
-     si le job trouvé est encore vivant. */
+     court ne peut pas empiler deux boucles. `immediat` sert au SONDAGE — une
+     seule requête, qui se prolonge en boucle uniquement si le job trouvé est
+     encore vivant. Le registre porte la GÉNÉRATION, pas `true` : un tic
+     rassis ne retire que sa propre entrée, jamais celle de son successeur. */
   function pollMesh3d(nid, immediat) {
     if (!nid || POLLS[nid]) return;
-    if (immediat && Object.prototype.hasOwnProperty.call(JOBS, nid)) return;
-    POLLS[nid] = true;
+    if (immediat && !aResonder(nid)) return;
     const gen = GEN;
+    POLLS[nid] = gen;
+    const relache = () => { if (POLLS[nid] === gen) delete POLLS[nid]; };
     const tick = async () => {
-      if (gen !== GEN) { delete POLLS[nid]; return; }
-      let job = null;
+      if (gen !== GEN) { relache(); return; }
+      let rep = null;
       try {
-        job = await M.api.get("mesh3d/" + encodeURIComponent(nid));
-      } catch (e) {
-        delete POLLS[nid];
-        /* 404 = « aucun job sur ce nœud » : une RÉPONSE, pas une panne — on la
-           note pour ne pas resonder à chaque peinture. Tout le reste est un
-           refus nommé, montré tel quel. */
-        if (e && e.missing) { JOBS[nid] = null; ERRS[nid] = null; } else ERRS[nid] = String(e && e.message || e);
+        rep = await fetchJob(nid);
+      } catch (e) {                    /* panne de transport, pas une réponse */
+        rep = { erreur: String(e && e.message || e) };
+      }
+      if (gen !== GEN) { relache(); return; }
+      SEEN[nid] = Date.now();
+      if (rep.erreur) {
+        relache();
+        ERRS[nid] = rep.erreur;
         paintChip(nid);
         paintCost();
         return;
       }
+      const job = rep.job;
       const avant = JOBS[nid];
       /* `run_id` est OPAQUE (jamais inventé ni renvoyé par l'écran) mais
-         COMPARABLE : s'il a changé entre deux polls, ce n'est pas notre job
+         COMPARABLE : s'il a changé entre deux lectures, ce n'est pas notre job
          qui progresse — un AUTRE onglet a relancé ce nœud. On le DIT plutôt
          que de laisser l'état basculer en silence. */
-      if (avant && avant.run_id && job.run_id && avant.run_id !== job.run_id) {
+      if (avant && avant.run_id && job && job.run_id && avant.run_id !== job.run_id) {
         RUNS[nid] = true;
       }
       JOBS[nid] = job;
       ERRS[nid] = null;
       paintChip(nid);
       paintCost();
-      if (job.status === "served" || job.status === "failed") {
-        delete POLLS[nid];
+      if (!job || job.status === "served" || job.status === "failed") {
+        relache();
         return;
       }
       setTimeout(tick, POLL_MS);
@@ -1316,6 +1530,19 @@
     } catch (e) {
       if (status) status.textContent = String(e && e.message || e);
       M.toast(String(e && e.message || e), true);
+      /* I3a — LE BACKEND VIENT DE CONTREDIRE NOS CHIPS. La plupart des refus
+         de `build3d` parlent d'un nœud moteur (n'a pas servi, GLB disparu,
+         servi pour une AUTRE couche, trop lourd) : notre état en cache est
+         donc périmé, et le garder afficherait « servi » sur le nœud même que
+         le serveur vient de refuser. On oublie l'état des nœuds moteur du
+         graphe — bornés par le graphe lui-même — et la peinture qui suit les
+         re-sonde depuis le disque. */
+      graphRows(graph).forEach((r) => {
+        if (r.proc.kind !== "mesh3d") return;
+        delete JOBS[r.proc.id];
+        delete SEEN[r.proc.id];
+      });
+      paintGraph();
     } finally {
       build3d.busy = false;
       if (btn) btn.disabled = false;
