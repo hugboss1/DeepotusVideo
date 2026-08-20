@@ -1267,5 +1267,34 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert "paintGraph()" in apres_commit
 
 
+def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_est_deux_passes():
+    """Legs 6 : la couture intra-pièce. Le module scène n'importe pas FastAPI ;
+    forge3d réexporte (compat) ; le writer STL ne matérialise plus la
+    géométrie en tuples (mesure : l'ancien écrivait ~160 Mo d'intermédiaires
+    par relief au grid max) — on prouve l'ÉQUIVALENCE des octets et la
+    structure."""
+    import importlib
+    from app.services.cards import forge3d as F9
+    scene = importlib.import_module("app.services.cards.forge3d_scene")
+    src = (ROOT / "backend" / "app" / "services" / "cards" /
+           "forge3d_scene.py").read_text(encoding="utf-8")
+    assert "fastapi" not in src.lower() and "APIRouter" not in src
+    for nom in ("quad_mesh", "relief_mesh", "mesh_measures",
+                "write_scene_glb", "_write_stl_binary"):
+        assert getattr(F9, nom) is getattr(scene, nom), nom
+
+    from PIL import Image
+    m = scene.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0, 0.3, 8)
+    m["closed"] = True
+    q = scene.quad_mesh(63.0, 88.0)
+    q["closed"] = False
+    stl = scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": 0.0}], "x")
+    n = struct.unpack("<I", stl[80:84])[0]
+    assert n == len(m["indices"]) // 3
+    assert len(stl) == 84 + 50 * n
+    # déterminisme : deux appels, mêmes octets
+    assert stl == scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": 0.0}], "x")
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
