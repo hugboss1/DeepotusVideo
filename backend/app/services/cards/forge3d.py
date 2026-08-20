@@ -55,16 +55,22 @@ LAYER_ROLES = [
 # ── LE VOCABULAIRE DU GRAPHE — BLOC MIROIR ──────────────────────────────────
 # ═══ CF-FORGE3D-NODES-BEGIN ═══
 # Miroir JS dans mod-forge3d.js ; test de parité champ à champ.
-# `layer`    : source — une couche du manifeste (role + side).
-# `plane`    : plan texturé, GRATUIT (quad aux dimensions de la carte).
-# `relief`   : dalle en relief, GRATUITE — grille déplacée par l'alpha,
-#              solide FERMÉ par construction (imprimable).
-# `assemble` : fusionne les amonts en une scène.
-# `artifact` : sorties (GLB + metadata + aperçu + STL si fermé).
+# `layer`     : source — une couche du manifeste (role + side).
+# `plane`     : plan texturé, GRATUIT (quad aux dimensions de la carte).
+# `relief`    : dalle en relief, GRATUITE — grille déplacée par l'alpha,
+#               solide FERMÉ par construction (imprimable).
+# `mesh3d`    : image→3D par moteur, PAYANT (prix affiché avant).
+# `material`  : matière Material Forge + finition holo sur le nœud amont.
+# `transform` : position/rotation/échelle en mm de carte de l'élément amont.
+# `assemble`  : fusionne les amonts en une scène.
+# `artifact`  : sorties (GLB + metadata + aperçu + STL si fermé).
 NODE_KINDS = [
     {"kind": "layer", "params": ["role", "side"]},
     {"kind": "plane", "params": ["depth_mm"]},
     {"kind": "relief", "params": ["depth_mm", "base_mm", "grid"]},
+    {"kind": "mesh3d", "params": ["engine", "texture_prompt", "ultra"]},
+    {"kind": "material", "params": ["mat", "tile_mm", "finish", "aniso"]},
+    {"kind": "transform", "params": ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"]},
     {"kind": "assemble", "params": []},
     {"kind": "artifact", "params": ["name"]},
 ]
@@ -79,6 +85,33 @@ RELIEF_GRID = (48, 256)              # subdivisions de la grille — axe X (gx)
                                       # la carte (un tarot portrait à 256
                                       # donne gy=439, ~452k triangles)
 RELIEF_GRID_DEFAULT = 160
+
+# ── mesh3d (2b) : les 7 moteurs — 5 fal (asset3d_service) + Meshy direct ────
+MESH3D_ENGINES = [
+    {"id": "tripo",   "provider": "fal",   "label": "Tripo v2.5"},
+    {"id": "hunyuan", "provider": "fal",   "label": "Hunyuan3D v2"},
+    {"id": "trellis", "provider": "fal",   "label": "TRELLIS"},
+    {"id": "rodin",   "provider": "fal",   "label": "Rodin"},
+    {"id": "triposr", "provider": "fal",   "label": "TripoSR"},
+    {"id": "meshy-6", "provider": "meshy", "label": "Meshy 6"},
+    {"id": "meshy-7", "provider": "meshy", "label": "Meshy 7"},
+]
+MESH3D_DEFAULT_ENGINE = "meshy-7"     # la demande d'origine : « pour les textures »
+MESH3D_PROMPT_MAX = 600
+MESH3D_UPLOAD_PX = 2048               # côté long envoyé aux moteurs — un moteur
+                                      # texture en 2k, le 300 DPI n'y gagne rien
+MESH3D_POLL_S = 4.0                   # période de poll Meshy (0.05 en mock)
+MESH3D_TIMEOUT_S = 1800.0             # 30 min — après quoi le job échoue NOMMÉ
+MESH3D_CLOSED_TRI_MAX = 1_500_000     # au-delà : closed=None (« non mesuré »),
+                                      # le gate STL refuse MOTIVÉ (borne mémoire)
+MAX_EXT_GLB_BYTES = 64 * 1024 * 1024  # même chiffre que MAX_LAYER_BYTES
+
+MATERIAL_TILE_MM = (10.0, 200.0)
+MATERIAL_FINISHES = ("aucune", "argent", "dorure")
+TRANSFORM_XY_MM = (-100.0, 100.0)
+TRANSFORM_Z_MM = (0.0, 10.0)
+TRANSFORM_ROT_DEG = (-180.0, 180.0)
+TRANSFORM_SCALE = (0.1, 4.0)
 
 # ── bornes d'entrée — vérifiées AVANT tout décodage (spec 2.5) ──────────────
 MAX_LAYER_BYTES = 64 * 1024 * 1024   # un PNG de carte, pas un film — même
@@ -109,11 +142,34 @@ _GRAPH_ITER_MAX = 200                 # borne ANTI-GEL de clean_graph (revue) :
                                        # bornes, deux étages, pas la même chose.
 
 
+def _engine_table() -> list[dict]:
+    """Prix AVANT, jamais recopiés : fal en $ (pricing.estimate), Meshy en
+    crédits (grille partagée meshy_service) + conversion $ directionnelle."""
+    from app.services import pricing
+    from app.services import meshy_service as MS
+    p = pricing.load()
+    rows = []
+    for e in MESH3D_ENGINES:
+        row = dict(e)
+        if e["provider"] == "fal":
+            row["price_usd"] = pricing.estimate(
+                {"kind": "asset3d", "engine": e["id"]}, p)["total_usd"]
+        else:
+            cr = MS.credits_image_to_3d(e["id"], "standard", True, "2k")
+            row["credits"] = cr
+            row["ultra_extra_credits"] = 5 if e["id"] == "meshy-7" else 0
+            row["price_usd"] = round(cr * float(p.get("meshy_credit_usd", 0.02)), 4)
+        rows.append(row)
+    return rows
+
+
 @router.get("/info")
 async def get_info(did: str):
     """Ce que l'écran doit savoir sans rien recalculer."""
     from .core import read_deck
     from .contract import is_valid_did
+    from app.config import settings
+    from app.services import material_store
     if not is_valid_did(did):
         raise HTTPException(400, "Identifiant de deck invalide")
     if read_deck(did) is None:
@@ -127,7 +183,23 @@ async def get_info(did: str):
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
                "max_elements": MAX_GRAPH_ELEMENTS,
-            }}
+            },
+            "mesh3d": {
+                "engines": _engine_table(),
+                "default_engine": MESH3D_DEFAULT_ENGINE,
+                "has_fal": bool(settings.FAL_KEY),
+                "has_meshy": settings.has_meshy or bool(settings.MESHY_MOCK),
+                "meshy_mock": bool(settings.MESHY_MOCK),
+                "prompt_max": MESH3D_PROMPT_MAX,
+            },
+            "materials": [{"id": m["id"], "name": m["name"]}
+                          for m in material_store.list_materials()],
+            "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
+                                "finishes": list(MATERIAL_FINISHES)},
+            "transform_limits": {"xy_mm": list(TRANSFORM_XY_MM),
+                                 "z_mm": list(TRANSFORM_Z_MM),
+                                 "rot_deg": list(TRANSFORM_ROT_DEG),
+                                 "scale": list(TRANSFORM_SCALE)}}
 
 
 def _out_dir(did: str, create: bool = False) -> Path:
@@ -213,6 +285,7 @@ def clean_graph(raw) -> dict:
     mesuré en revue, deux nœuds bruts d'id "n2x" retombaient tous les deux
     sur EXACTEMENT "n2x" (la deuxième collision n'était jamais reconsidérée),
     et l'arête qui visait l'un des deux devenait ambiguë entre les deux."""
+    from app.services import material_store
     g = raw if isinstance(raw, dict) else {}
     kinds = {k["kind"] for k in NODE_KINDS}
     roles = {r["role"] for r in LAYER_ROLES}
@@ -246,6 +319,26 @@ def clean_graph(raw) -> dict:
             node["depth_mm"] = _num(n.get("depth_mm"), 0.6, 0.05, RELIEF_DEPTH_MM_MAX)
             node["base_mm"] = _num(n.get("base_mm"), 0.3, *RELIEF_BASE_MM)
             node["grid"] = int(_num(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
+        elif n["kind"] == "mesh3d":
+            eng = str(n.get("engine") or "")
+            node["engine"] = eng if eng in {e["id"] for e in MESH3D_ENGINES} \
+                else MESH3D_DEFAULT_ENGINE
+            node["texture_prompt"] = str(n.get("texture_prompt") or "").strip()[:MESH3D_PROMPT_MAX]
+            node["ultra"] = bool(n.get("ultra")) and node["engine"] == "meshy-7"
+        elif n["kind"] == "material":
+            mid = str(n.get("mat") or "")
+            node["mat"] = mid if material_store.is_valid_mid(mid) else None
+            node["tile_mm"] = _num(n.get("tile_mm"), 63.0, *MATERIAL_TILE_MM)
+            node["finish"] = n.get("finish") if n.get("finish") in MATERIAL_FINISHES else "aucune"
+            node["aniso"] = bool(n.get("aniso"))
+            if node["mat"] is None and node["finish"] == "aucune":
+                continue          # une matière sans matière ni finition n'est rien
+        elif n["kind"] == "transform":
+            node["x_mm"] = _num(n.get("x_mm"), 0.0, *TRANSFORM_XY_MM)
+            node["y_mm"] = _num(n.get("y_mm"), 0.0, *TRANSFORM_XY_MM)
+            node["z_mm"] = _num(n.get("z_mm"), 0.0, *TRANSFORM_Z_MM)
+            node["rot_deg"] = _num(n.get("rot_deg"), 0.0, *TRANSFORM_ROT_DEG)
+            node["scale"] = _num(n.get("scale"), 1.0, *TRANSFORM_SCALE)
         elif n["kind"] == "artifact":
             nom = str(n.get("name") or "artefact")
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"

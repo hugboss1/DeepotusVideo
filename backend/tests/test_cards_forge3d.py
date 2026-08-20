@@ -655,9 +655,8 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
     assert "weight" in rendu or "Kio" in rendu
 
 
-def test_le_vocabulaire_du_graphe_est_identique_des_deux_cotes():
-    """Bloc miroir CF-FORGE3D-NODES : les genres de nœuds et leurs paramètres
-    bornés, champ à champ et dans l'ordre — comme la table des couches."""
+def test_le_vocabulaire_2b_est_identique_des_deux_cotes():
+    """Le miroir CF-FORGE3D-NODES s'étend : mesh3d, material, transform."""
     from app.services.cards import forge3d as F9
     src = JS.read_text(encoding="utf-8")
     bloc = src.split("CF-FORGE3D-NODES-BEGIN")[1].split("CF-FORGE3D-NODES-END")[0]
@@ -665,8 +664,69 @@ def test_le_vocabulaire_du_graphe_est_identique_des_deux_cotes():
     js_table = [{"kind": k, "params": [p.strip().strip('"') for p in ps.split(",") if p.strip()]}
                 for k, ps in js_rows]
     assert js_table == F9.NODE_KINDS, (js_table, F9.NODE_KINDS)
-    assert [r["kind"] for r in F9.NODE_KINDS] == ["layer", "plane", "relief",
-                                                  "assemble", "artifact"]
+    assert [r["kind"] for r in F9.NODE_KINDS] == [
+        "layer", "plane", "relief", "mesh3d", "material", "transform",
+        "assemble", "artifact"]
+
+
+def test_clean_graph_borne_les_nouveaux_noeuds():
+    from app.services.cards import forge3d as F9
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "m", "kind": "mesh3d", "engine": "meshy-7",
+         "texture_prompt": "  or ancien, gravure  ", "ultra": 1},
+        {"id": "m2", "kind": "mesh3d", "engine": "warp-drive", "ultra": True},
+        {"id": "mat", "kind": "material", "mat": "zzz-pas-un-mid",
+         "finish": "argent", "aniso": "oui", "tile_mm": 9999},
+        {"id": "tr", "kind": "transform", "x_mm": -500, "rot_deg": 720,
+         "scale": 99, "z_mm": "abc"},
+        {"id": "a", "kind": "assemble"}], "edges": []}
+    out = F9.clean_graph(g)
+    n = {x["id"]: x for x in out["nodes"]}
+    assert n["m"]["engine"] == "meshy-7" and n["m"]["ultra"] is True
+    assert n["m"]["texture_prompt"] == "or ancien, gravure"
+    # moteur inconnu -> défaut meshy-7 ; ultra HORS meshy-7 -> False
+    assert n["m2"]["engine"] == "meshy-7"
+    assert F9.clean_graph({"nodes": [{"id": "x", "kind": "mesh3d",
+        "engine": "tripo", "ultra": True}], "edges": []})["nodes"][0]["ultra"] is False
+    # matière : mid invalide -> None, mais la FINITION la garde en vie
+    assert n["mat"]["mat"] is None and n["mat"]["finish"] == "argent"
+    assert n["mat"]["aniso"] is True
+    assert n["mat"]["tile_mm"] == F9.MATERIAL_TILE_MM[1]
+    # matière sans matière NI finition -> jetée
+    vide = F9.clean_graph({"nodes": [{"kind": "material", "mat": "!!",
+                                      "finish": "aucune"}], "edges": []})
+    assert vide["nodes"] == []
+    # transform : bornes
+    assert n["tr"]["x_mm"] == F9.TRANSFORM_XY_MM[0]
+    assert n["tr"]["rot_deg"] == F9.TRANSFORM_ROT_DEG[1]
+    assert n["tr"]["scale"] == F9.TRANSFORM_SCALE[1]
+    assert n["tr"]["z_mm"] == 0.0
+
+
+def test_info_publie_moteurs_prix_matieres_et_bornes():
+    """7 moteurs, prix fal en $ depuis pricing, crédits Meshy depuis la grille
+    partagée (+ conversion $ directionnelle meshy_credit_usd), matières de la
+    boutique, bornes matière/transform — l'écran ne recopie RIEN."""
+    from app.services import pricing, meshy_service as MS
+    did = _deck("Info 2b")
+    info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
+    eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
+    assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
+                         "meshy-6", "meshy-7"]
+    p = pricing.load()
+    attendu = pricing.estimate({"kind": "asset3d", "engine": "tripo"}, p)["total_usd"]
+    assert eng["tripo"]["provider"] == "fal" and eng["tripo"]["price_usd"] == attendu
+    assert eng["meshy-7"]["provider"] == "meshy"
+    assert eng["meshy-7"]["credits"] == MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
+    assert eng["meshy-7"]["ultra_extra_credits"] == 5
+    assert eng["meshy-6"]["ultra_extra_credits"] == 0
+    assert eng["meshy-7"]["price_usd"] == round(30 * float(p["meshy_credit_usd"]), 4)
+    assert isinstance(info["mesh3d"]["has_meshy"], bool)
+    assert isinstance(info["mesh3d"]["has_fal"], bool)
+    assert isinstance(info["materials"], list)     # [] accepté : boutique vide
+    assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
+    assert info["transform_limits"]["scale"] == [0.1, 4.0]
 
 
 def test_clean_graph_repare_et_ne_leve_jamais():

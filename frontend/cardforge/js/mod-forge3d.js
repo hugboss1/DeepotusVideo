@@ -39,6 +39,9 @@
     { kind: "layer", params: ["role", "side"] },
     { kind: "plane", params: ["depth_mm"] },
     { kind: "relief", params: ["depth_mm", "base_mm", "grid"] },
+    { kind: "mesh3d", params: ["engine", "texture_prompt", "ultra"] },
+    { kind: "material", params: ["mat", "tile_mm", "finish", "aniso"] },
+    { kind: "transform", params: ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"] },
     { kind: "assemble", params: [] },
     { kind: "artifact", params: ["name"] },
   ];

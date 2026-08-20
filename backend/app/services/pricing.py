@@ -41,6 +41,10 @@ DEFAULTS = {
         "veo-3.1-lite-google": {"*": 0.10},
     },
     "rembg_api_usd": 0.003,           # fal.ai imageutils/rembg, per image (sprite frames)
+    "meshy_credit_usd": 0.02,         # valeur $ directionnelle d'un crédit Meshy
+                                      # (~plan Pro 1000 cr/mois) ; éditable comme
+                                      # le reste — Meshy facture en crédits, la
+                                      # vérité comptable est consumed_credits
     "heygen_credits_per_min": 6.0,    # HeyGen avatar credits per minute
     "heygen_credit_usd": 0.04,        # $ value of one HeyGen credit
     "heygen_chars_per_min": 850.0,    # ~speaking rate to map a script to minutes
