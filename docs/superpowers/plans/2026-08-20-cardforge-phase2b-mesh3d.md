@@ -95,7 +95,7 @@ quad_mesh, relief_mesh, mesh_measures, write_scene_glb, _write_stl_binary`) : le
 et les routes ne changent pas d'orthographe. Les CONSTANTES (bornes, blocs miroir)
 restent dans `forge3d.py` — elles appartiennent au contrat de l'API.
 
-- [ ] **Step 1 : test en RED (deux-passes + réexport)**
+- [x] **Step 1 : test en RED (deux-passes + réexport)**
 
 ```python
 def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_est_deux_passes():
@@ -128,7 +128,7 @@ def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_est_deux_passes():
 
 Run : `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-tests.ps1 -Filter cards_forge3d` — FAIL (module absent).
 
-- [ ] **Step 2 : créer `forge3d_scene.py`**
+- [x] **Step 2 : créer `forge3d_scene.py`**
 
 Déplacement TEXTUEL des cinq fonctions (aucune réécriture au passage, à UNE exception :
 le corps de `_write_stl_binary`). En-tête du fichier :
@@ -182,7 +182,7 @@ forge3d.py avant de le remplacer — si l'actuel applique déjà `z_mm` ou un au
 (ordre des éléments, en-tête exact), le reproduire à l'identique ; seule la
 STRATÉGIE MÉMOIRE change. En cas d'écart constaté avec ce squelette, l'actuel a raison.
 
-- [ ] **Step 3 : `forge3d.py` importe/réexporte, suite verte**
+- [x] **Step 3 : `forge3d.py` importe/réexporte, suite verte**
 
 En tête de forge3d.py, à la place des définitions déplacées :
 ```python
@@ -192,14 +192,14 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
 Run : run-tests -Filter cards_forge3d → **TOUTE la suite 2a reste verte** (c'est le
 vrai verrou de la découpe) + le nouveau test PASS.
 
-- [ ] **Step 4 : lint**
+- [x] **Step 4 : lint**
 
 `python scripts\qa\lint_cardforge.py --module forge3d` → 0 violation attendu. SI le
 lint signale `forge3d_scene.py` (fichier py inattendu / règle routeur), l'autoriser
 EXPLICITEMENT (liste de fichiers du module forge3d, commentaire « couture legs 6,
 revue 2a ») — modification nommée, jamais un contournement silencieux.
 
-- [ ] **Step 5 : Commit**
+- [x] **Step 5 : Commit**
 
 ```bash
 git add backend/app/services/cards/forge3d_scene.py backend/app/services/cards/forge3d.py backend/tests/test_cards_forge3d.py scripts/qa/lint_cardforge.py
