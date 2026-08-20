@@ -476,6 +476,16 @@ _IDENTITY_KEYS = ("generator", "producer", "author", "software", "application",
 # alors une donnée du VOISIN : un GLB parfaitement valide, qui montre la
 # mauvaise chose. D'où les cartes de décalage explicites ci-dessous, et un
 # refus NOMMÉ (jamais un IndexError nu) dès qu'un indice sort des clous.
+# LES EXTENSIONS EXIGIBLES QUE CETTE FUSION SAIT TRANSPORTER. Liste BLANCHE,
+# et courte exprès : y ajouter un nom, c'est promettre que `_merge_external`
+# recopie ET réindexe tout ce dont cette extension a besoin. Draco (sa vue
+# compressée est décalée), Basisu (sa `source` d'image est réindexée dans les
+# extensions de texture), unlit (aucun indice du tout). EXT_meshopt_compression
+# n'y est PAS : son bloc vit dans les `extensions` d'une bufferView, que cette
+# fusion ne recopie pas.
+_EXIG_CONNUES = {"KHR_draco_mesh_compression", "KHR_texture_basisu",
+                 "KHR_materials_unlit"}
+
 _PROF_MAX = 12          # borne ANTI-GEL des balayages récursifs : un document
                          # hostile à un million de niveaux ne doit pas faire
                          # sauter la pile (une RecursionError deviendrait un
@@ -585,6 +595,23 @@ def _merge_external(doc, buf, views, accessors, images, textures, materials,
             raise ValueError(
                 f"GLB à ressources externes (uri) non supporté : le buffer {i} "
                 f"de {nom_ext!r} vit au bout d'une URL")
+    # ── LES EXIGENCES, SUR LISTE BLANCHE ───────────────────────────────────
+    # `extensionsRequired` est CONSERVÉE plus bas (honnêteté : le document
+    # fusionné les exige vraiment). Mais conserver une exigence qu'on ne sait
+    # pas SATISFAIRE est pire que de la jeter : la fusion ne recopie que les
+    # champs qu'elle connaît — les `extensions` d'une bufferView, par exemple,
+    # tombent, et c'est précisément là qu'EXT_meshopt_compression décrit son
+    # bloc compressé. Le fichier annoncerait alors une exigence dont la
+    # description a disparu : un artefact FAUX, livré sans un mot. On refuse
+    # NOMMÉMENT au lieu de deviner.
+    inconnues = sorted({x for x in tab("extensionsRequired")
+                        if isinstance(x, str)} - _EXIG_CONNUES)
+    if inconnues:
+        raise ValueError(
+            f"GLB externe : extension EXIGÉE non fusionnable "
+            f"({', '.join(inconnues)}) sur {nom_ext!r} — la fusion ne sait pas "
+            f"en transporter la description, et un fichier qui exige ce qu'il "
+            f"ne porte plus est pire qu'un refus")
 
     def pad4():
         while len(buf) % 4:
@@ -663,7 +690,12 @@ def _merge_external(doc, buf, views, accessors, images, textures, materials,
         if "source" in tx:
             tx["source"] = _decale(di, tx["source"],
                                    f"source de la texture {i}")
-        tx["sampler"] = (ds[tx["sampler"]] if tx.get("sampler") in ds
+        # `in ds` HACHE la valeur avant de comparer : `True` y vaut la clé 1
+        # (bool est un int en Python) et volerait le sampler du voisin. Même
+        # garde que `_decale`, pour la même raison.
+        smp = tx.get("sampler")
+        tx["sampler"] = (ds[smp]
+                         if not isinstance(smp, bool) and smp in ds
                          else sampler_defaut())
         _reindex_cles(tx.get("extensions"), {"source": di})
         textures.append(tx)
@@ -704,11 +736,17 @@ def _merge_external(doc, buf, views, accessors, images, textures, materials,
                     {k: _decale(da, v, f"cible de morph du mesh {i}")
                      for k, v in t.items()}
                     for t in cibles if isinstance(t, dict)]
-            draco = (prim.get("extensions")
-                     or {}).get("KHR_draco_mesh_compression")
+            exts_prim = prim.get("extensions")
+            draco = (exts_prim or {}).get("KHR_draco_mesh_compression")
             if isinstance(draco, dict) and "bufferView" in draco:
                 draco["bufferView"] = _decale(dv, draco["bufferView"],
                                               f"vue Draco du mesh {i}")
+            # KHR_materials_variants : ses `mappings[].material` indexent le
+            # tableau des MATÉRIAUX de l'externe — non décalés, ils
+            # désigneraient ceux du voisin dès qu'un élément local le
+            # précède. Balayage par la clé `material`, comme les matériaux le
+            # sont par `index`.
+            _reindex_cles(exts_prim, {"material": dm})
         meshes.append(mh)
         dh[i] = len(meshes) - 1
 
@@ -764,6 +802,16 @@ def _merge_external(doc, buf, views, accessors, images, textures, materials,
             ignores.append(f"{quoi} x{n}")
     if perdus:
         ignores.append(f"attaches camera/squelette de {perdus} noeud(s)")
+    # Les `extensions` de NIVEAU DOCUMENT ne sont PAS fusionnées : elles
+    # déclarent des tableaux à elles (la liste de variantes de
+    # KHR_materials_variants, les lumières de KHR_lights_punctual) dont les
+    # indices se télescoperaient d'un externe à l'autre. Les matériaux, eux,
+    # restent correctement réindexés — c'est la DÉCLARATION qui manque, pas la
+    # cible. Avoué plutôt que tu.
+    doc_exts = src.get("extensions")
+    if isinstance(doc_exts, dict) and doc_exts:
+        ignores.append("declarations d'extensions au niveau du document ("
+                       + ", ".join(sorted(str(k) for k in doc_exts)) + ")")
 
     doc["extensionsUsed"].update(x for x in tab("extensionsUsed")
                                  if isinstance(x, str))
@@ -1256,6 +1304,15 @@ def _triangle_prims(doc: dict):
 _IDENT4 = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
            0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
 
+# LA PROFONDEUR DE SCÈNE A SA PROPRE BORNE, et elle est PLUS HAUTE que celle
+# des balayages JSON (`_PROF_MAX`, 12) : ces deux profondeurs ne mesurent pas
+# la même chose. `_PROF_MAX` borne l'imbrication d'un DICTIONNAIRE (un
+# matériau glTF réel tient en 4 niveaux ; 12 est déjà large). Une hiérarchie
+# de NŒUDS, elle, est un objet de modelage — un rig exporté, une pièce
+# assemblée en sous-ensembles descendent couramment à 15 ou 20 niveaux, et
+# les tronquer à 12 supprimerait de la géométrie livrée.
+_SCENE_PROF_MAX = 32
+
 
 def _mat4_mul(a: list, b: list) -> list:
     """`a x b` en convention glTF (COLONNE par colonne) : le résultat applique
@@ -1321,8 +1378,16 @@ def _meshes_du_monde(doc: dict) -> list:
     pile = [(k, _IDENT4, 0) for k in depart]
     while pile:
         i, parent, prof = pile.pop()
-        if i in vus or prof > _PROF_MAX or not (0 <= i < len(nodes)):
+        if i in vus or not (0 <= i < len(nodes)):
             continue
+        if prof > _SCENE_PROF_MAX:
+            # UN REFUS, PAS UNE TRONCATURE : sauter les nœuds trop profonds
+            # rendrait une scène AMPUTÉE sans le dire — le fit se calculerait
+            # sur une boîte trop petite et le STL sortirait `closed` avec des
+            # morceaux en moins. Le silence coûte ici plus cher que le refus.
+            raise ValueError(
+                f"GLB externe : hierarchie de scene trop profonde "
+                f"(au-dela de {_SCENE_PROF_MAX} niveaux)")
         vus.add(i)
         nd = nodes[i] if isinstance(nodes[i], dict) else {}
         monde = _mat4_mul(parent, _node_matrix(nd))

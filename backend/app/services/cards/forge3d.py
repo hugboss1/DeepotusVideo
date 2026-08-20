@@ -914,32 +914,44 @@ _CHAIN_MAX = 4        # material + transform + assemble, et une marge : la
 def _chaine_aval(nid: str, nodes_by_id: dict, outgoing: dict) -> tuple:
     """La chaîne AVAL d'un traitement : `material` puis `transform` (0 ou 1 de
     chacun, dans N'IMPORTE QUEL ordre), jusqu'à `assemble`. Rend
-    `(noeud material|None, noeud transform|None, atteint l'assemblage)`.
+    `(noeud material|None, noeud transform|None, atteint l'assemblage,
+    ids des maillons PASSÉS)`.
 
     LE MODIFICATEUR PASSE AVANT L'ASSEMBLAGE quand les deux partent du même
     nœud : un graphe câblé à la fois `-> material` et `-> assemble` est
     ambigu, et prendre l'assemblage y jetterait la matière EN SILENCE. Deux
     matières (ou deux transforms) sur une même chaîne : refus — la seconde ne
-    peut pas gagner sans que la première mente."""
+    peut pas gagner sans que la première mente.
+
+    L'ÉVENTAIL DE FRÈRES EST AVOUÉ, pas jeté en douce : deux arêtes parallèles
+    vers deux matières, c'est la MÊME perte qu'une source surnuméraire à
+    l'entrée (première arête gagnante), et l'entrée, elle, l'avoue depuis la
+    tâche 4. L'écran ne produit pas cette topologie, mais l'API brute est
+    ouverte à qui la poste — et le contrat `artifact@1` promet de nommer tout
+    ce qui a été écarté."""
     mat = trs = None
+    passes: list = []
     cur = nid
     for _ in range(_CHAIN_MAX):
         suivants = [nodes_by_id[t] for t in outgoing.get(cur, [])
                     if t in nodes_by_id]
-        nxt = next((s for s in suivants
-                    if s["kind"] in ("material", "transform")), None)
-        if nxt is None:
-            return mat, trs, any(s["kind"] == "assemble" for s in suivants)
+        maillons = [s for s in suivants
+                    if s["kind"] in ("material", "transform")]
+        if not maillons:
+            return (mat, trs,
+                    any(s["kind"] == "assemble" for s in suivants), passes)
+        nxt, freres = maillons[0], maillons[1:]
+        passes.extend((f["id"], nxt["id"]) for f in freres)
         if nxt["kind"] == "material":
             if mat is not None:
-                return mat, trs, False
+                return mat, trs, False, passes
             mat = nxt
         else:
             if trs is not None:
-                return mat, trs, False
+                return mat, trs, False, passes
             trs = nxt
         cur = nxt["id"]
-    return mat, trs, False
+    return mat, trs, False, passes
 
 
 def _resolve_graph_elements(graph: dict) -> tuple[list[dict], list[dict]]:
@@ -987,7 +999,13 @@ def _resolve_graph_elements(graph: dict) -> tuple[list[dict], list[dict]]:
                 "node": autre["id"],
                 "why": f"source surnumeraire pour {n['id']} : {src['id']} "
                        "deja retenu (premiere arete gagnante)"})
-        mat, trs, relie_assemble = _chaine_aval(n["id"], nodes_by_id, outgoing)
+        mat, trs, relie_assemble, passes = _chaine_aval(
+            n["id"], nodes_by_id, outgoing)
+        for perdant, retenu in passes:
+            ignores.append({
+                "node": perdant,
+                "why": f"maillon surnumeraire dans la chaine de {n['id']} : "
+                       f"{retenu} deja retenu (premiere arete gagnante)"})
         if not relie_assemble:
             ignores.append({"node": n["id"],
                             "why": "traitement non relie a un assemble"})
@@ -1057,18 +1075,33 @@ def _layer_box_mm(manifest, layer_node: dict, w_mm: float, h_mm: float,
     if not isinstance(b, (list, tuple)) or len(b) != 4:
         return plein
     x0, y0, x1, y1 = (_num(v, 0.0, -1e6, 1e6) for v in b)
-    # hauteur de TOILE : la même formule que l'export (trim + 2 x fond perdu),
-    # jamais une deuxième dérivation depuis les pixels (le domaine a déjà
-    # mesuré la dérive d'un recalcul redondant — voir `_dpi_to_ppm`).
-    toile_h = float(h_mm) + 2.0 * float(bleed_mm)
-    boite = [x0 - bleed_mm, toile_h - y1 - bleed_mm,
-             x1 - bleed_mm, toile_h - y0 - bleed_mm]
+    # UNE SEULE SOURCE POUR LE CHANGEMENT DE REPÈRE : LE MANIFESTE. La hauteur
+    # de toile et le fond perdu viennent de LUI (`canvas_mm`, `bleed_mm`), pas
+    # d'une re-dérivation depuis la géométrie courante du deck. C'est le même
+    # argument que `_dpi_to_ppm` plus haut dans ce fichier : `bbox_mm` a été
+    # mesurée CONTRE ces chiffres-là, à l'export — les recalculer ici ferait
+    # dépendre le retournement en y d'une géométrie qui a pu changer de format
+    # depuis, pendant que la boîte relue, elle, n'a pas bougé. Mélanger les
+    # deux sources serait le pire des trois : une conversion à moitié d'époque.
+    # Repli sur la dérivation canonique quand un manifeste ancien ou abîmé ne
+    # porte pas le chiffre.
+    cm = manifest.get("canvas_mm")
+    toile_h = (_num(cm[1], 0.0, 0.0, 1e6)
+               if isinstance(cm, (list, tuple)) and len(cm) == 2
+               and _num(cm[1], 0.0, 0.0, 1e6) > 0
+               else float(h_mm) + 2.0 * float(bleed_mm))
+    saignee = (_num(manifest["bleed_mm"], 0.0, 0.0, 1e6)
+               if isinstance(manifest.get("bleed_mm"), (int, float))
+               and not isinstance(manifest.get("bleed_mm"), bool)
+               else float(bleed_mm))
+    boite = [x0 - saignee, toile_h - y1 - saignee,
+             x1 - saignee, toile_h - y0 - saignee]
     if boite[2] - boite[0] <= 0 or boite[3] - boite[1] <= 0:
         return plein
     return boite
 
 
-def _fit_external(glb: bytes, box_mm: list, trs: dict | None) -> dict:
+def _fit_external(monde: dict, box_mm: list, trs: dict | None) -> dict:
     """LE PLACEMENT d'un GLB de moteur : échelle UNIFORME pour tenir dans la
     boîte mm de SA couche (max-fit, proportions gardées), centré sur cette
     boîte, posé à z. Le transform de l'utilisateur COMPOSE : son échelle
@@ -1096,14 +1129,17 @@ def _fit_external(glb: bytes, box_mm: list, trs: dict | None) -> dict:
     d'échelle d'un axe sans épaisseur n'a simplement pas de sens — c'est
     l'AUTRE axe qui décide alors, ce que le `min` fait déjà.
 
-    LA MESURE EST FAITE DANS LE REPÈRE DE LA SCÈNE (`world=True`), pas sur les
-    positions brutes : c'est la taille RENDUE qui doit tenir dans la boîte.
-    Un exportateur qui pose une conversion d'axes ou une échelle d'unité sur
-    son nœud racine — le nôtre le fait, avec son mm->m — rendrait un fit
-    calculé sur du brut faux de plusieurs ordres de grandeur, et la pièce
-    invisible dans l'artefact sans qu'aucune structure ne soit fautive."""
-    m = glb_scene_mesh(glb, world=True)
-    pos = m["positions"]
+    `monde` est le maillage DÉJÀ MESURÉ dans le repère de la scène
+    (`glb_scene_mesh(..., world=True)`), pas les octets du GLB : c'est la
+    taille RENDUE qui doit tenir dans la boîte. Un exportateur qui pose une
+    conversion d'axes ou une échelle d'unité sur son nœud racine — le nôtre le
+    fait, avec son mm->m — rendrait un fit calculé sur du brut faux de
+    plusieurs ordres de grandeur, et la pièce invisible dans l'artefact sans
+    qu'aucune structure ne soit fautive. Recevoir le maillage plutôt que les
+    octets évite AUSSI de le dépaqueter deux fois : l'appelant le garde pour
+    le STL (voir `_element_externe`), et cette fonction redevient de la
+    politique PURE — aucune lecture de GLB ici."""
+    pos = monde["positions"]
     xs, ys, zs = pos[0::3], pos[1::3], pos[2::3]
     x0, x1 = min(xs), max(xs)
     y0, y1 = min(ys), max(ys)
@@ -1231,8 +1267,20 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
                  f"relance-le sur un maillage plus leger")
     raw = p_glb.read_bytes()
     credits = job.get("consumed_credits")
-    return {"name": nom_el, "node": nid, "glb": raw,
-            "fit": _fit_external(raw, box_mm, trs_n),
+    # UN SEUL DÉPAQUETAGE : le maillage de scène sert au fit MAINTENANT et au
+    # STL PLUS TARD — le mesurer deux fois coûtait une seconde lecture du
+    # document et une seconde matérialisation des positions par externe.
+    # AVEU DE PIC MÉMOIRE, dans l'idiome du fichier : le pic tient, POUR
+    # CHAQUE externe résolu, ses octets de GLB (bornés par
+    # `MAX_EXT_GLB_BYTES`) ET son maillage de scène, jusqu'à ce que la fusion
+    # soit écrite — soit au pire `MAX_GRAPH_ELEMENTS` fois les deux. Les
+    # octets sont relâchés dès `write_scene_glb` rendu (voir `post_build3d`,
+    # seul endroit où ils ne servent plus à rien) ; seuls les maillages
+    # survivent jusqu'au STL, et ce cache-là est exactement ce qui évite de
+    # redépaqueter les mêmes documents une seconde fois.
+    monde = glb_scene_mesh(raw, world=True)
+    return {"name": nom_el, "node": nid, "glb": raw, "monde": monde,
+            "fit": _fit_external(monde, box_mm, trs_n),
             "engine": job.get("engine"), "closed": job.get("closed"),
             "closed_note": job.get("closed_note"),
             "credits": credits if isinstance(credits, int) else None}
@@ -1369,6 +1417,12 @@ async def post_build3d(did: str, body: dict | None = None):
                          if isinstance(rang, int) and 0 <= rang < len(externes)
                          else art_name),
                 "why": p_ig.get("why")})
+        # LES OCTETS DES EXTERNES NE SERVENT PLUS : la fusion les a recopiés
+        # dans le buffer, et le STL travaille sur le maillage de scène déjà
+        # mesuré. Les garder jusqu'à la fin de la requête, c'est garder
+        # jusqu'à `MAX_GRAPH_ELEMENTS x MAX_EXT_GLB_BYTES` pour rien.
+        for ex in externes:
+            ex["glb"] = b""
         glb_name = f"{art_name}.glb"
         # ── APERÇU PÉRIMÉ (legs 4) : la capture précédente montre l'ANCIEN
         #    GLB. La laisser, c'est laisser le metadata (`image`) pointer une
@@ -1443,16 +1497,36 @@ async def post_build3d(did: str, body: dict | None = None):
                          + str(ex["closed_note"]
                                or "le moteur n'a pas rendu la mesure"))
         if motif is None:
-            pieces = list(elements)
-            for ex in externes:
-                # le STL n'a pas de nœud pour porter un transform : l'externe
-                # y entre DÉJÀ placé (voir `apply_fit_inplace`). `world=True`
-                # comme pour le fit — le STL et le GLB doivent montrer la
-                # MÊME chose, au même endroit, à la même échelle.
-                pieces.append({"name": ex["name"], "z_mm": 0.0,
+            # LE STL N'A PAS DE NŒUD pour porter un transform : ce qui, dans
+            # le GLB, vit sur le nœud d'un élément doit être CUIT dans ses
+            # sommets ici. Cela vaut pour les externes (leur fit) COMME pour
+            # les locaux qui traversent un `transform` — l'oublier pour les
+            # seconds imprimait une pièce à l'origine, non tournée, pendant
+            # que le GLB la montrait déplacée : deux fichiers, deux vérités.
+            # `el["trs"]` porte DÉJÀ la forme d'un fit (`_trs_dict` est
+            # l'adaptateur : translate/rotate_deg/scale), et
+            # `apply_fit_inplace` applique le même T x R x S que `_node_trs`
+            # écrit dans le nœud — une seule règle de composition pour les
+            # deux sorties.
+            pieces = []
+            for el in elements:
+                if not isinstance(el.get("trs"), dict):
+                    pieces.append(el)
+                    continue
+                # COPIE des positions : le maillage local est encore référencé
+                # par `elements` (et son `closed` par le gate ci-dessus) — le
+                # transformer sur place changerait ce que d'autres ont déjà lu.
+                pieces.append({"name": el["name"], "z_mm": 0.0,
                                "mesh": apply_fit_inplace(
-                                   glb_scene_mesh(ex["glb"], world=True),
-                                   ex["fit"])})
+                                   {"positions": list(el["mesh"]["positions"]),
+                                    "indices": el["mesh"]["indices"]},
+                                   el["trs"])})
+            for ex in externes:
+                # ici la transformation SUR PLACE est légitime : ce maillage
+                # de scène n'appartient qu'à cet appel (voir `_element_externe`).
+                pieces.append({"name": ex["name"], "z_mm": 0.0,
+                               "mesh": apply_fit_inplace(ex["monde"],
+                                                         ex["fit"])})
             stl_bytes = _write_stl_binary(pieces, art_name)
             stl_name = f"{art_name}.stl"
             (out / stl_name).write_bytes(stl_bytes)

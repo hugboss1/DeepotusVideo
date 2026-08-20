@@ -2707,6 +2707,48 @@ def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None,
     return job
 
 
+def _glb_bricole(**surcharges):
+    """Un GLB minimal VALIDE (un triangle indexé, un matériau), surchargé clé
+    par clé — le laboratoire des cas que NOS writers ne produisent jamais
+    (ressources externes, exigences exotiques, hiérarchies absurdes)."""
+    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
+           "nodes": [{"mesh": 0}],
+           "meshes": [{"primitives": [{"attributes": {"POSITION": 0},
+                                       "indices": 1, "material": 0}]}],
+           "materials": [{"name": "moteur"}],
+           "accessors": [
+               {"componentType": 5126, "count": 3, "type": "VEC3",
+                "bufferView": 0, "min": [0, 0, 0], "max": [1, 1, 0]},
+               {"componentType": 5125, "count": 3, "type": "SCALAR",
+                "bufferView": 1}],
+           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36},
+                           {"buffer": 0, "byteOffset": 36, "byteLength": 12}],
+           "buffers": [{"byteLength": 48}]}
+    doc.update(surcharges)
+    binv = (struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0.5, 1, 0)
+            + struct.pack("<3I", 0, 1, 2))
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    return (struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binv))
+            + struct.pack("<II", len(js), 0x4E4F534A) + js
+            + struct.pack("<II", len(binv), 0x004E4942) + binv)
+
+
+def _stl_bbox(stl: bytes):
+    """(min, max) par axe des sommets d'un STL binaire — LA PLACE RÉELLE de ce
+    qui sera imprimé, la seule qui puisse contredire celle du GLB."""
+    n = struct.unpack("<I", stl[80:84])[0]
+    lo = [float("inf")] * 3
+    hi = [float("-inf")] * 3
+    for k in range(84, 84 + 50 * n, 50):
+        for s in range(3):
+            v = struct.unpack_from("<3f", stl, k + 12 + s * 12)
+            for c in range(3):
+                lo[c] = min(lo[c], v[c])
+                hi[c] = max(hi[c], v[c])
+    return lo, hi
+
+
 def _glb_externe_63x88():
     """L'« externe » des tests : un relief FERMÉ écrit par notre writer, aux
     cotes CONNUES 63x88x(0,3..1,3) — le fit attendu se calcule donc de tête."""
@@ -2871,6 +2913,27 @@ def test_l_assemblage_fusionne_le_glb_externe_a_sa_place_de_couche():
                    struct.unpack_from("<f", stl, k + 44)[0])
                for k in range(84, 84 + 50 * n_tri, 50))
     assert abs(zmax - (2.0 + s * 1.3 * 0.001)) < 1e-3, zmax
+    # ── LE MANIFESTE FAIT FOI pour le changement de repère (M6) : la toile et
+    # le fond perdu viennent de LUI, pas d'une re-dérivation depuis la
+    # géométrie courante. Preuve : on rallonge la toile DÉCLARÉE de 10 mm et
+    # le placement suit, exactement de 10 mm en y (une re-dérivation ne
+    # bougerait pas d'un cheveu).
+    p_man = _dossier_forge3d(did) / "layers_c01_front.json"
+    doctore = json.loads(p_man.read_text(encoding="utf-8"))
+    doctore["canvas_mm"] = [doctore["canvas_mm"][0],
+                            doctore["canvas_mm"][1] + 10.0]
+    p_man.write_text(json.dumps(doctore), encoding="utf-8")
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 200, r2.text
+    doc2, _ = _read_glb(_api(
+        "GET", "/api/cards/" + did + "/forge3d/file/"
+        + r2.json()["artifact"]["glb"]["name"]).content)
+    rac2 = doc2["nodes"][doc2["scenes"][0]["nodes"][0]]
+    noms2 = [doc2["nodes"][k]["name"] for k in rac2["children"]]
+    p2 = doc2["nodes"][rac2["children"][noms2.index("illustration")]]
+    assert abs(p2["translation"][1] - (cy + 10.0)) < 1e-6
+    assert abs(p2["translation"][0] - cx) < 1e-6      # x : inchangé
 
 
 def test_un_noeud_mesh3d_sans_glb_servi_refuse_l_assemblage():
@@ -2954,27 +3017,8 @@ def test_le_glb_externe_a_images_uri_est_refuse_motive():
     ses textures."""
     did = _deck("Uri")
     _exporter_couches(did)
-    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
-           "nodes": [{"mesh": 0}],
-           "meshes": [{"primitives": [{"attributes": {"POSITION": 0},
-                                       "indices": 1}]}],
-           "accessors": [
-               {"componentType": 5126, "count": 3, "type": "VEC3",
-                "bufferView": 0, "min": [0, 0, 0], "max": [1, 1, 0]},
-               {"componentType": 5125, "count": 3, "type": "SCALAR",
-                "bufferView": 1}],
-           "images": [{"uri": "https://ailleurs.example/tex.png"}],
-           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36},
-                           {"buffer": 0, "byteOffset": 36, "byteLength": 12}],
-           "buffers": [{"byteLength": 48}]}
-    binv = (struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0.5, 1, 0)
-            + struct.pack("<3I", 0, 1, 2))
-    js = json.dumps(doc, separators=(",", ":")).encode()
-    js += b" " * (-len(js) % 4)
-    glb = (struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binv))
-           + struct.pack("<II", len(js), 0x4E4F534A) + js
-           + struct.pack("<II", len(binv), 0x004E4942) + binv)
-    _job_servi(did, "m1", glb, closed=False)
+    _job_servi(did, "m1", _glb_bricole(
+        images=[{"uri": "https://ailleurs.example/tex.png"}]), closed=False)
     g = _graphe_mesh3d("meshy-7")
     r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
              json={"graph": g, "card": 0})
@@ -3033,7 +3077,7 @@ def test_la_chaine_matiere_et_transform_habille_l_element_local():
             {"id": "mt", "kind": "material", "mat": mat["id"],
              "tile_mm": 31.5, "finish": "argent", "aniso": True},
             {"id": "tr", "kind": "transform", "x_mm": 4.0, "y_mm": -2.0,
-             "z_mm": 1.5, "rot_deg": 0.0, "scale": 1.0},
+             "z_mm": 1.5, "rot_deg": 0.0, "scale": 2.0},
             {"id": "asm", "kind": "assemble"},
             {"id": "art", "kind": "artifact", "name": "habille"}],
             "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "mt"},
@@ -3058,9 +3102,25 @@ def test_la_chaine_matiere_et_transform_habille_l_element_local():
         assert "extensionsRequired" not in doc
         # le TRS du transform, sur le nœud de l'élément
         assert doc["nodes"][0]["translation"] == [4.0, -2.0, 1.5]
+        assert doc["nodes"][0]["scale"] == [2.0, 2.0, 2.0]
         # les maps sont TUILÉES au ratio carte, pas collées telles quelles
         i_nrm = doc["textures"][m["normalTexture"]["index"]]["source"]
         assert doc["images"][i_nrm]["name"] == "cadre-normal"
+        # ── ET LE STL DIT LA MÊME CHOSE QUE LE GLB ─────────────────────────
+        # Le format STL n'a pas de nœud : ce que le GLB porte sur le nœud doit
+        # être CUIT dans les sommets. Sans cela, la pièce s'imprimait à
+        # l'origine, à l'échelle 1, pendant que l'aperçu la montrait déplacée
+        # et doublée — deux fichiers, deux vérités, et c'est le fichier
+        # PAYANT (l'impression) qui avait tort.
+        assert b["stl"]["written"] is True, b["stl"]
+        stl = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                   + b["stl"]["name"]).content
+        lo, hi = _stl_bbox(stl)
+        # relief 63 x 88, z de 0 a 0,3+1,0 -> x2 puis + (4 ; -2 ; 1,5)
+        for axe, attendu in enumerate(([4.0, 130.0], [-2.0, 174.0],
+                                       [1.5, 4.1])):
+            assert abs(lo[axe] - attendu[0]) < 1e-3, (axe, lo[axe])
+            assert abs(hi[axe] - attendu[1]) < 1e-3, (axe, hi[axe])
     finally:
         MSTORE.delete_material(mat["id"])
 
@@ -3108,6 +3168,164 @@ def test_les_chaines_impossibles_sont_avouees_sans_faire_tomber_l_artefact():
         f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content
     )["attributes"]}
     assert types["engines"] == "local+tripo" and types["elements_3d"] == 2
+
+
+def test_le_glb_externe_aux_exigences_inconnues_ou_trop_profond_est_refuse():
+    """Deux refus NOMMÉS là où le silence livrerait un artefact FAUX :
+    une extension EXIGÉE que la fusion ne sait pas transporter (son bloc vit
+    dans des champs que la recopie ne connaît pas — le fichier annoncerait une
+    exigence dont la description a disparu), et une hiérarchie de scène plus
+    profonde que la descente ne va (tronquer y perdrait de la géométrie SANS
+    le dire : boîte trop petite, STL amputé, `closed` toujours vrai)."""
+    did = _deck("Exigences")
+    _exporter_couches(did)
+    g = _graphe_mesh3d("meshy-7")
+    _job_servi(did, "m1", _glb_bricole(
+        extensionsUsed=["EXT_meshopt_compression"],
+        extensionsRequired=["EXT_meshopt_compression"]), closed=False)
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.text
+    assert "EXT_meshopt_compression" in r.json()["detail"]
+
+    prof = 40
+    noeuds = [{"children": [i + 1]} for i in range(prof)]
+    noeuds.append({"mesh": 0})
+    _job_servi(did, "m1", _glb_bricole(nodes=noeuds), closed=False)
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 409, r2.text
+    assert "profonde" in r2.json()["detail"]
+
+
+def test_les_maillons_surnumeraires_d_une_chaine_sont_avoues():
+    """M3 : deux matières partent du MÊME relief — la première arête gagne (la
+    règle de l'entrée depuis la 2a), et la seconde est une PERTE, avouée avec
+    les mots de l'entrée. L'écran ne produit pas cette topologie ; l'API brute,
+    elle, est ouverte à qui la poste."""
+    did = _deck("Eventail")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "mA", "kind": "material", "mat": None, "tile_mm": 63.0,
+         "finish": "argent", "aniso": False},
+        {"id": "mB", "kind": "material", "mat": None, "tile_mm": 63.0,
+         "finish": "dorure", "aniso": False},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "eventail"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "mA"},
+                  {"from": "t2", "to": "mB"}, {"from": "mA", "to": "asm"},
+                  {"from": "mB", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    motifs = {i["node"]: i["why"] for i in b["ignored"]}
+    assert set(motifs) == {"mB"}, motifs
+    assert "surnumeraire" in motifs["mB"] and "mA" in motifs["mB"]
+    # c'est bien mA (ARGENT) qui a servi, pas mB (dorure) : l'aveu ne dit pas
+    # l'inverse de ce qui a été fait.
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+    assert doc["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] == \
+        [0.95, 0.95, 0.97, 1.0]
+
+
+def test_le_rebuild_efface_le_stl_perime():
+    """Jumeau de l'aperçu périmé : un STL qu'une NOUVELLE passe refuse ne doit
+    pas rester servi par /file en contredisant le bordereau qui vient de dire
+    « non »."""
+    did = _deck("Stl perime")
+    _exporter_couches(did)
+    base = [{"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "solide"}]
+    aretes = [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+              {"from": "asm", "to": "art"}]
+    g1 = {"nodes": base + [{"id": "t2", "kind": "relief", "depth_mm": 1.0,
+                            "base_mm": 0.3, "grid": 48}], "edges": aretes}
+    r1 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g1, "card": 0})
+    assert r1.status_code == 200 and r1.json()["artifact"]["stl"]["written"]
+    assert _api("GET", f"/api/cards/{did}/forge3d/file/solide.stl"
+                ).status_code == 200
+    # même NOM d'artefact, mais un plan : plus de solide, donc plus de STL
+    g2 = {"nodes": base + [{"id": "t2", "kind": "plane", "depth_mm": 0.0}],
+          "edges": aretes}
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g2, "card": 0})
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["artifact"]["stl"]["written"] is False
+    assert _api("GET", f"/api/cards/{did}/forge3d/file/solide.stl"
+                ).status_code == 404
+
+
+def test_les_exigences_de_l_externe_survivent_et_ses_variants_sont_reindexes():
+    """Le pendant POSITIF du refus : une extension exigée que la fusion SAIT
+    transporter reste EXIGÉE dans le document fusionné (il l'exige vraiment),
+    tandis que les NÔTRES — enjolivures — n'y entrent jamais. Et les indices
+    de matériau cachés dans les extensions d'une primitive
+    (KHR_materials_variants) sont décalés comme les autres, sans quoi la
+    variante du moteur pointerait le matériau de NOTRE couche."""
+    did = _deck("Exigences gardees")
+    _exporter_couches(did)
+    _job_servi(did, "m1", _glb_bricole(
+        extensionsUsed=["KHR_materials_unlit", "KHR_materials_variants"],
+        extensionsRequired=["KHR_materials_unlit"],
+        extensions={"KHR_materials_variants": {"variants": [{"name": "or"}]}},
+        materials=[{"name": "moteur",
+                    "extensions": {"KHR_materials_unlit": {}}}],
+        # `sampler: true` n'est PAS l'indice 1 — ce n'est pas un indice du
+        # tout (M7 : en Python, `True in {0:..., 1:...}` est VRAI).
+        images=[{"bufferView": 0, "mimeType": "image/png"}],
+        samplers=[{"wrapS": 33071, "wrapT": 33071}, {"wrapS": 10497}],
+        textures=[{"source": 0, "sampler": True}],
+        meshes=[{"primitives": [{
+            "attributes": {"POSITION": 0}, "indices": 1, "material": 0,
+            "extensions": {"KHR_materials_variants": {
+                "mappings": [{"material": 0, "variants": [0]}]}}}]}]),
+        closed=False, engine="tripo")
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "m1", "kind": "mesh3d", "engine": "tripo",
+         "texture_prompt": "", "ultra": False},
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "mt", "kind": "material", "mat": None, "tile_mm": 63.0,
+         "finish": "argent", "aniso": False},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "exig3d"}],
+        "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "asm"},
+                  {"from": "s2", "to": "t2"}, {"from": "t2", "to": "mt"},
+                  {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+    # SON exigence est portée par le document fusionné ; LES NÔTRES, non
+    assert doc["extensionsRequired"] == ["KHR_materials_unlit"]
+    assert "KHR_materials_iridescence" in doc["extensionsUsed"]
+    assert "KHR_materials_unlit" in doc["extensionsUsed"]
+    # le matériau du moteur est le SECOND (notre couche occupe le premier) et
+    # le mapping de variante a suivi le décalage
+    prim = doc["meshes"][1]["primitives"][0]
+    assert prim["material"] == 1
+    assert doc["materials"][1]["name"] == "moteur"
+    mapp = prim["extensions"]["KHR_materials_variants"]["mappings"][0]
+    assert mapp["material"] == 1, mapp
+    # M7 : le `sampler` BOOLÉEN n'a pas volé le second sampler du moteur — la
+    # texture a reçu un sampler par DÉFAUT ajouté (`{}` = REPEAT au glTF).
+    assert doc["samplers"][doc["textures"][-1]["sampler"]] == {}
+    # ...et ce que la fusion NE reprend PAS est avoué : la DÉCLARATION de
+    # niveau document (la liste des variantes) n'est pas fusionnable.
+    motifs = [i["why"] for i in b["ignored"] if i["node"] == "m1"]
+    assert any("document" in w and "KHR_materials_variants" in w
+               for w in motifs), b["ignored"]
 
 
 if __name__ == "__main__":
