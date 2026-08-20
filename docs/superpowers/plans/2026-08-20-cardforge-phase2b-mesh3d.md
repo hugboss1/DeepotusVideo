@@ -1760,6 +1760,11 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
 
 ### Task 7bis: Fluidité des manipulations à la souris (spec §9.6 — toutes les surfaces de drag du lab)
 
+> **CLOSE (26f838f + ff285ea + acf6029) — re-revue APPROUVÉE.** Livré au-delà
+> du plan : bug préexistant de position finale perdue (overlay P3) corrigé ;
+> undo du scrub P6 rétabli (couplage corner_link généralisé par patchKeysOf) ;
+> R13 en sémantique INDEX, 50 fichiers couverts, 60x plus vite ; isPrimary aux
+> pointerdown (anti-coincement) ; before0 du slider remis à zéro par geste.
 > **Résidus NOMMÉS de la revue du 20/08 :** (1) molette de zoom P1
 > (mod-face.js:3843) : coalescence DIFFÉRÉE — le geste est INCRÉMENTAL (lit le
 > doc à chaque événement, compose échelle ET point-sous-curseur), la coalescer
@@ -1791,7 +1796,7 @@ pièces font un `M.patch` PAR ÉVÉNEMENT (mod-frame.js:2446-2463 par exemple) �
 — jusqu'à ~1000 fois/s sur une souris à haut taux de scrutation. Le rectangle traîne
 derrière le curseur : la « latence » et l'« imprécision » perçues sont le même défaut.
 
-- [ ] **Step 1 : le patron rAF, appliqué à mod-frame.js d'abord**
+- [x] **Step 1 : le patron rAF, appliqué à mod-frame.js d'abord**
 
 Dans `wireMap` (mod-frame.js:2430-2489), remplacer le `M.patch` direct du
 `pointermove` par le patron coalescé :
@@ -1820,7 +1825,7 @@ la fenêtre candidate évite d'attendre le patch). Poignée : zone de saisie 8�
 `nwse-resize` sur la poignée au survol, `move` dans la fenêtre, `crosshair` sinon)
 et `touch-action: none` sur le canvas de la mini-carte (CSS de la pièce).
 
-- [ ] **Step 2 : le même patron sur les cinq autres surfaces**
+- [x] **Step 2 : le même patron sur les cinq autres surfaces**
 
 Lire chaque handler AVANT de le modifier (les modes de geste diffèrent), appliquer le
 MÊME remède : état de geste local + un patch par frame + patch final exact au relâché +
@@ -1831,7 +1836,7 @@ mod-solid.js:557-570. AUCUN changement de sémantique : mêmes bornes, mêmes ar
 même HIST une-fois-par-geste. Si une surface fait DÉJÀ moins d'un patch par frame
 (certaines ne patchent qu'au relâché), la laisser telle quelle et le noter au rapport.
 
-- [ ] **Step 3 : l'octet NUL échappé + la règle lint « octets sains »**
+- [x] **Step 3 : l'octet NUL échappé + la règle lint « octets sains »**
 
 mod-frame.js contient UN octet NUL brut (offset ~180802, dans
 `s.indexOf("<NUL>")` d'un parseur binaire — légal en JS mais il fait passer le fichier
@@ -1842,14 +1847,14 @@ signaler tout `\x00` brut et tout `\r` (CRLF) — violation, pas avertissement.
 Vérifier : `python scripts\qa\lint_cardforge.py` complet → 0 violation (mod-frame
 corrigé, aucun autre fichier atteint).
 
-- [ ] **Step 4 : vérification navigateur RÉELLE**
+- [x] **Step 4 : vérification navigateur RÉELLE**
 
 Via cf_deploy puis dans l'app : faire glisser la fenêtre du cadre avec des mouvements
 RAPIDES — le rectangle suit le curseur sans traîner ; la poignée s'attrape sans viser
 au pixel ; l'annulation reste UNE entrée par geste ; répéter sur un slot P3 (overlay) et
 la pose P1. Rapporter ce qui est vu (avant/après si possible).
 
-- [ ] **Step 5 : GREEN + commit**
+- [x] **Step 5 : GREEN + commit**
 
 Les tests de source des pièces concernées (s'il en existe qui épinglent les handlers
 modifiés) restent verts ; lint complet vert ; `node frontend\cardforge\qa\test_core_contract.mjs
