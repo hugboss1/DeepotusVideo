@@ -720,7 +720,18 @@ git commit -m "feat(cardforge): vocabulaire 2b (mesh3d/material/transform) en mi
 > `closed_note`, job `served`) au lieu d'échouer — le binaire est payé ; (5) le
 > 409 de concurrence EST testé (neutraliser le runner tient la fenêtre ouverte) ;
 > (6) GET rend le job à plat, POST rend `{"job": …}` (asymétrie des tests du
-> plan, documentée). Étapes cochées.
+> plan, documentée). **Revue qualité (2e passe) :** le dessin du marqueur de
+> grâce portait DEUX modes de défaillance, pas un — le faux-orphelin (couvert)
+> ET le DOUBLE LANCEMENT PAYANT : garde 409 non atomique (4 points de
+> suspension entre test et pose du marqueur) + un runner rassis (envoi de
+> réponse retardé au-delà de la grâce) qui écrase le job.json d'une relance.
+> Correctifs actés : pose du marqueur ATOMIQUE (zéro await) avec déroulage sur
+> refus, clôture par `run_id` (le runner se tait s'il a été remplacé), pop du
+> registre conditionnel à sa propre tâche ; + retries bornés du poll d'un job
+> PAYÉ (`MESH3D_POLL_RETRIES`), journalisation `record_created/record_state`
+> de la tâche Meshy (récupération via le 3D Studio), `mesh_url` fal persistée
+> avant download, bornes de taille TESTÉES par rétrécissement de constante.
+> Étapes cochées.
 
 **Files:**
 - Modify: `backend/app/services/cards/forge3d.py`
