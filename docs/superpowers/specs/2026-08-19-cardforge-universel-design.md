@@ -245,6 +245,22 @@ bandeau) — ce sont des presets de slots.
 **Extension P3 requise** : plaque de fond par slot (couleur + alpha + rayon), et typo par
 slot si incomplet aujourd'hui — bloc miroir + test de parité, comme l'existant.
 
+**Édition par manipulation directe (amendement utilisateur du 20/08, « canvas type
+Figma ») — exigence de la phase 3 :** chaque zone d'une carte s'édite AUSSI directement
+sur l'aperçu, pas seulement par les panneaux :
+- **sélection au clic** d'un slot/zone sur l'aperçu (contour de sélection visible),
+  **déplacement au drag**, **redimensionnement par poignées** (8 poignées : coins +
+  bords), flèches clavier pour l'ajustement fin (pas 1 mm, Maj = 0,2 mm — patron déjà
+  livré sur la fenêtre du cadre) ;
+- **ajout d'éléments depuis une palette** : zone de texte, zone de statistique
+  (étiquette + valeur, style par slot), calque d'image/motif — instanciés comme des
+  objets Cardforge ORDINAIRES (slots P3 / calques P2), jamais un modèle figé ;
+- **calques** : liste ordonnée visible (l'ordre z DANS les bornes du z gelé de chaque
+  module), réordonnancement, verrouillage, œil de visibilité par élément ;
+- les gestes écrivent par `M.patch` sous le jeton du module propriétaire (une entrée
+  d'annulation PAR GESTE, jamais par pixel — patron HIST de la fenêtre du cadre) ;
+- la **barre de fluidité §9.6** s'applique à CHAQUE nouvelle surface de manipulation.
+
 ### 6.2 Les huit archétypes (zones en mm sur poker 63×88, issues de la recherche du 19/08)
 
 Première fournée (sélection utilisateur) : **superstar, duel, créature, arcane, monstre,
@@ -444,10 +460,37 @@ même mécanique qu'une matière de support importée). Prix affiché avant l'ap
 
 ### 7.2 `deepotus-fragments` (la preuve de bout en bout)
 
+**Sources OFFICIELLES fournies le 20/08 (les gabarits du jeu réel) :**
+- `C:\Users\olivi\Downloads\DEEPOTUS_FRAGMENTS_Cahier_de_regles_v0AB.docx` — cahier de
+  règles illustré (versions 0/A/B, 2-6 joueurs) : 3 ressources (**Attention = cyan**,
+  **Reconnaissance = or**, Influence), camps **S**ystème (or) / **C**ommunauté (cyan) /
+  **N**eutre (gris) + marque **⬡ Bilderberg** (losange violet, 2 Chambres), **9
+  familles de cartes** (Personnage, Puissance, Puissance déployable, Lieu, Région,
+  Chambre, Système, Équipe, Apex), codex complet ~90 cartes (camp, A, R, capacité).
+- `C:\Users\olivi\Downloads\DOSSIER_FABRICANT_DEEPOTUS_FRAGMENTS.pdf` — dossier de
+  fabrication : 92 faces uniques + 1 dos commun (`homme_mystique_dans_un_cadre_doré`),
+  source PNG **1060×1484 px, ratio 5:7 exact, ≈354 dpi**, fond perdu 3 mm, zone de
+  sécurité 5 mm, CMJN ISO Coated v2 ; **format recommandé par le dossier : poker
+  63×88 mm (5:7 exact, « option par défaut conseillée »)** — le 70×120 tarot
+  imposerait un recadrage ; finitions à chiffrer : pelliculage mat/lin, **vernis
+  sélectif UV, dorure à chaud** (le Sceau prismatique §6.2bis et le masque de foil P7
+  parlent la langue du fabricant). Anatomie officielle d'une face : **badge de camp
+  (S/C/N)** + ⬡ le cas échéant, **valeur A (cyan)** et **valeur R (or)**, **titre**,
+  **capacité** (texte). Le dossier signale lui-même le risque juridique des
+  personnalités réelles à remplacer par des archétypes — l'annexe légale §11
+  s'applique telle quelle.
+
+Le modèle `deepotus-fragments` doit donc offrir ces zones en SLOTS éditables (badge de
+camp, pastilles A/R aux couleurs canoniques, titre, boîte de capacité, ⬡ optionnel) et
+sa palette d'éléments reprend le vocabulaire du jeu (les stats personnalisées de
+l'amendement §6.1 : une zone « valeur A », une zone « valeur R », une ligne de type…).
+
 **Carte type fournie le 19/08** : « The Patriarch of the Old Houses / He Who Guards the
-Aged Walls » — portrait gravé sombre, filigrane or à instruments. Anatomie mesurée sur
-l'image (≈ 1060×1500 px, rapport 0,707 ≈ poker 63×88), à recaler sur le FICHIER dès que
-son chemin est fourni (suggestion : `.superpowers/samples/patriarch.png`, hors dépôt) :
+Aged Walls » = **« Le Patriarche des Vieilles Maisons »** du codex (Puissance, camp
+Système, A 3 / R 1, synergie Le Capital) — l'une des 92 faces. Portrait gravé sombre,
+filigrane or à instruments. Anatomie mesurée sur l'image (1060×1484 px, 5:7 = poker
+63×88), à recaler sur le FICHIER dès que son chemin est fourni (suggestion :
+`.superpowers/samples/patriarch.png`, hors dépôt) :
 
 | zone | mesure (mm) | rôle |
 |---|---|---|
@@ -529,6 +572,27 @@ fichiers (il copie les arbres entiers). `index.html` du lab : deux onglets + scr
 Mini-gauntlet en duel aveugle de la Forge 3D contre Meshy (protocole certifié du 18/08 :
 panneaux recadrés, critiques cloîtrés, cotes inversées) — recommandé avant toute
 communication « qualité NFT professionnelle ».
+
+### 9.6 Barre de fluidité des manipulations à la souris (amendement du 20/08, transversal)
+
+Constat utilisateur (20/08) : latence et impression d'imprécision sur les cadres
+manipulés à la souris. Cause mesurée dans le code : chaque `pointermove` fait un
+`M.patch` complet (clone + `core:doc` diffusé à TOUS les modules, jusqu'à ~1000
+événements/s sur une souris gamer) — l'aperçu du CORE, lui, est déjà coalescé au rAF
+(`invalidate`). La barre, applicable à TOUTE surface de drag existante ou future
+(fenêtre du cadre P2, pose P1, slots P3, texture P4, impression P7, solide P6, et
+chaque surface de l'édition directe §6.1 à venir) :
+
+1. **≤ 1 `M.patch` par frame d'animation pendant un geste** : l'état du geste vit en
+   variable locale, un rAF applique le dernier état ; le `pointerup` applique l'état
+   FINAL exact (aucune perte de précision) ;
+2. **feedback local immédiat** (la mini-carte/l'overlay se redessine à chaque
+   événement — c'est bon marché), le document suit au rythme des frames ;
+3. **poignées ≥ 12 px** de zone de saisie à l'écran, curseurs contextuels
+   (`move`, `nwse-resize`…), `touch-action: none` sur les surfaces de drag ;
+4. **une entrée d'annulation par geste** (déjà la règle — la conserver) ;
+5. **octets sains** : aucun octet NUL brut ni retour CRLF dans les sources du lab (le
+   `"\x00"` littéral s'écrit ÉCHAPPÉ) — contrôle au lint (règle nommée).
 
 ## 10. Hors périmètre (nommé, pas tu)
 

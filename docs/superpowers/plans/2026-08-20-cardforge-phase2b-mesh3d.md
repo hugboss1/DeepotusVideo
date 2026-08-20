@@ -1651,6 +1651,96 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
 
 ---
 
+### Task 7bis: Fluidité des manipulations à la souris (spec §9.6 — toutes les surfaces de drag du lab)
+
+**Files:**
+- Modify: `frontend/cardforge/js/mod-frame.js` (fenêtre du cadre — la plainte d'origine)
+- Modify: `frontend/cardforge/js/mod-face.js`, `mod-type.js`, `mod-texture.js`,
+  `mod-print.js`, `mod-solid.js` (mêmes gestes, même remède)
+- Modify: `frontend/cardforge/css/*.css` correspondants (curseurs, `touch-action`)
+- Modify: `scripts/qa/lint_cardforge.py` (règle « octets sains »)
+- Test: `backend/tests/test_cards_forge3d.py` N'EST PAS le bon fichier — les tests de
+  source des pièces vivent dans les tests de CHAQUE pièce ; ajouter les asserts de
+  source au fichier de test de la pièce modifiée quand il a déjà une section « source »
+  (sinon le lint porte la vérification)
+
+Contexte mesuré (ne pas re-diagnostiquer) : `core.js` coalesce DÉJÀ l'aperçu au rAF
+(`invalidate`, core.js:889-897). Le problème est en AMONT : les `pointermove` des
+pièces font un `M.patch` PAR ÉVÉNEMENT (mod-frame.js:2446-2463 par exemple) — clone
+`sanitize`, `markDirty`, `emitCore("core:doc")` diffusé aux ~10 modules, `scheduleSave`
+— jusqu'à ~1000 fois/s sur une souris à haut taux de scrutation. Le rectangle traîne
+derrière le curseur : la « latence » et l'« imprécision » perçues sont le même défaut.
+
+- [ ] **Step 1 : le patron rAF, appliqué à mod-frame.js d'abord**
+
+Dans `wireMap` (mod-frame.js:2430-2489), remplacer le `M.patch` direct du
+`pointermove` par le patron coalescé :
+
+```js
+    let drag = null, pendingWin = null, rafId = 0;
+    const flushWin = () => {
+      rafId = 0;
+      if (!pendingWin) return;
+      const n = pendingWin; pendingWin = null;
+      M.patch({ window: n });          /* <= 1 patch par frame (spec 9.6-1) */
+    };
+    /* ... dans pointermove, a la place de M.patch({window:n}) : */
+      pendingWin = n;
+      if (!rafId) rafId = (typeof requestAnimationFrame === "function"
+        ? requestAnimationFrame(flushWin) : setTimeout(flushWin, 16));
+      drawMapWith(n);                  /* feedback LOCAL immediat (9.6-2) */
+```
+et au `pointerup`/`pointercancel` (`end`) : annuler le rAF en attente puis appliquer
+l'état FINAL exact (`if (rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+if (pendingWin) { M.patch({ window: pendingWin }); pendingWin = null; }`) AVANT le
+push HIST existant. `drawMapWith(n)` = le `drawMap` actuel paramétré par la fenêtre en
+cours de geste (le dessin de la mini-carte lit aujourd'hui l'état du doc ; lui passer
+la fenêtre candidate évite d'attendre le patch). Poignée : zone de saisie 8→12 px
+(les DEUX tests `< 8` de pointerdown), curseurs contextuels (`cv.style.cursor` =
+`nwse-resize` sur la poignée au survol, `move` dans la fenêtre, `crosshair` sinon)
+et `touch-action: none` sur le canvas de la mini-carte (CSS de la pièce).
+
+- [ ] **Step 2 : le même patron sur les cinq autres surfaces**
+
+Lire chaque handler AVANT de le modifier (les modes de geste diffèrent), appliquer le
+MÊME remède : état de geste local + un patch par frame + patch final exact au relâché +
+`touch-action: none` + poignées/zones ≥ 12 px là où il y a des poignées. Surfaces :
+mod-face.js:3769-3790 (pose), mod-type.js:4022-4126 (overlay de slots — le futur cœur
+de l'édition directe §6.1), mod-texture.js:1509-1520, mod-print.js:1462-1481,
+mod-solid.js:557-570. AUCUN changement de sémantique : mêmes bornes, mêmes arrondis,
+même HIST une-fois-par-geste. Si une surface fait DÉJÀ moins d'un patch par frame
+(certaines ne patchent qu'au relâché), la laisser telle quelle et le noter au rapport.
+
+- [ ] **Step 3 : l'octet NUL échappé + la règle lint « octets sains »**
+
+mod-frame.js contient UN octet NUL brut (offset ~180802, dans
+`s.indexOf("<NUL>")` d'un parseur binaire — légal en JS mais il fait passer le fichier
+pour du binaire aux outils, grep s'arrête dessus). Le remplacer par la séquence
+ÉCHAPPÉE `"\x00"` (4 caractères). Puis, dans lint_cardforge.py, nouvelle règle nommée
+R13 « octets sains » : pour chaque fichier js/css/py/mjs du lab, lire les OCTETS et
+signaler tout `\x00` brut et tout `\r` (CRLF) — violation, pas avertissement.
+Vérifier : `python scripts\qa\lint_cardforge.py` complet → 0 violation (mod-frame
+corrigé, aucun autre fichier atteint).
+
+- [ ] **Step 4 : vérification navigateur RÉELLE**
+
+Via cf_deploy puis dans l'app : faire glisser la fenêtre du cadre avec des mouvements
+RAPIDES — le rectangle suit le curseur sans traîner ; la poignée s'attrape sans viser
+au pixel ; l'annulation reste UNE entrée par geste ; répéter sur un slot P3 (overlay) et
+la pose P1. Rapporter ce qui est vu (avant/après si possible).
+
+- [ ] **Step 5 : GREEN + commit**
+
+Les tests de source des pièces concernées (s'il en existe qui épinglent les handlers
+modifiés) restent verts ; lint complet vert ; `node frontend\cardforge\qa\test_core_contract.mjs
+--contract` inchangé.
+```bash
+git add frontend/cardforge/js frontend/cardforge/css scripts/qa/lint_cardforge.py
+git commit -m "perf(cardforge): un patch par frame pendant les gestes souris, poignees 12px, touch-action none, NUL echappe + lint octets sains - spec 9.6"
+```
+
+---
+
 ### Task 8: Intégration finale 2b
 
 - [ ] Suite complète : `run-tests.ps1 -Filter cards` → tout vert ; `-Filter meshy` → vert.
@@ -1669,7 +1759,9 @@ git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix ser
       matière (une matière de la boutique + finition « argent holographique ») →
       re-Construire → aperçu : reflets iridescents visibles en tournant la carte
       (rapporter CE QUI EST VU, deux angles differents = teintes différentes) →
-      retirer `MESHY_MOCK` du .env, re-redémarrer. Rapporter chaque étape.
+      retirer `MESHY_MOCK` du .env, re-redémarrer. Rapporter chaque étape. Dans la
+      même session navigateur : re-vérifier la FLUIDITÉ (Task 7bis) sur la fenêtre du
+      cadre et un slot P3 à mouvements rapides.
 - [ ] Mémoire du chantier : mettre à jour `cardforge-universel.md` (2b livrée, restes
       éventuels), et le plan (cases cochées, amendements à la source si des fautes de
       plan ont été trouvées en route).
