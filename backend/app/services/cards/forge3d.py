@@ -18,6 +18,7 @@ import re
 import shutil
 import struct
 import time
+import uuid
 import zipfile
 import zlib
 from functools import reduce
@@ -1067,6 +1068,9 @@ MESH3D_TEXTURES_MAX = 12              # textures rapatriées par job (borne :
 MESH3D_LAUNCH_GRACE_S = 30.0          # délai au-delà duquel un marqueur de
                                        # lancement sans tâche est PÉRIMÉ (voir
                                        # _MESH3D_RUNNING / _mesh3d_vivant)
+MESH3D_POLL_RETRIES = 5               # reprises d'un poll Meshy en échec : un
+                                       # blip réseau ne doit pas tuer un job
+                                       # DÉJÀ PAYÉ de vingt minutes
 # charset ET longueur de `clean_graph` — un nid qui passe ici traverse le
 # nettoyeur INCHANGÉ — MOINS les noms qui ne sont QUE des points. Constaté en
 # auto-revue, absent du plan : `..` satisfait `[A-Za-z0-9._-]{1,24}`, et ce
@@ -1088,7 +1092,19 @@ _NID_RE = re.compile(r"^(?!\.+$)[A-Za-z0-9._-]{1,24}$")
 # bloqué en 409 jusqu'au redémarrage. Le registre, lui, ne survit pas au
 # processus : c'est PRÉCISÉMENT son utilité — un `running` sur disque sans
 # entrée ici est un orphelin de redémarrage, avoué au lieu de tourner en rond.
+# Registre PER-PROCESS : un déploiement multi-workers casserait la détection
+# d'orphelins (le worker B ne voit pas les tâches du worker A et les
+# déclarerait mortes) — main.py lance UN SEUL worker.
 _MESH3D_RUNNING: dict[tuple[str, str], object] = {}
+
+
+class _JobRemplace(Exception):
+    """Signal INTERNE : une relance a remplacé ce job pendant qu'il tournait.
+
+    Le porteur de ce signal doit SE TAIRE — ne rien écrire, ne rien dépenser,
+    ne rien dire dans le bordereau : le dossier et le `job.json` appartiennent
+    désormais à quelqu'un d'autre. Ce n'est pas une panne, c'est une
+    succession."""
 
 
 def _node_dir(did: str, nid: str, create: bool = False) -> Path:
@@ -1134,6 +1150,23 @@ def _job_read(did: str, nid: str) -> dict | None:
     return j if isinstance(j, dict) else None
 
 
+def _job_write_si(did: str, nid: str, job: dict, run_id: str) -> bool:
+    """CLÔTURE D'IDENTITÉ : n'écrit que si le `job.json` sur disque porte
+    ENCORE notre `run_id`. Rend False sinon — l'appelant doit se taire.
+
+    Sans cette clôture, un runner RASSIS (dont l'envoi de la réponse a traîné
+    au-delà de la péremption du marqueur, pendant qu'une relance réinitialisait
+    le dossier et lançait un second job) ressuscitait le dossier effacé et
+    écrivait SON bordereau par-dessus celui du job vivant : l'écran voyait la
+    progression d'un job qui n'existe plus, et le vrai job disparaissait du
+    bordereau tout en continuant à dépenser."""
+    actuel = _job_read(did, nid) or {}
+    if actuel.get("run_id") != run_id:
+        return False
+    _job_write(did, nid, job)
+    return True
+
+
 def _mesh3d_vivant(did: str, nid: str) -> bool:
     """Un job de ce nœud tourne-t-il ENCORE dans CE processus ? Un marqueur de
     lancement (float) compte pour vivant tant qu'il n'a pas PÉRIMÉ."""
@@ -1163,24 +1196,33 @@ def _mesh3d_price(engine: str, provider: str, ultra: bool) -> dict:
                                                        0.02)), 4)}
 
 
-def _mesh3d_prepare_upload(src: Path, dest: Path) -> str:
+def _mesh3d_prepare_upload(src: Path, dest: Path) -> dict:
     """La couche source, réduite au côté long des moteurs — ALPHA CONSERVÉ
-    (c'est lui qui porte la silhouette dont vit un moteur image->3D). Rend
-    l'empreinte SHA-256 des octets d'ORIGINE : c'est la couche livrée qui est
-    la provenance du job, pas la vignette qu'on en tire."""
+    (c'est lui qui porte la silhouette dont vit un moteur image->3D).
+
+    UNE SEULE LECTURE, DEUX EMPREINTES (M1) : la route ne relit plus le
+    fichier pour le hacher de son côté — c'est ici, là où les octets sont
+    DÉJÀ en main, que les deux provenances se calculent. `sha256` est celui de
+    la COUCHE LIVRÉE (l'entrée du job, celle du manifeste de la phase 1) ;
+    `upload_sha256` est celui des octets RÉELLEMENT ENVOYÉS au moteur (la
+    vignette réduite). Les deux, parce qu'ils répondent à deux questions
+    différentes — « de quelle couche vient cet artefact » et « qu'a vu le
+    moteur exactement » — et parce qu'une seule des deux mentirait sur
+    l'autre."""
     from PIL import Image
-    taille = src.stat().st_size
-    if taille > MAX_LAYER_BYTES:
-        raise RuntimeError(f"{src.name} : couche trop lourde ({taille} o, "
-                           f"maximum {MAX_LAYER_BYTES} o)")
     raw = src.read_bytes()
     im = Image.open(io.BytesIO(raw))
     im.load()
     im = im.convert("RGBA")
     im.thumbnail((MESH3D_UPLOAD_PX, MESH3D_UPLOAD_PX), Image.LANCZOS)
+    tampon = io.BytesIO()
+    im.save(tampon, "PNG")
+    octets = tampon.getvalue()
     dest.parent.mkdir(parents=True, exist_ok=True)
-    im.save(dest, "PNG")
-    return hashlib.sha256(raw).hexdigest()
+    dest.write_bytes(octets)
+    return {"sha256": hashlib.sha256(raw).hexdigest(),
+            "upload_sha256": hashlib.sha256(octets).hexdigest(),
+            "upload_bytes": len(octets)}
 
 
 def _data_uri(p: Path) -> str:
@@ -1214,8 +1256,13 @@ def _mesh3d_closed(raw: bytes) -> tuple:
 
 async def _mesh3d_rapatrie(url: str, dest: Path) -> None:
     """UN binaire Meshy ramené dans le nœud (`_fetch_url` est mock-aware),
-    borné au même plafond que le reste du domaine AVANT d'atteindre le
-    disque."""
+    borné au même plafond que le reste du domaine AVANT d'atteindre le disque.
+
+    C'est le SEUL endroit de la chaîne où la borne peut encore agir : ici, le
+    fichier n'est pas écrit tant que nous n'avons pas dit oui. Côté fal, la
+    couture de téléchargement écrit elle-même — quand nous voyons la taille,
+    le fichier est déjà là et payé : la mesure de fermeture dégrade alors au
+    lieu de refuser (voir `_run_mesh3d`)."""
     from app.services import meshy_service as MS
     data = await MS._fetch_url(url)
     if len(data) > MAX_EXT_GLB_BYTES:
@@ -1279,6 +1326,14 @@ async def post_mesh3d(did: str, nid: str, background_tasks: BackgroundTasks,
     if not p_src.is_file():
         raise HTTPException(
             409, f"exporte les couches d'abord : {fname} absent (POST /layers)")
+    # M1 : la BORNE de poids se vérifie ici, sur un `stat` — 4xx AVANT tout
+    # travail. Le hachage, lui, ne se fait plus en double : il appartient à
+    # `_mesh3d_prepare_upload`, seul endroit où les octets sont déjà lus.
+    taille_src = p_src.stat().st_size
+    if taille_src > MAX_LAYER_BYTES:
+        raise HTTPException(
+            413, f"{fname} : couche trop lourde ({taille_src} o, maximum "
+                 f"{MAX_LAYER_BYTES} o)")
 
     # ── les clés : refusées AVANT de réinitialiser quoi que ce soit — un
     #    refus ne doit jamais détruire le job précédent ───────────────────────
@@ -1288,70 +1343,110 @@ async def post_mesh3d(did: str, nid: str, background_tasks: BackgroundTasks,
         raise HTTPException(503, "MESHY_API_KEY not configured — add it in "
                                  "Settings (or set MESHY_MOCK=1 for the local "
                                  "simulator)")
+
+    # ── C1 : LE VERROU, POSÉ D'UN SEUL TENANT ──────────────────────────────
+    # Le contrôle et la pose ne doivent RIEN avoir entre eux : pas un `await`,
+    # pas une E/S. Avec le devis, le rmtree, le hachage et l'écriture entre les
+    # deux, deux POST rapprochés passaient TOUS LES DEUX le contrôle, effaçaient
+    # TOUS LES DEUX le dossier et lançaient DEUX jobs PAYANTS — puis le second
+    # marqueur écrasait le premier et le `finally` du survivant retirait
+    # l'entrée, déclarant orphelin un job bel et bien vivant. La boucle
+    # d'évènements ne peut pas s'intercaler entre ces deux lignes.
     if _mesh3d_vivant(did, nid):
         raise HTTPException(409, f"un job court déjà sur ce noeud ({nid})")
-
-    price = await asyncio.to_thread(_mesh3d_price, node["engine"], provider,
-                                    node["ultra"])
-
-    d = _node_dir(did, nid)
-
-    def _reinitialise() -> None:
-        if d.exists():
-            shutil.rmtree(d, ignore_errors=True)
-        d.mkdir(parents=True, exist_ok=True)
-        restes = sorted(x.name for x in d.iterdir())
-        if restes:                    # Windows : un verrou peut survivre
-            raise OSError(f"vestiges non effaces : {restes[:4]}")
+    jeton = time.monotonic()
+    _MESH3D_RUNNING[(did, nid)] = jeton        # AUCUN await entre les deux
 
     try:
-        await asyncio.to_thread(_reinitialise)
-    except OSError as e:
-        raise HTTPException(
-            409, f"reinitialisation du noeud {nid} impossible : {e}")
+        price = await asyncio.to_thread(_mesh3d_price, node["engine"],
+                                        provider, node["ultra"])
+        d = _node_dir(did, nid)
 
-    sha = await asyncio.to_thread(
-        lambda: hashlib.sha256(p_src.read_bytes()).hexdigest())
-    job = {"schema": MESH3D_JOB_SCHEMA, "node": nid, "engine": node["engine"],
-           "provider": provider, "status": "queued", "progress": 0,
-           "step": "En file", "error": None, "price": price,
-           "source": {"role": src.get("role"), "side": src["side"],
-                      "file": fname, "sha256": sha},
-           "closed": None, "closed_note": None, "started": _iso_now(),
-           "files": {}}
-    await asyncio.to_thread(_job_write, did, nid, job)
-    # le marqueur est posé ICI, pas dans la tâche : voir _MESH3D_RUNNING.
-    _MESH3D_RUNNING[(did, nid)] = time.monotonic()
-    background_tasks.add_task(_run_mesh3d, did, nid, dict(node), provider,
-                              dict(job["source"]))
+        def _reinitialise() -> None:
+            if d.exists():
+                shutil.rmtree(d, ignore_errors=True)
+            d.mkdir(parents=True, exist_ok=True)
+            restes = sorted(x.name for x in d.iterdir())
+            if restes:                # Windows : un verrou peut survivre
+                raise OSError(f"vestiges non effaces : {restes[:4]}")
+
+        try:
+            await asyncio.to_thread(_reinitialise)
+        except OSError as e:
+            raise HTTPException(
+                409, f"reinitialisation du noeud {nid} impossible : {e}")
+
+        # C2 : l'identité de CE lancement. Le runner la présente à chaque
+        # écriture ; un runner dont le run_id n'est plus celui du disque se
+        # tait (voir `_job_write_si`).
+        job = {"schema": MESH3D_JOB_SCHEMA, "node": nid,
+               "engine": node["engine"], "provider": provider,
+               "run_id": uuid.uuid4().hex,
+               "status": "queued", "progress": 0, "step": "En file",
+               "error": None, "price": price,
+               # `sha256` est rempli par le runner, sur les octets qu'il lit
+               # VRAIMENT pour l'envoi (M1) — annoncer ici une empreinte que
+               # personne n'a encore relue serait une promesse, pas une mesure.
+               "source": {"role": src.get("role"), "side": src["side"],
+                          "file": fname, "bytes": taille_src, "sha256": None},
+               "closed": None, "closed_note": None, "started": _iso_now(),
+               "files": {}}
+        await asyncio.to_thread(_job_write, did, nid, job)
+        background_tasks.add_task(_run_mesh3d, did, nid, dict(node), provider,
+                                  dict(job["source"]), job["run_id"])
+    except BaseException:
+        # un refus (ou une annulation) ne doit JAMAIS laisser le nœud verrouillé
+        if _MESH3D_RUNNING.get((did, nid)) is jeton:
+            _MESH3D_RUNNING.pop((did, nid), None)
+        raise
     return {"job": job}
 
 
 async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
-                      source: dict) -> None:
+                      source: dict, run_id: str) -> None:
     """La tâche de fond d'UN nœud. Tout le travail lourd (image, octets,
     mesures, écritures) part en `to_thread` ; seul le réseau reste `await`.
     Toute panne finit en `status: failed` avec le message LITTÉRAL du
-    fournisseur — jamais réécrit, jamais avalé (doctrine erreurs du lab)."""
+    fournisseur — jamais réécrit, jamais avalé (doctrine erreurs du lab).
+
+    C2 — CLÔTURE D'IDENTITÉ : `run_id` est celle de CE lancement. Elle est
+    présentée AVANT la première dépense et AVANT CHAQUE écriture ; dès qu'elle
+    ne correspond plus à celle du disque, ce runner se tait et sort. Sans elle,
+    un runner rassis (envoi de réponse traînant au-delà de la péremption du
+    marqueur) ressuscitait un dossier réinitialisé, dépensait une seconde fois
+    et écrivait son bordereau par-dessus celui du job vivant."""
     from app.services import asset3d_service as A3D
     from app.services import meshy_service as MS
     cle = (did, nid)
-    _MESH3D_RUNNING[cle] = asyncio.current_task()
-    d = _node_dir(did, nid, create=True)
-    job = _job_read(did, nid) or {"schema": MESH3D_JOB_SCHEMA, "node": nid,
-                                  "engine": node["engine"], "files": {}}
-
-    async def avance(step: str, progress: int, **extra) -> None:
-        job.update({"status": "running", "step": step,
-                    "progress": int(progress)}, **extra)
-        await asyncio.to_thread(_job_write, did, nid, job)
-
+    moi = asyncio.current_task()
+    job: dict = {}
     try:
+        # La clôture PASSE AVANT TOUT — avant le registre, avant le dossier,
+        # avant le premier octet dépensé. Un runner remplacé ne doit pas même
+        # recréer le dossier qu'une relance vient d'effacer.
+        # (Aucun `job` de repli n'est nécessaire : si `job.json` manque, la
+        # clôture échoue et on sort — le disque est la seule source du
+        # bordereau, jamais un dictionnaire reconstruit de mémoire.)
+        job = _job_read(did, nid) or {}
+        if job.get("run_id") != run_id:
+            raise _JobRemplace(f"{did}/{nid}")
+        _MESH3D_RUNNING[cle] = moi
+
+        async def avance(step: str, progress: int, **extra) -> None:
+            job.update({"status": "running", "step": step,
+                        "progress": int(progress)}, **extra)
+            if not await asyncio.to_thread(_job_write_si, did, nid, job, run_id):
+                raise _JobRemplace(f"{did}/{nid}")
+
         engine = node["engine"]
+        d = _node_dir(did, nid, create=True)
         upload = d / "upload_src.png"
-        await asyncio.to_thread(_mesh3d_prepare_upload,
-                                _out_dir(did) / source["file"], upload)
-        await avance("Préparation", 10)
+        empreintes = await asyncio.to_thread(
+            _mesh3d_prepare_upload, _out_dir(did) / source["file"], upload)
+        # M1 : la provenance porte les empreintes RELUES, pas celles promises
+        # par la route — et cette écriture est le DERNIER contrôle de clôture
+        # avant la moindre dépense.
+        await avance("Préparation", 10, source={**source, **empreintes})
         consommes = None
         textures: list[str] = []
 
@@ -1368,7 +1463,11 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
             res = res if isinstance(res, dict) else {}
             if not res.get("mesh_url"):
                 raise RuntimeError(f"{engine}: aucun mesh dans la réponse fal")
-            await avance(f"Moteur {engine}", 70)
+            # I3 : l'URL de l'artefact PAYÉ est persistée AVANT d'être suivie —
+            # si le téléchargement casse, elle reste dans le bordereau (les URL
+            # fal vivent assez pour un second essai à la main ; la jeter serait
+            # perdre le seul lien vers ce qu'on vient d'acheter).
+            await avance(f"Moteur {engine}", 70, mesh_url=res["mesh_url"])
             await asyncio.to_thread(A3D._download, res["mesh_url"],
                                     d / "model.glb")
             if res.get("preview_url"):
@@ -1386,17 +1485,46 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
                 payload["texture_prompt"] = node["texture_prompt"]
             if node.get("ultra"):
                 payload["ultra_mode"] = True
+            # dernier contrôle de clôture avant la dépense (C2)
+            await avance(f"Moteur {engine}", 25)
             tid = await MS.create_task("openapi/v1/image-to-3d", payload)
-            await avance("Meshy PENDING", 20, task_id=tid)
+            await avance("Meshy PENDING", 30, task_id=tid)
+            # I2 : la tâche PAYÉE entre au journal PARTAGÉ de meshy_service —
+            # sans cette ligne, `repatriate` refuse un id qu'il ne connaît pas
+            # et `expiring_soon` ne peut prévenir personne avant que les URL
+            # Meshy n'expirent : le binaire acheté se volatilise en silence.
+            # Une panne de base ne doit JAMAIS faire échouer un job déjà payé —
+            # on journalise l'incident et on continue.
+            try:
+                await MS.record_created(tid, "openapi/v1/image-to-3d", payload)
+            except Exception:
+                logger.exception(f"cards/forge3d: tache meshy {tid} non "
+                                 "journalisee (le job continue)")
             periode = 0.05 if MS.mock_enabled() else MESH3D_POLL_S
             budget = time.monotonic() + MESH3D_TIMEOUT_S
+            echecs = 0
             while True:
-                task = await MS.get_task("openapi/v1/image-to-3d", tid)
+                # I1 : un blip réseau ne tue pas un job payé de vingt minutes.
+                # Les reprises sont BORNÉES et vivent DANS le budget global :
+                # au-delà, l'échec porte le message littéral du dernier essai.
+                try:
+                    task = await MS.get_task("openapi/v1/image-to-3d", tid)
+                    echecs = 0
+                except Exception as e:
+                    echecs += 1
+                    if echecs > MESH3D_POLL_RETRIES or time.monotonic() > budget:
+                        raise
+                    await avance(
+                        f"Meshy (reprise {echecs}/{MESH3D_POLL_RETRIES}) : "
+                        f"{_panne(e)}",
+                        max(30, int(_num(job.get("progress"), 30, 0, 95))))
+                    await asyncio.sleep(min(periode * 2 ** echecs, 30.0))
+                    continue
                 statut = str(task.get("status") or "")
                 # 100 % est RÉSERVÉ aux fichiers arrivés sur disque : un moteur
                 # qui se dit fini n'a encore rien livré ICI.
                 await avance(f"Meshy {statut}",
-                             max(20, int(_num(task.get("progress"), 0, 0, 95))))
+                             max(30, int(_num(task.get("progress"), 0, 0, 95))))
                 if statut == "SUCCEEDED":
                     break
                 if statut in ("FAILED", "CANCELED"):
@@ -1409,6 +1537,17 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
                         f"({int(MESH3D_TIMEOUT_S // 60)} min)")
                 await asyncio.sleep(periode)
 
+            # I2 (suite) : l'état terminal entre au journal partagé. Effet de
+            # bord ASSUMÉ — `record_state` déclenche le rapatriement de fond de
+            # meshy_service dans outputs/meshy3d/<id>/ EN PLUS du nôtre dans le
+            # nœud : c'est le filet de sécurité VOULU (les URL Meshy expirent,
+            # un binaire payé ne doit pas dépendre d'un seul dossier), pas un
+            # doublon accidentel.
+            try:
+                await MS.record_state(task, "openapi/v1/image-to-3d")
+            except Exception:
+                logger.exception(f"cards/forge3d: etat de la tache meshy {tid} "
+                                 "non journalise (le job continue)")
             urls = task.get("model_urls")
             urls = urls if isinstance(urls, dict) else {}
             if not urls.get("glb"):
@@ -1419,7 +1558,15 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
             await _mesh3d_rapatrie(urls["glb"], d / "model.glb")
             if task.get("thumbnail_url"):
                 await _mesh3d_rapatrie(task["thumbnail_url"], d / "preview.png")
-            for i, t in enumerate(task.get("texture_urls") or []):
+            # M3 : la boucle EXTERNE est bornée elle aussi. Sur une réponse
+            # LÉGITIME, cette tranche ne change rien — le compteur de la boucle
+            # interne plafonne déjà les fichiers écrits, et aucun test ne peut
+            # donc la distinguer de son absence. Elle est de la même famille
+            # que `_GRAPH_ITER_MAX` plus haut : une borne ANTI-GEL, là pour
+            # qu'une réponse hostile à un million d'entrées ne fasse pas tourner
+            # la boucle d'évènements dans le vide.
+            for i, t in enumerate((task.get("texture_urls")
+                                   or [])[:MESH3D_TEXTURES_MAX]):
                 if not isinstance(t, dict):
                     continue
                 for genre, u in t.items():
@@ -1438,13 +1585,22 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
         glb = d / "model.glb"
         if not glb.is_file():
             raise RuntimeError(f"{engine}: aucun model.glb ramené par le moteur")
+        await avance("Mesure", 95)
         taille = glb.stat().st_size
         if taille > MAX_EXT_GLB_BYTES:
-            raise RuntimeError(f"{engine}: GLB trop lourd ({taille} o, "
-                               f"maximum {MAX_EXT_GLB_BYTES} o)")
-        await avance("Mesure", 95)
-        octets = await asyncio.to_thread(glb.read_bytes)
-        closed, note, tris = await asyncio.to_thread(_mesh3d_closed, octets)
+            # Le fichier est DÉJÀ sur le disque (c'est la couture de
+            # téléchargement qui l'y a mis) et il est PAYÉ : refuser ne le
+            # récupérerait pas, ça ne ferait que le rendre inutilisable. On
+            # dégrade donc comme pour un maillage trop dense — mesure refusée,
+            # motif nommé, artefact conservé. La borne, elle, garde tout son
+            # mordant là où elle peut encore agir : `_mesh3d_rapatrie`, qui
+            # décide s'il ÉCRIT ou non les octets qu'il vient de recevoir.
+            closed, note, tris = None, (
+                f"fermeture non mesurée : GLB trop lourd ({taille} o, "
+                f"plafond {MAX_EXT_GLB_BYTES} o)"), 0
+        else:
+            octets = await asyncio.to_thread(glb.read_bytes)
+            closed, note, tris = await asyncio.to_thread(_mesh3d_closed, octets)
 
         files = {"glb": "model.glb"}
         if (d / "preview.png").is_file():
@@ -1457,18 +1613,28 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
                     "finished": _iso_now()})
         if consommes is not None:
             job["consumed_credits"] = consommes
-        await asyncio.to_thread(_job_write, did, nid, job)
+        await asyncio.to_thread(_job_write_si, did, nid, job, run_id)
+    except _JobRemplace:
+        # succession, pas panne : une relance a pris la main, ce runner n'a
+        # rien à dire — surtout pas dans un bordereau qui ne lui appartient plus.
+        logger.info(f"cards/forge3d: job mesh3d {did}/{nid} remplace par une "
+                    "relance - abandon silencieux")
     except Exception as e:
         logger.exception(f"cards/forge3d: job mesh3d {did}/{nid} en echec")
         job.update({"status": "failed", "step": "Echec", "error": _panne(e),
                     "finished": _iso_now()})
         try:
-            await asyncio.to_thread(_job_write, did, nid, job)
+            # même clôture pour l'aveu d'échec : un runner remplacé ne fait pas
+            # échouer le job de son successeur.
+            await asyncio.to_thread(_job_write_si, did, nid, job, run_id)
         except OSError:               # disque HS : le journal garde la trace
             logger.exception(f"cards/forge3d: echec du job {did}/{nid} "
                              "non persiste")
     finally:
-        _MESH3D_RUNNING.pop(cle, None)
+        # JAMAIS l'entrée d'un autre : un runner rassis qui retirerait le
+        # marqueur de son successeur ferait déclarer orphelin un job vivant.
+        if _MESH3D_RUNNING.get(cle) is moi:
+            _MESH3D_RUNNING.pop(cle, None)
 
 
 @router.get("/mesh3d/{nid}")
@@ -1493,7 +1659,7 @@ async def get_mesh3d(did: str, nid: str):
         raise HTTPException(404, f"aucun job sur ce noeud ({nid})")
     if job.get("status") in ("queued", "running") and not _mesh3d_vivant(did, nid):
         job.update({"status": "failed", "step": "Interrompu",
-                    "error": "interrompu par un redemarrage du backend - "
+                    "error": "interrompu (aucune tache vivante) - "
                              "relancer le noeud",
                     "finished": _iso_now()})
         try:

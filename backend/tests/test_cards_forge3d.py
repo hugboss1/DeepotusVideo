@@ -1525,6 +1525,20 @@ def _dossier_noeud(did, nid):
     return deck_dir(did) / "forge3d" / "nodes" / nid
 
 
+def _glb_ferme():
+    """Un GLB FERMÉ écrit par NOTRE writer — le « modèle téléchargé » des
+    tests de moteur : on connaît sa fermeture par construction, donc ce que la
+    mesure doit en dire."""
+    from app.services.cards import forge3d_scene as SC
+    relief = SC.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0,
+                            0.3, 8)
+    png = io.BytesIO()
+    Image.new("RGBA", (8, 8), (10, 20, 30, 255)).save(png, "PNG")
+    return SC.write_scene_glb(
+        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
+          "z_mm": 0.0}], name="x", extras={"unit": "metre"})
+
+
 def _attendre_job(did, nid, timeout=30.0):
     import time as _t
     fin = _t.monotonic() + timeout
@@ -1542,6 +1556,11 @@ def test_le_job_meshy_traverse_le_mock_et_mesure_closed_une_fois():
     closed mesuré à l'import et caché — le triangle du mock est OUVERT."""
     from app.config import settings as cfg
     from app.services import meshy_service as MS, pricing
+    from app.services.storage import init_db
+    # le journal partagé (I2) vit en base : les tests n'exécutent pas le
+    # `lifespan` de l'application, donc les tables n'existent pas encore ici.
+    asyncio.run(init_db())
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
     cfg.MESHY_MOCK = True
     cfg.MESHY_MOCK_SPEED = 0.01
     MS._mock = None
@@ -1576,10 +1595,30 @@ def test_le_job_meshy_traverse_le_mock_et_mesure_closed_une_fois():
         assert job["files"]["glb"] == "model.glb"
         assert job["files"]["textures"] == ["textures/0_base_color.png"]
         assert (base / "textures" / "0_base_color.png").is_file()
-        # l'empreinte annoncée est celle de la couche RÉELLEMENT lue
+        assert job["task_id"], job          # l'id du fournisseur est tracé
+        # l'empreinte annoncée est celle de la couche RÉELLEMENT lue — et la
+        # vignette RÉELLEMENT envoyée a la sienne (M1 : deux questions
+        # distinctes, « de quelle couche » et « qu'a vu le moteur »).
         from app.services.cards.contract import deck_dir
         src = deck_dir(did) / "forge3d" / "illustration_c01_front.png"
         assert job["source"]["sha256"] == hashlib.sha256(src.read_bytes()).hexdigest()
+        assert job["source"]["bytes"] == src.stat().st_size
+        envoi = (base / "upload_src.png").read_bytes()
+        assert job["source"]["upload_sha256"] == hashlib.sha256(envoi).hexdigest()
+        assert job["source"]["upload_bytes"] == len(envoi)
+
+        # I2 : la tâche PAYÉE est entrée au journal PARTAGÉ — sans quoi
+        # `repatriate` refuse son id et `expiring_soon` ne prévient personne
+        # avant que les URL Meshy n'expirent.
+        rows = {r["id"]: r for r in asyncio.run(MS.list_tasks())}
+        assert job["task_id"] in rows, sorted(rows)
+        # la CRÉATION (seule à écrire le payload) et l'ÉTAT TERMINAL (seul à
+        # écrire les crédits débités) sont journalisés tous les deux — l'un
+        # sans l'autre laisserait le journal muet sur la moitié de l'histoire.
+        assert rows[job["task_id"]]["payload"]["ai_model"] == "meshy-7"
+        assert rows[job["task_id"]]["payload"]["ultra_mode"] is True
+        assert rows[job["task_id"]]["status"] == "SUCCEEDED"
+        assert rows[job["task_id"]]["consumed_credits"] == 35
 
         # relancer = dossier RÉINITIALISÉ (legs 4) : un vestige de la passe
         # précédente ne doit pas survivre au nouveau job.
@@ -1590,8 +1629,10 @@ def test_le_job_meshy_traverse_le_mock_et_mesure_closed_une_fois():
         job2 = _attendre_job(did, "m1")
         assert job2["status"] == "served", job2
         assert not (base / "vestige.txt").exists(), "le dossier n'a pas ete reinitialise"
+        # ...et la relance a bien une IDENTITÉ neuve (clôture C2)
+        assert job2["run_id"] and job2["run_id"] != job["run_id"]
     finally:
-        cfg.MESHY_MOCK = False
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
         MS._mock = None
 
 
@@ -1602,13 +1643,7 @@ def test_le_job_fal_passe_par_les_coutures_et_le_glb_ferme_est_su():
     from pathlib import Path
     from app.services import asset3d_service as A3D
     from app.services import pricing
-    from app.services.cards import forge3d_scene as SC
-    relief = SC.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0, 0.3, 8)
-    relief["closed"] = True
-    png = io.BytesIO(); Image.new("RGBA", (8, 8), (10, 20, 30, 255)).save(png, "PNG")
-    glb_connu = SC.write_scene_glb(
-        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
-          "z_mm": 0.0}], name="x", extras={"unit": "metre"})
+    glb_connu = _glb_ferme()
 
     async def faux_upload(path):
         assert Path(path).is_file()
@@ -1638,8 +1673,104 @@ def test_le_job_fal_passe_par_les_coutures_et_le_glb_ferme_est_su():
         assert job["status"] == "served" and job["closed"] is True
         # le GLB livré est EXACTEMENT celui que la couture a téléchargé
         assert (_dossier_noeud(did, "m1") / "model.glb").read_bytes() == glb_connu
+        # I3 : l'URL de l'artefact PAYÉ est PERSISTÉE, pas jetée après usage —
+        # c'est le seul lien vers ce qu'on vient d'acheter si le disque casse.
+        assert job["mesh_url"] == "https://fal.test/model.glb", job
+        disque = json.loads(
+            (_dossier_noeud(did, "m1") / "job.json").read_text(encoding="utf-8"))
+        assert disque["mesh_url"] == "https://fal.test/model.glb"
     finally:
         A3D._upload, A3D._run_engine, A3D._download = vrai
+
+
+def test_un_runner_rassis_se_tait_devant_une_relance(monkeypatch):
+    """C2 — LA COURSE PAYANTE. Un runner dont l'envoi de la réponse a traîné
+    au-delà de la péremption du marqueur peut démarrer APRÈS qu'une relance a
+    réinitialisé le dossier et lancé un second job. Sans clôture d'identité, il
+    ressuscitait le dossier effacé, DÉPENSAIT une seconde fois et écrivait son
+    bordereau par-dessus celui du job vivant.
+
+    Boîte blanche (la course est invisible d'un harnais sérialisé) : on écrit
+    un `job.json` portant le run_id du SUCCESSEUR, puis on invoque le runner du
+    prédécesseur avec SON run_id — les coutures de dépense sont piégées."""
+    import time
+    from app.services import asset3d_service as A3D
+    from app.services.cards import forge3d as F9
+    depenses = []
+
+    async def jamais(*a, **k):
+        depenses.append(a)
+        raise AssertionError("un runner rassis ne doit RIEN depenser")
+
+    monkeypatch.setattr(A3D, "_upload", jamais)
+    monkeypatch.setattr(A3D, "_run_engine", jamais)
+    did = _deck("Runner rassis")
+    _exporter_couches(did)
+    base = _dossier_noeud(did, "m1")
+    base.mkdir(parents=True, exist_ok=True)
+    (base / "job.json").write_text(json.dumps(
+        {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "tripo",
+         "run_id": "b" * 32, "status": "queued", "progress": 0,
+         "step": "En file", "files": {}}), encoding="utf-8")
+    fige = (base / "job.json").read_bytes()
+    node = {"id": "m1", "kind": "mesh3d", "engine": "tripo",
+            "texture_prompt": "", "ultra": False}
+    source = {"role": "illustration", "side": "front",
+              "file": "illustration_c01_front.png", "sha256": None}
+    # le marqueur du SUCCESSEUR est en place : le rassis ne doit pas y toucher
+    marqueur = time.monotonic()
+    F9._MESH3D_RUNNING[(did, "m1")] = marqueur
+
+    asyncio.run(F9._run_mesh3d(did, "m1", node, "fal", source, "a" * 32))
+
+    assert depenses == [], "le runner rassis a depense"
+    assert (base / "job.json").read_bytes() == fige, "job.json du successeur ecrase"
+    assert not (base / "upload_src.png").exists(), "le dossier a ete ressuscite"
+    assert F9._MESH3D_RUNNING.get((did, "m1")) is marqueur, \
+        "le rassis a retire le marqueur de son successeur (job vivant declare orphelin)"
+    F9._MESH3D_RUNNING.pop((did, "m1"), None)
+
+    # ── la clôture vaut aussi EN COURS DE ROUTE ────────────────────────────
+    # Le prédécesseur passe l'entrée (son run_id est bon), puis la relance
+    # survient PENDANT l'appel au moteur. Il ne doit ni écrire son bordereau
+    # par-dessus celui du successeur, ni déposer son modèle dans son dossier.
+    monkeypatch.undo()
+    glb = _glb_ferme()
+
+    async def faux_upload(path):
+        return "https://fal.test/src.png"
+
+    successeur = {"schema": "card-3d/mesh3d-job@1", "node": "m1",
+                  "engine": "tripo", "run_id": "c" * 32, "status": "queued",
+                  "progress": 0, "step": "En file", "files": {}}
+
+    async def run_puis_relance(engine, args):
+        (base / "job.json").write_text(json.dumps(successeur), encoding="utf-8")
+        return {"mesh_url": "https://fal.test/model.glb", "format_urls": {},
+                "texture_urls": [], "preview_url": None}
+
+    monkeypatch.setattr(A3D, "_upload", faux_upload)
+    monkeypatch.setattr(A3D, "_run_engine", run_puis_relance)
+    monkeypatch.setattr(A3D, "_download",
+                        lambda url, dest, timeout=120: dest.write_bytes(glb))
+    asyncio.run(F9._run_mesh3d(did, "m1", node, "fal", source, "b" * 32))
+    milieu = json.loads((base / "job.json").read_text(encoding="utf-8"))
+    assert milieu["run_id"] == "c" * 32, milieu
+    assert milieu["status"] == "queued", "le predecesseur a ecrit chez le successeur"
+    assert not (base / "model.glb").exists(), \
+        "le predecesseur a depose son modele dans le dossier du successeur"
+
+    # le runner LÉGITIME, lui, travaille : même dossier, même nœud, run_id qui
+    # correspond — la clôture n'est pas un refus systématique.
+    async def faux_run(engine, args):
+        return {"mesh_url": "https://fal.test/model.glb", "format_urls": {},
+                "texture_urls": [], "preview_url": None}
+
+    monkeypatch.setattr(A3D, "_run_engine", faux_run)
+    asyncio.run(F9._run_mesh3d(did, "m1", node, "fal", source, "c" * 32))
+    apres = json.loads((base / "job.json").read_text(encoding="utf-8"))
+    assert apres["status"] == "served" and apres["closed"] is True, apres
+    assert F9._MESH3D_RUNNING.get((did, "m1")) is None
 
 
 def test_un_moteur_qui_echoue_laisse_un_job_failed_au_message_litteral(monkeypatch):
@@ -1690,10 +1821,236 @@ def test_un_moteur_qui_echoue_laisse_un_job_failed_au_message_litteral(monkeypat
     assert job2["error"] == "meshy: credits epuises", job2["error"]
 
 
-def test_les_refus_du_job_mesh3d_sont_nommes():
-    """Chaque refus a SON motif : couches absentes (409), nœud hors graphe
-    (400), clé de moteur manquante (503), job inexistant (404)."""
+def test_le_verrou_du_noeud_est_pose_avant_le_premier_await_et_relache(monkeypatch):
+    """C1 — LE VERROU EST ATOMIQUE. Entre le contrôle « un job court-il ? » et
+    la pose du marqueur il ne doit y avoir AUCUN `await` : sinon deux POST
+    rapprochés passent tous les deux, effacent tous les deux le dossier et
+    lancent DEUX jobs PAYANTS, après quoi le second marqueur écrase le premier
+    et le survivant se fait déclarer orphelin.
+
+    La course elle-même est invisible d'un harnais sérialisé ; on mesure donc
+    ses DEUX conditions : la toute première opération qui suit la pose (le
+    devis) voit le verrou DÉJÀ posé, et un refus survenu après la pose le
+    RELÂCHE — sans quoi le nœud resterait bloqué en 409 jusqu'au redémarrage."""
     from app.config import settings as cfg
+    from app.services import meshy_service as MS
+    from app.services.cards import forge3d as F9
+    vu = {}
+    vrai_prix = F9._mesh3d_price
+
+    def prix_qui_casse(engine, provider, ultra):
+        vu["verrou"] = F9._mesh3d_vivant(did, "m1")
+        raise RuntimeError("bareme HS")
+
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
+    cfg.MESHY_MOCK = True
+    cfg.MESHY_MOCK_SPEED = 0.01
+    MS._mock = None
+    did = _deck("Verrou atomique")
+    _exporter_couches(did)
+    g = _graphe_mesh3d("meshy-7")
+    try:
+        monkeypatch.setattr(F9, "_mesh3d_price", prix_qui_casse)
+        with pytest.raises(RuntimeError):
+            _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                 json={"graph": g, "card": 0})
+        assert vu.get("verrou") is True, \
+            "le verrou n'etait pas pose avant le premier await du lancement"
+        assert F9._mesh3d_vivant(did, "m1") is False, \
+            "un refus a laisse le noeud verrouille pour toujours"
+        # ...et le nœud repart normalement, sans 409 fantôme
+        monkeypatch.setattr(F9, "_mesh3d_price", vrai_prix)
+        r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        assert _attendre_job(did, "m1")["status"] == "served"
+    finally:
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
+        MS._mock = None
+        F9._MESH3D_RUNNING.pop((did, "m1"), None)
+
+
+def test_un_blip_reseau_ne_tue_pas_un_job_paye(monkeypatch):
+    """I1 — un poll qui casse deux fois ne doit pas jeter vingt minutes de
+    calcul DÉJÀ PAYÉ : les reprises sont bornées et vivent dans le budget. Au
+    delà, l'échec porte le message LITTÉRAL du dernier essai."""
+    from app.config import settings as cfg
+    from app.services import meshy_service as MS
+    from app.services.cards import forge3d as F9
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
+    cfg.MESHY_MOCK = True
+    cfg.MESHY_MOCK_SPEED = 0.01
+    MS._mock = None
+    vrai_get = MS.get_task
+    compte = {"n": 0}
+
+    async def get_capricieux(base, tid):
+        compte["n"] += 1
+        if compte["n"] <= 2:
+            raise RuntimeError(f"meshy: ReadTimeout (essai {compte['n']})")
+        return await vrai_get(base, tid)
+
+    try:
+        monkeypatch.setattr(MS, "get_task", get_capricieux)
+        did = _deck("Blip reseau")
+        _exporter_couches(did)
+        g = _graphe_mesh3d("meshy-7")
+        r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        job = _attendre_job(did, "m1")
+        assert job["status"] == "served", job
+        assert compte["n"] > 2, "les deux pannes n'ont pas ete traversees"
+
+        # ...et une panne QUI DURE finit en echec NOMME. La constante est
+        # abaissee pour ne pas payer cinq attentes exponentielles dans la
+        # suite ; sa valeur nominale est epinglee juste en dessous.
+        assert F9.MESH3D_POLL_RETRIES == 5
+        monkeypatch.setattr(F9, "MESH3D_POLL_RETRIES", 2)
+
+        async def get_mort(base, tid):
+            raise RuntimeError("meshy: ReadTimeout definitif")
+
+        monkeypatch.setattr(MS, "get_task", get_mort)
+        r2 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                  json={"graph": g, "card": 0})
+        assert r2.status_code == 200, r2.text
+        job2 = _attendre_job(did, "m1")
+        assert job2["status"] == "failed", job2
+        assert job2["error"] == "meshy: ReadTimeout definitif", job2["error"]
+
+        # ...et le compteur de reprises se REMET À ZÉRO à chaque succès : trois
+        # blips ESPACÉS par des polls réussis, sur un budget de deux reprises,
+        # doivent passer. Sans remise à zéro ils s'additionnent et le job payé
+        # meurt sur des pannes qui n'ont jamais coexisté.
+        etat = {"n": 0}
+
+        async def get_alternant(base, tid):
+            etat["n"] += 1
+            if etat["n"] <= 5 and etat["n"] % 2 == 1:      # blips 1, 3, 5
+                raise RuntimeError(f"meshy: blip {etat['n']}")
+            if etat["n"] < 6:
+                return {"id": tid, "status": "IN_PROGRESS", "progress": 40}
+            return await vrai_get(base, tid)
+
+        monkeypatch.setattr(MS, "get_task", get_alternant)
+        r3 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                  json={"graph": g, "card": 0})
+        assert r3.status_code == 200, r3.text
+        job3 = _attendre_job(did, "m1")
+        assert job3["status"] == "served", job3
+        assert etat["n"] >= 6, etat
+    finally:
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
+        MS._mock = None
+
+
+def test_le_rapatriement_des_textures_est_borne(monkeypatch):
+    """M3 — le fournisseur annonce autant de textures qu'il veut, notre disque
+    non : la borne est un PLAFOND MESURÉ, pas une intention. Cinq entrées
+    annoncées, plafond abaissé à deux, deux fichiers écrits."""
+    from app.config import settings as cfg
+    from app.services import meshy_service as MS
+    from app.services.cards import forge3d as F9
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
+    cfg.MESHY_MOCK = True
+    cfg.MESHY_MOCK_SPEED = 0.01
+    MS._mock = None
+    vrai_get = MS.get_task
+
+    async def get_riche(base, tid):
+        t = await vrai_get(base, tid)
+        if t.get("status") == "SUCCEEDED":
+            pre = f"{MS.MOCK_FILE_PREFIX}{tid}/"
+            t["texture_urls"] = [{"base_color": f"{pre}texture_{i}.png"}
+                                 for i in range(5)]
+        return t
+
+    try:
+        monkeypatch.setattr(MS, "get_task", get_riche)
+        monkeypatch.setattr(F9, "MESH3D_TEXTURES_MAX", 2)
+        did = _deck("Textures bornees")
+        _exporter_couches(did)
+        r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                 json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
+        assert r.status_code == 200, r.text
+        job = _attendre_job(did, "m1")
+        assert job["status"] == "served", job
+        assert job["files"]["textures"] == ["textures/0_base_color.png",
+                                            "textures/1_base_color.png"]
+        ecrits = sorted(p.name for p in
+                        (_dossier_noeud(did, "m1") / "textures").iterdir())
+        assert ecrits == ["0_base_color.png", "1_base_color.png"], ecrits
+    finally:
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
+        MS._mock = None
+
+
+def test_les_bornes_de_taille_du_glb_livre_sont_nommees(monkeypatch):
+    """I4 — les deux branches de la borne, chacune avec son LITTÉRAL, prouvées
+    en abaissant la constante (la vraie, 64 Mo, n'est pas testable à taille
+    réelle). Elles ne finissent PAS pareil, et c'est voulu : côté fal le
+    fichier est déjà sur le disque et PAYÉ, refuser ne le récupérerait pas —
+    la mesure dégrade et l'artefact reste ; côté Meshy, `_mesh3d_rapatrie`
+    décide encore s'il écrit, et c'est là que la borne garde son mordant."""
+    from app.config import settings as cfg
+    from app.services import asset3d_service as A3D
+    from app.services import meshy_service as MS
+    from app.services.cards import forge3d as F9
+    glb = _glb_ferme()
+    assert len(glb) > 10
+
+    async def faux_upload(path):
+        return "https://fal.test/src.png"
+
+    async def faux_run(engine, args):
+        return {"mesh_url": "https://fal.test/model.glb", "format_urls": {},
+                "texture_urls": [], "preview_url": None}
+
+    monkeypatch.setattr(A3D, "_upload", faux_upload)
+    monkeypatch.setattr(A3D, "_run_engine", faux_run)
+    monkeypatch.setattr(A3D, "_download",
+                        lambda url, dest, timeout=120: dest.write_bytes(glb))
+    monkeypatch.setattr(F9, "MAX_EXT_GLB_BYTES", 10)
+    did = _deck("Bornes de taille")
+    _exporter_couches(did)
+    r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+             json={"graph": _graphe_mesh3d("tripo"), "card": 0})
+    assert r.status_code == 200, r.text
+    job = _attendre_job(did, "m1")
+    assert job["status"] == "served", job          # l'artefact PAYÉ est gardé
+    assert job["closed"] is None
+    assert job["closed_note"] == (
+        f"fermeture non mesurée : GLB trop lourd ({len(glb)} o, plafond 10 o)")
+    assert (_dossier_noeud(did, "m1") / "model.glb").read_bytes() == glb
+
+    # côté Meshy : le fichier n'est pas encore écrit, la borne REFUSE et le
+    # job échoue avec son motif nommé.
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
+    cfg.MESHY_MOCK = True
+    cfg.MESHY_MOCK_SPEED = 0.01
+    MS._mock = None
+    try:
+        r2 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                  json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
+        assert r2.status_code == 200, r2.text
+        job2 = _attendre_job(did, "m1")
+        assert job2["status"] == "failed", job2
+        assert job2["error"] == (
+            f"meshy: model.glb trop lourd ({len(MS.tiny_glb())} o, "
+            f"maximum 10 o)"), job2["error"]
+        assert not (_dossier_noeud(did, "m1") / "model.glb").exists()
+    finally:
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
+        MS._mock = None
+
+
+def test_les_refus_du_job_mesh3d_sont_nommes(monkeypatch):
+    """Chaque refus a SON motif : couches absentes (409), nœud hors graphe
+    (400), couche trop lourde (413), clé de moteur manquante (503), job
+    inexistant (404)."""
+    from app.config import settings as cfg
+    from app.services.cards import forge3d as F9
     did = _deck("Refus mesh3d")
     g = _graphe_mesh3d("meshy-7")
     r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1", json={"graph": g, "card": 0})
@@ -1701,6 +2058,15 @@ def test_les_refus_du_job_mesh3d_sont_nommes():
     _exporter_couches(did)
     r2 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/zzz", json={"graph": g, "card": 0})
     assert r2.status_code == 400
+    # M1 : la borne de POIDS de la couche source est vérifiée sur un `stat`,
+    # AVANT tout travail — la constante de production (64 Mo) n'est pas
+    # testable à taille réelle, on l'abaisse (idiome du fichier).
+    monkeypatch.setattr(F9, "MAX_LAYER_BYTES", 10)
+    rl = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+              json={"graph": g, "card": 0})
+    assert rl.status_code == 413, rl.text
+    assert "trop lourde" in rl.json()["detail"]
+    monkeypatch.undo()
     avant = (cfg.MESHY_API_KEY, cfg.MESHY_MOCK)
     cfg.MESHY_API_KEY, cfg.MESHY_MOCK = "", False
     try:
@@ -1718,7 +2084,6 @@ def test_les_refus_du_job_mesh3d_sont_nommes():
     # n'est pas un NOM de dossier, c'est un SAUT — `nodes/..` désigne
     # `forge3d/`, que la réinitialisation du nœud efface au rmtree. Un seul
     # lancement sur un nœud nommé `..` détruisait toutes les couches du deck.
-    from app.services.cards import forge3d as F9
     from app.services.cards.contract import deck_dir
     for mechant in ("..", ".", "...", "a" * 25):
         assert not F9._NID_RE.match(mechant), mechant
@@ -1771,6 +2136,10 @@ def test_un_job_running_orphelin_apres_redemarrage_est_avoue():
     assert r.status_code == 200
     assert r.json()["status"] == "failed"
     assert "interrompu" in r.json()["error"]
+    # le motif dit CE QU'ON A CONSTATÉ (aucune tâche vivante), pas une cause
+    # devinée : un redémarrage n'est qu'UNE des façons de perdre la tâche.
+    assert r.json()["error"] == ("interrompu (aucune tache vivante) - "
+                                 "relancer le noeud")
     # l'aveu est PERSISTÉ, pas seulement servi : un second appel le relit tel
     # quel (sinon l'écran verrait « running » à chaque rechargement).
     disque = json.loads((base / "job.json").read_text(encoding="utf-8"))
@@ -1831,7 +2200,10 @@ def test_la_mesure_de_fermeture_refuse_motive_au_dela_de_la_borne(monkeypatch):
     monkeypatch.setattr(F9, "MESH3D_CLOSED_TRI_MAX", 1)
     closed2, note2, tris2 = F9._mesh3d_closed(glb)
     assert closed2 is None and tris2 == tris
-    assert "trop lourd" in note2, note2
+    # le motif est épinglé au LITTÉRAL : c'est ce texte que l'écran montre,
+    # une reformulation silencieuse le rendrait incompréhensible.
+    assert note2 == (f"fermeture non mesurée : maillage trop lourd "
+                     f"({tris} triangles, plafond 1)"), note2
     monkeypatch.undo()
     closed3, note3, _ = F9._mesh3d_closed(b"pas un glb")
     assert closed3 is None and "mesur" in (note3 or "")
