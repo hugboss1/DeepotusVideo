@@ -809,3 +809,23 @@ git commit -m "feat(cardforge): ecran du graphe P9 - liste de noeuds, build3d, a
   nommage post-compléments `_c{NN}_{side}`.
 - **Périmètre** : mesh3d/matières/iridescence/anisotropy/KHR = phase 2b ; canvas nodal
   visuel = plus tard ; deck-scope 3D = plus tard.
+
+## Legs à la 2b (revue finale de la 2a — à reprendre dans le plan 2b)
+
+1. **`closed` pour les GLB externes** : la convention « déclaré par le constructeur »
+   ne survit pas aux maillages `mesh3d` (personne ne les déclare) — mesurer UNE fois à
+   l'import du GLB fal et cacher le verdict dans `job.json` ; jamais de re-mesure par
+   requête.
+2. **Répertoires par nœud** : les jobs `mesh3d` écrivent dans `forge3d/nodes/{nid}/`
+   (les nœuds gratuits restent à plat — spec §5.1 amendée).
+3. **Écart de pile du relief** : `z_mm=0` forcé en 2a est un choix, pas un oubli — le
+   nœud `transform` de la 2b apportera l'offset ; `write_scene_glb` le supporte déjà.
+4. **Aperçu périmé** : au rebuild d'un artefact du même nom, supprimer l'ancien
+   `{art}_preview.png` (le metadata le référence sinon en montrant l'ancien GLB).
+5. **`LAST_MANIFEST` au changement de carte** : recharger `layers_c{NN}_front.json`
+   quand la carte courante change (aujourd'hui : boot seulement).
+6. **Découpe interne de forge3d.py** : ~1205 lignes après 2a ; seuil de split fixé à
+   ~2400 (cap texture.py) — la couture toute tracée : le bloc géométrie pure
+   (`quad_mesh`→`_write_stl_binary`, zéro dépendance FastAPI) part dans
+   `forge3d_scene.py` intra-pièce. Et si les éléments se multiplient : writer STL
+   deux-passes (l'actuel recopie la géométrie en tuples, ~160 Mo par relief au grid max).

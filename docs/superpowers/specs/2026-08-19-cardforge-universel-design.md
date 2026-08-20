@@ -159,7 +159,9 @@ Une couche n'est digne de confiance que si l'empilement des couches REPRODUIT la
 forme que les graphes du Studio (compatibilité conceptuelle), mais exécuteur DÉDIÉ dans le
 lab (l'exécuteur du Studio est enfoui dans le bundle compilé : réutilisation exclue par la
 recherche). Le graphe vit dans le document → annulation, autosave et PATCH gratuits.
-Résultats sur disque : `outputs/decks/{did}/forge3d/nodes/{nid}/` (GLB, aperçus, job.json).
+Résultats sur disque : les nœuds GRATUITS (2a) écrivent à plat dans
+`outputs/decks/{did}/forge3d/` (artefacts nommés) ; les nœuds à JOB (`mesh3d`, 2b)
+écriront dans `forge3d/nodes/{nid}/` (GLB, aperçus, job.json) — amendé après la 2a.
 
 ### 5.2 Types de nœuds
 
@@ -167,7 +169,7 @@ Résultats sur disque : `outputs/decks/{did}/forge3d/nodes/{nid}/` (GLB, aperçu
 |---|---|---|
 | `layer` | source : une couche du manifeste (ou le composite, ou une image importée) | — |
 | `plane` | plan texturé : quad + basecolor de la couche (+ maps PBR si matière liée) | **gratuit** |
-| `extrude` | extrusion locale : silhouette alpha (+ height optionnelle) → **solide fermé** ; profondeur en mm | **gratuit** |
+| `relief` | dalle en relief locale (l'« extrusion » v1, LIVRÉE en 2a) : grille déplacée par l'alpha de la couche — **solide fermé par construction** ; params `depth_mm`, `base_mm`, `grid` (un vrai suivi de contour marching-squares viendra si le besoin le prouve) | **gratuit** |
 | `mesh3d` | image→3D via `asset3d_service` — menu déroulant des 5 moteurs, options par moteur | **payant, prix affiché AVANT** |
 | `material` | matière Material Forge (existante `mat_…` ou générée) appliquée au nœud amont | gratuit (local) / payant si générée par IA |
 | `transform` | position x/y en mm de carte, profondeur/écart z en mm, rotation, échelle | — |
@@ -185,9 +187,13 @@ immédiat. L'utilisateur monte en gamme nœud par nœud — l'esprit Meshy deman
   nœud affiché dans le graphe (`en file / en cours / servi / échec avec l'erreur
   littérale du fournisseur`). Prix unitaire depuis `pricing.py`, affiché sur le nœud et
   sommé en pied de graphe AVANT tout lancement.
-- `extrude` : nouveau builder enregistré dans `gltf_builder._BUILDERS` par `setdefault`,
-  contexte sous verrou (patron P8 `CTX_MESH`) ; maillage PROUVÉ fermé/imprimable par les
-  mesures existantes (`mesh_report` : arêtes libres, volume signé).
+- `relief` : géométrie LOCALE à P9 (`relief_mesh`/`quad_mesh` dans forge3d.py — décision
+  2a : pas d'enregistrement dans `gltf_builder._BUILDERS`, le writer de scène de P9
+  n'en a pas besoin et le domaine a zéro import pièce→pièce). La fermeture est
+  TOPOLOGIQUE, déclarée par le constructeur (`closed: True/False` dans le dict) et
+  prouvée une fois pour toutes par test unitaire — la route gate le STL sur ce drapeau,
+  JAMAIS de re-mesure par requête (7 s + ~340 Mo de pic par élément au grid max,
+  mesuré). `mesh_measures` reste l'instrument des tests.
 
 ### 5.4 L'assembleur multi-GLB (brique neuve)
 
@@ -206,7 +212,11 @@ les octets, il ne recopie pas l'intention.
 - `metadata.json` **compatible ERC-721** : `name`, `description`, `image` (preview),
   `animation_url` (model.glb), `attributes` [{deck, carte, archétype, finition, rareté,
   éléments 3D, moteurs utilisés}] — prêt pour la marketplace future, couplé à rien ;
-- STL / 3MF si l'assemblage est fermé (builders P8 réutilisés) ; refus MOTIVÉ sinon ;
+- STL si l'assemblage est fermé — writer binaire LOCAL à P9 (décision 2a : réutiliser
+  les builders P8 violerait le zéro-import-pièce→pièce constaté ; le writer fait ~20
+  lignes, en mm, en-tête sans nom d'outil) ; refus MOTIVÉ sinon. 3MF DIFFÉRÉ à la 2b
+  (la copie de build_3mf serait trop grosse — trancher alors : montée dans un service
+  partagé, ou refus motivé permanent) ;
 - bordereau chiffré, stockage deck-local. Option d'inscription dans la Bibliothèque
   (JobRecord `provider="card3d"`) pour retrouver l'artefact hors du lab.
 
