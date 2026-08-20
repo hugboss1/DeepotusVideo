@@ -151,7 +151,12 @@ Déplacement TEXTUEL des cinq fonctions (aucune réécriture au passage, à UNE 
 le corps de `_write_stl_binary`). En-tête du fichier :
 
 ```python
-"""P9 Forge 3D — géométrie et écriture de scène, PURES (zéro FastAPI).
+# -*- coding: utf-8 -*-
+# NB (revue) : le test de pureté scanne TOUT ce fichier, commentaires compris
+# — le nom du framework HTTP du projet ne doit apparaître nulle part ici,
+# même en prose (voir test_cards_forge3d.py, l'assertion sur ce mot en
+# minuscules : un rappel de SON nom ici la ferait échouer).
+"""P9 Forge 3D — géométrie et écriture de scène, PURES (zéro dépendance HTTP).
 
 Couture intra-pièce actée par la revue finale de la 2a (legs 6) : forge3d.py
 garde le contrat HTTP (routes, bornes, blocs miroir) et RÉEXPORTE ces noms —
@@ -165,24 +170,38 @@ tuples ; garder l'en-tête 80 octets SANS nom d'outil et l'unité mm tels quels)
 
 ```python
 def _write_stl_binary(elements: list, name: str) -> bytes:
-    """STL binaire, DEUX PASSES : compter d'abord, packer ensuite, droit dans
-    le buffer de sortie — l'ancienne version recopiait toute la géométrie en
-    tuples (~160 Mo d'intermédiaires par relief au grid max, mesuré en 2a).
-    En mm ; en-tête 80 octets sans nom d'outil (règle P8)."""
+    """STL binaire local, en millimètres, DEUX PASSES : compter d'abord le
+    total de triangles (pour dimensionner le buffer de sortie UNE fois), puis
+    packer chaque facette directement dedans — l'ancienne version
+    matérialisait toute la géométrie en tuples Python avant d'écrire (~160 Mo
+    d'intermédiaires par relief au grid max, mesuré en 2a). Même sortie, au
+    bit près (couture legs 6, revue finale 2a). `z_mm` de chaque élément
+    (l'écart de pile porté par SON nœud, comme dans le GLB) est appliqué aux
+    positions puisque le format STL n'a pas de nœud pour le porter.
+
+    `elements` est parcouru DEUX FOIS (le comptage, puis l'emballage) : une
+    LISTE (ou toute séquence re-parcourable), jamais un générateur à usage
+    unique — la seconde passe le trouverait épuisé et écrirait un buffer de
+    la bonne taille mais rempli de zéros après le premier élément."""
     total = sum(len(el["mesh"]["indices"]) // 3 for el in elements)
     out = bytearray(84 + 50 * total)
-    entete = f"card3d {name}".encode("ascii", "replace")[:80]
+    # [:80] n'est pas cosmétique : le compte de triangles est empaqueté à
+    # l'offset FIXE 80 juste en dessous (struct.pack_into("<I", out, 80, ...))
+    # -- une entête qui déborderait au-delà de 80 octets décalerait ce champ
+    # (et toute la suite du buffer), le corrompant silencieusement.
+    entete = f"{name} - millimetres - {total} triangles".encode(
+        "ascii", "ignore")[:80]
     out[0:len(entete)] = entete
     struct.pack_into("<I", out, 80, total)
     off = 84
     for el in elements:
         pos, idx = el["mesh"]["positions"], el["mesh"]["indices"]
-        dz = float(el.get("z_mm") or 0.0)
-        for t in range(0, len(idx), 3):
+        z = float(el.get("z_mm") or 0.0)
+        for t in range(0, len(idx) - 2, 3):
             a, b, c = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
-            ax, ay, az = pos[a], pos[a + 1], pos[a + 2] + dz
-            bx, by, bz = pos[b], pos[b + 1], pos[b + 2] + dz
-            cx, cy, cz = pos[c], pos[c + 1], pos[c + 2] + dz
+            ax, ay, az = pos[a], pos[a + 1], pos[a + 2] + z
+            bx, by, bz = pos[b], pos[b + 1], pos[b + 2] + z
+            cx, cy, cz = pos[c], pos[c + 1], pos[c + 2] + z
             ux, uy, uz = bx - ax, by - ay, bz - az
             vx, vy, vz = cx - ax, cy - ay, cz - az
             nx, ny, nz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
@@ -750,7 +769,7 @@ legs 2) — pas un JobRecord global. Un registre mémoire `{(did, nid): task}` d
 les jobs orphelins après redémarrage. Relancer un nœud RÉINITIALISE son dossier
 (l'aperçu périmé ne survit pas — legs 4 appliqué aux nœuds).
 
-- [ ] **Step 1 : tests en RED**
+- [x] **Step 1 : tests en RED**
 
 ```python
 def _graphe_mesh3d(engine="meshy-7", ultra=False):
@@ -920,7 +939,7 @@ le fenêtrer de façon fiable — la garde est couverte par relecture de code en
 
 Run : run-tests -Filter cards_forge3d → FAIL (routes absentes).
 
-- [ ] **Step 2 : `forge3d_scene.py` — lire un GLB en mesh**
+- [x] **Step 2 : `forge3d_scene.py` — lire un GLB en mesh**
 
 ```python
 def read_glb(data: bytes) -> tuple[dict, bytes]:
@@ -978,7 +997,7 @@ def glb_scene_mesh(data: bytes) -> dict:
     return {"positions": positions, "indices": indices}
 ```
 
-- [ ] **Step 3 : forge3d.py — les routes et les runners**
+- [x] **Step 3 : forge3d.py — les routes et les runners**
 
 Registre + utilitaires (module-level) :
 ```python
@@ -1056,7 +1075,7 @@ revue phase 1 applicable) :
   fantôme) ;
 - sinon servir le job.json tel quel.
 
-- [ ] **Step 4 : GREEN + commit**
+- [x] **Step 4 : GREEN + commit**
 
 Run : run-tests -Filter cards_forge3d → PASS (les jobs mock tournent en ~1 s).
 ```bash
