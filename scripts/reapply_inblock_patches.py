@@ -77,15 +77,28 @@ REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 # c'est avoir un `.bak_<tag>` et un `patch_bundle_<tag>.py`, rien de plus a
 # declarer. Cas d'ecole du 21/08 : `patch_bundle_card3d_library.py` (deux
 # filtres de provider dans la Bibliotheque 3D) — hors bloc, donc ABSENT d'ici,
-# et present dans `repatch_all.py --list` en queue de chaine.
+# et present dans `repatch_all.py --list` en queue de chaine (tag
+# `card3d_library`, avec l'underscore : `repatch_all` en deduit le nom du
+# script, un tag qui derive du fichier sort « SANS SCRIPT »).
 #
 # AVERTISSEMENT, mesure le 21/08 et sans rapport avec le registre : ce script
 # RAFRAICHIT le bloc en appelant `patch_bundle_sonvfx.py`, qui restaure
 # `.bak_sonvfx` — soit 730 Ko, l'etat du bundle au 6 aout. Le bundle courant
 # en fait 1 367. Le lancer aujourd'hui EFFACE donc tous les maillons poses
-# depuis (materialforge, cardforge, version, card3dlibrary...), sans autre
-# symptome qu'un bundle qui maigrit de moitie. Rejouer la chaine ENTIERE
-# (`repatch_all.py --from sonvfx`) est le seul emploi sur.
+# depuis (materialforge, cardforge, version, card3d_library...), sans autre
+# symptome qu'un bundle qui maigrit de moitie.
+#
+# ET LE RATTRAPAGE EVIDENT N'EN EST PAS UN (correction du 22/08 : ce
+# commentaire disait « rejouer la chaine ENTIERE avec `repatch_all.py --from
+# sonvfx` est le seul emploi sur », et c'etait FAUX — il contredisait la
+# doctrine ecrite dans les patchers). `repatch_all` ordonne les maillons par
+# MTIME de `.bak`, et DEUX couples sont ex aequo a la microseconde ET au sha1 :
+# `keepstate`/`sfxstudio` et `subs`/`vfxrack`. Rejouer depuis un point
+# ANTERIEUR OU EGAL a `subs`/`vfxrack` traverse donc un tri INDECIDABLE, et
+# `--from sonvfx` est exactement ce cas. Il n'existe aujourd'hui AUCUN emploi
+# sur de ce script : la doctrine de chaine complete, avec les mesures, vit
+# dans `scripts/patch_bundle_card3d_library.py` (en-tete) — une seule source,
+# pas deux histoires.
 MODULES = ("patch_bundle_vfxrack", "patch_bundle_subs")
 BEGIN = "/*__DZ_SONVFX_BEGIN__*/"
 END = "/*__DZ_SONVFX_END__*/"

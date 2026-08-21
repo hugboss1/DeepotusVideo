@@ -23,11 +23,28 @@ les deux endroits qui filtrent la file par `provider==="asset3d"`.
 (un modele 3D), pas celle de son fabricant. Le provider, lui, dit d ou viennent
 les octets -- et il ne ment pas.
 
-DANGERS (chacun a deja coute une regression dans ce depot) :
-  * NE JAMAIS lancer `repatch_all.py --from ...` sur cette chaine :
-    `.bak_subs` et `.bak_vfxrack` ont le meme mtime a la microseconde ET le
-    meme sha1, `--list` les sort dans l ordre inverse du reel. Ce patcher se
-    lance SEUL.
+LA DOCTRINE DE CHAINE, UNE SEULE (mesuree le 22/08 ; reapply_inblock_patches.py
+pointe ICI plutot que d en raconter une seconde). `repatch_all.py` deduit
+l ordre des maillons du MTIME de leur `.bak`, et deux couples sont EX AEQUO a
+la microseconde ET au sha1 -- `keepstate`/`sfxstudio` et `subs`/`vfxrack` :
+
+    keepstate  1786444476.444258  1338545 o  sha1 fde613636754
+    sfxstudio  1786444476.444258  1338545 o  sha1 fde613636754
+    subs       1786444809.741715  1343416 o  sha1 1c0da947d8d1
+    vfxrack    1786444809.741715  1343416 o  sha1 1c0da947d8d1
+
+Le tri de `--list` est donc INDECIDABLE sur ces quatre-la (l ordre depend du
+parcours de repertoire), d ou :
+
+  * REJOUER DEPUIS UN POINT ANTERIEUR OU EGAL a la derniere egalite
+    (`subs`/`vfxrack`) N EST PAS SUR -- ce qui inclut `--from sonvfx`, donc
+    inclut `reapply_inblock_patches.py`, qui rafraichit ce bloc en restaurant
+    `.bak_sonvfx` (730 Ko, l etat du 6 aout, contre 1 367 Ko aujourd hui) et
+    efface au passage TOUS les maillons poses depuis.
+  * REJOUER DEPUIS UN POINT STRICTEMENT POSTERIEUR est sur : aucune egalite
+    n y subsiste. `python scripts/repatch_all.py --from card3d_library` ne
+    rejoue que CE maillon, et c est le seul emploi de `repatch_all` dont ce
+    patcher a besoin. Sinon : se lancer SEUL.
   * Relancer un patcher AMONT seul (materialforge, cardforge, version...)
     efface celui-ci sans un mot. La garde de chaine ci-dessous protege le
     SENS INVERSE (ce patcher refuse de tourner si un maillon AVAL existe).
@@ -233,14 +250,27 @@ def main():
         return
 
     if not bak.exists():
-        # Sanity AVANT le backup : sinon un bundle deja patche empoisonnerait
-        # le .bak (qui deviendrait un point de chaine post-patch).
-        if MARKER in read_src(bundle):
+        # ── TOUT CE QUI PEUT REFUSER, REFUSE AVANT LE PREMIER OCTET ECRIT ──
+        # M7 (revue adverse de la T6) : le controle des ancres vivait APRES la
+        # copie du backup. Une ancre perimee produisait donc un `.bak` PUIS un
+        # abandon — et ce backup-la est un piege differe : l'operateur repare
+        # l'ancre a la main, relance, et le patcher prend cette fois la branche
+        # « restore <- .bak » qui DETRUIT la reparation, sans un mot. Un
+        # backup est un ENGAGEMENT : on ne le pose que si la passe est
+        # certaine de pouvoir aller au bout.
+        pre = read_src(bundle)
+        if MARKER in pre:
             raise SystemExit(
                 f"[{TAG}] sanity : marqueur card3d deja present dans le "
                 f"bundle alors que {bak.name} n'existe pas (patch pose a la "
                 "main, ou backup perdu). Etat ambigu : abandon sans rien "
                 "ecrire, aucun backup cree.")
+        for tag, anchor, _repl in PATCHES:
+            n = pre.count(anchor)
+            if n != 1:
+                raise SystemExit(
+                    f"[{tag}] anchor count={n} (want 1) dans {bundle.name}. "
+                    "Aborting sans rien ecrire, aucun backup cree.")
         shutil.copy2(bundle, bak)
         if ensure_tail_order(bak):
             print("mtime du backup pousse en queue de chaine (piege copy2)")
