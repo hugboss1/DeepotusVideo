@@ -182,6 +182,19 @@ git commit -m "feat(cardforge): node-preview borne (le vrai 3D d un element) + m
 
 ### Task 2: Le canvas — surface pan/zoom, nœuds positionnés, arêtes SVG, layout sans undo
 
+> **CLOSE (b6c3fc5 + 521d5bd + d41b528, re-revue OK).** Amendements actés : le
+> drag ne peut plus raser le layout (DRAG nul aux trois vidages — dont une
+> route trouvée par l'implémenteur), filtre pointerId sur move/up, arêtes
+> INCIDENTES seules par frame, **flush au relâché** (décision : un patch par
+> frame cascadait invalidate→drawPreview, un re-rendu complet de la carte pour
+> un geste qui ne change pas un pixel), épingle 2a AMENDÉE À LA SOURCE
+> (paintVue — la lettre du pin forçait la duplication qu'il existait pour
+> empêcher), et la régression du durcissement M7 fermée : `__proto__` jamais
+> patché (la reconstruction `{}` du CORE reparentait l'objet puis jetait à
+> chaque doc() — onglet brické ; reproduit en node avant correction, épinglé
+> par regex). Restes à T7 (navigateur) : ressenti pan/zoom/drag, plancher de
+> zoom, cadrage recentrer.
+
 **Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py.
 
 - [x] **Step 1 : test de source en RED**
