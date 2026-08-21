@@ -158,7 +158,12 @@ RELIEF_GRID_PREVIEW = 96      # l'aperçu d'UN nœud privilégie la vitesse : le
   media_type="model/gltf-binary")` ; tout le travail en `asyncio.to_thread` ;
 - `mesh3d` → job servi exigé (409 « le nœud {nid} n'a pas servi son GLB — 
   lance-le d'abord », même formulation que build3d) ; streamer les octets de
-  `nodes/{nid}/model.glb` (borne `MAX_EXT_GLB_BYTES` déjà gardée par le job) ;
+  `nodes/{nid}/model.glb`. **AMENDÉ EN REVUE (la parenthèse d'origine « borne
+  déjà gardée par le job » était FAUSSE — l'asymétrie I4 de la 2b laisse un
+  job fal servi dépasser 64 Mo)** : borne PROPRE `MAX_APERCU_GLB_BYTES`
+  (32 Mio — ce qu'un clic envoie dans model-viewer, pas la borne de fusion),
+  mesurée sans lire le contenu, refus 409 nommé pointant vers le nœud
+  artefact ; en-dessous, `FileResponse` (jamais read_bytes en RAM) ;
 - autres kinds → 400 nommé (« nœud non prévisualisable : {kind} ») ;
 - AUCUNE écriture disque (réponse éphémère).
 
