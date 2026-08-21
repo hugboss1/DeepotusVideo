@@ -64,6 +64,28 @@ import sys
 
 REPO = pathlib.Path(__file__).resolve().parent.parent
 REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
+# LE CRITERE D'ENTREE DANS CE REGISTRE, ET IL EST ETROIT : un patcher n'y a sa
+# place que si SES couples visent des ancres situees DANS le bloc sonvfx, donc
+# que si un rafraichissement du bloc les efface. C'est toute la raison d'etre
+# de ce script.
+#
+# Un patcher qui touche le bundle NATIF (le hub Game Assets, la Bibliotheque,
+# le Studio...) n'y entre PAS : ses ancres sont hors du bloc, la boucle
+# ci-dessous les compterait a 0 et les classerait « hors bloc, intacts » — un
+# no-op qui ferait CROIRE que ce script les protege. Sa chaine a lui, c'est
+# `repatch_all.py`, qui la deduit des `.bak_<tag>` par mtime : y etre inscrit,
+# c'est avoir un `.bak_<tag>` et un `patch_bundle_<tag>.py`, rien de plus a
+# declarer. Cas d'ecole du 21/08 : `patch_bundle_card3d_library.py` (deux
+# filtres de provider dans la Bibliotheque 3D) — hors bloc, donc ABSENT d'ici,
+# et present dans `repatch_all.py --list` en queue de chaine.
+#
+# AVERTISSEMENT, mesure le 21/08 et sans rapport avec le registre : ce script
+# RAFRAICHIT le bloc en appelant `patch_bundle_sonvfx.py`, qui restaure
+# `.bak_sonvfx` — soit 730 Ko, l'etat du bundle au 6 aout. Le bundle courant
+# en fait 1 367. Le lancer aujourd'hui EFFACE donc tous les maillons poses
+# depuis (materialforge, cardforge, version, card3dlibrary...), sans autre
+# symptome qu'un bundle qui maigrit de moitie. Rejouer la chaine ENTIERE
+# (`repatch_all.py --from sonvfx`) est le seul emploi sur.
 MODULES = ("patch_bundle_vfxrack", "patch_bundle_subs")
 BEGIN = "/*__DZ_SONVFX_BEGIN__*/"
 END = "/*__DZ_SONVFX_END__*/"

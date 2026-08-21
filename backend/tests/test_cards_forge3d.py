@@ -4198,6 +4198,86 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
     assert r8.status_code == 404, r8.text
 
 
+BUNDLE = ROOT / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
+PATCHER = ROOT / "scripts" / "patch_bundle_card3d_library.py"
+
+
+def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
+        tmp_path):
+    """Le patch bundle MINIMAL de la tache 6 (2c) : DEUX filtres de provider
+    elargis, et rien d'autre.
+
+    Deux choses sont mesurees, et elles ne se remplacent pas : (1) le bundle
+    DU DEPOT porte bien le patch — c'est LUI qui part a l'app, un patcher
+    correct qui n'a jamais tourne ne sert a rien ; (2) le patcher lui-meme est
+    idempotent sur une COPIE — le rejouer ne double pas le patch et ne change
+    pas un octet."""
+    src = BUNDLE.read_text(encoding="utf-8", newline="")
+    # (1) LE BUNDLE LIVRE. Les deux filtres, elargis, et les parentheses de
+    # L2 : `&&` lie plus fort que `||`, sans elles un job card3d NON termine
+    # passerait le filtre de la Bibliotheque.
+    assert src.count('return z.provider==="asset3d"'
+                     '||z.provider==="card3d"});setJobs(L)') == 1, \
+        "filtre du hub Game Assets non elargi"
+    assert src.count('T3=u.filter(C=>(C.provider==="asset3d"'
+                     '||C.provider==="card3d")&&C.status==="done")') == 1, \
+        "filtre de la Bibliotheque 3D non elargi (ou parentheses perdues)"
+    # ... et le `kind` n'a PAS bouge : « asset3d » est la categorie de l'OBJET
+    # (un modele 3D), le provider dit d'ou viennent les octets. Le viewer, le
+    # telechargement et « Optimiser » s'accrochent tous au kind.
+    assert src.count('kind:"asset3d"') == 1
+    # ... et les TROIS filtres de rendus VIDEO restent INTACTS : une carte 3D
+    # n'y entre pas parce que son JobRecord laisse `final_video_path` vide
+    # (decision backend), pas parce qu'on aurait ajoute une exclusion de plus.
+    for var in ("C", "l", "q"):
+        assert src.count(f'{var}.provider!=="asset3d"'
+                         f'&&{var}.provider!=="sprite2d"') == 1, var
+
+    # (2) LE PATCHER, SUR UNE COPIE — jamais sur le bundle du depot.
+    faux = tmp_path / "frontend" / "dist" / "assets"
+    faux.mkdir(parents=True)
+    cible = faux / BUNDLE.name
+    # la copie part de l'etat PRE-patch : le .bak du depot est le seul endroit
+    # ou il vit encore.
+    bak_depot = BUNDLE.with_name(BUNDLE.name + ".bak_card3dlibrary")
+    assert bak_depot.is_file(), "le .bak du maillon doit exister apres coup"
+    cible.write_bytes(bak_depot.read_bytes())
+    avant = cible.read_bytes()
+
+    def run():
+        return subprocess.run(
+            [sys.executable, str(PATCHER), "--root", str(tmp_path)],
+            capture_output=True, text=True)
+
+    r1 = run()
+    assert r1.returncode == 0, r1.stdout + r1.stderr
+    apres = cible.read_bytes()
+    # DEUX remplacements, mesures : +48 octets exactement, deux marqueurs
+    assert len(apres) == len(avant) + 48, (len(avant), len(apres))
+    txt = cible.read_text(encoding="utf-8", newline="")
+    assert txt.count('||z.provider==="card3d"') == 1
+    assert txt.count('||C.provider==="card3d"') == 1
+    # les fins de ligne du bundle sont un piege connu de la chaine : le
+    # patcher ne doit en traduire AUCUNE.
+    assert apres.count(b"\r\n") == avant.count(b"\r\n")
+    assert apres.count(b"\n") - apres.count(b"\r\n") == 0
+
+    # IDEMPOTENT : rejouer ne double pas le patch et ne change pas un octet.
+    r2 = run()
+    assert r2.returncode == 0, r2.stdout + r2.stderr
+    assert cible.read_bytes() == apres, "second passage : le bundle a bouge"
+    txt2 = cible.read_text(encoding="utf-8", newline="")
+    assert txt2.count('||z.provider==="card3d"') == 1, "double patch"
+    assert txt2.count('||C.provider==="card3d"') == 1, "double patch"
+
+    # ... et un bundle DEJA patche sans son .bak est un etat AMBIGU : refus
+    # nomme, aucun backup empoisonne cree (le piege que la chaine a deja paye).
+    (faux / (BUNDLE.name + ".bak_card3dlibrary")).unlink()
+    r3 = run()
+    assert r3.returncode != 0, r3.stdout
+    assert "sanity" in (r3.stdout + r3.stderr), r3.stdout + r3.stderr
+
+
 def test_le_canvas_est_la_projection_du_meme_graphe():
     """Test de SOURCE (phase 2c, Task 2) : le canvas nodal est une VUE du
     MEME graphe, jamais un second modele. Ce qui est epingle ici :
