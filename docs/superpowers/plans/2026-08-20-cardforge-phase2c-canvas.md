@@ -757,14 +757,101 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 
 ### Task 6: La Bibliothèque — publier l'artefact + le patch bundle minimal
 
+> **LIVRÉ (838d7e1 → 8eb0605, 6 commits LOCAUX, rien de poussé).** 95 tests
+> (91 + 4), suite `-Filter cards` **10/10**, `-Filter meshy` vert, lint
+> INTÉGRAL 0 violation (9/9 modules), `--geom` 4/4, `node --check` OK, index
+> git en `lf` partout, zéro BOM, zéro octet NUL. **19 mutants tués, ancre de
+> contrôle survivante** (changer la valeur de `NAMESPACE_CARD3D` ne fait
+> rougir personne : aucune propriété mesurée ne dépend du littéral).
+>
+> · **LA COUTURE, D'ABORD ET SEULE** (838d7e1) : forge3d.py 2879 → 2637
+> lignes, forge3d_apercu.py 415. La suite 91 a servi de verrou — coupée
+> d'abord, lancée verte SANS qu'un test bouge, tests touchés APRÈS.
+> **La règle qui a décidé de la découpe : le sidecar n'importe RIEN de
+> forge3d.py.** Une couture qui importe son parent n'en est pas une, c'est la
+> même pièce en deux fichiers. Ça a coûté deux injections NOMMÉES
+> (`element_local(…, ouvre_png=, habille=)` — `_open_png` sert aussi trois
+> routes de forge3d.py, et `_habille` a besoin de `tile_maps`, qui a besoin de
+> `_num` : trois fondations qui ne pouvaient pas déménager sous un nom
+> « apercu ») et le passage du job/dossier par l'appelant
+> (`glb_servi_path(job, node_dir, nid)`) : **le magasin ici, les règles
+> là-bas**. Paramètres NOMMÉS et non positionnels — deux callables
+> interchangeables au même rang, c'est le swap silencieux que N2 existe pour
+> rendre impossible.
+> · **ÉCART ASSUMÉ au patron `forge3d_scene`** : le sidecar N'EST PAS pur au
+> sens du module scène (il importe `HTTPException`). Le rendre pur aurait
+> demandé de traduire les refus en `ValueError` + codes, c'est-à-dire de
+> RÉÉCRIRE les chemins d'échec pendant une découpe dont tout l'intérêt est de
+> ne rien changer — et surtout de SÉPARER la phrase de son code, l'exact
+> inverse de N1. La pureté de forge3d_scene tient à ce qu'il est (de la
+> géométrie) ; ce fichier-ci est fait de refus nommés.
+> · **N1 mesuré, pas promis** : les deux phrases d'aveu vivent dans
+> `_source_gagnante` / `_chaine_aval(…, ignores)`. La revue par mutation a
+> trouvé que la phrase « source surnumeraire » n'était **pinnée nulle part**
+> (celle du maillon l'était) — d'où un test neuf qui compare les DEUX
+> producteurs (bordereau de build3d vs extras du GLB de node-preview) **octet
+> pour octet** sur la même topologie. Deux mutants le tuent.
+> · **N2** : `_element_local(…, g, ignores)` — 13 paramètres → 9, et la
+> dérivation UV/fond-perdu, qui existait en DOUBLE (build3d et node-preview),
+> vit désormais dans `_geom_element` seule. Échanger `bleed_px` et
+> `canvas_px` dedans est tué par le test de fenêtre UV.
+> · **N3** : la fenêtre TOCTOU du `FileResponse` de node-preview est écrite
+> LÀ OÙ ELLE VIT, avec le prix accepté et la raison pour laquelle les deux
+> autres routes servant des octets ont tranché l'INVERSE (des vignettes, pas
+> des GLB de 32 Mio).
+> · **La route** (daa98e2) : `POST /library/{art}`, id `uuid5(deck/art)` —
+> l'idempotence est une propriété de CONSTRUCTION, pas une vérification.
+> `short = job_id[:8]`, le MÊME calcul que l'écran (`job_id.slice(0,8)`) et
+> que `_delete_provider_output_dir` (`job.id[:8]`) : une seule règle, pas
+> trois. **Publier n'est pas fabriquer** : sans `{art}.glb`, 409 nommé, jamais
+> un build implicite. La disposition écrite est celle que les routes
+> EXISTANTES lisent — vérifié dans routes.py : `/{fmt}` sert `model.{fmt}`,
+> `/preview` sert `preview.png`, `/manifest` liste `model.*` — donc le plan
+> avait raison sur la disposition, et le test le prouve en passant par les
+> vraies routes plutôt qu'en regardant le disque.
+> · **Le patch** (e4d75d3) : 2 ancres, uniques, vérifiées avant ; bundle du
+> dépôt 1367240 → 1367288 o (+48), CRLF 11884 inchangé, **inventaire de
+> fonctions IDENTIQUE** (1395 déclarations, 1228 noms, même sha1 — le piège de
+> la mémoire, mesuré). Écriture par fichier temporaire + `os.replace` :
+> jamais un bundle à moitié patché sur disque. 5 sondes de stabilité, dont les
+> TROIS filtres de rendus vidéo qui doivent rester intacts.
+> · **Le bouton** (e30d712) : dans les DEUX vues par la MÊME fonction d'état ;
+> garde de génération à la zone exacte (entre le retour réseau et l'écriture
+> de « publié ») ; verrou `.busy` en PREMIER geste ; aucun `setGraph`/`M.patch`
+> — publier n'est pas une édition, « ↶ annuler » n'a rien à avaler. L'état
+> « publié » meurt avec `ARTIFACT` : au changement de carte (M6) **et** à la
+> reconstruction — la copie qui dort dans la Bibliothèque porte alors les
+> octets d'AVANT. Banc de palette 83 → 89 cas.
+>
+> **Restes / concerns pour T7** :
+> 1. **Dossier orphelin à la suppression** — `pipeline._delete_provider_output_dir`
+>    ne connaît que `{"sprite2d": "sprites", "asset3d": "assets3d"}` :
+>    supprimer une carte publiée depuis la Bibliothèque efface la ligne et
+>    LAISSE `outputs/assets3d/{short}/`. Le correctif est d'un mot
+>    (`"card3d": "assets3d"` — `job.id[:8]` est déjà notre `short`), mais il
+>    touche un service TRANSVERSE hors du périmètre de la tâche et mérite son
+>    propre test. **À trancher en T7.**
+> 2. `image_filename` (NON NUL en base) reçoit `"preview.png"` /
+>    `f"card3d_{short}"` — la convention EXACTE d'`asset3d`, donc la même
+>    impasse que lui si un écran essaie de la résoudre en `/api/images/…`.
+>    Copiée sciemment : une troisième orthographe pour la même case aurait été
+>    pire. À vérifier à l'œil dans la file de rendus.
+> 3. `short` = 32 bits, comme `asset3d` : collision de DOSSIER possible entre
+>    deux objets. Exposition identique à l'existante, assumée pour garder UNE
+>    seule disposition de fichiers.
+> 4. Le déploiement du bundle vers l'app **n'est pas fait** (Task 7), et le
+>    `--check` du patcher sur la racine de l'APP refusera à raison : on ne
+>    patche pas l'app, on y COPIE le bundle du dépôt.
+
 > **COUTURE DE DÉLESTAGE (ajoutée après T1)** : forge3d.py a franchi le seuil
 > des ~2400 lignes (2708 après les correctifs T1). AVANT d'ajouter le bloc
 > bibliothèque, extraire dans un sidecar intra-pièce `forge3d_apercu.py`
 > (EXTRA_PY += ; règle R8 sans routeur propre, patron forge3d_scene) le bloc
 > APERÇU pur : `_apercu_mesh3d`, `_glb_servi_path`, `_element_local`, la
 > logique de sous-graphe de node-preview (la ROUTE reste dans forge3d.py et
-> appelle le sidecar) — réexports pour la compat des tests. La suite verte 83
-> est le verrou de la découpe (patron Task 1 de la 2b). **La même passe prend
+> appelle le sidecar) — réexports pour la compat des tests. La suite verte 91
+> (~~83~~, corrigé à la source : la ronde T5 l'a portée à 91) est le verrou de
+> la découpe (patron Task 1 de la 2b). **La même passe prend
 > (re-revue T1)** : N1 — extraire `_source_gagnante` + `_chaine_aval(…,
 > ignores)` pour que LES phrases d'avoeu vivent à côté des règles qui les
 > produisent (le grep a déjà raté une copie au découpage de littéral près) ;
@@ -782,8 +869,15 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > `repeintLeBordereau(` dans le corps — comparaison d'indices, patron du pin M1
 > CSS). Les deux tombent naturellement ici : la découpe `forge3d_apercu.py`
 > déplace ces routes et leurs tests de toute façon.
+>
+> **AMENDÉ À LA SOURCE (T6, mesure RED)** : ~~r2~~ n'est PAS un refus de cette
+> route. `material-thumb/..%2Fx` porte un séparateur : AUCUNE route ne matche,
+> c'est le 404 du ROUTEUR qui répond, sans un seul de nos en-têtes. La reprise
+> porte donc sur r3/r4 **plus un cas neuf** — un `mid` hors motif qui ATTEINT
+> la route (400 nommé + `no-store`), c'est-à-dire le refus que r2 croyait
+> viser ; et r2 est désormais pinné pour ce qu'il est (aucun en-tête à nous).
 
-- [ ] **Step 1 : tests en RED (backend)**
+- [x] **Step 1 : tests en RED (backend)**
 
 ```python
 def test_publier_dans_la_bibliotheque_est_idempotent():
@@ -826,7 +920,7 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
 d'abord. Si `_api` ne couvre que les routes deck-scopées, vérifier comment les
 tests existants atteignent les routes app — le TestClient de l'app couvre tout.)
 
-- [ ] **Step 2 : la route**
+- [x] **Step 2 : la route**
 
 `POST /forge3d/library/{art}` — points imposés :
 - gardes deck ; `{art}.glb` doit exister sous `forge3d/` sinon 409
@@ -839,16 +933,24 @@ tests existants atteignent les routes app — le TestClient de l'app couvre tout
   vignette de la Bibliothèque tolère l'absence) ; `metadata` copié aussi
   (`{art}.metadata.json` → `metadata.json`, bonus honnête) ;
 - upsert `JobRecord(id, provider="card3d", status done, title=f"Carte 3D · "
-  f"{nom_deck} · {art}", final_video_path=chemin glb copié, image_filename=
+  f"{nom_deck} · {art}", ~~final_video_path=chemin glb copié~~, image_filename=
   "preview.png" si copiée, cost_meta json {deck: did, art, engines, files})` —
   upsert = get puis update, sinon insert (l'idempotence du test) ;
+  **AMENDÉ À LA SOURCE (T6)** : `final_video_path` reste VIDE. Trois écrans
+  listent les rendus par `status==="done" && final_video_path &&
+  provider!=="asset3d" && provider!=="sprite2d"` (onglet « rendus » de la
+  Bibliothèque, sélecteur « Existing render » du Studio, Scheduler) : y poser
+  le chemin du GLB aurait fait apparaître la carte comme une VIDÉO dans les
+  trois, avec un lecteur incapable de l'ouvrir. Un GLB n'est pas un rendu
+  vidéo — la colonne vide les exclut par construction, sans un filtre de plus
+  à patcher. Mesuré dans le test.
 - réponse `{job_id, short, provider}` ; to_thread pour les copies ; jamais-500.
 
 Écran : bouton « Publier dans la Bibliothèque » sur le nœud artefact (et le
 bordereau liste), garde GEN, toast succès avec le titre publié, état
 « publié » persistant dans le bordereau affiché.
 
-- [ ] **Step 3 : le patch bundle (chaîne officielle)**
+- [x] **Step 3 : le patch bundle (chaîne officielle)**
 
 `scripts/patch_bundle_card3d_library.py`, style des patchers existants (en LIRE
 un d'abord + relire la mémoire des pièges : source en LF, ancres exactes,
@@ -859,14 +961,24 @@ inventaire de fonctions après) :
   `T3=u.filter(C=>(C.provider==="asset3d"||C.provider==="card3d")&&C.status==="done")` ;
 - chaque ancre UNIQUE dans le bundle (le vérifier AVANT d'écrire), échec du
   patch = message nommé, jamais un bundle à moitié patché ;
-- enregistrer dans la chaîne de ré-application (lire
-  `scripts/reapply_inblock_patches.py` et suivre SON registre) ;
+- ~~enregistrer dans la chaîne de ré-application (lire
+  `scripts/reapply_inblock_patches.py` et suivre SON registre)~~ — **AMENDÉ À
+  LA SOURCE (T6)** : `MODULES` de ce script ne vaut QUE pour les couples situés
+  DANS le bloc sonvfx (c'est ce qu'un rafraîchissement du bloc efface). Les
+  deux ancres d'ici sont dans le bundle NATIF : la boucle les compterait à 0 et
+  les classerait « hors bloc, intacts » — un no-op qui ferait CROIRE que ce
+  script les protège. La chaîne réelle est `repatch_all.py`, qui la déduit des
+  `.bak_<tag>` par mtime : y être inscrit, c'est avoir un `.bak_<tag>` (fait,
+  en queue) et un `patch_bundle_<tag>.py` (fait). Le CRITÈRE d'entrée dans
+  `MODULES` est désormais écrit dans le fichier, avec l'avertissement mesuré :
+  lancer `reapply_inblock_patches.py` aujourd'hui restaure un `.bak_sonvfx` de
+  730 Ko (état du 6 août) et efface TOUS les maillons posés depuis ;
 - test du patcher : sur une COPIE du bundle, exécuter, asserter 2 remplacements
   et l'idempotence (re-exécuter → 0 changement, pas de double-patch).
 - Appliquer au bundle du DÉPÔT (frontend/dist) + commit. Le déploiement vers
   l'app = Task 7.
 
-- [ ] **Step 4 : GREEN + lint + commit**
+- [x] **Step 4 : GREEN + lint + commit**
 
 ```bash
 git add backend/app/services/cards/forge3d.py backend/tests/test_cards_forge3d.py scripts/patch_bundle_card3d_library.py scripts/reapply_inblock_patches.py frontend/dist frontend/cardforge/js/mod-forge3d.js
