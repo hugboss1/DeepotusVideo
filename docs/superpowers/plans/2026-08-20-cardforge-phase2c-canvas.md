@@ -457,6 +457,15 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 
 ### Task 6: La Bibliothèque — publier l'artefact + le patch bundle minimal
 
+> **COUTURE DE DÉLESTAGE (ajoutée après T1)** : forge3d.py a franchi le seuil
+> des ~2400 lignes (2708 après les correctifs T1). AVANT d'ajouter le bloc
+> bibliothèque, extraire dans un sidecar intra-pièce `forge3d_apercu.py`
+> (EXTRA_PY += ; règle R8 sans routeur propre, patron forge3d_scene) le bloc
+> APERÇU pur : `_apercu_mesh3d`, `_glb_servi_path`, `_element_local`, la
+> logique de sous-graphe de node-preview (la ROUTE reste dans forge3d.py et
+> appelle le sidecar) — réexports pour la compat des tests. La suite verte 83
+> est le verrou de la découpe (patron Task 1 de la 2b).
+
 **Files:** forge3d.py, test_cards_forge3d.py, scripts/patch_bundle_card3d_library.py (créé), la chaîne de patchs, mod-forge3d.js (le bouton).
 
 - [ ] **Step 1 : tests en RED (backend)**
