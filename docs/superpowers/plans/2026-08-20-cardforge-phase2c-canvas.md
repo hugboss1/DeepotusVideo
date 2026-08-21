@@ -554,9 +554,63 @@ git commit -m "feat(cardforge): connexions port-a-port validees a l arete (gramm
 
 ### Task 5: L'inspecteur partagé, le nœud artefact, les nœuds d'export, la palette
 
-**Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py.
+**Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py **+ forge3d.py**
+(la route `node-file` ACCORDÉE par le contrôleur — voir la note de livraison).
 
-- [ ] **Step 1 : test de source en RED**
+> **LIVRÉ (f2abf55).** 91 tests (88 + 3), lint 0 violation, `--geom` 4/4,
+> `node --check` OK ; **23 mutants tués, ancre-contrôle survivante**. Décisions
+> et amendements, tous à la SOURCE :
+> · **DEUX contextes WebGL, PAS TROIS**, et c'est une contrainte tenue par
+>   RÉFÉRENCE, pas par `querySelector` : `paintCanvas` reconstruit le monde en
+>   un `innerHTML`, ce qui DÉTACHE le viewer monté dans le nœud artefact — un
+>   `$("#cf-forge3d-mv")` ne l'aurait plus trouvé et en aurait fait naître un
+>   second à chaque repeinture. `MV`/`INSP_MV` gardent l'élément, `poseViewer`
+>   le DÉMÉNAGE (canvas → nœud artefact, liste → section « Aperçu »), et la
+>   section qu'il quitte DIT où il est parti au lieu de rester un cadre vide.
+> · **le débounce vit dans le DÉCLENCHEUR, pas dans la requête** (note de
+>   concurrence T1) : `majInspecteur` porte la CLÉ de sujet (idempotence) et la
+>   minuterie (250 ms) ; `inspecte` porte le jeton (`INSP_JETON`) et la garde
+>   de génération. Les deux ne couvrent pas la même chose — le jeton avance
+>   quand le SUJET change, `GEN` quand la CARTE change — d'où un défaut trouvé
+>   en revue par mutation et corrigé à la source : **un changement de carte
+>   lâche l'aperçu** (`cardChanged` → `videInspecteur`), exactement comme il
+>   lâche les jobs ; un GLB d'aperçu est construit depuis LES COUCHES d'une
+>   carte précise.
+> · **la palette naît DU VIVANT** : une matière sans matière ni finition est
+>   JETÉE par `clean_graph`, donc un maillon né vide serait un nœud que le
+>   serveur efface — elle naît avec la première matière servie (patron du
+>   moteur par défaut d'un mesh3d), et la boutique vide se DIT. Le câblage
+>   passe par `editMat`/`editTrs` → `rewireRow` : zéro seconde recette
+>   d'arêtes, et le placement tombe au BOUT de la chaîne (jamais l'éventail
+>   `t1→r2` que le report T4 nommait).
+> · **un seul sujet à la fois, sans dépendance d'ORDRE** : `selectionne` lâche
+>   l'arête et `selectionneArete` lâche le nœud — le faire dans les fonctions
+>   plutôt qu'aux sites d'appel enlève le piège du « qui appelle qui en
+>   second » (mutant M21). Cliquer le FOND, lui, garde l'arête : on se déplace
+>   sans perdre ce qu'on visait.
+> · **ÉCART ASSUMÉ au point imposé de la route accordée** : `node-file` LIT ses
+>   octets au lieu de `FileResponse`. La raison est écrite deux fonctions plus
+>   haut (`get_material_thumb`, M3) : `FileResponse` re-`stat` le fichier à
+>   l'ENVOI, donc APRÈS le contrôle — et ici la fenêtre n'est pas théorique, le
+>   dossier d'un nœud est `rmtree` INTÉGRALEMENT à chaque relance. C'eût été un
+>   500 sur la doctrine « jamais-500 ». Le motif de `node-preview` (qui, lui,
+>   GARDE `FileResponse`) ne s'applique pas : là il s'agit d'un GLB de 32 Mio
+>   qu'on refuse de charger en RAM, ici d'une vignette.
+> · **un banc de palette** (le pendant du banc de chaînes T4) : les VRAIES
+>   fonctions extraites du fichier livré tournent dans node et mesurent ce
+>   qu'elles REFUSENT — 43 cas, dont les aveux d'un VRAI GLB d'aperçu
+>   (octets construits par le backend dans le test, relus côté client par
+>   `glbExtras`). Un pin de source dit qu'une fonction est appelée ; il ne dit
+>   pas ce qu'elle refuse (la leçon T4, re-confirmée : 4 mutants ont survécu à
+>   la première passe).
+> **Restes à T7 (navigateur)** : la lisibilité du panneau à 232 px et le
+> repli sous 720 px, le ressenti du débounce à 250 ms sur un balayage réel, un
+> `model-viewer` de 200 px dans un nœud (est-ce assez pour juger un modèle ?),
+> la caméra du viewer après un DÉMÉNAGEMENT (re-`connectedCallback` : on
+> attend qu'elle survive, ce n'est pas mesuré), et les hauteurs `RANG_H`
+> d'`artifact` (420) et `export` (320) à l'œil.
+
+- [x] **Step 1 : test de source en RED**
 
 ```python
 def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
@@ -578,7 +632,7 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     assert 'id="cf-forge3d-palette"' in rendu and "max_elements" in rendu
 ```
 
-- [ ] **Step 2 : implémentation**
+- [x] **Step 2 : implémentation**
 
 1. **Inspecteur** `#cf-forge3d-inspecteur` (panneau latéral du canvas) : UN
    model-viewer ; sélection d'un nœud (clic en-tête) → `inspecte(nid)` : garde
@@ -602,10 +656,10 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
 5. Les gardes 2b restent : prix AVANT au pied (le canvas l'affiche aussi),
    `has_meshy`/degraded, polls, run_id.
 
-- [ ] **Step 3 : GREEN + lint + commit**
+- [x] **Step 3 : GREEN + lint + commit**
 
 ```bash
-git add frontend/cardforge/js/mod-forge3d.js frontend/cardforge/css/mod-forge3d.css backend/tests/test_cards_forge3d.py
+git add frontend/cardforge/js/mod-forge3d.js frontend/cardforge/css/mod-forge3d.css backend/app/services/cards/forge3d.py backend/tests/test_cards_forge3d.py
 git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son viewer, noeuds d export au motif litteral, palette bornee"
 ```
 
