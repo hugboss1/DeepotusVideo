@@ -4890,8 +4890,14 @@
         M.toast("la visionneuse n'a pas pu ouvrir le GLB", true);
       });
     }
-    if (MV.parentNode !== host) { host.innerHTML = ""; host.appendChild(MV); }
-    majSectionApercu();
+    if (MV.parentNode !== host) {
+      host.innerHTML = "";
+      host.appendChild(MV);
+      /* seulement QUAND IL DÉMÉNAGE, pas à chaque repeinture de nœud : cette
+         fonction n'a rien à dire tant que rien n'a bougé, et `paintNode`
+         passe ici à chaque champ commis. */
+      majSectionApercu();
+    }
     return MV;
   }
 
