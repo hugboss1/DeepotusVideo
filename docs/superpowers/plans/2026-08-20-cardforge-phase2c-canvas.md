@@ -265,7 +265,35 @@ git commit -m "feat(cardforge): canvas nodal - surface pan/zoom, noeuds depuis l
 
 **Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py.
 
-- [ ] **Step 1 : test de source en RED**
+> **LIVRÉ (ff0d434).** 85 tests (84 + 1), lint 0, `--geom` 4/4,
+> `node --check` OK. Amendements actés, tous à la SOURCE :
+> · le pas de semis FIXE de la T2 (RANG_DY = 120) devenait un CHEVAUCHEMENT
+>   dès que les corps portaient vignette + menus — il devient contenu-dépendant
+>   (`RANG_H` par kind, généreux : sous-estimer chevauche, surestimer ne coûte
+>   que du blanc), et « recentrer » MESURE désormais la vraie boîte
+>   (`hauteurNoeud`) au lieu de croire la table ;
+> · `matHtml`/`trsHtml` gagnent `hote: "row"|"node"` — l'emballage seul change
+>   (tiroir dans la liste, champs nus dans le nœud), les champs sont les mêmes
+>   octets ; `procSelHtml`/`geoHtml`/`sideSelHtml` extraits de `rowHtml` ;
+> · la délégation passe de `.cf-forge3d-row` à `[data-proc]` : un corps de
+>   nœud matière/placement y met l'id de SON traitement, donc `editMat`/
+>   `editTrs` marchent depuis le canvas sans une ligne de plus ;
+> · `paintChip` repeint AUSSI la vignette (elle porte le même état lu du job)
+>   et `repeintChaine` suit la chaîne (changer la FACE d'une couche change la
+>   PNG que son traitement ET son placement dessinent) ;
+> · repeint des vignettes COALESCÉ au rAF (sept images reviennent dans la même
+>   poignée de frames — un balayage complet par arrivée croissait avec le
+>   graphe, la faute déjà corrigée sur `majAretes`).
+> **MANQUE REMONTÉ AU CONTRÔLEUR (Task 5)** : le `preview.png` d'un job meshy
+> vit sous `nodes/{nid}/` et AUCUNE route ne le sert — `GET /file/{name}`
+> valide sur `^[A-Za-z0-9._-]{1,90}$`, séparateur interdit. La branche « à
+> défaut » du plan s'applique (pictogramme moteur + état lu) ; ouvrir une
+> route en douce depuis l'écran aurait été décider seul d'une surface d'API.
+> Restes à T7 (navigateur) : la justesse des hauteurs de `RANG_H` à l'œil, le
+> cadrage d'un graphe à six couches (~1,5 k px de colonne, plancher de zoom),
+> la lisibilité des menus à 200 px de large.
+
+- [x] **Step 1 : test de source en RED**
 
 ```python
 def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
@@ -285,7 +313,7 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
     assert "material-thumb/" in rendu
 ```
 
-- [ ] **Step 2 : implémentation**
+- [x] **Step 2 : implémentation**
 
 1. **Réutilisation stricte** : `nodeBodyHtml(nid)` compose les bâtisseurs
    EXISTANTS (`mesh3dHtml`/`matHtml`/`trsHtml`/le sélecteur de traitement/les
@@ -313,7 +341,7 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
 3. Les polls (`pollMesh3d`) repeignent la chip dans LES DEUX vues (le sélecteur
    de zone chip devient indépendant de l'hôte).
 
-- [ ] **Step 3 : GREEN + lint + commit**
+- [x] **Step 3 : GREEN + lint + commit**
 
 ```bash
 git add frontend/cardforge/js/mod-forge3d.js frontend/cardforge/css/mod-forge3d.css backend/tests/test_cards_forge3d.py
