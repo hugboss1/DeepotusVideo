@@ -26,7 +26,7 @@ from pathlib import Path
 
 from fastapi import (APIRouter, BackgroundTasks, File, Form, HTTPException,
                      Request, UploadFile)
-from fastapi.responses import Response
+from fastapi.responses import FileResponse, Response
 from loguru import logger
 
 from .contract import deck_dir
@@ -93,6 +93,12 @@ RELIEF_GRID = (48, 256)              # subdivisions de la grille — axe X (gx)
                                       # la carte (un tarot portrait à 256
                                       # donne gy=439, ~452k triangles)
 RELIEF_GRID_DEFAULT = 160
+RELIEF_GRID_PREVIEW = 96             # l'apercu d'UN noeud (node-preview, 2c)
+                                      # privilegie la vitesse : le vrai grid
+                                      # ne joue qu'au build (post_build3d,
+                                      # 2a : 256 max) — celui-ci n'est JAMAIS
+                                      # ecrit sur le noeud, juste plafonne
+                                      # pour CETTE reponse ephemere.
 
 # ── mesh3d (2b) : les 7 moteurs — 5 fal (asset3d_service) + Meshy direct ────
 MESH3D_ENGINES = [
@@ -2283,6 +2289,232 @@ async def get_mesh3d(did: str, nid: str):
         except OSError:
             logger.exception(f"cards/forge3d: orphelin {did}/{nid} non persiste")
     return job
+
+
+# ── L'APERCU D'UN SEUL NOEUD (Task 1, 2c) — le vrai 3D d'UN element, borne ──
+# `POST /node-preview` sert l'inspecteur unique du canvas (spec §5.6 point 4) :
+# selectionner un noeud montre son GLB REEL, sans construire tout l'artefact.
+# Reponse EPHEMERE (jamais ecrite sur disque), tout le travail lourd en
+# to_thread, jamais un 500 — meme doctrine que build3d/mesh3d ci-dessus.
+#
+# Identifiants GARANTIS SANS COLLISION avec un id de graphe reel : tout id
+# qui traverse `clean_graph` est plafonne a 24 caracteres (voir son `[:24]`
+# plus haut) — un identifiant interne de PLUS de 24 caracteres ne peut donc
+# jamais etre celui d'un vrai noeud du client.
+_PREVIEW_ASM_ID = "___apercu_noeud_assemble_synthetique___"
+_PREVIEW_ART_ID = "___apercu_noeud_artefact_synthetique___"
+
+
+def _apercu_mesh3d(did: str, nid: str) -> bytes:
+    """Les octets bruts du GLB d'un noeud mesh3d SERVI, tels quels — meme
+    garde et meme formulation que `_element_externe` (409 « n'a pas servi »),
+    mais SANS la borne `MAX_EXT_GLB_BYTES` ni le controle de carte source :
+    cette route ne fusionne ni ne construit rien, elle relit un fichier DEJA
+    sur disque et le renvoie tel quel — le pire cas est une reponse HTTP
+    volumineuse, jamais un artefact corrompu ou une ecriture disque
+    incontrolee. `_element_externe`, LUI, refuse un GLB surdimensionne parce
+    qu'il va le FUSIONNER en memoire avec d'autres — ce n'est pas le cas
+    ici, donc pas la meme borne."""
+    job = _job_read(did, nid)
+    if not isinstance(job, dict) or job.get("status") != "served":
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
+                 f"(POST mesh3d/{nid})")
+    fichiers = job.get("files")
+    nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
+    nom_glb = str(nom_glb or "model.glb")
+    if not re.match(r"^[A-Za-z0-9._-]{1,90}$", nom_glb) or set(nom_glb) == {"."}:
+        raise HTTPException(
+            409, f"le noeud {nid} annonce un fichier de nom invalide "
+                 f"({nom_glb!r}) - relance le noeud")
+    p_glb = _node_dir(did, nid) / nom_glb
+    if not p_glb.is_file():
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — {nom_glb} a "
+                 f"disparu du noeud, relance-le")
+    return p_glb.read_bytes()
+
+
+@router.post("/node-preview")
+async def post_node_preview(did: str, body: dict | None = None):
+    """Le GLB d'UN SEUL element du graphe — l'inspecteur partage du canvas
+    (spec §5.6 point 4). `plane`/`relief` : sous-graphe SYNTHETIQUE {sa
+    couche source, lui, sa matiere/son placement s'il en a un, un
+    assemble+artifact FABRIQUES} passe a `_resolve_graph_elements` (le MEME
+    resolveur que build3d — zero deuxieme version de la regle « premiere
+    arete gagnante ») ; `mat`/`trs` viennent de `_chaine_aval` appliquee a
+    `nid` sur le graphe REEL du client, pour que l'apercu montre l'option
+    DEJA choisie sur ce noeud — meme si sa chaine ne rejoint pas encore un
+    assemble reel, ce qui est precisement pourquoi l'assemble+artifact sont
+    synthetiques : l'apercu doit marcher AVANT que le graphe soit complet.
+    Grille de relief PLAFONNEE a `RELIEF_GRID_PREVIEW` AVANT resolution.
+    `mesh3d` : les octets du job SERVI, tels quels (`_apercu_mesh3d`). Tout
+    autre kind : refus nomme, ce noeud n'a rien a montrer en 3D.
+
+    AUCUNE ecriture disque : cette reponse est EPHEMERE, contrairement a
+    build3d qui livre un artefact durable."""
+    from .core import read_deck, geom_of
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    doc = read_deck(did)
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
+    body = body if isinstance(body, dict) else {}
+    card_label = f"c{_card_idx(body.get('card')) + 1:02d}"
+    graph = clean_graph(body.get("graph"))
+    nid = str(body.get("nid") or "")
+    nodes_by_id = {n["id"]: n for n in graph["nodes"]}
+    node = nodes_by_id.get(nid)
+    if node is None:
+        raise HTTPException(400, f"noeud {nid} absent du graphe")
+    kind = node["kind"]
+    if kind not in ("plane", "relief", "mesh3d"):
+        raise HTTPException(400, f"noeud non prévisualisable : {kind}")
+
+    if kind == "mesh3d":
+        if not _NID_RE.match(nid or ""):
+            raise HTTPException(400, "Identifiant de noeud invalide")
+
+        def work() -> bytes:
+            return _apercu_mesh3d(did, nid)
+    else:
+        incoming: dict[str, list[str]] = {}
+        outgoing: dict[str, list[str]] = {}
+        for e in graph["edges"]:
+            incoming.setdefault(e["to"], []).append(e["from"])
+            outgoing.setdefault(e["from"], []).append(e["to"])
+        src = next((nodes_by_id[fid] for fid in incoming.get(nid, [])
+                   if fid in nodes_by_id
+                   and nodes_by_id[fid]["kind"] == "layer"), None)
+        if src is None:
+            raise HTTPException(
+                400, f"noeud {nid} sans couche source (relie une couche : "
+                     f"layer -> {nid})")
+        mat_n, trs_n, _relie, _passes = _chaine_aval(nid, nodes_by_id,
+                                                      outgoing)
+        proc = dict(node)
+        if proc["kind"] == "relief":
+            # PLAFONNE AVANT resolution (point impose du plan) : l'apercu
+            # privilegie la vitesse, le vrai grid ne joue qu'au build.
+            proc["grid"] = min(proc["grid"], RELIEF_GRID_PREVIEW)
+        sub_nodes = [src, proc]
+        sub_edges = [{"from": src["id"], "to": proc["id"]}]
+        cur = proc["id"]
+        for maillon in (mat_n, trs_n):
+            if maillon is not None:
+                sub_nodes.append(maillon)
+                sub_edges.append({"from": cur, "to": maillon["id"]})
+                cur = maillon["id"]
+        sub_nodes.append({"id": _PREVIEW_ASM_ID, "kind": "assemble"})
+        sub_nodes.append({"id": _PREVIEW_ART_ID, "kind": "artifact",
+                          "name": "apercu"})
+        sub_edges.append({"from": cur, "to": _PREVIEW_ASM_ID})
+        sub_edges.append({"from": _PREVIEW_ASM_ID, "to": _PREVIEW_ART_ID})
+        candidats, _ignores = _resolve_graph_elements(
+            {"nodes": sub_nodes, "edges": sub_edges})
+        if not candidats:
+            # NE DEVRAIT JAMAIS ARRIVER (le sous-graphe ci-dessus est cable
+            # a la main, une seule chaine possible) — doctrine jamais-500 :
+            # un refus nomme plutot qu'un IndexError si un futur changement
+            # de `_resolve_graph_elements` invalidait cette hypothese.
+            raise HTTPException(
+                400, f"noeud {nid} non prévisualisable : chaine irresoluble")
+        ch = candidats[0]
+
+        g = geom_of(doc)
+        w_mm, h_mm = g.trim_mm
+        bleed_px = (round(g.bleed_off_px[0]), round(g.bleed_off_px[1]))
+        u0, v0 = bleed_px[0] / g.canvas_px[0], bleed_px[1] / g.canvas_px[1]
+        uv_window = (u0, v0, 1.0 - u0, 1.0 - v0)
+
+        def work() -> bytes:
+            out = _out_dir(did)
+            layer = ch["layer"]
+            fname = _layer_filename(layer, card_label)
+            p = out / fname
+            if not p.is_file():
+                raise HTTPException(
+                    409, f"exporte les couches d'abord : {fname} absent "
+                         f"(POST /layers)")
+            raw = p.read_bytes()
+            im = _open_png(raw, fname)
+            nom_el = layer.get("role") or "composite"
+            proc_n = ch["proc"]
+            if proc_n["kind"] == "plane":
+                mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
+                el = {"name": nom_el, "mesh": mesh, "png": raw,
+                      "alpha": True, "z_mm": proc_n["depth_mm"]}
+            else:
+                cx0, cy0 = bleed_px
+                cx1 = g.canvas_px[0] - cx0
+                cy1 = g.canvas_px[1] - cy0
+                alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
+                mesh = relief_mesh(alpha_img, w_mm, h_mm, proc_n["depth_mm"],
+                                   proc_n["base_mm"], proc_n["grid"],
+                                   uv_window=uv_window)
+                el = {"name": nom_el, "mesh": mesh, "png": raw,
+                      "alpha": False, "z_mm": 0.0}
+            ignores: list = []
+            _habille(el, ch["mat"], w_mm, h_mm, ignores)
+            trs = _trs_dict(ch["trs"])
+            if trs is not None:
+                el["trs"] = trs
+            return write_scene_glb(
+                [el], name="apercu",
+                extras={"schema": ARTIFACT_SCHEMA, "preview": True})
+
+    try:
+        glb = await asyncio.to_thread(work)
+    except HTTPException:
+        raise
+    except ModuleNotFoundError as e:           # pragma: no cover - env casse
+        raise HTTPException(503, f"Module requis absent : {e}")
+    except ValueError as e:
+        logger.warning(f"cards/forge3d: apercu de noeud refuse : {_panne(e)}")
+        raise HTTPException(409, _panne(e))
+    except Exception as e:
+        logger.exception("cards/forge3d: apercu de noeud impossible")
+        raise HTTPException(500, f"Apercu de noeud impossible : {e}")
+    return Response(content=glb, media_type="model/gltf-binary",
+                    headers={"Cache-Control": "no-store"})
+
+
+@router.get("/material-thumb/{mid}")
+async def get_material_thumb(did: str, mid: str):
+    """La vignette de boutique d'une matiere, servie PAR PROVENANCE — le fond
+    du corps de noeud `material` (Task 3, 2c) : PAS le composite de
+    `read_material()["thumb"]`/`thumb_is_current` (celui-la gate sur
+    `MESH_VERSION`, une histoire de viewport 3D qui ne concerne pas cette
+    pastille 2D plate du canvas — une matiere reste un bon aplat de couleur
+    meme quand la geometrie du viewport a change). `mid` valide AVANT toute
+    lecture disque — aucun chemin n'est JAMAIS construit sur l'entree brute,
+    le containment vient de `material_store.material_dir` (règle 8 :
+    material_store est un service TRANSVERSE, deja consomme par `get_info`
+    ci-dessus, pas une piece du lab). Jamais-500."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    from app.services import material_store as MSTORE
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
+    if not MSTORE.is_valid_mid(mid):
+        raise HTTPException(400, "Identifiant de matière invalide")
+
+    def work() -> Path | None:
+        try:
+            d = MSTORE.material_dir(mid)
+        except ValueError:
+            return None
+        p = d / "thumb.png"
+        return p if p.is_file() else None
+
+    p = await asyncio.to_thread(work)
+    if p is None:
+        raise HTTPException(404, f"matière sans vignette : {mid}")
+    return FileResponse(p, media_type="image/png",
+                        headers={"Cache-Control": "no-store"})
 
 
 @router.post("/preview/{art}")

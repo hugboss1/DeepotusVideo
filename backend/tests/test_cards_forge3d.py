@@ -3622,5 +3622,103 @@ def test_un_job_verrouille_par_l_ecriture_n_est_pas_declare_absent(monkeypatch):
         F9._job_write(did, "m1", dict(job, progress=99))
 
 
+# ── L'APERCU D'UN SEUL NOEUD + LA VIGNETTE DE MATIERE (Task 1, 2c) ──────────
+# AUCUN de ces tests ne depense un credit : le job mesh3d SERVI est pose sur
+# disque a la main (meme patron que la fusion des GLB externes ci-dessus), le
+# GLB "moteur" est ecrit par NOTRE writer.
+
+def _reset_node(did, nid):
+    """Repart de zero sur un noeud, comme une relance (post_mesh3d) : rmtree
+    du dossier durable du noeud."""
+    import shutil
+    d = _dossier_noeud(did, nid)
+    if d.is_dir():
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def test_node_preview_construit_le_glb_du_seul_element():
+    """POST /forge3d/node-preview {graph, card, nid} -> le GLB d'UN element,
+    grille de relief BORNEE (apercu rapide), reponse ephemere, jamais-500."""
+    did = _deck("Preview noeud")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t1", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 256},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "x"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+             json={"graph": g, "card": 0, "nid": "t1"})
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("model/gltf-binary")
+    doc, binv = _read_glb(r.content)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    assert [doc["nodes"][k]["name"] for k in racine["children"]] == ["cadre"]
+    # la grille demandee (256) est PLAFONNEE pour l'apercu : le compte de
+    # triangles est celui de RELIEF_GRID_PREVIEW, pas du grid max
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    m = SC.glb_scene_mesh(r.content)
+    gy = max(2, round(F9.RELIEF_GRID_PREVIEW * (88.0 / 63.0)))
+    attendu = (4 * F9.RELIEF_GRID_PREVIEW * gy + 4 * F9.RELIEF_GRID_PREVIEW
+               + 4 * gy)
+    assert len(m["indices"]) // 3 == attendu
+
+    # un noeud mesh3d SERVI -> les octets du GLB du job, tels quels
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0,
+                            0.3, 4)
+    relief["closed"] = True
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    glb_job = SC.write_scene_glb([{"name": "brut", "mesh": relief,
+                                   "png": png.getvalue(), "alpha": False,
+                                   "z_mm": 0.0}], name="b", extras={})
+    _job_servi(did, "m1", glb_job, closed=True)
+    g2 = _graphe_mesh3d("meshy-7")
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g2, "card": 0, "nid": "m1"})
+    assert r2.status_code == 200 and r2.content == glb_job
+
+    # refus nommes : mesh3d non servi -> 409 « servi » ; nid inconnu -> 400 ;
+    # kind non previsualisable (assemble) -> 400 nomme
+    _reset_node(did, "m1")
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g2, "card": 0, "nid": "m1"})
+    assert r3.status_code == 409 and "servi" in r3.json()["detail"]
+    r4 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g, "card": 0, "nid": "zzz"})
+    assert r4.status_code == 400
+    r5 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g, "card": 0, "nid": "asm"})
+    assert r5.status_code == 400
+    assert "prévisualisable" in r5.json()["detail"]
+
+
+def test_material_thumb_est_servi_par_provenance():
+    from app.services import material_store as MSTORE
+    mat = MSTORE.create_material(name="vignette-2c")
+    try:
+        MSTORE.write_thumb(mat["id"], _png(Image.new("RGBA", (64, 64),
+                                                     (10, 200, 10, 255))))
+        did = _deck("Thumb")
+        r = _api("GET", f"/api/cards/{did}/forge3d/material-thumb/{mat['id']}")
+        assert r.status_code == 200, r.text
+        assert r.headers["content-type"].startswith("image/")
+        # mid invalide -> 400 ; matiere sans vignette -> 404 nomme
+        r2 = _api("GET", f"/api/cards/{did}/forge3d/material-thumb/..%2Fx")
+        assert r2.status_code in (400, 404)
+        m2 = MSTORE.create_material(name="sans-vignette")
+        try:
+            r3 = _api("GET",
+                      f"/api/cards/{did}/forge3d/material-thumb/{m2['id']}")
+            assert r3.status_code == 404
+        finally:
+            MSTORE.delete_material(m2["id"])
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
