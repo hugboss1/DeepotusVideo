@@ -72,8 +72,9 @@ duels aveugles par tâche, ZÉRO dépense réelle (mock Meshy, fal monkeypatché
 
 Chatoiement holo à juger à l'œil en tournant le viewer ; bloc fluidité à
 re-vérifier au pointeur réel ; capture d'aperçu ; cas deux onglets ;
-rétention du double stockage meshy3d à arbitrer ; le guide illustré n'a pas
-encore de chapitre Forge 3D (son chapitre Card Forge s'arrête aux 8 modules).
+rétention du double stockage meshy3d à arbitrer. (Le chapitre Forge 3D du
+guide illustré, d'abord nommé ici en reste, est livré depuis — chapitre 19
+FR/EN avec capture réelle, PDF 30 pages.)
 
 ---
 

@@ -36,11 +36,18 @@ Toutes les surfaces de manipulation à la souris du lab suivent la barre
 poignées 12 px, molette coalescée — le rectangle ne traîne plus derrière le
 curseur.
 
+### Le guide suit
+
+Le guide illustré embarqué (FR/EN, servi dans l'app à `/guide`) gagne le
+chapitre **19 · Forge 3D** — couches, graphe, moteurs, prix avant — avec une
+capture réelle de l'écran, et son avertissement Card Forge reflète les
+correctifs de la 2.3.0 finale (émission réglable et câblée, cadrage en un
+clic).
+
 ### Connu, pas encore corrigé
 
 - Le chatoiement holographique est prouvé dans les octets du GLB ; le juger
   à l'œil en tournant le viewer reste à faire.
-- Le guide illustré s'arrête aux 8 modules : pas encore de chapitre Forge 3D.
 - La rétention du double stockage des binaires Meshy reste à arbitrer.
 
 ### Installation
