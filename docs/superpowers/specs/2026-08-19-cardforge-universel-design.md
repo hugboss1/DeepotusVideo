@@ -223,6 +223,60 @@ les octets, il ne recopie pas l'intention.
 - bordereau chiffré, stockage deck-local. Option d'inscription dans la Bibliothèque
   (JobRecord `provider="card3d"`) pour retrouver l'artefact hors du lab.
 
+### 5.6 Phase 2c — Le CANVAS NODAL (demande utilisateur du 20/08, « full redesign »)
+
+La « vue canvas » différée par la 2a est ACTÉE : le besoin est prouvé par la demande.
+Exigences utilisateur : les couches exportées apparaissent en NŒUDS de graphe ;
+chaque nœud porte TOUS ses menus d'options ET une visualisation immédiate de
+l'option choisie ; les nœuds se CONNECTENT à la souris ; un nœud ARTEFACT terminal
+montre le résultat ; des nœuds d'EXPORT s'y branchent au choix ; l'artefact
+téléchargé entre dans la BIBLIOTHÈQUE.
+
+**Décisions d'architecture (contraintes mesurées) :**
+
+1. **DOM + SVG, vanilla** : nœuds = divs positionnées sur une surface pan/zoom,
+   arêtes = UNE couche SVG (béziers) sous les nœuds. Pas de lib externe (règles du
+   lab) ; les menus EXISTANTS des rangées s'embarquent tels quels dans les corps de
+   nœuds (mêmes champs, mêmes bornes servies par /info). La barre de fluidité §9.6
+   s'applique aux drags du canvas (≤ 1 patch/frame, geste exact au relâché).
+2. **Le MODÈLE ne change pas** : `doc.forge3d.graph` reste la seule vérité
+   sémantique (compatible vue liste, clean_graph, résolveur, tout l'existant 2b).
+   Les POSITIONS vivent dans `doc.forge3d.layout = {nid: [x, y]}` — présentation,
+   pas contenu : patchées SANS entrée d'annulation (commenté), semées par un
+   auto-arrangement en colonnes (couches → traitements → matière/placement →
+   assemble → artefact → exports). **La vue LISTE actuelle reste disponible en
+   bascule** : repli sans pointeur, support des tests source, même graphe projeté.
+3. **Visualisation immédiate PAR NŒUD sans WebGL** (limite navigateur ~8-16
+   contextes) : vignette canvas 2D DÉTERMINISTE et locale par nœud — couche alpha,
+   teinte/motif de la matière liée, ombrage du relief selon la profondeur, badge
+   holo selon la finition ; nœud mesh3d : le preview.png du job + la chip d'état
+   (file/cours/servi · crédits/échec littéral). Réaction immédiate à chaque
+   changement d'option, zéro aller-retour serveur.
+4. **UN inspecteur 3D partagé** : sélectionner un nœud le montre en VRAI 3D dans
+   l'unique model-viewer d'inspection — `POST /forge3d/node-preview {graph, nid,
+   card}` construit le GLB du SEUL élément (grille de relief BORNÉE pour la
+   vitesse, réponse éphémère, to_thread, jamais-500). Le nœud artefact garde SON
+   viewer (le résultat) : 2 contextes WebGL maximum.
+5. **Connexions à la souris** : ports entrée/sortie par nœud ; la grammaire des
+   chaînes (layer→traitement→[matière]→[placement]→assemble→artefact→exports) est
+   validée À LA CRÉATION de l'arête (refus NOMMÉ en toast) ; `clean_graph` reste
+   l'ultime porte ; supprimer une arête = clic dessus + confirmation visuelle.
+6. **Nœuds d'export** : attachables à l'artefact depuis la palette — GLB, STL,
+   metadata.json, aperçu. Chacun télécharge PAR PROVENANCE et affiche écrit/refusé
+   avec le motif littéral (le STL refusé reste un refus VISIBLE, jamais un nœud
+   muet). La palette offre aussi : couches restantes, traitements, matière,
+   placement.
+7. **Bibliothèque** : « Publier dans la Bibliothèque » sur le nœud artefact →
+   `JobRecord provider="card3d"` (provenance honnête) + copie des fichiers dans
+   `outputs/assets3d/{short}/` (model.glb, preview.png) pour que les routes
+   EXISTANTES `/api/assets/3d/{short}/*` servent ; patch bundle MINIMAL : élargir
+   les DEUX filtres `provider==="asset3d"` de la Bibliothèque à
+   `(asset3d||card3d)`, `kind` inchangé (« asset3d » = objet 3D) — viewer,
+   téléchargement, favoris et Optimiser marchent alors sans autre changement.
+   Patch ajouté à la CHAÎNE OFFICIELLE (reapply_inblock_patches, pièges connus).
+   Publication idempotente (re-publier le même artefact met à jour, ne duplique
+   pas).
+
 ## 6. Phase 3 — Archétypes et decks custom
 
 ### 6.1 Un archétype = un modèle de deck, 100 % éditable après instanciation
