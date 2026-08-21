@@ -123,7 +123,12 @@
   const COL_X_DEFAUT = 760;     /* un kind hors table (graphe charge a la
                                     main) se pose avec l'assemblage plutot
                                     que d'empiler tout a l'origine */
-  const RANG_Y0 = 40, RANG_DY = 190;
+  /* RANG_DY vaut ~1,2 hauteur de nœud, PAS deux : le graphe par defaut d'une
+     carte a SIX couches, donc six rangs dans la colonne des traitements. A
+     190 px de pas ils s'etalaient sur 1140 px et il fallait descendre au
+     plancher de zoom pour les voir ensemble — un ecran qui s'ouvre illisible
+     ne se rattrape pas. A 120, les six tiennent dans la fenetre a z=1. */
+  const RANG_Y0 = 40, RANG_DY = 120;
   /* MIROIR DE LA FEUILLE : la largeur d'un nœud et la mi-hauteur de son
      en-tete servent a placer les PORTS (donc a tracer les aretes). Elles sont
      ecrites des deux cotes — mod-forge3d.css le dit aussi. */
@@ -132,8 +137,18 @@
                                     l'en-tete : la boite est en `border-box`
                                     (cardforge.css: * { box-sizing }), donc
                                     NOEUD_W est bien le bord DROIT */
+  /* la hauteur d'un nœud est INDICATIVE (le corps grandit en Task 3) : elle ne
+     sert qu'au CADRAGE (« recentrer »), jamais a la geometrie des aretes —
+     celle-la ne depend que de NOEUD_W et PORT_Y, tous deux exacts. */
+  const NOEUD_H = 100;
   const LAYOUT_MAX = 20000;     /* borne des positions, appliquee AU FLUSH */
-  const ZOOM_MIN = 0.35, ZOOM_MAX = 2.5;
+  const CAM_X0 = 20, CAM_Y0 = 20;   /* le cadrage d'ouverture */
+  /* LE PLANCHER DE ZOOM EST TENU PAR LA SPEC 9.6-3, pas par le gout : la
+     poignee d'un nœud est son en-tete (34 px), et une poignee doit rester
+     >= 12 px A L'ECRAN. 34 x 0,36 = 12,24 px ; a 0,35 elle tombait a 11,9 —
+     sous la barre, au zoom que l'on atteint justement quand on cherche a
+     tout voir pour ranger. */
+  const ZOOM_MIN = 0.36, ZOOM_MAX = 2.5;
 
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
      100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
@@ -1204,7 +1219,7 @@
   let SEL = null;               /* le nœud sélectionné (clic sur son en-tête).
                                     L'inspecteur 3D de la Task 5 le consomme ;
                                     ici il ne fait que porter la classe. */
-  let LAYOUT_VU = {};           /* LA POSITION DE CHAQUE NŒUD À L'ÉCRAN —
+  let LAYOUT_VU = sansProto();  /* LA POSITION DE CHAQUE NŒUD À L'ÉCRAN —
                                     l'état du geste vit ici (spec 9.6-1), le
                                     document ne suit qu'au rythme des frames */
   let LAYOUT_SALE = false;      /* une position a bougé depuis le dernier flush */
@@ -1212,7 +1227,7 @@
   /* LA CAMÉRA — pan et zoom. Volontairement HORS du document : ce n'est pas
      une propriété du deck mais un réglage d'onglet (deux fenêtres ouvertes
      sur le même deck ne se disputent pas leur cadrage). */
-  const CAM = { px: 20, py: 20, z: 1 };
+  const CAM = { px: CAM_X0, py: CAM_Y0, z: 1 };
   let camPending = null, camRaf = 0;
   let DRAG = null;              /* le geste en cours : un nœud, ou le fond */
 
@@ -1270,14 +1285,23 @@
   }
 
   function videCanvas() {
-    /* UN SEMIS EN ATTENTE DE FRAME APPARTIENT ENCORE À CE LAYOUT-CI : basculer
-       sur la liste dans la même frame que la peinture laissait la frame
-       retardataire patcher un LAYOUT_VU déjà vidé — c'est-à-dire effacer
-       l'arrangement du document. On l'écrit AVANT de vider. */
+    /* L'ORDRE DE CES TROIS GESTES EST LE CORRECTIF LUI-MÊME (épinglé au test).
+       1. UN SEMIS EN ATTENTE DE FRAME APPARTIENT ENCORE À CE LAYOUT-CI :
+          basculer sur la liste dans la même frame que la peinture laissait la
+          frame retardataire patcher un LAYOUT_VU déjà vidé — c'est-à-dire
+          effacer l'arrangement du document. On l'écrit AVANT de vider.
+       2. LE GESTE APPARTENAIT À LA VUE QU'ON QUITTE. Sans `DRAG = null`, le
+          pointeur CAPTURÉ continuait d'écrire dans un LAYOUT_VU vidé : le
+          relâché flushait alors une carte d'UNE SEULE entrée, et `patchAs`
+          remplace la valeur en bloc (fusion superficielle du 1er niveau) —
+          toutes les autres positions détruites, et sans recours puisque le
+          layout est justement ce qui n'entre PAS dans la pile d'annulation.
+       3. et seulement là, on vide. */
     if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
     flushLayout();
+    DRAG = null;
     const host = $("#cf-forge3d-canvas");
-    LAYOUT_VU = {};
+    LAYOUT_VU = sansProto();
     if (!host) return;
     const monde = host.querySelector(".cf-forge3d-monde");
     const vide = host.querySelector(".cf-forge3d-vide");
@@ -1293,11 +1317,16 @@
     if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
     if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
     LAYOUT_SALE = false;
-    LAYOUT_VU = {};
+    LAYOUT_VU = sansProto();
     camPending = null;
     DRAG = null;
     SEL = null;
-    CAM.px = 20; CAM.py = 20; CAM.z = 1;
+    CAM.px = CAM_X0; CAM.py = CAM_Y0; CAM.z = 1;
+    /* LE PIÈGE DE LA TRANSFORMATION RASSISE : remettre les CHIFFRES sans les
+       APPLIQUER laissait le monde affiché sous l'ancien cadrage jusqu'à la
+       prochaine écriture de caméra — un deck neuf s'ouvrait au zoom du
+       précédent, et la molette « sautait » au premier cran. */
+    appliqueCam();
   }
 
   /* une position BORNÉE, appliquée au flush : un nœud traîné hors du monde
@@ -1316,17 +1345,21 @@
      semées. Rend le layout COMPLET de ce graphe — c'est lui qu'on peint. */
   function seedLayout(graph) {
     const pose = get("layout") || {};
-    const out = {}, rangs = {};
+    const out = sansProto(), rangs = sansProto();
     ((graph && graph.nodes) || []).forEach((n) => {
-      const x = Object.prototype.hasOwnProperty.call(COL_X, n.kind)
-        ? COL_X[n.kind] : COL_X_DEFAUT;
+      const x = connu(COL_X, n.kind) ? COL_X[n.kind] : COL_X_DEFAUT;
       rangs[x] = (rangs[x] == null) ? 0 : rangs[x] + 1;
       const p = connu(pose, n.id) ? pose[n.id] : null;
       const connue = Array.isArray(p) && p.length === 2
         && isFinite(Number(p[0])) && isFinite(Number(p[1]));
+      /* LES DEUX BRANCHES PASSENT PAR `bornePos` : le semis aussi. Ses
+         valeurs sont sûres AUJOURD'HUI (des constantes de ce fichier), mais
+         c'est le genre de sûreté qui meurt en silence — une colonne poussée à
+         30000 en Task 4 aurait produit un layout hors bornes que le flush
+         aurait ensuite « corrigé », donc un nœud qui saute tout seul. */
       out[n.id] = connue
         ? [bornePos(p[0]), bornePos(p[1])]
-        : [x, RANG_Y0 + RANG_DY * rangs[x]];
+        : [bornePos(x), bornePos(RANG_Y0 + RANG_DY * rangs[x])];
     });
     return out;
   }
@@ -1360,7 +1393,7 @@
     layoutRaf = 0;
     if (!LAYOUT_SALE) return;
     LAYOUT_SALE = false;
-    const out = {};
+    const out = sansProto();
     Object.keys(LAYOUT_VU).forEach((k) => {
       out[k] = [bornePos(LAYOUT_VU[k][0]), bornePos(LAYOUT_VU[k][1])];
     });
@@ -1396,13 +1429,40 @@
     appliqueCam();          /* <= 1 écriture de transformation par frame */
   }
 
-  /* RECENTRER — le cadrage est local et n'entre jamais dans le document.
-     Sans ce bouton, une surface poussée au loin n'a aucun retour : l'écran a
-     l'air vide et le graphe a l'air perdu. */
+  /* RECENTRER = CADRER LE GRAPHE, pas « revenir à l'origine ». Le cadrage est
+     local et n'entre jamais dans le document ; sans ce bouton, une surface
+     poussée au loin n'a aucun retour. Mais une remise à l'origine ne suffit
+     pas : un graphe dont les nœuds ont été rangés à x=1500 reste hors champ
+     après le « retour », et le bouton se lit alors comme cassé. On calcule
+     donc la boîte du contenu et on l'AJUSTE à la fenêtre (échelle bornée par
+     les mêmes butées que la molette, jamais au-delà de 1 — on cadre, on
+     n'agrandit pas). Layout vide : la remise à l'origine, faute de contenu. */
   function recentreCam() {
     if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
     camPending = null;
-    CAM.px = 20; CAM.py = 20; CAM.z = 1;
+    const host = $("#cf-forge3d-canvas");
+    const cles = Object.keys(LAYOUT_VU);
+    if (!host || !cles.length) {
+      CAM.px = CAM_X0; CAM.py = CAM_Y0; CAM.z = 1;
+      appliqueCam();
+      return;
+    }
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    cles.forEach((k) => {
+      const p = LAYOUT_VU[k];
+      if (p[0] < x0) x0 = p[0];
+      if (p[1] < y0) y0 = p[1];
+      if (p[0] + NOEUD_W > x1) x1 = p[0] + NOEUD_W;
+      if (p[1] + NOEUD_H > y1) y1 = p[1] + NOEUD_H;
+    });
+    const w = host.clientWidth, h = host.clientHeight;
+    const marge = 24;
+    const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, 1,
+      Math.min((w - 2 * marge) / Math.max(1, x1 - x0),
+               (h - 2 * marge) / Math.max(1, y1 - y0))));
+    CAM.z = z;
+    CAM.px = (w - (x1 - x0) * z) / 2 - x0 * z;
+    CAM.py = (h - (y1 - y0) * z) / 2 - y0 * z;
     appliqueCam();
   }
 
@@ -1437,14 +1497,14 @@
       const nid = noeud.getAttribute("data-nid");
       selectionne(nid);
       const p = posDe(nid) || [0, 0];
-      DRAG = { nid: nid, el: noeud, x0: e.clientX, y0: e.clientY,
-               ox: p[0], oy: p[1] };
+      DRAG = { pid: e.pointerId, nid: nid, el: noeud,
+               x0: e.clientX, y0: e.clientY, ox: p[0], oy: p[1] };
     } else {
       /* cliquer le FOND désélectionne : sans ça, l'inspecteur de la Task 5
          continuerait de montrer un nœud que plus rien ne désigne à l'écran. */
       selectionne(null);
-      DRAG = { pan: true, x0: e.clientX, y0: e.clientY,
-               px: CAM.px, py: CAM.py };
+      DRAG = { pid: e.pointerId, pan: true, el: null,
+               x0: e.clientX, y0: e.clientY, px: CAM.px, py: CAM.py };
     }
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* vieux moteur */ }
     e.preventDefault();
@@ -1452,12 +1512,24 @@
 
   function onCanvasMove(e) {
     if (!DRAG) return;
+    /* UN GESTE, UN POINTEUR. `isPrimary` empêche un second doigt d'OUVRIR un
+       geste ; il n'empêche pas ses `pointermove` d'arriver ici. Sans ce
+       filtre, une tentative de pincement téléportait le nœud à l'écart du
+       SECOND doigt (calculé contre l'origine du premier) et le COMMETTAIT au
+       relâché — même doctrine que le registre `POLLS` du 2b : le jeton
+       compare, il ne se contente pas d'exister. */
+    if (e.pointerId !== DRAG.pid) return;
     if (DRAG.pan) {
       camPending = { px: DRAG.px + (e.clientX - DRAG.x0),
                      py: DRAG.py + (e.clientY - DRAG.y0), z: CAM.z };
       if (!camRaf) camRaf = scheduleFrame(flushCam);
       return;
     }
+    /* LE NŒUD A PU QUITTER LE DOM SOUS LE GESTE (repeinture, bascule de vue,
+       re-seed) : le pointeur est CAPTURÉ par la surface, donc les événements
+       continuent d'arriver pour un élément détaché — on écrirait dans un DOM
+       fantôme et, pire, dans un LAYOUT_VU qui n'est plus celui-là. */
+    if (!DRAG.el || !DRAG.el.isConnected) { DRAG = null; return; }
     /* le pointeur se déplace en pixels d'ÉCRAN, le layout en pixels de MONDE :
        diviser par l'échelle, sinon un nœud traîné à z=2 file deux fois trop
        vite sous le curseur. */
@@ -1465,17 +1537,25 @@
     const x = bornePos(DRAG.ox + (e.clientX - DRAG.x0) / z);
     const y = bornePos(DRAG.oy + (e.clientY - DRAG.y0) / z);
     LAYOUT_VU[DRAG.nid] = [x, y];
-    /* FEEDBACK LOCAL IMMÉDIAT (spec 9.6-2) : le nœud et ses arêtes suivent le
-       pointeur à CHAQUE événement — c'est bon marché (deux styles et quelques
-       attributs `d`) ; le DOCUMENT, lui, suit au rythme des frames. */
+    /* FEEDBACK LOCAL IMMÉDIAT (spec 9.6-2) : le nœud et SES arêtes suivent le
+       pointeur à CHAQUE événement — c'est bon marché. */
     DRAG.el.style.left = x + "px";
     DRAG.el.style.top = y + "px";
-    majAretes();
-    demandeFlushLayout();
+    majAretes(DRAG.nid);
+    /* LE DOCUMENT SUIT AU RELÂCHÉ, PAS À LA FRAME (décision de revue). La
+       barre 9.6-1 plafonne à UN patch par frame ; zéro la respecte aussi, et
+       ici c'est le bon chiffre : RIEN ne lit `layout` pendant le geste (le
+       feedback est local, ci-dessus), tandis que chaque patch cascade en
+       `invalidate` -> `drawPreview` — un rendu COMPLET de la carte, par
+       frame, pour un geste qui ne peut pas en changer un seul pixel. Le
+       drapeau suffit : `onCanvasUp` et `videCanvas` flushent l'état FINAL
+       exact (9.6-1, seconde moitié). */
+    LAYOUT_SALE = true;
   }
 
   function onCanvasUp(e) {
     if (!DRAG) return;
+    if (e.pointerId !== DRAG.pid) return;    /* un geste, un pointeur (I2) */
     const pan = !!DRAG.pan;
     DRAG = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
@@ -1517,6 +1597,11 @@
     const cx = e.clientX - r.left - surf.clientLeft;
     const cy = e.clientY - r.top - surf.clientTop;
     const base = camPending || CAM;
+    /* LIMITE ASSUMÉE, HÉRITÉE DE mod-face : `deltaY` est lu SANS regarder
+       `deltaMode`. En mode LIGNE (0x01, certains Firefox) ou PAGE (0x02) un
+       cran vaut « 3 » au lieu de « ~100 », et le zoom devient poussif — pas
+       faux, lent. La normalisation appartient à une passe partagée (les cinq
+       surfaces à molette du lab ont la même dette), pas à ce nœud-ci. */
     const k = Math.exp(-e.deltaY * 0.0016);
     const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, base.z * k));
     /* LE POINT SOUS LE CURSEUR NE BOUGE PAS : le monde est translaté PUIS mis
@@ -1548,7 +1633,7 @@
      toute façon) — mais elle n'est pas non plus effacée du graphe ici :
      `clean_graph` reste l'ultime porte, l'écran ne décide rien en douce. */
   function aretes(graph) {
-    const vus = {};
+    const vus = sansProto();
     ((graph && graph.nodes) || []).forEach((n) => { vus[n.id] = 1; });
     return ((graph && graph.edges) || [])
       .filter((e) => connu(vus, e.from) && connu(vus, e.to));
@@ -1563,6 +1648,16 @@
   function connu(reg, cle) {
     return Object.prototype.hasOwnProperty.call(reg, cle);
   }
+
+  /* CÔTÉ ÉCRITURE, `connu()` ne suffit pas. `constructor` et `toString` posés
+     en clé créent bien une propriété PROPRE (elles masquent l'héritée, sans
+     surprise) ; `__proto__`, lui, ne le fait PAS — sur un objet littéral il
+     traverse l'accesseur d'Object.prototype et REPARENTE l'objet au lieu d'y
+     ranger une position. Un nœud nommé « __proto__ » (l'alphabet d'id de
+     `clean_graph` l'autorise) faisait donc disparaître son entrée du layout et
+     empoisonnait l'objet entier. Un registre sans prototype n'a pas
+     d'accesseur à traverser : la clé y est une clé, quelle qu'elle soit. */
+  function sansProto() { return Object.create(null); }
 
   function posDe(nid) {
     return connu(LAYOUT_VU, nid) ? LAYOUT_VU[nid] : null;
@@ -1593,14 +1688,23 @@
   }
 
   /* les tracés SEULS, sans reconstruire la couche : c'est ce qui rend le
-     glisser fluide (aucun innerHTML pendant le geste). */
-  function majAretes() {
+     glisser fluide (aucun innerHTML pendant le geste).
+     `nid` RESTREINT aux arêtes INCIDENTES : un nœud traîné ne peut déplacer
+     que les extrémités qui le touchent, et réécrire les autres était du
+     travail par événement qui croît avec la TAILLE DU GRAPHE — la seule
+     dépense du glisser qui n'était pas bornée. Sans `nid` (repeinture
+     complète, fin de geste), tout est réécrit.
+     La comparaison se fait par ATTRIBUT et non par sélecteur construit
+     (doctrine `findByAttr`) : un id de nœud est une DONNÉE, jamais un
+     fragment de sélecteur — un point y suffirait à tout casser. */
+  function majAretes(nid) {
     const monde = mondeEl();
     if (!monde) return;
     Array.prototype.slice.call(monde.querySelectorAll(".cf-forge3d-edge"))
       .forEach((p) => {
-        const a = posDe(p.getAttribute("data-from"));
-        const b = posDe(p.getAttribute("data-to"));
+        const de = p.getAttribute("data-from"), vers = p.getAttribute("data-to");
+        if (nid != null && de !== nid && vers !== nid) return;
+        const a = posDe(de), b = posDe(vers);
         if (a && b) p.setAttribute("d", courbe(a, b));
       });
   }
@@ -1661,7 +1765,16 @@
     const vide = host.querySelector(".cf-forge3d-vide");
     const graph = get("graph");
     if (!graph) {
-      LAYOUT_VU = {};
+      /* le graphe vient de disparaître SOUS le geste (annuler le tout premier
+         semis, en plein glisser) : le pointeur capturé écrirait ensuite dans
+         un LAYOUT_VU vidé, et le relâché patcherait une carte d'une seule
+         entrée — voir `videCanvas` pour le détail du dégât. */
+      DRAG = null;
+      /* et le drapeau tombe avec lui : le laisser armé sur une carte vidée
+         laissait un `videCanvas` ultérieur écrire `{}` au document sur la foi
+         d'un geste qui ne décrit plus rien. */
+      LAYOUT_SALE = false;
+      LAYOUT_VU = sansProto();
       if (monde) monde.innerHTML = "";
       if (vide) {
         vide.innerHTML = LAST_MANIFEST
@@ -1901,12 +2014,12 @@
       naissance = editTrs(next, procId, field, rawValue);
     }
     setGraph(next, field);
-    /* `kind` change la STRUCTURE : la vue ACTIVE se repeint entière — la
-       liste par `paintGraph()`, le canvas par `paintCanvas()`. La dispatche
-       est écrite ici plutôt qu'appelée : c'est ce chemin-là que le pin de
-       source de la 2a lit, et il doit continuer à nommer le peintre de la
-       liste qu'il vérifie. */
-    if (field === "kind") { if (VUE === "canvas") paintCanvas(); else paintGraph(); }
+    /* `kind` change la STRUCTURE du nœud : la vue ACTIVE se repeint entière,
+       par le dispatcher comme les dix autres appelants. (La 2c a d'abord
+       recopié la dispatche ICI pour satisfaire au mot près un pin de source
+       de la 2a ; le pin a été AMENDÉ À SA SOURCE — il vérifie désormais
+       l'invariant là où la logique vit, dans `paintVue`.) */
+    if (field === "kind") paintVue();
     else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
     else paintCost();
   }

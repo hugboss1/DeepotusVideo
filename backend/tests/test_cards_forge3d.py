@@ -1522,7 +1522,20 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     corps_edit = rendu.split("function editGraph(")[1].split("\n  }")[0]
     apres_commit = corps_edit.split("setGraph(next, field)")[1]
     assert 'field === "kind"' in apres_commit
-    assert "paintGraph()" in apres_commit
+    # AMENDÉ À LA SOURCE (revue 2c) — ce pin exigeait le littéral
+    # `paintGraph()` À CET ENDROIT. La 2c ajoute une SECONDE projection du
+    # graphe (le canvas) et un dispatcher `paintVue` ; la lettre du pin
+    # obligeait alors `editGraph` à RECOPIER la dispatche au lieu de
+    # l'appeler — une duplication qui n'existait que pour satisfaire un test,
+    # c'est-à-dire exactement le contournement que ces pins existent pour
+    # empêcher. On amende à la source plutôt que de contourner : ce que le
+    # pin VEUT dire, c'est « un changement de `kind` repeint la vue entière,
+    # et la liste garde son peintre ». La première moitié se vérifie ici, la
+    # seconde là où la logique vit — dans le corps de `paintVue`.
+    assert "paintVue()" in apres_commit
+    corps_vue = rendu.split("function paintVue(")[1].split("\n  }")[0]
+    assert "paintGraph()" in corps_vue, corps_vue
+    assert "paintCanvas()" in corps_vue, corps_vue
 
 
 def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
@@ -3926,9 +3939,53 @@ def test_le_canvas_est_la_projection_du_meme_graphe():
     # ... et le geste ne demarre que sur le pointeur PRIMAIRE (9.6-3)
     debut = rendu.split("function onCanvasDown(")[1].split("\n  }")[0]
     assert "isPrimary" in debut, debut
+    # UN GESTE, UN POINTEUR — et c'est une propriete DISTINCTE de la
+    # precedente : `isPrimary` empeche un second doigt d'OUVRIR un geste, il
+    # n'empeche pas ses `pointermove` d'arriver. Sans filtre par
+    # `pointerId`, un debut de pincement teleportait le nœud a l'ecart du
+    # SECOND doigt (mesure contre l'origine du premier) et le COMMETTAIT au
+    # relache. Le jeton se COMPARE, il ne se contente pas d'exister (meme
+    # doctrine que le registre POLLS de la 2b).
+    assert "pid: e.pointerId" in rendu
+    for nom in ("onCanvasMove", "onCanvasUp"):
+        bloc = rendu.split("function " + nom + "(")[1].split("\n  }")[0]
+        assert "e.pointerId !== DRAG.pid" in bloc, (nom, bloc)
     # ... sur une surface qui ne defile pas sous le doigt (9.6-3)
     feuille = CSS.read_text(encoding="utf-8")
     assert "touch-action: none" in feuille
+    # ── LE GESTE NE PEUT PAS RASER LE LAYOUT (C1 de la revue) ─────────────
+    # Le degat : le pointeur est CAPTURE par la surface, donc un glisser
+    # survit a la bascule de vue. `videCanvas` vidait LAYOUT_VU sans annuler
+    # le geste ; les `pointermove` suivants y re-posaient LA SEULE entree du
+    # nœud traine, et le relache patchait cette carte-la. `patchAs` fusionne
+    # au PREMIER NIVEAU (la valeur remplace, elle ne se melange pas) : toutes
+    # les autres positions detruites — et sans recours, puisque le layout est
+    # precisement ce qui n'entre PAS dans la pile d'annulation.
+    # L'ORDRE est le correctif : flusher CE layout, PUIS couper le geste,
+    # PUIS vider. On epingle l'ordre, pas seulement la presence.
+    vc = rendu.split("function videCanvas(")[1].split("\n  }")[0]
+    for jalon in ("flushLayout()", "DRAG = null", "LAYOUT_VU = sansProto()"):
+        assert jalon in vc, (jalon, vc)
+    assert vc.index("flushLayout()") < vc.index("DRAG = null") \
+        < vc.index("LAYOUT_VU = sansProto()"), vc
+    # la meme coupure sur l'autre chemin qui vide sous le geste : annuler le
+    # tout premier semis EN PLEIN GLISSER fait disparaitre le graphe.
+    pc = rendu.split("function paintCanvas(")[1].split("\n  }")[0]
+    sans_graphe = pc.split("if (!graph) {")[1]
+    assert "DRAG = null" in sans_graphe, sans_graphe
+    # ... et le chemin du CHANGEMENT DE DECK, lui, n'ecrit RIEN : les
+    # positions en attente appartiennent au deck qu'on quitte, les patcher
+    # les poserait sur le suivant.
+    ol = rendu.split("function oublieLeCanvas(")[1].split("\n  }")[0]
+    assert "flushLayout" not in ol, ol
+    assert "DRAG = null" in ol and "LAYOUT_SALE = false" in ol, ol
+    # UNE SEULE PORTE POUSSE LA PILE D'ANNULATION, et c'est `setGraph` : si un
+    # jour un helper poussait HIST ailleurs, « le layout ne s'annule pas »
+    # redeviendrait une affirmation de commentaire au lieu d'une propriete du
+    # code (le mutant : deplacer HIST.push dans une fonction intermediaire).
+    assert rendu.count("HIST.push") == 1, rendu.count("HIST.push")
+    sg = rendu.split("function setGraph(")[1].split("\n  }")[0]
+    assert "HIST.push" in sg, sg
     # l'auto-arrangement est DETERMINISTE (colonnes par kind, pas de hasard)
     assert "function seedLayout(" in rendu and "Math.random" not in rendu
     # les aretes sont UNE couche SVG sous les noeuds

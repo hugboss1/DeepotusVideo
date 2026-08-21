@@ -97,6 +97,25 @@
 .cf-forge3d .cf-forge3d-vide { left: 12px; top: 12px; right: 12px; }
 .cf-forge3d .cf-forge3d-outils { right: 10px; bottom: 10px; display: flex; gap: 6px; }
 
+/* ── CE QUE CETTE FEUILLE NE FAIT PAS ENCORE, ET POURQUOI (dette nommee) ───
+   Trois manques sont DELIBERES en Task 2 ; les nommer ici evite qu'on les
+   prenne pour des oublis (ou qu'on les repare deux fois) :
+   1. AUCUN habillage par kind. L'attribut `data-kind` est deja pose sur
+      chaque nœud : le crochet existe, la teinte par etage (couche /
+      traitement / matiere / assemblage) arrive avec les corps de la Task 3,
+      quand il y aura autre chose qu'un en-tete a differencier.
+   2. LES ARETES SONT MONOCHROMES (--stroke-strong) et sans etat au survol.
+      La couche SVG est `pointer-events: none` — deliberement, sinon elle
+      volerait les clics des nœuds qu'elle croise. La Task 4 (supprimer une
+      arete au clic) devra donc AJOUTER une zone de saisie explicite : un
+      second chemin transparent et epais par arete, seul a recevoir le
+      pointeur. Un simple `pointer-events: stroke` sur ces traits-ci ne
+      suffirait pas — 1,5 px de cible, sous la barre des 12 px (spec 9.6-3).
+   3. AUCUN PORT VISIBLE. Les aretes partent de coordonnees calculees
+      (NOEUD_W, PORT_Y) ; les pastilles d'entree/sortie naissent en Task 4,
+      avec le glisser port-a-port — et devront tomber EXACTEMENT sur ces
+      coordonnees, sans quoi le trait et sa poignee se decolleraient. */
+
 /* les aretes : UNE couche SVG, SOUS les nœuds (ordre du DOM) et sourde aux
    evenements — sans quoi elle volerait les clics des nœuds qu'elle croise. */
 .cf-forge3d .cf-forge3d-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
@@ -110,12 +129,21 @@
   background: var(--bg-panel); border: 1px solid var(--stroke-strong);
   border-radius: 8px; overflow: hidden;
 }
+/* LA SELECTION SE PEINT EN --sel-bg, PAS EN --accent. Un role par emploi de
+   la couleur (cardforge.css:14) : dans CETTE feuille l'ambre a deja un
+   emploi — « ce que l'action va COUTER » (prix du nœud, pied de cout) et
+   « en cours ». Un nœud selectionne aurait porte le meme jaune qu'un nœud
+   qui facture, et l'œil aurait lu « celui-la coute » a chaque clic.
+   --sel-bg est le jeton de « l'option retenue », qui est exactement ce
+   qu'est un nœud selectionne. */
 .cf-forge3d .cf-forge3d-noeud.selected {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+  border-color: var(--sel-bg);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--sel-bg) 32%, transparent);
 }
+.cf-forge3d .cf-forge3d-noeud.selected .cf-forge3d-kind-l { color: var(--ink-strong); }
 /* l'en-tete EST la poignee (le corps garde ses champs) : curseur contextuel
-   et zone de saisie bien au-dela des 12 px de la spec 9.6-3. */
+   et zone de saisie >= 12 px A L'ECRAN (spec 9.6-3) — c'est cette hauteur-la
+   qui fixe le plancher de zoom cote JS : 34 x ZOOM_MIN (0,36) = 12,24 px. */
 .cf-forge3d .cf-forge3d-tete {
   display: flex; align-items: center; gap: 6px; height: 34px;
   padding: 0 9px; cursor: move;
