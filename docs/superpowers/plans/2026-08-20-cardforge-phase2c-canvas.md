@@ -369,9 +369,54 @@ git commit -m "feat(cardforge): corps de noeuds - menus reutilises tels quels, v
 
 ### Task 4: Les connexions à la souris + le kind `export` (miroir)
 
-**Files:** mod-forge3d.js, forge3d.py, test_cards_forge3d.py.
+**Files:** mod-forge3d.js, mod-forge3d.css, forge3d.py, test_cards_forge3d.py.
+(La feuille s'ajoute à la liste du plan : la Task 4 est ce qui PAIE la dette
+CSS nommée en Task 2 — zone de saisie des arêtes et pastilles de ports.)
 
-- [ ] **Step 1 : tests en RED**
+> **LIVRÉ.** 88 tests (85 + 3), lint 0 violation, `--geom` 4/4, `node --check`
+> OK ; 8 mutants tués + ancre-contrôle survivante. Décisions et amendements,
+> tous à la SOURCE :
+> · **une table, trois lecteurs** : `GRAMMAIRE` sert la validation
+>   (`lienValide`), les PORTS (`aEntree`/`aSortie` s'en DÉDUISENT — pas de
+>   seconde liste « qui a quel port » à tenir d'accord) et le TEXTE du refus
+>   (`chaineAttendue` marche la table et rend « couche → plan | relief |
+>   mesh 3D → matière | placement | assemblage → artefact → export ») ;
+> · **moitié pure / moitié qui écrit** : `grapheAvecLien`/`grapheSansLien`
+>   rendent un graphe ou un motif et ne touchent à rien — c'est ce qui les
+>   rend JUGEABLES. Le harnais de chaînes (nouveau, dans le test : extraction
+>   des VRAIES fonctions du fichier livré + node) mesure l'aller-retour
+>   canvas → `rowModel`/`graphRows` → `rewireRow` : 30 cas, dont
+>   l'idempotence de l'écrivain de la vue liste sur un graphe câblé à la
+>   souris ;
+> · **le refus précède l'écriture** (jamais créer-puis-avouer) : grammaire,
+>   puis SURNOMBRE avec les mots du bordereau (source surnuméraire, seconde
+>   matière, second placement) ; un DOUBLON n'est ni refus ni écriture (rien
+>   à annuler, rien à dire) ;
+> · **trois défauts trouvés en auto-revue et corrigés** : (1) les ports
+>   posés à `left: 0`/`top: PORT_Y` tombaient à UN PIXEL de l'ancre — le
+>   repère d'un enfant absolu est la boîte de PADDING de son ancêtre, pas sa
+>   boîte de bordure (`- var(--cf-bord)`, épinglé au chiffre des deux
+>   fichiers) ; (2) le bouton « supprimer » vit DANS le monde, donc le
+>   glisser du fond le retirait au `pointerdown` avant que son propre clic
+>   n'arrive ; (3) `paintNode` réécrit l'intérieur d'un nœud — sans
+>   `portsHtml` là aussi, les poignées disparaissaient au premier caractère
+>   tapé ;
+> · **français accordé** : le libellé du plan (« un {from} ne se branche pas
+>   sur un {to} ») donne « un couche » une fois sur deux et aurait exigé une
+>   table de GENRES à tenir d'accord avec `KIND_LABELS` — les kinds sont donc
+>   CITÉS entre guillemets, et les phrases de surnombre s'accordent en bloc.
+> **Restes à T7 (navigateur)** : le ressenti du fil au pointeur réel, la
+> pastille de 14 px au zoom arrière (assumé : sous z≈0,86 elle passe sous la
+> barre des 12 px — le plancher de zoom protège la poignée de DÉPLACEMENT,
+> pas celle de connexion ; remède nommé dans la feuille si la passe dit le
+> contraire), et la lisibilité du bouton de coupe sur une arête courte.
+> **Dépendance T5** : aucun nœud `export` ne peut NAÎTRE avant la palette —
+> le vocabulaire, les ports, la grammaire et le nettoyage l'attendent, mais
+> l'écran ne montre encore que son motif (`KIND_HINTS.export`) ; son corps
+> (choix du format, téléchargement) est bien la Task 5. `/info` publie
+> désormais `graph_limits.export_formats` pour qu'elle ne le recopie pas.
+
+- [x] **Step 1 : tests en RED**
 
 ```python
 def test_le_vocabulaire_gagne_export_des_deux_cotes():
@@ -417,7 +462,7 @@ def test_les_connexions_valident_la_grammaire_a_l_arete():
     assert "cf-forge3d-port" in rendu
 ```
 
-- [ ] **Step 2 : implémentation**
+- [x] **Step 2 : implémentation**
 
 Backend (forge3d.py) : miroir `NODE_KINDS` += `{"kind": "export", "params":
 ["format"]}` (les DEUX côtés) ; `EXPORT_FORMATS = ("glb", "stl", "metadata",
@@ -445,7 +490,7 @@ source).
    chaînes est ÉTENDU : créer un lien au canvas puis lire `rowModel` rend la
    même chaîne (aller-retour stable).
 
-- [ ] **Step 3 : GREEN + harnais + lint + commit**
+- [x] **Step 3 : GREEN + harnais + lint + commit**
 
 ```bash
 git add frontend/cardforge/js/mod-forge3d.js backend/app/services/cards/forge3d.py backend/tests/test_cards_forge3d.py
