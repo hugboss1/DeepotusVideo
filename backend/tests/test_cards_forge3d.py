@@ -1727,6 +1727,25 @@ def test_la_geometrie_vit_dans_forge3d_scene_et_le_stl_garde_son_contrat_d_octet
                 "write_scene_glb", "_write_stl_binary"):
         assert getattr(F9, nom) is getattr(scene, nom), nom
 
+    # ── LE SECOND SIDECAR (couture de delestage 2c-T6) ────────────────────
+    # Il n'est PAS pur au sens de celui-ci (il porte des refus NOMMES, donc
+    # leur code de statut) — l'ecart est assume et ecrit dans son en-tete.
+    # Ce qui est mesure ici est ce qui fait de lui une VRAIE couture : il
+    # n'importe RIEN de forge3d.py. Un sidecar qui importe son parent n'est
+    # pas une couture, c'est la meme piece en deux fichiers.
+    apercu = importlib.import_module("app.services.cards.forge3d_apercu")
+    src_ap = (ROOT / "backend" / "app" / "services" / "cards" /
+              "forge3d_apercu.py").read_text(encoding="utf-8")
+    sans_com = re.sub(r"#[^\n]*", "", re.sub(r'""".*?"""', "", src_ap,
+                                             flags=re.S))
+    assert "forge3d" not in sans_com.replace("forge3d_scene", ""), \
+        "le sidecar importe (ou nomme) forge3d : la couture est fausse"
+    # ... et les DEUX noms que les tests lisent A TRAVERS forge3d sont bien
+    # les MEMES objets. Les six autres reexports ont ete ELAGUES (personne ne
+    # les lisait) : ces deux-la sont exerces, donc epingles.
+    for nom in ("_resolve_graph_elements", "_PREVIEW_ASM_ID"):
+        assert getattr(F9, nom) is getattr(apercu, nom), nom
+
     m = scene.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0, 0.3, 8)
     m["closed"] = True
     stl = scene._write_stl_binary([{"name": "a", "mesh": m, "z_mm": 0.0}], "x")
@@ -4194,6 +4213,16 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
     # comme une VIDEO dans les trois, avec un lecteur qui ne peut pas l'ouvrir.
     # Un GLB n'est pas un rendu video, et la colonne ne ment pas.
     assert not moi[0]["final_video_path"], moi[0]
+    # M6 (ronde de correction T6) : `image_filename` est NON NUL en base, et
+    # ce n'est PAS « preview.png » — ce nom-la PASSE le controle d'extension du
+    # tiroir de file d'attente du bundle, qui le resoudrait en
+    # `/api/images/preview.png`, c'est-a-dire une image de la bibliotheque
+    # d'images SANS AUCUN RAPPORT si elle existe. Un nom derive sans extension
+    # ne peut pas etre pris pour un fichier d'images : il ne designe rien, ce
+    # qui est la verite (la vignette de l'onglet 3D vient du SHORT).
+    assert moi[0]["image_filename"] == f"card3d_{pub['short']}", moi[0]
+    assert not str(moi[0]["image_filename"]).lower().endswith(
+        (".png", ".jpg", ".jpeg", ".webp", ".gif")), moi[0]
 
     # IDEMPOTENT : meme artefact -> meme id, aucun doublon, et la copie est
     # RAFRAICHIE (l'artefact a pu etre reconstruit entre-temps). Le corps JSON
@@ -4218,6 +4247,13 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
                           / "carte3d_preview.png").read_bytes()
     assert _api("GET", f"/api/assets/3d/{pub['short']}/manifest"
                 ).json()["has_preview"] is True
+    # M6 — ET SURTOUT ICI : la colonne ne devient PAS « preview.png » sous
+    # pretexte qu'une vignette a voyage. (Mesure trouvee par mutation : la
+    # premiere version de ce pin vivait AVANT que l'apercu existe, la ou les
+    # deux ecritures rendent le meme nom — il ne mesurait donc rien.)
+    apres = [j for j in _api("GET", "/api/jobs").json()
+             if j.get("job_id") == pub["job_id"]]
+    assert apres[0]["image_filename"] == f"card3d_{pub['short']}", apres[0]
 
     # UN AUTRE ARTEFACT DU MEME DECK EST UN AUTRE OBJET : l'id derive du
     # COUPLE (deck, artefact), pas du deck seul — sans quoi publier la carte 2
@@ -4245,9 +4281,233 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
     r8 = _api("POST", "/api/cards/deck_00000000/forge3d/library/carte3d")
     assert r8.status_code == 404, r8.text
 
+    # LE NAMESPACE EST UN LITTERAL GELE — pin explicite (un mutant l'a montre
+    # SURVIVANT). En changer la valeur ne casse rien de visible... et
+    # ORPHELINE toutes les publications passees : les anciens dossiers
+    # `{short}` restent sur le disque, plus aucun JobRecord ne les designe, et
+    # re-publier fabrique un DOUBLON sous un nouveau short. Un id derive n'est
+    # une promesse d'idempotence que si sa graine ne bouge jamais.
+    from app.services.cards import forge3d as _F9b
+    assert str(_F9b.NAMESPACE_CARD3D) == "ac928da5-740b-48d6-8913-93a83055aeeb"
+    # ... et le short est bien LE prefixe de l'id, celui que l'ecran calcule
+    # (`job_id.slice(0,8)`) et que `_delete_provider_output_dir` recalcule
+    # (`job.id[:8]`) : une seule regle, verifiee ici sur un cas reel.
+    assert pub["short"] == pub["job_id"][:8]
+
+
+def test_republier_publie_L_ENSEMBLE_et_ne_tombe_jamais_en_500():
+    """Ronde de correction T6 — trois défauts SONDÉS par la revue adverse :
+
+      · S2 : re-publier ne faisait qu'ÉCRASER ce qui existe. Un artefact
+        reconstruit SANS re-figer l'aperçu laissait la vignette de la
+        publication PRÉCÉDENTE servie sous le même `short` (le rebuild efface
+        pourtant le PNG périmé du deck), et un `model.opt.glb` d'« Optimiser »
+        aurait continué de servir le maillage optimisé de l'ANCIEN modèle.
+      · M5 : un metadata bien formé JSON mais de la mauvaise FORME
+        (`[1,2,3]`, `{"attributes": 5}`) traversait le `except` et faisait un
+        500 sur un fichier qu'on ne fait que RECOPIER.
+      · M8 : `short` fait 32 bits et `asset3d` coupe un uuid4 au même endroit
+        — publier par-dessus le dossier d'un maillage PAYÉ l'écraserait
+        définitivement, et de façon REPRODUCTIBLE (notre id est déterministe).
+    """
+    from app.config import settings as cfg
+    from app.services.storage import init_db
+    asyncio.run(init_db())
+    did = _deck("Republication")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "reptile"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+    assert _api("POST", f"/api/cards/{did}/forge3d/preview/reptile",
+                content=_png(Image.new("RGBA", (16, 16), (1, 2, 3, 255)))
+                ).status_code == 200
+    pub = _api("POST", f"/api/cards/{did}/forge3d/library/reptile").json()
+    short = pub["short"]
+    d3d = cfg.outputs_path / "assets3d" / short
+    assert _api("GET", f"/api/assets/3d/{short}/preview").status_code == 200
+
+    # ── S2 : la RECONSTRUCTION efface l'apercu perime du deck (`_efface`),
+    # et re-publier doit RETIRER celui de la Bibliotheque. Sinon la vignette
+    # illustre un modele qui n'existe plus.
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+    assert not (_dossier_forge3d(did) / "reptile_preview.png").is_file()
+    # ... on pose AUSSI les deux fichiers d'« Optimiser » (routes.py, chantier
+    # 10a) : ils decrivent le maillage qu'on vient de remplacer.
+    (d3d / "model.opt.glb").write_bytes(b"glTF-vieux-maillage-optimise")
+    (d3d / "optimize.json").write_text('{"before":{"tris":1}}',
+                                       encoding="utf-8")
+    assert _api("POST", f"/api/cards/{did}/forge3d/library/reptile"
+                ).status_code == 200
+    assert _api("GET", f"/api/assets/3d/{short}/preview").status_code == 404, \
+        "l'apercu de la publication PRECEDENTE reste servi"
+    assert not (d3d / "model.opt.glb").is_file(), \
+        "le GLB optimise de l'ANCIEN maillage reste telechargeable"
+    assert not (d3d / "optimize.json").is_file()
+    # ... et le manifeste, qui est LE lecteur de ce dossier, le dit
+    man = _api("GET", f"/api/assets/3d/{short}/manifest").json()
+    assert man["has_preview"] is False, man
+    assert man["formats"] == ["glb"], man
+    # ... aucun temporaire de copie ne traine, et rien ne s'y annonce comme un
+    # format (le `.tmp` porte un point de tete EXPRES).
+    assert sorted(p.name for p in d3d.iterdir()) == ["metadata.json",
+                                                     "model.glb"], \
+        sorted(p.name for p in d3d.iterdir())
+
+    # ── M5 : un metadata de la MAUVAISE FORME ne fait pas tomber la
+    # publication. Le MODELE est bon — c'est lui qu'on publie.
+    meta = _dossier_forge3d(did) / "reptile.metadata.json"
+    for faux in ("[1, 2, 3]", '{"attributes": 5}', '{"attributes": [7]}',
+                 '"une chaine"', "null"):
+        meta.write_text(faux, encoding="utf-8")
+        r = _api("POST", f"/api/cards/{did}/forge3d/library/reptile")
+        assert r.status_code == 200, (faux, r.status_code, r.text)
+        assert (d3d / "metadata.json").read_text(encoding="utf-8") == faux
+
+    # ── M8 : le dossier `{short}` appartient DEJA a un autre objet 3D. On
+    # fabrique la collision a la main (un JobRecord asset3d dont l'id partage
+    # les 8 premiers hex) : publier doit REFUSER, nommement, AVANT d'ecrire.
+    from app.services.storage import JobRecord, async_session_factory
+    from app.models.schemas import JobStatus
+    pub2 = _api("POST", f"/api/cards/{did}/forge3d/library/reptile").json()
+    victime = pub2["short"] + "-dead-beef-cafe-000000000001"
+
+    async def _pose():
+        async with async_session_factory() as s:
+            s.add(JobRecord(id=victime, provider="asset3d",
+                            status=JobStatus.DONE.value, progress=100,
+                            image_filename=f"asset3d_{pub2['short']}",
+                            title="un maillage PAYE"))
+            await s.commit()
+    asyncio.run(_pose())
+    avant = sorted(p.name for p in d3d.iterdir())
+    r = _api("POST", f"/api/cards/{did}/forge3d/library/reptile")
+    assert r.status_code == 409, r.text
+    assert "appartient" in r.json()["detail"], r.text
+    assert victime in r.json()["detail"], r.text
+    # ... et RIEN n'a bouge sur le disque : le refus tombe avant l'ecriture.
+    assert sorted(p.name for p in d3d.iterdir()) == avant
+
+    async def _retire():
+        async with async_session_factory() as s:
+            v = await s.get(JobRecord, victime)
+            if v is not None:
+                await s.delete(v)
+                await s.commit()
+    asyncio.run(_retire())
+    assert _api("POST", f"/api/cards/{did}/forge3d/library/reptile"
+                ).status_code == 200
+
+    # ── M9a : SUPPRIMER une carte publiee depuis la Bibliotheque emporte SES
+    # FICHIERS. `_delete_provider_output_dir` ne connaissait que sprite2d et
+    # asset3d : la ligne partait, le dossier restait — invisible, et
+    # re-publie sous le meme short deterministe.
+    assert d3d.is_dir()
+    assert _api("DELETE", f"/api/jobs/{pub2['job_id']}").status_code == 200
+    assert not d3d.exists(), sorted(p.name for p in d3d.iterdir())
+
+
+def test_la_copie_publiee_est_promue_pas_ecrasee(monkeypatch):
+    """M3 (ronde de correction T6) : une copie vers un chemin PUBLIQUEMENT
+    SERVI passe par un temporaire puis `os.replace`.
+
+    `copyfile` tronque puis reecrit EN PLACE : un `FileResponse` deja en train
+    de streamer `model.glb` lirait la fin du nouveau fichier apres le debut de
+    l'ancien — un GLB EPISSE, valide a l'octet pres. La course elle-meme n'est
+    pas reproductible dans un test en process ; CE QUI L'EST, c'est la
+    mecanique qui l'evite : le nom du temporaire (hors de toute liste publique)
+    et la REPRISE du `os.replace` que Windows fait echouer quand la cible est
+    ouverte — la meme course, les memes bornes, que `_job_write`."""
+    from app.config import settings as cfg
+    from app.services.cards import forge3d as F9
+    from app.services.storage import init_db
+    asyncio.run(init_db())
+    did = _deck("Promotion")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "promu"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+
+    vrai_replace = os.replace
+    vus = {"tmp": [], "echecs": 0}
+
+    def replace_espion(src, dst, *a, **kw):
+        s_nom = pathlib.Path(src).name
+        if s_nom.endswith(".tmp") and "assets3d" in str(dst):
+            vus["tmp"].append(s_nom)
+            # DEUX echecs PASSAGERS (la course Windows), puis ca passe : la
+            # publication doit SURVIVRE, exactement comme `_job_write` survit
+            # a un poll concurrent.
+            if vus["echecs"] < 2:
+                vus["echecs"] += 1
+                raise PermissionError(5, "occupe par un lecteur")
+        return vrai_replace(src, dst, *a, **kw)
+
+    monkeypatch.setattr(F9.os, "replace", replace_espion)
+    r = _api("POST", f"/api/cards/{did}/forge3d/library/promu")
+    assert r.status_code == 200, r.text
+    assert vus["echecs"] == 2, vus
+    # LE TEMPORAIRE NE COMMENCE PAS PAR `model.` : la route `manifest` declare
+    # un FORMAT pour tout fichier qui commence par la (routes.py). Un
+    # `model.glb.tmp`, meme une milliseconde, se serait annonce comme un
+    # format « glb.tmp » telechargeable.
+    assert vus["tmp"], vus
+    for nom in vus["tmp"]:
+        assert not nom.startswith("model."), nom
+        assert nom.startswith("."), nom
+    # ... et LE GLB EN PARTICULIER. Mesure trouvee par mutation : un test qui
+    # se contente de « au moins un temporaire » reste VERT quand SEUL le
+    # `model.glb` retombe sur un `copyfile` en place — or c'est justement le
+    # fichier de 32 Mio qu'un lecteur est en train de streamer.
+    assert ".model.glb.tmp" in vus["tmp"], vus["tmp"]
+    d3d = cfg.outputs_path / "assets3d" / r.json()["short"]
+    assert (d3d / "model.glb").read_bytes() == (
+        _dossier_forge3d(did) / "promu.glb").read_bytes()
+    assert [p.name for p in d3d.iterdir() if p.name.endswith(".tmp")] == []
+
+    # ... et une cible DEFINITIVEMENT verrouillee reste une PANNE avouee — pas
+    # un succes silencieux — ET ne laisse aucun temporaire derriere elle.
+    def replace_mort(src, dst, *a, **kw):
+        if "assets3d" in str(dst):
+            raise PermissionError(5, "verrouille pour de bon")
+        return vrai_replace(src, dst, *a, **kw)
+
+    monkeypatch.setattr(F9.os, "replace", replace_mort)
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/library/promu")
+    assert r2.status_code == 500, r2.text
+    assert [p.name for p in d3d.iterdir() if p.name.endswith(".tmp")] == [], \
+        sorted(p.name for p in d3d.iterdir())
+
 
 BUNDLE = ROOT / "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
 PATCHER = ROOT / "scripts" / "patch_bundle_card3d_library.py"
+
+# LES DEUX PAIRES (ancre -> remplacement) DU PATCH card3d, ECRITES ICI ET PAS
+# IMPORTEES DU PATCHER : ce test doit pouvoir dire « le bundle livre porte
+# CECI » meme si le patcher se trompe. Les importer ferait comparer le patcher
+# a lui-meme. Elles servent aussi a DERIVER l'etat pre-patch (S1) : le `.bak`
+# du depot est gitignore, donc absent de tout clone frais.
+_PAIRES_CARD3D = [
+    ('return z.provider==="asset3d"});setJobs(L)',
+     'return z.provider==="asset3d"||z.provider==="card3d"});setJobs(L)'),
+    ('T3=u.filter(C=>C.provider==="asset3d"&&C.status==="done")',
+     'T3=u.filter(C=>(C.provider==="asset3d"||C.provider==="card3d")'
+     '&&C.status==="done")'),
+]
 
 
 def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
@@ -4264,11 +4524,9 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     # (1) LE BUNDLE LIVRE. Les deux filtres, elargis, et les parentheses de
     # L2 : `&&` lie plus fort que `||`, sans elles un job card3d NON termine
     # passerait le filtre de la Bibliotheque.
-    assert src.count('return z.provider==="asset3d"'
-                     '||z.provider==="card3d"});setJobs(L)') == 1, \
+    assert src.count(_PAIRES_CARD3D[0][1]) == 1, \
         "filtre du hub Game Assets non elargi"
-    assert src.count('T3=u.filter(C=>(C.provider==="asset3d"'
-                     '||C.provider==="card3d")&&C.status==="done")') == 1, \
+    assert src.count(_PAIRES_CARD3D[1][1]) == 1, \
         "filtre de la Bibliotheque 3D non elargi (ou parentheses perdues)"
     # ... et le `kind` n'a PAS bouge : « asset3d » est la categorie de l'OBJET
     # (un modele 3D), le provider dit d'ou viennent les octets. Le viewer, le
@@ -4285,16 +4543,29 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     faux = tmp_path / "frontend" / "dist" / "assets"
     faux.mkdir(parents=True)
     cible = faux / BUNDLE.name
-    # la copie part de l'etat PRE-patch : le .bak du depot est le seul endroit
-    # ou il vit encore.
     # LE TAG EST LE NOM DU FICHIER (`repatch_all` deduit `patch_bundle_<tag>.py`
     # du `.bak_<tag>`) : un tag qui derive du nom sort « SANS SCRIPT » de la
     # chaine, c'est-a-dire une chaine non rejouable. Le pin le tient.
     assert PATCHER.name == "patch_bundle_card3d_library.py"
-    bak_depot = BUNDLE.with_name(BUNDLE.name + ".bak_card3d_library")
-    assert bak_depot.is_file(), "le .bak du maillon doit exister apres coup"
-    cible.write_bytes(bak_depot.read_bytes())
+    # ── L'ETAT PRE-PATCH EST DERIVE, PAS LU (S1, revue adverse de la T6) ────
+    # La premiere version lisait `.bak_card3d_library` a cote du bundle. Or
+    # `.gitignore` exclut `frontend/dist/assets/*.js.bak_*` : ce fichier
+    # n'existe QUE sur la machine qui a lance le patcher — sur tout clone
+    # frais, ce test etait le seul rouge de la suite. Un test qui depend d'un
+    # fichier non versionne ne mesure pas le depot, il mesure un poste.
+    # L'inverse des DEUX paires rend le meme octet (verifie ci-dessous par le
+    # compte de caracteres ET par l'absence des remplacements) : le pre-patch
+    # se DEDUIT du bundle livre, qui, lui, est versionne.
+    pre = src
+    for anchor, repl in _PAIRES_CARD3D:
+        assert pre.count(repl) == 1, repl
+        pre = pre.replace(repl, anchor)
+    assert len(pre) == len(src) - 48, (len(pre), len(src))
+    for _a, repl in _PAIRES_CARD3D:
+        assert repl not in pre
+    cible.write_text(pre, encoding="utf-8", newline="")
     avant = cible.read_bytes()
+    assert avant.count(b"\r\n") == BUNDLE.read_bytes().count(b"\r\n")
 
     def run():
         return subprocess.run(
@@ -4323,8 +4594,10 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     assert txt2.count('||C.provider==="card3d"') == 1, "double patch"
 
     # ... et le maillon est REJOUABLE : `repatch_all` deduit le script du TAG
-    # du backup, donc le .bak pose par le patcher doit porter le nom du
-    # fichier. Sinon la chaine sort « SANS SCRIPT » et s'arrete la.
+    # du backup, donc le .bak POSE PAR CETTE EXECUTION doit porter le nom du
+    # fichier. Sinon la chaine sort « SANS SCRIPT » et s'arrete la. (Mesure
+    # sur la COPIE — le .bak du depot, lui, est gitignore : rien ici ne le
+    # regarde.)
     pose = sorted(p.name for p in faux.glob(BUNDLE.name + ".bak_*"))
     assert pose == [BUNDLE.name + ".bak_card3d_library"], pose
     # ... et un bundle DEJA patche sans son .bak est un etat AMBIGU : refus
@@ -4333,6 +4606,25 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     r3 = run()
     assert r3.returncode != 0, r3.stdout
     assert "sanity" in (r3.stdout + r3.stderr), r3.stdout + r3.stderr
+
+    # (3) M7 — UNE ANCRE PERIMEE NE LAISSE AUCUN BACKUP DERRIERE ELLE.
+    # Le controle des ancres vivait APRES la copie du .bak : un bundle ou
+    # l'ancre a bouge produisait un backup PUIS un abandon. Ce backup-la est un
+    # piege differe — l'operateur repare l'ancre a la main, relance, et la
+    # branche « restore <- .bak » DETRUIT la reparation sans un mot.
+    autre = tmp_path / "perime" / "frontend" / "dist" / "assets"
+    autre.mkdir(parents=True)
+    (autre / BUNDLE.name).write_text(
+        pre.replace(_PAIRES_CARD3D[0][0], 'return z.provider==="asset3D"});'
+                    'setJobs(L)'),
+        encoding="utf-8", newline="")
+    r4 = subprocess.run(
+        [sys.executable, str(PATCHER), "--root", str(tmp_path / "perime")],
+        capture_output=True, text=True)
+    assert r4.returncode != 0, r4.stdout
+    assert "anchor count=0" in (r4.stdout + r4.stderr), r4.stdout + r4.stderr
+    assert list(autre.glob(BUNDLE.name + ".bak_*")) == [], \
+        "un abandon ne doit JAMAIS laisser un backup derriere lui"
 
 
 def test_le_bouton_publier_est_garde_et_vit_dans_les_deux_vues():
@@ -4355,6 +4647,15 @@ def test_le_bouton_publier_est_garde_et_vit_dans_les_deux_vues():
     # passer la peinture d'occupation, voire la requete.
     assert pl.split("{", 1)[1].lstrip().startswith(
         "if (publishLibrary.busy) return;"), pl[:200]
+    # M4 (ronde de correction T6) : ... ET PENDANT UNE CONSTRUCTION. Ce qui
+    # part a la Bibliotheque, c'est `{art}.glb` SUR LE DISQUE DU DECK : tant
+    # que `build3d` l'ecrit, ce fichier n'est pas l'artefact qu'on croit
+    # publier (c'est celui d'avant, ou une moitie des deux). Le garde vit dans
+    # la FONCTION, pas seulement sur le bouton — un bouton desactive n'arrete
+    # ni le clavier, ni un double-clic dans la fenetre de repeinture.
+    assert "build3d.busy" in pl.split("if (!ARTIFACT)")[0], pl[:600]
+    ph = rendu.split("function publieHtml(")[1].split("\n  }")[0]
+    assert "build3d.busy" in ph, ph
     # LA GARDE DE GENERATION APRES CHAQUE await (doctrine du fichier) : une
     # publication lancee sur la carte d'avant n'ecrit pas « publie » dans
     # l'ecran de la suivante. Invariant, pas compte fige...
@@ -5507,6 +5808,14 @@ publishLibrary.busy = true;
 dit("... et pendant le geste il est VERROUILLE (patron build3d.busy)",
     publieHtml(ARTIFACT).indexOf("disabled") >= 0, publieHtml(ARTIFACT));
 publishLibrary.busy = false;
+/* M4 (ronde de correction T6) : et pendant une CONSTRUCTION aussi — ce qui
+   part a la Bibliotheque est le fichier que `build3d` est en train d'ecrire. */
+build3d.busy = true;
+dit("... et pendant une CONSTRUCTION il est verrouille lui aussi",
+    publieHtml(ARTIFACT).indexOf("disabled") >= 0, publieHtml(ARTIFACT));
+build3d.busy = false;
+dit("... et il se DEVERROUILLE quand les deux gestes sont finis",
+    publieHtml(ARTIFACT).indexOf("disabled") < 0, publieHtml(ARTIFACT));
 ARTIFACT.published = { job_id: "aaaabbbb-cccc-dddd-eeee-ffff00001111",
                        short: "aaaabbbb",
                        title: "Carte 3D · Mon deck · carte3d" };

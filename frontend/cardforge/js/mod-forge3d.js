@@ -2729,7 +2729,12 @@
       + (p ? ("publié · " + esc(p.title) + " · " + esc(p.short))
            : "pas encore publié dans la Bibliothèque")
       + '</span><button class="btn sm" type="button" data-act="publish-lib"'
-      + (publishLibrary.busy ? " disabled" : "")
+      /* VERROUILLÉ PENDANT UNE CONSTRUCTION AUSSI (M4) : `build3d` écrit
+         `{art}.glb` sur le disque du deck, et c'est CE fichier que publier
+         recopie. Cliquer pendant la construction publiait donc les octets du
+         build PRÉCÉDENT — ou, dans la fenêtre du `write_bytes`, un fichier à
+         moitié écrit. Le bouton dit ce que le serveur ferait. */
+      + ((publishLibrary.busy || build3d.busy) ? " disabled" : "")
       + ' title="copie l\'artefact dans la Bibliothèque 3D de l\'application">'
       + (p ? "republier" : "Publier dans la Bibliothèque")
       + '</button></div>';
@@ -2744,6 +2749,16 @@
   async function publishLibrary() {
     if (publishLibrary.busy) return;
     const status = $("#cf-forge3d-build-status");
+    /* LE MÊME VERROU QUE LE BOUTON (M4), et pas seulement lui : un bouton
+       désactivé n'est pas une garde — le clavier, un double-clic dans la
+       fenêtre de repeinture, ou un handler délégué qui remonte d'un enfant
+       passent à côté. Ce qui est publié, c'est `{art}.glb` sur le disque du
+       deck ; tant que `build3d` l'écrit, ce fichier n'est PAS l'artefact
+       qu'on croit publier. */
+    if (build3d.busy) {
+      M.toast("construction en cours — publie quand elle est finie", true);
+      return;
+    }
     if (!ARTIFACT) {
       M.toast("construis l'artefact d'abord", true);
       return;

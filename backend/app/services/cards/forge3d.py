@@ -47,10 +47,21 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
 # n'importe RIEN d'ici (voir son en-tête) : c'est ce qui rend la couture
 # réelle plutôt que décorative.
 from . import forge3d_apercu as _APERCU
-from .forge3d_apercu import (_PROC_KINDS, _CHAIN_MAX, _source_gagnante,
-                             _chaine_aval, _resolve_graph_elements, _trs_dict,
-                             _layer_filename, _geom_element, _PREVIEW_ASM_ID,
-                             _borne_apercu_glb, _sous_graphe_apercu)
+# CINQ NOMS, PAS ONZE (revue adverse T6) : la première version en réexportait
+# onze « pour la compat des tests », et le recensement a montré que SIX
+# (`_PROC_KINDS`, `_CHAIN_MAX`, `_source_gagnante`, `_chaine_aval`,
+# `_trs_dict`, `_geom_element`) n'étaient lus NULLE PART — ni ici, ni dans les
+# tests, ni ailleurs dans le backend : ils n'apparaissaient plus que dans de la
+# prose de commentaire. Une compatibilité que personne n'exerce n'est pas de la
+# compatibilité, c'est une liste qui grossit. Les cinq qui restent sont LUS :
+# trois par le code de ce fichier (`_layer_filename`, `_borne_apercu_glb`,
+# `_sous_graphe_apercu`, plus `_resolve_graph_elements`), et deux par les tests
+# à travers ce module (`_resolve_graph_elements`, `_PREVIEW_ASM_ID`) — ces
+# deux-là sont ÉPINGLÉS comme réexports, sinon le prochain élagage les
+# emporterait aussi.
+from .forge3d_apercu import (_resolve_graph_elements, _layer_filename,
+                             _PREVIEW_ASM_ID, _borne_apercu_glb,
+                             _sous_graphe_apercu)
 
 router = APIRouter()
 
@@ -2627,6 +2638,53 @@ async def post_preview(did: str, art: str, request: Request):
 # vient ».
 NAMESPACE_CARD3D = uuid.UUID("ac928da5-740b-48d6-8913-93a83055aeeb")
 
+# CE QUE LE DOSSIER `{short}` A LE DROIT DE SERVIR, et donc ce que chaque
+# publication doit RÉTABLIR EN ENTIER (S2, revue adverse). Les deux derniers ne
+# sont jamais écrits ici : c'est « Optimiser » (routes.py, chantier 10a) qui
+# les pose à côté du modèle — raison de plus pour les balayer, ils décrivent un
+# maillage qui vient d'être remplacé.
+_LIBRARY_SERVIS = ("preview.png", "metadata.json", "model.opt.glb",
+                   "optimize.json")
+
+
+def _copie_servie(src: Path, dest: Path) -> None:
+    """Une copie vers un chemin PUBLIQUEMENT SERVI : écrite à côté, puis
+    PROMUE par `os.replace` — jamais par-dessus le fichier que quelqu'un est en
+    train de lire (M3, revue adverse).
+
+    `copyfile` tronque puis réécrit EN PLACE : un `FileResponse` déjà en cours
+    de streaming sur `model.glb` lit alors la fin du nouveau fichier après le
+    début de l'ancien — un GLB ÉPISSÉ, à un octet près valide, mesuré par la
+    revue. `os.replace`, lui, ne touche pas l'inode ouvert : le lecteur en
+    cours finit tranquillement l'ancien, les suivants ouvrent le nouveau.
+
+    Sous Windows, `os.replace` sur une cible OUVERTE lève `PermissionError` —
+    exactement la course que `_job_write` retente déjà (mêmes bornes,
+    `_JOB_IO_ESSAIS` / `_JOB_IO_PAUSE_S`, mêmes raisons : passager, sans
+    rapport avec une vraie panne disque). Au-delà des essais, l'erreur repart
+    telle quelle : un fichier vraiment verrouillé reste une panne, et l'aveu
+    doit le dire."""
+    # LE TEMPORAIRE NE COMMENCE PAS PAR `model.` — et ce n'est pas un détail :
+    # la route `manifest` de la Bibliothèque déclare un FORMAT pour tout
+    # fichier dont le nom commence par `model.` (routes.py). Un
+    # `model.glb.tmp`, même le temps d'un `os.replace`, se serait annoncé
+    # comme un format « glb.tmp » téléchargeable. Le point de tête le sort de
+    # toutes les listes publiques du dossier.
+    tmp = dest.with_name("." + dest.name + ".tmp")
+    shutil.copyfile(src, tmp)
+    for reste in range(_JOB_IO_ESSAIS - 1, -1, -1):
+        try:
+            os.replace(tmp, dest)
+            return
+        except PermissionError:
+            if not reste:
+                # le temporaire ne reste PAS derrière : un fichier à moitié
+                # promu dans un dossier public est du bruit que personne ne
+                # sait lire.
+                tmp.unlink(missing_ok=True)
+                raise
+            time.sleep(_JOB_IO_PAUSE_S)
+
 
 def _library_job_id(did: str, art: str) -> tuple[str, str]:
     """`(job_id, short)` DÉRIVÉS du couple (deck, artefact) — l'idempotence
@@ -2679,6 +2737,35 @@ async def post_library(did: str, art: str):
     doc_name = doc.get("name") or did
     titre = f"Carte 3D · {doc_name} · {art}"
 
+    # ── M8 : LE DOSSIER `{short}` PEUT DÉJÀ APPARTENIR À QUELQU'UN ─────────
+    # `short` fait 32 bits, et `asset3d` coupe un uuid4 au MÊME endroit :
+    # deux objets peuvent viser le même dossier. Sans cette garde, publier
+    # ÉCRASERAIT `outputs/assets3d/{short}/model.glb` — c'est-à-dire un
+    # maillage PAYÉ chez un moteur, définitivement, sans un mot. Et le défaut
+    # ne serait pas une malchance ponctuelle : notre id est DÉTERMINISTE, donc
+    # chaque re-publication de cette carte frapperait la MÊME victime.
+    # Le contrôle tombe AVANT le premier octet écrit — un refus nommé coûte un
+    # renommage d'artefact, un écrasement coûte le maillage.
+    from sqlalchemy import select as _select
+    from app.services.storage import (JobRecord as _JR,
+                                      async_session_factory as _sf)
+    async with _sf() as s0:
+        # PRÉFIXE, pas un balayage de table : la colonne est la clé primaire,
+        # et `LIKE 'xxxxxxxx%'` sur une clé texte reste une requête bornée. La
+        # table des jobs est de toute façon petite (l'écran en poll 50 à la
+        # fois) — mais charger la table pour poser une question à un seul
+        # enregistrement serait un mauvais patron à laisser derrière soi.
+        autre = (await s0.execute(
+            _select(_JR.id, _JR.provider).where(_JR.id.like(f"{short}%"))
+        )).all()
+    for autre_id, autre_prov in autre:
+        if autre_id != job_id:
+            raise HTTPException(
+                409, f"le dossier {short} appartient déjà à un autre objet 3D "
+                     f"(job {autre_id}, provider {autre_prov or 'inconnu'}) : "
+                     f"publier écraserait ses fichiers — renomme l'artefact "
+                     f"« {art} » et republie")
+
     def work() -> dict:
         out = _out_dir(did)
         src_glb = out / f"{art}.glb"
@@ -2690,7 +2777,7 @@ async def post_library(did: str, art: str):
         dest.mkdir(parents=True, exist_ok=True)
         # `model.glb` : LE NOM QUE LA ROUTE EXISTANTE LIT (`model.{fmt}`), pas
         # le nôtre. Publier, c'est parler la langue de la Bibliothèque.
-        shutil.copyfile(src_glb, dest / "model.glb")
+        _copie_servie(src_glb, dest / "model.glb")
         fichiers = ["model.glb"]
         # L'APERÇU EST FACULTATIF, et son absence est TOLÉRÉE : « figer
         # l'aperçu » peut n'avoir jamais tourné. La vignette de la
@@ -2698,7 +2785,7 @@ async def post_library(did: str, art: str):
         # un état.
         src_ap = out / f"{art}_preview.png"
         if src_ap.is_file():
-            shutil.copyfile(src_ap, dest / "preview.png")
+            _copie_servie(src_ap, dest / "preview.png")
             fichiers.append("preview.png")
         # LE METADATA VOYAGE AUSSI, et c'est un bonus honnête : aucune route
         # ne le sert aujourd'hui, mais la provenance de ces octets (deck,
@@ -2707,20 +2794,50 @@ async def post_library(did: str, art: str):
         moteurs = None
         src_meta = out / f"{art}.metadata.json"
         if src_meta.is_file():
-            shutil.copyfile(src_meta, dest / "metadata.json")
+            _copie_servie(src_meta, dest / "metadata.json")
             fichiers.append("metadata.json")
             try:
                 meta = json.loads(src_meta.read_text(encoding="utf-8"))
+                # M5 (revue adverse) : `isinstance` D'ABORD, et trois
+                # exceptions de plus. Un metadata bien formé JSON mais de la
+                # mauvaise FORME traversait le `except` : `[1,2,3]` levait
+                # AttributeError sur `.get`, `{"attributes": 5}` TypeError sur
+                # l'itération — deux 500 sur un fichier qu'on ne fait que
+                # RECOPIER, alors que le commentaire ci-dessous promet
+                # exactement le contraire. Sondé, pas imaginé.
+                #
+                # C'EST LE `except` QUI TIENT LA PROMESSE, pas ce `isinstance`
+                # (mesuré : retirer le test de type seul laisse la suite
+                # verte, l'AttributeError retombant dans le filet élargi —
+                # mutant ÉQUIVALENT, consigné plutôt que chassé). Il reste
+                # parce qu'un chemin nominal ne doit pas passer par une
+                # exception pour décider d'une forme : lire la forme est une
+                # question, la lever une panne.
+                attrs = meta.get("attributes") if isinstance(meta, dict) else None
                 moteurs = next(
-                    (a.get("value") for a in (meta.get("attributes") or [])
+                    (a.get("value") for a in (attrs or [])
                      if isinstance(a, dict)
                      and a.get("trait_type") == "engines"), None)
-            except (ValueError, OSError, UnicodeDecodeError):
+            except (ValueError, TypeError, AttributeError, OSError,
+                    UnicodeDecodeError):
                 # un metadata illisible ne fait pas échouer la publication :
                 # le MODÈLE est bon, c'est lui qu'on publie. La trace, elle,
                 # dira simplement qu'on n'a pas su lire les moteurs.
                 logger.warning(f"cards/forge3d: metadata illisible a la "
                                f"publication ({art})")
+        # ── PUBLIER L'ENSEMBLE, PAS LES AJOUTS (S2, revue adverse) ─────────
+        # Sans ce balayage, re-publier ne faisait qu'ÉCRASER ce qui existe :
+        # un artefact reconstruit SANS figer l'aperçu (le rebuild efface le
+        # PNG périmé du deck, c'est `_efface` plus haut) laissait la vignette
+        # de la publication PRÉCÉDENTE servie sous le même `short` — l'image
+        # d'un modèle qui n'est plus là. Même faute, plus grave, pour
+        # `model.opt.glb` : la Bibliothèque propose « GLB optimisé » dès que le
+        # fichier existe, et il aurait servi le maillage optimisé de l'ANCIEN
+        # modèle. Le dossier `{short}` n'est pas un dépôt qui s'accumule,
+        # c'est l'IMAGE de l'artefact à cette publication-ci.
+        for nom in _LIBRARY_SERVIS:
+            if nom not in fichiers:
+                (dest / nom).unlink(missing_ok=True)
         return {"files": fichiers, "engines": moteurs,
                 "bytes": src_glb.stat().st_size}
 
@@ -2750,11 +2867,16 @@ async def post_library(did: str, art: str):
         jr.title = titre
         jr.current_step = "Publié"
         jr.error = None
-        # `image_filename` est NON NUL en base : on écrit la MÊME convention
-        # qu'`asset3d` (« preview.png » quand il y en a une, un nom dérivé
-        # sinon) plutôt qu'une troisième orthographe pour la même case.
-        jr.image_filename = ("preview.png" if "preview.png" in info["files"]
-                             else f"card3d_{short}")
+        # `image_filename` est NON NUL en base. M6 (revue adverse) : ce N'EST
+        # PAS « preview.png », même si `asset3d` l'écrit. Ce nom-là PASSE le
+        # contrôle d'extension du tiroir de file d'attente du bundle, qui le
+        # résoudrait en `/api/images/preview.png` — c'est-à-dire une image de
+        # la bibliothèque d'images SANS AUCUN RAPPORT si elle existe (et un
+        # cadre cassé sinon). Un nom DÉRIVÉ, sans extension, ne peut pas être
+        # pris pour un fichier d'images : il ne désigne rien, ce qui est la
+        # vérité. Rien ne lit cette colonne pour l'onglet 3D — la vignette y
+        # vient de `/api/assets/3d/{short}/preview`, par le short.
+        jr.image_filename = f"card3d_{short}"
         jr.completed_at = datetime.utcnow()
         jr.cost_meta = json.dumps(
             {"deck": did, "deck_name": doc_name, "art": art, "job": short,

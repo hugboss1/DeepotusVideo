@@ -34,11 +34,18 @@ from app.services.storage import JobRecord, async_session_factory
 
 
 def _delete_provider_output_dir(job) -> None:
-    """sprite2d/asset3d write a whole per-job folder (frames, manifests,
-    previews) under outputs/{sprites,assets3d}/{short} — the four *_path
-    columns only cover single files, so deleting a job left the folder
-    behind (fix 20/07/2026)."""
-    sub = {"sprite2d": "sprites", "asset3d": "assets3d"}.get(job.provider or "")
+    """sprite2d/asset3d/card3d write a whole per-job folder (frames,
+    manifests, previews) under outputs/{sprites,assets3d}/{short} — the four
+    *_path columns only cover single files, so deleting a job left the folder
+    behind (fix 20/07/2026).
+
+    card3d (Card Forge, « Publier dans la Bibliotheque », 21/08/2026) shares
+    the assets3d layout on purpose: its job_id[:8] IS the folder, exactly like
+    asset3d's, so this one line is all it needs. Without it, deleting a
+    published card removed the row and left model.glb + preview.png on disk —
+    invisible, and re-published under the same deterministic short."""
+    sub = {"sprite2d": "sprites", "asset3d": "assets3d",
+           "card3d": "assets3d"}.get(job.provider or "")
     if not sub:
         return
     d = settings.outputs_path / sub / job.id[:8]
