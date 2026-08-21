@@ -1,5 +1,11 @@
 # Game Assets (3D) Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan d'origine, écrit avant
+> l'implémentation et jamais resynchronisé — 13 extraits python divergent du
+> code livré à la clôture du chantier (commit eb59246, principalement
+> `generate_asset3d` et la route `assets_3d`). En cas d'écart, le code livré
+> fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`).
 
 **Goal:** A new "Game Assets" category that turns an image into a downloadable 3D mesh via a selectable fal.ai engine (Tripo/Hunyuan3D/TRELLIS/Rodin/TripoSR; Meshy prepared), with multi-format export, individually-downloadable view shots, and an in-app rotatable preview.

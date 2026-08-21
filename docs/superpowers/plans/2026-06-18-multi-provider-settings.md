@@ -1,5 +1,10 @@
 # Multi-Provider Settings & Import Fix — Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan antérieur à l'historique du
+> dépôt, qui commence à l'import v1.15.1 (commit ef0c091) — 6 extraits python
+> y divergeaient déjà du code (routes provider-defaults, `generate_plan` de
+> marketing). En cas d'écart, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Fix the corrupted .env/import flow, then add multi-provider support (OpenAI, Gemini) for the summarizer and plan-generation roles, with a dropdown in Settings → Provider defaults to switch providers per role.

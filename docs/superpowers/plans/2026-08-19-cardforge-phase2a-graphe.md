@@ -1,5 +1,12 @@
 # Cardforge Phase 2a — Graphe gratuit + assembleur + artefact : plan d'implémentation
 
+> **Extraits resynchronisés a posteriori (audit de couture du 2026-08-21)** :
+> les extraits python ci-dessous sont alignés sur le code livré à la clôture
+> de la phase 2a (commit c8334de, avant la découpe forge3d_scene de la 2b) ;
+> le helper `_num_or` du plan d'origine a été livré sous le nom `_num` (copie
+> locale, règle 8). Les évolutions ultérieures vivent dans le plan 2b. En cas
+> d'écart résiduel, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Du manifeste de couches (phase 1) à un artefact 3D téléchargeable — graphe de
@@ -83,6 +90,43 @@ def test_clean_graph_repare_et_ne_leve_jamais():
     assert out2["edges"] == []
     assert F9.clean_graph(None) == {"nodes": [], "edges": []}
     assert F9.clean_graph("n'importe quoi") == {"nodes": [], "edges": []}
+    # constaté en auto-revue, absent du graphe « poubelle » ci-dessus (qui
+    # n'utilise que des chaînes) : `x in un_set` HACHE x avant de comparer —
+    # un `kind`/`role`/`id` de bord NON HACHABLE (liste, dict) au lieu d'une
+    # chaîne levait TypeError avant garde, un vrai chemin puisque ces valeurs
+    # viennent telles quelles du JSON client. Repris ici jusqu'aux arêtes.
+    hostile = {
+        "nodes": [{"kind": ["layer"]}, {"kind": {"x": 1}},
+                 {"kind": "layer", "role": ["cadre"]},
+                 {"kind": "layer", "role": {"a": 1}},
+                 {"id": ["a"], "kind": "assemble"},
+                 {"id": {"a": 1}, "kind": "assemble"},
+                 {"id": 1, "kind": "assemble"}],
+        "edges": [{"from": ["x"], "to": "y"}, {"from": 1, "to": 1}],
+    }
+    out3 = F9.clean_graph(hostile)     # ne lève pas non plus
+    assert isinstance(out3, dict) and "nodes" in out3 and "edges" in out3
+    assert out3["edges"] == []         # aucune arête à bouts non-chaîne ne survit
+    # I1/M1 (revue) : l'id BRUT {"a": 1} (déjà dans `hostile` ci-dessus,
+    # kind="assemble", 2e survivant sur les 3) est DÉSINFECTÉ comme
+    # artifact.name — aucune accolade, guillemet ni espace ne doit survivre
+    # dans l'id qui sort.
+    assemble_ids = [n["id"] for n in out3["nodes"] if n["kind"] == "assemble"]
+    assert len(assemble_ids) == 3
+    id_moche = assemble_ids[1]         # né de {"id": {"a": 1}, ...}
+    assert not any(c in id_moche for c in "{}'\" "), f"id non desinfecte : {id_moche!r}"
+
+    # I1 (revue) : deux nœuds d'id BRUT "n2x" — la resynthese anti-collision
+    # doit suffixer en BOUCLE jusqu'a unicite (mesure en revue : un simple
+    # "n{i+1}x" retombait sur EXACTEMENT "n2x" pour LES DEUX, et l'arête
+    # visant l'un des deux devenait ambiguë entre les deux).
+    doublon = {"nodes": [{"id": "n2x", "kind": "assemble"},
+                        {"id": "n2x", "kind": "assemble"}],
+              "edges": []}
+    out4 = F9.clean_graph(doublon)
+    assert len(out4["nodes"]) == 2, "les deux noeuds doivent etre conserves"
+    ids4 = [n["id"] for n in out4["nodes"]]
+    assert len(ids4) == len(set(ids4)), f"ids en collision : {ids4}"
 ```
 
 Run : `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\run-tests.ps1 -Filter cards_forge3d` — FAIL attendu (NODE_KINDS absent).
@@ -137,7 +181,12 @@ Dans `mod-forge3d.js` (sous LAYER_ROLES, même contenu en syntaxe JS entre
 - [ ] **Step 3 : `clean_graph` dans forge3d.py**
 
 ```python
-def _num_or(raw, default: float, lo: float, hi: float) -> float:
+def _num(raw, default: float, lo: float, hi: float) -> float:
+    """Garde numérique — COPIE LOCALE de `gltf.py:_num` (même règle 8 que
+    `_dpi_to_ppm` ci-dessus : zéro import pièce->pièce). Toute entrée qui
+    n'est pas un nombre fini retombe sur `default`, jamais une exception :
+    c'est ce qui manquait à `int(proof_c.get("diff_px") or 0)`, où une liste
+    ou un dict levait un `TypeError` non attrapé — 500 reproduit en revue."""
     try:
         v = float(raw)
     except (TypeError, ValueError, OverflowError):
@@ -150,42 +199,81 @@ def _num_or(raw, default: float, lo: float, hi: float) -> float:
 def clean_graph(raw) -> dict:
     """Le graphe, réparé clé par clé — patron `clean_options` de P8. Un nœud
     inconnu est jeté, un paramètre hors bornes est ramené, une arête orpheline
-    tombe. Ne lève JAMAIS (doctrine 2.5)."""
+    tombe. Ne lève JAMAIS (doctrine 2.5).
+
+    Écart assumé au plan : le plan proposait une garde numérique `_num_or`
+    dédiée, au corps STRICTEMENT identique à `_num` ci-dessus. La dupliquer
+    dans ce même fichier n'a rien à voir avec la règle 8 (zéro import
+    PIÈCE->PIÈCE, qui ne concerne que les frontières ENTRE modules) — ce
+    serait juste deux fonctions qui dérivent l'une de l'autre sans raison.
+    `clean_graph` réutilise donc `_num` telle quelle.
+
+    Garde supplémentaire (constatée en auto-revue, absente du plan et de son
+    test) : `n.get("kind") not in kinds` — et de même pour `role` — LÈVE si
+    la valeur reçue est un type non hachable (une liste, un dict : un client
+    qui envoie `{"kind": ["layer"]}` au lieu d'une chaîne). `x in un_set`
+    hache `x` avant de comparer ; ce n'était pas couvert par le graphe
+    « poubelle » du test (qui n'utilisait que des chaînes). D'où le
+    `isinstance(..., str)` AVANT tout `in kinds`/`in roles` ci-dessous :
+    un TypeError sur une entrée hostile serait exactement le 500 que cette
+    fonction existe pour empêcher.
+
+    I1/M1 (revue) : l'id est DÉSINFECTÉ comme `artifact.name` (même charset
+    `[A-Za-z0-9._-]`) avant toute comparaison — un id brut du client peut
+    porter n'importe quel caractère. La resynthèse anti-collision suffixe
+    en BOUCLE jusqu'à unicité : un simple `f"n{i+1}x"` ne suffisait pas —
+    mesuré en revue, deux nœuds bruts d'id "n2x" retombaient tous les deux
+    sur EXACTEMENT "n2x" (la deuxième collision n'était jamais reconsidérée),
+    et l'arête qui visait l'un des deux devenait ambiguë entre les deux."""
     g = raw if isinstance(raw, dict) else {}
     kinds = {k["kind"] for k in NODE_KINDS}
     roles = {r["role"] for r in LAYER_ROLES}
     nodes, ids = [], set()
-    for i, n in enumerate(g.get("nodes") or [] if isinstance(g.get("nodes"), list) else []):
-        if not isinstance(n, dict) or n.get("kind") not in kinds:
+    nodes_in = g.get("nodes")
+    nodes_in = nodes_in if isinstance(nodes_in, list) else []
+    nodes_in = nodes_in[:_GRAPH_ITER_MAX]      # borne anti-gel (_GRAPH_ITER_MAX)
+    for i, n in enumerate(nodes_in):
+        if not isinstance(n, dict):
+            continue
+        k_val = n.get("kind")
+        if not isinstance(k_val, str) or k_val not in kinds:
             continue
         brut = re.sub(r"[^A-Za-z0-9._-]", "_", str(n.get("id") or f"n{i + 1}"))[:24]
         node = {"id": brut or f"n{i + 1}", "kind": n["kind"]}
         # resynthese SANS collision possible : "n2x" + "n2x" donnait "n2x" deux
-        # fois (mesure en revue) — on suffixe jusqu'a unicite, borne par la
-        # longueur d'entree deja tronquee.
+        # fois (mesure en revue) — on suffixe jusqu'a unicite.
         while node["id"] in ids:
             node["id"] += "x"
         ids.add(node["id"])
         if n["kind"] == "layer":
-            node["role"] = n.get("role") if n.get("role") in roles else None
+            r_val = n.get("role")
+            node["role"] = r_val if isinstance(r_val, str) and r_val in roles else None
             node["side"] = "back" if n.get("side") == "back" else "front"
             node["composite"] = bool(n.get("composite"))
             if node["role"] is None and not node["composite"]:
                 continue                      # une source sans source n'est rien
         elif n["kind"] == "plane":
-            node["depth_mm"] = _num_or(n.get("depth_mm"), 0.0, *PLANE_DEPTH_MM)
+            node["depth_mm"] = _num(n.get("depth_mm"), 0.0, *PLANE_DEPTH_MM)
         elif n["kind"] == "relief":
-            node["depth_mm"] = _num_or(n.get("depth_mm"), 0.6, 0.05, RELIEF_DEPTH_MM_MAX)
-            node["base_mm"] = _num_or(n.get("base_mm"), 0.3, *RELIEF_BASE_MM)
-            node["grid"] = int(_num_or(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
+            node["depth_mm"] = _num(n.get("depth_mm"), 0.6, 0.05, RELIEF_DEPTH_MM_MAX)
+            node["base_mm"] = _num(n.get("base_mm"), 0.3, *RELIEF_BASE_MM)
+            node["grid"] = int(_num(n.get("grid"), RELIEF_GRID_DEFAULT, *RELIEF_GRID))
         elif n["kind"] == "artifact":
             nom = str(n.get("name") or "artefact")
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
         nodes.append(node)
     edges = []
-    for e in (g.get("edges") or [] if isinstance(g.get("edges"), list) else []):
-        if isinstance(e, dict) and e.get("from") in ids and e.get("to") in ids:
-            edges.append({"from": e["from"], "to": e["to"]})
+    edges_in = g.get("edges")
+    edges_in = edges_in if isinstance(edges_in, list) else []
+    edges_in = edges_in[:_GRAPH_ITER_MAX]      # même borne anti-gel
+    for e in edges_in:
+        if not isinstance(e, dict):
+            continue
+        ef, et = e.get("from"), e.get("to")
+        # même garde qu'au-dessus : `x in ids` hache x AVANT de comparer —
+        # {"from": ["x"]} lève sinon (un id ne peut être qu'une chaîne).
+        if isinstance(ef, str) and isinstance(et, str) and ef in ids and et in ids:
+            edges.append({"from": ef, "to": et})
     return {"nodes": nodes, "edges": edges}
 ```
 (imports à compléter en tête : `math` si absent.)
@@ -252,6 +340,11 @@ def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
     rep = F9.mesh_measures(m)
     assert rep["closed"] is True, rep
     assert rep["volume_mm3"] > 0.0
+    # le relief DÉCLARE sa fermeture (drapeau topologique, économise la
+    # remesure côté route — ~7 s au grid max) : la déclaration DOIT coïncider
+    # avec la mesure, sinon le raccourci de build3d mentirait au client.
+    assert m["closed"] is True
+    assert m["closed"] == rep["closed"]
     # le relief est borné : base <= z <= base+depth, xy dans la carte
     xs = m["positions"][0::3]; ys = m["positions"][1::3]; zs = m["positions"][2::3]
     assert min(zs) == 0.0 and max(zs) <= 0.3 + 1.0 + 1e-6
@@ -261,7 +354,9 @@ def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
 
     q = F9.quad_mesh(w_mm=63.0, h_mm=88.0)
     assert len(q["positions"]) == 4 * 3 and len(q["indices"]) == 6
-    assert F9.mesh_measures(q)["closed"] is False     # un plan n'est pas un solide
+    assert q["closed"] is False       # un plan n'est pas un solide
+    assert F9.mesh_measures(q)["closed"] is False
+    assert q["closed"] == F9.mesh_measures(q)["closed"]
 ```
 
 - [ ] **Step 2 : implémentation**
@@ -275,6 +370,7 @@ def quad_mesh(w_mm: float, h_mm: float) -> dict:
         "normals": [0.0, 0.0, 1.0] * 4,
         "uvs": [0.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0, 0.0],   # v inversé (image)
         "indices": [0, 1, 2, 0, 2, 3],
+        "closed": False,             # un plan n'est pas un solide
     }
 
 
@@ -286,7 +382,11 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     CONSTRUCTION : chaque arête appartient à exactement deux triangles parce
     que dessus, dessous et murs partagent leurs anneaux de bord. C'est
     l'« extrusion » gratuite v1 : un vrai suivi de contour (marching squares +
-    triangulation à trous) viendra si le besoin le prouve."""
+    triangulation à trous) viendra si le besoin le prouve.
+
+    Préconditions : bornes garanties par `clean_graph` (base_mm/depth_mm/grid)
+    — hors de ce chemin, base_mm=0 dégénère les murs et w_mm=0 divise par
+    zéro."""
     gx = max(2, int(grid))
     gy = max(2, int(round(grid * (h_mm / w_mm))))
     a = alpha_img.convert("L").resize((gx + 1, gy + 1))
@@ -310,13 +410,12 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
             uv += [i / gx, j / gy]
     bot = lambda i, j: n_top + j * (gx + 1) + i              # noqa: E731
 
+    # WINDING : avec y=(1-j/gy)*h, j=0 est le HAUT de carte ; l'ordre ci-dessous
+    # donne une aire signée POSITIVE vue de +z (normales dehors), prouvé par le
+    # test (closed ET volume>0 sur silhouette à trou). Garde-fou : une inversion
+    # UNIFORME du maillage garde closed=True et ne flippe QUE le signe du volume
+    # — c'est l'assertion volume>0 qui protège contre une régression, pas closed.
     idx = []
-    # WINDING CORRIGÉ EN REVUE (tâche 2) : la première version de ce plan
-    # sortait un maillage à l'ENVERS (normales vers l'intérieur, volume signé
-    # NÉGATIF — mesuré : -4557,89 mm³ sur l'anneau de test). Avec
-    # `y = (1 - j/gy) * h_mm`, j=0 est le HAUT de carte : l'ordre ci-dessous
-    # est celui qui donne aire signée positive vue de +z. Prouvé par le test
-    # (closed ET volume > 0 sur silhouette à trou).
     for j in range(gy):
         for i in range(gx):
             aa, bb = top(i, j), top(i + 1, j)
@@ -335,9 +434,10 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
         wall(top(0, j + 1), top(0, j), bot(0, j + 1), bot(0, j))
         wall(top(gx, j), top(gx, j + 1), bot(gx, j), bot(gx, j + 1))
 
-    # normales : accumulation de normales de faces ponderees par l'aire sur les
-    # sommets partages ; l'anneau de bord melange mur et face (arete du pourtour
-    # adoucie a l'ombrage — geometrie exacte, STL non affecte).
+    # normales : accumulation de normales de faces pondérées par l'aire sur
+    # les sommets partagés ; connu : l'anneau de bord mélange mur et face,
+    # l'arête du pourtour s'ombre adoucie — géométrie exacte, STL non affecté
+    # (normales de facette recalculées).
     nrm = [0.0] * len(pos)
     for t in range(0, len(idx), 3):
         i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
@@ -349,7 +449,12 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
     for k in range(0, len(nrm), 3):
         ln = math.sqrt(nrm[k] ** 2 + nrm[k + 1] ** 2 + nrm[k + 2] ** 2) or 1.0
         nrm[k] /= ln; nrm[k + 1] /= ln; nrm[k + 2] /= ln
-    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx}
+    # "closed": fermeture TOPOLOGIQUE, indépendante du contenu alpha —
+    # prouvée une fois pour toutes par le test unitaire ; la route build3d
+    # gate le STL sur ce drapeau au lieu de re-mesurer : 7 s + ~340 Mo de pic
+    # par élément au grid max, mesuré en revue.
+    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx,
+            "closed": True}
 
 
 def mesh_measures(mesh: dict) -> dict:
@@ -466,6 +571,33 @@ def test_le_glb_assemble_est_propre_des_l_ecriture():
     m_rel = doc["materials"][doc["meshes"][1]["primitives"][0]["material"]]
     assert m_plan["alphaMode"] == "BLEND" and m_plan["doubleSided"] is True
     assert m_rel.get("alphaMode", "OPAQUE") == "OPAQUE" and not m_rel.get("doubleSided")
+    # 6. taille de scene : le GLB a UN seul element pris isolement doit aussi
+    #    passer (racine + 1 enfant, pas de translation quand z_mm == 0.0)
+    seul = F9.write_scene_glb(
+        [{"name": "solo", "mesh": F9.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+         "alpha": False, "z_mm": 0.0}], name="carte3d", extras={})
+    doc1, bin1 = _read_glb(seul)
+    racine1 = doc1["nodes"][doc1["scenes"][0]["nodes"][0]]
+    assert len(racine1["children"]) == 1
+    assert doc1["nodes"][racine1["children"][0]]["name"] == "solo"
+    # 7. la taille declaree du buffer couvre EXACTEMENT les donnees du chunk
+    #    BIN — sur les deux tailles (1 et 2 elements)
+    assert doc1["buffers"][0]["byteLength"] == len(bin1)
+    assert doc["buffers"][0]["byteLength"] == len(binv)
+    # 8. zéro identité VRAIE pour TOUT appelant : le writer filtre lui-même
+    #    "generator" même quand l'APPELANT en glisse un dans extras — et la
+    #    racine porte l'extras FILTRÉ (pas l'original), aux deux étages
+    #    (asset.extras ET racine.extras — les DCC divergent sur lequel ils
+    #    gardent).
+    sale = F9.write_scene_glb(
+        [{"name": "x", "mesh": F9.quad_mesh(63.0, 88.0), "png": png.getvalue(),
+         "alpha": False, "z_mm": 0.0}], name="carte3d",
+        extras={"deck": "test", "generator": "espion"})
+    doc_sale, _ = _read_glb(sale)
+    assert '"generator"' not in json.dumps(doc_sale)
+    racine_sale = doc_sale["nodes"][doc_sale["scenes"][0]["nodes"][0]]
+    assert racine_sale["extras"] == {"deck": "test"}
+    assert doc_sale["asset"]["extras"] == {"deck": "test"}
 ```
 
 - [ ] **Step 2 : implémentation de `write_scene_glb`**
@@ -480,8 +612,13 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
     d'identité (ce writer n'en émet simplement jamais), samplers CLAMP, racine
     à l'échelle physique mm->m, un enfant nommé par élément, translation z en
     mm portée par le nœud de l'élément. Textures : les PNG estampillés de la
-    phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste)."""
-    import struct
+    phase 1, embarqués tels quels (mêmes octets, mêmes SHA que le manifeste).
+
+    Précondition : `elements` exige AU MOINS UN élément — un GLB à zéro
+    élément est invalide au schéma glTF (minItems 1) ; la route build3d fait
+    409 avant d'appeler ce writer (tâche 4)."""
+    # zéro identité VRAIE pour tout appelant, pas seulement le nôtre
+    extras = {k: v for k, v in (extras or {}).items() if k not in _IDENTITY_KEYS}
     buf = bytearray()
     views, accessors, images, textures, materials, meshes, nodes = [], [], [], [], [], [], []
 
@@ -503,10 +640,9 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         acc = {"bufferView": v, "componentType": ctype,
                "count": len(vals) // n, "type": atype}
         if ctype == 5126:
-            acc["min"] = [min(vals[i::n]) for i in range(n)]
-            acc["max"] = [max(vals[i::n]) for i in range(n)]
             # les bornes sont posées sur les float32 EXACTS : repasser par
-            # struct garantit la valeur que le lecteur relira
+            # struct garantit la valeur que le lecteur relira (un float
+            # Python 64 bits arrondi en float32 changerait de valeur)
             packed = struct.unpack("<" + "f" * len(vals), data)
             acc["min"] = [min(packed[i::n]) for i in range(n)]
             acc["max"] = [max(packed[i::n]) for i in range(n)]
@@ -514,14 +650,14 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
         return len(accessors) - 1
 
     sampler = 0   # un seul sampler CLAMP
-    for k, el in enumerate(elements):
+    for el in elements:
         m = el["mesh"]
         ip = add_accessor(m["positions"], 3, 5126, "VEC3", 34962)
         inm = add_accessor(m["normals"], 3, 5126, "VEC3", 34962)
         iuv = add_accessor(m["uvs"], 2, 5126, "VEC2", 34962)
         iix = add_accessor(m["indices"], 1, 5125, "SCALAR", 34963)
-        img = add_view(el["png"])
-        images.append({"bufferView": img, "mimeType": "image/png",
+        v_png = add_view(el["png"])
+        images.append({"bufferView": v_png, "mimeType": "image/png",
                        "name": el["name"]})
         textures.append({"sampler": sampler, "source": len(images) - 1})
         materials.append({
@@ -535,12 +671,22 @@ def write_scene_glb(elements: list, name: str, extras: dict) -> bytes:
             "attributes": {"POSITION": ip, "NORMAL": inm, "TEXCOORD_0": iuv},
             "indices": iix, "material": len(materials) - 1}]})
         nodes.append({"name": el["name"], "mesh": len(meshes) - 1,
-                      **({"translation": [0.0, 0.0, float(el.get("z_mm") or 0.0)]}
+                      **({"translation": [0.0, 0.0, float(el["z_mm"])]}
                          if el.get("z_mm") else {})})
-    # PAD FINAL AVANT de figer buffers[0].byteLength : l'ordre inverse declare
-    # un byteLength plus court que le chunk BIN reellement ecrit (mesure en
-    # tache 3 : 12359 declare vs 12360 ecrit, PNG de 79 octets non aligne).
+    # PIÈGE DU SQUELETTE (auto-revue) : le buffer doit être aligné à 4 AVANT
+    # que `buffers[0].byteLength` ne soit figé dans le JSON — la dernière
+    # écriture de la boucle (un PNG, taille arbitraire) laisse `buf`
+    # potentiellement désaligné. Padder ICI, avant de construire `doc`, pas
+    # après l'avoir sérialisé : sinon le JSON porte un byteLength trop petit
+    # (mesuré avant coup) pendant que le chunk BIN réellement écrit, lui,
+    # est plus long (padding déjà ajouté) — total et byteLength dérivent l'un
+    # de l'autre. Ici, `len(buf)` à la construction de `doc` EST déjà la
+    # longueur finale du chunk BIN : plus rien ne l'allonge après.
     pad4()
+    # extras posé aux DEUX etages (asset ET racine), assumé : les DCC gardent
+    # node.extras en propriétés custom et JETTENT asset.extras (Blender) ;
+    # three.js expose node.extras en userData — un seul emplacement ne
+    # survivrait pas partout.
     racine = {"name": str(name)[:60], "scale": [0.001, 0.001, 0.001],
               "children": list(range(len(nodes))), "extras": extras}
     nodes.append(racine)
@@ -723,6 +869,12 @@ git commit -m "feat(cardforge): POST build3d - graphe gratuit execute, GLB assem
 
 ```python
 def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
+    """Test de SOURCE (Tache 5) : l'ecran ne peut pas exister sans ces
+    quatre engagements — un rang par noeud de traitement construit depuis
+    `defaultGraph`, un POST `build3d` qui part avec le graphe de l'etat et
+    peint le bordereau depuis la reponse (`artifact`), un apercu REEL
+    (model-viewer, jamais un rendu invente), une capture qui part au
+    serveur (`toBlob` + `preview/`) et un motif STL affiche TEL QUEL."""
     src = JS.read_text(encoding="utf-8")
     rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
     # un rang par couche : traitement + profondeur, bornés par /info (jamais
@@ -739,6 +891,29 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert "toBlob" in rendu and "preview/" in rendu
     # STL refusé : le motif du backend est AFFICHÉ, jamais réécrit
     assert "stl.why" in rendu or 'stl["why"]' in rendu or "stl && !" in rendu
+    # « annulable » : le plan l'exige, patron du lab (mod-gltf.js et quatre
+    # autres modules) — pile d'annulation + bouton, pas juste un mot dans un
+    # commentaire.
+    assert "HIST" in rendu
+    assert 'id="cf-forge3d-undo"' in rendu
+    # le re-seed reste OFFERT une fois le graphe DÉJÀ construit (pas
+    # seulement dans la branche « graph est null ») : on le vérifie en
+    # coupant le corps de paintGraph après l'appel à graphRows(graph), qui ne
+    # peut s'exécuter QUE dans la branche « le graphe existe ».
+    corps_graph = rendu.split("function paintGraph(")[1].split("\n  }")[0]
+    apres_rows = corps_graph.split("graphRows(graph)")[1]
+    assert "cf-forge3d-reseed" in apres_rows
+    # I1 — NE PLUS TUER LE FOCUS (revue qualité) : editGraph distingue
+    # explicitement les deux chemins — l'état est TOUJOURS commis
+    # (setGraph), un repaint de la liste ne suit QUE si `kind` a changé la
+    # structure du rang (base/grille apparues/disparues) ; les autres champs
+    # (depth_mm/base_mm/grid/side) ne repeignent jamais, sans quoi chaque pas
+    # de spinner détruirait l'input focalisé (le piège syncInputs/renderPanel
+    # de mod-face).
+    corps_edit = rendu.split("function editGraph(")[1].split("\n  }")[0]
+    apres_commit = corps_edit.split("setGraph(next, field)")[1]
+    assert 'field === "kind"' in apres_commit
+    assert "paintGraph()" in apres_commit
 ```
 
 - [ ] **Step 2 : implémentation**

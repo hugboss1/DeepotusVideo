@@ -1,5 +1,10 @@
 # HeyGen Quick picker + casting presets — Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan d'origine, jamais
+> resynchronisé — 4 extraits python divergent du code livré (mesure au
+> repatriement v2.1.0, commit 7b80e17 : routes presets et scripts de bundle).
+> En cas d'écart, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** On the Quick page, add an avatar preview image, a searchable voice picker with a ▶ sample button, and a named avatar+voice "casting" preset (stored in the DB) that is also selectable from the Studio HeyGen node.

@@ -1,5 +1,10 @@
 # Cardforge Phase 1 — Export par couches : plan d'implémentation
 
+> **Extraits resynchronisés a posteriori (audit de couture du 2026-08-21)** :
+> les extraits python ci-dessous sont alignés sur le code livré à la clôture
+> de la phase 1 (commit 3c3a96d) ; les évolutions ultérieures (2a, 2b) vivent
+> dans leurs propres plans. En cas d'écart résiduel, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Exporter chaque carte en couches PNG alpha nommées par rôle (recto et verso) + un composite, avec PREUVE D'EMPILEMENT stricte, dans un ZIP au manifeste chiffré — la pièce P9 « Forge 3D » naît avec cette capacité.
@@ -70,6 +75,10 @@ def test_info_publie_les_roles_de_couches():
     assert par_role["fond-matiere"] == [10] and par_role["illustration"] == [20]
     assert par_role["voile-matiere"] == [30] and par_role["cadre"] == [40]
     assert par_role["typographie"] == [60] and par_role["ornements"] == [70]
+    # /info est scopée au deck comme toute route du domaine (règle §2.5) :
+    # un id syntaxiquement invalide lève 400, un id valide mais absent 404.
+    assert _api("GET", "/api/cards/nimportequoi/forge3d/info").status_code == 400
+    assert _api("GET", "/api/cards/deck_00000000/forge3d/info").status_code == 404
 ```
 
 (le helper `_deck` : copier `_deck` de `test_cards_gltf.py:125-128`. Terminer le
@@ -234,8 +243,7 @@ LAYER_ROLES = [
 
 @router.get("/info")
 async def get_info(did: str):
-    """Ce que l'écran doit savoir sans rien recalculer. Scopé au deck comme
-    toute route du domaine : un id invalide fait 400, un deck absent 404."""
+    """Ce que l'écran doit savoir sans rien recalculer."""
     from .core import read_deck
     from .contract import is_valid_did
     if not is_valid_did(did):
@@ -263,8 +271,7 @@ router.include_router(forge3d.router, prefix="/{did}/forge3d",
 Ajouter à `test_cards_forge3d.py` (patron de `test_cards_type.py`) :
 ```python
 def test_la_table_des_couches_est_identique_des_deux_cotes():
-    """Bloc miroir JS <-> py, comparé champ à champ ET dans l'ordre : une
-    table recopiée qui dérive est un mensonge."""
+    """Bloc miroir JS <-> py : une table recopiée qui dérive est un mensonge."""
     from app.services.cards import forge3d as F9
     src = JS.read_text(encoding="utf-8")
     bloc = src.split("CF-FORGE3D-LAYERS-BEGIN")[1].split("CF-FORGE3D-LAYERS-END")[0]
@@ -318,6 +325,10 @@ def test_le_moteur_sait_rendre_un_sous_ensemble_sur_toile_nue():
     assert "only" in boucle.split("ctx.save()")[0]
     # le papier reste le defaut : paper !== false
     assert 'o.paper !== false' in corps
+    # I1 : la normalisation doit garder [] tel quel : [] = aucun painter,
+    # null = tous — un .length ici casserait le cumulatif C0
+    assert "Array.isArray(o.only_z) ? o.only_z : null" in corps, \
+        "la normalisation doit garder [] tel quel : [] = aucun painter, null = tous — un .length ici casserait le cumulatif C0"
 ```
 
 - [ ] **Step 2 : vérifier l'échec**
@@ -570,7 +581,6 @@ navigateur) et vérifie le manifeste sur les octets :
 ```python
 def _couches_synthetiques(w=815, h=1110):
     """6 couches + composite qui empilent exactement, en PIL pur."""
-    from PIL import Image, ImageDraw
     fond = Image.new("RGBA", (w, h), (250, 246, 238, 255))
     couches = {"fond-matiere": fond}
     for nom, boite, teinte in (
@@ -614,26 +624,60 @@ def test_l_export_de_couches_zippe_manifeste_et_contre_preuve():
     assert [l["role"] for l in b["layers"]] == [
         "fond-matiere", "illustration", "voile-matiere", "cadre",
         "typographie", "ornements"]
+    # C1 : identite de carte — par defaut card="0", donc c01
+    assert b["card"] == {"index": 0, "label": "c01"}
+    # C2 : la base papier REELLEMENT peinte par le moteur voyage dans le
+    # manifeste (defaut du formulaire : blanc, PAPER de core.js)
+    assert b["paper"] == "#ffffff"
     # contre-preuve backend : empilement PIL == composite, ecart mesure nul
     assert b["proof"]["backend"]["diff_px"] == 0
     assert b["proof"]["client"]["stack_ok"] is True
     # la couche vide est LIVREE et mesuree, pas devinee
     voile = [l for l in b["layers"] if l["role"] == "voile-matiere"][0]
     assert voile["coverage_pct"] == 0.0 and voile["bbox_px"] is None
+    assert voile["bbox_mm"] is None    # boite vide : None des deux cotes
+
+    # reliquat de revue phase 1 : le manifeste porte le format du deck et la
+    # densite pHYs REELLEMENT ecrite (memes octets que ceux relus plus bas),
+    # et chaque couche non vide porte sa boite convertie en mm a cote de sa
+    # boite en pixels — deck par defaut : poker_eu, 300 DPI.
+    assert b["format"] == "poker_eu"
+    assert b["phys_ppm"] == 11811
+    cadre = [l for l in b["layers"] if l["role"] == "cadre"][0]
+    assert cadre["bbox_px"] is not None and cadre["bbox_mm"] is not None
+    # bbox_mm = bbox_px * dimensions physiques TOTALES / canvas_px — poker_eu
+    # a 300 DPI : canvas = 815 x 1110 px pour 69 x 94 mm (trim + fond perdu
+    # des deux cotes), donc c'est bien la trame w x h qui divise, pas trim_mm
+    # seul (qui sous-evaluerait toute couche qui deborde dans le fond perdu).
+    bx = cadre["bbox_px"]
+    attendu_mm = [round(bx[0] * 69.0 / 815, 2), round(bx[1] * 94.0 / 1110, 2),
+                 round(bx[2] * 69.0 / 815, 2), round(bx[3] * 94.0 / 1110, 2)]
+    assert cadre["bbox_mm"] == attendu_mm
 
     # le ZIP existe, ses entrees portent les 7 PNG + manifeste, les SHA collent
     rz = _api("GET", f"/api/cards/{did}/forge3d/file/{b['zip']['name']}")
     assert rz.status_code == 200
+    # patron P8 : Content-Disposition + Cache-Control sur le livrable
+    assert rz.headers.get("content-disposition", "").startswith("attachment")
+    assert rz.headers.get("cache-control") == "no-store"
     z = zipfile.ZipFile(io.BytesIO(rz.content))
     noms = sorted(z.namelist())
-    assert "layers.json" in noms and "composite_front.png" in noms
+    assert "layers.json" in noms and "composite_c01_front.png" in noms
     man = json.loads(z.read("layers.json").decode("utf-8"))
     for l in man["layers"]:
         h = hashlib.sha256(z.read(l["file"])).hexdigest()
         assert h == l["sha256"], l["file"]
-    # chaque PNG livre porte son pHYs (300 DPI reels, patron P1/P8)
-    px = z.read("illustration_front.png")
-    assert b"pHYs" in px
+    # chaque PNG livre porte son pHYs, et la VALEUR relue dans les octets
+    # est celle de P1 - pas seulement sa presence (patron P1/P8, la deck
+    # par defaut est a 300 DPI). Parite : copie locale == 11811 == pHYs reel.
+    from app.services.cards import forge3d as F9
+    assert F9._dpi_to_ppm(300) == 11811
+    px = z.read("illustration_c01_front.png")
+    i = px.find(b"pHYs")
+    assert i >= 0, "pHYs absent"
+    ppm_x, ppm_y, unite = struct.unpack(">IIB", px[i + 4:i + 13])
+    assert (ppm_x, ppm_y, unite) == (F9._dpi_to_ppm(300), F9._dpi_to_ppm(300), 1) \
+        == (11811, 11811, 1)
 
 
 def test_une_trame_fausse_fait_409_jamais_500():
@@ -684,19 +728,33 @@ def _phys_chunk(ppm_x: int, ppm_y: int) -> bytes:
 
 
 def _stamp_phys(png: bytes, ppm: tuple[float, float]) -> bytes:
-    """Insère un pHYs après l'IHDR — même densité que l'écran (patron P1/P8),
-    relue dans les octets par les tests. Un PNG déjà estampillé est réécrit."""
+    """Insère sRGB + gAMA + cHRM puis pHYs après l'IHDR — ordre P1 (IHDR ·
+    sRGB · gAMA · cHRM · pHYs, `face.py:png_finalize`) : même espace de
+    couleur et même densité que l'écran, relus dans les octets par les
+    tests. Un PNG déjà estampillé (n'importe lequel des 4 chunks) est
+    réécrit, jamais doublé.
+
+    La boucle est BORNÉE et s'arrête à IEND : un PNG à queue parasite (des
+    octets après IEND — navigateurs et outils en écrivent bel et bien) passe
+    le décodage PIL sans broncher, mais faisait planter `struct.unpack` sur
+    un fragment de moins de 4 octets — 500 non attrapé, reproduit en revue."""
     if png[:8] != b"\x89PNG\r\n\x1a\n":
         raise HTTPException(400, "PNG attendu")
     ihdr_end = 8 + 8 + struct.unpack(">I", png[8:12])[0] + 4
     out, off = [png[:ihdr_end]], ihdr_end
+    out.extend(_srgb_chunks())
     out.append(_phys_chunk(int(round(ppm[0])), int(round(ppm[1]))))
-    while off < len(png):
+    while off + 8 <= len(png):
         ln = struct.unpack(">I", png[off:off + 4])[0]
         typ = png[off + 4:off + 8]
-        if typ != b"pHYs":
-            out.append(png[off:off + 8 + ln + 4])
-        off += 8 + ln + 4
+        end = off + 8 + ln + 4
+        if end > len(png):
+            break
+        if typ not in _PREPRESS_TYPES:
+            out.append(png[off:end])
+        off = end
+        if typ == b"IEND":
+            break
     return b"".join(out)
 
 
@@ -705,16 +763,31 @@ async def post_layers(did: str,
                       layers: list[UploadFile] = File(...),
                       composite: UploadFile = File(...),
                       side: str = Form("front"),
+                      card: str = Form("0"),
+                      paper: str = Form("#ffffff"),
                       modes: str = Form("{}"),
                       client_proof: str = Form("{}")):
     """N couches PNG alpha + composite -> contre-preuve PIL, estampille,
     ZIP + manifeste. Le navigateur a DÉJÀ prouvé l'empilement chez lui
     (même moteur, pixel strict) ; ici on ré-empile en second avis et on
-    écrit LES DEUX mesures dans le manifeste."""
-    try:
-        from PIL import Image
-    except Exception as e:                     # pragma: no cover - env casse
-        raise HTTPException(503, f"PIL indisponible : {e}")
+    écrit LES DEUX mesures dans le manifeste.
+
+    `card` (C1) : l'index de la carte courante, tel que l'écran l'a rendu
+    (même valeur que le temps de preuve). Sans lui, les sorties ne portaient
+    que deck+side : exporter la carte B écrasait les fichiers de la carte A.
+    Les noms de sortie et le manifeste portent désormais `c{idx+1:02d}`.
+
+    `paper` (C2) : la base RÉELLEMENT peinte par le moteur (`PAPER` de
+    core.js, jamais une constante recopiée ailleurs). La contre-preuve
+    empilait sur transparent ; le ZIP seul ne reproduisait alors pas le
+    composite dès que le papier de la pièce Matières passe à « none ».
+
+    `await up.read()` reste async (c'est de l'E/S) ; tout le reste — décodage,
+    empilement, mesures, estampilles, zip, écritures — est du calcul pur et
+    tourne dans `work()`, déporté par `asyncio.to_thread` (patron des sœurs :
+    gltf.py:post_build, gltf.py:post_atlas, print.py:post_card). Mesuré :
+    l'inline gelait la boucle d'évènements de 0,45 s (poker 300 DPI) à plus
+    de 2,6 s (tarot 600 DPI)."""
     from .core import read_deck, geom_of
     from .contract import is_valid_did
     if not is_valid_did(did):
@@ -725,114 +798,230 @@ async def post_layers(did: str,
     g = geom_of(doc)
     w, h = g.canvas_px
     face = "back" if str(side).strip().lower() == "back" else "front"
-    try:
-        modes_d = json.loads(modes or "{}")
-        proof_c = json.loads(client_proof or "{}")
-    except ValueError:
-        modes_d, proof_c = {}, {}
+    # C1 : l'identite de la CARTE dans toute la chaine — sans elle, exporter
+    # la carte B ecrase les fichiers de la carte A (sorties nommees par
+    # deck+side seulement, avant ce correctif).
+    idx = _card_idx(card)
+    card_label = f"c{idx + 1:02d}"
+    # C2 : la base papier — validee AVANT le calcul, jamais recalculee dans
+    # `work()` a partir d'une valeur non sure.
+    paper_hex = _paper_hex(paper)
 
-    def _ouvre(raw: bytes, nom: str) -> "Image.Image":
-        """Des octets illisibles font 400, jamais 500 (doctrine du domaine,
-        spec 2.5) — PIL lève UnidentifiedImageError sur un corps corrompu."""
-        try:
-            return Image.open(io.BytesIO(raw)).convert("RGBA")
-        except Exception:
-            raise HTTPException(400, f"{nom} : PNG illisible")
-
-    par_role: dict[str, bytes] = {}
-    images: dict[str, "Image.Image"] = {}
+    # ── bornes AVANT décodage : compte, puis rôle — aucune des deux ne lit
+    #    un octet du corps du fichier ─────────────────────────────────────
+    if len(layers) > MAX_LAYER_FILES:
+        raise HTTPException(
+            400, f"trop de couches ({len(layers)}, maximum {MAX_LAYER_FILES})")
+    valid_roles = {r["role"] for r in LAYER_ROLES}
+    noms: list[str] = []
+    seen: set[str] = set()
     for up in layers:
         nom = (up.filename or "").rsplit(".", 1)[0]
+        if nom not in valid_roles:
+            raise HTTPException(400, f"{nom!r} : rôle de couche inconnu")
+        if nom in seen:
+            raise HTTPException(400, f"{nom!r} : couche envoyée deux fois")
+        seen.add(nom)
+        noms.append(nom)
+
+    # ── modes / preuve client : JSON valide mais pas un objet -> réparé,
+    #    jamais 500 (spec 2.5) ; le mode est validé contre le vocabulaire
+    #    fermé du CORE ────────────────────────────────────────────────────
+    try:
+        modes_d = json.loads(modes or "{}")
+    except ValueError:
+        modes_d = {}
+    if not isinstance(modes_d, dict):
+        modes_d = {}
+    for role, mode in modes_d.items():
+        if str(mode) not in LAYER_MODES:
+            raise HTTPException(
+                400, f"mode inconnu pour {role!r} : {mode!r} "
+                     f"(attendu {sorted(LAYER_MODES)})")
+    try:
+        proof_c = json.loads(client_proof or "{}")
+    except ValueError:
+        proof_c = {}
+    if not isinstance(proof_c, dict):
+        proof_c = {}
+
+    # ── lecture des octets (E/S -> reste async), bornée AVANT tout décodage
+    raw_par_role: dict[str, bytes] = {}
+    for up, nom in zip(layers, noms):
         raw = await up.read()
-        im = _ouvre(raw, nom)
-        if im.size != (w, h):
-            raise HTTPException(409, f"{nom} : trame {im.size} != {(w, h)}")
-        par_role[nom], images[nom] = raw, im
+        if len(raw) > MAX_LAYER_BYTES:
+            raise HTTPException(
+                413, f"{nom} : fichier trop lourd ({len(raw)} o, "
+                     f"maximum {MAX_LAYER_BYTES} o)")
+        raw_par_role[nom] = raw
     raw_comp = await composite.read()
-    comp = _ouvre(raw_comp, "composite")
-    if comp.size != (w, h):
-        raise HTTPException(409, f"composite : trame {comp.size} != {(w, h)}")
+    if len(raw_comp) > MAX_LAYER_BYTES:
+        raise HTTPException(
+            413, f"composite : fichier trop lourd ({len(raw_comp)} o, "
+                 f"maximum {MAX_LAYER_BYTES} o)")
 
-    ordre = [r["role"] for r in LAYER_ROLES if r["role"] in par_role]
-    if not ordre:
-        raise HTTPException(409, "aucune couche reconnue")
+    def work() -> dict:
+        from PIL import Image, ImageChops
 
-    # ── contre-preuve : empilement PIL, ecart MESURE au composite ───────────
-    pile = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    for nom in ordre:
-        pile = Image.alpha_composite(pile, images[nom])
-    from PIL import ImageChops
-    diff = ImageChops.difference(pile, comp)
-    diff_px = sum(1 for p in diff.getdata() if p != (0, 0, 0, 0))
+        def _ouvre(raw: bytes, nom: str):
+            """Un corps mal formé fait 400, JAMAIS 500 (spec 2.5). `format`
+            est lu AVANT `convert()` : la conversion RGBA renvoie une image
+            neuve dont `.format` vaut None — le vérifier après serait un
+            contrôle qui ne contrôle rien."""
+            try:
+                im = Image.open(io.BytesIO(raw))
+                im.load()
+            except Exception as e:
+                raise HTTPException(400, f"{nom} : PNG illisible ({e})")
+            fmt = (im.format or "").upper()
+            if fmt != "PNG":
+                raise HTTPException(
+                    400, f"{nom} : PNG attendu, {fmt or 'format inconnu'} reçu")
+            return im.convert("RGBA")
 
-    # LA DENSITÉ EST CELLE DE P1, PAS UNE RE-DÉRIVATION. La formule
-    # « canvas_px / mm » réinjecte le bruit d'arrondi entier de canvas_px
-    # (mesuré : poker_eu 300 DPI -> (11812, 11809) au lieu de 11811, 5 formats
-    # sur 12 divergent). Copie LOCALE de la formule de P1 (précédents :
-    # frame.py, print.py — zéro import pièce->pièce dans le domaine), avec
-    # assertion de parité 300 -> 11811 dans le test.
-    ppm_v = round(float(g.dpi) / 25.4 * 1000.0)   # px/m, valeur nominale isotrope
-    ppm = (float(ppm_v), float(ppm_v))
-    out = _out_dir(did, create=True)
-    rows = []
-    for nom in ordre:
-        data = _stamp_phys(par_role[nom], ppm)
-        fn = f"{nom}_{face}.png"
-        (out / fn).write_bytes(data)
-        alpha = images[nom].getchannel("A")
-        bbox = alpha.getbbox()
-        cover = (sum(1 for a in alpha.getdata() if a) / float(w * h) * 100.0)
-        meta = next(r for r in LAYER_ROLES if r["role"] == nom)
-        rows.append({
-            "role": nom, "z": meta["z"], "module": meta["module"], "file": fn,
-            "mode": str(modes_d.get(nom, "isolee")),
-            "sha256": hashlib.sha256(data).hexdigest(),
-            "bytes": len(data),
-            "bbox_px": list(bbox) if bbox else None,
-            "coverage_pct": round(cover, 2),
-        })
-    comp_fn = f"composite_{face}.png"
-    comp_data = _stamp_phys(raw_comp, ppm)
-    (out / comp_fn).write_bytes(comp_data)
+        images: dict[str, "Image.Image"] = {}
+        for nom, raw in raw_par_role.items():
+            im = _ouvre(raw, nom)
+            if im.size != (w, h):
+                raise HTTPException(409, f"{nom} : trame {im.size} != {(w, h)}")
+            images[nom] = im
+        comp = _ouvre(raw_comp, "composite")
+        if comp.size != (w, h):
+            raise HTTPException(409, f"composite : trame {comp.size} != {(w, h)}")
 
-    manifest = {
-        "schema": MANIFEST_SCHEMA,
-        "deck": {"id": did, "name": doc.get("name")},
-        "side": face,
-        "canvas_px": [w, h],
-        "size_mm": [g.trim_mm[0], g.trim_mm[1]],
-        "bleed_mm": g.bleed_mm,
-        "layers": rows,
-        "composite": {"file": comp_fn,
-                      "sha256": hashlib.sha256(comp_data).hexdigest(),
-                      "bytes": len(comp_data)},
-        "proof": {
-            "client": {"stack_ok": bool(proof_c.get("stack_ok")),
-                       "diff_px": int(proof_c.get("diff_px") or 0),
-                       "note": "empilement navigateur, meme moteur, strict"},
-            "backend": {"diff_px": int(diff_px),
-                        "note": "re-empilement PIL alpha-over, second avis"},
-        },
-        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    }
-    zbuf = io.BytesIO()
-    with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
-        for r in rows:
-            z.writestr(r["file"], (out / r["file"]).read_bytes())
-        z.writestr(comp_fn, comp_data)
-        z.writestr("layers.json", json.dumps(manifest, ensure_ascii=False,
-                                             indent=2))
-    zname = f"couches_{face}.zip"
-    (out / zname).write_bytes(zbuf.getvalue())
-    manifest["zip"] = {"name": zname, "bytes": len(zbuf.getvalue())}
-    (out / f"layers_{face}.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        ordre = [r["role"] for r in LAYER_ROLES if r["role"] in images]
+        if not ordre:
+            raise HTTPException(409, "aucune couche reconnue")
+
+        # ── contre-preuve : empilement PIL, ecart MESURE au composite ──────
+        # C2 : la base est le PAPIER reellement peint par le moteur (validee
+        # en amont dans `paper_hex`), pas transparent — le composite REEL
+        # (cote navigateur) est peint sur ce meme papier avant les couches ;
+        # empiler sur transparent divergeait en masse des que la couche
+        # fond-matiere ne couvre plus tout le canevas (papier « none »).
+        pile = Image.new("RGBA", (w, h), _paper_rgba(paper_hex))
+        for nom in ordre:
+            pile = Image.alpha_composite(pile, images[nom])
+        diff = ImageChops.difference(pile, comp)
+        # getdata() est déprécié (retrait Pillow 14) — équivalence mesurée
+        # (scratchpad/bench_forge3d.py) : fast-path getbbox() si aucun écart,
+        # sinon histogramme du canal fusionné (0 == pixels IDENTIQUES sur les
+        # 4 bandes, donc w*h - ce compte = pixels qui diffèrent).
+        if diff.getbbox() is None:
+            diff_px = 0
+        else:
+            fusion = reduce(ImageChops.lighter, diff.split())
+            diff_px = w * h - fusion.histogram()[0]
+
+        ppm = float(_dpi_to_ppm(g.dpi))
+        phys_ppm = int(round(ppm))    # la valeur EXACTE que `_phys_chunk`
+                                       # écrit dans les octets (même arrondi)
+        # dimensions physiques TOTALES de la trame (w, h) == canvas_px, donc
+        # trim + fond perdu des DEUX côtés — pas trim_mm seul, qui ne couvre
+        # que la carte coupée et sous-évaluerait bbox_mm sur toute couche qui
+        # déborde dans le fond perdu.
+        size_mm_totale = (g.trim_mm[0] + 2.0 * g.bleed_mm,
+                          g.trim_mm[1] + 2.0 * g.bleed_mm)
+        zip_entries: dict[str, bytes] = {}
+        rows = []
+        for nom in ordre:
+            data = _stamp_phys(raw_par_role[nom], (ppm, ppm))
+            fn = f"{nom}_{card_label}_{face}.png"
+            zip_entries[fn] = data
+            alpha = images[nom].getchannel("A")
+            bbox = alpha.getbbox()
+            # coverage : w*h - (pixels d'alpha nul), même mesure histogramme
+            cover = ((w * h - alpha.histogram()[0]) / float(w * h) * 100.0)
+            meta = next(r for r in LAYER_ROLES if r["role"] == nom)
+            # bbox_mm : la MEME boîte, convertie par les dimensions physiques
+            # (bbox_px * size_mm_totale / canvas_px) — None si bbox_px l'est,
+            # jamais une conversion inventée sur une couche vide.
+            bbox_mm = None if bbox is None else [
+                round(bbox[0] * size_mm_totale[0] / w, 2),
+                round(bbox[1] * size_mm_totale[1] / h, 2),
+                round(bbox[2] * size_mm_totale[0] / w, 2),
+                round(bbox[3] * size_mm_totale[1] / h, 2),
+            ]
+            rows.append({
+                "role": nom, "z": meta["z"], "module": meta["module"],
+                "file": fn,
+                "mode": str(modes_d.get(nom, "isolee")),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "bytes": len(data),
+                "bbox_px": list(bbox) if bbox else None,
+                "bbox_mm": bbox_mm,
+                "coverage_pct": round(cover, 2),
+            })
+        comp_fn = f"composite_{card_label}_{face}.png"
+        comp_data = _stamp_phys(raw_comp, (ppm, ppm))
+        zip_entries[comp_fn] = comp_data
+
+        manifest = {
+            "schema": MANIFEST_SCHEMA,
+            "deck": {"id": did, "name": doc.get("name")},
+            "card": {"index": idx, "label": card_label},
+            "side": face,
+            "format": g.fmt,
+            "paper": paper_hex,
+            "canvas_px": [w, h],
+            "size_mm": [g.trim_mm[0], g.trim_mm[1]],
+            "bleed_mm": g.bleed_mm,
+            "phys_ppm": phys_ppm,
+            "layers": rows,
+            "composite": {"file": comp_fn,
+                          "sha256": hashlib.sha256(comp_data).hexdigest(),
+                          "bytes": len(comp_data)},
+            "proof": {
+                "client": {"stack_ok": bool(proof_c.get("stack_ok")),
+                           "diff_px": int(_num(proof_c.get("diff_px"), 0,
+                                               0, w * h)),
+                           "note": "empilement navigateur, meme moteur, strict"},
+                "backend": {"diff_px": int(diff_px),
+                            "note": "re-empilement PIL alpha-over, second avis"},
+            },
+            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }
+        # ── ZIP : octets EN MÉMOIRE, jamais de relecture disque ────────────
+        zbuf = io.BytesIO()
+        with zipfile.ZipFile(zbuf, "w", zipfile.ZIP_DEFLATED) as z:
+            for fn, data in zip_entries.items():
+                z.writestr(fn, data)
+            z.writestr("layers.json", json.dumps(manifest, ensure_ascii=False,
+                                                 indent=2))
+        zname = f"couches_{card_label}_{face}.zip"
+        zip_bytes = zbuf.getvalue()
+        manifest["zip"] = {"name": zname, "bytes": len(zip_bytes)}
+
+        out = _out_dir(did, create=True)
+        for fn, data in zip_entries.items():
+            (out / fn).write_bytes(data)
+        (out / zname).write_bytes(zip_bytes)
+        (out / f"layers_{card_label}_{face}.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        return manifest
+
+    try:
+        manifest = await asyncio.to_thread(work)
+    except HTTPException:
+        raise
+    except ModuleNotFoundError as e:           # pragma: no cover - env casse
+        raise HTTPException(503, f"Module requis absent : {e}")
+    except Exception as e:
+        logger.exception("cards/forge3d: export de couches impossible")
+        raise HTTPException(500, f"Export de couches impossible : {e}")
     return {"layers": manifest}
 
 
 @router.get("/file/{name}")
 async def get_file(did: str, name: str):
     """Un livrable, tel qu'il a été construit (patron P8)."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
     import re as _re
     if not _re.match(r"^[A-Za-z0-9._-]{1,90}$", name or ""):
         raise HTTPException(400, "Nom invalide")
@@ -841,7 +1030,9 @@ async def get_file(did: str, name: str):
         raise HTTPException(404, "Fichier inconnu")
     kind = "application/zip" if name.endswith(".zip") else \
         "image/png" if name.endswith(".png") else "application/json"
-    return Response(p.read_bytes(), media_type=kind)
+    return Response(p.read_bytes(), media_type=kind, headers={
+        "Content-Disposition": f'attachment; filename="{p.name}"',
+        "Cache-Control": "no-store"})
 ```
 NOTE d'implémentation : vérifier sur place la signature exacte de `geom_of` et les
 champs de `CardGeom` (`canvas_px`, `trim_mm`, `bleed_mm`) dans
@@ -908,6 +1099,12 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
     assert "return" in corps.split("stack_ok")[1].split("FormData")[0]
     # provenance : les blobs passent par CF.layerBlob (mintes)
     assert "CF.layerBlob" in corps
+    # l'identite de carte et la base papier partent bel et bien avec chaque
+    # envoi — des defauts backend (card="0", paper="#ffffff") rendraient
+    # leur suppression invisible aux tests d'integration (200 quand meme) :
+    # ce test cible litteralement l'appel, pas seulement son effet observe.
+    assert 'fd.append("card"' in corps
+    assert 'fd.append("paper"' in corps
     # le bordereau est peint depuis la REPONSE (mesure), pas depuis l'intention
     assert "cf-forge3d-slip" in rendu
     assert "weight" in rendu or "Kio" in rendu

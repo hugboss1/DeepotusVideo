@@ -1,5 +1,10 @@
 # Animation Node — Phase 2 Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan d'origine, écrit avant
+> l'implémentation et jamais resynchronisé — un seul extrait python diverge du
+> code livré (`test_transform_at_multi_keyframe`, 6 lignes au commit de28958).
+> En cas d'écart, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Replace the 2-keyframe (`from`/`to`) model with an N-keyframe timeline, add per-segment cubic-bézier-preset easing, and a scrub/play preview — fully backward-compatible with Phase 1.

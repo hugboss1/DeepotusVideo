@@ -1,5 +1,11 @@
 # Animation Node — Phase 1 Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan d'origine, écrit avant
+> l'implémentation et jamais resynchronisé — 11 extraits python divergent du
+> code livré à la clôture du chantier (commit 18bb0c0, principalement
+> `animate`, `ease`, `render_animation`). En cas d'écart, le code livré fait
+> foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship the `Animation` Studio node — animate text/sticker/image elements (start→end position, scale, rotation, opacity + timing + easing) over a base clip, with a Favorites library, rendered server-side.

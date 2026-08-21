@@ -1,5 +1,10 @@
 # Game Assets Live Canvas Implementation Plan
 
+> **NOTE (audit de couture du 2026-08-21)** : plan d'origine, écrit avant
+> l'implémentation et jamais resynchronisé — l'unique extrait python
+> (`test_generate_asset3d_reports_steps`) diverge du test livré (28 lignes au
+> commit eb59246). En cas d'écart, le code livré fait foi.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans. Steps use checkbox (`- [ ]`).
 
 **Goal:** Turn the Game Assets generation into a live node canvas (Input → per-angle View nodes → Engine → Response) that fills in real time, each image node savable/exportable.
