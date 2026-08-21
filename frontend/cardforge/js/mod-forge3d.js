@@ -815,7 +815,26 @@
        nœud désigné, avec les couches de la BONNE carte (`videInspecteur`
        remet la clé de sujet à zéro, donc `majInspecteur` re-déclenche). */
     videInspecteur();
-    return refreshManifest();
+    /* ... ET LE BORDEREAU AVEC. `ARTIFACT` porte les poids, les moteurs et les
+       crédits d'une construction qui a tourné sur LES COUCHES d'une carte
+       précise ; le garder ferait dire au nœud artefact — et à TOUS les nœuds
+       d'export, qui ne lisent RIEN d'autre — que la carte affichée a déjà
+       livré ces fichiers-là, avec des boutons de téléchargement qui servent
+       ceux de la carte d'avant. C'est le même mensonge que les chips de jobs,
+       au même endroit. `videApercu` est la porte de sortie complète du
+       viewer du RÉSULTAT : objectURL RÉVOQUÉE (pas seulement oubliée, comme
+       le fait le remplacement de `mountPreview`), viewer détaché de son hôte,
+       section vidée, « figer » re-verrouillé. */
+    ARTIFACT = null;
+    videApercu();
+    /* LA PROMESSE D'ABORD, LA PEINTURE ENSUITE. `repeintLeBordereau` peint, et
+       toute peinture rappelle `cardChanged` : le verrou de `refreshManifest`
+       doit être posé AVANT, sans quoi un nœud absent du DOM (le premier
+       passage sur le canvas) enverrait `paintNode` dans son repli
+       `paintVue()` et la boucle se refermerait sur elle-même. */
+    const suite = refreshManifest();
+    repeintLeBordereau();
+    return suite;
   }
 
   /* LE MODÈLE D'UN RANG — la CHAÎNE d'un traitement, résolue exactement comme
@@ -1487,6 +1506,14 @@
      artefact — un `querySelector` ne le trouverait alors plus et en ferait
      naître un second, c'est-à-dire un contexte WebGL de plus à chaque
      repeinture. La référence, elle, survit : on le RE-ACCROCHE. */
+  /* LA SCÈNE DU VIEWER DU RÉSULTAT EST-ELLE LÀ ? Ce n'est PAS la même question
+     que « une objectURL existe-t-elle ». `mountPreview` pose l'URL puis
+     VERROUILLE « figer » jusqu'à l'évènement `load` du viewer — mais un corps
+     de nœud artefact se reconstruit à chaque champ commis, et il ne pouvait
+     lire que `PREVIEW_URL` : il ré-armait donc le bouton dans la fenêtre où la
+     scène n'est pas encore décodée, et une capture y aurait rendu un cadre
+     VIDE — qui devient l'image de la carte. */
+  let FIGE_PRET = false;
   let MV = null;                /* le viewer du RÉSULTAT (fichier livré) */
   let INSP_MV = null;           /* le viewer de l'INSPECTEUR (nœud désigné) */
 
@@ -2027,6 +2054,15 @@
      rien du tout, donc pas de minuterie de fin de rafale — la dernière frame
      applique l'état final, exact par construction. */
   function onCanvasWheel(e) {
+    /* LA MOLETTE DU VIEWER EMBARQUÉ LUI APPARTIENT. Le `model-viewer`
+       vendorisé `preventDefault` sa propre molette (c'est son dolly) mais il
+       ne l'ARRÊTE PAS de remonter : sur le canvas il vit DANS le nœud
+       artefact, donc l'événement arrivait ici et zoomait la SCÈNE ENTIÈRE
+       pendant que l'utilisateur croyait s'approcher de son modèle. Le garde
+       est le PREMIER geste, avant même `preventDefault` : confisquer le
+       défilement sans rien faire bouger serait le pire des deux. */
+    if (e.target && e.target.closest
+        && e.target.closest(".cf-forge3d-art-view")) return;
     e.preventDefault();
     const surf = e.currentTarget;
     const r = surf.getBoundingClientRect();
@@ -2612,7 +2648,10 @@
       + '<button class="btn primary sm" type="button" data-act="build3d"'
       + (build3d.busy ? " disabled" : "") + '>Construire</button>'
       + '<button class="btn sm" type="button" data-act="freeze"'
-      + (PREVIEW_URL ? "" : " disabled")
+      /* LES DEUX CONDITIONS, PAS UNE (voir `FIGE_PRET`) : les octets sont
+         livrés ET la scène est décodée. `majFige` dit la même chose au bouton
+         DÉJÀ posé ; ici c'est l'état de naissance du bouton. */
+      + ((PREVIEW_URL && FIGE_PRET) ? "" : " disabled")
       + ' title="capture le rendu affiché et l\'écrit côté serveur">'
       + 'figer l\'aperçu</button>'
       + '</div>'
@@ -3422,6 +3461,21 @@
     /* la vue liste n'a pas de sélection, et son panneau est masqué : rien à
        inspecter, et surtout rien à construire côté serveur. */
     if (VUE !== "canvas") return;
+    const graph = get("graph");
+    /* LE SUJET A PU QUITTER LE GRAPHE, et il faut le LÂCHER ici. « ↶ annuler »
+       défait une naissance, `editMat` vide un maillon devenu inutile : le
+       nœud désigné disparaît alors SOUS la sélection. Sans cette relâche, la
+       clé de sujet (`INSP_SUJET`, l'idempotence du déclencheur) fait sortir
+       cette fonction PAR LE HAUT — et le panneau garde le nom et le 3D d'un
+       mort, pour toujours. `majSelArete` lâche DÉJÀ l'arête disparue par le
+       même raisonnement ; c'était l'asymétrie. Le geste est complet : la
+       classe de sélection tombe et la palette reprend ses boutons de maillon
+       (ils n'existent que sur un traitement DÉSIGNÉ). */
+    if (SEL && !((graph && graph.nodes) || []).some((x) => x.id === SEL)) {
+      SEL = null;
+      marqueSel();
+      paintPalette();
+    }
     const sujet = ARETE ? ("a:" + ARETE.from + ">" + ARETE.to)
       : (SEL ? ("n:" + SEL) : "");
     if (!force && sujet === INSP_SUJET) return;
@@ -3448,7 +3502,6 @@
       inspAvoues(null);
       return;
     }
-    const graph = get("graph");
     const n = graph ? (graph.nodes || []).filter((x) => x.id === SEL)[0] : null;
     inspNom(n ? (kindLabel(n.kind) + " · " + noeudTitre(n)) : String(SEL));
     inspEtat("aperçu en construction…");
@@ -3476,7 +3529,7 @@
     } catch (e) {
       /* transport coupé : ça, c'est une panne — elle a droit au rouge. */
       if (gen !== GEN || jeton !== INSP_JETON) return;
-      inspEtat(String(e && e.message || e), true);
+      echecInsp(view, String(e && e.message || e), true);
       return;
     }
     if (gen !== GEN || jeton !== INSP_JETON) return;
@@ -3484,16 +3537,17 @@
       let d = null;
       try { d = await r.json(); } catch (err) { d = null; }
       if (gen !== GEN || jeton !== INSP_JETON) return;
-      videApercuInsp(view);
-      inspEtat((d && (d.detail || d.error))
+      echecInsp(view, (d && (d.detail || d.error))
         || (r.status + " " + r.statusText), r.status >= 500);
-      inspAvoues(null);
       return;
     }
     let blob = null;
     try { blob = await r.blob(); } catch (e) { blob = null; }
     if (gen !== GEN || jeton !== INSP_JETON) return;
-    if (!blob) { inspEtat("aperçu illisible (corps vide)", true); return; }
+    if (!blob) {
+      echecInsp(view, "aperçu illisible (corps vide)", true);
+      return;
+    }
     let extras = null;
     try { extras = glbExtras(await blob.arrayBuffer()); } catch (e) { extras = null; }
     if (gen !== GEN || jeton !== INSP_JETON) return;
@@ -3524,6 +3578,27 @@
     INSP_MV.setAttribute("src", INSP_URL);
     inspEtat("aperçu réel de ce nœud — construit à la demande, jamais payant.");
     inspAvoues(extras);
+  }
+
+  /* TOUTES LES SORTIES D'ÉCHEC PASSENT PAR ICI, et elles font DEUX choses que
+     `inspEtat` seul ne faisait pas.
+     · ELLES VIDENT. Sans ça, le modèle du nœud PRÉCÉDENT restait à l'écran
+       sous le NOM du nouveau (le nom, lui, est déjà posé par `majInspecteur`)
+       : le panneau montrait alors un objet en affirmant que c'en est un
+       autre — le seul mensonge que cet écran n'a pas le droit de dire.
+     · ELLES RENDENT LA CLÉ DE SUJET. `INSP_SUJET` est l'idempotence du
+       DÉCLENCHEUR : « ce sujet est déjà montré, ne le reconstruis pas ». Après
+       un échec il ne l'est justement pas, et le garder posé rendait la panne
+       COLLANTE — aucune peinture, aucun retour de la vue liste, aucune
+       ré-inspection ne repartait. Un échec doit pouvoir être re-tenté ; c'est
+       même le sens de la moitié des motifs du backend (« lance-le d'abord »).
+     LE SUCCÈS, LUI, GARDE SA CLÉ : c'est ce qui empêche un balayage de
+     reconstruire N fois ce qui est déjà à l'écran. */
+  function echecInsp(view, motif, panne) {
+    videApercuInsp(view);
+    INSP_SUJET = "";
+    inspEtat(motif, panne);
+    inspAvoues(null);
   }
 
   /* le viewer lâche son modèle et quitte l'hôte — l'élément survit (voir
@@ -3626,8 +3701,12 @@
     }
     const next = JSON.parse(JSON.stringify(graph));
     const cote = (LAST_MANIFEST && LAST_MANIFEST.side === "back") ? "back" : "front";
-    next.nodes.push({ id: freeId(next.nodes, role), kind: "layer",
-                      role: role, side: cote });
+    /* `|| []` — LE MÊME GARDE QUE TOUS LES LECTEURS (`grapheAvecLien`,
+       `aretes`, `rowsDe`…). Un graphe chargé à la main peut n'avoir aucune
+       clé `nodes` ; toute la lecture le tolère, seule l'écriture levait. */
+    next.nodes = (next.nodes || []).concat([
+      { id: freeId(next.nodes || [], role), kind: "layer",
+        role: role, side: cote }]);
     setGraph(next, "+ couche");
     paintVue();
   }
@@ -3645,7 +3724,8 @@
        construit »), et le geste suivant est justement de tirer le fil. C'est
        LA différence avec un maillon, et c'est pour ça que l'un naît libre et
        l'autre connecté. */
-    next.nodes.push({ id: freeId(next.nodes, "t"), kind: "plane", depth_mm: 0 });
+    next.nodes = (next.nodes || []).concat([
+      { id: freeId(next.nodes || [], "t"), kind: "plane", depth_mm: 0 }]);
     setGraph(next, "+ traitement");
     paintVue();
   }
@@ -3662,6 +3742,23 @@
         + " (clic sur l'en-tête d'un plan, d'un relief ou d'un moteur) : "
         + (mat ? "une matière appartient" : "un placement appartient")
         + " à une chaîne — seul, le maillon ne serait pas construit.", true);
+      return;
+    }
+    /* ... ET LA CHAÎNE DOIT AVOIR SA SOURCE. Un traitement sans couche n'est
+       pas encore une chaîne : le maillon naîtrait bien CÂBLÉ (`editMat` le
+       relie), mais aucun rang ne le porterait — `graphRows` ne rend que les
+       traitements SOURCÉS — et son corps annoncerait « matière hors chaîne —
+       aucun traitement ne la porte », ce qui est FAUX : le traitement la
+       porte, c'est la couche qui manque. Un écran qui désigne le mauvais
+       coupable coûte plus cher qu'un écran qui refuse : on refuse, en nommant
+       le geste qui débloque. Le glisser de fil, lui, garde son comportement
+       (un fil visé à la main est un geste — la distinction du bloc ci-dessus). */
+    const chaine = rowModel(graph, proc.id);
+    if (!chaine || !chaine.layer) {
+      M.toast("« " + noeudTitre(proc) + " » n'a pas encore de couche source : "
+        + "relie d'abord une couche à ce traitement — sans elle, "
+        + (mat ? "la matière" : "le placement")
+        + " naîtrait dans une chaîne que la construction ne suit pas.", true);
       return;
     }
     /* LES MOTS DU BORDEREAU, RÉUTILISÉS TELS QUELS. `surnumeraire` les écrit
@@ -3713,13 +3810,28 @@
         + "(backend injoignable ?).", true);
       return;
     }
+    /* UN SECOND POINT DE TÉLÉCHARGEMENT DU MÊME FICHIER N'AJOUTE RIEN. Les
+       nœuds d'export ne portent pas d'état propre : ils LISENT le dernier
+       bordereau (`exportEtatHtml`), donc deux nœuds « glb » affichent le même
+       poids et le même bouton, et encombrent la surface d'un doublon que rien
+       ne distingue. Le refus est nommé — et il nomme le nœud déjà là, pour
+       qu'on sache où regarder. */
+    const deja = (graph.nodes || []).filter(
+      (n) => n.kind === "export" && String(n.format || "") === fmt)[0];
+    if (deja) {
+      M.toast("un nœud d'export « " + fmt + " » existe déjà (" + deja.id
+        + ") — il porte le MÊME fichier du MÊME bordereau : un second "
+        + "n'ajouterait rien. Choisis un autre format.", true);
+      return;
+    }
     const next = JSON.parse(JSON.stringify(graph));
-    const id = freeId(next.nodes, "ex" + fmt);
-    next.nodes.push({ id: id, kind: "export", format: fmt });
+    const id = freeId(next.nodes || [], "ex" + fmt);
+    next.nodes = (next.nodes || []).concat([
+      { id: id, kind: "export", format: fmt }]);
     /* NÉ CONNECTÉ, et sans choix possible : la grammaire n'autorise que
        `artifact -> export`, et un export non relié n'aurait rien à
        télécharger. */
-    next.edges.push({ from: art.id, to: id });
+    next.edges = (next.edges || []).concat([{ from: art.id, to: id }]);
     setGraph(next, "+ export");
     paintVue();
   }
@@ -4371,9 +4483,19 @@
       /* seul un format SERVI s'écrit : le <select> ne peut en proposer
          d'autres, et `clean_graph` reste l'ultime porte (un format inconnu y
          retombe sur le premier). Refuser ici sans rien dire vaut mieux que
-         d'écrire une valeur que le serveur remplacera en silence. */
+         d'écrire une valeur que le serveur remplacera en silence.
+         ET LE REFUS SORT AVANT L'ÉCRITURE : `setGraph` est inconditionnel plus
+         bas, donc laisser passer poussait une entrée d'annulation pour un
+         graphe INCHANGÉ — « ↶ annuler format » aurait alors avalé un geste
+         fantôme, et le vrai geste d'avant serait resté sous la pile. Le nœud
+         est repeint pour que le menu revienne sur la valeur RÉELLEMENT
+         portée. */
       const f = String(rawValue || "");
-      if (exportFormats().indexOf(f) >= 0) proc.format = f;
+      if (exportFormats().indexOf(f) < 0) {
+        paintChamps(procId, nid, field);
+        return;
+      }
+      proc.format = f;
     } else if (MAT_FIELDS.indexOf(field) >= 0) {
       naissance = editMat(next, procId, field, rawValue);
     } else if (TRS_FIELDS.indexOf(field) >= 0) {
@@ -4885,7 +5007,10 @@
       MV.id = "cf-forge3d-mv";
       MV.setAttribute("camera-controls", "");
       MV.setAttribute("auto-rotate", "");
-      MV.addEventListener("load", () => { majFige(false); });
+      /* LA SCÈNE EST LÀ — et c'est le SEUL endroit qui a le droit de le dire.
+         Le drapeau est levé avant le déverrouillage : une repeinture qui
+         tomberait entre les deux re-poserait sinon un bouton verrouillé. */
+      MV.addEventListener("load", () => { FIGE_PRET = true; majFige(false); });
       MV.addEventListener("error", () => {
         M.toast("la visionneuse n'a pas pu ouvrir le GLB", true);
       });
@@ -4909,10 +5034,19 @@
     const sect = $("#cf-forge3d-view");
     if (!sect) return;
     if (MV && MV.parentNode === sect) return;   /* il est ici : rien à dire */
-    if (!PREVIEW_URL) { sect.innerHTML = ""; return; }
-    sect.innerHTML = '<p class="empty-note sm">l\'aperçu est monté dans le '
-      + 'nœud <b>artefact</b>, sur le canvas — bascule sur « liste » pour le '
-      + 'revoir ici.</p>';
+    const dit = !PREVIEW_URL ? ""
+      : ('<p class="empty-note sm">l\'aperçu est monté dans le '
+        + 'nœud <b>artefact</b>, sur le canvas — bascule sur « liste » pour le '
+        + 'revoir ici.</p>');
+    /* ÉCRIRE SEULEMENT SI ÇA CHANGE. Le narrowing de `poseViewer` (« seulement
+       quand il DÉMÉNAGE ») ne couvre PAS le cas le plus fréquent : `paintNode`
+       remplace le corps du nœud artefact, ce qui DÉTACHE le viewer — au
+       ré-accrochage `MV.parentNode` est donc toujours ≠ hôte, et cette
+       fonction repassait à chaque champ commis. Elle réécrivait alors le même
+       texte dans la section, pour rien. Comparer avant d'écrire est le fond du
+       remède, et il ne peut pas régresser : au pire l'égalité échoue et on
+       réécrit comme avant. */
+    if (sect.innerHTML !== dit) sect.innerHTML = dit;
   }
 
   /* L'APERÇU DU RÉSULTAT, RENDU : objectURL révoquée, viewer détaché et
@@ -4921,6 +5055,7 @@
   function videApercu() {
     if (PREVIEW_URL && typeof URL !== "undefined") URL.revokeObjectURL(PREVIEW_URL);
     PREVIEW_URL = null;
+    FIGE_PRET = false;    /* la scène part avec les octets */
     if (MV) {
       MV.removeAttribute("src");
       if (MV.parentNode) MV.parentNode.removeChild(MV);
@@ -4962,7 +5097,12 @@
       PREVIEW_URL = URL.createObjectURL(blob);
       const mv = poseViewer(host);
       if (!mv) return;
-      majFige(true);       /* re-verrouillé jusqu'au prochain `load` */
+      /* re-verrouillé jusqu'au prochain `load` — le DRAPEAU d'abord (le bouton
+         du nœud renaît à chaque repeinture et le lit), la porte du bouton
+         ensuite, et la source EN DERNIER : poser `src` avant aurait laissé un
+         `load` très rapide relever le drapeau qu'on s'apprêtait à baisser. */
+      FIGE_PRET = false;
+      majFige(true);
       mv.setAttribute("src", PREVIEW_URL);
     } catch (e) {
       M.toast(String(e && e.message || e), true);

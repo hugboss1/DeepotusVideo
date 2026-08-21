@@ -3990,6 +3990,12 @@ def test_node_file_sert_l_apercu_d_un_noeud_par_liste_blanche():
     r2 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m2/preview.png")
     assert r2.status_code == 404, r2.text
     assert "m2" in r2.json()["detail"]
+    # N1 (ronde de correction 2c-T5) : le REFUS ne se met pas en cache non
+    # plus. « pas encore d'apercu » devient « apercu servi » des que le job
+    # rapatrie le fichier ; un 404 heuristiquement mis en cache par le
+    # navigateur ferait afficher le pictogramme par defaut sur un noeud qui a
+    # DEJA sa vignette.
+    assert r2.headers.get("cache-control") == "no-store", dict(r2.headers)
 
     # HORS LISTE BLANCHE -> 400 NOMME. `job.json` est le cas qui compte : il
     # est LISIBLE (JSON), il porte l'etat interne du noeud, et un motif de nom
@@ -4019,6 +4025,29 @@ def test_node_file_sert_l_apercu_d_un_noeud_par_liste_blanche():
     r7 = _api("GET",
               "/api/cards/deck_00000000/forge3d/node-file/m1/preview.png")
     assert r7.status_code == 404, r7.text
+
+    # M2 (ronde de correction 2c-T5) : LES OCTETS SONT LUS EN RAM (ecart
+    # assume, voir la docstring de la route), et le chemin qui ECRIT ce
+    # fichier — le telechargement de l'apercu chez le fournisseur — ne le
+    # borne pas. Sans plafond ICI, une reponse de moteur inattendue devient
+    # une lecture illimitee en memoire, une requete par onglet ouvert. Au-dela
+    # de `_NODE_FILE_MAX` : 413 NOMME, jamais un 500, jamais un serveur qui
+    # gonfle.
+    from app.services.cards import forge3d as _F9
+    apercu = d / "preview.png"
+    garde = apercu.read_bytes()
+    apercu.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\0" * _F9._NODE_FILE_MAX)
+    r8 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m1/preview.png")
+    assert r8.status_code == 413, (r8.status_code, r8.text)
+    assert "lourd" in r8.json()["detail"], r8.text
+    assert r8.headers.get("cache-control") == "no-store", dict(r8.headers)
+    # ... et le plafond reste GENEREUX : une vraie vignette de moteur passe
+    # toujours (une borne qui refuserait le cas nominal serait une panne
+    # deguisee en garde).
+    assert len(garde) < _F9._NODE_FILE_MAX, (len(garde), _F9._NODE_FILE_MAX)
+    apercu.write_bytes(garde)
+    r9 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m1/preview.png")
+    assert r9.status_code == 200, r9.text
 
 
 def test_le_canvas_est_la_projection_du_meme_graphe():
@@ -4506,6 +4535,14 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     # un GLB d'apercu est construit depuis LES COUCHES d'une carte precise.
     cc = rendu.split("function cardChanged(")[1].split("\n  }")[0]
     assert "videInspecteur(" in cc, cc
+    # RONDE DE CORRECTION 2c-T5 (M6) : ... et le BORDEREAU part avec. Les nœuds
+    # d'export ne lisent RIEN d'autre que `ARTIFACT` : le garder faisait
+    # afficher, sur la carte 2, les poids, les credits et les boutons de
+    # telechargement de la carte 1. Meme mensonge que les chips de jobs, au
+    # meme endroit. `videApercu` est la porte complete du viewer du RESULTAT
+    # (objectURL REVOQUEE, viewer detache, « figer » re-verrouille).
+    assert "ARTIFACT = null" in cc, cc
+    assert "videApercu(" in cc, cc
     # ... et un JETON d'inspection en plus : deux clics rapides lancent deux
     # requetes, la PREMIERE peut revenir en dernier. Sans jeton, l'inspecteur
     # afficherait le nœud qu'on ne regarde plus.
@@ -4547,6 +4584,16 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     assert "hoteApercu(" in mp or "hote" in mp, mp
     ha = rendu.split("function hoteApercu(")[1].split("\n  }")[0]
     assert "cf-forge3d-art-view" in ha, ha
+    # RONDE DE CORRECTION 2c-T5 (M5) : « figer » suit la SCENE, pas l'URL. Le
+    # drapeau est BAISSE au montage — et avant `src`, sinon un `load` immediat
+    # releverait celui qu'on s'apprete a baisser — et RELEVE par le seul
+    # evenement qui prouve que la scene est decodee.
+    assert "FIGE_PRET = false" in mp, mp
+    assert mp.index("FIGE_PRET = false") < mp.index('setAttribute("src"'), mp
+    pv = rendu.split("function poseViewer(")[1].split("\n  }")[0]
+    assert "FIGE_PRET = true" in pv and '"load"' in pv, pv
+    art_f = rendu.split("function artifactNodeHtml(")[1].split("\n  }")[0]
+    assert "FIGE_PRET" in art_f and "PREVIEW_URL" in art_f, art_f
     # ── LES NŒUDS D'EXPORT ───────────────────────────────────────────────
     assert "function exportNodeHtml(" in rendu
     exp = rendu.split("function exportNodeHtml(")[1].split("\n  }")[0]
@@ -4590,11 +4637,29 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     # « + export » exige l'artefact et le cable a lui
     ne = rendu.split("function naitExport(")[1].split("\n  }")[0]
     assert "artifact" in ne, ne
+    # RONDE DE CORRECTION 2c-T5 (N3) : un format REFUSE n'ECRIT PAS. `setGraph`
+    # est inconditionnel plus bas, donc la branche doit SORTIR — sans quoi un
+    # menu qui propose une valeur que le contrat ne sert plus pousse une entree
+    # d'annulation pour un graphe INCHANGE (« ↶ annuler format » avalerait un
+    # geste fantome et le vrai geste resterait sous la pile).
+    eg = rendu.split("function editGraph(")[1].split("\n  }")[0]
+    br = eg.split('field === "format"')[1].split("} else if (")[0]
+    assert "return;" in br, br
     # ── L'ARETE ET LA SELECTION (report T4, tranche) ─────────────────────
     sa = rendu.split("function selectionneArete(")[1].split("\n  }")[0]
     assert "SEL = null" in sa, sa
     assert "majInspecteur(" in sa, sa
     assert "arête" in rendu
+    # ── RONDE DE CORRECTION 2c-T5 (S2) : LA MOLETTE DU VIEWER EMBARQUE ───
+    # Le `model-viewer` vendorise `preventDefault` sa molette mais ne l'ARRETE
+    # PAS de remonter : sur le canvas il vit DANS le nœud artefact, donc
+    # `onCanvasWheel` (abonne a la surface) zoomait la scene entiere pendant
+    # que l'utilisateur croyait dolly-er son modele. Le garde est le PREMIER
+    # geste du handler, avant meme `preventDefault` — sinon la molette est
+    # confisquee au viewer sans que rien ne bouge chez lui.
+    ow = rendu.split("function onCanvasWheel(")[1].split("\n  }")[0]
+    assert "cf-forge3d-art-view" in ow, ow
+    assert ow.index("cf-forge3d-art-view") < ow.index("preventDefault"), ow
     # ── LES GARDES 2b RESTENT ────────────────────────────────────────────
     pcv = rendu.split("function paintCanvas(")[1].split("\n  }")[0]
     assert "paintCost(" in pcv, pcv
@@ -4620,6 +4685,27 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     corps_insp = re.findall(
         r"\.cf-forge3d \.cf-forge3d-inspecteur \{([^}]*)\}", feuille)
     assert any("flex: 0 0" in c for c in corps_insp), feuille
+    # RONDE DE CORRECTION 2c-T5 (M1) : ... et la REQUETE DE MEDIA doit venir
+    # APRES cette regle de base. `flex-basis: 100%` y est une LONGHAND ; la
+    # forme courte `flex: 0 0 232px` posee PLUS BAS, a specificite egale, la
+    # remet a 232 px — le repli sous 720 px etait donc MORT dans la feuille
+    # livree (la colonne ecrasait le canvas au lieu de passer dessous). On
+    # mesure l'ORDRE, pas la presence : c'est lui, et lui seul, qui tranche.
+    m_base = re.search(
+        r"\.cf-forge3d \.cf-forge3d-inspecteur \{[^}]*flex: 0 0[^}]*\}",
+        feuille)
+    m_media = re.search(r"@media \(max-width: 720px\) \{", feuille)
+    assert m_base and m_media, feuille
+    assert m_media.start() > m_base.end(), (m_media.start(), m_base.end())
+    bloc_media = feuille[m_media.start():].split("\n}", 1)[0]
+    assert "cf-forge3d-inspecteur" in bloc_media, bloc_media
+    # ... et l'ellipse de l'en-tete d'inspecteur n'est pas INERTE : sans
+    # `white-space: nowrap` le texte se replie et `text-overflow` ne coupe
+    # jamais rien (le patron est `.cf-forge3d-titre`, deux blocs plus haut).
+    tete = re.search(
+        r"\.cf-forge3d \.cf-forge3d-insp-tete \.mono \{([^}]*)\}", feuille)
+    assert tete and "text-overflow: ellipsis" in tete.group(1), feuille
+    assert "white-space: nowrap" in tete.group(1), tete.group(1)
     # ... et un viewer sans hauteur declaree se replie a zero : l'hote du
     # resultat DOIT en porter une.
     av = re.search(r"\.cf-forge3d \.cf-forge3d-art-view \{([^}]*)\}", feuille)
@@ -4634,8 +4720,14 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
 # un graphe cable par la vue liste (`rowModel`/`graphRows`/`rewireRow`).
 
 def _js_fn(src: str, nom: str) -> str:
-    """Le SOURCE d'une fonction de `mod-forge3d.js`, accolades equilibrees."""
+    """Le SOURCE d'une fonction de `mod-forge3d.js`, accolades equilibrees.
+
+    Le mot `async` qui la precede EST pris : sans lui, le corps extrait
+    porterait des `await` hors fonction asynchrone — une erreur de syntaxe que
+    node leverait au chargement du banc, pas un cas rouge lisible."""
     i = src.index("function " + nom + "(")
+    if src[max(0, i - 6):i] == "async ":
+        i -= 6
     j = src.index("{", i)
     n = 0
     for k in range(j, len(src)):
@@ -4862,13 +4954,14 @@ const dit = (nom, ok, detail) => out.push(
 const J = (x) => JSON.stringify(x);
 
 /* 1. LA PALETTE NE FAIT PAS NAITRE DE MAILLON FLOTTANT (report T4, tranche) */
-INFO = { graph_limits: { max_elements: 12,
+const INFO0 = { graph_limits: { max_elements: 12,
                          export_formats: ["glb", "stl", "metadata", "preview"] },
          materials: [{ id: "aaa", name: "gres" }],
          material_limits: { tile_mm: [10, 200], finishes: ["aucune", "argent"] },
          transform_limits: { xy_mm: [-100, 100], z_mm: [0, 10],
                              rot_deg: [-180, 180], scale: [0.1, 4] },
          mesh3d: { engines: [], default_engine: "meshy-7", has_meshy: false } };
+INFO = INFO0;
 LAST_MANIFEST = { side: "front",
                   layers: [{ role: "cadre" }, { role: "illustration" },
                            { role: "typographie" }] };
@@ -5099,13 +5192,255 @@ dit("... et l'inspecteur le DIT au lieu de se vider",
 dit("... et ne construit RIEN (une arete n'est pas un element)",
     INSPECTES.length === 0, J(INSPECTES));
 NOMS.length = 0;
-selectionne("t2");
+/* « asm » et pas « t2 » : ce cas designait un nœud QUI N'EXISTE PAS dans NU,
+   et la relache S1 (ronde de correction) le refuse desormais — a raison. Ce
+   qu'il mesure (reprendre un nœud lache l'arete, quel que soit l'ordre des
+   appels) demande juste un nœud REEL, et un AUTRE que celui d'avant. */
+selectionne("asm");
 dit("... et reprendre un nœud lache l'arete, sans dependre de l'ordre "
-    + "des appels", ARETE === null && SEL === "t2" && INSP_SUJET === "n:t2",
+    + "des appels", ARETE === null && SEL === "asm" && INSP_SUJET === "n:asm",
     J(ARETE) + " / " + SEL + " / " + INSP_SUJET);
+/* ... et un nœud ABSENT du graphe n'est pas un sujet : la relache tombe des
+   la designation (le meme garde, atteint par l'autre porte). */
+selectionne("t2");
+dit("designer un nœud absent du graphe ne pose AUCUN sujet",
+    SEL === null && INSP_SUJET === "", String(SEL) + " / " + J(INSP_SUJET));
 videInspecteur();   /* rend la minuterie : node n'a pas a attendre le debounce */
 
-process.stdout.write(JSON.stringify(out));
+/* ═══════════════════════════════════════════════════════════════════════════
+   RONDE DE CORRECTION 2c-T5 — ce que la revue adverse a trouve, mesure ICI.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 14. S1 — UN SUJET QUI QUITTE LE GRAPHE EST LACHE. « ↶ annuler », ou un
+      maillon vide par `editMat`, fait disparaitre le nœud DESIGNE. Sans
+      relache, la cle de sujet fait sortir `majInspecteur` PAR LE HAUT et le
+      panneau garde le nom ET le 3D d'un mort, pour toujours. `majSelArete`
+      lache DEJA l'arete disparue : c'etait l'asymetrie. */
+INFO = INFO0;       /* la section 11 avait mis le contrat a zero */
+DOC_GRAPH = NU;
+VUE = "canvas";
+ARETE = null; SEL = null; INSP_SUJET = "";
+NOMS.length = 0;
+selectionne("t1");
+dit("le nœud designe est bien le sujet",
+    SEL === "t1" && INSP_SUJET === "n:t1", SEL + " / " + INSP_SUJET);
+NOMS.length = 0;
+DOC_GRAPH = { nodes: (NU.nodes || []).filter((n) => n.id !== "t1"), edges: [] };
+majInspecteur();
+dit("un nœud disparu du graphe LACHE la selection (comme l'arete disparue)",
+    SEL === null, String(SEL));
+dit("... et le panneau se VIDE au lieu de garder un mort a l'affiche",
+    INSP_SUJET === "" && NOMS[NOMS.length - 1] === "", J(NOMS));
+
+/* 15. M4 — UN MAILLON NE NAIT PAS SUR UN TRAITEMENT SANS SOURCE. Il naitrait
+      CABLE (`editMat` le relie), mais son corps dirait « matiere hors chaine
+      — aucun traitement ne la porte », ce qui est FAUX : le traitement la
+      porte, c'est la COUCHE qui manque. Un ecran qui se trompe de coupable
+      est pire qu'un ecran qui refuse. */
+DOC_GRAPH = { nodes: [
+  { id: "t9", kind: "plane", depth_mm: 0.2 },
+  { id: "asm", kind: "assemble" },
+  { id: "art", kind: "artifact", name: "x" }],
+  edges: [{ from: "t9", to: "asm" }, { from: "asm", to: "art" }] };
+SEL = "t9";
+raz();
+naitMaillon("material");
+dit("un traitement SANS couche source ne fait naitre aucun maillon",
+    PATCHES.length === 0 && TOASTS.length === 1, J(TOASTS));
+dit("... et le refus nomme le VRAI manque : relier une couche d'abord",
+    /couche/i.test(TOASTS[0] || "") && /relie/i.test(TOASTS[0] || ""),
+    TOASTS[0]);
+raz();
+naitMaillon("transform");
+dit("... et c'est vrai du placement aussi",
+    PATCHES.length === 0 && TOASTS.length === 1, J(TOASTS));
+
+/* 16. N8 — DEUX EXPORTS DU MEME FORMAT NE TELECHARGENT PAS DEUX FOIS PLUS. */
+DOC_GRAPH = NU;
+PAL.format = "stl";
+raz();
+naitExport();
+dit("le premier export d'un format nait",
+    PATCHES.length === 1
+    && (DOC_GRAPH.nodes || []).filter((n) => n.kind === "export").length === 1,
+    J((DOC_GRAPH.nodes || []).map((n) => n.id)));
+raz();
+naitExport();
+dit("le SECOND du meme format est refuse, nomme",
+    PATCHES.length === 0 && /existe d[eé]j/.test(TOASTS[0] || ""), J(TOASTS));
+PAL.format = "glb";
+raz();
+naitExport();
+dit("... mais un AUTRE format nait sans discuter",
+    PATCHES.length === 1
+    && (DOC_GRAPH.nodes || []).filter((n) => n.kind === "export").length === 2,
+    J((DOC_GRAPH.nodes || []).map((n) => n.id)));
+
+/* 16bis. N5 — LE GARDE `|| []` A L'ECRITURE. Un graphe charge a la main peut
+      n'avoir aucune clef `nodes` (ou aucune clef `edges`) : TOUTE la lecture
+      du module le tolere deja (`grapheAvecLien`, `aretes`, `rowsDe`…), seule
+      la naissance levait — et une exception ici emporte la peinture entiere,
+      pas seulement le bouton clique. */
+DOC_GRAPH = {};
+PAL.role = "";
+raz();
+naitCouche();
+dit("un graphe SANS clef `nodes` ne fait pas lever « + couche »",
+    PATCHES.length === 1 && (DOC_GRAPH.nodes || []).length === 1,
+    J(DOC_GRAPH));
+DOC_GRAPH = {};
+raz();
+naitProc();
+dit("... ni « + traitement »",
+    PATCHES.length === 1 && (DOC_GRAPH.nodes || []).length === 1,
+    J(DOC_GRAPH));
+DOC_GRAPH = { nodes: [{ id: "art", kind: "artifact", name: "x" }] };
+PAL.format = "glb";
+raz();
+naitExport();
+dit("... et un graphe SANS clef `edges` ne fait pas lever « + export » (il "
+    + "nait CABLE : l'arete doit bien s'ecrire quelque part)",
+    PATCHES.length === 1 && (DOC_GRAPH.edges || []).length === 1,
+    J(DOC_GRAPH));
+
+/* 17. M5 — « FIGER L'APERCU » NE S'ARME PAS AVANT QUE LA SCENE SOIT CHARGEE.
+      `mountPreview` VERROUILLE le bouton jusqu'a l'evenement `load` du viewer
+      (`majFige`), mais le corps du nœud artefact, lui, se reconstruit a chaque
+      champ commis et le RE-ARMAIT sur la seule presence de `PREVIEW_URL` :
+      dans cette fenetre, « figer » capturait un cadre VIDE — et cette capture
+      devient l'image de la carte. L'etat n'est donc pas « une URL existe »
+      mais « la scene est la ». */
+PREVIEW_URL = null; FIGE_PRET = false;
+const artHtml = () => artifactNodeHtml({ id: "art", kind: "artifact",
+                                         name: "carte3d" });
+dit("sans apercu monte, « figer » est verrouille",
+    /data-act="freeze"[^>]*disabled/.test(artHtml()), artHtml());
+PREVIEW_URL = "blob:x";
+dit("... et il RESTE verrouille tant que la scene n'a pas dit « load » (une "
+    + "capture de cadre vide deviendrait l'image de la carte)",
+    /data-act="freeze"[^>]*disabled/.test(artHtml()), artHtml());
+FIGE_PRET = true;
+dit("... et il ne s'arme qu'ensuite",
+    !/data-act="freeze"[^>]*disabled/.test(artHtml()), artHtml());
+PREVIEW_URL = null;
+dit("... et un apercu LACHE (changement de carte) le re-verrouille",
+    /data-act="freeze"[^>]*disabled/.test(artHtml()), artHtml());
+FIGE_PRET = false;
+
+/* 18. S3 — LES SORTIES D'ECHEC DE `inspecte` NE LAISSENT RIEN DE L'ANCIEN.
+      Un transport coupe, un refus du serveur ou un corps vide laissaient le
+      modele PRECEDENT sous le NOM du nouveau nœud — et la cle de sujet,
+      restee posee, rendait l'echec COLLANT : ni la re-selection ni une
+      peinture ne re-essayaient. C'est la VRAIE fonction qui tourne ici ; seul
+      le transport est pilote. */
+const MVF = { pris: [], parentNode: null,
+              removeAttribute: (n) => { MVF.pris.push("-" + n); },
+              setAttribute: (n, v) => { MVF.pris.push(n + "=" + v); } };
+const armeVue = () => {
+  INSP_VIEW_EL = { innerHTML: "<model-viewer></model-viewer>" };
+  INSP_MV = MVF;
+  MVF.pris.length = 0;
+  REVOQUEES.length = 0;
+  ETATS.length = 0;
+  INSP_SUJET = "n:t1";
+};
+
+async function banc18() {
+  DOC_GRAPH = NU;
+  /* (a) LE TRANSPORT COUPE — la seule panne qui a droit au rouge */
+  armeVue(); INSP_URL = "blob:vieux";
+  RAW = () => { throw new Error("transport coupé"); };
+  await inspecte("t1");
+  dit("transport coupe : la boite du viewer est VIDEE (le modele d'avant ne "
+      + "reste pas a l'ecran sous le nom du nouveau nœud)",
+      INSP_VIEW_EL.innerHTML === "", J(INSP_VIEW_EL.innerHTML));
+  dit("... l'objectURL d'avant est REVOQUEE, pas seulement oubliee",
+      INSP_URL === null && REVOQUEES.indexOf("blob:vieux") >= 0, J(REVOQUEES));
+  dit("... et la cle de sujet est RENDUE (sinon l'echec est collant : aucune "
+      + "peinture ne re-essaierait)", INSP_SUJET === "", J(INSP_SUJET));
+  dit("... le motif est dit tel quel, et en rouge",
+      /transport/.test(ETATS[ETATS.length - 1] || ""), J(ETATS));
+
+  /* (b) LE REFUS NOMME DU SERVEUR — un ETAT, pas une panne */
+  armeVue(); INSP_URL = null;
+  RAW = () => ({ ok: false, status: 409, statusText: "Conflict",
+                 json: async () => ({ detail: "lance-le d'abord" }) });
+  await inspecte("t1");
+  dit("refus du serveur : le motif LITTERAL, jamais un resume",
+      (ETATS[ETATS.length - 1] || "").indexOf("lance-le d'abord") >= 0,
+      J(ETATS));
+  dit("... la boite est vidée", INSP_VIEW_EL.innerHTML === "",
+      J(INSP_VIEW_EL.innerHTML));
+  dit("... et la cle de sujet est rendue LA AUSSI (« lance-le d'abord » se "
+      + "re-tente : c'est meme le seul refus qui INVITE a re-essayer)",
+      INSP_SUJET === "", J(INSP_SUJET));
+
+  /* (c) UN CORPS VIDE — le serveur a repondu 200 et n'a rien livre */
+  armeVue(); INSP_URL = "blob:vieux2";
+  RAW = () => ({ ok: true, blob: async () => { throw new Error("vide"); } });
+  await inspecte("t1");
+  dit("corps illisible : boite vidée, URL revoquee, sujet rendu",
+      INSP_VIEW_EL.innerHTML === "" && INSP_URL === null
+      && INSP_SUJET === "" && REVOQUEES.indexOf("blob:vieux2") >= 0,
+      J(INSP_VIEW_EL.innerHTML) + " " + J(INSP_SUJET) + " " + J(REVOQUEES));
+  dit("... et il a droit au rouge (ca, c'est casse)",
+      /illisible/.test(ETATS[ETATS.length - 1] || ""), J(ETATS));
+
+  /* (d) LE SUCCES NE VIDE RIEN, ET GARDE SA CLE — l'ancre de mutation : un
+        `videApercuInsp` (ou un `INSP_SUJET = ""`) pose trop haut effacerait
+        l'apercu au moment precis ou il arrive, et rendrait le declencheur
+        non idempotent. */
+  armeVue(); INSP_URL = null;
+  RAW = () => ({ ok: true, blob: async () => ({
+    arrayBuffer: async () => new ArrayBuffer(8) }) });
+  await inspecte("t1");
+  dit("succes : la cle de sujet RESTE posee (l'idempotence du declencheur "
+      + "n'est rendue qu'aux ECHECS)", INSP_SUJET === "n:t1", J(INSP_SUJET));
+  dit("... et la boite n'est pas vidée : elle porte ce que l'apercu a rendu",
+      INSP_VIEW_EL.innerHTML !== "", J(INSP_VIEW_EL.innerHTML));
+}
+
+/* 19. S2 — LA MOLETTE DU VIEWER EMBARQUE NE ZOOME PAS LA SCENE. Le
+      `model-viewer` vendorise `preventDefault` sa propre molette (c'est son
+      dolly) mais ne l'ARRETE PAS de remonter : sur le canvas il vit DANS le
+      nœud artefact, donc la surface la recevait AUSSI et zoomait la scene
+      entiere pendant que l'utilisateur croyait s'approcher de son modele.
+      Mesure sur la vraie fonction, evenement fabrique — un pin de source
+      dirait que la chaine est la, pas que la camera reste immobile. */
+const SURF = { getBoundingClientRect: () => ({ left: 0, top: 0 }),
+               clientLeft: 0, clientTop: 0 };
+const molette = (dans) => {
+  let empeche = 0;
+  onCanvasWheel({
+    currentTarget: SURF, clientX: 100, clientY: 100, deltaY: -120,
+    preventDefault: () => { empeche += 1; },
+    target: { closest: (s) => ((dans && s === ".cf-forge3d-art-view")
+                               ? {} : null) },
+  });
+  return empeche;
+};
+camPending = null; camRaf = 0; FRAMES.length = 0;
+const emp1 = molette(true);
+dit("molette SUR le viewer du nœud artefact : la camera ne bouge pas",
+    camPending === null && FRAMES.length === 0, J(camPending));
+dit("... et le defilement n'est meme pas confisque — le viewer, LUI, en fait "
+    + "quelque chose", emp1 === 0, emp1);
+const emp2 = molette(false);
+dit("molette sur le FOND : la camera zoome (le garde ne mange pas le geste "
+    + "normal)", !!camPending && camPending.z > 1, J(camPending));
+dit("... et la surface confisque bien le defilement de la page", emp2 === 1,
+    emp2);
+camPending = null; camRaf = 0; FRAMES.length = 0;
+
+banc18().then(
+  () => {
+    videInspecteur();   /* aucune minuterie ne survit au banc */
+    process.stdout.write(JSON.stringify(out));
+  },
+  (e) => {
+    dit("le banc asynchrone a leve", false, String((e && e.stack) || e));
+    process.stdout.write(JSON.stringify(out));
+  });
 """
 
 
@@ -5119,30 +5454,58 @@ let VUE = "canvas", PREVIEW_URL = null;
 const HIST = [];
 const TOASTS = [];
 const PATCHES = [];
+/* LE TRANSPORT, PILOTE (ronde de correction 2c-T5, S3). `inspecte` n'est plus
+   un stub : c'est la VRAIE fonction, extraite du fichier livre, et ce banc
+   decide de ce que le reseau lui rend (ou lui LEVE). `INSPECTES` enregistre
+   les nœuds REELLEMENT postes — une mesure du debounce plus honnete qu'un
+   stub : zero requete veut dire zero apercu construit, cote serveur compris. */
+let RAW = null;
+const INSPECTES = [];
 const M = {
   toast: (t) => { TOASTS.push(String(t)); },
   patch: (p) => {
     PATCHES.push(p);
     if (Object.prototype.hasOwnProperty.call(p, "graph")) DOC_GRAPH = p.graph;
   },
+  api: {
+    raw: async (methode, route, corps) => {
+      INSPECTES.push(corps && corps.nid);
+      if (typeof RAW !== "function") throw new Error("aucun transport arme");
+      return RAW(methode, route, corps);
+    },
+  },
 };
+const CF = { current: () => 0 };
+/* L'OBJECTURL, PILOTEE. node n'offre pas d'`URL.createObjectURL` sur lequel on
+   voudrait compter, et ce qui se mesure ici est justement qu'une URL posee
+   soit REVOQUEE (pas seulement oubliee) : on la tient donc nous-memes. */
+const REVOQUEES = [];
+const URL = { createObjectURL: () => "blob:neuf",
+              revokeObjectURL: (u) => { REVOQUEES.push(String(u)); } };
+/* le SEUL nœud de DOM du banc : la boite du viewer de l'inspecteur. Tout le
+   reste rend `null` — les peintres s'arretent d'eux-memes. */
+let INSP_VIEW_EL = null;
 function get(k) { return (k === "graph") ? DOC_GRAPH : null; }
-function $() { return null; }          /* aucun DOM : les peintres s'arretent */
+function $(sel) { return (sel === "#cf-forge3d-insp-view") ? INSP_VIEW_EL : null; }
 function paintVue() {}
 function paintUndo() {}
 function paintNodeThumb() {}
 function paintCost() {}
 function build3d() {}
 build3d.busy = false;
-/* ce que l'inspecteur DIT et ce qu'il CONSTRUIT, enregistres au lieu d'etre
-   peints ou postes — c'est la seule facon de mesurer un panneau sans DOM. */
+/* la paire rAF, PILOTEE : rien ne s'execute tant que le banc ne le demande
+   pas — une frame reelle n'a rien a faire dans une mesure, et ce qui compte
+   est justement de savoir si une frame a ete DEMANDEE. */
+const FRAMES = [];
+function scheduleFrame(fn) { FRAMES.push(fn); return FRAMES.length; }
+function flushCam() {}
+/* ce que l'inspecteur DIT, enregistre au lieu d'etre peint — c'est la seule
+   facon de mesurer un panneau sans DOM. */
 const NOMS = [];
 const ETATS = [];
-const INSPECTES = [];
 function inspNom(t) { NOMS.push(String(t == null ? "" : t)); }
 function inspEtat(t) { ETATS.push(String(t == null ? "" : t)); }
 function inspAvoues() {}
-function inspecte(nid) { INSPECTES.push(nid); }
 """
 
 
@@ -5160,11 +5523,18 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "ART_NAME_MAX", "KIND_LABELS", "KIND_HINTS", "GRAMMAIRE",
                 # `THUMB_W` et `THUMB_H` sont declarees ENSEMBLE : une seule
                 # extraction les porte toutes les deux.
-                "THUMB_W", "PAL", "JOBS", "RUNS", "ERRS"):
+                "THUMB_W", "PAL", "JOBS", "RUNS", "ERRS",
+                # la camera et ses bornes (ronde 2c-T5, S2) : `CAM_X0`
+                # declare aussi `CAM_Y0`, `ZOOM_MIN` aussi `ZOOM_MAX`.
+                "CAM_X0", "ZOOM_MIN", "CAM"):
         morceaux.append(_js_decl(src, nom))
     morceaux.append(_js_decl(src, "INSP_MS"))
     for nom in ("ROWS_MEMO", "ARETE", "INSP_SUJET", "INSP_JETON", "INSP_URL",
-                "inspTimer", "INSP_MV"):
+                # `GEN` : la garde de generation de `inspecte` ; `FIGE_PRET` :
+                # l'etat REEL du viewer du resultat (ronde 2c-T5).
+                "inspTimer", "INSP_MV", "GEN", "FIGE_PRET",
+                # `camPending` declare aussi `camRaf`.
+                "camPending"):
         morceaux.append(_js_decl(src, nom, "let"))
     for nom in ("esc", "weight", "connu", "sansProto", "kindLabel",
                 "noeudTitre", "rowModel", "graphRows", "rowsDe", "rowDuNoeud",
@@ -5182,7 +5552,11 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "premiereMatiere", "naitCouche", "naitProc", "naitMaillon",
                 "naitExport", "paletteHtml", "paintPalette", "glbExtras",
                 "mondeEl", "marqueSel", "majSelArete", "selectionne",
-                "selectionneArete", "videInspecteur", "majInspecteur"):
+                "selectionneArete", "videInspecteur", "majInspecteur",
+                # ronde de correction 2c-T5 (S3) : les sorties d'ECHEC de
+                # l'inspecteur se mesurent sur la vraie fonction, transport
+                # pilote — un stub ne dit pas ce qu'elle rend.
+                "videApercuInsp", "echecInsp", "inspecte", "onCanvasWheel"):
         morceaux.append(_js_fn(src, nom))
     js = tmp_path / "banc_palette.js"
     js.write_text("\n".join(morceaux) + "\n" + _BANC_PALETTE, encoding="utf-8")
@@ -5219,8 +5593,9 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     assert not rates, "\n".join(f"{c['nom']} : {c['detail']}" for c in rates)
     # un PLANCHER, pas un compte fige (meme raison que le banc de chaines) :
     # un banc ampute — une section commentee, une exception avalee — passerait
-    # sinon en vert sans rien mesurer.
-    assert len(cas) >= 34, len(cas)
+    # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 76 apres la
+    # ronde de correction — le plancher garde la meme marge qu'avant.)
+    assert len(cas) >= 60, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
