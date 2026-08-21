@@ -93,11 +93,11 @@
    selection n'existe que sur la surface). En dessous de 720 px la colonne
    passe SOUS le canvas plutot que de l'ecraser : un canvas de 180 px de large
    ne serait plus une surface de travail. */
+/* LE REPLI SOUS 720 px VIT PLUS BAS, apres la regle de base de l'inspecteur :
+   `flex-basis` est une LONGHAND, et la forme courte `flex: 0 0 232px` posee
+   ensuite a specificite egale la REMET a 232 px. Ecrit ici, le repli etait
+   MORT dans la feuille livree. */
 .cf-forge3d .cf-forge3d-scene { display: flex; gap: 10px; align-items: stretch; }
-@media (max-width: 720px) {
-  .cf-forge3d .cf-forge3d-scene { flex-wrap: wrap; }
-  .cf-forge3d .cf-forge3d-inspecteur { flex-basis: 100%; }
-}
 .cf-forge3d .cf-forge3d-canvas {
   flex: 1 1 auto; min-width: 0;
   position: relative; overflow: hidden; height: 460px;
@@ -305,8 +305,22 @@
   border: 1px solid var(--stroke); border-radius: 10px;
   background: var(--bg-panel);
 }
+/* EN DESSOUS DE 720 px la colonne passe SOUS le canvas plutot que de
+   l'ecraser : un canvas de 180 px de large ne serait plus une surface de
+   travail. La regle vient APRES celle du dessus, et c'est le fond de
+   l'affaire — a specificite egale, l'ORDRE tranche (le `flex: 0 0 232px`
+   ci-dessus est une forme COURTE : posee apres, elle remettait `flex-basis`
+   a 232 px et le repli ne s'appliquait jamais). */
+@media (max-width: 720px) {
+  .cf-forge3d .cf-forge3d-scene { flex-wrap: wrap; }
+  .cf-forge3d .cf-forge3d-inspecteur { flex-basis: 100%; }
+}
 .cf-forge3d .cf-forge3d-insp-tete { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
-.cf-forge3d .cf-forge3d-insp-tete .mono { font-size: 10.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+/* `white-space: nowrap` — SANS LUI L'ELLIPSE EST INERTE : un texte qui se
+   replie n'a pas de debordement a couper, donc `text-overflow` ne coupe
+   jamais rien et le nom pousse la hauteur de l'en-tete. Le patron est
+   `.cf-forge3d-titre` (l'en-tete d'un nœud), plus haut. */
+.cf-forge3d .cf-forge3d-insp-tete .mono { font-size: 10.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* la boite du viewer : elle PREND ce qui reste, et ne s'effondre pas quand le
    panneau est vide (un cadre vide dit « ici, un apercu », le vide ne dit
    rien). */
