@@ -2635,6 +2635,15 @@ async def post_node_preview(did: str, body: dict | None = None):
                     headers={"Cache-Control": "no-store"})
 
 
+# `no-store` sur les REFUS aussi, pas seulement sur les 200 (vignettes de
+# matiere et apercus de noeud). Ces deux routes servent des octets qui CHANGENT
+# sous le meme chemin : « matiere sans vignette » devient « vignette servie »
+# des qu'on la capture, « aucun apercu sur ce noeud » des que le job rapatrie
+# son PNG. Un 404 mis en cache par heuristique laisserait l'ecran sur l'aplat
+# de couleur (ou le pictogramme par defaut) alors que le fichier est la.
+_NO_STORE = {"Cache-Control": "no-store"}
+
+
 @router.get("/material-thumb/{mid}")
 async def get_material_thumb(did: str, mid: str):
     """La vignette de boutique d'une matiere, servie PAR PROVENANCE — le fond
@@ -2661,11 +2670,13 @@ async def get_material_thumb(did: str, mid: str):
     from .contract import is_valid_did
     from app.services import material_store as MSTORE
     if not is_valid_did(did):
-        raise HTTPException(400, "Identifiant de deck invalide")
+        raise HTTPException(400, "Identifiant de deck invalide",
+                            headers=dict(_NO_STORE))
     if read_deck(did) is None:
-        raise HTTPException(404, "Deck introuvable")
+        raise HTTPException(404, "Deck introuvable", headers=dict(_NO_STORE))
     if not MSTORE.is_valid_mid(mid):
-        raise HTTPException(400, "Identifiant de matière invalide")
+        raise HTTPException(400, "Identifiant de matière invalide",
+                            headers=dict(_NO_STORE))
 
     def work() -> bytes | None:
         try:
@@ -2681,9 +2692,10 @@ async def get_material_thumb(did: str, mid: str):
 
     data = await asyncio.to_thread(work)
     if data is None:
-        raise HTTPException(404, f"matière sans vignette : {mid}")
+        raise HTTPException(404, f"matière sans vignette : {mid}",
+                            headers=dict(_NO_STORE))
     return Response(content=data, media_type="image/png",
-                    headers={"Cache-Control": "no-store"})
+                    headers=dict(_NO_STORE))
 
 
 # ── L'APERCU D'UN NOEUD, SERVI PAR PROVENANCE (Task 5, 2c) ─────────────────
@@ -2698,6 +2710,20 @@ async def get_material_thumb(did: str, mid: str):
 # La table porte AUSSI le type de contenu : le jour ou un second nom s'ajoute,
 # son media-type s'ajoute avec lui, jamais deduit d'une extension a cote.
 _NODE_FILES_PUBLICS = {"preview.png": "image/png"}
+
+# LE PLAFOND DE LECTURE. Les octets sont chargés EN RAM ici (l'écart assumé
+# expliqué dans la docstring ci-dessous), et le chemin qui ECRIT ce fichier —
+# le téléchargement de l'aperçu chez le fournisseur, dans `_run_mesh3d` — ne
+# le borne pas : une réponse de moteur inattendue devient donc une lecture
+# illimitée en mémoire, UNE PAR REQUÊTE. 4 Mio est large pour une vignette de
+# job (celles de meshy pèsent quelques dizaines de Kio) et ridicule à côté des
+# 32 Mio que `node-preview` refuse déjà de charger.
+_NODE_FILE_MAX = 4 * 1024 * 1024
+
+# le refus NOMMÉ de `work()` : `None` dit « absent » (404), cette sentinelle
+# dit « trop lourd » (413). Un entier ou un `False` s'y confondrait avec des
+# octets vides ; une identité, non.
+_NODE_FILE_TROP_LOURD = object()
 
 
 @router.get("/node-file/{nid}/{name}")
@@ -2731,37 +2757,55 @@ async def get_node_file(did: str, nid: str, name: str):
     from .core import read_deck
     from .contract import is_valid_did
     if not is_valid_did(did):
-        raise HTTPException(400, "Identifiant de deck invalide")
+        raise HTTPException(400, "Identifiant de deck invalide",
+                            headers=dict(_NO_STORE))
     if read_deck(did) is None:
-        raise HTTPException(404, "Deck introuvable")
+        raise HTTPException(404, "Deck introuvable", headers=dict(_NO_STORE))
     if not _NID_RE.match(nid or ""):
-        raise HTTPException(400, "Identifiant de noeud invalide")
+        raise HTTPException(400, "Identifiant de noeud invalide",
+                            headers=dict(_NO_STORE))
     media = _NODE_FILES_PUBLICS.get(name or "")
     if media is None:
         raise HTTPException(
             400, f"fichier non public : {name!r} — seul l'aperçu du noeud est "
-                 f"servi ({', '.join(sorted(_NODE_FILES_PUBLICS))})")
+                 f"servi ({', '.join(sorted(_NODE_FILES_PUBLICS))})",
+            headers=dict(_NO_STORE))
 
-    def work() -> bytes | None:
+    def work():
         try:
             p = _node_dir(did, nid) / name
         except HTTPException:
             return None
         if not p.is_file():
             return None
+        # LE POIDS SE MESURE AVANT LA LECTURE, pas apres : une borne qui lit
+        # d'abord ne borne rien. `stat` est deja fait par `is_file` — un de
+        # plus coute une syscall et ferme la porte.
+        try:
+            taille = p.stat().st_size
+        except OSError:
+            return None
+        if taille > _NODE_FILE_MAX:
+            return _NODE_FILE_TROP_LOURD
         try:
             return p.read_bytes()
         except OSError:
             return None
 
     data = await asyncio.to_thread(work)
+    if data is _NODE_FILE_TROP_LOURD:
+        raise HTTPException(
+            413, f"aperçu trop lourd pour être servi ({nid}) : au-delà de "
+                 f"{_NODE_FILE_MAX // (1024 * 1024)} Mio, ce n'est plus une "
+                 f"vignette — relance le noeud pour en réécrire une.",
+            headers=dict(_NO_STORE))
     if data is None:
-        raise HTTPException(404, f"aucun aperçu sur ce noeud ({nid})")
+        raise HTTPException(404, f"aucun aperçu sur ce noeud ({nid})",
+                            headers=dict(_NO_STORE))
     # `no-store` : un apercu CHANGE sous le meme nom (une relance le reecrit
     # apres avoir efface le dossier) — le figer en cache ferait afficher le
     # modele d'avant a cote de l'etat d'apres.
-    return Response(content=data, media_type=media,
-                    headers={"Cache-Control": "no-store"})
+    return Response(content=data, media_type=media, headers=dict(_NO_STORE))
 
 
 @router.post("/preview/{art}")
