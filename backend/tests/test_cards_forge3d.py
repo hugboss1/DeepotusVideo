@@ -4650,6 +4650,15 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     assert "SEL = null" in sa, sa
     assert "majInspecteur(" in sa, sa
     assert "arête" in rendu
+    # RONDE DE CORRECTION 2c-T5 (residu S3) : la REPRISE apres un echec passe
+    # le garde de balayage, et RIEN d'autre. La condition porte les DEUX
+    # moities : un nœud DESIGNE (`!!SEL` — sans quoi chaque pointerdown du
+    # fond, qui appelle `selectionne(null)`, rouvrirait le passage et
+    # repeindrait la palette a chaque debut de deplacement) ET une cle RENDUE
+    # (`!INSP_SUJET` — ce que seul `echecInsp` fait).
+    sn = rendu.split("function selectionne(")[1].split("\n  }")[0]
+    assert "const reprise = !!SEL && !INSP_SUJET;" in sn, sn
+    assert "!reprise" in sn, sn
     # ── RONDE DE CORRECTION 2c-T5 (S2) : LA MOLETTE DU VIEWER EMBARQUE ───
     # Le `model-viewer` vendorise `preventDefault` sa molette mais ne l'ARRETE
     # PAS de remonter : sur le canvas il vit DANS le nœud artefact, donc
@@ -5398,6 +5407,62 @@ async function banc18() {
       + "n'est rendue qu'aux ECHECS)", INSP_SUJET === "n:t1", J(INSP_SUJET));
   dit("... et la boite n'est pas vidée : elle porte ce que l'apercu a rendu",
       INSP_VIEW_EL.innerHTML !== "", J(INSP_VIEW_EL.innerHTML));
+
+  /* (e) LE RE-CLIC — le residu nomme a la livraison, tranche. `selectionne`
+        sort PAR LE HAUT sur un nœud deja designe (un balayage ne doit pas
+        relancer N constructions), donc rendre la cle ne suffisait pas : le
+        geste evident apres un echec — re-cliquer le nœud — ne repartait pas.
+        La clause etroite n'ouvre le passage que dans l'etat exact « un nœud
+        est designe ET sa cle a ete rendue », c'est-a-dire apres un echec.
+        LE FOND RESTE GARDE : `onCanvasDown` appelle `selectionne(null)` a
+        CHAQUE pointerdown du fond (chaque debut de pan), et sans selection il
+        n'y a rien a re-tenter. */
+  DOC_GRAPH = NU;
+  VUE = "canvas";
+  armeVue(); INSP_URL = null;
+  ARETE = null; SEL = null; INSP_SUJET = ""; INSPECTES.length = 0;
+  selectionne("t1");
+  dit("le premier clic pose le sujet et DIFFERE la construction",
+      SEL === "t1" && INSP_SUJET === "n:t1" && INSPECTES.length === 0,
+      SEL + " / " + INSP_SUJET);
+  RAW = () => ({ ok: true, blob: async () => ({
+    arrayBuffer: async () => new ArrayBuffer(8) }) });
+  await inspecte("t1");
+  INSPECTES.length = 0;
+  SELECTEURS.length = 0;
+  selectionne("t1");
+  dit("apres un SUCCES, re-cliquer le meme nœud SORT PAR LE HAUT (ni palette "
+      + "repeinte, ni construction relancee)",
+      INSPECTES.length === 0 && INSP_SUJET === "n:t1"
+      && SELECTEURS.indexOf("#cf-forge3d-palette") < 0,
+      J(INSPECTES) + " / " + J(INSP_SUJET) + " / " + J(SELECTEURS));
+  RAW = () => { throw new Error("transport coupé"); };
+  await inspecte("t1");
+  dit("un echec rend la cle", INSP_SUJET === "" && SEL === "t1",
+      J(INSP_SUJET) + " / " + String(SEL));
+  INSPECTES.length = 0;
+  SELECTEURS.length = 0;
+  selectionne("t1");
+  dit("... et re-cliquer le MEME nœud RE-TENTE : le geste evident, enfin "
+      + "branche", INSP_SUJET === "n:t1", J(INSP_SUJET));
+  dit("... il est bien PASSE par le corps de `selectionne` (palette repeinte)",
+      SELECTEURS.indexOf("#cf-forge3d-palette") >= 0, J(SELECTEURS));
+  dit("... en DIFFERANT comme le premier clic (rien n'est poste tout de "
+      + "suite)", INSPECTES.length === 0, J(INSPECTES));
+  /* LE FOND, LUI, NE PASSE PAS. `onCanvasDown` appelle `selectionne(null)` a
+     CHAQUE pointerdown du fond — c'est-a-dire au debut de chaque pan. Une
+     clause qui ne regarderait que la cle (vide au repos, puisque rien n'est
+     designe) rouvrirait le passage a tous ces gestes-la, et chaque debut de
+     pan repeindrait la palette entiere pour rien. */
+  videInspecteur();
+  SEL = null; INSP_SUJET = "";
+  SELECTEURS.length = 0;
+  selectionne(null);
+  dit("cliquer le FOND au repos SORT PAR LE HAUT (chaque debut de pan passe "
+      + "ici : sans selection, il n'y a rien a re-tenter)",
+      SELECTEURS.indexOf("#cf-forge3d-palette") < 0 && SEL === null,
+      J(SELECTEURS));
+  videInspecteur();
 }
 
 /* 19. S2 — LA MOLETTE DU VIEWER EMBARQUE NE ZOOME PAS LA SCENE. Le
@@ -5485,8 +5550,17 @@ const URL = { createObjectURL: () => "blob:neuf",
 /* le SEUL nœud de DOM du banc : la boite du viewer de l'inspecteur. Tout le
    reste rend `null` — les peintres s'arretent d'eux-memes. */
 let INSP_VIEW_EL = null;
+/* ... et LES SELECTEURS DEMANDES, enregistres. C'est la seule facon de voir
+   qu'un garde a bien SORTI PAR LE HAUT : `marqueSel` et `paintPalette` ne
+   laissent aucune trace dans un banc sans DOM (leurs `$` rendent null), donc
+   sans ce journal un « il n'a rien fait » passerait au vert meme si le code
+   avait tout refait. */
+const SELECTEURS = [];
 function get(k) { return (k === "graph") ? DOC_GRAPH : null; }
-function $(sel) { return (sel === "#cf-forge3d-insp-view") ? INSP_VIEW_EL : null; }
+function $(sel) {
+  SELECTEURS.push(String(sel));
+  return (sel === "#cf-forge3d-insp-view") ? INSP_VIEW_EL : null;
+}
 function paintVue() {}
 function paintUndo() {}
 function paintNodeThumb() {}
@@ -5593,9 +5667,9 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     assert not rates, "\n".join(f"{c['nom']} : {c['detail']}" for c in rates)
     # un PLANCHER, pas un compte fige (meme raison que le banc de chaines) :
     # un banc ampute — une section commentee, une exception avalee — passerait
-    # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 76 apres la
+    # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
     # ronde de correction — le plancher garde la meme marge qu'avant.)
-    assert len(cas) >= 60, len(cas)
+    assert len(cas) >= 66, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):

@@ -2100,7 +2100,8 @@
      l'inspecteur, dont elle EST le sujet.
      LE GARDE EST LE PREMIER GESTE : re-cliquer le nœud déjà sélectionné ne
      doit ni repeindre la palette ni relancer une construction d'aperçu — et
-     `onCanvasDown` appelle ceci à CHAQUE pointerdown, fond compris. */
+     `onCanvasDown` appelle ceci à CHAQUE pointerdown, fond compris. Une seule
+     fissure y est ouverte, pour la REPRISE après un échec ; voir plus bas. */
   function selectionne(nid) {
     const avant = SEL;
     SEL = nid || null;
@@ -2113,7 +2114,28 @@
        déplace sans perdre ce qu'on visait. */
     const arete = !!ARETE;
     if (SEL && arete) { ARETE = null; majSelArete(); }
-    if (SEL === avant && !arete) return;
+    /* LA REPRISE APRÈS UN ÉCHEC — la seule fissure qu'on ouvre dans le garde
+       ci-dessus, et elle est étroite exprès. `echecInsp` REND la clé de sujet
+       quand un aperçu a échoué (transport coupé, refus nommé, corps vide) :
+       « un nœud est désigné ET sa clé est vide » ne peut donc décrire QUE cet
+       état-là, jamais un balayage. Sans cette fissure, le geste évident après
+       un échec — re-cliquer le nœud — ne repartait pas, et la seule sortie de
+       secours était d'aller désigner un autre nœud pour revenir.
+       CE QUI RESTE FERMÉ, et ce n'est pas un détail : le FOND. `onCanvasDown`
+       appelle `selectionne(null)` à CHAQUE pointerdown du fond, donc au début
+       de chaque déplacement de vue ; au repos la clé y est vide elle aussi.
+       Une clause qui ne regarderait QUE la clé aurait donc rouvert le passage
+       à tous ces gestes-là, et chaque début de déplacement aurait repeint la
+       palette entière pour rien — exactement le gaspillage que ce garde
+       existe pour empêcher. D'où `!!SEL` : sans sélection, il n'y a rien à
+       re-tenter.
+       LA FENÊTRE DU DÉBOUNCE N'EN EST PAS UNE : `majInspecteur` pose la clé
+       de façon SYNCHRONE, 250 ms avant même d'appeler `inspecte` — pendant
+       l'attente comme pendant la requête, elle est donc POSÉE et le garde
+       tient. Un double-clic rapide ne peut pas mettre deux constructions en
+       vol. */
+    const reprise = !!SEL && !INSP_SUJET;
+    if (SEL === avant && !arete && !reprise) return;
     marqueSel();
     paintPalette();
     majInspecteur();
