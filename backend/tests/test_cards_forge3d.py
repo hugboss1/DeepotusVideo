@@ -4287,7 +4287,11 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     cible = faux / BUNDLE.name
     # la copie part de l'etat PRE-patch : le .bak du depot est le seul endroit
     # ou il vit encore.
-    bak_depot = BUNDLE.with_name(BUNDLE.name + ".bak_card3dlibrary")
+    # LE TAG EST LE NOM DU FICHIER (`repatch_all` deduit `patch_bundle_<tag>.py`
+    # du `.bak_<tag>`) : un tag qui derive du nom sort « SANS SCRIPT » de la
+    # chaine, c'est-a-dire une chaine non rejouable. Le pin le tient.
+    assert PATCHER.name == "patch_bundle_card3d_library.py"
+    bak_depot = BUNDLE.with_name(BUNDLE.name + ".bak_card3d_library")
     assert bak_depot.is_file(), "le .bak du maillon doit exister apres coup"
     cible.write_bytes(bak_depot.read_bytes())
     avant = cible.read_bytes()
@@ -4318,9 +4322,14 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     assert txt2.count('||z.provider==="card3d"') == 1, "double patch"
     assert txt2.count('||C.provider==="card3d"') == 1, "double patch"
 
+    # ... et le maillon est REJOUABLE : `repatch_all` deduit le script du TAG
+    # du backup, donc le .bak pose par le patcher doit porter le nom du
+    # fichier. Sinon la chaine sort « SANS SCRIPT » et s'arrete la.
+    pose = sorted(p.name for p in faux.glob(BUNDLE.name + ".bak_*"))
+    assert pose == [BUNDLE.name + ".bak_card3d_library"], pose
     # ... et un bundle DEJA patche sans son .bak est un etat AMBIGU : refus
     # nomme, aucun backup empoisonne cree (le piege que la chaine a deja paye).
-    (faux / (BUNDLE.name + ".bak_card3dlibrary")).unlink()
+    (faux / (BUNDLE.name + ".bak_card3d_library")).unlink()
     r3 = run()
     assert r3.returncode != 0, r3.stdout
     assert "sanity" in (r3.stdout + r3.stderr), r3.stdout + r3.stderr

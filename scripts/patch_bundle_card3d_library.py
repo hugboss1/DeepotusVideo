@@ -3,8 +3,10 @@
 """Patcher assert-garde : les cartes 3D de Card Forge dans la Bibliotheque.
 
 BASELINE : bundle POST-patch `version` (dernier maillon en date de la chaine).
-Backup dedie : `.js.bak_card3dlibrary` (etat juste avant CE patch).
-Position dans la chaine : EN QUEUE, apres `version`.
+Backup dedie : `.js.bak_card3d_library` (etat juste avant CE patch).
+Position dans la chaine : EN QUEUE, apres `version` — verifie par
+`python scripts/repatch_all.py --list` (doit dire « OK », jamais
+« SANS SCRIPT » : ce script deduit le patcher du TAG du backup).
 Spec : docs/superpowers/specs/2026-08-19-cardforge-universel-design.md (§5.6
 point 7) ; plan 2026-08-20-cardforge-phase2c-canvas.md (tache 6, etape 3).
 
@@ -50,7 +52,13 @@ import sys
 import time
 
 REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
-TAG = "card3dlibrary"
+# LE TAG EST LE NOM DU FICHIER, et ce n'est pas de la cosmetique :
+# `repatch_all.py` deduit le script d'un maillon de son `.bak_<tag>`
+# (`patch_bundle_<tag>.py`). Un tag « card3dlibrary » devant un fichier
+# `patch_bundle_card3d_library.py` sortait « SANS SCRIPT » de
+# `--list` — c'est-a-dire une chaine NON REJOUABLE, et un abandon net
+# le jour ou quelqu'un rejoue depuis un maillon amont. Mesure faite.
+TAG = "card3d_library"
 
 # Marqueur de double application : present <=> le patch est deja pose.
 MARKER = '||z.provider==="card3d"'

@@ -842,6 +842,16 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > 4. Le déploiement du bundle vers l'app **n'est pas fait** (Task 7), et le
 >    `--check` du patcher sur la racine de l'APP refusera à raison : on ne
 >    patche pas l'app, on y COPIE le bundle du dépôt.
+>
+> **Défaut trouvé APRÈS coup, en vérifiant la chaîne plutôt qu'en la
+> supposant** : `repatch_all.py --list` sortait `card3dlibrary SANS SCRIPT`.
+> Le tag était `card3dlibrary` et le fichier `patch_bundle_card3d_library.py`
+> (le nom imposé par le plan) — or la chaîne DÉDUIT le script du tag du
+> backup. Chaîne non rejouable, et un abandon net le jour où quelqu'un rejoue
+> depuis un maillon amont. Tag aligné sur le nom (`card3d_library`), `.bak`
+> renommé, et **deux pins de plus** : le nom du patcher, et le nom du `.bak`
+> qu'il POSE. Un patcher correct qui n'est pas dans la chaîne n'est pas une
+> livraison.
 
 > **COUTURE DE DÉLESTAGE (ajoutée après T1)** : forge3d.py a franchi le seuil
 > des ~2400 lignes (2708 après les correctifs T1). AVANT d'ajouter le bloc
