@@ -902,7 +902,9 @@ def test_clean_graph_repare_et_ne_leve_jamais():
     # I1 (revue) : deux nœuds d'id BRUT "n2x" — la resynthese anti-collision
     # doit suffixer en BOUCLE jusqu'a unicite (mesure en revue : un simple
     # "n{i+1}x" retombait sur EXACTEMENT "n2x" pour LES DEUX, et l'arête
-    # visant l'un des deux devenait ambiguë entre les deux).
+    # visant l'un des deux devenait ambiguë entre les deux). Le scheme est
+    # DETERMINISTE (aucun hasard nulle part dans clean_graph) : le meme
+    # doublon rend TOUJOURS les memes ids resynthetises.
     doublon = {"nodes": [{"id": "n2x", "kind": "assemble"},
                         {"id": "n2x", "kind": "assemble"}],
               "edges": []}
@@ -910,6 +912,27 @@ def test_clean_graph_repare_et_ne_leve_jamais():
     assert len(out4["nodes"]) == 2, "les deux noeuds doivent etre conserves"
     ids4 = [n["id"] for n in out4["nodes"]]
     assert len(ids4) == len(set(ids4)), f"ids en collision : {ids4}"
+    assert ids4 == ["n2x", "n2x_2"], ids4
+    assert [n["id"] for n in F9.clean_graph(doublon)["nodes"]] == ids4, \
+        "resynthese non deterministe"
+
+    # P1 (revue, 2c) : le suffixe de collision reste DANS le budget de 24
+    # caracteres — atteignable des que deux ids bruts partagent un prefixe
+    # de 24 caracteres identiques. L'ancien "+x" poussait alors le second a
+    # 25 caracteres, que `_NID_RE` (borne {1,24}, gardee par les routes
+    # mesh3d/node-preview) rejette ensuite : le noeud resynthetise ne
+    # pouvait plus jamais lancer/poller/previsualiser son mesh3d.
+    plein = "a" * 24
+    trois_pleins = {"nodes": [{"id": plein, "kind": "assemble"},
+                              {"id": plein, "kind": "assemble"},
+                              {"id": plein, "kind": "assemble"}],
+                    "edges": []}
+    out5 = F9.clean_graph(trois_pleins)
+    ids5 = [n["id"] for n in out5["nodes"]]
+    assert len(ids5) == 3 and len(set(ids5)) == 3, f"ids en collision : {ids5}"
+    assert all(len(x) <= 24 for x in ids5), f"id hors budget de 24 : {ids5}"
+    assert all(F9._NID_RE.match(x) for x in ids5), \
+        f"id repare invalide pour _NID_RE (routes/dossiers) : {ids5}"
 
 
 def test_le_relief_est_un_solide_ferme_et_le_quad_un_plan_exact():
@@ -3636,9 +3659,11 @@ def _reset_node(did, nid):
         shutil.rmtree(d, ignore_errors=True)
 
 
-def test_node_preview_construit_le_glb_du_seul_element():
+def test_node_preview_construit_le_glb_du_seul_element(monkeypatch):
     """POST /forge3d/node-preview {graph, card, nid} -> le GLB d'UN element,
     grille de relief BORNEE (apercu rapide), reponse ephemere, jamais-500."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
     did = _deck("Preview noeud")
     _exporter_couches(did)
     g = {"nodes": [
@@ -3656,10 +3681,15 @@ def test_node_preview_construit_le_glb_du_seul_element():
     doc, binv = _read_glb(r.content)
     racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
     assert [doc["nodes"][k]["name"] for k in racine["children"]] == ["cadre"]
+    # I1/M5 (revue) : le schema est CELUI de l'apercu (jamais artifact@1),
+    # `preview` est le discriminant explicite, et rien n'a ete ecarte ici ->
+    # `ignored` est VIDE (present, pas absent).
+    extras = doc["asset"]["extras"]
+    assert extras["schema"] == F9.PREVIEW_SCHEMA == "card-3d/apercu@1"
+    assert extras["preview"] is True
+    assert extras["ignored"] == []
     # la grille demandee (256) est PLAFONNEE pour l'apercu : le compte de
     # triangles est celui de RELIEF_GRID_PREVIEW, pas du grid max
-    from app.services.cards import forge3d as F9
-    from app.services.cards import forge3d_scene as SC
     m = SC.glb_scene_mesh(r.content)
     gy = max(2, round(F9.RELIEF_GRID_PREVIEW * (88.0 / 63.0)))
     attendu = (4 * F9.RELIEF_GRID_PREVIEW * gy + 4 * F9.RELIEF_GRID_PREVIEW
@@ -3695,6 +3725,140 @@ def test_node_preview_construit_le_glb_du_seul_element():
     assert r5.status_code == 400
     assert "prévisualisable" in r5.json()["detail"]
 
+    # CF2 (revue) : borne PROPRE a l'inspecteur (pas MAX_EXT_GLB_BYTES),
+    # mesuree sur job/stat (jamais une lecture), refus au motif LITTERAL.
+    _job_servi(did, "m1", glb_job, closed=True)
+    monkeypatch.setattr(F9, "MAX_APERCU_GLB_BYTES", 10)
+    r6 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g2, "card": 0, "nid": "m1"})
+    assert r6.status_code == 409, r6.text
+    assert ("trop lourd pour l'inspecteur" in r6.json()["detail"]
+            and "10 o" in r6.json()["detail"]), r6.json()["detail"]
+    monkeypatch.undo()
+    # sous la vraie borne, le MEME job repasse -- FileResponse sert les
+    # octets du DISQUE, byte-identiques a ce que le job a ecrit.
+    r7 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g2, "card": 0, "nid": "m1"})
+    assert r7.status_code == 200 and r7.content == glb_job
+
+
+def test_l_id_synthetique_de_l_apercu_est_hors_alphabet():
+    """M1/CF1 (revue) : la garantie anti-collision de l'assemble synthetique
+    est STRUCTURELLE (un caractere que `clean_graph` ne peut jamais emettre),
+    pas arithmetique (une longueur) — l'argument « > 24 caracteres » etait
+    FAUX au moment ou il a ete ecrit (P1 : le suffixe anti-collision pouvait
+    depasser 24)."""
+    from app.services.cards import forge3d as F9
+    assert re.search(r"[^A-Za-z0-9._-]", F9._PREVIEW_ASM_ID)
+    assert not F9._NID_RE.match(F9._PREVIEW_ASM_ID)
+
+
+def test_node_preview_chaine_matiere_transform_et_ignores():
+    """I1/I3 (revue) : layer -> relief -> material(temoin + finition argent)
+    -> transform -> assemble : l'apercu d'UN noeud montre l'option DEJA
+    choisie sur SA chaine (memes maps tuilees et TRS que build3d), et un
+    aveu ecarte (matiere supprimee de la boutique ENTRE le graphe et
+    l'apercu) reste VISIBLE dans extras["ignored"] — jamais tu."""
+    from app.services import material_store as MSTORE
+    did = _deck("Preview chaine")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="apercu-2c")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (120, 90, 60)),
+            "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
+            "roughness": Image.new("L", (32, 32), 70),
+            "metallic": Image.new("L", (32, 32), 210),
+            "ao": Image.new("L", (32, 32), 180)})
+        g = {"nodes": [
+            {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "t1", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+             "grid": 48},
+            {"id": "mat", "kind": "material", "mat": mat["id"],
+             "tile_mm": 31.5, "finish": "argent", "aniso": True},
+            {"id": "trs", "kind": "transform", "x_mm": 4.0, "y_mm": 0.0,
+             "z_mm": 2.0, "rot_deg": 0.0, "scale": 2.0},
+            {"id": "asm", "kind": "assemble"}],
+            "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "mat"},
+                      {"from": "mat", "to": "trs"},
+                      {"from": "trs", "to": "asm"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+                 json={"graph": g, "card": 0, "nid": "t1"})
+        assert r.status_code == 200, r.text
+        doc, _binv = _read_glb(r.content)
+        extras = doc["asset"]["extras"]
+        assert extras["schema"] == "card-3d/apercu@1"
+        assert extras["preview"] is True
+        assert extras["ignored"] == []
+        m = doc["materials"][0]
+        assert "normalTexture" in m and "occlusionTexture" in m
+        assert set(doc.get("extensionsUsed", [])) == {
+            "KHR_materials_iridescence", "KHR_materials_clearcoat",
+            "KHR_materials_anisotropy"}
+        # le TRS du transform, sur le noeud de l'element (meme composition
+        # que build3d : translate + scale UNIFORME du transform utilisateur)
+        assert doc["nodes"][0]["translation"] == [4.0, 0.0, 2.0]
+        assert doc["nodes"][0]["scale"] == [2.0, 2.0, 2.0]
+
+        # ET SANS materiere/transform (chaine nue) : le noeud ne porte NI
+        # translation NI l'echelle x2 — la preuve que le TRS ci-dessus vient
+        # bien de CETTE chaine, pas d'un defaut du writer.
+        g_nu = {"nodes": [
+            {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "t1", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+             "grid": 48},
+            {"id": "asm", "kind": "assemble"}],
+            "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"}]}
+        r_nu = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+                    json={"graph": g_nu, "card": 0, "nid": "t1"})
+        assert r_nu.status_code == 200, r_nu.text
+        doc_nu, _ = _read_glb(r_nu.content)
+        assert "translation" not in doc_nu["nodes"][0]
+        assert doc_nu["nodes"][0].get("scale") != [2.0, 2.0, 2.0]
+
+        # la matiere disparait de la boutique ENTRE deux apercus du MEME
+        # graphe : 200 toujours, element NU, mais le motif ECARTE reste
+        # VISIBLE (I1) — jamais un silence.
+        MSTORE.delete_material(mat["id"])
+        r2 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+                  json={"graph": g, "card": 0, "nid": "t1"})
+        assert r2.status_code == 200, r2.text
+        doc2, _ = _read_glb(r2.content)
+        m2 = doc2["materials"][0]
+        assert "normalTexture" not in m2 and "occlusionTexture" not in m2
+        ignored2 = doc2["asset"]["extras"]["ignored"]
+        motifs2 = {i["node"]: i["why"] for i in ignored2}
+        assert "mat" in motifs2 and "introuvable" in motifs2["mat"], ignored2
+    finally:
+        if MSTORE.read_material(mat["id"]) is not None:
+            MSTORE.delete_material(mat["id"])
+
+
+def test_node_preview_n_ecrit_jamais_sur_disque():
+    """M7 (revue) : « reponse EPHEMERE » (spec §5.6 point 4) devient un test
+    — snapshot du dossier forge3d du deck avant/apres un apercu plane/relief,
+    memes fichiers, memes mtimes."""
+    did = _deck("Preview sans ecriture")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t1", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "t1", "to": "asm"}]}
+    base = _dossier_forge3d(did)
+
+    def snapshot():
+        return sorted((str(p.relative_to(base)), p.stat().st_mtime_ns)
+                     for p in base.rglob("*") if p.is_file())
+
+    avant = snapshot()
+    r = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+             json={"graph": g, "card": 0, "nid": "t1"})
+    assert r.status_code == 200, r.text
+    apres = snapshot()
+    assert avant == apres, (avant, apres)
+
 
 def test_material_thumb_est_servi_par_provenance():
     from app.services import material_store as MSTORE
@@ -3716,6 +3880,16 @@ def test_material_thumb_est_servi_par_provenance():
             assert r3.status_code == 404
         finally:
             MSTORE.delete_material(m2["id"])
+        # I4 (revue) : une vignette PERIMEE (MESH_VERSION a change depuis
+        # sa capture — thumb_is_current lit "thumb.mv") est tenue pour
+        # ABSENTE, meme doctrine que la boutique pour sa propre carte : le
+        # client retombe sur un aplat de couleur, comme la galerie deja.
+        d = MSTORE.material_dir(mat["id"])
+        (d / "thumb.mv").write_text("-1", encoding="utf-8")
+        assert MSTORE.thumb_is_current(d) is False
+        r4 = _api("GET",
+                  f"/api/cards/{did}/forge3d/material-thumb/{mat['id']}")
+        assert r4.status_code == 404
     finally:
         MSTORE.delete_material(mat["id"])
 

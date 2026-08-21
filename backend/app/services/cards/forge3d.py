@@ -44,6 +44,13 @@ router = APIRouter()
 
 MANIFEST_SCHEMA = "card-3d/layers-manifest@1"
 ARTIFACT_SCHEMA = "card-3d/artifact@1"
+# M5 (revue 2c) : UN SCHEMA A PART pour l'apercu — jamais `ARTIFACT_SCHEMA`.
+# Un GLB de node-preview n'est PAS un artefact (il n'est jamais écrit sur
+# disque, il ne porte qu'UN élément, il peut disparaître au prochain clic) ;
+# lui faire porter le schéma de l'artefact laisserait un lecteur externe
+# croire à une sortie durable. `preview: True` dans les extras EST le
+# discriminant explicite, ce nom de schéma en est le second, indépendant.
+PREVIEW_SCHEMA = "card-3d/apercu@1"
 
 # ── LA TABLE DES COUCHES — BLOC MIROIR ──────────────────────────────────────
 # ═══ CF-FORGE3D-LAYERS-BEGIN ═══
@@ -123,6 +130,17 @@ MESH3D_TIMEOUT_S = 1800.0             # 30 min — après quoi le job échoue NO
 MESH3D_CLOSED_TRI_MAX = 1_500_000     # au-delà : closed=None (« non mesuré »),
                                       # le gate STL refuse MOTIVÉ (borne mémoire)
 MAX_EXT_GLB_BYTES = 64 * 1024 * 1024  # même chiffre que MAX_LAYER_BYTES
+MAX_APERCU_GLB_BYTES = 32 * 1024 * 1024  # CF2 (revue 2c) : borne PROPRE à
+                                      # l'inspecteur, PAS `MAX_EXT_GLB_BYTES`
+                                      # — celle-là borne une FUSION tenue en
+                                      # mémoire (plusieurs GLB à la fois),
+                                      # celle-ci borne ce qu'UN CLIC envoie
+                                      # au model-viewer du navigateur (un
+                                      # seul GLB, dans un onglet qui tourne
+                                      # déjà) : la moitié suffit largement, et
+                                      # un GLB au-delà appartient au noeud
+                                      # artefact (qui, lui, sait fusionner et
+                                      # dégrader), pas à un clic d'aperçu.
 
 MATERIAL_TILE_MM = (10.0, 200.0)
 # UNE seule vérité pour les finitions : les recettes vivent dans le module
@@ -351,7 +369,16 @@ def clean_graph(raw) -> dict:
     en BOUCLE jusqu'à unicité : un simple `f"n{i+1}x"` ne suffisait pas —
     mesuré en revue, deux nœuds bruts d'id "n2x" retombaient tous les deux
     sur EXACTEMENT "n2x" (la deuxième collision n'était jamais reconsidérée),
-    et l'arête qui visait l'un des deux devenait ambiguë entre les deux."""
+    et l'arête qui visait l'un des deux devenait ambiguë entre les deux.
+
+    P1 (revue, 2c) : le suffixe vit DANS le budget de 24 caractères — un id
+    réparé reste un id valide PARTOUT (`_NID_RE`, les routes mesh3d/
+    node-preview, les dossiers de nœud). Le premier correctif (« +x » en
+    boucle) rouvrait exactement le même défaut d'un cran plus loin : un
+    `brut` déjà à 24 caractères + "x" fait 25, que `_NID_RE` (borne
+    `{1,24}`) rejette ensuite — le nœud résynthétisé ne pouvait plus jamais
+    lancer/poller/prévisualiser son mesh3d, atteignable dès que deux ids
+    bruts partagent un préfixe de 24 caractères identiques."""
     from app.services import material_store
     from app.services import meshy_service as MS
     g = raw if isinstance(raw, dict) else {}
@@ -368,11 +395,22 @@ def clean_graph(raw) -> dict:
         if not isinstance(k_val, str) or k_val not in kinds:
             continue
         brut = re.sub(r"[^A-Za-z0-9._-]", "_", str(n.get("id") or f"n{i + 1}"))[:24]
-        node = {"id": brut or f"n{i + 1}", "kind": n["kind"]}
-        # resynthese SANS collision possible : "n2x" + "n2x" donnait "n2x" deux
-        # fois (mesure en revue) — on suffixe jusqu'a unicite.
-        while node["id"] in ids:
-            node["id"] += "x"
+        node_id = brut or f"n{i + 1}"
+        if node_id in ids:
+            # P1 (revue) : le suffixe vit DANS le budget de 24 caracteres —
+            # un id repare reste un id valide PARTOUT (_NID_RE, les routes,
+            # les dossiers). L'ancien `node["id"] += "x"` poussait un brut
+            # DEJA a 24 caracteres a 25, que _NID_RE rejette ensuite : le
+            # noeud resynthetise ne pouvait plus jamais lancer/poller/
+            # previsualiser (mesure en revue). `base` a 20 caracteres laisse
+            # 3 chiffres de marge au compteur — largement assez :
+            # `_GRAPH_ITER_MAX` borne le nombre total de noeuds donc de
+            # collisions possibles sur un meme prefixe a 200.
+            base, k = node_id[:20], 2
+            while f"{base}_{k}" in ids:
+                k += 1
+            node_id = f"{base}_{k}"
+        node = {"id": node_id, "kind": n["kind"]}
         ids.add(node["id"])
         if n["kind"] == "layer":
             r_val = n.get("role")
@@ -1233,6 +1271,83 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
                             "why": f"finition ignoree : {e}"})
 
 
+def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
+                   mat_n, trs_n, card_label: str, w_mm: float, h_mm: float,
+                   bleed_px: tuple, canvas_px: tuple, uv_window: tuple,
+                   ignores: list) -> dict:
+    """UN élément LOCAL (`plane`/`relief`) prêt pour l'assemblage : lecture
+    de la couche, géométrie (quad ou relief, cropée à la coupe), habillage
+    matière/finition, TRS — COMMUNS (I2, revue 2c) à `build3d` (la boucle de
+    son `work()`) et à l'inspecteur (`post_node_preview`) : mêmes ~40
+    lignes, UNE fois, même doctrine que `_open_png` (déjà UNIQUE pour la
+    même raison — voir sa docstring). `ignores` est MUTÉ : `_habille` y
+    ajoute ses motifs (matière introuvable, finition ignorée)."""
+    fname = _layer_filename(layer, card_label)
+    p = out / fname
+    # MOTIF 2/2 (distinct du "graphe vide") : le graphe est bien câblé, mais
+    # LA couche qu'il vise n'a jamais été livrée pour cette carte/ce côté —
+    # exporte-les d'abord (phase 1).
+    if not p.is_file():
+        raise HTTPException(
+            409, f"exporte les couches d'abord : {fname} absent "
+                 f"(POST /layers)")
+    raw = p.read_bytes()
+    im = _open_png(raw, fname)
+    if proc["kind"] == "plane":
+        mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
+        el = {"name": nom_el, "mesh": mesh, "png": raw,
+              "alpha": True, "z_mm": proc["depth_mm"]}
+    else:
+        # la géométrie/silhouette du relief ne doit voir QUE la coupe —
+        # cropper la TOILE au rectangle de coupe (mêmes bornes que
+        # `bleed_px`) AVANT l'échantillonnage, sinon le fond perdu pèse sur
+        # la hauteur ET la silhouette.
+        cx0, cy0 = bleed_px
+        cx1 = canvas_px[0] - cx0
+        cy1 = canvas_px[1] - cy0
+        alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
+        mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
+                           proc["base_mm"], proc["grid"], uv_window=uv_window)
+        el = {"name": nom_el, "mesh": mesh, "png": raw,
+              "alpha": False, "z_mm": 0.0}
+    _habille(el, mat_n, w_mm, h_mm, ignores)
+    trs = _trs_dict(trs_n)
+    if trs is not None:
+        el["trs"] = trs
+    return el
+
+
+def _glb_servi_path(did: str, nid: str) -> tuple[dict, Path]:
+    """Le job SERVI d'un nœud mesh3d et le CHEMIN de son GLB sur disque — LA
+    SEULE SOURCE (I2, revue 2c) des trois refus partagés par
+    `_element_externe` (fusion, build3d) et `_apercu_mesh3d` (inspecteur,
+    node-preview) : job non servi, nom de fichier de nom invalide, fichier
+    disparu du nœud. Chaque appelant garde SES gates PROPRES au-delà :
+    `_element_externe` vérifie ENCORE la carte-source et `MAX_EXT_GLB_BYTES`
+    (une fusion en mémoire) ; `_apercu_mesh3d` vérifie `MAX_APERCU_GLB_BYTES`
+    (un clic dans l'inspecteur — deux dangers différents, deux bornes
+    différentes, voir CF2). N'OUVRE PAS le fichier : ni celle-ci, ni ses
+    appelants n'ont besoin des octets pour ces trois refus."""
+    job = _job_read(did, nid)
+    if not isinstance(job, dict) or job.get("status") != "served":
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
+                 f"(POST mesh3d/{nid})")
+    fichiers = job.get("files")
+    nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
+    nom_glb = str(nom_glb or "model.glb")
+    if not re.match(r"^[A-Za-z0-9._-]{1,90}$", nom_glb) or set(nom_glb) == {"."}:
+        raise HTTPException(
+            409, f"le noeud {nid} annonce un fichier de nom invalide "
+                 f"({nom_glb!r}) - relance le noeud")
+    p_glb = _node_dir(did, nid) / nom_glb
+    if not p_glb.is_file():
+        raise HTTPException(
+            409, f"le noeud {nid} n'a pas servi son GLB — {nom_glb} a disparu "
+                 f"du noeud, relance-le")
+    return job, p_glb
+
+
 def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
                      box_mm: list, trs_n, card_label: str) -> dict:
     """UN GLB de moteur, prêt pour la fusion — ou un refus NOMMÉ.
@@ -1247,11 +1362,7 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
     livraison) ; un job plus ancien qui n'en aurait pas retombe sur un `stat`
     — une mesure de métadonnée, toujours pas une lecture."""
     nid = proc["id"]
-    job = _job_read(did, nid)
-    if not isinstance(job, dict) or job.get("status") != "served":
-        raise HTTPException(
-            409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
-                 f"(POST mesh3d/{nid})")
+    job, p_glb = _glb_servi_path(did, nid)
     # I2 — UN GLB EST LIÉ À SA CARTE. Le job dit de QUELLE couche il est né
     # (`source.file`, écrit par la route au lancement) ; la chaîne, elle, vise
     # la couche de la carte qu'on construit MAINTENANT. Quand les deux
@@ -1261,6 +1372,11 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
     # Aucune mesure ne rattraperait ça après coup : c'est le bon fichier, au
     # mauvais endroit. Refus NOMMÉ, avec les deux noms, pour que le motif soit
     # actionnable (relancer le nœud) plutôt que mystérieux.
+    #
+    # PAS le même refus pour l'inspecteur (M4) : `_apercu_mesh3d` ne fait PAS
+    # cette vérification — sa question est « qu'a produit CE nœud », pas
+    # « ce nœud convient-il à CETTE carte ». La carte n'entre pas dans la
+    # question posée par un clic sur un nœud.
     attendu = _layer_filename(layer, card_label)
     servi = (job.get("source") or {}).get("file") if isinstance(
         job.get("source"), dict) else None
@@ -1268,18 +1384,6 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
         raise HTTPException(
             409, f"le GLB du noeud {nid} a ete servi pour {servi} — cette "
                  f"construction attend {attendu} : relance-le pour cette carte")
-    fichiers = job.get("files")
-    nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
-    nom_glb = str(nom_glb or "model.glb")
-    if not re.match(r"^[A-Za-z0-9._-]{1,90}$", nom_glb) or set(nom_glb) == {"."}:
-        raise HTTPException(
-            409, f"le noeud {nid} annonce un fichier de nom invalide "
-                 f"({nom_glb!r}) - relance le noeud")
-    p_glb = _node_dir(did, nid) / nom_glb
-    if not p_glb.is_file():
-        raise HTTPException(
-            409, f"le noeud {nid} n'a pas servi son GLB — {nom_glb} a disparu "
-                 f"du noeud, relance-le")
     # LE JOB DIT, LE DISQUE CONFIRME — et c'est le PLUS GRAND des deux qui
     # décide. Un `stat` n'ouvre rien (c'est une métadonnée, pas un octet de
     # contenu) : le prendre en second avis ferme le trou d'un job.json édité à
@@ -1396,40 +1500,9 @@ async def post_build3d(did: str, body: dict | None = None):
                                   "node": proc["id"], "engine": ex["engine"],
                                   "credits": ex["credits"]})
                 continue
-            fname = _layer_filename(layer, card_label)
-            p = out / fname
-            # MOTIF 2/2 (distinct du "graphe vide" ci-dessus) : le graphe est
-            # bien câblé, mais LA couche qu'il vise n'a jamais été livrée
-            # pour cette carte/ce côté — exporte-les d'abord (phase 1).
-            if not p.is_file():
-                raise HTTPException(
-                    409, f"exporte les couches d'abord : {fname} absent "
-                         f"(POST /layers)")
-            raw = p.read_bytes()
-            im = _open_png(raw, fname)
-            if proc["kind"] == "plane":
-                mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
-                el = {"name": nom_el, "mesh": mesh, "png": raw,
-                      "alpha": True, "z_mm": proc["depth_mm"]}
-            else:
-                # la géométrie/silhouette du relief ne doit voir QUE la
-                # coupe — cropper la TOILE au rectangle de coupe (mêmes
-                # bornes que `bleed_px` ci-dessus) AVANT l'échantillonnage,
-                # sinon le fond perdu pèse sur la hauteur ET la silhouette.
-                cx0, cy0 = bleed_px
-                cx1 = g.canvas_px[0] - cx0
-                cy1 = g.canvas_px[1] - cy0
-                alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
-                mesh = relief_mesh(alpha_img, w_mm, h_mm, proc["depth_mm"],
-                                   proc["base_mm"], proc["grid"],
-                                   uv_window=uv_window)
-                el = {"name": nom_el, "mesh": mesh, "png": raw,
-                      "alpha": False, "z_mm": 0.0}
-            _habille(el, mat_n, w_mm, h_mm, ignores)
-            trs = _trs_dict(trs_n)
-            if trs is not None:
-                el["trs"] = trs
-            elements.append(el)
+            elements.append(_element_local(
+                out, proc, layer, nom_el, mat_n, trs_n, card_label, w_mm,
+                h_mm, bleed_px, g.canvas_px, uv_window, ignores))
             bordereau.append({"name": nom_el, "kind": "local",
                               "node": proc["id"]})
         t_resolve = time.perf_counter()
@@ -2297,59 +2370,88 @@ async def get_mesh3d(did: str, nid: str):
 # Reponse EPHEMERE (jamais ecrite sur disque), tout le travail lourd en
 # to_thread, jamais un 500 — meme doctrine que build3d/mesh3d ci-dessus.
 #
-# Identifiants GARANTIS SANS COLLISION avec un id de graphe reel : tout id
-# qui traverse `clean_graph` est plafonne a 24 caracteres (voir son `[:24]`
-# plus haut) — un identifiant interne de PLUS de 24 caracteres ne peut donc
-# jamais etre celui d'un vrai noeud du client.
-_PREVIEW_ASM_ID = "___apercu_noeud_assemble_synthetique___"
-_PREVIEW_ART_ID = "___apercu_noeud_artefact_synthetique___"
+# Identifiant SYNTHETIQUE, GARANTI SANS COLLISION avec un id de graphe reel
+# — HORS ALPHABET, pas seulement long (M1/CF1, revue 2c) : un espace en tete
+# n'est PAS dans `[A-Za-z0-9._-]`, le seul charset que `clean_graph` peut
+# JAMAIS produire (son `re.sub` REMPLACE tout caractere hors de ce charset
+# par "_" — il ne peut donc jamais EMETTRE un espace, ":" ou une parenthese).
+# L'argument arithmetique precedent (« un id interne de plus de 24
+# caracteres ne peut pas collisionner ») etait FAUX au moment ou il a ete
+# ecrit : le suffixe anti-collision de `clean_graph` pouvait depasser 24
+# caracteres (voir P1 plus haut) — un argument STRUCTUREL (l'alphabet, pas la
+# longueur) reste vrai meme si `clean_graph` change encore demain.
+# Pas de pendant `_ART`: verifie (M2) — `_resolve_graph_elements` ne lit
+# JAMAIS le noeud `artifact` (il s'arrete a `assemble`, voir `_chaine_aval`),
+# et le nom du GLB d'apercu est un litteral ("apercu") au point d'appel : un
+# noeud artefact synthetique n'aurait aucun lecteur, il n'existe plus.
+_PREVIEW_ASM_ID = " apercu:assemble (synthetique)"
 
 
-def _apercu_mesh3d(did: str, nid: str) -> bytes:
-    """Les octets bruts du GLB d'un noeud mesh3d SERVI, tels quels — meme
-    garde et meme formulation que `_element_externe` (409 « n'a pas servi »),
-    mais SANS la borne `MAX_EXT_GLB_BYTES` ni le controle de carte source :
-    cette route ne fusionne ni ne construit rien, elle relit un fichier DEJA
-    sur disque et le renvoie tel quel — le pire cas est une reponse HTTP
-    volumineuse, jamais un artefact corrompu ou une ecriture disque
-    incontrolee. `_element_externe`, LUI, refuse un GLB surdimensionne parce
-    qu'il va le FUSIONNER en memoire avec d'autres — ce n'est pas le cas
-    ici, donc pas la meme borne."""
-    job = _job_read(did, nid)
-    if not isinstance(job, dict) or job.get("status") != "served":
+def _apercu_mesh3d(did: str, nid: str) -> Path:
+    """Le CHEMIN du GLB d'un noeud mesh3d SERVI — JAMAIS ses octets : cette
+    fonction ne LIT PAS le fichier, `FileResponse` le sert en flux au moment
+    de l'envoi (CF2, revue 2c) — un clic dans l'inspecteur ne doit pas
+    charger tout le GLB en RAM avant de commencer a repondre.
+
+    Les trois refus communs (job non servi, nom de fichier invalide, fichier
+    disparu) viennent de `_glb_servi_path` — meme garde, meme formulation que
+    `_element_externe` (409 « n'a pas servi »). PAS son controle de
+    carte-source (M4) : la question de l'inspecteur est « qu'a produit CE
+    noeud », jamais « ce noeud convient-il a la carte en cours d'edition » —
+    la carte n'entre pas dans cette question-la, seul `build3d` (qui, lui,
+    FUSIONNE ce GLB dans un artefact precis) a besoin d'y repondre.
+
+    La borne de poids, elle, est PROPRE a l'inspecteur (`MAX_APERCU_GLB_BYTES`
+    — PAS `MAX_EXT_GLB_BYTES`, qui borne une fusion en memoire, un danger
+    different) : mesuree comme `_element_externe` la mesure, sur le PLUS
+    GRAND du chiffre annonce par le job et du `stat` du disque, SANS ouvrir
+    le fichier.
+
+    M6 (revue) : le TRS eventuellement chaine sur ce noeud (matiere,
+    placement) n'est PAS applique ici, a la difference de `plane`/`relief`
+    (qui, eux, composent leur chaine via `_element_local`) — l'inspecteur
+    montre le noeud BRUT tel que le moteur l'a rendu ; c'est `build3d`
+    (`_fit_external`) qui compose le placement de l'utilisateur au moment de
+    fusionner le GLB dans l'artefact. Incoherence CONNUE et deliberee : le
+    jour ou l'inspecteur doit montrer le placement pour un mesh3d aussi, il
+    faudra reconstruire une scene (comme pour plane/relief) au lieu de
+    streamer le GLB brut — un chantier a part, pas un correctif ici."""
+    job, p_glb = _glb_servi_path(did, nid)
+    taille = job.get("bytes")
+    if isinstance(taille, bool) or not isinstance(taille, (int, float)) \
+            or taille < 0:
+        taille = 0
+    taille = max(int(taille), p_glb.stat().st_size)
+    if taille > MAX_APERCU_GLB_BYTES:
         raise HTTPException(
-            409, f"le noeud {nid} n'a pas servi son GLB — lance-le d'abord "
-                 f"(POST mesh3d/{nid})")
-    fichiers = job.get("files")
-    nom_glb = (fichiers or {}).get("glb") if isinstance(fichiers, dict) else None
-    nom_glb = str(nom_glb or "model.glb")
-    if not re.match(r"^[A-Za-z0-9._-]{1,90}$", nom_glb) or set(nom_glb) == {"."}:
-        raise HTTPException(
-            409, f"le noeud {nid} annonce un fichier de nom invalide "
-                 f"({nom_glb!r}) - relance le noeud")
-    p_glb = _node_dir(did, nid) / nom_glb
-    if not p_glb.is_file():
-        raise HTTPException(
-            409, f"le noeud {nid} n'a pas servi son GLB — {nom_glb} a "
-                 f"disparu du noeud, relance-le")
-    return p_glb.read_bytes()
+            409, f"le GLB du noeud {nid} est trop lourd pour l'inspecteur "
+                 f"({int(taille)} o, maximum {MAX_APERCU_GLB_BYTES} o) : "
+                 f"construis l'artefact pour le voir dans le noeud artefact")
+    return p_glb
 
 
 @router.post("/node-preview")
 async def post_node_preview(did: str, body: dict | None = None):
     """Le GLB d'UN SEUL element du graphe — l'inspecteur partage du canvas
     (spec §5.6 point 4). `plane`/`relief` : sous-graphe SYNTHETIQUE {sa
-    couche source, lui, sa matiere/son placement s'il en a un, un
-    assemble+artifact FABRIQUES} passe a `_resolve_graph_elements` (le MEME
-    resolveur que build3d — zero deuxieme version de la regle « premiere
-    arete gagnante ») ; `mat`/`trs` viennent de `_chaine_aval` appliquee a
-    `nid` sur le graphe REEL du client, pour que l'apercu montre l'option
-    DEJA choisie sur ce noeud — meme si sa chaine ne rejoint pas encore un
-    assemble reel, ce qui est precisement pourquoi l'assemble+artifact sont
-    synthetiques : l'apercu doit marcher AVANT que le graphe soit complet.
-    Grille de relief PLAFONNEE a `RELIEF_GRID_PREVIEW` AVANT resolution.
-    `mesh3d` : les octets du job SERVI, tels quels (`_apercu_mesh3d`). Tout
-    autre kind : refus nomme, ce noeud n'a rien a montrer en 3D.
+    couche source (premiere arete gagnante, les autres AVOUEES), sa
+    matiere/son placement s'il en a un (via `_chaine_aval` sur le graphe
+    REEL, memes maillons surnumeraires AVOUES), un `assemble` FABRIQUE} passe
+    a `_resolve_graph_elements` (le MEME resolveur que build3d ; `_element_
+    local` construit l'element, la MEME fonction que la boucle de build3d) —
+    l'apercu montre l'option DEJA choisie sur ce noeud, meme si sa chaine ne
+    rejoint pas encore un assemble reel (d'ou l'assemble synthetique). Grille
+    de relief PLAFONNEE a `RELIEF_GRID_PREVIEW` AVANT resolution. `mesh3d` :
+    le GLB du job SERVI, en flux (`_apercu_mesh3d`, `FileResponse`). Tout
+    autre kind : refus nomme.
+
+    I1 (revue) : AUCUN aveu ne s'evapore — les noeuds ecartes de CETTE
+    resolution (source surnumeraire, maillon surnumeraire, ce que le
+    resolveur lui-meme ecarte, ce que `_habille` n'a pas su habiller) sont
+    tous JOINTS dans `extras["ignored"]` du GLB rendu : le schema
+    `PREVIEW_SCHEMA` (PAS `ARTIFACT_SCHEMA`, M5 — un apercu ephemere ne
+    revendique pas le schema d'un artefact durable) promet la meme chose que
+    `artifact@1` : rien n'est tu.
 
     AUCUNE ecriture disque : cette reponse est EPHEMERE, contrairement a
     build3d qui livre un artefact durable."""
@@ -2375,94 +2477,98 @@ async def post_node_preview(did: str, body: dict | None = None):
     if kind == "mesh3d":
         if not _NID_RE.match(nid or ""):
             raise HTTPException(400, "Identifiant de noeud invalide")
+        try:
+            p_glb = await asyncio.to_thread(_apercu_mesh3d, did, nid)
+        except HTTPException:
+            raise
+        except ModuleNotFoundError as e:       # pragma: no cover - env casse
+            raise HTTPException(503, f"Module requis absent : {e}")
+        except Exception as e:
+            logger.exception("cards/forge3d: apercu de noeud impossible")
+            raise HTTPException(500, f"Apercu de noeud impossible : {e}")
+        # CF2 : FileResponse SERT en flux (jamais chargé en mémoire ici) —
+        # les octets restent byte-identiques au fichier sur disque.
+        return FileResponse(p_glb, media_type="model/gltf-binary",
+                            headers={"Cache-Control": "no-store"})
 
-        def work() -> bytes:
-            return _apercu_mesh3d(did, nid)
-    else:
-        incoming: dict[str, list[str]] = {}
-        outgoing: dict[str, list[str]] = {}
-        for e in graph["edges"]:
-            incoming.setdefault(e["to"], []).append(e["from"])
-            outgoing.setdefault(e["from"], []).append(e["to"])
-        src = next((nodes_by_id[fid] for fid in incoming.get(nid, [])
-                   if fid in nodes_by_id
-                   and nodes_by_id[fid]["kind"] == "layer"), None)
-        if src is None:
-            raise HTTPException(
-                400, f"noeud {nid} sans couche source (relie une couche : "
-                     f"layer -> {nid})")
-        mat_n, trs_n, _relie, _passes = _chaine_aval(nid, nodes_by_id,
-                                                      outgoing)
-        proc = dict(node)
-        if proc["kind"] == "relief":
-            # PLAFONNE AVANT resolution (point impose du plan) : l'apercu
-            # privilegie la vitesse, le vrai grid ne joue qu'au build.
-            proc["grid"] = min(proc["grid"], RELIEF_GRID_PREVIEW)
-        sub_nodes = [src, proc]
-        sub_edges = [{"from": src["id"], "to": proc["id"]}]
-        cur = proc["id"]
-        for maillon in (mat_n, trs_n):
-            if maillon is not None:
-                sub_nodes.append(maillon)
-                sub_edges.append({"from": cur, "to": maillon["id"]})
-                cur = maillon["id"]
-        sub_nodes.append({"id": _PREVIEW_ASM_ID, "kind": "assemble"})
-        sub_nodes.append({"id": _PREVIEW_ART_ID, "kind": "artifact",
-                          "name": "apercu"})
-        sub_edges.append({"from": cur, "to": _PREVIEW_ASM_ID})
-        sub_edges.append({"from": _PREVIEW_ASM_ID, "to": _PREVIEW_ART_ID})
-        candidats, _ignores = _resolve_graph_elements(
-            {"nodes": sub_nodes, "edges": sub_edges})
-        if not candidats:
-            # NE DEVRAIT JAMAIS ARRIVER (le sous-graphe ci-dessus est cable
-            # a la main, une seule chaine possible) — doctrine jamais-500 :
-            # un refus nomme plutot qu'un IndexError si un futur changement
-            # de `_resolve_graph_elements` invalidait cette hypothese.
-            raise HTTPException(
-                400, f"noeud {nid} non prévisualisable : chaine irresoluble")
-        ch = candidats[0]
+    # ── plane/relief : sous-graphe synthetique, le MEME resolveur que
+    #    build3d — AUCUN aveu de la resolution ne s'evapore (I1) ──────────
+    incoming: dict[str, list[str]] = {}
+    outgoing: dict[str, list[str]] = {}
+    for e in graph["edges"]:
+        incoming.setdefault(e["to"], []).append(e["from"])
+        outgoing.setdefault(e["from"], []).append(e["to"])
+    ignored: list[dict] = []
+    sources = [nodes_by_id[fid] for fid in incoming.get(nid, [])
+              if fid in nodes_by_id and nodes_by_id[fid]["kind"] == "layer"]
+    if not sources:
+        raise HTTPException(
+            400, f"noeud {nid} sans couche source (relie une couche : "
+                 f"layer -> {nid})")
+    src, surnumeraires = sources[0], sources[1:]
+    for autre in surnumeraires:
+        # meme motif, meme mot que `_resolve_graph_elements` — une source de
+        # plus perdue n'est pas un bug, c'est une regle AVOUEE (I1).
+        ignored.append({
+            "node": autre["id"],
+            "why": f"source surnumeraire pour {nid} : {src['id']} deja "
+                   "retenu (premiere arete gagnante)"})
+    mat_n, trs_n, _relie, passes = _chaine_aval(nid, nodes_by_id, outgoing)
+    for perdant, retenu in passes:
+        ignored.append({
+            "node": perdant,
+            "why": f"maillon surnumeraire dans la chaine de {nid} : "
+                   f"{retenu} deja retenu (premiere arete gagnante)"})
+    proc = dict(node)
+    if proc["kind"] == "relief":
+        # PLAFONNE AVANT resolution (point impose du plan) : l'apercu
+        # privilegie la vitesse, le vrai grid ne joue qu'au build.
+        proc["grid"] = min(proc["grid"], RELIEF_GRID_PREVIEW)
+    sub_nodes = [src, proc]
+    sub_edges = [{"from": src["id"], "to": proc["id"]}]
+    cur = proc["id"]
+    for maillon in (mat_n, trs_n):
+        if maillon is not None:
+            sub_nodes.append(maillon)
+            sub_edges.append({"from": cur, "to": maillon["id"]})
+            cur = maillon["id"]
+    # UN SEUL noeud synthetique (M2, revue) : `_resolve_graph_elements` ne
+    # regarde jamais au-dela de l'assemble (voir `_chaine_aval`) — un
+    # artifact synthetique n'aurait eu aucun lecteur.
+    sub_nodes.append({"id": _PREVIEW_ASM_ID, "kind": "assemble"})
+    sub_edges.append({"from": cur, "to": _PREVIEW_ASM_ID})
+    candidats, sub_ignores = _resolve_graph_elements(
+        {"nodes": sub_nodes, "edges": sub_edges})
+    ignored.extend(sub_ignores)
+    if not candidats:
+        # NE DEVRAIT JAMAIS ARRIVER (le sous-graphe ci-dessus est cable a la
+        # main, une seule chaine possible) — doctrine jamais-500 : un refus
+        # nomme plutot qu'un IndexError si un futur changement de
+        # `_resolve_graph_elements` invalidait cette hypothese.
+        raise HTTPException(
+            400, f"noeud {nid} non prévisualisable : chaine irresoluble")
+    ch = candidats[0]
 
-        g = geom_of(doc)
-        w_mm, h_mm = g.trim_mm
-        bleed_px = (round(g.bleed_off_px[0]), round(g.bleed_off_px[1]))
-        u0, v0 = bleed_px[0] / g.canvas_px[0], bleed_px[1] / g.canvas_px[1]
-        uv_window = (u0, v0, 1.0 - u0, 1.0 - v0)
+    g = geom_of(doc)
+    w_mm, h_mm = g.trim_mm
+    bleed_px = (round(g.bleed_off_px[0]), round(g.bleed_off_px[1]))
+    u0, v0 = bleed_px[0] / g.canvas_px[0], bleed_px[1] / g.canvas_px[1]
+    uv_window = (u0, v0, 1.0 - u0, 1.0 - v0)
 
-        def work() -> bytes:
-            out = _out_dir(did)
-            layer = ch["layer"]
-            fname = _layer_filename(layer, card_label)
-            p = out / fname
-            if not p.is_file():
-                raise HTTPException(
-                    409, f"exporte les couches d'abord : {fname} absent "
-                         f"(POST /layers)")
-            raw = p.read_bytes()
-            im = _open_png(raw, fname)
-            nom_el = layer.get("role") or "composite"
-            proc_n = ch["proc"]
-            if proc_n["kind"] == "plane":
-                mesh = quad_mesh(w_mm, h_mm, uv_window=uv_window)
-                el = {"name": nom_el, "mesh": mesh, "png": raw,
-                      "alpha": True, "z_mm": proc_n["depth_mm"]}
-            else:
-                cx0, cy0 = bleed_px
-                cx1 = g.canvas_px[0] - cx0
-                cy1 = g.canvas_px[1] - cy0
-                alpha_img = im.getchannel("A").crop((cx0, cy0, cx1, cy1))
-                mesh = relief_mesh(alpha_img, w_mm, h_mm, proc_n["depth_mm"],
-                                   proc_n["base_mm"], proc_n["grid"],
-                                   uv_window=uv_window)
-                el = {"name": nom_el, "mesh": mesh, "png": raw,
-                      "alpha": False, "z_mm": 0.0}
-            ignores: list = []
-            _habille(el, ch["mat"], w_mm, h_mm, ignores)
-            trs = _trs_dict(ch["trs"])
-            if trs is not None:
-                el["trs"] = trs
-            return write_scene_glb(
-                [el], name="apercu",
-                extras={"schema": ARTIFACT_SCHEMA, "preview": True})
+    def work() -> bytes:
+        el = _element_local(
+            _out_dir(did), ch["proc"], ch["layer"],
+            ch["layer"].get("role") or "composite", ch["mat"], ch["trs"],
+            card_label, w_mm, h_mm, bleed_px, g.canvas_px, uv_window,
+            ignored)
+        # I1 : `ignored` porte ICI tout ce qui a ete ecarte — les entrees
+        # d'avant l'appel (source/maillon surnumeraire, sub_ignores) ET
+        # celles que `_element_local`/`_habille` viennent d'y ajouter
+        # (matiere introuvable, finition ignoree).
+        return write_scene_glb(
+            [el], name="apercu",
+            extras={"schema": PREVIEW_SCHEMA, "preview": True,
+                    "ignored": ignored})
 
     try:
         glb = await asyncio.to_thread(work)
@@ -2483,15 +2589,25 @@ async def post_node_preview(did: str, body: dict | None = None):
 @router.get("/material-thumb/{mid}")
 async def get_material_thumb(did: str, mid: str):
     """La vignette de boutique d'une matiere, servie PAR PROVENANCE — le fond
-    du corps de noeud `material` (Task 3, 2c) : PAS le composite de
-    `read_material()["thumb"]`/`thumb_is_current` (celui-la gate sur
-    `MESH_VERSION`, une histoire de viewport 3D qui ne concerne pas cette
-    pastille 2D plate du canvas — une matiere reste un bon aplat de couleur
-    meme quand la geometrie du viewport a change). `mid` valide AVANT toute
+    du corps de noeud `material` (Task 3, 2c). `mid` valide AVANT toute
     lecture disque — aucun chemin n'est JAMAIS construit sur l'entree brute,
     le containment vient de `material_store.material_dir` (règle 8 :
     material_store est un service TRANSVERSE, deja consomme par `get_info`
-    ci-dessus, pas une piece du lab). Jamais-500."""
+    ci-dessus, pas une piece du lab).
+
+    I4 (revue) : GATE sur `material_store.thumb_is_current` — LA MEME
+    doctrine que la boutique elle-meme (`read_material()["thumb"]`), pas une
+    exemption pour cette pastille 2D. Une vignette d'avant MESH_VERSION 2
+    rendait la matiere EN MIROIR (voir la docstring de `thumb_is_current`) :
+    la servir telle quelle remettrait ce defaut sur le canvas. PERIMEE vaut
+    ABSENTE (404 nomme) — l'ecran retombe alors sur un aplat de couleur, comme
+    la boutique le fait deja pour sa propre carte.
+
+    M3 (revue) : les octets sont LUS ICI, dans `work()`, jamais servis par
+    `FileResponse` — celui-ci RE-STAT le fichier au moment de l'ENVOI, APRÈS
+    ce to_thread : une suppression concurrente entre ce controle et l'envoi y
+    leve RuntimeError, donc un 500 (le meme TOCTOU que `get_file` evite deja
+    en lisant les octets avant de repondre). Jamais-500."""
     from .core import read_deck
     from .contract import is_valid_did
     from app.services import material_store as MSTORE
@@ -2502,19 +2618,23 @@ async def get_material_thumb(did: str, mid: str):
     if not MSTORE.is_valid_mid(mid):
         raise HTTPException(400, "Identifiant de matière invalide")
 
-    def work() -> Path | None:
+    def work() -> bytes | None:
         try:
             d = MSTORE.material_dir(mid)
         except ValueError:
             return None
-        p = d / "thumb.png"
-        return p if p.is_file() else None
+        if not MSTORE.thumb_is_current(d):
+            return None
+        try:
+            return (d / "thumb.png").read_bytes()
+        except OSError:
+            return None
 
-    p = await asyncio.to_thread(work)
-    if p is None:
+    data = await asyncio.to_thread(work)
+    if data is None:
         raise HTTPException(404, f"matière sans vignette : {mid}")
-    return FileResponse(p, media_type="image/png",
-                        headers={"Cache-Control": "no-store"})
+    return Response(content=data, media_type="image/png",
+                    headers={"Cache-Control": "no-store"})
 
 
 @router.post("/preview/{art}")
