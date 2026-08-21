@@ -49,6 +49,13 @@
        ecriture de transformation) par frame, feedback local a chaque
        evenement, geste EXACT au relache, `isPrimary` en garde et
        `touch-action: none` sur la surface.
+     · UN CHAMP N'EST ECRIT QU'UNE FOIS (Task 3). Un nœud porte SES menus et
+       une vignette qui reagit ; ces menus sont les BATISSEURS DE LA LISTE,
+       parametres par hote (`hote: "row"|"node"` ne change que l'emballage,
+       jamais les champs) — recopier ce balisage aurait marche le premier
+       jour et menti le second. Le repaint est PAR NŒUD (`paintNode`, le
+       pendant de `paintRow`) : passer par la reconstruction complete du
+       monde volerait le curseur a chaque frappe.
    ═══════════════════════════════════════════════════════════════════════════ */
 (() => {
   const CF = (typeof window !== "undefined") ? window.CF : null;
@@ -123,21 +130,37 @@
   const COL_X_DEFAUT = 760;     /* un kind hors table (graphe charge a la
                                     main) se pose avec l'assemblage plutot
                                     que d'empiler tout a l'origine */
-  /* RANG_DY vaut ~1,2 hauteur de nœud, PAS deux. Le graphe par defaut d'une
-     carte a SIX couches, donc six rangs dans la colonne des traitements —
-     l'arithmetique, exacte, sur la surface de 460 px :
-       · a 190, l'empreinte va de y=40 a y=990+100, soit 1050 px : « recentrer »
-         cadre a (460 - 2x24) / 1050 = 0,39 — a un cheveu du plancher 0,36,
-         c'est-a-dire illisible ;
-       · a 120, elle fait 700 px et se cadre a 412/700 = 0,59, confortable.
-     A z=1, dans les deux cas, la fenetre ne montre que TROIS rangs entiers :
-     ce n'est pas RANG_DY qui corrige ca, c'est « recentrer ». Le pas ne
-     decide donc pas de ce qu'on voit a l'ouverture, il decide de l'echelle a
-     laquelle on peut tout voir — et c'est la que 190 echouait.
-     (Note : pour le graphe par defaut c'est l'etendue HORIZONTALE, quatre
-     colonnes de x=40 a x=1200, qui gouverne le cadrage reel ; la passe
-     navigateur de la Task 7 juge l'ergonomie, pas ce commentaire.) */
-  const RANG_Y0 = 40, RANG_DY = 120;
+  /* L'EMPILEMENT D'UNE COLONNE — CONTENU-DEPENDANT, ET TOUJOURS DETERMINISTE.
+     La Task 2 posait un PAS FIXE (RANG_DY = 120) sous une reserve ecrite noir
+     sur blanc : « la hauteur d'un nœud est INDICATIVE — le corps grandit en
+     Task 3 ». Il a grandi. Un corps porte desormais sa vignette ET ses menus :
+     ~215 px pour une couche, ~300 pour un relief, pres de 370 pour un moteur
+     (vignette + moteur + prix + ultra + texture + bouton). Un pas de 120 ferait
+     donc CHEVAUCHER les nœuds des le semis — l'auto-arrangement livrerait un
+     tas que l'utilisateur devrait defaire a la main, ce qui est pire que pas
+     d'arrangement du tout. On AMENDE donc a la source plutot que d'empiler une
+     rustine : le rang suivant tombe SOUS le precedent, sa hauteur declaree plus
+     une gouttiere. Deux ouvertures du meme graphe posent toujours les memes
+     nœuds aux memes pixels (zero Math.random dans ce fichier, c'est epingle).
+     CE QUE CETTE TABLE N'EST PAS : une mesure. Ce sont des hauteurs
+     D'ARRANGEMENT, lues avant que le DOM n'existe — donc des ESTIMATIONS, et
+     deliberement GENEREUSES : les deux erreurs ne coutent pas le meme prix.
+     Sous-estimer fait CHEVAUCHER (le defaut qu'on repare ici) ; surestimer ne
+     coute que du blanc, et le blanc, « recentrer » le rattrape. Le CADRAGE,
+     justement, MESURE la vraie boite quand elle existe (`hauteurNoeud`) et ne
+     retombe sur cette table qu'a defaut : c'est lui qui promet de tout
+     montrer, il ne peut pas le promettre sur une estimation.
+     CONSEQUENCE ASSUMEE, a juger au navigateur (Task 7) : six couches font
+     desormais une colonne de ~1,5 k px ; « recentrer » butera sur le plancher
+     de zoom et il faudra se deplacer pour tout voir. C'est le prix de menus
+     LISIBLES dans le nœud — la spec §5.6 demande le second, pas le premier. */
+  const RANG_Y0 = 40, RANG_GAP = 26;
+  const RANG_H = {
+    layer: 230, plane: 268, relief: 322, mesh3d: 392,
+    material: 358, transform: 380, assemble: 132, artifact: 160,
+    export: 160,                /* reserve, comme sa colonne (kind Task 4) */
+  };
+  const RANG_H_DEFAUT = 240;    /* un kind hors table (graphe charge a la main) */
   /* MIROIR DE LA FEUILLE : la largeur d'un nœud et la mi-hauteur de son
      en-tete servent a placer les PORTS (donc a tracer les aretes). Elles sont
      ecrites des deux cotes — mod-forge3d.css le dit aussi. */
@@ -146,10 +169,6 @@
                                     l'en-tete : la boite est en `border-box`
                                     (cardforge.css: * { box-sizing }), donc
                                     NOEUD_W est bien le bord DROIT */
-  /* la hauteur d'un nœud est INDICATIVE (le corps grandit en Task 3) : elle ne
-     sert qu'au CADRAGE (« recentrer »), jamais a la geometrie des aretes —
-     celle-la ne depend que de NOEUD_W et PORT_Y, tous deux exacts. */
-  const NOEUD_H = 100;
   const LAYOUT_MAX = 20000;     /* borne des positions, appliquee AU FLUSH */
   const CAM_X0 = 20, CAM_Y0 = 20;   /* le cadrage d'ouverture */
   /* LE PLANCHER DE ZOOM EST TENU PAR LA SPEC 9.6-3, pas par le gout : la
@@ -158,6 +177,44 @@
      sous la barre, au zoom que l'on atteint justement quand on cherche a
      tout voir pour ranger. */
   const ZOOM_MIN = 0.36, ZOOM_MAX = 2.5;
+
+  /* ── LES VIGNETTES (2c Task 3) — LEURS CONSTANTES ───────────────────────
+     120 x 168 est la SURFACE DE DESSIN (ratio carte 63 x 88 mm), pas la taille
+     d'affichage : la feuille la montre a 96 x 134, donc le canvas est
+     sur-echantillonne — net sur un ecran a haute densite, et surtout STABLE
+     quand la feuille changera d'avis. Toutes les coordonnees de peinture sont
+     donc en unites de dessin. */
+  const THUMB_W = 120, THUMB_H = 168;
+  /* LES PICTOGRAMMES — ce que montre un nœud qui n'a AUCUNE image a montrer.
+     Ce ne sont pas des icones de decor : ce sont les seuls contenus de
+     vignette pour les kinds qui n'ont pas de pixels a eux (assemblage,
+     artefact, export) et le repli NOMME du kind `mesh3d` — voir la note
+     « LE preview.png D'UN JOB N'EST SERVI PAR AUCUNE ROUTE » plus bas. */
+  const PICTO = {
+    layer: "▤", plane: "▭", relief: "◧", mesh3d: "⬢",
+    material: "◍", transform: "✥", assemble: "⧉",
+    artifact: "◆", export: "⭳",
+  };
+  const PICTO_DEFAUT = "○";
+  /* LA FINITION, ESQUISSEE — un DEGRADE de vignette, jamais la recette. La
+     recette holographique vit cote serveur (forge3d_scene) et ne se voit
+     vraiment qu'en tournant le modele dans le viewer ; ce bandeau dit
+     seulement « une finition est posee, et laquelle ». Les finitions viennent
+     de /info : une recette de plus s'affichera avec le degrade par defaut
+     plutot que de disparaitre. */
+  const HOLO = {
+    argent: ["#e6ebf2", "#8c95a1", "#f4f7fa"],
+    dorure: ["#f6d98d", "#b4842a", "#ffeec0"],
+  };
+  const HOLO_DEFAUT = ["#d5dae2", "#8a93a0", "#eef1f6"];
+  /* CE QU'UN NŒUD SANS CHAMP A QUAND MEME A DIRE. Un corps vide se lit comme
+     une panne ; ces phrases disent la fonction du nœud (et, pour l'export,
+     l'engagement du bordereau). */
+  const KIND_HINTS = {
+    assemble: "réunit les éléments de toutes les chaînes en un seul artefact.",
+    artifact: "porte le nom du fichier construit — « Construire », ci-dessous.",
+    export: "point de téléchargement : il n'éteint rien du bordereau.",
+  };
 
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
      100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
@@ -496,6 +553,12 @@
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
+      /* LES COUCHES VIENNENT D'ÊTRE RÉÉCRITES SOUS LEURS PROPRES NOMS. Le
+         cache d'images est indexé par ce nom : le garder afficherait
+         l'export PRÉCÉDENT dans les vignettes — et pire, un « couche non
+         exportée » mémorisé avant le tout premier export ne se lèverait
+         jamais. */
+      oublieLesImages();
       paintVue();
       status.textContent = "couches livrées, preuve tenue des deux côtés.";
     } catch (e) {
@@ -780,43 +843,75 @@
       + '>' + (unite ? "<i>" + esc(unite) + "</i>" : "") + '</label>';
   }
 
-  function rowHtml(r, lim) {
-    const proc = r.proc, layer = r.layer;
+  /* ── LES CHAMPS, EXTRAITS DE LEUR RANG (2c Task 3) ──────────────────────
+     UN SEUL POINT D'ECRITURE PAR CHAMP, dans tout le module. La liste et le
+     canvas sont deux HOTES du meme balisage : recopier ces `<select>` dans un
+     corps de nœud aurait marche le premier jour et menti le second (la lecon
+     des tables miroir : deux copies derivent, et une seule des deux dit vrai).
+     Le test de source compte les `data-field` litteraux — a 2, la duplication
+     est prouvee et la suite tombe. */
+  function procSelHtml(proc) {
+    return '<select class="cf-forge3d-kind" data-field="kind">'
+      + PROC_KINDS.map((k) => '<option value="' + esc(k) + '"'
+        + (proc.kind === k ? " selected" : "") + '>' + esc(PROC_LABELS[k])
+        + '</option>').join("")
+      + '</select>';
+  }
+
+  /* la géométrie d'un traitement — bornes servies par /info. Un moteur ne
+     s'extrude pas : sa géométrie vient du GLB livré, pas d'une profondeur
+     d'ici (les champs restent sur le nœud, `clean_graph` ne garde que ceux du
+     kind retenu : revenir en arrière ne perd rien). */
+  function geoHtml(proc, lim) {
+    if (proc.kind === "mesh3d") return "";
     const isRelief = proc.kind === "relief";
-    const isMesh = proc.kind === "mesh3d";
     const pd = (lim && lim.plane_depth_mm) || [0, 0];
     const rdMax = lim ? lim.relief_depth_mm_max : 0;
     const rb = (lim && lim.relief_base_mm) || [0, 0];
     const rg = (lim && lim.relief_grid) || [0, 0];
-    const depthMin = isRelief ? 0 : pd[0];
-    const depthMax = isRelief ? rdMax : pd[1];
-    /* un moteur ne s'extrude pas : sa géométrie vient du GLB livré, pas d'une
-       profondeur d'ici — les champs du relief n'ont donc rien à dire sur ce
-       rang (ils restent sur le nœud, `clean_graph` ne garde que ceux du kind
-       retenu : revenir en arrière ne perd rien). */
-    const geoHtml = isMesh ? ""
-      : (numHtml("profondeur", "depth_mm", proc.depth_mm, [depthMin, depthMax],
-                 "0.05", "mm")
-        + (isRelief
-          ? (numHtml("base", "base_mm", proc.base_mm, rb, "0.05", "mm")
-            + numHtml("grille", "grid", proc.grid, rg, "1", ""))
-          : ""));
+    return numHtml("profondeur", "depth_mm", proc.depth_mm,
+                   [isRelief ? 0 : pd[0], isRelief ? rdMax : pd[1]], "0.05", "mm")
+      + (isRelief
+        ? (numHtml("base", "base_mm", proc.base_mm, rb, "0.05", "mm")
+          + numHtml("grille", "grid", proc.grid, rg, "1", ""))
+        : "");
+  }
+
+  function sideSelHtml(layer) {
+    const dos = !!(layer && layer.side === "back");
+    return '<select class="cf-forge3d-side" data-field="side">'
+      + '<option value="front"' + (dos ? "" : " selected") + '>recto</option>'
+      + '<option value="back"' + (dos ? " selected" : "") + '>verso</option>'
+      + '</select>';
+  }
+
+  /* UN BLOC DE CHAMPS, DEUX HOTES. La SEULE chose que l'hôte change est
+     l'emballage : dans la LISTE un rang porte toute une chaîne, donc matière
+     et placement s'y replient en tiroir (un rang complet tient sur une ligne
+     au repos) ; sur le CANVAS ce sont des nœuds SÉPARÉS, et un nœud entier
+     dont le seul contenu serait un tiroir fermé ne montrerait rien — c'est
+     précisément ce que la spec §5.6 demande d'arrêter. Les CHAMPS, eux, sont
+     les mêmes octets dans les deux cas. */
+  function blocHtml(titre, pose, dedans, hote) {
+    if (hote === "node") {
+      return '<div class="cf-forge3d-blk cf-forge3d-blk-n">' + dedans + '</div>';
+    }
+    return '<details class="cf-forge3d-blk"><summary>' + esc(titre)
+      + (pose ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
+      + dedans + '</details>';
+  }
+
+  function rowHtml(r, lim) {
+    const proc = r.proc, layer = r.layer;
     return '<div class="cf-forge3d-row" data-proc="' + esc(proc.id) + '">'
       + '<div class="cf-forge3d-line">'
       + '<span class="mono cf-forge3d-role">' + esc(layer.role || "composite") + '</span>'
-      + '<select class="cf-forge3d-kind" data-field="kind">'
-      + PROC_KINDS.map((k) => '<option value="' + esc(k) + '"'
-        + (proc.kind === k ? " selected" : "") + '>' + esc(PROC_LABELS[k])
-        + '</option>').join("")
-      + '</select>'
-      + geoHtml
-      + '<select class="cf-forge3d-side" data-field="side">'
-      + '<option value="front"' + (layer.side === "back" ? "" : " selected") + '>recto</option>'
-      + '<option value="back"' + (layer.side === "back" ? " selected" : "") + '>verso</option>'
-      + '</select>'
+      + procSelHtml(proc)
+      + geoHtml(proc, lim)
+      + sideSelHtml(layer)
       + '</div>'
-      + (isMesh ? mesh3dHtml(proc) : "")
-      + matHtml(r, isMesh)
+      + (proc.kind === "mesh3d" ? mesh3dHtml(proc) : "")
+      + matHtml(r, proc.kind === "mesh3d")
       + trsHtml(r)
       + '</div>';
   }
@@ -985,7 +1080,7 @@
     return (f === "aucune") ? "aucune" : (f + " holographique");
   }
 
-  function matHtml(r, isMesh) {
+  function matHtml(r, isMesh, hote) {
     const mats = (INFO && INFO.materials) || [];
     const lim = (INFO && INFO.material_limits) || null;
     const panne = INFO ? INFO.materials_degraded : null;
@@ -1010,9 +1105,7 @@
           + esc(finishLabel(f)) + '</option>').join("")
         + '</select></label>')
       : '<span class="hint">finitions inconnues (contrat /info non chargé).</span>';
-    return '<details class="cf-forge3d-blk"><summary>matière'
-      + (mat ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
-      + '<div class="cf-forge3d-line">' + matSel + finSel
+    const dedans = '<div class="cf-forge3d-line">' + matSel + finSel
       + numHtml("tuile", "tile_mm",
                 (mat && mat.tile_mm != null) ? mat.tile_mm : TILE_DEFAUT,
                 lim && lim.tile_mm, "1", "mm", !pose)
@@ -1024,8 +1117,8 @@
         ? ' Ce rang est un moteur : la matière chaînée sera avouée comme '
           + 'ignorée au bordereau.' : "")
       + (pose ? "" : ' Tuile et anisotropie s\'activent dès qu\'une matière ou '
-        + 'une finition est posée.') + '</p>'
-      + '</details>';
+        + 'une finition est posée.') + '</p>';
+    return blocHtml("matière", !!mat, dedans, hote);
   }
 
   /* LE z EFFECTIF D'UN ÉLÉMENT SANS NŒUD `transform` — c'est-à-dire ce que le
@@ -1039,13 +1132,13 @@
     return (proc && proc.kind === "plane" && isFinite(d)) ? d : 0;
   }
 
-  function trsHtml(r) {
+  function trsHtml(r, hote) {
     const lim = (INFO && INFO.transform_limits) || null;
     const t = r.trs;
     if (!lim) {
-      return '<details class="cf-forge3d-blk"><summary>placement</summary>'
-        + '<p class="hint">bornes inconnues (contrat /info non chargé).</p>'
-        + '</details>';
+      return blocHtml("placement", false,
+                      '<p class="hint">bornes inconnues (contrat /info non '
+                      + 'chargé).</p>', hote);
     }
     /* M1 — CE QUI SERA CONSTRUIT, JAMAIS UN CHAMP VIDE. Même sans nœud
        `transform`, le writer POSE un placement : identité en x/y/rotation,
@@ -1055,9 +1148,7 @@
        sont ceux de `clean_graph` (forge3d.py:410-414). */
     const d = t || { x_mm: 0, y_mm: 0, z_mm: zEmpilement(r.proc),
                      rot_deg: 0, scale: 1 };
-    return '<details class="cf-forge3d-blk"><summary>placement'
-      + (t ? ' <b class="cf-forge3d-on">·</b>' : "") + '</summary>'
-      + '<div class="cf-forge3d-line">'
+    const dedans = '<div class="cf-forge3d-line">'
       + numHtml("x", "x_mm", d.x_mm, lim.xy_mm, "0.5", "mm")
       + numHtml("y", "y_mm", d.y_mm, lim.xy_mm, "0.5", "mm")
       + numHtml("z", "z_mm", d.z_mm, lim.z_mm, "0.1", "mm")
@@ -1066,8 +1157,8 @@
       + '</div>'
       + '<p class="hint">un placement absent laisse l\'élément là où son '
       + 'traitement le pose — les valeurs ci-dessus sont celles qui seront '
-      + 'construites.</p>'
-      + '</details>';
+      + 'construites.</p>';
+    return blocHtml("placement", !!t, dedans, hote);
   }
 
   /* le bouton seed : identique dans les deux branches (graphe absent ou déjà
@@ -1325,11 +1416,20 @@
   function oublieLeCanvas() {
     if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
     if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
+    /* une frame de vignettes en vol appartient au deck qu'on quitte : elle
+       repeindrait depuis un cache d'images qu'on vient justement de vider. */
+    if (vignRaf) { cancelFrame(vignRaf); vignRaf = 0; }
     LAYOUT_SALE = false;
     LAYOUT_VU = sansProto();
     camPending = null;
     DRAG = null;
     SEL = null;
+    /* les vignettes du deck précédent ne disent rien de celui-ci : les clés
+       de couche (`role_cNN_face.png`) sont les MÊMES d'un deck à l'autre,
+       donc un cache gardé peindrait la carte d'hier sur le graphe
+       d'aujourd'hui. (Le changement de CARTE, lui, n'a pas ce défaut : son
+       étiquette est dans la clé.) */
+    oublieLesImages();
     CAM.px = CAM_X0; CAM.py = CAM_Y0; CAM.z = 1;
     /* LE PIÈGE DE LA TRANSFORMATION RASSISE : remettre les CHIFFRES sans les
        APPLIQUER laissait le monde affiché sous l'ancien cadrage jusqu'à la
@@ -1354,10 +1454,12 @@
      semées. Rend le layout COMPLET de ce graphe — c'est lui qu'on peint. */
   function seedLayout(graph) {
     const pose = get("layout") || {};
-    const out = sansProto(), rangs = sansProto();
+    const out = sansProto(), bas = sansProto();
     ((graph && graph.nodes) || []).forEach((n) => {
       const x = connu(COL_X, n.kind) ? COL_X[n.kind] : COL_X_DEFAUT;
-      rangs[x] = (rangs[x] == null) ? 0 : rangs[x] + 1;
+      /* le rang tombe SOUS le precedent de SA colonne, hauteur + gouttiere */
+      const y = connu(bas, x) ? bas[x] : RANG_Y0;
+      bas[x] = y + rangH(n.kind) + RANG_GAP;
       const p = connu(pose, n.id) ? pose[n.id] : null;
       const connue = Array.isArray(p) && p.length === 2
         && isFinite(Number(p[0])) && isFinite(Number(p[1]));
@@ -1368,9 +1470,25 @@
          aurait ensuite « corrigé », donc un nœud qui saute tout seul. */
       out[n.id] = connue
         ? [bornePos(p[0]), bornePos(p[1])]
-        : [bornePos(x), bornePos(RANG_Y0 + RANG_DY * rangs[x])];
+        : [bornePos(x), bornePos(y)];
     });
     return out;
+  }
+
+  /* la hauteur D'ARRANGEMENT d'un kind (jamais une mesure — voir RANG_H) */
+  function rangH(kind) {
+    return connu(RANG_H, kind) ? RANG_H[kind] : RANG_H_DEFAUT;
+  }
+
+  /* LA HAUTEUR REELLE D'UN NŒUD, quand elle existe. `offsetHeight` est la
+     hauteur de MISE EN PAGE : la transformation de la camera ne l'affecte pas
+     (elle s'applique au monde, pas au flux), donc elle est bien en pixels de
+     MONDE — exactement ce que le cadrage compare aux positions. Le repli sur
+     la table sert le nœud qu'on n'a pas encore peint. */
+  function hauteurNoeud(nid, kind) {
+    const el = findByAttr(".cf-forge3d-noeud", "data-nid", nid);
+    const h = el ? Number(el.offsetHeight) : 0;
+    return (isFinite(h) && h > 0) ? h : rangH(kind);
   }
 
   /* le layout du document est-il en retard sur ce qu'on va peindre ? (semis
@@ -1458,13 +1576,19 @@
       appliqueCam();
       return;
     }
+    /* LES HAUTEURS SONT MESUREES, PAS SUPPOSEES (2c Task 3) : les corps de
+       nœuds ne font plus tous 100 px, et une estimation basse ferait couper le
+       bas du graphe par le cadrage qui promet justement de tout montrer. */
+    const kinds = sansProto();
+    ((get("graph") || {}).nodes || []).forEach((n) => { kinds[n.id] = n.kind; });
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     cles.forEach((k) => {
       const p = LAYOUT_VU[k];
+      const h = hauteurNoeud(k, connu(kinds, k) ? kinds[k] : null);
       if (p[0] < x0) x0 = p[0];
       if (p[1] < y0) y0 = p[1];
       if (p[0] + NOEUD_W > x1) x1 = p[0] + NOEUD_W;
-      if (p[1] + NOEUD_H > y1) y1 = p[1] + NOEUD_H;
+      if (p[1] + h > y1) y1 = p[1] + h;
     });
     const w = host.clientWidth, h = host.clientHeight;
     const marge = 24;
@@ -1486,6 +1610,12 @@
     /* les boutons du canvas (semis, recentrage) passent par LA MÊME
        délégation que ceux de la liste : un seul vocabulaire `data-act`. */
     host.addEventListener("click", onGraphClick);
+    /* ... et les CHAMPS des corps de nœuds (Task 3) par LE MÊME `change` :
+       `onGraphChange` remonte jusqu'au premier `[data-proc]`, que ce soit un
+       rang de liste ou un corps de nœud. Sans cet abonnement, les menus
+       embarqués s'afficheraient et n'écriraient rien — un écran muet, la
+       panne la plus difficile à relier à sa cause. */
+    host.addEventListener("change", onGraphChange);
   }
 
   function onCanvasDown(e) {
@@ -1765,23 +1895,492 @@
     return n.id;
   }
 
-  /* UN NŒUD — en-tête (poignée + sélection) et corps. Le corps est un
-     PLACEHOLDER NOMMÉ en Task 2 : les menus embarqués et la vignette
-     réactive sont la Task 3, et un corps vide qui ne dit pas pourquoi se
-     lirait comme une panne. */
+  /* UN NŒUD — en-tête (poignée + sélection) et corps. L'ÉLÉMENT extérieur
+     porte la position et la sélection ; son intérieur est repeint seul par
+     `paintNode`, ce qui préserve les deux choses que le DOM sait et que le
+     graphe ignore : le focus et les tiroirs ouverts. */
   function canvasNodeHtml(n) {
     const p = posDe(n.id) || [0, 0];
     return '<div class="cf-forge3d-noeud' + (n.id === SEL ? " selected" : "")
       + '" data-nid="' + esc(n.id) + '" data-kind="' + esc(n.kind)
       + '" style="left: ' + Number(p[0]) + 'px; top: ' + Number(p[1]) + 'px;">'
-      + '<header class="cf-forge3d-tete" title="' + esc(n.id) + '">'
+      + noeudTeteHtml(n) + nodeBodyHtml(n.id)
+      + '</div>';
+  }
+
+  function noeudTeteHtml(n) {
+    return '<header class="cf-forge3d-tete" title="' + esc(n.id) + '">'
       + '<span class="cf-forge3d-kind-l">' + esc(kindLabel(n.kind))
       + '</span>'
       + '<span class="mono cf-forge3d-titre">' + esc(noeudTitre(n)) + '</span>'
-      + '</header>'
-      + '<div class="cf-forge3d-corps"><p class="hint">menus et vignette : '
-      + 'corps en T3.</p></div>'
-      + '</div>';
+      + '</header>';
+  }
+
+  /* ── LA CHAÎNE D'UN NŒUD, VUE DEPUIS LE NŒUD ────────────────────────────
+     `rowModel` répond « quelle chaîne part de CE traitement ? ». Le canvas
+     pose la question dans l'autre sens : un nœud `material` ou `transform` y
+     est une CARTE À PART ENTIÈRE, et pour peindre ses champs il faut la
+     chaîne à laquelle il appartient — c'est-à-dire son traitement, puisque
+     c'est LUI que `editMat`/`editTrs` prennent en argument. Première chaîne
+     gagnante, comme le backend (`_chaine_aval`) : un maillon partagé entre
+     deux rangées (l'API brute l'autorise, cet écran ne le produit jamais)
+     s'édite au nom de la première — et le bordereau avoue le reste. */
+  function rowDuNoeud(graph, nid) {
+    if (!graph || !nid) return null;
+    const n = (graph.nodes || []).filter((x) => x.id === nid)[0];
+    if (!n) return null;
+    if (PROC_KINDS.indexOf(n.kind) >= 0) {
+      const r = rowModel(graph, nid);
+      return (r && r.layer) ? { r: r, role: "proc" } : null;
+    }
+    const rows = graphRows(graph);
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      if (r.layer && r.layer.id === nid) return { r: r, role: "layer" };
+      if (r.mat && r.mat.id === nid) return { r: r, role: "mat" };
+      if (r.trs && r.trs.id === nid) return { r: r, role: "trs" };
+    }
+    return null;
+  }
+
+  /* ── LE CORPS D'UN NŒUD : SA VIGNETTE ET SES MENUS ──────────────────────
+     Les champs viennent des bâtisseurs de la liste, sans une balise de plus
+     (`procSelHtml`/`geoHtml`/`sideSelHtml`/`mesh3dHtml`/`matHtml`/`trsHtml`).
+     Ce que ce corps ajoute, c'est l'AIGUILLAGE : quel jeu de champs pour quel
+     kind, et un motif LITTÉRAL quand il n'y en a aucun à montrer (un nœud
+     hors chaîne ne sera pas construit — le dire ici évite de le découvrir au
+     bordereau).
+     `data-proc` EST LA CLÉ DE L'ÉDITION : `onGraphChange` remonte jusqu'à lui
+     et appelle `editGraph(procId, …)`. Pour un nœud matière ou placement, ce
+     n'est donc PAS son id qui y figure mais celui de SON traitement — c'est
+     ce que `editMat`/`editTrs` attendent, et c'est ce qui fait que les mêmes
+     handlers servent les deux vues sans une ligne de plus. `data-nid`, lui,
+     dit QUEL nœud repeindre. */
+  function nodeBodyHtml(nid) {
+    const graph = get("graph");
+    const n = graph ? (graph.nodes || []).filter((x) => x.id === nid)[0] : null;
+    if (!n) return '<div class="cf-forge3d-corps"></div>';
+    const lim = (INFO && INFO.graph_limits) || null;
+    const att = rowDuNoeud(graph, nid);
+    const r = att ? att.r : null;
+    let champs = "", proc = "";
+    if (n.kind === "layer") {
+      champs = (r && att.role === "layer")
+        ? ('<div class="cf-forge3d-line">' + sideSelHtml(r.layer) + '</div>')
+        : '<p class="hint">couche non reliée à un traitement — elle ne sera '
+          + 'pas construite.</p>';
+      if (r && att.role === "layer") proc = r.proc.id;
+    } else if (PROC_KINDS.indexOf(n.kind) >= 0) {
+      champs = r
+        ? ('<div class="cf-forge3d-line">' + procSelHtml(n) + geoHtml(n, lim)
+          + '</div>' + (n.kind === "mesh3d" ? mesh3dHtml(n) : ""))
+        : '<p class="hint">traitement sans couche source — il ne sera pas '
+          + 'construit.</p>';
+      if (r) proc = n.id;
+    } else if (n.kind === "material") {
+      champs = (r && att.role === "mat")
+        ? matHtml(r, r.proc.kind === "mesh3d", "node")
+        : '<p class="hint">matière hors chaîne — aucun traitement ne la '
+          + 'porte.</p>';
+      if (r && att.role === "mat") proc = r.proc.id;
+    } else if (n.kind === "transform") {
+      champs = (r && att.role === "trs") ? trsHtml(r, "node")
+        : '<p class="hint">placement hors chaîne — aucun traitement ne le '
+          + 'porte.</p>';
+      if (r && att.role === "trs") proc = r.proc.id;
+    } else {
+      champs = '<p class="hint">'
+        + esc(connu(KIND_HINTS, n.kind) ? KIND_HINTS[n.kind] : kindLabel(n.kind))
+        + '</p>';
+    }
+    return '<div class="cf-forge3d-corps" data-nid="' + esc(n.id) + '"'
+      + (proc ? ' data-proc="' + esc(proc) + '"' : "") + '>'
+      + thumbHtml(n) + champs + '</div>';
+  }
+
+  /* la zone de vignette : un canvas 2D à la surface de dessin FIXE (la
+     feuille décide de la taille affichée). `cf-forge3d-plan` porte la légère
+     perspective du kind `plane` — de la présentation pure, donc CSS. */
+  function thumbHtml(n) {
+    return '<canvas class="cf-forge3d-thumb'
+      + (n.kind === "plane" ? " cf-forge3d-plan" : "")
+      + '" width="' + THUMB_W + '" height="' + THUMB_H
+      + '" aria-hidden="true"></canvas>';
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LES VIGNETTES — CANVAS 2D, LOCALES, DÉTERMINISTES (2c Task 3)
+     Trois engagements, tenus par construction :
+       · AUCUN ALÉA. Rien ici n'appelle `Math.random` (c'est épinglé au test
+         de source, sur tout le fichier) : deux ouvertures du même graphe
+         peignent les mêmes pixels.
+       · AUCUN RÉSEAU QUE LA PROVENANCE. Les seules images chargées sont la
+         PNG de couche (`file/<nom>`) et la vignette de boutique d'une
+         matière (`material-thumb/<mid>`), toutes deux par `M.api.blob` —
+         donc confinées au sous-préfixe de la pièce (règle 8) et mises en
+         cache par clé. Une image ABSENTE (404) est mémorisée comme absente :
+         on retombe sur un aplat, on ne redemande pas en boucle.
+       · AUCUNE DÉPENSE. Rien de ce qui est dessiné ici ne fait tourner un
+         moteur : c'est du dessin, pas un rendu.
+     LE preview.png D'UN JOB N'EST SERVI PAR AUCUNE ROUTE — et c'est dit,
+     pas contourné. Un job meshy rapatrie bien sa vignette dans
+     `nodes/{nid}/preview.png` (forge3d.py:2297), mais la seule route de
+     fichiers de la pièce, `GET /file/{name}`, valide le nom sur
+     `^[A-Za-z0-9._-]{1,90}$` : le séparateur y est interdit, donc rien sous
+     `nodes/` n'est atteignable. Ouvrir une route en douce depuis l'écran
+     serait décider seul d'une surface d'API ; on prend donc la branche « à
+     défaut » du plan (pictogramme moteur + état lu du job), et le manque est
+     remonté au contrôleur pour la Task 5. */
+  const IMGS = sansProto();     /* clé de provenance -> Image | null (absente) */
+  const IMGS_VOL = sansProto(); /* les chargements EN VOL — un par clé */
+
+  function oublieLesImages() {
+    [IMGS, IMGS_VOL].forEach((reg) => {
+      Object.keys(reg).forEach((k) => { delete reg[k]; });
+    });
+  }
+
+  /* LE NOM DU FICHIER D'UNE COUCHE — miroir de `_layer_filename`
+     (forge3d.py:1214), comme `chargeManifeste` l'est déjà de
+     `layers_{label}_{side}.json`. Le manifeste ne peut PAS servir de source :
+     l'écran n'en charge que le RECTO, alors qu'un nœud couche peut viser le
+     verso. Un nom faux ne ment pas — il 404, et la vignette retombe sur son
+     aplat. */
+  function layerFile(l) {
+    const side = (l && l.side === "back") ? "back" : "front";
+    const role = (l && !l.composite && l.role) ? l.role : "composite";
+    return role + "_" + cardLabel() + "_" + side + ".png";
+  }
+
+  /* une image de provenance : rendue si connue, `null` si connue-absente,
+     `undefined` tant qu'elle se charge (le peintre dessine alors son repli et
+     sera rappelé au retour). */
+  function imageDeProvenance(cle, sub) {
+    if (connu(IMGS, cle)) return IMGS[cle];
+    chargeImage(cle, sub);
+    return undefined;
+  }
+
+  async function chargeImage(cle, sub) {
+    if (connu(IMGS, cle) || IMGS_VOL[cle]) return;
+    IMGS_VOL[cle] = true;
+    /* GARDE DE GÉNÉRATION (2b Task 7) : un blob du deck (ou de la carte)
+       précédent ne doit ni entrer dans le cache ni déclencher une peinture
+       dans l'écran du suivant. Le contrôle se refait APRÈS chaque await —
+       le décodage en est un aussi. */
+    const gen = GEN;
+    let img = null;
+    try {
+      const b = await M.api.blob("GET", sub);
+      if (gen !== GEN) { delete IMGS_VOL[cle]; return; }
+      img = await decodeBlob(b);
+    } catch (e) {
+      img = null;         /* absente ou refusée : un aplat, jamais une panne */
+    }
+    if (gen !== GEN) { delete IMGS_VOL[cle]; return; }
+    IMGS[cle] = img;
+    delete IMGS_VOL[cle];
+    demandeRepeintVignettes();
+  }
+
+  /* l'objectURL est révoquée DANS les deux issues : une vignette de nœud est
+     un geste répété (chaque bascule de vue en redemande), et une URL par
+     image retenue à vie serait une fuite lente — le patron `mountPreview`
+     appliqué à un cas où l'image, elle, survit à son URL. */
+  function decodeBlob(b) {
+    return new Promise((resolve) => {
+      if (typeof Image !== "function" || typeof URL === "undefined") {
+        resolve(null);
+        return;
+      }
+      const u = URL.createObjectURL(b);
+      const im = new Image();
+      im.onload = () => { URL.revokeObjectURL(u); resolve(im); };
+      im.onerror = () => { URL.revokeObjectURL(u); resolve(null); };
+      im.src = u;
+    });
+  }
+
+  /* LES COULEURS VIENNENT DU THÈME, jamais d'une constante d'ici : un canvas
+     2D ne connaît pas les variables CSS, on les LIT donc sur l'élément (la
+     feuille reste la seule source, y compris en thème clair). */
+  function encres(el) {
+    const cs = (typeof getComputedStyle === "function") ? getComputedStyle(el) : null;
+    const jeton = (nom, repli) => {
+      const v = cs ? String(cs.getPropertyValue(nom) || "").trim() : "";
+      return v || repli;
+    };
+    return {
+      fond: jeton("--bg-panel-3", "#14141a"),
+      trait: jeton("--stroke-strong", "#4a4a55"),
+      encre: jeton("--ink-muted", "#9a9aa6"),
+      fort: jeton("--ink-strong", "#e8e8ee"),
+      accent: jeton("--accent", "#e0a33a"),
+    };
+  }
+
+  function boiteContenue(iw, ih) {
+    const k = Math.min(THUMB_W / Math.max(1, iw), THUMB_H / Math.max(1, ih));
+    const w = (iw || 1) * k, h = (ih || 1) * k;
+    return { x: (THUMB_W - w) / 2, y: (THUMB_H - h) / 2, w: w, h: h };
+  }
+
+  /* le damier d'alpha : une couche est une PNG à trous, et l'afficher sur un
+     aplat laisserait croire à un fond opaque qui n'existe pas. Même repère
+     que les vignettes du bordereau (mod-forge3d.css:.cf-forge3d-lay img). */
+  function damier(ctx, enc) {
+    const pas = 10;
+    for (let y = 0; y < THUMB_H; y += pas) {
+      for (let x = 0; x < THUMB_W; x += pas) {
+        if (((x / pas) + (y / pas)) % 2 !== 0) continue;
+        ctx.fillStyle = enc.trait;
+        ctx.globalAlpha = 0.18;
+        ctx.fillRect(x, y, pas, pas);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function texteCentre(ctx, enc, txt, y, taille, couleur) {
+    ctx.fillStyle = couleur || enc.encre;
+    ctx.font = taille + "px system-ui, -apple-system, Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(String(txt == null ? "" : txt), THUMB_W / 2, y, THUMB_W - 8);
+  }
+
+  /* le pictogramme d'un kind, en grand — le contenu de vignette d'un nœud
+     qui n'a pas de pixels à lui. */
+  function dessinePicto(ctx, enc, kind, sous) {
+    texteCentre(ctx, enc, connu(PICTO, kind) ? PICTO[kind] : PICTO_DEFAUT,
+                THUMB_H / 2 - 12, 44, enc.trait);
+    if (sous) texteCentre(ctx, enc, sous, THUMB_H / 2 + 26, 11, enc.encre);
+  }
+
+  /* LA SILHOUETTE TEINTÉE d'une image — pur canvas 2D : on redessine l'image
+     dans une toile de travail puis on la remplit en `source-in`, ce qui ne
+     garde que ses pixels opaques. C'est ce qui permet l'ombre d'emboss du
+     relief SANS toucher au fond déjà peint (un `fillRect` en `source-atop`
+     sur la toile principale teinterait tout, fond compris). */
+  function silhouette(img, teinte) {
+    if (typeof document === "undefined") return null;
+    const c = document.createElement("canvas");
+    c.width = THUMB_W; c.height = THUMB_H;
+    const g = c.getContext ? c.getContext("2d") : null;
+    if (!g) return null;
+    const b = boiteContenue(img.width, img.height);
+    g.drawImage(img, b.x, b.y, b.w, b.h);
+    g.globalCompositeOperation = "source-in";
+    g.fillStyle = teinte;
+    g.fillRect(0, 0, THUMB_W, THUMB_H);
+    return c;
+  }
+
+  /* les millimètres de la carte : ceux du manifeste quand il est chargé,
+     sinon le format de référence — c'est une ÉCHELLE D'ESQUISSE (le tracé de
+     placement), jamais une mesure envoyée à quoi que ce soit. */
+  function carteMm() {
+    const m = LAST_MANIFEST && LAST_MANIFEST.size_mm;
+    const w = Array.isArray(m) ? Number(m[0]) : 0;
+    const h = Array.isArray(m) ? Number(m[1]) : 0;
+    return (isFinite(w) && w > 0 && isFinite(h) && h > 0) ? [w, h] : [63, 88];
+  }
+
+  /* LA VIGNETTE D'UN NŒUD — repeinte à chaque édition qui la concerne.
+     Elle ne LIT que le graphe et le cache d'images : aucune requête n'est
+     lancée depuis ce peintre (c'est `imageDeProvenance` qui décide, une
+     fois par clé). */
+  function paintNodeThumb(nid) {
+    const noeud = findByAttr(".cf-forge3d-noeud", "data-nid", nid);
+    const cv = noeud ? noeud.querySelector(".cf-forge3d-thumb") : null;
+    if (!cv || !cv.getContext) return;
+    const graph = get("graph");
+    const n = graph ? (graph.nodes || []).filter((x) => x.id === nid)[0] : null;
+    const ctx = cv.getContext("2d");
+    if (!ctx || !n) return;
+    const enc = encres(cv);
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, THUMB_W, THUMB_H);
+    ctx.fillStyle = enc.fond;
+    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+    const att = rowDuNoeud(graph, nid);
+    const r = att ? att.r : null;
+    if (n.kind === "material") thumbMatiere(ctx, enc, n);
+    else if (n.kind === "mesh3d") thumbMesh3d(ctx, enc, n);
+    else if (n.kind === "layer") thumbCouche(ctx, enc, n, 1);
+    else if (n.kind === "plane") thumbCouche(ctx, enc, r && r.layer, 1);
+    else if (n.kind === "relief") thumbRelief(ctx, enc, n, r && r.layer);
+    else if (n.kind === "transform") thumbPlacement(ctx, enc, n, r && r.layer);
+    else dessinePicto(ctx, enc, n.kind, kindLabel(n.kind));
+    ctx.strokeStyle = enc.trait;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(0.5, 0.5, THUMB_W - 1, THUMB_H - 1);
+  }
+
+  /* la PNG de couche, telle qu'elle a été livrée */
+  function thumbCouche(ctx, enc, l, alpha) {
+    if (!l) { dessinePicto(ctx, enc, "layer", "sans couche source"); return; }
+    const cle = layerFile(l);
+    const img = imageDeProvenance("couche:" + cle, "file/" + encodeURIComponent(cle));
+    if (!img) {
+      damier(ctx, enc);
+      dessinePicto(ctx, enc, "layer",
+                   (img === null) ? "couche non exportée" : "chargement…");
+      return;
+    }
+    damier(ctx, enc);
+    const b = boiteContenue(img.width, img.height);
+    ctx.globalAlpha = (alpha == null) ? 1 : alpha;
+    ctx.drawImage(img, b.x, b.y, b.w, b.h);
+    ctx.globalAlpha = 1;
+    return b;
+  }
+
+  /* l'EMBOSS : la même couche, doublée d'une silhouette sombre décalée —
+     le décalage est PROPORTIONNEL à `depth_mm`, donc éditer la profondeur
+     fait réagir la vignette (c'est ce que la Task 3 promet). Le décalage est
+     borné : au-delà, l'esquisse ne dirait plus rien de plus. */
+  function thumbRelief(ctx, enc, n, l) {
+    const b = thumbCouche(ctx, enc, l, 1);
+    if (!b) return;
+    const cle = layerFile(l);
+    const img = connu(IMGS, "couche:" + cle) ? IMGS["couche:" + cle] : null;
+    if (!img) return;
+    const d = Math.max(0, Math.min(6, Number(n.depth_mm) || 0));
+    const dec = Math.round(d * 2.2);
+    if (dec <= 0) return;
+    const ombre = silhouette(img, "#000000");
+    ctx.clearRect(0, 0, THUMB_W, THUMB_H);
+    ctx.fillStyle = enc.fond;
+    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
+    damier(ctx, enc);
+    if (ombre) {
+      ctx.globalAlpha = 0.5;
+      ctx.drawImage(ombre, dec, dec);
+      ctx.globalAlpha = 1;
+    }
+    ctx.drawImage(img, b.x, b.y, b.w, b.h);
+    texteCentre(ctx, enc, d.toFixed(2) + " mm", THUMB_H - 10, 10, enc.accent);
+  }
+
+  /* le PLACEMENT, esquissé : la couche en sourdine, et le cadre de l'élément
+     là où le nœud le pose (décalage, rotation, échelle). Le y descend à
+     l'écran et monte dans la scène — l'esquisse le retourne, comme le
+     writer. C'est un TRAIT, pas un rendu : le vrai 3D est l'affaire du
+     viewer. */
+  function thumbPlacement(ctx, enc, n, l) {
+    const b = thumbCouche(ctx, enc, l, 0.32);
+    const mm = carteMm();
+    const ppmm = THUMB_W / mm[0];
+    const cadre = b || boiteContenue(mm[0], mm[1]);
+    const s = Math.max(0.05, Math.min(8, Number(n.scale) || 1));
+    ctx.save();
+    ctx.translate(THUMB_W / 2 + (Number(n.x_mm) || 0) * ppmm,
+                  THUMB_H / 2 - (Number(n.y_mm) || 0) * ppmm);
+    ctx.rotate((Number(n.rot_deg) || 0) * Math.PI / 180);
+    ctx.strokeStyle = enc.accent;
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(-cadre.w * s / 2, -cadre.h * s / 2, cadre.w * s, cadre.h * s);
+    ctx.restore();
+  }
+
+  /* LA MATIÈRE : la vignette de la boutique en fond (par la route de
+     provenance), un bandeau de finition, et le badge d'anisotropie. Une
+     matière sans vignette servie (jamais capturée, ou PÉRIMÉE : le backend
+     rend 404 pour les deux) tombe sur un aplat neutre — le même repli que la
+     boutique s'accorde pour sa propre galerie. */
+  function thumbMatiere(ctx, enc, n) {
+    const mid = n.mat ? String(n.mat) : "";
+    const img = mid
+      ? imageDeProvenance("mat:" + mid, "material-thumb/" + encodeURIComponent(mid))
+      : null;
+    if (img) {
+      /* COUVRIR, pas contenir : une matière est une texture, ses bords ne
+         portent rien — la montrer en entier avec des marges la rendrait
+         moins lisible qu'un fragment plein cadre. */
+      const k = Math.max(THUMB_W / Math.max(1, img.width),
+                         THUMB_H / Math.max(1, img.height));
+      const w = img.width * k, h = img.height * k;
+      ctx.drawImage(img, (THUMB_W - w) / 2, (THUMB_H - h) / 2, w, h);
+    } else {
+      ctx.fillStyle = enc.trait;
+      ctx.globalAlpha = 0.35;
+      ctx.fillRect(8, 8, THUMB_W - 16, THUMB_H - 16);
+      ctx.globalAlpha = 1;
+      dessinePicto(ctx, enc, "material",
+                   mid ? "sans vignette" : "aucune matière");
+    }
+    const fin = n.finish ? String(n.finish) : "";
+    if (fin && fin !== "aucune") {
+      const y = THUMB_H - 34;
+      const stops = connu(HOLO, fin) ? HOLO[fin] : HOLO_DEFAUT;
+      const g = ctx.createLinearGradient(0, y, THUMB_W, y + 20);
+      g.addColorStop(0, stops[0]);
+      g.addColorStop(0.5, stops[1]);
+      g.addColorStop(1, stops[2]);
+      ctx.fillStyle = g;
+      ctx.globalAlpha = 0.85;
+      ctx.fillRect(0, y, THUMB_W, 20);
+      ctx.globalAlpha = 1;
+      texteCentre(ctx, enc, fin, y + 10, 10, "#1a1a1f");
+    }
+    if (n.aniso) {
+      ctx.fillStyle = enc.accent;
+      ctx.globalAlpha = 0.9;
+      ctx.fillRect(6, 6, 42, 15);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#1a1a1f";
+      ctx.font = "9px system-ui, -apple-system, Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("aniso", 27, 14);
+    }
+  }
+
+  /* LE MOTEUR : son pictogramme et l'état LU du job (jamais l'intention
+     envoyée). Le `preview.png` que meshy rapatrie n'est servi par aucune
+     route — voir la note en tête de section : c'est la branche « à défaut »
+     du plan qui s'applique ici, et la chip d'état, elle, est dans le corps
+     (mesh3dHtml -> runHtml -> chipHtml) pour les deux vues. */
+  function thumbMesh3d(ctx, enc, n) {
+    const eng = engineFor(n);
+    const job = connu(JOBS, n.id) ? JOBS[n.id] : undefined;
+    let etat = "jamais lancé";
+    let couleur = enc.encre;
+    if (job === undefined) etat = "état non lu";
+    else if (job === null) etat = "jamais lancé";
+    else if (job.status === "served") { etat = "servi"; couleur = enc.fort; }
+    else if (job.status === "failed") etat = "échec";
+    else if (job.status === "running") {
+      etat = "en cours " + Number(job.progress || 0) + " %";
+      couleur = enc.accent;
+    } else if (job.status === "queued") { etat = "en file"; couleur = enc.accent; }
+    dessinePicto(ctx, enc, "mesh3d",
+                 (eng && eng.label) || n.engine || "moteur");
+    texteCentre(ctx, enc, etat, THUMB_H - 22, 11, couleur);
+  }
+
+  /* toutes les vignettes de la vue courante — appelé quand une image vient
+     d'arriver (une seule fois par clé : le cache tient la suite).
+     COALESCÉ AU rAF, et pour la même raison que le glisser (§9.6-1) : à
+     l'ouverture d'un graphe, SEPT images partent d'un coup et reviennent dans
+     la même poignée de frames. Un balayage complet par arrivée, c'est du
+     travail par ÉVÉNEMENT qui croît avec la taille du graphe — la faute que
+     `majAretes` a déjà corrigée sur les arêtes incidentes. Une frame, un
+     balayage : les six autres images sont déjà en cache quand il passe. */
+  let vignRaf = 0;
+
+  function demandeRepeintVignettes() {
+    if (!vignRaf) vignRaf = scheduleFrame(repeintLesVignettes);
+  }
+
+  function repeintLesVignettes() {
+    vignRaf = 0;
+    if (VUE !== "canvas") return;
+    const graph = get("graph");
+    if (!graph) return;
+    (graph.nodes || []).forEach((n) => { paintNodeThumb(n.id); });
   }
 
   function paintCanvas() {
@@ -1826,25 +2425,42 @@
     nodes.forEach((n) => {
       const p = posDe(n.id) || [0, 0];
       if (p[0] > mx) mx = p[0];
-      if (p[1] > my) my = p[1];
+      /* l'etendue est calculee AVANT que le DOM n'existe : c'est la seule
+         place ou la table d'arrangement fait foi (le cadrage, lui, mesure). */
+      const bas = p[1] + rangH(n.kind);
+      if (bas > my) my = bas;
     });
-    const ext = { w: mx + NOEUD_W + 80, h: my + 220 };
+    const ext = { w: mx + NOEUD_W + 80, h: my + 80 };
     if (monde) {
       monde.style.width = ext.w + "px";
       monde.style.height = ext.h + "px";
       monde.innerHTML = edgesHtml(graph, ext)
         + nodes.map((n) => canvasNodeHtml(n)).join("");
     }
+    /* les vignettes se peignent APRÈS l'insertion : un canvas hors du
+       document n'a pas encore ses variables de thème (les encres se lisent
+       sur l'élément) — et il n'y a rien à peindre avant qu'il existe. */
+    nodes.forEach((n) => { paintNodeThumb(n.id); });
     appliqueCam();
     sondeMoteurs(graph);
     paintCost();
   }
 
-  /* le rang d'un nœud dans le DOM, retrouvé par comparaison d'attribut et non
-     par sélecteur construit : un id de nœud est une donnée, jamais un
+  /* L'HÔTE DE LA VUE ACTIVE — la liste et le canvas peignent les MÊMES
+     zones (`.cf-forge3d-run` et sa chip, notamment) et une recherche clouée
+     à `#cf-forge3d-graph` laissait le poll d'un job repeindre… dans un hôte
+     vidé, c'est-à-dire nulle part : sur le canvas, un job passait de « en
+     cours » à rien du tout jusqu'au prochain repaint global. La vue inactive
+     étant VIDÉE par le dispatcher, chercher dans l'active suffit. */
+  function hoteVue() {
+    return (VUE === "canvas") ? $("#cf-forge3d-canvas") : $("#cf-forge3d-graph");
+  }
+
+  /* le rang (ou le nœud) dans le DOM, retrouvé par comparaison d'attribut et
+     non par sélecteur construit : un id de nœud est une donnée, jamais un
      fragment de sélecteur (un point y suffirait à tout casser). */
   function findByAttr(cls, attr, val) {
-    const host = $("#cf-forge3d-graph");
+    const host = hoteVue();
     if (!host) return null;
     const tab = Array.prototype.slice.call(host.querySelectorAll(cls));
     for (let i = 0; i < tab.length; i++) {
@@ -1879,9 +2495,57 @@
     paintCost();
   }
 
+  /* REPEINDRE UN SEUL NŒUD — le pendant exact de `paintRow` pour le canvas,
+     et une PIÈCE OBLIGATOIRE de la Task 3, pas un raffinement. `paintCanvas`
+     reconstruit tout le monde en un `innerHTML` : maintenant que les nœuds
+     portent des champs, la moindre édition qui passerait par lui détruirait
+     et recréerait l'input focalisé — chaque pas de spinner, chaque choix de
+     matière perdrait le curseur (le piège syncInputs/renderPanel de
+     mod-face, déjà payé une fois sur la liste, I1 de la 2b).
+     On préserve donc les deux choses que le DOM porte et que le graphe ne dit
+     pas : les tiroirs ouverts et l'élément focalisé. Et on repeint l'INTÉRIEUR
+     seulement : l'élément extérieur garde sa position (style left/top écrit
+     par le glisser) et sa classe de sélection. */
+  function paintNode(nid, focusField) {
+    const el = findByAttr(".cf-forge3d-noeud", "data-nid", nid);
+    const graph = get("graph");
+    const n = (el && graph)
+      ? (graph.nodes || []).filter((x) => x.id === nid)[0] : null;
+    /* le nœud a disparu sous l'édition (un maillon vidé par `editMat`) :
+       c'est structurel, le dispatcher tranche. */
+    if (!el || !n) { paintVue(); return; }
+    const ouverts = Array.prototype.slice.call(el.querySelectorAll("details"))
+      .map((d) => !!d.open);
+    el.innerHTML = noeudTeteHtml(n) + nodeBodyHtml(nid);
+    Array.prototype.slice.call(el.querySelectorAll("details"))
+      .forEach((d, i) => { if (ouverts[i]) d.open = true; });
+    if (focusField) {
+      const f = el.querySelector('[data-field="' + focusField + '"]');
+      if (f && f.focus) f.focus();
+    }
+    paintNodeThumb(nid);
+    paintCost();
+  }
+
+  /* LE MÊME GESTE, DANS LA VUE QUI EST À L'ÉCRAN. Un rang de liste et un
+     nœud de canvas sont deux hôtes du même jeu de champs : l'édition qui
+     change ce qu'ils AFFICHENT (prix, case ultra, puce de tiroir) doit
+     repeindre l'un OU l'autre — jamais les deux, jamais la vue entière. */
+  function paintChamps(procId, nid, field) {
+    if (VUE === "canvas") paintNode(nid, field);
+    else paintRow(procId, field);
+  }
+
   /* la zone bouton+chip d'un nœud moteur, repeinte SEULE par le poll : c'est
      ce qui permet à un job de couler pendant que l'utilisateur écrit dans le
-     champ texture du même rang sans jamais perdre son curseur. */
+     champ texture du même rang sans jamais perdre son curseur.
+     LA ZONE EST LA MÊME DANS LES DEUX VUES (2c Task 3) : `findByAttr` cherche
+     dans l'hôte ACTIF, donc le poll peint la chip du rang de liste ou celle
+     du corps de nœud, selon ce qui est à l'écran — clouée à la liste, elle
+     laissait un job du canvas passer de « en cours » à rien du tout.
+     Et la VIGNETTE suit : elle porte le même état lu du job (« servi »,
+     « en cours 40 % »), donc la laisser derrière ferait dire deux choses
+     différentes à deux centimètres d'écart. */
   function paintChip(nid) {
     const zone = findByAttr(".cf-forge3d-run", "data-nid", nid);
     if (!zone) return;
@@ -1889,6 +2553,7 @@
     const proc = graph ? (graph.nodes || []).filter((n) => n.id === nid)[0] : null;
     if (!proc) return;
     zone.innerHTML = runHtml(proc);
+    paintNodeThumb(nid);
   }
 
   function onGraphClick(e) {
@@ -1934,13 +2599,23 @@
     paintVue();       /* structurel : la vue entière change de forme */
   }
 
+  /* UNE SEULE DÉLÉGATION POUR LES DEUX VUES. Le repère n'est plus la classe
+     du rang (`.cf-forge3d-row`, qui n'existe que dans la liste) mais
+     l'ATTRIBUT que les deux hôtes portent : `data-proc`, l'id du traitement
+     au nom duquel l'édition s'écrit. Un corps de nœud matière ou placement y
+     met l'id de SON traitement — c'est ce que `editMat`/`editTrs` attendent,
+     et c'est pour ça que les handlers n'ont pas eu à changer d'un octet.
+     `data-nid` dit, en plus, QUEL nœud repeindre : dans la liste il vaut
+     `data-proc` (un rang EST son traitement), sur le canvas il désigne la
+     carte que l'utilisateur a sous les yeux. */
   function onGraphChange(e) {
-    const row = e.target.closest ? e.target.closest(".cf-forge3d-row") : null;
-    if (!row) return;
+    const hote = e.target.closest ? e.target.closest("[data-proc]") : null;
+    if (!hote) return;
     const field = e.target.getAttribute("data-field");
     if (!field) return;
     const val = (e.target.type === "checkbox") ? e.target.checked : e.target.value;
-    editGraph(row.getAttribute("data-proc"), field, val);
+    const procId = hote.getAttribute("data-proc");
+    editGraph(procId, field, val, hote.getAttribute("data-nid") || procId);
   }
 
   /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo, paintUndo
@@ -1995,9 +2670,13 @@
      (moteur, ultra : prix, case ultra, bouton) et deux qui font naître ou
      mourir un maillon (matière, finition) : ceux-là repeignent LE RANG SEUL,
      focus restauré, tiroirs conservés. */
-  function editGraph(procId, field, rawValue) {
+  function editGraph(procId, field, rawValue, hoteNid) {
     const graph = get("graph");
     if (!graph || !procId) return;
+    /* le nœud SOUS LES YEUX de l'utilisateur : c'est lui qu'on repeint et
+       c'est SA vignette qui doit réagir. Dans la liste, c'est le traitement
+       lui-même (un rang porte toute la chaîne). */
+    const nid = hoteNid || procId;
     const next = JSON.parse(JSON.stringify(graph));
     const proc = next.nodes.filter((n) => n.id === procId)[0];
     if (!proc) return;
@@ -2046,9 +2725,40 @@
        recopié la dispatche ICI pour satisfaire au mot près un pin de source
        de la 2a ; le pin a été AMENDÉ À SA SOURCE — il vérifie désormais
        l'invariant là où la logique vit, dans `paintVue`.) */
-    if (field === "kind") paintVue();
-    else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
-    else paintCost();
+    /* UNE NAISSANCE (ou une mort) DE MAILLON EST STRUCTURELLE SUR LE CANVAS,
+       pas seulement sur le rang : un nœud matière ou placement y APPARAÎT ou
+       DISPARAÎT, avec ses arêtes et sa position — ce que seul `paintCanvas`
+       sait poser (le semis d'un layout manquant y passe). Dans la liste, la
+       même naissance ne change qu'une puce de tiroir : le rang suffit. */
+    if (field === "kind" || (naissance && VUE === "canvas")) paintVue();
+    else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) {
+      paintChamps(procId, nid, field);
+    } else {
+      /* LA VIGNETTE RÉAGIT À LA VALEUR SAISIE, sans repeindre le champ (qui
+         porte déjà ce que le navigateur vient de commettre) : c'est ce qui
+         fait qu'une profondeur poussée d'un cran change l'emboss du relief
+         SOUS le curseur, au lieu d'attendre un repaint global qui volerait
+         justement ce curseur. */
+      repeintChaine(procId, nid);
+      paintCost();
+    }
+  }
+
+  /* LA VIGNETTE DU NŒUD TOUCHÉ — ET DE SA CHAÎNE. Un champ n'appartient pas
+     qu'à sa propre carte : changer la FACE d'une couche change la PNG que son
+     traitement ET son placement dessinent tous les deux. Ne repeindre que le
+     nœud édité laisserait deux vignettes voisines montrer le recto pendant
+     que la troisième montre déjà le verso — un écran qui se contredit à
+     l'œil. La chaîne est bornée par construction (couche, traitement,
+     matière, placement : quatre nœuds au plus). */
+  function repeintChaine(procId, nid) {
+    paintNodeThumb(nid);
+    const graph = get("graph");
+    const r = graph ? rowModel(graph, procId) : null;
+    if (!r) return;
+    [r.layer, r.proc, r.mat, r.trs].forEach((x) => {
+      if (x && x.id !== nid) paintNodeThumb(x.id);
+    });
   }
 
   /* ── LA CHAÎNE D'UN RANG, RECONSTRUITE ─────────────────────────────────

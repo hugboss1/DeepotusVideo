@@ -4025,5 +4025,106 @@ def test_le_canvas_est_la_projection_du_meme_graphe():
         assert "paintVue()" in bloc, (appelant, bloc)
 
 
+def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
+    """Test de SOURCE (phase 2c, Task 3) : un nœud du canvas porte SES menus
+    et une vignette qui REAGIT. Ce qui est epingle ici :
+
+      · REUTILISATION STRICTE — le corps d'un nœud compose les batisseurs de
+        champs DEJA ecrits pour la liste (aucun balisage de champ n'existe en
+        double : c'est le compte litteral des `data-field` qui le prouve, pas
+        une promesse de commentaire) ;
+      · les handlers d'edition remontent DEPUIS LE CANVAS (meme delegation
+        `change` que la liste) ;
+      · la vignette est un canvas 2D DETERMINISTE, peinte localement (blobs
+        de provenance en cache, garde de generation apres chaque await) ;
+      · le repaint PAR NŒUD existe et preserve focus + tiroirs — sans lui,
+        chaque frappe passerait par la reconstruction complete de
+        `paintCanvas` et volerait le curseur (piege syncInputs de mod-face) ;
+      · la zone chip est INDEPENDANTE DE L'HOTE : le poll d'un job repeint
+        dans LES DEUX vues."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # ── REUTILISATION STRICTE ────────────────────────────────────────────
+    # le corps d'un nœud appelle les blocs EXISTANTS...
+    corps = rendu.split("function nodeBodyHtml(")[1].split("\n  }")[0]
+    for bloc in ("mesh3dHtml", "matHtml", "trsHtml",
+                 "procSelHtml", "geoHtml", "sideSelHtml", "thumbHtml"):
+        assert bloc in corps, (bloc, corps)
+    # ... et le RANG de la liste appelle EXACTEMENT les memes.
+    ligne = rendu.split("function rowHtml(")[1].split("\n  }")[0]
+    for bloc in ("mesh3dHtml", "matHtml", "trsHtml",
+                 "procSelHtml", "geoHtml", "sideSelHtml"):
+        assert bloc in ligne, (bloc, ligne)
+    # LA PREUVE DE NON-DUPLICATION : chaque champ n'a qu'UN point d'ecriture
+    # dans tout le module. Un balisage recopie pour le canvas ferait passer
+    # ces comptes a 2 — et deux copies derivent (la lecon des tables
+    # miroir : une seule source, ou une seule des deux dit vrai).
+    for champ in ('data-field="engine"', 'data-field="mat"',
+                  'data-field="finish"', 'data-field="side"',
+                  'data-field="kind"', 'data-field="texture_prompt"',
+                  'data-field="aniso"'):
+        assert rendu.count(champ) == 1, (champ, rendu.count(champ))
+    # les handlers remontent DEPUIS LE CANVAS : meme delegation que la liste
+    wc = rendu.split("function wireCanvas(")[1].split("\n  }")[0]
+    assert "onGraphChange" in wc, wc
+    # ── LA VIGNETTE ──────────────────────────────────────────────────────
+    assert "function paintNodeThumb(" in rendu
+    assert "cf-forge3d-thumb" in rendu and "Math.random" not in rendu
+    # mesh3d : la chip d'etat + un PICTOGRAMME moteur. Le `preview.png` du
+    # job vit sous `nodes/{nid}/` et AUCUNE route ne le sert (le regex de
+    # GET /file/{name} interdit le separateur) : c'est la branche « a defaut »
+    # du plan qui s'applique, et elle est nommee.
+    assert "chipHtml" in rendu and "preview" in rendu
+    assert "PICTO" in rendu
+    # matiere : la vignette de la boutique par la route de provenance
+    assert "material-thumb/" in rendu
+    # AUCUN reseau hors provenance : les images passent par M.api.blob
+    ci = rendu.split("async function chargeImage(")[1].split("\n  }")[0]
+    assert "M.api.blob" in ci, ci
+    # ... et la GARDE DE GENERATION apres CHAQUE await (2b Task 7) : une
+    # image du deck precedent ne se peint pas dans l'ecran du suivant. Le pin
+    # est un INVARIANT, pas un compte fige : autant de gardes que d'awaits —
+    # sinon un await ajoute demain repasserait sous le radar.
+    assert ci.count("gen !== GEN") >= ci.count("await "), ci
+    # ── LE REPAINT PAR NŒUD (le pendant de paintRow) ─────────────────────
+    pn = rendu.split("function paintNode(")[1].split("\n  }")[0]
+    assert ".open" in pn, pn
+    # le focus est RENDU, pas seulement mentionne : c'est l'appel qui compte
+    assert ".focus()" in pn and 'data-field="' in pn, pn
+    # il ne reconstruit PAS le monde (ce serait exactement le vol de curseur
+    # que cette fonction existe pour empecher)
+    assert "paintCanvas()" not in pn, pn
+    # ... et il est BRANCHE la ou `paintRow` l'est pour la liste
+    eg = rendu.split("function editGraph(")[1].split("\n  }")[0]
+    assert "paintChamps(" in eg, eg
+    pch = rendu.split("function paintChamps(")[1].split("\n  }")[0]
+    assert "paintNode(" in pch and "paintRow(" in pch, pch
+    # une profondeur editee REPEINT LA VIGNETTE du nœud touche (sinon le
+    # relief se dessinerait a l'ancienne profondeur jusqu'au prochain
+    # repaint global) — la branche « ni structure ni naissance ». Et la
+    # CHAINE avec lui : la face d'une couche change la PNG que son
+    # traitement et son placement dessinent tous les deux.
+    assert "repeintChaine(" in eg, eg
+    rc = rendu.split("function repeintChaine(")[1].split("\n  }")[0]
+    assert "paintNodeThumb(" in rc, rc
+    # ... et le poll d'un job repeint la chip ET la vignette (elles portent
+    # le MEME etat lu : deux centimetres d'ecart, un seul job)
+    pcp = rendu.split("function paintChip(")[1].split("\n  }")[0]
+    assert "paintNodeThumb(" in pcp, pcp
+    # ── LA CHIP, DANS LES DEUX VUES ──────────────────────────────────────
+    fb = rendu.split("function findByAttr(")[1].split("\n  }")[0]
+    assert "#cf-forge3d-graph" not in fb, fb
+    assert "hoteVue()" in fb, fb
+    # ── LA FEUILLE ───────────────────────────────────────────────────────
+    # les SELECTEURS, pas la sous-chaine : `.cf-forge3d-thumb` se retrouve
+    # dans la regle de perspective meme si la zone elle-meme a disparu.
+    feuille = CSS.read_text(encoding="utf-8")
+    for sel in (".cf-forge3d .cf-forge3d-thumb {",
+                ".cf-forge3d .cf-forge3d-thumb.cf-forge3d-plan {",
+                ".cf-forge3d .cf-forge3d-corps {",
+                ".cf-forge3d .cf-forge3d-blk-n {"):
+        assert sel in feuille, sel
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

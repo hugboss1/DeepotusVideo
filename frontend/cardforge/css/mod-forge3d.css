@@ -98,12 +98,16 @@
 .cf-forge3d .cf-forge3d-outils { right: 10px; bottom: 10px; display: flex; gap: 6px; }
 
 /* ── CE QUE CETTE FEUILLE NE FAIT PAS ENCORE, ET POURQUOI (dette nommee) ───
-   Trois manques sont DELIBERES en Task 2 ; les nommer ici evite qu'on les
+   Trois manques etaient DELIBERES en Task 2 ; les nommer ici evite qu'on les
    prenne pour des oublis (ou qu'on les repare deux fois) :
-   1. AUCUN habillage par kind. L'attribut `data-kind` est deja pose sur
-      chaque nœud : le crochet existe, la teinte par etage (couche /
-      traitement / matiere / assemblage) arrive avec les corps de la Task 3,
-      quand il y aura autre chose qu'un en-tete a differencier.
+   1. AUCUN habillage par kind. TOUJOURS VRAI APRES LA TASK 3, et c'est
+      desormais un CHOIX plutot qu'un report : le corps d'un nœud porte
+      maintenant sa VIGNETTE, qui distingue les etages bien mieux qu'une
+      teinte d'en-tete (une couche montre ses pixels, une matiere sa texture,
+      un moteur son pictogramme). Ajouter par-dessus une couleur par kind
+      ferait de l'accent un quatrieme role dans cette feuille — la regle du
+      lab en veut UN par emploi. `data-kind` reste pose : le crochet existe si
+      la passe navigateur (Task 7) prouve le contraire.
    2. LES ARETES SONT MONOCHROMES (--stroke-strong) et sans etat au survol.
       La couche SVG est `pointer-events: none` — deliberement, sinon elle
       volerait les clics des nœuds qu'elle croise. La Task 4 (supprimer une
@@ -159,7 +163,38 @@
    surligne pas la moitie de l'ecran) — les champs de la Task 3 en auront
    besoin. */
 .cf-forge3d .cf-forge3d-corps { padding: 8px 9px; min-height: 48px; cursor: default; user-select: text; }
-.cf-forge3d .cf-forge3d-corps .hint { margin: 0; }
+.cf-forge3d .cf-forge3d-corps .hint { margin: 0; font-size: 10.5px; }
+
+/* ── LE CORPS D'UN NŒUD (Task 3) : LA VIGNETTE ET LES MEMES CHAMPS ────────
+   RIEN DE NEUF N'EST ECRIT ICI POUR LES CHAMPS. Ils viennent des memes
+   batisseurs que la liste, donc des memes classes (.cf-forge3d-line,
+   -num, -sel, -chk, -txt) : cette section ne fait que les RESSERRER pour 200
+   px de large. Une seconde famille de classes « champ de nœud » aurait
+   double la surface a maintenir pour zero difference visible. */
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-line { gap: 6px; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-num { flex: 1 1 auto; justify-content: space-between; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-num input { width: 56px; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-sel { display: flex; width: 100%; justify-content: space-between; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-txt { flex: 1 1 100%; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-txt input { min-width: 0; }
+.cf-forge3d .cf-forge3d-corps select { font: inherit; font-size: 11px; max-width: 118px; }
+/* le bloc SANS son tiroir : sur le canvas, matiere et placement sont des
+   nœuds SEPARES — un nœud entier dont le seul contenu serait un tiroir ferme
+   ne montrerait rien, ce que la spec 5.6 demande justement d'arreter. */
+.cf-forge3d .cf-forge3d-blk-n { border-left: none; margin-left: 0; padding: 0; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-mesh { border-left: none; margin-left: 0; padding-left: 0; gap: 6px; }
+
+/* LA VIGNETTE — un canvas 2D peint localement (aucun rendu, aucune depense).
+   La SURFACE DE DESSIN est 120x168 cote JS (ratio carte) ; l'affichage est
+   plus petit, donc sur-echantillonne : net en haute densite, et la feuille
+   garde la main sur la taille sans qu'une coordonnee de peinture bouge. */
+.cf-forge3d .cf-forge3d-thumb {
+  display: block; width: 96px; height: 134px; margin: 0 auto 7px;
+  border-radius: 4px; background: var(--bg-panel-3, #14141a);
+}
+/* le kind `plane` EST un plan pose dans l'espace : une legere perspective le
+   dit d'un coup d'œil, la ou le relief le dira par son ombre d'emboss. */
+.cf-forge3d .cf-forge3d-thumb.cf-forge3d-plan { transform: perspective(340px) rotateY(-14deg); }
 
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
 .cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }
