@@ -4075,6 +4075,129 @@ def test_node_file_sert_l_apercu_d_un_noeud_par_liste_blanche():
     assert r9.status_code == 200, r9.text
 
 
+def test_publier_dans_la_bibliotheque_est_idempotent():
+    """POST /forge3d/library/{art} (Task 6, 2c) : un JobRecord provider=card3d
+    + une COPIE dans outputs/assets3d/{short}/ pour que les routes EXISTANTES
+    de la Bibliotheque 3D servent le modele sans une ligne de plus. Re-publier
+    MET A JOUR, ne duplique pas — l'id est DERIVE (uuid5 deck/artefact), donc
+    l'idempotence est une propriete de construction, pas une verification."""
+    from app.config import settings as cfg
+    from app.services.storage import init_db
+    # le JobRecord vit en base, et les tests n'executent pas le `lifespan` de
+    # l'application : les tables n'existent pas encore ici (meme preambule que
+    # le test du job meshy, plus haut).
+    asyncio.run(init_db())
+    did = _deck("Bibliotheque")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "carte3d"}],
+        "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    # SANS BUILD -> 409 NOMME, et il tombe AVANT toute ecriture : rien n'est
+    # publie tant que rien n'est construit.
+    r0 = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d")
+    assert r0.status_code == 409, r0.text
+    assert "construis" in r0.json()["detail"], r0.text
+
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+    r = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d")
+    assert r.status_code == 200, r.text
+    pub = r.json()
+    assert pub["provider"] == "card3d" and pub["short"], pub
+    assert pub["short"] == pub["job_id"][:8], pub
+
+    # LE GLB EST SERVI PAR LA ROUTE EXISTANTE — c'est TOUT le pari de la
+    # tache : aucune route neuve cote Bibliotheque, seulement la disposition
+    # de fichiers que `/api/assets/3d/{short}/{fmt}` lit deja (model.{fmt}).
+    r2 = _api("GET", f"/api/assets/3d/{pub['short']}/glb")
+    assert r2.status_code == 200, r2.text
+    assert r2.content[:4] == b"glTF", r2.content[:16]
+    depot = (_dossier_forge3d(did) / "carte3d.glb").read_bytes()
+    assert r2.content == depot, "la copie doit etre l'artefact, a l'octet"
+    # ... et le manifeste de la Bibliotheque voit le format, sans vignette
+    # encore (« figer l'apercu » n'a pas tourne) : l'ABSENCE est toleree.
+    man = _api("GET", f"/api/assets/3d/{pub['short']}/manifest")
+    assert man.status_code == 200 and man.json()["formats"] == ["glb"], man.text
+    assert man.json()["has_preview"] is False, man.text
+    # le metadata voyage AUSSI (bonus honnete : la provenance reste lisible a
+    # cote du modele, meme si aucune route ne la sert aujourd'hui)
+    d3d = cfg.outputs_path / "assets3d" / pub["short"]
+    assert (d3d / "metadata.json").is_file(), sorted(p.name for p in d3d.iterdir())
+
+    # LE JobRecord, LU PAR LA ROUTE DE LA FILE (la forme reelle de /api/jobs :
+    # `job_id`, pas `id`)
+    jobs = _api("GET", "/api/jobs").json()
+    moi = [j for j in jobs if j.get("job_id") == pub["job_id"]]
+    assert len(moi) == 1, [j.get("job_id") for j in jobs]
+    assert moi[0]["provider"] == "card3d", moi[0]
+    assert moi[0]["status"] == "done", moi[0]
+    # le TITRE nomme le deck ET l'artefact : dans une bibliotheque melangee,
+    # « asset3d_1a2b3c4d » ne dit rien de ce qu'on regarde.
+    assert "Bibliotheque" in moi[0]["title"] and "carte3d" in moi[0]["title"], \
+        moi[0]["title"]
+    # ECART ASSUME AU PLAN, MESURE ICI : `final_video_path` reste VIDE. Trois
+    # ecrans de l'app listent les rendus par
+    # `status==="done" && final_video_path && provider!=="asset3d"` (la
+    # Bibliotheque onglet rendus, le selecteur « Existing render » du Studio,
+    # le Scheduler) : y poser le chemin du GLB aurait fait apparaitre la carte
+    # comme une VIDEO dans les trois, avec un lecteur qui ne peut pas l'ouvrir.
+    # Un GLB n'est pas un rendu video, et la colonne ne ment pas.
+    assert not moi[0]["final_video_path"], moi[0]
+
+    # IDEMPOTENT : meme artefact -> meme id, aucun doublon, et la copie est
+    # RAFRAICHIE (l'artefact a pu etre reconstruit entre-temps).
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d")
+    assert r3.status_code == 200, r3.text
+    assert r3.json()["job_id"] == pub["job_id"], (r3.json(), pub)
+    jobs2 = _api("GET", "/api/jobs").json()
+    assert len([j for j in jobs2 if j.get("job_id") == pub["job_id"]]) == 1
+
+    # L'APERCU FIGE VOYAGE quand il existe — et la vignette de la Bibliotheque
+    # (`/preview`) le sert alors, toujours sans route neuve.
+    p_ap = _api("POST", f"/api/cards/{did}/forge3d/preview/carte3d",
+                content=_png(Image.new("RGBA", (16, 16), (3, 4, 5, 255))))
+    assert p_ap.status_code == 200, p_ap.text
+    assert _api("POST", f"/api/cards/{did}/forge3d/library/carte3d"
+                ).status_code == 200
+    rv = _api("GET", f"/api/assets/3d/{pub['short']}/preview")
+    assert rv.status_code == 200, rv.text
+    assert rv.content == (_dossier_forge3d(did)
+                          / "carte3d_preview.png").read_bytes()
+    assert _api("GET", f"/api/assets/3d/{pub['short']}/manifest"
+                ).json()["has_preview"] is True
+
+    # UN AUTRE ARTEFACT DU MEME DECK EST UN AUTRE OBJET : l'id derive du
+    # COUPLE (deck, artefact), pas du deck seul — sans quoi publier la carte 2
+    # ecraserait la carte 1 dans la Bibliotheque.
+    g2 = json.loads(json.dumps(g))
+    g2["nodes"][3]["name"] = "carte3d-bis"
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g2, "card": 0}).status_code == 200
+    autre = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d-bis")
+    assert autre.status_code == 200, autre.text
+    assert autre.json()["job_id"] != pub["job_id"], autre.json()
+
+    # REFUS NOMMES — jamais un 500, jamais un chemin construit sur l'entree
+    # brute (`..` est un nom d'artefact possible pour qui poste a la main).
+    r4 = _api("POST", f"/api/cards/{did}/forge3d/library/jamais-construit")
+    assert r4.status_code == 409, r4.text
+    assert "construis" in r4.json()["detail"], r4.text
+    r5 = _api("POST", f"/api/cards/{did}/forge3d/library/..")
+    assert r5.status_code in (400, 404), r5.text
+    assert r5.status_code != 200
+    r6 = _api("POST", f"/api/cards/{did}/forge3d/library/pas%20un%20nom")
+    assert r6.status_code == 400, r6.text
+    r7 = _api("POST", "/api/cards/pas-un-deck/forge3d/library/carte3d")
+    assert r7.status_code == 400, r7.text
+    r8 = _api("POST", "/api/cards/deck_00000000/forge3d/library/carte3d")
+    assert r8.status_code == 404, r8.text
+
+
 def test_le_canvas_est_la_projection_du_meme_graphe():
     """Test de SOURCE (phase 2c, Task 2) : le canvas nodal est une VUE du
     MEME graphe, jamais un second modele. Ce qui est epingle ici :

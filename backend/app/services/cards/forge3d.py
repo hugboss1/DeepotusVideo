@@ -2612,6 +2612,161 @@ async def post_preview(did: str, art: str, request: Request):
     return {"preview": info}
 
 
+# ── LA BIBLIOTHÈQUE — PUBLIER L'ARTEFACT (Task 6, 2c) ──────────────────────
+# Spec §5.6 point 7. Le pari, et il tient en une phrase : AUCUNE route neuve
+# côté Bibliothèque. Les routes `/api/assets/3d/{short}/{glb,preview,manifest}`
+# lisent `outputs/assets3d/{short}/model.{fmt}` et `preview.png` — on écrit
+# donc CETTE disposition-là, et le viewer, le téléchargement, les favoris et
+# « Optimiser » marchent sans une ligne de plus. Le seul changement d'écran est
+# un patch bundle de DEUX filtres (`asset3d` -> `asset3d||card3d`).
+#
+# LE PROVIDER EST `card3d`, PAS `asset3d` — provenance HONNÊTE : ces octets ne
+# viennent pas d'un moteur image->3D payant, ils viennent d'ici. `kind` reste
+# « asset3d » côté écran (c'est un objet 3D, pas une catégorie de fabricant) :
+# la distinction est la même que celle entre « ce que c'est » et « d'où ça
+# vient ».
+NAMESPACE_CARD3D = uuid.UUID("ac928da5-740b-48d6-8913-93a83055aeeb")
+
+
+def _library_job_id(did: str, art: str) -> tuple[str, str]:
+    """`(job_id, short)` DÉRIVÉS du couple (deck, artefact) — l'idempotence
+    est une propriété de CONSTRUCTION, pas une vérification : re-publier ne
+    peut pas fabriquer un second objet, même si la base a été vidée entre les
+    deux. Le couple ENTIER entre dans la dérivation : deux artefacts d'un même
+    deck sont deux objets (publier la carte 2 n'écrase pas la carte 1).
+
+    `short` = les 8 premiers du `job_id`, parce que c'est CE calcul que
+    l'écran fait déjà (`z.job_id.slice(0,8)` dans le bundle) et que
+    `_delete_provider_output_dir` fait aussi côté serveur (`job.id[:8]`) : une
+    seule règle, pas trois. Exposition assumée, identique à celle d'`asset3d`
+    (qui coupe un uuid4 au même endroit) : 32 bits de dossier, donc une
+    collision de dossier reste possible entre deux objets — l'accepter ici et
+    pas là n'aurait aucun sens, c'est la MÊME disposition de fichiers."""
+    u = uuid.uuid5(NAMESPACE_CARD3D, f"{did}/{art}")
+    return str(u), u.hex[:8]
+
+
+@router.post("/library/{art}")
+async def post_library(did: str, art: str):
+    """« Publier dans la Bibliothèque » : copie l'artefact CONSTRUIT dans
+    `outputs/assets3d/{short}/` et pose (ou met à jour) son JobRecord
+    `provider="card3d"`. Rend `{job_id, short, provider}`.
+
+    RIEN N'EST CONSTRUIT ICI : publier n'est pas fabriquer. Sans `{art}.glb`
+    sur disque, c'est un 409 NOMMÉ — pas un build implicite qui dépenserait
+    du temps (voire des crédits, si la chaîne portait un moteur) sur un clic
+    dont ce n'était pas la promesse.
+
+    ÉCART ASSUMÉ AU PLAN — `final_video_path` reste VIDE. Le plan y posait le
+    chemin du GLB copié ; trois écrans de l'app listent les rendus par
+    `status==="done" && final_video_path && provider!=="asset3d" &&
+    provider!=="sprite2d"` (l'onglet « rendus » de la Bibliothèque, le
+    sélecteur « Existing render » du Studio, le Scheduler). La carte y serait
+    apparue comme une VIDÉO, avec un lecteur incapable de l'ouvrir. Un GLB
+    n'est pas un rendu vidéo : la colonne reste vide, et les trois écrans
+    l'ignorent par construction — sans un seul filtre de plus à patcher."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    from app.config import settings
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    doc = read_deck(did)
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
+    if not _ART_NAME_RE.match(art or ""):
+        raise HTTPException(400, "Nom d'artefact invalide")
+    job_id, short = _library_job_id(did, art)
+    doc_name = doc.get("name") or did
+    titre = f"Carte 3D · {doc_name} · {art}"
+
+    def work() -> dict:
+        out = _out_dir(did)
+        src_glb = out / f"{art}.glb"
+        if not src_glb.is_file():
+            raise HTTPException(
+                409, f"construis l'artefact d'abord : {art}.glb absent "
+                     f"(bouton « Construire », nœud artefact)")
+        dest = settings.outputs_path / "assets3d" / short
+        dest.mkdir(parents=True, exist_ok=True)
+        # `model.glb` : LE NOM QUE LA ROUTE EXISTANTE LIT (`model.{fmt}`), pas
+        # le nôtre. Publier, c'est parler la langue de la Bibliothèque.
+        shutil.copyfile(src_glb, dest / "model.glb")
+        fichiers = ["model.glb"]
+        # L'APERÇU EST FACULTATIF, et son absence est TOLÉRÉE : « figer
+        # l'aperçu » peut n'avoir jamais tourné. La vignette de la
+        # Bibliothèque retombe alors sur son propre repli — pas une erreur,
+        # un état.
+        src_ap = out / f"{art}_preview.png"
+        if src_ap.is_file():
+            shutil.copyfile(src_ap, dest / "preview.png")
+            fichiers.append("preview.png")
+        # LE METADATA VOYAGE AUSSI, et c'est un bonus honnête : aucune route
+        # ne le sert aujourd'hui, mais la provenance de ces octets (deck,
+        # carte, moteurs, schéma) reste lisible À CÔTÉ du modèle plutôt que
+        # seulement dans le deck qui l'a produit.
+        moteurs = None
+        src_meta = out / f"{art}.metadata.json"
+        if src_meta.is_file():
+            shutil.copyfile(src_meta, dest / "metadata.json")
+            fichiers.append("metadata.json")
+            try:
+                meta = json.loads(src_meta.read_text(encoding="utf-8"))
+                moteurs = next(
+                    (a.get("value") for a in (meta.get("attributes") or [])
+                     if isinstance(a, dict)
+                     and a.get("trait_type") == "engines"), None)
+            except (ValueError, OSError, UnicodeDecodeError):
+                # un metadata illisible ne fait pas échouer la publication :
+                # le MODÈLE est bon, c'est lui qu'on publie. La trace, elle,
+                # dira simplement qu'on n'a pas su lire les moteurs.
+                logger.warning(f"cards/forge3d: metadata illisible a la "
+                               f"publication ({art})")
+        return {"files": fichiers, "engines": moteurs,
+                "bytes": src_glb.stat().st_size}
+
+    try:
+        info = await asyncio.to_thread(work)
+    except HTTPException:
+        raise
+    except OSError as e:
+        logger.exception("cards/forge3d: publication impossible")
+        raise HTTPException(500, f"Publication impossible : {e}")
+
+    from datetime import datetime
+    from app.services.storage import JobRecord, async_session_factory
+    from app.models.schemas import JobStatus
+    # UPSERT — get puis update, sinon insert. L'id étant DÉRIVÉ, re-publier
+    # tombe forcément sur la même ligne : c'est ce qui rend la publication
+    # idempotente SANS clause de doublon à écrire.
+    async with async_session_factory() as s:
+        jr = await s.get(JobRecord, job_id)
+        neuf = jr is None
+        if neuf:
+            jr = JobRecord(id=job_id)
+            s.add(jr)
+        jr.provider = "card3d"
+        jr.status = JobStatus.DONE.value
+        jr.progress = 100
+        jr.title = titre
+        jr.current_step = "Publié"
+        jr.error = None
+        # `image_filename` est NON NUL en base : on écrit la MÊME convention
+        # qu'`asset3d` (« preview.png » quand il y en a une, un nom dérivé
+        # sinon) plutôt qu'une troisième orthographe pour la même case.
+        jr.image_filename = ("preview.png" if "preview.png" in info["files"]
+                             else f"card3d_{short}")
+        jr.completed_at = datetime.utcnow()
+        jr.cost_meta = json.dumps(
+            {"deck": did, "deck_name": doc_name, "art": art, "job": short,
+             "engines": info["engines"], "files": info["files"],
+             "bytes": info["bytes"]}, ensure_ascii=False)
+        await s.commit()
+    logger.info(f"cards/forge3d: {'publie' if neuf else 'republie'} "
+                f"{art} -> bibliotheque 3d ({short})")
+    return {"job_id": job_id, "short": short, "provider": "card3d",
+            "title": titre, "files": info["files"]}
+
+
 @router.get("/file/{name}")
 async def get_file(did: str, name: str):
     """Un livrable, tel qu'il a été construit (patron P8)."""
