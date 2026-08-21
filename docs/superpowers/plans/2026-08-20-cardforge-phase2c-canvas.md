@@ -610,6 +610,62 @@ git commit -m "feat(cardforge): connexions port-a-port validees a l arete (gramm
 > attend qu'elle survive, ce n'est pas mesuré), et les hauteurs `RANG_H`
 > d'`artifact` (420) et `export` (320) à l'œil.
 
+> **RONDE DE CORRECTION (revue adverse de f2abf55 + 50326f1 → FIX-FIRST).**
+> 91 tests (le compte de fonctions ne bouge pas : la mesure neuve entre dans
+> le banc et les pins EXISTANTS — le banc de palette passe de **43 à 76 cas**),
+> lint 0, `--geom` 4/4, `node --check` OK ; **21 mutants tués, ancre-contrôle
+> survivante** (doubler `_NODE_FILE_MAX` reste vert : le test lit la constante
+> au lieu de recopier 4 Mio).
+> *Corrigé* — **S1** : `majInspecteur` LÂCHE le nœud désigné quand il a quitté
+> le graphe (annulation, maillon vidé par `editMat`) ; sans ça la clé de sujet
+> le faisait sortir par le haut et le panneau gardait le nom et le 3D d'un
+> mort. `majSelArete` le faisait déjà pour l'arête : c'était l'asymétrie.
+> **S2** : la molette AU-DESSUS du viewer embarqué ne zoome plus la scène (le
+> `model-viewer` `preventDefault` sans `stopPropagation`) — et le garde tombe
+> AVANT `preventDefault`, sinon le défilement serait confisqué pour rien.
+> **S3** : les TROIS sorties d'échec de `inspecte` (transport, refus nommé,
+> corps vide) passent par `echecInsp` — elles VIDENT (le modèle d'avant ne
+> reste plus sous le NOM du nouveau nœud) et RENDENT `INSP_SUJET`, sans quoi
+> l'échec était collant (aucune peinture ne re-tentait). Le succès, lui, garde
+> sa clé — c'est l'ancre de mutation du banc.
+> **M1** : le repli ≤720 px était MORT (la forme courte `flex: 0 0 232px`,
+> écrite plus bas, remet la longhand `flex-basis: 100%`) — la requête de média
+> DESCEND sous la règle de base, et le pin mesure désormais l'ORDRE, pas la
+> présence. **M2** : `node-file` plafonne sa lecture (`_NODE_FILE_MAX` 4 Mio,
+> sentinelle nommée → 413 littéral) — le chemin qui ÉCRIT ce PNG ne le borne
+> pas. **M3** : `text-overflow: ellipsis` était inerte sans `white-space:
+> nowrap`. **M4** : « + matière » / « + placement » REFUSENT un traitement
+> sans couche source — le maillon serait né câblé mais son corps aurait
+> accusé le mauvais coupable (« matière hors chaîne — aucun traitement ne la
+> porte » : faux, c'est la couche qui manque). **M5** : `FIGE_PRET` — « figer »
+> suit la SCÈNE (l'évènement `load`), plus la seule présence de `PREVIEW_URL` ;
+> chaque repeinture de nœud le ré-armait dans la fenêtre où une capture aurait
+> rendu un cadre VIDE, et ce cadre devient l'image de la carte. **M6** : un
+> changement de carte lâche AUSSI `ARTIFACT` (+ `videApercu`, la porte
+> complète) — les nœuds d'export ne lisent rien d'autre, ils affichaient donc
+> les poids, les crédits et les boutons de la carte d'avant ; la promesse de
+> `refreshManifest` est prise AVANT la repeinture (une peinture rappelle
+> `cardChanged`, le verrou doit être posé).
+> *Tidy* — **N1** (`no-store` sur les refus de `node-file` et
+> `material-thumb` : un 404 en cache laisse le pictogramme par défaut sur un
+> nœud qui a déjà sa vignette), **N3** (un format refusé ne pousse plus
+> d'entrée d'annulation pour un graphe inchangé), **N5** (le garde `|| []` à
+> l'écriture — pris AUSSI dans `naitProc`, même défaut, même famille : le
+> laisser eût été la copie que le grep rate), **N8** (deux exports du même
+> format sont refusés, nommés).
+> *Décliné* — **N6** : la piste proposée (comparer l'id de nœud du parent
+> capturé AVANT le détachement) demande de restructurer `paintNode`, ce que la
+> revue autorisait à reporter. Fait à la place, sans restructuration :
+> `majSectionApercu` n'ÉCRIT que si le texte change — le churn (une réécriture
+> identique par champ commis) disparaît, et l'échec de l'égalité au pire
+> réécrit comme avant. Le reste (un vrai « même-nœud ») reste **pour T7**.
+> *Hors périmètre, toujours ouverts* : N2 (éviction d'`IMGS`), N4 (registres
+> `{}` nus des fonctions T4), N7 (dimensionnement du pool de threads).
+> *Amendé à la source* : un cas du banc T5 désignait « t2 », un nœud ABSENT
+> du graphe de test — S1 le refuse désormais, à raison. Le cas mesure
+> maintenant la même propriété sur un nœud RÉEL, et un cas de plus dit que
+> désigner un nœud absent ne pose aucun sujet.
+
 - [x] **Step 1 : test de source en RED**
 
 ```python
@@ -801,6 +857,14 @@ git commit -m "feat(cardforge): publier dans la bibliotheque - JobRecord card3d 
       tourner le viewer pour le CHATOIEMENT holo (dire ce qui est VU), sentir
       la fluidité des cadres au pointeur réel. Captures d'écran aux moments
       clés. Rapporter TOUT ce qui est vu, y compris ce qui déçoit.
+- [ ] **Report N6 (ronde de correction T5)** : `poseViewer` appelle
+      `majSectionApercu` à CHAQUE ré-accrochage, parce qu'un `paintNode`
+      détache le viewer avant de le remettre — le « déménagement » n'est donc
+      jamais distinguable d'un retour au même hôte. Le churn est déjà éteint
+      (la section n'écrit que si son texte change) ; ce qui reste est le vrai
+      test de même-nœud, qui demande à `paintNode` de dire s'il détache le
+      viewer. À trancher ici, avec le pointeur : le voir, puis décider si ça
+      vaut la restructuration.
 - [ ] Mémoire + plan (cases, notes) + push.
 
 ---
