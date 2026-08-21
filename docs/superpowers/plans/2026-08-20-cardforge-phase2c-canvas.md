@@ -688,6 +688,18 @@ git commit -m "feat(cardforge): connexions port-a-port validees a l arete (gramm
 > maintenant la même propriété sur un nœud RÉEL, et un cas de plus dit que
 > désigner un nœud absent ne pose aucun sujet.
 
+> **CLOSE (ronde 350a416→633439d, re-revue : RONDE VALIDÉE).** Les quinze
+> correctifs vérifiés SÉMANTIQUEMENT, pas au grep — les deux affirmations
+> d'ordre retracées par le réviseur lui-même (la clé de sujet posée AVANT la
+> minuterie ; le verrou `.busy` de `refreshManifest` armé avant la repeinture
+> qui peut rappeler `cardChanged`). Zéro régression sur les 18 hunks JS,
+> hors-périmètre intouché (grep du diff complet), plan 914/914 CRLF après
+> l'incident sed. Deux assertions manquantes consignées → **reprises T6** :
+> `cache-control` jamais asserté sur les refus de `material-thumb` (le code
+> l'envoie, le test ne le lit que côté `node-file`) ; aucun pin d'ORDRE sur
+> `refreshManifest`-avant-`repeintLeBordereau` dans `cardChanged` (un
+> réordonnancement accidentel raviverait la récursion sans qu'un test rougisse).
+
 - [x] **Step 1 : test de source en RED**
 
 ```python
@@ -763,6 +775,13 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > prix accepté du streaming, le dire).
 
 **Files:** forge3d.py, test_cards_forge3d.py, scripts/patch_bundle_card3d_library.py (créé), la chaîne de patchs, mod-forge3d.js (le bouton).
+
+> **Reprises de la ronde T5 (re-revue)** : ajouter l'assertion `cache-control:
+> no-store` aux chemins de refus du test de `material-thumb` (r2/r3/r4), et un
+> pin d'ORDRE dans le test de `cardChanged` (`refreshManifest(` apparaît AVANT
+> `repeintLeBordereau(` dans le corps — comparaison d'indices, patron du pin M1
+> CSS). Les deux tombent naturellement ici : la découpe `forge3d_apercu.py`
+> déplace ces routes et leurs tests de toute façon.
 
 - [ ] **Step 1 : tests en RED (backend)**
 
@@ -887,6 +906,15 @@ git commit -m "feat(cardforge): publier dans la bibliotheque - JobRecord card3d 
       test de même-nœud, qui demande à `paintNode` de dire s'il détache le
       viewer. À trancher ici, avec le pointeur : le voir, puis décider si ça
       vaut la restructuration.
+- [ ] **Dettes consignées (ronde T5, hors périmètre — trancher en clôture :
+      corriger ici ou reporter NOMMÉMENT en phase 3)** : N2 — éviction
+      d'`IMGS` (chaque relance d'un job ajoute ~322 Kio de canvas jusqu'au
+      changement de deck) ; N4 — registres `{}` nus dans `freeId`/`rewireRow`/
+      `maillonsAval`/`rowModel` (fonctions T4) alors que `couchesRestantes`
+      suit la doctrine `sansProto()` et que `_NID_RE` admet `constructor` ;
+      N7 — pool de threads par défaut partagé entre les lectures courtes
+      (vignettes, polls) et les téléchargements bloquants 120 s de
+      `A3D._download` (hérité 2b, structurel).
 - [ ] Mémoire + plan (cases, notes) + push.
 
 ---
