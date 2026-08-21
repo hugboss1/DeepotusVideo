@@ -824,24 +824,87 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > octets d'AVANT. Banc de palette 83 → 89 cas.
 >
 > **Restes / concerns pour T7** :
-> 1. **Dossier orphelin à la suppression** — `pipeline._delete_provider_output_dir`
->    ne connaît que `{"sprite2d": "sprites", "asset3d": "assets3d"}` :
->    supprimer une carte publiée depuis la Bibliothèque efface la ligne et
->    LAISSE `outputs/assets3d/{short}/`. Le correctif est d'un mot
->    (`"card3d": "assets3d"` — `job.id[:8]` est déjà notre `short`), mais il
->    touche un service TRANSVERSE hors du périmètre de la tâche et mérite son
->    propre test. **À trancher en T7.**
-> 2. `image_filename` (NON NUL en base) reçoit `"preview.png"` /
->    `f"card3d_{short}"` — la convention EXACTE d'`asset3d`, donc la même
->    impasse que lui si un écran essaie de la résoudre en `/api/images/…`.
->    Copiée sciemment : une troisième orthographe pour la même case aurait été
->    pire. À vérifier à l'œil dans la file de rendus.
-> 3. `short` = 32 bits, comme `asset3d` : collision de DOSSIER possible entre
->    deux objets. Exposition identique à l'existante, assumée pour garder UNE
->    seule disposition de fichiers.
+> 1. ~~Dossier orphelin à la suppression~~ — **PRIS dans la ronde** (M9a) :
+>    `pipeline._delete_provider_output_dir` connaît `card3d`, avec son test.
+> 2. ~~`image_filename` = `"preview.png"`~~ — **PRIS dans la ronde** (M6) :
+>    toujours `f"card3d_{short}"`, sans extension, donc impossible à prendre
+>    pour un fichier de la bibliothèque d'images.
+> 3. ~~`short` = 32 bits, collision possible~~ — **PRIS dans la ronde** (M8) :
+>    l'exposition demeure (c'est la disposition d'`asset3d`), mais elle ne
+>    peut plus DÉTRUIRE : un dossier déjà occupé fait un 409 nommé avant la
+>    première écriture. Reste vrai que deux objets ne peuvent pas coexister
+>    sous le même `short` — le refus dit de renommer l'artefact.
 > 4. Le déploiement du bundle vers l'app **n'est pas fait** (Task 7), et le
 >    `--check` du patcher sur la racine de l'APP refusera à raison : on ne
 >    patche pas l'app, on y COPIE le bundle du dépôt.
+> 5. **`reapply_inblock_patches.py` n'a aujourd'hui aucun emploi sûr**
+>    (mesuré en ronde, M9b) : les deux égalités de mtime rendent tout rejeu
+>    depuis `sonvfx` indécidable. Ce n'est pas un reste de la 2c — c'est une
+>    dette de la chaîne, désormais ÉCRITE dans les deux fichiers. La
+>    désamorcer demanderait de re-dater les `.bak` ex aequo dans le vrai
+>    ordre, ce qu'aucune mesure ne permet de reconstituer aujourd'hui.
+>
+> **RONDE DE CORRECTION T6 (revue adverse → FIX-FIRST, 3689060 → a071a57).**
+> 97 tests (95 + 2), banc de palette 89 → 91 cas, lint intégral 0, `--geom` 4/4,
+> `node --check` OK, index `lf` partout, bundle INTOUCHÉ par la ronde
+> (1367288 o). **13 mutants tués, ancre-contrôle survivante** (changer les
+> MOTS du 409 de collision ne fait rougir personne : le refus est la
+> propriété, pas sa prose) — plus 1 mutant reconnu ÉQUIVALENT et consigné.
+>
+> *Corrigé* — **S1** : le test du patcheur lisait `.bak_card3d_library`, que
+> `.gitignore:58` exclut : il était donc le seul rouge de la suite sur TOUT
+> clone frais. L'état pré-patch se DÉRIVE désormais du bundle livré en
+> inversant les deux paires — **vérifié octet-identique au `.bak`** (1 349 689
+> caractères), et re-vérifié en cachant le `.bak` pour simuler le clone.
+> **S2** : re-publier n'ÉCRASAIT que ce qui existe — la vignette de la
+> publication précédente restait servie sous le même `short` après une
+> reconstruction sans re-figer (le rebuild efface pourtant le PNG du deck), et
+> un `model.opt.glb` d'« Optimiser » aurait servi le maillage optimisé de
+> l'ANCIEN modèle. Le dossier est l'IMAGE de l'artefact, pas un dépôt qui
+> s'accumule. **M3** : `copyfile` tronque puis réécrit EN PLACE → GLB ÉPISSÉ
+> pour un `FileResponse` en cours ; copie vers un temporaire (à point de tête,
+> pour que `manifest` ne le déclare pas comme un format) puis `os.replace`,
+> dans la MÊME boucle de reprise que `_job_write`. **M4** : « Publier » était
+> cliquable pendant une construction — donc publiait les octets du build
+> précédent ; verrou sur le bouton ET dans la fonction (un bouton désactivé
+> n'arrête ni le clavier ni un double-clic). **M5** : un metadata de la
+> mauvaise FORME faisait un 500 sur un fichier qu'on ne fait que recopier.
+> **M6** : `image_filename` ne vaut plus « preview.png » — ce nom passe le
+> contrôle d'extension du tiroir de file d'attente et se résoudrait en
+> `/api/images/preview.png`. **M7** : le patcheur écrivait son `.bak` AVANT de
+> valider ses ancres — backup posé puis abandon, et la relance d'après
+> DÉTRUIT la réparation manuelle. **M8** : `short` fait 32 bits et `asset3d`
+> coupe un uuid4 au même endroit — publier aurait écrasé un maillage PAYÉ,
+> **de façon reproductible** (notre id est déterministe) ; garde nommée par
+> préfixe de clé primaire, avant le premier octet. **M9a** (transverse,
+> chirurgical) : `_delete_provider_output_dir` apprend `card3d` — `job.id[:8]`
+> EST déjà notre `short`. **M9b** : les deux fichiers de chaîne se
+> contredisaient ; mesuré que **DEUX** couples de `.bak` sont ex aequo
+> (`keepstate`/`sfxstudio` ET `subs`/`vfxrack`, mtime + sha1), donc rejouer
+> depuis un point ≤ `subs`/`vfxrack` est indécidable — ce qui inclut
+> `--from sonvfx`, donc `reapply_inblock_patches.py`, qui n'a **aujourd'hui
+> aucun emploi sûr**. Une doctrine, dans le patcheur ; l'autre fichier y
+> renvoie.
+> *Élagué* — les SIX réexports morts (`_PROC_KINDS`, `_CHAIN_MAX`,
+> `_source_gagnante`, `_chaine_aval`, `_trs_dict`, `_geom_element`) :
+> recensement sur tout le backend + les tests, ils n'apparaissaient plus que
+> dans de la prose. Les deux EXERCÉS (`_resolve_graph_elements`,
+> `_PREVIEW_ASM_ID`) sont désormais ÉPINGLÉS comme réexports, avec un pin de
+> PURETÉ DE COUTURE (le sidecar n'importe rien de forge3d.py) — la propriété
+> qui a décidé de la découpe devient mesurée au lieu d'être promise.
+> *Trouvé par la mutation elle-même* — deux pins étaient décoratifs : celui
+> de M3 acceptait « au moins un temporaire » (donc restait vert si SEUL le
+> `model.glb` de 32 Mio retombait sur un `copyfile`), et celui de M6 vivait
+> AVANT que l'aperçu existe, là où les deux écritures rendent le même nom.
+> Corrigés, puis re-tués.
+> *Consigné, non corrigé* — le `isinstance` de M5 seul est un mutant
+> ÉQUIVALENT (le filet élargi rattrape l'AttributeError ; il reste parce
+> qu'un chemin nominal ne doit pas passer par une exception pour décider
+> d'une forme — écrit sur place). Et les trois points laissés en l'état par
+> le contrôleur : `finally` sans garde GEN dans `publishLibrary` (bénin,
+> mesuré), `datetime.utcnow` (question maison, endémique — SQLAlchemy l'émet
+> aussi), chemin absolu dans le message de 500 (convention existante ×5 dans
+> le fichier).
 >
 > **Défaut trouvé APRÈS coup, en vérifiant la chaîne plutôt qu'en la
 > supposant** : `repatch_all.py --list` sortait `card3dlibrary SANS SCRIPT`.
