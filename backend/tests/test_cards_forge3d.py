@@ -3930,6 +3930,17 @@ def test_le_canvas_est_la_projection_du_meme_graphe():
     # les positions sont de la PRESENTATION : patchees SANS entree d'annulation
     corps = rendu.split("function flushLayout(")[1].split("\n  }")[0]
     assert "M.patch" in corps and "HIST" not in corps, corps
+    # `__proto__` NE PART JAMAIS AU PATCH — et c'est la seconde moitie d'une
+    # paire. Cote LECTURE, les registres de positions sont sans prototype
+    # (`sansProto`), ce qui fait de « __proto__ » une vraie cle propre au lieu
+    # d'un acces qui reparente. Mais le CORE, lui, REBATIT le sous-arbre dans
+    # un `{}` ordinaire (core.js:211) : `o["__proto__"] = [x, y]` y traverse
+    # l'accesseur d'Object.prototype et reparente `o` sur le tableau. La garde
+    # de classe de `sanitize` (core.js:209) leve alors a chaque `doc()`
+    # suivant — l'onglet est mort jusqu'au rechargement. Le durcissement de la
+    # lecture SANS ce filtre est donc une regression, pas une protection.
+    assert '__proto__' in corps, corps
+    assert re.search(r'if\s*\(\s*k\s*===\s*"__proto__"\s*\)\s*return', corps), corps
     # drag de noeud coalesce au rAF (spec 9.6-1) + geste exact au relache :
     # la frame en vol est ANNULEE puis le flush est fait a la main, sinon la
     # derniere position attend une frame qui peut ne jamais venir.

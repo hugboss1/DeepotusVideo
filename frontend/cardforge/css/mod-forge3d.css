@@ -129,13 +129,16 @@
   background: var(--bg-panel); border: 1px solid var(--stroke-strong);
   border-radius: 8px; overflow: hidden;
 }
-/* LA SELECTION SE PEINT EN --sel-bg, PAS EN --accent. Un role par emploi de
-   la couleur (cardforge.css:14) : dans CETTE feuille l'ambre a deja un
-   emploi — « ce que l'action va COUTER » (prix du nœud, pied de cout) et
-   « en cours ». Un nœud selectionne aurait porte le meme jaune qu'un nœud
-   qui facture, et l'œil aurait lu « celui-la coute » a chaque clic.
-   --sel-bg est le jeton de « l'option retenue », qui est exactement ce
-   qu'est un nœud selectionne. */
+/* LA SELECTION SE PEINT EN --sel-bg, ET C'EST LE MEME AMBRE QU'AUJOURD'HUI :
+   cardforge.css:24 pose `--sel-bg: var(--accent)`, donc ce choix ne change
+   pas un pixel. Ce qu'il change, c'est le ROLE consigne (cardforge.css:14 :
+   un role par emploi de l'accent). Dans cette feuille l'ambre sert deja a
+   « ce que l'action va COUTER » (prix du nœud, pied de cout) et a « en
+   cours » ; un nœud selectionne n'est ni l'un ni l'autre, c'est « l'option
+   retenue » — le role de --sel-bg. Ecrire le bon jeton fait qu'une future
+   separation des deux roles suivra toute seule, au lieu de demander une
+   fouille. En attendant, la distinction VISIBLE est portee par l'encre du
+   libelle (--ink-strong ci-dessous), pas par la teinte. */
 .cf-forge3d .cf-forge3d-noeud.selected {
   border-color: var(--sel-bg);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--sel-bg) 32%, transparent);

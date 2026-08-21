@@ -123,11 +123,20 @@
   const COL_X_DEFAUT = 760;     /* un kind hors table (graphe charge a la
                                     main) se pose avec l'assemblage plutot
                                     que d'empiler tout a l'origine */
-  /* RANG_DY vaut ~1,2 hauteur de nœud, PAS deux : le graphe par defaut d'une
-     carte a SIX couches, donc six rangs dans la colonne des traitements. A
-     190 px de pas ils s'etalaient sur 1140 px et il fallait descendre au
-     plancher de zoom pour les voir ensemble — un ecran qui s'ouvre illisible
-     ne se rattrape pas. A 120, les six tiennent dans la fenetre a z=1. */
+  /* RANG_DY vaut ~1,2 hauteur de nœud, PAS deux. Le graphe par defaut d'une
+     carte a SIX couches, donc six rangs dans la colonne des traitements —
+     l'arithmetique, exacte, sur la surface de 460 px :
+       · a 190, l'empreinte va de y=40 a y=990+100, soit 1050 px : « recentrer »
+         cadre a (460 - 2x24) / 1050 = 0,39 — a un cheveu du plancher 0,36,
+         c'est-a-dire illisible ;
+       · a 120, elle fait 700 px et se cadre a 412/700 = 0,59, confortable.
+     A z=1, dans les deux cas, la fenetre ne montre que TROIS rangs entiers :
+     ce n'est pas RANG_DY qui corrige ca, c'est « recentrer ». Le pas ne
+     decide donc pas de ce qu'on voit a l'ouverture, il decide de l'echelle a
+     laquelle on peut tout voir — et c'est la que 190 echouait.
+     (Note : pour le graphe par defaut c'est l'etendue HORIZONTALE, quatre
+     colonnes de x=40 a x=1200, qui gouverne le cadrage reel ; la passe
+     navigateur de la Task 7 juge l'ergonomie, pas ce commentaire.) */
   const RANG_Y0 = 40, RANG_DY = 120;
   /* MIROIR DE LA FEUILLE : la largeur d'un nœud et la mi-hauteur de son
      en-tete servent a placer les PORTS (donc a tracer les aretes). Elles sont
@@ -1395,6 +1404,8 @@
     LAYOUT_SALE = false;
     const out = sansProto();
     Object.keys(LAYOUT_VU).forEach((k) => {
+      if (k === "__proto__") return;   /* le CORE rebâtit dans un `{}` : cette clé
+                                          y REPARENTE l'objet au lieu d'y entrer */
       out[k] = [bornePos(LAYOUT_VU[k][0]), bornePos(LAYOUT_VU[k][1])];
     });
     M.patch({ layout: out });
@@ -1525,10 +1536,19 @@
       if (!camRaf) camRaf = scheduleFrame(flushCam);
       return;
     }
-    /* LE NŒUD A PU QUITTER LE DOM SOUS LE GESTE (repeinture, bascule de vue,
-       re-seed) : le pointeur est CAPTURÉ par la surface, donc les événements
-       continuent d'arriver pour un élément détaché — on écrirait dans un DOM
-       fantôme et, pire, dans un LAYOUT_VU qui n'est plus celui-là. */
+    /* LE NŒUD A PU QUITTER LE DOM SOUS LE GESTE (repeinture venue d'ailleurs :
+       réponse tardive de /info, rechargement de manifeste, re-seed). Le
+       pointeur est CAPTURÉ par la surface, donc les événements continuent
+       d'arriver pour un élément détaché.
+       CE QUI SE PASSE ALORS, ET C'EST LE COMPORTEMENT VOULU : le geste est
+       ABANDONNÉ NET. Le nœud repeint est déjà à sa position du document, le
+       glisser en cours n'y avait rien écrit (le document ne suit qu'au
+       relâché), et couper `DRAG` ici garantit qu'il n'y écrira rien après
+       coup. L'utilisateur voit son nœud revenir où il était — l'écran et le
+       document disent la même chose, ce qui est la seule fin acceptable.
+       TRANSMISSION Task 3 : quand les corps de nœuds porteront des champs, un
+       repaint par nœud (le pendant de `paintRow`) remplacera ces repeintures
+       globales, et ce chemin-ci deviendra rare — il reste le filet. */
     if (!DRAG.el || !DRAG.el.isConnected) { DRAG = null; return; }
     /* le pointeur se déplace en pixels d'ÉCRAN, le layout en pixels de MONDE :
        diviser par l'échelle, sinon un nœud traîné à z=2 file deux fois trop
@@ -1656,7 +1676,14 @@
      ranger une position. Un nœud nommé « __proto__ » (l'alphabet d'id de
      `clean_graph` l'autorise) faisait donc disparaître son entrée du layout et
      empoisonnait l'objet entier. Un registre sans prototype n'a pas
-     d'accesseur à traverser : la clé y est une clé, quelle qu'elle soit. */
+     d'accesseur à traverser : la clé y est une clé, quelle qu'elle soit.
+     LECTURE DURCIE ICI, ÉCRITURE FILTRÉE À `flushLayout` — les deux moitiés
+     se répondent, et l'une sans l'autre est une RÉGRESSION : une fois
+     `__proto__` devenue une vraie clé propre, `Object.keys` la livre au
+     patch, et le CORE la rebâtit dans un `{}` où elle reparente l'objet ;
+     sa garde de classe lève alors à chaque `doc()` suivant — l'onglet est
+     mort jusqu'au rechargement (rien de corrompu ne part au serveur, mais
+     plus rien ne s'affiche non plus). D'où le filtre à l'écriture. */
   function sansProto() { return Object.create(null); }
 
   function posDe(nid) {
