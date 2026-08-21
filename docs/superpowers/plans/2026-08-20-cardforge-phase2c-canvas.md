@@ -612,8 +612,8 @@ git commit -m "feat(cardforge): connexions port-a-port validees a l arete (gramm
 
 > **RONDE DE CORRECTION (revue adverse de f2abf55 + 50326f1 → FIX-FIRST).**
 > 91 tests (le compte de fonctions ne bouge pas : la mesure neuve entre dans
-> le banc et les pins EXISTANTS — le banc de palette passe de **43 à 76 cas**),
-> lint 0, `--geom` 4/4, `node --check` OK ; **21 mutants tués, ancre-contrôle
+> le banc et les pins EXISTANTS — le banc de palette passe de **43 à 83 cas**),
+> lint 0, `--geom` 4/4, `node --check` OK ; **24 mutants tués, ancre-contrôle
 > survivante** (doubler `_NODE_FILE_MAX` reste vert : le test lit la constante
 > au lieu de recopier 4 Mio).
 > *Corrigé* — **S1** : `majInspecteur` LÂCHE le nœud désigné quand il a quitté
@@ -628,6 +628,28 @@ git commit -m "feat(cardforge): connexions port-a-port validees a l arete (gramm
 > reste plus sous le NOM du nouveau nœud) et RENDENT `INSP_SUJET`, sans quoi
 > l'échec était collant (aucune peinture ne re-tentait). Le succès, lui, garde
 > sa clé — c'est l'ancre de mutation du banc.
+> **S3 (résidu, tranché dans la même ronde)** : rendre la clé ne suffisait pas
+> au geste le plus évident. `selectionne` sort PAR LE HAUT sur un nœud déjà
+> désigné — c'est le garde qui empêche un balayage de mettre N constructions
+> en file — donc RE-CLIQUER le nœud qui vient d'échouer ne repartait pas, et
+> la seule sortie de secours était d'aller en désigner un autre pour revenir.
+> Une fissure ÉTROITE y est ouverte : `const reprise = !!SEL && !INSP_SUJET;`.
+> Les deux moitiés comptent. `!INSP_SUJET` ne décrit que l'après-échec —
+> `majInspecteur` pose la clé de façon SYNCHRONE, 250 ms avant même d'appeler
+> `inspecte`, donc pendant l'attente comme pendant la requête elle est POSÉE
+> et un double-clic rapide ne peut pas mettre deux constructions en vol.
+> `!!SEL` ferme le FOND : `onCanvasDown` appelle `selectionne(null)` à CHAQUE
+> pointerdown du fond, c'est-à-dire au début de chaque déplacement de vue, et
+> au repos la clé y est vide elle aussi — une clause qui n'aurait regardé que
+> la clé (la forme d'abord proposée) aurait repeint la palette entière à
+> chaque début de pan, soit exactement le gaspillage que ce garde existe pour
+> empêcher. Le banc mesure les DEUX moitiés, et il les mesure en journalisant
+> les sélecteurs demandés : sans DOM, « il n'a rien fait » ne se voit pas
+> autrement (un `marqueSel` + `paintPalette` inutiles ne laissent aucune
+> trace). Et le passage ouvert ne coûte RIEN de payant : `selectionne` ne fait
+> que `marqueSel` + `paintPalette` + `majInspecteur`, et la seule requête au
+> bout est `node-preview`, gratuite et éphémère — `build3d`, `launchMesh3d` et
+> les polls vivent tous derrière un `data-act`, jamais derrière une sélection.
 > **M1** : le repli ≤720 px était MORT (la forme courte `flex: 0 0 232px`,
 > écrite plus bas, remet la longhand `flex-basis: 100%`) — la requête de média
 > DESCEND sous la règle de base, et le pin mesure désormais l'ORDRE, pas la
