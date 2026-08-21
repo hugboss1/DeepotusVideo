@@ -45,6 +45,7 @@ from PIL import Image, ImageDraw                                 # noqa: E402
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 JS = ROOT / "frontend" / "cardforge" / "js" / "mod-forge3d.js"
+CSS = ROOT / "frontend" / "cardforge" / "css" / "mod-forge3d.css"
 
 
 def _api(method: str, path: str, **kw):
@@ -3892,6 +3893,68 @@ def test_material_thumb_est_servi_par_provenance():
         assert r4.status_code == 404
     finally:
         MSTORE.delete_material(mat["id"])
+
+
+def test_le_canvas_est_la_projection_du_meme_graphe():
+    """Test de SOURCE (phase 2c, Task 2) : le canvas nodal est une VUE du
+    MEME graphe, jamais un second modele. Ce qui est epingle ici :
+
+      · la surface `#cf-forge3d-canvas` et la bascule liste/canvas existent,
+        et la vue LISTE survit (tous les pins 2a/2b restent valables) ;
+      · les positions vivent dans `doc.forge3d.layout` — de la PRESENTATION,
+        donc patchees SANS entree d'annulation (l'annulation appartient au
+        CONTENU du graphe : setGraph/HIST) ;
+      · la barre de fluidite §9.6 sur CHAQUE glisser du canvas : <= 1 patch
+        par frame (paire rAF), geste EXACT au relache, `isPrimary` en garde,
+        `touch-action: none` sur la surface ;
+      · l'auto-arrangement est DETERMINISTE (colonnes par kind, zero alea) ;
+      · les aretes sont UNE couche SVG (un chemin par arete du graphe)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # la surface, la bascule liste/canvas, le layout dans le doc
+    assert 'id="cf-forge3d-canvas"' in rendu
+    assert "layout" in rendu and 'get("layout"' in rendu
+    # les positions sont de la PRESENTATION : patchees SANS entree d'annulation
+    corps = rendu.split("function flushLayout(")[1].split("\n  }")[0]
+    assert "M.patch" in corps and "HIST" not in corps, corps
+    # drag de noeud coalesce au rAF (spec 9.6-1) + geste exact au relache :
+    # la frame en vol est ANNULEE puis le flush est fait a la main, sinon la
+    # derniere position attend une frame qui peut ne jamais venir.
+    assert "scheduleFrame" in rendu and "cancelFrame" in rendu
+    fin = rendu.split("function onCanvasUp(")[1].split("\n  }")[0]
+    assert "cancelFrame" in fin and "flushLayout()" in fin, fin
+    # ... et le geste ne demarre que sur le pointeur PRIMAIRE (9.6-3)
+    debut = rendu.split("function onCanvasDown(")[1].split("\n  }")[0]
+    assert "isPrimary" in debut, debut
+    # ... sur une surface qui ne defile pas sous le doigt (9.6-3)
+    feuille = CSS.read_text(encoding="utf-8")
+    assert "touch-action: none" in feuille
+    # l'auto-arrangement est DETERMINISTE (colonnes par kind, pas de hasard)
+    assert "function seedLayout(" in rendu and "Math.random" not in rendu
+    # les aretes sont UNE couche SVG sous les noeuds
+    assert "cf-forge3d-edges" in rendu and "path" in rendu
+    # la vue liste SURVIT (bascule) — les pins 2a/2b restent valables
+    assert "graphRows(graph)" in rendu
+    assert "cf-forge3d-vue" in rendu
+    # la bascule est de la PRESENTATION : elle vit dans localStorage, pas dans
+    # le document (un graphe ne se transporte pas avec une preference d'ecran)
+    assert "localStorage" in rendu and "dz_cf_forge3d_vue" in rendu
+    # le SCHEMA du module gagne `layout` (les cles declarees a
+    # l'enregistrement sont les SEULES patchables ensuite) — et la bascule,
+    # elle, n'y entre pas : un graphe ne se transporte pas avec une
+    # preference d'ecran.
+    reg = rendu.split("CF.register(")[1].split("\n  });")[0]
+    assert "layout" in reg, reg
+    assert "dz_cf_forge3d_vue" not in reg, reg
+    # le dispatcher : la vue ACTIVE se repeint, et la LISTE garde son peintre
+    # (paintGraph reste le peintre de la liste — les pins 2a/2b le lisent)
+    vue = rendu.split("function paintVue(")[1].split("\n  }")[0]
+    assert "paintCanvas()" in vue and "paintGraph()" in vue, vue
+    # ... et plus aucun appelant ne peint la LISTE en aveugle : les points
+    # d'entree du module passent par le dispatcher.
+    for appelant in ("function wire(", "function undoGraph("):
+        bloc = rendu.split(appelant)[1].split("\n  }")[0]
+        assert "paintVue()" in bloc, (appelant, bloc)
 
 
 if __name__ == "__main__":

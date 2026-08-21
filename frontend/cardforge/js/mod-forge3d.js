@@ -30,6 +30,25 @@
        depuis job.json (POST mesh3d/<nid> puis poll GET), et le `run_id` —
        opaque mais COMPARABLE — est confronte d'un poll a l'autre : s'il
        change, un AUTRE onglet a relance ce nœud, et on le DIT.
+
+   Phase 2c — LE CANVAS NODAL (spec §5.6). Le meme graphe gagne une SECONDE
+   projection : des nœuds poses sur une surface pan/zoom, relies par une
+   couche SVG. Trois lignes de partage, tenues ici :
+     · LE MODELE NE BOUGE PAS. `doc.forge3d.graph` reste la seule verite
+       semantique — le canvas le LIT et l'ecrit par les memes chemins que la
+       liste (setGraph, editGraph). La vue LISTE survit en bascule : c'est le
+       repli sans pointeur, et le support des pins de source 2a/2b.
+     · LES POSITIONS SONT DE LA PRESENTATION. Elles vivent a part, dans
+       `doc.forge3d.layout = {nid: [x, y]}`, et se patchent SANS entree
+       d'annulation : deplacer un nœud n'est pas une edition du graphe, et
+       s'intercaler dans la pile ferait annuler un GESTE la ou l'utilisateur
+       demande d'annuler une DECISION. Le pan et le zoom, eux, n'entrent meme
+       pas dans le document : ce sont des reglages de camera, locaux a
+       l'onglet.
+     · LA BARRE DE FLUIDITE §9.6 VAUT POUR CHAQUE GLISSER. <= 1 patch (ou une
+       ecriture de transformation) par frame, feedback local a chaque
+       evenement, geste EXACT au relache, `isPrimary` en garde et
+       `touch-action: none` sur la surface.
    ═══════════════════════════════════════════════════════════════════════════ */
 (() => {
   const CF = (typeof window !== "undefined") ? window.CF : null;
@@ -81,6 +100,41 @@
   const TILE_DEFAUT = 63;
   const POLL_MS = 1200;         /* periode du poll d'un job (plan 2b) */
 
+  /* ── LE CANVAS (2c) : SES CONSTANTES, TOUTES NOMMEES ────────────────────
+     La bascule est une PREFERENCE D'ECRAN, pas un morceau du deck : elle vit
+     dans le stockage local (patron core.js:dz_theme), jamais dans le
+     document — un jeu exporte ne transporte pas la vue que son auteur
+     preferait. */
+  const LS_VUE = "dz_cf_forge3d_vue";
+  const VUE_DEFAUT = "canvas";  /* §5.6 : le canvas est L'ecran ; la liste
+                                    « reste disponible en bascule » */
+  /* L'AUTO-ARRANGEMENT : une COLONNE par etage de la grammaire des chaines
+     (couche -> traitement -> matiere/placement -> assemblage -> artefact ->
+     exports), un rang par nœud DANS sa colonne. Deterministe par
+     construction : deux ouvertures du meme graphe posent les memes nœuds aux
+     memes pixels — aucun aleatoire nulle part (c'est epingle au test). */
+  const COL_X = {
+    layer: 40, plane: 280, relief: 280, mesh3d: 280,
+    material: 520, transform: 520, assemble: 760, artifact: 1000,
+    export: 1240,               /* le kind `export` arrive en Task 4 ; sa
+                                    colonne est reservee ici pour que la
+                                    grammaire se lise d'un bloc */
+  };
+  const COL_X_DEFAUT = 760;     /* un kind hors table (graphe charge a la
+                                    main) se pose avec l'assemblage plutot
+                                    que d'empiler tout a l'origine */
+  const RANG_Y0 = 40, RANG_DY = 190;
+  /* MIROIR DE LA FEUILLE : la largeur d'un nœud et la mi-hauteur de son
+     en-tete servent a placer les PORTS (donc a tracer les aretes). Elles sont
+     ecrites des deux cotes — mod-forge3d.css le dit aussi. */
+  const NOEUD_W = 200;
+  const PORT_Y = 18;            /* 1 px de bordure + la mi-hauteur (34 px) de
+                                    l'en-tete : la boite est en `border-box`
+                                    (cardforge.css: * { box-sizing }), donc
+                                    NOEUD_W est bien le bord DROIT */
+  const LAYOUT_MAX = 20000;     /* borne des positions, appliquee AU FLUSH */
+  const ZOOM_MIN = 0.35, ZOOM_MAX = 2.5;
+
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
      100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
   function defaultGraph(man) {
@@ -110,6 +164,13 @@
       graph: null,               /* le graphe {nodes, edges} — null = jamais
                                     construit ; le graphe PAR DÉFAUT est
                                     proposé dès qu'un export de couches existe */
+      layout: null,              /* {nid: [x, y]} — les POSITIONS des nœuds sur
+                                    le canvas (2c). De la PRÉSENTATION, pas du
+                                    contenu : patchée sans entrée d'annulation,
+                                    semée par `seedLayout`, ignorée par tout le
+                                    backend (le graphe seul se construit). Le
+                                    pan/zoom, lui, n'est même pas ici : c'est
+                                    une caméra locale à l'onglet. */
     },
     init(host) {
       host.innerHTML = shell();
@@ -194,13 +255,27 @@
 
       + '<section class="cf-forge3d-card">'
       + '<header class="cf-forge3d-h"><b>Graphe 3D</b>'
+      + '<div class="seg sm cf-forge3d-vue" id="cf-forge3d-vue">'
+      + '<button class="seg-b" type="button" data-vue="canvas">canvas</button>'
+      + '<button class="seg-b" type="button" data-vue="liste">liste</button>'
+      + '</div>'
       + '<button class="lnk" id="cf-forge3d-undo" type="button" '
       + 'title="annule la dernière édition du graphe">↶ annuler</button>'
       + '</header>'
       + '<p class="hint">Un traitement par couche livrée : plan texturé (gratuit), '
       + 'relief extrudé (gratuit, solide fermé imprimable) ou moteur 3D (payant, '
-      + 'prix annoncé avant). Chaque rang porte sa chaîne — matière et placement. '
-      + 'Chaque champ édité patche aussitôt le graphe — annulable.</p>'
+      + 'prix annoncé avant). Chaque nœud porte sa chaîne — matière et placement. '
+      + 'Chaque champ édité patche aussitôt le graphe — annulable. Les deux vues '
+      + 'projettent LE MÊME graphe : le canvas se déplace au glisser du fond et '
+      + 'se zoome à la molette (position des nœuds gardée, jamais annulable).</p>'
+      + '<div class="cf-forge3d-canvas" id="cf-forge3d-canvas">'
+      + '<div class="cf-forge3d-monde"></div>'
+      + '<div class="cf-forge3d-surcouche cf-forge3d-vide"></div>'
+      + '<div class="cf-forge3d-surcouche cf-forge3d-outils">'
+      + '<button class="btn sm" type="button" data-act="vue-recentre" '
+      + 'title="ramène la vue à l\'origine">recentrer</button>'
+      + '</div>'
+      + '</div>'
       + '<div id="cf-forge3d-graph"></div>'
       + '<p class="hint" id="cf-forge3d-cost"></p>'
       + '</section>'
@@ -233,6 +308,10 @@
       graphHost.addEventListener("change", onGraphChange);
       graphHost.addEventListener("click", onGraphClick);
     }
+    const canvasHost = $("#cf-forge3d-canvas");
+    if (canvasHost) wireCanvas(canvasHost);
+    const vueSeg = $("#cf-forge3d-vue");
+    if (vueSeg) vueSeg.addEventListener("click", onVueClick);
     const undoBtn = $("#cf-forge3d-undo");
     if (undoBtn) undoBtn.addEventListener("click", () => undoGraph());
     $("#cf-forge3d-build").addEventListener("click", () => build3d());
@@ -256,6 +335,9 @@
       /* les jobs sont DECK-LOCAUX (nodes/<nid>/job.json sous le deck) : ceux
          du deck précédent ne disent plus rien de celui-ci. */
       oublieLesJobs();
+      /* les positions et le cadrage appartiennent au deck qu'on quitte : une
+         frame retardataire écrirait son arrangement dans le deck suivant. */
+      oublieLeCanvas();
       if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
     });
     /* LEGS 5, CÔTÉ POUSSÉE — sans cet abonnement la fraîcheur du manifeste
@@ -273,10 +355,14 @@
        Le handler est GRATUIT quand rien ne bouge : `cardChanged` compare les
        étiquettes d'abord et rend `null` sans rien toucher. */
     CF.on("core:render", () => { cardChanged(); });
+    /* la bascule est relue AVANT la première peinture : sans quoi l'écran
+       s'ouvrirait sur la vue par défaut puis sauterait sur celle de
+       l'utilisateur au premier repaint venu. */
+    VUE = vueLue();
     refreshInfo();
     refreshManifest();
     paintUndo();
-    paintGraph();
+    paintVue();
   }
 
   function esc(s) {
@@ -386,7 +472,7 @@
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
-      paintGraph();
+      paintVue();
       status.textContent = "couches livrées, preuve tenue des deux côtés.";
     } catch (e) {
       status.textContent = String(e && e.message || e);
@@ -461,7 +547,7 @@
     } catch (e) {
       INFO = null;
     }
-    paintGraph();
+    paintVue();
   }
 
   /* I2 — LE MANIFESTE SE CHARGE AU BOOT : `LAST_MANIFEST` ne vivait qu'en
@@ -518,7 +604,7 @@
        à chaque peinture. */
     MANIFEST_CARD = label;
     refreshManifest.busy = null;
-    paintGraph();
+    paintVue();
   }
 
   /* LEGS 5 — LE MANIFESTE SUIT LA CARTE, pas seulement le boot. `LAST_MANIFEST`
@@ -1011,14 +1097,20 @@
         + ' : retire des rangs, la construction refuserait.</p>')
       : "";
     host.innerHTML = body + trop + reseed;
-    /* l'état des nœuds moteur vient du DISQUE, pas de la mémoire de l'onglet :
-       un nœud jamais sondé l'est UNE fois (un GET, gratuit), sans quoi un job
-       servi d'une session précédente resterait invisible et serait recompté
-       comme payant par le pied de coût. */
-    rows.forEach((r) => {
+    sondeMoteurs(graph);
+    paintCost();
+  }
+
+  /* l'état des nœuds moteur vient du DISQUE, pas de la mémoire de l'onglet :
+     un nœud jamais sondé l'est UNE fois (un GET, gratuit), sans quoi un job
+     servi d'une session précédente resterait invisible et serait recompté
+     comme payant par le pied de coût. Extrait de `paintGraph` en 2c : LES
+     DEUX vues en ont besoin, et un sondage qui ne partirait que depuis la
+     liste laisserait le canvas afficher « jamais lancé » sur un nœud payé. */
+  function sondeMoteurs(graph) {
+    graphRows(graph).forEach((r) => {
       if (r.proc.kind === "mesh3d") pollMesh3d(r.proc.id, true);
     });
-    paintCost();
   }
 
   /* ── LE PIED DE COÛT — CE QUE « LANCER » COÛTERA, AVANT ────────────────
@@ -1092,6 +1184,522 @@
     el.classList.toggle("cf-forge3d-payant", !!(c && c.payant));
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     LE CANVAS NODAL (2c, spec §5.6) — LA SECONDE PROJECTION DU MÊME GRAPHE
+     Rien ici n'invente de sémantique : les nœuds affichés sont ceux de
+     `graph.nodes`, les arêtes celles de `graph.edges`, et tout ce que cette
+     section possède en propre, ce sont des PIXELS (le layout, dans le
+     document) et une CAMÉRA (le pan/zoom, hors du document).
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* la paire rAF du lab (mod-face.js:3782, mod-frame, mod-solid, mod-type),
+     reproduite ICI en local : les pièces ne partagent aucun import. Le repli
+     `setTimeout` et l'annulation SYMÉTRIQUE comptent — `cancelAnimationFrame`
+     sur un identifiant de `setTimeout` ne fait rien (autre registre). */
+  const hasRAF = (typeof requestAnimationFrame === "function");
+  const scheduleFrame = (fn) => (hasRAF ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+  const cancelFrame = (id) => { if (hasRAF) cancelAnimationFrame(id); else clearTimeout(id); };
+
+  let VUE = VUE_DEFAUT;         /* "canvas" | "liste" — présentation pure */
+  let SEL = null;               /* le nœud sélectionné (clic sur son en-tête).
+                                    L'inspecteur 3D de la Task 5 le consomme ;
+                                    ici il ne fait que porter la classe. */
+  let LAYOUT_VU = {};           /* LA POSITION DE CHAQUE NŒUD À L'ÉCRAN —
+                                    l'état du geste vit ici (spec 9.6-1), le
+                                    document ne suit qu'au rythme des frames */
+  let LAYOUT_SALE = false;      /* une position a bougé depuis le dernier flush */
+  let layoutRaf = 0;
+  /* LA CAMÉRA — pan et zoom. Volontairement HORS du document : ce n'est pas
+     une propriété du deck mais un réglage d'onglet (deux fenêtres ouvertes
+     sur le même deck ne se disputent pas leur cadrage). */
+  const CAM = { px: 20, py: 20, z: 1 };
+  let camPending = null, camRaf = 0;
+  let DRAG = null;              /* le geste en cours : un nœud, ou le fond */
+
+  function vueLue() {
+    try {
+      const s = localStorage.getItem(LS_VUE);
+      return (s === "liste" || s === "canvas") ? s : VUE_DEFAUT;
+    } catch (e) { return VUE_DEFAUT; }        /* stockage refusé (mode privé) */
+  }
+
+  function vueEcrite(v) {
+    try { localStorage.setItem(LS_VUE, v); } catch (e) { /* stockage refusé */ }
+  }
+
+  function onVueClick(e) {
+    const b = e.target.closest ? e.target.closest("[data-vue]") : null;
+    if (!b) return;
+    e.preventDefault();
+    const v = b.getAttribute("data-vue");
+    if ((v !== "canvas" && v !== "liste") || v === VUE) return;
+    VUE = v;
+    vueEcrite(v);
+    paintVue();
+  }
+
+  /* LE DISPATCHER — un seul graphe, deux projections, un seul point d'entrée.
+     La vue INACTIVE est VIDÉE plutôt que gardée au chaud : un poll qui
+     repeindrait une chip dans un hôte caché afficherait un état… nulle part,
+     et un DOM rassis ferait mentir la première bascule. */
+  function paintVue() {
+    const seg = $("#cf-forge3d-vue");
+    if (seg) {
+      Array.prototype.slice.call(seg.querySelectorAll("[data-vue]"))
+        .forEach((b) => {
+          b.classList.toggle("active", b.getAttribute("data-vue") === VUE);
+        });
+    }
+    const canvas = $("#cf-forge3d-canvas");
+    const liste = $("#cf-forge3d-graph");
+    const auCanvas = (VUE === "canvas");
+    if (canvas) canvas.classList.toggle("hidden", !auCanvas);
+    if (liste) liste.classList.toggle("hidden", auCanvas);
+    if (auCanvas) {
+      if (liste) liste.innerHTML = "";
+      paintCanvas();
+    } else {
+      videCanvas();
+      paintGraph();
+    }
+  }
+
+  function mondeEl() {
+    const host = $("#cf-forge3d-canvas");
+    return host ? host.querySelector(".cf-forge3d-monde") : null;
+  }
+
+  function videCanvas() {
+    /* UN SEMIS EN ATTENTE DE FRAME APPARTIENT ENCORE À CE LAYOUT-CI : basculer
+       sur la liste dans la même frame que la peinture laissait la frame
+       retardataire patcher un LAYOUT_VU déjà vidé — c'est-à-dire effacer
+       l'arrangement du document. On l'écrit AVANT de vider. */
+    if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
+    flushLayout();
+    const host = $("#cf-forge3d-canvas");
+    LAYOUT_VU = {};
+    if (!host) return;
+    const monde = host.querySelector(".cf-forge3d-monde");
+    const vide = host.querySelector(".cf-forge3d-vide");
+    if (monde) monde.innerHTML = "";
+    if (vide) vide.innerHTML = "";
+  }
+
+  /* OUBLIER LE CANVAS — appelé quand ce qu'il montre n'est plus le sujet
+     (changement de deck). Contrairement à `videCanvas`, on n'écrit RIEN : les
+     positions en attente appartiennent au deck qu'on quitte, et les patcher
+     ici les poserait sur le deck suivant. */
+  function oublieLeCanvas() {
+    if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
+    if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
+    LAYOUT_SALE = false;
+    LAYOUT_VU = {};
+    camPending = null;
+    DRAG = null;
+    SEL = null;
+    CAM.px = 20; CAM.py = 20; CAM.z = 1;
+  }
+
+  /* une position BORNÉE, appliquée au flush : un nœud traîné hors du monde
+     (ou un layout bricolé à la main dans un fichier de deck) ne peut pas
+     s'échapper à l'infini ni revenir en NaN. */
+  function bornePos(v) {
+    const n = Number(v);
+    if (!isFinite(n)) return 0;
+    return Math.max(0, Math.min(LAYOUT_MAX, Math.round(n)));
+  }
+
+  /* L'AUTO-ARRANGEMENT — DÉTERMINISTE, sans une once de hasard : chaque nœud
+     tombe dans la colonne de son kind, au rang qu'il occupe DANS L'ORDRE des
+     nœuds du graphe. Les positions DÉJÀ posées gagnent toujours (l'utilisateur
+     a bougé ce nœud, on ne le lui reprend pas) ; seules les manquantes sont
+     semées. Rend le layout COMPLET de ce graphe — c'est lui qu'on peint. */
+  function seedLayout(graph) {
+    const pose = get("layout") || {};
+    const out = {}, rangs = {};
+    ((graph && graph.nodes) || []).forEach((n) => {
+      const x = Object.prototype.hasOwnProperty.call(COL_X, n.kind)
+        ? COL_X[n.kind] : COL_X_DEFAUT;
+      rangs[x] = (rangs[x] == null) ? 0 : rangs[x] + 1;
+      const p = connu(pose, n.id) ? pose[n.id] : null;
+      const connue = Array.isArray(p) && p.length === 2
+        && isFinite(Number(p[0])) && isFinite(Number(p[1]));
+      out[n.id] = connue
+        ? [bornePos(p[0]), bornePos(p[1])]
+        : [x, RANG_Y0 + RANG_DY * rangs[x]];
+    });
+    return out;
+  }
+
+  /* le layout du document est-il en retard sur ce qu'on va peindre ? (semis
+     d'un nœud neuf, nœud disparu, position bornée). Comparaison de valeurs :
+     patcher un layout identique ferait un enregistrement pour rien. */
+  function layoutDiffere(avant, apres) {
+    const a = avant || {};
+    const ka = Object.keys(a), kb = Object.keys(apres);
+    if (ka.length !== kb.length) return true;
+    for (let i = 0; i < kb.length; i++) {
+      const p = connu(a, kb[i]) ? a[kb[i]] : null;   /* jamais d'accès nu */
+      const q = apres[kb[i]];
+      if (!Array.isArray(p) || p[0] !== q[0] || p[1] !== q[1]) return true;
+    }
+    return false;
+  }
+
+  function demandeFlushLayout() {
+    LAYOUT_SALE = true;
+    if (!layoutRaf) layoutRaf = scheduleFrame(flushLayout);
+  }
+
+  /* LA POSITION EST DE LA PRÉSENTATION — l'annulation, elle, appartient au
+     CONTENU du graphe (`setGraph` pousse sa pile ; ceci, jamais). Empiler un
+     déplacement ferait annuler un GESTE là où l'utilisateur demande d'annuler
+     une DÉCISION : trois nœuds recadrés effaceraient de la pile le choix de
+     matière qu'il voulait reprendre. Un seul patch par frame (spec 9.6-1). */
+  function flushLayout() {
+    layoutRaf = 0;
+    if (!LAYOUT_SALE) return;
+    LAYOUT_SALE = false;
+    const out = {};
+    Object.keys(LAYOUT_VU).forEach((k) => {
+      out[k] = [bornePos(LAYOUT_VU[k][0]), bornePos(LAYOUT_VU[k][1])];
+    });
+    M.patch({ layout: out });
+  }
+
+  /* la translation N'EST PAS arrondie : l'invariant du point-sous-curseur se
+     calcule en flottants, l'arrondir à l'affichage le ferait dériver d'un
+     demi-pixel par cran de molette — et le monde est déjà mis à l'échelle,
+     donc sous-pixel de toute façon. */
+  function appliqueCam() {
+    const host = $("#cf-forge3d-canvas");
+    const monde = host ? host.querySelector(".cf-forge3d-monde") : null;
+    if (!monde) return;
+    monde.style.transform = "translate(" + CAM.px + "px," + CAM.py
+      + "px) scale(" + CAM.z + ")";
+    /* LE QUADRILLAGE SUIT LA CAMÉRA. Il est peint sur la SURFACE (elle seule
+       couvre la fenêtre entière, quel que soit le zoom — le monde, lui, ne
+       fait que la taille du graphe) : sans ce décalage il resterait cloué
+       pendant que les nœuds glissent, et le geste de déplacement n'aurait
+       AUCUN repère — on croirait le fond figé et les nœuds fous. */
+    const pas = 24 * CAM.z;
+    host.style.backgroundSize = pas + "px " + pas + "px";
+    host.style.backgroundPosition = CAM.px + "px " + CAM.py + "px";
+  }
+
+  function flushCam() {
+    camRaf = 0;
+    if (!camPending) return;
+    const c = camPending;
+    camPending = null;
+    CAM.px = c.px; CAM.py = c.py; CAM.z = c.z;
+    appliqueCam();          /* <= 1 écriture de transformation par frame */
+  }
+
+  /* RECENTRER — le cadrage est local et n'entre jamais dans le document.
+     Sans ce bouton, une surface poussée au loin n'a aucun retour : l'écran a
+     l'air vide et le graphe a l'air perdu. */
+  function recentreCam() {
+    if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
+    camPending = null;
+    CAM.px = 20; CAM.py = 20; CAM.z = 1;
+    appliqueCam();
+  }
+
+  function wireCanvas(host) {
+    host.addEventListener("pointerdown", onCanvasDown);
+    host.addEventListener("pointermove", onCanvasMove);
+    host.addEventListener("pointerup", onCanvasUp);
+    host.addEventListener("pointercancel", onCanvasUp);
+    host.addEventListener("wheel", onCanvasWheel, { passive: false });
+    /* les boutons du canvas (semis, recentrage) passent par LA MÊME
+       délégation que ceux de la liste : un seul vocabulaire `data-act`. */
+    host.addEventListener("click", onGraphClick);
+  }
+
+  function onCanvasDown(e) {
+    /* `isPrimary` se lit sur l'ÉVÉNEMENT (patron mod-frame.js:2479), jamais
+       sur un état à nous : un second doigt posé au milieu d'un glisser ne
+       doit pas en démarrer un autre, et un garde d'état resté armé
+       verrouillerait la surface jusqu'au rechargement. */
+    if (!e.isPrimary) return;
+    const cible = e.target;
+    if (!cible.closest) return;
+    /* les surcouches (semis, outils) gardent leurs clics : démarrer un
+       glisser du fond sous un bouton avalerait le bouton. */
+    if (cible.closest(".cf-forge3d-surcouche")) return;
+    const noeud = cible.closest(".cf-forge3d-noeud");
+    const tete = cible.closest(".cf-forge3d-tete");
+    /* LE CORPS D'UN NŒUD N'EST PAS UNE POIGNÉE : ses champs (Task 3) doivent
+       recevoir leurs propres gestes. Seul l'en-tête traîne le nœud. */
+    if (noeud && !tete) return;
+    if (noeud) {
+      const nid = noeud.getAttribute("data-nid");
+      selectionne(nid);
+      const p = posDe(nid) || [0, 0];
+      DRAG = { nid: nid, el: noeud, x0: e.clientX, y0: e.clientY,
+               ox: p[0], oy: p[1] };
+    } else {
+      /* cliquer le FOND désélectionne : sans ça, l'inspecteur de la Task 5
+         continuerait de montrer un nœud que plus rien ne désigne à l'écran. */
+      selectionne(null);
+      DRAG = { pan: true, x0: e.clientX, y0: e.clientY,
+               px: CAM.px, py: CAM.py };
+    }
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) { /* vieux moteur */ }
+    e.preventDefault();
+  }
+
+  function onCanvasMove(e) {
+    if (!DRAG) return;
+    if (DRAG.pan) {
+      camPending = { px: DRAG.px + (e.clientX - DRAG.x0),
+                     py: DRAG.py + (e.clientY - DRAG.y0), z: CAM.z };
+      if (!camRaf) camRaf = scheduleFrame(flushCam);
+      return;
+    }
+    /* le pointeur se déplace en pixels d'ÉCRAN, le layout en pixels de MONDE :
+       diviser par l'échelle, sinon un nœud traîné à z=2 file deux fois trop
+       vite sous le curseur. */
+    const z = CAM.z || 1;
+    const x = bornePos(DRAG.ox + (e.clientX - DRAG.x0) / z);
+    const y = bornePos(DRAG.oy + (e.clientY - DRAG.y0) / z);
+    LAYOUT_VU[DRAG.nid] = [x, y];
+    /* FEEDBACK LOCAL IMMÉDIAT (spec 9.6-2) : le nœud et ses arêtes suivent le
+       pointeur à CHAQUE événement — c'est bon marché (deux styles et quelques
+       attributs `d`) ; le DOCUMENT, lui, suit au rythme des frames. */
+    DRAG.el.style.left = x + "px";
+    DRAG.el.style.top = y + "px";
+    majAretes();
+    demandeFlushLayout();
+  }
+
+  function onCanvasUp(e) {
+    if (!DRAG) return;
+    const pan = !!DRAG.pan;
+    DRAG = null;
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
+    if (pan) {
+      if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
+      flushCam();
+      return;
+    }
+    /* LE GESTE EXACT AU RELÂCHÉ (spec 9.6-1) : la frame en vol est ANNULÉE et
+       le flush fait à la main — sinon la dernière position attendrait une
+       frame qui peut ne jamais venir (onglet masqué juste après le lâcher),
+       et le document garderait l'avant-dernière. */
+    if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
+    flushLayout();
+    majAretes();
+  }
+
+  /* LA MOLETTE — ACCUMULATEUR LOCAL (patron 93987ab de mod-face.js:3854).
+     Molettes haute résolution et flings de trackpad livrent PLUSIEURS
+     événements par frame, et le geste est INCRÉMENTAL : chaque cran compose
+     l'échelle ET le point visé À PARTIR DE L'ÉTAT COURANT. `camPending` EST
+     cet état tant que la frame ne l'a pas écrit, et sert donc de base au cran
+     suivant — sans lui, deux crans d'une même frame partiraient tous deux de
+     l'ancienne base et le second écraserait le premier.
+     Différence assumée avec mod-face : là-bas la rafale devait clore un
+     GROUPE D'ANNULATION (le zoom écrivait le document) ; ici elle n'écrit
+     rien du tout, donc pas de minuterie de fin de rafale — la dernière frame
+     applique l'état final, exact par construction. */
+  function onCanvasWheel(e) {
+    e.preventDefault();
+    const surf = e.currentTarget;
+    const r = surf.getBoundingClientRect();
+    /* LE REPÈRE EST LA BOÎTE DE PADDING, pas la boîte de bordure : le monde
+       est un enfant `position: absolute; left: 0` de la surface, donc son
+       origine est DÉCALÉE de la bordure. Mesurer depuis `r.left` seul faisait
+       préserver un point voisin — une dérive d'un pixel par cran, invisible
+       au premier et gênante au dixième (la faute déjà réparée une fois sur la
+       molette de mod-face, autre repère, même nature). */
+    const cx = e.clientX - r.left - surf.clientLeft;
+    const cy = e.clientY - r.top - surf.clientTop;
+    const base = camPending || CAM;
+    const k = Math.exp(-e.deltaY * 0.0016);
+    const nz = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, base.z * k));
+    /* LE POINT SOUS LE CURSEUR NE BOUGE PAS : le monde est translaté PUIS mis
+       à l'échelle (transform-origin 0 0), donc le point d'écran cx montre le
+       point de monde (cx - px)/z ; le garder fixe impose
+       px' = cx - (cx - px)·(z'/z). */
+    camPending = {
+      px: cx - (cx - base.px) * (nz / base.z),
+      py: cy - (cy - base.py) * (nz / base.z),
+      z: nz,
+    };
+    if (!camRaf) camRaf = scheduleFrame(flushCam);
+  }
+
+  /* LA SÉLECTION — mémorisée dans `SEL` et portée par une classe. Le canvas
+     n'en fait rien de plus en Task 2 ; l'inspecteur 3D (Task 5) la lira. */
+  function selectionne(nid) {
+    SEL = nid || null;
+    const host = $("#cf-forge3d-canvas");
+    if (!host) return;
+    Array.prototype.slice.call(host.querySelectorAll(".cf-forge3d-noeud"))
+      .forEach((el) => {
+        el.classList.toggle("selected", el.getAttribute("data-nid") === SEL);
+      });
+  }
+
+  /* les arêtes RÉELLEMENT traçables : celles dont les DEUX extrémités existent
+     encore. Une arête pendante n'est pas dessinée (le backend la jetterait de
+     toute façon) — mais elle n'est pas non plus effacée du graphe ici :
+     `clean_graph` reste l'ultime porte, l'écran ne décide rien en douce. */
+  function aretes(graph) {
+    const vus = {};
+    ((graph && graph.nodes) || []).forEach((n) => { vus[n.id] = 1; });
+    return ((graph && graph.edges) || [])
+      .filter((e) => connu(vus, e.from) && connu(vus, e.to));
+  }
+
+  /* UNE LECTURE PAR ID SE FAIT AVEC hasOwnProperty, JAMAIS EN ACCÈS NU —
+     même doctrine que le CORE (core.js:361, `in` traverse la chaîne de
+     prototypes). L'alphabet d'id que `clean_graph` autorise ([A-Za-z0-9._-])
+     contient « constructor » et « toString » : un accès nu y rendrait une
+     FONCTION héritée d'Object.prototype, qui est vraie, qui n'est pas un
+     tableau, et qui ferait partir un tracé d'arête en NaN. */
+  function connu(reg, cle) {
+    return Object.prototype.hasOwnProperty.call(reg, cle);
+  }
+
+  function posDe(nid) {
+    return connu(LAYOUT_VU, nid) ? LAYOUT_VU[nid] : null;
+  }
+
+  /* la courbe d'une arête : sortie DROITE du nœud amont -> entrée GAUCHE du
+     nœud aval, tangentes horizontales (le sens de lecture du graphe). */
+  function courbe(a, b) {
+    const x1 = a[0] + NOEUD_W, y1 = a[1] + PORT_Y;
+    const x2 = b[0], y2 = b[1] + PORT_Y;
+    const dx = Math.max(30, Math.abs(x2 - x1) / 2);
+    return "M " + x1 + " " + y1 + " C " + (x1 + dx) + " " + y1 + ", "
+      + (x2 - dx) + " " + y2 + ", " + x2 + " " + y2;
+  }
+
+  /* UNE SEULE couche SVG, SOUS les nœuds (ordre du DOM) : les nœuds restent
+     cliquables, les arêtes ne volent aucun événement (pointer-events: none
+     côté feuille). Chaque chemin porte ses deux extrémités en `data-*` pour
+     que le glisser recalcule son tracé sans reconstruire la couche. */
+  function edgesHtml(graph, ext) {
+    const paths = aretes(graph).map((e) => '<path class="cf-forge3d-edge" '
+      + 'data-from="' + esc(e.from) + '" data-to="' + esc(e.to) + '" d="'
+      + esc(courbe(posDe(e.from) || [0, 0], posDe(e.to) || [0, 0]))
+      + '"></path>').join("");
+    return '<svg class="cf-forge3d-edges" width="' + Number(ext.w)
+      + '" height="' + Number(ext.h) + '" viewBox="0 0 ' + Number(ext.w)
+      + ' ' + Number(ext.h) + '" aria-hidden="true">' + paths + '</svg>';
+  }
+
+  /* les tracés SEULS, sans reconstruire la couche : c'est ce qui rend le
+     glisser fluide (aucun innerHTML pendant le geste). */
+  function majAretes() {
+    const monde = mondeEl();
+    if (!monde) return;
+    Array.prototype.slice.call(monde.querySelectorAll(".cf-forge3d-edge"))
+      .forEach((p) => {
+        const a = posDe(p.getAttribute("data-from"));
+        const b = posDe(p.getAttribute("data-to"));
+        if (a && b) p.setAttribute("d", courbe(a, b));
+      });
+  }
+
+  /* le kind en clair — le miroir NODE_KINDS reste la table du VOCABULAIRE ;
+     ceci n'est qu'un dictionnaire d'affichage (PROC_LABELS le fait déjà pour
+     les traitements de la liste). */
+  const KIND_LABELS = {
+    layer: "couche", plane: "plan", relief: "relief", mesh3d: "mesh 3D",
+    material: "matière", transform: "placement", assemble: "assemblage",
+    artifact: "artefact", export: "export",
+  };
+
+  function kindLabel(k) {
+    return connu(KIND_LABELS, k) ? KIND_LABELS[k] : String(k == null ? "" : k);
+  }
+
+  /* le titre d'un nœud : ce qui l'identifie POUR L'ŒIL (le rôle et la face
+     d'une couche, le nom d'un artefact, le moteur choisi), jamais un id nu que
+     rien ne rend lisible. L'id complet reste en infobulle de l'en-tête. */
+  function noeudTitre(n) {
+    if (n.kind === "layer") {
+      return (n.role || "composite") + " · "
+        + ((n.side === "back") ? "verso" : "recto");
+    }
+    if (n.kind === "artifact") return n.name || "artefact";
+    if (n.kind === "mesh3d") return n.engine || "moteur";
+    if (n.kind === "material") {
+      return n.mat || ((n.finish && n.finish !== "aucune") ? n.finish : "matière");
+    }
+    return n.id;
+  }
+
+  /* UN NŒUD — en-tête (poignée + sélection) et corps. Le corps est un
+     PLACEHOLDER NOMMÉ en Task 2 : les menus embarqués et la vignette
+     réactive sont la Task 3, et un corps vide qui ne dit pas pourquoi se
+     lirait comme une panne. */
+  function canvasNodeHtml(n) {
+    const p = posDe(n.id) || [0, 0];
+    return '<div class="cf-forge3d-noeud' + (n.id === SEL ? " selected" : "")
+      + '" data-nid="' + esc(n.id) + '" data-kind="' + esc(n.kind)
+      + '" style="left: ' + Number(p[0]) + 'px; top: ' + Number(p[1]) + 'px;">'
+      + '<header class="cf-forge3d-tete" title="' + esc(n.id) + '">'
+      + '<span class="cf-forge3d-kind-l">' + esc(kindLabel(n.kind))
+      + '</span>'
+      + '<span class="mono cf-forge3d-titre">' + esc(noeudTitre(n)) + '</span>'
+      + '</header>'
+      + '<div class="cf-forge3d-corps"><p class="hint">menus et vignette : '
+      + 'corps en T3.</p></div>'
+      + '</div>';
+  }
+
+  function paintCanvas() {
+    const host = $("#cf-forge3d-canvas");
+    if (!host) return;
+    cardChanged();          /* le même filet que paintGraph (legs 5) */
+    const monde = host.querySelector(".cf-forge3d-monde");
+    const vide = host.querySelector(".cf-forge3d-vide");
+    const graph = get("graph");
+    if (!graph) {
+      LAYOUT_VU = {};
+      if (monde) monde.innerHTML = "";
+      if (vide) {
+        vide.innerHTML = LAST_MANIFEST
+          ? ('<p class="hint">Aucun graphe construit pour le moment.</p>'
+            + seedButtonHtml("cf-forge3d-canvas-seed",
+                             "construire le graphe par défaut"))
+          : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
+            + 'pour proposer un graphe par défaut.</p>';
+      }
+      paintCost();
+      return;
+    }
+    if (vide) vide.innerHTML = "";
+    /* les positions MANQUANTES sont semées ici, et le semis part au document
+       par LA MÊME paire rAF que le glisser : un seul patch, hors de la pile
+       d'appel de la peinture (patcher en plein rendu ferait repeindre pendant
+       qu'on peint). */
+    LAYOUT_VU = seedLayout(graph);
+    if (layoutDiffere(get("layout"), LAYOUT_VU)) demandeFlushLayout();
+    const nodes = graph.nodes || [];
+    let mx = 0, my = 0;
+    nodes.forEach((n) => {
+      const p = posDe(n.id) || [0, 0];
+      if (p[0] > mx) mx = p[0];
+      if (p[1] > my) my = p[1];
+    });
+    const ext = { w: mx + NOEUD_W + 80, h: my + 220 };
+    if (monde) {
+      monde.style.width = ext.w + "px";
+      monde.style.height = ext.h + "px";
+      monde.innerHTML = edgesHtml(graph, ext)
+        + nodes.map((n) => canvasNodeHtml(n)).join("");
+    }
+    appliqueCam();
+    sondeMoteurs(graph);
+    paintCost();
+  }
+
   /* le rang d'un nœud dans le DOM, retrouvé par comparaison d'attribut et non
      par sélecteur construit : un id de nœud est une donnée, jamais un
      fragment de sélecteur (un point y suffirait à tout casser). */
@@ -1115,7 +1723,7 @@
     const graph = get("graph");
     const old = findByAttr(".cf-forge3d-row", "data-proc", procId);
     const r = graph ? rowModel(graph, procId) : null;
-    if (!old || !r || !r.layer || !old.parentNode) { paintGraph(); return; }
+    if (!old || !r || !r.layer || !old.parentNode) { paintVue(); return; }
     const ouverts = Array.prototype.slice.call(old.querySelectorAll("details"))
       .map((d) => !!d.open);
     const tmp = document.createElement("div");
@@ -1153,6 +1761,9 @@
     } else if (act === "launch") {
       e.preventDefault();
       launchMesh3d(b.getAttribute("data-nid"));
+    } else if (act === "vue-recentre") {
+      e.preventDefault();
+      recentreCam();
     }
   }
 
@@ -1176,11 +1787,11 @@
       /* la carte courante n'a pas de couches livrées : le bouton lui-même
          n'aurait pas dû être là — on repeint pour dire la vérité. */
       M.toast("aucune couche exportée pour cette carte", true);
-      paintGraph();
+      paintVue();
       return;
     }
     setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
-    paintGraph();     /* structurel : la liste entière change de forme */
+    paintVue();       /* structurel : la vue entière change de forme */
   }
 
   function onGraphChange(e) {
@@ -1220,7 +1831,7 @@
     if (!h) { M.toast("rien à annuler"); return; }
     M.patch({ graph: h.before });
     paintUndo();
-    paintGraph();
+    paintVue();
     M.toast("annulé : " + h.label);
   }
 
@@ -1290,7 +1901,12 @@
       naissance = editTrs(next, procId, field, rawValue);
     }
     setGraph(next, field);
-    if (field === "kind") paintGraph();
+    /* `kind` change la STRUCTURE : la vue ACTIVE se repeint entière — la
+       liste par `paintGraph()`, le canvas par `paintCanvas()`. La dispatche
+       est écrite ici plutôt qu'appelée : c'est ce chemin-là que le pin de
+       source de la 2a lit, et il doit continuer à nommer le peintre de la
+       liste qu'il vérifie. */
+    if (field === "kind") { if (VUE === "canvas") paintCanvas(); else paintGraph(); }
     else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) paintRow(procId, field);
     else paintCost();
   }
@@ -1637,7 +2253,7 @@
         delete JOBS[r.proc.id];
         delete SEEN[r.proc.id];
       });
-      paintGraph();
+      paintVue();
     } finally {
       build3d.busy = false;
       if (btn) btn.disabled = false;

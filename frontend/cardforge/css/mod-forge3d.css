@@ -6,7 +6,8 @@
 .cf-forge3d .cf-forge3d-lay { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-lay img { width: 44px; height: 62px; object-fit: contain; background: repeating-conic-gradient(rgba(128,128,128,0.18) 0% 25%, transparent 0% 50%) 0 0 / 10px 10px; }
 
-/* ── le graphe : une liste de rangs, pas un canvas nodal (Task 5) ────────── */
+/* ── le graphe, vue LISTE : une liste de rangs (le repli sans pointeur, et
+      le support des pins de source 2a/2b — la vue canvas est en dessous) ─── */
 .cf-forge3d .cf-forge3d-row { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-bottom: 1px dashed var(--stroke); }
 .cf-forge3d .cf-forge3d-row:last-child { border-bottom: none; }
 .cf-forge3d .cf-forge3d-line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -64,6 +65,70 @@
 .cf-forge3d .cf-forge3d-ignored li { padding: 1px 0; }
 .cf-forge3d .cf-forge3d-elems { margin: 4px 0 0; padding-left: 18px; }
 .cf-forge3d .cf-forge3d-elems li { padding: 1px 0; font-size: 11px; color: var(--ink-muted); }
+
+/* ═══ LE CANVAS NODAL (2c, spec 5.6) ══════════════════════════════════════
+   Sobre et EN JETONS : rien de litteral ici, la feuille suit le theme clair
+   comme le reste du lab. Le quadrillage est un reperage, pas un decor — il
+   doit disparaitre a l'œil des qu'on lit un nœud.
+   `touch-action: none` (spec 9.6-3) : sans lui, un glisser au doigt fait
+   defiler la page sous le nœud qu'on croit tenir. */
+.cf-forge3d .cf-forge3d-canvas {
+  position: relative; overflow: hidden; height: 460px;
+  border: 1px solid var(--stroke); border-radius: 10px;
+  background-color: var(--bg-panel-3, #14141a);
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--stroke) 55%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in srgb, var(--stroke) 55%, transparent) 1px, transparent 1px);
+  /* le pas et l'origine sont REPRIS par la camera (appliqueCam) : le
+     quadrillage doit glisser avec les nœuds, pas rester cloue. */
+  background-size: 24px 24px; background-position: 20px 20px;
+  touch-action: none; user-select: none; cursor: grab;
+}
+.cf-forge3d .cf-forge3d-canvas:active { cursor: grabbing; }
+/* LE MONDE — c'est LUI que la camera translate et met a l'echelle ; la
+   surface, elle, ne bouge jamais (c'est la fenetre). */
+.cf-forge3d .cf-forge3d-monde {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0;
+  will-change: transform;
+}
+/* les surcouches ne suivent PAS la camera : un bouton qui retrecit au zoom
+   arriere serait injoignable au moment ou on en a le plus besoin. */
+.cf-forge3d .cf-forge3d-surcouche { position: absolute; z-index: 2; }
+.cf-forge3d .cf-forge3d-vide { left: 12px; top: 12px; right: 12px; }
+.cf-forge3d .cf-forge3d-outils { right: 10px; bottom: 10px; display: flex; gap: 6px; }
+
+/* les aretes : UNE couche SVG, SOUS les nœuds (ordre du DOM) et sourde aux
+   evenements — sans quoi elle volerait les clics des nœuds qu'elle croise. */
+.cf-forge3d .cf-forge3d-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.cf-forge3d .cf-forge3d-edge { fill: none; stroke: var(--stroke-strong); stroke-width: 1.5; }
+
+/* UN NŒUD — carte sobre ; la largeur est le MIROIR de NOEUD_W (mod-forge3d.js)
+   et la mi-hauteur de l'en-tete celui de PORT_Y : c'est de la que partent les
+   aretes, les deux valeurs doivent rester d'accord. */
+.cf-forge3d .cf-forge3d-noeud {
+  position: absolute; width: 200px;
+  background: var(--bg-panel); border: 1px solid var(--stroke-strong);
+  border-radius: 8px; overflow: hidden;
+}
+.cf-forge3d .cf-forge3d-noeud.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 32%, transparent);
+}
+/* l'en-tete EST la poignee (le corps garde ses champs) : curseur contextuel
+   et zone de saisie bien au-dela des 12 px de la spec 9.6-3. */
+.cf-forge3d .cf-forge3d-tete {
+  display: flex; align-items: center; gap: 6px; height: 34px;
+  padding: 0 9px; cursor: move;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2);
+}
+.cf-forge3d .cf-forge3d-kind-l { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
+.cf-forge3d .cf-forge3d-titre { font-size: 11px; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* le CORPS n'est pas une poignee : curseur neutre, et la selection de texte
+   y redevient possible (la surface la coupe pour que le glisser du fond ne
+   surligne pas la moitie de l'ecran) — les champs de la Task 3 en auront
+   besoin. */
+.cf-forge3d .cf-forge3d-corps { padding: 8px 9px; min-height: 48px; cursor: default; user-select: text; }
+.cf-forge3d .cf-forge3d-corps .hint { margin: 0; }
 
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
 .cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }
