@@ -369,6 +369,24 @@ git commit -m "feat(cardforge): corps de noeuds - menus reutilises tels quels, v
 
 ### Task 4: Les connexions à la souris + le kind `export` (miroir)
 
+> **CLOSE (9418a50 + cec5042, re-revue APPROUVÉE).** La GRAMMAIRE est UNE table
+> à trois lecteurs (validation, ports DÉRIVÉS, texte du toast) et l'acyclicité
+> est PROUVÉE par sa structure de rangs. Correctifs de revue : **un maillon
+> n'appartient qu'à une chaîne** (cible déjà prise = refus AVANT écriture —
+> le partage acceptait exactement le lien qui faisait qu'une rangée jamais
+> touchée cessait d'être construite en silence ; le mutant retournait un
+> graphe, la preuve accept-puis-avoue) ; le contrôle ne s'aveugle plus sur une
+> chaîne sans couche (marche amont vers le proc + rowModel) ; « couper puis
+> rebrancher » vérifié fonctionnel (aucun geste légitime coûté) ;
+> export_formats épinglé ; commentaires ramenés au vrai (le `in` de tuple ne
+> hache pas). 35 cas de banc, 10/10 mutants + contrôle survivant, ports au
+> pixel (calc − bord). **Reports T5** : l'éventail résiduel t1→m9 (accepté,
+> honnête à l'écran « matière hors chaîne » — la palette le rendra trivial,
+> décider refus-ou-état) ; la sélection d'arête vs SEL (asymétrie à trancher
+> avec l'inspecteur) ; une phrase au commentaire CHAIN_MAX (garde d'API brute
+> seulement). **Reports T7** : empilement des zones de saisie aux convergences,
+> port 14 px sous z≈0,86, ressenti du fil, bouton sur arête courte.
+
 **Files:** mod-forge3d.js, mod-forge3d.css, forge3d.py, test_cards_forge3d.py.
 (La feuille s'ajoute à la liste du plan : la Task 4 est ce qui PAIE la dette
 CSS nommée en Task 2 — zone de saisie des arêtes et pastilles de ports.)
