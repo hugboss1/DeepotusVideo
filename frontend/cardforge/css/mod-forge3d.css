@@ -72,7 +72,34 @@
    doit disparaitre a l'œil des qu'on lit un nœud.
    `touch-action: none` (spec 9.6-3) : sans lui, un glisser au doigt fait
    defiler la page sous le nœud qu'on croit tenir. */
+/* ── LA PALETTE (Task 5) — CE QUI PEUT NAITRE ──────────────────────────────
+   Une BARRE, pas une surcouche : elle porte des <select>, et un menu deroule
+   par-dessus une surface qui se deplace au glisser serait un piege. Elle se
+   replie (`flex-wrap`) plutot que de deborder — le lab s'ouvre a 320 px de
+   large sur un panneau lateral. */
+.cf-forge3d .cf-forge3d-palette {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  margin-bottom: 8px; padding: 6px 8px;
+  border: 1px solid var(--stroke); border-radius: 8px;
+  background: var(--bg-panel-2);
+}
+.cf-forge3d .cf-forge3d-palette select { font: inherit; font-size: 11px; }
+/* le PLAFOND, toujours lisible — pousse a droite, encre discrete tant qu'il
+   n'est pas atteint (`.cf-forge3d-trop` prend le relais quand il l'est). */
+.cf-forge3d .cf-forge3d-pal-compte { margin-left: auto; font-size: 10.5px; color: var(--ink-soft); }
+
+/* ── LA SCENE : la surface ET son inspecteur ───────────────────────────────
+   Les deux vont ensemble (le panneau n'a de sujet que par la selection, la
+   selection n'existe que sur la surface). En dessous de 720 px la colonne
+   passe SOUS le canvas plutot que de l'ecraser : un canvas de 180 px de large
+   ne serait plus une surface de travail. */
+.cf-forge3d .cf-forge3d-scene { display: flex; gap: 10px; align-items: stretch; }
+@media (max-width: 720px) {
+  .cf-forge3d .cf-forge3d-scene { flex-wrap: wrap; }
+  .cf-forge3d .cf-forge3d-inspecteur { flex-basis: 100%; }
+}
 .cf-forge3d .cf-forge3d-canvas {
+  flex: 1 1 auto; min-width: 0;
   position: relative; overflow: hidden; height: 460px;
   border: 1px solid var(--stroke); border-radius: 10px;
   background-color: var(--bg-panel-3, #14141a);
@@ -263,6 +290,60 @@
 /* le kind `plane` EST un plan pose dans l'espace : une legere perspective le
    dit d'un coup d'œil, la ou le relief le dira par son ombre d'emboss. */
 .cf-forge3d .cf-forge3d-thumb.cf-forge3d-plan { transform: perspective(340px) rotateY(-14deg); }
+
+/* ── L'INSPECTEUR (Task 5) — LE PREMIER DES DEUX CONTEXTES WebGL ───────────
+   Une colonne etroite a cote de la surface : elle montre LE nœud designe, pas
+   la scene entiere. Sa hauteur est celle du canvas (460 px, le meme chiffre
+   des deux cotes du flex) pour que la ligne du bas des deux boites coincide —
+   c'est ce qui fait lire « un panneau DE la surface » et non « deux blocs ».
+   `min-width: 0` : sans lui, un motif de refus un peu long (le backend en
+   ecrit) pousserait la colonne et retrecirait le canvas. */
+.cf-forge3d .cf-forge3d-inspecteur {
+  flex: 0 0 232px; min-width: 0; height: 460px;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px; box-sizing: border-box;
+  border: 1px solid var(--stroke); border-radius: 10px;
+  background: var(--bg-panel);
+}
+.cf-forge3d .cf-forge3d-insp-tete { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+.cf-forge3d .cf-forge3d-insp-tete .mono { font-size: 10.5px; color: var(--ink-soft); overflow: hidden; text-overflow: ellipsis; }
+/* la boite du viewer : elle PREND ce qui reste, et ne s'effondre pas quand le
+   panneau est vide (un cadre vide dit « ici, un apercu », le vide ne dit
+   rien). */
+.cf-forge3d .cf-forge3d-insp-view {
+  flex: 1 1 auto; min-height: 150px; overflow: hidden;
+  border: 1px solid var(--stroke); border-radius: 8px;
+  background: var(--bg-panel-3, #14141a);
+}
+.cf-forge3d .cf-forge3d-insp-view model-viewer { width: 100%; height: 100%; display: block; }
+/* les etats de l'inspecteur : lisibles, et bornes en hauteur — un motif de
+   refus ne doit pas pousser le viewer hors du panneau. */
+.cf-forge3d #cf-forge3d-insp-etat,
+.cf-forge3d #cf-forge3d-insp-avoues {
+  margin: 0; font-size: 10.5px; max-height: 84px; overflow: auto;
+}
+.cf-forge3d #cf-forge3d-insp-avoues .mono { display: block; color: var(--ink-soft); }
+/* LE ROUGE EST RESERVE AUX PANNES. « ce nœud n'a pas d'apercu » est un ETAT
+   (le backend le NOMME) : le peindre en rouge apprendrait a craindre un
+   ecran qui fonctionne. Seuls un transport coupe et un 5xx y ont droit. */
+.cf-forge3d .cf-forge3d-insp-ko { color: var(--red); }
+
+/* ── LE NŒUD ARTEFACT (Task 5) : LE VIEWER DU RESULTAT, DEDANS ─────────────
+   C'est le SECOND contexte WebGL, et le meme element que la section
+   « Apercu » — il DEMENAGE de l'un a l'autre (poseViewer), il ne se
+   duplique pas. La hauteur est fixe : un viewer sans hauteur declaree se
+   replie a zero. */
+.cf-forge3d .cf-forge3d-art-view {
+  height: 150px; margin: 6px 0; overflow: hidden;
+  border: 1px solid var(--stroke); border-radius: 6px;
+  background: var(--bg-panel-3, #14141a);
+}
+.cf-forge3d .cf-forge3d-art-view model-viewer { width: 100%; height: 100%; display: block; }
+.cf-forge3d .cf-forge3d-art-view .empty-note { padding: 8px 4px; font-size: 10.5px; }
+/* une ligne de fichier livre dans 200 px de nœud : elle se replie au lieu de
+   pousser le bouton dehors. */
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-file { flex-wrap: wrap; gap: 4px; font-size: 10.5px; }
+.cf-forge3d .cf-forge3d-corps .cf-forge3d-ignored { padding-left: 14px; font-size: 10px; }
 
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
 .cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }

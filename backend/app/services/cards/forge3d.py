@@ -2686,6 +2686,84 @@ async def get_material_thumb(did: str, mid: str):
                     headers={"Cache-Control": "no-store"})
 
 
+# ── L'APERCU D'UN NOEUD, SERVI PAR PROVENANCE (Task 5, 2c) ─────────────────
+# LISTE BLANCHE, PAS UN MOTIF — et c'est la seule chose qui compte ici. Le
+# dossier durable d'un noeud (`nodes/{nid}/`) porte `job.json` (l'etat interne :
+# `run_id`, credits consommes, motif d'echec), `model.glb` et les TEXTURES
+# rapatriees du moteur, c'est-a-dire des octets PAYES. Seul l'apercu est un
+# affichage public. Un motif de nom — meme celui de `get_file`,
+# `^[A-Za-z0-9._-]{1,90}$` — aurait ouvert le dossier ENTIER a la premiere
+# lettre pres ; une liste, elle, ne peut pas deriver : ajouter un fichier au
+# dossier n'ajoute rien a la surface publique tant que personne ne l'ecrit ici.
+# La table porte AUSSI le type de contenu : le jour ou un second nom s'ajoute,
+# son media-type s'ajoute avec lui, jamais deduit d'une extension a cote.
+_NODE_FILES_PUBLICS = {"preview.png": "image/png"}
+
+
+@router.get("/node-file/{nid}/{name}")
+async def get_node_file(did: str, nid: str, name: str):
+    """La vignette d'apercu d'un noeud moteur, telle que le job l'a rapatriee.
+
+    MANQUE REMONTE EN TASK 3, OUVERT ICI PAR DECISION DU CONTROLEUR : un job
+    meshy ecrit bien `nodes/{nid}/preview.png` (`_run_mesh3d`), mais aucune
+    route ne le servait — `GET /file/{name}` interdit le separateur, donc rien
+    sous `nodes/` n'etait atteignable. L'ecran prenait la branche « a defaut »
+    du plan (pictogramme moteur + etat lu) plutot que d'ouvrir une surface
+    d'API en douce.
+
+    CONFINEMENT : `_NID_RE` d'abord (il refuse le separateur ET les noms qui ne
+    sont que des points — `..` n'est pas un nom de dossier, c'est un SAUT),
+    puis `_node_dir`, qui re-verifie le parent apres `resolve()`. Ceinture et
+    bretelles, la doctrine de `contract.deck_dir`.
+
+    LES OCTETS SONT LUS ICI, jamais servis par `FileResponse` — ECART ASSUME
+    au point impose du plan, pour la raison DEJA ecrite deux fonctions plus
+    haut (`get_material_thumb`, M3) et dans `get_file` : `FileResponse`
+    RE-STAT le fichier au moment de l'ENVOI, donc APRES ce controle. Ici la
+    fenetre n'est pas theorique — le dossier d'un noeud est `rmtree`
+    INTEGRALEMENT a chaque relance (`post_mesh3d`), donc une relance
+    concurrente entre le controle et l'envoi ferait lever RuntimeError, c'est-
+    a-dire un 500 sur la doctrine « jamais-500 » de cette piece. Et le motif
+    de `node-preview` (qui, lui, GARDE `FileResponse`) ne s'applique pas : la
+    il s'agit d'un GLB de 32 Mio qu'on refuse de charger en RAM avant de
+    repondre ; ici, d'une vignette. Deux dangers differents, deux reponses
+    differentes."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
+    if not _NID_RE.match(nid or ""):
+        raise HTTPException(400, "Identifiant de noeud invalide")
+    media = _NODE_FILES_PUBLICS.get(name or "")
+    if media is None:
+        raise HTTPException(
+            400, f"fichier non public : {name!r} — seul l'aperçu du noeud est "
+                 f"servi ({', '.join(sorted(_NODE_FILES_PUBLICS))})")
+
+    def work() -> bytes | None:
+        try:
+            p = _node_dir(did, nid) / name
+        except HTTPException:
+            return None
+        if not p.is_file():
+            return None
+        try:
+            return p.read_bytes()
+        except OSError:
+            return None
+
+    data = await asyncio.to_thread(work)
+    if data is None:
+        raise HTTPException(404, f"aucun aperçu sur ce noeud ({nid})")
+    # `no-store` : un apercu CHANGE sous le meme nom (une relance le reecrit
+    # apres avoir efface le dossier) — le figer en cache ferait afficher le
+    # modele d'avant a cote de l'etat d'apres.
+    return Response(content=data, media_type=media,
+                    headers={"Cache-Control": "no-store"})
+
+
 @router.post("/preview/{art}")
 async def post_preview(did: str, art: str, request: Request):
     """Reçoit la capture d'aperçu du navigateur (model-viewer `.toBlob()`) et

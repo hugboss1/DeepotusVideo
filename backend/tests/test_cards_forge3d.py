@@ -3962,6 +3962,65 @@ def test_material_thumb_est_servi_par_provenance():
         MSTORE.delete_material(mat["id"])
 
 
+def test_node_file_sert_l_apercu_d_un_noeud_par_liste_blanche():
+    """L'APERCU d'un noeud, servi par provenance (Task 5, 2c) — le manque
+    REMONTE au controleur en Task 3 : `nodes/{nid}/preview.png` n'etait
+    atteignable par AUCUNE route (`GET /file/{name}` interdit le separateur),
+    et la vignette d'un noeud moteur prenait la branche « a defaut ».
+
+    Ce qui est mesure ici : la LISTE BLANCHE (le dossier d'un noeud porte
+    aussi `job.json` et des textures PAYEES — seul l'apercu est un affichage
+    public), le confinement (un nid en forme de saut ne sort pas du dossier
+    des noeuds) et les refus NOMMES."""
+    did = _deck("Apercu de noeud")
+    _job_servi(did, "m1", _glb_ferme(), closed=True)
+    d = _dossier_noeud(did, "m1")
+    (d / "preview.png").write_bytes(
+        _png(Image.new("RGBA", (8, 8), (7, 9, 11, 255))))
+    r = _api("GET", f"/api/cards/{did}/forge3d/node-file/m1/preview.png")
+    assert r.status_code == 200, r.text
+    assert r.headers["content-type"].startswith("image/png")
+    # un apercu CHANGE sous le meme nom (une relance le reecrit) : le cache
+    # n'a pas le droit de le figer.
+    assert r.headers.get("cache-control") == "no-store"
+    assert r.content == (d / "preview.png").read_bytes()
+
+    # absent -> 404 NOMME (une reponse, pas une panne : le moteur n'en a pas
+    # rapatrie, ou le noeud n'a jamais tourne)
+    r2 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m2/preview.png")
+    assert r2.status_code == 404, r2.text
+    assert "m2" in r2.json()["detail"]
+
+    # HORS LISTE BLANCHE -> 400 NOMME. `job.json` est le cas qui compte : il
+    # est LISIBLE (JSON), il porte l'etat interne du noeud, et un motif de nom
+    # a la `get_file` l'aurait servi sans un mot.
+    r3 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m1/job.json")
+    assert r3.status_code == 400, r3.text
+    assert "job.json" in r3.json()["detail"]
+    assert (d / "job.json").is_file(), "le fichier existe : c'est bien la " \
+        "liste blanche qui refuse, pas l'absence"
+
+    # un nid en FORME DE SAUT -> 400 (le motif `_NID_RE` refuse le
+    # separateur ET les noms qui ne sont que des points ; `_node_dir` est la
+    # ceinture par-dessus les bretelles)
+    for saut in ("..%5Cx", "%2E%2E", "a%2Fb"):
+        r4 = _api("GET",
+                  f"/api/cards/{did}/forge3d/node-file/{saut}/preview.png")
+        assert r4.status_code in (400, 404), (saut, r4.status_code, r4.text)
+        assert r4.status_code != 200, saut
+    # ... et le refus du nid est bien un 400 quand la route est ATTEINTE
+    # (un seul segment, hors charset)
+    r5 = _api("GET", f"/api/cards/{did}/forge3d/node-file/..%5Cx/preview.png")
+    assert r5.status_code == 400, r5.text
+
+    # deck invalide / inconnu : les memes gardes que toute la piece
+    r6 = _api("GET", "/api/cards/pas-un-deck/forge3d/node-file/m1/preview.png")
+    assert r6.status_code == 400, r6.text
+    r7 = _api("GET",
+              "/api/cards/deck_00000000/forge3d/node-file/m1/preview.png")
+    assert r7.status_code == 404, r7.text
+
+
 def test_le_canvas_est_la_projection_du_meme_graphe():
     """Test de SOURCE (phase 2c, Task 2) : le canvas nodal est une VUE du
     MEME graphe, jamais un second modele. Ce qui est epingle ici :
@@ -4402,6 +4461,171 @@ def test_les_connexions_valident_la_grammaire_a_l_arete():
     assert "cf-forge3d-edge-hit" in ogc, ogc
 
 
+def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
+    """Test de SOURCE (phase 2c, Task 5) : l'inspecteur partage, le nœud
+    artefact, les nœuds d'export et la palette. Ce qui est epingle ici :
+
+      · DEUX contextes WebGL, PAS TROIS — l'inspecteur (le nœud selectionne)
+        et le viewer du RESULTAT (monte DANS le nœud artefact, deplace depuis
+        la section « Apercu » quand le canvas est a l'ecran) ;
+      · l'inspecteur POSTe `node-preview` par `M.api.raw` (le detail litteral
+        d'un refus est perdu par `M.api.blob`), sous garde de GENERATION,
+        DEBOUNCE — un balayage de selection ne doit pas mettre N constructions
+        en file — et les aveux du GLB (`extras.ignored`) sont RENDUS ;
+      · le nœud artefact porte son nom, « Construire », « figer l'apercu » et
+        le RESUME du bordereau ; les nœuds d'export lisent
+        `graph_limits.export_formats` et disent l'etat de CHAQUE format au
+        motif LITTERAL (jamais un nœud muet) ;
+      · la palette fait NAITRE — une entree d'annulation par naissance — et
+        REFUSE un maillon flottant : matiere et placement exigent un
+        traitement SELECTIONNE et naissent CONNECTES (report T4) ;
+      · le plafond `max_elements` est NOMME avant que le backend ne refuse ;
+      · designer une arete LACHE la selection de nœud, et l'inspecteur le dit
+        (report T4 : l'asymetrie arete/SEL, tranchee)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # ── L'INSPECTEUR : UN SEUL, ET IL LIT LE BACKEND ─────────────────────
+    assert 'id="cf-forge3d-inspecteur"' in rendu
+    corps = rendu.split("async function inspecte(")[1].split("\n  }")[0]
+    assert "node-preview" in corps, corps
+    assert "M.api.raw" in corps, corps
+    # la garde de GENERATION apres CHAQUE await (doctrine du fichier) : un
+    # apercu du deck (ou de la carte) precedent ne se monte pas dans l'ecran
+    # du suivant. Invariant, pas compte fige.
+    assert corps.count("gen !== GEN") >= corps.count("await "), corps
+    # ... et la garde du RETOUR RESEAU porte bien la GENERATION, pas seulement
+    # le jeton d'inspection. Les deux ne couvrent PAS la meme chose : le jeton
+    # avance quand le SUJET change (une autre selection), `GEN` quand la CARTE
+    # ou le DECK change — et une carte qui change pendant la construction
+    # ferait peindre l'apercu des couches d'HIER. Le pin d'invariant
+    # ci-dessus a une unite de jeu (le `catch` porte une garde lui aussi) :
+    # celui-ci vise la zone exacte.
+    reseau = corps.split("} catch (e) {", 1)[1].split("if (!r.ok)", 1)[0]
+    assert reseau.count("gen !== GEN") >= 2, reseau
+    # ... et un changement de CARTE lâche l'apercu, comme il lache les jobs :
+    # un GLB d'apercu est construit depuis LES COUCHES d'une carte precise.
+    cc = rendu.split("function cardChanged(")[1].split("\n  }")[0]
+    assert "videInspecteur(" in cc, cc
+    # ... et un JETON d'inspection en plus : deux clics rapides lancent deux
+    # requetes, la PREMIERE peut revenir en dernier. Sans jeton, l'inspecteur
+    # afficherait le nœud qu'on ne regarde plus.
+    assert "INSP_JETON" in corps, corps
+    # l'objectURL PRECEDENTE est revoquee (patron mountPreview) — une URL par
+    # selection retenue a vie serait une fuite lente
+    assert "revokeObjectURL" in corps, corps
+    # LE DEBOUNCE : la note de concurrence du relecteur T1. Il vit dans le
+    # DECLENCHEUR, pas dans la requete.
+    maj = rendu.split("function majInspecteur(")[1].split("\n  }")[0]
+    assert "INSP_MS" in maj and "setTimeout" in maj, maj
+    ms = re.search(r"const INSP_MS = (\d+);", rendu)
+    assert ms and 120 <= int(ms.group(1)) <= 600, ms
+    # les AVEUX du GLB sont lus CLIENT (chunk JSON) et rendus
+    assert "function glbExtras(" in rendu
+    ge = rendu.split("function glbExtras(")[1].split("\n  }")[0]
+    assert "getUint32" in ge and "asset" in ge, ge
+    assert "ignored" in rendu.split("function inspAvoues(")[1].split("\n  }")[0]
+    # ── DEUX CONTEXTES WebGL, PAS TROIS ──────────────────────────────────
+    assert rendu.count('createElement("model-viewer")') == 2, \
+        rendu.count('createElement("model-viewer")')
+    # ── LE NŒUD ARTEFACT ─────────────────────────────────────────────────
+    assert "function artifactNodeHtml(" in rendu
+    art = rendu.split("function artifactNodeHtml(")[1].split("\n  }")[0]
+    assert "build3d" in art, art
+    assert "freeze" in art, art
+    assert 'data-field="name"' in art, art
+    # le RESUME du bordereau vit dans le nœud (poids, moteurs, credits,
+    # ignores) et il REUTILISE le rendu du bordereau de la section — deux
+    # ecritures des memes aveux auraient derive.
+    assert "bordereauHtml(" in art, art
+    bd = rendu.split("function bordereauHtml(")[1].split("\n  }")[0]
+    assert "weight(" in bd and "ignoresHtml(" in bd, bd
+    pa = rendu.split("function paintArtifact(")[1].split("\n  }")[0]
+    assert "ignoresHtml(" in pa, pa
+    # le viewer du RESULTAT est monte DANS le nœud : `mountPreview` prend son
+    # hote en parametre (le retarget du plan), il n'est plus cloue a la section
+    mp = rendu.split("async function mountPreview(")[1].split("\n  }")[0]
+    assert "hoteApercu(" in mp or "hote" in mp, mp
+    ha = rendu.split("function hoteApercu(")[1].split("\n  }")[0]
+    assert "cf-forge3d-art-view" in ha, ha
+    # ── LES NŒUDS D'EXPORT ───────────────────────────────────────────────
+    assert "function exportNodeHtml(" in rendu
+    exp = rendu.split("function exportNodeHtml(")[1].split("\n  }")[0]
+    assert "grabZip(" in rendu or "M.api.blob" in rendu
+    # les formats viennent du CONTRAT, jamais recopies ici
+    ef = rendu.split("function exportFormats(")[1].split("\n  }")[0]
+    assert "export_formats" in ef, ef
+    assert "exportFormats(" in exp, exp
+    # l'etat de CHAQUE format, au motif LITTERAL — et jamais une erreur quand
+    # rien n'est construit : c'est un ETAT.
+    et = rendu.split("function exportEtatHtml(")[1].split("\n  }")[0]
+    assert "stl" in et and "why" in et, et
+    assert "construis" in et, et
+    # le corps d'un nœud NE REEMET PAS ses ports (ils vivent dehors) : sinon
+    # `paintNode` en poserait deux jeux au premier champ edite.
+    nb = rendu.split("function nodeBodyHtml(")[1].split("\n  }")[0]
+    assert "portsHtml(" not in nb, nb
+    assert "artifactNodeHtml(" in nb and "exportNodeHtml(" in nb, nb
+    # ── LA PALETTE ───────────────────────────────────────────────────────
+    assert 'id="cf-forge3d-palette"' in rendu
+    pal = rendu.split("function paletteHtml(")[1].split("\n  }")[0]
+    # le plafond est NOMME avant le refus du backend, et le chiffre vient du
+    # contrat (jamais recopie)
+    assert "max_elements" in pal, pal
+    # une naissance = UNE entree d'annulation (setGraph), jamais deux patches
+    for fn in ("function naitCouche(", "function naitProc(",
+               "function naitMaillon(", "function naitExport("):
+        bloc = rendu.split(fn)[1].split("\n  }")[0]
+        assert bloc.count("setGraph(") == 1, (fn, bloc)
+        assert "M.patch" not in bloc, (fn, bloc)
+    # REPORT T4, TRANCHE : la palette REFUSE un maillon flottant — matiere et
+    # placement exigent un traitement SELECTIONNE, et l'arete est posee DANS
+    # la meme naissance (ne pas laisser un nœud mort que le bordereau
+    # denoncerait). Le refus emprunte les MOTS du bordereau (`surnumeraire`).
+    nm = rendu.split("function naitMaillon(")[1].split("\n  }")[0]
+    assert "SEL" in nm, nm
+    assert "surnumeraire(" in nm, nm
+    # ... et le cablage passe par l'ecrivain de chaine EXISTANT (editMat/
+    # editTrs -> rewireRow), pas par une seconde recette d'aretes
+    assert "editMat(" in nm and "editTrs(" in nm, nm
+    # « + export » exige l'artefact et le cable a lui
+    ne = rendu.split("function naitExport(")[1].split("\n  }")[0]
+    assert "artifact" in ne, ne
+    # ── L'ARETE ET LA SELECTION (report T4, tranche) ─────────────────────
+    sa = rendu.split("function selectionneArete(")[1].split("\n  }")[0]
+    assert "SEL = null" in sa, sa
+    assert "majInspecteur(" in sa, sa
+    assert "arête" in rendu
+    # ── LES GARDES 2b RESTENT ────────────────────────────────────────────
+    pcv = rendu.split("function paintCanvas(")[1].split("\n  }")[0]
+    assert "paintCost(" in pcv, pcv
+    assert "sondeMoteurs(" in pcv, pcv
+    # ── CHAIN_MAX : la clause du report T4 ───────────────────────────────
+    # Le commentaire est lu dans le SOURCE (pas dans `rendu`, qui est
+    # justement le fichier sans ses commentaires) : la borne est une garde
+    # d'API BRUTE, pas une regle que cet ecran pourrait rencontrer.
+    cm = src.split("const CHAIN_MAX")[0].rsplit("/*", 1)[-1]
+    assert "api brute" in cm.lower(), cm
+    # ── LA FEUILLE ───────────────────────────────────────────────────────
+    feuille = CSS.read_text(encoding="utf-8")
+    for sel in (".cf-forge3d .cf-forge3d-scene {",
+                ".cf-forge3d .cf-forge3d-palette {",
+                ".cf-forge3d .cf-forge3d-art-view {",
+                ".cf-forge3d .cf-forge3d-insp-view {"):
+        assert sel in feuille, sel
+    # LE SELECTEUR NE SUFFIT PAS ICI, et c'est un mutant qui l'a montré :
+    # `.cf-forge3d-inspecteur` apparaît AUSSI dans la requête de média (la
+    # colonne passe sous le canvas en étroit), donc un pin par sous-chaîne
+    # survit à la disparition de la règle PRINCIPALE. On mesure ce que la
+    # règle DIT — la largeur de la colonne.
+    corps_insp = re.findall(
+        r"\.cf-forge3d \.cf-forge3d-inspecteur \{([^}]*)\}", feuille)
+    assert any("flex: 0 0" in c for c in corps_insp), feuille
+    # ... et un viewer sans hauteur declaree se replie a zero : l'hote du
+    # resultat DOIT en porter une.
+    av = re.search(r"\.cf-forge3d \.cf-forge3d-art-view \{([^}]*)\}", feuille)
+    assert av and "height:" in av.group(1), feuille
+
+
 # ── LE HARNAIS DE CHAINES (2c Task 4) ────────────────────────────────────
 # Les pins de source disent QUE le code appelle ; ils ne disent pas CE QU'IL
 # REND. Le harnais fait tourner les fonctions PURES du module — les vraies,
@@ -4625,6 +4849,378 @@ def _banc_chaines(tmp_path) -> list:
                        encoding="utf-8", timeout=120)
     assert r.returncode == 0, r.stderr[-3000:]
     return json.loads(r.stdout)
+
+
+_BANC_PALETTE = r"""
+/* ── LE PILOTE (2c Task 5) ────────────────────────────────────────────────
+   Il n'ecrit AUCUNE logique du module : il pose les STUBS de ce que le module
+   lit du CORE (le document, le jeton `M`, les peintres) et interroge les
+   VRAIES fonctions, extraites du fichier livre. */
+const out = [];
+const dit = (nom, ok, detail) => out.push(
+  { nom: nom, ok: !!ok, detail: detail === undefined ? null : detail });
+const J = (x) => JSON.stringify(x);
+
+/* 1. LA PALETTE NE FAIT PAS NAITRE DE MAILLON FLOTTANT (report T4, tranche) */
+INFO = { graph_limits: { max_elements: 12,
+                         export_formats: ["glb", "stl", "metadata", "preview"] },
+         materials: [{ id: "aaa", name: "gres" }],
+         material_limits: { tile_mm: [10, 200], finishes: ["aucune", "argent"] },
+         transform_limits: { xy_mm: [-100, 100], z_mm: [0, 10],
+                             rot_deg: [-180, 180], scale: [0.1, 4] },
+         mesh3d: { engines: [], default_engine: "meshy-7", has_meshy: false } };
+LAST_MANIFEST = { side: "front",
+                  layers: [{ role: "cadre" }, { role: "illustration" },
+                           { role: "typographie" }] };
+const NU = { nodes: [
+  { id: "s1", kind: "layer", role: "cadre", side: "front" },
+  { id: "t1", kind: "plane", depth_mm: 0.35 },
+  { id: "asm", kind: "assemble" },
+  { id: "art", kind: "artifact", name: "carte3d" },
+], edges: [{ from: "s1", to: "t1" }, { from: "t1", to: "asm" },
+           { from: "asm", to: "art" }] };
+DOC_GRAPH = NU;
+const raz = () => { TOASTS.length = 0; PATCHES.length = 0; HIST.length = 0; };
+
+SEL = null;
+raz();
+naitMaillon("material");
+dit("sans traitement designe, « + matiere » n'ECRIT rien",
+    PATCHES.length === 0 && TOASTS.length === 1, J(TOASTS));
+dit("... et le refus dit QUOI FAIRE, il ne se contente pas de refuser",
+    /d[eé]signe d'abord/i.test(TOASTS[0] || ""), TOASTS[0]);
+SEL = "asm";
+raz();
+naitMaillon("transform");
+dit("un nœud designe qui n'est pas un TRAITEMENT ne suffit pas",
+    PATCHES.length === 0 && TOASTS.length === 1, J(TOASTS));
+
+/* 2. AVEC un traitement designe, le maillon nait CONNECTE (jamais mort) */
+SEL = "t1";
+raz();
+naitMaillon("material");
+dit("une naissance = UNE entree d'annulation, un seul patch",
+    HIST.length === 1 && PATCHES.length === 1, J(HIST.map((h) => h.label)));
+const G = DOC_GRAPH;
+const r1 = rowModel(G, "t1");
+dit("la matiere nait DANS la chaine, et porte une vraie matiere (sinon "
+    + "clean_graph la jetterait)",
+    !!r1 && !!r1.mat && r1.mat.mat === "aaa", J(r1 && r1.mat));
+dit("... et la chaine rejoint TOUJOURS l'assemblage",
+    !!r1 && (G.edges || []).some((e) => e.from === r1.mat.id && e.to === "asm"),
+    J(G.edges));
+
+/* 3. UN SECOND MAILLON EST REFUSE AVANT L'ECRITURE, dans les mots du
+      bordereau (`surnumeraire`, la MEME phrase que le glisser de fil) */
+raz();
+naitMaillon("material");
+dit("une seconde matiere est refusee AVANT d'etre ecrite",
+    PATCHES.length === 0 && /surnum/.test(TOASTS[0] || ""), J(TOASTS));
+
+/* 4. LE PLACEMENT NAIT AU BOUT DE LA CHAINE, pas en eventail depuis le
+      traitement — c'est exactement le residu que la palette ne doit pas
+      rendre trivial */
+raz();
+naitMaillon("transform");
+const G2 = DOC_GRAPH;
+const r2 = rowModel(G2, "t1");
+dit("le placement nait dans la chaine", !!r2 && !!r2.trs, J(r2 && r2.trs));
+dit("... APRES la matiere, jamais en eventail depuis le traitement",
+    !!r2 && (G2.edges || []).some((e) => e.from === r2.mat.id && e.to === r2.trs.id)
+    && !(G2.edges || []).some((e) => e.from === "t1" && e.to === r2.trs.id),
+    J(G2.edges));
+dit("... et son z est celui de l'EMPILEMENT du plan, pas un zero",
+    !!r2 && r2.trs.z_mm === 0.35, J(r2 && r2.trs));
+
+/* 5. LE PLAFOND EST DIT AVANT QUE LE BACKEND NE REFUSE */
+INFO.graph_limits.max_elements = 3;
+DOC_GRAPH = { nodes: [
+  { id: "s1", kind: "layer", role: "cadre", side: "front" },
+  { id: "t1", kind: "plane" },
+  { id: "s2", kind: "layer", role: "illustration", side: "front" },
+  { id: "t2", kind: "plane" },
+  { id: "s3", kind: "layer", role: "typographie", side: "front" },
+  { id: "t3", kind: "plane" },
+  { id: "asm", kind: "assemble" },
+  { id: "art", kind: "artifact", name: "x" }],
+  edges: [{ from: "s1", to: "t1" }, { from: "s2", to: "t2" },
+          { from: "s3", to: "t3" }, { from: "t1", to: "asm" },
+          { from: "t2", to: "asm" }, { from: "t3", to: "asm" },
+          { from: "asm", to: "art" }] };
+dit("trois rangs", graphRows(DOC_GRAPH).length === 3,
+    graphRows(DOC_GRAPH).length);
+raz();
+naitProc();
+dit("au plafond, « + traitement » refuse AVANT le 400 du backend",
+    PATCHES.length === 0 && /maximum construisible est 3/.test(TOASTS[0] || ""),
+    J(TOASTS));
+dit("... et la palette le NOMME sans attendre le refus",
+    paletteHtml().indexOf("3 / 3 &eacute;l") >= 0
+    || paletteHtml().indexOf("3 / 3 él") >= 0, paletteHtml());
+INFO.graph_limits.max_elements = 12;
+
+/* 6. « + COUCHE » NE PROPOSE QUE CE QUI EST LIVRE ET PAS ENCORE SOURCE */
+DOC_GRAPH = NU;
+dit("les couches restantes sont celles du manifeste, moins les sources",
+    J(couchesRestantes(DOC_GRAPH)) === J(["illustration", "typographie"]),
+    J(couchesRestantes(DOC_GRAPH)));
+PAL.role = "typographie";
+raz();
+naitCouche();
+const G3 = DOC_GRAPH;
+const neuve = (G3.nodes || []).filter(
+  (n) => n.kind === "layer" && n.role === "typographie")[0];
+dit("« + couche » pose LA couche choisie, une seule ecriture",
+    HIST.length === 1 && !!neuve, J((G3.nodes || []).map((n) => n.id)));
+dit("... et elle nait LIBRE (une couche se relie au geste suivant)",
+    !!neuve && !(G3.edges || []).some(
+      (e) => e.from === neuve.id || e.to === neuve.id), J(G3.edges));
+
+/* 7. « + EXPORT » EXIGE L'ARTEFACT, ET SE CABLE A LUI */
+DOC_GRAPH = { nodes: [{ id: "asm", kind: "assemble" }], edges: [] };
+raz();
+naitExport();
+dit("sans nœud artefact, « + export » n'ecrit rien",
+    PATCHES.length === 0 && /artefact/.test(TOASTS[0] || ""), J(TOASTS));
+DOC_GRAPH = NU;
+PAL.format = "stl";
+raz();
+naitExport();
+const G4 = DOC_GRAPH;
+const ex = (G4.nodes || []).filter((n) => n.kind === "export")[0];
+dit("« + export » nait CONNECTE a l'artefact, au format choisi",
+    !!ex && ex.format === "stl"
+    && (G4.edges || []).some((e) => e.from === "art" && e.to === ex.id),
+    J(ex) + " " + J(G4.edges));
+
+/* 8. L'ETAT D'UN EXPORT — AU MOTIF LITTERAL, JAMAIS MUET */
+ARTIFACT = null;
+dit("sans build, un export dit « construis d'abord » (un ETAT, pas une erreur)",
+    exportEtatHtml("glb").indexOf("construis d'abord") >= 0,
+    exportEtatHtml("glb"));
+ARTIFACT = { elements: 2, glb: { name: "x.glb", bytes: 2048 },
+             metadata: { name: "x.json", bytes: 300 },
+             stl: { written: false,
+                    why: "solide non ferme : 4 aretes de bord" },
+             preview: { expected: "x_preview.png", written: false },
+             elements_detail: [
+               { name: "a", kind: "relief", node: "t1" },
+               { name: "b", kind: "mesh3d", node: "m1", engine: "meshy-7",
+                 credits: 30 }],
+             ignored: [{ node: "m9", why: "maillon surnumeraire" }] };
+dit("glb : le poids ET le bouton de telechargement",
+    exportEtatHtml("glb").indexOf("2.0 Kio") >= 0
+    && exportEtatHtml("glb").indexOf('data-act="grab-file"') >= 0,
+    exportEtatHtml("glb"));
+dit("stl refuse : le MOTIF du backend, mot pour mot",
+    exportEtatHtml("stl").indexOf("solide non ferme : 4 aretes de bord") >= 0,
+    exportEtatHtml("stl"));
+dit("... et AUCUN bouton de telechargement pour un fichier qui n'existe pas",
+    exportEtatHtml("stl").indexOf("grab-file") < 0, exportEtatHtml("stl"));
+dit("preview : attendu tant qu'il n'est pas fige, et NOMME",
+    /attendu/.test(exportEtatHtml("preview"))
+    && exportEtatHtml("preview").indexOf("x_preview.png") >= 0,
+    exportEtatHtml("preview"));
+ARTIFACT.preview = { expected: "x_preview.png", written: true, bytes: 4096 };
+dit("... et telechargeable une fois ecrit",
+    exportEtatHtml("preview").indexOf('data-act="grab-file"') >= 0,
+    exportEtatHtml("preview"));
+
+/* 9. LE RESUME DU BORDEREAU, DANS LE NŒUD ARTEFACT */
+const bd = bordereauHtml(ARTIFACT);
+dit("le resume dit poids, moteur et credits CONSOMMES",
+    bd.indexOf("2.0 Kio") >= 0 && bd.indexOf("meshy-7") >= 0
+    && bd.indexOf("30 cr") >= 0, bd);
+dit("... et les aveux du backend, mot pour mot",
+    bd.indexOf("maillon surnumeraire") >= 0, bd);
+dit("sans bordereau, il le DIT au lieu de se taire",
+    bordereauHtml(null).indexOf("rien de construit") >= 0,
+    bordereauHtml(null));
+
+/* 10. LE CORPS D'UN NŒUD ARTEFACT / EXPORT */
+DOC_GRAPH = G4;
+const corpsArt = nodeBodyHtml("art");
+dit("le nœud artefact porte son nom, Construire, figer et l'hote du viewer",
+    corpsArt.indexOf('data-field="name"') >= 0
+    && corpsArt.indexOf('data-act="build3d"') >= 0
+    && corpsArt.indexOf('data-act="freeze"') >= 0
+    && corpsArt.indexOf("cf-forge3d-art-view") >= 0, corpsArt);
+dit("... et l'edition s'ecrit A SON NOM (data-proc = lui-meme)",
+    corpsArt.indexOf('data-proc="art"') >= 0, corpsArt);
+dit("... sans vignette : le viewer EST son image",
+    corpsArt.indexOf("cf-forge3d-thumb") < 0, corpsArt);
+const corpsEx = nodeBodyHtml(ex.id);
+dit("le nœud d'export porte son format et l'etat de ce format",
+    corpsEx.indexOf('data-field="format"') >= 0
+    && corpsEx.indexOf("solide non ferme") >= 0, corpsEx);
+dit("... et AUCUN port (ils vivent hors du corps)",
+    corpsEx.indexOf("cf-forge3d-port") < 0, corpsEx);
+
+/* 11. LES FORMATS VIENNENT DU CONTRAT, ET SON ABSENCE SE DIT */
+dit("les formats sont ceux du contrat",
+    J(exportFormats()) === J(["glb", "stl", "metadata", "preview"]),
+    J(exportFormats()));
+INFO = { graph_limits: {}, materials: [] };
+dit("contrat absent : aucun format invente", exportFormats().length === 0);
+dit("... et le nœud le DIT au lieu d'un menu vide",
+    exportNodeHtml({ id: "e1", kind: "export", format: "glb" })
+      .indexOf("formats inconnus") >= 0,
+    exportNodeHtml({ id: "e1", kind: "export", format: "glb" }));
+
+/* 12. LES AVEUX D'UN VRAI GLB, LUS COTE CLIENT */
+const bin = Buffer.from(GLB_B64, "base64");
+const ab = bin.buffer.slice(bin.byteOffset, bin.byteOffset + bin.byteLength);
+const ex2 = glbExtras(ab);
+dit("les aveux se lisent dans le chunk JSON d'un VRAI GLB (octets du backend)",
+    !!ex2 && Array.isArray(ex2.ignored) && ex2.ignored.length === 1
+    && ex2.ignored[0].node === "m9", J(ex2));
+dit("le schema de l'apercu est celui de l'APERCU, pas d'un artefact",
+    !!ex2 && ex2.schema === "card-3d/apercu@1", J(ex2 && ex2.schema));
+dit("un octet inattendu ne leve pas : il rend null",
+    glbExtras(new ArrayBuffer(8)) === null && glbExtras(null) === null);
+
+/* 13. UN SEUL SUJET A LA FOIS (report T4, tranche) — mesure, pas promesse :
+      le NOM d'une fonction ne dit pas ce qu'elle lache. */
+DOC_GRAPH = NU;
+VUE = "canvas";
+ARETE = null; SEL = null; INSP_SUJET = "";
+NOMS.length = 0; ETATS.length = 0; INSPECTES.length = 0;
+selectionne("t1");
+dit("designer un nœud fait de LUI le sujet de l'inspecteur",
+    SEL === "t1" && INSP_SUJET === "n:t1", SEL + " / " + INSP_SUJET);
+dit("... et l'apercu est DIFFERE (debounce), jamais lance sur le champ",
+    INSPECTES.length === 0, J(INSPECTES));
+NOMS.length = 0; ETATS.length = 0; INSPECTES.length = 0;
+selectionneArete("s1", "t1");
+dit("designer une arete LACHE la selection de nœud", SEL === null, String(SEL));
+dit("... et l'inspecteur le DIT au lieu de se vider",
+    (NOMS[NOMS.length - 1] || "").indexOf("s1") >= 0
+    && (NOMS[NOMS.length - 1] || "").indexOf("t1") >= 0, J(NOMS));
+dit("... et ne construit RIEN (une arete n'est pas un element)",
+    INSPECTES.length === 0, J(INSPECTES));
+NOMS.length = 0;
+selectionne("t2");
+dit("... et reprendre un nœud lache l'arete, sans dependre de l'ordre "
+    + "des appels", ARETE === null && SEL === "t2" && INSP_SUJET === "n:t2",
+    J(ARETE) + " / " + SEL + " / " + INSP_SUJET);
+videInspecteur();   /* rend la minuterie : node n'a pas a attendre le debounce */
+
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+_BANC_PALETTE_PRELUDE = r"""
+/* LES STUBS — et RIEN QUE les stubs : ce que le module lit du CORE (le
+   document, le jeton `M`, les peintres du DOM). Toute la logique mesuree
+   ci-dessous est extraite du fichier LIVRE. */
+let DOC_GRAPH = null;
+let INFO = null, ARTIFACT = null, LAST_MANIFEST = null, SEL = null;
+let VUE = "canvas", PREVIEW_URL = null;
+const HIST = [];
+const TOASTS = [];
+const PATCHES = [];
+const M = {
+  toast: (t) => { TOASTS.push(String(t)); },
+  patch: (p) => {
+    PATCHES.push(p);
+    if (Object.prototype.hasOwnProperty.call(p, "graph")) DOC_GRAPH = p.graph;
+  },
+};
+function get(k) { return (k === "graph") ? DOC_GRAPH : null; }
+function $() { return null; }          /* aucun DOM : les peintres s'arretent */
+function paintVue() {}
+function paintUndo() {}
+function paintNodeThumb() {}
+function paintCost() {}
+function build3d() {}
+build3d.busy = false;
+/* ce que l'inspecteur DIT et ce qu'il CONSTRUIT, enregistres au lieu d'etre
+   peints ou postes — c'est la seule facon de mesurer un panneau sans DOM. */
+const NOMS = [];
+const ETATS = [];
+const INSPECTES = [];
+function inspNom(t) { NOMS.push(String(t == null ? "" : t)); }
+function inspEtat(t) { ETATS.push(String(t == null ? "" : t)); }
+function inspAvoues() {}
+function inspecte(nid) { INSPECTES.push(nid); }
+"""
+
+
+def _banc_palette(tmp_path, glb_b64: str) -> list:
+    """Fait tourner les VRAIES fonctions de palette / d'export / de bordereau
+    de `mod-forge3d.js` — jamais une reecriture."""
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le harnais de palette ne peut pas tourner")
+    src = re.sub(r"/\*.*?\*/", " ", JS.read_text(encoding="utf-8"), flags=re.S)
+    morceaux = [_BANC_PALETTE_PRELUDE,
+                'const GLB_B64 = "' + glb_b64 + '";']
+    for nom in ("PROC_KINDS", "PROC_LABELS", "CHAIN_MAX", "TILE_DEFAUT",
+                "ART_NAME_MAX", "KIND_LABELS", "KIND_HINTS", "GRAMMAIRE",
+                # `THUMB_W` et `THUMB_H` sont declarees ENSEMBLE : une seule
+                # extraction les porte toutes les deux.
+                "THUMB_W", "PAL", "JOBS", "RUNS", "ERRS"):
+        morceaux.append(_js_decl(src, nom))
+    morceaux.append(_js_decl(src, "INSP_MS"))
+    for nom in ("ROWS_MEMO", "ARETE", "INSP_SUJET", "INSP_JETON", "INSP_URL",
+                "inspTimer", "INSP_MV"):
+        morceaux.append(_js_decl(src, nom, "let"))
+    for nom in ("esc", "weight", "connu", "sansProto", "kindLabel",
+                "noeudTitre", "rowModel", "graphRows", "rowsDe", "rowDuNoeud",
+                "lienValide", "aEntree", "aSortie", "chaineAttendue",
+                "chaineDe", "surnumeraire", "maillonsAval", "rewireRow",
+                "freeId", "zEmpilement", "editMat", "editTrs", "setGraph",
+                "numHtml", "procSelHtml", "geoHtml", "sideSelHtml", "blocHtml",
+                "finishLabel", "matHtml", "trsHtml", "thumbHtml",
+                "mesh3dInfo", "engineOf", "engineFor", "ultraCredits",
+                "engPrice", "usdTxt", "priceTxt", "sourceTxt", "chipHtml",
+                "runHtml", "mesh3dHtml", "kindHintHtml", "nodeBodyHtml",
+                "artifactNodeHtml", "bordereauHtml", "ignoresHtml",
+                "fichierHtml", "exportFormats", "exportNodeHtml",
+                "exportEtatHtml", "couchesRestantes", "plafondAtteint",
+                "premiereMatiere", "naitCouche", "naitProc", "naitMaillon",
+                "naitExport", "paletteHtml", "paintPalette", "glbExtras",
+                "mondeEl", "marqueSel", "majSelArete", "selectionne",
+                "selectionneArete", "videInspecteur", "majInspecteur"):
+        morceaux.append(_js_fn(src, nom))
+    js = tmp_path / "banc_palette.js"
+    js.write_text("\n".join(morceaux) + "\n" + _BANC_PALETTE, encoding="utf-8")
+    r = subprocess.run([node, str(js)], capture_output=True, text=True,
+                       encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
+        tmp_path):
+    """Les pins de source disent QUE le code appelle ; ils ne disent pas ce
+    qu'il REFUSE (la lecon de la Task 4). Ce banc fait tourner les VRAIES
+    fonctions de la Task 5 dans node et mesure les proprietes qui comptent :
+    une naissance = UNE entree d'annulation, un maillon ne nait JAMAIS
+    flottant (ni en eventail depuis son traitement), le plafond est dit AVANT
+    le refus du backend, un nœud d'export n'est JAMAIS muet, et les aveux d'un
+    VRAI GLB d'apercu (octets construits ici, par le backend) se relisent
+    cote client."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    import base64
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0,
+                            0.3, 4)
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    glb = SC.write_scene_glb(
+        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
+          "z_mm": 0.0}], name="apercu",
+        extras={"schema": F9.PREVIEW_SCHEMA, "preview": True,
+                "ignored": [{"node": "m9", "why": "maillon surnumeraire"}]})
+    cas = _banc_palette(tmp_path, base64.b64encode(glb).decode("ascii"))
+    rates = [c for c in cas if not c["ok"]]
+    assert not rates, "\n".join(f"{c['nom']} : {c['detail']}" for c in rates)
+    # un PLANCHER, pas un compte fige (meme raison que le banc de chaines) :
+    # un banc ampute — une section commentee, une exception avalee — passerait
+    # sinon en vert sans rien mesurer.
+    assert len(cas) >= 34, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):

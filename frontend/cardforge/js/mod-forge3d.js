@@ -56,6 +56,24 @@
        jour et menti le second. Le repaint est PAR NŒUD (`paintNode`, le
        pendant de `paintRow`) : passer par la reconstruction complete du
        monde volerait le curseur a chaque frappe.
+     · DEUX CONTEXTES WebGL, PAS TROIS (Task 5). Un onglet n'a droit qu'a une
+       poignee de contextes WebGL vivants ; cet ecran en tient DEUX, et ils ne
+       montrent pas la meme chose. L'INSPECTEUR (panneau lateral du canvas)
+       montre le nœud SELECTIONNE — un aperçu construit a la demande par
+       `POST node-preview`, gratuit, jamais ecrit sur disque. Le viewer du
+       RESULTAT, lui, montre le fichier LIVRE par « Construire » : il est
+       monte DANS le nœud artefact quand le canvas est a l'ecran, et dans la
+       section « Aperçu » sinon — c'est LE MEME element, DEPLACE (`poseViewer`),
+       jamais un second.
+     · LA PALETTE FAIT NAITRE, ET ELLE NE FAIT NAITRE QUE DU VIVANT. Une
+       matiere ou un placement sans chaine est un nœud MORT : le backend
+       l'avoue au bordereau, l'ecran ne le construit pas, et la palette
+       n'aurait aucune raison d'en poser un d'un clic. Ils exigent donc un
+       traitement SELECTIONNE et naissent CONNECTES (par l'ecrivain de chaine
+       DEJA en place, `editMat`/`editTrs` -> `rewireRow`). Le glisser de fil,
+       lui, garde son comportement de la Task 4 : accepte, et HONNETE a
+       l'ecran (« matiere hors chaine ») — un geste vise a la main n'est pas
+       un clic de menu, et le refuser aurait coute des gestes legitimes.
    ═══════════════════════════════════════════════════════════════════════════ */
 (() => {
   const CF = (typeof window !== "undefined") ? window.CF : null;
@@ -99,13 +117,29 @@
      moteurs (ceux-la viennent de /info) : c'est le vocabulaire du graphe. */
   const PROC_KINDS = ["plane", "relief", "mesh3d"];
   const PROC_LABELS = { plane: "plan", relief: "relief", mesh3d: "mesh 3D (moteur)" };
-  /* borne ANTI-GEL de la descente de chaine — miroir de `_CHAIN_MAX` */
+  /* borne ANTI-GEL de la descente de chaine — miroir de `_CHAIN_MAX`.
+     CE QU'ELLE GARDE, EXACTEMENT (clause du report T4) : une chaine qui
+     BOUCLE, ou qui s'allonge sans fin, ne peut venir que de l'API BRUTE (un
+     graphe poste a la main, ou un fichier de deck bricole). Cet ecran ne peut
+     pas en produire : la grammaire de la Task 4 est ACYCLIQUE par rangs
+     (couche -> traitement -> maillon -> assemblage -> artefact -> export, sans
+     retour possible), et un maillon n'a qu'UNE arete entrante (`surnumeraire`,
+     C1). La borne n'est donc PAS une regle du domaine qu'on appliquerait ici :
+     c'est un filet contre un graphe qu'on n'a pas ecrit — le meme role, et le
+     meme chiffre, que `_CHAIN_MAX` cote serveur. */
   const CHAIN_MAX = 4;
   /* le pas de tuilage que `clean_graph` posera si le noeud matiere n'en porte
      pas (forge3d.py:404). /info sert les BORNES (material_limits.tile_mm), pas
      ce defaut — d'ou cette copie, nommee, plutot qu'un champ vide qui ferait
      croire que rien ne sera construit. */
   const TILE_DEFAUT = 63;
+  /* la longueur d'un nom d'artefact — MIROIR de `_ART_NAME_RE` (forge3d.py) et
+     de la troncature de `clean_graph`. /info ne la sert pas, d'ou cette copie
+     NOMMEE plutot qu'un champ sans borne qui laisserait taper cent caracteres
+     que le serveur couperait en silence. Le CHARSET, lui, reste l'affaire du
+     nettoyeur : le nom REELLEMENT construit se relit dans `graph_used`
+     (`artifactName`), jamais dans ce qu'on a tape. */
+  const ART_NAME_MAX = 60;
   const POLL_MS = 1200;         /* periode du poll d'un job (plan 2b) */
 
   /* ── LE CANVAS (2c) : SES CONSTANTES, TOUTES NOMMEES ────────────────────
@@ -156,10 +190,15 @@
      de zoom et il faudra se deplacer pour tout voir. C'est le prix de menus
      LISIBLES dans le nœud — la spec §5.6 demande le second, pas le premier. */
   const RANG_Y0 = 40, RANG_GAP = 26;
+  /* Task 5 : `artifact` et `export` cessent d'etre des reserves. L'artefact
+     porte desormais son nom, deux boutons, LE VIEWER DU RESULTAT et le resume
+     du bordereau ; l'export, sa vignette, son format et l'etat de ce format.
+     Les deux chiffres montent en consequence — genereusement, comme le dit la
+     note ci-dessus : le blanc se rattrape au cadrage, le chevauchement non. */
   const RANG_H = {
     layer: 230, plane: 268, relief: 322, mesh3d: 392,
-    material: 358, transform: 380, assemble: 132, artifact: 160,
-    export: 160,                /* reserve, comme sa colonne (kind Task 4) */
+    material: 358, transform: 380, assemble: 132, artifact: 420,
+    export: 320,
   };
   const RANG_H_DEFAUT = 240;    /* un kind hors table (graphe charge a la main) */
   /* MIROIR DE LA FEUILLE : la largeur d'un nœud et la mi-hauteur de son
@@ -350,6 +389,14 @@
       + 'Chaque champ édité patche aussitôt le graphe — annulable. Les deux vues '
       + 'projettent LE MÊME graphe : le canvas se déplace au glisser du fond et '
       + 'se zoome à la molette (position des nœuds gardée, jamais annulable).</p>'
+      /* LA PALETTE — ce qui peut NAITRE, et rien d'autre. Elle vit HORS de la
+         surface (pas une surcouche) : elle porte des menus, et un menu ouvert
+         par-dessus un canvas qui se déplace au glisser serait un piège. */
+      + '<div class="cf-forge3d-palette hidden" id="cf-forge3d-palette"></div>'
+      /* LA SCÈNE = la surface + son inspecteur. Les deux vont ensemble : le
+         panneau ne dit rien sans une sélection, et la sélection ne vit que
+         sur le canvas. */
+      + '<div class="cf-forge3d-scene">'
       + '<div class="cf-forge3d-canvas" id="cf-forge3d-canvas">'
       + '<div class="cf-forge3d-monde"></div>'
       + '<div class="cf-forge3d-surcouche cf-forge3d-vide"></div>'
@@ -357,6 +404,14 @@
       + '<button class="btn sm" type="button" data-act="vue-recentre" '
       + 'title="ramène la vue à l\'origine">recentrer</button>'
       + '</div>'
+      + '</div>'
+      + '<aside class="cf-forge3d-inspecteur" id="cf-forge3d-inspecteur">'
+      + '<header class="cf-forge3d-insp-tete"><b>Inspecteur</b>'
+      + '<span class="mono" id="cf-forge3d-insp-nom"></span></header>'
+      + '<div class="cf-forge3d-insp-view" id="cf-forge3d-insp-view"></div>'
+      + '<p class="hint" id="cf-forge3d-insp-etat"></p>'
+      + '<p class="hint" id="cf-forge3d-insp-avoues"></p>'
+      + '</aside>'
       + '</div>'
       + '<div id="cf-forge3d-graph"></div>'
       + '<p class="hint" id="cf-forge3d-cost"></p>'
@@ -392,6 +447,16 @@
     }
     const canvasHost = $("#cf-forge3d-canvas");
     if (canvasHost) wireCanvas(canvasHost);
+    /* LA PALETTE PASSE PAR LA MÊME DÉLÉGATION que la liste et le canvas : un
+       seul vocabulaire `data-act`, un seul handler. Ses <select>, eux, ne sont
+       PAS des champs de graphe (aucun `[data-proc]` au-dessus d'eux, donc
+       `onGraphChange` les ignore par construction) : ils choisissent CE QUI VA
+       NAÎTRE, et ce choix est de la présentation — il vit dans `PAL`. */
+    const pal = $("#cf-forge3d-palette");
+    if (pal) {
+      pal.addEventListener("click", onGraphClick);
+      pal.addEventListener("change", onPaletteChange);
+    }
     const vueSeg = $("#cf-forge3d-vue");
     if (vueSeg) vueSeg.addEventListener("click", onVueClick);
     const undoBtn = $("#cf-forge3d-undo");
@@ -420,7 +485,10 @@
       /* les positions et le cadrage appartiennent au deck qu'on quitte : une
          frame retardataire écrirait son arrangement dans le deck suivant. */
       oublieLeCanvas();
-      if (PREVIEW_URL) { URL.revokeObjectURL(PREVIEW_URL); PREVIEW_URL = null; }
+      /* l'aperçu du deck qu'on quitte : révoqué ET détaché, pas seulement
+         oublié — le viewer garderait sinon une scène morte à l'écran, et sa
+         section un cadre qui ment. */
+      videApercu();
     });
     /* LEGS 5, CÔTÉ POUSSÉE — sans cet abonnement la fraîcheur du manifeste
        n'était qu'un contrôle TIRÉ depuis `paintGraph`, que rien ne déclenchait :
@@ -739,6 +807,14 @@
        de coût compterait ce nœud comme déjà payé. Le chip d'une autre carte
        serait un mensonge : on oublie, et on re-sonde. */
     oublieLesJobs();
+    /* UN APERÇU EST LIÉ À SA CARTE, exactement comme un job (Task 5). Le GLB
+       que l'inspecteur montre a été construit depuis LES COUCHES de la carte
+       affichée à ce moment-là : le garder en changeant de carte laisserait
+       l'illustration d'hier tourner dans le panneau à côté du graphe
+       d'aujourd'hui. On le lâche — et la peinture qui suit re-inspecte le
+       nœud désigné, avec les couches de la BONNE carte (`videInspecteur`
+       remet la clé de sujet à zéro, donc `majInspecteur` re-déclenche). */
+    videInspecteur();
     return refreshManifest();
   }
 
@@ -1383,6 +1459,37 @@
                                     entre dans le document */
   let lienRaf = 0, lienPoint = null;  /* le fil, coalescé au rAF (spec 9.6-1) */
 
+  /* ── L'INSPECTEUR (Task 5) — SON ÉTAT, TOUT ÉPHÉMÈRE ────────────────────
+     `INSP_SUJET` est la CLÉ de ce qui est montré ("n:<nid>", "a:<de>><vers>",
+     ou "" pour rien) : c'est elle qui rend `majInspecteur` idempotent — un
+     pointerdown de plus sur le nœud déjà désigné ne relance pas une
+     construction d'aperçu.
+     `INSP_JETON` est le jeton de la requête en vol. Deux sélections rapides
+     partent dans l'ordre et peuvent revenir dans le DÉSORDRE : seule la
+     dernière a le droit de peindre (la doctrine du fichier, déjà écrite pour
+     `POLLS` et `IMGS_VOL` — le jeton COMPARE, il ne se contente pas
+     d'exister).
+     `INSP_URL` est l'objectURL montée dans le viewer, révoquée avant toute
+     nouvelle (patron `mountPreview`) : une URL par sélection, retenue à vie,
+     serait une fuite lente sur un panneau fait pour être balayé. */
+  let INSP_SUJET = "";
+  let INSP_JETON = 0;
+  let INSP_URL = null;
+  let inspTimer = 0;
+  /* LE DÉBOUNCE — la note de concurrence de la revue T1, tenue ICI et pas
+     dans la requête : un balayage de sélection (six nœuds parcourus à la
+     souris) ne doit pas mettre six CONSTRUCTIONS en file côté serveur. La
+     sélection se pose d'abord, la requête part quand elle a TENU. */
+  const INSP_MS = 250;
+  /* LES DEUX SEULS <model-viewer> DE L'ÉCRAN, tenus par RÉFÉRENCE et non
+     retrouvés par id. La raison est mécanique : `paintCanvas` reconstruit le
+     monde en un `innerHTML`, ce qui DÉTACHE le viewer monté dans le nœud
+     artefact — un `querySelector` ne le trouverait alors plus et en ferait
+     naître un second, c'est-à-dire un contexte WebGL de plus à chaque
+     repeinture. La référence, elle, survit : on le RE-ACCROCHE. */
+  let MV = null;                /* le viewer du RÉSULTAT (fichier livré) */
+  let INSP_MV = null;           /* le viewer de l'INSPECTEUR (nœud désigné) */
+
   function vueLue() {
     try {
       const s = localStorage.getItem(LS_VUE);
@@ -1422,12 +1529,29 @@
     const auCanvas = (VUE === "canvas");
     if (canvas) canvas.classList.toggle("hidden", !auCanvas);
     if (liste) liste.classList.toggle("hidden", auCanvas);
+    /* L'INSPECTEUR ET LA PALETTE SUIVENT LA SURFACE. Ils ne servent QUE le
+       canvas : l'inspecteur n'a de sujet que par la sélection (que la liste
+       n'a pas), et la palette pose des nœuds à une POSITION (que la liste
+       n'affiche pas). Les laisser visibles en vue liste montrerait deux
+       commandes sans effet — et l'inspecteur y garderait un contexte WebGL
+       vivant pour rien. */
+    const insp = $("#cf-forge3d-inspecteur");
+    const pal = $("#cf-forge3d-palette");
+    if (insp) insp.classList.toggle("hidden", !auCanvas);
+    if (pal) pal.classList.toggle("hidden", !auCanvas);
     if (auCanvas) {
       if (liste) liste.innerHTML = "";
       paintCanvas();
+      paintPalette();
     } else {
       videCanvas();
       paintGraph();
+      /* LE VIEWER DU RÉSULTAT RENTRE À LA SECTION. `videCanvas` vient de vider
+         le monde, donc de DÉTACHER le viewer qui vivait dans le nœud
+         artefact : sans ce rappel, la vue liste montrerait un panneau
+         « Aperçu » vide alors que le fichier est là, chargé, à une bascule de
+         distance. */
+      remonteApercu();
     }
   }
 
@@ -1457,6 +1581,9 @@
        qui n'a plus de trait sous lui. */
     fermeFantome();
     ARETE = null;
+    /* L'INSPECTEUR EST UN CONTEXTE WebGL : le laisser vivant sous une vue
+       liste garderait un rendu 3D pour un nœud que plus rien ne montre. */
+    videInspecteur();
     const host = $("#cf-forge3d-canvas");
     LAYOUT_VU = sansProto();
     if (!host) return;
@@ -1490,6 +1617,9 @@
        frame et retirer un tracé), il a donc sa place sur ce chemin-ci. */
     fermeFantome();
     ARETE = null;
+    /* l'aperçu affiché parle du deck qu'on quitte — et son objectURL doit
+       être révoquée, pas seulement oubliée. */
+    videInspecteur();
     /* les vignettes du deck précédent ne disent rien de celui-ci : les clés
        de couche (`role_cNN_face.png`) sont les MÊMES d'un deck à l'autre,
        donc un cache gardé peindrait la carte d'hier sur le graphe
@@ -1928,10 +2058,35 @@
     if (!camRaf) camRaf = scheduleFrame(flushCam);
   }
 
-  /* LA SÉLECTION — mémorisée dans `SEL` et portée par une classe. Le canvas
-     n'en fait rien de plus en Task 2 ; l'inspecteur 3D (Task 5) la lira. */
+  /* LA SÉLECTION — mémorisée dans `SEL`, portée par une classe, et LUE par
+     trois choses depuis la Task 5 : la classe du nœud, la palette (« + matière »
+     et « + placement » n'existent que sur un traitement désigné) et
+     l'inspecteur, dont elle EST le sujet.
+     LE GARDE EST LE PREMIER GESTE : re-cliquer le nœud déjà sélectionné ne
+     doit ni repeindre la palette ni relancer une construction d'aperçu — et
+     `onCanvasDown` appelle ceci à CHAQUE pointerdown, fond compris. */
   function selectionne(nid) {
+    const avant = SEL;
     SEL = nid || null;
+    /* SYMÉTRIQUE de `selectionneArete` : un nœud désigné REPREND le sujet à
+       l'arête. Le faire ICI plutôt qu'au site d'appel enlève une dépendance
+       d'ORDRE — deux gestes qui se lâchent mutuellement ne doivent pas
+       dépendre de qui appelle qui en second, sans quoi un appelant futur
+       laisserait l'inspecteur montrer une arête pendant qu'un nœud porte la
+       classe de sélection. Cliquer le FOND, lui, ne lâche pas l'arête : on se
+       déplace sans perdre ce qu'on visait. */
+    const arete = !!ARETE;
+    if (SEL && arete) { ARETE = null; majSelArete(); }
+    if (SEL === avant && !arete) return;
+    marqueSel();
+    paintPalette();
+    majInspecteur();
+  }
+
+  /* la classe seule — extraite pour que la désignation d'une ARÊTE puisse
+     lâcher la sélection de nœud sans repasser par l'inspecteur (qui, lui,
+     doit alors montrer l'arête, pas le vide). */
+  function marqueSel() {
     const host = $("#cf-forge3d-canvas");
     if (!host) return;
     Array.prototype.slice.call(host.querySelectorAll(".cf-forge3d-noeud"))
@@ -2072,9 +2227,23 @@
      dans le document. Le bouton « supprimer » vit DANS le monde (il suit
      donc le pan et le zoom sans une ligne de plus) et n'existe que tant
      qu'une arête est désignée. */
+  /* REPORT T4, TRANCHÉ : UN SEUL SUJET À LA FOIS. Désigner une arête LÂCHE la
+     sélection de nœud — sans quoi l'écran montrerait deux « ce que le geste
+     suivant va toucher » en même temps (le nœud en `--sel-bg`, l'arête aussi),
+     et l'inspecteur continuerait de rendre un nœud que plus rien ne désigne.
+     L'inverse était déjà vrai depuis la Task 4 (`onCanvasDown` lâche l'arête
+     quand on prend un nœud) ; la symétrie manquait. Le nœud reste le sujet
+     NORMAL de l'inspecteur : une arête n'a rien à rendre en 3D, elle n'est pas
+     un élément — le panneau le DIT (« arête … ») au lieu de se vider. */
   function selectionneArete(de, vers) {
     ARETE = (de && vers) ? { from: de, to: vers } : null;
+    if (ARETE && SEL) {
+      SEL = null;
+      marqueSel();
+      paintPalette();
+    }
     majSelArete();
+    majInspecteur();
   }
 
   function majSelArete() {
@@ -2400,14 +2569,167 @@
         : '<p class="hint">placement hors chaîne — aucun traitement ne le '
           + 'porte.</p>';
       if (r && att.role === "trs") proc = r.proc.id;
+    } else if (n.kind === "artifact" || n.kind === "export") {
+      /* `data-proc` NE DÉSIGNE PAS UN TRAITEMENT : il désigne le nœud AU NOM
+         DUQUEL l'édition s'écrit (`editGraph` le cherche par id). Pour une
+         matière ou un placement, c'est son traitement ; pour un artefact ou un
+         export, c'est lui-même — et les mêmes handlers servent les trois sans
+         une ligne de plus. */
+      champs = kindHintHtml(n)
+        + ((n.kind === "artifact") ? artifactNodeHtml(n) : exportNodeHtml(n));
+      proc = n.id;
     } else {
-      champs = '<p class="hint">'
-        + esc(connu(KIND_HINTS, n.kind) ? KIND_HINTS[n.kind] : kindLabel(n.kind))
-        + '</p>';
+      champs = kindHintHtml(n);
     }
     return '<div class="cf-forge3d-corps" data-nid="' + esc(n.id) + '"'
       + (proc ? ' data-proc="' + esc(proc) + '"' : "") + '>'
-      + thumbHtml(n) + champs + '</div>';
+      /* L'ARTEFACT N'A PAS DE VIGNETTE : il a mieux — le viewer du RÉSULTAT,
+         c'est-à-dire le fichier lui-même. Un pictogramme à côté du modèle
+         livré serait du décor, et il pousserait le viewer hors du nœud. */
+      + ((n.kind === "artifact") ? "" : thumbHtml(n)) + champs + '</div>';
+  }
+
+  /* CE QU'UN NŒUD DIT DE LUI-MÊME — une phrase, la même dans les deux vues.
+     Extrait pour que les corps riches (artefact, export) la portent AUSSI :
+     le nœud le plus fourni de l'écran ne doit pas être celui qui oublie de
+     dire à quoi il sert. */
+  function kindHintHtml(n) {
+    return '<p class="hint">' + esc(connu(KIND_HINTS, n.kind)
+      ? KIND_HINTS[n.kind] : kindLabel(n.kind)) + '</p>';
+  }
+
+  /* ── LE NŒUD ARTEFACT (2c Task 5) — LE NOM, L'ACTION, LE RÉSULTAT ───────
+     C'est le seul nœud de l'écran qui porte une ACTION de construction ; il
+     porte donc aussi ce que cette action a rendu : le viewer du fichier LIVRÉ
+     (jamais un rendu inventé — le patron du domaine) et le résumé du
+     bordereau MESURÉ. « figer l'aperçu » reste à côté du viewer : c'est
+     l'image qui deviendra celle de la carte, elle appartient au résultat. */
+  function artifactNodeHtml(n) {
+    return '<label class="cf-forge3d-txt">nom<input type="text" '
+      + 'data-field="name" maxlength="' + Number(ART_NAME_MAX) + '" value="'
+      + esc(n.name || "") + '" placeholder="artefact"></label>'
+      + '<div class="cf-forge3d-line">'
+      + '<button class="btn primary sm" type="button" data-act="build3d"'
+      + (build3d.busy ? " disabled" : "") + '>Construire</button>'
+      + '<button class="btn sm" type="button" data-act="freeze"'
+      + (PREVIEW_URL ? "" : " disabled")
+      + ' title="capture le rendu affiché et l\'écrit côté serveur">'
+      + 'figer l\'aperçu</button>'
+      + '</div>'
+      + '<div class="cf-forge3d-art-view"></div>'
+      + bordereauHtml(ARTIFACT);
+  }
+
+  /* LE RÉSUMÉ DU BORDEREAU — MESURÉ, jamais annoncé. Poids du GLB livré,
+     moteurs RÉELLEMENT employés et crédits RÉELLEMENT consommés (ceux des
+     job.json, que `elements_detail` porte : la comptabilité du fournisseur,
+     pas le devis d'avant), et les aveux au complet. */
+  function bordereauHtml(art) {
+    if (!art) {
+      return '<p class="hint">rien de construit dans cette session — '
+        + '« Construire » écrit le GLB, le metadata et (si le solide est '
+        + 'fermé) le STL. Les nœuds d\'export s\'allument avec lui.</p>';
+    }
+    const det = art.elements_detail || [];
+    const moteurs = [];
+    let credits = 0;
+    det.forEach((d) => {
+      if (d && d.engine && moteurs.indexOf(d.engine) < 0) moteurs.push(d.engine);
+      if (d && d.credits != null) credits += Number(d.credits) || 0;
+    });
+    return '<p class="mono">' + Number(art.elements) + ' élément(s) · '
+      + esc(weight(art.glb.bytes))
+      + (moteurs.length ? (" · " + esc(moteurs.join(", "))) : "")
+      + (credits > 0 ? (" · " + Number(credits) + " cr consommés") : "")
+      + '</p>' + ignoresHtml(art);
+  }
+
+  /* LES AVEUX DU BACKEND, UNE SEULE ÉCRITURE. La section « Construire » et le
+     nœud artefact montrent LES MÊMES `ignored` : deux rendus auraient dérivé,
+     et c'est précisément la ligne qu'on n'a pas le droit de laisser
+     diverger. */
+  function ignoresHtml(art) {
+    const list = (art && art.ignored) || [];
+    if (!list.length) return "";
+    return '<p class="hint"><b>éléments ignorés</b> — avoués, jamais tus :</p>'
+      + '<ul class="cf-forge3d-ignored">'
+      + list.map((i) => '<li class="mono">' + esc(i.node) + " · " + esc(i.why)
+        + '</li>').join("")
+      + '</ul>';
+  }
+
+  /* UNE LIGNE DE FICHIER LIVRÉ — le même balisage pour la section et pour un
+     nœud d'export : un fichier livré est un fichier livré. Le téléchargement
+     passe par la PROVENANCE (`grabZip` -> `M.api.blob`), jamais un <a href>.
+     `octets` peut être absent (l'aperçu figé n'annonce son poids qu'au moment
+     où il est écrit) : on tait alors le chiffre plutôt que d'écrire « 0 o ». */
+  function fichierHtml(label, nom, octets) {
+    return '<div class="cf-forge3d-file"><span class="mono">' + esc(label)
+      + " · " + esc(nom) + esc(octets == null ? "" : (" · " + weight(octets)))
+      + '</span>'
+      + '<button class="btn sm" type="button" data-act="grab-file" data-name="'
+      + esc(nom) + '">télécharger</button></div>';
+  }
+
+  /* LES FORMATS SONT SERVIS, JAMAIS RECOPIÉS — `graph_limits.export_formats`
+     (/info), miroir du tuple `EXPORT_FORMATS` du backend. Une liste écrite ici
+     aurait dérivé au premier format ajouté, et l'écran aurait proposé un
+     téléchargement qui n'existe pas (ou tu un qui existe). */
+  function exportFormats() {
+    const lim = (INFO && INFO.graph_limits) || null;
+    const f = lim && lim.export_formats;
+    return Array.isArray(f) ? f.filter((x) => typeof x === "string") : [];
+  }
+
+  /* ── LES NŒUDS D'EXPORT (2c Task 5) — DES POINTS DE TÉLÉCHARGEMENT ──────
+     Ils n'éteignent RIEN du bordereau : le résolveur les ignore SANS les
+     avouer (ce ne sont pas des éléments, c'est écrit dans `clean_graph`). Ce
+     qu'ils portent, c'est l'état du format qu'ils désignent, DEPUIS le dernier
+     bordereau — et un format qui n'a pas été écrit dit POURQUOI, au motif
+     littéral du serveur. Jamais un nœud muet. */
+  function exportNodeHtml(n) {
+    const fmts = exportFormats();
+    const fmt = String(n.format || fmts[0] || "");
+    const sel = fmts.length
+      ? ('<label class="cf-forge3d-sel">format<select data-field="format">'
+        + fmts.map((f) => '<option value="' + esc(f) + '"'
+          + (f === fmt ? " selected" : "") + '>' + esc(f) + '</option>').join("")
+        + '</select></label>')
+      : ('<span class="hint"><b>formats inconnus</b> — le contrat /info n\'a '
+        + 'pas été chargé (backend injoignable ?).</span>');
+    return sel + exportEtatHtml(fmt);
+  }
+
+  function exportEtatHtml(fmt) {
+    const art = ARTIFACT;
+    if (!art) {
+      /* UN ÉTAT, PAS UNE ERREUR : rien n'a échoué, rien n'a encore été
+         construit. Le dire en rouge apprendrait à craindre un écran neuf. */
+      return '<p class="hint">construis d\'abord l\'artefact — ce point de '
+        + 'téléchargement s\'allume avec le bordereau.</p>';
+    }
+    if (fmt === "glb") return fichierHtml("GLB", art.glb.name, art.glb.bytes);
+    if (fmt === "metadata") {
+      return fichierHtml("metadata.json", art.metadata.name, art.metadata.bytes);
+    }
+    if (fmt === "stl") {
+      /* LE MOTIF DU REFUS, TEL QUEL (`art.stl.why`) — jamais réécrit par
+         l'écran : c'est la mesure du solide fermé qui parle. */
+      return (art.stl && art.stl.written)
+        ? fichierHtml("STL", art.stl.name, art.stl.bytes)
+        : ('<p class="hint"><b>STL non fourni</b> : '
+          + esc((art.stl && art.stl.why) || "motif non rendu par le backend")
+          + '</p>');
+    }
+    if (fmt === "preview") {
+      const p = art.preview || {};
+      return p.written
+        ? fichierHtml("aperçu", p.expected, (p.bytes == null) ? null : p.bytes)
+        : ('<p class="hint">aperçu <b>attendu</b> (' + esc(p.expected)
+          + ') — « figer l\'aperçu », sur le nœud artefact, l\'écrit.</p>');
+    }
+    return '<p class="hint">le bordereau ne livre pas « ' + esc(fmt)
+      + ' » — choisis un autre format.</p>';
   }
 
   /* la zone de vignette : un canvas 2D à la surface de dessin FIXE (la
@@ -2434,15 +2756,18 @@
          on retombe sur un aplat, on ne redemande pas en boucle.
        · AUCUNE DÉPENSE. Rien de ce qui est dessiné ici ne fait tourner un
          moteur : c'est du dessin, pas un rendu.
-     LE preview.png D'UN JOB N'EST SERVI PAR AUCUNE ROUTE — et c'est dit,
-     pas contourné. Un job meshy rapatrie bien sa vignette dans
-     `nodes/{nid}/preview.png` (forge3d.py:2297), mais la seule route de
-     fichiers de la pièce, `GET /file/{name}`, valide le nom sur
-     `^[A-Za-z0-9._-]{1,90}$` : le séparateur y est interdit, donc rien sous
-     `nodes/` n'est atteignable. Ouvrir une route en douce depuis l'écran
-     serait décider seul d'une surface d'API ; on prend donc la branche « à
-     défaut » du plan (pictogramme moteur + état lu du job), et le manque est
-     remonté au contrôleur pour la Task 5. */
+     LE preview.png D'UN JOB EST SERVI DEPUIS LA TASK 5 — et le chemin qu'a
+     pris ce manque vaut d'être écrit. Un job meshy rapatrie sa vignette dans
+     `nodes/{nid}/preview.png`, mais la seule route de fichiers de la pièce,
+     `GET /file/{name}`, valide le nom sur `^[A-Za-z0-9._-]{1,90}$` : le
+     séparateur y est interdit, donc rien sous `nodes/` n'était atteignable.
+     La Task 3 a donc pris la branche « à défaut » du plan (pictogramme moteur
+     + état lu) et REMONTÉ le manque, plutôt que d'ouvrir une route en douce
+     depuis l'écran — décider seul d'une surface d'API n'appartient pas à un
+     module. La Task 5 l'ouvre : `GET node-file/{nid}/{name}`, à LISTE BLANCHE
+     (le dossier d'un nœud porte aussi `job.json` et des textures payées ; seul
+     l'aperçu est un affichage public). Le repli, lui, reste — un moteur ne
+     rapatrie pas toujours de vignette. */
   const IMGS = sansProto();     /* clé de provenance -> toile réduite | null */
   const IMGS_VOL = sansProto(); /* les chargements EN VOL -> leur GÉNÉRATION */
   const IMGS_AT = sansProto();  /* l'instant de mise en cache (I3, re-sonde) */
@@ -2837,11 +3162,21 @@
     }
   }
 
-  /* LE MOTEUR : son pictogramme et l'état LU du job (jamais l'intention
-     envoyée). Le `preview.png` que meshy rapatrie n'est servi par aucune
-     route — voir la note en tête de section : c'est la branche « à défaut »
-     du plan qui s'applique ici, et la chip d'état, elle, est dans le corps
-     (mesh3dHtml -> runHtml -> chipHtml) pour les deux vues. */
+  /* LE MOTEUR : la VIGNETTE QUE SON JOB A RAPATRIÉE quand elle existe, son
+     pictogramme sinon — et, dans les deux cas, l'état LU du job (jamais
+     l'intention envoyée).
+     LA BRANCHE PRINCIPALE EXISTE ENFIN (Task 5). Le `preview.png` d'un job
+     meshy vit sous `nodes/{nid}/` et n'était servi par AUCUNE route : la
+     Task 3 a REMONTÉ le manque au contrôleur plutôt que d'ouvrir une surface
+     d'API en douce, et `GET node-file/{nid}/{name}` l'ouvre maintenant, par
+     LISTE BLANCHE (le dossier d'un nœud porte aussi job.json et des textures
+     payées). Le pictogramme reste le « à défaut » du plan : job jamais lancé,
+     moteur qui ne rapatrie pas de vignette, 404.
+     LA CLÉ DU CACHE PORTE LE `run_id`, et ce n'est pas une précaution
+     gratuite : une relance EFFACE le dossier du nœud et réécrit `preview.png`
+     SOUS LE MÊME NOM. Une clé sans run servirait les pixels du modèle d'avant
+     à côté de l'état d'après — la faute du cache pré-export (I3a), rejouée un
+     étage plus bas. */
   function thumbMesh3d(ctx, enc, n) {
     const eng = engineFor(n);
     const job = connu(JOBS, n.id) ? JOBS[n.id] : undefined;
@@ -2855,8 +3190,25 @@
       etat = "en cours " + Number(job.progress || 0) + " %";
       couleur = enc.accent;
     } else if (job.status === "queued") { etat = "en file"; couleur = enc.accent; }
-    dessinePicto(ctx, enc, "mesh3d",
-                 (eng && eng.label) || n.engine || "moteur");
+    const fichiers = (job && job.files) || null;
+    const nom = (job && job.status === "served" && fichiers && fichiers.preview)
+      ? String(fichiers.preview) : "";
+    const img = nom
+      ? imageDeProvenance(
+        "noeud:" + n.id + ":" + String(job.run_id || "") + ":" + nom,
+        "node-file/" + encodeURIComponent(n.id) + "/" + encodeURIComponent(nom))
+      : null;
+    if (img) {
+      /* CONTENIR, pas couvrir : un rendu de moteur est un OBJET (pas une
+         texture) — le rogner lui couperait ce qu'on veut justement voir. */
+      const b = boiteContenue(img.width, img.height);
+      ctx.drawImage(img, b.x, b.y, b.w, b.h);
+      texteCentre(ctx, enc, (eng && eng.label) || n.engine || "moteur", 12, 10,
+                  enc.encre);
+    } else {
+      dessinePicto(ctx, enc, "mesh3d",
+                   (eng && eng.label) || n.engine || "moteur");
+    }
     texteCentre(ctx, enc, etat, THUMB_H - 22, 11, couleur);
   }
 
@@ -2950,8 +3302,494 @@
        ou on la lâche, si le graphe repeint ne la porte plus. */
     majSelArete();
     appliqueCam();
+    /* LE VIEWER DU RÉSULTAT VIENT D'ÊTRE DÉTACHÉ par l'`innerHTML` ci-dessus
+       (il vit DANS le nœud artefact) : on le RE-ACCROCHE, sans re-télécharger
+       — `PREVIEW_URL` tient toujours les octets déjà livrés. */
+    remonteApercu();
+    /* ... et l'inspecteur retrouve son sujet : revenir sur le canvas après un
+       détour par la liste doit remontrer le nœud désigné, pas un panneau vide
+       (`videInspecteur` a remis la clé à zéro, donc ceci re-déclenche). */
+    majInspecteur();
     sondeMoteurs(graph);
     paintCost();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     L'INSPECTEUR PARTAGÉ (2c Task 5) — LE VRAI 3D DU NŒUD DÉSIGNÉ
+     UN SEUL model-viewer pour toute la sélection : c'est le premier des DEUX
+     contextes WebGL de cet écran (le second est le viewer du RÉSULTAT, dans
+     le nœud artefact). Trois engagements, tenus par construction :
+       · IL NE DÉPENSE RIEN. `POST node-preview` construit un plan ou un
+         relief SUR PLACE (grille plafonnée pour la vitesse) et, pour un
+         mesh3d, se contente de servir le GLB DÉJÀ payé par son job — il ne
+         lance jamais un moteur. La seule dépense de cet écran reste
+         « Lancer », et elle est ailleurs.
+       · IL NE PARAPHRASE PAS. Un nœud sans aperçu n'est pas une erreur de
+         l'écran : c'est le backend qui NOMME pourquoi (kind non
+         prévisualisable, couche source absente, job pas encore servi, GLB
+         trop lourd pour l'inspecteur — ce dernier pointant vers le nœud
+         artefact). Son motif part TEL QUEL, et comme un ÉTAT : rien n'a
+         échoué.
+       · IL AVOUE. Le GLB d'aperçu porte les mêmes `ignored` que le bordereau
+         (`extras.ignored`) : ce que la résolution a écarté est LU côté client
+         et rendu en clair. Un aperçu qui montrerait un élément nu sans dire
+         que sa matière a été écartée mentirait par omission.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* CE QUE L'INSPECTEUR DIT — l'état littéral. `mauvais` n'est PAS « le nœud
+     n'a pas d'aperçu » (c'est un état) mais « quelque chose est cassé » :
+     seule une panne de transport ou un 5xx y a droit. */
+  function inspEtat(txt, mauvais) {
+    const el = $("#cf-forge3d-insp-etat");
+    if (!el) return;
+    el.textContent = String(txt == null ? "" : txt);
+    el.classList.toggle("cf-forge3d-insp-ko", !!mauvais);
+  }
+
+  function inspNom(txt) {
+    const el = $("#cf-forge3d-insp-nom");
+    if (el) el.textContent = String(txt == null ? "" : txt);
+  }
+
+  /* LES AVEUX DU BACKEND, RENDUS. Compacts (le panneau est étroit) mais
+     LITTÉRAUX : le motif du serveur, jamais un résumé de l'écran. */
+  function inspAvoues(extras) {
+    const el = $("#cf-forge3d-insp-avoues");
+    if (!el) return;
+    const list = (extras && Array.isArray(extras.ignored)) ? extras.ignored : [];
+    if (!list.length) { el.innerHTML = ""; return; }
+    el.innerHTML = '<b>avoués</b> — '
+      + list.map((i) => '<span class="mono">' + esc(i && i.node) + " · "
+        + esc(i && i.why) + '</span>').join(" ; ");
+  }
+
+  /* LES EXTRAS D'UN GLB, LUS CÔTÉ CLIENT — le chunk JSON, rien d'autre.
+     Un GLB, c'est 12 octets d'en-tête (magic « glTF », version, longueur
+     totale) puis des chunks : 4 octets de longueur, 4 de type, les données.
+     Le PREMIER chunk est toujours le JSON (glTF 2.0 §4.4.3) — il n'y a donc
+     rien à chercher. On ne décode que lui : le binaire (maillage, textures)
+     n'apprend rien que le viewer ne montre déjà.
+     TOUT EST GARDÉ, et rend `null` : un octet inattendu doit coûter une ligne
+     d'aveux manquante, jamais une exception qui viderait le panneau au moment
+     précis où l'aperçu vient de réussir. */
+  function glbExtras(buf) {
+    try {
+      if (typeof DataView !== "function" || typeof TextDecoder !== "function") {
+        return null;
+      }
+      if (!buf || buf.byteLength < 20) return null;
+      const dv = new DataView(buf);
+      if (dv.getUint32(0, true) !== 0x46546C67) return null;   /* « glTF » */
+      const len = dv.getUint32(12, true);
+      if (dv.getUint32(16, true) !== 0x4E4F534A) return null;  /* « JSON » */
+      if (!(len > 0) || 20 + len > buf.byteLength) return null;
+      const doc = JSON.parse(new TextDecoder("utf-8")
+        .decode(new Uint8Array(buf, 20, len)));
+      return (doc && doc.asset && doc.asset.extras) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /* VIDER L'INSPECTEUR — et rendre ce qu'il tenait. Le jeton AVANCE (une
+     requête en vol ne peindra plus), l'objectURL est RÉVOQUÉE (pas seulement
+     oubliée) et le viewer est détaché en lâchant son modèle : c'est ce qui
+     libère la mémoire de scène quand on part en vue liste. L'ÉLÉMENT, lui,
+     est gardé en référence — le recréer serait un contexte WebGL de plus. */
+  function videInspecteur() {
+    if (inspTimer) { clearTimeout(inspTimer); inspTimer = 0; }
+    INSP_JETON += 1;
+    INSP_SUJET = "";
+    if (INSP_URL && typeof URL !== "undefined") URL.revokeObjectURL(INSP_URL);
+    INSP_URL = null;
+    if (INSP_MV) {
+      INSP_MV.removeAttribute("src");
+      if (INSP_MV.parentNode) INSP_MV.parentNode.removeChild(INSP_MV);
+    }
+    const view = $("#cf-forge3d-insp-view");
+    if (view) view.innerHTML = "";
+    inspNom("");
+    inspEtat("");
+    inspAvoues(null);
+  }
+
+  /* LE DÉCLENCHEUR — il décide du SUJET, jamais du contenu. Deux gardes, et
+     elles ne font pas le même travail : la CLÉ (`INSP_SUJET`) évite de
+     reconstruire ce qui est déjà là, le DÉBOUNCE évite d'empiler les
+     constructions d'un balayage. `force` sert l'édition : le sujet n'a pas
+     changé, mais ce qu'il MONTRE, si. */
+  function majInspecteur(force) {
+    /* la vue liste n'a pas de sélection, et son panneau est masqué : rien à
+       inspecter, et surtout rien à construire côté serveur. */
+    if (VUE !== "canvas") return;
+    const sujet = ARETE ? ("a:" + ARETE.from + ">" + ARETE.to)
+      : (SEL ? ("n:" + SEL) : "");
+    if (!force && sujet === INSP_SUJET) return;
+    if (inspTimer) { clearTimeout(inspTimer); inspTimer = 0; }
+    INSP_JETON += 1;              /* ce qui vole encore ne peindra plus */
+    INSP_SUJET = sujet;
+    if (!sujet) { videInspecteur(); return; }
+    if (ARETE) {
+      /* UNE ARÊTE N'EST PAS UN ÉLÉMENT : elle n'a rien à rendre en 3D. Le
+         panneau le DIT — se vider se lirait comme une panne, et c'est
+         justement le geste que l'utilisateur vient de faire exprès. */
+      if (INSP_URL && typeof URL !== "undefined") URL.revokeObjectURL(INSP_URL);
+      INSP_URL = null;
+      if (INSP_MV && INSP_MV.parentNode) {
+        INSP_MV.removeAttribute("src");
+        INSP_MV.parentNode.removeChild(INSP_MV);
+      }
+      const vue = $("#cf-forge3d-insp-view");
+      if (vue) vue.innerHTML = "";
+      inspNom("arête " + ARETE.from + " → " + ARETE.to);
+      inspEtat("une arête n'est pas un élément : elle n'a pas d'aperçu. "
+        + "« supprimer », sur le trait, la coupe ; l'en-tête d'un nœud le "
+        + "désigne à la place.");
+      inspAvoues(null);
+      return;
+    }
+    const graph = get("graph");
+    const n = graph ? (graph.nodes || []).filter((x) => x.id === SEL)[0] : null;
+    inspNom(n ? (kindLabel(n.kind) + " · " + noeudTitre(n)) : String(SEL));
+    inspEtat("aperçu en construction…");
+    inspAvoues(null);
+    const nid = SEL;
+    inspTimer = setTimeout(() => { inspTimer = 0; inspecte(nid); }, INSP_MS);
+  }
+
+  /* L'APERÇU D'UN NŒUD, CONSTRUIT PAR LE BACKEND.
+     `M.api.raw` ET PAS `M.api.blob` : cette dernière jette le corps du refus
+     (« 409 Conflict ») — c'est-à-dire exactement la phrase qu'on veut lire, et
+     la seule qui dise quoi faire (« lance-le d'abord », « construis l'artefact
+     pour le voir dans le nœud artefact »). */
+  async function inspecte(nid) {
+    const gen = GEN;
+    const jeton = INSP_JETON;
+    const graph = get("graph");
+    const view = $("#cf-forge3d-insp-view");
+    if (!view) return;
+    if (!graph || !nid) { inspEtat("aucun graphe à inspecter."); return; }
+    let r = null;
+    try {
+      r = await M.api.raw("POST", "node-preview", {
+        graph: graph, card: (CF.current ? CF.current() : 0), nid: nid });
+    } catch (e) {
+      /* transport coupé : ça, c'est une panne — elle a droit au rouge. */
+      if (gen !== GEN || jeton !== INSP_JETON) return;
+      inspEtat(String(e && e.message || e), true);
+      return;
+    }
+    if (gen !== GEN || jeton !== INSP_JETON) return;
+    if (!r.ok) {
+      let d = null;
+      try { d = await r.json(); } catch (err) { d = null; }
+      if (gen !== GEN || jeton !== INSP_JETON) return;
+      videApercuInsp(view);
+      inspEtat((d && (d.detail || d.error))
+        || (r.status + " " + r.statusText), r.status >= 500);
+      inspAvoues(null);
+      return;
+    }
+    let blob = null;
+    try { blob = await r.blob(); } catch (e) { blob = null; }
+    if (gen !== GEN || jeton !== INSP_JETON) return;
+    if (!blob) { inspEtat("aperçu illisible (corps vide)", true); return; }
+    let extras = null;
+    try { extras = glbExtras(await blob.arrayBuffer()); } catch (e) { extras = null; }
+    if (gen !== GEN || jeton !== INSP_JETON) return;
+    if (typeof customElements === "undefined"
+        || !customElements.get("model-viewer")) {
+      view.innerHTML = '<p class="empty-note sm">La visionneuse 3D '
+        + '(/assets/model-viewer.min.js) n\'est pas chargée.</p>';
+      inspEtat("aperçu construit — la visionneuse, elle, n'est pas chargée.");
+      inspAvoues(extras);
+      return;
+    }
+    if (INSP_URL && typeof URL !== "undefined") URL.revokeObjectURL(INSP_URL);
+    INSP_URL = URL.createObjectURL(blob);
+    if (!INSP_MV && typeof document !== "undefined") {
+      INSP_MV = document.createElement("model-viewer");
+      INSP_MV.id = "cf-forge3d-insp-mv";
+      INSP_MV.setAttribute("camera-controls", "");
+      INSP_MV.setAttribute("auto-rotate", "");
+      INSP_MV.addEventListener("error", () => {
+        M.toast("la visionneuse n'a pas pu ouvrir l'aperçu du nœud", true);
+      });
+    }
+    if (!INSP_MV) return;
+    if (INSP_MV.parentNode !== view) {
+      view.innerHTML = "";
+      view.appendChild(INSP_MV);
+    }
+    INSP_MV.setAttribute("src", INSP_URL);
+    inspEtat("aperçu réel de ce nœud — construit à la demande, jamais payant.");
+    inspAvoues(extras);
+  }
+
+  /* le viewer lâche son modèle et quitte l'hôte — l'élément survit (voir
+     `INSP_MV`), le contenu non. */
+  function videApercuInsp(view) {
+    if (INSP_URL && typeof URL !== "undefined") URL.revokeObjectURL(INSP_URL);
+    INSP_URL = null;
+    if (INSP_MV) {
+      INSP_MV.removeAttribute("src");
+      if (INSP_MV.parentNode) INSP_MV.parentNode.removeChild(INSP_MV);
+    }
+    if (view) view.innerHTML = "";
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LA PALETTE (2c Task 5) — CE QUI PEUT NAÎTRE, ET RIEN D'AUTRE
+     Une naissance = UNE écriture (`setGraph`), donc UNE entrée d'annulation :
+     poser un nœud est une DÉCISION, exactement comme poser une arête.
+     CE QU'ELLE NE FAIT PAS NAÎTRE : un maillon flottant. Une matière ou un
+     placement sans chaîne est un nœud MORT — le backend l'avoue au bordereau,
+     la construction ne le suit pas, et un clic de menu qui en pose un
+     apprendrait à l'utilisateur à ignorer ses propres aveux. Ils exigent donc
+     un traitement SÉLECTIONNÉ et naissent CONNECTÉS, par l'écrivain de chaîne
+     DÉJÀ en place (`editMat`/`editTrs` -> `rewireRow`, la même porte que la
+     vue liste). Le GLISSER de fil, lui, garde son comportement de la Task 4 :
+     accepté, et honnête à l'écran (« matière hors chaîne »). Ce n'est pas une
+     contradiction — un fil visé à la main est un geste, un bouton de menu est
+     un raccourci : le premier mérite qu'on lui fasse confiance, le second
+     mérite qu'on ne lui laisse pas fabriquer le défaut en un clic. */
+  const PAL = { role: "", format: "" };   /* le choix des menus — présentation */
+
+  function onPaletteChange(e) {
+    const s = e.target;
+    const quoi = (s && s.getAttribute) ? s.getAttribute("data-pal") : null;
+    if (quoi === "role") PAL.role = s.value;
+    else if (quoi === "format") PAL.format = s.value;
+  }
+
+  /* LES COUCHES QU'ON PEUT ENCORE POSER : celles du manifeste LIVRÉ qui ne
+     sont pas déjà une source du graphe. Le manifeste est la seule vérité de
+     ce qui existe SUR LE DISQUE — proposer un rôle jamais exporté ferait
+     naître un nœud dont la vignette 404 et que la construction avouerait. */
+  function couchesRestantes(graph) {
+    const man = LAST_MANIFEST;
+    if (!man) return [];
+    const cote = (man.side === "back") ? "back" : "front";
+    const pris = sansProto();
+    ((graph && graph.nodes) || []).forEach((n) => {
+      if (n.kind !== "layer") return;
+      if (((n.side === "back") ? "back" : "front") !== cote) return;
+      pris[String(n.role || "composite")] = 1;
+    });
+    return (man.layers || [])
+      .filter((l) => l && l.role)
+      .map((l) => String(l.role))
+      .filter((r) => !connu(pris, r));
+  }
+
+  /* LE PLAFOND EST DIT AVANT, PAS DÉCOUVERT AU REFUS. `build3d` rend un 400
+     nommé au-delà de `graph_limits.max_elements` — un chiffre SERVI, jamais
+     recopié ici — et le pied de la vue liste le rappelle déjà quand le graphe
+     le dépasse. Une NAISSANCE, elle, peut encore être refusée à temps.
+     CE QUI COMPTE EST UN ÉLÉMENT, PAS UN NŒUD : seul un traitement SOURCÉ en
+     devient un. Une couche seule n'en ajoute donc aucun — mais elle n'existe
+     que pour le devenir, et laisser en poser six de plus pour découvrir le
+     plafond au moment de construire ne rendrait service à personne. La phrase
+     est passée ENTIÈRE par l'appelant : accorder un morceau (« construit·e »)
+     remettrait la faute un mot plus loin. */
+  function plafondAtteint(graph, phrase) {
+    const lim = (INFO && INFO.graph_limits) || null;
+    const maxEl = Number(lim && lim.max_elements) || 0;
+    const n = rowsDe(graph).length;
+    if (!(maxEl > 0) || n < maxEl) return false;
+    M.toast(n + " élément(s) — le maximum construisible est " + maxEl + " : "
+      + phrase + ". Retire un rang d'abord.", true);
+    return true;
+  }
+
+  /* UNE MATIÈRE SANS MATIÈRE NI FINITION N'EST RIEN : `clean_graph` la JETTE
+     (forge3d.py). Un maillon né vide serait donc un nœud que le serveur
+     efface — l'écran montrerait une chaîne que la construction ne suit pas.
+     Il naît avec la PREMIÈRE matière servie par /info : le même patron que le
+     moteur par défaut d'un mesh3d (`editGraph`, champ `kind`), et le menu du
+     nœud permet d'en changer aussitôt. */
+  function premiereMatiere() {
+    const mats = (INFO && INFO.materials) || [];
+    return (mats[0] && mats[0].id) || "";
+  }
+
+  function naitCouche() {
+    const graph = get("graph");
+    if (!graph) return;
+    if (plafondAtteint(graph, "une couche de plus ne serait pas construite")) return;
+    const restes = couchesRestantes(graph);
+    const role = (PAL.role && restes.indexOf(PAL.role) >= 0) ? PAL.role : restes[0];
+    if (!role) {
+      M.toast("toutes les couches livrées sont déjà des sources de ce graphe",
+              true);
+      return;
+    }
+    const next = JSON.parse(JSON.stringify(graph));
+    const cote = (LAST_MANIFEST && LAST_MANIFEST.side === "back") ? "back" : "front";
+    next.nodes.push({ id: freeId(next.nodes, role), kind: "layer",
+                      role: role, side: cote });
+    setGraph(next, "+ couche");
+    paintVue();
+  }
+
+  function naitProc() {
+    const graph = get("graph");
+    if (!graph) return;
+    if (plafondAtteint(graph, "un traitement de plus ne serait pas construit")) return;
+    const next = JSON.parse(JSON.stringify(graph));
+    /* IL NAÎT EN PLAN, et sans source. Le plan est le seul traitement à la
+       fois gratuit et sans réglage obligatoire (le relief a une base et une
+       grille, le moteur a un prix) ; le menu du nœud en change aussitôt.
+       Et l'absence de source est un travail EN COURS, pas un nœud mort : son
+       corps le dit déjà (« traitement sans couche source — il ne sera pas
+       construit »), et le geste suivant est justement de tirer le fil. C'est
+       LA différence avec un maillon, et c'est pour ça que l'un naît libre et
+       l'autre connecté. */
+    next.nodes.push({ id: freeId(next.nodes, "t"), kind: "plane", depth_mm: 0 });
+    setGraph(next, "+ traitement");
+    paintVue();
+  }
+
+  function naitMaillon(kind) {
+    const graph = get("graph");
+    if (!graph) return;
+    const mat = (kind === "material");
+    const proc = (graph.nodes || []).filter(
+      (n) => n.id === SEL && PROC_KINDS.indexOf(n.kind) >= 0)[0];
+    if (!proc) {
+      M.toast("désigne d'abord le traitement à "
+        + (mat ? "habiller" : "placer")
+        + " (clic sur l'en-tête d'un plan, d'un relief ou d'un moteur) : "
+        + (mat ? "une matière appartient" : "un placement appartient")
+        + " à une chaîne — seul, le maillon ne serait pas construit.", true);
+      return;
+    }
+    /* LES MOTS DU BORDEREAU, RÉUTILISÉS TELS QUELS. `surnumeraire` les écrit
+       déjà pour le glisser de fil ; une seconde phrase ici aurait dérivé de
+       la première au premier changement de règle. L'id passé est celui que
+       `editMat`/`editTrs` fabriqueraient — donc LIBRE, ce qui fait porter le
+       refus sur la seule question qui reste : cette chaîne en a-t-elle déjà
+       un ? */
+    const surn = surnumeraire(graph, proc, {
+      id: freeId(graph.nodes, proc.id + (mat ? "m" : "t")), kind: kind });
+    if (surn) { M.toast(surn, true); return; }
+    const next = JSON.parse(JSON.stringify(graph));
+    if (mat) {
+      const mid = premiereMatiere();
+      if (!mid) {
+        /* la panne (ou la boutique vide) est dite avec LES MOTS DÉJÀ ÉCRITS
+           dans le bloc matière — jamais un « impossible » muet. */
+        M.toast(String((INFO && INFO.materials_degraded)
+          || (INFO ? "la boutique de matières est vide (aucune matière "
+                   + "installée)." : "contrat /info non chargé.")), true);
+        return;
+      }
+      editMat(next, proc.id, "mat", mid);
+    } else {
+      /* `editTrs` sème l'élément NEUTRE — et le z d'EMPILEMENT du plan (I1,
+         2b), pas un zéro qui aplatirait la parallaxe. On lui redonne l'échelle
+         qu'il vient de poser : rien ne change, et ce qui compte (la naissance
+         ET le câblage de la chaîne) est fait par la MÊME porte que la liste. */
+      editTrs(next, proc.id, "scale", 1);
+    }
+    setGraph(next, mat ? "+ matière" : "+ placement");
+    paintVue();
+  }
+
+  function naitExport() {
+    const graph = get("graph");
+    if (!graph) return;
+    const art = (graph.nodes || []).filter((n) => n.kind === "artifact")[0];
+    if (!art) {
+      M.toast("aucun nœud artefact dans ce graphe : un export est un point de "
+        + "téléchargement SUR un artefact — reconstruis le graphe par défaut, "
+        + "il en pose un.", true);
+      return;
+    }
+    const fmts = exportFormats();
+    const fmt = (PAL.format && fmts.indexOf(PAL.format) >= 0) ? PAL.format : fmts[0];
+    if (!fmt) {
+      M.toast("formats d'export inconnus — le contrat /info n'a pas été chargé "
+        + "(backend injoignable ?).", true);
+      return;
+    }
+    const next = JSON.parse(JSON.stringify(graph));
+    const id = freeId(next.nodes, "ex" + fmt);
+    next.nodes.push({ id: id, kind: "export", format: fmt });
+    /* NÉ CONNECTÉ, et sans choix possible : la grammaire n'autorise que
+       `artifact -> export`, et un export non relié n'aurait rien à
+       télécharger. */
+    next.edges.push({ from: art.id, to: id });
+    setGraph(next, "+ export");
+    paintVue();
+  }
+
+  function paletteHtml() {
+    const graph = get("graph");
+    if (!graph) {
+      return '<span class="hint">la palette pose des nœuds SUR un graphe — '
+        + 'construis-en un d\'abord (bouton au centre de la surface).</span>';
+    }
+    const restes = couchesRestantes(graph);
+    const fmts = exportFormats();
+    const proc = (graph.nodes || []).filter(
+      (n) => n.id === SEL && PROC_KINDS.indexOf(n.kind) >= 0)[0];
+    const art = (graph.nodes || []).filter((n) => n.kind === "artifact")[0];
+    const lim = (INFO && INFO.graph_limits) || null;
+    const maxEl = Number(lim && lim.max_elements) || 0;
+    const n = rowsDe(graph).length;
+    const plein = (maxEl > 0 && n >= maxEl);
+    const sansProc = "désigne un traitement (plan, relief ou moteur) : "
+      + "un maillon appartient à une chaîne";
+    return '<span class="lbl">poser</span>'
+      + (restes.length
+        ? ('<select data-pal="role" title="les couches livrées qui ne sont pas '
+          + 'encore des sources">'
+          + restes.map((r) => '<option value="' + esc(r) + '"'
+            + (PAL.role === r ? " selected" : "") + '>' + esc(r)
+            + '</option>').join("")
+          + '</select>')
+        : "")
+      + '<button class="btn sm" type="button" data-act="pal-couche"'
+      + ((!restes.length || plein) ? " disabled" : "") + ' title="'
+      + esc(restes.length
+        ? "une couche livrée, pas encore reliée à un traitement"
+        : "toutes les couches livrées sont déjà des sources de ce graphe")
+      + '">+ couche</button>'
+      + '<button class="btn sm" type="button" data-act="pal-proc"'
+      + (plein ? " disabled" : "")
+      + ' title="un plan, à relier à une couche">+ traitement</button>'
+      + '<button class="btn sm" type="button" data-act="pal-mat"'
+      + (proc ? "" : " disabled") + ' title="'
+      + esc(proc ? ("habille « " + noeudTitre(proc) + " »") : sansProc)
+      + '">+ matière</button>'
+      + '<button class="btn sm" type="button" data-act="pal-trs"'
+      + (proc ? "" : " disabled") + ' title="'
+      + esc(proc ? ("place « " + noeudTitre(proc) + " »") : sansProc)
+      + '">+ placement</button>'
+      + (fmts.length
+        ? ('<select data-pal="format" title="les formats que le bordereau '
+          + 'livre">'
+          + fmts.map((f) => '<option value="' + esc(f) + '"'
+            + (PAL.format === f ? " selected" : "") + '>' + esc(f)
+            + '</option>').join("")
+          + '</select>')
+        : "")
+      + '<button class="btn sm" type="button" data-act="pal-export"'
+      + ((!fmts.length || !art) ? " disabled" : "") + ' title="'
+      + esc(art ? "un point de téléchargement sur l'artefact"
+                : "aucun nœud artefact dans ce graphe")
+      + '">+ export</button>'
+      /* LE PLAFOND, TOUJOURS LISIBLE — pas seulement au moment du refus. */
+      + '<span class="mono cf-forge3d-pal-compte'
+      + (plein ? " cf-forge3d-trop" : "") + '">' + Number(n)
+      + (maxEl > 0 ? (" / " + Number(maxEl)) : "") + ' élément(s)</span>';
+  }
+
+  function paintPalette() {
+    const el = $("#cf-forge3d-palette");
+    if (!el || VUE !== "canvas") return;
+    el.innerHTML = paletteHtml();
   }
 
   /* L'HÔTE DE LA VUE ACTIVE — la liste et le canvas peignent les MÊMES
@@ -3055,6 +3893,9 @@
     el.innerHTML = noeudTeteHtml(n) + portsHtml(n) + nodeBodyHtml(nid);
     rendLeFocus(el, focusField);
     paintNodeThumb(nid);
+    /* le viewer du RÉSULTAT vit dans le corps qu'on vient de réécrire (nœud
+       artefact) : on le RE-ACCROCHE, sans re-télécharger. */
+    remonteApercu();
     paintCost();
   }
 
@@ -3115,6 +3956,32 @@
     } else if (act === "lien-supp") {
       e.preventDefault();
       if (ARETE) suppLien(ARETE.from, ARETE.to);
+    } else if (act === "grab-file") {
+      /* le MÊME acte que dans les bordereaux de section (`onSlipClick`) : un
+         fichier livré se télécharge par sa PROVENANCE, d'où qu'on clique. */
+      e.preventDefault();
+      grabZip(b.getAttribute("data-name"));
+    } else if (act === "build3d") {
+      e.preventDefault();
+      build3d();
+    } else if (act === "freeze") {
+      e.preventDefault();
+      freezePreview();
+    } else if (act === "pal-couche") {
+      e.preventDefault();
+      naitCouche();
+    } else if (act === "pal-proc") {
+      e.preventDefault();
+      naitProc();
+    } else if (act === "pal-mat") {
+      e.preventDefault();
+      naitMaillon("material");
+    } else if (act === "pal-trs") {
+      e.preventDefault();
+      naitMaillon("transform");
+    } else if (act === "pal-export") {
+      e.preventDefault();
+      naitExport();
     }
   }
 
@@ -3428,7 +4295,12 @@
      au-dessus d'un champ disant verso. Sur la liste, le rang ne montre que le
      rôle — le défaut y était invisible, et c'est exactement pourquoi il a
      survécu jusqu'au canvas. */
-  const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish", "side"];
+  /* Task 5 : `name` et `format` en font partie pour la même raison que `side`
+     — ils changent ce que le nœud MONTRE au-delà de leur propre valeur. Le nom
+     d'un artefact est son TITRE d'en-tête (`noeudTitre`), et le format d'un
+     export commande TOUT son corps (poids et bouton, ou motif de refus). */
+  const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish", "side", "name",
+                         "format"];
 
   /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
      qu'il est posé (schema simple, fusion superficielle) — une mutation en
@@ -3489,6 +4361,19 @@
       const max = Number((mesh3dInfo() && mesh3dInfo().prompt_max) || 0);
       const t = String(rawValue == null ? "" : rawValue);
       proc.texture_prompt = max > 0 ? t.slice(0, max) : t;
+    } else if (field === "name") {
+      /* le NOM d'un artefact. La longueur est bornée ici comme au champ
+         (ART_NAME_MAX, miroir du backend) ; le CHARSET, lui, reste l'affaire
+         de `clean_graph` — et le nom RÉELLEMENT construit se relit dans
+         `graph_used` (`artifactName`), jamais dans ce qu'on a tapé. */
+      proc.name = String(rawValue == null ? "" : rawValue).slice(0, ART_NAME_MAX);
+    } else if (field === "format") {
+      /* seul un format SERVI s'écrit : le <select> ne peut en proposer
+         d'autres, et `clean_graph` reste l'ultime porte (un format inconnu y
+         retombe sur le premier). Refuser ici sans rien dire vaut mieux que
+         d'écrire une valeur que le serveur remplacera en silence. */
+      const f = String(rawValue || "");
+      if (exportFormats().indexOf(f) >= 0) proc.format = f;
     } else if (MAT_FIELDS.indexOf(field) >= 0) {
       naissance = editMat(next, procId, field, rawValue);
     } else if (TRS_FIELDS.indexOf(field) >= 0) {
@@ -3523,6 +4408,14 @@
       repeintChaine(procId, nid);
       paintCost();
     }
+    /* L'INSPECTEUR SUIT L'ÉDITION (Task 5). Il promet de montrer « l'option
+       DÉJÀ choisie » : le laisser sur l'aperçu d'avant le ferait mentir d'un
+       cran à chaque réglage — une profondeur poussée, une matière posée, et le
+       panneau montrerait encore l'état précédent. La reconstruction est
+       DEBOUNCÉE (`INSP_MS`) et GRATUITE (`node-preview` ne lance aucun
+       moteur) ; et comme `change` ne part qu'au COMMIT, c'est au plus une
+       requête par réglage terminé, jamais une par caractère. */
+    if (SEL) majInspecteur(true);
   }
 
   /* LA VIGNETTE DU NŒUD TOUCHÉ — ET DE SA CHAÎNE. Un champ n'appartient pas
@@ -3857,6 +4750,9 @@
     }
     build3d.busy = true;
     if (btn) btn.disabled = true;
+    /* le bouton du NŒUD artefact dit la même chose que celui de la section :
+       `artifactNodeHtml` lit `build3d.busy`, il suffit de le repeindre. */
+    repeintLeBordereau();
     if (status) status.textContent = "construction…";
     /* N1 (même forme, enjeu moindre) : le bordereau d'une construction décrit
        LA carte pour laquelle elle a tourné — le peindre dans l'écran d'une
@@ -3868,6 +4764,10 @@
       if (gen !== GEN) return;
       ARTIFACT = rep.artifact;
       paintArtifact(ARTIFACT);
+      /* le nœud artefact porte le MÊME bordereau et les exports en dépendent :
+         on les repeint AVANT de monter l'aperçu, sans quoi le viewer se
+         monterait dans un corps qu'on s'apprête à remplacer. */
+      repeintLeBordereau();
       if (status) status.textContent = ARTIFACT.elements + " élément(s) — "
         + weight(ARTIFACT.glb.bytes) + " · " + ARTIFACT.ms.total + " ms.";
       await mountPreview(ARTIFACT.glb.name);
@@ -3890,6 +4790,7 @@
     } finally {
       build3d.busy = false;
       if (btn) btn.disabled = false;
+      repeintLeBordereau();
     }
   }
 
@@ -3923,11 +4824,10 @@
       stlHtml = '<p class="hint"><b>STL non fourni</b> : '
         + esc(art.stl.why) + '</p>';
     }
-    const rows = files.map((f) =>
-      '<div class="cf-forge3d-file"><span class="mono">' + esc(f.label) + " · "
-      + esc(f.name) + " · " + weight(f.bytes) + '</span>'
-      + '<button class="btn sm" type="button" data-act="grab-file" data-name="'
-      + esc(f.name) + '">télécharger</button></div>').join("");
+    /* MÊME ligne de fichier que les nœuds d'export (Task 5) : `fichierHtml`
+       est la seule écriture de ce balisage dans le module. */
+    const rows = files.map(
+      (f) => fichierHtml(f.label, f.name, f.bytes)).join("");
     const previewHtml = '<p class="hint">aperçu : ' + (art.preview.written
       ? "figé — " + esc(art.preview.expected)
       : "en attente (" + esc(art.preview.expected) + ")") + '</p>';
@@ -3946,14 +4846,7 @@
           + "</li>").join("")
         + "</ul>")
       : "";
-    const ignoredHtml = (art.ignored && art.ignored.length)
-      ? ('<p class="hint"><b>éléments ignorés</b> — avoués, jamais tus :</p>'
-        + '<ul class="cf-forge3d-ignored">'
-        + art.ignored.map((i) => "<li class=\"mono\">" + esc(i.node) + " · "
-          + esc(i.why) + "</li>").join("")
-        + "</ul>")
-      : "";
-    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoredHtml;
+    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoresHtml(art);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -3962,37 +4855,108 @@
      d'en poser une nouvelle (patron mod-gltf.js:ATLAS/compose). Le script
      est déjà chargé par la coquille (index.html:23).
      ═══════════════════════════════════════════════════════════════════════ */
-  async function mountPreview(name) {
-    const host = $("#cf-forge3d-view");
-    if (!host) return;
-    if (typeof customElements === "undefined" || !customElements.get("model-viewer")) {
+  /* OÙ VIT LE VIEWER DU RÉSULTAT — et il n'y en a QU'UN (le 2e et dernier
+     contexte WebGL de cet écran). Sur le canvas, c'est DANS le nœud artefact :
+     la spec §5.6 veut le résultat là où vit l'action qui le produit. En vue
+     liste — ou tant qu'aucun nœud artefact n'est peint — c'est la section
+     « Aperçu », qui ne disparaît pas pour autant : elle reste le repli sans
+     pointeur. Le MÊME élément déménage de l'un à l'autre. */
+  function hoteApercu() {
+    const host = $("#cf-forge3d-canvas");
+    const dans = (VUE === "canvas" && host)
+      ? host.querySelector(".cf-forge3d-art-view") : null;
+    return dans || $("#cf-forge3d-view");
+  }
+
+  /* CRÉE-OU-DÉMÉNAGE le viewer du résultat. Rend `null` quand la visionneuse
+     n'est pas chargée : l'hôte dit alors pourquoi, et le fichier reste
+     téléchargeable — il EST construit, c'est l'affichage qui manque. */
+  function poseViewer(host) {
+    if (!host || typeof document === "undefined") return null;
+    if (typeof customElements === "undefined"
+        || !customElements.get("model-viewer")) {
       host.innerHTML = '<p class="empty-note sm">La visionneuse 3D '
         + '(/assets/model-viewer.min.js) n\'est pas chargée. Le fichier, lui, '
         + 'est construit et téléchargeable.</p>';
-      return;
+      return null;
     }
+    if (!MV) {
+      MV = document.createElement("model-viewer");
+      MV.id = "cf-forge3d-mv";
+      MV.setAttribute("camera-controls", "");
+      MV.setAttribute("auto-rotate", "");
+      MV.addEventListener("load", () => { majFige(false); });
+      MV.addEventListener("error", () => {
+        M.toast("la visionneuse n'a pas pu ouvrir le GLB", true);
+      });
+    }
+    if (MV.parentNode !== host) { host.innerHTML = ""; host.appendChild(MV); }
+    majSectionApercu();
+    return MV;
+  }
+
+  /* LA SECTION « Aperçu » NE RESTE PAS UN CADRE VIDE quand le viewer est parti
+     vivre dans le nœud artefact : elle DIT où il est. Un panneau vide se lit
+     comme une panne — celui-là surtout, juste sous le bouton qui vient de
+     construire. */
+  function majSectionApercu() {
+    const sect = $("#cf-forge3d-view");
+    if (!sect) return;
+    if (MV && MV.parentNode === sect) return;   /* il est ici : rien à dire */
+    if (!PREVIEW_URL) { sect.innerHTML = ""; return; }
+    sect.innerHTML = '<p class="empty-note sm">l\'aperçu est monté dans le '
+      + 'nœud <b>artefact</b>, sur le canvas — bascule sur « liste » pour le '
+      + 'revoir ici.</p>';
+  }
+
+  /* L'APERÇU DU RÉSULTAT, RENDU : objectURL révoquée, viewer détaché et
+     lâché, section vidée, boutons re-verrouillés. L'ÉLÉMENT survit (une seule
+     naissance par onglet — voir `MV`), ce qu'il montrait, non. */
+  function videApercu() {
+    if (PREVIEW_URL && typeof URL !== "undefined") URL.revokeObjectURL(PREVIEW_URL);
+    PREVIEW_URL = null;
+    if (MV) {
+      MV.removeAttribute("src");
+      if (MV.parentNode) MV.parentNode.removeChild(MV);
+    }
+    const sect = $("#cf-forge3d-view");
+    if (sect) sect.innerHTML = "";
+    majFige(true);
+  }
+
+  /* LES DEUX BOUTONS « figer » — celui de la section et celui du nœud
+     artefact — SONT LE MÊME GESTE. Les laisser diverger ferait cliquer sur
+     l'un pendant que l'autre se sait occupé (ou pas encore prêt). */
+  function majFige(off) {
+    const b = $("#cf-forge3d-freeze");
+    if (b) b.disabled = !!off;
+    const hote = hoteVue();
+    const n = hote ? findByAttr("[data-act]", "data-act", "freeze", hote) : null;
+    if (n) n.disabled = !!off;
+  }
+
+  /* LE VIEWER SURVIT AUX REPEINTURES. `paintCanvas` reconstruit le monde en un
+     `innerHTML` et `paintNode` réécrit l'intérieur d'un nœud : dans les deux
+     cas, un viewer monté DANS le nœud artefact est détaché avec lui. On le
+     RE-ACCROCHE sans rien re-télécharger — une objectURL survit au DOM qui la
+     montrait, et `PREVIEW_URL` tient toujours les octets déjà livrés. */
+  function remonteApercu() {
+    if (!PREVIEW_URL) return;
+    const mv = poseViewer(hoteApercu());
+    if (!mv) return;
+    if (mv.getAttribute("src") !== PREVIEW_URL) mv.setAttribute("src", PREVIEW_URL);
+  }
+
+  async function mountPreview(name, hote) {
+    const host = hote || hoteApercu();
+    if (!host) return;
     try {
       const blob = await M.api.blob("GET", "file/" + encodeURIComponent(name));
       if (PREVIEW_URL) URL.revokeObjectURL(PREVIEW_URL);
       PREVIEW_URL = URL.createObjectURL(blob);
-      const freeze = $("#cf-forge3d-freeze");
-      let mv = $("#cf-forge3d-mv");
-      if (!mv) {
-        mv = document.createElement("model-viewer");
-        mv.id = "cf-forge3d-mv";
-        mv.setAttribute("camera-controls", "");
-        mv.setAttribute("auto-rotate", "");
-        mv.addEventListener("load", () => {
-          const f = $("#cf-forge3d-freeze");
-          if (f) f.disabled = false;
-        });
-        mv.addEventListener("error", () => {
-          M.toast("la visionneuse n'a pas pu ouvrir le GLB", true);
-        });
-        host.innerHTML = "";
-        host.appendChild(mv);
-      }
-      if (freeze) freeze.disabled = true;   /* re-verrouillé jusqu'au prochain load */
+      const mv = poseViewer(host);
+      if (!mv) return;
+      majFige(true);       /* re-verrouillé jusqu'au prochain `load` */
       mv.setAttribute("src", PREVIEW_URL);
     } catch (e) {
       M.toast(String(e && e.message || e), true);
@@ -4004,14 +4968,19 @@
      RIEN de la carte n'est rendu au serveur (patron du domaine). Si toBlob()
      échoue (WebGL absent), toast honnête, pas de crash. */
   async function freezePreview() {
-    const mv = $("#cf-forge3d-mv");
+    /* UN SEUL GESTE À LA FOIS (patron `build3d.busy`) : DEUX boutons « figer »
+       déclenchent désormais la même chose (la section et le nœud artefact), et
+       deux POST concurrents écriraient deux fois la même image en se
+       contredisant sur son poids. */
+    if (freezePreview.busy) return;
+    const mv = (MV && MV.isConnected) ? MV : null;
     const status = $("#cf-forge3d-freeze-status");
     if (!mv || !ARTIFACT) {
       M.toast("construisez et affichez l'aperçu d'abord", true);
       return;
     }
-    const btn = $("#cf-forge3d-freeze");
-    if (btn) btn.disabled = true;
+    freezePreview.busy = true;
+    majFige(true);
     try {
       const blob = await mv.toBlob();
       const name = artifactName(ARTIFACT);
@@ -4022,17 +4991,36 @@
         throw new Error((d && d.detail) || ("aperçu refusé (" + r.status + ")"));
       }
       const d = await r.json();
+      /* le POIDS vient de la RÉPONSE (ce que le serveur a écrit), jamais de la
+         taille du blob envoyé : c'est lui que le nœud d'export « preview »
+         affichera. */
       ARTIFACT = Object.assign({}, ARTIFACT, {
-        preview: { expected: ARTIFACT.preview.expected, written: true },
+        preview: { expected: ARTIFACT.preview.expected, written: true,
+                   bytes: (d && d.preview) ? d.preview.bytes : null },
       });
       paintArtifact(ARTIFACT);
+      repeintLeBordereau();
       if (status) status.textContent = "aperçu figé — " + weight(d.preview.bytes) + ".";
       M.toast("aperçu figé");
     } catch (e) {
       if (status) status.textContent = String(e && e.message || e);
       M.toast(String(e && e.message || e), true);
     } finally {
-      if (btn) btn.disabled = false;
+      freezePreview.busy = false;
+      majFige(false);
     }
+  }
+
+  /* LES NŒUDS QUI PARLENT DU BORDEREAU — l'artefact et les exports — repeints
+     UN PAR UN quand `ARTIFACT` change. Reconstruire le monde entier ferait
+     détacher le viewer que l'utilisateur vient de cadrer ; ces deux kinds
+     sont les seuls dont le corps LIT `ARTIFACT`, il n'y a rien d'autre à
+     rafraîchir. */
+  function repeintLeBordereau() {
+    if (VUE !== "canvas") return;
+    const graph = get("graph");
+    ((graph && graph.nodes) || []).forEach((n) => {
+      if (n.kind === "artifact" || n.kind === "export") paintNode(n.id);
+    });
   }
 })();
