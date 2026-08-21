@@ -3948,6 +3948,30 @@ def test_material_thumb_est_servi_par_provenance():
             assert r3.status_code == 404
         finally:
             MSTORE.delete_material(m2["id"])
+        # REPRISE T6 (re-revue de la ronde T5) : le `no-store` des REFUS etait
+        # ENVOYE mais jamais LU ici — le test ne le mesurait que sur
+        # `node-file`, alors que le defaut vise est le MEME et qu'il est pire
+        # sur cette route-ci : « matiere sans vignette » devient « vignette
+        # servie » des qu'on la capture dans la boutique, et un 404 mis en
+        # cache par heuristique laisserait le nœud `material` sur son aplat de
+        # couleur alors que la vignette EXISTE. CHAQUE sortie de refus est
+        # mesuree : chacune a son propre `raise`, donc chacune peut perdre ses
+        # en-tetes toute seule.
+        #
+        # AMENDE A LA SOURCE : la reprise nommait « r2/r3/r4 », et r2 N'EST PAS
+        # un refus de cette route — `..%2Fx` porte un separateur, donc AUCUNE
+        # route ne matche et c'est le 404 du ROUTEUR qui repond, sans un seul
+        # de nos en-tetes (mesure ci-dessous, pour que le prochain lecteur ne
+        # reouvre pas la question). Le refus que r2 CROYAIT viser — « mid hors
+        # motif » — a donc son cas propre, avec un mid qui atteint vraiment la
+        # route.
+        assert r2.headers.get("cache-control") is None, dict(r2.headers)
+        rmid = _api("GET", f"/api/cards/{did}/forge3d/material-thumb/pas-un-mid")
+        assert rmid.status_code == 400, rmid.text
+        assert "matière" in rmid.json()["detail"], rmid.text
+        assert rmid.headers.get("cache-control") == "no-store", \
+            dict(rmid.headers)
+        assert r3.headers.get("cache-control") == "no-store", dict(r3.headers)
         # I4 (revue) : une vignette PERIMEE (MESH_VERSION a change depuis
         # sa capture — thumb_is_current lit "thumb.mv") est tenue pour
         # ABSENTE, meme doctrine que la boutique pour sa propre carte : le
@@ -3958,6 +3982,7 @@ def test_material_thumb_est_servi_par_provenance():
         r4 = _api("GET",
                   f"/api/cards/{did}/forge3d/material-thumb/{mat['id']}")
         assert r4.status_code == 404
+        assert r4.headers.get("cache-control") == "no-store", dict(r4.headers)
     finally:
         MSTORE.delete_material(mat["id"])
 
@@ -4543,6 +4568,15 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     # (objectURL REVOQUEE, viewer detache, « figer » re-verrouille).
     assert "ARTIFACT = null" in cc, cc
     assert "videApercu(" in cc, cc
+    # REPRISE T6 (re-revue de la ronde T5) : ... et LA PROMESSE EST PRISE AVANT
+    # LA PEINTURE. `repeintLeBordereau` peint, et TOUTE peinture rappelle
+    # `cardChanged` : c'est le verrou `.busy` pose par `refreshManifest` qui
+    # ferme la recursion. Les deux appels etaient epingles par leur PRESENCE,
+    # jamais par leur ORDRE — un reordonnancement accidentel aurait ravive la
+    # boucle sans qu'un seul test rougisse. On mesure donc l'ORDRE (patron du
+    # pin M1 de la feuille : c'est lui, et lui seul, qui tranche).
+    assert "refreshManifest(" in cc and "repeintLeBordereau(" in cc, cc
+    assert cc.index("refreshManifest(") < cc.index("repeintLeBordereau("), cc
     # ... et un JETON d'inspection en plus : deux clics rapides lancent deux
     # requetes, la PREMIERE peut revenir en dernier. Sans jeton, l'inspecteur
     # afficherait le nœud qu'on ne regarde plus.
