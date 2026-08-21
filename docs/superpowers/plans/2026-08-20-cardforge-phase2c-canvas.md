@@ -263,6 +263,23 @@ git commit -m "feat(cardforge): canvas nodal - surface pan/zoom, noeuds depuis l
 
 ### Task 3: Les corps de nœuds — menus embarqués + vignettes réactives
 
+> **CLOSE (ff0d434 + a072e74, re-revue APPROUVÉE).** Réutilisation prouvée à
+> l'octet (vue liste inchangée), zéro duplication épinglée par comptage des
+> data-field, paintNode chirurgical, vignettes déterministes par genre, chips
+> indépendantes de l'hôte, cache d'images RETAILLÉ (154×) et invalidé
+> honnêtement (flush par face + re-sonde 30 s des matières y compris les 404
+> mémorisés — le no-store du backend est un ordre), side repeint l'en-tête,
+> saisie tapée dessinée sous le curseur (SAISIE synchrone), thème observé.
+> Trou preview.png ACCORDÉ à la T5 (route node-file à liste blanche). 17/17
+> mutants + ancre-contrôle survivante. **Suivis pliés en tête de T4** : époque
+> d'images (IMGS_EPOQUE) contre le chargeur en vol qui réécrit des octets
+> pré-export ; commentaire M11 ramené au vrai (le voisin n'était PAS
+> atteignable — la valeur du changement est la doctrine, pas un bug corrigé) ;
+> 3 asserts de site d'appel (oublieLesImages dans exportLayers,
+> reSondeLesMatieres dans paintCanvas, retaille dans chargeImage) ; le
+> commentaire M8 dit « n'importe quelle écriture », pas « un patch de
+> layout ».
+
 **Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py.
 
 > **LIVRÉ (ff0d434).** 85 tests (84 + 1), lint 0, `--geom` 4/4,
