@@ -51,7 +51,7 @@ chemin async qui écrit l'état de l'écran vérifie GEN après ses await.
 
 **Files:** forge3d.py, test_cards_forge3d.py.
 
-- [ ] **Step 1 : tests en RED**
+- [x] **Step 1 : tests en RED**
 
 ```python
 def test_node_preview_construit_le_glb_du_seul_element():
@@ -141,7 +141,7 @@ est à écrire (3 lignes, rmtree du dossier nœud). VÉRIFIER la signature réel
 
 Run : run-tests -Filter cards_forge3d → FAIL (routes absentes).
 
-- [ ] **Step 2 : implémentation**
+- [x] **Step 2 : implémentation**
 
 `forge3d.py` :
 ```python
@@ -171,7 +171,7 @@ RELIEF_GRID_PREVIEW = 96      # l'aperçu d'UN nœud privilégie la vitesse : le
 chemin de vignette via material_store (lire comment `write_thumb` nomme le
 fichier) ; absent → 404 nommé ; `FileResponse` image. Jamais-500.
 
-- [ ] **Step 3 : GREEN + lint + commit**
+- [x] **Step 3 : GREEN + lint + commit**
 
 ```bash
 git add backend/app/services/cards/forge3d.py backend/tests/test_cards_forge3d.py
@@ -464,7 +464,15 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > APERÇU pur : `_apercu_mesh3d`, `_glb_servi_path`, `_element_local`, la
 > logique de sous-graphe de node-preview (la ROUTE reste dans forge3d.py et
 > appelle le sidecar) — réexports pour la compat des tests. La suite verte 83
-> est le verrou de la découpe (patron Task 1 de la 2b).
+> est le verrou de la découpe (patron Task 1 de la 2b). **La même passe prend
+> (re-revue T1)** : N1 — extraire `_source_gagnante` + `_chaine_aval(…,
+> ignores)` pour que LES phrases d'avoeu vivent à côté des règles qui les
+> produisent (le grep a déjà raté une copie au découpage de littéral près) ;
+> N2 — `_element_local(…, g, ignores)` dérive bleed/canvas/uv_window EN
+> INTERNE (13 paramètres positionnels → 9, le swap silencieux de tuples
+> devient impossible) ; N3 — une ligne d'honnêteté sur la fenêtre TOCTOU
+> assumée du stream FileResponse mesh3d (un relaunch concurrent peut 500 —
+> prix accepté du streaming, le dire).
 
 **Files:** forge3d.py, test_cards_forge3d.py, scripts/patch_bundle_card3d_library.py (créé), la chaîne de patchs, mod-forge3d.js (le bouton).
 
