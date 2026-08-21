@@ -4,6 +4,79 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.4.0 "Cardforge universel"
+
+**Card Forge** passe de l'éditeur 8 modules à un atelier complet : la carte
+s'exporte **par couches** prouvées au pixel, les couches se traitent dans un
+**graphe 3D** gratuit et local (plan, relief, assemblage, artefact glTF/STL),
+et le graphe s'ouvre aux **moteurs image→3D** payants — 5 moteurs fal +
+Meshy 6/7 en API directe — avec matières, finitions holographiques et fusion
+des GLB moteurs dans l'artefact final. Prix affiché AVANT chaque dépense,
+tout le reste à 0 $.
+
+## Export par couches (phase 1)
+
+Six couches nommées par rôle + le composite, recto et verso, PNG alpha au
+canvas exact (300 DPI réels, chunks pHYs/sRGB/gAMA/cHRM) ; l'écran PROUVE
+l'empilement (0 px d'écart) avant de téléverser, le serveur contre-prouve en
+PIL et scelle un manifeste `card-3d/layers-manifest@1` (identité de carte,
+bbox mm, coverage mesuré — l'absence se mesure, elle ne se devine pas). Un
+corps mal formé ne fait jamais 500 : 400/409/413 nommés, mesurés par tests.
+
+## Le graphe gratuit (phase 2a)
+
+Vocabulaire en bloc miroir JS↔py (layer, plane, relief, assemble, artifact),
+`clean_graph` répare et ne lève jamais ; relief SOLIDE fermé par
+construction, quad exact ; writer glTF/GLB « écrit juste du premier coup » :
+bornes d'accesseurs exactes, zéro champ d'identité, samplers CLAMP, échelle
+physique mm→m ; STL binaire local ; metadata façon ERC-721 ; écran liste
+honnête + aperçu model-viewer + bordereau.
+
+## Forge 3D (phase 2b)
+
+- **7 moteurs image→3D** sur le nœud `mesh3d` : tripo, hunyuan, trellis,
+  rodin, triposr (fal, prix en $) + **meshy-6/meshy-7 en API directe**
+  (crédits, grille officielle 20/30/35, **ultra +5 cr** sur v7/latest, des
+  DEUX côtés du miroir JS↔py) — prix AVANT, job par nœud (job.json atomique,
+  poll avec reprises, orphelins avoués après redémarrage, 409 anti
+  double-lancement payant, journal meshy récupérable au 3D Studio).
+- **Matières & finitions** : matières de la boutique tuilées au pas physique
+  (pack MR glTF), finitions **argent/dorure holographiques** (iridescence +
+  clearcoat + anisotropie, `extensionsUsed` uniquement, TANGENT w=−1), TRS
+  par élément.
+- **Fusion des GLB moteurs** dans l'artefact : réindexation complète, fit à
+  la boîte mm de SA couche, identité du doc externe jetée, extensions
+  externes déclarées honnêtement ; **STL mixte** gate par `closed` mesuré
+  UNE fois (refus motivé, jamais un solide menteur).
+- **Écran** : rangées chaînées layer→traitement→matière→transform, moteurs
+  et prix servis par `/info` (jamais recopiés), chips d'état, coût du graphe
+  avant, `degraded` et `run_id` dits tels quels.
+- **2 courses Windows réelles** du job.json trouvées en vérification
+  navigateur (250 GET concurrents) et corrigées des deux côtés — un poll ne
+  tue plus le job payé qu'il observe.
+
+## Fluidité & outillage
+
+Barre §9.6 sur toutes les surfaces de drag du lab (≤ 1 patch par frame, état
+final exact au relâché, poignées 12 px, `touch-action: none`, molette P1
+coalescée à la frame) ; lint : **R13 « octets sains »** (zéro NUL/CRLF brut)
+et **R14 « échappement »** (interpolations HTML) ; audit de couture des 15
+plans et 23 specs — les extraits resynchronisés sur le code livré.
+
+## Chiffres
+
+78 tests forge3d, lint 9 modules 0 violation, ~95 commits depuis v2.3.0,
+duels aveugles par tâche, ZÉRO dépense réelle (mock Meshy, fal monkeypatché).
+
+## Reste connu — nommé
+
+Chatoiement holo à juger à l'œil en tournant le viewer ; bloc fluidité à
+re-vérifier au pointeur réel ; capture d'aperçu ; cas deux onglets ;
+rétention du double stockage meshy3d à arbitrer ; le guide illustré n'a pas
+encore de chapitre Forge 3D (son chapitre Card Forge s'arrête aux 8 modules).
+
+---
+
 # 🐙 Deepotus Video Gen — v2.3.0 "Cardforge"
 
 **Card Forge**, nouveau 9ᵉ sous-onglet du hub **Game Assets** : un éditeur de

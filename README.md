@@ -1,4 +1,4 @@
-# 🐙 Deepotus Video Gen — v2.3.0
+# 🐙 Deepotus Video Gen — v2.4.0
 
 Local Windows studio for generating 9:16 crypto/Web3 videos — Seedance clips,
 HeyGen talking avatars, spatial compositions, and RSS→reel news posts — with a
@@ -79,15 +79,21 @@ Since v2.3.0, **Card Forge** — the playing-card editor under Game Assets — i
 fully usable with no key at all too: 300 DPI print exports with bleed and safe
 zone (`TrimBox`/`BleedBox`, cut marks), CSV-driven decks, PBR textures (8
 maps), and glTF/GLB 3D export with real card thickness, all computed locally
-(Pillow + pypdf). Only the optional AI face generation uses your existing
-fal.ai key.
+(Pillow + pypdf). v2.4.0 adds the pixel-proven **layered export** and a free,
+local **Forge 3D graph** — plane/relief treatments, tiled materials,
+holographic finishes, glTF/GLB + STL artifacts. The only steps that use keys
+are optional: AI face generation (fal.ai) and the image→3D engines of the
+Forge 3D graph (5 fal engines billed in $, or Meshy 6/7 in credits — the
+price is shown before every launch).
 
 ## Required API keys (bring-your-own)
 **fal.ai** is required (images + video, and **music generation** since v2.2.0 —
 Lyria 3, Stable Audio 2.5, MiniMax Music 2.6, CassetteAI, all on the same key).
 Optional: **HeyGen** (avatars), **ElevenLabs** (voiceover and SFX generation
-from a description), **Anthropic/OpenAI/Gemini** or local **Ollama** (news
-summaries, marketing plans, AI script polish), **X/Telegram** (auto-publish).
+from a description), **Meshy** (image→3D in the 3D Studio and in Card Forge's
+mesh nodes, billed in Meshy credits), **Anthropic/OpenAI/Gemini** or local
+**Ollama** (news summaries, marketing plans, AI script polish), **X/Telegram**
+(auto-publish).
 See `backend/.env.example`.
 
 ## Patching the compiled UI (read before editing `frontend/patches/`)
@@ -121,7 +127,7 @@ Provided for the author's own development and backup. Not licensed for redistrib
 
 ## Changelog
 
-Full version history (v1.8.0 and earlier) lives in [`CHANGELOG.md`](CHANGELOG.md).
+Full version history lives in [`CHANGELOG.md`](CHANGELOG.md).
 
 ---
 
