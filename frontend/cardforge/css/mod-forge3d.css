@@ -98,8 +98,8 @@
 .cf-forge3d .cf-forge3d-outils { right: 10px; bottom: 10px; display: flex; gap: 6px; }
 
 /* ── CE QUE CETTE FEUILLE NE FAIT PAS ENCORE, ET POURQUOI (dette nommee) ───
-   Trois manques etaient DELIBERES en Task 2 ; les nommer ici evite qu'on les
-   prenne pour des oublis (ou qu'on les repare deux fois) :
+   Un seul manque reste DELIBERE apres la Task 4 ; le nommer ici evite qu'on
+   le prenne pour un oubli (ou qu'on le repare deux fois) :
    1. AUCUN habillage par kind. TOUJOURS VRAI APRES LA TASK 3, et c'est
       desormais un CHOIX plutot qu'un report : le corps d'un nœud porte
       maintenant sa VIGNETTE, qui distingue les etages bien mieux qu'une
@@ -108,31 +108,96 @@
       ferait de l'accent un quatrieme role dans cette feuille — la regle du
       lab en veut UN par emploi. `data-kind` reste pose : le crochet existe si
       la passe navigateur (Task 7) prouve le contraire.
-   2. LES ARETES SONT MONOCHROMES (--stroke-strong) et sans etat au survol.
-      La couche SVG est `pointer-events: none` — deliberement, sinon elle
-      volerait les clics des nœuds qu'elle croise. La Task 4 (supprimer une
-      arete au clic) devra donc AJOUTER une zone de saisie explicite : un
-      second chemin transparent et epais par arete, seul a recevoir le
-      pointeur. Un simple `pointer-events: stroke` sur ces traits-ci ne
-      suffirait pas — 1,5 px de cible, sous la barre des 12 px (spec 9.6-3).
-   3. AUCUN PORT VISIBLE. Les aretes partent de coordonnees calculees
-      (NOEUD_W, PORT_Y) ; les pastilles d'entree/sortie naissent en Task 4,
-      avec le glisser port-a-port — et devront tomber EXACTEMENT sur ces
-      coordonnees, sans quoi le trait et sa poignee se decolleraient. */
+   Les deux autres sont PAYES par la Task 4, et le detail de la dette a ete
+   suivi a la lettre : zone de saisie EXPLICITE pour les aretes (un second
+   chemin transparent et epais, le trait visible restant sourd) et pastilles
+   posees EXACTEMENT sur les coordonnees d'ancrage (NOEUD_W, PORT_Y — le test
+   de source compare les chiffres des deux fichiers). */
 
 /* les aretes : UNE couche SVG, SOUS les nœuds (ordre du DOM) et sourde aux
-   evenements — sans quoi elle volerait les clics des nœuds qu'elle croise. */
+   evenements — sans quoi elle volerait les clics des nœuds qu'elle croise.
+   `pointer-events` etant HERITE, les enfants qui veulent le pointeur le
+   redemandent nommement : c'est le cas de la seule zone de saisie. */
 .cf-forge3d .cf-forge3d-edges { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
-.cf-forge3d .cf-forge3d-edge { fill: none; stroke: var(--stroke-strong); stroke-width: 1.5; }
+.cf-forge3d .cf-forge3d-edge { fill: none; stroke: var(--stroke-strong); stroke-width: 1.5; pointer-events: none; }
+/* L'ARETE DESIGNEE — role « l'option retenue » (--sel-bg), le meme que le
+   nœud selectionne : ce sont deux fois la MEME chose (ce que le geste suivant
+   va toucher), et deux jetons pour un role auraient menti sur le lien. */
+.cf-forge3d .cf-forge3d-edge.sel { stroke: var(--sel-bg); stroke-width: 2.5; }
+/* LA ZONE DE SAISIE — transparente, epaisse, SEULE a recevoir le pointeur.
+   14 px de MONDE : au-dessus de la barre des 12 px (spec 9.6-3) au zoom 1.
+   `stroke` et non `all` : le remplissage d'une courbe ouverte couvrirait
+   toute la boite entre ses extremites, c'est-a-dire un rectangle de plusieurs
+   centaines de pixels qui volerait les clics du fond. */
+.cf-forge3d .cf-forge3d-edge-hit {
+  fill: none; stroke: transparent; stroke-width: 14;
+  pointer-events: stroke; cursor: pointer;
+}
+/* LE FIL QU'ON TIRE — pointille pour dire qu'il n'est pas encore une arete,
+   a l'accent parce qu'il decrit ce que le relache va COUTER en structure. Il
+   n'a pas de `pointer-events` a lui : il herite du `none` de la couche, donc
+   il ne peut pas voler le relache qu'on attend sur un port. */
+.cf-forge3d .cf-forge3d-fantome {
+  fill: none; stroke: var(--accent); stroke-width: 2;
+  stroke-dasharray: 5 4; opacity: .85;
+}
+/* le bouton de coupe : il vit DANS le monde (il suit donc le pan et le zoom
+   sans une ligne de JS de plus) et se centre sur le milieu du trait. */
+.cf-forge3d .cf-forge3d-supp {
+  position: absolute; transform: translate(-50%, -50%);
+  z-index: 3; white-space: nowrap;
+}
 
 /* UN NŒUD — carte sobre ; la largeur est le MIROIR de NOEUD_W (mod-forge3d.js)
    et la mi-hauteur de l'en-tete celui de PORT_Y : c'est de la que partent les
    aretes, les deux valeurs doivent rester d'accord. */
+/* `overflow: visible` (Task 4) : les PORTS sont centres sur le bord du nœud,
+   donc a moitie dehors — un `hidden` les aurait coupes en deux, et une demi-
+   pastille est une demi-cible. Ce que `hidden` protegeait, c'etait l'arrondi
+   sous le fond de l'en-tete : l'en-tete porte desormais son propre arrondi
+   (7 px = 8 - la bordure), ce qui le tient sans clipper les enfants. */
 .cf-forge3d .cf-forge3d-noeud {
   position: absolute; width: 200px;
-  background: var(--bg-panel); border: 1px solid var(--stroke-strong);
-  border-radius: 8px; overflow: hidden;
+  --cf-bord: 1px;
+  background: var(--bg-panel); border: var(--cf-bord) solid var(--stroke-strong);
+  border-radius: 8px; overflow: visible;
 }
+/* ── LES PORTS (Task 4) — LES POIGNEES DE CONNEXION ───────────────────────
+   MIROIR AU CHIFFRE : `top` est PORT_Y et le `left` de la sortie est NOEUD_W
+   (mod-forge3d.js) — c'est de la que partent et arrivent les aretes, et le
+   test de source compare les deux fichiers. La marge negative de la MOITIE de
+   la taille met le CENTRE de la pastille sur l'ancre : sans elle, le trait
+   partirait du coin de sa poignee.
+   ET LA BORDURE SE REPREND (`- var(--cf-bord)`), sans quoi les trois
+   coordonnees seraient a UN PIXEL de l'ancre. Le repere d'un enfant absolu
+   est la boite de PADDING de son ancetre positionne (CSS 2.1 §10.1), pas sa
+   boite de BORDURE : `left: 0` tombe donc a l'INTERIEUR du trait du nœud,
+   alors que les ancres du JS (0, NOEUD_W, PORT_Y) se comptent depuis le bord
+   exterieur — celui que `layout` positionne. Un pixel suffit a decoller le
+   trait de sa poignee, exactement le defaut que la dette de la Task 2
+   nommait ; et le poser en `var` plutot qu'en dur fait suivre les ports le
+   jour ou la bordure du nœud changera d'epaisseur.
+   LA BARRE DES 12 px ET LE PLANCHER DE ZOOM, ENSEMBLE : 14 px de monde tient
+   la barre (spec 9.6-3) au zoom 1, mais le monde est mis a l'echelle — sous
+   z ~ 0,86 la pastille passe dessous, et au plancher (0,36) elle ne fait plus
+   que 5 px. C'est ASSUME, et ce n'est pas la meme promesse que la poignee de
+   DEPLACEMENT : celle-la (l'en-tete, 34 px) doit rester saisissable AU ZOOM
+   ARRIERE, puisque c'est justement la qu'on range un graphe — le plancher de
+   zoom est calcule pour elle. Connecter, au contraire, est un geste de
+   travail rapproche : on ne vise pas un port de 5 px quand on cherche a tout
+   voir. Si la passe navigateur (Task 7) dit le contraire, le remede est
+   nomme : contre-echelle des ports (transform: scale(1/z)), le centre restant
+   sur l'ancre. */
+.cf-forge3d .cf-forge3d-port {
+  position: absolute; top: calc(18px - var(--cf-bord)); width: 14px; height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%; box-sizing: border-box;
+  border: 1px solid var(--stroke-strong); background: var(--bg-panel-2);
+  z-index: 1; cursor: crosshair;
+}
+.cf-forge3d .cf-forge3d-port-in { left: calc(0px - var(--cf-bord)); }
+.cf-forge3d .cf-forge3d-port-out { left: calc(200px - var(--cf-bord)); }
+.cf-forge3d .cf-forge3d-port:hover { border-color: var(--accent); background: var(--accent); }
 /* LA SELECTION SE PEINT EN --sel-bg, ET C'EST LE MEME AMBRE QU'AUJOURD'HUI :
    cardforge.css:24 pose `--sel-bg: var(--accent)`, donc ce choix ne change
    pas un pixel. Ce qu'il change, c'est le ROLE consigne (cardforge.css:14 :
@@ -155,6 +220,9 @@
   display: flex; align-items: center; gap: 6px; height: 34px;
   padding: 0 9px; cursor: move;
   border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2);
+  /* l'arrondi que le nœud ne clippe plus (voir `overflow: visible`) : 8 px
+     de rayon moins la bordure de 1 px du nœud = 7 px, le rayon INTERIEUR. */
+  border-radius: 7px 7px 0 0;
 }
 .cf-forge3d .cf-forge3d-kind-l { font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-soft); white-space: nowrap; }
 .cf-forge3d .cf-forge3d-titre { font-size: 11px; color: var(--ink-strong); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

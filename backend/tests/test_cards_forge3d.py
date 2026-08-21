@@ -656,8 +656,12 @@ def test_l_ecran_prouve_avant_de_televerser_et_montre_le_bordereau():
     assert "weight" in rendu or "Kio" in rendu
 
 
-def test_le_vocabulaire_2b_est_identique_des_deux_cotes():
-    """Le miroir CF-FORGE3D-NODES s'étend : mesh3d, material, transform."""
+def test_le_vocabulaire_gagne_export_des_deux_cotes():
+    """Le miroir CF-FORGE3D-NODES s'étend une dernière fois (2c Task 4) : le
+    kind `export` — un VRAI nœud du graphe, pas un bouton d'écran. Les kinds
+    2b (mesh3d, material, transform) restent épinglés ici : l'assert d'ordre
+    de la 2b est REMPLACÉ par celui-ci, jamais doublé (deux listes d'ordre
+    dériveraient, et l'une des deux seule dirait vrai)."""
     from app.services.cards import forge3d as F9
     src = JS.read_text(encoding="utf-8")
     bloc = src.split("CF-FORGE3D-NODES-BEGIN")[1].split("CF-FORGE3D-NODES-END")[0]
@@ -667,7 +671,45 @@ def test_le_vocabulaire_2b_est_identique_des_deux_cotes():
     assert js_table == F9.NODE_KINDS, (js_table, F9.NODE_KINDS)
     assert [r["kind"] for r in F9.NODE_KINDS] == [
         "layer", "plane", "relief", "mesh3d", "material", "transform",
-        "assemble", "artifact"]
+        "assemble", "artifact", "export"]
+    # le format d'un export est un vocabulaire FERMÉ (comme LAYER_MODES) :
+    # publié par /info avec le reste, jamais recopié à l'écran.
+    assert F9.EXPORT_FORMATS == ("glb", "stl", "metadata", "preview")
+
+
+def test_clean_graph_borne_le_noeud_export():
+    """Le nœud `export` traverse le nettoyage comme les autres : son format
+    est ramené dans le vocabulaire, et le RÉSOLVEUR l'ignore SANS l'avouer —
+    ce sont des points de téléchargement, pas des éléments ; le bordereau
+    `artifact@1` reste ENTIER (il ne nomme que ce qui a été PERDU)."""
+    from app.services.cards import forge3d as F9
+    g = {"nodes": [{"id": "e1", "kind": "export", "format": "stl"},
+                   {"id": "e2", "kind": "export", "format": "warp"},
+                   {"id": "e3", "kind": "export", "format": ["glb"]}],
+         "edges": []}
+    out = F9.clean_graph(g)
+    n = {x["id"]: x for x in out["nodes"]}
+    assert n["e1"]["format"] == "stl"
+    assert n["e2"]["format"] == "glb"      # défaut sur format inconnu
+    # même garde que partout ailleurs dans cette fonction : un type non
+    # hachable (une liste) répare, il ne lève pas — jamais 500 (doctrine 2.5).
+    assert n["e3"]["format"] == "glb"
+    # ── LE BORDEREAU RESTE ENTIER ────────────────────────────────────────
+    g2 = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "t", "kind": "plane", "depth_mm": 0.2},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "carte"},
+        {"id": "ex", "kind": "export", "format": "stl"},
+        {"id": "ex2", "kind": "export", "format": "metadata"}],
+        "edges": [{"from": "s", "to": "t"}, {"from": "t", "to": "asm"},
+                  {"from": "asm", "to": "art"}, {"from": "art", "to": "ex"},
+                  {"from": "art", "to": "ex2"}]}
+    cands, ignores = F9._resolve_graph_elements(F9.clean_graph(g2))
+    assert [c["proc"]["id"] for c in cands] == ["t"]
+    # AUCUNE entrée `ignored` : ni pour les deux nœuds export, ni pour leurs
+    # arêtes depuis l'artefact. Un export n'éteint rien.
+    assert ignores == [], ignores
 
 
 def test_clean_graph_borne_les_nouveaux_noeuds():
@@ -4160,6 +4202,35 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
     ci2 = rendu.split("async function chargeImage(")[1].split("\n  }")[0]
     assert "IMGS_VOL[cle] = gen" in ci2, ci2
     assert "IMGS_VOL[cle] === gen" in ci2, ci2
+    # ── L'EPOQUE DU CACHE (suivi T3, referme en tete de T4) ──────────────
+    # La GENERATION ne couvre PAS le vidage de cache d'un export : `GEN` ne
+    # bouge qu'au changement de deck/carte, alors que `oublieLesImages()` est
+    # aussi appele quand une FACE vient d'etre livree (I3a). Un chargeur parti
+    # AVANT l'export revenait donc apres le vidage et re-posait dans le cache
+    # les octets PRE-export — precisement ceux que le vidage venait de jeter,
+    # et sans le moindre signe jusqu'au changement de deck. L'epoque est le
+    # jeton qui manquait ; comme pour GEN, le pin est un INVARIANT (autant de
+    # gardes que d'awaits), pas un compte fige.
+    assert ci2.count("ep !== IMGS_EPOQUE") >= ci2.count("await "), ci2
+    oi = rendu.split("function oublieLesImages(")[1].split("\n  }")[0]
+    assert "IMGS_EPOQUE += 1" in oi, oi
+    # ... et le RETAILLAGE (I2) est au site d'appel, pas seulement declare :
+    # une fonction de reduction que personne n'appelle laisse les bitmaps
+    # pleine definition en memoire (~49 Mo par couche) tout en ayant l'air
+    # d'un cache econome.
+    assert "retaille(" in ci2, ci2
+    # ── LES TROIS SITES D'APPEL (suivi T3) ──────────────────────────────
+    # Une invalidation declaree et jamais appelee est pire qu'absente : elle
+    # se lit comme une garantie. On epingle donc l'APPEL, dans le corps ou il
+    # doit vivre — une face livree invalide SA face, DANS le tour ou elle est
+    # livree (l'export peut s'arreter au milieu : le verso qui leve laissait
+    # sinon le recto reecrit sous le meme nom avec le cache d'avant).
+    env = rendu.split("async function exportLayers(")[1].split("\n  }")[0]
+    boucle = env.split("for (let p = 0; p < preuves.length; p++) {")[1]
+    assert "oublieLesImages()" in boucle, boucle
+    # ... et la fenetre de fraicheur des vignettes de matiere s'ouvre UNE FOIS
+    # PAR PEINTURE, avant de peindre (I3b) — jamais pendant.
+    assert "reSondeLesMatieres(" in pcv, pcv
     # ── LA CHIP, DANS LES DEUX VUES ──────────────────────────────────────
     fb = rendu.split("function findByAttr(")[1].split("\n  }")[0]
     assert "#cf-forge3d-graph" not in fb, fb
@@ -4173,6 +4244,346 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
                 ".cf-forge3d .cf-forge3d-corps {",
                 ".cf-forge3d .cf-forge3d-blk-n {"):
         assert sel in feuille, sel
+
+
+def test_les_connexions_valident_la_grammaire_a_l_arete():
+    """Test de SOURCE (phase 2c, Task 4) : les connexions se font A LA SOURIS
+    et sont validees A L'ARETE. Ce qui est epingle ici :
+
+      · UNE table de grammaire, NOMMEE et unique (`GRAMMAIRE`) — les ports,
+        la validation et le texte du refus en DERIVENT tous les trois ;
+      · un refus est un toast NOMME qui n'ecrit RIEN (jamais creer-puis-
+        avouer : le backend, lui, accepte et avoue au bordereau) ;
+      · creer/supprimer une arete passe par `setGraph` (donc UNE entree
+        d'annulation), et un doublon n'en pousse AUCUNE ;
+      · le glisser de port suit la barre de fluidite 9.6 : `isPrimary` en
+        garde, un pointeur par geste, feedback coalesce au rAF ;
+      · la DETTE de la Task 2 est payee : une arete a une zone de saisie
+        EXPLICITE (chemin transparent epais, seul a recevoir le pointeur — le
+        trait visible, lui, reste sourd) et les ports tombent EXACTEMENT sur
+        les coordonnees d'ancrage des aretes (NOEUD_W, PORT_Y)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # ── LA GRAMMAIRE, UNIQUE ET NOMMEE ───────────────────────────────────
+    assert "GRAMMAIRE" in rendu and "function lienValide(" in rendu
+    corps = rendu.split("function lienValide(")[1].split("\n  }")[0]
+    for regle in ("layer", "assemble", "artifact", "export"):
+        assert regle in corps or regle in rendu, regle
+    # la table est LA source : la validation la LIT au lieu de recopier ses
+    # regles (le mutant : une cascade de `if` a cote de la table).
+    assert "GRAMMAIRE" in corps, corps
+    gram = rendu.split("const GRAMMAIRE")[1].split("\n  };")[0]
+    for etage in ("layer:", "plane:", "relief:", "mesh3d:", "material:",
+                  "transform:", "assemble:", "artifact:", "export:"):
+        assert etage in gram, (etage, gram)
+    # ... et les PORTS en derivent aussi : un kind a une sortie s'il mene
+    # quelque part, une entree si quelque chose y mene. Une seconde table
+    # « qui a quel port » aurait derive de la premiere au premier etage
+    # ajoute — et l'ecran aurait alors montre une poignee qui ne branche rien.
+    for fn in ("function aEntree(", "function aSortie("):
+        bloc = rendu.split(fn)[1].split("\n  }")[0]
+        assert "GRAMMAIRE" in bloc, (fn, bloc)
+    # ── ECRIRE ET DEFAIRE PASSENT PAR LA MEME PORTE ──────────────────────
+    assert "function creeLien(" in rendu and "setGraph" in rendu
+    assert "function suppLien(" in rendu
+    for nom in ("creeLien", "suppLien"):
+        bloc = rendu.split("function " + nom + "(")[1].split("\n  }")[0]
+        assert "setGraph(" in bloc, (nom, bloc)
+    # UNE SEULE PORTE POUSSE LA PILE (le pin de la Task 2 reste vrai apres
+    # deux ecrivains de plus) — verifie la aussi, parce que c'est ICI qu'on
+    # aurait ete tente d'empiler « a la main ».
+    assert rendu.count("HIST.push") == 1, rendu.count("HIST.push")
+    # LE REFUS N'ECRIT RIEN. La decision est prise AVANT le clone : la
+    # fonction pure rend un motif, et l'appelante ne patche que quand elle
+    # recoit un graphe. Le mutant vise : creer puis avouer.
+    pur = rendu.split("function grapheAvecLien(")[1].split("\n  }")[0]
+    assert "refus" in pur, pur
+    assert "setGraph" not in pur and "M.patch" not in pur, pur
+    assert "M.toast" not in pur, pur
+    # ... et le texte du refus DERIVE de la table (jamais une phrase gelee) :
+    # le jour ou la grammaire gagne un etage, le refus le dit tout seul.
+    assert "function chaineAttendue(" in rendu
+    ca = rendu.split("function chaineAttendue(")[1].split("\n  }")[0]
+    assert "GRAMMAIRE" in ca, ca
+    # le motif est compose PAR LA FONCTION PURE (c'est ce qui le rend
+    # mesurable au harnais) ; l'appelante ne fait que le DIRE.
+    assert "chaineAttendue()" in pur, pur
+    cl = rendu.split("function creeLien(")[1].split("\n  }")[0]
+    assert "M.toast" in cl, cl
+    # ... et un DOUBLON ne dit rien du tout : ni toast, ni ecriture. Le pin
+    # vise la branche : `refus` seul declenche le toast.
+    assert "r.refus" in cl, cl
+    # ── LE GLISSER DE PORT (barre 9.6) ───────────────────────────────────
+    assert "cf-forge3d-port" in rendu
+    debut = rendu.split("function onCanvasDown(")[1].split("\n  }")[0]
+    assert "cf-forge3d-port" in debut, debut
+    assert "isPrimary" in debut, debut
+    # LES PORTS SURVIVENT AU REPAINT D'UN SEUL NŒUD. `paintNode` reecrit
+    # l'INTERIEUR du nœud a chaque champ edite ; les ports en sont des
+    # enfants directs (leur ancre est le BORD du nœud, pas l'interieur de
+    # l'en-tete) — les oublier la aurait fait disparaitre les poignees de
+    # connexion au premier caractere tape, et seulement sur le nœud edite.
+    for hote in ("function canvasNodeHtml(", "function paintNode("):
+        bloc = rendu.split(hote)[1].split("\n  }")[0]
+        assert "portsHtml(" in bloc, (hote, bloc)
+    # LE BOUTON DE COUPE N'EST PAS LE FOND. Il vit DANS le monde (pour suivre
+    # le cadrage), donc aucune surcouche ne le protege — et le glisser du
+    # fond DESIGNE l'arete a null, ce qui RETIRE ce bouton du DOM au
+    # `pointerdown`, avant que son propre `click` n'arrive : il aurait
+    # disparu sous le doigt sans jamais couper.
+    assert "cf-forge3d-supp" in debut, debut
+    # le fantome est un feedback LOCAL, coalesce au rAF : un `d` par frame,
+    # jamais un par evenement de pointeur (spec 9.6-1/2).
+    mv = rendu.split("function onCanvasMove(")[1].split("\n  }")[0]
+    assert "DRAG.lien" in mv, mv
+    assert "scheduleFrame" in mv or "lienRaf" in mv, mv
+    # ... et le geste est PROPRE a sa fin : le relache decide, l'annulation
+    # (Echap, pointercancel, fond) efface le fantome sans rien ecrire.
+    up = rendu.split("function onCanvasUp(")[1].split("\n  }")[0]
+    assert "fermeFantome" in up, up
+    assert "e.pointerId !== DRAG.pid" in up, up
+    # `pointercancel` N'EST PAS UN LACHER : ce handler sert les deux
+    # evenements (wireCanvas les abonne ensemble), et sans le test du TYPE une
+    # reprise du pointeur par l'OS poserait une connexion a l'aveugle, sous un
+    # curseur que l'utilisateur ne dirigeait plus.
+    assert 'e.type === "pointerup"' in up, up
+    assert "Escape" in rendu
+    # ── LA DETTE DE LA TASK 2, PAYEE ─────────────────────────────────────
+    feuille = CSS.read_text(encoding="utf-8")
+    # 1. la zone de saisie d'une arete est EXPLICITE et epaisse ; le trait
+    #    visible, lui, ne prend aucun evenement (sinon 1,5 px de cible, sous
+    #    la barre des 12 px de la spec 9.6-3).
+    assert "cf-forge3d-edge-hit" in rendu
+    hit = re.search(r"\.cf-forge3d \.cf-forge3d-edge-hit \{([^}]*)\}", feuille)
+    assert hit, feuille
+    assert "pointer-events: stroke" in hit.group(1), hit.group(1)
+    larg = re.search(r"stroke-width:\s*(\d+(?:\.\d+)?)", hit.group(1))
+    assert larg and float(larg.group(1)) >= 12, hit.group(1)
+    vis = re.search(r"\.cf-forge3d \.cf-forge3d-edge \{([^}]*)\}", feuille)
+    assert vis and "pointer-events: none" in vis.group(1), feuille
+    # 2. LES PORTS TOMBENT SUR L'ANCRE — et le mirroir est verifie AU
+    #    CHIFFRE : la feuille et le JS doivent dire la meme chose, sinon le
+    #    trait et sa poignee se decollent (le defaut nomme dans la dette).
+    noeud_w = int(re.search(r"const NOEUD_W = (\d+);", rendu).group(1))
+    port_y = int(re.search(r"const PORT_Y = (\d+);", rendu).group(1))
+    # LES CHIFFRES DU JS SONT DANS LA FEUILLE, ET LA BORDURE EST REPRISE. Le
+    # repere d'un enfant absolu est la boite de PADDING de son ancetre
+    # positionne, pas sa boite de BORDURE : sans le `- var(--cf-bord)` les
+    # trois coordonnees tombent a UN PIXEL de l'ancre — le decollement que la
+    # dette de la Task 2 nommait, invisible a la lecture et visible a l'œil.
+    port = re.search(r"\.cf-forge3d \.cf-forge3d-port \{([^}]*)\}", feuille)
+    assert port, feuille
+    assert f"top: calc({port_y}px - var(--cf-bord))" in port.group(1), \
+        (port_y, port.group(1))
+    sortie = re.search(r"\.cf-forge3d \.cf-forge3d-port-out \{([^}]*)\}", feuille)
+    entree = re.search(r"\.cf-forge3d \.cf-forge3d-port-in \{([^}]*)\}", feuille)
+    assert sortie and f"left: calc({noeud_w}px - var(--cf-bord))" in sortie.group(1), feuille
+    assert entree and "left: calc(0px - var(--cf-bord))" in entree.group(1), feuille
+    # ... et `--cf-bord` est bien CE QUE LA BORDURE VAUT (pas un chiffre pose
+    # a cote d'elle) : le nœud la declare et s'en sert.
+    nd = re.search(r"\.cf-forge3d \.cf-forge3d-noeud \{([^}]*)\}", feuille)
+    assert nd and "--cf-bord:" in nd.group(1), feuille
+    assert nd and "border: var(--cf-bord) solid" in nd.group(1), nd.group(1)
+    # ... et le CENTRE tombe sur l'ancre, pas le coin : la pastille est
+    # decalee d'une demi-taille (sans quoi l'arete partirait du bord de la
+    # poignee et non de son milieu).
+    taille = re.search(r"width:\s*(\d+)px", port.group(1))
+    assert taille and int(taille.group(1)) >= 12, port.group(1)
+    assert f"margin: -{int(taille.group(1)) // 2}px" in port.group(1), port.group(1)
+    # 3. le bouton « supprimer » d'une arete existe et passe par suppLien
+    assert "cf-forge3d-supp" in rendu and "lien-supp" in rendu
+    ogc = rendu.split("function onGraphClick(")[1].split("\n  }")[0]
+    assert "suppLien(" in ogc, ogc
+    assert "cf-forge3d-edge-hit" in ogc, ogc
+
+
+# ── LE HARNAIS DE CHAINES (2c Task 4) ────────────────────────────────────
+# Les pins de source disent QUE le code appelle ; ils ne disent pas CE QU'IL
+# REND. Le harnais fait tourner les fonctions PURES du module — les vraies,
+# extraites du fichier livre, jamais une reecriture — dans node, et mesure la
+# propriete qui compte : un graphe cable A LA SOURIS se lit EXACTEMENT comme
+# un graphe cable par la vue liste (`rowModel`/`graphRows`/`rewireRow`).
+
+def _js_fn(src: str, nom: str) -> str:
+    """Le SOURCE d'une fonction de `mod-forge3d.js`, accolades equilibrees."""
+    i = src.index("function " + nom + "(")
+    j = src.index("{", i)
+    n = 0
+    for k in range(j, len(src)):
+        if src[k] == "{":
+            n += 1
+        elif src[k] == "}":
+            n -= 1
+            if n == 0:
+                return src[i:k + 1]
+    raise AssertionError("accolades non equilibrees pour " + nom)
+
+
+def _js_decl(src: str, nom: str, mot: str = "const") -> str:
+    """La DECLARATION d'une constante (ou d'un `let`) du module, jusqu'au
+    point-virgule de premier niveau."""
+    i = src.index(mot + " " + nom + " = ")
+    prof = 0
+    for k in range(i, len(src)):
+        c = src[k]
+        if c in "{[(":
+            prof += 1
+        elif c in "}])":
+            prof -= 1
+        elif c == ";" and prof == 0:
+            return src[i:k + 1]
+    raise AssertionError("declaration non terminee pour " + nom)
+
+
+_BANC_CHAINES = r"""
+/* le pilote du harnais : il ne DEFINIT rien du module, il l'INTERROGE. */
+const out = [];
+const dit = (nom, ok, detail) => out.push(
+  { nom: nom, ok: !!ok, detail: detail === undefined ? null : detail });
+const J = (x) => JSON.stringify(x);
+const clone = (g) => JSON.parse(JSON.stringify(g));
+const aretes = (g) => (g.edges || []).map((e) => e.from + ">" + e.to).sort();
+
+/* LE GRAPHE NU : les nœuds existent, AUCUNE arete. C'est l'etat que la
+   palette (Task 5) laissera derriere elle ; tout le cablage qui suit se fait
+   « a la souris » — c'est-a-dire par la fonction pure que le glisser appelle. */
+const NU = { nodes: [
+  { id: "s1", kind: "layer", role: "illustration", side: "front" },
+  { id: "s2", kind: "layer", role: "cadre", side: "front" },
+  { id: "t1", kind: "plane", depth_mm: 0.35 },
+  { id: "m1", kind: "material", mat: "aaa", finish: "aucune" },
+  { id: "m2", kind: "material", mat: "bbb", finish: "aucune" },
+  { id: "r1", kind: "transform", x_mm: 0, y_mm: 0, z_mm: 0.35, rot_deg: 0, scale: 1 },
+  { id: "asm", kind: "assemble" },
+  { id: "art", kind: "artifact", name: "carte3d" },
+  { id: "ex", kind: "export", format: "glb" },
+], edges: [] };
+
+function cable(g, paires) {
+  let cur = g;
+  for (let i = 0; i < paires.length; i++) {
+    const r = grapheAvecLien(cur, paires[i][0], paires[i][1]);
+    if (!r || !r.graph) return { erreur: paires[i].join(">") + " : " + J(r) };
+    cur = r.graph;
+  }
+  return { graph: cur };
+}
+
+/* 1. LA CHAINE CABLEE A LA SOURIS SE LIT AVEC LE MEME `rowModel`. */
+const avant = J(NU);
+const c1 = cable(NU, [["s1", "t1"], ["t1", "m1"], ["m1", "r1"],
+                      ["r1", "asm"], ["asm", "art"], ["art", "ex"]]);
+dit("la chaine complete se cable", !c1.erreur, c1.erreur || null);
+const G = c1.graph;
+const row = G ? rowModel(G, "t1") : null;
+dit("rowModel retrouve la chaine cablee a la souris",
+    !!row && row.layer && row.layer.id === "s1" && row.proc.id === "t1"
+    && !!row.mat && row.mat.id === "m1" && !!row.trs && row.trs.id === "r1",
+    J(row && { l: row.layer && row.layer.id, m: row.mat && row.mat.id,
+               t: row.trs && row.trs.id }));
+dit("un seul rang, comme la vue liste",
+    !!G && graphRows(G).length === 1, G ? graphRows(G).length : null);
+/* la fonction est PURE : le graphe d'entree n'a pas bouge d'un octet */
+dit("grapheAvecLien n'ecrit pas dans son entree", J(NU) === avant);
+
+/* 2. ALLER-RETOUR : l'ECRIVAIN DE LA VUE LISTE relit ce que le canvas a
+      cable et n'y change RIEN. Les deux vues ecrivent le MEME graphe — si
+      elles divergeaient, editer un champ apres avoir cable a la souris
+      reecrirait la chaine autrement (et les aretes du canvas sauteraient). */
+const gr = clone(G);
+rewireRow(gr, "t1", "m1", "r1");
+dit("rewireRow relit la chaine du canvas sans la reecrire",
+    J(aretes(gr)) === J(aretes(G)), J(aretes(gr)) + " vs " + J(aretes(G)));
+const grr = clone(G);
+rewireRow(grr, "t1", "m1", "r1");
+dit("… et il est idempotent", J(aretes(grr)) === J(aretes(gr)));
+
+/* 3. LA GRAMMAIRE REFUSE A L'ARETE, ET LE MOTIF EST NOMME. */
+const refus = [["s1", "asm"], ["m1", "art"], ["ex", "art"], ["t1", "s1"],
+               ["art", "asm"]];
+refus.forEach((p) => {
+  const r = grapheAvecLien(G, p[0], p[1]);
+  dit("refus " + p.join(">"),
+      !!r && !r.graph && typeof r.refus === "string"
+      && r.refus.indexOf("chaîne attendue") >= 0, J(r));
+});
+dit("un lien valide reste valide", !!(grapheAvecLien(NU, "s2", "t1") || {}).graph);
+
+/* 4. LE DOUBLON N'EST NI UNE ERREUR NI UNE ECRITURE : rien a annuler, rien
+      a dire. */
+const dbl = grapheAvecLien(G, "s1", "t1");
+dit("un doublon ne rend pas de graphe", !!dbl && !dbl.graph && dbl.deja === true, J(dbl));
+
+/* 5. LA REGLE DE CHAINE UNIQUE EST TENUE AVANT L'ECRITURE (le backend, lui,
+      accepte et AVOUE au bordereau : « maillon surnumeraire »). */
+const sur = grapheAvecLien(G, "t1", "m2");
+dit("une seconde matiere sur la meme chaine est refusee AVANT d'etre ecrite",
+    !!sur && !sur.graph && typeof sur.refus === "string"
+    && sur.refus.indexOf("surnum") >= 0, J(sur));
+const src2 = grapheAvecLien(G, "s2", "t1");
+dit("une seconde source sur le meme traitement est refusee",
+    !!src2 && !src2.graph && typeof src2.refus === "string"
+    && src2.refus.indexOf("surnum") >= 0, J(src2));
+
+/* 6. COUPER UNE ARETE : la chaine tombe, et AUCUNE arete pendante ne reste. */
+const coupe = grapheSansLien(G, "s1", "t1");
+const GC = coupe && coupe.graph;
+dit("couper la source vide le rang",
+    !!GC && !rowModel(GC, "t1").layer && graphRows(GC).length === 0,
+    GC ? J(graphRows(GC).length) : null);
+const vivants = {};
+((GC && GC.nodes) || []).forEach((n) => { vivants[n.id] = 1; });
+dit("aucune arete pendante apres la coupe",
+    !!GC && (GC.edges || []).every((e) => vivants[e.from] && vivants[e.to]),
+    GC ? J(GC.edges) : null);
+dit("couper une arete qui n'existe pas n'ecrit rien",
+    grapheSansLien(G, "s2", "asm") === null);
+
+/* 7. LES PORTS DERIVENT DE LA TABLE (et pas d'une seconde liste). */
+dit("une couche n'a pas d'entree", !aEntree("layer") && aSortie("layer"));
+dit("un export n'a pas de sortie", aEntree("export") && !aSortie("export"));
+["plane", "relief", "mesh3d", "material", "transform", "assemble", "artifact"]
+  .forEach((k) => dit("le kind " + k + " a ses deux ports",
+                      aEntree(k) && aSortie(k)));
+dit("la chaine attendue se lit", chaineAttendue().indexOf("→") > 0,
+    chaineAttendue());
+
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_chaines(tmp_path) -> list:
+    """Fait tourner les VRAIES fonctions de chaine de `mod-forge3d.js`."""
+    import shutil
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le harnais de chaines ne peut pas tourner")
+    src = re.sub(r"/\*.*?\*/", " ", JS.read_text(encoding="utf-8"), flags=re.S)
+    morceaux = [_js_decl(src, "PROC_KINDS"), _js_decl(src, "CHAIN_MAX"),
+                _js_decl(src, "KIND_LABELS"), _js_decl(src, "GRAMMAIRE"),
+                _js_decl(src, "ROWS_MEMO", "let")]
+    for nom in ("connu", "sansProto", "kindLabel", "rowModel", "graphRows",
+                "rowsDe", "rowDuNoeud", "lienValide", "aEntree", "aSortie",
+                "chaineAttendue", "chaineDe", "surnumeraire", "grapheAvecLien",
+                "grapheSansLien", "maillonsAval", "rewireRow"):
+        morceaux.append(_js_fn(src, nom))
+    js = tmp_path / "banc_chaines.js"
+    js.write_text("\n".join(morceaux) + "\n" + _BANC_CHAINES, encoding="utf-8")
+    r = subprocess.run([node, str(js)], capture_output=True, text=True,
+                       encoding="utf-8", timeout=120)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
+    """Les deux vues ecrivent LE MEME graphe (plan 2c, Task 4) : un lien cree
+    a la souris produit une chaine que `rowModel` lit a l'identique, et que
+    l'ecrivain de la vue liste (`rewireRow`) relit sans la reecrire. Mesure
+    sur le code LIVRE, extrait du fichier — pas sur une reecriture."""
+    cas = _banc_chaines(tmp_path)
+    rates = [c for c in cas if not c["ok"]]
+    assert not rates, "\n".join(f"{c['nom']} : {c['detail']}" for c in rates)
+    assert len(cas) >= 20, len(cas)
 
 
 if __name__ == "__main__":

@@ -88,6 +88,7 @@
     { kind: "transform", params: ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"] },
     { kind: "assemble", params: [] },
     { kind: "artifact", params: ["name"] },
+    { kind: "export", params: ["format"] },
   ];
   /* ═══ CF-FORGE3D-NODES-END ═══ */
 
@@ -800,8 +801,12 @@
      pari : `touch()` remet `SNAP` à null à CHAQUE écriture (core.js:350) et
      `doc()` reconstruit alors tout le sous-arbre par `sanitize` — un contenu
      qui change change donc forcément d'identité. Un mémo périmé est
-     impossible ; au pire il RATE (un patch de `layout` invalide le snapshot
-     sans toucher au graphe), et rater ne coûte que le calcul d'avant. */
+     impossible ; au pire il RATE, et rater ne coûte que le calcul d'avant.
+     ET IL RATE SOUVENT, c'est même la règle : n'IMPORTE QUELLE écriture, de
+     n'importe quel module du lab, vide `SNAP` — un patch de `layout` d'ici,
+     un texte tapé dans mod-type, un cadre déplacé dans mod-frame. Le mémo
+     économise donc la RÉPÉTITION DANS UNE MÊME PEINTURE (2N résolutions pour
+     N nœuds, le défaut qu'il corrige), pas la peinture d'après. */
   let ROWS_MEMO = null;
 
   function rowsDe(graph) {
@@ -1371,7 +1376,12 @@
      sur le même deck ne se disputent pas leur cadrage). */
   const CAM = { px: CAM_X0, py: CAM_Y0, z: 1 };
   let camPending = null, camRaf = 0;
-  let DRAG = null;              /* le geste en cours : un nœud, ou le fond */
+  let DRAG = null;              /* le geste en cours : un nœud, le fond, ou
+                                    un fil tiré depuis un port (`lien`) */
+  let ARETE = null;             /* l'arête désignée {from, to} — de la
+                                    PRÉSENTATION, comme `SEL` : rien n'en
+                                    entre dans le document */
+  let lienRaf = 0, lienPoint = null;  /* le fil, coalescé au rAF (spec 9.6-1) */
 
   function vueLue() {
     try {
@@ -1442,6 +1452,11 @@
     if (layoutRaf) { cancelFrame(layoutRaf); layoutRaf = 0; }
     flushLayout();
     DRAG = null;
+    /* le fil et l'arête désignée appartenaient à la vue qu'on quitte : le
+       premier a une frame en vol à annuler, la seconde un bouton flottant
+       qui n'a plus de trait sous lui. */
+    fermeFantome();
+    ARETE = null;
     const host = $("#cf-forge3d-canvas");
     LAYOUT_VU = sansProto();
     if (!host) return;
@@ -1470,6 +1485,11 @@
     camPending = null;
     DRAG = null;
     SEL = null;
+    /* le fil en cours et l'arête désignée parlent du deck qu'on quitte —
+       `fermeFantome` n'écrit rien au document (il ne fait qu'annuler une
+       frame et retirer un tracé), il a donc sa place sur ce chemin-ci. */
+    fermeFantome();
+    ARETE = null;
     /* les vignettes du deck précédent ne disent rien de celui-ci : les clés
        de couche (`role_cNN_face.png`) sont les MÊMES d'un deck à l'autre,
        donc un cache gardé peindrait la carte d'hier sur le graphe
@@ -1665,6 +1685,47 @@
     /* ... et `input` pour la VIGNETTE SEULE (M10) : elle suit la frappe, le
        document n'écrit qu'au `change`. Voir `onGraphInput`. */
     host.addEventListener("input", onGraphInput);
+    /* ÉCHAP ANNULE — et l'abonnement est au DOCUMENT, faute de mieux : une
+       surface de canvas ne porte pas le focus clavier (rien n'y est
+       focalisable pendant un glisser, et le pointeur est de toute façon
+       capturé). Le handler ne fait RIEN tant qu'aucun geste ni aucune arête
+       n'est en cours : il ne peut donc pas voler la touche d'un autre module
+       du lab. */
+    if (typeof document !== "undefined") {
+      document.addEventListener("keydown", onCanvasKey);
+    }
+  }
+
+  function onCanvasKey(e) {
+    if (e.key !== "Escape") return;
+    if (DRAG && DRAG.lien) {
+      /* le fil tombe sans rien écrire — et le pointeur, lui, reste capturé
+         jusqu'à ce que l'utilisateur relâche : `onCanvasMove` et
+         `onCanvasUp` sortent alors sur `!DRAG`, c'est-à-dire sans effet. */
+      DRAG = null;
+      fermeFantome();
+    } else if (ARETE) {
+      selectionneArete(null);
+    } else {
+      return;
+    }
+    e.preventDefault();
+  }
+
+  /* LE LÂCHER D'UN FIL — la cible se lit SOUS LE POINTEUR, jamais dans
+     `e.target` : le pointeur est CAPTURÉ par la surface depuis le
+     `pointerdown`, donc l'évènement désigne la surface et rien d'autre.
+     Lâché dans le vide (ou sur une sortie, ou sur son propre nœud) : on
+     annule EN SILENCE — le fantôme a déjà disparu sous les yeux de
+     l'utilisateur, un toast n'ajouterait qu'un reproche à un geste
+     abandonné exprès. Un lien REFUSÉ, lui, se dit : c'est `creeLien`. */
+  function deposeLien(deNid, e) {
+    if (typeof document === "undefined" || !document.elementFromPoint) return;
+    const sous = document.elementFromPoint(e.clientX, e.clientY);
+    const port = (sous && sous.closest)
+      ? sous.closest(".cf-forge3d-port") : null;
+    if (!port || port.getAttribute("data-port") !== "in") return;
+    creeLien(deNid, port.getAttribute("data-nid"));
   }
 
   function onCanvasDown(e) {
@@ -1676,16 +1737,47 @@
     const cible = e.target;
     if (!cible.closest) return;
     /* les surcouches (semis, outils) gardent leurs clics : démarrer un
-       glisser du fond sous un bouton avalerait le bouton. */
-    if (cible.closest(".cf-forge3d-surcouche")) return;
+       glisser du fond sous un bouton avalerait le bouton.
+       LE BOUTON DE COUPE EST LE MÊME CAS, UN ÉTAGE PLUS BAS : il vit DANS le
+       monde (pour suivre le cadrage), donc il n'est protégé par aucune
+       surcouche — et le glisser du fond, lui, DÉSIGNE l'arête à null, ce qui
+       RETIRE ce bouton du DOM au `pointerdown`… c'est-à-dire avant que son
+       propre `click` n'arrive. Le bouton aurait disparu sous le doigt sans
+       jamais couper quoi que ce soit. */
+    if (cible.closest(".cf-forge3d-surcouche")
+        || cible.closest(".cf-forge3d-supp")) return;
+    const port = cible.closest(".cf-forge3d-port");
     const noeud = cible.closest(".cf-forge3d-noeud");
     const tete = cible.closest(".cf-forge3d-tete");
-    /* LE CORPS D'UN NŒUD N'EST PAS UNE POIGNÉE : ses champs (Task 3) doivent
-       recevoir leurs propres gestes. Seul l'en-tête traîne le nœud. */
-    if (noeud && !tete) return;
-    if (noeud) {
+    /* UN PORT N'EST PAS UNE POIGNÉE DE DÉPLACEMENT : le glisser qui en part
+       tire une CONNEXION. Le test passe AVANT celui du corps ci-dessous —
+       un port vit hors de l'en-tête (il est ancré sur le BORD du nœud), donc
+       la règle « le corps n'est pas une poignée » l'aurait renvoyé sans
+       geste. On ne tire que depuis une SORTIE : partir d'une entrée
+       demanderait de savoir lire le graphe à l'envers pour rien, le sens de
+       lecture étant fixé par la grammaire. */
+    if (port) {
+      const pnid = port.getAttribute("data-nid");
+      if (port.getAttribute("data-port") !== "out" || !pnid) return;
+      selectionneArete(null);
+      DRAG = { pid: e.pointerId, lien: true, nid: pnid, el: null };
+      ouvreFantome();
+      majFantome(mondeXY(e));
+    } else if (cible.closest(".cf-forge3d-edge-hit")) {
+      /* une arête est une CIBLE, pas le fond : son clic la désigne
+         (`onGraphClick`) au lieu d'ouvrir un glisser de la surface. */
+      return;
+    } else if (noeud && !tete) {
+      /* LE CORPS D'UN NŒUD N'EST PAS UNE POIGNÉE : ses champs (Task 3)
+         doivent recevoir leurs propres gestes. Seul l'en-tête traîne. */
+      return;
+    } else if (noeud) {
       const nid = noeud.getAttribute("data-nid");
       selectionne(nid);
+      /* le bouton d'une arête désignée suivrait mal un nœud qu'on traîne
+         (il faudrait le replacer à chaque frame) : le geste de déplacement
+         lâche la sélection d'arête, elle se reprend d'un clic. */
+      selectionneArete(null);
       const p = posDe(nid) || [0, 0];
       DRAG = { pid: e.pointerId, nid: nid, el: noeud,
                x0: e.clientX, y0: e.clientY, ox: p[0], oy: p[1] };
@@ -1713,6 +1805,16 @@
       camPending = { px: DRAG.px + (e.clientX - DRAG.x0),
                      py: DRAG.py + (e.clientY - DRAG.y0), z: CAM.z };
       if (!camRaf) camRaf = scheduleFrame(flushCam);
+      return;
+    }
+    /* LE FIL SUIT LE CURSEUR, UNE ÉCRITURE PAR FRAME (spec 9.6-1). Le point
+       visé est retenu à CHAQUE événement (donc rien n'est perdu : la frame
+       dessine le DERNIER, exact), mais l'attribut `d` ne s'écrit qu'au rAF —
+       une souris haute fréquence livre plusieurs mouvements par frame, et
+       autant d'écritures de tracé n'auraient rien montré de plus. */
+    if (DRAG.lien) {
+      lienPoint = mondeXY(e);
+      if (!lienRaf) lienRaf = scheduleFrame(flushFantome);
       return;
     }
     /* LE NŒUD A PU QUITTER LE DOM SOUS LE GESTE (repeinture venue d'ailleurs :
@@ -1756,8 +1858,19 @@
     if (!DRAG) return;
     if (e.pointerId !== DRAG.pid) return;    /* un geste, un pointeur (I2) */
     const pan = !!DRAG.pan;
+    const lien = DRAG.lien ? DRAG.nid : null;
     DRAG = null;
     try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) { /* deja relache */ }
+    if (lien) {
+      fermeFantome();
+      /* `pointercancel` N'EST PAS UN LÂCHER : l'OS a repris le pointeur (un
+         geste système, une fenêtre qui passe devant). Le confondre avec un
+         relâché poserait une connexion à l'aveugle, sur ce qui se trouvait
+         sous un curseur que l'utilisateur ne dirigeait plus. Ce handler sert
+         les deux évènements : c'est le TYPE qui tranche. */
+      if (e.type === "pointerup") deposeLien(lien, e);
+      return;
+    }
     if (pan) {
       if (camRaf) { cancelFrame(camRaf); camRaf = 0; }
       flushCam();
@@ -1883,14 +1996,39 @@
      cliquables, les arêtes ne volent aucun événement (pointer-events: none
      côté feuille). Chaque chemin porte ses deux extrémités en `data-*` pour
      que le glisser recalcule son tracé sans reconstruire la couche. */
+  /* DEUX CHEMINS PAR ARÊTE — c'est la dette de la Task 2, payée. Le trait
+     VISIBLE fait 1,5 px : comme cible de pointeur il est sous la barre des
+     12 px (spec 9.6-3), et il reste donc SOURD (`pointer-events: none` côté
+     feuille). La ZONE DE SAISIE est un second chemin, transparent et épais,
+     seul à recevoir le pointeur — et il vient EN SECOND dans le DOM (donc
+     au-dessus) : posé sous le trait, il aurait été mangé par lui le long du
+     tracé, précisément là où l'on vise.
+     `aria-hidden` RESTE, et c'est assumé : la zone de saisie n'est pas
+     focalisable et ne s'atteint qu'au pointeur — comme le glisser d'un nœud.
+     La projection ACCESSIBLE du même graphe, c'est la vue LISTE (la bascule
+     est à deux boutons de là) ; exposer douze chemins SVG anonymes à un
+     lecteur d'écran ajouterait du bruit, pas une prise. */
   function edgesHtml(graph, ext) {
-    const paths = aretes(graph).map((e) => '<path class="cf-forge3d-edge" '
-      + 'data-from="' + esc(e.from) + '" data-to="' + esc(e.to) + '" d="'
-      + esc(courbe(posDe(e.from) || [0, 0], posDe(e.to) || [0, 0]))
-      + '"></path>').join("");
+    const paths = aretes(graph).map((e) => {
+      const bouts = 'data-from="' + esc(e.from) + '" data-to="' + esc(e.to)
+        + '" d="' + esc(courbe(posDe(e.from) || [0, 0], posDe(e.to) || [0, 0]))
+        + '"';
+      const sel = (ARETE && ARETE.from === e.from && ARETE.to === e.to)
+        ? " sel" : "";
+      return '<path class="cf-forge3d-edge' + sel + '" ' + bouts + '></path>'
+        + '<path class="cf-forge3d-edge-hit" ' + bouts + '></path>';
+    }).join("");
     return '<svg class="cf-forge3d-edges" width="' + Number(ext.w)
       + '" height="' + Number(ext.h) + '" viewBox="0 0 ' + Number(ext.w)
       + ' ' + Number(ext.h) + '" aria-hidden="true">' + paths + '</svg>';
+  }
+
+  /* LE MILIEU D'UNE ARÊTE — et ce n'est pas une approximation : la cubique
+     de `courbe` a ses deux poignées HORIZONTALES et symétriques, donc
+     B(0,5) tombe pile sur la moyenne des extrémités. Le bouton « supprimer »
+     se pose SUR le trait, pas à côté. */
+  function milieuArete(a, b) {
+    return [(a[0] + NOEUD_W + b[0]) / 2, (a[1] + b[1]) / 2 + PORT_Y];
   }
 
   /* les tracés SEULS, sans reconstruire la couche : c'est ce qui rend le
@@ -1906,13 +2044,126 @@
   function majAretes(nid) {
     const monde = mondeEl();
     if (!monde) return;
-    Array.prototype.slice.call(monde.querySelectorAll(".cf-forge3d-edge"))
+    /* LES DEUX CHEMINS DE CHAQUE ARÊTE, en une passe : le repère est
+       l'ATTRIBUT (les deux le portent), pas la classe — une passe par classe
+       aurait laissé la zone de saisie sur l'ancien tracé, c'est-à-dire une
+       cible invisible décalée du trait qu'elle prétend viser. L'arête
+       fantôme, elle, n'a pas de `data-from` : elle est sautée par
+       construction (elle suit le curseur, pas deux nœuds). */
+    Array.prototype.slice.call(monde.querySelectorAll("[data-from]"))
       .forEach((p) => {
         const de = p.getAttribute("data-from"), vers = p.getAttribute("data-to");
         if (nid != null && de !== nid && vers !== nid) return;
         const a = posDe(de), b = posDe(vers);
         if (a && b) p.setAttribute("d", courbe(a, b));
       });
+  }
+
+  /* ── L'ARÊTE SÉLECTIONNÉE ET SON BOUTON ─────────────────────────────────
+     `ARETE` est de la PRÉSENTATION, exactement comme `SEL` : rien n'en entre
+     dans le document. Le bouton « supprimer » vit DANS le monde (il suit
+     donc le pan et le zoom sans une ligne de plus) et n'existe que tant
+     qu'une arête est désignée. */
+  function selectionneArete(de, vers) {
+    ARETE = (de && vers) ? { from: de, to: vers } : null;
+    majSelArete();
+  }
+
+  function majSelArete() {
+    const monde = mondeEl();
+    if (!monde) return;
+    let vue = null;
+    Array.prototype.slice.call(monde.querySelectorAll(".cf-forge3d-edge"))
+      .forEach((p) => {
+        const ok = !!ARETE && p.getAttribute("data-from") === ARETE.from
+          && p.getAttribute("data-to") === ARETE.to;
+        if (ok) vue = p;
+        p.classList.toggle("sel", ok);
+      });
+    /* L'ARÊTE A PU DISPARAÎTRE SOUS LA SÉLECTION (annulation, re-seed, coupe
+       venue d'ailleurs) : on la lâche, plutôt que de laisser flotter un
+       bouton prêt à couper ce qui n'existe plus. */
+    if (!vue) ARETE = null;
+    const a = ARETE ? posDe(ARETE.from) : null;
+    const b = ARETE ? posDe(ARETE.to) : null;
+    let bt = monde.querySelector(".cf-forge3d-supp");
+    if (!a || !b) {
+      if (bt && bt.parentNode) bt.parentNode.removeChild(bt);
+      return;
+    }
+    if (!bt) {
+      if (typeof document === "undefined") return;
+      bt = document.createElement("button");
+      bt.className = "btn sm cf-forge3d-supp";
+      bt.type = "button";
+      bt.setAttribute("data-act", "lien-supp");
+      /* `textContent` et non `innerHTML` : rien d'interpolé ici, et rien à
+         échapper — le bouton ne porte AUCUNE donnée du graphe (l'arête, elle,
+         est dans `ARETE`, pas dans le DOM). */
+      bt.textContent = "supprimer";
+      monde.appendChild(bt);
+    }
+    const m = milieuArete(a, b);
+    bt.style.left = m[0] + "px";
+    bt.style.top = m[1] + "px";
+  }
+
+  /* ── L'ARÊTE FANTÔME — le fil que l'on tire depuis un port ───────────────
+     Elle vit dans LA couche SVG existante (pas un second calque) : elle
+     hérite donc de son `pointer-events: none` et ne peut pas voler le
+     relâché qu'on attend justement sur un port d'entrée. */
+  function fantomeEl() {
+    const monde = mondeEl();
+    return monde ? monde.querySelector(".cf-forge3d-fantome") : null;
+  }
+
+  function ouvreFantome() {
+    const monde = mondeEl();
+    const svg = monde ? monde.querySelector(".cf-forge3d-edges") : null;
+    if (!svg || typeof document === "undefined") return;
+    fermeFantome();
+    const p = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    p.setAttribute("class", "cf-forge3d-fantome");
+    svg.appendChild(p);
+  }
+
+  /* LA MÊME COURBE QUE LES VRAIES ARÊTES, et c'est le fond de l'affaire : un
+     fantôme tracé par une seconde formule mentirait sur ce que le lâcher va
+     poser. `courbe` prend des positions de NŒUD ; le curseur, lui, est un
+     point — on lui retire donc l'ancrage que la fonction rajoutera. */
+  function majFantome(pt) {
+    const el = fantomeEl();
+    const a = (DRAG && DRAG.lien) ? posDe(DRAG.nid) : null;
+    if (!el || !a) return;
+    el.setAttribute("d", courbe(a, [pt[0], pt[1] - PORT_Y]));
+  }
+
+  function flushFantome() {
+    lienRaf = 0;
+    if (!lienPoint) return;
+    const pt = lienPoint;
+    lienPoint = null;
+    majFantome(pt);
+  }
+
+  function fermeFantome() {
+    if (lienRaf) { cancelFrame(lienRaf); lienRaf = 0; }
+    lienPoint = null;
+    const el = fantomeEl();
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+  }
+
+  /* le point du MONDE sous le pointeur — même repère que la molette : la
+     boîte de PADDING de la surface (le monde est un enfant `left: 0`, donc
+     décalé de la bordure), et l'échelle se divise, sinon le fantôme dérive
+     du curseur dès qu'on a zoomé. */
+  function mondeXY(e) {
+    const host = $("#cf-forge3d-canvas");
+    if (!host) return [0, 0];
+    const r = host.getBoundingClientRect();
+    const z = CAM.z || 1;
+    return [(e.clientX - r.left - host.clientLeft - CAM.px) / z,
+            (e.clientY - r.top - host.clientTop - CAM.py) / z];
   }
 
   /* le kind en clair — le miroir NODE_KINDS reste la table du VOCABULAIRE ;
@@ -1926,6 +2177,79 @@
 
   function kindLabel(k) {
     return connu(KIND_LABELS, k) ? KIND_LABELS[k] : String(k == null ? "" : k);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LA GRAMMAIRE DES CONNEXIONS (2c Task 4) — UNE TABLE, TROIS LECTEURS
+     Ce que dit cette table : ce qu'un kind peut avoir EN AVAL. Ce n'est pas
+     une préférence d'écran, c'est la forme des chaînes que le backend sait
+     résoudre (`_resolve_graph_elements` / `_chaine_aval`) : couche ->
+     traitement -> [matière] -> [placement] -> assemblage -> artefact ->
+     exports.
+     ELLE EST LUE PAR TROIS ENDROITS, et c'est tout l'intérêt de la poser
+     UNE fois : la VALIDATION d'un lien (`lienValide`), les PORTS d'un nœud
+     (`aEntree`/`aSortie` — qui a une entrée, qui a une sortie s'en DÉDUIT)
+     et le TEXTE du refus (`chaineAttendue`). Une seconde liste « qui a quel
+     port » aurait dérivé au premier étage ajouté, et l'écran aurait alors
+     montré une poignée qui ne branche rien — la faute des tables miroir,
+     rejouée à l'intérieur d'un seul fichier.
+     CE QU'ELLE NE FAIT PAS : décider de la CARDINALITÉ. « Une chaîne ne
+     porte qu'une matière » n'est pas une question de grammaire mais de
+     surnombre — c'est `surnumeraire()` qui la tient, plus bas, avec les mots
+     du bordereau. */
+  const GRAMMAIRE = {
+    layer: ["plane", "relief", "mesh3d"],
+    plane: ["material", "transform", "assemble"],
+    relief: ["material", "transform", "assemble"],
+    mesh3d: ["material", "transform", "assemble"],
+    material: ["transform", "assemble"],
+    transform: ["assemble"],
+    assemble: ["artifact"],
+    artifact: ["export"],
+    export: [],
+  };
+
+  function lienValide(de, vers) {
+    const suite = connu(GRAMMAIRE, de) ? GRAMMAIRE[de] : null;
+    return !!suite && suite.indexOf(vers) >= 0;
+  }
+
+  /* un kind a une SORTIE s'il mène quelque part... */
+  function aSortie(kind) {
+    return connu(GRAMMAIRE, kind) && GRAMMAIRE[kind].length > 0;
+  }
+
+  /* ... et une ENTRÉE si quelque chose y mène. Une couche n'a donc pas
+     d'entrée (rien ne la produit : elle vient du manifeste) et un export pas
+     de sortie (c'est un point de téléchargement, il n'alimente rien). */
+  function aEntree(kind) {
+    return Object.keys(GRAMMAIRE).some(
+      (de) => GRAMMAIRE[de].indexOf(kind) >= 0);
+  }
+
+  /* LA CHAÎNE ATTENDUE, EN CLAIR — dérivée de la table, jamais recopiée en
+     phrase : le jour où un étage s'ajoute, le refus le dit tout seul. Un
+     rang = ce qui peut venir à ce pas de la descente ; les kinds déjà vus
+     ne se répètent pas (c'est ce qui borne la marche et la rend
+     déterministe). */
+  function chaineAttendue() {
+    const vus = sansProto();
+    const mots = [];
+    let rang = ["layer"];
+    vus.layer = 1;
+    for (let k = 0; k < 12 && rang.length; k++) {
+      mots.push(rang.map(kindLabel).join(" | "));
+      const suiv = [];
+      rang.forEach((kd) => {
+        (connu(GRAMMAIRE, kd) ? GRAMMAIRE[kd] : []).forEach((t) => {
+          if (connu(vus, t)) return;
+          vus[t] = 1;
+          suiv.push(t);
+        });
+      });
+      rang = suiv;
+    }
+    return mots.join(" → ");
   }
 
   /* le titre d'un nœud : ce qui l'identifie POUR L'ŒIL (le rôle et la face
@@ -1953,8 +2277,31 @@
     return '<div class="cf-forge3d-noeud' + (n.id === SEL ? " selected" : "")
       + '" data-nid="' + esc(n.id) + '" data-kind="' + esc(n.kind)
       + '" style="left: ' + Number(p[0]) + 'px; top: ' + Number(p[1]) + 'px;">'
-      + noeudTeteHtml(n) + nodeBodyHtml(n.id)
+      + noeudTeteHtml(n) + portsHtml(n) + nodeBodyHtml(n.id)
       + '</div>';
+  }
+
+  /* LES PORTS — les poignées de connexion, ancrées EXACTEMENT là où l'arête
+     part et arrive (x = 0 ou NOEUD_W, y = PORT_Y ; la feuille pose les mêmes
+     chiffres, et le test les compare des deux côtés). Ce sont des enfants
+     DIRECTS du nœud, pas de l'en-tête : l'ancre est le bord du nœud, et
+     l'en-tête vit à l'intérieur de sa bordure — un pixel d'écart suffirait à
+     décoller le trait de sa poignée, le défaut nommé dans la dette de la
+     Task 2.
+     QUI A QUEL PORT SE DÉDUIT DE LA GRAMMAIRE (voir `aEntree`/`aSortie`) :
+     aucune seconde table à tenir d'accord avec la première. */
+  function portsHtml(n) {
+    let h = "";
+    if (aEntree(n.kind)) {
+      h += '<span class="cf-forge3d-port cf-forge3d-port-in" data-port="in"'
+        + ' data-nid="' + esc(n.id) + '" title="entrée"></span>';
+    }
+    if (aSortie(n.kind)) {
+      h += '<span class="cf-forge3d-port cf-forge3d-port-out" data-port="out"'
+        + ' data-nid="' + esc(n.id) + '"'
+        + ' title="sortie — glisser vers une entrée"></span>';
+    }
+    return h;
   }
 
   function noeudTeteHtml(n) {
@@ -2083,6 +2430,17 @@
   const IMGS = sansProto();     /* clé de provenance -> toile réduite | null */
   const IMGS_VOL = sansProto(); /* les chargements EN VOL -> leur GÉNÉRATION */
   const IMGS_AT = sansProto();  /* l'instant de mise en cache (I3, re-sonde) */
+  /* L'ÉPOQUE DU CACHE — le jeton que `GEN` ne pouvait pas porter. `GEN` dit
+     « ce n'est plus le même deck (ou la même carte) » ; il ne bouge PAS quand
+     une FACE vient d'être livrée, or c'est là que le cache est vidé aussi
+     (I3a : les octets sous ce nom viennent d'être réécrits). Un chargeur
+     parti AVANT l'export revenait donc après le vidage, voyait sa génération
+     inchangée, et re-posait dans le cache les octets PRÉ-export — les
+     vignettes affichaient l'ancienne carte jusqu'au changement de deck, sans
+     le moindre signe. L'époque est incrémentée par CHAQUE vidage, quelle
+     qu'en soit la raison ; un chargement la capture avant ses attentes et se
+     tait si elle a bougé. */
+  let IMGS_EPOQUE = 1;          /* commence à 1 : zéro serait un jeton FAUX */
 
   /* I2 — CE QUI EST GARDÉ EST UNE RÉDUCTION, PAS LE BITMAP LIVRÉ.
      Une couche est rendue à la définition de la CARTE : 63 x 88 mm à 1200 dpi
@@ -2115,6 +2473,10 @@
   }
 
   function oublieLesImages() {
+    /* L'ÉPOQUE D'ABORD (même ordre que `oublieLesJobs` avec `GEN`) : les
+       chargements déjà en vol se taisent, et ceux qui repartiront sous
+       l'époque neuve ne pourront pas être effacés par eux. */
+    IMGS_EPOQUE += 1;
     [IMGS, IMGS_VOL, IMGS_AT].forEach((reg) => {
       Object.keys(reg).forEach((k) => { delete reg[k]; });
     });
@@ -2177,18 +2539,24 @@
        chargement rassis qui effacerait l'entrée de son successeur rouvrirait
        la porte à un second chargement du même octet — et, pire, ferait de
        `IMGS_VOL` un verrou qui ment. */
-    const gen = GEN;
+    const gen = GEN, ep = IMGS_EPOQUE;
     IMGS_VOL[cle] = gen;
-    const relache = () => { if (IMGS_VOL[cle] === gen) delete IMGS_VOL[cle]; };
+    /* le relâché est GARDÉ PAR L'ÉPOQUE, pas seulement par la génération : un
+       vidage a pu remettre la même génération en vol sous cette clé, et
+       effacer l'entrée du successeur ferait de `IMGS_VOL` un verrou qui ment
+       (deux chargements du même octet). */
+    const relache = () => {
+      if (ep === IMGS_EPOQUE && IMGS_VOL[cle] === gen) delete IMGS_VOL[cle];
+    };
     let img = null;
     try {
       const b = await M.api.blob("GET", sub);
-      if (gen !== GEN) { relache(); return; }
+      if (gen !== GEN || ep !== IMGS_EPOQUE) { relache(); return; }
       img = await decodeBlob(b);
     } catch (e) {
       img = null;         /* absente ou refusée : un aplat, jamais une panne */
     }
-    if (gen !== GEN) { relache(); return; }
+    if (gen !== GEN || ep !== IMGS_EPOQUE) { relache(); return; }
     IMGS[cle] = img ? retaille(img) : null;
     IMGS_AT[cle] = Date.now();
     relache();
@@ -2511,6 +2879,8 @@
          un LAYOUT_VU vidé, et le relâché patcherait une carte d'une seule
          entrée — voir `videCanvas` pour le détail du dégât. */
       DRAG = null;
+      fermeFantome();
+      ARETE = null;
       /* et le drapeau tombe avec lui : le laisser armé sur une carte vidée
          laissait un `videCanvas` ultérieur écrire `{}` au document sur la foi
          d'un geste qui ne décrit plus rien. */
@@ -2559,6 +2929,10 @@
        document n'a pas encore ses variables de thème (les encres se lisent
        sur l'élément) — et il n'y a rien à peindre avant qu'il existe. */
     nodes.forEach((n) => { paintNodeThumb(n.id); });
+    /* l'arête désignée a survécu à la reconstruction du monde (le tracé est
+       neuf, `ARETE` ne l'était pas) : on lui rend sa classe et son bouton —
+       ou on la lâche, si le graphe repeint ne la porte plus. */
+    majSelArete();
     appliqueCam();
     sondeMoteurs(graph);
     paintCost();
@@ -2577,12 +2951,22 @@
   /* le rang (ou le nœud) dans le DOM, retrouvé par comparaison d'attribut et
      non par sélecteur construit : un id de nœud est une donnée, jamais un
      fragment de sélecteur (un point y suffirait à tout casser).
-     M11 — `racine` RESTREINT la recherche à un sous-arbre. Sans elle, la
-     restauration du focus après un repaint se faisait par sélecteur construit
-     (`'[data-field="' + champ + '"]'`) : la même doctrine y était enfreinte à
-     deux pas de l'endroit qui l'énonce. Et la portée n'est pas cosmétique —
-     deux nœuds relief portent tous deux `data-field="depth_mm"`, donc une
-     recherche dans l'hôte entier rendrait le champ du VOISIN. */
+     M11 — `racine` RESTREINT la recherche à un sous-arbre. CE QUE CE
+     CHANGEMENT A CORRIGÉ, EXACTEMENT (mesuré, pas supposé) : la restauration
+     du focus se faisait par SÉLECTEUR CONSTRUIT (`'[data-field="' + champ +
+     '"]'`), la doctrine énoncée deux lignes plus haut enfreinte à deux pas de
+     l'endroit qui l'énonce — un jour où un nom de champ portera un guillemet
+     ou un crochet, ce sélecteur-là lèvera. Ce qu'il n'a PAS corrigé : un
+     champ volé au voisin. Les deux appels d'origine étaient DÉJÀ portés
+     (`neuf.querySelector` dans `paintRow`, `el.querySelector` dans
+     `paintNode`) — aucun voisin n'était atteignable, et écrire le contraire
+     ferait croire à un bug là où il n'y en avait pas. La valeur du
+     changement est double et tient en deux mots : la DOCTRINE (comparer un
+     attribut, ne jamais bâtir un sélecteur avec une donnée) et la
+     DÉ-DUPLICATION (une seule restauration de focus, `rendLeFocus`, au lieu
+     de deux copies vouées à diverger). `racine` est ce qui rend la
+     dé-duplication possible sans PERDRE la portée que les deux copies
+     avaient. */
   function findByAttr(cls, attr, val, racine) {
     const host = racine || hoteVue();
     if (!host) return null;
@@ -2652,7 +3036,7 @@
        élément : du code qui a l'air de protéger quelque chose et ne protège
        rien, c'est-à-dire pire que rien. Si un corps de nœud gagne un jour un
        tiroir, c'est la discipline de `paintRow` qu'il faudra reprendre. */
-    el.innerHTML = noeudTeteHtml(n) + nodeBodyHtml(nid);
+    el.innerHTML = noeudTeteHtml(n) + portsHtml(n) + nodeBodyHtml(nid);
     rendLeFocus(el, focusField);
     paintNodeThumb(nid);
     paintCost();
@@ -2688,6 +3072,18 @@
   }
 
   function onGraphClick(e) {
+    /* UNE ARÊTE EST UNE CIBLE : son chemin de saisie la DÉSIGNE, et le bouton
+       flottant qui apparaît alors est le seul à pouvoir la couper. Deux
+       gestes plutôt qu'un, exprès : une arête coupée d'un clic serait un
+       accident permanent (le glisser du fond passe juste à côté). */
+    const arc = e.target.closest
+      ? e.target.closest(".cf-forge3d-edge-hit") : null;
+    if (arc) {
+      e.preventDefault();
+      selectionneArete(arc.getAttribute("data-from"),
+                       arc.getAttribute("data-to"));
+      return;
+    }
     const b = e.target.closest ? e.target.closest("[data-act]") : null;
     if (!b) return;
     const act = b.getAttribute("data-act");
@@ -2700,6 +3096,9 @@
     } else if (act === "vue-recentre") {
       e.preventDefault();
       recentreCam();
+    } else if (act === "lien-supp") {
+      e.preventDefault();
+      if (ARETE) suppLien(ARETE.from, ARETE.to);
     }
   }
 
@@ -2822,6 +3221,136 @@
     paintUndo();
     paintVue();
     M.toast("annulé : " + h.label);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     LES CONNEXIONS — LA MOITIÉ PURE, PUIS LA MOITIÉ QUI ÉCRIT
+     `grapheAvecLien` / `grapheSansLien` ne touchent à RIEN : elles reçoivent
+     un graphe, elles en rendent un autre (ou un motif de refus). C'est ce
+     qui les rend JUGEABLES — le harnais de chaînes les fait tourner telles
+     quelles, extraites du fichier livré, et mesure que le graphe câblé à la
+     souris se lit exactement comme celui qu'écrit la vue liste. `creeLien` /
+     `suppLien` sont l'autre moitié : lire l'état, patcher, dire.
+
+     LE REFUS EST PRONONCÉ AVANT L'ÉCRITURE, jamais après. Le backend, lui,
+     ACCEPTE ces graphes et les avoue au bordereau (`ignored` : « maillon
+     surnuméraire … première arête gagnante ») — c'est le bon comportement
+     pour une API ouverte, ce serait le mauvais pour un écran : laisser poser
+     un maillon mort puis le dénoncer à chaque construction apprend à
+     l'utilisateur à ignorer son propre bordereau. */
+  function grapheAvecLien(graph, deNid, versNid) {
+    const nodes = (graph && graph.nodes) || [];
+    const de = nodes.filter((n) => n.id === deNid)[0];
+    const vers = nodes.filter((n) => n.id === versNid)[0];
+    /* un nœud qui n'existe pas, ou un nœud sur lui-même : ce n'est pas un
+       refus à expliquer, c'est un geste qui n'a pas eu lieu. */
+    if (!de || !vers || deNid === versNid) return null;
+    const edges = graph.edges || [];
+    for (let i = 0; i < edges.length; i++) {
+      /* DÉJÀ LÀ : rien à écrire, rien à annuler, et rien à DIRE — l'arête
+         que l'utilisateur voulait est sous ses yeux. Un toast y serait un
+         reproche pour un geste réussi. */
+      if (edges[i].from === deNid && edges[i].to === versNid) {
+        return { deja: true };
+      }
+    }
+    if (!lienValide(de.kind, vers.kind)) {
+      /* LES DEUX KINDS SONT CITÉS, PAS ARTICULÉS. Le plan écrivait « un
+         {from} ne se branche pas sur un {to} » ; en français ça donne « un
+         couche » et « un matière » une fois sur deux, et il aurait fallu une
+         SECONDE table (le genre de chaque kind) à tenir d'accord avec
+         `KIND_LABELS` — pour un article. Les guillemets disent la même chose
+         sans rien à synchroniser. */
+      return { refus: "« " + kindLabel(de.kind) + " » ne se branche pas sur « "
+        + kindLabel(vers.kind) + " » — chaîne attendue : " + chaineAttendue() };
+    }
+    const surn = surnumeraire(graph, de, vers);
+    if (surn) return { refus: surn };
+    const next = JSON.parse(JSON.stringify(graph));
+    next.edges = (next.edges || []).concat([{ from: deNid, to: versNid }]);
+    return { graph: next };
+  }
+
+  /* LA CHAÎNE À LAQUELLE UN NŒUD APPARTIENT, vue depuis n'importe lequel de
+     ses maillons : un traitement EST sa chaîne (`rowModel` répond même quand
+     aucune couche ne le source encore) ; une matière ou un placement, eux,
+     se remontent jusqu'à leur traitement. */
+  function chaineDe(graph, n) {
+    if (PROC_KINDS.indexOf(n.kind) >= 0) return rowModel(graph, n.id);
+    const att = rowDuNoeud(graph, n.id);
+    return att ? att.r : null;
+  }
+
+  /* LA RÈGLE DE CHAÎNE UNIQUE — les MOTS du bordereau, dits AVANT l'écriture.
+     Trois surnombres possibles, et ce sont exactement ceux que
+     `_resolve_graph_elements` / `_chaine_aval` avouent : une seconde source
+     sur un traitement, une seconde matière ou un second placement dans une
+     chaîne. Rend le motif, ou `null` quand rien ne fait nombre. */
+  function surnumeraire(graph, de, vers) {
+    if (PROC_KINDS.indexOf(vers.kind) >= 0) {
+      const r = rowModel(graph, vers.id);
+      if (r && r.layer) {
+        return "ce traitement a déjà une source (" + r.layer.id + ") — une "
+          + "seconde serait surnuméraire : la première arête gagne, l'autre "
+          + "est une perte que le bordereau avouerait.";
+      }
+      return null;
+    }
+    if (vers.kind === "material" || vers.kind === "transform") {
+      const r = chaineDe(graph, de);
+      const mat = (vers.kind === "material");
+      const deja = r ? (mat ? r.mat : r.trs) : null;
+      if (deja) {
+        /* TOUTE la phrase s'accorde sur le même genre (une matière / une
+           seconde / la première — un placement / un second / le premier) :
+           n'en accorder qu'un morceau remet la faute un mot plus loin. */
+        return "cette chaîne porte déjà " + (mat ? "une matière" : "un placement")
+          + " (" + deja.id + ") — " + (mat ? "une seconde" : "un second")
+          + " serait surnuméraire : le serveur garderait "
+          + (mat ? "la première" : "le premier")
+          + " et avouerait l'autre au bordereau.";
+      }
+    }
+    return null;
+  }
+
+  /* COUPER UNE ARÊTE, ET RIEN D'AUTRE. Aucune purge « pendant qu'on y est » :
+     retirer un lien ne peut pas rendre une arête pendante (les nœuds
+     restent), et nettoyer autre chose au passage ferait décider à l'écran ce
+     que `clean_graph` est seul à trancher. Rend `null` quand il n'y avait
+     rien à couper — donc AUCUNE entrée d'annulation pour un geste sans
+     effet. */
+  function grapheSansLien(graph, deNid, versNid) {
+    const edges = (graph && graph.edges) || [];
+    const reste = edges.filter(
+      (e) => !(e.from === deNid && e.to === versNid));
+    if (reste.length === edges.length) return null;
+    const next = JSON.parse(JSON.stringify(graph));
+    next.edges = reste.map((e) => ({ from: e.from, to: e.to }));
+    return { graph: next };
+  }
+
+  function creeLien(deNid, versNid) {
+    const r = grapheAvecLien(get("graph"), deNid, versNid);
+    if (!r || !r.graph) {
+      if (r && r.refus) M.toast(r.refus, true);
+      return false;
+    }
+    setGraph(r.graph, "connexion");
+    selectionneArete(null);
+    /* STRUCTUREL : une arête de plus change les chaînes — donc les rangs de
+       la vue liste, les vignettes qui lisent la couche source, le devis. */
+    paintVue();
+    return true;
+  }
+
+  function suppLien(deNid, versNid) {
+    const r = grapheSansLien(get("graph"), deNid, versNid);
+    if (!r) return false;
+    setGraph(r.graph, "déconnexion");
+    selectionneArete(null);
+    paintVue();
+    return true;
   }
 
   const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso"];

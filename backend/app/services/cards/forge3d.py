@@ -79,6 +79,10 @@ LAYER_ROLES = [
 # `transform` : position/rotation/échelle en mm de carte de l'élément amont.
 # `assemble`  : fusionne les amonts en une scène.
 # `artifact`  : sorties (GLB + metadata + aperçu + STL si fermé).
+# `export`    : POINT DE TÉLÉCHARGEMENT branché sur l'artefact — il choisit
+#               LAQUELLE des sorties déjà écrites il sert, et n'en éteint
+#               aucune (le bordereau reste entier : voir
+#               `_resolve_graph_elements`).
 NODE_KINDS = [
     {"kind": "layer", "params": ["role", "side"]},
     {"kind": "plane", "params": ["depth_mm"]},
@@ -88,6 +92,7 @@ NODE_KINDS = [
     {"kind": "transform", "params": ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"]},
     {"kind": "assemble", "params": []},
     {"kind": "artifact", "params": ["name"]},
+    {"kind": "export", "params": ["format"]},
 ]
 # ═══ CF-FORGE3D-NODES-END ═══
 
@@ -151,6 +156,16 @@ TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
 TRANSFORM_SCALE = (0.1, 4.0)
+
+# ── le nœud `export` (2c) : le vocabulaire FERMÉ de ses formats ─────────────
+# Ce ne sont PAS des sorties de plus : ce sont celles que `post_build3d` écrit
+# déjà (le GLB, le STL quand le solide est fermé, le metadata.json ERC-721,
+# l'aperçu figé) — un nœud d'export ne fait que NOMMER laquelle il sert. D'où
+# le défaut : « glb », la seule sortie qui existe TOUJOURS (le STL peut être
+# refusé motivé, l'aperçu n'existe qu'une fois figé).
+# Même patron que `LAYER_MODES` / `MATERIAL_FINISHES` : un vocabulaire fermé,
+# publié par /info, jamais recopié à l'écran.
+EXPORT_FORMATS = ("glb", "stl", "metadata", "preview")
 
 # ── bornes d'entrée — vérifiées AVANT tout décodage (spec 2.5) ──────────────
 MAX_LAYER_BYTES = 64 * 1024 * 1024   # un PNG de carte, pas un film — même
@@ -261,6 +276,7 @@ async def get_info(did: str):
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
                "max_elements": MAX_GRAPH_ELEMENTS,
+               "export_formats": list(EXPORT_FORMATS),
             },
             "mesh3d": {
                 "engines": engines,
@@ -459,6 +475,17 @@ def clean_graph(raw) -> dict:
         elif n["kind"] == "artifact":
             nom = str(n.get("name") or "artefact")
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
+        elif n["kind"] == "export":
+            # même garde de type que `kind`/`role`/`finish` plus haut : le
+            # `in` d'un tuple hache d'abord, donc une liste reçue en `format`
+            # lèverait TypeError — c'est-à-dire le 500 que cette fonction
+            # existe pour empêcher. Un format inconnu (ou non hachable)
+            # RETOMBE sur le seul qui existe toujours, il ne tue pas le nœud :
+            # un point de téléchargement muet vaudrait moins qu'un point de
+            # téléchargement réparé.
+            fmt = n.get("format")
+            node["format"] = (fmt if isinstance(fmt, str) and fmt in EXPORT_FORMATS
+                              else EXPORT_FORMATS[0])
         nodes.append(node)
     # Important 3 (revue, amendement du contrôleur) : une arête ne doit
     # survivre que si SES DEUX BOUTS ont survécu au nettoyage. `ids` porte
@@ -1033,6 +1060,17 @@ def _resolve_graph_elements(graph: dict) -> tuple[list[dict], list[dict]]:
     ignores: list[dict] = []
     for n in graph["nodes"]:
         if n["kind"] not in _PROC_KINDS:
+            # LES NŒUDS `export` (2c) ET LEURS ARÊTES DEPUIS `artifact` SONT
+            # IGNORÉS ICI *SANS ENTRÉE `ignored`*, et c'est une décision, pas
+            # un oubli : ce sont des POINTS DE TÉLÉCHARGEMENT — ils n'éteignent
+            # rien, le bordereau reste entier. `ignored` nomme ce qui a été
+            # PERDU (une source surnuméraire, une chaîne cassée, une matière
+            # qui n'habillera rien) ; un export ne perd rien, il DÉSIGNE une
+            # sortie que `post_build3d` écrit de toute façon. L'y faire figurer
+            # apprendrait à l'utilisateur à ignorer son propre bordereau —
+            # exactement ce que le contrat `artifact@1` existe pour empêcher.
+            # (Même silence, pour la même raison, pour `assemble` et
+            # `artifact` : ce sont des étages, pas des éléments.)
             continue
         sources = []
         for fid in incoming.get(n["id"], []):
