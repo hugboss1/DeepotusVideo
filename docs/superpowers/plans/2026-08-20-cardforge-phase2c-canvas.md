@@ -916,6 +916,22 @@ git commit -m "feat(cardforge): inspecteur 3d unique, noeud artefact avec son vi
 > qu'il POSE. Un patcher correct qui n'est pas dans la chaîne n'est pas une
 > livraison.
 
+> **CLOSE (ronde 3689060 → 8202183, re-revue : RONDE VALIDÉE).** Les dix
+> défauts re-vérifiés SÉMANTIQUEMENT et indépendamment : clone frais
+> re-simulé par le réviseur (97/97 sans aucun `.bak`), les cinq formes
+> malformées M5 re-tracées à la main (confirmant l'équivalence du mutant
+> `isinstance`), les mtime/sha1 des DEUX couples ex aequo re-mesurés, le
+> point de tête du temporaire M3 confirmé contre la découverte de formats du
+> manifest (`startswith("model.")`), l'auto-exclusion M8 exercée
+> implicitement par chaque re-publication de la suite. `model.glb` est
+> STRUCTURELLEMENT hors du balayage S2 (absent du tuple `_LIBRARY_SERVIS`).
+> Bundle octet-identique sur toute la ronde (blob sha256 constant). Un
+> résidu cosmétique attrapé et corrigé par le contrôleur dans la foulée : la
+> ligne d'aide du succès du patcheur imprimait encore `card3dlibrary` sans
+> underscore (patch_bundle_card3d_library.py:345). **T6 est close** — reste
+> T7 : déploiement (backend + bundle vers l'app), vérification navigateur
+> MESHY_MOCK, et les dettes consignées.
+
 > **COUTURE DE DÉLESTAGE (ajoutée après T1)** : forge3d.py a franchi le seuil
 > des ~2400 lignes (2708 après les correctifs T1). AVANT d'ajouter le bloc
 > bibliothèque, extraire dans un sidecar intra-pièce `forge3d_apercu.py`

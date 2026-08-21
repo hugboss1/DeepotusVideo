@@ -342,7 +342,7 @@ def main():
     print(f"   sondes  : {len(STABLE_PROBES)} a 1, {len(PATCHES)} ancres "
           "consommees, marqueurs x1")
     print("   suite   : scripts/qa/inventory_bundle.py (APRES), puis "
-          "python scripts/repatch_all.py --list -> card3dlibrary en DERNIER")
+          "python scripts/repatch_all.py --list -> card3d_library en DERNIER")
 
 
 if __name__ == "__main__":
