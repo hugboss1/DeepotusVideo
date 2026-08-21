@@ -4150,8 +4150,10 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
     assert not moi[0]["final_video_path"], moi[0]
 
     # IDEMPOTENT : meme artefact -> meme id, aucun doublon, et la copie est
-    # RAFRAICHIE (l'artefact a pu etre reconstruit entre-temps).
-    r3 = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d")
+    # RAFRAICHIE (l'artefact a pu etre reconstruit entre-temps). Le corps JSON
+    # est celui que l'ECRAN envoie REELLEMENT (`M.api.post` poste toujours un
+    # objet, meme vide) : la route n'en lit rien, et ne doit pas s'en etouffer.
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/library/carte3d", json={})
     assert r3.status_code == 200, r3.text
     assert r3.json()["job_id"] == pub["job_id"], (r3.json(), pub)
     jobs2 = _api("GET", "/api/jobs").json()
@@ -4276,6 +4278,59 @@ def test_le_bundle_reconnait_le_provider_card3d_et_le_patcher_est_idempotent(
     r3 = run()
     assert r3.returncode != 0, r3.stdout
     assert "sanity" in (r3.stdout + r3.stderr), r3.stdout + r3.stderr
+
+
+def test_le_bouton_publier_est_garde_et_vit_dans_les_deux_vues():
+    """Test de SOURCE (2c Task 6) : « Publier dans la Bibliotheque ».
+
+    Ce qui est epingle ici : le geste est GARDE (un seul a la fois, garde de
+    GENERATION apres l'await), il vit dans LES DEUX vues (le nœud artefact ET
+    le bordereau de la liste — la vue liste est le repli sans pointeur, elle ne
+    perd aucune action), il ne touche PAS au graphe (publier n'est pas une
+    edition : aucune entree d'annulation), et l'etat « publie » meurt avec le
+    bordereau qu'il decrit."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    pl = rendu.split("async function publishLibrary(")[1].split("\n  }")[0]
+    assert '"library/"' in pl, pl
+    assert "artifactName(" in pl, pl
+    # UN SEUL GESTE A LA FOIS (patron `build3d.busy` / `freezePreview.busy`) :
+    # deux POST concurrents publieraient deux fois les memes octets.
+    assert "publishLibrary.busy" in pl, pl
+    # LA GARDE DE GENERATION APRES CHAQUE await (doctrine du fichier) : une
+    # publication lancee sur la carte d'avant n'ecrit pas « publie » dans
+    # l'ecran de la suivante. Invariant, pas compte fige.
+    assert pl.count("gen !== GEN") >= pl.count("await "), pl
+    # PUBLIER N'EST PAS UNE EDITION DU GRAPHE : aucune entree d'annulation,
+    # aucun patch. « ↶ annuler » ne doit pas avaler un geste de publication.
+    assert "setGraph(" not in pl and "M.patch" not in pl, pl
+    # LE TITRE PUBLIE remonte dans le toast : c'est le seul lien entre l'ecran
+    # et ce que l'utilisateur trouvera dans la Bibliotheque.
+    assert "rep.title" in pl, pl
+    # ... et le motif d'un refus part TEL QUEL (jamais-500 cote ecran)
+    assert "e.message" in pl, pl
+
+    # DANS LES DEUX VUES, par la MEME fonction d'etat (doctrine `ignoresHtml` :
+    # deux rendus du meme fait auraient derive).
+    art = rendu.split("function artifactNodeHtml(")[1].split("\n  }")[0]
+    assert "publieHtml(" in art, art
+    pa = rendu.split("function paintArtifact(")[1].split("\n  }")[0]
+    assert "publieHtml(" in pa, pa
+    # ... et les DEUX delegations connaissent l'acte (le canvas et la section
+    # n'ont pas le meme handler de clic).
+    og = rendu.split("function onGraphClick(")[1].split("\n  }")[0]
+    osc = rendu.split("function onSlipClick(")[1].split("\n  }")[0]
+    assert '"publish-lib"' in og, og
+    assert '"publish-lib"' in osc, osc
+
+    # L'ETAT « PUBLIE » MEURT AVEC SON BORDEREAU. Deux portes, mesurees :
+    # `cardChanged` lache `ARTIFACT` (deja epingle plus haut), et `build3d` le
+    # REMPLACE par la reponse du serveur — la copie qui dort dans la
+    # Bibliotheque porte alors les octets d'AVANT, et « publie » deviendrait un
+    # mensonge sur le fichier qu'on ira y chercher.
+    b3 = rendu.split("async function build3d(")[1].split("\n  }")[0]
+    assert "ARTIFACT = rep.artifact;" in b3, b3
+    assert "published" not in b3, b3
 
 
 def test_le_canvas_est_la_projection_du_meme_graphe():
@@ -5376,6 +5431,34 @@ dit("sans bordereau, il le DIT au lieu de se taire",
     bordereauHtml(null).indexOf("rien de construit") >= 0,
     bordereauHtml(null));
 
+/* 9bis. « PUBLIER DANS LA BIBLIOTHEQUE » (2c Task 6) — l'ETAT, pas l'action */
+dit("sans bordereau, AUCUN bouton de publication : publier n'est pas "
+    + "construire", publieHtml(null) === "", publieHtml(null));
+const pb0 = publieHtml(ARTIFACT);
+dit("avec un bordereau, le bouton est la et l'etat dit « pas encore publie »",
+    pb0.indexOf('data-act="publish-lib"') >= 0
+    && /pas encore publi/.test(pb0) && pb0.indexOf("disabled") < 0, pb0);
+publishLibrary.busy = true;
+dit("... et pendant le geste il est VERROUILLE (patron build3d.busy)",
+    publieHtml(ARTIFACT).indexOf("disabled") >= 0, publieHtml(ARTIFACT));
+publishLibrary.busy = false;
+ARTIFACT.published = { job_id: "aaaabbbb-cccc-dddd-eeee-ffff00001111",
+                       short: "aaaabbbb",
+                       title: "Carte 3D · Mon deck · carte3d" };
+const pb1 = publieHtml(ARTIFACT);
+dit("une fois publie, le bordereau porte le TITRE publie et le dossier servi",
+    pb1.indexOf("Carte 3D") >= 0 && pb1.indexOf("carte3d") >= 0
+    && pb1.indexOf("aaaabbbb") >= 0, pb1);
+dit("... et le bouton propose de REPUBLIER (le serveur est idempotent)",
+    /republier/.test(pb1) && pb1.indexOf('data-act="publish-lib"') >= 0, pb1);
+dit("... et le titre publie est ECHAPPE, jamais concatene brut",
+    publieHtml({ elements: 1, glb: { name: "x", bytes: 1 },
+                 published: { title: '<img src=x onerror=1>', short: "s" } })
+      .indexOf("<img") < 0,
+    publieHtml({ elements: 1, glb: { name: "x", bytes: 1 },
+                 published: { title: '<img src=x onerror=1>', short: "s" } }));
+delete ARTIFACT.published;
+
 /* 10. LE CORPS D'UN NŒUD ARTEFACT / EXPORT */
 DOC_GRAPH = G4;
 const corpsArt = nodeBodyHtml("art");
@@ -5804,6 +5887,11 @@ function paintNodeThumb() {}
 function paintCost() {}
 function build3d() {}
 build3d.busy = false;
+/* le GESTE de publication est un stub (il parle au reseau) ; ce qui se mesure
+   ici est ce que le BORDEREAU en DIT — `publieHtml` lit son `.busy`, comme le
+   bouton « Construire » lit celui de `build3d`. */
+function publishLibrary() {}
+publishLibrary.busy = false;
 /* la paire rAF, PILOTEE : rien ne s'execute tant que le banc ne le demande
    pas — une frame reelle n'a rien a faire dans une mesure, et ce qui compte
    est justement de savoir si une frame a ete DEMANDEE. */
@@ -5858,6 +5946,8 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "engPrice", "usdTxt", "priceTxt", "sourceTxt", "chipHtml",
                 "runHtml", "mesh3dHtml", "kindHintHtml", "nodeBodyHtml",
                 "artifactNodeHtml", "bordereauHtml", "ignoresHtml",
+                # 2c Task 6 : ce que le bordereau DIT de la publication.
+                "publieHtml",
                 "fichierHtml", "exportFormats", "exportNodeHtml",
                 "exportEtatHtml", "couchesRestantes", "plafondAtteint",
                 "premiereMatiere", "naitCouche", "naitProc", "naitMaillon",
@@ -5905,8 +5995,9 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     # un PLANCHER, pas un compte fige (meme raison que le banc de chaines) :
     # un banc ampute — une section commentee, une exception avalee — passerait
     # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
-    # ronde de correction — le plancher garde la meme marge qu'avant.)
-    assert len(cas) >= 66, len(cas)
+    # ronde de correction, 89 avec la publication de la T6 — le plancher garde
+    # la meme marge qu'avant.)
+    assert len(cas) >= 72, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):

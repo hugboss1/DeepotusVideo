@@ -708,6 +708,11 @@
     if (act === "grab-zip" || act === "grab-file") {
       e.preventDefault();
       grabZip(b.getAttribute("data-name"));
+    } else if (act === "publish-lib") {
+      /* le MÊME acte que sur le nœud artefact (`onGraphClick`) : publier est
+         une action du BORDEREAU, pas d'une vue. */
+      e.preventDefault();
+      publishLibrary();
     }
   }
 
@@ -2678,7 +2683,7 @@
       + 'figer l\'aperçu</button>'
       + '</div>'
       + '<div class="cf-forge3d-art-view"></div>'
-      + bordereauHtml(ARTIFACT);
+      + bordereauHtml(ARTIFACT) + publieHtml(ARTIFACT);
   }
 
   /* LE RÉSUMÉ DU BORDEREAU — MESURÉ, jamais annoncé. Poids du GLB livré,
@@ -2703,6 +2708,73 @@
       + (moteurs.length ? (" · " + esc(moteurs.join(", "))) : "")
       + (credits > 0 ? (" · " + Number(credits) + " cr consommés") : "")
       + '</p>' + ignoresHtml(art);
+  }
+
+  /* ── « PUBLIER DANS LA BIBLIOTHÈQUE » (2c Task 6) — UNE SEULE ÉCRITURE ───
+     La section « Construire » et le nœud artefact disent LA MÊME chose (même
+     doctrine que `ignoresHtml` juste dessous : deux rendus auraient dérivé).
+
+     L'ÉTAT « publié » VIT DANS `ARTIFACT`, et il en suit le sort — c'est
+     voulu, deux fois plutôt qu'une : un changement de carte le lâche avec le
+     reste du bordereau (M6), et une RECONSTRUCTION le lâche aussi
+     (`build3d` REMPLACE `ARTIFACT` par la réponse du serveur). Dans les deux
+     cas la copie qui dort dans la Bibliothèque porte les octets d'AVANT :
+     continuer d'afficher « publié » serait un mensonge sur le fichier que
+     l'utilisateur ira y chercher. Re-publier est idempotent côté serveur —
+     c'est justement ce qui rend le bouton sûr à re-cliquer. */
+  function publieHtml(art) {
+    if (!art) return "";
+    const p = art.published;
+    return '<div class="cf-forge3d-file"><span class="mono">'
+      + (p ? ("publié · " + esc(p.title) + " · " + esc(p.short))
+           : "pas encore publié dans la Bibliothèque")
+      + '</span><button class="btn sm" type="button" data-act="publish-lib"'
+      + (publishLibrary.busy ? " disabled" : "")
+      + ' title="copie l\'artefact dans la Bibliothèque 3D de l\'application">'
+      + (p ? "republier" : "Publier dans la Bibliothèque")
+      + '</button></div>';
+  }
+
+  /* LE GESTE : le backend COPIE l'artefact CONSTRUIT dans les dossiers que la
+     Bibliothèque 3D sert déjà, et pose son JobRecord. PUBLIER N'EST PAS
+     CONSTRUIRE — sans bordereau, on le dit et on ne poste rien : un clic ici
+     ne doit jamais déclencher un travail (ni, un jour, une dépense) dont ce
+     n'était pas la promesse. Le refus du serveur remonte TEL QUEL (doctrine
+     jamais-500 côté écran : un état nommé, pas une pile rouge). */
+  async function publishLibrary() {
+    if (publishLibrary.busy) return;
+    const status = $("#cf-forge3d-build-status");
+    if (!ARTIFACT) {
+      M.toast("construis l'artefact d'abord", true);
+      return;
+    }
+    publishLibrary.busy = true;
+    paintArtifact(ARTIFACT);
+    repeintLeBordereau();
+    /* MÊME garde que `build3d` et `inspecte` : une publication lancée sur la
+       carte (ou le deck) d'AVANT ne doit pas écrire « publié » dans l'écran
+       de la suivante — le bordereau qu'elle décrit n'y est plus. */
+    const gen = GEN;
+    try {
+      const rep = await M.api.post(
+        "library/" + encodeURIComponent(artifactName(ARTIFACT)));
+      if (gen !== GEN) return;
+      ARTIFACT = Object.assign({}, ARTIFACT, {
+        published: { job_id: rep.job_id, short: rep.short, title: rep.title },
+      });
+      paintArtifact(ARTIFACT);
+      if (status) status.textContent = "publié dans la Bibliothèque — "
+        + rep.title + ".";
+      M.toast("publié dans la Bibliothèque — " + rep.title);
+    } catch (e) {
+      if (gen !== GEN) return;
+      if (status) status.textContent = String(e && e.message || e);
+      M.toast(String(e && e.message || e), true);
+    } finally {
+      publishLibrary.busy = false;
+      paintArtifact(ARTIFACT);
+      repeintLeBordereau();
+    }
   }
 
   /* LES AVEUX DU BACKEND, UNE SEULE ÉCRITURE. La section « Construire » et le
@@ -4101,6 +4173,9 @@
     } else if (act === "freeze") {
       e.preventDefault();
       freezePreview();
+    } else if (act === "publish-lib") {
+      e.preventDefault();
+      publishLibrary();
     } else if (act === "pal-couche") {
       e.preventDefault();
       naitCouche();
@@ -4990,7 +5065,11 @@
           + "</li>").join("")
         + "</ul>")
       : "";
-    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoresHtml(art);
+    /* la Bibliothèque EN BAS du bordereau, et dans les DEUX vues : le canvas
+       la porte sur le nœud artefact, la liste ici — la vue liste reste le
+       repli sans pointeur, elle ne perd aucune action. */
+    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoresHtml(art)
+      + publieHtml(art);
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
