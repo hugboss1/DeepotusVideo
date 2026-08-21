@@ -184,7 +184,7 @@ git commit -m "feat(cardforge): node-preview borne (le vrai 3D d un element) + m
 
 **Files:** mod-forge3d.js, mod-forge3d.css, test_cards_forge3d.py.
 
-- [ ] **Step 1 : test de source en RED**
+- [x] **Step 1 : test de source en RED**
 
 ```python
 def test_le_canvas_est_la_projection_du_meme_graphe():
@@ -207,7 +207,7 @@ def test_le_canvas_est_la_projection_du_meme_graphe():
     assert "cf-forge3d-vue" in rendu
 ```
 
-- [ ] **Step 2 : implémentation** (patrons du fichier ; lire d'abord
+- [x] **Step 2 : implémentation** (patrons du fichier ; lire d'abord
 `shell()/wire()/paintGraph()` et le schéma `CF.register` du module)
 
 1. **Schéma** : la déclaration `CF.register` du module gagne la clé `layout`
@@ -239,7 +239,7 @@ def test_le_canvas_est_la_projection_du_meme_graphe():
    sombre, en-tête par kind, ombre à la sélection), ports, arêtes
    (`stroke: var(--stroke)`, hover accent) — tout scopé `.cf-forge3d`.
 
-- [ ] **Step 3 : GREEN + lint + commit**
+- [x] **Step 3 : GREEN + lint + commit**
 
 ```bash
 git add frontend/cardforge/js/mod-forge3d.js frontend/cardforge/css/mod-forge3d.css backend/tests/test_cards_forge3d.py
