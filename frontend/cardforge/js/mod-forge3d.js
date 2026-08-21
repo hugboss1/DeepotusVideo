@@ -439,6 +439,20 @@
     /* la bascule est relue AVANT la première peinture : sans quoi l'écran
        s'ouvrirait sur la vue par défaut puis sauterait sur celle de
        l'utilisateur au premier repaint venu. */
+    /* M6 — LES VIGNETTES SONT DU PIXEL, PAS DU CSS. Tout le reste de l'écran
+       suit le thème tout seul (les feuilles lisent les jetons) ; un canvas
+       2D, lui, a CUIT ses couleurs au moment où il a été peint — `encres()`
+       les a lues une fois. Basculer la puce ◐ laissait donc onze vignettes en
+       encres sombres au milieu d'un lab devenu clair. `applyTheme`
+       (core.js:1117) écrit `data-theme` sur le documentElement de CETTE
+       iframe : on l'observe, et on redemande une passe (déjà coalescée au
+       rAF, donc une bascule = une frame). */
+    if (typeof MutationObserver === "function"
+        && typeof document !== "undefined" && document.documentElement) {
+      new MutationObserver(() => { demandeRepeintVignettes(); }).observe(
+        document.documentElement,
+        { attributes: true, attributeFilter: ["data-theme"] });
+    }
     VUE = vueLue();
     refreshInfo();
     refreshManifest();
@@ -533,6 +547,19 @@
         status.textContent = "téléversement (" + face + ")…";
         const rep = await M.api.post("layers", fd);
         results.push(rep.layers);
+        /* I3a — CETTE FACE-CI EST LIVRÉE : SES PIXELS SONT PÉRIMÉS, MAINTENANT.
+           L'invalidation vivait après la boucle, donc après les DEUX faces —
+           mais un export peut s'arrêter au milieu (le verso lève : disque
+           plein, backend coupé). Le recto était alors bel et bien réécrit
+           SOUS LE MÊME NOM, et le cache, lui, gardait les octets d'avant :
+           des vignettes fausses, sans le moindre signe, jusqu'au changement
+           de deck. Une face livrée invalide sa face, dans le tour où elle
+           est livrée. Et l'écran suit tout de suite : si le verso lève, le
+           `catch` ne repeint pas, et des vignettes vidées mais non redemandées
+           laisseraient les anciens pixels à l'affichage. La demande est
+           coalescée au rAF — deux faces ne font qu'une frame. */
+        oublieLesImages();
+        demandeRepeintVignettes();
         /* seed du graphe par défaut (Task 5) : le RECTO fait foi, jamais le
            dernier reçu — le backend défaut side="front", l'écran affiche
            recto par défaut, et l'aperçu figé devient l'image ERC-721
@@ -553,12 +580,6 @@
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
       paintSlip(results);
-      /* LES COUCHES VIENNENT D'ÊTRE RÉÉCRITES SOUS LEURS PROPRES NOMS. Le
-         cache d'images est indexé par ce nom : le garder afficherait
-         l'export PRÉCÉDENT dans les vignettes — et pire, un « couche non
-         exportée » mémorisé avant le tout premier export ne se lèverait
-         jamais. */
-      oublieLesImages();
       paintVue();
       status.textContent = "couches livrées, preuve tenue des deux côtés.";
     } catch (e) {
@@ -767,6 +788,27 @@
       const r = rowModel(graph, n.id);
       if (r && r.layer) rows.push(r);
     });
+    return rows;
+  }
+
+  /* M8 — LES CHAÎNES, RÉSOLUES UNE FOIS PAR GRAPHE. `graphRows` est en O(n·m)
+     (une descente de chaîne par traitement) et le canvas l'appelait DEUX fois
+     par nœud : une pour bâtir son corps, une pour peindre sa vignette — soit
+     2N résolutions complètes par peinture, sur un graphe qui n'a pas bougé
+     entre les deux.
+     LA CLÉ EST L'IDENTITÉ DU GRAPHE, et c'est un invariant du CORE, pas un
+     pari : `touch()` remet `SNAP` à null à CHAQUE écriture (core.js:350) et
+     `doc()` reconstruit alors tout le sous-arbre par `sanitize` — un contenu
+     qui change change donc forcément d'identité. Un mémo périmé est
+     impossible ; au pire il RATE (un patch de `layout` invalide le snapshot
+     sans toucher au graphe), et rater ne coûte que le calcul d'avant. */
+  let ROWS_MEMO = null;
+
+  function rowsDe(graph) {
+    if (!graph) return [];
+    if (ROWS_MEMO && ROWS_MEMO.g === graph) return ROWS_MEMO.rows;
+    const rows = graphRows(graph);
+    ROWS_MEMO = { g: graph, rows: rows };
     return rows;
   }
 
@@ -1188,7 +1230,7 @@
       paintCost();
       return;
     }
-    const rows = graphRows(graph);
+    const rows = rowsDe(graph);
     const lim = (INFO && INFO.graph_limits) || null;
     const body = rows.length
       ? rows.map((r) => rowHtml(r, lim)).join("")
@@ -1223,7 +1265,7 @@
      DEUX vues en ont besoin, et un sondage qui ne partirait que depuis la
      liste laisserait le canvas afficher « jamais lancé » sur un nœud payé. */
   function sondeMoteurs(graph) {
-    graphRows(graph).forEach((r) => {
+    rowsDe(graph).forEach((r) => {
       if (r.proc.kind === "mesh3d") pollMesh3d(r.proc.id, true);
     });
   }
@@ -1259,7 +1301,7 @@
     const graph = get("graph");
     if (!graph) return null;   /* pas de graphe, pas de devis à annoncer */
     const alancer = sacoche(), servis = sacoche();
-    graphRows(graph).forEach((r) => {
+    rowsDe(graph).forEach((r) => {
       if (r.proc.kind !== "mesh3d") return;
       const job = Object.prototype.hasOwnProperty.call(JOBS, r.proc.id)
         ? JOBS[r.proc.id] : undefined;
@@ -1419,6 +1461,10 @@
     /* une frame de vignettes en vol appartient au deck qu'on quitte : elle
        repeindrait depuis un cache d'images qu'on vient justement de vider. */
     if (vignRaf) { cancelFrame(vignRaf); vignRaf = 0; }
+    /* le mémo de chaînes retient le graphe du deck précédent : le lâcher ici
+       évite de le garder en vie pour rien (l'identité, elle, ne peut pas
+       collisionner — mais un objet retenu reste un objet retenu). */
+    ROWS_MEMO = null;
     LAYOUT_SALE = false;
     LAYOUT_VU = sansProto();
     camPending = null;
@@ -1616,6 +1662,9 @@
        embarqués s'afficheraient et n'écriraient rien — un écran muet, la
        panne la plus difficile à relier à sa cause. */
     host.addEventListener("change", onGraphChange);
+    /* ... et `input` pour la VIGNETTE SEULE (M10) : elle suit la frappe, le
+       document n'écrit qu'au `change`. Voir `onGraphInput`. */
+    host.addEventListener("input", onGraphInput);
   }
 
   function onCanvasDown(e) {
@@ -1933,7 +1982,7 @@
       const r = rowModel(graph, nid);
       return (r && r.layer) ? { r: r, role: "proc" } : null;
     }
-    const rows = graphRows(graph);
+    const rows = rowsDe(graph);
     for (let i = 0; i < rows.length; i++) {
       const r = rows[i];
       if (r.layer && r.layer.id === nid) return { r: r, role: "layer" };
@@ -2031,12 +2080,67 @@
      serait décider seul d'une surface d'API ; on prend donc la branche « à
      défaut » du plan (pictogramme moteur + état lu du job), et le manque est
      remonté au contrôleur pour la Task 5. */
-  const IMGS = sansProto();     /* clé de provenance -> Image | null (absente) */
-  const IMGS_VOL = sansProto(); /* les chargements EN VOL — un par clé */
+  const IMGS = sansProto();     /* clé de provenance -> toile réduite | null */
+  const IMGS_VOL = sansProto(); /* les chargements EN VOL -> leur GÉNÉRATION */
+  const IMGS_AT = sansProto();  /* l'instant de mise en cache (I3, re-sonde) */
+
+  /* I2 — CE QUI EST GARDÉ EST UNE RÉDUCTION, PAS LE BITMAP LIVRÉ.
+     Une couche est rendue à la définition de la CARTE : 63 x 88 mm à 1200 dpi
+     font 2977 x 4157 px, soit 12,4 Mpx — et un bitmap décodé coûte 4 octets
+     par pixel, donc ~49 Mo. Six couches (le graphe par défaut) : ~297 Mo
+     retenus pour toute la session, pour peindre des vignettes de 120 x 168.
+     On blitte donc UNE fois dans une toile de 240 x 336 — le double de la
+     surface de dessin, de quoi rester net si la feuille change d'avis sur la
+     taille affichée — et c'est ELLE qu'on garde : 240 x 336 x 4 = 322 Kio par
+     couche, ~1,9 Mio pour six. Rapport ~1/155. La silhouette d'emboss, qui
+     redessine l'image dans une toile de travail, y gagne d'autant.
+     Une toile est `drawImage`-able et porte `width`/`height` comme une image :
+     rien en aval ne sait la différence. */
+  const CACHE_W = 240, CACHE_H = 336;
+
+  function retaille(img) {
+    if (typeof document === "undefined") return img;
+    const iw = Number(img.width) || 1, ih = Number(img.height) || 1;
+    /* jamais d'AGRANDISSEMENT : une couche déjà petite se garde telle quelle
+       (l'étirer ne lui rendrait pas les pixels qu'elle n'a pas). */
+    const k = Math.min(1, CACHE_W / iw, CACHE_H / ih);
+    if (k >= 1) return img;
+    const c = document.createElement("canvas");
+    c.width = Math.max(1, Math.round(iw * k));
+    c.height = Math.max(1, Math.round(ih * k));
+    const g = c.getContext ? c.getContext("2d") : null;
+    if (!g) return img;      /* pas de 2d : garder l'original vaut mieux que rien */
+    g.drawImage(img, 0, 0, c.width, c.height);
+    return c;
+  }
 
   function oublieLesImages() {
-    [IMGS, IMGS_VOL].forEach((reg) => {
+    [IMGS, IMGS_VOL, IMGS_AT].forEach((reg) => {
       Object.keys(reg).forEach((k) => { delete reg[k]; });
+    });
+  }
+
+  /* I3b — LE no-store DU BACKEND EST UN ORDRE, et un cache de session ne peut
+     pas le contredire au-delà d'une fenêtre courte. `material-thumb` le sert
+     précisément parce qu'une vignette CHANGE sous le même `mid` : la boutique
+     la (re)capture, et une matière sans vignette en gagne une. Or un 404
+     mémorisé était DÉFINITIF — capturer la vignette après un premier coup
+     d'œil laissait le nœud afficher « sans vignette » jusqu'au changement de
+     deck. On périme donc les entrées `mat:` (les nulles COMPRISES, ce sont
+     elles qui pourrissaient) au-delà de la fenêtre, et la peinture suivante
+     redemande. Même cadence et même raison que le `REPROBE_MS` de la 2b : ce
+     n'est pas un poll, c'est le droit de changer d'avis. */
+  const THUMB_REPROBE_MS = 30000;
+
+  function reSondeLesMatieres(graph) {
+    const t = Date.now();
+    ((graph && graph.nodes) || []).forEach((n) => {
+      if (n.kind !== "material" || !n.mat) return;
+      const cle = "mat:" + n.mat;
+      if (!connu(IMGS, cle)) return;
+      if ((t - (connu(IMGS_AT, cle) ? IMGS_AT[cle] : 0)) <= THUMB_REPROBE_MS) return;
+      delete IMGS[cle];
+      delete IMGS_AT[cle];
     });
   }
 
@@ -2062,24 +2166,32 @@
   }
 
   async function chargeImage(cle, sub) {
-    if (connu(IMGS, cle) || IMGS_VOL[cle]) return;
-    IMGS_VOL[cle] = true;
+    if (connu(IMGS, cle) || connu(IMGS_VOL, cle)) return;
     /* GARDE DE GÉNÉRATION (2b Task 7) : un blob du deck (ou de la carte)
        précédent ne doit ni entrer dans le cache ni déclencher une peinture
        dans l'écran du suivant. Le contrôle se refait APRÈS chaque await —
-       le décodage en est un aussi. */
+       le décodage en est un aussi.
+       M5 — LE REGISTRE PORTE LA GÉNÉRATION, PAS `true` : c'est la doctrine du
+       jeton, déjà écrite dans ce fichier pour `POLLS` (« un tic rassis ne
+       retire que SA PROPRE entrée, jamais celle de son successeur »). Un
+       chargement rassis qui effacerait l'entrée de son successeur rouvrirait
+       la porte à un second chargement du même octet — et, pire, ferait de
+       `IMGS_VOL` un verrou qui ment. */
     const gen = GEN;
+    IMGS_VOL[cle] = gen;
+    const relache = () => { if (IMGS_VOL[cle] === gen) delete IMGS_VOL[cle]; };
     let img = null;
     try {
       const b = await M.api.blob("GET", sub);
-      if (gen !== GEN) { delete IMGS_VOL[cle]; return; }
+      if (gen !== GEN) { relache(); return; }
       img = await decodeBlob(b);
     } catch (e) {
       img = null;         /* absente ou refusée : un aplat, jamais une panne */
     }
-    if (gen !== GEN) { delete IMGS_VOL[cle]; return; }
-    IMGS[cle] = img;
-    delete IMGS_VOL[cle];
+    if (gen !== GEN) { relache(); return; }
+    IMGS[cle] = img ? retaille(img) : null;
+    IMGS_AT[cle] = Date.now();
+    relache();
     demandeRepeintVignettes();
   }
 
@@ -2219,7 +2331,11 @@
   }
 
   /* la PNG de couche, telle qu'elle a été livrée */
-  function thumbCouche(ctx, enc, l, alpha) {
+  /* la PNG de couche, telle qu'elle a été livrée. `dec` (M7) est l'ombre
+     d'emboss du relief : elle se peint DANS la même passe, entre le damier et
+     l'image — la version d'avant peignait la couche, puis effaçait tout pour
+     la repeindre avec son ombre, soit deux fois le travail à chaque frappe. */
+  function thumbCouche(ctx, enc, l, alpha, dec) {
     if (!l) { dessinePicto(ctx, enc, "layer", "sans couche source"); return; }
     const cle = layerFile(l);
     const img = imageDeProvenance("couche:" + cle, "file/" + encodeURIComponent(cle));
@@ -2231,36 +2347,31 @@
     }
     damier(ctx, enc);
     const b = boiteContenue(img.width, img.height);
+    if (dec > 0) {
+      const ombre = silhouette(img, "#000000");
+      if (ombre) {
+        ctx.globalAlpha = 0.5;
+        ctx.drawImage(ombre, dec, dec);
+        ctx.globalAlpha = 1;
+      }
+    }
     ctx.globalAlpha = (alpha == null) ? 1 : alpha;
     ctx.drawImage(img, b.x, b.y, b.w, b.h);
     ctx.globalAlpha = 1;
     return b;
   }
 
-  /* l'EMBOSS : la même couche, doublée d'une silhouette sombre décalée —
-     le décalage est PROPORTIONNEL à `depth_mm`, donc éditer la profondeur
-     fait réagir la vignette (c'est ce que la Task 3 promet). Le décalage est
-     borné : au-delà, l'esquisse ne dirait plus rien de plus. */
+  /* l'EMBOSS : la même couche, doublée d'une silhouette sombre décalée — le
+     décalage est PROPORTIONNEL à `depth_mm`, donc éditer la profondeur fait
+     réagir la vignette (c'est ce que la Task 3 promet, et `valeurVue` fait
+     que la promesse vaut AUSSI pour une profondeur tapée au clavier, pas
+     seulement pour un cran de spinner). Le décalage est borné : au-delà,
+     l'esquisse ne dirait rien de plus. */
   function thumbRelief(ctx, enc, n, l) {
-    const b = thumbCouche(ctx, enc, l, 1);
+    const d = Math.max(0, Math.min(6,
+      Number(valeurVue(n.id, "depth_mm", n.depth_mm)) || 0));
+    const b = thumbCouche(ctx, enc, l, 1, Math.round(d * 2.2));
     if (!b) return;
-    const cle = layerFile(l);
-    const img = connu(IMGS, "couche:" + cle) ? IMGS["couche:" + cle] : null;
-    if (!img) return;
-    const d = Math.max(0, Math.min(6, Number(n.depth_mm) || 0));
-    const dec = Math.round(d * 2.2);
-    if (dec <= 0) return;
-    const ombre = silhouette(img, "#000000");
-    ctx.clearRect(0, 0, THUMB_W, THUMB_H);
-    ctx.fillStyle = enc.fond;
-    ctx.fillRect(0, 0, THUMB_W, THUMB_H);
-    damier(ctx, enc);
-    if (ombre) {
-      ctx.globalAlpha = 0.5;
-      ctx.drawImage(ombre, dec, dec);
-      ctx.globalAlpha = 1;
-    }
-    ctx.drawImage(img, b.x, b.y, b.w, b.h);
     texteCentre(ctx, enc, d.toFixed(2) + " mm", THUMB_H - 10, 10, enc.accent);
   }
 
@@ -2274,11 +2385,15 @@
     const mm = carteMm();
     const ppmm = THUMB_W / mm[0];
     const cadre = b || boiteContenue(mm[0], mm[1]);
-    const s = Math.max(0.05, Math.min(8, Number(n.scale) || 1));
+    /* les quatre valeurs passent par `valeurVue` : le trait bouge sous une
+       coordonnée TAPÉE, pas seulement sous un cran de spinner (M10). */
+    const lu = (f) => Number(valeurVue(n.id, f, n[f])) || 0;
+    const s = Math.max(0.05, Math.min(8,
+      Number(valeurVue(n.id, "scale", n.scale)) || 1));
     ctx.save();
-    ctx.translate(THUMB_W / 2 + (Number(n.x_mm) || 0) * ppmm,
-                  THUMB_H / 2 - (Number(n.y_mm) || 0) * ppmm);
-    ctx.rotate((Number(n.rot_deg) || 0) * Math.PI / 180);
+    ctx.translate(THUMB_W / 2 + lu("x_mm") * ppmm,
+                  THUMB_H / 2 - lu("y_mm") * ppmm);
+    ctx.rotate(lu("rot_deg") * Math.PI / 180);
     ctx.strokeStyle = enc.accent;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(-cadre.w * s / 2, -cadre.h * s / 2, cadre.w * s, cadre.h * s);
@@ -2437,6 +2552,9 @@
       monde.innerHTML = edgesHtml(graph, ext)
         + nodes.map((n) => canvasNodeHtml(n)).join("");
     }
+    /* la fenêtre de fraîcheur des vignettes de matière s'ouvre ICI, une fois
+       par peinture (I3b) : périmer avant de peindre, jamais pendant. */
+    reSondeLesMatieres(graph);
     /* les vignettes se peignent APRÈS l'insertion : un canvas hors du
        document n'a pas encore ses variables de thème (les encres se lisent
        sur l'élément) — et il n'y a rien à peindre avant qu'il existe. */
@@ -2458,9 +2576,15 @@
 
   /* le rang (ou le nœud) dans le DOM, retrouvé par comparaison d'attribut et
      non par sélecteur construit : un id de nœud est une donnée, jamais un
-     fragment de sélecteur (un point y suffirait à tout casser). */
-  function findByAttr(cls, attr, val) {
-    const host = hoteVue();
+     fragment de sélecteur (un point y suffirait à tout casser).
+     M11 — `racine` RESTREINT la recherche à un sous-arbre. Sans elle, la
+     restauration du focus après un repaint se faisait par sélecteur construit
+     (`'[data-field="' + champ + '"]'`) : la même doctrine y était enfreinte à
+     deux pas de l'endroit qui l'énonce. Et la portée n'est pas cosmétique —
+     deux nœuds relief portent tous deux `data-field="depth_mm"`, donc une
+     recherche dans l'hôte entier rendrait le champ du VOISIN. */
+  function findByAttr(cls, attr, val, racine) {
+    const host = racine || hoteVue();
     if (!host) return null;
     const tab = Array.prototype.slice.call(host.querySelectorAll(cls));
     for (let i = 0; i < tab.length; i++) {
@@ -2488,11 +2612,16 @@
     old.parentNode.replaceChild(neuf, old);
     Array.prototype.slice.call(neuf.querySelectorAll("details"))
       .forEach((d, i) => { if (ouverts[i]) d.open = true; });
-    if (focusField) {
-      const f = neuf.querySelector('[data-field="' + focusField + '"]');
-      if (f && f.focus) f.focus();
-    }
+    rendLeFocus(neuf, focusField);
     paintCost();
+  }
+
+  /* rendre le focus au champ qu'on vient de reconstruire — par comparaison
+     d'attribut dans CE sous-arbre (M11), jamais par sélecteur construit. */
+  function rendLeFocus(racine, focusField) {
+    if (!racine || !focusField) return;
+    const f = findByAttr("[data-field]", "data-field", focusField, racine);
+    if (f && f.focus) f.focus();
   }
 
   /* REPEINDRE UN SEUL NŒUD — le pendant exact de `paintRow` pour le canvas,
@@ -2514,15 +2643,17 @@
     /* le nœud a disparu sous l'édition (un maillon vidé par `editMat`) :
        c'est structurel, le dispatcher tranche. */
     if (!el || !n) { paintVue(); return; }
-    const ouverts = Array.prototype.slice.call(el.querySelectorAll("details"))
-      .map((d) => !!d.open);
+    /* M9 — AUCUNE SAUVEGARDE DE TIROIRS ICI, et ce n'est pas un oubli : un
+       corps de nœud n'en a AUCUN. `blocHtml` réserve `<details>` à l'hôte
+       « row » ; sur le canvas, matière et placement sont des nœuds à part et
+       leurs champs sont nus (un nœud entier réduit à un tiroir fermé ne
+       montrerait rien — ce que la spec §5.6 demande justement d'arrêter).
+       La sauvegarde recopiée de `paintRow` tournait donc toujours sur zéro
+       élément : du code qui a l'air de protéger quelque chose et ne protège
+       rien, c'est-à-dire pire que rien. Si un corps de nœud gagne un jour un
+       tiroir, c'est la discipline de `paintRow` qu'il faudra reprendre. */
     el.innerHTML = noeudTeteHtml(n) + nodeBodyHtml(nid);
-    Array.prototype.slice.call(el.querySelectorAll("details"))
-      .forEach((d, i) => { if (ouverts[i]) d.open = true; });
-    if (focusField) {
-      const f = el.querySelector('[data-field="' + focusField + '"]');
-      if (f && f.focus) f.focus();
-    }
+    rendLeFocus(el, focusField);
     paintNodeThumb(nid);
     paintCost();
   }
@@ -2618,6 +2749,49 @@
     editGraph(procId, field, val, hote.getAttribute("data-nid") || procId);
   }
 
+  /* ── M10 : LA VIGNETTE SUIT LA FRAPPE, LE DOCUMENT SUIT LE COMMIT ───────
+     `change` reste le SEUL évènement qui écrit : un patch par caractère
+     empilerait des entrées d'annulation illisibles et ferait cascader
+     `invalidate` -> `drawPreview` à chaque touche (la raison même pour
+     laquelle le glisser ne patche qu'au relâché).
+     Mais la promesse de la 2c est que la vignette « réagit immédiatement », et
+     au clavier elle ne réagissait pas : `input` ne partait nulle part, et un
+     `input` qui aurait simplement rappelé le peintre aurait redessiné la
+     valeur du GRAPHE, c'est-à-dire l'ancienne — un repaint qui ne repeint
+     rien. On donne donc au peintre la valeur EN COURS DE SAISIE, et rien
+     d'autre : pas de patch, pas de reconstruction de champ (le curseur ne
+     bouge pas), pas d'entrée d'annulation.
+     `SAISIE` vit le temps d'un repaint SYNCHRONE et est remise à null dans un
+     `finally` : aucune peinture ultérieure ne peut la lire, donc la vignette
+     reste une fonction du graphe partout ailleurs. */
+  let SAISIE = null;            /* {nid, field, val} — jamais commis */
+
+  function onGraphInput(e) {
+    const hote = e.target.closest ? e.target.closest("[data-proc]") : null;
+    if (!hote) return;
+    const field = e.target.getAttribute("data-field");
+    /* une case à cocher n'a pas d'état intermédiaire : son `input` est son
+       `change`, et le laisser passer ici peindrait deux fois. */
+    if (!field || e.target.type === "checkbox") return;
+    const procId = hote.getAttribute("data-proc");
+    const nid = hote.getAttribute("data-nid") || procId;
+    SAISIE = { nid: nid, field: field, val: e.target.value };
+    try {
+      repeintChaine(procId, nid);
+    } finally {
+      SAISIE = null;
+    }
+  }
+
+  /* la valeur qu'un champ MONTRE à cet instant : celle du graphe, sauf si
+     l'utilisateur est justement en train de la taper. Lecture de DESSIN
+     uniquement — rien de ce qui s'écrit (graphe, prix, lancement) ne passe
+     par ici, et hors d'un `input` en cours elle rend le graphe tel quel. */
+  function valeurVue(nid, field, dansLeGraphe) {
+    return (SAISIE && SAISIE.nid === nid && SAISIE.field === field)
+      ? SAISIE.val : dansLeGraphe;
+  }
+
   /* ÉCRITURE + PILE D'ANNULATION (patron mod-gltf.js:set/undo, paintUndo
      ~ligne 1623) : chaque édition du graphe — champ par champ, ou un
      re-seed entier — pousse l'ANCIEN graphe sur `HIST` avant de patcher,
@@ -2652,8 +2826,15 @@
 
   const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso"];
   const TRS_FIELDS = ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"];
-  /* les champs qui changent l'AFFICHAGE du rang au-delà de leur propre valeur */
-  const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish"];
+  /* les champs qui changent l'AFFICHAGE du rang (ou du nœud) au-delà de leur
+     propre valeur.
+     I1 — `side` EN FAIT PARTIE, et l'oubli se voyait à l'œil : l'en-tête d'un
+     nœud couche affiche « cadre · recto » (`noeudTitre` lit `side`), donc
+     basculer le select sur « verso » laissait le titre dire recto juste
+     au-dessus d'un champ disant verso. Sur la liste, le rang ne montre que le
+     rôle — le défaut y était invisible, et c'est exactement pourquoi il a
+     survécu jusqu'au canvas. */
+  const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish", "side"];
 
   /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
      qu'il est posé (schema simple, fusion superficielle) — une mutation en
@@ -2733,6 +2914,12 @@
     if (field === "kind" || (naissance && VUE === "canvas")) paintVue();
     else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) {
       paintChamps(procId, nid, field);
+      /* LES DEUX MOITIÉS, PAS UNE. `paintChamps` refait le nœud (ou le rang)
+         ÉDITÉ ; il ne touche pas aux VOISINS de la chaîne — et `side` change
+         la PNG que le traitement et le placement dessinent, eux aussi. Sans
+         cette seconde ligne, basculer une couche en verso corrigeait son
+         en-tête et laissait les deux vignettes d'à côté sur le recto. */
+      repeintChaine(procId, nid);
     } else {
       /* LA VIGNETTE RÉAGIT À LA VALEUR SAISIE, sans repeindre le champ (qui
          porte déjà ce que le navigateur vient de commettre) : c'est ce qui
@@ -3098,7 +3285,7 @@
          le serveur vient de refuser. On oublie l'état des nœuds moteur du
          graphe — bornés par le graphe lui-même — et la peinture qui suit les
          re-sonde depuis le disque. */
-      graphRows(graph).forEach((r) => {
+      rowsDe(graph).forEach((r) => {
         if (r.proc.kind !== "mesh3d") return;
         delete JOBS[r.proc.id];
         delete SEEN[r.proc.id];

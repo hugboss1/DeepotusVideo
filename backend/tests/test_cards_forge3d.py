@@ -1507,10 +1507,17 @@ def test_l_ecran_du_graphe_est_une_liste_honnete_et_un_apercu_reel():
     assert 'id="cf-forge3d-undo"' in rendu
     # le re-seed reste OFFERT une fois le graphe DÉJÀ construit (pas
     # seulement dans la branche « graph est null ») : on le vérifie en
-    # coupant le corps de paintGraph après l'appel à graphRows(graph), qui ne
+    # coupant le corps de paintGraph après la RÉSOLUTION DES CHAÎNES, qui ne
     # peut s'exécuter QUE dans la branche « le graphe existe ».
+    # AMENDÉ À LA SOURCE (revue 2c, M8) — le marqueur était le littéral
+    # `graphRows(graph)`. La résolution passe désormais par un mémo
+    # (`rowsDe`, mémorisé sur l'IDENTITÉ du graphe : le CORE reconstruit le
+    # sous-arbre à chaque écriture, donc un contenu qui change change
+    # d'identité). L'INVARIANT vérifié ici n'a pas bougé d'un pouce ; seul le
+    # nom de l'appel a changé, et un pin qui tombe sur un renommage légitime
+    # mesure le vocabulaire, pas la propriété.
     corps_graph = rendu.split("function paintGraph(")[1].split("\n  }")[0]
-    apres_rows = corps_graph.split("graphRows(graph)")[1]
+    apres_rows = corps_graph.split("rowsDe(graph)")[1]
     assert "cf-forge3d-reseed" in apres_rows
     # I1 — NE PLUS TUER LE FOCUS (revue qualité) : editGraph distingue
     # explicitement les deux chemins — l'état est TOUJOURS commis
@@ -4055,6 +4062,14 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
     for bloc in ("mesh3dHtml", "matHtml", "trsHtml",
                  "procSelHtml", "geoHtml", "sideSelHtml"):
         assert bloc in ligne, (bloc, ligne)
+    # I4 — LA PROMESSE DE L'EN-TETE, EPINGLEE AU CARACTERE PRES. « les memes
+    # batisseurs » ne veut rien dire si l'appel du canvas oublie l'HOTE :
+    # sans `"node"`, matiere et placement rendraient un <details> dans un
+    # corps de nœud, c'est-a-dire un nœud entier qui ne montre rien — et
+    # aucun autre pin ne le voyait (le nom de la fonction, lui, est bien la).
+    for appel in ('matHtml(r, r.proc.kind === "mesh3d", "node")',
+                  'trsHtml(r, "node")'):
+        assert appel in corps, (appel, corps)
     # LA PREUVE DE NON-DUPLICATION : chaque champ n'a qu'UN point d'ecriture
     # dans tout le module. Un balisage recopie pour le canvas ferait passer
     # ces comptes a 2 — et deux copies derivent (la lecon des tables
@@ -4088,9 +4103,14 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
     assert ci.count("gen !== GEN") >= ci.count("await "), ci
     # ── LE REPAINT PAR NŒUD (le pendant de paintRow) ─────────────────────
     pn = rendu.split("function paintNode(")[1].split("\n  }")[0]
-    assert ".open" in pn, pn
-    # le focus est RENDU, pas seulement mentionne : c'est l'appel qui compte
-    assert ".focus()" in pn and 'data-field="' in pn, pn
+    # le focus est RENDU, pas seulement mentionne : c'est l'appel qui compte.
+    # (Pas de sauvegarde de tiroirs a epingler : un corps de nœud n'en a
+    # aucun — `blocHtml` reserve <details> a l'hote « row ». La recopier
+    # aurait fait tourner une boucle sur zero element, du code qui a l'air de
+    # proteger et ne protege rien.)
+    assert "rendLeFocus(" in pn, pn
+    rf = rendu.split("function rendLeFocus(")[1].split("\n  }")[0]
+    assert ".focus()" in rf and "findByAttr(" in rf, rf
     # il ne reconstruit PAS le monde (ce serait exactement le vol de curseur
     # que cette fonction existe pour empecher)
     assert "paintCanvas()" not in pn, pn
@@ -4104,13 +4124,42 @@ def test_chaque_noeud_porte_ses_menus_et_sa_vignette_reactive():
     # repaint global) — la branche « ni structure ni naissance ». Et la
     # CHAINE avec lui : la face d'une couche change la PNG que son
     # traitement et son placement dessinent tous les deux.
-    assert "repeintChaine(" in eg, eg
+    # LE PIN VISE LA BRANCHE, PAS LE FICHIER : `repeintChaine` apparait
+    # desormais dans DEUX branches (I1 l'a ajoute a la structurelle) et dans
+    # `onGraphInput`, donc un simple « le nom est quelque part » ne prouve
+    # plus rien — c'est exactement le mutant qui a survecu a la revue.
+    apres_commit_t3 = eg.split("setGraph(next, field)")[1]
+    assert apres_commit_t3.count("} else {") == 1, apres_commit_t3
+    sinon = apres_commit_t3.split("} else {")[1]
+    assert "repeintChaine(" in sinon, sinon
     rc = rendu.split("function repeintChaine(")[1].split("\n  }")[0]
     assert "paintNodeThumb(" in rc, rc
     # ... et le poll d'un job repeint la chip ET la vignette (elles portent
     # le MEME etat lu : deux centimetres d'ecart, un seul job)
     pcp = rendu.split("function paintChip(")[1].split("\n  }")[0]
     assert "paintNodeThumb(" in pcp, pcp
+    # I4 — LA PEINTURE COMPLETE PEINT AUSSI LES VIGNETTES. Sans cette ligne,
+    # un graphe s'ouvrait avec onze canvas VIDES jusqu'a la premiere edition
+    # (les images arrivent par `demandeRepeintVignettes`, mais un cache deja
+    # chaud — bascule de vue, retour d'onglet — ne declenche rien du tout).
+    pcv = rendu.split("function paintCanvas(")[1].split("\n  }")[0]
+    assert "paintNodeThumb(" in pcv, pcv
+    # I1 — `side` change l'EN-TETE d'un nœud couche (noeudTitre lit `side`),
+    # pas seulement la valeur du champ : il appartient donc aux champs
+    # structurels, et la branche structurelle repeint AUSSI la chaine.
+    assert '"side"' in rendu.split("const STRUCT_FIELDS")[1].split(";")[0], rendu
+    struct = eg.split("STRUCT_FIELDS.indexOf(field) >= 0")[1].split("} else")[0]
+    assert "repeintChaine(" in struct, struct
+    # M10 — la vignette suit la FRAPPE (input), le document le COMMIT
+    # (change) : l'evenement `input` ne doit rien ecrire.
+    ogi = rendu.split("function onGraphInput(")[1].split("\n  }")[0]
+    assert "repeintChaine(" in ogi, ogi
+    assert "editGraph(" not in ogi and "M.patch" not in ogi, ogi
+    # M5 — le registre des chargements en vol porte la GENERATION (doctrine
+    # du jeton POLLS) : un chargement rassis ne retire que SA propre entree.
+    ci2 = rendu.split("async function chargeImage(")[1].split("\n  }")[0]
+    assert "IMGS_VOL[cle] = gen" in ci2, ci2
+    assert "IMGS_VOL[cle] === gen" in ci2, ci2
     # ── LA CHIP, DANS LES DEUX VUES ──────────────────────────────────────
     fb = rendu.split("function findByAttr(")[1].split("\n  }")[0]
     assert "#cf-forge3d-graph" not in fb, fb
