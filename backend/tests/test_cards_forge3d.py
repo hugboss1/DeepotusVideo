@@ -3902,6 +3902,52 @@ def test_node_preview_chaine_matiere_transform_et_ignores():
             MSTORE.delete_material(mat["id"])
 
 
+def test_la_phrase_de_source_surnumeraire_est_LA_MEME_des_deux_cotes():
+    """N1 (couture de delestage, tache 6) : la phrase d'aveu de la « premiere
+    arete gagnante » etait ECRITE DEUX FOIS — une dans le resolveur de
+    build3d, une dans le sous-graphe de l'apercu — et le decoupage de
+    litteral suffisait a faire rater la copie au grep (l'une disait
+    « deja » + « retenu », l'autre « deja retenu »). Elles viennent desormais
+    de `_source_gagnante`, et RIEN ne le prouve mieux que de les comparer
+    OCTET POUR OCTET sur la meme topologie.
+
+    Mutant qui a rendu ce test necessaire : changer le mot de cette phrase-la
+    ne faisait rougir AUCUN test (celle du maillon, elle, etait deja pinnee).
+    """
+    did = _deck("Aveu partage")
+    _exporter_couches(did)
+    # DEUX couches entrent dans le MEME traitement : s1 gagne, s3 est perdue.
+    g = {"nodes": [
+        {"id": "s1", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "s3", "kind": "layer", "role": "typographie", "side": "front"},
+        {"id": "t1", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "aveu"}],
+        "edges": [{"from": "s1", "to": "t1"}, {"from": "s3", "to": "t1"},
+                  {"from": "t1", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    cote_build = {i["node"]: i["why"] for i in r.json()["artifact"]["ignored"]}
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g, "card": 0, "nid": "t1"})
+    assert r2.status_code == 200, r2.text
+    doc, _ = _read_glb(r2.content)
+    cote_apercu = {i["node"]: i["why"]
+                   for i in doc["asset"]["extras"]["ignored"]}
+    assert "s3" in cote_build, cote_build
+    assert "s3" in cote_apercu, cote_apercu
+    # LA MEME PHRASE, mot pour mot : c'est CA, la propriete de la couture.
+    assert cote_build["s3"] == cote_apercu["s3"], (cote_build, cote_apercu)
+    # ... et elle dit les DEUX noms plus la regle, sinon l'aveu n'est pas
+    # actionnable (« lequel a gagne, et pourquoi ? »).
+    assert "surnumeraire" in cote_build["s3"], cote_build["s3"]
+    assert "s1" in cote_build["s3"] and "t1" in cote_build["s3"], \
+        cote_build["s3"]
+    assert "premiere arete gagnante" in cote_build["s3"], cote_build["s3"]
+
+
 def test_node_preview_n_ecrit_jamais_sur_disque():
     """M7 (revue) : « reponse EPHEMERE » (spec §5.6 point 4) devient un test
     — snapshot du dossier forge3d du deck avant/apres un apercu plane/relief,
@@ -4295,12 +4341,22 @@ def test_le_bouton_publier_est_garde_et_vit_dans_les_deux_vues():
     assert '"library/"' in pl, pl
     assert "artifactName(" in pl, pl
     # UN SEUL GESTE A LA FOIS (patron `build3d.busy` / `freezePreview.busy`) :
-    # deux POST concurrents publieraient deux fois les memes octets.
-    assert "publishLibrary.busy" in pl, pl
+    # deux POST concurrents publieraient deux fois les memes octets. Le garde
+    # est le PREMIER geste de la fonction — plus bas, il aurait deja laisse
+    # passer la peinture d'occupation, voire la requete.
+    assert pl.split("{", 1)[1].lstrip().startswith(
+        "if (publishLibrary.busy) return;"), pl[:200]
     # LA GARDE DE GENERATION APRES CHAQUE await (doctrine du fichier) : une
     # publication lancee sur la carte d'avant n'ecrit pas « publie » dans
-    # l'ecran de la suivante. Invariant, pas compte fige.
+    # l'ecran de la suivante. Invariant, pas compte fige...
     assert pl.count("gen !== GEN") >= pl.count("await "), pl
+    # ... ET LA ZONE EXACTE (lecon T5 : l'invariant ci-dessus a une unite de
+    # jeu, le `catch` portant lui aussi un garde). Entre le RETOUR RESEAU et
+    # l'ecriture de l'etat « publie », le garde doit etre la : c'est le seul
+    # endroit ou son absence ecrirait le bordereau d'une autre carte.
+    retour = pl.split("await M.api.post(", 1)[1].split(
+        "ARTIFACT = Object.assign", 1)[0]
+    assert "gen !== GEN" in retour, retour
     # PUBLIER N'EST PAS UNE EDITION DU GRAPHE : aucune entree d'annulation,
     # aucun patch. « ↶ annuler » ne doit pas avaler un geste de publication.
     assert "setGraph(" not in pl and "M.patch" not in pl, pl
