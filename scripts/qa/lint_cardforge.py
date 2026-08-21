@@ -113,10 +113,14 @@ TEST_DIR = pathlib.Path("backend/tests")
 # Fichiers .py SUPPLEMENTAIRES par module, au-dela du {mid}.py canonique --
 # forge3d_scene.py est le sidecar geometrie de forge3d (couture legs 6, revue
 # 2a) : soumis a R8 comme le py canonique, sinon il reste un angle mort
-# JUSTE avant que ~1000 lignes de GLB/materiaux (2b) n'y atterrissent. Ne
-# compte PAS pour la regle 1 (1 JS + 1 CSS + 1 py + 1 test) : ce n'est pas
-# LE py du module, un fichier interne en plus.
-EXTRA_PY = {"forge3d": ["forge3d_scene.py"]}
+# JUSTE avant que ~1000 lignes de GLB/materiaux (2b) n'y atterrissent.
+# forge3d_apercu.py est le SECOND sidecar (couture de delestage 2c, tache 6) :
+# la resolution des chaines, la fabrique d'UN element et les regles du GLB
+# servi -- le bloc que l'inspecteur et la construction PARTAGENT. Meme raison,
+# meme traitement. Ni l'un ni l'autre ne compte pour la regle 1 (1 JS + 1 CSS
+# + 1 py + 1 test) : ce ne sont pas LE py du module, ce sont des fichiers
+# internes en plus.
+EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"]}
 
 # R13 (octets sains) couvre TOUT le labo frontend, pas seulement les 9
 # fichiers mod-<id>.{js,css} + le harnais .mjs : core.js, cardforge.css,
