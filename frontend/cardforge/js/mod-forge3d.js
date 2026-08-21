@@ -2007,7 +2007,15 @@
      focalisable et ne s'atteint qu'au pointeur — comme le glisser d'un nœud.
      La projection ACCESSIBLE du même graphe, c'est la vue LISTE (la bascule
      est à deux boutons de là) ; exposer douze chemins SVG anonymes à un
-     lecteur d'écran ajouterait du bruit, pas une prise. */
+     lecteur d'écran ajouterait du bruit, pas une prise.
+     RESTE À JUGER AU NAVIGATEUR (T7) : là où plusieurs arêtes CONVERGENT
+     (les six chaînes du graphe par défaut se rejoignent sur l'assemblage),
+     leurs zones de 14 px se CHEVAUCHENT — le dernier chemin du DOM gagne le
+     clic, donc la dernière arête du graphe. Ce n'est pas une perte de
+     contrôle (le geste est en DEUX temps : le clic ne fait que DÉSIGNER, et
+     `.sel` montre laquelle avant que « supprimer » n'existe), mais la
+     lisibilité de ce surlignage au zoom arrière est la question ouverte ;
+     le bouton, lui, reste cliquable (z-index 3, au-dessus des nœuds). */
   function edgesHtml(graph, ext) {
     const paths = aretes(graph).map((e) => {
       const bouts = 'data-from="' + esc(e.from) + '" data-to="' + esc(e.to)
@@ -2156,14 +2164,21 @@
   /* le point du MONDE sous le pointeur — même repère que la molette : la
      boîte de PADDING de la surface (le monde est un enfant `left: 0`, donc
      décalé de la bordure), et l'échelle se divise, sinon le fantôme dérive
-     du curseur dès qu'on a zoomé. */
+     du curseur dès qu'on a zoomé.
+     M6 — LA CAMÉRA EN COURS D'ÉCRITURE FAIT FOI. `camPending` EST la caméra
+     tant que la frame ne l'a pas appliquée (c'est déjà la doctrine de la
+     molette, qui s'en sert de base pour le cran suivant) : lire `CAM` seul
+     ferait calculer le point du fil dans le cadrage d'AVANT quand on zoome
+     au milieu d'un glisser — le fil retarderait d'une frame sur le curseur,
+     précisément pendant le geste où l'œil suit la pointe. */
   function mondeXY(e) {
     const host = $("#cf-forge3d-canvas");
     if (!host) return [0, 0];
     const r = host.getBoundingClientRect();
-    const z = CAM.z || 1;
-    return [(e.clientX - r.left - host.clientLeft - CAM.px) / z,
-            (e.clientY - r.top - host.clientTop - CAM.py) / z];
+    const base = camPending || CAM;
+    const z = base.z || 1;
+    return [(e.clientX - r.left - host.clientLeft - base.px) / z,
+            (e.clientY - r.top - host.clientTop - base.py) / z];
   }
 
   /* le kind en clair — le miroir NODE_KINDS reste la table du VOCABULAIRE ;
@@ -2319,7 +2334,8 @@
      chaîne à laquelle il appartient — c'est-à-dire son traitement, puisque
      c'est LUI que `editMat`/`editTrs` prennent en argument. Première chaîne
      gagnante, comme le backend (`_chaine_aval`) : un maillon partagé entre
-     deux rangées (l'API brute l'autorise, cet écran ne le produit jamais)
+     deux rangées (l'API brute l'autorise, cet écran ne le produit jamais —
+     `surnumeraire` REFUSE une cible qui a déjà une arête entrante, C1)
      s'édite au nom de la première — et le bordereau avoue le reste. */
   function rowDuNoeud(graph, nid) {
     if (!graph || !nid) return null;
@@ -3274,11 +3290,41 @@
   /* LA CHAÎNE À LAQUELLE UN NŒUD APPARTIENT, vue depuis n'importe lequel de
      ses maillons : un traitement EST sa chaîne (`rowModel` répond même quand
      aucune couche ne le source encore) ; une matière ou un placement, eux,
-     se remontent jusqu'à leur traitement. */
+     se remontent jusqu'à leur traitement.
+
+     I2 — LA REMONTÉE SE FAIT À LA MAIN, PAS PAR `rowDuNoeud`. Celui-ci passe
+     par `rowsDe`/`graphRows`, qui ne rendent QUE les rangs ayant une couche
+     source : une chaîne dont on vient de couper `layer -> traitement` (un
+     geste de PREMIÈRE CLASSE depuis la Task 4, il suffit d'un clic sur
+     l'arête et du bouton) n'y figure plus du tout. Le contrôle de surnombre
+     recevait alors `null` et laissait TOUT passer — c'est-à-dire exactement
+     le créer-puis-avouer que ce fichier refuse : le backend, lui, aurait
+     dénoncé le maillon surnuméraire à la construction suivante. `rowModel`,
+     lui, répond sans couche ; il suffit donc de retrouver le traitement de
+     tête. Marche bornée par `CHAIN_MAX`, comme la descente. */
   function chaineDe(graph, n) {
     if (PROC_KINDS.indexOf(n.kind) >= 0) return rowModel(graph, n.id);
-    const att = rowDuNoeud(graph, n.id);
-    return att ? att.r : null;
+    const byId = sansProto();
+    ((graph && graph.nodes) || []).forEach((x) => { byId[x.id] = x; });
+    const edges = (graph && graph.edges) || [];
+    let cur = n;
+    for (let k = 0; k < CHAIN_MAX && cur; k++) {
+      let amont = null;
+      for (let i = 0; i < edges.length && !amont; i++) {
+        if (edges[i].to !== cur.id) continue;
+        const src = connu(byId, edges[i].from) ? byId[edges[i].from] : null;
+        /* PREMIÈRE ARÊTE GAGNANTE, comme partout ailleurs (le backend en
+           tête) : on ne remonte que par un maillon ou un traitement. */
+        if (src && (PROC_KINDS.indexOf(src.kind) >= 0
+                    || src.kind === "material" || src.kind === "transform")) {
+          amont = src;
+        }
+      }
+      if (!amont) return null;
+      if (PROC_KINDS.indexOf(amont.kind) >= 0) return rowModel(graph, amont.id);
+      cur = amont;
+    }
+    return null;
   }
 
   /* LA RÈGLE DE CHAÎNE UNIQUE — les MOTS du bordereau, dits AVANT l'écriture.
@@ -3297,8 +3343,27 @@
       return null;
     }
     if (vers.kind === "material" || vers.kind === "transform") {
-      const r = chaineDe(graph, de);
       const mat = (vers.kind === "material");
+      /* C1 — LA CIBLE AUSSI PEUT ÊTRE PRISE, et c'est le surnombre qu'on ne
+         voyait pas : la question posée ci-dessous est « LA CHAÎNE DE LA
+         SOURCE en porte-t-elle déjà un ? », jamais « ce maillon-ci
+         appartient-il déjà à quelqu'un ? ». Un maillon PARTAGÉ passait donc
+         (tirer la sortie de m1 sur un placement qui sert déjà une autre
+         chaîne), et le dégât arrivait plus tard, ailleurs, sans un mot :
+         `rewireRow` réécrit la chaîne éditée EN PREMIER et purge l'arête que
+         l'autre rangée empruntait — la seconde chaîne cesse d'être
+         construite (« traitement non relié à un assemble » au bordereau)
+         tout en s'affichant encore comme une rangée. Un maillon n'a donc
+         qu'UNE arête entrante ; pour le déplacer, on coupe d'abord.
+         C'est aussi ce qui rend de nouveau VRAIE la phrase « cet écran ne
+         produit jamais cette topologie » (rowDuNoeud, maillonsAval). */
+      if ((graph.edges || []).some((e) => e.to === vers.id)) {
+        return (mat ? "cette matière appartient" : "ce placement appartient")
+          + " déjà à une autre chaîne — un maillon partagé se fait réécrire "
+          + "par la première rangée éditée, et l'autre chaîne perd son lien "
+          + "en silence.";
+      }
+      const r = chaineDe(graph, de);
       const deja = r ? (mat ? r.mat : r.trs) : null;
       if (deja) {
         /* TOUTE la phrase s'accorde sur le même genre (une matière / une
@@ -3531,9 +3596,11 @@
      permet à `rewireRow` de distinguer le maillon GARDÉ des surnuméraires.
      Balayage en largeur, borné par `CHAIN_MAX` comme la descente du backend.
      N5, LIMITE AVOUÉE : un graphe CHARGÉ À LA MAIN (l'API brute est ouverte,
-     cet écran ne produit jamais cette topologie) peut partager un maillon
-     entre deux rangées — le retrait suit alors l'intention de LA rangée
-     éditée, et `clean_graph` comme le bordereau `ignored` avouent le reste. */
+     cet écran ne produit jamais cette topologie — le glisser de connexion
+     refuse une cible déjà pourvue d'une arête entrante, `surnumeraire` C1)
+     peut partager un maillon entre deux rangées — le retrait suit alors
+     l'intention de LA rangée éditée, et `clean_graph` comme le bordereau
+     `ignored` avouent le reste. */
   function maillonsAval(g, procId) {
     const byId = {};
     (g.nodes || []).forEach((n) => { byId[n.id] = n; });

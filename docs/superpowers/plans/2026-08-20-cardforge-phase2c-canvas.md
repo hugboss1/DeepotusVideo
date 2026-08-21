@@ -374,7 +374,7 @@ git commit -m "feat(cardforge): corps de noeuds - menus reutilises tels quels, v
 CSS nommée en Task 2 — zone de saisie des arêtes et pastilles de ports.)
 
 > **LIVRÉ.** 88 tests (85 + 3), lint 0 violation, `--geom` 4/4, `node --check`
-> OK ; 8 mutants tués + ancre-contrôle survivante. Décisions et amendements,
+> OK ; 10 mutants tués + ancre-contrôle survivante. Décisions et amendements,
 > tous à la SOURCE :
 > · **une table, trois lecteurs** : `GRAMMAIRE` sert la validation
 >   (`lienValide`), les PORTS (`aEntree`/`aSortie` s'en DÉDUISENT — pas de
@@ -385,9 +385,12 @@ CSS nommée en Task 2 — zone de saisie des arêtes et pastilles de ports.)
 >   rendent un graphe ou un motif et ne touchent à rien — c'est ce qui les
 >   rend JUGEABLES. Le harnais de chaînes (nouveau, dans le test : extraction
 >   des VRAIES fonctions du fichier livré + node) mesure l'aller-retour
->   canvas → `rowModel`/`graphRows` → `rewireRow` : 30 cas, dont
->   l'idempotence de l'écrivain de la vue liste sur un graphe câblé à la
->   souris ;
+>   canvas → `rowModel`/`graphRows` → `rewireRow`, dont l'idempotence de
+>   l'écrivain de la vue liste sur un graphe câblé à la souris. Le test
+>   n'épingle qu'un PLANCHER de cas (un banc amputé passerait sinon en vert
+>   sans rien mesurer) : geler le compte exact condamnerait chaque cas
+>   ajouté à toucher deux endroits — et la première rédaction de cette note
+>   s'était déjà trompée de deux ;
 > · **le refus précède l'écriture** (jamais créer-puis-avouer) : grammaire,
 >   puis SURNOMBRE avec les mots du bordereau (source surnuméraire, seconde
 >   matière, second placement) ; un DOUBLON n'est ni refus ni écriture (rien
@@ -405,11 +408,43 @@ CSS nommée en Task 2 — zone de saisie des arêtes et pastilles de ports.)
 >   sur un {to} ») donne « un couche » une fois sur deux et aurait exigé une
 >   table de GENRES à tenir d'accord avec `KIND_LABELS` — les kinds sont donc
 >   CITÉS entre guillemets, et les phrases de surnombre s'accordent en bloc.
+> **REVUE DE QUALITÉ (2e passe) — 7 points, tous appliqués** : **C1** un
+> maillon n'appartient qu'à UNE chaîne — le contrôle de surnombre demandait
+> « MA chaîne en a-t-elle déjà un ? » et jamais « cette cible est-elle déjà
+> prise ? » : tirer sur un maillon qui sert une AUTRE chaîne passait, et le
+> dégât arrivait plus tard et ailleurs (`rewireRow` réécrit la rangée éditée
+> en premier et purge l'arête de l'autre — la seconde chaîne cesse d'être
+> construite en silence tout en s'affichant encore). Une arête entrante par
+> maillon, refusée AVANT l'écriture ; les deux commentaires « cet écran ne
+> produit jamais cette topologie » (`rowDuNoeud`, `maillonsAval`) redeviennent
+> VRAIS et pointent désormais la garde qui les tient. **I2** le contrôle
+> s'aveuglait sans couche : `chaineDe` remontait par `rowDuNoeud`→`graphRows`,
+> qui n'a de rang qu'AVEC une couche — or couper `layer→traitement` est un
+> geste de première classe depuis cette tâche, et le surnombre acceptait
+> alors tout (créer-puis-avouer). La remontée se fait maintenant à la main
+> jusqu'au traitement de tête (`rowModel` répond sans couche). **I3**
+> `export_formats` épinglé au contrat `/info`. **M4** le commentaire du
+> nettoyage disait « le `in` hache » d'un TUPLE (faux : balayage linéaire de
+> `==`) et citait `finish` comme même patron alors qu'il n'a pas de garde
+> justement parce que c'est un tuple — la fiction aurait appris au lecteur
+> suivant à retirer une garde dont un `set` a besoin. **M5** compte de banc
+> retiré de la prose (plancher dans le test). **M6** le fantôme lit
+> `camPending || CAM` : zoomer en plein glisser le faisait retarder d'une
+> frame. **M7** ci-dessous. Les deux défauts de comportement (C1, I2) sont
+> tués PAR LE BANC — mesuré : les pins de source y survivent, le nom d'une
+> fonction ne dit pas ce qu'elle refuse.
 > **Restes à T7 (navigateur)** : le ressenti du fil au pointeur réel, la
 > pastille de 14 px au zoom arrière (assumé : sous z≈0,86 elle passe sous la
 > barre des 12 px — le plancher de zoom protège la poignée de DÉPLACEMENT,
 > pas celle de connexion ; remède nommé dans la feuille si la passe dit le
-> contraire), et la lisibilité du bouton de coupe sur une arête courte.
+> contraire), la lisibilité du bouton de coupe sur une arête courte, et
+> (M7) les arêtes CONVERGENTES : là où six chaînes se rejoignent sur
+> l'assemblage, leurs zones de saisie de 14 px se chevauchent et c'est le
+> dernier chemin du DOM qui prend le clic. Ce n'est pas une perte de contrôle
+> — le geste est en DEUX temps, le clic ne fait que DÉSIGNER et `.sel` montre
+> laquelle avant que « supprimer » n'existe, et le bouton reste cliquable
+> au-dessus des nœuds (z-index 3) ; ce qui reste à juger à l'œil, c'est la
+> lisibilité de ce surlignage au zoom arrière.
 > **Dépendance T5** : aucun nœud `export` ne peut NAÎTRE avant la palette —
 > le vocabulaire, les ports, la grammaire et le nettoyage l'attendent, mais
 > l'écran ne montre encore que son motif (`KIND_HINTS.export`) ; son corps

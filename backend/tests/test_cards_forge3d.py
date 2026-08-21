@@ -95,6 +95,11 @@ def test_info_publie_les_roles_de_couches():
     assert lim["relief_base_mm"] == list(F9.RELIEF_BASE_MM)
     assert lim["relief_grid"] == list(F9.RELIEF_GRID)
     assert lim["relief_grid_default"] == F9.RELIEF_GRID_DEFAULT
+    # I3 — LE VOCABULAIRE D'EXPORT EST SERVI, PAS RECOPIÉ (2c Task 4). C'est
+    # le contrat sur lequel la Task 5 bâtit son sélecteur de format : sans ce
+    # pin, publier la liste puis la laisser tomber ferait recopier quatre
+    # littéraux à l'écran — la faute des tables miroir, à la porte du client.
+    assert lim["export_formats"] == list(F9.EXPORT_FORMATS)
     # /info est scopée au deck comme toute route du domaine (règle §2.5) :
     # un id syntaxiquement invalide lève 400, un id valide mais absent 404.
     assert _api("GET", "/api/cards/nimportequoi/forge3d/info").status_code == 400
@@ -4451,9 +4456,11 @@ const NU = { nodes: [
   { id: "s1", kind: "layer", role: "illustration", side: "front" },
   { id: "s2", kind: "layer", role: "cadre", side: "front" },
   { id: "t1", kind: "plane", depth_mm: 0.35 },
+  { id: "t2", kind: "relief", depth_mm: 0.6, base_mm: 0.3, grid: 160 },
   { id: "m1", kind: "material", mat: "aaa", finish: "aucune" },
   { id: "m2", kind: "material", mat: "bbb", finish: "aucune" },
   { id: "r1", kind: "transform", x_mm: 0, y_mm: 0, z_mm: 0.35, rot_deg: 0, scale: 1 },
+  { id: "r2", kind: "transform", x_mm: 0, y_mm: 0, z_mm: 0.7, rot_deg: 0, scale: 1 },
   { id: "asm", kind: "assemble" },
   { id: "art", kind: "artifact", name: "carte3d" },
   { id: "ex", kind: "export", format: "glb" },
@@ -4525,6 +4532,51 @@ dit("une seconde source sur le meme traitement est refusee",
     !!src2 && !src2.graph && typeof src2.refus === "string"
     && src2.refus.indexOf("surnum") >= 0, J(src2));
 
+/* 5bis. UN MAILLON N'APPARTIENT QU'A UNE CHAINE (C1). Le surnombre que le
+      controle ne voyait pas : la question posee etait « MA chaine en a-t-elle
+      deja un ? », jamais « ce maillon-ci appartient-il deja a quelqu'un ? ».
+      Un maillon PARTAGE passait donc, et le degat arrivait plus tard et
+      ailleurs : `rewireRow` reecrit la rangee editee EN PREMIER et purge
+      l'arete que l'autre empruntait — la seconde chaine cesse d'etre
+      construite (« traitement non relie a un assemble » au bordereau) tout
+      en s'affichant encore comme une rangee. LE BANC est la couche qui
+      attrape ca : un pin de source y survit (le nom d'une fonction ne dit
+      pas ce qu'elle refuse). */
+const deux = cable(NU, [["s1", "t1"], ["t1", "m1"], ["m1", "asm"],
+                        ["s2", "t2"], ["t2", "r1"], ["r1", "asm"]]);
+dit("deux chaines se cablent", !deux.erreur, deux.erreur || null);
+const D = deux.graph;
+const vole = D ? grapheAvecLien(D, "m1", "r1") : null;
+dit("un maillon DEJA pris par une autre chaine est refuse",
+    !!vole && !vole.graph && typeof vole.refus === "string"
+    && vole.refus.indexOf("autre chaîne") >= 0, J(vole));
+/* ... et le refus ne mord PAS le cas inoffensif : un maillon LIBRE se
+   branche, meme quand une autre chaine porte deja un maillon du meme genre. */
+const libre = D ? grapheAvecLien(D, "m1", "r2") : null;
+dit("un maillon LIBRE reste branchable", !!libre && !!libre.graph, J(libre));
+
+/* 5ter. LE CONTROLE NE S'AVEUGLE PLUS SANS COUCHE (I2). Couper
+      `layer -> traitement` est un geste de PREMIERE CLASSE depuis la Task 4 ;
+      la chaine disparait alors de `graphRows` (qui n'a de rang qu'AVEC une
+      couche) et le controle de surnombre recevait `null` — donc acceptait
+      tout, c'est-a-dire creer-puis-avouer. Le seul chemin ou la source n'est
+      PAS un traitement est `matiere -> placement` (la grammaire ne mene a
+      `material` que depuis un traitement) : c'est donc lui qu'on mesure. */
+const orph = cable(NU, [["t1", "m1"], ["m1", "r1"], ["r1", "asm"]]);
+dit("une chaine SANS couche se cable", !orph.erreur, orph.erreur || null);
+const O = orph.graph;
+dit("... et n'a effectivement aucun rang (c'est ce qui aveuglait le controle)",
+    !!O && graphRows(O).length === 0, O ? graphRows(O).length : null);
+const sur2 = O ? grapheAvecLien(O, "m1", "r2") : null;
+dit("un second placement sur une chaine sans couche est refuse AVANT l'ecriture",
+    !!sur2 && !sur2.graph && typeof sur2.refus === "string"
+    && sur2.refus.indexOf("surnum") >= 0, J(sur2));
+/* le meme controle depuis le traitement lui-meme (chemin deja sain) */
+const sur3 = O ? grapheAvecLien(O, "t1", "m2") : null;
+dit("... et une seconde matiere aussi, sans couche non plus",
+    !!sur3 && !sur3.graph && typeof sur3.refus === "string"
+    && sur3.refus.indexOf("surnum") >= 0, J(sur3));
+
 /* 6. COUPER UNE ARETE : la chaine tombe, et AUCUNE arete pendante ne reste. */
 const coupe = grapheSansLien(G, "s1", "t1");
 const GC = coupe && coupe.graph;
@@ -4583,7 +4635,11 @@ def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
     cas = _banc_chaines(tmp_path)
     rates = [c for c in cas if not c["ok"]]
     assert not rates, "\n".join(f"{c['nom']} : {c['detail']}" for c in rates)
-    assert len(cas) >= 20, len(cas)
+    # un PLANCHER, pas un compte : un banc qui perdrait la moitie de ses cas
+    # (une exception avalee, une section commentee) passerait sinon en vert
+    # sans rien mesurer. Le chiffre exact, lui, n'a pas a etre gele — en
+    # figer un condamnerait chaque cas ajoute a toucher deux endroits.
+    assert len(cas) >= 28, len(cas)
 
 
 if __name__ == "__main__":

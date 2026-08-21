@@ -476,13 +476,24 @@ def clean_graph(raw) -> dict:
             nom = str(n.get("name") or "artefact")
             node["name"] = re.sub(r"[^A-Za-z0-9._-]", "_", nom)[:60] or "artefact"
         elif n["kind"] == "export":
-            # même garde de type que `kind`/`role`/`finish` plus haut : le
-            # `in` d'un tuple hache d'abord, donc une liste reçue en `format`
-            # lèverait TypeError — c'est-à-dire le 500 que cette fonction
-            # existe pour empêcher. Un format inconnu (ou non hachable)
-            # RETOMBE sur le seul qui existe toujours, il ne tue pas le nœud :
-            # un point de téléchargement muet vaudrait moins qu'un point de
-            # téléchargement réparé.
+            # `isinstance` D'ABORD — mais pas pour la raison qu'on croit, et
+            # la nuance compte : `EXPORT_FORMATS` est un TUPLE, dont le `in`
+            # est un balayage linéaire de `==`. Une liste y passerait donc
+            # SANS lever (`["glb"] in ("glb", …)` rend False, pas TypeError) :
+            # le danger n'est pas un 500, c'est un `format` non hachable qui
+            # traverse en silence si on relâche la garde plus tard (une
+            # migration du tuple vers un `set`, et le TypeError apparaît).
+            # Les précédents à hachage RÉEL de cette fonction sont les SETS :
+            # `kinds`, `roles`, `vivants` — c'est là que le `in` hache avant
+            # de comparer, et c'est là que l'absence de garde lèverait.
+            # (`finish`, lui, n'a volontairement PAS de garde : il compare à
+            # `MATERIAL_FINISHES`, un tuple. Écrire ici qu'il suit le même
+            # patron que les sets apprendrait au lecteur suivant à retirer
+            # une garde dont un set a besoin.)
+            # Un format inconnu — ou d'un type qu'on ne sait pas lire —
+            # RETOMBE sur le seul qui existe toujours plutôt que de tuer le
+            # nœud : un point de téléchargement muet vaudrait moins qu'un
+            # point de téléchargement réparé.
             fmt = n.get("format")
             node["format"] = (fmt if isinstance(fmt, str) and fmt in EXPORT_FORMATS
                               else EXPORT_FORMATS[0])
