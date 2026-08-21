@@ -278,6 +278,7 @@ docs.meshy.ai/en/api/image-to-3d).
 sous les asserts de grille existants, style du fichier)
 
 ```python
+print("— meshy-7 + ultra —")
 assert MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
 assert MS.credits_image_to_3d("meshy-7", "standard", True, "8k") == 35
 assert MS.credits_image_to_3d("meshy-7", "standard", False) == 20
@@ -289,33 +290,73 @@ assert MS.credits_text_to_3d_preview("meshy-7") == 20
 assert MS.credits_text_to_3d_preview("meshy-7", ultra=True) == 25
 ok("meshy-7 : grille HD (20/30/35) + ultra +5 (v7/latest seulement)")
 
-# le miroir JS porte les mêmes valeurs (bloc CREDITS)
-_js = (Path(__file__).resolve().parents[1].parent / "frontend" / "meshy"
-       / "meshy.client.js").read_text(encoding="utf-8")
-_bloc = _js.split("export const CREDITS")[1].split("};")[0]
-assert "meshy-7" in _bloc and "ultra" in _bloc
-ok("miroir CREDITS de meshy.client.js : meshy-7 + ultra présents")
+# le miroir JS porte les mêmes valeurs — confronté PAR VALEUR via node, pas
+# par simple présence de sous-chaîne (le docstring du module promet mieux).
+_js_path = (pathlib.Path(__file__).resolve().parent.parent.parent
+           / "frontend" / "meshy" / "meshy.client.js")
+if shutil.which("node") is None:
+    _js = _js_path.read_text(encoding="utf-8")
+    _bloc = _js.split("export const CREDITS")[1].split("};")[0]
+    assert "meshy-7" in _bloc and "ultra" in _bloc
+    ok("miroir JS non confronté : node absent (substring seulement)")
+else:
+    _js_url = "file:///" + str(_js_path.resolve()).replace("\\", "/")
+    _node_script = f"""
+const M = await import(new URL({_json.dumps(_js_url)}));
+const models = ["meshy-5", "meshy-6", "meshy-7", "latest"];
+const modelTypes = ["standard", "lowpoly", "smart-topology"];
+const out = [];
+for (const aiModel of models)
+  for (const modelType of modelTypes)
+    for (const shouldTexture of [true, false])
+      for (const textureResolution of ["2k", "8k"])
+        for (const ultra of [true, false]) {{
+          out.push({{
+            aiModel, modelType, shouldTexture, textureResolution, ultra,
+            img: M.CREDITS.imageTo3d({{ aiModel, modelType, shouldTexture, textureResolution, ultra }}),
+            prev: M.CREDITS.textTo3dPreview({{ aiModel, modelType, ultra }})
+          }});
+        }}
+console.log(JSON.stringify(out));
+"""
+    _r = subprocess.run(["node", "--input-type=module"], input=_node_script,
+                        capture_output=True, text=True, encoding="utf-8", timeout=30)
+    assert _r.returncode == 0, _r.stderr
+    _combos = _json.loads(_r.stdout)
+    _bad = [c for c in _combos if
+           MS.credits_image_to_3d(c["aiModel"], c["modelType"], c["shouldTexture"],
+                                  c["textureResolution"], ultra=c["ultra"]) != c["img"]
+           or MS.credits_text_to_3d_preview(c["aiModel"], c["modelType"],
+                                            ultra=c["ultra"]) != c["prev"]]
+    assert not _bad, _bad[:5]
+    ok(f"miroir CREDITS confronté par node : {len(_combos)} combinaisons, 0 divergence")
 
-# helpers serveur mock-aware (P9 s'en sert ; ici on prouve le contrat)
-import asyncio as _aio
+# helpers serveur mock-aware (P9 s'en servira ; ici on prouve le contrat)
 settings.MESHY_MOCK = True
 settings.MESHY_MOCK_SPEED = 0.01
 MS._mock = None                      # repartir d'un simulateur neuf, vitesse test
-_tid = _aio.get_event_loop().run_until_complete(
-    MS.create_task("openapi/v1/image-to-3d",
-                   {"image_url": "data:image/png;base64,AAAA",
-                    "ai_model": "meshy-7", "should_texture": True,
-                    "ultra_mode": True}))
-assert _tid.startswith("mock-")
-while True:
-    _t = _aio.get_event_loop().run_until_complete(
-        MS.get_task("openapi/v1/image-to-3d", _tid))
-    if _t["status"] in MS.TERMINAL:
-        break
-assert _t["status"] == "SUCCEEDED" and _t["consumed_credits"] == 35
-assert _t["model_urls"]["glb"].startswith(MS.MOCK_FILE_PREFIX)
+
+
+async def _create_and_wait_ultra():
+    tid = await MS.create_task("openapi/v1/image-to-3d", {
+        "image_url": "data:image/png;base64,AAAA", "ai_model": "meshy-7",
+        "should_texture": True, "ultra_mode": True})
+    assert tid.startswith("mock-")
+    for _ in range(500):
+        t = await MS.get_task("openapi/v1/image-to-3d", tid)
+        if t["status"] in MS.TERMINAL:
+            return t
+        await asyncio.sleep(0.02)
+    else:
+        raise AssertionError("tâche mock jamais terminale")
+
+
+_final_task = asyncio.run(_create_and_wait_ultra())
+assert _final_task["status"] == "SUCCEEDED" and _final_task["consumed_credits"] == 35
+assert _final_task["model_urls"]["glb"].startswith(MS.MOCK_FILE_PREFIX)
 ok("create_task/get_task serveur : mock-aware, crédits ultra comptés")
-settings.MESHY_MOCK = False
+settings.MESHY_MOCK = True    # restaure : main() plus bas suppose le mock actif
+settings.MESHY_MOCK_SPEED = 0.02   # restaure : valeur d'origine (env, ligne ~24)
 MS._mock = None
 ```
 
@@ -379,33 +420,47 @@ async def create_task(base: str, payload: dict) -> str:
     if mock_enabled():
         code, res = get_mock().create(base, payload)
     else:
-        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as c:
-            r = await c.post(f"{MESHY_API}/{base}", headers=_headers(), json=payload)
+        if not settings.MESHY_API_KEY.strip():
+            raise RuntimeError("meshy: MESHY_API_KEY absente — Réglages")
+        try:
+            async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=120.0) as c:
+                r = await c.post(f"{MESHY_API}/{base}", headers=_headers(), json=payload)
             code = r.status_code
             try:
                 res = r.json()
             except ValueError:
                 res = {"message": r.text[:400]}
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"meshy: {type(e).__name__}: {e}") from e
     if code not in (200, 202) or not isinstance(res, dict) or not res.get("result"):
-        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+        raise RuntimeError(f"meshy: {_meshy_detail(code, res)}")
     return str(res["result"])
 
 
 async def get_task(base: str, task_id: str) -> dict:
     """État d'une tâche Meshy côté serveur — mock-aware. RuntimeError littérale
     sur code HTTP hors 200 (la tâche de fond de P9 la journalise telle quelle)."""
+    if base not in ALLOWED_BASES:
+        raise RuntimeError(f"meshy: chemin non autorisé {base!r}")
+    if not _TASK_ID_RE.match(str(task_id)):
+        raise RuntimeError(f"meshy: identifiant de tâche invalide {task_id!r}")
     if mock_enabled():
         code, res = get_mock().get(task_id)
     else:
-        async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c:
-            r = await c.get(f"{MESHY_API}/{base}/{task_id}", headers=_headers())
+        if not settings.MESHY_API_KEY.strip():
+            raise RuntimeError("meshy: MESHY_API_KEY absente — Réglages")
+        try:
+            async with httpx.AsyncClient(verify=SSL_VERIFY, timeout=60.0) as c:
+                r = await c.get(f"{MESHY_API}/{base}/{task_id}", headers=_headers())
             code = r.status_code
             try:
                 res = r.json()
             except ValueError:
                 res = {"message": r.text[:400]}
+        except httpx.HTTPError as e:
+            raise RuntimeError(f"meshy: {type(e).__name__}: {e}") from e
     if code != 200 or not isinstance(res, dict):
-        raise RuntimeError(f"meshy: {res.get('message') if isinstance(res, dict) else res}")
+        raise RuntimeError(f"meshy: {_meshy_detail(code, res)}")
     return res
 ```
 
@@ -528,8 +583,11 @@ def test_clean_graph_borne_les_nouveaux_noeuds():
     n = {x["id"]: x for x in out["nodes"]}
     assert n["m"]["engine"] == "meshy-7" and n["m"]["ultra"] is True
     assert n["m"]["texture_prompt"] == "or ancien, gravure"
-    # moteur inconnu -> défaut meshy-7 ; ultra HORS meshy-7 -> False
+    # moteur inconnu -> défaut meshy-7 ; ET l'ultra ne survit pas à la
+    # réparation (amendement contrôleur) : un drapeau PAYANT ne peut pas
+    # naître du repli sur le défaut, l'utilisateur n'a pas nommé ce moteur.
     assert n["m2"]["engine"] == "meshy-7"
+    assert n["m2"]["ultra"] is False
     assert F9.clean_graph({"nodes": [{"id": "x", "kind": "mesh3d",
         "engine": "tripo", "ultra": True}], "edges": []})["nodes"][0]["ultra"] is False
     # matière : mid invalide -> None, mais la FINITION la garde en vie
@@ -547,29 +605,75 @@ def test_clean_graph_borne_les_nouveaux_noeuds():
     assert n["tr"]["z_mm"] == 0.0
 
 
-def test_info_publie_moteurs_prix_matieres_et_bornes():
+def test_info_publie_moteurs_prix_matieres_et_bornes(monkeypatch):
     """7 moteurs, prix fal en $ depuis pricing, crédits Meshy depuis la grille
     partagée (+ conversion $ directionnelle meshy_credit_usd), matières de la
     boutique, bornes matière/transform — l'écran ne recopie RIEN."""
-    from app.services import pricing, meshy_service as MS
+    from app.config import settings
+    from app.services import pricing, meshy_service as MS, material_store
+    from app.services import asset3d_service as A3D
+    from app.services.cards import forge3d as F9
     did = _deck("Info 2b")
-    info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
-    eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
-    assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
-                         "meshy-6", "meshy-7"]
-    p = pricing.load()
-    attendu = pricing.estimate({"kind": "asset3d", "engine": "tripo"}, p)["total_usd"]
-    assert eng["tripo"]["provider"] == "fal" and eng["tripo"]["price_usd"] == attendu
-    assert eng["meshy-7"]["provider"] == "meshy"
-    assert eng["meshy-7"]["credits"] == MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
-    assert eng["meshy-7"]["ultra_extra_credits"] == 5
-    assert eng["meshy-6"]["ultra_extra_credits"] == 0
-    assert eng["meshy-7"]["price_usd"] == round(30 * float(p["meshy_credit_usd"]), 4)
-    assert isinstance(info["mesh3d"]["has_meshy"], bool)
-    assert isinstance(info["mesh3d"]["has_fal"], bool)
-    assert isinstance(info["materials"], list)     # [] accepté : boutique vide
-    assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
-    assert info["transform_limits"]["scale"] == [0.1, 4.0]
+    mat = material_store.create_material(name="essai-info")
+    try:
+        info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
+        eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
+        assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
+                             "meshy-6", "meshy-7"]
+        # roster lock (M4) : les moteurs fal du miroir 2b sont un
+        # SOUS-ENSEMBLE du registre asset3d_service — jamais un moteur que
+        # le job (Task 4) ne saurait pas router.
+        assert {e["id"] for e in F9.MESH3D_ENGINES if e["provider"] == "fal"} \
+            <= set(A3D.ENGINES)
+        p = pricing.load()
+        attendu = pricing.estimate({"kind": "asset3d", "engine": "tripo"}, p)["total_usd"]
+        assert eng["tripo"]["provider"] == "fal" and eng["tripo"]["price_usd"] == attendu
+        assert eng["meshy-7"]["provider"] == "meshy"
+        assert eng["meshy-7"]["credits"] == MS.credits_image_to_3d("meshy-7", "standard", True, "2k") == 30
+        assert eng["meshy-7"]["ultra_extra_credits"] == 5
+        assert eng["meshy-6"]["ultra_extra_credits"] == 0
+        assert eng["meshy-7"]["price_usd"] == round(30 * float(p["meshy_credit_usd"]), 4)
+        assert info["mesh3d"]["default_engine"] == "meshy-7"
+        assert info["mesh3d"]["degraded"] is None
+        assert info["materials_degraded"] is None
+        # has_meshy / has_fal : CONDUITS par leurs deux états (résidu de
+        # re-revue Task 3). L'ancien miroir `== (settings.has_meshy or
+        # bool(settings.MESHY_MOCK))` recopiait l'expression de
+        # l'implémentation : VACUEUX dès que les deux côtés valaient False —
+        # un `has_meshy: False` en dur l'aurait passé. Ici on force chaque
+        # état et on lit le contrat, jamais la formule.
+        monkeypatch.setattr(settings, "MESHY_API_KEY", "")
+        monkeypatch.setattr(settings, "MESHY_MOCK", False)
+        i0 = _api("GET", f"/api/cards/{did}/forge3d/info").json()["mesh3d"]
+        assert i0["has_meshy"] is False and i0["meshy_mock"] is False
+        monkeypatch.setattr(settings, "MESHY_MOCK", True)     # simulateur seul
+        i1 = _api("GET", f"/api/cards/{did}/forge3d/info").json()["mesh3d"]
+        assert i1["has_meshy"] is True and i1["meshy_mock"] is True
+        monkeypatch.setattr(settings, "MESHY_MOCK", False)
+        monkeypatch.setattr(settings, "MESHY_API_KEY", "cle-de-test")  # clé seule
+        i2 = _api("GET", f"/api/cards/{did}/forge3d/info").json()["mesh3d"]
+        assert i2["has_meshy"] is True and i2["meshy_mock"] is False
+        monkeypatch.setattr(settings, "FAL_KEY", "")
+        assert _api("GET", f"/api/cards/{did}/forge3d/info"
+                    ).json()["mesh3d"]["has_fal"] is False
+        monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+        assert _api("GET", f"/api/cards/{did}/forge3d/info"
+                    ).json()["mesh3d"]["has_fal"] is True
+        monkeypatch.undo()      # les réglages redeviennent ceux du runtime
+        # la boutique n'est plus vide (M3) : la matière créée voyage telle
+        # quelle, et CHAQUE entrée n'expose que id/name — jamais les maps.
+        assert isinstance(info["materials"], list)
+        assert all(set(m.keys()) == {"id", "name"} for m in info["materials"])
+        assert {"id": mat["id"], "name": "essai-info"} in info["materials"]
+        # bornes matière/transform, épinglées littéralement (M6)
+        assert info["material_limits"]["tile_mm"] == [10.0, 200.0]
+        assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
+        assert info["transform_limits"]["xy_mm"] == [-100.0, 100.0]
+        assert info["transform_limits"]["z_mm"] == [0.0, 10.0]
+        assert info["transform_limits"]["rot_deg"] == [-180.0, 180.0]
+        assert info["transform_limits"]["scale"] == [0.1, 4.0]
+    finally:
+        material_store.delete_material(mat["id"])
 ```
 
 Run : run-tests -Filter cards_forge3d → FAIL.
@@ -617,6 +721,10 @@ MESH3D_ENGINES = [
 ]
 MESH3D_DEFAULT_ENGINE = "meshy-7"     # la demande d'origine : « pour les textures »
 MESH3D_PROMPT_MAX = 600
+# littéraux PARTAGÉS entre le prix de /info (_engine_table) et le payload du
+# job (Task 4) — une seule vérité, jamais recopiés d'un côté à l'autre.
+MESH3D_TEXTURE_RES = "2k"
+MESH3D_SHOULD_TEXTURE = True
 MESH3D_UPLOAD_PX = 2048               # côté long envoyé aux moteurs — un moteur
                                       # texture en 2k, le 300 DPI n'y gagne rien
 MESH3D_POLL_S = 4.0                   # période de poll Meshy (0.05 en mock)
@@ -626,7 +734,10 @@ MESH3D_CLOSED_TRI_MAX = 1_500_000     # au-delà : closed=None (« non mesuré �
 MAX_EXT_GLB_BYTES = 64 * 1024 * 1024  # même chiffre que MAX_LAYER_BYTES
 
 MATERIAL_TILE_MM = (10.0, 200.0)
-MATERIAL_FINISHES = ("aucune", "argent", "dorure")
+# UNE seule vérité pour les finitions : les recettes vivent dans le module
+# scène, l'écran en reçoit la liste par /info. « aucune » est le seul mot que
+# ce fichier ajoute (l'absence de finition n'est pas une recette).
+MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -637,14 +748,24 @@ Branches de `clean_graph` (dans la boucle existante, style des branches 2a) :
 ```python
         elif n["kind"] == "mesh3d":
             eng = str(n.get("engine") or "")
-            node["engine"] = eng if eng in {e["id"] for e in MESH3D_ENGINES} \
-                else MESH3D_DEFAULT_ENGINE
+            connu = eng in {e["id"] for e in MESH3D_ENGINES}
+            node["engine"] = eng if connu else MESH3D_DEFAULT_ENGINE
             node["texture_prompt"] = str(n.get("texture_prompt") or "").strip()[:MESH3D_PROMPT_MAX]
-            node["ultra"] = bool(n.get("ultra")) and node["engine"] == "meshy-7"
+            # amendement du contrôleur (plan 2b) : un moteur inconnu est
+            # réparé vers le défaut, mais un drapeau PAYANT ne survit jamais
+            # à une réparation — l'utilisateur n'a pas consenti à l'ultra
+            # d'un moteur qu'il n'a pas nommé.
+            # M8 : UNE SEULE SOURCE D'ÉLIGIBILITÉ À L'ULTRA — la grille
+            # partagée de `meshy_service`, celle-là même qui FACTURE le
+            # surcoût et que `/info` publie en `ultra_extra_credits`. L'ancien
+            # `== "meshy-7"` recopiait ici une règle de tarification : le jour
+            # où un moteur de plus le propose, le devis l'annoncerait et le
+            # nettoyage l'effacerait, chacun sûr d'avoir raison.
+            node["ultra"] = (bool(n.get("ultra")) and connu
+                             and MS._ultra_extra(node["engine"], True) > 0)
         elif n["kind"] == "material":
-            from app.services import material_store as MSTORE
             mid = str(n.get("mat") or "")
-            node["mat"] = mid if MSTORE.is_valid_mid(mid) else None
+            node["mat"] = mid if material_store.is_valid_mid(mid) else None
             node["tile_mm"] = _num(n.get("tile_mm"), 63.0, *MATERIAL_TILE_MM)
             node["finish"] = n.get("finish") if n.get("finish") in MATERIAL_FINISHES else "aucune"
             node["aniso"] = bool(n.get("aniso"))
@@ -676,9 +797,13 @@ def _engine_table() -> list[dict]:
             row["price_usd"] = pricing.estimate(
                 {"kind": "asset3d", "engine": e["id"]}, p)["total_usd"]
         else:
-            cr = MS.credits_image_to_3d(e["id"], "standard", True, "2k")
+            cr = MS.credits_image_to_3d(e["id"], "standard", MESH3D_SHOULD_TEXTURE,
+                                        MESH3D_TEXTURE_RES)
             row["credits"] = cr
-            row["ultra_extra_credits"] = 5 if e["id"] == "meshy-7" else 0
+            # M1 (revue) : la grille PARTAGÉE est la seule source du surcoût
+            # ultra — jamais recopiée en dur ici (la docstring promet « jamais
+            # recopiés », l'ancien `5 if ... else 0` la trahissait).
+            row["ultra_extra_credits"] = MS._ultra_extra(e["id"], True)
             row["price_usd"] = round(cr * float(p.get("meshy_credit_usd", 0.02)), 4)
         rows.append(row)
     return rows
@@ -686,21 +811,23 @@ def _engine_table() -> list[dict]:
 La réponse de `get_info` gagne :
 ```python
             "mesh3d": {
-                "engines": _engine_table(),
+                "engines": engines,
                 "default_engine": MESH3D_DEFAULT_ENGINE,
                 "has_fal": bool(settings.FAL_KEY),
                 "has_meshy": settings.has_meshy or bool(settings.MESHY_MOCK),
                 "meshy_mock": bool(settings.MESHY_MOCK),
                 "prompt_max": MESH3D_PROMPT_MAX,
+                "degraded": mesh3d_degraded,
             },
             "materials": [{"id": m["id"], "name": m["name"]}
-                          for m in material_store.list_materials()],
+                          for m in materials_raw],
+            "materials_degraded": materials_degraded,
             "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
                                 "finishes": list(MATERIAL_FINISHES)},
             "transform_limits": {"xy_mm": list(TRANSFORM_XY_MM),
                                  "z_mm": list(TRANSFORM_Z_MM),
                                  "rot_deg": list(TRANSFORM_ROT_DEG),
-                                 "scale": list(TRANSFORM_SCALE)},
+                                 "scale": list(TRANSFORM_SCALE)}}
 ```
 (`settings` est déjà importé ou s'importe de `app.config` selon l'existant du fichier ;
 `list_materials()` ne lève pas sur boutique vide — elle rend `[]`.)
@@ -776,7 +903,7 @@ def _graphe_mesh3d(engine="meshy-7", ultra=False):
     return {"nodes": [
         {"id": "s1", "kind": "layer", "role": "illustration", "side": "front"},
         {"id": "m1", "kind": "mesh3d", "engine": engine,
-         "texture_prompt": "pierre gravée", "ultra": ultra},
+         "texture_prompt": "pierre gravee", "ultra": ultra},
         {"id": "asm", "kind": "assemble"},
         {"id": "art", "kind": "artifact", "name": "carte3d"}],
         "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "asm"},
@@ -784,6 +911,7 @@ def _graphe_mesh3d(engine="meshy-7", ultra=False):
 
 
 def _exporter_couches(did):
+    """Les couches de la phase 1, MÊME forme d'envoi que les tests voisins."""
     couches, composite = _couches_synthetiques()
     files = [("layers", (f"{nom}.png", _png(im), "image/png"))
              for nom, im in couches.items()]
@@ -811,7 +939,12 @@ def test_le_job_meshy_traverse_le_mock_et_mesure_closed_une_fois():
     rapatriement des binaires DANS le nœud, crédits consommés (ultra compté),
     closed mesuré à l'import et caché — le triangle du mock est OUVERT."""
     from app.config import settings as cfg
-    from app.services import meshy_service as MS
+    from app.services import meshy_service as MS, pricing
+    from app.services.storage import init_db
+    # le journal partagé (I2) vit en base : les tests n'exécutent pas le
+    # `lifespan` de l'application, donc les tables n'existent pas encore ici.
+    asyncio.run(init_db())
+    avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
     cfg.MESHY_MOCK = True
     cfg.MESHY_MOCK_SPEED = 0.01
     MS._mock = None
@@ -824,23 +957,66 @@ def test_le_job_meshy_traverse_le_mock_et_mesure_closed_une_fois():
         assert r.status_code == 200, r.text
         lance = r.json()
         assert lance["job"]["status"] in ("queued", "running")
-        assert lance["job"]["price"] == {"credits": 35, "usd": round(35 * 0.02, 4)}
+        # le prix est ANNONCÉ avant, depuis la grille partagée et pricing.json
+        # (jamais un littéral recopié) : 30 cr + 5 d'ultra sur meshy-7.
+        cr = MS.credits_image_to_3d("meshy-7", "standard", True, "2k", ultra=True)
+        assert cr == 35
+        usd = round(cr * float(pricing.load()["meshy_credit_usd"]), 4)
+        assert lance["job"]["price"] == {"credits": cr, "usd": usd}
+        # la provenance voyage avec le job : LA couche source, son empreinte
+        assert lance["job"]["source"]["file"] == "illustration_c01_front.png"
+
         job = _attendre_job(did, "m1")
         assert job["status"] == "served", job
         assert job["engine"] == "meshy-7" and job["consumed_credits"] == 35
         assert job["closed"] is False            # le tiny_glb du mock est un triangle
-        ndir = Path(_api("GET", f"/api/cards/{did}/forge3d/info").headers.get("x-noop", ".")) # (voir note)
-        base = OUTPUTS / "decks" / did / "forge3d" / "nodes" / "m1"
+        base = _dossier_noeud(did, "m1")
         assert (base / "model.glb").is_file()
         assert (base / "preview.png").is_file()
         assert (base / "job.json").is_file()
-        # relancer = dossier réinitialisé (aperçu périmé jamais servi — legs 4)
+        # les octets rapatriés sont bien ceux du simulateur, pas un fichier vide
+        assert (base / "model.glb").read_bytes() == MS.tiny_glb()
+        assert job["files"]["glb"] == "model.glb"
+        assert job["files"]["textures"] == ["textures/0_base_color.png"]
+        assert (base / "textures" / "0_base_color.png").is_file()
+        assert job["task_id"], job          # l'id du fournisseur est tracé
+        # l'empreinte annoncée est celle de la couche RÉELLEMENT lue — et la
+        # vignette RÉELLEMENT envoyée a la sienne (M1 : deux questions
+        # distinctes, « de quelle couche » et « qu'a vu le moteur »).
+        from app.services.cards.contract import deck_dir
+        src = deck_dir(did) / "forge3d" / "illustration_c01_front.png"
+        assert job["source"]["sha256"] == hashlib.sha256(src.read_bytes()).hexdigest()
+        assert job["source"]["bytes"] == src.stat().st_size
+        envoi = (base / "upload_src.png").read_bytes()
+        assert job["source"]["upload_sha256"] == hashlib.sha256(envoi).hexdigest()
+        assert job["source"]["upload_bytes"] == len(envoi)
+
+        # I2 : la tâche PAYÉE est entrée au journal PARTAGÉ — sans quoi
+        # `repatriate` refuse son id et `expiring_soon` ne prévient personne
+        # avant que les URL Meshy n'expirent.
+        rows = {r["id"]: r for r in asyncio.run(MS.list_tasks())}
+        assert job["task_id"] in rows, sorted(rows)
+        # la CRÉATION (seule à écrire le payload) et l'ÉTAT TERMINAL (seul à
+        # écrire les crédits débités) sont journalisés tous les deux — l'un
+        # sans l'autre laisserait le journal muet sur la moitié de l'histoire.
+        assert rows[job["task_id"]]["payload"]["ai_model"] == "meshy-7"
+        assert rows[job["task_id"]]["payload"]["ultra_mode"] is True
+        assert rows[job["task_id"]]["status"] == "SUCCEEDED"
+        assert rows[job["task_id"]]["consumed_credits"] == 35
+
+        # relancer = dossier RÉINITIALISÉ (legs 4) : un vestige de la passe
+        # précédente ne doit pas survivre au nouveau job.
+        (base / "vestige.txt").write_text("passe precedente", encoding="utf-8")
         r2 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
                   json={"graph": g, "card": 0})
-        assert r2.status_code == 200
-        _attendre_job(did, "m1")
+        assert r2.status_code == 200, r2.text
+        job2 = _attendre_job(did, "m1")
+        assert job2["status"] == "served", job2
+        assert not (base / "vestige.txt").exists(), "le dossier n'a pas ete reinitialise"
+        # ...et la relance a bien une IDENTITÉ neuve (clôture C2)
+        assert job2["run_id"] and job2["run_id"] != job["run_id"]
     finally:
-        cfg.MESHY_MOCK = False
+        cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
         MS._mock = None
 
 
@@ -848,16 +1024,10 @@ def test_le_job_fal_passe_par_les_coutures_et_le_glb_ferme_est_su():
     """Moteur fal monkeypatché de bout en bout : upload -> run -> download.
     Le « GLB téléchargé » est un relief FERMÉ écrit par notre writer ->
     closed True mesuré une fois, prix $ = pricing."""
+    from pathlib import Path
     from app.services import asset3d_service as A3D
     from app.services import pricing
-    from app.services.cards import forge3d_scene as SC
-    from PIL import Image
-    relief = SC.relief_mesh(Image.new("L", (16, 16), 255), 63.0, 88.0, 1.0, 0.3, 8)
-    relief["closed"] = True
-    png = io.BytesIO(); Image.new("RGBA", (8, 8), (10, 20, 30, 255)).save(png, "PNG")
-    glb_connu = SC.write_scene_glb(
-        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
-          "z_mm": 0.0}], name="x", extras={"unit": "metre"})
+    glb_connu = _glb_ferme()
 
     async def faux_upload(path):
         assert Path(path).is_file()
@@ -866,8 +1036,7 @@ def test_le_job_fal_passe_par_les_coutures_et_le_glb_ferme_est_su():
     async def faux_run(engine, args):
         assert engine == "tripo" and args["image_url"] == "https://fal.test/src.png"
         return {"mesh_url": "https://fal.test/model.glb",
-                "format_urls": {}, "texture_urls": [],
-                "preview_url": None}
+                "format_urls": {}, "texture_urls": [], "preview_url": None}
 
     def faux_download(url, dest, timeout=120):
         dest.write_bytes(glb_connu)
@@ -886,22 +1055,40 @@ def test_le_job_fal_passe_par_les_coutures_et_le_glb_ferme_est_su():
         assert r.json()["job"]["price"] == {"usd": attendu}
         job = _attendre_job(did, "m1")
         assert job["status"] == "served" and job["closed"] is True
+        # le GLB livré est EXACTEMENT celui que la couture a téléchargé
+        assert (_dossier_noeud(did, "m1") / "model.glb").read_bytes() == glb_connu
+        # I3 : l'URL de l'artefact PAYÉ est PERSISTÉE, pas jetée après usage —
+        # c'est le seul lien vers ce qu'on vient d'acheter si le disque casse.
+        assert job["mesh_url"] == "https://fal.test/model.glb", job
+        disque = json.loads(
+            (_dossier_noeud(did, "m1") / "job.json").read_text(encoding="utf-8"))
+        assert disque["mesh_url"] == "https://fal.test/model.glb"
     finally:
         A3D._upload, A3D._run_engine, A3D._download = vrai
 
 
-def test_les_refus_du_job_mesh3d_sont_nommes():
+def test_les_refus_du_job_mesh3d_sont_nommes(monkeypatch):
+    """Chaque refus a SON motif : couches absentes (409), nœud hors graphe
+    (400), couche trop lourde (413), clé de moteur manquante (503), job
+    inexistant (404)."""
     from app.config import settings as cfg
+    from app.services.cards import forge3d as F9
     did = _deck("Refus mesh3d")
     g = _graphe_mesh3d("meshy-7")
-    # sans couches livrées -> 409 motivé
     r = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1", json={"graph": g, "card": 0})
     assert r.status_code == 409 and "couches" in r.json()["detail"]
     _exporter_couches(did)
-    # nid absent du graphe -> 400 nommé
     r2 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/zzz", json={"graph": g, "card": 0})
     assert r2.status_code == 400
-    # moteur meshy sans clé ni mock -> 503 qui dit QUOI configurer
+    # M1 : la borne de POIDS de la couche source est vérifiée sur un `stat`,
+    # AVANT tout travail — la constante de production (64 Mo) n'est pas
+    # testable à taille réelle, on l'abaisse (idiome du fichier).
+    monkeypatch.setattr(F9, "MAX_LAYER_BYTES", 10)
+    rl = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+              json={"graph": g, "card": 0})
+    assert rl.status_code == 413, rl.text
+    assert "trop lourde" in rl.json()["detail"]
+    monkeypatch.undo()
     avant = (cfg.MESHY_API_KEY, cfg.MESHY_MOCK)
     cfg.MESHY_API_KEY, cfg.MESHY_MOCK = "", False
     try:
@@ -910,30 +1097,103 @@ def test_les_refus_du_job_mesh3d_sont_nommes():
         assert r3.status_code == 503 and "MESHY_API_KEY" in r3.json()["detail"]
     finally:
         cfg.MESHY_API_KEY, cfg.MESHY_MOCK = avant
-    # jamais lancé -> GET 404
     r4 = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/m1")
     assert r4.status_code == 404
+    # aucun refus n'a laissé de dossier derrière lui
+    assert not _dossier_noeud(did, "m1").exists()
+
+    # TRAVERSÉE (constatée en auto-revue) : un nid qui n'est QUE des points
+    # n'est pas un NOM de dossier, c'est un SAUT — `nodes/..` désigne
+    # `forge3d/`, que la réinitialisation du nœud efface au rmtree. Un seul
+    # lancement sur un nœud nommé `..` détruisait toutes les couches du deck.
+    from app.services.cards.contract import deck_dir
+    for mechant in ("..", ".", "...", "a" * 25):
+        assert not F9._NID_RE.match(mechant), mechant
+    # le CONFINEMENT, par-dessus le motif (doctrine deck_dir : ceinture et
+    # bretelles) : les deux noms qui sont vraiment des sauts de chemin.
+    for saut in ("..", "."):
+        with pytest.raises(Exception):
+            F9._node_dir(did, saut, create=True)
+    for mechant in ("..", ".", "...", "a" * 25):
+        g2 = json.loads(json.dumps(g))
+        g2["nodes"][1]["id"] = mechant
+        g2["edges"] = [{"from": "s1", "to": mechant}]
+        chemin = mechant.replace(".", "%2e")
+        rr = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/{chemin}",
+                  json={"graph": g2, "card": 0})
+        assert rr.status_code in (400, 404), (mechant, rr.status_code, rr.text)
+    # ...et les couches exportées du deck sont TOUJOURS là
+    assert (deck_dir(did) / "forge3d" / "illustration_c01_front.png").is_file()
 
 
-def test_un_job_running_orphelin_apres_redemarrage_est_avoue():
-    """job.json dit `running` mais le registre mémoire ne le connaît pas
-    (procès redémarré) : le GET le bascule en failed « interrompu »."""
+def test_un_job_running_orphelin_apres_redemarrage_est_avoue(monkeypatch):
+    """Le registre mémoire ne survit pas au processus : un `running` sur
+    disque sans tâche vivante est un ORPHELIN — avoué, jamais laissé tourner
+    en rond dans l'écran."""
+    import time as _t
+    from app.services.cards import forge3d as F9
     did = _deck("Orphelin")
-    base = OUTPUTS / "decks" / did / "forge3d" / "nodes" / "m1"
+    base = _dossier_noeud(did, "m1")
     base.mkdir(parents=True, exist_ok=True)
     (base / "job.json").write_text(json.dumps(
-        {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "meshy-7",
-         "status": "running", "progress": 50}), encoding="utf-8")
+        {"schema": "card-3d/mesh3d-job@1", "node": "m1", "engine": "tripo",
+         "run_id": "d" * 32, "status": "running", "progress": 50}),
+        encoding="utf-8")
+
+    # L'AUTRE moitié du garde-fou, celle qui ne doit PAS se déclencher : tant
+    # que le marqueur de lancement est frais (la tâche de fond n'a pas encore
+    # démarré — le serveur ne la lance qu'après l'envoi de la réponse), le job
+    # est VIVANT et le poll doit le voir « running », pas « failed ».
+    F9._MESH3D_RUNNING[(did, "m1")] = _t.monotonic()
+    try:
+        r0 = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/m1")
+        assert r0.status_code == 200 and r0.json()["status"] == "running", r0.text
+        # ...et ce marqueur PÉRIME : sans péremption, un lancement dont la
+        # tâche n'est jamais partie bloquerait le nœud jusqu'au redémarrage.
+        F9._MESH3D_RUNNING[(did, "m1")] = _t.monotonic() - F9.MESH3D_LAUNCH_GRACE_S - 1
+        assert F9._mesh3d_vivant(did, "m1") is False
+    finally:
+        F9._MESH3D_RUNNING.pop((did, "m1"), None)
+
     r = _api("GET", f"/api/cards/{did}/forge3d/mesh3d/m1")
     assert r.status_code == 200
     assert r.json()["status"] == "failed"
     assert "interrompu" in r.json()["error"]
+    # le motif dit CE QU'ON A CONSTATÉ (aucune tâche vivante), pas une cause
+    # devinée : un redémarrage n'est qu'UNE des façons de perdre la tâche.
+    assert r.json()["error"] == ("interrompu (aucune tache vivante) - "
+                                 "relancer le noeud")
+    # l'aveu est PERSISTÉ, pas seulement servi : un second appel le relit tel
+    # quel (sinon l'écran verrait « running » à chaque rechargement).
+    disque = json.loads((base / "job.json").read_text(encoding="utf-8"))
+    assert disque["status"] == "failed" and "interrompu" in disque["error"]
+
+    # ...et il est DÉFINITIF : le run_id est invalidé, donc un runner en retard
+    # (envoi de réponse resté coincé au-delà de la péremption du marqueur) qui
+    # démarrerait enfin ne peut PLUS contredire ce que l'écran vient de
+    # montrer — sa clôture échoue et il abandonne SANS DÉPENSER.
+    assert r.json()["run_id"] is None
+    assert disque["run_id"] is None
+    from app.services import asset3d_service as A3D
+
+    async def jamais(*a, **k):
+        raise AssertionError("un runner en retard ne doit RIEN depenser")
+
+    monkeypatch.setattr(A3D, "_upload", jamais)
+    monkeypatch.setattr(A3D, "_run_engine", jamais)
+    fige = (base / "job.json").read_bytes()
+    asyncio.run(F9._run_mesh3d(
+        did, "m1", {"id": "m1", "kind": "mesh3d", "engine": "tripo",
+                    "texture_prompt": "", "ultra": False}, "fal",
+        {"role": "illustration", "side": "front",
+         "file": "illustration_c01_front.png", "sha256": None}, "d" * 32))
+    assert (base / "job.json").read_bytes() == fige, "l'aveu a ete contredit"
 ```
 
 NOTE au rédacteur des tests : `OUTPUTS` = la racine outputs des tests (le fichier de
 test a déjà sa manière d'atteindre `outputs/decks/{did}` pour relire les fichiers —
-réutiliser EXACTEMENT le même mécanisme que les tests 2a de `build3d`, et supprimer la
-ligne factice `ndir…x-noop` ci-dessus qui n'existe que pour rappeler cette adaptation).
+réutiliser EXACTEMENT le même mécanisme que les tests 2a de `build3d` ; la ligne
+factice `ndir…x-noop` du plan d'origine est retirée de l'extrait, comme du test livré).
 Le test 409-concurrent n'est PAS écrit : le mock à vitesse 0.01 finit trop vite pour
 le fenêtrer de façon fiable — la garde est couverte par relecture de code en revue.
 
@@ -944,13 +1204,25 @@ Run : run-tests -Filter cards_forge3d → FAIL (routes absentes).
 ```python
 def read_glb(data: bytes) -> tuple[dict, bytes]:
     """Document JSON + chunk BIN d'un GLB. ValueError NOMMÉE sinon (la route
-    la transforme en refus motivé, jamais un 500)."""
+    la transforme en refus motivé, jamais un 500).
+
+    Le chunk BIN est FACULTATIF (un GLB peut n'avoir que du JSON) : absent,
+    on rend b"" plutôt que de lever — c'est `glb_scene_mesh` qui décidera si
+    l'absence de géométrie est une faute, avec SON message."""
+    if not isinstance(data, (bytes, bytearray)):
+        raise ValueError("pas un GLB (octets attendus)")
+    data = bytes(data)
     if len(data) < 20 or data[:4] != b"glTF":
         raise ValueError("pas un GLB (magie glTF absente)")
     doc_len = struct.unpack("<I", data[12:16])[0]
     if 20 + doc_len > len(data):
         raise ValueError("GLB tronqué (chunk JSON)")
-    doc = json.loads(data[20:20 + doc_len].decode("utf-8").rstrip("\x00 "))
+    try:
+        doc = json.loads(data[20:20 + doc_len].decode("utf-8").rstrip("\x00 "))
+    except (ValueError, UnicodeDecodeError) as e:
+        raise ValueError(f"GLB au document JSON illisible ({e})") from e
+    if not isinstance(doc, dict):
+        raise ValueError("GLB au document JSON qui n'est pas un objet")
     off = 20 + doc_len
     binv = b""
     if off + 8 <= len(data):
@@ -960,40 +1232,87 @@ def read_glb(data: bytes) -> tuple[dict, bytes]:
 
 
 def _accessor_floats(doc: dict, binv: bytes, idx: int) -> list[float]:
-    acc = doc["accessors"][idx]
-    bv = doc["bufferViews"][acc["bufferView"]]
-    off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
-    n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
-    return list(struct.unpack_from("<" + "f" * (acc["count"] * n), binv, off))
+    acc, off = _accessor_view(doc, idx)
+    # LE COUPLAGE, RENDU EXPLICITE (résidu de la re-revue Task 6) : ce lecteur
+    # ne décode QUE du float32 (5126). Un accesseur quantifié
+    # (KHR_mesh_quantization : 5120/5121/5122/5123) relu ici en flottants
+    # rendrait des positions ABSURDES sans lever — un GLB parfaitement valide
+    # qui mesure et imprime la mauvaise chose. C'est LA raison pour laquelle
+    # `_EXIG_CONNUES` n'accueille pas cette extension : la garde et l'allowlist
+    # disent maintenant la même chose, chacune à son étage.
+    ct = acc.get("componentType") if isinstance(acc, dict) else None
+    if ct != 5126:
+        raise ValueError(f"accesseur {idx!r} non float32 (componentType "
+                         f"{ct!r}) — quantization non fusionnable")
+    try:
+        n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
+        return list(struct.unpack_from("<" + "f" * (int(acc["count"]) * n),
+                                       binv, off))
+    except (KeyError, TypeError, ValueError, struct.error) as e:
+        raise ValueError(f"accesseur flottant {idx!r} illisible ({e})") from e
 
 
 def _accessor_indices(doc: dict, binv: bytes, idx: int) -> list[int]:
-    acc = doc["accessors"][idx]
-    bv = doc["bufferViews"][acc["bufferView"]]
-    off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
-    fmt = {5121: "B", 5123: "H", 5125: "I"}[acc["componentType"]]
-    return list(struct.unpack_from("<" + fmt * acc["count"], binv, off))
+    acc, off = _accessor_view(doc, idx)
+    try:
+        fmt = {5121: "B", 5123: "H", 5125: "I"}[acc["componentType"]]
+        return list(struct.unpack_from("<" + fmt * int(acc["count"]), binv, off))
+    except (KeyError, TypeError, ValueError, struct.error) as e:
+        raise ValueError(f"accesseur d'indices {idx!r} illisible ({e})") from e
 
 
-def glb_scene_mesh(data: bytes) -> dict:
-    """Concatène POSITION+indices de TOUTES les primitives triangles d'un GLB
-    en un mesh {positions, indices} pour mesh_measures/STL. Les transforms de
-    nœuds INTERNES sont ignorés (les GLB des moteurs sont un maillage centré —
-    limitation documentée, le bordereau relit les octets de toute façon).
-    ValueError nommée si une primitive n'est pas indexée."""
+def glb_scene_mesh(data: bytes, world: bool = False) -> dict:
+    """Concatène POSITION+indices des primitives triangles d'un GLB en un mesh
+    {positions, indices} pour `mesh_measures`/STL. ValueError nommée si rien
+    n'est mesurable.
+
+    `world=False` (défaut, contrat de la tâche 4) : TOUTES les primitives du
+    document, positions BRUTES, transforms de nœuds IGNORÉS. C'est ce qu'il
+    faut pour une mesure de TOPOLOGIE — `closed` ne dépend d'aucun transform,
+    et un mesh que rien n'instancie compte quand même comme géométrie livrée.
+
+    `world=True` (tâche 6) : la scène TELLE QU'ELLE SERA VUE — descente du
+    graphe de nœuds, matrices COMPOSÉES, positions dans le repère de la scène.
+    C'est ce qu'il faut pour PLACER (fit) et pour IMPRIMER (STL), les deux
+    devant montrer la même chose que le GLB. Repli automatique sur le
+    balayage brut si AUCUN nœud n'instancie de mesh (le GLB du simulateur
+    Meshy, entre autres) : une géométrie orpheline vaut mieux que rien.
+
+    Une primitive SANS `indices` n'est PAS une faute : glTF 2.0 la définit
+    comme un tirage NON INDEXÉ, ses sommets se suivant dans l'ordre. Le GLB du
+    simulateur Meshy est exactement cela (un triangle nu) — la refuser ferait
+    échouer une mesure parfaitement calculable."""
     doc, binv = read_glb(data)
-    positions, indices = [], []
-    for mesh in doc.get("meshes") or []:
-        for prim in mesh.get("primitives") or []:
-            if prim.get("mode", 4) != 4:
-                continue                      # seuls les TRIANGLES comptent
-            if "indices" not in prim or "POSITION" not in prim.get("attributes", {}):
-                raise ValueError("primitive sans indices/POSITION")
-            base = len(positions) // 3
-            positions += _accessor_floats(doc, binv, prim["attributes"]["POSITION"])
-            indices += [base + i for i in _accessor_indices(doc, binv, prim["indices"])]
+    couples: list = []
+    if world:
+        meshes = doc.get("meshes")
+        meshes = meshes if isinstance(meshes, list) else []
+        for mi, monde in _meshes_du_monde(doc):
+            if 0 <= mi < len(meshes):
+                couples.extend((prim, monde) for prim in _mesh_prims(meshes[mi]))
+    if not couples:
+        couples = [(prim, None) for prim in _triangle_prims(doc)]
+    positions: list[float] = []
+    indices: list[int] = []
+    for prim, monde in couples:
+        attrs = prim.get("attributes")
+        if not isinstance(attrs, dict) or "POSITION" not in attrs:
+            raise ValueError("primitive triangle sans POSITION")
+        base = len(positions) // 3
+        pts = _accessor_floats(doc, binv, attrs["POSITION"])
+        positions += pts if monde is None else _applique_mat4(pts, monde)
+        if prim.get("indices") is None:
+            indices += list(range(base, base + len(pts) // 3))
+        else:
+            indices += [base + i
+                        for i in _accessor_indices(doc, binv, prim["indices"])]
     if not indices:
         raise ValueError("aucune primitive triangle dans le GLB")
+    # dernier garde-fou AVANT que `mesh_measures` n'indexe : un indice hors
+    # bornes (GLB de moteur malformé) y lèverait un IndexError nu — donc un
+    # 500 chez l'appelant, exactement ce que ce module s'interdit.
+    if (max(indices) + 1) * 3 > len(positions):
+        raise ValueError("GLB aux indices hors bornes (maillage incohérent)")
     return {"positions": positions, "indices": indices}
 ```
 
@@ -1002,7 +1321,7 @@ def glb_scene_mesh(data: bytes) -> dict:
 Registre + utilitaires (module-level) :
 ```python
 _MESH3D_RUNNING: dict[tuple, "asyncio.Task"] = {}
-_NID_RE = re.compile(r"^[A-Za-z0-9._-]{1,24}$")
+_NID_RE = re.compile(r"^(?!\.+$)[A-Za-z0-9._-]{1,24}$")
 
 
 def _node_dir(did: str, nid: str, create: bool = False) -> Path: ...
@@ -1142,7 +1461,6 @@ si demandé, avec l'attribut TANGENT), le tout dans **`extensionsUsed` UNIQUEMEN
 def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
     """normal/MR/ao câblées ; le pack MR suit la convention glTF (G=rugosité,
     B=métal — doctrine pbr_service) ; relu dans les OCTETS du GLB."""
-    from PIL import Image
     from app.services.cards import forge3d_scene as SC
     png = io.BytesIO(); Image.new("RGBA", (8, 8), (200, 30, 30, 255)).save(png, "PNG")
     maps = {
@@ -1173,40 +1491,107 @@ def test_la_matiere_habille_l_element_et_les_maps_sont_cuites():
     for s in doc["samplers"]:
         assert s["wrapS"] == 33071 and s["wrapT"] == 33071
 
+    # UNE FINITION SAUTE LE PACK MR (décision de revue Task 5). glTF MULTIPLIE
+    # facteur x texture : garder les deux donnerait rugosité = 0,12 x G/255 —
+    # une dorure posée sur une matière mate virerait au miroir noir, l'inverse
+    # de ce que les deux réglages disent séparément. Sémantique : la feuille
+    # holo REMPLACE la micro-surface, le RELIEF et l'OCCLUSION parlent encore.
+    el2 = dict(el, name="sceau",
+               finish=SC.holo_finish("dorure", aniso=False, out_px=64))
+    doc2, _ = _read_glb(SC.write_scene_glb([el2], name="x", extras={}))
+    m2 = doc2["materials"][0]
+    pbr2 = m2["pbrMetallicRoughness"]
+    assert "metallicRoughnessTexture" not in pbr2          # sauté, pas empilé
+    assert pbr2["roughnessFactor"] == 0.12 and pbr2["metallicFactor"] == 1.0
+    assert pbr2["baseColorFactor"] == [1.0, 0.84, 0.55, 1.0]
+    assert "normalTexture" in m2 and "occlusionTexture" in m2   # relief + AO
+    # la map MR n'est même plus EMBARQUÉE : rien ne la référencerait
+    assert not any(im["name"].endswith("-mr") for im in doc2["images"])
 
-def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe(tmp_path):
+
+def test_tile_maps_tuile_au_pas_physique_et_reste_deterministe(monkeypatch):
     """Une matière de la boutique, tuilée à tile_mm sur le ratio carte :
-    même graine -> mêmes octets ; le motif se répète au pas attendu."""
-    from PIL import Image
+    mêmes octets à chaque appel ; le motif se répète au pas attendu.
+    (tile_maps vit dans forge3d.py — décision de pureté du module scène.)
+
+    COTES À DIVISION EXACTE (correctif de revue Task 5) : 64x128 mm, pas de
+    32 mm, 256 px -> toile 128x256, tuile de 64 px. La première version
+    comparait x et x + W//2 sur 183 px de large pour une tuile de 92 — DEUX
+    TEXELS QUI NE SE CORRESPONDENT PAS, d'un texel près ; l'assertion ne
+    tenait que parce que la map demandée (`roughness`) était UNIFORME. Ici on
+    compare des TUILES ENTIÈRES, sur la map qui porte vraiment un motif."""
     from app.services import material_store as MSTORE
-    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
     mat = MSTORE.create_material(name="essai-2b")
-    tuile = Image.new("RGB", (64, 64), (10, 10, 10))
-    tuile.paste(Image.new("RGB", (8, 8), (250, 250, 250)), (0, 0))
-    MSTORE.save_maps(mat["id"], {"basecolor": tuile,
-                                 "roughness": Image.new("L", (64, 64), 100)})
-    a = SC.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
-                     w_mm=63.0, h_mm=88.0, out_px=256)
-    b = SC.tile_maps(mat["id"], ("roughness",), tile_mm=31.5,
-                     w_mm=63.0, h_mm=88.0, out_px=256)
-    assert list(a["roughness"].tobytes()) == list(b["roughness"].tobytes())
-    # 63 mm / 31.5 mm = 2 tuiles sur la largeur : les pixels (x) et (x + w/2)
-    # portent la même valeur
-    im = a["roughness"]
-    w, h = im.size
-    assert im.getpixel((3, 3)) == im.getpixel((3 + w // 2, 3))
+    try:
+        tuile = Image.new("RGB", (64, 64), (10, 10, 10))
+        tuile.paste(Image.new("RGB", (8, 8), (250, 250, 250)), (0, 0))
+        MSTORE.save_maps(mat["id"], {"basecolor": tuile,
+                                     "roughness": Image.new("L", (64, 64), 100)})
+        a = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=32.0,
+                         w_mm=64.0, h_mm=128.0, out_px=256)
+        b = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=32.0,
+                         w_mm=64.0, h_mm=128.0, out_px=256)
+        assert a["basecolor"].tobytes() == b["basecolor"].tobytes()
+        im = a["basecolor"]
+        assert im.size == (128, 256)          # ratio carte, division exacte
+        # 64 mm / 32 mm = 2 tuiles de 64 px : les tuiles voisines sont
+        # identiques OCTET POUR OCTET, à l'horizontale comme à la verticale.
+        coin = im.crop((0, 0, 64, 64)).tobytes()
+        assert im.crop((64, 0, 128, 64)).tobytes() == coin
+        assert im.crop((0, 64, 64, 128)).tobytes() == coin
+        # ...et le motif est bien LÀ : sans ça les égalités ci-dessus seraient
+        # vraies d'une toile unie (le piège exact de la version précédente).
+        assert im.getpixel((2, 2))[0] > im.getpixel((40, 40))[0] + 100
+        import pytest as _pt
+        # matière introuvable -> ValueError nommée
+        with _pt.raises(ValueError):
+            F9.tile_maps("mat_inexistant00", ("basecolor",), 63.0, 63.0, 88.0)
+        # cote nulle, négative, ou PAS NUMÉRIQUE : refus NOMMÉ — jamais un
+        # ZeroDivisionError ni un TypeError nus (ce serait un 500).
+        for cotes in ((0.0, 63.0, 88.0), (31.5, -1.0, 88.0),
+                      (31.5, 63.0, 0.0), ("31,5", 63.0, 88.0)):
+            with _pt.raises(ValueError):
+                F9.tile_maps(mat["id"], ("basecolor",), *cotes)
+        # out_px borné au MÊME plafond que les finitions (bornes symétriques)
+        gros = F9.tile_maps(mat["id"], ("basecolor",), 32.0, 64.0, 64.0,
+                            out_px=99999)["basecolor"]
+        assert gros.size == (F9.HOLO_PX[1], F9.HOLO_PX[1]) == (2048, 2048)
+        # LA BORNE DE L'ALLOCATION DÉRIVÉE (résidu de re-revue Task 5) : à
+        # tile_mm=200 sur une carte mini de 31,75 mm, `W x tile_mm / w_mm`
+        # visait 12 900 px de côté — une tuile de ~500 Mo en RGB, depuis des
+        # entrées PARFAITEMENT LÉGALES (les deux sont dans les bornes
+        # publiées). Le pixel rendu, lui, ne change pas d'un poil : une tuile
+        # plus grande que la toile est collée UNE fois puis rognée. La seule
+        # trace observable est donc la taille DEMANDÉE au rééchantillonnage —
+        # espionnée ici, faute de quoi la borne ne serait qu'un commentaire.
+        demandes = []
+        vrai_resize = Image.Image.resize
+
+        def resize_espion(self, size, *a, **kw):
+            demandes.append(tuple(size))
+            return vrai_resize(self, size, *a, **kw)
+
+        monkeypatch.setattr(Image.Image, "resize", resize_espion)
+        petit = F9.tile_maps(mat["id"], ("basecolor",), tile_mm=200.0,
+                             w_mm=31.75, h_mm=44.45, out_px=256)["basecolor"]
+        monkeypatch.undo()
+        assert petit.size == (183, 256)      # ratio de la carte mini
+        assert demandes, "aucun reechantillonnage observe"
+        assert max(max(s) for s in demandes) <= max(petit.size), demandes
+    finally:
+        MSTORE.delete_material(mat["id"])
 
 
 def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     """§6.2bis-c : extensions dans extensionsUsed UNIQUEMENT, facteurs exacts,
     épaisseur en secteurs radiaux relue dans le canal G, TANGENT présent quand
     l'anisotropie est demandée, clearcoat posé. Déterminisme prouvé."""
-    from PIL import Image
     from app.services.cards import forge3d_scene as SC
     png = io.BytesIO(); Image.new("RGBA", (8, 8), (220, 220, 220, 255)).save(png, "PNG")
     f1 = SC.holo_finish("argent", aniso=True, out_px=256)
     f2 = SC.holo_finish("argent", aniso=True, out_px=256)
-    assert f1["iridescence"]["png"] == f2["iridescence"]["png"]   # même octets
+    assert f1["iridescence"]["png"] == f2["iridescence"]["png"]   # mêmes octets
     el = {"name": "sceau", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
           "alpha": False, "z_mm": 0.0, "finish": f1}
     glb = SC.write_scene_glb([el], name="x", extras={"unit": "metre"})
@@ -1232,6 +1617,19 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     assert "TANGENT" in prim["attributes"]
     acc = doc["accessors"][prim["attributes"]["TANGENT"]]
     assert acc["type"] == "VEC4" and acc["count"] == 4
+    # LE SIGNE DE w : -1, PAS +1 — relu dans les OCTETS, pas déduit du code.
+    # Nos UV sont inversées en v (`quad_mesh`), donc dP/dv = -y quand
+    # cross(N, T) = cross(+z, +x) = +y : la règle glTF (w = signe de
+    # dot(cross(N,T), B)) donne -1, ce que `gltf_builder.py:485` calcule déjà
+    # pour les maillages du dépôt. Avec +1 le champ anisotrope devient RADIAL
+    # sur les diagonales et le vert d'une normal map s'inverse.
+    bvt = doc["bufferViews"][acc["bufferView"]]
+    offt = bvt.get("byteOffset", 0) + acc.get("byteOffset", 0)
+    for k in range(acc["count"]):
+        tx, ty, tz, tw = struct.unpack_from("<4f", binv, offt + k * 16)
+        assert (tx, ty, tz) == (1.0, 0.0, 0.0), (k, tx, ty, tz)
+        assert tw == -1.0, (k, tw)
+    assert acc["min"][3] == -1.0 and acc["max"][3] == -1.0
     # l'épaisseur varie AUTOUR du centre : 4 angles -> >= 3 valeurs G distinctes
     img_idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
     bv = doc["bufferViews"][doc["images"][img_idx]["bufferView"]]
@@ -1241,6 +1639,33 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
     gs = {tex.getpixel((cx + r, cy))[1], tex.getpixel((cx - r, cy))[1],
           tex.getpixel((cx, cy + r))[1], tex.getpixel((cx + int(r * 0.7), cy + int(r * 0.7)))[1]}
     assert len(gs) >= 3, gs
+    # LE PEIGNE EST TANGENT AU PÉRIMÈTRE, pas radial : le produit scalaire
+    # (R-127,5 ; G-127,5).(dx ; dy) est nul aux arrondis près (borne exacte :
+    # 0,5 par canal). Un champ RADIAL — une texture d'anisotropie qui porterait
+    # la DIRECTION du rayon au lieu de sa perpendiculaire — y donnerait
+    # ~127,5 x r, deux ordres de grandeur plus haut.
+    #
+    # RECTIFICATIF (re-revue Task 5) : cet assert et le `tw == -1` ci-dessus
+    # sont COMPLÉMENTAIRES, pas redondants — ne jamais supprimer le second en
+    # le croyant couvert par celui-ci. Ils mesurent deux objets différents :
+    # `tw` épingle la MAIN du repère tangent (l'attribut du maillage), celui-ci
+    # épingle le CHAMP dans l'espace des pixels (les octets de la texture). Une
+    # tangente de mauvaise main laisse cette texture PARFAITEMENT
+    # perpendiculaire — elle ne la touche pas — et ne se voit que sur `tw` ;
+    # inversement une texture radiale passerait le `tw`. Il faut les deux.
+    i_ani = doc["textures"][ani["anisotropyTexture"]["index"]]["source"]
+    bva = doc["bufferViews"][doc["images"][i_ani]["bufferView"]]
+    tex_a = Image.open(io.BytesIO(
+        binv[bva["byteOffset"]:bva["byteOffset"] + bva["byteLength"]]))
+    ca = tex_a.size[0] // 2
+    for dx, dy in ((60, 0), (0, 60), (42, 42), (-42, 42), (-55, -20),
+                   (30, -70), (-70, 30)):
+        rr, gg, bb = tex_a.getpixel((ca + dx, ca + dy))[:3]
+        scal = (rr - 127.5) * dx + (gg - 127.5) * dy
+        assert abs(scal) <= 0.5 * (abs(dx) + abs(dy)) + 1.0, (dx, dy, scal)
+        # et le canal B reste à 255 : l'extension MULTIPLIE la force par lui,
+        # à 0 la finition serait invisible partout (amendement Task 5).
+        assert bb == 255, (dx, dy, bb)
     # la dorure a SA recette
     fd = SC.holo_finish("dorure", aniso=False, out_px=128)
     assert fd["pbr"]["baseColorFactor"] == [1.0, 0.84, 0.55, 1.0]
@@ -1253,11 +1678,22 @@ def test_les_finitions_holo_suivent_la_recette_et_restent_optionnelles():
            "alpha": True, "z_mm": 0.0}
     doc2, _ = _read_glb(SC.write_scene_glb([el2], name="x", extras={}))
     assert "extensionsUsed" not in doc2 and "extensions" not in doc2["materials"][0]
+    # LES DEUX GARDES, PROUVÉES et pas seulement écrites (revue Task 5) : une
+    # finition inconnue est REFUSÉE (la remplacer en douce par l'argent
+    # livrerait une carte fausse sans que personne le sache), et out_px est
+    # ramené au plafond §6.2bis au lieu de cuire 4096² pour rien.
+    with pytest.raises(ValueError):
+        SC.holo_finish("cuivre", aniso=False, out_px=128)
+    borne = SC.holo_finish("argent", aniso=False, out_px=99999)
+    assert Image.open(io.BytesIO(borne["iridescence"]["png"])).size == \
+        (SC.HOLO_PX[1], SC.HOLO_PX[1]) == (2048, 2048)
+    assert Image.open(io.BytesIO(
+        SC.holo_finish("argent", aniso=False, out_px=1)["iridescence"]["png"]
+    )).size == (SC.HOLO_PX[0], SC.HOLO_PX[0])
 
 
 def test_le_transform_porte_le_trs_du_noeud():
     from app.services.cards import forge3d_scene as SC
-    from PIL import Image
     png = io.BytesIO(); Image.new("RGBA", (4, 4), (1, 2, 3, 255)).save(png, "PNG")
     el = {"name": "e", "mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue(),
           "alpha": True, "z_mm": 0.0,
@@ -1273,62 +1709,141 @@ def test_le_transform_porte_le_trs_du_noeud():
 
 Run : FAIL (material_pngs/tile_maps/holo_finish absents, writer ignore les clés).
 
-- [x] **Step 2 : implémentation dans forge3d_scene.py**
+- [x] **Step 2 : implémentation (forge3d_scene.py ; `tile_maps` vit dans forge3d.py — revue)**
 
 ```python
 def material_pngs(maps: dict) -> dict:
-    """PIL -> PNG octets prêts pour le writer : `normal` (RGB), `mr` (pack
-    glTF : G=rugosité, B=métal — conventions pbr_service), `ao` (L->RGB),
-    `emissive` (RGB). N'émet que ce qui existe."""
+    """Les maps d'une matière, CUITES en PNG pour le writer.
+
+    Sortie : `{"normal", "mr", "ao", "emissive"}` en octets PNG — SEULEMENT
+    ce qui existe en entrée (une matière sans normale ne fabrique pas une
+    normale plate pour faire nombre). Le pack `mr` suit la convention glTF,
+    celle que le lab Matières applique déjà à son ORM (R=AO, G=Roughness,
+    B=Metallic) : ici R est neutre (255), G porte la rugosité, B la
+    métallicité. L'occlusion voyage à part parce que le writer la câble sur
+    SON entrée dédiée (`occlusionTexture`), pas dans le pack.
+
+    Rugosité ou métallicité SEULE : le canal manquant prend le neutre du
+    MOTEUR — rugosité 255 (entièrement mate) et métallicité 0 (diélectrique).
+    Un zéro par défaut dans les deux cas rendrait un MIROIR PARFAIT à qui ne
+    fournit qu'une rugosité.
+
+    Les niveaux sont DANS les octets : c'est le writer qui remet
+    metallicFactor/roughnessFactor à 1.0 (doctrine `RENDER_NOTE` du lab
+    Matières — appliquer le curseur EN PLUS le compterait deux fois)."""
+    # PIL importé LOCALEMENT : ce module ne dépend de PIL que là où il
+    # FABRIQUE une image ; la géométrie, elle, en reçoit et n'a rien à
+    # importer (patron déjà en place dans `relief_mesh`).
     from PIL import Image
-    out = {}
-
-    def _png(im):
-        b = io.BytesIO()
-        im.save(b, "PNG")
-        return b.getvalue()
-
-    if maps.get("normal") is not None:
-        out["normal"] = _png(maps["normal"].convert("RGB"))
+    out: dict = {}
+    nrm = maps.get("normal")
+    if nrm is not None:
+        out["normal"] = _png_bytes(nrm.convert("RGB"))
+    ao = maps.get("ao")
+    if ao is not None:
+        out["ao"] = _png_bytes(ao.convert("L").convert("RGB"))
+    emi = maps.get("emissive")
+    if emi is not None:
+        out["emissive"] = _png_bytes(emi.convert("RGB"))
     rough, metal = maps.get("roughness"), maps.get("metallic")
     if rough is not None or metal is not None:
-        ref = rough if rough is not None else metal
-        size = ref.size
+        # taille de RÉFÉRENCE : la PLUS GRANDE des deux, pas la première venue.
+        # Un pack RGB exige trois canaux de même dimension (`Image.merge`
+        # lèverait sinon) ; aligner sur la plus petite JETTERAIT le détail de
+        # l'autre, définitivement, pour n'avoir rien gagné.
+        cotes = [im.size for im in (rough, metal) if im is not None]
+        taille = max(cotes, key=lambda s: s[0] * s[1])
         g = (rough.convert("L") if rough is not None
-             else Image.new("L", size, 255)).resize(size)
+             else Image.new("L", taille, 255))
         b = (metal.convert("L") if metal is not None
-             else Image.new("L", size, 0)).resize(size)
-        out["mr"] = _png(Image.merge("RGB", (Image.new("L", size, 255), g, b)))
-    if maps.get("ao") is not None:
-        out["ao"] = _png(maps["ao"].convert("L").convert("RGB"))
-    if maps.get("emissive") is not None:
-        out["emissive"] = _png(maps["emissive"].convert("RGB"))
+             else Image.new("L", taille, 0))
+        # filtre de rééchantillonnage EXPLICITE (convention de
+        # `material_store.resize_maps` : LANCZOS pour les maps de couleur,
+        # BICUBIC pour les maps de données). Le défaut de PIL a déjà changé
+        # d'une version à l'autre — le laisser implicite ferait dépendre nos
+        # octets de la version de Pillow installée, et le déterminisme est
+        # une PROMESSE ici, pas un effet de bord.
+        if g.size != taille:
+            g = g.resize(taille, Image.BICUBIC)
+        if b.size != taille:
+            b = b.resize(taille, Image.BICUBIC)
+        out["mr"] = _png_bytes(
+            Image.merge("RGB", (Image.new("L", taille, 255), g, b)))
     return out
 
 
-def tile_maps(mid: str, kinds: tuple, tile_mm: float, w_mm: float, h_mm: float,
-              out_px: int = 1024) -> dict:
-    """Les maps d'une matière de la boutique, TUILÉES au pas physique tile_mm
-    sur une toile au ratio de la carte — wrap-paste PIL déterministe. Niveaux
-    de la matière CUITS (bake_levels) : la carte montre ce que Material Forge
-    montre. Le tuilage est cuit -> le sampler du GLB reste CLAMP."""
+def tile_maps(mid, kinds, tile_mm, w_mm, h_mm, out_px=1024):
+    """Les maps d'une matière de la boutique, TUILÉES au pas physique
+    `tile_mm` sur une toile au ratio de la carte — collage par pavage PIL,
+    donc DÉTERMINISTE (aucun aléa, aucun bruit : deux appels rendent les mêmes
+    octets). Les niveaux de la matière sont CUITS (`bake_levels`), comme sur
+    tous les chemins de sortie du lab Matières : l'écran et le moteur
+    reçoivent le même pixel.
+
+    LE TUILAGE EST CUIT DANS LES PIXELS, et c'est le point : le sampler du GLB
+    peut rester CLAMP_TO_EDGE partout (invariant de `write_scene_glb` depuis
+    la 2a) au lieu de basculer en REPEAT pour ces textures-là — un REPEAT sur
+    une carte dont les UV débordent d'un cheveu répéterait le bord, pas le
+    motif.
+
+    `mid` introuvable -> ValueError NOMMÉE (l'appelant en fait un refus motivé,
+    jamais un 500 — doctrine 2.5). Idem pour une cote nulle, négative ou pas
+    numérique du tout : les cotes passent d'abord par `_num` (qui ne lève
+    JAMAIS — une chaîne y devient 0.0), et c'est la garde de positivité qui
+    refuse, NOMMÉMENT. Sans ce passage, `"31,5"` sortait en TypeError nu sur
+    la comparaison, et les trois divisions plus bas en ZeroDivisionError :
+    deux 500 sur une simple donnée d'entrée.
+
+    `out_px` est borné à `SC.HOLO_PX` (8..2048) — LE MÊME plafond que les
+    finitions, exprès : les deux textures habillent la même carte, un plafond
+    dissymétrique n'aurait aucun sens (bornes symétriques, revue Task 5)."""
     from app.services import material_store as MSTORE
+    tile_mm = _num(tile_mm, 0.0, -1e6, 1e6)
+    w_mm = _num(w_mm, 0.0, -1e6, 1e6)
+    h_mm = _num(h_mm, 0.0, -1e6, 1e6)
+    if tile_mm <= 0 or w_mm <= 0 or h_mm <= 0:
+        raise ValueError(f"cotes de tuilage invalides : tile={tile_mm} "
+                         f"w={w_mm} h={h_mm} (toutes strictement positives)")
+    out_px = int(_num(out_px, 1024.0, *HOLO_PX))
     mat = MSTORE.read_material(mid)
     if mat is None:
         raise ValueError(f"matière introuvable : {mid}")
     maps = MSTORE.load_maps(mid, kinds=list(set(kinds) | {"basecolor"}))
     maps = MSTORE.bake_levels(maps, mat.get("props"))
+    # la toile prend le RATIO de la carte : `out_px` est le GRAND côté, l'autre
+    # s'en déduit — une toile carrée étirerait le motif d'un tiers sur une
+    # carte 63x88.
     W = out_px if w_mm >= h_mm else max(8, int(round(out_px * w_mm / h_mm)))
     H = out_px if h_mm > w_mm else max(8, int(round(out_px * h_mm / w_mm)))
-    tpx = max(4, int(round(W * tile_mm / w_mm)))
+    # BORNE L'ALLOCATION DÉRIVÉE (résidu de re-revue Task 5) : mêmes entrées
+    # légales, jamais 127 Mo d'intermédiaire — même classe que la faute des
+    # bornes d'entrée. `tile_mm` va jusqu'à 200 mm et `w_mm` peut valoir
+    # 31,75 mm (mini US) : `W * tile_mm / w_mm` atteignait 12 900 px pour une
+    # toile de 2048, soit une tuile de 500 Mo en RGB. Une tuile PLUS GRANDE
+    # que la toile est de toute façon collée une fois puis rognée — la borner
+    # au grand côté de la toile ne change RIEN au pixel rendu.
+    tpx = max(4, min(max(W, H), int(round(W * tile_mm / w_mm))))
     out = {}
+    from PIL import Image as _I
     for kind in kinds:
         src = maps.get(kind)
         if src is None:
             continue
-        tuile = src.resize((tpx, tpx))
-        toile = src.__class__.new(src.mode, (W, H)) if False else None  # (voir note)
-        from PIL import Image as _I
+        # `resize` NU, et pas `material_store.resize_maps` : celui-ci passe par
+        # `clean_preview_res`, qui SNAPPERAIT `tpx` sur la liste blanche des
+        # tailles servies (128/256/...) et détruirait le pas physique — la
+        # raison d'être de cette fonction. Coût connu : une normale
+        # rééchantillonnée n'est plus exactement unitaire (`resize_maps`, lui,
+        # renormalise) ; l'écart est sous le bruit d'un octet à ces tailles.
+        #
+        # Filtre EXPLICITE, convention de `material_store.resize_maps:1033` :
+        # LANCZOS pour les maps de couleur, BICUBIC pour les maps de données.
+        # Le défaut de PIL a déjà changé d'une version à l'autre — l'implicite
+        # ferait dépendre nos octets de la version de Pillow installée, et le
+        # déterminisme est une PROMESSE ici.
+        filtre = (_I.LANCZOS if kind in ("basecolor", "emissive")
+                  else _I.BICUBIC)
+        tuile = src.resize((tpx, tpx), filtre)
         toile = _I.new(src.mode, (W, H))
         for y in range(0, H, tpx):
             for x in range(0, W, tpx):
@@ -1336,58 +1851,59 @@ def tile_maps(mid: str, kinds: tuple, tile_mm: float, w_mm: float, h_mm: float,
         out[kind] = toile
     return out
 ```
-(Nettoyer la ligne factice `toile = src.__class__...` au profit du `_I.new` — elle ne
-sert qu'à rappeler que `Image` s'importe en tête de fonction ou de module selon le
-style du fichier.)
 
 ```python
+# §6.2bis-c — les DEUX recettes de finition, chiffres de la spec, relus au bit
+# près par le test.
 _HOLO_RECIPES = {
-    # §6.2bis-c — chiffres de la spec, relus par le test au bit près.
     "argent": {"base": [0.95, 0.95, 0.97, 1.0], "rough": 0.12, "ior": 1.8,
                "thickness": [200.0, 900.0]},
     "dorure": {"base": [1.0, 0.84, 0.55, 1.0], "rough": 0.12, "ior": 1.6,
                "thickness": [200.0, 600.0]},
 }
-_HOLO_SECTORS = 48       # secteurs radiaux : mip-stable, zéro moiré (§6.2bis-c)
+_HOLO_SECTORS = 48   # secteurs radiaux : mip-stables, zéro moiré (§6.2bis-c)
+_HOLO_CYCLE = 8          # niveaux d'épaisseur, un cycle complet tous les 8
+_HOLO_ANISO_STRENGTH = 0.85
+_HOLO_CLEARCOAT_ROUGH = 0.06
+# §6.2bis : les finitions se cuisent entre 1024 et 2048. Le plafond est ICI,
+# et le MÊME que celui de `tile_maps` (bornes symétriques, revue Task 5) :
+# 4096² coûtait ~17 s et ~200 Mo pour un gain invisible sur une carte de
+# 63 mm — un chiffre venu d'un graphe ne doit pas pouvoir l'atteindre.
+HOLO_PX = (8, 2048)
+
+# La liste blanche PUBLIÉE : l'appelant borne son entrée avec elle au lieu de
+# recopier deux noms qui dériveront (même patron que les blocs miroir).
+HOLO_KINDS = tuple(_HOLO_RECIPES)
 
 
 def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
-    """La finition holographique PRÊTE pour le writer : facteurs PBR de la
-    recette + iridescence (épaisseur en secteurs radiaux, canal G linéaire)
-    + clearcoat (le vernis laminé) + anisotropie optionnelle (direction
-    TANGENTE au périmètre encodée RG). PUR calcul : mêmes octets à chaque
-    appel — l'aperçu et le fichier livré sont le même monde."""
-    from PIL import Image
-    r = _HOLO_RECIPES[kind]
-    cx = cy = out_px / 2.0
-    tex = Image.new("RGB", (out_px, out_px))
-    px = tex.load()
-    for y in range(out_px):
-        for x in range(out_px):
-            ang = math.atan2(y - cy, x - cx)
-            sect = int(((ang + math.pi) / (2 * math.pi)) * _HOLO_SECTORS) % _HOLO_SECTORS
-            g = int(round(255 * ((sect % 8) / 7.0)))     # 8 paliers cycliques
-            px[x, y] = (0, g, 0)
-    b = io.BytesIO()
-    tex.save(b, "PNG")
-    out = {"pbr": {"baseColorFactor": r["base"], "metallicFactor": 1.0,
-                   "roughnessFactor": r["rough"]},
-           "iridescence": {"factor": 1.0, "ior": r["ior"],
-                           "thickness": r["thickness"], "png": b.getvalue()},
-           "clearcoat": {"factor": 1.0, "rough": 0.06},
-           "anisotropy": None}
-    if aniso:
-        atex = Image.new("RGB", (out_px, out_px))
-        apx = atex.load()
-        for y in range(out_px):
-            for x in range(out_px):
-                ang = math.atan2(y - cy, x - cx) + math.pi / 2.0   # tangente
-                apx[x, y] = (int(round((math.cos(ang) * 0.5 + 0.5) * 255)),
-                             int(round((math.sin(ang) * 0.5 + 0.5) * 255)), 0)
-        ab = io.BytesIO()
-        atex.save(ab, "PNG")
-        out["anisotropy"] = {"strength": 0.85, "png": ab.getvalue()}
-    return out
+    """UNE finition holographique de la spec (§6.2bis-c), prête pour le
+    writer : facteurs PBR, bloc iridescence (+ sa texture d'épaisseur),
+    clearcoat, et l'anisotropie SEULEMENT si on la demande.
+
+    `kind` hors `HOLO_KINDS` lève une ValueError NOMMÉE : une finition
+    inconnue silencieusement remplacée par l'argent livrerait une carte FAUSSE
+    sans que personne ne le sache. C'est à l'appelant de borner son entrée
+    AVANT (doctrine 2.5) — `HOLO_KINDS` lui donne la liste sans la recopier.
+
+    `out_px` est borné à `HOLO_PX` (8..2048, §6.2bis) : la texture est
+    fabriquée pixel par pixel en Python ; un chiffre non borné venu d'un
+    graphe serait une bombe mémoire."""
+    r = _HOLO_RECIPES.get(str(kind))
+    if r is None:
+        raise ValueError(f"finition holographique inconnue : {kind!r} "
+                         f"(connues : {', '.join(HOLO_KINDS)})")
+    px = max(HOLO_PX[0], min(HOLO_PX[1], int(_f(out_px, 1024.0))))
+    return {
+        "pbr": {"baseColorFactor": list(r["base"]),
+                "metallicFactor": 1.0, "roughnessFactor": r["rough"]},
+        "iridescence": {"factor": 1.0, "ior": r["ior"],
+                        "thickness": list(r["thickness"]),
+                        "png": _holo_thickness_png(px)},
+        "clearcoat": {"factor": 1.0, "rough": _HOLO_CLEARCOAT_ROUGH},
+        "anisotropy": ({"strength": _HOLO_ANISO_STRENGTH,
+                        "png": _holo_aniso_png(px)} if aniso else None),
+    }
 ```
 NOTE perf : la double boucle 1024² en Python pur ≈ 1 M d'itérations ×2 — acceptable
 pour UNE génération par build, mais si la mesure locale dépasse ~2 s, vectoriser via
@@ -1471,17 +1987,32 @@ git commit -m "feat(cardforge): matieres tuilees (pack MR glTF), finitions holo 
 - [x] **Step 1 : tests en RED**
 
 ```python
-def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None):
-    """Pose un nœud mesh3d SERVI sur disque (comme l'aurait fait Task 4)."""
-    base = OUTPUTS / "decks" / did / "forge3d" / "nodes" / nid
+def _job_servi(did, nid, glb: bytes, closed, engine="meshy-7", credits=None,
+               note=None, octets=None, source=None):
+    """Pose un nœud mesh3d SERVI sur disque, avec la forme EXACTE de job.json
+    qu'écrit `_run_mesh3d` (Task 4) — `bytes` compris : c'est LUI que le gate
+    de taille de la fusion relit, sans ouvrir le fichier. `octets` permet de
+    mentir sur cette taille (le gate doit croire le job, pas le disque)."""
+    base = _dossier_noeud(did, nid)
     (base / "textures").mkdir(parents=True, exist_ok=True)
     (base / "model.glb").write_bytes(glb)
     job = {"schema": "card-3d/mesh3d-job@1", "node": nid, "engine": engine,
-           "status": "served", "progress": 100, "error": None,
-           "closed": closed, "files": {"glb": "model.glb"}}
+           "provider": "meshy" if str(engine).startswith("meshy") else "fal",
+           "run_id": "essai-" + nid, "status": "served", "progress": 100,
+           "step": "Livré", "error": None, "closed": closed,
+           "closed_note": note, "triangles": 0,
+           "bytes": len(glb) if octets is None else int(octets),
+           "files": {"glb": "model.glb"}}
     if credits is not None:
         job["consumed_credits"] = credits
-    (base / "job.json").write_text(json.dumps(job), encoding="utf-8")
+    if source is not None:
+        # `source` dit de QUELLE couche ce GLB est né (la route l'écrit au
+        # lancement) — le laisser absent garde le comportement historique des
+        # tests qui ne s'y intéressent pas.
+        job["source"] = source
+    (base / "job.json").write_text(json.dumps(job, ensure_ascii=False),
+                                   encoding="utf-8")
+    return job
 
 
 def test_l_assemblage_fusionne_le_glb_externe_a_sa_place_de_couche():
@@ -1489,153 +2020,263 @@ def test_l_assemblage_fusionne_le_glb_externe_a_sa_place_de_couche():
     réindexé sous un parent au TRS calculé (ajusté à la BOÎTE MM de sa couche,
     centré, à z du transform), l'identité du doc externe est jetée, les
     accesseurs restent exacts, le STL mixte sort quand tout est fermé."""
-    from PIL import Image
-    from app.services.cards import forge3d_scene as SC
     did = _deck("Fusion")
     _exporter_couches(did)
-    # l'« externe » : un relief FERMÉ écrit par notre writer (bornes exactes
-    # garanties), taille connue 63x88 -> le fit se calcule de tête
-    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0, 0.3, 4)
-    relief["closed"] = True
-    png = io.BytesIO(); Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
-    ext = SC.write_scene_glb([{"name": "brut", "mesh": relief,
-                               "png": png.getvalue(), "alpha": False,
-                               "z_mm": 0.0}], name="brut", extras={})
-    _job_servi(did, "m1", ext, closed=True, engine="meshy-7", credits=30)
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="meshy-7",
+               credits=30)
 
     g = {"nodes": [
         {"id": "s1", "kind": "layer", "role": "illustration", "side": "front"},
-        {"id": "m1", "kind": "mesh3d", "engine": "meshy-7", "texture_prompt": "", "ultra": False},
+        {"id": "m1", "kind": "mesh3d", "engine": "meshy-7",
+         "texture_prompt": "", "ultra": False},
         {"id": "tr", "kind": "transform", "x_mm": 0, "y_mm": 0, "z_mm": 2.0,
          "rot_deg": 0, "scale": 1.0},
         {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
-        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3, "grid": 48},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
         {"id": "asm", "kind": "assemble"},
         {"id": "art", "kind": "artifact", "name": "fusion3d"}],
         "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "tr"},
                   {"from": "tr", "to": "asm"}, {"from": "s2", "to": "t2"},
                   {"from": "t2", "to": "asm"}, {"from": "asm", "to": "art"}]}
-    r = _api("POST", f"/api/cards/{did}/forge3d/build3d", json={"graph": g, "card": 0})
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
     assert r.status_code == 200, r.text
     b = r.json()["artifact"]
     glb = _api("GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
     doc, binv = _read_glb(glb)
+    # l'identité du document externe est JETÉE : le nôtre n'en émet aucune, le
+    # sien n'en apporte pas.
     plat = json.dumps(doc)
     for mot in ("generator", "copyright", "author", "producer"):
         assert f'"{mot}"' not in plat, mot
     racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
     noms = [doc["nodes"][k]["name"] for k in racine["children"]]
-    assert "illustration" in noms and "cadre" in noms
+    # DEUX enfants de racine, et deux SEULEMENT : les nœuds INTERNES du GLB
+    # externe restent sous SON parent — les hisser au rang de racine ferait
+    # exploser la carte en pièces détachées, chacune à l'origine.
+    assert sorted(noms) == ["cadre", "illustration"], noms
     parent_ext = doc["nodes"][racine["children"][noms.index("illustration")]]
-    # le fit : la couche illustration des couches synthétiques couvre une boîte
-    # mesurée au manifeste ; l'externe (63x88) y est mis à l'échelle et posé à
-    # z=2.0 — on relit le manifeste pour calculer l'attendu EXACT
-    man = json.loads(_api("GET", f"/api/cards/{did}/forge3d/file/layers_c00_front.json").content)
-    boite = next(l for l in man["layers"] if l["role"] == "illustration")["box_mm"]
-    bw = boite[2] - boite[0]; bh = boite[3] - boite[1]
-    s = min(bw / 63.0, bh / 88.0)
+    assert [doc["nodes"][k]["name"] for k in parent_ext["children"]] == ["brut"]
+    # LE FIT, RECALCULÉ DEPUIS LE MANIFESTE : la boîte de la couche
+    # illustration est mesurée à l'export (champ `bbox_mm`, repère TOILE —
+    # origine au coin de toile, y vers le BAS, fond perdu compris) ; l'externe
+    # (63x88) y est mis à l'échelle, centré, et posé à z du transform.
+    man = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/layers_c01_front.json").content)
+    boite = next(l for l in man["layers"]
+                 if l["role"] == "illustration")["bbox_mm"]
+    bw = boite[2] - boite[0]
+    bh = boite[3] - boite[1]
+    # NOTE D'ÉCHELLE, et ce n'est PAS un détail : ce faux-moteur est écrit par
+    # NOTRE writer, dont la racine porte le mm->m (0,001). Sa scène mesure donc
+    # 0,063 x 0,088, pas 63 x 88 — et c'est la taille RENDUE que le fit doit
+    # mesurer. Un fit calculé sur les positions BRUTES rendrait ici une pièce
+    # mille fois trop petite dans un GLB structurellement irréprochable.
+    mw, mh = 63.0 * 0.001, 88.0 * 0.001
+    s = min(bw / mw, bh / mh)
     assert abs(parent_ext["scale"][0] - s) < 1e-9
+    assert parent_ext["scale"] == [parent_ext["scale"][0]] * 3   # UNIFORME
+    # TOUT le z vient du transform (le fit ne le compte pas deux fois) : la
+    # base de l'externe est à z=0, donc translation z == 2.0 EXACTEMENT.
     assert abs(parent_ext["translation"][2] - 2.0) < 1e-9
-    # bornes des accesseurs du doc fusionné : toujours EXACTES (re-mesure)
-    import struct as _s
+    # ...et le centrage est celui de la boîte RAMENÉE au repère COUPE du
+    # maillage (origine coin de coupe, y vers le HAUT) : sans ce changement de
+    # repère, l'élément serait décalé du fond perdu sur les deux axes.
+    saignee = man["bleed_mm"]
+    cx = (boite[0] + boite[2]) / 2.0 - saignee - s * mw / 2.0
+    cy = (man["canvas_mm"][1] - (boite[1] + boite[3]) / 2.0) - saignee - s * mh / 2.0
+    assert abs(parent_ext["translation"][0] - cx) < 1e-6
+    assert abs(parent_ext["translation"][1] - cy) < 1e-6
+    # BORNES DES ACCESSEURS DU DOC FUSIONNÉ : toujours EXACTES (re-mesurées
+    # ici, pas relues du document) — la recopie vue par vue décale les
+    # offsets, elle ne doit toucher NI les octets NI les bornes.
+    vus = 0
     for acc in doc["accessors"]:
         if acc.get("componentType") != 5126 or "min" not in acc:
             continue
         bv = doc["bufferViews"][acc["bufferView"]]
         off = bv.get("byteOffset", 0) + acc.get("byteOffset", 0)
         n = {"VEC3": 3, "VEC2": 2, "VEC4": 4, "SCALAR": 1}[acc["type"]]
-        lo = [float("inf")] * n; hi = [float("-inf")] * n
+        lo = [float("inf")] * n
+        hi = [float("-inf")] * n
         for e2 in range(acc["count"]):
-            vals = _s.unpack_from("<" + "f" * n, binv, off + e2 * n * 4)
+            vals = struct.unpack_from("<" + "f" * n, binv, off + e2 * n * 4)
             for c in range(n):
-                lo[c] = min(lo[c], vals[c]); hi[c] = max(hi[c], vals[c])
-        assert acc["min"] == lo and acc["max"] == hi
-    # metadata : les moteurs utilisés, mesurés
-    meta = json.loads(_api("GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
+                lo[c] = min(lo[c], vals[c])
+                hi[c] = max(hi[c], vals[c])
+        assert acc["min"] == lo and acc["max"] == hi, acc
+        vus += 1
+    assert vus >= 6, vus            # 3 par élément au minimum, deux éléments
+    # RÉINDEXATION PROUVÉE : le matériau du maillage externe vise SON image
+    # (celle embarquée avec lui), pas celle du voisin local — un indice oublié
+    # au décalage donnerait un GLB parfaitement valide montrant la mauvaise
+    # texture, ce qu'aucun contrôle de structure ne verrait.
+    # (le faux-moteur est un GLB de NOTRE writer : sous son parent de fusion
+    # vient SA racine mm->m, et sous elle seulement le nœud porteur du mesh —
+    # la hiérarchie interne est GARDÉE telle quelle, pas aplatie)
+    n_brut = doc["nodes"][doc["nodes"][parent_ext["children"][0]]["children"][0]]
+    prim = doc["meshes"][n_brut["mesh"]]["primitives"][0]
+    tex_ext = doc["materials"][prim["material"]]["pbrMetallicRoughness"][
+        "baseColorTexture"]["index"]
+    assert doc["images"][doc["textures"][tex_ext]["source"]]["name"] == "brut"
+    # ...et son SAMPLER est le SIEN, ajouté, jamais notre CLAMP recyclé
+    tex_loc = doc["materials"][0]["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+    assert doc["textures"][tex_loc]["sampler"] == 0
+    assert doc["textures"][tex_ext]["sampler"] != 0
+    assert len(doc["samplers"]) >= 2
+    # metadata : les moteurs RÉELLEMENT utilisés, mesurés
+    meta = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
     types = {a["trait_type"]: a["value"] for a in meta["attributes"]}
     assert types["engines"] == "local+meshy-7"
     assert types["elements_3d"] == 2
+    # le bordereau dit QUI est local et QUI vient d'un moteur, et ce qu'il a coûté
+    detail = {e["name"]: e for e in b["elements_detail"]}
+    assert detail["cadre"]["kind"] == "local"
+    assert detail["illustration"]["kind"] == "externe"
+    assert detail["illustration"]["engine"] == "meshy-7"
+    assert detail["illustration"]["credits"] == 30
+    assert b["elements"] == 2
     # STL : les DEUX éléments sont fermés -> écrit, longueur exacte
-    assert b["stl"]["written"] is True
+    assert b["stl"]["written"] is True, b["stl"]
     stl = _api("GET", f"/api/cards/{did}/forge3d/file/{b['stl']['name']}").content
-    assert len(stl) == 84 + 50 * struct.unpack("<I", stl[80:84])[0]
+    n_tri = struct.unpack("<I", stl[80:84])[0]
+    assert len(stl) == 84 + 50 * n_tri
+    # LE MAILLAGE EXTERNE EST DANS LE STL, ET À SA PLACE. Le compte : celui
+    # des deux éléments réunis — mesuré en rebâtissant le MÊME graphe amputé
+    # de sa chaîne moteur (aucun chiffre recopié à la main).
+    from app.services.cards import forge3d_scene as SC
+    ext_tris = len(SC.glb_scene_mesh(_glb_externe_63x88())["indices"]) // 3
+    g_local = {"nodes": [n for n in g["nodes"] if n["id"] not in ("s1", "m1", "tr")],
+               "edges": [e for e in g["edges"]
+                         if e["from"] not in ("s1", "m1", "tr")]}
+    g_local["nodes"] = [dict(n, name="fusion3d_local") if n["kind"] == "artifact"
+                        else n for n in g_local["nodes"]]
+    r_l = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+               json={"graph": g_local, "card": 0})
+    assert r_l.status_code == 200, r_l.text
+    stl_l = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                 + r_l.json()["artifact"]["stl"]["name"]).content
+    assert n_tri == struct.unpack("<I", stl_l[80:84])[0] + ext_tris
+    # ...et à SA place : l'externe est posé à z=2.0 + son épaisseur mise à
+    # l'échelle, bien au-dessus du relief local (qui plafonne à 1,3 mm).
+    zmax = max(max(struct.unpack_from("<f", stl, k + 20)[0],
+                   struct.unpack_from("<f", stl, k + 32)[0],
+                   struct.unpack_from("<f", stl, k + 44)[0])
+               for k in range(84, 84 + 50 * n_tri, 50))
+    assert abs(zmax - (2.0 + s * 1.3 * 0.001)) < 1e-3, zmax
+    # ── LE MANIFESTE FAIT FOI pour le changement de repère (M6) : la toile et
+    # le fond perdu viennent de LUI, pas d'une re-dérivation depuis la
+    # géométrie courante. Preuve : on rallonge la toile DÉCLARÉE de 10 mm et
+    # le placement suit, exactement de 10 mm en y (une re-dérivation ne
+    # bougerait pas d'un cheveu).
+    p_man = _dossier_forge3d(did) / "layers_c01_front.json"
+    doctore = json.loads(p_man.read_text(encoding="utf-8"))
+    doctore["canvas_mm"] = [doctore["canvas_mm"][0],
+                            doctore["canvas_mm"][1] + 10.0]
+    p_man.write_text(json.dumps(doctore), encoding="utf-8")
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 200, r2.text
+    doc2, _ = _read_glb(_api(
+        "GET", "/api/cards/" + did + "/forge3d/file/"
+        + r2.json()["artifact"]["glb"]["name"]).content)
+    rac2 = doc2["nodes"][doc2["scenes"][0]["nodes"][0]]
+    noms2 = [doc2["nodes"][k]["name"] for k in rac2["children"]]
+    p2 = doc2["nodes"][rac2["children"][noms2.index("illustration")]]
+    assert abs(p2["translation"][1] - (cy + 10.0)) < 1e-6
+    assert abs(p2["translation"][0] - cx) < 1e-6      # x : inchangé
 
 
 def test_un_noeud_mesh3d_sans_glb_servi_refuse_l_assemblage():
     did = _deck("Trou")
     _exporter_couches(did)
     g = _graphe_mesh3d("meshy-7")
-    r = _api("POST", f"/api/cards/{did}/forge3d/build3d", json={"graph": g, "card": 0})
-    assert r.status_code == 409
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.text
     assert "m1" in r.json()["detail"] and "servi" in r.json()["detail"]
 
 
 def test_le_stl_mixte_refuse_un_externe_ouvert_ou_non_mesure():
+    """Le gate STL relit le `closed` CACHÉ au job (jamais une re-mesure) :
+    `False` refuse pour non-fermeture, `None` refuse pour non-MESURE, avec la
+    note du job — deux motifs distincts, jamais le même message recyclé."""
     from app.services.cards import forge3d_scene as SC
-    from PIL import Image
     did = _deck("Ouvert")
     _exporter_couches(did)
-    png = io.BytesIO(); Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
-    q = SC.quad_mesh(63.0, 88.0); q["closed"] = False
-    ext = SC.write_scene_glb([{"name": "plan", "mesh": q, "png": png.getvalue(),
-                               "alpha": True, "z_mm": 0.0}], name="p", extras={})
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    q = SC.quad_mesh(63.0, 88.0)
+    ext = SC.write_scene_glb([{"name": "plan", "mesh": q,
+                               "png": png.getvalue(), "alpha": True,
+                               "z_mm": 0.0}], name="p", extras={})
     _job_servi(did, "m1", ext, closed=False)
     g = _graphe_mesh3d("meshy-7")
-    r = _api("POST", f"/api/cards/{did}/forge3d/build3d", json={"graph": g, "card": 0})
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
     b = r.json()["artifact"]
     assert b["stl"]["written"] is False and "ferm" in b["stl"]["why"]
-    # closed=None (non mesuré) refuse aussi, motif différent
-    _job_servi(did, "m1", ext, closed=None)
-    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d", json={"graph": g, "card": 0})
-    assert r2.json()["artifact"]["stl"]["written"] is False
-    assert "mesur" in r2.json()["artifact"]["stl"]["why"]
+    assert "m1" in b["stl"]["why"] or "illustration" in b["stl"]["why"]
+    # un graphe SANS aucun élément local : les moteurs seuls font le metadata
+    meta = json.loads(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{b['metadata']['name']}").content)
+    types = {a["trait_type"]: a["value"] for a in meta["attributes"]}
+    assert types["engines"] == "meshy-7" and types["elements_3d"] == 1
+    # closed=None (non mesuré) refuse aussi, motif DIFFÉRENT — et la note du
+    # job voyage jusqu'au bordereau (le « pourquoi » du pourquoi).
+    _job_servi(did, "m1", ext, closed=None,
+               note="fermeture non mesurée : maillage trop lourd (2 triangles)")
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert r2.status_code == 200, r2.text
+    pourquoi = r2.json()["artifact"]["stl"]
+    assert pourquoi["written"] is False
+    assert "mesur" in pourquoi["why"] and "trop lourd" in pourquoi["why"]
+    assert pourquoi["why"] != b["stl"]["why"]
 
 
 def test_le_rebuild_efface_l_apercu_perime():
     """Legs 4 : rebâtir `carte3d` supprime carte3d_preview.png — le metadata
-    ne montre plus jamais l'ancien GLB."""
+    ne montre plus jamais l'aperçu d'un GLB qui n'existe plus."""
     did = _deck("Perime")
     _exporter_couches(did)
     g = {"nodes": [
         {"id": "s2", "kind": "layer", "role": "cadre", "side": "front"},
-        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3, "grid": 48},
+        {"id": "t2", "kind": "relief", "depth_mm": 1.0, "base_mm": 0.3,
+         "grid": 48},
         {"id": "asm", "kind": "assemble"},
         {"id": "art", "kind": "artifact", "name": "carte3d"}],
         "edges": [{"from": "s2", "to": "t2"}, {"from": "t2", "to": "asm"},
                   {"from": "asm", "to": "art"}]}
     assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
                 json={"graph": g, "card": 0}).status_code == 200
-    fdir = OUTPUTS / "decks" / did / "forge3d"
+    fdir = _dossier_forge3d(did)
     (fdir / "carte3d_preview.png").write_bytes(_png(Image.new("RGBA", (4, 4))))
-    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
-                json={"graph": g, "card": 0}).status_code == 200
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
     assert not (fdir / "carte3d_preview.png").exists()
+    # le bordereau reste HONNÊTE : l'aperçu est attendu, pas écrit
+    assert r.json()["artifact"]["preview"] == {
+        "expected": "carte3d_preview.png", "written": False}
 
 
 def test_le_glb_externe_a_images_uri_est_refuse_motive():
+    """Rien ne se télécharge à l'assemblage : un GLB dont les images vivent
+    au bout d'une URL est REFUSÉ NOMMÉMENT, pas silencieusement dépouillé de
+    ses textures."""
     did = _deck("Uri")
     _exporter_couches(did)
-    doc = {"asset": {"version": "2.0"}, "scene": 0, "scenes": [{"nodes": [0]}],
-           "nodes": [{"mesh": 0}],
-           "meshes": [{"primitives": [{"attributes": {"POSITION": 0}, "indices": 1}]}],
-           "accessors": [
-               {"componentType": 5126, "count": 3, "type": "VEC3",
-                "bufferView": 0, "min": [0, 0, 0], "max": [1, 1, 0]},
-               {"componentType": 5125, "count": 3, "type": "SCALAR", "bufferView": 1}],
-           "images": [{"uri": "https://ailleurs.example/tex.png"}],
-           "bufferViews": [{"buffer": 0, "byteOffset": 0, "byteLength": 36},
-                           {"buffer": 0, "byteOffset": 36, "byteLength": 12}],
-           "buffers": [{"byteLength": 48}]}
-    binv = struct.pack("<9f", 0, 0, 0, 1, 0, 0, 0.5, 1, 0) + struct.pack("<3I", 0, 1, 2)
-    js = json.dumps(doc, separators=(",", ":")).encode()
-    js += b" " * (-len(js) % 4)
-    glb = (struct.pack("<III", 0x46546C67, 2, 12 + 8 + len(js) + 8 + len(binv))
-           + struct.pack("<II", len(js), 0x4E4F534A) + js
-           + struct.pack("<II", len(binv), 0x004E4942) + binv)
-    _job_servi(did, "m1", glb, closed=False)
+    _job_servi(did, "m1", _glb_bricole(
+        images=[{"uri": "https://ailleurs.example/tex.png"}]), closed=False)
     g = _graphe_mesh3d("meshy-7")
-    r = _api("POST", f"/api/cards/{did}/forge3d/build3d", json={"graph": g, "card": 0})
-    assert r.status_code == 409 and "uri" in r.json()["detail"].lower()
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.text
+    assert "uri" in r.json()["detail"].lower()
 ```
 
 (Réutiliser le helper `_job_servi` et `_exporter_couches` définis plus haut ; `Image`
@@ -1688,25 +2329,62 @@ Points d'implémentation imposés :
 
 `fit` calculé côté forge3d.py (PAS dans la scène — c'est une décision de placement) :
 ```python
-def _fit_external(glb: bytes, box_mm: list, z_mm: float, trs: dict | None) -> dict:
-    """Échelle uniforme pour tenir dans la boîte mm de SA couche (max-fit,
-    proportions gardées), centré sur la boîte, posé à z. Le transform utilisateur
-    COMPOSE : scale multiplie, rotation s'ajoute, translation s'ajoute."""
-    m = glb_scene_mesh(glb)
-    xs = m["positions"][0::3]; ys = m["positions"][1::3]; zs = m["positions"][2::3]
-    mw, mh = (max(xs) - min(xs)) or 1.0, (max(ys) - min(ys)) or 1.0
-    bw, bh = box_mm[2] - box_mm[0], box_mm[3] - box_mm[1]
-    s = min(bw / mw, bh / mh)
-    t = trs or {}
-    s *= float(t.get("scale") or 1.0)
-    cx = (box_mm[0] + box_mm[2]) / 2.0 - s * (min(xs) + max(xs)) / 2.0
-    cy = (box_mm[1] + box_mm[3]) / 2.0 - s * (min(ys) + max(ys)) / 2.0
-    cz = float(z_mm) - s * min(zs)
+def _fit_external(monde: dict, box_mm: list, trs: dict | None) -> dict:
+    """LE PLACEMENT d'un GLB de moteur : échelle UNIFORME pour tenir dans la
+    boîte mm de SA couche (max-fit, proportions gardées), centré sur cette
+    boîte, posé à z. Le transform de l'utilisateur COMPOSE : son échelle
+    MULTIPLIE, sa rotation et sa translation S'AJOUTENT.
+
+    `trs` est le NŒUD `transform` DU GRAPHE (x_mm/y_mm/z_mm/rot_deg/scale),
+    pas le dict TRS du writer (`_trs_dict`) : un externe n'a pas de nœud à
+    lui dans lequel poser un transform séparé — le fit et le transform de
+    l'utilisateur se composent en UN SEUL TRS, celui du parent de fusion.
+
+    POLITIQUE, pas mécanique — d'où sa place ICI et non dans le module scène
+    (même partage des rôles que `tile_maps`) : la scène sait POSER un TRS,
+    elle n'a pas à décider LEQUEL.
+
+    TOUT le z vient du transform, et il n'y a PAS de paramètre `z_mm` : le
+    plan en prévoyait un, que sa propre règle épinglait à 0.0 (« ne pas le
+    compter deux fois »). Un paramètre qui doit TOUJOURS valoir zéro n'est pas
+    un paramètre, c'est un piège — le premier appelant qui y passe autre chose
+    double le décalage sans qu'aucun test ne s'en aperçoive. La base du
+    maillage est POSÉE SUR le plan z du transform (`z - s x min(z)`), jamais
+    enfoncée dedans.
+
+    Une cote nulle (maillage parfaitement plat sur un axe) vaut 1.0 plutôt
+    qu'un refus : un décalque est un maillage légitime, et le rapport
+    d'échelle d'un axe sans épaisseur n'a simplement pas de sens — c'est
+    l'AUTRE axe qui décide alors, ce que le `min` fait déjà.
+
+    `monde` est le maillage DÉJÀ MESURÉ dans le repère de la scène
+    (`glb_scene_mesh(..., world=True)`), pas les octets du GLB : c'est la
+    taille RENDUE qui doit tenir dans la boîte. Un exportateur qui pose une
+    conversion d'axes ou une échelle d'unité sur son nœud racine — le nôtre le
+    fait, avec son mm->m — rendrait un fit calculé sur du brut faux de
+    plusieurs ordres de grandeur, et la pièce invisible dans l'artefact sans
+    qu'aucune structure ne soit fautive. Recevoir le maillage plutôt que les
+    octets évite AUSSI de le dépaqueter deux fois : l'appelant le garde pour
+    le STL (voir `_element_externe`), et cette fonction redevient de la
+    politique PURE — aucune lecture de GLB ici."""
+    pos = monde["positions"]
+    xs, ys, zs = pos[0::3], pos[1::3], pos[2::3]
+    x0, x1 = min(xs), max(xs)
+    y0, y1 = min(ys), max(ys)
+    mw = (x1 - x0) or 1.0
+    mh = (y1 - y0) or 1.0
+    bw = (box_mm[2] - box_mm[0]) or 1.0
+    bh = (box_mm[3] - box_mm[1]) or 1.0
+    t = trs if isinstance(trs, dict) else {}
+    s = min(bw / mw, bh / mh) * _num(t.get("scale"), 1.0, *TRANSFORM_SCALE)
+    cx = (box_mm[0] + box_mm[2]) / 2.0 - s * (x0 + x1) / 2.0
+    cy = (box_mm[1] + box_mm[3]) / 2.0 - s * (y0 + y1) / 2.0
+    cz = -s * min(zs)
     return {"scale": s,
-            "translate": [cx + float(t.get("x_mm") or 0.0),
-                          cy + float(t.get("y_mm") or 0.0),
-                          cz + float(t.get("z_mm") or 0.0)],
-            "rotate_deg": float(t.get("rot_deg") or 0.0)}
+            "translate": [cx + _num(t.get("x_mm"), 0.0, *TRANSFORM_XY_MM),
+                          cy + _num(t.get("y_mm"), 0.0, *TRANSFORM_XY_MM),
+                          cz + _num(t.get("z_mm"), 0.0, *TRANSFORM_Z_MM)],
+            "rotate_deg": _num(t.get("rot_deg"), 0.0, *TRANSFORM_ROT_DEG)}
 ```
 (ATTENTION : si le transform est la SEULE source de z, ne pas le compter deux fois —
 la règle : `z_mm` passé à `_fit_external` = 0.0 et TOUT le z vient de `t["z_mm"]`.
@@ -1808,6 +2486,13 @@ git commit -m "feat(cardforge): fusion des GLB externes dans l artefact - fit a 
 
 ```python
 def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
+    """Test de SOURCE (Task 7) : l'écran 2b ne peut pas exister sans ces
+    engagements — le prix AVANT (servi par /info, jamais recopié), le
+    lancement et le poll d'un job payant, la clé manquante DITE avant le 503
+    du backend, les chaînes matière/transform bornées par /info, le manifeste
+    qui suit LA CARTE (legs 5), l'échec montré LITTÉRAL, une dégradation
+    affichée telle quelle plutôt qu'un select vide muet, et le `run_id`
+    comparé entre deux polls (une relance d'un autre onglet est DITE)."""
     src = JS.read_text(encoding="utf-8")
     rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
     # le sélecteur de traitement offre mesh3d, les moteurs viennent de /info
@@ -1830,8 +2515,91 @@ def test_l_ecran_2b_affiche_les_prix_avant_et_les_etats_de_job():
         assert champ in rendu, champ
     # legs 5 : le manifeste est rechargé quand la CARTE change, pas au boot seul
     assert "LAST_MANIFEST" in rendu and "cardChanged" in rendu
+    # ... et ce rechargement est POUSSÉ, pas seulement tiré : le rail émet
+    # `core:render` (jamais `core:deck`), l'évènement auquel mod-gltf/type/
+    # print/data accrochent déjà leur péremption de carte. Sans cet abonnement
+    # le contrôle de fraîcheur n'était appelé que depuis paintGraph, que rien
+    # ne déclenchait quand l'utilisateur changeait de carte.
+    assert 'CF.on("core:render"' in rendu
+    handler = rendu.split('CF.on("core:render"')[1][:160]
+    assert "cardChanged" in handler, handler
+    # le seed CONSOMME le manifeste : il attend la vérification de fraîcheur
+    # AVANT de le lire, sinon « construire le graphe par défaut » juste après
+    # un changement de carte sème depuis les couches de la carte PRÉCÉDENTE.
+    seed = rendu.split("async function seedDefault(")[1].split("\n  }")[0]
+    assert "cardChanged" in seed and "defaultGraph(" in seed, seed
+    assert seed.index("cardChanged") < seed.index("defaultGraph("), seed
+
+    # L'INVARIANT D'APPARIEMENT, ÉPINGLÉ SUR LA SOURCE ENTIÈRE (et pas sur les
+    # seuls chemins auxquels on a pensé) : `LAST_MANIFEST` et `MANIFEST_CARD`
+    # forment une PAIRE — le manifeste et la carte POUR LAQUELLE il vaut. Poser
+    # l'un sans l'autre fige un appariement faux que le comparateur de
+    # `cardChanged` valide ensuite pour toujours ; c'est exactement ce qui est
+    # arrivé au chemin de l'export (il posait `LAST_MANIFEST = rep.layers` seul,
+    # à 123 lignes du plus proche `MANIFEST_CARD =`). Toute écriture de l'un
+    # doit donc voisiner une écriture de l'autre. Mesuré : le plus grand écart
+    # LÉGITIME est de 7 lignes.
+    src_lignes = src.splitlines()
+    pose_man = [i for i, l in enumerate(src_lignes)
+                if re.search(r"LAST_MANIFEST\s*=[^=]", l)]
+    pose_carte = [i for i, l in enumerate(src_lignes)
+                  if re.search(r"MANIFEST_CARD\s*=[^=]", l)]
+    assert pose_man and pose_carte
+    # SYMETRIQUE (N6) : la paire se casse aussi bien en posant l'etiquette
+    # seule (l'ecran se croit a jour sur un manifeste qui ne l'est pas) qu'en
+    # posant le manifeste seul. Les deux sens sont donc verifies.
+    for gauche, droite, quoi in ((pose_man, pose_carte, "LAST_MANIFEST"),
+                                 (pose_carte, pose_man, "MANIFEST_CARD")):
+        autre = "MANIFEST_CARD" if quoi == "LAST_MANIFEST" else "LAST_MANIFEST"
+        for i in gauche:
+            ecart = min(abs(i - j) for j in droite)
+            assert ecart <= 10, (
+                f"ligne {i + 1} pose {quoi} sans poser {autre} a cote (plus "
+                f"proche : {ecart} lignes) — l'appariement manifeste/carte se "
+                f"casse la : {src_lignes[i].strip()}")
+
+    # le poll s'arrête aux DEUX états terminaux du contrat — et la DISJONCTION
+    # est le fond de l'affaire : avec un « et » à la place du « ou », aucun job
+    # ne satisfait plus la condition et la boucle tourne pour toujours, à un
+    # GET toutes les 1,2 s, sans qu'aucun état affiché ne bouge. Épingler les
+    # deux mots ne suffisait donc pas : on épingle l'opérateur.
+    poll = rendu.split("function pollMesh3d(")[1].split("\n  }")[0]
+    assert '"served"' in poll and '"failed"' in poll, poll
+    assert re.search(r'status\s*===\s*"served"\s*\|\|', poll), poll
+
+    # I1 — LA COUTURE writer<->ecran. Cote writer, `translate` REMPLACE le
+    # `z_mm` de l'element (_node_trs) : il ne s'y AJOUTE pas. Semer un nœud
+    # placement a z=0 sur un PLAN n'est donc pas « neutre » — ca l'aplatit sur
+    # la couche du dessous (le cadre du graphe par defaut vit a 1,05 mm), et il
+    # suffit d'ouvrir le tiroir Placement et de pousser x pour perdre la
+    # parallaxe. Le neutre d'un plan, c'est SON z d'empilement.
+    trs_corps = rendu.split("function editTrs(")[1].split("\n  }")[0]
+    assert re.search(r"z_mm:\s*zEmpilement\(", trs_corps), trs_corps
+    assert not re.search(r"z_mm:\s*0\b", trs_corps), trs_corps
+    # ... et cette regle est CELLE que l'ecran affiche : une seule fonction,
+    # lue par le semis ET par le rendu, sinon les deux derivent.
+    zemp = rendu.split("function zEmpilement(")[1].split("\n  }")[0]
+    assert "depth_mm" in zemp and '"plane"' in zemp, zemp
+    assert "zEmpilement(" in rendu.split("function trsHtml(")[1].split("\n  }")[0]
+
+    # LES CHAINES ECRITES PAR LE BACKEND (error, step, closed_note) sont
+    # rendues ECHAPPEES : ce sont les seules valeurs de chipHtml qui ne
+    # viennent ni d'un Number() ni d'un litteral d'ici, et un `<` dans un
+    # message d'erreur de moteur casse la mise en page — au mieux.
+    chip = rendu.split("function chipHtml(")[1].split("\n  }")[0]
+    for champ in ("job.error", "job.step", "job.closed_note"):
+        assert champ in chip, f"{champ} a disparu de chipHtml — pin obsolete"
+        for m in re.finditer(re.escape(champ), chip):
+            avant = chip[:m.start()]
+            assert re.search(r"esc\(\s*(?:[\w.]+\s*\|\|\s*)?$", avant), (
+                f"{champ} interpole sans esc() dans chipHtml : "
+                f"...{chip[max(0, m.start() - 60):m.end() + 20]}")
     # l'échec d'un job est montré LITTÉRAL (error du job.json)
     assert "job.error" in rendu or 'job["error"]' in rendu
+    # les legs d'affichage : degraded affiché tel quel, jamais un select vide muet
+    assert "degraded" in rendu
+    # run_id comparé entre deux polls (une relance d'un autre onglet est DITE)
+    assert "run_id" in rendu
 ```
 
 Run : FAIL.
@@ -1889,7 +2657,7 @@ node frontend\cardforge\qa\test_core_contract.mjs --contract
 (Vérifier les OCTETS du .js après édition — piège Windows NUL/CRLF connu du chantier.)
 ```bash
 git add frontend/cardforge/js/mod-forge3d.js frontend/cardforge/css/mod-forge3d.css backend/tests/test_cards_forge3d.py
-git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix servis par /info, lancer/poll des jobs, cout avant, manifeste par carte"
+git commit -m "feat(cardforge): ecran 2b - rangees chainees, moteurs et prix servis par /info, lancer/poll des jobs, cout avant, degraded et run_id dits"
 ```
 
 ---
