@@ -415,6 +415,83 @@ def _quat_z(deg) -> list:
     return [0.0, 0.0, math.sin(demi), math.cos(demi)]
 
 
+# ── LA RÈGLE DE CÔTÉ (2d) : LE VERSO EST LA CARTE RETOURNÉE ────────────────
+# P8 fait foi : recto plat +z sens direct, verso plat −z sens INVERSE
+# (solid.py:532-545), et `uv_back` en MIROIR DE U parce que « vu de -Z la
+# droite de l'écran est -x » (solid.py:513-522). P9 obtient la MÊME physique
+# sans un maillage de plus : l'élément est construit en ESPACE RECTO (mêmes
+# `quad_mesh`/`relief_mesh`, mêmes UV, même TANGENT local), puis LA CARTE EST
+# RETOURNÉE. Un seul geste, trois effets — la normale s'oppose, l'image se
+# retourne gauche-droite, la pile descend sous le plan médian.
+
+def _quat_face(deg, retourne: bool) -> list:
+    """Le quaternion d'un élément POSÉ SUR SA FACE.
+
+    Recto (`retourne` faux) : `_quat_z(deg)` — la rotation de la 2a, au bit
+    près, autour du seul axe qui ait un sens sur une pile de couches planes.
+
+    Verso : **R_y(pi) o R_z(deg)** — la rotation de l'utilisateur D'ABORD (dans
+    l'espace recto où l'élément est construit), LE DEMI-TOUR DE LA CARTE
+    ENSUITE. C'est CET ordre-là, et pas l'autre, qui rend l'édition WYSIWYG :
+    vu de −z on est passé DERRIÈRE, la droite de l'écran y est −x, et composer
+    dans cet ordre laisse « +deg tourne dans le sens direct » vrai POUR CELUI
+    QUI REGARDE LE VERSO (l'ordre inverse, R_z(deg) o R_y(pi), lui montrerait
+    −deg — le banc mesure l'angle des deux côtés plutôt que de le croire).
+
+    Le produit se SIMPLIFIE : composer un demi-tour avec une rotation d'axe
+    perpendiculaire redonne un demi-tour, ici autour d'un axe du plan XY —
+    (sin(d/2), cos(d/2), 0, 0). Rotation PROPRE (déterminant +1) : l'enroulement
+    des triangles est préservé et le repère tangent local tourne en bloc, donc
+    la règle w = −1 du bloc TANGENT plus bas (qui est LOCALE, dérivée de
+    l'inversion de v de nos UV) reste juste telle quelle."""
+    if not retourne:
+        return _quat_z(deg)
+    demi = math.radians(_f(deg)) / 2.0
+    return [math.sin(demi), math.cos(demi), 0.0, 0.0]
+
+
+def trs_de_face(trs: dict, w_mm: float, side) -> dict:
+    """LE TRS D'UN ÉLÉMENT, POSÉ SUR SA FACE — la règle de côté, UNE fois pour
+    les trois sorties (le nœud d'un local, le parent de fusion d'un moteur, et
+    les sommets cuits du STL, qui n'a pas de nœud pour porter un transform).
+
+    `side` autre que `"back"` : le TRS rendu TEL QUEL — le recto est le repère
+    de référence, il n'a rien à corriger, et un GLB de la 2a ne bouge pas d'un
+    bit.
+
+    `side == "back"` : la carte est RETOURNÉE, c'est-à-dire la rotation PROPRE
+    de 180 degrés autour de la verticale qui passe par le MILIEU de la carte
+
+        (x, y, z) -> (w_mm - x, y, -z)
+
+    — déterminant +1 (miroir GAUCHE-DROITE physique, pas une symétrie qui
+    retournerait l'enroulement), normale +z -> −z, et EMPREINTE CONSERVÉE
+    ([0, w_mm] -> [0, w_mm]) : les deux faces se superposent comme sur une
+    vraie carte au lieu de se poser côte à côte, ce que ferait un demi-tour
+    autour du COIN. C'est l'équivalent géométrique exact de `uv_back` (P8),
+    porté par la PLACE au lieu des UV — l'atlas P8 ne retourne pas ses pixels
+    non plus, c'est sa géométrie qui porte le miroir.
+
+    Appliqué à un TRS glTF (p' = T + R(S.p), la translation en DERNIER et dans
+    le repère du parent), le retournement se répartit exactement ainsi :
+      · `translate` -> `[w_mm - tx, ty, -tz]` — d'où un `x_mm` qui pousse vers
+        la DROITE DU VERSO (−x monde, la droite de celui qui le regarde) et un
+        `z_mm` qui empile SOUS le plan médian. Les BORNES ne changent pas : les
+        valeurs postées restent >= 0, le SIGNE appartient à la règle de côté ;
+      · `rotate_deg` INCHANGÉ — la composition vit dans `_quat_face`, et le
+        drapeau `retourne` la déclenche partout où ce TRS est consommé.
+
+    Le `y` n'est JAMAIS retourné : « en bas = −y des deux côtés » (P8,
+    solid.py:614-615) — une carte se retourne gauche-droite, pas tête-bêche."""
+    if side != "back":
+        return trs
+    t = trs.get("translate")
+    tx, ty, tz = ([_f(v) for v in t]
+                  if isinstance(t, (list, tuple)) and len(t) == 3
+                  else [0.0, 0.0, 0.0])
+    return {**trs, "translate": [_f(w_mm) - tx, ty, -tz], "retourne": True}
+
+
 def _node_trs(el: dict) -> dict:
     """Les champs TRS du nœud d'un élément.
 
@@ -427,7 +504,14 @@ def _node_trs(el: dict) -> dict:
     axe qui ait un sens sur une pile de couches planes — et `scale` est
     UNIFORME, un facteur par axe déformerait la carte. Ni la rotation ni
     l'échelle ne sont écrites quand elles ne font rien : 0° et x1 sont
-    l'identité, que glTF sous-entend déjà."""
+    l'identité, que glTF sous-entend déjà.
+
+    `retourne` (2d, posé par `trs_de_face`) : l'élément est au VERSO. Sa
+    rotation devient R_y(pi) o R_z(rotate_deg) (`_quat_face`) et elle est
+    TOUJOURS écrite — le demi-tour de la carte n'est pas une identité que glTF
+    sous-entendrait, l'omettre à 0° laisserait le verso face au même côté que
+    le recto. Le SIGNE du z, lui, est déjà dans `translate` : il appartient à
+    la règle de côté, pas au writer."""
     trs = el.get("trs")
     if not isinstance(trs, dict):
         return ({"translation": [0.0, 0.0, float(el["z_mm"])]}
@@ -438,9 +522,10 @@ def _node_trs(el: dict) -> dict:
         out["translation"] = [_f(v) for v in t]
     elif el.get("z_mm"):
         out["translation"] = [0.0, 0.0, float(el["z_mm"])]
+    retourne = bool(trs.get("retourne"))
     demi = math.radians(_f(trs.get("rotate_deg"))) / 2.0
-    if demi:
-        out["rotation"] = _quat_z(trs.get("rotate_deg"))
+    if demi or retourne:
+        out["rotation"] = _quat_face(trs.get("rotate_deg"), retourne)
     s = _f(trs.get("scale"), 1.0)
     if s != 1.0:
         out["scale"] = [s, s, s]
@@ -837,8 +922,14 @@ def _merge_external(doc, buf, views, accessors, images, textures, materials,
          else [0.0, 0.0, 0.0])
     parent = {"name": nom_ext, "children": racines, "translation": t,
               "scale": [s, s, s]}
-    if math.radians(_f(fit.get("rotate_deg"))) / 2.0:
-        parent["rotation"] = _quat_z(fit.get("rotate_deg"))   # 0° = identité,
+    # `retourne` (2d) : le maillage du moteur suit SA couche — au verso il
+    # passe derrière comme le reste de la face, et sa rotation est alors
+    # TOUJOURS écrite (le demi-tour n'est pas une identité sous-entendue).
+    retourne = bool(fit.get("retourne"))
+    if math.radians(_f(fit.get("rotate_deg"))) / 2.0 or retourne:
+        parent["rotation"] = _quat_face(fit.get("rotate_deg"), retourne)
+                                                               # 0° au recto =
+                                                               # identité,
                                                                # sous-entendue
     nodes.append(parent)
     return len(nodes) - 1, ignores
@@ -855,7 +946,14 @@ def apply_fit_inplace(mesh: dict, fit: dict) -> dict:
     la liste des positions — la transformer ici n'alloue RIEN de plus, tandis
     que le paramètre en plus ajoutait une passe et un chemin à tester au
     writer STL pour zéro octet gagné. Le writer garde donc son contrat
-    d'octets intact, et l'externe entre comme un élément ordinaire."""
+    d'octets intact, et l'externe entre comme un élément ordinaire.
+
+    `retourne` (2d) : LE MÊME demi-tour de carte que `_quat_face` écrit dans un
+    nœud, cuit ici dans les sommets — R_y(pi) o R_z(rotate_deg), donc x et z
+    opposés APRÈS la rotation de l'utilisateur et AVANT la translation (qui
+    porte déjà, elle, le `w_mm - tx` et le `-tz` de `trs_de_face`). Sans cette
+    ligne, le STL et le GLB montreraient deux vérités différentes de la même
+    carte — exactement le défaut que le transform local a déjà coûté une fois."""
     fit = fit if isinstance(fit, dict) else {}
     s = _f(fit.get("scale"), 1.0)
     t = fit.get("translate")
@@ -864,10 +962,14 @@ def apply_fit_inplace(mesh: dict, fit: dict) -> dict:
                   else [0.0, 0.0, 0.0])
     ang = math.radians(_f(fit.get("rotate_deg")))
     ca, sa = math.cos(ang), math.sin(ang)
+    retourne = bool(fit.get("retourne"))
     pos = mesh["positions"]
     for k in range(0, len(pos) - 2, 3):
         x, y, z = pos[k] * s, pos[k + 1] * s, pos[k + 2] * s
-        pos[k] = x * ca - y * sa + tx
+        rx = x * ca - y * sa
+        if retourne:
+            rx, z = -rx, -z
+        pos[k] = rx + tx
         pos[k + 1] = x * sa + y * ca + ty
         pos[k + 2] = z + tz
     return mesh
