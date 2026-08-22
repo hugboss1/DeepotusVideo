@@ -6023,9 +6023,20 @@ def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
     deck = rendu.split('CF.on("core:deck"')[1].split("\n    });")[0]
     assert "MANIFEST_BACK = null" in deck, deck
     # ── L'EXPORT RAFRAICHIT LE VERSO, SANS TOUCHER A LA DOCTRINE RECTO ───
+    # RONDE DE REVUE (S1/M2) : les DEUX branches sont GARDEES par l'etiquette,
+    # et c'est le fond de l'affaire — le recto porte SA carte (il re-etiquette,
+    # donc il se repare tout seul), le verso n'a AUCUNE etiquette a lui. Une
+    # reponse verso rassie ecrite sans condition fige le trio « recto B, verso
+    # A, etiquette c02 », que `cardChanged` valide ensuite pour toujours.
+    # La PROPRIETE se mesure au banc (la course rejouee, section 21) ; ces
+    # deux lignes-ci disent seulement ou elle vit.
     exp = rendu.split("async function exportLayers(")[1].split("\n  }\n")[0]
     assert 'face === "front"' in exp, exp
-    assert "MANIFEST_BACK = rep.layers" in exp, exp
+    assert "if (cardLabel(carte) !== MANIFEST_CARD) MANIFEST_BACK = null;" \
+        in exp, exp
+    assert re.search(
+        r"\}\s*else if \(cardLabel\(carte\) === MANIFEST_CARD\) \{\s*"
+        r"MANIFEST_BACK = rep\.layers;", exp), exp
     # ── LE SEED CONSOMME LES DEUX ────────────────────────────────────────
     seed = rendu.split("async function seedDefault(")[1].split("\n  }")[0]
     assert "defaultGraph(LAST_MANIFEST, MANIFEST_BACK)" in seed, seed
@@ -6033,7 +6044,22 @@ def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
     cr = rendu.split("function couchesRestantes(")[1].split("\n  }")[0]
     assert "LAST_MANIFEST" in cr and "MANIFEST_BACK" in cr, cr
     ph = rendu.split("function paletteHtml(")[1].split("\n  }")[0]
-    assert "MANIFEST_BACK" in ph and "cf-forge3d-pal-note" in ph, ph
+    assert "cf-forge3d-pal-note" in ph, ph
+    # N3 (ronde de revue) : la note ne se decide PAS sur la verite de l'objet.
+    # `{layers: []}` est truthy — la note disparaissait alors que la palette
+    # n'offrait toujours rien, c'est-a-dire le silence exact qu'elle existe
+    # pour casser. La question est « y a-t-il un verso A OFFRIR ».
+    assert "aDesCouches(MANIFEST_BACK)" in ph, ph
+    # ── UNE SEULE ECRITURE DU BALISAGE DES ELEMENTS (M3) ─────────────────
+    # `paintArtifact` peignait la liste des elements EN LIGNE : le seul endroit
+    # ou `d.name` atteint l'ecran n'etait donc mesurable nulle part (le banc
+    # visait `bordereauHtml`, qui ne lit ni `name` ni `side`). Meme doctrine
+    # que `fichierHtml`/`ignoresHtml`/`publieHtml` : un batisseur PUR, un seul.
+    assert rendu.count("cf-forge3d-elems") == 1, rendu.count("cf-forge3d-elems")
+    eh = rendu.split("function elementsHtml(")[1].split("\n  }")[0]
+    assert "cf-forge3d-elems" in eh and "d.name" in eh, eh
+    pa = rendu.split("function paintArtifact(")[1].split("\n  }")[0]
+    assert "elementsHtml(" in pa, pa
     # ── LA NAISSANCE POSE LE COTE DE L'ENTREE CHOISIE ────────────────────
     nc = rendu.split("function naitCouche(")[1].split("\n  }")[0]
     assert "side: choisi.side" in nc, nc
@@ -6042,8 +6068,26 @@ def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
     assert "poseBloc(" in sl and "VERSO_GAP" in sl, sl
     # ... et il reste DETERMINISTE (le pin 2c, re-affirme sur le code neuf)
     assert "Math.random" not in rendu
+    # N4 (ronde de revue) : le plancher etait a 40 alors que la RAISON ecrite
+    # a cote (« visible au plancher de zoom 0,36 ») ne vaut qu'a partir d'une
+    # gouttiere nettement plus large qu'un `RANG_GAP`. A 41 px le mutant
+    # survivait tout en rendant 14 px a l'ecran, soit un rang ordinaire. Le
+    # plancher dit desormais la meme chose que le commentaire : au moins
+    # 2,5 RANG_GAP, c'est-a-dire >= 23 px une fois degroupe.
     vg = re.search(r"const VERSO_GAP = (\d+);", rendu)
-    assert vg and int(vg.group(1)) >= 40, vg
+    rg = re.search(r"const RANG_Y0 = \d+, RANG_GAP = (\d+);", rendu)
+    assert vg and rg, (vg, rg)
+    assert int(vg.group(1)) >= 64, vg.group(1)
+    assert int(vg.group(1)) >= 2.5 * int(rg.group(1)), (vg.group(1),
+                                                        rg.group(1))
+    # ... et le PLANCHER du bloc verso se calcule sur les positions POSEES,
+    # jamais sur la grille theorique (M1) : `poseBloc` ECRIT la position
+    # SAUVEE quand il y en a une, donc un plancher tire de `bas[x]` ignore
+    # tout rangement de l'utilisateur et laisse le verso se poser DANS le
+    # recto. La propriete (zero chevauchement) se mesure au banc.
+    pb = rendu.split("function poseBloc(")[1].split("\n  }")[0]
+    assert "out[n.id][1]" in pb, pb
+    assert "if (bas[x] > plancher)" not in pb, pb
     # ── L'ETIQUETTE D'UN RANG EST CELLE DU NŒUD (une seule convention) ───
     # `noeudTitre` est LA regle de nommage d'une couche a l'ecran depuis la 2c
     # (« role · recto|verso ») ; la vue liste ecrivait `layer.role` nu, donc
@@ -6968,6 +7012,13 @@ dit("... une seule ecriture, une seule entree d'annulation",
 dit("... et son id ne heurte AUCUN nœud du graphe",
     !!NEE && (DOC_GRAPH.nodes || []).filter(
       (n) => n.id === NEE.id).length === 1, J(NEE));
+/* M4 (ronde de revue) — L'ID PORTE LE COTE, et ce n'est pas cosmetique : il
+   est SURFACE deux fois (l'info-bulle de l'en-tete du nœud, `title=`, et la
+   colonne `node` du bordereau). Sans le suffixe, `freeId` rend `cadre2` — un
+   id que rien ne relie a ce qu'il designe, et le pin de source ne le voyait
+   pas (le remplacer par le role nu laissait la suite VERTE). */
+dit("... et cet id DIT le cote (il se lit dans l'info-bulle et au bordereau)",
+    !!NEE && NEE.id.indexOf("_verso") >= 0, J(NEE && NEE.id));
 /* le repli `|| {}` n'est pas de la coquetterie : sans lui, un mutant qui pose
    le mauvais cote fait LEVER le banc au lieu de le faire rougir — et un banc
    qui leve perd TOUS ses cas d'un coup (la sortie n'est ecrite qu'a la fin). */
@@ -7064,21 +7115,100 @@ dit("... tandis que la chaine RECTO reste en haut",
 dit("le cote d'un nœud ne change RIEN a sa colonne",
     POS("s7")[0] === COL_X.layer, J(POS("s7")));
 
-/* 20g. LE BORDEREAU D'UNE CARTE DEUX FACES. Le backend nomme l'element verso
-        `role_verso` (M3) et pose `side: "back"` : le resume ne doit ni les
-        compter en double, ni rendre « undefined ». Le NOM, lui, reste
-        VERBATIM — c'est le nom de l'objet DANS le GLB (celui qu'on cherche
-        dans Blender), pas une etiquette d'ecran. */
+/* 20f-bis. M1 (ronde de revue) — LE PLANCHER EST CELUI DES POSITIONS POSEES,
+        PAS DE LA GRILLE FANTOME. `poseBloc` cascade un `bas[x]` theorique mais
+        ECRIT la position SAUVEE quand il y en a une : apres un rangement
+        utilisateur (un rang recto tire vers le bas), le plancher restait celui
+        de la grille et le bloc verso venait se poser DANS le recto. On compare
+        les BOITES, pas les hauts — c'est la seule mesure qui voit un
+        chevauchement. */
+/* LA SEQUENCE REELLE : le graphe RECTO est range (ses positions sont au
+   document), PUIS le verso arrive — ses nœuds n'ont AUCUNE position sauvee,
+   c'est le semis qui les pose. Sauver aussi les positions verso ne mesurerait
+   rien : elles gagneraient, et un chevauchement serait le rangement de
+   l'utilisateur, pas le semis. */
+DOC_LAYOUT = {};
+SEED2.nodes.slice(0, 12).forEach((n) => { DOC_LAYOUT[n.id] = POS(n.id).slice(); });
+DOC_LAYOUT.asm = POS("asm").slice();
+DOC_LAYOUT.art = POS("art").slice();
+DOC_LAYOUT.s1 = [COL_X.layer, 2000];   /* l'utilisateur a tire ce rang en bas */
+const LAY5 = seedLayout(SEED2);
+const BOITE = (n) => {
+  const p = Array.isArray(LAY5[n.id]) ? LAY5[n.id] : [-1, -1];
+  return { id: n.id, x: p[0], haut: p[1], bas: p[1] + rangH(n.kind) };
+};
+const CHEVAUCHE = [];
+SEED2.nodes.slice(0, 12).map(BOITE).forEach((a) => {
+  SEED2.nodes.slice(12, 24).map(BOITE).forEach((b) => {
+    if (a.x === b.x && a.haut < b.bas && b.haut < a.bas) {
+      CHEVAUCHE.push(a.id + "(" + a.haut + ".." + a.bas + ") / "
+                     + b.id + "(" + b.haut + ".." + b.bas + ")");
+    }
+  });
+});
+dit("apres un RANGEMENT utilisateur, aucun nœud verso ne chevauche un rang "
+    + "recto : le plancher suit les positions POSEES, pas la grille fantome",
+    CHEVAUCHE.length === 0, J(CHEVAUCHE));
+dit("... et une position deja posee reste INTOUCHEE (le rangement est a "
+    + "l'utilisateur, le semis ne le lui reprend pas)",
+    LAY5.s1[1] === 2000, J(LAY5.s1));
+DOC_LAYOUT = null;
+
+/* 20g. LE BORDEREAU D'UNE CARTE DEUX FACES.
+        M3 (ronde de revue) — CE CAS VISAIT LA MAUVAISE FONCTION. Il mesurait
+        `bordereauHtml`, qui ne lit ni `d.name` ni `d.side` (sa sortie est
+        octet-identique avec `name: undefined` — prouve au mutant). La LISTE
+        des elements, elle, est le seul endroit ou `d.name` atteint l'ecran ;
+        elle vit desormais dans `elementsHtml`, une fonction PURE, et c'est
+        elle qu'on interroge.
+        Le NOM reste VERBATIM : c'est le nom de l'objet DANS le GLB (celui
+        qu'on cherche dans Blender — toute la raison d'etre de M3), pas une
+        etiquette d'ecran. */
 ARTIFACT = { elements: 2, glb: { name: "x.glb", bytes: 2048 },
              elements_detail: [
-               { name: "cadre", kind: "local", node: "t4" },
-               { name: "cadre_verso", kind: "local", node: "t10",
+               { name: "cadre", kind: "local", node: "cadre" },
+               { name: "cadre_verso", kind: "local", node: "cadre_verso",
                  side: "back" }] };
+const EL2 = elementsHtml(ARTIFACT);
+dit("la liste des elements rend les DEUX faces",
+    EL2.indexOf(">cadre ·") >= 0 && EL2.indexOf(">cadre_verso ·") >= 0, EL2);
+dit("... sans « undefined » ni « [object » (la cle `side` du backend est "
+    + "INERTE a l'ecran, elle ne s'y concatene pas)",
+    EL2.indexOf("undefined") < 0 && EL2.indexOf("[object") < 0, EL2);
+dit("... et DEUX lignes, pas quatre",
+    EL2.split("<li").length - 1 === 2, EL2);
+/* « pas d'undefined » ne suffit PAS a dire que `side` est inerte : `esc`
+   rend "" sur `undefined`, donc concatener la cle laisse une ligne recto qui
+   FINIT par un separateur — un champ vide dit tout haut. On mesure la FORME :
+   trois champs, aucun separateur en fin de ligne. (Ce cas est ne d'un mutant
+   qui avait survecu a la premiere ronde.) */
+const LIS = EL2.split("<li").slice(1).map((s) => s.split("</li>")[0]);
+dit("... les deux lignes ont la MEME forme, et la cle `side` du backend ne "
+    + "s'y ajoute pas",
+    LIS.length === 2 && LIS.every((s) => s.split(" · ").length === 3)
+    && LIS.every((s) => !/·\s*$/.test(s)), J(LIS));
+dit("... le nom reste VERBATIM : c'est celui de l'objet dans le GLB",
+    EL2.indexOf("cadre_verso") >= 0 && EL2.indexOf("cadre · verso") < 0, EL2);
+dit("sans element, la liste est VIDE (pas un titre qui n'annonce rien)",
+    elementsHtml({ elements: 0, glb: { name: "x", bytes: 1 } }) === "",
+    elementsHtml({ elements: 0, glb: { name: "x", bytes: 1 } }));
 const BD2 = bordereauHtml(ARTIFACT);
-dit("le resume d'une carte deux faces ne rend ni « undefined » ni « [object »",
-    BD2.indexOf("undefined") < 0 && BD2.indexOf("[object") < 0, BD2);
-dit("... et compte 2 elements, pas 4", BD2.indexOf("2 &eacute;l") >= 0
-    || BD2.indexOf("2 él") >= 0, BD2);
+dit("le resume d'une carte deux faces compte 2 elements, pas 4",
+    BD2.indexOf("2 &eacute;l") >= 0 || BD2.indexOf("2 él") >= 0, BD2);
+
+/* 20g-bis. N3 — UN MANIFESTE VERSO VIDE N'EST PAS UN VERSO. `{layers: []}` est
+        TRUTHY : la note disparaissait alors que la palette n'offrait toujours
+        rien — exactement le silence qu'elle existe pour casser (« l'ecran ne
+        sait pas faire » au lieu de « il manque un export »). */
+LAST_MANIFEST = MAN_F;
+MANIFEST_BACK = { side: "back", layers: [] };
+const PAL_VIDE = paletteHtml();
+dit("un manifeste verso SANS couche se lit comme un verso ABSENT",
+    PAL_VIDE.indexOf("cf-forge3d-pal-note") >= 0, PAL_VIDE);
+dit("... et le seed n'en tire AUCUNE paire, sans lever",
+    J(defaultGraph(MAN_F, { side: "back", layers: [] })) === SEED_2C,
+    J(defaultGraph(MAN_F, { side: "back", layers: [] })));
+MANIFEST_BACK = MAN_B;
 
 /* 20h. N6 — LES DEUX FACES NE DEVIENNENT PAS COPLANAIRES PAR SURPRISE.
         Cote writer, un `transform` chaine ECRASE le `depth_mm` du plan, y
@@ -7110,7 +7240,127 @@ dit("... et l'ecran ne NEGATIVISE rien : le signe appartient a la regle de "
 INFO = INFO0; ARTIFACT = null; LAST_MANIFEST = null; MANIFEST_BACK = null;
 DOC_GRAPH = NU; PAL.role = ""; SEL = null;
 
-banc18().then(
+/* ═══════════════════════════════════════════════════════════════════════════
+   21. S1 (ronde de revue 2d-T2) — LA COURSE DE L'EXPORT VERSO
+   L'export part en DEUX temps et le rail N'EST PAS desactive pendant l'envoi :
+   le recto d'une carte A est deja pose quand son verso (sept PNG, plusieurs
+   secondes) est encore en vol. Un clic sur la carte suivante fait charger B,
+   puis la reponse verso d'A atterrit — et si elle s'ecrit SANS CONDITION, le
+   trio devient « recto B, verso A, etiquette c02 ». Les etiquettes concordent,
+   donc `cardChanged` ne purge plus JAMAIS : la palette offre six couches
+   fantomes, la note du verso manquant disparait, et le seed les pose.
+   C'est le defaut C1 une variable plus loin — la DEUXIEME fois dans la meme
+   famille. Ce banc rejoue la sequence sur les VRAIES fonctions : seuls le
+   transport et la position du rail sont pilotes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const M_A_FRONT = { side: "front", card: { label: "c01" }, layers: SIX() };
+const M_A_BACK = { side: "back", card: { label: "c01" }, layers: SIX() };
+const M_B_FRONT = { side: "front", card: { label: "c02" },
+                    layers: [{ role: "cadre" }] };
+
+/* un tic de boucle d'evenements : le banc attend que l'export ait atteint son
+   POST verso, sans supposer combien de microtaches le separent du depart. */
+const tic = () => new Promise((res) => { setTimeout(res, 0); });
+async function jusqua(pret, quoi) {
+  for (let k = 0; k < 200 && !pret(); k++) await tic();
+  if (!pret()) throw new Error("le banc a attendu en vain : " + quoi);
+}
+
+async function banc21() {
+  /* le disque : la carte A a ses deux faces exportees d'une session
+     precedente ? NON — c'est justement l'export en cours qui les ecrit. La
+     carte B, elle, n'a QUE son recto. */
+  DISQUE = { c02_front: M_B_FRONT };
+  CARTE = 0;
+  GEN += 1;                       /* on repart d'une generation propre */
+  LAST_MANIFEST = null; MANIFEST_BACK = null; MANIFEST_CARD = "c01";
+  refreshManifest.busy = null;
+  TOASTS.length = 0; POSTES.length = 0;
+
+  /* LE VERSO RESTE EN VOL jusqu'a ce que le banc le relache. */
+  let relacheVerso = null;
+  POST = async (route, fd) => {
+    const face = fd.get("side");
+    if (face === "back") {
+      await new Promise((res) => { relacheVerso = res; });
+      return { layers: M_A_BACK };
+    }
+    return { layers: M_A_FRONT };
+  };
+
+  const enVol = exportLayers();
+  await jusqua(() => !!relacheVerso, "le POST verso n'est jamais parti");
+  dit("le recto est POSE des sa reponse, sous l'etiquette de SA carte",
+      LAST_MANIFEST === M_A_FRONT && MANIFEST_CARD === "c01",
+      String(MANIFEST_CARD));
+
+  /* ── LE RAIL BOUGE PENDANT QUE LE VERSO EST EN VOL ─────────────────────── */
+  CARTE = 1;
+  await cardChanged();
+  dit("le changement de carte charge la carte AFFICHEE (son recto, et son "
+      + "verso absent)",
+      LAST_MANIFEST && LAST_MANIFEST.card && LAST_MANIFEST.card.label === "c02"
+      && MANIFEST_BACK === null && MANIFEST_CARD === "c02",
+      J([LAST_MANIFEST && LAST_MANIFEST.card, MANIFEST_BACK, MANIFEST_CARD]));
+
+  /* ── LA REPONSE VERSO D'A ATTERRIT — SOUS L'ETIQUETTE DE B ─────────────── */
+  relacheVerso();
+  await enVol;
+  dit("la reponse verso d'une carte QUITTEE ne s'ecrit PAS sous la carte "
+      + "affichee (sinon : recto B + verso A, GELE — les etiquettes "
+      + "concordent, `cardChanged` ne purge plus jamais)",
+      MANIFEST_BACK === null, J(MANIFEST_BACK && MANIFEST_BACK.card));
+  dit("... le trio reste COHERENT : recto, verso et etiquette disent la MEME "
+      + "carte", MANIFEST_CARD === "c02"
+      && LAST_MANIFEST.card.label === "c02" && MANIFEST_BACK === null,
+      J([MANIFEST_CARD, LAST_MANIFEST.card.label, MANIFEST_BACK]));
+  DOC_GRAPH = { nodes: [{ id: "asm", kind: "assemble" }], edges: [] };
+  dit("... et la note du verso manquant est TOUJOURS la (c'est elle qui "
+      + "disparaissait, sans que rien d'autre ne change a l'ecran)",
+      paletteHtml().indexOf("cf-forge3d-pal-note") >= 0, paletteHtml());
+  dit("... aucune couche fantome n'est offerte",
+      couchesRestantes(DOC_GRAPH).every((r) => r.side === "front"),
+      J(couchesRestantes(DOC_GRAPH)));
+  dit("... et l'export n'a rien casse au passage (pas de toast d'erreur)",
+      TOASTS.length === 0, J(TOASTS));
+  dit("... les DEUX faces sont bien parties (l'export n'a pas ete tronque)",
+      POSTES.length === 2 && POSTES[0].indexOf("front") > 0
+      && POSTES[1].indexOf("back") > 0, J(POSTES));
+
+  /* ── LE JUMEAU RECTO (M2) : LA LIBERATION SE MESURE AUSSI ──────────────── */
+  /* On repose un trio COHERENT sur c02 (recto ET verso de B), puis on exporte
+     la carte A. Le recto d'A re-etiquette en c01 : le verso de B qui restait
+     en memoire deviendrait le verso de A — le meme gel, par l'autre porte. */
+  CARTE = 1;
+  GEN += 1;
+  LAST_MANIFEST = M_B_FRONT;
+  MANIFEST_BACK = { side: "back", card: { label: "c02" }, layers: SIX() };
+  MANIFEST_CARD = "c02";
+  refreshManifest.busy = null;
+  const VERSO_B = MANIFEST_BACK;
+  let relache2 = null;
+  POST = async (route, fd) => {
+    if (fd.get("side") === "back") {
+      await new Promise((res) => { relache2 = res; });
+      return { layers: M_A_BACK };
+    }
+    return { layers: M_A_FRONT };
+  };
+  CARTE = 0;                       /* le rail est sur A : on exporte A */
+  const enVol2 = exportLayers();
+  await jusqua(() => !!relache2, "le second POST verso n'est jamais parti");
+  dit("exporter le recto d'une AUTRE carte LACHE le verso reste en memoire "
+      + "(sans quoi le verso de B se retrouve sous l'etiquette de A)",
+      MANIFEST_BACK !== VERSO_B && MANIFEST_BACK === null,
+      J(MANIFEST_BACK && MANIFEST_BACK.card));
+  relache2();
+  await enVol2;
+  dit("... et le verso de A, lui, s'ecrit : les etiquettes concordent",
+      MANIFEST_BACK === M_A_BACK && MANIFEST_CARD === "c01",
+      J([MANIFEST_CARD, MANIFEST_BACK && MANIFEST_BACK.card]));
+}
+
+banc18().then(banc21).then(
   () => {
     videInspecteur();   /* aucune minuterie ne survit au banc */
     process.stdout.write(JSON.stringify(out));
@@ -7131,6 +7381,28 @@ let INFO = null, ARTIFACT = null, LAST_MANIFEST = null, SEL = null;
 /* 2d T2 : le manifeste VERSO. Il vit a cote du recto, sous la MEME etiquette
    de carte — le banc le pose a la main, comme il pose deja `LAST_MANIFEST`. */
 let MANIFEST_BACK = null;
+/* ── LE « DISQUE » ET LE RAIL, PILOTES (ronde de revue 2d-T2, S1) ──────────
+   La course d'export ne se mesure pas sur des stubs de logique : `exportLayers`
+   et `cardChanged` sont les VRAIES fonctions, et ce sont le TRANSPORT et la
+   POSITION DU RAIL que le banc tient. `DISQUE` porte les manifestes que
+   `M.api.blob` sert (cle « c01_front ») ; une cle absente est un 404, comme en
+   vrai. `CARTE` est ce que le rail affiche — la bouger EST le geste qui
+   declenche la course. */
+let DISQUE = {};
+let CARTE = 0;
+let DOC_LAYOUT = null;   /* le layout « deja pose » (rangement utilisateur) */
+/* le POST de l'export, pilotable : le banc decide de ce qu'il rend ET du
+   MOMENT ou il rend, ce qui est tout l'objet de la mesure. */
+let POST = null;
+const POSTES = [];
+/* FormData est un global de node depuis la 18 — et son `append` a 3 arguments
+   exige un VRAI Blob. On l'ombre : ce qui compte ici est ce que l'export met
+   dedans (`side`, `card`), pas l'encodage multipart. */
+function FormData() { this._d = {}; }
+FormData.prototype.append = function (k, v) { this._d[k] = v; };
+FormData.prototype.get = function (k) {
+  return Object.prototype.hasOwnProperty.call(this._d, k) ? this._d[k] : null;
+};
 let VUE = "canvas", PREVIEW_URL = null;
 const HIST = [];
 const TOASTS = [];
@@ -7154,9 +7426,35 @@ const M = {
       if (typeof RAW !== "function") throw new Error("aucun transport arme");
       return RAW(methode, route, corps);
     },
+    /* LE LECTEUR DE MANIFESTE : une cle absente de `DISQUE` LEVE, exactement
+       comme le 404 que `M.api.blob` transforme en `ApiMissing`. */
+    blob: async (methode, route) => {
+      const m = /layers_(c\d+)_(front|back)\.json$/.exec(String(route));
+      const cle = m ? (m[1] + "_" + m[2]) : "";
+      if (!Object.prototype.hasOwnProperty.call(DISQUE, cle)) {
+        throw new Error("404 " + route);
+      }
+      const texte = JSON.stringify(DISQUE[cle]);
+      return { text: async () => texte };
+    },
+    post: async (route, fd) => {
+      POSTES.push(String(route) + ":" + (fd && fd.get ? fd.get("side") : ""));
+      if (typeof POST !== "function") throw new Error("aucun POST arme");
+      return POST(route, fd);
+    },
   },
 };
-const CF = { current: () => 0 };
+const CF = {
+  current: () => CARTE,
+  /* la PREUVE d'empilement : ce banc ne mesure pas le rendu des couches (il
+     tourne sans DOM), il mesure ce que l'export fait des REPONSES. La preuve
+     est donc tenue, toujours — l'echec de preuve a ses propres cas ailleurs. */
+  layers: async () => ({
+    layers: [{ role: "cadre", mode: "isolee", canvas: {} }],
+    composite: {}, paper: "#ffffff", stack_ok: true, errors: [],
+  }),
+  layerBlob: async () => ({ faux: true }),
+};
 /* L'OBJECTURL, PILOTEE. node n'offre pas d'`URL.createObjectURL` sur lequel on
    voudrait compter, et ce qui se mesure ici est justement qu'une URL posee
    soit REVOQUEE (pas seulement oubliee) : on la tient donc nous-memes. */
@@ -7172,15 +7470,30 @@ let INSP_VIEW_EL = null;
    sans ce journal un « il n'a rien fait » passerait au vert meme si le code
    avait tout refait. */
 const SELECTEURS = [];
-function get(k) { return (k === "graph") ? DOC_GRAPH : null; }
+function get(k) {
+  if (k === "graph") return DOC_GRAPH;
+  if (k === "layout") return DOC_LAYOUT;
+  return null;
+}
+/* LES DEUX SEULS NŒUDS DE DOM QUE L'EXPORT TOUCHE : sa zone d'etat et son
+   bouton. Tout le reste rend `null` — les peintres s'arretent d'eux-memes. */
+const DOM = { "#cf-forge3d-status": { textContent: "" },
+              "#cf-forge3d-export": { disabled: false } };
 function $(sel) {
   SELECTEURS.push(String(sel));
-  return (sel === "#cf-forge3d-insp-view") ? INSP_VIEW_EL : null;
+  if (sel === "#cf-forge3d-insp-view") return INSP_VIEW_EL;
+  return Object.prototype.hasOwnProperty.call(DOM, sel) ? DOM[sel] : null;
 }
 function paintVue() {}
 function paintUndo() {}
 function paintNodeThumb() {}
 function paintCost() {}
+function paintSlip() {}
+function oublieLesImages() {}
+function demandeRepeintVignettes() {}
+function videApercu() {}
+function repeintLeBordereau() {}
+function oublieLeCanvas() {}
 function build3d() {}
 build3d.busy = false;
 /* le GESTE de publication est un stub (il parle au reseau) ; ce qui se mesure
@@ -7226,7 +7539,11 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # `COL_X` la grammaire des colonnes) et la respiration entre
                 # les deux faces.
                 "COL_X", "COL_X_DEFAUT", "RANG_Y0", "RANG_H", "RANG_H_DEFAUT",
-                "LAYOUT_MAX", "VERSO_GAP"):
+                "LAYOUT_MAX", "VERSO_GAP",
+                # ronde de revue 2d-T2 (S1) : la COURSE d'export se rejoue sur
+                # les vraies fonctions — il lui faut les roles de couche et le
+                # registre des jobs que `oublieLesJobs` vide.
+                "LAYER_ROLES", "POLLS", "SEEN"):
         morceaux.append(_js_decl(src, nom))
     morceaux.append(_js_decl(src, "INSP_MS"))
     for nom in ("ROWS_MEMO", "ARETE", "INSP_SUJET", "INSP_JETON", "INSP_URL",
@@ -7264,7 +7581,17 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # l'arrangement en deux blocs. `rowHtml` entre au banc parce
                 # que c'est LA vue liste qui nomme un rang.
                 "coteDe", "defaultGraph", "cotesDesNoeuds", "bornePos",
-                "rangH", "poseBloc", "seedLayout", "rowHtml"):
+                "rangH", "poseBloc", "seedLayout", "rowHtml",
+                # ronde de revue 2d-T2 : la liste des elements assembles
+                # (M3 — `bordereauHtml` ne la lit PAS) et le lecteur de
+                # « y a-t-il un verso a offrir » (N3).
+                "elementsHtml", "aDesCouches",
+                # ... et LA COURSE D'EXPORT (S1) : l'export, le chargement de
+                # manifeste et le comparateur de carte, tous REELS. Seuls le
+                # transport et la position du rail sont pilotes.
+                "cardLabel", "litManifeste", "chargeManifeste",
+                "refreshManifest", "oublieLesJobs", "cardChanged",
+                "exportLayers"):
         morceaux.append(_js_fn(src, nom))
     js = tmp_path / "banc_palette.js"
     js.write_text("\n".join(morceaux) + "\n" + _BANC_PALETTE, encoding="utf-8")
@@ -7303,8 +7630,9 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     # un banc ampute — une section commentee, une exception avalee — passerait
     # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
     # ronde de correction, 89 avec la publication de la T6, 127 avec la carte
-    # COMPLETE de la 2d-T2 — le plancher garde la meme marge qu'avant.)
-    assert len(cas) >= 104, len(cas)
+    # COMPLETE de la 2d-T2, 146 apres la ronde de revue de cette tache — le
+    # plancher garde la meme marge qu'avant.)
+    assert len(cas) >= 120, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
