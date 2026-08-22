@@ -795,15 +795,29 @@ mod-frame.js/mod-type.js NON touchés.
 
 ### Task 5 : intégration 3a
 
-- [ ] Suite complète cards 10/10 (+ test_cards_models si fichier neuf → 11),
-      lint intégral 0, contrat complet, node --check.
-- [ ] cf_deploy -Backend + -Check 0 écart ; navigateur réel : galerie →
-      instancier « superstar » → le deck s'ouvre habillé (frame+type+palette),
-      slots visibles aux zones §6.2, plaque de fond rendue ; dupliquer ;
-      enregistrer comme modèle → re-listé → instancier LE PERSO ; « importer
-      une carte » → refus nommé. QA silhouettes finale publiée.
-- [ ] Plan+mémoire+push ; restes à l'œil (fidélité visuelle des habillages
-      par archétype — jugement esthétique utilisateur).
+- [x] Suite complète cards (12 fichiers avec test_cards_models) — verte ;
+      lint intégral 0 ; contrat complet 90 pins 0 KO (deux fois, par les
+      rondes T4) ; node --check.
+- [x] cf_deploy -Check **0 écart** (l'app tourne la 3a complète — les rondes
+      T3/T4 ont déployé au fil de l'eau) ; **navigateur réel (22/08 soir)** :
+      galerie ouverte au bouton → **7 tuiles** (libellés + indices §6.2) +
+      tous les gestes ; « Superstar du stade » instanciée → rechargement
+      `?deck=` VOULU → deck habillé (famille `deco`, rareté `legendary`,
+      **12 slots dont la note géante à [8,12,12,9] — le « 8,12 (12×9) » de
+      la spec EXACT**, 8 plaques avec textes par défaut, toile à 274 nuances) ;
+      « gravée » instanciée par l'API → **famille neuve `gravure`**, 2 slots
+      (le compte exact de la spec) ; modèle inconnu → 404 nommé BORNÉ (F7
+      visible en prod) ; « importer une carte » → toast verbatim (« phase 4 —
+      l'import arrive. Le bouton tient la place, il ne fait pas semblant. ») ;
+      ESC ferme. Dupliquer/enregistrer-comme-modèle/premier-lancement :
+      exercés par les 90 pins de batterie (6 boots bouchonnés). QA
+      silhouettes finale : pire couple 5,2/6,84 (Runique × Art déco,
+      Mythique), inchangé par la 7e famille. Nettoyage : les 2 decks d'essai
+      T5 + le deck QA T2 supprimés (200×3).
+- [x] Plan+mémoire+push ; **restes à l'œil** : fidélité visuelle des 7
+      habillages avec LEURS slots (jugement esthétique utilisateur — ouvrir
+      la galerie, instancier, regarder), le chatoiement holo et la fluidité
+      hérités des phases 2.
 
 ## Auto-revue du plan
 
