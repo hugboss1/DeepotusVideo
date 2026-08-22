@@ -1182,7 +1182,12 @@ git commit -m "feat(cardforge): publier dans la bibliotheque - JobRecord card3d 
 > DIRE (« publié sans vignette — fige l'aperçu et republie ») au lieu de
 > laisser deviner.
 
-- [ ] Mémoire + plan (cases, notes) + push.
+- [x] Mémoire + plan (cases, notes) + push. **PHASE 2C CLOSE** — le correctif
+      shot_0 prouvé de bout en bout SUR L'APP DÉPLOYÉE (figer par API 200 →
+      republier 200, même short → `/shot/0` 200, octets identiques au PNG
+      figé, `/preview` 200 aussi) ; fenêtre mock refermée par la relance de
+      clôture (`meshy_mock: false` vérifié) ; l'app tourne sur le code 2c
+      complet avec les VRAIS réglages de l'utilisateur.
 
 ---
 
