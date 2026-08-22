@@ -190,6 +190,16 @@
      de zoom et il faudra se deplacer pour tout voir. C'est le prix de menus
      LISIBLES dans le nœud — la spec §5.6 demande le second, pas le premier. */
   const RANG_Y0 = 40, RANG_GAP = 26;
+  /* 2d — LA RESPIRATION ENTRE LES DEUX FACES. Le graphe d'une carte COMPLETE
+     porte deux fois la meme grammaire (six couches recto, six couches verso) ;
+     empilees dans les memes colonnes, les douze rangs se lisent comme un seul
+     bloc de douze et rien ne dit ou le verso commence. Le bloc verso tombe
+     donc SOUS le recto, separe par une gouttiere DELIBEREMENT plus large
+     qu'un simple `RANG_GAP` — c'est ce vide-la qui se lit « nouvelle face »
+     sans qu'aucun titre n'ait a le dire, et il doit rester visible au plancher
+     de zoom (0,36 : 80 px de monde = 29 px a l'ecran, contre 9 pour un
+     RANG_GAP). */
+  const VERSO_GAP = 80;
   /* Task 5 : `artifact` et `export` cessent d'etre des reserves. L'artefact
      porte desormais son nom, deux boutons, LE VIEWER DU RESULTAT et le resume
      du bordereau ; l'export, sa vignette, son format et l'etat de ce format.
@@ -256,18 +266,44 @@
     export: "point de téléchargement : il n'éteint rien du bordereau.",
   };
 
+  /* LE CÔTÉ D'UN OBJET QUI EN PORTE UN — un nœud `layer`, un manifeste. UNE
+     règle, tous les lecteurs : « back » ou « front », jamais `undefined` ni la
+     valeur brute d'un fichier écrit à la main. C'est le miroir exact de la
+     normalisation du backend (`forge3d.py` : tout ce qui n'est pas « back »
+     est du recto), et c'est ce qui permet de comparer deux côtés sans
+     recopier trois fois le même ternaire. */
+  function coteDe(n) {
+    return (n && n.side === "back") ? "back" : "front";
+  }
+
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
-     100 % gratuit, apercu immediat — on monte en gamme nœud par nœud. */
-  function defaultGraph(man) {
+     100 % gratuit, apercu immediat — on monte en gamme nœud par nœud.
+     2d — LA CARTE ENTIÈRE, LES DEUX FACES. `dos` est le manifeste VERSO
+     (`MANIFEST_BACK`), et il est FACULTATIF : sans lui, ce seed rend les mêmes
+     OCTETS qu'avant la 2d (épinglé au banc — tout deck recto seul, c'est-à-dire
+     tout ce qui existe aujourd'hui, ne bouge pas d'un caractère).
+     DEUX ESCALIERS INDÉPENDANTS, pas un seul qui continue : le backend NIE le z
+     des chaînes verso (T1, `trs_de_face`), donc la 7e couche repart de 0 et la
+     pile verso descend sous le plan médian, symétrique de la pile recto. Un
+     escalier commun (i qui ne se remet pas à zéro) ferait plonger le verso
+     deux fois plus bas que le recto ne monte.
+     LA NUMÉROTATION, ELLE, CONTINUE : `k` traverse les deux faces, sinon les
+     six paires verso naîtraient avec les ids des six paires recto — un graphe
+     dont la moitié des arêtes désigne le mauvais nœud. */
+  function defaultGraph(man, dos) {
     const nodes = [], edges = [];
     let k = 0;
-    (man.layers || []).forEach((l, i) => {
-      const src = "s" + (++k), tr = "t" + k;
-      nodes.push({ id: src, kind: "layer", role: l.role, side: man.side });
-      nodes.push({ id: tr, kind: "plane", depth_mm: Math.round(i * 0.35 * 100) / 100 });
-      edges.push({ from: src, to: tr });
-      edges.push({ from: tr, to: "asm" });
-    });
+    const empile = (m, cote) => {
+      ((m && m.layers) || []).forEach((l, i) => {
+        const src = "s" + (++k), tr = "t" + k;
+        nodes.push({ id: src, kind: "layer", role: l.role, side: cote });
+        nodes.push({ id: tr, kind: "plane", depth_mm: Math.round(i * 0.35 * 100) / 100 });
+        edges.push({ from: src, to: tr });
+        edges.push({ from: tr, to: "asm" });
+      });
+    };
+    empile(man, coteDe(man));
+    empile(dos, "back");
     nodes.push({ id: "asm", kind: "assemble" });
     nodes.push({ id: "art", kind: "artifact", name: "carte3d" });
     edges.push({ from: "asm", to: "art" });
@@ -302,17 +338,33 @@
   const $ = (sel) => (M.slot() ? M.slot().querySelector(sel) : null);
 
   /* état éphémère du panneau — AUCUN n'est persisté (patron mod-gltf.js :
-     INFO/BUILD/ATLAS/BUSY sont eux aussi hors de `state`). */
+     INFO/BUILD/ATLAS/BUSY sont eux aussi hors de `state`).
+
+     2d — LE TRIO DES MANIFESTES, ET POURQUOI CE N'EST PAS UNE PAIRE.
+     `LAST_MANIFEST` GARDE SA DOCTRINE : il est LE RECTO, l'identité de la
+     carte (l'aperçu figé devient l'image ERC-721, le bouton de seed n'existe
+     que s'il est posé). `MANIFEST_BACK` s'AJOUTE — il complète la carte, il ne
+     partage pas ce rôle-là. `MANIFEST_CARD` étiquette LES DEUX : l'invariant
+     d'appariement de la 2b (une écriture de l'un VOISINE une écriture de
+     l'autre, épinglé sur la source entière) vaut donc pour le verso aussi.
+     Sans lui, un demi-appariement figé — recto de la carte 2, verso de la
+     carte 1 — que le comparateur de `cardChanged` valide ensuite pour
+     toujours : la palette proposerait les couches verso d'une AUTRE carte, et
+     le seed les poserait. */
   let INFO = null;              /* dernière réponse de GET info (graph_limits) */
   let LAST_MANIFEST = null;     /* le manifeste RECTO de la carte courante —
                                     reçu d'un POST layers de cette session, OU
                                     relu du disque au boot (refreshManifest,
                                     I2) ; seed du graphe, bouton seed/re-seed
                                     n'existe que s'il est posé */
+  let MANIFEST_BACK = null;     /* le manifeste VERSO de la même carte (2d) —
+                                    `null` = aucun verso exporté pour elle (une
+                                    RÉPONSE, pas une panne : la palette le DIT
+                                    au lieu d'un menu plus court sans motif) */
   let MANIFEST_CARD = null;     /* l'étiquette de carte (c01, c02…) POUR
-                                    LAQUELLE `LAST_MANIFEST` a été chargé —
-                                    legs 5 : c'est elle qu'on confronte à la
-                                    carte courante à chaque peinture */
+                                    LAQUELLE les DEUX ont été chargés — legs 5 :
+                                    c'est elle qu'on confronte à la carte
+                                    courante à chaque peinture */
   let ARTIFACT = null;          /* le dernier bordereau de build3d */
   let PREVIEW_URL = null;       /* objectURL du GLB monté dans model-viewer —
                                     révoquée avant d'en poser une nouvelle */
@@ -472,6 +524,9 @@
     CF.on("core:deck", () => {
       HIST.length = 0;
       LAST_MANIFEST = null;
+      /* le VERSO part avec le recto : un manifeste verso survivant sèmerait
+         le graphe du deck suivant avec les couches de celui qu'on quitte. */
+      MANIFEST_BACK = null;
       MANIFEST_CARD = null;
       ARTIFACT = null;
       /* M1 — un chargement de manifeste en vol appartient au deck PRÉCÉDENT :
@@ -641,10 +696,24 @@
            comparateur de `cardChanged` valide pour toujours — `seedDefault`
            semait alors depuis les couches d'une autre carte. C'est `carte`,
            l'index figé en tête de fonction, qui étiquette (pas le rail, qui
-           a pu bouger). */
+           a pu bouger).
+
+           2d — LE TRIO SE POSE ICI DE LA MÊME MANIÈRE. Le recto ré-étiquette,
+           donc il doit LÂCHER un verso qui appartenait à une autre carte : le
+           rail a pu bouger entre le temps 1 (preuve) et le temps 2 (envoi), et
+           `cardChanged` aurait alors chargé le verso de la carte AFFICHÉE.
+           Le laisser en place figerait, sous l'étiquette de `carte`, les
+           couches verso d'une autre — exactement le défaut C1, une variable
+           plus loin. Le verso de CETTE carte arrive au tour suivant de la
+           boucle (`sides` va toujours front puis back) ; s'il n'arrive pas
+           (l'envoi lève), `null` est la réponse HONNÊTE : on n'a pas de
+           manifeste verso en main, et la palette le dit. */
         if (face === "front") {
+          if (cardLabel(carte) !== MANIFEST_CARD) MANIFEST_BACK = null;
           LAST_MANIFEST = rep.layers;
           MANIFEST_CARD = cardLabel(carte);
+        } else {
+          MANIFEST_BACK = rep.layers;
         }
       }
       M.patch({ last_export: { at: new Date().toISOString(), sides: results.length } });
@@ -736,11 +805,17 @@
      mémoire de module, donc un F5 après un export réel faisait mentir le
      hint « exportez les couches d'abord » et effaçait le bouton de re-seed
      alors que les couches, elles, sont bel et bien sur le disque. On relit
-     le manifeste RECTO de la carte courante (le même fichier que
-     `post_layers` écrit, `layers_c{NN}_front.json`) — 404 = jamais exporté
-     pour cette carte, toléré EN SILENCE (ce n'est pas une panne, le hint
-     le dit déjà). `M.api.blob` rend un Blob de provenance connue ; on le
-     relit en texte puis en JSON (pas de route JSON dédiée à ce fichier). */
+     les manifestes de la carte courante (les mêmes fichiers que `post_layers`
+     écrit, `layers_c{NN}_{face}.json`) — 404 = jamais exporté pour cette
+     carte, toléré EN SILENCE (ce n'est pas une panne, le hint le dit déjà).
+     `M.api.blob` rend un Blob de provenance connue ; on le relit en texte
+     puis en JSON (pas de route JSON dédiée à ce fichier).
+     2d — LES DEUX FACES SE CHARGENT. Le verso n'était lu nulle part côté
+     écran : le graphe ne pouvait donc PAS reconstruire la carte entière après
+     un F5, quand bien même les douze PNG étaient sur le disque. Le 404 du
+     verso est toléré exactement comme celui du recto, à une nuance près qui
+     compte : ici, l'écran le DIT (« exporte les couches verso »), parce qu'un
+     menu silencieusement plus court se lit « l'écran ne sait pas faire ». */
   /* L'ÉTIQUETTE D'UNE CARTE — une seule règle de formatage pour tout le
      module (`c01`, `c02`… : celle de `post_layers`, qui nomme
      `layers_c{NN}_front.json`). L'index est un PARAMÈTRE : `exportLayers` a
@@ -762,25 +837,43 @@
     return refreshManifest.busy;
   }
 
+  /* UN MANIFESTE, UNE FACE — et le 404 RENDU, jamais levé : « pas de couches
+     exportées pour cette face » est une RÉPONSE. Une seule écriture du chemin
+     de fichier pour les deux côtés (le nom que `post_layers` pose,
+     `layers_c{NN}_{face}.json`) : deux copies auraient dérivé au premier
+     changement de nommage, et c'est justement la face qui les distingue. */
+  async function litManifeste(label, cote) {
+    try {
+      const blob = await M.api.blob(
+        "GET", "file/layers_" + label + "_" + cote + ".json");
+      return JSON.parse(await blob.text());
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function chargeManifeste() {
     const label = cardLabel();
     const gen = GEN;
-    let recu = null;
-    try {
-      const blob = await M.api.blob("GET", "file/layers_" + label + "_front.json");
-      recu = JSON.parse(await blob.text());
-    } catch (e) {
-      recu = null;
-    }
+    /* 2d — LES DEUX FACES SOUS UNE SEULE PROMESSE. Le verrou `.busy` en porte
+       UNE, et l'appelant qui attend le manifeste (le seed) attend donc bien
+       les DEUX : un chargement séquentiel exposé par deux verrous aurait laissé
+       `seedDefault` semer un graphe recto seul sur une carte qui a un verso. */
+    const recus = await Promise.all(
+      [litManifeste(label, "front"), litManifeste(label, "back")]);
     /* M1 — CE CHARGEMENT PEUT ÊTRE RASSIS : un changement de deck pendant la
        requête a incrémenté `GEN`. Écrire son résultat poserait un manifeste —
        et surtout un APPARIEMENT — appartenant à ce qui n'est plus à l'écran.
        Il se jette, il ne se peint pas ; et il ne TOUCHE PAS au verrou, que le
        handler `core:deck` a déjà libéré (le nuller ici tuerait celui du
        chargement suivant, déjà parti). Le chemin `cardChanged`, lui, ne peut
-       pas rassir : il incrémente `GEN` AVANT de lancer sa requête. */
+       pas rassir : il incrémente `GEN` AVANT de lancer sa requête.
+       LA GARDE EST UNIQUE ET COUVRE LE TRIO : elle est posée AVANT la première
+       écriture, donc un tour rassis ne pose ni le recto, ni le verso, ni
+       l'étiquette — un demi-appariement serait pire que rien. */
     if (gen !== GEN) return;
-    LAST_MANIFEST = recu;
+    LAST_MANIFEST = recus[0];
+    MANIFEST_BACK = recus[1];
     /* l'étiquette est posée MÊME en échec : un 404 est une réponse (« jamais
        exporté pour cette carte »), pas une raison de re-demander en boucle
        à chaque peinture. */
@@ -1048,11 +1141,17 @@
       + dedans + '</details>';
   }
 
+  /* 2d — LE RANG PORTE LE MÊME NOM QUE SON NŒUD. `noeudTitre` est LA règle
+     d'étiquette d'une couche à l'écran depuis la 2c (« rôle · recto|verso »),
+     et la liste écrivait `layer.role` nu : une carte deux faces y donnait deux
+     rangs `cadre` que seul un <select> à l'autre bout de la ligne
+     distinguait. Les deux vues projettent LE MÊME graphe — elles le nomment
+     pareil, et par la MÊME fonction (une seconde recette aurait dérivé). */
   function rowHtml(r, lim) {
     const proc = r.proc, layer = r.layer;
     return '<div class="cf-forge3d-row" data-proc="' + esc(proc.id) + '">'
       + '<div class="cf-forge3d-line">'
-      + '<span class="mono cf-forge3d-role">' + esc(layer.role || "composite") + '</span>'
+      + '<span class="mono cf-forge3d-role">' + esc(noeudTitre(layer)) + '</span>'
       + procSelHtml(proc)
       + geoHtml(proc, lim)
       + sideSelHtml(layer)
@@ -1682,12 +1781,41 @@
      semées. Rend le layout COMPLET de ce graphe — c'est lui qu'on peint. */
   function seedLayout(graph) {
     const pose = get("layout") || {};
-    const out = sansProto(), bas = sansProto();
-    ((graph && graph.nodes) || []).forEach((n) => {
+    const out = sansProto();
+    const cotes = cotesDesNoeuds(graph);
+    const nodes = ((graph && graph.nodes) || []);
+    /* DEUX BLOCS, PAS DEUX COLONNES DE PLUS. Le verso réutilise la MÊME
+       grammaire de colonnes (couche → traitement → maillons → assemblage) :
+       la doubler à droite aurait fait un canvas deux fois plus large et deux
+       grammaires à tenir d'accord. Il descend, c'est tout. */
+    /* LECTURE PAR ID = `connu()`, jamais un accès nu (la doctrine du module,
+       voir `connu` : l'alphabet d'id autorisé contient « constructor »). */
+    const auVerso = (n) => connu(cotes, n.id) && cotes[n.id] === "back";
+    const dos = nodes.filter(auVerso);
+    const face = nodes.filter((n) => !auVerso(n));
+    const plancher = poseBloc(face, RANG_Y0, out, pose);
+    /* RIEN NE BOUGE QUAND IL N'Y A PAS DE VERSO : un graphe recto seul ne
+       traverse que le premier appel, et en rend les MÊMES pixels qu'avant la
+       2d (épinglé au banc, layout complet contre littéral). */
+    if (dos.length) {
+      poseBloc(dos, face.length ? (plancher + VERSO_GAP) : RANG_Y0, out, pose);
+    }
+    return out;
+  }
+
+  /* UN BLOC DE NŒUDS, EN COLONNES — et le PLANCHER qu'il atteint (c'est lui
+     qui dit où le bloc suivant peut commencer). Extrait de `seedLayout` en 2d :
+     le corps n'a pas changé d'une ligne, seul son `y0` est devenu un
+     paramètre. */
+  function poseBloc(nodes, y0, out, pose) {
+    const bas = sansProto();
+    let plancher = y0;
+    nodes.forEach((n) => {
       const x = connu(COL_X, n.kind) ? COL_X[n.kind] : COL_X_DEFAUT;
       /* le rang tombe SOUS le precedent de SA colonne, hauteur + gouttiere */
-      const y = connu(bas, x) ? bas[x] : RANG_Y0;
+      const y = connu(bas, x) ? bas[x] : y0;
       bas[x] = y + rangH(n.kind) + RANG_GAP;
+      if (bas[x] > plancher) plancher = bas[x];
       const p = connu(pose, n.id) ? pose[n.id] : null;
       const connue = Array.isArray(p) && p.length === 2
         && isFinite(Number(p[0])) && isFinite(Number(p[1]));
@@ -1699,6 +1827,28 @@
       out[n.id] = connue
         ? [bornePos(p[0]), bornePos(p[1])]
         : [bornePos(x), bornePos(y)];
+    });
+    return plancher;
+  }
+
+  /* LE CÔTÉ DE CHAQUE NŒUD, POUR L'ARRANGEMENT SEUL — et jamais dans le
+     document. Une COUCHE porte son côté ; un traitement et ses maillons n'en
+     ont pas, ils l'HÉRITENT de leur couche source. C'est exactement la
+     résolution que le backend fera (`_resolve_graph_elements` / `_chaine_aval`,
+     ici `rowsDe`) : un traitement verso qui resterait dans le bloc recto
+     séparerait à l'écran ce que la construction assemble.
+     TOUT LE RESTE N'A PAS DE CÔTÉ (assemblage, artefact, exports) : une carte
+     n'a qu'un assemblage, et le descendre le déplacerait pour rien. Un
+     traitement SANS source non plus — il n'a pas encore de face, et lui en
+     inventer une le ferait sauter au premier fil tiré. */
+  function cotesDesNoeuds(graph) {
+    const out = sansProto();
+    ((graph && graph.nodes) || []).forEach((n) => {
+      if (n.kind === "layer") out[n.id] = coteDe(n);
+    });
+    rowsDe(graph).forEach((r) => {
+      if (!r.layer || coteDe(r.layer) !== "back") return;
+      [r.proc, r.mat, r.trs].forEach((n) => { if (n) out[n.id] = "back"; });
     });
     return out;
   }
@@ -3746,24 +3896,43 @@
     else if (quoi === "format") PAL.format = s.value;
   }
 
-  /* LES COUCHES QU'ON PEUT ENCORE POSER : celles du manifeste LIVRÉ qui ne
-     sont pas déjà une source du graphe. Le manifeste est la seule vérité de
+  /* LES COUCHES QU'ON PEUT ENCORE POSER : celles des manifestes LIVRÉS qui ne
+     sont pas déjà une source du graphe. Les manifestes sont la seule vérité de
      ce qui existe SUR LE DISQUE — proposer un rôle jamais exporté ferait
-     naître un nœud dont la vignette 404 et que la construction avouerait. */
+     naître un nœud dont la vignette 404 et que la construction avouerait.
+
+     2d — LES DEUX CÔTÉS, ET LE DÉDOUBLONNAGE EST PAR CÔTÉ. L'ancienne version
+     choisissait UNE face (`man.side`) et comparait les rôles seuls : un `cadre`
+     recto déjà posé masquait le `cadre` VERSO, qui devenait impossible à poser
+     par la palette — la moitié de la carte, hors d'atteinte, sans le moindre
+     message. La clé de dédoublonnage est donc `côté:rôle`, jamais le rôle nu.
+
+     Chaque entrée SE CONNAÎT : `{cle, role, side, label}`. Rendre des chaînes
+     nues obligerait chaque appelant à ré-analyser « front:cadre » — et le
+     premier rôle qui contiendra un deux-points ferait dériver les deux
+     analyses. Le `label` est le seul texte destiné à l'œil ; `cle` est ce que
+     le menu porte comme valeur. */
   function couchesRestantes(graph) {
-    const man = LAST_MANIFEST;
-    if (!man) return [];
-    const cote = (man.side === "back") ? "back" : "front";
     const pris = sansProto();
     ((graph && graph.nodes) || []).forEach((n) => {
       if (n.kind !== "layer") return;
-      if (((n.side === "back") ? "back" : "front") !== cote) return;
-      pris[String(n.role || "composite")] = 1;
+      pris[coteDe(n) + ":" + String(n.role || "composite")] = 1;
     });
-    return (man.layers || [])
-      .filter((l) => l && l.role)
-      .map((l) => String(l.role))
-      .filter((r) => !connu(pris, r));
+    const out = [];
+    [[LAST_MANIFEST, "front"], [MANIFEST_BACK, "back"]].forEach((paire) => {
+      const cote = paire[1];
+      ((paire[0] && paire[0].layers) || []).forEach((l) => {
+        if (!l || !l.role) return;
+        const role = String(l.role), cle = cote + ":" + role;
+        if (connu(pris, cle)) return;
+        /* un manifeste qui répéterait un rôle ne l'offre qu'UNE fois : la
+           seconde entrée poserait deux nœuds pour la même PNG. */
+        pris[cle] = 1;
+        out.push({ cle: cle, role: role, side: cote,
+                   label: role + ((cote === "back") ? " (verso)" : "") });
+      });
+    });
+    return out;
   }
 
   /* LE PLAFOND EST DIT AVANT, PAS DÉCOUVERT AU REFUS. `build3d` rend un 400
@@ -3802,20 +3971,28 @@
     if (!graph) return;
     if (plafondAtteint(graph, "une couche de plus ne serait pas construite")) return;
     const restes = couchesRestantes(graph);
-    const role = (PAL.role && restes.indexOf(PAL.role) >= 0) ? PAL.role : restes[0];
-    if (!role) {
+    /* L'ENTRÉE CHOISIE, PAS SEULEMENT SON RÔLE : c'est elle qui porte le CÔTÉ.
+       Le menu offre `cadre` ET `cadre (verso)` — les distinguer par le rôle
+       seul reviendrait à en poser un au hasard. Le repli sur `restes[0]` reste
+       celui d'avant : un menu jamais touché pose la première offre. */
+    const choisi = restes.filter((r) => r.cle === PAL.role)[0] || restes[0];
+    if (!choisi) {
       M.toast("toutes les couches livrées sont déjà des sources de ce graphe",
               true);
       return;
     }
     const next = JSON.parse(JSON.stringify(graph));
-    const cote = (LAST_MANIFEST && LAST_MANIFEST.side === "back") ? "back" : "front";
     /* `|| []` — LE MÊME GARDE QUE TOUS LES LECTEURS (`grapheAvecLien`,
        `aretes`, `rowsDe`…). Un graphe chargé à la main peut n'avoir aucune
-       clé `nodes` ; toute la lecture le tolère, seule l'écriture levait. */
+       clé `nodes` ; toute la lecture le tolère, seule l'écriture levait.
+       L'ID PORTE LE CÔTÉ, comme le nom d'élément du backend (`nom_element` :
+       suffixe `_verso` au verso seul). Sans lui, le jumeau verso d'un `cadre`
+       déjà posé naîtrait `cadre2` — un id que rien ne relie à ce qu'il est, et
+       que le bordereau (`elements_detail.node`) affiche tel quel. */
     next.nodes = (next.nodes || []).concat([
-      { id: freeId(next.nodes || [], role), kind: "layer",
-        role: role, side: cote }]);
+      { id: freeId(next.nodes || [],
+                   choisi.role + ((choisi.side === "back") ? "_verso" : "")),
+        kind: "layer", role: choisi.role, side: choisi.side }]);
     setGraph(next, "+ couche");
     paintVue();
   }
@@ -3966,8 +4143,8 @@
       + (restes.length
         ? ('<select data-pal="role" title="les couches livrées qui ne sont pas '
           + 'encore des sources">'
-          + restes.map((r) => '<option value="' + esc(r) + '"'
-            + (PAL.role === r ? " selected" : "") + '>' + esc(r)
+          + restes.map((r) => '<option value="' + esc(r.cle) + '"'
+            + (PAL.role === r.cle ? " selected" : "") + '>' + esc(r.label)
             + '</option>').join("")
           + '</select>')
         : "")
@@ -4004,7 +4181,18 @@
       /* LE PLAFOND, TOUJOURS LISIBLE — pas seulement au moment du refus. */
       + '<span class="mono cf-forge3d-pal-compte'
       + (plein ? " cf-forge3d-trop" : "") + '">' + Number(n)
-      + (maxEl > 0 ? (" / " + Number(maxEl)) : "") + ' élément(s)</span>';
+      + (maxEl > 0 ? (" / " + Number(maxEl)) : "") + ' élément(s)</span>'
+      /* 2d — LE VERSO MANQUANT SE DIT. Sans cette ligne, une carte dont le
+         verso n'a jamais été exporté offre exactement la même palette qu'une
+         carte recto seul : le menu est simplement plus court, et rien ne
+         distingue « il n'y a pas de verso à poser » de « cet écran ne sait pas
+         poser de verso ». La phrase nomme le geste qui débloque (le patron des
+         refus de ce module : on ne se contente pas de refuser, on dit quoi
+         faire). Elle ne dépend PAS du graphe — c'est le disque qu'elle
+         décrit — donc elle reste vraie même palette pleine. */
+      + (MANIFEST_BACK ? ""
+        : '<span class="hint cf-forge3d-pal-note">verso : exporte les couches '
+          + 'verso (section ci-dessus) pour les proposer ici.</span>');
   }
 
   function paintPalette() {
@@ -4232,7 +4420,9 @@
       paintVue();
       return;
     }
-    setGraph(defaultGraph(LAST_MANIFEST), "graphe par défaut");
+    /* LA CARTE ENTIÈRE, les deux faces (2d). `MANIFEST_BACK` peut être `null`
+       — le seed rend alors exactement le graphe recto seul d'avant. */
+    setGraph(defaultGraph(LAST_MANIFEST, MANIFEST_BACK), "graphe par défaut");
     paintVue();       /* structurel : la vue entière change de forme */
   }
 
@@ -4810,7 +5000,16 @@
          pour pousser x de 2 mm afin de perdre la parallaxe et gagner du
          z-fighting : le GLB et le STL d'accord entre eux, et tous deux en
          désaccord avec ce que l'utilisateur voyait une frappe plus tôt.
-         `zEmpilement` est la MÊME règle que celle qu'affiche `trsHtml`. */
+         `zEmpilement` est la MÊME règle que celle qu'affiche `trsHtml`.
+         2d — ET C'EST CETTE RÈGLE-LÀ QUI FERME LE PIÈGE N6. La revue adverse
+         de la T1 a nommé la conséquence pour l'écran : un `transform` chaîné
+         écrase le `depth_mm` du plan, y compris à son défaut `z_mm = 0` ; un
+         placement neuf posé à zéro sur un plan RECTO et sur son jumeau VERSO
+         ramènerait donc les deux faces coplanaires à z = 0 — une carte
+         d'épaisseur nulle, en z-fighting sur toute sa surface. Le z
+         d'empilement le rend impossible depuis cet écran : le signe, lui,
+         appartient à la règle de côté du backend (`trs_de_face`), et l'écran
+         n'a rien à en négativer. Mesuré au banc DES DEUX CÔTÉS. */
       trs = { id: freeId(g.nodes, procId + "t"), kind: "transform",
               x_mm: 0, y_mm: 0, z_mm: zEmpilement(r.proc), rot_deg: 0, scale: 1 };
       g.nodes.push(trs);

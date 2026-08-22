@@ -87,6 +87,13 @@
 /* le PLAFOND, toujours lisible — pousse a droite, encre discrete tant qu'il
    n'est pas atteint (`.cf-forge3d-trop` prend le relais quand il l'est). */
 .cf-forge3d .cf-forge3d-pal-compte { margin-left: auto; font-size: 10.5px; color: var(--ink-soft); }
+/* ce qui MANQUE au disque, dit (2d) : sans verso exporte, le menu des couches
+   est simplement plus court et rien ne distingue « il n'y a pas de verso » de
+   « cet ecran ne sait pas en poser ». Une LIGNE ENTIERE (flex-basis 100%) : la
+   barre est deja pleine de boutons, et une phrase coincee entre deux d'entre
+   eux ne se lit pas — le compte, lui, garde son `margin-left: auto` juste
+   au-dessus. */
+.cf-forge3d .cf-forge3d-pal-note { flex: 0 0 100%; font-size: 10.5px; color: var(--ink-soft); margin: 0; }
 
 /* ── LA SCENE : la surface ET son inspecteur ───────────────────────────────
    Les deux vont ensemble (le panneau n'a de sujet que par la selection, la
