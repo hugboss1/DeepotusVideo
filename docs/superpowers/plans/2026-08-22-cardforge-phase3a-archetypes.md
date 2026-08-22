@@ -681,7 +681,7 @@ nouveau test).
 **Files:** core.js, cardforge.css, index.html (si ancrage), qa (pins),
 mod-frame.js/mod-type.js NON touchés.
 
-- [ ] Un panneau « Modèles » accessible depuis la topbar (patron des boutons
+- [x] Un panneau « Modèles » accessible depuis la topbar (patron des boutons
       existants) : cartes-vignettes des 7 modèles d'usine + perso (vignette =
       rendu miniature du modèle par le VRAI moteur `CF.renderCard` sur un
       deck éphémère ? NON — trop lourd : vignette statique servie par
@@ -690,12 +690,108 @@ mod-frame.js/mod-type.js NON touchés.
       bascule sur le deck créé ; « reprendre un deck » (liste GET /decks avec
       dates) ; « importer une carte » → refus nommé phase 4 ; « dupliquer » ;
       « enregistrer comme modèle ».
-- [ ] Le registre gelé du CORE intouché (MODULES, freeze) ; les octets de
+- [x] Le registre gelé du CORE intouché (MODULES, freeze) ; les octets de
       core.js vérifiés après édition (leçon 19/08) ; pins de contrat (les
       boutons existent, la galerie s'ouvre/se ferme, AUCUNE géométrie dans le
       harnais).
-- [ ] R13 sur les fichiers touchés ; l'escamotage T3-2d non régressé (pins
+- [x] R13 sur les fichiers touchés ; l'escamotage T3-2d non régressé (pins
       existants verts).
+
+> **Livré (T4)** — `core.js` §9bis (+485 l.), `cardforge.css` (+71 l.),
+> `index.html` / `qa/contract.html` (un bouton chacun),
+> `qa/test_core_contract.mjs` (+335 l.). Commit `c90b5f0`. Contrat complet
+> vert, lint **0 violation**, 5 mutants sur 5 tués, aucun `mod-*.js` ni
+> fichier backend touché.
+>
+> · **La vignette est le PLAN DES ZONES, et c'est une contrainte de
+>   cloisonnement avant d'être une économie.** Elle ne lit que la `palette`
+>   publiée par le backend (la LECTURE de la T3, pas une quatrième table de
+>   couleurs), les boîtes mm des slots et le trim du format DÉCLARÉ. Le bloc
+>   `frame` n'est jamais lu : ses couleurs vivent dans les familles de
+>   mod-frame.js, et un CORE qui irait les y chercher saurait ce qu'est un
+>   cadre — ce que la première ligne de son en-tête interdit. Mesure : une
+>   vignette « superstar » fait 132 x 184 px et **156 teintes** ; l'archétype
+>   se reconnaît à sa silhouette (titre centré, colonne de valeurs à droite,
+>   cartouches de plaque) sans charger une seule police.
+>
+> · **`jsonFetch` avalait les 404 NOMMÉS de la T3.** Il transforme tout 404
+>   en « route absente » — juste pour le catch-all SPA, faux pour « Modèle
+>   inconnu : « xyz » ». La galerie tranche donc sur le TYPE DE RÉPONSE.
+>   *(Ronde de revue : ce même défaut cassait l'ouverture d'un deck — voir la
+>   note de ronde ci-dessous.)*
+>
+> · **`GET /decks` coûte 13,4 Mo et 18 s sur ce poste (2191 jeux).** Le
+>   sondage de premier lancement ne part donc que si le boot n'a REPRIS aucun
+>   jeu (un jeu repris prouve à lui seul que le backend n'est pas vide),
+>   après la première peinture, avec un délai de garde de 6 s ; la liste est
+>   rabotée à quatre champs dès son arrivée. **Reste pour la 3b/3c :
+>   `GET /decks` n'a ni pagination ni compteur** — la galerie plafonne
+>   l'affichage à 24 et annonce le total, mais elle télécharge tout.
+>
+> · **Changer de jeu RECHARGE la page** (`?deck=`, déjà lu par `openDeck`),
+>   après écriture des modifications en attente : les neuf pièces ne
+>   reçoivent leur état qu'une fois, dans `init()` — échanger le document en
+>   place laisserait neuf panneaux sur l'ancien jeu.
+
+> **Note de ronde T4 (22/08, revue adverse — MERGEABLE AS-IS sur le diff, un
+> bug PRÉ-EXISTANT tracé jusqu'au bout).** Commit `8fa7ea8`.
+>
+> · **Un jeu SUPPRIMÉ n'est pas un backend ABSENT** (`98fe473e` du 18/08,
+>   devenu porteur avec la T4). `jsonFetch` fait de TOUT 404 un `ApiMissing`
+>   et le catch d'`openDeck` traite `.missing` comme « hors ligne ». Le VRAI
+>   404 du backend cartes (JSON, `Deck introuvable`) prenait la même branche :
+>   un `?deck=` ou un `dz_cf_deck_id` vers un jeu effacé faisait passer le lab
+>   HORS LIGNE à tort, avec le bandeau mensonger « le domaine /api/cards n'est
+>   pas monté », **sans créer le moindre jeu** (`deck=null`), **sans réécrire
+>   `dz_cf_deck_id`** (l'identifiant mort survivait au rechargement) et **sans
+>   jamais atteindre le sondage de premier lancement** — la galerie de
+>   démarrage ne pouvait donc PAS s'ouvrir. RED au banc :
+>   `deck=null sondages=0 retenu=deck_deadbeef chip=[srcchip ko / hors ligne]`.
+> · **Correctif au moindre changement** : la discrimination par TYPE DE
+>   RÉPONSE que la galerie faisait déjà est PROMUE en outil du CORE
+>   (`jsonNamed`, §8) et employée par le chemin qui OUVRE un jeu. `jsonFetch`
+>   n'est PAS touché — ses autres appelants comptent sur l'ancienne règle :
+>   les quatre verbes des neuf jetons de `makeApi`, `images.models` (liste
+>   vide sur `.missing`), `images.generate`, `saveNow`, `verifyGeom`, et la
+>   CRÉATION de deck d'`openDeck`.
+> · **`?deck=` PRIME sur `dz_cf_deck_id`** : réécrire la seule clé de stockage
+>   ne suffisait pas. Une adresse restée sur un jeu supprimé fabriquait un jeu
+>   de plus à CHAQUE rechargement — la fuite décrite dans l'en-tête
+>   d'`openDeck`, déjà payée une fois. `syncDeckUrl` recale l'URL sur le jeu
+>   réellement ouvert, et seulement si elle portait un `?deck=` divergent.
+> · **Six démarrages bouchonnés** (`Page.addScriptToEvaluateOnNewDocument` —
+>   le banc ne touche aucun octet de core.js) : backend vide · le SEUL jeu
+>   listé est celui qu'on vient de créer · un jeu ÉTRANGER · dernier jeu
+>   supprimé (404 JSON) · `?deck=` vers un jeu supprimé · domaine absent
+>   (200 + HTML, qui DOIT rester hors ligne). Le dernier tient l'autre bord :
+>   sans lui, « ne plus confondre » se réglerait en ne détectant plus rien.
+> · **LOW 1 soldé** : l'exclusion « aucun jeu AUTRE que celui qu'on vient de
+>   créer » était vacueusement verte (une liste vide passe la condition quelle
+>   que soit l'exclusion). Les scénarios « soi » et « étranger » la rendent
+>   non vacueuse dans les DEUX sens — l'exclusion cassée et l'exclusion
+>   inversée rougissent toutes les deux.
+> · **LOW 2 soldé** : le compte reproductible est **32 pins** (26 « galerie »
+>   + 6 « deck »), pas 24 — le message de `c90b5f0` disait 24, il était faux
+>   d'un pin même avant cette ronde (25).
+> · **Le bandeau n'est pas un signal sur ce banc** : `auditStrict` l'allume à
+>   chaque démarrage pour `qa/mod-solid.js` et écrase le message « hors
+>   ligne » posé juste avant. Les pins lisent donc la PUCE de la barre (ce que
+>   l'utilisateur lit) et l'existence RÉELLE du jeu, relue côté serveur.
+> · **Le banc n'a plus de chemin de données miroir** : il reprend son modèle
+>   perso par `DELETE /api/cards/models/{id}` (livré par la ronde T3) au lieu
+>   de recopier `{DATA_ROOT}/cardforge_models`.
+> · **Mutants joués, 5 sur 5 tués** : discrimination retirée du chemin deck
+>   (5 pins) · `jsonNamed` privé de sa détection HTML (le pin hors-ligne) ·
+>   exclusion cassée · exclusion inversée · URL périmée non recalée.
+> · **Trouvé sans être corrigé (hors périmètre, à trier) :**
+>   `boot()` fait `DOC.id = randDid()` dans son catch hors-ligne **sans
+>   `touch()`** (core.js) — l'instantané mémoïsé de `doc()` reste alors sur
+>   l'ancienne valeur et `CF.get("id")` rend `null` aux neuf pièces alors que
+>   `M.api` construit bien ses chemins avec le nouvel identifiant. Visible au
+>   banc : `deck=null` sur un démarrage hors ligne sans sauvegarde locale,
+>   `deck=deck_xxxxxxxx` dès qu'une sauvegarde locale existe (elle appelle
+>   `hydrate`, donc `touch`). Un mot à ajouter, mais c'est le chemin
+>   hors-ligne, pas celui de cette ronde.
 
 ### Task 5 : intégration 3a
 
