@@ -484,7 +484,12 @@
       + '<p class="hint" id="cf-forge3d-cost"></p>'
       + '</section>'
 
-      + '<section class="cf-forge3d-card">'
+      /* LES DEUX SECTIONS BASSES PORTENT UN ID (2d Task 4) : la vue canvas les
+         masque, parce que le nœud artefact porte déjà tout ce qu'elles portent.
+         L'id est sur la SECTION et pas sur son intérieur — masquer le contenu
+         laisserait une carte vide et titrée, c'est-à-dire exactement le cadre
+         qui se lit comme une panne. Voir `sectionsBasses`. */
+      + '<section class="cf-forge3d-card" id="cf-forge3d-sec-build">'
       + '<header class="cf-forge3d-h"><b>Construire</b></header>'
       + '<button class="btn strong" id="cf-forge3d-build" type="button">'
       + 'Construire l\'artefact 3D</button>'
@@ -492,7 +497,7 @@
       + '<div id="cf-forge3d-build-slip"></div>'
       + '</section>'
 
-      + '<section class="cf-forge3d-card">'
+      + '<section class="cf-forge3d-card" id="cf-forge3d-sec-apercu">'
       + '<header class="cf-forge3d-h"><b>Aperçu</b>'
       + '<button class="btn sm" id="cf-forge3d-freeze" type="button" disabled>'
       + 'figer l\'aperçu</button>'
@@ -1673,6 +1678,68 @@
     paintVue();
   }
 
+  /* ── LA VUE CANVAS SE SUFFIT (2d Task 4) ────────────────────────────────
+     QUELLES SECTIONS BASSES L'ÉCRAN MONTRE-T-IL ? Une fonction PURE : deux
+     entrées (la vue, la présence d'un hôte artefact sur le canvas), deux
+     réponses. Le reste n'est qu'un `classList.toggle`.
+
+     EN VUE CANVAS, LEURS FONCTIONS ONT DÉMÉNAGÉ. « Construire » et « Aperçu »
+     sont les deux dernières cartes de l'écran ; depuis la 2c le nœud artefact
+     porte EXACTEMENT ce qu'elles portent — le nom, Construire, figer, le
+     bordereau et LE VIEWER DU RÉSULTAT (spec §5.6 : le résultat vit là où vit
+     l'action qui le produit). Les garder ouvertes sous le canvas, c'est
+     afficher deux fois les mêmes boutons et, juste dessous, un cadre vide qui
+     se lit comme une panne.
+
+     LA GARDE EST COMMUNE AUX DEUX, ET C'EST UNE DÉCISION — pas une facilité.
+     Sans hôte artefact (graphe jamais semé, semis annulé, ou graphe chargé
+     sans nœud artefact), chacune redevient le SEUL chemin vers sa fonction,
+     chacune pour SA raison :
+       · « Aperçu » est le seul hôte du viewer — `hoteApercu` y replie déjà, et
+         c'est le seul endroit de l'écran où un GLB déjà construit peut encore
+         s'afficher ;
+       · « Construire » est le seul bouton de construction. Le canvas vide
+         n'offre que le SEMIS (« construire le graphe par défaut »), pas la
+         construction — et surtout, un graphe SANS nœud artefact SE CONSTRUIT
+         : le backend retombe sur le nom « artefact » (forge3d.py:1364-1366).
+         Masquer la section priverait donc l'écran d'une action que le serveur
+         accepte. La règle tenue ici est « aucune fonction ne devient
+         inatteignable » ; c'est elle, et pas la symétrie, qui décide.
+     Les deux réponses coïncident aujourd'hui sur la même condition ; elles
+     sont rendues SÉPARÉMENT parce que les raisons diffèrent — le jour où l'une
+     changera, l'autre n'aura pas à suivre.
+
+     CE QUI N'EST PAS PERDU EN CHEMIN (vérifié, pas supposé) : les trois zones
+     de texte de ces sections (`#cf-forge3d-build-status`,
+     `#cf-forge3d-freeze-status`) sont toujours écrites — elles sont simplement
+     invisibles en canvas — et CHAQUE écriture est doublée d'un `M.toast` et
+     d'un `repeintLeBordereau()`, qui porte la même information dans le nœud
+     artefact (poids, éléments, état de l'export « preview »). Rien ne devient
+     muet. */
+  function sectionsBasses(vue, hoteArtefact) {
+    const auNoeud = (vue === "canvas") && !!hoteArtefact;
+    return { construire: !auNoeud, apercu: !auNoeud };
+  }
+
+  /* L'HÔTE ARTEFACT DU CANVAS — `null` quand il n'y en a pas. UNE seule
+     recherche dans le module, DEUX lecteurs (`hoteApercu` : où monter le
+     viewer ; `majSectionsBasses` : quelles sections montrer). Deux copies
+     auraient dérivé, et leur divergence a un nom précis : un viewer monté dans
+     une section masquée — donc jamais peint, donc jamais d'évènement `load`,
+     donc « figer » verrouillé pour toujours. Une panne muette. */
+  function hoteArtefactCanvas() {
+    const host = $("#cf-forge3d-canvas");
+    return (host && host.querySelector(".cf-forge3d-art-view")) || null;
+  }
+
+  function majSectionsBasses() {
+    const v = sectionsBasses(VUE, hoteArtefactCanvas());
+    const build = $("#cf-forge3d-sec-build");
+    const apercu = $("#cf-forge3d-sec-apercu");
+    if (build) build.classList.toggle("hidden", !v.construire);
+    if (apercu) apercu.classList.toggle("hidden", !v.apercu);
+  }
+
   /* LE DISPATCHER — un seul graphe, deux projections, un seul point d'entrée.
      La vue INACTIVE est VIDÉE plutôt que gardée au chaud : un poll qui
      repeindrait une chip dans un hôte caché afficherait un état… nulle part,
@@ -1700,6 +1767,15 @@
     const pal = $("#cf-forge3d-palette");
     if (insp) insp.classList.toggle("hidden", !auCanvas);
     if (pal) pal.classList.toggle("hidden", !auCanvas);
+    /* LES SECTIONS BASSES SUIVENT LA VUE — et ce rappel-ci vient AVANT les
+       deux branches, donc avant tout `remonteApercu` : monter le viewer dans
+       une section encore masquée le laisserait sans évènement `load` (rien
+       n'est peint sous `display:none`), et « figer » resterait verrouillé pour
+       toujours. L'ORDRE EST LE CORRECTIF, comme dans `videCanvas`.
+       Sur le canvas, l'hôte artefact n'existe pas encore à cet instant (le
+       monde n'est pas peint) : `paintCanvas` re-évalue donc juste après, une
+       fois les nœuds en place — même fonction, second point de lecture. */
+    majSectionsBasses();
     if (auCanvas) {
       if (liste) liste.innerHTML = "";
       paintCanvas();
@@ -3600,6 +3676,12 @@
           : '<p class="hint">Exportez les couches d\'abord (section ci-dessus) '
             + 'pour proposer un graphe par défaut.</p>';
       }
+      /* PLUS DE NŒUD ARTEFACT, DONC PLUS D'HÔTE : les deux sections basses
+         reviennent. Ce chemin-ci est atteint SANS changement de vue — annuler
+         le tout premier semis fait disparaître le graphe sous les yeux de
+         l'utilisateur — et sans ce rappel l'écran perdait d'un coup le seul
+         hôte du viewer ET le seul bouton de construction. */
+      majSectionsBasses();
       paintCost();
       return;
     }
@@ -3639,6 +3721,13 @@
        ou on la lâche, si le graphe repeint ne la porte plus. */
     majSelArete();
     appliqueCam();
+    /* LE MONDE EST PEINT : l'hôte artefact existe (ou n'existe pas), et c'est
+       MAINTENANT qu'on peut le dire. Ce second point de lecture n'est pas un
+       doublon de `paintVue` : le nœud artefact apparaît et disparaît SANS
+       changement de vue (un semis, une annulation, un graphe chargé), et le
+       dispatcher, lui, ne repasse pas. AVANT `remonteApercu` — sans quoi le
+       viewer se monterait dans une section qu'on s'apprête à masquer. */
+    majSectionsBasses();
     /* LE VIEWER DU RÉSULTAT VIENT D'ÊTRE DÉTACHÉ par l'`innerHTML` ci-dessus
        (il vit DANS le nœud artefact) : on le RE-ACCROCHE, sans re-télécharger
        — `PREVIEW_URL` tient toujours les octets déjà livrés. */
@@ -5356,12 +5445,16 @@
      la spec §5.6 veut le résultat là où vit l'action qui le produit. En vue
      liste — ou tant qu'aucun nœud artefact n'est peint — c'est la section
      « Aperçu », qui ne disparaît pas pour autant : elle reste le repli sans
-     pointeur. Le MÊME élément déménage de l'un à l'autre. */
+     pointeur. Le MÊME élément déménage de l'un à l'autre.
+     2d Task 4 — L'INVARIANT EST DEVENU STRUCTUREL. La section n'est l'hôte que
+     lorsque `sectionsBasses` la dit VISIBLE : c'est la même expression, lue une
+     seule fois, donc « le viewer ne se monte jamais dans un cadre masqué »
+     n'est plus une promesse de commentaire mais une conséquence du code. La
+     condition dupliquée qu'il y avait ici (`VUE === "canvas"` recopié) est
+     précisément celle qui aurait pu diverger de la règle de masquage. */
   function hoteApercu() {
-    const host = $("#cf-forge3d-canvas");
-    const dans = (VUE === "canvas" && host)
-      ? host.querySelector(".cf-forge3d-art-view") : null;
-    return dans || $("#cf-forge3d-view");
+    const art = hoteArtefactCanvas();
+    return sectionsBasses(VUE, art).apercu ? $("#cf-forge3d-view") : art;
   }
 
   /* CRÉE-OU-DÉMÉNAGE le viewer du résultat. Rend `null` quand la visionneuse
