@@ -4247,6 +4247,19 @@ def test_publier_dans_la_bibliotheque_est_idempotent():
                           / "carte3d_preview.png").read_bytes()
     assert _api("GET", f"/api/assets/3d/{pub['short']}/manifest"
                 ).json()["has_preview"] is True
+    # TROUVAILLE T7 (navigateur reel) : la tuile 3D de la Bibliotheque pose
+    # `/preview` en src PRIMAIRE et retombe UNE FOIS sur `/shot/0` par
+    # `onError` (bundle : `dataset.f` garde le repli unique). Le second nom
+    # n'existait nulle part dans nos dossiers — le repli tombait donc dans le
+    # vide, et avec lui « Copier le shot dans la bibliotheque d'images »
+    # (routes.py, /shot/{i}/save) et la liste `shots` du manifeste. L'apercu
+    # fige voyage desormais SOUS LES DEUX NOMS : les memes octets, aux deux
+    # endroits ou l'ecran sait les chercher.
+    rs = _api("GET", f"/api/assets/3d/{pub['short']}/shot/0")
+    assert rs.status_code == 200, rs.text
+    assert rs.content == rv.content, "le repli doit servir LES MEMES octets"
+    assert _api("GET", f"/api/assets/3d/{pub['short']}/manifest"
+                ).json()["shots"] == [0]
     # M6 — ET SURTOUT ICI : la colonne ne devient PAS « preview.png » sous
     # pretexte qu'une vignette a voyage. (Mesure trouvee par mutation : la
     # premiere version de ce pin vivait AVANT que l'apercu existe, la ou les
@@ -4332,6 +4345,10 @@ def test_republier_publie_L_ENSEMBLE_et_ne_tombe_jamais_en_500():
     short = pub["short"]
     d3d = cfg.outputs_path / "assets3d" / short
     assert _api("GET", f"/api/assets/3d/{short}/preview").status_code == 200
+    # ... sous les DEUX noms (trouvaille T7) : `/preview` est le src primaire
+    # de la tuile, `/shot/0` son repli `onError`.
+    assert _api("GET", f"/api/assets/3d/{short}/shot/0").status_code == 200
+    assert "shot_0.png" in pub["files"], pub["files"]
 
     # ── S2 : la RECONSTRUCTION efface l'apercu perime du deck (`_efface`),
     # et re-publier doit RETIRER celui de la Bibliotheque. Sinon la vignette
@@ -4348,6 +4365,10 @@ def test_republier_publie_L_ENSEMBLE_et_ne_tombe_jamais_en_500():
                 ).status_code == 200
     assert _api("GET", f"/api/assets/3d/{short}/preview").status_code == 404, \
         "l'apercu de la publication PRECEDENTE reste servi"
+    # ... et son JUMEAU part avec lui : une vignette retiree d'un cote et
+    # gardee de l'autre, c'est la meme image periemee servie par le repli.
+    assert _api("GET", f"/api/assets/3d/{short}/shot/0").status_code == 404, \
+        "le repli `onError` sert encore l'apercu de la publication PRECEDENTE"
     assert not (d3d / "model.opt.glb").is_file(), \
         "le GLB optimise de l'ANCIEN maillage reste telechargeable"
     assert not (d3d / "optimize.json").is_file()
@@ -4355,6 +4376,7 @@ def test_republier_publie_L_ENSEMBLE_et_ne_tombe_jamais_en_500():
     man = _api("GET", f"/api/assets/3d/{short}/manifest").json()
     assert man["has_preview"] is False, man
     assert man["formats"] == ["glb"], man
+    assert man["shots"] == [], man
     # ... aucun temporaire de copie ne traine, et rien ne s'y annonce comme un
     # format (le `.tmp` porte un point de tete EXPRES).
     assert sorted(p.name for p in d3d.iterdir()) == ["metadata.json",

@@ -2643,8 +2643,8 @@ NAMESPACE_CARD3D = uuid.UUID("ac928da5-740b-48d6-8913-93a83055aeeb")
 # sont jamais écrits ici : c'est « Optimiser » (routes.py, chantier 10a) qui
 # les pose à côté du modèle — raison de plus pour les balayer, ils décrivent un
 # maillage qui vient d'être remplacé.
-_LIBRARY_SERVIS = ("preview.png", "metadata.json", "model.opt.glb",
-                   "optimize.json")
+_LIBRARY_SERVIS = ("preview.png", "shot_0.png", "metadata.json",
+                   "model.opt.glb", "optimize.json")
 
 
 def _copie_servie(src: Path, dest: Path) -> None:
@@ -2787,6 +2787,19 @@ async def post_library(did: str, art: str):
         if src_ap.is_file():
             _copie_servie(src_ap, dest / "preview.png")
             fichiers.append("preview.png")
+            # ── SOUS LES DEUX NOMS (trouvaille T7, navigateur réel) ────────
+            # La tuile 3D de la Bibliothèque pose `/preview` en src PRIMAIRE
+            # et retombe UNE FOIS sur `/shot/0` par `onError` (le bundle garde
+            # ce repli unique dans `dataset.f`). Le second nom n'existait dans
+            # aucun de nos dossiers : le repli tombait donc dans le vide — et
+            # avec lui deux choses qui, elles, ne sont PAS cosmétiques : la
+            # liste `shots` du manifeste, et « copier le shot dans la
+            # bibliothèque d'images » (`/shot/{i}/save`), qui rend une carte
+            # publiée réutilisable comme source d'image.
+            # LES MÊMES OCTETS, pas une seconde capture : c'est UNE image, à
+            # deux endroits où l'écran sait la chercher.
+            _copie_servie(src_ap, dest / "shot_0.png")
+            fichiers.append("shot_0.png")
         # LE METADATA VOYAGE AUSSI, et c'est un bonus honnête : aucune route
         # ne le sert aujourd'hui, mais la provenance de ces octets (deck,
         # carte, moteurs, schéma) reste lisible À CÔTÉ du modèle plutôt que

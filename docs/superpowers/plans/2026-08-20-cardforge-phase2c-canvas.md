@@ -1078,44 +1078,110 @@ git commit -m "feat(cardforge): publier dans la bibliotheque - JobRecord card3d 
 
 ### Task 7: Intégration finale 2c
 
-- [ ] Suite complète `-Filter cards` → 10/10 ; `-Filter meshy` → vert ; lint
-      intégral → 0 (R4 sur le nouveau CSS, R13, R14) ; `--geom` 4/4.
-- [ ] `cf_deploy.ps1 -Backend` + `-Check` → 0 écart ; déployer AUSSI le bundle
-      patché vers l'app (suivre le flux app-tree : copier `frontend/dist` —
-      lire comment les déploiements bundle précédents l'ont fait) ; redémarrer.
-- [ ] `MESHY_MOCK=1` posé (retiré à la fin, à l'octet près — patron 2b Task 8).
-- [ ] **Vérification navigateur RÉELLE, zéro dépense** : export → BASCULE
-      CANVAS → les couches sont là en nœuds ; glisser un nœud (fluide, pas
-      d'undo pollué) ; pan/zoom ; connecter layer→relief à la souris ;
-      connexion invalide → toast nommé ; changer profondeur → la vignette
-      réagit ; matière + finition → vignette teintée + badge ; sélection →
-      l'inspecteur montre le VRAI 3D du nœud ; mesh3d meshy-7 : prix sur le
-      nœud, Lancer (mock), chip → servi, vignette = preview du job ;
-      Construire au nœud artefact → viewer du résultat DANS le nœud ; nœuds
-      d'export : GLB télécharge, STL affiche le refus motivé (mock ouvert) ;
-      « figer l'aperçu » ; « Publier dans la Bibliothèque » → aller dans la
-      BIBLIOTHÈQUE de l'app : l'artefact est dans l'onglet 3D, viewer tourne,
-      téléchargement OK ; re-publier → pas de doublon. AUSSI (restes 2b) :
-      tourner le viewer pour le CHATOIEMENT holo (dire ce qui est VU), sentir
-      la fluidité des cadres au pointeur réel. Captures d'écran aux moments
-      clés. Rapporter TOUT ce qui est vu, y compris ce qui déçoit.
-- [ ] **Report N6 (ronde de correction T5)** : `poseViewer` appelle
-      `majSectionApercu` à CHAQUE ré-accrochage, parce qu'un `paintNode`
-      détache le viewer avant de le remettre — le « déménagement » n'est donc
-      jamais distinguable d'un retour au même hôte. Le churn est déjà éteint
-      (la section n'écrit que si son texte change) ; ce qui reste est le vrai
-      test de même-nœud, qui demande à `paintNode` de dire s'il détache le
-      viewer. À trancher ici, avec le pointeur : le voir, puis décider si ça
-      vaut la restructuration.
-- [ ] **Dettes consignées (ronde T5, hors périmètre — trancher en clôture :
-      corriger ici ou reporter NOMMÉMENT en phase 3)** : N2 — éviction
-      d'`IMGS` (chaque relance d'un job ajoute ~322 Kio de canvas jusqu'au
-      changement de deck) ; N4 — registres `{}` nus dans `freeId`/`rewireRow`/
-      `maillonsAval`/`rowModel` (fonctions T4) alors que `couchesRestantes`
-      suit la doctrine `sansProto()` et que `_NID_RE` admet `constructor` ;
-      N7 — pool de threads par défaut partagé entre les lectures courtes
-      (vignettes, polls) et les téléchargements bloquants 120 s de
-      `A3D._download` (hérité 2b, structurel).
+- [x] Suite complète `-Filter cards` → 10/10 (538 s) ; `-Filter meshy` → vert ;
+      lint intégral → 0 (9/9) ; `--geom` 4/4.
+- [x] `cf_deploy.ps1 -Backend` (5 fichiers, python relancé, health 5,1 s) +
+      `-Check` → 0 écart ; bundle patché copié vers l'app (hash identique,
+      1 367 288 o — l'app était octet-identique au pré-patch, aucune dérive
+      locale : vérifié AVANT la copie).
+- [x] `MESHY_MOCK=1` posé par VARIABLE D'ENVIRONNEMENT héritée à la relance
+      (amendement au patron 2b « .env à l'octet près » : `cf_deploy` relance le
+      python en héritant de l'environnement de l'appelant — zéro octet à
+      restaurer, la relance de clôture SANS la variable referme la fenêtre
+      d'elle-même) ; `/api/health` : `meshy_mock: true`, préséance du mock sur
+      la VRAIE clé présente dans le .env prouvée à la source (`if
+      mock_enabled():` en tête de `create_task` ET `get_task`) ; AUCUN moteur
+      fal touché de toute la passe.
+- [x] **Vérification navigateur RÉELLE, zéro dépense — FAITE (21-22/08, volet
+      MASQUÉ : DOM/réseau/pixels de canvas 2D mesurés ; ce que le masquage
+      interdit est listé à part).** Vu et prouvé, sur deck_384b4292 :
+      export 6+6 couches (preuve navigateur strict + PIL 0 px) → graphe par
+      défaut → 14 nœuds/13 arêtes en colonnes seedLayout, vignettes toutes
+      peintes (88/88 échantillons/nœud) ; GLISSER exact au relâcher (+60/+80
+      au pixel, §9.6) ; DEUX glissers puis UN annuler → le GRAPHE disparaît
+      (zéro entrée d'historique pour la disposition — prouvé par
+      l'expérience, pas par lecture) ; PAN du fond exact (−80/−40) ;
+      sélection d'ARÊTE → « supprimer » sur le trait + état littéral
+      d'inspecteur (« une arête n'est pas un élément ») ; suppression puis
+      RECONNEXION s1→t1 au glisser de PORT (13→12→13) ; connexion INVALIDE
+      s2→t1 → refus nommé INTÉGRAL au toast (« ce traitement a déjà une
+      source (s1) — … le bordereau avouerait ») et 13 arêtes inchangées ;
+      profondeur 1,2→4,0 → la vignette réagit (hash de la bande du libellé
+      mm ; l'ombre d'emboss est couverte par une couche pleine-saignée —
+      géométriquement correct ; premier échantillonnage à pas 12 px enjambait
+      les glyphes : leçon d'instrumentation, pas défaut) ; « + matière » →
+      maillon né CÂBLÉ DANS la chaîne (t1→t1m→asm, arête directe re-routée)
+      avec vraie matière de boutique ; finition argent holographique →
+      vignette teintée (hash changé) ; INSPECTEUR : t1 → « aperçu réel de ce
+      nœud — jamais payant » + model-viewer sur objectURL blob ; matière →
+      « nœud non prévisualisable : material » en ÉTAT NEUTRE (pas rouge) ;
+      palette : plafond permanent « 6 / 12 élément(s) » ; mesh3d t2 → les 7
+      moteurs PRIX AVANT (Tripo 0,30 $ … Meshy 7 · 30 cr, ultra +5) + aveu
+      « simulateur Meshy local actif — aucun crédit réel n'est débité » SUR
+      le nœud ; Lancer → en file → 30→94 % → « servi · 30 cr · illustration
+      recto », `node-file/t2/preview.png` → 200 (vignette du job par la
+      route T5) ; Construire → build3d 200, bordereau DANS le nœud (« 6
+      élément(s) · 9.02 Mio · meshy-7 · 30 cr consommés »), viewer du
+      résultat monté dans le nœud, et EXACTEMENT 2 model-viewer dans tout le
+      document (discipline WebGL tenue en vrai) ; nœuds d'export nés câblés
+      (art→exglb, art→exstl) : GLB « 9.02 Mio · télécharger » servi (200,
+      magie glTF, 9 454 548 o), STL porte le MOTIF VERBATIM du refus sans
+      bouton ; PUBLIER → « publié · Carte 3D · Nouveau jeu · carte3d ·
+      7f34b585 » + bascule « republier » ; REPUBLIER → MÊME short
+      (idempotence en vrai) ; /api/jobs → UNE ligne card3d,
+      `image_filename=card3d_7f34b585` (M6 vivant) ;
+      /api/assets/3d/7f34b585/glb → 200 glTF ; BIBLIOTHÈQUE de l'app :
+      onglet « 3D 2 », la tuile card3d à côté de l'asset3d, clic → le viewer
+      de la Bibliothèque charge NOTRE GLB publié + boutons Download/GLB
+      optimisé. Deux 4xx observés au réseau, tous deux VOULUS (mesh3d 404
+      avant lancement ; node-preview 400 sur matière).
+      **Trouvaille navigateur** : la vignette de la tuile Bibliothèque
+      appelle `/shot/0` (pas `/preview`) → muette pour card3d ; correctif
+      shot_0.png dispatché (note en fin de tâche).
+      **Interdit par le volet masqué (rAF/WebGL gelés), reste à l'œil de
+      l'utilisateur (~2 min)** : le ZOOM molette du canvas (accumulateur rAF —
+      la mathématique est prouvée au banc T2, le pan l'est au navigateur),
+      le rendu des deux viewers 3D (les octets/objectURL servis sont
+      prouvés), « figer l'aperçu » (toBlob WebGL), le chatoiement holo en
+      tournant le viewer (reste 2b), le ressenti de fluidité au pointeur
+      réel (reste 2b), la lisibilité du panneau à 232 px et le repli ≤720 px,
+      les hauteurs RANG_H artifact/export, la caméra après déménagement du
+      viewer.
+- [x] **Report N6 — TRANCHÉ : pas de restructuration.** Le test au pointeur
+      était impossible (volet masqué), mais la donnée décisive est ailleurs :
+      le churn est ÉTEINT par l'égalité de texte (aucune réécriture
+      observable au DOM pendant toute la passe — le viewer du nœud artefact
+      a survécu à chaque repeinture, src intact), et restructurer `paintNode`
+      pour distinguer un vrai déménagement d'un retour au même hôte
+      n'achèterait qu'une micro-économie déjà réalisée. Si un jour la caméra
+      du viewer saute à l'œil (liste des restes), rouvrir ALORS.
+- [x] **Dettes consignées — REPORTÉES NOMMÉMENT en phase 3** : N2 (éviction
+      d'`IMGS` — bornée par le vidage au changement de deck, ~322 Kio par
+      relance), N4 (registres `{}` nus des fonctions T4 — accident d'affichage
+      au pire, la doctrine `sansProto` est écrite à côté), N7 (pool de
+      threads partagé lectures courtes / téléchargements 120 s — hérité 2b,
+      structurel : à traiter si un symptôme réel apparaît). Les trois vivent
+      dans la note de ronde T5 et ICI ; la phase 3 les hérite explicitement.
+> **CORRECTIF DE LA TROUVAILLE NAVIGATEUR (T6, commit dédié).** L'aperçu figé
+> voyage désormais sous LES DEUX noms — `preview.png` ET `shot_0.png`, mêmes
+> octets, même copie atomique — et `shot_0.png` entre dans `_LIBRARY_SERVIS`
+> pour qu'une republication SANS aperçu l'emporte comme le reste. Récupérés au
+> passage, et ceux-là ne sont pas cosmétiques : `manifest.shots`, et « copier
+> le shot dans la bibliothèque d'images » (`/shot/{i}/save`), qui rend une
+> carte publiée réutilisable comme source. 2 mutants tués, contrôle survivant.
+>
+> **NUANCE MESURÉE, à retenir pour la clôture** — dans le bundle, `/preview`
+> est le src PRIMAIRE de la tuile et `/shot/0` un repli `onError` UNIQUE
+> (gardé par `dataset.f`). Le repli ne part donc QUE si `/preview` a échoué :
+> la tuile muette observée signifie que la carte a été publiée **sans aperçu
+> figé** — ce que le volet masqué interdisait justement de faire (« figer
+> l'aperçu » = `toBlob` WebGL, ligne ci-dessus). Ce correctif fait marcher les
+> deux chemins quand l'aperçu EXISTE ; il ne fabrique pas de vignette à une
+> carte qui n'en a jamais eu. **À revoir à l'œil** : republier après avoir figé
+> doit suffire — et si la tuile muette reste fréquente, le bordereau devrait le
+> DIRE (« publié sans vignette — fige l'aperçu et republie ») au lieu de
+> laisser deviner.
+
 - [ ] Mémoire + plan (cases, notes) + push.
 
 ---
