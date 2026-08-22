@@ -1471,6 +1471,482 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     9bis. LA GALERIE DE DEMARRAGE (spec §6.4) — CORE SEUL.
+
+     Ce que cet ecran fait : ouvrir un jeu (neuf depuis un modele, ou repris
+     dans la liste), dupliquer celui qui est ouvert, en faire un modele. Ce
+     sont des gestes de DOCUMENT — ils ne rentrent dans aucun des neuf
+     sous-arbres, donc dans aucune piece : c'est le CORE qui les porte, comme
+     le nom du jeu et le format.
+
+     LE CORE NE SAIT TOUJOURS PAS CE QU'EST UN CADRE. La vignette d'un modele
+     est dessinee a partir de TROIS choses seulement, et pas une de plus :
+     la `palette` que le backend PUBLIE (une lecture du modele, pas une
+     quatrieme table de couleurs — cf. models.py:palette_of), les BOITES en
+     millimetres des slots, et le trim du format DECLARE par le modele. Le
+     bloc `frame` n'est pas lu : ses couleurs vivent dans les familles de
+     mod-frame.js, et aller les y chercher ferait du CORE un lecteur de
+     cadres — exactement ce que l'en-tete de ce fichier interdit. Une
+     vignette rendue par `CF.renderCard` sur un deck ephemere a ete ecartee
+     pour la meme raison qu'elle l'etait dans le plan : sept decks crees et
+     detruits a chaque ouverture d'ecran, pour une image de 132 px.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  const GAL_THUMB_W = 132;         /* largeur de vignette, en px CSS */
+  const GAL_DECKS_MAX = 24;        /* jeux listes : les plus recents */
+  /* Delai de garde du sondage « ce backend a-t-il des jeux ? ». GET /decks
+     relit TOUS les documents (13 Mo et 18 s sur un poste a 2191 jeux, mesure
+     du 22/08) : c'est une reponse a la question « pouvez-vous en reprendre
+     un ? », pas une reponse a la question « etes-vous vide ? ». Un backend
+     qui met plus que ce delai a lister ses jeux en a manifestement — on ne
+     pose donc pas la galerie par-dessus son travail. */
+  const GAL_PROBE_MS = 6000;
+  const GAL_HEX = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+
+  let GAL_PROBE = false;           /* le boot n'a REPRIS aucun jeu : il en a cree un */
+  let GAL_MODELS = null, GAL_MODELS_REQ = null;
+  let GAL_DECKS = null, GAL_DECKS_REQ = null;
+
+  /* ── le reseau de la galerie ─────────────────────────────────────────────
+     `jsonFetch` transforme TOUT 404 en `ApiMissing` (« route absente ») : la
+     regle est juste pour le domaine /api/cards, qui tombe sur le catch-all
+     SPA quand il n'est pas monte, mais elle AVALE les 404 nommes de la T3
+     (« Modele inconnu : « xyz » — la liste est servie par GET … »). Ici on
+     tranche sur le TYPE DE REPONSE et non sur le code : du HTML = la route
+     n'existe pas ; du JSON = le backend a quelque chose a dire, et c'est SA
+     phrase que l'utilisateur doit lire, pas la notre. */
+  async function galFetch(method, path, body) {
+    let r;
+    try { r = await rawFetch(method, path, body); }
+    catch (e) { throw new Error("backend injoignable (" + (e && e.message) + ")"); }
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (ct.indexOf("json") < 0) throw new ApiMissing(path);
+    let d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    if (!r.ok) throw new Error((d && (d.detail || d.error)) || (r.status + " " + r.statusText));
+    return d || {};
+  }
+  function galMsg(e) { return String((e && e.message) || e); }
+
+  function galModelsList(force) {
+    if (!force && GAL_MODELS) return Promise.resolve(GAL_MODELS);
+    if (!GAL_MODELS_REQ) {
+      GAL_MODELS_REQ = galFetch("GET", "/cards/models").then((d) => {
+        GAL_MODELS = Array.isArray(d && d.models) ? d.models : [];
+        GAL_MODELS_REQ = null;
+        return GAL_MODELS;
+      }, (e) => { GAL_MODELS_REQ = null; throw e; });
+    }
+    return GAL_MODELS_REQ;
+  }
+  /* La liste des jeux est RABOTEE des son arrivee : GET /decks rend les
+     DOCUMENTS COMPLETS (13 Mo mesures ici), la galerie n'en affiche que
+     quatre champs. Garder les 13 Mo dans l'onglet parce qu'ils sont passes
+     par la, c'est le genre de fuite qu'on ne voit qu'au profileur. */
+  function galDecksList(force) {
+    if (!force && GAL_DECKS) return Promise.resolve(GAL_DECKS);
+    if (!GAL_DECKS_REQ) {
+      GAL_DECKS_REQ = galFetch("GET", "/cards/decks").then((d) => {
+        const rows = Array.isArray(d && d.decks) ? d.decks : [];
+        GAL_DECKS = rows.filter(isPlain).map((x) => ({
+          id: String(x.id || ""), name: String(x.name || ""),
+          created: String(x.created || ""), updated: String(x.updated || ""),
+        })).filter((x) => DID_RE.test(x.id));
+        GAL_DECKS_REQ = null;
+        return GAL_DECKS;
+      }, (e) => { GAL_DECKS_REQ = null; throw e; });
+    }
+    return GAL_DECKS_REQ;
+  }
+
+  /* ── la vignette : le PLAN DES ZONES, pas un rendu ─────────────────────── */
+  function galColor(v, dflt) {
+    const s = String(v == null ? "" : v).trim();
+    return GAL_HEX.test(s) ? s : dflt;
+  }
+  function galRect(c, x, y, w, h, r) {
+    const k = Math.max(0, Math.min(r, w / 2, h / 2));
+    c.beginPath();
+    if (typeof c.roundRect === "function") { c.roundRect(x, y, w, h, k); return; }
+    c.moveTo(x + k, y);
+    c.arcTo(x + w, y, x + w, y + h, k); c.arcTo(x + w, y + h, x, y + h, k);
+    c.arcTo(x, y + h, x, y, k); c.arcTo(x, y, x + w, y, k);
+    c.closePath();
+  }
+  function galThumb(cv, m) {
+    const fmt = FMT_BY_ID[String((m && m.format) || "")] || FMT_BY_ID[DEFAULT_FMT];
+    const tw = fmt.trim_mm[0], th = fmt.trim_mm[1];
+    const W = GAL_THUMB_W, H = Math.round(W * th / tw);
+    const dpr = Math.min(2, (typeof devicePixelRatio === "number" ? devicePixelRatio : 1) || 1);
+    cv.width = Math.max(1, Math.round(W * dpr));
+    cv.height = Math.max(1, Math.round(H * dpr));
+    cv.style.width = W + "px"; cv.style.height = H + "px";
+    const c = cv.getContext("2d");
+    if (!c) return;
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const pal = isPlain(m && m.palette) ? m.palette : {};
+    const k = W / tw;                       /* millimetres -> px de vignette */
+    c.clearRect(0, 0, W, H);
+    c.fillStyle = galColor(pal.paper, "#ffffff");
+    c.fillRect(0, 0, W, H);
+    const slots = (isPlain(m && m.type) && Array.isArray(m.type.slots)) ? m.type.slots : [];
+    slots.forEach((s) => {
+      if (!isPlain(s) || !Array.isArray(s.box) || s.box.length < 4) return;
+      if (s.on === false || s.side === "back") return;
+      const x = Number(s.box[0]) * k, y = Number(s.box[1]) * k;
+      const w = Number(s.box[2]) * k, h = Number(s.box[3]) * k;
+      if (!isFinite(x + y + w + h) || w <= 0 || h <= 0) return;
+      const plaque = galColor(s.plate_color, "");
+      if (plaque) {
+        c.globalAlpha = Math.max(0.08, Math.min(1, Number(s.plate_alpha) || 1));
+        c.fillStyle = plaque;
+        galRect(c, x, y, w, h, Math.max(0, Number(s.plate_radius) || 0) * k);
+        c.fill();
+        c.globalAlpha = 1;
+      }
+      /* la barre d'encre. C'est elle qui donne sa SILHOUETTE au plan : un
+         titre centre, une colonne de valeurs calee a droite, un pave de
+         regles a gauche — on reconnait l'archetype sans lire un mot. */
+      const bh = Math.max(1, Math.min(h * 0.5, 3));
+      const bw = Math.max(2, w * (s.wrap === false ? 0.72 : 0.9));
+      let bx = x + (w - bw) / 2;
+      if (s.align === "left" || s.align === "justify") bx = x + w * 0.06;
+      else if (s.align === "right") bx = x + w * 0.94 - bw;
+      let by = y + (h - bh) / 2;
+      if (s.valign === "top") by = y + h * 0.18;
+      else if (s.valign === "bottom") by = y + h * 0.82 - bh;
+      c.globalAlpha = 0.85;
+      c.fillStyle = galColor(s.color, "#000000");
+      galRect(c, bx, by, bw, bh, bh / 2);
+      c.fill();
+      c.globalAlpha = 1;
+    });
+    c.globalAlpha = 0.5;
+    c.strokeStyle = galColor(pal.ink, "#000000");
+    c.lineWidth = 1;
+    c.strokeRect(0.5, 0.5, W - 1, H - 1);
+    c.globalAlpha = 1;
+  }
+
+  /* ── construction de l'ecran ─────────────────────────────────────────────
+     Tout ce qui vient du backend (libelle, indice, note de police, nom de
+     jeu, message d'erreur d'un modele illisible) est pose par `textContent`,
+     jamais par `innerHTML` : le seul HTML litteral de ce bloc est le
+     squelette ci-dessous, et il ne porte aucune interpolation. */
+  function galEl(tag, cls, txt) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt != null) e.textContent = String(txt);
+    return e;
+  }
+  const GAL_SKELETON =
+    '<div class="cf-gal-box" role="dialog" aria-modal="true" aria-label="Galerie de démarrage">'
+    + '<div class="cf-gal-head"><b>Modèles</b>'
+    + '<span class="cf-gal-sub">un modèle est une GRAINE : le jeu créé est ensuite ordinaire.</span>'
+    + '<span class="tb-spacer"></span>'
+    + '<button class="btn sm" id="galImport" type="button" title="Reprendre une carte existante">Importer une carte</button>'
+    + '<button class="btn sm" id="galDup" type="button" title="Copie complète du jeu ouvert, illustrations comprises">Dupliquer ce jeu</button>'
+    + '<button class="btn sm" id="galSaveOpen" type="button" title="Enregistre les réglages du jeu ouvert comme modèle (sans les illustrations)">Enregistrer comme modèle</button>'
+    + '<button class="btn ghost sm" id="galClose" type="button" title="Fermer (Échap)">&#10005;</button>'
+    + '</div>'
+    + '<div class="cf-gal-save hidden" id="galSaveForm">'
+    + '<label for="galSaveName">Nom du modèle</label>'
+    + '<input id="galSaveName" type="text" maxlength="80" placeholder="Mon modèle">'
+    + '<button class="btn strong sm" id="galSaveGo" type="button">Enregistrer</button>'
+    + '<button class="btn ghost sm" id="galSaveCancel" type="button">Annuler</button>'
+    + '<span class="cf-gal-note">Les illustrations ne partent pas dans un modèle ; les textes des slots, si.</span>'
+    + '</div>'
+    + '<div class="cf-gal-body">'
+    + '<section class="cf-gal-sec"><h3>Nouveau jeu depuis un modèle</h3>'
+    + '<p class="cf-gal-note">La vignette est le PLAN DES ZONES DE TEXTE du modèle, dans les couleurs qu\'il publie. '
+    + 'Le cadre, la matière et l\'illustration ne s\'y voient pas : ils apparaissent quand le jeu est ouvert.</p>'
+    + '<div class="cf-gal-grid" id="galModels"></div></section>'
+    + '<section class="cf-gal-sec"><h3>Reprendre un jeu '
+    + '<button class="btn ghost sm" id="galReload" type="button">Recharger la liste</button></h3>'
+    + '<div class="cf-gal-decks" id="galDecks"></div></section>'
+    + '</div></div>';
+
+  function galEnsure() {
+    if (!hasDOM) return null;
+    let root = el("#galRoot");
+    if (root) return root;
+    root = document.createElement("div");
+    root.className = "cf-gal hidden";
+    root.id = "galRoot";
+    root.dataset.open = "0";
+    root.innerHTML = GAL_SKELETON;
+    document.body.appendChild(root);
+    /* le fond ferme, la boite ne ferme pas : un clic dans la galerie ne doit
+       pas la faire disparaitre sous la main de l'utilisateur. */
+    root.addEventListener("click", (e) => { if (e.target === root) closeGallery(); });
+    const c = el("#galClose"); if (c) c.addEventListener("click", () => closeGallery());
+    const i = el("#galImport"); if (i) i.addEventListener("click", galImport);
+    const d = el("#galDup"); if (d) d.addEventListener("click", () => { galDuplicate(); });
+    const so = el("#galSaveOpen"); if (so) so.addEventListener("click", () => galSaveToggle(true));
+    const sc = el("#galSaveCancel"); if (sc) sc.addEventListener("click", () => galSaveToggle(false));
+    const sg = el("#galSaveGo");
+    const sn = el("#galSaveName");
+    if (sg) sg.addEventListener("click", () => { galSaveModel(sn ? sn.value : ""); });
+    if (sn) sn.addEventListener("keydown", (e) => {
+      if (e && e.key === "Enter") { e.preventDefault(); galSaveModel(sn.value); }
+    });
+    const rl = el("#galReload");
+    if (rl) rl.addEventListener("click", () => {
+      const gd = el("#galDecks");
+      if (gd) galNote(gd, "chargement des jeux…");
+      galDecksList(true).then((l) => galDrawDecks(l),
+        (e) => { if (gd) galNote(gd, "liste des jeux indisponible — " + galMsg(e), true); });
+    });
+    return root;
+  }
+
+  function galNote(host, txt, isErr) {
+    host.innerHTML = "";
+    host.appendChild(galEl("p", "cf-gal-note" + (isErr ? " ko" : ""), txt));
+  }
+  function galSaveToggle(on_) {
+    const f = el("#galSaveForm");
+    if (!f) return;
+    f.classList.toggle("hidden", !on_);
+    const n = el("#galSaveName");
+    if (on_ && n) { n.value = DOC.name || ""; try { n.focus(); n.select(); } catch (e) { /* pas de focus */ } }
+  }
+  /* Les trois gestes qui portent sur le jeu OUVERT n'ont pas de sens sans
+     lui : hors ligne, ou avant le premier deck, ils sont eteints et le
+     disent — plutot qu'un bouton vivant qui repondrait par une erreur. */
+  function galSyncActions() {
+    const off = OFFLINE || !DOC.id;
+    [["#galDup", "Dupliquer ce jeu"], ["#galSaveOpen", "Enregistrer comme modèle"]].forEach(([q, base]) => {
+      const b = el(q);
+      if (!b) return;
+      b.disabled = off;
+      b.title = off ? base + " : aucun jeu enregistré sur le backend (hors ligne)"
+        : base + " — jeu « " + (DOC.name || DOC.id) + " »";
+    });
+  }
+
+  function galDrawModels(list) {
+    const host = el("#galModels");
+    if (!host) return;
+    const rows = Array.isArray(list) ? list : [];
+    host.innerHTML = "";
+    if (!rows.length) { galNote(host, "aucun modèle servi par ce backend."); return; }
+    rows.forEach((m) => {
+      if (!isPlain(m)) return;
+      const mid = String(m.id || "");
+      const card = galEl("div", "cf-gal-card" + (m.illisible ? " bad" : ""));
+      card.dataset.model = mid;
+      if (m.illisible) {
+        card.appendChild(galEl("b", "cf-gal-lab", m.label || mid));
+        card.appendChild(galEl("span", "cf-gal-tag ko", "illisible"));
+        card.appendChild(galEl("p", "cf-gal-hint", String(m.fichier || mid) + " — " + String(m.error || "")));
+        card.appendChild(galEl("p", "cf-gal-note",
+          "Ce fichier ne peut pas servir de modèle tant qu'il n'est pas réparé. "
+          + "Il est listé plutôt que caché : un modèle qui disparaît sans un mot se cherche du côté de l'écran."));
+        host.appendChild(card);
+        return;
+      }
+      const cv = galEl("canvas", "cf-gal-thumb");
+      cv.title = "Plan des zones de texte de « " + String(m.label || mid) + " »";
+      card.appendChild(cv);
+      galThumb(cv, m);
+      const t = galEl("div", "cf-gal-t");
+      t.appendChild(galEl("b", "cf-gal-lab", m.label || mid));
+      if (m.custom) t.appendChild(galEl("span", "cf-gal-tag", "perso"));
+      card.appendChild(t);
+      card.appendChild(galEl("p", "cf-gal-hint", m.hint || ""));
+      const notes = Array.isArray(m.fonts_note) ? m.fonts_note.filter(isPlain) : [];
+      if (notes.length) {
+        const fp = galEl("p", "cf-gal-fonts");
+        fp.appendChild(galEl("i", null, "Polices : "));
+        notes.forEach((f, i) => {
+          const s = galEl("span", null, String(f.spec || "") + " → " + String(f.police || ""));
+          s.title = String(f.pourquoi || "");
+          fp.appendChild(s);
+          if (i < notes.length - 1) fp.appendChild(galEl("i", null, " · "));
+        });
+        card.appendChild(fp);
+      }
+      const b = galEl("button", "btn strong sm cf-gal-new", "Nouveau jeu depuis ce modèle");
+      b.type = "button";
+      b.addEventListener("click", () => { galNewFrom(mid, String(m.label || mid)); });
+      card.appendChild(b);
+      host.appendChild(card);
+    });
+  }
+
+  function galDate(iso) {
+    const d = new Date(String(iso || ""));
+    if (!isFinite(d.getTime())) return "";
+    const p2 = (n) => (n < 10 ? "0" + n : String(n));
+    return p2(d.getDate()) + "/" + p2(d.getMonth() + 1) + "/" + d.getFullYear()
+      + " " + p2(d.getHours()) + ":" + p2(d.getMinutes());
+  }
+  function galDrawDecks(list) {
+    const host = el("#galDecks");
+    if (!host) return;
+    const rows = Array.isArray(list) ? list : [];
+    host.innerHTML = "";
+    if (!rows.length) {
+      galNote(host, "aucun jeu sur ce backend — le premier naîtra d'un modèle ci-dessus.");
+      return;
+    }
+    rows.slice(0, GAL_DECKS_MAX).forEach((r) => {
+      const courant = r.id === DOC.id;
+      const b = galEl("button", "cf-gal-deck" + (courant ? " cur" : ""));
+      b.type = "button";
+      b.dataset.did = r.id;
+      b.disabled = courant;
+      b.appendChild(galEl("b", null, r.name || r.id));
+      const meta = galEl("span", "cf-gal-meta");
+      const maj = galDate(r.updated);
+      meta.appendChild(galEl("i", "mono", r.id));
+      if (maj) meta.appendChild(galEl("i", null, "modifié le " + maj));
+      if (courant) meta.appendChild(galEl("i", "cf-gal-tag", "jeu courant"));
+      b.appendChild(meta);
+      if (!courant) b.addEventListener("click", () => { galOpenDeck(r.id); });
+      host.appendChild(b);
+    });
+    if (rows.length > GAL_DECKS_MAX) {
+      host.appendChild(galEl("p", "cf-gal-note",
+        rows.length + " jeux au total — les " + GAL_DECKS_MAX + " plus récents sont listés."));
+    }
+  }
+
+  function galFill() {
+    const gm = el("#galModels"), gd = el("#galDecks");
+    if (gm) {
+      if (!GAL_MODELS) galNote(gm, "chargement des modèles…");
+      galModelsList(false).then((l) => galDrawModels(l),
+        (e) => galNote(gm, "modèles indisponibles — " + galMsg(e), true));
+    }
+    if (gd) {
+      if (!GAL_DECKS) galNote(gd, "chargement des jeux…");
+      galDecksList(false).then((l) => galDrawDecks(l),
+        (e) => galNote(gd, "liste des jeux indisponible — " + galMsg(e), true));
+    }
+  }
+
+  function openGallery(pourquoi) {
+    const root = galEnsure();
+    if (!root) return;
+    root.classList.remove("hidden");
+    root.dataset.open = "1";
+    root.dataset.why = String(pourquoi || "");
+    galSaveToggle(false);
+    galSyncActions();
+    galFill();
+    const c = el("#galClose");
+    if (c) { try { c.focus(); } catch (e) { /* pas de focus */ } }
+  }
+  function closeGallery() {
+    const root = el("#galRoot");
+    if (!root) return;
+    root.classList.add("hidden");
+    root.dataset.open = "0";
+  }
+
+  /* ── les gestes ──────────────────────────────────────────────────────────
+     CHANGER DE JEU, C'EST RECHARGER LA PAGE. Les neuf pieces recoivent leur
+     etat une seule fois, dans `init(host)`, au demarrage : rien dans le
+     contrat ne leur demande de se refaire quand le document change sous
+     elles. Echanger le document en place laisserait donc neuf panneaux qui
+     montrent l'ANCIEN jeu au-dessus d'une carte qui montre le nouveau — le
+     genre de faux qu'on ne remarque qu'apres avoir travaille une heure
+     dessus. `?deck=` est deja lu par `openDeck()` : on s'en sert. */
+  async function galFlush() {
+    clearTimeout(saveTimer);
+    try { await saveNow(); } catch (e) { /* saveNow retient deja ce qu'il n'a pas pu ecrire */ }
+  }
+  function galGo(did) {
+    if (!DID_RE.test(String(did || ""))) throw new Error("identifiant de jeu invalide : " + did);
+    rememberDeck(did);
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set("deck", did);
+      location.assign(u.href);
+    } catch (e) { location.reload(); }
+  }
+  async function galNewFrom(mid, label) {
+    try {
+      busy(true, "création du jeu depuis « " + label + " »…");
+      await galFlush();
+      const d = await galFetch("POST", "/cards/decks", { model: mid });
+      const did = d && d.deck && d.deck.id;
+      if (!did) throw new Error("le backend n'a pas rendu d'identifiant de jeu");
+      galGo(did);                       /* la page part : `busy` reste au voile */
+    } catch (e) { busy(false); toast(galMsg(e), true); }
+  }
+  async function galOpenDeck(did) {
+    try {
+      busy(true, "ouverture du jeu…");
+      await galFlush();
+      galGo(did);
+    } catch (e) { busy(false); toast(galMsg(e), true); }
+  }
+  async function galDuplicate() {
+    if (OFFLINE || !DOC.id) { toast("aucun jeu enregistré à dupliquer (hors ligne)", true); return; }
+    try {
+      busy(true, "duplication du jeu…");
+      await galFlush();                 /* la copie part du DISQUE : on y ecrit d'abord */
+      const d = await galFetch("POST", "/cards/decks/" + DOC.id + "/duplicate", {});
+      const did = d && d.deck && d.deck.id;
+      if (!did) throw new Error("le backend n'a pas rendu d'identifiant de copie");
+      galGo(did);
+    } catch (e) { busy(false); toast(galMsg(e), true); }
+  }
+  async function galSaveModel(nom) {
+    if (OFFLINE || !DOC.id) { toast("aucun jeu enregistré à convertir en modèle (hors ligne)", true); return; }
+    const n = String(nom == null ? "" : nom).trim();
+    if (!n) { toast("donnez un nom au modèle", true); return; }
+    try {
+      busy(true, "enregistrement du modèle…");
+      await galFlush();                 /* le backend serialise le jeu tel qu'il est SUR LE DISQUE */
+      const d = await galFetch("POST", "/cards/models", { did: DOC.id, name: n });
+      const m = d && d.model;
+      galSaveToggle(false);
+      toast("modèle « " + String((m && m.label) || n) + " » enregistré");
+      /* re-liste TOUT DE SUITE : un modele qui n'apparait qu'a la prochaine
+         ouverture laisse croire que l'enregistrement a echoue. */
+      const l = await galModelsList(true);
+      galDrawModels(l);
+    } catch (e) { toast(galMsg(e), true); }
+    finally { busy(false); }
+  }
+  function galImport() {
+    toast("Importer une carte : phase 4 — l'import arrive. Le bouton tient la place, il ne fait pas semblant.");
+  }
+
+  /* ── premier lancement ───────────────────────────────────────────────────
+     La galerie s'ouvre TOUTE SEULE quand il n'y a rien a reprendre : c'est
+     son role de « galerie de demarrage » (§6.4). Le sondage ne part que si
+     le boot n'a REPRIS aucun jeu (aucun `?deck=`, aucun `dz_cf_deck_id`
+     vivant) — un jeu repris prouve a lui seul que le backend n'est pas vide,
+     et 13 Mo de documents ne se demandent pas pour apprendre ce qu'on sait
+     deja. Le jeu que le boot vient de creer ne compte pas dans le decompte :
+     sans cela, « vide » serait toujours faux. */
+  async function galFirstRun() {
+    const liste = await Promise.race([
+      galDecksList(false),
+      new Promise((res) => setTimeout(() => res(null), GAL_PROBE_MS)),
+    ]);
+    if (!Array.isArray(liste)) return;                /* trop lent = pas vide */
+    if (liste.some((d) => d && d.id !== DOC.id)) return;
+    openGallery("premier lancement");
+  }
+
+  function galWire() {
+    const b = el("#galleryBtn");
+    if (b) b.addEventListener("click", () => openGallery("bouton"));
+    if (!hasDOM) return;
+    document.addEventListener("keydown", (e) => {
+      if (!e || e.key !== "Escape") return;
+      const r = el("#galRoot");
+      if (r && !r.classList.contains("hidden")) closeGallery();
+    });
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      10. DEMARRAGE
      ═══════════════════════════════════════════════════════════════════════ */
 
@@ -1531,6 +2007,10 @@
         console.warn("cardforge: dernier jeu " + did + " introuvable, creation d'un nouveau");
       }
     }
+    /* RIEN A REPRENDRE. On cree, comme avant — mais on le RETIENT : c'est le
+       seul moment ou la question « ce backend est-il vide ? » se pose, et
+       c'est elle qui decide si la galerie de demarrage s'ouvre (§9bis). */
+    GAL_PROBE = true;
     return await jsonFetch("POST", "/cards/decks", { name: DOC.name, format: DOC.format });
   }
 
@@ -1543,6 +2023,7 @@
     buildRail();
     buildFormatWidget();
     wireStage();
+    galWire();
     if (!CARDS.length) setCardsInternal([{}]);
 
     /* le jeu : backend s'il repond, disque local sinon. Le lab reste utilisable
@@ -1596,6 +2077,10 @@
     syncFormatWidget();
     emitCore("core:deck", { id: DOC.id, offline: OFFLINE });
     await drawPreview(true);
+    /* la galerie de demarrage APRES la premiere peinture, et sans attendre :
+       le sondage de §9bis peut demander plusieurs secondes a un backend
+       charge, et il n'a pas a retarder l'ecran d'une milliseconde. */
+    if (GAL_PROBE && !OFFLINE) galFirstRun().catch((e) => console.warn("cardforge: galerie", e));
     /* la geometrie de l'ecran est confrontee a celle du backend des le premier
        ecran, pas seulement au premier changement de format */
     verifyGeom().then((v) => { if (v === true) console.log("cardforge: geometrie identique ecran / backend"); }).catch(() => { });

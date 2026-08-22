@@ -25,7 +25,7 @@
      node frontend/cardforge/qa/test_core_contract.mjs --contract [--url …]
    Code de sortie : 0 = contrat tenu, 1 = au moins une violation.
    ═══════════════════════════════════════════════════════════════════════════ */
-import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -40,6 +40,17 @@ const want = (k) => argv.indexOf(k) >= 0;
 const URL_ = arg('--url', 'http://127.0.0.1:8765/cardforge/qa/contract.html');
 const doGeom = want('--geom') || !want('--contract');
 const doContract = want('--contract') || !want('--geom');
+
+/* Le dossier des modeles perso, MIROIR de backend/app/config.py:_data_root() +
+   cards/models.py:models_root(). Le banc en a besoin pour une seule raison :
+   « enregistrer comme modele » ECRIT un fichier et la T3 n'a livre aucune route
+   pour le reprendre. Sans ce chemin, chaque passage du banc laisserait un
+   modele de plus dans la galerie de l'utilisateur. Si le dossier est
+   introuvable, le pin n'est pas JOUE (on ne salit pas ce qu'on ne sait pas
+   nettoyer) — il le dit alors en NOTE. */
+const DATA_ROOT = (process.env.DEEPOTUS_DATA_DIR || '').trim()
+  || (process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'DeepotusVideoGenData') : '');
+const MODELS_DIR = DATA_ROOT ? join(DATA_ROOT, 'cardforge_models') : '';
 
 let failures = 0;
 const ok = (m) => console.log('  ok   ' + m);
@@ -299,6 +310,60 @@ const BATTERIE = `(async () => {
         "classes=[" + rfb.className + "] data-mod=" + JSON.stringify(rfb.dataset.mod || null));
   }
 
+  /* ── GALERIE DE DEMARRAGE (T4, spec §6.4) ───────────────────────────────
+     Meme discipline que l'escamotage : le banc masque les visuels et n'a pas
+     la feuille du lab, donc AUCUNE geometrie n'est affirmee. On lit la
+     CLASSE, le data-, le DOM reellement construit et le stockage. Les
+     modeles, eux, viennent du VRAI backend (:8765) : c'est le seul moyen de
+     prouver que l'ecran consomme GET /api/cards/models et non une table
+     recopiee dans le navigateur. */
+  const gb = document.getElementById("galleryBtn");
+  say("galerie : le bouton « Modeles » existe apres le boot", gb ? "TENU" : "OUVERT",
+      gb ? ("#" + gb.id + " [" + gb.className + "]") : "absent");
+  if (gb) {
+    gb.click();
+    const gr = document.getElementById("galRoot");
+    say("galerie : le clic ouvre l'ecran (hidden retiree ET data-open=1)",
+        (gr && !gr.classList.contains("hidden") && gr.dataset.open === "1") ? "TENU" : "OUVERT",
+        gr ? ("classes=[" + gr.className + "] data-open=" + gr.dataset.open + " why=" + gr.dataset.why) : "pas de #galRoot");
+    let cartes = [];
+    for (let i = 0; i < 60 && cartes.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      cartes = Array.prototype.slice.call(document.querySelectorAll("#galModels .cf-gal-card"));
+    }
+    const ids = cartes.map((c) => c.dataset.model);
+    say("galerie : au moins les 7 modeles d'usine sont listes",
+        cartes.length >= 7 ? "TENU" : "OUVERT", cartes.length + " carte(s) : " + ids.join(", "));
+    const sept = ["superstar", "duel", "creature", "arcane", "monstre", "legende", "gravee"];
+    const manquants = sept.filter((s) => ids.indexOf(s) < 0);
+    say("galerie : les sept archetypes nommes par la spec y sont",
+        manquants.length === 0 ? "TENU" : "OUVERT",
+        manquants.length ? ("manquants : " + manquants.join(", ")) : "les 7");
+    /* la vignette : une toile PEINTE, pas un rectangle. Un plan de zones
+       porte au moins le papier, la plaque, l'encre et le trait de coupe. */
+    const cv = document.querySelector('#galModels .cf-gal-card[data-model="superstar"] .cf-gal-thumb');
+    const teintes = new Set();
+    if (cv) {
+      const d = cv.getContext("2d").getImageData(0, 0, cv.width, cv.height).data;
+      for (let i = 0; i < d.length; i += 4) teintes.add(d[i] + "," + d[i + 1] + "," + d[i + 2]);
+    }
+    say("galerie : la vignette est le PLAN DES ZONES, reellement peint",
+        (cv && teintes.size >= 6) ? "TENU" : "OUVERT",
+        cv ? (cv.width + "x" + cv.height + " -> " + teintes.size + " teintes") : "pas de vignette");
+    document.getElementById("galImport").click();
+    const tst = document.getElementById("toast");
+    say("galerie : « Importer une carte » refuse en NOMMANT la phase",
+        (tst && !tst.classList.contains("hidden")
+         && tst.textContent.indexOf("phase 4 — l'import arrive") >= 0) ? "TENU" : "OUVERT",
+        tst ? tst.textContent.slice(0, 90) : "pas de toast");
+    say("galerie : le refus d'import ne referme pas l'ecran",
+        (gr && gr.dataset.open === "1") ? "TENU" : "OUVERT", gr ? gr.dataset.open : "?");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    say("galerie : Echap ferme (hidden posee ET data-open=0)",
+        (gr && gr.classList.contains("hidden") && gr.dataset.open === "0") ? "TENU" : "OUVERT",
+        gr ? ("classes=[" + gr.className + "] data-open=" + gr.dataset.open) : "?");
+  }
+
   /* le module en mode bâclé n'a pas demarre et ses couches ont quitte la pile */
   const hote = document.querySelector('.cf-host[data-host="solid"]');
   say("module sans \\"use strict\\" : init NON appelee",
@@ -339,7 +404,184 @@ const BATTERIE_REPLI = `(async () => {
     say("escamotage : chevrons presents apres rechargement", "OUVERT",
         "rail=" + !!rfb + " carte=" + !!sfb + " grille=" + !!cf);
   }
+  /* LE PENDANT NEGATIF DU PREMIER LANCEMENT. Cette page-ci a REPRIS un jeu
+     (dz_cf_deck_id) : la galerie de demarrage n'a rien a faire par-dessus.
+     Sans ce pin, un « openGallery() » pose sans condition dans boot() passerait
+     toute la batterie et sauterait au visage de l'utilisateur a chaque
+     ouverture de l'onglet Cartes. */
+  const gr = document.getElementById("galRoot");
+  say("galerie : un jeu REPRIS au boot n'ouvre pas la galerie de demarrage",
+      (!gr || gr.classList.contains("hidden")) ? "TENU" : "OUVERT",
+      gr ? ("classes=[" + gr.className + "] why=" + gr.dataset.why) : "pas de #galRoot (jamais construit)");
   return { out };
+})()`;
+
+/* ── batterie « instancier un modele » ──────────────────────────────────────
+   Elle CLIQUE et la page part : le POST cree le jeu, `galGo` pose ?deck= et
+   recharge. Les verdicts se lisent donc dans la passe suivante, et le jeu cree
+   est un jeu de banc de plus a supprimer. */
+const BATTERIE_SEMER = `(async () => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const avant = CF.get("id", null);
+  const gb = document.getElementById("galleryBtn");
+  if (!gb) { say("galerie : bouton present avant instanciation", "OUVERT", "absent"); return { out, avant }; }
+  gb.click();
+  let b = null;
+  for (let i = 0; i < 60 && !b; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    b = document.querySelector('#galModels .cf-gal-card[data-model="superstar"] .cf-gal-new');
+  }
+  say("galerie : « Nouveau jeu depuis ce modele » est offert sur superstar",
+      b ? "TENU" : "OUVERT", b ? b.textContent : "absent");
+  if (b) b.click();
+  return { out, avant, clique: !!b };
+})()`;
+
+const BATTERIE_SEME = `(() => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const did = CF.get("id", null);
+  const slots = CF.get("type.slots", []);
+  const ls = (() => { try { return localStorage.getItem("dz_cf_deck_id"); } catch (e) { return "?refus"; } })();
+  say("galerie : instancier un modele OUVRE le jeu cree (?deck= + dz_cf_deck_id + document)",
+      (did && location.search.indexOf(did) >= 0 && ls === did) ? "TENU" : "OUVERT",
+      "deck=" + did + " search=" + location.search + " dz_cf_deck_id=" + ls);
+  say("galerie : le jeu ouvert porte deja les slots du modele (la graine a pris)",
+      (Array.isArray(slots) && slots.length >= 10) ? "TENU" : "OUVERT",
+      (Array.isArray(slots) ? slots.length : "?") + " slot(s) dans doc.type");
+  const gr = document.getElementById("galRoot");
+  say("galerie : le jeu instancie s'ouvre SANS la galerie par-dessus",
+      (!gr || gr.classList.contains("hidden")) ? "TENU" : "OUVERT",
+      gr ? ("classes=[" + gr.className + "]") : "pas de #galRoot (jamais construit)");
+  return { out, did };
+})()`;
+
+/* ── batterie « enregistrer comme modele » ──────────────────────────────────
+   Jouee sur le jeu instancie a la passe precedente. Elle ne navigue pas : le
+   modele doit apparaitre DANS l'ecran ouvert (un modele qui n'arrive qu'a la
+   prochaine ouverture laisse croire que l'enregistrement a echoue). */
+const BATTERIE_MODELE = `(async () => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const gb = document.getElementById("galleryBtn");
+  if (!gb) { say("galerie : bouton present avant « enregistrer comme modele »", "OUVERT", "absent"); return { out }; }
+  gb.click();
+  for (let i = 0; i < 60 && document.querySelectorAll("#galModels .cf-gal-card").length === 0; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  const avant = document.querySelectorAll("#galModels .cf-gal-card").length;
+  const so = document.getElementById("galSaveOpen");
+  say("galerie : « Enregistrer comme modele » est actif quand un jeu est ouvert",
+      (so && so.disabled === false) ? "TENU" : "OUVERT",
+      so ? ("disabled=" + so.disabled + " title=" + so.title) : "absent");
+  if (!so) return { out };
+  so.click();
+  const form = document.getElementById("galSaveForm");
+  const nm = document.getElementById("galSaveName");
+  say("galerie : le nom se demande DANS l'ecran (aucun window.prompt)",
+      (form && !form.classList.contains("hidden") && nm) ? "TENU" : "OUVERT",
+      form ? ("classes=[" + form.className + "] champ=" + !!nm) : "pas de formulaire");
+  if (!nm) return { out };
+  nm.value = "Banc QA modele";
+  document.getElementById("galSaveGo").click();
+  let cartes = [];
+  for (let i = 0; i < 80; i++) {
+    await new Promise((r) => setTimeout(r, 200));
+    cartes = Array.prototype.slice.call(document.querySelectorAll("#galModels .cf-gal-card"));
+    if (cartes.length > avant) break;
+  }
+  const perso = cartes.filter((c) => {
+    const t = c.querySelector(".cf-gal-tag");
+    return t && t.textContent === "perso";
+  });
+  say("galerie : le modele enregistre est RE-LISTE tout de suite",
+      (cartes.length === avant + 1 && perso.length === 1) ? "TENU" : "OUVERT",
+      avant + " -> " + cartes.length + " carte(s), perso = " + perso.map((c) => c.dataset.model).join(","));
+  const tst = document.getElementById("toast");
+  say("galerie : l'enregistrement du modele le DIT",
+      (tst && tst.textContent.indexOf("enregistré") >= 0) ? "TENU" : "OUVERT",
+      tst ? tst.textContent.slice(0, 90) : "pas de toast");
+  say("galerie : le formulaire se referme une fois le modele ecrit",
+      (form && form.classList.contains("hidden")) ? "TENU" : "OUVERT",
+      form ? ("classes=[" + form.className + "]") : "?");
+  return { out, slug: perso.length ? perso[0].dataset.model : null };
+})()`;
+
+/* ── batterie « dupliquer » ────────────────────────────────────────────────
+   Elle navigue elle aussi : la copie s'OUVRE. Verdicts a la passe suivante. */
+const BATTERIE_DUP = `(async () => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const gb = document.getElementById("galleryBtn");
+  if (!gb) { say("galerie : bouton present avant duplication", "OUVERT", "absent"); return { out }; }
+  gb.click();
+  await new Promise((r) => setTimeout(r, 300));
+  const d = document.getElementById("galDup");
+  say("galerie : « Dupliquer ce jeu » est actif quand un jeu est ouvert",
+      (d && d.disabled === false) ? "TENU" : "OUVERT", d ? ("disabled=" + d.disabled) : "absent");
+  const avant = CF.get("id", null);
+  if (d) d.click();
+  return { out, avant };
+})()`;
+
+const BATTERIE_DUPE = `(() => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const did = CF.get("id", null), nom = String(CF.get("name", ""));
+  say("galerie : dupliquer OUVRE la copie (?deck= pose, nom « copie de … »)",
+      (did && location.search.indexOf(did) >= 0 && nom.indexOf("copie de ") === 0) ? "TENU" : "OUVERT",
+      "deck=" + did + " nom=" + nom + " search=" + location.search);
+  return { out, did };
+})()`;
+
+/* ── batterie « premier lancement » ─────────────────────────────────────────
+   Le bouchon ci-dessous ne touche PAS core.js : pose par
+   Page.addScriptToEvaluateOnNewDocument, il repond a la place du backend sur
+   la seule route qui porte la question (GET /api/cards/decks) et efface le
+   dernier jeu retenu — sans quoi le boot le rouvrirait et ne poserait jamais
+   la question. C'est le seul moyen d'eprouver « backend vide » contre un
+   :8765 qui, lui, a des milliers de jeux. */
+const STUB_VIDE = `(() => {
+  try {
+    localStorage.removeItem("dz_cf_deck_id");
+    localStorage.removeItem("dz_cf_rail");
+    localStorage.removeItem("dz_cf_stage");
+  } catch (e) { }
+  const vrai = window.fetch;
+  window.fetch = function (u, o) {
+    const url = String((u && u.url) || u || "");
+    const m = String((o && o.method) || (u && u.method) || "GET").toUpperCase();
+    if (m === "GET" && url.indexOf("/api/cards/decks") >= 0) {
+      window.__QA_DECKS_VIDE = (window.__QA_DECKS_VIDE || 0) + 1;
+      return Promise.resolve(new Response('{"decks":[]}',
+        { status: 200, headers: { "content-type": "application/json" } }));
+    }
+    return vrai.apply(this, arguments);
+  };
+})()`;
+
+const BATTERIE_VIDE = `(async () => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  let gr = null;
+  for (let i = 0; i < 40; i++) {
+    gr = document.getElementById("galRoot");
+    if (gr && gr.dataset.open === "1") break;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+  say("galerie : backend SANS jeu -> la galerie de demarrage s'ouvre toute seule",
+      (gr && !gr.classList.contains("hidden") && gr.dataset.open === "1") ? "TENU" : "OUVERT",
+      (gr ? ("classes=[" + gr.className + "] why=" + gr.dataset.why) : "pas de #galRoot")
+      + " · GET /decks bouchonne " + (window.__QA_DECKS_VIDE || 0) + " fois");
+  say("galerie : elle dit POURQUOI elle s'est ouverte",
+      (gr && gr.dataset.why === "premier lancement") ? "TENU" : "OUVERT",
+      gr ? String(gr.dataset.why) : "?");
+  const gd = document.getElementById("galDecks");
+  say("galerie : un backend vide le DIT, la liste ne reste pas blanche",
+      (gd && gd.querySelector(".cf-gal-note") && gd.textContent.indexOf("aucun jeu") >= 0) ? "TENU" : "OUVERT",
+      gd ? gd.textContent.slice(0, 90) : "pas de #galDecks");
+  return { out, deck: CF.get("id", null) };
 })()`;
 
 async function testContract() {
@@ -381,6 +623,11 @@ async function testContract() {
     const r = await send('Runtime.evaluate', { expression: BATTERIE, awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) { ko('la batterie a leve : ' + JSON.stringify(r.exceptionDetails.exception && r.exceptionDetails.exception.description || r.exceptionDetails.text).slice(0, 400)); return; }
     const { deck, out } = r.result.value;
+    /* Tous les jeux que le banc fait naitre, quel que soit le chemin : celui
+       du boot, celui de l'instanciation d'un modele, celui du « premier
+       lancement ». Ils sont supprimes a la fin, sans exception. */
+    const bancs = new Set();
+    if (deck) bancs.add(deck);
     const imprime = (rows) => {
       for (const row of rows) {
         const line = `${row.k} — ${row.detail.slice(0, 110)}`;
@@ -390,6 +637,71 @@ async function testContract() {
       }
     };
     imprime(out);
+
+    /* ── passe « instancier » : la galerie cree un jeu depuis « superstar » et
+       la page bascule dessus. Le clic part ici, les verdicts se lisent apres
+       le rechargement. */
+    const rs = await send('Runtime.evaluate', { expression: BATTERIE_SEMER, awaitPromise: true, returnByValue: true });
+    if (rs.exceptionDetails) ko('la batterie « instancier » a leve : ' + JSON.stringify(rs.exceptionDetails.exception && rs.exceptionDetails.exception.description || rs.exceptionDetails.text).slice(0, 400));
+    else {
+      imprime(rs.result.value.out);
+      await sleep(5000);
+      const rs2 = await send('Runtime.evaluate', { expression: BATTERIE_SEME, returnByValue: true });
+      if (rs2.exceptionDetails) ko('la relecture « instancier » a leve : ' + JSON.stringify(rs2.exceptionDetails.exception && rs2.exceptionDetails.exception.description || rs2.exceptionDetails.text).slice(0, 400));
+      else {
+        imprime(rs2.result.value.out);
+        const neuf = rs2.result.value.did;
+        if (neuf && neuf !== deck) bancs.add(neuf);
+        /* CONTRE-EXPERTISE COTE SERVEUR : le banc a un SCHEMA de type reduit
+           (`state: {slots: []}` de qa/mod-type.js), donc `preset` est ecarte
+           a l'hydratation et le navigateur ne peut pas le prouver. Le
+           document sur le disque, lui, le porte. */
+        if (neuf) {
+          try {
+            const d = await (await fetch(new URL('/api/cards/' + neuf, URL_).href)).json();
+            const t = (d && d.deck && d.deck.type) || {};
+            const n = Array.isArray(t.slots) ? t.slots.length : -1;
+            if (t.preset === 'superstar' && n === 12 && t.seeded === true)
+              ok(`galerie : le jeu cree porte le modele SUR LE DISQUE — preset=${t.preset} slots=${n} seeded=${t.seeded}`);
+            else ko(`galerie : le jeu cree ne porte pas le modele — preset=${t.preset} slots=${n} seeded=${t.seeded}`);
+          } catch (e) { ko('galerie : relecture serveur du jeu instancie impossible — ' + e.message); }
+        }
+      }
+    }
+
+    /* ── passe « enregistrer comme modele » : seulement si le banc sait ou le
+       fichier atterrit, donc s'il saura le retirer ensuite. */
+    if (MODELS_DIR && existsSync(MODELS_DIR)) {
+      const rm = await send('Runtime.evaluate', { expression: BATTERIE_MODELE, awaitPromise: true, returnByValue: true });
+      if (rm.exceptionDetails) ko('la batterie « enregistrer comme modele » a leve : ' + JSON.stringify(rm.exceptionDetails.exception && rm.exceptionDetails.exception.description || rm.exceptionDetails.text).slice(0, 400));
+      else {
+        imprime(rm.result.value.out);
+        const slug = rm.result.value.slug;
+        if (slug) {
+          try { unlinkSync(join(MODELS_DIR, slug + '.json')); console.log('  --   modele de banc ' + slug + '.json supprime'); }
+          catch (e) { ko('modele de banc ' + slug + '.json non supprime — ' + e.message); }
+        }
+      }
+    } else {
+      console.log('  note galerie : « enregistrer comme modele » non joue — dossier des modeles perso introuvable ('
+        + (MODELS_DIR || 'ni DEEPOTUS_DATA_DIR ni LOCALAPPDATA') + ')');
+    }
+
+    /* ── passe « dupliquer » : la copie s'ouvre, donc la page part. */
+    const rd = await send('Runtime.evaluate', { expression: BATTERIE_DUP, awaitPromise: true, returnByValue: true });
+    if (rd.exceptionDetails) ko('la batterie « dupliquer » a leve : ' + JSON.stringify(rd.exceptionDetails.exception && rd.exceptionDetails.exception.description || rd.exceptionDetails.text).slice(0, 400));
+    else {
+      imprime(rd.result.value.out);
+      await sleep(5000);
+      const rd2 = await send('Runtime.evaluate', { expression: BATTERIE_DUPE, returnByValue: true });
+      if (rd2.exceptionDetails) ko('la relecture « dupliquer » a leve : ' + JSON.stringify(rd2.exceptionDetails.exception && rd2.exceptionDetails.exception.description || rd2.exceptionDetails.text).slice(0, 400));
+      else {
+        imprime(rd2.result.value.out);
+        const copie = rd2.result.value.did;
+        if (copie && copie !== rd.result.value.avant) { bancs.add(copie); ok('galerie : la copie porte un identifiant NEUF — ' + rd.result.value.avant + ' -> ' + copie); }
+        else ko('galerie : la copie n\'a pas d\'identifiant neuf — ' + rd.result.value.avant + ' -> ' + copie);
+      }
+    }
 
     /* ── seconde passe : le repli est-il applique AU BOOT ? On ecrit les deux
        cles, on RECHARGE la meme page (le jeu est rouvert par dz_cf_deck_id,
@@ -403,10 +715,23 @@ async function testContract() {
     const r2 = await send('Runtime.evaluate', { expression: BATTERIE_REPLI, awaitPromise: true, returnByValue: true });
     if (r2.exceptionDetails) ko('la batterie « repli au boot » a leve : ' + JSON.stringify(r2.exceptionDetails.exception && r2.exceptionDetails.exception.description || r2.exceptionDetails.text).slice(0, 400));
     else imprime(r2.result.value.out);
-    /* le banc a ouvert un jeu : on ne laisse rien derriere */
-    if (deck) {
-      try { await fetch(new URL('/api/cards/' + deck, URL_).href, { method: 'DELETE' }); console.log('  --   jeu de banc ' + deck + ' supprime'); }
-      catch { console.log('  --   jeu de banc ' + deck + ' : suppression impossible'); }
+
+    /* ── troisieme passe : « premier lancement ». Le bouchon se pose AVANT le
+       document, la page est rechargee, et la galerie doit s'ouvrir seule. */
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: STUB_VIDE });
+    await send('Page.navigate', { url: URL_ });
+    await sleep(3000);
+    const r3 = await send('Runtime.evaluate', { expression: BATTERIE_VIDE, awaitPromise: true, returnByValue: true });
+    if (r3.exceptionDetails) ko('la batterie « premier lancement » a leve : ' + JSON.stringify(r3.exceptionDetails.exception && r3.exceptionDetails.exception.description || r3.exceptionDetails.text).slice(0, 400));
+    else {
+      imprime(r3.result.value.out);
+      if (r3.result.value.deck) bancs.add(r3.result.value.deck);
+    }
+
+    /* le banc a ouvert des jeux : on ne laisse rien derriere */
+    for (const d of bancs) {
+      try { await fetch(new URL('/api/cards/' + d, URL_).href, { method: 'DELETE' }); console.log('  --   jeu de banc ' + d + ' supprime'); }
+      catch { console.log('  --   jeu de banc ' + d + ' : suppression impossible'); }
     }
   } finally { cleanup(); }
 }

@@ -29,6 +29,11 @@
   <div class="brand">&#x1F0CF; <b>Card Forge</b></div>
   <span class="badge">CONTRAT CF</span>
   <input id="deckName" class="deckname" type="text" value="Nouveau jeu" title="Nom du jeu" maxlength="80">
+  <!-- galerie de demarrage (spec §6.4) : modeles, jeux a reprendre, import,
+       duplication, « enregistrer comme modele ». Ce sont des gestes de
+       DOCUMENT, donc du CORE — core.js:galWire les cable, core.js:galEnsure
+       construit l'ecran a la premiere ouverture. -->
+  <button class="btn ghost sm" id="galleryBtn" type="button" title="Modèles, jeux à reprendre, import — la galerie de démarrage">&#9638; Modèles</button>
   <div class="tb-spacer"></div>
   <span class="srcchip" id="apiChip">connexion à l'API…</span>
   <button class="btn ghost sm" id="themeBtn" type="button" title="Thème clair / sombre">&#x25D0;</button>

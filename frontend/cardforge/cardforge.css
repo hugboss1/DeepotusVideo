@@ -327,6 +327,77 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   padding: 9px 16px; color: var(--ink-strong); font-size: 12.5px; z-index: 80; max-width: 70vw; }
 .toast.err { border-color: var(--red); color: var(--red); }
 
+/* ── GALERIE DE DEMARRAGE (spec §6.4, core.js §9bis) ─────────────────────────
+   Un voile plein ecran + une boite : la galerie se pose PAR-DESSUS le lab,
+   elle ne remplace aucune colonne. Deux raisons mesurables : la colonne de
+   travail est une grille de 9 panneaux caches/montres par `.cf-panel.on` (y
+   glisser un dixieme panneau ferait de la galerie une dixieme piece, que le
+   rail devrait nommer et que le registre gele refuse) ; et l'apercu doit
+   rester VISIBLE derriere, sans quoi « nouveau jeu depuis ce modele » se
+   jouerait a l'aveugle. z=60 : sous le voile d'attente (70) et sous le toast
+   (80) — c'est le message qui doit passer par-dessus l'ecran, pas l'inverse.
+   Aucune couleur litterale : tout vient des tokens, donc le theme clair
+   fonctionne sans une ligne de plus. */
+.cf-gal { position: fixed; inset: 0; z-index: 60; display: flex; padding: 22px;
+  align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--bg-base) 78%, transparent); }
+.cf-gal-box { display: flex; flex-direction: column; min-height: 0; width: min(1080px, 100%);
+  max-height: 100%; background: var(--bg-panel); border: 1px solid var(--stroke-strong);
+  border-radius: var(--r-lg); box-shadow: var(--shadow-1); overflow: hidden; }
+.cf-gal-head { display: flex; align-items: center; gap: 10px; flex: none; padding: 11px 14px;
+  border-bottom: 1px solid var(--stroke); background: var(--bg-panel-2); }
+.cf-gal-head b { color: var(--ink-strong); font-size: 13.5px; }
+.cf-gal-sub { color: var(--ink-muted); font-size: 11.5px; }
+.cf-gal-save { display: flex; align-items: center; gap: 8px; flex: none; flex-wrap: wrap;
+  padding: 9px 14px; border-bottom: 1px solid var(--stroke);
+  background: color-mix(in srgb, var(--accent) 7%, var(--bg-panel)); }
+.cf-gal-save label { color: var(--ink-soft); font-size: 11.5px; }
+.cf-gal-save input { flex: 1; min-width: 160px; background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 8px; color: var(--ink-strong);
+  padding: 5px 9px; font-size: 12.5px; font-family: var(--f-ui); }
+.cf-gal-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px; }
+.cf-gal-sec + .cf-gal-sec { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--stroke); }
+.cf-gal-sec h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 6px;
+  font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-soft); }
+.cf-gal-note { margin: 0 0 10px; font-size: 11.5px; line-height: 1.55; color: var(--ink-muted); }
+.cf-gal-note.ko { color: var(--red); }
+
+/* les cartes de modele */
+.cf-gal-grid { display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); }
+.cf-gal-card { display: flex; flex-direction: column; gap: 7px; padding: 12px;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: var(--r); }
+.cf-gal-card:hover { border-color: var(--stroke-strong); }
+.cf-gal-card.bad { border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.cf-gal-thumb { align-self: center; border-radius: 4px; border: 1px solid var(--stroke);
+  background: var(--bg-panel-3); }
+.cf-gal-t { display: flex; align-items: baseline; gap: 7px; flex-wrap: wrap; }
+.cf-gal-lab { color: var(--ink-strong); font-size: 12.5px; }
+.cf-gal-tag { font-size: 9px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-muted); border: 1px solid var(--stroke); border-radius: 99px;
+  padding: 2px 8px; white-space: nowrap; }
+.cf-gal-tag.ko { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, transparent); }
+.cf-gal-hint { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--ink); }
+.cf-gal-fonts { margin: 0; font-size: 10.5px; line-height: 1.5; color: var(--ink-muted); }
+.cf-gal-fonts i { font-style: normal; }
+.cf-gal-fonts span { border-bottom: 1px dotted var(--stroke-strong); cursor: help; }
+.cf-gal-new { margin-top: auto; }
+
+/* les jeux a reprendre */
+.cf-gal-decks { display: grid; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(268px, 1fr)); }
+.cf-gal-deck { display: flex; flex-direction: column; gap: 3px; text-align: left;
+  background: var(--bg-base); border: 1px solid var(--stroke); border-radius: 8px;
+  color: var(--ink); padding: 8px 10px; font-family: inherit; font-size: 12.5px; cursor: pointer; }
+.cf-gal-deck:hover { border-color: var(--ink-soft); color: var(--ink-strong); }
+.cf-gal-deck b { color: var(--ink-strong); font-weight: 500; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.cf-gal-deck.cur { border-color: var(--accent); cursor: default; opacity: 1; }
+.cf-gal-deck:disabled { pointer-events: none; }
+.cf-gal-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  font-size: 10.5px; color: var(--ink-muted); }
+.cf-gal-meta i { font-style: normal; }
+
 /* ── fenetre etroite (iframe Game Assets sur petit ecran) ───────────────── */
 @media (max-width: 1180px) {
   :root { --rail-w: 158px; --stage-w: 300px; }

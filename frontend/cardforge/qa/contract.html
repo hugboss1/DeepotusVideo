@@ -29,6 +29,12 @@
 </div>
 <div class="apibar hidden" id="apiBar"><b id="apiBarTitle"></b><span id="apiBarMsg"></span></div>
 <span id="apiChip"></span>
+<!-- le bouton de la galerie de demarrage, comme dans index.html : c'est la
+     PAGE qui le pose, core.js:galWire le cable et core.js:galEnsure construit
+     l'ecran (dans <body>, hors de la grille) a la premiere ouverture. Le banc
+     n'a pas la feuille du lab : aucune geometrie n'est affirmee ici, seules
+     les CLASSES, le data- et le stockage comptent. -->
+<button class="btn ghost sm" id="galleryBtn" type="button">&#9638; Modèles</button>
 <!-- `main.cf` = la grille : c'est ELLE qui porte les classes d'escamotage
      (rail-replie / stage-replie). Le banc n'a pas de feuille de style du lab,
      donc aucune geometrie ici — seules les CLASSES et le stockage comptent. -->
