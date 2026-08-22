@@ -395,18 +395,72 @@ test_cards_forge3d.py.
 
 **Files:** mod-forge3d.js, mod-forge3d.css, test.
 
-- [ ] En VUE canvas : les sections « Construire » (:420-426) ET « Aperçu »
+- [x] En VUE canvas : les sections « Construire » (:420-426) ET « Aperçu »
       (:428-435) sont MASQUÉES — leurs fonctions vivent dans le nœud artefact
       (Construire, figer, bordereau, viewer T5/T6). GARDE : si le canvas n'a
       PAS d'hôte artefact (`.cf-forge3d-art-view` absent — graphe vide ou
       artefact supprimé), la section « Aperçu » RESTE visible (seul hôte du
       viewer — `hoteApercu` :5102 y replie déjà). Bascule vers liste : tout
       revient (`remonteApercu` :1586 inchangé).
-- [ ] Le masquage vit dans `paintVue` (le dispatcher d'état de vue — :1551),
+- [x] Le masquage vit dans `paintVue` (le dispatcher d'état de vue — :1551),
       classe `.hidden` sur les `<section>` parentes ; `majSectionApercu`
       inchangé (il ne parle qu'en vue liste).
-- [ ] Pins : source (paintVue masque/démasque les DEUX ids avec la garde) +
+- [x] Pins : source (paintVue masque/démasque les DEUX ids avec la garde) +
       banc si extractible.
+
+> **DÉCISION DOCUMENTÉE (T4) — LA GARDE VAUT POUR LES DEUX SECTIONS, pas pour
+> la seule « Aperçu ».** Le plan laissait le choix (« Construire peut rester
+> masquée SI le canvas offre le bouton par ailleurs »). Vérifié dans le code,
+> il ne l'offre pas, et la fonction est réelle :
+> · le canvas VIDE n'affiche que le bouton de **semis** (« construire le graphe
+>   par défaut », `paintCanvas` → surcouche `.cf-forge3d-vide`), jamais le
+>   bouton de **construction** ;
+> · et un graphe **sans nœud artefact SE CONSTRUIT** — le backend retombe sur
+>   le nom « artefact » (`forge3d.py:1364-1366`, `art_name = art_node["name"]
+>   if art_node else "artefact"`). Masquer la section priverait donc l'écran
+>   d'une action que le serveur accepte.
+> La règle appliquée est celle du plan (« aucune fonction ne doit devenir
+> inatteignable »), pas la symétrie : les deux réponses coïncident sur la même
+> condition mais sont rendues SÉPARÉMENT (`{construire, apercu}`), parce que
+> les RAISONS diffèrent — « Aperçu » est le seul hôte du viewer, « Construire »
+> le seul bouton de build.
+>
+> **Rien ne devient muet non plus** (vérifié, pas supposé) : `build3d`,
+> `freezePreview` et `publishLibrary` écrivent dans
+> `#cf-forge3d-build-status` / `#cf-forge3d-freeze-status`, invisibles en
+> canvas — mais CHAQUE écriture est doublée d'un `M.toast` **et** d'un
+> `repeintLeBordereau()`, qui porte la même information dans le nœud artefact.
+> Aucune lecture de GÉOMÉTRIE ne vise ces sections (les seuls
+> `getBoundingClientRect`/`offsetHeight`/`clientHeight` du module visent
+> `#cf-forge3d-canvas` et les nœuds qu'il contient).
+
+> **CLOSE (T4 — 106 tests, banc 154 cas, 8 mutants tués + témoin inerte).**
+> Décision PURE : `sectionsBasses(vue, hoteArtefact) → {construire, apercu}`,
+> zéro DOM (épinglé : ni `$(`, ni `document`, ni `classList` dans son corps),
+> donc la table de décision se mesure aux **quatre** états possibles.
+> **L'INVARIANT EST DEVENU STRUCTUREL** : `hoteApercu` DÉRIVE de
+> `sectionsBasses` (`return sectionsBasses(VUE, art).apercu ? section : art`),
+> et la recherche de l'hôte n'existe qu'UNE fois dans le module
+> (`hoteArtefactCanvas`, `count(...) == 1` épinglé). « Le viewer ne se monte
+> jamais dans un cadre masqué » n'est donc plus une promesse de commentaire
+> mais une conséquence du code — et l'enjeu est précis : sous `display:none`
+> rien n'est peint, donc pas d'évènement `load`, donc `FIGE_PRET` faux et
+> « figer » verrouillé pour toujours, sans un mot.
+> **DEUX points de lecture, une seule fonction** : `paintVue` (avant les deux
+> branches, donc avant tout `remonteApercu` — l'ORDRE est le correctif) et
+> `paintCanvas` (les deux chemins : le principal, où le nœud artefact
+> APPARAÎT après un semis, et le chemin « pas de graphe », atteint sans
+> changement de vue quand on annule le tout premier semis).
+> **Amendé à la source** : le pin 2c qui lisait le littéral
+> `cf-forge3d-art-view` DANS `hoteApercu` mesurait le VOCABULAIRE (même leçon
+> que M8 en 2c) — il suit désormais la délégation, et la PROPRIÉTÉ est au banc.
+> **Un mutant a survécu à la première passe** : `paintCanvas` privé de son
+> rappel sur le chemin PRINCIPAL restait vert, parce que le pin portait sur la
+> fonction entière et que le rappel du chemin « pas de graphe », plus haut dans
+> le texte, satisfaisait à la fois la présence et l'ordre. Les deux chemins
+> sont désormais épinglés séparément.
+> Aucun octet de feuille : `.hidden { display: none !important }` est déjà
+> global (`cardforge.css:35`, fichier T3 — non touché).
 
 ### Task 5 : intégration 2d
 
