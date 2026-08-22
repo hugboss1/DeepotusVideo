@@ -159,6 +159,22 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 > glyphe vire au bleu de la plaque) · `plate_alpha` ignoré (l'alpha du pixel
 > libre quitte 204) · rayon non borné (le coin reste peint à rayon 9999).
 
+> **CLOSE (T1 — 7fd0811, revue combinée : MERGEABLE AS-IS, zéro ronde).** Le
+> réviseur a mesuré AU-DELÀ des tests livrés : rotation+plaque prouvée par
+> balayage (boîte 213→485 px, aire conservée ~constante), le double-clamp du
+> rayon PORTEUR (sans le clamp-boîte : couverture 73 %→51 %),
+> `opacity × plate_alpha` MULTIPLIE (alpha mesuré 102 = 0,5×0,8×255 exact,
+> jamais un remplacement) ; les clamps serveur sondés sous 8 entrées hostiles,
+> parité ligne-à-ligne. 2 mutants re-dérivés indépendamment sur copies.
+> *Consigné pour la 3b (non bloquant)* : la branche `arcTo` de repli de
+> `platePath` n'est pas exerçable par le banc actuel (son contexte ne suit pas
+> moveTo/arcTo — l'ajouter demanderait l'accumulation de chemin) ; les 3
+> neutralisations d'encre sont des COPIES comptées (`count == 3`) — une 4e
+> passe d'encre future qui oublierait `plate_color: null` passerait en
+> silence : helper partagé à envisager quand la 3b touche ces passes ; le
+> filtre de noms R14 (`Html|paint`) ne balaie pas `renderInsp` — élargir le
+> filtre au lint (1 ligne, vérifié sûr à la main aujourd'hui).
+
 ### Task 2 : P2 — l'habillage des 7 archétypes (familles : mesure d'abord)
 
 **Files:** mod-frame.js, frame.py, test_cards_frame.py.
