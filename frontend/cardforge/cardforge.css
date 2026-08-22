@@ -92,7 +92,27 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 
 /* ── grille : rail · scene · plan de travail · lateral optionnel ─────────── */
 .cf { flex: 1; min-height: 0;
-  display: grid; grid-template-columns: var(--rail-w) var(--stage-w) minmax(0, 1fr) auto; }
+  display: grid; grid-template-columns: var(--rail-w) var(--stage-w) minmax(0, 1fr) auto;
+  transition: grid-template-columns .18s var(--ease); }
+
+/* ── ESCAMOTAGE (rail · colonne carte) ───────────────────────────────────────
+   Le patron de l'app transpose en vanille (frontend/src/studio/shell.jsx:31-122) :
+   un chevron, une classe sur la grille, une largeur qui bascule, une transition,
+   et le contenu de la colonne repliee RETIRE du flux (l'app le demonte ; ici,
+   sans framework, `display:none` — un contenu simplement etroit se serait
+   ecrase, pas efface).
+   LE GABARIT DE GRILLE NE SE DEDOUBLE PAS : c'est la VARIABLE qui bascule.
+   Une variable posee sur `.cf` bat celle de `:root` pour tout ce sous-arbre,
+   media query comprise — donc L'ESCAMOTAGE GAGNE SUR LA REQUETE MEDIA a
+   n'importe quelle largeur de fenetre. C'est le bon arbitre : la requete media
+   dit la largeur PAR DEFAUT d'une colonne ouverte, l'utilisateur qui vient de
+   cliquer dit qu'elle est FERMEE ; retrecir la fenetre n'est pas une raison de
+   rouvrir ce qu'il ferme. C'est aussi pourquoi la requete <900px, en bas de
+   cette feuille, redeclare les VARIABLES et non `grid-template-columns` : un
+   gabarit en dur y ignorait la bascule et laissait une colonne pleine largeur
+   au contenu masque. */
+.cf.rail-replie { --rail-w: 46px; }     /* numeros + icones seuls, titres au title= */
+.cf.stage-replie { --stage-w: 36px; }   /* bande de reouverture, contenu retire */
 .rail { border-right: 1px solid var(--stroke); background: var(--bg-panel);
   overflow-y: auto; padding: 8px 8px 14px; display: flex; flex-direction: column; gap: 2px; }
 .rail-item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
@@ -108,6 +128,17 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 .rail-item .ri-t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rail-item .ri-i { font-style: normal; font-size: 13px; opacity: .85; flex: none; }
 .rail-item.off { opacity: .42; }
+/* le chevron du rail : sa PROPRE rangee, en bas (margin-top:auto), jamais une
+   `.rail-item` — sinon il compterait parmi les neuf pieces (syncPanels balaie
+   `.rail-item`) et replier ressemblerait a choisir un module. */
+.rail-fold { margin-top: auto; display: flex; align-items: center; justify-content: center;
+  gap: 7px; width: 100%; background: transparent; border: 1px solid transparent;
+  border-radius: 8px; color: var(--ink-muted); padding: 7px 9px; font-size: 11px;
+  cursor: pointer; }
+.rail-fold:hover { border-color: var(--stroke); color: var(--ink-strong); background: var(--bg-base); }
+.rail-fold .rf-c { font-style: normal; font-size: 13px; line-height: 1;
+  transition: transform .18s var(--ease); }
+.rail-fold .rf-t { letter-spacing: .1em; text-transform: uppercase; font-size: 9.5px; }
 
 /* ── scene : l'apercu EST le rendu livre, a une autre echelle ────────────── */
 .stage { display: flex; flex-direction: column; min-width: 0; min-height: 0;
@@ -133,6 +164,40 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 .stage-read b { color: var(--ink-strong); font-size: 11.5px; font-weight: 600; }
 .stage-read span { color: var(--ink-muted); margin-right: 6px; }
 .stage-err { font-size: 10.5px; color: var(--red); line-height: 1.45; }
+/* le chevron de la colonne carte : le SEUL survivant du repli (voir plus bas),
+   donc il ne peut pas etre un `.btn` — il doit pouvoir devenir une bande
+   verticale sans se battre avec `display:inline-block`. */
+.stage-fold { display: flex; align-items: center; justify-content: center; gap: 6px;
+  flex: none; background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--ink-muted); padding: 4px 7px; font-size: 11px; cursor: pointer; }
+.stage-fold:hover { border-color: var(--stroke); color: var(--ink-strong); background: var(--bg-base); }
+.stage-fold .sf-c { font-style: normal; font-size: 13px; line-height: 1;
+  transition: transform .18s var(--ease); }
+.stage-fold .sf-t { display: none; }   /* l'etiquette n'apparait QUE repliee */
+
+/* ── ETAT REPLIE : ce qui reste, ce qui part ────────────────────────────────
+   Rail : les titres partent, les numeros et les icones restent — chaque rangee
+   garde son `title=` (pose par core.js), donc un rail repli reste utilisable au
+   survol et au clic. Colonne carte : tout part SAUF le chevron, qui devient la
+   bande verticale de reouverture ; la toile n'est pas juste retrecie, elle est
+   retiree du flux (une toile a 36px aurait ete un timbre-poste illisible que
+   l'utilisateur aurait pris pour un bug de rendu). */
+.cf.rail-replie .rail { padding: 8px 5px 14px; }
+.cf.rail-replie .rail-item { flex-direction: column; gap: 2px; padding: 6px 2px; }
+.cf.rail-replie .rail-item .ri-t { display: none; }
+.cf.rail-replie .rail-fold { padding: 7px 2px; }
+.cf.rail-replie .rail-fold .rf-t { display: none; }
+.cf.rail-replie .rail-fold .rf-c { transform: rotate(180deg); }   /* le chevron se retourne */
+
+.cf.stage-replie .stage-head { flex: 1; flex-direction: column; align-items: stretch;
+  padding: 7px 3px; border-bottom: 0; }
+.cf.stage-replie .stage-head > :not(.stage-fold) { display: none; }
+.cf.stage-replie .stage-wrap, .cf.stage-replie .stage-foot { display: none; }
+.cf.stage-replie .stage-fold { flex: 1; flex-direction: column; justify-content: flex-start;
+  gap: 10px; padding: 6px 2px; }
+.cf.stage-replie .stage-fold .sf-c { transform: rotate(180deg); }
+.cf.stage-replie .stage-fold .sf-t { display: block; writing-mode: vertical-rl;
+  letter-spacing: .16em; text-transform: uppercase; font-size: 9.5px; }
 
 /* ── plan de travail : 8 sections, une visible ──────────────────────────── */
 .work { min-width: 0; min-height: 0; overflow: hidden; display: flex; background: var(--bg-base); }
@@ -268,6 +333,12 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   .fmt-read { margin-left: 0; justify-content: flex-start; }
 }
 @media (max-width: 900px) {
-  .cf { grid-template-columns: 132px 240px minmax(0, 1fr) auto; }
+  /* mêmes largeurs qu'avant, mais dites par les VARIABLES et non par un
+     `grid-template-columns` en dur sur `.cf` : un gabarit en dur ici gagnait
+     sur `.cf.rail-replie`/`.cf.stage-replie` (meme element, declaration plus
+     tardive) — la classe se posait, le stockage s'ecrivait, et la colonne
+     restait large avec un contenu masque dedans : une bande vide de 240px.
+     Avec les variables, l'escamotage gagne a toutes les largeurs. */
+  :root { --rail-w: 132px; --stage-w: 240px; }
   .fw select { min-width: 150px; }
 }

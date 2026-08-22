@@ -948,10 +948,25 @@
       b.innerHTML = '<i class="ri-n">' + String(ORDER[id]).padStart(2, "0") + '</i>'
         + '<span class="ri-t">' + (m ? esc(m.title) : esc(id)) + '</span>'
         + '<em class="ri-i">' + (m ? esc(m.icon) : "·") + '</em>';
-      if (!m) b.title = "module absent : js/mod-" + id + ".js n'est pas chargé";
+      /* le nom de la piece est TOUJOURS dans le title= : replie, le rail n'a
+         plus que le numero et l'icone — sans lui, neuf pastilles muettes. */
+      b.title = m ? m.title : "module absent : js/mod-" + id + ".js n'est pas chargé";
       b.addEventListener("click", () => show(id));
       rail.appendChild(b);
     });
+    /* le chevron d'escamotage. Il est cree ICI et non ecrit dans index.html
+       parce que buildRail() vide `#rail` a chaque appel : un bouton pose dans
+       le HTML y serait efface au premier rendu. Sa classe n'est pas
+       `.rail-item` : syncPanels balaie `.rail-item` pour marquer la piece
+       courante, et le repli n'est pas une piece. */
+    const f = document.createElement("button");
+    f.type = "button";
+    f.className = "rail-fold";
+    f.id = "railFoldBtn";
+    f.innerHTML = '<i class="rf-c">&#8249;</i><span class="rf-t">Replier</span>';
+    f.addEventListener("click", () => setFold("rail", !FOLD.rail));
+    rail.appendChild(f);
+    applyFold();
   }
   function show(id) {
     assertId(id);
@@ -980,6 +995,71 @@
   function esc(s) {
     return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;")
       .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  /* ── ESCAMOTAGE DU RAIL ET DE LA COLONNE CARTE ───────────────────────────
+     Le patron de l'app (frontend/src/studio/shell.jsx:31-122) transpose en
+     vanille : un chevron, une CLASSE sur la grille `.cf`, la largeur qui
+     bascule par la VARIABLE (`--rail-w` / `--stage-w` — jamais un second
+     gabarit de grille : deux gabarits divergent le jour ou l'un des deux est
+     amende), une transition, et le contenu de la colonne repliee retire du
+     flux (cardforge.css, bloc « ETAT REPLIE »).
+     L'etat est une PREFERENCE D'ECRAN, pas un morceau du deck : il vit dans
+     le stockage local (famille dz_cf_*, patron LS_VUE de
+     mod-forge3d.js:150), JAMAIS dans le document — un jeu exporte ne
+     transporte pas la coquille que son auteur preferait. Absence de cle =
+     deploye : l'etat par defaut ne s'ecrit pas, seul le repli se retient. */
+  const LS_RAIL = "dz_cf_rail";      /* "1" = rail replie (cle absente = deploye) */
+  const LS_STAGE = "dz_cf_stage";    /* "1" = colonne carte repliee */
+  const FOLD = { rail: false, stage: false };
+
+  function foldLu(k) {
+    try { return localStorage.getItem(k) === "1"; }
+    catch (e) { return false; }                    /* stockage refusé (mode privé) */
+  }
+  function foldEcrit(k, on_) {
+    try { if (on_) localStorage.setItem(k, "1"); else localStorage.removeItem(k); }
+    catch (e) { /* stockage refusé */ }
+  }
+  function applyFold() {
+    if (!hasDOM) return;
+    const root = el(".cf");
+    if (root) {
+      root.classList.toggle("rail-replie", FOLD.rail);
+      root.classList.toggle("stage-replie", FOLD.stage);
+    }
+    const rb = el("#railFoldBtn");
+    if (rb) {
+      rb.title = FOLD.rail ? "Déployer le rail des pièces" : "Replier le rail des pièces";
+      rb.setAttribute("aria-expanded", FOLD.rail ? "false" : "true");
+    }
+    const sb = el("#stageFoldBtn");
+    if (sb) {
+      sb.title = FOLD.stage ? "Déployer la colonne carte" : "Replier la colonne carte";
+      sb.setAttribute("aria-expanded", FOLD.stage ? "false" : "true");
+    }
+  }
+  function setFold(which, on_) {
+    const etait = FOLD[which];
+    FOLD[which] = !!on_;
+    foldEcrit(which === "rail" ? LS_RAIL : LS_STAGE, FOLD[which]);
+    applyFold();
+    /* ROUVRIR la colonne carte : pendant le repli, `#stageWrap` etait en
+       display:none, donc clientWidth 0 — un redessin survenu la aurait fige
+       l'apercu au plancher de 80 px. On rejoue le MEME rappel que la bascule
+       de theme : drawPreview(false) re-echelonne le bitmap deja rendu, aucun
+       painter n'est rejoue (le ResizeObserver de boot() ferait le meme geste,
+       mais il est optionnel — un moteur sans ResizeObserver laisserait un
+       timbre-poste a l'ecran). */
+    if (which === "stage" && etait && !FOLD.stage) raf(() => { drawPreview(false).catch(() => { }); });
+  }
+  /* lu et applique AVANT la premiere peinture (boot, avant buildRail) : la
+     classe est posee des le premier calcul de style, sinon la colonne
+     s'ouvrirait puis se refermerait a l'ecran a chaque chargement. */
+  function initFold() {
+    FOLD.rail = foldLu(LS_RAIL);
+    FOLD.stage = foldLu(LS_STAGE);
+    applyFold();
   }
 
   /* ── apercu : le MEME bitmap que le fichier livre, REDUIT ────────────────
@@ -1458,6 +1538,8 @@
     if (BOOTED) return;
     BOOTED = true;
     initTheme();
+    initFold();          /* AVANT buildRail : la classe de repli est posee avant
+                            la premiere peinture (aucun clignotement) */
     buildRail();
     buildFormatWidget();
     wireStage();
@@ -1554,6 +1636,12 @@
     });
     const gb = el("#guidesBtn");
     if (gb) gb.classList.toggle("active", GUIDES);
+    /* le chevron de la colonne carte est ECRIT dans index.html, comme les cinq
+       autres boutons de `.stage-head` : cette rangee-la n'est jamais
+       reconstruite, elle se cable ici (le chevron du RAIL, lui, ne peut pas
+       etre statique — voir buildRail). */
+    const sf = el("#stageFoldBtn");
+    if (sf) sf.addEventListener("click", () => setFold("stage", !FOLD.stage));
   }
 
   /* ═══════════════════════════════════════════════════════════════════════

@@ -62,6 +62,10 @@
        CF.renderCard que le fichier exporte, a une autre echelle. ══ -->
   <section class="stage">
     <div class="stage-head">
+      <!-- chevron d'escamotage : le SEUL element de la colonne qui survit au
+           repli (cardforge.css, bloc « ETAT REPLIE ») — il devient la bande
+           verticale de reouverture. Cable par core.js:wireStage. -->
+      <button class="stage-fold" id="stageFoldBtn" type="button" aria-expanded="true" title="Replier la colonne carte"><i class="sf-c">&#8249;</i><span class="sf-t">Carte</span></button>
       <button class="chip" id="guidesBtn" type="button" title="Fond perdu / coupe / zone sûre — couche CORE z=90, jamais exportée">&#9635; Repères</button>
       <button class="chip" id="sideBtn" type="button" title="Recto / verso">Recto</button>
       <span class="stage-sep" aria-hidden="true"></span>
