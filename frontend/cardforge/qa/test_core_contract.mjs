@@ -25,7 +25,7 @@
      node frontend/cardforge/qa/test_core_contract.mjs --contract [--url …]
    Code de sortie : 0 = contrat tenu, 1 = au moins une violation.
    ═══════════════════════════════════════════════════════════════════════════ */
-import { readFileSync, existsSync, mkdirSync, rmSync, unlinkSync } from 'node:fs';
+import { readFileSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -41,16 +41,16 @@ const URL_ = arg('--url', 'http://127.0.0.1:8765/cardforge/qa/contract.html');
 const doGeom = want('--geom') || !want('--contract');
 const doContract = want('--contract') || !want('--geom');
 
-/* Le dossier des modeles perso, MIROIR de backend/app/config.py:_data_root() +
-   cards/models.py:models_root(). Le banc en a besoin pour une seule raison :
-   « enregistrer comme modele » ECRIT un fichier et la T3 n'a livre aucune route
-   pour le reprendre. Sans ce chemin, chaque passage du banc laisserait un
-   modele de plus dans la galerie de l'utilisateur. Si le dossier est
-   introuvable, le pin n'est pas JOUE (on ne salit pas ce qu'on ne sait pas
-   nettoyer) — il le dit alors en NOTE. */
-const DATA_ROOT = (process.env.DEEPOTUS_DATA_DIR || '').trim()
-  || (process.env.LOCALAPPDATA ? join(process.env.LOCALAPPDATA, 'DeepotusVideoGenData') : '');
-const MODELS_DIR = DATA_ROOT ? join(DATA_ROOT, 'cardforge_models') : '';
+/* « Enregistrer comme modele » ECRIT un fichier chez l'utilisateur : le banc
+   doit savoir le reprendre, sinon chaque passage laisse un modele de plus dans
+   sa galerie. Il le fait par la ROUTE (DELETE /api/cards/models/{id}, ronde T3
+   du 22/08) et non en allant chercher le dossier sur le disque : le banc n'a
+   alors aucun chemin de donnees a recopier, donc rien qui puisse deriver le
+   jour ou le backend range ses modeles ailleurs. Si la route n'existe pas sur
+   le backend interroge, le pin n'est pas JOUE — on ne salit pas ce qu'on ne
+   sait pas nettoyer. */
+/* miroir de core.js:DID_RE / contract.py:is_valid_did */
+const DID_RE_QA = /^deck_[0-9a-f]{8}$/;
 
 let failures = 0;
 const ok = (m) => console.log('  ok   ' + m);
@@ -535,53 +535,91 @@ const BATTERIE_DUPE = `(() => {
   return { out, did };
 })()`;
 
-/* ── batterie « premier lancement » ─────────────────────────────────────────
-   Le bouchon ci-dessous ne touche PAS core.js : pose par
-   Page.addScriptToEvaluateOnNewDocument, il repond a la place du backend sur
-   la seule route qui porte la question (GET /api/cards/decks) et efface le
-   dernier jeu retenu — sans quoi le boot le rouvrirait et ne poserait jamais
-   la question. C'est le seul moyen d'eprouver « backend vide » contre un
-   :8765 qui, lui, a des milliers de jeux. */
-const STUB_VIDE = `(() => {
+/* ── BOUCHON DE RESEAU DU BANC ──────────────────────────────────────────────
+   Il ne touche PAS core.js : pose par Page.addScriptToEvaluateOnNewDocument,
+   il repond a la place du backend sur DEUX routes seulement — le document
+   d'un jeu (`GET /api/cards/<did>`) et la liste des jeux
+   (`GET /api/cards/decks`) — et il ecrit ou efface le dernier jeu retenu.
+   C'est le seul moyen d'eprouver « backend vide » et « dernier jeu supprime »
+   contre un :8765 qui, lui, a des milliers de jeux bien vivants.
+
+   `mort` distingue les DEUX 404 que le lab doit cesser de confondre, sur le
+   jeu `mortId` :
+     · "json" = le VRAI 404 du backend cartes ({"detail":"Deck introuvable"},
+       content-type application/json) — un jeu qui n'existe plus ;
+     · "html" = le catch-all SPA (200 + du HTML) — le domaine /api/cards
+       n'est pas monte, et LA le lab doit passer hors ligne.
+   `dernier` ecrit dz_cf_deck_id (absent = on l'efface) — le jeu mort peut
+   donc etre designe par le STOCKAGE ou, sans lui, par le `?deck=` de l'URL.
+   `decks` choisit ce que rend la liste : "vide", "soi" (le seul jeu present
+   est celui que le boot vient de creer) ou "etranger" (un jeu d'avant). */
+function stubReseau(o) {
+  return `(() => {
+  const O = ${JSON.stringify(o)};
   try {
-    localStorage.removeItem("dz_cf_deck_id");
+    if (O.dernier) localStorage.setItem("dz_cf_deck_id", O.dernier);
+    else localStorage.removeItem("dz_cf_deck_id");
     localStorage.removeItem("dz_cf_rail");
     localStorage.removeItem("dz_cf_stage");
   } catch (e) { }
+  const rep = (corps, ct, code) => new Response(corps, { status: code, headers: { "content-type": ct } });
   const vrai = window.fetch;
-  window.fetch = function (u, o) {
+  window.fetch = function (u, i) {
     const url = String((u && u.url) || u || "");
-    const m = String((o && o.method) || (u && u.method) || "GET").toUpperCase();
-    if (m === "GET" && url.indexOf("/api/cards/decks") >= 0) {
-      window.__QA_DECKS_VIDE = (window.__QA_DECKS_VIDE || 0) + 1;
-      return Promise.resolve(new Response('{"decks":[]}',
-        { status: 200, headers: { "content-type": "application/json" } }));
+    const m = String((i && i.method) || (u && u.method) || "GET").toUpperCase();
+    if (O.mort && O.mortId && m === "GET" && url.indexOf("/api/cards/" + O.mortId) >= 0) {
+      window.__QA_MORT = (window.__QA_MORT || 0) + 1;
+      if (O.mort === "html") return Promise.resolve(rep("<!doctype html><title>SPA</title><div id=root></div>", "text/html; charset=utf-8", 200));
+      return Promise.resolve(rep('{"detail":"Deck introuvable"}', "application/json", 404));
+    }
+    if (O.decks && m === "GET" && url.indexOf("/api/cards/decks") >= 0) {
+      window.__QA_DECKS = (window.__QA_DECKS || 0) + 1;
+      let liste = [];
+      if (O.decks === "soi") {
+        liste = [{ id: (window.CF && CF.get("id", null)) || "deck_00000000",
+                   name: "le jeu qui vient de naitre",
+                   created: "2026-08-22T00:00:00Z", updated: "2026-08-22T00:00:00Z" }];
+      } else if (O.decks === "etranger") {
+        liste = [{ id: "deck_ffffffff", name: "un jeu d'avant",
+                   created: "2026-08-01T00:00:00Z", updated: "2026-08-01T00:00:00Z" }];
+      }
+      return Promise.resolve(rep(JSON.stringify({ decks: liste }), "application/json", 200));
     }
     return vrai.apply(this, arguments);
   };
 })()`;
+}
 
-const BATTERIE_VIDE = `(async () => {
-  const out = [];
-  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
-  let gr = null;
-  for (let i = 0; i < 40; i++) {
-    gr = document.getElementById("galRoot");
-    if (gr && gr.dataset.open === "1") break;
+/* Releve d'un DEMARRAGE, sans verdict : le harnais compare ce relevé a ce que
+   chaque bouchon doit produire. Un seul releve pour six scenarios — les
+   verdicts vivent en un seul endroit, la ou l'on sait ce qu'on a bouchonne. */
+const RELEVE_BOOT = `(async () => {
+  const fini = () => (window.__QA_DECKS || 0) > 0 || (window.__QA_MORT || 0) > 0;
+  for (let i = 0; i < 45; i++) {
+    const g = document.getElementById("galRoot");
+    if (g && g.dataset.open === "1") break;
+    if (fini() && i > 6) break;
     await new Promise((r) => setTimeout(r, 200));
   }
-  say("galerie : backend SANS jeu -> la galerie de demarrage s'ouvre toute seule",
-      (gr && !gr.classList.contains("hidden") && gr.dataset.open === "1") ? "TENU" : "OUVERT",
-      (gr ? ("classes=[" + gr.className + "] why=" + gr.dataset.why) : "pas de #galRoot")
-      + " · GET /decks bouchonne " + (window.__QA_DECKS_VIDE || 0) + " fois");
-  say("galerie : elle dit POURQUOI elle s'est ouverte",
-      (gr && gr.dataset.why === "premier lancement") ? "TENU" : "OUVERT",
-      gr ? String(gr.dataset.why) : "?");
+  await new Promise((r) => setTimeout(r, 500));
+  const gr = document.getElementById("galRoot");
+  const bar = document.getElementById("apiBar");
+  const chip = document.getElementById("apiChip");
   const gd = document.getElementById("galDecks");
-  say("galerie : un backend vide le DIT, la liste ne reste pas blanche",
-      (gd && gd.querySelector(".cf-gal-note") && gd.textContent.indexOf("aucun jeu") >= 0) ? "TENU" : "OUVERT",
-      gd ? gd.textContent.slice(0, 90) : "pas de #galDecks");
-  return { out, deck: CF.get("id", null) };
+  const msg = document.getElementById("apiBarMsg");
+  return {
+    deck: CF.get("id", null),
+    ouverte: !!(gr && !gr.classList.contains("hidden") && gr.dataset.open === "1"),
+    why: gr ? String(gr.dataset.why || "") : null,
+    bandeau: !!(bar && !bar.classList.contains("hidden")),
+    bandeauTexte: msg ? String(msg.textContent).slice(0, 80) : "",
+    chip: chip ? (chip.className + " / " + String(chip.textContent).slice(0, 60)) : "?",
+    retenu: (() => { try { return localStorage.getItem("dz_cf_deck_id"); } catch (e) { return "?refus"; } })(),
+    search: location.search,
+    sondages: window.__QA_DECKS || 0,
+    morts: window.__QA_MORT || 0,
+    jeux: gd ? String(gd.textContent).slice(0, 60) : null,
+  };
 })()`;
 
 async function testContract() {
@@ -669,22 +707,31 @@ async function testContract() {
       }
     }
 
-    /* ── passe « enregistrer comme modele » : seulement si le banc sait ou le
-       fichier atterrit, donc s'il saura le retirer ensuite. */
-    if (MODELS_DIR && existsSync(MODELS_DIR)) {
+    /* ── passe « enregistrer comme modele » : seulement si le backend sait
+       reprendre ce qu'elle ecrit. On le lui demande AVANT de salir : un
+       DELETE sur un modele qui n'existe pas doit repondre 404 (la route est
+       la), et non 405 / du HTML (elle n'y est pas). */
+    let peutNettoyer = false;
+    try {
+      const sonde = await fetch(new URL('/api/cards/models/banc-qa-inexistant', URL_).href, { method: 'DELETE' });
+      peutNettoyer = sonde.status === 404
+        && (sonde.headers.get('content-type') || '').toLowerCase().indexOf('json') >= 0;
+    } catch { }
+    if (peutNettoyer) {
       const rm = await send('Runtime.evaluate', { expression: BATTERIE_MODELE, awaitPromise: true, returnByValue: true });
       if (rm.exceptionDetails) ko('la batterie « enregistrer comme modele » a leve : ' + JSON.stringify(rm.exceptionDetails.exception && rm.exceptionDetails.exception.description || rm.exceptionDetails.text).slice(0, 400));
       else {
         imprime(rm.result.value.out);
         const slug = rm.result.value.slug;
         if (slug) {
-          try { unlinkSync(join(MODELS_DIR, slug + '.json')); console.log('  --   modele de banc ' + slug + '.json supprime'); }
-          catch (e) { ko('modele de banc ' + slug + '.json non supprime — ' + e.message); }
+          let r = null;
+          try { r = await fetch(new URL('/api/cards/models/' + slug, URL_).href, { method: 'DELETE' }); } catch (e) { }
+          if (r && r.ok) console.log('  --   modele de banc ' + slug + ' supprime (DELETE /models/' + slug + ')');
+          else ko('modele de banc ' + slug + ' non supprime — ' + (r ? r.status + ' ' + r.statusText : 'requete impossible'));
         }
       }
     } else {
-      console.log('  note galerie : « enregistrer comme modele » non joue — dossier des modeles perso introuvable ('
-        + (MODELS_DIR || 'ni DEEPOTUS_DATA_DIR ni LOCALAPPDATA') + ')');
+      console.log('  note galerie : « enregistrer comme modele » non joue — DELETE /api/cards/models/{id} absent de ce backend');
     }
 
     /* ── passe « dupliquer » : la copie s'ouvre, donc la page part. */
@@ -716,16 +763,121 @@ async function testContract() {
     if (r2.exceptionDetails) ko('la batterie « repli au boot » a leve : ' + JSON.stringify(r2.exceptionDetails.exception && r2.exceptionDetails.exception.description || r2.exceptionDetails.text).slice(0, 400));
     else imprime(r2.result.value.out);
 
-    /* ── troisieme passe : « premier lancement ». Le bouchon se pose AVANT le
-       document, la page est rechargee, et la galerie doit s'ouvrir seule. */
-    await send('Page.addScriptToEvaluateOnNewDocument', { source: STUB_VIDE });
-    await send('Page.navigate', { url: URL_ });
-    await sleep(3000);
-    const r3 = await send('Runtime.evaluate', { expression: BATTERIE_VIDE, awaitPromise: true, returnByValue: true });
-    if (r3.exceptionDetails) ko('la batterie « premier lancement » a leve : ' + JSON.stringify(r3.exceptionDetails.exception && r3.exceptionDetails.exception.description || r3.exceptionDetails.text).slice(0, 400));
-    else {
-      imprime(r3.result.value.out);
-      if (r3.result.value.deck) bancs.add(r3.result.value.deck);
+    /* ── SIX DEMARRAGES BOUCHONNES ──────────────────────────────────────────
+       Un bouchon se pose AVANT le document, la page est rechargee, on releve
+       l'etat, on retire le bouchon. Ce que ces six scenarios separent :
+         · ce qui OUVRE la galerie de demarrage (rien a reprendre) ;
+         · ce qui ne l'ouvre PAS (il y a un jeu d'avant) ;
+         · les deux 404 que le lab confondait — un jeu SUPPRIME (JSON) n'est
+           pas un domaine ABSENT (HTML), et seul le second est « hors ligne ».
+       Sans le scenario "soi", l'exclusion « aucun jeu AUTRE que celui qu'on
+       vient de creer » restait vacueusement verte : une liste vide passe la
+       condition quelle que soit l'exclusion.
+
+       LE BANDEAU N'EST PAS UN SIGNAL SUR CE BANC : `auditStrict` l'allume a
+       CHAQUE demarrage pour qa/mod-solid.js (mode bâclé, c'est son role) et
+       ecrase le message « hors ligne » pose juste avant. Ce qui distingue
+       vraiment les deux etats, c'est la PUCE de la barre (`chip("ok"|"ko")`,
+       le texte que l'utilisateur lit) et l'existence REELLE du jeu sur le
+       backend — verifiee ici depuis Node, hors du navigateur. */
+    const boot = async (titre, o, url) => {
+      const s = await send('Page.addScriptToEvaluateOnNewDocument', { source: stubReseau(o) });
+      await send('Page.navigate', { url: url || URL_ });
+      await sleep(3000);
+      const rr = await send('Runtime.evaluate', { expression: RELEVE_BOOT, awaitPromise: true, returnByValue: true });
+      try { await send('Page.removeScriptToEvaluateOnNewDocument', { identifier: s.identifier }); } catch { }
+      if (rr.exceptionDetails) {
+        ko('releve « ' + titre + ' » : la batterie a leve — ' + JSON.stringify(rr.exceptionDetails.exception && rr.exceptionDetails.exception.description || rr.exceptionDetails.text).slice(0, 300));
+        return null;
+      }
+      const v = rr.result.value;
+      /* le jeu existe-t-il VRAIMENT ? Hors ligne, `boot` se donne un
+         identifiant au hasard (`randDid`) qui ressemble a tout sauf a un jeu
+         du disque : seule cette lecture le distingue. */
+      v.surDisque = false;
+      if (v.deck && DID_RE_QA.test(v.deck)) {
+        try { v.surDisque = (await fetch(new URL('/api/cards/' + v.deck, URL_).href)).ok; } catch { }
+        if (v.surDisque) bancs.add(v.deck);
+      }
+      return v;
+    };
+    const dit = (v) => 'galerie=' + (v.ouverte ? 'OUVERTE(' + v.why + ')' : 'fermee')
+      + ' chip=[' + v.chip + '] deck=' + v.deck + ' surDisque=' + v.surDisque
+      + ' retenu=' + v.retenu + ' sondages=' + v.sondages + ' morts=' + v.morts;
+
+    const vVide = await boot('backend vide', { decks: 'vide' });
+    if (vVide) {
+      if (vVide.ouverte && vVide.why === 'premier lancement' && vVide.sondages > 0)
+        ok('galerie : backend SANS jeu -> elle s\'ouvre toute seule et dit pourquoi — ' + dit(vVide));
+      else ko('galerie : backend SANS jeu -> elle devait s\'ouvrir — ' + dit(vVide));
+      if (vVide.jeux && vVide.jeux.indexOf('aucun jeu') >= 0)
+        ok('galerie : un backend vide le DIT, la liste ne reste pas blanche — ' + vVide.jeux);
+      else ko('galerie : un backend vide devait le dire — ' + vVide.jeux);
+    }
+
+    /* NON VACUEUX : la liste contient EXACTEMENT le jeu que le boot vient de
+       creer. C'est encore un premier lancement — l'exclusion doit le voir. */
+    const vSoi = await boot('le seul jeu est celui qu\'on vient de creer', { decks: 'soi' });
+    if (vSoi) {
+      if (vSoi.ouverte && vSoi.sondages > 0)
+        ok('galerie : le SEUL jeu liste est celui que le boot vient de creer -> elle s\'ouvre quand meme — ' + dit(vSoi));
+      else ko('galerie : le SEUL jeu liste est celui que le boot vient de creer -> elle devait s\'ouvrir quand meme — ' + dit(vSoi));
+    }
+
+    /* et le pendant : un jeu ETRANGER dans la liste = il y a du travail. */
+    const vEtr = await boot('un jeu d\'avant', { decks: 'etranger' });
+    if (vEtr) {
+      if (!vEtr.ouverte && vEtr.sondages > 0)
+        ok('galerie : un jeu ETRANGER dans la liste -> elle ne s\'ouvre pas — ' + dit(vEtr));
+      else ko('galerie : un jeu ETRANGER dans la liste -> elle devait rester fermee — ' + dit(vEtr));
+    }
+
+    /* ── LE 404 NOMME : un dernier jeu SUPPRIME n'est pas un backend absent.
+       Le lab doit creer un jeu neuf, RESTER en ligne, ne pas mentir dans le
+       bandeau, reecrire dz_cf_deck_id, et le sondage de premier lancement
+       doit JOUER. */
+    const vMort = await boot('dernier jeu supprime (404 JSON)',
+      { dernier: 'deck_deadbeef', mortId: 'deck_deadbeef', mort: 'json', decks: 'vide' });
+    if (vMort) {
+      const neuf = !!(vMort.surDisque && vMort.deck !== 'deck_deadbeef');
+      if (neuf && vMort.chip.indexOf('ok') >= 0 && vMort.morts > 0)
+        ok('deck : un 404 NOMME (jeu supprime) cree un jeu neuf sans passer hors ligne — ' + dit(vMort));
+      else ko('deck : un 404 NOMME a ete pris pour un domaine absent — ' + dit(vMort));
+      if (vMort.retenu === vMort.deck)
+        ok('deck : dz_cf_deck_id est REECRIT sur le jeu neuf (le mort ne survit pas au rechargement) — retenu=' + vMort.retenu);
+      else ko('deck : dz_cf_deck_id garde un jeu mort — retenu=' + vMort.retenu + ' deck=' + vMort.deck);
+      if (vMort.ouverte && vMort.why === 'premier lancement' && vMort.sondages > 0)
+        ok('deck : apres un jeu mort, le sondage de premier lancement JOUE — ' + dit(vMort));
+      else ko('deck : apres un jeu mort, le sondage n\'a jamais ete atteint — ' + dit(vMort));
+    }
+
+    /* ── LE MEME JEU MORT, MAIS DANS L'URL. `?deck=` PRIME sur dz_cf_deck_id :
+       reecrire la cle de stockage ne suffit pas. Une URL restee sur un jeu
+       supprime referait un jeu de plus a CHAQUE rechargement — la fuite que
+       l'en-tete d'openDeck decrit. L'URL doit donc designer le jeu
+       reellement ouvert quand la page a fini de demarrer. */
+    const urlMorte = (() => { const u = new URL(URL_); u.searchParams.set('deck', 'deck_deadbeef'); return u.href; })();
+    const vUrl = await boot('?deck= vers un jeu supprime',
+      { mortId: 'deck_deadbeef', mort: 'json', decks: 'vide' }, urlMorte);
+    if (vUrl) {
+      if (vUrl.surDisque && vUrl.chip.indexOf('ok') >= 0 && vUrl.morts > 0)
+        ok('deck : un ?deck= vers un jeu supprime cree un jeu neuf sans passer hors ligne — ' + dit(vUrl));
+      else ko('deck : un ?deck= mort a ete pris pour un domaine absent — ' + dit(vUrl));
+      if (vUrl.search.indexOf(vUrl.deck) >= 0 && vUrl.search.indexOf('deck_deadbeef') < 0)
+        ok('deck : l\'URL ne designe plus le jeu mort (aucun jeu de plus au prochain rechargement) — search=' + vUrl.search);
+      else ko('deck : l\'URL garde le jeu mort, chaque rechargement en creera un de plus — search=' + vUrl.search);
+    }
+
+    /* ── ET LE VRAI DOMAINE ABSENT (catch-all SPA : 200 + du HTML) : celui-la
+       DOIT passer hors ligne, avec son bandeau. Sans ce pin, « ne plus
+       confondre » se reglerait en ne detectant plus rien. */
+    const vHtml = await boot('domaine /api/cards absent (200 + HTML)',
+      { dernier: 'deck_deadbeef', mortId: 'deck_deadbeef', mort: 'html' });
+    if (vHtml) {
+      if (vHtml.chip.indexOf('ko') >= 0 && vHtml.chip.indexOf('hors ligne') >= 0
+          && !vHtml.surDisque && !vHtml.ouverte && vHtml.morts > 0)
+        ok('deck : le catch-all SPA (HTML) reste « hors ligne » et ne cree AUCUN jeu — ' + dit(vHtml));
+      else ko('deck : un domaine absent doit passer hors ligne — ' + dit(vHtml));
     }
 
     /* le banc a ouvert des jeux : on ne laisse rien derriere */

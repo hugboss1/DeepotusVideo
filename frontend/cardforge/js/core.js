@@ -1245,6 +1245,46 @@
     return d || {};
   }
 
+  /* ── LE MEME JSON, MAIS LES 404 NOMMES SURVIVENT ─────────────────────────
+     `jsonFetch` ci-dessus fait de TOUT 404 un `ApiMissing` (« route absente
+     sur ce backend »). La regle vient du catch-all SPA — une route non
+     montee rend du HTML — et elle est JUSTE POUR LES MODULES : un builder
+     qui interroge un sous-domaine pas encore ecrit veut savoir « ce n'est
+     pas la », pas lire une phrase.
+
+     Elle est FAUSSE des que le backend a quelque chose a dire AVEC un 404 :
+     « Deck introuvable » (core.py), « Modele inconnu : « xyz » — la liste
+     est servie par GET /api/cards/models » (models.py). Ces reponses-la
+     portent du JSON et une phrase francaise. Les prendre pour une route
+     absente, c'est declarer le backend ETEINT parce qu'un jeu a ete
+     supprime : c'est ce que faisait `openDeck` sur son dernier jeu retenu —
+     bandeau « le domaine /api/cards n'est pas monte » mensonger, hors ligne
+     a tort, et l'identifiant mort conserve pour le rechargement suivant.
+
+     Ici la question se tranche sur le TYPE DE REPONSE et non sur le code :
+     du HTML = il n'y a pas de route ; du JSON = le backend parle, et c'est
+     SA phrase qui doit arriver a l'utilisateur.
+
+     `jsonFetch` N'EST PAS MODIFIE, et ce n'est pas de la prudence de
+     principe : ses autres appelants comptent sur l'ancienne regle —
+     `makeApi` (les quatre verbes des neuf jetons de module), `images.models`
+     (qui rend `{models: []}` sur `.missing`), `images.generate`, `saveNow`,
+     `verifyGeom`, et la CREATION de deck de `openDeck`. Basculer la regle
+     pour eux demanderait de mesurer neuf builders. Les seuls appels qui
+     avaient besoin de la nuance sont celui qui OUVRE un jeu et ceux de la
+     galerie (§9bis). */
+  async function jsonNamed(method, path, body, headers) {
+    let r;
+    try { r = await rawFetch(method, path, body, headers); }
+    catch (e) { throw new Error("backend injoignable (" + (e && e.message) + ")"); }
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (ct.indexOf("json") < 0) throw new ApiMissing(path);
+    let d = null;
+    try { d = await r.json(); } catch (e) { d = null; }
+    if (!r.ok) throw new Error((d && (d.detail || d.error)) || (r.status + " " + r.statusText));
+    return d || {};
+  }
+
   /* ── L'API D'UN MODULE, CONFINEE ─────────────────────────────────────────
      Le miroir exact de la regle 8 backend (« chemins RELATIFS au sous-prefixe
      /api/cards/<did>/<id> »). La revision 1 exposait un fetch libre : depuis
@@ -1507,31 +1547,15 @@
   let GAL_MODELS = null, GAL_MODELS_REQ = null;
   let GAL_DECKS = null, GAL_DECKS_REQ = null;
 
-  /* ── le reseau de la galerie ─────────────────────────────────────────────
-     `jsonFetch` transforme TOUT 404 en `ApiMissing` (« route absente ») : la
-     regle est juste pour le domaine /api/cards, qui tombe sur le catch-all
-     SPA quand il n'est pas monte, mais elle AVALE les 404 nommes de la T3
-     (« Modele inconnu : « xyz » — la liste est servie par GET … »). Ici on
-     tranche sur le TYPE DE REPONSE et non sur le code : du HTML = la route
-     n'existe pas ; du JSON = le backend a quelque chose a dire, et c'est SA
-     phrase que l'utilisateur doit lire, pas la notre. */
-  async function galFetch(method, path, body) {
-    let r;
-    try { r = await rawFetch(method, path, body); }
-    catch (e) { throw new Error("backend injoignable (" + (e && e.message) + ")"); }
-    const ct = (r.headers.get("content-type") || "").toLowerCase();
-    if (ct.indexOf("json") < 0) throw new ApiMissing(path);
-    let d = null;
-    try { d = await r.json(); } catch (e) { d = null; }
-    if (!r.ok) throw new Error((d && (d.detail || d.error)) || (r.status + " " + r.statusText));
-    return d || {};
-  }
+  /* La galerie passe par `jsonNamed` (§8) et non par `jsonFetch` : elle vit
+     de phrases du backend — « Modele inconnu », « Deck introuvable » — que
+     l'ancienne regle du 404 transformait en « route absente ». */
   function galMsg(e) { return String((e && e.message) || e); }
 
   function galModelsList(force) {
     if (!force && GAL_MODELS) return Promise.resolve(GAL_MODELS);
     if (!GAL_MODELS_REQ) {
-      GAL_MODELS_REQ = galFetch("GET", "/cards/models").then((d) => {
+      GAL_MODELS_REQ = jsonNamed("GET", "/cards/models").then((d) => {
         GAL_MODELS = Array.isArray(d && d.models) ? d.models : [];
         GAL_MODELS_REQ = null;
         return GAL_MODELS;
@@ -1546,7 +1570,7 @@
   function galDecksList(force) {
     if (!force && GAL_DECKS) return Promise.resolve(GAL_DECKS);
     if (!GAL_DECKS_REQ) {
-      GAL_DECKS_REQ = galFetch("GET", "/cards/decks").then((d) => {
+      GAL_DECKS_REQ = jsonNamed("GET", "/cards/decks").then((d) => {
         const rows = Array.isArray(d && d.decks) ? d.decks : [];
         GAL_DECKS = rows.filter(isPlain).map((x) => ({
           id: String(x.id || ""), name: String(x.name || ""),
@@ -1871,7 +1895,7 @@
     try {
       busy(true, "création du jeu depuis « " + label + " »…");
       await galFlush();
-      const d = await galFetch("POST", "/cards/decks", { model: mid });
+      const d = await jsonNamed("POST", "/cards/decks", { model: mid });
       const did = d && d.deck && d.deck.id;
       if (!did) throw new Error("le backend n'a pas rendu d'identifiant de jeu");
       galGo(did);                       /* la page part : `busy` reste au voile */
@@ -1889,7 +1913,7 @@
     try {
       busy(true, "duplication du jeu…");
       await galFlush();                 /* la copie part du DISQUE : on y ecrit d'abord */
-      const d = await galFetch("POST", "/cards/decks/" + DOC.id + "/duplicate", {});
+      const d = await jsonNamed("POST", "/cards/decks/" + DOC.id + "/duplicate", {});
       const did = d && d.deck && d.deck.id;
       if (!did) throw new Error("le backend n'a pas rendu d'identifiant de copie");
       galGo(did);
@@ -1902,7 +1926,7 @@
     try {
       busy(true, "enregistrement du modèle…");
       await galFlush();                 /* le backend serialise le jeu tel qu'il est SUR LE DISQUE */
-      const d = await galFetch("POST", "/cards/models", { did: DOC.id, name: n });
+      const d = await jsonNamed("POST", "/cards/models", { did: DOC.id, name: n });
       const m = d && d.model;
       galSaveToggle(false);
       toast("modèle « " + String((m && m.label) || n) + " » enregistré");
@@ -1933,6 +1957,25 @@
     if (!Array.isArray(liste)) return;                /* trop lent = pas vide */
     if (liste.some((d) => d && d.id !== DOC.id)) return;
     openGallery("premier lancement");
+  }
+
+  /* ── UNE URL QUI DESIGNE UN JEU MORT NE DOIT PAS SURVIVRE AU BOOT ────────
+     `?deck=` PRIME sur dz_cf_deck_id dans `openDeck` : reecrire la seule cle
+     de stockage ne suffit donc pas. Une URL qui pointe un jeu supprime
+     referait, a CHAQUE rechargement, un jeu de plus sur le disque — la fuite
+     que l'en-tete d'`openDeck` decrit et qui a deja ete payee une fois. On
+     ne touche l'URL que si elle porte deja un `?deck=` qui ne correspond pas
+     au jeu reellement ouvert : sans `?deck=`, rien n'est ajoute et l'adresse
+     du lab reste ce qu'elle etait. */
+  function syncDeckUrl() {
+    if (!hasDOM || typeof history === "undefined" || !history.replaceState) return;
+    let u;
+    try { u = new URL(location.href); } catch (e) { return; }
+    const q = u.searchParams.get("deck");
+    if (!q || q === DOC.id) return;
+    if (DOC.id && DID_RE.test(DOC.id)) u.searchParams.set("deck", DOC.id);
+    else u.searchParams.delete("deck");
+    try { history.replaceState(null, "", u.href); } catch (e) { /* moteur exotique */ }
   }
 
   function galWire() {
@@ -2001,10 +2044,19 @@
     try { did = new URLSearchParams(location.search).get("deck"); } catch (e) { /* pas d'URL */ }
     if (!did || !DID_RE.test(did)) did = lastDeck();
     if (did && DID_RE.test(did)) {
-      try { return await jsonFetch("GET", "/cards/" + did); }
+      /* `jsonNamed`, PAS `jsonFetch` (§8) : le 404 « Deck introuvable » du
+         backend est du JSON et une phrase, pas une route manquante. Avec
+         `jsonFetch`, un jeu supprime — le cas le plus banal qui soit :
+         l'utilisateur efface son essai de la veille — faisait un
+         `ApiMissing`, donc le `throw` ci-dessous, donc « hors ligne » et le
+         bandeau « le domaine /api/cards n'est pas monte » : faux, et
+         l'identifiant mort restait dans dz_cf_deck_id pour recommencer au
+         rechargement suivant. Seul le catch-all SPA (du HTML) reste un
+         domaine absent. */
+      try { return await jsonNamed("GET", "/cards/" + did); }
       catch (e) {
         if (e && e.missing) throw e;               /* domaine absent : hors ligne */
-        console.warn("cardforge: dernier jeu " + did + " introuvable, creation d'un nouveau");
+        console.warn("cardforge: dernier jeu " + did + " introuvable (" + String(e && e.message || e) + "), creation d'un nouveau");
       }
     }
     /* RIEN A REPRENDRE. On cree, comme avant — mais on le RETIENT : c'est le
@@ -2032,6 +2084,7 @@
       const r = await openDeck();
       hydrate(r && r.deck ? r.deck : r);
       rememberDeck(DOC.id);
+      syncDeckUrl();
       chip("ok", "jeu " + (DOC.id || "?"));
     } catch (e) {
       OFFLINE = true;
