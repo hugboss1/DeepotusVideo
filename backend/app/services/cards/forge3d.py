@@ -38,7 +38,7 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
-                            HOLO_KINDS, HOLO_PX)
+                            trs_de_face, HOLO_KINDS, HOLO_PX)
 # DEUXIÈME couture intra-pièce (délestage 2c, tâche 6) : la résolution des
 # chaînes du graphe, la fabrique d'UN élément et les règles du GLB d'un nœud
 # moteur SERVI vivent dans forge3d_apercu.py — le bloc que l'inspecteur et la
@@ -1247,7 +1247,8 @@ def _glb_servi_path(did: str, nid: str) -> tuple[dict, Path]:
 
 
 def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
-                     box_mm: list, trs_n, card_label: str) -> dict:
+                     box_mm: list, trs_n, card_label: str,
+                     w_mm: float) -> dict:
     """UN GLB de moteur, prêt pour la fusion — ou un refus NOMMÉ.
 
     LEGS DE LA TÂCHE 4, l'asymétrie I4 : `served` n'implique PLUS
@@ -1311,8 +1312,15 @@ def _element_externe(did: str, proc: dict, layer: dict, nom_el: str,
     # survivent jusqu'au STL, et ce cache-là est exactement ce qui évite de
     # redépaqueter les mêmes documents une seconde fois.
     monde = glb_scene_mesh(raw, world=True)
+    # LE CÔTÉ EN DERNIER (2d), et c'est l'ordre qui compte : le fit répond
+    # « quelle taille, quelle place DANS SA COUCHE » — une question qui ne
+    # connaît pas les faces, et dont la boîte vient déjà du manifeste du BON
+    # côté (`_layer_box_mm`). Le retournement, lui, répond « de quel côté de la
+    # carte » : il s'applique PAR-DESSUS le placement fini, exactement comme
+    # pour un élément local, et par la MÊME fonction.
     return {"name": nom_el, "node": nid, "glb": raw, "monde": monde,
-            "fit": _fit_external(monde, box_mm, trs_n),
+            "fit": trs_de_face(_fit_external(monde, box_mm, trs_n), w_mm,
+                               layer["side"]),
             "engine": job.get("engine"), "closed": job.get("closed"),
             "closed_note": job.get("closed_note"),
             "credits": credits if isinstance(credits, int) else None}
@@ -1385,7 +1393,7 @@ async def post_build3d(did: str, body: dict | None = None):
                     did, proc, layer, nom_el,
                     _layer_box_mm(manifestes[side], layer, w_mm, h_mm,
                                   g.bleed_mm),
-                    trs_n, card_label))
+                    trs_n, card_label, w_mm))
                 ex = externes[-1]
                 bordereau.append({"name": nom_el, "kind": "externe",
                                   "node": proc["id"], "engine": ex["engine"],

@@ -39,6 +39,7 @@ from httpx import AsyncClient, ASGITransport                     # noqa: E402
 import hashlib                                                    # noqa: E402
 import io                                                         # noqa: E402
 import json                                                       # noqa: E402
+import math                                                       # noqa: E402
 import struct                                                     # noqa: E402
 import zipfile                                                    # noqa: E402
 from PIL import Image, ImageDraw                                 # noqa: E402
@@ -1788,14 +1789,20 @@ def _graphe_mesh3d(engine="meshy-7", ultra=False):
                   {"from": "asm", "to": "art"}]}
 
 
-def _exporter_couches(did):
-    """Les couches de la phase 1, MÊME forme d'envoi que les tests voisins."""
+def _exporter_couches(did, side: str = "front"):
+    """Les couches de la phase 1, MÊME forme d'envoi que les tests voisins.
+
+    `side` (2d) : le MÊME lot de PNG des deux côtés — c'est voulu. Le verso de
+    la 2d ne se prouve pas sur des pixels différents mais sur une PLACE
+    différente ; deux exports identiques rendent les deux boîtes de couche
+    (`bbox_mm`) rigoureusement égales, donc le placement verso comparable au
+    placement recto CHIFFRE POUR CHIFFRE."""
     couches, composite = _couches_synthetiques()
     files = [("layers", (f"{nom}.png", _png(im), "image/png"))
              for nom, im in couches.items()]
     files.append(("composite", ("composite.png", _png(composite), "image/png")))
     r = _api("POST", f"/api/cards/{did}/forge3d/layers", files=files,
-             data={"side": "front", "card": "0", "paper": "#ffffff",
+             data={"side": side, "card": "0", "paper": "#ffffff",
                    "modes": json.dumps({n: "isolee" for n in couches}),
                    "client_proof": json.dumps({"stack_ok": True, "diff_px": 0})})
     assert r.status_code == 200, r.text
@@ -4138,6 +4145,413 @@ def test_node_file_sert_l_apercu_d_un_noeud_par_liste_blanche():
     apercu.write_bytes(garde)
     r9 = _api("GET", f"/api/cards/{did}/forge3d/node-file/m1/preview.png")
     assert r9.status_code == 200, r9.text
+
+
+# ── LA REGLE DE COTE (2d, tache 1) : LE VERSO EST LA CARTE RETOURNEE ────────
+# P8 FAIT FOI, et ces tests le MESURENT au lieu de le croire : recto plat +z
+# sens direct, verso plat -z sens INVERSE (solid.py:532-545), `uv_back` miroir
+# en U parce que « vu de -Z la droite de l'ecran est -x » (solid.py:513-522).
+# P9 obtient la MEME physique sans toucher un maillage : l'element est construit
+# en ESPACE RECTO (memes quad/relief, memes UV, meme TANGENT local) puis LA
+# CARTE EST RETOURNEE — rotation PROPRE de 180 degres autour de la verticale
+# qui passe par le MILIEU de la carte, (x, y, z) -> (w_mm - x, y, -z).
+#
+# Ces mesures se font sur les OCTETS LIVRES (les accesseurs du GLB, les
+# matrices de noeuds composees par le module scene lui-meme), jamais sur les
+# intentions du writer — et le controle de lisibilite est LITTERALEMENT
+# l'instrument de P8 (`solid.face_orientation`), applique aux quads de P9.
+# Importer P8 depuis un TEST n'enfreint pas la regle 8 (zero import
+# piece->piece dans le CODE) : c'est meme tout l'interet, la convention est
+# celle de P8, elle doit etre jugee par le juge de P8.
+
+def _exporte_les_deux_cotes(did):
+    _exporter_couches(did, side="front")
+    _exporter_couches(did, side="back")
+
+
+def _elements_monde(glb: bytes) -> list:
+    """Les enfants de la racine, en coordonnees MONDE, DANS L'ORDRE.
+
+    Une LISTE et pas un dictionnaire par nom : deux couches homonymes des deux
+    cotes d'une carte portent le MEME nom d'element (le writer le dit deja de
+    ses propres aveux) — les indexer par nom en perdrait une en silence.
+
+    Chaque entree : {name, positions, normals, uvs, indices}, positions passees
+    par la matrice COMPOSEE racine x element (donc l'echelle physique mm->m
+    comprise), normales par la seule PARTIE LINEAIRE puis renormalisees."""
+    from app.services.cards import forge3d_scene as SC
+    doc, binv = SC.read_glb(glb)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    m_rac = SC._node_matrix(racine)
+    out = []
+    for k in racine["children"]:
+        nd = doc["nodes"][k]
+        if not isinstance(nd.get("mesh"), int):
+            continue
+        m = SC._mat4_mul(m_rac, SC._node_matrix(nd))
+        prim = doc["meshes"][nd["mesh"]]["primitives"][0]
+        a = prim["attributes"]
+        brut = SC._accessor_floats(doc, binv, a["NORMAL"])
+        nrm = []
+        for i in range(0, len(brut) - 2, 3):
+            v = [m[0] * brut[i] + m[4] * brut[i + 1] + m[8] * brut[i + 2],
+                 m[1] * brut[i] + m[5] * brut[i + 1] + m[9] * brut[i + 2],
+                 m[2] * brut[i] + m[6] * brut[i + 1] + m[10] * brut[i + 2]]
+            ln = math.sqrt(sum(c * c for c in v)) or 1.0
+            nrm += [c / ln for c in v]
+        out.append({
+            "name": nd.get("name"),
+            "positions": SC._applique_mat4(
+                SC._accessor_floats(doc, binv, a["POSITION"]), m),
+            "normals": nrm,
+            "uvs": SC._accessor_floats(doc, binv, a["TEXCOORD_0"]),
+            "indices": SC._accessor_indices(doc, binv, prim["indices"])})
+    return out
+
+
+def _fusionne_monde(els: list) -> dict:
+    """Les elements monde CONCATENES en UN maillage — la forme exacte que
+    `solid.face_orientation` (P8) sait juger."""
+    pos, nrm, uv, idx = [], [], [], []
+    for el in els:
+        base = len(pos) // 3
+        pos += el["positions"]
+        nrm += el["normals"]
+        uv += el["uvs"]
+        idx += [base + i for i in el["indices"]]
+    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx}
+
+
+def _bbox(el: dict) -> list:
+    p = el["positions"]
+    return [[min(p[c::3]), max(p[c::3])] for c in range(3)]
+
+
+def _centre(el: dict) -> list:
+    return [(lo + hi) / 2.0 for lo, hi in _bbox(el)]
+
+
+def _sens_image_droite(el: dict) -> list:
+    """La direction MONDE de « la droite de l'image » (u croissant) : du sommet
+    de u minimal a celui de u maximal, pris sur la MEME ligne v (le bas de
+    l'image). C'est l'esprit de `face_orientation` reduit a un vecteur —
+    l'imprimeur qui pose le doigt sur le bord droit du dessin et regarde ou il
+    atterrit."""
+    uv, p = el["uvs"], el["positions"]
+    n = len(uv) // 2
+    vmax = max(uv[1::2])
+    ligne = [i for i in range(n) if abs(uv[2 * i + 1] - vmax) < 1e-9]
+    a = min(ligne, key=lambda i: uv[2 * i])
+    b = max(ligne, key=lambda i: uv[2 * i])
+    d = [p[3 * b + c] - p[3 * a + c] for c in range(3)]
+    ln = math.sqrt(sum(c * c for c in d)) or 1.0
+    return [c / ln for c in d]
+
+
+def _angle_vu_de_sa_face(el: dict, verso: bool) -> float:
+    """L'angle (degres) de « la droite de l'image » DANS LE REPERE DE CELUI QUI
+    REGARDE CETTE FACE : droite = +x monde au recto, -x monde au verso (on est
+    passe derriere) ; haut = +y monde des deux cotes. C'est la definition meme
+    du WYSIWYG : a rot_deg egal, cet angle doit etre LE MEME des deux cotes."""
+    d = _sens_image_droite(el)
+    return math.degrees(math.atan2(d[1], -d[0] if verso else d[0]))
+
+
+def _graphe_recto_verso(role_f="cadre", role_b="illustration", depth=0.35):
+    return {"nodes": [
+        {"id": "sf", "kind": "layer", "role": role_f, "side": "front"},
+        {"id": "pf", "kind": "plane", "depth_mm": depth},
+        {"id": "sb", "kind": "layer", "role": role_b, "side": "back"},
+        {"id": "pb", "kind": "plane", "depth_mm": depth},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "rectoverso"}],
+        "edges": [{"from": "sf", "to": "pf"}, {"from": "pf", "to": "asm"},
+                  {"from": "sb", "to": "pb"}, {"from": "pb", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+
+
+def _build(did, graphe):
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": graphe, "card": 0})
+    assert r.status_code == 200, r.text
+    b = r.json()["artifact"]
+    glb = _api("GET",
+               f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content
+    return b, glb
+
+
+def test_le_verso_du_graphe_est_la_carte_retournee():
+    """2d/T1 — LES DEUX PILES NE SE CROISENT PAS, LES NORMALES S'OPPOSENT, ET
+    LE VERSO SE LIT A L'ENDROIT QUAND ON LE REGARDE.
+
+    Un graphe 2 couches (une recto, une verso, meme profondeur de plan 0,35) :
+      1. tous les z monde du quad verso < 0, tous ceux du recto > 0 (signes
+         STRICTS — pas de chevauchement au plan median) ;
+      2. normales monde exactement opposees (+z / -z) ;
+      3. « la droite de l'image » atterrit en -x monde au verso, +x au recto —
+         le retournement GAUCHE-DROITE d'une vraie carte ;
+      4. le verdict de P8 lui-meme (`face_orientation`) sur le maillage monde
+         concatene : zero miroir des DEUX cotes ;
+      5. l'EMPREINTE est conservee : les deux faces se superposent en x/y au
+         lieu de se poser cote a cote (la rotation passe par le MILIEU de la
+         carte, pas par son coin)."""
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards.solid import face_orientation
+    did = _deck("Verso")
+    _exporte_les_deux_cotes(did)
+    b, glb = _build(did, _graphe_recto_verso())
+
+    # 1. les deux piles, SIGNEES — mesure globale d'abord (glb_scene_mesh,
+    #    world=True : la scene telle qu'elle sera VUE), puis element par
+    #    element pour dire LEQUEL est en dessous.
+    monde = SC.glb_scene_mesh(glb, world=True)
+    zs = monde["positions"][2::3]
+    assert len(zs) == 8, len(zs)                     # deux quads
+    assert len([z for z in zs if z > 0]) == 4, zs
+    assert len([z for z in zs if z < 0]) == 4, zs
+    els = _elements_monde(glb)
+    assert [e["name"] for e in els] == ["cadre", "illustration"], els
+    recto, verso = els[0], els[1]
+    assert all(z > 0 for z in recto["positions"][2::3]), _bbox(recto)
+    assert all(z < 0 for z in verso["positions"][2::3]), _bbox(verso)
+    assert _bbox(recto)[2] == pytest.approx([0.00035, 0.00035], abs=1e-12)
+    assert _bbox(verso)[2] == pytest.approx([-0.00035, -0.00035], abs=1e-12)
+
+    # 2. normales monde opposees, exactement
+    for i in range(0, len(recto["normals"]), 3):
+        assert recto["normals"][i:i + 3] == pytest.approx([0.0, 0.0, 1.0],
+                                                          abs=1e-6)
+    for i in range(0, len(verso["normals"]), 3):
+        assert verso["normals"][i:i + 3] == pytest.approx([0.0, 0.0, -1.0],
+                                                          abs=1e-6)
+
+    # 3. LISIBILITE : la droite de l'image, mesuree
+    assert _sens_image_droite(recto) == pytest.approx([1.0, 0.0, 0.0], abs=1e-6)
+    assert _sens_image_droite(verso) == pytest.approx([-1.0, 0.0, 0.0], abs=1e-6)
+
+    # 4. LE JUGE DE P8, sur la geometrie de P9
+    fo = face_orientation(_fusionne_monde(els))
+    assert fo["recto"]["triangles"] == 2 and fo["recto"]["miroir"] == 0, fo
+    assert fo["verso"]["triangles"] == 2 and fo["verso"]["miroir"] == 0, fo
+    assert fo["ok"] is True, fo
+
+    # 5. EMPREINTE CONSERVEE : la carte se retourne autour de son MILIEU, elle
+    #    ne bascule pas autour de son coin — sinon les deux faces se posent
+    #    cote a cote et la « carte » mesure deux fois sa largeur.
+    assert _bbox(verso)[0] == pytest.approx(_bbox(recto)[0], abs=1e-9)
+    assert _bbox(verso)[1] == pytest.approx(_bbox(recto)[1], abs=1e-9)
+    assert _bbox(recto)[0] == pytest.approx([0.0, 0.063], abs=1e-9)
+
+    # ... et rien n'a ete perdu en chemin : deux elements, aucun aveu.
+    assert b["elements"] == 2 and b["ignored"] == [], b
+
+
+def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
+    """2d/T1 — x_mm/z_mm SIGNES par le cote, rot_deg WYSIWYG des deux cotes.
+
+    Quatre chaines dans UN graphe : recto et verso avec le MEME transform
+    (x=+5, z=1), puis recto et verso avec le MEME rot_deg (+90).
+
+      · x_mm=+5 pousse vers +x monde au recto, vers -x monde au verso (la
+        DROITE DE CELUI QUI REGARDE cette face) ; z_mm=1 empile vers +z au
+        recto, vers -z au verso. Les valeurs postees restent >= 0 : le SIGNE
+        appartient a la regle de cote, aucune borne ne bouge.
+      · rot_deg=+90 tourne du MEME angle vu de sa propre face — c'est la
+        DEFINITION du WYSIWYG, et c'est ce qui epingle l'ORDRE de composition
+        R_y(pi) o R_z(rot_deg) : l'ordre inverse ferait voir -90 au verso.
+      · le quaternion du noeud verso est relu tel quel dans les octets :
+        (sin(d/2), cos(d/2), 0, 0) — un demi-tour autour d'un axe du plan XY."""
+    did = _deck("Transform verso")
+    _exporte_les_deux_cotes(did)
+    tr = {"kind": "transform", "x_mm": 5.0, "y_mm": 0.0, "z_mm": 1.0,
+          "rot_deg": 0.0, "scale": 1.0}
+    rot = {"kind": "transform", "x_mm": 0.0, "y_mm": 0.0, "z_mm": 0.0,
+           "rot_deg": 90.0, "scale": 1.0}
+    g = {"nodes": [
+        {"id": "sf", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "pf", "kind": "plane", "depth_mm": 0.0},
+        {"id": "trf", **tr},
+        {"id": "sb", "kind": "layer", "role": "cadre", "side": "back"},
+        {"id": "pb", "kind": "plane", "depth_mm": 0.0},
+        {"id": "trb", **tr},
+        {"id": "sf2", "kind": "layer", "role": "illustration", "side": "front"},
+        {"id": "pf2", "kind": "plane", "depth_mm": 0.0},
+        {"id": "rof", **rot},
+        {"id": "sb2", "kind": "layer", "role": "illustration", "side": "back"},
+        {"id": "pb2", "kind": "plane", "depth_mm": 0.0},
+        {"id": "rob", **rot},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "trsverso"}],
+        "edges": [{"from": "sf", "to": "pf"}, {"from": "pf", "to": "trf"},
+                  {"from": "trf", "to": "asm"},
+                  {"from": "sb", "to": "pb"}, {"from": "pb", "to": "trb"},
+                  {"from": "trb", "to": "asm"},
+                  {"from": "sf2", "to": "pf2"}, {"from": "pf2", "to": "rof"},
+                  {"from": "rof", "to": "asm"},
+                  {"from": "sb2", "to": "pb2"}, {"from": "pb2", "to": "rob"},
+                  {"from": "rob", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    b, glb = _build(did, g)
+    assert b["elements"] == 4 and b["ignored"] == [], b
+    els = _elements_monde(glb)
+    assert len(els) == 4, [e["name"] for e in els]
+    c_rec, c_ver = _centre(els[0]), _centre(els[1])
+    # x : +5 mm au recto, -5 mm au verso, a partir du MEME milieu de carte
+    assert c_rec[0] == pytest.approx((63.0 / 2.0 + 5.0) * 0.001, abs=1e-9)
+    assert c_ver[0] == pytest.approx((63.0 / 2.0 - 5.0) * 0.001, abs=1e-9)
+    # y : jamais retourne (P8 : « en bas = -y des deux cotes »)
+    assert c_ver[1] == pytest.approx(c_rec[1], abs=1e-9)
+    # z : +1 mm au recto, -1 mm au verso
+    assert c_rec[2] == pytest.approx(0.001, abs=1e-12)
+    assert c_ver[2] == pytest.approx(-0.001, abs=1e-12)
+
+    # rot_deg : le MEME angle vu de sa propre face — WYSIWYG prouve, pas cru
+    assert _angle_vu_de_sa_face(els[2], verso=False) == pytest.approx(90.0,
+                                                                      abs=1e-4)
+    assert _angle_vu_de_sa_face(els[3], verso=True) == pytest.approx(90.0,
+                                                                     abs=1e-4)
+    # ... et la meme chose a 0 degre, sur les deux premieres chaines
+    assert _angle_vu_de_sa_face(els[0], verso=False) == pytest.approx(0.0,
+                                                                      abs=1e-4)
+    assert _angle_vu_de_sa_face(els[1], verso=True) == pytest.approx(0.0,
+                                                                     abs=1e-4)
+    # le quaternion, dans les octets : demi-tour autour d'un axe du plan XY
+    doc, _ = _read_glb(glb)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    d2 = math.radians(90.0) / 2.0
+    q_ver = doc["nodes"][racine["children"][3]]["rotation"]
+    assert q_ver == pytest.approx([math.sin(d2), math.cos(d2), 0.0, 0.0],
+                                 abs=1e-12), q_ver
+    # le recto, lui, garde EXACTEMENT le quaternion z de la 2a
+    q_rec = doc["nodes"][racine["children"][2]]["rotation"]
+    assert q_rec == pytest.approx([0.0, 0.0, math.sin(d2), math.cos(d2)],
+                                 abs=1e-12), q_rec
+    # ... et un element verso SANS rotation utilisateur porte quand meme la
+    # sienne (le demi-tour n'est pas une valeur par defaut sous-entendue)
+    assert doc["nodes"][racine["children"][1]]["rotation"] == pytest.approx(
+        [0.0, 1.0, 0.0, 0.0], abs=1e-12)
+    assert "rotation" not in doc["nodes"][racine["children"][0]]
+
+
+def test_le_stl_verso_garde_le_prouve_ou_refuse_et_descend_sous_le_plan():
+    """2d/T1 — LE STL NE CHANGE PAS DE SEMANTIQUE AU VERSO, et il montre LA
+    MEME CHOSE QUE LE GLB (le format n'a pas de noeud : le retournement doit
+    etre CUIT dans les sommets, comme le fit d'un externe).
+
+      · un plan verso seul : STL REFUSE, au motif MOT POUR MOT de son jumeau
+        recto (un plan n'est pas un solide, des deux cotes) ;
+      · un relief verso seul : STL ECRIT, meme empreinte x/y que son jumeau
+        recto, mais extrude vers -z."""
+    did = _deck("STL verso")
+    _exporte_les_deux_cotes(did)
+
+    def graphe(kind, side, nom):
+        proc = ({"id": "t", "kind": "plane", "depth_mm": 0.35}
+                if kind == "plane" else
+                {"id": "t", "kind": "relief", "depth_mm": 1.0,
+                 "base_mm": 0.3, "grid": 48})
+        return {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": side},
+            proc,
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": nom}],
+            "edges": [{"from": "s", "to": "t"}, {"from": "t", "to": "asm"},
+                      {"from": "asm", "to": "art"}]}
+
+    b_pf, _ = _build(did, graphe("plane", "front", "planrecto"))
+    b_pb, _ = _build(did, graphe("plane", "back", "planverso"))
+    assert b_pf["stl"]["written"] is False and b_pb["stl"]["written"] is False
+    assert b_pb["stl"]["why"] == b_pf["stl"]["why"], (b_pb["stl"], b_pf["stl"])
+
+    b_rf, _ = _build(did, graphe("relief", "front", "reliefrecto"))
+    b_rb, _ = _build(did, graphe("relief", "back", "reliefverso"))
+    assert b_rf["stl"]["written"] is True and b_rb["stl"]["written"] is True
+    stl_f = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                 + b_rf["stl"]["name"]).content
+    stl_b = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                 + b_rb["stl"]["name"]).content
+    lo_f, hi_f = _stl_bbox(stl_f)
+    lo_b, hi_b = _stl_bbox(stl_b)
+    # meme nombre de facettes : le maillage n'a PAS change, sa place si
+    assert (struct.unpack("<I", stl_f[80:84])[0]
+            == struct.unpack("<I", stl_b[80:84])[0])
+    # empreinte x/y IDENTIQUE (retournement autour du milieu), z OPPOSE
+    for c in (0, 1):
+        assert lo_b[c] == pytest.approx(lo_f[c], abs=1e-3), c
+        assert hi_b[c] == pytest.approx(hi_f[c], abs=1e-3), c
+    assert lo_f[2] == pytest.approx(0.0, abs=1e-6) and hi_f[2] > 1.0
+    assert hi_b[2] == pytest.approx(0.0, abs=1e-6)
+    assert lo_b[2] == pytest.approx(-hi_f[2], abs=1e-4), (lo_b, hi_f)
+
+
+def test_node_preview_d_un_element_verso_le_montre_deja_retourne():
+    """2d/T1 — L'INSPECTEUR MONTRE CE QUE LE BUILD CONSTRUIRA. `element_local`
+    est la MEME fonction des deux cotes : un aperçu de noeud verso doit sortir
+    200 et vivre SOUS le plan median (z <= 0 monde), plan comme relief."""
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Apercu verso")
+    _exporte_les_deux_cotes(did)
+
+    def apercu(proc):
+        g = {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": "back"},
+            proc,
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "x"}],
+            "edges": [{"from": "s", "to": "t"}, {"from": "t", "to": "asm"},
+                      {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+                 json={"graph": g, "card": 0, "nid": "t"})
+        assert r.status_code == 200, r.text
+        return SC.glb_scene_mesh(r.content, world=True)["positions"][2::3]
+
+    z_plan = apercu({"id": "t", "kind": "plane", "depth_mm": 0.35})
+    assert z_plan and all(z < 0 for z in z_plan), z_plan
+    z_rel = apercu({"id": "t", "kind": "relief", "depth_mm": 1.0,
+                    "base_mm": 0.3, "grid": 48})
+    assert all(z <= 1e-12 for z in z_rel), max(z_rel)
+    assert min(z_rel) < 0, min(z_rel)
+
+
+def test_le_maillage_de_moteur_d_une_couche_verso_est_retourne_comme_elle():
+    """2d/T1 — UN mesh3d VERSO SUIT SA COUCHE. Le fit ne change pas (la boite
+    de couche est deja lue dans le manifeste du bon cote) : c'est le MEME
+    retournement qui s'applique par-dessus. Prouve en construisant DEUX FOIS
+    le meme graphe, cote pour cote, et en comparant les deux TRS de parent —
+    aucun chiffre recopie a la main."""
+    did = _deck("Moteur verso")
+    _exporte_les_deux_cotes(did)
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="meshy-7")
+
+    def graphe(side, nom):
+        return {"nodes": [
+            {"id": "s1", "kind": "layer", "role": "illustration", "side": side},
+            {"id": "m1", "kind": "mesh3d", "engine": "meshy-7",
+             "texture_prompt": "", "ultra": False},
+            {"id": "tr", "kind": "transform", "x_mm": 3.0, "y_mm": 0.0,
+             "z_mm": 2.0, "rot_deg": 0.0, "scale": 1.0},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": nom}],
+            "edges": [{"from": "s1", "to": "m1"}, {"from": "m1", "to": "tr"},
+                      {"from": "tr", "to": "asm"}, {"from": "asm", "to": "art"}]}
+
+    def parent(nom, side):
+        _b, glb = _build(did, graphe(side, nom))
+        doc, _ = _read_glb(glb)
+        racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+        return doc["nodes"][racine["children"][0]]
+
+    p_f = parent("moteurrecto", "front")
+    p_b = parent("moteurverso", "back")
+    assert p_b["scale"] == p_f["scale"]                    # le fit est le MEME
+    assert p_b["translation"][0] == pytest.approx(63.0 - p_f["translation"][0],
+                                                  abs=1e-9)
+    assert p_b["translation"][1] == pytest.approx(p_f["translation"][1],
+                                                  abs=1e-9)
+    assert p_b["translation"][2] == pytest.approx(-p_f["translation"][2],
+                                                  abs=1e-9)
+    assert "rotation" not in p_f
+    assert p_b["rotation"] == pytest.approx([0.0, 1.0, 0.0, 0.0], abs=1e-12)
 
 
 def test_publier_dans_la_bibliotheque_est_idempotent():

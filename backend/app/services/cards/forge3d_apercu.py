@@ -36,7 +36,7 @@ from pathlib import Path
 
 from fastapi import HTTPException
 
-from .forge3d_scene import quad_mesh, relief_mesh
+from .forge3d_scene import quad_mesh, relief_mesh, trs_de_face
 
 _PROC_KINDS = ("plane", "relief", "mesh3d")
 _CHAIN_MAX = 4        # material + transform + assemble, et une marge : la
@@ -244,7 +244,13 @@ def element_local(out: Path, proc: dict, layer: dict, nom_el: str,
 
     `ouvre_png` et `habille` sont INJECTÉS, nommés (voir l'en-tête du
     fichier) : ce sont les deux seules primitives de forge3d.py que ce
-    module ne peut pas importer sans devenir une fausse couture."""
+    module ne peut pas importer sans devenir une fausse couture.
+
+    LE CÔTÉ DE LA COUCHE SOURCE (2d) ne change RIEN à la géométrie : un
+    élément de verso est construit dans l'ESPACE RECTO — même quad, même
+    relief, même fit, mêmes UV, même TANGENT local — puis POSÉ par un TRS de
+    carte retournée (`trs_de_face`). Zéro maillage de plus, zéro borne
+    déplacée : c'est la PLACE qui porte le verso, jamais les octets."""
     w_mm, h_mm, bleed_px, canvas_px, uv_window = _geom_element(g)
     fname = _layer_filename(layer, card_label)
     p = out / fname
@@ -276,6 +282,18 @@ def element_local(out: Path, proc: dict, layer: dict, nom_el: str,
               "alpha": False, "z_mm": 0.0}
     habille(el, mat_n, w_mm, h_mm, ignores)
     trs = _trs_dict(trs_n)
+    if layer["side"] == "back":
+        # UN ÉLÉMENT DE VERSO PORTE TOUJOURS UN TRS, même sans nœud
+        # `transform` : le retournement EST un placement. Sans nœud, l'écart de
+        # pile de la 2a (`z_mm`, que `_node_trs` aurait écrit tel quel) devient
+        # la translation d'ESPACE RECTO qu'on retourne — une seule règle, la
+        # même des deux côtés du `if`, au lieu d'un chemin « sans transform »
+        # qui divergerait en silence.
+        trs = trs_de_face(
+            trs if trs is not None
+            else {"translate": [0.0, 0.0, float(el["z_mm"])],
+                  "rotate_deg": 0.0, "scale": 1.0},
+            w_mm, "back")
     if trs is not None:
         el["trs"] = trs
     return el
