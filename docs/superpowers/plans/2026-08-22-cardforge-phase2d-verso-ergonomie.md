@@ -488,16 +488,31 @@ test_cards_forge3d.py.
 
 ### Task 5 : intégration 2d
 
-- [ ] Suite `-Filter cards` 10/10, lint intégral 0, `--geom`, `node --check`.
-- [ ] cf_deploy -Backend + -Check 0 écart (pas de bundle cette phase — le
-      patch card3d ne bouge pas).
-- [ ] Navigateur (les vérifs DOM/réseau du patron 2c ; volet masqué assumé) :
-      seed complet recto+verso visible, naissance verso, build3d gratuit
-      (planes seuls) → GLB deux faces (octets : deux quads, z signés — via
-      l'API), escamotage rail/stage (classes+storage), vue canvas sans les
-      deux sections basses, bascule liste = tout revient.
-- [ ] Plan+mémoire+push. Restes à l'œil ajoutés à la liste 2 min (lisibilité
-      verso au viewer, largeur repliée agréable).
+- [x] Suite `-Filter cards` 10/10 (539 s), lint intégral 0 (9/9), contrat
+      COMPLET OK (58+ ok dont les 9 pins d'escamotage au Chrome sans tête),
+      `node --check` core.js + mod-forge3d.js.
+- [x] cf_deploy -Backend (7 fichiers, relance 4,6 s) + -Check **0 écart**
+      (pas de bundle cette phase — le patch card3d ne bouge pas).
+- [x] **Navigateur RÉEL sur l'app déployée (22/08)** : escamotage VIVANT
+      (rail 188→46 px + `dz_cf_rail`, colonne →36 px + `dz_cf_stage`,
+      réouverture → classes retirées + clés effacées) ; graphe vide → les
+      sections basses RESTENT (la garde) ; « construire le graphe par
+      défaut » → **26 nœuds / 25 arêtes**, 6 couches « · verso » posées SOUS
+      le bloc recto (y 1884 > 1320), et les sections basses se MASQUENT dans
+      la même peinture (l'artefact est né avec le seed) ; Construire (12
+      plans, gratuit) → **12 éléments · 6,48 Mio**, les six `_verso` nommés
+      au bordereau avec leurs nœuds ; **la preuve dans les octets du GLB
+      servi** (chunk JSON parsé côté client) : les 6 nœuds verso portent
+      TOUS le quaternion `[0,1,0,0]` = R_y(π) avec l'escalier z NÉGATIF
+      (0 → −1,75 mm) pendant que les rectos montent sans rotation
+      (0 → +1,75) ; bascule liste → sections révélées + viewer REVENU dans
+      la section + libellés verso présents ; retour canvas → re-masquées.
+- [x] Plan+mémoire+push. **Restes à l'œil (~2 min, ajoutés à la liste
+      permanente)** : la lisibilité du verso au viewer (tourner la carte —
+      l'image du dos doit se lire à l'endroit), le canvas qui « respire »
+      sans les deux sections, le confort des largeurs repliées 46/36 px et
+      de la transition, la note périmée cosmétique T4 (annuler tout en
+      canvas) qui s'auto-guérit à la bascule.
 
 ## Auto-revue du plan
 
