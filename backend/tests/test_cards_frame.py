@@ -3055,6 +3055,20 @@ Rec.prototype.setLineDash = function () {};
 Rec.prototype.fillText = function () {};
 Rec.prototype.strokeText = function () {};
 Rec.prototype.measureText = function () { return { width: 0 }; };
+Rec.prototype.empreinte = function () {
+  /* L'EMPREINTE DE LA SILHOUETTE DESSINEE — FNV-1a 32 bits sur TOUTES les
+     cellules de la grille, plus le compte des cellules encrees. Un COMPTE ne
+     voit pas deux familles qui dessinent la meme chose au meme endroit ; un
+     bitmap, si. C'est le seul garde de « deux entrees de menu, un seul
+     dessin » qui tourne en integration : le badge de l'ecran, lui, mesure des
+     TONS et n'est pas dans la suite. */
+  let a = 2166136261, n = 0;
+  for (let i = 0; i < this.cov.length; i++) {
+    a ^= this.cov[i]; a = Math.imul(a, 16777619) >>> 0;
+    if (this.cov[i]) n++;
+  }
+  return { h: ("0000000" + a.toString(16)).slice(-8), n: n };
+};
 Rec.prototype.part = function (bx) {
   /* la part de cellules encrees dans une boite EN PIXELS DE TOILE */
   const GW = this.GW, GH = this.GH;
@@ -3101,11 +3115,17 @@ for (const c of CAS.cas) {
     const u = g.mm2px(1);
     const shape = mod.WIN_SHAPE[f.family] || "rect";
     const Z = zones(m, u);
-    /* LE MEME DECOUPAGE QUE `paintFront` : tout ce que la famille peint est
-       clipe « toile MOINS fenetre » (etape 2 du recto). Sans lui, les veines
+    /* LE DECOUPAGE DE `paintFront`, PAS TOUTE SON ETAPE 2 : tout ce que la
+       famille peint est clipe « toile MOINS fenetre ». Sans lui, les veines
        de « Bois sculpte » couvriraient l'illustration dans le banc alors
        qu'elles ne la couvrent pas dans le fichier. Le dos, lui, n'a pas de
-       trou de fenetre : `paintBack` clipe la toile entiere. */
+       trou de fenetre : `paintBack` clipe la toile entiere.
+       CE QUE LE BANC N'APPELLE PAS, ET POURQUOI : `matter()` (trames, patine,
+       gravure, relief). Ses deux passes de hachures traversent la carte
+       entiere tous les 1,9 a 3,4 mm — a 0,5 mm de cellule, elles SATURENT la
+       grille et toute mesure de « qui encre quoi » tombe a 1,00 partout. Le
+       banc mesure donc la SIGNATURE de famille (profil, dessin, moulure,
+       plaque), pas la matiere. */
     const neuf = () => {
       const k = new Rec(g.canvas_px[0], g.canvas_px[1], c.gw, c.gh);
       if (c.face !== "back") {
@@ -3115,7 +3135,7 @@ for (const c of CAS.cas) {
       return k;
     };
     const releve = (ctx) => {
-      const o = { ops: ctx.ops };
+      const o = { ops: ctx.ops, emp: ctx.empreinte() };
       for (const k of Object.keys(Z)) o[k] = ctx.part(Z[k]);
       return o;
     };
@@ -3126,11 +3146,20 @@ for (const c of CAS.cas) {
     if (fn) fn(ctx, m, f);
     etapes.signature = releve(ctx);
     ctx = neuf(); mod.winMoulding(ctx, m, f, shape); etapes.moulure = releve(ctx);
+    /* LA GARDE DU PAINTER, PAS UNE APPROXIMATION. `paintFront` ne dessine la
+       plaque que si `m.plate.h > u * 6` : sous cette hauteur, la plaque
+       n'existe pas dans le fichier. Le banc l'ignorait et annonçait une boite
+       remplie a 0,98 la ou le fichier ne portait RIEN (mesure : un habillage
+       dont la fenetre descend a 76 mm laisse 5 mm de plaque). */
+    const plaqueVue = f.plate && m.plate.h > u * 6;
     ctx = new Rec(g.canvas_px[0], g.canvas_px[1], c.gw, c.gh);
-    if (f.plate) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
+    if (plaqueVue) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
     etapes.plaque = releve(ctx);
-    /* la carte entiere : recto = les quatre etapes, dos « miroir » = les deux
-       que `paintBack` appelle dans sa branche `else` (famProfile + FAM_FN). */
+    /* la carte entiere, matiere exclue (voir ci-dessus) : recto = les quatre
+       etapes de signature, « miroir » = les deux que `paintBack` appelle dans
+       sa branche `else` (famProfile + FAM_FN) quand le dos est « Miroir du
+       recto ». Les six autres dos sont des MOTIFS, hors de la tranche
+       extraite : le banc ne les mesure pas et ne pretend pas le faire. */
     ctx = neuf();
     ctx.save();
     mod.famProfile(ctx, m, f);
@@ -3138,11 +3167,12 @@ for (const c of CAS.cas) {
     if (c.face !== "back") {
       mod.winMoulding(ctx, m, f, shape);
       ctx.restore();
-      if (f.plate) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
+      if (plaqueVue) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
     }
     etapes.tout = releve(ctx);
     out.push({ nom: c.nom, ok: true, famille: f.family, face: c.face || "front",
-      win: [m.wm.x, m.wm.y, m.wm.w, m.wm.h], etapes: etapes });
+      win: [m.wm.x, m.wm.y, m.wm.w, m.wm.h], plaque_mm: m.plate.h / u,
+      plaque_vue: !!plaqueVue, etapes: etapes });
   } catch (e) {
     out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) });
   }
@@ -3235,18 +3265,33 @@ def test_chaque_famille_encre_vraiment_la_carte(tmp_path):
             f"{r['nom']} : la plaque monte dans l'illustration"
 
 
-def test_la_famille_gravure_encre_le_recto_et_le_dos(tmp_path):
-    """La septième famille, recto ET dos. Le dos « Miroir du recto » passe par
-    la branche `else` de `paintBack`, qui rappelle `famProfile` puis le
-    `FAM_FN` de la famille : si le peintre neuf n'y dessine pas, le dos d'un
-    jeu « gravée » est celui d'une carte sans famille."""
+def test_la_famille_gravure_encre_le_recto_et_le_dos_miroir(tmp_path):
+    """La septième famille, recto ET dos MIROIR. « Miroir du recto » est le dos
+    que l'habillage de « gravée » choisit (`back: "mirror"`), et le seul des
+    sept à le faire : il passe par la branche `else` de `paintBack`, qui
+    rappelle `famProfile` puis le `FAM_FN` de la famille — si le peintre neuf
+    n'y dessine pas, le dos d'un jeu « gravée » est celui d'une carte sans
+    famille. Les six autres archétypes portent des dos à MOTIF (soleil,
+    chevrons, écailles…) dont le code est hors de la tranche extraite : ce banc
+    ne les mesure pas, et ne prétend pas le faire.
+
+    Le décalage de repérage, lui, ne se mesure pas ici : 0,2 mm valent 2,36 px
+    à 300 DPI, soit moins d'une demi-cellule de la grille. Il est ÉPINGLÉ au
+    source — c'est la raison publiée de l'existence de cette famille, elle ne
+    peut pas disparaître en silence."""
     src = _js()
     dos = _js_fn(src, "paintBack")
     assert "famProfile(ctx, m, f);" in dos and "const fam = FAM_FN[f.family];" \
         in dos, "la branche miroir de paintBack a changé de forme"
+    assert "const POCHOIR_MM = 0.2;" in src, \
+        "le repérage décalé de 0,2 mm — LA raison publiée de cette famille — " \
+        "n'est plus écrit"
+    assert "ctx.translate(u * POCHOIR_MM, u * POCHOIR_MM);" in src, \
+        "l'aplat de pochoir n'est plus décalé : la famille perd sa raison"
+    assert FR.ARCHETYPE_FRAMES["gravee"]["family"] == "gravure"
     hab = dict(FR.ARCHETYPE_FRAMES["gravee"])
     cas = [_cas_famille("gravure/recto", hab),
-           _cas_famille("gravure/dos", hab, face="back")]
+           _cas_famille("gravure/miroir", hab, face="back")]
     res = {r["nom"]: r for r in _banc_peintre(tmp_path, cas)}
     for nom, r in res.items():
         assert r["ok"], f"{nom} : {r.get('err')}"
@@ -3261,6 +3306,74 @@ def test_la_famille_gravure_encre_le_recto_et_le_dos(tmp_path):
         f"la plaque « cartouche » ne remplit pas sa boîte : {recto['plaque']}"
     assert recto["moulure"]["toile"] > 0.004, \
         f"l'aplat de pochoir n'encre rien : {recto['moulure']}"
+
+
+def test_deux_familles_ne_peuvent_pas_dessiner_la_meme_signature(tmp_path):
+    """LA LEÇON, ARMÉE — et elle ne l'était pas.
+
+    On avait publié, après la mutation du navigateur, que « le compte de
+    signatures de pixels ne suffit pas » : la graine de `matter` dépend de
+    l'index de famille, donc deux familles au dessin IDENTIQUE rendent quand
+    même des images différentes au bruit près, et le compteur de signatures
+    reste vert. La revue adverse l'a démontré sur la suite elle-même : aliaser
+    `deco: famDeco -> famRunic` laissait 154/154 tests VERTS. Le seul
+    instrument qui le voyait était un badge d'écran, hors intégration.
+
+    Ici le banc rend, pour chaque famille, l'EMPREINTE de son bitmap de
+    signature (FNV-1a sur la grille de 0,5 mm) et l'on exige que les sept
+    soient DEUX À DEUX DISTINCTES. Indépendant du navigateur, de la fenêtre
+    d'affichage et des tons — c'est le dessin lui-même qui est comparé.
+
+    Relevé du jour (empreinte:cellules encrées) :
+      runic 9eb83889:1134 · arcane 185c2317:230 · timber 37b9d043:1972
+      deco b33056cd:520 · neon e47ffc52:591 · sable 29a699ed:24
+      gravure 80e086d5:386
+    """
+    cas = [_cas_famille(f["id"], {"family": f["id"], "rarity": "rare"})
+           for f in FR.FAMILIES]
+    res = _banc_peintre(tmp_path, cas)
+    emp = {}
+    for r in res:
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        e = r["etapes"]["signature"]["emp"]
+        assert e["n"] > 0, f"{r['nom']} : signature vide"
+        emp[r["nom"]] = e["h"]
+    doubles = [(a, b) for a in emp for b in emp
+               if a < b and emp[a] == emp[b]]
+    assert not doubles, \
+        f"familles au dessin identique : {doubles} ({emp})"
+    assert len(set(emp.values())) == len(FR.FAMILIES)
+    # ... et le même fait, lu au source : une famille = SON peintre.
+    src = _js()
+    m = re.search(r"const FAM_FN = \{(.*?)\};", src, re.S)
+    assert m, "table FAM_FN absente"
+    paires = re.findall(r"(\w+): (\w+)", m.group(1))
+    assert [p[0] for p in paires] == [f["id"] for f in FR.FAMILIES], paires
+    fns = [p[1] for p in paires]
+    assert len(set(fns)) == len(fns), f"deux familles partagent un peintre : {fns}"
+
+
+def test_le_banc_voit_deux_familles_qui_dessinent_la_meme_chose(tmp_path):
+    """LE CONTRÔLE NÉGATIF DE L'EMPREINTE, sur la mutation EXACTE que la revue
+    a fait passer : `deco` aliasée sur le peintre de `runic`. Sans ce contrôle,
+    l'exigence de distinction ci-dessus pourrait n'être qu'une décoration —
+    elle passerait tout aussi bien si le banc rendait sept empreintes
+    aléatoires. (La mutation porte sur la COPIE du banc, jamais sur le dépôt ;
+    `WIN_SHAPE` est aligné en même temps, sans quoi les deux dessins
+    différeraient par le seul découpage de fenêtre.)"""
+    code = _painter_js_source()
+    assert "deco: famDeco" in code and 'deco: "chamfer"' in code
+    mut = code.replace("deco: famDeco", "deco: famRunic")
+    mut = mut.replace('deco: "chamfer"', 'deco: "rect"', 1)
+    cas = [_cas_famille(n, {"family": n, "rarity": "rare"})
+           for n in ("deco", "runic")]
+    sain = {r["nom"]: r["etapes"]["signature"]["emp"]["h"]
+            for r in _banc_peintre(tmp_path, cas)}
+    clone = {r["nom"]: r["etapes"]["signature"]["emp"]["h"]
+             for r in _banc_peintre(tmp_path, cas, mut)}
+    assert sain["deco"] != sain["runic"], sain
+    assert clone["deco"] == clone["runic"], \
+        f"le banc ne VOIT pas deux peintres identiques : {clone}"
 
 
 def test_le_banc_du_peintre_rougit_si_une_famille_cesse_de_dessiner(tmp_path):
@@ -3285,6 +3398,35 @@ def test_le_banc_du_peintre_rougit_si_une_famille_cesse_de_dessiner(tmp_path):
 
 
 # ── 15.3 les sept habillages : des données, validées, que T3 importe ─────────
+
+def test_le_banc_applique_la_garde_de_visibilite_de_la_plaque(tmp_path):
+    """LE BANC DOIT MENTIR COMME LE PAINTER, OU NE PAS MESURER.
+
+    `paintFront` ne dessine la plaque que si `m.plate.h > u * 6` : sous cette
+    hauteur elle n'existe pas dans le fichier livre. Le banc, lui, la dessinait
+    toujours — un habillage dont la fenetre descend trop bas passait donc
+    « plaque remplie a 0,98 » alors que le fichier ne portait RIEN a cet
+    endroit. Mesure : la fenetre de « gravee » a 63 mm de haut laisse 5,0 mm de
+    plaque ; le painter ne trace rien, le banc lisait 0,9774.
+
+    L'habillage livre laisse 7,0 mm : un millimetre au-dessus de la falaise.
+    Ce test tient les deux bouts — la garde, et la marge qui reste."""
+    court = dict(FR.ARCHETYPE_FRAMES["gravee"])
+    court["window"] = dict(court["window"])
+    court["window"]["h"] = 63.0
+    cas = [_cas_famille("plaque-5mm", court),
+           _cas_famille("livre", dict(FR.ARCHETYPE_FRAMES["gravee"]))]
+    res = {r["nom"]: r for r in _banc_peintre(tmp_path, cas)}
+    c = res["plaque-5mm"]
+    assert c["ok"], c.get("err")
+    assert 4.5 < c["plaque_mm"] < 6.0, c["plaque_mm"]
+    assert c["plaque_vue"] is False, "la garde du painter n'est pas reflechie"
+    assert c["etapes"]["plaque"]["ops"] == 0 and         c["etapes"]["plaque"]["plaque"] == 0,         "le banc dessine une plaque que le fichier ne porte pas"
+    v = res["livre"]
+    assert v["ok"] and v["plaque_vue"] is True
+    assert v["plaque_mm"] > 6.0, v["plaque_mm"]
+    assert v["etapes"]["plaque"]["plaque"] > 0.5
+
 
 def test_les_sept_archetypes_ont_un_habillage_complet_et_legal():
     """L'objet de la tâche : pour CHAQUE archétype §6.2, un réglage doc.frame
@@ -3327,6 +3469,15 @@ def test_les_sept_archetypes_ont_un_habillage_complet_et_legal():
     # habillages sortent du catalogue déjà livré (la mesure a décidé).
     neuves = {n for n, h in A.items() if h["family"] == "gravure"}
     assert neuves == {"gravee"}, neuves
+    # « monstre » : l'illustration CARRÉE est l'archétype même (§6.2-5,
+    # 47 x 47) — le verrou de proportions la garde carrée sous le curseur de
+    # l'utilisateur. Les deux vont ensemble ou aucun des deux ne sert.
+    mo = A["monstre"]
+    assert mo["window"]["w"] == mo["window"]["h"], mo["window"]
+    assert mo["win_lock"] is True, \
+        "fenêtre carrée sans verrou : le premier glissement la rend rectangle"
+    assert all(h["win_lock"] is False for n, h in A.items() if n != "monstre"), \
+        "un verrou de proportions ailleurs : il bride l'utilisateur sans raison"
 
 
 def test_les_sept_habillages_rendent_sans_erreur_et_encrent_leur_bande(tmp_path):
@@ -3352,6 +3503,11 @@ def test_les_sept_habillages_rendent_sans_erreur_et_encrent_leur_bande(tmp_path)
         anneau = max(e["tout"][k] for k in ("haut", "bas", "gauche", "droite"))
         assert anneau > 0.1, f"{r['nom']} : anneau vide {anneau:.4f}"
         if FR.ARCHETYPE_FRAMES[r["nom"]]["plate"]:
+            assert r["plaque_vue"], \
+                f"{r['nom']} : plaque de {r['plaque_mm']:.1f} mm — sous la " \
+                "garde de visibilité du painter (6 mm), le fichier n'en " \
+                "porte AUCUNE"
+            assert r["plaque_mm"] > 6, r["plaque_mm"]
             assert e["plaque"]["plaque"] > 0.5, \
                 f"{r['nom']} : la plaque ne remplit pas sa boîte"
 
@@ -3360,7 +3516,13 @@ def test_les_fenetres_des_archetypes_sont_celles_de_la_spec(tmp_path):
     """Les zones §6.2 sont la LOI (décision de conception 2) : la fenêtre
     d'illustration de chaque archétype est celle que la spec écrit en
     millimètres, et c'est la fenêtre EFFECTIVE du modèle qui le prouve — pas
-    la table de réglages relue à elle-même."""
+    la table de réglages relue à elle-même.
+
+    SIX des sept citent une zone d'illustration ; « légende » n'en cite pas
+    (sa spec ne décrit que le bandeau de nom), sa fenêtre est donc un CHOIX
+    D'IMPLÉMENTEUR — épinglé ici comme les six autres, pour qu'il ne dérive
+    pas en silence : c'est la seule géométrie de cette table que personne ne
+    peut re-dériver de la spec."""
     attendu = {                       # spec :323-357, en mm depuis la coupe
         "superstar": (22, 8, 36, 38),
         "duel": (4, 13, 55, 31),
@@ -3368,12 +3530,62 @@ def test_les_fenetres_des_archetypes_sont_celles_de_la_spec(tmp_path):
         "arcane": (5, 9.5, 53, 39),
         "monstre": (8, 18.5, 47, 47),
         "gravee": (4, 13, 55, 61),
+        # pas de zone §6.2 — choix d'implémenteur (bordure vintage de 2,5 mm,
+        # photo jusqu'au bandeau de nom), publié dans la note de tâche.
+        "legende": (2.5, 2.5, 58, 69.5),
     }
+    assert set(attendu) == set(ARCHETYPES), \
+        f"archétype sans fenêtre épinglée : {set(ARCHETYPES) - set(attendu)}"
     cas = [_cas_famille(n, dict(FR.ARCHETYPE_FRAMES[n])) for n in attendu]
     for r in _banc_peintre(tmp_path, cas):
         assert r["ok"], f"{r['nom']} : {r.get('err')}"
         got = tuple(round(v, 3) for v in r["win"])
         assert got == attendu[r["nom"]], f"{r['nom']} : {got}"
+
+
+def test_les_habillages_sont_servis_en_copie_profonde():
+    """`ARCHETYPE_FRAMES` est une table de MODULE : rendre ses sous-dicts tels
+    quels, c'est laisser une instanciation contaminer toutes les suivantes du
+    même processus (le `window` est partagé). La T3 consomme
+    `archetype_frame()`, qui rend une copie PROFONDE — ce test le prouve en
+    écrivant dans la copie."""
+    a = FR.archetype_frame("monstre")
+    a["window"]["w"] = 1.0
+    a["family"] = "neon"
+    b = FR.archetype_frame("monstre")
+    assert b["window"]["w"] == 47.0, "le sous-dict `window` est PARTAGÉ"
+    assert b["family"] == "runic"
+    assert FR.ARCHETYPE_FRAMES["monstre"]["window"]["w"] == 47.0,         "la table de module a été contaminée"
+    with pytest.raises(KeyError):
+        FR.archetype_frame("taverne")          # 2e fournée, pas encore là
+
+
+def test_les_zones_sont_celles_du_poker_et_le_disent(tmp_path):
+    """CE QUE LA TABLE NE PROMET PAS, ÉCRIT NOIR SUR BLANC. Les zones §6.2
+    sont transcrites pour le poker 63 x 88. Sur un format plus petit, `winMM`
+    RE-BORNE la fenêtre à la rogne : mesuré ici, le carré 47 x 47 de
+    « monstre » — qui EST l'archétype — devient 44,45 x 47 sur `domino` et
+    31,75 x 44,45 sur `micro`, et la plaque de bas de carte passe à une hauteur
+    négative sur `micro` (le painter n'en dessine alors aucune).
+
+    Ce test ne demande pas que cela change (re-dériver les zones par format est
+    un travail de modèle, donc de la T3) : il empêche que la limite se
+    découvre chez un utilisateur, et il tient le commentaire de la table
+    honnête."""
+    cas = [_cas_famille("monstre@" + f, dict(FR.ARCHETYPE_FRAMES["monstre"]),
+                        fmt=f) for f in ("poker_eu", "domino", "micro")]
+    res = {r["nom"]: r for r in _banc_peintre(tmp_path, cas)}
+    assert [round(v, 2) for v in res["monstre@poker_eu"]["win"]] == [8, 18.5, 47, 47]
+    dom = [round(v, 2) for v in res["monstre@domino"]["win"]]
+    assert dom[2] != dom[3] and dom[2] == 44.45, dom
+    mic = [round(v, 2) for v in res["monstre@micro"]["win"]]
+    assert mic[2:] == [31.75, 44.45], mic
+    assert res["monstre@micro"]["plaque_mm"] < 0, res["monstre@micro"]["plaque_mm"]
+    assert res["monstre@micro"]["plaque_vue"] is False
+    # et le commentaire de la table le dit, pour qui lit la table
+    py = (REPO / "backend" / "app" / "services" / "cards" / "frame.py")         .read_text(encoding="utf-8")
+    assert "CES ZONES SONT CELLES DU FORMAT POKER" in py
+    assert "win_lock` ne protège RIEN" in py
 
 
 # ── 15.4 LA QA DE SILHOUETTES : l'arbitre, et son plancher ───────────────────

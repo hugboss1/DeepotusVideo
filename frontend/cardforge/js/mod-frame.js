@@ -629,9 +629,11 @@
     sable: { kind: "brackets", t: 1.6, moulure: "trait", plaque: "epure", hatch: 26, pitch: 3.4, zone: "clair" },
     /* LA SEPTIEME (phase 3a) : l'estampe. Sa zone est un anneau IVOIRE — du
        papier, pas une rarete eclaircie — et son plus gros contraste n'est pas
-       dans l'anneau mais AUTOUR DE LA FENETRE : un aplat de pochoir de 3,2 mm
-       decale de 0,2 mm. C'est ce qui la separe d'« Epure », l'autre anneau
-       clair du catalogue, dont la moulure ne pese qu'un cheveu (0,14 u). */
+       dans l'anneau mais AUTOUR DE LA FENETRE : un aplat de pochoir LARGE DE
+       2,6 mm (il court de 0,6 a 3,2 mm depuis le bord de la fenetre — deux
+       grandeurs differentes, on les ecrit toutes les deux), decale de 0,2 mm.
+       C'est ce qui la separe d'« Epure », l'autre anneau clair du catalogue,
+       dont la moulure ne pese qu'un cheveu (0,14 u de large). */
     gravure: { kind: "burin", t: 2.1, moulure: "pochoir", plaque: "cartouche", hatch: 155, pitch: 1.9, zone: "ivoire" },
   };
   /* LE DECALAGE VOULU, en millimetres. Une estampe coloriee au pochoir pose
@@ -1049,7 +1051,8 @@
       ctx.beginPath(); winPathAt(ctx, m, shape, u * 3.2); ctx.stroke();
     } else if (pr.moulure === "pochoir") {
       /* L'APLAT DE POCHOIR ET SON REPERAGE DECALE (POCHOIR_MM). L'aplat est
-         une MASSE — 2,6 mm d'encre tout autour de la fenetre — la ou l'autre
+         une MASSE — 2,6 mm d'encre de LARGEUR, posee de 0,6 a 3,2 mm du bord
+         de la fenetre — la ou l'autre
          famille a anneau clair ne pose qu'un cheveu de 0,14 u : c'est la que
          se joue l'ecart de silhouette entre les deux, et c'est aussi la que
          se lit le geste du pochoir, puisque le TRAIT, lui, reste a sa place.

@@ -49,6 +49,7 @@ passe par `_len()` qui lève `ValueError`, transformé en 400 nommant la borne.
 """
 from __future__ import annotations
 
+import copy
 import math
 import struct
 import zlib
@@ -211,6 +212,23 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # (même origine que les slots P3) ; les fenêtres sont recopiées telles quelles
 # de §6.2, et le test les relit sur la fenêtre EFFECTIVE du modèle, pas sur
 # cette table relue à elle-même.
+#
+# CES ZONES SONT CELLES DU FORMAT POKER (63 x 88). Elles ne se transposent pas
+# toutes seules — MESURÉ sur les douze formats livrés, avec le vrai `winMM` :
+#   · la fenêtre est RE-BORNÉE à la rogne dès que le format est plus petit —
+#     le carré 47 x 47 de « monstre » devient 44,45 x 47 sur `domino` et
+#     31,75 x 44,45 sur `micro` (il cesse d'être carré, ce qui est justement
+#     l'archétype) ;
+#   · la PLAQUE de bas de carte peut disparaître : sa hauteur tombe à une
+#     valeur NÉGATIVE sur `micro`, `mini` et `square_eu` (la fenêtre y occupe
+#     toute la hauteur utile), et le painter ne dessine alors rien ;
+#   · `win_lock` ne protège RIEN de tout cela : il n'agit que sur les
+#     RETAILLES faites par l'utilisateur dans le panneau, jamais sur ce
+#     re-bornage-là.
+# ENTRÉE POUR LA T3 : un modèle instancié sur un format non-poker doit soit
+# re-dériver ses zones, soit déclarer son format et le dire à l'écran. Ne pas
+# supposer que l'habillage « tient » partout : il tient en poker, et sur les
+# formats plus grands (tarot, jumbo) où rien n'est re-borné.
 # ═════════════════════════════════════════════════════════════════════════════
 _HABILLAGE_COMMUN = {
     "line_color": "", "banner_text": "", "win_lock": False,
@@ -327,6 +345,24 @@ ARCHETYPE_FRAMES = {
         back="mirror",
     ),
 }
+
+
+def archetype_frame(nom: str) -> dict:
+    """L'habillage d'un archétype, en COPIE PROFONDE — LA porte d'entrée.
+
+    `ARCHETYPE_FRAMES` est une table de MODULE : ses sous-dictionnaires
+    (`window`) sont partagés par tous ceux qui la lisent. Une instanciation qui
+    écrirait dans le `window` reçu — un modèle qui recale une zone, un test qui
+    bidouille une valeur — contaminerait TOUS les decks instanciés ensuite dans
+    le même processus, sans rien casser tout de suite. C'est le genre de
+    partage qui se paie trois semaines plus tard.
+
+    La T3 consomme cette fonction, jamais la table. `KeyError` nommée pour un
+    archétype inconnu : c'est à l'appelant d'en faire un 404 en français."""
+    hab = ARCHETYPE_FRAMES.get(nom)
+    if hab is None:
+        raise KeyError(nom)
+    return copy.deepcopy(hab)
 
 
 def catalog() -> dict:
