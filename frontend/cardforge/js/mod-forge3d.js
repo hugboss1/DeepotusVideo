@@ -196,9 +196,14 @@
      bloc de douze et rien ne dit ou le verso commence. Le bloc verso tombe
      donc SOUS le recto, separe par une gouttiere DELIBEREMENT plus large
      qu'un simple `RANG_GAP` — c'est ce vide-la qui se lit « nouvelle face »
-     sans qu'aucun titre n'ait a le dire, et il doit rester visible au plancher
-     de zoom (0,36 : 80 px de monde = 29 px a l'ecran, contre 9 pour un
-     RANG_GAP). */
+     sans qu'aucun titre n'ait a le dire.
+     LA BARRE EST LE PLANCHER DE ZOOM, et le test la tient au meme chiffre que
+     ce commentaire (la revue avait raison : un plancher a 40 laissait passer
+     un mutant a 41 px, soit 14 px a l'ecran — un rang ordinaire). A 0,36 :
+     RANG_GAP = 26 px de monde = 9 px vus, la gouttiere doit en valoir au
+     moins 2,5 fois (>= 64 px de monde, >= 23 px vus) pour se lire comme une
+     separation et non comme un rang saute. 80 px = 29 px vus, trois
+     RANG_GAP. */
   const VERSO_GAP = 80;
   /* Task 5 : `artifact` et `export` cessent d'etre des reserves. L'artefact
      porte desormais son nom, deux boutons, LE VIEWER DU RESULTAT et le resume
@@ -274,6 +279,16 @@
      recopier trois fois le même ternaire. */
   function coteDe(n) {
     return (n && n.side === "back") ? "back" : "front";
+  }
+
+  /* UN MANIFESTE A-T-IL QUELQUE CHOSE À OFFRIR ? — et surtout : la question
+     n'est PAS « l'objet existe-t-il ». `{layers: []}` est vrai en JavaScript,
+     et un manifeste verso vide faisait donc disparaître la note « exporte les
+     couches verso » alors que la palette n'offrait toujours rien : le silence
+     exact que cette note existe pour casser. Un manifeste sans couche se lit
+     comme un manifeste absent, partout. */
+  function aDesCouches(man) {
+    return !!(man && man.layers && man.layers.length);
   }
 
   /* le graphe par defaut : chaque couche -> un plan texture empile (parallaxe),
@@ -698,21 +713,36 @@
            l'index figé en tête de fonction, qui étiquette (pas le rail, qui
            a pu bouger).
 
-           2d — LE TRIO SE POSE ICI DE LA MÊME MANIÈRE. Le recto ré-étiquette,
-           donc il doit LÂCHER un verso qui appartenait à une autre carte : le
-           rail a pu bouger entre le temps 1 (preuve) et le temps 2 (envoi), et
-           `cardChanged` aurait alors chargé le verso de la carte AFFICHÉE.
-           Le laisser en place figerait, sous l'étiquette de `carte`, les
-           couches verso d'une autre — exactement le défaut C1, une variable
-           plus loin. Le verso de CETTE carte arrive au tour suivant de la
-           boucle (`sides` va toujours front puis back) ; s'il n'arrive pas
-           (l'envoi lève), `null` est la réponse HONNÊTE : on n'a pas de
-           manifeste verso en main, et la palette le dit. */
+           2d — LE TRIO SE POSE ICI, ET LES DEUX BRANCHES SONT GARDÉES.
+           L'ASYMÉTRIE EST LE FOND DE L'AFFAIRE : le recto porte SA carte —
+           il ré-étiquette, donc une réponse recto rassie pose une paire
+           COHÉRENTE (le recto d'A sous l'étiquette c01) que la peinture
+           suivante répare toute seule (`cardChanged` voit c02 ≠ c01 et
+           recharge). Le verso, lui, n'a AUCUNE étiquette à poser : écrit sans
+           condition, il se colle sous l'étiquette de qui passait par là.
+
+           · LE RECTO LÂCHE (S1, jumeau) — il ré-étiquette, donc il doit
+             abandonner un verso qui appartenait à une AUTRE carte, sinon le
+             verso de B se retrouve sous l'étiquette de A.
+           · LE VERSO N'ÉCRIT QUE SI L'ÉTIQUETTE CONCORDE ENCORE (S1). La
+             séquence, mesurée au banc : le recto d'A est posé, son verso part
+             (sept PNG, plusieurs secondes — et le rail n'est PAS désactivé),
+             l'utilisateur clique la carte suivante, `cardChanged` charge B,
+             puis la réponse verso d'A atterrit. Sans garde : « recto B, verso
+             A, étiquette c02 » — et comme les étiquettes concordent,
+             `cardChanged` ne purge plus JAMAIS. Six couches fantômes offertes
+             par la palette, la note du verso manquant disparue, et
+             `seedDefault` qui les pose. C'est le défaut C1 une variable plus
+             loin, la DEUXIÈME fois dans cette famille.
+
+           Une réponse verso jetée n'est pas une perte : le fichier est bel et
+           bien sur le disque, et revenir sur la carte le relit
+           (`chargeManifeste` charge les deux faces). */
         if (face === "front") {
           if (cardLabel(carte) !== MANIFEST_CARD) MANIFEST_BACK = null;
           LAST_MANIFEST = rep.layers;
           MANIFEST_CARD = cardLabel(carte);
-        } else {
+        } else if (cardLabel(carte) === MANIFEST_CARD) {
           MANIFEST_BACK = rep.layers;
         }
       }
@@ -1806,7 +1836,15 @@
   /* UN BLOC DE NŒUDS, EN COLONNES — et le PLANCHER qu'il atteint (c'est lui
      qui dit où le bloc suivant peut commencer). Extrait de `seedLayout` en 2d :
      le corps n'a pas changé d'une ligne, seul son `y0` est devenu un
-     paramètre. */
+     paramètre.
+     LE PLANCHER SE LIT DANS CE QUI EST POSÉ, PAS DANS LA GRILLE. `bas[x]` est
+     la cascade THÉORIQUE — celle qu'on suivrait si aucune position n'était
+     déjà connue ; mais deux lignes plus bas, `out[n.id]` reçoit la position
+     SAUVÉE quand il y en a une. Tirer le plancher de `bas[x]` revient donc à
+     ignorer tout rangement de l'utilisateur : un rang recto traîné vers le bas
+     laissait le bloc verso démarrer au-dessus de lui, c'est-à-dire DEDANS.
+     C'est la position réellement écrite qui décide, et le plancher se prend
+     donc APRÈS l'écriture. */
   function poseBloc(nodes, y0, out, pose) {
     const bas = sansProto();
     let plancher = y0;
@@ -1815,7 +1853,6 @@
       /* le rang tombe SOUS le precedent de SA colonne, hauteur + gouttiere */
       const y = connu(bas, x) ? bas[x] : y0;
       bas[x] = y + rangH(n.kind) + RANG_GAP;
-      if (bas[x] > plancher) plancher = bas[x];
       const p = connu(pose, n.id) ? pose[n.id] : null;
       const connue = Array.isArray(p) && p.length === 2
         && isFinite(Number(p[0])) && isFinite(Number(p[1]));
@@ -1827,6 +1864,8 @@
       out[n.id] = connue
         ? [bornePos(p[0]), bornePos(p[1])]
         : [bornePos(x), bornePos(y)];
+      const fond = out[n.id][1] + rangH(n.kind) + RANG_GAP;
+      if (fond > plancher) plancher = fond;
     });
     return plancher;
   }
@@ -4189,8 +4228,11 @@
          poser de verso ». La phrase nomme le geste qui débloque (le patron des
          refus de ce module : on ne se contente pas de refuser, on dit quoi
          faire). Elle ne dépend PAS du graphe — c'est le disque qu'elle
-         décrit — donc elle reste vraie même palette pleine. */
-      + (MANIFEST_BACK ? ""
+         décrit — donc elle reste vraie même palette pleine.
+         `aDesCouches`, PAS la vérité de l'objet (N3) : un manifeste verso à
+         zéro couche est un verso qu'on ne peut pas poser, et le dire est
+         exactement le service rendu ici. */
+      + (aDesCouches(MANIFEST_BACK) ? ""
         : '<span class="hint cf-forge3d-pal-note">verso : exporte les couches '
           + 'verso (section ci-dessus) pour les proposer ici.</span>');
   }
@@ -5264,26 +5306,43 @@
     const previewHtml = '<p class="hint">aperçu : ' + (art.preview.written
       ? "figé — " + esc(art.preview.expected)
       : "en attente (" + esc(art.preview.expected) + ")") + '</p>';
-    /* 2b — CE QUI A ÉTÉ ASSEMBLÉ, ÉLÉMENT PAR ÉLÉMENT : `elements` reste le
-       NOMBRE (la phrase de la 2a le concatène) et le détail vit dans
-       `elements_detail`. Le moteur et les crédits RÉELLEMENT consommés y sont
-       ceux du job.json de chaque nœud — la comptabilité du fournisseur, pas
-       le devis annoncé avant. */
-    const detail = (art.elements_detail && art.elements_detail.length)
-      ? ('<p class="hint">éléments assemblés :</p>'
-        + '<ul class="cf-forge3d-elems">'
-        + art.elements_detail.map((d) => '<li class="mono">' + esc(d.name)
-          + " · " + esc(d.kind) + " · " + esc(d.node)
-          + (d.engine ? " · " + esc(d.engine) : "")
-          + (d.credits != null ? " · " + Number(d.credits) + " cr" : "")
-          + "</li>").join("")
-        + "</ul>")
-      : "";
     /* la Bibliothèque EN BAS du bordereau, et dans les DEUX vues : le canvas
        la porte sur le nœud artefact, la liste ici — la vue liste reste le
        repli sans pointeur, elle ne perd aucune action. */
-    slip.innerHTML = rows + stlHtml + previewHtml + detail + ignoresHtml(art)
-      + publieHtml(art);
+    slip.innerHTML = rows + stlHtml + previewHtml + elementsHtml(art)
+      + ignoresHtml(art) + publieHtml(art);
+  }
+
+  /* 2b — CE QUI A ÉTÉ ASSEMBLÉ, ÉLÉMENT PAR ÉLÉMENT : `elements` reste le
+     NOMBRE (la phrase de la 2a le concatène) et le détail vit dans
+     `elements_detail`. Le moteur et les crédits RÉELLEMENT consommés y sont
+     ceux du job.json de chaque nœud — la comptabilité du fournisseur, pas
+     le devis annoncé avant.
+     EXTRAIT DE `paintArtifact` À LA RONDE DE REVUE 2d (M3), et pour une raison
+     qui n'est pas cosmétique : c'est le SEUL endroit où `d.name` atteint
+     l'écran, et peint en ligne dans un `innerHTML` il n'était mesurable nulle
+     part — le banc croyait le tenir en interrogeant `bordereauHtml`, qui ne
+     lit ni `name` ni `side` (sa sortie est octet-identique avec un nom
+     `undefined`). Un bâtisseur PUR, comme `fichierHtml`/`ignoresHtml`/
+     `publieHtml`, et une seule écriture de ce balisage dans le module.
+     LE NOM EST RENDU VERBATIM. Sur une carte deux faces le backend nomme
+     l'élément verso `role_verso` (`nom_element`, M3 de la T1) : c'est le nom
+     de l'objet DANS le GLB, celui qu'on cherche dans Blender. Le réécrire en
+     « rôle · verso » ferait mentir le seul endroit qui dit la vérité du
+     fichier — l'étiquette D'ÉCRAN, elle, vit dans `noeudTitre`, qui lit
+     `role` et `side` et ne touche jamais à ce nom-ci. La clé `side` que le
+     backend ajoute au verso reste donc INERTE ici, et c'est voulu. */
+  function elementsHtml(art) {
+    const det = (art && art.elements_detail) || [];
+    if (!det.length) return "";
+    return '<p class="hint">éléments assemblés :</p>'
+      + '<ul class="cf-forge3d-elems">'
+      + det.map((d) => '<li class="mono">' + esc(d.name)
+        + " · " + esc(d.kind) + " · " + esc(d.node)
+        + (d.engine ? " · " + esc(d.engine) : "")
+        + (d.credits != null ? " · " + Number(d.credits) + " cr" : "")
+        + "</li>").join("")
+      + "</ul>";
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
