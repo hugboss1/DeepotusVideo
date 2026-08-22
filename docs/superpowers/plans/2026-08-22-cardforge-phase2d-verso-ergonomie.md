@@ -87,6 +87,16 @@ local) puis posé par un TRS « verso » :
    solid.py:496-498). Les CLAMPS ne changent pas : les valeurs restent ≥ 0,
    le SIGNE appartient à la règle de côté (aucun changement de vocabulaire,
    aucun octet du bloc miroir CF-FORGE3D-NODES).
+
+   > **Dit, pas corrigé (N6, revue adverse T1)** — un `transform` chaîné
+   > ÉCRASE le `depth_mm` du plan, y compris à son défaut `z_mm = 0`
+   > (`_node_trs` : « `translate` REMPLACE cette translation »). C'est le
+   > comportement de la 2a, il vaut des DEUX côtés, et il a une conséquence
+   > que l'écran doit assumer : poser un `transform` neuf (donc à z 0) sur un
+   > plan recto ET sur son jumeau verso ramène les deux faces COPLANAIRES à
+   > z = 0. Hors périmètre de la T1 (ce serait un changement de sémantique du
+   > `transform`, pas une règle de côté) ; écrit ici pour que la T2 et
+   > l'écran ne le découvrent pas comme une surprise.
 3. x/y d'un `transform` verso : appliqués APRÈS le retournement dans le plan
    de la face regardée (x_mm pousse vers la droite DU VERSO vu de −z) — la
    règle qui rend l'édition WYSIWYG des deux côtés ; l'implémenteur le prouve
@@ -129,6 +139,51 @@ test_cards_forge3d.py.
 > bougé d'un chiffre. Banc : 5 tests, dont le verdict de **P8 lui-même**
 > (`solid.face_orientation`) rendu sur les positions MONDE du GLB P9 —
 > `ok: True`, zéro miroir des deux côtés. 97 → 102 verts.
+
+> **Ronde de revue adverse (T1) — la géométrie tenait, LE FILET AVAIT DES
+> TROUS.** Verdict : FIX-FIRST, aucun octet de la règle touché. 102 → 104.
+>
+> · **S1, le seul sérieux** — l'ORDRE de composition à la sortie **STL**
+>   n'était épinglé nulle part : un mutant qui retourne AVANT de tourner
+>   sortait 102/102 VERT en imprimant une pièce à **52,96 mm** de l'aperçu,
+>   bordereau `written: true`. Les trois tests qui touchaient au verso
+>   passaient tous à côté (l'un sans `transform`, l'autre en plans donc STL
+>   refusé, le troisième ne lisant pas le STL). Correctif : un relief verso
+>   qui traverse un `transform` à **37°**, dont le STL est comparé au **GLB de
+>   la même construction** (mm contre m, 5 µm de tolérance). Portée MESURÉE et
+>   écrite dans le test : cet accord est le SEUL juge de l'inversion, il voit
+>   aussi l'oubli, et il ne peut PAS voir une faute de PIVOT (elle déplace les
+>   deux sorties du même montant — c'est le jumeau recto qui la tient).
+> · **M2 — ma justification de 1b6eb37 était FAUSSE**, et le message de ce
+>   commit reste faux dans l'historique : la séparation des deux ordres vaut
+>   `2·|sin(rot_deg)|`, donc les angles DÉGÉNÉRÉS sont **0 et 180**, et 90 est
+>   au contraire celui qui sépare le MIEUX. 30° est gardé (loin des deux
+>   dégénérescences, x et y tous deux non nuls) et la docstring dit désormais
+>   la vraie raison.
+> · **M3 — deux nœuds/matériaux HOMONYMES** dans un GLB recto+verso
+>   (`['cadre', 'cadre']` → Blender importe `cadre.001`, un moteur qui
+>   déduplique par nom de matériau FUSIONNE les deux faces). Le nom d'un
+>   élément dérive maintenant d'`forge3d_apercu.nom_element` — UNE règle, les
+>   deux points d'appel — avec suffixe `_verso`, et `elements_detail` gagne
+>   une clé `side`, **uniquement au verso** : GLB recto seul vérifié au
+>   sha256, `74d8a2ee…8ef3` / 387 172 o AVANT et APRÈS.
+> · **N4** — la tolérance d'empreinte (1e-9 m) cassait sur les formats
+>   impériaux (jumbo 88,9 mm laisse 1,5e-9 m de résidu float32) : élargie à
+>   1e-8 et le test est désormais PARAMÉTRÉ `poker_eu` + `jumbo`, donc la
+>   tolérance est exercée. `_exporter_couches` tire sa trame de `geom_of`.
+> · **N5** — la docstring surclamait `face_orientation` : un imposteur
+>   `R_x(π)` cohérent le passe (toute rotation de 180° dans le plan préserve
+>   `det_img·det_scr`). Portée corrigée — ce sont `_sens_image_droite` et
+>   l'empreinte qui portent la distinction gauche-droite / tête-bêche.
+> · Hors périmètre, CONSIGNÉ : **N7** (`-0.0` dans le JSON d'un nœud),
+>   **N8** (l'aperçu d'un nœud mesh3d sert le GLB BRUT du moteur, non placé —
+>   pré-existant 2c), **N6** (voir §Décision point 2).
+>
+> Mutation, ronde 2 (fichier entier à chaque fois) : `stl_ordre_inverse` tué
+> par la NOUVELLE assertion (−44,27 contre +8,686 mm) ; `stl_sans_retournement`
+> aussi (6,04 contre 8,686) ; `demi_tour_au_coin` tué par le jumeau recto
+> (−63,0 contre 0,0), la nouvelle assertion passant — comme documenté ;
+> `nom_sans_verso` tué par 3 tests ; témoin inerte SURVIVANT (104/104).
 
 ### Task 2 : frontend — les deux manifestes, le seed complet, la palette
 
