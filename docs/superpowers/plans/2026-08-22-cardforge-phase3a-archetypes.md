@@ -419,6 +419,9 @@ nouveau test).
       seule part non close ici — il demande l'app déployée et la galerie de
       la T4 ; substitut mesuré côté serveur : le JUGE de P3, ci-dessous.)*
 - [x] jamais-500 ; French messages ; fontes : repli nommé (décision 2).
+- [x] *(ajout de la ronde, demandé par la T4)* `DELETE /api/cards/models/{id}` :
+      perso supprimable depuis l'écran ; modèle d'usine → 403 nommé ;
+      inconnu → 404 ; identifiant hostile → le motif de l'écriture.
 
 > **Livré (T3)** — `backend/app/services/cards/models.py` (NEUF, 1014 l.),
 > `core.py` (+62 l. : `model` à la création, `duplicate_deck` + sa route),
@@ -551,6 +554,127 @@ nouveau test).
 >   **7** d'usine plus les perso. (d) Lecture publiée de « grille 6 stats
 >   2 x 3 » : DEUX colonnes de TROIS lignes (23,5 x 7 mm par case), qui
 >   remplit 8,56 → 47 x 21 exactement.
+
+> **Ronde adverse (22/08, après livraison T3)** — la revue a rendu FIX-FIRST
+> [F2, F3, F9, F1] plus douze suivis, et elle avait raison sur les quatre :
+> **tout est corrigé**, les 43 zones re-dérivées à la main par la revue
+> étaient bien présentes — *c'était la PREUVE qui manquait, pas la donnée*.
+> **154 tests** (135 → +19), **27 mutants joués, 27 TUÉS**, lint 0, **11/11
+> suites cards vertes** (609 s).
+>
+> · **[F2] Les tests MESURAIENT des zones, ils n'en COMPTAIENT aucune.** Cinq
+>   zones NOMMÉES par la spec — le pied d'icônes de « superstar », la ligne
+>   légale et la rareté de « créature », le pied de référence de « duel », la
+>   ligne de type et la boîte d'effet de « monstre » — pouvaient être
+>   SUPPRIMÉES du modèle en laissant 135/135 vert : les tables de géométrie ne
+>   jugent que ce qu'elles citent. Table `ZONES_PRESENTES` (une entrée par
+>   zone que la spec nomme, message d'échec qui cite la zone), plus « TOTAL en
+>   gras » (§6.2-6) épinglé. Deux mutants (pied supprimé, rareté supprimée) :
+>   tués.
+> · **[F3] Un fichier `superstar.json` déposé à la main USURPAIT un
+>   archétype.** Deux lignes au même id dans le catalogue (une liste à clés
+>   doubles finit par en perdre une), et la perso était morte-née puisque
+>   `model()` sert l'usine d'abord. **Choix : LISTER ET SIGNALER** —
+>   `id: "perso-superstar"` + `illisible: true` + la raison ET LE GESTE
+>   (« renommez le fichier »). Pourquoi pas le préfixe seul : un id préfixé
+>   serait cliquable et ne résoudrait rien (`perso-superstar.json` n'existe
+>   pas) ; pourquoi pas le refus seul : sans id distinct, le doublon de clé
+>   reste. Et `model()` DOIT continuer à servir l'usine d'abord — c'est ce qui
+>   empêche un fichier déposé de détourner un archétype.
+> · **[F9] Un verdict publié que rien ne mesurait.** `layout()` sans `posed`
+>   rend `under_read` vide PAR CONSTRUCTION (le corps composé, seul le
+>   navigateur le mesure) — et le test ne l'assertait même pas. Ajouté :
+>   l'assertion, plus le contrôle STATIQUE qui, lui, porte —
+>   `size_pt >= read_pt` sur les 79 slots (l'ajustement automatique ne fait
+>   que descendre : un bloc qui PART sous son plancher ne se lira jamais).
+>   Deux mutants (planchers à zéro, titre à 5 pt) : tués.
+> · **[F1] Le cadre n'était pas filtré, la matière l'était.** La revue a
+>   planté `frame.back_image = "local:VERSO-SECRET"` par l'autosave ORDINAIRE :
+>   les octets partaient dans le fichier de modèle. Rien ne fuit aujourd'hui
+>   (la clé n'existe pas encore) — mais **§6.2ter fera du verso personnalisé
+>   une image importée « SAUVÉE dans les modèles »**. **Choix : LISTE
+>   BLANCHE**, `_FRAME_CLES = frozenset(archetype_frame("superstar")) |
+>   {"art_window"}` — DÉRIVÉE, pas retapée : `test_cards_frame.py` exige déjà
+>   que les sept habillages portent exactement les clés du bloc DEFAULTS de
+>   mod-frame.js, donc la liste suit P2 toute seule. Une liste noire écrite
+>   aujourd'hui ne connaîtrait pas la clé de demain ; la liste blanche refuse
+>   par défaut et OBLIGE la 3c à décider ce qu'un modèle emporte.
+>
+> · **Les douze suivis, tous pris.** **F5** course du double-clic : mesurée
+>   par la revue à `[200,200,200,500,200,500]` avec trois réponses au MÊME id
+>   (deux modèles écrasés en silence) — le nom se réserve désormais par
+>   CRÉATION EXCLUSIVE (`open("x")`), c'est le système de fichiers qui
+>   tranche ; test = 6 POST simultanés, 6 ids distincts, zéro 500. **F6** les
+>   500 publiaient `str(OSError)`, donc le chemin absolu, donc le nom de
+>   compte (le dépôt a déjà payé cette fuite) : cinq messages réécrits
+>   (`e.strerror` seul), détail au journal, et un test qui LIT LE SOURCE des
+>   deux fichiers pour interdire `{e}` dans un `HTTPException`. **F7** écho du
+>   modèle inconnu borné à 40 signes (3 000 caractères, du balisage et un
+>   U+202E repartaient tels quels). **F8** `perso_total` + `perso_tronque`
+>   publiés — et le test ABAISSE VRAIMENT le plafond (5 fichiers, plafond 3) :
+>   sans cela le contrôle ne mesurait rien, le mutant a survécu au premier
+>   jet. **F10** « PV + élément 44,4 » se lit PAR PAIRES (x 44, y 4) : x=44,
+>   w=15, et l'oracle du test corrigé — il portait le nombre de
+>   l'implémentation, pas celui de la spec. **F11** le tableau de « duel » ne
+>   POUVAIT PAS atteindre les sept lignes de la spec (7 x 4,8 = 33,6 > 29) :
+>   pas ramené à 4,1 mm (7 x 4,1 = 28,7), deux éléments distincts (6e et 7e
+>   ligne), et la collision d'ids d'élément traitée par une PROPRIÉTÉ MESURÉE
+>   plutôt que par du code neuf — `norm_slots` RENOMME les doublons au lieu
+>   d'en perdre un, épinglé pour les sept modèles. **F12** les trois copies
+>   profondes d'`instancier` étaient redondantes ET le commentaire affirmait
+>   un danger inexistant : copies retirées, commentaire remplacé par la
+>   mesure (la protection tient à `model()`, le test poison la vérifie des
+>   deux côtés). **F13** identité, pas égalité : `is not` sur le cadre, sur
+>   son sous-dictionnaire `window` et sur la table. **F14** modèles perso
+>   demi-validés : cadre par la liste blanche, matière par le filtre
+>   d'import, slots par `norm_slots`, et un « élément » sans slots n'est pas
+>   un élément. **F15** `seeded: bool(slots)` — posé en dur, il condamnait un
+>   modèle SANS slots à un document éternellement vide (plus de modèle, plus
+>   de gabarit). **F16** `datetime.now()` naïf aligné sur l'UTC de `_now_iso`.
+>
+> · **TROUVÉ EN CORRIGEANT (n'était dans aucun rapport)** : `SLUG_RE`
+>   refusait le tiret BAS, si bien qu'un `mon_modele.json` déposé à la main
+>   était **LISTÉ mais pas ouvrable** — une vignette qui répond 404 au clic.
+>   Le motif accepte désormais `_`, et surtout **le même motif décide de la
+>   liste et de l'ouverture** (`_id_utilisable`) : un fichier au nom
+>   inutilisable est listé ILLISIBLE avec la règle en clair, au lieu de
+>   promettre ce qu'il ne peut pas tenir.
+>
+> · **AJOUT DE LA RONDE — `DELETE /api/cards/models/{id}`** (demandé par la
+>   T4, qui a livré la galerie) : on pouvait CRÉER un modèle perso depuis
+>   l'écran et jamais le retirer. Quatre branches : usine → **403 nommé** (les
+>   sept ne sont pas sur le disque ; un « supprimé » qui réapparaît au
+>   rafraîchissement est pire qu'un refus), perso → fichier effacé + 200,
+>   inconnu → 404, id hostile → le MÊME motif que l'écriture. *La T4 peut
+>   basculer le nettoyage de son banc sur cette route à sa prochaine passe et
+>   jeter son miroir de `config._data_root`.*
+>
+> · **Deux mutants ont SURVÉCU au premier jet, et les deux disaient vrai sur
+>   les tests, pas sur le code.** (a) `perso_total` : avec cinq modèles sous
+>   un plafond de 400, un total faux est indiscernable du vrai — le test
+>   abaisse maintenant le plafond pour de bon. (b) La traversée de `DELETE` :
+>   le client et le routeur RÉSOLVENT `..` avant que la route ne voie quoi que
+>   ce soit, si bien que le test mesurait le TRANSPORT et non la garde ; il
+>   appelle désormais `supprimer()` et `model()` EN DIRECT avec onze
+>   identifiants hostiles, un témoin posé à côté du dossier. Sans la garde,
+>   l'appel direct efface le témoin — mutant tué.
+>
+> · **Trouvé en relisant le correctif de F5** (aucun rapport ne l'avait vu) :
+>   une réservation qui échoue à l'écriture laissait derrière elle un fichier
+>   VIDE — listé « illisible » à chaque ouverture de la galerie, et un nom de
+>   modèle pris pour rien. Un incident passager devenait un déchet permanent.
+>   La réservation se REND désormais (mutant : `except` restreint → rouge).
+>   Même relecture, même classe, un cran plus loin : la LIGNE « illisible »
+>   du catalogue recopiait elle aussi `str(OSError)`, donc le chemin — et
+>   elle part en HTTP, pas seulement au journal. Le pin de F6 balaie
+>   maintenant les appels `HTTPException(` **parenthèses appariées** (un
+>   message coupé sur trois lignes ne montrait que sa première ligne au
+>   contrôle) ET les appels `_illisible(`. Ce qu'on publie d'une erreur JSON
+>   est nommé (`_detail_json` : motif, ligne, colonne), jamais l'exception.
+>
+> · **Restes inchangés** : le rendu navigateur des sept modèles (T5) ; les
+>   icônes/drapeaux/écussons restent des slots de TEXTE jusqu'aux calques
+>   d'image (3b) ; « les 8 » de §6.4 = 7 + taverne (2e fournée).
 
 ### Task 4 : la galerie de démarrage (CORE, écran léger)
 
