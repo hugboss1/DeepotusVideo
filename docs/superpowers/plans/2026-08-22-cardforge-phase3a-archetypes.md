@@ -341,6 +341,30 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 >   plaque retirée · fenêtre de légende 58→40 · `win_lock` retiré ·
 >   `POCHOIR_MM` à 0. Contrôle : suite verte sans mutation (159 tests).
 
+> **CLOSE (T2 — 8e20d1e/21d4bab + ronde 32b03fd/a051d8b, revue adverse :
+> FIX-FIRST [F1-F3] soldé, painter INDEMNE).** Six réutilisations prouvées à
+> l'arithmétique (superstar : edge 4 → 55×80 EXACT ; le « double filet
+> 1,5/3 mm » sort du moteur EXISTANT : 1,5+0,25+1,1+0,15 = 3,00 — le plan
+> attendait une famille pour lui, amendé) + UNE famille neuve `gravure`
+> (marge ivoire + aplat pochoir décalé 0,2 mm), premier jet REDESSINÉ
+> (4,61 → pire couple revenu à l'antérieur 5,2/6,84 : la 7e famille n'a rien
+> coûté). F1 = la leçon publiée non armée : aliaser une famille EXISTANTE
+> restait 154/154 vert — le banc rend désormais l'empreinte FNV du bitmap de
+> signature et exige la DISTINCTION PAIRWISE des 7, avec contrôle négatif
+> permanent (l'alias joué sur la copie DOIT rendre deux empreintes égales).
+> F3 = le banc dessinait une plaque que le fichier ne porte pas (garde
+> `plate.h > 6·u` reflétée ; gravée livre 7 mm — à 1 mm de la falaise,
+> épinglé). F2 = legende, seule géométrie choisie-main, épinglée avec sa
+> raison. F5-F7 : zones = poker_eu (sur micro la plaque devient NÉGATIVE,
+> win_lock ne protège que les éditions utilisateur — phrase + test),
+> win_lock de monstre lié à son carré, POCHOIR_MM épinglé à la source (la
+> grille 0,5 mm ne voit pas 2,36 px). F9 : `archetype_frame(nom)` → COPIE
+> PROFONDE (KeyError sinon) — T3 consomme LA FONCTION, jamais la table.
+> F8 en avertissement : le redessin de la cuvette n'a AUCUNE protection CI
+> (rasteriseur daltonien par conception) — qui touche une famille rouvre le
+> panneau navigateur. 159 tests, 72 cas FNV byte-identiques vs 7fd0811,
+> 21/21 rendus sans exception, badge navigateur inchangé 5,2/6,84.
+
 ### Task 3 : backend — modèles, instanciation, duplication, enregistrer-comme-modèle
 
 **Files:** backend/app/services/cards/models.py (NOUVEAU — les données + routes,
