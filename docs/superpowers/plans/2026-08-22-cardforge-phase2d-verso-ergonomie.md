@@ -327,7 +327,28 @@ test_cards_forge3d.py.
 >   de face), et à peine atteignable — la palette refuse de le faire naître,
 >   seul un fil tiré à la main y mène. Non corrigé, dit ici.
 
-### Task 3 : core — rail et colonne carte escamotables
+> **CLOSE (T2 + ronde 8a4f723→cc85b5a, revue adverse : FIX-FIRST [S1] soldé).**
+> Le trio de manifestes (LAST_MANIFEST recto-doctrine / MANIFEST_BACK /
+> MANIFEST_CARD qui étiquette les trois), un seul Promise.all sous un seul
+> .busy, UNE garde GEN avant les trois écritures. **S1 = le C1 une variable
+> plus loin, DEUXIÈME fois dans la famille** : la branche verso de l'export
+> écrivait sans garde — le verso d'A atterrissait sous l'étiquette de B,
+> GELÉ (les étiquettes concordent, plus rien ne purge), 6 couches fantômes
+> offertes et la note disparue. Gardé par `else if (cardLabel(carte) ===
+> MANIFEST_CARD)`, l'asymétrie recto/verso ÉCRITE dans le code avec sa
+> raison. M1 : le plancher de poseBloc lisait la grille FANTÔME — re-seed
+> après rangement = 4 chevauchements mesurés ; il lit désormais les boîtes
+> POSÉES. M3 : le banc visait bordereauHtml qui ne lit ni name ni side
+> (sortie octet-identique, prouvé) — recentré sur elementsHtml extrait pur ;
+> un 2e mutant survivant attrapé (esc(undefined)="" : mesurer la FORME de la
+> ligne, pas l'absence du mot). M4/N3/N4 épinglés (suffixe _verso, layers
+> vides = absent pour la note, plancher du pin 64+ avec l'arithmétique vraie
+> en commentaire). N1 : l'amendement 81d2699 avait un titre FAUX (le suffixe
+> entre dans le graphe par l'ID — info-bulle et slip) — amendé, conclusion
+> intacte. N5 consigné (matériau surnuméraire verso sans côté au layout :
+> cohérent avec `ignored`, la palette refuse d'en faire naître). 105 tests,
+> banc 89→147 cas, seed recto-seul et layout OCTET-STABLES (littéraux
+> épinglés), 12+8 mutants tués + contrôles.
 
 **Files:** core.js, cardforge.css, index.html (1 bouton — voir note), qa/test_core_contract.mjs (pins), qa/contract.html si un ancrage manque.
 
