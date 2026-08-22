@@ -5,8 +5,9 @@ Ce fichier appartient à CORE, comme `core.py` : il n'est pas l'une des neuf
 pièces (pas de sous-arbre à lui, pas de couche à dessiner, pas de `{did}` dans
 ses chemins). Il sert deux routes, montées AVANT le joker `/{did}` :
 
-    GET  /api/cards/models      les 7 modèles d'usine + les modèles perso
-    POST /api/cards/models      « enregistrer comme modèle » (sans les images)
+    GET    /api/cards/models        les 7 modèles d'usine + les perso
+    POST   /api/cards/models        « enregistrer comme modèle » (sans images)
+    DELETE /api/cards/models/{id}   retire un modèle PERSO (l'usine : 403)
 
 et il fournit à `core.py` de quoi instancier (`POST /decks {model}`).
 
@@ -60,6 +61,16 @@ TROIS DÉCISIONS PRISES ICI, ET POURQUOI :
      n'enlever que du contenu. Ce qui est purgé, lui, l'est vraiment :
      `face.src`, `face.default_art` et le papier importé (`texture.custom`),
      qui pointent tous vers des octets restés dans le deck d'origine.
+  4. **Le cadre part par une LISTE BLANCHE** (`_FRAME_CLES`), pas par une
+     liste noire : §6.2ter fera du verso personnalisé une image importée
+     « sauvée dans les modèles », et une liste noire écrite aujourd'hui ne
+     connaîtrait pas la clé de demain. Voir le pavé de `_FRAME_CLES`.
+  5. **Un fichier perso qui porte le nom d'un modèle d'usine est LISTÉ ET
+     SIGNALÉ**, sous un identifiant préfixé — pas silencieusement écrasé, pas
+     silencieusement ignoré. Voir `_normaliser_perso`.
+  6. **Un nom de modèle se RÉSERVE, il ne se cherche pas** (création
+     exclusive) : entre `exists()` et l'écriture il y a une fenêtre, et un
+     double-clic la traverse. Voir `_reserver`.
 """
 from __future__ import annotations
 
@@ -70,7 +81,7 @@ import re
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from uuid import uuid4
+from uuid import uuid4          # ultime recours de nommage (cf. `enregistrer`)
 
 from fastapi import APIRouter, HTTPException
 from loguru import logger
@@ -89,11 +100,37 @@ MODELS_DIR = "cardforge_models"
 LABEL_MAX = 80
 SLUG_MAX = 48
 PERSO_MAX = 400            # garde-fou de listage : un dossier n'est pas une BDD
-SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
+# LE MOTIF DES IDENTIFIANTS PERSO — celui du nom de fichier, donc celui qui
+# borne le chemin. Il accepte le tiret BAS bien que `_slug` n'en produise
+# jamais : un fichier déposé à la main s'appelle `mon_modele.json` une fois sur
+# deux. Ce que le motif refuse (séparateurs, points, majuscules, espaces) est
+# refusé DES DEUX CÔTÉS — voir `_id_utilisable` : un fichier qui ne peut pas
+# s'ouvrir ne doit pas se lister comme s'il s'ouvrait.
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
+ECHO_MAX = 40              # ce qu'un message d'erreur RECOPIE du client
 # La matière de repli quand un modèle perso portait un papier IMPORTÉ : le
 # défaut de l'écran (`DEF.paper`, mod-texture.js). Le fichier importé, lui,
 # reste dans le deck d'origine — un modèle ne l'emporte pas.
 PAPIER_DEFAUT = "velin"
+
+# ── LA LISTE BLANCHE DU CADRE ───────────────────────────────────────────────
+# Le vocabulaire de `doc.frame`, DÉRIVÉ de l'habillage d'un archétype plutôt
+# que retapé : `test_cards_frame.py` exige que les sept habillages portent
+# EXACTEMENT les clés du bloc DEFAULTS de mod-frame.js, moins `art_window`
+# (que le painter publie). Ce jeu suit donc P2 tout seul — une clé de cadre
+# ajoutée un jour au bloc JS devra passer par les habillages, et arrivera ici
+# sans que personne n'y pense.
+#
+# POURQUOI UNE LISTE BLANCHE ET NON UNE LISTE NOIRE : la §6.2ter va poser un
+# VERSO PERSONNALISÉ dans le cadre — « une image importée » qui doit être
+# « SAUVÉE dans les modèles de deck ». Le jour où cette clé existera, une
+# liste noire écrite aujourd'hui ne la connaîtra pas et laissera partir une
+# référence vers des octets restés dans le deck d'origine. La liste blanche
+# refuse par défaut : la 3c devra DÉCIDER ce qu'un modèle emporte, au lieu de
+# l'emporter par accident. (Elle est plus stricte que nécessaire : elle jette
+# aussi les clés inconnues d'un fichier perso écrit à la main. C'est le sens
+# de la normalisation — un sous-arbre venu du disque n'est pas une autorité.)
+_FRAME_CLES = frozenset(archetype_frame("superstar")) | {"art_window"}
 
 
 def models_root() -> Path:
@@ -254,19 +291,27 @@ _PAPIER_DUEL = "#f7f4ee"
 _ZEBRE = ("#dde3ea", "#f0f3f7")
 
 
+# La zone du tableau fait 29 mm et la spec veut « 5 à 7 lignes ». C'est le PAS
+# qui décide du maximum, et lui seul : à 4,8 mm on plafonnait à SIX lignes
+# (7 x 4,8 = 33,6 > 29) — la borne haute de la spec était inatteignable sans
+# que rien ne le dise. À 4,1 : 7 x 4,1 = 28,7 mm, la septième tient.
+_DUEL_PAS_MM = 4.1
+_DUEL_Y0_MM = 51.0
+
+
 def _duel_ligne(i: int, libelle: str, valeur: str) -> list:
     """Une ligne du tableau zébré : libellé à gauche, valeur TABULAIRE à
     droite (spec). Le zébrage est fait de PLAQUES de slot — c'est exactement
     ce que la T1 a ajouté à P3, et cela suit la ligne si on la déplace."""
-    y = 51.0 + 4.8 * i
+    y = _DUEL_Y0_MM + _DUEL_PAS_MM * i
     teinte = _ZEBRE[i % 2]
     return [
-        _slot(f"lib{i + 1}", f"Libellé {i + 1}", (4, y, 36, 4.8), font="Inter",
-              size_pt=8, min_pt=5, read_pt=6, color=_INK_DUEL, align="left",
-              valign="middle", wrap=False, plate_color=teinte,
+        _slot(f"lib{i + 1}", f"Libellé {i + 1}", (4, y, 36, _DUEL_PAS_MM),
+              font="Inter", size_pt=7.5, min_pt=5, read_pt=6, color=_INK_DUEL,
+              align="left", valign="middle", wrap=False, plate_color=teinte,
               plate_alpha=0.95, text=libelle),
-        _slot(f"val{i + 1}", f"Valeur {i + 1}", (40, y, 19, 4.8),
-              font="JetBrainsMono", size_pt=8, min_pt=5, read_pt=6,
+        _slot(f"val{i + 1}", f"Valeur {i + 1}", (40, y, 19, _DUEL_PAS_MM),
+              font="JetBrainsMono", size_pt=7.5, min_pt=5, read_pt=6,
               color=_INK_DUEL, align="right", valign="middle", wrap=False,
               plate_color=teinte, plate_alpha=0.95, text=valeur),
     ]
@@ -309,10 +354,15 @@ _DUEL = {
               valign="middle", wrap=False, text="12 / 32"),
     ],
     "elements": [
-        _element("ligne", "Ligne de tableau",
-                 "Le tableau §6.2 tient de cinq à sept lignes ; la sixième "
+        _element("ligne6", "6e ligne de tableau",
+                 "Le tableau §6.2 tient de cinq à SEPT lignes ; la sixième "
                  "se pose sous la cinquième, zébrage compris.",
                  _duel_ligne(5, "Longueur", "4,52 m")),
+        _element("ligne7", "7e ligne de tableau",
+                 "La septième — la borne haute de la spec. Au-delà, il faut "
+                 "resserrer le pas : sept lignes de 4,1 mm remplissent déjà "
+                 "28,7 des 29 mm de la zone.",
+                 _duel_ligne(6, "Année", "2026")),
     ],
 }
 
@@ -361,6 +411,9 @@ _CREATURE = {
     ],
     "slots": [
         # cartouche d'évolution 4,4 · nom 19,4 · PV + élément 44,4
+        # (« 44,4 » = x 44, y 4 — la virgule sépare les DEUX coordonnées de la
+        #  spec, elle n'est pas une décimale : la lecture par paires est la
+        #  seule qui laisse un y à chacune des trois zones.)
         _slot("evolution", "Évolution", (4, 4, 15, 5), font="IBMPlexSans",
               size_pt=7, min_pt=5, read_pt=6, color=_INK_CREATURE,
               align="left", valign="middle", caps="upper", track=3,
@@ -368,7 +421,7 @@ _CREATURE = {
         _slot("nom", "Nom", (19, 4, 25, 5), font="SpaceGrotesk", size_pt=12,
               min_pt=6, read_pt=12, color=_INK_CREATURE, align="left",
               valign="middle", bold=True, wrap=False, text="Céphalopode"),
-        _slot("pv", "Points de vie", (44.4, 4, 14.6, 5), font="SpaceGrotesk",
+        _slot("pv", "Points de vie", (44, 4, 15, 5), font="SpaceGrotesk",
               size_pt=13, min_pt=7, read_pt=8, color=_INK_CREATURE,
               align="right", valign="middle", bold=True, wrap=False,
               text="PV 90"),
@@ -761,6 +814,49 @@ MODELS: dict = {mid: _usine(mid, d) for mid, d in _DEFINITIONS.items()}
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# 3bis. LES FILTRES — les MÊMES à la lecture et à l'écriture
+# ════════════════════════════════════════════════════════════════════════════
+# Un modèle perso traverse ces filtres DEUX fois : quand on l'écrit depuis un
+# deck, et quand on le relit depuis le disque. Deux jeux de règles auraient
+# fini par diverger, et c'est la lecture qui aurait perdu — un fichier écrit
+# par une version antérieure, ou à la main, n'a aucune raison d'être propre.
+
+def _frame_sans_import(raw) -> dict:
+    """Le cadre, réduit au vocabulaire que P2 déclare (liste blanche
+    `_FRAME_CLES`). Ce qui n'y est pas ne part pas dans un modèle : ni une
+    référence d'image, ni une clé inventée."""
+    f = raw if isinstance(raw, dict) else {}
+    return copy.deepcopy({k: v for k, v in f.items() if k in _FRAME_CLES})
+
+
+def _texture_sans_import(raw) -> dict:
+    """La matière du deck, moins le papier IMPORTÉ : ce fichier-là vit dans le
+    dossier du deck, un modèle ne l'emporte pas (§6.4)."""
+    t = copy.deepcopy(raw) if isinstance(raw, dict) else {}
+    t.pop("custom", None)
+    if str(t.get("paper") or "") in ("__import", "custom"):
+        t["paper"] = PAPIER_DEFAUT
+    return t
+
+
+def _elements_normalises(raw) -> list[dict]:
+    """Les éléments ajoutables d'un modèle perso. UN ÉLÉMENT SANS SLOTS N'EST
+    PAS UN ÉLÉMENT : l'écran de la 3b en ferait un bouton qui ne pose rien."""
+    out = []
+    for e in (raw if isinstance(raw, list) else []):
+        if not isinstance(e, dict):
+            continue
+        slots = type_mod.norm_slots(e.get("slots"))
+        if not slots:
+            continue
+        out.append({"id": _texte(e.get("id"), "element", 40),
+                    "label": _texte(e.get("label"), "Élément", 40),
+                    "hint": _texte(e.get("hint"), "", 240),
+                    "slots": slots})
+    return out
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # 4. LES MODÈLES PERSO — `{DATA_ROOT}/cardforge_models/*.json`
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -769,13 +865,75 @@ def _texte(v, defaut: str, n: int = LABEL_MAX) -> str:
     return (s or defaut)[:n]
 
 
+def _id_utilisable(ident) -> bool:
+    """Un identifiant que l'on peut à la fois LISTER et OUVRIR. Une seule
+    fonction pour les deux : deux motifs auraient fini par diverger, et le
+    perdant aurait été l'utilisateur qui voit un modèle et ne peut pas s'en
+    servir."""
+    return bool(SLUG_RE.match(str(ident or "")))
+
+
+def _detail_json(e: ValueError) -> str:
+    """CE QU'ON PUBLIE d'une erreur de lecture JSON : le motif et la position,
+    jamais l'objet d'exception entier.
+
+    `json.JSONDecodeError` n'a rien de dangereux à dire — mais la règle
+    « aucun message servi ne recopie une exception » ne souffre pas
+    d'exception justement parce qu'elle est aveugle : le jour où l'on
+    remplace un `json.loads` par autre chose, personne n'aura à se demander
+    si CETTE exception-là portait un chemin. Ici, on nomme ce qu'on publie."""
+    motif = getattr(e, "msg", None)
+    if motif is None:
+        return "le fichier ne porte pas un objet JSON"
+    return (f"{motif} (ligne {getattr(e, 'lineno', '?')}, "
+            f"colonne {getattr(e, 'colno', '?')})")
+
+
+def _illisible(fichier: Path, pourquoi: str, ident: str | None = None) -> dict:
+    """Une ligne « je l'ai vu, je ne peux pas m'en servir, voilà pourquoi ».
+    Un modèle qui DISPARAÎT sans un mot est pire qu'un modèle en erreur : on
+    le cherche du côté de l'écran pendant une heure."""
+    return {"id": ident or fichier.stem, "label": fichier.stem,
+            "custom": True, "illisible": True, "fichier": fichier.name,
+            "error": pourquoi[:200]}
+
+
 def _normaliser_perso(raw: dict, fichier: Path) -> dict:
     """Un modèle perso, ramené au contrat §6.1. NE LÈVE PAS.
 
     L'IDENTIFIANT EST LE NOM DU FICHIER, jamais le champ `id` du contenu :
     sinon un fichier perso pourrait se déclarer « superstar » et masquer un
-    modèle d'usine dans la galerie."""
+    modèle d'usine dans la galerie.
+
+    UN FICHIER QUI PORTE LE NOM D'UN MODÈLE D'USINE est LISTÉ ET SIGNALÉ,
+    sous un identifiant préfixé qui ne peut pas collisionner. Les deux moitiés
+    comptent : sans le préfixe, la galerie recevait deux lignes de MÊME clé
+    (et une liste à clés doubles finit toujours par en perdre une) ; sans le
+    signalement, l'utilisateur aurait vu son modèle, cliqué dessus, et obtenu
+    le modèle d'usine — parce que `model()` sert l'usine d'abord, et doit
+    continuer : c'est ce qui empêche un fichier déposé de DÉTOURNER un
+    archétype. Le geste à faire (« renommez le fichier ») est dans le message
+    plutôt que dans une note de version.
+
+    CE SOUS-ARBRE VIENT DU DISQUE : il a pu être écrit à la main ou par une
+    version antérieure, il n'est donc pas plus digne de confiance qu'un corps
+    client. Cadre par la liste blanche, matière par le filtre d'import, slots
+    par `norm_slots`, éléments sans slots jetés."""
     raw = raw if isinstance(raw, dict) else {}
+    if fichier.stem in MODELS:
+        return _illisible(
+            fichier,
+            f"« {fichier.stem} » est le nom d'un modèle d'usine : renommez "
+            "le fichier pour pouvoir utiliser ce modèle",
+            ident=f"perso-{fichier.stem}")
+    if not _id_utilisable(fichier.stem):
+        # LISTER CE QU'ON NE SAIT PAS OUVRIR SANS LE DIRE, c'est promettre une
+        # vignette qui répondra 404 au clic. Le motif qui borne le chemin
+        # décide donc aussi de l'affichage, et il DIT ce qu'il accepte.
+        return _illisible(
+            fichier,
+            "nom de fichier inutilisable comme identifiant : minuscules, "
+            "chiffres, tiret et tiret bas seulement (48 signes au plus)")
     fmt = str(raw.get("format") or "").strip().lower()
     typ = raw.get("type") if isinstance(raw.get("type"), dict) else {}
     fin = str(raw.get("finish") or "").strip().lower()
@@ -787,13 +945,12 @@ def _normaliser_perso(raw: dict, fichier: Path) -> dict:
         "hint": _texte(raw.get("hint"), "Modèle enregistré depuis un deck.",
                        240),
         "format": fmt if fmt in FORMATS else DEFAULT_FMT,
-        "frame": raw["frame"] if isinstance(raw.get("frame"), dict) else {},
+        "frame": _frame_sans_import(raw.get("frame")),
         "type": {"preset": _texte(typ.get("preset"), fichier.stem, 40),
                  "slots": type_mod.norm_slots(typ.get("slots"))},
         "finish": fin if fin in FINISHES else DEFAULT_FINISH,
-        "texture": (raw["texture"] if isinstance(raw.get("texture"), dict)
-                    else {}),
-        "elements": [e for e in els if isinstance(e, dict)],
+        "texture": _texture_sans_import(raw.get("texture")),
+        "elements": _elements_normalises(els),
         "fonts_note": notes if isinstance(notes, list) else [],
         "custom": True,
         "fichier": fichier.name,
@@ -802,17 +959,19 @@ def _normaliser_perso(raw: dict, fichier: Path) -> dict:
     return m
 
 
-def perso_list() -> list[dict]:
-    """Les modèles perso, par nom de fichier. LECTURE TOLÉRANTE : un JSON
-    abîmé est LISTÉ comme illisible, avec son nom de fichier — jamais un 500,
-    et jamais une disparition silencieuse (un modèle qui manque sans un mot
-    est pire qu'un modèle en erreur : on cherche du côté de l'écran)."""
+def perso_list() -> tuple[list[dict], int]:
+    """`(lignes, total trouvé)`. LECTURE TOLÉRANTE : un JSON abîmé est LISTÉ
+    comme illisible, avec son nom de fichier — jamais un 500.
+
+    Le TOTAL est rendu à part parce que le plafond de listage tronque : sans
+    lui, un dossier de 500 modèles en montrait 400 et l'écran affirmait,
+    faux, que c'était tout."""
     try:
         fichiers = sorted(p for p in models_root().glob("*.json")
                           if p.is_file())
     except OSError as e:
         logger.warning(f"cards/models: dossier illisible: {e}")
-        return []
+        return [], 0
     out: list[dict] = []
     for p in fichiers[:PERSO_MAX]:
         try:
@@ -820,20 +979,25 @@ def perso_list() -> list[dict]:
             if not isinstance(raw, dict):
                 raise ValueError("le fichier ne porte pas un objet JSON")
             out.append(_normaliser_perso(raw, p))
-        except (OSError, ValueError) as e:
-            out.append({"id": p.stem, "label": p.stem, "custom": True,
-                        "illisible": True, "fichier": p.name,
-                        "error": f"{type(e).__name__}: {e}"[:200]})
-    return out
+        except OSError as e:
+            # `str(OSError)` porte le CHEMIN COMPLET, donc le nom de compte —
+            # et cette ligne-ci part dans la réponse HTTP, pas seulement dans
+            # le journal. Même règle que les messages d'erreur des routes.
+            logger.warning(f"cards/models: {p.name} illisible: {e}")
+            out.append(_illisible(p, f"fichier illisible ({e.strerror or 'E/S'})"))
+        except ValueError as e:
+            out.append(_illisible(p, f"JSON invalide : {_detail_json(e)}"))
+    return out, len(fichiers)
 
 
 def catalogue() -> dict:
     """Usine + perso. Le CHEMIN du dossier n'est pas publié : il contient le
     nom de compte de l'utilisateur."""
     usine = [copy.deepcopy(m) for m in MODELS.values()]
-    perso = perso_list()
+    perso, total = perso_list()
     return {"models": usine + perso, "n": len(usine) + len(perso),
-            "usine": len(usine), "perso": len(perso)}
+            "usine": len(usine), "perso": len(perso),
+            "perso_total": total, "perso_tronque": total > len(perso)}
 
 
 def model(mid) -> dict:
@@ -849,15 +1013,17 @@ def model(mid) -> dict:
     if key in MODELS:
         return copy.deepcopy(MODELS[key])
     # Le motif borne AUSSI le chemin : ni séparateur, ni point, ni `..`.
-    if not SLUG_RE.match(key):
+    if not _id_utilisable(key):
         raise KeyError(key)
     p = models_root() / f"{key}.json"
     if not p.is_file():
         raise KeyError(key)
     try:
         raw = json.loads(p.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as e:
-        raise ValueError(f"{p.name} : {e}")
+    except OSError as e:
+        raise ValueError(f"{p.name} : lecture refusée ({e.strerror or 'E/S'})")
+    except ValueError as e:
+        raise ValueError(f"{p.name} : {_detail_json(e)}")
     if not isinstance(raw, dict):
         raise ValueError(f"{p.name} : le fichier ne porte pas un objet JSON")
     return _normaliser_perso(raw, p)
@@ -873,24 +1039,31 @@ def instancier(mid, name=None) -> dict:
 
     L'écriture passe par `core.patch_deck` — le MÊME chemin que l'autosave de
     l'écran, remplacement de sous-arbre entier. Un second chemin d'écriture
-    aurait fini par diverger de celui-là."""
+    aurait fini par diverger de celui-là.
+
+    PAS DE COPIE PROFONDE ICI, et c'est mesuré, pas supposé : `model()` rend
+    déjà une copie PRIVÉE à cet appel (elle ne partage rien avec `MODELS`), et
+    `patch_deck` range l'objet reçu tel quel dans le document qu'il rend. Le
+    deck hérite donc de la copie de `model()`, ce qui est exactement ce qu'on
+    veut. Une seconde copie ici n'aurait rien protégé de plus — mais la
+    protection tient ENTIÈREMENT à celle de `model()` : le test poison la
+    vérifie des deux côtés (`test_linstanciation_copie_en_profondeur`)."""
     m = model(mid)
     doc = core.create_deck(core.clean_name(name or m["label"]))
-    # COPIE PROFONDE, même si `model()` en a déjà rendu une : `patch_deck`
-    # range l'objet reçu DANS le document qu'il rend (il ne le re-sérialise
-    # pas pour l'appelant). Sans cette copie, l'appelant qui retouche le deck
-    # rendu écrirait dans la table des modèles.
-    slots = copy.deepcopy(m["type"]["slots"])
+    slots = m["type"]["slots"]
     body = {
         "format": {"fmt": m["format"]},
-        "frame": copy.deepcopy(m["frame"]),
-        # `seeded` VRAI : sans lui, `seedIfEmpty` (mod-type.js) reposerait le
-        # gabarit « champion » par-dessus les slots de l'archétype si
-        # l'utilisateur venait à tous les supprimer.
+        "frame": m["frame"],
+        # `seeded` SUIT LES SLOTS. Vrai, il empêche `seedIfEmpty`
+        # (mod-type.js) de reposer le gabarit « champion » par-dessus les
+        # slots de l'archétype si l'utilisateur venait à tous les supprimer.
+        # Mais posé en dur, il condamnait un modèle SANS slots — un perso
+        # enregistré depuis un deck vide — à un document éternellement vide :
+        # plus de modèle à poser, et plus de gabarit non plus.
         "type": {"preset": m["type"].get("preset") or m["id"],
-                 "slots": slots, "seeded": True,
+                 "slots": slots, "seeded": bool(slots),
                  "sel": (slots[0]["id"] if slots else "")},
-        "texture": copy.deepcopy(m["texture"]),
+        "texture": m["texture"],
         "gltf": {"finish": m["finish"]},
     }
     out = core.patch_deck(doc["id"], body)
@@ -909,25 +1082,30 @@ def _slug(nom) -> str:
     return s or "modele"
 
 
-def _slug_libre(base: str) -> str:
-    """Un slug qui n'écrase NI un modèle perso existant NI un modèle d'usine.
-    Écraser un voisin silencieusement, c'est perdre son travail."""
+def _reserver(base: str):
+    """Réserve un nom de fichier libre et rend `(chemin, descripteur ouvert)`.
+
+    PAR CRÉATION EXCLUSIVE (`open("x")`), pas par `exists()` puis écriture :
+    entre le regard et l'écriture, il y a une fenêtre, et un double-clic sur
+    « enregistrer » la traverse. Mesuré avant correction, six appels lancés
+    ensemble : trois réponses portaient le MÊME identifiant — deux modèles
+    écrasés en silence — plus deux erreurs de partage de fichier. Ici, c'est
+    le système de fichiers qui tranche, et il ne tranche qu'une fois.
+
+    Un modèle d'usine n'est jamais un candidat : son nom est réservé même si
+    aucun fichier ne le porte."""
     root = models_root()
     for n in range(1, 100):
         cand = base if n == 1 else f"{base}-{n}"
-        if cand not in MODELS and not (root / f"{cand}.json").exists():
-            return cand
-    return f"{base}-{uuid4().hex[:6]}"
-
-
-def _texture_sans_import(raw) -> dict:
-    """La matière du deck, moins le papier IMPORTÉ : ce fichier-là vit dans le
-    dossier du deck, un modèle ne l'emporte pas (§6.4)."""
-    t = dict(raw) if isinstance(raw, dict) else {}
-    t.pop("custom", None)
-    if str(t.get("paper") or "") in ("__import", "custom"):
-        t["paper"] = PAPIER_DEFAUT
-    return t
+        if cand in MODELS:
+            continue
+        try:
+            p = root / f"{cand}.json"
+            return p, p.open("x", encoding="utf-8")
+        except FileExistsError:
+            continue
+    p = root / f"{base}-{uuid4().hex[:6]}.json"
+    return p, p.open("x", encoding="utf-8")
 
 
 def modele_depuis_deck(doc: dict, nom=None) -> dict:
@@ -947,11 +1125,16 @@ def modele_depuis_deck(doc: dict, nom=None) -> dict:
     m = {
         "id": "",
         "label": _texte(nom, doc.get("name") or "Mon modèle"),
-        "hint": _texte(f"Modèle enregistré depuis « {doc.get('name')} » "
-                       f"le {datetime.now().strftime('%d/%m/%Y')}.", "", 240),
+        # DATE EN UTC, comme `created`/`updated` du document (`_now_iso`) :
+        # deux horloges dans un même fichier finissent par se contredire d'un
+        # jour, et c'est toujours au changement de date qu'on s'en aperçoit.
+        "hint": _texte(f"Modèle enregistré depuis « {doc.get('name')} » le "
+                       f"{datetime.now(timezone.utc).strftime('%d/%m/%Y')}.",
+                       "", 240),
         "format": fmt if fmt in FORMATS else DEFAULT_FMT,
-        "frame": (copy.deepcopy(doc["frame"])
-                  if isinstance(doc.get("frame"), dict) else {}),
+        # LE CADRE AUSSI EST FILTRÉ (liste blanche `_FRAME_CLES`) : c'est là
+        # que §6.2ter posera le verso personnalisé, « une image importée ».
+        "frame": _frame_sans_import(doc.get("frame")),
         "type": {"preset": _texte(typ.get("preset"), "perso", 40),
                  "slots": slots},
         "finish": fin if fin in FINISHES else DEFAULT_FINISH,
@@ -972,16 +1155,52 @@ def modele_depuis_deck(doc: dict, nom=None) -> dict:
 
 
 def enregistrer(doc: dict, nom=None) -> dict:
-    """Écrit le modèle perso et rend son entrée de catalogue."""
+    """Écrit le modèle perso et rend son entrée de catalogue.
+
+    Le nom est RÉSERVÉ avant d'être rempli (cf. `_reserver`) ; l'écriture se
+    fait dans le descripteur que la réservation a ouvert. Un lecteur qui
+    passerait pendant ces quelques microsecondes lit un fichier vide et le
+    liste « illisible » — la lecture est tolérante par construction, et c'est
+    une ligne qui disparaît au rafraîchissement suivant, pas un modèle
+    écrasé."""
     m = modele_depuis_deck(doc, nom)
-    slug = _slug_libre(_slug(nom or doc.get("name")))
-    m["id"] = slug
-    p = models_root() / f"{slug}.json"
-    tmp = p.with_name(p.name + ".tmp")
-    tmp.write_text(json.dumps(m, ensure_ascii=False, indent=2),
-                   encoding="utf-8")
-    tmp.replace(p)              # atomique, comme `core.write_deck`
+    p, fh = _reserver(_slug(nom or doc.get("name")))
+    m["id"] = p.stem
+    try:
+        json.dump(m, fh, ensure_ascii=False, indent=2)
+        fh.close()
+    except BaseException:
+        # UNE RÉSERVATION QUI ÉCHOUE SE REND. Sans cela, un disque plein
+        # laissait derrière lui un fichier VIDE, listé « illisible » à chaque
+        # ouverture de la galerie — un déchet permanent né d'une erreur
+        # passagère, et un nom de modèle pris pour rien.
+        fh.close()
+        try:
+            p.unlink()
+        except OSError:
+            logger.warning(f"cards/models: réservation {p.name} non rendue")
+        raise
     return _normaliser_perso(m, p)
+
+
+def supprimer(mid) -> bool:
+    """Efface un modèle perso. `KeyError` si l'identifiant est inconnu,
+    `PermissionError` si c'est un modèle d'USINE — les sept ne vivent pas sur
+    le disque, il n'y a rien à effacer et une route qui répondrait « fait »
+    mentirait au prochain rafraîchissement.
+
+    L'identifiant passe par le MÊME motif que l'écriture (`SLUG_RE`) : aucun
+    chemin n'est construit depuis une chaîne brute."""
+    key = str(mid or "").strip()
+    if key in MODELS:
+        raise PermissionError(key)
+    if not _id_utilisable(key):
+        raise KeyError(key)
+    p = models_root() / f"{key}.json"
+    if not p.is_file():
+        raise KeyError(key)
+    p.unlink()
+    return not p.exists()
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1009,6 +1228,33 @@ async def post_model(body: dict | None = None):
     try:
         m = await asyncio.to_thread(enregistrer, doc, body.get("name"))
     except OSError as e:
+        # LE DÉTAIL VA AU JOURNAL, PAS DANS LA RÉPONSE : `str(OSError)` porte
+        # le chemin complet, donc le nom de compte de l'utilisateur. Ce dépôt
+        # a déjà payé cette fuite une fois.
         logger.exception("cards/models: écriture du modèle impossible")
-        raise HTTPException(500, f"Enregistrement du modèle impossible: {e}")
+        raise HTTPException(
+            500, "Enregistrement du modèle impossible : le dossier des "
+                 f"modèles n'a pas accepté l'écriture ({e.strerror or 'E/S'})")
     return {"model": m}
+
+
+@router.delete("/models/{mid}")
+async def delete_model(mid: str):
+    """Supprime un modèle PERSO. Les sept d'usine ne se suppriment pas : ils
+    ne sont pas sur le disque, et un « supprimé » qui réapparaît au
+    rafraîchissement est pire qu'un refus."""
+    try:
+        await asyncio.to_thread(supprimer, mid)
+    except PermissionError:
+        raise HTTPException(
+            403, f"« {str(mid)[:ECHO_MAX]} » est un modèle d'usine — non "
+                 "supprimable")
+    except KeyError:
+        raise HTTPException(
+            404, f"Modèle inconnu : « {str(mid)[:ECHO_MAX]} »")
+    except OSError as e:
+        logger.exception("cards/models: suppression impossible")
+        raise HTTPException(
+            500, "Suppression du modèle impossible : le dossier des modèles "
+                 f"n'a pas accepté l'effacement ({e.strerror or 'E/S'})")
+    return {"ok": True, "id": str(mid)[:ECHO_MAX]}

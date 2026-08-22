@@ -379,25 +379,38 @@ async def post_deck(body: dict | None = None):
     body = body if isinstance(body, dict) else {}
     modele = body.get("model")
     if modele not in (None, ""):
-        from .models import instancier
+        from .models import ECHO_MAX, instancier
+        # CE QU'UN MESSAGE RECOPIE DU CLIENT SE BORNE. Sans cela, 3 000
+        # caractères, du balisage ou un U+202E (qui renverse le sens de
+        # lecture de la phrase qui suit) repartaient tels quels vers l'écran
+        # qui les affiche. Même règle que les autres échos du lab.
+        echo = str(modele)[:ECHO_MAX]
         try:
             doc = await asyncio.to_thread(instancier, modele, body.get("name"))
         except KeyError:
             raise HTTPException(
-                404, f"Modèle inconnu : « {modele} » — la liste est servie "
+                404, f"Modèle inconnu : « {echo} » — la liste est servie "
                      "par GET /api/cards/models")
-        except ValueError as e:
-            raise HTTPException(400, f"Modèle illisible : {e}")
+        except ValueError:
+            # Le détail (nom de fichier, position JSON) va au journal : il
+            # peut porter un chemin, donc le nom de compte.
+            logger.exception("cards: modèle perso illisible")
+            raise HTTPException(
+                400, f"Modèle illisible : « {echo} » — son fichier n'est pas "
+                     "un JSON valide")
         except OSError as e:
             logger.exception("cards: instanciation de modèle impossible")
-            raise HTTPException(500, f"Création du deck impossible: {e}")
+            raise HTTPException(
+                500, "Création du deck impossible : écriture refusée "
+                     f"({e.strerror or 'E/S'})")
         return {"deck": doc}
     try:
         doc = await asyncio.to_thread(create_deck, body.get("name") or "Mon jeu",
                                       body.get("format"))
     except OSError as e:
         logger.exception("cards: création de deck impossible")
-        raise HTTPException(500, f"Création du deck impossible: {e}")
+        raise HTTPException(500, "Création du deck impossible : écriture "
+                                 f"refusée ({e.strerror or 'E/S'})")
     return {"deck": doc}
 
 
@@ -410,7 +423,8 @@ async def duplicate_deck_route(did: str):
         doc = await asyncio.to_thread(duplicate_deck, did)
     except OSError as e:
         logger.exception("cards: duplication impossible")
-        raise HTTPException(500, f"Duplication du deck impossible: {e}")
+        raise HTTPException(500, "Duplication du deck impossible : copie "
+                                 f"refusée ({e.strerror or 'E/S'})")
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
     return {"deck": doc}

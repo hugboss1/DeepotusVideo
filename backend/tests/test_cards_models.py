@@ -41,6 +41,7 @@ Ce que ce fichier verrouille — dans l'ordre de la spec §6.1/§6.2/§6.4
 Run : <embedded python> backend/tests/test_cards_models.py
 """
 import asyncio
+import copy
 import json
 import os
 import pathlib
@@ -68,7 +69,6 @@ import pytest                                                  # noqa: E402
 from httpx import AsyncClient, ASGITransport                    # noqa: E402
 
 from app.services.cards import contract as CT                   # noqa: E402
-from app.services.cards import core as CC                       # noqa: E402
 from app.services.cards import frame as FR                      # noqa: E402
 from app.services.cards import gltf as GL                       # noqa: E402
 from app.services.cards import models as MO                     # noqa: E402
@@ -131,7 +131,8 @@ ZONES_DEDANS = {
     "duel": [("tableau 5-7 lignes 4,51 (55x29)",
               ("lib1", "lib2", "lib3", "lib4", "lib5",
                "val1", "val2", "val3", "val4", "val5"),
-              ("lib6", "val6"), (4.0, 51.0, 55.0, 29.0))],
+              ("lib6", "val6", "lib7", "val7"),
+              (4.0, 51.0, 55.0, 29.0))],
     "creature": [("1-2 attaques 6,51 (51x22)",
                   ("att1cout", "att1nom", "att1deg"),
                   ("att2cout", "att2nom", "att2deg"),
@@ -141,7 +142,11 @@ ZONES_DEDANS = {
 ZONES_ORIGINE = {
     "creature": [("cartouche d'évolution 4,4", ("evolution",), (4.0, 4.0)),
                  ("nom 19,4", ("nom",), (19.0, 4.0)),
-                 ("PV + élément 44,4", ("pv",), (44.4, 4.0))],
+                 # « cartouche d'évolution 4,4 ; nom 19,4 ; PV + élément 44,4 »
+                 # se lit PAR PAIRES : x = 44, y = 4. La virgule y sépare les
+                 # deux coordonnées, elle n'est pas une décimale — la lecture
+                 # « 44,4 mm » ferait un x et laisserait le y en l'air.
+                 ("PV + élément 44,4", ("pv",), (44.0, 4.0))],
     "arcane": [("bandeau titre 4,3.5", ("nom", "cout"), (4.0, 3.5)),
                ("ligne de type 4,49", ("typeline",), (4.0, 49.0)),
                ("cartouche force/endurance 47,78", ("fe",), (47.0, 78.0))],
@@ -149,6 +154,62 @@ ZONES_ORIGINE = {
                 ("ligne ATK/DEF à droite 6,81.5", ("atk", "dfn"),
                  (6.0, 81.5))],
     "legende": [("logo de collection 4,4", ("logo",), (4.0, 4.0))],
+}
+
+# TOUTES les zones que la spec NOMME, archétype par archétype — la table de
+# PRÉSENCE. Les tables de géométrie ci-dessus ne jugent que ce qu'elles citent :
+# cinq zones nommées par la spec (le pied d'icônes de « superstar », la ligne
+# légale et la rareté de « créature », le pied de référence de « duel », la
+# ligne de type et la boîte d'effet de « monstre ») pouvaient être SUPPRIMÉES
+# du modèle sans faire rougir un seul test. Ce qui suit compte les zones ; ce
+# qui précède les mesure.
+# (Les zones que le CADRE porte — plaque à pans coupés, bordure 2,5 mm, double
+# filet, cadre couleur pleine — et les fenêtres d'illustration ne sont pas ici :
+# elles sont jugées sur `frame`, plus haut.)
+ZONES_PRESENTES = {
+    "superstar": (("note géante", ("note",)),
+                  ("position dessous", ("poste",)),
+                  ("drapeau / écusson en colonne gauche",
+                   ("drapeau", "ecusson")),
+                  ("bandeau nom", ("nom",)),
+                  ("grille 6 stats VIT/TIR/PAS/DRB/DEF/PHY",
+                   ("vit", "tir", "pas", "drb", "def", "phy")),
+                  ("pied d'icônes", ("pied",))),
+    "duel": (("bandeau titre", ("titre",)),
+             ("tableau 5-7 lignes zébrées",
+              ("lib1", "val1", "lib2", "val2", "lib3", "val3",
+               "lib4", "val4", "lib5", "val5")),
+             ("pied référence « 12/32 »", ("ref",))),
+    "creature": (("cartouche d'évolution", ("evolution",)),
+                 ("nom", ("nom",)),
+                 ("PV + élément", ("pv",)),
+                 ("1-2 attaques (coût / nom / dégâts)",
+                  ("att1cout", "att1nom", "att1deg")),
+                 ("pied faiblesse / résistance / retraite",
+                  ("faiblesse", "resistance", "retraite")),
+                 ("ligne légale", ("legal",)),
+                 ("rareté cercle/losange/étoile", ("rarete",))),
+    "arcane": (("bandeau titre (nom)", ("nom",)),
+               ("coût en pastilles ⌀4", ("cout",)),
+               ("ligne de type", ("typeline",)),
+               ("boîte parchemin : règles romain", ("regles",)),
+               ("boîte parchemin : ambiance italique", ("ambiance",)),
+               ("cartouche force / endurance", ("fe",))),
+    "monstre": (("nom capitales", ("nom",)),
+                ("attribut ⌀7 à droite", ("attribut",)),
+                ("étoiles alignées à droite", ("etoiles",)),
+                ("type [CROCHETS]", ("typeline",)),
+                ("boîte d'effet", ("effet",)),
+                ("ligne ATK/DEF à droite", ("atk", "dfn"))),
+    "legende": (("logo de collection", ("logo",)),
+                ("bandeau nom", ("nom",)),
+                ("№ en coin", ("numero",)),
+                ("verso : lignes = saisons",
+                 ("entete", "s1", "s2", "s3")),
+                ("verso : TOTAL en gras", ("total",)),
+                ("verso : bloc anecdote", ("anecdote",))),
+    "gravee": (("cartouche chiffres romains", ("romain",)),
+               ("cartouche nom capitales espacées", ("nom",))),
 }
 
 # La FENÊTRE d'illustration de chaque archétype (spec §6.2). Elle appartient
@@ -173,6 +234,18 @@ def _api(method: str, path: str, **kw):
         async with AsyncClient(transport=ASGITransport(app=app),
                                base_url="http://t") as c:
             return await c.request(method, path, **kw)
+    return asyncio.run(go())
+
+
+def _api_parallele(n: int, method: str, path: str, **kw):
+    """`n` appels EN MÊME TEMPS. Les routes travaillent dans un fil
+    (`asyncio.to_thread`) : le parallélisme est réel, pas simulé."""
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t") as c:
+            return await asyncio.gather(
+                *[c.request(method, path, **kw) for _ in range(n)])
     return asyncio.run(go())
 
 
@@ -247,6 +320,12 @@ def test_lhabillage_vient_de_la_fonction(mid):
     fams = {f["id"] for f in FR.FAMILIES}
     assert m["frame"]["family"] in fams
     assert m["frame"]["rarity"] in {r["id"] for r in FR.RARITIES}
+    # L'ÉGALITÉ NE SUFFIT PAS : elle reste vraie quand le modèle porte
+    # l'objet MÊME de la table de P2. C'est l'IDENTITÉ qu'il faut nier —
+    # jusque dans le sous-dictionnaire, seul partage qui se paie plus tard.
+    assert m["frame"] is not FR.ARCHETYPE_FRAMES[mid]
+    assert m["frame"]["window"] is not FR.ARCHETYPE_FRAMES[mid]["window"]
+    assert MO.MODELS[mid]["frame"] is not FR.ARCHETYPE_FRAMES[mid]
 
 
 @pytest.mark.parametrize("mid", sorted(FENETRES))
@@ -291,6 +370,23 @@ def test_un_slot_est_un_objet_complet_de_35_cles(mid):
 
 
 # ═════════════ 2. les zones de la spec, transcrites au millimètre ═══════════
+
+@pytest.mark.parametrize("mid", IDS)
+def test_toutes_les_zones_nommees_par_la_spec_sont_la(mid):
+    """LE COMPTE, pas la mesure. Les tables de géométrie ne jugent que les
+    zones qu'elles citent : sans ce test, cinq zones NOMMÉES par la spec
+    pouvaient disparaître du modèle sans un test rouge."""
+    par_id = _par_id(MO.model(mid))
+    for quoi, ids in ZONES_PRESENTES[mid]:
+        for sid in ids:
+            assert sid in par_id, \
+                f"{mid} : zone « {quoi} » de la spec §6.2 — slot {sid!r} " \
+                f"absent (présents : {sorted(par_id)})"
+    # « lignes = saisons, TOTAL EN GRAS » (§6.2-6) : la seule graisse que la
+    # spec impose nommément.
+    if mid == "legende":
+        assert par_id["total"]["bold"] is True
+
 
 @pytest.mark.parametrize("mid", sorted(ZONES_UNION))
 def test_les_zones_de_la_spec_sont_transcrites(mid):
@@ -347,6 +443,24 @@ def test_deux_slots_ne_se_chevauchent_pas(mid):
             aire = _chevauche(a["box"], b["box"])
             assert aire == 0.0, \
                 f"{mid}: {a['id']} et {b['id']} se chevauchent ({aire:.2f} mm²)"
+
+
+def test_ajouter_deux_fois_le_meme_element_ne_perd_aucun_slot():
+    """Les slots d'un élément portent des identifiants FIXES. Poser deux fois
+    « 2e attaque » n'en perd donc aucun, mais seulement parce que le
+    normaliseur du document RENOMME les doublons (`norm_slots` : `att2cout`,
+    `att2cout2`…) au lieu d'en écraser un. C'est cette propriété-là qui rend
+    les identifiants fixes acceptables — on l'épingle plutôt que d'y croire.
+    (L'écran de la 3b posera des noms lisibles ; le filet, lui, est ici.)"""
+    for mid in IDS:
+        m = MO.model(mid)
+        for e in m["elements"]:
+            avant = m["type"]["slots"] + e["slots"] + copy.deepcopy(e["slots"])
+            apres = TY.norm_slots(avant)
+            assert len(apres) == len(avant), \
+                f"{mid}/{e['id']}: {len(avant) - len(apres)} slot(s) perdu(s)"
+            ids = [s["id"] for s in apres]
+            assert len(set(ids)) == len(ids), f"{mid}/{e['id']}: {ids}"
 
 
 @pytest.mark.parametrize("mid", IDS)
@@ -562,7 +676,14 @@ def test_les_sept_passent_le_juge_de_p3(mid):
     bord ; ici, on épingle l'exception pour qu'une zone déplacée par mégarde
     ne se glisse pas à côté d'elle.
 
-    Aucun bloc sous son plancher de lisibilité, aucun glyphe manquant."""
+    Aucun bloc sous son plancher de lisibilité, aucun glyphe manquant.
+
+    ATTENTION AU VERDICT VIDE : `under_read` se remplit à partir de `posed`,
+    le corps RÉELLEMENT COMPOSÉ, que seul le navigateur mesure. Sans `posed`,
+    la liste est vide PAR CONSTRUCTION et n'affirme rien. Le contrôle qui
+    porte ici est donc STATIQUE : `size_pt >= read_pt`, c'est-à-dire qu'aucun
+    bloc ne PART déjà sous son plancher de lisibilité (l'ajustement
+    automatique ne fait que descendre)."""
     g = CT.geom("poker_eu", 300)
     m = MO.model(mid)
     slots = m["type"]["slots"]
@@ -572,7 +693,14 @@ def test_les_sept_passent_le_juge_de_p3(mid):
     assert s["outside_safe"] == attendu, \
         f"{mid}: hors zone sûre {s['outside_safe']} (attendu {attendu})"
     assert s["missing_glyphs"] == [], s["missing_glyphs"]
+    assert s["under_read"] == [], s["under_read"]
     assert s["n"] == len(slots)
+    for sl in slots + _elem_slots(m):
+        assert sl["read_pt"] > 0, f"{mid}/{sl['id']}: aucun plancher déclaré"
+        assert sl["size_pt"] >= sl["read_pt"], \
+            f"{mid}/{sl['id']}: corps {sl['size_pt']} pt sous le plancher " \
+            f"de lisibilité {sl['read_pt']} pt — il ne se lira jamais"
+        assert sl["min_pt"] <= sl["size_pt"]
 
 
 def test_le_gabarit_declare_ne_peut_pas_effacer_une_mise_en_page():
@@ -637,6 +765,38 @@ def test_get_models_liste_les_perso():
         (d / "zz_test_perso.json").unlink()
 
 
+def test_un_fichier_perso_ne_peut_pas_usurper_un_modele_dusine():
+    """Le nom de FICHIER fait l'identifiant — et `superstar.json` déposé à la
+    main dans le dossier rendait donc DEUX lignes au même id : la galerie
+    héritait d'un doublon de clé, et la perso était morte-née (l'usine gagne
+    toujours à l'instanciation). Elle est désormais listée sous un id qui ne
+    peut pas collisionner, et SIGNALÉE — avec la raison et le geste à faire."""
+    d = MO.models_root()
+    (d / "superstar.json").write_text(json.dumps({
+        "label": "Ma superstar à moi", "format": "poker_eu", "frame": {},
+        "type": {"slots": []}, "texture": {}, "finish": "mat",
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        body = _api("GET", "/api/cards/models").json()
+        ids = [m["id"] for m in body["models"]]
+        assert len(ids) == len(set(ids)), f"identifiants en double : {ids}"
+        usine = [m for m in body["models"] if m["id"] == "superstar"]
+        assert len(usine) == 1 and usine[0]["custom"] is False
+        intrus = [m for m in body["models"]
+                  if m.get("fichier") == "superstar.json"]
+        assert len(intrus) == 1, body["models"]
+        assert intrus[0]["id"] != "superstar"
+        assert intrus[0]["illisible"] is True
+        assert "usine" in intrus[0]["error"] or "renomm" in intrus[0]["error"]
+        # ... et l'instanciation sert toujours l'usine
+        doc = _api("POST", "/api/cards/decks",
+                   json={"model": "superstar"}).json()["deck"]
+        assert doc["frame"] == FR.archetype_frame("superstar")
+        assert doc["type"]["slots"]
+    finally:
+        (d / "superstar.json").unlink()
+
+
 def test_un_modele_perso_illisible_est_liste_pas_un_500():
     d = MO.models_root()
     (d / "zz_casse.json").write_text("{ceci n'est pas du JSON",
@@ -696,6 +856,23 @@ def test_modele_inconnu_404_nomme():
     detail = r.json()["detail"]
     assert "inconnu" in detail, detail
     assert re.search(r"[éèêàâîôû]", detail), f"message en français : {detail}"
+
+
+def test_lecho_du_modele_inconnu_est_borne():
+    """Un message d'erreur RECOPIE ce que le client a envoyé : il se borne,
+    comme tous les autres échos du lab. Sans quoi 3 000 caractères, du
+    balisage ou un renversement de sens de lecture (U+202E) repartent tels
+    quels dans l'écran qui les affiche."""
+    long = "M" * 3000
+    r = _api("POST", "/api/cards/decks", json={"model": long})
+    assert r.status_code == 404
+    assert len(r.json()["detail"]) < 200, len(r.json()["detail"])
+    # ECHAPPES, jamais bruts (R13) : un octet NUL dans un source fait
+    # passer le fichier pour du binaire aux yeux de tout outil textuel.
+    for hostile in ("<img src=x onerror=alert(1)>", "a\u202eb", "\x00z"):
+        rr = _api("POST", "/api/cards/decks", json={"model": hostile})
+        assert rr.status_code in (400, 404), rr.text
+        assert len(rr.json()["detail"]) < 200
 
 
 def test_linstanciation_copie_en_profondeur():
@@ -802,6 +979,72 @@ def test_enregistrer_comme_modele_sans_les_illustrations():
     fichier.unlink()
 
 
+def test_le_cadre_aussi_est_filtre_de_ses_images():
+    """`texture` était filtrée de son papier importé, `frame` ne l'était pas —
+    et le cadre est justement là où §6.2ter va poser le VERSO PERSONNALISÉ
+    (une image importée, « SAUVÉE dans les modèles de deck »). Le sous-arbre
+    est donc passé par une LISTE BLANCHE : les clés que P2 déclare, et rien
+    d'autre. Une référence d'image plantée par l'autosave ordinaire ne peut
+    pas partir dans un fichier de modèle."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "monstre"}).json()["deck"]["id"]
+    cadre = dict(FR.archetype_frame("monstre"))
+    cadre["back_image"] = "local:VERSO-SECRET"
+    cadre["cle_inventee"] = {"src": "local:AUTRE-SECRET"}
+    _api("PATCH", f"/api/cards/{did}", json={"frame": cadre})
+    assert _api("GET", f"/api/cards/{did}").json()["deck"]["frame"] \
+        .get("back_image") == "local:VERSO-SECRET", "le deck, lui, la garde"
+    r = _api("POST", "/api/cards/models", json={"did": did, "name": "Filtré"})
+    assert r.status_code == 200, r.text
+    p = MO.models_root() / f"{r.json()['model']['id']}.json"
+    try:
+        brut = p.read_text(encoding="utf-8")
+        assert "VERSO-SECRET" not in brut and "AUTRE-SECRET" not in brut
+        assert "back_image" not in brut and "cle_inventee" not in brut
+        disque = json.loads(brut)
+        # ... et le cadre reste COMPLET : le filtre enlève, il n'ampute pas.
+        assert set(disque["frame"]) <= set(FR.archetype_frame("monstre")) \
+            | {"art_window"}
+        assert disque["frame"]["family"] == "runic"
+        assert disque["frame"]["window"] == \
+            FR.archetype_frame("monstre")["window"]
+    finally:
+        p.unlink()
+
+
+def test_deux_enregistrements_simultanes_ne_secrasent_pas():
+    """LA COURSE DU DOUBLE-CLIC. Chercher un nom libre puis l'écrire laisse
+    une fenêtre entre les deux : six appels lancés ensemble rendaient trois
+    fois le MÊME identifiant — deux modèles écrasés en silence — et des
+    erreurs de partage de fichier. Le nom se réserve maintenant par CRÉATION
+    EXCLUSIVE : c'est le système de fichiers qui tranche, pas un `exists()`
+    périmé de quelques microsecondes."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    n = 6
+    reps = _api_parallele(n, "POST", "/api/cards/models",
+                          json={"did": did, "name": "Course"})
+    ids = []
+    try:
+        for r in reps:
+            assert r.status_code == 200, r.text
+            ids.append(r.json()["model"]["id"])
+        assert len(set(ids)) == n, f"identifiants écrasés : {sorted(ids)}"
+        for i in set(ids):
+            p = MO.models_root() / f"{i}.json"
+            assert p.is_file(), i
+            assert json.loads(p.read_text(encoding="utf-8"))["type"]["slots"]
+        listes = [m["id"] for m in
+                  _api("GET", "/api/cards/models").json()["models"]]
+        assert len(listes) == len(set(listes))
+        assert set(ids) <= set(listes)
+    finally:
+        for i in set(ids):
+            p = MO.models_root() / f"{i}.json"
+            if p.is_file():
+                p.unlink()
+
+
 def test_le_slug_ne_recouvre_jamais_un_voisin():
     did = _api("POST", "/api/cards/decks",
                json={"model": "duel"}).json()["deck"]["id"]
@@ -834,6 +1077,104 @@ def test_enregistrer_un_deck_qui_nexiste_pas():
     assert re.search(r"[éèêàâîôû]", r.json()["detail"])
 
 
+def test_un_modele_perso_est_valide_comme_un_corps_client():
+    """Un fichier perso vient du DISQUE : il a pu être écrit à la main, ou par
+    une version antérieure. Ses sous-arbres passent donc par les mêmes
+    normaliseurs que le reste — le cadre par la liste blanche de P2, la
+    matière par le filtre d'import, les slots par `norm_slots` — et un
+    « élément » sans slots n'est pas un élément."""
+    d = MO.models_root()
+    (d / "zz_bancal.json").write_text(json.dumps({
+        "label": "Bancal", "format": "carre_de_nulle_part",
+        "frame": {"family": "runic", "back_image": "local:FUITE",
+                  "inconnu": 1},
+        "type": {"slots": [{"id": "T!T", "box": [4, 4, 9999, 9], "size_pt": 999,
+                            "color": "bleu", "plate_alpha": 5}]},
+        "texture": {"paper": "__import", "custom": "paper.png"},
+        "finish": "inexistante",
+        "elements": [{"id": "vide", "label": "Vide"},
+                     {"id": "bon", "label": "Bon", "slots": [{"id": "x"}]},
+                     "pas un objet"],
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        m = [x for x in _api("GET", "/api/cards/models").json()["models"]
+             if x["id"] == "zz_bancal"][0]
+        assert not m.get("illisible"), m
+        assert m["format"] == "poker_eu"          # format inconnu -> défaut
+        assert m["finish"] == "mat"               # finition inconnue -> défaut
+        assert "back_image" not in m["frame"] and "inconnu" not in m["frame"]
+        assert m["frame"]["family"] == "runic"
+        assert m["texture"]["paper"] != "__import" and "custom" not in m["texture"]
+        s = m["type"]["slots"][0]
+        assert s == TY.norm_slot(s), "slots non normalisés"
+        assert s["box"][2] <= 500 and s["size_pt"] <= 400
+        assert [e["id"] for e in m["elements"]] == ["bon"], m["elements"]
+        # ... et il s'instancie sans rien casser
+        doc = _api("POST", "/api/cards/decks",
+                   json={"model": "zz_bancal"}).json()["deck"]
+        assert doc["format"]["fmt"] == "poker_eu"
+        assert doc["type"]["slots"] == m["type"]["slots"]
+    finally:
+        (d / "zz_bancal.json").unlink()
+
+
+def test_un_modele_perso_vide_ne_bloque_pas_le_semis():
+    """`seeded: true` empêche l'écran de reposer un gabarit par-dessus les
+    slots du modèle. Posé en dur, il condamnait un modèle SANS slots à un
+    document éternellement vide : plus de modèle, plus de gabarit, rien."""
+    d = MO.models_root()
+    (d / "zz_vide.json").write_text(json.dumps({
+        "label": "Vide", "format": "poker_eu", "frame": {},
+        "type": {"slots": []}, "texture": {}, "finish": "mat",
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        doc = _api("POST", "/api/cards/decks",
+                   json={"model": "zz_vide"}).json()["deck"]
+        assert doc["type"]["slots"] == []
+        assert doc["type"]["seeded"] is False, \
+            "un modèle sans slots doit laisser l'écran semer son gabarit"
+        plein = _api("POST", "/api/cards/decks",
+                     json={"model": "gravee"}).json()["deck"]
+        assert plein["type"]["seeded"] is True
+    finally:
+        (d / "zz_vide.json").unlink()
+
+
+def test_le_catalogue_dit_combien_de_perso_il_a_TROUVES():
+    """Le plafond de listage tronquait SANS LE DIRE : un utilisateur aux 500
+    modèles en voyait 400 et cherchait les autres du côté de l'écran.
+
+    LE PLAFOND EST ABAISSÉ POUR DE VRAI le temps du test. Sans cela, le
+    contrôle ne mesurait rien : avec cinq modèles sur un plafond de 400, un
+    total FAUX (« autant que de lignes ») aurait été indiscernable du vrai."""
+    body = _api("GET", "/api/cards/models").json()
+    for k in ("usine", "perso", "perso_total", "perso_tronque", "n"):
+        assert k in body, sorted(body)
+    assert body["usine"] == 7
+    assert body["n"] == body["usine"] + body["perso"]
+    assert body["perso_tronque"] is False
+
+    d = MO.models_root()
+    faits = []
+    plafond = MO.PERSO_MAX
+    try:
+        for i in range(5):
+            p = d / f"zz_plafond{i}.json"
+            p.write_text(json.dumps({"label": f"P{i}", "type": {"slots": []}}),
+                         encoding="utf-8")
+            faits.append(p)
+        MO.PERSO_MAX = 3
+        body = _api("GET", "/api/cards/models").json()
+        assert body["perso"] == 3, body["perso"]
+        assert body["perso_total"] == 5, body["perso_total"]
+        assert body["perso_tronque"] is True
+        assert body["n"] == body["usine"] + body["perso"]
+    finally:
+        MO.PERSO_MAX = plafond
+        for p in faits:
+            p.unlink()
+
+
 # ══════════════════════════ 10. jamais de 500 ═══════════════════════════════
 
 def test_jamais_500_sur_un_corps_mal_forme():
@@ -864,6 +1205,148 @@ def test_jamais_500_sur_un_corps_mal_forme():
             assert p.is_file()
             assert p.parent == MO.models_root()
             p.unlink()
+
+
+def test_une_reservation_qui_echoue_ne_laisse_pas_de_dechet():
+    """La réservation crée le fichier AVANT de le remplir. Si le remplissage
+    échoue, le nom doit être rendu — sinon un incident passager laisse un
+    fichier vide, listé « illisible » à chaque ouverture de la galerie."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "gravee"}).json()["deck"]["id"]
+    doc = _api("GET", f"/api/cards/{did}").json()["deck"]
+    avant = set(MO.models_root().glob("*.json"))
+    vrai_dump = json.dump
+    try:
+        json.dump = lambda *a, **k: (_ for _ in ()).throw(OSError("disque"))
+        with pytest.raises(OSError):
+            MO.enregistrer(doc, "Echec en cours")
+    finally:
+        json.dump = vrai_dump
+    assert set(MO.models_root().glob("*.json")) == avant, \
+        "une réservation non rendue traîne dans le dossier"
+    # ... et le nom est de nouveau libre
+    m = MO.enregistrer(doc, "Echec en cours")
+    try:
+        assert m["id"] == "echec-en-cours"
+    finally:
+        (MO.models_root() / f"{m['id']}.json").unlink()
+
+
+def test_supprimer_un_modele_perso():
+    """Sans cette route, on pouvait CRÉER un modèle depuis l'écran et jamais
+    le retirer — et le banc de la galerie (T4) devait effacer ses modèles de
+    test en touchant le disque, avec son propre miroir du dossier de données.
+    Quatre branches : usine (403), perso (200), inconnu (404), hostile."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "duel"}).json()["deck"]["id"]
+    m = _api("POST", "/api/cards/models",
+             json={"did": did, "name": "A supprimer"}).json()["model"]
+    p = MO.models_root() / f"{m['id']}.json"
+    assert p.is_file()
+    try:
+        # 1. un modèle d'usine ne se supprime pas — et RIEN n'est touché
+        r = _api("DELETE", "/api/cards/models/superstar")
+        assert r.status_code == 403, r.text
+        assert "usine" in r.json()["detail"]
+        assert MO.model("superstar")["type"]["slots"]
+        # 2. le perso, oui
+        r = _api("DELETE", f"/api/cards/models/{m['id']}")
+        assert r.status_code == 200, r.text
+        assert r.json()["id"] == m["id"]
+        assert not p.exists()
+        assert m["id"] not in [x["id"] for x in
+                               _api("GET", "/api/cards/models").json()["models"]]
+        # 3. deux fois : inconnu
+        r = _api("DELETE", f"/api/cards/models/{m['id']}")
+        assert r.status_code == 404, r.text
+        assert re.search(r"[éèêàâîôû]", r.json()["detail"])
+    finally:
+        if p.is_file():
+            p.unlink()
+
+
+def test_supprimer_ne_construit_aucun_chemin_depuis_lid_brut():
+    """L'identifiant passe par le MÊME motif que l'écriture. Un témoin est
+    posé À CÔTÉ du dossier des modèles : aucune des tentatives ne doit le
+    faire disparaître.
+
+    LES DEUX NIVEAUX, ET C'EST NÉCESSAIRE. Par HTTP, le client et le routeur
+    RÉSOLVENT `..` avant que la route ne voie quoi que ce soit : le test
+    passait donc même sans garde — il mesurait le transport, pas le code.
+    L'appel DIRECT, lui, arrive là où la garde vit. (Mesuré : sans la garde,
+    `supprimer("../zz_temoin_traversee")` efface le témoin.)"""
+    temoin = MO.models_root().parent / "zz_temoin_traversee.json"
+    hostiles = ("../zz_temoin_traversee", "..%2fzz_temoin_traversee",
+                "sous/dossier", "..", ".", "A_MAJUSCULE", "avec espace",
+                "zz_temoin_traversee.json", "..\\zz_temoin_traversee",
+                "", "  ")
+    temoin.write_text("{}", encoding="utf-8")
+    try:
+        for hostile in hostiles:
+            r = _api("DELETE", f"/api/cards/models/{hostile}")
+            assert r.status_code in (400, 404, 405), f"{hostile} -> {r.text}"
+            assert temoin.is_file(), f"HTTP {hostile!r} a effacé le témoin"
+        for hostile in hostiles:
+            with pytest.raises((KeyError, ValueError)):
+                MO.supprimer(hostile)
+            assert temoin.is_file(), f"direct {hostile!r} a effacé le témoin"
+        # le même motif garde la LECTURE : un identifiant hostile ne sert
+        # jamais à construire un chemin, quel que soit le verbe.
+        for hostile in hostiles:
+            with pytest.raises((KeyError, ValueError)):
+                MO.model(hostile)
+    finally:
+        temoin.unlink()
+
+
+def test_aucun_message_derreur_ne_publie_un_chemin():
+    """Le dossier de données porte le NOM DE COMPTE de l'utilisateur. Le
+    dépôt a déjà payé cette fuite une fois (purge de 58 binaires) et la
+    docstring de `catalogue()` l'interdit — mais les messages d'erreur, eux,
+    recopiaient `{e}`, et un `OSError` porte le chemin complet. Le détail va
+    au journal ; la réponse HTTP dit CE QUI a échoué, pas OÙ."""
+    import inspect
+    from app.services.cards import core as _core
+
+    def _appels(src: str):
+        """Chaque `HTTPException(...)` EN ENTIER, parenthèses appariées — un
+        message tient souvent sur trois lignes, et une lecture ligne à ligne
+        ne verrait que la première (elle laissait passer `{e}` posé au bout
+        d'un message coupé)."""
+        for m in re.finditer(r"HTTPException\(", src):
+            prof, i = 0, m.end() - 1
+            while i < len(src):
+                if src[i] == "(":
+                    prof += 1
+                elif src[i] == ")":
+                    prof -= 1
+                    if prof == 0:
+                        yield src[m.start():i + 1]
+                        break
+                i += 1
+
+    vus = 0
+    for mod in (MO, _core):
+        src = inspect.getsource(mod)
+        for appel in _appels(src):
+            vus += 1
+            assert "{e}" not in appel, \
+                f"{mod.__name__} : « {' '.join(appel.split())[:120]} » " \
+                "recopie l'exception brute (donc le chemin absolu)"
+    assert vus >= 10, f"seulement {vus} appels relus — le balayage est cassé"
+    # ... et la LISTE part par le même tuyau : la ligne « illisible » d'un
+    # fichier qu'on n'a pas pu ouvrir est servie en HTTP, elle aussi.
+    src = inspect.getsource(MO)
+    lignes = [' '.join(a.split()) for a in re.findall(
+        r"_illisible\((?:[^()]|\([^()]*\))*\)", src)]
+    assert len(lignes) >= 3, lignes
+    for ligne in lignes:
+        assert "{e}" not in ligne, f"« {ligne[:120]} » recopie l'exception"
+    # ... et le chemin du dossier n'est pas publié non plus par le catalogue
+    body = _api("GET", "/api/cards/models").json()
+    plat = json.dumps(body, ensure_ascii=False)
+    assert "cardforge_models" not in plat
+    assert str(MO.models_root()) not in plat
 
 
 if __name__ == "__main__":
