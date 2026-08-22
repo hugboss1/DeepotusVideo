@@ -61,7 +61,7 @@ from . import forge3d_apercu as _APERCU
 # emporterait aussi.
 from .forge3d_apercu import (_resolve_graph_elements, _layer_filename,
                              _PREVIEW_ASM_ID, _borne_apercu_glb,
-                             _sous_graphe_apercu)
+                             _sous_graphe_apercu, nom_element)
 
 router = APIRouter()
 
@@ -1384,7 +1384,12 @@ async def post_build3d(did: str, body: dict | None = None):
         for ch in candidats:
             proc, layer = ch["proc"], ch["layer"]
             mat_n, trs_n = ch["mat"], ch["trs"]
-            nom_el = layer.get("role") or "composite"
+            nom_el = nom_element(layer)
+            # LE CÔTÉ AU BORDEREAU, ET SEULEMENT QUAND IL Y EN A UN À DIRE
+            # (M3) : la clé n'apparaît que sur un élément de verso. L'ajouter
+            # partout ferait changer le bordereau — donc l'écran — de TOUS les
+            # artefacts recto, pour une information qu'ils n'ont pas.
+            cote = {"side": "back"} if layer["side"] == "back" else {}
             if proc["kind"] == "mesh3d":
                 side = layer["side"]
                 if side not in manifestes:
@@ -1397,13 +1402,13 @@ async def post_build3d(did: str, body: dict | None = None):
                 ex = externes[-1]
                 bordereau.append({"name": nom_el, "kind": "externe",
                                   "node": proc["id"], "engine": ex["engine"],
-                                  "credits": ex["credits"]})
+                                  "credits": ex["credits"], **cote})
                 continue
             elements.append(_element_local(
                 out, proc, layer, nom_el, mat_n, trs_n, card_label, g,
                 ignores))
             bordereau.append({"name": nom_el, "kind": "local",
-                              "node": proc["id"]})
+                              "node": proc["id"], **cote})
         t_resolve = time.perf_counter()
 
         extras = {"deck": doc_name, "card": card_label, "format": g.fmt,
@@ -2385,7 +2390,7 @@ async def post_node_preview(did: str, body: dict | None = None):
     def work() -> bytes:
         el = _element_local(
             _out_dir(did), ch["proc"], ch["layer"],
-            ch["layer"].get("role") or "composite", ch["mat"], ch["trs"],
+            nom_element(ch["layer"]), ch["mat"], ch["trs"],
             card_label, g, ignored)
         # I1 : `ignored` porte ICI tout ce qui a ete ecarte — les entrees
         # d'avant l'appel (source/maillon surnumeraire, sub_ignores) ET

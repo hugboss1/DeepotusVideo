@@ -197,6 +197,27 @@ def _trs_dict(node) -> dict | None:
             "rotate_deg": node["rot_deg"], "scale": node["scale"]}
 
 
+def nom_element(layer_node: dict) -> str:
+    """LE NOM D'UN ÉLÉMENT, dérivé de sa couche source — et il doit être
+    UNIQUE dans un artefact recto+verso.
+
+    M3 (revue adverse 2d) : `layer.get("role") or "composite"` était recopié
+    aux DEUX points d'appel (la boucle de `build3d`, l'inspecteur), et une
+    carte complète a NÉCESSAIREMENT le même rôle des deux côtés — un cadre au
+    recto, un cadre au verso. Le GLB sortait donc deux nœuds, deux maillages
+    et deux MATÉRIAUX homonymes (le writer les nomme tous du même mot) :
+    Blender importe `cadre` / `cadre.001`, un moteur qui déduplique par nom de
+    matériau FUSIONNE les deux faces, et le bordereau ne disait nulle part
+    lequel était le verso.
+
+    Le suffixe ne touche QUE le verso, et c'est la moitié qui compte : un
+    artefact recto seul — l'immense majorité, et tout ce qui a été construit
+    avant la 2d — garde ses octets à l'identique (vérifié au sha256 sur une
+    construction plan + relief + transform au moment du correctif)."""
+    nom = layer_node.get("role") or "composite"
+    return f"{nom}_verso" if layer_node.get("side") == "back" else nom
+
+
 def _layer_filename(layer_node: dict, card_label: str) -> str:
     """Le nom de fichier ESTAMPILLÉ que `post_layers` a écrit (phase 1) pour
     cette source : la couche composite si `composite: true`, sinon le rôle."""

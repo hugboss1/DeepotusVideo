@@ -59,8 +59,11 @@ def _api(method: str, path: str, **kw):
     return asyncio.run(go())
 
 
-def _deck(nom: str = "Forge") -> str:
-    r = _api("POST", "/api/cards/decks", json={"name": nom})
+def _deck(nom: str = "Forge", fmt: str | None = None) -> str:
+    corps: dict = {"name": nom}
+    if fmt:
+        corps["format"] = {"fmt": fmt}
+    r = _api("POST", "/api/cards/decks", json=corps)
     assert r.status_code == 200, r.text
     return r.json()["deck"]["id"]
 
@@ -1796,8 +1799,15 @@ def _exporter_couches(did, side: str = "front"):
     la 2d ne se prouve pas sur des pixels différents mais sur une PLACE
     différente ; deux exports identiques rendent les deux boîtes de couche
     (`bbox_mm`) rigoureusement égales, donc le placement verso comparable au
-    placement recto CHIFFRE POUR CHIFFRE."""
-    couches, composite = _couches_synthetiques()
+    placement recto CHIFFRE POUR CHIFFRE.
+
+    La TRAME vient de la GÉOMÉTRIE DU DECK (`geom_of`), pas d'un 815x1110 en
+    dur : `post_layers` refuse (409) toute couche dont la taille ne tombe pas
+    sur `canvas_px`, donc un deck jumbo ou tarot exigeait jusqu'ici de recopier
+    ses pixels à la main dans le test."""
+    from app.services.cards.core import read_deck, geom_of
+    w_px, h_px = geom_of(read_deck(did)).canvas_px
+    couches, composite = _couches_synthetiques(w_px, h_px)
     files = [("layers", (f"{nom}.png", _png(im), "image/png"))
              for nom, im in couches.items()]
     files.append(("composite", ("composite.png", _png(composite), "image/png")))
@@ -4280,7 +4290,8 @@ def _build(did, graphe):
     return b, glb
 
 
-def test_le_verso_du_graphe_est_la_carte_retournee():
+@pytest.mark.parametrize("fmt", ["poker_eu", "jumbo"])
+def test_le_verso_du_graphe_est_la_carte_retournee(fmt):
     """2d/T1 — LES DEUX PILES NE SE CROISENT PAS, LES NORMALES S'OPPOSENT, ET
     LE VERSO SE LIT A L'ENDROIT QUAND ON LE REGARDE.
 
@@ -4289,15 +4300,32 @@ def test_le_verso_du_graphe_est_la_carte_retournee():
          STRICTS — pas de chevauchement au plan median) ;
       2. normales monde exactement opposees (+z / -z) ;
       3. « la droite de l'image » atterrit en -x monde au verso, +x au recto —
-         le retournement GAUCHE-DROITE d'une vraie carte ;
+         le retournement GAUCHE-DROITE d'une vraie carte. C'EST CE POINT-CI,
+         avec le 5, QUI PORTE LA DISTINCTION gauche-droite / tete-beche ;
       4. le verdict de P8 lui-meme (`face_orientation`) sur le maillage monde
-         concatene : zero miroir des DEUX cotes ;
+         concatene : chaque face est CLASSEE du bon cote par sa normale, et
+         son sens de parcours UV s'accorde a son sens de parcours a l'ecran
+         (zero miroir des deux cotes). PORTEE EXACTE, mesuree en revue
+         adverse : ce verdict ne separe PAS un demi-tour gauche-droite d'un
+         demi-tour tete-beche — TOUTE rotation de 180 degres dans le plan
+         preserve le produit det_img x det_scr, donc un imposteur R_x(pi)
+         coherent passerait ici. Il prouve la coherence normale/UV/ecran, pas
+         l'axe du retournement ;
       5. l'EMPREINTE est conservee : les deux faces se superposent en x/y au
          lieu de se poser cote a cote (la rotation passe par le MILIEU de la
-         carte, pas par son coin)."""
+         carte, pas par son coin).
+
+    DEUX FORMATS, et ce n'est pas de la garniture (N4, revue adverse) : les
+    cotes imperiales (jumbo 88,9 mm) ne sont pas representables en float32 —
+    l'aller-retour d'accesseur laisse ~1,5e-9 m de residu de quantification,
+    juste au-dela de la tolerance 1e-9 qu'un test poker_eu (63,0 mm, exact au
+    bit) n'aurait jamais fait sonner. La tolerance est donc EXERCEE, pas
+    supposee."""
     from app.services.cards import forge3d_scene as SC
+    from app.services.cards.core import read_deck, geom_of
     from app.services.cards.solid import face_orientation
-    did = _deck("Verso")
+    did = _deck(f"Verso {fmt}", fmt=fmt)
+    w_mm = geom_of(read_deck(did)).trim_mm[0]
     _exporte_les_deux_cotes(did)
     b, glb = _build(did, _graphe_recto_verso())
 
@@ -4310,7 +4338,7 @@ def test_le_verso_du_graphe_est_la_carte_retournee():
     assert len([z for z in zs if z > 0]) == 4, zs
     assert len([z for z in zs if z < 0]) == 4, zs
     els = _elements_monde(glb)
-    assert [e["name"] for e in els] == ["cadre", "illustration"], els
+    assert [e["name"] for e in els] == ["cadre", "illustration_verso"], els
     recto, verso = els[0], els[1]
     assert all(z > 0 for z in recto["positions"][2::3]), _bbox(recto)
     assert all(z < 0 for z in verso["positions"][2::3]), _bbox(verso)
@@ -4329,7 +4357,7 @@ def test_le_verso_du_graphe_est_la_carte_retournee():
     assert _sens_image_droite(recto) == pytest.approx([1.0, 0.0, 0.0], abs=1e-6)
     assert _sens_image_droite(verso) == pytest.approx([-1.0, 0.0, 0.0], abs=1e-6)
 
-    # 4. LE JUGE DE P8, sur la geometrie de P9
+    # 4. LE JUGE DE P8, sur la geometrie de P9 (portee : voir la docstring)
     fo = face_orientation(_fusionne_monde(els))
     assert fo["recto"]["triangles"] == 2 and fo["recto"]["miroir"] == 0, fo
     assert fo["verso"]["triangles"] == 2 and fo["verso"]["miroir"] == 0, fo
@@ -4338,12 +4366,69 @@ def test_le_verso_du_graphe_est_la_carte_retournee():
     # 5. EMPREINTE CONSERVEE : la carte se retourne autour de son MILIEU, elle
     #    ne bascule pas autour de son coin — sinon les deux faces se posent
     #    cote a cote et la « carte » mesure deux fois sa largeur.
-    assert _bbox(verso)[0] == pytest.approx(_bbox(recto)[0], abs=1e-9)
-    assert _bbox(verso)[1] == pytest.approx(_bbox(recto)[1], abs=1e-9)
-    assert _bbox(recto)[0] == pytest.approx([0.0, 0.063], abs=1e-9)
+    #    TOLERANCE 1e-8 m (10 nm) et non 1e-9 : voir la docstring — jumbo
+    #    laisse 1,5e-9 m de residu float32, et une borne qui casse sur un
+    #    format legitime est une panne deguisee en garde.
+    assert _bbox(verso)[0] == pytest.approx(_bbox(recto)[0], abs=1e-8)
+    assert _bbox(verso)[1] == pytest.approx(_bbox(recto)[1], abs=1e-8)
+    assert _bbox(recto)[0] == pytest.approx([0.0, w_mm * 0.001], abs=1e-8)
 
     # ... et rien n'a ete perdu en chemin : deux elements, aucun aveu.
     assert b["elements"] == 2 and b["ignored"] == [], b
+    # M3 (revue adverse) : deux couches HOMONYMES des deux cotes ne doivent pas
+    # sortir deux noeuds « cadre » que Blender renommerait cadre/cadre.001, et
+    # le bordereau doit DIRE le cote. Le suffixe ne touche QUE le verso : un
+    # GLB recto seul garde ses octets (pin de non-regression plus bas).
+    detail = {e["name"]: e for e in b["elements_detail"]}
+    assert set(detail) == {"cadre", "illustration_verso"}, detail
+    assert "side" not in detail["cadre"], detail["cadre"]
+    assert detail["illustration_verso"]["side"] == "back", detail
+
+
+def test_deux_couches_du_meme_role_des_deux_cotes_ne_sont_pas_homonymes():
+    """M3 (revue adverse) — LE MEME ROLE DES DEUX COTES SORTAIT DEUX FOIS LE
+    MEME NOM. Un GLB recto+verso portait ['cadre', 'cadre'] : Blender importe
+    cadre / cadre.001, et le bordereau ne disait nulle part LEQUEL etait le
+    verso. Le nom d'un element de verso porte donc le suffixe `_verso` —
+    noeud, maillage ET materiau, puisque le writer les nomme tous les trois du
+    meme mot — et `elements_detail` gagne une cle `side`.
+
+    LE SUFFIXE NE TOUCHE QUE LE VERSO, et c'est la moitie qui compte : un
+    artefact recto seul (l'immense majorite, et tout ce qui a ete construit
+    avant la 2d) garde ses octets a l'identique. Verifie ici structurellement
+    (aucune occurrence du mot, aucune cle `side`) et, au moment du correctif,
+    par comparaison de sha256 avant/apres sur une construction recto complete
+    (plan + relief + transform)."""
+    did = _deck("Homonymes")
+    _exporte_les_deux_cotes(did)
+    b, glb = _build(did, _graphe_recto_verso(role_f="cadre", role_b="cadre"))
+    doc, _ = _read_glb(glb)
+    racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
+    noms = [doc["nodes"][k]["name"] for k in racine["children"]]
+    assert noms == ["cadre", "cadre_verso"], noms
+    assert len(set(noms)) == len(noms), noms
+    # le MATERIAU et le MAILLAGE portent le meme mot que le noeud : un
+    # importateur qui deduplique par nom de materiau fusionnerait les deux
+    # faces d'une carte en une seule.
+    assert sorted(m["name"] for m in doc["materials"]) == ["cadre",
+                                                           "cadre_verso"]
+    assert sorted(m["name"] for m in doc["meshes"]) == ["cadre", "cadre_verso"]
+    detail = {e["name"]: e for e in b["elements_detail"]}
+    assert detail["cadre_verso"]["side"] == "back", detail
+    assert "side" not in detail["cadre"], detail
+
+    # ... et un artefact RECTO SEUL n'apprend rien de tout ca : ni le mot, ni
+    # la cle. C'est la garantie de non-regression a l'octet, dite en structure.
+    g_recto = {"nodes": [n for n in _graphe_recto_verso()["nodes"]
+                         if n["id"] not in ("sb", "pb")],
+               "edges": [e for e in _graphe_recto_verso()["edges"]
+                         if e["from"] not in ("sb", "pb")]}
+    g_recto["nodes"] = [dict(n, name="rectoseul") if n["kind"] == "artifact"
+                        else n for n in g_recto["nodes"]]
+    b_r, glb_r = _build(did, g_recto)
+    doc_r, _ = _read_glb(glb_r)
+    assert "verso" not in json.dumps(doc_r), "le recto seul a appris le verso"
+    assert all("side" not in e for e in b_r["elements_detail"]), b_r
 
 
 def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
@@ -4359,11 +4444,14 @@ def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
       · rot_deg tourne du MEME angle vu de sa propre face — c'est la DEFINITION
         du WYSIWYG, et c'est ce qui epingle l'ORDRE de composition
         R_y(pi) o R_z(rot_deg) : l'ordre inverse ferait voir -rot_deg au verso.
-        L'ANGLE EST 30 ET PAS 90, ET C'EST DELIBERE : a 90 degres « la droite
-        de l'image » tombe sur +y monde des DEUX cotes (le x s'annule), le
-        retournement du signe n'a plus rien a retourner et la mesure ne
-        distingue plus les deux ordres — un angle oblique, lui, separe
-        (+54,56 / +31,5) de (-54,56 / -31,5).
+        LE CHOIX DE L'ANGLE (corrige en revue adverse, M2 — la justification
+        precedente etait FAUSSE) : la separation des deux ordres vaut
+        2 |sin(rot_deg)| en repere verso, donc les angles DEGENERES sont 0 et
+        180 (sin = 0, les deux ordres coincident) et 90 est au contraire celui
+        qui SEPARE LE PLUS. 30 est retenu parce qu'il est loin des deux
+        degenerescences (separation 1,0) tout en restant un angle oblique, ou
+        x ET y sont non nuls : la mesure ne peut donc pas passer par
+        accident sur une composante qui s'annule.
       · le quaternion du noeud verso est relu tel quel dans les octets :
         (sin(d/2), cos(d/2), 0, 0) — un demi-tour autour d'un axe du plan XY."""
     did = _deck("Transform verso")
@@ -4453,22 +4541,68 @@ def test_le_stl_verso_garde_le_prouve_ou_refuse_et_descend_sous_le_plan():
       · un plan verso seul : STL REFUSE, au motif MOT POUR MOT de son jumeau
         recto (un plan n'est pas un solide, des deux cotes) ;
       · un relief verso seul : STL ECRIT, meme empreinte x/y que son jumeau
-        recto, mais extrude vers -z."""
+        recto, mais extrude vers -z ;
+      · S1 (revue adverse) — ET D'ABORD : LE STL EST COMPARE AU GLB DE LA MEME
+        CONSTRUCTION, sur un relief verso qui traverse un `transform` A ANGLE
+        OBLIQUE. Le jumeau recto a rot=0 ne suffisait PAS : a cet angle-la les
+        deux ordres de composition coincident, et un mutant qui retourne AVANT
+        de tourner (au lieu d'apres) sortait 102/102 VERT en imprimant une
+        piece a 53 mm de l'apercu, bordereau `written: true`. Les deux sorties
+        d'une meme construction doivent montrer LA MEME CHOSE.
+
+    PORTEE DE CHAQUE MESURE, mesuree par mutation et non supposee : l'accord
+    STL<->GLB est le SEUL juge de l'INVERSION (aucune autre assertion ne la
+    voit) ; il voit aussi l'OUBLI ; il ne peut PAS, par construction, voir une
+    faute de PIVOT — celle-la deplace les DEUX sorties du meme montant, donc
+    elles restent d'accord entre elles. C'est le jumeau recto (empreinte x/y
+    identique) qui la tient, et c'est pour cela que les deux mesures
+    coexistent ici au lieu que la seconde remplace la premiere."""
     did = _deck("STL verso")
     _exporte_les_deux_cotes(did)
 
-    def graphe(kind, side, nom):
+    def graphe(kind, side, nom, rot=None):
         proc = ({"id": "t", "kind": "plane", "depth_mm": 0.35}
                 if kind == "plane" else
                 {"id": "t", "kind": "relief", "depth_mm": 1.0,
                  "base_mm": 0.3, "grid": 48})
-        return {"nodes": [
+        g = {"nodes": [
             {"id": "s", "kind": "layer", "role": "cadre", "side": side},
             proc,
             {"id": "asm", "kind": "assemble"},
             {"id": "art", "kind": "artifact", "name": nom}],
             "edges": [{"from": "s", "to": "t"}, {"from": "t", "to": "asm"},
                       {"from": "asm", "to": "art"}]}
+        if rot is None:
+            return g
+        g["nodes"].insert(2, {"id": "tr", "kind": "transform", "x_mm": 4.0,
+                              "y_mm": -2.0, "z_mm": 1.5, "rot_deg": rot,
+                              "scale": 1.0})
+        g["edges"] = [{"from": "s", "to": "t"}, {"from": "t", "to": "tr"},
+                      {"from": "tr", "to": "asm"}, {"from": "asm", "to": "art"}]
+        return g
+
+    # ── S1 D'ABORD : LES DEUX SORTIES D'UNE MEME CONSTRUCTION, A ANGLE
+    #    OBLIQUE. 37 degres : ni 0 ni 90 ni 180 — aucun ordre de composition
+    #    n'y coincide avec un autre. La comparaison ne se fait PAS avec un
+    #    jumeau recto (deux constructions differentes peuvent etre fausses de
+    #    la meme facon) mais avec le GLB DE CETTE construction-ci : le STL est
+    #    en MILLIMETRES, le GLB en metres (racine mm->m), l'ecart tolere est
+    #    5 microns.
+    from app.services.cards import forge3d_scene as SC
+    b_ro, glb_ro = _build(did, graphe("relief", "back", "reliefverso37", 37.0))
+    assert b_ro["stl"]["written"] is True, b_ro["stl"]
+    stl_o = _api("GET", "/api/cards/" + did + "/forge3d/file/"
+                 + b_ro["stl"]["name"]).content
+    lo_o, hi_o = _stl_bbox(stl_o)
+    mo = SC.glb_scene_mesh(glb_ro, world=True)["positions"]
+    for c in range(3):
+        assert lo_o[c] == pytest.approx(min(mo[c::3]) * 1000.0, abs=5e-3), c
+        assert hi_o[c] == pytest.approx(max(mo[c::3]) * 1000.0, abs=5e-3), c
+    # ... et l'oblique a VRAIMENT tourne quelque chose (sinon la comparaison
+    # ci-dessus retomberait sur le cas rot=0 plus bas, sans le dire) : une
+    # carte de 63 mm tournee de 37 degres couvre plus de 100 mm en x.
+    assert hi_o[0] - lo_o[0] > 100.0, (lo_o, hi_o)
+    assert hi_o[2] == pytest.approx(-1.5, abs=1e-3), hi_o   # z_mm=1.5 -> -1,5
 
     b_pf, _ = _build(did, graphe("plane", "front", "planrecto"))
     b_pb, _ = _build(did, graphe("plane", "back", "planverso"))
