@@ -67,6 +67,20 @@ local) puis posé par un TRS « verso » :
    déterminant +1, enroulement préservé) et laisse le TANGENT local valide
    (le repère tourne en bloc — la règle w=−1 de forge3d_scene.py:1015-1029
    est LOCALE) ;
+
+   > **Amendé (T1, à l'implémentation)** : le demi-tour passe par le **MILIEU
+   > de la carte**, pas par l'origine locale. Nos maillages naissent à
+   > `x ∈ [0, w_mm]` (`quad_mesh`/`relief_mesh`, coin de coupe à l'origine) et
+   > un nœud glTF tourne autour de SON origine : `R_y(π)` seul enverrait le
+   > verso à `x ∈ [−w_mm, 0]` — les deux faces CÔTE À CÔTE au lieu de
+   > superposées, une « carte » deux fois trop large, sans qu'aucun test de
+   > normale ni de signe de z ne s'en aperçoive. Le retournement est donc
+   > `(x, y, z) → (w_mm − x, y, −z)`, soit le même `R_y(π)` plus un `+w_mm` en
+   > x DANS LA TRANSLATION du nœud. Ce n'est pas un ajout : c'est LA
+   > formulation juste de « retourner la carte », et les trois effets des
+   > points 1-3 (normale, miroir, z opposé) en tombent tous les trois — une
+   > seule application (`trs_de_face`) au lieu de trois règles à garder
+   > d'accord entre elles.
 2. **z opposé** : la profondeur d'empilement et le `z_mm` d'un `transform`
    s'appliquent en NÉGATIF (la pile verso descend sous le plan médian z=0,
    symétrique de la pile recto — l'analogue du ±épaisseur/2 de P8,
@@ -87,19 +101,34 @@ local) puis posé par un TRS « verso » :
 composé demande un helper — sinon rien), forge3d.py (rien au vocabulaire),
 test_cards_forge3d.py.
 
-- [ ] RED : un graphe 2 couches (front plane z 0,35 + back plane z 0,35) →
+- [x] RED : un graphe 2 couches (front plane z 0,35 + back plane z 0,35) →
       build3d → `glb_scene_mesh(world=True)` : le quad back a TOUS ses z < 0,
       le front tous > 0 ; normales monde opposées ; lisibilité verso
       (image-droite = −x) ; un `transform` verso x_mm=+5 pousse le centre
       vers −x monde ; STL mixte toujours prouvé-ou-refusé ; node-preview d'un
       élément back seul → 200 et z ≤ 0.
-- [ ] Implémentation : `element_local` reçoit le côté (il a déjà la couche) ;
+- [x] Implémentation : `element_local` reçoit le côté (il a déjà la couche) ;
       `_node_trs` compose `R_y(π)` et NÉGATIVISE les z pour les chaînes back ;
       relief back extrude vers −z (par la rotation, pas par un maillage
       neuf) ; mesh3d back : même fit, même flip.
-- [ ] Mutation : quat Y remplacé par X (le verso se retourne tête-bêche → la
+- [x] Mutation : quat Y remplacé par X (le verso se retourne tête-bêche → la
       lisibilité rougit), signe du z oublié (chevauchement des piles),
       rot_deg composé dans le mauvais ordre.
+
+> **Livré (T1)** — la règle vit dans `forge3d_scene.trs_de_face` +
+> `_quat_face`, consommée aux **trois** sorties qui placent quelque chose :
+> `_node_trs` (nœud d'un élément local), le parent de fusion de
+> `_merge_external` (un mesh3d verso) et `apply_fit_inplace` (les sommets
+> CUITS du STL, qui n'a pas de nœud pour porter un transform — l'oublier là
+> aurait donné deux vérités pour la même carte, le défaut que le transform
+> local a déjà coûté une fois en 2b). La DÉCISION (`side == "back"`) reste
+> chez les deux fabriques d'élément (`element_local`, `_element_externe`), la
+> MÉCANIQUE dans le module scène. Un élément verso porte TOUJOURS un `trs`,
+> même sans nœud `transform` : le retournement EST un placement.
+> `x_mm`/`z_mm` : le SIGNE appartient à la règle de côté, les bornes n'ont pas
+> bougé d'un chiffre. Banc : 5 tests, dont le verdict de **P8 lui-même**
+> (`solid.face_orientation`) rendu sur les positions MONDE du GLB P9 —
+> `ok: True`, zéro miroir des deux côtés. 97 → 102 verts.
 
 ### Task 2 : frontend — les deux manifestes, le seed complet, la palette
 
