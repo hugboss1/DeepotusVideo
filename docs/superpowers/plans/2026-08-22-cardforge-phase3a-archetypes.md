@@ -179,18 +179,118 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 
 **Files:** mod-frame.js, frame.py, test_cards_frame.py.
 
-- [ ] Pour CHAQUE archétype §6.2 (superstar, duel, créature, arcane, monstre,
+- [x] Pour CHAQUE archétype §6.2 (superstar, duel, créature, arcane, monstre,
       légende, gravée) : composer l'habillage avec les familles EXISTANTES
       (réglages doc.frame complets — famille, rareté, ligne, métal, coins,
       bannière, plaque…) ; si la signature est inatteignable, famille
       NOUVELLE (FAMILIES deux côtés + FAM_FN + WIN_SHAPE + PROFILE) — la
       décision est PUBLIÉE dans la note de tâche avec sa raison.
-- [ ] QA silhouettes re-mesurée APRÈS chaque famille ajoutée (les deux
+- [x] QA silhouettes re-mesurée APRÈS chaque famille ajoutée (les deux
       surfaces) ; le pire couple publié ; `SIL_SEUIL` intouché — si une
       famille nouvelle passe sous 4, elle se REDESSINE, le seuil ne bouge pas.
-- [ ] Le commentaire périmé « 22 clés » (mod-frame.js:205) corrigé en passant.
-- [ ] Tests : parité catalogue étendue ; un rendu par famille nouvelle
+- [x] Le commentaire périmé « 22 clés » (mod-frame.js:205) corrigé en passant.
+- [x] Tests : parité catalogue étendue ; un rendu par famille nouvelle
       (pixels non vides aux bandes attendues) ; silhouette QA verte.
+
+> **Livré (T2)** — commit `8e20d1e`, +173 lignes NETTES dans mod-frame.js (le
+> plan en autorisait ~300 avant découpe), +145 dans frame.py, +631 de tests.
+> Les sept habillages sont `FR.ARCHETYPE_FRAMES` (frame.py, après le bloc
+> CF-FRAME-OCC) : 27 clés écrites chacun — les 28 de `DEFAULTS` moins
+> `art_window`, que le painter PUBLIE. **La T3 les IMPORTE**
+> (`from .frame import ARCHETYPE_FRAMES` : R8 n'interdit que d'importer le
+> ROUTER d'un voisin) ; les retaper serait une seconde source de vérité.
+>
+> · **SIX archétypes sur sept sortent des familles déjà livrées.** superstar →
+>   `deco` (la « plaque à pans coupés 4,4 → 55 × 80 » EST `edge_mm = 4` :
+>   63 − 8 = 55, 88 − 8 = 80 ; les pans coupés eux-mêmes viennent de la
+>   fenêtre chanfreinée et de la plaque étagée de `deco`) ; duel → `sable`
+>   (plaque « epure » = le rectangle strict du tableau zébré, « PAS
+>   d'ellipse », et `grad:false` = le papier mat) ; créature → `timber`
+>   (seule bande de 3 mm de masse, rivets, métal or = le gros liseré) ;
+>   arcane → `arcane` (arc, volutes, `edge_mm = 2,5` = la « bordure 2,5 mm »)
+>   ; monstre → `runic` (fenêtre CARRÉE 47 × 47, verrou de proportions armé,
+>   anneau plein ; `grad:false` rend le « cadre couleur pleine = catégorie »,
+>   code propre = mythic + filet d'argent) ; légende → `sable` (anneau CLAIR
+>   = la bordure blanche vintage, filet 0,35 mm, fenêtre 58 × 69,5 : la
+>   plaque tombe alors à 73,8 → 84,3 mm, soit le bandeau de nom « 0,74 » de
+>   la spec EN HAUTEUR — la largeur pleine 63 mm n'existe pas dans ce moteur,
+>   la plaque est inscrite dans la bande ; « photo pleine page » est un
+>   glissement de fenêtre, pas un autre archétype).
+>
+> · **UNE famille nouvelle, `gravure` (« Gravure »), pour « Arcane gravée ».**
+>   Raison mesurée : il lui faut une marge de PAPIER IVOIRE et un aplat de
+>   pochoir au repérage décalé de 0,2 mm. Les six familles encrent l'anneau
+>   depuis `PAL`, dont les six raretés sont SOMBRES — même `sable`, le plus
+>   clair, ne fait qu'ÉCLAIRCIR la rareté ; et aucune ne pose d'aplat décalé.
+>   Quatre colonnes neuves : zone « ivoire », kind « burin » (croix de
+>   repérage aux coins de bande + taille dans la marge basse), moulure
+>   « pochoir » (aplat de 2,6 mm décalé de `POCHOIR_MM = 0,2`, le trait
+>   restant à sa place), plaque « cartouche » (rectangle à coins entaillés).
+>   Les quatre encres de la spec (vermillon/bleu/ocre/vert) sont les raretés
+>   mythic/rare/legendary/uncommon : chez cette famille la rareté n'est plus
+>   la couleur du cadre mais celle de l'ENCRE.
+>
+> · **AMENDEMENT AU PLAN.** Le plan attendait la famille neuve POUR le
+>   « double filet 1,5/3 mm ». Il sort du moteur EXISTANT : `paintFront` pose
+>   le second filet à `edge + line/2 + gap + 0,3·line`, donc edge 1,5 +
+>   line 0,5 + gap 1,1 = **3,00 mm pile**, le premier restant sur son axe à
+>   1,5 mm. Ce n'est donc pas le filet qui justifie `gravure` — la raison
+>   publiée (ivoire + décalage) est la vraie, et un test verrouille
+>   l'arithmétique pour que personne ne recopie la supposition.
+>
+> · **QA DE SILHOUETTES, les deux surfaces, mesurées au NAVIGATEUR** (badge du
+>   panneau sur l'app déployée, six raretés, masque des couches voisines
+>   actif, fenêtre 1700 × 1000 pour que les vignettes restent comparables) :
+>
+>   | état | toile livrée | vignettes | paire la plus serrée |
+>   |---|---|---|---|
+>   | avant — 6 familles, 90 paires | 5,2 | 6,84 | Runique × Art déco, Mythique |
+>   | 1er jet de Gravure (ivoire d'un seul ton) | **4,61** | 6,84 | **Épure × Gravure, Rare** |
+>   | après REDESSIN — 7 familles, 126 paires | **5,2** | **6,84** | Runique × Art déco, Mythique |
+>
+>   Le premier jet restait au-dessus du seuil (4,61 ≥ 4) mais c'était la
+>   famille NEUVE qui tirait le catalogue vers le bas : deux anneaux clairs
+>   uniformes ne se distinguent pas sur gris normalisé, qui efface la teinte
+>   et ne garde que la RÉPARTITION. La famille a donc été REDESSINÉE (anneau
+>   partagé en deux par la cuvette : papier nu dehors, surface encrée dedans),
+>   le seuil non touché — et le pire couple est redevenu EXACTEMENT celui
+>   d'avant, à la même valeur : la septième famille n'a rien coûté au
+>   catalogue. 42/42 signatures de pixels distinctes ; hors fenêtre
+>   d'illustration 7,88/255, inchangé lui aussi.
+>
+> · **Ce que les tests ajoutent :** un RASTÉRISEUR de contrôle (banc node,
+>   grille de 0,5 mm, courbes aplaties, remplissages par balayage de lignes,
+>   CLIP honoré) qui fait tourner les VRAIS painters et COMPTE les cellules
+>   encrées — les familles n'avaient jusqu'ici pour juge qu'un badge d'écran,
+>   absent de la suite. Il prouve au passage, en le COMPTANT, que l'anneau
+>   traverse le trait de coupe et remplit le fond perdu (1,00 pour quatre
+>   familles, 0,74 pour `deco` dont seuls les bras d'angle encrent, 0 pour
+>   `neon` dont la zone est « vide ») : la correction du tour 4 n'était
+>   épinglée que sur le source.
+>
+> · **Mutations tuées** : peintre de famille vidé (ops 4 → 0 ; test PERMANENT
+>   de la suite) ; entrée de catalogue retirée d'un seul côté ; mesure
+>   inscrite sous le seuil ; colonnes de `PROFILE` clonées sur `sable`. Et au
+>   NAVIGATEUR, la preuve que le plancher MESURÉ peut rougir : `gravure`
+>   aliasée sur le painter d'`Épure` dans la copie de l'app → pire couple
+>   **5,2 → 0,17/255** (vignettes 0,28), badge rouge, paire nommée
+>   « Épure × Gravure ». Fichier restauré ensuite, app identique au dépôt.
+>   À noter : les 42 signatures de pixels restaient « distinctes » sous cette
+>   mutation (la graine de `matter` dépend de l'index de famille) — le compte
+>   de signatures ne suffit pas, c'est l'écart sur gris normalisé qui voit.
+>
+> · **Rendu réel** : les 7 habillages instanciés dans le vrai lab (deck de
+>   travail `deck_3b3b7206`, « QA 3a-2 habillages (supprimable) », laissé en
+>   place) — recto ET verso rendus par `CF.renderCard`, `cv.cfErrors` VIDE
+>   partout, aucune `pageerror`, aucune boîte d'erreur d'écran, et
+>   `frame.art_window` publiée = la zone §6.2 au dixième de mm pour les six
+>   archétypes qui en citent une (légende n'en cite pas : sa fenêtre est un
+>   choix d'implémenteur, publié ci-dessus).
+>
+> · **Restes à l'œil (jugement esthétique utilisateur, hors mesure)** : la
+>   fidélité visuelle de chaque habillage à son archétype, et le fait que les
+>   captures montrent les habillages SOUS les slots du deck de test — la T3
+>   posera les slots de l'archétype.
 
 ### Task 3 : backend — modèles, instanciation, duplication, enregistrer-comme-modèle
 
