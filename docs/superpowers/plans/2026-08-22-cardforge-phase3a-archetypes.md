@@ -85,20 +85,79 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 
 **Files:** mod-type.js, type.py, test_cards_type.py (+ mod-type.css si besoin).
 
-- [ ] RED : parité JSON des DEFAULTS étendus ; un slot avec
+- [x] RED : parité JSON des DEFAULTS étendus ; un slot avec
       `plate_color/plate_alpha/plate_radius` rend une plaque SOUS le texte
       (pixels mesurés au painter : coin de plaque teinté, texte par-dessus) ;
       plaque à alpha 0 = aucun pixel ; les 32 clés existantes inchangées
       (l'égalité JSON des deux côtés est le verrou).
-- [ ] `SLOT_DEFAULTS` += `plate_color` (hex ou null = pas de plaque),
+- [x] `SLOT_DEFAULTS` += `plate_color` (hex ou null = pas de plaque),
       `plate_alpha` (0..1), `plate_radius` (mm, borné LIMITS) — DEUX côtés,
       JSON littéral. Le painter z=60 dessine la plaque AVANT le texte du slot
       (même passe, même clip de boîte). Les presets existants restent
       byte-identiques (nouvelles clés aux défauts neutres).
-- [ ] Panneau : les 3 réglages dans l'éditeur de slot existant (patron des
+- [x] Panneau : les 3 réglages dans l'éditeur de slot existant (patron des
       réglages voisins) ; l'aperçu réagit.
-- [ ] Mutation : plaque après le texte (le texte disparaît sous la plaque →
+- [x] Mutation : plaque après le texte (le texte disparaît sous la plaque →
       pixel-test rougit), alpha non appliqué, rayon non borné.
+
+> **Livré (T1)** — 32 → **35 clés** par slot, l'égalité JSON stricte tenue des
+> deux côtés (`plate_color: null` / `plate_alpha: 1.0` / `plate_radius: 0.0`,
+> mod-type.js:114-115 ↔ type.py:424-436). Bornes NOMMÉES côté serveur
+> (`PLATE_ALPHA_MIN/MAX` 0..1, `PLATE_RADIUS_MIN/MAX` 0..30 mm,
+> type.py:474-479) ; **il n'existe pas de miroir LIMITS pour les slots** — le
+> patron du fichier est `_num(v, def, lo, hi)` côté Python et `num(v, d, lo, hi)`
+> côté JS avec la seule constante partagée quand elle sert au dessin
+> (`PLATE_RADIUS_MAX_MM`, mod-type.js:227). Le painter z=60 pose la plaque dans
+> `drawSlot`, APRÈS la rotation du slot et AVANT les passes d'ombre/contour/
+> glyphes (mod-type.js:1157-1161) : une plaque suit son slot quand on le tourne.
+>
+> · **La boîte du painter, pas la boîte dégonflée.** La plaque prend `m.box`
+>   (la boîte du slot en pixels de toile), pas la boîte rétrécie par la marge
+>   optique : c'est le FOND du bloc, il doit border le texte.
+> · **Rayon borné AU DESSIN** (`Math.min(mm2px(r), w/2, h/2)`) et pas seulement
+>   à la saisie : le painter reçoit les slots du document TELS QUELS — un
+>   modèle de la T3, un import, une main dans le JSON — `normSlot` ne sert que
+>   le panneau. Prouvé au pixel (rayon 9999 → le coin n'est plus peint, le
+>   centre l'est ; mutant « rayon non borné » tué).
+> · **DÉFAUT NON PRÉVU PAR LE PLAN, trouvé en écrivant l'implémentation :**
+>   trois passes redessinent un slot SEUL pour mesurer son ENCRE (contrôle
+>   photométrique :3410, bbox du halo :3704, relevé sur fichier :3908). La
+>   plaque y aurait rendu CHAQUE pixel de la boîte « corps de glyphe » — taux
+>   de masquage et contraste auraient rendu n'importe quoi, sans rougir nulle
+>   part. Les trois neutralisent désormais `plate_color: null`, au même titre
+>   que l'ombre et l'opacité, et un test compte les trois. Dans le COMPOSITE la
+>   plaque reste : c'est même le bon fond à mesurer derrière le texte.
+> · **Un slot VIDE ne peint pas sa plaque** (elle vit dans `drawSlot`, sous la
+>   garde `if (!m.empty)` que la pièce s'est donnée en 03). Assumé : un slot
+>   dont le texte ET le défaut sont vides est un « rien ici » explicite. À
+>   savoir pour la T3 — un modèle qui veut une plaque toujours visible donne un
+>   `text` par défaut à son slot.
+> · **Panneau** : groupe `Plaque de fond`, ouvert, inséré AVANT `Contour,
+>   ombre, arc` (l'ordre épinglé de l'inspecteur ne bouge pas). Widgets =
+>   patrons voisins EXACTS : `input[type=color]` comme la couleur de contour +
+>   deux `nfield`. **Écart assumé au brief** : pas de curseur pour l'alpha —
+>   l'inspecteur de P3 n'a AUCUN `input[type=range]` (mod-solid en a, pas
+>   celui-ci), en poser un demandait du CSS neuf et un second chemin de
+>   câblage. Ajout non demandé mais nécessaire : bouton **« Sans plaque »** —
+>   un `input[type=color]` ne sait pas dire « rien », sans lui une couleur
+>   posée par erreur ne se reprenait plus.
+>
+> **Le banc de pixels (nouveau).** Le banc de la section 8 NOTE les appels de
+> dessin : il ne peut RIEN dire d'un recouvrement, donc rien de l'ordre
+> plaque/texte. Un second banc (`BANC_PLAQUE`, test_cards_type.py:2882) donne
+> au painter un contexte 2D qui COMPOSITE pour de vrai — source-over,
+> `globalAlpha`, transformations affines, rect arrondi rasterisé par test
+> d'appartenance — dans un tampon RGBA de la taille de la toile. Les glyphes y
+> sont les pavés pleins de la chasse mesurée : ce qu'on juge n'est pas la forme
+> d'un « e », c'est qui recouvre quoi. Mesures : pixel libre = (48,80,160,**204**)
+> — la couleur et l'alpha demandés ; pixel de corps de glyphe = (239,231,214,255)
+> — l'encre, donc la plaque est passée dessous.
+>
+> **100 → 108 verts** (7 tests neufs, 1 amendé pour 35/30 clés). Lint intégral
+> 0 violation, `node --check` OK, suites voisines vertes (core/data/face/print).
+> Mutations tuées, fichier entier à chaque fois : plaque APRÈS le texte (le
+> glyphe vire au bleu de la plaque) · `plate_alpha` ignoré (l'alpha du pixel
+> libre quitte 204) · rayon non borné (le coin reste peint à rayon 9999).
 
 ### Task 2 : P2 — l'habillage des 7 archétypes (familles : mesure d'abord)
 

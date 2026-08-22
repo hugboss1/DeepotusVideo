@@ -111,7 +111,8 @@
     "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9", "font": "Inter",
     "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0, "label": "Texte",
     "last_pct": 25.0, "leading": 1.18, "min_pt": 5.0, "on": true, "opacity": 100.0,
-    "outline": 0.0, "outline_color": "#0a0a0c", "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
+    "outline": 0.0, "outline_color": "#0a0a0c", "plate_alpha": 1.0, "plate_color": null,
+    "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
     "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0, "side": "front",
     "size_pt": 10.0, "text": "", "track": 0.0, "valign": "top", "wrap": true
   };
@@ -217,6 +218,13 @@
   const SIDES = ["front", "back", "both"];
   const SLOTS_MAX = 40;
   const TRACK_MIN_PC = -30;      /* miroir de cards/type.py:TRACK_MIN */
+  /* LA PLAQUE DE FOND — rayon des coins, en millimetres. Miroir de
+     cards/type.py:PLATE_RADIUS_MAX. Le plafond du metier : au-dela de 30 mm,
+     sur une carte de 63 x 88, un « coin arrondi » est un disque. La boite du
+     slot borne de toute facon le rayon a la moitie de son petit cote, AU
+     DESSIN — le painter recoit les slots du document tels quels, jamais
+     repasses par `normSlot` (qui, lui, ne sert que le panneau). */
+  const PLATE_RADIUS_MAX_MM = 30;
   const NUDGE_MM = 0.5, NUDGE_BIG_MM = 5, SNAP_MM = 0.25, MIN_BOX_MM = 2;
   const UNDO_MAX = 60;
   const FONT_WAIT_MS = 2500;      /* le painter a 4 s : on garde de la marge */
@@ -325,6 +333,12 @@
     s.shadow_color = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(r.shadow_color || "")) ? String(r.shadow_color).toLowerCase() : "#000000";
     s.shadow_dx = num(r.shadow_dx, 0, -40, 40);
     s.shadow_dy = num(r.shadow_dy, 0, -40, 40);
+    /* LA PLAQUE DE FOND. Une couleur illisible ne vaut pas « noir » ici :
+       elle vaut PAS DE PLAQUE. Peindre du noir sur un cartouche parce qu'un
+       import a ecrit « bleu » aurait ete un defaut visible et muet. */
+    s.plate_color = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(String(r.plate_color || "")) ? String(r.plate_color).toLowerCase() : null;
+    s.plate_alpha = num(r.plate_alpha, 1, 0, 1);
+    s.plate_radius = num(r.plate_radius, 0, 0, PLATE_RADIUS_MAX_MM);
     s.rotate = num(r.rotate, 0, -180, 180);
     s.arc = num(r.arc, 0, -100, 100);
     s.autofit = r.autofit === undefined ? true : !!r.autofit;
@@ -1066,6 +1080,67 @@
       drawRun(ctx, l, x, m.top + m.sizePx + i * m.lineH, m.trackPx, mode, gap, let_);
     });
   }
+  /* ── LA PLAQUE DE FOND D'UN SLOT ─────────────────────────────────────────
+     Un rectangle, eventuellement arrondi, peint SOUS le texte du slot : le
+     cartouche derriere un encadre de regles, la pastille derriere un cout, la
+     barre derriere un nom. Elle est a P3 et pas a P2 parce qu'elle SUIT LE
+     SLOT : on deplace la boite, la plaque va avec — un ornement de cadre, lui,
+     reste ou le cadre l'a mis.
+     Trois choix qui ne sont pas des details :
+       1. MEME BOITE que le texte (`m.box`, en pixels de toile), pas la boite
+          degonflee de la composition : la plaque est le FOND du slot, elle
+          doit border le texte, pas s'arreter a l'interieur de sa marge
+          optique.
+       2. MEME PASSE et MEME ROTATION : elle est posee apres la rotation du
+          slot, avant les passes d'ombre et de contour. Un slot tourne emporte
+          sa plaque.
+       3. RIEN PAR DEFAUT : `plate_color` nul = aucun appel de dessin, donc
+          aucun octet change. C'est ce qui garde les quatre gabarits livres
+          identiques a l'octet apres l'arrivee des trois reglages. */
+  function plateRadiusPx(slot, g, b) {
+    const mm = num(slot.plate_radius, 0, 0, PLATE_RADIUS_MAX_MM);
+    /* BORNE AU DESSIN, pas seulement a la saisie : le painter recoit les
+       slots du document TELS QUELS (un import, un modele, une main humaine
+       dans le JSON), jamais repasses par `normSlot`. Un rayon plus grand que
+       la moitie du petit cote n'a pas de sens geometrique — la toile le
+       rabote elle aussi, mais en silence et pas partout pareil. */
+    return Math.max(0, Math.min(g.mm2px(mm), b[2] / 2, b[3] / 2));
+  }
+  function platePath(ctx, b, r) {
+    ctx.beginPath();
+    if (r > 0 && typeof ctx.roundRect === "function") {
+      ctx.roundRect(b[0], b[1], b[2], b[3], r);
+      return;
+    }
+    if (r <= 0) { ctx.rect(b[0], b[1], b[2], b[3]); return; }
+    /* repli sans `roundRect` : quatre raccords d'arc, meme trace. */
+    const x = b[0], y = b[1], w = b[2], h = b[3];
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+  }
+  function drawPlate(ctx, slot, g, m) {
+    const hex = String(slot.plate_color == null ? "" : slot.plate_color);
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex)) return;
+    const pa = num(slot.plate_alpha, 1, 0, 1);
+    if (pa <= 0) return;
+    const b = m.box;
+    if (!(b[2] > 0) || !(b[3] > 0)) return;
+    ctx.save();
+    /* L'OPACITE DU SLOT PORTE AUSSI SUR SA PLAQUE, et les deux se
+       MULTIPLIENT : le `globalAlpha` d'une toile ne se compose pas tout seul,
+       il REMPLACE. Un slot a 50 % avec une plaque a 80 % pose donc 40 %, et
+       non 80 % — ce qui aurait fait ressortir le fond quand on efface le
+       texte. */
+    ctx.globalAlpha = num(slot.opacity, 100, 0, 100) / 100 * pa;
+    ctx.fillStyle = hex;
+    platePath(ctx, b, plateRadiusPx(slot, g, b));
+    ctx.fill();
+    ctx.restore();
+  }
   function drawSlot(ctx, slot, g, m) {
     ctx.save();
     ctx.globalAlpha = clamp(slot.opacity / 100, 0, 1);
@@ -1080,6 +1155,10 @@
       ctx.rotate(slot.rotate * Math.PI / 180);
       ctx.translate(-cx, -cy);
     }
+    /* LA PLAQUE D'ABORD — sous l'ombre, sous le contour, sous les glyphes.
+       Dessinee apres eux, elle les EFFACERAIT : c'est le defaut que le banc
+       de pixels de la suite existe pour attraper. */
+    drawPlate(ctx, slot, g, m);
     const strokeW = pxOfPt(slot.outline, g);
     const passes = [];
     if (slot.shadow > 0 || slot.shadow_dx || slot.shadow_dy) passes.push(true);
@@ -1783,6 +1862,34 @@
       + '<button class="chip cf-type-t' + (s.wrap ? " active" : "") + '" data-k="wrap" type="button" title="Retour à la ligne automatique">Retour ligne</button>'
       + '<button class="chip cf-type-t' + (s.hyphen ? " active" : "") + '" data-k="hyphen" type="button" title="Césure : coupe entre deux consonnes encadrées de voyelles, jamais dans un digramme, jamais à moins de 3 lettres d\'un bout. Le tiret conditionnel U+00AD que vous posez vous-même est toujours respecté.">Césure</button>'
       + '</div>'
+      /* ── LA PLAQUE DE FOND, JUSTE AVANT LE CONTOUR ────────────────────────
+         Elle se regle avec le meme geste que le contour et l'ombre — c'est le
+         fond de ce bloc-la, pas un ornement de cadre — et elle se pose donc
+         au meme endroit du panneau, avec les memes gabarits de champ. Un
+         `input[type=color]` ne sait pas dire « rien » : le bouton « Sans
+         plaque » est le SEUL chemin de retour, et sans lui une couleur posee
+         par erreur ne se reprenait plus. */
+      + '<details class="grp cf-type-grp" open><summary>Plaque de fond</summary>'
+      + '<div class="grp-body"><div class="cf-type-grid">'
+      + '<label class="fld cf-type-f"><span class="lbl">Couleur plaque</span>'
+      + '<input type="color" class="cf-type-pcol" value="'
+      + esc(String(s.plate_color || "#1b1206").slice(0, 7))
+      + '" title="Rectangle peint SOUS le texte de ce slot, dans sa boîte."></label>'
+      + nfield("plate_alpha", "Opacité plaque", s.plate_alpha, 0.05,
+        "Opacité de la plaque, de 0 à 1. Elle se multiplie avec l'opacité du slot : "
+        + "un slot à 50 % et une plaque à 0,8 posent 40 %.", 0, 1)
+      + nfield("plate_radius", "Rayon (mm)", s.plate_radius, 0.25,
+        "Rayon des coins de la plaque, en millimètres. Il est ramené à la moitié du "
+        + "petit côté de la boîte au dessin : au-delà, un coin arrondi est un disque.",
+        0, PLATE_RADIUS_MAX_MM)
+      + '</div>'
+      + '<div class="btn-row"><button class="btn sm cf-type-pnone" type="button"'
+      + ' title="Retire la plaque : le texte revient sur le fond des autres couches">Sans plaque</button></div>'
+      + '<p class="hint">' + (s.plate_color
+        ? 'plaque ' + esc(s.plate_color) + ' à ' + fx(s.plate_alpha * 100, 0) + ' %'
+          + (s.plate_radius ? ', coins ' + fx(s.plate_radius, 2) + ' mm' : ', coins vifs')
+        : 'aucune plaque — posez une couleur pour en créer une')
+      + '</p></div></details>'
       + '<details class="grp cf-type-grp" open><summary>Contour, ombre, arc</summary>'
       + '<div class="grp-body cf-type-grid">'
       + nfield("outline", "Contour (pt)", s.outline, 0.1, "Épaisseur du contour", 0, 20)
@@ -1837,6 +1944,11 @@
     box.querySelector(".cf-type-col").addEventListener("input", (e) => patchSlot(id, { color: e.target.value }, true));
     box.querySelector(".cf-type-ocol").addEventListener("input", (e) => patchSlot(id, { outline_color: e.target.value }, true));
     box.querySelector(".cf-type-scol").addEventListener("input", (e) => patchSlot(id, { shadow_color: e.target.value }, true));
+    box.querySelector(".cf-type-pcol").addEventListener("input", (e) => patchSlot(id, { plate_color: e.target.value }, true));
+    box.querySelector(".cf-type-pnone").addEventListener("click", () => {
+      patchSlot(id, { plate_color: null });
+      renderAll();
+    });
     const inputs = box.querySelectorAll('input[type="number"][data-k]');
     Array.prototype.forEach.call(inputs, (inp) => {
       const k = inp.dataset.k;
@@ -3289,8 +3401,13 @@
         const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
         sctx.setTransform(1, 0, 0, 1, 0, 0);
         sctx.clearRect(x0, y0, w, h);
-        /* ombre coupee, opacite a 100 : on veut le CORPS des glyphes. */
-        const solo = Object.assign(clone(slot), { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100 });
+        /* ombre coupee, opacite a 100 : on veut le CORPS des glyphes.
+           PLAQUE COUPEE AUSSI : elle est du decor, pas de l'encre. Peinte
+           ici, elle rendrait CHAQUE pixel de la boite opaque, donc « corps de
+           glyphe » pour le masque `A` ci-dessous — et le taux de masquage
+           comme le contraste ne mesureraient plus rien. Dans le COMPOSITE,
+           elle reste : c'est meme le bon fond a mesurer derriere le texte. */
+        const solo = Object.assign(clone(slot), { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null });
         drawSlot(sctx, solo, g, m);
         const S = sctx.getImageData(x0, y0, w, h).data;
         /* `F` = LE FICHIER. `Fc` = la toile. Toutes les mesures publiees se
@@ -3584,7 +3701,7 @@
         if (slot.shadow > 0 || slot.shadow_dx || slot.shadow_dy) {
           sctx.setTransform(1, 0, 0, 1, 0, 0);
           sctx.clearRect(x0, y0, w, h);
-          drawSlot(sctx, Object.assign(clone(slot), { opacity: 100 }), g, m);
+          drawSlot(sctx, Object.assign(clone(slot), { opacity: 100, plate_color: null }), g, m);
           const S2 = sctx.getImageData(x0, y0, w, h).data;
           let hx0 = 1e9, hy0 = 1e9, hx1 = -1, hy1 = -1;
           for (let q = 0; q < n; q++) {
@@ -3788,7 +3905,7 @@
     const cx = cv.getContext("2d", { willReadFrequently: true });
     cx.translate(-x0, -y0);
     drawSlot(cx, Object.assign(clone(slot),
-      { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100 }), gg, m);
+      { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null }), gg, m);
     const f = await countPng(cv);
     const wit = (witness && witness > 1) ? await witnessUpscale(cv, witness) : null;
     if (!f.bbox) return { m: m, empty: true, bytes: f.bytes };

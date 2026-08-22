@@ -419,6 +419,21 @@ SLOT_DEFAULTS: dict = {
     "shadow_color": "#000000",
     "shadow_dx": 0.0,
     "shadow_dy": 0.0,
+    # ── LA PLAQUE DE FOND DU SLOT (spec §6.1) ──────────────────────────────
+    # Un rectangle (éventuellement arrondi) peint SOUS le texte du slot, dans
+    # la même passe et dans la MÊME boîte : c'est le cartouche derrière un
+    # encadré de règles, la pastille derrière un coût, la barre derrière un
+    # nom. Elle appartient à P3 et pas à P2 parce qu'elle suit le slot quand
+    # on le déplace — un ornement de cadre, lui, ne bouge pas.
+    #
+    # `None` = PAS DE PLAQUE, et c'est le défaut. C'est ce qui rend les quatre
+    # gabarits livrés byte-identiques après l'ajout : aucun ne nomme la
+    # plaque, tous héritent du défaut, et le défaut ne peint rien. L'alpha
+    # vaut 1 pour que poser une couleur suffise à voir quelque chose ; il ne
+    # sert à rien tant que `plate_color` est nul.
+    "plate_color": None,   # hex (#rgb, #rrggbb, #rrggbbaa) ou None
+    "plate_alpha": 1.0,    # 0..1, multiplié par l'opacité du slot
+    "plate_radius": 0.0,   # rayon des coins, en mm
     "rotate": 0.0,         # degrés
     "arc": 0.0,            # -100..100, texte sur arc
     "autofit": True,       # rétrécir-pour-tenir
@@ -456,6 +471,12 @@ LEADING_MIN, LEADING_MAX = 0.6, 3.0
 JUST_MAX_MIN, JUST_MAX_MAX = 100.0, 400.0
 LAST_PCT_MIN, LAST_PCT_MAX = 0.0, 80.0
 ARC_MIN, ARC_MAX = -100.0, 100.0
+# LA PLAQUE DE FOND. Le rayon est en millimètres et son plafond est celui du
+# métier : au-delà de 30 mm, sur une carte de 63 x 88, un « coin arrondi » est
+# un disque — la boîte du slot borne de toute façon le rayon à la moitié de son
+# petit côté, AU DESSIN (le painter reçoit les slots du document tels quels).
+PLATE_ALPHA_MIN, PLATE_ALPHA_MAX = 0.0, 1.0
+PLATE_RADIUS_MIN, PLATE_RADIUS_MAX = 0.0, 30.0
 SLOT_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,23}$")
 SLOTS_MAX = 40
 
@@ -623,7 +644,10 @@ def _choice(value, allowed: tuple[str, ...], default: str) -> str:
     return s if s in allowed else default
 
 
-def _color(value, default: str) -> str:
+def _color(value, default: str | None) -> str | None:
+    """Une couleur hexadécimale, ou le défaut. Le défaut peut être `None` :
+    « pas de couleur » est un état légitime pour une plaque de fond, alors
+    qu'il ne l'est pas pour l'encre d'un texte."""
     s = str(value).strip() if value is not None else ""
     if re.fullmatch(r"#[0-9a-fA-F]{3}", s) or re.fullmatch(r"#[0-9a-fA-F]{6}", s):
         return s.lower()
@@ -672,6 +696,14 @@ def norm_slot(raw, index: int = 0) -> dict:
     out["shadow_color"] = _color(r.get("shadow_color"), SLOT_DEFAULTS["shadow_color"])
     out["shadow_dx"] = _num(r.get("shadow_dx"), 0.0, -40.0, 40.0)
     out["shadow_dy"] = _num(r.get("shadow_dy"), 0.0, -40.0, 40.0)
+    # LA PLAQUE. Une couleur illisible ne vaut pas « noir » ici : elle vaut
+    # PAS DE PLAQUE. Peindre du noir sur un cartouche parce qu'un import a
+    # écrit « bleu » aurait été un défaut visible et muet.
+    out["plate_color"] = _color(r.get("plate_color"), None)
+    out["plate_alpha"] = _num(r.get("plate_alpha"), SLOT_DEFAULTS["plate_alpha"],
+                              PLATE_ALPHA_MIN, PLATE_ALPHA_MAX)
+    out["plate_radius"] = _num(r.get("plate_radius"), 0.0,
+                               PLATE_RADIUS_MIN, PLATE_RADIUS_MAX)
     out["rotate"] = _num(r.get("rotate"), 0.0, -180.0, 180.0)
     out["arc"] = _num(r.get("arc"), 0.0, ARC_MIN, ARC_MAX)
     out["autofit"] = bool(r.get("autofit", True))

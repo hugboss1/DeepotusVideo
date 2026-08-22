@@ -175,11 +175,12 @@ def test_au_moins_dix_reglages_par_slot():
     assert len(cles) >= REGLAGES_MIN, sorted(cles)
     for k in REGLAGES_NOMMES:
         assert k in TY.SLOT_DEFAULTS, k
-    # 32 clés en tout, dont 27 réglages (`hyphen` est arrivé avec la césure,
+    # 35 clés en tout, dont 30 réglages (`hyphen` est arrivé avec la césure,
     # `just_max` et `last_pct` avec le plafond d'élasticité et la ligne creuse,
-    # `read_pt` avec le plancher de lisibilité)
-    assert len(TY.SLOT_DEFAULTS) == 32, sorted(TY.SLOT_DEFAULTS)
-    assert len(cles) == 27, sorted(cles)
+    # `read_pt` avec le plancher de lisibilité, et `plate_color` / `plate_alpha`
+    # / `plate_radius` avec la plaque de fond de la phase 3a)
+    assert len(TY.SLOT_DEFAULTS) == 35, sorted(TY.SLOT_DEFAULTS)
+    assert len(cles) == 30, sorted(cles)
 
 
 # ═══════════ 4. le titre de 44 caractères et l'encadré de 400+ ══════════════
@@ -2863,6 +2864,497 @@ def test_les_reglages_du_domaine_passent_devant_les_replis():
                   or ', "' + k + '", [' in corps           # segment (align…)
                   or 'data-k="' + k + '"' in corps)        # bascule
         assert expose, k
+
+
+# ════════ 9. LA PLAQUE DE FOND D'UN SLOT — JUGÉE SUR DES PIXELS ════════════
+# Le banc de la section 8 NOTE les appels de dessin : il sait dire quels
+# glyphes ont été posés, il ne sait RIEN dire d'un recouvrement. Or c'est
+# exactement l'enjeu d'une plaque de fond : dessinée après le texte, elle
+# l'efface — et un banc qui n'enregistre que `fillText` ne verrait jamais la
+# différence. Celui-ci COMPOSITE pour de vrai, source-over et alpha compris,
+# dans un tampon RGBA, et le verdict se prend au pixel.
+#
+# Les glyphes y sont des pavés pleins de la chasse mesurée : ce qu'on juge
+# n'est pas la forme d'un « e » — le banc n'a pas de fonte — c'est QUI
+# RECOUVRE QUOI, et avec quel alpha. Le painter dessiné est le vrai, chargé
+# depuis `mod-type.js` ; rien n'est réimplémenté.
+
+BANC_PLAQUE = r"""
+import { readFileSync } from "node:fs";
+const SRC = readFileSync(process.argv[2], "utf8");
+const OPT = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+const W = { " ": 0.26, "i": 0.28, "l": 0.28, "j": 0.28, "t": 0.34, "f": 0.34, "r": 0.36,
+  ".": 0.28, ",": 0.28, "'": 0.2, "’": 0.2, "-": 0.33, "m": 0.85, "w": 0.75,
+  "M": 0.9, "W": 0.95 };
+const wOf = (ch) => (W[ch] !== undefined ? W[ch] : (ch >= "A" && ch <= "Z" ? 0.62 : 0.5));
+
+function hexOf(s) {
+  let h = String(s == null ? "" : s).trim();
+  if (h[0] === "#") h = h.slice(1);
+  if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+  if (h.length !== 6 && h.length !== 8) return null;
+  const v = (i) => parseInt(h.slice(i, i + 2), 16);
+  return [v(0), v(2), v(4), h.length === 8 ? v(6) / 255 : 1];
+}
+
+/* ── LE CONTEXTE 2D QUI COMPOSITE VRAIMENT ──────────────────────────────
+   Transformations affines completes (la rotation d'un slot et l'arc les
+   utilisent), pile save/restore, source-over non premultiplie — c'est ce
+   que rend `getImageData` d'une vraie toile. */
+function makeCtx(w, h) {
+  const buf = new Uint8ClampedArray(w * h * 4);
+  const texts = [];
+  let S = { alpha: 1, fill: "#000000", stroke: "#000000", size: 10, font: "",
+    m: [1, 0, 0, 1, 0, 0] };
+  const stack = [];
+  const mul = (a, b) => [
+    a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1],
+    a[0] * b[2] + a[2] * b[3], a[1] * b[2] + a[3] * b[3],
+    a[0] * b[4] + a[2] * b[5] + a[4], a[1] * b[4] + a[3] * b[5] + a[5]];
+  const app = (m, x, y) => [m[0] * x + m[2] * y + m[4], m[1] * x + m[3] * y + m[5]];
+  function invOf(m) {
+    const d = m[0] * m[3] - m[1] * m[2];
+    return [m[3] / d, -m[1] / d, -m[2] / d, m[0] / d,
+      (m[2] * m[5] - m[3] * m[4]) / d, (m[1] * m[4] - m[0] * m[5]) / d];
+  }
+  function inRR(x, r, px, py) {
+    if (px < x[0] || py < x[1] || px >= x[0] + x[2] || py >= x[1] + x[3]) return false;
+    if (r <= 0) return true;
+    const cx = Math.min(Math.max(px, x[0] + r), x[0] + x[2] - r);
+    const cy = Math.min(Math.max(py, x[1] + r), x[1] + x[3] - r);
+    const dx = px - cx, dy = py - cy;
+    return dx * dx + dy * dy <= r * r;
+  }
+  /* un rectangle (eventuellement arrondi) EXPRIME EN COORDONNEES LOCALES,
+     rasterise a travers la transformation courante : chaque pixel de la boite
+     englobante est ramene en local par la transformation inverse. */
+  function fillLocal(rect, r, col, alpha) {
+    const c = hexOf(col);
+    if (!c) return null;
+    const a = Math.max(0, Math.min(1, alpha * c[3]));
+    if (a <= 0) return null;
+    const pts = [[rect[0], rect[1]], [rect[0] + rect[2], rect[1]],
+      [rect[0], rect[1] + rect[3]], [rect[0] + rect[2], rect[1] + rect[3]]]
+      .map((p) => app(S.m, p[0], p[1]));
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const x0 = Math.max(0, Math.floor(Math.min.apply(null, xs)));
+    const y0 = Math.max(0, Math.floor(Math.min.apply(null, ys)));
+    const x1 = Math.min(w, Math.ceil(Math.max.apply(null, xs)));
+    const y1 = Math.min(h, Math.ceil(Math.max.apply(null, ys)));
+    const iv = invOf(S.m);
+    for (let py = y0; py < y1; py++) {
+      for (let px = x0; px < x1; px++) {
+        const lx = iv[0] * (px + 0.5) + iv[2] * (py + 0.5) + iv[4];
+        const ly = iv[1] * (px + 0.5) + iv[3] * (py + 0.5) + iv[5];
+        if (!inRR(rect, r, lx, ly)) continue;
+        const i = (py * w + px) << 2;
+        const da = buf[i + 3] / 255;
+        const na = a + da * (1 - a);
+        if (na <= 0) continue;
+        for (let k = 0; k < 3; k++) {
+          buf[i + k] = (c[k] * a + buf[i + k] * da * (1 - a)) / na;
+        }
+        buf[i + 3] = Math.round(na * 255);
+      }
+    }
+    return [x0, y0, Math.max(0, x1 - x0), Math.max(0, y1 - y0)];
+  }
+  const c = {
+    _font: "", canvas: { width: w, height: h },
+    save() { stack.push(Object.assign({}, S, { m: S.m.slice() })); },
+    restore() { if (stack.length) S = stack.pop(); },
+    translate(x, y) { S.m = mul(S.m, [1, 0, 0, 1, x, y]); },
+    rotate(t) { S.m = mul(S.m, [Math.cos(t), Math.sin(t), -Math.sin(t), Math.cos(t), 0, 0]); },
+    setTransform(a, b, cc, d, e, f) { S.m = [a, b, cc, d, e, f]; },
+    clearRect() { },
+    beginPath() { c._path = null; },
+    closePath() { }, moveTo() { }, lineTo() { }, quadraticCurveTo() { }, arcTo() { },
+    rect(x, y, ww, hh) { c._path = { r: [x, y, ww, hh], k: 0 }; },
+    roundRect(x, y, ww, hh, rr) {
+      const v = Array.isArray(rr) ? Number(rr[0]) : Number(rr);
+      c._path = { r: [x, y, ww, hh], k: isFinite(v) ? v : 0 };
+    },
+    fill() {
+      if (!c._path) return;
+      fillLocal(c._path.r, c._path.k, S.fill, S.alpha);
+    },
+    measureText(s) {
+      let ww = 0;
+      for (const ch of String(s)) ww += wOf(ch) * S.size;
+      return { width: ww, actualBoundingBoxAscent: S.size * 0.72,
+        actualBoundingBoxDescent: S.size * 0.21 };
+    },
+    /* UN GLYPHE = SON PAVE D'ENCRE. Le banc n'a pas de fonte ; ce qu'il doit
+       trancher n'est pas le dessin d'un « e » mais l'ORDRE de composition. */
+    fillText(t, x, y) {
+      const ww = c.measureText(t).width;
+      if (!(ww > 0)) return;
+      const r = fillLocal([x, y - S.size * 0.72, ww, S.size * 0.93], 0, S.fill, S.alpha);
+      if (r) texts.push(r);
+    },
+    /* le contour est peint AVANT le remplissage par `drawSlot`, au meme
+       endroit : le peindre ici doublerait le pave sans rien apprendre. */
+    strokeText() { },
+  };
+  Object.defineProperty(c, "font", { get() { return c._font; },
+    set(v) { c._font = v; const m = /([\d.]+)px/.exec(v); if (m) S.size = parseFloat(m[1]); } });
+  Object.defineProperty(c, "globalAlpha", { get() { return S.alpha; },
+    set(v) { S.alpha = Number(v); } });
+  Object.defineProperty(c, "fillStyle", { get() { return S.fill; }, set(v) { S.fill = v; } });
+  Object.defineProperty(c, "strokeStyle", { get() { return S.stroke; }, set(v) { S.stroke = v; } });
+  ["lineWidth", "lineJoin", "miterLimit", "textAlign", "textBaseline",
+    "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY",
+    "globalCompositeOperation"].forEach((k) => { c[k] = null; });
+  c._buf = buf; c._texts = texts;
+  c._at = (x, y) => {
+    const i = ((y | 0) * w + (x | 0)) << 2;
+    return [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]];
+  };
+  return c;
+}
+
+function geom(fmt_mm, dpi, bleed_mm, safe_mm) {
+  const R = (x) => Math.floor(Number(x.toFixed(9)) + 0.5);
+  const px = (mm) => R(mm / 25.4 * dpi);
+  const canvas_px = [px(fmt_mm[0] + 2 * bleed_mm), px(fmt_mm[1] + 2 * bleed_mm)];
+  const trim_px = [px(fmt_mm[0]), px(fmt_mm[1])];
+  const bleed_off_px = [(canvas_px[0] - trim_px[0]) / 2, (canvas_px[1] - trim_px[1]) / 2];
+  const safe_px = [px(fmt_mm[0] - 2 * safe_mm), px(fmt_mm[1] - 2 * safe_mm)];
+  const safe_off_px = [bleed_off_px[0] + (trim_px[0] - safe_px[0]) / 2,
+    bleed_off_px[1] + (trim_px[1] - safe_px[1]) / 2];
+  return { fmt: "poker_eu", label: "Poker", dpi: dpi, canvas_px, trim_px, bleed_off_px,
+    safe_px, safe_off_px, bleed_mm, safe_mm, mm2px: (v) => v / 25.4 * dpi,
+    px2mm: (v) => v * 25.4 / dpi };
+}
+const G = geom([63, 88], 300, 3, 3);
+const DOC = { type: { optical_mm: 0.5 } };
+let MOD = null;
+const CF = {
+  register(cfg) {
+    MOD = cfg;
+    return { patch: (p) => Object.assign(DOC.type, p),
+      api: { get: async () => ({}), post: async () => ({}) },
+      emit() { }, slot() { }, aside() { }, invalidate() { }, toast() { }, busy() { }, on() { } };
+  },
+  get(path, def) {
+    let v = DOC;
+    for (const p of String(path).split(".")) { if (v == null) return def; v = v[p]; }
+    return v === undefined ? def : v;
+  },
+  geom: () => G, current: () => 0, cards: () => [], card: () => ({ fields: {} }),
+  on() { }, renderCard: async () => null, modules: () => [],
+};
+globalThis.window = { CF: CF, addEventListener() { } };
+globalThis.document = {
+  createElement: () => ({ width: 0, height: 0, getContext: () => makeCtx(8, 8), style: {},
+    appendChild() { }, addEventListener() { }, remove() { }, querySelector: () => null,
+    querySelectorAll: () => [],
+    classList: { add() { }, remove() { }, toggle() { }, contains: () => false } }),
+  querySelector: () => null, querySelectorAll: () => [], addEventListener() { },
+  body: { appendChild() { } }, fonts: { add() { } },
+};
+const boom = [];
+process.on("uncaughtException", (e) => { boom.push(String((e && e.message) || e)); });
+(0, eval)(SRC);
+
+const BASE = { id: "rules", label: "Encadre", on: true, side: "front",
+  box: [4.5, 55, 54, 18], font: "IBMPlexSans", size_pt: 8, min_pt: 4.5,
+  color: "#efe7d6", align: "left", valign: "top", track: 0, leading: 1.22,
+  hyphen: false, caps: "none", bold: false, italic: false, outline: 0,
+  outline_color: "#0a0a0c", shadow: 0, shadow_color: "#000000", shadow_dx: 0,
+  shadow_dy: 0, rotate: 0, arc: 0, autofit: true, wrap: true, opacity: 100,
+  just_max: 133, last_pct: 25, plate_color: null, plate_alpha: 1,
+  plate_radius: 0, text: "" };
+
+const slots = (OPT.slots || [{}]).map((s) => {
+  const o = Object.assign({}, BASE, s);
+  (OPT.drop || []).forEach((k) => { delete o[k]; });
+  return o;
+});
+const ctx = makeCtx(G.canvas_px[0], G.canvas_px[1]);
+const painter = MOD.painters.filter((p) => p.z === 60)[0];
+await painter.fn(ctx, G, { type: { slots: slots } }, { fields: {} }, "front");
+await new Promise((r) => setTimeout(r, 200));
+
+/* FNV-1a sur tout le tampon : deux rendus identiques au bit pres rendent la
+   meme empreinte, et un pixel de difference la change. */
+let hs = 0x811c9dc5;
+for (let i = 0; i < ctx._buf.length; i++) {
+  hs ^= ctx._buf[i]; hs = Math.imul(hs, 0x01000193) >>> 0;
+}
+const boxOf = (s) => [G.bleed_off_px[0] + G.mm2px(s.box[0]),
+  G.bleed_off_px[1] + G.mm2px(s.box[1]), G.mm2px(s.box[2]), G.mm2px(s.box[3])];
+/* UN POINT DE LA BOITE QU'AUCUN GLYPHE NE TOUCHE : c'est la que la plaque se
+   lit toute seule. Cherche, jamais suppose — le texte remplit ce qu'il veut.
+   On sonde la COLONNE CENTRALE, en remontant depuis le bas : un coin arrondi
+   n'y mord jamais (le rayon sature a la moitie de la largeur), et le bas d'une
+   boite est ce que le texte laisse libre en premier. */
+function freePoint(b) {
+  const rs = ctx._texts;
+  const px = Math.floor(b[0] + b[2] / 2);
+  for (let dy = 3; dy < b[3] - 2; dy++) {
+    const py = Math.floor(b[1] + b[3] - 2 - dy);
+    let libre = true;
+    for (const r of rs) {
+      if (px >= r[0] - 1 && px <= r[0] + r[2] + 1
+        && py >= r[1] - 1 && py <= r[1] + r[3] + 1) { libre = false; break; }
+    }
+    if (libre) return [px, py];
+  }
+  return null;
+}
+const rows = slots.map((s) => {
+  const b = boxOf(s);
+  const lib = freePoint(b);
+  const t = ctx._texts[0];
+  const gl = t ? [Math.floor(t[0] + t[2] / 2), Math.floor(t[1] + t[3] / 2)] : null;
+  const co = [Math.floor(b[0]) + 2, Math.floor(b[1]) + 2];
+  const ce = [Math.floor(b[0] + b[2] / 2), Math.floor(b[1] + b[3] / 2)];
+  return { id: s.id, box: b.map((v) => Math.round(v * 100) / 100),
+    libre: lib, libre_px: lib ? ctx._at(lib[0], lib[1]) : null,
+    glyphe: gl, glyphe_px: gl ? ctx._at(gl[0], gl[1]) : null,
+    coin: co, coin_px: ctx._at(co[0], co[1]),
+    centre: ce, centre_px: ctx._at(ce[0], ce[1]) };
+});
+process.stdout.write(JSON.stringify({
+  hash: hs.toString(16), n_textes: ctx._texts.length, slots: rows, exceptions: boom,
+}));
+"""
+
+
+def _banc_plaque(tmp_path, opts: dict, mutations=()) -> dict:
+    """Fait tourner le painter z=60 sur un VRAI tampon de pixels et rend ce
+    qu'il a composité. `mutations` casse une protection avant exécution : un
+    test qui passerait aussi sur le code cassé ne prouverait rien."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de pixels ne peut pas tourner")
+    src = JS.read_text(encoding="utf-8", newline="")   # newline='' : CRLF gardé
+    for avant, apres in mutations:
+        assert avant in src, f"mutation introuvable : {avant!r}"
+        assert src.count(avant) == 1, f"mutation ambiguë : {avant!r}"
+        src = src.replace(avant, apres)
+    js = tmp_path / "mod-type-plaque.js"
+    js.write_text(src, encoding="utf-8", newline="")
+    banc = tmp_path / "banc-plaque.mjs"
+    banc.write_text(BANC_PLAQUE, encoding="utf-8")
+    conf = tmp_path / "opts-plaque.json"
+    conf.write_text(json.dumps(opts, ensure_ascii=False), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8", timeout=180)
+    assert r.returncode == 0, r.stderr[-2000:]
+    d = json.loads(r.stdout)
+    assert d["exceptions"] == [], d["exceptions"]
+    return d
+
+
+PLAQUE_TXT = "Vol, celerite. A l'entree en jeu, revelez trois cartes."
+PLAQUE_SLOT = {"text": PLAQUE_TXT, "plate_color": "#3050a0", "plate_alpha": 0.8,
+               "plate_radius": 2.0}
+
+
+def test_les_trois_reglages_de_plaque_sont_dans_les_deux_tables():
+    """Le verrou de la pièce : le bloc JS est du JSON littéral et l'égalité
+    avec le dictionnaire Python est STRICTE. Trois clés ajoutées d'un seul
+    côté font rougir `test_les_defauts_de_slot_sont_les_memes_des_deux_cotes`
+    — celui-ci nomme ce qu'elles valent, et que le défaut est NEUTRE."""
+    js = json.loads(_bloc_js("DEFAULTS"))
+    for k in ("plate_color", "plate_alpha", "plate_radius"):
+        assert k in TY.SLOT_DEFAULTS, k
+        assert k in js, k
+        assert js[k] == TY.SLOT_DEFAULTS[k], k
+    # NEUTRE PAR DEFAUT : pas de couleur = pas de plaque. C'est ce qui rend les
+    # quatre gabarits existants byte-identiques après l'ajout.
+    assert TY.SLOT_DEFAULTS["plate_color"] is None
+    assert TY.SLOT_DEFAULTS["plate_alpha"] == 1.0
+    assert TY.SLOT_DEFAULTS["plate_radius"] == 0.0
+    # et le compte total suit (les deux tables sont comparées ailleurs)
+    assert len(js) == 35, sorted(js)
+
+
+def test_la_plaque_est_bornee_des_deux_cotes():
+    """Un rayon hors bornes ne fait pas 500 et ne fait pas non plus une carte
+    au hasard : il est RAMENÉ. Les bornes sont nommées, des deux côtés."""
+    assert (TY.PLATE_RADIUS_MIN, TY.PLATE_RADIUS_MAX) == (0.0, 30.0)
+    assert (TY.PLATE_ALPHA_MIN, TY.PLATE_ALPHA_MAX) == (0.0, 1.0)
+    assert TY.norm_slot({"plate_radius": 999})["plate_radius"] == TY.PLATE_RADIUS_MAX
+    assert TY.norm_slot({"plate_radius": -12})["plate_radius"] == TY.PLATE_RADIUS_MIN
+    assert TY.norm_slot({"plate_radius": "large"})["plate_radius"] == 0.0
+    assert TY.norm_slot({"plate_alpha": 42})["plate_alpha"] == 1.0
+    assert TY.norm_slot({"plate_alpha": -1})["plate_alpha"] == 0.0
+    assert TY.norm_slot({"plate_alpha": None})["plate_alpha"] == 1.0
+    # la couleur : hex ou RIEN. « bleu » n'est pas une couleur pour une toile.
+    assert TY.norm_slot({"plate_color": "#3050A0"})["plate_color"] == "#3050a0"
+    assert TY.norm_slot({"plate_color": "#abc"})["plate_color"] == "#abc"
+    assert TY.norm_slot({"plate_color": "bleu"})["plate_color"] is None
+    assert TY.norm_slot({})["plate_color"] is None
+    # et le corps mal formé traverse la route sans 500
+    did = _did()
+    r = _api("POST", f"/api/cards/{did}/type/layout",
+             json={"slots": [{"id": "a", "plate_color": 17, "plate_alpha": "beaucoup",
+                              "plate_radius": [1, 2]}]})
+    assert r.status_code == 200, r.text
+    # l'écran borne AUX MÊMES VALEURS — le painter reçoit des slots bruts, pas
+    # normalisés : c'est lui qui doit tenir la borne (voir le test du coin).
+    src = JS.read_text(encoding="utf-8")
+    assert "const PLATE_RADIUS_MAX_MM = 30;" in src
+    assert re.search(r"s\.plate_alpha = num\(r\.plate_alpha, 1, 0, 1\);", src)
+    assert re.search(r"s\.plate_radius = num\(r\.plate_radius, 0, 0, PLATE_RADIUS_MAX_MM\);", src)
+
+
+def test_la_plaque_est_peinte_SOUS_le_texte_du_slot(tmp_path):
+    """LE TEST QUI COMPTE. Une plaque bleue à 80 % sous un encadré crème :
+
+      · un pixel de la boîte qu'aucun glyphe ne touche est TEINTÉ — c'est la
+        plaque, et son alpha est celui demandé (204/255, pas 255) ;
+      · un pixel de CORPS DE GLYPHE porte encore la couleur du texte — donc la
+        plaque est passée DESSOUS, pas dessus.
+
+    Les deux mesures sortent du même tampon, composité par le vrai painter."""
+    d = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]})
+    row = d["slots"][0]
+    assert d["n_textes"] > 0, "le banc n'a posé aucun texte"
+    assert row["libre"], "aucun pixel de la boîte n'est libre de glyphe"
+    r, g, b, a = row["libre_px"]
+    assert (r, g, b) == (48, 80, 160), row          # #3050a0
+    assert a == 204, row                            # 0,8 x 255, arrondi
+    # ... et le texte est PAR-DESSUS : la couleur lue est celle de l'encre.
+    gr, gg, gb, ga = row["glyphe_px"]
+    assert (gr, gg, gb) == (239, 231, 214), row     # #efe7d6
+    assert ga == 255, row
+
+    # ── MUTATION 1 : la plaque après le texte. Le pixel de glyphe vire au
+    # bleu — c'est le défaut que ce test existe pour attraper.
+    apres = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]}, mutations=(
+        ("    drawPlate(ctx, slot, g, m);\r\n    const strokeW = pxOfPt(slot.outline, g);",
+         "    const strokeW = pxOfPt(slot.outline, g);"),
+        ("    ctx.restore();\r\n  }\r\n\r\n  /* ═════", "    drawPlate(ctx, slot, g, m);\r\n"
+         "    ctx.restore();\r\n  }\r\n\r\n  /* ═════"),
+    ))
+    mr, mg, mb = apres["slots"][0]["glyphe_px"][:3]
+    assert (mr, mg, mb) != (239, 231, 214), \
+        "plaque dessinée APRÈS le texte et le banc ne le voit pas"
+    assert mb > mr, apres["slots"][0]      # le glyphe a viré au bleu de la plaque
+
+    # ── MUTATION 2 : l'alpha ignoré. Le pixel libre devient opaque.
+    sans_alpha = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]}, mutations=(
+        ("const pa = num(slot.plate_alpha, 1, 0, 1);", "const pa = 1;"),
+    ))
+    assert sans_alpha["slots"][0]["libre_px"][3] != 204, \
+        "l'alpha de plaque n'est pas appliqué et le banc ne le voit pas"
+
+
+def test_sans_couleur_de_plaque_aucun_octet_ne_change(tmp_path):
+    """La condition de non-régression de la phase 3a : les trois clés neuves,
+    à leur défaut neutre, ne changent RIEN au fichier. On compare les
+    empreintes de trois rendus : sans les clés du tout (le document d'AVANT),
+    avec les clés aux défauts, et avec une plaque d'alpha nul."""
+    ref = _banc_plaque(tmp_path, {"slots": [{"text": PLAQUE_TXT}],
+                                  "drop": ["plate_color", "plate_alpha", "plate_radius"]})
+    neutre = _banc_plaque(tmp_path, {"slots": [{"text": PLAQUE_TXT}]})
+    assert neutre["hash"] == ref["hash"], "les clés neuves changent le rendu"
+    # alpha 0 = aucune plaque visible, même avec une couleur demandée
+    nul = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_alpha=0)]})
+    assert nul["hash"] == ref["hash"], "une plaque à alpha 0 laisse des pixels"
+    # et une couleur illisible ne peint pas non plus (pas de fillStyle bancal)
+    faux = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_color="bleu")]})
+    assert faux["hash"] == ref["hash"], "une couleur non hexadécimale a peint"
+    # contre-épreuve : une VRAIE plaque, elle, change l'empreinte
+    vraie = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]})
+    assert vraie["hash"] != ref["hash"]
+
+
+def test_le_rayon_de_plaque_est_borne_par_le_painter(tmp_path):
+    """Le painter reçoit les slots du document TELS QUELS — `normSlot` ne
+    passe que par le panneau. Un rayon aberrant doit donc être ramené AU
+    DESSIN, et cela se lit au coin : à rayon nul le coin est peint, à rayon
+    démesuré il ne peut pas l'être (le rayon sature à la moitié du petit
+    côté), mais le centre l'est toujours."""
+    carre = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_radius=0)]})
+    assert carre["slots"][0]["coin_px"][3] == 204, carre["slots"][0]
+    enorme = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_radius=9999)]})
+    assert enorme["slots"][0]["coin_px"][3] == 0, \
+        "un rayon démesuré peint quand même le coin : il n'est pas borné"
+    assert enorme["slots"][0]["centre_px"][3] == 204, enorme["slots"][0]
+    # ... et le rayon négatif retombe sur le carré, il n'inverse rien
+    negatif = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_radius=-9)]})
+    assert negatif["hash"] == carre["hash"]
+
+    # MUTATION : rayon non borné -> le coin reste peint (le rayon démesuré est
+    # ignoré ou explose), et le banc doit le voir.
+    libre = _banc_plaque(tmp_path, {"slots": [dict(PLAQUE_SLOT, plate_radius=9999)]},
+                         mutations=(
+        ("Math.min(g.mm2px(mm), b[2] / 2, b[3] / 2)", "g.mm2px(mm)"),
+    ))
+    assert libre["slots"][0]["coin_px"][3] != 0, \
+        "le rayon n'était pas borné et le banc ne le voit pas"
+
+
+def test_les_quatre_gabarits_rendent_a_l_octet_pres_comme_avant(tmp_path):
+    """Le seuil de non-régression le plus large : chacun des quatre gabarits
+    livrés, rendu par le painter AVEC les clés neuves aux défauts, doit sortir
+    exactement le même tampon qu'un document d'AVANT la phase 3a (les clés
+    absentes). Aucun gabarit ne nomme la plaque : ils héritent du défaut, et
+    le défaut ne peint pas."""
+    g = CT.geom("poker_eu", 300)
+    for pid in sorted(TY.PRESETS):
+        slots = TY.preset_slots(pid, g)
+        for s in slots:
+            assert s["plate_color"] is None, (pid, s["id"])
+            assert s["plate_alpha"] == 1.0 and s["plate_radius"] == 0.0, (pid, s["id"])
+        avant = _banc_plaque(tmp_path, {"slots": slots,
+                                        "drop": ["plate_color", "plate_alpha",
+                                                 "plate_radius"]})
+        apres = _banc_plaque(tmp_path, {"slots": slots})
+        assert apres["hash"] == avant["hash"], f"gabarit « {pid} » a bougé"
+        assert apres["n_textes"] > 0, pid
+
+
+def test_les_mesures_d_encre_ignorent_la_plaque():
+    """La plaque est du DÉCOR, pas de l'encre. Les trois passes qui redessinent
+    un slot SEUL pour mesurer son encre (contrôle photométrique, halo d'ombre,
+    relevé sur fichier) doivent la couper : une plaque opaque sur toute la
+    boîte ferait passer chaque pixel de la boîte pour un corps de glyphe, et le
+    contrôle de masquage comme celui de contraste rendraient n'importe quoi."""
+    src = JS.read_text(encoding="utf-8")
+    assert src.count("opacity: 100, plate_color: null") == 3, \
+        "les trois redessins « encre seule » ne neutralisent pas tous la plaque"
+    for ancre in (
+        'Object.assign(clone(slot), { shadow: 0, shadow_dx: 0, shadow_dy: 0, '
+        'opacity: 100, plate_color: null })',
+        'Object.assign(clone(slot), { opacity: 100, plate_color: null })',
+    ):
+        assert ancre in src, ancre
+
+
+def test_le_panneau_offre_les_trois_reglages_de_plaque():
+    """« Un réglage qui n'a pas de commande n'existe pas pour l'utilisateur. »
+    Les trois vivent dans l'inspecteur de slot, avec les patrons voisins : un
+    `input[type=color]` comme la couleur du contour, deux champs numériques
+    comme l'opacité — et ils sont câblés sur `patchSlot`."""
+    src = JS.read_text(encoding="utf-8")
+    i = src.index("function renderInsp()")
+    corps = src[i:src.index("function openFontPicker")]
+    assert "<summary>Plaque de fond</summary>" in corps
+    assert 'class="cf-type-pcol"' in corps
+    assert 'nfield("plate_alpha"' in corps
+    assert 'nfield("plate_radius"' in corps
+    # câblés : la couleur par son écouteur dédié, les nombres par la boucle
+    # générique `input[type="number"][data-k]` déjà en place.
+    assert '.cf-type-pcol").addEventListener("input"' in corps
+    assert "{ plate_color: e.target.value }" in corps
+    # ... et le bouton qui RETIRE la plaque, sans quoi une couleur posée par
+    # erreur ne se reprend plus (un `input[type=color]` ne sait pas dire null).
+    assert 'class="btn sm cf-type-pnone"' in corps
+    assert "{ plate_color: null }" in corps
+    # l'ordre de l'inspecteur n'a pas bougé : la plaque s'insère AVANT le
+    # groupe contour/ombre/arc, qui reste devant opacité/justification.
+    assert (corps.index("<summary>Plaque de fond</summary>")
+            < corps.index("<summary>Contour, ombre, arc</summary>")
+            < corps.index("<summary>Opacité, justification</summary>"))
 
 
 if __name__ == "__main__":
