@@ -5961,6 +5961,103 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     assert av and "height:" in av.group(1), feuille
 
 
+def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
+    """Test de SOURCE (2d, Task 2) : la carte se reconstruit ENTIEREMENT dans
+    le graphe — les deux faces. Ce qui est epingle ici :
+
+      · `LAST_MANIFEST` GARDE SA DOCTRINE (identite = recto) et un SECOND
+        manifeste, `MANIFEST_BACK`, porte le verso ; `MANIFEST_CARD` etiquette
+        le TRIO (l'appariement de la 2b, etendu — poser l'un sans l'etiquette
+        fige un appariement faux que `cardChanged` valide ensuite pour
+        toujours) ;
+      · le chargement de boot demande LES DEUX faces sous UNE seule garde de
+        generation, et le 404 du verso est TOLERE (« pas de verso exporte »
+        est une reponse, pas une panne) ;
+      · le seed sait poser les paires verso, la palette propose LES DEUX
+        cotes, et `naitCouche` pose le cote de l'entree CHOISIE (la plomberie
+        de la 2b, enfin vivante) ;
+      · l'arrangement descend le bloc verso SOUS le bloc recto (lisible sans
+        zoom).
+
+    Les PROPRIETES (comptes, dedoublonnage par cote, octet-stabilite du seed
+    recto seul) se mesurent au banc — ici on epingle les coutures que le banc
+    ne peut pas voir : le reseau, l'appariement, les sites d'appel."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # ── LE SECOND MANIFESTE EXISTE, ET IL EST DECLARE COMME LE PREMIER ───
+    assert re.search(r"let MANIFEST_BACK\s*=\s*null;", rendu), rendu
+    # ── LE CHARGEMENT DE BOOT DEMANDE LES DEUX FACES ─────────────────────
+    cm = rendu.split("async function chargeManifeste(")[1].split("\n  }")[0]
+    assert '"front"' in cm and '"back"' in cm, cm
+    assert "MANIFEST_BACK" in cm, cm
+    # ... sous UNE SEULE garde de generation, posee AVANT toute ecriture : un
+    # chargement rassis (changement de deck pendant la requete) ne doit poser
+    # NI le recto NI le verso NI l'etiquette.
+    assert "gen !== GEN" in cm, cm
+    for pose in ("LAST_MANIFEST =", "MANIFEST_BACK =", "MANIFEST_CARD ="):
+        assert cm.index("gen !== GEN") < cm.index(pose), (pose, cm)
+    # ... et le 404 est TOLERE : le lecteur d'un manifeste rend `null`, il ne
+    # leve pas (« jamais exporte pour cette face » est une REPONSE).
+    lm = rendu.split("async function litManifeste(")[1].split("\n  }")[0]
+    assert "catch" in lm and "return null;" in lm, lm
+    assert "_front.json" not in lm and "_back.json" not in lm, lm
+    # ── L'APPARIEMENT DU TRIO, EPINGLE SUR LA SOURCE ENTIERE ─────────────
+    # Meme regle que la paire `LAST_MANIFEST`/`MANIFEST_CARD` de la 2b : une
+    # ecriture du manifeste VERSO sans l'etiquette a cote fige un appariement
+    # que le comparateur de `cardChanged` valide pour toujours — la palette
+    # proposerait alors les couches verso d'une AUTRE carte.
+    src_lignes = src.splitlines()
+    pose_dos = [i for i, l in enumerate(src_lignes)
+                if re.search(r"MANIFEST_BACK\s*=[^=]", l)]
+    pose_carte = [i for i, l in enumerate(src_lignes)
+                  if re.search(r"MANIFEST_CARD\s*=[^=]", l)]
+    assert pose_dos and pose_carte
+    for i in pose_dos:
+        ecart = min(abs(i - j) for j in pose_carte)
+        assert ecart <= 10, (
+            f"ligne {i + 1} pose MANIFEST_BACK sans poser MANIFEST_CARD a "
+            f"cote (plus proche : {ecart} lignes) — l'appariement "
+            f"manifeste/carte se casse la : {src_lignes[i].strip()}")
+    # ... et un changement de DECK lache les DEUX manifestes, pas seulement le
+    # recto (un verso survivant sement le graphe du deck suivant).
+    deck = rendu.split('CF.on("core:deck"')[1].split("\n    });")[0]
+    assert "MANIFEST_BACK = null" in deck, deck
+    # ── L'EXPORT RAFRAICHIT LE VERSO, SANS TOUCHER A LA DOCTRINE RECTO ───
+    exp = rendu.split("async function exportLayers(")[1].split("\n  }\n")[0]
+    assert 'face === "front"' in exp, exp
+    assert "MANIFEST_BACK = rep.layers" in exp, exp
+    # ── LE SEED CONSOMME LES DEUX ────────────────────────────────────────
+    seed = rendu.split("async function seedDefault(")[1].split("\n  }")[0]
+    assert "defaultGraph(LAST_MANIFEST, MANIFEST_BACK)" in seed, seed
+    # ── LA PALETTE PROPOSE LES DEUX COTES, ET DIT CE QUI MANQUE ──────────
+    cr = rendu.split("function couchesRestantes(")[1].split("\n  }")[0]
+    assert "LAST_MANIFEST" in cr and "MANIFEST_BACK" in cr, cr
+    ph = rendu.split("function paletteHtml(")[1].split("\n  }")[0]
+    assert "MANIFEST_BACK" in ph and "cf-forge3d-pal-note" in ph, ph
+    # ── LA NAISSANCE POSE LE COTE DE L'ENTREE CHOISIE ────────────────────
+    nc = rendu.split("function naitCouche(")[1].split("\n  }")[0]
+    assert "side: choisi.side" in nc, nc
+    # ── L'ARRANGEMENT DESCEND LE BLOC VERSO ──────────────────────────────
+    sl = rendu.split("function seedLayout(")[1].split("\n  }")[0]
+    assert "poseBloc(" in sl and "VERSO_GAP" in sl, sl
+    # ... et il reste DETERMINISTE (le pin 2c, re-affirme sur le code neuf)
+    assert "Math.random" not in rendu
+    vg = re.search(r"const VERSO_GAP = (\d+);", rendu)
+    assert vg and int(vg.group(1)) >= 40, vg
+    # ── L'ETIQUETTE D'UN RANG EST CELLE DU NŒUD (une seule convention) ───
+    # `noeudTitre` est LA regle de nommage d'une couche a l'ecran depuis la 2c
+    # (« role · recto|verso ») ; la vue liste ecrivait `layer.role` nu, donc
+    # deux rangs `cadre` que seul un <select> a l'autre bout de la ligne
+    # distinguait. Les deux vues projettent le MEME graphe : elles le nomment
+    # pareil.
+    ligne = rendu.split("function rowHtml(")[1].split("\n  }")[0]
+    assert "noeudTitre(layer)" in ligne, ligne
+    # ── LA FEUILLE : la note du verso est une LIGNE, pas un mot coince ───
+    feuille = CSS.read_text(encoding="utf-8")
+    note = re.search(r"\.cf-forge3d \.cf-forge3d-pal-note \{([^}]*)\}", feuille)
+    assert note and "100%" in note.group(1), feuille
+
+
 # ── LE HARNAIS DE CHAINES (2c Task 4) ────────────────────────────────────
 # Les pins de source disent QUE le code appelle ; ils ne disent pas CE QU'IL
 # REND. Le harnais fait tourner les fonctions PURES du module — les vraies,
@@ -6304,9 +6401,10 @@ INFO.graph_limits.max_elements = 12;
 /* 6. « + COUCHE » NE PROPOSE QUE CE QUI EST LIVRE ET PAS ENCORE SOURCE */
 DOC_GRAPH = NU;
 dit("les couches restantes sont celles du manifeste, moins les sources",
-    J(couchesRestantes(DOC_GRAPH)) === J(["illustration", "typographie"]),
+    J(couchesRestantes(DOC_GRAPH).map((r) => r.cle))
+    === J(["front:illustration", "front:typographie"]),
     J(couchesRestantes(DOC_GRAPH)));
-PAL.role = "typographie";
+PAL.role = "front:typographie";
 raz();
 naitCouche();
 const G3 = DOC_GRAPH;
@@ -6773,6 +6871,245 @@ dit("... et la surface confisque bien le defilement de la page", emp2 === 1,
     emp2);
 camPending = null; camRaf = 0; FRAMES.length = 0;
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   20. LA CARTE COMPLETE (2d Task 2) — LES DEUX MANIFESTES, LE SEED, LA PALETTE
+   L'ecran doit pouvoir reconstruire la carte ENTIERE : recto ET verso. Ce qui
+   se mesure ici est ce qu'un pin de source ne peut pas dire — les COMPTES, le
+   dedoublonnage PAR COTE, et surtout l'OCTET-STABILITE du seed recto seul (un
+   deck front-only, c'est-a-dire tout ce qui existe avant la 2d, ne doit pas
+   bouger d'un caractere).
+   ═══════════════════════════════════════════════════════════════════════════ */
+const SIX = () => [{ role: "fond-matiere" }, { role: "illustration" },
+                   { role: "voile-matiere" }, { role: "cadre" },
+                   { role: "typographie" }, { role: "ornements" }];
+const MAN_F = { side: "front", layers: SIX() };
+const MAN_B = { side: "back", layers: SIX() };
+
+/* 20a. LE SEED RECTO SEUL EST OCTET-STABLE. La reference est ECRITE ICI — pas
+        re-derivee du code qu'on mesure : ce sont les octets que `defaultGraph`
+        rendait AVANT la 2d. */
+const SEED_2C = '{"nodes":[{"id":"s1","kind":"layer","role":"fond-matiere","side":"front"},{"id":"t1","kind":"plane","depth_mm":0},{"id":"s2","kind":"layer","role":"illustration","side":"front"},{"id":"t2","kind":"plane","depth_mm":0.35},{"id":"s3","kind":"layer","role":"voile-matiere","side":"front"},{"id":"t3","kind":"plane","depth_mm":0.7},{"id":"s4","kind":"layer","role":"cadre","side":"front"},{"id":"t4","kind":"plane","depth_mm":1.05},{"id":"s5","kind":"layer","role":"typographie","side":"front"},{"id":"t5","kind":"plane","depth_mm":1.4},{"id":"s6","kind":"layer","role":"ornements","side":"front"},{"id":"t6","kind":"plane","depth_mm":1.75},{"id":"asm","kind":"assemble"},{"id":"art","kind":"artifact","name":"carte3d"}],"edges":[{"from":"s1","to":"t1"},{"from":"t1","to":"asm"},{"from":"s2","to":"t2"},{"from":"t2","to":"asm"},{"from":"s3","to":"t3"},{"from":"t3","to":"asm"},{"from":"s4","to":"t4"},{"from":"t4","to":"asm"},{"from":"s5","to":"t5"},{"from":"t5","to":"asm"},{"from":"s6","to":"t6"},{"from":"t6","to":"asm"},{"from":"asm","to":"art"}]}';
+dit("recto seul : le seed est OCTET-IDENTIQUE a celui d'avant la 2d",
+    J(defaultGraph(MAN_F, null)) === SEED_2C, J(defaultGraph(MAN_F, null)));
+dit("... et l'appel A UN SEUL ARGUMENT (le site d'appel d'avant) aussi",
+    J(defaultGraph(MAN_F)) === SEED_2C, J(defaultGraph(MAN_F)));
+
+/* 20b. LES DEUX FACES : 26 nœuds, 25 aretes, ids UNIQUES, escaliers SEPARES */
+const SEED2 = defaultGraph(MAN_F, MAN_B);
+dit("carte complete : 26 nœuds et 25 aretes (6+6 paires + asm + art)",
+    SEED2.nodes.length === 26 && SEED2.edges.length === 25,
+    SEED2.nodes.length + " / " + SEED2.edges.length);
+const IDS = SEED2.nodes.map((n) => n.id);
+dit("... aucun id en double : le verso CONTINUE la numerotation, il ne la "
+    + "recommence pas", new Set(IDS).size === IDS.length, J(IDS));
+const COUCHES = SEED2.nodes.filter((n) => n.kind === "layer");
+dit("... six couches recto PUIS six couches verso, dans cet ordre",
+    J(COUCHES.map((n) => n.side))
+    === J(["front", "front", "front", "front", "front", "front",
+           "back", "back", "back", "back", "back", "back"]),
+    J(COUCHES.map((n) => n.side)));
+const PLANS = SEED2.nodes.filter((n) => n.kind === "plane").map(
+  (n) => n.depth_mm);
+dit("... et CHAQUE face a SON escalier 0,35 (le backend nie le z du verso : "
+    + "une pile qui continuerait celle du recto s'enfoncerait deux fois plus)",
+    J(PLANS.slice(0, 6)) === J([0, 0.35, 0.7, 1.05, 1.4, 1.75])
+    && J(PLANS.slice(6)) === J([0, 0.35, 0.7, 1.05, 1.4, 1.75]), J(PLANS));
+dit("... le recto du seed COMPLET est le seed recto seul, prefixe pour prefixe",
+    J(SEED2.nodes.slice(0, 12)) === J(JSON.parse(SEED_2C).nodes.slice(0, 12))
+    && J(SEED2.edges.slice(0, 12)) === J(JSON.parse(SEED_2C).edges.slice(0, 12)),
+    J(SEED2.nodes.slice(0, 12)));
+dit("... et chaque couche verso rejoint l'assemblage comme les autres",
+    COUCHES.filter((n) => n.side === "back").every((n) => {
+      const t = (SEED2.edges || []).filter((e) => e.from === n.id)[0];
+      return !!t && (SEED2.edges || []).some(
+        (e) => e.from === t.to && e.to === "asm");
+    }), J(SEED2.edges));
+
+/* 20c. LA PALETTE PROPOSE LES DEUX COTES, DEDOUBLONNES PAR COTE. C'est LE
+        defaut que le filtre `man.side` d'avant produisait : un `cadre` recto
+        deja pose masquait le `cadre` VERSO, qui devenait impossible a poser. */
+INFO = INFO0;
+LAST_MANIFEST = MAN_F;
+MANIFEST_BACK = MAN_B;
+DOC_GRAPH = { nodes: [
+  { id: "s1", kind: "layer", role: "cadre", side: "front" },
+  { id: "s2", kind: "layer", role: "illustration", side: "back" },
+  { id: "asm", kind: "assemble" },
+  { id: "art", kind: "artifact", name: "x" }], edges: [] };
+const RESTES = couchesRestantes(DOC_GRAPH);
+dit("le cadre RECTO pose ne masque pas le cadre VERSO",
+    RESTES.filter((r) => r.role === "cadre" && r.side === "back").length === 1
+    && RESTES.filter(
+      (r) => r.role === "cadre" && r.side === "front").length === 0, J(RESTES));
+dit("... et symetriquement, l'illustration VERSO posee laisse la RECTO",
+    RESTES.filter(
+      (r) => r.role === "illustration" && r.side === "front").length === 1
+    && RESTES.filter(
+      (r) => r.role === "illustration" && r.side === "back").length === 0,
+    J(RESTES));
+dit("... 10 offres (12 livrees des deux cotes, 2 deja sources)",
+    RESTES.length === 10, RESTES.length);
+const PAL_2F = paletteHtml();
+dit("... et le menu DIT le verso au lieu de servir deux fois le meme mot",
+    PAL_2F.indexOf("cadre (verso)") >= 0, PAL_2F);
+dit("... le recto, lui, reste nu (le defaut n'a pas a se justifier)",
+    PAL_2F.indexOf(">illustration</option>") >= 0, PAL_2F);
+
+/* 20d. NAITRE AU BON COTE — la plomberie de la 2b, enfin vivante */
+PAL.role = "back:cadre";
+raz();
+naitCouche();
+const NEE = (DOC_GRAPH.nodes || []).filter(
+  (n) => n.kind === "layer" && n.role === "cadre" && n.side === "back")[0];
+dit("« + couche » pose LE COTE de l'entree choisie", !!NEE,
+    J((DOC_GRAPH.nodes || []).map((n) => n.id + ":" + n.side)));
+dit("... une seule ecriture, une seule entree d'annulation",
+    HIST.length === 1 && PATCHES.length === 1, J(HIST.map((h) => h.label)));
+dit("... et son id ne heurte AUCUN nœud du graphe",
+    !!NEE && (DOC_GRAPH.nodes || []).filter(
+      (n) => n.id === NEE.id).length === 1, J(NEE));
+/* le repli `|| {}` n'est pas de la coquetterie : sans lui, un mutant qui pose
+   le mauvais cote fait LEVER le banc au lieu de le faire rougir — et un banc
+   qui leve perd TOUS ses cas d'un coup (la sortie n'est ecrite qu'a la fin). */
+dit("... l'en-tete du nœud le DIT",
+    noeudTitre(NEE || {}) === "cadre · verso", noeudTitre(NEE || {}));
+dit("... et le jumeau recto garde le sien",
+    noeudTitre({ kind: "layer", role: "cadre", side: "front" })
+    === "cadre · recto");
+/* ... et la VUE LISTE nomme un rang comme le canvas nomme son nœud : une seule
+   convention d'etiquette pour les deux vues (elles projettent LE MEME graphe). */
+const LIGNE = (cote) => rowHtml(
+  { proc: { id: "t1", kind: "plane", depth_mm: 0 },
+    layer: { id: "s1", kind: "layer", role: "cadre", side: cote } },
+  INFO.graph_limits);
+dit("la vue LISTE nomme le rang verso comme le canvas nomme son nœud",
+    LIGNE("back").indexOf("cadre · verso") >= 0, LIGNE("back"));
+dit("... et le rang recto pareil", LIGNE("front").indexOf(
+  "cadre · recto") >= 0, LIGNE("front"));
+
+/* 20e. PAS DE VERSO EXPORTE : LA PALETTE LE DIT. Un menu silencieusement plus
+        court se lit « l'ecran ne sait pas faire », pas « il manque un
+        export ». */
+MANIFEST_BACK = null;
+const PAL_1F = paletteHtml();
+dit("sans manifeste verso, la palette DIT pourquoi le verso manque",
+    PAL_1F.indexOf("cf-forge3d-pal-note") >= 0 && /verso/.test(PAL_1F),
+    PAL_1F);
+dit("... et n'offre AUCUNE couche verso",
+    couchesRestantes(DOC_GRAPH).every((r) => r.side === "front"),
+    J(couchesRestantes(DOC_GRAPH)));
+MANIFEST_BACK = MAN_B;
+dit("... et la note disparait des que le verso est la",
+    paletteHtml().indexOf("cf-forge3d-pal-note") < 0, paletteHtml());
+
+/* 20f. L'ARRANGEMENT : LE BLOC VERSO SOUS LE BLOC RECTO, lisible sans zoom */
+const LAY_2C = '{"s1":[40,40],"t1":[280,40],"s2":[40,296],"t2":[280,334],"s3":[40,552],"t3":[280,628],"s4":[40,808],"t4":[280,922],"s5":[40,1064],"t5":[280,1216],"s6":[40,1320],"t6":[280,1510],"asm":[760,40],"art":[1000,40]}';
+dit("recto seul : l'arrangement est celui d'avant la 2d, AU PIXEL",
+    J(seedLayout(defaultGraph(MAN_F, null))) === LAY_2C,
+    J(seedLayout(defaultGraph(MAN_F, null))));
+const LAY2 = seedLayout(SEED2);
+/* `POS` rend une position MANQUANTE au lieu de lever : un mutant qui fait
+   collisionner les ids (le verso qui reprend la numerotation du recto) doit
+   ROUGIR le cas des doublons, pas emporter le banc entier. */
+const POS = (id) => (Array.isArray(LAY2[id]) ? LAY2[id] : [-1, -1]);
+const YS = (tab) => tab.map((n) => POS(n.id)[1]);
+/* LE BAS DU BLOC RECTO, pas le HAUT de son dernier nœud. La difference est
+   exactement ce que la gouttiere existe pour produire : un plan mesure 268 px,
+   donc comparer les HAUTS rendrait « 294 px d'ecart » alors que les boites se
+   touchent presque. C'est le nœud le plus LONG qui decide ou le verso peut
+   commencer — et c'est cette mesure-la, et elle seule, qui voit un bloc verso
+   colle au recto. */
+const BAS_RECTO = Math.max.apply(null, SEED2.nodes.slice(0, 12).map(
+  (n) => POS(n.id)[1] + rangH(n.kind)));
+const HAUT_VERSO = Math.min.apply(null, YS(SEED2.nodes.slice(12, 24)));
+dit("le premier rang VERSO tombe SOUS le bloc RECTO ENTIER",
+    HAUT_VERSO > BAS_RECTO, HAUT_VERSO + " > " + BAS_RECTO);
+/* la gouttiere appliquee vaut AU MOINS celle qui est declaree — et au moins un
+   plancher ECRIT ICI, sinon la mesure serait circulaire (un `VERSO_GAP` reduit
+   a 1 px satisferait la premiere moitie toute seule). */
+dit("... avec une respiration DELIBEREMENT plus large qu'une gouttiere de rang "
+    + "(sinon rien ne dit, a l'œil, que la face change)",
+    HAUT_VERSO - BAS_RECTO >= VERSO_GAP && HAUT_VERSO - BAS_RECTO >= 40,
+    HAUT_VERSO - BAS_RECTO);
+dit("... et les colonnes du verso sont celles du recto (meme grammaire)",
+    POS("s7")[0] === POS("s1")[0] && POS("t7")[0] === POS("t1")[0],
+    J([POS("s7"), POS("s1"), POS("t7"), POS("t1")]));
+dit("... l'assemblage et l'artefact ne descendent PAS : une carte n'a qu'un "
+    + "assemblage", POS("asm")[1] === RANG_Y0 && POS("art")[1] === RANG_Y0,
+    J([POS("asm"), POS("art")]));
+/* ... et un MAILLON de chaine verso descend avec sa couche : il n'a pas de
+   `side` a lui, il l'HERITE de sa source (la meme resolution que le backend). */
+const G_MIX = { nodes: [
+  { id: "sf", kind: "layer", role: "cadre", side: "front" },
+  { id: "tf", kind: "plane", depth_mm: 0 },
+  { id: "sb", kind: "layer", role: "cadre", side: "back" },
+  { id: "tb", kind: "plane", depth_mm: 0 },
+  { id: "mb", kind: "material", mat: "aaa" },
+  { id: "asm", kind: "assemble" }],
+  edges: [{ from: "sf", to: "tf" }, { from: "tf", to: "asm" },
+          { from: "sb", to: "tb" }, { from: "tb", to: "mb" },
+          { from: "mb", to: "asm" }] };
+const LAY3 = seedLayout(G_MIX);
+const POS3 = (id) => (Array.isArray(LAY3[id]) ? LAY3[id] : [-1, -1]);
+dit("un traitement VERSO descend avec sa couche source",
+    POS3("tb")[1] > POS3("tf")[1], J([POS3("tb"), POS3("tf")]));
+dit("... et la matiere de cette chaine avec lui (le bloc verso est ENTIER)",
+    POS3("mb")[1] > POS3("tf")[1], J([POS3("mb"), POS3("tf")]));
+dit("... tandis que la chaine RECTO reste en haut",
+    POS3("sf")[1] === RANG_Y0 && POS3("tf")[1] === RANG_Y0,
+    J([POS3("sf"), POS3("tf")]));
+/* ... et le cote ne deplace pas une COLONNE : le verso descend, il ne derive
+   jamais sur le cote (une seconde grammaire de colonnes a tenir d'accord avec
+   la premiere est exactement ce qu'on ne veut pas). */
+dit("le cote d'un nœud ne change RIEN a sa colonne",
+    POS("s7")[0] === COL_X.layer, J(POS("s7")));
+
+/* 20g. LE BORDEREAU D'UNE CARTE DEUX FACES. Le backend nomme l'element verso
+        `role_verso` (M3) et pose `side: "back"` : le resume ne doit ni les
+        compter en double, ni rendre « undefined ». Le NOM, lui, reste
+        VERBATIM — c'est le nom de l'objet DANS le GLB (celui qu'on cherche
+        dans Blender), pas une etiquette d'ecran. */
+ARTIFACT = { elements: 2, glb: { name: "x.glb", bytes: 2048 },
+             elements_detail: [
+               { name: "cadre", kind: "local", node: "t4" },
+               { name: "cadre_verso", kind: "local", node: "t10",
+                 side: "back" }] };
+const BD2 = bordereauHtml(ARTIFACT);
+dit("le resume d'une carte deux faces ne rend ni « undefined » ni « [object »",
+    BD2.indexOf("undefined") < 0 && BD2.indexOf("[object") < 0, BD2);
+dit("... et compte 2 elements, pas 4", BD2.indexOf("2 &eacute;l") >= 0
+    || BD2.indexOf("2 él") >= 0, BD2);
+
+/* 20h. N6 — LES DEUX FACES NE DEVIENNENT PAS COPLANAIRES PAR SURPRISE.
+        Cote writer, un `transform` chaine ECRASE le `depth_mm` du plan, y
+        compris a son defaut `z_mm = 0` (note N6 de la revue adverse T1) :
+        poser un placement neuf a zero sur un plan RECTO et sur son jumeau
+        VERSO ramenerait les deux faces coplanaires a z = 0 — une carte
+        d'epaisseur nulle. La regle I1 de la 2b (l'element neutre porte son z
+        d'EMPILEMENT) ferme le piege, mais elle n'avait jamais ete mesuree au
+        VERSO, ou le degat est double. */
+DOC_GRAPH = { nodes: [
+  { id: "sb", kind: "layer", role: "cadre", side: "back" },
+  { id: "tb", kind: "plane", depth_mm: 1.05 },
+  { id: "asm", kind: "assemble" }],
+  edges: [{ from: "sb", to: "tb" }, { from: "tb", to: "asm" }] };
+SEL = "tb";
+raz();
+naitMaillon("transform");
+const R_TB = rowModel(DOC_GRAPH, "tb");
+const TRS_B = R_TB && R_TB.trs;
+dit("un placement ne sur un plan VERSO porte le z d'EMPILEMENT, jamais zero "
+    + "(a zero, les deux faces redeviendraient coplanaires)",
+    !!TRS_B && TRS_B.z_mm === 1.05, J(TRS_B));
+dit("... et l'ecran ne NEGATIVISE rien : le signe appartient a la regle de "
+    + "cote du backend (`trs_de_face`), pas au document",
+    !!TRS_B && TRS_B.z_mm > 0, J(TRS_B));
+
+/* le banc rend le module a l'etat ou la section 19 l'avait laisse : `banc18`
+   tourne APRES et repart de `NU`. */
+INFO = INFO0; ARTIFACT = null; LAST_MANIFEST = null; MANIFEST_BACK = null;
+DOC_GRAPH = NU; PAL.role = ""; SEL = null;
+
 banc18().then(
   () => {
     videInspecteur();   /* aucune minuterie ne survit au banc */
@@ -6791,6 +7128,9 @@ _BANC_PALETTE_PRELUDE = r"""
    ci-dessous est extraite du fichier LIVRE. */
 let DOC_GRAPH = null;
 let INFO = null, ARTIFACT = null, LAST_MANIFEST = null, SEL = null;
+/* 2d T2 : le manifeste VERSO. Il vit a cote du recto, sous la MEME etiquette
+   de carte — le banc le pose a la main, comme il pose deja `LAST_MANIFEST`. */
+let MANIFEST_BACK = null;
 let VUE = "canvas", PREVIEW_URL = null;
 const HIST = [];
 const TOASTS = [];
@@ -6881,7 +7221,12 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "THUMB_W", "PAL", "JOBS", "RUNS", "ERRS",
                 # la camera et ses bornes (ronde 2c-T5, S2) : `CAM_X0`
                 # declare aussi `CAM_Y0`, `ZOOM_MIN` aussi `ZOOM_MAX`.
-                "CAM_X0", "ZOOM_MIN", "CAM"):
+                "CAM_X0", "ZOOM_MIN", "CAM",
+                # 2d T2 : l'arrangement (`RANG_Y0` declare aussi `RANG_GAP`,
+                # `COL_X` la grammaire des colonnes) et la respiration entre
+                # les deux faces.
+                "COL_X", "COL_X_DEFAUT", "RANG_Y0", "RANG_H", "RANG_H_DEFAUT",
+                "LAYOUT_MAX", "VERSO_GAP"):
         morceaux.append(_js_decl(src, nom))
     morceaux.append(_js_decl(src, "INSP_MS"))
     for nom in ("ROWS_MEMO", "ARETE", "INSP_SUJET", "INSP_JETON", "INSP_URL",
@@ -6913,7 +7258,13 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # ronde de correction 2c-T5 (S3) : les sorties d'ECHEC de
                 # l'inspecteur se mesurent sur la vraie fonction, transport
                 # pilote — un stub ne dit pas ce qu'elle rend.
-                "videApercuInsp", "echecInsp", "inspecte", "onCanvasWheel"):
+                "videApercuInsp", "echecInsp", "inspecte", "onCanvasWheel",
+                # 2d T2 : la carte COMPLETE — le seed des deux faces, le cote
+                # d'un nœud (herite de sa couche source pour les maillons) et
+                # l'arrangement en deux blocs. `rowHtml` entre au banc parce
+                # que c'est LA vue liste qui nomme un rang.
+                "coteDe", "defaultGraph", "cotesDesNoeuds", "bornePos",
+                "rangH", "poseBloc", "seedLayout", "rowHtml"):
         morceaux.append(_js_fn(src, nom))
     js = tmp_path / "banc_palette.js"
     js.write_text("\n".join(morceaux) + "\n" + _BANC_PALETTE, encoding="utf-8")
@@ -6951,9 +7302,9 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     # un PLANCHER, pas un compte fige (meme raison que le banc de chaines) :
     # un banc ampute — une section commentee, une exception avalee — passerait
     # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
-    # ronde de correction, 89 avec la publication de la T6 — le plancher garde
-    # la meme marge qu'avant.)
-    assert len(cas) >= 72, len(cas)
+    # ronde de correction, 89 avec la publication de la T6, 127 avec la carte
+    # COMPLETE de la 2d-T2 — le plancher garde la meme marge qu'avant.)
+    assert len(cas) >= 104, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
