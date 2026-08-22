@@ -393,30 +393,164 @@ nouveau test).
 >   cadre) ; les captures de la T2 montrent les habillages sous les slots d'un
 >   deck de test.
 
-- [ ] `GET /api/cards/models` : les 7 modèles d'usine (données Python,
+- [x] `GET /api/cards/models` : les 7 modèles d'usine (données Python,
       zone-par-zone §6.2:323-354 transcrites en mm) + les modèles perso de
       `{DATA_ROOT}/cardforge_models/` (lecture tolérante : un JSON malformé
       est LISTÉ comme illisible avec son nom, jamais un 500).
-- [ ] `POST /api/cards/decks` étendu : `{model: "superstar"}` → create_deck
+- [x] `POST /api/cards/decks` étendu : `{model: "superstar"}` → create_deck
       puis pré-remplissage des sous-arbres frame/type/texture (le PATCH
       interne existant, patron core.py:244-276) + `palette`/`finish` là où
       leur module les lit ; modèle inconnu → 404 nommé. Un deck instancié
       est ORDINAIRE (aucune référence au modèle après coup — le seed, pas un
       lien).
-- [ ] `POST /api/cards/decks/{did}/duplicate` : copie du doc + des fichiers
+- [x] `POST /api/cards/decks/{did}/duplicate` : copie du doc + des fichiers
       deck-locaux (illustrations exclues ? NON — une duplication copie TOUT,
       c'est « enregistrer comme modèle » qui exclut les illustrations) ;
       nouveau did, nom « copie de … ».
-- [ ] `POST /api/cards/models` (perso) : sérialise format/frame/type/palette/
+- [x] `POST /api/cards/models` (perso) : sérialise format/frame/type/palette/
       texture du deck courant, PAS les illustrations (les slots gardent leurs
       réglages, `src`/images purgés) ; nom demandé ; écrit
       `cardforge_models/{slug}.json` (slug sûr, collision → suffixe) ;
       re-listé par GET.
-- [ ] Chaque modèle d'usine VALIDÉ par test : instancier → GET /{did} → les
+- [x] Chaque modèle d'usine VALIDÉ par test : instancier → GET /{did} → les
       slots sont dans les bornes de la carte (boxes ⊂ trim), la famille
       existe, le preset P3 est légal ; le painter rend sans erreur
-      (cv.cfErrors vide) sur une carte de test.
-- [ ] jamais-500 ; French messages ; fontes : repli nommé (décision 2).
+      (cv.cfErrors vide) sur une carte de test. *(le rendu NAVIGATEUR est la
+      seule part non close ici — il demande l'app déployée et la galerie de
+      la T4 ; substitut mesuré côté serveur : le JUGE de P3, ci-dessous.)*
+- [x] jamais-500 ; French messages ; fontes : repli nommé (décision 2).
+
+> **Livré (T3)** — `backend/app/services/cards/models.py` (NEUF, 1014 l.),
+> `core.py` (+62 l. : `model` à la création, `duplicate_deck` + sa route),
+> `cards/__init__.py` (montage), `backend/tests/test_cards_models.py` (NEUF,
+> **135 tests verts**). Lint intégral **0 violation**, les **11 suites cards
+> vertes** (601 s), aucun octet de frontend touché.
+>
+> · **LES MODÈLES SE MONTENT AVANT `core`, pas seulement avant le joker.**
+>   Le plan disait « AVANT le joker » ; le joker `/{did}` vit DANS
+>   `core.router`, et Starlette apparie dans l'ordre à travers tout l'arbre
+>   inclus. `/models` est UN segment : monté après `core`, il tombait dans
+>   `/{did}` et `GET /api/cards/models` répondait « identifiant de deck
+>   invalide ». L'inverse est sans risque (models.py ne déclare que
+>   `/models`). Mutant joué : montage inversé → test rouge.
+>   `/decks/{did}/duplicate`, lui, a TROIS segments : il ne peut tomber dans
+>   aucun joker, il reste donc dans `core.py`, à côté de `POST /decks`.
+>
+> · **AMENDEMENT — `palette` n'a PAS de module qui la lise.** Le plan disait
+>   « + `palette`/`finish` là où leur module les lit ». `finish` en a un
+>   (`doc.gltf.finish`, M_STATE_DEFAULT de mod-gltf.js — c'est là qu'il est
+>   écrit) ; `palette`, non : aucun sous-arbre du document ne porte de
+>   palette, et le partitionnement de `normalize_deck` jetterait une clé de
+>   plus. D'où la décision : **`palette` est une LECTURE du modèle**
+>   (`palette_of` : encre dominante des slots, plaque dominante, teinte du
+>   support) et non une quatrième table de couleurs. Écrite à la main, elle
+>   aurait menti dès la première retouche d'encre sans que rien ne le dise ;
+>   relue, elle ne peut pas. Mutant joué (palette écrite en dur) → 7 tests
+>   rouges.
+>
+> · **AMENDEMENT — un « élément » est un GROUPE de slots.** Le plan les
+>   décrivait comme des presets de slot (au singulier). Une attaque de
+>   « créature » fait TROIS slots (coût, nom, dégâts) et une ligne de tableau
+>   de « duel » en fait deux (libellé, valeur tabulaire) : la forme livrée est
+>   `{id, label, hint, slots: [...]}`. C'est aussi ce qui permet d'épingler
+>   « 1-2 attaques » et « 5-7 lignes » : le premier exemplaire est POSÉ, le
+>   second est l'élément, et la réunion des deux tient dans la zone §6.2 (au
+>   millimètre pour créature : 6,51 → 51 x 22 EXACT).
+>
+> · **Le format est DÉCLARÉ, le reste du bloc `format` ne l'est pas.** Un
+>   modèle porte `"format": "poker_eu"` (l'entrée de la T2 : les zones sont
+>   celles du poker). La définition, le fond perdu et le rayon de coin
+>   restent au DECK — ce sont des réglages d'impression, pas de gabarit ;
+>   l'instanciation les laisse à leurs défauts.
+>
+> · **« Enregistrer comme modèle » GARDE les textes des slots.** Décision
+>   prise sur une mesure de la T1, pas sur un goût : un slot dont le texte est
+>   vide ne peint PAS sa plaque (`drawSlot` sous `if (!m.empty)`). Purger les
+>   textes aurait rendu des modèles SANS CARTOUCHES — une mise en page à
+>   trous, là où l'on croyait n'enlever que du contenu. Ce qui est purgé l'est
+>   vraiment : `doc.face` n'est pas sérialisé du tout, et un papier importé
+>   (`texture.paper = "__import"` + `texture.custom`) retombe sur la matière
+>   par défaut. Le test relit les OCTETS du fichier écrit : ni `local:`, ni
+>   l'identifiant de dessin, ni `paper.png`. Mutant joué → rouge.
+>
+> · **LE LAB N'A AUCUNE ROMAINE DE LABEUR.** Les 23 familles chargeables
+>   (`FONTS_LOCAL`, miroir de `FONT_META`) comptent UNE romaine, Cinzel, et
+>   c'est une police de TITRAGE. Les archétypes qui demandent un corps de
+>   texte serif — « arcane » (EB Garamond) et « gravée » (IM Fell/Cormorant
+>   SC) — replient donc sur Cinzel pour les titres et sur IBM Plex Sans pour
+>   le corps, et le modèle le DIT : chaque modèle porte un `fonts_note`
+>   `{spec, police, pourquoi}`. Le test exige que toute police EMPLOYÉE soit
+>   déclarée là et présente au lab. Les autres replis : Oswald → Bebas Neue,
+>   Barlow Condensed → Staatliches, Titan One → Bungee, Nunito/Barlow →
+>   Inter, Lato/PT Sans/Roboto Condensed → IBM Plex Sans, Jost → Space
+>   Grotesk, Spectral SC/Alegreya SC → Cinzel, Saira Condensed → Bebas Neue,
+>   Archivo → Archivo Black. Anton et Archivo Black, eux, sont au lab : aucune
+>   substitution. Les valeurs que la spec veut TABULAIRES (duel, tableau
+>   saisonnier de légende) passent en JetBrains Mono — la seule chasse FIXE du
+>   lab : les colonnes s'alignent par la POLICE, pas par des espaces.
+>
+> · **LE JUGE DE P3 A TRANCHÉ SUR LES SEPT** (`type.layout`, poker 300 DPI,
+>   textes par défaut). Sans encombrement mesuré par le navigateur, il juge
+>   sur la BOÎTE — le verdict le plus sévère. Résultat : **0 slot hors zone
+>   sûre sur 6 modèles**, 0 bloc sous son plancher de lisibilité, 0 glyphe
+>   manquant, et UNE exception nommée : le bandeau de nom de « légende »
+>   (0,74 → 63 x 10), qui touche le trait de coupe PARCE QUE LA SPEC LE VEUT
+>   à fond perdu. Dans l'app, ce même juge tranche sur l'ENCRE et un nom
+>   centré reste loin du bord. L'exception est épinglée nommément : une zone
+>   déplacée par mégarde ne pourra pas se glisser à côté d'elle. Mutant joué
+>   (pied de « duel » poussé à 82,5 mm) → rouge.
+>
+> · **Ce que les tests gardent encore** : les 35 clés par slot ET
+>   l'IDEMPOTENCE de `norm_slot` (la graine est de la donnée propre, pas
+>   réparable) ; les zones §6.2 recopiées de la spec dans une table-ORACLE et
+>   comparées à la réunion des boîtes (exacte pour les grilles, incluse pour
+>   les zones « 1-2 » / « 5-7 », coin seul pour les zones citées sans
+>   dimension) ; les fenêtres d'illustration des six archétypes qui en citent
+>   une, relues sur `archetype_frame` (la spec, la table de P2 et le modèle
+>   disent la même chose) ; **aucun chevauchement** entre deux slots d'une
+>   même face, ni entre un élément ajoutable et un slot posé (un preset qui
+>   tombe sur un texte existant est un cadeau empoisonné : l'utilisateur croit
+>   que l'ajout a échoué) ; tout texte par défaut écrit dans une police qui
+>   sait l'écrire (relevé de cmap, avec un contrôle que le relevé MESURE
+>   quelque chose — `PolandKaito` doit rester signalée sans « é ») ; le
+>   catalogue de matières/effets extrait de `mod-texture.js` (le backend n'en
+>   a pas de miroir : il ne dessine pas) ; les signatures écrites de la spec
+>   (plaque de titre de « duel » à rayon 0 = « rectangle, PAS d'ellipse »,
+>   attribut ⌀7 de « monstre » dont le rayon vaut la moitié du côté, « nom
+>   capitales », « étoiles alignées à droite », « règles romain + ambiance
+>   italique », « capitales espacées »).
+>
+> · **`type.preset` reçoit l'ARCHÉTYPE, pas l'un des 4 gabarits de P3** — et
+>   c'est sans danger POUR UNE RAISON MESURÉE, pas par convention :
+>   `presetSlots` replie un identifiant inconnu sur `champion`
+>   (mod-type.js:366) et `seedIfEmpty` ne re-sème JAMAIS un document qui porte
+>   déjà des slots (:1372). Les deux lignes sont épinglées au source. Le deck
+>   instancié porte `seeded: true` : même si l'utilisateur supprimait tous ses
+>   slots, le gabarit « champion » ne viendrait pas se poser par-dessus.
+>
+> · **Mutations jouées, 11 sur 11 TUÉES** : copie profonde retirée
+>   (`model()` + `instancier`) · branche 404 du modèle inconnu retirée ·
+>   purge des illustrations retirée · slug rendu tel quel (collision) · id
+>   perso pris dans le CONTENU du fichier (un perso pouvait alors masquer un
+>   modèle d'usine) · modèles montés après `core` · duplication du seul
+>   document (dossier non copié) · plaque sans texte par défaut · zone de la
+>   spec décalée de 1 mm · palette écrite à la main · pied de « duel » poussé
+>   sous la zone sûre. *Premier jet du mutant « slug » SURVIVANT et pourquoi :
+>   il ne coupait que la boucle de suffixe, pas le repli `uuid` qui suivait —
+>   le test avait raison, le mutant était faux. Re-joué correctement : tué.*
+>
+> · **Restes / entrées pour la suite.** (a) Le RENDU navigateur des sept
+>   modèles (T5) : le painter est au navigateur, aucun test serveur ne peut
+>   le voir — c'est là que se jugeront les fontes réellement chargées, les
+>   plaques peintes et la fidélité visuelle. (b) Les icônes, drapeaux,
+>   écussons et pastilles d'école de la spec sont des IMAGES : la 3a n'a que
+>   des slots de TEXTE, ces zones existent donc à leur place et à leur taille
+>   avec un texte de remplacement, et le `hint` de chaque modèle le dit — les
+>   calques d'image sont la 3b. (c) `§6.4` de la spec dit « les 8 » modèles :
+>   c'est « taverne » comprise (2e fournée) — la galerie de la T4 en affichera
+>   **7** d'usine plus les perso. (d) Lecture publiée de « grille 6 stats
+>   2 x 3 » : DEUX colonnes de TROIS lignes (23,5 x 7 mm par case), qui
+>   remplit 8,56 → 47 x 21 exactement.
 
 ### Task 4 : la galerie de démarrage (CORE, écran léger)
 
