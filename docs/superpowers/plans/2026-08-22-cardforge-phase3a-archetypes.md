@@ -260,13 +260,14 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 >
 > · **Ce que les tests ajoutent :** un RASTÉRISEUR de contrôle (banc node,
 >   grille de 0,5 mm, courbes aplaties, remplissages par balayage de lignes,
->   CLIP honoré) qui fait tourner les VRAIS painters et COMPTE les cellules
->   encrées — les familles n'avaient jusqu'ici pour juge qu'un badge d'écran,
->   absent de la suite. Il prouve au passage, en le COMPTANT, que l'anneau
->   traverse le trait de coupe et remplit le fond perdu (1,00 pour quatre
->   familles, 0,74 pour `deco` dont seuls les bras d'angle encrent, 0 pour
->   `neon` dont la zone est « vide ») : la correction du tour 4 n'était
->   épinglée que sur le source.
+>   CLIP honoré) qui fait tourner les VRAIS painters, COMPTE les cellules
+>   encrées et rend l'EMPREINTE du bitmap de chaque signature de famille — les
+>   familles n'avaient jusqu'ici pour juge qu'un badge d'écran, absent de la
+>   suite. Il prouve au passage, en le COMPTANT, que l'anneau traverse le trait
+>   de coupe et remplit le fond perdu (**1,00 pour CINQ familles** — runic,
+>   arcane, timber, sable, gravure —, 0,74 pour `deco` dont seuls les bras
+>   d'angle encrent, 0 pour `neon` dont la zone est « vide ») : la correction
+>   du tour 4 n'était épinglée que sur le source.
 >
 > · **Mutations tuées** : peintre de famille vidé (ops 4 → 0 ; test PERMANENT
 >   de la suite) ; entrée de catalogue retirée d'un seul côté ; mesure
@@ -287,10 +288,58 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 >   archétypes qui en citent une (légende n'en cite pas : sa fenêtre est un
 >   choix d'implémenteur, publié ci-dessus).
 >
+> · **⚠ CE QUI N'EST GARDÉ PAR AUCUN TEST — À LIRE AVANT DE TOUCHER UNE
+>   FAMILLE.** Le redessin de la cuvette (4,61 → 5,2) n'a **aucune protection
+>   en intégration** : le rastériseur est DALTONIEN par conception — il compte
+>   des cellules encrées, il ne juge pas les TONS, et c'est justement un écart
+>   de tons entre deux anneaux clairs qui avait fait tomber le chiffre. Le
+>   seul instrument qui voit cela est le badge « silhouettes » du panneau, qui
+>   tourne dans un navigateur, hors CI. **Qui modifie une famille (couleurs,
+>   masses, zone, moulure) DOIT rouvrir le volet Cadre et relire le badge** ;
+>   la suite, elle, ne verra rien. Ce qu'elle garde, en revanche : que deux
+>   familles ne DESSINENT pas la même chose (empreintes deux à deux
+>   distinctes) et que le pire couple PUBLIÉ reste au-dessus du seuil.
+>
 > · **Restes à l'œil (jugement esthétique utilisateur, hors mesure)** : la
 >   fidélité visuelle de chaque habillage à son archétype, et le fait que les
 >   captures montrent les habillages SOUS les slots du deck de test — la T3
 >   posera les slots de l'archétype.
+>
+> **Ronde adverse (22/08, après livraison)** — la revue a rendu FIX-FIRST et
+> avait raison sur trois points sérieux ; tout est corrigé dans le même
+> fichier de tests, painter et habillages indemnes (chaque nombre re-dérivé).
+> · **La leçon publiée n'était pas ARMÉE** : « le compte de signatures ne
+>   suffit pas » était écrit mais rien ne le tenait — aliaser
+>   `deco: famDeco → famRunic` laissait **154/154 VERTS**. Le banc rend
+>   désormais l'EMPREINTE (FNV-1a) du bitmap de signature et la suite exige
+>   les sept **deux à deux distinctes** — relevé re-dérivé indépendamment,
+>   identique au chiffre pour chiffre de la revue : runic `9eb83889`:1134,
+>   arcane `185c2317`:230, timber `37b9d043`:1972, deco `b33056cd`:520,
+>   neon `e47ffc52`:591, sable `29a699ed`:24, gravure `80e086d5`:386. Plus un
+>   contrôle négatif permanent (l'alias, joué sur la COPIE du banc, doit rendre
+>   deux empreintes ÉGALES) et l'exigence que `FAM_FN` porte sept peintres
+>   distincts. Mutation re-jouée : l'alias **TUE** maintenant deux tests.
+> · **Le banc dessinait une plaque que le fichier ne porte pas** : `paintFront`
+>   exige `m.plate.h > u * 6`, le banc non. Mesuré : une fenêtre de « gravée »
+>   à 63 mm laisse **5,0 mm** de plaque — painter muet, banc qui lisait
+>   **0,9774**. La garde est reflétée, et les sept habillages épinglent
+>   maintenant `plaque_mm > 6` : **« gravée » livre 7,0 mm, à 1 mm de la
+>   falaise** — la prochaine retouche de fenêtre le saura.
+> · **La seule géométrie choisie à la main n'était pas épinglée** : `legende`
+>   manquait à la table des fenêtres attendues (w 58 → 40 restait vert). Elle y
+>   est, avec sa raison (« pas de zone §6.2 — choix d'implémenteur »).
+> · Aussi : cas « /dos » renommés **« /miroir »** avec une docstring honnête
+>   (six des sept dos sont des MOTIFS, hors de la tranche extraite, non
+>   mesurés) ; `POCHOIR_MM = 0,2` — la raison publiée de la 7e famille —
+>   épinglé au source (0,2 mm = 2,36 px, la grille de 0,5 mm ne peut pas le
+>   voir) ; `win_lock` de « monstre » lié à sa fenêtre CARRÉE par un test ;
+>   deux commentaires du banc qui surclamaient corrigés (il n'appelle PAS
+>   `matter()` — ses hachures saturent une grille de 0,5 mm — et il ne mesure
+>   pas les dos à motif) ; « 3,2 mm » et « 2,6 mm » du pochoir désambiguïsés
+>   (bord externe depuis la fenêtre vs LARGEUR de l'aplat).
+> · Mutations de la ronde, toutes **TUÉES** : alias deco→runic · garde de
+>   plaque retirée · fenêtre de légende 58→40 · `win_lock` retiré ·
+>   `POCHOIR_MM` à 0. Contrôle : suite verte sans mutation (159 tests).
 
 ### Task 3 : backend — modèles, instanciation, duplication, enregistrer-comme-modèle
 
@@ -298,6 +347,27 @@ Toute divergence découverte s'amende À LA SOURCE (leçon ×7 des phases 2).
 monté dans cards/__init__.py AVANT le joker), core.py (create accepte model),
 test_cards_core.py ou test dédié test_cards_models.py (règle 1 : nouveau py =
 nouveau test).
+
+> **Entrées laissées par la T2 — à lire AVANT d'écrire models.py :**
+> · **L'habillage se prend par `FR.archetype_frame(nom)`, JAMAIS par
+>   `FR.ARCHETYPE_FRAMES[nom]`.** La table est un objet de module : ses
+>   sous-dicts (`window`) sont PARTAGÉS, et une instanciation qui écrirait
+>   dedans contaminerait tous les decks suivants du même processus, sans rien
+>   casser tout de suite. La fonction rend une COPIE PROFONDE et lève une
+>   `KeyError` nommée sur un archétype inconnu — à la T3 d'en faire un 404 en
+>   français. (`import` de données entre modules : autorisé, R8 n'interdit que
+>   le ROUTER d'un voisin.)
+> · **Les zones sont celles du POKER 63 x 88.** Mesuré sur les douze formats :
+>   `winMM` re-borne la fenêtre dès que le format est plus petit — le carré
+>   47 x 47 de « monstre » (qui EST l'archétype) devient 44,45 x 47 sur
+>   `domino` et 31,75 x 44,45 sur `micro` —, et la plaque de bas de carte
+>   passe à une hauteur NÉGATIVE sur `micro`, `mini` et `square_eu` (le
+>   painter n'en dessine alors aucune). `win_lock` ne protège rien de tout
+>   cela : il n'agit que sur les retailles de l'utilisateur. Un modèle doit
+>   donc DÉCLARER son format (et le dire à l'écran), ou re-dériver ses zones.
+> · Les slots P3 de chaque archétype restent à écrire (la T2 n'a livré que le
+>   cadre) ; les captures de la T2 montrent les habillages sous les slots d'un
+>   deck de test.
 
 - [ ] `GET /api/cards/models` : les 7 modèles d'usine (données Python,
       zone-par-zone §6.2:323-354 transcrites en mm) + les modèles perso de
