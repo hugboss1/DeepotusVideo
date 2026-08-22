@@ -11,7 +11,7 @@
    chaque rendu. A 600 DPI il est net ; sur un tarot il se re-proportionne ;
    et il y a un DOS, que la barre n'a pas du tout.
 
-   6 familles graphiques x 6 raretes = 36 combinaisons (la barre : 3).
+   7 familles graphiques x 6 raretes = 42 combinaisons (la barre : 3).
 
    doc.format.corner_mm donne le rayon de la coupe : le cadre ne le redecide
    pas, il le SUIT (le filet exterieur epouse le meme arrondi). La fenetre
@@ -37,6 +37,7 @@
     { id: "deco", label: "Art déco", hint: "chevrons étagés, éventails, coins coupés" },
     { id: "neon", label: "Néon", hint: "double trait lumineux, coins coupés" },
     { id: "sable", label: "Épure", hint: "un seul filet, grande marge, rien d'autre" },
+    { id: "gravure", label: "Gravure", hint: "marge ivoire, aplat de pochoir décalé, repères" },
   ];
   const RARITIES = [
     { id: "common", label: "Commune" },
@@ -158,7 +159,7 @@
     steel: ["#39434f", "#c9d6e4", "#7e8d9d", "#eaf2fb", "#44505e"],
     rose: ["#7a4046", "#f6cfd0", "#c98189", "#fff0f0", "#84484e"],
   };
-  const WIN_SHAPE = { runic: "rect", arcane: "arch", timber: "rect", deco: "chamfer", neon: "chamfer", sable: "rect" };
+  const WIN_SHAPE = { runic: "rect", arcane: "arch", timber: "rect", deco: "chamfer", neon: "chamfer", sable: "rect", gravure: "rect" };
 
   /* ═══════════════════════════════════════════════════════════════════════
      0. OUTILS
@@ -202,7 +203,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 22 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 28 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -626,7 +627,19 @@
     deco: { kind: "tiers", t: 2.6, moulure: "etages", plaque: "etage", hatch: 45, pitch: 1.5, zone: "coins" },
     neon: { kind: "chamfer", t: 1.4, moulure: "halo", plaque: "biseau", hatch: 118, pitch: 2.2, zone: "vide" },
     sable: { kind: "brackets", t: 1.6, moulure: "trait", plaque: "epure", hatch: 26, pitch: 3.4, zone: "clair" },
+    /* LA SEPTIEME (phase 3a) : l'estampe. Sa zone est un anneau IVOIRE — du
+       papier, pas une rarete eclaircie — et son plus gros contraste n'est pas
+       dans l'anneau mais AUTOUR DE LA FENETRE : un aplat de pochoir de 3,2 mm
+       decale de 0,2 mm. C'est ce qui la separe d'« Epure », l'autre anneau
+       clair du catalogue, dont la moulure ne pese qu'un cheveu (0,14 u). */
+    gravure: { kind: "burin", t: 2.1, moulure: "pochoir", plaque: "cartouche", hatch: 155, pitch: 1.9, zone: "ivoire" },
   };
+  /* LE DECALAGE VOULU, en millimetres. Une estampe coloriee au pochoir pose
+     ses aplats a la main : ils ne tombent jamais pile sur le trait, et c'est
+     ce defaut-la qu'on reconnait (spec §6.2-7, « reperage decale 0,2 mm
+     volontaire »). Le seul decalage deliberé du fichier — ecrit une fois,
+     nomme, mesurable ; partout ailleurs un ecart de calage est un bug. */
+  const POCHOIR_MM = 0.2;
 
   /* ═══════════════════════════════════════════════════════════════════════
      LA REGLE DU FOND PERDU — tout ce qui encre l'anneau se decoupe sur la
@@ -756,6 +769,38 @@
       ctx.fillStyle = grad(T.x, T.y, T.x + T.w, T.y + T.h,
         mix(p.base[0], "#ffffff", 0.66), mix(p.base[1], "#ffffff", 0.34));
       ctx.fillRect(0, 0, m.W, m.H);
+    } else if (pr.zone === "ivoire") {
+      /* LE PAPIER. « Epure » eclaircit la rarete — son anneau reste bleu,
+         vert ou rouge pale ; celui-ci va au PAPIER : un ivoire qui ne garde
+         de la rarete qu'un dixieme. La rarete, chez cette famille, n'est plus
+         la couleur du cadre mais celle de l'ENCRE — vermillon, bleu, ocre et
+         vert de la spec §6.2-7 sont, dans l'ordre, `mythic`, `rare`,
+         `legendary` et `uncommon`. */
+      const ivoire = mix(p.base[0], "#f7f0dd", 0.9);
+      ctx.fillStyle = grad(T.x, T.y, T.x + T.w, T.y + T.h,
+        ivoire, mix(ivoire, "#000000", 0.09));
+      ctx.fillRect(0, 0, m.W, m.H);
+      /* LA CUVETTE, ET CE QU'ELLE PARTAGE. Le bord de la plaque de cuivre
+         marque le papier : DEHORS le papier nu, DEDANS la surface encree.
+         Deux tons dans un meme anneau — et c'est exactement ce qui manquait.
+         MESURE : avec un anneau ivoire d'un seul ton, « Epure x Gravure »
+         tombait a 4,61 / 255 sur la toile livree et devenait la paire la plus
+         serree du catalogue (elle etait a 5,20 avant la septieme famille).
+         Deux anneaux clairs uniformes ne peuvent pas se distinguer beaucoup :
+         le gris normalise efface la teinte, il ne reste que la REPARTITION.
+         Le partage en deux zones concentriques en cree une. */
+      const cv = Math.max(u * 1.6, m.inner * 0.42);
+      const cvp = (d) => rrPath(ctx, T.x + d, T.y + d, T.w - 2 * d, T.h - 2 * d,
+        Math.max(0, T.r - d));
+      ctx.beginPath();
+      cvp(cv);
+      rrPath(ctx, B.x, B.y, B.w, B.h, B.r);
+      ctx.fillStyle = grad(T.x, T.y, T.x + T.w, T.y + T.h,
+        mix(p.base[1], "#000000", 0.12), mix(p.base[2], "#000000", 0.34));
+      ctx.fill("evenodd");
+      ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.25), 0.6);
+      ctx.lineWidth = Math.max(0.8, u * 0.5);
+      ctx.beginPath(); cvp(cv); ctx.stroke();
     }
     /* LE RELIEF : une levre claire pres du bord de coupe, une ombre portee au
        bord de la bande. C'est ce qui fait qu'un anneau parait EPAIS et non
@@ -873,6 +918,33 @@
       ctx.strokeStyle = rgba(p.glow, 0.85); ctx.lineWidth = t * 0.5;
       ctx.beginPath(); chamferPath(ctx, m.trim.x + gOff, m.trim.y + gOff,
         m.trim.w - 2 * gOff, m.trim.h - 2 * gOff, u * 6); ctx.stroke();
+    } else if (pr.kind === "burin") {
+      /* LA GRAMMAIRE DE LA TAILLE-DOUCE. Aux quatre coins de la bande, les
+         CROIX DE REPERAGE de l'imprimeur — celles qui servent a caler les
+         passages de couleur, et que le pochoir de cette famille rate de
+         0,2 mm exprès. Les coins sont deja pris par « Art deco » (des blocs
+         PLEINS) et par « Epure » (des equerres) : une croix ouverte n'a ni
+         leur masse ni leur contour. Puis la TAILLE, dans la marge basse : la
+         ou une estampe porte sa lettre. */
+      const rc = t * 1.5;
+      ctx.strokeStyle = dark; ctx.lineWidth = Math.max(0.6, t * 0.2);
+      [[B.x, B.y], [B.x + B.w, B.y], [B.x, B.y + B.h], [B.x + B.w, B.y + B.h]]
+        .forEach((c) => {
+          ctx.beginPath();
+          ctx.moveTo(c[0] - rc, c[1]); ctx.lineTo(c[0] + rc, c[1]);
+          ctx.moveTo(c[0], c[1] - rc); ctx.lineTo(c[0], c[1] + rc);
+          ctx.stroke();
+          ctx.beginPath(); ctx.arc(c[0], c[1], rc * 0.5, 0, Math.PI * 2); ctx.stroke();
+        });
+      const yl = m.trim.y + m.trim.h - m.inner * 0.5;
+      ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.15), 0.55);
+      ctx.lineWidth = Math.max(0.4, t * 0.13);
+      for (let k = 0; k < 44; k++) {
+        const x = m.trim.x + m.trim.w * (k + 0.5) / 44;
+        ctx.beginPath();
+        ctx.moveTo(x, yl - t * 0.85); ctx.lineTo(x + t * 0.5, yl + t * 0.85);
+        ctx.stroke();
+      }
     } else if (pr.kind === "brackets") {
       /* epure : l'anneau est CLAIR (zone « clair »), seules quatre equerres le
          tiennent. C'est le contraire exact des poutres du bois — deux
@@ -975,6 +1047,21 @@
     } else if (pr.moulure === "trait") {
       ctx.strokeStyle = rgba(p.line, 0.55); ctx.lineWidth = Math.max(0.4, u * 0.14);
       ctx.beginPath(); winPathAt(ctx, m, shape, u * 3.2); ctx.stroke();
+    } else if (pr.moulure === "pochoir") {
+      /* L'APLAT DE POCHOIR ET SON REPERAGE DECALE (POCHOIR_MM). L'aplat est
+         une MASSE — 2,6 mm d'encre tout autour de la fenetre — la ou l'autre
+         famille a anneau clair ne pose qu'un cheveu de 0,14 u : c'est la que
+         se joue l'ecart de silhouette entre les deux, et c'est aussi la que
+         se lit le geste du pochoir, puisque le TRAIT, lui, reste a sa place.
+         Le decalage se voit donc en negatif, sur deux bords opposes. */
+      ctx.save();
+      ctx.translate(u * POCHOIR_MM, u * POCHOIR_MM);
+      ring(u * 0.6, u * 3.2, rgba(p.gem, 0.7));
+      ctx.restore();
+      ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.4), 0.85);
+      ctx.lineWidth = Math.max(0.5, u * 0.22);
+      ctx.beginPath(); winPathAt(ctx, m, shape, u * 0.6); ctx.stroke();
+      ctx.beginPath(); winPathAt(ctx, m, shape, u * 3.2); ctx.stroke();
     }
     ctx.restore();
   }
@@ -1011,6 +1098,21 @@
       ctx.lineTo(P.x + s, P.y + s); ctx.closePath();
     } else if (k === "biseau") {
       chamferPath(ctx, P.x, P.y, P.w, P.h, u * 3.4);
+    } else if (k === "cartouche") {
+      /* le cartouche de l'estampe : le meme rectangle strict qu'« Epure »,
+         mais a coins ENTAILLES — les reperes d'un cadre de composition. La
+         difference est en NEGATIF (de la matiere en moins aux quatre coins),
+         donc elle survit a la reduction en vignette. */
+      const c = Math.min(u * 2.6, P.w / 10, P.h / 3);
+      ctx.moveTo(P.x + c, P.y);
+      ctx.lineTo(P.x + P.w - c, P.y); ctx.lineTo(P.x + P.w - c, P.y + c * 0.45);
+      ctx.lineTo(P.x + P.w, P.y + c * 0.45);
+      ctx.lineTo(P.x + P.w, P.y + P.h - c * 0.45);
+      ctx.lineTo(P.x + P.w - c, P.y + P.h - c * 0.45);
+      ctx.lineTo(P.x + P.w - c, P.y + P.h);
+      ctx.lineTo(P.x + c, P.y + P.h); ctx.lineTo(P.x + c, P.y + P.h - c * 0.45);
+      ctx.lineTo(P.x, P.y + P.h - c * 0.45); ctx.lineTo(P.x, P.y + c * 0.45);
+      ctx.lineTo(P.x + c, P.y + c * 0.45); ctx.closePath();
     } else {  /* epure : un rectangle strict, sans rayon */
       ctx.rect(P.x, P.y, P.w, P.h);
     }
@@ -1044,6 +1146,15 @@
     } else if (pr.plaque === "encoche") {
       ctx.fillStyle = rgba(p.line, 0.4);
       ctx.fillRect(P.x + P.w * 0.5 - u * 3, P.y + P.h - u * 1.1, u * 6, u * 0.35);
+    } else if (pr.plaque === "cartouche") {
+      /* le double filet interieur du cartouche — le meme geste que le filet
+         1,5/3 mm du bord, en reduction. Il ne se trace que s'il a la place :
+         un `strokeRect` a hauteur negative se retourne et sort de la boite. */
+      if (P.h > u * 5) {
+        ctx.strokeStyle = rgba(p.line, 0.55); ctx.lineWidth = Math.max(0.4, u * 0.14);
+        ctx.strokeRect(P.x + u * 1.1, P.y + u * 1.1, P.w - u * 2.2, P.h - u * 2.2);
+        ctx.strokeRect(P.x + u * 1.8, P.y + u * 1.8, P.w - u * 3.6, P.h - u * 3.6);
+      }
     }
     ctx.restore();
   }
@@ -1377,7 +1488,45 @@
     ctx.beginPath(); ctx.moveTo(m.band.x + m.band.w * 0.5 - u * 6, y); ctx.lineTo(m.band.x + m.band.w * 0.5 + u * 6, y); ctx.stroke();
     ctx.restore();
   }
-  const FAM_FN = { runic: famRunic, arcane: famArcane, timber: famTimber, deco: famDeco, neon: famNeon, sable: famSable };
+  /* LA SEPTIEME FAMILLE (phase 3a, archetype « Arcane gravee » §6.2-7).
+     Ce qu'aucune des six ne savait faire : une marge de PAPIER (les six
+     encrent l'anneau depuis `PAL`, dont les six raretes sont sombres) et un
+     aplat de couleur au REPERAGE DECALE. Le « double filet 1,5/3 mm » de la
+     spec, lui, sortait deja du moteur : `edge_mm 1,5` + `line_mm 0,5` +
+     `gap_mm 1,1` posent le second filet a 3,00 mm pile — il n'a donc jamais
+     ete la raison de cette famille, et la note de tache le dit. */
+  function famGravure(ctx, m, f) {
+    const p = pal(f), u = m.u, B = m.band;
+    ctx.save();
+    /* le cartouche des chiffres romains, en haut de la bande (spec : 4,4 sur
+       55 x 8) — un filet double, les capitales espacees viennent de P3. */
+    const hy = Math.max(u * 3.5, Math.min(u * 8, m.win.y - B.y - u * 1.4));
+    ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.35), 0.8);
+    ctx.lineWidth = Math.max(0.5, u * 0.2);
+    ctx.strokeRect(B.x + u * 0.8, B.y + u * 0.6, B.w - u * 1.6, hy);
+    if (hy > u * 2.4) {
+      ctx.strokeStyle = rgba(p.gem, 0.6);
+      ctx.lineWidth = Math.max(0.4, u * 0.12);
+      ctx.strokeRect(B.x + u * 1.4, B.y + u * 1.2, B.w - u * 2.8, hy - u * 1.2);
+    }
+    /* la taille du burin le long des montants : des hachures serrees en haut,
+       ouvertes en bas — ce qu'un graveur fait pour modeler une ombre sans
+       demi-teinte, et ce qu'aucune trame de matiere ne rend (elle, elle est
+       reguliere par construction). */
+    ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.12), 0.45);
+    ctx.lineWidth = Math.max(0.35, u * 0.1);
+    for (let i = 0; i < 26; i++) {
+      const t = i / 25, y = B.y + B.h * (0.08 + 0.84 * t), L = u * (2.4 - 1.5 * t);
+      [[m.trim.x + m.inner * 0.5, 1], [m.trim.x + m.trim.w - m.inner * 0.5, -1]]
+        .forEach((c) => {
+          ctx.beginPath();
+          ctx.moveTo(c[0], y); ctx.lineTo(c[0] + c[1] * L, y + u * 0.9);
+          ctx.stroke();
+        });
+    }
+    ctx.restore();
+  }
+  const FAM_FN = { runic: famRunic, arcane: famArcane, timber: famTimber, deco: famDeco, neon: famNeon, sable: famSable, gravure: famGravure };
 
   function atCorners(ctx, r, fn) {
     const cs = [[r.x, r.y, 1, 1], [r.x + r.w, r.y, -1, 1], [r.x, r.y + r.h, 1, -1], [r.x + r.w, r.y + r.h, -1, -1]];
@@ -2719,7 +2868,8 @@
          trop a qui le lisait comme une propriete du catalogue — ce que sa
          formulation invite a faire. Un chiffre qui ne vaut que pour la case
          ouverte doit dire de quelle case il parle, ou couvrir tout le tableau.
-         Il couvre desormais tout le tableau : 90 paires (6 raretes x 15). */
+         Il couvre desormais tout le tableau : 126 paires (6 raretes x 21
+         depuis la septieme famille ; 90 quand elles etaient six). */
       const gr = {}, dims = {};
       RARITIES.forEach((ra) => {
         FAMILIES.forEach((fa) => {
@@ -2783,6 +2933,29 @@
   let SILV = null, SILF = null;
   const SILFQ = { timer: null, busy: false, sig: "" };
   const SIL_SEUIL = 4;
+  /* ── LE PIRE COUPLE, RELEVE A CHAQUE FAMILLE AJOUTEE ─────────────────────
+     La QA de silhouettes est l'ARBITRE d'une famille nouvelle, et le seuil ne
+     bouge pas : une famille qui passe sous SIL_SEUIL se REDESSINE. Les deux
+     chiffres ci-dessous sont ceux du badge, releves dans un vrai navigateur
+     sur ce fichier-ci — le panneau les recalcule sous les yeux de qui les
+     lit, et `test_cards_frame.py` en fait un PLANCHER.
+
+       AVANT la septieme famille — six familles, 90 paires, 36/36 signatures :
+         toile livree 5,2 / 255 · vignettes 6,84 / 255, « Runique x Art deco
+         en Mythique » des deux cotes.
+       PREMIER JET de « Gravure » (anneau ivoire d'un seul ton), sept
+       familles, 126 paires : toile 4,61 / 255 et la paire la plus serree
+       devenait « Epure x Gravure en Rare ». Au-dessus du seuil, mais c'etait
+       la famille neuve qui tirait le catalogue vers le bas : elle a ete
+       REDESSINEE (anneau partage en deux par la cuvette, voir `ringZone`),
+       pas le seuil deplace.
+       APRES redessin — sept familles, 126 paires, 42/42 signatures :
+         MESURE-3A-TOILE = 5.2 /255 « Runique x Art deco en Mythique »
+         MESURE-3A-VIGNETTE = 6.84 /255 « Runique x Art deco en Mythique »
+
+     La paire la plus serree est donc EXACTEMENT celle d'avant, a la meme
+     valeur : la septieme famille n'a rien coute au catalogue. (Hors fenetre
+     d'illustration : 7,88 / 255, la aussi inchange.) */
   function silSig() {
     try {
       const g = CF.geom(), d = CF.doc();

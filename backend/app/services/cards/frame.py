@@ -61,7 +61,7 @@ router = APIRouter()
 
 # ═════════════════════════════════════════════════════════════════════════════
 # LE CATALOGUE — miroir du bloc CF-FRAME-CATALOG de js/mod-frame.js.
-# 6 familles x 6 raretés = 36 combinaisons vectorielles (la barre Clash of
+# 7 familles x 6 raretés = 42 combinaisons vectorielles (la barre Clash of
 # Decks en sert TROIS, en PNG 638x1004, soit 255 DPI au format poker).
 # ═════════════════════════════════════════════════════════════════════════════
 FAMILIES = [
@@ -77,6 +77,8 @@ FAMILIES = [
      "hint": "double trait lumineux, coins coupés"},
     {"id": "sable", "label": "Épure",
      "hint": "un seul filet, grande marge, rien d'autre"},
+    {"id": "gravure", "label": "Gravure",
+     "hint": "marge ivoire, aplat de pochoir décalé, repères"},
 ]
 RARITIES = [
     {"id": "common", "label": "Commune"},
@@ -182,6 +184,149 @@ GEM_SEAT_RATIO = 1.6  # au-delà, l'écrin n'est plus un disque mais un cartouch
 TOL_MM2 = 0.5         # sous cette surface, un contact n'est pas une collision
 TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # ═════ CF-FRAME-OCC-END ═════
+
+# ═════════════════════════════════════════════════════════════════════════════
+# L'HABILLAGE DES SEPT ARCHÉTYPES — phase 3a, tâche 2 (spec §6.2:318-363)
+#
+# CE QUE C'EST : pour chacun des sept archétypes, un réglage `doc.frame`
+# COMPLET — les 27 clés que l'on écrit, la vingt-huitième (`art_window`) étant
+# PUBLIÉE par le painter et jamais saisie. Rien d'autre : ni police, ni slot,
+# ni palette de texte — ceux-là appartiennent à P3 et au modèle.
+#
+# QUI LE CONSOMME : la tâche 3 (`models.py`) l'IMPORTE. Un modèle qui
+# retaperait ces réglages serait une seconde source de vérité, et la première
+# divergence silencieuse serait un deck instancié qui ne ressemble pas à son
+# archétype. `test_cards_frame.py` valide la table ici : clés complètes,
+# famille/rareté/dos/coin/métal du catalogue, longueurs dans LIMITS, fenêtres
+# incluses dans la rogne, et RENDU sans exception par les vrais painters.
+#
+# COMMENT ILS ONT ÉTÉ CHOISIS (règle de la tâche : la mesure décide) : on a
+# d'abord tenté d'habiller chaque archétype avec les familles DÉJÀ LIVRÉES ;
+# six y sont arrivés. Un seul ne pouvait pas — « Arcane gravée », qui demande
+# une marge de PAPIER IVOIRE (les six familles encrent l'anneau depuis `PAL`,
+# dont les six raretés sont sombres) et un aplat de pochoir au REPÉRAGE
+# DÉCALÉ de 0,2 mm, que rien ne savait poser. D'où `gravure`, la septième.
+#
+# Les zones sont celles de la spec, en millimètres depuis le coin de COUPE
+# (même origine que les slots P3) ; les fenêtres sont recopiées telles quelles
+# de §6.2, et le test les relit sur la fenêtre EFFECTIVE du modèle, pas sur
+# cette table relue à elle-même.
+# ═════════════════════════════════════════════════════════════════════════════
+_HABILLAGE_COMMUN = {
+    "line_color": "", "banner_text": "", "win_lock": False,
+    "back_same": True, "back_label": True,
+    "fit": True, "socles": True, "seats": True, "socle_alpha": 0.82,
+}
+
+
+def _habillage(**kw) -> dict:
+    out = dict(_HABILLAGE_COMMUN)
+    out.update(kw)
+    return out
+
+
+ARCHETYPE_FRAMES = {
+    # 1. Superstar du stade — « plaque à pans coupés 4,4 -> 55 x 80 » EST
+    #    `edge_mm = 4` (63 - 8 = 55, 88 - 8 = 80, au millimètre) ; les pans
+    #    coupés eux-mêmes viennent de `deco`, seule famille dont la fenêtre
+    #    est chanfreinée ET la plaque étagée. Or champagne = rareté
+    #    « legendary » + métal or ; les paliers argent/bronze sont un
+    #    changement de rareté, pas un autre modèle.
+    "superstar": _habillage(
+        family="deco", rarity="legendary",
+        line_mm=1.2, double=True, gap_mm=1.0, edge_mm=4.0, inner_mm=5.5,
+        metal=True, metal_tone="gold", grad=True, grad_angle=104,
+        corner="bracket", gem=True, banner=True,
+        plate=True, plate_alpha=0.9,
+        window={"x": 22.0, "y": 8.0, "w": 36.0, "h": 38.0, "r": 2.0},
+        back="sunburst",
+    ),
+    # 2. Duel de chiffres — « bandeau titre rectangle, PAS d'ellipse » et un
+    #    tableau zébré : c'est la plaque « epure » d'`sable`, un rectangle
+    #    strict sans rayon. Papier mat = `grad: false` (aplat) et aucun métal.
+    #    `inner_mm = 4` pose la bande à 55 mm de large : la colonne de la spec.
+    "duel": _habillage(
+        family="sable", rarity="rare",
+        line_mm=0.5, double=False, gap_mm=0.0, edge_mm=2.0, inner_mm=4.0,
+        metal=False, metal_tone="silver", grad=False, grad_angle=90,
+        corner="none", gem=False, banner=False,
+        plate=True, plate_alpha=1.0,
+        window={"x": 4.0, "y": 13.0, "w": 55.0, "h": 31.0, "r": 0.0},
+        back="chevron",
+    ),
+    # 3. Créature à évolutions — le gros liseré coloré d'un jeu de créatures :
+    #    `timber` est la seule famille dont la bande a une masse de 3 mm, avec
+    #    ses rivets ; le métal or donne le liseré, la rareté donne l'élément
+    #    (uncommon = vert par défaut, la teinte se change en un clic).
+    "creature": _habillage(
+        family="timber", rarity="uncommon",
+        line_mm=1.4, double=True, gap_mm=0.8, edge_mm=1.8, inner_mm=6.0,
+        metal=True, metal_tone="gold", grad=True, grad_angle=120,
+        corner="stud", gem=True, banner=True,
+        plate=True, plate_alpha=0.9,
+        window={"x": 6.0, "y": 11.0, "w": 51.0, "h": 35.0, "r": 2.5},
+        back="scales",
+    ),
+    # 4. Arcane mystique — « bordure 2,5 mm » EST `edge_mm = 2.5`. La famille
+    #    `arcane` porte déjà la fenêtre en arc, les volutes et la plaque en
+    #    arc de la boîte à règles ; rien à inventer.
+    "arcane": _habillage(
+        family="arcane", rarity="epic",
+        line_mm=0.9, double=True, gap_mm=1.1, edge_mm=2.5, inner_mm=4.0,
+        metal=True, metal_tone="gold", grad=True, grad_angle=118,
+        corner="scroll", gem=True, banner=True,
+        plate=True, plate_alpha=0.92,
+        window={"x": 5.0, "y": 9.5, "w": 53.0, "h": 39.0, "r": 3.0},
+        back="runes",
+    ),
+    # 5. Monstre de duel — « cadre couleur pleine = catégorie » : `grad:
+    #    false` rend l'aplat, et l'anneau plein de `runic` (zone « anneau »)
+    #    en est la masse. Fenêtre CARRÉE 47 x 47, verrou de proportions armé —
+    #    c'est le carré qui fait l'archétype. Le code couleur est PROPRE :
+    #    rareté « mythic » + filet d'argent, décalé de l'original.
+    "monstre": _habillage(
+        family="runic", rarity="mythic",
+        line_mm=1.0, double=False, gap_mm=0.0, edge_mm=1.6, inner_mm=6.0,
+        metal=True, metal_tone="silver", grad=False, grad_angle=90,
+        corner="spike", gem=True, banner=False,
+        plate=True, plate_alpha=0.95,
+        window={"x": 8.0, "y": 18.5, "w": 47.0, "h": 47.0, "r": 1.0},
+        win_lock=True, back="lattice",
+    ),
+    # 6. Légende du terrain — la seule chose que P2 doit dessiner ici est la
+    #    BORDURE BLANCHE VINTAGE : `sable`, dont l'anneau est CLAIR, un filet
+    #    de 0,35 mm, et une fenêtre qui descend jusqu'au bandeau de nom. La
+    #    plaque tombe alors à 73,8 -> 84,3 mm, soit la bande « 0,74 (63 x 10) »
+    #    de la spec en hauteur (la largeur, elle, est celle de la bande :
+    #    55,6 mm — une plaque pleine largeur n'existe pas dans ce moteur).
+    #    « Photo pleine page » est à un glissement de fenêtre, ou à « Aucun
+    #    cadre » : c'est un réglage, pas un autre archétype.
+    "legende": _habillage(
+        family="sable", rarity="common",
+        line_mm=0.35, double=False, gap_mm=0.0, edge_mm=1.2, inner_mm=2.5,
+        metal=True, metal_tone="silver", grad=False, grad_angle=90,
+        corner="none", gem=False, banner=False,
+        plate=True, plate_alpha=1.0,
+        window={"x": 2.5, "y": 2.5, "w": 58.0, "h": 69.5, "r": 0.0},
+        back="guilloche",
+    ),
+    # 7. Arcane gravée — LA SEULE À EXIGER UNE FAMILLE NOUVELLE (`gravure`).
+    #    Le « double filet 1,5/3 mm », lui, sort du moteur existant : le
+    #    second filet est posé à `edge + line/2 + gap + 0,3 line`, soit
+    #    1,5 + 0,25 + 1,1 + 0,15 = 3,00 mm PILE. Ce qu'aucune famille ne
+    #    savait faire : la marge ivoire et l'aplat de pochoir décalé.
+    #    Vermillon/bleu/ocre/vert de la spec = les raretés mythic/rare/
+    #    legendary/uncommon, qui donnent ici la couleur de l'ENCRE.
+    "gravee": _habillage(
+        family="gravure", rarity="mythic",
+        line_mm=0.5, double=True, gap_mm=1.1, edge_mm=1.5, inner_mm=4.0,
+        metal=False, metal_tone="copper", grad=False, grad_angle=90,
+        corner="none", gem=False, banner=False,
+        plate=True, plate_alpha=1.0,
+        window={"x": 4.0, "y": 13.0, "w": 55.0, "h": 61.0, "r": 0.0},
+        back="mirror",
+    ),
+}
 
 
 def catalog() -> dict:

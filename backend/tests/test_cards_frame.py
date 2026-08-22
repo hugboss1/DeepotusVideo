@@ -104,7 +104,7 @@ def _exact_px(mm, dpi: int) -> float:
     return float((v * 100 + Fraction(1, 2)).__floor__()) / 100.0
 
 
-# ═══════════════ 1. LE CATALOGUE : 36 combinaisons, et une seule liste ══════
+# ═══════════════ 1. LE CATALOGUE : 42 combinaisons, et une seule liste ══════
 
 def test_au_moins_20_combinaisons():
     """La barre en propose 3. Le seuil de la spec est 20."""
@@ -112,7 +112,7 @@ def test_au_moins_20_combinaisons():
     assert cat["combos"] == len(FR.FAMILIES) * len(FR.RARITIES)
     assert cat["combos"] >= COMBOS_MIN, \
         f"{cat['combos']} combinaisons, seuil {COMBOS_MIN}"
-    assert cat["combos"] == 36, "6 familles x 6 raretés"
+    assert cat["combos"] == 42, "7 familles x 6 raretés"
     assert len(FR.FAMILIES) >= 4, "spec : >= 4 familles graphiques"
     assert len(FR.RARITIES) >= 5, "spec : >= 5 variantes de rareté"
     ids = [f["id"] for f in FR.FAMILIES]
@@ -335,7 +335,7 @@ def test_les_routes_du_cadre_repondent():
     assert "json" in r.headers.get("content-type", "").lower(), \
         "sans le montage du domaine, une route absente rend du HTML (piège 7)"
     cat = r.json()["catalog"]
-    assert cat["combos"] == 36
+    assert cat["combos"] == 42
     from app.main import app
     chemins = list(app.openapi().get("paths", {}))
     for attendu in ("/api/cards/{did}/frame/catalog",
@@ -856,7 +856,7 @@ def _profile_rows(src: str):
     return rows
 
 
-def test_les_six_familles_ont_des_silhouettes_distinctes():
+def test_chaque_famille_a_une_silhouette_distincte():
     """MESURE AVANT, sur les vignettes du sélecteur (74 x 101 px, le format où
     le choix se fait) : « Bois sculpté » et « Épure » différaient sur 0,04 %
     des pixels ; et après une première passe, sur GRIS NORMALISÉ (la mesure
@@ -2772,3 +2772,634 @@ def test_la_fenetre_effective_est_publiee_pour_les_autres_pieces():
     # le contrat a deux bouts : P1 la lit telle quelle
     face = (JS.parent / "mod-face.js").read_text(encoding="utf-8")
     assert 'CF.get("frame.art_window"' in face
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 15. PHASE 3a — L'HABILLAGE DES SEPT ARCHÉTYPES (§6.2), ET LA SEPTIÈME FAMILLE
+#
+# La règle de la tâche : la MESURE décide, pas le catalogue de la spec. Pour
+# chacun des sept archétypes on a d'abord tenté d'habiller avec les SIX
+# familles livrées. Six y sont arrivés :
+#
+#   superstar -> `deco`   (fenêtre à pans coupés + gradins : la « plaque à pans
+#                          coupés 4,4 -> 55 x 80 » EST `edge_mm = 4`)
+#   duel      -> `sable`  (un seul filet, plaque RECTANGLE stricte : le tableau
+#                          zébré, et « PAS d'ellipse »)
+#   créature  -> `timber` (bande épaisse + rivets : le gros liseré coloré)
+#   arcane    -> `arcane` (fenêtre en arc, volutes, plaque en arc)
+#   monstre   -> `runic`  (fenêtre RECTANGLE + anneau plein : `grad: false`
+#                          rend le « cadre couleur pleine = catégorie »)
+#   légende   -> `sable`  (anneau CLAIR = la bordure blanche vintage, filet
+#                          0,35 mm, fenêtre presque pleine page)
+#
+# UN SEUL ne pouvait pas : « Arcane gravée » demande un FOND IVOIRE et des
+# aplats de pochoir au REPÉRAGE DÉCALÉ de 0,2 mm. Les six familles encrent
+# l'anneau depuis `PAL`, dont les six raretés sont SOMBRES, et aucune ne pose
+# d'aplat décalé — d'où `gravure`, septième famille.
+#
+# AMENDEMENT AU PLAN, mesuré : le plan attendait la famille nouvelle POUR le
+# « double filet 1,5/3 mm ». Ce filet-là est atteignable avec le moteur
+# existant — `edge_mm 1,5` + `line_mm 0,5` + `gap_mm 1,1` posent le second
+# filet à 1,5 + 0,25 + 1,1 + 0,15 = 3,00 mm EXACTEMENT (arithmétique de
+# `paintFront` §6, vérifiée plus bas). Ce n'est donc pas le filet qui justifie
+# la famille, c'est l'ivoire et le décalage. La raison publiée est la vraie.
+# ═════════════════════════════════════════════════════════════════════════════
+
+ARCHETYPES = ("superstar", "duel", "creature", "arcane", "monstre",
+              "legende", "gravee")
+
+
+def _js_defaults_keys(src: str) -> list:
+    """Les clés RÉELLES de `doc.frame`, lues dans le bloc DEFAULTS du JS."""
+    m = re.search(r"const DEFAULTS = \{(.*?)\n  \};", src, re.S)
+    assert m, "bloc DEFAULTS absent de mod-frame.js"
+    txt = re.sub(r"/\*.*?\*/", " ", m.group(1), flags=re.S)
+    return re.findall(r"(\w+)\s*:", txt)
+
+
+def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
+    """Le commentaire de `st()` disait « les 22 cles » quand `DEFAULTS` en
+    porte 28 : un lecteur qui compte sur ce chiffre pour savoir ce que
+    `patch` accepte se trompe de six clés. Corrigé en passant (tâche 3a-2),
+    et VERROUILLÉ au compte réel — pas au compte recopié."""
+    src = _js()
+    cles = _js_defaults_keys(src)
+    assert len(cles) == len(set(cles)), f"clé en double dans DEFAULTS : {cles}"
+    assert len(cles) == 28, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert "les 22 cles" not in src and "22 clés" not in src, \
+        "le commentaire périmé « 22 clés » est toujours là"
+    assert f"porte toujours les {len(cles)} cles" in src, \
+        "le commentaire de st() ne dit pas le compte réel"
+
+
+# ── 15.1 la septième famille : catalogue, tables JS, colonnes ────────────────
+
+def test_la_septieme_famille_existe_des_deux_cotes():
+    """Une famille n'existe que si les DEUX catalogues la portent (le test de
+    parité générique le voit déjà) ET si les trois tables JS-seules la
+    connaissent : `FAM_FN` (le dessin), `WIN_SHAPE` (la forme de fenêtre),
+    `PROFILE` (les cinq signatures de silhouette). Une entrée de menu sans
+    peintre, c'est un cadre qui rend l'image d'une AUTRE famille."""
+    src = _js()
+    ids = [f["id"] for f in FR.FAMILIES]
+    assert "gravure" in ids, f"familles backend : {ids}"
+    assert ("gravure", "Gravure") in _js_list(_catalog_block(src), "FAMILIES")
+    assert re.search(r"const FAM_FN = \{[^}]*gravure: famGravure", src), \
+        "gravure n'a pas de peintre dans FAM_FN"
+    assert re.search(r"const WIN_SHAPE = \{[^}]*gravure: \"\w+\"", src), \
+        "gravure n'a pas de forme de fenêtre"
+    assert "function famGravure(" in src, "le peintre famGravure n'existe pas"
+    rows = {r[0]: r for r in _profile_rows(src)}
+    assert "gravure" in rows, "gravure n'a pas de profil de silhouette"
+    # les cinq colonnes de gravure ne doivent RIEN partager : le test générique
+    # `test_chaque_famille_a_une_silhouette_distincte` le vérifie colonne par
+    # colonne pour toutes les familles — ici on nomme la nouvelle.
+    assert rows["gravure"][7] == "ivoire", rows["gravure"]
+
+
+def test_le_double_filet_1_5_3_mm_sort_du_moteur_existant():
+    """L'AMENDEMENT, arithmétique à l'appui. `paintFront` pose le second filet
+    à `edge + line*0.5 + gap + line*0.3` de la coupe. Avec l'habillage de
+    « gravée » (edge 1,5 · line 0,5 · gap 1,1) cela fait 3,00 mm pile, et le
+    premier filet est sur son axe à 1,5 mm : le « double filet 1,5/3 mm » de
+    la spec §6.2-7 ne demandait aucune famille nouvelle."""
+    src = _js()
+    assert "const o2 = m.edge + m.line * 0.5 + m.gap + m.line * 0.3;" in src, \
+        "l'arithmétique du second filet a bougé : re-mesurer avant de recopier"
+    hab = FR.ARCHETYPE_FRAMES["gravee"]
+    axe1 = hab["edge_mm"]
+    axe2 = hab["edge_mm"] + hab["line_mm"] * 0.5 + hab["gap_mm"] \
+        + hab["line_mm"] * 0.3
+    assert abs(axe1 - 1.5) < 1e-9, axe1
+    assert abs(axe2 - 3.0) < 1e-9, axe2
+
+
+# ── 15.2 LE RASTÉRISEUR DE CONTRÔLE : des pixels, pas des intentions ─────────
+#
+# node n'a pas de contexte 2D dans ce dépôt. On en écrit un qui ne fait qu'une
+# chose : dire QUELLES CELLULES d'une grille de 0,5 mm reçoivent de l'encre.
+# Les courbes sont aplaties, les remplissages tramés par balayage de lignes
+# (pair-impair ou non-nul), les traits marqués le long du chemin, et le CLIP
+# est honoré — sans lui `outerRing` ne voudrait rien dire et une famille qui
+# déborde sur l'illustration passerait pour saine.
+#
+# Ce que ce banc prouve : qu'un peintre de famille ENCRE VRAIMENT, et OÙ. Ce
+# qu'il ne prouve pas : les tons (c'est la mesure de silhouettes du panneau,
+# faite au navigateur sur la toile livrée, qui les juge).
+
+BANC_PEINTRE = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { st: st, model: model, winMM: winMM, FAMILIES: FAMILIES,"
+  + " PROFILE: PROFILE, WIN_SHAPE: WIN_SHAPE, FAM_FN: FAM_FN,"
+  + " famProfile: famProfile, winMoulding: winMoulding,"
+  + " platePath: platePath, plateTrim: plateTrim, winPath: winPath };\n})();")();
+
+const N_BEZ = 12, N_ARC = 20;
+const GRAD = { addColorStop: function () {} };
+
+function Rec(W, H, GW, GH) {
+  this.W = W; this.H = H; this.GW = GW; this.GH = GH;
+  this.cov = new Uint8Array(GW * GH);
+  this.msk = new Uint8Array(GW * GH).fill(1);
+  this.stk = []; this.t = { sx: 1, sy: 1, tx: 0, ty: 0 };
+  this.sub = []; this.cur = null; this.ops = 0;
+  this.fillStyle = ""; this.strokeStyle = ""; this.lineWidth = 1;
+  this.globalAlpha = 1; this.shadowBlur = 0; this.shadowColor = "";
+  this.lineCap = ""; this.lineJoin = ""; this.font = ""; this.textAlign = "";
+  this.textBaseline = ""; this.imageSmoothingEnabled = true;
+}
+Rec.prototype.save = function () {
+  this.stk.push({ t: { sx: this.t.sx, sy: this.t.sy, tx: this.t.tx, ty: this.t.ty },
+    msk: this.msk.slice() });
+};
+Rec.prototype.restore = function () {
+  const s = this.stk.pop();
+  if (s) { this.t = s.t; this.msk = s.msk; }
+};
+Rec.prototype.translate = function (x, y) {
+  this.t.tx += x * this.t.sx; this.t.ty += y * this.t.sy;
+};
+Rec.prototype.scale = function (x, y) { this.t.sx *= x; this.t.sy *= y; };
+Rec.prototype.rotate = function () {};
+Rec.prototype._p = function (x, y) {
+  return [x * this.t.sx + this.t.tx, y * this.t.sy + this.t.ty];
+};
+Rec.prototype.beginPath = function () { this.sub = []; this.cur = null; };
+Rec.prototype.moveTo = function (x, y) {
+  this.cur = [this._p(x, y)]; this.sub.push(this.cur);
+};
+Rec.prototype.lineTo = function (x, y) {
+  if (!this.cur) this.moveTo(x, y); else this.cur.push(this._p(x, y));
+};
+Rec.prototype.closePath = function () {};
+Rec.prototype.rect = function (x, y, w, h) {
+  this.moveTo(x, y); this.lineTo(x + w, y);
+  this.lineTo(x + w, y + h); this.lineTo(x, y + h);
+  this.cur = null;
+};
+/* arcTo : le coin arrondi devient un coin coupe. A 0,5 mm de resolution,
+   l'ecart est d'une cellule sur quatre coins — assez pour compter l'encre,
+   trop grossier pour juger une forme (ce n'est pas ce que ce banc juge). */
+Rec.prototype.arcTo = function (x1, y1, x2, y2) {
+  this.lineTo(x1, y1); this.lineTo(x2, y2);
+};
+Rec.prototype.arc = function (cx, cy, r, a0, a1) {
+  const n = N_ARC;
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * i / n;
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Rec.prototype.ellipse = function (cx, cy, rx, ry, rot, a0, a1) {
+  const n = N_ARC, ca = Math.cos(rot || 0), sa = Math.sin(rot || 0);
+  for (let i = 0; i <= n; i++) {
+    const a = a0 + (a1 - a0) * i / n;
+    const px = Math.cos(a) * rx, py = Math.sin(a) * ry;
+    const x = cx + px * ca - py * sa, y = cy + px * sa + py * ca;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Rec.prototype.bezierCurveTo = function (x1, y1, x2, y2, x3, y3) {
+  if (!this.cur) this.moveTo(x1, y1);
+  const p0 = this.cur[this.cur.length - 1];
+  const inv = { x: (p0[0] - this.t.tx) / this.t.sx, y: (p0[1] - this.t.ty) / this.t.sy };
+  for (let i = 1; i <= N_BEZ; i++) {
+    const t = i / N_BEZ, u = 1 - t;
+    const x = u * u * u * inv.x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3;
+    const y = u * u * u * inv.y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3;
+    this.lineTo(x, y);
+  }
+};
+Rec.prototype.quadraticCurveTo = function (x1, y1, x2, y2) {
+  this.bezierCurveTo(x1, y1, x1, y1, x2, y2);
+};
+Rec.prototype._raster = function (eo, target, brut) {
+  const GW = this.GW, GH = this.GH;
+  for (let gy = 0; gy < GH; gy++) {
+    const y = (gy + 0.5) * this.H / GH;
+    const xs = [];
+    for (let s = 0; s < this.sub.length; s++) {
+      const sp = this.sub[s], n = sp.length;
+      if (n < 2) continue;
+      for (let i = 0; i < n; i++) {
+        const a = sp[i], b = sp[(i + 1) % n];
+        if ((a[1] <= y) === (b[1] <= y)) continue;
+        const t = (y - a[1]) / (b[1] - a[1]);
+        xs.push([a[0] + t * (b[0] - a[0]), b[1] > a[1] ? 1 : -1]);
+      }
+    }
+    if (xs.length < 2) continue;
+    xs.sort(function (p, q) { return p[0] - q[0]; });
+    let w = 0;
+    for (let i = 0; i < xs.length - 1; i++) {
+      w += xs[i][1];
+      const dedans = eo ? (i % 2 === 0) : (w !== 0);
+      if (!dedans) continue;
+      const x0 = xs[i][0], x1 = xs[i + 1][0];
+      let g0 = Math.floor(x0 * GW / this.W), g1 = Math.ceil(x1 * GW / this.W);
+      if (g0 < 0) g0 = 0;
+      if (g1 > GW) g1 = GW;
+      for (let gx = g0; gx < g1; gx++) {
+        const xc = (gx + 0.5) * this.W / GW;
+        if (xc < x0 || xc >= x1) continue;
+        const q = gy * GW + gx;
+        if (brut || this.msk[q]) target[q] = 1;
+      }
+    }
+  }
+};
+Rec.prototype._trace = function (target) {
+  const GW = this.GW, GH = this.GH;
+  const pas = Math.min(this.W / GW, this.H / GH) * 0.5;
+  const marque = (x, y) => {
+    const gx = Math.floor(x * GW / this.W), gy = Math.floor(y * GH / this.H);
+    if (gx < 0 || gy < 0 || gx >= GW || gy >= GH) return;
+    const q = gy * GW + gx;
+    if (this.msk[q]) target[q] = 1;
+  };
+  for (let s = 0; s < this.sub.length; s++) {
+    const sp = this.sub[s];
+    for (let i = 0; i + 1 < sp.length; i++) {
+      const a = sp[i], b = sp[i + 1];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const n = Math.max(1, Math.ceil(L / pas));
+      for (let k = 0; k <= n; k++) {
+        marque(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n);
+      }
+    }
+  }
+};
+Rec.prototype.fill = function (rule) {
+  this.ops++; this._raster(rule === "evenodd", this.cov, false);
+};
+Rec.prototype.stroke = function () { this.ops++; this._trace(this.cov); };
+Rec.prototype.clip = function (rule) {
+  const m = new Uint8Array(this.GW * this.GH);
+  this._raster(rule === "evenodd", m, true);
+  for (let i = 0; i < m.length; i++) if (!m[i]) this.msk[i] = 0;
+};
+Rec.prototype.fillRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.fill();
+};
+Rec.prototype.strokeRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.stroke();
+};
+Rec.prototype.createLinearGradient = function () { return GRAD; };
+Rec.prototype.createRadialGradient = function () { return GRAD; };
+Rec.prototype.createPattern = function () { return null; };
+Rec.prototype.drawImage = function () {};
+Rec.prototype.setLineDash = function () {};
+Rec.prototype.fillText = function () {};
+Rec.prototype.strokeText = function () {};
+Rec.prototype.measureText = function () { return { width: 0 }; };
+Rec.prototype.part = function (bx) {
+  /* la part de cellules encrees dans une boite EN PIXELS DE TOILE */
+  const GW = this.GW, GH = this.GH;
+  const y0 = Math.max(0, Math.floor(bx[1] * GH / this.H));
+  const y1 = Math.min(GH, Math.ceil((bx[1] + bx[3]) * GH / this.H) + 1);
+  const x0 = Math.max(0, Math.floor(bx[0] * GW / this.W));
+  const x1 = Math.min(GW, Math.ceil((bx[0] + bx[2]) * GW / this.W) + 1);
+  let n = 0, tot = 0;
+  for (let gy = y0; gy < y1; gy++) {
+    const y = (gy + 0.5) * this.H / GH;
+    if (y < bx[1] || y >= bx[1] + bx[3]) continue;
+    for (let gx = x0; gx < x1; gx++) {
+      const x = (gx + 0.5) * this.W / GW;
+      if (x < bx[0] || x >= bx[0] + bx[2]) continue;
+      tot++;
+      if (this.cov[gy * GW + gx]) n++;
+    }
+  }
+  return tot ? Math.round(n / tot * 10000) / 10000 : -1;
+};
+
+function zones(m, u) {
+  const B = m.band, W = m.W, H = m.H;
+  return {
+    perdu: [0, 0, W, m.trim.y],
+    haut: [0, 0, W, B.y],
+    bas: [0, B.y + B.h, W, H - (B.y + B.h)],
+    gauche: [0, 0, B.x, H],
+    droite: [B.x + B.w, 0, W - (B.x + B.w), H],
+    fenetre: [m.win.x + 4 * u, m.win.y + 4 * u,
+      m.win.w - 8 * u, m.win.h - 8 * u],
+    plaque: [m.plate.x, m.plate.y, m.plate.w, m.plate.h],
+    toile: [0, 0, W, H],
+  };
+}
+
+const out = [];
+for (const c of CAS.cas) {
+  const dpi = c.g.dpi;
+  const g = Object.assign({}, c.g, { mm2px: (v) => v / 25.4 * dpi });
+  try {
+    const f = mod.st({ frame: c.frame });
+    const m = mod.model(g, f);
+    const u = g.mm2px(1);
+    const shape = mod.WIN_SHAPE[f.family] || "rect";
+    const Z = zones(m, u);
+    /* LE MEME DECOUPAGE QUE `paintFront` : tout ce que la famille peint est
+       clipe « toile MOINS fenetre » (etape 2 du recto). Sans lui, les veines
+       de « Bois sculpte » couvriraient l'illustration dans le banc alors
+       qu'elles ne la couvrent pas dans le fichier. Le dos, lui, n'a pas de
+       trou de fenetre : `paintBack` clipe la toile entiere. */
+    const neuf = () => {
+      const k = new Rec(g.canvas_px[0], g.canvas_px[1], c.gw, c.gh);
+      if (c.face !== "back") {
+        k.beginPath(); k.rect(0, 0, m.W, m.H);
+        mod.winPath(k, m, shape); k.clip("evenodd");
+      }
+      return k;
+    };
+    const releve = (ctx) => {
+      const o = { ops: ctx.ops };
+      for (const k of Object.keys(Z)) o[k] = ctx.part(Z[k]);
+      return o;
+    };
+    const etapes = {};
+    let ctx = neuf(); mod.famProfile(ctx, m, f); etapes.profil = releve(ctx);
+    ctx = neuf();
+    const fn = mod.FAM_FN[f.family];
+    if (fn) fn(ctx, m, f);
+    etapes.signature = releve(ctx);
+    ctx = neuf(); mod.winMoulding(ctx, m, f, shape); etapes.moulure = releve(ctx);
+    ctx = new Rec(g.canvas_px[0], g.canvas_px[1], c.gw, c.gh);
+    if (f.plate) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
+    etapes.plaque = releve(ctx);
+    /* la carte entiere : recto = les quatre etapes, dos « miroir » = les deux
+       que `paintBack` appelle dans sa branche `else` (famProfile + FAM_FN). */
+    ctx = neuf();
+    ctx.save();
+    mod.famProfile(ctx, m, f);
+    if (fn) fn(ctx, m, f);
+    if (c.face !== "back") {
+      mod.winMoulding(ctx, m, f, shape);
+      ctx.restore();
+      if (f.plate) { mod.platePath(ctx, m, f); ctx.fill(); mod.plateTrim(ctx, m, f); }
+    }
+    etapes.tout = releve(ctx);
+    out.push({ nom: c.nom, ok: true, famille: f.family, face: c.face || "front",
+      win: [m.wm.x, m.wm.y, m.wm.w, m.wm.h], etapes: etapes });
+  } catch (e) {
+    out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) });
+  }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _painter_js_source() -> str:
+    """Le PEINTRE DE FAMILLE, extrait TEL QUEL : du catalogue à `atCorners`,
+    d'un seul tenant. Aucune réimplémentation — une réimplémentation
+    prouverait la réimplémentation. Le morceau ne contient que des
+    déclarations au niveau du module (mesuré : aucune instruction exécutée à
+    l'évaluation), il s'évalue donc sans `window` ni `CF`."""
+    src = _js()
+    i = src.index("  const FAMILIES = [")
+    fin = _js_fn(src, "atCorners")
+    return src[i:src.index(fin) + len(fin)]
+
+
+def _banc_peintre(tmp_path, cas: list, code: str | None = None) -> list:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du peintre ne peut pas tourner")
+    js = tmp_path / "peintre.js"
+    js.write_text(code if code is not None else _painter_js_source(),
+                  encoding="utf-8")
+    banc = tmp_path / "banc_peintre.mjs"
+    banc.write_text(BANC_PEINTRE, encoding="utf-8")
+    conf = tmp_path / "cas_peintre.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+def _cas_famille(nom, frame, face="front", fmt="poker_eu"):
+    g = _geom_js(fmt, 3)
+    # une cellule de 0,5 mm : la toile fait 69 x 94 mm (rogne + fond perdu)
+    gw = round((CT.FORMATS[fmt]["trim_mm"][0] + 6) / 0.5)
+    gh = round((CT.FORMATS[fmt]["trim_mm"][1] + 6) / 0.5)
+    return {"nom": nom, "g": g, "frame": frame, "face": face,
+            "gw": gw, "gh": gh}
+
+
+def test_chaque_famille_encre_vraiment_la_carte(tmp_path):
+    """LE CONTRÔLE QUI MANQUAIT AUX FAMILLES : des PIXELS, pas des intentions.
+
+    Une entrée de catalogue dont le peintre ne dessine rien rend exactement la
+    même carte qu'une autre — et le seul juge qui existait pour cela était un
+    badge d'écran, donc absent de la suite. Ici chaque famille est rendue par
+    ses VRAIES fonctions (`famProfile`, son `FAM_FN`, `winMoulding`, la
+    plaque) sur une grille de 0,5 mm, et l'on compte les cellules encrées.
+
+    Quatre exigences, chacune une propriété de produit :
+      1. la SIGNATURE de famille encre (sinon l'entrée de menu est un doublon);
+      2. le profil encre l'ANNEAU (la masse que l'œil voit en premier) ;
+      3. l'encre de l'anneau TRAVERSE LE TRAIT DE COUPE et remplit le fond
+         perdu — la correction du tour 4 n'était jusqu'ici épinglée que sur
+         le source (`outerRing` part de la toile) ; ici elle est COMPTÉE,
+         famille par famille, sur la bande de 3 mm qui part du bord de
+         fichier ;
+      4. la plaque du bas ne monte jamais dans l'illustration."""
+    cas = [_cas_famille(f["id"], {"family": f["id"], "rarity": "rare"})
+           for f in FR.FAMILIES]
+    res = _banc_peintre(tmp_path, cas)
+    assert len(res) == len(FR.FAMILIES)
+    zones = {r[0]: r[7] for r in _profile_rows(_js())}
+    for r in res:
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        e = r["etapes"]
+        assert e["signature"]["ops"] >= 1, \
+            f"{r['nom']} : le peintre de famille ne dessine rien"
+        assert e["signature"]["toile"] > 0.0005, \
+            f"{r['nom']} : la signature n'encre aucune cellule"
+        assert e["profil"]["toile"] > 0.02, \
+            f"{r['nom']} : le profil n'encre que {e['profil']['toile']:.4f}"
+        anneau = [e["tout"][k] for k in ("haut", "bas", "gauche", "droite")]
+        assert sum(1 for v in anneau if v > 0.03) >= 3, \
+            f"{r['nom']} : anneau presque vide {anneau}"
+        if zones[r["nom"]] != "vide":
+            assert e["profil"]["perdu"] > 0.6, \
+                f"{r['nom']} : le fond perdu n'est encré qu'à "  \
+                f"{e['profil']['perdu']:.2f} — l'anneau s'arrête à la coupe"
+        assert e["plaque"]["fenetre"] == 0, \
+            f"{r['nom']} : la plaque monte dans l'illustration"
+
+
+def test_la_famille_gravure_encre_le_recto_et_le_dos(tmp_path):
+    """La septième famille, recto ET dos. Le dos « Miroir du recto » passe par
+    la branche `else` de `paintBack`, qui rappelle `famProfile` puis le
+    `FAM_FN` de la famille : si le peintre neuf n'y dessine pas, le dos d'un
+    jeu « gravée » est celui d'une carte sans famille."""
+    src = _js()
+    dos = _js_fn(src, "paintBack")
+    assert "famProfile(ctx, m, f);" in dos and "const fam = FAM_FN[f.family];" \
+        in dos, "la branche miroir de paintBack a changé de forme"
+    hab = dict(FR.ARCHETYPE_FRAMES["gravee"])
+    cas = [_cas_famille("gravure/recto", hab),
+           _cas_famille("gravure/dos", hab, face="back")]
+    res = {r["nom"]: r for r in _banc_peintre(tmp_path, cas)}
+    for nom, r in res.items():
+        assert r["ok"], f"{nom} : {r.get('err')}"
+        assert r["famille"] == "gravure", r
+        e = r["etapes"]
+        assert e["tout"]["toile"] > 0.05, f"{nom} : {e['tout']['toile']:.4f}"
+        for k in ("haut", "bas", "gauche", "droite"):
+            assert e["tout"][k] > 0.05, f"{nom} : anneau {k} vide"
+    recto = res["gravure/recto"]["etapes"]
+    assert recto["signature"]["ops"] >= 4, recto["signature"]
+    assert recto["plaque"]["plaque"] > 0.5, \
+        f"la plaque « cartouche » ne remplit pas sa boîte : {recto['plaque']}"
+    assert recto["moulure"]["toile"] > 0.004, \
+        f"l'aplat de pochoir n'encre rien : {recto['moulure']}"
+
+
+def test_le_banc_du_peintre_rougit_si_une_famille_cesse_de_dessiner(tmp_path):
+    """LE CONTRÔLE NÉGATIF. Un banc qui ne peut pas rougir ne prouve rien : on
+    vide le peintre de la famille neuve et l'encre de sa signature DOIT
+    disparaître. (La mutation est faite sur la copie du banc, jamais sur le
+    dépôt.)"""
+    code = _painter_js_source()
+    i = code.index("function famGravure(")
+    j = code.index("{", i)
+    mut = code[:j + 1] + " return; " + code[j + 1:]
+    cas = [_cas_famille("gravure", dict(FR.ARCHETYPE_FRAMES["gravee"]))]
+    sain = _banc_peintre(tmp_path, cas)[0]
+    mort = _banc_peintre(tmp_path, cas, mut)[0]
+    assert sain["ok"] and mort["ok"], (sain.get("err"), mort.get("err"))
+    assert sain["etapes"]["signature"]["ops"] >= 4
+    assert mort["etapes"]["signature"]["ops"] == 0, \
+        "le peintre vidé dessine encore : le banc ne mesure pas ce qu'il dit"
+    assert mort["etapes"]["signature"]["toile"] == 0
+    assert mort["etapes"]["tout"]["toile"] < sain["etapes"]["tout"]["toile"], \
+        "retirer la signature ne change rien à la carte entière"
+
+
+# ── 15.3 les sept habillages : des données, validées, que T3 importe ─────────
+
+def test_les_sept_archetypes_ont_un_habillage_complet_et_legal():
+    """L'objet de la tâche : pour CHAQUE archétype §6.2, un réglage doc.frame
+    COMPLET — toutes les clés réelles sauf `art_window`, que le peintre publie
+    lui-même et que personne ne saisit à la main.
+
+    C'est cette table que la tâche 3 (models.py) IMPORTE : un modèle qui
+    retaperait les réglages serait une seconde source de vérité, et la
+    première divergence silencieuse serait un deck instancié qui ne ressemble
+    pas à son archétype."""
+    A = FR.ARCHETYPE_FRAMES
+    assert tuple(A) == ARCHETYPES, list(A)
+    cles = set(_js_defaults_keys(_js())) - {"art_window"}
+    fams = {f["id"] for f in FR.FAMILIES}
+    rars = {r["id"] for r in FR.RARITIES}
+    backs = {b["id"] for b in FR.BACKS}
+    corners = {c["id"] for c in FR.CORNERS}
+    metals = {m["id"] for m in FR.METALS}
+    for nom, hab in A.items():
+        assert set(hab) == cles, \
+            f"{nom} : clés manquantes {cles - set(hab)}, " \
+            f"clés inconnues {set(hab) - cles}"
+        assert hab["family"] in fams, f"{nom} : famille {hab['family']!r}"
+        assert hab["rarity"] in rars, f"{nom} : rareté {hab['rarity']!r}"
+        assert hab["back"] in backs, f"{nom} : dos {hab['back']!r}"
+        assert hab["corner"] in corners, f"{nom} : coin {hab['corner']!r}"
+        assert hab["metal_tone"] in metals, f"{nom} : métal {hab['metal_tone']!r}"
+        for k, (lo, hi) in FR.LIMITS.items():
+            if k in hab:
+                assert lo <= hab[k] <= hi, \
+                    f"{nom} : {k} = {hab[k]} hors de [{lo} ; {hi}]"
+        w = hab["window"]
+        assert isinstance(w, dict) and set(w) == {"x", "y", "w", "h", "r"}, \
+            f"{nom} : fenêtre {w!r}"
+        tw, th = CT.FORMATS["poker_eu"]["trim_mm"]
+        assert 0 <= w["x"] and w["x"] + w["w"] <= tw + 1e-9, f"{nom} : {w}"
+        assert 0 <= w["y"] and w["y"] + w["h"] <= th + 1e-9, f"{nom} : {w}"
+        assert FR.LIMITS["win_r_mm"][0] <= w["r"] <= FR.LIMITS["win_r_mm"][1]
+    # la famille NEUVE ne sert qu'à ce qui la demandait ; les six autres
+    # habillages sortent du catalogue déjà livré (la mesure a décidé).
+    neuves = {n for n, h in A.items() if h["family"] == "gravure"}
+    assert neuves == {"gravee"}, neuves
+
+
+def test_les_sept_habillages_rendent_sans_erreur_et_encrent_leur_bande(tmp_path):
+    """Chaque habillage est RENDU par les vrais peintres, recto et dos, et
+    compté : aucune exception (une exception, c'est une ligne de plus dans
+    `cv.cfErrors` sur la carte livrée), et de l'encre là où l'archétype en
+    attend — l'anneau et la plaque de son bas de carte."""
+    cas = []
+    for nom, hab in FR.ARCHETYPE_FRAMES.items():
+        cas.append(_cas_famille(nom, dict(hab)))
+        cas.append(_cas_famille(nom + "/dos", dict(hab), face="back"))
+    res = _banc_peintre(tmp_path, cas)
+    assert len(res) == 2 * len(ARCHETYPES)
+    for r in res:
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        e = r["etapes"]
+        assert e["tout"]["toile"] > 0.02, \
+            f"{r['nom']} : carte presque vide ({e['tout']['toile']:.4f})"
+        if r["nom"].endswith("/dos"):
+            continue
+        assert e["signature"]["ops"] >= 1, \
+            f"{r['nom']} : la famille ne signe rien"
+        anneau = max(e["tout"][k] for k in ("haut", "bas", "gauche", "droite"))
+        assert anneau > 0.1, f"{r['nom']} : anneau vide {anneau:.4f}"
+        if FR.ARCHETYPE_FRAMES[r["nom"]]["plate"]:
+            assert e["plaque"]["plaque"] > 0.5, \
+                f"{r['nom']} : la plaque ne remplit pas sa boîte"
+
+
+def test_les_fenetres_des_archetypes_sont_celles_de_la_spec(tmp_path):
+    """Les zones §6.2 sont la LOI (décision de conception 2) : la fenêtre
+    d'illustration de chaque archétype est celle que la spec écrit en
+    millimètres, et c'est la fenêtre EFFECTIVE du modèle qui le prouve — pas
+    la table de réglages relue à elle-même."""
+    attendu = {                       # spec :323-357, en mm depuis la coupe
+        "superstar": (22, 8, 36, 38),
+        "duel": (4, 13, 55, 31),
+        "creature": (6, 11, 51, 35),
+        "arcane": (5, 9.5, 53, 39),
+        "monstre": (8, 18.5, 47, 47),
+        "gravee": (4, 13, 55, 61),
+    }
+    cas = [_cas_famille(n, dict(FR.ARCHETYPE_FRAMES[n])) for n in attendu]
+    for r in _banc_peintre(tmp_path, cas):
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        got = tuple(round(v, 3) for v in r["win"])
+        assert got == attendu[r["nom"]], f"{r['nom']} : {got}"
+
+
+# ── 15.4 LA QA DE SILHOUETTES : l'arbitre, et son plancher ───────────────────
+
+def test_le_pire_couple_de_silhouettes_reste_au_dessus_du_seuil():
+    """LA QA DE SILHOUETTES EST L'ARBITRE DE TOUTE FAMILLE NOUVELLE, et le
+    seuil ne bouge pas : une famille qui passe sous 4/255 se REDESSINE.
+
+    Les deux chiffres sont mesurés au NAVIGATEUR par le badge du panneau (les
+    vignettes affichées, et la toile livrée rendue par les painters du
+    fichier, six raretés, masque des couches voisines actif) — la suite ne
+    peut pas les recalculer sans un moteur de rendu. Ils sont donc ÉCRITS dans
+    le source, sous une forme relisible, et ce test en fait un PLANCHER :
+    personne ne peut inscrire un pire couple sous le seuil sans que le fichier
+    rougisse, et personne ne peut effacer la mesure.
+
+    Refaire les chiffres : ouvrir le volet « Cadre », l'infobulle du badge
+    « silhouettes » publie les deux surfaces et nomme la paire."""
+    src = _js()
+    assert "const SIL_SEUIL = 4;" in src, "le seuil a bougé"
+    m = re.search(r"MESURE-3A-TOILE\s*=\s*([\d.]+)\s*/255\s*«\s*([^»]+)»", src)
+    assert m, "la mesure 3a sur la toile livrée n'est pas publiée dans le source"
+    v = float(m.group(1))
+    assert v >= 4, f"pire couple {v}/255 sous le seuil ({m.group(2).strip()})"
+    n = re.search(r"MESURE-3A-VIGNETTE\s*=\s*([\d.]+)\s*/255\s*«\s*([^»]+)»", src)
+    assert n, "la mesure 3a sur les vignettes n'est pas publiée"
+    assert float(n.group(1)) >= 4, n.group(0)
+    for pair in (m.group(2), n.group(2)):
+        assert " x " in pair and "«" not in pair, f"paire non nommée : {pair!r}"
