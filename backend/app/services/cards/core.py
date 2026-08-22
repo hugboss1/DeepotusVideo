@@ -20,7 +20,8 @@ Routes (montées sous `/api/cards` par `app/main.py`) :
 
     GET    /formats          catalogue des 12 formats + 3 planches + DPI
     GET    /decks            liste, plus récent d'abord
-    POST   /decks            création
+    POST   /decks            création (corps `{model}` = instanciation)
+    POST   /decks/{did}/duplicate   copie complète, dossier compris
     GET    /{did}            document complet
     PATCH  /{did}            autosave (fusion partielle) — spec 2.2 §10
     DELETE /{did}            suppression
@@ -276,6 +277,30 @@ def patch_deck(did: str, body: dict | None) -> dict | None:
     return write_deck(doc)
 
 
+def duplicate_deck(did: str) -> dict | None:
+    """Copie COMPLÈTE d'un deck : le document ET le dossier (spec §6.4).
+
+    Une duplication copie TOUT, illustrations comprises — c'est
+    « enregistrer comme modèle » qui les exclut. Le dossier d'un deck porte
+    bien plus que `meta.json` : `texture/`, `solid/`, `gltf/`, `forge3d/`, le
+    profil ICC de P7… Copier le seul document aurait rendu un deck qui
+    S'OUVRE et dont la moitié des aperçus manquent, sans un message.
+
+    `copytree` refuse une destination existante, et `new_did` ne rend qu'un
+    identifiant libre : la copie ne peut pas écraser un voisin.
+    """
+    doc = read_deck(did)
+    if doc is None:
+        return None
+    src = deck_dir(did)
+    neuf = new_did()
+    shutil.copytree(src, deck_dir(neuf))
+    doc["id"] = neuf
+    doc["name"] = clean_name(f"copie de {doc['name']}")
+    doc["created"] = doc["updated"] = _now_iso()
+    return write_deck(doc)
+
+
 def delete_deck(did: str) -> bool:
     try:
         d = deck_dir(did)
@@ -343,14 +368,51 @@ async def get_decks():
 
 @router.post("/decks")
 async def post_deck(body: dict | None = None):
-    """Crée un deck. Corps {name?, format?} — tout est facultatif."""
+    """Crée un deck. Corps {name?, format?, model?} — tout est facultatif.
+
+    `model` INSTANCIE un modèle (spec §6.1) : le deck naît habillé, typographié
+    et matiéré, puis il est ORDINAIRE — aucune référence au modèle n'est
+    gardée. L'import de `models` est TARDIF, et c'est nécessaire : `models.py`
+    importe CE fichier (il a besoin du magasin de decks), et `cards/__init__`
+    charge `core` en premier. Un import en tête de module ferait un cycle.
+    """
     body = body if isinstance(body, dict) else {}
+    modele = body.get("model")
+    if modele not in (None, ""):
+        from .models import instancier
+        try:
+            doc = await asyncio.to_thread(instancier, modele, body.get("name"))
+        except KeyError:
+            raise HTTPException(
+                404, f"Modèle inconnu : « {modele} » — la liste est servie "
+                     "par GET /api/cards/models")
+        except ValueError as e:
+            raise HTTPException(400, f"Modèle illisible : {e}")
+        except OSError as e:
+            logger.exception("cards: instanciation de modèle impossible")
+            raise HTTPException(500, f"Création du deck impossible: {e}")
+        return {"deck": doc}
     try:
         doc = await asyncio.to_thread(create_deck, body.get("name") or "Mon jeu",
                                       body.get("format"))
     except OSError as e:
         logger.exception("cards: création de deck impossible")
         raise HTTPException(500, f"Création du deck impossible: {e}")
+    return {"deck": doc}
+
+
+@router.post("/decks/{did}/duplicate")
+async def duplicate_deck_route(did: str):
+    """Duplique un deck, dossier compris (spec §6.4). Trois segments : aucune
+    chance de tomber dans le joker `/{did}`, qui n'en apparie qu'un."""
+    _deck_or_404(did)
+    try:
+        doc = await asyncio.to_thread(duplicate_deck, did)
+    except OSError as e:
+        logger.exception("cards: duplication impossible")
+        raise HTTPException(500, f"Duplication du deck impossible: {e}")
+    if doc is None:
+        raise HTTPException(404, "Deck introuvable")
     return {"deck": doc}
 
 

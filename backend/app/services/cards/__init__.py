@@ -10,8 +10,9 @@ Chaque pièce a son fichier ; ici on ne fait que les brancher.
 
 Assemblage (règle 8 de la spec) :
 
+    /api/cards/models             CORE   (models.py) modèles d'usine + perso
     /api/cards/formats            CORE   (core.py)
-    /api/cards/decks              CORE
+    /api/cards/decks              CORE   création, instanciation, duplication
     /api/cards/{did}              CORE   document, autosave, suppression
     /api/cards/{did}/geom         CORE   géométrie
     /api/cards/{did}/face/…       P1     face.py
@@ -37,6 +38,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from . import core
 from . import face, frame, data, solid, texture, gltf, forge3d
+from . import models
 from . import type as type_mod
 from . import print as print_mod
 
@@ -44,7 +46,14 @@ __all__ = ["router"]
 
 router = APIRouter()
 
-# CORE en premier : /formats et /decks avant le joker /{did}.
+# LES MODÈLES AVANT CORE. `/models` est UN SEGMENT : inclus après `core`, il
+# tomberait dans le joker `/{did}` de core.py — Starlette apparie dans l'ordre
+# de déclaration — et GET /api/cards/models répondrait « identifiant de deck
+# invalide ». L'inverse est sans risque : `models.py` ne déclare que /models,
+# il ne peut masquer ni /formats, ni /decks, ni un did.
+router.include_router(models.router, tags=["cards:models"])
+
+# CORE ensuite : /formats et /decks avant le joker /{did}.
 router.include_router(core.router, tags=["cards"])
 
 router.include_router(face.router, prefix="/{did}/face", tags=["cards:face"])
