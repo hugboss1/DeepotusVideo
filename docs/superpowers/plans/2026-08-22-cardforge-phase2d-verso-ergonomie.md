@@ -121,6 +121,25 @@ test_cards_forge3d.py.
       `_node_trs` compose `R_y(π)` et NÉGATIVISE les z pour les chaînes back ;
       relief back extrude vers −z (par la rotation, pas par un maillage
       neuf) ; mesh3d back : même fit, même flip.
+
+> **CLOSE (T1 — 368525d→1b6eb37 + ronde 78dd437/f10b355, revue adverse
+> GÉOMÉTRIQUE : géométrie JUSTE, filet réparé).** La revue a mesuré (pas lu) :
+> superposition exacte sur 6 formats, 721 angles à 4,4e-16 de l'analytique,
+> les TROIS sorties d'accord à ≤3,6e-6 mm, volume STL signé identique
+> recto/verso, recto au sha256 IDENTIQUE sur 4 sorties. FIX-FIRST tenait au
+> filet : l'ORDRE de la sortie STL n'était épinglé qu'à rot=0 (mutant
+> flip-avant-rotation : 102/102 vert, pièce imprimée à 52,96 mm de l'aperçu)
+> — désormais épinglé contre le GLB de la MÊME construction à 37° ; le
+> jumeau recto garde la faute de pivot (l'accord STL↔GLB ne peut pas la
+> voir : le pivot vit dans la translation PARTAGÉE). M2 : la justification
+> du déplacement 90°→30° était FAUSSE (séparation des ordres = 2·|sin d|,
+> dégénérée à 0/180, MAXIMALE à 90) — docstring corrigée, l'erreur reste
+> dans l'historique et est dite ici. M3 : les homonymes recto/verso
+> (`cadre`/`cadre.001` dans Blender) → `nom_element()` une-règle-deux-appels,
+> suffixe `_verso` nœud+mesh+matériau + `side` au bordereau, recto
+> octet-identique re-prouvé. N4 : tolérance d'empreinte EXERCÉE
+> (paramétrage poker_eu+jumbo, résidu float32 1,5 nm réel). 104 tests,
+> 4 mutants de ronde tués + contrôle inerte. N7/N8 consignés (pré-existants).
 - [x] Mutation : quat Y remplacé par X (le verso se retourne tête-bêche → la
       lisibilité rougit), signe du z oublié (chevauchement des piles),
       rot_deg composé dans le mauvais ordre.
