@@ -4356,9 +4356,14 @@ def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
         DROITE DE CELUI QUI REGARDE cette face) ; z_mm=1 empile vers +z au
         recto, vers -z au verso. Les valeurs postees restent >= 0 : le SIGNE
         appartient a la regle de cote, aucune borne ne bouge.
-      · rot_deg=+90 tourne du MEME angle vu de sa propre face — c'est la
-        DEFINITION du WYSIWYG, et c'est ce qui epingle l'ORDRE de composition
-        R_y(pi) o R_z(rot_deg) : l'ordre inverse ferait voir -90 au verso.
+      · rot_deg tourne du MEME angle vu de sa propre face — c'est la DEFINITION
+        du WYSIWYG, et c'est ce qui epingle l'ORDRE de composition
+        R_y(pi) o R_z(rot_deg) : l'ordre inverse ferait voir -rot_deg au verso.
+        L'ANGLE EST 30 ET PAS 90, ET C'EST DELIBERE : a 90 degres « la droite
+        de l'image » tombe sur +y monde des DEUX cotes (le x s'annule), le
+        retournement du signe n'a plus rien a retourner et la mesure ne
+        distingue plus les deux ordres — un angle oblique, lui, separe
+        (+54,56 / +31,5) de (-54,56 / -31,5).
       · le quaternion du noeud verso est relu tel quel dans les octets :
         (sin(d/2), cos(d/2), 0, 0) — un demi-tour autour d'un axe du plan XY."""
     did = _deck("Transform verso")
@@ -4366,7 +4371,7 @@ def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
     tr = {"kind": "transform", "x_mm": 5.0, "y_mm": 0.0, "z_mm": 1.0,
           "rot_deg": 0.0, "scale": 1.0}
     rot = {"kind": "transform", "x_mm": 0.0, "y_mm": 0.0, "z_mm": 0.0,
-           "rot_deg": 90.0, "scale": 1.0}
+           "rot_deg": 30.0, "scale": 1.0}
     g = {"nodes": [
         {"id": "sf", "kind": "layer", "role": "cadre", "side": "front"},
         {"id": "pf", "kind": "plane", "depth_mm": 0.0},
@@ -4406,10 +4411,17 @@ def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
     assert c_ver[2] == pytest.approx(-0.001, abs=1e-12)
 
     # rot_deg : le MEME angle vu de sa propre face — WYSIWYG prouve, pas cru
-    assert _angle_vu_de_sa_face(els[2], verso=False) == pytest.approx(90.0,
+    assert _angle_vu_de_sa_face(els[2], verso=False) == pytest.approx(30.0,
                                                                       abs=1e-4)
-    assert _angle_vu_de_sa_face(els[3], verso=True) == pytest.approx(90.0,
+    assert _angle_vu_de_sa_face(els[3], verso=True) == pytest.approx(30.0,
                                                                      abs=1e-4)
+    # ... et le vecteur BRUT, en clair, pour que la separation des deux ordres
+    #     de composition se lise sans trigonometrie : x oppose, y IDENTIQUE.
+    d_rec = _sens_image_droite(els[2])
+    d_ver = _sens_image_droite(els[3])
+    assert d_ver[0] == pytest.approx(-d_rec[0], abs=1e-9), (d_rec, d_ver)
+    assert d_ver[1] == pytest.approx(d_rec[1], abs=1e-9), (d_rec, d_ver)
+    assert d_rec[1] > 0.4, d_rec          # oblique : le y ne s'annule PAS
     # ... et la meme chose a 0 degre, sur les deux premieres chaines
     assert _angle_vu_de_sa_face(els[0], verso=False) == pytest.approx(0.0,
                                                                       abs=1e-4)
@@ -4418,7 +4430,7 @@ def test_le_transform_verso_pousse_dans_le_plan_de_la_face_regardee():
     # le quaternion, dans les octets : demi-tour autour d'un axe du plan XY
     doc, _ = _read_glb(glb)
     racine = doc["nodes"][doc["scenes"][0]["nodes"][0]]
-    d2 = math.radians(90.0) / 2.0
+    d2 = math.radians(30.0) / 2.0
     q_ver = doc["nodes"][racine["children"][3]]["rotation"]
     assert q_ver == pytest.approx([math.sin(d2), math.cos(d2), 0.0, 0.0],
                                  abs=1e-12), q_ver
