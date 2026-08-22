@@ -149,7 +149,34 @@ test_cards_forge3d.py.
 
 ### Task 3 : core — rail et colonne carte escamotables
 
-**Files:** core.js, cardforge.css, index.html (2 boutons), qa/test_core_contract.mjs (pins), qa/contract.html si un ancrage manque.
+**Files:** core.js, cardforge.css, index.html (1 bouton — voir note), qa/test_core_contract.mjs (pins), qa/contract.html si un ancrage manque.
+
+> **Amendé (T3)** : le plan disait « index.html (2 boutons) » — FAUX pour le
+> rail : `buildRail()` fait `rail.innerHTML = ""` à chaque rendu, un bouton
+> statique y serait effacé au premier `show()`. Le chevron du rail se crée
+> DANS `buildRail` (patron maison : tout le rail est construit en JS, classe
+> `rail-fold` et PAS `rail-item` — `syncPanels` balaie `.rail-item` pour
+> marquer la pièce active, replier n'est pas choisir) ; seul le chevron de la
+> colonne carte est statique dans index.html (patron `.stage-head` :
+> `guidesBtn`/`sideBtn`/`shotBtn`), câblé dans `wireStage`.
+
+> **CLOSE (T3 — 683876a + de49bfd, revue combinée : MERGEABLE AS-IS).**
+> Largeurs repliées 46 px (rail, numéro-sur-icône) / 36 px (carte, contenu
+> DÉMONTÉ + libellé vertical), clés `dz_cf_rail`/`dz_cf_stage` (« 1 » replié,
+> ABSENTE dépliée — l'état par défaut n'écrit jamais), `initFold` AVANT
+> `buildRail` (aucun éclair — core.js chargé synchrone, boot à
+> DOMContentLoaded, avant la première peinture), rouvrir rejoue
+> `drawPreview(false)` (patron du thème — mesuré : toile 59×80 repliée →
+> 181×246 rouverte). **Guerre media-query tranchée : replié GAGNE** — la
+> requête ≤900 px re-déclare des VARIABLES sur `:root` au lieu de figer la
+> grille, et une variable posée sur `.cf` la bat pour son sous-arbre (mesuré
+> à 418 px de viewport : `46px 36px …`). Le réviseur a re-vérifié jusqu'au
+> vivant : `.click()` de mod-data fonctionne sur bouton masqué, géométrie de
+> mod-face lue en direct dans les handlers (jamais cachée), registre CF gelé
+> intouché, parité d'octets repo↔app sur les 4 fichiers déployés, batterie
+> 58 ok dont 9 pins d'escamotage, aria/titres dans les deux sens, `removeItem`
+> et jamais « 0 ». 2 mutants tués + contrôle assumé (les PIXELS repliés se
+> jugent à l'œil, le harnais reste aveugle à la géométrie — display:none).
 
 - [ ] Patron shell.jsx transposé vanilla : bouton chevron dans `.rail` (bas ou
       tête) → classe `rail-replie` sur `.cf` → `--rail-w` étroit (~46px,
