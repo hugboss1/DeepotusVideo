@@ -224,9 +224,23 @@ test_cards_forge3d.py.
 > **Amendé (T2, à l'implémentation) — la prémisse du point « bordereau » était
 > FAUSSE.** Le plan disait « les éléments arrivent nommés `role_verso` — la vue
 > liste pourrait afficher « cadre · verso » au lieu du brut `cadre_verso` ».
-> Le suffixe `_verso` est **BACKEND SEUL** (`forge3d_apercu.nom_element`, M3) :
-> il ne rentre JAMAIS dans le graphe, donc aucun libellé d'écran n'a de
-> démanglage à faire. Deux conséquences, mesurées :
+> Le suffixe `_verso` du BACKEND (`forge3d_apercu.nom_element`, M3) ne descend
+> pas dans le graphe : aucun **libellé de couche** ne le reçoit, donc aucun n'a
+> de démanglage à faire.
+>
+> > **Corrigé (ronde de revue, N1) — la première rédaction de cet amendement
+> > disait « il ne rentre JAMAIS dans le graphe », et c'était FAUX de ma propre
+> > main** : `naitCouche` écrit désormais un `_verso` dans l'**id** d'un nœud
+> > verso, et cet id est surfacé deux fois (l'info-bulle `title=` de l'en-tête,
+> > la colonne `node` du bordereau). C'est un choix délibéré — il rend le
+> > graphe lisible là où `freeId` donnait `cadre2` — mais la phrase absolue
+> > était contredite par le code qu'elle accompagnait. La formulation juste :
+> > le suffixe du backend ne franchit pas la frontière ; l'écran, lui, en pose
+> > un À LUI dans les ids, et jamais dans un libellé. La conclusion ci-dessous
+> > ne bouge pas d'un mot (`noeudTitre` lit `role`+`side`, jamais l'id ;
+> > `d.name` reste brut).
+>
+> Deux conséquences, mesurées :
 > · la vue **liste** avait bien un défaut, mais l'inverse de celui décrit —
 >   elle écrivait `layer.role` NU (`cadre`), donc deux rangs homonymes que seul
 >   un `<select>` à l'autre bout de la ligne distinguait. Corrigé en réutilisant
@@ -260,6 +274,58 @@ test_cards_forge3d.py.
 > Le mutant « bloc verso collé » a d'abord SURVÉCU au banc : la mesure
 > comparait les HAUTS de nœuds (294 px d'écart apparent) au lieu du BAS réel du
 > bloc recto (26 px, une gouttiere de rang) — corrigé, il meurt à 26 contre 80.
+
+> **Ronde de revue adverse (T2) — VERDICT FIX-FIRST, et le sérieux était une
+> COURSE.** 105 tests (inchangé), banc 127 → **147 cas**, 8 mutants tués +
+> témoin inerte survivant.
+>
+> · **S1, le seul sérieux — la branche verso de l'export n'avait AUCUNE
+>   garde.** Le rail n'est pas désactivé pendant l'envoi : le recto d'une carte
+>   A est posé, son verso part (sept PNG, plusieurs secondes), l'utilisateur
+>   clique la carte suivante, `cardChanged` charge B — puis la réponse verso
+>   d'A s'écrit **sans condition**. Trio « recto B, verso A, étiquette c02 »,
+>   et comme les étiquettes concordent `cardChanged` ne purge plus JAMAIS.
+>   Mesuré au banc sur les VRAIES fonctions (`exportLayers` + `chargeManifeste`
+>   + `cardChanged`, seuls le transport et le rail pilotés) : sans la garde, la
+>   palette offre **six couches fantômes** de la carte A sous la carte B et la
+>   note du verso manquant disparaît. C'est le défaut C1 une variable plus
+>   loin, la DEUXIÈME fois dans cette famille — d'où l'asymétrie écrite au
+>   code : le recto porte SA carte (il ré-étiquette, donc une réponse rassie se
+>   répare seule), le verso n'a aucune étiquette à lui.
+> · **M2 — la libération du recto n'était tenue par rien** (la supprimer
+>   laissait 105/105 vert). Le jumeau est au banc : exporter le recto d'une
+>   AUTRE carte doit lâcher le verso resté en mémoire.
+> · **M1 — le plancher de `poseBloc` était la grille FANTÔME.** `bas[x]` est la
+>   cascade théorique ; `out[n.id]` reçoit la position SAUVÉE. Après un
+>   rangement utilisateur, le bloc verso démarrait au-dessus d'un rang recto
+>   traîné vers le bas — chevauchements mesurés. Le plancher se prend
+>   désormais APRÈS l'écriture, sur la position réelle. Layout recto seul
+>   toujours octet-identique (le plancher n'est même pas lu sans verso).
+> · **M3 — le banc visait la mauvaise fonction.** Il interrogeait
+>   `bordereauHtml`, qui ne lit ni `d.name` ni `d.side` (sortie octet-identique
+>   avec `name: undefined`). La liste des éléments — le SEUL endroit où
+>   `d.name` atteint l'écran — était peinte en ligne dans `paintArtifact` :
+>   extraite en `elementsHtml`, bâtisseur pur, une seule écriture du balisage.
+>   Un mutant y a encore survécu (concaténer `d.side` : `esc(undefined)` rend
+>   `""`, donc pas d'« undefined » — juste une ligne recto qui FINIT par un
+>   séparateur) ; le cas mesure désormais la FORME, pas l'absence d'un mot.
+> · **M4 — le suffixe `_verso` des ids n'était épinglé nulle part** (le
+>   remplacer par le rôle nu laissait tout vert). Au banc.
+> · **N3 — `{layers: []}` est truthy** : un manifeste verso vide faisait
+>   disparaître la note en n'offrant rien. `aDesCouches` pose la vraie
+>   question (« y a-t-il un verso À OFFRIR »), et le seed n'en tire aucune
+>   paire.
+> · **N4 — le plancher du pin (≥ 40) ne disait pas la même chose que la raison
+>   écrite à côté** (un mutant à 41 px survivait, soit 14 px au zoom plancher :
+>   un rang ordinaire). Pin et commentaire disent maintenant la même barre :
+>   ≥ 2,5 `RANG_GAP`, soit ≥ 64 px de monde / 23 px vus.
+> · **N5, CONSIGNÉ (hors périmètre)** : un SECOND maillon `material` posé à la
+>   main sur une chaîne verso (donc surnuméraire) n'hérite pas du côté à
+>   l'arrangement — `cotesDesNoeuds` suit `rowsDe`, qui ne rend que le premier
+>   maillon de chaque type. C'est COHÉRENT avec la résolution du backend (le
+>   surnuméraire finit dans `ignored` : il n'est pas construit, donc il n'a pas
+>   de face), et à peine atteignable — la palette refuse de le faire naître,
+>   seul un fil tiré à la main y mène. Non corrigé, dit ici.
 
 ### Task 3 : core — rail et colonne carte escamotables
 
