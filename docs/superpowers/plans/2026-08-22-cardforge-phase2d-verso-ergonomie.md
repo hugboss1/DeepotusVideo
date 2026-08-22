@@ -462,6 +462,30 @@ test_cards_forge3d.py.
 > Aucun octet de feuille : `.hidden { display: none !important }` est déjà
 > global (`cardforge.css:35`, fichier T3 — non touché).
 
+> **CLOSE (T4 — eaf0887/e017409/3f2c7d0, revue : MERGEABLE AS-IS).** La
+> décision documentée dans le BON sens : la garde couvre LES DEUX sections,
+> parce qu'un graphe sans nœud artefact SE CONSTRUIT (forge3d.py:1364-1366
+> replie sur « artefact » — vérifié par le réviseur en traçant chaque usage
+> d'art_name : pur nom de fichier, jamais une porte) — masquer « Construire »
+> sans condition aurait retiré à l'écran une action que le serveur accepte.
+> Invariant STRUCTUREL : hoteApercu DÉRIVE de sectionsBasses (le viewer ne se
+> monte jamais dans un cadre masqué — l'enjeu : display:none → pas de load →
+> FIGE_PRET faux → figer verrouillé en silence). Le réviseur a exécuté les
+> vraies fonctions de bout en bout (24/24, y compris annuler le seed EN
+> RESTANT sur canvas : re-révélation dans la même peinture, le chemin
+> undoGraph→paintVue→paintCanvas!graph retracé) et re-vérifié 3 mutants par
+> ré-implémentation indépendante — dont M2 qui SURVIT au pin de source mais
+> meurt au harnais exécutable : les deux couches de test sont complémentaires,
+> pas redondantes. 106 tests, banc 154 cas, 8/8 mutants + contrôle.
+> *Consigné, non corrigé (cosmétique auto-guérissant)* : annuler jusqu'au
+> graphe vide en vue canvas laisse la note « monté dans le nœud artefact »
+> périmée dans la section révélée et le viewer orphelin JUSQU'À la prochaine
+> bascule de vue (freezePreview garde sur MV.isConnected → toast honnête).
+> *Corrigé au plan* : la note de livraison sur-affirmait « toast ET
+> bordereau » pour chaque écriture masquée — le succès de build3d n'est
+> doublé QUE par repeintLeBordereau (la garantie de fond — miroir visible
+> dans le nœud, rien de muet — tient).
+
 ### Task 5 : intégration 2d
 
 - [ ] Suite `-Filter cards` 10/10, lint intégral 0, `--geom`, `node --check`.
