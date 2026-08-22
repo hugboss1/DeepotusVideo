@@ -5823,7 +5823,19 @@ def test_l_inspecteur_est_unique_et_l_artefact_rend_dans_son_noeud():
     mp = rendu.split("async function mountPreview(")[1].split("\n  }")[0]
     assert "hoteApercu(" in mp or "hote" in mp, mp
     ha = rendu.split("function hoteApercu(")[1].split("\n  }")[0]
-    assert "cf-forge3d-art-view" in ha, ha
+    # AMENDE A LA SOURCE (2d Task 4) — ce pin lisait le SELECTEUR literal
+    # `cf-forge3d-art-view` DANS `hoteApercu`. La 2d l'a deplace dans
+    # `hoteArtefactCanvas`, l'unique recherche du module, parce que la regle de
+    # masquage des sections basses avait besoin de la MEME reponse : deux
+    # copies auraient diverge, et leur divergence a un nom precis (un viewer
+    # monte dans une section masquee). Le pin mesurait donc le VOCABULAIRE,
+    # pas la propriete — meme lecon que M8 en 2c. La PROPRIETE (« l'hote est
+    # le nœud artefact quand il existe, la section sinon ») est desormais
+    # mesuree au banc, sur les quatre etats possibles, et l'invariant
+    # « jamais dans un cadre masque » l'est avec elle.
+    assert "hoteArtefactCanvas(" in ha, ha
+    hac = rendu.split("function hoteArtefactCanvas(")[1].split("\n  }")[0]
+    assert "cf-forge3d-art-view" in hac, hac
     # RONDE DE CORRECTION 2c-T5 (M5) : « figer » suit la SCENE, pas l'URL. Le
     # drapeau est BAISSE au montage — et avant `src`, sinon un `load` immediat
     # releverait celui qu'on s'apprete a baisser — et RELEVE par le seul
@@ -6100,6 +6112,87 @@ def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
     feuille = CSS.read_text(encoding="utf-8")
     note = re.search(r"\.cf-forge3d \.cf-forge3d-pal-note \{([^}]*)\}", feuille)
     assert note and "100%" in note.group(1), feuille
+
+
+def test_la_vue_canvas_se_suffit_et_ne_rend_rien_inatteignable():
+    """Test de SOURCE (2d, Task 4) : en vue canvas, « Construire » et
+    « Aperçu » sont MASQUEES — le nœud artefact porte deja tout ce qu'elles
+    portent (nom, Construire, figer, bordereau, viewer ; spec 5.6 : le
+    resultat vit la ou vit l'action qui le produit). Ce qui est epingle ici :
+
+      · LA DECISION EST UNE FONCTION PURE (`sectionsBasses`), pas un
+        `classList.toggle` disperse : deux entrees (la vue, la presence d'un
+        hote artefact), deux reponses ;
+      · LA GARDE — sans hote artefact, les DEUX sections reviennent, parce que
+        les deux fonctions redeviennent INATTEIGNABLES (la section « Apercu »
+        est le seul hote du viewer ; « Construire » est le seul bouton de
+        construction, et un graphe SANS nœud artefact se construit tres bien —
+        le backend retombe sur le nom « artefact ») ;
+      · L'INVARIANT EST STRUCTUREL : `hoteApercu` DERIVE de `sectionsBasses`,
+        donc le viewer ne peut pas se monter dans un cadre masque — ce n'est
+        pas une promesse de commentaire, c'est la meme expression lue une fois ;
+      · LE POINT DE REEVALUATION : `paintCanvas` aussi, pas seulement
+        `paintVue` — l'hote artefact apparait et disparait SANS changement de
+        vue (un semis, une annulation)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # ── LES DEUX SECTIONS SONT ADRESSABLES ───────────────────────────────
+    sh = rendu.split("function shell(")[1].split("\n  }")[0]
+    for sid in ('id="cf-forge3d-sec-build"', 'id="cf-forge3d-sec-apercu"'):
+        assert sid in sh, (sid, sh)
+    # ... et l'id est bien pose sur la SECTION, pas sur un enfant : c'est elle
+    # qui porte le cadre, le titre et le contenu — masquer l'interieur
+    # laisserait une carte vide, ce qui est exactement le defaut a corriger.
+    for sid, titre in (("cf-forge3d-sec-build", "Construire"),
+                       ("cf-forge3d-sec-apercu", "Aper")):
+        m = re.search(r"<section class=\"cf-forge3d-card\" id=\"" + sid + r"\"",
+                      sh)
+        assert m, (sid, sh)
+        assert titre in sh[m.end():m.end() + 260], (sid, sh[m.end():m.end() + 260])
+    # ── LA DECISION EST PURE ─────────────────────────────────────────────
+    assert "function sectionsBasses(" in rendu, rendu
+    sb = rendu.split("function sectionsBasses(")[1].split("\n  }")[0]
+    # elle ne touche AUCUN DOM : une decision qui peint n'est plus mesurable
+    for interdit in ("$(", "document", "classList", "innerHTML"):
+        assert interdit not in sb, (interdit, sb)
+    assert "construire" in sb and "apercu" in sb, sb
+    # ── LE PEINTRE : les DEUX ids, la classe `hidden`, et rien d'autre ───
+    mj = rendu.split("function majSectionsBasses(")[1].split("\n  }")[0]
+    assert "sectionsBasses(" in mj, mj
+    for sid in ("#cf-forge3d-sec-build", "#cf-forge3d-sec-apercu"):
+        assert sid in mj, (sid, mj)
+    assert mj.count('toggle("hidden"') == 2, mj
+    # ── L'INVARIANT STRUCTUREL : le viewer ne se monte pas dans un masque ─
+    ha = rendu.split("function hoteApercu(")[1].split("\n  }")[0]
+    assert "sectionsBasses(" in ha, ha
+    assert "hoteArtefactCanvas(" in ha, ha
+    # ... et la recherche de l'hote n'existe QU'UNE fois (deux copies auraient
+    # diverge, et leur divergence a un nom : un viewer dans un cadre masque).
+    assert rendu.count('querySelector(".cf-forge3d-art-view")') == 1, \
+        rendu.count('querySelector(".cf-forge3d-art-view")')
+    # ── LES DEUX POINTS DE REEVALUATION ──────────────────────────────────
+    pv = rendu.split("function paintVue(")[1].split("\n  }")[0]
+    assert "majSectionsBasses(" in pv, pv
+    # ... AVANT `remonteApercu` : monter le viewer dans une section encore
+    # masquee le laisserait sans evenement `load` (donc « figer » verrouille
+    # pour toujours). L'ordre EST le correctif.
+    assert pv.index("majSectionsBasses(") < pv.index("remonteApercu("), pv
+    pc = rendu.split("function paintCanvas(")[1].split("\n  }")[0]
+    # LES DEUX CHEMINS DE `paintCanvas`, SEPAREMENT — et c'est un mutant
+    # SURVIVANT qui l'a exige : un pin porte sur la fonction ENTIERE reste vert
+    # quand le chemin PRINCIPAL perd son rappel, parce que celui du chemin
+    # « pas de graphe » est plus haut dans le texte et satisfait a la fois la
+    # presence ET l'ordre. Or c'est le chemin principal qui compte le plus :
+    # c'est lui qui voit le nœud artefact APPARAITRE (un semis).
+    sansGraphe = pc.split("if (!graph) {")[1].split("return;")[0]
+    assert "majSectionsBasses(" in sansGraphe, sansGraphe
+    principal = pc.split('if (vide) vide.innerHTML = "";')[1]
+    assert "majSectionsBasses(" in principal, principal
+    assert principal.index("majSectionsBasses(") \
+        < principal.index("remonteApercu("), principal
+    # ── `majSectionApercu` N'A PAS BOUGE (il ne parle qu'en vue liste) ───
+    ma = rendu.split("function majSectionApercu(")[1].split("\n  }")[0]
+    assert "#cf-forge3d-view" in ma and "sectionsBasses" not in ma, ma
 
 
 # ── LE HARNAIS DE CHAINES (2c Task 4) ────────────────────────────────────
@@ -7241,6 +7334,78 @@ INFO = INFO0; ARTIFACT = null; LAST_MANIFEST = null; MANIFEST_BACK = null;
 DOC_GRAPH = NU; PAL.role = ""; SEL = null;
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   22. LA VUE CANVAS SE SUFFIT (2d Task 4)
+   « Construire » et « Apercu » sont les deux dernieres cartes de l'ecran ;
+   depuis la 2c le nœud artefact porte EXACTEMENT ce qu'elles portent. En vue
+   canvas elles font donc double emploi — sauf quand il n'y a pas de nœud
+   artefact, et la elles redeviennent le SEUL chemin vers leurs deux fonctions.
+   ═══════════════════════════════════════════════════════════════════════════ */
+const VUE_AVANT = VUE;
+const ART = { faux: "art-view" };
+
+/* 22a. LA TABLE DE DECISION, aux quatre etats possibles */
+dit("canvas + nœud artefact : les DEUX sections basses sont masquees",
+    !sectionsBasses("canvas", ART).construire
+    && !sectionsBasses("canvas", ART).apercu,
+    J(sectionsBasses("canvas", ART)));
+dit("canvas SANS nœud artefact : les DEUX reviennent (chacune redevient le "
+    + "SEUL chemin vers sa fonction)",
+    sectionsBasses("canvas", null).construire
+    && sectionsBasses("canvas", null).apercu,
+    J(sectionsBasses("canvas", null)));
+dit("vue LISTE : tout revient, avec ou sans nœud artefact",
+    sectionsBasses("liste", ART).construire
+    && sectionsBasses("liste", ART).apercu
+    && sectionsBasses("liste", null).construire
+    && sectionsBasses("liste", null).apercu,
+    J([sectionsBasses("liste", ART), sectionsBasses("liste", null)]));
+
+/* 22b. L'INVARIANT QUI COMPTE — et il est STRUCTUREL, pas promis : la section
+        « Apercu » est l'hote du viewer EXACTEMENT quand elle est visible. Un
+        viewer monte dans un cadre en `display:none` ne recoit jamais son
+        evenement `load`, donc `FIGE_PRET` reste faux et « figer » reste
+        verrouille pour toujours — une panne muette, la pire espece. */
+let invariantOk = true;
+const ETATS_T4 = [];
+["canvas", "liste"].forEach((v) => {
+  [null, ART].forEach((h) => {
+    VUE = v;
+    ART_HOTE = h;
+    const vis = sectionsBasses(v, hoteArtefactCanvas());
+    const dansLaSection = (hoteApercu() === DOM["#cf-forge3d-view"]);
+    ETATS_T4.push(v + "/" + (h ? "artefact" : "sans") + " : hote="
+               + (dansLaSection ? "section" : "nœud") + " visible="
+               + vis.apercu);
+    if (dansLaSection !== vis.apercu) invariantOk = false;
+  });
+});
+dit("INVARIANT : la section « Apercu » heberge le viewer EXACTEMENT quand "
+    + "elle est visible — le viewer ne se monte JAMAIS dans un cadre masque",
+    invariantOk, J(ETATS_T4));
+
+/* 22c. LE PEINTRE POSE BIEN LA CLASSE SUR LES DEUX SECTIONS */
+VUE = "canvas";
+ART_HOTE = ART;
+CLASSES.build = null; CLASSES.apercu = null;
+majSectionsBasses();
+dit("en canvas avec artefact, le peintre MASQUE les deux sections",
+    J(CLASSES.build) === J(["hidden", true])
+    && J(CLASSES.apercu) === J(["hidden", true]), J(CLASSES));
+ART_HOTE = null;
+majSectionsBasses();
+dit("... et l'artefact disparu (annulation du semis) les REMONTRE, sans "
+    + "changer de vue", J(CLASSES.build) === J(["hidden", false])
+    && J(CLASSES.apercu) === J(["hidden", false]), J(CLASSES));
+VUE = "liste";
+ART_HOTE = ART;
+majSectionsBasses();
+dit("... et la bascule vers la liste les remontre aussi",
+    J(CLASSES.build) === J(["hidden", false])
+    && J(CLASSES.apercu) === J(["hidden", false]), J(CLASSES));
+VUE = VUE_AVANT;
+ART_HOTE = null;
+
+/* ═══════════════════════════════════════════════════════════════════════════
    21. S1 (ronde de revue 2d-T2) — LA COURSE DE L'EXPORT VERSO
    L'export part en DEUX temps et le rail N'EST PAS desactive pendant l'envoi :
    le recto d'une carte A est deja pose quand son verso (sept PNG, plusieurs
@@ -7475,10 +7640,29 @@ function get(k) {
   if (k === "layout") return DOC_LAYOUT;
   return null;
 }
-/* LES DEUX SEULS NŒUDS DE DOM QUE L'EXPORT TOUCHE : sa zone d'etat et son
-   bouton. Tout le reste rend `null` — les peintres s'arretent d'eux-memes. */
+/* LES SEULS NŒUDS DE DOM QUE CE BANC TOUCHE : la zone d'etat de l'export et
+   son bouton, plus (2d T4) la surface du canvas, la section « Apercu » et les
+   deux sections basses. Tout le reste rend `null` — les peintres s'arretent
+   d'eux-memes.
+   `ART_HOTE` est l'hote artefact du canvas, PILOTE : c'est lui qui existe ou
+   non selon qu'un nœud artefact est peint. */
+let ART_HOTE = null;
+const CLASSES = { build: null, apercu: null };
+const fausseSection = (cle) => ({
+  classList: { toggle: (c, on) => { CLASSES[cle] = [String(c), !!on]; } },
+});
 const DOM = { "#cf-forge3d-status": { textContent: "" },
-              "#cf-forge3d-export": { disabled: false } };
+              "#cf-forge3d-export": { disabled: false },
+              "#cf-forge3d-view": { innerHTML: "", __nom: "section-apercu" },
+              "#cf-forge3d-sec-build": fausseSection("build"),
+              "#cf-forge3d-sec-apercu": fausseSection("apercu"),
+              "#cf-forge3d-canvas": {
+                querySelector: (s) => ((s === ".cf-forge3d-art-view")
+                                       ? ART_HOTE : null),
+                /* `marqueSel` balaie les nœuds peints : il n'y en a aucun ici,
+                   et rendre un tableau vide est la reponse JUSTE. */
+                querySelectorAll: () => [],
+              } };
 function $(sel) {
   SELECTEURS.push(String(sel));
   if (sel === "#cf-forge3d-insp-view") return INSP_VIEW_EL;
@@ -7591,7 +7775,12 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # transport et la position du rail sont pilotes.
                 "cardLabel", "litManifeste", "chargeManifeste",
                 "refreshManifest", "oublieLesJobs", "cardChanged",
-                "exportLayers"):
+                "exportLayers",
+                # 2d T4 : la vue canvas se suffit. La DECISION est pure, donc
+                # elle se mesure ; l'invariant « le viewer ne se monte jamais
+                # dans un cadre masque » se mesure sur les DEUX ensemble.
+                "sectionsBasses", "hoteArtefactCanvas", "hoteApercu",
+                "majSectionsBasses"):
         morceaux.append(_js_fn(src, nom))
     js = tmp_path / "banc_palette.js"
     js.write_text("\n".join(morceaux) + "\n" + _BANC_PALETTE, encoding="utf-8")
