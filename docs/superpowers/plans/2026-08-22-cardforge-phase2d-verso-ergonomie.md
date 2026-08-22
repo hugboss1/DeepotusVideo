@@ -208,18 +208,58 @@ test_cards_forge3d.py.
 
 **Files:** mod-forge3d.js, mod-forge3d.css (si étiquette), test (pins+banc).
 
-- [ ] `LAST_MANIFEST` garde sa doctrine (identité = recto) ; s'ajoute
+- [x] `LAST_MANIFEST` garde sa doctrine (identité = recto) ; s'ajoute
       `MANIFEST_BACK` chargé au boot et à l'export (`layers_{label}_back.json`,
       404 toléré = pas de verso exporté, la palette le DIT).
-- [ ] `defaultGraph` : paires recto PUIS paires verso (`side:"back"`), même
+- [x] `defaultGraph` : paires recto PUIS paires verso (`side:"back"`), même
       escalier 0,35 ; en-têtes de nœuds montrent déjà « · verso » (le libellé
       dérive de side) — vérifier, sinon l'ajouter ; seedLayout : colonne
       couches verso SOUS les recto (lisible sans zoom).
-- [ ] `couchesRestantes` propose LES DEUX côtés (suffixe « (verso) »),
+- [x] `couchesRestantes` propose LES DEUX côtés (suffixe « (verso) »),
       dédoublonnage PAR CÔTÉ ; `naitCouche` pose le side de l'entrée choisie.
-- [ ] Vignettes : déjà side-aware par nom de fichier — pin.
-- [ ] Banc : seed complet 2×6 couches → 26 nœuds/25 arêtes ; palette vide des
+- [x] Vignettes : déjà side-aware par nom de fichier — pin.
+- [x] Banc : seed complet 2×6 couches → 26 nœuds/25 arêtes ; palette vide des
       deux côtés quand tout est posé ; naissance verso câblée.
+
+> **Amendé (T2, à l'implémentation) — la prémisse du point « bordereau » était
+> FAUSSE.** Le plan disait « les éléments arrivent nommés `role_verso` — la vue
+> liste pourrait afficher « cadre · verso » au lieu du brut `cadre_verso` ».
+> Le suffixe `_verso` est **BACKEND SEUL** (`forge3d_apercu.nom_element`, M3) :
+> il ne rentre JAMAIS dans le graphe, donc aucun libellé d'écran n'a de
+> démanglage à faire. Deux conséquences, mesurées :
+> · la vue **liste** avait bien un défaut, mais l'inverse de celui décrit —
+>   elle écrivait `layer.role` NU (`cadre`), donc deux rangs homonymes que seul
+>   un `<select>` à l'autre bout de la ligne distinguait. Corrigé en réutilisant
+>   `noeudTitre` (LA convention d'étiquette du module depuis la 2c) : les deux
+>   vues nomment le même graphe par la même fonction ;
+> · le **bordereau** ne change pas : `d.name` est le nom de l'objet DANS le GLB
+>   (celui qu'on cherche dans Blender, et toute la raison d'être de M3) — le
+>   rendre « cadre · verso » ferait mentir le seul endroit qui dit la vérité du
+>   fichier. La clé `side` reste inerte à l'écran, et le banc épingle qu'un
+>   bordereau deux faces ne rend ni « undefined » ni double compte.
+
+> **CLOSE (T2 — 105 tests, banc 127 cas, 12 mutants tués + témoin inerte).**
+> `MANIFEST_BACK` chargé au boot **sous la même promesse** que le recto (un
+> seul verrou `.busy`, une seule garde `GEN` posée AVANT les trois écritures) ;
+> `MANIFEST_CARD` étiquette le **trio** et l'invariant d'appariement de la 2b
+> est épinglé sur la source entière pour lui aussi. Seed recto seul
+> **octet-identique** (littéral au banc) et arrangement recto seul identique
+> **au pixel** ; carte complète = 26 nœuds / 25 arêtes, ids uniques, **deux
+> escaliers 0,35 indépendants** (le backend nie le z du verso : un escalier
+> continu enfoncerait le verso deux fois plus bas). Palette : dédoublonnage
+> **par côté** (`côté:rôle`) — l'ancien filtre `man.side` rendait la moitié de
+> la carte inatteignable — et la note littérale quand aucun verso n'est
+> exporté. `seedLayout` scindé en `poseBloc` (corps inchangé, `y0`
+> paramétré) : le bloc verso tombe sous le **BAS** du bloc recto + `VERSO_GAP`
+> (80 px), et les maillons d'une chaîne verso **héritent** du côté de leur
+> couche source (`cotesDesNoeuds` via `rowsDe` — la résolution du backend).
+> **N6 refermé sans une ligne neuve** : `editTrs` semait déjà `z_mm =
+> zEmpilement(proc)` (règle I1 de la 2b), donc l'écran ne peut pas poser un
+> placement à z 0 qui rendrait les deux faces coplanaires — c'était vrai des
+> deux côtés et ne l'avait jamais été MESURÉ au verso ; ça l'est maintenant.
+> Le mutant « bloc verso collé » a d'abord SURVÉCU au banc : la mesure
+> comparait les HAUTS de nœuds (294 px d'écart apparent) au lieu du BAS réel du
+> bloc recto (26 px, une gouttiere de rang) — corrigé, il meurt à 26 contre 80.
 
 ### Task 3 : core — rail et colonne carte escamotables
 
