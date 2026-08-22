@@ -29,11 +29,20 @@
 </div>
 <div class="apibar hidden" id="apiBar"><b id="apiBarTitle"></b><span id="apiBarMsg"></span></div>
 <span id="apiChip"></span>
+<!-- `main.cf` = la grille : c'est ELLE qui porte les classes d'escamotage
+     (rail-replie / stage-replie). Le banc n'a pas de feuille de style du lab,
+     donc aucune geometrie ici — seules les CLASSES et le stockage comptent. -->
+<main class="cf">
 <nav class="rail" id="rail"></nav>
 <div class="stage">
-  <button id="guidesBtn"></button><button id="sideBtn"></button>
-  <button id="prevBtn"></button><span id="stageNav"></span><button id="nextBtn"></button>
-  <button id="shotBtn"></button>
+  <!-- `.stage-head` : la rangee ou index.html ecrit le chevron de la colonne
+       carte (core.js:wireStage le cable par son id). -->
+  <div class="stage-head">
+    <button class="stage-fold" id="stageFoldBtn" type="button" aria-expanded="true"><i class="sf-c">&#8249;</i><span class="sf-t">Carte</span></button>
+    <button id="guidesBtn"></button><button id="sideBtn"></button>
+    <button id="prevBtn"></button><span id="stageNav"></span><button id="nextBtn"></button>
+    <button id="shotBtn"></button>
+  </div>
   <div class="stage-wrap" id="stageWrap"><canvas id="stageCanvas"></canvas></div>
   <div id="stageRead"></div><div class="hidden" id="stageErr"></div>
 </div>
@@ -48,6 +57,7 @@
   <section class="cf-panel" data-mod="gltf"><div class="cf-host cf-gltf" data-host="gltf"></div></section>
 </section>
 <aside class="side hidden" id="side"></aside>
+</main>
 <div class="busy hidden" id="busy"><div class="busy-box"><i class="busy-spin"></i><span class="busy-l"></span></div></div>
 <div id="toast" class="toast hidden"></div>
 <pre id="log"></pre>

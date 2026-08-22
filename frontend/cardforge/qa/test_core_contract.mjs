@@ -256,6 +256,49 @@ const BATTERIE = `(async () => {
     catch (e) { say("layers : blob de couche MINTE accepte par CF.download", "OUVERT", e.message); }
   } catch (e) { say("layers", "OUVERT", e.message); }
 
+  /* ── coquille : rail et colonne carte escamotables (patron shell.jsx) ────
+     Le banc masque les visuels (display:none) : on n'affirme AUCUNE geometrie
+     — seulement les CLASSES portees par la grille .cf et le STOCKAGE. Ce
+     qui est prouve : les deux chevrons existent apres le boot ; un clic pose
+     la classe ET ecrit la cle ; un second clic retire l'une ET efface
+     l'autre. Une bascule qui oublie d'ecrire laisse l'ecran juste et fait
+     mentir le rechargement — c'est exactement ce que la classe seule ne dit
+     pas. */
+  const cfg = document.querySelector(".cf");
+  const rfb = document.getElementById("railFoldBtn");
+  const sfb = document.getElementById("stageFoldBtn");
+  const lsq = (k) => { try { return localStorage.getItem(k); } catch (e) { return "?refus"; } };
+  const cls = () => "classes=[" + (cfg ? cfg.className : "?") + "]";
+  say("escamotage : les deux chevrons existent apres le boot",
+      (rfb && sfb && cfg) ? "TENU" : "OUVERT",
+      "rail=" + !!rfb + " carte=" + !!sfb + " grille .cf=" + !!cfg);
+  if (rfb && sfb && cfg) {
+    rfb.click();
+    say("escamotage rail : clic -> classe rail-replie ET dz_cf_rail=1",
+        (cfg.classList.contains("rail-replie") && lsq("dz_cf_rail") === "1") ? "TENU" : "OUVERT",
+        cls() + " dz_cf_rail=" + JSON.stringify(lsq("dz_cf_rail")));
+    rfb.click();
+    say("escamotage rail : second clic -> classe retiree ET cle effacee",
+        (!cfg.classList.contains("rail-replie") && lsq("dz_cf_rail") === null) ? "TENU" : "OUVERT",
+        cls() + " dz_cf_rail=" + JSON.stringify(lsq("dz_cf_rail")));
+    sfb.click();
+    say("escamotage carte : clic -> classe stage-replie ET dz_cf_stage=1",
+        (cfg.classList.contains("stage-replie") && lsq("dz_cf_stage") === "1") ? "TENU" : "OUVERT",
+        cls() + " dz_cf_stage=" + JSON.stringify(lsq("dz_cf_stage")));
+    sfb.click();
+    say("escamotage carte : second clic -> classe retiree ET cle effacee",
+        (!cfg.classList.contains("stage-replie") && lsq("dz_cf_stage") === null) ? "TENU" : "OUVERT",
+        cls() + " dz_cf_stage=" + JSON.stringify(lsq("dz_cf_stage")));
+    /* replie, une rangee du rail n'a plus que son numero : sans title=, neuf
+       pastilles muettes. */
+    const muettes = Array.prototype.filter.call(document.querySelectorAll(".rail-item"), (b) => !b.title).length;
+    say("escamotage rail : chaque rangee nomme sa piece en title=",
+        muettes === 0 ? "TENU" : "OUVERT", muettes + " rangee(s) sans title sur " + document.querySelectorAll(".rail-item").length);
+    say("escamotage : le chevron du rail n'est PAS une piece du rail",
+        (rfb.classList.contains("rail-item") === false && !rfb.dataset.mod) ? "TENU" : "OUVERT",
+        "classes=[" + rfb.className + "] data-mod=" + JSON.stringify(rfb.dataset.mod || null));
+  }
+
   /* le module en mode bâclé n'a pas demarre et ses couches ont quitte la pile */
   const hote = document.querySelector('.cf-host[data-host="solid"]');
   say("module sans \\"use strict\\" : init NON appelee",
@@ -266,6 +309,37 @@ const BATTERIE = `(async () => {
       document.getElementById("apiBarMsg").textContent.slice(0, 90));
 
   return { deck: CF.get("id", null), out };
+})()`;
+
+/* ── batterie « repli au BOOT » ─────────────────────────────────────────────
+   Jouee sur une page RECHARGEE, les deux cles dz_cf_* deja ecrites. C'est le
+   seul pin qui distingue « la classe est posee au demarrage » de « la classe
+   est posee plus tard » : une application tardive passerait toute la batterie
+   principale et ferait quand meme clignoter la coquille a chaque ouverture
+   (colonnes ouvertes, puis refermees sous les yeux de l'utilisateur). */
+const BATTERIE_REPLI = `(async () => {
+  const out = [];
+  const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  const cf = document.querySelector(".cf");
+  const rfb = document.getElementById("railFoldBtn");
+  const sfb = document.getElementById("stageFoldBtn");
+  const lsq = (k) => { try { return localStorage.getItem(k); } catch (e) { return "?refus"; } };
+  say("escamotage : dz_cf_rail/dz_cf_stage relus AU BOOT (les deux colonnes repliees d'entree)",
+      (cf && cf.classList.contains("rail-replie") && cf.classList.contains("stage-replie")) ? "TENU" : "OUVERT",
+      "classes=[" + (cf ? cf.className : "pas de .cf") + "] rail=" + JSON.stringify(lsq("dz_cf_rail"))
+      + " carte=" + JSON.stringify(lsq("dz_cf_stage")));
+  if (cf && rfb && sfb) {
+    rfb.click(); sfb.click();
+    say("escamotage : rouvrir depuis l'etat replie efface les deux cles",
+        (!cf.classList.contains("rail-replie") && !cf.classList.contains("stage-replie")
+         && lsq("dz_cf_rail") === null && lsq("dz_cf_stage") === null) ? "TENU" : "OUVERT",
+        "classes=[" + cf.className + "] rail=" + JSON.stringify(lsq("dz_cf_rail"))
+        + " carte=" + JSON.stringify(lsq("dz_cf_stage")));
+  } else {
+    say("escamotage : chevrons presents apres rechargement", "OUVERT",
+        "rail=" + !!rfb + " carte=" + !!sfb + " grille=" + !!cf);
+  }
+  return { out };
 })()`;
 
 async function testContract() {
@@ -307,12 +381,28 @@ async function testContract() {
     const r = await send('Runtime.evaluate', { expression: BATTERIE, awaitPromise: true, returnByValue: true });
     if (r.exceptionDetails) { ko('la batterie a leve : ' + JSON.stringify(r.exceptionDetails.exception && r.exceptionDetails.exception.description || r.exceptionDetails.text).slice(0, 400)); return; }
     const { deck, out } = r.result.value;
-    for (const row of out) {
-      const line = `${row.k} — ${row.detail.slice(0, 110)}`;
-      if (row.verdict === 'TENU') ok(line);
-      else if (row.verdict === 'NOTE') console.log('  note ' + line);
-      else ko(line);
-    }
+    const imprime = (rows) => {
+      for (const row of rows) {
+        const line = `${row.k} — ${row.detail.slice(0, 110)}`;
+        if (row.verdict === 'TENU') ok(line);
+        else if (row.verdict === 'NOTE') console.log('  note ' + line);
+        else ko(line);
+      }
+    };
+    imprime(out);
+
+    /* ── seconde passe : le repli est-il applique AU BOOT ? On ecrit les deux
+       cles, on RECHARGE la meme page (le jeu est rouvert par dz_cf_deck_id,
+       aucun deck de plus sur le disque) et on relit les classes. */
+    await send('Runtime.evaluate', {
+      expression: "(() => { try { localStorage.setItem('dz_cf_rail','1'); localStorage.setItem('dz_cf_stage','1'); } catch (e) { } return 1; })()",
+      returnByValue: true,
+    });
+    await send('Page.navigate', { url: URL_ });
+    await sleep(3000);
+    const r2 = await send('Runtime.evaluate', { expression: BATTERIE_REPLI, awaitPromise: true, returnByValue: true });
+    if (r2.exceptionDetails) ko('la batterie « repli au boot » a leve : ' + JSON.stringify(r2.exceptionDetails.exception && r2.exceptionDetails.exception.description || r2.exceptionDetails.text).slice(0, 400));
+    else imprime(r2.result.value.out);
     /* le banc a ouvert un jeu : on ne laisse rien derriere */
     if (deck) {
       try { await fetch(new URL('/api/cards/' + deck, URL_).href, { method: 'DELETE' }); console.log('  --   jeu de banc ' + deck + ' supprime'); }
