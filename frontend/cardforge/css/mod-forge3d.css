@@ -369,3 +369,21 @@
 /* ── l'aperçu : le VRAI fichier livré, dans <model-viewer> ───────────────── */
 .cf-forge3d .cf-forge3d-view { min-height: 300px; border: 1px solid var(--stroke); border-radius: 10px; overflow: hidden; background: var(--bg-panel-3, #14141a); }
 .cf-forge3d .cf-forge3d-view model-viewer { width: 100%; height: 300px; display: block; }
+
+/* ── LES MOTIFS INCRUSTES (3c, §6.2bis-d) : une PILE ORDONNEE ─────────────
+   Les rangs se lisent de haut en bas parce que c'est l'ordre d'ADDITION —
+   d'ou le filet a gauche (le meme vocabulaire visuel que .cf-forge3d-blk,
+   « ceci appartient a ce qui est au-dessus ») et le compteur de calque en
+   tete de rang. Rien ici ne re-ordonne a la souris : la pile s'edite par ses
+   selecteurs, un calque a la fois. */
+.cf-forge3d .cf-forge3d-motifs { margin: 4px 0 2px; }
+.cf-forge3d .cf-forge3d-motif {
+  border-left: 2px solid var(--stroke); margin-left: 8px;
+  padding: 2px 0 2px 8px; gap: 6px;
+}
+.cf-forge3d .cf-forge3d-motif-add { margin-left: 10px; }
+.cf-forge3d .cf-forge3d-motifs .hint { margin: 2px 0; }
+/* des calques poses sans recette holographique : un ETAT dit, pas une panne
+   — meme regle de couleur que .cf-forge3d-insp-ko (le rouge est reserve aux
+   pannes ; ceci se corrige d'un clic sur la finition). */
+.cf-forge3d .cf-forge3d-motif-off { color: var(--ink-soft); }

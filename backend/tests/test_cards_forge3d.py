@@ -684,6 +684,12 @@ def test_le_vocabulaire_gagne_export_des_deux_cotes():
     # le format d'un export est un vocabulaire FERMÉ (comme LAYER_MODES) :
     # publié par /info avec le reste, jamais recopié à l'écran.
     assert F9.EXPORT_FORMATS == ("glb", "stl", "metadata", "preview")
+    # 3c Task 3 — LES MOTIFS ENTRENT AU VOCABULAIRE du nœud matière (spec
+    # §6.2bis-d). L'égalité de table ci-dessus suffirait à garder les deux
+    # côtés d'accord, mais elle resterait verte si le paramètre disparaissait
+    # DES DEUX côtés à la fois : ce pin-là nomme le champ, une fois.
+    mat = [r for r in F9.NODE_KINDS if r["kind"] == "material"][0]
+    assert mat["params"] == ["mat", "tile_mm", "finish", "aniso", "motifs"]
 
 
 def test_clean_graph_borne_le_noeud_export():
@@ -2871,6 +2877,424 @@ def test_l_anisotropie_exige_un_maillage_aux_uv_alignees():
         binv2[bv2["byteOffset"]:bv2["byteOffset"] + bv2["byteLength"]])
     ).convert("RGB").getpixel((2, 2))
     assert px2[1] == 90 and px2[2] == 200
+
+
+# ── LES MOTIFS INCRUSTÉS (3c Task 3) — spec §6.2bis-d :435-440 ──────────────
+# « un ou PLUSIEURS calques de motif encodés dans le canal G de
+# l'iridescenceThicknessTexture (addition bornée des épaisseurs, ordre des
+# calques = ordre d'addition) [...] Déterministe (mêmes calques -> mêmes
+# octets) ». Et la barre de qualité (:445-446) : « motif incrusté : RELU dans
+# le canal G du fichier livré, pas dans l'intention ».
+
+# LES OCTETS D'AVANT LES MOTIFS, GELÉS. Mesurés sur le code de la 2b, AVANT
+# d'ouvrir la signature — c'est le seul contrôle qui prouve que la pile VIDE
+# n'a pas bougé d'un bit (un `if pile:` mal placé, un `Image.merge` réécrit,
+# un filtre de rééchantillonnage introduit « en passant » se verraient ici et
+# nulle part ailleurs : les asserts de la 2b ne lisent que quelques pixels).
+_THICK_NU = {
+    64: "2c60731a66ece5b59eccfcb7f47f0865110e4e9fec1086becd6367179a340fe5",
+    128: "bee25549f7b9ad103b6a9725a96ffa5375aa1f4ec5af0658a7f854dab72c081a",
+}
+
+
+def _png_bytes_de(im) -> bytes:
+    b = io.BytesIO()
+    im.save(b, "PNG")
+    return b.getvalue()
+
+
+def _sigil(px: int = 192, r_frac: float = 0.30) -> bytes:
+    """Un « sceau » synthétique : disque BLANC sur fond NOIR. Deux régions
+    franches, donc une corrélation LISIBLE — et un bord au diamètre connu, ce
+    qui permet de comparer des MOYENNES DE RÉGION et pas seulement un r."""
+    im = Image.new("L", (px, px), 0)
+    d = ImageDraw.Draw(im)
+    c, r = px / 2.0, px * r_frac
+    d.ellipse([c - r, c - r, c + r, c + r], fill=255)
+    return _png_bytes_de(im)
+
+
+def _canal_g(png: bytes):
+    """Le canal G d'un PNG, en image `L` — le SEUL que lise
+    KHR_materials_iridescence."""
+    return Image.open(io.BytesIO(png)).convert("RGB").split()[1]
+
+
+def _correlation(a, b, pas: int = 5) -> float:
+    """Pearson entre deux images `L` de MÊME taille, échantillonnées un pixel
+    sur `pas` (1024² = un million de points ; le pas garde la mesure honnête
+    et le test rapide)."""
+    xa = list(a.getdata())[::pas]
+    xb = list(b.getdata())[::pas]
+    n = len(xa)
+    ma, mb = sum(xa) / n, sum(xb) / n
+    cov = sum((x - ma) * (y - mb) for x, y in zip(xa, xb)) / n
+    va = sum((x - ma) ** 2 for x in xa) / n
+    vb = sum((y - mb) ** 2 for y in xb) / n
+    return cov / math.sqrt(va * vb) if va > 0 and vb > 0 else 0.0
+
+
+def test_les_motifs_s_incrustent_dans_le_canal_G_par_addition_bornee():
+    """La MÉCANIQUE d'encodage, au niveau du module scène (pur) :
+    pile vide = les octets de la 2b AU BIT PRÈS, déterminisme, ordre
+    d'addition LOAD-BEARING, addition BORNÉE, et le motif relu dans le G."""
+    from app.services.cards import forge3d_scene as SC
+    # ── 1. LA PILE VIDE N'A PAS BOUGÉ D'UN BIT ──────────────────────────────
+    for px, sha in _THICK_NU.items():
+        nu = SC._holo_thickness_png(px)
+        assert hashlib.sha256(nu).hexdigest() == sha, px
+        assert SC._holo_thickness_png(px, ()) == nu, px
+    # ── 2. DÉTERMINISME : mêmes calques -> mêmes octets ─────────────────────
+    sig = _sigil()
+    band = _png_bytes_de(Image.new("L", (64, 64), 128))
+    a = SC.holo_finish("argent", aniso=False, out_px=128,
+                       motifs=[(sig, 1.0)])["iridescence"]["png"]
+    b = SC.holo_finish("argent", aniso=False, out_px=128,
+                       motifs=[(sig, 1.0)])["iridescence"]["png"]
+    assert a == b
+    # ...et une pile DIFFÉRENTE donne des octets différents (gain compris :
+    # une part de 0,4 n'est pas une part de 1,0)
+    c = SC.holo_finish("argent", aniso=False, out_px=128,
+                       motifs=[(sig, 0.4)])["iridescence"]["png"]
+    assert c != a
+    assert a != SC._holo_thickness_png(128)
+    # ── 3. L'ORDRE DES CALQUES EST L'ORDRE D'ADDITION ───────────────────────
+    # Le mécanisme est NOMMÉ : chaque calque ne dépose que ce que l'épaisseur
+    # RESTANTE lui laisse (`min(luminance, reste)`), et sa part (`gain`) se
+    # calcule sur ce qu'il a pu prendre — arriver en second coûte. Une simple
+    # somme finalement écrêtée serait COMMUTATIVE et ce test rougirait.
+    ab = SC.holo_finish("argent", aniso=False, out_px=128,
+                        motifs=[(sig, 1.0), (band, 0.5)])["iridescence"]["png"]
+    ba = SC.holo_finish("argent", aniso=False, out_px=128,
+                        motifs=[(band, 0.5), (sig, 1.0)])["iridescence"]["png"]
+    assert ab != ba, "permutation silencieuse : l'ordre n'est pas load-bearing"
+    # ── 4. ADDITION BORNÉE : le canal G ne dépasse JAMAIS 255 ───────────────
+    sature = SC.holo_finish(
+        "argent", aniso=False, out_px=128,
+        motifs=[(_png_bytes_de(Image.new("L", (32, 32), 255)), 1.0)] * 4
+    )["iridescence"]["png"]
+    g = _canal_g(sature)
+    assert max(g.getdata()) == 255 and min(g.getdata()) == 255
+    # R et B restent l'octet neutre du canal inutilisé, motifs ou pas
+    rgb = Image.open(io.BytesIO(sature)).convert("RGB")
+    assert set(rgb.split()[0].getdata()) == {0}
+    assert set(rgb.split()[2].getdata()) == {0}
+    # ── 5. LE PLAFOND DE CALQUES : 4, et ce sont les QUATRE PREMIERS ────────
+    assert SC.MOTIF_MAX == 4
+    cinq = [(sig, 1.0), (band, 0.5), (band, 0.4), (band, 0.3), (sig, 0.9)]
+    assert SC.holo_finish("argent", aniso=False, out_px=64,
+                          motifs=cinq)["iridescence"]["png"] == \
+        SC.holo_finish("argent", aniso=False, out_px=64,
+                       motifs=cinq[:4])["iridescence"]["png"]
+    # ── 6. LE MOTIF EST RELU DANS LE G (barre de qualité, pas l'intention) ──
+    seul = SC.holo_finish("argent", aniso=False, out_px=256,
+                          motifs=[(sig, 1.0)])["iridescence"]["png"]
+    gsel = _canal_g(seul)
+    ref = Image.open(io.BytesIO(sig)).convert("L").resize((256, 256),
+                                                          Image.BICUBIC)
+    r = _correlation(ref, gsel, pas=3)
+    assert r > 0.45, r
+    base = _canal_g(SC._holo_thickness_png(256))
+    dedans = [g2 for l, g2 in zip(ref.getdata(), gsel.getdata()) if l > 200]
+    dehors = [g2 for l, g2 in zip(ref.getdata(), gsel.getdata()) if l < 30]
+    assert sum(dedans) / len(dedans) > sum(dehors) / len(dehors) + 60
+    # et HORS du motif, l'arc-en-ciel de base est INTACT : un motif ne repeint
+    # pas la carte, il l'épaissit là où il est.
+    for (l, g2, b2) in zip(ref.getdata(), gsel.getdata(), base.getdata()):
+        if l == 0:
+            assert g2 == b2
+            break
+
+
+def test_le_cache_d_epaisseur_est_re_cle_sur_la_pile_sans_collision():
+    """La 2b cachait sur UN entier (`out_px`). Avec les motifs, deux cartes
+    aux piles différentes partageraient cette entrée : la seconde recevrait
+    l'hologramme de la première, SANS un mot. La clé est donc (taille, pile)
+    où la pile est ((sha256 des octets, gain), ...) — bornée, hachable, et
+    qui ne RETIENT PAS les images sources."""
+    from app.services.cards import forge3d_scene as SC
+    s1 = _sigil(96, 0.35)
+    s2 = _png_bytes_de(Image.new("L", (96, 96), 200))
+    SC._holo_thickness_png.cache_clear()
+    p1 = [(s1, 1.0)]
+    p2 = [(s2, 1.0)]
+    a1 = SC.holo_finish("argent", False, 64, motifs=p1)["iridescence"]["png"]
+    b1 = SC.holo_finish("argent", False, 64, motifs=p2)["iridescence"]["png"]
+    info = SC._holo_thickness_png.cache_info()
+    assert info["misses"] == 2 and info["hits"] == 0, info
+    assert a1 != b1, "collision de cache : deux piles, une seule entrée"
+    # LA MÊME pile retombe sur l'entrée : c'est un HIT, pas un recalcul
+    a2 = SC.holo_finish("argent", False, 64, motifs=[(s1, 1.0)]
+                        )["iridescence"]["png"]
+    info = SC._holo_thickness_png.cache_info()
+    assert info["hits"] == 1 and info["misses"] == 2, info
+    assert a2 == a1
+    # la taille reste dans la clé (une pile identique à deux tailles = deux
+    # entrées) et le cache reste BORNÉ
+    SC.holo_finish("argent", False, 128, motifs=p1)
+    assert SC._holo_thickness_png.cache_info()["misses"] == 3
+    assert SC._holo_thickness_png.cache_info()["size"] <= SC.THICK_CACHE_MAX
+    for k in range(SC.THICK_CACHE_MAX + 4):
+        SC.holo_finish("argent", False, 64,
+                       motifs=[(_png_bytes_de(Image.new("L", (8, 8), k)), 1.0)])
+    assert SC._holo_thickness_png.cache_info()["size"] <= SC.THICK_CACHE_MAX
+
+
+def test_holo_finish_reste_non_cache_meme_avec_des_motifs():
+    """PIN de la doctrine 2b (forge3d_scene.py:295-300) : `holo_finish` rend
+    des LISTES MUTABLES ; la cacher ferait hériter la carte suivante de la
+    mutation d'un appelant. Les motifs re-clenchent le cache des OCTETS, pas
+    celui de l'enveloppe."""
+    from app.services.cards import forge3d_scene as SC
+    sig = _sigil(64, 0.3)
+    f1 = SC.holo_finish("argent", False, 64, motifs=[(sig, 1.0)])
+    f1["pbr"]["baseColorFactor"][0] = 0.123
+    f1["iridescence"]["thickness"][1] = 4242.0
+    f2 = SC.holo_finish("argent", False, 64, motifs=[(sig, 1.0)])
+    assert f2["pbr"]["baseColorFactor"][0] == 0.95
+    assert f2["iridescence"]["thickness"] == [200.0, 900.0]
+    assert f2 is not f1
+    # ...mais les OCTETS, eux, sont bien partagés (c'est tout l'intérêt)
+    assert f2["iridescence"]["png"] is f1["iridescence"]["png"]
+
+
+def test_clean_graph_borne_les_motifs_du_noeud_material():
+    """La liste blanche des sources, le plafond de 4, la borne du gain — au
+    nettoyage, JAMAIS 500. Une source hors vocabulaire est JETÉE ici (comme
+    un nœud inconnu ou une arête orpheline : `clean_graph` répare en silence,
+    c'est son contrat) ; l'aveu NOMMÉ appartient à la CONSTRUCTION, qui seule
+    sait si le fichier existe."""
+    from app.services.cards import forge3d as F9
+    g = {"nodes": [{
+        "id": "m", "kind": "material", "finish": "dorure",
+        "motifs": [
+            {"src": "img:img_3.png", "gain": 0.5},
+            {"src": "paper"},
+            {"src": "mat:mat_0123abcd", "gain": 9.0},
+            {"src": "img:../../meta.json", "gain": 1.0},   # jeté
+            {"src": "mat:pasunid", "gain": 1.0},           # jeté
+            {"src": ["img:img_1.png"], "gain": 1.0},       # jeté (non hachable)
+            "pas un dict",                                  # jeté
+            {"src": "img:img_4.png", "gain": 0.02},
+            {"src": "img:img_5.png", "gain": 1.0},          # au-delà du cap
+        ]}], "edges": []}
+    out = F9.clean_graph(g)
+    mot = out["nodes"][0]["motifs"]
+    assert [m["src"] for m in mot] == ["img:img_3.png", "paper",
+                                       "mat:mat_0123abcd", "img:img_4.png"]
+    assert mot[0]["gain"] == 0.5
+    assert mot[1]["gain"] == 1.0                    # défaut : la part pleine
+    assert mot[2]["gain"] == F9.MOTIF_GAIN[1]       # ramené au plafond
+    assert mot[3]["gain"] == F9.MOTIF_GAIN[0]       # ramené au plancher
+    # une pile qui n'est pas une liste, ou absente : une pile VIDE, jamais 500
+    for pourri in (None, "img:img_1.png", 7, {"src": "paper"}):
+        g2 = {"nodes": [{"id": "m", "kind": "material", "finish": "argent",
+                         "motifs": pourri}], "edges": []}
+        assert F9.clean_graph(g2)["nodes"][0]["motifs"] == [], pourri
+    # une matière SANS matière ni finition reste jetée — des motifs seuls ne
+    # ressuscitent pas un nœud qui n'habille rien
+    g3 = {"nodes": [{"id": "m", "kind": "material",
+                     "motifs": [{"src": "paper"}]}], "edges": []}
+    assert F9.clean_graph(g3)["nodes"] == []
+
+
+def test_les_motifs_du_graphe_sont_relus_dans_le_canal_G_du_glb_livre():
+    """LA BARRE DE QUALITÉ (spec :445-446), de bout en bout : une image de
+    calque du jeu (P3) posée en motif sur une finition holo se RELIT dans le
+    canal G de l'iridescenceThicknessTexture du GLB LIVRÉ — corrélation
+    mesurée contre l'image source, pas déclarée."""
+    did = _deck("Motif dans l'hologramme")
+    _exporter_couches(did)
+    sig = _sigil(256, 0.28)
+    r = _api("POST", f"/api/cards/{did}/type/image", content=sig,
+             headers={"Content-Type": "image/png"})
+    assert r.status_code == 200, r.text
+    nom = r.json()["images"][0]["name"] if "images" in r.json() else None
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 0.2},
+        {"id": "mt", "kind": "material", "finish": "argent", "aniso": False,
+         "motifs": [{"src": "img:img_1.png", "gain": 1.0}]},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "motif"}],
+        "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "mt"},
+                  {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    rb = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": g, "card": 0})
+    assert rb.status_code == 200, rb.text
+    art = rb.json()["artifact"]
+    assert art["ignored"] == [], art["ignored"]
+    doc, binv = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}").content)
+    iri = doc["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][idx]["bufferView"]]
+    tex = Image.open(io.BytesIO(
+        binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]]))
+    gband = tex.convert("RGB").split()[1]
+    # LA RÉFÉRENCE EST LE FICHIER SUR DISQUE (celui que l'encodeur a lu), pas
+    # les octets postés : c'est la seule référence qui ne mente pas si l'import
+    # a réduit ou ré-encodé l'image.
+    from app.services.cards.contract import deck_dir
+    ref = Image.open(deck_dir(did) / "type" / "img_1.png").convert("L")
+    ref = ref.resize(gband.size, Image.BICUBIC)
+    corr = _correlation(ref, gband, pas=7)
+    assert corr > 0.45, corr
+    dedans = [b for l, b in zip(ref.getdata(), gband.getdata()) if l > 200]
+    dehors = [b for l, b in zip(ref.getdata(), gband.getdata()) if l < 30]
+    assert dedans and dehors
+    moy_in = sum(dedans) / len(dedans)
+    moy_out = sum(dehors) / len(dehors)
+    assert moy_in > moy_out + 60, (moy_in, moy_out)
+    assert nom is None or nom == "img_1.png"
+
+
+def test_un_motif_mort_est_avoue_nomme_sans_faire_tomber_l_artefact():
+    """Doctrine de l'aveu (`ignored`) : une source de motif BIEN FORMÉE mais
+    absente du disque ne fait pas tomber l'artefact et ne s'évapore pas non
+    plus — elle NOMME le nœud et la source. Et des motifs posés sans finition
+    holographique ne s'incrustent nulle part : c'est dit aussi."""
+    did = _deck("Motif mort")
+    _exporter_couches(did)
+
+    def build(mat_node, nom):
+        g = {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "p", "kind": "plane", "depth_mm": 0.2},
+            dict(mat_node, id="mt", kind="material"),
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": nom}],
+            "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "mt"},
+                      {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        return r.json()["artifact"]
+
+    a = build({"finish": "argent",
+               "motifs": [{"src": "img:img_9.png", "gain": 1.0}]}, "mort")
+    dits = [x for x in a["ignored"] if "motif" in (x.get("why") or "")]
+    assert dits, a["ignored"]
+    assert dits[0]["node"] == "mt"
+    assert "img:img_9.png" in dits[0]["why"]
+    # la finition, elle, EST là : un accessoire absent ne coûte pas la recette
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{a['glb']['name']}").content)
+    assert "KHR_materials_iridescence" in doc["extensionsUsed"]
+    # ...et le G est alors celui de l'arc-en-ciel NU (le motif mort n'a rien
+    # déposé — l'aveu et les octets disent la même chose)
+    from app.services.cards import forge3d_scene as SC
+    iri = doc["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    assert "iridescenceThicknessTexture" in iri
+    # des motifs SANS finition holo : la matière tient (elle a sa matière),
+    # mais l'écran ne doit pas croire que le sceau s'est incrusté
+    from app.services import material_store as MSTORE
+    mat = MSTORE.create_material(name="motif-sans-holo")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (16, 16), (90, 90, 90)),
+            "normal": Image.new("RGB", (16, 16), (128, 128, 255))})
+        b = build({"mat": mat["id"], "finish": "aucune",
+                   "motifs": [{"src": "paper"}]}, "sansholo")
+        assert any("holograph" in (x.get("why") or "") for x in b["ignored"]), \
+            b["ignored"]
+    finally:
+        MSTORE.delete_material(mat["id"])
+    assert SC.MOTIF_MAX == 4
+
+
+def test_la_route_motif_sources_agrege_les_sources_du_jeu():
+    """L'écran P9 ne peut pas aller CHERCHER les images de P3 lui-même (règle
+    8 : jamais la route d'un voisin). Le serveur agrège : images de calque du
+    jeu, matière de support importée, matières de la boutique — chacune avec
+    le `src` EXACT que le graphe attend, jamais une recette à recomposer à
+    l'écran."""
+    from app.services import material_store as MSTORE
+    did = _deck("Sources de motif")
+    r = _api("GET", f"/api/cards/{did}/forge3d/motif-sources")
+    assert r.status_code == 200, r.text
+    vide = r.json()
+    assert vide["images"] == [] and vide["paper"] is None
+    assert vide["degraded"] is None
+    # /info publie les BORNES (jamais recopiées à l'écran)
+    ri = _api("GET", f"/api/cards/{did}/forge3d/info")
+    lim = ri.json()["material_limits"]
+    assert lim["motif_max"] == 4 and lim["motif_gain"] == [0.1, 1.0]
+    # une image de calque, une matière de support, une matière de boutique
+    assert _api("POST", f"/api/cards/{did}/type/image", content=_sigil(48),
+                headers={"Content-Type": "image/png"}).status_code == 200
+    assert _api("POST", f"/api/cards/{did}/texture/paper",
+                content=_png_bytes_de(Image.new("RGB", (48, 48), (7, 8, 9))),
+                headers={"Content-Type": "image/png"}).status_code == 200
+    mat = MSTORE.create_material(name="motif-boutique")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (16, 16), (30, 40, 50))})
+        j = _api("GET", f"/api/cards/{did}/forge3d/motif-sources").json()
+        assert [x["src"] for x in j["images"]] == ["img:img_1.png"]
+        assert j["paper"]["src"] == "paper"
+        mids = [x["src"] for x in j["materials"]]
+        assert "mat:" + mat["id"] in mids, mids
+        lab = [x["label"] for x in j["materials"] if x["src"].endswith(mat["id"])]
+        assert lab == ["motif-boutique"]
+        # les `src` servis sont EXACTEMENT ceux que `clean_graph` accepte —
+        # une recette servie que le nettoyage jetterait serait un piège.
+        from app.services.cards import forge3d as F9
+        tous = [x["src"] for x in j["images"] + j["materials"]] + ["paper"]
+        g = {"nodes": [{"id": "m", "kind": "material", "finish": "argent",
+                        "motifs": [{"src": s} for s in tous]}], "edges": []}
+        garde = [m["src"] for m in F9.clean_graph(g)["nodes"][0]["motifs"]]
+        assert garde == tous[:F9.MOTIF_MAX]
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_l_ecran_pose_les_motifs_sur_le_noeud_matiere_et_dit_ou_ca_se_voit():
+    """L'UI du nœud matière : le bloc « motifs dans l'hologramme » n'apparaît
+    qu'à finition holo, ses sources viennent de LA ROUTE (jamais recopiées),
+    le gain et le plafond viennent de /info, et la phrase d'honnêteté dit où
+    le motif se voit RÉELLEMENT (le nœud matière n'est pas prévisualisable)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    assert "motif-sources" in rendu, "les sources ne viennent pas de la route"
+    corps = rendu.split("function motifsHtml(")[1].split("\n  }")[0]
+    # les champs : une source et un gain PAR calque, plus l'ajout
+    for champ in ("motif_src_", "motif_gain_", "motif_add"):
+        assert 'data-field="' + champ in corps or '"' + champ + '"' in corps, champ
+    # les bornes viennent de /info (`material_limits`), jamais écrites ici :
+    # le bloc les LIT par `motifLimits`, qui les prend au contrat.
+    assert "motifLimits()" in corps and "lim.gain" in corps and "lim.max" in corps
+    lims = rendu.split("function motifLimits(")[1].split("\n  }")[0]
+    assert "material_limits" in lims
+    assert "motif_max" in lims and "motif_gain" in lims
+    assert not re.search(r"\b0\.1\b|\b4\b", lims + corps), \
+        "borne recopiee a l'ecran"
+    # l'honnêteté : le nœud matière ne se prévisualise pas — le motif se voit
+    # sur l'aperçu du traitement AMONT et sur l'artefact construit
+    assert "artefact construit" in corps
+    # le bloc SORT à finition holographique — et reste visible si des calques
+    # sont déjà posés SANS elle, en le DISANT (c'est la seule surface d'où on
+    # peut les retirer ; le backend, lui, l'avoue au bordereau)
+    mh = rendu.split("function matHtml(")[1].split("\n  }")[0]
+    assert "motifsHtml(mat, holo)" in mh and "mat.motifs.length" in mh
+    assert 'mat.finish !== "aucune"' in mh          # « holo » se DÉRIVE
+    assert "ne s\\'incrusteront nulle part" in corps
+    # une source vide n'est jamais un menu muet : elle est NOMMÉE
+    assert "aucune source dans ce jeu" in corps
+    assert "degraded" in corps
+    # HONNÊTETÉ DE PORTÉE : la texture d'épaisseur couvre l'élément ENTIER —
+    # l'isolation d'une bande n'existe pas, et ça se dit AVANT la
+    # construction, pas en ouvrant le GLB
+    assert "couvre TOUT l\\'element" in corps
+    assert "on n\\'isole pas une bande" in corps
+    # l'édition passe par le MÊME dispatcher que les autres champs matière
+    assert "MOTIF_RE" in rendu
+    ed = rendu.split("function editMat(")[1].split("\n  }")[0]
+    assert "MOTIF_RE.test(field)" in ed and "editMotifs(" in ed
+    # l'ORDRE est la donnée : un rang retiré se `splice`, il ne se re-pousse
+    # pas (une pile renumérotée changerait l'hologramme livré)
+    em = rendu.split("function editMotifs(")[1].split("\n  }")[0]
+    assert "splice" in em and "push" in em
 
 
 def test_les_textures_de_finition_sont_mutualisees_pas_celles_des_couches():

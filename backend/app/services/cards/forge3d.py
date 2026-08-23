@@ -21,7 +21,7 @@ import time
 import uuid
 import zipfile
 import zlib
-from functools import reduce
+from functools import partial, reduce
 from pathlib import Path
 
 from fastapi import (APIRouter, BackgroundTasks, File, Form, HTTPException,
@@ -38,7 +38,8 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
-                            trs_de_face, HOLO_KINDS, HOLO_PX)
+                            trs_de_face, HOLO_KINDS, HOLO_PX,
+                            MOTIF_MAX, MOTIF_GAIN)
 # DEUXIÈME couture intra-pièce (délestage 2c, tâche 6) : la résolution des
 # chaînes du graphe, la fabrique d'UN élément et les règles du GLB d'un nœud
 # moteur SERVI vivent dans forge3d_apercu.py — le bloc que l'inspecteur et la
@@ -98,7 +99,10 @@ LAYER_ROLES = [
 # `relief`    : dalle en relief, GRATUITE — grille déplacée par l'alpha,
 #               solide FERMÉ par construction (imprimable).
 # `mesh3d`    : image→3D par moteur, PAYANT (prix affiché avant).
-# `material`  : matière Material Forge + finition holo sur le nœud amont.
+# `material`  : matière Material Forge + finition holo sur le nœud amont ; ses
+#               `motifs` sont les calques incrustés dans le canal G de
+#               l'épaisseur d'iridescence (3c, §6.2bis-d) — une LISTE ORDONNÉE
+#               de `{src, gain}`, l'ordre étant l'ordre d'addition.
 # `transform` : position/rotation/échelle en mm de carte de l'élément amont.
 # `assemble`  : fusionne les amonts en une scène.
 # `artifact`  : sorties (GLB + metadata + aperçu + STL si fermé).
@@ -111,7 +115,8 @@ NODE_KINDS = [
     {"kind": "plane", "params": ["depth_mm"]},
     {"kind": "relief", "params": ["depth_mm", "base_mm", "grid"]},
     {"kind": "mesh3d", "params": ["engine", "texture_prompt", "ultra"]},
-    {"kind": "material", "params": ["mat", "tile_mm", "finish", "aniso"]},
+    {"kind": "material",
+     "params": ["mat", "tile_mm", "finish", "aniso", "motifs"]},
     {"kind": "transform", "params": ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"]},
     {"kind": "assemble", "params": []},
     {"kind": "artifact", "params": ["name"]},
@@ -175,6 +180,20 @@ MATERIAL_TILE_MM = (10.0, 200.0)
 # scène, l'écran en reçoit la liste par /info. « aucune » est le seul mot que
 # ce fichier ajoute (l'absence de finition n'est pas une recette).
 MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS
+# ── LES SOURCES DE MOTIF (3c, §6.2bis-d) — vocabulaire FERMÉ ────────────────
+# Trois formes, et PAS un quatrième magasin (décision 4 du plan 3c) : une image
+# de calque du jeu (celle que P3 importe déjà), la matière de support importée
+# de ce jeu, ou une matière de la boutique. Le sigle à téléverser passe donc
+# par la route d'import EXISTANTE — l'utilisateur importe, puis choisit.
+# `MOTIF_MAX` et `MOTIF_GAIN` viennent du module scène : c'est LUI qui encode,
+# c'est lui qui borne (jamais deux plafonds qui dérivent).
+_MOTIF_IMG_RE = re.compile(r"^img:(img_\d+\.png)$")
+_MOTIF_MAT_RE = re.compile(r"^mat:(mat_[0-9a-f]{8})$")
+MOTIF_PAPER = "paper"
+MOTIF_MAX_BYTES = 64 * 1024 * 1024   # même plafond que MAX_LAYER_BYTES : un
+                                      # motif est une image de carte, et il est
+                                      # PESÉ avant d'être décodé (seul ordre
+                                      # qui protège la mémoire, spec 2.5)
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -314,11 +333,71 @@ async def get_info(did: str):
                           for m in materials_raw],
             "materials_degraded": materials_degraded,
             "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
-                                "finishes": list(MATERIAL_FINISHES)},
+                                "finishes": list(MATERIAL_FINISHES),
+                                "motif_max": MOTIF_MAX,
+                                "motif_gain": list(MOTIF_GAIN)},
             "transform_limits": {"xy_mm": list(TRANSFORM_XY_MM),
                                  "z_mm": list(TRANSFORM_Z_MM),
                                  "rot_deg": list(TRANSFORM_ROT_DEG),
                                  "scale": list(TRANSFORM_SCALE)}}
+
+
+def _scan_motif_sources(did: str) -> dict:
+    """Les sources de motif RÉELLEMENT présentes pour ce jeu — du disque,
+    jamais devinées (même discipline que `get_fonts` de P3 ou la boutique de
+    `get_info`). Chaque entrée porte le `src` EXACT que `clean_graph`
+    accepte : l'écran n'a aucune recette à recomposer, donc aucune à faire
+    dériver.
+
+    Les images de calque sont triées PAR NUMÉRO, pas par nom : un tri
+    lexical mettrait `img_10.png` entre `img_1.png` et `img_2.png` et le
+    menu ne suivrait plus l'ordre d'import."""
+    d = deck_dir(did) / "type"
+    nums = []
+    if d.is_dir():
+        for p in d.iterdir():
+            m = re.fullmatch(r"img_(\d+)\.png", p.name)
+            if m and p.is_file():
+                nums.append((int(m.group(1)), p.name))
+    nums.sort()
+    images = [{"src": f"img:{nom}", "label": nom} for _n, nom in nums]
+    pap = deck_dir(did) / "texture" / "paper.png"
+    paper = ({"src": MOTIF_PAPER, "label": "matiere de support importee"}
+             if pap.is_file() else None)
+    from app.services import material_store
+    return {"images": images, "paper": paper,
+            "materials": [{"src": "mat:" + m["id"], "label": m["name"]}
+                          for m in material_store.list_materials()]}
+
+
+@router.get("/motif-sources")
+async def get_motif_sources(did: str):
+    """Ce que l'écran peut poser en MOTIF sur une finition holographique.
+
+    POURQUOI UNE ROUTE D'ICI, et pas trois appels côté navigateur : les images
+    de calque appartiennent à la route de P3 et les matières à celle de la
+    boutique — l'écran P9 qui irait les chercher lui-même ferait exactement ce
+    que la règle 8 interdit entre pièces, et son menu dériverait le jour où un
+    voisin change sa forme de réponse. L'agrégation est SERVEUR, et elle rend
+    le vocabulaire du graphe, pas celui des voisins.
+
+    Dégradation NOMMÉE (doctrine 2.5, jamais 500) : un disque en panne ou une
+    boutique cassée rend des listes vides ET la panne — un menu vide muet se
+    relit « ce jeu n'a rien », ce qui n'est pas la même phrase."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
+    try:
+        out = await asyncio.to_thread(_scan_motif_sources, did)
+        out["degraded"] = None
+    except Exception as e:
+        logger.exception("cards/forge3d: sources de motif indisponibles")
+        out = {"images": [], "paper": None, "materials": [],
+               "degraded": _panne(e)}
+    return out
 
 
 def _out_dir(did: str, create: bool = False) -> Path:
@@ -378,6 +457,46 @@ def _num(raw, default: float, lo: float, hi: float) -> float:
     if not math.isfinite(v):
         return float(default)
     return float(lo if v < lo else hi if v > hi else v)
+
+
+def _motif_src_ok(src) -> bool:
+    """Une source de motif est-elle DU VOCABULAIRE ? Liste blanche stricte,
+    et la garde `isinstance` D'ABORD pour la même raison que partout dans
+    `clean_graph` : un `src` non hachable (une liste, un dict) ne doit pas
+    lever au premier `re.match` — jamais 500 sur une entrée hostile.
+
+    Le motif `img:img_{n}.png` ne peut porter NI séparateur NI point autre que
+    celui de l'extension : « img:../../meta.json » n'y ressemble pas de loin,
+    et c'est délibérément ce contrôle-CI qui le refuse, pas la lecture du
+    fichier plus tard (liste blanche AVANT le disque — le patron durci de la
+    2c, `get_node_file`)."""
+    if not isinstance(src, str):
+        return False
+    if src == MOTIF_PAPER:
+        return True
+    return bool(_MOTIF_IMG_RE.match(src) or _MOTIF_MAT_RE.match(src))
+
+
+def _clean_motifs(raw) -> list:
+    """La PILE de motifs d'un nœud matière, réparée : liste blanche des
+    sources, part ramenée dans `MOTIF_GAIN`, plafond `MOTIF_MAX` — dans
+    L'ORDRE reçu, qui est l'ordre d'addition (§6.2bis-d).
+
+    Une source hors vocabulaire est JETÉE EN SILENCE, comme un nœud inconnu ou
+    une arête orpheline : c'est le contrat de `clean_graph`, qui répare et ne
+    raconte pas. L'aveu NOMMÉ appartient à la CONSTRUCTION (`_habille` ->
+    `ignored`), seule à savoir si le fichier existe vraiment — une source bien
+    formée mais absente du disque est un fait de disque, pas de grammaire."""
+    out: list = []
+    src_in = raw if isinstance(raw, list) else []
+    for m in src_in[:_GRAPH_ITER_MAX]:
+        if not isinstance(m, dict) or not _motif_src_ok(m.get("src")):
+            continue
+        out.append({"src": m["src"],
+                    "gain": _num(m.get("gain"), MOTIF_GAIN[1], *MOTIF_GAIN)})
+        if len(out) >= MOTIF_MAX:
+            break
+    return out
 
 
 def clean_graph(raw) -> dict:
@@ -487,8 +606,12 @@ def clean_graph(raw) -> dict:
             node["tile_mm"] = _num(n.get("tile_mm"), 63.0, *MATERIAL_TILE_MM)
             node["finish"] = n.get("finish") if n.get("finish") in MATERIAL_FINISHES else "aucune"
             node["aniso"] = bool(n.get("aniso"))
+            node["motifs"] = _clean_motifs(n.get("motifs"))
             if node["mat"] is None and node["finish"] == "aucune":
                 continue          # une matière sans matière ni finition n'est rien
+                                  # — des motifs seuls n'habillent RIEN (ils
+                                  # s'incrustent dans une finition, ils ne la
+                                  # remplacent pas)
         elif n["kind"] == "transform":
             node["x_mm"] = _num(n.get("x_mm"), 0.0, *TRANSFORM_XY_MM)
             node["y_mm"] = _num(n.get("y_mm"), 0.0, *TRANSFORM_XY_MM)
@@ -1165,14 +1288,87 @@ def _efface(p: Path) -> None:
         logger.warning(f"cards/forge3d: {p.name} perime non efface")
 
 
+def _motif_path(did: str, src: str) -> Path:
+    """Le CHEMIN d'une source de motif — liste blanche D'ABORD, disque
+    ENSUITE (patron durci de `get_node_file`, 2c). Trois formes, trois
+    magasins DÉJÀ EXISTANTS (décision 4 du plan 3c : pas de quatrième).
+
+    RÈGLE 8 TENUE : les images de calque de P3 vivent sous `decks/{did}/type/`
+    et la matière de support sous `decks/{did}/texture/` — ce sont des
+    FICHIERS sur le disque du jeu, composés ici depuis `contract.deck_dir`
+    (le chemin du domaine), jamais en important le routeur du voisin.
+    `material_store`, lui, est un service TRANSVERSE que cette pièce consomme
+    déjà (`get_info`, `tile_maps`) : c'est SA fonction de chemin qui garde son
+    confinement, pas une recomposition d'ici."""
+    m = _MOTIF_IMG_RE.match(src)
+    if m:
+        return deck_dir(did) / "type" / m.group(1)
+    if src == MOTIF_PAPER:
+        return deck_dir(did) / "texture" / "paper.png"
+    m = _MOTIF_MAT_RE.match(src)
+    if m:
+        from app.services import material_store as MSTORE
+        return MSTORE.map_path(m.group(1), "basecolor")
+    raise ValueError(f"source de motif hors vocabulaire : {src!r}")
+
+
+def _motif_bytes(did: str, src: str) -> bytes:
+    """Les OCTETS d'une source de motif. ValueError NOMMÉE si la source est
+    hors vocabulaire, absente du disque, illisible ou trop lourde — l'appelant
+    en fait un aveu au bordereau, jamais un 500.
+
+    Le fichier est PESÉ avant d'être lu : ces images viennent de nos propres
+    routes d'import (déjà bornées), mais un dossier de jeu est un dossier
+    ORDINAIRE que rien n'empêche de remplir à la main."""
+    p = _motif_path(did, src)
+    try:
+        if not p.is_file():
+            raise ValueError("fichier absent de ce jeu")
+        poids = p.stat().st_size
+        if poids > MOTIF_MAX_BYTES:
+            raise ValueError(f"{poids // 1048576} Mo : au-dela du plafond "
+                             f"de {MOTIF_MAX_BYTES // 1048576} Mo")
+        return p.read_bytes()
+    except ValueError as e:
+        raise ValueError(f"motif « {src} » : {e}")
+    except OSError as e:
+        raise ValueError(f"motif « {src} » : illisible ({_panne(e)})")
+
+
+def _motifs_resolus(did, mat_n: dict, ignores: list) -> list:
+    """La pile de motifs d'un nœud matière, RÉSOLUE en octets — et ce qui n'a
+    pas pu l'être, AVOUÉ nommément (doctrine `ignored`, la même que la matière
+    introuvable juste en dessous). Un calque mort ne coûte ni l'artefact ni la
+    finition : il est retiré de la pile et il est DIT, avec sa source."""
+    pile: list = []
+    for m in (mat_n.get("motifs") or []):
+        src = m.get("src")
+        try:
+            if did is None:
+                raise ValueError(f"motif « {src} » : sources de jeu "
+                                 f"indisponibles dans ce contexte")
+            pile.append((_motif_bytes(did, src), m.get("gain")))
+        except ValueError as e:
+            ignores.append({"node": mat_n["id"],
+                            "why": f"{e}, calque retire de la pile"})
+    return pile
+
+
 def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
-             ignores: list) -> None:
+             ignores: list, did=None) -> None:
     """La MATIÈRE et la FINITION d'un élément local, posées sur son
     dictionnaire (`mat_maps` / `finish`). Aucune des deux n'est vitale : une
     matière effacée de la boutique depuis que le graphe a été câblé, ou une
     recette de finition inconnue, laissent passer l'élément SANS habillage et
     entrent dans `ignores` avec leur motif — refuser tout l'artefact pour un
-    accessoire absent serait disproportionné, le taire serait un mensonge."""
+    accessoire absent serait disproportionné, le taire serait un mensonge.
+
+    `did` (3c) est le jeu dont les MOTIFS se lisent : ce module ne peut pas le
+    déduire de `el` (un élément ne porte que des pixels), et le sidecar qui
+    appelle cette fonction ne le connaît pas — c'est donc le point d'appel
+    d'ici (`_element_local`) qui le lie, en gardant la signature à cinq
+    positions que le sidecar utilise. Sans lui, une pile de motifs est AVOUÉE
+    non résoluble plutôt que silencieusement vide."""
     if not isinstance(mat_n, dict):
         return
     if mat_n.get("mat"):
@@ -1198,14 +1394,27 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
     if mat_n.get("finish") and mat_n["finish"] != "aucune":
         try:
             el["finish"] = holo_finish(mat_n["finish"],
-                                       bool(mat_n.get("aniso")))
+                                       bool(mat_n.get("aniso")),
+                                       motifs=_motifs_resolus(did, mat_n,
+                                                              ignores))
         except ValueError as e:
             ignores.append({"node": mat_n["id"],
                             "why": f"finition ignoree : {e}"})
+    elif mat_n.get("motifs"):
+        # DES MOTIFS SANS FINITION NE S'INCRUSTENT NULLE PART (3c) : le canal
+        # G d'épaisseur n'existe QUE dans une recette holographique. Le taire
+        # laisserait l'écran croire que le sceau est passé — c'est exactement
+        # le silence que le bordereau `ignored` existe pour rompre.
+        ignores.append({
+            "node": mat_n["id"],
+            "why": f"{len(mat_n['motifs'])} motif(s) poses sans finition "
+                   f"holographique : rien ou incruster (le canal "
+                   f"d'epaisseur n'existe qu'en argent ou dorure)"})
 
 
 def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
-                   mat_n, trs_n, card_label: str, g, ignores: list) -> dict:
+                   mat_n, trs_n, card_label: str, g, ignores: list,
+                   did=None) -> dict:
     """UN élément LOCAL (`plane`/`relief`) prêt pour l'assemblage — le CORPS
     vit dans forge3d_apercu.py (couture de délestage), qui le partage entre
     `build3d` et l'inspecteur. ICI, le PONT : les deux primitives que le
@@ -1216,10 +1425,19 @@ def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
     N2 (re-revue tâche 1) : `g` REMPLACE les quatre paramètres dérivés
     (w_mm/h_mm, bleed_px, canvas_px, uv_window — trois tuples de même forme au
     même rang). Ils sont désormais dérivés UNE fois, DEDANS (`_geom_element`) :
-    le swap silencieux de deux tuples au point d'appel n'est plus formulable."""
+    le swap silencieux de deux tuples au point d'appel n'est plus formulable.
+
+    3c : le JEU est LIÉ ici, pas passé au sidecar. Les motifs d'une finition
+    se lisent dans les fichiers du jeu, et le sidecar — qui ne connaît que des
+    pixels et des nœuds — n'a aucune raison d'apprendre ce qu'est un `did`. Le
+    lier ici garde son contrat d'injection à cinq positions INTACT (un appelant
+    qui ne donne pas de jeu obtient l'ancienne fonction, et une pile de motifs
+    y est AVOUÉE non résoluble, jamais silencieusement vide)."""
+    habille = (_habille if did is None
+               else partial(_habille, did=did))
     return _APERCU.element_local(out, proc, layer, nom_el, mat_n, trs_n,
                                  card_label, g, ignores,
-                                 ouvre_png=_open_png, habille=_habille)
+                                 ouvre_png=_open_png, habille=habille)
 
 
 def _glb_servi_path(did: str, nid: str) -> tuple[dict, Path]:
@@ -1406,7 +1624,7 @@ async def post_build3d(did: str, body: dict | None = None):
                 continue
             elements.append(_element_local(
                 out, proc, layer, nom_el, mat_n, trs_n, card_label, g,
-                ignores))
+                ignores, did))
             bordereau.append({"name": nom_el, "kind": "local",
                               "node": proc["id"], **cote})
         t_resolve = time.perf_counter()
@@ -2391,7 +2609,7 @@ async def post_node_preview(did: str, body: dict | None = None):
         el = _element_local(
             _out_dir(did), ch["proc"], ch["layer"],
             nom_element(ch["layer"]), ch["mat"], ch["trs"],
-            card_label, g, ignored)
+            card_label, g, ignored, did)
         # I1 : `ignored` porte ICI tout ce qui a ete ecarte — les entrees
         # d'avant l'appel (source/maillon surnumeraire, sub_ignores) ET
         # celles que `_element_local`/`_habille` viennent d'y ajouter

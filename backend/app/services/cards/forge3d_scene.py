@@ -12,6 +12,8 @@ d'une autre pièce du lab.
 """
 from __future__ import annotations
 
+import collections
+import hashlib
 import io
 import json
 import math
@@ -291,19 +293,144 @@ HOLO_PX = (8, 2048)
 # recopier deux noms qui dériveront (même patron que les blocs miroir).
 HOLO_KINDS = tuple(_HOLO_RECIPES)
 
+# ── LES MOTIFS INCRUSTÉS (3c) — spec §6.2bis-d :435-440 ─────────────────────
+# « un ou PLUSIEURS calques de motif/symbole [...] encodés dans le canal G de
+# l'iridescenceThicknessTexture (addition bornée des épaisseurs, ordre des
+# calques = ordre d'addition) [...] Déterministe (mêmes calques -> mêmes
+# octets) ». Ce module ne connaît que des OCTETS : c'est l'appelant (le
+# contrat HTTP) qui sait où vivent les fichiers et qui AVOUE ce qu'il n'a pas
+# trouvé. Ici, les octets d'un calque et sa part, rien d'autre.
+MOTIF_MAX = 4                  # calques ; au-delà, les QUATRE PREMIERS (§6.2bis
+                               # dit « un ou plusieurs », pas « autant qu'on
+                               # veut » : chaque calque est un rééchantillonnage
+                               # plein format, et quatre franges superposées ne
+                               # se lisent déjà plus à l'œil)
+MOTIF_GAIN = (0.1, 1.0)        # la PART du calque dans l'addition bornée
+MOTIF_MAX_PIXELS = 32 * 1024 * 1024   # bombe de pixels : LE décodage est ici,
+                                      # donc la garde aussi (copie locale du
+                                      # chiffre du domaine, règle 8)
 
-# CACHE (recommandation de revue Task 5) : la clé est UN entier déjà borné et
-# la valeur des OCTETS — immuables, donc partageables sans risque entre deux
-# constructions. 8 entrées couvrent largement les tailles réellement servies
-# (1024, 2048, plus celles des tests). Il n'y a DÉLIBÉRÉMENT pas de cache sur
-# `holo_finish` lui-même : il rend un dictionnaire de LISTES mutables, qu'un
-# appelant pourrait modifier — la carte suivante hériterait de la mutation.
-@lru_cache(maxsize=8)
-def _holo_thickness_png(out_px: int) -> bytes:
-    """L'épaisseur du film, en SECTEURS RADIAUX, dans le canal G — le seul
-    que lise KHR_materials_iridescence. R et B restent à 0 : l'octet neutre
-    du « canal inutilisé », pour qu'aucun outil n'aille y lire un empaquetage
-    qui n'existe pas.
+
+# ── LE CACHE DES OCTETS D'ÉPAISSEUR ─────────────────────────────────────────
+# La 2b cachait sur UN entier (`out_px`) par `lru_cache`. Avec les motifs, la
+# clé doit porter LA PILE — sans quoi deux cartes aux motifs différents
+# partageraient une entrée et la seconde recevrait l'hologramme de la
+# première, SANS UN MOT. La clé est donc `(out_px, ((sha256, gain), ...))`.
+#
+# POURQUOI PLUS `lru_cache` : sa clé RETIENT tous les arguments. Les octets
+# sources d'un calque (une image de jeu peut peser des dizaines de Mo) y
+# resteraient vivants pour la durée de l'entrée — huit entrées x quatre
+# calques, et le cache d'une texture de 2 Mo tiendrait des centaines de Mo
+# d'images en otage. Ce cache-ci ne garde QUE des empreintes (64 caractères
+# par calque) et la sortie ; les images sources sont libérées à la sortie de
+# l'appel. `cache_info()`/`cache_clear()` gardent l'orthographe de functools :
+# le lecteur suivant n'a pas à apprendre un second vocabulaire.
+THICK_CACHE_MAX = 8            # même budget qu'avant : deux tailles servies
+                               # (1024, 2048) x les piles d'une session ; les
+                               # tailles des tests tiennent dans le reste
+_THICK_CACHE: "collections.OrderedDict[tuple, bytes]" = collections.OrderedDict()
+_THICK_STATS = {"hits": 0, "misses": 0}
+
+
+def _thick_cache_info() -> dict:
+    return dict(_THICK_STATS, size=len(_THICK_CACHE))
+
+
+def _thick_cache_clear() -> None:
+    _THICK_CACHE.clear()
+    _THICK_STATS.update(hits=0, misses=0)
+
+
+def motif_pile(motifs) -> tuple:
+    """La PILE CANONIQUE : `((sha256, gain, octets), ...)`, dans l'ORDRE reçu,
+    bornée à `MOTIF_MAX` calques et à `MOTIF_GAIN` de part.
+
+    Ce qui n'a pas d'octets est SAUTÉ ici sans un mot — et c'est voulu : la
+    seule chose que ce module puisse dire d'une entrée vide, c'est « vide ».
+    Qui elle était, d'où elle venait et pourquoi elle manque appartiennent à
+    l'appelant, qui l'a résolue et qui l'AVOUE au bordereau (doctrine
+    `ignored`)."""
+    pile = []
+    for m in (motifs or ()):
+        try:
+            raw, gain = m
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(raw, (bytes, bytearray)) or not raw:
+            continue
+        g = _f(gain, 1.0)
+        g = MOTIF_GAIN[0] if g < MOTIF_GAIN[0] else \
+            MOTIF_GAIN[1] if g > MOTIF_GAIN[1] else g
+        pile.append((hashlib.sha256(bytes(raw)).hexdigest(), g, bytes(raw)))
+        if len(pile) >= MOTIF_MAX:
+            break
+    return tuple(pile)
+
+
+def _motif_luma(raw: bytes, out_px: int):
+    """UN calque, réduit à ce que le canal G sait porter : une LUMINANCE au
+    format de la texture. ValueError NOMMÉE si l'image est illisible ou trop
+    grande — l'appelant en fait un aveu, jamais un 500 (doctrine 2.5).
+
+    L'ALPHA EST COMPOSÉ SUR DU NOIR, et ce n'est pas cosmétique : `convert("L")`
+    IGNORE le canal alpha, si bien qu'un sigle transparent dont les pixels
+    invisibles portent du blanc (le cas ordinaire d'un PNG détouré) déposerait
+    son épaisseur SUR TOUTE LA CARTE. Transparent = rien à déposer.
+
+    Filtre EXPLICITE (BICUBIC, convention « maps de données » du fichier) : le
+    défaut de la bibliothèque a déjà changé d'une version à l'autre, et le
+    déterminisme est une PROMESSE ici, pas un effet de bord."""
+    from PIL import Image
+    try:
+        im = Image.open(io.BytesIO(raw))
+        w, h = im.size
+        if w * h > MOTIF_MAX_PIXELS:
+            raise ValueError(
+                f"motif de {w}x{h} px : au-dela de {MOTIF_MAX_PIXELS // 1048576} "
+                f"megapixels, non decode")
+        im.load()
+    except ValueError:
+        raise
+    except Exception as e:
+        raise ValueError(f"motif illisible ({e or type(e).__name__})")
+    if "A" in im.getbands():
+        fond = Image.new("RGBA", im.size, (0, 0, 0, 255))
+        im = Image.alpha_composite(fond, im.convert("RGBA"))
+    lum = im.convert("L")
+    if lum.size != (out_px, out_px):
+        lum = lum.resize((out_px, out_px), Image.BICUBIC)
+    return lum
+
+
+def _holo_thickness_png(out_px: int, pile: tuple = ()) -> bytes:
+    """L'épaisseur du film — l'arc-en-ciel radial de la 2b, PLUS les motifs
+    incrustés de la 3c. Cache borné, clé `(out_px, ((sha, gain), ...))`.
+
+    Il n'y a DÉLIBÉRÉMENT pas de cache sur `holo_finish` lui-même : il rend un
+    dictionnaire de LISTES mutables, qu'un appelant pourrait modifier — la
+    carte suivante hériterait de la mutation. Seuls les OCTETS, immuables, se
+    partagent."""
+    cle = (int(out_px), tuple((sha, gain) for sha, gain, _ in pile))
+    fait = _THICK_CACHE.get(cle)
+    if fait is not None:
+        _THICK_CACHE.move_to_end(cle)
+        _THICK_STATS["hits"] += 1
+        return fait
+    _THICK_STATS["misses"] += 1
+    png = _holo_thickness_bytes(out_px, pile)
+    _THICK_CACHE[cle] = png
+    while len(_THICK_CACHE) > THICK_CACHE_MAX:
+        _THICK_CACHE.popitem(last=False)
+    return png
+
+
+_holo_thickness_png.cache_info = _thick_cache_info
+_holo_thickness_png.cache_clear = _thick_cache_clear
+
+
+@lru_cache(maxsize=4)
+def _holo_base_g(out_px: int) -> bytes:
+    """LE PLAN G NU — un octet par pixel, l'arc-en-ciel radial SANS motif.
 
     Pourquoi des secteurs et pas un dégradé continu : une MARCHE survit au
     mip-mapping, un dégradé fin moire dès le second niveau (§6.2bis-c). 48
@@ -316,19 +443,25 @@ def _holo_thickness_png(out_px: int) -> bytes:
     sortie AU BIT PRÈS (vérifiée avant de choisir), 2,20 s -> 0,33 s à 1024²
     sur le runtime embarqué — et un aperçu de carte en demande deux.
 
+    CACHÉ À PART DU COMPOSÉ (3c), et pour une raison mesurable : le cache des
+    octets LIVRÉS est clé sur (taille, pile), donc changer d'un cran la part
+    d'un motif le rate — et cette boucle-ci, la seule chose vraiment chère,
+    serait repayée à chaque cran de curseur. Elle ne dépend QUE de la taille :
+    deux entrées suffisent aux deux tailles réellement servies, quatre laissent
+    la marge des tests (1 Mo l'entrée à 1024, 4 Mo à 2048).
+
     SINGULARITÉ DU CENTRE, assumée : sous r ≈ out_px/64, un pixel couvre plus
     d'un secteur et la roue crénèle en moulin à vent. Ces finitions habillent
     un SCEAU de bordure, pas le centre de la carte — la zone concernée fait
     16 px de rayon sur 1024. Adoucir le G vers une constante dans ce disque
     coûterait la lisibilité de la recette pour un défaut que personne ne
     regarde ; on le NOMME plutôt que de le corriger à l'aveugle."""
-    from PIL import Image
     c = out_px / 2.0
     pi = math.pi
     atan2 = math.atan2
     lut = [round(255 * ((s % _HOLO_CYCLE) / (_HOLO_CYCLE - 1)))
            for s in range(_HOLO_SECTORS)]
-    data = bytearray(out_px * out_px * 3)
+    data = bytearray(out_px * out_px)
     off = 0
     for y in range(out_px):
         dy = y - c
@@ -336,10 +469,51 @@ def _holo_thickness_png(out_px: int) -> bytes:
             ang = atan2(dy, x - c)
             # le `% _HOLO_SECTORS` n'est pas décoratif : à ang == +pi
             # exactement (la rangée du centre, à gauche) le produit vaut 48.
-            data[off + 1] = lut[int(((ang + pi) / (2.0 * pi)) * _HOLO_SECTORS)
-                                % _HOLO_SECTORS]
-            off += 3
-    return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
+            data[off] = lut[int(((ang + pi) / (2.0 * pi)) * _HOLO_SECTORS)
+                            % _HOLO_SECTORS]
+            off += 1
+    return bytes(data)
+
+
+def _holo_thickness_bytes(out_px: int, pile: tuple = ()) -> bytes:
+    """L'épaisseur du film dans le canal G — le seul que lise
+    KHR_materials_iridescence. R et B restent à 0 : l'octet neutre du « canal
+    inutilisé », pour qu'aucun outil n'aille y lire un empaquetage qui
+    n'existe pas.
+
+    L'ADDITION EST BORNÉE, ET L'ORDRE EST LOAD-BEARING (§6.2bis-d) : chaque
+    calque ne peut déposer que ce que l'épaisseur RESTANTE lui laisse
+    (`min(luminance, 255 - g)`), et sa PART (`gain`) se calcule sur ce qu'il a
+    pu prendre. Arriver en second coûte — c'est le geste d'une presse à foil,
+    où le second poinçon ne trouve plus que le film que le premier a laissé.
+
+    Ce n'est PAS une somme finalement écrêtée, et l'écart est le fond de
+    l'affaire : `min(255, g + a + b)` est COMMUTATIF (l'écrêtage d'un total ne
+    sait pas qui est arrivé le premier), si bien que « ordre des calques =
+    ordre d'addition » n'y voudrait rien dire. Mesuré : `A(lum 100, part 1,0)`
+    puis `B(lum 200, part 0,5)` sur un fond nul donne 178, l'ordre inverse 200.
+
+    TOUT SE FAIT EN OPÉRATIONS D'IMAGE (invert/darker/point/add), pas en
+    boucle Python : à 1024² une boucle par pixel coûtait ~1 s par calque, ces
+    quatre passes en coûtent ~8 ms — et elles sont exactement aussi
+    déterministes (une LUT de 256 entrées, aucun aléa)."""
+    from PIL import Image, ImageChops
+    g = Image.frombytes("L", (out_px, out_px), _holo_base_g(out_px))
+    for _sha, gain, raw in pile:
+        lum = _motif_luma(raw, out_px)
+        reste = ImageChops.invert(g)                      # 255 - g
+        pris = ImageChops.darker(lum, reste)              # min(lum, reste)
+        depot = pris.point([round(v * gain) for v in range(256)])
+        # `add` écrête à 255 — REDONDANT PAR CONSTRUCTION, et c'est dit parce
+        # que c'est mesuré : `depot <= pris <= reste = 255 - g`, donc la somme
+        # ne peut pas dépasser. (Mutation testée : passer en `add_modulo` seul
+        # ne change AUCUN octet — le mutant survit, et il a raison. C'est le
+        # `darker` au-dessus qui PORTE la borne ; retirer LUI casse à la fois
+        # la borne et l'ordre, et deux tests le tuent.) La ceinture reste :
+        # elle coûte zéro et elle protège un futur `gain > 1`.
+        g = ImageChops.add(g, depot)
+    zero = Image.new("L", (out_px, out_px), 0)
+    return _png_bytes(Image.merge("RGB", (zero, g, zero)))
 
 
 @lru_cache(maxsize=8)
@@ -378,7 +552,8 @@ def _holo_aniso_png(out_px: int) -> bytes:
     return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
 
 
-def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
+def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
+                motifs=()) -> dict:
     """UNE finition holographique de la spec (§6.2bis-c), prête pour le
     writer : facteurs PBR, bloc iridescence (+ sa texture d'épaisseur),
     clearcoat, et l'anisotropie SEULEMENT si on la demande.
@@ -390,7 +565,14 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
 
     `out_px` est borné à `HOLO_PX` (8..2048, §6.2bis) : la texture est
     fabriquée pixel par pixel en Python ; un chiffre non borné venu d'un
-    graphe serait une bombe mémoire."""
+    graphe serait une bombe mémoire.
+
+    `motifs` (3c) : une suite de `(octets, part)` — les CALQUES incrustés dans
+    le canal G, dans l'ORDRE d'addition (§6.2bis-d). Les octets, jamais des
+    chemins : ce module ne sait pas où vivent les fichiers, et c'est
+    l'appelant qui AVOUE ce qu'il n'a pas su résoudre. Un calque ILLISIBLE
+    (fichier corrompu) lève une ValueError NOMMÉE, comme une recette inconnue
+    — l'appelant en fait un aveu."""
     r = _HOLO_RECIPES.get(str(kind))
     if r is None:
         raise ValueError(f"finition holographique inconnue : {kind!r} "
@@ -401,7 +583,7 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024) -> dict:
                 "metallicFactor": 1.0, "roughnessFactor": r["rough"]},
         "iridescence": {"factor": 1.0, "ior": r["ior"],
                         "thickness": list(r["thickness"]),
-                        "png": _holo_thickness_png(px)},
+                        "png": _holo_thickness_png(px, motif_pile(motifs))},
         "clearcoat": {"factor": 1.0, "rough": _HOLO_CLEARCOAT_ROUGH},
         "anisotropy": ({"strength": _HOLO_ANISO_STRENGTH,
                         "png": _holo_aniso_png(px)} if aniso else None),

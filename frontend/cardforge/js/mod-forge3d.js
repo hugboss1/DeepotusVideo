@@ -102,7 +102,7 @@
     { kind: "plane", params: ["depth_mm"] },
     { kind: "relief", params: ["depth_mm", "base_mm", "grid"] },
     { kind: "mesh3d", params: ["engine", "texture_prompt", "ultra"] },
-    { kind: "material", params: ["mat", "tile_mm", "finish", "aniso"] },
+    { kind: "material", params: ["mat", "tile_mm", "finish", "aniso", "motifs"] },
     { kind: "transform", params: ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"] },
     { kind: "assemble", params: [] },
     { kind: "artifact", params: ["name"] },
@@ -367,6 +367,12 @@
      toujours : la palette proposerait les couches verso d'une AUTRE carte, et
      le seed les poserait. */
   let INFO = null;              /* dernière réponse de GET info (graph_limits) */
+  let MOTIFS = null;            /* dernière réponse de GET motif-sources (3c) —
+                                    les sources de motif RÉELLEMENT présentes
+                                    pour ce jeu, agrégées PAR LE SERVEUR : cet
+                                    écran ne va jamais chercher les images d'un
+                                    voisin (règle 8). `null` = jamais chargé,
+                                    ce qui ne se lit PAS comme « aucune ». */
   let LAST_MANIFEST = null;     /* le manifeste RECTO de la carte courante —
                                     reçu d'un POST layers de cette session, OU
                                     relu du disque au boot (refreshManifest,
@@ -832,6 +838,17 @@
       INFO = await M.api.get("info");
     } catch (e) {
       INFO = null;
+    }
+    /* les SOURCES DE MOTIF (3c) sont une seconde requête, et son échec ne
+       coûte pas le contrat : sans elles le bloc motifs dit qu'il n'a pas pu
+       lire les sources — le reste de l'écran, lui, n'a aucune raison de
+       tomber avec. Le serveur AGRÈGE (images de calque du jeu, matière de
+       support, boutique) : les aller chercher d'ici serait précisément la
+       traversée de pièces que la règle 8 interdit. */
+    try {
+      MOTIFS = await M.api.get("motif-sources");
+    } catch (e) {
+      MOTIFS = null;
     }
     paintVue();
   }
@@ -1361,6 +1378,108 @@
     return (f === "aucune") ? "aucune" : (f + " holographique");
   }
 
+  /* ── LES MOTIFS INCRUSTÉS (3c, spec §6.2bis-d :435-440) ──────────────────
+     « un ou PLUSIEURS calques de motif/symbole [...] encodés dans le canal G
+     de l'iridescenceThicknessTexture (addition bornée, ordre des calques =
+     ordre d'addition) ». Le bloc n'existe QU'À FINITION HOLOGRAPHIQUE : hors
+     d'une recette holo il n'y a pas de canal d'épaisseur, et le backend le
+     dit au bordereau plutôt que de faire semblant.
+
+     TOUT VIENT DU SERVEUR : les sources de `GET motif-sources` (jamais une
+     liste recomposée ici, jamais la route d'un voisin), le plafond et les
+     bornes de part de `/info`. Le seul mot d'ici est celui de l'ACTION
+     (ajouter / retirer), qui n'appartient à aucun contrat.
+
+     L'AJOUT ET LE RETRAIT PASSENT PAR DES <select>, pas par des boutons, et
+     c'est délibéré : cet écran a UNE délégation `change` pour tout ce qui
+     écrit dans le graphe (`onGraphChange`) et une autre, séparée, pour les
+     `data-act`. Faire passer une pile ordonnée par la première la rend
+     éditable exactement comme les autres champs — même point d'écriture,
+     même pile d'annulation, même repeint. */
+  function motifLimits() {
+    const lim = (INFO && INFO.material_limits) || null;
+    return {
+      max: (lim && lim.motif_max) || 0,
+      gain: (lim && lim.motif_gain) || null,
+    };
+  }
+
+  /* les sources servies, à plat et DANS L'ORDRE du serveur (images du jeu,
+     matière de support, matières de la boutique) — une seule liste, parce
+     qu'un `src` est un `src` : le graphe n'a qu'un vocabulaire. */
+  function motifSources() {
+    if (!MOTIFS) return [];
+    return (MOTIFS.images || [])
+      .concat(MOTIFS.paper ? [MOTIFS.paper] : [])
+      .concat(MOTIFS.materials || []);
+  }
+
+  function motifOptions(courant) {
+    return motifSources().map((s) => '<option value="' + esc(s.src) + '"'
+      + (s.src === courant ? " selected" : "") + '>' + esc(s.label)
+      + '</option>').join("");
+  }
+
+  function motifsHtml(mat, holo) {
+    const lim = motifLimits();
+    const liste = (mat && mat.motifs) || [];
+    const src = motifSources();
+    /* DES CALQUES SANS RECETTE OÙ S'INCRUSTER : le bloc reste VISIBLE (c'est
+       la seule surface d'où on peut les retirer) et il DIT que rien ne sera
+       incrusté — la même phrase que le bordereau `ignored` du backend. Le
+       cacher laisserait des données mortes que l'écran refuserait de montrer
+       et que la construction avouerait quand même. */
+    const mort = !holo && liste.length
+      ? '<p class="hint cf-forge3d-motif-off">aucune finition holographique : '
+        + 'ces calques ne s\'incrusteront nulle part (le canal d\'epaisseur '
+        + 'n\'existe qu\'en argent ou dorure) — la construction le dira aussi.'
+        + '</p>'
+      : "";
+    if (!MOTIFS) {
+      return '<p class="hint cf-forge3d-motifs"><b>motifs</b> — sources non '
+        + 'chargees (contrat motif-sources indisponible).</p>';
+    }
+    if (!src.length) {
+      return '<p class="hint cf-forge3d-motifs"><b>motifs dans '
+        + 'l\'hologramme</b> — aucune source dans ce jeu : importez une image '
+        + 'de calque (Typographie), une matiere de support (Matieres), ou '
+        + 'installez une matiere dans la boutique.'
+        + (MOTIFS.degraded ? " " + esc(MOTIFS.degraded) : "") + '</p>';
+    }
+    const rangs = liste.map((m, i) =>
+      '<div class="cf-forge3d-line cf-forge3d-motif">'
+      + '<label class="cf-forge3d-sel">calque ' + (i + 1)
+      + '<select data-field="motif_src_' + i + '">'
+      + '<option value="">— retirer ce calque —</option>'
+      + motifOptions(m.src) + '</select></label>'
+      + numHtml("part", "motif_gain_" + i, m.gain, lim.gain, "0.05", "")
+      + '</div>').join("");
+    const reste = lim.max > 0 && liste.length >= lim.max;
+    const ajout = reste
+      ? '<p class="hint">' + lim.max + ' calques : le plafond est atteint '
+        + '(retirez-en un pour en poser un autre).</p>'
+      : '<label class="cf-forge3d-sel cf-forge3d-motif-add">ajouter'
+        + '<select data-field="motif_add"><option value="">— un motif… —'
+        + '</option>' + motifOptions(null) + '</select></label>';
+    return '<div class="cf-forge3d-motifs">' + mort
+      + '<p class="hint"><b>motifs dans l\'hologramme</b> — chaque calque '
+      + 'epaissit le film la ou il est clair ; l\'ORDRE est l\'ordre '
+      + 'd\'addition (le premier sert en premier, le suivant ne prend que ce '
+      + 'qui reste).</p>'
+      /* HONNÊTETÉ DE PORTÉE : la texture d'épaisseur est CARRÉE et couvre les
+         UV de l'élément ENTIER — isoler une bande n'existe pas ici (comme
+         l'arc-en-ciel de base de la 2b, qu'elle épaissit). Un utilisateur qui
+         croit poser un sceau de bordure doit l'apprendre AVANT de construire,
+         pas en ouvrant le GLB. */
+      + '<p class="hint">le motif couvre TOUT l\'element et suit ses '
+      + 'proportions (la texture d\'epaisseur est carree, etiree comme '
+      + 'l\'arc-en-ciel de base) : on n\'isole pas une bande.</p>'
+      + rangs + ajout
+      + '<p class="hint">le noeud matiere ne se previsualise pas : le motif se '
+      + 'voit sur l\'apercu du plan ou du relief en amont, '
+      + 'et sur l\'artefact construit.</p></div>';
+  }
+
   function matHtml(r, isMesh, hote) {
     const mats = (INFO && INFO.materials) || [];
     const lim = (INFO && INFO.material_limits) || null;
@@ -1368,6 +1487,11 @@
     const mat = r.mat;
     const finitions = (lim && lim.finishes) || [];
     const pose = !!mat;
+    /* « holo » = toute finition qui n'est pas l'ABSENCE de finition — dérivé
+       de la valeur portée, jamais d'une liste de recettes recopiée ici (une
+       recette de plus côté serveur s'affichera toute seule, comme pour
+       `finishLabel`). */
+    const holo = !!(mat && mat.finish && mat.finish !== "aucune");
     const matSel = mats.length
       ? ('<label class="cf-forge3d-sel">matière<select data-field="mat">'
         + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>aucune</option>'
@@ -1393,6 +1517,15 @@
       + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="aniso"'
       + (mat && mat.aniso ? " checked" : "") + (pose ? "" : " disabled")
       + '> anisotropie</label></div>'
+      /* le bloc motifs SUIT la finition : sans recette holographique il n'y a
+         pas de canal d'épaisseur où incruster quoi que ce soit (le backend
+         l'avoue au bordereau plutôt que de faire semblant — même vérité des
+         deux côtés). Il reste TOUT DE MÊME visible si des calques sont déjà
+         posés : c'est la seule surface d'où on peut les retirer, et une
+         donnée qu'on refuse de montrer mais que la construction avoue est le
+         pire des deux mondes. */
+      + (holo || (mat && mat.motifs && mat.motifs.length)
+         ? motifsHtml(mat, holo) : "")
       + '<p class="hint">matière sur plan/relief seulement — un GLB moteur '
       + 'garde la sienne.' + (isMesh && mat
         ? ' Ce rang est un moteur : la matière chaînée sera avouée comme '
@@ -4831,6 +4964,14 @@
   }
 
   const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso"];
+  /* les champs de la PILE DE MOTIFS (3c) : indexés, donc pas énumérables dans
+     `MAT_FIELDS`. Ils vont au MÊME écrivain (`editMat`) — un motif appartient
+     au nœud matière, pas à un magasin à part. */
+  const MOTIF_RE = /^motif_(add|src_\d+|gain_\d+)$/;
+  /* et parmi eux, ceux qui changent la STRUCTURE du corps du nœud (un rang de
+     calque apparaît ou disparaît) : la part, elle, n'est qu'un nombre — la
+     repeindre volerait le curseur au milieu d'un réglage. */
+  const MOTIF_STRUCT_RE = /^motif_(add|src_\d+)$/;
   const TRS_FIELDS = ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"];
   /* les champs qui changent l'AFFICHAGE du rang (ou du nœud) au-delà de leur
      propre valeur.
@@ -4929,7 +5070,7 @@
         return;
       }
       proc.format = f;
-    } else if (MAT_FIELDS.indexOf(field) >= 0) {
+    } else if (MAT_FIELDS.indexOf(field) >= 0 || MOTIF_RE.test(field)) {
       naissance = editMat(next, procId, field, rawValue);
     } else if (TRS_FIELDS.indexOf(field) >= 0) {
       naissance = editTrs(next, procId, field, rawValue);
@@ -4946,7 +5087,8 @@
        sait poser (le semis d'un layout manquant y passe). Dans la liste, la
        même naissance ne change qu'une puce de tiroir : le rang suffit. */
     if (field === "kind" || (naissance && VUE === "canvas")) paintVue();
-    else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0) {
+    else if (naissance || STRUCT_FIELDS.indexOf(field) >= 0
+             || MOTIF_STRUCT_RE.test(field)) {
       paintChamps(procId, nid, field);
       /* LES DEUX MOITIÉS, PAS UNE. `paintChamps` refait le nœud (ou le rang)
          ÉDITÉ ; il ne touche pas aux VOISINS de la chaîne — et `side` change
@@ -5088,6 +5230,43 @@
     return racine + "999";
   }
 
+  /* LA PILE DE MOTIFS, ÉCRITE SUR LE NŒUD MATIÈRE (3c). Trois gestes, un seul
+     point d'écriture : poser un calque à la fin, changer (ou retirer, valeur
+     vide) celui d'un rang, régler sa part.
+
+     L'ORDRE EST LA DONNÉE : `splice` conserve les rangs voisins tels quels,
+     là où un `filter` + re-poussée renuméroterait la pile et changerait
+     l'hologramme livré (l'ordre des calques EST l'ordre d'addition, §6.2bis-d
+     — le backend le prouve au bit près). C'est aussi pourquoi rien ici ne
+     trie ni ne dédoublonne : deux fois le même sigle à deux parts est une
+     pile LÉGITIME.
+
+     AUCUNE BORNE RECOPIÉE : le plafond vient de /info (`motifLimits`) et la
+     part est ramenée par `clean_graph` côté serveur — l'écran ne pose que ce
+     que l'utilisateur a choisi, et le champ porte déjà min/max de /info. */
+  function editMotifs(mat, field, rawValue) {
+    const liste = Array.isArray(mat.motifs) ? mat.motifs.slice() : [];
+    if (field === "motif_add") {
+      const src = String(rawValue || "");
+      const max = motifLimits().max;
+      if (!src || (max > 0 && liste.length >= max)) return;
+      liste.push({ src: src, gain: 1 });
+    } else {
+      const i = Number(field.replace(/^motif_(src|gain)_/, ""));
+      if (!isFinite(i) || i < 0 || i >= liste.length) return;
+      if (field.indexOf("motif_src_") === 0) {
+        const src = String(rawValue || "");
+        if (src) liste[i] = { src: src, gain: liste[i].gain };
+        else liste.splice(i, 1);       /* « — retirer ce calque — » */
+      } else {
+        const v = Number(rawValue);
+        if (!isFinite(v)) return;
+        liste[i] = { src: liste[i].src, gain: v };
+      }
+    }
+    if (liste.length) mat.motifs = liste; else delete mat.motifs;
+  }
+
   function editMat(g, procId, field, rawValue) {
     const r = rowModel(g, procId);
     if (!r) return false;
@@ -5103,6 +5282,8 @@
     else if (field === "tile_mm") {
       const v = Number(rawValue);
       if (isFinite(v)) mat.tile_mm = v; else delete mat.tile_mm;
+    } else if (MOTIF_RE.test(field)) {
+      editMotifs(mat, field, rawValue);
     }
     /* MÊME règle que `clean_graph` : une matière sans matière NI finition
        n'est rien. On retire le maillon plutôt que de laisser dans le graphe un
