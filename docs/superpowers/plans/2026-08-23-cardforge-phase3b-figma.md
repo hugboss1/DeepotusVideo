@@ -454,6 +454,33 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 >   test_cards_texture.py +1 (la bombe), test_cards_core.py amendé (traversée).
 >   Lint intégral 0 avec le critère élargi.
 
+> **CLOSE (T2 — 5d51744 + ronde 4c588d4, revue adverse : FIX-FIRST soldé).**
+> Le calque d'image est un slot ORDINAIRE (39 clés, presets FNV-identiques,
+> contain/cover mesurés au pixel avec clip SOUS rotation, plaque dessous,
+> zéro passe de glyphe) ; QUATRE passes d'encre trouvées et gardées (la 4e —
+> le contrôle de série :4637 — aurait compté un calque « vide » sur 200
+> cartes) ; route à compteur max+1 jamais recyclé, whitelist avant le
+> disque, Cache-Control immutable. **B1 de revue : la garde nulle sur
+> l'opérande testé, pas le résultat** → src="undefined" sur chaque slot
+> pré-3b, normaliseur non idempotent — LE VRAI DÉFAUT ÉTAIT LE TEST (parité
+> par source-match) : remplacé par la parité d'EXÉCUTION (13 entrées
+> clé-à-clé, idempotence JS, les 21 slots de presets assertés
+> norm_slot(s)==s — le backend n'a RIEN à réparer). **B2 : la course
+> d'upload** (6 concurrents → 1 fichier, 4 confirmés sur img_1, 2 vrais
+> 500 — le double Ctrl+V l'atteignait) → réservation O_CREAT|O_EXCL à tmp
+> unique + n-suivant-sur-collision + plafond RE-COMPTÉ après la
+> revendication + garde de vol client. M3 : bombe de pixels bornée à
+> l'EN-TÊTE avant load() (32 Mpx nommés), type.py ET texture.py (même forme
+> mesurée). M4 : le refactor avait sorti 4 fabriques HTML du champ R14
+> (elles RETOURNENT sans sink) → 3e critère `return '<` (délimiteur vérifié
+> contre le masque), +29 fonctions, 0 faux positif. L5 pire qu'annoncé (le
+> lecteur rendait meta.json) → ceinture à la naissance du chemin. L6 :
+> is_valid_did en fullmatch (52 sites, une porte). Avenants : la police du
+> damier jointe aux familles attendues SEULEMENT quand un damier va
+> vraiment se peindre (déterminisme premier-frame/export) ; toast re-compté
+> du disque APRÈS l'écriture. 162 tests, 11/11 suites, lint 0 au critère
+> élargi. mod-type.js +500 l. nets déclarés (T4 vise plus court).
+
 ### Task 3 : la palette d'éléments
 
 **Files:** mod-type.js, test_cards_type.py (+ css).
