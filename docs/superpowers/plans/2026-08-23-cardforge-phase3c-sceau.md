@@ -1050,14 +1050,115 @@ quatrième.** Toutes RED d'abord, toutes tuées par mutation. Suite `cards_frame
 
 **Files:** mod-frame.js, frame.py (route ai-models miroir), test_cards_frame.py.
 
-- [ ] RED : GET /frame/ai-models = pricing (jamais recopiée — pin
+- [x] RED : GET /frame/ai-models = pricing (jamais recopiée — pin
       d'import), prix AVANT au select + coût du clic ; génération par
       CF.images.generate → doc.frame.decor ; le décor peint dans le bloc
       clippé (pixels hors fenêtre, sous moulure) ; prompt pré-rempli de
       l'archétype actif (preset modele: → hint) ; decor admis à
       l'allow-list, src purgé au modèle.
-- [ ] Mutation : liste recopiée (pin), décor peint SUR la fenêtre
+- [x] Mutation : liste recopiée (pin), décor peint SUR la fenêtre
       (pixels), prix absent.
+
+**LIVRÉ le 23/08 — `cards_frame` 220 → 243, `cards_models` 161 → 166, suite
+complète 63/63 verte, lint 9/9 0 violation, `node --check` vert, 22 mutants
+sur 22.** Ce qui est en place et ce qu'il faut savoir avant la T6 :
+
+- **Schéma** `doc.frame.decor = {src, alpha}` — 32e clé, SECOND sous-objet
+  après `seal`, branche imbriquée `decorOf()` (objet NEUF) + miroir
+  `frame.decor_of()` + parité d'exécution sur 22 corps hostiles.
+  `LIMITS.decor_alpha [0,1]` des deux côtés. Les leçons F3/F4 de la T4 sont
+  appliquées **à la naissance** et non redécouvertes : `bnum` dès la première
+  ligne (`alpha: null` → défaut, pas zéro) et `DECOR_SRC_RE` borné à la seule
+  forme que les deux langages lisent pareil, ancré des deux bouts,
+  `fullmatch` au backend. Les deux mutants correspondants meurent.
+- **LE MAGASIN EST CELUI DE L'APPLICATION** (décision 6) : `/api/images/<f>`,
+  pas `decks/{did}/frame/`. Conséquence sur le motif : ces noms ne sont pas
+  fabriqués par un compteur à nous (`gen_<hex>.png` pour le générateur, le nom
+  d'origine pour un import), donc il borne le JEU DE SIGNES et la longueur au
+  lieu d'un `img_\d+`.
+- **UN SEUL DÉCODEUR, DEUX MAGASINS — le seuil anti-images tient sans
+  s'élargir.** Le chargeur de la T4 est devenu `loadFrameImg(file, magasin)` :
+  `new Image()` reste à **UN** endroit, la carve-out nommée du seuil n'a pas
+  grandi (elle a juste été renommée), et le magasin est un PARAMÈTRE. **La clé
+  de cache porte le magasin** (`app|gen_1.png` ≠ `deck|gen_1.png`) : sans lui,
+  deux fichiers homonymes de deux magasins se confondraient DANS UN MÊME JEU,
+  ce que le rechargement de page de `galGo()` ne rattrape pas. Testé par les
+  PIXELS (une image semée sous le mauvais magasin fait peindre l'encart de
+  manque), pas par un grep.
+- **LE DÉCOR PASSE SOUS `matter()`, et c'est mesuré.** Il s'intercale entre la
+  signature de famille et la matière, dans le bloc DÉJÀ découpé « toile MOINS
+  fenêtre » de l'étape 2. Raison : le décor est l'ILLUSTRATION de la bande, la
+  matière en est le FINI (trames, patine, usures) — on imprime l'encre, puis le
+  grain du papier appartient à la surface au-dessus. Mesure (banc du décor,
+  poker 150 DPI, arcane, aplat opaque) : la part de bande sortant à la couleur
+  BRUTE de l'image passe de **1,6 % à 78,8 %** en haut de bande et de **0 % à
+  100 %** dans le fond perdu si on inverse l'ordre — au-dessus, la matière a
+  purement disparu et le cadre devient un autocollant.
+- **BANC NEUF (`BANC_DECOR`) : le rastériseur du banc du peintre, EN
+  COULEURS.** Celui du verso sait les couleurs mais pas le découpage ; celui du
+  peintre sait le découpage mais pas les couleurs — le décor a besoin des deux
+  à la fois, puisque ce qui le tient hors de l'illustration EST le découpage.
+  La mesure est **DIFFÉRENTIELLE** : la même carte rendue deux fois, avec et
+  sans décor, et l'on compte les pixels qui CHANGENT (tout le reste est
+  déterministe, PRNG à graine fixe). L'écart EST donc l'empreinte du décor,
+  matière comprise, sans avoir à démêler l'un de l'autre. **La fenêtre est
+  celle du produit** (`winPath` rejoué sur un masque) et non une boîte
+  rectangulaire : la fenêtre d'`arcane` est ARQUÉE, et une boîte y compterait
+  des coins de BANDE comme une fuite (mesuré : 4 373 faux positifs).
+  Approximation DITE : un dégradé rend un gris à 35 % — la même des deux côtés
+  de la différence, donc elle en disparaît.
+- **L'ENCART DE MANQUE N'EST PAS CELUI DU VERSO, et c'est la leçon F1
+  transposée.** `backMissRect` pose sa vignette au CENTRE de la coupe ; or le
+  centre de la carte EST la fenêtre, que le découpage efface — l'encart y
+  serait AVALÉ et le manque MUET sur l'épreuve. `decorMissRect` le pose dans la
+  BANDE, du côté (haut ou bas) qui en offre le plus. Le mutant qui rebranche
+  `backMissRect` meurt sur les pixels (la boîte annoncée reste intacte).
+- **LES TROIS JAMBES DU PRIX SONT MESURÉES, PAS GREPPÉES — et c'est une leçon
+  payée à la ronde de mutation.** Deux mutants qui VIDAIENT le prix (l'un de
+  l'étiquette du menu, l'autre de la ligne de coût) ont d'abord SURVÉCU à des
+  `assert "Coût de ce clic" in src` : la même phrase vit dans l'autre branche
+  (« tarif non tabulé »). **LE PIÈGE DU GREP DE PROSE, UNE 4e FOIS.**
+  `decorModelOptions()` et `decorCostLine()` tournent maintenant au banc et
+  l'on lit le HTML qu'elles écrivent (« 0,003 $/image », « 1 × 0,003 $ »,
+  « fal », la provenance du tarif) ; les deux mutants meurent.
+- **LA GÉNÉRATION EST JOUÉE AVEC UN ESPION, ZÉRO DOLLAR** : `CF.images.generate`
+  est remplacé par un mouchard qui note la requête et rend une réponse
+  fabriquée. Mesuré : **UNE** requête, `n: 1` (chaque image est facturée),
+  l'invite `trim`ée, `img:<fichier>` posé dans `decor.src`, l'image relue dans
+  le magasin **app**, le voyant rendu, et le montant dit APRÈS au même tarif
+  qu'avant. Invite vide → aucune dépense ; zéro image ou échec du fournisseur →
+  rien d'écrit, le refus dit, le voyant éteint.
+- **ROUTE `GET /frame/ai-models`** : miroir de `face.py` sans importer `face`
+  (règle 8) — on importe ce qu'il importe (`app.services.pricing`,
+  `app.api.routes.list_image_models`), avec le même repli à clé posée. Le pin
+  interdit tout identifiant de modèle écrit en dur dans `frame.py` (« flux »,
+  « gpt-image », …, commentaires et docstrings retirés).
+- **AU MODÈLE : `src` PURGÉ, `alpha` GARDÉ — et c'est l'INVERSE de la T4, pour
+  une raison de FORME et non de principe.** Un calque de verso est une RANGÉE
+  du panneau : six rangées mortes se suppriment une par une, d'où le lâcher
+  entier. `decor` est une clé UNIQUE, toujours présente, avec un seul curseur :
+  il n'y a rien à nettoyer, et l'opacité que l'auteur du modèle a choisie est
+  un réglage de son design. La note du `hint` compose désormais **DEUX phrases
+  séparées** (verso, décor) — un modèle qui n'a perdu que l'un ne parle pas de
+  l'autre — et elle est câblée aux DEUX passages (leçon N4).
+- **UN MUTANT A EXIGÉ UN TEST DE PLUS, ET IL AVAIT RAISON** : partager un seul
+  sous-objet `decor` entre les sept habillages est INVISIBLE de l'extérieur
+  (`archetype_frame` recopie en sortie) — jusqu'à ce qu'un appelant touche
+  `ARCHETYPE_FRAMES`, qui est publique. L'assertion porte donc sur la TABLE
+  (`is not` entre entrées), pas seulement sur la copie servie.
+- **Net déclaré, AU-DESSUS DE LA CIBLE et dit** : mod-frame.js **+402/−25 =
+  +377** (6096 → 6473) pour une cible ≤ 250. Mesuré après une passe de rasage :
+  **248 lignes de CODE** (la cible est tenue *sur le code*), 149 de commentaire,
+  6 vides. La tâche pose QUATRE choses : un schéma à deux normaliseurs, un
+  peintre avec son état de manque, une route backend et son miroir d'écran, et
+  une interface qui DÉPENSE (menu tarifé, invite, coût, génération, opacité,
+  retrait). mod-frame.css 225 → 239. Réutilisé plutôt que recopié : `backCover`,
+  `backDamier`, le chargeur, `numRow`, `grp`/`field`/`label`.
+- **Reste d'œil pour la T6** : une vraie génération au navigateur avec une clé
+  (l'aspect du décor sous la matière, la lisibilité de la bande) — SINON le
+  refus nommé ; le choix de modèle n'est PAS persisté dans le document (le menu
+  repart sur le premier à chaque ouverture) : c'est une 33e clé qu'aucun test ne
+  réclame aujourd'hui, dit plutôt que découvert.
 
 ### Task 6 : dettes + intégration 3c
 

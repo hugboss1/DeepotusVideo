@@ -1577,3 +1577,132 @@ def test_la_note_du_verso_part_AUSSI_par_le_chemin_DISQUE():
         assert "verso" not in MO.model("verso-note-temoin")["hint"].lower()
     finally:
         p2.unlink()
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 11. LE DÉCOR DE CADRE PAR IA DANS UN MODÈLE — phase 3c, tâche 5 (décision 6)
+#
+# §6.3 pose `doc.frame.decor = {src, alpha}` : une image GÉNÉRÉE, rangée dans le
+# magasin d'images de l'APPLICATION. Un modèle n'embarque pas d'illustrations
+# (§6.4, doctrine 3a) — le FICHIER reste, l'OPACITÉ voyage, et le modèle le DIT.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _enregistrer_avec_decor(nom: str, alpha: float = 0.35):
+    """Un deck dont le cadre porte un décor IA, enregistré comme modèle. Rend
+    (chemin du fichier, contenu brut, modèle normalisé)."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    cadre = dict(FR.archetype_frame("arcane"))
+    cadre["decor"] = {"src": "img:gen_ab12cd34.png", "alpha": alpha}
+    _api("PATCH", f"/api/cards/{did}", json={"frame": cadre})
+    r = _api("POST", "/api/cards/models", json={"did": did, "name": nom})
+    assert r.status_code == 200, r.text
+    m = r.json()["model"]
+    p = MO.models_root() / f"{m['id']}.json"
+    return p, p.read_text(encoding="utf-8"), m
+
+
+def test_le_decor_IA_est_ADMIS_a_la_liste_blanche():
+    """La clé `decor` traverse la liste blanche — qui DÉRIVE des habillages
+    d'archétype (interaction 3a-F1). Une clé de cadre ajoutée à P2 et oubliée
+    dans les sept habillages serait refusée sans que rien ne le dise."""
+    assert "decor" in MO._FRAME_CLES, sorted(MO._FRAME_CLES)
+    for nom in ("superstar", "duel", "gravee"):
+        hab = FR.archetype_frame(nom)
+        assert hab["decor"] == {"src": "", "alpha": 1.0}, (nom, hab.get("decor"))
+
+
+def test_le_decor_voyage_en_OPACITE_jamais_en_OCTETS():
+    """La décision, sur les octets du fichier. Le `src` désigne une image du
+    magasin de l'application : ni le jeu ni le modèle ne la suivent, elle est
+    donc VIDÉE.
+
+    L'OPACITÉ, ELLE, RESTE — et c'est l'inverse du choix fait pour les calques
+    du verso, pour une raison de FORME et non de principe. Un calque est une
+    RANGÉE du panneau : six rangées mortes se suppriment une par une, donc on
+    lâche les calques entiers. `decor` est une clé UNIQUE, toujours présente,
+    avec un seul curseur : il n'y a rien à nettoyer, et l'opacité que l'auteur
+    du modèle a choisie est un réglage de son design."""
+    p, brut, m = _enregistrer_avec_decor("Décor IA", alpha=0.35)
+    try:
+        assert "gen_ab12cd34" not in brut, brut[:400]
+        f = json.loads(brut)["frame"]
+        assert f["decor"]["src"] == "", f["decor"]
+        assert f["decor"]["alpha"] == 0.35, f["decor"]
+        # ... et le modèle RELU dit la même chose : le filtre joue aux DEUX
+        # passages (écriture depuis un deck, lecture depuis le disque)
+        assert m["frame"]["decor"] == {"src": "", "alpha": 0.35}, m["frame"]
+        assert MO.model(m["id"])["frame"]["decor"]["src"] == ""
+    finally:
+        p.unlink()
+
+
+def test_un_modele_ECRIT_A_LA_MAIN_ne_fait_pas_passer_une_image_de_decor():
+    """Le filtre porte AUSSI à la LECTURE (la leçon N4 de la T4). Un fichier
+    déposé à la main — ou écrit par une version antérieure — n'est pas plus
+    digne de confiance qu'un corps client."""
+    d = MO.models_root()
+    p = d / "decor-depose.json"
+    p.write_text(json.dumps({
+        "label": "Déposé", "format": "poker_eu",
+        "frame": {"family": "runic",
+                  "decor": {"src": "img:gen_secret.png", "alpha": 0.5}},
+        "type": {"preset": "champion", "slots": []},
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        m = MO.model("decor-depose")
+        assert m["frame"]["decor"]["src"] == "", m["frame"]
+        assert m["frame"]["decor"]["alpha"] == 0.5, m["frame"]
+        assert "décor" in m["hint"].lower(), m["hint"]
+    finally:
+        p.unlink()
+
+
+def test_le_modele_DIT_ce_que_le_decor_a_laisse_derriere():
+    """Purger en silence, c'est un utilisateur qui instancie, regarde un cadre
+    nu et cherche la panne. La note part dans le `hint` — l'endroit MÊME où
+    l'on choisit un modèle dans la galerie — et SEULEMENT si quelque chose a
+    été perdu (invariant 2c).
+
+    DEUX PURGES, DEUX PHRASES : le verso et le décor se nomment séparément, un
+    modèle qui n'a perdu que l'un ne parle pas de l'autre."""
+    p, brut, m = _enregistrer_avec_decor("Avec décor")
+    try:
+        assert "décor" in m["hint"].lower(), m["hint"]
+        assert "verso" not in m["hint"].lower(), \
+            "la note parle d'un verso que ce modèle n'a jamais eu"
+        assert len(m["hint"]) <= 240, len(m["hint"])
+        assert "décor" in json.loads(brut)["hint"].lower()
+    finally:
+        p.unlink()
+    # LE TÉMOIN : un cadre sans décor n'a rien perdu, et ne dit rien
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    m2 = _api("POST", "/api/cards/models",
+              json={"did": did, "name": "Sans"}).json()["model"]
+    p2 = MO.models_root() / f"{m2['id']}.json"
+    try:
+        assert "décor" not in m2["hint"].lower(), m2["hint"]
+    finally:
+        p2.unlink()
+    # ... ET LES DEUX ENSEMBLE : verso ET décor purgés, les deux phrases
+    note = MO._verso_note({"back_image": "img:img_1.png", "back_layers": [],
+                           "decor": {"src": "img:gen_1.png", "alpha": 1.0}})
+    assert "verso" in note.lower() and "décor" in note.lower(), note
+    assert MO._verso_note({"decor": {"src": "", "alpha": 0.2}}) == "", \
+        "un décor sans image n'a rien perdu : il ne doit rien dire"
+
+
+def test_un_deck_instancie_sur_un_decor_purge_NAIT_SANS_IMAGE():
+    """La conséquence, jouée jusqu'au bout : le jeu naît avec l'opacité du
+    modèle et AUCUNE image — l'état « générez la vôtre », que le panneau
+    montre. Jamais une référence vers l'image d'un autre jeu."""
+    p, _brut, m = _enregistrer_avec_decor("Instancié", alpha=0.6)
+    try:
+        r = _api("POST", "/api/cards/decks", json={"model": m["id"]})
+        assert r.status_code == 200, r.text
+        f = r.json()["deck"]["frame"]
+        assert f["decor"]["src"] == "", f["decor"]
+        assert f["decor"]["alpha"] == 0.6, f["decor"]
+    finally:
+        p.unlink()

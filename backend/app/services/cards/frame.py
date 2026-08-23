@@ -174,6 +174,10 @@ LIMITS = {
     # elle, va jusqu'à 0 : c'est exactement ce qu'elle veut dire).
     "back_opacity": [0, 1],
     "back_scale": [0.25, 4],
+    # LE DÉCOR DE CADRE PAR IA (§6.3) : son opacité. Elle va bien jusqu'à 0 —
+    # c'est « ne pas le montrer sans le perdre », ce qu'un curseur d'opacité
+    # veut dire.
+    "decor_alpha": [0, 1],
 }
 
 # ── LA BORNE QUE LE FORMAT IMPOSE ────────────────────────────────────────────
@@ -369,6 +373,55 @@ def back_layers_of(raw) -> list:
     return out
 
 
+# ── LE DÉCOR DE CADRE PAR IA : SCHÉMA, jumeau du bloc de mod-frame.js ────────
+# `doc.frame.decor = {src, alpha}` (spec §6.3, plan 3c décision 6). Une image
+# GÉNÉRÉE devient le fond de la bande.
+#
+# LE MAGASIN N'EST PAS CELUI DU VERSO, et c'est la décision 6 : le verso lit
+# `decks/{did}/frame/img_N.png` (des octets IMPORTÉS, qui voyagent avec le jeu),
+# le décor lit `/api/images/<fichier>` — le magasin d'images de l'APPLICATION,
+# celui que `CF.images.generate` remplit. C'est le MÊME générateur que P1 : un
+# second magasin pour les mêmes octets ferait deux endroits à ramasser.
+#
+# Conséquence assumée : ces noms de fichier ne sont pas fabriqués par un
+# compteur à nous (le générateur écrit `gen_<hex>.png`, l'import garde le nom
+# donné), donc le motif ne peut pas être `img_\d+` comme celui du verso. Il
+# borne le JEU DE SIGNES et la longueur, et il est ANCRÉ des deux bouts —
+# `fullmatch` et non `match`, le `$` d'un motif Python acceptant un saut de
+# ligne final (piège payé trois fois dans ce dépôt). Aucune route ne SERT ce
+# fichier ici : il est servi par `/api/images/{filename}`, qui a sa propre
+# containment (`Path(name).name`), et ce motif-ci ne fait que borner ce qu'un
+# DOCUMENT a le droit de nommer.
+DECOR_SRC_RE = re.compile(r"(|img:[A-Za-z0-9][A-Za-z0-9._-]{0,119})")
+# `alpha: 1.0` et non une demi-teinte : un décor livré à moitié transparent
+# ferait croire à une génération ratée. C'est aussi l'opacité par défaut d'un
+# calque de verso, sa clé voisine.
+DECOR_DEFAULTS = {"src": "", "alpha": 1.0}
+
+
+def decor_of(raw) -> dict:
+    """Le décor de cadre, NORMALISÉ — miroir d'exécution de `decorOf()` de
+    mod-frame.js.
+
+    L'opacité passe par `_borne`, donc par l'admission ÉCRITE (un nombre, un
+    booléen, ou une chaîne de la forme que les DEUX langages lisent pareil) :
+    `None` et `""` valent ABSENT, jamais zéro. C'est la leçon F3 de la T4,
+    appliquée dès la naissance de la clé plutôt que redécouverte.
+
+    Comme `back_image_of`, ce miroir NORMALISE et ne refuse pas : aucune route
+    ne reçoit `decor`, cette clé ne vit que dans le document — où la doctrine
+    est celle de `st()`, on RÉPARE ce qu'on possède."""
+    s = raw if isinstance(raw, dict) else {}
+    src = s.get("src")
+    if not (isinstance(src, str) and DECOR_SRC_RE.fullmatch(src)):
+        src = ""
+    return {
+        "src": src,
+        "alpha": _borne(s.get("alpha"), DECOR_DEFAULTS["alpha"],
+                        LIMITS["decor_alpha"][0], LIMITS["decor_alpha"][1]),
+    }
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # LE MODÈLE D'OCCUPATION — les constantes du GABARIT DE MEUBLES
 # Bloc EXTRAIT et comparé au bloc jumeau de `js/mod-frame.js` par le test.
@@ -398,13 +451,15 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # L'HABILLAGE DES SEPT ARCHÉTYPES — phase 3a, tâche 2 (spec §6.2:318-363)
 #
 # CE QUE C'EST : pour chacun des sept archétypes, un réglage `doc.frame`
-# COMPLET — les 30 clés que l'on écrit, la trente-et-unième (`art_window`)
+# COMPLET — les 31 clés que l'on écrit, la trente-deuxième (`art_window`)
 # étant PUBLIÉE par le painter et jamais saisie. (28 depuis la phase 3c-1 :
 # `seal`, le Sceau prismatique, qui reste ÉTEINT dans les sept habillages — un
 # archétype qui l'allumerait changerait l'aspect de tous les jeux déjà
 # instanciés ; 30 depuis la 3c-4 : `back_image` et `back_layers`, le verso
 # personnalisé, VIDES pour la même raison — un archétype qui pointerait un
-# fichier pointerait le fichier d'un AUTRE jeu.) Rien d'autre : ni police, ni
+# fichier pointerait le fichier d'un AUTRE jeu ; 31 depuis la 3c-5 : `decor`,
+# le décor de cadre par IA, SANS SOURCE pour cette même raison.) Rien
+# d'autre : ni police, ni
 # slot, ni palette de texte — ceux-là appartiennent à P3 et au modèle.
 #
 # QUI LE CONSOMME : la tâche 3 (`models.py`) l'IMPORTE. Un modèle qui
@@ -466,6 +521,12 @@ def _habillage(**kw) -> dict:
     # MÊME RAISON pour la pile du verso : `dict(_HABILLAGE_COMMUN)` est une
     # copie de SURFACE, les sept habillages partageraient une seule liste.
     out["back_layers"] = []
+    # LE DÉCOR DE CADRE est SANS SOURCE dans les sept habillages, et ce n'est
+    # pas un oubli : un archétype qui pointerait un fichier du magasin de
+    # l'application pointerait l'image d'un autre jeu. La clé existe quand même
+    # — c'est par elle que la liste blanche des modèles l'admet (models.py).
+    # En copie PROFONDE, pour la même raison que `seal`.
+    out["decor"] = copy.deepcopy(DECOR_DEFAULTS)
     out.update(kw)
     return out
 
@@ -618,6 +679,8 @@ def catalog() -> dict:
         "back_layers_max": BACK_LAYERS_MAX,
         "back_images_max": BACK_IMAGES_MAX,
         "back_layer_defaults": dict(BACK_LAYER_DEFAULTS),
+        # LE DÉCOR DE CADRE PAR IA : son schéma, joignable de l'extérieur
+        "decor_defaults": dict(DECOR_DEFAULTS),
         "defaults": dict(DEFAULTS),
         "combos": len(FAMILIES) * len(RARITIES),
         "vector": True,
@@ -1661,6 +1724,115 @@ async def get_catalog(did: str):
     if not is_valid_did(did):
         raise HTTPException(400, "Identifiant de jeu invalide")
     return {"catalog": catalog()}
+
+
+# ── LES MODÈLES D'IMAGE ET LEUR TARIF (spec §6.3) ────────────────────────────
+# « la liste vient de `GET /image-models` enrichie des tarifs, patron
+# `face.py:ai-models` ; JAMAIS de liste recopiée à l'écran ».
+#
+# CE QUI EST IMPORTÉ, ET POURQUOI CE N'EST PAS LA PIÈCE VOISINE. La règle 8
+# interdit à une pièce d'importer le module d'une autre : `face.py` porte le
+# même patron, on ne l'importe pas — on importe ce qu'il importe, la table de
+# tarifs de l'APPLICATION (`app.services.pricing`) et la liste réellement
+# servie (`app.api.routes.list_image_models`). Une liste recopiée ici
+# dériverait de celle de l'application au premier ajout, et le menu proposerait
+# un modèle que le backend ne sait pas servir.
+#
+# Un modèle absent de la table de tarifs rend `usd_par_image = null` et l'écran
+# écrit « tarif non tabulé » : `pricing.estimate` retombe en silence sur le
+# tarif de FLUX pour un identifiant inconnu, et afficher ce repli serait
+# annoncer un prix qui n'est pas celui du modèle choisi.
+def price_table() -> dict:
+    """{model_id: {"label", "provider", "usd"}} d'après la table de tarifs de
+    l'application. Vide (et non fausse) si le service est indisponible."""
+    try:
+        from app.services import pricing
+    except Exception:                                     # pragma: no cover
+        return {}
+    try:
+        p = pricing.load()
+        table = getattr(pricing, "_IMAGE_MODELS", {}) or {}
+        out = {}
+        for mid, spec in table.items():
+            label = spec[0] if len(spec) > 0 else str(mid)
+            prov = spec[1] if len(spec) > 1 else ""
+            key = spec[2] if len(spec) > 2 else None
+            if key and key in p:
+                out[str(mid)] = {"label": str(label), "provider": str(prov),
+                                 "usd": float(p[key])}
+        return out
+    except Exception:                                     # pragma: no cover
+        return {}
+
+
+def _keyed_providers() -> set:
+    """Les fournisseurs d'image dont la clé est enregistrée. Sert UNIQUEMENT de
+    repli quand la route de l'application ne répond pas : sans lui, un incident
+    de base de données ferait afficher « aucun modèle » alors que les clés sont
+    là — un écran qui se trompe dans le sens rassurant."""
+    try:
+        from app.config import settings
+    except Exception:                                     # pragma: no cover
+        return set()
+    out = set()
+    if getattr(settings, "FAL_KEY", ""):
+        out.add("fal")
+    if getattr(settings, "OPENAI_API_KEY", ""):
+        out.add("openai")
+    return out
+
+
+@router.get("/ai-models")
+async def ai_models(did: str):
+    """Les modèles d'image RÉELLEMENT servis, avec leur tarif unitaire.
+
+    Une liste VIDE veut dire « aucune clé enregistrée », et l'écran doit le
+    dire AVANT le clic plutôt que de laisser l'utilisateur découvrir l'échec
+    après."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    prix = price_table()
+    models: list = []
+    configured = ""
+    erreur = ""
+    repli = False
+    try:
+        from app.api.routes import list_image_models
+        d = await list_image_models()
+        models = list((d or {}).get("models") or [])
+        configured = str((d or {}).get("configured") or "")
+    except Exception as e:
+        # La route de l'application lit aussi un réglage en base : un incident
+        # là ne doit pas faire disparaître des modèles dont la clé EST posée.
+        erreur = str(e)[:200]
+        repli = True
+        keyed = _keyed_providers()
+        models = [{"id": mid, "label": spec["label"],
+                   "provider": spec["provider"], "note": ""}
+                  for mid, spec in sorted(prix.items())
+                  if spec["provider"] in keyed]
+    out = []
+    for m in models:
+        mid = str(m.get("id") or "")
+        spec = prix.get(mid)
+        out.append({
+            "id": mid,
+            "label": str(m.get("label") or mid),
+            "provider": str(m.get("provider") or ""),
+            "note": str(m.get("note") or ""),
+            "usd_par_image": (spec or {}).get("usd"),
+        })
+    return {
+        "models": out,
+        "configured": configured,
+        "devise": "USD",
+        "tarif_source": "la table de tarifs de l'application (Réglages → Tarifs "
+                        "et budget, pricing.json) — le fournisseur facture "
+                        "directement",
+        "cle_absente": not out,
+        "repli": repli,
+        "erreur": erreur,
+    }
 
 
 @router.post("/metrics")

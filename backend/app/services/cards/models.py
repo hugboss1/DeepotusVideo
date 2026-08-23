@@ -879,23 +879,49 @@ def _frame_sans_import(raw) -> dict:
         out["back_image"] = ""
     if "back_layers" in out:
         out["back_layers"] = []
+    # LE DÉCOR DE CADRE PAR IA (§6.3, décision 6) : son `src` désigne un
+    # fichier du magasin d'images de l'APPLICATION — pas du jeu, mais pas du
+    # modèle non plus (un modèle n'embarque pas d'illustrations, 3a). Le
+    # FICHIER part, l'OPACITÉ RESTE.
+    #
+    # ET C'EST L'INVERSE DU CHOIX FAIT POUR LES CALQUES DU VERSO, qui sont
+    # lâchés entiers. La raison est la forme, pas le principe : un calque est
+    # une RANGÉE du panneau, et six rangées mortes se suppriment une par une ;
+    # `decor` est une clé UNIQUE, toujours présente, avec un seul curseur. Rien
+    # à nettoyer, donc — et l'opacité que l'auteur du modèle a choisie est un
+    # réglage de son design : le décor que l'on générera ensuite sur le jeu
+    # instancié apparaîtra à l'intensité qu'il avait prévue.
+    if isinstance(out.get("decor"), dict):
+        out["decor"]["src"] = ""
     return out
 
 
 def _verso_note(raw) -> str:
-    """Ce que la purge du verso a laissé derrière, en une phrase — ou rien.
+    """Ce que la purge des IMAGES du cadre a laissé derrière, en une phrase —
+    ou rien.
 
     Purger en silence, c'est un utilisateur qui instancie le modèle, regarde
     un dos vide et cherche la panne. La note part dans le `hint`, l'endroit
     MÊME où l'on choisit un modèle dans la galerie.
 
     Elle ne part QUE si quelque chose a vraiment été perdu : l'invariant 2c —
-    on ne nomme que ce qui manque. Un modèle au dos ordinaire se tait."""
+    on ne nomme que ce qui manque. Un modèle sans image se tait.
+
+    DEUX PURGES, UNE SEULE NOTE (3c-T5) : le verso personnalisé (§6.2ter) et le
+    décor de cadre par IA (§6.3) perdent tous deux leurs fichiers, et la phrase
+    NOMME ce qui est parti — pas « des images » en général."""
     f = raw if isinstance(raw, dict) else {}
-    if not f.get("back_image") and not f.get("back_layers"):
+    perdus = []
+    if f.get("back_image") or f.get("back_layers"):
+        perdus.append("Le verso personnalisé garde ses réglages : ses images "
+                      "et ses calques restent dans le jeu d'origine")
+    dec = f.get("decor")
+    if isinstance(dec, dict) and dec.get("src"):
+        perdus.append("Le décor de cadre garde son opacité : l'image générée "
+                      "reste dans le jeu d'origine")
+    if not perdus:
         return ""
-    return ("Le verso personnalisé garde ses réglages : ses images et ses "
-            "calques restent dans le jeu d'origine (à ré-importer).")
+    return " ".join(p + " (à régénérer ou ré-importer)." for p in perdus)
 
 
 def _texture_sans_import(raw) -> dict:

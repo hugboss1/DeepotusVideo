@@ -87,6 +87,20 @@
      sans base, sans exposant, sans souligne. Tout le reste = ABSENT.
      Jumeau de `BACK_NUM_RE` de cards/frame.py. */
   const BACK_NUM_RE = /^-?\d+(\.\d+)?$/;
+  /* LE DECOR DE CADRE PAR IA (spec §6.3, plan 3c decision 6). Une image
+     GENEREE devient le fond de la bande : `doc.frame.decor = {src, alpha}`.
+     Elle vit dans le magasin d'images de l'APPLICATION (`/api/images`), pas
+     dans le dossier du jeu comme celles du verso : c'est le MEME generateur
+     que P1, donc le meme magasin (voir `IMG_STORES`). Ces noms-la ne sont donc
+     pas fabriques par un compteur a nous, et le motif borne le JEU DE SIGNES
+     et la longueur au lieu d'un `img_\d+`. Ancre des deux bouts ; jumeau de
+     `DECOR_SRC_RE` de cards/frame.py, qui porte le raisonnement complet. */
+  const DECOR_SRC_RE = /^(|img:[A-Za-z0-9][A-Za-z0-9._-]{0,119})$/;
+  /* `alpha: 1` et non une demi-teinte : un decor livre a moitie transparent
+     ferait croire a une generation ratee — l'utilisateur voit ce qu'il vient
+     de payer, et le curseur le fait reculer. C'est aussi l'opacite par defaut
+     d'un calque de verso (`BACK_LAYER_DEFAULTS`), sa cle voisine. */
+  const DECOR_DEFAULTS = { src: "", alpha: 1 };
   const CORNERS = [
     { id: "none", label: "Aucun" },
     { id: "bracket", label: "Équerre" },
@@ -134,6 +148,10 @@
        elle, va bien jusqu'a 0 : c'est exactement ce qu'elle veut dire). */
     back_opacity: [0, 1],
     back_scale: [0.25, 4],
+    /* LE DECOR DE CADRE (§6.3) : son opacite. Elle va bien jusqu'a 0 — c'est
+       « ne pas le montrer sans le perdre », exactement ce qu'un curseur
+       d'opacite veut dire. */
+    decor_alpha: [0, 1],
   };
   /* ── LA BORNE QUE LE FORMAT IMPOSE, ET QU'IL MANQUAIT ─────────────────────
      BUG TROUVE PAR LE BALAYAGE DES DOUZE FORMATS, mesure avant correction :
@@ -237,6 +255,11 @@
        sont plates). `st()` lui donne donc sa propre branche de validation, au
        patron de `winMM` : `Object.keys(DEFAULTS)` ne descend pas d'un etage. */
     seal: SEAL_DEFAULTS,
+    /* LE DECOR DE CADRE PAR IA (§6.3) — le SECOND sous-objet de `doc.frame`,
+       sa propre branche de validation dans `st()` au patron de `sealOf`. Il
+       naît SANS SOURCE : une clé neuve ne change l'aspect d'aucun jeu déjà
+       enregistré. */
+    decor: DECOR_DEFAULTS,
     /* le modele d'occupation — actif par defaut : livrer un fichier ou la
        signature de l'artiste passe sous le ruban n'est pas un reglage. */
     fit: true, socles: true, seats: true, socle_alpha: 0.82,
@@ -303,7 +326,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 31 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 32 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -323,9 +346,28 @@
     o.socle_alpha = cl(num(o.socle_alpha, DEFAULTS.socle_alpha), 0, 1);
     o.grad_angle = cl(num(o.grad_angle, DEFAULTS.grad_angle), 0, 360);
     o.seal = sealOf(s.seal);
+    o.decor = decorOf(s.decor);
     o.back_image = backImageOf(s.back_image);
     o.back_layers = backLayersOf(s.back_layers);
     return o;
+  }
+
+  /* ── LE DECOR DE CADRE, VALIDE — miroir d'execution de `decor_of` de
+     cards/frame.py, branche IMBRIQUEE au patron de `sealOf` : objet NEUF a
+     chaque fois (`DEFAULTS.decor` est celui du registre du CORE ; rendu tel
+     quel, bouger l'opacite sur UNE carte l'ecrirait dans le SCHEMA).
+     L'opacite passe par `bnum` et non `num` — lecon F3 de la T4, appliquee des
+     la naissance : `Number(null)` vaut ZERO la ou `float(None)` retombe au
+     DEFAUT, et le decor disparaitrait a l'ecran pendant que le backend le
+     croit opaque. */
+  function decorOf(raw) {
+    const s = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+    const src = (typeof s.src === "string" && DECOR_SRC_RE.test(s.src)) ? s.src : "";
+    return {
+      src: src,
+      alpha: cl(bnum(s.alpha, DECOR_DEFAULTS.alpha),
+        LIMITS.decor_alpha[0], LIMITS.decor_alpha[1]),
+    };
   }
 
   /* ── LE VERSO PERSONNALISE, VALIDE — miroir d'execution de `back_image_of`
@@ -1954,6 +1996,76 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     5bis. LE DECOR DE CADRE PAR IA (spec §6.3) — une image GENEREE, posee au
+     fond de la bande. Elle ne remplace ni la famille ni la matiere : elle
+     s'intercale entre les deux.
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* le nom de fichier derriere une source de decor (`img:gen_ab12cd34.png`).
+     Meme forme que `backFile`, autre magasin : voir `IMG_STORES`. */
+  function decorFile(src) {
+    const s = String(src || "");
+    return s.indexOf("img:") === 0 ? s.slice(4) : "";
+  }
+  /* ce que le RECTO demande au magasin de l'application — zero ou un fichier.
+     Une liste, et non le nom seul : c'est la forme qu'attendent
+     `ensureFrameImgs` et la garde d'arrivee tardive, partagees avec le verso. */
+  function decorFiles(f0) {
+    const fl = decorFile(f0 && f0.decor && f0.decor.src);
+    return fl ? [fl] : [];
+  }
+  /* le lecteur d'etat du decor : il dit au chargeur partage que ce fichier-ci
+     vient du magasin de l'APPLICATION. Il vit ICI, avec son peintre, et non
+     avec le cache — `paintFront` le passe en argument, donc la tranche que les
+     bancs extraient (jusqu'a `paintSeats`) doit le contenir. */
+  function decorRec(file) { return frameImgRec(file, "app"); }
+  /* L'ENCART D'UN DECOR MANQUANT — et il ne peut PAS etre celui du verso.
+     `backMissRect` pose sa vignette au CENTRE de la coupe ; or le decor est
+     peint dans le bloc decoupe « toile MOINS fenetre », et le centre de la
+     carte EST la fenetre : l'encart y serait efface par le decoupage, et le
+     manque serait MUET sur l'epreuve. Il se pose donc dans la BANDE, du cote
+     (haut ou bas) qui en offre le plus, et il se NOMME — la lecon F1 de la T4
+     (« nomme, pas la carte entiere »), portee a la geometrie de cette
+     couche-ci. */
+  const DECOR_MISS_W = 0.62;
+  function decorMissRect(m) {
+    const haut = m.win.y - m.trim.y;
+    const bas = (m.trim.y + m.trim.h) - (m.win.y + m.win.h);
+    const enBas = bas >= haut;
+    const hh = Math.max(1, (enBas ? bas : haut) * 0.72);
+    const w = m.trim.w * DECOR_MISS_W;
+    const y = enBas
+      ? (m.win.y + m.win.h) + (bas - hh) / 2
+      : m.trim.y + (haut - hh) / 2;
+    return [m.trim.x + (m.trim.w - w) / 2, y, w, hh];
+  }
+  /* LE PEINTRE. `get` rend l'etat d'un fichier (`{img, ok}` ou null), passe en
+     PARAMETRE plutot que lu dans le cache : patron `paintBackCustom`, meme
+     raison (jouable au banc, avec le code du fichier livre). Le cadrage part
+     du bord de TOILE (`backCover`, repris et non recopie) — la decoupe vient
+     APRES l'impression. AUCUN mode de fusion : un `drawImage` en source-over,
+     sous `save()`, donc la preuve d'empilement §4.2 rend toujours « isolee »
+     sur une carte qui ne porte qu'un decor. */
+  function paintDecor(ctx, m, f, get) {
+    const dec = (f && f.decor) || DECOR_DEFAULTS;
+    const file = decorFile(dec.src);
+    if (!file) return;                    /* aucun decor : rien a salir */
+    const rec = get(file);
+    if (!rec || !rec.ok || !rec.img) {
+      const b = decorMissRect(m);
+      backDamier(ctx, b[0], b[1], b[2], b[3], file, "décor de cadre manquant");
+      return;
+    }
+    const a = cl(bnum(dec.alpha, DECOR_DEFAULTS.alpha),
+      LIMITS.decor_alpha[0], LIMITS.decor_alpha[1]);
+    if (!(a > 0)) return;
+    const c = backCover(rec.img.width, rec.img.height, m.W, m.H);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
+    ctx.restore();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      6. LE RECTO — z = 40
      ═══════════════════════════════════════════════════════════════════════ */
   function artOf(card, d) {
@@ -1986,6 +2098,19 @@
     famProfile(ctx, m, f);
     const fn = FAM_FN[f.family];
     if (fn) fn(ctx, m, f);
+    /* LE DECOR DE L'IA S'INTERCALE ICI, ET L'ORDRE EST LA DECISION (§6.3).
+       Il vient APRES la signature de famille — il est le fond de la bande, pas
+       un calque sous le dessin — et AVANT `matter()` : le decor est
+       l'ILLUSTRATION de la bande, la matiere en est le FINI (trames, patine,
+       usures). On imprime l'encre, puis le grain du papier et l'usure
+       appartiennent a la surface AU-DESSUS d'elle. Peint apres la matiere, le
+       decor l'effacerait et le cadre deviendrait un autocollant. MESURE (banc
+       du decor, poker 150 DPI, arcane, aplat opaque) : la part de bande
+       sortant a la couleur BRUTE de l'image passe de 1,6 % a 78,8 % en haut,
+       et de 0 % a 100 % dans le fond perdu — la matiere disparait.
+       Le decoupage « toile MOINS fenetre » est celui de cette etape : c'est
+       LUI qui tient le decor hors de l'illustration de P1. */
+    paintDecor(ctx, m, f, decorRec);
     /* la matiere par-dessus le profil, sous la moulure : elle doit passer sur
        les masses de la bande, sinon ce sont deux aplats voisins. */
     matter(ctx, m, f, shape);
@@ -2156,30 +2281,59 @@
     return out;
   }
 
-  /* ── LES IMAGES DU VERSO, CHARGEES UNE FOIS ──────────────────────────────
+  /* ── LES IMAGES DE LA PIECE, CHARGEES UNE FOIS ───────────────────────────
      Patron `IMGS` de mod-type (3b-T2), repris a l'identique et pour les memes
      raisons : le painter tourne a chaque frame, sans ce cache chaque frame
      redecoderait le PNG.
+
+     UN SEUL DECODEUR, DEUX MAGASINS (3c-T5). Le verso lit le dossier DU JEU,
+     le decor de l'IA lit le magasin d'images de l'APPLICATION — et c'est la
+     SEULE difference entre les deux chargements. Un second DECODEUR pour cette
+     seule difference ferait un second endroit a auditer, alors que le seuil de
+     la piece (« le cadre n'a pas de resolution ») COMPTE les chargeurs : le
+     magasin est donc un PARAMETRE, pas un chargeur de plus. (Le nom du
+     constructeur n'est pas ecrit dans cette phrase, et c'est voulu : le seuil
+     le cherche dans le FICHIER, commentaires compris.)
 
      L'ETAT EST RESOLU, JAMAIS REJETE. Une entree vaut `{img, ok}` : `ok:false`
      dit « ce fichier n'est pas arrive », ce qui est un ETAT de la carte (le
      damier), pas une panne du painter. Une promesse rejetee traverserait le
      painter et noircirait l'ecran des sept autres pieces.
 
-     LA CLE EST LE SEUL NOM DE FICHIER, et ce n'est pas un oubli : `img_1.png`
-     existe dans TOUS les jeux. Ce qui empeche le melange n'est pas ici — c'est
-     `galGo()` du CORE, qui RECHARGE la page a chaque changement de jeu
-     (`location.assign`, repli `location.reload`) : le cache meurt avec elle.
-     Un test epingle ce fait chez le CORE ; le jour ou il echangerait le
-     document en place, il rougit, et c'est la qu'une cle de jeu s'ajoute. */
-  const BIMGS = new Map();          /* fichier -> {img, ok} ou Promise */
+     LA CLE PORTE LE MAGASIN ET LE NOM DE FICHIER — le magasin parce qu'un
+     `img_1.png` du jeu et un `img_1.png` de l'application ne sont pas le meme
+     fichier, le nom seul pour le reste : `img_1.png` existe dans TOUS les
+     jeux, et ce qui empeche le melange n'est pas ici — c'est `galGo()` du
+     CORE, qui RECHARGE la page a chaque changement de jeu (`location.assign`,
+     repli `location.reload`) : le cache meurt avec elle. Un test epingle ce
+     fait chez le CORE ; le jour ou il echangerait le document en place, il
+     rougit, et c'est la qu'une cle de jeu s'ajoute. */
+  const BIMGS = new Map();          /* magasin|fichier -> {img, ok} ou Promise */
   const IMG_WAIT_MS = 2500;         /* le painter a 4 s : on garde de la marge */
-  function backImgRec(file) {
-    const v = BIMGS.get(file);
+  /* les deux magasins, et l'URL de chacun. `deck` passe par `M.api.url` (donc
+     par le sous-prefixe de la piece, regle 8) ; `app` vise la route d'images
+     de l'application — `CF.imageURL` construit `/api/images/file/<nom>`, qui
+     N'EXISTE PAS sur ce backend (elle tombe sur le catch-all de la SPA et rend
+     du HTML en 200, le piege n°7 de la spec ; P1 la contourne deja de la meme
+     façon). La vraie route est `GET /api/images/{filename}`. */
+  const IMG_STORES = {
+    deck: (file) => M.api.url("image/" + encodeURIComponent(file)),
+    app: (file) => "/api/images/" + encodeURIComponent(file),
+  };
+  function imgKey(mag, file) { return mag + "|" + file; }
+  /* les fichiers que le document VIVANT demande a ce magasin — la garde de
+     l'arrivee tardive, qui doit connaitre les deux. */
+  function imgWanted(mag) {
+    const f0 = f();
+    return mag === "app" ? decorFiles(f0) : backFiles(f0);
+  }
+  function frameImgRec(file, mag) {
+    const v = BIMGS.get(imgKey(mag, file));
     return (v && !v.then) ? v : null;
   }
-  function loadBackImg(file) {
-    const known = BIMGS.get(file);
+  function loadFrameImg(file, mag) {
+    const k = imgKey(mag, file);
+    const known = BIMGS.get(k);
     if (known) return known.then ? known : Promise.resolve(known);
     let res = null;
     /* LA PROMESSE ENTRE DANS LE CACHE AVANT QUE LE CHARGEMENT COMMENCE, et
@@ -2188,14 +2342,14 @@
        ne rendait plus jamais d'etat lisible et le dos restait au damier pour
        toujours (le piege paye en 3b). */
     const p = new Promise((r) => { res = r; }).then((rec) => {
-      BIMGS.set(file, rec);
+      BIMGS.set(k, rec);
       /* ARRIVEE TARDIVE : la course du painter est peut-etre finie et la carte
          peinte sans l'image. On redemande un rendu — sous garde : seulement si
-         le verso VIVANT porte encore ce fichier. Le CORE coalesce. */
-      if (rec.ok && backFiles(f()).indexOf(file) >= 0) M.invalidate();
+         le document VIVANT porte encore ce fichier. Le CORE coalesce. */
+      if (rec.ok && imgWanted(mag).indexOf(file) >= 0) M.invalidate();
       return rec;
     });
-    BIMGS.set(file, p);
+    BIMGS.set(k, p);
     let done = false;
     const fin = (ok, im) => {
       if (done) return;
@@ -2203,7 +2357,7 @@
       res({ img: ok ? im : null, ok: ok, file: file });
     };
     let url = "";
-    try { url = M.api.url("image/" + encodeURIComponent(file)); }
+    try { url = (IMG_STORES[mag] || IMG_STORES.deck)(file); }
     catch (e) { fin(false, null); return p; }
     const im = new Image();
     im.decoding = "sync";
@@ -2212,12 +2366,16 @@
     im.src = url;
     return p;
   }
-  function ensureBackImgs(files) {
-    const todo = files.filter((x) => x && !backImgRec(x));
+  function ensureFrameImgs(files, mag) {
+    const todo = files.filter((x) => x && !frameImgRec(x, mag));
     if (!todo.length) return Promise.resolve();
-    const all = Promise.all(todo.map(loadBackImg));
+    const all = Promise.all(todo.map((x) => loadFrameImg(x, mag)));
     return Promise.race([all, new Promise((r) => setTimeout(r, IMG_WAIT_MS))]);
   }
+  /* le lecteur d'etat que le peintre du VERSO recoit : il sait DE QUEL magasin
+     son image vient, et le peintre n'a pas a le savoir. Le jumeau du decor
+     (`decorRec`) vit avec son peintre, section 5bis. */
+  function backImgRec(file) { return frameImgRec(file, "deck"); }
 
   /* LE CADRAGE « COVER », DEPUIS LE BORD DE TOILE et non depuis la coupe.
      La decoupe vient APRES l'impression : une image calee sur la seule rogne
@@ -2642,7 +2800,16 @@
         z: 40, async fn(ctx, geom, doc, card, side) {
           const f = st(doc);
           publishWindow(geom, f);
-          if (side !== "back") { paintFront(ctx, geom, f, card, doc); return; }
+          if (side !== "back") {
+            /* LE DECOR DE L'IA, ATTENDU ICI — meme raison que les images du
+               verso, plus bas : sans l'attente la premiere frame peint un
+               damier a la place d'une image qui existe, et cette premiere
+               frame EST le fichier livre quand l'export part tout de suite. */
+            const dfs = decorFiles(f);
+            if (dfs.length) await ensureFrameImgs(dfs, "app");
+            paintFront(ctx, geom, f, card, doc);
+            return;
+          }
           /* LES IMAGES DU VERSO, ATTENDUES ICI — le patron de `ensureImgs` de
              P3, et pour la meme raison : sans l'attente, la premiere frame
              peint un damier a la place d'une image qui existe, et cette
@@ -2650,7 +2817,7 @@
              suite. L'attente est BORNEE (le CORE laisse 4 s a un painter). */
           if (backOf(f, card) === "custom") {
             const files = backFiles(f);
-            if (files.length) await ensureBackImgs(files);
+            if (files.length) await ensureFrameImgs(files, "deck");
           }
           paintBack(ctx, geom, f, card, doc);
         },
@@ -2702,6 +2869,17 @@
       });
     }
     set({ seal: nxt }, lab);
+  }
+  /* LE DECOR S'ECRIT EN BLOC, pour la meme raison que le Sceau : `patch`
+     remplace une cle par sa valeur, donc ecrire `{decor: {src: …}}` effacerait
+     l'opacite. On relit l'etat NORMALISE, on y applique le changement, on
+     repose l'objet entier — et Ctrl+Z empile la valeur d'avant. */
+  function setDecor(partial, lab) {
+    const c = f().decor;
+    const nxt = { src: c.src, alpha: c.alpha };
+    if (has(partial, "src")) nxt.src = String(partial.src || "");
+    if (has(partial, "alpha")) nxt.alpha = partial.alpha;
+    set({ decor: nxt }, lab);
   }
 
   function undo() {
@@ -2921,6 +3099,44 @@
     UI.sealRead = h("p", "hint cff-sealread");
     g16.body.appendChild(UI.sealRead);
     B.appendChild(g16.el);
+
+    /* ── LE DECOR DE CADRE PAR IA (spec §6.3) — a cote du Sceau parce que
+       c'est la meme surface : ce qui habille la BANDE. La liste des modeles et
+       leur tarif arrivent de la route de la piece ; l'invite se pre-remplit
+       avec l'archetype du jeu. */
+    const g17 = grp("Décor de cadre par IA", false);
+    const drow = h("div", "cff-row");
+    UI.decorModel = h("select", "cff-sel");
+    UI.decorModel.innerHTML = decorModelOptions();
+    UI.decorModel.addEventListener("change", decorCostLine);
+    drow.appendChild(field("Modèle", UI.decorModel));
+    g17.body.appendChild(drow);
+    g17.body.appendChild(label("Invite", "pré-remplie par l'archétype du jeu"));
+    UI.decorPrompt = h("textarea", "cff-prompt");
+    UI.decorPrompt.rows = 3;
+    UI.decorPrompt.maxLength = 900;
+    UI.decorPrompt.value = decorPrompt(CF.get("type.preset", ""), ARCHETYPES);
+    g17.body.appendChild(UI.decorPrompt);
+    UI.decorCost = h("p", "hint cff-cost");
+    g17.body.appendChild(UI.decorCost);
+    const dbtns = h("div", "cff-row");
+    UI.decorGen = h("button", "btn strong sm", "Générer le décor");
+    UI.decorGen.type = "button";
+    UI.decorGen.addEventListener("click", decorGenerate);
+    const dclr = h("button", "btn sm", "Retirer le décor");
+    dclr.type = "button";
+    dclr.title = "Le fichier reste dans le magasin d'images de l'application ; "
+      + "seul le cadre cesse de le montrer";
+    dclr.addEventListener("click", () => setDecor({ src: "" }, "décor retiré"));
+    dbtns.appendChild(UI.decorGen); dbtns.appendChild(dclr);
+    g17.body.appendChild(dbtns);
+    UI.decorA = numRow("Opacité du décor", "decor_alpha",
+      LIMITS.decor_alpha[0], LIMITS.decor_alpha[1], 0.01, true, null,
+      (n, lab) => setDecor({ alpha: n }, lab));
+    g17.body.appendChild(UI.decorA.el);
+    UI.decorRead = h("p", "hint cff-decorread");
+    g17.body.appendChild(UI.decorRead);
+    B.appendChild(g17.el);
 
     /* ── fenetre d'illustration ── */
     const g2 = grp("Fenêtre d'illustration", true);
@@ -3202,6 +3418,21 @@
     sync();
     verify();
     scheduleProof(1200);
+    /* LES DEUX LISTES DU DECOR, en fond : les modeles avec leur tarif, et le
+       catalogue des archetypes dont l'invite se pre-remplit. Le panneau est
+       utilisable sans elles (le reste ne demande aucune cle) — elles arrivent
+       et il se recompose. L'INVITE N'EST REPOSEE QUE SI ELLE EST INTACTE :
+       ecraser ce que l'utilisateur vient de taper serait pire que l'absence
+       de pre-remplissage. */
+    loadAiModels().then(() => {
+      UI.decorModel.innerHTML = decorModelOptions();
+      decorCostLine();
+    });
+    loadArchetypes().then(() => {
+      if (UI.decorPrompt.value === DECOR_PROMPT_DEFAUT) {
+        UI.decorPrompt.value = decorPrompt(CF.get("type.preset", ""), ARCHETYPES);
+      }
+    });
   }
 
   /* ── petites fabriques d'UI ─────────────────────────────────────────────── */
@@ -4404,8 +4635,8 @@
       /* ON RELIT L'IMAGE SERVIE, pas le fichier local : c'est elle que le
          painter dessinera (bornee, re-encodee). Une divergence entre les deux
          serait invisible et partirait a l'impression. */
-      BIMGS.delete(d.file);
-      await loadBackImg(d.file);
+      BIMGS.delete(imgKey("deck", d.file));
+      await loadFrameImg(d.file, "deck");
       if (cible >= 0) backLayerSet(cible, { src: d.src }, "image du calque");
       else set({ back: "custom", back_image: d.src }, "image du dos");
       M.invalidate();
@@ -4432,6 +4663,146 @@
     if (!g) return;
     e.preventDefault();
     importBackImage(g, -1);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     10bis. LE DECOR DE CADRE PAR IA — le seul endroit de cette piece qui
+     DEPENSE (spec §6.3, regle 17). Les trois jambes du patron P1 : le tarif
+     par modele DANS l'etiquette du menu, le cout du clic AVANT, et le montant
+     facture dit APRES.
+     ═══════════════════════════════════════════════════════════════════════ */
+  let AI_MODELS = [], AI_META = {}, ARCHETYPES = null;
+  /* LES MODELES ET LEUR TARIF, LUS — jamais recopies : la route de la piece va
+     les chercher dans la table de tarifs de l'application. Si elle manque
+     (backend plus ancien) on retombe sur la liste SEULE, sans prix — un
+     montant invente serait pire qu'un montant absent. */
+  async function loadAiModels() {
+    try {
+      const r = await M.api.get("ai-models");
+      AI_MODELS = (r && r.models) || [];
+      AI_META = r || {};
+    } catch (e) {
+      AI_META = {};
+      try { const r2 = await CF.images.models(); AI_MODELS = (r2 && r2.models) || []; }
+      catch (e2) { AI_MODELS = []; }
+    }
+  }
+  /* le catalogue des modeles, UNE fois : c'est de la qu'on tire l'invite
+     pre-remplie. Un echec ne devient pas une liste vide definitive. */
+  async function loadArchetypes() {
+    try {
+      ARCHETYPES = (typeof CF.models === "function") ? (await CF.models()) : [];
+    } catch (e) { ARCHETYPES = []; }
+  }
+  function usdFmt(v) {
+    let s = (Math.round(v * 10000) / 10000).toFixed(4);
+    if (s.indexOf(".") >= 0) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s.replace(".", ",") + " $";
+  }
+  /* L'INVITE PRE-REMPLIE PAR L'ARCHETYPE ACTIF (§6.3). La provenance d'un jeu
+     est ecrite dans `doc.type.preset` sous la forme « modele:<id> » (prefixe
+     pose a la ronde T3 de la 3a) : un preset SANS prefixe n'est PAS un modele,
+     meme s'il en porte le nom — c'est un gabarit local, et deviner est
+     exactement ce que ce prefixe a ferme. Ce qu'un modele apporte est son
+     `hint`. FONCTION PURE de (preset, catalogue) : jouable au banc. */
+  const DECOR_PROMPT_DEFAUT = "décor de bordure ornemental, motif continu tout "
+    + "autour du pourtour, centre laissé vide, fond sombre, sans texte ni "
+    + "personnage";
+  function decorPrompt(preset, modeles) {
+    const p = String(preset || "");
+    const id = p.indexOf("modele:") === 0 ? p.slice(7) : "";
+    const L = Array.isArray(modeles) ? modeles : [];
+    let m = null;
+    for (let i = 0; i < L.length && !m; i++) if (L[i] && L[i].id === id) m = L[i];
+    const hint = m ? String(m.hint || "").trim() : "";
+    if (!m || !hint) return DECOR_PROMPT_DEFAUT;
+    return DECOR_PROMPT_DEFAUT + " — dans l'esprit de « "
+      + String(m.label || m.id) + " » : " + hint;
+  }
+  /* les entrees du menu, AVEC LEUR TARIF : le prix se lit avant d'ouvrir quoi
+     que ce soit. Un modele hors table le DIT — `pricing.estimate` retomberait
+     en silence sur celui de FLUX, et ce prix d'emprunt serait faux. */
+  function decorModelOptions() {
+    if (!AI_MODELS.length) return '<option value="">aucun modèle disponible</option>';
+    return AI_MODELS.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.label)
+      + (typeof m.usd_par_image === "number"
+        ? " — " + usdFmt(m.usd_par_image) + "/image"
+        : " — tarif non tabulé") + "</option>").join("");
+  }
+  function decorCostLine() {
+    const el = UI.decorCost;
+    if (!el) return;
+    if (!AI_MODELS.length) {
+      el.innerHTML = "<b>Aucun modèle d'image disponible</b> — aucune clé n'est "
+        + "enregistrée dans les Réglages de l'application, la génération "
+        + "échouerait. Le reste de ce panneau ne demande aucune clé.";
+      return;
+    }
+    const id = UI.decorModel ? UI.decorModel.value : "";
+    const m = AI_MODELS.filter((x) => x.id === id)[0];
+    const u = m && typeof m.usd_par_image === "number" ? m.usd_par_image : null;
+    const qui = "<b>" + esc((m && m.provider) || "?") + "</b> — "
+      + esc((m && m.label) || id);
+    el.innerHTML = (u === null
+      ? "Coût de ce clic : <b>1 image</b> chez " + qui
+        + ". <b>Tarif non tabulé</b> dans l'application : aucun montant n'est "
+        + "affiché ici, plutôt qu'un montant emprunté à un autre modèle."
+      : "Coût de ce clic : <b>1 × " + usdFmt(u) + " = " + usdFmt(u) + "</b> chez "
+        + qui + ". Tarif lu dans "
+        + esc(AI_META.tarif_source || "la table de tarifs de l'application") + ".")
+      + " C'est la seule action de cet écran qui dépense.";
+  }
+  /* LA GENERATION — un clic, UN appel, par `CF.images.generate` (le seul dehors
+     qui depense, tenu par le CORE). L'image posee est la PREMIERE : on n'en
+     demande qu'une, chacune etant facturee. */
+  async function decorGenerate() {
+    const ta = UI.decorPrompt;
+    const prompt = String((ta && ta.value) || "").trim();
+    if (!prompt) {
+      M.toast("écrivez une invite pour le décor", true);
+      if (ta) ta.focus();
+      return;
+    }
+    const model = (UI.decorModel || {}).value || "";
+    const req = { prompt: prompt, n: 1, size: "portrait_4_3" };
+    if (model) req.model = model;
+    M.busy(true, "génération du décor de cadre…");
+    try {
+      const d = await CF.images.generate(req);
+      const files = (d && d.images) || [];
+      if (!files.length) throw new Error("le fournisseur n'a rendu aucune image");
+      setDecor({ src: "img:" + files[0] }, "décor de cadre");
+      /* l'image SERVIE relue tout de suite, dans le magasin de l'APPLICATION :
+         c'est elle que le painter dessinera, et l'attendre ici evite une
+         premiere frame au damier. */
+      await loadFrameImg(files[0], "app");
+      M.invalidate();
+      /* CE QUI VIENT D'ETRE DEPENSE, dit APRES coup et au MEME tarif qu'avant
+         le clic : chiffrer avant et se taire apres laisserait l'utilisateur
+         sans trace de sa depense. */
+      const mm = AI_MODELS.filter((x) => x.id === (model || (d && d.model)))[0];
+      const u = mm && typeof mm.usd_par_image === "number" ? mm.usd_par_image : null;
+      M.toast("décor généré et posé sur le cadre"
+        + (u === null ? "" : " · " + usdFmt(u) + " facturés chez " + mm.provider));
+    } catch (e) {
+      M.toast("génération : " + String((e && e.message) || e), true);
+    } finally { M.busy(false); }
+  }
+  /* L'ETAT DU DECOR, ECRIT. Ce qu'on ne devine pas : quel fichier est posé, où
+     il vit, ce qu'un MODELE en emporte, et où il passe dans l'empilement. */
+  function decorText(f0) {
+    const fl = decorFile(f0.decor.src);
+    if (!fl) {
+      return "<b>Aucun décor</b> — le cadre est entièrement tracé. Une image "
+        + "générée ici devient le fond de la bande : elle couvre la toile "
+        + "<b>fond perdu compris</b>, jamais la fenêtre d'illustration.";
+    }
+    return "Décor <b>" + esc(fl) + "</b> à <b>" + Math.round(f0.decor.alpha * 100)
+      + " %</b>, posé <b>sous la matière</b> (les trames, la patine et les "
+      + "usures repassent par-dessus) et <b>sous la moulure</b>. Il vit dans le "
+      + "magasin d'images de l'application — le même que l'illustration. "
+      + "Enregistré comme <b>modèle</b>, le cadre garde l'opacité mais "
+      + "<b>pas le fichier</b>.";
   }
 
   /* L'ETAT DU VERSO, ECRIT. Trois choses qu'on ne devine pas : s'il y a une
@@ -5933,6 +6304,12 @@
       UI.sealScope[k].input.checked = !!f0.seal.scope[k];
     });
     UI.sealRead.innerHTML = sealText(f0, g);
+    /* LE DECOR : l'opacite, l'etat, et le cout du clic. L'invite n'est PAS
+       reecrite ici — elle est pre-remplie une fois puis appartient a
+       l'utilisateur ; la reposer a chaque `sync` effacerait ce qu'il tape. */
+    setNum(UI.decorA, f0.decor.alpha, Math.round(f0.decor.alpha * 100) + " %");
+    UI.decorRead.innerHTML = decorText(f0);
+    decorCostLine();
     setNum(UI.gradAngle, f0.grad_angle, f0.grad_angle + "°");
     setNum(UI.plateA, f0.plate_alpha, Math.round(f0.plate_alpha * 100) + " %");
     UI.double.input.checked = !!f0.double;

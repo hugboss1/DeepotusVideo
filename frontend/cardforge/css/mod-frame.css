@@ -92,6 +92,20 @@
   border: 1px solid var(--stroke); background: var(--bg-panel-3); }
 .cf-frame .cff-sealread b { color: var(--ink-strong); }
 
+/* ── Decor de cadre par IA (spec §6.3) ────────────────────────────────────
+   L'invite est un vrai champ de saisie, pas une ligne : on y ecrit plusieurs
+   phrases avant une depense. Le COUT se detache du reste des aides — c'est la
+   seule ligne du panneau qui annonce de l'argent. */
+.cf-frame .cff-prompt { width: 100%; box-sizing: border-box; resize: vertical;
+  min-height: 58px; padding: 7px 9px; font: inherit; line-height: 1.45;
+  color: var(--ink); background: var(--bg-base);
+  border: 1px solid var(--stroke-strong); border-radius: 8px; }
+.cf-frame .cff-prompt:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cf-frame .cff-cost { padding: 6px 9px; border-radius: 8px;
+  border: 1px solid var(--stroke); background: var(--bg-panel-3); }
+.cf-frame .cff-cost b { color: var(--ink-strong); }
+.cf-frame .cff-decorread b { color: var(--ink-strong); }
+
 /* ── fenetre d'illustration : plan cliquable + valeurs editables ─────────── */
 .cf-frame .cff-winwrap { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .cf-frame .cff-map { flex: none; border: 1px solid var(--stroke-strong); border-radius: 8px;

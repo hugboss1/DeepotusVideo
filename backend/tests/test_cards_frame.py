@@ -164,9 +164,15 @@ def test_aucun_cadre_en_bitmap_livre():
 
 
 def _hors_verso(src: str) -> str:
-    """Le source, PRIVÉ des deux fonctions qui manipulent l'image que
-    l'UTILISATEUR importe pour son verso (3c-T4). Voir le test ci-dessous."""
-    for nom in ("loadBackImg", "importBackImage", "downscaleBack"):
+    """Le source, PRIVÉ des fonctions qui manipulent une image DE
+    L'UTILISATEUR — celle qu'il importe pour son verso (3c-T4) et celle qu'il
+    fait générer pour le décor de cadre (3c-T5). Voir le test ci-dessous.
+
+    3c-T5 : la liste n'a PAS grandi, et c'est le point. Le décodeur du décor
+    n'est pas un décodeur de plus — c'est `loadFrameImg`, le MÊME, avec le
+    magasin en paramètre. Le nom a changé (il ne charge plus seulement le
+    verso) ; le compte, lui, reste UN."""
+    for nom in ("loadFrameImg", "importBackImage", "downscaleBack"):
         corps = _js_fn(src, nom)
         src = src.replace(corps, f"/* {nom} : hors périmètre */")
     return src
@@ -1284,6 +1290,15 @@ def _js_fn(src: str, nom: str) -> str:
             if n == 0:
                 return src[i:k + 1]
     raise AssertionError("accolades non equilibrees pour " + nom)
+
+
+def _py_fn(py: str, nom: str) -> str:
+    """Le SOURCE d'une fonction de module de `cards/frame.py` — de son `def`
+    au `def` suivant. Suffisant pour lire ce qu'une fonction fait ; ce dépôt
+    n'imbrique pas de définitions au niveau du module."""
+    i = py.index(f"\ndef {nom}(")
+    j = py.find("\ndef ", i + 1)
+    return py[i:j if j > 0 else len(py)]
 
 
 def test_le_parseur_png_ne_porte_plus_d_octet_nul_brut():
@@ -2866,11 +2881,12 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
 
     29 depuis la phase 3c-1 : `seal`, le PREMIER sous-objet de `doc.frame`
     (le Sceau prismatique, spec §6.2bis). 31 depuis la 3c-4 : `back_image` et
-    `back_layers`, le verso personnalisé (spec §6.2ter)."""
+    `back_layers`, le verso personnalisé (spec §6.2ter). 32 depuis la 3c-5 :
+    `decor`, le décor de cadre par IA (spec §6.3)."""
     src = _js()
     cles = _js_defaults_keys(src)
     assert len(cles) == len(set(cles)), f"clé en double dans DEFAULTS : {cles}"
-    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -4160,11 +4176,11 @@ def test_le_compte_de_cles_du_document_suit_le_sceau():
     nombre."""
     cles = _js_defaults_keys(_js())
     assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
-    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
     py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
-    assert "30 clés que l'on écrit" in py, \
-        "le commentaire de l'habillage ne suit pas les clés neuves (30 " \
-        "écrites, la 31e étant `art_window`, publiée par le painter)"
+    assert "31 clés que l'on écrit" in py, \
+        "le commentaire de l'habillage ne suit pas les clés neuves (31 " \
+        "écrites, la 32e étant `art_window`, publiée par le painter)"
 
 
 # ── 16.2 le PEINTRE : des pixels, pas des intentions ─────────────────────────
@@ -4941,7 +4957,7 @@ def test_le_schema_du_verso_custom_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "back_image" in cles and "back_layers" in cles, cles
-    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
     # les bornes, des deux côtés et au chiffre de la spec
     for k, attendu in (("back_opacity", BACK_OPACITY_SPEC),
                        ("back_scale", BACK_SCALE_SPEC)):
@@ -5010,11 +5026,15 @@ for (const c of CAS.cas) {
          branche — donc lui qui decide si le verso personnalise rend. */
       kind: mod.backOf(f, c.card || null),
       back_image: f.back_image, back_layers: f.back_layers,
+      /* LE DECOR DE CADRE (3c-T5) passe par le MEME banc : c'est le meme
+         geste — une branche imbriquee de `st()` a comparer a son miroir. */
+      decor: f.decor,
       /* L'ALIAS : le tableau rendu est-il CELUI du schema ? `DEFAULTS` est
          l'objet meme que `CF.register` remet au registre du CORE — un alias
          rendu ici ferait d'un reglage de carte une ecriture dans le schema
          partage (la lecon du sous-objet `seal`, T1). */
-      alias: f.back_layers === mod.DEFAULTS.back_layers });
+      alias: f.back_layers === mod.DEFAULTS.back_layers,
+      alias_decor: f.decor === mod.DEFAULTS.decor });
   } catch (e) { out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) }); }
 }
 process.stdout.write(JSON.stringify(out));
@@ -6101,12 +6121,20 @@ def test_le_cache_d_images_du_verso_ne_peut_pas_DEBORDER_d_un_jeu_a_l_autre():
     core = CORE_JS.read_text(encoding="utf-8")
     corps = _js_fn(core, "galGo")
     assert "location.assign" in corps and "location.reload" in corps, corps
-    # ... et la pièce charge bien SES images par SA route (règle 8)
+    # ... et la pièce charge bien SES images par SA route (règle 8). Depuis la
+    # 3c-T5 la clé porte AUSSI le MAGASIN : un `img_1.png` du jeu et un
+    # `img_1.png` du magasin de l'application ne sont pas le même fichier, et
+    # le nom seul les confondrait DANS UN MÊME JEU — ce que le rechargement de
+    # page ne rattrape pas.
     src = _js()
-    i = src.index("function loadBackImg(")
-    lb = src[i:src.index("\n  function ", i)]
-    assert 'M.api.url("image/"' in lb, lb[:400]
-    assert "encodeURIComponent" in lb, "le nom de fichier n'est pas encodé"
+    st = _js_fn(src, "IMG_STORES") if "function IMG_STORES(" in src else \
+        src[src.index("const IMG_STORES = {"):src.index("function imgKey(")]
+    assert 'M.api.url("image/"' in st, st
+    assert '"/api/images/"' in st, "le magasin de l'application n'est pas lu"
+    assert st.count("encodeURIComponent") == 2, \
+        "un nom de fichier n'est pas encodé dans l'URL"
+    cle = _js_fn(src, "imgKey")
+    assert "mag" in cle and "file" in cle, cle
 
 
 def test_le_painter_du_verso_ATTEND_ses_images_avant_de_peindre():
@@ -6116,12 +6144,15 @@ def test_le_painter_du_verso_ATTEND_ses_images_avant_de_peindre():
     src = _js()
     i = src.index("painters: [")
     corps = src[i:src.index("state: DEFAULTS", i)]
-    assert "await ensureBackImgs(" in corps, \
+    assert 'await ensureFrameImgs(files, "deck")' in corps, \
         "le painter ne charge pas les images du verso avant de peindre"
+    # ... et le RECTO fait de même pour le décor de l'IA (3c-T5) : même raison,
+    # même attente, l'autre magasin
+    assert 'await ensureFrameImgs(dfs, "app")' in corps, \
+        "le painter ne charge pas le décor du cadre avant de peindre"
     assert "async fn(" in corps, "le painter n'est pas asynchrone"
     # l'attente est BORNÉE : le CORE laisse 4 s à un painter
-    j = src.index("function ensureBackImgs(")
-    ens = src[j:src.index("\n  function ", j)]
+    ens = _js_fn(src, "ensureFrameImgs")
     assert "Promise.race" in ens and "IMG_WAIT_MS" in ens, ens
 
 
@@ -6279,3 +6310,1174 @@ def test_un_JALON_DE_RESERVATION_VIDE_n_est_jamais_SERVI():
     assert FR._next_img_index(_frame_dir(did)) == (3, 2), \
         "le jalon vide a cessé de compter : le plafond ne protège plus le " \
         "numéro, il protège les octets — choisir, et le dire"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 18. LE DÉCOR DE CADRE PAR IA — phase 3c, tâche 5 (spec §6.3, décision 6)
+#
+# « Générer le décor de cadre par IA » : la liste des modèles ET LEUR TARIF
+# viennent de la table de tarifs de l'application (jamais d'une liste recopiée
+# à l'écran), le prix est dit AVANT le clic, l'image générée devient
+# `doc.frame.decor = {src, alpha}` et se peint DANS le bloc déjà clippé de
+# `paintFront` — la bande, jamais la fenêtre.
+#
+# LE MAGASIN EST CELUI DE L'APPLICATION (`/api/images`, décision 6) et non le
+# dossier du jeu : c'est le MÊME générateur que P1, donc le même magasin. Un
+# modèle enregistré depuis ce jeu garde donc le RÉGLAGE (l'opacité) et perd le
+# FICHIER (le `src`), comme le verso de la T4 — avec sa note.
+# ═════════════════════════════════════════════════════════════════════════════
+
+DECOR_ALPHA_SPEC = (0.0, 1.0)
+
+
+# ── 18.1 le SCHÉMA, des deux côtés ───────────────────────────────────────────
+
+def test_le_decor_est_la_32e_cle_et_son_schema_est_le_meme_des_deux_cotes():
+    """`decor` est un sous-objet — le SECOND de `doc.frame` après `seal`. Comme
+    lui il a sa branche imbriquée dans `st()` et son miroir d'exécution au
+    backend ; comme lui il naît ÉTEINT (aucune source) pour qu'aucun jeu déjà
+    enregistré ne change d'aspect."""
+    src = _js()
+    cles = _js_defaults_keys(src)
+    assert "decor" in cles, f"la clé decor manque à DEFAULTS : {cles}"
+    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert f"porte toujours les {len(cles)} cles" in src, \
+        "le commentaire de st() ne dit pas le compte réel"
+    # les défauts, littéralement les mêmes
+    js = _bloc_const("DECOR_DEFAULTS", src)
+    assert re.search(r'src:\s*""', js), js
+    assert re.search(r"alpha:\s*1\b", js), js
+    assert FR.DECOR_DEFAULTS == {"src": "", "alpha": 1.0}, FR.DECOR_DEFAULTS
+    # la borne de l'opacité est dans LIMITS des deux côtés (le test générique
+    # `test_les_bornes_sont_les_memes_des_deux_cotes` la compare déjà)
+    assert tuple(FR.LIMITS["decor_alpha"]) == DECOR_ALPHA_SPEC, \
+        FR.LIMITS["decor_alpha"]
+
+
+def test_le_motif_des_sources_de_decor_est_ANCRE_des_deux_cotes():
+    """Le vocabulaire de `decor.src` : vide, ou `img:<fichier>` du magasin de
+    l'APPLICATION. Ancré des DEUX bouts — le `$` d'un motif JavaScript s'arrête
+    à la fin de la chaîne, celui de Python accepte un saut de ligne final :
+    d'où `fullmatch` au backend (le piège payé trois fois dans ce dépôt)."""
+    js = _bloc_const("DECOR_SRC_RE")
+    assert js.startswith("/^") and js.endswith("$/"), js
+    assert "fullmatch" in _py_fn(pathlib.Path(FR.__file__).read_text(
+        encoding="utf-8"), "decor_of"), \
+        "decor_of n'utilise pas fullmatch : « img:x.png\\n » traverserait"
+
+
+DECOR_HOSTILE = {
+    "absent": {},
+    "vide": {"decor": {}},
+    "pas_un_objet": {"decor": "beaucoup"},
+    "une_liste": {"decor": [{"src": "img:a.png"}]},
+    "normal": {"decor": {"src": "img:gen_ab12cd34.png", "alpha": 0.4}},
+    "hors_bornes": {"decor": {"src": "img:gen_1.png", "alpha": 9}},
+    "hors_bornes_bas": {"decor": {"src": "img:gen_1.png", "alpha": -3}},
+    "src_folle": {"decor": {"src": "img:../meta.json"}},
+    "src_absolue": {"decor": {"src": "http://ailleurs/x.png"}},
+    "src_deck": {"decor": {"src": "local:x.png"}},
+    "src_non_chaine": {"decor": {"src": 7}},
+    "saut_de_ligne": {"decor": {"src": "img:gen_1.png\n"}},
+    "src_trop_longue": {"decor": {"src": "img:" + "a" * 200 + ".png"}},
+    # ── LES FORMES QUI SÉPARENT LES DEUX LANGAGES (leçons F3 et F4 de la T4,
+    # rejouées d'office plutôt que redécouvertes) : `null` et `""` que le
+    # générique `num()` lirait ZÉRO là où `float()` retombe au DÉFAUT ; et les
+    # chaînes numériques que `Number()` et `float()` ne lisent pas pareil.
+    "absent_explicite": {"decor": {"src": "img:gen_1.png", "alpha": None}},
+    "chaine_vide": {"decor": {"src": "img:gen_1.png", "alpha": ""}},
+    "espaces": {"decor": {"src": "img:gen_1.png", "alpha": "  "}},
+    "liste": {"decor": {"src": "img:gen_1.png", "alpha": []}},
+    "hexa": {"decor": {"src": "img:gen_1.png", "alpha": "0x10"}},
+    "souligne": {"decor": {"src": "img:gen_1.png", "alpha": "1_0"}},
+    "exposant": {"decor": {"src": "img:gen_1.png", "alpha": "1e0"}},
+    "espaces_autour": {"decor": {"src": "img:gen_1.png", "alpha": " 0.5 "}},
+    "decimale": {"decor": {"src": "img:gen_1.png", "alpha": "0.5"}},
+    "booleen": {"decor": {"src": "img:gen_1.png", "alpha": False}},
+}
+
+
+def test_les_deux_normaliseurs_du_DECOR_rendent_LA_MEME_CHOSE(tmp_path):
+    """Parité d'EXÉCUTION (la leçon 3b : aucune correspondance de source ne
+    remplace deux exécutions comparées). Les mêmes corps hostiles passent par
+    `st()` au navigateur et par `frame.decor_of` au backend."""
+    cas = [{"nom": n, "frame": f} for n, f in DECOR_HOSTILE.items()]
+    res = _banc_verso_st(tmp_path, cas)
+    for nom, fr in DECOR_HOSTILE.items():
+        r = res[nom]
+        assert r["ok"], f"{nom} : {r.get('err')}"
+        assert r["decor"] == FR.decor_of(fr.get("decor")), \
+            f"{nom} : écran {r['decor']} vs backend {FR.decor_of(fr.get('decor'))}"
+    # ... et ce que la normalisation garantit, NOMMÉ plutôt que déduit
+    assert res["normal"]["decor"] == {"src": "img:gen_ab12cd34.png", "alpha": 0.4}
+    assert res["hors_bornes"]["decor"]["alpha"] == 1.0
+    assert res["hors_bornes_bas"]["decor"]["alpha"] == 0.0
+    for nom in ("src_folle", "src_absolue", "src_deck", "src_non_chaine",
+                "saut_de_ligne", "src_trop_longue", "pas_un_objet",
+                "une_liste"):
+        assert res[nom]["decor"]["src"] == "", (nom, res[nom]["decor"])
+    # ABSENT vaut DÉFAUT, JAMAIS zéro — des deux côtés (le piège `num()`)
+    for nom in ("absent_explicite", "chaine_vide", "espaces", "liste",
+                "hexa", "souligne", "exposant", "espaces_autour"):
+        assert res[nom]["decor"]["alpha"] == FR.DECOR_DEFAULTS["alpha"], \
+            (nom, res[nom]["decor"])
+    assert res["decimale"]["decor"]["alpha"] == 0.5
+    assert res["booleen"]["decor"]["alpha"] == 0.0
+
+
+def test_le_decor_rendu_n_est_JAMAIS_celui_du_schema(tmp_path):
+    """`DEFAULTS.decor` est le MÊME objet que celui remis au registre du CORE
+    (`state: DEFAULTS`). Rendu tel quel, régler l'opacité sur UNE carte
+    l'écrirait dans le SCHÉMA — tous les jeux ouverts ensuite naîtraient avec.
+    La leçon du sous-objet `seal` (T1), rejouée sur la clé neuve."""
+    res = _banc_verso_st(tmp_path, [{"nom": "defaut", "frame": {}}])
+    assert res["defaut"]["ok"], res["defaut"].get("err")
+    assert res["defaut"]["decor"] == FR.DECOR_DEFAULTS
+    assert res["defaut"]["alias_decor"] is False, \
+        "st() rend le sous-objet DU SCHÉMA : un réglage écrirait dans le registre"
+
+
+# ── 18.2 LA ROUTE ai-models : le tarif de l'application, jamais une copie ────
+
+def test_la_route_ai_models_du_cadre_publie_le_TARIF_DE_L_APPLICATION():
+    """Le miroir de `face.py:ai-models` (spec §6.3 : « patron face.py:ai-models
+    ; JAMAIS de liste recopiée à l'écran »). Le montant vient de la table de
+    tarifs que l'utilisateur édite dans Réglages, pas d'un nombre écrit ici."""
+    did = _deck()
+    r = _api("GET", f"/api/cards/{did}/frame/ai-models")
+    assert r.status_code == 200, r.text
+    assert "json" in r.headers.get("content-type", "").lower()
+    d = r.json()
+    for k in ("models", "configured", "devise", "tarif_source", "cle_absente",
+              "repli", "erreur"):
+        assert k in d, f"{k} absent de la réponse : {sorted(d)}"
+    assert d["devise"] == "USD" and d["tarif_source"]
+    assert d["models"], "FAL_KEY est posée dans l'environnement de test"
+    par_id = {m["id"]: m for m in d["models"]}
+    assert "flux" in par_id, sorted(par_id)
+    from app.services import pricing
+    attendu = pricing.load()["flux_image_usd"]
+    assert par_id["flux"]["usd_par_image"] == pytest.approx(attendu), \
+        "le prix publié doit être CELUI de l'application, pas une copie"
+    assert par_id["flux"]["provider"] == "fal"
+    for m in d["models"]:
+        assert set(m) == {"id", "label", "provider", "note", "usd_par_image"}, m
+    # un modèle absent de la table de tarifs n'affiche AUCUN montant :
+    # `pricing.estimate` retomberait sur FLUX, et ce repli serait un prix faux
+    if "nano-banana" in par_id:
+        assert par_id["nano-banana"]["usd_par_image"] is None
+    # ... et le repli existe pour que l'écran ne dise jamais « aucun modèle »
+    # quand une clé EST posée
+    assert set(FR._keyed_providers()) >= {"fal"}
+
+
+def test_la_liste_des_modeles_n_est_PAS_RECOPIEE_dans_la_piece():
+    """LE PIN DE LA TÂCHE. Une liste de modèles recopiée dans `frame.py`
+    dériverait de celle de l'application au premier ajout — un menu qui propose
+    un modèle que le backend ne sait pas servir, ou qui cache celui qu'il sert.
+    Les DEUX sources sont IMPORTÉES : la table de tarifs
+    (`app.services.pricing`) et la liste réellement servie
+    (`app.api.routes.list_image_models`).
+
+    Et rien n'est importé de la PIÈCE VOISINE (règle 8) : `face.py` porte le
+    même patron, on ne l'importe pas — on importe ce qu'il importe."""
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    assert "from app.services import pricing" in py, \
+        "le tarif ne vient pas de la table de l'application"
+    assert "from app.api.routes import list_image_models" in py, \
+        "la liste ne vient pas de la route de l'application"
+    for voisin in ("from .face import", "from app.services.cards import face",
+                   "from . import face"):
+        assert voisin not in py, f"règle 8 : {voisin}"
+    # AUCUN identifiant de modèle écrit en dur dans la pièce
+    sans_com = re.sub(r"#[^\n]*", "", py)
+    sans_com = re.sub(r'"""(?:.|\n)*?"""', "", sans_com)
+    for mid in ("flux", "gpt-image", "dall-e", "nano-banana", "seedream",
+                "recraft"):
+        assert mid not in sans_com, \
+            f"« {mid} » est écrit en dur dans frame.py : la liste est recopiée"
+
+
+def test_ai_models_ne_fait_jamais_500_et_refuse_un_deck_inconnu():
+    """La règle de la pièce : jamais de 500. Un identifiant illisible est un
+    400 qui le dit, un jeu absent un 404."""
+    r = _api("GET", "/api/cards/pas_un_deck/frame/ai-models")
+    assert r.status_code in (400, 404), r.status_code
+    assert r.status_code != 500
+    assert isinstance(r.json().get("detail"), str)
+    from app.main import app
+    assert "/api/cards/{did}/frame/ai-models" in list(app.openapi()["paths"])
+
+
+# ── 18.3 LE PEINTRE : des pixels, pas des intentions ─────────────────────────
+#
+# Le banc du verso (17.x) sait les couleurs mais pas le DÉCOUPAGE ; celui du
+# peintre (15.2) sait le découpage mais pas les couleurs. Le décor a besoin des
+# deux à la fois : ce qui le tient hors de la fenêtre EST le découpage de
+# `paintFront`, et ce qu'il pose EST une image en couleurs.
+#
+# D'où ce banc : le rastériseur par balayage de lignes du banc du peintre —
+# courbes aplaties, pair-impair, clip honoré — auquel on ajoute des PIXELS
+# RVBA, l'alpha et `drawImage`.
+#
+# LA MESURE EST DIFFÉRENTIELLE, et c'est ce qui la rend exacte : on rend la
+# MÊME carte deux fois, avec et sans décor, et l'on compte les pixels qui
+# CHANGENT. Tout le reste du dessin est déterministe (PRNG à graine fixe), donc
+# l'écart EST l'empreinte du décor — sans avoir à démêler le décor de la
+# matière qui passe par-dessus.
+#
+# CE QUE LE BANC N'IMITE PAS, ET C'EST DIT : un dégradé rend un gris à 35 % (le
+# banc ne modélise pas les arrêts de couleur). L'approximation est la même dans
+# les deux rendus, donc elle disparaît de la différence.
+
+BANC_DECOR = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+const N_BEZ = 12, N_ARC = 20;
+const TEXTES = [];
+const MODES = {};
+
+function couleur(s) {
+  const t = String(s);
+  let m = /^#([0-9a-f]{6})$/i.exec(t);
+  if (m) { const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
+  m = /^#([0-9a-f]{3})$/i.exec(t);
+  if (m) { const c = m[1];
+    return [parseInt(c[0] + c[0], 16), parseInt(c[1] + c[1], 16),
+      parseInt(c[2] + c[2], 16), 255]; }
+  m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/
+    .exec(t);
+  if (m) return [+m[1], +m[2], +m[3],
+    Math.round((m[4] === undefined ? 1 : +m[4]) * 255)];
+  return [0, 0, 0, 255];
+}
+/* un DEGRADE : le banc ne modelise pas les arrets de couleur — il rend un gris
+   a 35 %, le MEME dans les deux rendus compares. */
+const GRAD = { addColorStop: function () {}, toString: function () {
+  return "rgba(128,128,128,0.35)"; } };
+
+function Ctx(W, H) {
+  this.W = W; this.H = H;
+  this.d = new Uint8ClampedArray(W * H * 4);
+  this.msk = new Uint8Array(W * H).fill(1);
+  this.stk = []; this.t = { sx: 1, sy: 1, tx: 0, ty: 0 };
+  this.sub = []; this.cur = null;
+  this.fillStyle = "#000000"; this.strokeStyle = "#000000"; this.lineWidth = 1;
+  this.globalAlpha = 1; this.globalCompositeOperation = "source-over";
+  this.shadowBlur = 0; this.shadowColor = ""; this.lineCap = "";
+  this.lineJoin = ""; this.font = ""; this.textAlign = "";
+  this.textBaseline = ""; this.imageSmoothingEnabled = true;
+}
+Ctx.prototype.save = function () {
+  this.stk.push({ t: { sx: this.t.sx, sy: this.t.sy, tx: this.t.tx, ty: this.t.ty },
+    msk: this.msk.slice(), fs: this.fillStyle, ss: this.strokeStyle,
+    lw: this.lineWidth, ga: this.globalAlpha,
+    op: this.globalCompositeOperation, sb: this.shadowBlur,
+    sc: this.shadowColor });
+};
+Ctx.prototype.restore = function () {
+  const s = this.stk.pop();
+  if (!s) return;
+  this.t = s.t; this.msk = s.msk; this.fillStyle = s.fs; this.strokeStyle = s.ss;
+  this.lineWidth = s.lw; this.globalAlpha = s.ga;
+  this.globalCompositeOperation = s.op; this.shadowBlur = s.sb;
+  this.shadowColor = s.sc;
+};
+Ctx.prototype.translate = function (x, y) {
+  this.t.tx += x * this.t.sx; this.t.ty += y * this.t.sy;
+};
+Ctx.prototype.scale = function (x, y) { this.t.sx *= x; this.t.sy *= y; };
+Ctx.prototype.rotate = function () {};
+Ctx.prototype._p = function (x, y) {
+  return [x * this.t.sx + this.t.tx, y * this.t.sy + this.t.ty];
+};
+Ctx.prototype.beginPath = function () { this.sub = []; this.cur = null; };
+Ctx.prototype.moveTo = function (x, y) {
+  this.cur = [this._p(x, y)]; this.sub.push(this.cur);
+};
+Ctx.prototype.lineTo = function (x, y) {
+  if (!this.cur) this.moveTo(x, y); else this.cur.push(this._p(x, y));
+};
+Ctx.prototype.closePath = function () {};
+Ctx.prototype.rect = function (x, y, w, h) {
+  this.moveTo(x, y); this.lineTo(x + w, y);
+  this.lineTo(x + w, y + h); this.lineTo(x, y + h);
+  this.cur = null;
+};
+Ctx.prototype.arcTo = function (x1, y1, x2, y2) {
+  this.lineTo(x1, y1); this.lineTo(x2, y2);
+};
+Ctx.prototype.arc = function (cx, cy, r, a0, a1) {
+  for (let i = 0; i <= N_ARC; i++) {
+    const a = a0 + (a1 - a0) * i / N_ARC;
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Ctx.prototype.ellipse = function (cx, cy, rx, ry, rot, a0, a1) {
+  const ca = Math.cos(rot || 0), sa = Math.sin(rot || 0);
+  for (let i = 0; i <= N_ARC; i++) {
+    const a = a0 + (a1 - a0) * i / N_ARC;
+    const px = Math.cos(a) * rx, py = Math.sin(a) * ry;
+    const x = cx + px * ca - py * sa, y = cy + px * sa + py * ca;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Ctx.prototype.bezierCurveTo = function (x1, y1, x2, y2, x3, y3) {
+  if (!this.cur) this.moveTo(x1, y1);
+  const p0 = this.cur[this.cur.length - 1];
+  const ix = (p0[0] - this.t.tx) / this.t.sx, iy = (p0[1] - this.t.ty) / this.t.sy;
+  for (let i = 1; i <= N_BEZ; i++) {
+    const t = i / N_BEZ, u = 1 - t;
+    this.lineTo(u * u * u * ix + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3,
+      u * u * u * iy + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3);
+  }
+};
+Ctx.prototype.quadraticCurveTo = function (x1, y1, x2, y2) {
+  this.bezierCurveTo(x1, y1, x1, y1, x2, y2);
+};
+Ctx.prototype._pose = function (q, src, ga) {
+  MODES[this.globalCompositeOperation] =
+    (MODES[this.globalCompositeOperation] || 0) + 1;
+  const o = q * 4, sa = (src[3] / 255) * ga, da = this.d[o + 3] / 255;
+  const a = sa + da * (1 - sa);
+  for (let k = 0; k < 3; k++) {
+    const Cs = src[k] / 255, Cb = this.d[o + k] / 255;
+    this.d[o + k] = a ? Math.round((Cs * sa + Cb * da * (1 - sa)) / a * 255) : 0;
+  }
+  this.d[o + 3] = Math.round(a * 255);
+};
+Ctx.prototype._balayage = function (eo, cb, brut) {
+  for (let y0 = 0; y0 < this.H; y0++) {
+    const y = y0 + 0.5, xs = [];
+    for (let s = 0; s < this.sub.length; s++) {
+      const sp = this.sub[s], n = sp.length;
+      if (n < 2) continue;
+      for (let i = 0; i < n; i++) {
+        const a = sp[i], b = sp[(i + 1) % n];
+        if ((a[1] <= y) === (b[1] <= y)) continue;
+        const t = (y - a[1]) / (b[1] - a[1]);
+        xs.push([a[0] + t * (b[0] - a[0]), b[1] > a[1] ? 1 : -1]);
+      }
+    }
+    if (xs.length < 2) continue;
+    xs.sort(function (p, q) { return p[0] - q[0]; });
+    let w = 0;
+    for (let i = 0; i < xs.length - 1; i++) {
+      w += xs[i][1];
+      if (!(eo ? (i % 2 === 0) : (w !== 0))) continue;
+      let g0 = Math.ceil(xs[i][0] - 0.5), g1 = Math.ceil(xs[i + 1][0] - 0.5);
+      if (g0 < 0) g0 = 0;
+      if (g1 > this.W) g1 = this.W;
+      for (let x = g0; x < g1; x++) {
+        const q = y0 * this.W + x;
+        if (brut || this.msk[q]) cb(q);
+      }
+    }
+  }
+};
+Ctx.prototype._trace = function (cb) {
+  for (let s = 0; s < this.sub.length; s++) {
+    const sp = this.sub[s];
+    for (let i = 0; i + 1 < sp.length; i++) {
+      const a = sp[i], b = sp[i + 1];
+      const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / 0.5));
+      for (let k = 0; k <= n; k++) {
+        const x = Math.floor(a[0] + (b[0] - a[0]) * k / n);
+        const y = Math.floor(a[1] + (b[1] - a[1]) * k / n);
+        if (x < 0 || y < 0 || x >= this.W || y >= this.H) continue;
+        const q = y * this.W + x;
+        if (this.msk[q]) cb(q);
+      }
+    }
+  }
+};
+Ctx.prototype.fill = function (rule) {
+  const c = couleur(this.fillStyle), ga = this.globalAlpha, self = this;
+  this._balayage(rule === "evenodd", function (q) { self._pose(q, c, ga); });
+};
+Ctx.prototype.stroke = function () {
+  const c = couleur(this.strokeStyle), ga = this.globalAlpha, self = this;
+  this._trace(function (q) { self._pose(q, c, ga); });
+};
+Ctx.prototype.clip = function (rule) {
+  const m = new Uint8Array(this.W * this.H);
+  this._balayage(rule === "evenodd", function (q) { m[q] = 1; }, true);
+  for (let i = 0; i < m.length; i++) if (!m[i]) this.msk[i] = 0;
+};
+Ctx.prototype.fillRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.fill();
+};
+Ctx.prototype.strokeRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.stroke();
+};
+Ctx.prototype.createLinearGradient = function () { return GRAD; };
+Ctx.prototype.createRadialGradient = function () { return GRAD; };
+Ctx.prototype.createPattern = function () { return null; };
+Ctx.prototype.setLineDash = function () {};
+Ctx.prototype.fillText = function (t) { TEXTES.push(String(t)); };
+Ctx.prototype.strokeText = function () {};
+Ctx.prototype.measureText = function (t) { return { width: String(t).length * 6 }; };
+Ctx.prototype.drawImage = function (img, dx, dy, dw, dh) {
+  if (dw === undefined) { dx = dx || 0; dy = dy || 0; dw = img.width; dh = img.height; }
+  const x0 = Math.max(0, Math.floor(dx)), x1 = Math.min(this.W, Math.ceil(dx + dw));
+  const y0 = Math.max(0, Math.floor(dy)), y1 = Math.min(this.H, Math.ceil(dy + dh));
+  for (let j = y0; j < y1; j++) {
+    let sy = Math.floor((j + 0.5 - dy) / dh * img.height);
+    sy = Math.min(img.height - 1, Math.max(0, sy));
+    for (let i = x0; i < x1; i++) {
+      let sx = Math.floor((i + 0.5 - dx) / dw * img.width);
+      sx = Math.min(img.width - 1, Math.max(0, sx));
+      const q = j * this.W + i;
+      if (!this.msk[q]) continue;
+      const s = (sy * img.width + sx) * 4;
+      this._pose(q, [img.d[s], img.d[s + 1], img.d[s + 2], img.d[s + 3]],
+        this.globalAlpha);
+    }
+  }
+};
+Ctx.prototype.getImageData = function (x, y, w, h) {
+  const out = new Uint8ClampedArray(w * h * 4);
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const s = ((y + j) * this.W + (x + i)) * 4, o = (j * w + i) * 4;
+      out[o] = this.d[s]; out[o + 1] = this.d[s + 1];
+      out[o + 2] = this.d[s + 2]; out[o + 3] = this.d[s + 3];
+    }
+  return { width: w, height: h, data: out };
+};
+Ctx.prototype.putImageData = function (im, x, y) {
+  for (let j = 0; j < im.height; j++)
+    for (let i = 0; i < im.width; i++) {
+      const o = (j * im.width + i) * 4, s = ((y + j) * this.W + (x + i)) * 4;
+      this.d[s] = im.data[o]; this.d[s + 1] = im.data[o + 1];
+      this.d[s + 2] = im.data[o + 2]; this.d[s + 3] = im.data[o + 3];
+    }
+};
+globalThis.document = { createElement: function () {
+  const cv = { _w: 0, _h: 0, ctx: null };
+  Object.defineProperty(cv, "width", { get: () => cv._w,
+    set: (v) => { cv._w = v | 0; cv.ctx = new Ctx(cv._w, cv._h || 1); } });
+  Object.defineProperty(cv, "height", { get: () => cv._h,
+    set: (v) => { cv._h = v | 0; cv.ctx = new Ctx(cv._w || 1, cv._h); } });
+  cv.getContext = () => cv.ctx || new Ctx(1, 1);
+  return cv;
+} };
+
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { st: st, model: model, paintFront: paintFront,"
+  + " paintDecor: paintDecor, decorFile: decorFile,"
+  + " decorMissRect: decorMissRect, backCover: backCover,"
+  + " BIMGS: BIMGS, imgKey: imgKey, WIN_SHAPE: WIN_SHAPE, winPath: winPath };"
+  + "\n})();")();
+
+function image(spec) {
+  const w = spec.w, h = spec.h;
+  const im = { width: w, height: h, d: new Uint8ClampedArray(w * h * 4) };
+  for (let i = 0; i < w * h; i++) {
+    im.d[i * 4] = spec.rgba[0]; im.d[i * 4 + 1] = spec.rgba[1];
+    im.d[i * 4 + 2] = spec.rgba[2]; im.d[i * 4 + 3] = spec.rgba[3];
+  }
+  return im;
+}
+
+const CARTE = { i: 0, id: "c1", fields: {}, art: null, back: null };
+
+const out = [];
+for (const c of CAS.cas) {
+  const dpi = c.g.dpi;
+  const g = Object.assign({}, c.g, { mm2px: (v) => v / 25.4 * dpi });
+  TEXTES.length = 0;
+  for (const k of Object.keys(MODES)) delete MODES[k];
+  try {
+    const f = mod.st({ frame: c.frame });
+    const m = mod.model(g, f);
+    /* LE CACHE DU MODULE, SEME A LA MAIN : c'est `paintFront` lui-meme qui va
+       chercher l'etat de l'image, et la CLE porte le MAGASIN. */
+    mod.BIMGS.clear();
+    for (const nom of Object.keys(c.imgs || {})) {
+      mod.BIMGS.set(mod.imgKey(c.magasin || "app", nom),
+        { img: image(c.imgs[nom]), ok: true, file: nom });
+    }
+    const rendu = (frame) => {
+      const ctx = new Ctx(m.W, m.H);
+      mod.paintFront(ctx, g, mod.st({ frame: frame }), CARTE, {});
+      return ctx;
+    };
+    if (c.mode === "direct") {
+      /* le peintre SEUL, sur un aplat connu : l'oracle de l'alpha */
+      const ctx = new Ctx(m.W, m.H);
+      ctx.fillStyle = c.base; ctx.fillRect(0, 0, m.W, m.H);
+      const IM = {};
+      for (const nom of Object.keys(c.imgs || {})) IM[nom] = image(c.imgs[nom]);
+      const get = (file) => (IM[file] ? { img: IM[file], ok: true, file: file }
+        : { img: null, ok: false, file: file });
+      mod.paintDecor(ctx, m, f, get);
+      const px = (x, y) => { const o = ((y | 0) * m.W + (x | 0)) * 4;
+        return [ctx.d[o], ctx.d[o + 1], ctx.d[o + 2], ctx.d[o + 3]]; };
+      out.push({ nom: c.nom, ok: true, mode: "direct",
+        toile: [m.W, m.H], coupe: [m.trim.x, m.trim.y, m.trim.w, m.trim.h],
+        encart: mod.decorMissRect(m),
+        couvre: mod.backCover(4, 4, m.W, m.H),
+        modes: Object.keys(MODES).sort(), textes: TEXTES.slice(),
+        px: { hg: px(2, 2), centre: px(m.W >> 1, m.H >> 1),
+          bd: px(m.W - 3, m.H - 3) } });
+      continue;
+    }
+    /* MESURE DIFFERENTIELLE : la meme carte avec et sans decor */
+    const avec = rendu(c.frame);
+    const sans = rendu(Object.assign({}, c.frame, { decor: { src: "" } }));
+    const nomsImg = Object.keys(c.imgs || {});
+    const dec = nomsImg.length ? c.imgs[nomsImg[0]].rgba : [-1, -1, -1, -1];
+    /* LA FENETRE EST CELLE DU PRODUIT, pas une boite recalculee ici : elle est
+       ARQUEE chez `arcane`, chanfreinee chez `deco`, et une boite
+       rectangulaire y comprendrait des coins de BANDE — c'est-a-dire du decor
+       legitime, compte comme une fuite. On rejoue donc `winPath` du module sur
+       un masque. */
+    const mw = new Ctx(m.W, m.H);
+    mw.beginPath();
+    mod.winPath(mw, m, mod.WIN_SHAPE[f.family] || "rect");
+    mw.clip();
+    const zone = (bx, dedans) => {
+      let chg = 0, tot = 0, pur = 0;
+      const x0 = Math.max(0, Math.round(bx[0])), x1 = Math.min(m.W, Math.round(bx[0] + bx[2]));
+      const y0 = Math.max(0, Math.round(bx[1])), y1 = Math.min(m.H, Math.round(bx[1] + bx[3]));
+      for (let j = y0; j < y1; j++) for (let i = x0; i < x1; i++) {
+        const q = j * m.W + i;
+        if (dedans !== undefined && (!!mw.msk[q]) !== dedans) continue;
+        const o = q * 4;
+        tot++;
+        if (avec.d[o] !== sans.d[o] || avec.d[o + 1] !== sans.d[o + 1]
+          || avec.d[o + 2] !== sans.d[o + 2]) chg++;
+        if (avec.d[o] === dec[0] && avec.d[o + 1] === dec[1]
+          && avec.d[o + 2] === dec[2]) pur++;
+      }
+      return { chg: chg, tot: tot, pur: pur };
+    };
+    const T = m.trim, W = m.win, E = mod.decorMissRect(m);
+    out.push({ nom: c.nom, ok: true, mode: "carte",
+      toile: [m.W, m.H], coupe: [T.x, T.y, T.w, T.h],
+      win: [W.x, W.y, W.w, W.h],
+      encart: E,
+      textes: TEXTES.slice(),
+      zones: {
+        /* LA BOITE QUE `decorMissRect` ANNONCE, relue sur les pixels : elle
+           dit ou l'encart DEVRAIT etre. Un encart pose ailleurs (au centre,
+           par exemple) n'y change rien — et le decoupage l'aurait avale. */
+        encart: zone(E),
+        toile: zone([0, 0, m.W, m.H]),
+        /* LA FENETRE, rentree de 2 px sur le masque du produit : le filet
+           interieur et l'ombre portee sont peints SUR son arete, et le banc
+           n'a pas d'anticrenelage — un pixel de bord partage par deux chemins
+           ne prouverait rien. */
+        fenetre: zone([W.x + 2, W.y + 2, W.w - 4, W.h - 4], true),
+        bande_haut: zone([T.x, T.y, T.w, W.y - T.y], false),
+        bande_bas: zone([T.x, W.y + W.h, T.w, T.y + T.h - (W.y + W.h)], false),
+        perdu: zone([0, 0, m.W, T.y], false),
+      } });
+  } catch (e) {
+    out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) });
+  }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_decor(tmp_path, cas: list, mutations=()) -> dict:
+    """Le VRAI `paintFront` sur une toile RVBA à découpage réel."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du décor ne peut pas tourner")
+    code = _verso_js_source()
+    for avant, apres in mutations:
+        assert avant in code, f"mutation introuvable : {avant!r}"
+        code = code.replace(avant, apres)
+    js = tmp_path / "decor.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_decor.mjs"
+    banc.write_text(BANC_DECOR, encoding="utf-8")
+    conf = tmp_path / "cas_decor.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=600)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+DECOR_RGBA = [250, 10, 190, 255]        # un magenta que rien d'autre ne produit
+DECOR_FILE = "gen_ab12cd34.png"
+
+
+def _cas_decor(nom, src="img:" + DECOR_FILE, alpha=1.0, imgs=None,
+               mode="carte", base="#204060", fmt="poker_eu", dpi=150,
+               magasin="app", **frame):
+    fr = {"family": "arcane", "rarity": "rare",
+          "decor": {"src": src, "alpha": alpha}}
+    fr.update(frame)
+    fichiers = {}
+    for f, spec in (imgs if imgs is not None
+                    else {DECOR_FILE: (4, 4, DECOR_RGBA)}).items():
+        fichiers[f] = {"w": spec[0], "h": spec[1], "rgba": spec[2]}
+    return {"nom": nom, "g": _geom_js(fmt, 3, dpi), "frame": fr, "mode": mode,
+            "base": base, "imgs": fichiers, "magasin": magasin}
+
+
+def test_le_decor_lit_le_magasin_de_L_APPLICATION_pas_celui_du_JEU(tmp_path):
+    """La décision 6, MESURÉE sur les pixels et non lue dans le code.
+
+    Le même nom de fichier rangé dans le cache sous le magasin DU JEU n'est pas
+    le décor : le peintre ne le trouve pas et peint son encart de manque. Une
+    clé de cache qui oublierait le magasin les confondrait — dans un même jeu,
+    et le rechargement de page qui protège le reste n'y changerait rien."""
+    res = _banc_decor(tmp_path, [
+        _cas_decor("app", magasin="app"),
+        _cas_decor("deck", magasin="deck")])
+    assert res["app"]["textes"] == [], \
+        "le décor du magasin de l'application n'a pas été trouvé"
+    assert DECOR_FILE in res["deck"]["textes"], \
+        "une image rangée sous le magasin DU JEU a servi de décor : la clé de " \
+        "cache ne porte pas le magasin"
+
+
+def test_le_decor_encre_la_BANDE_et_JAMAIS_la_fenetre(tmp_path):
+    """LE SEUIL DE LA TÂCHE, mesuré sur les pixels du VRAI `paintFront`.
+
+    Le décor est peint DANS le bloc déjà découpé « toile MOINS fenêtre » : ce
+    qui le tient hors de l'illustration n'est pas une boîte calculée à la main,
+    c'est le découpage du peintre. La mesure est DIFFÉRENTIELLE — la même carte
+    rendue deux fois, avec et sans décor — donc l'écart EST le décor, matière
+    comprise."""
+    res = _banc_decor(tmp_path, [_cas_decor("plein")])
+    r = res["plein"]
+    assert r["ok"], r.get("err")
+    z = r["zones"]
+    assert z["fenetre"]["chg"] == 0, \
+        f"{z['fenetre']['chg']} pixels de l'illustration changent : le décor " \
+        f"déborde sur la fenêtre"
+    for coin in ("bande_haut", "bande_bas"):
+        part = z[coin]["chg"] / z[coin]["tot"]
+        assert part > 0.5, f"{coin} : seulement {part:.0%} de la bande reçoit le décor"
+    # ... ET LE FOND PERDU AUSSI : la découpe vient APRÈS l'impression, un
+    # décor calé sur la seule rogne poserait la matière de bande sur l'arête
+    assert z["perdu"]["chg"] / z["perdu"]["tot"] > 0.5, z["perdu"]
+
+
+HORS_CLIP = [
+    ("    paintDecor(ctx, m, f, decorRec);\n", ""),
+    ("    ctx.restore();\n\n    /* 3. la plaque de texte",
+     "    ctx.restore();\n    paintDecor(ctx, m, f, decorRec);\n"
+     "\n    /* 3. la plaque de texte"),
+]
+SUR_LA_MATIERE = [
+    ("    paintDecor(ctx, m, f, decorRec);\n", ""),
+    ("    matter(ctx, m, f, shape);\n    winMoulding",
+     "    matter(ctx, m, f, shape);\n    paintDecor(ctx, m, f, decorRec);\n"
+     "    winMoulding"),
+]
+
+
+def test_sans_le_decoupage_le_decor_couvre_l_illustration(tmp_path):
+    """LE MUTANT, et il meurt. Sorti du bloc découpé — le MÊME appel, deux
+    lignes plus bas, après le `restore()` de l'étape 2 — le décor recouvre la
+    fenêtre, c'est-à-dire l'illustration de P1, sous un cadre censé
+    l'encadrer."""
+    r = _banc_decor(tmp_path, [_cas_decor("hors_clip")],
+                    mutations=HORS_CLIP)["hors_clip"]
+    assert r["ok"], r.get("err")
+    z = r["zones"]["fenetre"]
+    assert z["chg"] / z["tot"] > 0.9, \
+        f"le mutant ne couvre que {z['chg']}/{z['tot']} de la fenêtre : la " \
+        f"mesure ne verrait pas un décor sorti du découpage"
+
+
+def test_le_decor_passe_SOUS_la_matiere_et_pas_dessus(tmp_path):
+    """LA DÉCISION DE PLACEMENT, rendue mesurable.
+
+    Le décor est l'ILLUSTRATION de la bande ; `matter()` est le FINI de sa
+    surface (trames, patine, usures). On imprime l'encre, puis le grain du
+    papier et l'usure appartiennent à la surface AU-DESSUS d'elle : le décor
+    passe donc SOUS la matière, et le fini continue de courir par-dessus lui —
+    sans quoi l'image générée efface la matière et le cadre devient un
+    autocollant.
+
+    Mesure : la part de la bande dont les pixels sortent EXACTEMENT à la
+    couleur BRUTE du décor. Sous la matière elle reste basse (le fini repasse
+    dessus) ; au-dessus, elle saute. Relevé au banc, poker 150 DPI, arcane,
+    aplat opaque : haut de bande 1,6 % contre 78,8 %, fond perdu 0 % contre
+    100 % — au-dessus, la matière a purement disparu."""
+    normal = _banc_decor(tmp_path, [_cas_decor("sous")])["sous"]
+    dessus = _banc_decor(tmp_path, [_cas_decor("dessus")],
+                         mutations=SUR_LA_MATIERE)["dessus"]
+    assert normal["ok"] and dessus["ok"], (normal.get("err"), dessus.get("err"))
+    for zn in ("bande_haut", "perdu"):
+        a, b = normal["zones"][zn], dessus["zones"][zn]
+        pa, pb = a["pur"] / a["tot"], b["pur"] / b["tot"]
+        assert pa < 0.2, \
+            f"{zn} : {pa:.1%} sort à la couleur brute du décor — la matière " \
+            f"ne passe plus par-dessus"
+        assert pb > 0.6, \
+            f"{zn} : le mutant ne laisse que {pb:.1%} de couleur brute, la " \
+            f"mesure ne sépare plus les deux ordres"
+
+
+def test_l_opacite_du_decor_est_CELLE_DU_REGLAGE(tmp_path):
+    """L'alpha, sur un aplat connu et avec l'oracle du compositeur. Le peintre
+    est appelé SEUL (mode direct) : la matière ne repasse pas dessus, donc le
+    pixel est exactement le mélange annoncé."""
+    cas = [_cas_decor("a100", alpha=1.0, mode="direct"),
+           _cas_decor("a050", alpha=0.5, mode="direct"),
+           _cas_decor("a000", alpha=0.0, mode="direct")]
+    res = _banc_decor(tmp_path, cas)
+    base = [0x20, 0x40, 0x60]
+    for nom, a in (("a100", 1.0), ("a050", 0.5), ("a000", 0.0)):
+        r = res[nom]
+        assert r["ok"], r.get("err")
+        attendu = [_sur(DECOR_RGBA[k], base[k], a) for k in range(3)]
+        assert r["px"]["hg"][:3] == attendu, (nom, r["px"]["hg"], attendu)
+        assert r["px"]["centre"][:3] == attendu, (nom, r["px"]["centre"])
+    # l'opacité NULLE ne pose rien du tout — pas un aplat transparent
+    assert res["a000"]["px"]["hg"][:3] == base
+
+
+def test_l_opacite_ignoree_ferait_ROUGIR_l_aplat(tmp_path):
+    """Le mutant : `globalAlpha` laissé à 1. Sans lui, le curseur d'opacité est
+    un réglage qui ne règle rien."""
+    res = _banc_decor(
+        tmp_path, [_cas_decor("mut", alpha=0.5, mode="direct")],
+        mutations=[("ctx.globalAlpha = a;", "ctx.globalAlpha = 1;")])
+    px = res["mut"]["px"]["hg"][:3]
+    assert px == DECOR_RGBA[:3], px
+
+
+def test_le_decor_couvre_la_TOILE_ENTIERE_pas_la_seule_coupe(tmp_path):
+    """Le cadrage « cover » part du bord de TOILE, la même règle que l'image du
+    verso (T4) et que le remplissage de l'anneau du Sceau : la découpe vient
+    APRÈS l'impression, et un décor calé sur la rogne laisserait 3 mm de bande
+    nue sous la lame."""
+    r = _banc_decor(tmp_path, [_cas_decor("cover", mode="direct")])["cover"]
+    W, H = r["toile"]
+    assert r["couvre"] == [pytest.approx((W - max(W, H)) / 2),
+                           pytest.approx((H - max(W, H)) / 2),
+                           pytest.approx(max(W, H)),
+                           pytest.approx(max(W, H))], r["couvre"]
+    # les quatre coins de TOILE portent le décor (mode direct, alpha 1)
+    for coin in ("hg", "bd"):
+        assert r["px"][coin][:3] == DECOR_RGBA[:3], (coin, r["px"][coin])
+
+
+def test_un_decor_ABSENT_donne_un_ENCART_NOMME_dans_la_bande(tmp_path):
+    """L'état « ce fichier n'est pas arrivé », peint DANS le fichier livré (le
+    patron de la T4) — mais un encart CENTRÉ tomberait dans la fenêtre, donc
+    dans la seule zone que le découpage efface : le manque serait MUET. Il se
+    pose donc dans la BANDE, du côté le plus large, et il se NOMME."""
+    res = _banc_decor(tmp_path, [
+        _cas_decor("manque", imgs={}, mode="direct"),
+        _cas_decor("manque_carte", imgs={}),
+        _cas_decor("vide", src="", imgs={}, mode="direct")])
+    r = res["manque"]
+    assert r["ok"], r.get("err")
+    assert DECOR_FILE in r["textes"], r["textes"]
+    assert any("décor" in t for t in r["textes"]), r["textes"]
+    # l'encart tient dans la BANDE : au-dessus (ou au-dessous) de la fenêtre,
+    # jamais sur la carte entière
+    e, T = r["encart"], r["coupe"]
+    assert e[2] < T[2] and e[3] < T[3] * 0.5, (e, T)
+    assert e[0] >= T[0] and e[0] + e[2] <= T[0] + T[2] + 1, (e, T)
+    # ... ET IL EST VRAIMENT LÀ, sur les pixels de la carte : la boîte que
+    # `decorMissRect` annonce est celle qui a changé. Un encart posé ailleurs —
+    # au centre, comme celui du verso — laisserait cette boîte intacte, et le
+    # découpage l'aurait avalé sans un mot (c'est le mutant, et il meurt ici).
+    car = res["manque_carte"]["zones"]
+    assert car["encart"]["chg"] / car["encart"]["tot"] > 0.7, \
+        f"seuls {car['encart']['chg']}/{car['encart']['tot']} pixels de " \
+        f"l'encart annoncé ont changé : il n'est pas peint là"
+    assert car["fenetre"]["chg"] == 0, "l'encart déborde sur l'illustration"
+    # une source VIDE ne salit RIEN : c'est un décor qu'on n'a pas généré
+    assert res["vide"]["textes"] == [], res["vide"]["textes"]
+    assert res["vide"]["px"]["hg"][:3] == [0x20, 0x40, 0x60]
+
+
+def test_le_decor_ne_demande_JAMAIS_qu_un_source_over(tmp_path):
+    """La preuve d'empilement de §4.2 juge la couche « cadre » en la
+    re-empilant en `source-over`. Le décor est un `drawImage` nu : il ne
+    demande aucun mode de fusion, donc il ne fait PAS basculer la couche en
+    « empreinte » (le Sceau, lui, le fait — et c'est orthogonal)."""
+    r = _banc_decor(tmp_path, [_cas_decor("modes", mode="direct")])["modes"]
+    assert r["modes"] == ["source-over"], r["modes"]
+    src = _js()
+    corps = _js_fn(src, "paintDecor")
+    assert "globalCompositeOperation" not in corps, corps
+
+
+def test_la_couche_du_cadre_reste_ISOLEE_avec_un_decor(tmp_path):
+    """Le banc §4.2 sur la VRAIE `layers()` du CORE : une couche qui ne pose
+    que du `source-over` opaque se re-empile à l'identique, donc « isolée ».
+    Le décor n'y change rien — c'est le Sceau qui bascule en « empreinte », et
+    les deux réglages sont indépendants."""
+    r = _banc_empilement(tmp_path, "source-over")
+    assert dict(r["modes"])["cadre"] == "isolee", r["modes"]
+    assert r["stack_ok"] is True, r
+    # ... et le décor est bien de cette nature-là : un `drawImage` nu, sans
+    # `globalCompositeOperation` (mesuré au banc du décor, ci-dessus).
+    assert "globalCompositeOperation" not in _js_fn(_js(), "paintDecor")
+
+
+# ── 18.4 L'ÉCRAN : les trois jambes du prix, et l'invite pré-remplie ─────────
+#
+# Ce que ces deux fonctions ÉCRIVENT, joué. Elles sont pures à leurs variables
+# libres près (`AI_MODELS`, `AI_META`, `UI`) : on les injecte, on lit le HTML.
+
+BANC_ECRAN = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const out = [];
+for (const c of CAS.cas) {
+  const UI = { decorModel: { value: c.model }, decorCost: { innerHTML: "" } };
+  const f = new Function("UI", "AI_MODELS", "AI_META", CODE
+    + "\nreturn { options: decorModelOptions, cout: decorCostLine };")(
+    UI, c.modeles || [], c.meta || {});
+  const options = f.options();
+  f.cout();
+  out.push({ nom: c.nom, options: options, cout: UI.decorCost.innerHTML });
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_ecran(tmp_path, cas: list) -> dict:
+    """`decorModelOptions` et `decorCostLine`, jouées telles qu'elles sont
+    livrées — avec `esc` et `usdFmt`, dont elles se servent."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de l'écran ne peut pas tourner")
+    src = _js()
+    code = "\n".join(_js_fn(src, n) for n in
+                     ("esc", "usdFmt", "decorModelOptions", "decorCostLine"))
+    js = tmp_path / "ecran.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_ecran.mjs"
+    banc.write_text(BANC_ECRAN, encoding="utf-8")
+    conf = tmp_path / "cas_ecran.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=120)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+MODELES_ESPION = [
+    {"id": "flux", "label": "FLUX schnell", "provider": "fal", "note": "",
+     "usd_par_image": 0.003},
+    {"id": "sans-tarif", "label": "Inconnu", "provider": "fal", "note": "",
+     "usd_par_image": None},
+]
+
+
+def test_le_panneau_porte_le_groupe_du_decor_et_ses_commandes():
+    """Le groupe « Décor de cadre par IA » (spec §6.3) : le menu des modèles,
+    l'invite, le coût du clic, le bouton qui dépense, l'opacité et le retrait.
+    Un écran qui génère sans offrir de retirer laisse l'utilisateur devant une
+    dépense qu'il ne peut pas défaire."""
+    src = _js()
+    assert 'grp("Décor de cadre par IA"' in src, \
+        "le groupe du décor n'existe pas dans le panneau"
+    for attendu in ("UI.decorModel", "UI.decorPrompt", "UI.decorCost",
+                    "UI.decorGen", "UI.decorA", "UI.decorRead"):
+        assert attendu in src, f"{attendu} absent du panneau"
+    assert "Retirer le décor" in src, "aucun moyen de retirer le décor"
+    assert "decorGenerate" in src
+
+
+def test_le_cout_du_decor_est_un_MONTANT_pas_un_compte(tmp_path):
+    """Les TROIS jambes du patron P1, sur cette pièce-ci : le tarif par modèle
+    DANS l'étiquette du menu, « Coût de ce clic » AVANT le clic, et le montant
+    facturé dit APRÈS. Un écran qui chiffre avant et se tait après laisse
+    l'utilisateur sans trace de sa dépense.
+
+    LES DEUX PREMIÈRES JAMBES SONT MESURÉES, PAS GREPPÉES — et c'est une leçon
+    payée à la ronde de mutation : deux mutants qui VIDAIENT le prix (l'un de
+    l'étiquette, l'autre de la ligne de coût) ont SURVÉCU à des `assert "Coût
+    de ce clic" in src`, parce que la même phrase vit dans l'autre branche
+    (« tarif non tabulé »). Un grep de prose est un cliquet, pas une preuve —
+    la troisième fois que ce dépôt l'apprend. On fait donc TOURNER les deux
+    fonctions et on lit ce qu'elles écrivent."""
+    src = _js()
+    assert 'M.api.get("ai-models")' in src, \
+        "l'écran ne lit pas la route qui porte les tarifs"
+    r = _banc_ecran(tmp_path, [
+        {"nom": "tabule", "modeles": MODELES_ESPION, "model": "flux",
+         "meta": {"tarif_source": "la table de tarifs de l'application"}},
+        {"nom": "hors_table", "modeles": MODELES_ESPION, "model": "sans-tarif",
+         "meta": {"tarif_source": "la table de tarifs de l'application"}},
+        {"nom": "sans_cle", "modeles": [], "model": "", "meta": {}},
+    ])
+    # 1. LE TARIF DANS L'ÉTIQUETTE DU MENU — avant d'ouvrir quoi que ce soit
+    opts = r["tabule"]["options"]
+    assert "0,003 $/image" in opts, opts
+    assert "tarif non tabulé" in opts, \
+        "un modèle hors table doit le DIRE dans son étiquette"
+    assert "0,01" not in opts, "un montant emprunté à un autre modèle"
+    # 2. LE COÛT DU CLIC — un MONTANT, pas un compte
+    cout = r["tabule"]["cout"]
+    assert "Coût de ce clic" in cout and "0,003 $" in cout, cout
+    assert "1 image" not in cout.replace("1 × 0,003 $", ""), \
+        "« 1 image » est un compte, pas un coût"
+    assert "la table de tarifs de l'application" in cout, \
+        "la provenance du tarif n'est pas dite"
+    assert "fal" in cout, "le fournisseur qui facture n'est pas nommé"
+    # ... un modèle absent de la table n'affiche AUCUN montant
+    assert "$" not in r["hors_table"]["cout"], r["hors_table"]["cout"]
+    assert "Tarif non tabulé" in r["hors_table"]["cout"]
+    # ... et sans clé, l'écran le dit AVANT de laisser cliquer
+    assert "Aucun modèle" in r["sans_cle"]["cout"], r["sans_cle"]["cout"]
+    assert "$" not in r["sans_cle"]["cout"]
+    # 3. APRÈS LA DÉPENSE : mesuré par le banc de génération, plus bas.
+    assert "facturés chez" in src, "rien n'est dit APRÈS la dépense"
+    # ... et AUCUN montant écrit en dur dans la pièce
+    bloc = _js_fn(src, "decorCostLine") + _js_fn(src, "decorModelOptions")
+    assert not re.search(r"\$\s*\d", bloc), bloc
+
+
+BANC_INVITE = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { decorPrompt: decorPrompt, DECOR_PROMPT_DEFAUT: DECOR_PROMPT_DEFAUT };"
+  + "\n})();")();
+const out = [];
+for (const c of CAS.cas) {
+  try {
+    out.push({ nom: c.nom, ok: true,
+      texte: mod.decorPrompt(c.preset, c.modeles),
+      defaut: mod.DECOR_PROMPT_DEFAUT });
+  } catch (e) { out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) }); }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_invite(tmp_path, cas: list) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de l'invite ne peut pas tourner")
+    src = _js()
+    # `decorPrompt` est une FONCTION PURE de (preset, catalogue) : la tranche
+    # extraite se réduit à elle et à l'invite neutre qu'elle rend. Rien du
+    # module n'est évalué — ni `CF.register`, ni un seul painter.
+    i = src.index("  const DECOR_PROMPT_DEFAUT = ")
+    fin = _js_fn(src, "decorPrompt")
+    js = tmp_path / "invite.js"
+    js.write_text(src[i:src.index(fin) + len(fin)], encoding="utf-8")
+    banc = tmp_path / "banc_invite.mjs"
+    banc.write_text(BANC_INVITE, encoding="utf-8")
+    conf = tmp_path / "cas_invite.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=120)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+def test_l_invite_est_PRE_REMPLIE_par_l_archetype_actif(tmp_path):
+    """Spec §6.3 : « prompt pré-rempli par l'archétype actif ». La provenance
+    d'un jeu est écrite dans `doc.type.preset` sous la forme « modele:<id> »
+    (models.py, ronde T3) — un preset SANS préfixe n'est PAS un modèle, même
+    s'il en porte le nom : c'est un gabarit local, et deviner est exactement ce
+    qui a produit le défaut que ce préfixe a fermé.
+
+    Ce que le modèle apporte est son `hint` : la phrase qui décrit le design.
+    Sans modèle, une invite NEUTRE — jamais un champ vide qui laisse
+    l'utilisateur devant une page blanche avant une dépense."""
+    from app.services.cards import models as MO
+    superstar = MO.model("superstar")
+    modeles = [{"id": m["id"], "label": m["label"], "hint": m["hint"]}
+               for m in MO.catalogue()["models"]]
+    res = _banc_invite(tmp_path, [
+        {"nom": "modele", "preset": "modele:superstar", "modeles": modeles},
+        {"nom": "gabarit", "preset": "superstar", "modeles": modeles},
+        {"nom": "aucun", "preset": "", "modeles": modeles},
+        {"nom": "inconnu", "preset": "modele:jamais-vu", "modeles": modeles},
+        {"nom": "sans_liste", "preset": "modele:superstar", "modeles": []},
+    ])
+    r = res["modele"]
+    assert r["ok"], r.get("err")
+    assert superstar["hint"][:40] in r["texte"], (superstar["hint"], r["texte"])
+    assert superstar["label"] in r["texte"], r["texte"]
+    # un preset SANS préfixe est un gabarit, pas un modèle : invite neutre
+    for nom in ("gabarit", "aucun", "inconnu", "sans_liste"):
+        assert res[nom]["texte"] == res[nom]["defaut"], (nom, res[nom]["texte"])
+    assert len(res["aucun"]["defaut"]) > 30, "l'invite neutre est vide"
+
+
+def test_la_generation_passe_par_LE_CORE_et_ne_paie_qu_UNE_FOIS():
+    """`CF.images.generate` est le SEUL dehors qui dépense (règle 17) : la
+    pièce ne pose aucun `fetch` libre, et un clic = un appel."""
+    src = _js()
+    corps = _js_fn(src, "decorGenerate")
+    assert "CF.images.generate(" in corps, corps
+    assert len(re.findall(r"CF\.images\.generate\(", src)) == 1, \
+        "la génération part de plus d'un endroit"
+    assert not re.search(r"\bfetch\s*\(", src), "fetch libre dans la pièce"
+    assert 'M.busy(true' in corps and "M.busy(false)" in corps, \
+        "le clic qui dépense ne dit pas qu'il travaille"
+    assert '"img:" + files[0]' in corps, \
+        "l'image générée ne devient pas la source du décor"
+
+
+
+
+# ── 18.5 LA GÉNÉRATION, AVEC UN ESPION : zéro appel réel, zéro dollar ────────
+#
+# La seule action de cet écran qui DÉPENSE. Elle n'est jamais jouée pour de
+# vrai ici : `CF.images.generate` est remplacé par un ESPION qui note la
+# requête et rend une réponse fabriquée. Ce que le test juge est ce que le
+# produit ENVOIE et ce qu'il FAIT du retour — pas ce qu'un fournisseur répond.
+
+BANC_GENERE = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+const out = [];
+for (const c of CAS.cas) {
+  const j = { requetes: [], toasts: [], busy: [], ecrit: [], charges: [] };
+  const UI = { decorPrompt: { value: c.prompt, focus: () => {} },
+    decorModel: { value: c.model } };
+  const M = {
+    toast: (t, err) => j.toasts.push([String(t), !!err]),
+    busy: (b, t) => j.busy.push([!!b, String(t || "")]),
+    invalidate: () => {},
+  };
+  const CF = { images: { generate: async (req) => {
+    j.requetes.push(req);
+    if (c.echec) throw new Error("crédit épuisé");
+    return { images: c.images, model: c.rendu };
+  } } };
+  const setDecor = (p, lab) => j.ecrit.push([p, lab]);
+  const loadFrameImg = async (f, mag) => { j.charges.push([f, mag]); };
+  const fn = new Function("UI", "M", "CF", "AI_MODELS", "setDecor",
+    "loadFrameImg", CODE + "\nreturn decorGenerate;")(
+    UI, M, CF, c.modeles || [], setDecor, loadFrameImg);
+  try { await fn(); } catch (e) { j.leve = String((e && e.message) || e); }
+  out.push({ nom: c.nom, j: j });
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_genere(tmp_path, cas: list) -> dict:
+    """`decorGenerate` joué avec un ESPION à la place du générateur. Le code
+    est le SOURCE LIVRÉ de la fonction, plus `usdFmt` dont elle se sert : rien
+    n'est réécrit ici, et AUCUN appel ne part vers un fournisseur."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de génération ne peut pas tourner")
+    src = _js()
+    # `_js_fn` accroche « function <nom>( » : le mot-clé `async` reste devant,
+    # hors de la tranche. On le remet, comme le banc d'empilement le fait pour
+    # `layers` — sans lui la fonction extraite n'a plus le droit d'attendre.
+    code = _js_fn(src, "usdFmt") + "\nasync " + _js_fn(src, "decorGenerate")
+    js = tmp_path / "genere.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_genere.mjs"
+    banc.write_text(BANC_GENERE, encoding="utf-8")
+    conf = tmp_path / "cas_genere.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=120)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x["j"] for x in json.loads(r.stdout)}
+
+
+def test_la_generation_envoie_UNE_requete_et_pose_l_image_sur_le_cadre(tmp_path):
+    """Le flux P1, verbatim : une invite, UN appel, l'image posée, la dépense
+    dite APRÈS avec le MÊME tarif qu'avant le clic.
+
+    ZÉRO DOLLAR : le générateur est un espion. Ce qu'on mesure est la forme de
+    la requête et ce que le produit fait du retour."""
+    res = _banc_genere(tmp_path, [
+        {"nom": "ok", "prompt": " volutes dorées ", "model": "flux",
+         "images": ["gen_ab12cd34.png", "gen_zz.png"], "rendu": "flux",
+         "modeles": MODELES_ESPION},
+        {"nom": "sans_invite", "prompt": "   ", "model": "flux",
+         "images": ["x.png"], "modeles": MODELES_ESPION},
+        {"nom": "vide", "prompt": "des runes", "model": "flux",
+         "images": [], "modeles": MODELES_ESPION},
+        {"nom": "echec", "prompt": "des runes", "model": "flux",
+         "images": [], "echec": True, "modeles": MODELES_ESPION},
+        {"nom": "hors_table", "prompt": "des runes", "model": "sans-tarif",
+         "images": ["gen_1.png"], "rendu": "sans-tarif",
+         "modeles": MODELES_ESPION},
+    ])
+    j = res["ok"]
+    assert len(j["requetes"]) == 1, j["requetes"]
+    req = j["requetes"][0]
+    assert req["prompt"] == "volutes dorées", req
+    assert req["n"] == 1, "un décor, pas quatre : chaque image est facturée"
+    assert req["model"] == "flux" and req["size"], req
+    # l'image générée devient la source du décor — et elle seule
+    assert j["ecrit"] == [[{"src": "img:gen_ab12cd34.png"}, "décor de cadre"]],         j["ecrit"]
+    # ... relue dans le magasin de l'APPLICATION, pas dans le dossier du jeu
+    assert j["charges"] == [["gen_ab12cd34.png", "app"]], j["charges"]
+    assert j["busy"][0][0] is True and j["busy"][-1][0] is False, j["busy"]
+    dit = " ".join(t[0] for t in j["toasts"])
+    assert "0,003" in dit and "fal" in dit, dit
+    # UNE INVITE VIDE NE DÉPENSE PAS
+    assert res["sans_invite"]["requetes"] == [], res["sans_invite"]
+    assert res["sans_invite"]["toasts"][0][1] is True
+    # zéro image rendue, ou un échec du fournisseur : dit, et rien n'est écrit
+    for nom in ("vide", "echec"):
+        assert res[nom]["ecrit"] == [], (nom, res[nom])
+        assert res[nom]["toasts"][-1][1] is True, (nom, res[nom]["toasts"])
+        assert res[nom]["busy"][-1][0] is False, "le voyant reste allumé"
+    assert "crédit épuisé" in res["echec"]["toasts"][-1][0]
+    # UN MODÈLE HORS TABLE N'AFFICHE AUCUN MONTANT — pas celui d'un autre
+    dit2 = " ".join(t[0] for t in res["hors_table"]["toasts"])
+    assert "$" not in dit2, dit2
+
+
+# ── 18.6 LE MODÈLE : le décor voyage en RÉGLAGE, jamais en OCTETS ────────────
+
+def test_le_decor_est_ADMIS_a_la_liste_blanche_des_modeles():
+    """La clé `decor` traverse la liste blanche — qui DÉRIVE des habillages
+    d'archétype (interaction 3a-F1). Une clé de cadre ajoutée à P2 et oubliée
+    dans les sept habillages serait REFUSÉE sans que rien ne le dise."""
+    from app.services.cards import models as MO
+    assert "decor" in MO._FRAME_CLES, sorted(MO._FRAME_CLES)
+    for nom in ("superstar", "arcane", "gravee"):
+        hab = FR.archetype_frame(nom)
+        assert hab["decor"] == FR.DECOR_DEFAULTS, (nom, hab.get("decor"))
+    # ... en copie PROFONDE : deux archétypes ne partagent pas un sous-objet
+    a, b = FR.archetype_frame("superstar"), FR.archetype_frame("arcane")
+    a["decor"]["alpha"] = 0.123
+    assert b["decor"]["alpha"] == FR.DECOR_DEFAULTS["alpha"]
+    assert FR.archetype_frame("superstar")["decor"]["alpha"] \
+        == FR.DECOR_DEFAULTS["alpha"], "la table de module a été écrite"
+    # ... ET DANS LA TABLE ELLE-MÊME, pas seulement dans la copie servie.
+    # `archetype_frame` recopie en sortie, donc un sous-objet PARTAGÉ entre les
+    # sept entrées de `ARCHETYPE_FRAMES` ne se voit pas de l'extérieur — jusqu'à
+    # ce qu'un appelant touche la table (elle est publique, comme `LIMITS`) et
+    # empoisonne les sept d'un coup. C'est la leçon `window`/`seal` de la T1,
+    # et elle vaut pour la clé neuve.
+    t = FR.ARCHETYPE_FRAMES
+    assert t["superstar"]["decor"] is not t["arcane"]["decor"], \
+        "les sept habillages partagent un seul sous-objet `decor`"
+    assert len({id(v["decor"]) for v in t.values()}) == len(t), \
+        "deux habillages partagent le même `decor`"
