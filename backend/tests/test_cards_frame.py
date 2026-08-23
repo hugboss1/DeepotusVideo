@@ -7304,8 +7304,11 @@ def test_l_invite_est_PRE_REMPLIE_par_l_archetype_actif(tmp_path):
     l'utilisateur devant une page blanche avant une dépense."""
     from app.services.cards import models as MO
     superstar = MO.model("superstar")
-    modeles = [{"id": m["id"], "label": m["label"], "hint": m["hint"]}
-               for m in MO.catalogue()["models"]]
+    # les quatre champs que `CF.models()` porte VRAIMENT — `custom` compris :
+    # c'est lui qui sépare le `hint` de STYLE d'une usine du `hint`
+    # ADMINISTRATIF d'un perso (voir le test suivant).
+    modeles = [{"id": m["id"], "label": m["label"], "hint": m["hint"],
+                "custom": m["custom"]} for m in MO.catalogue()["models"]]
     res = _banc_invite(tmp_path, [
         {"nom": "modele", "preset": "modele:superstar", "modeles": modeles},
         {"nom": "gabarit", "preset": "superstar", "modeles": modeles},
@@ -7321,6 +7324,67 @@ def test_l_invite_est_PRE_REMPLIE_par_l_archetype_actif(tmp_path):
     for nom in ("gabarit", "aucun", "inconnu", "sans_liste"):
         assert res[nom]["texte"] == res[nom]["defaut"], (nom, res[nom]["texte"])
     assert len(res["aucun"]["defaut"]) > 30, "l'invite neutre est vide"
+
+
+def test_le_hint_d_un_modele_PERSO_ne_part_JAMAIS_dans_l_invite(tmp_path):
+    """LE CHAMP `hint` A DEUX NATURES, ET UNE SEULE EST DU STYLE.
+
+    Chez les SEPT modèles d'usine, `hint` décrit le design — c'est la phrase
+    qui a du sens dans une invite. Chez un modèle PERSO, il est fabriqué par
+    `models.modele_depuis_deck` et il est purement ADMINISTRATIF :
+    « Modèle enregistré depuis « … » le JJ/MM/AAAA. » plus, le cas échéant, les
+    notes de purge du verso et du décor — et le tout est coupé au caractère 240
+    (`_texte` tranche, il ne résume pas), donc EN PLEIN MOT. Aucune route ne
+    permet de l'éditer : ce n'est pas une phrase de style qu'un utilisateur
+    aurait écrite, c'est une étiquette de rangement.
+
+    L'injecter verbatim faisait donc partir une date et un rappel de purge
+    tronqué dans une invite QUI DÉPENSE, à 100 % des modèles perso — c'est-à-
+    dire dans le flux exact du modèle `deepotus-fragments`. La garde saute le
+    `hint` quand le modèle résolu est perso et retombe sur l'invite neutre ;
+    l'usine, elle, garde le sien."""
+    from app.services.cards import models as MO
+    # UN MODÈLE PERSO RÉEL, avec ses deux purges — donc son hint le plus long
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    cadre = dict(FR.archetype_frame("arcane"))
+    cadre["back"] = "custom"
+    cadre["back_image"] = "img:img_1.png"
+    cadre["decor"] = {"src": "img:gen_ab12cd34.png", "alpha": 0.5}
+    _api("PATCH", f"/api/cards/{did}", json={"frame": cadre})
+    m = _api("POST", "/api/cards/models",
+             json={"did": did, "name": "Mon Jeu"}).json()["model"]
+    p = MO.models_root() / f"{m['id']}.json"
+    try:
+        hint = m["hint"]
+        # LE FAIT DONT LA GARDE DÉPEND, épinglé plutôt qu'affirmé
+        assert m["custom"] is True, m
+        assert hint.startswith("Modèle enregistré depuis"), hint
+        assert len(hint) == 240, \
+            f"le hint perso ne sature plus le cap : {len(hint)}"
+        assert not hint.rstrip().endswith("."), \
+            f"le hint perso n'est plus coupé en plein mot : ...{hint[-40:]!r}"
+        modeles = [{"id": x["id"], "label": x["label"], "hint": x["hint"],
+                    "custom": x.get("custom", False)}
+                   for x in MO.catalogue()["models"]]
+        assert any(x["id"] == m["id"] for x in modeles), \
+            "le modèle perso n'est pas au catalogue que l'écran lit"
+        res = _banc_invite(tmp_path, [
+            {"nom": "perso", "preset": "modele:" + m["id"], "modeles": modeles},
+            {"nom": "usine", "preset": "modele:superstar", "modeles": modeles},
+        ])
+        # 1. LE PERSO NE POLLUE RIEN : ni la date, ni la note de purge tronquée
+        t = res["perso"]["texte"]
+        assert t == res["perso"]["defaut"], t
+        for fuite in ("Modèle enregistré", "/2026", "purge", "ré-importer",
+                      "Mon Jeu"):
+            assert fuite not in t, (fuite, t)
+        # 2. L'USINE GARDE LE SIEN — la garde vise le perso, pas le hint
+        u = res["usine"]["texte"]
+        assert u != res["usine"]["defaut"], u
+        assert MO.model("superstar")["hint"][:40] in u, u
+    finally:
+        p.unlink()
 
 
 def test_la_generation_passe_par_LE_CORE_et_ne_paie_qu_UNE_FOIS():

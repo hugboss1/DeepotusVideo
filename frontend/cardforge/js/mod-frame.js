@@ -4703,8 +4703,24 @@
      est ecrite dans `doc.type.preset` sous la forme « modele:<id> » (prefixe
      pose a la ronde T3 de la 3a) : un preset SANS prefixe n'est PAS un modele,
      meme s'il en porte le nom — c'est un gabarit local, et deviner est
-     exactement ce que ce prefixe a ferme. Ce qu'un modele apporte est son
-     `hint`. FONCTION PURE de (preset, catalogue) : jouable au banc. */
+     exactement ce que ce prefixe a ferme. Ce qu'un modele d'USINE apporte est
+     son `hint`. FONCTION PURE de (preset, catalogue) : jouable au banc.
+
+     LE CHAMP `hint` A DEUX NATURES, ET UNE SEULE EST DU STYLE — c'est la
+     raison de la garde `m.custom`, et elle est ecrite ici pour qu'on la
+     rediscute plutot que de la deviner.
+       · USINE : `hint` decrit le DESIGN (« plaque a pans coupes, or
+         champagne… ») — la phrase a du sens dans une invite.
+       · PERSO : `hint` est fabrique par `models.modele_depuis_deck` et il est
+         purement ADMINISTRATIF — « Modele enregistre depuis « … » le
+         JJ/MM/AAAA. » plus les notes de purge du verso et du decor, le tout
+         TRANCHE au 240e caractere (`_texte` coupe, il ne resume pas), donc en
+         plein mot. AUCUNE route ne permet de l'editer : ce n'est pas une
+         phrase que l'utilisateur a ecrite, c'est une etiquette de rangement.
+     L'injecter faisait partir une date et un rappel de purge tronque dans une
+     invite QUI DEPENSE, a 100 % des modeles perso. Le jour ou un `hint` perso
+     EDITABLE existera, c'est cette garde-la qu'il faudra rouvrir — pas le
+     champ. */
   const DECOR_PROMPT_DEFAUT = "décor de bordure ornemental, motif continu tout "
     + "autour du pourtour, centre laissé vide, fond sombre, sans texte ni "
     + "personnage";
@@ -4715,7 +4731,7 @@
     let m = null;
     for (let i = 0; i < L.length && !m; i++) if (L[i] && L[i].id === id) m = L[i];
     const hint = m ? String(m.hint || "").trim() : "";
-    if (!m || !hint) return DECOR_PROMPT_DEFAUT;
+    if (!m || m.custom || !hint) return DECOR_PROMPT_DEFAUT;
     return DECOR_PROMPT_DEFAUT + " — dans l'esprit de « "
       + String(m.label || m.id) + " » : " + hint;
   }

@@ -1059,13 +1059,14 @@ quatrième.** Toutes RED d'abord, toutes tuées par mutation. Suite `cards_frame
 - [x] Mutation : liste recopiée (pin), décor peint SUR la fenêtre
       (pixels), prix absent.
 
-**LIVRÉ le 23/08 — `cards_frame` 220 → 243, `cards_models` 161 → 166, suite
-complète 63/63 verte, lint 9/9 0 violation, `node --check` vert, 22 mutants
-sur 22.** Ce qui est en place et ce qu'il faut savoir avant la T6 :
+**LIVRÉ le 23/08 — `cards_frame` 220 → 244 (243 à la livraison, +1 à la ronde),
+`cards_models` 161 → 166, suite complète 63/63 verte, lint 9/9 0 violation,
+`node --check` vert, 23 mutants sur 23.** Ce qui est en place et ce qu'il faut
+savoir avant la T6 :
 
 - **Schéma** `doc.frame.decor = {src, alpha}` — 32e clé, SECOND sous-objet
   après `seal`, branche imbriquée `decorOf()` (objet NEUF) + miroir
-  `frame.decor_of()` + parité d'exécution sur 22 corps hostiles.
+  `frame.decor_of()` + parité d'exécution sur 23 corps hostiles.
   `LIMITS.decor_alpha [0,1]` des deux côtés. Les leçons F3/F4 de la T4 sont
   appliquées **à la naissance** et non redécouvertes : `bnum` dès la première
   ligne (`alpha: null` → défaut, pas zéro) et `DECOR_SRC_RE` borné à la seule
@@ -1159,6 +1160,33 @@ sur 22.** Ce qui est en place et ce qu'il faut savoir avant la T6 :
   refus nommé ; le choix de modèle n'est PAS persisté dans le document (le menu
   repart sur le premier à chaque ouverture) : c'est une 33e clé qu'aucun test ne
   réclame aujourd'hui, dit plutôt que découvert.
+
+### Ronde de revue T5 (23/08) — 1 FIX-FIRST + 1 cosmétique
+
+- **F1 — LE `hint` D'UN MODÈLE PERSO POLLUAIT UNE INVITE QUI DÉPENSE, À 100 %
+  DES CAS.** `decorPrompt` injectait `m.hint` verbatim. Chez les sept modèles
+  d'USINE ce champ décrit le design — c'est bien du style. Chez un modèle
+  PERSO il est fabriqué par `models.modele_depuis_deck` et il est purement
+  ADMINISTRATIF : « Modèle enregistré depuis « … » le JJ/MM/AAAA. » plus les
+  notes de purge du verso et du décor, **tranché au 240e caractère** (`_texte`
+  coupe, il ne résume pas), donc **en plein mot**. Aucune route ne permet de
+  l'éditer : ce n'est pas une phrase que quelqu'un a écrite, c'est une
+  étiquette de rangement. **Mesuré vivant** sur un perso à deux purges
+  (le flux exact de `deepotus-fragments`) : le prompt pré-rempli finissait par
+  « …Le décor de cadre garde son opacité : l'image génér ». Correctif : la
+  garde `m.custom` — un modèle perso retombe sur l'invite NEUTRE, l'usine garde
+  son hint. **Le commentaire DIT la nature double du champ**, pour que le jour
+  où un `hint` perso éditable naîtra ce soit la GARDE qu'on rouvre, et pas le
+  champ. RED d'abord ; le test épingle aussi les faits dont la garde dépend
+  (`custom is True`, le préfixe administratif, `len == 240`, la coupe hors
+  phrase) — sans quoi la raison de la garde pourrirait en silence.
+  **Attrapé au passage** : le banc de l'invite ne nourrissait pas `custom`,
+  c'est-à-dire pas la vraie forme de ce que `CF.models()` sert. Corrigé aux
+  deux cas.
+- **Cosmétique** : `DECOR_HOSTILE` porte **23** corps, pas 22 — la note de
+  livraison le disait faux, corrigé ici et dans le message de livraison.
+- **Mutants : 23 / 23** (les 22 de la livraison + la garde perso retirée → le
+  prompt administratif revient, et il rougit).
 
 ### Task 6 : dettes + intégration 3c
 
