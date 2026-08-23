@@ -36,6 +36,7 @@ import pathlib
 import re
 import sys
 import tempfile
+import time
 from fractions import Fraction
 
 _tmp = tempfile.mkdtemp()
@@ -613,15 +614,19 @@ def test_la_liste_des_jeux_est_BORNEE_et_DIT_le_total():
         assert len(d["decks"]) == 3, d
         assert d["total"] == avant + 7, d
         assert d["limit"] == 3, d
-        # PLUS RÉCENT D'ABORD : la tranche servie est LA TÊTE de la liste
-        # complète, jamais un morceau au hasard. (On ne compare pas aux sept
-        # jeux de banc : les fichiers laissés par les tests voisins vivent dans
-        # le même dossier, et l'un d'eux peut légitimement être plus récent.)
-        tete = [CC.deck_summary(x) for x in CC.list_decks()[:3]]
-        assert d["decks"] == tete, (d["decks"], tete)
-        # …et entre eux, les jeux de banc gardent l'ordre inverse de création.
+        # PLUS RÉCENT D'ABORD, lu DANS LA RÉPONSE. On ne compare PAS deux
+        # balayages champ à champ : un meta.json illisible se RE-DATE à chaque
+        # lecture (test juste dessous), donc deux balayages successifs n'ont
+        # aucune raison de donner les mêmes dates. L'ORDRE, lui, est stable.
+        maj = [x["updated"] for x in d["decks"]]
+        assert maj == sorted(maj, reverse=True), maj
+        # …et la tranche servie EST la tête de la liste complète, jamais un
+        # morceau au hasard : les trois premiers ids d'un listing non plafonné.
         tous = _api("GET", "/api/cards/decks", params={"limit": 500}).json()
-        vus = [x["id"] for x in tous["decks"] if x["id"] in set(faits)]
+        ids = [x["id"] for x in tous["decks"]]
+        assert [x["id"] for x in d["decks"]] == ids[:3], (d["decks"], ids[:3])
+        # …et entre eux, les jeux de banc gardent l'ordre inverse de création.
+        vus = [i for i in ids if i in set(faits)]
         assert vus == list(reversed(faits)), vus
         # sans `limit`, le défaut de la maison
         nu = _api("GET", "/api/cards/decks").json()
@@ -631,6 +636,56 @@ def test_la_liste_des_jeux_est_BORNEE_et_DIT_le_total():
     finally:
         for did in faits:
             CC.delete_deck(did)
+
+
+def test_un_jeu_ILLISIBLE_se_RE_DATE_a_chaque_lecture_et_squatte_la_tete():
+    """TROUVÉ EN CHERCHANT UNE INTERMITTENCE (3c-T6), et épinglé plutôt que
+    corrigé. `read_deck` NORMALISE un meta.json illisible au lieu de faire
+    tomber l'appelant — mais `normalize_deck` remplit alors `created` et
+    `updated` avec `_now_iso()`, c'est-à-dire MAINTENANT. Conséquences,
+    mesurées ici :
+
+      · deux lectures successives du MÊME fichier abîmé ne rendent pas la même
+        date (c'est ce qui faisait clignoter le test au-dessus une fois sur
+        vingt-cinq — la cause n'était pas dans le test) ;
+      · un document qu'on ne sait pas lire est donc, à chaque balayage, le jeu
+        LE PLUS RÉCEMMENT MODIFIÉ du backend. Il passe devant un jeu créé
+        APRÈS lui, et il tient la première ligne de la galerie pour toujours ;
+      · son nom est perdu et remplacé par le défaut « Mon jeu ».
+
+    LE COMPORTEMENT PRÉCÈDE LA 3c-T6 — ce n'est pas une régression du plafond.
+    Mais le plafond le rend conséquent : c'est le SERVEUR qui choisit désormais
+    les vingt-quatre lignes servies, et celle-là en prend une définitivement.
+    Non corrigé ici parce que le remède est une DÉCISION de produit (que doit
+    dire un jeu abîmé ? une date nulle, le mtime du fichier, un badge
+    « illisible » que la galerie afficherait ?) et qu'elle n'appartient pas à
+    une tâche de dettes. Ce test est là pour que la décision se prenne les
+    yeux ouverts."""
+    # L'ORDRE DE CRÉATION COMPTE : le jeu sain naît EN PREMIER, l'abîmé
+    # ensuite. Sans cela les deux tomberaient dans la même seconde d'`updated`
+    # et c'est le mtime qui trancherait — on mesurerait le départage, pas la
+    # re-datation.
+    sain = CC.create_deck("un jeu qui va bien")["id"]
+    did = CC.create_deck("bientôt illisible")["id"]
+    try:
+        (CC.deck_dir(did) / "meta.json").write_text("{pas du json",
+                                                    encoding="utf-8")
+        un = CC.read_deck(did)
+        time.sleep(1.1)
+        deux = CC.read_deck(did)
+        assert un["name"] == deux["name"] == "Mon jeu", (un["name"], deux["name"])
+        assert un["updated"] != deux["updated"], (un["updated"], deux["updated"])
+        # …et à cet instant il DOUBLE le jeu sain, qui n'a pourtant pas bougé :
+        # sa date à lui vient d'avancer d'une seconde, tout seul.
+        gros = _api("GET", "/api/cards/decks", params={"limit": 500}).json()
+        ids = [x["id"] for x in gros["decks"]]
+        assert ids.index(did) < ids.index(sain), (ids.index(did), ids.index(sain))
+        par_id = {x["id"]: x for x in gros["decks"]}
+        assert par_id[did]["updated"] > par_id[sain]["updated"], (
+            par_id[did]["updated"], par_id[sain]["updated"])
+    finally:
+        CC.delete_deck(did)
+        CC.delete_deck(sain)
 
 
 def test_un_jeu_liste_est_un_RESUME_de_quatre_champs():
