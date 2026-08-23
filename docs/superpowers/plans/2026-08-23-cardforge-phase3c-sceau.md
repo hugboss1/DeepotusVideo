@@ -1234,7 +1234,15 @@ savoir avant la T6 :
       (nœud `extrude`) transmis NOMMÉMENT à la phase 4/suivante avec la
       raison (vocabulaire nouveau) ; les restes d'œil cumulés listés.
 
-#### Volet DETTES de la T6 — LIVRÉ (23/08 : bed9a05, 8550e48, 62e845d, 9a2139e)
+#### Volet DETTES de la T6 — LIVRÉ (23/08)
+
+> Quatre dettes corrigées (bed9a05 N4, 8550e48 banc de rangées, 62e845d arcTo,
+> 9a2139e pagination), plus le pin écran du total (ac2b508), la re-mesure des
+> chiffres portés en commentaire (c4648ec) et **une correction de REVUE DE
+> COUTURE** (2eef9ef : le commentaire de `rewireRow` attribuait la destruction
+> à `garde` ; chaque moitié remise seule dit que c'est `off` et `purge` — la
+> ventilation est mesurée plus bas). L'intégration et la passe navigateur
+> restent au coordinateur.
 
 **1. N4 — les quatre registres nus (`mod-forge3d.js`).** `rowModel` :1000,
 `rewireRow` garde/off/purge :5178+, `maillonsAval` byId/vus :5219+, `freeId`
