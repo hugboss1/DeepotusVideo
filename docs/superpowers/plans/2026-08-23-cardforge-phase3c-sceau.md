@@ -1188,6 +1188,29 @@ savoir avant la T6 :
 - **Mutants : 23 / 23** (les 22 de la livraison + la garde perso retirée → le
   prompt administratif revient, et il rougit).
 
+> **CLOSE (T5 — 2978685 + ronde 76f74a9, revue : FIX-FIRST un item, soldé).**
+> L'IA cadres vit : décor 32e clé, route ai-models miroir (prix jamais
+> recopiés — les deux jambes lisent la MÊME source, et la vérité est dite :
+> une estimation localement éditable, comme P1 partout), prompt pré-rempli
+> de l'archétype actif, les trois jambes de prix, spy ÉTANCHE (aucun chemin
+> de test ne peut atteindre un vrai appel — vérifié source + harnais),
+> décor SOUS matter mesuré (par-dessus, la matière disparaît : 1,6→78,8 %
+> de couleur crue), UN décodeur à clé de cache par magasin (app|x ≠
+> deck|x — prouvé aux pixels), le masque de fenêtre arquée par TRANCHAGE
+> DE SOURCE VIVANTE (winPath réel — pas de dérive possible). LE fix de
+> revue : le hint perso — TOUJOURS administratif (« Modèle enregistré
+> depuis… », tronqué en plein mot à 240) — partait verbatim dans le prompt
+> PAYANT, 100 % des modèles perso, le flux deepotus-fragments exact →
+> garde sur m.custom avec LA NATURE DOUBLE du champ écrite (le jour où un
+> hint perso éditable naît, c'est LA GARDE qui se rediscute), et le test
+> épingle les FAITS sur lesquels elle repose (« sinon sa raison pourrirait
+> en silence »). Le grep de prose attrapé une 4e fois en chemin (5
+> survivants de 1re passe → mesures d'exécution). 244 + 166 tests,
+> 22+1/23 mutants, net +377 déclaré (248 de code). La dette cp1252 du
+> lint soldée en parallèle (6366241 — UTF-8 forcé aux DEUX flux au garde
+> __main__, la raison écrite : « un outil de contrôle dont la sortie ne se
+> décode pas fabrique un faux résultat »).
+
 ### Task 6 : dettes + intégration 3c
 
 - [ ] N4 : sansProto sur les 4 registres (mod-forge3d.js) + pin.
