@@ -1324,6 +1324,25 @@ joué sur la copie de l'app : `GAL_DECKS_TOTAL` → `rows.length` → **KO, et l
 détail dit ce que l'utilisateur verrait — `note=null`, aucune ligne du tout**
 (24 > 24 est faux), donc pas un mot sur les 2 171 jeux qu'il ne voit pas.
 
+**TROUVÉ EN CHERCHANT UNE INTERMITTENCE — un jeu ILLISIBLE se RE-DATE à chaque
+lecture et squatte la tête de liste.** Le test de pagination clignotait (1 échec
+en 4 tours du fichier entier) ; la cause n'était pas dans le harnais.
+`read_deck` NORMALISE un `meta.json` abîmé plutôt que de faire tomber l'appelant
+— c'est bien — mais `normalize_deck` remplit alors `created`/`updated` avec
+`_now_iso()`, c'est-à-dire MAINTENANT. Trois conséquences mesurées : deux
+lectures du même fichier abîmé rendent deux dates différentes ; le document est
+donc, à chaque balayage, LE JEU LE PLUS RÉCEMMENT MODIFIÉ du backend (il double
+un jeu sain qui n'a pas bougé et tient la première ligne pour toujours) ; son
+nom est perdu au profit du défaut « Mon jeu ». **Le comportement PRÉCÈDE la
+3c-T6 — ce n'est pas une régression du plafond — mais le plafond le rend
+conséquent** : c'est le serveur qui choisit désormais les vingt-quatre lignes,
+et celle-là en prend une définitivement. **ÉPINGLÉ, PAS CORRIGÉ** : le remède est
+une DÉCISION de produit (date nulle ? mtime du fichier ? un badge « illisible »
+que la galerie afficherait ?) qui n'appartient pas à une tâche de dettes — le
+test existe pour qu'elle se prenne les yeux ouverts. Le test de pagination, lui,
+est devenu sain (l'ordre lu DANS la réponse, des IDS comparés entre deux
+listings au lieu de résumés entiers) : **40 tours du fichier entier, 0 échec**.
+
 **CONSIGNÉS AVEC LEURS CHIFFRES FRAIS (mesures du 23/08) :**
 
 - **N2 — `IMGS` n'a AUCUNE éviction intra-session** (mod-forge3d.js:3351-3353,
