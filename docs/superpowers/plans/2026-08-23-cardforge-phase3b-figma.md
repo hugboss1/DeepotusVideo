@@ -78,13 +78,25 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
    `src: "img:img_{n}.png"`. Le deck voyage entier (export/duplication —
    la duplication 3a copie déjà le dossier). Dépôt/collage dans l'éditeur
    de slot (patrons drop de mod-face).
-3. **La palette d'éléments vit dans P3** (panneau + bouton overlay) : trois
+3. **La palette d'éléments vit dans P3** (~~panneau + bouton overlay~~ **la
+   BARRE du panneau seule — amendé en T3**, voir la note de livraison : le
+   calque d'édition réécrit tout son innerHTML à chaque frame d'un glisser,
+   un contrôle qui y vivrait serait recréé et recâblé à 60 Hz, sur la carte,
+   là où la main glisse) : trois
    entrées GÉNÉRIQUES toujours là — « zone de texte » (addSlot d'aujourd'hui),
    « zone de statistique » (paire étiquette+valeur, la forme _duel_ligne
    généralisée), « calque d'image » — PLUS les éléments du MODÈLE quand
-   `doc.type.preset` correspond à un modèle servi (fetch /models une fois,
-   cache par preset, 404/absence tolérée : la palette dit « modèle sans
-   éléments » ou rien). Instanciation = append des slots de l'élément avec
+   `doc.type.preset` correspond à un modèle servi (~~fetch /models une fois,
+   cache par preset~~ **le plan ne disait pas PAR OÙ — amendé en T3 : par
+   `CF.models`, une capacité de LECTURE neuve du CORE (patron `CF.images`),
+   sur la liste que la galerie a déjà chargée et cachée. `M.api` est confiné
+   à /api/cards/<did>/type et la liste vit ailleurs ; un `window.fetch` nu
+   dans une pièce rouvrait le « fetch libre » retiré par `makeApi`, et une
+   table recopiée est refusée par le banc du contrat. Le cache est celui du
+   CORE, donc UN seul, et il n'est pas « par preset » : le catalogue est
+   entier, les offres se dérivent du preset AU MOMENT DE PEINDRE**),
+   404/absence tolérée : la palette dit « modèle sans
+   éléments » ou rien. Instanciation = append des slots de l'élément avec
    UNIQUIFICATION d'ids CLIENT identique à la règle serveur (norm_slots
    renomme, ne jette jamais — T3-F11) ; UNE entrée HIST par ajout.
 4. **La liste de calques est P3-possédée, multi-bandes en LECTURE** :
@@ -483,30 +495,178 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 
 ### Task 3 : la palette d'éléments
 
-**Files:** mod-type.js, test_cards_type.py (+ css).
+**Files:** mod-type.js, test_cards_type.py (+ css) **+ core.js (amendement
+T3 : la capacité de lecture `CF.models`, 42 lignes — voir la note)**.
 
-- [ ] Palette (panneau + overlay) : zone de texte / zone de statistique
+- [x] Palette (~~panneau + overlay~~ **barre du panneau seule, amendé**) :
+      zone de texte / zone de statistique
       (paire étiquette+valeur généralisée — 2 slots liés par la naissance,
       pas par un lien persistant) / calque d'image / + les éléments du
-      MODÈLE (fetch /models, cache par preset, tolérance totale : pas de
-      modèle → les 3 génériques seuls ; éléments épuisés ou absents → dit).
-- [ ] Instanciation : append + uniquification d'ids CLIENT (la règle
+      MODÈLE (~~fetch /models, cache par preset~~ **`CF.models`, cache du
+      CORE, offres dérivées du preset à la peinture**, tolérance totale : pas
+      de modèle → les 3 génériques seuls ; éléments absents → dit).
+- [x] Instanciation : append + uniquification d'ids CLIENT (la règle
       serveur norm_slots — renommer, jamais jeter — recopiée et ÉPINGLÉE
       contre type.py par un test de parité de comportement) ; UNE entrée
       HIST ; sélection posée sur le premier slot né ; plafond SLOTS_MAX
       respecté AVANT (refus nommé).
-- [ ] GEN/génération : le fetch /models est async — garde sur le changement
-      de deck (le cache meurt avec le deck ; patron MANIFEST 2d-T2 : garde
-      par étiquette AVANT l'écriture du cache).
-- [ ] Banc : les 3 génériques + un élément de modèle réel (superstar
+- [x] ~~GEN/génération : garde sur le changement de deck~~ **MESURÉ ET
+      RÉFUTÉ (voir la note) : changer de jeu est une NAVIGATION, le cache
+      meurt avec la page, et le catalogue n'est pas propre à un jeu. La
+      garde qui existe VRAIMENT est celle de l'ouverture du menu (`PAL_SEQ`),
+      la seule chose qui change sous une réponse en vol.**
+- [x] Banc : les 3 génériques + un élément de modèle réel (superstar
       stat7) ; collision d'ids (élément ajouté 2×) → renommage identique au
       serveur ; plafond ; RED d'abord.
+
+> **Livré (T3)** — 162 → **183 tests** (+21, 0 supprimé, 0 amendé).
+> mod-type.js **+277 lignes nettes** (4984 → 5261), core.js +42, css +12.
+> Lint intégral 0, `node --check` OK sur les deux JS, batterie `--geom` du
+> contrat OK.
+>
+> · **LA QUESTION D'ARCHITECTURE DE LA TÂCHE — par où P3 lit le catalogue.**
+>   Le plan disait « fetch /models » sans dire PAR OÙ, et il n'y avait pas de
+>   voie légale : `M.api` est confiné à `/api/cards/<did>/type` (core.js:
+>   `subPath` LÈVE sur un chemin absolu et sur `..`) tandis que la liste vit
+>   à `/api/cards/models`, hors de tout sous-préfixe de pièce. Trois voies
+>   pesées, deux fermées : (a) un `window.fetch` nu — **rien ne l'attrape**,
+>   ni le lint (aucune règle réseau : R1-R14 relues) ni le CORE (`fetch`
+>   reste sur le global, il n'y a ni CSP ni Proxy) : le confinement est une
+>   DOCTRINE, et c'est précisément pour cela qu'un seul module qui la casse
+>   la casse pour les huit autres — mesuré : **zéro `fetch(` dans les neuf
+>   `mod-*.js` aujourd'hui**, épinglé désormais ; (b) une table de modèles
+>   recopiée à l'écran — refusée EXPLICITEMENT par le banc du contrat
+>   (« prouver que l'écran consomme GET /api/cards/models et non une table
+>   recopiée »), et un modèle PERSO n'y serait jamais.
+>   **Retenu : le CORE expose la lecture — `CF.models`, le patron `CF.images`
+>   (« le SEUL dehors, tenu par le CORE »).** Et la doctrine n'est pas le
+>   seul argument : cette liste est **déjà chargée et cachée dans le CORE**
+>   pour la galerie de démarrage (`galModelsList`). Une seconde copie dans
+>   P3, c'étaient deux requêtes et deux caches de la même liste, dont l'un
+>   devenait faux dès le premier « enregistrer comme modèle » (seul celui du
+>   CORE est rafraîchi). La copie rendue est **profonde et gelée** — sans
+>   quoi le premier module qui écrit dedans empoisonne la galerie et les huit
+>   autres pièces dans le même onglet (le raisonnement de `models.model()`
+>   côté backend, appliqué à l'écran) — et une route absente rend une LISTE
+>   VIDE, pas une panne (même règle que `images.models`). Aucune écriture
+>   n'est ouverte : POST/DELETE /models restent au CORE.
+>   **Le registre n'a pas eu à bouger** : `CF.models` est sur le GLOBAL, pas
+>   sur le jeton — la batterie du contrat n'énumère ni les clés de `CF` ni
+>   celles du jeton (vérifié), donc aucun pin de contrat à amender.
+>   `test_cards_core.py` reste vert.
+>
+> · **LA GARDE QUE LE PLAN DEMANDAIT N'EXISTE PAS, ET C'EST MESURÉ.** Le plan
+>   voulait une étiquette de deck avant l'écriture du cache (leçon C1).
+>   Vérification : **changer de jeu est une NAVIGATION** — `core.js:galGo`
+>   fait `location.assign` (repli `location.reload`), donc la fermeture du
+>   module, le cache et la requête en vol meurent avec le document ; et le
+>   catalogue **n'est pas propre à un jeu** (GET /models ne prend pas de
+>   `did`), donc il n'y a rien de deck-shaped à invalider. Une étiquette de
+>   deck ici aurait été du code mort faisant CROIRE qu'un danger est couvert.
+>   Ce qui change vraiment sous une réponse en vol, ce sont **le preset**
+>   (poser un gabarit le réécrit sans recharger) et **l'ouverture du menu**.
+>   D'où les deux vraies protections, et elles sont de nature différente :
+>   le preset est traité **par construction** (le cache porte le catalogue
+>   ENTIER, les offres se dérivent du preset au moment de peindre — il n'y a
+>   pas de drapeau à oublier) ; l'ouverture, elle, a une étiquette
+>   (`PAL_SEQ`), et le banc la mesure en ouvrant DEUX menus pendant qu'UNE
+>   requête est en vol (catalogue ralenti à 150 ms) : le premier reste à
+>   trois entrées, le second en reçoit quatre. Garde retirée par mutation →
+>   le menu fermé se fait repeindre → rouge.
+>
+> · **L'uniquification est le MIROIR EXACT de `norm_slots`, prouvé par
+>   EXÉCUTION** (leçon B1 : un match de source ne dit rien de ce que le code
+>   FAIT). `normSlots` normalise PUIS renomme, dans cet ordre, et le suffixe
+>   reprend l'id ENTIER (« stat7 » → « stat72 »). Batterie de 8 collisions
+>   jouée des deux côtés, comparée clé par clé — dont **le cas à 24 signes**,
+>   la borne du motif d'id : le suffixe la dépasse et le serveur **ne
+>   re-valide pas** après avoir renommé. C'est CE cas qui a décidé que
+>   `naitre` écrit par `mpatch` et non par `commit` : `commit` repasse tout
+>   dans `normSlot`, qui aurait remplacé l'id renommé par « slotN » — une
+>   divergence avec le serveur créée par la normalisation elle-même.
+>   Ce qui n'est PAS recopié du serveur : la troncature `rows[:SLOTS_MAX]`.
+>   Le plafond est dit AVANT avec son arithmétique ; le recopier ici en
+>   aurait fait une coupe MUETTE, et cette pièce n'en fait pas.
+>
+> · **Une naissance = une porte.** Les quatre naissances (texte,
+>   statistique, image, élément de modèle) passent par `naitre` : c'est la
+>   seule façon que « une entrée d'annulation par geste », « la sélection sur
+>   le premier né » et « le plafond compté avant » tiennent toutes les trois
+>   sans être réécrites quatre fois (la leçon de `soloClone`, prise avant la
+>   quatrième copie ; pin : UN SEUL `pushUndo()` dans la zone des
+>   naissances, et zéro `commit(`). Le refus de plafond porte son
+>   arithmétique — « 39 slot(s) + 2 = 41, le maximum est 40 » — au lieu du
+>   « 40 slots au maximum » d'avant, qui ne disait pas combien il en manque ;
+>   et un élément est refusé ENTIER, jamais posé à moitié.
+>
+> · **La zone de statistique générique** reprend la FORME de
+>   `models.py:_duel_ligne` (étiquette à gauche, valeur à droite, boîtes
+>   adjacentes) sans son habillage : ni plaque zébrée ni encre de duel — un
+>   cartouche isolé n'est pas un tableau. **Écart assumé au « polices neutres
+>   de SLOT_DEFAULTS » du plan : la valeur naît en JetBrainsMono.** Ce n'est
+>   pas un goût — une colonne de chiffres composée dans une proportionnelle
+>   danse d'une carte à l'autre du jeu, c'est un défaut de SÉRIE, et c'est
+>   justement ce que le contrôle de série de cette pièce mesure. Un clic
+>   suffit à en changer. Les deux blocs ne sont **pas liés ensuite** : ils
+>   naissent ensemble puis vivent seuls (aucune clé de document ne les
+>   apparie — la spec n'en nomme aucune, et une paire dont on supprime la
+>   moitié n'a rien d'invalide).
+>
+> · **La palette DIT, elle ne se contente pas d'être courte.** Quatre états
+>   nommés : catalogue en route, catalogue injoignable (avec la phrase du
+>   backend — et un CORE plus ancien que la pièce le dit aussi, au lieu de
+>   lever « CF.models is not a function »), modèle SANS éléments (nommé, avec
+>   son libellé), et **le silence — réservé au seul cas où il n'y a rien à
+>   dire** : ce jeu ne vient pas d'un modèle (un gabarit local n'en est pas
+>   un). Un élément sans slot ne compte pas, même règle qu'au backend
+>   (`_elements_normalises`) : ce serait un bouton qui ne pose rien.
+>   Dans tous les cas les trois génériques restent OFFERTS ET POSABLES —
+>   testé : catalogue absent, on pose quand même une zone de texte.
+>
+> · **R14 et l'échappement.** Tout ce qui vient du catalogue traverse `esc` —
+>   libellés et phrases d'un modèle PERSO sont un fichier JSON du dossier de
+>   données, donc de la donnée serveur écrite par quelqu'un. Les deux
+>   positions sont couvertes par DEUX cliquets différents, et c'est
+>   volontaire : `data-o="…"` est une valeur d'ATTRIBUT, **R14 la juge
+>   mécaniquement** (mutation : `esc(o.id)` → `o.id`, le lint sort 1 et
+>   nomme R14 — vérifié dans une copie du dépôt) ; le `hint` est en position
+>   TEXTE, que la règle déclare hors de sa portée depuis la T1 — c'est donc
+>   le BANC qui le tient (mutation : `esc(o.hint)` → `o.hint`, le `<img>` du
+>   poison réapparaît dans le menu rendu).
+>
+> · **Pourquoi pas de bouton sur le calque d'édition** (le plan disait
+>   « panneau + overlay ») : `paintOverlay` réécrit tout son innerHTML à
+>   chaque frame d'un glisser (coalescé au rAF). Un contrôle qui vit là est
+>   recréé et recâblé à 60 Hz, sur la carte, à l'endroit exact où la main
+>   glisse. Poser un élément est un acte d'INTENTION, pas un geste de scène :
+>   sa place est la barre, où « + Slot » et « + Image » vivent déjà.
+>
+> · **Mutations qui tuent** (6, toutes jouées) : suffixe d'uniquification
+>   d'une autre forme (`stat7_2`) → parité rouge ; paire née en DEUX gestes →
+>   un Ctrl+Z n'en défait qu'un, rouge ; plafond non compté → 41 slots,
+>   rouge ; garde d'étiquette retirée → le menu fermé repeint, rouge ;
+>   `esc(o.hint)` retiré → poison rendu, rouge ; `esc(o.id)` retiré → R14
+>   sort 1. **RED d'abord vérifié en bloc** : les 21 tests neufs joués contre
+>   le dépôt sans l'implémentation (mise de côté par `git stash`) → **21/21
+>   rouges**, puis verts.
+>
+> **Reste à l'œil (2 min)** : ouvrir « + Élément » dans le vrai navigateur
+> sur un jeu né de « Superstar du stade » — vérifier que « 7e statistique »
+> y est avec sa phrase, qu'un clic la pose à sa zone avec sa plaque, qu'un
+> second clic pose « stat72 », et qu'une zone de statistique générique naît
+> bien en deux boîtes accolées.
 
 ### Task 4 : la liste de calques multi-bandes
 
 **Files:** mod-type.js, mod-type.css, test_cards_type.py (+ core.js SEULEMENT
 si une capacité « aller au module » doit naître proprement — la vérifier
-d'abord, et alors qa/pins).
+d'abord, et alors qa/pins). **Note T3 : core.js a DÉJÀ reçu une capacité de
+lecture (`CF.models`, §9bis + la clé sur le global gelé) ; le patron et son
+pin existent donc — `test_P3_lit_le_catalogue_par_LE_CORE_et_par_AUCUN_RESEAU_NU`
+dans test_cards_type.py. La batterie du contrat n'énumère pas les clés de
+`CF` ni celles du jeton : une capacité de LECTURE sur le global ne demande
+pas d'amender qa/. Une capacité qui AGIT (« aller au module » = `CF.show`)
+n'est pas le même objet — la peser à part.**
 
 - [ ] Section « Calques » : bandes fixes en lecture (10 papier / 20
       illustration / 30 effet / 40 cadre / 70 décor haut — libellé + résumé
@@ -546,10 +706,16 @@ d'abord, et alors qa/pins).
   jeton — le cloisonnement de la 3a-T4 reste entier.
 - Risques nommés : mod-type.js grossit (annoncer si >400 l. nets/tâche) ;
   la parité JSON stricte à CHAQUE ajout de clé ; les passes d'encre face
-  aux slots image (exclusion testée) ; le fetch /models async sous
+  aux slots image (exclusion testée) ; ~~le fetch /models async sous
   changement de deck (garde par étiquette — le C1 ne se refera pas une
-  4e fois) ; « aller au module » sans nouvelle surface de pouvoir pour
-  les jetons.
+  4e fois)~~ **RÉFUTÉ EN T3, mesuré : changer de jeu est une navigation
+  (`galGo` → `location.assign`), le cache et la requête en vol meurent avec
+  la page, et le catalogue n'est pas propre à un jeu. La garde réelle est
+  celle de l'OUVERTURE du menu, et le preset est traité par construction
+  (offres dérivées à la peinture). Risque non nommé par le plan et trouvé en
+  T3 : le plan supposait que P3 POUVAIT atteindre /models — `M.api` le
+  refuse, la voie a dû naître (voir la note T3)** ; « aller au module » sans
+  nouvelle surface de pouvoir pour les jetons.
 - Hors périmètre 3b, consigné : motifs du catalogue (3c, avec le Sceau),
   GC des images orphelines (3c), multi-sélection (jamais demandée),
   calques sous l'illustration (z<20 — demanderait une bande nouvelle).
