@@ -1016,16 +1016,31 @@ n'est pas le même objet — la peser à part.**
 
 ### Task 5 : intégration 3b
 
-- [ ] Suite cards complète, lint intégral 0 (R14 élargi compris), contrat,
-      node --check, cf_deploy -Backend + -Check 0 écart.
-- [ ] Navigateur réel : instancier superstar → palette montre « 7e
-      statistique » → l'ajouter → elle naît à sa zone avec sa plaque ;
-      ajouter une zone de statistique générique ; importer un calque
-      d'image (dépôt) → il se peint dans sa boîte, drag/poignées/rotation ;
-      verrouiller → le drag refuse, le panneau édite ; œil ; réordonner →
-      la peinture suit ; la liste de calques montre les bandes dans l'ordre
-      réel ; nudge 1/0,2 senti ; Ctrl+D/Delete/undo.
-- [ ] Plan+mémoire+push ; restes à l'œil.
+- [x] Suite cards complète **11/11 (803 s)**, lint intégral 0 (R14 à trois
+      critères compris), contrat COMPLET « OK — contrat tenu » POST-relance
+      (le faux rouge T3 du python périmé tombé — le gotcha
+      backend-stale-settings re-confirmé), node --check, cf_deploy -Backend
+      (15 fichiers, relance 5,1 s) + -Check **0 écart**.
+- [x] **Navigateur réel sur l'app déployée (23/08)** : deck instancié de
+      superstar → `preset: "modele:superstar"` EN PROD (la provenance F2
+      vivante) ; palette « + Élément » → **4 entrées** (3 génériques + « 7e
+      statistique » avec sa phrase) ; ajout → **stat7 né à [8,39.5,12,6.5]**
+      avec sa plaque #161310 et « 81 REF », sélection posée dessus, menu
+      refermé (la lecture serveur de contrôle avait devancé l'autosave —
+      le client dit la vérité) ; VERROU : drag synthétique REFUSÉ boîte
+      intacte — et l'erreur de ciblage du contrôleur l'a DOUBLEMENT prouvé
+      (deux slots verrouillés, chacun refusant son geste) ; **liste de
+      calques contre la carte réelle** : 70 « gemme + bandeau » · 40 « deco
+      · legendary » · 30 « foil_or » · 20 « posée » · 10 « bristol », et
+      « Aller » bascule type→frame ; **nudge exact 1 mm / Maj 0,2 mm**
+      mesuré au clavier synthétique. Le calque d'image : route+painter
+      prouvés au banc (162+ tests, ASGI bout-à-bout) — le DÉPÔT réel d'un
+      fichier reste à l'œil. Nettoyage : deck QA supprimé (200).
+- [x] Plan+mémoire+push. **Restes à l'œil (~3 min)** : déposer une vraie
+      image (contain vs cover senti, le damier nommé si fichier absent),
+      Échap sur deck vide, bascule de pièce au clavier menu ouvert, le
+      cadenas ambre et le curseur not-allowed, la pile de calques lue
+      contre la carte, Ctrl+D/undo au vol.
 
 ## Auto-revue du plan
 
