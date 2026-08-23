@@ -908,7 +908,9 @@
       + 'cartes, l’anneau ne dépendant que du cadre. La <b>planche PNG</b>, elle, ne porte '
       + 'pas de plaque : c’est un raster de cartes, pas un jeu de plaques.</p>'
       + '<p class="hint">Contraintes d’imprimeur (§6.2bis) : trait <b>≥ 0,2 mm</b> et distance au '
-      + 'trait de coupe <b>≥ 3,2 mm</b>. Le retrait de filet par défaut du cadre vaut <b>1,6 mm</b>, '
+      + 'trait de coupe <b>≥ 3,2 mm</b>. La troisième — espacement entre zones '
+      + '<b>≥ 0,25 mm</b> — est <b>sans objet</b> ici : le Sceau est <b>une zone unique</b>, '
+      + 'un anneau, et rien ne le côtoie. Le retrait de filet par défaut du cadre vaut <b>1,6 mm</b>, '
       + 'donc le contrôle <b>avertit</b> au lieu de refuser : monter le retrait du filet '
       + '(<span class="mono">edge_mm</span>, panneau Cadre) au-delà de 3,2 mm — ce qui déplace '
       + 'AUSSI le filet extérieur — ou accepter la <b>variance de fabrication</b> de '
@@ -1208,7 +1210,12 @@
     const on = !!(s && s.on), pr = !!(s && s.scope && s.scope.print);
     const f = (BPLAN && BPLAN.foil) || null;
     const btn = q('[data-act="foilmask"]');
-    if (btn) btn.disabled = !(f && f.live);
+    /* IL FAUT QUE LES DEUX SOIENT D'ACCORD. Le plan vient du backend et peut
+       DATER : entre le clic qui decoche « impression » et la reponse de
+       /layout, `f.live` vaut encore vrai. Ne regarder que lui laissait le
+       bouton actif sous un panneau qui ecrit « hors portee impression » — et
+       le clic partait chercher un masque que la route refuse en 409. */
+    if (btn) btn.disabled = !(on && pr && f && f.live);
     if (!on || !pr) {
       box.innerHTML = '<div class="cf-print-pf-ok muted">'
         + (on
@@ -1226,12 +1233,33 @@
       return;
     }
     const rows = [];
+    /* LE DOCUMENT AVOUE AVANT LE RESTE : un retrait negatif ne peut venir que
+       d'un fichier edite a la main (les deux surfaces de P2 le tiennent dans
+       [0 ; 8]) et il ferait tomber la dorure sur la carte VOISINE. La plaque
+       est ramenee au trait de coupe ; le document, lui, est nomme. */
+    if (Number(f.edge_asked_mm) < 0) {
+      rows.push(["err", 'Le <b>retrait du filet est négatif</b> dans le document ('
+        + nfx(f.edge_asked_mm, 2) + ' mm) : l’anneau tomberait hors de la carte, et sur '
+        + 'une planche il traverserait le trait de coupe de la carte voisine. La plaque '
+        + 'a été ramenée au trait de coupe ; remettre <span class="mono">edge_mm</span> '
+        + 'entre 0 et 8 mm dans le panneau Cadre. <b>L’export est refusé</b> d’ici là.']);
+    }
     if (!f.live) {
-      rows.push(["warn", 'Aucun anneau à dorer : entre le filet (posé à <b>'
-        + nfx(f.edge_mm, 2) + ' mm</b> de la coupe) et la fenêtre d’illustration il ne '
-        + 'reste que <b>' + nfx(f.cap_mm, 2) + ' mm</b>, sous le trait minimal de '
-        + nf(f.min_mm, 1) + ' mm. <b>Rapprocher le filet de la coupe ou reculer la '
-        + 'fenêtre</b> (panneau Cadre). Le PDF partira sans masque de foil.']);
+      /* DEUX CAUSES ETRANGERES l'une a l'autre, et deux remedes differents :
+         la PLACE (fenetre trop pres du filet) ou la LARGEUR ECRITE dans le
+         document. Les confondre faisait ecrire « il ne reste que 5,00 mm,
+         sous le trait minimal de 0,2 mm » — un chiffre qui refute sa phrase. */
+      rows.push(["warn", 'Aucun anneau à dorer : '
+        + (Number(f.cap_mm) < Number(f.min_mm)
+          ? 'entre le filet (posé à <b>' + nfx(f.edge_mm, 2) + ' mm</b> de la coupe) et '
+          + 'la fenêtre d’illustration il ne reste que <b>' + nfx(f.cap_mm, 2)
+          + ' mm</b>, sous le trait minimal de ' + nf(f.min_mm, 1) + ' mm. '
+          + '<b>Rapprocher le filet de la coupe ou reculer la fenêtre</b> (panneau Cadre).'
+          : 'la <b>largeur demandée</b> par le document vaut <b>' + nfx(f.asked_mm, 2)
+          + ' mm</b>, alors que la place n’y est pour rien (' + nfx(f.cap_mm, 2)
+          + ' mm disponibles). <b>Régler la largeur de bande du Sceau</b> dans le '
+          + 'panneau Cadre.')
+        + ' Le PDF partira sans masque de foil.']);
     } else {
       if (f.width_mm < f.min_mm) {
         rows.push(["err", 'Trait de <b>' + nfx(f.width_mm, 2) + ' mm</b>, sous le minimum '

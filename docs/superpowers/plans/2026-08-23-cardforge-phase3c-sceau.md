@@ -415,8 +415,11 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
 - **MIROIR, PAS IMPORT — et la raison n'est pas de style.** `foil_of` /
   `foil_max_mm` / `_foil_win` sont des jumeaux locaux de `frame.py`
   (patron `forge3d._sceau_du_doc` de la T3), parité prouvée par un test
-  qui, lui, importe les deux côtés — 12 corps bruts + 4 formats × largeurs
-  confrontés à `frame.frame_metrics`, `seal_px` compris. Ce qui TRANCHE :
+  qui, lui, importe les deux côtés. *(Compte corrigé en ronde : la
+  livraison écrivait « 12 corps + 4 formats », c'était 11 corps bruts et
+  UN format × 4 triples. La ronde a élargi pour de bon — 12 corps,
+  **12 formats × 6 couples** plus les trois fenêtres de plancher — et
+  épinglé les constantes jumelles.)* Ce qui TRANCHE :
   `seal_of` normalise un CORPS DE REQUÊTE et **lève** hors bornes ;
   l'importer aurait transformé un document à 0,1 mm modifié à la main en
   **400** — c'est-à-dire aurait rendu INATTEIGNABLE la ligne d'erreur
@@ -462,8 +465,10 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
   l'écran écrit le **remède** avant l'export — monter `edge_mm` au-delà de
   3,2 mm, *ce qui déplace aussi le filet extérieur*, ou accepter la variance
   de 1 à 2 mm. Le trait sous 0,2 mm, lui, est une **erreur** et la porte
-  409 s'appuie dessus. Zéro ligne quand le Sceau n'est pas en portée
-  impression : les 9 règles de fichier gardent leur compte.
+  409 s'appuie dessus — *sans condition depuis la ronde : `foil_gate_rows`
+  juge le foil sur le seul document, là où `preflight_safe` se tait faute
+  de cartes.* Zéro ligne quand le Sceau n'est pas en portée impression :
+  les 9 règles de fichier gardent leur compte.
 - **Recouvrement bandeau/gemme : signalé, PAS chiffré.** z=70 contre z=40
   est un fait du code ; le pourcentage, lui, dépend du format et de la
   rareté de chaque carte. Recopier les 20,8 % mesurés en poker aurait été
@@ -481,6 +486,75 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
 - **Reste d'œil pour la T6** : le masque téléchargé ouvert dans un
   visualiseur (l'aperçu doré de la `/Separation`), et la plaque confrontée
   à une carte réelle là où le bandeau la recouvre.
+
+### Ronde de revue adverse T2 (23/08) — 3 FIX-FIRST + 1 should-fix + 4 nits
+
+Suite `cards_print` 100 → **104**, lint 0, `node --check` vert, **13/13
+mutants de ronde tués** (+ les 15 de la livraison). print.py 4467 → 4558,
+mod-print.js 2288 → 2316, test_cards_print.py 2929 → 3223.
+
+- **F1 — la couture de parité était posée à un centième de la règle qu'elle
+  devait tenir.** Les quatre triples livrés mettaient le résultat exactement
+  SUR 0,00 ou franchement au-dessus de 0,2 — jamais DANS l'intervalle
+  (0 ; 0,2) que le plancher de la T1 existe pour refuser. Mesuré au banc
+  (frame.py muté PAR ATTRIBUT, sans toucher au fichier qu'un autre agent
+  éditait) : `v >= SEAL_MIN_MM` → `v > 0` laissait les quatre triples VERTS ;
+  `SEAL_MIN_MM` 0,2 → 0,3 aussi. Deux fenêtres neuves posent désormais le
+  résultat brut à **0,10** (refusé → 0,00) et **0,21** (accepté tel quel) :
+  le premier mutant fait dire 0,10 à P2 contre 0,00 à P7, le second 0,00
+  contre 0,21. Ajoutés avec : les **quatre constantes jumelles** épinglées
+  (`FOIL_MIN_MM`/`FOIL_BAND_MIN_MM`/`FOIL_KINDS`/`FOIL_DEFAULTS` — quatre et
+  non cinq : `FOIL_TRIM_MM` n'a PAS de jumeau, c'est une contrainte
+  d'imprimeur que P2 n'a aucune raison de connaître, elle est donc épinglée
+  sur la spec), les **trois portées** comparées (`screen` et `mesh`
+  dérivaient librement) et le balayage porté aux **12 formats × 6 couples**.
+- **F2 — le message dont le chiffre réfutait la phrase.** `width_mm: 0` édité
+  à la main donnait « il ne reste que **5,00 mm**, sous le trait minimal de
+  0,2 mm — rapprocher le filet » : 5,00 n'est pas sous 0,2, et bouger le
+  filet ne soigne pas une largeur nulle. `foil_sans_anneau()` branche
+  maintenant sur la VRAIE cause — la PLACE (`cap_mm < 0,2`) ou la LARGEUR DU
+  DOCUMENT — et la même fonction sert au contrôle avant vol, au 409 de
+  `/foil-mask` et à l'écran : deux textes pour un seul fait finissent par se
+  contredire.
+- **F3 — un `edge_mm` négatif dorait la carte du VOISIN.** Mesuré, poker 2×3,
+  `edge -5` : l'anneau sortait de 5 mm hors de la rogne et celui de la
+  colonne 1 traversait le trait de coupe de la colonne 0 de **1,00 mm**,
+  pendant que le contrôle conseillait « acceptez la variance ». Les deux
+  moitiés du correctif, parce qu'aucune ne suffit : la GÉOMÉTRIE est ramenée
+  au trait de coupe (`max(0.0, …)` — le plancher que les deux surfaces de P2
+  tiennent déjà en amont, mais **une plaque n'est pas un écran**) ET le
+  document est AVOUÉ par une ligne d'**erreur** nommée, qui bloque. Réparer
+  sans le dire aurait été le pire des deux.
+- **MF1 — « la porte 409 s'appuie dessus » n'était vrai que si le corps
+  portait des cartes.** `preflight_safe` rend `None` sans `slots`/`cards`, et
+  la porte devenait alors muette : sans cartes, un anneau de 0,1 mm sortait
+  en **200**. `foil_gate_rows` calcule les erreurs de foil du SEUL document
+  et `gate` s'en sert quand le contrôle par carte n'a rien à dire. Choix
+  assumé et écrit : la porte juge LE TIRAGE, pas l'objet demandé — c'est
+  déjà ce que font les règles par colonne, qui refusent une carte seule pour
+  une donnée que la PLANCHE n'imprimerait pas.
+- **LE BANC D'ÉCRAN, ET CE QU'IL A TROUVÉ.** Deux mutants d'écran ont
+  SURVÉCU à la première passe de ronde : la condition des deux causes forcée
+  à `true` et l'aveu du retrait négatif désactivé — parce que le test
+  d'écran ne faisait que chercher les phrases dans les octets pendant que la
+  BRANCHE ne s'exécutait plus. La leçon de la T3 (« un grep de prose est un
+  cliquet, pas une preuve ») re-payée. `paintFoil` tourne désormais POUR DE
+  BON sous node (patron du banc `measureLine` de P2), et le test juge le
+  HTML rendu. Le banc a immédiatement trouvé un **défaut réel que personne
+  n'avait vu** : le bouton de téléchargement ne regardait que `plan.foil`,
+  jamais le document — décocher « impression » laissait donc un bouton actif
+  sous un panneau qui écrivait « hors portée impression », et le clic partait
+  chercher un masque que la route refuse en 409. Les deux doivent être
+  d'accord.
+- **Nits** : le compte de la couture corrigé au plan (ci-dessus) · l'écart
+  de `_rr_poly` ré-attribué au rayon **DESSINÉ** (coin moins retrait), avec
+  le réglage livré (66,1 px → 0,036 px) et le pire cas du dépôt (377,9 px →
+  0,20 px) au lieu d'un « coin de 3 mm » qui n'est pas ce qui est tracé ·
+  l'espacement entre zones (0,25 mm) dit **SANS OBJET à l'écran**, là où
+  l'utilisateur lit les deux autres contraintes, et plus seulement dans un
+  commentaire Python · la seconde divergence avec `seal_of` — un nombre
+  ILLISIBLE (NaN, infini, chaîne) fait lever P2 et retombe au DÉFAUT ici —
+  nommée et testée à côté de celle des bornes.
 
 **CE QUE LA T1 A LAISSÉ SUR LA TABLE POUR LA T2 — lire avant de coder :**
 

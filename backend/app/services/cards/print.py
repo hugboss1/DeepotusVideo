@@ -791,7 +791,22 @@ def foil_plan(frame, g: CardGeom) -> dict:
     fo = foil_of(frame)
     f = frame if isinstance(frame, dict) else {}
     cap = _foil_band_max_mm(g.trim_mm[0], g.trim_mm[1])
-    edge = min(_foil_num(f.get("edge_mm"), 1.6), cap)
+    # ── LE PLANCHER DE RETRAIT, ET LA DIVERGENCE QU'IL CRÉE, VOULUE ───────
+    #    `frame_metrics` et le peintre d'écran n'écrivent que `min(edge, cap)`
+    #    — ils n'ont pas besoin de plus : les DEUX surfaces de P2 tiennent
+    #    déjà `edge_mm` dans [0 ; 8] en amont (l'écran RÉPARE au chargement,
+    #    la route REFUSE en 400). Un retrait négatif n'existe donc que dans un
+    #    document édité à la main, qu'aucune de ces deux surfaces ne rendra
+    #    jamais tel quel.
+    #    Ici, si : mesuré sur une planche poker 2x3 avec `edge_mm: -5`,
+    #    l'anneau sortait de 5 mm HORS de la rogne et celui de la colonne 1
+    #    traversait le trait de coupe de la colonne 0 de 1,00 mm — de la
+    #    dorure sur la carte du voisin. Une plaque n'est pas un écran : la
+    #    GÉOMÉTRIE est ramenée au trait de coupe pour qu'aucun fichier livré
+    #    ne puisse être faux, et le DOCUMENT est avoué (ligne d'erreur nommée
+    #    du contrôle avant vol) au lieu d'être réparé en silence.
+    e_ask = _foil_num(f.get("edge_mm"), 1.6)
+    edge = max(0.0, min(e_ask, cap))
     wmax = foil_max_mm(g.trim_mm[0], g.trim_mm[1], edge,
                        _foil_win(f.get("window"), g))
     larg = min(fo["width_mm"], wmax)
@@ -804,7 +819,7 @@ def foil_plan(frame, g: CardGeom) -> dict:
         larg, px[0] = 0.0, 0.0
     return {"on": bool(fo["on"] and fo["print"]), "kind": fo["kind"],
             "asked_mm": fo["width_mm"], "cap_mm": wmax, "width_mm": larg,
-            "edge_mm": edge, "px": px}
+            "edge_mm": edge, "edge_asked_mm": e_ask, "px": px}
 
 
 def _foil_live(p: Plan) -> bool:
@@ -2313,9 +2328,13 @@ def _rr_poly(x: float, y: float, w: float, h: float, r: float,
     """LE MÊME contour, aplati en polygone pour le rasteriseur.
 
     `pas` segments par quart de cercle : l'écart maximal à la Bézier vaut
-    r x (1 - cos(pi / (4 x pas))), soit 0,04 px pour un coin de 3 mm à
-    1200 dpi. Sous le dixième de pixel, donc invisible au seuil de 50 % — et
-    le test le vérifie là où il compte : sur les transitions du PNG livré."""
+    r x (1 - cos(pi / (4 x pas))) = 5,4 x 10^-4 x r — et `r` est le rayon
+    DESSINÉ, c'est-à-dire le coin de la découpe MOINS le retrait du filet, pas
+    le coin nominal. Au réglage livré (coin de 3 mm rentré de 1,6 mm, soit
+    66,1 px à 1200 dpi) cela fait 0,036 px ; au pire cas que ce dépôt puisse
+    produire (coin de 8 mm, retrait nul, 1200 dpi : 377,9 px) il fait 0,20 px.
+    Sous le demi-pixel du seuil dans les deux cas — et le test le vérifie là
+    où il compte : sur les transitions du PNG livré."""
     pts: list[tuple[float, float]] = []
     for a, c1, c2, b in _rr_quarts(x, y, w, h, r):
         pts.append(a)
@@ -3259,6 +3278,33 @@ def _fm(v: float, n: int = 2) -> str:
     return f"{float(v):.{n}f}".replace(".", ",")
 
 
+def foil_sans_anneau(f: dict) -> str:
+    """LA CAUSE EXACTE d'un anneau nul — celle-là et pas une autre.
+
+    Deux causes ÉTRANGÈRES l'une à l'autre donnent une largeur tracée de zéro,
+    et elles ne se soignent pas pareil :
+
+      * LA PLACE — la fenêtre d'illustration serre le filet au point qu'il ne
+        reste plus 0,2 mm entre les deux. On bouge le filet ou la fenêtre.
+      * LA LARGEUR ÉCRITE DANS LE DOCUMENT — la place est là, c'est le réglage
+        qui vaut zéro. Bouger le filet n'y changerait rien.
+
+    Les confondre écrivait « il ne reste que 5,00 mm, sous le trait minimal de
+    0,2 mm » : un chiffre qui RÉFUTE sa propre phrase, suivi d'un conseil qui
+    ne soigne pas la cause. La même phrase sert au contrôle avant vol et au
+    409 de la route — un utilisateur qui saute l'écran lit la même chose."""
+    if float(f["cap_mm"]) < FOIL_MIN_MM:
+        return ("entre le filet (posé à %s mm de la coupe) et la fenêtre "
+                "d'illustration il ne reste que %s mm, sous le trait minimal "
+                "de %s mm — rapprocher le filet de la coupe ou reculer la "
+                "fenêtre"
+                % (_fm(f["edge_mm"]), _fm(f["cap_mm"]), _fm(FOIL_MIN_MM, 1)))
+    return ("la largeur demandée par le document vaut %s mm, alors que la "
+            "place n'y est pour rien (%s mm disponibles entre le filet et la "
+            "fenêtre) — régler la largeur de bande du Sceau dans le panneau "
+            "Cadre" % (_fm(f["asked_mm"]), _fm(f["cap_mm"])))
+
+
 def foil_checks(p: Plan) -> list[dict]:
     """LES CONTRÔLES DU MASQUE DE FOIL, VALIDÉS EN VECTORIEL AVANT TOUTE
     RASTERISATION (§6.2bis-b). Zéro ligne quand le Sceau n'est pas en portée
@@ -3282,18 +3328,32 @@ def foil_checks(p: Plan) -> list[dict]:
     f = p.foil
     larg, cap, edge = (float(f["width_mm"]), float(f["cap_mm"]),
                        float(f["edge_mm"]))
+    e_ask = float(f.get("edge_asked_mm", edge))
     ligne = {"card": "fichier", "card_i": -1, "slot": ""}
-    if larg <= 0:
-        return [dict(ligne, kind="foil_sans_anneau", level="warn", value=0.0,
-                     limit=FOIL_MIN_MM, message=(
-                         "portée « impression » cochée mais AUCUN anneau à "
-                         f"dorer : entre le filet (posé à {_fm(edge)} mm de la "
-                         "coupe) et la fenêtre d'illustration il ne reste que "
-                         f"{_fm(cap)} mm, sous le trait minimal de "
-                         f"{_fm(FOIL_MIN_MM, 1)} mm — rapprocher le filet de "
-                         "la coupe ou reculer la fenêtre. Le fichier partira "
-                         "sans masque de foil, et sans calque « Foil »."))]
     rows: list[dict] = []
+    # LE DOCUMENT AVOUÉ AVANT TOUT LE RESTE : un retrait négatif est un
+    # fichier faux, et il le reste même si la plaque, elle, a été ramenée au
+    # trait de coupe pour ne jamais dorer chez le voisin.
+    if e_ask < 0:
+        rows.append(dict(ligne, kind="foil_retrait_negatif", level="err",
+                         value=rnd(e_ask, 2), limit=0, message=(
+                             "retrait du filet NÉGATIF dans le document "
+                             f"({_fm(e_ask)} mm) : l'anneau tomberait HORS de "
+                             "la carte, dans la chute — et sur une planche il "
+                             "traverserait le trait de coupe de la carte "
+                             "voisine. La plaque a été ramenée au trait de "
+                             "coupe (0,00 mm) pour ne jamais dorer chez le "
+                             "voisin ; le document, lui, reste faux — "
+                             "remettre edge_mm entre 0 et 8 mm dans le "
+                             "panneau Cadre.")))
+    if larg <= 0:
+        rows.append(dict(ligne, kind="foil_sans_anneau", level="warn",
+                         value=0.0, limit=FOIL_MIN_MM, message=(
+                             "portée « impression » cochée mais AUCUN anneau "
+                             "à dorer : " + foil_sans_anneau(f)
+                             + ". Le fichier partira sans masque de foil, et "
+                               "sans calque « Foil ».")))
+        return rows
     if larg < FOIL_MIN_MM - 1e-9:
         rows.append(dict(ligne, kind="foil_trait", level="err",
                          value=rnd(larg, 2), limit=FOIL_MIN_MM, message=(
@@ -3909,6 +3969,12 @@ def plan_dict(p: Plan) -> dict:
             "asked_mm": rnd(float((p.foil or {}).get("asked_mm") or 0), 2),
             "cap_mm": (p.foil or {}).get("cap_mm", 0.0),
             "edge_mm": rnd(float((p.foil or {}).get("edge_mm") or 0), 2),
+            # LE RETRAIT DEMANDÉ PAR LE DOCUMENT, à côté de celui qui sera
+            # tracé : sans lui, l'écran ne pourrait pas dire qu'un fichier
+            # édité à la main porte un retrait négatif — il montrerait la
+            # valeur réparée et l'utilisateur ne saurait jamais.
+            "edge_asked_mm": rnd(
+                float((p.foil or {}).get("edge_asked_mm") or 0), 2),
             "min_mm": FOIL_MIN_MM, "trim_mm": FOIL_TRIM_MM,
             "variance": FOIL_VARIANCE, "layer": FOIL_LABEL,
             "mask_dpi": list(FOIL_MASK_DPI),
@@ -4109,15 +4175,43 @@ def control_line(out: dict | None, forced: bool = False) -> str:
             + noms[:700])
 
 
+def foil_gate_rows(body: dict, icc: bytes | None) -> dict | None:
+    """LES ERREURS DE FOIL SEULES — elles ne dépendent d'AUCUNE carte.
+
+    `preflight_safe` se tait quand la demande ne porte ni bloc ni carte : il
+    n'y a alors rien à juger PAR CARTE, et c'est juste. Mais le masque de foil
+    se calcule du SEUL document : un trait sous le minimum de la presse est une
+    erreur avec zéro carte comme avec trois cents. Mesuré : sans `cards` dans
+    le corps, un anneau de 0,1 mm sortait en 200 — la porte ne s'ouvrait pas,
+    elle n'existait pas. L'interface envoie toujours ses cartes ; un client qui
+    saute l'interface, non."""
+    if not isinstance(body, dict):
+        return None
+    try:
+        p = build_plan(body, int(body.get("n_cards") or 1), icc)
+    except (ValueError, TypeError, OverflowError):
+        return None                     # le plan a son propre refus, nommé
+    errs = [r for r in foil_checks(p) if r["level"] == "err"]
+    return {"rows": errs, "errors": len(errs)} if errs else None
+
+
 def gate(body: dict, icc: bytes | None, out: dict | None = None) -> dict | None:
     """Rend le verdict qui BLOQUE, ou None. Sans `slots`/`cards` dans la
-    demande, il n'y a rien à contrôler par carte : la porte reste ouverte et
-    ne prétend pas le contraire."""
+    demande, il n'y a rien à contrôler PAR CARTE : la porte reste ouverte et
+    ne prétend pas le contraire — mais le masque de foil, lui, se juge sur le
+    seul document, et la porte le fait alors quand même (`foil_gate_rows`).
+
+    La porte juge LE TIRAGE, pas l'objet demandé : c'est déjà le cas des
+    règles par colonne, qui refusent une carte seule pour une donnée que la
+    PLANCHE n'imprimerait pas. Un jeu dont la plaque de dorure est fausse est
+    un jeu qu'on ne part pas imprimer."""
     if not isinstance(body, dict):
         return None
     if _flag(body, "force"):            # `force` n'entre PAS dans DEFAULTS :
         return None                     # ce n'est pas un réglage qu'on garde
     out = out if out is not None else preflight_safe(body, icc)
+    if out is None:
+        out = foil_gate_rows(body, icc)
     if not out or not out.get("errors"):
         return None
     errs = [r for r in out["rows"] if r.get("level") == "err"]
@@ -4392,13 +4486,10 @@ async def get_foil_mask(did: str, dpi: int = 600):
                                  "groupe « Sceau prismatique » du panneau "
                                  "Cadre avant de demander un masque.")
     if fo["width_mm"] <= 0:
-        raise HTTPException(409, (
-            "Aucun anneau à dorer : la place entre le filet (%s mm de la "
-            "coupe) et la fenêtre d'illustration ne laisse que %s mm, sous le "
-            "trait minimal de %s mm. Rapprocher le filet de la coupe ou "
-            "reculer la fenêtre."
-            % (_fm(fo["edge_mm"]), _fm(fo["cap_mm"]),
-               _fm(FOIL_MIN_MM, 1))))
+        # LA MÊME PHRASE QUE LE CONTRÔLE AVANT VOL, et donc la même CAUSE :
+        # deux textes pour un seul fait finissent par se contredire.
+        raise HTTPException(409, "Aucun anneau à dorer : "
+                                 + foil_sans_anneau(fo) + ".")
 
     def work():
         buf = io.BytesIO()

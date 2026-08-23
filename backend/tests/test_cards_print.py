@@ -2849,6 +2849,113 @@ def test_le_preflight_du_foil_nomme_ses_regles_et_donne_le_remede():
     assert vide["errors"] == 0
 
 
+def test_un_anneau_absent_nomme_SA_cause_et_pas_une_autre():
+    """« Un chiffre faux vaut moins que pas de chiffre » — la règle de ce
+    module, retournée contre lui.
+
+    Deux causes ÉTRANGÈRES l'une à l'autre produisent un anneau nul, et elles
+    ne se soignent pas pareil : LA PLACE (fenêtre trop près de la coupe) et LA
+    LARGEUR ÉCRITE DANS LE DOCUMENT. Les confondre faisait écrire « il ne
+    reste que 5,00 mm, sous le trait minimal de 0,2 mm » — un chiffre qui
+    réfute sa propre phrase — et conseiller de bouger un filet qui n'y est
+    pour rien."""
+    # cause A : LA PLACE. La fenêtre à 1,61 mm de la coupe ne laisse rien.
+    place = base(n_cards=1, slots=[], cards=[], frame=cadre(
+        window={"x": 1.61, "y": 1.61, "w": 59.78, "h": 84.78, "r": 0}))
+    ma = {r["kind"]: r for r in PR.preflight(place)["rows"]}["foil_sans_anneau"]
+    assert ma["level"] == "warn"
+    assert "il ne reste que 0,00 mm" in ma["message"]
+    assert "sous le trait minimal" in ma["message"]
+    assert "reculer la fenêtre" in ma["message"]
+
+    # cause B : LA LARGEUR DU DOCUMENT, avec TOUTE la place voulue (5,00 mm).
+    doc = base(n_cards=1, slots=[], cards=[],
+               frame=cadre(sceau(width_mm=0), edge_mm=1.6))
+    assert PR.build_plan(doc, 1).foil["cap_mm"] == 5.0, "la place ne manque pas"
+    mb = {r["kind"]: r for r in PR.preflight(doc)["rows"]}["foil_sans_anneau"]
+    assert mb["level"] == "warn"
+    assert "largeur demandée" in mb["message"] and "0,00 mm" in mb["message"]
+    # LA PHRASE QUI ÉTAIT FAUSSE, ET LE CONSEIL QUI NE SOIGNAIT RIEN
+    assert "sous le trait minimal" not in mb["message"]
+    assert "rapprocher le filet" not in mb["message"]
+    assert "reculer la fenêtre" not in mb["message"]
+
+    # LE MÊME PARTAGE AU 409 DE LA ROUTE — un utilisateur qui saute l'écran
+    # doit lire la même cause.
+    did = CC.create_deck("Jeu cause", {"fmt": "poker_eu", "dpi": 300})["id"]
+    _pose_cadre(did, cadre(sceau(width_mm=0), edge_mm=1.6))
+    d1 = _api("GET", f"/api/cards/{did}/print/foil-mask").json()["detail"]
+    assert "largeur demandée" in d1 and "rapprocher le filet" not in d1
+    _pose_cadre(did, cadre(window={"x": 1.61, "y": 1.61, "w": 59.78,
+                                   "h": 84.78, "r": 0}))
+    d2 = _api("GET", f"/api/cards/{did}/print/foil-mask").json()["detail"]
+    assert "reculer la fenêtre" in d2 and "largeur demandée" not in d2
+
+
+def test_un_retrait_negatif_ne_dore_pas_la_carte_du_voisin():
+    """Mesuré avant correctif, poker 2x3, `edge_mm: -5` édité à la main :
+    l'anneau sortait de 5 mm HORS de la rogne et celui de la colonne 1
+    traversait le trait de coupe de la colonne 0 de 1,00 mm — pendant que le
+    contrôle conseillait paisiblement « acceptez la variance ».
+
+    UNE PLAQUE N'EST PAS UN ÉCRAN : la géométrie est ramenée au trait de
+    coupe (le plancher que `LIMITS.edge_mm` tient déjà des deux côtés de P2),
+    et le DOCUMENT est avoué au lieu d'être réparé en silence."""
+    spec = base(frame=cadre(edge_mm=-5), slots=[],
+                cards=[{"i": 0, "name": "C0"}])
+    p = PR.build_plan(spec, 6)
+    assert (p.cols, p.rows) == (2, 3)
+    assert p.foil["edge_mm"] == 0.0 and p.foil["edge_asked_mm"] == -5.0
+    data = PR.build_pdf(p, {i: carte() for i in range(6)}, {}, "T")
+    sh = p.sheet_px[1]
+    cases = [(PR.px2pt(x, p.dpi), PR.px2pt(sh - (y + ch), p.dpi),
+              PR.px2pt(x + cw, p.dpi), PR.px2pt(sh - y, p.dpi))
+             for r in range(p.rows) for c in range(p.cols)
+             for x, y, cw, ch in [PR.cell_rect(p, r, c)]]
+    tr = chemins(pdf_ops(data))
+    assert len(tr) == 12
+    for t in tr:
+        assert any(a - 1e-3 <= t[0] and t[2] <= c2 + 1e-3
+                   and b - 1e-3 <= t[1] and t[3] <= d2 + 1e-3
+                   for a, b, c2, d2 in cases), ("dorure hors de sa carte", t)
+    # ... et le document est AVOUÉ, avec son chiffre, et il BLOQUE
+    k = {r["kind"]: r for r in PR.preflight(spec)["rows"]}
+    assert k["foil_retrait_negatif"]["level"] == "err"
+    assert "-5,00" in k["foil_retrait_negatif"]["message"]
+    assert "voisine" in k["foil_retrait_negatif"]["message"]
+    assert PR.gate(spec, None) is not None
+
+
+def test_la_porte_du_foil_ne_depend_pas_des_cartes():
+    """`preflight_safe` se tait quand la demande ne porte ni bloc ni carte :
+    il n'y a alors rien à juger PAR CARTE, et c'est juste. Mais le masque de
+    foil se calcule du SEUL document — un trait sous le minimum de la presse
+    est une erreur avec zéro carte comme avec trois cents. Sans cette
+    porte-là, un client qui n'envoie pas ses cartes obtenait un 200 et un
+    anneau que l'imprimeur refuse."""
+    spec = base(frame=cadre(sceau(width_mm=0.1), edge_mm=3.4))
+    assert "slots" not in spec and "cards" not in spec
+    assert PR.preflight_safe(spec, None) is None, "rien à juger PAR CARTE"
+    v = PR.gate(spec, None)
+    assert v is not None and v["errors"] == 1
+    assert v["rows"][0]["kind"] == "foil_trait"
+    # sans foil, la porte reste EXACTEMENT ce qu'elle était : ouverte.
+    assert PR.gate(base(), None) is None
+    assert PR.gate(base(frame=cadre(edge_mm=3.4)), None) is None
+
+    did = CC.create_deck("Jeu porte foil", {"fmt": "poker_eu", "dpi": 300})["id"]
+    _pose_cadre(did, cadre(sceau(width_mm=0.1), edge_mm=3.4))
+    files = [("fronts", ("c0.png", png_bytes(carte()), "image/png"))]
+    r = _api("POST", f"/api/cards/{did}/print/pdf",
+             data={"spec": json.dumps(base())}, files=files)
+    assert r.status_code == 409, r.status_code
+    assert any(x["kind"] == "foil_trait" for x in r.json()["detail"]["rows"])
+    # `force` reste la seule sortie, et elle est explicite
+    r2 = _api("POST", f"/api/cards/{did}/print/pdf",
+              data={"spec": json.dumps(base(force=True))}, files=files)
+    assert r2.status_code == 200
+
+
 def test_le_deck_par_defaut_avec_foil_part_quand_meme():
     """Le corollaire du choix « avertir, pas refuser » : un jeu neuf qui
     coche « impression » obtient son PDF, et le fichier porte le foil."""
@@ -2885,30 +2992,209 @@ def test_p7_lit_le_sceau_du_document_sans_importer_p2():
     for brut in (None, {}, {"on": True}, {"on": "oui"}, {"kind": "dorure"},
                  {"kind": "inconnu"}, {"width_mm": None}, {"width_mm": 6},
                  {"width_mm": 0.2}, {"scope": {"print": True}},
+                 {"scope": {"screen": False, "mesh": True}},
                  {"on": True, "scope": {"print": True, "screen": False}}):
         a, b = P2.seal_of(brut), PR.foil_of({"seal": brut})
         assert (a["on"], a["kind"], a["width_mm"]) == \
             (b["on"], b["kind"], b["width_mm"]), brut
-        assert a["scope"]["print"] == b["print"], brut
+        # LES TROIS PORTÉES, pas seulement celle qui sert ici : `foil_of` est
+        # un miroir du schéma, pas un extracteur. Ne comparer que `print`
+        # laissait `screen` et `mesh` dériver sans qu'une ligne rougisse.
+        for k in ("screen", "print", "mesh"):
+            assert a["scope"][k] == b[k], (brut, k)
     # la divergence, épinglée dans les deux sens
     with pytest.raises(ValueError):
         P2.seal_of({"width_mm": 0.1})
     assert PR.foil_of({"seal": {"width_mm": 0.1}})["width_mm"] == 0.1
-    # les NOMBRES publiés par /frame/metrics sont ceux que P7 dessine
+    # ... et la SECONDE divergence, du même genre : un nombre ILLISIBLE (NaN,
+    # infini, chaîne) fait lever `seal_of` et retombe au DÉFAUT ici. Même
+    # raison : P7 lit un document déjà écrit, il ne le refuse pas.
+    with pytest.raises(ValueError):
+        P2.seal_of({"width_mm": "large"})
+    for sale in ("large", float("nan"), float("inf"), [], {}):
+        assert PR.foil_of({"seal": {"width_mm": sale}})["width_mm"] == 1.2
+
+    # ── LES CINQ CONSTANTES JUMELLES ──────────────────────────────────────
+    #    Un miroir dont la couture n'est pas épinglée dérive le jour où
+    #    quelqu'un édite frame.py en ne mettant à jour que test_cards_frame.
+    assert PR.FOIL_MIN_MM == P2.SEAL_MIN_MM
+    assert PR.FOIL_BAND_MIN_MM == P2.BAND_MIN_MM
+    assert list(PR.FOIL_KINDS) == [k["id"] for k in P2.SEAL_KINDS]
+    assert PR.FOIL_DEFAULTS == P2.SEAL_DEFAULTS
+    # `FOIL_TRIM_MM` n'a PAS de jumeau dans frame.py — c'est une contrainte
+    # d'IMPRIMEUR, que P2 n'a aucune raison de connaître. Elle est donc
+    # épinglée sur la spec, sa seule source. (Idem pour l'espacement entre
+    # zones, sans objet ici : un anneau est UNE zone — et l'écran le dit.)
+    sp = (pathlib.Path(__file__).resolve().parents[2] / "docs" / "superpowers"
+          / "specs" / "2026-08-19-cardforge-universel-design.md"
+          ).read_text(encoding="utf-8")
+    assert "distance au trait de\n  coupe ≥ 3,2 mm" in sp
+    assert "espacement entre zones ≥ 0,25 mm" in sp
+    assert PR.FOIL_TRIM_MM == 3.2
+
+    # ── LES NOMBRES, SUR LES DOUZE FORMATS ────────────────────────────────
+    CAS = ((1.6, 1.2), (3.4, 2.0), (0.5, 6.0), (8.0, 0.2), (0.0, 3.0),
+           (2.0, 2.005))
+    mord = 0
+    for fmt in CT.FORMATS:
+        g = CT.geom(fmt, 300)
+        for edge, larg in CAS:
+            f = {"edge_mm": edge, "seal": sceau(width_mm=larg)}
+            m = P2.frame_metrics(g, 0.9, 1.1, edge, 5.5, P2._win_of(None, g),
+                                 P2.seal_of(f["seal"]))
+            fo = PR.foil_plan(f, g)
+            assert CT.rnd(fo["width_mm"], 2) == m["seal_mm"][0], (fmt, edge, larg)
+            assert fo["cap_mm"] == m["seal_mm"][1], (fmt, edge, larg)
+            assert [CT.rnd(v, 2) for v in fo["px"]] == m["seal_px"], (fmt, edge)
+            if fo["cap_mm"] < larg:
+                mord += 1
+    assert mord >= 1, "aucun cas où la borne de format MORD : elle ne prouve rien"
+
+    # ── LA COUTURE POSÉE *DANS* LA BANDE QUE LE PLANCHER TIENT ────────────
+    #    Les cas ci-dessus tombent tous SUR 0,00 ou bien au-dessus de 0,2 :
+    #    ils ne disent rien de l'intervalle (0 ; 0,2) — celui-là même que le
+    #    plancher de la T1 existe pour refuser. Les deux fenêtres qui suivent
+    #    y posent le résultat BRUT, à la main : 0,10 (refusé -> 0,00) et 0,21
+    #    (accepté tel quel). Muter le plancher d'un côté fait diverger les
+    #    deux moitiés, ce qu'aucune autre ligne de cette suite ne voit.
     g = CT.geom("poker_eu", 300)
-    for edge, win, larg in ((1.6, None, 1.2), (3.4, None, 2.0),
-                            (0.5, {"x": 8, "y": 6, "w": 45, "h": 44, "r": 2.5},
-                             6.0), (1.61, {"x": 1.61, "y": 1.61, "w": 59.78,
-                                           "h": 84.78, "r": 0}, 1.2)):
-        f = {"edge_mm": edge, "seal": sceau(width_mm=larg)}
-        if win:
-            f["window"] = win
-        m = P2.frame_metrics(g, 0.9, 1.1, edge, 5.5,
-                             P2._win_of(win, g), P2.seal_of(f["seal"]))
+    for edge, win, att in (
+            (1.6, {"x": 1.70, "y": 1.70, "w": 59.60, "h": 84.60, "r": 0}, 0.0),
+            (1.6, {"x": 1.81, "y": 1.81, "w": 59.38, "h": 84.38, "r": 0}, 0.21),
+            (1.61, {"x": 1.61, "y": 1.61, "w": 59.78, "h": 84.78, "r": 0}, 0.0)):
+        f = {"edge_mm": edge, "window": win, "seal": sceau(width_mm=1.2)}
+        m = P2.frame_metrics(g, 0.9, 1.1, edge, 5.5, P2._win_of(win, g),
+                             P2.seal_of(f["seal"]))
         fo = PR.foil_plan(f, g)
-        assert CT.rnd(fo["width_mm"], 2) == m["seal_mm"][0], (edge, larg)
-        assert fo["cap_mm"] == m["seal_mm"][1], (edge, larg)
-        assert [CT.rnd(v, 2) for v in fo["px"]] == m["seal_px"], (edge, larg)
+        assert fo["cap_mm"] == att == m["seal_mm"][1], (win["x"], fo["cap_mm"])
+        assert CT.rnd(fo["width_mm"], 2) == m["seal_mm"][0] == att
+        assert [CT.rnd(v, 2) for v in fo["px"]] == m["seal_px"], win["x"]
+
+
+def _js_fn(src: str, nom: str) -> str:
+    """Le SOURCE d'une fonction de `mod-print.js`, accolades équilibrées.
+    Même extracteur que le banc de `test_cards_frame.py`."""
+    i = src.index("function " + nom + "(")
+    j = src.index("{", i)
+    n = 0
+    for k in range(j, len(src)):
+        if src[k] == "{":
+            n += 1
+        elif src[k] == "}":
+            n -= 1
+            if n == 0:
+                return src[i:k + 1]
+    raise AssertionError("accolades non equilibrees pour " + nom)
+
+
+BANC_FOIL = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE + "\n})();")();
+const out = [];
+for (const c of CAS) out.push(mod.run(c.seal, c.foil, c.layers));
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _peint_foil(tmp_path, cas: list) -> list:
+    """Fait tourner LA VRAIE `paintFoil` de mod-print.js.
+
+    UN GREP DE PROSE EST UN CLIQUET, PAS UNE PREUVE — la leçon de la T3,
+    re-payée ici : la version « chaînes présentes dans le fichier » de ce
+    test laissait passer DEUX mutants (la condition des deux causes forcée à
+    `true`, et l'aveu du retrait négatif désactivé) parce que les phrases
+    restaient dans les octets pendant que la BRANCHE ne s'exécutait plus.
+    Le banc juge le HTML rendu, pas le fichier lu."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc d'écran ne peut pas tourner")
+    src = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "cardforge"
+           / "js" / "mod-print.js").read_text(encoding="utf-8")
+    code = "\n".join([
+        'let __h = "", SEAL = null, BPLAN = null, LAYERS = true, FOILDPI = 600;',
+        'const __btn = { disabled: null };',
+        'function q(s){ if (s === \'[data-role="foil"]\') '
+        'return { set innerHTML(v){ __h = v; } };'
+        ' if (s === \'[data-act="foilmask"]\') return __btn; return null; }',
+        'const CF = { get: (p, d) => (p === "frame.seal" ? SEAL : d) };',
+        'function st(){ return { layers: LAYERS }; }',
+        # `esc` porte des « &amp; » : couper au premier point-virgule le
+        # tronquerait au milieu d'une entité. L'ancre est sa DERNIÈRE.
+        re.search(r"const esc = \(s\).*?&quot;\"\);", src, re.S).group(0),
+        re.search(r"const nf = \(v, n\) => \{.*?\n  \};", src, re.S).group(0),
+        re.search(r"const nfx = [^;]+;", src).group(0),
+        _js_fn(src, "paintFoil"),
+        "return { run: (seal, foil, layers) => { SEAL = seal; "
+        "BPLAN = foil ? { foil: foil } : null; LAYERS = layers !== false; "
+        '__h = ""; __btn.disabled = null; paintFoil(); '
+        "return { html: __h, off: __btn.disabled }; } };",
+    ])
+    js = tmp_path / "foil.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_foil.mjs"
+    banc.write_text(BANC_FOIL, encoding="utf-8")
+    conf = tmp_path / "cas.json"
+    conf.write_text(json.dumps(cas), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=120)
+    assert r.returncode == 0, r.stderr[-2000:]
+    return json.loads(r.stdout)
+
+
+def _foil_plan_js(**kw):
+    """Le bloc `plan.foil` tel que le backend le publie — construit ICI par
+    `plan_dict`, jamais écrit à la main : deux tables de champs, ce serait
+    deux contrats."""
+    f = {"edge_mm": kw.pop("edge_mm", 1.6), "inner_mm": 5.5,
+         "seal": sceau(width_mm=kw.pop("width_mm", 1.2))}
+    if "window" in kw:
+        f["window"] = kw.pop("window")
+    return PR.plan_dict(PR.build_plan(base(frame=f), 1))["foil"]
+
+
+def test_l_ecran_JUGE_les_deux_causes_et_le_retrait_negatif(tmp_path):
+    """Le banc exécute `paintFoil` : ce qui est mesuré est le HTML rendu.
+
+    Les trois branches que le contrôle avant vol distingue doivent l'être à
+    l'écran aussi, et AVANT l'export — c'est tout l'objet de la tâche."""
+    cas = [
+        {"seal": sceau(), "foil": _foil_plan_js(edge_mm=3.4)},
+        {"seal": sceau(), "foil": _foil_plan_js(
+            window={"x": 1.61, "y": 1.61, "w": 59.78, "h": 84.78, "r": 0})},
+        {"seal": sceau(), "foil": _foil_plan_js(width_mm=0)},
+        {"seal": sceau(), "foil": _foil_plan_js(edge_mm=-5)},
+        # LE PLAN QUI DATE : le document dit « plus d'impression », le plan
+        # du backend dit encore « live » (il arrive 320 ms plus tard). Les
+        # DEUX doivent être d'accord pour que le bouton vive — sans quoi le
+        # clic part chercher un masque que la route refuse en 409.
+        {"seal": sceau(scope={"screen": True, "print": False, "mesh": False}),
+         "foil": _foil_plan_js(edge_mm=3.4)},
+    ]
+    sain, place, larg, neg, hors = _peint_foil(tmp_path, cas)
+    # 1. tout va bien : l'anneau est décrit, le bouton est actif
+    assert sain["off"] is False and "Anneau" in sain["html"]
+    assert "3,40 mm" in sain["html"] and "au-delà des 3,2" in sain["html"]
+    # 2. LA PLACE manque — et on parle de la fenêtre
+    assert place["off"] is True
+    assert "reculer la fenêtre" in place["html"]
+    assert "largeur demandée" not in place["html"]
+    # 3. LA LARGEUR du document est nulle, la place ne manque pas (5,00 mm)
+    assert larg["off"] is True
+    assert "largeur demandée" in larg["html"]
+    assert "reculer la fenêtre" not in larg["html"]
+    assert "sous le trait minimal" not in larg["html"]
+    # 4. LE RETRAIT NÉGATIF est avoué, en erreur, avec son chiffre
+    assert "retrait du filet est négatif" in neg["html"]
+    assert "-5,00 mm" in neg["html"] and "voisine" in neg["html"]
+    assert 'class="cf-print-pf-row err"' in neg["html"]
+    assert "retrait du filet est négatif" not in sain["html"]
+    # 5. hors portée impression : rien à dorer, et le bouton est mort
+    assert hors["off"] is True and "hors portée impression" in hors["html"]
 
 
 def test_l_ecran_dit_le_foil_avant_que_le_preflight_le_decouvre():
@@ -2922,7 +3208,15 @@ def test_l_ecran_dit_le_foil_avant_que_le_preflight_le_decouvre():
     assert "function paintFoil(" in src
     assert 'data-act="foilmask"' in src
     for phrase in ("3,2", "edge_mm", "variance de fabrication",
-                   "1 à 2 mm", "CMJN", "PDF/X", "600", "noir"):
+                   "1 à 2 mm", "CMJN", "PDF/X", "600", "noir",
+                   # la troisième contrainte de §6.2bis-b, dite SANS OBJET là
+                   # où l'utilisateur lit les deux autres — pas seulement dans
+                   # un commentaire Python qu'il n'ouvrira jamais
+                   "0,25 mm", "une zone unique",
+                   # les DEUX causes d'un anneau nul, distinctes à l'écran
+                   "reculer la fenêtre", "largeur demandée",
+                   # et le retrait négatif d'un document édité à la main
+                   "retrait du filet est négatif"):
         assert phrase in src, phrase
 
 if __name__ == "__main__":
