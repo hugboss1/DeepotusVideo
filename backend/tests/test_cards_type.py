@@ -2969,16 +2969,30 @@ function makeCtx(w, h) {
     const dx = px - cx, dy = py - cy;
     return dx * dx + dy * dy <= r * r;
   }
+  /* LE CHEMIN ACCUMULE, teste par PARITE DE TRAVERSEES. Le contour de
+     `platePath` est simple et ferme : la parite suffit, et elle ne suppose
+     RIEN de la forme — c'est ce qui rend la comparaison avec `inRR` honnete
+     (deux rasterisations independantes du meme trace, pas la meme deux fois). */
+  function inPoly(P, px, py) {
+    let dedans = false;
+    for (let i = 0, j = P.length - 1; i < P.length; j = i++) {
+      if ((P[i][1] > py) !== (P[j][1] > py)
+        && px < (P[j][0] - P[i][0]) * (py - P[i][1]) / (P[j][1] - P[i][1]) + P[i][0]) {
+        dedans = !dedans;
+      }
+    }
+    return dedans;
+  }
   /* un rectangle (eventuellement arrondi) EXPRIME EN COORDONNEES LOCALES,
      rasterise a travers la transformation courante : chaque pixel de la boite
      englobante est ramene en local par la transformation inverse. */
-  function fillLocal(rect, r, col, alpha, out) {
+  function fillLocal(rect, r, col, alpha, out, poly) {
     const c = hexOf(col);
     if (!c) return null;
     const a = Math.max(0, Math.min(1, alpha * c[3]));
     if (a <= 0) return null;
-    const pts = [[rect[0], rect[1]], [rect[0] + rect[2], rect[1]],
-      [rect[0], rect[1] + rect[3]], [rect[0] + rect[2], rect[1] + rect[3]]]
+    const pts = (poly || [[rect[0], rect[1]], [rect[0] + rect[2], rect[1]],
+      [rect[0], rect[1] + rect[3]], [rect[0] + rect[2], rect[1] + rect[3]]])
       .map((p) => app(S.m, p[0], p[1]));
     const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
     const x0 = Math.max(0, Math.floor(Math.min.apply(null, xs)));
@@ -2995,7 +3009,7 @@ function makeCtx(w, h) {
       for (let px = x0; px < x1; px++) {
         const lx = iv[0] * (px + 0.5) + iv[2] * (py + 0.5) + iv[4];
         const ly = iv[1] * (px + 0.5) + iv[3] * (py + 0.5) + iv[5];
-        if (!inRR(rect, r, lx, ly)) continue;
+        if (!(poly ? inPoly(poly, lx, ly) : inRR(rect, r, lx, ly))) continue;
         if (cl) {
           const gx = cl.iv[0] * (px + 0.5) + cl.iv[2] * (py + 0.5) + cl.iv[4];
           const gy = cl.iv[1] * (px + 0.5) + cl.iv[3] * (py + 0.5) + cl.iv[5];
@@ -3028,16 +3042,49 @@ function makeCtx(w, h) {
     rotate(t) { S.m = mul(S.m, [Math.cos(t), Math.sin(t), -Math.sin(t), Math.cos(t), 0, 0]); },
     setTransform(a, b, cc, d, e, f) { S.m = [a, b, cc, d, e, f]; },
     clearRect() { },
-    beginPath() { c._path = null; },
-    closePath() { }, moveTo() { }, lineTo() { }, quadraticCurveTo() { }, arcTo() { },
-    rect(x, y, ww, hh) { c._path = { r: [x, y, ww, hh], k: 0 }; },
+    beginPath() { c._path = null; c._poly = null; },
+    quadraticCurveTo() { },
+    /* ── LE CHEMIN ACCUMULE (dette « branche arcTo », 3a/3b) ────────────────
+       `platePath` a DEUX branches : `roundRect` quand la toile l'offre, et
+       quatre raccords d'arc sinon. La seconde n'avait jamais rasterise ici —
+       moveTo/arcTo/closePath etaient des coquilles vides — donc le repli
+       d'un moteur sans `roundRect` n'etait couvert par aucun pixel.
+       `arcTo` AU SENS DE LA TOILE : un raccord de rayon r tangent aux deux
+       segments P0->P1 et P1->P2. On calcule les deux points de tangence et le
+       centre, puis on aplatit l'arc en 16 cordes — c'est cette approximation,
+       et elle seule, qui autorise l'ecart de coin mesure par le test. */
+    moveTo(x, y) { c._path = null; c._poly = [[x, y]]; },
+    lineTo(x, y) { if (c._poly) c._poly.push([x, y]); },
+    arcTo(x1, y1, x2, y2, r) {
+      const P = c._poly;
+      if (!P || !P.length) return;
+      const p0 = P[P.length - 1];
+      const nz = (ax, ay) => { const L = Math.hypot(ax, ay) || 1; return [ax / L, ay / L]; };
+      const u = nz(p0[0] - x1, p0[1] - y1), v = nz(x2 - x1, y2 - y1);
+      const phi = Math.acos(Math.max(-1, Math.min(1, u[0] * v[0] + u[1] * v[1])));
+      if (!(phi > 1e-9) || !(r > 0)) { P.push([x1, y1]); return; }
+      const d = r / Math.tan(phi / 2), h = r / Math.sin(phi / 2);
+      const m = nz(u[0] + v[0], u[1] + v[1]);
+      const cx = x1 + m[0] * h, cy = y1 + m[1] * h;
+      const a0 = Math.atan2(y1 + u[1] * d - cy, x1 + u[0] * d - cx);
+      let a1 = Math.atan2(y1 + v[1] * d - cy, x1 + v[0] * d - cx);
+      if (a1 - a0 > Math.PI) a1 -= 2 * Math.PI;
+      if (a0 - a1 > Math.PI) a1 += 2 * Math.PI;
+      for (let k = 0; k <= 16; k++) {
+        const t = a0 + (a1 - a0) * k / 16;
+        P.push([cx + r * Math.cos(t), cy + r * Math.sin(t)]);
+      }
+    },
+    closePath() { if (c._poly && c._poly.length) c._poly.push(c._poly[0].slice()); },
+    rect(x, y, ww, hh) { c._poly = null; c._path = { r: [x, y, ww, hh], k: 0 }; },
     roundRect(x, y, ww, hh, rr) {
       const v = Array.isArray(rr) ? Number(rr[0]) : Number(rr);
+      c._poly = null;
       c._path = { r: [x, y, ww, hh], k: isFinite(v) ? v : 0 };
     },
     fill() {
-      if (!c._path) return;
-      fillLocal(c._path.r, c._path.k, S.fill, S.alpha);
+      if (c._path) { fillLocal(c._path.r, c._path.k, S.fill, S.alpha); return; }
+      if (c._poly && c._poly.length > 2) fillLocal(null, 0, S.fill, S.alpha, null, c._poly);
     },
     /* le damier de l'image absente peint des rectangles NUS, sans chemin. */
     fillRect(x, y, ww, hh) { fillLocal([x, y, ww, hh], 0, S.fill, S.alpha); },
@@ -3082,6 +3129,11 @@ function makeCtx(w, h) {
   ["lineWidth", "lineJoin", "miterLimit", "textAlign", "textBaseline",
     "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY",
     "globalCompositeOperation"].forEach((k) => { c[k] = null; });
+  /* UN MOTEUR SANS `roundRect` — l'etat d'un navigateur, pas un reglage du
+     produit : on RETIRE la methode du contexte, exactement comme si elle
+     n'avait jamais existe. C'est ainsi que la seconde branche de `platePath`
+     se met a peindre, sans qu'une ligne du module ait bouge. */
+  if (OPT.sans_arrondi) delete c.roundRect;
   c._buf = buf; c._texts = texts; c._labels = labels; c._draws = draws;
   c._at = (x, y) => {
     const i = ((y | 0) * w + (x | 0)) << 2;
@@ -3211,6 +3263,26 @@ function freePoint(b) {
   }
   return null;
 }
+/* L'EMPREINTE, LIGNE PAR LIGNE : pour chaque rangee de pixels de la boite, le
+   premier peint, le dernier peint, et combien. Deux traces du MEME contour
+   rendent la meme empreinte ; un repli qui derive se lit alors en pixels, a la
+   ligne pres — au lieu d'etre noye dans une empreinte globale qui dit
+   seulement « ce n'est pas identique » sans dire de combien ni ou. */
+function empreinte(b) {
+  const x0 = Math.max(0, Math.floor(b[0]) - 2);
+  const x1 = Math.min(G.canvas_px[0], Math.ceil(b[0] + b[2]) + 2);
+  const y0 = Math.max(0, Math.floor(b[1]) - 2);
+  const y1 = Math.min(G.canvas_px[1], Math.ceil(b[1] + b[3]) + 2);
+  const l = [];
+  for (let py = y0; py < y1; py++) {
+    let a = -1, z = -1, n = 0;
+    for (let px = x0; px < x1; px++) {
+      if (ctx._at(px, py)[3] > 0) { if (a < 0) a = px; z = px; n++; }
+    }
+    l.push([py, a, z, n]);
+  }
+  return l;
+}
 const rows = slots.map((s) => {
   const b = boxOf(s);
   const lib = freePoint(b);
@@ -3226,6 +3298,10 @@ const rows = slots.map((s) => {
 });
 process.stdout.write(JSON.stringify({
   hash: hs.toString(16), n_textes: ctx._texts.length, slots: rows, exceptions: boom,
+  /* `OPT.empreinte` seulement : la releve coute une passe sur la boite, et
+     les quarante autres tests de ce banc n'en ont que faire. */
+  empreinte: (OPT.empreinte && slots.length) ? empreinte(boxOf(slots[0])) : null,
+  roundRect: typeof ctx.roundRect === "function",
   /* les APPELS D'IMAGE : boite de destination demandee, opacite en vigueur, et
      le pave REELLEMENT peint (qui dit si la decoupe a mordu). */
   draws: ctx._draws, labels: ctx._labels, urls: urls,
@@ -3406,6 +3482,84 @@ def test_le_rayon_de_plaque_est_borne_par_le_painter(tmp_path):
     ))
     assert libre["slots"][0]["coin_px"][3] != 0, \
         "le rayon n'était pas borné et le banc ne le voit pas"
+
+
+# ── LA BRANCHE `arcTo` (dette 3a/3b, soldée en 3c-T6) ───────────────────────
+# `platePath` a deux branches : `roundRect` quand la toile l'offre, quatre
+# raccords d'arc sinon (Safari < 16, WebView anciennes). La seconde n'avait
+# JAMAIS rasterisé au banc — moveTo / arcTo / closePath étaient des coquilles
+# vides — donc « même tracé » n'était qu'une phrase de commentaire.
+# Le banc accumule maintenant le chemin et le remplit par parité de traversées,
+# c'est-à-dire par un rastériseur INDÉPENDANT de celui du rectangle arrondi :
+# la comparaison mesure bien deux chemins, pas deux fois le même.
+#
+# LE BUDGET A ÉTÉ DÉPASSÉ, ET C'EST DIT : le plan estimait « ≤ ~30 lignes de
+# harnais ». Mesuré après coup — 43 lignes de code pour l'accumulation seule
+# (`arcTo` au sens de la toile en pèse 20 à lui tout seul : tangentes, centre,
+# aplatissement) et 61 avec la relève d'empreinte qui la juge. Le rastériseur
+# indépendant n'est pas négociable : réutiliser `inRR` en re-déduisant le
+# rectangle depuis le chemin ferait comparer la forme à elle-même.
+
+def test_le_repli_sans_roundRect_trace_LA_MEME_PLAQUE(tmp_path):
+    """On retire `roundRect` DU CONTEXTE (l'état d'un moteur, pas un réglage
+    du produit) et l'on compare les deux empreintes, ligne par ligne.
+
+    MESURÉ, plaque 54 x 18 mm à rayon 2 mm sur poker 300 DPI (638 x 213 px,
+    rayon 23,6 px) : 135 243 pixels peints par `roundRect`, 135 242 par le
+    repli — UN pixel d'écart (0,0007 %), sur UNE seule ligne de balayage, dans
+    la bande d'un coin. Bande peinte et boîte englobante identiques au pixel.
+    L'écart vient de l'aplatissement de l'arc en 16 cordes, qui passe un cheveu
+    à l'intérieur du cercle : c'est la seule tolérance, et elle est nommée."""
+    o = {"slots": [PLAQUE_SLOT], "empreinte": True}
+    avec = _banc_plaque(tmp_path, o)
+    sans = _banc_plaque(tmp_path, dict(o, sans_arrondi=True))
+    # la BRANCHE a bien basculé : sans cette assertion, un `delete` sans effet
+    # ferait passer le test en comparant deux fois le chemin `roundRect`.
+    assert avec["roundRect"] is True and sans["roundRect"] is False
+    assert avec["hash"] != sans["hash"], "les deux branches ne peuvent pas " \
+        "rendre le MÊME octet : l'une échantillonne un cercle, l'autre 16 cordes"
+
+    a, s = avec["empreinte"], sans["empreinte"]
+    assert a and s and len(a) == len(s)
+    peintes_a = [r for r in a if r[3] > 0]
+    peintes_s = [r for r in s if r[3] > 0]
+    # 1. la BANDE peinte et la BOÎTE englobante sont les mêmes, au pixel près
+    assert (peintes_a[0][0], peintes_a[-1][0]) == (peintes_s[0][0], peintes_s[-1][0])
+    assert (min(r[1] for r in peintes_a), max(r[2] for r in peintes_a)) \
+        == (min(r[1] for r in peintes_s), max(r[2] for r in peintes_s))
+    # 2. le nombre de pixels peints ne bouge que d'un cheveu
+    pa, ps = sum(r[3] for r in a), sum(r[3] for r in s)
+    assert abs(pa - ps) <= 8, (pa, ps)
+    assert abs(pa - ps) / pa < 1e-4, (pa, ps)
+    # 3. et les lignes qui diffèrent sont DANS LES COINS, nulle part ailleurs :
+    #    un bord droit qui bougerait ne serait pas une tolérance de coin.
+    r_px = PLAQUE_SLOT["plate_radius"] / 25.4 * 300
+    haut, bas = peintes_a[0][0], peintes_a[-1][0]
+    ecarts = [x[0] for x, y in zip(a, s) if x[1:] != y[1:]]
+    assert len(ecarts) <= 4, ecarts
+    for y in ecarts:
+        assert y <= haut + r_px + 1 or y >= bas - r_px - 1, (y, haut, bas, r_px)
+
+
+def test_un_repli_QUI_NE_TRACE_PAS_LA_MEME_FORME_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : un seul des quatre raccords devient un segment
+    droit — le coin haut-droit du repli redevient CARRÉ. Le produit ne lève
+    pas, la plaque se peint encore, et seule l'empreinte le dit. Sans ce
+    mutant, la tolérance de huit pixels ci-dessus pourrait couvrir n'importe
+    quoi."""
+    o = {"slots": [PLAQUE_SLOT], "empreinte": True, "sans_arrondi": True}
+    droit = _banc_plaque(tmp_path, o, mutations=(
+        ("    ctx.arcTo(x + w, y, x + w, y + h, r);",
+         "    ctx.lineTo(x + w, y);"),))
+    ref = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT], "empreinte": True})
+    pa = sum(r[3] for r in ref["empreinte"])
+    pd = sum(r[3] for r in droit["empreinte"])
+    # un coin carré rend ~un quart de (r² - πr²/4) de plus : très au-dessus des
+    # huit pixels de tolérance, et la mesure le dit en clair.
+    assert pd - pa > 100, (pa, pd)
+    ecarts = [x[0] for x, y in zip(ref["empreinte"], droit["empreinte"])
+              if x[1:] != y[1:]]
+    assert len(ecarts) > 4, ecarts
 
 
 def test_les_quatre_gabarits_rendent_a_l_octet_pres_comme_avant(tmp_path):
