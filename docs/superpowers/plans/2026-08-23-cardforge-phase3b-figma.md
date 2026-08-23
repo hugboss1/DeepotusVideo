@@ -99,6 +99,35 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
    éléments » ou rien. Instanciation = append des slots de l'élément avec
    UNIQUIFICATION d'ids CLIENT identique à la règle serveur (norm_slots
    renomme, ne jette jamais — T3-F11) ; UNE entrée HIST par ajout.
+> **CLOSE (T3 — 0e6faf5 + ronde a2d6315/59450a7, revue adverse : FIX-FIRST
+> soldé).** La palette vit dans la barre P3 (l'overlay réécrit son innerHTML
+> à 60 Hz — un contrôle y serait recréé sous la main) ; **`CF.models` =
+> capacité de LECTURE du CORE** (patron CF.images ; le CORE cache déjà la
+> liste pour la galerie — un 2e cache P3 périmait au premier
+> enregistrer-comme-modèle), copie profonde GELÉE prouvée par banc
+> d'EXÉCUTION (écrire dans le retour jette, le cache du CORE intact — les
+> deux mutants que le pin de source ratait) ; une porte de naissance
+> `naitre` (1 HIST, plafond AVANT pushUndo — « rien à annuler » après un
+> refus), parité d'exécution normSlots vs serveur sur collisions multiples.
+> **F2 de revue = un défaut de conception 3a invisible jusqu'ici** :
+> type.preset servait DEUX vocabulaires et « arcane » collisionnait déjà
+> (le gabarit local offrait les éléments du modèle homonyme) → PROVENANCE
+> écrite à la naissance (`modele:` préfixé depuis l'id du modèle LUI-MÊME —
+> pas son champ preset, qui sur un perso porte l'origine d'un AUTRE) ;
+> les deux sens fermés par construction (ni gabarit ni _slug ne peuvent
+> contenir « : ») ; l'hérité pré-changement n'offre RIEN (deviner est ce
+> qui a produit le défaut) — dit, pas caché. F1 : Échap hissé au-dessus de
+> la garde de sélection (deck VIDE = l'état où on ouvre la palette — le
+> même défaut cachait l'Échap du sélecteur de polices, plus vieux que la
+> tâche). F3 : les deux états muets nommés (« n'est plus disponible sur ce
+> poste » ; la liste VIDE de route-absente testée bout-à-bout) ; la limite
+> R14 sur variable nue NOMMÉE + test-sentinelle (l'élargir rougirait chaque
+> class="'+cls) — l'échappement tenu au banc. Rotation T2 portée : mesure
+> 0,39 px → tolérance RESSERRÉE ±1, le mutant clip-hissé rougit. Réfutation
+> de la garde deck CONFIRMÉE par la revue (galGo navigue toujours ; même
+> hypothétiquement inoffensif : catalogue non deck-scopé, offres dérivées à
+> la peinture). 199 + 155 tests, 11/11 suites, +79 net (mod-type 5344 l.).
+
 4. **La liste de calques est P3-possédée, multi-bandes en LECTURE** :
    une section « Calques » dans le panneau P3 — les bandes fixes (papier
    z10, illustration z20, effet z30, cadre z40, décor haut z70) en rangées
