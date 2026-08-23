@@ -997,21 +997,31 @@
      de rang. Rendre `{layer, proc, mat, trs}` : c'est la seule forme que
      l'affichage ET l'édition manipulent. */
   function rowModel(graph, procId) {
-    const byId = {};
+    /* REGISTRE SANS PROTOTYPE (doctrine `sansProto`/`connu`, :2594-2619).
+       CELUI-CI EST PROPHYLACTIQUE, ET C'EST DIT : la sonde différentielle des
+       quatre registres (25 combinaisons d'id piégé × poste, plus les arêtes
+       fantômes) n'a trouvé AUCUN écart sur `rowModel` — ce que la chaîne
+       héritée rend ici est soit une fonction, soit une chaîne, jamais un objet
+       portant un `.kind` du vocabulaire, donc les gardes de `kind` rattrapent
+       tout. Les trois autres registres, eux, divergent (30 écarts mesurés).
+       On aligne quand même : la sûreté de ce code tenait à ce qu'aucun champ
+       de nœud ne soit un objet à `.kind`, ce qui n'est pas une règle écrite. */
+    const byId = sansProto();
     (graph.nodes || []).forEach((n) => { byId[n.id] = n; });
-    const proc = byId[procId];
+    const proc = connu(byId, procId) ? byId[procId] : null;
     if (!proc || PROC_KINDS.indexOf(proc.kind) < 0) return null;
     const edges = graph.edges || [];
     let layer = null;
     for (let i = 0; i < edges.length && !layer; i++) {
-      const f = byId[edges[i].from];
+      const f = connu(byId, edges[i].from) ? byId[edges[i].from] : null;
       if (edges[i].to === procId && f && f.kind === "layer") layer = f;
     }
     let mat = null, trs = null, cur = procId;
     for (let k = 0; k < CHAIN_MAX; k++) {
       let nxt = null;
       for (let i = 0; i < edges.length && !nxt; i++) {
-        const t = (edges[i].from === cur) ? byId[edges[i].to] : null;
+        const t = (edges[i].from === cur && connu(byId, edges[i].to))
+          ? byId[edges[i].to] : null;
         if (t && (t.kind === "material" || t.kind === "transform")) nxt = t;
       }
       if (!nxt) break;
@@ -5175,26 +5185,33 @@
      que l'écran ne l'ait jamais montré. On le retire — le rang affiché et le
      graphe disent alors la même chose. */
   function rewireRow(g, procId, matId, trsId, morts) {
-    const garde = {};
+    /* TROIS REGISTRES SANS PROTOTYPE, et c'est ici que le `{}` nu coûtait le
+       plus cher : `garde` protège les maillons de la chaîne réécrite. Un
+       maillon nommé « __proto__ » n'y posait AUCUNE clé propre — il était donc
+       relu comme surnuméraire et SUPPRIMÉ du graphe, c'est-à-dire que la
+       matière que l'utilisateur venait de poser disparaissait. Symétriquement
+       `off`/`purge` déclaraient morts, sans que rien ne les y ait mis, tout
+       nœud ou toute arête nommés « constructor » / « toString ». */
+    const garde = sansProto();
     if (matId) garde[matId] = 1;
     if (trsId) garde[trsId] = 1;
     /* LES SURNUMÉRAIRES QUITTENT LE GRAPHE — eux seuls. `morts`, lui, ne
        purge que des ARÊTES : son nœud a déjà été retiré par l'appelant, et
        il porte aussi l'id d'un maillon qui vient de NAÎTRE (le retirer ici
        effacerait la matière que l'utilisateur vient de poser). */
-    const surnum = maillonsAval(g, procId).filter((id) => !garde[id]);
+    const surnum = maillonsAval(g, procId).filter((id) => !connu(garde, id));
     if (surnum.length) {
-      const off = {};
+      const off = sansProto();
       surnum.forEach((id) => { off[id] = 1; });
-      g.nodes = (g.nodes || []).filter((n) => !off[n.id]);
+      g.nodes = (g.nodes || []).filter((n) => !connu(off, n.id));
     }
-    const purge = {};
+    const purge = sansProto();
     (morts || []).forEach((id) => { if (id) purge[id] = 1; });
     surnum.forEach((id) => { purge[id] = 1; });
     if (matId) purge[matId] = 1;
     if (trsId) purge[trsId] = 1;
     g.edges = (g.edges || []).filter((e) => !(
-      e.from === procId || purge[e.from] || purge[e.to]));
+      e.from === procId || connu(purge, e.from) || connu(purge, e.to)));
     const asm = (g.nodes || []).filter((n) => n.kind === "assemble")[0];
     const suite = [procId];
     if (matId) suite.push(matId);
@@ -5216,17 +5233,21 @@
      l'intention de LA rangée éditée, et `clean_graph` comme le bordereau
      `ignored` avouent le reste. */
   function maillonsAval(g, procId) {
-    const byId = {};
+    /* DEUX REGISTRES SANS PROTOTYPE. `vus` est le garde-fou du balayage : sur
+       un `{}` nu, « constructor » y était vu AVANT d'avoir été visité (le
+       maillon n'était jamais rendu) et « __proto__ » n'y entrait JAMAIS (le
+       maillon était re-poussé à chaque tour et manquait à `Object.keys`). */
+    const byId = sansProto();
     (g.nodes || []).forEach((n) => { byId[n.id] = n; });
-    const vus = {};
+    const vus = sansProto();
     let front = [procId];
     for (let k = 0; k < CHAIN_MAX && front.length; k++) {
       const suiv = [];
       (g.edges || []).forEach((e) => {
         if (front.indexOf(e.from) < 0) return;
-        const t = byId[e.to];
+        const t = connu(byId, e.to) ? byId[e.to] : null;
         if (!t || (t.kind !== "material" && t.kind !== "transform")) return;
-        if (vus[t.id]) return;
+        if (connu(vus, t.id)) return;
         vus[t.id] = 1;
         suiv.push(t.id);
       });
@@ -5239,12 +5260,21 @@
      [A-Za-z0-9._-] et tronque à 24) : le fabriquer déjà conforme évite qu'un
      nettoyage serveur ne renomme un nœud dont nos arêtes parlent encore. */
   function freeId(nodes, base) {
-    const pris = {};
+    /* REGISTRE SANS PROTOTYPE, et l'accident MESURÉ va dans un seul sens —
+       le contraire de ce qu'on attendrait. Sur un `{}` nu, « libre ? » se
+       lisait en accès nu : un id que PERSONNE ne porte (« constructor »,
+       « __proto__ ») était déclaré PRIS, et le compteur rendait
+       « constructor2 ». L'inverse — rendre libre un id pris — ne se produit
+       PAS : `pris["__proto__"] = 1` ne pose aucune clé propre, mais la
+       relecture traverse l'accesseur et rend Object.prototype, qui est vrai.
+       Deux fautes qui s'annulent ne sont pas une garantie : ici la clé est
+       une clé, et la réponse ne dépend plus d'un hasard de la chaîne. */
+    const pris = sansProto();
     (nodes || []).forEach((n) => { pris[n.id] = 1; });
     const racine = String(base).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 20) || "n";
-    if (!pris[racine]) return racine;
+    if (!connu(pris, racine)) return racine;
     for (let k = 2; k < 500; k++) {
-      if (!pris[racine + k]) return racine + k;
+      if (!connu(pris, racine + k)) return racine + k;
     }
     /* M5 — inatteignable, et pour la bonne raison : ce ne sont pas les
        ÉLÉMENTS (`graph_limits.max_elements`, le plafond métier appliqué APRÈS

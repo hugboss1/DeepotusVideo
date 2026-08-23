@@ -7248,24 +7248,109 @@ dit("un export n'a pas de sortie", aEntree("export") && !aSortie("export"));
 dit("la chaine attendue se lit", chaineAttendue().indexOf("→") > 0,
     chaineAttendue());
 
+/* 8. LES QUATRE REGISTRES, JOUES AVEC DES IDS QUE `clean_graph` AUTORISE
+      (dette 2c-N4, soldee en 3c-T6). L'alphabet d'id du backend est
+      [A-Za-z0-9._-] : « constructor », « toString » et « __proto__ » en font
+      partie. Sur un registre `{}` NU, ces noms-la ne se comportent pas comme
+      des cles — la sonde differentielle a mesure 30 ecarts sur trois des
+      quatre registres. Ce qui suit joue le RESULTAT VISIBLE, pas la forme du
+      registre : un grep de `sansProto` serait un cliquet, pas une preuve. */
+const PIEGES = ["__proto__", "constructor", "toString"];
+PIEGES.forEach((nom) => {
+  /* (a) LE MAILLON MATIERE porte le nom piege. */
+  const H = { nodes: [
+    { id: "s1", kind: "layer", role: "cadre", side: "front" },
+    { id: "p1", kind: "plane", depth_mm: 0.35 },
+    { id: nom, kind: "material", mat: "aaa", finish: "aucune" },
+    { id: "r1", kind: "transform", x_mm: 0, y_mm: 0, z_mm: 0.35, rot_deg: 0, scale: 1 },
+    { id: "asm", kind: "assemble" }],
+    edges: [{ from: "s1", to: "p1" }, { from: "p1", to: nom },
+      { from: nom, to: "r1" }, { from: "r1", to: "asm" }] };
+  const rH = rowModel(H, "p1");
+  dit("rowModel lit la chaine dont la matiere s'appelle " + nom,
+      !!rH && !!rH.layer && rH.layer.id === "s1" && !!rH.mat && rH.mat.id === nom
+      && !!rH.trs && rH.trs.id === "r1",
+      J(rH && { l: rH.layer && rH.layer.id, m: rH.mat && rH.mat.id,
+                t: rH.trs && rH.trs.id }));
+  /* le balayage aval doit VOIR les deux maillons : sur un `{}`, « __proto__ »
+     n'entrait jamais dans `vus` (donc manquait a Object.keys) et
+     « constructor » y etait vu AVANT d'avoir ete visite (donc jamais pousse) —
+     dans les deux cas la reponse mesuree etait la LISTE VIDE. */
+  dit("maillonsAval voit les DEUX maillons quand l'un s'appelle " + nom,
+      J(maillonsAval(H, "p1").slice().sort()) === J([nom, "r1"].slice().sort()),
+      J(maillonsAval(H, "p1")));
+  /* et le degat qui se voit a l'ecran : `garde` protege le maillon de la
+     chaine reecrite. Sur un `{}`, il ne le protegeait pas — la matiere que
+     l'utilisateur venait de poser QUITTAIT le graphe. */
+  const gH = clone(H);
+  /* un maillon SURNUMERAIRE en eventail (la topologie N5 : un graphe charge a
+     la main). C'est lui qui remplit `off` — et sur un `{}`, `off` declarait
+     morts, sans que personne ne les y ait mis, tous les nœuds nommes comme une
+     propriete d'Object.prototype. */
+  gH.nodes.push({ id: "m2", kind: "material", mat: "bbb", finish: "aucune" });
+  gH.edges.push({ from: "p1", to: "m2" });
+  rewireRow(gH, "p1", nom, "r1");
+  dit("rewireRow GARDE le maillon " + nom + " dans le graphe",
+      (gH.nodes || []).some((n) => n.id === nom),
+      J((gH.nodes || []).map((n) => n.id)));
+  dit("... et lache le surnumeraire m2, LUI SEUL (" + nom + ")",
+      !(gH.nodes || []).some((n) => n.id === "m2")
+      && (gH.nodes || []).length === 5, J((gH.nodes || []).map((n) => n.id)));
+  dit("... et la chaine reecrite est bien s1>p1>" + nom + ">r1>asm",
+      J(aretes(gH)) === J(["s1>p1", "p1>" + nom, nom + ">r1", "r1>asm"].sort()),
+      J(aretes(gH)));
+  /* (b) LA COUCHE porte le nom piege : c'est l'arete SOURCE qui saute. Une
+     rangee sans couche n'a plus de rang (`graphRows`) — elle disparait de la
+     liste au moment ou l'on edite un de ses champs. */
+  const HL = { nodes: [
+    { id: nom, kind: "layer", role: "cadre", side: "front" },
+    { id: "p1", kind: "plane", depth_mm: 0.35 },
+    { id: "m1", kind: "material", mat: "aaa", finish: "aucune" },
+    { id: "asm", kind: "assemble" }],
+    edges: [{ from: nom, to: "p1" }, { from: "p1", to: "m1" },
+      { from: "m1", to: "asm" }] };
+  const gL = clone(HL);
+  rewireRow(gL, "p1", "m1", null);
+  dit("rewireRow ne coupe pas la couche " + nom + " de son traitement",
+      (gL.edges || []).some((e) => e.from === nom && e.to === "p1"), J(aretes(gL)));
+  dit("... donc la rangee garde son rang apres edition (" + nom + ")",
+      graphRows(gL).length === 1, J(graphRows(gL).length));
+  /* (c) `freeId` : un id que PERSONNE ne porte est LIBRE, meme s'il est un nom
+     d'Object.prototype. Mesure : le `{}` rendait « constructor2 ». */
+  dit("freeId rend " + nom + " quand aucun nœud ne le porte",
+      freeId([{ id: "s1" }, { id: "p1" }], nom) === nom,
+      freeId([{ id: "s1" }, { id: "p1" }], nom));
+  dit("... et ne le rend PAS quand un nœud le porte deja",
+      freeId(H.nodes, nom) !== nom, freeId(H.nodes, nom));
+});
+
 process.stdout.write(JSON.stringify(out));
 """
 
 
-def _banc_chaines(tmp_path) -> list:
-    """Fait tourner les VRAIES fonctions de chaine de `mod-forge3d.js`."""
+def _banc_chaines(tmp_path, mutations=()) -> list:
+    """Fait tourner les VRAIES fonctions de chaine de `mod-forge3d.js`.
+
+    `mutations` casse une protection AVANT extraction (sur la copie, jamais
+    sur le dépôt) : un pin qui passerait aussi sur le code cassé ne prouverait
+    rien. Les ancres portent sur le code COMMENTAIRES RETIRÉS — la source est
+    dépouillée avant, exactement comme pour l'extraction."""
     import shutil
     node = shutil.which("node")
     if not node:
         pytest.skip("node absent : le harnais de chaines ne peut pas tourner")
     src = re.sub(r"/\*.*?\*/", " ", JS.read_text(encoding="utf-8"), flags=re.S)
+    for avant, apres in mutations:
+        assert avant in src, f"mutation introuvable : {avant!r}"
+        assert src.count(avant) == 1, f"mutation ambigue : {avant!r}"
+        src = src.replace(avant, apres)
     morceaux = [_js_decl(src, "PROC_KINDS"), _js_decl(src, "CHAIN_MAX"),
                 _js_decl(src, "KIND_LABELS"), _js_decl(src, "GRAMMAIRE"),
                 _js_decl(src, "ROWS_MEMO", "let")]
     for nom in ("connu", "sansProto", "kindLabel", "rowModel", "graphRows",
                 "rowsDe", "rowDuNoeud", "lienValide", "aEntree", "aSortie",
                 "chaineAttendue", "chaineDe", "surnumeraire", "grapheAvecLien",
-                "grapheSansLien", "maillonsAval", "rewireRow"):
+                "grapheSansLien", "maillonsAval", "rewireRow", "freeId"):
         morceaux.append(_js_fn(src, nom))
     js = tmp_path / "banc_chaines.js"
     js.write_text("\n".join(morceaux) + "\n" + _BANC_CHAINES, encoding="utf-8")
@@ -8685,7 +8770,79 @@ def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
     # (une exception avalee, une section commentee) passerait sinon en vert
     # sans rien mesurer. Le chiffre exact, lui, n'a pas a etre gele — en
     # figer un condamnerait chaque cas ajoute a toucher deux endroits.
-    assert len(cas) >= 28, len(cas)
+    # (plancher 28 pour 35 cas avant la 3c-T6 ; la section des ids piégés en
+    # ajoute 27 — 62 au total, la marge relative est gardée.)
+    assert len(cas) >= 52, len(cas)
+
+
+# ── LA DETTE 2c-N4 : LES QUATRE REGISTRES NUS ────────────────────────────────
+# Les trois mutants ci-dessous remettent un registre `{}` NU là où le module
+# pose maintenant `sansProto()`. Chacun doit faire ROUGIR au moins un cas de la
+# section 8 — sinon le pin ne mesure rien.
+#
+# LE QUATRIÈME REGISTRE (`rowModel`) N'A PAS DE MUTANT, ET C'EST MESURÉ, PAS
+# OUBLIÉ : une sonde différentielle (les deux versions rejouées sur 25
+# combinaisons d'id piégé × poste de la chaîne, plus les arêtes fantômes) rend
+# 30 écarts — 0 pour `rowModel`, 30 pour les trois autres. Ce que la chaîne de
+# prototypes livre dans `rowModel` est une fonction ou une chaîne de
+# caractères, jamais un objet portant un `.kind` du vocabulaire : les gardes de
+# `kind` rattrapent tout. Le registre est aligné quand même (sa sûreté reposait
+# sur « aucun champ de nœud n'est un objet à `.kind` », ce qui n'est écrit
+# nulle part) — mais l'alignement est PROPHYLACTIQUE et c'est dit ici plutôt
+# que couvert par un mutant qui survivrait en silence.
+
+# Chaque mutant est le RETOUR EXACT à la dette : le registre nu ET la lecture
+# nue. Ne remettre que le registre laisserait `connu()` faire le travail
+# (`hasOwnProperty` répond juste même sur un `{}`) et seul « __proto__ »
+# rougirait — un demi-mutant qui donne une demi-mesure.
+MUT_N4 = [
+    ("rewireRow (garde/off/purge)", (
+        ("const garde = sansProto();", "const garde = {};"),
+        ("const surnum = maillonsAval(g, procId).filter((id) => !connu(garde, id));",
+         "const surnum = maillonsAval(g, procId).filter((id) => !garde[id]);"),
+        ("const off = sansProto();", "const off = {};"),
+        ("g.nodes = (g.nodes || []).filter((n) => !connu(off, n.id));",
+         "g.nodes = (g.nodes || []).filter((n) => !off[n.id]);"),
+        ("const purge = sansProto();", "const purge = {};"),
+        ("e.from === procId || connu(purge, e.from) || connu(purge, e.to)));",
+         "e.from === procId || purge[e.from] || purge[e.to]));"),
+    )),
+    ("maillonsAval (byId/vus)", (
+        ("const byId = sansProto();\n    (g.nodes || []).forEach((n) => { byId[n.id] = n; });",
+         "const byId = {};\n    (g.nodes || []).forEach((n) => { byId[n.id] = n; });"),
+        ("const vus = sansProto();\n    let front = [procId];",
+         "const vus = {};\n    let front = [procId];"),
+        ("const t = connu(byId, e.to) ? byId[e.to] : null;",
+         "const t = byId[e.to];"),
+        ("if (connu(vus, t.id)) return;", "if (vus[t.id]) return;"),
+    )),
+    ("freeId (pris)", (
+        ("const pris = sansProto();\n    (nodes || []).forEach((n) => { pris[n.id] = 1; });",
+         "const pris = {};\n    (nodes || []).forEach((n) => { pris[n.id] = 1; });"),
+        ("if (!connu(pris, racine)) return racine;", "if (!pris[racine]) return racine;"),
+        ("if (!connu(pris, racine + k)) return racine + k;",
+         "if (!pris[racine + k]) return racine + k;"),
+    )),
+]
+
+
+@pytest.mark.parametrize("quoi,muts", MUT_N4, ids=[m[0] for m in MUT_N4])
+def test_un_registre_NU_rougit_sur_un_id_de_Object_prototype(tmp_path, quoi,
+                                                             muts):
+    """MUTATION DE CONTRÔLE de la dette N4. `clean_graph` désinfecte les ids
+    sur [A-Za-z0-9._-] : « constructor », « toString » et « __proto__ » passent
+    la porte. Sur un registre `{}` lu en accès nu, ces noms ne sont pas des
+    clés — c'est la chaîne de prototypes qui répond à leur place. Chaque mutant
+    remet UN des trois registres à l'état de dette et doit faire rougir la
+    section 8, sur PLUSIEURS des trois noms piégés."""
+    cas = _banc_chaines(tmp_path, mutations=muts)
+    rates = [c["nom"] for c in cas if not c["ok"]]
+    assert rates, f"{quoi} : le registre nu est passé — le pin ne mord pas"
+    # et il mord sur plus d'un nom : un mutant qui ne rougirait que sur
+    # « __proto__ » laisserait croire que « constructor » est inoffensif.
+    noms = {p for p in ("__proto__", "constructor", "toString")
+            if any(p in r for r in rates)}
+    assert len(noms) >= 2, (quoi, rates)
 
 
 if __name__ == "__main__":
