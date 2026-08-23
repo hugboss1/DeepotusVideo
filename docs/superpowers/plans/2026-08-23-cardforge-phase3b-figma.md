@@ -235,6 +235,24 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 > boîte), que le panneau continue de le régler, et que la flèche fait bien
 > 1 mm / 0,2 mm à la main.
 
+> **CLOSE (T1 — dbfdbb9 + fast-follow 71028c5, revue : MERGEABLE AS-IS,
+> régression R14 rattrapée).** Le verrou est un NON-DÉPART (0 écouteur posé,
+> rien à dépiler — prouvé par la sonde « entrée fantôme » du réviseur : un
+> vrai drag + un refusé + UN SEUL Ctrl+Z = retour complet) ; nudge 1/0,2 ;
+> soloClone à byte-égalité PROUVÉE en ouvrant la fermeture. **R14 passé du
+> nom au SINK** (+65 fonctions, 11 vraies fautes corrigées dans 3 modules) —
+> puis la revue a montré que l'exigence de guillemet faisait tomber à ZÉRO
+> la détection d'attribut non cité (pire que l'ancien état dans les
+> fonctions nommées) : rattrapé par un SECOND motif dont le discriminateur
+> est LE CHEVRON (dernier `<` après dernier `>` = l'interpolation tombe dans
+> une balise ouverte) — différentiel : aucune classe perdue, le non-cité vu
+> partout, les 5 faux positifs de prose propres (épinglés SUR leurs lignes,
+> avec leur présence assertée pour que le pin ne se vide pas), limite
+> résiduelle (2e attribut nu d'une même balise multi-fragments) écrite dans
+> la règle. Le verrou ne gate JAMAIS le panneau (pinned : `patchSlot` sans
+> `lock` — une garde là enfermerait le bloc pour de bon). 122 tests,
+> 11/11 suites, lint 0 à 0,52 s.
+
 ### Task 2 : le calque d'image (kind + route + painter + éditeur)
 
 **Files:** mod-type.js, type.py, test_cards_type.py (+ mod-type.css).
