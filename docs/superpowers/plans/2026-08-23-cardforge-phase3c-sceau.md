@@ -348,6 +348,49 @@ la T2 :
   au banc, `Math.random`, phase 0,71, clip retiré, portée écran ignorée,
   graine constante.
 
+> **CLOSE (T1 — ad7d9e2 + ronde 4bec4af, revue adverse : FIX-FIRST soldé).**
+> Le Sceau écran vit : seal 29e clé (1er sous-objet, alias DEFAULTS fermé —
+> muté, il corrompait le SCHÉMA), peintre déterministe phase 0.35 (12 puis
+> 8 mutations tuées, byte-identité par traces d'ops — la grille FNV ne peut
+> pas juger un recto plein), graine = FNV(card.id) avec LA PHRASE VRAIE
+> (« l'identité suit la carte SI une colonne id est mappée » — 4/4 vs 0/4
+> mesurés ; le test épingle le FAIT dont la phrase dépend : si data.py
+> stabilise ses ids, il rougit et la phrase se réécrit dans le bon sens),
+> BANC_EMPILEMENT = première couverture exécutable du §4.2 (l'amendement :
+> ce n'est pas overlay seul, c'est la frange d'anticrénelage + le zéro
+> strict). Ronde : le PLANCHER s'applique au résultat cappé (bande 0,01 mm
+> dessinée+publiée AVANT — l'écran qui dessine ce que la presse rejette),
+> comparé NON arrondi avec l'appel IEEE écrit (« le doute tombe du côté du
+> refus ») ; l'aperçu-pointeur REPORTÉ à la source (sealStops prend déjà la
+> phase — le branchement seul manque) ; melange refuse les blends inconnus ;
+> null = défaut des deux côtés ; parité élargie aux LARGEURS (le nombre que
+> le cap change) ; bannière/bande re-mesuré : 0,0 % au défaut, écrit ainsi.
+> 188 tests, net +422 déclaré. **Hérité par T2, écrit** : l'anneau défaut à
+> 1,6 mm est DANS la zone ≥3,2 mm du foil — l'écran devra DIRE le remède.
+
+> **CLOSE (T3 — 592ce41/a9b5bc1 + ronde e076754, revue adverse : FIX-FIRST
+> soldé).** Les motifs incrustés vivent : min-avant-gain rendant l'ordre
+> porteur (les alternatives commutatives vérifiées à la main), cache
+> explicite borné sur empreintes (le lru_cache RETIENT ses arguments — une
+> image de deck vivrait à jamais), arc-en-ciel caché à part (412→36 ms),
+> **Pearson r=0,606 sur le GLB LIVRÉ** (0,161 sous le mutant non-borné),
+> sha des OCTETS recalculé par build (le papier écrasé en place → nouvelle
+> clé), la transparence PNG-8 palette attrapée en couture. Ronde : la
+> PROSE remise à la mesure (à gain 1,0 — LE défaut — l'opérateur
+> s'effondrait dans la somme commutative désavouée : identité de
+> permutation ÉPINGLÉE comme fait) ; le défaut passé à 0,5 (blanc
+> plein-cadre à 1,0 → UN niveau, les franges disparaissaient — et 0,5
+> répare la SUBSTANCE de F1 : le défaut exhibe désormais l'ordre) ; un
+> calque mort ne coûte plus LA FINITION et garde son nom ; fullmatch (le
+> piège une 3e fois) ; l'« ondulation normale douce » NON livrée AVOUÉE au
+> plan (la seule clause sans aveu). **scope.mesh câblé** : « le Sceau
+> remplit le silence, il ne couvre jamais une parole dite » — l'explicite
+> gagne Y COMPRIS échoué (substituer cacherait la faute) ; l'aveu au
+> bordereau, le Sceau écarté à ignored (l'invariant 2c) ; un cadre porté
+> par un nœud MOTEUR ne peut pas le recevoir — muet avant, avoué. Leçon :
+> un grep de prose est un cliquet, pas une preuve (ré-ancré sur l'égalité
+> écrite en toutes lettres). 123 tests, 10 mutants.
+
 ### Task 2 : le masque de foil (P7)
 
 **Files:** print.py, frame.py (miroir seal mm), mod-print.js (l'état/les
