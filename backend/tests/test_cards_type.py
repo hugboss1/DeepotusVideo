@@ -3520,9 +3520,82 @@ function ctx2d() {
   return c;
 }
 
+/* ── UN VRAI `querySelectorAll`, SUR LE HTML QUE LE MODULE VIENT D'ECRIRE ──
+   LE TROU QUE CECI BOUCHE (consigne en 3b-T4) : `querySelectorAll` rendait []
+   de paille. Or `renderList` ECRIT son HTML puis va CHERCHER ses rangees pour
+   y brancher l'oeil, le cadenas, l'ordre, la corbeille et le glisser. Avec un
+   [] , aucun de ces cinq ecouteurs n'etait jamais pose : le banc mesurait la
+   PRESENCE des classes dans une chaine de caracteres, et rien du geste.
+   Ce qui suit est le strict necessaire pour ce cablage-la : un analyseur de
+   balises, des selecteurs `.classe` et `balise`, un `closest` qui remonte par
+   le parent. Ce n'est pas un DOM — c'est de quoi retrouver un bouton et
+   appuyer dessus. L'arbre est REBATI a chaque ecriture d'`innerHTML` : une
+   repeinture jette les anciens nœuds avec leurs ecouteurs, exactement comme
+   un vrai navigateur. */
+const VIDES = { br: 1, hr: 1, img: 1, input: 1, meta: 1, link: 1 };
+const ENTITES = { "&quot;": '"', "&amp;": "&", "&lt;": "<", "&gt;": ">", "&#39;": "'" };
+const deent = (s) => String(s == null ? "" : s)
+  .replace(/&(?:quot|amp|lt|gt|#39);/g, (m) => ENTITES[m]);
+function matche(n, sel) {
+  const s = String(sel).trim();
+  if (!s) return false;
+  if (s.charAt(0) === ".") return n._cls.has(s.slice(1));
+  return n.tagName === s.toUpperCase();
+}
+function noeud(tag, attrs) {
+  const n = { tagName: String(tag).toUpperCase(), kids: [], dataset: {}, style: {},
+    listeners: {}, _cls: new Set(), parent: null, value: "", textContent: "" };
+  String(attrs || "").replace(/([\w:-]+)(?:="([^"]*)")?/g, (m, k, v) => {
+    if (k === "class") String(v || "").split(/\s+/).forEach((c) => { if (c) n._cls.add(c); });
+    else if (k.slice(0, 5) === "data-") {
+      n.dataset[k.slice(5).replace(/-(\w)/g, (x, c) => c.toUpperCase())] = deent(v);
+    }
+    return m;
+  });
+  n.classList = {
+    add: (c) => n._cls.add(c), remove: (c) => n._cls.delete(c),
+    contains: (c) => n._cls.has(c),
+    toggle: (c, v) => { const on = (v === undefined) ? !n._cls.has(c) : !!v;
+      if (on) n._cls.add(c); else n._cls.delete(c); },
+  };
+  n.addEventListener = (t, fn) => { (n.listeners[t] = n.listeners[t] || []).push(fn); };
+  n.removeEventListener = (t, fn) => {
+    const a = n.listeners[t] || [], i = a.indexOf(fn);
+    if (i >= 0) a.splice(i, 1);
+  };
+  n.tous = () => n.kids.reduce((a, k) => a.concat([k], k.tous()), []);
+  n.querySelectorAll = (sel) => n.tous().filter((k) => matche(k, sel));
+  n.querySelector = (sel) => n.querySelectorAll(sel)[0] || null;
+  n.closest = (sel) => { let c = n; while (c) { if (matche(c, sel)) return c; c = c.parent; } return null; };
+  n.contains = (c) => n.tous().indexOf(c) >= 0;
+  n.setAttribute = () => { }; n.removeAttribute = () => { };
+  n.focus = () => { }; n.blur = () => { }; n.click = () => { };
+  n.scrollIntoView = () => { }; n.remove = () => { n._out = true; };
+  n.appendChild = (c) => { n.kids.push(c); return c; };
+  n.getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0 });
+  return n;
+}
+function arbre(html) {
+  const racine = noeud("div", "");
+  const pile = [racine];
+  const re = /<(\/)?([a-zA-Z][\w-]*)((?:\s+[\w:-]+(?:="[^"]*")?)*)\s*(\/)?>/g;
+  let m;
+  while ((m = re.exec(String(html || "")))) {
+    if (m[1]) { if (pile.length > 1) pile.pop(); continue; }
+    const n = noeud(m[2], m[3]);
+    n.parent = pile[pile.length - 1];
+    n.parent.kids.push(n);
+    if (!m[4] && !VIDES[m[2].toLowerCase()]) pile.push(n);
+  }
+  return racine;
+}
+
 /* UN ELEMENT DE PAILLE. `querySelector` MEMORISE : le même sélecteur rend
    toujours le même objet, sans quoi on ne pourrait pas relire ce que le module
-   vient d'écrire dedans (c'est ainsi qu'on lit la liste des blocs). */
+   vient d'écrire dedans (c'est ainsi qu'on lit la liste des blocs). Il reste
+   memorise — c'est par lui que le banc atteint les CONTENEURS. Seul
+   `querySelectorAll` lit vraiment le HTML : c'est le seul dont le module se
+   sert pour cabler des elements qu'il vient d'ecrire. */
 function elm(tag) {
   const cache = {}, cls = new Set(), lis = {};
   /* LES OBSERVATEURS DE CLASSE. Node n'a pas de `MutationObserver` : sans ce
@@ -3554,7 +3627,13 @@ function elm(tag) {
     remove() { e._out = true; }, focus() { }, blur() { }, click() { }, scrollIntoView() { },
     getContext: () => ctx2d(),
     querySelector(sel) { return (cache[sel] = cache[sel] || elm("div")); },
-    querySelectorAll() { return []; },
+    /* L'ARBRE EST REBATI A CHAQUE ECRITURE (`_arbre` remis a null par le
+       setter d'`innerHTML`) : deux `renderList` de suite rendent deux jeux de
+       rangees distincts, avec leurs propres ecouteurs. */
+    querySelectorAll(sel) {
+      if (!e._arbre) e._arbre = arbre(e._h);
+      return e._arbre.querySelectorAll(sel);
+    },
     closest() { return null; },
     /* la fermeture au clic dehors demande `contains` : sans lui, le popover
        de la palette lèverait au premier pointerdown du document. */
@@ -3565,7 +3644,7 @@ function elm(tag) {
      une garde qu'on peut retirer sans que rien ne rougisse : c'est le seul moyen
      de dire « deux peintures du MÊME état n'ont écrit qu'une fois ». */
   Object.defineProperty(e, "innerHTML", { get: () => e._h,
-    set: (v) => { e._h = String(v); e._n = (e._n || 0) + 1; } });
+    set: (v) => { e._h = String(v); e._n = (e._n || 0) + 1; e._arbre = null; } });
   Object.defineProperty(e, "className", { get: () => "", set() { } });
   return e;
 }
@@ -3709,9 +3788,79 @@ function menus() {
   return CORPS.filter((e) => String(e._h).indexOf("cf-type-mi") >= 0
     || String(e._h).indexOf("cf-type-paln") >= 0);
 }
+/* LA PILE D'ANNULATION, ouverte par mutation (patron `__solo`). Un geste de
+   rangee doit poser UNE entree, pas zero (rien a annuler) ni deux (deux
+   Ctrl+Z pour defaire un clic). Sans ce compteur, « une entree par geste »
+   ne se prouve pas — c'est du texte dans un commentaire. */
+const undoN = () => (globalThis.__undo ? globalThis.__undo() : null);
+/* LES RANGEES QUE `renderList` VIENT D'ECRIRE, retrouvees par leur `data-id`
+   comme le ferait une main sur l'ecran (jamais par indice : l'ordre est
+   justement ce que « monter / descendre » et le glisser deplacent). */
+function rangees() {
+  return HOSTE.querySelector(".cf-type-list").querySelectorAll(".cf-type-row");
+}
+function rangee(id) {
+  return rangees().filter((r) => r.dataset.id === id)[0] || null;
+}
 const traces = [];
 for (const a of (OPT.actes || [])) {
-  if (a.t === "down") {
+  if (a.t === "rangee") {
+    /* UN BOUTON DE RANGEE, JOUE. On appuie sur l'ECOUTEUR QUE LE MODULE A
+       POSE — pas sur une fonction choisie a la main : si `renderList` cessait
+       de cabler ce bouton, `cable` tomberait a faux et le test le dirait. */
+    const row = rangee(a.id);
+    let cible = null;
+    if (row) {
+      cible = (a.b === "mv")
+        ? row.querySelectorAll(".cf-type-mv").filter((b) => b.dataset.d === String(a.d))[0]
+        : row.querySelector(".cf-type-" + a.b);
+    }
+    const fn = cible && (cible.listeners.click || [])[0];
+    const avP = PATCHS.length, avU = undoN();
+    if (fn) fn({ target: cible, currentTarget: cible, preventDefault() { } });
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "rangee", id: a.id, b: a.b, d: a.d === undefined ? null : a.d,
+      trouve: !!row, cable: !!fn, patchs: PATCHS.length - avP,
+      undo: (avU == null || undoN() == null) ? null : undoN() - avU });
+  } else if (a.t === "ligne") {
+    /* LE CLIC SUR LA LIGNE, pas sur un bouton : il ne fait que DESIGNER. La
+       garde du module (`e.target.closest("button")`) est jouee pour de vrai —
+       `bouton: true` fait passer la cible pour un bouton de la rangee. */
+    const row = rangee(a.id);
+    const cible = a.bouton ? (row && row.querySelector(".cf-type-eye")) : row;
+    const fn = row && (row.listeners.click || [])[0];
+    const avP = PATCHS.length;
+    if (fn) fn({ target: cible || row, preventDefault() { } });
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "ligne", id: a.id, bouton: !!a.bouton, cable: !!fn,
+      patchs: PATCHS.length - avP });
+  } else if (a.t === "drag") {
+    /* LE GLISSER-DEPOSER, dans son ordre reel : dragstart sur la rangee de
+       depart, dragover puis drop sur celle d'arrivee. LE PRESSE-PAPIER est de
+       paille mais il est le SEUL canal — le drop ne sait qui bouge que par ce
+       qu'il y relit. Et `preventDefault` est compte : sans lui, un vrai
+       navigateur refuse le depot, donc son absence serait un defaut MUET. */
+    const de = rangee(a.from), vers = rangee(a.to);
+    let charge = "", prev = 0;
+    const dt = { setData: (t, v) => { charge = String(v); }, getData: () => charge,
+      effectAllowed: "" };
+    const ev = (c) => ({ dataTransfer: dt, target: c, preventDefault() { prev++; } });
+    const ds = de && (de.listeners.dragstart || [])[0];
+    const dov = vers && (vers.listeners.dragover || [])[0];
+    const dr = vers && (vers.listeners.drop || [])[0];
+    const avP = PATCHS.length, avU = undoN();
+    if (ds) ds(ev(de));
+    const glisse = !!(de && de.classList.contains("drag"));
+    if (dov) dov(ev(vers));
+    const survol = !!(vers && vers.classList.contains("over"));
+    if (dr) dr(ev(vers));
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "drag", from: a.from, to: a.to,
+      cable: !!(ds && dov && dr), charge: charge, glisse: glisse, survol: survol,
+      relache: !!(vers && vers.classList.contains("over")), prevent: prev,
+      patchs: PATCHS.length - avP,
+      undo: (avU == null || undoN() == null) ? null : undoN() - avU });
+  } else if (a.t === "down") {
     onDown(ptr(a.id, a.x || 0, a.y || 0, a.h));
     /* LA TRACE QUI COMPTE : un glisser qui DEMARRE branche un pointermove sur
        le calque. Zero ecouteur = aucun geste n'a commence. */
@@ -3860,6 +4009,22 @@ process.stdout.write(JSON.stringify({
      jamais eu — un banc qui n'ouvre pas de menu ne dit rien sur sa fermeture. */
   ferme: (() => { const l = menus(); return l.length ? !!l[l.length - 1]._out : null; })(),
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
+  /* LES RANGEES, RELUES SUR LES ELEMENTS et non dans la chaine : leur ORDRE
+     (c'est lui que « monter / descendre » et le glisser deplacent), l'etat de
+     l'oeil et du cadenas, et le compte des commandes reellement cablees. */
+  rangees: rangees().map((r) => {
+    const oeil = r.querySelector(".cf-type-eye");
+    const cad = r.querySelector(".cf-type-lock");
+    return { id: r.dataset.id, off: r._cls.has("off"), sel: r._cls.has("on"),
+      lock: !!cad && cad._cls.has("on"),
+      cable: [oeil, cad, r.querySelector(".cf-type-del")]
+        .filter((b) => b && (b.listeners.click || []).length).length
+        + r.querySelectorAll(".cf-type-mv")
+          .filter((b) => (b.listeners.click || []).length).length,
+      gestes: ["click", "dragstart", "dragover", "drop"]
+        .filter((t) => (r.listeners[t] || []).length).length };
+  }),
+  undo: undoN(),
   /* LA LISTE DE CALQUES : les deux conteneurs de bandes fixes, ce qu'ils
      portent et COMBIEN DE FOIS on les a écrits ; les pièces demandées ; le
      nombre total d'écritures au document. */
@@ -6749,6 +6914,189 @@ def test_la_bande_60_reste_LA_LISTE_avec_toutes_ses_commandes(tmp_path):
                                 "doc": DOC_PLEIN,
                                 "actes": [{"t": "key", "k": "ArrowDown"}]})
     assert r["slots"][0]["box"][1] == 21.0, r["slots"][0]["box"]
+
+
+# ══════ 14. LES BOUTONS DE RANGÉE, JOUÉS (dette 3b-T4, soldée en 3c-T6) ═════
+# Le pin d'au-dessus lit des CLASSES dans une chaîne de caractères. Il ne
+# pouvait pas faire mieux : `querySelectorAll` du DOM de paille rendait `[]`,
+# donc `renderList` n'a JAMAIS branché l'œil, le cadenas, l'ordre, la corbeille
+# ni le glisser au banc — les cinq écouteurs étaient écrits et jamais joués.
+# Le remède esquissé au plan 3b (:1013-1015) est appliqué ici : le banc a
+# maintenant un vrai `querySelectorAll`, et cette section JOUE les gestes.
+#
+# CE QUI EST MESURÉ À CHAQUE GESTE, et pourquoi les trois ensemble :
+#   · l'ÉCOUTEUR est celui que le module a posé (`cable`) — pas une fonction
+#     choisie à la main : `renderList` qui cesserait de câbler le ferait voir ;
+#   · l'ÉTAT DU DOCUMENT change (le slot, son ordre, sa présence) ;
+#   · UNE entrée d'annulation, ni zéro ni deux — un geste qu'un Ctrl+Z ne
+#     défait pas est un geste qui ment, et rien d'autre ne l'attrape.
+
+MUT_UNDO = ("\r\n})();", "\r\n  globalThis.__undo = () => UNDO.length;\r\n})();")
+
+
+def _banc_rangees(tmp_path, actes, lock=False, mutations=()):
+    """Le banc de gestes, avec la porte de la pile d'annulation ouverte."""
+    return _banc_verrou(tmp_path,
+                        {"state": {"slots": _slots_verrou(lock), "sel": "titre"},
+                         "doc": DOC_PLEIN, "actes": actes},
+                        mutations=(MUT_UNDO,) + tuple(mutations))
+
+
+def _ids(d) -> list:
+    return [s["id"] for s in d["slots"]]
+
+
+def test_les_cinq_commandes_de_rangee_sont_CABLEES_pas_seulement_ecrites(tmp_path):
+    """Le trou nommé en 3b : les classes étaient là, les écouteurs non. On
+    compte maintenant ce que `renderList` a réellement branché — quatre boutons
+    par rangée et quatre gestes sur la rangée elle-même (clic, dragstart,
+    dragover, drop)."""
+    d = _banc_rangees(tmp_path, [])
+    assert _ids(d) == ["titre", "regles"], d["slots"]
+    assert [r["id"] for r in d["rangees"]] == ["titre", "regles"], d["rangees"]
+    for r in d["rangees"]:
+        # œil + cadenas + corbeille + les DEUX flèches = 5 boutons câblés
+        assert r["cable"] == 5, r
+        assert r["gestes"] == 4, r
+    # la rangée désignée porte sa marque, et elle seule
+    assert [r["sel"] for r in d["rangees"]] == [True, False], d["rangees"]
+
+
+def test_l_oeil_joue_bascule_le_bloc_et_pose_UNE_annulation(tmp_path):
+    """L'œil éteint le bloc, le rallume, et chaque clic vaut UN Ctrl+Z."""
+    d = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "eye"}])
+    t = d["traces"][0]
+    assert t["trouve"] and t["cable"], t
+    assert t["patchs"] == 1 and t["undo"] == 1, t
+    assert d["slots"][0]["on"] is False, d["slots"][0]
+    # …et la rangée repeinte le DIT (classe `off` lue sur l'élément)
+    assert d["rangees"][0]["off"] is True, d["rangees"]
+    # deux clics reviennent à l'état de départ — deux entrées d'annulation
+    d2 = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "eye"},
+                                  {"t": "rangee", "id": "titre", "b": "eye"}])
+    assert d2["slots"][0]["on"] is True, d2["slots"][0]
+    assert [t["undo"] for t in d2["traces"]] == [1, 1], d2["traces"]
+
+
+def test_le_cadenas_joue_bascule_le_verrou_de_CETTE_rangee(tmp_path):
+    """Le cadenas est un état du bloc, pas du panneau : il s'écrit dans le
+    document, il se relit sur la rangée, et il ne touche pas le voisin."""
+    d = _banc_rangees(tmp_path, [{"t": "rangee", "id": "regles", "b": "lock"}])
+    t = d["traces"][0]
+    assert t["cable"] and t["patchs"] == 1 and t["undo"] == 1, t
+    par_id = {s["id"]: s for s in d["slots"]}
+    assert par_id["regles"]["lock"] is True and par_id["titre"]["lock"] is False
+    assert [r["lock"] for r in d["rangees"]] == [False, True], d["rangees"]
+
+
+def test_les_deux_fleches_reordonnent_et_le_bord_ne_fait_RIEN(tmp_path):
+    """« Descendre » sur le premier bloc l'échange avec le second. « Monter »
+    sur le premier n'a nulle part où aller : AUCUN patch, AUCUNE entrée
+    d'annulation — un Ctrl+Z qui ne défait rien serait pire que rien."""
+    d = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "mv", "d": 1}])
+    assert d["traces"][0]["cable"], d["traces"]
+    assert _ids(d) == ["regles", "titre"], d["slots"]
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    assert [r["id"] for r in d["rangees"]] == ["regles", "titre"], d["rangees"]
+    # remonter le rend à sa place
+    r = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "mv", "d": 1},
+                                 {"t": "rangee", "id": "titre", "b": "mv", "d": -1}])
+    assert _ids(r) == ["titre", "regles"], r["slots"]
+    # le bord : rien ne bouge, rien ne s'annule
+    b = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "mv", "d": -1}])
+    assert _ids(b) == ["titre", "regles"], b["slots"]
+    assert b["traces"][0]["patchs"] == 0 and b["traces"][0]["undo"] == 0, b["traces"]
+
+
+def test_la_corbeille_supprime_le_bloc_et_deplace_la_designation(tmp_path):
+    """La corbeille retire le bloc du document ET redésigne un survivant : une
+    liste qui garde un `sel` mort laisse le panneau régler un fantôme."""
+    d = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "del"}])
+    t = d["traces"][0]
+    assert t["cable"] and t["patchs"] == 1 and t["undo"] == 1, t
+    assert _ids(d) == ["regles"], d["slots"]
+    assert d["sel"] == "regles", d["sel"]
+    assert [r["id"] for r in d["rangees"]] == ["regles"], d["rangees"]
+
+
+def test_le_glisser_depose_reordonne_par_le_presse_papier(tmp_path):
+    """La séquence complète : dragstart marque la rangée, dragover la survole
+    (et appelle `preventDefault`, sans quoi un vrai navigateur REFUSE le
+    dépôt), drop relit l'id dans le presse-papier et réordonne. Le survol se
+    relâche au dépôt — une rangée qui reste allumée après coup est un défaut
+    qu'aucune capture d'écran ne montre."""
+    d = _banc_rangees(tmp_path, [{"t": "drag", "from": "regles", "to": "titre"}])
+    t = d["traces"][0]
+    assert t["cable"], t
+    assert t["charge"] == "regles", t          # le SEUL canal du glisser
+    assert t["prevent"] == 2, t                # dragover ET drop
+    assert t["glisse"] and t["survol"] and not t["relache"], t
+    assert t["patchs"] == 1 and t["undo"] == 1, t
+    assert _ids(d) == ["regles", "titre"], d["slots"]
+    # se déposer SUR SOI-MÊME n'est pas un geste : rien d'écrit, rien à annuler
+    s = _banc_rangees(tmp_path, [{"t": "drag", "from": "titre", "to": "titre"}])
+    assert s["traces"][0]["patchs"] == 0 and s["traces"][0]["undo"] == 0, s["traces"]
+    assert _ids(s) == ["titre", "regles"], s["slots"]
+
+
+def test_le_clic_sur_la_ligne_DESIGNE_mais_pas_a_travers_un_bouton(tmp_path):
+    """La garde `e.target.closest("button")` de la ligne, jouée : le clic nu
+    désigne, le clic qui atterrit sur une commande laisse la commande faire son
+    travail — sans quoi chaque appui sur l'œil redésignerait aussi le bloc."""
+    d = _banc_rangees(tmp_path, [{"t": "ligne", "id": "regles"}])
+    assert d["traces"][0]["cable"] and d["traces"][0]["patchs"] == 1, d["traces"]
+    assert d["sel"] == "regles", d["sel"]
+    g = _banc_rangees(tmp_path, [{"t": "ligne", "id": "regles", "bouton": True}])
+    assert g["traces"][0]["patchs"] == 0, g["traces"]
+    assert g["sel"] == "titre", g["sel"]
+
+
+# ── LES MUTANTS DE LA SECTION : chacun casse UNE moitié du geste ─────────────
+
+def test_un_bouton_de_rangee_SANS_annulation_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE, celle qui justifie le compteur d'annulations :
+    l'œil bascule toujours le bloc, la rangée se repeint toujours — seule la
+    pile d'annulation reste vide. Sans ce compteur, ce défaut passerait le banc
+    en vert et se découvrirait au premier Ctrl+Z d'un utilisateur."""
+    mut = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "eye"}],
+                        mutations=(("        patchSlot(id, { on: !s.on });",
+                                    "        patchSlot(id, { on: !s.on }, true);"),))
+    t = mut["traces"][0]
+    assert t["cable"] and t["patchs"] == 1, t     # le geste marche encore
+    assert mut["slots"][0]["on"] is False, mut["slots"][0]
+    assert t["undo"] == 0, t                      # …et il n'est PAS annulable
+
+
+def test_une_fleche_QUI_PERD_SON_SENS_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE du câblage : `data-d` est ce qui distingue les deux
+    flèches. Le mutant les rend IDENTIQUES — les deux montent. « Descendre »
+    sur le premier bloc devient alors un geste sans effet : le bouton reste
+    câblé, la rangée reste peinte, et rien ne bouge. (Le mutant plus naïf,
+    `moveSlot(id, 0)`, ne convient PAS : l'échange d'un bloc avec lui-même
+    n'est pas gardé, il pousse quand même un patch et une annulation — c'est
+    l'ORDRE, jamais le compteur, qui juge cette flèche-là.)"""
+    mut = _banc_rangees(tmp_path, [{"t": "rangee", "id": "titre", "b": "mv", "d": 1}],
+                        mutations=((
+                            '        b.addEventListener("click", () => moveSlot(id, Number(b.dataset.d)));',
+                            '        b.addEventListener("click", () => moveSlot(id, -1));'),))
+    assert mut["traces"][0]["cable"], mut["traces"]
+    assert _ids(mut) == ["titre", "regles"], mut["slots"]
+    assert mut["traces"][0]["patchs"] == 0, mut["traces"]
+
+
+def test_un_glisser_QUI_N_ANNONCE_RIEN_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE du presse-papier : `dragstart` est le seul endroit
+    où la rangée dit QUI se déplace. Vidé, les trois écouteurs partent quand
+    même et le dépôt ne réordonne rien."""
+    mut = _banc_rangees(tmp_path, [{"t": "drag", "from": "regles", "to": "titre"}],
+                        mutations=((
+                            '        e.dataTransfer.setData("text/plain", id);',
+                            '        e.dataTransfer.setData("text/plain", "");'),))
+    t = mut["traces"][0]
+    assert t["cable"] and t["prevent"] == 2, t
+    assert t["charge"] == "", t
+    assert t["patchs"] == 0 and t["undo"] == 0, t
+    assert _ids(mut) == ["titre", "regles"], mut["slots"]
 
 
 if __name__ == "__main__":
