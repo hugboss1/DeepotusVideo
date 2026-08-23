@@ -1536,9 +1536,10 @@
   const GAL_DECKS_MAX = 24;        /* jeux listes : les plus recents */
   /* Delai de garde du sondage « ce backend a-t-il des jeux ? ». GET /decks
      OUVRE encore chaque meta.json (il le faut pour trier par `updated`) : sur
-     un poste a 2191 jeux, c'etait 13,4 Mo et 18 s au 22/08 ; depuis la 3c-T6
-     la route ne SERT plus que des resumes bornes, ce qui rend les 13,4 Mo,
-     pas les 18 s. C'est donc toujours une reponse a la question « pouvez-vous
+     un poste a 2195 jeux, c'est ~13,8 Mo et 13,5 s (re-mesure du 23/08 : 6607
+     octets par document reel) ; depuis la 3c-T6
+     la route ne SERT plus que des resumes bornes (2679 octets a limit=24),
+     ce qui rend les 13,8 Mo mais PAS les 13,5 s. C'est donc toujours une reponse a la question « pouvez-vous
      en reprendre un ? », pas a la question « etes-vous vide ? ». Un backend
      qui met plus que ce delai a lister ses jeux en a manifestement — on ne
      pose donc pas la galerie par-dessus son travail. */
@@ -1613,12 +1614,12 @@
 
   /* LA DEMANDE EST BORNEE A LA SOURCE (dette « pagination /decks », 3c-T6).
      Cet ecran rabotait la liste A L'ARRIVEE : GET /decks rendait les DOCUMENTS
-     COMPLETS (13,4 Mo / 18 s mesures sur 2191 jeux) et l'on en gardait quatre
+     COMPLETS (~13,8 Mo mesures sur 2195 jeux le 23/08) et l'on en gardait quatre
      champs. Le rabot est passe au serveur — `?limit=` demande exactement ce
      que la galerie affiche, et la reponse dit le TOTAL.
      LE RABOT CLIENT RESTE, et ce n'est pas de la ceinture-bretelles : un
      backend d'avant le plafond ignore `limit` et rend tout. C'est encore lui
-     qui garantit qu'on ne GARDE pas les 13,4 Mo dans l'onglet. */
+     qui garantit qu'on ne GARDE pas les 13,8 Mo dans l'onglet. */
   function galDecksList(force) {
     if (!force && GAL_DECKS) return Promise.resolve(GAL_DECKS);
     if (!GAL_DECKS_REQ) {
@@ -1892,7 +1893,7 @@
     /* LE TOTAL EST CELUI DU SERVEUR. Avec une liste bornee a la source,
        `rows.length` ne compte plus les jeux : il compte les lignes montrees.
        Le dire ainsi ferait annoncer « 24 jeux au total » a un poste qui en a
-       2191 — un chiffre faux, et le seul chiffre de cet ecran. */
+       2195 — un chiffre faux, et le seul chiffre de cet ecran. */
     const montres = Math.min(rows.length, GAL_DECKS_MAX);
     if (GAL_DECKS_TOTAL > montres) {
       host.appendChild(galEl("p", "cf-gal-note",

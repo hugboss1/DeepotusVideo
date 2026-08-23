@@ -232,11 +232,19 @@ def deck_summary(doc: dict) -> dict:
 
     C'EST LA MOITIÉ MESURÉE DE LA DETTE « pagination /decks » : la route
     servait les documents COMPLETS — 13,4 Mo et 18 s sur un poste à 2 191 jeux
-    (mesure du 22/08) — que l'écran rabotait À L'ARRIVÉE, après les avoir fait
-    traverser le réseau, le parseur JSON et le tas de l'onglet. Le rabot passe
-    ici. Ce que cela n'achète PAS, et il faut le dire : le disque coûte pareil
-    (il faut ouvrir chaque meta.json pour connaître `updated`, donc pour
-    trier)."""
+    (mesure du 22/08 ; re-mesuré le 23/08 sur le même poste : 2 195 jeux,
+    6 607 octets pour un document réel, soit ~13,8 Mo) — que l'écran rabotait À
+    L'ARRIVÉE, après les avoir fait traverser le réseau, le parseur JSON et le
+    tas de l'onglet. Le rabot passe ici : 2 679 octets servis à `limit=24`.
+
+    CE QUE CELA N'ACHÈTE PAS, ET IL FAUT LE DIRE : le disque coûte pareil (il
+    faut ouvrir chaque meta.json pour connaître `updated`, donc pour trier) —
+    13,5 s mesurées le 23/08, inchangées.
+
+    L'entrée est un document DÉJÀ NORMALISÉ (`read_deck`) : `name` y est une
+    chaîne non vide et les deux dates des chaînes. La coercition ci-dessous est
+    une ceinture pour l'appelant hypothétique qui passerait un `meta.json` brut,
+    pas une normalisation — celle-là vit dans `normalize_deck`, à un endroit."""
     return {k: str(doc.get(k) or "") for k in DECK_SUMMARY_KEYS}
 
 
@@ -267,7 +275,7 @@ def list_decks() -> list[dict]:
 
 def list_deck_summaries() -> list[dict]:
     """Tous les decks en RÉSUMÉS de quatre champs, plus récent d'abord. Même
-    balayage, mais on ne GARDE pas 2 191 documents complets en mémoire pour
+    balayage, mais on ne GARDE pas 2 195 documents complets en mémoire pour
     n'en afficher que quatre champs de vingt-quatre d'entre eux."""
     return _decks_tries(deck_summary)
 
@@ -402,7 +410,7 @@ def borne_limite(val) -> int:
     LE CAS QUI JUSTIFIE LE PLANCHER N'EST PAS `0`, C'EST LE NÉGATIF : un
     `rows[:-5]` de Python ne rend pas une liste vide, il rend TOUTE LA LISTE
     MOINS LES CINQ DERNIERS. Sans plancher, demander −5 servirait donc PLUS de
-    jeux que demander 24, et le poste à 2 191 jeux reprendrait ses 13,4 Mo par
+    jeux que demander 24, et le poste à 2 195 jeux reprendrait ses ~13,8 Mo par
     la porte de derrière."""
     n = _q_num(val, "La limite")
     if n is None:
@@ -417,8 +425,8 @@ async def get_decks(limit: str | None = None):
     CHANGEMENT DE CONTRAT, ASSUMÉ ET DIT. La route servait tous les documents
     entiers ; elle sert désormais `{decks, total, limit}` où `decks` sont les
     quatre champs `id/name/created/updated` des `limit` plus récents. La
-    raison est mesurée (voir `deck_summary`) : 13,4 Mo / 18 s pour une galerie
-    qui affiche vingt-quatre lignes de quatre champs.
+    raison est mesurée (voir `deck_summary`) : ~13,8 Mo pour une galerie qui
+    affiche vingt-quatre lignes de quatre champs, soit 2 679 octets.
 
     `total` EST LA CONTREPARTIE DU PLAFOND, et il n'est pas décoratif : sans
     lui, un écran qui reçoit vingt-quatre jeux ne peut plus distinguer « ce
