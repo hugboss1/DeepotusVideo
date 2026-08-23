@@ -547,7 +547,9 @@ T3 : la capacité de lecture `CF.models`, 42 lignes — voir la note)**.
 >   pour la galerie de démarrage (`galModelsList`). Une seconde copie dans
 >   P3, c'étaient deux requêtes et deux caches de la même liste, dont l'un
 >   devenait faux dès le premier « enregistrer comme modèle » (seul celui du
->   CORE est rafraîchi). La copie rendue est **profonde et gelée** — sans
+>   CORE est rafraîchi ; formulation corrigée par la ronde — voir N2 : un cache
+>   d'AUTORITÉ et un INSTANTANÉ, pas « deux caches »). La copie rendue est
+>   **profonde et gelée** — sans
 >   quoi le premier module qui écrit dedans empoisonne la galerie et les huit
 >   autres pièces dans le même onglet (le raisonnement de `models.model()`
 >   côté backend, appliqué à l'écran) — et une route absente rend une LISTE
@@ -658,6 +660,151 @@ T3 : la capacité de lecture `CF.models`, 42 lignes — voir la note)**.
 > y est avec sa phrase, qu'un clic la pose à sa zone avec sa plaque, qu'un
 > second clic pose « stat72 », et qu'une zone de statistique générique naît
 > bien en deux boîtes accolées.
+
+> **RONDE DE REVUE (T3) — FIX-FIRST, 3 correctifs + 4 notes prises + 2
+> consignées + le test de rotation de la T2 enfin joué.** Ce que la revue a
+> mesuré et que la livraison n'avait pas vu :
+>
+> · **F1 — Échap ne fermait rien sur un jeu VIDE.** La branche était SOUS
+>   `if (!s) return`, et `selSlot()` est nul EXACTEMENT quand le document n'a
+>   aucun bloc — c'est-à-dire l'état d'un jeu neuf, celui où l'on ouvre
+>   justement la palette. Mesuré : jeu vide + Échap → la réponse du catalogue
+>   revenait repeindre un menu que l'utilisateur croyait fermé. La branche est
+>   hissée au-dessus de la garde (elle n'a pas besoin de sélection) ; **le même
+>   défaut cachait l'Échap du menu de POLICES, et il est plus vieux que cette
+>   tâche** — les deux fermetures remontent ensemble. Mutation : branche
+>   redescendue → le menu fermé se fait repeindre, rouge.
+>
+> · **F2 — UN espace de noms, DEUX vocabulaires : « arcane » collisionnait
+>   DÉJÀ.** `doc.type.preset` recevait les clés des quatre gabarits locaux
+>   (`applyPreset`) ET les identifiants de modèles (`instancier`). « arcane »
+>   est les deux : un deck posé sur le GABARIT se voyait offrir les quatre
+>   éléments de l'archétype d'usine — sur un design dont il n'était pas né,
+>   c'est-à-dire l'inverse exact de ce que la §6bis affirmait. Et rien
+>   n'empêchait un perso nommé « Champion » de reproduire le cas sur les trois
+>   autres (`_slug` réserve les ids d'usine, pas les clés de gabarits).
+>   **Retenu : (a), la PROVENANCE dite à la naissance** — `models.py:
+>   PRESET_MODELE = "modele:"`, `instancier` écrit `preset = "modele:<id>"`.
+>   Les deux sens sont fermés PAR CONSTRUCTION et non par une liste de noms
+>   réservés à tenir à jour : ni une clé de gabarit ni un slug
+>   (`[^a-z0-9]+` → `-`) ne peut contenir « : ». **(b) écartée pour deux
+>   raisons mesurées** : renommer le gabarit « arcane » est une rupture de
+>   parité JSON dans `type.py` (le miroir byte-à-byte des quatre gabarits), et
+>   surtout la collision SURVIVAIT pour l'existant — un vieux deck au preset
+>   « arcane » re-matchait le modèle. Une troisième voie (« refuser un preset
+>   qui est aussi une clé de gabarit ») a été écartée par mesure inverse :
+>   elle aurait rendu le modèle d'usine « arcane » inatteignable pour les decks
+>   qui en naissent VRAIMENT.
+>   **La provenance vient de l'IDENTITÉ, pas de ce que le modèle DÉCLARE** :
+>   `m["type"]["preset"]` n'est plus lu, parce que sur un perso il porte ce que
+>   SON deck d'origine déclarait — donc, depuis ce changement, la provenance
+>   d'un AUTRE modèle. Un deck né de « mon-modele » aurait annoncé venir de
+>   « superstar ».
+>   **Ce que ça ne rattrape pas, écrit plutôt que caché** : un deck instancié
+>   AVANT ce changement porte l'id nu, indiscernable d'une clé de gabarit.
+>   L'écran ne devine pas — deviner est exactement ce qui a produit le défaut —
+>   donc il ne propose rien ; la palette étant née avec cette ronde, aucun
+>   comportement existant ne se perd, et recréer le jeu depuis la galerie
+>   rétablit la provenance. Fichiers : `models.py` (+ constante et
+>   `instancier`), `test_cards_models.py` (la parité 3a amendée À LA SOURCE +
+>   un test neuf), **`qa/test_core_contract.mjs`** (le pin de relecture SUR LE
+>   DISQUE attendait `preset === 'superstar'`), `mod-type.js`. Mutation :
+>   `modelCourant` remis à l'id nu → le deck-gabarit « arcane » reçoit de
+>   nouveau les éléments du modèle, rouge.
+>
+> · **F3 — deux états muets, nommés.** (a) le preset désigne un modèle ABSENT
+>   d'un catalogue CHARGÉ (perso supprimé, jeu rapporté d'une autre machine) :
+>   « le modèle « X » n'est plus servi par ce backend » — « ce jeu n'a pas de
+>   modèle » et « le sien n'est plus là » ne se réparent pas pareil.
+>   (b) **`!MODELS` est FAUX pour un tableau vide** : la liste vide que
+>   `modelsPublic` fabrique quand la route est absente ne disait rien du tout.
+>   Or tout backend qui a la route sert au moins les sept archétypes d'usine :
+>   une liste vide ne veut pas dire « ce poste n'a pas de modèles », elle veut
+>   dire « personne n'a répondu ». Le cas (b) est désormais éprouvé **de bout
+>   en bout** (banc du CORE ci-dessous), pas seulement côté écran.
+>   **Et un PIN D'AVANT a attrapé les deux phrases** : le panneau de cette
+>   pièce ne dit ni « backend » ni « verdict » (« un panneau de produit parle
+>   du produit »), et mes deux notes disaient « servi par ce backend ». Elles
+>   parlent maintenant du POSTE ; le diagnostic technique, lui, n'est pas perdu
+>   — il est passé dans l'INFOBULLE de la phrase, où celui qui le cherche le
+>   trouve et où il n'encombre personne. Le message de repli d'un CORE trop
+>   ancien a été réécrit dans la même langue.
+>   **Conséquence : une valeur d'attribut de plus, et R14 NE LA VOIT PAS.** La
+>   règle ne juge que les lectures POINTÉES (`a.b`) ; `title="' +
+>   esc(MODELS_ERR) + '"` est une variable NUE. L'élargir aux identifiants nus
+>   ferait rougir tout `class="' + cls + '"` du dépôt — la limite est donc
+>   NOMMÉE (dans le code, et par un test qui vérifie que R14 sort bien 0 sur ce
+>   mutant-là, pour que le jour où la règle grandira on s'en aperçoive) et
+>   l'échappement est tenu par le BANC : message d'échec empoisonné, rendu
+>   relu, mutation `esc` retiré → le `<img>` sort, rouge.
+>
+> · **N1 — LE BANC DU CORE, et c'est le vrai apport de la ronde.** La copie
+>   profonde gelée de `CF.models` était épinglée par MATCH DE SOURCE : le
+>   mutant qui rend une copie NON gelée passait, `deepFreeze` restant écrit
+>   ailleurs dans le fichier. Le banc charge le VRAI `core.js` dans un `vm`
+>   sans DOM (patron `qa/test_core_contract.mjs:loadCF`) avec `fetch`
+>   bouchonné, puis **ÉCRIT vraiment** dans ce que la capacité a rendu — mode
+>   strict, donc une copie gelée LÈVE — et relit pour prouver que le cache de
+>   la galerie n'a pas bougé. Deux mutants tuent : copie sans gel (les
+>   écritures passent) et **pas de copie du tout (le cache du CORE répond
+>   « PIRATE » à la lecture suivante)**. Le banc pin aussi « UNE requête, un
+>   cache » (la seconde lecture ne repart pas au réseau) et les deux branches
+>   d'erreur : route absente → liste VIDE, backend qui parle → l'erreur REMONTE.
+>
+> · **N3 — la bascule de pièce AU CLAVIER orphelinait le popover.** Il vit sur
+>   `document.body` ; Entrée sur le rail produit un `click` sans `pointerdown`,
+>   donc la fermeture au clic dehors ne court pas et le menu restait seul
+>   au-dessus d'un autre module. Il part maintenant avec la classe du panneau —
+>   le MutationObserver du calque d'édition, même raison. Le banc a reçu un
+>   `MutationObserver` de paille (node n'en a pas) : sans lui, cette branche
+>   n'était pas même POSÉE au banc. Mutation : observateur remis à son ancien
+>   corps → le menu survit, rouge.
+>
+> · **N4 — `MODELS_ERR` survivait au départ du retry**, si bien que la palette
+>   disait « injoignable » pendant qu'une requête FRAÎCHE volait : l'état faux,
+>   au moment précis où l'utilisateur refaisait le geste. Nettoyé à l'entrée
+>   d'`ensureModels` — **et la demande PART désormais AVANT la première
+>   peinture**, sans quoi le correctif restait invisible (la note est peinte
+>   synchroniquement, elle affichait donc encore l'échec d'avant). Mutation :
+>   nettoyage retiré → « injoignable » sur la 3ᵉ ouverture, rouge.
+>
+> · **N2 — la note de livraison disait faux.** Ce n'était pas « deux requêtes
+>   et deux caches » : la galerie en aurait fait une et P3 une autre, soit
+>   **une requête de plus et un second cache — un cache d'AUTORITÉ (celui du
+>   CORE, rafraîchi par « enregistrer comme modèle ») et un INSTANTANÉ en
+>   lecture qui, lui, ne se serait jamais rafraîchi**. C'est cet instantané qui
+>   devenait faux, pas « l'un des deux ».
+>
+> · **Consignés, non corrigés.** **N5** : le renommage peut fabriquer un id de
+>   plus de 24 signes (`aaa…a` + `2`), que `normSlot` refuserait s'il y
+>   repassait — hérité de `norm_slots`, parité TENUE des deux côtés (c'est la
+>   raison pour laquelle `naitre` n'appelle pas `commit`) ; le corriger
+>   demanderait de changer le SERVEUR, donc une passe à lui seul. **N6** :
+>   `normSlot` singulier diverge de `norm_slot` sur les blancs et les valeurs
+>   falsy (pré-T1) ; la batterie de parité ne fait varier que l'`id`, elle ne
+>   l'aurait pas vu. À reprendre dans une passe de parité dédiée.
+>
+> · **LE TEST DE ROTATION DE LA T2, écrit et jamais exécuté, est joué.** Déposé
+>   en section 11.4. Son auteur avait prévu ±2 px « au premier run » en
+>   RAISONNANT ; **mesure : l'écart maximum est de 0,39 px** sur les huit
+>   valeurs — la tolérance est donc RESSERRÉE à ±1 px (l'arrondi
+>   d'échantillonnage au demi-pixel, et rien d'autre : à ±2, une dérive d'un
+>   pixel serait passée). Le mutant demandé — **le clip hissé HORS de la
+>   rotation**, le refactor plausible (« il ne dépend que de la boîte, sortons-le
+>   de la branche ») — est joué et rougit : l'image déborde de sa boîte visible
+>   sur ses deux petits côtés.
+>
+> · **Compte** : 183 → **199 tests** dans test_cards_type.py (+16 : 14 pour la
+>   ronde, 2 pour la rotation ; 2 amendés — le pin R14 et la formulation du
+>   catalogue injoignable — et les presets de modèle préfixés dans 9 autres) ;
+>   test_cards_models.py 154 → **155**. mod-type.js 5265 → 5344 l. (+79 nets),
+>   models.py +26, qa/test_core_contract.mjs +6, **core.js inchangé par la
+>   ronde**. Lint intégral 0, `node --check` OK, batterie `--geom` du contrat
+>   OK, 11/11 suites cards vertes.
+>
+> **Reste à l'œil (+1 min)** : sur un jeu VIDE, ouvrir « + Élément » puis
+> Échap — le menu doit partir ; et changer de pièce au CLAVIER pendant que le
+> menu est ouvert.
 
 ### Task 4 : la liste de calques multi-bandes
 
