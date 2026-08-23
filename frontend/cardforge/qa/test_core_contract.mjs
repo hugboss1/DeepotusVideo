@@ -583,7 +583,15 @@ function stubReseau(o) {
         liste = [{ id: "deck_ffffffff", name: "un jeu d'avant",
                    created: "2026-08-01T00:00:00Z", updated: "2026-08-01T00:00:00Z" }];
       }
-      return Promise.resolve(rep(JSON.stringify({ decks: liste }), "application/json", 200));
+      /* LA FORME DE LA ROUTE DEPUIS LA 3c-T6 : des resumes BORNES, plus le
+         TOTAL. Le bouchon la rend telle quelle — un bouchon qui servirait
+         l'ancienne forme laisserait la moitie neuve du lecteur non eprouvee.
+         __QA_LIMIT note ce que l'ecran a DEMANDE : la galerie doit borner sa
+         requete, pas seulement raboter la reponse.
+         (Pas d'accent grave ici : ce bloc vit DANS un litteral gabarit.) */
+      window.__QA_LIMIT = (new URL(url, location.href)).searchParams.get("limit");
+      return Promise.resolve(rep(JSON.stringify(
+        { decks: liste, total: liste.length, limit: 24 }), "application/json", 200));
     }
     return vrai.apply(this, arguments);
   };
@@ -617,6 +625,7 @@ const RELEVE_BOOT = `(async () => {
     retenu: (() => { try { return localStorage.getItem("dz_cf_deck_id"); } catch (e) { return "?refus"; } })(),
     search: location.search,
     sondages: window.__QA_DECKS || 0,
+    limite: window.__QA_LIMIT === undefined ? null : window.__QA_LIMIT,
     morts: window.__QA_MORT || 0,
     jeux: gd ? String(gd.textContent).slice(0, 60) : null,
   };
@@ -819,6 +828,12 @@ async function testContract() {
       if (vVide.jeux && vVide.jeux.indexOf('aucun jeu') >= 0)
         ok('galerie : un backend vide le DIT, la liste ne reste pas blanche — ' + vVide.jeux);
       else ko('galerie : un backend vide devait le dire — ' + vVide.jeux);
+      /* LA DEMANDE EST BORNEE A LA SOURCE (dette pagination, 3c-T6) : la
+         galerie doit DEMANDER ses vingt-quatre lignes, pas raboter 13,4 Mo
+         apres coup. C'est la requete qu'on lit, pas la reponse. */
+      if (vVide.limite === '24')
+        ok('galerie : GET /decks est demande BORNE (?limit=24) — limite=' + vVide.limite);
+      else ko('galerie : GET /decks doit demander ?limit=24 — limite=' + vVide.limite);
     }
 
     /* NON VACUEUX : la liste contient EXACTEMENT le jeu que le boot vient de

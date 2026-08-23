@@ -591,6 +591,147 @@ def test_liste_et_suppression():
     assert a["id"] not in apres and avant.issubset(apres | avant)
 
 
+# ── LA PAGINATION DE `GET /decks` (dette héritée, soldée en 3c-T6) ──────────
+# La route servait TOUS les documents ENTIERS : 13,4 Mo et 18 s sur un poste à
+# 2 191 jeux (mesure du 22/08). La galerie n'en affichait que vingt-quatre
+# lignes de quatre champs, et elle rabotait À L'ARRIVÉE — après le réseau,
+# après le parseur JSON, après le tas de l'onglet. Le rabot est passé au
+# serveur, et le contrat CHANGE : `{decks, total, limit}`.
+
+def _decks_de_banc(n: int) -> list[str]:
+    return [CC.create_deck(f"banc {i}")["id"] for i in range(n)]
+
+
+def test_la_liste_des_jeux_est_BORNEE_et_DIT_le_total():
+    """Le plafond sans le total serait un mensonge par omission : un écran qui
+    reçoit trois jeux ne pourrait plus distinguer « ce backend en a trois » de
+    « il en a sept et vous en voyez trois »."""
+    avant = len(CC.list_decks())
+    faits = _decks_de_banc(7)
+    try:
+        d = _api("GET", "/api/cards/decks", params={"limit": 3}).json()
+        assert len(d["decks"]) == 3, d
+        assert d["total"] == avant + 7, d
+        assert d["limit"] == 3, d
+        # PLUS RÉCENT D'ABORD : la tranche servie est LA TÊTE de la liste
+        # complète, jamais un morceau au hasard. (On ne compare pas aux sept
+        # jeux de banc : les fichiers laissés par les tests voisins vivent dans
+        # le même dossier, et l'un d'eux peut légitimement être plus récent.)
+        tete = [CC.deck_summary(x) for x in CC.list_decks()[:3]]
+        assert d["decks"] == tete, (d["decks"], tete)
+        # …et entre eux, les jeux de banc gardent l'ordre inverse de création.
+        tous = _api("GET", "/api/cards/decks", params={"limit": 500}).json()
+        vus = [x["id"] for x in tous["decks"] if x["id"] in set(faits)]
+        assert vus == list(reversed(faits)), vus
+        # sans `limit`, le défaut de la maison
+        nu = _api("GET", "/api/cards/decks").json()
+        assert nu["limit"] == CC.DECKS_LIMIT_DEFAULT == 100
+        assert nu["total"] == avant + 7
+        assert len(nu["decks"]) == min(nu["total"], 100)
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_jeu_liste_est_un_RESUME_de_quatre_champs():
+    """Ce qui traverse le réseau, et rien de plus. Le pin porte sur les CLÉS —
+    servir `type`, `frame` ou `data` en plus, c'est reservir les 13,4 Mo."""
+    did = CC.create_deck("résumé")["id"]
+    try:
+        # UN JEU QUI A SERVI, pas un jeu vide : c'est ce qui pèse. Un deck
+        # fraîchement créé fait 317 octets — mesurer sur lui aurait donné un
+        # rapport flatteur pour la liste et faux pour la dette.
+        CC.patch_deck(did, {"type": {"slots": [
+            {"id": f"s{i}", "label": f"Bloc {i}", "box": [4.5, 5.0 * i, 54.0, 8.0],
+             "font": "IBMPlexSans", "size_pt": 9.0, "color": "#efe7d6",
+             "text": "Vol, célérité. À l'entrée en jeu, révélez trois cartes.",
+             "align": "left", "valign": "top", "leading": 1.22, "wrap": True}
+            for i in range(6)]}})
+        d = _api("GET", "/api/cards/decks", params={"limit": 500}).json()
+        ligne = [x for x in d["decks"] if x["id"] == did][0]
+        assert set(ligne) == {"id", "name", "created", "updated"}, ligne
+        assert ligne["name"] == "résumé"
+        # …et le document ENTIER, lui, existe toujours : la route par id le
+        # sert, c'est elle qu'on ouvre quand on ouvre un jeu.
+        entier = _api("GET", f"/api/cards/{did}").json()["deck"]
+        assert {"type", "frame", "face", "format"} <= set(entier), sorted(entier)
+        assert len(entier["type"]["slots"]) == 6
+        # LA MESURE, refaite ici : le résumé pèse une fraction du document.
+        court = len(json.dumps(ligne, ensure_ascii=False).encode("utf-8"))
+        long_ = len(json.dumps(entier, ensure_ascii=False).encode("utf-8"))
+        assert court * 10 < long_, (court, long_)
+    finally:
+        CC.delete_deck(did)
+
+
+@pytest.mark.parametrize("demande,attendu", [
+    (0, 1), (-5, 1), (1, 1), (500, 500), (501, 500), (99999, 500),
+    (3.7, 3),
+])
+def test_la_limite_est_RAMENEE_jamais_refusee(demande, attendu):
+    """`limit` est une commodité d'affichage, pas une contrainte métier : on la
+    RAMÈNE dans [1, 500] et l'on DIT la valeur retenue.
+
+    LE CAS QUI COMPTE EST LE NÉGATIF : `rows[:-5]` n'est pas une liste vide,
+    c'est TOUTE LA LISTE MOINS LES CINQ DERNIERS — un plafond non borné rendrait
+    donc PLUS de jeux pour un nombre plus petit. Et `limit=0` rendrait une liste
+    vide sur un backend plein."""
+    faits = _decks_de_banc(3)
+    try:
+        d = _api("GET", "/api/cards/decks", params={"limit": demande}).json()
+        assert d["limit"] == attendu, d
+        assert len(d["decks"]) == min(attendu, d["total"]), (demande, d["limit"],
+                                                             len(d["decks"]))
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_une_limite_QUI_N_EST_PAS_UN_NOMBRE_est_un_400_en_francais():
+    """Patron `_q_num` : typée `int`, FastAPI rendrait un 422 pydantic EN
+    ANGLAIS là où la spec 2.5 impose 400 + une phrase française."""
+    r = _api("GET", "/api/cards/decks", params={"limit": "beaucoup"})
+    assert r.status_code == 400, r.text
+    assert "nombre" in r.json()["detail"], r.text
+    assert _api("GET", "/api/cards/decks",
+                params={"limit": "nan"}).status_code == 400
+
+
+def test_une_limite_NON_BORNEE_rougit(monkeypatch):
+    """MUTATION DE CONTRÔLE, jouée PAR LA VRAIE ROUTE : le rabotage est retiré
+    et l'on regarde ce que la route sert alors. `limit=-5` ne rend pas une
+    liste vide — `rows[:-5]` rend TOUTE LA LISTE MOINS LES CINQ DERNIERS, donc
+    un nombre plus petit sert PLUS de jeux ; et `limit=0` vide la liste d'un
+    backend plein. Les deux assertions du pin d'au-dessus tombent."""
+    faits = _decks_de_banc(8)
+    try:
+        monkeypatch.setattr(CC, "borne_limite", lambda v: int(float(v)))
+        d = _api("GET", "/api/cards/decks", params={"limit": -5}).json()
+        assert len(d["decks"]) > 1, d       # le pin exige EXACTEMENT 1
+        assert d["limit"] == -5, d
+        z = _api("GET", "/api/cards/decks", params={"limit": 0}).json()
+        assert z["decks"] == [] and z["total"] >= 8, z
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_TOTAL_derive_de_la_TRANCHE_rougit(monkeypatch):
+    """MUTATION DE CONTRÔLE du `total` : une route qui plafonnerait À LA
+    SOURCE puis compterait ce qu'elle a reçu annoncerait un total égal à la
+    tranche. Le mutant tronque le balayage — le total suit, et il ment."""
+    faits = _decks_de_banc(6)
+    try:
+        vrai = CC.list_deck_summaries
+        monkeypatch.setattr(CC, "list_deck_summaries", lambda: vrai()[:2])
+        d = _api("GET", "/api/cards/decks", params={"limit": 2}).json()
+        assert d["total"] == len(d["decks"]) == 2, d
+        assert d["total"] < len(CC.list_decks()), d   # la vérité est ailleurs
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
 def test_geom_du_document():
     doc = CC.create_deck("géom", fmt={"fmt": "poker_us", "dpi": 600})
     g = CC.geom_of(doc)

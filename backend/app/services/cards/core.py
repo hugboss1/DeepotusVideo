@@ -19,7 +19,8 @@ répare au lieu de faire tomber l'appelant, exactement comme
 Routes (montées sous `/api/cards` par `app/main.py`) :
 
     GET    /formats          catalogue des 12 formats + 3 planches + DPI
-    GET    /decks            liste, plus récent d'abord
+    GET    /decks            résumés bornés `{decks, total, limit}` — `?limit=`
+                             dans [1, 500], 100 par défaut
     POST   /decks            création (corps `{model}` = instanciation)
     POST   /decks/{did}/duplicate   copie complète, dossier compris
     GET    /{did}            document complet
@@ -223,9 +224,26 @@ def read_deck(did: str) -> dict | None:
     return normalize_deck(raw, did)
 
 
-def list_decks() -> list[dict]:
-    """Tous les decks, plus récent d'abord. `updated` n'a qu'une précision
-    d'une seconde : le mtime de meta.json départage."""
+DECK_SUMMARY_KEYS = ("id", "name", "created", "updated")
+
+
+def deck_summary(doc: dict) -> dict:
+    """Les QUATRE champs qu'une liste de jeux affiche, et rien d'autre.
+
+    C'EST LA MOITIÉ MESURÉE DE LA DETTE « pagination /decks » : la route
+    servait les documents COMPLETS — 13,4 Mo et 18 s sur un poste à 2 191 jeux
+    (mesure du 22/08) — que l'écran rabotait À L'ARRIVÉE, après les avoir fait
+    traverser le réseau, le parseur JSON et le tas de l'onglet. Le rabot passe
+    ici. Ce que cela n'achète PAS, et il faut le dire : le disque coûte pareil
+    (il faut ouvrir chaque meta.json pour connaître `updated`, donc pour
+    trier)."""
+    return {k: str(doc.get(k) or "") for k in DECK_SUMMARY_KEYS}
+
+
+def _decks_tries(projette):
+    """Le balayage, UNE FOIS. `updated` n'a qu'une précision d'une seconde :
+    le mtime de meta.json départage. `projette` décide de ce qu'on GARDE —
+    deux boucles jumelles auraient été deux tris à maintenir d'accord."""
     rows = []
     for d in decks_root().iterdir():
         if not d.is_dir() or not is_valid_did(d.name):
@@ -237,9 +255,21 @@ def list_decks() -> list[dict]:
             mtime = (d / "meta.json").stat().st_mtime
         except OSError:
             mtime = 0.0
-        rows.append((doc.get("updated") or "", mtime, doc))
+        rows.append((doc.get("updated") or "", mtime, projette(doc)))
     rows.sort(key=lambda r: (r[0], r[1]), reverse=True)
     return [r[2] for r in rows]
+
+
+def list_decks() -> list[dict]:
+    """Tous les decks ENTIERS, plus récent d'abord."""
+    return _decks_tries(lambda doc: doc)
+
+
+def list_deck_summaries() -> list[dict]:
+    """Tous les decks en RÉSUMÉS de quatre champs, plus récent d'abord. Même
+    balayage, mais on ne GARDE pas 2 191 documents complets en mémoire pour
+    n'en afficher que quatre champs de vingt-quatre d'entre eux."""
+    return _decks_tries(deck_summary)
 
 
 def patch_deck(did: str, body: dict | None) -> dict | None:
@@ -360,10 +390,49 @@ async def list_formats():
     }
 
 
+DECKS_LIMIT_DEFAULT = 100
+DECKS_LIMIT_MIN = 1
+DECKS_LIMIT_MAX = 500
+
+
+def borne_limite(val) -> int:
+    """`limit` RAMENÉ dans [1, 500] — jamais refusé, sauf s'il n'est pas un
+    nombre (400 + phrase française, patron `_q_num`).
+
+    LE CAS QUI JUSTIFIE LE PLANCHER N'EST PAS `0`, C'EST LE NÉGATIF : un
+    `rows[:-5]` de Python ne rend pas une liste vide, il rend TOUTE LA LISTE
+    MOINS LES CINQ DERNIERS. Sans plancher, demander −5 servirait donc PLUS de
+    jeux que demander 24, et le poste à 2 191 jeux reprendrait ses 13,4 Mo par
+    la porte de derrière."""
+    n = _q_num(val, "La limite")
+    if n is None:
+        return DECKS_LIMIT_DEFAULT
+    return int(max(DECKS_LIMIT_MIN, min(DECKS_LIMIT_MAX, n)))
+
+
 @router.get("/decks")
-async def get_decks():
-    """Tous les decks, plus récent d'abord."""
-    return {"decks": await asyncio.to_thread(list_decks)}
+async def get_decks(limit: str | None = None):
+    """Les jeux, plus récent d'abord, en RÉSUMÉS de quatre champs, BORNÉS.
+
+    CHANGEMENT DE CONTRAT, ASSUMÉ ET DIT. La route servait tous les documents
+    entiers ; elle sert désormais `{decks, total, limit}` où `decks` sont les
+    quatre champs `id/name/created/updated` des `limit` plus récents. La
+    raison est mesurée (voir `deck_summary`) : 13,4 Mo / 18 s pour une galerie
+    qui affiche vingt-quatre lignes de quatre champs.
+
+    `total` EST LA CONTREPARTIE DU PLAFOND, et il n'est pas décoratif : sans
+    lui, un écran qui reçoit vingt-quatre jeux ne peut plus distinguer « ce
+    backend en a vingt-quatre » de « il en a deux mille et vous en voyez
+    vingt-quatre ». Le plafond sans le total serait un mensonge par omission.
+
+    `limit` est RAMENÉ dans [1, 500], jamais refusé — c'est une commodité
+    d'affichage, pas une contrainte métier ; et la valeur RETENUE repart dans
+    la réponse, pour que l'appelant sache ce qu'il a vraiment obtenu. Seule
+    une valeur qui n'est pas un nombre est un 400 (phrase française, patron
+    `_q_num` — défini plus bas dans ce fichier, résolu à l'appel)."""
+    n = borne_limite(limit)
+    rows = await asyncio.to_thread(list_deck_summaries)
+    return {"decks": rows[:n], "total": len(rows), "limit": n}
 
 
 @router.post("/decks")

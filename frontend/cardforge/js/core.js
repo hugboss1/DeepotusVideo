@@ -1535,9 +1535,11 @@
   const GAL_THUMB_W = 132;         /* largeur de vignette, en px CSS */
   const GAL_DECKS_MAX = 24;        /* jeux listes : les plus recents */
   /* Delai de garde du sondage « ce backend a-t-il des jeux ? ». GET /decks
-     relit TOUS les documents (13 Mo et 18 s sur un poste a 2191 jeux, mesure
-     du 22/08) : c'est une reponse a la question « pouvez-vous en reprendre
-     un ? », pas une reponse a la question « etes-vous vide ? ». Un backend
+     OUVRE encore chaque meta.json (il le faut pour trier par `updated`) : sur
+     un poste a 2191 jeux, c'etait 13,4 Mo et 18 s au 22/08 ; depuis la 3c-T6
+     la route ne SERT plus que des resumes bornes, ce qui rend les 13,4 Mo,
+     pas les 18 s. C'est donc toujours une reponse a la question « pouvez-vous
+     en reprendre un ? », pas a la question « etes-vous vide ? ». Un backend
      qui met plus que ce delai a lister ses jeux en a manifestement — on ne
      pose donc pas la galerie par-dessus son travail. */
   const GAL_PROBE_MS = 6000;
@@ -1546,6 +1548,12 @@
   let GAL_PROBE = false;           /* le boot n'a REPRIS aucun jeu : il en a cree un */
   let GAL_MODELS = null, GAL_MODELS_REQ = null;
   let GAL_DECKS = null, GAL_DECKS_REQ = null;
+  /* LE TOTAL VIENT DU SERVEUR, il ne se deduit plus de la longueur de la
+     liste. Avec une liste BORNEE, `rows.length` ne dit plus combien il y en
+     a — il dit combien on en montre. Sur un backend d'AVANT le plafond (pas
+     de `total` dans la reponse), on retombe sur la longueur : c'est ce que
+     l'ecran savait avant, et c'est encore vrai la-bas. */
+  let GAL_DECKS_TOTAL = 0;
 
   /* La galerie passe par `jsonNamed` (§8) et non par `jsonFetch` : elle vit
      de phrases du backend — « Modele inconnu », « Deck introuvable » — que
@@ -1603,19 +1611,29 @@
     }
   }
 
-  /* La liste des jeux est RABOTEE des son arrivee : GET /decks rend les
-     DOCUMENTS COMPLETS (13 Mo mesures ici), la galerie n'en affiche que
-     quatre champs. Garder les 13 Mo dans l'onglet parce qu'ils sont passes
-     par la, c'est le genre de fuite qu'on ne voit qu'au profileur. */
+  /* LA DEMANDE EST BORNEE A LA SOURCE (dette « pagination /decks », 3c-T6).
+     Cet ecran rabotait la liste A L'ARRIVEE : GET /decks rendait les DOCUMENTS
+     COMPLETS (13,4 Mo / 18 s mesures sur 2191 jeux) et l'on en gardait quatre
+     champs. Le rabot est passe au serveur — `?limit=` demande exactement ce
+     que la galerie affiche, et la reponse dit le TOTAL.
+     LE RABOT CLIENT RESTE, et ce n'est pas de la ceinture-bretelles : un
+     backend d'avant le plafond ignore `limit` et rend tout. C'est encore lui
+     qui garantit qu'on ne GARDE pas les 13,4 Mo dans l'onglet. */
   function galDecksList(force) {
     if (!force && GAL_DECKS) return Promise.resolve(GAL_DECKS);
     if (!GAL_DECKS_REQ) {
-      GAL_DECKS_REQ = jsonNamed("GET", "/cards/decks").then((d) => {
+      GAL_DECKS_REQ = jsonNamed("GET", "/cards/decks?limit=" + GAL_DECKS_MAX).then((d) => {
         const rows = Array.isArray(d && d.decks) ? d.decks : [];
         GAL_DECKS = rows.filter(isPlain).map((x) => ({
           id: String(x.id || ""), name: String(x.name || ""),
           created: String(x.created || ""), updated: String(x.updated || ""),
         })).filter((x) => DID_RE.test(x.id));
+        /* le total du SERVEUR quand il en donne un (et qu'il est credible :
+           il ne peut pas etre plus PETIT que ce qu'on vient de recevoir),
+           la longueur de la liste sinon. */
+        const t = (d && typeof d.total === "number" && isFinite(d.total))
+          ? Math.max(0, Math.floor(d.total)) : 0;
+        GAL_DECKS_TOTAL = Math.max(t, GAL_DECKS.length);
         GAL_DECKS_REQ = null;
         return GAL_DECKS;
       }, (e) => { GAL_DECKS_REQ = null; throw e; });
@@ -1871,9 +1889,14 @@
       if (!courant) b.addEventListener("click", () => { galOpenDeck(r.id); });
       host.appendChild(b);
     });
-    if (rows.length > GAL_DECKS_MAX) {
+    /* LE TOTAL EST CELUI DU SERVEUR. Avec une liste bornee a la source,
+       `rows.length` ne compte plus les jeux : il compte les lignes montrees.
+       Le dire ainsi ferait annoncer « 24 jeux au total » a un poste qui en a
+       2191 — un chiffre faux, et le seul chiffre de cet ecran. */
+    const montres = Math.min(rows.length, GAL_DECKS_MAX);
+    if (GAL_DECKS_TOTAL > montres) {
       host.appendChild(galEl("p", "cf-gal-note",
-        rows.length + " jeux au total — les " + GAL_DECKS_MAX + " plus récents sont listés."));
+        GAL_DECKS_TOTAL + " jeux au total — les " + montres + " plus récents sont listés."));
     }
   }
 
@@ -1986,9 +2009,14 @@
      son role de « galerie de demarrage » (§6.4). Le sondage ne part que si
      le boot n'a REPRIS aucun jeu (aucun `?deck=`, aucun `dz_cf_deck_id`
      vivant) — un jeu repris prouve a lui seul que le backend n'est pas vide,
-     et 13 Mo de documents ne se demandent pas pour apprendre ce qu'on sait
-     deja. Le jeu que le boot vient de creer ne compte pas dans le decompte :
-     sans cela, « vide » serait toujours faux. */
+     et un balayage de tout le dossier des jeux ne se demande pas pour
+     apprendre ce qu'on sait deja. Le jeu que le boot vient de creer ne compte
+     pas dans le decompte : sans cela, « vide » serait toujours faux.
+     LE PLAFOND NE FAUSSE PAS CE SONDAGE, et c'est le seul point ou il aurait
+     pu : la question posee est « existe-t-il UN jeu autre que celui qu'on
+     vient de creer ? ». La liste etant triee du plus recent au plus ancien et
+     le jeu tout neuf etant le premier, tout autre jeu du backend est dans les
+     vingt-quatre premiers des qu'il en existe un. */
   async function galFirstRun() {
     const liste = await Promise.race([
       galDecksList(false),
