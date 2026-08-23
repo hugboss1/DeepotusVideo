@@ -520,7 +520,10 @@ T3 : la capacité de lecture `CF.models`, 42 lignes — voir la note)**.
       serveur ; plafond ; RED d'abord.
 
 > **Livré (T3)** — 162 → **183 tests** (+21, 0 supprimé, 0 amendé).
-> mod-type.js **+277 lignes nettes** (4984 → 5261), core.js +42, css +12.
+> mod-type.js **+281 lignes nettes** (4984 → 5265 l.), core.js +42, css +12.
+> Au-dessus des ~250 visés, sous les 400 du plan — la moitié du volume est en
+> commentaires (le pavé de la section 6bis PORTE la décision d'architecture,
+> c'est là qu'elle se relira).
 > Lint intégral 0, `node --check` OK sur les deux JS, batterie `--geom` du
 > contrat OK.
 >
