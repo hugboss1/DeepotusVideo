@@ -1,0 +1,366 @@
+# Cardforge — Phase 4 : import et isolation (P10 « capture ») + preuve deepotus-fragments
+
+**Contrat** : spec `docs/superpowers/specs/2026-08-19-cardforge-universel-design.md`
+§3.2 (:54-68, la pièce P10, id `capture` parce que `import` est un mot réservé), §7.1
+(:488-513, le chemin en six étapes), §7.2 (:515-577, la preuve de bout en bout),
+§8 (:579-589, doctrine d'erreurs — refus mesuré du fond non uni), §9.1/§9.4 (:601-604,
+:618-622, cartes synthétiques à vérité connue, lint sans painter pour `capture`).
+**Branche** : `claude/audit-cleanup-2026-08` dans `C:\Users\olivi\DeepotusVideo`.
+Déploiement : `scripts\qa\cf_deploy.ps1` → `%LOCALAPPDATA%\DeepotusVideoGen`.
+
+**Méthode** (inchangée depuis la phase 1) : une tâche = un agent opus, RED d'abord,
+mutation avec témoin survivant volontaire, commits français locaux (pousser = fin de
+phase seulement), revue adverse, ronde de corrections au MÊME agent, notes de CLÔTURE
+écrites ici par l'orchestrateur APRÈS la livraison réelle — jamais avant. Fautes de
+plan amendées À LA SOURCE avec la mesure. Suite complète uniquement sur arbre au
+repos. **Zéro dépense réelle** : MESHY_MOCK=1 par héritage d'environnement, moteurs
+fal jamais lancés, génération d'images IA uniquement sous espion. Les opt-ins payants
+(tir meshy-7, un décor IA) restent à l'utilisateur.
+
+---
+
+## 1. Faits de reconnaissance (2026-08-24, vérifiés sur pièces)
+
+### 1.1 Les deux faits porteurs
+
+**F1 — Le PDF fabricant ne contient PAS les 92 faces.** Vérifié sur les octets (grep
+brut + pypdf, recoupés) : `DOSSIER_FABRICANT_DEEPOTUS_FRAGMENTS.pdf` = 3 151 838
+octets, 16 pages, **10 images distinctes** toutes en `/FlateDecode` `/DeviceRGB` 8 bpc
+(zéro `/DCTDecode`), dont UNE SEULE à **1060×1484** (objet `86 0`, page 5 — le gabarit
+illustré 4.1, quasi certainement « The Patriarch of the Old Houses », la carte type de
+la spec). Les neuf autres sont des plateaux/boîtes/schémas. La page 16 est une liste
+« Fichiers à fournir au fabricant » : *« 92 faces de cartes (PNG/TIFF) + 1 dos »* est
+un livrable que le studio DOIT ENCORE — pas un contenu du dossier. Le `.docx` du
+cahier de règles ne contient que 21 médias de 15-220 Ko (schémas de règles). **La
+preuve §7.2 roule donc sur LA SEULE face disponible** — exactement ce que la spec
+anticipait (:546 « à recaler sur le FICHIER dès que son chemin est fourni »).
+`pypdf>=5.1.0` est déjà dans requirements (:31) et déjà utilisé en LECTURE
+(`print.py:2981`, `marketing.py:326`) : l'extraction est triviale, aucun outil neuf.
+
+**F2 — `doc.forge3d` est silencieusement perdu par le backend AUJOURD'HUI.**
+`contract.py:75-76` fige `MODULE_IDS` à 8 (« les huit pièces d'origine », verrouillé
+par `test_cards_core.py:1050`) ; `normalize_deck` (`core.py:173-175`) jette toute clé
+hors liste, `default_doc` (:149) ne sème pas `forge3d`, `patch_deck` (:311-313) ne
+l'accepte pas — or `saveBody` (`core.js:1404`) l'ENVOIE (tout id sale du tableau JS
+`MODULES`, qui contient `forge3d`). Le graphe P9 (« doc.forge3d.graph reste LA
+vérité », plan 2a:18) ne survit donc à aucun cycle PATCH→lecture en ligne. Aucun test
+ne l'épinglait (grep `forge3d` dans test_cards_core.py → 0). `doc.capture` hériterait
+du même trou. **La doctrine du partitionnement est juste, la liste est périmée** — la
+phase 4 étend `MODULE_IDS` à 10 (D1).
+
+### 1.2 La coquille du 10e module (checklist exacte)
+
+- `core.js:77` `MODULES` : ajouter `"capture"` (10e). `Z_TABLE` (:82) : INTOUCHÉ —
+  `register()` (:472-526) ne valide les z que des painters déclarés ; `painters: []`
+  saute tout le bloc (précédent : data/solid/print/gltf/forge3d). Titre/icône : AUCUNE
+  table côté core — `buildRail()` (:938-956) lit `REG[id].title/icon` posés par le
+  `CF.register` du module lui-même.
+- `lint_cardforge.py` : `MODULES` (:108-109) + `"capture": set()` dans son `Z_TABLE`
+  (:97-107) ; `EXTRA_PY` (:126) intouché (un seul `capture.py`). Aucun painter
+  autorisé (§9.4).
+- `index.html` (164 l.) : 3 insertions au patron des 9 — `<link>` css après :21,
+  `<section class="cf-panel" id="cf-panel-capture" data-mod="capture">` dans
+  `<section class="work">` après :140, `<script>` après :162.
+- `backend/app/services/cards/__init__.py` : import (:40, pas d'alias — c'est
+  pourquoi la spec a choisi `capture`), `include_router(..., prefix="/{did}/capture")`
+  AVANT le filet attrape-tout (:83, Starlette matche dans l'ordre), ligne de
+  docstring (:13-26).
+- `qa/contract.html` : PAS de casse mécanique (le rail rend `.off` + title
+  synthétique pour tout id non enregistré, comportement déjà épinglé par
+  `test_core_contract.mjs:305-307` ; aucune assertion de compte). L'écart de
+  couverture du banc s'élargit (déjà : forge3d absent) — ACCEPTÉ, le banc teste le
+  CORE sur modules factices, pas les modules.
+
+### 1.3 Primitives d'analyse (ce qui existe, ce qui manque)
+
+- `pixel_ops.chroma_key(img, tolerance=28, feather=1.6) -> (RGBA, ok)`
+  (`pixel_ops.py:348-390`) : clé = couleur médiane du périmètre ; REFUSE (`ok=False`,
+  image intacte) sur deux portes mesurées — uniformité du périmètre < 60 % (:374) ou
+  couverture opaque hors [5 %, 95 %] (:386). C'est la philosophie `bg_failed`
+  verbatim (précédent d'avoeu : `sprite_service.py:640-641`).
+- `pbr_service._micro_contrast(lum, radius)` (:308-321) : carte d'énergie
+  pleine-résolution (passe-haut log-luminance) — pas des blocs. `stats(img)`
+  (:545-563) : histogramme pur PIL {mean, median, p1/p5/p95, span}.
+- **AUCUN chercheur de boîtes / composants connexes n'existe** (grep pixel_ops +
+  pbr_service) : carte d'énergie → boîtes candidates = code NEUF de phase 4.
+- rembg : prix `pricing.py:43` `rembg_api_usd: 0.003` ; voie API
+  `sprite_service._rembg_api` (:199-209, fal `imageutils/rembg`) ; voie locale
+  `_rembg_local_bytes` (:219-221, `from rembg import remove`) ; patron de
+  disponibilité réutilisé 2× (`routes.py:710-716`, `:3837-3873`). NOTE : routes.py
+  répond 400 sur dépendance absente, la doctrine cards §8 dit 503 littéral — chez
+  cards, §8 fait loi.
+
+### 1.4 Admission d'images
+
+Patron `texture.py:post_paper` (:2230-2241 → `_store_image` :2178-2213) : corps brut
+→ 400 vide → 400 > `SRC_MAX_BYTES` 64 Mo → taille lue dans l'EN-TÊTE avant décodage →
+413 > `IMG_MAX_PIXELS` 32 Mpx → `load()` gardé → RGB → LANCZOS si > cap → écriture
+atomique tmp+replace. **C'est le patron de P10** (fichier fixe par côté), PAS le
+quintette 3b (galerie comptée O_EXCL — pour des piles numérotées ouvertes, ce que la
+capture n'est pas). `MAX_IMPORT_PX = 4096` : recopié 6× (doctrine `type.py:552`
+« RECOPIÉ et non partagé ») — capture.py porte la 7e copie.
+
+### 1.5 Surfaces d'adoption
+
+- **P1** : `setArt(id)` (`mod-face.js:2164-2169`), schémas `cat:`/`local:`/`img:`
+  résolus par `artSource` (:1692-1734) ; import dans la pile locale via le mécanisme
+  `afterImport` (:2171-2176). **Pas de 4e schéma** : adopter = importer les octets du
+  sujet dans la pile P1 puis `setArt("local:"+clé)`.
+- **P2** : `FAMILIES` (`frame.py:75-90`, 7 familles id/label/hint), `LIMITS`
+  (:156-165). **Aucune table de traits numériques par famille** (largeur de bande
+  typique…) n'existe — le « famille la plus proche » de §7.1.5 exige une table neuve
+  (D6). La QA silhouettes est JS-seul (`SIL_SEUIL=4`, `mod-frame.js:3960-3966`).
+- **P3** : `naitre(specs, quoi)` (`mod-type.js:1856-1864`) — naissance atomique
+  multi-slots, un seul pas d'undo, `normSlots` validant. L'adoption des zones = UN
+  appel groupé.
+- **P9** : `LAYER_ROLES` 6 rôles figés (`forge3d.py:85-92`, miroir parité) ; le nœud
+  `layer` (:115) résout via `_lire_manifeste` (:1172-1184) qui lit
+  `layers_{carte}_{side}.json`, écrit UNIQUEMENT par `post_layers` (:916+) après
+  preuve d'empilement des peintres. **Les couches importées n'ont aucun chemin
+  honnête vers ce manifeste** (elles ne passeraient pas la preuve d'empilement) →
+  côté `capture` dédié (D7).
+
+### 1.6 Modèle fragments + transmis de phase 3
+
+- 7 modèles d'usine (`models.py:1326`, `_usine` :823-839). `deepotus-fragments`
+  n'est PAS un 8e d'usine : la spec le fait naître par « enregistré comme modèle »
+  (voie perso `POST /models`, :1333+) depuis un deck vivant configuré. Le Sceau 3c
+  est prêt : `SEAL_DEFAULTS` (`frame.py:228-231`), portée 3D-seule =
+  `scope:{screen:false, print:false, mesh:true}`.
+- Transmis 3c vérifiés : nœud `extrude` ABSENT (`NODE_KINDS` = 9, `forge3d.py:114-125` ;
+  `relief` est « l'extrusion v1 ») ; « ondulation normale douce » non livrée (avoué
+  3c) ; phase-pointeur : `sealStops(f, phase)` prêt (`mod-frame.js:1856`), aucun
+  branchement pointeur ; **meta.json illisible-qui-se-redate : DÉJÀ implémenté et
+  testé** (`core.py:219-223`, `test_cards_core.py:618,643`) — la transmission se
+  clôt ici, aucun travail.
+- Restes §6.4 : duplication LIVRÉE (`core.py:494`) ; bouton galerie « Importer une
+  carte » = placeholder honnête (`core.js:1730`, toast :2005) à câbler.
+- Tailles : core.js 2325 l., index.html 164 l., lint 1030 l. ; P9 est la pièce la
+  plus lourde (mod-forge3d.js 316 Ko, forge3d.py 181 Ko, test 496 Ko).
+
+---
+
+## 2. Décisions de conception
+
+**D1 — `MODULE_IDS` passe de 8 à 10 (`forge3d`, `capture`).** La doctrine du
+partitionnement (:73-74 « un id hors de cette liste est refusé partout ») est juste ;
+c'est la liste qui a deux pièces de retard. Conséquences tenues ensemble :
+`default_doc` sème `forge3d:{}` et `capture:{}`, `normalize_deck` et `patch_deck` les
+acceptent (garde dict tolérante, comme les 8), docstrings « huit » → « dix » partout
+où le mot est un fait (grep), `test_cards_core.py:1050` réécrit sur la vérité
+nouvelle. RED d'abord sur la perte d'aujourd'hui : PATCH `{forge3d:{graph:…}}` →
+lecture → présent (échoue avant le fix), rejoué par la ROUTE réelle, pas par
+`write_deck` direct. Ceci répare rétroactivement la promesse 2a (« le graphe est LA
+vérité ») — le bug utilisateur réel : toute édition de graphe était perdue au
+rechargement en ligne.
+
+**D2 — Admission = patron `post_paper`, fichiers fixes par côté.** `POST
+/api/cards/{did}/capture/card?side=recto|verso` (défaut recto), corps brut,
+`MAX_IMPORT_PX=4096` (7e copie avouée), écriture atomique
+`decks/{did}/capture/source_{side}.png`, ré-import = remplacement (pas d'historique —
+une capture est un point de départ, pas une pile). `GET .../capture/{nom}.png` sert
+les fichiers du dossier capture par liste blanche de noms (regex stricte, pas de
+traversée). Un `?side` hors liste = refus français nommé, pas un 422 FastAPI.
+Jamais-500 partout.
+
+**D3 — `doc.capture` est publié par la PIÈCE, pas par la route.** Le POST analyse et
+RÉPOND (le JSON d'analyse complet) ; mod-capture.js fait `M.patch({capture:{…}})` →
+la voie d'autosave unique (que D1 rend enfin étanche). Une seule écriture du
+document ; les PNG, eux, sont stockés serveur par la route. Schéma §7.1.4 :
+`doc.capture = {analyzed, border:{mm,color,radius_mm,confidence}, boxes:[…],
+bg:{color,confidence}, palette, layers:{…}}`. Les boîtes sont en MM dans le doc
+(une unité par frontière, convertie au bord de l'API).
+
+**D4 — L'analyse réutilise ce qui se mesure déjà, n'invente que le chercheur de
+boîtes.** Bordure : balayage de gradient depuis les 4 bords (code neuf, pur PIL) →
+épaisseur mm + couleur dominante + rayon de coin estimé + confiance = régularité de
+bande, clampée [0,1], cas dégénéré nommé (« aucun front trouvé » = bordure absente,
+jamais 0 mm confiance 1). Zones : `_micro_contrast` + `stats` PAR BLOCS (grille
+~32 px) → seuillage → composants connexes sur la grille grossière (code neuf) →
+boîtes mm + densité + netteté. Fond : `pixel_ops.chroma_key` tel quel — ses deux
+portes mesurées SONT le refus §8 (« fond non uni → refus mesuré, pas détouré de
+travers ») ; le refus publie la mesure qui l'a causé. Palette : quantification
+(`pixel_ops`). **Chaque détection publie sa confiance chiffrée ; l'écran affiche le
+chiffre, jamais une certitude.**
+
+**D5 — rembg opt-in au basculement sprite, doctrine cards.** Disponibilité rapportée
+honnêtement par `GET /capture/ai-options` (local présent ? clé fal ?) avec le prix de
+`pricing.py` (jamais recopié — test d'égalité à la table) AVANT tout appel ; option
+absente = pas proposée (aucune erreur) ; invoquée quand même = 503 littéral (§8,
+l'écart routes.py-400 ne fait pas jurisprudence chez cards). Tests sous espion
+étanche patché au point de CONSOMMATION (la leçon spy 3c), zéro dépense prouvée
+(compteur d'appels réels = 0).
+
+**D6 — Les adoptions vivent chez chaque pièce (cloisonnement §7.1.5).** P10 publie,
+ne touche jamais l'état des autres. P1, P2, P3 lisent `doc.capture` avec tolérance
+(dérivation pure, patron sectionsBasses — un bouton d'adoption sans matière à
+adopter n'existe pas) et offrent LEUR bouton. P2 : nouvelle table `FAMILY_TRAITS`
+(bande mm typique + teinte par famille) dans le bloc miroir CF-FRAME-CATALOG (parité
+testée §9.2 — ET la copie du lint si le lint en porte une : la parité compte TOUS
+les miroirs) ; « adopter la bordure » choisit la famille au plus proche des mesures
+(distance à teinte CIRCULAIRE — min(d, 360−d)), pose les réglages MESURÉS clampés
+par `LIMITS`, respecte le verrou 3b (lock = non-départ), et AFFICHE l'écart
+(« bande 2,1 mm ↔ sable 2,0 mm, teinte à N° » — l'unité d'un angle est le degré) —
+le test §9.1 exige que l'écart affiché SOIT l'écart calculé, même chiffre.
+
+**D7 — P9 : côté `capture` + manifeste propre, jamais une preuve empruntée.** Les
+couches importées ne passeraient pas la preuve d'empilement des peintres — leur
+manifeste est le leur : P10 écrit `layers_{carte}_capture.json` au MÊME schéma
+(fichiers, sha256, boîtes) avec `source:"capture"` et pour preuve la confiance de
+recomposition MESURÉE (fond+sujet vs original, taille de mesure avouée). Le nœud
+`layer` gagne `side:"capture"` (miroir + grammaire + validation ; cohérence
+nom-du-fichier ↔ contenu exigée), `_lire_manifeste` lit le fichier, le bordereau
+avoue la provenance. Rôles mappés : sujet→`illustration`, bordure→`cadre`,
+fond→`fond-matiere`. « Une carte importée peut partir en 3D sans être reconstruite »
+(§7.1.6) devient un test. L'implémenteur vérifie les portes exactes de
+`_lire_manifeste` à la source avant d'écrire.
+
+**D8 — Le nœud `extrude` (10e kind) : l'anneau-contour en objet.** Le transmis 3c :
+contour fermé → anneau extrudé (largeur mm, profondeur mm — plancher partagé avec
+`SEAL_MIN_MM`, jumeau épinglé), matériau assignable par référence de nœud (le Sceau
+prismatique 3c s'y branche — c'est la « profondeur d'extrusion » du parcours
+§7.2:569). Deux contours nommés v1 : le rectangle arrondi du format, l'anneau du
+Sceau. Bloc miroir + writer + grammaire + preuve `mesh_report` (fermé — arêtes
+appariées —, volume positif calculé SANS compter le trou de l'anneau, orientation
+des capuchons testée, imprimable §9.1) ; segments au plancher pour que les capuchons
+ne dégénèrent pas. Le filigrane du Patriarche est son cas d'usage nommé (:574
+« filigrane en extrusion + matériau Sceau prismatique »).
+
+**D9 — La preuve fragments roule sur la seule face qui existe (F1).** Extraction du
+Patriarche par pypdf (page 5, l'image 1060×1484) vers
+`.superpowers/samples/patriarch.png` — HORS dépôt (vérifier l'ignore AVANT
+d'écrire ; l'incident nom-réel du gauntlet interdit tout actif personnel commité ;
+purger les métadonnées du PNG extrait). Pseudonyme fixe dans tous les gabarits et
+tests. Le modèle `deepotus-fragments` naît par la voie perso (« enregistré comme
+modèle ») depuis le deck de preuve — zéro code modèle neuf. La famille P2 nouvelle
+« filigrane-instrument » (double filets ~2,1/~3,2 mm, instruments de coin,
+médaillons de mi-chant — vectoriel déterministe) entre au catalogue avec silhouette
+QA pairwise + parité. Le dos commun étant ABSENT des sources (F1), le verso de la
+preuve = verso 3c par défaut, avoué. Les 91 autres faces n'existant nulle part, le
+plan les ATTEND sans les bloquer (le chemin peut arriver à tout moment).
+
+**D10 — Pas d'assistant modal.** Le « parcours guidé » §7.2:564-570 = les 4
+capacités réelles (importer l'illustration, choisir/importer la bordure, régler le
+Sceau, éditer le verso), affichées comme une liste d'étapes-liens (`CF.show` + ancre
++ dépli des sections escamotées 2d si besoin) sur le panneau P10 quand une capture
+est publiée. Un wizard serait du chrome sans substance — avoué ici.
+
+---
+
+## 3. Tâches
+
+Ordre : T1 → T2 → (T3 ∥ T4, propriété de fichiers disjointe) → T5 → T6.
+
+### T1 — La coquille P10 + la persistance élargie (D1, D2)
+
+Les 4 fichiers de la règle 1 (`mod-capture.js`, `mod-capture.css`, `capture.py`,
+`test_cards_capture.py`) ; la checklist 1.2 entière (MODULES, lint, index.html,
+`__init__.py` avant le filet) ; **`MODULE_IDS` 8→10 avec RED d'abord sur la perte de
+`doc.forge3d`** (F2, rejouée par la route réelle) et le test :1050 réécrit ; `POST
+/capture/card` (patron post_paper, ?side avec refus nommé, 7e copie
+`MAX_IMPORT_PX`) + `GET` de service par liste blanche ; le panneau P10 minimal
+(dépôt de fichier recto/verso, aperçu, état « analysé/pas analysé ») sans painter ;
+`galImport` câblé (`core.js:2005` : le toast placeholder meurt, `CF.show("capture")`
+naît). Jamais-500 partout.
+**Fichiers** : les 4 neufs + core.js + index.html + lint_cardforge.py +
+`__init__.py` + contract.py + core.py + test_cards_core.py.
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE
+
+### T2 — L'analyse locale gratuite (D3, D4)
+
+Bordure (balayage 4 bords), zones (blocs + composants connexes NEUFS), fond
+(`chroma_key`, refus mesuré §8), palette ; confiances chiffrées publiées ;
+`doc.capture` publié par `M.patch` (D3, boîtes en mm) ; l'écran P10 affiche mesures
++ chiffres de confiance (jamais une certitude) ; **tests §9.1 à vérité connue** :
+bordure de x mm POSÉE par le test → retrouvée à tolérance chiffrée ; boîtes posées
+→ retrouvées ; fond non uni → refus motivé portant la mesure.
+**Fichiers** : capture.py, mod-capture.js, mod-capture.css, test_cards_capture.py.
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE
+
+### T3 — Le détourage IA opt-in + adoptions P1/P3 (D5, D6)
+
+`GET /capture/ai-options` (disponibilité honnête + prix pricing.py) ; `POST
+/capture/rembg` (bascule locale/fal du patron sprite, doctrine 503 §8, espion
+étanche zéro dépense) → couche « sujet » ; P1 « adopter l'illustration » (octets du
+sujet — ou du recadrage art — dans la pile locale + `setArt("local:…")`, pas de 4e
+schéma, undo un pas) ; P3 « adopter les zones » (boîtes → `naitre` groupé, un pas
+d'undo, slots éditables §6.1) ; les deux boutons dérivés purs de `doc.capture`
+(lecture tolérante).
+**Fichiers** : capture.py, mod-capture.js, mod-face.js, mod-type.js,
+test_cards_capture.py, test_cards_type.py (si la naissance se teste là).
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE
+
+### T4 — L'adoption P2 + la famille « filigrane-instrument » (D6, D9)
+
+`FAMILY_TRAITS` au miroir CF-FRAME-CATALOG (parité §9.2, TOUS les miroirs lint
+compris) ; « adopter la bordure » = famille la plus proche (teinte circulaire) +
+réglages MESURÉS clampés `LIMITS` + verrou 3b respecté + écart AFFICHÉ = écart
+CALCULÉ (test d'égalité au chiffre, §9.1) ; 8e famille « filigrane-instrument »
+(double filets ~2,1/~3,2 mm, instruments de coin, médaillons mi-chant, vectoriel
+déterministe) + silhouette QA pairwise (`SIL_SEUIL=4`) + parité.
+**Fichiers** : frame.py, mod-frame.js, test_cards_frame.py.
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE
+
+### T5 — P9 : le nœud `extrude` + la source `capture` (D7, D8)
+
+`extrude` 10e kind (params `width_mm`/`depth_mm`/`contour` ; preuves D8 par
+`mesh_report` ; matériau assignable — le Sceau s'y branche) ; côté `capture` du nœud
+`layer` (grammaire + miroir + validation, cohérence nom↔contenu) ; manifeste capture
+écrit par P10 (`layers_{carte}_capture.json`, même schéma, `source:"capture"`,
+preuve = recomposition mesurée, taille de mesure avouée) ; `_lire_manifeste`
+l'accepte ; bordereau avoue la provenance ; test « une carte importée part en 3D
+sans reconstruction » (graphe : layer capture → assemble → artifact, GLB servi).
+**Fichiers** : forge3d.py, forge3d_scene.py, mod-forge3d.js, test_cards_forge3d.py,
+capture.py (l'écrivain du manifeste), test_cards_capture.py.
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE
+
+### T6 — La preuve deepotus-fragments + intégration (D9, D10)
+
+Extraction Patriarche (pypdf, page 5, 1060×1484, script one-shot sous scripts/qa,
+erreur littérale si le PDF manque) → `.superpowers/samples/` hors dépôt (ignore
+vérifié AVANT écriture, métadonnées purgées) ; le parcours §7.2 REJOUÉ ET MESURÉ
+sur le vrai fichier dans l'app déployée : import → analyse (mesures vs table
+d'anatomie :549-556, tolérances avouées ; NB : portrait pleine carte = fond non uni
+attendu → le REFUS local est la bonne réponse, rembg reste opt-in non tiré) →
+adoptions P1/P2/P3 → famille filigrane-instrument → Sceau 3D-seul → verso (dos
+commun absent : verso 3c par défaut, avoué) → « enregistré comme modèle » → galerie
+→ export par couches → graphe (illustration mesh, filigrane extrude+Sceau, typo
+relief) → GLB+metadata+STL+masque de foil ; parcours guidé D10 (étapes-liens) ;
+suite complète sur arbre au repos ; déploiement ; vérification navigateur réelle
+zéro dépense ; mémoire ; poussée.
+**Fichiers** : mod-capture.js (étapes-liens), scripts/qa (extraction),
+test_cards_capture.py (la preuve scriptée sur SYNTHÉTIQUE — le vrai fichier reste
+hors CI), + intégration.
+
+- [ ] LIVRÉ
+- [ ] Ronde adverse + corrections
+- [ ] CLOSE DE PHASE (consigne de sortie ci-dessous)
+
+---
+
+## 4. Consigne de sortie de phase (à remplir en clôture)
+
+- [ ] Bilan de phase (livré, chiffres, poussée).
+- **Attendus de l'utilisateur (courant, aucune bloquante)** : les 92 faces + le dos
+  commun (le dossier fabricant ne les contient pas — F1) ; le tir meshy-7 réel
+  (~30-35 cr) ; UN décor IA réel (~0,03-0,08 $) ; l'œil ~5 min (liste permanente +
+  P10 neuf).
+- **Transmis potentiels (à arbitrer en clôture)** : ondulation douce (2 phases
+  d'aveu — trancher ou enterrer), phase-pointeur (prêt, jamais branché), contour
+  SVG d'extrude (v2), empaquetage rembg local (installeur), GC images orphelines
+  (17,4 Mo mesurés en 3c), perf cuisson verso 1200 dpi (9,2 s vs budget 4 s).
