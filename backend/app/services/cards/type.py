@@ -1353,7 +1353,16 @@ def _read_slot_image(did: str, name: str) -> bytes | None:
         p = type_dir(did) / name
         if not p.is_file():
             return None
-        return p.read_bytes()
+        data = p.read_bytes()
+        # UN JALON DE RÉSERVATION N'EST PAS UNE IMAGE (trouvé par la revue du
+        # verso personnalisé, 3c-T4, sur la jumelle de cette porte — le défaut
+        # était ici AUSSI, hérité mot pour mot). `_store_slot_image` crée le
+        # nom final VIDE avant d'y déplacer les octets ; une panne dure du
+        # processus laisse le jalon. Mesuré : `GET .../img_1.png` rendait
+        # **200, zéro octet, `Cache-Control: immutable`** — le calque affichait
+        # alors une image vide au lieu de son damier nommé, et le navigateur
+        # gardait ce vide en cache pour un an. Zéro octet vaut donc ABSENT.
+        return data or None
     except (OSError, ValueError):
         return None
 

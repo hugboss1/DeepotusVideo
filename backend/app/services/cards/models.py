@@ -1008,11 +1008,19 @@ def _normaliser_perso(raw: dict, fichier: Path) -> dict:
     fin = str(raw.get("finish") or "").strip().lower()
     els = raw.get("elements") if isinstance(raw.get("elements"), list) else []
     notes = raw.get("fonts_note")
+    # LA NOTE DU VERSO VAUT AUSSI ICI, et pas seulement à l'écriture. Le
+    # filtre joue aux DEUX passages : un fichier déposé à la main qui porte des
+    # `src` de verso est purgé À LA LECTURE — et sans cette ligne, personne ne
+    # le disait sur ce chemin-là. La note se motive par « purger en silence,
+    # c'est un utilisateur qui cherche la panne » : la raison ne dépend pas du
+    # sens dans lequel on traverse.
+    note = _verso_note(raw.get("frame"))
     m = {
         "id": fichier.stem,
         "label": _texte(raw.get("label"), fichier.stem),
-        "hint": _texte(raw.get("hint"), "Modèle enregistré depuis un deck.",
-                       240),
+        "hint": _texte(str(raw.get("hint") or "Modèle enregistré depuis un deck.")
+                       + (" " + note if note else ""),
+                       "Modèle enregistré depuis un deck.", 240),
         "format": fmt if fmt in FORMATS else DEFAULT_FMT,
         "frame": _frame_sans_import(raw.get("frame")),
         "type": {"preset": _texte(typ.get("preset"), fichier.stem, 40),

@@ -4998,13 +4998,17 @@ import { readFileSync } from "node:fs";
 const CODE = readFileSync(process.argv[2], "utf8");
 const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
 const mod = new Function("return (function(){ " + CODE
-  + "\nreturn { st: st, DEFAULTS: DEFAULTS,"
+  + "\nreturn { st: st, DEFAULTS: DEFAULTS, backOf: backOf,"
   + " backImageOf: backImageOf, backLayersOf: backLayersOf };\n})();")();
 const out = [];
 for (const c of CAS.cas) {
   try {
     const f = mod.st({ frame: c.frame });
     out.push({ nom: c.nom, ok: true, back: f.back,
+      /* LE DOS EFFECTIF de la carte : `f.back` quand le dos est commun,
+         `card.back` sinon. C'est LUI que `paintBack` lit pour choisir sa
+         branche — donc lui qui decide si le verso personnalise rend. */
+      kind: mod.backOf(f, c.card || null),
       back_image: f.back_image, back_layers: f.back_layers,
       /* L'ALIAS : le tableau rendu est-il CELUI du schema ? `DEFAULTS` est
          l'objet meme que `CF.register` remet au registre du CORE — un alias
@@ -5065,6 +5069,26 @@ VERSO_HOSTILE = {
                                   for i in range(1, 12)]},
     "saut_de_ligne": {"back_image": "img:img_1.png\n",
                       "back_layers": [{"src": "img:img_1.png\n"}]},
+    # ── LES FORMES QUI SÉPARENT VRAIMENT LES DEUX LANGAGES ────────────────
+    # La première batterie passait à côté du seul cas que `bnum()` existe pour
+    # fermer : elle ne donnait jamais `null` ni `""`. MESURÉ, mutant `bnum` ->
+    # `num` : `{"opacity": null}` rend 0 à l'écran et 1,0 au backend — un
+    # calque qui DISPARAÎT sur la carte pendant que le serveur le croit opaque.
+    # C'est la divergence `width_mm: null` de la T1, sur une autre clé.
+    "absent_explicite": {"back_layers": [
+        {"src": "img:img_1.png", "opacity": None, "scale": None},
+        {"src": "img:img_2.png", "opacity": "", "scale": "  "},
+        {"src": "img:img_3.png", "opacity": [], "scale": {}}]},
+    # ... et les CHAÎNES NUMÉRIQUES, que `Number()` et `float()` ne lisent PAS
+    # de la même façon : « 0x10 » vaut 16 en JS et lève en Python ; « 1_0 »
+    # vaut 10 en Python et NaN en JS. Atteignable par un fichier de jeu édité
+    # à la main — le scénario que ce dépôt traite partout ailleurs.
+    "chaines_numeriques": {"back_layers": [
+        {"src": "img:img_1.png", "opacity": "0x10", "scale": "0x10"},
+        {"src": "img:img_2.png", "opacity": "1_0", "scale": "1_0"},
+        {"src": "img:img_3.png", "opacity": "1e0", "scale": "1e0"},
+        {"src": "img:img_4.png", "opacity": " 0.5 ", "scale": " 2.5 "},
+        {"src": "img:img_5.png", "opacity": "0.5", "scale": "2.5"}]},
 }
 
 
@@ -5100,6 +5124,17 @@ def test_les_deux_normaliseurs_du_verso_rendent_LA_MEME_CHOSE(tmp_path):
     assert hb[1]["opacity"] == 0.0 and hb[1]["scale"] == BACK_SCALE_SPEC[1]
     assert res["saut_de_ligne"]["back_image"] == ""
     assert res["saut_de_ligne"]["back_layers"] == [dict(FR.BACK_LAYER_DEFAULTS)]
+    # ABSENT vaut DÉFAUT, jamais zéro — des deux côtés (le piège `num()`)
+    for l in res["absent_explicite"]["back_layers"]:
+        assert l["opacity"] == FR.BACK_LAYER_DEFAULTS["opacity"], l
+        assert l["scale"] == FR.BACK_LAYER_DEFAULTS["scale"], l
+    # UNE CHAÎNE N'EST UN NOMBRE QUE SI LES DEUX LANGAGES LA LISENT PAREIL :
+    # décimale simple, sans espace, sans base, sans exposant, sans souligné.
+    ch = res["chaines_numeriques"]["back_layers"]
+    for i in range(4):
+        assert ch[i]["opacity"] == FR.BACK_LAYER_DEFAULTS["opacity"], (i, ch[i])
+        assert ch[i]["scale"] == FR.BACK_LAYER_DEFAULTS["scale"], (i, ch[i])
+    assert ch[4]["opacity"] == 0.5 and ch[4]["scale"] == 2.5, ch[4]
 
 
 def test_la_pile_de_calques_rendue_n_est_JAMAIS_celle_du_schema(tmp_path):
@@ -5946,37 +5981,61 @@ MUT_BLEND_VIF = [(
     "      ctx.drawImage(rec.img, b[0], b[1], b[2], b[3]);")]
 
 
-def test_la_precomposition_ne_change_AUCUN_PIXEL_et_c_est_dit(tmp_path):
-    """LA PHRASE, REMISE À LA MESURE (leçon 3c-T3-F1 : une prose qui promet
-    plus que les octets est une prose fausse, même quand le code est bon).
+def test_la_precomposition_ne_change_les_pixels_qu_a_UN_NIVEAU_PRES(tmp_path):
+    """LA PHRASE, REMISE À LA MESURE — DEUX FOIS (leçon 3c-T3-F1 : une prose
+    qui promet plus que les octets est une prose fausse, même quand le code
+    est bon).
 
-    Il serait commode d'écrire « sans la précomposition, la preuve
-    d'empilement tombe ». C'est FAUX, et ce test épingle le fait dont la
-    phrase honnête dépend : sur ce verso, un `multiply` VIVANT rend
-    exactement les mêmes octets — sur fond opaque comme sur fond
-    TRANSPARENT. Le verdict de §4.2 serait donc le même.
+    Premier tour : il serait commode d'écrire « sans la précomposition, la
+    preuve d'empilement tombe ». C'est FAUX — un `multiply` VIVANT rend les
+    mêmes pixels, donc le même verdict §4.2. Ce que la précomposition achète
+    est la SUITE D'OPÉRATIONS : la couche du cadre ne demande jamais autre
+    chose que `source-over`.
 
-    Ce que la précomposition achète est la SUITE D'OPÉRATIONS : la couche du
-    cadre ne demande jamais autre chose que `source-over`, et c'est cela que
-    le banc de §4.2 sait vérifier — et que vérifiera tout lecteur du flux
-    d'opérations. Le jour où les deux écritures cesseraient de coïncider en
-    pixels, ce test rougit, et la phrase se réécrit dans le bon sens."""
-    imgs = {"img_1.png": (4, 4, CALQUE_A)}
-    cas = [_cas_verso("opaque", back_image="img:img_1.png", imgs=imgs,
+    Second tour, la revue : « EXACTEMENT les mêmes octets » était faux à son
+    tour, et le premier pin ne pouvait pas le voir — il ne faisait varier que
+    la couleur, jamais l'ALPHA du calque. Or `_decode_bounded` garde la bande
+    alpha PAR CHOIX (« sa transparence porte »), donc un calque semi-
+    transparent est une entrée de premier rang. Mesuré : à alpha 64, un canal
+    diffère d'UN NIVEAU. L'algèbre, elle, est exacte (re-dérivée à la main
+    contre la formule W3C) ; l'écart est la QUANTIFICATION — la cuisson passe
+    par `getImageData`/`putImageData`, donc par un aller-retour en entiers 8
+    bits, là où le compositeur garde ses flottants jusqu'au bout.
+
+    La phrase tenable est donc : mêmes octets **à un niveau près**, et
+    EXACTEMENT les mêmes pour un calque opaque."""
+    OPAQUE = [128, 64, 200, 255]
+    TRANSLUCIDE = [128, 64, 200, 64]
+    cas = [_cas_verso("opaque", back_image="img:img_1.png",
+                      imgs={"img_1.png": (4, 4, OPAQUE)},
                       calques=[{"src": "img:img_1.png", "opacity": 0.6,
                                 "scale": 1, "blend": "multiply"}]),
-           _cas_verso("transparent", imgs=imgs, base="rgba(0,0,0,0)",
+           _cas_verso("fond_nul", imgs={"img_1.png": (4, 4, OPAQUE)},
+                      base="rgba(0,0,0,0)",
+                      calques=[{"src": "img:img_1.png", "opacity": 1,
+                                "scale": 1, "blend": "multiply"}]),
+           _cas_verso("translucide", back_image="img:img_1.png",
+                      imgs={"img_1.png": (4, 4, TRANSLUCIDE)},
                       calques=[{"src": "img:img_1.png", "opacity": 1,
                                 "scale": 1, "blend": "multiply"}])]
     produit = _banc_verso(tmp_path, cas)
     vif = _banc_verso(tmp_path, cas, mutations=MUT_BLEND_VIF)
-    for nom in ("opaque", "transparent"):
+    for nom in produit:
         assert produit[nom]["ok"] and vif[nom]["ok"], nom
+    # 1. CALQUE OPAQUE : égalité STRICTE, empreinte comprise
+    for nom in ("opaque", "fond_nul"):
         assert produit[nom]["hash"] == vif[nom]["hash"], \
-            f"{nom} : la précomposition CHANGE les pixels " \
-            f"({produit[nom]['px']['centre']} vs {vif[nom]['px']['centre']}) " \
-            f"— la phrase du code doit alors être réécrite"
-    # LA SEULE différence, et c'est tout l'objet du mécanisme
+            f"{nom} : un calque OPAQUE doit donner les mêmes octets " \
+            f"({produit[nom]['px']['centre']} vs {vif[nom]['px']['centre']})"
+    # 2. CALQUE SEMI-TRANSPARENT : l'écart existe, et il est BORNÉ à 1 niveau
+    ecart = 0
+    for k in produit["translucide"]["px"]:
+        for a, b in zip(produit["translucide"]["px"][k], vif["translucide"]["px"][k]):
+            ecart = max(ecart, abs(a - b))
+    assert ecart <= 1, \
+        f"la cuisson s'écarte du compositeur de {ecart} niveaux : ce n'est " \
+        f"plus la quantification, c'est l'algèbre — re-dériver la formule"
+    # 3. LA SEULE différence qui compte, et c'est tout l'objet du mécanisme
     assert produit["opaque"]["modes"] == ["source-over"]
     assert "multiply" in vif["opaque"]["modes"], vif["opaque"]["modes"]
 
@@ -6064,3 +6123,159 @@ def test_le_painter_du_verso_ATTEND_ses_images_avant_de_peindre():
     j = src.index("function ensureBackImgs(")
     ens = src[j:src.index("\n  function ", j)]
     assert "Promise.race" in ens and "IMG_WAIT_MS" in ens, ens
+
+
+# ── 17.7 RONDE DE REVUE (23/08) — ce que les pixels disaient et pas la prose ─
+
+def test_un_calque_MORT_ne_mange_pas_la_carte(tmp_path):
+    """F1, MESURÉ AVANT D'ÊTRE CORRIGÉ. Le damier d'un calque dont le fichier
+    manque passait par le cadrage du calque, c'est-à-dire un « cover » d'une
+    image 1 x 1 : un carré du CÔTÉ LE PLUS LONG de la toile. Mesure à poker :
+    la boîte valait [-147,5 ; 0 ; 1110 ; 1110] et **0 point d'échantillon sur
+    6** gardait l'image de fond. Un calque mort effaçait donc l'illustration du
+    dos, qui, elle, était là — et le commentaire du code promettait le
+    contraire (« pas sur toute la carte, sinon on effacerait l'image de fond »).
+
+    Le damier d'un calque est désormais un ENCART CENTRÉ et nommé : assez grand
+    pour se lire sur une épreuve, assez petit pour que le fond respire tout
+    autour. Le damier de l'IMAGE DE FOND, lui, couvre bien la toile entière —
+    c'est le fond qui manque."""
+    imgs = {"img_1.png": (4, 4, IMG_FOND)}
+    r = _banc_verso(tmp_path, [
+        _cas_verso("mort", back_image="img:img_1.png", imgs=imgs,
+                   calques=[{"src": "img:img_9.png", "opacity": 1,
+                             "scale": 1, "blend": "normal"}]),
+        _cas_verso("vivant", back_image="img:img_1.png", imgs=imgs),
+    ])
+    m, v = r["mort"], r["vivant"]
+    assert m["ok"] and v["ok"], (m.get("err"), v.get("err"))
+    # LE TÉMOIN d'abord : sans calque mort, les six points portent le fond.
+    for k, px in v["px"].items():
+        assert px == IMG_FOND, f"témoin : {k} = {px}"
+    # LE FOND RESPIRE : les quatre coins (toile ET coupe) le gardent.
+    for k in ("toile_hg", "toile_bd", "coupe_hg", "coupe_bd"):
+        assert m["px"][k] == IMG_FOND, \
+            f"{k} porte {m['px'][k]} : le damier du calque a mangé l'image " \
+            f"de fond"
+    # ... et le calque mort est bien DIT, au centre, avec son rang
+    assert m["px"]["centre"] != IMG_FOND, "aucun damier n'a été peint"
+    assert "img_9.png" in m["textes"], m["textes"]
+    assert any("calque 1" in t for t in m["textes"]), m["textes"]
+
+
+def test_le_peintre_du_verso_ne_FUIT_PAS_sa_toile_de_cuisson_ni_son_lecteur():
+    """N5 et N6 de la ronde, deux garde-fous qu'aucun pixel ne peut montrer.
+
+    N5 — la toile de cuisson pèse ~21 Mo en tarot 600 DPI. Le CORE ATTRAPE les
+    exceptions de painter (il n'arrête pas les sept autres pièces) : une
+    exception au milieu de la pile ferait donc fuir cette toile SILENCIEUSEMENT
+    et à chaque frame. Elle se relâche sous `finally`.
+
+    N6 — `drawBackLayer` et `backLayerRect` relisent l'opacité et l'échelle
+    pour leur compte. Avec le générique `num()`, ce SECOND lecteur rouvrirait
+    le piège que `bnum()` ferme (`Number(null) === 0`). Inatteignable
+    aujourd'hui — le painter ne reçoit que du `st()` déjà normalisé — mais le
+    prochain appelant n'aura pas cette garantie."""
+    src = _js()
+    # LES COMMENTAIRES SONT RETIRÉS D'ABORD, et c'est le piège de la 3c-T3
+    # rejoué : le premier pin cherchait le mot « finally », que le commentaire
+    # du code emploie pour se justifier — le mutant qui SORT la libération du
+    # `finally` a donc SURVÉCU, en laissant sa propre prose le couvrir. Un grep
+    # de prose est un cliquet, pas une preuve : on ancre sur la STRUCTURE.
+    corps = re.sub(r"/\*.*?\*/", "", _js_fn(src, "paintBackCustom"), flags=re.S)
+    i = corps.index("} finally {")
+    assert "cache.off.width = 0" in corps[i:], \
+        "la toile de cuisson n'est pas relâchée sous `finally`"
+    assert corps.index("cache.off.width = 0") > i, corps[-400:]
+    for nom in ("drawBackLayer", "backLayerRect"):
+        c = _js_fn(src, nom)
+        assert not re.search(r"\bnum\(", c.replace("bnum(", "")), \
+            f"{nom} relit une longueur avec le générique num() : le piège " \
+            f"`Number(null) === 0` est rouvert"
+
+
+def test_le_damier_de_l_IMAGE_DE_FOND_couvre_bien_la_carte(tmp_path):
+    """Le contrôle de la correction ci-dessus : rétrécir l'encart d'un CALQUE
+    ne doit pas rétrécir celui du FOND. Quand c'est l'image de fond qui
+    manque, il n'y a rien à laisser respirer — le damier prend la toile."""
+    r = _banc_verso(tmp_path, [_cas_verso("fond", back_image="img:img_9.png")])
+    f = r["fond"]
+    assert f["ok"], f.get("err")
+    for k, px in f["px"].items():
+        assert px != BASE_RGBA, f"{k} = {px} : le damier du fond ne couvre plus"
+    assert "img_9.png" in f["textes"], f["textes"]
+
+
+def test_un_dos_PAR_CARTE_peut_etre_personnalise_et_REND(tmp_path):
+    """N1. `back_same` décoché fait lire `card.back` (colonne du CSV, pièce
+    04), et le catalogue accepte maintenant « custom » : une carte peut donc
+    porter le verso personnalisé alors que le jeu porte un motif. Ce n'était
+    ni testé ni écrit — un chemin atteignable et muet.
+
+    CE QUI REND : le dos EFFECTIF (`backOf`) est ce que `paintBack` lit pour
+    choisir sa branche, et ce que le painter lit pour attendre ses images.
+    CE QUI NE SUIT PAS, et c'est dit : les FICHIERS restent ceux du jeu
+    (`doc.frame.back_image`) — une image PAR CARTE demanderait une colonne de
+    plus, et l'affordance du panneau est consignée pour une phase ultérieure.
+    Une carte à dos personnalisé rend donc le verso personnalisé DU JEU."""
+    cas = [{"nom": "par_carte",
+            "frame": {"back": "guilloche", "back_same": False,
+                      "back_image": "img:img_1.png"},
+            "card": {"i": 0, "id": "c1", "back": "custom"}},
+           {"nom": "commun",
+            "frame": {"back": "guilloche", "back_same": True,
+                      "back_image": "img:img_1.png"},
+            "card": {"i": 0, "id": "c1", "back": "custom"}}]
+    res = _banc_verso_st(tmp_path, cas)
+    assert res["par_carte"]["kind"] == "custom", res["par_carte"]
+    # le TÉMOIN : « dos commun » coché, la carte ne décide plus
+    assert res["commun"]["kind"] == "guilloche", res["commun"]
+    # ... et les deux lecteurs qui comptent lisent bien le dos EFFECTIF
+    src = _js()
+    corps = _js_fn(src, "paintBack")
+    assert "const kind = backOf(f, card)" in corps, corps[:300]
+    i = src.index("painters: [")
+    pnt = src[i:src.index("state: DEFAULTS", i)]
+    assert 'backOf(f, card) === "custom"' in pnt, \
+        "le painter attend ses images sur f.back : une carte à dos " \
+        "personnalisé peindrait un damier"
+
+
+def test_un_JALON_DE_RESERVATION_VIDE_n_est_jamais_SERVI():
+    """N3, et LES DEUX MAGASINS. La réservation d'un numéro crée le fichier
+    final VIDE (`O_CREAT|O_EXCL`) avant d'y déplacer les octets. Entre les
+    deux il y a une fenêtre — courte, mais une panne dure du processus la
+    traverse, et le jalon reste sur le disque.
+
+    Mesuré avant correction, sur les DEUX portes (P2 comme sa jumelle P3) :
+    `GET .../img_1.png` rendait **200, zéro octet, `Cache-Control: immutable`**.
+    Un aperçu qui reçoit ça met un fichier vide en cache pour un an.
+
+    LE PLAFOND, LUI, CONTINUE DE LE COMPTER, et c'est un choix : ce que le
+    plafond protège est le NUMÉRO, pas les octets. Un jalon a pris son numéro
+    et ne le rendra pas (le compteur MAX+1 ne réattribue jamais). Le message
+    de refus dit déjà le geste — supprimer le fichier du dossier du jeu."""
+    from app.services.cards import type as TY
+    did = _deck()
+    for piece, lire in (("frame", FR._read_back_image),
+                        ("type", TY._read_slot_image)):
+        d = CT.deck_dir(did) / piece
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "img_1.png").write_bytes(b"")
+        assert lire(did, "img_1.png") is None, \
+            f"{piece} : le lecteur rend les octets d'un jalon vide"
+        r = _api("GET", f"/api/cards/{did}/{piece}/image/img_1.png")
+        assert r.status_code == 404, (piece, r.status_code, len(r.content))
+        assert "immutable" not in r.headers.get("cache-control", ""), \
+            f"{piece} : un fichier vide part avec un cache d'un an"
+    # ... et le NUMÉRO reste pris : l'import suivant ne réécrit pas img_1
+    r = _post_verso(did, _png_verso(9, 9))
+    assert r.status_code == 200, r.text[:200]
+    assert r.json()["file"] == "img_2.png", r.json()
+    assert (_frame_dir(did) / "img_1.png").stat().st_size == 0, \
+        "le jalon a été écrasé : un document qui pointait img_1 change de dos"
+    # LE CHOIX, ÉPINGLÉ plutôt que raconté : le jalon COMPTE au plafond. Ce
+    # que le plafond protège est le NUMÉRO, et celui-là est pris pour de bon.
+    assert FR._next_img_index(_frame_dir(did)) == (3, 2), \
+        "le jalon vide a cessé de compter : le plafond ne protège plus le " \
+        "numéro, il protège les octets — choisir, et le dire"

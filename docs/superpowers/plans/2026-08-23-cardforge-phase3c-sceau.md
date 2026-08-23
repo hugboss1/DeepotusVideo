@@ -780,8 +780,10 @@ models.py + test_cards_models.py (admission à l'allow-list + purge).
 - [x] Mutation : blend vivant (preuve rougit), src non purgé au modèle,
       cap dépassé.
 
-**T4 LIVRÉE — `cards_frame` 188 → 215, `cards_models` 155 → 160, lint 9/9
-0 violation, `node --check` vert, les 11 suites `cards` vertes.**
+**T4 LIVRÉE — `cards_frame` 188 → 215 → **220** (ronde de revue),
+`cards_models` 155 → 160 → **161**, lint 9/9 0 violation, `node --check`
+vert, les 11 suites `cards` vertes. `cards/type.py` touché par la ronde
+(N3, le défaut était dans les deux magasins).**
 
 - **Schéma** : `BACKS += custom` (8e entrée, EN DERNIER — les sept motifs
   gardent leur rang, donc `card.back` et les sept habillages aussi) ;
@@ -884,17 +886,123 @@ models.py + test_cards_models.py (admission à l'allow-list + purge).
   de `galGo` : le jour où le CORE échangerait le document en place, il rougit,
   et c'est là qu'une clé de jeu s'ajoute.
 - **Net déclaré, AU-DESSUS DE LA CIBLE et dit** : mod-frame.js **+612/−21 =
-  +591** (5450 → 6041), pour une cible « viser court ». Mesuré après une passe
-  de rasage : 175 lignes de commentaire, 422 de code, 19 vides. La tâche pose
+  +591** (5450 → 6041) à la ronde 1, **+55 de plus à la ronde de revue**
+  (6041 → 6096, soit **+646 au total**), pour une cible « viser court ».
+  Mesuré après une passe de rasage : 175 lignes de commentaire, 422 de
+  code, 19 vides. La tâche pose
   TROIS choses d'un coup — un schéma à deux normaliseurs, un peintre avec son
   cache d'images et sa cuisson, et une liste d'interface complète avec import
   (dépôt / collage / fichier) — là où la T1 n'en posait qu'une (+422 pour une
   cible ≤ 350). mod-frame.css 199 → 225. Un délestage futur prendrait la
   liste de calques ; il n'y a pas de sidecar JS possible (règle 1).
 - **Reste d'œil pour la T6** : un vrai import au navigateur (dépôt, collage,
-  fichier) ; la lisibilité de la liste de calques sur un panneau étroit ; et
-  le coût réel de la cuisson à 600/1200 DPI (une relecture de toile pleine par
-  calque à multiply, bornée à six — mesurée nulle part ailleurs qu'à l'œil).
+  fichier) ; la lisibilité de la liste de calques sur un panneau étroit.
+
+### Ronde de revue adverse T4 (23/08) — 4 FIX-FIRST + les nits
+
+La revue a rendu quatre corrections de fond. **Les pixels étaient sains ;
+trois PHRASES ne l'étaient pas, et un défaut réel se cachait derrière la
+quatrième.** Toutes RED d'abord, toutes tuées par mutation. Suite `cards_frame`
+215 → 220, `cards_models` 160 → 161. **12 mutants sur 12.**
+
+- **F1 — LE DAMIER D'UN CALQUE MORT EFFAÇAIT LA CARTE, et le commentaire
+  promettait le contraire.** La boîte passait par le cadrage du calque avec une
+  image 1 x 1, c'est-à-dire un « cover » CARRÉ du côté le plus LONG de la
+  toile. Mesuré à poker : `[-147,5 ; 0 ; 1110 ; 1110]` — toute la carte, et
+  **0 point d'échantillon sur 6** gardait l'image de fond. Le code disait
+  « pas sur toute la carte, sinon on effacerait l'image de fond » en faisant
+  exactement cela. Mon test ne pouvait pas le voir : son cas de calque mort
+  n'avait PAS de fond et n'assertait que les textes. Correctif : un ENCART
+  CENTRÉ et NOMMÉ (« calque 3 manquant » + le fichier, 62 % × 18 % de la
+  coupe) ; le damier de l'IMAGE DE FOND, lui, garde la toile entière — quand
+  c'est le fond qui manque il n'y a rien à laisser respirer. Trois mutants
+  (boîte pleine toile · encart appliqué AUSSI au fond · rang non dit).
+- **F2 — « exactement les mêmes octets » était FAUX pour un calque semi-
+  transparent.** Le premier pin ne faisait varier que la COULEUR, jamais
+  l'ALPHA — et `_decode_bounded` garde la bande alpha PAR CHOIX (« sa
+  transparence porte »), donc un calque translucide est une entrée de premier
+  rang. Mesuré : à alpha 64, un canal diffère d'**un niveau**. L'algèbre est
+  exacte (re-dérivée à la main contre la formule W3C) ; l'écart est la
+  QUANTIFICATION — la cuisson passe par `getImageData`/`putImageData`, donc
+  par un aller-retour en entiers 8 bits, là où le compositeur garde ses
+  flottants. La phrase est qualifiée aux TROIS endroits (code, test, cette
+  note) : **mêmes octets à ±1 niveau, EXACTEMENT les mêmes pour un calque
+  opaque** — et le pin porte désormais un cas translucide (écart borné à 1,
+  asserté ; vérifié non vacuux : le cas mesure bien 1). *Zéro octet livré ne
+  change.*
+- **F3 — `bnum` était porteur, mais le mutant `bnum` → `num` SURVIVAIT.** Les
+  7 corps hostiles ne donnaient jamais `opacity: null` ni `""` — LE cas que
+  `bnum` existe pour fermer. Mesuré : `{"opacity": null}` → **0 à l'écran
+  contre 1,0 au backend** ; un calque qui DISPARAÎT sur la carte pendant que le
+  serveur le croit opaque. C'est la divergence `width_mm: null` de la T1, sur
+  une autre clé. `null` / `""` / `"  "` / `[]` entrent dans la batterie ; le
+  mutant meurt.
+- **F4 — divergence RÉSIDUELLE sur les chaînes numériques, dans le produit
+  livré.** `Number()` et `float()` ne lisent pas les mêmes chaînes : « 0x10 »
+  vaut 16 en JS et lève en Python (→ **échelle 4 à l'écran contre 1,0 au
+  backend**) ; « 1_0 » vaut 10 en Python et NaN en JS (→ **1 contre 4,0**).
+  Atteignable par un fichier de jeu édité à la main — le scénario que ce dépôt
+  traite partout ailleurs. `BACK_NUM_RE` (`^-?\d+(\.\d+)?$`) borne les DEUX
+  côtés à la seule forme que les deux langages lisent identiquement ; les
+  quatre formes sont dans la batterie, deux mutants tués (un par côté).
+- **N3, ET LE DÉFAUT ÉTAIT DANS LES DEUX MAGASINS** : un jalon de réservation
+  de zéro octet (la fenêtre `os.close` → `os.replace`, qu'une panne dure
+  traverse) était **SERVI en 200, corps vide, `Cache-Control: immutable`** —
+  un an de cache sur un fichier vide. Hérité mot pour mot par P2 de sa jumelle
+  `type.py`, donc corrigé dans LES DEUX (`return data or None`, dans la
+  fonction qui compose le chemin). **Le NUMÉRO, lui, reste compté au plafond,
+  et c'est le choix assumé** : ce que le plafond protège est le numéro, pas
+  les octets ; un jalon a pris le sien et le compteur MAX+1 ne le réattribuera
+  jamais. Le refus dit déjà le geste (supprimer le fichier du dossier du jeu).
+- **N4** : la note du verso était câblée sur l'écriture mais pas sur la
+  LECTURE — or le filtre joue aux deux passages, et un fichier déposé à la
+  main était purgé en silence. La raison de la note ne dépend pas du sens dans
+  lequel on traverse : câblée dans `_normaliser_perso`, témoin compris.
+- **N5** : la toile de cuisson (~21 Mo en tarot 600 DPI) fuyait si une
+  exception traversait la pile — et le CORE ATTRAPE les exceptions de painter,
+  donc la fuite aurait été silencieuse et répétée à chaque frame. `try/finally`.
+- **N6** : `drawBackLayer` / `backLayerRect` relisaient l'opacité et l'échelle
+  au générique `num()` — un SECOND lecteur qui rouvrait le piège de F3.
+  Inatteignable aujourd'hui (le painter ne reçoit que du `st()` normalisé),
+  une ligne pour le prochain appelant.
+- **LE PIÈGE DU GREP DE PROSE, ATTRAPÉ UNE FOIS DE PLUS.** Le premier pin de
+  N5 cherchait le mot « finally » — que le commentaire du code emploie pour se
+  justifier. Le mutant qui SORT la libération du `finally` a donc SURVÉCU, en
+  laissant sa propre prose le couvrir. Ré-ancré sur la structure (`} finally {`
+  après retrait des commentaires) et re-tué. Même leçon qu'en 3c-T3 : un grep
+  de prose est un cliquet, pas une preuve.
+
+**CONSIGNÉ POUR LA SUITE (nits de portée, avec leur raison) :**
+
+- **N1 — le dos PAR CARTE peut être « personnalisé », et il REND.**
+  `back_same` décoché fait lire `card.back` (colonne du CSV, pièce 04) et le
+  catalogue accepte « custom » : une carte peut donc porter le verso
+  personnalisé alors que le jeu porte un motif. C'était atteignable et MUET :
+  ni test, ni ligne de plan. Désormais TESTÉ (le dos EFFECTIF `backOf` est ce
+  que `paintBack` lit ET ce que le painter attend — mutant tué sur ce second
+  point). **Ce qui ne suit pas, et c'est la décision** : les FICHIERS restent
+  ceux du jeu (`doc.frame.back_image`), donc une carte à dos personnalisé rend
+  le verso personnalisé DU JEU. Une image PAR CARTE demanderait une colonne de
+  plus et un magasin par carte — **hors 3c**. L'affordance du panneau (la zone
+  d'import est gated au niveau du jeu) part avec elle : à reprendre en 3d avec
+  le vocabulaire par carte, pas à bricoler ici.
+- **N2 — LE COÛT DE LA CUISSON DÉPASSE LE BUDGET DU PAINTER dans le pire cas,
+  et c'est chiffré.** Mesure de la revue : tarot 1200 DPI, **1536 ms par
+  calque à multiply** — six calques font **~9,2 s** contre les **4 000 ms**
+  que le CORE laisse à un painter (`PAINTER_MS`). Au-delà, le painter est
+  coupé et la couche est perdue avec un bandeau. Ce n'est PAS atteignable au
+  réglage livré (300 DPI, une poignée de calques) mais ça l'est en poussant les
+  deux curseurs. Remèdes possibles, non construits : borner la cuisson à
+  l'INTERSECTION du calque avec la toile (sans effet à l'échelle ≥ 1), cuire à
+  définition réduite pour l'aperçu et à pleine définition pour l'export, ou
+  refuser le 6e calque à multiply au-delà d'une définition. **À trancher en
+  T6 avec une mesure fraîche sur la machine de l'atelier.**
+- **N7 — GC, un cas de plus pour la dette déjà consignée** : supprimer une
+  rangée de calque PENDANT un import en vol laisse le fichier orphelin sur l'un
+  des 8 emplacements (l'import aboutit et écrit son PNG ; plus rien ne le
+  référence). Aucune route de suppression n'existe, donc l'emplacement est
+  perdu jusqu'à un ménage manuel dans le dossier du jeu. À joindre au
+  ramassage des images orphelines de la T6.
 
 ### Task 5 : l'IA cadres
 

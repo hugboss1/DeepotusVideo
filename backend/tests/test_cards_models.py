@@ -1540,3 +1540,40 @@ def test_un_deck_instancie_sur_un_verso_purge_NAIT_SANS_IMAGE():
         assert f["back_layers"] == [], f["back_layers"]
     finally:
         p.unlink()
+
+
+def test_la_note_du_verso_part_AUSSI_par_le_chemin_DISQUE():
+    """N4 de la ronde. La note se motive elle-même — « purger en silence, c'est
+    un utilisateur qui cherche la panne » — mais elle n'était câblée QUE sur
+    `modele_depuis_deck`. Le filtre, lui, joue aux deux passages : un fichier
+    de modèle déposé à la main qui porte des `src` de verso est purgé à la
+    LECTURE, et là personne ne disait rien.
+
+    Le même geste, la même phrase, les deux chemins."""
+    d = MO.models_root()
+    p = d / "verso-note-disque.json"
+    p.write_text(json.dumps({
+        "label": "Déposé", "hint": "Modèle écrit à la main.",
+        "format": "poker_eu",
+        "frame": {"family": "runic", "back": "custom",
+                  "back_image": "img:img_2.png", "back_layers": []},
+        "type": {"preset": "champion", "slots": []},
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        m = MO.model("verso-note-disque")
+        assert m["frame"]["back_image"] == "", m["frame"]
+        assert "verso" in m["hint"].lower(), m["hint"]
+        assert len(m["hint"]) <= 240, len(m["hint"])
+    finally:
+        p.unlink()
+    # LE TÉMOIN : un fichier SANS verso à purger ne reçoit pas la note
+    p2 = d / "verso-note-temoin.json"
+    p2.write_text(json.dumps({
+        "label": "Sobre", "hint": "Modèle écrit à la main.",
+        "format": "poker_eu", "frame": {"family": "runic", "back": "runes"},
+        "type": {"preset": "champion", "slots": []},
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        assert "verso" not in MO.model("verso-note-temoin")["hint"].lower()
+    finally:
+        p2.unlink()

@@ -280,6 +280,15 @@ def seal_of(raw) -> dict:
 # demain, et cette porte ne doit pas s'élargir avec lui.
 BACK_SRC_RE = re.compile(r"(|img:img_\d+\.png)")
 BACK_IMG_NAME_RE = re.compile(r"img_\d+\.png")
+# LA FORME D'UN NOMBRE ÉCRIT EN CHAÎNE. `float()` et `Number()` ne lisent pas
+# les mêmes chaînes, et l'écart n'est pas théorique — MESURÉ sur les deux
+# normaliseurs : « 0x10 » vaut 16 en JavaScript et LÈVE ici ; « 1_0 » vaut 10
+# ici et NaN en JavaScript. Après bornage, cela fait 4 d'un côté contre 1 de
+# l'autre : le même document rendu différemment à l'écran et au backend. Un
+# jeu édité à la main suffit à les produire. On n'accepte donc QUE la forme que
+# les deux langages lisent identiquement. Jumeau de `BACK_NUM_RE` de
+# mod-frame.js.
+BACK_NUM_RE = re.compile(r"-?\d+(\.\d+)?")
 BACK_LAYERS_MAX = 6          # spec §6.2ter, plan 3c décision 5
 BACK_IMAGES_MAX = 8          # images de verso par jeu (plan 3c décision 5)
 BACK_LAYER_DEFAULTS = {"src": "", "opacity": 1.0, "scale": 1.0,
@@ -313,10 +322,19 @@ def back_image_of(raw) -> str:
 
 
 def _borne(v, defaut: float, lo: float, hi: float) -> float:
-    """Une longueur de calque, RAMENÉE dans ses bornes (jamais refusée)."""
-    try:
+    """Une longueur de calque, RAMENÉE dans ses bornes (jamais refusée).
+
+    L'ADMISSION EST ÉCRITE, elle n'est pas déléguée à `float()` : un nombre,
+    un booléen, ou une chaîne de la forme que les DEUX langages lisent pareil
+    (`BACK_NUM_RE`). `None`, `""`, une liste, « 0x10 » ou « 1_0 » valent
+    ABSENT — jamais zéro, jamais un nombre que l'écran lirait autrement."""
+    if isinstance(v, bool):          # AVANT `int` : `isinstance(True, int)`
+        n = 1.0 if v else 0.0
+    elif isinstance(v, (int, float)):
         n = float(v)
-    except (TypeError, ValueError):
+    elif isinstance(v, str) and BACK_NUM_RE.fullmatch(v):
+        n = float(v)
+    else:
         return float(defaut)
     if not math.isfinite(n):
         return float(defaut)
@@ -1617,7 +1635,16 @@ def _read_back_image(did: str, name: str) -> bytes | None:
         p = _frame_files_dir(did) / name
         if not p.is_file():
             return None
-        return p.read_bytes()
+        data = p.read_bytes()
+        # UN JALON DE RÉSERVATION N'EST PAS UNE IMAGE. La réservation crée le
+        # nom final VIDE (`O_CREAT|O_EXCL`) avant d'y déplacer les octets ;
+        # entre les deux il y a une fenêtre qu'une panne dure du processus
+        # traverse. Mesuré avant correction : `GET .../img_1.png` rendait
+        # **200, zéro octet, `Cache-Control: immutable`** — un aperçu mettait
+        # un fichier vide en cache pour un an. Zéro octet vaut donc ABSENT.
+        # (Le NUMÉRO, lui, reste pris : c'est ce que le plafond protège, et le
+        # compteur MAX+1 ne réattribue jamais. Le refus dit le geste.)
+        return data or None
     except (OSError, ValueError):
         return None
 

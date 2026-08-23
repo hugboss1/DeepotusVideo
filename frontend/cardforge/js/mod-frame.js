@@ -76,6 +76,17 @@
      ANCRE des deux bouts — le piege du `$` sans ancre de tete a deja ete paye
      trois fois dans ce depot. Jumeau de `BACK_SRC_RE` de cards/frame.py. */
   const BACK_SRC_RE = /^(|img:img_\d+\.png)$/;
+  /* LA FORME D'UN NOMBRE ECRIT EN CHAINE, et pourquoi elle est si etroite.
+     `Number()` et `float()` ne lisent PAS les memes chaines, et l'ecart n'est
+     pas theorique — MESURE sur les deux normaliseurs : « 0x10 » vaut 16 en
+     JavaScript et LEVE en Python (donc 4 a l'ecran contre 1 au backend, apres
+     bornage) ; « 1_0 » vaut 10 en Python et NaN en JavaScript (donc 1 contre
+     4). Un jeu edite a la main suffit a les produire, et c'est le scenario que
+     ce depot traite partout ailleurs. On n'accepte donc QUE la forme que les
+     deux langages lisent identiquement : une decimale simple, sans espace,
+     sans base, sans exposant, sans souligne. Tout le reste = ABSENT.
+     Jumeau de `BACK_NUM_RE` de cards/frame.py. */
+  const BACK_NUM_RE = /^-?\d+(\.\d+)?$/;
   const CORNERS = [
     { id: "none", label: "Aucun" },
     { id: "bracket", label: "Équerre" },
@@ -339,7 +350,7 @@
   function bnum(v, d) {
     if (typeof v === "number") return isFinite(v) ? v : d;
     if (typeof v === "boolean") return v ? 1 : 0;
-    if (typeof v === "string" && v.trim() !== "") {
+    if (typeof v === "string" && BACK_NUM_RE.test(v)) {
       const n = Number(v);
       return isFinite(n) ? n : d;
     }
@@ -2230,7 +2241,7 @@
      LA POLICE est la meme pile systeme que le nom du jeu au dos, deux lignes
      plus bas : P2 n'a pas de chargeur de fontes, et en ajouter un pour un etat
      d'erreur serait une seconde source de fontes a auditer. */
-  function backDamier(ctx, x, y, w, h, file) {
+  function backDamier(ctx, x, y, w, h, file, quoi) {
     if (!(w > 0) || !(h > 0)) return;
     ctx.save();
     ctx.fillStyle = "#241f2b";
@@ -2244,13 +2255,39 @@
       }
     }
     if (file) {
+      const px = Math.max(8, Math.round(Math.min(w / 14, h / 4)));
       ctx.fillStyle = "#e6dfd4";
       ctx.textAlign = "center"; ctx.textBaseline = "middle";
-      ctx.font = "600 " + Math.max(8, Math.round(Math.min(w / 12, h / 3)))
-        + 'px "Segoe UI", system-ui, sans-serif';
-      ctx.fillText(file, x + w / 2, y + h / 2);
+      ctx.font = "600 " + px + 'px "Segoe UI", system-ui, sans-serif';
+      /* DEUX LIGNES quand on sait DE QUOI il s'agit : « calque 3 manquant »
+         dit ou chercher, le nom de fichier dit quoi rapporter. Une seule des
+         deux laisse l'autre moitie a deviner. */
+      ctx.fillText(file, x + w / 2, y + h / 2 + (quoi ? px * 0.7 : 0));
+      if (quoi) ctx.fillText(quoi, x + w / 2, y + h / 2 - px * 0.7);
     }
     ctx.restore();
+  }
+
+  /* L'ENCART D'UN CALQUE MANQUANT — une VIGNETTE CENTREE, pas la carte.
+     DEFAUT MESURE ET CORRIGE (ronde de revue) : la boite passait par le
+     cadrage du calque avec une image 1 x 1, c'est-a-dire un « cover » CARRE
+     du cote le plus LONG de la toile. Mesure a poker :
+     [-147,5 ; 0 ; 1110 ; 1110] — toute la carte, et 0 point d'echantillon sur
+     6 gardait l'image de fond. Le commentaire promettait exactement le
+     contraire de ce que le code faisait ; les deux disent maintenant la meme
+     chose. L'encart fait 62 % de la largeur de coupe sur 18 % de sa hauteur,
+     centre : assez grand pour se lire sur une epreuve, assez petit pour que le
+     fond respire tout autour. Il ne suit PAS l'echelle du calque — celle-ci
+     decrit une image qui n'est pas la.
+     CE QUE CET ENCART NE FAIT PAS, et c'est dit : DEUX calques morts posent
+     leur encart au MEME endroit, et seul le dernier se lit. La surface qui les
+     nomme TOUS est la liste du panneau, une rangee par calque avec son
+     fichier ; la carte, elle, doit surtout rendre le manque impossible a
+     manquer sur une epreuve — un seul encart y suffit. */
+  const BACK_MISS_W = 0.62, BACK_MISS_H = 0.18;
+  function backMissRect(m) {
+    const w = m.trim.w * BACK_MISS_W, hh = m.trim.h * BACK_MISS_H;
+    return [m.trim.x + (m.trim.w - w) / 2, m.trim.y + (m.trim.h - hh) / 2, w, hh];
   }
 
   /* ── UN CALQUE, ET LE MULTIPLY CUIT DANS SES PIXELS ──────────────────────
@@ -2273,9 +2310,16 @@
      doit pas dependre de ce fait-la.
 
      CE QUE LA PRECOMPOSITION N'ACHETE PAS, ET C'EST MESURE. Elle ne change
-     AUCUN PIXEL : un `globalCompositeOperation = "multiply"` vif donnerait
-     exactement les memes octets, sur fond opaque comme sur fond transparent
-     (banc RGBA, meme empreinte des deux cotes). Elle n'ameliore donc pas le
+     les pixels QU'A UN NIVEAU PRES : un `globalCompositeOperation =
+     "multiply"` vif donnerait les memes octets, sur fond opaque comme sur
+     fond transparent — EXACTEMENT les memes pour un calque OPAQUE, a un
+     niveau pres pour un calque semi-transparent (mesure : alpha 64, un canal
+     d'ecart de 1). L'algebre, elle, est exacte (re-derivee a la main contre
+     la formule W3C) ; l'ecart est la QUANTIFICATION — la cuisson passe par
+     `getImageData`/`putImageData`, donc par un aller-retour en entiers 8
+     bits, la ou le compositeur garde ses flottants jusqu'au bout. Et les
+     calques semi-transparents sont une entree de PREMIER RANG : `_decode_
+     bounded` garde la bande alpha par choix. Elle n'ameliore donc pas le
      VERDICT de la preuve d'empilement — sur ce verso-la, les deux ecritures
      rendent une couche « isolee ». Ce qu'elle achete est la SUITE
      D'OPERATIONS : la couche du cadre ne demande jamais au compositeur autre
@@ -2289,17 +2333,19 @@
      a six). La toile de cuisson est REUTILISEE d'un calque a l'autre — lui
      re-affecter sa largeur l'efface, dans un navigateur comme au banc — et
      relachee a la fin, au patron de `release()` de core.js. */
-  function drawBackLayer(ctx, m, l, get, cache) {
+  function drawBackLayer(ctx, m, l, get, cache, rang) {
     const file = backFile(l && l.src);
     if (!file) return;                    /* calque qui vient de naitre */
-    const op = cl(num(l.opacity, 1), 0, 1);
+    const op = cl(bnum(l.opacity, BACK_LAYER_DEFAULTS.opacity),
+      LIMITS.back_opacity[0], LIMITS.back_opacity[1]);
     const rec = get(file);
     if (!rec || !rec.ok || !rec.img) {
-      /* un calque dont le FICHIER manque : le damier, dans la boite qu'il
-         aurait occupee — pas sur toute la carte, sinon on effacerait l'image
-         de fond qui, elle, est peut-etre la. */
-      const b = backLayerRect(m, l, 1, 1);
-      backDamier(ctx, b[0], b[1], b[2], b[3], file);
+      /* un calque dont le FICHIER manque : un ENCART CENTRE et NOMME. Pas la
+         carte entiere — l'image de fond, elle, est peut-etre la, et un calque
+         mort n'a pas a l'effacer (mesure et correction ci-dessus). */
+      const b = backMissRect(m);
+      backDamier(ctx, b[0], b[1], b[2], b[3], file,
+        "calque " + ((rang | 0) + 1) + " manquant");
       return;
     }
     if (!(op > 0)) return;
@@ -2335,7 +2381,8 @@
      AUTOUR DU CENTRE — un calque a 0,5 laisse voir ce qu'il y a dessous sur
      tout le pourtour, un calque a 2 deborde de partout. */
   function backLayerRect(m, l, sw, sh) {
-    const sc = cl(num(l && l.scale, 1), LIMITS.back_scale[0], LIMITS.back_scale[1]);
+    const sc = cl(bnum(l && l.scale, BACK_LAYER_DEFAULTS.scale),
+      LIMITS.back_scale[0], LIMITS.back_scale[1]);
     const c = backCover(sw, sh, m.W, m.H);
     const w = c[2] * sc, h = c[3] * sc;
     return [(m.W - w) / 2, (m.H - h) / 2, w, h];
@@ -2347,24 +2394,32 @@
      raster minimal — le meme code que le fichier livre. */
   function paintBackCustom(ctx, m, f, get) {
     const cache = {};
-    const file = backFile(f.back_image);
-    if (file) {
-      const rec = get(file);
-      if (rec && rec.ok && rec.img) {
-        const c = backCover(rec.img.width, rec.img.height, m.W, m.H);
-        ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
-      } else {
-        backDamier(ctx, 0, 0, m.W, m.H, file);
+    try {
+      const file = backFile(f.back_image);
+      if (file) {
+        const rec = get(file);
+        if (rec && rec.ok && rec.img) {
+          const c = backCover(rec.img.width, rec.img.height, m.W, m.H);
+          ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
+        } else {
+          /* L'IMAGE DE FOND, elle, couvre bien la toile entiere : quand c'est
+             le FOND qui manque, il n'y a rien a laisser respirer. */
+          backDamier(ctx, 0, 0, m.W, m.H, file, "image du dos manquante");
+        }
       }
+      const L = Array.isArray(f.back_layers) ? f.back_layers : [];
+      for (let i = 0; i < L.length && i < BACK_LAYERS_MAX; i++) {
+        drawBackLayer(ctx, m, L[i], get, cache, i);
+      }
+    } finally {
+      /* LA TOILE DE CUISSON RELACHEE QUOI QU'IL ARRIVE, sans attendre le
+         ramasse-miettes : en tarot 600 DPI elle pese ~21 Mo (regle de
+         `release`, core.js). Sous `finally` parce qu'une exception au milieu
+         de la pile la ferait fuir — et le CORE ATTRAPE les exceptions de
+         painter (il n'arrete pas les sept autres pieces), donc la fuite
+         serait silencieuse et repetee a chaque frame. */
+      if (cache.off) { cache.off.width = 0; cache.off.height = 0; }
     }
-    const L = Array.isArray(f.back_layers) ? f.back_layers : [];
-    for (let i = 0; i < L.length && i < BACK_LAYERS_MAX; i++) {
-      drawBackLayer(ctx, m, L[i], get, cache);
-    }
-    /* la toile de cuisson relachee tout de suite, sans attendre le ramasse-
-       miettes : en tarot 600 DPI elle pese ~21 Mo (regle de `release`,
-       core.js). */
-    if (cache.off) { cache.off.width = 0; cache.off.height = 0; }
   }
   function paintBack(ctx, g, f, card, d) {
     if (f.family === "none") return;
