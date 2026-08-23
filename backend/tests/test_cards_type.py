@@ -5977,6 +5977,36 @@ def test_R14_attrape_un_ATTRIBUT_de_palette_non_echappe(tmp_path):
                                 r2.stdout[-2000:])
 
 
+def test_le_lint_emet_de_l_UTF_8_sur_ses_DEUX_flux():
+    """Un harnais de contrôle dont le verdict ne se DÉCODE pas peut fabriquer
+    un faux résultat — même classe de faute que le drapeau inconnu avalé en
+    silence. Mesuré ici même : sous Windows, le processus du lint héritait du
+    codage de LOCALE (cp1252) sur ses tuyaux, le « · » de l'en-tête
+    VIOLATIONS partait en octet 0xb7 — invalide en UTF-8 — et le lecteur du
+    test voisin en mourait, rendant un `r.stdout` à None et un TypeError qui
+    ne nomme rien. Le lint force donc SON codage à la source ; ce test tient
+    le contrat : tout octet émis, flux normal comme flux d'erreur, se décode
+    en UTF-8 STRICT — témoin non-ASCII à l'appui, pour que la preuve ne
+    s'évapore pas le jour où une phrase de sortie change."""
+    import subprocess
+    lint = REPO / "scripts" / "qa" / "lint_cardforge.py"
+    if not lint.is_file():
+        pytest.skip("lint_cardforge.py absent")
+    # Flux normal : l'en-tête aux « · » est imprimé à CHAQUE passe lisible,
+    # violations ou pas — le code de retour, lui, est l'affaire de l'arbre du
+    # moment et ce test n'en juge pas.
+    r = subprocess.run([sys.executable, str(lint), "--module", "type"],
+                       capture_output=True, timeout=180)
+    out = r.stdout.decode("utf-8")          # UnicodeDecodeError = la faute
+    assert "·" in out, "témoin non-ASCII absent : l'en-tête a changé ?"
+    # Flux d'erreur : le refus d'un drapeau inconnu fait ÉCHO au drapeau tel
+    # quel — un nom non-ASCII prouve que stderr porte le même codage.
+    r2 = subprocess.run([sys.executable, str(lint), "--drapeau·"],
+                        capture_output=True, timeout=180)
+    assert r2.returncode == 2, (r2.returncode, r2.stderr[-500:])
+    assert "·" in r2.stderr.decode("utf-8")
+
+
 def test_le_DIAGNOSTIC_D_ECHEC_est_ECHAPPE_dans_son_infobulle(tmp_path):
     """Ce que R14 ne peut pas juger, le banc le mesure. Le message d'échec
     vient du réseau (c'est la phrase que le CORE rapporte) et il atterrit dans

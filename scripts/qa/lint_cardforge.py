@@ -1013,6 +1013,18 @@ def main():
 
 
 if __name__ == "__main__":
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(errors="backslashreplace")
+    # Codage FORCE en UTF-8, quel que soit le locale : sous Windows un tuyau
+    # herite de la page de codes ANSI (cp1252 sur ces postes) et le « · » de
+    # l'en-tete VIOLATIONS part en octet 0xb7 — invalide en UTF-8, donc
+    # illisible pour la suite, qui decode ces flux en UTF-8 strict : le
+    # lecteur meurt, r.stdout devient None, et le verdict s'efface derriere
+    # un TypeError muet. Un outil de controle dont la sortie ne se decode pas
+    # fabrique un faux resultat — meme doctrine que le refus des drapeaux
+    # inconnus (voir main()). backslashreplace reste : un substitut isole n'a
+    # pas non plus le droit de tuer un rapport. Ici et pas dans main() : les
+    # tests qui IMPORTENT ce module (frame, type) ne touchent pas aux flux de
+    # pytest. Tenu par test_cards_type.py (« le lint emet de l'UTF-8 »).
+    for _flux in (sys.stdout, sys.stderr):
+        if hasattr(_flux, "reconfigure"):
+            _flux.reconfigure(encoding="utf-8", errors="backslashreplace")
     sys.exit(main())
