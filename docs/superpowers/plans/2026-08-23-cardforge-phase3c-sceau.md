@@ -1294,8 +1294,8 @@ pixel d'écart (0,0007 %), sur UNE ligne de balayage, dans la bande d'un coin.**
 Bande peinte et boîte englobante identiques au pixel. Mutant : un des quatre
 raccords devient un segment droit (> 100 px d'écart, > 4 lignes touchées).
 **BUDGET : le plan disait « ≤ ~30 lignes de harnais » ; réel 43 lignes de code
-pour l'accumulation seule (`arcTo` en pèse 20), 61 avec la relève d'empreinte,
-80 commentaires compris.** Dépassement de ~43 %, dit plutôt que caché ; le
+pour l'accumulation seule (`arcTo` en pèse 20), 61 avec la relève d'empreinte —
+85 lignes ajoutées au banc en tout, dont 24 de commentaire.** Dépassement de ~43 %, dit plutôt que caché ; le
 commit est isolé.
 
 **4. Pagination `GET /decks`.** Forme retenue : **`{decks, total, limit}`**, où

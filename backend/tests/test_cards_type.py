@@ -3496,7 +3496,8 @@ def test_le_rayon_de_plaque_est_borne_par_le_painter(tmp_path):
 # LE BUDGET A ÉTÉ DÉPASSÉ, ET C'EST DIT : le plan estimait « ≤ ~30 lignes de
 # harnais ». Mesuré après coup — 43 lignes de code pour l'accumulation seule
 # (`arcTo` au sens de la toile en pèse 20 à lui tout seul : tangentes, centre,
-# aplatissement) et 61 avec la relève d'empreinte qui la juge. Le rastériseur
+# aplatissement) et 61 avec la relève d'empreinte qui la juge — 85 lignes
+# ajoutées au banc en tout, 24 de commentaire. Le rastériseur
 # indépendant n'est pas négociable : réutiliser `inRR` en re-déduisant le
 # rectangle depuis le chemin ferait comparer la forme à elle-même.
 
