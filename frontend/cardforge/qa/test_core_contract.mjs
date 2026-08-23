@@ -562,6 +562,7 @@ function stubReseau(o) {
     localStorage.removeItem("dz_cf_rail");
     localStorage.removeItem("dz_cf_stage");
   } catch (e) { }
+  if (O.ouvre) window.__QA_OUVRE = 1;
   const rep = (corps, ct, code) => new Response(corps, { status: code, headers: { "content-type": ct } });
   const vrai = window.fetch;
   window.fetch = function (u, i) {
@@ -582,6 +583,22 @@ function stubReseau(o) {
       } else if (O.decks === "etranger") {
         liste = [{ id: "deck_ffffffff", name: "un jeu d'avant",
                    created: "2026-08-01T00:00:00Z", updated: "2026-08-01T00:00:00Z" }];
+      } else if (O.decks === "foule") {
+        /* LE CAS QUE LE PLAFOND A CREE (3c-T6) : la reponse est BORNEE a 24
+           lignes alors que le backend en a 2195. C'est ici, et nulle part
+           ailleurs, que l'ecran peut se mettre a mentir sur un chiffre — la
+           longueur de la liste n'est plus le nombre de jeux. */
+        for (let k = 0; k < 24; k++) {
+          const h = ("0000000" + k.toString(16)).slice(-8);
+          liste.push({ id: "deck_" + h, name: "jeu " + k,
+                       created: "2026-08-01T00:00:00Z",
+                       updated: "2026-08-0" + (1 + (k % 9)) + "T00:00:00Z" });
+        }
+      }
+      if (O.decks === "foule") {
+        window.__QA_LIMIT = (new URL(url, location.href)).searchParams.get("limit");
+        return Promise.resolve(rep(JSON.stringify(
+          { decks: liste, total: 2195, limit: 24 }), "application/json", 200));
       }
       /* LA FORME DE LA ROUTE DEPUIS LA 3c-T6 : des resumes BORNES, plus le
          TOTAL. Le bouchon la rend telle quelle — un bouchon qui servirait
@@ -610,12 +627,26 @@ const RELEVE_BOOT = `(async () => {
     await new Promise((r) => setTimeout(r, 200));
   }
   await new Promise((r) => setTimeout(r, 500));
+  /* OUVRIR LA GALERIE A LA MAIN, sur demande du bouchon seulement : le
+     scenario « foule » a des jeux etrangers, donc la galerie de demarrage ne
+     s'ouvre PAS (et c'est bien) — or c'est elle qu'il faut regarder. Le clic
+     est celui de l'utilisateur, sur le bouton reel. */
+  if (window.__QA_OUVRE) {
+    const gb = document.getElementById("galleryBtn");
+    if (gb) { gb.click(); await new Promise((r) => setTimeout(r, 900)); }
+  }
   const gr = document.getElementById("galRoot");
   const bar = document.getElementById("apiBar");
   const chip = document.getElementById("apiChip");
   const gd = document.getElementById("galDecks");
   const msg = document.getElementById("apiBarMsg");
+  const note = gd ? gd.querySelector(".cf-gal-note") : null;
   return {
+    /* LA LIGNE DE TOTAL, et le compte de lignes REELLEMENT posees : c'est le
+       seul chiffre de cet ecran, et depuis le plafond il ne se deduit plus de
+       la longueur de la liste. */
+    note: note ? String(note.textContent) : null,
+    cartes: gd ? gd.querySelectorAll(".cf-gal-deck").length : 0,
     deck: CF.get("id", null),
     ouverte: !!(gr && !gr.classList.contains("hidden") && gr.dataset.open === "1"),
     why: gr ? String(gr.dataset.why || "") : null,
@@ -843,6 +874,23 @@ async function testContract() {
       if (vSoi.ouverte && vSoi.sondages > 0)
         ok('galerie : le SEUL jeu liste est celui que le boot vient de creer -> elle s\'ouvre quand meme — ' + dit(vSoi));
       else ko('galerie : le SEUL jeu liste est celui que le boot vient de creer -> elle devait s\'ouvrir quand meme — ' + dit(vSoi));
+    }
+
+    /* ── LE CHIFFRE QUE LE PLAFOND POUVAIT FAIRE MENTIR (dette pagination,
+       3c-T6). La reponse est bornee a 24 lignes, le backend en a 2195. La
+       galerie doit poser 24 cartes ET annoncer 2195 : le dire par la longueur
+       de la liste ferait ecrire « 24 jeux au total » a un poste qui en a 2195,
+       et c'est le SEUL chiffre de cet ecran. */
+    const vFoule = await boot('24 lignes servies sur 2195 jeux',
+      { decks: 'foule', ouvre: 1 });
+    if (vFoule) {
+      if (vFoule.cartes === 24)
+        ok('galerie : les 24 lignes servies sont toutes posees — cartes=' + vFoule.cartes);
+      else ko('galerie : 24 lignes servies devaient donner 24 cartes — cartes=' + vFoule.cartes);
+      if (vFoule.note && vFoule.note.indexOf('2195 jeux au total') >= 0
+          && vFoule.note.indexOf('24 plus') >= 0)
+        ok('galerie : le total annonce est celui du SERVEUR, pas la longueur de la liste — ' + vFoule.note);
+      else ko('galerie : le total annonce doit venir du serveur (2195) — note=' + vFoule.note);
     }
 
     /* et le pendant : un jeu ETRANGER dans la liste = il y a du travail. */
