@@ -2463,9 +2463,16 @@
     const v = CF.get(k, null);
     return (v === null || v === undefined || v === "") ? "" : String(v);
   };
+  /* « none » EST UNE VRAIE VALEUR DE `paper`, à un clic : la grille des
+     matières ouvre sur une tuile « Aucune » (mod-texture.js:1877) et le painter
+     la teste nommément (`s.paper !== "none"` :658) — il ne reste que la teinte.
+     Sans cette traduction, la rangée affichait le littéral « none » à côté d'un
+     « aucun » sur la rangée d'à côté : deux mots pour le même fait, dont un qui
+     n'est pas du français. */
   function resPapier() {
     const p = lu("texture.paper");
-    return !p ? MUET : (p === "__import" ? "importé" : p);
+    if (!p) return MUET;
+    return p === "none" ? AUCUN : (p === "__import" ? "importé" : p);
   }
   function resEffet() {
     const o = lu("texture.over");

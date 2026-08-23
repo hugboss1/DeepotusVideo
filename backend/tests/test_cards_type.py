@@ -6499,14 +6499,97 @@ def test_une_couche_ETEINTE_est_dite_ETEINTE(tmp_path):
     le dit aussi. « aucun » et « par défaut » ne se réparent pas de la même
     façon — le premier est un choix, le second une absence."""
     d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
-                                "doc": {"texture": {"over": "none"},
+                                "doc": {"texture": {"paper": "none", "over": "none"},
                                         "face": {"src": None},
                                         "frame": {"family": "none", "gem": False,
                                                   "banner": False}}})
+    # LE PAPIER AUSSI S'ÉTEINT, et en UN clic : la grille des matières ouvre sur
+    # une tuile « Aucune » (mod-texture.js:1877) qui patche `paper: "none"`, et
+    # le painter la teste nommément (`s.paper !== "none"`, mod-texture.js:658) —
+    # rien n'est peint que la teinte. Sans cette ligne, la rangée affichait le
+    # littéral « none » : le seul des cinq résumés qu'aucun test ne couvrait
+    # était le seul cassé.
+    assert _resume(d["bbas"], 10) == "aucun", d["bbas"]
     assert _resume(d["bbas"], 30) == "aucun", d["bbas"]
     assert _resume(d["bbas"], 40) == "aucun", d["bbas"]
     assert _resume(d["bbas"], 20) == "vide", d["bbas"]
     assert _resume(d["bhaut"], 70) == "aucun", d["bhaut"]
+
+
+MOD_FACE = REPO / "frontend" / "cardforge" / "js" / "mod-face.js"
+MOD_FRAME = REPO / "frontend" / "cardforge" / "js" / "mod-frame.js"
+MOD_TEXTURE = REPO / "frontend" / "cardforge" / "js" / "mod-texture.js"
+
+# ── LES RÈGLES QUE CETTE PIÈCE REJOUE, ET LEUR SOURCE ───────────────────────
+# Deux résumés ne LISENT pas seulement l'état d'un voisin : ils REJOUENT une
+# règle qui vit chez lui. C'est délibéré (recopier ses DÉFAUTS aurait dérivé au
+# premier changement, cf. la note de livraison) — mais une règle rejouée sans
+# pin devient fausse EN SILENCE le jour où le voisin la change, et une carte
+# muette ne se signale jamais. Chaque entrée : (fichier, fragment attendu chez
+# le voisin, fragment miroir dans mod-type.js, ce qu'il faut faire).
+COUTURES = [
+    (MOD_FACE, "return own || col || f.default_art || f.src || null;",
+     'return (own || lu("face.default_art") || lu("face.src")) ? "posée" : VIDE;',
+     "la précédence gelée de l'illustration (spec 2.3) a bougé chez P1 : "
+     "`resFace` doit la rejouer à l'identique, sinon la rangée « illustration » "
+     "dira « vide » sur une carte qui en porte une"),
+    (MOD_FRAME, "if (fr.banner !== false) {",
+     'if (CF.get("frame.banner", null) !== false) on.push("bandeau");',
+     "P2 ne teste plus le bandeau par `!== false` : `resDecor` rejoue ce test "
+     "PRÉCIS pour ne pas avoir à recopier le défaut `banner: true`"),
+    (MOD_FRAME, "if (f.gem && gemB && !gemB.seat) {",
+     'if (CF.get("frame.gem", null) !== false) on.push("gemme");',
+     "P2 ne peint plus la gemme sur une valeur simplement VRAIE : `resDecor` "
+     "suppose qu'une clé absente (donc le défaut `gem: true`) la peint"),
+    (MOD_FRAME, 'if (f.family === "none") return;',
+     'if (lu("frame.family") === "none") return AUCUN;',
+     "P2 ne sort plus du décor haut sur `family === \"none\"` : la rangée "
+     "« décor haut » annoncerait une gemme que personne ne peint"),
+    (MOD_TEXTURE, 'else if (s.paper !== "none" && MAT_BY_ID[s.paper]) {',
+     'return p === "none" ? AUCUN : (p === "__import" ? "importé" : p);',
+     "P6 ne traite plus `paper: \"none\"` comme « rien peint » : `resPapier` "
+     "le traduit en « aucun » sur cette seule foi"),
+]
+
+
+def test_les_regles_REJOUEES_sont_TOUJOURS_CELLES_DES_PIECES_VOISINES():
+    """PINS DE COUTURE (patron du pin Z_TABLE, appliqué aux règles). Les deux
+    résumés qui ne se contentent pas de LIRE — l'illustration et le décor haut,
+    plus la traduction de « none » du papier — rejouent un test qui vit chez le
+    voisin. Ce pin relit les DEUX bouts : le fragment chez lui, le miroir ici.
+    Le jour où l'un bouge, c'est ce test qui le dit, et pas un utilisateur
+    devant une carte qui ment."""
+    src = _js()
+    for path, chez_lui, miroir, quoi in COUTURES:
+        voisin = path.read_text(encoding="utf-8")
+        assert chez_lui in voisin, (
+            f"{path.name} : « {chez_lui} » a disparu — {quoi}")
+        assert miroir in src, (
+            f"mod-type.js : le miroir « {miroir} » a disparu — {quoi}")
+
+
+def test_les_pins_de_COUTURE_ne_sont_pas_CREUX():
+    """MUTATION DE CONTRÔLE d'un pin de SOURCE. Un pin qui cherche une chaîne
+    est creux si la chaîne ne peut pas manquer : on rejoue donc, sur chaque
+    couture, LE REFACTOR PLAUSIBLE qui la casserait (le `!== false` resserré en
+    booléen strict, la précédence raccourcie, le « none » oublié) et l'on vérifie
+    qu'il n'est PAS dans la source — autrement dit que le pin au-dessus rougirait
+    le jour où il y serait."""
+    mutants = [
+        (MOD_FACE, "return own || col || f.default_art || null;"),
+        (MOD_FRAME, "if (fr.banner === true) {"),
+        (MOD_FRAME, "if (f.gem === true && gemB && !gemB.seat) {"),
+        (MOD_FRAME, 'if (!f.family) return;'),
+        (MOD_TEXTURE, "else if (MAT_BY_ID[s.paper]) {"),
+    ]
+    assert len(mutants) == len(COUTURES)
+    for (path, attendu, _m, _q), (pm, mutant) in zip(COUTURES, mutants):
+        assert path == pm
+        voisin = path.read_text(encoding="utf-8")
+        assert mutant != attendu, mutant
+        assert mutant not in voisin, (
+            f"{path.name} : le refactor « {mutant} » est DANS la source — "
+            "la couture a bougé et le pin ne l'a pas dit")
 
 
 def test_une_rangee_fixe_MENE_a_sa_piece_et_n_ECRIT_RIEN(tmp_path):

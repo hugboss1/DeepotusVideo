@@ -944,6 +944,44 @@ n'est pas le même objet — la peser à part.**
 > en bas comme la carte se peint ; cliquer « Aller » sur « papier » et atterrir
 > dans P6 ; changer de matière et revenir — la ligne suit sans clignoter.
 >
+> **RONDE DE REVUE (T4) — FIX-FIRST, 1 item + 2 notes, soldés.**
+>
+> · **LE FIX — « none » est une vraie valeur de `paper`, et elle passait CRUE.**
+>   La grille des matières de P6 ouvre sur une tuile « Aucune » (mod-texture.js:1877
+>   → `pickMat` :1948 patche `paper: "none"`) et le painter la teste nommément
+>   (`s.paper !== "none"` :658) : rien n'est peint que la teinte. `resPapier`
+>   rendait le littéral « none » — un mot qui n'est pas du français, à côté d'un
+>   « aucun » sur la rangée d'à côté, pour le même fait. **Les trois sœurs
+>   faisaient le test ; la quatrième ne l'avait pas, et c'est exactement la seule
+>   que `test_une_couche_ETEINTE_est_dite_ETEINTE` ne couvrait pas** — le trou de
+>   couverture et le défaut étaient le même trou. RED d'abord : l'assertion
+>   ajoutée au test existant montre « papier : none » à côté de « effet : aucun »
+>   dans le même relevé.
+> · **NOTE 1 PRISE — deux règles REJOUÉES n'avaient aucun pin.** `resFace`
+>   rejoue la précédence gelée de P1 (mod-face.js:1688) et `resDecor` rejoue le
+>   `!== false` de P2 (mod-frame.js:462/:1898/:1888) — délibérément, pour ne PAS
+>   recopier leurs défauts — mais rien ne rougissait si la source bougeait : la
+>   carte serait devenue muette en silence, et une carte fausse ne se signale
+>   jamais toute seule. **5 coutures épinglées** (les 3 de P2, celle de P1, plus
+>   celle de P6 que le fix vient d'introduire), chacune relue AUX DEUX BOUTS —
+>   le fragment chez le voisin ET son miroir dans mod-type.js — avec le message
+>   qui dit quoi mettre à jour des deux côtés. Contre-épreuve : le refactor
+>   PLAUSIBLE de chaque couture (`!== false` resserré en `=== true`, précédence
+>   raccourcie, « none » oublié) est cherché et doit être absent. **Vérifié en
+>   cassant pour de vrai la source de P2** : les deux pins rougissent, en
+>   nommant la couture.
+> · **NOTE 2 CONSIGNÉE (non corrigée, antérieure à la T4)** : le banc de gestes
+>   ne simule AUCUN clic des commandes de ligne (œil, cadenas, monter/descendre,
+>   corbeille) ni le glisser-déposer de la liste — la cause est en amont, le
+>   `querySelectorAll` du DOM de paille rend `[]`, donc `renderList` n'y branche
+>   jamais ses écouteurs. Ces commandes ne sont donc tenues que par la PRÉSENCE
+>   de leurs classes dans le HTML rendu (T1 comme T4). Pour une passe future
+>   (3c ou finition) : rendre `querySelectorAll` au banc et jouer les quatre
+>   boutons + un `dragstart`/`drop`.
+> · **Compte de la ronde** : 213 → **215 tests** (2 pins de couture ; 1 amendé —
+>   `test_une_couche_ETEINTE_est_dite_ETEINTE` prend le papier). mod-type.js
+>   5526 → 5533 l. Lint intégral 0, `node --check` OK.
+>
 > **Trouvé en passant, HORS T4 et non corrigé** : la batterie du contrat
 > (`frontend/cardforge/qa/test_core_contract.mjs`) rend **KO sur « galerie : le
 > jeu cree ne porte pas le modele — preset=superstar »**, et c'est un
