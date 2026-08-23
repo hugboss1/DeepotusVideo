@@ -96,7 +96,7 @@ from PIL import Image, ImageDraw
 
 from .contract import (
     CardGeom, DPI_CHOICES, FORMATS, MM_PER_INCH, R, SHEETS, geom as geom_of,
-    is_valid_did, native_bleed_mm, sheet_px,
+    is_valid_did, native_bleed_mm, rnd, sheet_px,
 )
 
 router = APIRouter()
@@ -648,6 +648,175 @@ def _color(body: dict, key: str, what: str) -> tuple[int, int, int]:
 
 
 # ══════════════════════════════════════════════════════════════════════════
+# LE SCEAU PRISMATIQUE VU PAR L'IMPRESSION — UN MIROIR, PAS UN IMPORT
+#
+# `doc.frame.seal` (spec §6.2bis, posé par la phase 3c-1) décrit un CONTOUR
+# holographique et sa PORTÉE : écran / impression / 3D. Portée « impression »
+# active, P7 en tire un MASQUE DE FOIL — une encre logique nommée « Foil »,
+# posée en SURIMPRESSION sur un anneau VECTORIEL (§6.2bis-b).
+#
+# POURQUOI UN MIROIR ET PAS `from .frame import seal_of` — trois raisons, dont
+# une qui n'est pas affaire de style :
+#
+#   1. `cards/frame.py` écrit en tête « Aucun autre module ne l'importe »
+#      (règle 8). L'importer ne violerait pas seulement une règle : cela
+#      rendrait FAUSSE une phrase que ce dépôt tient à la lettre. Le précédent
+#      `contract.py` ne s'applique pas — `contract.py` est un module PARTAGÉ,
+#      sans routeur, écrit pour être importé ; `frame.py` porte un routeur.
+#   2. P9 a tranché de la même façon pour le MÊME Sceau trois jours plus tôt
+#      (`forge3d._sceau_du_doc`, tâche 3) : deux consommateurs du même état
+#      partagé qui choisiraient deux mécanismes différents, ce serait
+#      l'incohérence.
+#   3. LA RAISON QUI PORTE : `seal_of` normalise un CORPS DE REQUÊTE et LÈVE
+#      hors bornes (400 nommant la borne). Ici on normalise un DOCUMENT DÉJÀ
+#      ÉCRIT. Une largeur de 0,1 mm posée à la main dans le fichier du jeu doit
+#      produire LA LIGNE D'ERREUR NOMMÉE du contrôle avant vol — pas un 400 qui
+#      la cache. Le contrôle juge le DOCUMENT, jamais l'écran qui l'a produit.
+#
+# La parité — défauts, bornes, arrondis, et jusqu'aux pixels publiés par
+# `/frame/metrics` — est prouvée dans le test, qui a le droit, lui, d'importer
+# les deux côtés.
+# ══════════════════════════════════════════════════════════════════════════
+
+# Le trait minimal qu'un imprimeur foil accepte, et la distance minimale au
+# trait de coupe (§6.2bis-b, conventions Mixam / MakePlayingCards /
+# PrintNinja). L'écart entre ZONES ne s'applique pas : un anneau est UNE zone.
+FOIL_MIN_MM = 0.2
+FOIL_TRIM_MM = 3.2
+FOIL_VARIANCE = "1 à 2 mm"
+FOIL_BAND_MIN_MM = 4                # jumeau de frame.BAND_MIN_MM
+FOIL_KINDS = ("argent", "dorure")   # jumeau de frame.SEAL_KINDS
+FOIL_DEFAULTS = {"on": False, "kind": "argent", "width_mm": 1.2,
+                 "scope": {"screen": True, "print": False, "mesh": False}}
+FOIL_LABEL = "Masque de foil (dorure à chaud)"
+OCG_FOIL = ("foil", FOIL_LABEL)
+# LA TEINTE D'APERÇU, ET RIEN D'AUTRE. Une `/Separation` porte un nom de
+# PLAQUE — c'est lui que le RIP lit — plus une transformée qui dit à un
+# visualiseur quoi montrer à l'écran. Sans elle, Acrobat rend la plaque en
+# noir et l'opérateur croit à une cinquième encre de texte. Les deux recettes
+# du Sceau ont donc leur aperçu, en CMJN d'appareil : ce sont des couleurs de
+# CONFORT, jamais la couleur d'un métal (aucun CMJN ne rend un foil).
+FOIL_TINT = {"argent": (0.10, 0.07, 0.06, 0.26),
+             "dorure": (0.05, 0.26, 0.86, 0.04)}
+# Les définitions admises pour le repli raster (§6.2bis-b : « 600-1200 dpi »).
+FOIL_MASK_DPI = (600, 1200)
+
+
+def _foil_num(v, d: float) -> float:
+    """Un nombre du DOCUMENT : absent, illisible ou non fini -> le défaut.
+
+    `None` vaut ABSENT et non zéro — c'est le point que la ronde 2 de la T1 a
+    dû aligner des deux côtés (le générique `Number(null) === 0` de l'écran
+    ramenait la largeur au plancher là où le backend rendait le défaut)."""
+    if v is None or isinstance(v, bool):
+        return float(d)
+    try:
+        f = float(v)
+    except (TypeError, ValueError, OverflowError):
+        return float(d)
+    return f if (f == f and abs(f) != float("inf")) else float(d)
+
+
+def _foil_band_max_mm(tw: float, th: float) -> float:
+    """Jumeau de `frame.band_max_mm` : la borne de FORMAT du retrait."""
+    v = min(float(tw or 0), float(th or 0)) / 2 - FOIL_BAND_MIN_MM / 2
+    return rnd(v, 2) if v > 0 else 0.0
+
+
+def foil_max_mm(tw: float, th: float, edge_mm: float, win: dict) -> float:
+    """Jumeau de `frame.seal_max_mm` : la largeur de bande que la PLACE porte.
+
+    Deux choses bornent l'anneau, et aucune n'est un millimètre absolu : la
+    FENÊTRE (au-delà ce n'est plus un contour, c'est une plaque posée sur
+    l'illustration) et le FORMAT (l'anneau s'inverse passé la demi-carte).
+    Et le plancher s'applique AU RÉSULTAT : sous 0,2 mm il n'y a pas un anneau
+    étroit, il n'y a PAS D'ANNEAU — comparé NON ARRONDI, le doute tombant du
+    côté du refus (0,196 s'arrondirait à 0,20 et publierait une largeur que la
+    place ne porte pas)."""
+    e = float(edge_mm or 0)
+    W, H = float(tw or 0), float(th or 0)
+    w = win if isinstance(win, dict) else {"x": 0, "y": 0, "w": W, "h": H}
+    fen = min(w["x"], w["y"], W - (w["x"] + w["w"]), H - (w["y"] + w["h"])) - e
+    carte = (min(W, H) - 2 * e - FOIL_MIN_MM) / 2
+    v = min(fen, carte)
+    return rnd(v, 2) if v >= FOIL_MIN_MM else 0.0
+
+
+def _foil_win(raw, g: CardGeom) -> dict:
+    """Jumeau de `frame._win_of` : la fenêtre d'illustration en mm depuis la
+    COUPE. Absente, elle est PROPORTIONNELLE au format — la pièce se tient
+    debout sur les douze formats sans qu'on lui écrive douze rectangles."""
+    tw, th = g.trim_mm
+    if not isinstance(raw, dict):
+        return {"x": rnd(tw * 0.105, 2), "y": rnd(th * 0.075, 2),
+                "w": rnd(tw * 0.79, 2), "h": rnd(th * 0.505, 2), "r": 2.5}
+    return {"x": _foil_num(raw.get("x"), 0.0), "y": _foil_num(raw.get("y"), 0.0),
+            "w": _foil_num(raw.get("w"), tw), "h": _foil_num(raw.get("h"), th),
+            "r": _foil_num(raw.get("r"), 2.5)}
+
+
+def foil_of(frame) -> dict:
+    """`doc.frame.seal` LU, jamais refusé. -> {on, kind, width_mm, print,
+    screen, mesh}. Ne lève pas : voir la raison 3 du bloc ci-dessus."""
+    f = frame if isinstance(frame, dict) else {}
+    s = f.get("seal")
+    s = s if isinstance(s, dict) else {}
+    sc = s.get("scope")
+    sc = sc if isinstance(sc, dict) else {}
+
+    def b(v, d):
+        return v if isinstance(v, bool) else d
+
+    k = s.get("kind")
+    return {
+        "on": b(s.get("on"), FOIL_DEFAULTS["on"]),
+        "kind": k if k in FOIL_KINDS else FOIL_DEFAULTS["kind"],
+        "width_mm": _foil_num(s.get("width_mm"), FOIL_DEFAULTS["width_mm"]),
+        "screen": b(sc.get("screen"), FOIL_DEFAULTS["scope"]["screen"]),
+        "print": b(sc.get("print"), FOIL_DEFAULTS["scope"]["print"]),
+        "mesh": b(sc.get("mesh"), FOIL_DEFAULTS["scope"]["mesh"]),
+    }
+
+
+def foil_plan(frame, g: CardGeom) -> dict:
+    """L'ANNEAU TEL QU'IL SERA TRACÉ, depuis les seuls millimètres du jeu.
+
+    `px` = [largeur, x, y, w, h, r] — l'anneau EXTÉRIEUR, en pixels de TOILE
+    (fond perdu compris), NON ARRONDIS : ce sont eux qui font le fichier.
+    `/frame/metrics` publie les mêmes à deux décimales, et le test le prouve
+    format par format. La ROUTE d'un masque ne recalcule rien : elle rappelle
+    cette fonction avec une géométrie à 600 ou 1200 DPI, si bien que les trois
+    rasterisations descendent des MÊMES millimètres et jamais d'un PNG repassé
+    de l'une à l'autre (« le piège des deux cadres », §6.2bis)."""
+    fo = foil_of(frame)
+    f = frame if isinstance(frame, dict) else {}
+    cap = _foil_band_max_mm(g.trim_mm[0], g.trim_mm[1])
+    edge = min(_foil_num(f.get("edge_mm"), 1.6), cap)
+    wmax = foil_max_mm(g.trim_mm[0], g.trim_mm[1], edge,
+                       _foil_win(f.get("window"), g))
+    larg = min(fo["width_mm"], wmax)
+    epx = edge / MM_PER_INCH * g.dpi
+    t = larg / MM_PER_INCH * g.dpi
+    px = [t, g.bleed_off_px[0] + epx, g.bleed_off_px[1] + epx,
+          g.trim_px[0] - 2 * epx, g.trim_px[1] - 2 * epx,
+          max(0.0, g.corner_px - epx)]
+    if t <= 0 or px[3] - 2 * t <= 0 or px[4] - 2 * t <= 0:
+        larg, px[0] = 0.0, 0.0
+    return {"on": bool(fo["on"] and fo["print"]), "kind": fo["kind"],
+            "asked_mm": fo["width_mm"], "cap_mm": wmax, "width_mm": larg,
+            "edge_mm": edge, "px": px}
+
+
+def _foil_live(p: Plan) -> bool:
+    """Le foil sera-t-il VRAIMENT écrit dans ce fichier ? Portée impression ET
+    anneau non nul. UNE seule formulation, partagée par le plan servi à
+    l'écran, le contrôle avant vol et l'écrivain PDF — trois endroits qui ne
+    peuvent pas se contredire s'ils lisent la même ligne."""
+    f = p.foil if isinstance(p.foil, dict) else {}
+    return bool(f.get("on")) and float(f.get("width_mm") or 0) > 0
+
+
+# ══════════════════════════════════════════════════════════════════════════
 # LE PLAN D'IMPOSITION — une seule implémentation, miroir exact de
 # `layoutOf()` dans js/mod-print.js. L'écran calcule pour afficher tout de
 # suite ; il confronte ensuite à CETTE réponse et signale le moindre écart,
@@ -697,6 +866,9 @@ class Plan:
     icc: bytes | None = None
     out_intent: dict = field(default_factory=dict)
     warnings: list = field(default_factory=list)
+    # LE SCEAU DU JEU, VU PAR L'IMPRESSION (`foil_plan`) — pas un réglage de
+    # ce panneau : un ÉTAT PARTAGÉ que P2 possède et que P7 lit.
+    foil: dict = field(default_factory=dict)
 
 
 def build_plan(body: dict, n_cards: int = 1, icc: bytes | None = None) -> Plan:
@@ -888,6 +1060,10 @@ def build_plan(body: dict, n_cards: int = 1, icc: bytes | None = None) -> Plan:
         mark_space=mark_space, color=color, intent=intent, artbox=artbox,
         mark_safe=mark_safe, layers=layers, page_iso=page_iso,
         icc=icc, out_intent=out_intent, warnings=warn,
+        # `frame` n'est PAS un réglage d'impression : c'est le sous-document
+        # de P2, joint à la demande par `_spec_of`. P7 le LIT (état partagé),
+        # ne le valide pas et ne le renvoie jamais.
+        foil=foil_plan(body.get("frame"), g),
     )
     # ── CE QUE LES CALQUES COÛTENT, DIT AVANT L'EXPORT ────────────────────
     if layers and out_intent and out_intent.get("pdfx"):
@@ -2046,11 +2222,126 @@ def _registration_cs(writer):
                         NameObject("/DeviceCMYK"), writer._add_object(fn)])
 
 
+def _foil_cs(writer, kind: str):
+    """L'espace `/Separation /Foil /DeviceCMYK` — UNE ENCRE LOGIQUE nommée.
+
+    C'est le livrable de §6.2bis-b : le RIP de l'imprimeur lit le NOM DE
+    PLAQUE (« Foil ») et en sort une plaque de dorure à chaud. Le nom ne
+    change pas avec la recette : un jeu ne se dore pas sur deux plaques parce
+    que son contour est d'argent. La transformée de teinte, elle, suit la
+    recette — mais elle n'existe QUE pour l'aperçu (`FOIL_TINT`)."""
+    from pypdf.generic import (ArrayObject, DictionaryObject, FloatObject,
+                               NameObject, NumberObject)
+    c1 = FOIL_TINT.get(kind, FOIL_TINT["argent"])
+    fn = DictionaryObject()
+    fn[NameObject("/FunctionType")] = NumberObject(2)
+    fn[NameObject("/Domain")] = ArrayObject([FloatObject(0), FloatObject(1)])
+    fn[NameObject("/C0")] = ArrayObject([FloatObject(0)] * 4)
+    fn[NameObject("/C1")] = ArrayObject([FloatObject(v) for v in c1])
+    fn[NameObject("/N")] = NumberObject(1)
+    return ArrayObject([NameObject("/Separation"), NameObject("/Foil"),
+                        NameObject("/DeviceCMYK"), writer._add_object(fn)])
+
+
+def _foil_gs(writer):
+    """L'état graphique de la SURIMPRESSION. Sans lui, l'anneau de foil
+    ÉVIDE les quatre plaques de couleur sous lui : la dorure se poserait sur
+    du papier nu et le moindre décalage de registre montrerait un liseré
+    blanc. `/OP` (tracé) et `/op` (remplissage) sont deux clés distinctes, et
+    `/OPM 1` demande le mode « non-zéro » — celui qui laisse passer les
+    composantes à zéro au lieu de les écraser."""
+    from pypdf.generic import (BooleanObject, DictionaryObject, NameObject,
+                               NumberObject)
+    d = DictionaryObject()
+    d[NameObject("/Type")] = NameObject("/ExtGState")
+    d[NameObject("/OP")] = BooleanObject(True)
+    d[NameObject("/op")] = BooleanObject(True)
+    d[NameObject("/OPM")] = NumberObject(1)
+    return writer._add_object(d)
+
+
+# 4/3 x (racine(2) - 1) : la constante d'approximation d'un quart de cercle
+# par une Bézier cubique. L'écart maximal au cercle vaut 2,7 x 10^-4 du rayon
+# — 0,8 µm sur un coin de 3 mm, sous le point de trame de toute presse.
+_RR_K = 0.5522847498307936
+
+
+def _rr_quarts(x: float, y: float, w: float, h: float, r: float) -> list:
+    """LE CONTOUR D'UN RECTANGLE ARRONDI, EN UN SEUL ENDROIT.
+
+    Rend les quatre quarts de coin sous la forme `(départ, c1, c2, arrivée)`
+    de Bézier cubique. Le chemin complet, c'est ces quatre quarts reliés par
+    des droites — le segment droit d'un quart va de l'arrivée du précédent à
+    son propre départ.
+
+    POURQUOI CETTE FONCTION EXISTE : §6.2bis n'a qu'une exigence de fond,
+    « une seule source de vérité : le TRACÉ VECTORIEL du contour ». Le PDF
+    l'écrit en `m`/`l`/`c`, le masque raster le remplit en pixels ; s'ils
+    partaient de deux définitions du même coin arrondi, le foil vectoriel et
+    le foil raster décriraient deux anneaux légèrement différents — c'est
+    précisément « le piège des deux cadres », une marche plus bas."""
+    r = max(0.0, min(float(r), w / 2.0, h / 2.0))
+    k = r * _RR_K
+    x1, y1 = x + w, y + h
+    return [((x1 - r, y), (x1 - r + k, y), (x1, y + r - k), (x1, y + r)),
+            ((x1, y1 - r), (x1, y1 - r + k), (x1 - r + k, y1), (x1 - r, y1)),
+            ((x + r, y1), (x + r - k, y1), (x, y1 - r + k), (x, y1 - r)),
+            ((x, y + r), (x, y + r - k), (x + r - k, y), (x + r, y))]
+
+
+def _rr_ops(x: float, y: float, w: float, h: float, r: float) -> bytes:
+    """UN RECTANGLE ARRONDI, en opérateurs PDF. `(x, y)` = coin BAS-GAUCHE.
+
+    Le PDF n'a pas d'opérateur d'arc et `re` ne trace qu'un rectangle à angles
+    VIFS : l'anneau du Sceau, lui, a les coins de la carte. Quatre droites,
+    quatre quarts d'arc en Bézier — c'est le seul endroit du dépôt qui écrive
+    un chemin courbe, et il le fait avec les nombres de `doc.frame.seal`,
+    jamais avec un PNG."""
+    n = _pdf_num
+    quarts = _rr_quarts(x, y, w, h, r)
+    p = ["%s %s m" % (n(quarts[-1][3][0]), n(quarts[-1][3][1]))]
+    for a, c1, c2, b in quarts:
+        p.append("%s %s l" % (n(a[0]), n(a[1])))
+        p.append("%s %s %s %s %s %s c" % (n(c1[0]), n(c1[1]), n(c2[0]),
+                                          n(c2[1]), n(b[0]), n(b[1])))
+    p.append("h")
+    return " ".join(p).encode("ascii")
+
+
+def _rr_poly(x: float, y: float, w: float, h: float, r: float,
+             pas: int = 24) -> list:
+    """LE MÊME contour, aplati en polygone pour le rasteriseur.
+
+    `pas` segments par quart de cercle : l'écart maximal à la Bézier vaut
+    r x (1 - cos(pi / (4 x pas))), soit 0,04 px pour un coin de 3 mm à
+    1200 dpi. Sous le dixième de pixel, donc invisible au seuil de 50 % — et
+    le test le vérifie là où il compte : sur les transitions du PNG livré."""
+    pts: list[tuple[float, float]] = []
+    for a, c1, c2, b in _rr_quarts(x, y, w, h, r):
+        pts.append(a)
+        for i in range(1, pas + 1):
+            t = i / float(pas)
+            u = 1.0 - t
+            pts.append((u * u * u * a[0] + 3 * u * u * t * c1[0]
+                        + 3 * u * t * t * c2[0] + t * t * t * b[0],
+                        u * u * u * a[1] + 3 * u * u * t * c1[1]
+                        + 3 * u * t * t * c2[1] + t * t * t * b[1]))
+    return pts
+
+
 OCG_LAYERS = (("marks", "Repères de coupe et de repérage"),
               ("slug", "Cartouche de traçabilité"))
 
 
-def _optional_content(writer):
+def ocg_layers(foil: bool = False) -> tuple:
+    """Les calques que CE fichier portera. Le masque de foil n'est pas un
+    réglage de panneau : il n'existe que si le Sceau du jeu est en portée
+    impression ET qu'il reste un anneau à tracer. Un `/OCG` « Foil » vide
+    serait une promesse que le flux ne tient pas."""
+    return OCG_LAYERS + ((OCG_FOIL,) if foil else ())
+
+
+def _optional_content(writer, foil: bool = False):
     """DES CALQUES QUE L'IMPRIMEUR DÉCOCHE — `/OCProperties` + un `/OCG` par
     couche non imprimante.
 
@@ -2064,7 +2355,7 @@ def _optional_content(writer):
     from pypdf.generic import (ArrayObject, DictionaryObject, NameObject,
                                TextStringObject)
     refs, ordre = {}, []
-    for cle, titre in OCG_LAYERS:
+    for cle, titre in ocg_layers(foil):
         d = DictionaryObject()
         d[NameObject("/Type")] = NameObject("/OCG")
         d[NameObject("/Name")] = TextStringObject(titre)
@@ -2218,7 +2509,15 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
     # défaut. Un fichier qui porte une intention sous un en-tête 1.3 se
     # contredit lui-même dès le premier octet — relevé, corrigé.
     w.pdf_header = "%PDF-1.5" if p.layers else "%PDF-1.4"
-    ocg = _optional_content(w) if p.layers else {}
+    # ── LE MASQUE DE FOIL : DEUX CONDITIONS, PAS UNE ──────────────────────
+    #    La portée impression du Sceau, ET un anneau qui existe vraiment. Une
+    #    largeur tracée nulle (fenêtre trop près de la coupe) n'écrit pas une
+    #    plaque vide : elle n'écrit rien, et le contrôle avant vol le DIT.
+    foil = p.foil if isinstance(p.foil, dict) else {}
+    foil_on = _foil_live(p)
+    ocg = _optional_content(w, foil_on) if p.layers else {}
+    foil_cs = _foil_cs(w, str(foil.get("kind") or "")) if foil_on else None
+    foil_gs = _foil_gs(w) if foil_on else None
     if p.out_intent:
         _output_intents(w, p.out_intent, claim)
     # L'espace d'étiquetage des images : le profil de l'intention quand il y
@@ -2282,6 +2581,7 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
         src = backs if side == "back" else fronts
         tl = [1e18, 1e18, -1e18, -1e18]        # emprise des rognes (px)
         bl = [1e18, 1e18, -1e18, -1e18]        # emprise fond perdu compris
+        toiles: list[tuple[float, float]] = []  # coin de toile de chaque carte
 
         for k, (r, c, idx) in enumerate(cells_for_page(p, page_i, side)):
             im = src.get(idx)
@@ -2316,6 +2616,58 @@ def build_pdf(p: Plan, fronts: dict[int, Image.Image],
                   max(tl[3], y + chh)]
             bl = [min(bl[0], cx0), min(bl[1], cy0), max(bl[2], cx0 + cw2),
                   max(bl[3], cy0 + ch2)]
+            # RECTO SEUL, ET C'EST LE CHOIX DE P2 QU'ON SUIT. Le peintre
+            # d'écran du Sceau s'insère dans `paintFront` ; `paintBack` ne le
+            # peint pas (décision consignée à la livraison du Sceau). Poser la
+            # dorure au verso ici promettrait une plaque que l'écran ne montre
+            # nulle part — le bug WYSIWYG que ce module existe pour empêcher.
+            # Le jour où le verso doit la porter, la décision se prend avec le
+            # peintre du verso, pas ici en silence.
+            if side != "back":
+                toiles.append((px0, py0))
+
+        # ── LE MASQUE DE FOIL, EN VECTORIEL, PAR-DESSUS LES CARTES ────────
+        #
+        #    LE CADRE DANS LEQUEL ON DESSINE, et pourquoi celui-là. Le tableau
+        #    de §6.2bis donne « coupe + FOND PERDU » pour le masque
+        #    d'imprimeur : c'est la TOILE du masque, pas la position de
+        #    l'anneau. L'anneau, lui, épouse `m.outer` du peintre d'écran —
+        #    la coupe RENTRÉE de `edge_mm` — et il n'a aucune raison de
+        #    déborder : une dorure posée dans la chute est de la dorure
+        #    perdue, et §6.2bis-b demande justement qu'elle reste à distance
+        #    du trait de coupe. Ici la toile du masque N'EXISTE PAS (la page,
+        #    c'est la planche) : l'anneau est donc posé au coin de TOILE de
+        #    chaque carte — le même point que son XObject — plus son retrait.
+        #    Les deux livrables descendent ainsi des mêmes millimètres.
+        #
+        #    APRÈS les images : une encre d'appoint se pose SUR la quadri, et
+        #    la surimpression n'a de sens que dans cet ordre-là.
+        if foil_on and toiles:
+            csd = res.get(NameObject("/ColorSpace"))
+            if csd is None:
+                csd = DictionaryObject()
+                res[NameObject("/ColorSpace")] = csd
+            csd[NameObject("/CSfoil")] = foil_cs
+            gsd = res.get(NameObject("/ExtGState"))
+            if gsd is None:
+                gsd = DictionaryObject()
+                res[NameObject("/ExtGState")] = gsd
+            gsd[NameObject("/GSfoil")] = foil_gs
+            ft, fx0, fy0, fw, fh, fr = foil["px"]
+            ops.append(_oc_open(res, ocg, "foil")
+                       + b"/CFfoil BMC q /GSfoil gs /CSfoil cs 1 scn")
+            for tx, ty in toiles:
+                ax, ay = tx + fx0, ty + fy0
+                # extérieur puis intérieur, remplis en PAIR-IMPAIR (`f*`) :
+                # le second creuse le premier, et c'est ce qui fait un ANNEAU
+                # plutôt qu'une plaque pleine.
+                ops.append(_rr_ops(X(ax), Y(ay + fh), px2pt(fw, p.dpi),
+                                   px2pt(fh, p.dpi), px2pt(fr, p.dpi)))
+                ops.append(_rr_ops(
+                    X(ax + ft), Y(ay + fh - ft), px2pt(fw - 2 * ft, p.dpi),
+                    px2pt(fh - 2 * ft, p.dpi),
+                    px2pt(max(0.0, fr - ft), p.dpi)) + b" f*")
+            ops.append(b"Q EMC" + _oc_close(ocg, "foil"))
 
         segs = mark_segments(ps)
         if segs:
@@ -2862,6 +3214,142 @@ def pdf_audit(data: bytes, duplex_order: str = "") -> dict:
 # manuel de nanDECK. Ici il a deux règles, un chiffre, et le nom de la carte.
 # ══════════════════════════════════════════════════════════════════════════
 
+def foil_mask(fo: dict, g: CardGeom) -> Image.Image:
+    """LE REPLI RASTER : un masque 1 BIT, sans une nuance de gris.
+
+    §6.2bis-b : « repli raster : PNG/TIFF noir 100 % SANS anti-aliasing,
+    600-1200 dpi, fond perdu inclus ». Chacun de ces mots coûte quelque chose.
+
+    LA CONVENTION, NOMMÉE : le NOIR est la dorure, le blanc le reste. C'est
+    ce que la spec écrit (« noir 100 % ») et ce que les portails d'imprimeurs
+    attendent d'un masque d'appoint — la plaque se lit comme une plaque
+    d'encre, pas comme un cache. Elle est écrite dans le NOM DU FICHIER et
+    dans l'en-tête de la réponse : une convention qu'il faut deviner est une
+    convention qu'on inversera.
+
+    SANS ANTICRÉNELAGE, ET PROUVÉ : un seul pixel gris, et le RIP fabrique
+    une trame là où l'imprimeur attend une découpe de plaque. `ImageDraw` ne
+    lisse aucune de ces formes — le test compte les valeurs distinctes du PNG
+    livré et exige EXACTEMENT deux, ce qui tient la promesse sur les octets
+    plutôt que sur la documentation de Pillow.
+
+    LA TOILE EST « COUPE + FOND PERDU » (la ligne du tableau de §6.2bis), et
+    l'ANNEAU reste à son retrait : la toile couvre la chute, la dorure n'y va
+    pas. Rien n'est ré-échantillonné — la géométrie est reconstruite à la
+    définition demandée depuis les mêmes millimètres."""
+    im = Image.new("L", tuple(g.canvas_px), 255)
+    d = ImageDraw.Draw(im)
+    t, x, y, w, h, r = fo["px"]
+    # LE MÊME CONTOUR QUE LE PDF, aplati (`_rr_poly`) : le remplissage de
+    # polygone de PIL ne lisse rien, donc pas un pixel intermédiaire. Le noir
+    # pose l'anneau, le blanc l'évide — l'équivalent exact du `f*` pair-impair
+    # du chemin vectoriel, sur le même contour.
+    d.polygon(_rr_poly(x, y, w, h, r), fill=0)
+    d.polygon(_rr_poly(x + t, y + t, w - 2 * t, h - 2 * t,
+                       max(0.0, r - t)), fill=255)
+    # `dither=NONE` : la source ne porte que 0 et 255, le seuil à 50 % est
+    # donc exact — mais une diffusion d'erreur inscrirait quand même du bruit
+    # dans les coins si un futur dessin apportait un gris.
+    return im.convert("1", dither=Image.Dither.NONE)
+
+
+def _fm(v: float, n: int = 2) -> str:
+    """Un millimètre à la française. Le contrôle avant vol parle la langue du
+    panneau : « 1,60 mm », pas « 1.60 »."""
+    return f"{float(v):.{n}f}".replace(".", ",")
+
+
+def foil_checks(p: Plan) -> list[dict]:
+    """LES CONTRÔLES DU MASQUE DE FOIL, VALIDÉS EN VECTORIEL AVANT TOUTE
+    RASTERISATION (§6.2bis-b). Zéro ligne quand le Sceau n'est pas en portée
+    impression : un panneau qui parle de foil à un jeu qui n'en a pas est du
+    bruit, et les neuf règles de fichier existantes gardent leur compte.
+
+    DEUX CHOIX DE NIVEAU, ET ILS SE JUSTIFIENT :
+
+      * la DISTANCE AU TRAIT DE COUPE est un AVERTISSEMENT, pas une erreur.
+        Le retrait de filet par défaut du cadre vaut 1,6 mm — soit DANS la
+        zone que §6.2bis-b interdit. Une erreur refuserait donc, par
+        construction, le premier jeu venu qui coche « impression ». La ligne
+        porte le remède ET la variance chiffrée : l'opérateur choisit.
+      * le TRAIT SOUS 0,2 mm est une ERREUR, et il est censé être impossible
+        depuis la T1 (la borne de format rend 0 sous le plancher au lieu de
+        publier une largeur que la presse rejette). Il reste contrôlé ici
+        parce que le contrôle avant vol juge LE DOCUMENT : un fichier de jeu
+        modifié à la main n'est jamais passé par un curseur."""
+    if not (p.foil or {}).get("on"):
+        return []
+    f = p.foil
+    larg, cap, edge = (float(f["width_mm"]), float(f["cap_mm"]),
+                       float(f["edge_mm"]))
+    ligne = {"card": "fichier", "card_i": -1, "slot": ""}
+    if larg <= 0:
+        return [dict(ligne, kind="foil_sans_anneau", level="warn", value=0.0,
+                     limit=FOIL_MIN_MM, message=(
+                         "portée « impression » cochée mais AUCUN anneau à "
+                         f"dorer : entre le filet (posé à {_fm(edge)} mm de la "
+                         "coupe) et la fenêtre d'illustration il ne reste que "
+                         f"{_fm(cap)} mm, sous le trait minimal de "
+                         f"{_fm(FOIL_MIN_MM, 1)} mm — rapprocher le filet de "
+                         "la coupe ou reculer la fenêtre. Le fichier partira "
+                         "sans masque de foil, et sans calque « Foil »."))]
+    rows: list[dict] = []
+    if larg < FOIL_MIN_MM - 1e-9:
+        rows.append(dict(ligne, kind="foil_trait", level="err",
+                         value=rnd(larg, 2), limit=FOIL_MIN_MM, message=(
+                             f"trait du masque de foil : {_fm(larg)} mm "
+                             "tracés, le minimum d'un imprimeur foil est "
+                             f"{_fm(FOIL_MIN_MM, 1)} mm (§6.2bis-b). Aucun "
+                             "curseur de l'écran ne descend là : cette "
+                             "largeur vient du document lui-même.")))
+    proche = edge < FOIL_TRIM_MM - 1e-9
+    rows.append(dict(
+        ligne, kind="foil_distance_coupe", level="warn" if proche else "ok",
+        value=rnd(edge, 2), limit=FOIL_TRIM_MM,
+        message=(f"masque de foil à {_fm(edge)} mm du trait de coupe"
+                 + (f", il en faut {_fm(FOIL_TRIM_MM, 1)} (§6.2bis-b) — monter "
+                    "le retrait du filet (edge_mm) au-delà de "
+                    f"{_fm(FOIL_TRIM_MM, 1)} mm, ce qui déplace AUSSI le filet "
+                    "extérieur du cadre, ou accepter la variance de "
+                    f"fabrication de {FOIL_VARIANCE} en le sachant. "
+                    "Avertissement et non erreur : le retrait par défaut du "
+                    "cadre vaut 1,6 mm, une erreur refuserait tout jeu neuf."
+                    if proche else
+                    f" : au-delà des {_fm(FOIL_TRIM_MM, 1)} mm exigés"))))
+    rows.append(dict(
+        ligne, kind="foil_limite_produit", level="ok", value=0.0, limit=0,
+        message=("limite produit relevée chez les imprimeurs : le spot cold "
+                 "foil PUR exclut souvent la couleur sur la même face ; le "
+                 "produit foil + CMJN existe, plus cher. À confirmer AVANT de "
+                 "commander — ce module écrit la plaque, il ne connaît pas le "
+                 "catalogue de votre imprimeur.")))
+    rows.append(dict(
+        ligne, kind="foil_calque", level="ok", value=rnd(larg, 2), limit=0,
+        message=(f"anneau vectoriel de {_fm(larg)} mm ({f['kind']}) en encre "
+                 "d'appoint /Separation « Foil » sur alternatif /DeviceCMYK, "
+                 "surimpression posée (/OP, /op, /OPM 1)"
+                 + (f", isolé dans le calque « {FOIL_LABEL} » que l'imprimeur "
+                    "décoche — les calques sont du PDF 1.5, donc aucune "
+                    "revendication PDF/X sur ce fichier (contrainte héritée "
+                    "des calques, pas du foil)" if p.layers else
+                    " ; SANS calque optionnel (case décochée) : la plaque "
+                    "reste lisible, l'imprimeur ne peut plus l'isoler d'un "
+                    "clic. Une encre d'appoint, elle, n'interdit pas la "
+                    "revendication PDF/X")
+                 + (" — RECTO SEUL : le peintre d'écran du Sceau ne peint pas "
+                    "le verso, et la plaque suit ce que l'écran montre"
+                    if p.duplex else ""))))
+    rows.append(dict(
+        ligne, kind="foil_recouvrement", level="ok", value=0.0, limit=0,
+        message=("le bandeau de rareté et la gemme se peignent PAR-DESSUS "
+                 "l'anneau (z=70 contre z=40) : là où ils le recouvrent, le "
+                 "métal passerait sous une encre opaque. Ce module ne MESURE "
+                 "pas ce recouvrement — il dépend de la rareté de chaque "
+                 "carte — il le signale : à vérifier à l'œil dès que la bande "
+                 "s'élargit.")))
+    return rows
+
+
 def file_checks(body: dict, icc: bytes | None = None) -> list[dict]:
     """LES RÈGLES QUI PORTENT SUR LE FICHIER LIVRÉ, pas sur les cartes.
 
@@ -2996,14 +3484,15 @@ def file_checks(body: dict, icc: bytes | None = None) -> list[dict]:
                    " — le verso ne tombe pas derrière son recto")),
         })
     if p.layers:
+        titres = [t for _, t in ocg_layers(_foil_live(p))]
         rows.append({
             "kind": "calques_optionnels", "level": "ok", "card": "fichier",
-            "card_i": -1, "slot": "", "value": len(OCG_LAYERS), "limit": 0,
-            "message": ("calques optionnels : « "
-                        + " » et « ".join(t for _, t in OCG_LAYERS)
+            "card_i": -1, "slot": "", "value": len(titres), "limit": 0,
+            "message": ("calques optionnels : « " + " » et « ".join(titres)
                         + " » — l'imprimeur les décoche sans éditer le flux "
                           "(/OCProperties, en-tête %PDF-1.5)"),
         })
+    rows += foil_checks(p)
     rows.append({
         "kind": "police_incorporee", "level": "ok", "card": "fichier",
         "card_i": -1, "slot": "", "value": 0, "limit": 0,
@@ -3307,6 +3796,15 @@ def _spec_of(doc: dict, body: dict) -> dict:
     for k in ("fmt", "dpi", "bleed_mm", "safe_mm", "corner_mm"):
         if k in fmt:
             out[k] = fmt[k]
+    # ── LE CADRE VOYAGE AVEC LA DEMANDE, EN LECTURE SEULE ─────────────────
+    #    `doc.frame` appartient à P2 ; P7 n'y écrit jamais et ne le renvoie
+    #    nulle part. Il en a besoin pour UNE chose : le Sceau prismatique en
+    #    portée impression, dont il tire le masque de foil (§6.2bis-b). Sans
+    #    ce raccord, le contrôle avant vol et le PDF jugeraient un jeu SANS
+    #    son contour — et l'anneau n'existerait que sur l'écran de P2.
+    fr = doc.get("frame")
+    if isinstance(fr, dict):
+        out["frame"] = fr
     body = body if isinstance(body, dict) else {}
     demande = str(body.get("fmt") or "").strip().lower()
     if demande and demande != out.get("fmt"):
@@ -3396,7 +3894,26 @@ def plan_dict(p: Plan) -> dict:
         "safe_inset_mm": [round(v, 4) for v in safe_inset_written_mm(p)],
         "safe_um_xy": list(safe_gap_xy_um(p)),
         "layers": p.layers,
-        "ocg": [t for _, t in OCG_LAYERS] if p.layers else [],
+        "ocg": ([t for _, t in ocg_layers(_foil_live(p))]
+                if p.layers else []),
+        # ── LE SCEAU, VU PAR L'IMPRESSION ─────────────────────────────────
+        #    L'écran ne recalcule PAS ces millimètres : mod-frame.js en tient
+        #    déjà l'unique implémentation d'interface, et une TROISIÈME copie
+        #    dans P7 serait exactement le piège que §6.2bis nomme. Le panneau
+        #    d'impression lit donc ce bloc, et dit ce qu'il porte.
+        "foil": {
+            "on": bool((p.foil or {}).get("on")),
+            "live": _foil_live(p),
+            "kind": (p.foil or {}).get("kind", ""),
+            "width_mm": rnd(float((p.foil or {}).get("width_mm") or 0), 2),
+            "asked_mm": rnd(float((p.foil or {}).get("asked_mm") or 0), 2),
+            "cap_mm": (p.foil or {}).get("cap_mm", 0.0),
+            "edge_mm": rnd(float((p.foil or {}).get("edge_mm") or 0), 2),
+            "min_mm": FOIL_MIN_MM, "trim_mm": FOIL_TRIM_MM,
+            "variance": FOIL_VARIANCE, "layer": FOIL_LABEL,
+            "mask_dpi": list(FOIL_MASK_DPI),
+            "px": [rnd(v, 2) for v in (p.foil or {}).get("px", [])],
+        },
         "n_cards": p.n_cards, "pages": p.pages, "out_pages": p.out_pages,
         "duplex": p.duplex, "flip": p.flip, "duplex_order": p.duplex_order,
         "marks": p.marks, "trimbox": p.trimbox, "artbox": p.artbox,
@@ -3803,6 +4320,12 @@ async def post_pdf(did: str, spec: str = Form("{}"),
         "X-CF-Intent": (p.out_intent["id"] if p.out_intent else "none"),
         "X-CF-Mark-Space": p.mark_space,
         "X-CF-Color": p.color,
+        # LE FOIL, DIT PAR LE FICHIER QUI PART — le nom de plaque, la recette
+        # et les deux longueurs dont dépend le résultat en presse.
+        "X-CF-Foil": (
+            "Foil %s %s mm a %s mm de la coupe"
+            % (p.foil.get("kind", ""), _fm(p.foil.get("width_mm", 0)),
+               _fm(p.foil.get("edge_mm", 0))) if _foil_live(p) else "aucun"),
         "X-CF-Bleed-Mm": f"{edge}/{inner}",
         "X-CF-Lossless": "1" if p.lossless else "0",
         # ── L'AUDIT DES OCTETS ÉCRITS, RELU PAR L'ÉCRAN ──────────────────
@@ -3833,6 +4356,70 @@ async def post_pdf(did: str, spec: str = Form("{}"),
         "X-CF-Control": (audit["control"][:400].encode("ascii", "replace")
                          .decode("ascii") or "non fourni"),
         "X-CF-Forced": "1" if audit["control_forced"] else "0",
+    })
+
+
+@router.get("/foil-mask")
+async def get_foil_mask(did: str, dpi: int = 600):
+    """LE MASQUE DE FOIL EN RASTER — le repli de §6.2bis-b quand le portail
+    de l'imprimeur ne prend pas la couche spot du PDF.
+
+    UN SEUL FICHIER POUR TOUT LE JEU, et c'est un fait, pas une économie :
+    l'anneau ne descend QUE des millimètres de `doc.frame.seal` et du format
+    de la carte — il est rigoureusement le même sur les 300 cartes d'un jeu.
+    Livrer 300 PNG identiques ferait croire à une variation par carte qui
+    n'existe pas. L'en-tête `X-CF-Foil-Scope` le dit.
+
+    La définition N'EST PAS celle du jeu : un masque d'appoint se livre à
+    600 ou 1200 dpi (§6.2bis-b), et la géométrie est reconstruite à cette
+    définition-là — jamais un PNG de 300 dpi agrandi."""
+    doc = _deck(did)
+    if dpi not in FOIL_MASK_DPI:
+        raise HTTPException(400, "Définition de masque inconnue : %d. Un "
+                                 "masque d'appoint se livre à %s dpi."
+                            % (dpi, " ou ".join(str(v) for v in FOIL_MASK_DPI)))
+    spec = _spec_of(doc, {})
+    try:
+        g = geom_of(str(spec.get("fmt") or "").strip().lower(), dpi,
+                    spec.get("bleed_mm"), spec.get("safe_mm"),
+                    float(spec.get("corner_mm", 3.0) or 0.0))
+    except (ValueError, TypeError) as e:
+        raise HTTPException(400, str(e))
+    fo = foil_plan(spec.get("frame"), g)
+    if not fo["on"]:
+        raise HTTPException(409, "Ce jeu n'a pas de Sceau en portée "
+                                 "impression : cocher « impression » dans le "
+                                 "groupe « Sceau prismatique » du panneau "
+                                 "Cadre avant de demander un masque.")
+    if fo["width_mm"] <= 0:
+        raise HTTPException(409, (
+            "Aucun anneau à dorer : la place entre le filet (%s mm de la "
+            "coupe) et la fenêtre d'illustration ne laisse que %s mm, sous le "
+            "trait minimal de %s mm. Rapprocher le filet de la coupe ou "
+            "reculer la fenêtre."
+            % (_fm(fo["edge_mm"]), _fm(fo["cap_mm"]),
+               _fm(FOIL_MIN_MM, 1))))
+
+    def work():
+        buf = io.BytesIO()
+        foil_mask(fo, g).save(buf, "PNG", dpi=(dpi, dpi), optimize=True)
+        return buf.getvalue()
+    try:
+        out = await asyncio.to_thread(work)
+    except Exception as e:
+        logger.exception("cards/print: masque de foil impossible")
+        raise HTTPException(500, f"Masque impossible: {e}")
+    return Response(content=out, media_type="image/png", headers={
+        "Content-Disposition": ('attachment; filename="masque-foil_%ddpi'
+                                '_noir-sur-blanc.png"' % dpi),
+        # La convention part AVEC le fichier : un masque dont il faut deviner
+        # le sens est un masque qu'on inversera un jour.
+        "X-CF-Foil-Ink": "noir=foil",
+        "X-CF-Foil-Scope": "toutes les cartes (l'anneau ne depend que du cadre)",
+        "X-CF-Foil-Mm": "%s/%s" % (_fm(fo["width_mm"]), _fm(fo["edge_mm"])),
+        "X-CF-Foil-Kind": fo["kind"],
+        "X-CF-Pixels": f"{g.canvas_px[0]}x{g.canvas_px[1]}",
+        "X-CF-Phys": str(phys_ppm(dpi)),
     })
 
 

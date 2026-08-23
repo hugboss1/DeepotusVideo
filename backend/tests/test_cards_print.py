@@ -2512,5 +2512,418 @@ def test_l_ecran_porte_le_meme_retrait_que_le_backend():
     assert "mark_safe: true" in src
 
 
+def _pose_cadre(did, frame):
+    """`doc.frame` posé sur le jeu par le CŒUR (`patch_deck`) — la voie
+    partagée du document, jamais un import du routeur de P2."""
+    from app.services.cards.core import patch_deck, read_deck
+    f = dict(read_deck(did).get("frame") or {})
+    f.update(frame)
+    assert patch_deck(did, {"frame": f}) is not None
+
+
+# ═══════════════════ le masque de foil (phase 3c, tâche 2) ═════════════════
+#
+# §6.2bis-b : « vectoriel d'abord : couche spot nommée Foil, Overprint activé ;
+# repli raster : PNG noir 100 % SANS anti-aliasing, 600-1200 dpi, fond perdu
+# inclus ». La vérité est UNE : les millimètres de `doc.frame.seal`. Les deux
+# rasterisations en dérivent, jamais l'une de l'autre (« le piège des deux
+# cadres »).
+
+
+def sceau(**kw):
+    """Un `doc.frame.seal` de portée IMPRESSION, forme du schéma de la T1."""
+    s = {"on": True, "kind": "dorure", "width_mm": 1.2,
+         "scope": {"screen": True, "print": True, "mesh": False}}
+    s.update(kw)
+    return s
+
+
+def cadre(seal=None, edge_mm=1.6, window=None):
+    """Le `doc.frame` que P7 LIT — pas un import du routeur de P2."""
+    f = {"edge_mm": edge_mm, "inner_mm": 5.5,
+         "seal": sceau() if seal is None else seal}
+    if window is not None:
+        f["window"] = window
+    return f
+
+
+def res_of(data: bytes, page: int = 0):
+    from pypdf import PdfReader
+    return PdfReader(io.BytesIO(data)).pages[page]["/Resources"]
+
+
+def aire(ligne: str) -> float:
+    """L'aire SIGNÉE d'un tracé (formule du lacet sur ses points de contrôle).
+
+    Approchée — les points de contrôle des béziers ne sont pas la courbe —
+    mais son SIGNE est exact, et c'est lui qui compte : deux tracés de MÊME
+    signe tournent dans le MÊME sens, donc la règle de remplissage NON NULLE
+    les fusionnerait en une plaque pleine. C'est ce fait-là qui rend le
+    pair-impair (`f*`) obligatoire pour obtenir un anneau."""
+    n = [float(v) for v in re.findall(r"-?\d+\.?\d*", ligne)]
+    p = list(zip(n[0::2], n[1::2]))
+    return sum(p[i][0] * p[(i + 1) % len(p)][1]
+               - p[(i + 1) % len(p)][0] * p[i][1]
+               for i in range(len(p))) / 2.0
+
+
+def chemins(ops: str):
+    """Les tracés du bloc `/CFfoil` — un par ligne, en points PDF.
+
+    Rend une liste de (minx, miny, maxx, maxy) : l'anneau est fait de DEUX
+    rectangles arrondis, donc deux tracés par carte, et la boîte de chacun se
+    lit sur ses points de contrôle (les béziers d'un quart d'arc ne sortent
+    jamais du rectangle)."""
+    out = []
+    for ligne in bloc(ops, "CFfoil").split("\n"):
+        if " m " not in ligne:
+            continue
+        n = [float(v) for v in re.findall(r"-?\d+\.?\d*", ligne)]
+        xs, ys = n[0::2], n[1::2]
+        out.append((min(xs), min(ys), max(xs), max(ys)))
+    return out
+
+
+def test_le_masque_de_foil_est_une_couche_spot_reelle_dans_le_pdf():
+    """« couche spot nommée Foil, Overprint activé » — relu dans les octets.
+
+    Le PDF ne porte pas une COULEUR dorée : il porte une ENCRE LOGIQUE
+    `/Separation /Foil`, dont la transformée de teinte n'existe que pour
+    l'aperçu. C'est le nom de plaque que le RIP de l'imprimeur lit."""
+    p = PR.build_plan(base(sheet="card", frame=cadre()), 1)
+    data = PR.build_pdf(p, {0: carte()}, {}, "T")
+    ops = pdf_ops(data)
+    # 1. le calque optionnel, nommé — l'imprimeur le décoche ou l'isole
+    a = PR.pdf_audit(data)
+    assert a["ocg_count"] == 3
+    assert a["ocg_names"][2] == "Masque de foil (dorure à chaud)"
+    assert "/OCfoil BDC" in ops and "/CFfoil BMC" in ops
+    # 2. l'encre : une VRAIE Separation, pas un CMJN approché
+    r = res_of(data)
+    cs = r["/ColorSpace"]["/CSfoil"]
+    assert str(cs[0]) == "/Separation"
+    assert str(cs[1]) == "/Foil", "le nom de plaque est ce que l'imprimeur lit"
+    assert str(cs[2]) == "/DeviceCMYK"
+    fn = cs[3].get_object()
+    assert int(fn["/FunctionType"]) == 2
+    assert [float(v) for v in fn["/C0"]] == [0.0, 0.0, 0.0, 0.0]
+    assert sum(float(v) for v in fn["/C1"]) > 0.5, "un aperçu VISIBLE"
+    # 3. la surimpression, posée sur l'état graphique
+    gs = r["/ExtGState"]["/GSfoil"].get_object()
+    assert gs["/OP"].value is True and gs["/op"].value is True
+    assert int(gs["/OPM"]) == 1
+    # 4. le tracé : l'encre choisie, deux rectangles arrondis, PAIR-IMPAIR
+    b = bloc(ops, "CFfoil")
+    assert "/GSfoil gs" in b and "/CSfoil cs 1 scn" in b
+    assert b.count(" f*") == 1, "un seul remplissage pair-impair par carte"
+    assert len(chemins(ops)) == 2, "anneau = extérieur + intérieur"
+    assert b.count(" c ") == 8, "4 quarts d'arc par rectangle arrondi"
+    # POURQUOI LE PAIR-IMPAIR EST OBLIGATOIRE, mesuré et non épinglé : les
+    # deux tracés tournent DANS LE MÊME SENS (aires signées de même signe),
+    # donc la règle non nulle les fondrait en une PLAQUE PLEINE au lieu de
+    # creuser l'anneau. Et l'intérieur est bien le plus petit des deux.
+    aires = [aire(x) for x in b.split("\n") if " m " in x]
+    assert len(aires) == 2 and aires[0] * aires[1] > 0, aires
+    assert abs(aires[0]) > abs(aires[1]), aires
+    assert ops.count("BDC") == ops.count("EMC") - ops.count("BMC")
+
+
+def test_sans_portee_impression_le_pdf_ne_porte_aucune_trace_de_foil():
+    """La portée est un interrupteur, pas une décoration : trois façons de
+    l'éteindre, trois fichiers rigoureusement sans foil."""
+    for quoi, f in (
+        ("sans cadre du tout", None),
+        ("sceau éteint", cadre(sceau(on=False))),
+        ("portée impression décochée", cadre(
+            sceau(scope={"screen": True, "print": False, "mesh": False}))),
+        # la fenêtre posée à 1,61 mm de la coupe ne laisse que 0,01 mm : sous
+        # le plancher, il n'y a PAS d'anneau étroit, il n'y a pas d'anneau.
+        ("largeur tracée nulle", cadre(
+            window={"x": 1.61, "y": 1.61, "w": 63 - 3.22, "h": 88 - 3.22,
+                    "r": 0})),
+    ):
+        p = PR.build_plan(base(sheet="card", frame=f), 1)
+        data = PR.build_pdf(p, {0: carte()}, {}, "T")
+        assert PR.pdf_audit(data)["ocg_count"] == 2, quoi
+        assert b"/Separation" not in data or b"/Foil" not in data, quoi
+        assert "/CFfoil" not in pdf_ops(data), quoi
+        assert b"/GSfoil" not in data, quoi
+    # et la largeur nulle est DITE, pas subie
+    p = PR.build_plan(base(sheet="card", frame=cadre(
+        window={"x": 1.61, "y": 1.61, "w": 59.78, "h": 84.78, "r": 0})), 1)
+    assert p.foil["width_mm"] == 0.0
+    assert p.foil["cap_mm"] == 0.0
+
+
+def test_l_anneau_de_foil_tombe_au_millimetre_ou_le_sceau_le_dessine():
+    """LE CADRE DANS LEQUEL ON DESSINE, mesuré sur les octets.
+
+    L'anneau ne s'étend PAS jusqu'au fond perdu : sa toile le couvre (le
+    masque raster est une toile coupe + fond perdu), mais l'anneau lui-même
+    est posé à `edge_mm` de la COUPE, exactement comme le peintre d'écran le
+    pose sur `m.outer`. Un anneau tracé au bord du fond perdu, c'est du métal
+    dans la chute."""
+    edge, larg = 3.4, 1.2
+    p = PR.build_plan(base(sheet="card", frame=cadre(edge_mm=edge)), 1)
+    g = p.geom
+    data = PR.build_pdf(p, {0: carte()}, {}, "T")
+    ext, dedans = chemins(pdf_ops(data))
+    epx = edge / 25.4 * g.dpi
+    tpx = larg / 25.4 * g.dpi
+    # en pixels de PLANCHE : la toile est posée en (0,0) sur `sheet=card`
+    x0, y0 = g.bleed_off_px[0] + epx, g.bleed_off_px[1] + epx
+    w, h = g.trim_px[0] - 2 * epx, g.trim_px[1] - 2 * epx
+    att = (PR.px2pt(x0, g.dpi), PR.px2pt(g.canvas_px[1] - (y0 + h), g.dpi),
+           PR.px2pt(x0 + w, g.dpi), PR.px2pt(g.canvas_px[1] - y0, g.dpi))
+    for i in range(4):
+        assert abs(ext[i] - att[i]) < 0.01, (i, ext, att)
+    # l'anneau creuse VERS L'INTÉRIEUR de la largeur du Sceau
+    t = PR.px2pt(tpx, g.dpi)
+    for i, s in enumerate((+1, +1, -1, -1)):
+        assert abs(dedans[i] - (att[i] + s * t)) < 0.01, (i, dedans, att)
+    # et il reste DANS la coupe : jamais dans le fond perdu
+    coupe = (PR.px2pt(g.bleed_off_px[0], g.dpi),
+             PR.px2pt(g.bleed_off_px[1], g.dpi))
+    assert ext[0] > coupe[0] + 1e-6 and ext[1] > coupe[1] + 1e-6
+
+
+def test_l_anneau_suit_chaque_carte_et_ne_dore_que_le_recto():
+    """Un masque de foil qui ne suivrait pas la grille poserait la dorure à
+    côté des cartes. Et il ne dore QUE LE RECTO : le peintre d'écran du Sceau
+    s'insère dans `paintFront`, `paintBack` ne le peint pas — poser la plaque
+    au verso promettrait une dorure que l'écran ne montre nulle part."""
+    p = PR.build_plan(base(frame=cadre(edge_mm=3.4), duplex=True), 6)
+    assert (p.cols, p.rows, p.duplex) == (2, 3, True)
+    data = PR.build_pdf(p, {i: carte() for i in range(6)},
+                        {i: carte() for i in range(6)}, "T")
+    tr = chemins(pdf_ops(data, 0))
+    assert len(tr) == 12, "6 cartes x (extérieur + intérieur)"
+    epx, t = 3.4 / 25.4 * p.dpi, 1.2 / 25.4 * p.dpi
+    att = sorted({round(PR.px2pt(PR.cell_rect(p, 0, c)[0] + epx + d, p.dpi), 4)
+                  for c in range(p.cols) for d in (0.0, t)})
+    # 4 abscisses distinctes : 2 colonnes x (extérieur, intérieur). La
+    # tolérance est celle de l'ÉCRITURE (`_pdf_num` arrondit à 1e-4 pt), pas
+    # une marge de confort : 0,001 pt = 0,35 µm.
+    got = sorted({v[0] for v in tr})
+    assert len(got) == len(att) == 4, (got, att)
+    for a, b in zip(got, att):
+        assert abs(a - b) < 0.001, (got, att)
+    # LE VERSO N'EN PORTE PAS UNE TRACE
+    assert "/CFfoil" not in pdf_ops(data, 1), "recto seul"
+    assert "/OCfoil" not in pdf_ops(data, 1)
+    # ... et l'écran le DIT plutôt que de le laisser découvrir
+    k = {r["kind"]: r for r in PR.file_checks(
+        base(n_cards=6, duplex=True, frame=cadre(edge_mm=3.4)))}
+    assert "RECTO SEUL" in k["foil_calque"]["message"]
+    sans = {r["kind"]: r for r in PR.file_checks(
+        base(n_cards=6, frame=cadre(edge_mm=3.4)))}
+    assert "RECTO SEUL" not in sans["foil_calque"]["message"]
+
+
+def test_le_masque_raster_est_un_1_bit_sans_anticrenelage():
+    """« PNG noir 100 % SANS anti-aliasing, 600-1200 dpi, fond perdu inclus ».
+
+    DEUX valeurs, pas trois : un seul pixel gris et le RIP fabrique une trame
+    là où l'imprimeur attend une découpe de plaque."""
+    did = CC.create_deck("Jeu foil", {"fmt": "poker_eu", "dpi": 300})["id"]
+    _pose_cadre(did, cadre(edge_mm=3.4))
+    r = _api("GET", f"/api/cards/{did}/print/foil-mask?dpi=600")
+    assert r.status_code == 200, r.text[:300]
+    assert r.headers["content-type"] == "image/png"
+    assert "noir" in r.headers["content-disposition"]
+    assert r.headers["X-CF-Foil-Ink"] == "noir=foil"
+    im = Image.open(io.BytesIO(r.content))
+    assert im.mode == "1", "1 bit, pas un gris déguisé"
+    assert r.content[24] == 1, "profondeur 1 dans l'IHDR"
+    # Le compte de valeurs est REDONDANT tant que le mode vaut « 1 » (une
+    # image 1 bit ne peut pas en porter trois) : il est là pour le jour où
+    # quelqu'un desserrera le mode, et c'est dit plutôt que découvert.
+    vals = sorted(set(im.convert("L").get_flattened_data()))
+    assert vals == [0, 255], vals
+    # la toile = COUPE + FOND PERDU, à 600 dpi
+    g = CT.geom("poker_eu", 600)
+    assert im.size == tuple(g.canvas_px)
+    # ── CE QUE LE COMPTE DE VALEURS NE PEUT PAS VOIR ──────────────────────
+    #    Un seuil à DIFFUSION D'ERREUR posé sur un bord lissé rend toujours
+    #    deux valeurs et toujours du 1 bit — mais il ÉMIETTE les coins en
+    #    damier, et une plaque de dorure émiettée est une plaque perdue. Un
+    #    anneau propre ne pose jamais plus de DEUX plages noires par ligne
+    #    (ses deux montants) ; les lignes de coin sont balayées une par une.
+    lu = im.convert("L").load()
+
+    def plages(y):
+        n, prev = 0, 255
+        for x in range(g.canvas_px[0]):
+            v = lu[x, y]
+            if v == 0 and prev != 0:
+                n += 1
+            prev = v
+        return n
+    lignes = sorted(set(range(0, g.canvas_px[1], 7)) | set(range(145, 240)))
+    assert max(plages(v) for v in lignes) == 2
+    assert struct.unpack(">I", r.content[r.content.find(b"pHYs") + 4:
+                                         r.content.find(b"pHYs") + 8])[0] \
+        == PR.phys_ppm(600)
+    # LE CADRE : les transitions d'une ligne médiane tombent à edge_mm de la
+    # coupe, puis à edge_mm + largeur. Mesuré sur les pixels, pas déclaré.
+    y = g.canvas_px[1] // 2
+    ligne = [im.getpixel((x, y)) for x in range(g.canvas_px[0])]
+    bords = [x for x in range(1, len(ligne)) if ligne[x] != ligne[x - 1]]
+    att = [g.bleed_off_px[0] + 3.4 / 25.4 * 600,
+           g.bleed_off_px[0] + (3.4 + 1.2) / 25.4 * 600]
+    assert len(bords) == 4, bords
+    assert abs(bords[0] - att[0]) <= 1, (bords, att)
+    assert abs(bords[1] - att[1]) <= 1, (bords, att)
+    # le noir est bien l'anneau, le blanc le reste
+    assert ligne[bords[0] + 1] == 0 and ligne[0] == 255
+
+
+def test_la_route_du_masque_refuse_en_nommant_la_raison():
+    """Un masque vide n'est pas un masque : la route dit POURQUOI."""
+    did = CC.create_deck("Jeu sans foil", {"fmt": "poker_eu", "dpi": 300})["id"]
+    r = _api("GET", f"/api/cards/{did}/print/foil-mask")
+    assert r.status_code == 409
+    assert "portée impression" in r.json()["detail"]
+    _pose_cadre(did, cadre(window={"x": 1.61, "y": 1.61, "w": 59.78,
+                                   "h": 84.78, "r": 0}))
+    r2 = _api("GET", f"/api/cards/{did}/print/foil-mask")
+    assert r2.status_code == 409
+    assert "0,2" in r2.json()["detail"] or "0.2" in r2.json()["detail"]
+    _pose_cadre(did, cadre(edge_mm=3.4))
+    r3 = _api("GET", f"/api/cards/{did}/print/foil-mask?dpi=97")
+    assert r3.status_code == 400 and "600" in r3.json()["detail"]
+
+
+def test_le_preflight_du_foil_nomme_ses_regles_et_donne_le_remede():
+    """Le contrôle avant vol JUGE LE DOCUMENT, pas l'écran : une largeur
+    qu'aucun curseur ne peut produire arrive quand même par un fichier
+    modifié à la main, et elle est refusée en la nommant."""
+    # sans foil : PAS UNE LIGNE de plus (les 9 règles de fichier tiennent)
+    sans = PR.preflight(base(n_cards=6, gutter_mm=6, slots=[], cards=[]))
+    assert not [r for r in sans["rows"] if r["kind"].startswith("foil_")]
+    assert sans["passed"] == 9
+
+    # le DÉFAUT du jeu : 1,6 mm de la coupe, DANS la zone interdite — un
+    # AVERTISSEMENT avec le remède, jamais une erreur (elle bloquerait tout
+    # jeu neuf qui coche « impression »).
+    d = PR.preflight(base(n_cards=6, gutter_mm=6, slots=[], cards=[],
+                          frame=cadre()))
+    k = {r["kind"]: r for r in d["rows"]}
+    assert k["foil_distance_coupe"]["level"] == "warn"
+    assert d["errors"] == 0, "le jeu par défaut ne se refuse pas lui-même"
+    msg = k["foil_distance_coupe"]["message"]
+    assert "3,2" in msg and "1,60" in msg
+    assert "edge_mm" in msg and "variance" in msg
+    assert k["foil_limite_produit"]["level"] == "ok"
+    assert "CMJN" in k["foil_limite_produit"]["message"]
+    assert k["foil_calque"]["level"] == "ok"
+    assert "PDF/X" in k["foil_calque"]["message"]
+    assert "z=70" in k["foil_recouvrement"]["message"]
+
+    # retrait au-delà de 3,2 mm : la règle passe au vert avec son chiffre
+    ok = PR.preflight(base(n_cards=6, gutter_mm=6, slots=[], cards=[],
+                           frame=cadre(edge_mm=3.4)))
+    k2 = {r["kind"]: r for r in ok["rows"]}
+    assert k2["foil_distance_coupe"]["level"] == "ok"
+    assert ok["passed"] == 13
+
+    # LE DOCUMENT MODIFIÉ À LA MAIN : 0,1 mm de trait. Erreur nommée, et la
+    # porte de l'export s'appuie dessus.
+    mauvais = base(n_cards=1, frame=cadre(sceau(width_mm=0.1), edge_mm=3.4),
+                   slots=[], cards=[{"i": 0, "name": "C0"}])
+    pf = PR.preflight(mauvais)
+    k3 = {r["kind"]: r for r in pf["rows"]}
+    assert k3["foil_trait"]["level"] == "err"
+    assert "0,10" in k3["foil_trait"]["message"] and "0,2" in \
+        k3["foil_trait"]["message"]
+    assert PR.gate(mauvais, None) is not None
+
+    # portée impression cochée mais anneau IMPOSSIBLE : dit, sans bloquer
+    vide = PR.preflight(base(n_cards=6, gutter_mm=6, slots=[], cards=[],
+                             frame=cadre(window={"x": 1.61, "y": 1.61,
+                                                 "w": 59.78, "h": 84.78,
+                                                 "r": 0})))
+    k4 = {r["kind"]: r for r in vide["rows"]}
+    assert k4["foil_sans_anneau"]["level"] == "warn"
+    assert "reculer la fenêtre" in k4["foil_sans_anneau"]["message"]
+    assert vide["errors"] == 0
+
+
+def test_le_deck_par_defaut_avec_foil_part_quand_meme():
+    """Le corollaire du choix « avertir, pas refuser » : un jeu neuf qui
+    coche « impression » obtient son PDF, et le fichier porte le foil."""
+    did = CC.create_deck("Jeu défaut", {"fmt": "poker_eu", "dpi": 300})["id"]
+    _pose_cadre(did, cadre())
+    spec = base(sheet="card", slots=[], cards=[{"i": 0, "name": "C0"}])
+    r = _api("POST", f"/api/cards/{did}/print/pdf",
+             data={"spec": json.dumps(spec)},
+             files=[("fronts", ("c0.png", png_bytes(carte()), "image/png"))])
+    assert r.status_code == 200, r.text[:400]
+    assert r.headers["X-CF-Foil"].startswith("Foil ")
+    assert "Masque de foil" in r.headers["X-CF-Layers"]
+    assert "/CFfoil BMC" in pdf_ops(r.content)
+
+
+def test_p7_lit_le_sceau_du_document_sans_importer_p2():
+    """RÈGLE 8 : P7 n'importe pas le routeur de P2. Le Sceau est de l'ÉTAT
+    PARTAGÉ (`doc.frame.seal`) ; P7 en tient un lecteur LOCAL, dont la parité
+    est prouvée ici contre `frame.seal_of` — le même patron que
+    `forge3d._sceau_du_doc` livré en T3.
+
+    ET LA DIVERGENCE EST VOULUE : `seal_of` normalise un CORPS DE REQUÊTE et
+    LÈVE hors bornes (400 nommant la borne) ; le lecteur de P7 normalise un
+    DOCUMENT DÉJÀ ÉCRIT et ne lève jamais — sans quoi une largeur de
+    0,1 mm posée à la main sortirait en 400 au lieu de la ligne d'erreur
+    nommée que le contrôle avant vol doit rendre."""
+    from app.services.cards import frame as P2
+    src = pathlib.Path(PR.__file__).read_text(encoding="utf-8")
+    # AUCUNE INSTRUCTION d'import de P2 — la prose du fichier, elle, a le
+    # droit de citer celle qu'elle refuse d'écrire (c'est même son travail).
+    assert not re.search(r"^\s*(?:from\s+\.frame\s+import|from\s+\.\s+"
+                         r"import\s+frame|import\s+.*frame)",
+                         src, re.M)
+    for brut in (None, {}, {"on": True}, {"on": "oui"}, {"kind": "dorure"},
+                 {"kind": "inconnu"}, {"width_mm": None}, {"width_mm": 6},
+                 {"width_mm": 0.2}, {"scope": {"print": True}},
+                 {"on": True, "scope": {"print": True, "screen": False}}):
+        a, b = P2.seal_of(brut), PR.foil_of({"seal": brut})
+        assert (a["on"], a["kind"], a["width_mm"]) == \
+            (b["on"], b["kind"], b["width_mm"]), brut
+        assert a["scope"]["print"] == b["print"], brut
+    # la divergence, épinglée dans les deux sens
+    with pytest.raises(ValueError):
+        P2.seal_of({"width_mm": 0.1})
+    assert PR.foil_of({"seal": {"width_mm": 0.1}})["width_mm"] == 0.1
+    # les NOMBRES publiés par /frame/metrics sont ceux que P7 dessine
+    g = CT.geom("poker_eu", 300)
+    for edge, win, larg in ((1.6, None, 1.2), (3.4, None, 2.0),
+                            (0.5, {"x": 8, "y": 6, "w": 45, "h": 44, "r": 2.5},
+                             6.0), (1.61, {"x": 1.61, "y": 1.61, "w": 59.78,
+                                           "h": 84.78, "r": 0}, 1.2)):
+        f = {"edge_mm": edge, "seal": sceau(width_mm=larg)}
+        if win:
+            f["window"] = win
+        m = P2.frame_metrics(g, 0.9, 1.1, edge, 5.5,
+                             P2._win_of(win, g), P2.seal_of(f["seal"]))
+        fo = PR.foil_plan(f, g)
+        assert CT.rnd(fo["width_mm"], 2) == m["seal_mm"][0], (edge, larg)
+        assert fo["cap_mm"] == m["seal_mm"][1], (edge, larg)
+        assert [CT.rnd(v, 2) for v in fo["px"]] == m["seal_px"], (edge, larg)
+
+
+def test_l_ecran_dit_le_foil_avant_que_le_preflight_le_decouvre():
+    """« refuser sans donner la sortie » est le défaut de forme que la T1 a
+    nommé : l'écran écrit le remède, la variance et la limite produit AVANT
+    l'export, pas après le refus."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" / "cardforge"
+          / "js" / "mod-print.js")
+    src = js.read_text(encoding="utf-8")
+    assert 'CF.get("frame.seal"' in src, "lecture d'état partagé, pas d'import"
+    assert "function paintFoil(" in src
+    assert 'data-act="foilmask"' in src
+    for phrase in ("3,2", "edge_mm", "variance de fabrication",
+                   "1 à 2 mm", "CMJN", "PDF/X", "600", "noir"):
+        assert phrase in src, phrase
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

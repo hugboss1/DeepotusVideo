@@ -396,15 +396,91 @@ la T2 :
 **Files:** print.py, frame.py (miroir seal mm), mod-print.js (l'état/les
 téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
 
-- [ ] RED : PDF avec seal.scope.print → OCG « Foil » présent +
+- [x] RED : PDF avec seal.scope.print → OCG « Foil » présent +
       /Separation « Foil » + les ops vectoriels de l'anneau (relus dans
       les octets du PDF : BDC/EMC, re×2 even-odd ou m/l/c), Overprint ;
       sans scope.print → aucun ; préflight : largeur 0,1 mm → err
       nommée, distance coupe < 3,2 → warn/err, la variance écrite ;
       endpoint masque raster : PNG 1-bit 600 dpi SANS AA (octets : 2
       valeurs uniques), coupe+fond perdu ; PDF/X tombé DIT.
-- [ ] Mutation : AA laissé au raster (>2 valeurs → rougit), l'anneau au
+- [x] Mutation : AA laissé au raster (>2 valeurs → rougit), l'anneau au
       mauvais cadre (coupe vs fond perdu), OCG sans Separation.
+
+**T2 LIVRÉE** — suite `cards_print` 90 → **100**, lint 9/9 0 violation,
+`node --check` vert, **15/15 mutants tués**. print.py 3880 → **4467**
+(+595/−8), mod-print.js 2149 → **2288** (+140/−1), test_cards_print.py
+2516 → 2929. `frame.py` NON TOUCHÉ : la T1 y avait déjà tout
+(`seal_of`, `seal_max_mm`, `seal_mm`/`seal_px` de `frame_metrics`).
+
+- **MIROIR, PAS IMPORT — et la raison n'est pas de style.** `foil_of` /
+  `foil_max_mm` / `_foil_win` sont des jumeaux locaux de `frame.py`
+  (patron `forge3d._sceau_du_doc` de la T3), parité prouvée par un test
+  qui, lui, importe les deux côtés — 12 corps bruts + 4 formats × largeurs
+  confrontés à `frame.frame_metrics`, `seal_px` compris. Ce qui TRANCHE :
+  `seal_of` normalise un CORPS DE REQUÊTE et **lève** hors bornes ;
+  l'importer aurait transformé un document à 0,1 mm modifié à la main en
+  **400** — c'est-à-dire aurait rendu INATTEIGNABLE la ligne d'erreur
+  nommée que ce plan demande. La divergence est épinglée dans les deux sens.
+- **LE CADRE DANS LEQUEL ON DESSINE, tranché et écrit.** « coupe + FOND
+  PERDU » du tableau §6.2bis décrit la **toile du masque**, pas la position
+  de l'anneau : l'anneau épouse `m.outer` (la coupe rentrée de `edge_mm`),
+  exactement comme le peintre d'écran. Dans le PDF il n'y a pas de toile —
+  la page est la planche — donc l'anneau est posé au **coin de toile de
+  chaque carte**, le même point que son XObject. Mesuré : bbox des ops
+  contre `cell_rect + edge`, 4 abscisses sur une grille 2×3, tolérance
+  0,001 pt (celle de l'écriture, pas du confort).
+- **RECTO SEUL, hérité de la T1 et dit.** `paintBack` ne peint pas le
+  Sceau ; dorer le verso ici promettrait une plaque que l'écran ne montre
+  nulle part. Le contrôle l'écrit quand le recto-verso est actif.
+- **Convention NOIR = dorure**, nommée dans le nom de fichier
+  (`masque-foil_600dpi_noir-sur-blanc.png`), l'en-tête `X-CF-Foil-Ink` et
+  l'écran. C'est ce que dit la spec (« noir 100 % ») et ce qu'attendent les
+  portails ; une convention qu'il faut deviner est une convention qu'on
+  inversera.
+- **UN SEUL masque pour tout le jeu**, et c'est un FAIT : l'anneau ne
+  descend que des mm du cadre, il est identique sur les 300 cartes. Livrer
+  300 PNG identiques ferait croire à une variation qui n'existe pas
+  (`X-CF-Foil-Scope`). La définition (600/1200) reconstruit la géométrie,
+  elle n'agrandit jamais un PNG de 300 dpi.
+- **`_rr_quarts` : UNE définition du coin arrondi** pour les deux
+  rasterisations (`_rr_ops` en `m`/`l`/`c`, `_rr_poly` aplati pour PIL).
+  Deux définitions du même coin, c'était « le piège des deux cadres » une
+  marche plus bas. Le garde-fou existant `test_le_module_ne_dessine_aucune
+  _carte` (qui INTERDIT `rounded_rectangle` dans print.py) a été **tenu, pas
+  amendé** — et c'est lui qui a poussé vers la bonne solution.
+- **Le compte de valeurs uniques ne prouve PAS l'absence d'anticrénelage.**
+  Trouvé au banc : en mode « 1 » il ne peut y avoir que deux valeurs, donc
+  l'assertion est inatteignable — et un seuil à **diffusion d'erreur** sur
+  un bord lissé reste 1 bit tout en émiettant les coins en damier. La
+  mesure qui mord est le nombre de **plages noires par ligne** (2 sur un
+  anneau propre, **664** sous ce mutant), lignes de coin balayées une par
+  une. Le premier mutant « anticrénelage » écrit était **ÉQUIVALENT** (il
+  laissait le seuil en place : le produit restait juste) — dit plutôt que
+  compté comme un tué.
+- **La distance à la coupe est un AVERTISSEMENT, jamais une erreur** (le
+  défaut du cadre vaut 1,6 mm : une erreur refuserait tout jeu neuf), et
+  l'écran écrit le **remède** avant l'export — monter `edge_mm` au-delà de
+  3,2 mm, *ce qui déplace aussi le filet extérieur*, ou accepter la variance
+  de 1 à 2 mm. Le trait sous 0,2 mm, lui, est une **erreur** et la porte
+  409 s'appuie dessus. Zéro ligne quand le Sceau n'est pas en portée
+  impression : les 9 règles de fichier gardent leur compte.
+- **Recouvrement bandeau/gemme : signalé, PAS chiffré.** z=70 contre z=40
+  est un fait du code ; le pourcentage, lui, dépend du format et de la
+  rareté de chaque carte. Recopier les 20,8 % mesurés en poker aurait été
+  un chiffre faux — « un chiffre faux vaut moins que pas de chiffre ».
+- **PDF/X : la chute est RE-DITE** à l'écran et au contrôle quand le foil
+  est actif, avec sa vraie cause (les calques, contrainte héritée) — et il
+  est dit qu'une encre d'appoint, elle, n'interdit rien.
+- **15 mutants tués** : 1 bit abandonné · anticrénelage réel · damier par
+  diffusion d'erreur · anneau au cadre du fond perdu · surimpression
+  retirée · avertissement changé en erreur · portée impression ignorée ·
+  nom de plaque faux · calque sans encre d'appoint · plancher 0,2 mm
+  retiré · cadre non joint à la demande · calque écrit sans anneau · verso
+  doré · anneau ne suivant plus la case · remplissage non-nul (plaque
+  pleine — tué par les **aires signées**, pas par un grep de `f*`).
+- **Reste d'œil pour la T6** : le masque téléchargé ouvert dans un
+  visualiseur (l'aperçu doré de la `/Separation`), et la plaque confrontée
+  à une carte réelle là où le bandeau la recouvre.
 
 **CE QUE LA T1 A LAISSÉ SUR LA TABLE POUR LA T2 — lire avant de coder :**
 

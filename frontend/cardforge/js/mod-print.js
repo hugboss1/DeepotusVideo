@@ -70,6 +70,11 @@
      FORCE : le passage en force, remis a faux apres CHAQUE export — un « oui »
      vaut pour un fichier, jamais pour la session. */
   let PFBODY = null, FORCE = false;
+  /* La definition du repli raster du masque de foil. HORS DOCUMENT, comme
+     FORCE : `doc.print` a un schema ferme cote CORE, et une definition de
+     masque n'est pas un reglage d'imposition — c'est le choix d'un seul
+     telechargement. Les valeurs admises viennent du backend (plan.foil). */
+  let FOILDPI = 600;
   const LOG = [];
   const UNDO = [];
   const ARTS = new Map();          /* nom de fichier -> {w,h} | null */
@@ -878,6 +883,41 @@
       + '(CoatedFOGRA39.icc, CoatedGRACoL2006.icc, USWebCoatedSWOP.icc…).</p>'
       + '</div></details>'
 
+      /* ── 2 ter. MASQUE DE FOIL ─────────────────────────────────────────────
+            Le Sceau prismatique appartient au panneau CADRE ; ce bloc n'en
+            tire que la plaque, et il DIT tout ce que le controle avant vol
+            dirait — avant l'export, pas apres le refus. C'est le defaut de
+            forme que la tache 1 a nomme : refuser sans donner la sortie. */
+      + '<details class="grp" open><summary>Masque de foil — le Sceau prismatique en portée impression</summary>'
+      + '<div class="grp-body">'
+      + '<div class="cf-print-pf" data-role="foil"></div>'
+      + '<div class="grid2">'
+      + '<label class="fld"><span class="lbl">Définition du repli raster</span>'
+      + segHTML("foil_dpi", [[600, "600 dpi"], [1200, "1200 dpi"]], FOILDPI) + '</label>'
+      + '</div>'
+      + '<div class="btn-row">'
+      + '<button class="btn strong" type="button" data-act="foilmask">Masque de foil (PNG 1 bit)</button>'
+      + '</div>'
+      + '<p class="hint">Le <b>Sceau prismatique</b> se règle dans le panneau <b>Cadre</b> ; '
+      + 'ce bloc n’en tire que la plaque. Le PDF porte une vraie encre d’appoint '
+      + '<span class="mono">/Separation « Foil »</span> en <b>surimpression</b>, dans un calque '
+      + 'optionnel que l’imprimeur décoche — les calques sont du <span class="mono">%PDF-1.5</span>, '
+      + 'donc <b>aucune revendication PDF/X</b> sur ce fichier (contrainte héritée des calques, '
+      + 'pas du foil). Le repli raster est un PNG <b>1 bit sans anticrénelage</b> à <b>600</b> ou '
+      + '1200 dpi, <b>noir</b> = dorure, toile coupe + fond perdu — le même pour toutes les '
+      + 'cartes, l’anneau ne dépendant que du cadre. La <b>planche PNG</b>, elle, ne porte '
+      + 'pas de plaque : c’est un raster de cartes, pas un jeu de plaques.</p>'
+      + '<p class="hint">Contraintes d’imprimeur (§6.2bis) : trait <b>≥ 0,2 mm</b> et distance au '
+      + 'trait de coupe <b>≥ 3,2 mm</b>. Le retrait de filet par défaut du cadre vaut <b>1,6 mm</b>, '
+      + 'donc le contrôle <b>avertit</b> au lieu de refuser : monter le retrait du filet '
+      + '(<span class="mono">edge_mm</span>, panneau Cadre) au-delà de 3,2 mm — ce qui déplace '
+      + 'AUSSI le filet extérieur — ou accepter la <b>variance de fabrication</b> de '
+      + '<b>1 à 2 mm</b> en le sachant. Le bandeau de rareté et la gemme se peignent '
+      + 'PAR-DESSUS l’anneau : là où ils le recouvrent, le métal passerait sous une encre '
+      + 'opaque. Enfin, chez certains imprimeurs le spot cold foil pur exclut la couleur sur la '
+      + 'même face ; le produit foil + <b>CMJN</b> existe, plus cher.</p>'
+      + '</div></details>'
+
       /* ── 3. CARTE SEULE ────────────────────────────────────────────────── */
       + '<details class="grp"><summary>Carte seule</summary><div class="grp-body">'
       + '<div class="grid2">'
@@ -1048,6 +1088,7 @@
     }
     paintDuplex();
     paintIntentRead();
+    paintFoil();
     const w = q('[data-role="warns"]');
     if (w) {
       const ws = (p && p.warnings) || [];
@@ -1149,6 +1190,76 @@
         : bum === null ? ' (pas encore confirmé par le backend).'
           : ' — backend : ' + nfx(bum, 1) + ' µm.')
       + '</div>';
+  }
+
+  /* ══ LE MASQUE DE FOIL — CE QUE L'ECRAN DIT AVANT L'EXPORT ═══════════════
+     LECTURE D'ETAT PARTAGE, PAS UN IMPORT. `doc.frame.seal` appartient a P2 ;
+     P7 le LIT par CF.get (le document est partage, le CODE ne l'est pas —
+     regle 8), exactement comme la liste des calques lit `type.slots`.
+     LES MILLIMETRES, EUX, VIENNENT DU BACKEND (`plan.foil`). Ils ne sont PAS
+     recalcules ici : mod-frame.js tient deja l'unique implementation d'ecran
+     de la borne du Sceau, et une TROISIEME copie dans P7 serait exactement le
+     « piege des deux cadres » que la spec nomme — trois rasterisations d'un
+     meme contour qui ne tomberaient plus au meme endroit. */
+  function paintFoil() {
+    const box = q('[data-role="foil"]');
+    if (!box) return;
+    const s = CF.get("frame.seal", null);
+    const on = !!(s && s.on), pr = !!(s && s.scope && s.scope.print);
+    const f = (BPLAN && BPLAN.foil) || null;
+    const btn = q('[data-act="foilmask"]');
+    if (btn) btn.disabled = !(f && f.live);
+    if (!on || !pr) {
+      box.innerHTML = '<div class="cf-print-pf-ok muted">'
+        + (on
+          ? 'Sceau prismatique actif, mais <b>hors portée impression</b> : cocher '
+          + '« impression » dans le groupe « Sceau prismatique » du panneau <b>Cadre</b>. '
+          + 'Le PDF ne portera ni encre d’appoint, ni calque de foil.'
+          : 'Aucun <b>Sceau prismatique</b> sur ce jeu : rien à dorer. Le contour '
+          + 'holographique se coche dans le panneau <b>Cadre</b>.') + '</div>';
+      return;
+    }
+    if (!f) {
+      box.innerHTML = '<div class="cf-print-pf-ok muted">Sceau en portée impression — '
+        + 'les millimètres tracés sont calculés par le backend, et le plan n’a pas '
+        + 'encore répondu.</div>';
+      return;
+    }
+    const rows = [];
+    if (!f.live) {
+      rows.push(["warn", 'Aucun anneau à dorer : entre le filet (posé à <b>'
+        + nfx(f.edge_mm, 2) + ' mm</b> de la coupe) et la fenêtre d’illustration il ne '
+        + 'reste que <b>' + nfx(f.cap_mm, 2) + ' mm</b>, sous le trait minimal de '
+        + nf(f.min_mm, 1) + ' mm. <b>Rapprocher le filet de la coupe ou reculer la '
+        + 'fenêtre</b> (panneau Cadre). Le PDF partira sans masque de foil.']);
+    } else {
+      if (f.width_mm < f.min_mm) {
+        rows.push(["err", 'Trait de <b>' + nfx(f.width_mm, 2) + ' mm</b>, sous le minimum '
+          + 'd’un imprimeur foil (' + nf(f.min_mm, 1) + ' mm) : l’export sera refusé. '
+          + 'Aucun curseur ne descend là — cette largeur vient du document lui-même.']);
+      }
+      const proche = f.edge_mm < f.trim_mm;
+      rows.push([proche ? "warn" : "ok", 'Anneau <b>' + esc(f.kind) + '</b> de <b>'
+        + nfx(f.width_mm, 2) + ' mm</b>, posé à <b>' + nfx(f.edge_mm, 2) + ' mm</b> du '
+        + 'trait de coupe'
+        + (proche
+          ? ' — il en faut ' + nf(f.trim_mm, 1) + '. Monter le retrait du filet '
+          + '(<span class="mono">edge_mm</span>) au-delà de ' + nf(f.trim_mm, 1)
+          + ' mm dans le panneau Cadre, ce qui déplace aussi le filet extérieur, ou '
+          + 'accepter la variance de fabrication de ' + esc(f.variance) + '. '
+          + '<b>Avertissement, pas erreur</b> : l’export part quand même.'
+          : ' : au-delà des ' + nf(f.trim_mm, 1) + ' mm exigés.')]);
+      rows.push(["ok", 'Le PDF portera l’encre d’appoint <span class="mono">/Separation '
+        + '« Foil »</span> en surimpression, dans le calque « ' + esc(f.layer) + ' »'
+        + (st().layers ? '' : ' — mais la case <b>calques optionnels</b> est décochée : '
+          + 'la plaque reste lisible, l’imprimeur ne pourra pas l’isoler d’un clic')
+        + '. Repli raster : PNG 1 bit ' + FOILDPI + ' dpi, noir = dorure.']);
+    }
+    box.innerHTML = rows.map((r) => '<div class="cf-print-pf-row ' + r[0] + '">'
+      + '<span class="cf-print-c">foil</span>'
+      + '<span class="cf-print-m">' + r[1] + '</span>'
+      + '<span class="cf-print-v">' + (r[0] === "ok" ? "&#10003;" : "&#8212;")
+      + '</span></div>').join("");
   }
 
   function paintIntentRead() {
@@ -1901,6 +2012,30 @@
     finally { CF.busy(false); FORCE = false; }
   }
 
+  /* LE REPLI RASTER, TELECHARGE. Pas de porte de controle avant vol ici : ce
+     fichier ne contient AUCUNE carte — c'est une plaque derivee du seul cadre,
+     et la refuser parce qu'une illustration est sous-definie n'aurait aucun
+     sens. Les deux refus qui le concernent (pas de portee impression, pas
+     d'anneau) sont dits par le bloc ci-dessus AVANT le clic, et le bouton est
+     desactive dans ces cas-la. */
+  async function exportFoilMask() {
+    try {
+      CF.busy(true, "masque de foil…");
+      const out = await M.api.blob("GET", "foil-mask?dpi=" + FOILDPI);
+      const name = deckSlug() + "_masque-foil_" + FOILDPI + "dpi_noir.png";
+      CF.download(out, name);
+      const f = (BPLAN && BPLAN.foil) || null;
+      logLine(name, out.size, "PNG 1 bit · " + FOILDPI + " dpi · noir = dorure"
+        + (f ? " · anneau " + nfx(f.width_mm, 2) + " mm à " + nfx(f.edge_mm, 2)
+          + " mm de la coupe" : ""));
+      CF.toast("masque de foil exporté — noir = dorure, le même pour toutes les cartes");
+    } catch (e) {
+      const m = String((e && e.message) || e);
+      CF.toast(/\b409\b/.test(m)
+        ? "aucun anneau à dorer : voir la ligne du bloc « Masque de foil »" : m, true);
+    } finally { CF.busy(false); }
+  }
+
   async function exportSheet() {
     if (!(await gate("la planche PNG"))) return;
     try {
@@ -1958,6 +2093,9 @@
       const sb = ev.target.closest("[data-seg] .seg-b");
       if (sb) {
         const key = sb.closest("[data-seg]").dataset.seg, v = sb.dataset.v;
+        /* HORS DOCUMENT : la definition du masque de foil n'est pas un reglage
+           d'imposition, elle ne passe donc pas par `set()`. */
+        if (key === "foil_dpi") { FOILDPI = Number(v); sync(); paintFoil(); return; }
         if (key === "dpi") M.setFormat({ dpi: Number(v) });
         else { const o = {}; o[key] = (key === "card_bits") ? Number(v) : v; set(o); }
         return;
@@ -1974,6 +2112,7 @@
       else if (a === "guides") toggleGuides();
       else if (a === "undo") undo();
       else if (a === "iccdel") delIcc();
+      else if (a === "foilmask") exportFoilMask();
       else if (a === "audit") runAudit();
     });
     HOST.addEventListener("change", (ev) => {
@@ -2084,7 +2223,7 @@
     }
     qa("[data-seg]").forEach((sg) => {
       const k = sg.dataset.seg;
-      const cur = (k === "dpi") ? g.dpi : s[k];
+      const cur = (k === "dpi") ? g.dpi : (k === "foil_dpi") ? FOILDPI : s[k];
       sg.querySelectorAll(".seg-b").forEach((b) => {
         b.classList.toggle("active", String(b.dataset.v) === String(cur));
       });
