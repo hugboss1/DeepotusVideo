@@ -993,6 +993,27 @@ n'est pas le même objet — la peser à part.**
 > modifications de la T4** (git stash) — à relancer après un redémarrage du
 > backend, en T5.
 
+> **CLOSE (T4 — 9cebebe + ronde 17dc044, revue : FIX-FIRST un item, soldé).**
+> La liste de calques lit `CF.Z_TABLE` sur le global gelé À CHAQUE peinture
+> (zéro littéral d'ordre — le banc à table brouillée le prouve), `CF.show`
+> sans garde morte (la fonction même du rail), la bande 60 = LA liste
+> existante GLISSÉE entre les rangées fixes (jamais forkée), rangées fixes =
+> CARTE pas télécommande (0 patch sur 5 clics « Aller », espionné au point
+> d'étranglement unique R12). Résumés HONNÊTES : « par défaut » (clé absente,
+> le module peint quand même — « aucun » eût été une carte qui MENT) /
+> « aucun » (éteint explicite) / « vide » ; garde de repeinture par égalité
+> de texte (13,6 µs de dérivation mesurés — 0,08 % d'une frame). LE fix de
+> revue : `resPapier` laissait passer « none » CRU (la seule sentinelle non
+> traduite, et le seul cas que le test ne couvrait pas — LE TROU DE
+> COUVERTURE ET LE DÉFAUT ÉTAIENT LE MÊME TROU). **5 pins de COUTURE aux
+> deux bouts** (P1 précédence, P2 ×3, P6 none) avec test anti-creux
+> (cherche le refactor PLAUSIBLE de chaque fragment) — prouvés mordants en
+> cassant mod-frame pour de vrai. CF.show en plein geste : sûr par
+> construction (pointercancel → onOvUp, le même chemin que la relâche).
+> Consigné pour 3c : le banc n'exerce PAS les boutons de rangée (œil/verrou/
+> corbeille/drag — querySelectorAll de paille rend [], trou pré-T4 nommé
+> avec son remède). 215 tests, lint 0, +189 net total T4.
+
 ### Task 5 : intégration 3b
 
 - [ ] Suite cards complète, lint intégral 0 (R14 élargi compris), contrat,
