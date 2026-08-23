@@ -1309,7 +1309,12 @@ lit `total` (`GAL_DECKS_TOTAL` neuf) ; `galDrawDecks` dit le total DU SERVEUR ;
 écrit) ; le bouchon de la batterie sert la forme neuve et un pin lit la
 REQUÊTE ; `test_cards_core.py:757` inchangé ; le ménage des jeux de banc de la
 batterie ne lit pas la liste. 8 tests neufs, **2 mutants joués par la VRAIE
-route** (limite non bornée, total dérivé de la tranche).
+route** (limite non bornée, total dérivé de la tranche). **Côté écran, la
+batterie gagne le scénario `foule`** (24 lignes servies, `total: 2195`, le vrai
+bouton de galerie cliqué) : 24 cartes posées ET « 2195 jeux au total ». Mutant
+joué sur la copie de l'app : `GAL_DECKS_TOTAL` → `rows.length` → **KO, et le
+détail dit ce que l'utilisateur verrait — `note=null`, aucune ligne du tout**
+(24 > 24 est faux), donc pas un mot sur les 2 171 jeux qu'il ne voit pas.
 
 **CONSIGNÉS AVEC LEURS CHIFFRES FRAIS (mesures du 23/08) :**
 
