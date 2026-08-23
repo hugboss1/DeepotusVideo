@@ -64,6 +64,13 @@
     { id: "fleuron", label: "Fleuron" },
     { id: "spike", label: "Pointe" },
   ];
+  /* LE SCEAU PRISMATIQUE (spec §6.2bis) — pas un archetype de mise en page :
+     un CONTOUR holographique combinable avec tout archetype. Deux recettes,
+     les memes que le materiau 3D de la phase 2b (argent / dorure). */
+  const SEAL_KINDS = [
+    { id: "argent", label: "Argent holographique" },
+    { id: "dorure", label: "Dorure holographique" },
+  ];
   const METALS = [
     { id: "gold", label: "Or" },
     { id: "silver", label: "Argent" },
@@ -85,6 +92,11 @@
     line_mm: [0, 8], gap_mm: [0, 4], edge_mm: [0, 8], inner_mm: [0, 20],
     win_r_mm: [0, 8], corner_mm: [0, 8], plate_alpha: [0, 1], grad_angle: [0, 360],
     socle_alpha: [0, 1],
+    /* la LARGEUR DE BANDE du filigrane (§6.2bis-d). Le plancher n'est pas un
+       chiffre rond : 0,2 mm est le trait minimal qu'un imprimeur foil accepte
+       (§6.2bis-b). Le plafond est un choix ; la borne qui MORD vraiment est
+       celle du format, plus bas. */
+    seal_width_mm: [0.2, 6],
   };
   /* ── LA BORNE QUE LE FORMAT IMPOSE, ET QU'IL MANQUAIT ─────────────────────
      BUG TROUVE PAR LE BALAYAGE DES DOUZE FORMATS, mesure avant correction :
@@ -111,6 +123,35 @@
     const v = Math.min(Number(tw) || 0, Number(th) || 0) / 2 - BAND_MIN_MM / 2;
     return v > 0 ? Math.round(v * 100) / 100 : 0;
   }
+
+  /* ── LA BORNE DU SCEAU, AU MEME PATRON ────────────────────────────────────
+     Le Sceau est un ANNEAU : bord exterieur sur `m.outer` (la coupe rentree
+     de `edge_mm`), creuse vers l'interieur sur `width_mm`. Deux choses le
+     bornent, et aucune n'est un millimetre absolu : LA FENETRE (au-dela,
+     l'anneau n'est plus un contour mais une plaque sur l'illustration) et LE
+     FORMAT (comme la bande, l'anneau s'INVERSE si sa largeur passe la
+     demi-carte, et le decoupage en pair-impair rend alors l'encre sur toute
+     la toile — le defaut mesure sur `micro`, voir BAND_MIN_MM). `SEAL_MIN_MM`
+     est le trait minimal d'un imprimeur foil (spec §6.2bis-b) : plancher du
+     curseur ET ouverture minimale de l'anneau. */
+  const SEAL_MIN_MM = 0.2;
+  function sealMaxMM(tw, th, edgeMM, wm) {
+    const e = Number(edgeMM) || 0;
+    const W = Number(tw) || 0, H = Number(th) || 0;
+    const w = wm || { x: 0, y: 0, w: W, h: H };
+    const fen = Math.min(w.x, w.y, W - (w.x + w.w), H - (w.y + w.h)) - e;
+    const carte = (Math.min(W, H) - 2 * e - SEAL_MIN_MM) / 2;
+    const v = Math.min(fen, carte);
+    return v > 0 ? Math.round(v * 100) / 100 : 0;
+  }
+
+  /* le schema du Sceau : la SEULE description de `doc.frame.seal`, miroir de
+     `SEAL_DEFAULTS` de cards/frame.py. Eteint par defaut — sinon tous les jeux
+     deja enregistres changeraient d'aspect au premier chargement. */
+  const SEAL_DEFAULTS = {
+    on: false, kind: "argent", width_mm: 1.2,
+    scope: { screen: true, print: false, mesh: false },
+  };
   /* ═══ CF-FRAME-CATALOG-END ═══ */
 
   /* la borne du format courant, la SEULE porte par laquelle passent le dessin,
@@ -137,6 +178,10 @@
        cadre. Publiee par `publishWindow`, jamais saisie a la main. */
     art_window: null,
     back: "guilloche", back_same: true, back_label: true,
+    /* LE SCEAU — le PREMIER sous-objet de `doc.frame` (toutes les autres cles
+       sont plates). `st()` lui donne donc sa propre branche de validation, au
+       patron de `winMM` : `Object.keys(DEFAULTS)` ne descend pas d'un etage. */
+    seal: SEAL_DEFAULTS,
     /* le modele d'occupation — actif par defaut : livrer un fichier ou la
        signature de l'artiste passe sous le ruban n'est pas un reglage. */
     fit: true, socles: true, seats: true, socle_alpha: 0.82,
@@ -203,7 +248,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 28 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 29 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -222,7 +267,31 @@
     o.plate_alpha = cl(num(o.plate_alpha, DEFAULTS.plate_alpha), 0, 1);
     o.socle_alpha = cl(num(o.socle_alpha, DEFAULTS.socle_alpha), 0, 1);
     o.grad_angle = cl(num(o.grad_angle, DEFAULTS.grad_angle), 0, 360);
+    o.seal = sealOf(s.seal);
     return o;
+  }
+
+  /* LE SCEAU, VALIDE — branche IMBRIQUEE, au patron de `winMM`.
+     Elle rend TOUJOURS un objet NEUF : `DEFAULTS.seal` est le meme objet que
+     celui remis au registre du CORE (`state: DEFAULTS`), et un alias rendu ici
+     ferait d'un reglage de carte une ecriture dans le schema. La borne de
+     FORMAT, elle, ne s'applique pas ici — `st()` n'a pas de geometrie ; elle
+     tombe au trace, comme `Math.min(f.edge_mm, cap)` dans `model()`. */
+  function sealOf(raw) {
+    const s = (raw && typeof raw === "object" && !Array.isArray(raw)) ? raw : {};
+    const sc = (s.scope && typeof s.scope === "object" && !Array.isArray(s.scope)) ? s.scope : {};
+    const b = (v, d) => (typeof v === "boolean" ? v : d);
+    return {
+      on: b(s.on, SEAL_DEFAULTS.on),
+      kind: byId(SEAL_KINDS, s.kind) ? s.kind : SEAL_DEFAULTS.kind,
+      width_mm: cl(num(s.width_mm, SEAL_DEFAULTS.width_mm),
+        LIMITS.seal_width_mm[0], LIMITS.seal_width_mm[1]),
+      scope: {
+        screen: b(sc.screen, SEAL_DEFAULTS.scope.screen),
+        print: b(sc.print, SEAL_DEFAULTS.scope.print),
+        mesh: b(sc.mesh, SEAL_DEFAULTS.scope.mesh),
+      },
+    };
   }
   function pal(f) { return PAL[f.rarity] || PAL.common; }
   function lineInk(f) { return f.line_color ? f.line_color : pal(f).line; }
@@ -1585,6 +1654,177 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     5 bis. LE SCEAU PRISMATIQUE — le contour holographique (spec §6.2bis)
+     ───────────────────────────────────────────────────────────────────────
+     UNE SEULE SOURCE DE VERITE : le TRACE du contour. Ici il n'y a pas de
+     bezier a porter ailleurs — l'anneau de coupe est un rectangle arrondi
+     dans les SEPT familles (`rrPath`, la fenetre seule change de forme), donc
+     le Sceau se resume a SIX NOMBRES (x, y, w, h, r, largeur). C'est ce qui
+     permet aux trois rasterisations de la spec — ecran, masque d'imprimeur,
+     texture 3D — de deriver des memes millimetres au lieu de se repasser un
+     PNG : « le piege des deux cadres » (§6.2bis) devient inexprimable.
+
+     DETERMINISTE A PHASE FIXEE. La phase du fichier livre est CANONIQUE :
+     0,35, et toute sortie de `CF.renderCard` la porte, apercu compris —
+     l'utilisateur voit litteralement la frame livree. Aucune horloge, aucun
+     pointeur, aucun `Math.random` : la regle du `prng` de la piece, appliquee
+     a un champ de paillettes SEME PAR CARTE.
+
+     PORTEE PAR SURFACE (§6.2bis-d) : trois interrupteurs independants. Hors
+     de la portee ECRAN le contour ne disparait pas — il retombe dans sa BASE
+     CALME, le metal du kind, sans arc-en-ciel. « 3D uniquement » est une
+     configuration de premier rang, pas une case oubliee.
+     ═══════════════════════════════════════════════════════════════════════ */
+  const SEAL_PHASE = 0.35;      /* LA PHASE CANONIQUE — celle du fichier livre */
+  const SEAL_STOPS = 12;        /* arrets du degrade arc-en-ciel */
+  /* l'axe du degrade, FIXE : il ne suit PAS `grad_angle`. Celui-la incline la
+     matiere de la BANDE ; le Sceau est un contour pose par-dessus, et le faire
+     tourner avec elle ferait bouger le fichier livre au reglage d'une autre
+     grandeur. Un seul reglage, un seul effet. */
+  const SEAL_ANGLE = 118;
+  const SEAL_SPARKS = 260;      /* points du champ de paillettes */
+  const SEAL_HASH_N = 24;       /* paliers de phase du hash d'allumage */
+  const SEAL_LIT = 0.62;        /* au-dessus, la paillette s'allume */
+  /* le metal de chaque recette, EMPRUNTE a la table deja ecrite : une seconde
+     table de couleurs serait une seconde verite. */
+  const SEAL_TONE = { argent: "silver", dorure: "gold" };
+
+  /* la portee ECRAN est-elle active ? C'est la seule question que le peintre
+     pose : le reste des portees appartient a l'imprimeur et au maillage. */
+  function sealLive(f) {
+    return !!(f.seal && f.seal.on && f.seal.scope && f.seal.scope.screen);
+  }
+
+  /* LES ARRETS DU DEGRADE, a phase donnee. Fonction PURE : c'est elle que le
+     banc mesure, et c'est elle que le peintre pose — pas deux formules. */
+  function sealStops(f, phase) {
+    const out = [];
+    if (!sealLive(f)) {
+      /* LA BASE CALME : le metal du kind, aux memes cinq positions que
+         `metalPaint` et AUX MEMES TONS — une seconde table de couleurs serait
+         une seconde verite. Pas d'arc-en-ciel : l'ecran le DIT. */
+      const st5 = METAL_STOPS[SEAL_TONE[f.seal.kind]] || METAL_STOPS.silver;
+      const ts = [0, 0.22, 0.5, 0.74, 1];
+      for (let i = 0; i < st5.length; i++) out.push([ts[i], st5[i]]);
+      return out;
+    }
+    for (let i = 0; i <= SEAL_STOPS; i++) {
+      const t = i / SEAL_STOPS;
+      /* saturation 70-90 % (spec) : 80 +/- 8, jamais hors de la plage. */
+      const sat = 80 + 8 * Math.cos(2 * Math.PI * (t * 3 + phase));
+      const lig = 54 + 8 * Math.sin(2 * Math.PI * (t * 2 + phase));
+      out.push([r2(t), "hsl(" + r1((((phase + t) * 360) % 360 + 360) % 360)
+        + ", " + r1(sat) + "%, " + r1(lig) + "%)"]);
+    }
+    return out;
+  }
+
+  /* LA GRAINE, PAR CARTE (spec §6.2bis-a : « seed = id de carte »). `card.id`
+     survit a un reordonnancement du jeu, ce que l'index ne fait pas ; quand
+     elle manque, on retombe sur celle que le CORE donnerait (`normCard` :
+     "c" + (i + 1)), jamais sur une constante — 200 contours qui scintillent
+     au meme endroit, ce n'est plus un foil, c'est un motif. */
+  function sealSeed(card) {
+    const i = (card && isFinite(Number(card.i))) ? (Number(card.i) | 0) : 0;
+    const id = (card && typeof card.id === "string" && card.id) ? card.id : ("c" + (i + 1));
+    let a = 2166136261;
+    for (let k = 0; k < id.length; k++) { a ^= id.charCodeAt(k); a = Math.imul(a, 16777619) >>> 0; }
+    return a >>> 0;
+  }
+  /* le champ de points, en coordonnees NORMALISEES [0, 1[ de la boite de
+     l'anneau : il ne depend QUE de la graine, donc deux formats de carte
+     portent le meme scintillement au meme endroit relatif. */
+  function sealField(seed, n) {
+    const rnd = prng(seed);
+    const out = [];
+    for (let i = 0; i < n; i++) out.push({ u: rnd(), v: rnd(), s: 0.3 + rnd() * 0.8 });
+    return out;
+  }
+  /* l'allumage : hash(x, y, palier de phase). Le meme point s'allume ou non
+     selon la phase — mais la phase du fichier est canonique, donc le fichier
+     porte toujours le meme scintillement. */
+  function sealSpark(u, v, k) {
+    let a = 2166136261;
+    a ^= Math.round(u * 65535) & 65535; a = Math.imul(a, 16777619) >>> 0;
+    a ^= Math.round(v * 65535) & 65535; a = Math.imul(a, 16777619) >>> 0;
+    a ^= (k | 0); a = Math.imul(a, 16777619) >>> 0;
+    return (a >>> 8) / 16777216;
+  }
+
+  /* L'ANNEAU, EN PIXELS DE TOILE — la meme source de chemin que le filet
+     exterieur (`m.outer`), dilatee vers l'INTERIEUR de `width_mm`. Rend
+     `null` quand la largeur ne laisse plus d'anneau : mieux vaut ne rien
+     peindre qu'un rectangle retourne (le defaut de `micro`, BAND_MIN_MM). */
+  function sealRing(g, m, f) {
+    const cap = capOf(g);
+    const wmax = sealMaxMM(g.trim_mm[0], g.trim_mm[1], Math.min(f.edge_mm, cap), m.wm);
+    const wmm = Math.min(num(f.seal.width_mm, SEAL_DEFAULTS.width_mm), wmax);
+    const t = wmm * m.u;
+    const O = m.outer;
+    if (!(t > 0) || O.w - 2 * t <= 0 || O.h - 2 * t <= 0) return null;
+    return {
+      mm: r2(wmm), max_mm: wmax, t: t,
+      x: O.x, y: O.y, w: O.w, h: O.h, r: O.r,
+      ix: O.x + t, iy: O.y + t, iw: O.w - 2 * t, ih: O.h - 2 * t,
+      ir: Math.max(0, O.r - t),
+    };
+  }
+
+  /* LE PEINTRE. Pile de la spec §6.2bis-a : clip du contour (deux `rrPath`
+     en pair-impair) → base arc-en-ciel (ou calme hors portee ecran) → bande
+     de reflet blanc-transparent en `overlay` → paillettes au PRNG seme,
+     allumees par hash(x, y, palier de phase). Les deux dernieres n'existent
+     QUE dans la portee ecran : hors d'elle le contour est un metal, et la
+     couche cadre reste source-over pure. */
+  function paintSeal(ctx, g, m, f, card) {
+    if (!f.seal || !f.seal.on) return;
+    const ring = sealRing(g, m, f);
+    if (!ring) return;
+    ctx.save();
+    ctx.beginPath();
+    rrPath(ctx, ring.x, ring.y, ring.w, ring.h, ring.r);
+    rrPath(ctx, ring.ix, ring.iy, ring.iw, ring.ih, ring.ir);
+    ctx.clip("evenodd");   /* CF-SCEAU-CLIP */
+    const a = SEAL_ANGLE * Math.PI / 180, L = Math.max(m.W, m.H);
+    const cx = m.W / 2, cy = m.H / 2;
+    const gr = ctx.createLinearGradient(cx - Math.cos(a) * L / 2, cy - Math.sin(a) * L / 2,
+      cx + Math.cos(a) * L / 2, cy + Math.sin(a) * L / 2);
+    const stops = sealStops(f, SEAL_PHASE);
+    for (let i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+    ctx.fillStyle = gr;
+    /* le remplissage part du bord de TOILE : l'anneau porte donc son fond
+       perdu comme le reste du cadre (la regle du §4 « fond perdu »). */
+    ctx.fillRect(0, 0, m.W, m.H);
+    if (sealLive(f)) {
+      ctx.save();
+      ctx.globalCompositeOperation = "overlay";
+      const b0 = (SEAL_PHASE * 1.4) % 1;
+      const bg = ctx.createLinearGradient(0, m.H * (b0 - 0.34), 0, m.H * (b0 + 0.34));
+      bg.addColorStop(0, "rgba(255,255,255,0)");
+      bg.addColorStop(0.5, "rgba(255,255,255,.72)");
+      bg.addColorStop(1, "rgba(255,255,255,0)");
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, m.W, m.H);
+      ctx.restore();
+      const pts = sealField(sealSeed(card), SEAL_SPARKS);
+      const k = Math.floor(SEAL_PHASE * SEAL_HASH_N);
+      ctx.fillStyle = "#ffffff";
+      for (let i = 0; i < pts.length; i++) {
+        const p = pts[i];
+        const lit = sealSpark(p.u, p.v, k);
+        if (lit <= SEAL_LIT) continue;
+        ctx.globalAlpha = (lit - SEAL_LIT) / (1 - SEAL_LIT);
+        ctx.beginPath();
+        ctx.arc(ring.x + p.u * ring.w, ring.y + p.v * ring.h,
+          Math.max(0.4, p.s * m.u * 0.2), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      6. LE RECTO — z = 40
      ═══════════════════════════════════════════════════════════════════════ */
   function artOf(card, d) {
@@ -1666,8 +1906,14 @@
     ctx.beginPath(); winPath(ctx, m, shape); ctx.stroke();
     ctx.restore();
 
-    /* 6. LES FILETS — l'exterieur epouse le rayon de coupe, l'interieur borde
-          la fenetre. Epaisseur = line_mm, convertie une seule fois. */
+    /* 6. LES FILETS, ET LE SCEAU QUI PASSE DESSOUS.
+          Le Sceau partage la source de chemin du filet exterieur (`m.outer`),
+          et il se peint AVANT lui : le filet garde ainsi son arete nette POSEE
+          SUR la bande holographique, au lieu d'etre a moitie recouvert. Deux
+          reglages independants qui se lisent l'un sur l'autre.
+          L'exterieur epouse le rayon de coupe, l'interieur borde la fenetre.
+          Epaisseur = line_mm, convertie une seule fois. */
+    paintSeal(ctx, g, m, f, card);
     if (m.line > 0) {
       const ink = inkPaint(ctx, m, f, false);
       ctx.save();
@@ -1997,6 +2243,28 @@
     M.patch(partial);
     sync();
   }
+  /* LE SCEAU S'ECRIT EN BLOC. `patch` remplace une cle par sa valeur : ecrire
+     `{seal: {on: true}}` effacerait le metal, la largeur et les trois portees.
+     On relit donc l'etat NORMALISE, on y applique le changement, et l'on
+     repose l'objet entier — l'annulation (Ctrl+Z) empile la valeur d'avant
+     comme pour n'importe quelle autre cle. */
+  function setSeal(partial, lab) {
+    const c = f().seal;
+    const nxt = {
+      on: c.on, kind: c.kind, width_mm: c.width_mm,
+      scope: { screen: c.scope.screen, print: c.scope.print, mesh: c.scope.mesh },
+    };
+    if (has(partial, "on")) nxt.on = !!partial.on;
+    if (has(partial, "kind")) nxt.kind = partial.kind;
+    if (has(partial, "width_mm")) nxt.width_mm = partial.width_mm;
+    if (partial.scope) {
+      Object.keys(partial.scope).forEach((k) => {
+        if (has(nxt.scope, k)) nxt.scope[k] = !!partial.scope[k];
+      });
+    }
+    set({ seal: nxt }, lab);
+  }
+
   function undo() {
     const h = HIST.pop();
     if (!h) { M.toast("rien à annuler"); return; }
@@ -2183,6 +2451,37 @@
     grow.appendChild(UI.gradAngle.el);
     g1.body.appendChild(grow);
     B.appendChild(g1.el);
+
+    /* ── LE SCEAU PRISMATIQUE (spec §6.2bis) — a cote des filets parce que
+       c'est la meme grandeur : une bande posee sur le bord de la carte. Ses
+       TROIS portees sont independantes, et la ligne d'etat dit toujours
+       lesquelles sont declarees ET ce que CET ecran montre. */
+    const g16 = grp("Sceau prismatique — contour holographique", false);
+    const srow = h("div", "cff-row");
+    UI.sealOn = check("Contour holographique", (v) => setSeal({ on: v }, "sceau"));
+    UI.sealKind = sel(SEAL_KINDS, (v) => setSeal({ kind: v }, "métal du sceau"));
+    srow.appendChild(UI.sealOn.el);
+    srow.appendChild(field("Métal", UI.sealKind));
+    g16.body.appendChild(srow);
+    UI.sealW = numRow("Largeur de bande du filigrane", "seal_width_mm",
+      LIMITS.seal_width_mm[0], LIMITS.seal_width_mm[1], 0.05, false, null,
+      (n, lab) => setSeal({ width_mm: n }, lab));
+    g16.body.appendChild(UI.sealW.el);
+    g16.body.appendChild(label("Portée", "trois surfaces indépendantes"));
+    const scoperow = h("div", "cff-row cff-scope");
+    UI.sealScope = {};
+    [["screen", "écran"], ["print", "impression"], ["mesh", "3D"]].forEach((kv) => {
+      const c = check(kv[1], (v) => {
+        const o = {}; o[kv[0]] = v;
+        setSeal({ scope: o }, "portée " + kv[1]);
+      });
+      UI.sealScope[kv[0]] = c;
+      scoperow.appendChild(c.el);
+    });
+    g16.body.appendChild(scoperow);
+    UI.sealRead = h("p", "hint cff-sealread");
+    g16.body.appendChild(UI.sealRead);
+    B.appendChild(g16.el);
 
     /* ── fenetre d'illustration ── */
     const g2 = grp("Fenêtre d'illustration", true);
@@ -2470,7 +2769,7 @@
   /* Le coeur de l'ergonomie : une valeur NUMERIQUE EDITABLE partout ou la
      barre n'a qu'un bouton — et le millimetre ET le pixel affiches ensemble,
      puisque c'est le pixel qui part chez l'imprimeur. */
-  function numRow(lbl, key, min, max, step, compact, unit) {
+  function numRow(lbl, key, min, max, step, compact, unit, on) {
     const el = h("div", "cff-num" + (compact ? " sm" : ""));
     const head = h("div", "cff-numhead");
     head.appendChild(h("span", "lbl", esc(lbl)));
@@ -2487,7 +2786,15 @@
     rg.type = "range"; rg.min = min; rg.max = max; rg.step = step;
     const nb = h("input", "cff-nb");
     nb.type = "number"; nb.min = min; nb.max = max; nb.step = step;
-    const push = (v, lab) => { const n = cl(num(v, DEFAULTS[key]), min, max); const o = {}; o[key] = n; set(o, lab); };
+    /* `on` : la porte de sortie des longueurs qui ne sont PAS une cle plate de
+       `doc.frame` — la largeur du Sceau vit dans le sous-objet `seal`, et un
+       `patch({seal_width_mm: …})` serait refuse par le schema du CORE. */
+    const dflt = has(DEFAULTS, key) ? DEFAULTS[key] : min;
+    const push = (v, lab) => {
+      const n = cl(num(v, dflt), min, max);
+      if (on) { on(n, lab); return; }
+      const o = {}; o[key] = n; set(o, lab);
+    };
     rg.addEventListener("input", () => { nb.value = rg.value; });
     rg.addEventListener("change", () => push(rg.value, lbl));
     nb.addEventListener("change", () => push(nb.value, lbl));
@@ -4727,6 +5034,7 @@
         fmt: g.fmt, dpi: g.dpi, bleed_mm: g.bleed_mm, safe_mm: g.safe_mm, corner_mm: g.corner_mm,
         line_mm: f0.line_mm, gap_mm: f0.gap_mm, edge_mm: f0.edge_mm, inner_mm: f0.inner_mm,
         window: { x: w.x, y: w.y, w: w.w, h: w.h, r: w.r },
+        seal: f0.seal,
       });
       const b = r && r.metrics;
       if (!b) throw new Error("réponse vide");
@@ -4778,13 +5086,62 @@
        aux autres. Le backend applique la meme borne, sans quoi la pastille de
        verification passerait au rouge sur le seul format concerne. */
     const cap = capOf(g);
+    /* L'ANNEAU DU SCEAU, publie en NOMBRES PURS — deux TABLEAUX, pour la
+       raison ecrite en face dans `frame_metrics`. La largeur publiee est
+       celle qui sera TRACEE (bornee par le format), jamais celle du
+       curseur : meme doctrine que la marge interieure ci-dessus. */
+    const e = Math.min(f0.edge_mm, cap), epx = e / 25.4 * g.dpi;
+    const smax = sealMaxMM(g.trim_mm[0], g.trim_mm[1], e, w);
+    const swid = Math.min(f0.seal.width_mm, smax);
     return {
       line_px: mm(f0.line_mm), gap_px: mm(f0.gap_mm),
       edge_px: mm(Math.min(f0.edge_mm, cap)), inner_px: mm(Math.min(f0.inner_mm, cap)),
       corner_px: r2(g.corner_px),
       win_px: [r2(g.bleed_off_px[0] + w.x / 25.4 * g.dpi), r2(g.bleed_off_px[1] + w.y / 25.4 * g.dpi), mm(w.w), mm(w.h), mm(w.r)],
+      seal_mm: [r2(swid), smax],
+      seal_px: [mm(swid), r2(g.bleed_off_px[0] + epx), r2(g.bleed_off_px[1] + epx),
+        r2(g.trim_px[0] - 2 * epx), r2(g.trim_px[1] - 2 * epx),
+        r2(Math.max(0, g.corner_px - epx))],
       canvas_px: [g.canvas_px[0], g.canvas_px[1]],
     };
+  }
+
+  /* ── CE QUE L'ECRAN DIT DU SCEAU ─────────────────────────────────────────
+     Spec §6.2bis-d : « L'ecran dit toujours quelle portee est active. » La
+     ligne DECLARE les surfaces cochees, puis dit ce que CET ecran-ci montre —
+     et rien d'autre. Elle ne promet pas ce que l'imprimeur ou le maillage
+     feront de leur portee : une promesse ecrite ici serait fausse le jour ou
+     l'utilisateur la lit. Ce qui est mesurable est dit ; le reste est tu. */
+  function sealText(f0, g) {
+    const s = f0.seal;
+    if (!s.on) {
+      return "Sceau <b>éteint</b> — le cadre est rendu exactement comme sans ce "
+        + "réglage, et le fichier livré n'a pas un pixel de différence.";
+    }
+    const kind = (byId(SEAL_KINDS, s.kind) || SEAL_KINDS[0]).label;
+    const act = [];
+    if (s.scope.screen) act.push("écran");
+    if (s.scope.print) act.push("impression");
+    if (s.scope.mesh) act.push("3D");
+    const w = winMM(g, f0);
+    const cap = capOf(g);
+    const smax = sealMaxMM(g.trim_mm[0], g.trim_mm[1], Math.min(f0.edge_mm, cap), w);
+    const swid = Math.min(s.width_mm, smax);
+    return "Portée déclarée : <b>" + (act.length ? esc(act.join(" + ")) : "aucune")
+      + "</b>. " + (s.scope.screen
+        ? ("Cet écran montre la surface <b>écran</b>, DANS la portée : contour "
+          + "arc-en-ciel à la <b>phase canonique " + SEAL_PHASE + "</b> — l'aperçu "
+          + "EST le fichier livré, au pixel.")
+        : ("Cet écran montre la surface <b>écran</b>, HORS de la portée : le contour "
+          + "y reste dans sa <b>base calme</b> (" + esc(kind.toLowerCase())
+          + "), sans arc-en-ciel."))
+      + " Bande de <b>" + r2(swid) + " mm</b> (" + r1(swid / 25.4 * g.dpi)
+      + " px), posée à <b>" + r2(Math.min(f0.edge_mm, cap))
+      + " mm</b> de la coupe (l'axe du filet extérieur) et creusée vers l'intérieur"
+      + (swid < s.width_mm
+        ? (" — ramenée de " + r2(s.width_mm) + " mm par la <b>borne du format</b> : "
+          + "au-delà, l'anneau mordrait sur la fenêtre d'illustration.")
+        : ".");
   }
 
   /* ── synchronisation de tout l'ecran ───────────────────────────────────── */
@@ -4874,6 +5231,24 @@
         ? " <b>Attention</b> : sur cette carte, une couche posée par-dessus le cadre "
           + "(texte ou illustration) déborde du trait de coupe."
         : "");
+    /* LE SCEAU : sa largeur suit la MEME regle que le retrait et la marge —
+       le curseur est ramene a la borne du format, et la borne est ECRITE. */
+    const smax = sealMaxMM(g.trim_mm[0], g.trim_mm[1], capE, winMM(g, f0));
+    const shi = Math.min(LIMITS.seal_width_mm[1], Math.max(LIMITS.seal_width_mm[0], smax));
+    const swid = Math.min(f0.seal.width_mm, shi);
+    setNum(UI.sealW, swid, mmpx(swid));
+    UI.sealW.rg.max = shi; UI.sealW.nb.max = shi;
+    const sb = UI.sealW.el.querySelector(".cff-bounds");
+    if (sb) {
+      sb.textContent = r2(LIMITS.seal_width_mm[0]) + " → " + r2(shi) + " mm"
+        + (shi < LIMITS.seal_width_mm[1] ? " (borne du format)" : "");
+    }
+    UI.sealOn.input.checked = !!f0.seal.on;
+    UI.sealKind.value = f0.seal.kind;
+    Object.keys(UI.sealScope).forEach((k) => {
+      UI.sealScope[k].input.checked = !!f0.seal.scope[k];
+    });
+    UI.sealRead.innerHTML = sealText(f0, g);
     setNum(UI.gradAngle, f0.grad_angle, f0.grad_angle + "°");
     setNum(UI.plateA, f0.plate_alpha, Math.round(f0.plate_alpha * 100) + " %");
     UI.double.input.checked = !!f0.double;

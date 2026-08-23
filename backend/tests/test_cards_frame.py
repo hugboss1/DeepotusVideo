@@ -2820,11 +2820,14 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
     """Le commentaire de `st()` disait « les 22 cles » quand `DEFAULTS` en
     porte 28 : un lecteur qui compte sur ce chiffre pour savoir ce que
     `patch` accepte se trompe de six clés. Corrigé en passant (tâche 3a-2),
-    et VERROUILLÉ au compte réel — pas au compte recopié."""
+    et VERROUILLÉ au compte réel — pas au compte recopié.
+
+    29 depuis la phase 3c-1 : `seal`, le PREMIER sous-objet de `doc.frame`
+    (le Sceau prismatique, spec §6.2bis)."""
     src = _js()
     cles = _js_defaults_keys(src)
     assert len(cles) == len(set(cles)), f"clé en double dans DEFAULTS : {cles}"
-    assert len(cles) == 28, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 29, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -3615,3 +3618,969 @@ def test_le_pire_couple_de_silhouettes_reste_au_dessus_du_seuil():
     assert float(n.group(1)) >= 4, n.group(0)
     for pair in (m.group(2), n.group(2)):
         assert " x " in pair and "«" not in pair, f"paire non nommée : {pair!r}"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 16. PHASE 3c — TÂCHE 1 : LE SCEAU PRISMATIQUE À L'ÉCRAN (spec §6.2bis a + d)
+#
+# CE QUE LA TÂCHE LIVRE : un sous-objet `doc.frame.seal` (le PREMIER de P2),
+# un peintre DÉTERMINISTE À PHASE FIXÉE inséré dans `paintFront`, et trois
+# interrupteurs de PORTÉE (écran / impression / 3D) dont l'écran dit toujours
+# lesquels sont actifs.
+#
+# CE QUE CETTE SECTION MESURE, ET AVEC QUOI :
+#   · la parité du SCHÉMA (JS ↔ cards/frame.py) — lecture des deux sources et
+#     exécution des deux bornes sur les douze formats ;
+#   · le PEINTRE, sur le rastériseur de contrôle de la section 15 (grille de
+#     0,5 mm, clip honoré) : l'anneau encre DANS sa bande et nulle part
+#     ailleurs, et le fichier ne bouge pas d'une cellule quand le Sceau est
+#     éteint ;
+#   · le DÉTERMINISME sur les octets des fonctions pures (champ de paillettes,
+#     arrêts de dégradé), plus les MUTATIONS qui doivent les faire rougir ;
+#   · la PREUVE D'EMPILEMENT (§4.2) : la vraie `layers()` de core.js, exécutée
+#     sur un contexte 2D raster minimal, doit basculer une couche non-empilable
+#     en « empreinte » ET garder `stack_ok`.
+# ═════════════════════════════════════════════════════════════════════════════
+
+CORE_JS = REPO / "frontend" / "cardforge" / "js" / "core.js"
+
+SEAL_PHASE_SPEC = 0.35          # spec §6.2bis-a : la phase du fichier livré
+SEAL_WIDTH_LIMITS = (0.2, 6)    # plan 3c décision 1
+SEAL_MIN_MM_SPEC = 0.2          # spec §6.2bis-b : trait vectoriel >= 0,2 mm
+
+
+def _sceau_js_source() -> str:
+    """La tranche du peintre, ÉTENDUE JUSQU'À `paintFront` — c'est là que le
+    Sceau s'insère, et une tranche qui s'arrête avant ne pourrait pas prouver
+    que le fichier livré ne bouge pas quand le Sceau est éteint.
+
+    La tranche court jusqu'à `paintSeats`, que `paintFront` appelle en
+    dernier ; `paintFront` appelle aussi `planOf`, qui lit
+    `CF.get("type.slots")` — le banc fournit le seul stub nécessaire, en TÊTE,
+    sans toucher au source."""
+    src = _js()
+    i = src.index("  const FAMILIES = [")
+    fin = _js_fn(src, "paintSeats")
+    return ("  const CF = { get: function (k, d) { return d; } };\n"
+            + src[i:src.index(fin) + len(fin)])
+
+
+# ── le banc du Sceau : le rastériseur de la section 15, plus les fonctions
+#    pures du Sceau relues telles quelles ────────────────────────────────────
+REC_JS = BANC_PEINTRE[BANC_PEINTRE.index("const N_BEZ ="):
+                      BANC_PEINTRE.index("function zones(")]
+
+BANC_SCEAU = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { st: st, model: model, winMM: winMM, WIN_SHAPE: WIN_SHAPE,"
+  + " METAL_STOPS: METAL_STOPS, LIMITS: LIMITS, SEAL_KINDS: SEAL_KINDS,"
+  + " SEAL_DEFAULTS: SEAL_DEFAULTS, SEAL_MIN_MM: SEAL_MIN_MM,"
+  + " SEAL_PHASE: SEAL_PHASE, SEAL_SPARKS: SEAL_SPARKS,"
+  + " sealOf: sealOf, sealMaxMM: sealMaxMM, sealRing: sealRing,"
+  + " sealStops: sealStops, sealField: sealField, sealSeed: sealSeed,"
+  + " sealSpark: sealSpark, sealLive: sealLive, paintSeal: paintSeal,"
+  + " paintFront: paintFront, capOf: capOf, bandMaxMM: bandMaxMM };\n})();")();
+""" + REC_JS + r"""
+/* ── LA TRACE ────────────────────────────────────────────────────────────────
+   L'empreinte de COUVERTURE ne peut pas juger un recto ENTIER : `paintFront`
+   remplit la toile de bord à bord (étape 1, « tout sauf la fenêtre », puis la
+   réserve d'illustration), donc toutes les cellules sont encrées quoi qu'on
+   dessine par-dessus — mesuré : 103 776 / 103 776 à 0,25 mm de cellule. On
+   hache donc la SUITE DES OPÉRATIONS : type, style, alpha, mode de fusion,
+   points du chemin, arrêts de dégradé. Deux rendus identiques donnent la même
+   trace ; une seule paillette déplacée la change. C'est le « octets
+   identiques » du contrat, au niveau où ce banc peut le prononcer. */
+function TRec(W, H, GW, GH) { Rec.call(this, W, H, GW, GH); this.hh = 2166136261; }
+TRec.prototype = Object.create(Rec.prototype);
+TRec.prototype.constructor = TRec;
+TRec.prototype._mix = function (s) {
+  const t = String(s);
+  for (let i = 0; i < t.length; i++) {
+    this.hh ^= t.charCodeAt(i); this.hh = Math.imul(this.hh, 16777619) >>> 0;
+  }
+};
+TRec.prototype._pts = function () {
+  for (let s = 0; s < this.sub.length; s++) {
+    const sp = this.sub[s];
+    for (let i = 0; i < sp.length; i++) {
+      this._mix(Math.round(sp[i][0] * 100) + "," + Math.round(sp[i][1] * 100));
+    }
+  }
+};
+TRec.prototype.fill = function (rule) {
+  this._mix("F|" + rule + "|" + this.fillStyle + "|" + this.globalAlpha
+    + "|" + this.globalCompositeOperation);
+  this._pts();
+  Rec.prototype.fill.call(this, rule);
+};
+TRec.prototype.stroke = function () {
+  this._mix("S|" + this.strokeStyle + "|" + this.lineWidth + "|"
+    + this.globalAlpha + "|" + this.globalCompositeOperation);
+  this._pts();
+  Rec.prototype.stroke.call(this);
+};
+TRec.prototype.clip = function (rule) {
+  this._mix("C|" + rule); this._pts();
+  Rec.prototype.clip.call(this, rule);
+};
+TRec.prototype.createLinearGradient = function (x0, y0, x1, y1) {
+  const self = this;
+  self._mix("G|" + [x0, y0, x1, y1].map((v) => Math.round(v * 100)).join(","));
+  return {
+    addColorStop: function (t, c) { self._mix("|" + t + "|" + c); },
+    toString: function () { return "grad"; },
+  };
+};
+TRec.prototype.trace = function () {
+  return ("0000000" + (this.hh >>> 0).toString(16)).slice(-8);
+};
+
+const out = [];
+for (const c of CAS.cas) {
+  const dpi = c.g.dpi;
+  const g = Object.assign({}, c.g, { mm2px: (v) => v / 25.4 * dpi });
+  try {
+    const f = mod.st({ frame: c.frame });
+    const m = mod.model(g, f);
+    const ring = mod.sealRing(g, m, f);
+    const carte = c.card || { i: 0, id: "c1" };
+    const rec = () => new TRec(g.canvas_px[0], g.canvas_px[1], c.gw, c.gh);
+    let k = rec();
+    if (c.quoi === "front") mod.paintFront(k, g, f, carte, { frame: c.frame });
+    else mod.paintSeal(k, g, m, f, carte);
+    const u = g.mm2px(1);
+    const O = m.outer;
+    const boites = {
+      /* la BANDE du Sceau, en haut : de l'anneau extérieur vers l'intérieur */
+      bande: ring ? [O.x + O.w * 0.3, O.y + ring.t * 0.15,
+        O.w * 0.4, Math.max(1, ring.t * 0.7)] : [0, 0, 1, 1],
+      /* DEHORS : entre le bord de toile et l'anneau extérieur */
+      dehors: [m.W * 0.3, 0, m.W * 0.4, Math.max(1, O.y * 0.7)],
+      /* DEDANS : sous le bord intérieur de l'anneau, hors fenêtre */
+      dedans: ring ? [O.x + O.w * 0.3, O.y + ring.t * 1.6,
+        O.w * 0.4, Math.max(1, ring.t * 0.8)] : [0, 0, 1, 1],
+      /* le coeur de la fenêtre d'illustration */
+      fenetre: [m.win.x + 4 * u, m.win.y + 4 * u,
+        m.win.w - 8 * u, m.win.h - 8 * u],
+    };
+    const parts = {};
+    for (const nom of Object.keys(boites)) parts[nom] = k.part(boites[nom]);
+    const e1 = k.empreinte(), t1 = k.trace();
+    k = rec();
+    if (c.quoi === "front") mod.paintFront(k, g, f, carte, { frame: c.frame });
+    else mod.paintSeal(k, g, m, f, carte);
+    const e2 = k.empreinte(), t2 = k.trace();
+    out.push({ nom: c.nom, ok: true, ops: k.ops, parts: parts,
+      emp: e1, emp2: e2, trace: t1, trace2: t2, cellules: c.gw * c.gh,
+      anneau: ring ? { mm: ring.mm, max_mm: ring.max_mm, t: ring.t,
+        outer: [ring.x, ring.y, ring.w, ring.h, ring.r],
+        inner: [ring.ix, ring.iy, ring.iw, ring.ih, ring.ir] } : null,
+      seal: f.seal, live: mod.sealLive(f),
+      stops: mod.sealStops(f, mod.SEAL_PHASE),
+      champ: JSON.stringify(mod.sealField(mod.sealSeed(carte), 24)),
+      graine: mod.sealSeed(carte),
+      phase: mod.SEAL_PHASE, cap: mod.capOf(g),
+      seal_max: mod.sealMaxMM(g.trim_mm[0], g.trim_mm[1],
+        Math.min(f.edge_mm, mod.capOf(g)), m.wm) });
+  } catch (e) {
+    out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) });
+  }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_sceau(tmp_path, cas: list, mutations=()) -> list:
+    """Fait tourner le VRAI peintre du Sceau — jamais une réécriture."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du Sceau ne peut pas tourner")
+    code = _sceau_js_source()
+    for avant, apres in mutations:
+        assert avant in code, f"mutation introuvable : {avant!r}"
+        code = code.replace(avant, apres)
+    js = tmp_path / "sceau.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_sceau.mjs"
+    banc.write_text(BANC_SCEAU, encoding="utf-8")
+    conf = tmp_path / "cas_sceau.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+def _cas_sceau(nom, seal, quoi="seal", fmt="poker_eu", card=None, cell=None,
+               **frame):
+    """Une cellule de 0,5 mm, comme au banc du peintre de la section 15 : elle
+    suffit à compter l'encre de l'anneau des deux côtés de chaque arête. Le
+    RECTO complet, lui, n'est pas jugé à la couverture (il encre toute la
+    toile) mais à la TRACE — la finesse de grille n'y change rien."""
+    c = cell if cell else 0.5
+    g = _geom_js(fmt, 3)
+    gw = round((CT.FORMATS[fmt]["trim_mm"][0] + 6) / c)
+    gh = round((CT.FORMATS[fmt]["trim_mm"][1] + 6) / c)
+    fr = {"family": "arcane", "rarity": "rare"}
+    fr.update(frame)
+    if seal is not None:
+        fr["seal"] = seal
+    return {"nom": nom, "g": g, "frame": fr, "quoi": quoi, "gw": gw, "gh": gh,
+            "card": card}
+
+
+SEAL_ON = {"on": True, "kind": "argent", "width_mm": 1.2,
+           "scope": {"screen": True, "print": False, "mesh": False}}
+
+
+def _teintes(stops) -> list:
+    """Les TEINTES saturées des arrêts de dégradé, en degrés.
+
+    Le peintre écrit ses arrêts dans l'unité NATURELLE de chaque base :
+    `hsl(...)` pour l'arc-en-ciel (la teinte EST le réglage) et l'hexadécimal
+    de `METAL_STOPS` pour la base calme (les tons du métal sont déjà écrits
+    là-bas, une seconde table serait une seconde vérité). La conversion vit
+    donc ICI, dans l'instrument de mesure, et pas dans le produit.
+
+    Un arrêt désaturé (le blanc pur du liseré argent) n'a pas de teinte :
+    l'inclure ferait mesurer 210° d'écart sur un métal parfaitement uni."""
+    out = []
+    for _t, css in stops:
+        m = re.match(r"hsl\(\s*([\d.]+)\s*,\s*([\d.]+)%\s*,\s*([\d.]+)%\s*\)",
+                     css)
+        if m:
+            h, s = float(m.group(1)) % 360, float(m.group(2))
+        else:
+            n = re.match(r"#([0-9a-fA-F]{6})$", css)
+            assert n, f"arrêt de dégradé illisible : {css!r}"
+            v = int(n.group(1), 16)
+            r, g, b = ((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, \
+                (v & 255) / 255
+            mx, mn = max(r, g, b), min(r, g, b)
+            d, lum = mx - mn, (mx + mn) / 2
+            if d == 0:
+                h, s = 0.0, 0.0
+            else:
+                s = d / (1 - abs(2 * lum - 1)) * 100
+                if mx == r:
+                    h = 60 * (((g - b) / d) % 6)
+                elif mx == g:
+                    h = 60 * ((b - r) / d + 2)
+                else:
+                    h = 60 * ((r - g) / d + 4)
+                h %= 360
+        if s >= 5:
+            out.append(h)
+    return out
+
+
+def _etendue(hues) -> float:
+    """L'ÉTENDUE CIRCULAIRE des teintes : 360 moins le plus grand écart entre
+    deux teintes voisines sur le cercle. Un arc-en-ciel complet la sature ;
+    un métal uni la laisse près de zéro."""
+    if len(hues) < 2:
+        return 0.0
+    xs = sorted(hues)
+    gaps = [xs[i + 1] - xs[i] for i in range(len(xs) - 1)]
+    gaps.append(360 - xs[-1] + xs[0])
+    return round(360 - max(gaps), 2)
+
+
+# ── 16.1 le SCHÉMA, des deux côtés ───────────────────────────────────────────
+
+def test_le_sceau_a_le_meme_schema_des_deux_cotes():
+    """`doc.frame.seal` est le PREMIER sous-objet de P2 : son schéma vit dans
+    le bloc partagé du catalogue, et `cards/frame.py` en porte le jumeau. Deux
+    schémas qui dérivent, c'est une carte enregistrée avec une portée que le
+    backend ne saura pas relire — le même défaut que deux catalogues."""
+    b = _catalog_block(_js())
+    assert _js_list(b, "SEAL_KINDS") == _py_list(FR.SEAL_KINDS), \
+        "SEAL_KINDS diverge entre mod-frame.js et cards/frame.py"
+    assert [k["id"] for k in FR.SEAL_KINDS] == ["argent", "dorure"], \
+        FR.SEAL_KINDS
+    m = re.search(r"const SEAL_MIN_MM = ([\d.]+);", b)
+    assert m, "SEAL_MIN_MM n'est pas dans le bloc partagé du catalogue"
+    assert float(m.group(1)) == FR.SEAL_MIN_MM == SEAL_MIN_MM_SPEC, \
+        f"plancher imprimeur : JS {m.group(1)} / backend {FR.SEAL_MIN_MM}"
+    d = re.search(r"const SEAL_DEFAULTS = \{(.*?)\};", b, re.S)
+    assert d, "SEAL_DEFAULTS absent du bloc partagé"
+    txt = d.group(1)
+    assert re.search(r"on:\s*false", txt), \
+        "le Sceau doit être ÉTEINT par défaut — sinon tous les jeux existants " \
+        "changent d'aspect au premier chargement"
+    assert FR.SEAL_DEFAULTS["on"] is False, FR.SEAL_DEFAULTS
+    assert re.search(r'kind:\s*"' + FR.SEAL_DEFAULTS["kind"] + '"', txt), txt
+    assert re.search(r"width_mm:\s*" + str(FR.SEAL_DEFAULTS["width_mm"]), txt), \
+        txt
+    for k, v in FR.SEAL_DEFAULTS["scope"].items():
+        assert re.search(k + r":\s*" + ("true" if v else "false"), txt), \
+            f"portée {k} : le défaut diverge ({txt})"
+
+
+def test_la_borne_de_largeur_du_sceau_est_ecrite_des_deux_cotes():
+    """`seal_width_mm` passe par le test générique de parité des bornes ; ici
+    on épingle la VALEUR décidée (0,2 à 6 mm) et son plancher : 0,2 mm est le
+    trait minimal d'un imprimeur foil (spec §6.2bis-b), pas un chiffre rond."""
+    assert FR.LIMITS["seal_width_mm"] == list(SEAL_WIDTH_LIMITS), \
+        FR.LIMITS.get("seal_width_mm")
+    assert FR.LIMITS["seal_width_mm"][0] == FR.SEAL_MIN_MM
+    b = _catalog_block(_js())
+    m = re.search(r"seal_width_mm:\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]", b)
+    assert m, "seal_width_mm absent de LIMITS côté JS"
+    assert [float(m.group(1)), float(m.group(2))] == list(SEAL_WIDTH_LIMITS)
+
+
+def test_le_catalogue_publie_le_sceau():
+    """Ce que l'écran propose doit être joignable de l'extérieur : la route
+    `/catalog` publie les métaux du Sceau, son plancher et ses défauts."""
+    did = _deck()
+    cat = _api("GET", f"/api/cards/{did}/frame/catalog").json()["catalog"]
+    assert cat["seal_kinds"] == FR.SEAL_KINDS
+    assert cat["seal_min_mm"] == FR.SEAL_MIN_MM
+    assert cat["seal_defaults"] == FR.SEAL_DEFAULTS
+    assert cat["limits"]["seal_width_mm"] == list(SEAL_WIDTH_LIMITS)
+
+
+def test_la_borne_de_format_du_sceau_est_la_meme_des_deux_cotes(tmp_path):
+    """L'anneau doit tenir ENTRE la coupe et la fenêtre : au-delà, ce n'est
+    plus un contour, c'est une plaque posée sur l'illustration. La borne se
+    DÉDUIT donc du format ET de la fenêtre — patron `bandMaxMM`. Les douze
+    formats, exécutés des deux côtés."""
+    cas = [_cas_sceau(f, SEAL_ON, fmt=f) for f in sorted(CT.FORMATS)]
+    res = _banc_sceau(tmp_path, cas)
+    assert len(res) == len(cas)
+    for r in res:
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        g = CT.geom(r["nom"], 300, 3, 3, 3)
+        tw, th = g.trim_mm
+        edge = min(1.6, FR.band_max_mm(tw, th))
+        win = FR._win_of(None, g)
+        attendu = FR.seal_max_mm(tw, th, edge, win)
+        assert abs(r["seal_max"] - attendu) < 1e-9, \
+            f"{r['nom']} : JS {r['seal_max']} != backend {attendu}"
+        assert r["anneau"] is not None, f"{r['nom']} : anneau dégénéré"
+        assert r["anneau"]["mm"] > 0
+
+
+def test_le_sceau_absent_du_document_repart_des_defauts(tmp_path):
+    """Un preset ou un jeu enregistré AVANT cette tâche n'a pas de clé `seal` :
+    `st()` doit y injecter les défauts, et rendre un objet NEUF (un alias de
+    `DEFAULTS.seal` ferait d'un réglage de carte une écriture dans le schéma
+    partagé avec le registre du CORE)."""
+    cas = [
+        _cas_sceau("absent", None),
+        _cas_sceau("hostile", {"on": "oui", "kind": "platine",
+                               "width_mm": 999, "scope": "toutes"}),
+        _cas_sceau("plancher", {"on": True, "width_mm": 0.01,
+                                "scope": {"screen": False}}),
+    ]
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    for r in res.values():
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+    a = res["absent"]["seal"]
+    assert a == FR.SEAL_DEFAULTS, a
+    h = res["hostile"]["seal"]
+    assert h["on"] is False, "une chaîne n'est pas un booléen"
+    assert h["kind"] == FR.SEAL_DEFAULTS["kind"], h
+    assert h["width_mm"] == SEAL_WIDTH_LIMITS[1], h
+    assert h["scope"] == FR.SEAL_DEFAULTS["scope"], h
+    p = res["plancher"]["seal"]
+    assert p["width_mm"] == SEAL_WIDTH_LIMITS[0], p
+    assert p["scope"]["screen"] is False and p["scope"]["print"] is False
+
+
+def test_le_backend_normalise_le_sceau_comme_l_ecran():
+    """La parité d'EXÉCUTION, pas de lecture : les mêmes corps hostiles passés
+    à `frame.seal_of` doivent donner ce que `st()` rend — À UNE EXCEPTION
+    NOMMÉE, qui est la doctrine déjà en place pour `win_r_mm` et les quatre
+    longueurs du cadre.
+
+    Les deux côtés n'ont pas le même travail. `st()` RÉPARE un document que
+    l'écran possède déjà : une valeur folle y est ramenée dans les bornes,
+    parce qu'un document illisible n'est pas une option. `seal_of()` VALIDE le
+    corps d'une requête : une valeur hors bornes y est REFUSÉE, avec la borne
+    citée, pour que le client sache qu'il a envoyé n'importe quoi (règle « un
+    corps mal formé ne fait jamais un 500, il fait un 400 qui nomme »). La
+    divergence ne peut pas mordre en pratique : l'écran n'envoie au backend
+    que du `st()` déjà normalisé.
+
+    Sur tout le reste — défauts, appartenance au catalogue, booléens, portées
+    partielles — les deux sont le même."""
+    assert FR.seal_of(None) == FR.SEAL_DEFAULTS
+    assert FR.seal_of({}) == FR.SEAL_DEFAULTS
+    # 1. ce qui n'est pas un booléen retombe au défaut, des deux côtés
+    h = FR.seal_of({"on": "oui", "kind": "platine", "scope": "toutes"})
+    assert h == FR.SEAL_DEFAULTS, h
+    # 2. une portée PARTIELLE complète les deux autres avec leur défaut
+    p = FR.seal_of({"on": True, "width_mm": 0.2, "scope": {"screen": False}})
+    assert p["scope"] == {"screen": False, "print": False, "mesh": False}
+    assert p["on"] is True and p["width_mm"] == 0.2
+    # 3. hors bornes : le backend REFUSE en nommant la borne (l'écran, lui,
+    #    ramène — mesuré par le banc, test voisin)
+    for mauvais in (999, 0.01, "beaucoup", float("nan")):
+        with pytest.raises(ValueError) as exc:
+            FR.seal_of({"width_mm": mauvais})
+        assert "Sceau" in str(exc.value), str(exc.value)
+
+
+def test_le_compte_de_cles_du_document_suit_le_sceau():
+    """`seal` est la 29e clé de `doc.frame`. Le compte est écrit dans le
+    commentaire de `st()` ET dans `frame.py` : trois endroits, un seul
+    nombre."""
+    cles = _js_defaults_keys(_js())
+    assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
+    assert len(cles) == 29, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    assert "28 clés que l'on écrit" in py, \
+        "le commentaire de l'habillage ne suit pas la clé neuve (27 -> 28 " \
+        "écrites, la 29e étant `art_window`, publiée par le painter)"
+
+
+# ── 16.2 le PEINTRE : des pixels, pas des intentions ─────────────────────────
+
+def test_l_anneau_du_sceau_encre_sa_bande_et_rien_d_autre(tmp_path):
+    """LE SEUIL DE LA TÂCHE, mesuré au rastériseur : l'anneau encre la BANDE
+    (de la coupe rentrée vers l'intérieur, sur `width_mm`) et NI le fond perdu
+    au-delà, NI l'intérieur de la carte, NI la fenêtre d'illustration.
+
+    Une bande de 3 mm est choisie pour que la grille de 0,5 mm ait de quoi
+    compter des deux côtés de chaque arête."""
+    seal = dict(SEAL_ON, width_mm=3)
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, [
+        _cas_sceau("on", seal),
+        _cas_sceau("off", dict(seal, on=False)),
+    ])}
+    on = res["on"]
+    assert on["ok"], on.get("err")
+    p = on["parts"]
+    assert p["bande"] > 0.95, \
+        f"l'anneau n'encre que {p['bande']:.2f} de sa propre bande"
+    assert p["dehors"] == 0, \
+        f"l'anneau déborde vers la coupe ({p['dehors']:.3f})"
+    assert p["dedans"] == 0, \
+        f"l'anneau déborde vers l'intérieur ({p['dedans']:.3f})"
+    assert p["fenetre"] == 0, \
+        f"l'anneau entre dans la fenêtre ({p['fenetre']:.3f})"
+    off = res["off"]
+    assert off["ok"], off.get("err")
+    assert off["ops"] == 0 and off["emp"]["n"] == 0, \
+        "Sceau éteint : le peintre ne doit pas poser une seule opération"
+
+
+def test_sans_le_clip_l_anneau_deborde_partout(tmp_path):
+    """LE CONTRÔLE NÉGATIF DU CLIP. Un découpage qui ne sert jamais ne prouve
+    rien : on le neutralise et l'encre DOIT sortir — sur la fenêtre
+    d'illustration comme sur le fond perdu."""
+    cas = [_cas_sceau("on", dict(SEAL_ON, width_mm=3))]
+    avec = _banc_sceau(tmp_path, cas)[0]
+    assert avec["parts"]["fenetre"] == 0 and avec["parts"]["dehors"] == 0
+    sans = _banc_sceau(tmp_path, cas, mutations=[
+        ('ctx.clip("evenodd");   /* CF-SCEAU-CLIP */', ""),
+    ])[0]
+    assert sans["ok"], sans.get("err")
+    assert sans["parts"]["fenetre"] > 0.5, \
+        "sans le clip, l'anneau devrait couvrir la fenêtre — le test ne " \
+        "prouverait rien"
+    assert sans["parts"]["dehors"] > 0.5, sans["parts"]
+
+
+def test_le_sceau_eteint_ne_change_pas_un_pixel_du_recto(tmp_path):
+    """LE FICHIER LIVRÉ D'AVANT, À L'OPÉRATION PRÈS. Le Sceau est éteint par
+    défaut : tout jeu existant doit rendre EXACTEMENT le même recto qu'avant
+    la tâche. On le prouve en comparant la TRACE du recto complet à celle du
+    MÊME recto peint par un `paintFront` d'où l'appel au Sceau a été RETIRÉ —
+    pas à un nombre recopié qui vieillirait.
+
+    Pourquoi la trace et pas la couverture : `paintFront` remplit la toile de
+    bord à bord (étape 1 « tout sauf la fenêtre », puis la réserve
+    d'illustration), donc l'empreinte de cellules encrées vaut 1 partout quoi
+    qu'on peigne — mesuré, 103 776 / 103 776 cellules à 0,25 mm."""
+    cas = [_cas_sceau("defaut", None, quoi="front"),
+           _cas_sceau("eteint", dict(SEAL_ON, on=False), quoi="front")]
+    avec = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    src = _sceau_js_source()
+    appel = "    paintSeal(ctx, g, m, f, card);"
+    assert appel in src, "l'appel du Sceau dans paintFront a bougé"
+    sans = {r["nom"]: r for r in
+            _banc_sceau(tmp_path, cas, mutations=[(appel, "")])}
+    for nom in ("defaut", "eteint"):
+        assert avec[nom]["ok"] and sans[nom]["ok"], (avec[nom], sans[nom])
+        assert avec[nom]["ops"] == sans[nom]["ops"], \
+            f"{nom} : {avec[nom]['ops']} opérations avec le Sceau éteint " \
+            f"contre {sans[nom]['ops']} sans lui"
+        assert avec[nom]["trace"] == sans[nom]["trace"], \
+            f"{nom} : le recto bouge alors que le Sceau est éteint " \
+            f"({avec[nom]['trace']} != {sans[nom]['trace']})"
+    # ... et le CONTRÔLE : allumé, la trace DOIT changer.
+    allume = _banc_sceau(tmp_path, [
+        _cas_sceau("allume", dict(SEAL_ON, width_mm=3), quoi="front")])[0]
+    assert allume["ok"], allume.get("err")
+    assert allume["ops"] > avec["defaut"]["ops"], \
+        "allumé, le Sceau ne pose pas une opération de plus"
+    assert allume["trace"] != avec["defaut"]["trace"], \
+        "allumé, le Sceau ne change rien : le test précédent ne prouve rien"
+
+
+def test_le_recto_est_le_meme_a_deux_rendus(tmp_path):
+    """DÉTERMINISME À PHASE FIXÉE. Deux rendus du même recto, même carte, même
+    phase : la même empreinte, à la cellule. C'est ce qui rend l'aperçu et le
+    fichier livré indiscernables — et ce que `Math.random` casserait."""
+    for quoi in ("seal", "front"):
+        r = _banc_sceau(tmp_path, [
+            _cas_sceau("deux-" + quoi, dict(SEAL_ON, width_mm=3), quoi=quoi)])[0]
+        assert r["ok"], r.get("err")
+        assert r["trace"] == r["trace2"], \
+            f"{quoi} : deux rendus, deux traces ({r['trace']} / {r['trace2']})"
+        assert r["emp"] == r["emp2"], \
+            f"{quoi} : deux rendus, deux dessins ({r['emp']} / {r['emp2']})"
+
+
+def test_le_champ_de_paillettes_est_seme_par_carte(tmp_path):
+    """Spec §6.2bis-a : « PRNG SEEDÉ, seed = id de carte — jamais
+    `Math.random` ». Deux cartes différentes n'ont pas le même scintillement ;
+    la MÊME carte a toujours le sien."""
+    cas = [
+        _cas_sceau("c1", SEAL_ON, card={"i": 0, "id": "c1"}),
+        _cas_sceau("c1bis", SEAL_ON, card={"i": 0, "id": "c1"}),
+        _cas_sceau("c2", SEAL_ON, card={"i": 1, "id": "c2"}),
+        _cas_sceau("dragon", SEAL_ON, card={"i": 7, "id": "dragon"}),
+        _cas_sceau("sans-id", SEAL_ON, card={"i": 0}),
+    ]
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    for r in res.values():
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+    assert res["c1"]["champ"] == res["c1bis"]["champ"], \
+        "la même carte n'a pas le même champ de paillettes"
+    assert res["c1"]["champ"] != res["c2"]["champ"], \
+        "deux cartes partagent leur champ de paillettes"
+    assert res["c1"]["champ"] != res["dragon"]["champ"]
+    assert len({res[k]["graine"] for k in ("c1", "c2", "dragon")}) == 3, \
+        "les graines se collisionnent"
+    # une carte SANS `id` retombe sur l'identité que le CORE lui donnerait
+    # (`normCard` : id = "c" + (i + 1)) — pas sur une graine constante.
+    assert res["sans-id"]["graine"] == res["c1"]["graine"]
+    # ... et la graine ARRIVE JUSQU'AU RECTO LIVRÉ, pas seulement jusqu'à la
+    # fonction pure : deux cartes, deux traces de `paintFront`.
+    rectos = {r["nom"]: r for r in _banc_sceau(tmp_path, [
+        _cas_sceau("r1", dict(SEAL_ON, width_mm=3), quoi="front",
+                   card={"i": 0, "id": "c1"}),
+        _cas_sceau("r2", dict(SEAL_ON, width_mm=3), quoi="front",
+                   card={"i": 1, "id": "c2"}),
+    ])}
+    assert rectos["r1"]["ok"] and rectos["r2"]["ok"]
+    assert rectos["r1"]["trace"] != rectos["r2"]["trace"], \
+        "deux cartes rendent le même recto : la graine n'arrive pas au peintre"
+
+
+def test_le_sceau_ne_tire_aucun_hasard(tmp_path):
+    """LE CONTRÔLE NÉGATIF DU PRNG. On remplace le générateur seedé par
+    `Math.random` : le champ de paillettes DOIT cesser d'être reproductible.
+    Sans ce contrôle, `prng` pourrait n'être qu'une décoration."""
+    src = _sceau_js_source()
+    i = src.index("function sealField(")
+    j = src.index("function paintSeal(")
+    assert "Math.random" not in src[i:j], \
+        "le bloc du Sceau tire déjà au hasard"
+    cas = [_cas_sceau("c1", SEAL_ON, card={"i": 0, "id": "c1"}),
+           _cas_sceau("c1bis", SEAL_ON, card={"i": 0, "id": "c1"})]
+    faux = {r["nom"]: r for r in _banc_sceau(tmp_path, cas, mutations=[
+        ("const rnd = prng(seed);", "const rnd = Math.random;"),
+    ])}
+    assert faux["c1"]["ok"] and faux["c1bis"]["ok"]
+    assert faux["c1"]["champ"] != faux["c1bis"]["champ"], \
+        "avec Math.random le champ reste identique — le banc ne mesure rien"
+
+
+def test_une_graine_constante_donnerait_le_meme_scintillement_a_tout_le_jeu(
+        tmp_path):
+    """LE CONTRÔLE NÉGATIF DE LA GRAINE PAR CARTE. On remplace l'identité de la
+    carte par une constante : les deux cartes doivent alors rendre le MÊME
+    recto. C'est le défaut que la spec nomme en écrivant « seed = id de
+    carte » — un jeu de 200 cartes dont les 200 contours scintillent au même
+    endroit n'est pas un foil, c'est un motif."""
+    cas = [_cas_sceau("r1", dict(SEAL_ON, width_mm=3), quoi="front",
+                      card={"i": 0, "id": "c1"}),
+           _cas_sceau("r2", dict(SEAL_ON, width_mm=3), quoi="front",
+                      card={"i": 1, "id": "c2"})]
+    vrai = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    assert vrai["r1"]["trace"] != vrai["r2"]["trace"]
+    fige = {r["nom"]: r for r in _banc_sceau(tmp_path, cas, mutations=[
+        ("const pts = sealField(sealSeed(card), SEAL_SPARKS);",
+         "const pts = sealField(1234, SEAL_SPARKS);"),
+    ])}
+    assert fige["r1"]["ok"] and fige["r2"]["ok"], fige
+    assert fige["r1"]["trace"] == fige["r2"]["trace"], \
+        "avec une graine constante les deux rectos diffèrent encore — le " \
+        "banc ne mesure pas ce qu'il annonce"
+
+
+def test_la_phase_du_fichier_livre_est_canonique(tmp_path):
+    """Spec §6.2bis-a : « La phase du fichier livré est CANONIQUE (0.35) ».
+    Elle est écrite une fois, et le peintre n'a AUCUNE autre source de phase —
+    ni pointeur, ni horloge, ni compteur d'animation. C'est ce qui garde
+    l'aperçu identique au fichier."""
+    src = _js()
+    m = re.search(r"const SEAL_PHASE = ([\d.]+);", src)
+    assert m, "SEAL_PHASE n'est pas déclarée"
+    assert float(m.group(1)) == SEAL_PHASE_SPEC, \
+        f"phase canonique {m.group(1)} au lieu de {SEAL_PHASE_SPEC}"
+    corps = _js_fn(src, "paintSeal")
+    for interdit in ("Date.now", "performance.now", "requestAnimationFrame",
+                     "clientX", "offsetX", "event", "Math.random"):
+        assert interdit not in corps, \
+            f"le peintre du Sceau lit {interdit} : le fichier livré ne serait " \
+            "plus l'aperçu"
+    assert corps.count("SEAL_PHASE") >= 1, \
+        "le peintre n'utilise pas la phase canonique"
+    r = _banc_sceau(tmp_path, [_cas_sceau("phase", SEAL_ON)])[0]
+    assert r["phase"] == SEAL_PHASE_SPEC
+    faux = _banc_sceau(tmp_path, [_cas_sceau("phase", dict(SEAL_ON, width_mm=3))],
+                       mutations=[("const SEAL_PHASE = 0.35;",
+                                   "const SEAL_PHASE = 0.71;")])[0]
+    vrai = _banc_sceau(tmp_path, [
+        _cas_sceau("phase", dict(SEAL_ON, width_mm=3))])[0]
+    assert faux["stops"] != vrai["stops"], \
+        "la phase ne change rien au dégradé : elle n'est pas branchée"
+
+
+# ── 16.3 la PORTÉE : hors écran, la base calme ───────────────────────────────
+
+def test_dans_la_portee_ecran_le_contour_est_un_arc_en_ciel(tmp_path):
+    """Spec §6.2bis-a : base arc-en-ciel, saturation 70-90 %. Mesuré sur les
+    arrêts de dégradé RÉELS du peintre, pas sur l'intention."""
+    r = _banc_sceau(tmp_path, [_cas_sceau("ecran", SEAL_ON)])[0]
+    assert r["ok"], r.get("err")
+    assert r["live"] is True
+    hues = _teintes(r["stops"])
+    assert _etendue(hues) >= 300, \
+        f"étendue de teintes {_etendue(hues)}° — ce n'est pas un arc-en-ciel"
+    for _t, css in r["stops"]:
+        s = float(re.match(r"hsl\([\d.]+,\s*([\d.]+)%", css).group(1))
+        assert 70 <= s <= 90, f"saturation {s} % hors de la plage 70-90 de la spec"
+
+
+def test_hors_portee_ecran_le_contour_reste_dans_sa_base_calme(tmp_path):
+    """Spec §6.2bis-d : « 3D uniquement » est une configuration de PREMIER
+    RANG — l'écran montre alors le contour dans sa base calme (or/argent non
+    holo). Mesuré : l'étendue de teintes tombe à presque rien, et les tons
+    viennent de `METAL_STOPS`, pas d'une seconde table de couleurs."""
+    cas = [_cas_sceau("3d-argent", {"on": True, "kind": "argent",
+                                    "width_mm": 1.2,
+                                    "scope": {"screen": False, "print": False,
+                                              "mesh": True}}),
+           _cas_sceau("3d-dorure", {"on": True, "kind": "dorure",
+                                    "width_mm": 1.2,
+                                    "scope": {"screen": False, "print": True,
+                                              "mesh": True}})]
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    for r in res.values():
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+        assert r["live"] is False
+        e = _etendue(_teintes(r["stops"]))
+        assert e <= 15, \
+            f"{r['nom']} : étendue de teintes {e}° — la base calme " \
+            "arc-en-cielise"
+        assert r["ops"] > 0, f"{r['nom']} : hors portée écran, rien n'est peint"
+    assert res["3d-argent"]["stops"] != res["3d-dorure"]["stops"], \
+        "argent et dorure rendent le même métal"
+    src = _js()
+    corps = _js_fn(src, "sealStops")
+    assert "METAL_STOPS" in corps, \
+        "la base calme n'emprunte pas les tons de métal déjà écrits"
+
+
+def test_la_portee_ecran_ignoree_ferait_rougir_la_base_calme(tmp_path):
+    """LE CONTRÔLE NÉGATIF DE LA PORTÉE. Un peintre qui ignore
+    `scope.screen` peint l'arc-en-ciel partout : la mesure de la base calme
+    doit alors échouer."""
+    cas = [_cas_sceau("3d", {"on": True, "kind": "dorure", "width_mm": 1.2,
+                             "scope": {"screen": False, "print": False,
+                                       "mesh": True}})]
+    sourd = _banc_sceau(tmp_path, cas, mutations=[
+        ("return !!(f.seal && f.seal.on && f.seal.scope && f.seal.scope.screen);",
+         "return !!(f.seal && f.seal.on);"),
+    ])[0]
+    assert sourd["ok"], sourd.get("err")
+    assert _etendue(_teintes(sourd["stops"])) >= 300, \
+        "en ignorant la portée, la base reste calme — le test ne prouve rien"
+
+
+# ── 16.4 la PARITÉ DES NOMBRES : /metrics porte l'anneau ─────────────────────
+
+def test_la_route_metrics_publie_l_anneau_du_sceau():
+    """La vérité vectorielle du Sceau est portable en NOMBRES PURS (l'anneau
+    est un rectangle arrondi partout). Le backend les publie — c'est ce dont
+    le masque de foil (tâche 2) et la portée 3D (tâche 3) auront besoin, et
+    c'est ce que la pastille de vérification confronte à l'écran."""
+    did = _deck()
+    r = _api("POST", f"/api/cards/{did}/frame/metrics",
+             json={"fmt": "poker_eu", "dpi": 300, "bleed_mm": 3, "safe_mm": 3,
+                   "corner_mm": 3, "line_mm": 0.9, "gap_mm": 1.1,
+                   "edge_mm": 1.6, "inner_mm": 5.5, "seal": SEAL_ON})
+    assert r.status_code == 200, r.text[:400]
+    m = r.json()["metrics"]
+    assert "seal_mm" in m and "seal_px" in m, sorted(m)
+    assert m["seal_mm"][0] == 1.2
+    assert m["seal_px"][0] == _exact_px(1.2, 300)
+    # l'anneau extérieur : la coupe rentrée de `edge_mm`, en px depuis la TOILE
+    g = CT.geom("poker_eu", 300, 3, 3, 3)
+    assert abs(m["seal_px"][1] - (g.bleed_off_px[0] + 1.6 / 25.4 * 300)) < 0.02,         m["seal_px"]
+
+
+def test_une_largeur_de_sceau_hors_bornes_fait_400_jamais_500():
+    did = _deck()
+    for mauvais, mot in ((0.05, "0,2"), (12, "6"), ("beaucoup", "millimètres")):
+        r = _api("POST", f"/api/cards/{did}/frame/metrics",
+                 json={"fmt": "poker_eu", "dpi": 300, "corner_mm": 3,
+                       "seal": dict(SEAL_ON, width_mm=mauvais)})
+        assert r.status_code == 400, (mauvais, r.status_code, r.text[:200])
+        assert "Sceau" in r.text or "sceau" in r.text, r.text[:200]
+
+
+def test_l_ecran_et_le_backend_comptent_les_memes_pixels_d_anneau(tmp_path):
+    """PARITÉ D'EXÉCUTION : `localMetrics` de l'écran et `frame_metrics` du
+    backend, sur les douze formats. Deux anneaux différents, ce serait un
+    masque de foil décalé du contour affiché."""
+    src = _js()
+    assert "seal_px" in _js_fn(src, "localMetrics"), \
+        "l'écran ne publie pas l'anneau : la pastille ne le vérifierait jamais"
+    assert "seal:" in _js_fn(src, "verify"), \
+        "la vérification n'envoie pas le Sceau au backend"
+    cas = [_cas_sceau(f, SEAL_ON, fmt=f) for f in sorted(CT.FORMATS)]
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    for fmt, r in res.items():
+        assert r["ok"], f"{fmt} : {r.get('err')}"
+        g = CT.geom(fmt, 300, 3, 3, 3)
+        win = FR._win_of(None, g)
+        seal = FR.seal_of(SEAL_ON)
+        px = FR.frame_metrics(g, 0.9, 1.1, 1.6, 5.5, win, seal)["seal_px"]
+        a = r["anneau"]
+        for i, v in enumerate([a["outer"][0], a["outer"][1], a["outer"][2],
+                               a["outer"][3], a["outer"][4]]):
+            assert abs(px[i + 1] - v) < 0.02, \
+                f"{fmt} : anneau px[{i}] écran {v} != backend {px[i + 1]}"
+
+
+# ── 16.5 LE PANNEAU : l'écran dit toujours quelle portée est active ──────────
+
+def test_le_panneau_porte_le_groupe_du_sceau_et_ses_trois_interrupteurs():
+    src = _js()
+    fn = _js_fn(src, "buildUI")
+    assert "Sceau prismatique" in fn, "le groupe du Sceau n'existe pas"
+    assert "UI.sealOn" in fn and "UI.sealKind" in fn and "UI.sealW" in fn, \
+        "case, métal ou largeur manquants"
+    for cle, lbl in (("screen", "écran"), ("print", "impression"),
+                     ("mesh", "3D")):
+        assert '"' + cle + '", "' + lbl + '"' in fn, \
+            f"l'interrupteur de portée {cle} n'est pas étiqueté « {lbl} »"
+    assert "LIMITS.seal_width_mm" in fn, \
+        "le curseur de largeur n'est pas borné par LIMITS"
+
+
+def test_l_ecran_dit_toujours_quelle_portee_est_active():
+    """Spec §6.2bis-d : « L'écran dit toujours quelle portée est active. » La
+    ligne d'état nomme les trois surfaces, dit ce que CET écran montre, et ne
+    promet RIEN des deux autres — leurs consommateurs sont les tâches 2 et 3."""
+    src = _js()
+    fn = _js_fn(src, "sealText")
+    assert "Portée déclarée" in fn, "la ligne d'état ne nomme pas la portée"
+    for mot in ("écran", "impression", "3D"):
+        assert mot in fn, f"la portée « {mot} » n'est pas nommée"
+    assert "base calme" in fn, \
+        "hors portée écran, la ligne ne dit pas que le contour est calme"
+    assert "phase canonique" in fn, \
+        "dans la portée écran, la ligne ne dit pas que l'aperçu EST le fichier"
+    # AUCUNE promesse sur ce qui n'est pas livré : pas de « bientôt », pas de
+    # tâche future citée à l'utilisateur.
+    for promesse in ("bientôt", "à venir", "tâche 2", "tâche 3", "prochaine"):
+        assert promesse not in fn.lower(), \
+            f"la ligne d'état promet quelque chose (« {promesse} »)"
+    assert "sealText(" in _js_fn(src, "syncNow"), \
+        "la ligne d'état n'est jamais rafraîchie"
+
+
+# ── 16.6 LA PREUVE D'EMPILEMENT (§4.2), EXÉCUTÉE ─────────────────────────────
+#
+# Le peintre du Sceau pose une bande de reflet en `overlay`. Là où sa propre
+# base n'est pas parfaitement opaque — la frange d'anticrénelage du découpage
+# de l'anneau — le résultat DÉPEND de ce qu'il y a dessous : la couche cesse
+# d'être « isolée » et `layers()` la garde en « EMPREINTE » (delta des
+# cumulatifs, exact par construction). C'est le mécanisme que §4.2 a été conçu
+# pour absorber ; il n'avait, jusqu'ici, AUCUN test exécutable dans la suite —
+# seulement une lecture de source (test_cards_forge3d.py).
+#
+# Ce banc exécute la VRAIE `layers()` de core.js sur un contexte 2D raster
+# minimal. Le moteur (`renderRaw`) est un stub du banc — il ne fait que ce que
+# le contrat de core.js promet (`only_z`, `paper`) ; la logique jugée, elle,
+# est le produit relu tel quel.
+
+BANC_EMPILEMENT = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const W = 24, H = 24;
+
+function Ctx(cv) { this.cv = cv; this.fillStyle = "#000000";
+  this.globalCompositeOperation = "source-over"; }
+function couleur(s) {
+  let m = /^#([0-9a-f]{6})$/i.exec(s);
+  if (m) { const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
+  m = /^rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)(?:,\s*([\d.]+))?\)$/.exec(s);
+  if (m) return [+m[1], +m[2], +m[3],
+    Math.round((m[4] === undefined ? 1 : +m[4]) * 255)];
+  return [0, 0, 0, 255];
+}
+function melange(d, o, src, op) {
+  const sa = src[3] / 255, da = d[o + 3] / 255;
+  if (op === "overlay") {
+    for (let k = 0; k < 3; k++) {
+      const b = d[o + k] / 255, s = src[k] / 255;
+      const r = b <= 0.5 ? 2 * b * s : 1 - 2 * (1 - b) * (1 - s);
+      /* le fond compte pour ce qu'il PÈSE : sur un fond transparent le
+         mélange retombe sur la source, comme le fait un vrai canvas. */
+      const eff = r * da + s * (1 - da);
+      d[o + k] = Math.round((eff * sa + (d[o + k] / 255) * da * (1 - sa))
+        / (sa + da * (1 - sa) || 1) * 255);
+    }
+    d[o + 3] = Math.round((sa + da * (1 - sa)) * 255);
+    return;
+  }
+  const a = sa + da * (1 - sa);
+  for (let k = 0; k < 3; k++) {
+    d[o + k] = a ? Math.round(((src[k] / 255) * sa
+      + (d[o + k] / 255) * da * (1 - sa)) / a * 255) : 0;
+  }
+  d[o + 3] = Math.round(a * 255);
+}
+Ctx.prototype.fillRect = function (x, y, w, h) {
+  const src = couleur(this.fillStyle), d = this.cv.d;
+  for (let j = Math.max(0, y | 0); j < Math.min(this.cv.height, (y + h) | 0); j++)
+    for (let i = Math.max(0, x | 0); i < Math.min(this.cv.width, (x + w) | 0); i++)
+      melange(d, (j * this.cv.width + i) * 4, src, this.globalCompositeOperation);
+};
+Ctx.prototype.getImageData = function (x, y, w, h) {
+  return { width: w, height: h, data: this.cv.d.slice() };
+};
+Ctx.prototype.putImageData = function (img) { this.cv.d.set(img.data); };
+Ctx.prototype.drawImage = function (src) {
+  const d = this.cv.d, s = src.d;
+  for (let o = 0; o < d.length; o += 4)
+    melange(d, o, [s[o], s[o + 1], s[o + 2], s[o + 3]], "source-over");
+};
+function mkCanvas(w, h) {
+  const cv = { _w: 0, _h: 0, d: new Uint8ClampedArray(0) };
+  const alloc = () => { cv.d = new Uint8ClampedArray(cv._w * cv._h * 4); };
+  Object.defineProperty(cv, "width", { get: () => cv._w,
+    set: (v) => { cv._w = v | 0; alloc(); } });
+  Object.defineProperty(cv, "height", { get: () => cv._h,
+    set: (v) => { cv._h = v | 0; alloc(); } });
+  cv.getContext = () => new Ctx(cv);
+  cv.width = w; cv.height = h;
+  return cv;
+}
+const document = { createElement: () => mkCanvas(0, 0) };
+const PAPER = "#ffffff";
+let RENDER_CHAIN = Promise.resolve();
+const PEINTRES = [
+  { z: 20, fn: (c) => { c.globalCompositeOperation = "source-over";
+    c.fillStyle = "#204080"; c.fillRect(2, 2, 20, 20); } },
+  { z: 40, fn: (c) => {
+    /* la BASE du Sceau, opaque, sur sa bande */
+    c.globalCompositeOperation = "source-over";
+    c.fillStyle = "#c08040"; c.fillRect(4, 4, 16, 6);
+    /* la BANDE DE REFLET en overlay — elle déborde de la base opaque, comme
+       la frange d'anticrénelage du découpage de l'anneau. */
+    c.globalCompositeOperation = CAS.op;
+    c.fillStyle = "rgba(255,255,255,0.6)"; c.fillRect(4, 4, 16, 10);
+    c.globalCompositeOperation = "source-over";
+  } },
+];
+function renderRaw(i, o) {
+  const cv = mkCanvas(W, H);
+  const c = cv.getContext("2d");
+  if (o.paper !== false) { c.fillStyle = PAPER; c.fillRect(0, 0, W, H); }
+  const only = Array.isArray(o.only_z) ? o.only_z : null;
+  for (const p of PEINTRES) {
+    if (only && only.indexOf(p.z) < 0) continue;
+    p.fn(c);
+  }
+  return Promise.resolve(cv);
+}
+const hasDOM = true;
+const layers = new Function("document", "PAPER", "renderRaw", "RENDER_CHAIN",
+  "hasDOM", "return (function(){ " + CODE + "\nreturn layers; })();")(
+  document, PAPER, renderRaw, RENDER_CHAIN, hasDOM);
+layers(0, { face: "front", groups: [
+  { role: "illustration", z: [20] }, { role: "cadre", z: [40] }] })
+  .then((L) => {
+    process.stdout.write(JSON.stringify({
+      stack_ok: L.stack_ok,
+      modes: L.layers.map((l) => [l.role, l.mode]),
+    }));
+  }, (e) => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });
+"""
+
+
+def _banc_empilement(tmp_path, op: str) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc d'empilement ne peut pas tourner")
+    src = CORE_JS.read_text(encoding="utf-8")
+    code = "async " + _js_fn(src, "layers")
+    js = tmp_path / "layers.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_empilement.mjs"
+    banc.write_text(BANC_EMPILEMENT, encoding="utf-8")
+    conf = tmp_path / "cas_empilement.json"
+    conf.write_text(json.dumps({"op": op}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+def test_le_sceau_pose_bien_une_bande_de_reflet_en_overlay():
+    """La PRÉMISSE du banc d'empilement, relue dans le peintre livré : c'est
+    bien un `overlay` que le Sceau pose, et il est posé sous `save()` — sans
+    quoi il fuirait sur tout ce que `paintFront` dessine après lui."""
+    corps = _js_fn(_js(), "paintSeal")
+    assert 'globalCompositeOperation = "overlay"' in corps, \
+        "la bande de reflet n'est plus en overlay : re-mesurer la preuve " \
+        "d'empilement avant de recopier ce test"
+    i = corps.index('globalCompositeOperation = "overlay"')
+    assert "ctx.save();" in corps[:i] and "ctx.restore();" in corps[i:], \
+        "l'overlay n'est pas encadré par save/restore"
+
+
+def test_une_couche_non_empilable_bascule_en_empreinte_et_la_preuve_tient(
+        tmp_path):
+    """§4.2, EXÉCUTÉ. Une couche qui pose un mode de fusion non-empilable là où
+    sa propre base n'est pas opaque ne peut pas être livrée « isolée » : la
+    vraie `layers()` de core.js la garde en « empreinte » (delta des
+    cumulatifs) et `stack_ok` TIENT quand même.
+
+    Le contrôle est dans le même banc : la MÊME couche repeinte en
+    `source-over` redevient « isolée ». Sans lui, un `layers()` qui écrirait
+    « empreinte » partout passerait."""
+    r = _banc_empilement(tmp_path, "overlay")
+    modes = dict(r["modes"])
+    assert modes["illustration"] == "isolee", r["modes"]
+    assert modes["cadre"] == "empreinte", \
+        f"la couche du cadre reste « {modes['cadre']} » malgré l'overlay"
+    assert r["stack_ok"] is True, \
+        "la preuve d'empilement tombe : l'empreinte n'est pas exacte"
+    temoin = _banc_empilement(tmp_path, "source-over")
+    assert dict(temoin["modes"])["cadre"] == "isolee", \
+        "en source-over la couche reste « empreinte » — le banc ne " \
+        "discrimine rien"
+    assert temoin["stack_ok"] is True

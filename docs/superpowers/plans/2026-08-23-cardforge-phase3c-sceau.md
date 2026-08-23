@@ -102,7 +102,8 @@ Amender à la source (leçon ×10).
    `{on, kind ("argent"|"dorure"), width_mm, scope: {screen, print,
    mesh}, motifs: [...]}` — validé dans st() (branche imbriquée patron
    window) + miroir frame.py + parité ; LIMITS `seal_width_mm` [0.2, 6] +
-   cap format. « 3D uniquement » = scope {screen:false, print:false,
+   cap format. *(T1 livrée SANS `motifs` : la clé naît en T3 avec son
+   consommateur — voir la note de fin de T1.)* « 3D uniquement » = scope {screen:false, print:false,
    mesh:true} — une configuration de PREMIER RANG (le défaut du modèle
    fragments, §6.2bis-d). L'écran DIT toujours la portée active.
 2. **Le peintre écran (a)** est DÉTERMINISTE À PHASE FIXÉE : la phase
@@ -117,6 +118,23 @@ Amender à la source (leçon ×10).
    ça — delta des cumulatifs, exact par construction) : DIT au plan et
    au test, pas découvert. scope.screen=false → base calme (le métal du
    kind, sans arc-en-ciel).
+   **AMENDEMENT T1 (23/08) — la raison exacte de la bascule.** Un
+   `overlay` ne casse PAS l'isolation à lui seul : là où la couche pose
+   sa propre base OPAQUE sous le mélange, le fond en dessous ne compte
+   pas et `solo` re-empilé donne le même pixel que le cumulatif. Ce qui
+   bascule la couche, c'est l'endroit où sa base n'est pas opaque — la
+   frange d'ANTICRÉNELAGE du découpage de l'anneau (un rectangle arrondi
+   : des centaines de pixels de bord partiels) — et la comparaison
+   STRICTE de `samePixels` (zéro pixel d'écart, core.js:845). Conséquence
+   pratique pour la suite : le mode réel de CETTE carte est une mesure de
+   NAVIGATEUR (l'anticrénelage n'existe pas hors d'un vrai canvas). La
+   suite pytest prouve donc le MÉCANISME — une couche non-empilable est
+   gardée en « empreinte » et `stack_ok` tient quand même — en faisant
+   tourner la VRAIE `layers()` de core.js sur un contexte raster minimal
+   (`BANC_EMPILEMENT`, test_cards_frame.py) ; le mode observé sur une
+   carte réelle se relève au navigateur (T6). Jusqu'ici ce chemin n'avait
+   AUCUN test exécutable dans la suite — seulement une lecture de source
+   (test_cards_forge3d.py:185).
 3. **Le masque de foil (b)** : quand scope.print — la couche OCG « Foil »
    dans le PDF (3e entrée OCG_LAYERS + /Separation « Foil » réel au
    patron _registration_cs), l'anneau écrit en VECTORIEL (m/l/c d'un
@@ -184,7 +202,7 @@ Amender à la source (leçon ×10).
 **Files:** mod-frame.js, mod-frame.css (si badge), frame.py,
 test_cards_frame.py.
 
-- [ ] RED : parité seal deux côtés (st imbriqué ↔ frame.py) ; LIMITS
+- [x] RED : parité seal deux côtés (st imbriqué ↔ frame.py) ; LIMITS
       seal_width_mm ; le peintre : anneau peint DANS la bande (pixels
       échantillonnés dedans/dehors), déterminisme (2 rendus = octets
       identiques à phase fixe), paillettes par carte (carte 1 ≠ carte 2,
@@ -193,10 +211,65 @@ test_cards_frame.py.
       d'arc-en-ciel mesuré) ; la preuve d'empilement TIENT (bascule
       empreinte attendue et assertée) ; presets/rendu existants
       byte-identiques seal.on=false.
-- [ ] Panneau : groupe « Sceau prismatique » (case + kind + largeur +
+- [x] Panneau : groupe « Sceau prismatique » (case + kind + largeur +
       les 3 interrupteurs de portée + l'état dit).
-- [ ] Mutation : Math.random introduit (déterminisme rougit), phase non
+- [x] Mutation : Math.random introduit (déterminisme rougit), phase non
       canonique au fichier, clip absent (déborde), scope ignoré.
+
+**LIVRÉ le 23/08 — suite 184/184 verte (159 avant), lint 9/9 0 violation,
+`node --check` vert.** Ce qui est en place et ce qu'il faut savoir avant
+la T2 :
+
+- **Schéma** `doc.frame.seal = {on, kind, width_mm, scope:{screen,
+  print, mesh}}` — 29e clé de `doc.frame`, branche imbriquée `sealOf()`
+  dans `st()` (rend TOUJOURS un objet neuf : `DEFAULTS.seal` est le même
+  objet que celui remis au registre du CORE). Miroir `frame.seal_of()`.
+  `motifs` NON ajouté : rien ne le consomme en T1 et une liste vide
+  publiée serait un contrat qu'aucun test ne tient — il naîtra en T3,
+  avec son consommateur (règle « la provenance se dit à la naissance »).
+- **Bornes** `LIMITS.seal_width_mm = [0.2, 6]` des deux côtés + une borne
+  de FORMAT `sealMaxMM(tw, th, edge, win)` / `seal_max_mm(...)` au patron
+  `bandMaxMM` : l'anneau doit tenir ENTRE la coupe rentrée et la FENÊTRE
+  (au-delà ce n'est plus un contour, c'est une plaque sur l'illustration)
+  ET ne pas s'inverser (min(tw,th) − 2·edge − 0,2). Elle MORD partout :
+  5,0 mm en poker (contre 6 au curseur), et l'écran l'écrit « (borne du
+  format) » comme pour `edge_mm`/`inner_mm`.
+- **Identité de carte** : `card.id` (FNV-1a de la chaîne), repli sur
+  `"c" + (i + 1)` — l'identité que `normCard` du CORE donne déjà. La spec
+  dit « seed = id de carte » ; le plan disait « index » : c'est `id` qui
+  a été retenu, parce qu'il SURVIT à un réordonnancement du jeu (un
+  contour qui change de scintillement parce qu'on a déplacé la carte
+  serait un fichier livré instable). Les deux coïncident sur un deck
+  jamais renommé.
+- **Le Sceau passe SOUS les filets** (début de l'étape 6 de `paintFront`,
+  même source de chemin `m.outer`) : le filet extérieur garde son arête
+  nette POSÉE SUR la bande, au lieu d'en être à moitié recouvert.
+  **RECTO SEUL** — `paintBack` ne le peint pas. C'est ce que le plan
+  demandait (« s'insère dans paintFront ») et ce qu'un foil de production
+  fait le plus souvent ; si le verso doit le porter, c'est une décision à
+  prendre avec la T4 (verso custom), pas un oubli à rattraper en silence.
+- **L'axe du dégradé est FIXE (118°) et ne suit pas `grad_angle`** : celui-là
+  incline la matière de la BANDE ; faire tourner le Sceau avec lui ferait
+  bouger le fichier livré au réglage d'une autre grandeur.
+- **Parité des nombres** : `/metrics` publie `seal_mm [largeur tracée,
+  borne]` et `seal_px [largeur, x, y, w, h, r]` — l'anneau EXTÉRIEUR, en
+  pixels de toile. Deux TABLEAUX et non un sous-objet : la pastille de
+  vérification compare des `JSON.stringify` clé par clé, et deux
+  dictionnaires dont l'ordre d'insertion diffère se comparent faux sans
+  qu'un nombre ait bougé. **La T2 hérite de ces nombres tels quels.**
+- **Amendement de test, dit** : `st()` et `seal_of()` ne sont PAS
+  identiques hors bornes, et c'est la doctrine déjà en place pour
+  `win_r_mm` : l'écran RÉPARE un document qu'il possède (clamp), la route
+  REFUSE un corps de requête (400 nommant la borne). La divergence ne
+  peut pas mordre — l'écran n'envoie que du `st()` déjà normalisé.
+- **Habillages 3a** : les sept archétypes portent `seal` ÉTEINT (copie
+  profonde par entrée). Un archétype qui l'allumerait changerait l'aspect
+  de tout deck déjà instancié — le défaut du modèle `deepotus-fragments`
+  (« 3D uniquement », décision 1) est une entrée de la phase 4, pas une
+  réécriture rétroactive des sept.
+- **Reste d'œil pour la T6** : le chatoiement et la lisibilité de la
+  bande à l'écran, et le MODE réel de la couche cadre (isolée/empreinte)
+  sur une vraie carte — voir l'amendement de la décision 2.
 
 ### Task 2 : le masque de foil (P7)
 
@@ -218,20 +291,78 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
 **Files:** forge3d_scene.py, forge3d.py (si route motifs), mod-forge3d.js
 (UI du nœud material), test_cards_forge3d.py.
 
-- [ ] RED : _holo_thickness_png(out_px, pile) — même pile = mêmes octets,
+- [x] RED : _holo_thickness_png(out_px, pile) — même pile = mêmes octets,
       piles ≠ = octets ≠, addition BORNÉE (canal G ≤ max), ordre
       d'addition = ordre des calques (permutation → octets ≠) ; le motif
       RELU dans le canal G du GLB livré (le sigle se voit dans les
       épaisseurs — corrélation mesurée avec l'image source, pas
       l'intention) ; cache re-clé sans fuite (2 cartes, 2 piles, pas de
       collision) ; holo_finish reste NON caché (pin).
-- [ ] UI : sur le nœud material à finition holo — « motifs dans
+- [x] UI : sur le nœud material à finition holo — « motifs dans
       l'hologramme » (1-4, source = image du deck OU matière), aperçu
-      3D à l'appui (le viewer existant) ; scope.mesh du seal actionne la
-      finition sur le matériau du cadre avec l'honnêteté « couche
-      entière » à l'écran.
-- [ ] Mutation : addition non bornée, hash de pile ignoré au cache,
+      3D à l'appui (le viewer existant) ; ~~scope.mesh du seal~~ →
+      REPORTÉ (le seal n'existe pas encore : T1 en cours en parallèle) ;
+      l'honnêteté de PORTÉE qui appartenait à cette tâche est livrée à sa
+      place — « le motif couvre TOUT l'élément et suit ses proportions,
+      on n'isole pas une bande ».
+- [x] Mutation : addition non bornée, hash de pile ignoré au cache,
       permutation silencieuse.
+
+**T3 LIVRÉE** (suite `cards_forge3d` 106 → 115, lint 0, `node --check`,
+`--geom` vert ; forge3d_scene.py 1668→1857, forge3d.py 2940→3158,
+mod-forge3d.js 5639→5820, mod-forge3d.css 371→389).
+
+- **Le mécanisme de l'addition bornée, NOMMÉ** : chaque calque ne dépose que
+  ce que l'épaisseur RESTANTE lui laisse — `min(luminance, 255 − g)` PUIS la
+  part (`gain`). C'est ce `min` AVANT le gain qui rend l'ordre load-bearing :
+  une somme finalement écrêtée est COMMUTATIVE (`min(255, g+a+b)` ne sait pas
+  qui est arrivé le premier), et « ordre des calques = ordre d'addition » n'y
+  voudrait rien dire. Le « screen » (part du reste, `a+b−ab`) est commutatif
+  lui aussi — vérifié à la main avant de choisir. Mesuré : A(lum 100, part
+  1,0) puis B(lum 200, part 0,5) sur fond nul = 178, l'ordre inverse = 200.
+- **Le cache quitte `lru_cache`**, et pour une raison mesurable : sa clé
+  RETIENT tous les arguments, donc les octets sources des calques (une image
+  de jeu pèse des dizaines de Mo) resteraient vivants pour la durée de
+  l'entrée. Cache explicite borné, clé `(out_px, ((sha256, gain), …))` — il ne
+  garde QUE des empreintes et la sortie. `cache_info()`/`cache_clear()`
+  gardent l'orthographe de functools. La boucle Python chère (l'arc-en-ciel)
+  est cachée À PART sur le seul `out_px` (`_holo_base_g`) : sans elle un cran
+  de curseur de part repayait 412 ms à 1024² ; avec elle, 36 ms.
+- **Barre de qualité TENUE** (spec :445-446) : sur le GLB LIVRÉ, corrélation
+  de Pearson **r = 0,606** entre le canal G et l'image source relue sur le
+  disque du jeu ; moyenne de G **255,0 dans le motif contre 127,5 dehors**
+  (Δ 127,6). Le motif est relu, pas déclaré.
+- **Route neuve `GET forge3d/motif-sources`** — décision : l'écran P9 ne peut
+  pas aller chercher les images de P3 (règle 8), donc le serveur AGRÈGE
+  (images de calque du jeu + matière de support + boutique) et rend le `src`
+  EXACT que `clean_graph` accepte. Un test épingle que tout `src` servi
+  traverse le nettoyage : une recette servie que le nettoyage jetterait serait
+  un piège. Les BORNES (`motif_max`, `motif_gain`) partent par `/info` avec
+  les autres, jamais recopiées à l'écran.
+- **Partage du refus** : hors vocabulaire = jeté EN SILENCE par `clean_graph`
+  (son contrat : réparer, pas raconter) ; bien formé mais absent du disque =
+  AVOUÉ nommément au bordereau `ignored` par la construction, qui seule sait.
+  Et des motifs posés sans finition holo sont avoués aussi — l'écran garde
+  alors le bloc VISIBLE (seule surface d'où les retirer) en le disant.
+- **`did` lié au point d'appel** : `_habille` gagne un `did` en dernier, lié
+  par `partial` dans `_element_local` — le sidecar forge3d_apercu.py garde son
+  contrat d'injection à cinq positions INTACT (fichier non touché).
+- **Mutants** : ordre ignoré (`pris = lum`) → 1 mort ; clé de cache sans la
+  pile → 2 morts ; aveu du motif mort supprimé → 1 mort ; plafond de 4 ignoré
+  → 1 mort ; addition vraiment non bornée (ni `min`, ni écrêtage) → 2 morts,
+  dont la corrélation du GLB livré qui tombe de 0,606 à **0,161**.
+  **UN MUTANT SURVIT, ET IL A RAISON** : `ImageChops.add` → `add_modulo` SEUL
+  ne change aucun octet — la borne est portée par le `min(lum, reste)`, pas
+  par l'écrêtage de l'addition. Écrit dans le code à l'endroit exact plutôt
+  que de fabriquer un test qui ferait semblant de le tuer.
+- **Trouvé en revue de couture, corrigé + testé** : un sigle DÉTOURÉ en mode
+  « P » (l'export « PNG-8 » ordinaire) n'a AUCUNE bande alpha — sa
+  transparence vit dans `info["transparency"]`. Un test sur `getbands()` seul
+  la manquait entièrement et le sigle revenait OPAQUE, épaississant toute la
+  carte. Garde + test dédié ; le mutant qui retire la garde palette est tué.
+- **Reste pour une tâche ultérieure** : la ligne d'honnêteté « le cadre entier
+  reçoit la finition » du `scope.mesh` du Sceau — elle exige `doc.frame.seal`
+  (T1, en cours en parallèle) ; les deux moitiés existeront alors.
 
 ### Task 4 : le verso custom
 

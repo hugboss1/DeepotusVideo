@@ -106,6 +106,13 @@ CORNERS = [
     {"id": "fleuron", "label": "Fleuron"},
     {"id": "spike", "label": "Pointe"},
 ]
+# LE SCEAU PRISMATIQUE (spec §6.2bis) — pas un archétype de mise en page : un
+# CONTOUR holographique combinable avec tout archétype. Deux recettes, les
+# mêmes que le matériau 3D de la phase 2b (argent / dorure).
+SEAL_KINDS = [
+    {"id": "argent", "label": "Argent holographique"},
+    {"id": "dorure", "label": "Dorure holographique"},
+]
 METALS = [
     {"id": "gold", "label": "Or"},
     {"id": "silver", "label": "Argent"},
@@ -136,6 +143,11 @@ LIMITS = {
     "plate_alpha": [0, 1],
     "grad_angle": [0, 360],
     "socle_alpha": [0, 1],
+    # La LARGEUR DE BANDE du filigrane du Sceau (§6.2bis-d). Le plancher n'est
+    # pas un chiffre rond : 0,2 mm est le trait minimal qu'un imprimeur foil
+    # accepte (§6.2bis-b, vérifié avant tout export). Le plafond est un choix ;
+    # la borne qui MORD vraiment est celle du format, plus bas.
+    "seal_width_mm": [0.2, 6],
 }
 
 # ── LA BORNE QUE LE FORMAT IMPOSE ────────────────────────────────────────────
@@ -160,6 +172,69 @@ def band_max_mm(tw: float, th: float) -> float:
 DEFAULTS = {
     "line_mm": 0.9, "gap_mm": 1.1, "edge_mm": 1.6, "inner_mm": 5.5,
 }
+
+# ── LE SCEAU : SCHÉMA ET BORNE, jumeau du bloc de mod-frame.js ───────────────
+# `doc.frame.seal` est le PREMIER sous-objet de `doc.frame` (les 28 autres clés
+# sont plates). Le backend ne le DESSINE pas — il n'en tient que la
+# normalisation et les millimètres, exactement comme pour la fenêtre : c'est de
+# ces nombres-là que dériveront le masque d'imprimeur (P7) et la texture 3D
+# (P9), jamais d'un PNG repassé de l'un à l'autre (« le piège des deux
+# cadres », spec §6.2bis).
+#
+# LA BORNE DU SCEAU. L'anneau épouse `m.outer` (la coupe rentrée de `edge_mm`)
+# et creuse vers l'intérieur sur `width_mm`. Deux choses le bornent, et aucune
+# n'est un millimètre absolu :
+#   1. LA FENÊTRE — au-delà, l'anneau n'est plus un contour, c'est une plaque
+#      posée sur l'illustration ;
+#   2. LE FORMAT — comme la bande, l'anneau s'INVERSE si sa largeur passe la
+#      demi-carte (le défaut mesuré sur `micro`, voir BAND_MIN_MM).
+# `SEAL_MIN_MM` est le trait minimal d'un imprimeur foil : plancher du curseur
+# ET ouverture minimale de l'anneau.
+SEAL_MIN_MM = 0.2
+
+SEAL_DEFAULTS = {
+    "on": False, "kind": "argent", "width_mm": 1.2,
+    "scope": {"screen": True, "print": False, "mesh": False},
+}
+
+
+def seal_max_mm(tw: float, th: float, edge_mm: float, win: dict) -> float:
+    e = float(edge_mm or 0)
+    W, H = float(tw or 0), float(th or 0)
+    w = win if isinstance(win, dict) else {"x": 0, "y": 0, "w": W, "h": H}
+    fen = min(w["x"], w["y"], W - (w["x"] + w["w"]), H - (w["y"] + w["h"])) - e
+    carte = (min(W, H) - 2 * e - SEAL_MIN_MM) / 2
+    v = min(fen, carte)
+    return rnd(v, 2) if v > 0 else 0.0
+
+
+def seal_of(raw) -> dict:
+    """Le Sceau, NORMALISÉ — miroir d'exécution de `sealOf()` de mod-frame.js.
+
+    Rend toujours un dictionnaire NEUF et complet : un corps absent repart des
+    défauts, un booléen qui n'en est pas retombe au défaut, une largeur hors
+    bornes lève `ValueError` (transformée en 400 nommant la borne). La borne de
+    FORMAT ne s'applique pas ici — elle demande une géométrie, et tombe au
+    calcul des métriques, comme `min(edge_mm, cap)`."""
+    s = raw if isinstance(raw, dict) else {}
+    sc = s.get("scope")
+    sc = sc if isinstance(sc, dict) else {}
+
+    def b(v, d):
+        return v if isinstance(v, bool) else d
+
+    kinds = [k["id"] for k in SEAL_KINDS]
+    kind = s.get("kind")
+    return {
+        "on": b(s.get("on"), SEAL_DEFAULTS["on"]),
+        "kind": kind if kind in kinds else SEAL_DEFAULTS["kind"],
+        "width_mm": _len(s.get("width_mm"), SEAL_DEFAULTS["width_mm"],
+                         LIMITS["seal_width_mm"][0], LIMITS["seal_width_mm"][1],
+                         "La largeur de bande du Sceau"),
+        "scope": {k: b(sc.get(k), v)
+                  for k, v in SEAL_DEFAULTS["scope"].items()},
+    }
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # LE MODÈLE D'OCCUPATION — les constantes du GABARIT DE MEUBLES
@@ -190,8 +265,11 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # L'HABILLAGE DES SEPT ARCHÉTYPES — phase 3a, tâche 2 (spec §6.2:318-363)
 #
 # CE QUE C'EST : pour chacun des sept archétypes, un réglage `doc.frame`
-# COMPLET — les 27 clés que l'on écrit, la vingt-huitième (`art_window`) étant
-# PUBLIÉE par le painter et jamais saisie. Rien d'autre : ni police, ni slot,
+# COMPLET — les 28 clés que l'on écrit, la vingt-neuvième (`art_window`) étant
+# PUBLIÉE par le painter et jamais saisie. (28 depuis la phase 3c-1 : `seal`,
+# le Sceau prismatique, qui reste ÉTEINT dans les sept habillages — un
+# archétype qui l'allumerait changerait l'aspect de tous les jeux déjà
+# instanciés.) Rien d'autre : ni police, ni slot,
 # ni palette de texte — ceux-là appartiennent à P3 et au modèle.
 #
 # QUI LE CONSOMME : la tâche 3 (`models.py`) l'IMPORTE. Un modèle qui
@@ -239,6 +317,12 @@ _HABILLAGE_COMMUN = {
 
 def _habillage(**kw) -> dict:
     out = dict(_HABILLAGE_COMMUN)
+    # LE SCEAU EST ÉTEINT DANS LES SEPT HABILLAGES, et ce n'est pas un oubli :
+    # un archétype qui l'allumerait changerait l'aspect de tout deck déjà
+    # instancié sur lui. En copie PROFONDE — `archetype_frame` en rend une de
+    # toute façon, mais la table elle-même ne doit pas partager un sous-objet
+    # entre ses sept entrées (la leçon de `window`, juste au-dessus).
+    out["seal"] = copy.deepcopy(SEAL_DEFAULTS)
     out.update(kw)
     return out
 
@@ -380,6 +464,11 @@ def catalog() -> dict:
         "band_min_mm": BAND_MIN_MM,
         "band_max_mm": {k: band_max_mm(v["trim_mm"][0], v["trim_mm"][1])
                         for k, v in FORMATS.items()},
+        # LE SCEAU : ses métaux, son plancher d'imprimeur et son schéma —
+        # joignables de l'extérieur, comme le reste du catalogue.
+        "seal_kinds": SEAL_KINDS,
+        "seal_min_mm": SEAL_MIN_MM,
+        "seal_defaults": copy.deepcopy(SEAL_DEFAULTS),
         "defaults": dict(DEFAULTS),
         "combos": len(FAMILIES) * len(RARITIES),
         "vector": True,
@@ -419,12 +508,19 @@ def _px(mm: float, dpi: int) -> float:
 
 
 def frame_metrics(g, line_mm: float, gap_mm: float, edge_mm: float,
-                  inner_mm: float, win: dict) -> dict:
+                  inner_mm: float, win: dict, seal: dict | None = None) -> dict:
     """Le miroir exact de `localMetrics()` de js/mod-frame.js.
 
     `win` est la fenêtre d'illustration en millimètres depuis le coin de
     COUPE (la même origine que les slots de texte de P3) ; elle sort en
     pixels depuis le coin de TOILE, fond perdu compris.
+
+    `seal` sort en DEUX tableaux plutôt qu'en sous-objet : la pastille de
+    vérification de l'écran compare `JSON.stringify` clé par clé, et deux
+    dictionnaires dont l'ordre d'insertion diffère se comparent faux sans
+    qu'un seul nombre ait bougé. Un tableau n'a qu'un ordre.
+      seal_mm : [largeur TRACÉE, borne du format]
+      seal_px : [largeur, x, y, w, h, r] — l'anneau EXTÉRIEUR, depuis la TOILE
     """
     dpi = g.dpi
     # Les pixels PUBLIÉS sont ceux du dessin : `model()` de mod-frame.js borne
@@ -432,6 +528,13 @@ def frame_metrics(g, line_mm: float, gap_mm: float, edge_mm: float,
     # sinon l'écran et le backend divergeraient sur le seul format concerné et
     # la pastille de vérification passerait au rouge sans qu'un pixel bouge.
     cap = band_max_mm(g.trim_mm[0], g.trim_mm[1])
+    e = min(edge_mm, cap)
+    s = seal if isinstance(seal, dict) else SEAL_DEFAULTS
+    smax = seal_max_mm(g.trim_mm[0], g.trim_mm[1], e, win)
+    swid = min(float(s.get("width_mm", SEAL_DEFAULTS["width_mm"])), smax)
+    # l'anneau EXTÉRIEUR, en pixels de toile : la même arithmétique que
+    # `m.outer` du painter (`bx + edge`, `tw - 2 * edge`, `max(0, R - edge)`).
+    epx = e / MM_PER_INCH * dpi
     return {
         "line_px": _px(line_mm, dpi),
         "gap_px": _px(gap_mm, dpi),
@@ -444,6 +547,15 @@ def frame_metrics(g, line_mm: float, gap_mm: float, edge_mm: float,
             _px(win["w"], dpi),
             _px(win["h"], dpi),
             _px(win["r"], dpi),
+        ],
+        "seal_mm": [rnd(swid, 2), smax],
+        "seal_px": [
+            _px(swid, dpi),
+            rnd(g.bleed_off_px[0] + epx, 2),
+            rnd(g.bleed_off_px[1] + epx, 2),
+            rnd(g.trim_px[0] - 2 * epx, 2),
+            rnd(g.trim_px[1] - 2 * epx, 2),
+            rnd(max(0.0, g.corner_px - epx), 2),
         ],
         "canvas_px": [g.canvas_px[0], g.canvas_px[1]],
     }
@@ -1237,6 +1349,7 @@ async def post_metrics(did: str, body: dict | None = None):
                      LIMITS["inner_mm"][0], LIMITS["inner_mm"][1],
                      "La marge intérieure")
         win = _win_of(b.get("window"), g)
+        seal = seal_of(b.get("seal"))
     except ValueError as e:
         raise HTTPException(400, str(e))
 
@@ -1247,7 +1360,7 @@ async def post_metrics(did: str, body: dict | None = None):
             400, "Famille de cadre inconnue: %r. Familles admises: %s"
             % (fam, ", ".join(f["id"] for f in FAMILIES)))
 
-    return {"metrics": frame_metrics(g, line, gap, edge, inner, win),
+    return {"metrics": frame_metrics(g, line, gap, edge, inner, win, seal),
             "geom": g.to_dict()}
 
 

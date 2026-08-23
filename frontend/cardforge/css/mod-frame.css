@@ -84,6 +84,14 @@
 .cf-frame .cff-txt { min-width: 110px; }
 .cf-frame .cff-seg { width: auto; }
 
+/* ── Sceau prismatique : la PORTEE est un jeu de trois, pas trois cases ────
+   Elles se lisent ensemble (ecran / impression / 3D) et l'une d'elles peut
+   etre la seule active — « 3D uniquement » est une configuration de premier
+   rang, spec §6.2bis-d. L'encadre les tient a vue comme un groupe. */
+.cf-frame .cff-scope { gap: 14px; padding: 6px 9px 2px; border-radius: 8px;
+  border: 1px solid var(--stroke); background: var(--bg-panel-3); }
+.cf-frame .cff-sealread b { color: var(--ink-strong); }
+
 /* ── fenetre d'illustration : plan cliquable + valeurs editables ─────────── */
 .cf-frame .cff-winwrap { display: flex; gap: 12px; align-items: flex-start; flex-wrap: wrap; }
 .cf-frame .cff-map { flex: none; border: 1px solid var(--stroke-strong); border-radius: 8px;
