@@ -691,19 +691,136 @@ sans aveu jusqu'ici — à reprendre avec l'anneau-contour EXTRUDÉ, en phase 4.
 
 ### Task 4 : le verso custom
 
-**Files:** mod-frame.js, frame.py, test_cards_frame.py.
+**Files:** mod-frame.js, mod-frame.css, frame.py, test_cards_frame.py,
+models.py + test_cards_models.py (admission à l'allow-list + purge).
 
-- [ ] RED : BACKS+custom parité ; route /frame/image durcie (LE MÊME
+- [x] RED : BACKS+custom parité ; route /frame/image durcie (LE MÊME
       quintette de tests que T2-3b : réservation concurrente, bombe,
       whitelist-avant-disque, compteur troué, cap 8) ; paintBack custom :
       image + ≤6 calques, multiply PRÉCOMPOSÉ (la preuve d'empilement
       verte sur un verso custom à multiply — LE test), opacité/échelle ;
       l'aperçu par #sideBtn ; « enregistrer comme modèle » : back admis,
       src purgés avec note (test des octets du modèle).
-- [ ] Panneau : dos « custom » → import + liste de calques (patron liste
+- [x] Panneau : dos « custom » → import + liste de calques (patron liste
       P3 : ordre/opacité/suppression).
-- [ ] Mutation : blend vivant (preuve rougit), src non purgé au modèle,
+- [x] Mutation : blend vivant (preuve rougit), src non purgé au modèle,
       cap dépassé.
+
+**T4 LIVRÉE — `cards_frame` 188 → 215, `cards_models` 155 → 160, lint 9/9
+0 violation, `node --check` vert, les 11 suites `cards` vertes.**
+
+- **Schéma** : `BACKS += custom` (8e entrée, EN DERNIER — les sept motifs
+  gardent leur rang, donc `card.back` et les sept habillages aussi) ;
+  `doc.frame.back_image` (30e clé) et `back_layers` (31e, LA PREMIÈRE PILE
+  ORDONNÉE de P2) ; `LIMITS.back_opacity [0,1]` / `back_scale [0.25,4]` ;
+  `BACK_BLENDS` (normal, multiply), `BACK_LAYERS_MAX 6`, `BACK_IMAGES_MAX 8`.
+  L'échelle part de 0,25 et non de 0 : un calque à l'échelle nulle n'est pas
+  un réglage, c'est un calque qu'on aurait dû éteindre.
+- **PARITÉ D'EXÉCUTION, et la divergence de la T1 NON rejouée** : `seal_of`
+  REFUSE hors bornes parce que `/metrics` reçoit un sceau dans un corps de
+  requête ; AUCUNE route ne reçoit `back_image`/`back_layers`, le miroir n'a
+  donc rien à refuser — il NORMALISE, comme `st()`. La parité se mesure sur
+  les valeurs, hors bornes comprises (7 corps hostiles, deux côtés). Piège
+  attrapé au passage : le générique `num()` prend `Number(null) === 0` là où
+  `float(None)` LÈVE — d'où `bnum()`, qui n'accepte qu'un nombre ou une
+  chaîne numérique (la leçon `width_mm: null` de la T1, rejouée avant qu'elle
+  ne morde).
+- **LE MULTIPLY EST CUIT DANS LES PIXELS**, sur une toile de cuisson à part
+  (réutilisée d'un calque à l'autre — lui ré-affecter sa largeur l'efface —
+  et relâchée à la fin, patron `release()` de core.js), formule du canvas
+  `Cs·(1−αf) + (Cs×Cf)·αf`. Sans le terme de gauche, multiplier par un fond
+  ABSENT donne du NOIR : le rendu par couches de P9 peint sur toile
+  transparente à chaque appel, et le verso en sortirait noir (mutant tué).
+- **CE QUE LA PRÉCOMPOSITION N'ACHÈTE PAS, MESURÉ ET ÉCRIT.** Il serait
+  commode d'écrire « sans elle, la preuve d'empilement tombe ». C'est FAUX :
+  un `globalCompositeOperation = "multiply"` vif rend **exactement les mêmes
+  octets**, sur fond opaque comme sur fond transparent (empreintes égales au
+  banc RGBA), donc le même verdict §4.2. Ce qu'elle achète est la SUITE
+  D'OPÉRATIONS — la couche du cadre ne demande jamais autre chose que
+  `source-over` — et c'est cela que le banc de §4.2 sait vérifier (il REFUSE
+  un mode qu'il ne modélise pas). Un test épingle l'égalité des pixels pour
+  que la phrase ne pourrisse pas : le jour où elles divergeraient, il rougit
+  et la phrase se réécrit dans le bon sens. *(Même famille que T3-F1 : la
+  prose remise à la mesure, zéro octet livré ne change.)*
+- **BANC_EMPILEMENT étendu, et il conduit le VRAI peintre** : `save/restore`,
+  `globalAlpha` et `drawImage(img, dx, dy, dw, dh)` ajoutés au contexte
+  minimal, la tranche de mod-frame.js chargée en 4e argument, `face: "back"`.
+  Sur un verso custom à multiply la couche « cadre » reste **isolée** (là où
+  le Sceau la faisait basculer en empreinte) et **porte les pixels de
+  l'image** : le pixel central de la couche livrée vaut l'image MULTIPLIÉE
+  PAR ELLE-MÊME (le calque est posé sur l'image de fond), ce qui prouve d'un
+  coup que l'export par couches livre le verso (§6.2ter, conséquences).
+- **CADRAGE « COVER » DEPUIS LE BORD DE TOILE**, pas depuis la coupe : une
+  image calée sur la seule rogne laisserait la matière de bande dans les 3 mm
+  de fond perdu, et un massicot décalé d'un millimètre poserait ce liseré sur
+  l'arête de la carte livrée. Mutant « cover sur la coupe » tué sur les
+  pixels des quatre coins de toile.
+- **Le verso personnalisé remplace le MOTIF, pas le CADRE** : filets,
+  ornements de coin et nom du jeu restent (ce dernier a son interrupteur) ; il
+  est peint AVANT `matter()` — le carton est le même des deux côtés de la
+  carte ; le MÉDAILLON central, lui, est un meuble du catalogue et ne vient
+  pas s'écraser au milieu de l'image de l'utilisateur.
+- **Route jumelle, jamais un appel** (règle 8) : `POST/GET frame/image` →
+  `decks/{did}/frame/img_{n}.png`, avec le quintette 3b (réservation
+  `O_CREAT|O_EXCL` + temporaire à jeton, bombe de pixels lue à l'EN-TÊTE,
+  liste blanche `fullmatch` DANS la fonction qui compose le chemin, compteur
+  MAX+1, plafond 8 recompté après réservation). **Pas de route de
+  suppression** : une image encore référencée effacée d'un clic ferait un
+  damier sans rien pour le défaire — le ramassage des orphelines reste la
+  dette consignée.
+- **PURGE AU MODÈLE, décision 5 tranchée et justifiée** : `back`,
+  `back_image` et `back_layers` sont ADMIS à l'allow-list (ils y arrivent
+  TOUT SEULS — elle dérive des habillages d'archétype, où les deux clés
+  naissent vides) ; `back: "custom"` VOYAGE (le jeu instancié dit « ce dos est
+  une image à toi » au lieu de retomber en silence sur un motif) ; les `src`
+  sont VIDÉS et **les calques LÂCHÉS ENTIERS**. Raison mesurée : un calque n'a
+  rien d'autre que son fichier — opacité, échelle et fusion décrivent COMMENT
+  montrer une image absente. Les garder rendrait le modèle avec jusqu'à six
+  rangées mortes à supprimer une par une. C'est l'inverse exact du choix fait
+  pour les TEXTES des slots (doctrine 3 de models.py) et **pour la même
+  raison** : là, purger casse la mise en page ; ici, garder la peuple de
+  fantômes. La note part dans le `hint` — l'endroit où l'on choisit un modèle
+  dans la galerie — et SEULEMENT si quelque chose a été perdu (invariant 2c).
+  Le même filtre joue aux DEUX passages (écriture depuis un jeu, lecture d'un
+  fichier déposé à la main).
+- **DEUX SEUILS DE LA PIÈCE AMENDÉS À LA SOURCE, portée RESSERRÉE plutôt
+  qu'ouverte.** `test_le_module_ne_charge_aucune_image` interdisait `new
+  Image` / `createImageBitmap` dans tout le fichier — ce qui interdit
+  §6.2ter. Ce que le seuil protège n'est pas « aucun décodeur d'image », c'est
+  « LE CADRE n'a pas de résolution » : deux chargeurs sont désormais admis,
+  NOMMÉMENT et à **un seul endroit chacun** (assertion de comptage), tandis
+  que `data:image/`, `<img>`, `createElement('img')` et `createPattern` — une
+  texture de cadre déguisée — restent interdits PARTOUT, et le dépôt ne livre
+  toujours aucun bitmap. Même resserrage pour le panneau de preuve.
+- **UN MUTANT SURVIT, ET IL A RAISON** : retirer la garde d'ENTRÉE du plafond
+  (`if n >= BACK_IMAGES_MAX`) ne fait rougir aucun test — le recompte d'APRÈS
+  la réservation tient encore la ligne. Elle n'est donc pas la défense, elle
+  est la politesse (refuser avant de décoder 64 Mo pour rien) : écrit dans le
+  code à l'endroit exact plutôt que d'inventer un test qui ferait semblant de
+  le tuer. Le mutant qui relève la CONSTANTE, lui, meurt.
+- **Mutants : 14 tués / 15** (blend vif · ordre trié · fond qui ne pèse plus ·
+  cover sur la coupe · alias du schéma · damier retiré · O_EXCL retiré ·
+  plafond relevé · compteur qui reprend les trous · `fullmatch` → `match` ·
+  bombe non lue à l'en-tête · liste blanche du lecteur retirée · purge
+  abandonnée · note supprimée).
+- **Cache d'images : clé = le seul NOM DE FICHIER, et le fait dont ça dépend
+  est ÉPINGLÉ AILLEURS.** `img_1.png` existe dans tous les jeux ; ce qui
+  empêche le mélange n'est pas dans P2, c'est `galGo()` du CORE, qui RECHARGE
+  la page (`location.assign`, repli `location.reload`). Un test lit le corps
+  de `galGo` : le jour où le CORE échangerait le document en place, il rougit,
+  et c'est là qu'une clé de jeu s'ajoute.
+- **Net déclaré, AU-DESSUS DE LA CIBLE et dit** : mod-frame.js **+612/−21 =
+  +591** (5450 → 6041), pour une cible « viser court ». Mesuré après une passe
+  de rasage : 175 lignes de commentaire, 422 de code, 19 vides. La tâche pose
+  TROIS choses d'un coup — un schéma à deux normaliseurs, un peintre avec son
+  cache d'images et sa cuisson, et une liste d'interface complète avec import
+  (dépôt / collage / fichier) — là où la T1 n'en posait qu'une (+422 pour une
+  cible ≤ 350). mod-frame.css 199 → 225. Un délestage futur prendrait la
+  liste de calques ; il n'y a pas de sidecar JS possible (règle 1).
+- **Reste d'œil pour la T6** : un vrai import au navigateur (dépôt, collage,
+  fichier) ; la lisibilité de la liste de calques sur un panneau étroit ; et
+  le coût réel de la cuisson à 600/1200 DPI (une relecture de toile pleine par
+  calque à multiply, bornée à six — mesurée nulle part ailleurs qu'à l'œil).
 
 ### Task 5 : l'IA cadres
 

@@ -22,11 +22,14 @@ Run : <embedded python> backend/tests/test_cards_frame.py
 """
 import asyncio
 import json
+import math
 import os
 import pathlib
 import re
+import struct
 import sys
 import tempfile
+import zlib
 from fractions import Fraction
 
 _tmp = tempfile.mkdtemp()
@@ -160,14 +163,43 @@ def test_aucun_cadre_en_bitmap_livre():
     assert not trouves, f"bitmaps de cadre livrés : {trouves}"
 
 
+def _hors_verso(src: str) -> str:
+    """Le source, PRIVÉ des deux fonctions qui manipulent l'image que
+    l'UTILISATEUR importe pour son verso (3c-T4). Voir le test ci-dessous."""
+    for nom in ("loadBackImg", "importBackImage", "downscaleBack"):
+        corps = _js_fn(src, nom)
+        src = src.replace(corps, f"/* {nom} : hors périmètre */")
+    return src
+
+
 def test_le_module_ne_charge_aucune_image():
     """Un cadre qui vient d'un fichier image a une résolution ; un cadre
     tracé n'en a pas. On refuse donc TOUT chargement d'image dans le module,
-    pas seulement les PNG posés dans le dépôt."""
+    pas seulement les PNG posés dans le dépôt.
+
+    AMENDÉ EN 3c-T4, ET LA PORTÉE EST RESSERRÉE PLUTÔT QU'OUVERTE. §6.2ter
+    donne au dos une IMAGE IMPORTÉE PAR L'UTILISATEUR : la charger est le
+    fait même de la fonction, et l'interdire interdirait la fonctionnalité.
+    Ce que le seuil de la spec protège n'est pas « aucun décodeur d'image
+    dans le fichier », c'est « LE CADRE n'a pas de résolution » — aucun
+    bitmap LIVRÉ, aucune texture de cadre, aucune image dans le DESSIN. Le
+    verso personnalisé n'est pas un cadre : c'est le contenu de
+    l'utilisateur, comme l'illustration l'est pour P1.
+
+    Deux chargeurs sont donc admis, NOMMÉMENT et à un seul endroit chacun ;
+    tout le reste — les URI de données, `<img>`, `createPattern` (une texture
+    de cadre déguisée) — reste interdit PARTOUT, et la feuille de style ne
+    référence toujours aucune ressource externe."""
     src, css = _js(), CSS.read_text(encoding="utf-8")
+    ailleurs = _hors_verso(src)
+    for rx, quoi in ((r"new\s+Image\s*\(", "new Image()"),
+                     (r"createImageBitmap\s*\(", "createImageBitmap()")):
+        assert not re.search(rx, ailleurs), \
+            f"mod-frame.js charge une image HORS du verso personnalisé : {quoi}"
+        assert len(re.findall(rx, src)) == 1, \
+            f"{quoi} apparaît {len(re.findall(rx, src))} fois : un seul " \
+            f"chargeur, à un seul endroit"
     interdits = [
-        (r"new\s+Image\s*\(", "new Image()"),
-        (r"createImageBitmap\s*\(", "createImageBitmap()"),
         (r"createElement\(\s*[\"']img[\"']", "createElement('img')"),
         (r"<img\b", "<img>"),
         (r"data:image/", "data: URI d'image"),
@@ -177,6 +209,12 @@ def test_le_module_ne_charge_aucune_image():
         assert not re.search(rx, src), f"mod-frame.js charge une image : {quoi}"
     assert not re.search(r"url\s*\(", css), \
         "mod-frame.css référence une ressource externe (url(...))"
+    # ... ET AUCUN BITMAP N'EST LIVRÉ AVEC LA PIÈCE : le seuil de la spec
+    # (« zéro PNG de cadre ») porte sur le DÉPÔT, et il tient tel quel — le
+    # verso personnalisé lit un fichier du JEU, jamais un asset de la pièce.
+    for p in (JS.parent.parent).rglob("*"):
+        assert not (p.is_file() and p.suffix.lower() in RASTER_EXT
+                    and "mod-frame" in p.name), p
     # ...et il trace VRAIMENT : des primitives vectorielles, en nombre.
     ops = sum(len(re.findall(rx, src)) for rx in
               (r"\bbezierCurveTo\b", r"\barcTo\b", r"\barc\b", r"\bmoveTo\b",
@@ -1065,7 +1103,11 @@ def test_l_ecran_confronte_ses_chiffres_aux_octets():
     # (Le test « le module ne charge aucune image » le vérifie déjà sur des
     # APPELS ; ici on vérifie qu'aucun n'est APPELÉ dans ce panneau — les
     # commentaires qui les citent ne comptent pas.)
-    sans_com = re.sub(r"/\*.*?\*/", "", src, flags=re.S)
+    # (3c-T4 : les deux chargeurs du verso personnalisé sont retirés du
+    # périmètre — ils importent le fichier de l'UTILISATEUR, ils ne relisent
+    # pas le fichier livré. Le test voisin les épingle à un seul endroit
+    # chacun ; ici on vérifie que la RELECTURE reste une lecture d'octets.)
+    sans_com = re.sub(r"/\*.*?\*/", "", _hors_verso(src), flags=re.S)
     for interdit in ("new Image", "createImageBitmap", "data:image/"):
         assert interdit not in sans_com, f"le panneau utilise {interdit}"
     # ET IL MESURE LE FILET SANS FOND DE RÉFÉRENCE. Ce test verrouillait
@@ -2823,11 +2865,12 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
     et VERROUILLÉ au compte réel — pas au compte recopié.
 
     29 depuis la phase 3c-1 : `seal`, le PREMIER sous-objet de `doc.frame`
-    (le Sceau prismatique, spec §6.2bis)."""
+    (le Sceau prismatique, spec §6.2bis). 31 depuis la 3c-4 : `back_image` et
+    `back_layers`, le verso personnalisé (spec §6.2ter)."""
     src = _js()
     cles = _js_defaults_keys(src)
     assert len(cles) == len(set(cles)), f"clé en double dans DEFAULTS : {cles}"
-    assert len(cles) == 29, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -4117,11 +4160,11 @@ def test_le_compte_de_cles_du_document_suit_le_sceau():
     nombre."""
     cles = _js_defaults_keys(_js())
     assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
-    assert len(cles) == 29, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
     py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
-    assert "28 clés que l'on écrit" in py, \
-        "le commentaire de l'habillage ne suit pas la clé neuve (27 -> 28 " \
-        "écrites, la 29e étant `art_window`, publiée par le painter)"
+    assert "30 clés que l'on écrit" in py, \
+        "le commentaire de l'habillage ne suit pas les clés neuves (30 " \
+        "écrites, la 31e étant `art_window`, publiée par le painter)"
 
 
 # ── 16.2 le PEINTRE : des pixels, pas des intentions ─────────────────────────
@@ -4575,7 +4618,19 @@ const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
 const W = 24, H = 24;
 
 function Ctx(cv) { this.cv = cv; this.fillStyle = "#000000";
+  this.globalAlpha = 1; this.stk = [];
   this.globalCompositeOperation = "source-over"; }
+/* save/restore et globalAlpha : le peintre du verso (3c-T4) les emploie, et
+   un banc qui les ignorerait rendrait un verdict sur un autre dessin. */
+Ctx.prototype.save = function () {
+  this.stk.push([this.fillStyle, this.globalAlpha,
+    this.globalCompositeOperation]);
+};
+Ctx.prototype.restore = function () {
+  const s = this.stk.pop();
+  if (s) { this.fillStyle = s[0]; this.globalAlpha = s[1];
+    this.globalCompositeOperation = s[2]; }
+};
 function couleur(s) {
   let m = /^#([0-9a-f]{6})$/i.exec(s);
   if (m) { const n = parseInt(m[1], 16);
@@ -4591,7 +4646,8 @@ function couleur(s) {
    source-over et rendrait un verdict « isolée » qui ne vaut rien. Un banc qui
    ment plus tard est le trou qu'on a déjà payé trois fois : il REFUSE. */
 const OPS_CONNUS = ["source-over", "overlay"];
-function melange(d, o, src, op) {
+function melange(d, o, src, op, ga) {
+  if (ga !== undefined && ga !== 1) src = [src[0], src[1], src[2], src[3] * ga];
   if (OPS_CONNUS.indexOf(op) < 0) {
     throw new Error("banc d'empilement : mode de fusion inconnu \"" + op
       + "\" — le mélangeur ne sait composer que " + OPS_CONNUS.join(", ")
@@ -4622,16 +4678,38 @@ Ctx.prototype.fillRect = function (x, y, w, h) {
   const src = couleur(this.fillStyle), d = this.cv.d;
   for (let j = Math.max(0, y | 0); j < Math.min(this.cv.height, (y + h) | 0); j++)
     for (let i = Math.max(0, x | 0); i < Math.min(this.cv.width, (x + w) | 0); i++)
-      melange(d, (j * this.cv.width + i) * 4, src, this.globalCompositeOperation);
+      melange(d, (j * this.cv.width + i) * 4, src,
+        this.globalCompositeOperation, this.globalAlpha);
 };
 Ctx.prototype.getImageData = function (x, y, w, h) {
   return { width: w, height: h, data: this.cv.d.slice() };
 };
 Ctx.prototype.putImageData = function (img) { this.cv.d.set(img.data); };
-Ctx.prototype.drawImage = function (src) {
+Ctx.prototype.drawImage = function (src, dx, dy, dw, dh) {
   const d = this.cv.d, s = src.d;
-  for (let o = 0; o < d.length; o += 4)
-    melange(d, o, [s[o], s[o + 1], s[o + 2], s[o + 3]], "source-over");
+  /* la forme A DEUX ARGUMENTS (celle de `stackOnto` de core.js) : plein
+     cadre, source-over pur. La forme a CINQ (le peintre du verso) place et
+     redimensionne — echantillonnage au plus proche, le banc juge des aplats. */
+  if (dw === undefined) {
+    for (let o = 0; o < d.length; o += 4)
+      melange(d, o, [s[o], s[o + 1], s[o + 2], s[o + 3]],
+        this.globalCompositeOperation, this.globalAlpha);
+    return;
+  }
+  const W = this.cv.width, H = this.cv.height;
+  const x0 = Math.max(0, Math.floor(dx)), x1 = Math.min(W, Math.ceil(dx + dw));
+  const y0 = Math.max(0, Math.floor(dy)), y1 = Math.min(H, Math.ceil(dy + dh));
+  for (let j = y0; j < y1; j++) {
+    let sy = Math.floor((j + 0.5 - dy) / dh * src.height);
+    sy = Math.min(src.height - 1, Math.max(0, sy));
+    for (let i = x0; i < x1; i++) {
+      let sx = Math.floor((i + 0.5 - dx) / dw * src.width);
+      sx = Math.min(src.width - 1, Math.max(0, sx));
+      const o = (sy * src.width + sx) * 4;
+      melange(d, (j * W + i) * 4, [s[o], s[o + 1], s[o + 2], s[o + 3]],
+        this.globalCompositeOperation, this.globalAlpha);
+    }
+  }
 };
 function mkCanvas(w, h) {
   const cv = { _w: 0, _h: 0, d: new Uint8ClampedArray(0) };
@@ -4645,12 +4723,45 @@ function mkCanvas(w, h) {
   return cv;
 }
 const document = { createElement: () => mkCanvas(0, 0) };
+/* le peintre du verso (3c-T4) fabrique sa toile de cuisson par
+   `document.createElement` : le banc l'expose donc au global, comme un
+   navigateur le fait. */
+globalThis.document = document;
 const PAPER = "#ffffff";
 let RENDER_CHAIN = Promise.resolve();
+/* LE PEINTRE DU VERSO PERSONNALISE, CHARGE TEL QUEL quand un cas le demande
+   (argv[4] = la tranche de mod-frame.js). Un stub qui imiterait ce qu'on
+   espere ne prouverait que le stub. */
+const VERSO = (process.argv[4] && CAS.verso)
+  ? new Function("return (function(){ "
+    + readFileSync(process.argv[4], "utf8")
+    + "\nreturn { paintBackCustom: paintBackCustom };\n})();")()
+  : null;
+const VIMG = (CAS.verso && CAS.verso.img) ? (function (s) {
+  const im = { width: s.w, height: s.h,
+    d: new Uint8ClampedArray(s.w * s.h * 4) };
+  for (let o = 0; o < im.d.length; o += 4) {
+    im.d[o] = s.rgba[0]; im.d[o + 1] = s.rgba[1];
+    im.d[o + 2] = s.rgba[2]; im.d[o + 3] = s.rgba[3];
+  }
+  return im;
+})(CAS.verso.img) : null;
 const PEINTRES = [
   { z: 20, fn: (c) => { c.globalCompositeOperation = "source-over";
     c.fillStyle = "#204080"; c.fillRect(2, 2, 20, 20); } },
   { z: 40, fn: (c) => {
+    if (VERSO) {
+      /* `paintBack` remplit la toile de la matiere de bande AVANT d'appeler
+         le verso personnalise : le banc pose la meme base opaque. */
+      c.globalCompositeOperation = "source-over";
+      c.fillStyle = CAS.verso.base; c.fillRect(0, 0, W, H);
+      VERSO.paintBackCustom(c, { W: W, H: H, u: 1,
+        trim: { x: 2, y: 2, w: W - 4, h: H - 4 } }, CAS.verso.f,
+        (file) => (VIMG && file === "img_1.png")
+          ? { img: VIMG, ok: true, file: file }
+          : { img: null, ok: false, file: file });
+      return;
+    }
     /* la BASE du Sceau, opaque, sur sa bande */
     c.globalCompositeOperation = "source-over";
     c.fillStyle = "#c08040"; c.fillRect(4, 4, 16, 6);
@@ -4676,12 +4787,19 @@ const hasDOM = true;
 const layers = new Function("document", "PAPER", "renderRaw", "RENDER_CHAIN",
   "hasDOM", "return (function(){ " + CODE + "\nreturn layers; })();")(
   document, PAPER, renderRaw, RENDER_CHAIN, hasDOM);
-layers(0, { face: "front", groups: [
+layers(0, { face: CAS.face === "back" ? "back" : "front", groups: [
   { role: "illustration", z: [20] }, { role: "cadre", z: [40] }] })
   .then((L) => {
+    /* le pixel CENTRAL de la couche « cadre » LIVREE : une couche declaree
+       exacte mais vide serait un export qui ment (§6.2ter, « l'export par
+       couches livre le verso »). */
+    const cadre = L.layers.filter((l) => l.role === "cadre")[0];
+    const o = (((H >> 1) * W) + (W >> 1)) * 4;
+    const d = cadre ? cadre.canvas.d : null;
     process.stdout.write(JSON.stringify({
-      stack_ok: L.stack_ok,
+      stack_ok: L.stack_ok, face: L.face,
       modes: L.layers.map((l) => [l.role, l.mode]),
+      couche_cadre: d ? [d[o], d[o + 1], d[o + 2], d[o + 3]] : null,
     }));
   }, (e) => { process.stderr.write(String(e && e.stack || e)); process.exit(1); });
 """
@@ -4761,3 +4879,1180 @@ def test_une_couche_non_empilable_bascule_en_empreinte_et_la_preuve_tient(
         "en source-over la couche reste « empreinte » — le banc ne " \
         "discrimine rien"
     assert temoin["stack_ok"] is True
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 17. LE VERSO PERSONNALISÉ — phase 3c, tâche 4 (spec §6.2ter :448-464)
+#
+# Le dos sort du seul catalogue : `back: "custom"` = UNE IMAGE IMPORTÉE, plus
+# une PILE ORDONNÉE de calques (≤ 6), chacun avec opacité, échelle et mode de
+# fusion. C'est la PREMIÈRE pile ordonnée de P2 (tout le reste y est booléen ou
+# énuméré), et elle arrive avec trois contraintes qui ne se négocient pas :
+#
+#   · les modes de fusion autorisés restent ceux qui EMPILENT (§4.2) — le
+#     `multiply` est CUIT dans les pixels du calque, jamais demandé au
+#     compositeur ; la couche « cadre » du rendu par couches reste isolée ;
+#   · la route d'images de P2 est SA PROPRE route (règle 8 : jamais celle de
+#     la voisine), avec LE MÊME durcissement que celle de P3 (réservation
+#     exclusive, bombe de pixels à l'en-tête, liste blanche avant le disque,
+#     compteur MAX+1, plafond) ;
+#   · « enregistrer comme modèle » emporte les RÉGLAGES, jamais les octets :
+#     les `src` deck-locaux sont purgés, et le modèle le DIT.
+# ═════════════════════════════════════════════════════════════════════════════
+
+BACK_LAYERS_MAX_SPEC = 6        # plan 3c décision 5 : « ×≤6 »
+BACK_IMAGES_MAX_SPEC = 8        # plan 3c décision 5 : « cap 8 »
+BACK_OPACITY_SPEC = (0.0, 1.0)
+BACK_SCALE_SPEC = (0.25, 4.0)
+BACK_BLENDS_SPEC = ("normal", "multiply")
+
+
+def _bloc_const(nom: str, src: str | None = None):
+    """La valeur littérale d'une constante du bloc catalogue."""
+    block = _catalog_block(src if src is not None else _js())
+    m = re.search(r"const\s+" + nom + r"\s*=\s*([^;]+);", block, re.S)
+    assert m, f"constante {nom} absente du bloc catalogue de mod-frame.js"
+    return m.group(1).strip()
+
+
+# ── 17.1 le VOCABULAIRE, des deux côtés ──────────────────────────────────────
+
+def test_le_dos_personnalise_est_au_catalogue_des_deux_cotes():
+    """`BACKS += custom` — parité stricte (le test générique compare déjà les
+    deux listes ; celui-ci NOMME l'entrée et son rang). Un dos que l'écran
+    propose et que le backend ne connaît pas, c'est un menu qui ment."""
+    js = dict(_js_list(_catalog_block(_js()), "BACKS"))
+    py = dict(_py_list(FR.BACKS))
+    assert js == py, (js, py)
+    assert "custom" in py, f"le dos personnalisé manque : {sorted(py)}"
+    assert py["custom"] == "Personnalisé", py["custom"]
+    # il arrive EN DERNIER : les sept dos du catalogue gardent leur rang, donc
+    # `card.back` et les habillages déjà écrits gardent le leur.
+    assert [b["id"] for b in FR.BACKS][-1] == "custom", \
+        "le dos personnalisé s'est inséré au milieu du catalogue"
+    assert len(FR.BACKS) == 8, len(FR.BACKS)
+
+
+def test_le_schema_du_verso_custom_est_le_meme_des_deux_cotes():
+    """Deux clés neuves dans `doc.frame` (`back_image`, `back_layers`), leurs
+    bornes dans LIMITS, le plafond de la pile, le vocabulaire de fusion et les
+    défauts d'un calque : tout cela vit dans le bloc catalogue partagé et
+    `cards/frame.py` en porte le jumeau."""
+    src = _js()
+    cles = _js_defaults_keys(src)
+    assert "back_image" in cles and "back_layers" in cles, cles
+    assert len(cles) == 31, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # les bornes, des deux côtés et au chiffre de la spec
+    for k, attendu in (("back_opacity", BACK_OPACITY_SPEC),
+                       ("back_scale", BACK_SCALE_SPEC)):
+        assert k in FR.LIMITS, f"{k} absent de LIMITS (backend)"
+        assert tuple(FR.LIMITS[k]) == attendu, FR.LIMITS[k]
+        m = re.search(k + r":\s*\[([^\]]+)\]", _catalog_block(src))
+        assert m, f"{k} absent de LIMITS (écran)"
+        assert tuple(float(v) for v in m.group(1).split(",")) == attendu, \
+            m.group(1)
+    # le plafond de la pile et celui du dossier d'images
+    assert FR.BACK_LAYERS_MAX == BACK_LAYERS_MAX_SPEC
+    assert FR.BACK_IMAGES_MAX == BACK_IMAGES_MAX_SPEC
+    assert _bloc_const("BACK_LAYERS_MAX") == str(BACK_LAYERS_MAX_SPEC)
+    assert _bloc_const("BACK_IMAGES_MAX") == str(BACK_IMAGES_MAX_SPEC)
+    # les modes de fusion : ceux qui EMPILENT, et rien d'autre
+    js_bl = dict(_js_list(_catalog_block(src), "BACK_BLENDS"))
+    py_bl = dict(_py_list(FR.BACK_BLENDS))
+    assert js_bl == py_bl, (js_bl, py_bl)
+    assert tuple(b["id"] for b in FR.BACK_BLENDS) == BACK_BLENDS_SPEC, py_bl
+    # les défauts d'un calque
+    assert FR.BACK_LAYER_DEFAULTS == {"src": "", "opacity": 1.0, "scale": 1.0,
+                                      "blend": "normal"}, FR.BACK_LAYER_DEFAULTS
+    assert FR.DEFAULTS_BACK == {"back_image": "", "back_layers": []}, \
+        FR.DEFAULTS_BACK
+
+
+def test_le_motif_des_sources_de_verso_est_ANCRE_des_deux_cotes():
+    r"""`img:img_N.png` et RIEN d'autre. Le piège du `$` avec `match` a déjà
+    été payé trois fois dans ce dépôt (3b-T2, 3c-T3) : côté Python c'est
+    `fullmatch`, côté JS le motif porte `^…$` et une chaîne à saut de ligne
+    doit être refusée des deux côtés."""
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    assert "BACK_SRC_RE.fullmatch" in py, \
+        "le motif des sources de verso est appliqué avec `match` (le `$` " \
+        "accepte un saut de ligne final)"
+    assert "BACK_IMG_NAME_RE.fullmatch" in py, \
+        "le motif des noms de fichier est appliqué avec `match`"
+    for bon in ("", "img:img_1.png", "img:img_42.png"):
+        assert FR.back_image_of(bon) == bon, bon
+    for mauvais in ("img:img_1.png\n", "img:../meta.json", "img:img_1.PNG",
+                    "img_1.png", "img:", "img:img_.png", None, 42, {}):
+        assert FR.back_image_of(mauvais) == "", repr(mauvais)
+
+
+# ── 17.2 la PARITÉ D'EXÉCUTION : deux normaliseurs, un seul résultat ─────────
+#
+# `seal` a une divergence VOULUE (l'écran clampe, la route refuse) parce que
+# `/metrics` REÇOIT un sceau dans un corps de requête. AUCUNE route ne reçoit
+# `back_image` / `back_layers` : le miroir n'a donc rien à refuser, il
+# NORMALISE — et la parité se mesure sur les valeurs, y compris hors bornes.
+
+BANC_VERSO_ST = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { st: st, DEFAULTS: DEFAULTS,"
+  + " backImageOf: backImageOf, backLayersOf: backLayersOf };\n})();")();
+const out = [];
+for (const c of CAS.cas) {
+  try {
+    const f = mod.st({ frame: c.frame });
+    out.push({ nom: c.nom, ok: true, back: f.back,
+      back_image: f.back_image, back_layers: f.back_layers,
+      /* L'ALIAS : le tableau rendu est-il CELUI du schema ? `DEFAULTS` est
+         l'objet meme que `CF.register` remet au registre du CORE — un alias
+         rendu ici ferait d'un reglage de carte une ecriture dans le schema
+         partage (la lecon du sous-objet `seal`, T1). */
+      alias: f.back_layers === mod.DEFAULTS.back_layers });
+  } catch (e) { out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) }); }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _verso_js_source() -> str:
+    """La tranche du peintre ÉTENDUE JUSQU'À `paintBack` : c'est là que vit le
+    verso personnalisé. Extraite TELLE QUELLE — une réimplémentation
+    prouverait la réimplémentation."""
+    src = _js()
+    i = src.index("  const FAMILIES = [")
+    fin = _js_fn(src, "paintBack")
+    return ("  const CF = { get: function (k, d) { return d; } };\n"
+            + src[i:src.index(fin) + len(fin)])
+
+
+def _banc_verso_st(tmp_path, cas: list, mutations=()) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du verso ne peut pas tourner")
+    code = _verso_js_source()
+    for avant, apres in mutations:
+        assert avant in code, f"mutation introuvable : {avant!r}"
+        code = code.replace(avant, apres)
+    js = tmp_path / "verso_st.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_verso_st.mjs"
+    banc.write_text(BANC_VERSO_ST, encoding="utf-8")
+    conf = tmp_path / "cas_verso_st.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+VERSO_HOSTILE = {
+    "absent": {},
+    "vide": {"back_image": "", "back_layers": []},
+    "pas_une_liste": {"back_image": None, "back_layers": "beaucoup"},
+    "entrees_folles": {"back_image": "img:../meta.json",
+                       "back_layers": [None, 3, "x", {"src": "img:img_2.png"}]},
+    "hors_bornes": {"back_image": "img:img_1.png", "back_layers": [
+        {"src": "img:img_1.png", "opacity": 9, "scale": 0, "blend": "screen"},
+        {"src": "img:img_2.png", "opacity": -1, "scale": 99, "blend": None}]},
+    "trop_long": {"back_image": "img:img_1.png",
+                  "back_layers": [{"src": "img:img_%d.png" % i}
+                                  for i in range(1, 12)]},
+    "saut_de_ligne": {"back_image": "img:img_1.png\n",
+                      "back_layers": [{"src": "img:img_1.png\n"}]},
+}
+
+
+def test_les_deux_normaliseurs_du_verso_rendent_LA_MEME_CHOSE(tmp_path):
+    """Parité d'EXÉCUTION, pas de lecture (la leçon 3b : aucune correspondance
+    de source ne remplace deux exécutions comparées). Les mêmes corps hostiles
+    passent par `st()` au navigateur et par `frame.back_*_of` au backend, et le
+    résultat doit être le même OBJET — bornes comprises.
+
+    Ici les deux côtés font le même travail, et c'est dit : contrairement à
+    `seal`, AUCUNE route ne reçoit ces clés, le miroir n'a donc rien à REFUSER.
+    Il normalise."""
+    cas = [{"nom": n, "frame": dict(f, back="custom")}
+           for n, f in VERSO_HOSTILE.items()]
+    res = _banc_verso_st(tmp_path, cas)
+    for nom, f in VERSO_HOSTILE.items():
+        r = res[nom]
+        assert r["ok"], f"{nom} : {r.get('err')}"
+        assert r["back_image"] == FR.back_image_of(f.get("back_image")), \
+            f"{nom} : image {r['back_image']!r} vs " \
+            f"{FR.back_image_of(f.get('back_image'))!r}"
+        assert r["back_layers"] == FR.back_layers_of(f.get("back_layers")), \
+            f"{nom} : calques {r['back_layers']} vs " \
+            f"{FR.back_layers_of(f.get('back_layers'))}"
+    # ... et ce que la normalisation garantit, nommé plutôt que déduit
+    assert res["entrees_folles"]["back_image"] == ""
+    assert res["entrees_folles"]["back_layers"] == \
+        [dict(FR.BACK_LAYER_DEFAULTS, src="img:img_2.png")]
+    assert len(res["trop_long"]["back_layers"]) == BACK_LAYERS_MAX_SPEC
+    hb = res["hors_bornes"]["back_layers"]
+    assert hb[0]["opacity"] == 1.0 and hb[0]["scale"] == BACK_SCALE_SPEC[0]
+    assert hb[0]["blend"] == "normal", "un mode de fusion inconnu est accepté"
+    assert hb[1]["opacity"] == 0.0 and hb[1]["scale"] == BACK_SCALE_SPEC[1]
+    assert res["saut_de_ligne"]["back_image"] == ""
+    assert res["saut_de_ligne"]["back_layers"] == [dict(FR.BACK_LAYER_DEFAULTS)]
+
+
+def test_la_pile_de_calques_rendue_n_est_JAMAIS_celle_du_schema(tmp_path):
+    """`DEFAULTS.back_layers` est le MÊME objet que celui remis au registre du
+    CORE (`state: DEFAULTS`). Rendu tel quel, un `push` d'utilisateur écrirait
+    dans le SCHÉMA — tous les jeux ouverts ensuite naîtraient avec le calque
+    du précédent. La branche rend toujours un tableau NEUF, d'objets NEUFS."""
+    res = _banc_verso_st(tmp_path, [{"nom": "defaut", "frame": {}}])
+    assert res["defaut"]["ok"], res["defaut"].get("err")
+    assert res["defaut"]["back_layers"] == []
+    assert res["defaut"]["alias"] is False, \
+        "st() rend le tableau du schéma : un réglage de carte écrit dans " \
+        "DEFAULTS"
+
+
+# ── 17.3 LA ROUTE D'IMAGES DE P2 — le quintette de durcissement de la 3b ─────
+#
+# P2 ne peut PAS importer la route de P3 (règle 8, écrite en tête de frame.py :
+# « jamais d'un voisin »). Elle a donc LA SIENNE — et avec elle les cinq
+# leçons payées en 3b-T2, rejouées ici sur la porte neuve :
+#   1. la RÉSERVATION exclusive (O_CREAT|O_EXCL) — six imports simultanés font
+#      six fichiers, pas un ;
+#   2. la BOMBE DE PIXELS refusée sur l'EN-TÊTE, avant tout décodage ;
+#   3. la LISTE BLANCHE AVANT le disque, dans la fonction qui COMPOSE le
+#      chemin — pas seulement chez son appelant ;
+#   4. le compteur MAX+1 : les trous d'une suppression manuelle ne sont pas
+#      repris (un `img_2.png` réécrit changerait le dos d'une autre carte) ;
+#   5. le PLAFOND, dit AVANT avec son arithmétique.
+
+def _post_verso(did: str, data: bytes):
+    return _api("POST", f"/api/cards/{did}/frame/image", content=data,
+                headers={"Content-Type": "application/octet-stream"})
+
+
+def _frame_dir(did: str) -> pathlib.Path:
+    return CT.deck_dir(did) / "frame"
+
+
+def _png_verso(w: int, h: int, couleur=(200, 40, 90)) -> bytes:
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (int(w), int(h)), couleur).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _bombe_png(w: int, h: int) -> bytes:
+    """Un PNG VALIDE et minuscule qui DÉCLARE `w` x `h` (la même arme que
+    test_cards_type.py, sur l'autre porte)."""
+    def chunk(typ: bytes, data: bytes) -> bytes:
+        return (struct.pack(">I", len(data)) + typ + data
+                + struct.pack(">I", zlib.crc32(typ + data) & 0xFFFFFFFF))
+
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0)
+    co = zlib.compressobj(1)
+    ligne = b"\x00" * (w + 1)
+    morceaux = [co.compress(ligne) for _ in range(h)]
+    morceaux.append(co.flush())
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", b"".join(morceaux)) + chunk(b"IEND", b""))
+
+
+def _api_ensemble(appels):
+    """N requêtes lancées ENSEMBLE : `asyncio.gather` les entrelace vraiment,
+    et le travail disque part en `to_thread` — la course est JOUÉE."""
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t", timeout=60.0) as c:
+            return await asyncio.gather(
+                *[c.request(m, p, **kw) for m, p, kw in appels],
+                return_exceptions=True)
+    return asyncio.run(go())
+
+
+def test_la_route_du_verso_range_l_image_AVEC_LE_JEU():
+    """Un dos personnalisé voyage avec son jeu : export, duplication,
+    sauvegarde. L'image est donc rangée dans `decks/{did}/frame/`, jamais dans
+    le navigateur — et la réponse rend le `src` EXACT que le document accepte
+    (`img:img_N.png`), pas un chemin à recomposer à l'écran."""
+    did = _deck()
+    r = _post_verso(did, _png_verso(40, 30))
+    assert r.status_code == 200, r.text[:300]
+    d = r.json()
+    assert d["file"] == "img_1.png" and d["src"] == "img:img_1.png", d
+    assert d["px"] == [40, 30] and d["max"] == BACK_IMAGES_MAX_SPEC, d
+    assert (_frame_dir(did) / "img_1.png").is_file(), \
+        sorted(p.name for p in _frame_dir(did).iterdir())
+    # le `src` servi TRAVERSE la normalisation du document : une source servie
+    # que `st()`/`back_image_of` jetterait serait un piège.
+    assert FR.back_image_of(d["src"]) == d["src"]
+    # ... et il se relit par la route de lecture, avec un cache IMMUABLE (le
+    # compteur garantit qu'`img_1.png` ne change jamais de contenu).
+    g = _api("GET", f"/api/cards/{did}/frame/image/img_1.png")
+    assert g.status_code == 200 and g.headers["content-type"] == "image/png"
+    assert "immutable" in g.headers.get("cache-control", ""), g.headers
+    assert g.content == (_frame_dir(did) / "img_1.png").read_bytes()
+
+
+def test_six_imports_SIMULTANES_de_verso_font_six_fichiers():
+    """LA COURSE, REJOUÉE sur la porte neuve. Sans réservation exclusive, six
+    imports lisent le même « prochain numéro », écrivent le même temporaire et
+    se le reprennent : un fichier, quatre clients convaincus d'avoir écrit
+    `img_1.png`, et des 500 sur une pièce qui n'en fait jamais."""
+    did = _deck()
+    n = 6
+    corps = [_png_verso(8 + i, 5 + i) for i in range(n)]
+    reps = _api_ensemble([("POST", f"/api/cards/{did}/frame/image",
+                           {"content": c,
+                            "headers": {"Content-Type": "application/octet-stream"}})
+                          for c in corps])
+    for r in reps:
+        assert not isinstance(r, BaseException), repr(r)
+        assert r.status_code == 200, (r.status_code, r.text[:300])
+    noms = sorted(r.json()["file"] for r in reps)
+    assert len(set(noms)) == n, f"deux imports ont reçu le même nom : {noms}"
+    sur_disque = sorted(p.name for p in _frame_dir(did).glob("img_*.png"))
+    assert sur_disque == noms, (sur_disque, noms)
+    from PIL import Image
+    tailles = set()
+    for nom in sur_disque:
+        with Image.open(_frame_dir(did) / nom) as im:
+            tailles.add(im.size)
+    assert tailles == {(8 + i, 5 + i) for i in range(n)}, tailles
+    assert not list(_frame_dir(did).glob("*.tmp")), \
+        sorted(p.name for p in _frame_dir(did).iterdir())
+    # la réservation et le temporaire unique, épinglés dans la source : le
+    # remède est MÉCANIQUE, pas une coïncidence d'ordonnancement.
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    i = py.index("def _store_back_image(")
+    corps_fn = py[i:py.index("\ndef ", i + 10)]
+    assert "O_EXCL" in corps_fn, "le numéro n'est pas RÉSERVÉ (création exclusive)"
+    assert "uuid" in corps_fn, "le temporaire n'a rien qui le distingue"
+
+
+def test_une_BOMBE_DE_PIXELS_est_refusee_par_la_porte_du_verso():
+    """Le corps est pesé (64 Mo), la TRAME non — et c'est la trame qui coûte :
+    un demi-mégaoctet peut déclarer 12000 x 12000, soit 144 millions de pixels
+    et un demi-gigaoctet de tampon PAR REQUÊTE. Le refus se prend sur les
+    dimensions DÉCLARÉES, lues dans l'en-tête, AVANT tout décodage."""
+    from PIL import Image
+    import io as _io
+    did = _deck()
+    bombe = _bombe_png(12000, 12000)
+    assert len(bombe) < 1_000_000, len(bombe)
+    with Image.open(_io.BytesIO(bombe)) as im:
+        assert im.size == (12000, 12000)
+    assert FR.IMG_MAX_PIXELS == 32 * 1024 * 1024
+    r = _post_verso(did, bombe)
+    assert r.status_code == 413, (r.status_code, r.text[:200])
+    detail = r.json()["detail"]
+    assert "12000" in detail and "pixel" in detail.lower(), detail
+    assert not list(_frame_dir(did).glob("img_*.png")), "la bombe a été écrite"
+    assert _post_verso(did, _png_verso(40, 30)).status_code == 200
+    # L'ORDRE, ÉPINGLÉ : après `img.load()` le tampon est déjà alloué.
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    i = py.index("def _decode_bounded(")
+    corps = py[i:py.index("\ndef ", i + 10)]
+    assert corps.index("IMG_MAX_PIXELS") < corps.index("img.load()"), \
+        "les dimensions sont contrôlées APRÈS le décodage"
+    # le plafond de POIDS est celui des pièces voisines, au même chiffre
+    from app.services.cards import type as TY
+    assert FR.IMG_MAX_BYTES == TY.IMG_MAX_BYTES
+    assert FR.IMG_MAX_PIXELS == TY.IMG_MAX_PIXELS
+    assert FR.MAX_IMPORT_PX == TY.MAX_IMPORT_PX == 4096
+    # ... et l'écran RÉDUIT au même chiffre avant d'envoyer (recopié, jamais
+    # importé : règle 8 — le test de P3 épingle déjà les quatre autres)
+    assert "const MAX_IMPORT_PX = 4096;" in _js()
+    vide = _api("POST", f"/api/cards/{did}/frame/image", content=b"")
+    assert vide.status_code == 400, vide.text[:200]
+
+
+def test_le_lecteur_d_image_de_verso_porte_SA_PROPRE_liste_blanche():
+    """Doctrine `deck_dir` : motif PUIS confinement, et le second garde-fou vit
+    DANS la fonction qui COMPOSE le chemin. Le dossier `decks/{did}/frame/`
+    n'a aujourd'hui que des `img_N.png` — rien ne garantit qu'il n'aura pas
+    d'état interne demain, et cette route ne doit pas s'élargir avec lui."""
+    did = _deck()
+    assert _post_verso(did, _png_verso(8, 5)).status_code == 200
+    assert FR._read_back_image(did, "img_1.png") is not None
+    for nom in ("../meta.json", "..", "job.json", "img_1.PNG", "",
+                "img_1.png\n", "img_1.png ", "deck.json", "img_1.png/../x"):
+        assert FR._read_back_image(did, nom) is None, nom
+    assert FR._read_back_image("pas_un_deck", "img_1.png") is None
+    # ... et la ROUTE refuse AVANT de composer quoi que ce soit
+    for nom in ("..%2Fmeta.json", "deck.json", "img_1.PNG"):
+        r = _api("GET", f"/api/cards/{did}/frame/image/{nom}")
+        assert r.status_code in (400, 404), (nom, r.status_code)
+        assert r.status_code != 500, nom
+    manquant = _api("GET", f"/api/cards/{did}/frame/image/img_7.png")
+    assert manquant.status_code == 404, manquant.status_code
+
+
+def test_le_compteur_d_images_de_verso_GARDE_ses_trous():
+    """MAX + 1, jamais « le premier libre ». Un `img_2.png` supprimé à la main
+    puis RÉATTRIBUÉ ferait changer de dos toutes les cartes dont le document
+    pointe encore `img:img_2.png` — un fichier différent sous un nom
+    identique, et pas une ligne pour le dire."""
+    did = _deck()
+    for _ in range(3):
+        assert _post_verso(did, _png_verso(9, 9)).status_code == 200
+    (_frame_dir(did) / "img_2.png").unlink()
+    r = _post_verso(did, _png_verso(11, 11))
+    assert r.status_code == 200, r.text[:200]
+    assert r.json()["file"] == "img_4.png", \
+        f"le trou a été repris : {r.json()['file']}"
+    assert sorted(p.name for p in _frame_dir(did).glob("img_*.png")) == \
+        ["img_1.png", "img_3.png", "img_4.png"]
+    # le compte RENDU est celui du disque, pas celui de la session
+    assert r.json()["n"] == 3, r.json()
+
+
+def test_le_plafond_de_HUIT_images_de_verso_est_tenu_et_NOMME():
+    """Huit images de verso par jeu (plan 3c, décision 5). Le refus NOMME le
+    plafond et le geste à faire — un 409 muet enverrait chercher la panne du
+    côté du réseau."""
+    did = _deck()
+    for i in range(BACK_IMAGES_MAX_SPEC):
+        assert _post_verso(did, _png_verso(6, 6)).status_code == 200, i
+    r = _post_verso(did, _png_verso(6, 6))
+    assert r.status_code == 409, (r.status_code, r.text[:200])
+    detail = r.json()["detail"]
+    assert str(BACK_IMAGES_MAX_SPEC) in detail, detail
+    assert "verso" in detail.lower() or "dos" in detail.lower(), detail
+    assert len(list(_frame_dir(did).glob("img_*.png"))) == \
+        BACK_IMAGES_MAX_SPEC, "la neuvième a été écrite"
+    # et le plafond est RECOMPTÉ après la réservation : deux imports partis
+    # ensemble sur un jeu plein ne peuvent pas écrire la neuvième à eux deux.
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    i = py.index("def _store_back_image(")
+    corps = py[i:py.index("\ndef ", i + 10)]
+    assert corps.count("BACK_IMAGES_MAX") >= 3, \
+        "le plafond n'est pas recompté APRÈS la réservation du numéro"
+
+
+def test_la_route_du_verso_n_importe_RIEN_de_sa_voisine():
+    """Règle 8, écrite en tête de `frame.py` : « Aucun autre module ne
+    l'importe, et il n'importe le routeur d'aucun autre ». La route d'images
+    de P2 est une JUMELLE de celle de P3, pas un appel à elle."""
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    for interdit in ("from .type import", "from . import type",
+                     "from .face import", "from . import face",
+                     "import type as", "cards.type"):
+        assert interdit not in py, f"frame.py importe une voisine : {interdit}"
+
+
+# ── 17.4 LE PEINTRE DU VERSO — des PIXELS, pas des intentions ───────────────
+#
+# Le rastériseur de la section 15 compte des CELLULES ; il ne sait rien des
+# couleurs (`drawImage` y est un no-op). Or tout ce que cette tâche promet est
+# une égalité de COULEUR : « l'image couvre la coupe », « permuter deux calques
+# change le résultat », « le multiply cuit vaut le multiply du compositeur ».
+# On écrit donc une VRAIE toile RGBA — 4 octets par pixel, la formule de
+# composition du canvas — et on y fait tourner le peintre livré tel quel.
+
+BANC_VERSO = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+/* les modes de fusion VUS par la toile — c'est la mesure de « le peintre ne
+   demande jamais au compositeur autre chose que source-over ». */
+const MODES = {};
+const TEXTES = [];
+
+function couleur(s) {
+  let m = /^#([0-9a-f]{6})$/i.exec(String(s));
+  if (m) { const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255]; }
+  m = /^#([0-9a-f]{3})$/i.exec(String(s));
+  if (m) { const t = m[1];
+    return [parseInt(t[0] + t[0], 16), parseInt(t[1] + t[1], 16),
+      parseInt(t[2] + t[2], 16), 255]; }
+  m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)\s*(?:,\s*([\d.]+)\s*)?\)$/
+    .exec(String(s));
+  if (m) return [+m[1], +m[2], +m[3],
+    Math.round((m[4] === undefined ? 1 : +m[4]) * 255)];
+  return [0, 0, 0, 255];
+}
+/* la composition du canvas, ecrite une fois : source-over et multiply, avec
+   le fond qui compte pour ce qu'il PESE (sur un fond transparent tout mode
+   separable retombe sur la source — formule de composition PDF/Canvas). */
+function pose(d, o, src, op, ga) {
+  MODES[op] = (MODES[op] || 0) + 1;
+  const sa = (src[3] / 255) * ga, da = d[o + 3] / 255;
+  const a = sa + da * (1 - sa);
+  for (let k = 0; k < 3; k++) {
+    const Cs = src[k] / 255, Cb = d[o + k] / 255;
+    const B = (op === "multiply") ? Cs * Cb : Cs;
+    const eff = B * da + Cs * (1 - da);
+    d[o + k] = a ? Math.round((eff * sa + Cb * da * (1 - sa)) / a * 255) : 0;
+  }
+  d[o + 3] = Math.round(a * 255);
+}
+function Ctx(cv) {
+  this.cv = cv; this.fillStyle = "#000000"; this.globalAlpha = 1;
+  this.globalCompositeOperation = "source-over";
+  this.font = ""; this.textAlign = ""; this.textBaseline = "";
+  this.stk = [];
+}
+Ctx.prototype.save = function () {
+  this.stk.push([this.fillStyle, this.globalAlpha,
+    this.globalCompositeOperation]);
+};
+Ctx.prototype.restore = function () {
+  const s = this.stk.pop();
+  if (s) { this.fillStyle = s[0]; this.globalAlpha = s[1];
+    this.globalCompositeOperation = s[2]; }
+};
+Ctx.prototype.beginPath = function () {};
+Ctx.prototype.rect = function () {};
+Ctx.prototype.clip = function () {};
+Ctx.prototype.fillRect = function (x, y, w, h) {
+  const src = couleur(this.fillStyle), d = this.cv.d;
+  const W = this.cv.width, H = this.cv.height;
+  const x0 = Math.max(0, Math.round(x)), x1 = Math.min(W, Math.round(x + w));
+  const y0 = Math.max(0, Math.round(y)), y1 = Math.min(H, Math.round(y + h));
+  for (let j = y0; j < y1; j++)
+    for (let i = x0; i < x1; i++)
+      pose(d, (j * W + i) * 4, src, this.globalCompositeOperation,
+        this.globalAlpha);
+};
+/* echantillonnage au PLUS PROCHE : le banc juge des aplats et des positions,
+   jamais la qualite d'un reechantillonnage (que le navigateur seul fait). */
+Ctx.prototype.drawImage = function (img, dx, dy, dw, dh) {
+  if (dw === undefined) { dx = dx || 0; dy = dy || 0;
+    dw = img.width; dh = img.height; }
+  const d = this.cv.d, W = this.cv.width, H = this.cv.height;
+  const x0 = Math.max(0, Math.floor(dx)), x1 = Math.min(W, Math.ceil(dx + dw));
+  const y0 = Math.max(0, Math.floor(dy)), y1 = Math.min(H, Math.ceil(dy + dh));
+  for (let j = y0; j < y1; j++) {
+    let sy = Math.floor((j + 0.5 - dy) / dh * img.height);
+    sy = Math.min(img.height - 1, Math.max(0, sy));
+    for (let i = x0; i < x1; i++) {
+      let sx = Math.floor((i + 0.5 - dx) / dw * img.width);
+      sx = Math.min(img.width - 1, Math.max(0, sx));
+      const s = (sy * img.width + sx) * 4;
+      pose(d, (j * W + i) * 4,
+        [img.d[s], img.d[s + 1], img.d[s + 2], img.d[s + 3]],
+        this.globalCompositeOperation, this.globalAlpha);
+    }
+  }
+};
+Ctx.prototype.getImageData = function (x, y, w, h) {
+  const W = this.cv.width, out = new Uint8ClampedArray(w * h * 4);
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const s = ((y + j) * W + (x + i)) * 4, o = (j * w + i) * 4;
+      out[o] = this.cv.d[s]; out[o + 1] = this.cv.d[s + 1];
+      out[o + 2] = this.cv.d[s + 2]; out[o + 3] = this.cv.d[s + 3];
+    }
+  return { width: w, height: h, data: out };
+};
+Ctx.prototype.putImageData = function (img, x, y) {
+  const W = this.cv.width;
+  for (let j = 0; j < img.height; j++)
+    for (let i = 0; i < img.width; i++) {
+      const o = (j * img.width + i) * 4, s = ((y + j) * W + (x + i)) * 4;
+      this.cv.d[s] = img.data[o]; this.cv.d[s + 1] = img.data[o + 1];
+      this.cv.d[s + 2] = img.data[o + 2]; this.cv.d[s + 3] = img.data[o + 3];
+    }
+};
+Ctx.prototype.fillText = function (t) { TEXTES.push(String(t)); };
+Ctx.prototype.measureText = function (t) { return { width: String(t).length * 6 }; };
+Ctx.prototype.createLinearGradient = function () {
+  return { addColorStop: function () {} };
+};
+Ctx.prototype.createRadialGradient = Ctx.prototype.createLinearGradient;
+function mkCanvas(w, h) {
+  const cv = { _w: 0, _h: 0, d: new Uint8ClampedArray(0) };
+  const alloc = () => { cv.d = new Uint8ClampedArray(cv._w * cv._h * 4); };
+  Object.defineProperty(cv, "width", { get: () => cv._w,
+    set: (v) => { cv._w = v | 0; alloc(); } });
+  Object.defineProperty(cv, "height", { get: () => cv._h,
+    set: (v) => { cv._h = v | 0; alloc(); } });
+  cv.getContext = () => new Ctx(cv);
+  cv.width = w; cv.height = h;
+  return cv;
+}
+globalThis.document = { createElement: () => mkCanvas(0, 0) };
+
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { st: st, model: model, paintBackCustom: paintBackCustom,"
+  + " backCover: backCover, backFiles: backFiles, backFile: backFile };\n})();")();
+
+function image(spec) {
+  const w = spec.w, h = spec.h;
+  const im = { width: w, height: h, d: new Uint8ClampedArray(w * h * 4) };
+  for (let j = 0; j < h; j++)
+    for (let i = 0; i < w; i++) {
+      const c = spec.rgba;
+      const o = (j * w + i) * 4;
+      im.d[o] = c[0]; im.d[o + 1] = c[1]; im.d[o + 2] = c[2]; im.d[o + 3] = c[3];
+    }
+  return im;
+}
+
+const out = [];
+for (const c of CAS.cas) {
+  const dpi = c.g.dpi;
+  const g = Object.assign({}, c.g, { mm2px: (v) => v / 25.4 * dpi });
+  for (const k of Object.keys(MODES)) delete MODES[k];
+  TEXTES.length = 0;
+  try {
+    const f = mod.st({ frame: c.frame });
+    const m = mod.model(g, f);
+    const IM = {};
+    for (const nom of Object.keys(c.imgs || {})) IM[nom] = image(c.imgs[nom]);
+    const get = (file) => (IM[file]
+      ? { img: IM[file], ok: true, file: file }
+      : { img: null, ok: false, file: file });
+    const cv = mkCanvas(m.W, m.H);
+    const ctx = cv.getContext("2d");
+    /* LA BASE : `paintBack` remplit la toile de la matiere de bande AVANT
+       d'appeler le verso personnalise. Le banc pose la meme chose — et peut
+       la rendre TRANSPARENTE pour mesurer ce que devient un multiply quand
+       le fond ne pese rien. */
+    ctx.fillStyle = c.base;
+    ctx.fillRect(0, 0, m.W, m.H);
+    const modes_base = Object.keys(MODES).slice();
+    for (const k of Object.keys(MODES)) delete MODES[k];
+    mod.paintBackCustom(ctx, m, f, get);
+    const px = (x, y) => {
+      const o = ((y | 0) * m.W + (x | 0)) * 4;
+      return [cv.d[o], cv.d[o + 1], cv.d[o + 2], cv.d[o + 3]];
+    };
+    const T = m.trim;
+    const points = {
+      toile_hg: px(2, 2),
+      toile_bd: px(m.W - 3, m.H - 3),
+      coupe_hg: px(Math.round(T.x) + 2, Math.round(T.y) + 2),
+      coupe_bd: px(Math.round(T.x + T.w) - 3, Math.round(T.y + T.h) - 3),
+      centre: px(m.W >> 1, m.H >> 1),
+      bord_bas: px(m.W >> 1, m.H - 2),
+    };
+    let a = 2166136261;
+    for (let i = 0; i < cv.d.length; i++) {
+      a ^= cv.d[i]; a = Math.imul(a, 16777619) >>> 0;
+    }
+    out.push({ nom: c.nom, ok: true, px: points,
+      hash: ("0000000" + a.toString(16)).slice(-8),
+      modes: Object.keys(MODES).sort(), modes_base: modes_base,
+      textes: TEXTES.slice(),
+      toile: [m.W, m.H], coupe: [T.x, T.y, T.w, T.h],
+      couvre: mod.backCover(4, 4, m.W, m.H),
+      fichiers: mod.backFiles(f) });
+  } catch (e) {
+    out.push({ nom: c.nom, ok: false, err: String((e && e.stack) || e) });
+  }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_verso(tmp_path, cas: list, mutations=()) -> dict:
+    """Fait tourner le VRAI peintre du verso sur une VRAIE toile RGBA."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du verso ne peut pas tourner")
+    code = _verso_js_source()
+    for avant, apres in mutations:
+        assert avant in code, f"mutation introuvable : {avant!r}"
+        code = code.replace(avant, apres)
+    js = tmp_path / "verso.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_verso.mjs"
+    banc.write_text(BANC_VERSO, encoding="utf-8")
+    conf = tmp_path / "cas_verso.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+# des couleurs CHOISIES pour que le produit ne soit ambigu sur aucun canal
+BASE_RGBA = [90, 160, 32, 255]          # la bande, opaque
+BASE_CSS = "#5aa020"
+CALQUE_A = [128, 64, 200, 255]
+CALQUE_B = [240, 200, 80, 255]
+IMG_FOND = [20, 30, 210, 255]
+
+
+def _cas_verso(nom, back_image="", calques=(), imgs=None, base=BASE_CSS,
+               fmt="poker_eu", **frame):
+    fr = {"family": "arcane", "rarity": "rare", "back": "custom",
+          "back_image": back_image, "back_layers": list(calques)}
+    fr.update(frame)
+    fichiers = {}
+    for f, spec in (imgs or {}).items():
+        fichiers[f] = {"w": spec[0], "h": spec[1], "rgba": spec[2]}
+    return {"nom": nom, "g": _geom_js(fmt, 3), "frame": fr, "base": base,
+            "imgs": fichiers}
+
+
+def _r(x: float) -> int:
+    """L'arrondi de `Math.round` : DEMI-HAUT. `round()` de Python arrondit au
+    PAIR (174,5 -> 174), et deux oracles qui ne s'accordent pas sur le dernier
+    bit feraient rougir un peintre juste."""
+    return int(math.floor(x + 0.5))
+
+
+def _sur(cs, cb, sa):
+    """Un pixel de source posé en `source-over` sur un fond OPAQUE, dans le
+    MÊME ORDRE D'OPÉRATIONS que le compositeur (banc et canvas).
+
+    UN ORACLE QUI SIMPLIFIE L'ARITHMÉTIQUE TOMBE SUR LE DERNIER BIT. Écrit
+    « (a + b) / 2 », il rend 28,5 -> 29 ; le compositeur, lui, passe par
+    `25/255*0,5 + 32/255*0,5`, qui vaut 0,11176470588235294, donc
+    28,499999999999996, donc 28. Deux oracles qui ne s'accordent pas sur le
+    dernier bit font rougir un peintre juste. Mesuré, et écrit ici."""
+    return _r((cs / 255.0 * sa + cb / 255.0 * (1 - sa)) * 255)
+
+
+def _mult(s, b, ab=1.0):
+    """La formule que le peintre CUIT dans les pixels du calque : le mélange
+    `multiply` du canvas, pondéré par l'opacité du FOND (sur un fond
+    transparent, un mode séparable retombe sur la source)."""
+    return _r(s * (1 - ab) + s * b / 255.0 * ab)
+
+
+def test_l_image_du_verso_couvre_la_coupe_ET_LE_FOND_PERDU(tmp_path):
+    """« Cover », depuis le bord de TOILE — pas depuis la coupe. La découpe
+    vient après l'impression : une image calée sur la seule rogne laisserait
+    la matière de bande dans les 3 mm de fond perdu, et un massicot décalé
+    d'un millimètre poserait ce liseré sur le bord de la carte livrée. Les
+    quatre coins de la TOILE portent donc l'image."""
+    r = _banc_verso(tmp_path, [
+        _cas_verso("plein", back_image="img:img_1.png",
+                   imgs={"img_1.png": (4, 4, IMG_FOND)}),
+        _cas_verso("sans", back_image=""),
+    ])
+    p = r["plein"]
+    assert p["ok"], p.get("err")
+    for coin in ("toile_hg", "toile_bd", "coupe_hg", "coupe_bd", "centre",
+                 "bord_bas"):
+        assert p["px"][coin] == IMG_FOND, \
+            f"{coin} porte {p['px'][coin]} au lieu de l'image {IMG_FOND}"
+    # le témoin : sans image, la base reste partout (le banc discrimine)
+    s = r["sans"]
+    assert s["ok"], s.get("err")
+    assert s["px"]["centre"] == BASE_RGBA, s["px"]
+    assert s["hash"] != p["hash"]
+    # et le cadrage est un COVER : l'image déborde plutôt que de laisser un
+    # bord — le côté court remplit exactement, le long dépasse.
+    W, H = p["toile"]
+    x, y, w, h = p["couvre"]
+    assert w >= W - 1e-6 and h >= H - 1e-6, (x, y, w, h, W, H)
+    assert abs(x + w / 2 - W / 2) < 1e-6 and abs(y + h / 2 - H / 2) < 1e-6, \
+        "le cadrage n'est pas centré"
+
+
+def test_l_ORDRE_des_calques_du_verso_est_PORTEUR(tmp_path):
+    """Une pile ordonnée dont l'ordre ne changerait rien ne serait pas une
+    pile. Deux calques permutés doivent donner deux images DIFFÉRENTES — et
+    la mesure porte sur les pixels, pas sur la liste."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A), "img_2.png": (4, 4, CALQUE_B)}
+    a = {"src": "img:img_1.png", "opacity": 0.5, "scale": 1, "blend": "normal"}
+    b = {"src": "img:img_2.png", "opacity": 0.5, "scale": 1, "blend": "normal"}
+    r = _banc_verso(tmp_path, [
+        _cas_verso("ab", calques=[a, b], imgs=imgs),
+        _cas_verso("ba", calques=[b, a], imgs=imgs),
+    ])
+    assert r["ab"]["ok"] and r["ba"]["ok"], (r["ab"].get("err"),
+                                             r["ba"].get("err"))
+    assert r["ab"]["hash"] != r["ba"]["hash"], \
+        "permuter deux calques ne change RIEN : l'ordre n'est pas porteur"
+    # ... et le pixel du dessus est celui du DERNIER calque, à 50 %
+    def demi(dessus, dessous):
+        return [_sur(dessus[k], _sur(dessous[k], BASE_RGBA[k], 0.5), 0.5)
+                for k in range(3)]
+    assert r["ab"]["px"]["centre"][:3] == demi(CALQUE_B, CALQUE_A), \
+        r["ab"]["px"]["centre"]
+    assert r["ba"]["px"]["centre"][:3] == demi(CALQUE_A, CALQUE_B), \
+        r["ba"]["px"]["centre"]
+
+
+def test_l_opacite_et_l_echelle_d_un_calque_sont_CELLES_DU_REGLAGE(tmp_path):
+    """Deux réglages, deux effets mesurables : l'opacité mélange, l'échelle
+    RÉTRÉCIT autour du centre de la toile (un calque à 0,5 laisse voir ce
+    qu'il y a dessous sur tout le pourtour)."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A)}
+    r = _banc_verso(tmp_path, [
+        _cas_verso("pleine", calques=[{"src": "img:img_1.png", "opacity": 1,
+                                       "scale": 1, "blend": "normal"}],
+                   imgs=imgs),
+        _cas_verso("quart", calques=[{"src": "img:img_1.png", "opacity": 0.25,
+                                      "scale": 1, "blend": "normal"}],
+                   imgs=imgs),
+        _cas_verso("nulle", calques=[{"src": "img:img_1.png", "opacity": 0,
+                                      "scale": 1, "blend": "normal"}],
+                   imgs=imgs),
+        _cas_verso("demi_echelle", calques=[{"src": "img:img_1.png",
+                                             "opacity": 1, "scale": 0.5,
+                                             "blend": "normal"}], imgs=imgs),
+    ])
+    for v in r.values():
+        assert v["ok"], f"{v['nom']} : {v.get('err')}"
+    assert r["pleine"]["px"]["centre"] == CALQUE_A, r["pleine"]["px"]["centre"]
+    attendu = [_sur(CALQUE_A[k], BASE_RGBA[k], 0.25) for k in range(3)]
+    assert r["quart"]["px"]["centre"][:3] == attendu, \
+        (r["quart"]["px"]["centre"], attendu)
+    assert r["nulle"]["px"]["centre"] == BASE_RGBA, \
+        "un calque à opacité nulle a quand même peint"
+    d = r["demi_echelle"]
+    assert d["px"]["centre"] == CALQUE_A, d["px"]["centre"]
+    assert d["px"]["toile_hg"] == BASE_RGBA, \
+        f"à l'échelle 0,5 le calque couvre encore le coin : {d['px']['toile_hg']}"
+
+
+def test_le_MULTIPLY_est_CUIT_dans_les_pixels_du_calque(tmp_path):
+    """LE test de la tâche. Le mélange `multiply` est calculé DANS les pixels
+    du calque — produit canal par canal contre le verso déjà peint — puis
+    posé en `source-over`. Deux choses sont mesurées ensemble, et il faut les
+    deux : le RÉSULTAT est bien celui d'un multiply, et le compositeur n'a
+    JAMAIS reçu autre chose que `source-over`."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A)}
+    r = _banc_verso(tmp_path, [
+        _cas_verso("mult", calques=[{"src": "img:img_1.png", "opacity": 1,
+                                     "scale": 1, "blend": "multiply"}],
+                   imgs=imgs),
+        _cas_verso("norm", calques=[{"src": "img:img_1.png", "opacity": 1,
+                                     "scale": 1, "blend": "normal"}],
+                   imgs=imgs),
+        _cas_verso("mult_demi", calques=[{"src": "img:img_1.png",
+                                          "opacity": 0.5, "scale": 1,
+                                          "blend": "multiply"}], imgs=imgs),
+    ])
+    for v in r.values():
+        assert v["ok"], f"{v['nom']} : {v.get('err')}"
+    attendu = [_mult(CALQUE_A[k], BASE_RGBA[k]) for k in range(3)]
+    assert r["mult"]["px"]["centre"][:3] == attendu, \
+        (r["mult"]["px"]["centre"], attendu)
+    assert r["mult"]["px"]["centre"] != r["norm"]["px"]["centre"], \
+        "multiply et normal donnent le même pixel : rien n'est multiplié"
+    # l'opacité porte sur le RÉSULTAT cuit, comme sur un calque normal
+    demi = [_sur(attendu[k], BASE_RGBA[k], 0.5) for k in range(3)]
+    assert r["mult_demi"]["px"]["centre"][:3] == demi, \
+        (r["mult_demi"]["px"]["centre"], demi)
+    # ... ET AUCUN mode de fusion vivant n'a atteint la toile
+    for nom in ("mult", "norm", "mult_demi"):
+        assert r[nom]["modes"] == ["source-over"], \
+            f"{nom} : le peintre a demandé {r[nom]['modes']} au compositeur"
+
+
+def test_un_MULTIPLY_sur_fond_TRANSPARENT_ne_noircit_pas_le_calque(tmp_path):
+    """Le piège du produit brut. Multiplier par un fond ABSENT donne du NOIR
+    (tout x 0 = 0) : un verso rendu sur toile transparente — le rendu par
+    couches de P9 le fait à chaque appel — sortirait tout noir. La cuisson
+    pondère donc par l'opacité du fond, exactement comme le compositeur : là
+    où rien ne pèse, le calque garde ses couleurs."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A)}
+    calques = [{"src": "img:img_1.png", "opacity": 1, "scale": 1,
+                "blend": "multiply"}]
+    r = _banc_verso(tmp_path, [
+        _cas_verso("transparent", calques=calques, imgs=imgs,
+                   base="rgba(0,0,0,0)"),
+        _cas_verso("opaque", calques=calques, imgs=imgs),
+    ])
+    for v in r.values():
+        assert v["ok"], f"{v['nom']} : {v.get('err')}"
+    assert r["transparent"]["px"]["centre"] == CALQUE_A, \
+        f"sur fond transparent le calque sort {r['transparent']['px']['centre']} " \
+        f"au lieu de {CALQUE_A} (produit par un fond nul = noir)"
+    assert r["opaque"]["px"]["centre"] != CALQUE_A
+
+
+def test_une_image_de_verso_ABSENTE_donne_un_DAMIER_NOMME(tmp_path):
+    """Le patron de P3 (3b-T2), rejoué : un fichier NOMMÉ qui n'arrive pas est
+    un ÉTAT de la carte, pas une panne du painter. Un trou transparent
+    laisserait partir une carte incomplète sans un mot ; un damier et le nom
+    du fichier sont impossibles à ne pas voir sur une épreuve.
+
+    Une source VIDE, elle, ne salit rien : c'est un dos qu'on vient de choisir
+    et dont l'image n'est pas encore déposée — le panneau le montre déjà."""
+    r = _banc_verso(tmp_path, [
+        _cas_verso("manquante", back_image="img:img_9.png"),
+        _cas_verso("vide", back_image=""),
+        _cas_verso("calque_manquant",
+                   calques=[{"src": "img:img_5.png", "opacity": 1,
+                             "scale": 1, "blend": "normal"}]),
+    ])
+    m = r["manquante"]
+    assert m["ok"], m.get("err")
+    assert "img_9.png" in m["textes"], m["textes"]
+    assert m["px"]["centre"] != BASE_RGBA, "aucun damier n'a été peint"
+    v = r["vide"]
+    assert v["ok"], v.get("err")
+    assert v["textes"] == [], v["textes"]
+    assert v["px"]["centre"] == BASE_RGBA, \
+        "une source VIDE a sali la carte d'un damier"
+    c = r["calque_manquant"]
+    assert c["ok"], c.get("err")
+    assert "img_5.png" in c["textes"], c["textes"]
+
+
+def test_le_verso_custom_ne_demande_JAMAIS_qu_un_source_over(tmp_path):
+    """L'invariant §4.2, mesuré sur la toile plutôt que lu dans la source :
+    quels que soient les modes déclarés dans la pile, le compositeur ne reçoit
+    que `source-over`. C'est ce qui garde la couche « cadre » EMPILABLE."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A), "img_2.png": (4, 4, CALQUE_B)}
+    r = _banc_verso(tmp_path, [_cas_verso(
+        "pile", back_image="img:img_1.png", imgs=imgs,
+        calques=[{"src": "img:img_2.png", "opacity": 0.7, "scale": 2,
+                  "blend": "multiply"},
+                 {"src": "img:img_1.png", "opacity": 0.4, "scale": 0.6,
+                  "blend": "normal"},
+                 {"src": "img:img_2.png", "opacity": 1, "scale": 1,
+                  "blend": "multiply"}])])
+    assert r["pile"]["ok"], r["pile"].get("err")
+    assert r["pile"]["modes"] == ["source-over"], r["pile"]["modes"]
+
+
+def test_le_verso_custom_passe_par_SON_PEINTRE_et_garde_la_matiere(tmp_path):
+    """La couture, lue dans `paintBack` : la branche `custom` appelle le
+    peintre du verso personnalisé À LA PLACE d'un motif de catalogue, AVANT
+    `matter()` — le carton est le même des deux côtés de la carte, sa matière
+    passe donc sur l'illustration du dos comme elle passe sur les motifs. Et
+    le médaillon central, qui est un MEUBLE du catalogue, ne vient pas
+    s'écraser sur l'image de l'utilisateur."""
+    corps = _js_fn(_js(), "paintBack")
+    assert 'kind === "custom"' in corps, \
+        "paintBack n'a pas de branche pour le dos personnalisé"
+    i = corps.index("paintBackCustom(")
+    j = corps.index("matter(ctx, m, f")
+    assert i < j, "le verso personnalisé est peint APRÈS la matière"
+    # le médaillon est SOUS garde : sinon il tombe au milieu de l'image
+    k = corps.index("medaillon")
+    assert k > j, "le médaillon se peint avant la matière ?"
+    assert re.search(r'kind\s*!==\s*"custom"', corps[k:k + 500]), \
+        "le médaillon du catalogue se peint sur le verso personnalisé"
+
+
+# ── 17.5 LA PREUVE D'EMPILEMENT SUR UN VERSO À MULTIPLY (§4.2) ──────────────
+#
+# Le Sceau (T1) a fait basculer la couche « cadre » en EMPREINTE : son overlay
+# vivant, posé là où sa base n'est pas opaque, rend le résultat dépendant de ce
+# qu'il y a dessous. L'empreinte est exacte, mais c'est une couche CUITE — on
+# ne peut plus la déplacer dans un logiciel de calques.
+#
+# Le verso personnalisé pose le cas inverse, et c'est ce que la précomposition
+# achète : un verso à `multiply` garde une couche ISOLÉE. Ce banc-ci fait
+# tourner la VRAIE `layers()` de core.js avec, en z=40, le VRAI peintre du
+# verso — pas un stub qui imiterait ce qu'on espère.
+
+def _banc_empilement_verso(tmp_path, cas: dict, mutations=(), echec=False):
+    """`_banc_empilement`, mais le peintre z=40 est le peintre livré du verso
+    personnalisé, chargé depuis mod-frame.js."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc d'empilement ne peut pas tourner")
+    src = CORE_JS.read_text(encoding="utf-8")
+    code = "async " + _js_fn(src, "layers")
+    js = tmp_path / "layers.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_empilement.mjs"
+    banc.write_text(BANC_EMPILEMENT, encoding="utf-8")
+    vcode = _verso_js_source()
+    for avant, apres in mutations:
+        assert avant in vcode, f"mutation introuvable : {avant!r}"
+        vcode = vcode.replace(avant, apres)
+    vjs = tmp_path / "verso_empilement.js"
+    vjs.write_text(vcode, encoding="utf-8")
+    conf = tmp_path / "cas_empilement_verso.json"
+    conf.write_text(json.dumps(cas), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf), str(vjs)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=180)
+    if echec:
+        assert r.returncode != 0, \
+            f"le banc a rendu un verdict au lieu de refuser : {r.stdout[:300]}"
+        return r.stderr
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+CAS_VERSO_EMPILEMENT = {
+    "op": "source-over",
+    "face": "back",
+    "verso": {
+        "base": "#c08040",
+        "img": {"w": 4, "h": 4, "rgba": [128, 64, 200, 255]},
+        "f": {"back_image": "img:img_1.png", "back_layers": [
+            {"src": "img:img_1.png", "opacity": 1, "scale": 1,
+             "blend": "multiply"}]},
+    },
+}
+
+
+def test_un_verso_custom_a_MULTIPLY_garde_sa_couche_ISOLEE(tmp_path):
+    """§4.2, exécuté sur le verso. Un `multiply` PRÉCOMPOSÉ ne demande rien au
+    compositeur : la couche « cadre » du rendu par couches reste ISOLÉE (une
+    vraie couche, déplaçable) au lieu de basculer en empreinte comme le fait
+    l'overlay du Sceau — et `stack_ok` tient.
+
+    ET LA COUCHE PORTE VRAIMENT LES PIXELS DE L'IMAGE (§6.2ter, conséquences
+    en aval : « l'export par couches livre le verso ») : ce n'est pas un
+    rectangle vide qu'on déclarerait exact."""
+    L = _banc_empilement_verso(tmp_path, CAS_VERSO_EMPILEMENT)
+    assert L["face"] == "back", L["face"]
+    modes = dict(L["modes"])
+    assert modes["cadre"] == "isolee", \
+        f"la couche du cadre est « {modes['cadre']} » : le multiply n'est " \
+        f"pas précomposé"
+    assert L["stack_ok"] is True, "la preuve d'empilement tombe sur le verso"
+    # la couche EXPORTÉE porte le produit image x bande, pas du vide
+    px = L["couche_cadre"]
+    # le calque a multiply est pose SUR l'image de fond (elle-meme peinte par
+    # ce peintre) : le pixel livre est donc l'image MULTIPLIEE PAR ELLE-MEME,
+    # ce qui prouve d'un coup les deux — l'image est la, et le multiply a cuit.
+    attendu = [_mult(128, 128), _mult(64, 64), _mult(200, 200)]
+    assert px[3] == 255, f"la couche du cadre est transparente : {px}"
+    assert px[:3] == attendu, (px, attendu)
+
+
+def test_un_multiply_VIVANT_fait_REFUSER_le_banc_d_empilement(tmp_path):
+    """LE CONTRÔLE, et il est dit pour ce qu'il est. Le mélangeur du banc ne
+    connaît que `source-over` et `overlay` : un `multiply` demandé au
+    compositeur le fait REFUSER de rendre un verdict (T1, ronde 2) plutôt que
+    de le traiter en silence comme du source-over.
+
+    Ce que ce contrôle prouve exactement : que le peintre livré ne passe PAS
+    par là. Il ne prouve PAS qu'un multiply vivant donnerait d'autres pixels —
+    le test suivant mesure qu'il donnerait les MÊMES."""
+    err = _banc_empilement_verso(
+        tmp_path, CAS_VERSO_EMPILEMENT, echec=True,
+        mutations=[('ctx.drawImage(off, 0, 0);',
+                    'ctx.globalCompositeOperation = "multiply";'
+                    ' ctx.drawImage(off, 0, 0);')])
+    assert "multiply" in err, err[-600:]
+    assert "mode de fusion inconnu" in err, err[-600:]
+
+
+MUT_BLEND_VIF = [(
+    "      oc.putImageData(L, 0, 0);\n      ctx.save();\n"
+    "      ctx.globalAlpha = op;\n      ctx.drawImage(off, 0, 0);",
+    "      ctx.save();\n      ctx.globalAlpha = op;\n"
+    "      ctx.globalCompositeOperation = \"multiply\";\n"
+    "      ctx.drawImage(rec.img, b[0], b[1], b[2], b[3]);")]
+
+
+def test_la_precomposition_ne_change_AUCUN_PIXEL_et_c_est_dit(tmp_path):
+    """LA PHRASE, REMISE À LA MESURE (leçon 3c-T3-F1 : une prose qui promet
+    plus que les octets est une prose fausse, même quand le code est bon).
+
+    Il serait commode d'écrire « sans la précomposition, la preuve
+    d'empilement tombe ». C'est FAUX, et ce test épingle le fait dont la
+    phrase honnête dépend : sur ce verso, un `multiply` VIVANT rend
+    exactement les mêmes octets — sur fond opaque comme sur fond
+    TRANSPARENT. Le verdict de §4.2 serait donc le même.
+
+    Ce que la précomposition achète est la SUITE D'OPÉRATIONS : la couche du
+    cadre ne demande jamais autre chose que `source-over`, et c'est cela que
+    le banc de §4.2 sait vérifier — et que vérifiera tout lecteur du flux
+    d'opérations. Le jour où les deux écritures cesseraient de coïncider en
+    pixels, ce test rougit, et la phrase se réécrit dans le bon sens."""
+    imgs = {"img_1.png": (4, 4, CALQUE_A)}
+    cas = [_cas_verso("opaque", back_image="img:img_1.png", imgs=imgs,
+                      calques=[{"src": "img:img_1.png", "opacity": 0.6,
+                                "scale": 1, "blend": "multiply"}]),
+           _cas_verso("transparent", imgs=imgs, base="rgba(0,0,0,0)",
+                      calques=[{"src": "img:img_1.png", "opacity": 1,
+                                "scale": 1, "blend": "multiply"}])]
+    produit = _banc_verso(tmp_path, cas)
+    vif = _banc_verso(tmp_path, cas, mutations=MUT_BLEND_VIF)
+    for nom in ("opaque", "transparent"):
+        assert produit[nom]["ok"] and vif[nom]["ok"], nom
+        assert produit[nom]["hash"] == vif[nom]["hash"], \
+            f"{nom} : la précomposition CHANGE les pixels " \
+            f"({produit[nom]['px']['centre']} vs {vif[nom]['px']['centre']}) " \
+            f"— la phrase du code doit alors être réécrite"
+    # LA SEULE différence, et c'est tout l'objet du mécanisme
+    assert produit["opaque"]["modes"] == ["source-over"]
+    assert "multiply" in vif["opaque"]["modes"], vif["opaque"]["modes"]
+
+
+# ── 17.6 LE PANNEAU : importer, empiler, ordonner ───────────────────────────
+
+def test_le_panneau_offre_l_import_et_la_LISTE_des_calques_du_verso():
+    """Le dos « Personnalisé » découvre une zone d'import (dépôt / collage /
+    fichier, patron `importFiles` de P1) et la liste des calques : ordre,
+    opacité, échelle, fusion, suppression — le patron de la liste de P3."""
+    src = _js()
+    # l'import, ses trois gestes et la réduction AVANT l'envoi
+    i = src.index("async function importBackImage(")
+    corps = src[i:src.index("\n  function ", i)]
+    assert "M.api.raw" in corps and '"POST", "image"' in corps, corps[:400]
+    assert "IMPORTING" in corps, "aucune garde de vol sur l'import du verso"
+    assert corps.index("IMPORTING") < corps.index("M.api.raw"), \
+        "la garde est posée APRÈS l'envoi"
+    assert "finally" in corps and "IMPORTING = false" in corps
+    assert "MAX_IMPORT_PX" in src, "aucune réduction avant l'envoi"
+    for geste in ("drop", "paste", "change"):
+        assert 'addEventListener("' + geste in src, \
+            f"le geste « {geste} » n'est pas câblé pour le verso"
+    # la liste des calques et ses commandes
+    for cmd in ("backLayerAdd", "backLayerMove", "backLayerDel",
+                "backLayerSet"):
+        assert cmd in src, f"la commande {cmd} manque à la liste des calques"
+    # ... et le panneau DIT ce qui ne voyage pas dans un modèle
+    assert "cf-frame-back" in src, "la zone d'import n'a pas d'id préfixé"
+
+
+def test_l_ecran_DIT_l_etat_du_verso_personnalise():
+    """Trois états à écrire, et le panneau les écrit : aucune image importée,
+    la pile pleine, et ce qu'un modèle emporte (les réglages) ou non (les
+    fichiers du jeu)."""
+    src = _js()
+    i = src.index("function backText(")
+    corps = src[i:src.index("\n  function ", i)]
+    assert "BACK_LAYERS_MAX" in corps, \
+        "l'état du verso ne dit pas le plafond de la pile"
+    assert "modèle" in corps, \
+        "l'écran ne dit pas ce qu'un modèle emporte du verso"
+
+
+def test_le_cache_d_images_du_verso_ne_peut_pas_DEBORDER_d_un_jeu_a_l_autre():
+    """`img_1.png` existe dans TOUS les jeux : un cache d'images indexé par le
+    seul nom de fichier serait un mélange garanti dès qu'on change de jeu.
+
+    Ce qui l'empêche n'est pas dans cette pièce, et c'est pour ça qu'on
+    l'épingle ICI plutôt que de l'affirmer : changer de jeu passe par
+    `galGo()` du CORE, qui RECHARGE la page (`location.assign`, repli
+    `location.reload`). Le cache meurt avec elle. Le jour où le CORE
+    échangerait le document en place, ce test rougit — et c'est exactement
+    l'endroit où il faut alors ajouter une clé de jeu."""
+    core = CORE_JS.read_text(encoding="utf-8")
+    corps = _js_fn(core, "galGo")
+    assert "location.assign" in corps and "location.reload" in corps, corps
+    # ... et la pièce charge bien SES images par SA route (règle 8)
+    src = _js()
+    i = src.index("function loadBackImg(")
+    lb = src[i:src.index("\n  function ", i)]
+    assert 'M.api.url("image/"' in lb, lb[:400]
+    assert "encodeURIComponent" in lb, "le nom de fichier n'est pas encodé"
+
+
+def test_le_painter_du_verso_ATTEND_ses_images_avant_de_peindre():
+    """Le patron de P3 : sans l'attente, la première frame peint un damier à
+    la place d'une image qui existe — et cette première frame EST le fichier
+    livré quand l'export part tout de suite."""
+    src = _js()
+    i = src.index("painters: [")
+    corps = src[i:src.index("state: DEFAULTS", i)]
+    assert "await ensureBackImgs(" in corps, \
+        "le painter ne charge pas les images du verso avant de peindre"
+    assert "async fn(" in corps, "le painter n'est pas asynchrone"
+    # l'attente est BORNÉE : le CORE laisse 4 s à un painter
+    j = src.index("function ensureBackImgs(")
+    ens = src[j:src.index("\n  function ", j)]
+    assert "Promise.race" in ens and "IMG_WAIT_MS" in ens, ens

@@ -49,14 +49,21 @@ passe par `_len()` qui lève `ValueError`, transformé en 400 nommant la borne.
 """
 from __future__ import annotations
 
+import asyncio
 import copy
+import io
 import math
+import os
+import pathlib
+import re
 import struct
+import uuid
 import zlib
 
 from fastapi import APIRouter, HTTPException, Request, Response
 
-from .contract import FORMATS, MM_PER_INCH, R, geom, is_valid_did, rnd
+from .contract import (FORMATS, MM_PER_INCH, R, deck_dir, geom, is_valid_did,
+                       rnd)
 
 router = APIRouter()
 
@@ -97,6 +104,19 @@ BACKS = [
     {"id": "scales", "label": "Écailles"},
     {"id": "chevron", "label": "Chevrons"},
     {"id": "runes", "label": "Runes"},
+    # LE VERSO PERSONNALISÉ (spec §6.2ter) — pas un motif de plus : le dos
+    # devient une IMAGE importée plus une pile de calques. Il arrive EN
+    # DERNIER pour que les sept motifs gardent leur rang (`card.back` et les
+    # sept habillages en portent déjà les identifiants).
+    {"id": "custom", "label": "Personnalisé"},
+]
+# Les modes de fusion d'un calque de verso — CEUX QUI EMPILENT, et rien
+# d'autre (§6.2ter). Le `multiply` n'est pas demandé au compositeur : il est
+# PRÉCOMPOSÉ dans les pixels du calque au moment du rendu, sans quoi la
+# couche « cadre » du rendu par couches cesserait d'être isolée (§4.2).
+BACK_BLENDS = [
+    {"id": "normal", "label": "Normal"},
+    {"id": "multiply", "label": "Multiplier"},
 ]
 CORNERS = [
     {"id": "none", "label": "Aucun"},
@@ -148,6 +168,12 @@ LIMITS = {
     # accepte (§6.2bis-b, vérifié avant tout export). Le plafond est un choix ;
     # la borne qui MORD vraiment est celle du format, plus bas.
     "seal_width_mm": [0.2, 6],
+    # LE VERSO PERSONNALISÉ (§6.2ter) : l'opacité et l'échelle d'un calque.
+    # L'échelle part de 0,25 et non de 0 — un calque à l'échelle nulle n'est
+    # pas un réglage, c'est un calque qu'on aurait dû éteindre (l'opacité,
+    # elle, va jusqu'à 0 : c'est exactement ce qu'elle veut dire).
+    "back_opacity": [0, 1],
+    "back_scale": [0.25, 4],
 }
 
 # ── LA BORNE QUE LE FORMAT IMPOSE ────────────────────────────────────────────
@@ -241,6 +267,90 @@ def seal_of(raw) -> dict:
     }
 
 
+# ── LE VERSO PERSONNALISÉ : SCHÉMA ET MOTIFS, jumeau du bloc de mod-frame.js ─
+# `doc.frame.back_image` (une image de fond) et `doc.frame.back_layers` (la
+# PREMIÈRE pile ordonnée de P2 — tout le reste y est booléen ou énuméré).
+#
+# `BACK_SRC_RE` est le motif du VOCABULAIRE (ce qu'un document a le droit de
+# nommer), `BACK_IMG_NAME_RE` celui de la ROUTE (ce qu'un GET a le droit de
+# demander). Les deux sont EXACTS, et pour la même raison : ces noms ne
+# viennent pas de l'utilisateur, ils sont FABRIQUÉS par le compteur d'imports.
+# Un motif permissif ouvrirait `decks/{did}/frame/` — qui n'a aujourd'hui que
+# des `img_N.png`, mais rien ne garantit qu'il n'aura pas d'état interne
+# demain, et cette porte ne doit pas s'élargir avec lui.
+BACK_SRC_RE = re.compile(r"(|img:img_\d+\.png)")
+BACK_IMG_NAME_RE = re.compile(r"img_\d+\.png")
+BACK_LAYERS_MAX = 6          # spec §6.2ter, plan 3c décision 5
+BACK_IMAGES_MAX = 8          # images de verso par jeu (plan 3c décision 5)
+BACK_LAYER_DEFAULTS = {"src": "", "opacity": 1.0, "scale": 1.0,
+                       "blend": "normal"}
+DEFAULTS_BACK = {"back_image": "", "back_layers": []}
+
+# Les plafonds d'IMPORT, RECOPIÉS et non importés : la règle 8 interdit à une
+# pièce d'importer le module d'une voisine, et `cards/type.py` porte les mêmes
+# chiffres pour sa propre porte. Le test de parité épingle les deux.
+IMG_MAX_BYTES = 64 * 1024 * 1024      # pesé AVANT tout décodage
+IMG_MAX_PIXELS = 32 * 1024 * 1024     # la TRAME, lue dans l'EN-TÊTE
+MAX_IMPORT_PX = 4096                  # côté long au-delà duquel on réduit
+
+
+def back_image_of(raw) -> str:
+    """L'image de fond du verso, NORMALISÉE — miroir d'exécution de
+    `backImageOf()` de mod-frame.js.
+
+    `fullmatch` et non `match` : le `$` d'un motif accepte un saut de ligne
+    final, et « img:img_1.png\\n » traverserait. Ce dépôt a payé ce piège
+    trois fois (3b-T2, 3c-T3) ; il ne se rejoue pas ici.
+
+    CE MIROIR NORMALISE, IL NE REFUSE PAS — et c'est une différence VOULUE
+    avec `seal_of`. `/metrics` REÇOIT un sceau dans un corps de requête, donc
+    une valeur folle y mérite un 400 qui nomme la borne. AUCUNE route ne
+    reçoit `back_image` / `back_layers` : ces clés ne vivent que dans le
+    document, où la doctrine est celle de `st()` — on RÉPARE ce qu'on
+    possède."""
+    s = raw if isinstance(raw, str) else ""
+    return s if BACK_SRC_RE.fullmatch(s) else ""
+
+
+def _borne(v, defaut: float, lo: float, hi: float) -> float:
+    """Une longueur de calque, RAMENÉE dans ses bornes (jamais refusée)."""
+    try:
+        n = float(v)
+    except (TypeError, ValueError):
+        return float(defaut)
+    if not math.isfinite(n):
+        return float(defaut)
+    return float(lo) if n < lo else (float(hi) if n > hi else n)
+
+
+def back_layers_of(raw) -> list:
+    """La pile de calques du verso, NORMALISÉE — miroir de `backLayersOf()`.
+
+    Chaque entrée rend un dictionnaire NEUF et COMPLET : le peintre reçoit la
+    pile du document telle quelle, un partiel obligerait chaque lecteur à
+    connaître les défauts. Ce qui n'est pas un objet est JETÉ (une entrée
+    `null` dans une liste ordonnée n'est pas un calque éteint, c'est un
+    document abîmé), et la pile est tronquée au plafond."""
+    blends = [b["id"] for b in BACK_BLENDS]
+    out = []
+    for e in (raw if isinstance(raw, list) else []):
+        if not isinstance(e, dict):
+            continue
+        blend = e.get("blend")
+        out.append({
+            "src": back_image_of(e.get("src")),
+            "opacity": _borne(e.get("opacity"), BACK_LAYER_DEFAULTS["opacity"],
+                              LIMITS["back_opacity"][0],
+                              LIMITS["back_opacity"][1]),
+            "scale": _borne(e.get("scale"), BACK_LAYER_DEFAULTS["scale"],
+                            LIMITS["back_scale"][0], LIMITS["back_scale"][1]),
+            "blend": blend if blend in blends else BACK_LAYER_DEFAULTS["blend"],
+        })
+        if len(out) >= BACK_LAYERS_MAX:
+            break
+    return out
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # LE MODÈLE D'OCCUPATION — les constantes du GABARIT DE MEUBLES
 # Bloc EXTRAIT et comparé au bloc jumeau de `js/mod-frame.js` par le test.
@@ -270,12 +380,14 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # L'HABILLAGE DES SEPT ARCHÉTYPES — phase 3a, tâche 2 (spec §6.2:318-363)
 #
 # CE QUE C'EST : pour chacun des sept archétypes, un réglage `doc.frame`
-# COMPLET — les 28 clés que l'on écrit, la vingt-neuvième (`art_window`) étant
-# PUBLIÉE par le painter et jamais saisie. (28 depuis la phase 3c-1 : `seal`,
-# le Sceau prismatique, qui reste ÉTEINT dans les sept habillages — un
+# COMPLET — les 30 clés que l'on écrit, la trente-et-unième (`art_window`)
+# étant PUBLIÉE par le painter et jamais saisie. (28 depuis la phase 3c-1 :
+# `seal`, le Sceau prismatique, qui reste ÉTEINT dans les sept habillages — un
 # archétype qui l'allumerait changerait l'aspect de tous les jeux déjà
-# instanciés.) Rien d'autre : ni police, ni slot,
-# ni palette de texte — ceux-là appartiennent à P3 et au modèle.
+# instanciés ; 30 depuis la 3c-4 : `back_image` et `back_layers`, le verso
+# personnalisé, VIDES pour la même raison — un archétype qui pointerait un
+# fichier pointerait le fichier d'un AUTRE jeu.) Rien d'autre : ni police, ni
+# slot, ni palette de texte — ceux-là appartiennent à P3 et au modèle.
 #
 # QUI LE CONSOMME : la tâche 3 (`models.py`) l'IMPORTE. Un modèle qui
 # retaperait ces réglages serait une seconde source de vérité, et la première
@@ -316,6 +428,11 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 _HABILLAGE_COMMUN = {
     "line_color": "", "banner_text": "", "win_lock": False,
     "back_same": True, "back_label": True,
+    # LE VERSO PERSONNALISÉ est VIDE dans les sept habillages, et ce n'est pas
+    # un oubli : un archétype qui pointerait un fichier pointerait le fichier
+    # d'un AUTRE jeu. Les clés existent quand même (c'est par elles que la
+    # liste blanche des modèles les admet — voir models.py).
+    "back_image": "", "back_layers": [],
     "fit": True, "socles": True, "seats": True, "socle_alpha": 0.82,
 }
 
@@ -328,6 +445,9 @@ def _habillage(**kw) -> dict:
     # toute façon, mais la table elle-même ne doit pas partager un sous-objet
     # entre ses sept entrées (la leçon de `window`, juste au-dessus).
     out["seal"] = copy.deepcopy(SEAL_DEFAULTS)
+    # MÊME RAISON pour la pile du verso : `dict(_HABILLAGE_COMMUN)` est une
+    # copie de SURFACE, les sept habillages partageraient une seule liste.
+    out["back_layers"] = []
     out.update(kw)
     return out
 
@@ -474,6 +594,12 @@ def catalog() -> dict:
         "seal_kinds": SEAL_KINDS,
         "seal_min_mm": SEAL_MIN_MM,
         "seal_defaults": copy.deepcopy(SEAL_DEFAULTS),
+        # LE VERSO PERSONNALISÉ : ses modes de fusion, ses plafonds et les
+        # défauts d'un calque — joignables de l'extérieur comme le reste.
+        "back_blends": BACK_BLENDS,
+        "back_layers_max": BACK_LAYERS_MAX,
+        "back_images_max": BACK_IMAGES_MAX,
+        "back_layer_defaults": dict(BACK_LAYER_DEFAULTS),
         "defaults": dict(DEFAULTS),
         "combos": len(FAMILIES) * len(RARITIES),
         "vector": True,
@@ -1309,6 +1435,194 @@ def build_control_proof(data: bytes, g, margin_mm: float,
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+# LES IMAGES DU VERSO PERSONNALISÉ — `decks/{did}/frame/img_{n}.png`
+#
+# CETTE PORTE EST UNE JUMELLE, PAS UN APPEL. `cards/type.py` porte la même
+# pour ses calques d'image ; P2 ne peut pas l'importer (règle 8, en tête de ce
+# fichier : « jamais d'un voisin »), elle est donc RECOPIÉE — et avec elle les
+# cinq leçons payées en 3b-T2, qui ne sont pas des politesses :
+#
+#   1. LA RÉSERVATION. Deux imports qui se croisent (deux Ctrl+V, deux
+#      onglets, un dépôt multiple) lisaient le même « prochain numéro » et
+#      écrivaient le même fichier. Le numéro n'est pas LU, il est RÉSERVÉ par
+#      création exclusive : la création échoue pour tous sauf un.
+#   2. LA BOMBE DE PIXELS. Le corps est PESÉ ; ce poids ne dit rien du coût du
+#      DÉCODAGE (un demi-mégaoctet peut déclarer 144 millions de pixels). On
+#      lit les dimensions dans l'EN-TÊTE et on refuse là.
+#   3. LA LISTE BLANCHE AVANT LE DISQUE, dans la fonction qui COMPOSE le
+#      chemin — pas seulement chez son appelant.
+#   4. LE COMPTEUR MAX+1. Un trou laissé par une suppression manuelle n'est
+#      pas repris : `img_2.png` réattribué changerait le dos de toutes les
+#      cartes dont le document pointe encore ce nom.
+#   5. LE PLAFOND, dit AVANT avec son arithmétique, et RECOMPTÉ après la
+#      réservation (deux imports partis ensemble voyaient tous deux « 7 »).
+#
+# PAS DE ROUTE DE SUPPRESSION, et c'est dit : une image encore référencée par
+# un document effacée d'un clic ferait un damier sans rien pour le défaire.
+# Le ramassage des images orphelines est une dette CONSIGNÉE du plan 3c.
+# ═════════════════════════════════════════════════════════════════════════════
+def _frame_files_dir(did: str, create: bool = False) -> pathlib.Path:
+    """`decks/<did>/frame/`. `deck_dir` porte déjà le double garde-fou (motif
+    PUIS confinement) : on ne le refait pas, on s'appuie dessus."""
+    d = deck_dir(did, create=create) / "frame"
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _deck_or_404(did: str, create: bool = False) -> pathlib.Path:
+    """Le dossier d'images, pour un jeu QUI EXISTE DÉJÀ. L'existence est
+    vérifiée SANS `create` — sinon le contrôle se répondrait à lui-même et un
+    identifiant bien formé mais inconnu ferait naître un jeu vide."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    try:
+        base = deck_dir(did)
+    except ValueError:
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    if not base.is_dir():
+        raise HTTPException(404, "Jeu introuvable")
+    return _frame_files_dir(did, create=create)
+
+
+def _next_img_index(d: pathlib.Path) -> tuple[int, int]:
+    """(numéro libre, nombre d'images existantes). MAX + 1 : les trous laissés
+    par une suppression manuelle ne sont pas repris."""
+    hauts, n = 0, 0
+    if d.is_dir():
+        for p in d.iterdir():
+            if BACK_IMG_NAME_RE.fullmatch(p.name) and p.is_file():
+                n += 1
+                hauts = max(hauts, int(p.name[4:-4]))
+    return hauts + 1, n
+
+
+def _plein(n: int) -> HTTPException:
+    return HTTPException(
+        409, f"Ce jeu porte déjà {BACK_IMAGES_MAX} images de verso "
+             f"(actuellement {n}), le maximum. Réutilisez une image déjà "
+             f"importée sur un calque du dos, ou supprimez-en une du dossier "
+             f"du jeu.")
+
+
+def _decode_bounded(raw: bytes):
+    """Les octets reçus, décodés et ramenés dans leurs bornes — ou un refus.
+
+    L'ORDRE EST LE FOND DE L'AFFAIRE : `Image.open` n'a pas encore décodé une
+    seule ligne quand il publie `size`. On refuse LÀ, et le décodage ne
+    commence que pour ce qui a passé la porte."""
+    from PIL import Image
+    try:
+        img = Image.open(io.BytesIO(raw))
+        w, h = img.size
+    except Exception:
+        raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
+                                 "est attendue dans le corps de la requête")
+    if w * h > IMG_MAX_PIXELS:
+        raise HTTPException(
+            413, f"Image trop grande : {w} x {h} pixels, soit "
+                 f"{w * h // 1048576} millions de pixels pour un maximum de "
+                 f"{IMG_MAX_PIXELS // 1048576}. Réduisez-la avant de l'importer.")
+    try:
+        img.load()
+    except Exception:
+        raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
+                                 "est attendue dans le corps de la requête")
+    # RGBA gardé : un calque de verso se pose PAR-DESSUS l'image de fond, sa
+    # transparence porte donc — contrairement à la matière de P6, qui est un
+    # fond et n'a rien sous elle.
+    img = img.convert("RGBA")
+    if max(img.size) > MAX_IMPORT_PX:
+        k = MAX_IMPORT_PX / float(max(img.size))
+        img = img.resize((max(1, round(img.size[0] * k)),
+                          max(1, round(img.size[1] * k))), Image.LANCZOS)
+    return img
+
+
+def _store_back_image(did: str, raw: bytes) -> dict:
+    """Décode, borne, RÉSERVE un numéro, écrit — dans cet ordre."""
+    d = _deck_or_404(did, create=True)
+    libre, n = _next_img_index(d)
+    # LE PLAFOND EST TENU DEUX FOIS, et un mutant l'a prouvé : retirer CETTE
+    # garde-ci seule ne fait rougir aucun test — le recompte d'après la
+    # réservation (plus bas) tient encore la ligne. Elle n'est donc pas la
+    # défense, elle est la POLITESSE : elle refuse AVANT de décoder une image
+    # de 64 Mo pour rien. Le mutant qui relève la CONSTANTE, lui, meurt.
+    if n >= BACK_IMAGES_MAX:
+        raise _plein(n)
+    img = _decode_bounded(raw)
+    tmp = d / f"img_{libre}.{uuid.uuid4().hex}.tmp"
+    try:
+        img.save(tmp, format="PNG", optimize=False)
+        # LA RÉSERVATION : on essaie les numéros à partir du premier libre
+        # CONNU ; une collision veut dire qu'un autre import vient de le
+        # prendre, et on passe au suivant.
+        for k in range(BACK_IMAGES_MAX * 2 + 4):
+            name = f"img_{libre + k}.png"
+            final = d / name
+            try:
+                fd = os.open(str(final), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                continue
+            except OSError as e:
+                raise HTTPException(
+                    409, f"Écriture impossible dans le dossier du jeu : "
+                         f"{e.strerror}")
+            os.close(fd)
+            # LE PLAFOND, RECOMPTÉ APRÈS LA RÉSERVATION : deux imports partis
+            # ensemble sur un jeu à 7 images auraient tous deux vu « 7 ». Le
+            # compte se refait sur les numéros JUSQU'AU NÔTRE — le premier
+            # arrivé garde sa place, le surnuméraire rend la sienne.
+            avant_nous = sum(1 for p in d.iterdir()
+                             if BACK_IMG_NAME_RE.fullmatch(p.name)
+                             and p.is_file() and int(p.name[4:-4]) <= libre + k)
+            if avant_nous > BACK_IMAGES_MAX:
+                final.unlink(missing_ok=True)
+                raise _plein(avant_nous - 1)
+            try:
+                os.replace(str(tmp), str(final))
+            except OSError as e:
+                # LE JALON NE SURVIT PAS À SON ÉCHEC : créé vide pour réserver
+                # le nom, le laisser ferait compter — et servir — un PNG de
+                # zéro octet.
+                final.unlink(missing_ok=True)
+                raise HTTPException(
+                    409, f"Écriture impossible dans le dossier du jeu : "
+                         f"{e.strerror}")
+            return {"file": name, "src": "img:" + name,
+                    "px": [img.size[0], img.size[1]],
+                    "bytes": final.stat().st_size,
+                    "n": _next_img_index(d)[1], "max": BACK_IMAGES_MAX}
+        raise HTTPException(
+            409, f"Aucun numéro libre pour une image de verso dans ce jeu "
+                 f"(maximum {BACK_IMAGES_MAX}).")
+    finally:
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:                       # pragma: no cover - disque tenu
+            pass
+
+
+def _read_back_image(did: str, name: str) -> bytes | None:
+    """Les octets d'une image de verso, ou `None`.
+
+    LA CEINTURE EST ICI AUSSI, et pas seulement chez l'appelant : cette
+    fonction COMPOSE un chemin, et la doctrine du dépôt (`deck_dir` : motif
+    PUIS confinement) veut que le garde-fou vive là où le chemin naît. Un
+    ramasse-miettes ou un écran qui l'appellerait en direct n'hérite de rien
+    de la route."""
+    if not is_valid_did(did) or not BACK_IMG_NAME_RE.fullmatch(name or ""):
+        return None
+    try:
+        p = _frame_files_dir(did) / name
+        if not p.is_file():
+            return None
+        return p.read_bytes()
+    except (OSError, ValueError):
+        return None
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 # ROUTES — chemins RELATIFS à /api/cards/{did}/frame
 # ═════════════════════════════════════════════════════════════════════════════
 @router.get("/catalog")
@@ -1550,3 +1864,55 @@ async def post_control(did: str, request: Request, fmt: str = "poker_eu",
         "X-Proof-Pixels": str(rap["pixels_compares"]),
         "Content-Disposition": 'attachment; filename="epreuve-controle.png"',
     })
+
+
+@router.post("/image")
+async def post_back_image(did: str, request: Request):
+    """L'image d'un verso personnalisé, importée par l'utilisateur — CORPS BRUT.
+
+    Elle est rangée AVEC LE JEU (`decks/{did}/frame/img_{n}.png`) et non dans
+    le navigateur : un dos doit voyager avec sa carte — export, duplication,
+    sauvegarde. La duplication de la 3a copie déjà le dossier du jeu, si bien
+    qu'un jeu dupliqué arrive avec son verso sans une ligne de plus.
+
+    Le corps est PESÉ avant d'être décodé (seul ordre qui protège la mémoire),
+    puis décodé — ce qui refuse du même geste ce qui n'est pas une image —
+    puis ramené sous `MAX_IMPORT_PX` de côté."""
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(400, "Corps vide : envoyer une image")
+    if len(raw) > IMG_MAX_BYTES:
+        raise HTTPException(413, "Image trop lourde (max 64 Mo)")
+    return await asyncio.to_thread(_store_back_image, did, raw)
+
+
+@router.get("/image/{name}")
+async def get_back_image(did: str, name: str):
+    """L'image d'un verso, telle qu'elle a été rangée.
+
+    LISTE BLANCHE D'ABORD, DISQUE ENSUITE — l'ordre est le fond de l'affaire :
+    un motif appliqué APRÈS avoir composé un chemin a déjà laissé le chemin
+    exister.
+
+    LES OCTETS SONT LUS ICI, jamais servis par `FileResponse` : celui-ci
+    re-stat le fichier au moment de l'ENVOI, donc APRÈS le contrôle — une
+    disparition entre les deux y lève RuntimeError, c'est-à-dire un 500 sur
+    une pièce qui n'en fait jamais.
+
+    LE CACHE EST PERMIS, et c'est une conséquence du compteur : `img_7.png` ne
+    change jamais de contenu (un import écrit `img_8.png`), donc `no-store` ne
+    protégerait de rien et coûterait un aller-retour à chaque frame de
+    l'aperçu — le peintre du verso en demande une par rendu."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    # `fullmatch` et non `match` : le `$` accepte un saut de ligne final, et
+    # ce nom vient d'une URL.
+    if not BACK_IMG_NAME_RE.fullmatch(name or ""):
+        raise HTTPException(
+            400, f"Nom d'image invalide : {name!r} — les images de verso "
+                 f"s'appellent « img_1.png », « img_2.png », etc.")
+    data = await asyncio.to_thread(_read_back_image, did, name)
+    if data is None:
+        raise HTTPException(404, f"Aucune image {name} dans ce jeu")
+    return Response(content=data, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"})

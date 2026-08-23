@@ -55,7 +55,27 @@
     { id: "scales", label: "Écailles" },
     { id: "chevron", label: "Chevrons" },
     { id: "runes", label: "Runes" },
+    /* LE VERSO PERSONNALISE (spec §6.2ter) — pas un motif de plus : le dos
+       devient une IMAGE importee plus une pile de calques. Il arrive EN
+       DERNIER pour que les sept motifs gardent leur rang (`card.back` et les
+       sept habillages en portent deja les identifiants). */
+    { id: "custom", label: "Personnalisé" },
   ];
+  /* les modes de fusion d'un calque de verso — CEUX QUI EMPILENT, et rien
+     d'autre (§6.2ter). Le `multiply` n'est jamais demande au compositeur : il
+     est PRECOMPOSE dans les pixels du calque (voir `drawBackLayer`), sans quoi
+     la couche « cadre » du rendu par couches cesserait d'etre isolee (§4.2). */
+  const BACK_BLENDS = [
+    { id: "normal", label: "Normal" },
+    { id: "multiply", label: "Multiplier" },
+  ];
+  const BACK_LAYERS_MAX = 6;   /* spec §6.2ter, plan 3c decision 5 */
+  const BACK_IMAGES_MAX = 8;   /* images de verso par jeu (meme decision) */
+  const BACK_LAYER_DEFAULTS = { src: "", opacity: 1, scale: 1, blend: "normal" };
+  /* le motif du VOCABULAIRE : ce qu'un document a le droit de nommer. Il est
+     ANCRE des deux bouts — le piege du `$` sans ancre de tete a deja ete paye
+     trois fois dans ce depot. Jumeau de `BACK_SRC_RE` de cards/frame.py. */
+  const BACK_SRC_RE = /^(|img:img_\d+\.png)$/;
   const CORNERS = [
     { id: "none", label: "Aucun" },
     { id: "bracket", label: "Équerre" },
@@ -97,6 +117,12 @@
        (§6.2bis-b). Le plafond est un choix ; la borne qui MORD vraiment est
        celle du format, plus bas. */
     seal_width_mm: [0.2, 6],
+    /* LE VERSO PERSONNALISE (§6.2ter) : l'opacite et l'echelle d'un calque.
+       L'echelle part de 0,25 et non de 0 — un calque a l'echelle nulle n'est
+       pas un reglage, c'est un calque qu'on aurait du eteindre (l'opacite,
+       elle, va bien jusqu'a 0 : c'est exactement ce qu'elle veut dire). */
+    back_opacity: [0, 1],
+    back_scale: [0.25, 4],
   };
   /* ── LA BORNE QUE LE FORMAT IMPOSE, ET QU'IL MANQUAIT ─────────────────────
      BUG TROUVE PAR LE BALAYAGE DES DOUZE FORMATS, mesure avant correction :
@@ -190,6 +216,12 @@
        cadre. Publiee par `publishWindow`, jamais saisie a la main. */
     art_window: null,
     back: "guilloche", back_same: true, back_label: true,
+    /* LE VERSO PERSONNALISE — l'image de fond et LA PREMIERE PILE ORDONNEE de
+       P2 (tout le reste y est booleen ou enumere). `st()` leur donne donc
+       leurs propres branches de validation, au patron de `sealOf` : rendre
+       `DEFAULTS.back_layers` tel quel ferait d'un `push` d'utilisateur une
+       ecriture dans le SCHEMA remis au registre du CORE. */
+    back_image: "", back_layers: [],
     /* LE SCEAU — le PREMIER sous-objet de `doc.frame` (toutes les autres cles
        sont plates). `st()` lui donne donc sa propre branche de validation, au
        patron de `winMM` : `Object.keys(DEFAULTS)` ne descend pas d'un etage. */
@@ -260,7 +292,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 29 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 31 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -280,7 +312,59 @@
     o.socle_alpha = cl(num(o.socle_alpha, DEFAULTS.socle_alpha), 0, 1);
     o.grad_angle = cl(num(o.grad_angle, DEFAULTS.grad_angle), 0, 360);
     o.seal = sealOf(s.seal);
+    o.back_image = backImageOf(s.back_image);
+    o.back_layers = backLayersOf(s.back_layers);
     return o;
+  }
+
+  /* ── LE VERSO PERSONNALISE, VALIDE — miroir d'execution de `back_image_of`
+     et `back_layers_of` de cards/frame.py.
+
+     CE MIROIR NORMALISE, IL NE REFUSE PAS, et la difference avec `seal` est
+     VOULUE : `/metrics` RECOIT un sceau dans un corps de requete, donc une
+     valeur folle y merite un 400 qui nomme la borne. AUCUNE route ne recoit
+     `back_image` / `back_layers` : ces cles ne vivent que dans le document,
+     ou la doctrine est celle de `st()` — on REPARE ce qu'on possede. */
+  function backImageOf(raw) {
+    const s = (typeof raw === "string") ? raw : "";
+    return BACK_SRC_RE.test(s) ? s : "";
+  }
+  /* UNE LONGUEUR DE CALQUE, aux memes conditions que `float()` du miroir.
+     Le generique `num()` ne convient PAS ici : il prend `Number(null) === 0`
+     et `Number("") === 0`, la ou `float(None)` et `float("")` LEVENT et
+     retombent au defaut. Deux valeurs pour un meme document = une pastille de
+     verification rouge sans qu'un pixel bouge (la lecon `width_mm: null` de la
+     T1, rejouee). On accepte donc un NOMBRE ou une chaine numerique, et rien
+     d'autre. */
+  function bnum(v, d) {
+    if (typeof v === "number") return isFinite(v) ? v : d;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "string" && v.trim() !== "") {
+      const n = Number(v);
+      return isFinite(n) ? n : d;
+    }
+    return d;
+  }
+  function backLayersOf(raw) {
+    /* TOUJOURS un tableau NEUF, d'objets NEUFS. Ce qui n'est pas un objet est
+       JETE : une entree `null` dans une liste ORDONNEE n'est pas un calque
+       eteint, c'est un document abime — et un trou dans la pile decalerait
+       tout ce qui suit. */
+    const out = [];
+    if (!Array.isArray(raw)) return out;
+    for (let i = 0; i < raw.length && out.length < BACK_LAYERS_MAX; i++) {
+      const e = raw[i];
+      if (!e || typeof e !== "object" || Array.isArray(e)) continue;
+      out.push({
+        src: backImageOf(e.src),
+        opacity: cl(bnum(e.opacity, BACK_LAYER_DEFAULTS.opacity),
+          LIMITS.back_opacity[0], LIMITS.back_opacity[1]),
+        scale: cl(bnum(e.scale, BACK_LAYER_DEFAULTS.scale),
+          LIMITS.back_scale[0], LIMITS.back_scale[1]),
+        blend: byId(BACK_BLENDS, e.blend) ? e.blend : BACK_LAYER_DEFAULTS.blend,
+      });
+    }
+    return out;
   }
 
   /* LE SCEAU, VALIDE — branche IMBRIQUEE, au patron de `winMM`.
@@ -2037,6 +2121,251 @@
     if (!f.back_same && card && card.back && byId(BACKS, card.back)) return card.back;
     return f.back;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     7bis. LE VERSO PERSONNALISE (spec §6.2ter) — une image importee, plus
+     une PILE ORDONNEE de calques. La premiere de P2.
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* le nom de fichier derriere une source de document (`img:img_3.png`). */
+  function backFile(src) {
+    const s = String(src || "");
+    return s.indexOf("img:") === 0 ? s.slice(4) : "";
+  }
+  /* les fichiers que le verso demande, SANS DOUBLON et dans l'ordre : c'est
+     ce que le painter attend avant de peindre. */
+  function backFiles(f) {
+    const out = [];
+    const add = (src) => {
+      const fl = backFile(src);
+      if (fl && out.indexOf(fl) < 0) out.push(fl);
+    };
+    add(f.back_image);
+    const L = Array.isArray(f.back_layers) ? f.back_layers : [];
+    for (let i = 0; i < L.length; i++) add(L[i] && L[i].src);
+    return out;
+  }
+
+  /* ── LES IMAGES DU VERSO, CHARGEES UNE FOIS ──────────────────────────────
+     Patron `IMGS` de mod-type (3b-T2), repris a l'identique et pour les memes
+     raisons : le painter tourne a chaque frame, sans ce cache chaque frame
+     redecoderait le PNG.
+
+     L'ETAT EST RESOLU, JAMAIS REJETE. Une entree vaut `{img, ok}` : `ok:false`
+     dit « ce fichier n'est pas arrive », ce qui est un ETAT de la carte (le
+     damier), pas une panne du painter. Une promesse rejetee traverserait le
+     painter et noircirait l'ecran des sept autres pieces.
+
+     LA CLE EST LE SEUL NOM DE FICHIER, et ce n'est pas un oubli : `img_1.png`
+     existe dans TOUS les jeux. Ce qui empeche le melange n'est pas ici — c'est
+     `galGo()` du CORE, qui RECHARGE la page a chaque changement de jeu
+     (`location.assign`, repli `location.reload`) : le cache meurt avec elle.
+     Un test epingle ce fait chez le CORE ; le jour ou il echangerait le
+     document en place, il rougit, et c'est la qu'une cle de jeu s'ajoute. */
+  const BIMGS = new Map();          /* fichier -> {img, ok} ou Promise */
+  const IMG_WAIT_MS = 2500;         /* le painter a 4 s : on garde de la marge */
+  function backImgRec(file) {
+    const v = BIMGS.get(file);
+    return (v && !v.then) ? v : null;
+  }
+  function loadBackImg(file) {
+    const known = BIMGS.get(file);
+    if (known) return known.then ? known : Promise.resolve(known);
+    let res = null;
+    /* LA PROMESSE ENTRE DANS LE CACHE AVANT QUE LE CHARGEMENT COMMENCE, et
+       l'ETAT ne la remplace qu'a la resolution : un echec SYNCHRONE ecrivait
+       sinon l'etat, que le `set` d'apres ecrasait par la promesse — le cache
+       ne rendait plus jamais d'etat lisible et le dos restait au damier pour
+       toujours (le piege paye en 3b). */
+    const p = new Promise((r) => { res = r; }).then((rec) => {
+      BIMGS.set(file, rec);
+      /* ARRIVEE TARDIVE : la course du painter est peut-etre finie et la carte
+         peinte sans l'image. On redemande un rendu — sous garde : seulement si
+         le verso VIVANT porte encore ce fichier. Le CORE coalesce. */
+      if (rec.ok && backFiles(f()).indexOf(file) >= 0) M.invalidate();
+      return rec;
+    });
+    BIMGS.set(file, p);
+    let done = false;
+    const fin = (ok, im) => {
+      if (done) return;
+      done = true;
+      res({ img: ok ? im : null, ok: ok, file: file });
+    };
+    let url = "";
+    try { url = M.api.url("image/" + encodeURIComponent(file)); }
+    catch (e) { fin(false, null); return p; }
+    const im = new Image();
+    im.decoding = "sync";
+    im.onload = () => fin(true, im);
+    im.onerror = () => fin(false, null);
+    im.src = url;
+    return p;
+  }
+  function ensureBackImgs(files) {
+    const todo = files.filter((x) => x && !backImgRec(x));
+    if (!todo.length) return Promise.resolve();
+    const all = Promise.all(todo.map(loadBackImg));
+    return Promise.race([all, new Promise((r) => setTimeout(r, IMG_WAIT_MS))]);
+  }
+
+  /* LE CADRAGE « COVER », DEPUIS LE BORD DE TOILE et non depuis la coupe.
+     La decoupe vient APRES l'impression : une image calee sur la seule rogne
+     laisserait la matiere de bande dans les 3 mm de fond perdu, et un massicot
+     decale d'un millimetre poserait ce lisere sur le bord de la carte livree.
+     La toile CONTIENT la coupe, donc couvrir la toile couvre la coupe — c'est
+     la meme regle que le remplissage de l'anneau du Sceau et que les motifs du
+     catalogue, qui courent jusqu'au bord de fichier. */
+  function backCover(sw, sh, W, H) {
+    if (!(sw > 0) || !(sh > 0)) return [0, 0, W, H];
+    const k = Math.max(W / sw, H / sh);
+    const w = sw * k, h = sh * k;
+    return [(W - w) / 2, (H - h) / 2, w, h];
+  }
+
+  /* LE DAMIER — l'etat « ce fichier n'est pas arrive », peint DANS LE FICHIER
+     LIVRE et c'est voulu (patron de mod-type) : un trou laisserait partir une
+     carte incomplete sans un mot, alors qu'un damier nomme est impossible a ne
+     pas voir sur une epreuve. Une source VIDE, elle, ne salit rien — c'est un
+     dos qu'on vient de choisir, et le panneau le montre deja.
+     LA POLICE est la meme pile systeme que le nom du jeu au dos, deux lignes
+     plus bas : P2 n'a pas de chargeur de fontes, et en ajouter un pour un etat
+     d'erreur serait une seconde source de fontes a auditer. */
+  function backDamier(ctx, x, y, w, h, file) {
+    if (!(w > 0) || !(h > 0)) return;
+    ctx.save();
+    ctx.fillStyle = "#241f2b";
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#39323f";
+    const n = Math.max(6, Math.round(Math.min(w, h) / 18));
+    for (let j = 0; j < h; j += n) {
+      for (let i = 0; i < w; i += n) {
+        if ((((i / n) | 0) + ((j / n) | 0)) % 2) continue;
+        ctx.fillRect(x + i, y + j, Math.min(n, w - i), Math.min(n, h - j));
+      }
+    }
+    if (file) {
+      ctx.fillStyle = "#e6dfd4";
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      ctx.font = "600 " + Math.max(8, Math.round(Math.min(w / 12, h / 3)))
+        + 'px "Segoe UI", system-ui, sans-serif';
+      ctx.fillText(file, x + w / 2, y + h / 2);
+    }
+    ctx.restore();
+  }
+
+  /* ── UN CALQUE, ET LE MULTIPLY CUIT DANS SES PIXELS ──────────────────────
+     LE MECANISME, ET POURQUOI IL EST ECRIT AINSI. La preuve d'empilement de
+     §4.2 juge une couche en la re-empilant en `source-over` : tout mode de
+     fusion VIVANT pose sur la toile du CORE rend le resultat dependant de ce
+     qui est dessous, et la couche « cadre » bascule alors en « empreinte »
+     (une couche cuite, qu'on ne peut plus deplacer). Le `multiply` est donc
+     calcule DANS LES PIXELS du calque, sur une toile de cuisson a part, puis
+     pose en `source-over` : le compositeur du CORE ne recoit jamais autre
+     chose que du source-over.
+
+     LA FORMULE est celle du canvas, pas une approximation :
+         cuit = Cs x (1 - alphaFond) + (Cs x Cfond) x alphaFond
+     — le fond compte pour ce qu'il PESE. Sans le terme de gauche, multiplier
+     par un fond ABSENT donnerait du NOIR (tout x 0 = 0), et le rendu par
+     couches de P9, qui peint sur toile TRANSPARENTE a chaque appel, sortirait
+     un verso noir. Sur le verso, `paintBack` remplit la toile avant d'appeler
+     ici, donc le fond est opaque et le terme vaut zero — mais la propriete ne
+     doit pas dependre de ce fait-la.
+
+     CE QUE LA PRECOMPOSITION N'ACHETE PAS, ET C'EST MESURE. Elle ne change
+     AUCUN PIXEL : un `globalCompositeOperation = "multiply"` vif donnerait
+     exactement les memes octets, sur fond opaque comme sur fond transparent
+     (banc RGBA, meme empreinte des deux cotes). Elle n'ameliore donc pas le
+     VERDICT de la preuve d'empilement — sur ce verso-la, les deux ecritures
+     rendent une couche « isolee ». Ce qu'elle achete est la SUITE
+     D'OPERATIONS : la couche du cadre ne demande jamais au compositeur autre
+     chose que du source-over, et c'est cela que §4.2 sait verifier (son banc
+     REFUSE un mode qu'il ne modelise pas — un banc qui devine rend un verdict
+     qui ne vaut rien) et que verifiera tout lecteur du flux d'operations. La
+     phrase tenable est donc celle-la, pas « sans elle la preuve tombe ». Un
+     test epingle l'egalite des pixels pour que cette phrase ne pourrisse pas.
+
+     COUT ASSUME : une relecture de toile pleine par calque a multiply (borne
+     a six). La toile de cuisson est REUTILISEE d'un calque a l'autre — lui
+     re-affecter sa largeur l'efface, dans un navigateur comme au banc — et
+     relachee a la fin, au patron de `release()` de core.js. */
+  function drawBackLayer(ctx, m, l, get, cache) {
+    const file = backFile(l && l.src);
+    if (!file) return;                    /* calque qui vient de naitre */
+    const op = cl(num(l.opacity, 1), 0, 1);
+    const rec = get(file);
+    if (!rec || !rec.ok || !rec.img) {
+      /* un calque dont le FICHIER manque : le damier, dans la boite qu'il
+         aurait occupee — pas sur toute la carte, sinon on effacerait l'image
+         de fond qui, elle, est peut-etre la. */
+      const b = backLayerRect(m, l, 1, 1);
+      backDamier(ctx, b[0], b[1], b[2], b[3], file);
+      return;
+    }
+    if (!(op > 0)) return;
+    const b = backLayerRect(m, l, rec.img.width, rec.img.height);
+    if (!(b[2] > 0) || !(b[3] > 0)) return;
+    if (l.blend === "multiply") {
+      const off = cache.off || (cache.off = document.createElement("canvas"));
+      off.width = m.W; off.height = m.H;   /* re-affecter la largeur EFFACE */
+      const oc = off.getContext("2d");
+      oc.drawImage(rec.img, b[0], b[1], b[2], b[3]);
+      const L = oc.getImageData(0, 0, m.W, m.H);
+      const B = ctx.getImageData(0, 0, m.W, m.H);
+      const a = L.data, d = B.data;
+      for (let i = 0; i < a.length; i += 4) {
+        const ab = d[i + 3] / 255;
+        a[i] = Math.round(a[i] * (1 - ab) + a[i] * d[i] / 255 * ab);
+        a[i + 1] = Math.round(a[i + 1] * (1 - ab) + a[i + 1] * d[i + 1] / 255 * ab);
+        a[i + 2] = Math.round(a[i + 2] * (1 - ab) + a[i + 2] * d[i + 2] / 255 * ab);
+      }
+      oc.putImageData(L, 0, 0);
+      ctx.save();
+      ctx.globalAlpha = op;
+      ctx.drawImage(off, 0, 0);
+      ctx.restore();
+      return;
+    }
+    ctx.save();
+    ctx.globalAlpha = op;
+    ctx.drawImage(rec.img, b[0], b[1], b[2], b[3]);
+    ctx.restore();
+  }
+  /* la boite d'un calque : le cadrage « cover » de la toile, mis a l'echelle
+     AUTOUR DU CENTRE — un calque a 0,5 laisse voir ce qu'il y a dessous sur
+     tout le pourtour, un calque a 2 deborde de partout. */
+  function backLayerRect(m, l, sw, sh) {
+    const sc = cl(num(l && l.scale, 1), LIMITS.back_scale[0], LIMITS.back_scale[1]);
+    const c = backCover(sw, sh, m.W, m.H);
+    const w = c[2] * sc, h = c[3] * sc;
+    return [(m.W - w) / 2, (m.H - h) / 2, w, h];
+  }
+
+  /* LE PEINTRE DU VERSO PERSONNALISE. `get` rend l'etat d'un fichier
+     (`{img, ok}` ou null) : il est passe en PARAMETRE plutot que lu dans le
+     cache du module, ce qui rend ce peintre jouable au banc sur un contexte
+     raster minimal — le meme code que le fichier livre. */
+  function paintBackCustom(ctx, m, f, get) {
+    const cache = {};
+    const file = backFile(f.back_image);
+    if (file) {
+      const rec = get(file);
+      if (rec && rec.ok && rec.img) {
+        const c = backCover(rec.img.width, rec.img.height, m.W, m.H);
+        ctx.drawImage(rec.img, c[0], c[1], c[2], c[3]);
+      } else {
+        backDamier(ctx, 0, 0, m.W, m.H, file);
+      }
+    }
+    const L = Array.isArray(f.back_layers) ? f.back_layers : [];
+    for (let i = 0; i < L.length && i < BACK_LAYERS_MAX; i++) {
+      drawBackLayer(ctx, m, L[i], get, cache);
+    }
+    /* la toile de cuisson relachee tout de suite, sans attendre le ramasse-
+       miettes : en tarot 600 DPI elle pese ~21 Mo (regle de `release`,
+       core.js). */
+    if (cache.off) { cache.off.width = 0; cache.off.height = 0; }
+  }
   function paintBack(ctx, g, f, card, d) {
     if (f.family === "none") return;
     const m = model(g, f), p = pal(f), u = m.u;
@@ -2090,6 +2419,14 @@
         }
         ctx.stroke();
       }
+    } else if (kind === "custom") {
+      /* LE VERSO PERSONNALISE prend la place du MOTIF, pas celle du cadre :
+         les filets, les ornements de coin et le nom du jeu (qui a son propre
+         interrupteur) restent. Il est peint AVANT `matter()` parce que le
+         carton est le meme des deux cotes de la carte — sa matiere passe donc
+         sur l'illustration du dos exactement comme elle passe sur les motifs
+         du catalogue. */
+      paintBackCustom(ctx, m, f, backImgRec);
     } else if (kind === "runes") {
       const rr = prng(4242), s = u * 7;
       for (let y = m.trim.y % s; y < m.H; y += s) {
@@ -2114,24 +2451,28 @@
     matter(ctx, m, f, "rect");
     ctx.restore();
 
-    /* medaillon central */
-    ctx.save();
-    const R = Math.min(m.trim.w, m.trim.h) * 0.19;
-    const rg = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.4, R * 0.1, cx, cy, R);
-    rg.addColorStop(0, mix(p.base[0], "#ffffff", 0.22));
-    rg.addColorStop(1, p.base[2]);
-    ctx.fillStyle = rg;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = f.metal ? metalPaint(ctx, m, f, false) : lineInk(f);
-    ctx.lineWidth = Math.max(0.8, m.line || u * 0.4);
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
-    ctx.beginPath(); ctx.arc(cx, cy, R * 0.78, 0, Math.PI * 2); ctx.stroke();
-    ctx.fillStyle = rgba(p.gem, 0.92);
-    for (let k = 0; k < 8; k++) {
-      const a = k / 8 * Math.PI * 2;
-      ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5, R * 0.09, 0, Math.PI * 2); ctx.fill();
+    /* medaillon central — MEUBLE DU CATALOGUE, donc absent du verso
+       personnalise : le poser au milieu de l'image de l'utilisateur serait
+       une decoration qu'il n'a pas demandee, et rien pour la retirer. */
+    if (kind !== "custom") {
+      ctx.save();
+      const R = Math.min(m.trim.w, m.trim.h) * 0.19;
+      const rg = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.4, R * 0.1, cx, cy, R);
+      rg.addColorStop(0, mix(p.base[0], "#ffffff", 0.22));
+      rg.addColorStop(1, p.base[2]);
+      ctx.fillStyle = rg;
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = f.metal ? metalPaint(ctx, m, f, false) : lineInk(f);
+      ctx.lineWidth = Math.max(0.8, m.line || u * 0.4);
+      ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, cy, R * 0.78, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = rgba(p.gem, 0.92);
+      for (let k = 0; k < 8; k++) {
+        const a = k / 8 * Math.PI * 2;
+        ctx.beginPath(); ctx.arc(cx + Math.cos(a) * R * 0.5, cy + Math.sin(a) * R * 0.5, R * 0.09, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
     }
-    ctx.restore();
 
     /* filets du dos : le meme reglage que le recto, la meme conversion */
     if (m.line > 0) {
@@ -2243,11 +2584,20 @@
 
     painters: [
       {
-        z: 40, fn(ctx, geom, doc, card, side) {
+        z: 40, async fn(ctx, geom, doc, card, side) {
           const f = st(doc);
           publishWindow(geom, f);
-          if (side === "back") paintBack(ctx, geom, f, card, doc);
-          else paintFront(ctx, geom, f, card, doc);
+          if (side !== "back") { paintFront(ctx, geom, f, card, doc); return; }
+          /* LES IMAGES DU VERSO, ATTENDUES ICI — le patron de `ensureImgs` de
+             P3, et pour la meme raison : sans l'attente, la premiere frame
+             peint un damier a la place d'une image qui existe, et cette
+             premiere frame EST le fichier livre quand l'export part tout de
+             suite. L'attente est BORNEE (le CORE laisse 4 s a un painter). */
+          if (backOf(f, card) === "custom") {
+            const files = backFiles(f);
+            if (files.length) await ensureBackImgs(files);
+          }
+          paintBack(ctx, geom, f, card, doc);
         },
       },
       {
@@ -2616,6 +2966,51 @@
     fdl.addEventListener("click", exportFront);
     bexp.appendChild(bshow); bexp.appendChild(bdl); bexp.appendChild(fdl);
     g4.body.appendChild(bexp);
+
+    /* ── LE VERSO PERSONNALISE : la zone d'import et la pile de calques.
+       Le bloc n'existe que pour le dos « Personnalisé » — un depot de fichier
+       sous un motif de catalogue n'aurait nulle part ou aller. */
+    UI.backCustom = h("div", "cff-backcustom hidden");
+    UI.backDrop = h("div", "cff-drop");
+    UI.backDrop.id = "cf-frame-backdrop";
+    UI.backDrop.appendChild(h("span", null, "Déposez une image ici, collez-la (Ctrl+V)"));
+    const bpick = h("button", "btn sm", "Choisir un fichier…");
+    bpick.type = "button";
+    bpick.addEventListener("click", () => pickBackFile(-1));
+    UI.backDrop.appendChild(bpick);
+    UI.backFile = h("input");
+    UI.backFile.type = "file";
+    UI.backFile.accept = "image/*";
+    UI.backFile.className = "hidden";
+    UI.backFile.id = "cf-frame-backfile";
+    UI.backFile.addEventListener("change", () => {
+      const fl = UI.backFile.files && UI.backFile.files[0];
+      if (fl) importBackImage(fl, Number(UI.backFile.dataset.cible || -1));
+    });
+    ["dragenter", "dragover"].forEach((n) => UI.backDrop.addEventListener(n, (ev) => {
+      ev.preventDefault(); UI.backDrop.classList.add("over");
+    }));
+    ["dragleave", "drop"].forEach((n) => UI.backDrop.addEventListener(n, () => UI.backDrop.classList.remove("over")));
+    UI.backDrop.addEventListener("drop", (ev) => {
+      ev.preventDefault();
+      const fs = (ev.dataTransfer && ev.dataTransfer.files) || [];
+      if (fs.length) importBackImage(fs[0], -1);
+    });
+    UI.backCustom.appendChild(UI.backDrop);
+    UI.backCustom.appendChild(UI.backFile);
+    const blhead = h("div", "cff-row");
+    const bladd = h("button", "btn sm", "Ajouter un calque");
+    bladd.type = "button";
+    bladd.addEventListener("click", backLayerAdd);
+    blhead.appendChild(bladd);
+    UI.backCustom.appendChild(label("Calques du verso", "peints du haut vers le bas"));
+    UI.backCustom.appendChild(blhead);
+    UI.backList = h("div", "cff-bllist");
+    UI.backCustom.appendChild(UI.backList);
+    g4.body.appendChild(UI.backCustom);
+    UI.backRead = h("p", "hint cff-backread");
+    g4.body.appendChild(UI.backRead);
+
     UI.stampRead = h("p", "hint cff-stamp");
     g4.body.appendChild(UI.stampRead);
     g4.body.appendChild(h("p", "hint", "Dos par carte : décocher « dos commun » — le motif est alors lu dans <b>card.back</b> (colonne du CSV, pièce 04), avec repli sur le motif commun."));
@@ -2739,6 +3134,7 @@
     }
 
     document.addEventListener("keydown", onKey);
+    document.addEventListener("paste", onPasteBack);
     CF.on("core:doc", (p) => { if (!p || p.id === "frame" || p.id === "format") sync(); });
     CF.on("core:geom", sync);
     CF.on("core:cards", sync);
@@ -3872,6 +4268,197 @@
     const b = document.querySelector("#sideBtn");
     if (b && CF.side() !== "back") b.click();
     else if (b) M.toast("le verso est déjà affiché");
+  }
+
+  /* ── LE VERSO PERSONNALISE : import et pile de calques ───────────────────
+     MEME CHIFFRE que l'illustration de P1 et que les calques de P3, RECOPIE
+     et non importe : la regle 8 interdit a une piece d'importer le module
+     d'une voisine. */
+  const MAX_IMPORT_PX = 4096;
+  function setBackLayers(list, lab) {
+    /* on repasse par le normaliseur : la liste ecrite dans le document est
+       TOUJOURS celle que `st()` rendrait, jamais un objet a moitie forme. */
+    set({ back_layers: backLayersOf(list) }, lab);
+  }
+  function backLayerAdd() {
+    const L = f().back_layers.slice();
+    if (L.length >= BACK_LAYERS_MAX) {
+      M.toast("le verso porte déjà " + BACK_LAYERS_MAX + " calques, le maximum", true);
+      return;
+    }
+    L.push(Object.assign({}, BACK_LAYER_DEFAULTS));
+    setBackLayers(L, "calque de verso");
+  }
+  function backLayerDel(i) {
+    const L = f().back_layers.slice();
+    if (!L[i]) return;
+    L.splice(i, 1);
+    setBackLayers(L, "calque retiré");
+  }
+  function backLayerMove(i, d) {
+    const L = f().back_layers.slice(), j = i + d;
+    if (!L[i] || j < 0 || j >= L.length) return;
+    const t = L[i]; L[i] = L[j]; L[j] = t;
+    setBackLayers(L, "ordre des calques");
+  }
+  function backLayerSet(i, patch, lab) {
+    const L = f().back_layers.slice();
+    if (!L[i]) return;
+    L[i] = Object.assign({}, L[i], patch);
+    setBackLayers(L, lab);
+  }
+
+  /* LA REDUCTION AVANT L'ENVOI — patron `downscale` de mod-face. Le serveur
+     reduit de toute facon (il ne croit pas le client) ; ce qu'on evite ici est
+     un fichier de 40 Mo qui part sur le fil pour revenir a 4096 px. */
+  function downscaleBack(bmp) {
+    const k = MAX_IMPORT_PX / Math.max(bmp.width, bmp.height);
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(bmp.width * k));
+    cv.height = Math.max(1, Math.round(bmp.height * k));
+    const c = cv.getContext("2d");
+    c.imageSmoothingEnabled = true;
+    try { c.imageSmoothingQuality = "high"; } catch (e) { /* moteur ancien */ }
+    c.drawImage(bmp, 0, 0, cv.width, cv.height);
+    return new Promise((res) => cv.toBlob((b) => res(b), "image/png"));
+  }
+  /* UN SEUL IMPORT EN VOL. `M.busy` grise le panneau mais le CLAVIER passe a
+     travers : deux Ctrl+V rapproches lanceraient deux imports que personne n'a
+     demandes. Le second est un NON-DEPART — rien n'est envoye, rien a annuler.
+     `cible` : -1 = l'image de fond, sinon le rang du calque. */
+  let IMPORTING = false;
+  async function importBackImage(file, cible) {
+    if (IMPORTING) { M.toast("un import est déjà en cours", true); return; }
+    if (!file || !/^image\//.test(file.type || "")) {
+      M.toast("ce fichier n'est pas une image", true);
+      return;
+    }
+    IMPORTING = true;
+    M.busy(true, "import de l'image du dos…");
+    let body = file;
+    try {
+      let bmp = null;
+      try { bmp = await createImageBitmap(file); }
+      catch (e) { M.toast("image illisible : " + file.name, true); return; }
+      if (Math.max(bmp.width, bmp.height) > MAX_IMPORT_PX) body = await downscaleBack(bmp);
+      if (bmp.close) bmp.close();
+      const resp = await M.api.raw("POST", "image", body);
+      if (resp.status === 404) { M.toast("import impossible : le service de cartes n'est pas joignable", true); return; }
+      const d = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((d && d.detail) || (resp.status + " " + resp.statusText));
+      /* ON RELIT L'IMAGE SERVIE, pas le fichier local : c'est elle que le
+         painter dessinera (bornee, re-encodee). Une divergence entre les deux
+         serait invisible et partirait a l'impression. */
+      BIMGS.delete(d.file);
+      await loadBackImg(d.file);
+      if (cible >= 0) backLayerSet(cible, { src: d.src }, "image du calque");
+      else set({ back: "custom", back_image: d.src }, "image du dos");
+      M.invalidate();
+      M.toast("image importée — " + d.px[0] + " x " + d.px[1] + " px ("
+        + d.n + " / " + d.max + ")");
+    } catch (e) {
+      M.toast(String((e && e.message) || e), true);
+    } finally { IMPORTING = false; M.busy(false); }
+  }
+  /* le collage, au niveau du DOCUMENT et sous DEUX gardes (patron de P1 et de
+     P3) : le panneau ouvert ET le dos personnalise. Sans elles, un Ctrl+V
+     destine a un champ de texte partait au backend en image. */
+  function onPasteBack(e) {
+    const panel = document.querySelector("#cf-panel-frame");
+    if (!panel || !panel.classList.contains("on")) return;
+    if (f().back !== "custom") return;
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    let g = null;
+    for (let i = 0; i < items.length && !g; i++) {
+      if (items[i].kind !== "file") continue;
+      const x = items[i].getAsFile();
+      if (x && /^image\//.test(x.type || "")) g = x;
+    }
+    if (!g) return;
+    e.preventDefault();
+    importBackImage(g, -1);
+  }
+
+  /* L'ETAT DU VERSO, ECRIT. Trois choses qu'on ne devine pas : s'il y a une
+     image, combien de calques la pile porte encore, et ce qu'un MODELE en
+     emporte (les reglages) ou non (les fichiers, qui restent dans ce jeu). */
+  function backText(f0) {
+    if (f0.back !== "custom") {
+      return "Dos du catalogue — <b>" + esc((byId(BACKS, f0.back) || BACKS[0]).label)
+        + "</b>. « Personnalisé » remplace le motif par une image importée, "
+        + "plus une pile de calques.";
+    }
+    const n = f0.back_layers.length;
+    return (f0.back_image
+      ? ("Image de fond <b>" + esc(backFile(f0.back_image)) + "</b>, cadrée en "
+        + "COUVERTURE depuis le bord de <b>toile</b> — fond perdu compris, "
+        + "pour qu'un massicot décalé ne pose pas la matière de bande sur "
+        + "l'arête de la carte.")
+      : ("<b>Aucune image de fond</b> — déposez-en une ici, collez-la "
+        + "(Ctrl+V) ou choisissez un fichier."))
+      + " <b>" + n + " / " + BACK_LAYERS_MAX + "</b> calque" + (n > 1 ? "s" : "")
+      + " : l'ordre de la liste EST l'ordre de peinture, et « Multiplier » est "
+      + "<b>précomposé dans les pixels</b> du calque — la preuve d'empilement "
+      + "de l'export par couches reste verte."
+      + " Enregistré comme <b>modèle</b>, ce verso garde ses réglages mais "
+      + "<b>pas ses fichiers</b> : ils restent dans ce jeu.";
+  }
+
+  /* LA LISTE DES CALQUES — construite en NOEUDS, pas en HTML : un nom de
+     fichier concatene dans un attribut est exactement la classe d'injection
+     que le lint (R14) attrape, et le DOM n'a pas ce probleme.
+     PAS DE VIGNETTE : elle demanderait une toile par rangee et un rendu par
+     frame pour un gain d'orientation que le nom de fichier donne deja. */
+  function drawBackList(f0) {
+    const box = UI.backList;
+    box.textContent = "";
+    const L = f0.back_layers;
+    if (!L.length) {
+      box.appendChild(h("p", "hint", "Aucun calque. « Ajouter un calque » pose "
+        + "un motif, une texture ou une matière par-dessus l'image de fond."));
+      return;
+    }
+    const bt = (txt, titre, off, on) => {
+      const b = h("button", "btn sm", txt);
+      b.type = "button"; b.title = titre; b.disabled = off;
+      b.addEventListener("click", on);
+      return b;
+    };
+    L.forEach((l, i) => {
+      const row = h("div", "cff-bl");
+      const up = bt("↑", "monter (peint plus tôt)", i === 0, () => backLayerMove(i, -1));
+      const dn = bt("↓", "descendre (peint plus tard)", i === L.length - 1, () => backLayerMove(i, 1));
+      const del = bt("✕", "retirer ce calque", false, () => backLayerDel(i));
+      const src = h("button", "btn sm cff-blsrc");
+      src.type = "button";
+      src.textContent = backFile(l.src) || "choisir un fichier…";
+      src.title = "importer l'image de ce calque";
+      src.addEventListener("click", () => pickBackFile(i));
+      const op = h("input", "cff-blnum");
+      op.type = "number"; op.min = LIMITS.back_opacity[0];
+      op.max = LIMITS.back_opacity[1]; op.step = 0.05; op.value = r2(l.opacity);
+      op.addEventListener("change", () => backLayerSet(i, { opacity: Number(op.value) }, "opacité du calque"));
+      const sc = h("input", "cff-blnum");
+      sc.type = "number"; sc.min = LIMITS.back_scale[0];
+      sc.max = LIMITS.back_scale[1]; sc.step = 0.05; sc.value = r2(l.scale);
+      sc.addEventListener("change", () => backLayerSet(i, { scale: Number(sc.value) }, "échelle du calque"));
+      const bl = sel(BACK_BLENDS, (v) => backLayerSet(i, { blend: v }, "fusion du calque"));
+      bl.value = l.blend;
+      row.appendChild(h("span", "cff-bln", String(i + 1)));
+      row.appendChild(src);
+      row.appendChild(field("Opacité", op));
+      row.appendChild(field("Échelle", sc));
+      row.appendChild(field("Fusion", bl));
+      row.appendChild(up); row.appendChild(dn); row.appendChild(del);
+      box.appendChild(row);
+    });
+  }
+  /* le selecteur de fichier, un seul pour tout le panneau : `cible` dit ou
+     l'image ira (-1 = fond, sinon le rang du calque). */
+  function pickBackFile(cible) {
+    UI.backFile.dataset.cible = String(cible);
+    UI.backFile.value = "";
+    UI.backFile.click();
   }
   /* ── L'EXPORT, ET LE CHUNK QUI MANQUAIT ─────────────────────────────────
      Mesure sur le fichier livre AVANT : chunks = IHDR + 234 x IDAT + IEND.
@@ -5302,6 +5889,10 @@
     UI.winLock.input.checked = !!f0.win_lock;
     UI.backSame.input.checked = !!f0.back_same;
     UI.backLabel.input.checked = !!f0.back_label;
+    /* le bloc du verso personnalise ne se decouvre que pour lui */
+    UI.backCustom.classList.toggle("hidden", f0.back !== "custom");
+    if (f0.back === "custom") drawBackList(f0);
+    UI.backRead.innerHTML = backText(f0);
     UI.metalTone.value = f0.metal_tone;
     UI.corner.value = f0.corner;
     if (document.activeElement !== UI.bannerText) UI.bannerText.value = f0.banner_text || "";

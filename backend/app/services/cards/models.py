@@ -62,9 +62,12 @@ TROIS DÉCISIONS PRISES ICI, ET POURQUOI :
      `face.src`, `face.default_art` et le papier importé (`texture.custom`),
      qui pointent tous vers des octets restés dans le deck d'origine.
   4. **Le cadre part par une LISTE BLANCHE** (`_FRAME_CLES`), pas par une
-     liste noire : §6.2ter fera du verso personnalisé une image importée
-     « sauvée dans les modèles », et une liste noire écrite aujourd'hui ne
-     connaîtrait pas la clé de demain. Voir le pavé de `_FRAME_CLES`.
+     liste noire : §6.2ter a fait du verso personnalisé une image importée
+     « sauvée dans les modèles », et une liste noire écrite avant elle
+     n'aurait pas connu la clé du lendemain. Voir le pavé de `_FRAME_CLES`.
+     La 3c-T4 a tranché ce que le modèle en emporte : les RÉGLAGES (`back`,
+     `back_image`, `back_layers` sont ADMIS), jamais les OCTETS (leurs `src`
+     sont purgés, et le modèle le DIT) — voir `_frame_sans_import`.
   5. **Un fichier perso qui porte le nom d'un modèle d'usine est LISTÉ ET
      SIGNALÉ**, sous un identifiant préfixé — pas silencieusement écrasé, pas
      silencieusement ignoré. Voir `_normaliser_perso`.
@@ -141,13 +144,16 @@ PAPIER_DEFAUT = "velin"
 # ajoutée un jour au bloc JS devra passer par les habillages, et arrivera ici
 # sans que personne n'y pense.
 #
-# POURQUOI UNE LISTE BLANCHE ET NON UNE LISTE NOIRE : la §6.2ter va poser un
+# POURQUOI UNE LISTE BLANCHE ET NON UNE LISTE NOIRE : la §6.2ter a posé un
 # VERSO PERSONNALISÉ dans le cadre — « une image importée » qui doit être
-# « SAUVÉE dans les modèles de deck ». Le jour où cette clé existera, une
-# liste noire écrite aujourd'hui ne la connaîtra pas et laissera partir une
-# référence vers des octets restés dans le deck d'origine. La liste blanche
-# refuse par défaut : la 3c devra DÉCIDER ce qu'un modèle emporte, au lieu de
-# l'emporter par accident. (Elle est plus stricte que nécessaire : elle jette
+# « SAUVÉE dans les modèles de deck ». Une liste noire écrite avant elle ne
+# l'aurait pas connue et aurait laissé partir une référence vers des octets
+# restés dans le deck d'origine. La liste blanche refuse par défaut : la 3c a
+# donc DÛ décider ce qu'un modèle emporte (décision 5 : les réglages oui, les
+# `src` non — `_frame_sans_import`), au lieu de l'emporter par accident. La
+# décision s'est prise TOUTE SEULE côté vocabulaire : les clés dérivent des
+# habillages d'archétype, où `back_image`/`back_layers` sont nées vides.
+# (Elle est plus stricte que nécessaire : elle jette
 # aussi les clés inconnues d'un fichier perso écrit à la main. C'est le sens
 # de la normalisation — un sous-arbre venu du disque n'est pas une autorité.)
 _FRAME_CLES = frozenset(archetype_frame("superstar")) | {"art_window"}
@@ -848,10 +854,48 @@ MODELS: dict = {mid: _usine(mid, d) for mid, d in _DEFINITIONS.items()}
 
 def _frame_sans_import(raw) -> dict:
     """Le cadre, réduit au vocabulaire que P2 déclare (liste blanche
-    `_FRAME_CLES`). Ce qui n'y est pas ne part pas dans un modèle : ni une
-    référence d'image, ni une clé inventée."""
+    `_FRAME_CLES`), puis PURGÉ de ce qui pointe des octets du jeu.
+
+    LE VERSO PERSONNALISÉ (§6.2ter, décision 5 du plan 3c) : ses `src`
+    désignent `decks/{did}/frame/img_N.png`, un dossier qu'un modèle ne suit
+    pas. Les RÉGLAGES voyagent — `back: "custom"` reste, pour que le jeu
+    instancié dise « ce dos est une image à toi » au lieu de retomber en
+    silence sur un motif du catalogue — les OCTETS non.
+
+    LES CALQUES SONT LÂCHÉS ENTIERS, pas vidés de leur source, et c'est un
+    choix mesuré. Un calque n'a rien d'autre que son fichier : opacité,
+    échelle et fusion décrivent COMMENT montrer une image. Le garder sans elle
+    rendrait le modèle avec jusqu'à six rangées mortes dans le panneau, à
+    supprimer une par une. C'est l'inverse exact du choix fait pour les TEXTES
+    des slots (doctrine 3 en tête de ce fichier) — et pour la même raison :
+    là, purger casse la mise en page ; ici, garder la peuple de fantômes.
+
+    LE MÊME FILTRE AUX DEUX PASSAGES (écriture depuis un jeu, lecture depuis
+    le disque) : un fichier déposé à la main qui porterait `img:img_2.png`
+    ferait sinon chercher — et parfois TROUVER — l'image d'un autre jeu."""
     f = raw if isinstance(raw, dict) else {}
-    return copy.deepcopy({k: v for k, v in f.items() if k in _FRAME_CLES})
+    out = copy.deepcopy({k: v for k, v in f.items() if k in _FRAME_CLES})
+    if "back_image" in out:
+        out["back_image"] = ""
+    if "back_layers" in out:
+        out["back_layers"] = []
+    return out
+
+
+def _verso_note(raw) -> str:
+    """Ce que la purge du verso a laissé derrière, en une phrase — ou rien.
+
+    Purger en silence, c'est un utilisateur qui instancie le modèle, regarde
+    un dos vide et cherche la panne. La note part dans le `hint`, l'endroit
+    MÊME où l'on choisit un modèle dans la galerie.
+
+    Elle ne part QUE si quelque chose a vraiment été perdu : l'invariant 2c —
+    on ne nomme que ce qui manque. Un modèle au dos ordinaire se tait."""
+    f = raw if isinstance(raw, dict) else {}
+    if not f.get("back_image") and not f.get("back_layers"):
+        return ""
+    return ("Le verso personnalisé garde ses réglages : ses images et ses "
+            "calques restent dans le jeu d'origine (à ré-importer).")
 
 
 def _texture_sans_import(raw) -> dict:
@@ -1159,12 +1203,19 @@ def modele_depuis_deck(doc: dict, nom=None) -> dict:
         # DATE EN UTC, comme `created`/`updated` du document (`_now_iso`) :
         # deux horloges dans un même fichier finissent par se contredire d'un
         # jour, et c'est toujours au changement de date qu'on s'en aperçoit.
+        # LA NOTE DU VERSO S'AJOUTE ICI, et seulement si quelque chose a été
+        # purgé (`_verso_note`). Le `hint` est ce qu'on lit dans la galerie
+        # avant de cliquer : c'est là que « ce modèle n'emporte pas les
+        # fichiers » sert, pas dans une note de version.
         "hint": _texte(f"Modèle enregistré depuis « {doc.get('name')} » le "
-                       f"{datetime.now(timezone.utc).strftime('%d/%m/%Y')}.",
+                       f"{datetime.now(timezone.utc).strftime('%d/%m/%Y')}."
+                       + (" " + _verso_note(doc.get("frame"))
+                          if _verso_note(doc.get("frame")) else ""),
                        "", 240),
         "format": fmt if fmt in FORMATS else DEFAULT_FMT,
         # LE CADRE AUSSI EST FILTRÉ (liste blanche `_FRAME_CLES`) : c'est là
-        # que §6.2ter posera le verso personnalisé, « une image importée ».
+        # que §6.2ter a posé le verso personnalisé, « une image importée » —
+        # dont les réglages partent et les fichiers restent.
         "frame": _frame_sans_import(doc.get("frame")),
         "type": {"preset": _texte(typ.get("preset"), "perso", 40),
                  "slots": slots},

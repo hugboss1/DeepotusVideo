@@ -194,6 +194,32 @@
   border: 1px solid var(--stroke-strong); border-bottom-width: 2px; border-radius: 5px;
   padding: 1px 5px; background: var(--bg-base); }
 
+/* ── LE VERSO PERSONNALISE (3c-T4) ───────────────────────────────────────
+   La zone de depot et la pile de calques. Aucune couleur en dur : tokens
+   seuls (regle 16), et tout selecteur porte `.cf-frame` (R4). */
+.cf-frame .cff-backcustom { margin-top: 10px; }
+.cf-frame .cff-backcustom.hidden { display: none; }
+.cf-frame .cff-drop { display: flex; align-items: center; justify-content: center;
+  gap: 10px; flex-wrap: wrap; padding: 14px 10px; border-radius: 8px;
+  border: 1px dashed var(--stroke-strong); background: var(--bg-base);
+  color: var(--ink-muted); font-size: 11px; text-align: center; }
+.cf-frame .cff-drop.over { border-color: var(--accent); color: var(--ink-strong);
+  background: color-mix(in srgb, var(--accent) 8%, var(--bg-base)); }
+.cf-frame .cff-bllist { display: flex; flex-direction: column; gap: 5px; margin-top: 6px; }
+/* UNE RANGEE = un rang, une source, trois reglages, trois boutons. Elle
+   s'enroule sur les panneaux etroits plutot que de deborder : une commande
+   hors du cadre est une commande qui n'existe pas. */
+.cf-frame .cff-bl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  padding: 5px 7px; border-radius: 7px; border: 1px solid var(--stroke);
+  background: var(--bg-panel-2); }
+.cf-frame .cff-bln { font-family: var(--f-mono); font-size: 10px;
+  color: var(--ink-muted); min-width: 2ch; text-align: right; }
+.cf-frame .cff-blsrc { flex: 1 1 12ch; min-width: 0; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; font-family: var(--f-mono);
+  font-size: 10px; }
+.cf-frame .cff-blnum { width: 6.5ch; }
+.cf-frame .cff-backread b { color: var(--ink-strong); }
+
 @media (max-width: 1120px) {
   .cf-frame .cff-cols { grid-template-columns: minmax(0, 1fr); }
 }

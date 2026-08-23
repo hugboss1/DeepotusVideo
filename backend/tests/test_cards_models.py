@@ -1021,11 +1021,16 @@ def test_enregistrer_comme_modele_sans_les_illustrations():
 
 def test_le_cadre_aussi_est_filtre_de_ses_images():
     """`texture` était filtrée de son papier importé, `frame` ne l'était pas —
-    et le cadre est justement là où §6.2ter va poser le VERSO PERSONNALISÉ
-    (une image importée, « SAUVÉE dans les modèles de deck »). Le sous-arbre
-    est donc passé par une LISTE BLANCHE : les clés que P2 déclare, et rien
-    d'autre. Une référence d'image plantée par l'autosave ordinaire ne peut
-    pas partir dans un fichier de modèle."""
+    et le cadre est justement là où §6.2ter a posé le VERSO PERSONNALISÉ. Le
+    sous-arbre passe par une LISTE BLANCHE : les clés que P2 déclare, et rien
+    d'autre. Une clé INVENTÉE plantée par l'autosave ordinaire ne peut pas
+    partir dans un fichier de modèle.
+
+    AMENDÉ EN 3c-T4, et c'est la décision 5 du plan : `back_image` est
+    désormais une clé RÉELLE de P2, donc ADMISE — mais sa VALEUR est purgée
+    (voir `test_le_verso_custom_voyage_en_REGLAGES_jamais_en_OCTETS`). Ce que
+    ce test-ci garde : une valeur qui pointe des octets du jeu ne traverse
+    pas, et une clé hors vocabulaire non plus."""
     did = _api("POST", "/api/cards/decks",
                json={"model": "monstre"}).json()["deck"]["id"]
     cadre = dict(FR.archetype_frame("monstre"))
@@ -1040,11 +1045,12 @@ def test_le_cadre_aussi_est_filtre_de_ses_images():
     try:
         brut = p.read_text(encoding="utf-8")
         assert "VERSO-SECRET" not in brut and "AUTRE-SECRET" not in brut
-        assert "back_image" not in brut and "cle_inventee" not in brut
+        assert "cle_inventee" not in brut
         disque = json.loads(brut)
         # ... et le cadre reste COMPLET : le filtre enlève, il n'ampute pas.
         assert set(disque["frame"]) <= set(FR.archetype_frame("monstre")) \
             | {"art_window"}
+        assert disque["frame"]["back_image"] == "", disque["frame"]
         assert disque["frame"]["family"] == "runic"
         assert disque["frame"]["window"] == \
             FR.archetype_frame("monstre")["window"]
@@ -1142,7 +1148,11 @@ def test_un_modele_perso_est_valide_comme_un_corps_client():
         assert not m.get("illisible"), m
         assert m["format"] == "poker_eu"          # format inconnu -> défaut
         assert m["finish"] == "mat"               # finition inconnue -> défaut
-        assert "back_image" not in m["frame"] and "inconnu" not in m["frame"]
+        # `back_image` est une clé RÉELLE de P2 depuis la 3c-T4 : elle
+        # traverse la liste blanche, mais sa VALEUR est purgée — « local:FUITE »
+        # ne peut pas ressortir d'un fichier déposé à la main.
+        assert m["frame"].get("back_image") == "", m["frame"]
+        assert "inconnu" not in m["frame"]
         assert m["frame"]["family"] == "runic"
         assert m["texture"]["paper"] != "__import" and "custom" not in m["texture"]
         s = m["type"]["slots"][0]
@@ -1391,3 +1401,142 @@ def test_aucun_message_derreur_ne_publie_un_chemin():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 10. LE VERSO PERSONNALISÉ DANS UN MODÈLE — phase 3c, tâche 4 (décision 5)
+#
+# §6.2ter veut le verso personnalisé « SAUVÉ dans les modèles de deck ». Mais
+# un modèle n'embarque PAS d'illustrations (§6.4, doctrine 3a) : ses `src`
+# pointent des fichiers restés dans `decks/{did}/frame/`. La décision 5 du
+# plan tranche : les RÉGLAGES voyagent, les OCTETS non — et le modèle le DIT.
+# ═════════════════════════════════════════════════════════════════════════════
+
+def _enregistrer_avec_verso(nom: str, calques: int = 2):
+    """Un deck dont le verso est personnalisé, enregistré comme modèle. Rend
+    (chemin du fichier, contenu brut, modèle normalisé)."""
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    cadre = dict(FR.archetype_frame("arcane"))
+    cadre["back"] = "custom"
+    cadre["back_image"] = "img:img_3.png"
+    cadre["back_layers"] = [
+        {"src": f"img:img_{i}.png", "opacity": 0.5, "scale": 2.0,
+         "blend": "multiply"} for i in range(1, calques + 1)]
+    _api("PATCH", f"/api/cards/{did}", json={"frame": cadre})
+    r = _api("POST", "/api/cards/models", json={"did": did, "name": nom})
+    assert r.status_code == 200, r.text
+    m = r.json()["model"]
+    p = MO.models_root() / f"{m['id']}.json"
+    return p, p.read_text(encoding="utf-8"), m
+
+
+def test_le_verso_custom_est_ADMIS_a_la_liste_blanche():
+    """Les trois clés du verso (`back`, `back_image`, `back_layers`) sont des
+    clés RÉELLES de P2 : elles traversent la liste blanche, qui DÉRIVE des
+    habillages d'archétype. Une clé de cadre ajoutée à P2 et oubliée dans les
+    sept habillages serait refusée sans qu'on s'en aperçoive."""
+    assert {"back", "back_image", "back_layers"} <= MO._FRAME_CLES, \
+        sorted(MO._FRAME_CLES)
+    for nom in ("superstar", "arcane", "gravee"):
+        hab = FR.archetype_frame(nom)
+        assert hab["back_image"] == "" and hab["back_layers"] == [], hab
+
+
+def test_le_verso_custom_voyage_en_REGLAGES_jamais_en_OCTETS():
+    """La décision 5, sur les OCTETS du fichier. Le modèle garde `back:
+    "custom"` — c'est un réglage, et le jeu instancié doit dire « ce dos est
+    une image à toi » plutôt que retomber en silence sur un motif du
+    catalogue. Il ne garde AUCUN `src` : ceux-là pointent
+    `decks/{did}/frame/img_N.png`, un dossier que le modèle ne suit pas.
+
+    ET LES CALQUES SONT LÂCHÉS ENTIERS, pas vidés de leur source. Un calque
+    sans fichier ne dessine RIEN : le garder rendrait le modèle avec six
+    rangées mortes dans le panneau, à supprimer une par une. C'est l'inverse
+    exact du choix fait pour les TEXTES des slots (doctrine 3 de models.py) —
+    et pour la même raison, mesurée : là, purger casse la mise en page ; ici,
+    garder la peuple de fantômes. Un calque n'a rien d'autre que son fichier ;
+    opacité, échelle et fusion décrivent comment montrer une image absente."""
+    p, brut, m = _enregistrer_avec_verso("Verso perso")
+    try:
+        assert "img_1.png" not in brut and "img_3.png" not in brut, brut[:400]
+        disque = json.loads(brut)
+        f = disque["frame"]
+        assert f["back"] == "custom", f["back"]
+        assert f["back_image"] == "", f["back_image"]
+        assert f["back_layers"] == [], f["back_layers"]
+        # ... et le modèle RELU dit la même chose (le filtre est le même aux
+        # deux passages : écriture depuis un deck, lecture depuis le disque)
+        assert m["frame"]["back_image"] == "" and m["frame"]["back_layers"] == []
+        relu = MO.model(m["id"])
+        assert relu["frame"]["back_layers"] == []
+    finally:
+        p.unlink()
+
+
+def test_le_modele_DIT_ce_que_le_verso_a_laisse_derriere():
+    """Un modèle qui purge en silence, c'est un utilisateur qui instancie,
+    regarde un dos vide et cherche la panne. La note part dans le `hint` —
+    l'endroit MÊME où l'on choisit un modèle dans la galerie — et elle part
+    SEULEMENT quand quelque chose a été perdu (l'invariant 2c : on ne nomme
+    que ce qui manque vraiment)."""
+    p, brut, m = _enregistrer_avec_verso("Avec verso")
+    try:
+        assert "verso" in m["hint"].lower(), m["hint"]
+        assert "hint" in json.loads(brut) and \
+            "verso" in json.loads(brut)["hint"].lower()
+        assert len(m["hint"]) <= 240, len(m["hint"])
+    finally:
+        p.unlink()
+    # le TÉMOIN : un deck au dos ordinaire n'a rien perdu, et ne dit rien
+    did = _api("POST", "/api/cards/decks",
+               json={"model": "arcane"}).json()["deck"]["id"]
+    r = _api("POST", "/api/cards/models", json={"did": did, "name": "Sans"})
+    m2 = r.json()["model"]
+    p2 = MO.models_root() / f"{m2['id']}.json"
+    try:
+        assert "verso" not in m2["hint"].lower(), m2["hint"]
+    finally:
+        p2.unlink()
+
+
+def test_un_modele_perso_ECRIT_A_LA_MAIN_ne_fait_pas_passer_un_fichier():
+    """Le filtre porte AUSSI à la LECTURE. Un fichier de modèle déposé à la
+    main — ou écrit par une version antérieure — n'est pas plus digne de
+    confiance qu'un corps client : ses `src` de verso sont purgés à
+    l'ouverture, sinon le premier deck instancié dessus irait chercher les
+    images d'un jeu qui n'est pas le sien (et les trouverait, si les numéros
+    coïncident : c'est le mélange, pas le 404)."""
+    d = MO.models_root()
+    p = d / "verso-depose.json"
+    p.write_text(json.dumps({
+        "label": "Déposé", "format": "poker_eu",
+        "frame": {"family": "runic", "back": "custom",
+                  "back_image": "img:img_2.png",
+                  "back_layers": [{"src": "img:img_1.png", "opacity": 1,
+                                   "scale": 1, "blend": "normal"}]},
+        "type": {"preset": "champion", "slots": []},
+    }, ensure_ascii=False), encoding="utf-8")
+    try:
+        m = MO.model("verso-depose")
+        assert m["frame"]["back"] == "custom"
+        assert m["frame"]["back_image"] == "", m["frame"]
+        assert m["frame"]["back_layers"] == [], m["frame"]
+    finally:
+        p.unlink()
+
+
+def test_un_deck_instancie_sur_un_verso_purge_NAIT_SANS_IMAGE():
+    """La conséquence, jouée jusqu'au bout : le jeu naît avec `back: custom`
+    et AUCUNE image — l'état « importez la vôtre », que le panneau montre.
+    Jamais une référence vers les octets du jeu d'origine."""
+    p, _brut, m = _enregistrer_avec_verso("Instancié")
+    try:
+        r = _api("POST", "/api/cards/decks", json={"model": m["id"]})
+        assert r.status_code == 200, r.text
+        f = r.json()["deck"]["frame"]
+        assert f["back"] == "custom", f["back"]
+        assert f["back_image"] == "", f["back_image"]
+        assert f["back_layers"] == [], f["back_layers"]
+    finally:
+        p.unlink()
