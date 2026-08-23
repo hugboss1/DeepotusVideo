@@ -1316,7 +1316,8 @@ lit `total` (`GAL_DECKS_TOTAL` neuf) ; `galDrawDecks` dit le total DU SERVEUR ;
 `galFirstRun` n'est pas faussé (liste triée, jeu neuf en tête — vérifié et
 écrit) ; le bouchon de la batterie sert la forme neuve et un pin lit la
 REQUÊTE ; `test_cards_core.py:757` inchangé ; le ménage des jeux de banc de la
-batterie ne lit pas la liste. 8 tests neufs, **2 mutants joués par la VRAIE
+batterie ne lit pas la liste. **7 fonctions de test neuves = 13 cas collectés**
+(`cards_core` 75 → 88), **2 mutants joués par la VRAIE
 route** (limite non bornée, total dérivé de la tranche). **Côté écran, la
 batterie gagne le scénario `foule`** (24 lignes servies, `total: 2195`, le vrai
 bouton de galerie cliqué) : 24 cartes posées ET « 2195 jeux au total ». Mutant
