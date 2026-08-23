@@ -6004,8 +6004,16 @@ def test_le_panneau_offre_l_import_et_la_LISTE_des_calques_du_verso():
     for cmd in ("backLayerAdd", "backLayerMove", "backLayerDel",
                 "backLayerSet"):
         assert cmd in src, f"la commande {cmd} manque à la liste des calques"
-    # ... et le panneau DIT ce qui ne voyage pas dans un modèle
     assert "cf-frame-back" in src, "la zone d'import n'a pas d'id préfixé"
+    # L'APERÇU RESTE CELUI QUI EXISTE (§6.2ter : « aperçu par le bouton
+    # recto/verso existant »). Rien de neuf à construire, mais rien à casser
+    # non plus : le bouton du CORE et le raccourci qui le conduit sont
+    # épinglés ici parce que le verso personnalisé est la première raison
+    # sérieuse de s'en servir.
+    corps_v = _js_fn(src, "showBack")
+    assert "#sideBtn" in corps_v and 'CF.side() !== "back"' in corps_v, corps_v
+    assert '#sideBtn' in _js_fn(src, "onKey"), \
+        "le raccourci qui montre le verso a disparu"
 
 
 def test_l_ecran_DIT_l_etat_du_verso_personnalise():
