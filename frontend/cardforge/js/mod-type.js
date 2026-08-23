@@ -1698,6 +1698,10 @@
       /* LA NATURE SE CHOISIT A LA NAISSANCE, et c'est pour cela qu'il y a deux
          boutons plutot qu'une bascule dans le panneau. Voir `addImgSlot`. */
       + '  <button class="btn sm cf-type-addimg" type="button" title="Nouveau calque d\'image, posé au centre du cadre de composition — il se peint au-dessus du cadre de base et sous le décor haut">+ Image</button>'
+      /* LA PALETTE §6.1 : ce que ce jeu peut poser — les trois entrées
+         génériques et, quand il vient d'un modèle, les éléments de CE
+         modèle-là. Voir la section 6bis. */
+      + '  <button class="btn sm cf-type-pal" type="button" title="Palette d\'éléments : zone de texte, zone de statistique, calque d\'image — et les éléments du modèle dont ce jeu est né">+ Élément</button>'
       + '  <button class="btn sm cf-type-preset" type="button" title="Poser un gabarit complet">Gabarits</button>'
       + '  <span class="stage-sep" aria-hidden="true"></span>'
       + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)">&#8630;</button>'
@@ -1728,6 +1732,7 @@
       + '<div class="cf-type-proof"></div>';
     HOST.querySelector(".cf-type-add").addEventListener("click", addSlot);
     HOST.querySelector(".cf-type-addimg").addEventListener("click", addImgSlot);
+    HOST.querySelector(".cf-type-pal").addEventListener("click", openPalette);
     HOST.querySelector(".cf-type-preset").addEventListener("click", openPresets);
     HOST.querySelector(".cf-type-undo").addEventListener("click", undo);
     HOST.querySelector(".cf-type-redo").addEventListener("click", redo);
@@ -1757,23 +1762,89 @@
     ov.addEventListener("keydown", (e) => { if (e.key === "Enter") { applyOpt(); e.preventDefault(); } });
   }
 
-  function addSlot() {
-    const a = slots();
-    if (a.length >= SLOTS_MAX) { M.toast("40 slots au maximum", true); return; }
-    const g = CF.geom(), sr = safeRectMm(g);
+  /* ── CE QUE COÛTE UNE NAISSANCE, DIT AVANT ──────────────────────────────
+     Le plafond est un CHIFFRE, pas un « non » : refuser « une zone de
+     statistique » sans dire qu'il ne reste qu'une place sur quarante
+     n'apprend rien. Il se compte AVANT, sur le nombre de blocs QUI VIENNENT —
+     un élément de trois slots demandé à 39 est refusé ENTIER, jamais posé au
+     tiers (la moitié d'un élément est un défaut muet, pas un compromis). */
+  function placeOu(n, quoi) {
+    const a = slots().length;
+    if (a + n <= SLOTS_MAX) return true;
+    M.toast(a + " slot(s) + " + n + " = " + (a + n) + ", le maximum est "
+      + SLOTS_MAX + " — « " + quoi + " » n'est pas posé : supprimez "
+      + (a + n - SLOTS_MAX) + " bloc(s) d'abord.", true);
+    return false;
+  }
+
+  /* ── LE MIROIR EXACT DE cards/type.py:norm_slots ────────────────────────
+     NORMALISER PUIS RENOMMER, dans cet ordre (renommer d'abord donnerait un
+     autre résultat dès que `normSlot` change un id — un id vide devient
+     « slotN »), et le suffixe reprend l'id ENTIER : « stat7 » -> « stat72 »,
+     jamais « stat8 ». Deux slots de même id et P4 ne saurait plus lequel
+     remplir : le serveur RENOMME, il ne jette jamais.
+     POURQUOI L'ÉCRAN LE REFAIT : sans cela, ajouter deux fois le même élément
+     enverrait au backend un document qu'il « répare » au chargement suivant —
+     et l'utilisateur retrouverait d'autres identifiants que ceux qu'il a vus.
+     CE QUI N'EST PAS RECOPIÉ : la troncature `rows[:SLOTS_MAX]` du serveur.
+     Le plafond est dit AVANT (`placeOu`) avec son arithmétique ; le recopier
+     ici en ferait une coupe MUETTE, et cette pièce n'en fait pas.
+     LA PARITÉ EST PROUVÉE PAR EXÉCUTION (test_cards_type.py), pas par un
+     match de source — la leçon de B1. */
+  function normSlots(list) {
+    const out = [], seen = Object.create(null);
+    list.forEach((raw, i) => {
+      const s = normSlot(raw, i);
+      let sid = s.id, n = 2;
+      while (seen[sid]) { sid = s.id + n; n++; }
+      s.id = sid;
+      seen[sid] = 1;
+      out.push(s);
+    });
+    return out;
+  }
+
+  /* ── UNE NAISSANCE = UNE ENTRÉE D'ANNULATION ────────────────────────────
+     Un bloc seul, une paire étiquette+valeur ou un élément de modèle à trois
+     slots : c'est UN geste, donc UN Ctrl+Z. La sélection se pose sur le
+     PREMIER bloc né — c'est celui qu'on a demandé, les autres l'accompagnent.
+     `mpatch` et non `commit`, et ce n'est pas un raccourci : les slots
+     sortent de `normSlots`, qui EST le normaliseur. Les repasser dans
+     `normSlot` re-validerait un id renommé au-delà de 24 signes et le
+     remplacerait par « slotN » — une divergence avec le serveur créée par la
+     normalisation elle-même, sur le seul chemin qui la mesure. */
+  function naitre(specs, quoi) {
+    if (!specs.length || !placeOu(specs.length, quoi)) return null;
+    const next = normSlots(slots().concat(specs));
+    const nes = next.slice(next.length - specs.length);
+    pushUndo();
+    mpatch({ slots: next, sel: nes[0].id });
+    renderAll();
+    return nes;
+  }
+
+  /* le premier numéro libre d'une famille d'ids (« texte3 », « etiq2 ») :
+     `normSlots` renommerait de toute façon, mais en « texte12 » — un numéro
+     choisi avant vaut mieux qu'un suffixe collé après. Plusieurs préfixes
+     pour la paire : l'étiquette et la valeur portent LE MÊME numéro, sinon
+     « Étiquette 3 » voisinerait « Valeur 5 ». */
+  function libreN(prefixes) {
+    const pris = slots().map((s) => s.id);
     let n = 1;
-    while (a.filter((s) => s.id === "texte" + n).length) n++;
-    const s = normSlot({
+    while (prefixes.some((p) => pris.indexOf(p + n) >= 0)) n++;
+    return n;
+  }
+
+  function addSlot() {
+    const g = CF.geom(), sr = safeRectMm(g), n = libreN(["texte"]);
+    return naitre([{
       id: "texte" + n, label: "Texte " + n,
       box: [sr[0] + sr[2] * 0.15, sr[1] + sr[3] * 0.42, sr[2] * 0.7, sr[3] * 0.1],
       font: CF.get("type.font_default", "Inter"),
       size_pt: 10, min_pt: 5, align: "center", valign: "middle",
       autofit: CF.get("type.autofit", true),
       text: "Nouveau texte",
-    }, a.length);
-    pushUndo();
-    commit(a.concat([s]), s.id);
-    renderAll();
+    }], "zone de texte");
   }
   /* ── UN CALQUE D'IMAGE NAIT ICI, ET SEULEMENT ICI ───────────────────────
      DECISION : la nature d'un bloc se pose A LA NAISSANCE ; le panneau la
@@ -1791,23 +1862,220 @@
      La palette d'elements de la tache 3 appellera CETTE fonction : elle n'aura
      pas a savoir ce qu'est un calque d'image. */
   function addImgSlot() {
-    const a = slots();
-    if (a.length >= SLOTS_MAX) { M.toast(SLOTS_MAX + " slots au maximum", true); return; }
-    const g = CF.geom(), sr = safeRectMm(g);
-    let n = 1;
-    while (a.filter((s) => s.id === "image" + n).length) n++;
-    const s = normSlot({
+    const g = CF.geom(), sr = safeRectMm(g), n = libreN(["image"]);
+    return naitre([{
       id: "image" + n, label: "Image " + n,
       kind: "image", fit: "contain",
       /* une boite CARREE au centre : un calque naissant n'a pas encore
          d'image, donc pas de rapport de forme a respecter — le fit s'en
          chargera au depot, et la poignee au millimetre pres. */
       box: [sr[0] + sr[2] * 0.2, sr[1] + sr[3] * 0.3, sr[2] * 0.6, sr[3] * 0.3],
-    }, a.length);
-    pushUndo();
-    commit(a.concat([s]), s.id);
-    renderAll();
+    }], "calque d'image");
   }
+
+  /* ── LA ZONE DE STATISTIQUE : DEUX BLOCS, UNE SEULE NAISSANCE ───────────
+     La forme de `models.py:_duel_ligne` (libellé à gauche, valeur à droite,
+     boîtes ADJACENTES), généralisée — sans la plaque zébrée ni l'encre du
+     duel : un cartouche isolé n'est pas un tableau, et un zèbre n'a de sens
+     que dans une pile de lignes. CE QUI EST GARDÉ DU MODÈLE, et c'est le
+     seul point qui ne soit pas de la décoration : LA VALEUR EST EN CHASSE
+     FIXE. Une colonne de chiffres composée dans une proportionnelle danse
+     d'une carte à l'autre du jeu — c'est un défaut de SÉRIE, pas un goût, et
+     c'est exactement ce que le contrôle de série mesure.
+     LES DEUX BLOCS NE SONT PAS LIÉS ENSUITE : ils naissent ensemble puis
+     vivent seuls (déplaçables, verrouillables, supprimables séparément). Un
+     lien persistant aurait demandé une clé de document que la spec ne nomme
+     pas — et une paire dont on supprime la moitié n'a rien d'invalide. */
+  function addStatSlot() {
+    const g = CF.geom(), sr = safeRectMm(g), n = libreN(["etiq", "val"]);
+    const y = sr[1] + sr[3] * 0.42, h = sr[3] * 0.06;
+    const commun = { size_pt: 9, min_pt: 5, valign: "middle", wrap: false };
+    return naitre([
+      Object.assign({}, commun, {
+        id: "etiq" + n, label: "Étiquette " + n,
+        box: [sr[0] + sr[2] * 0.15, y, sr[2] * 0.44, h],
+        font: CF.get("type.font_default", "Inter"),
+        align: "left", text: "Attaque",
+      }),
+      Object.assign({}, commun, {
+        id: "val" + n, label: "Valeur " + n,
+        box: [sr[0] + sr[2] * 0.59, y, sr[2] * 0.26, h],
+        font: "JetBrainsMono", align: "right", text: "12",
+      }),
+    ], "zone de statistique");
+  }
+  /* ═════════════════════════════════════════════════════════════════════════
+     6bis. LA PALETTE D'ÉLÉMENTS (spec §6.1)
+
+     Trois entrées GÉNÉRIQUES, toujours là — zone de texte, zone de
+     statistique, calque d'image — plus les éléments du MODÈLE dont ce jeu est
+     né. Le deck n'en garde AUCUNE copie : le seul fil est `doc.type.preset`
+     (l'id du modèle), et les éléments vivent au backend (models.py:_element).
+     L'écran va donc les CHERCHER.
+
+     D'OÙ VIENT LE CATALOGUE, ET POURQUOI PAS D'ICI. `M.api` est confiné à
+     /api/cards/<did>/type (règle 8 — `subPath` lève sur un chemin absolu) et
+     la liste vit à /api/cards/models, hors de tout sous-préfixe de pièce.
+     Trois voies, une seule tient : un `window.fetch` nu ici rouvrirait le
+     « fetch libre » que `makeApi` a retiré (rien ne l'attrape — ni le lint,
+     ni le CORE — et le premier module qui le reprend le rouvre pour les
+     huit autres) ; une table de modèles recopiée dans l'écran est refusée
+     explicitement par le banc du contrat, et n'aurait jamais un modèle
+     PERSO ; reste le CORE, qui expose la lecture — `CF.models`, patron
+     `CF.images`. C'est en plus la MÊME liste que la galerie de démarrage a
+     déjà chargée et cachée : une seconde copie ici, c'étaient deux requêtes
+     et deux caches de la même liste, dont l'un devenait faux dès le premier
+     « enregistrer comme modèle ».
+
+     CE QUI N'A PAS BESOIN DE GARDE, ET POURQUOI ON LE DIT QUAND MÊME. Le plan
+     redoutait un cache survivant à un changement de jeu (leçon C1). MESURÉ :
+     changer de jeu est une NAVIGATION (`core.js:galGo` -> `location.assign`),
+     donc cette fermeture, ce cache et la requête en vol meurent avec la page ;
+     et le catalogue n'est pas propre à un jeu (GET /models ne prend pas de
+     `did`). Une étiquette de deck ici serait du code mort qui ferait CROIRE
+     qu'un danger est couvert.
+     CE QUI CHANGE VRAIMENT SOUS UNE RÉPONSE EN VOL, c'est `type.preset` (poser
+     un gabarit le réécrit, sans recharger la page) et l'ouverture du menu
+     elle-même. D'où les deux vraies protections : la réponse ne repeint QUE
+     l'ouverture qui l'a demandée (`PAL_SEQ`), et les offres sont dérivées du
+     preset AU MOMENT DE PEINDRE — jamais capturées au départ de la requête.
+
+     POURQUOI PAS DE BOUTON SUR LE CALQUE D'ÉDITION (le plan disait « panneau
+     + overlay ») : `paintOverlay` réécrit tout son innerHTML à chaque frame
+     d'un glisser (coalescé au rAF). Un contrôle qui vit là serait recréé et
+     recâblé à 60 Hz, sur la carte, à l'endroit exact où la main glisse. Poser
+     un élément est un acte d'INTENTION, pas un geste de scène : sa place est
+     la barre, où « + Slot » et « + Image » vivent déjà. Consigné au plan.
+     ═════════════════════════════════════════════════════════════════════════ */
+  const GENERIQUES = [
+    { id: "gen:texte", label: "Zone de texte", n: 1,
+      hint: "Un bloc de texte ordinaire, posé au centre du cadre de composition." },
+    { id: "gen:stat", label: "Zone de statistique", n: 2,
+      hint: "Étiquette et valeur côte à côte : deux blocs nés ensemble, libres "
+        + "ensuite. La valeur est en chasse fixe — une colonne de chiffres qui "
+        + "ne l'est pas danse d'une carte à l'autre." },
+    { id: "gen:image", label: "Calque d'image", n: 1,
+      hint: "Une image du jeu, dans sa boîte — au-dessus du cadre de base et "
+        + "sous le décor haut." },
+  ];
+  let MODELS = null, MODELS_REQ = null, MODELS_ERR = "";
+  let PAL_SEQ = 0, PAL_MENU = null;
+
+  /* Le catalogue, UNE fois. Un échec ne devient pas une liste vide définitive
+     (`MODELS` reste nul) : un backend revenu doit pouvoir répondre à la
+     prochaine ouverture. Le message, lui, est retenu — c'est ce que la palette
+     affiche à la place des éléments. */
+  function ensureModels() {
+    if (MODELS) return Promise.resolve(MODELS);
+    if (MODELS_REQ) return MODELS_REQ;
+    let lire;
+    try {
+      /* un CORE plus ancien que cette pièce : un ÉTAT nommé, pas un
+         « CF.models is not a function » dans la console. */
+      lire = (typeof CF.models === "function") ? CF.models()
+        : Promise.reject(new Error("ce CORE n'expose pas le catalogue des modèles"));
+    } catch (e) { lire = Promise.reject(e); }
+    MODELS_REQ = Promise.resolve(lire).then((l) => {
+      MODELS = Array.isArray(l) ? l : [];
+      MODELS_ERR = ""; MODELS_REQ = null;
+      return MODELS;
+    }, (e) => {
+      MODELS_ERR = String((e && e.message) || e); MODELS_REQ = null;
+      return null;
+    });
+    return MODELS_REQ;
+  }
+
+  /* UN ÉLÉMENT SANS SLOT N'EST PAS UN ÉLÉMENT — la même règle qu'au backend
+     (models.py:_elements_normalises) : ce serait un bouton qui ne pose rien. */
+  function elementsDe(m) {
+    return ((m && m.elements) || []).filter(
+      (e) => e && Array.isArray(e.slots) && e.slots.length);
+  }
+  function modelCourant() {
+    const p = String(CF.get("type.preset", "") || "");
+    return (p && MODELS) ? (MODELS.filter((m) => m && m.id === p)[0] || null) : null;
+  }
+  function paletteOffres() {
+    return GENERIQUES.concat(elementsDe(modelCourant()).map((e) => ({
+      id: "mod:" + e.id, label: String(e.label || e.id),
+      hint: String(e.hint || ""), n: e.slots.length, slots: e.slots,
+    })));
+  }
+  /* CE QUE LA PALETTE DIT QUAND ELLE N'OFFRE RIEN DE PLUS. Le silence est
+     réservé au seul cas où il n'y a rien à dire : ce jeu ne vient pas d'un
+     modèle (un gabarit local n'en est pas un). Partout ailleurs — catalogue
+     en route, catalogue injoignable, modèle sans éléments — la palette le
+     NOMME : « il n'y a rien » et « je n'ai pas pu regarder » ne se corrigent
+     pas de la même façon. */
+  function paletteNote() {
+    if (MODELS_ERR) return "catalogue des modèles injoignable (" + MODELS_ERR
+      + ") — les entrées génériques restent.";
+    if (!MODELS) return "chargement du catalogue des modèles…";
+    const m = modelCourant();
+    if (!m) return "";
+    return elementsDe(m).length ? ""
+      : "modèle « " + m.label + " » sans éléments : rien de plus à poser ici.";
+  }
+  /* R14 — TOUT CE QUI VIENT DU CATALOGUE EST ÉCHAPPÉ. Ces libellés et ces
+     notes sont des données SERVEUR : un modèle perso est un fichier JSON du
+     dossier de données, son `label` est ce que quelqu'un y a écrit. */
+  function paletteHtml() {
+    const note = paletteNote();
+    return paletteOffres().map((o) => '<button class="cf-type-mi" type="button"'
+      + ' data-o="' + esc(o.id) + '"><b>' + esc(o.label) + '</b><span>'
+      + esc(o.hint) + '</span><i class="mono">' + Number(o.n)
+      + (o.n > 1 ? " blocs" : " bloc") + '</i></button>').join("")
+      + (note ? '<p class="hint cf-type-paln">' + esc(note) + '</p>' : "");
+  }
+  function paintPalette(menu) {
+    if (menu) menu.innerHTML = paletteHtml();
+  }
+  function palAdd(oid) {
+    if (oid === "gen:texte") return addSlot();
+    if (oid === "gen:stat") return addStatSlot();
+    if (oid === "gen:image") return addImgSlot();
+    const o = paletteOffres().filter((x) => x.id === oid)[0];
+    /* l'offre a pu disparaître entre le clic et ici (poser un gabarit réécrit
+       le preset) : on le DIT, on ne pose rien au hasard. */
+    if (!o || !o.slots) { M.toast("élément introuvable dans ce modèle", true); return null; }
+    /* les slots du modèle sont des données SERVEUR : ils repassent par le
+       normaliseur (dans `naitre`) avant d'entrer dans le document. */
+    return naitre(o.slots.map((s) => clone(s)), o.label);
+  }
+  function closePalette() {
+    if (PAL_MENU) { PAL_MENU.remove(); PAL_MENU = null; }
+  }
+  function openPalette(e) {
+    closeFontPicker();
+    closePalette();
+    const seq = ++PAL_SEQ;
+    const menu = document.createElement("div");
+    /* `cf-type-palmenu` et non `cf-type-pal` : ce dernier est le BOUTON de la
+       barre, et deux surfaces qui portent le même nom finissent par recevoir
+       la même règle de style le jour où quelqu'un écrit `.cf-type-pal { … }`
+       sans le second sélecteur. */
+    menu.className = "cf-type cf-type-menu cf-type-palmenu";
+    PAL_MENU = menu;
+    paintPalette(menu);
+    document.body.appendChild(menu);
+    placeMenu(menu, e, 420);
+    /* UNE SEULE ÉCOUTE POUR N ENTRÉES : le menu est repeint quand le catalogue
+       arrive, et des écouteurs posés entrée par entrée seraient morts avec
+       l'ancien HTML. */
+    menu.addEventListener("click", (ev) => {
+      const b = (ev.target && ev.target.closest) ? ev.target.closest(".cf-type-mi") : null;
+      if (!b) return;
+      closePalette();
+      palAdd(b.dataset.o);
+    });
+    ensureModels().then(() => {
+      /* LA GARDE : la réponse peut arriver après que ce menu-ci a été fermé ou
+         remplacé par une autre ouverture. On ne repeint QUE la sienne. */
+      if (seq === PAL_SEQ && PAL_MENU === menu) paintPalette(menu);
+    });
+  }
+
   function dupSlot() {
     const s = selSlot();
     if (!s) return;
@@ -2674,15 +2942,28 @@
       + '<b>' + esc(PRESETS[p].label) + '</b><span>' + esc(PRESETS[p].hint) + '</span>'
       + '<i class="mono">' + PRESETS[p].slots.length + ' slots</i></button>').join("");
     document.body.appendChild(menu);
-    const r = e.currentTarget.getBoundingClientRect();
-    menu.style.left = Math.max(8, Math.min(window.innerWidth - 400, r.left)) + "px";
-    menu.style.top = (r.bottom + 6) + "px";
+    placeMenu(menu, e, 400);
     menu.querySelectorAll(".cf-type-mi").forEach((b) => b.addEventListener("click", () => {
       applyPreset(b.dataset.p);
       menu.remove();
     }));
+  }
+  /* ── UN POPOVER SE POSE, ET SE REFERME, PAREIL DANS LES DEUX CAS ────────
+     Les deux menus de la pièce (gabarits, palette) partageaient déjà le même
+     placement et la même fermeture au clic dehors, écrits deux fois : la
+     leçon de `soloClone`, prise avant la seconde copie. `PAL_MENU` est remis
+     à zéro ici aussi, sinon un menu fermé par un clic dehors resterait « le
+     menu courant » et la réponse du catalogue repeindrait un fantôme. */
+  function placeMenu(menu, e, w) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const vw = (typeof window !== "undefined" && window.innerWidth) || (w + 16);
+    menu.style.left = Math.max(8, Math.min(vw - w, r.left)) + "px";
+    menu.style.top = (r.bottom + 6) + "px";
     const off = (ev) => {
-      if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener("pointerdown", off, true); }
+      if (menu.contains(ev.target)) return;
+      menu.remove();
+      if (PAL_MENU === menu) PAL_MENU = null;
+      document.removeEventListener("pointerdown", off, true);
     };
     setTimeout(() => document.addEventListener("pointerdown", off, true), 0);
   }
@@ -4965,7 +5246,7 @@
       delSlot(s.id);
       return;
     }
-    if (e.key === "Escape") { closeFontPicker(); return; }
+    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }
     const d = e.shiftKey ? NUDGE_FINE_MM : NUDGE_MM;
     const map = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] };
     const mv = map[e.key];

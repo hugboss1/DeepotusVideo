@@ -309,6 +309,18 @@
 .cf-type .cf-type-mi span { grid-column: 1 / -1; font-size: 10.5px; color: var(--ink-muted); line-height: 1.5; }
 .cf-type .cf-type-mi i { font-style: normal; font-size: 9.5px; color: var(--ink-soft); }
 
+/* ── palette d'elements (spec §6.1) ─────────────────────────────────────── */
+/* Le meme popover que les gabarits, un peu plus large : ses entrees portent
+   la phrase du MODELE (`hint`, jusqu'a 240 signes au backend) et non une
+   ligne ecrite ici. Le catalogue d'un poste peut en porter beaucoup : le menu
+   defile dans SA boite plutot que de sortir de l'ecran. */
+.cf-type.cf-type-palmenu { width: 420px; max-height: min(62vh, 560px); overflow-y: auto; }
+/* La note — « modele sans elements », « catalogue injoignable », le
+   chargement. Elle est SOUS les entrees et jamais a leur place : les trois
+   generiques restent posables quoi qu'il arrive au catalogue. */
+.cf-type .cf-type-paln { margin: 4px 4px 2px; padding-top: 6px;
+  border-top: 1px solid var(--stroke); font-size: 10.5px; }
+
 
 /* ── controle de definition : le tableau 300 contre 600 DPI ──────────── */
 /* Le tableau porte SEPT colonnes de chiffres : il ne peut pas se replier sans

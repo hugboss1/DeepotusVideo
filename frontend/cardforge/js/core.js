@@ -1563,6 +1563,46 @@
     }
     return GAL_MODELS_REQ;
   }
+  /* ── LE CATALOGUE DES MODELES, EN LECTURE, POUR LES PIECES ───────────────
+     Pourquoi il est ICI et pas dans la piece qui s'en sert (P3, palette
+     d'elements §6.1) : `M.api` est CONFINE a /api/cards/<did>/<id> (regle 8,
+     `subPath` leve sur un chemin absolu) et la liste des modeles vit a
+     /api/cards/models — hors de tout sous-prefixe de piece. Restaient trois
+     voies, et une seule tient :
+       · un `window.fetch` nu dans le module : rien ne l'attrape (ni le lint,
+         ni ce fichier), et c'est precisement le « fetch libre » de la
+         revision 1 que `makeApi` a retire. Le premier module qui le reprend
+         rouvre la porte a tous les autres, pour un GET.
+       · une table de modeles recopiee dans l'ecran : le banc du contrat
+         refuse deja explicitement cette voie (« prouver que l'ecran consomme
+         GET /api/cards/models et non une table recopiee »), et un modele
+         PERSO n'y serait jamais.
+       · le CORE qui expose la lecture — le patron `CF.images` : ce qui sort
+         du sous-prefixe d'une piece est tenu par le CORE, a un seul endroit.
+     Et il y a une raison MESUREE en plus de la doctrine : cette liste est
+     DEJA chargee et cachee ici pour la galerie. Une seconde copie dans P3
+     aurait fait deux requetes et deux caches de la meme liste, dont l'un
+     serait devenu faux des le premier « enregistrer comme modele »
+     (`galModelsList(true)` ne rafraichit que celui-ci).
+     CE QUE CA N'OUVRE PAS : aucune ecriture (POST/DELETE /models restent au
+     CORE), aucune depense, et la copie rendue est PROFONDE ET GELEE — sans
+     quoi le premier module qui ecrit dedans empoisonne la galerie et les huit
+     autres pieces, dans le meme onglet, sans rien casser tout de suite (le
+     raisonnement de `models.model()` cote backend, appliqué ici). */
+  async function modelsPublic() {
+    try {
+      const l = await galModelsList(false);
+      return deepFreeze(JSON.parse(JSON.stringify(l)));
+    } catch (e) {
+      /* route absente = ce backend n'a pas de modeles a offrir : une LISTE
+         VIDE, pas une panne (meme regle que `images.models`). Les autres
+         erreurs — hors ligne, phrase du backend — remontent : l'appelant a
+         quelque chose a dire a l'ecran, et « aucun modele » serait faux. */
+      if (e && e.missing) return deepFreeze([]);
+      throw e;
+    }
+  }
+
   /* La liste des jeux est RABOTEE des son arrivee : GET /decks rend les
      DOCUMENTS COMPLETS (13 Mo mesures ici), la galerie n'en affiche que
      quatre champs. Garder les 13 Mo dans l'onglet parce qu'ils sont passes
@@ -2221,6 +2261,8 @@
     on: on, off: off,
     toast: toast, busy: busy, show: show,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
+    /* LECTURE SEULE, copie profonde gelee — voir `modelsPublic` (§9bis). */
+    models: modelsPublic,
     download: download,
     /* ── les noms de la revision 1 ── */
     patch: gone("patch", "le jeton : const M = CF.register({…}) puis M.patch({…})"),

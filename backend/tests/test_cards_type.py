@@ -3548,6 +3548,9 @@ function elm(tag) {
     querySelector(sel) { return (cache[sel] = cache[sel] || elm("div")); },
     querySelectorAll() { return []; },
     closest() { return null; },
+    /* la fermeture au clic dehors demande `contains` : sans lui, le popover
+       de la palette lèverait au premier pointerdown du document. */
+    contains(c) { return e.kids.indexOf(c) >= 0; },
     getBoundingClientRect() { return e._rect || { left: 0, top: 0, width: 0, height: 0 }; },
   };
   Object.defineProperty(e, "innerHTML", { get: () => e._h, set: (v) => { e._h = String(v); } });
@@ -3573,12 +3576,17 @@ const DOC = { type: Object.assign(
   { slots: [], sel: "", seeded: true, show_boxes: true, audit: false,
     preset: "champion", optical_mm: 0.5 }, OPT.state || {}) };
 let MOD = null;
+/* CE QUE LE MODULE A DIT À L'ÉCRAN. Un refus qui ne se mesure pas est un refus
+   qu'on peut vider de sa phrase sans que rien ne rougisse — or c'est la PHRASE
+   qui fait la moitié du travail d'un plafond. */
+const TOASTS = [];
 const CF = {
   register(cfg) {
     MOD = cfg;
     return { patch: (p) => Object.assign(DOC.type, p),
       api: { get: async () => ({}), post: async () => ({}), raw: async () => ({ ok: false }) },
-      emit() { }, slot() { }, aside() { }, invalidate() { }, toast() { }, busy() { }, on() { } };
+      emit() { }, slot() { }, aside() { }, invalidate() { }, busy() { }, on() { },
+      toast: (m, err) => { TOASTS.push({ m: String(m), err: !!err }); } };
   },
   get(path, def) {
     let v = DOC;
@@ -3588,6 +3596,19 @@ const CF = {
   geom: () => G, geomOf: () => G, current: () => 0, cards: () => [],
   card: () => ({ fields: {} }), on() { }, renderCard: async () => null, modules: () => [],
 };
+/* LE CATALOGUE DES MODÈLES, tel que `CF.models` le sert (core.js:modelsPublic).
+   `OPT.catalogue` pilote : une liste de modèles, "absent" pour un catalogue
+   injoignable, "sanscore" pour un CORE plus vieux que la pièce (la clé
+   n'existe alors PAS, comme sur un vrai vieux core). `OPT.lent` retarde la
+   réponse — c'est le seul moyen d'ouvrir DEUX fois le menu pendant qu'UNE
+   requête est en vol, donc d'éprouver la garde d'étiquette. */
+if (OPT.catalogue !== "sanscore") {
+  CF.models = async () => {
+    if (OPT.lent) await new Promise((r) => setTimeout(r, OPT.lent));
+    if (OPT.catalogue === "absent") throw new Error("backend injoignable (qa)");
+    return Array.isArray(OPT.catalogue) ? OPT.catalogue : [];
+  };
+}
 
 const HOSTE = elm("div");
 const PANNEAU = elm("div");
@@ -3637,6 +3658,14 @@ function kev(a) {
   return { key: a.k, target: { tagName: "DIV" }, shiftKey: !!a.maj, altKey: !!a.alt,
     ctrlKey: !!a.ctrl, metaKey: false, preventDefault() { } };
 }
+/* LES MENUS POSÉS SUR LE CORPS, dans l'ordre : le popover de la palette est
+   un <div> ajouté à `document.body` (comme celui des gabarits), et c'est là
+   qu'on lit ce qu'il OFFRE. Trouvés par leur contenu, pas par un sélecteur —
+   le banc n'a pas de vrai DOM. */
+function menus() {
+  return CORPS.filter((e) => String(e._h).indexOf("cf-type-mi") >= 0
+    || String(e._h).indexOf("cf-type-paln") >= 0);
+}
 const traces = [];
 for (const a of (OPT.actes || [])) {
   if (a.t === "down") {
@@ -3655,9 +3684,27 @@ for (const a of (OPT.actes || [])) {
   } else if (a.t === "key") {
     onKey(kev(a));
     traces.push({ acte: "key", k: a.k });
+  } else if (a.t === "pal") {
+    /* LE BOUTON DE LA BARRE, pas une fonction choisie à la main : on joue
+       l'écouteur que `buildPanel` a posé sur `.cf-type-pal`. */
+    const b = HOSTE.querySelector(".cf-type-pal");
+    const fn = (b.listeners.click || [])[0];
+    if (fn) fn({ currentTarget: b });
+    await new Promise((r) => setTimeout(r, a.ms || 30));
+    traces.push({ acte: "pal", cable: !!fn, menus: menus().length });
+  } else if (a.t === "palclic") {
+    /* le clic est DÉLÉGUÉ (un seul écouteur pour n entrées) : la cible porte
+       `data-o` et se retrouve elle-même par `closest`, comme un vrai bouton. */
+    const menu = menus().slice(-1)[0];
+    const fn = menu && (menu.listeners.click || [])[0];
+    const cible = { dataset: { o: a.o } };
+    cible.closest = (s) => (s === ".cf-type-mi" ? cible : null);
+    if (fn) fn({ target: cible });
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "palclic", o: a.o, branche: !!fn });
   }
 }
-await new Promise((r) => setTimeout(r, 40));
+await new Promise((r) => setTimeout(r, (OPT.lent || 0) + 60));
 
 /* ── EQUIVALENCE DU HELPER D'ENCRE ────────────────────────────────────────
    `soloClone` vit dans la fermeture du module : pour le comparer aux TROIS
@@ -3705,8 +3752,30 @@ if (OPT.norm && globalThis.__norm) {
   });
 }
 
+/* ── LA PALETTE, OUVERTE PAR MUTATION (patron `__solo`) ────────────────────
+   `globalThis.__pal = {…}` est posé avant la parenthèse finale, sur la COPIE.
+   Ce qu'on en tire : les OFFRES (dérivées du preset AU MOMENT DE PEINDRE), la
+   phrase que la palette dit quand elle n'a rien de plus, son HTML — et le
+   miroir client de `norm_slots`, éprouvé par EXÉCUTION contre le backend et
+   jamais par un match de source (leçon B1). */
+let pal = null;
+if (OPT.pal && globalThis.__pal) {
+  await globalThis.__pal.ensure();
+  pal = {
+    offres: globalThis.__pal.offres().map(
+      (o) => ({ id: o.id, label: o.label, hint: o.hint, n: o.n })),
+    note: globalThis.__pal.note(),
+    html: globalThis.__pal.html(),
+  };
+}
+let norms = null;
+if (OPT.norms && globalThis.__pal) {
+  norms = OPT.norms.map((l) => globalThis.__pal.normSlots(l));
+}
+
 process.stdout.write(JSON.stringify({
   slots: DOC.type.slots, sel: DOC.type.sel, traces: traces, norm: norm,
+  pal: pal, norms: norms, menus: menus().map((e) => e._h), toasts: TOASTS,
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
   /* LE PANNEAU DE BLOC : c'est lui qui bascule ses sections selon le `kind`.
      Le meme cache de selecteurs qui rend la liste le rend, sans un mot de
@@ -5244,6 +5313,479 @@ def test_le_lecteur_d_image_porte_SA_PROPRE_liste_blanche():
     # ... et l'identifiant de deck aussi : la fonction ne suppose pas que son
     # appelant a vérifié.
     assert TY._read_slot_image("pas_un_deck", "img_1.png") is None
+
+
+# ═══════ 13. LA PALETTE D'ÉLÉMENTS (3b-T3, spec §6.1) ═══════════════════════
+# Trois entrées GÉNÉRIQUES toujours là, plus les éléments du MODÈLE dont le jeu
+# est né. Le deck n'en garde AUCUNE copie (models.py:instancier — « c'est une
+# graine, pas un lien ») : le seul fil est `doc.type.preset`, et l'écran va
+# chercher le reste au catalogue.
+#
+# LA QUESTION D'ARCHITECTURE DE LA TÂCHE, ET SA RÉPONSE. `M.api` est confiné à
+# /api/cards/{did}/type (règle 8) ; la liste des modèles vit à
+# /api/cards/models, hors de tout sous-préfixe de pièce. La pièce ne s'y rend
+# donc pas toute seule : le CORE l'expose en LECTURE (`CF.models`, patron
+# `CF.images` — « le SEUL dehors, tenu par le CORE »), sur la liste que la
+# galerie de démarrage a déjà chargée et cachée. Les deux autres voies sont
+# fermées et le restent : un `window.fetch` nu rouvrirait le « fetch libre »
+# que `makeApi` a retiré (rien ne l'attrape), et une table recopiée à l'écran
+# est refusée explicitement par le banc du contrat.
+
+MUT_PAL = ("\r\n})();",
+           "\r\n  globalThis.__pal = { ensure: ensureModels, offres: paletteOffres,"
+           " note: paletteNote, html: paletteHtml, normSlots: normSlots };\r\n})();")
+
+
+def _modele(mid: str) -> dict:
+    """Un modèle d'usine RÉEL, tel que GET /api/cards/models le sert. Recopier
+    un faux élément ici aurait prouvé que le banc sait lire le banc."""
+    from app.services.cards import models as MD
+    return MD.model(mid)
+
+
+def _entrees(menu: str) -> int:
+    return menu.count('class="cf-type-mi"')
+
+
+def test_la_palette_vit_dans_la_barre_et_pose_son_menu_sur_le_corps(tmp_path):
+    """Le bouton existe, il est CÂBLÉ, et son clic pose un popover — trouvé
+    dans `document.body`, pas supposé. Les trois entrées génériques y sont
+    quoi qu'il arrive au catalogue : ce sont celles qui ne dépendent de rien."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "actes": [{"t": "pal"}]})
+    assert "cf-type-pal" in d["panneau"], "aucun bouton de palette dans la barre"
+    assert d["traces"][0]["cable"] is True, d["traces"]
+    assert len(d["menus"]) == 1, d["menus"]
+    menu = d["menus"][0]
+    assert _entrees(menu) == 3, menu
+    for lib in ("Zone de texte", "Zone de statistique", "Calque d'image"):
+        assert lib in menu, menu
+    for oid in ("gen:texte", "gen:stat", "gen:image"):
+        assert 'data-o="' + oid + '"' in menu, menu
+
+
+def test_la_zone_de_statistique_NAIT_EN_PAIRE_et_ne_laisse_QU_UNE_annulation(tmp_path):
+    """LA PAIRE. Deux blocs, UN geste : étiquette à gauche, valeur à droite,
+    boîtes ADJACENTES (la forme de `models.py:_duel_ligne`, généralisée). La
+    sélection se pose sur le PREMIER né, et un seul Ctrl+Z les enlève TOUS LES
+    DEUX — sans quoi « annuler » laisserait la moitié d'un geste à l'écran."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "actes": [{"t": "pal"},
+                                          {"t": "palclic", "o": "gen:stat"}]})
+    s = d["slots"]
+    assert [x["id"] for x in s] == ["etiq1", "val1"], [x["id"] for x in s]
+    assert d["sel"] == "etiq1", d["sel"]
+    assert s[0]["align"] == "left" and s[1]["align"] == "right"
+    # LA VALEUR EST EN CHASSE FIXE — le seul emprunt à `_duel_ligne` qui ne
+    # soit pas de la décoration : une colonne de chiffres proportionnelle
+    # danse d'une carte à l'autre, et c'est un défaut de série.
+    assert s[1]["font"] == "JetBrainsMono", s[1]["font"]
+    # ADJACENTES : la valeur commence exactement où l'étiquette finit
+    assert round(s[0]["box"][0] + s[0]["box"][2], 6) == round(s[1]["box"][0], 6)
+    assert s[0]["box"][1] == s[1]["box"][1] and s[0]["box"][3] == s[1]["box"][3]
+    # deux blocs de TEXTE ordinaires, et le backend n'a rien à réparer
+    for x in s:
+        assert x["kind"] == "text", x["id"]
+        assert TY.norm_slot(x) == x, x["id"]
+    # UNE naissance = UNE entrée d'annulation
+    d2 = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                 "actes": [{"t": "pal"},
+                                           {"t": "palclic", "o": "gen:stat"},
+                                           {"t": "key", "k": "z", "ctrl": True}]})
+    assert d2["slots"] == [], [x["id"] for x in d2["slots"]]
+
+
+def test_la_paire_nee_en_DEUX_gestes_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : si la paire naissait par deux appels successifs,
+    elle laisserait DEUX entrées d'annulation et un Ctrl+Z ne défairait que la
+    moitié. Le test ci-dessus mesure donc quelque chose."""
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                  "actes": [{"t": "pal"},
+                                            {"t": "palclic", "o": "gen:stat"},
+                                            {"t": "key", "k": "z", "ctrl": True}]},
+                       mutations=(
+        ("    const next = normSlots(slots().concat(specs));",
+         "    if (specs.length > 1) { specs.forEach((sp) => naitre([sp], quoi)); return null; }\r\n"
+         "    const next = normSlots(slots().concat(specs));"),))
+    assert len(mut["slots"]) == 1, [x["id"] for x in mut["slots"]]
+
+
+def test_les_deux_autres_generiques_naissent_par_la_palette(tmp_path):
+    """« Zone de texte » et « calque d'image » passent par les MÊMES portes que
+    les boutons de la barre (`addSlot` / `addImgSlot`) : la palette n'a pas à
+    savoir ce qu'est un calque d'image (décision de la tâche 2)."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "actes": [{"t": "pal"},
+                                          {"t": "palclic", "o": "gen:image"},
+                                          {"t": "pal"},
+                                          {"t": "palclic", "o": "gen:texte"}]})
+    s = d["slots"]
+    assert [x["id"] for x in s] == ["image1", "texte1"], [x["id"] for x in s]
+    assert s[0]["kind"] == "image" and s[0]["fit"] == "contain"
+    assert s[1]["kind"] == "text"
+    assert d["sel"] == "texte1", d["sel"]
+
+
+def test_la_palette_offre_les_elements_DU_MODELE_dont_le_jeu_est_ne(tmp_path):
+    """Le preset du document désigne un modèle SERVI : ses éléments s'ajoutent
+    aux trois génériques, avec leur libellé et leur phrase — celles du modèle,
+    pas une ligne réécrite ici."""
+    m = _modele("superstar")
+    els = m["elements"]
+    assert els, "le modèle d'usine n'a plus d'éléments : ce test ne prouve rien"
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "superstar"},
+                                "catalogue": [m], "actes": [{"t": "pal"}]})
+    menu = d["menus"][-1]
+    assert _entrees(menu) == 3 + len(els), menu
+    for e in els:
+        assert 'data-o="mod:' + e["id"] + '"' in menu, menu
+        assert e["label"] in menu, menu
+        assert e["hint"][:40] in menu, menu
+    # rien à dire : il y a des éléments à poser
+    assert "cf-type-paln" not in menu, menu
+
+
+def test_la_LISTE_DES_OFFRES_est_derivee_du_preset_AU_MOMENT_DE_PEINDRE(tmp_path):
+    """Le constructeur d'offres, ouvert par mutation (patron `__solo`). Il ne
+    capture rien : il relit `type.preset` à chaque appel. C'est ce qui rend
+    impossible — par construction et non par un drapeau — d'afficher les
+    éléments d'un modèle que le document a cessé de désigner (poser un gabarit
+    réécrit le preset, sans recharger la page)."""
+    m = _modele("superstar")
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "superstar"},
+                                "catalogue": [m], "pal": True},
+                     mutations=(MUT_PAL,))
+    offres = d["pal"]["offres"]
+    assert [o["id"] for o in offres[:3]] == ["gen:texte", "gen:stat", "gen:image"]
+    assert [o["n"] for o in offres[:3]] == [1, 2, 1], offres[:3]
+    assert [o["id"] for o in offres[3:]] == ["mod:" + e["id"] for e in m["elements"]]
+    for o, e in zip(offres[3:], m["elements"]):
+        assert o["label"] == e["label"] and o["hint"] == e["hint"]
+        assert o["n"] == len(e["slots"])
+    assert d["pal"]["note"] == "", d["pal"]["note"]
+    # ... et le même catalogue sous un AUTRE preset n'offre que les génériques
+    d2 = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                           "preset": "minimal"},
+                                 "catalogue": [m], "pal": True},
+                      mutations=(MUT_PAL,))
+    assert len(d2["pal"]["offres"]) == 3, d2["pal"]["offres"]
+
+
+def test_un_element_de_modele_NAIT_a_sa_zone_avec_ses_REGLAGES(tmp_path):
+    """L'instanciation est un APPEND des slots de l'élément — sa boîte, sa
+    plaque, sa police, telles que le modèle les déclare. Et le document qui en
+    sort est celui que le backend relira sans y toucher."""
+    m = _modele("superstar")
+    el = m["elements"][0]
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "superstar"},
+                                "catalogue": [m],
+                                "actes": [{"t": "pal"},
+                                          {"t": "palclic", "o": "mod:" + el["id"]}]})
+    s = d["slots"]
+    assert len(s) == len(el["slots"]), [x["id"] for x in s]
+    assert d["sel"] == el["slots"][0]["id"], d["sel"]
+    for ne, ref in zip(s, el["slots"]):
+        assert ne == ref, (ne["id"], sorted(k for k in ref if ne.get(k) != ref[k]))
+        assert TY.norm_slot(ne) == ne, ne["id"]
+
+
+def test_ajouter_DEUX_FOIS_le_meme_element_RENOMME_comme_le_serveur(tmp_path):
+    """LA COLLISION. Deux slots de même id et P4 ne saurait plus lequel
+    remplir : `norm_slots` renomme, il ne jette JAMAIS. L'écran doit rendre le
+    MÊME document — sans quoi le backend « répare » au chargement suivant ce
+    que l'utilisateur vient de voir naître."""
+    m = _modele("superstar")
+    el = m["elements"][0]
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "superstar"},
+                                "catalogue": [m],
+                                "actes": [{"t": "pal"},
+                                          {"t": "palclic", "o": "mod:" + el["id"]},
+                                          {"t": "pal"},
+                                          {"t": "palclic", "o": "mod:" + el["id"]}]})
+    ids = [x["id"] for x in d["slots"]]
+    attendu = [x["id"] for x in TY.norm_slots(el["slots"] + el["slots"])]
+    assert ids == attendu, (ids, attendu)
+    assert len(set(ids)) == len(ids), ids
+    n = len(el["slots"])
+    assert ids[n].startswith(ids[0]) and ids[n] != ids[0], ids
+    # la sélection suit le SECOND ajout, sur son premier bloc
+    assert d["sel"] == ids[n], d["sel"]
+
+
+# la batterie de collisions : l'écran et le serveur doivent renommer PAREIL.
+UNIQ_BATTERIE = [
+    [{"id": "stat7"}, {"id": "stat7"}],
+    [{"id": "a"}, {"id": "a"}, {"id": "a"}, {"id": "a2"}],
+    # la collision se joue APRÈS la normalisation, jamais avant : « SLOT1 » et
+    # «  slot1  » sont le MÊME id une fois rognés et mis en bas de casse.
+    [{"id": "SLOT1"}, {"id": " slot1 "}],
+    # l'id que `norm_slot` FABRIQUE quand il n'y en a pas est indexé : deux
+    # slots sans id ne se marchent pas dessus, un « slot1 » écrit à la main
+    # après eux, si.
+    [{}, {}, {"id": "slot1"}],
+    [{"id": "a1"}, {"id": "a"}, {"id": "a"}],
+    # 24 signes — la borne du motif d'id. Le suffixe la DÉPASSE, et le serveur
+    # ne re-valide pas après avoir renommé : l'écran ne doit pas le faire non
+    # plus (c'est la raison pour laquelle `naitre` n'appelle pas `commit`).
+    [{"id": "a" * 24}, {"id": "a" * 24}],
+    [{"id": "9bad"}, {"id": "9bad"}],
+    [{"id": "z"}, {"id": "z"}, {"id": "z2"}, {"id": "z"}],
+]
+
+
+def test_l_UNIQUIFICATION_de_l_ecran_est_CELLE_du_serveur(tmp_path):
+    """PARITÉ D'EXÉCUTION, pas de source (leçon B1) : les deux uniquificateurs
+    tournent sur la même batterie et on compare leurs sorties, clé par clé."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "norms": UNIQ_BATTERIE},
+                     mutations=(MUT_PAL,))
+    assert d["norms"] is not None, "la porte du banc ne s'est pas ouverte"
+    for i, entree in enumerate(UNIQ_BATTERIE):
+        py = TY.norm_slots(entree)
+        js = d["norms"][i]
+        assert [x["id"] for x in js] == [x["id"] for x in py], \
+            (i, [x["id"] for x in js], [x["id"] for x in py])
+        for k, (a, b) in enumerate(zip(js, py)):
+            assert a == b, (i, k, sorted(x for x in b if a.get(x) != b[x]))
+
+
+def test_une_uniquification_QUI_DIVERGE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : un suffixe d'une autre forme (« stat7_2 » au lieu
+    de « stat72 ») passe tous les tests de « les ids sont uniques » et fait
+    quand même diverger le document de ce que le backend en fera."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "norms": UNIQ_BATTERIE},
+                     mutations=(MUT_PAL,
+                                ('while (seen[sid]) { sid = s.id + n; n++; }',
+                                 'while (seen[sid]) { sid = s.id + "_" + n; n++; }')))
+    ecarts = [i for i, e in enumerate(UNIQ_BATTERIE)
+              if [x["id"] for x in d["norms"][i]]
+              != [x["id"] for x in TY.norm_slots(e)]]
+    assert ecarts, "la parité ne mesure rien : un autre suffixe passe encore"
+
+
+def test_le_plafond_est_dit_AVANT_avec_SON_ARITHMETIQUE(tmp_path):
+    """Un élément de deux blocs demandé à 39 est refusé ENTIER — jamais posé à
+    moitié — et le refus DONNE les chiffres. « 40 slots au maximum » ne dit pas
+    combien il en manque ; « 39 + 2 = 41 » se vérifie sous les yeux."""
+    deja = [TY.norm_slot({"id": f"s{i}", "label": f"S{i}"}) for i in range(39)]
+    actes = [{"t": "pal"}, {"t": "palclic", "o": "gen:stat"}]
+    d = _banc_verrou(tmp_path, {"state": {"slots": deja, "sel": "s0"},
+                                "actes": actes})
+    assert len(d["slots"]) == 39, "la paire est passée (entière ou à moitié)"
+    refus = [t for t in d["toasts"] if t["err"]]
+    assert refus, d["toasts"]
+    msg = refus[-1]["m"]
+    assert "39 slot(s) + 2 = 41, le maximum est 40" in msg, msg
+    assert "zone de statistique" in msg, msg
+    # ... et à 38, la paire passe : le plafond ne gêne personne avant.
+    ok = _banc_verrou(tmp_path, {"state": {"slots": deja[:38], "sel": "s0"},
+                                 "actes": actes})
+    assert len(ok["slots"]) == 40, len(ok["slots"])
+
+
+def test_un_plafond_NON_CONTROLE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : sans le compte AVANT, la paire est posée et le
+    document sort à 41 slots — que le backend tronquera, muettement."""
+    deja = [TY.norm_slot({"id": f"s{i}", "label": f"S{i}"}) for i in range(39)]
+    mut = _banc_verrou(tmp_path, {"state": {"slots": deja, "sel": "s0"},
+                                  "actes": [{"t": "pal"},
+                                            {"t": "palclic", "o": "gen:stat"}]},
+                       mutations=(
+        ("if (!specs.length || !placeOu(specs.length, quoi)) return null;",
+         "if (!specs.length) return null;"),))
+    assert len(mut["slots"]) == 41, len(mut["slots"])
+    assert len(mut["slots"]) > TY.SLOTS_MAX
+
+
+def test_un_modele_SANS_ELEMENTS_est_DIT(tmp_path):
+    """« Rien à ajouter » et « je n'ai pas pu regarder » ne se réparent pas de
+    la même façon : la palette NOMME le cas au lieu de se contenter d'être
+    courte. Un élément sans slot ne compte pas — même règle qu'au backend
+    (`models.py:_elements_normalises`), sinon ce serait un bouton qui ne pose
+    rien."""
+    for els in ([], [{"id": "vide", "label": "Vide", "hint": "", "slots": []}]):
+        m = _modele("superstar")
+        m["elements"] = els
+        d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                              "preset": "superstar"},
+                                    "catalogue": [m], "actes": [{"t": "pal"}]})
+        menu = d["menus"][-1]
+        assert _entrees(menu) == 3, menu
+        assert "cf-type-paln" in menu, menu
+        assert "sans éléments" in menu, menu
+        assert m["label"] in menu, menu
+
+
+def test_sans_modele_la_palette_offre_les_trois_generiques_ET_SE_TAIT(tmp_path):
+    """Un jeu né d'un GABARIT local (« champion ») n'est pas né d'un modèle :
+    il n'y a rien à dire, et une phrase de plus serait du bruit. C'est le SEUL
+    cas où la palette se tait."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "champion"},
+                                "catalogue": [_modele("superstar")],
+                                "actes": [{"t": "pal"}]})
+    menu = d["menus"][-1]
+    assert _entrees(menu) == 3, menu
+    assert "cf-type-paln" not in menu, menu
+
+
+def test_un_catalogue_INJOIGNABLE_est_un_ETAT_NOMME_pas_une_panne(tmp_path):
+    """404, hors ligne, CORE plus ancien que la pièce : la palette garde ses
+    trois entrées, les rend POSABLES, et dit ce qui manque. Aucune exception
+    (`_banc_verrou` refuserait le relevé)."""
+    for cat, mot in (("absent", "backend injoignable (qa)"),
+                     ("sanscore", "n'expose pas le catalogue")):
+        d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                              "preset": "superstar"},
+                                    "catalogue": cat,
+                                    "actes": [{"t": "pal"},
+                                              {"t": "palclic", "o": "gen:texte"}]})
+        menu = d["menus"][-1]
+        assert _entrees(menu) == 3, menu
+        assert "injoignable" in menu, menu
+        assert mot in menu, menu
+        # le catalogue absent ne bloque AUCUNE des trois entrées génériques
+        assert len(d["slots"]) == 1 and d["slots"][0]["id"] == "texte1", d["slots"]
+
+
+def test_le_catalogue_qui_arrive_APRES_ne_repeint_QUE_SON_ouverture(tmp_path):
+    """LA GARDE, MESURÉE. Le plan redoutait un cache survivant à un changement
+    de jeu ; changer de jeu est une NAVIGATION (`core.js:galGo` ->
+    `location.assign`), donc ce cache et la requête en vol meurent avec la
+    page, et le catalogue n'est même pas propre à un jeu. Ce qui change
+    VRAIMENT sous une réponse en vol, c'est l'ouverture du menu : deux
+    ouvertures, une seule requête, et la réponse ne doit repeindre que la
+    dernière — sinon un popover fermé se remplit dans le vide."""
+    m = _modele("superstar")
+    opts = {"state": {"slots": [], "sel": "", "preset": "superstar"},
+            "catalogue": [m], "lent": 150,
+            "actes": [{"t": "pal", "ms": 5}, {"t": "pal", "ms": 5}]}
+    d = _banc_verrou(tmp_path, opts)
+    assert len(d["menus"]) == 2, d["menus"]
+    assert _entrees(d["menus"][0]) == 3, d["menus"][0]
+    assert "chargement du catalogue" in d["menus"][0], d["menus"][0]
+    assert _entrees(d["menus"][1]) == 3 + len(m["elements"]), d["menus"][1]
+    mut = _banc_verrou(tmp_path, opts, mutations=(
+        ("if (seq === PAL_SEQ && PAL_MENU === menu) paintPalette(menu);",
+         "if (true) paintPalette(menu);"),))
+    assert _entrees(mut["menus"][0]) == 3 + len(m["elements"]), \
+        "la garde d'étiquette ne mesure rien"
+
+
+def test_la_palette_ECHAPPE_ce_qui_vient_du_CATALOGUE(tmp_path):
+    """Les libellés et les phrases d'un modèle PERSO sont un fichier JSON du
+    dossier de données : de la donnée serveur, écrite par quelqu'un. Elle
+    traverse `esc` — dans les entrées comme dans la phrase de repli."""
+    poison = '"><img src=x onerror=alert(1)>'
+    base = {"id": "perso", "label": poison, "hint": poison, "elements": []}
+    avec = dict(base, elements=[{"id": "e1", "label": poison, "hint": poison,
+                                 "slots": [TY.norm_slot({"id": "z"})]}])
+    for faux in (base, avec):
+        d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                              "preset": "perso"},
+                                    "catalogue": [faux], "actes": [{"t": "pal"}]})
+        menu = d["menus"][-1]
+        assert "<img" not in menu, menu
+        assert "&quot;&gt;&lt;img" in menu, menu
+
+
+def test_un_libelle_de_catalogue_NON_ECHAPPE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE, deux fois. La phrase (`hint`) est en position
+    TEXTE : R14 ne la voit pas par construction (c'est écrit dans la règle),
+    c'est donc CE test qui la tient. L'id, lui, est en position d'ATTRIBUT :
+    R14 doit rougir tout seul — vérifié plus bas."""
+    poison = '"><img src=x onerror=alert(1)>'
+    faux = {"id": "perso", "label": "M", "hint": "h",
+            "elements": [{"id": "e1", "label": "E", "hint": poison,
+                          "slots": [TY.norm_slot({"id": "z"})]}]}
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "perso"},
+                                  "catalogue": [faux], "actes": [{"t": "pal"}]},
+                       mutations=(("esc(o.hint)", "o.hint"),))
+    assert "<img" in mut["menus"][-1], mut["menus"][-1]
+
+
+def test_R14_attrape_un_ATTRIBUT_de_palette_non_echappe(tmp_path):
+    """Le cliquet mécanique, sur la position que la règle SAIT juger. Le lint
+    intégral est à 0 sur le dépôt ; il doit rougir dès qu'on dé-échappe la
+    valeur d'attribut `data-o` de la palette."""
+    import shutil
+    import subprocess
+    lint = REPO / "scripts" / "qa" / "lint_cardforge.py"
+    if not lint.is_file():
+        pytest.skip("lint_cardforge.py absent")
+    src = JS.read_text(encoding="utf-8", newline="")
+    assert src.count("esc(o.id)") == 1
+    faux = tmp_path / "depot"
+    (faux / "frontend" / "cardforge" / "js").mkdir(parents=True)
+    (faux / "frontend" / "cardforge" / "css").mkdir(parents=True)
+    shutil.copy2(CSS, faux / "frontend" / "cardforge" / "css" / "mod-type.css")
+    (faux / "frontend" / "cardforge" / "js" / "mod-type.js").write_text(
+        src.replace("esc(o.id)", "o.id"), encoding="utf-8", newline="")
+    r = subprocess.run([sys.executable, str(lint), "--root", str(faux),
+                        "--module", "type"],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 1, (r.returncode, r.stdout[-2000:])
+    assert "R14" in r.stdout, r.stdout[-2000:]
+
+
+def test_TOUTES_les_naissances_passent_par_LA_MEME_porte():
+    """Une entrée d'annulation par geste, une sélection sur le premier né, un
+    plafond compté avant : ces trois-là ne se tiennent que si les quatre
+    naissances (texte, statistique, image, élément de modèle) passent par la
+    MÊME fonction. La leçon de `soloClone`, prise avant la quatrième copie."""
+    src = _js()
+    deb, fin = src.index("function placeOu("), src.index("function dupSlot(")
+    zone = src[deb:fin]
+    assert zone.count("pushUndo()") == 1, \
+        "plus d'une entrée d'annulation dans la zone des naissances"
+    # une définition, quatre appels
+    assert zone.count("naitre(") == 5, zone.count("naitre(")
+    for quoi in ("function addSlot()", "function addImgSlot()",
+                 "function addStatSlot()", "function palAdd("):
+        assert quoi in src, quoi
+    # `commit` re-normalise : il ne doit PAS être sur le chemin des naissances
+    # (il remplacerait un id renommé au-delà de 24 signes par « slotN »).
+    assert "commit(" not in zone, "une naissance repasse par `commit`"
+
+
+def test_P3_lit_le_catalogue_par_LE_CORE_et_par_AUCUN_RESEAU_NU():
+    """LA DÉCISION D'ARCHITECTURE DE LA TÂCHE, ÉPINGLÉE. `M.api` est confiné à
+    /api/cards/{did}/type (règle 8) ; la liste des modèles est ailleurs. Un
+    `window.fetch` nu dans une pièce rouvrirait le « fetch libre » que
+    `makeApi` a retiré — rien ne l'attraperait, ni le lint ni le CORE — et le
+    premier module qui le reprend le rouvre pour les huit autres."""
+    js_dir = REPO / "frontend" / "cardforge" / "js"
+    # SUR LE CODE, commentaires ôtés : ce fichier PARLE de /api/cards/models et
+    # de `window.fetch` — c'est même tout l'objet du pavé de la section 6bis.
+    # Un pin qui rougirait sur une explication serait un pin qu'on supprime.
+    src = _js_sans_commentaires()
+    assert "CF.models(" in src, "la palette ne lit pas le catalogue par le CORE"
+    for interdit in ("fetch(", "XMLHttpRequest", "/api/cards/models"):
+        assert interdit not in src, interdit
+    # AUCUNE des neuf pièces ne fait de réseau nu : le CORE est le seul dehors
+    for p in sorted(js_dir.glob("mod-*.js")):
+        t = re.sub(r"/\*.*?\*/", " ", p.read_text(encoding="utf-8"), flags=re.S)
+        assert "fetch(" not in t, p.name
+        assert "XMLHttpRequest" not in t, p.name
+    # ... et le CORE rend une copie PROFONDE ET GELÉE de SA liste déjà cachée :
+    # un module qui écrirait dedans empoisonnerait la galerie et les huit
+    # autres pièces, dans le même onglet, sans rien casser tout de suite.
+    core = (js_dir / "core.js").read_text(encoding="utf-8")
+    i = core.index("async function modelsPublic(")
+    corps = core[i:core.index("\n  /*", i + 10)]
+    assert "galModelsList" in corps, "le CORE recharge une seconde fois la liste"
+    assert "deepFreeze" in corps and "JSON.parse(JSON.stringify" in corps, corps
+    assert "e.missing" in corps, "une route absente n'est pas une liste vide"
+    assert "models: modelsPublic," in core
+    # la lecture seule, et rien de plus : aucune ÉCRITURE de modèle n'apparaît
+    assert "POST" not in corps and "DELETE" not in corps
 
 
 if __name__ == "__main__":
