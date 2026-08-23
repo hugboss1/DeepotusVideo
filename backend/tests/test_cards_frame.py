@@ -3968,6 +3968,79 @@ def test_la_borne_de_format_du_sceau_est_la_meme_des_deux_cotes(tmp_path):
         assert r["anneau"]["mm"] > 0
 
 
+def test_sous_le_plancher_imprimeur_le_sceau_ne_dessine_PAS(tmp_path):
+    """LE DÉFAUT DE LA RONDE 1, mesuré. `sealMaxMM` rabotait la largeur à la
+    place disponible SANS jamais confronter le résultat au plancher qu'il
+    prétendait tenir : une fenêtre posée à 1,61 mm de la coupe laissait
+    0,01 mm de place, et l'écran DESSINAIT une bande de 0,01 mm (0,118 px à
+    300 DPI), le panneau lisait « Bande de 0.01 mm » et `/metrics` publiait
+    `seal_mm[0] = 0.01`. C'est exactement la largeur que le préflight de la
+    tâche 2 est spécifié REFUSER (trait ≥ 0,2 mm, spec §6.2bis-b) : l'écran
+    dessinait ce que la presse rejette.
+
+    Sous le plancher il n'y a pas d'anneau étroit, il n'y a PAS D'ANNEAU — et
+    l'écran le dit."""
+    def fen(d):
+        return {"x": d, "y": d, "w": 63 - 2 * d, "h": 88 - 2 * d, "r": 0}
+
+    cas = [
+        # 1,61 mm de marge − 1,6 mm de retrait = 0,01 mm : sous le plancher
+        _cas_sceau("sous", dict(SEAL_ON, width_mm=3), window=fen(1.61)),
+        # 1,85 − 1,6 = 0,25 mm : au-dessus, sans ambiguïté. (Le cas EXACTEMENT
+        # à 0,2 n'est pas épinglé : `1.8 - 1.6` vaut 0,19999999999999973 en
+        # IEEE 754, et le verdict y bascule sur le dernier bit. La comparaison
+        # porte volontairement sur la valeur non arrondie, donc le doute tombe
+        # du côté du REFUS — jamais du côté d'une largeur que la presse
+        # rejette. Épingler ce bit-là figerait un accident, pas un contrat.)
+        _cas_sceau("juste", dict(SEAL_ON, width_mm=3), window=fen(1.85)),
+    ]
+    res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
+    for r in res.values():
+        assert r["ok"], f"{r['nom']} : {r.get('err')}"
+    assert res["sous"]["seal_max"] == 0, \
+        f"la borne rend {res['sous']['seal_max']} mm — sous le plancher de " \
+        f"{SEAL_MIN_MM_SPEC} mm elle doit rendre 0"
+    assert res["sous"]["anneau"] is None, \
+        f"un anneau de {res['sous']['anneau']} est dessiné sous le plancher"
+    assert res["sous"]["ops"] == 0, \
+        "le peintre pose des opérations alors qu'aucun anneau n'est légal"
+    assert res["juste"]["seal_max"] == 0.25, res["juste"]["seal_max"]
+    assert res["juste"]["anneau"]["mm"] == 0.25
+    assert res["juste"]["ops"] > 0
+
+    # ... le backend rend le même verdict, et `/metrics` ne publie plus 0,01
+    g = CT.geom("poker_eu", 300, 3, 3, 3)
+    assert FR.seal_max_mm(63, 88, 1.6, fen(1.61)) == 0
+    assert FR.seal_max_mm(63, 88, 1.6, fen(1.85)) == 0.25
+    m = FR.frame_metrics(g, 0.9, 1.1, 1.6, 5.5, fen(1.61), FR.seal_of(SEAL_ON))
+    assert m["seal_mm"] == [0.0, 0.0], m["seal_mm"]
+    assert m["seal_px"][0] == 0.0, m["seal_px"]
+
+    # ... et l'ÉCRAN LE DIT : la ligne d'état nomme le plancher et le format
+    fn = _js_fn(_js(), "sealText")
+    assert "aucun contour" in fn, \
+        "la ligne d'état ne dit pas qu'aucun contour n'est dessiné"
+    assert "0,2" in fn or "SEAL_MIN_MM" in fn, \
+        "la ligne d'état ne nomme pas le plancher d'imprimeur"
+
+
+def test_sans_le_plancher_la_bande_de_0_01_mm_revient(tmp_path):
+    """LE CONTRÔLE NÉGATIF DU PLANCHER. On rend à `sealMaxMM` sa forme d'avant
+    (« tout ce qui est positif ») : la bande de 0,01 mm DOIT revenir, sinon ce
+    test ne prouve rien et le plancher n'est qu'une décoration."""
+    fen = {"x": 1.61, "y": 1.61, "w": 59.78, "h": 84.78, "r": 0}
+    cas = [_cas_sceau("sous", dict(SEAL_ON, width_mm=3), window=fen)]
+    avec = _banc_sceau(tmp_path, cas)[0]
+    assert avec["anneau"] is None
+    sans = _banc_sceau(tmp_path, cas, mutations=[
+        ("return v >= SEAL_MIN_MM ? Math.round(v * 100) / 100 : 0;",
+         "return v > 0 ? Math.round(v * 100) / 100 : 0;"),
+    ])[0]
+    assert sans["ok"], sans.get("err")
+    assert sans["anneau"] is not None and sans["anneau"]["mm"] == 0.01, \
+        f"sans le plancher on attendait 0,01 mm, on trouve {sans['anneau']}"
+
+
 def test_le_sceau_absent_du_document_repart_des_defauts(tmp_path):
     """Un preset ou un jeu enregistré AVANT cette tâche n'a pas de clé `seal` :
     `st()` doit y injecter les défauts, et rendre un objet NEUF (un alias de
@@ -3979,12 +4052,19 @@ def test_le_sceau_absent_du_document_repart_des_defauts(tmp_path):
                                "width_mm": 999, "scope": "toutes"}),
         _cas_sceau("plancher", {"on": True, "width_mm": 0.01,
                                 "scope": {"screen": False}}),
+        # `null` = ABSENT, pas zéro. Le générique `num()` de la pièce prend
+        # `Number(null) === 0` et ramènerait la largeur au plancher (0,2) là
+        # où le backend, lui, rend le DÉFAUT (1,2). Deux valeurs différentes
+        # pour un même document : la branche du Sceau tranche pour « absent ».
+        _cas_sceau("nul", {"on": True, "width_mm": None}),
     ]
     res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
     for r in res.values():
         assert r["ok"], f"{r['nom']} : {r.get('err')}"
     a = res["absent"]["seal"]
     assert a == FR.SEAL_DEFAULTS, a
+    assert res["nul"]["seal"]["width_mm"] == FR.SEAL_DEFAULTS["width_mm"], \
+        f"width_mm null -> {res['nul']['seal']['width_mm']} au lieu du défaut"
     h = res["hostile"]["seal"]
     assert h["on"] is False, "une chaîne n'est pas un booléen"
     assert h["kind"] == FR.SEAL_DEFAULTS["kind"], h
@@ -4017,11 +4097,13 @@ def test_le_backend_normalise_le_sceau_comme_l_ecran():
     # 1. ce qui n'est pas un booléen retombe au défaut, des deux côtés
     h = FR.seal_of({"on": "oui", "kind": "platine", "scope": "toutes"})
     assert h == FR.SEAL_DEFAULTS, h
-    # 2. une portée PARTIELLE complète les deux autres avec leur défaut
+    # 2. `null` vaut ABSENT des deux côtés — jamais zéro
+    assert FR.seal_of({"width_mm": None}) == FR.SEAL_DEFAULTS
+    # 3. une portée PARTIELLE complète les deux autres avec leur défaut
     p = FR.seal_of({"on": True, "width_mm": 0.2, "scope": {"screen": False}})
     assert p["scope"] == {"screen": False, "print": False, "mesh": False}
     assert p["on"] is True and p["width_mm"] == 0.2
-    # 3. hors bornes : le backend REFUSE en nommant la borne (l'écran, lui,
+    # 4. hors bornes : le backend REFUSE en nommant la borne (l'écran, lui,
     #    ramène — mesuré par le banc, test voisin)
     for mauvais in (999, 0.01, "beaucoup", float("nan")):
         with pytest.raises(ValueError) as exc:
@@ -4197,6 +4279,41 @@ def test_le_sceau_ne_tire_aucun_hasard(tmp_path):
         "avec Math.random le champ reste identique — le banc ne mesure rien"
 
 
+def test_la_graine_ne_promet_que_ce_que_l_identite_des_cartes_tient():
+    """CE QUE LA RONDE 1 AFFIRMAIT DE TROP. Le commentaire de `sealSeed`
+    disait que la graine « survit à un réordonnancement du jeu ». C'est faux
+    sur le deck PAR DÉFAUT : `cards/data.py` assigne `id = "c" + idx`, un
+    numéro POSITIONNEL, quand aucune colonne `id` n'est mappée — et c'est le
+    défaut. Déplacer une carte change alors son id, donc sa graine, donc son
+    scintillement.
+
+    La phrase vraie est conditionnelle : la graine est l'IDENTITÉ de la carte,
+    et cette identité ne suit la carte QUE si une colonne `id` est mappée.
+
+    Ce test ne juge pas une tournure : il épingle le FAIT dont la phrase
+    dépend (le repli positionnel de data.py) et interdit le retour de
+    l'affirmation inconditionnelle. Si data.py se met un jour à donner un
+    identifiant stable, ce test rougit et la phrase est à réécrire — dans le
+    bon sens."""
+    data_py = (REPO / "backend" / "app" / "services" / "cards"
+               / "data.py").read_text(encoding="utf-8")
+    assert '"id": (cid or ("c" + str(idx)))[:64]' in data_py, \
+        "le repli d'identifiant de data.py a changé : la note de `sealSeed` " \
+        "sur la portabilité de la graine est à re-mesurer"
+    src = _js()
+    # le commentaire vit AVANT la fonction : on prend le bloc entier, de son
+    # titre jusqu'à la fonction suivante.
+    bloc = src[src.index("LA GRAINE, PAR CARTE"):src.index("function sealField(")]
+    assert "survit a un reordonnancement" not in bloc \
+        and "survit à un réordonnancement" not in bloc, \
+        "l'affirmation inconditionnelle est revenue — elle est FAUSSE sans " \
+        "colonne `id` mappée"
+    assert "colonne" in bloc, \
+        "le commentaire ne dit pas à quelle condition la graine suit la carte"
+    assert "code MORT" in bloc, \
+        "le repli positionnel passe toujours pour du code utile"
+
+
 def test_une_graine_constante_donnerait_le_meme_scintillement_a_tout_le_jeu(
         tmp_path):
     """LE CONTRÔLE NÉGATIF DE LA GRAINE PAR CARTE. On remplace l'identité de la
@@ -4345,26 +4462,57 @@ def test_une_largeur_de_sceau_hors_bornes_fait_400_jamais_500():
 
 def test_l_ecran_et_le_backend_comptent_les_memes_pixels_d_anneau(tmp_path):
     """PARITÉ D'EXÉCUTION : `localMetrics` de l'écran et `frame_metrics` du
-    backend, sur les douze formats. Deux anneaux différents, ce serait un
-    masque de foil décalé du contour affiché."""
+    backend, sur les douze formats ET SUR SIX LARGEURS. Deux anneaux
+    différents, ce serait un masque de foil décalé du contour affiché.
+
+    LA RONDE 1 NE COMPARAIT QUE LA GÉOMÉTRIE DE L'ANNEAU — jamais la LARGEUR,
+    c'est-à-dire le seul nombre que la borne de format CHANGE. Soixante-douze
+    cas sains ne prouvaient rien sur le seul chiffre qui bouge. Les largeurs
+    d'épreuve encadrent le plancher et un arrondi non trivial (0,205 mm et
+    2,005 mm : leur deuxième décimale doit tomber de la même façon des deux
+    côtés)."""
     src = _js()
     assert "seal_px" in _js_fn(src, "localMetrics"), \
         "l'écran ne publie pas l'anneau : la pastille ne le vérifierait jamais"
     assert "seal:" in _js_fn(src, "verify"), \
         "la vérification n'envoie pas le Sceau au backend"
-    cas = [_cas_sceau(f, SEAL_ON, fmt=f) for f in sorted(CT.FORMATS)]
+    LARGEURS = (0.2, 0.205, 1.2, 2.005, 5.5, 6)
+    cas = [_cas_sceau(f"{f}/{w}", dict(SEAL_ON, width_mm=w), fmt=f)
+           for f in sorted(CT.FORMATS) for w in LARGEURS]
     res = {r["nom"]: r for r in _banc_sceau(tmp_path, cas)}
-    for fmt, r in res.items():
-        assert r["ok"], f"{fmt} : {r.get('err')}"
+    assert len(res) == len(CT.FORMATS) * len(LARGEURS)
+    borne_mordue = 0
+    for nom, r in res.items():
+        assert r["ok"], f"{nom} : {r.get('err')}"
+        fmt, w = nom.rsplit("/", 1)
         g = CT.geom(fmt, 300, 3, 3, 3)
         win = FR._win_of(None, g)
-        seal = FR.seal_of(SEAL_ON)
-        px = FR.frame_metrics(g, 0.9, 1.1, 1.6, 5.5, win, seal)["seal_px"]
+        seal = FR.seal_of(dict(SEAL_ON, width_mm=float(w)))
+        m = FR.frame_metrics(g, 0.9, 1.1, 1.6, 5.5, win, seal)
         a = r["anneau"]
-        for i, v in enumerate([a["outer"][0], a["outer"][1], a["outer"][2],
-                               a["outer"][3], a["outer"][4]]):
-            assert abs(px[i + 1] - v) < 0.02, \
-                f"{fmt} : anneau px[{i}] écran {v} != backend {px[i + 1]}"
+        assert a is not None, f"{nom} : anneau dégénéré côté écran"
+        # la GÉOMÉTRIE (x, y, w, h, r) de l'anneau extérieur...
+        for i, v in enumerate(a["outer"]):
+            assert abs(m["seal_px"][i + 1] - v) < 0.02, \
+                f"{nom} : anneau px[{i}] écran {v} != backend {m['seal_px'][i + 1]}"
+        # ... ET LA LARGEUR TRACÉE, le nombre que la borne change
+        assert abs(m["seal_mm"][0] - a["mm"]) < 1e-9, \
+            f"{nom} : largeur écran {a['mm']} != backend {m['seal_mm'][0]}"
+        assert abs(m["seal_mm"][1] - r["seal_max"]) < 1e-9, \
+            f"{nom} : borne écran {r['seal_max']} != backend {m['seal_mm'][1]}"
+        # les PIXELS publiés sont ceux que l'écran TRACE (`ring.t`), pas ceux
+        # du millimètre arrondi pour l'affichage : à 0,205 mm le panneau lit
+        # « 0.21 mm » et la presse reçoit 2,42 px, pas 2,48. Même doctrine que
+        # `edge_px` — le millimètre s'arrondit à l'écran, le pixel jamais.
+        assert abs(m["seal_px"][0] - a["t"]) < 0.01, \
+            f"{nom} : largeur px publiée {m['seal_px'][0]} != tracée {a['t']}"
+        assert a["mm"] >= SEAL_MIN_MM_SPEC, \
+            f"{nom} : largeur TRACÉE {a['mm']} mm sous le plancher imprimeur"
+        if a["mm"] < float(w):
+            borne_mordue += 1
+    assert borne_mordue > 0, \
+        "sur 72 cas la borne de format n'a jamais mordu : le test ne mesure " \
+        "pas ce qu'il annonce"
 
 
 # ── 16.5 LE PANNEAU : l'écran dit toujours quelle portée est active ──────────
@@ -4437,7 +4585,18 @@ function couleur(s) {
     Math.round((m[4] === undefined ? 1 : +m[4]) * 255)];
   return [0, 0, 0, 255];
 }
+/* UN BANC QUI NE SAIT PAS DOIT LE DIRE. Ce mélangeur ne connaît que deux
+   modes ; s'il en rencontrait un troisième — `multiply` d'une pièce Matières,
+   `screen` d'un futur Sceau — il le traiterait en silence comme du
+   source-over et rendrait un verdict « isolée » qui ne vaut rien. Un banc qui
+   ment plus tard est le trou qu'on a déjà payé trois fois : il REFUSE. */
+const OPS_CONNUS = ["source-over", "overlay"];
 function melange(d, o, src, op) {
+  if (OPS_CONNUS.indexOf(op) < 0) {
+    throw new Error("banc d'empilement : mode de fusion inconnu \"" + op
+      + "\" — le mélangeur ne sait composer que " + OPS_CONNUS.join(", ")
+      + ". L'ajouter ICI avant de s'en servir dans un cas.");
+  }
   const sa = src[3] / 255, da = d[o + 3] / 255;
   if (op === "overlay") {
     for (let k = 0; k < 3; k++) {
@@ -4528,7 +4687,9 @@ layers(0, { face: "front", groups: [
 """
 
 
-def _banc_empilement(tmp_path, op: str) -> dict:
+def _banc_empilement(tmp_path, op: str, echec: bool = False):
+    """Rend le verdict du banc — ou, si `echec`, le message par lequel il a
+    refusé de rendre un verdict."""
     import shutil
     import subprocess
     node = shutil.which("node")
@@ -4540,13 +4701,29 @@ def _banc_empilement(tmp_path, op: str) -> dict:
     js.write_text(code, encoding="utf-8")
     banc = tmp_path / "banc_empilement.mjs"
     banc.write_text(BANC_EMPILEMENT, encoding="utf-8")
-    conf = tmp_path / "cas_empilement.json"
+    conf = tmp_path / f"cas_empilement_{op}.json"
     conf.write_text(json.dumps({"op": op}), encoding="utf-8")
     r = subprocess.run([node, str(banc), str(js), str(conf)],
                        capture_output=True, text=True, encoding="utf-8",
-                       timeout=180)
+                       errors="replace", timeout=180)
+    if echec:
+        assert r.returncode != 0, \
+            f"le banc a rendu un verdict au lieu de refuser : {r.stdout[:300]}"
+        return r.stderr
     assert r.returncode == 0, r.stderr[-3000:]
     return json.loads(r.stdout)
+
+
+def test_le_banc_d_empilement_refuse_un_mode_de_fusion_qu_il_ne_sait_pas(
+        tmp_path):
+    """Son mélangeur ne connaît que `source-over` et `overlay`. Un troisième
+    mode — le `multiply` que la pièce Matières pose déjà, ou un futur `screen`
+    du Sceau — serait traité en silence comme du source-over, et le banc
+    rendrait « isolée » sur une couche qui ne l'est pas. Il doit REFUSER en
+    nommant le mode."""
+    err = _banc_empilement(tmp_path, "multiply", echec=True)
+    assert "multiply" in err, err[-600:]
+    assert "mode de fusion inconnu" in err, err[-600:]
 
 
 def test_le_sceau_pose_bien_une_bande_de_reflet_en_overlay():

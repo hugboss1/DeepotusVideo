@@ -110,7 +110,24 @@ Amender à la source (leçon ×10).
    CANONIQUE 0.35 est celle du fichier livré ; l'aperçu animé (survol)
    passe par LE MÊME peintre avec une phase de pointeur — mais tout rendu
    CF.renderCard sort à 0.35 (l'utilisateur voit littéralement la frame
-   livrée). Pile : clip de l'anneau (rrPath externe + dilaté −width) →
+   livrée).
+   **AMENDEMENT T1 (ronde 2) — l'APERÇU AU POINTEUR EST REPORTÉ, et
+   c'est dit plutôt que découvert.** La T1 livre la moitié déterministe
+   seule : `sealStops(f, phase)` prend déjà la phase en PARAMÈTRE et
+   `paintSeal` la lui passe (`SEAL_PHASE`), donc le peintre est prêt à
+   recevoir autre chose — il ne manque que le branchement pointeur et sa
+   boucle de rendu. Reporté **à la passe navigateur de la T6**, pour deux
+   raisons : (1) l'animation ne se juge qu'à l'œil, sur une vraie carte,
+   et la T6 est déjà la passe qui ouvre le navigateur ; (2) une boucle de
+   repeinte au survol touche la fluidité du CORE, un sujet qui a déjà
+   coûté une passe entière en 2b (« 1 patch/frame ») et qui n'a rien à
+   faire dans la tâche qui pose le schéma. Si la T6 ne le prend pas, il
+   part en phase 4 avec cette même raison.
+   *À ne pas confondre avec l'interdiction du test* : `test_la_phase_du
+   _fichier_livre_est_canonique` interdit `clientX` / `event` / `Date.now`
+   DANS `paintSeal` — c'est-à-dire les entrées CACHÉES d'un rendu LIVRÉ,
+   pas un paramètre d'aperçu explicite. Le jour où le survol arrive, il
+   passe par l'argument `phase`, et le test reste vert par construction. Pile : clip de l'anneau (rrPath externe + dilaté −width) →
    dégradé HSL 70-90 % → bande de reflet en overlay → paillettes
    PRNG(seed = index de carte) allumées par hash(x,y,floor(phase·N)).
    `overlay` casse le mode « isolée » de la preuve d'empilement → la
@@ -237,10 +254,20 @@ la T2 :
 - **Identité de carte** : `card.id` (FNV-1a de la chaîne), repli sur
   `"c" + (i + 1)` — l'identité que `normCard` du CORE donne déjà. La spec
   dit « seed = id de carte » ; le plan disait « index » : c'est `id` qui
-  a été retenu, parce qu'il SURVIT à un réordonnancement du jeu (un
-  contour qui change de scintillement parce qu'on a déplacé la carte
-  serait un fichier livré instable). Les deux coïncident sur un deck
-  jamais renommé.
+  a été retenu.
+  **CORRIGÉ EN RONDE 2 — la phrase de la ronde 1 (« l'id survit à un
+  réordonnancement ») était FAUSSE sur le deck par défaut.** `data.py`
+  assigne un identifiant POSITIONNEL (« c » + le rang de la ligne) quand
+  aucune colonne `id` n'est mappée, et c'est le cas par défaut : déplacer
+  une carte change alors son identifiant, donc son scintillement. Mesuré :
+  sans colonne mappée 4/4 cartes changent au déplacement, avec 0/4. La
+  phrase tenable est conditionnelle — **la graine est l'IDENTITÉ de la
+  carte ; mappez une colonne `id` et le scintillement suit la carte au
+  déplacement.** Le repli `"c" + (i + 1)` est du **code mort en
+  pratique** (`normCard` et `data.py` fournissent toujours un id) : il
+  n'est là que pour qu'un `card` nu passe au banc, et le code le dit.
+  Un test épingle le fait dont la phrase dépend (le repli positionnel de
+  `data.py`) et interdit le retour de l'affirmation inconditionnelle.
 - **Le Sceau passe SOUS les filets** (début de l'étape 6 de `paintFront`,
   même source de chemin `m.outer`) : le filet extérieur garde son arête
   nette POSÉE SUR la bande, au lieu d'en être à moitié recouvert.
@@ -268,8 +295,58 @@ la T2 :
   (« 3D uniquement », décision 1) est une entrée de la phase 4, pas une
   réécriture rétroactive des sept.
 - **Reste d'œil pour la T6** : le chatoiement et la lisibilité de la
-  bande à l'écran, et le MODE réel de la couche cadre (isolée/empreinte)
-  sur une vraie carte — voir l'amendement de la décision 2.
+  bande à l'écran ; le MODE réel de la couche cadre (isolée/empreinte)
+  sur une vraie carte (voir l'amendement de la décision 2) ; et **la
+  lisibilité de la bande SOUS le bandeau et la gemme** — ils peignent en
+  z=70, donc PAR-DESSUS le Sceau (z=40). Mesuré, poker, `inner_mm` 5,5 :
+  au défaut (1,2 mm) le bandeau et la gemme ne touchent pas la bande
+  (0,0 %) ; à 3 mm, 20,8 % de la surface du bandeau et 4,4 % de celle de
+  la gemme tombent dessus ; à 5 mm (la borne du format), 59,2 % et
+  39,5 %. Ce n'est donc pas un défaut au réglage livré, mais ça le
+  devient dès qu'on élargit la bande — et le chiffre monte encore avec
+  un libellé de rareté long ou une marge intérieure plus petite.
+
+### Ronde de revue 2 (23/08) — ce qui a été corrigé
+
+- **F1, CODE** : `sealMaxMM` / `seal_max_mm` rabotaient la largeur à la
+  place disponible sans jamais confronter le résultat au plancher qu'ils
+  prétendaient tenir. Mesuré : fenêtre à 1,61 mm de la coupe → bande
+  **DESSINÉE de 0,01 mm** (0,118 px à 300 DPI), panneau lisant
+  « 0.01 mm », `/metrics` publiant `seal_mm[0] = 0.01` — la largeur même
+  que le préflight de la T2 est spécifié refuser. L'écran dessinait ce
+  que la presse rejette. Corrigé des deux côtés (`v >= SEAL_MIN_MM`,
+  comparaison sur la valeur NON arrondie) : sous le plancher, **pas
+  d'anneau du tout**, et la ligne d'état donne le remède (« rapprocher le
+  filet de la coupe ou reculer la fenêtre »). Contrôle négatif : la
+  borne d'avant fait revenir les 0,01 mm.
+  *Le cas exactement à 0,2 mm n'est pas épinglé : `1.8 - 1.6` vaut
+  0,19999999999999973 en IEEE 754 et le verdict y bascule sur le dernier
+  bit. Le doute tombe volontairement du côté du REFUS.*
+- **Parité, trou comblé** : le test inter-formats ne comparait JAMAIS
+  `seal_mm[0]` / `seal_px[0]` — le seul nombre que la borne CHANGE.
+  72 cas sains ne prouvaient rien. Il compare désormais 12 formats × 6
+  largeurs (dont 0,205 et 2,005 pour l'arrondi), largeur TRACÉE comprise,
+  et exige qu'au moins un cas voie la borne mordre.
+- **`width_mm: null`** : l'écran rendait 0,2 (le générique `num()` prend
+  `Number(null) === 0`, puis clamp au plancher) là où le backend rendait
+  1,2. Aligné sur « absent = défaut » des deux côtés.
+- **Banc d'empilement** : son mélangeur ne connaît que `source-over` et
+  `overlay` ; un `multiply` futur serait passé en silence pour du
+  source-over et le banc aurait rendu « isolée » sur une couche qui ne
+  l'est pas. Il REFUSE maintenant en nommant le mode (+ son test).
+- **`mulberry32` (spec) vs `prng`/xorshift32 (livré)** : dit au code —
+  même famille de générateurs seedés, et c'est la règle de la pièce qui
+  prime ; un second générateur dans le même fichier serait une seconde
+  source de hasard à auditer. La spec nomme l'esprit, pas la marque.
+- **Net déclaré** : mod-frame.js +380/−5 = **+375** (5033 → 5408) en
+  ronde 1, au-dessus de la cible ≤ 350 — après une passe de rasage qui a
+  sorti la conversion hexadécimal→TSL du produit pour la mettre dans
+  l'instrument de mesure (le test), là où elle appartient. La ronde 2
+  ajoute ses lignes de garde et de vérité.
+- **Suite** : 159 → 184 (ronde 1) → **188** (ronde 2). Huit mutations
+  tuées : plancher retiré, `null` ramené à zéro, blend inconnu accepté
+  au banc, `Math.random`, phase 0,71, clip retiré, portée écran ignorée,
+  graine constante.
 
 ### Task 2 : le masque de foil (P7)
 
@@ -285,6 +362,32 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
       valeurs uniques), coupe+fond perdu ; PDF/X tombé DIT.
 - [ ] Mutation : AA laissé au raster (>2 valeurs → rougit), l'anneau au
       mauvais cadre (coupe vs fond perdu), OCG sans Separation.
+
+**CE QUE LA T1 A LAISSÉ SUR LA TABLE POUR LA T2 — lire avant de coder :**
+
+- **Les nombres sont déjà là** : `/frame/metrics` publie `seal_mm
+  [largeur TRACÉE, borne du format]` et `seal_px [largeur, x, y, w, h,
+  r]` (l'anneau EXTÉRIEUR, en pixels de toile). Ne pas recalculer :
+  l'écran calcule les mêmes et la pastille les confronte déjà.
+- **LE PRÉFLIGHT REFUSERA LE DECK PAR DÉFAUT, et l'écran doit le DIRE
+  avant qu'il le découvre.** L'anneau est posé à `edge_mm` de la coupe,
+  soit **1,6 mm au défaut** — DANS la zone interdite « distance au trait
+  de coupe ≥ 3,2 mm » de §6.2bis-b. Un utilisateur qui coche
+  « impression » sur un deck neuf verra donc son masque refusé par
+  construction. La T2 doit écrire le REMÈDE à l'écran (monter `edge_mm`
+  au-delà de 3,2 mm — ce qui déplace aussi le filet extérieur, à dire —
+  ou accepter l'avertissement en connaissance de cause), pas laisser le
+  préflight le révéler. C'est le même défaut de forme que F1 : refuser
+  sans donner la sortie.
+- **Le foil hérite la géométrie du bandeau et de la gemme.** Ils peignent
+  en z=70, donc PAR-DESSUS l'anneau : à 3 mm de bande, 20,8 % du bandeau
+  et 4,4 % de la gemme tombent sur la bande ; à 5 mm, 59,2 % et 39,5 %
+  (poker, `inner_mm` 5,5 — mesuré). Un masque de foil qui ignore ce
+  recouvrement pose du métal sous une encre opaque.
+- **Le plancher de 0,2 mm est déjà tenu EN AMONT** (T1-F1) : aucune
+  largeur sous 0,2 mm ne peut plus sortir de `sealMaxMM`. Le contrôle du
+  préflight reste utile (il vaut sur d'autres chemins), mais il ne doit
+  pas être la PREMIÈRE ligne de défense.
 
 ### Task 3 : les motifs incrustés (canal G) + portée mesh
 

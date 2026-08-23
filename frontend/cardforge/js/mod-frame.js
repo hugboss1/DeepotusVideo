@@ -132,8 +132,17 @@
      FORMAT (comme la bande, l'anneau s'INVERSE si sa largeur passe la
      demi-carte, et le decoupage en pair-impair rend alors l'encre sur toute
      la toile — le defaut mesure sur `micro`, voir BAND_MIN_MM). `SEAL_MIN_MM`
-     est le trait minimal d'un imprimeur foil (spec §6.2bis-b) : plancher du
-     curseur ET ouverture minimale de l'anneau. */
+     est le trait minimal d'un imprimeur foil (spec §6.2bis-b).
+
+     ET LE PLANCHER S'APPLIQUE AU RESULTAT, PAS SEULEMENT AU CURSEUR. Defaut
+     de la ronde 1 : la borne rabotait la largeur a la place disponible sans
+     jamais la confronter au plancher qu'elle pretendait tenir. Mesure — poker,
+     fenetre posee a 1,61 mm de la coupe : place = 0,01 mm, et l'ecran
+     DESSINAIT une bande de 0,01 mm (0,118 px a 300 DPI), le panneau lisait
+     « 0.01 mm » et /metrics le publiait. C'est la largeur meme que le
+     preflight de l'imprimeur refuse : l'ecran dessinait ce que la presse
+     rejette. Sous le plancher il n'y a pas un anneau etroit, il n'y a PAS
+     D'ANNEAU — et la ligne d'etat le dit. */
   const SEAL_MIN_MM = 0.2;
   function sealMaxMM(tw, th, edgeMM, wm) {
     const e = Number(edgeMM) || 0;
@@ -142,7 +151,10 @@
     const fen = Math.min(w.x, w.y, W - (w.x + w.w), H - (w.y + w.h)) - e;
     const carte = (Math.min(W, H) - 2 * e - SEAL_MIN_MM) / 2;
     const v = Math.min(fen, carte);
-    return v > 0 ? Math.round(v * 100) / 100 : 0;
+    /* la comparaison porte sur la valeur NON ARRONDIE : 0,196 mm s'arrondit a
+       0,20 et passerait le plancher en publiant une largeur que la place ne
+       porte pas. */
+    return v >= SEAL_MIN_MM ? Math.round(v * 100) / 100 : 0;
   }
 
   /* le schema du Sceau : la SEULE description de `doc.frame.seal`, miroir de
@@ -284,8 +296,15 @@
     return {
       on: b(s.on, SEAL_DEFAULTS.on),
       kind: byId(SEAL_KINDS, s.kind) ? s.kind : SEAL_DEFAULTS.kind,
-      width_mm: cl(num(s.width_mm, SEAL_DEFAULTS.width_mm),
-        LIMITS.seal_width_mm[0], LIMITS.seal_width_mm[1]),
+      /* `null` vaut ABSENT, pas zero. Le generique `num()` prend
+         `Number(null) === 0` et ramenerait la largeur au PLANCHER (0,2) la ou
+         `_len` du backend rend le DEFAUT (1,2) : deux valeurs pour un meme
+         document, donc une pastille de verification rouge sans qu'un pixel
+         bouge. La branche du Sceau tranche pour « absent ». */
+      width_mm: (s.width_mm === null || s.width_mm === undefined)
+        ? SEAL_DEFAULTS.width_mm
+        : cl(num(s.width_mm, SEAL_DEFAULTS.width_mm),
+          LIMITS.seal_width_mm[0], LIMITS.seal_width_mm[1]),
       scope: {
         screen: b(sc.screen, SEAL_DEFAULTS.scope.screen),
         print: b(sc.print, SEAL_DEFAULTS.scope.print),
@@ -1719,11 +1738,21 @@
     return out;
   }
 
-  /* LA GRAINE, PAR CARTE (spec §6.2bis-a : « seed = id de carte »). `card.id`
-     survit a un reordonnancement du jeu, ce que l'index ne fait pas ; quand
-     elle manque, on retombe sur celle que le CORE donnerait (`normCard` :
-     "c" + (i + 1)), jamais sur une constante — 200 contours qui scintillent
-     au meme endroit, ce n'est plus un foil, c'est un motif. */
+  /* LA GRAINE, PAR CARTE (spec §6.2bis-a : « seed = id de carte »).
+     La graine est L'IDENTITE de la carte, et rien de plus — CE QU'ELLE VAUT
+     DEPEND DONC DE CETTE IDENTITE, ce qu'il faut dire honnetement : quand
+     aucune colonne `id` n'est mappee (le DEFAUT), `cards/data.py` assigne un
+     identifiant POSITIONNEL — la lettre « c » suivie du rang de la ligne ;
+     deplacer une carte change alors son identifiant, donc son scintillement.
+     MESURE : sans colonne mappee, 4 cartes sur 4 changent au deplacement ;
+     avec, 0 sur 4. Mappez une colonne `id` et le scintillement suit la
+     carte — c'est la seule promesse tenable.
+     Le repli "c" + (i + 1) ci-dessous est du code MORT en pratique
+     (`normCard` du CORE et `data.py` fournissent tous deux un id) : il est la
+     pour qu'un `card` nu passe au banc, jamais pour servir en production.
+     Ce qui reste vrai sans condition : ce n'est JAMAIS une constante — 200
+     contours qui scintillent au meme endroit, ce n'est plus un foil, c'est un
+     motif. */
   function sealSeed(card) {
     const i = (card && isFinite(Number(card.i))) ? (Number(card.i) | 0) : 0;
     const id = (card && typeof card.id === "string" && card.id) ? card.id : ("c" + (i + 1));
@@ -1733,7 +1762,12 @@
   }
   /* le champ de points, en coordonnees NORMALISEES [0, 1[ de la boite de
      l'anneau : il ne depend QUE de la graine, donc deux formats de carte
-     portent le meme scintillement au meme endroit relatif. */
+     portent le meme scintillement au meme endroit relatif.
+     LA SPEC NOMME `mulberry32`, LA PIECE LIVRE `prng` (xorshift32) : meme
+     famille de generateurs seedes, et c'est la REGLE DE LA PIECE qui prime —
+     un second generateur dans le meme fichier serait une seconde source de
+     hasard a auditer. Ce que la spec exige est l'esprit (seede, jamais
+     `Math.random`), pas la marque. */
   function sealField(seed, n) {
     const rnd = prng(seed);
     const out = [];
@@ -5135,13 +5169,21 @@
         : ("Cet écran montre la surface <b>écran</b>, HORS de la portée : le contour "
           + "y reste dans sa <b>base calme</b> (" + esc(kind.toLowerCase())
           + "), sans arc-en-ciel."))
-      + " Bande de <b>" + r2(swid) + " mm</b> (" + r1(swid / 25.4 * g.dpi)
-      + " px), posée à <b>" + r2(Math.min(f0.edge_mm, cap))
-      + " mm</b> de la coupe (l'axe du filet extérieur) et creusée vers l'intérieur"
-      + (swid < s.width_mm
-        ? (" — ramenée de " + r2(s.width_mm) + " mm par la <b>borne du format</b> : "
-          + "au-delà, l'anneau mordrait sur la fenêtre d'illustration.")
-        : ".");
+      + (smax < SEAL_MIN_MM
+        /* PAS D'ANNEAU DU TOUT — et l'ecran donne le remede, pas seulement le
+           refus : entre le filet et la fenetre il n'y a plus la place du
+           trait minimal d'un imprimeur foil. */
+        ? (" Entre le filet extérieur et la fenêtre d'illustration, ce réglage "
+          + "ne laisse pas les <b>" + SEAL_MIN_MM + " mm</b> qu'un imprimeur foil "
+          + "exige : <b>aucun contour n'est dessiné</b>. Rapprocher le filet de "
+          + "la coupe (retrait) ou reculer la fenêtre.")
+        : (" Bande de <b>" + r2(swid) + " mm</b> (" + r1(swid / 25.4 * g.dpi)
+          + " px), posée à <b>" + r2(Math.min(f0.edge_mm, cap))
+          + " mm</b> de la coupe (l'axe du filet extérieur) et creusée vers l'intérieur"
+          + (swid < s.width_mm
+            ? (" — ramenée de " + r2(s.width_mm) + " mm par la <b>borne du format</b> : "
+              + "au-delà, l'anneau mordrait sur la fenêtre d'illustration.")
+            : ".")));
   }
 
   /* ── synchronisation de tout l'ecran ───────────────────────────────────── */

@@ -188,8 +188,11 @@ DEFAULTS = {
 #      posée sur l'illustration ;
 #   2. LE FORMAT — comme la bande, l'anneau s'INVERSE si sa largeur passe la
 #      demi-carte (le défaut mesuré sur `micro`, voir BAND_MIN_MM).
-# `SEAL_MIN_MM` est le trait minimal d'un imprimeur foil : plancher du curseur
-# ET ouverture minimale de l'anneau.
+# `SEAL_MIN_MM` est le trait minimal d'un imprimeur foil (§6.2bis-b), et il
+# s'applique AU RÉSULTAT, pas seulement au curseur : une fenêtre posée à
+# 1,61 mm de la coupe ne laisse que 0,01 mm, et publier cette largeur-là
+# ferait dessiner à l'écran ce que le préflight de la presse refuse. Sous le
+# plancher, PAS D'ANNEAU (0.0) — et la ligne d'état de l'écran le dit.
 SEAL_MIN_MM = 0.2
 
 SEAL_DEFAULTS = {
@@ -205,7 +208,9 @@ def seal_max_mm(tw: float, th: float, edge_mm: float, win: dict) -> float:
     fen = min(w["x"], w["y"], W - (w["x"] + w["w"]), H - (w["y"] + w["h"])) - e
     carte = (min(W, H) - 2 * e - SEAL_MIN_MM) / 2
     v = min(fen, carte)
-    return rnd(v, 2) if v > 0 else 0.0
+    # la comparaison porte sur la valeur NON ARRONDIE : 0,196 mm s'arrondirait
+    # à 0,20 et publierait une largeur que la place ne porte pas.
+    return rnd(v, 2) if v >= SEAL_MIN_MM else 0.0
 
 
 def seal_of(raw) -> dict:
