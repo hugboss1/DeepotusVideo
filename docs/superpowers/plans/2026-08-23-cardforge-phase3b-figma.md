@@ -847,18 +847,113 @@ dans test_cards_type.py. La batterie du contrat n'énumère pas les clés de
 pas d'amender qa/. Une capacité qui AGIT (« aller au module » = `CF.show`)
 n'est pas le même objet — la peser à part.**
 
-- [ ] Section « Calques » : bandes fixes en lecture (10 papier / 20
+- [x] Section « Calques » : bandes fixes en lecture (10 papier / 20
       illustration / 30 effet / 40 cadre / 70 décor haut — libellé + résumé
       dérivé de l'état publié + « aller au module ») ; bande 60 = la liste
       slots EXISTANTE (œil/verrou/ordre/badges kind) intégrée sous la rangée
       40 et sur la rangée 70 (l'ordre VISUEL = l'ordre de peinture réel,
       c'est le point).
-- [ ] « Aller au module » : vérifier ce que les jetons peuvent faire —
+- [x] « Aller au module » : vérifier ce que les jetons peuvent faire —
       sinon, le clic simule le rail (patron mod-data:focusCard « on pilote
       les BOUTONS du CORE ») ; AUCUNE écriture inter-modules.
-- [ ] Pins : l'ordre affiché des bandes == Z_TABLE (dérivé, pas recopié) ;
+- [x] Pins : l'ordre affiché des bandes == Z_TABLE (dérivé, pas recopié) ;
       les rangées fixes n'émettent aucun patch ; la bande 60 réordonne
       comme avant (les pins existants tiennent).
+
+> **Livré (T4)** — une section « Calques · ordre de peinture (recto) » dans la
+> colonne de gauche de P3 (mod-type.js §6ter), **haut de peinture EN HAUT**
+> (convention Figma) : 70 décor haut · **la liste de blocs existante** · 40
+> cadre · 30 effet · 20 illustration · 10 papier. La liste n'est pas forkée —
+> elle garde SON nœud `.cf-type-list`, glissé entre deux conteneurs de bandes
+> (`.cf-type-bhaut` / `.cf-type-bbas`) que seuls eux se réécrivent.
+>
+> · **Z_TABLE : rien à recopier, le CORE le PUBLIE.** Le plan hésitait (« CF
+>   l'expose ? sinon un littéral miroir avec un pin de source ») — vérifié :
+>   `CF.Z_TABLE` est sur le global gelé depuis le premier commit du lab
+>   (core.js:2248, copie gelée de sa propre table). L'ordre est donc LU à
+>   chaque peinture, pas miroité : **aucun littéral d'ordre dans la pièce**, et
+>   le pin est un banc à table BROUILLÉE (z 5/88 inconnus) — une pièce qui
+>   recopierait ne bougerait pas d'un pouce, la mutation le montre. Le z=90 (le
+>   CORE, ses repères de coupe) n'a PAS de rangée : il ne part dans aucun
+>   fichier. Ce qui reste écrit ici, ce sont les NOMS (5 z) — un z inconnu se
+>   présente quand même par son numéro et sa pièce (pas de trou à l'écran), et
+>   un pin de COUTURE relit les deux littéraux à la source pour qu'un z neuf du
+>   CORE réclame son nom.
+> · **« Aller au module » = `CF.show`, sans capacité neuve.** La note T3
+>   demandait de peser une capacité qui AGIT : il n'y en a pas à ajouter.
+>   `CF.show` est publiée sur le global gelé et c'est EXACTEMENT ce que les
+>   boutons du rail du CORE appellent (core.js:954) ; le global gelé est là où
+>   le CORE range ce qui n'écrit pas (« Ce qui ECRIT n'est pas ici : c'est sur
+>   le jeton », core.js:2227). **core.js n'est pas touché, qa/ non plus.** UN
+>   mécanisme, pas deux — et pas de garde `typeof` : ce serait du code mort
+>   faisant croire qu'un danger est couvert (leçon T3), l'id venant de
+>   `CF.Z_TABLE`, donc du CORE, `assertId` ne peut pas le refuser. Le détour
+>   mod-data:focusCard n'était à prendre que si `show` manquait.
+> · **LE PIÈGE ÉVITÉ : la carte qui ment.** Une clé absente ne veut PAS dire
+>   « rien peint » — un document neuf n'a aucun sous-arbre `texture` et un vélin
+>   se peint quand même, chaque pièce appliquant SES défauts à la lecture.
+>   Écrire « aucun » là (ce que le contrat demandait à la lettre) aurait été
+>   FAUX ; recopier leurs défauts l'aurait rendu faux plus tard. La rangée dit
+>   donc **« par défaut »** = le document ne nomme rien, la pièce propriétaire
+>   décide — et **« aucun » reste réservé à ce que le document ÉTEINT** (`over:
+>   "none"`, `family: "none"`), **« vide » à l'illustration** dont la précédence
+>   gelée (spec 2.3, mod-face.js:1688 — la carte courante d'abord) ne retombe
+>   sur rien. Les deux états ne se réparent pas de la même façon. Le décor haut,
+>   lui, se lit SANS défaut recopié : c'est le TEST du painter qu'on rejoue
+>   (`!== false`, mod-frame.js:462/:1898), pas sa valeur de repli.
+> · **Aucun catalogue recopié non plus** : ce sont les identifiants du DOCUMENT
+>   qui s'affichent (« kraft », « runique · legendary »), jamais les libellés
+>   de P2 ou de P6 — une table de libellés d'ici aurait dérivé à leur premier
+>   renommage, et cette pièce n'a aucun droit de regard sur leur catalogue.
+> · **Rangée = CARTE, pas télécommande** (cloisonnement 3a-T4) : ni œil, ni
+>   cadenas, ni ordre, ni corbeille sur une bande fixe — la visibilité de la
+>   matière appartient à P6, celle du cadre à P2, sous LEUR jeton. Pin
+>   d'ABSENCE mesuré : espion sur `M.patch`, **0 patch** sur les cinq clics
+>   « Aller » (et le mutant qui en pousse un rougit). Le trait est TIRETÉ à
+>   l'écran pour que le cadre d'une rangée qu'on ne peut pas prendre ne se
+>   confonde pas avec celui d'un bloc.
+> · **Fluidité §9.6 : le repli est OUVERT, la repeinture est GARDÉE.** Ouvert
+>   par défaut parce que la section CONTIENT la liste de blocs — la refermer au
+>   démarrage cacherait la surface de travail de la pièce ; ce qu'on replie,
+>   c'est la pile entière quand on veut la place pour l'inspecteur. Et comme
+>   `core:render` part à CHAQUE frame (c'est la SEULE voie par laquelle les
+>   couches voisines arrivent ici — `core:doc` n'est écouté que pour « type »),
+>   les résumés se dérivent en lectures de chaînes et **le DOM ne s'écrit que si
+>   le TEXTE a changé** (patron mod-gltf.js:867) : deux peintures du même état =
+>   **1 seule écriture**, mesurée par un compteur d'`innerHTML` posé dans le
+>   banc ; garde retirée → 3, le mutant rougit.
+> · **Compte** : 199 → **213 tests** dans test_cards_type.py (+14, 0 amendé,
+>   0 supprimé) ; RED d'abord — 13 des 14 rouges avant la première ligne de
+>   code, le 14e étant le garde-fou de non-régression de la bande 60 (œil,
+>   cadenas, ordre, glisser, badges, nudge 1 mm) qui devait rester vert et l'est
+>   resté. **4 mutants tués** : table des z recopiée, rangée fixe qui patche,
+>   garde de repeinture retirée, `esc` du résumé retiré. **Ancre de contrôle** :
+>   R14 passé sur la source MUTILÉE rend `[]` — la limite de la règle (position
+>   texte, variable nue) est NOMMÉE et prouvée, une sonde d'attribut montrant
+>   qu'elle n'est pas morte pour autant. **mod-type.js 5344 → 5526 l. (+182
+>   nets, sous les 250 visés)**, mod-type.css +18. Lint intégral **0**,
+>   `node --check` OK, 11/11 suites cards vertes, **core.js et qa/ inchangés**.
+> · **Le banc de gestes s'est ouvert de quatre crans** (partagés) :
+>   `CF.Z_TABLE`/`CF.show`/`CF.side`/`CF.card` bouchonnés, `CF.on` qui RETIENT
+>   les abonnements (il ne faisait rien : les branches `core:render` n'étaient
+>   jamais jouées), un compteur d'écritures `innerHTML`, un espion de patchs, et
+>   `OPT.doc` pour poser les sous-arbres des AUTRES pièces tels quels — clé
+>   absente = clé absente, l'état que cette carte doit savoir nommer.
+>
+> **Reste à l'œil (2 min)** : ouvrir P3 et vérifier que la pile se lit de haut
+> en bas comme la carte se peint ; cliquer « Aller » sur « papier » et atterrir
+> dans P6 ; changer de matière et revenir — la ligne suit sans clignoter.
+>
+> **Trouvé en passant, HORS T4 et non corrigé** : la batterie du contrat
+> (`frontend/cardforge/qa/test_core_contract.mjs`) rend **KO sur « galerie : le
+> jeu cree ne porte pas le modele — preset=superstar »**, et c'est un
+> FAUX ROUGE de la T3 : la batterie tape le backend VIVANT de :8765, dont le
+> processus a démarré le 22/08 à 18:42 alors que `models.py` (qui écrit
+> `modele:` depuis la ronde T3) date du 23/08 à 08:24. Le code source est juste
+> des deux côtés ; c'est le python en vol qui est périmé (gotcha connu :
+> « backend stale settings on restart »). **Vérifié rouge AUSSI sans les
+> modifications de la T4** (git stash) — à relancer après un redémarrage du
+> backend, en T5.
 
 ### Task 5 : intégration 3b
 

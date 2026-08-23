@@ -43,6 +43,24 @@
 .cf-type .cf-type-keys > summary:hover { color: var(--ink-soft); }
 .cf-type .cf-type-keys p { margin: 3px 0 0; }
 
+/* ── la liste de calques : les bandes des pieces voisines, la liste au milieu ─
+   Le repli garde sa hauteur naturelle (flex: none) : c'est la colonne de gauche
+   qui defile, pas la section qui se comprime — une pile de calques ecrasee ne
+   dit plus l'ordre, qui est tout son propos. */
+.cf-type .cf-type-lay { flex: none; }
+.cf-type .cf-type-lbody { padding: 8px; gap: 3px; }
+/* LE TRAIT TIRETE DIT « CECI N'EST PAS A VOUS, ICI ». Une rangee fixe se lit et
+   ne se regle pas : elle n'a ni oeil, ni cadenas, ni corbeille, et son cadre ne
+   doit pas se confondre avec celui d'un bloc que l'on peut prendre. */
+.cf-type .cf-type-band { display: flex; align-items: center; gap: 7px; padding: 4px 7px;
+  border: 1px dashed var(--stroke); border-radius: 8px; min-width: 0; }
+.cf-type .cf-type-bz { font-style: normal; font-size: 9px; color: var(--ink-muted);
+  opacity: .6; width: 18px; text-align: right; flex: none; }
+.cf-type .cf-type-bres { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-type .cf-type-go { background: none; border: 1px solid var(--stroke); border-radius: 6px;
+  color: var(--ink-soft); cursor: pointer; font-size: 9.5px; padding: 2px 8px; flex: none; }
+.cf-type .cf-type-go:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ── liste des slots ────────────────────────────────────────────────────── */
 .cf-type .cf-type-row { display: flex; align-items: center; gap: 7px; padding: 5px 7px;
   border: 1px solid var(--stroke); border-radius: 8px; background: var(--bg-panel);

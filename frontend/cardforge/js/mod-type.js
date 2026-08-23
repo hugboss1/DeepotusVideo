@@ -1565,7 +1565,13 @@
       renderAll();
       CF.on("core:geom", () => { renderAll(); syncOverlay(); });
       CF.on("core:cards", () => { renderAll(); });
-      CF.on("core:render", () => { syncOverlay(); });
+      /* LA SEULE VOIE PAR LAQUELLE LES COUCHES VOISINES ARRIVENT ICI.
+         `core:doc` n'est écouté que pour l'id « type » (juste en dessous) : un
+         changement de matière ou de cadre ne passe pas par là. `core:render`,
+         lui, part à chaque redessin de la carte, donc APRÈS chacun de ces
+         changements — et la garde d'égalité de texte de `syncBands` fait que
+         les frames qui ne changent rien n'écrivent rien. */
+      CF.on("core:render", () => { syncOverlay(); syncBands(); });
       CF.on("core:doc", (p) => { if (!SELF && p && p.id === "type") renderAll(); });
       if (typeof ResizeObserver === "function") {
         const st = document.querySelector(".stage-wrap");
@@ -1731,7 +1737,18 @@
       + '</div>'
       + '<div class="cf-type-cols">'
       + '  <div class="cf-type-left">'
+      /* LA PILE, DANS L'ORDRE OÙ ELLE SE PEINT (section 6ter). Le repli est
+         OUVERT par défaut, et ce n'est pas un détail : cette section CONTIENT
+         la liste de blocs — la refermer au démarrage cacherait la surface de
+         travail de la pièce. Ce qu'on replie, c'est la pile entière quand on
+         veut toute la place pour l'inspecteur. */
+      + '    <details class="grp cf-type-lay" open>'
+      + '<summary>Calques &#183; ordre de peinture (recto)</summary>'
+      + '      <div class="grp-body cf-type-lbody">'
+      + '        <div class="cf-type-bhaut"></div>'
       + '    <div class="cf-type-list"></div>'
+      + '        <div class="cf-type-bbas"></div>'
+      + '      </div></details>'
       /* LE MEMO CLAVIER NE S'IMPRIME PLUS SUR L'ECRAN. Deplie, il occupait
          trois lignes du panneau pour redire ce que la souris apprend en une
          seconde. Replie, il reste a un clic et dans le DOM — rien n'est perdu,
@@ -1745,6 +1762,14 @@
       + '  <div class="cf-type-insp"></div>'
       + '</div>'
       + '<div class="cf-type-proof"></div>';
+    /* UN SEUL ÉCOUTEUR POUR TOUTES LES RANGÉES FIXES, posé sur le corps de la
+       section : les conteneurs de bandes se réécrivent, ce nœud-ci jamais.
+       `closest` filtre — un clic dans la liste de blocs (qui vit dans le même
+       corps) n'y trouve pas de bouton « Aller » et ne fait rien. */
+    HOST.querySelector(".cf-type-lbody").addEventListener("click", (e) => {
+      const b = e.target && e.target.closest && e.target.closest(".cf-type-go");
+      if (b) CF.show(b.dataset.mod);
+    });
     HOST.querySelector(".cf-type-add").addEventListener("click", addSlot);
     HOST.querySelector(".cf-type-addimg").addEventListener("click", addImgSlot);
     HOST.querySelector(".cf-type-pal").addEventListener("click", openPalette);
@@ -2375,6 +2400,162 @@
       });
     });
   }
+  /* ═════════════════════════════════════════════════════════════════════════
+     6ter. LA LISTE DE CALQUES MULTI-BANDES (spec §6.1, décision 4)
+
+     LE POINT : l'ordre affiché EST l'ordre de peinture. Le décor haut ouvre la
+     liste parce qu'il est peint EN DERNIER (convention Figma : le calque du
+     dessus est la rangée du dessus) ; le papier la ferme parce qu'il est peint
+     en premier. Entre les deux, à sa vraie place dans la pile, la liste de
+     blocs EXISTANTE — pas une copie, le MÊME nœud, glissé entre les deux
+     conteneurs de bandes fixes. Œil, cadenas, ordre, glisser-déposer et badges
+     continuent d'y vivre sans une ligne de plus.
+
+     CE QUE CES RANGÉES NE FONT PAS, ET C'EST LA LIGNE DE CLOISONNEMENT : elles
+     n'écrivent RIEN. Pas d'œil, pas de verrou, pas d'ordre, pas de corbeille.
+     La visibilité de la matière appartient à P6, celle du cadre à P2 ; leurs
+     booléens vivent dans LEUR sous-arbre, sous LEUR jeton (cloisonnement
+     3a-T4). Une rangée d'ici est une CARTE du document, pas une télécommande :
+     le seul geste qu'elle offre est d'aller voir la pièce qui, elle, a le
+     droit.
+
+     D'OÙ VIENT L'ORDRE. Pas d'une liste écrite ici : de `CF.Z_TABLE`, que le
+     CORE publie sur le global gelé (core.js:2248 — une copie gelée de sa
+     propre table). Une table recopiée aurait tenu jusqu'au jour où le CORE
+     bouge, et ce jour-là elle aurait menti en silence : une carte fausse est
+     pire qu'une carte absente. Ce qui EST écrit ici, ce sont les NOMS ; un z
+     sans nom se présente quand même par son numéro et sa pièce (pas de trou), et
+     un pin de couture rougit pour qu'on le nomme.
+
+     « ALLER AU MODULE » = `CF.show`. Vérifié avant d'écrire une ligne : elle est
+     publiée sur le global gelé depuis le premier commit du lab, et c'est
+     EXACTEMENT la fonction que les boutons du rail du CORE appellent
+     (core.js:954). Le global gelé est là où le CORE range ce qui n'écrit pas
+     (« Ce qui ECRIT n'est pas ici : c'est sur le jeton », core.js:2227) :
+     aucune surface de pouvoir neuve n'est ouverte, aucune capacité à ajouter au
+     CORE. Piloter le bouton du rail à sa place (patron mod-data:focusCard)
+     était le détour à prendre si elle n'existait pas — elle existe, donc UN
+     mécanisme et pas deux. Pas de garde `typeof` non plus : ce serait du code
+     mort qui ferait CROIRE qu'un danger est couvert (leçon T3), et l'id passé
+     vient de `CF.Z_TABLE`, c'est-à-dire du CORE lui-même — `assertId` ne peut
+     pas le refuser.
+     ═════════════════════════════════════════════════════════════════════════ */
+  const MOI = "type";               /* l'id donné à CF.register, celui du rail */
+  const MUET = "par défaut", AUCUN = "aucun", VIDE = "vide";
+
+  /* CE QUE DIT UNE COUCHE VOISINE — lu par `CF.get` sur l'état PUBLIÉ (patron
+     art_window : mod-face lit frame.art_window). Deux choses ne sont PAS
+     recopiées ici, et c'est le même refus :
+
+     LES LIBELLÉS. Ce sont les identifiants du DOCUMENT qui s'affichent, jamais
+     les libellés des catalogues de P2 ou de P6. Une table de libellés recopiée
+     ici aurait dérivé au premier renommage chez eux — et cette pièce n'a aucun
+     droit de regard sur leur catalogue.
+
+     LES DÉFAUTS. Une clé absente ne veut PAS dire « rien peint » : un document
+     neuf n'a aucun sous-arbre `texture` et un vélin se peint quand même, chaque
+     pièce appliquant SES défauts à la lecture. Écrire « aucun » là aurait été
+     une carte fausse ; recopier leurs défauts l'aurait rendue fausse plus tard.
+     La rangée dit donc « par défaut » : le document ne nomme rien, la pièce
+     propriétaire décide. « aucun » reste réservé à ce que le document ÉTEINT
+     explicitement — les deux ne se réparent pas de la même façon. */
+  const lu = (k) => {
+    const v = CF.get(k, null);
+    return (v === null || v === undefined || v === "") ? "" : String(v);
+  };
+  function resPapier() {
+    const p = lu("texture.paper");
+    return !p ? MUET : (p === "__import" ? "importé" : p);
+  }
+  function resEffet() {
+    const o = lu("texture.over");
+    return !o ? MUET : (o === "none" ? AUCUN : o);
+  }
+  /* LA PRÉCÉDENCE GELÉE (spec 2.3, mod-face.js:1688) : la carte courante
+     d'abord, le document ensuite. Une carte qui porte SA propre image en a une
+     même quand le document n'en pose aucune par défaut — et c'est le cas d'un
+     jeu monté par P4, celui-là même que cette liste sert. */
+  function resFace() {
+    const c = CF.card(CF.current()) || {};
+    const own = c.art || ((c.fields || {}).art) || null;
+    return (own || lu("face.default_art") || lu("face.src")) ? "posée" : VIDE;
+  }
+  function resCadre() {
+    const f = lu("frame.family");
+    if (f === "none") return AUCUN;
+    const r = lu("frame.rarity");
+    return (f || MUET) + (r ? " · " + r : "");
+  }
+  /* LE DÉCOR HAUT SE LIT SANS AUCUN DÉFAUT RECOPIÉ : c'est le TEST du painter
+     qu'on rejoue, pas sa valeur de repli. Il peint tant que la clé ne vaut pas
+     `false` (mod-frame.js:462 et :1898), un document muet porte donc bien les
+     deux ; et un cadre éteint ne peint rien du tout (mod-frame.js:1888). */
+  function resDecor() {
+    if (lu("frame.family") === "none") return AUCUN;
+    const on = [];
+    if (CF.get("frame.gem", null) !== false) on.push("gemme");
+    if (CF.get("frame.banner", null) !== false) on.push("bandeau");
+    return on.length ? on.join(" + ") : AUCUN;
+  }
+  const BANDES = {
+    10: { nom: "papier", res: resPapier },
+    20: { nom: "illustration", res: resFace },
+    30: { nom: "effet", res: resEffet },
+    40: { nom: "cadre", res: resCadre },
+    70: { nom: "décor haut", res: resDecor },
+  };
+
+  /* L'ORDRE, DÉRIVÉ — z décroissant, haut de peinture en haut de liste. Le z du
+     CORE (90 : fond perdu, coupe, zone sûre — jamais exportés) n'est pas un
+     calque de la carte : il n'a pas de rangée, et l'annoncer comme tel serait
+     annoncer un calque qui ne part dans aucun fichier. */
+  function bandes() {
+    const T = (CF && CF.Z_TABLE) || {};
+    return Object.keys(T).map(Number).filter((z) => T[z] !== "__core__")
+      .sort((a, b) => b - a).map((z) => ({ z: z, mod: T[z] }));
+  }
+  function bandeHtml(b) {
+    const d = BANDES[b.z] || null;
+    const nom = d ? d.nom : "couche z" + b.z;
+    const res = d ? d.res() : "—";
+    return '<div class="cf-type-band" data-z="' + Number(b.z) + '">'
+      + '<i class="cf-type-bz mono">' + Number(b.z) + '</i>'
+      + '<span class="cf-type-nm"><b>' + esc(nom) + '</b>'
+      + '<i class="cf-type-bres">' + esc(res) + '</i></span>'
+      + '<button class="cf-type-go" type="button" data-mod="' + esc(b.mod)
+      + '" title="' + esc("Aller à la pièce « " + b.mod + " » : cette couche s'y "
+        + "règle. Cette rangée ne fait que dire ce qui s'y peint.") + '">Aller</button>'
+      + '</div>';
+  }
+
+  /* DEUX CONTENEURS, ET LA LISTE ENTRE LES DEUX. Ce qui se peint APRÈS la bande
+     de cette pièce est au-dessus d'elle à l'écran, ce qui se peint avant est en
+     dessous — la coupure se dérive du même tableau, jamais d'un index écrit à
+     la main. `.cf-type-list` n'est JAMAIS réécrite ici : elle garde son nœud,
+     ses écouteurs et ses pins. */
+  let BANDES_HTML = ["", ""];
+  function syncBands() {
+    const haut = HOST && HOST.querySelector(".cf-type-bhaut");
+    const bas = HOST && HOST.querySelector(".cf-type-bbas");
+    if (!haut || !bas) return;
+    const a = bandes(), i = a.map((b) => b.mod).indexOf(MOI);
+    const cut = i < 0 ? a.length : i;
+    const h = [a.slice(0, cut), a.slice(cut + 1)].map(
+      (l) => l.filter((b) => b.mod !== MOI).map(bandeHtml).join(""));
+    /* ≤ 1 ÉCRITURE DOM PAR CHANGEMENT RÉEL (barre de fluidité §9.6).
+       `core:render` part à CHAQUE redessin de la carte, glisser compris :
+       dériver ces six lignes ne coûte que des lectures de chaînes, mais
+       réécrire deux innerHTML à 60 Hz coûterait, et jetterait le survol et la
+       sélection du texte à chaque frame. On compare donc le TEXTE avant
+       d'écrire — le patron de `mod-gltf.js:867` : mesurer une signature plutôt
+       que repeindre par réflexe. */
+    [haut, bas].forEach((el, k) => {
+      if (h[k] === BANDES_HTML[k]) return;
+      BANDES_HTML[k] = h[k];
+      el.innerHTML = h[k];
+    });
+  }
+
   function fontLabel(id) {
     const f = FONT_BY_ID[id];
     return f ? f.label : id;
@@ -5069,6 +5250,7 @@
        l'inspecteur a chaque frame volerait le focus et couterait cher. */
     if (dragState) { renderList(); paintOverlay(); return; }
     renderList();
+    syncBands();
     renderInsp();
     renderProof();
     const c = HOST.querySelector(".cf-type-count");

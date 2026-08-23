@@ -3561,7 +3561,11 @@ function elm(tag) {
     contains(c) { return e.kids.indexOf(c) >= 0; },
     getBoundingClientRect() { return e._rect || { left: 0, top: 0, width: 0, height: 0 }; },
   };
-  Object.defineProperty(e, "innerHTML", { get: () => e._h, set: (v) => { e._h = String(v); } });
+  /* `_n` COMPTE LES ÉCRITURES. Une garde de repeinture qui ne se mesure pas est
+     une garde qu'on peut retirer sans que rien ne rougisse : c'est le seul moyen
+     de dire « deux peintures du MÊME état n'ont écrit qu'une fois ». */
+  Object.defineProperty(e, "innerHTML", { get: () => e._h,
+    set: (v) => { e._h = String(v); e._n = (e._n || 0) + 1; } });
   Object.defineProperty(e, "className", { get: () => "", set() { } });
   return e;
 }
@@ -3583,15 +3587,29 @@ const G = geom([63, 88], 300, 3, 3);
 const DOC = { type: Object.assign(
   { slots: [], sel: "", seeded: true, show_boxes: true, audit: false,
     preset: "champion", optical_mm: 0.5 }, OPT.state || {}) };
+/* LES SOUS-ARBRES DES AUTRES PIÈCES. `OPT.doc` les pose TELS QUELS — clé absente
+   = clé absente, ce qui est justement l'état qu'une carte des calques doit
+   savoir nommer sans mentir. */
+Object.assign(DOC, OPT.doc || {});
 let MOD = null;
 /* CE QUE LE MODULE A DIT À L'ÉCRAN. Un refus qui ne se mesure pas est un refus
    qu'on peut vider de sa phrase sans que rien ne rougisse — or c'est la PHRASE
    qui fait la moitié du travail d'un plafond. */
 const TOASTS = [];
+/* CHAQUE ÉCRITURE AU DOCUMENT, RETENUE. Le pin des rangées fixes de la liste de
+   calques est un pin d'ABSENCE : « aucun patch » ne se prouve qu'en comptant
+   ceux qui passent. */
+const PATCHS = [];
+/* LES ABONNEMENTS DU MODULE. `on()` ne faisait rien : les branches accrochées à
+   `core:render` n'étaient donc JAMAIS jouées au banc. */
+const ONS = {};
+/* LA NAVIGATION DU CORE, ESPIONNÉE (core.js:971 `show`, celle que les boutons du
+   rail appellent). Le banc ne l'exécute pas : il note l'id demandé. */
+const SHOWS = [];
 const CF = {
   register(cfg) {
     MOD = cfg;
-    return { patch: (p) => Object.assign(DOC.type, p),
+    return { patch: (p) => { PATCHS.push(JSON.parse(JSON.stringify(p))); return Object.assign(DOC.type, p); },
       api: { get: async () => ({}), post: async () => ({}), raw: async () => ({ ok: false }) },
       emit() { }, slot() { }, aside() { }, invalidate() { }, busy() { }, on() { },
       toast: (m, err) => { TOASTS.push({ m: String(m), err: !!err }); } };
@@ -3601,8 +3619,17 @@ const CF = {
     for (const p of String(path).split(".")) { if (v == null) return def; v = v[p]; }
     return v === undefined ? def : v;
   },
+  /* LA TABLE DES Z, telle que le CORE la publie (core.js:2248 — copie gelée sur
+     le global gelé). `OPT.ztable` la BROUILLE : une liste de bandes recopiée
+     dans la pièce ne bougerait pas d'un pouce, et c'est ce qu'on veut voir. */
+  Z_TABLE: Object.freeze(OPT.ztable
+    || { 10: "texture", 20: "face", 30: "texture", 40: "frame", 60: "type", 70: "frame", 90: "__core__" }),
+  show: (id) => { SHOWS.push(String(id)); },
+  side: () => OPT.face || "front",
   geom: () => G, geomOf: () => G, current: () => 0, cards: () => [],
-  card: () => ({ fields: {} }), on() { }, renderCard: async () => null, modules: () => [],
+  card: () => (OPT.carte || { fields: {} }),
+  on(ev, fn) { (ONS[ev] = ONS[ev] || []).push(fn); },
+  renderCard: async () => null, modules: () => [],
 };
 /* LE CATALOGUE DES MODÈLES, tel que `CF.models` le sert (core.js:modelsPublic).
    `OPT.catalogue` pilote : une liste de modèles, "absent" pour un catalogue
@@ -3718,6 +3745,36 @@ for (const a of (OPT.actes || [])) {
     if (fn) fn({ target: cible });
     await new Promise((r) => setTimeout(r, 20));
     traces.push({ acte: "palclic", o: a.o, branche: !!fn });
+  } else if (a.t === "bande") {
+    /* UNE RANGÉE FIXE DE LA LISTE DE CALQUES. La pièce à atteindre n'est pas
+       donnée au banc : elle est LUE dans la rangée que le module a peinte —
+       sans quoi le test prouverait sa propre table. Le clic est délégué au
+       corps de la section (un seul écouteur pour toutes les rangées). */
+    const corps = HOSTE.querySelector(".cf-type-lbody");
+    const html = String(HOSTE.querySelector(".cf-type-bhaut")._h)
+      + String(HOSTE.querySelector(".cf-type-bbas")._h);
+    const m = new RegExp('data-z="' + a.z + '"[\\s\\S]{0,600}?data-mod="([^"]*)"').exec(html);
+    const cible = { dataset: { mod: m ? m[1] : "" } };
+    cible.closest = (s) => (s === ".cf-type-go" ? cible : null);
+    const fn = (corps.listeners.click || [])[0];
+    const av = PATCHS.length;
+    if (fn) fn({ target: cible });
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "bande", z: a.z, mod: m ? m[1] : null, branche: !!fn,
+      patchs: PATCHS.length - av });
+  } else if (a.t === "peint") {
+    /* LE CORE A REPEINT LA CARTE. `core:render` part à CHAQUE frame — c'est
+       l'évènement sous lequel la garde d'égalité de texte doit tenir. */
+    for (const fn of (ONS["core:render"] || [])) fn({});
+    await new Promise((r) => setTimeout(r, 10));
+    traces.push({ acte: "peint",
+      ecrits: [HOSTE.querySelector(".cf-type-bhaut")._n || 0,
+        HOSTE.querySelector(".cf-type-bbas")._n || 0] });
+  } else if (a.t === "etat") {
+    /* CHANGER L'ÉTAT D'UNE AUTRE PIÈCE, comme le ferait son panneau : la carte
+       des calques ne l'apprend que par la peinture suivante. */
+    Object.assign(DOC, a.doc || {});
+    traces.push({ acte: "etat" });
   } else if (a.t === "quitte") {
     /* CHANGER DE PIÈCE : le CORE retire `.on` de la section du panneau. AU
        CLAVIER (Entrée sur le rail), il n'y a pas de `pointerdown` — la
@@ -3803,6 +3860,14 @@ process.stdout.write(JSON.stringify({
      jamais eu — un banc qui n'ouvre pas de menu ne dit rien sur sa fermeture. */
   ferme: (() => { const l = menus(); return l.length ? !!l[l.length - 1]._out : null; })(),
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
+  /* LA LISTE DE CALQUES : les deux conteneurs de bandes fixes, ce qu'ils
+     portent et COMBIEN DE FOIS on les a écrits ; les pièces demandées ; le
+     nombre total d'écritures au document. */
+  bhaut: HOSTE.querySelector(".cf-type-bhaut")._h,
+  bbas: HOSTE.querySelector(".cf-type-bbas")._h,
+  ecrits: [HOSTE.querySelector(".cf-type-bhaut")._n || 0,
+    HOSTE.querySelector(".cf-type-bbas")._n || 0],
+  shows: SHOWS, patchs: PATCHS.length,
   /* LE PANNEAU DE BLOC : c'est lui qui bascule ses sections selon le `kind`.
      Le meme cache de selecteurs qui rend la liste le rend, sans un mot de
      plus au module. */
@@ -6271,6 +6336,306 @@ def test_une_ROUTE_ABSENTE_rend_une_LISTE_VIDE_pas_une_panne(tmp_path):
     morte = _banc_core(tmp_path, {"route": "morte"})
     assert morte["liste"] is None, morte
     assert "quelque chose a dire" in str(morte["erreur"]), morte["erreur"]
+
+
+# ════════ 16. LA LISTE DE CALQUES MULTI-BANDES (3b-T4, décision 4) ══════════
+# Une carte du document, pas une télécommande : les bandes des AUTRES pièces s'y
+# lisent (une ligne dérivée de l'état publié) et ne s'y règlent jamais. La bande
+# z=60 est la liste de blocs EXISTANTE, à sa place dans la pile.
+
+def _bandes(html: str) -> list:
+    """Les rangées fixes d'un conteneur, DANS L'ORDRE OÙ ELLES SONT ÉCRITES :
+    (z, pièce visée). L'ordre du HTML est l'ordre de l'écran."""
+    return [(int(z), mod) for z, mod in re.findall(
+        r'class="cf-type-band" data-z="(\d+)"[\s\S]{0,700}?data-mod="([^"]*)"', html)]
+
+
+def _resume(html: str, z: int) -> str:
+    """La ligne dérivée d'une bande — ce que la rangée DIT de la couche."""
+    m = re.search(r'data-z="%d"[\s\S]{0,700}?class="cf-type-bres">([^<]*)<' % z, html)
+    return m.group(1) if m else ""
+
+
+def _z_table_du_core() -> dict:
+    """La table des z, lue DANS core.js — la seule autorité (spec §2.2)."""
+    src = CORE_JS.read_text(encoding="utf-8")
+    m = re.search(r"const Z_TABLE = \{([^}]*)\}", src)
+    assert m, "la table des z du CORE est introuvable"
+    return {int(k): v for k, v in re.findall(r'(\d+)\s*:\s*"([^"]+)"', m.group(1))}
+
+
+def _z_nommes() -> set:
+    """Les z auxquels la pièce a donné un NOM et un résumé."""
+    src = _js()
+    m = re.search(r"const BANDES = \{([\s\S]*?)\n  \};", src)
+    assert m, "la table des noms de bandes est introuvable dans mod-type.js"
+    return {int(z) for z in re.findall(r"(?m)^\s{4}(\d+):", m.group(1))}
+
+
+# un document où les CINQ couches voisines disent quelque chose
+DOC_PLEIN = {"texture": {"paper": "kraft", "over": "holo"},
+             "face": {"src": "cat:golem", "default_art": None},
+             "frame": {"family": "runique", "rarity": "legendary",
+                       "gem": True, "banner": True}}
+
+
+def test_la_section_des_calques_MONTRE_l_ordre_de_peinture(tmp_path):
+    """DÉCISION 4. Une section « Calques » où la pile se lit de haut en bas
+    comme elle se peint de haut en bas (convention Figma : le calque du dessus
+    est la rangée du dessus) — décor haut (70), LA LISTE DE BLOCS (60), cadre
+    (40), effet (30), illustration (20), papier (10).
+
+    Le z=90 n'y est PAS : c'est le CORE et ses repères de coupe, qui ne partent
+    dans aucun fichier ; l'annoncer comme un calque de la carte serait faux."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                "doc": DOC_PLEIN})
+    p = d["panneau"]
+    # la liste EXISTANTE est physiquement ENTRE les deux conteneurs de bandes :
+    # c'est ce qui fait de l'ordre affiché l'ordre de peinture réel.
+    for cls in ("cf-type-lay", "cf-type-bhaut", "cf-type-list", "cf-type-bbas"):
+        assert cls in p, cls
+    assert p.index("cf-type-bhaut") < p.index('class="cf-type-list"') < p.index("cf-type-bbas"), p
+    assert _bandes(d["bhaut"]) == [(70, "frame")], d["bhaut"]
+    assert _bandes(d["bbas"]) == [(40, "frame"), (30, "texture"),
+                                  (20, "face"), (10, "texture")], d["bbas"]
+    # 90 = les repères du CORE, 60 = la liste elle-même : ni l'un ni l'autre
+    # n'est une rangée fixe.
+    assert 'data-z="90"' not in d["bhaut"] + d["bbas"]
+    assert 'data-z="60"' not in d["bhaut"] + d["bbas"]
+    # une rangée fixe ne porte AUCUNE commande d'écriture (ni œil, ni cadenas,
+    # ni ordre, ni corbeille) : la visibilité de ces couches appartient à leur
+    # pièce, et cette rangée est une CARTE, pas une télécommande.
+    for interdit in ("cf-type-eye", "cf-type-lock", "cf-type-mv", "cf-type-del"):
+        assert interdit not in d["bhaut"] + d["bbas"], interdit
+
+
+def test_l_ordre_des_bandes_est_DERIVE_de_la_table_du_CORE(tmp_path):
+    """L'ordre n'est pas recopié : il est LU sur `CF.Z_TABLE` (core.js:2248 —
+    copie gelée publiée sur le global gelé). La preuve est une table BROUILLÉE :
+    des z que la pièce n'a jamais vus, dans un ordre qu'elle ne peut pas
+    connaître. Une bande sans nom ne DISPARAÎT pas pour autant — elle se
+    présente par son z et sa pièce : une carte muette vaut mieux qu'un trou."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "ztable": {"5": "face", "60": "type",
+                                           "88": "frame", "90": "__core__"}})
+    assert _bandes(d["bhaut"]) == [(88, "frame")], d["bhaut"]
+    assert _bandes(d["bbas"]) == [(5, "face")], d["bbas"]
+    assert "88" in d["bhaut"] and "frame" in d["bhaut"], d["bhaut"]
+
+
+def test_un_ordre_de_bandes_RECOPIE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : une table des z recopiée dans la pièce. Tout
+    resterait vert sur la table réelle — et c'est exactement le défaut qu'on
+    veut voir, puisqu'il ne se déclarerait que le jour où le CORE bouge."""
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                  "ztable": {"5": "face", "60": "type",
+                                             "88": "frame", "90": "__core__"}},
+                       mutations=(
+        ("    const T = (CF && CF.Z_TABLE) || {};",
+         '    const T = { 10: "texture", 20: "face", 30: "texture", 40: "frame", '
+         '60: "type", 70: "frame", 90: "__core__" };'),))
+    assert _bandes(mut["bhaut"]) == [(70, "frame")], mut["bhaut"]
+    assert _bandes(mut["bbas"]) == [(40, "frame"), (30, "texture"),
+                                    (20, "face"), (10, "texture")], mut["bbas"]
+
+
+def test_chaque_bande_de_la_table_du_CORE_porte_un_NOM():
+    """PIN DE COUTURE : le jour où le CORE ajoute un z, cette liste doit le
+    NOMMER. La rangée générique évite le trou à l'écran ; ce test évite qu'elle
+    y reste. Les deux littéraux sont relus à la source, des deux côtés."""
+    zt = _z_table_du_core()
+    attendus = {z for z, mod in zt.items() if mod not in ("__core__", "type")}
+    assert attendus == {10, 20, 30, 40, 70}, attendus
+    manquants = attendus - _z_nommes()
+    assert not manquants, f"bandes sans nom ni résumé : {sorted(manquants)}"
+    # et la bande de la pièce elle-même est UNIQUE : c'est elle qui coupe la
+    # pile en deux, la liste de blocs prenant sa place.
+    assert [z for z, mod in zt.items() if mod == "type"] == [60], zt
+
+
+def test_les_resumes_sont_DERIVES_de_l_etat_publie(tmp_path):
+    """La rangée dit ce que le DOCUMENT porte — lu par `CF.get` sur les
+    sous-arbres des autres pièces (patron art_window). Ce sont leurs
+    identifiants qui s'affichent, jamais leurs libellés : recopier ici la table
+    des matières de P6 ou celle des cadres de P2 aurait menti au premier
+    renommage, et cette pièce n'a aucun droit sur leur catalogue."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": DOC_PLEIN})
+    assert _resume(d["bbas"], 10) == "kraft", d["bbas"]
+    assert _resume(d["bbas"], 30) == "holo", d["bbas"]
+    assert _resume(d["bbas"], 20) == "posée", d["bbas"]
+    assert _resume(d["bbas"], 40) == "runique · legendary", d["bbas"]
+    assert _resume(d["bhaut"], 70) == "gemme + bandeau", d["bhaut"]
+    # l'illustration suit la PRÉCÉDENCE GELÉE (spec 2.3, mod-face.js:1688) :
+    # une carte qui porte SA propre image en a une, même si le document n'en
+    # pose aucune par défaut.
+    p = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "doc": {"face": {"src": None, "default_art": None}},
+                                "carte": {"art": "cat:golem", "fields": {}}})
+    assert _resume(p["bbas"], 20) == "posée", p["bbas"]
+
+
+def test_une_couche_MUETTE_ne_se_dit_jamais_ABSENTE(tmp_path):
+    """LE PIÈGE DE LA CARTE QUI MENT. Un document neuf ne porte AUCUNE clé de
+    matière ni de cadre — et pourtant un vélin et un cadre arcane se peignent :
+    chaque pièce applique SES défauts. Écrire « aucun » là aurait été faux, et
+    recopier ici les défauts des voisins les aurait fait dériver au premier
+    changement. La rangée dit donc « par défaut » : le document ne nomme rien,
+    la pièce propriétaire décide.
+
+    L'illustration, elle, est bel et bien VIDE : sa précédence (mod-face.js:1688)
+    ne retombe sur rien du tout."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": {}})
+    for z in (10, 30, 40):
+        assert _resume(d["bbas"], z) == "par défaut", (z, d["bbas"])
+        assert "aucun" not in _resume(d["bbas"], z), z
+    assert _resume(d["bbas"], 20) == "vide", d["bbas"]
+    # le décor haut, lui, se lit SANS défaut recopié : le painter teste
+    # `!== false` (mod-frame.js:462), un document muet peint donc les deux.
+    assert _resume(d["bhaut"], 70) == "gemme + bandeau", d["bhaut"]
+
+
+def test_une_couche_ETEINTE_est_dite_ETEINTE(tmp_path):
+    """L'autre moitié : quand le document dit explicitement « rien », la rangée
+    le dit aussi. « aucun » et « par défaut » ne se réparent pas de la même
+    façon — le premier est un choix, le second une absence."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "doc": {"texture": {"over": "none"},
+                                        "face": {"src": None},
+                                        "frame": {"family": "none", "gem": False,
+                                                  "banner": False}}})
+    assert _resume(d["bbas"], 30) == "aucun", d["bbas"]
+    assert _resume(d["bbas"], 40) == "aucun", d["bbas"]
+    assert _resume(d["bbas"], 20) == "vide", d["bbas"]
+    assert _resume(d["bhaut"], 70) == "aucun", d["bhaut"]
+
+
+def test_une_rangee_fixe_MENE_a_sa_piece_et_n_ECRIT_RIEN(tmp_path):
+    """« Aller au module » = `CF.show`, la fonction que les boutons du rail du
+    CORE appellent eux-mêmes (core.js:954). Elle vit sur le GLOBAL GELÉ, là où
+    le CORE range ce qui n'écrit pas (« Ce qui ECRIT n'est pas ici : c'est sur
+    le jeton », core.js:2227) : aucune surface de pouvoir neuve n'a été ouverte.
+
+    Et le pin d'ABSENCE, celui qui compte : cliquer une rangée fixe n'émet AUCUN
+    patch. Le cloisonnement de la 3a-T4 reste entier."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": DOC_PLEIN,
+                                "actes": [{"t": "bande", "z": 70}, {"t": "bande", "z": 40},
+                                          {"t": "bande", "z": 30}, {"t": "bande", "z": 20},
+                                          {"t": "bande", "z": 10}]})
+    assert [t["mod"] for t in d["traces"]] == ["frame", "frame", "texture", "face", "texture"], d["traces"]
+    assert all(t["branche"] for t in d["traces"]), d["traces"]
+    assert d["shows"] == ["frame", "frame", "texture", "face", "texture"], d["shows"]
+    for t in d["traces"]:
+        assert t["patchs"] == 0, t
+
+
+def test_une_rangee_fixe_QUI_ECRIT_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE du pin d'absence : la même rangée, qui pousse un
+    patch en plus de naviguer. L'espion des écritures doit la voir."""
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": DOC_PLEIN,
+                                  "actes": [{"t": "bande", "z": 40}]},
+                       mutations=(
+        ("      if (b) CF.show(b.dataset.mod);",
+         '      if (b) { mpatch({ sel: "" }); CF.show(b.dataset.mod); }'),))
+    assert mut["traces"][0]["patchs"] == 1, mut["traces"]
+
+
+def test_deux_peintures_du_MEME_etat_n_ecrivent_QU_UNE_FOIS(tmp_path):
+    """FLUIDITÉ (§9.6). `core:render` part à CHAQUE frame de la carte, y compris
+    pendant un glisser. Les résumés se dérivent en lectures de chaînes — bon
+    marché — mais le DOM ne s'écrit que si le TEXTE a changé (patron de
+    `mod-gltf.js:867` : on mesure une signature au lieu de repeindre par
+    réflexe). Deux peintures du même état = une seule écriture."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": DOC_PLEIN,
+                                "actes": [{"t": "peint"}, {"t": "peint"},
+                                          {"t": "etat", "doc": {"texture": {"paper": "lin"}}},
+                                          {"t": "peint"}]})
+    tr = [t for t in d["traces"] if t["acte"] == "peint"]
+    assert tr[0]["ecrits"] == [1, 1], tr[0]
+    assert tr[1]["ecrits"] == [1, 1], tr[1]
+    # l'état a bougé SOUS la bande basse : elle seule se réécrit.
+    assert tr[2]["ecrits"] == [1, 2], tr[2]
+    assert _resume(d["bbas"], 10) == "lin", d["bbas"]
+
+
+def test_la_garde_de_REPEINTURE_retiree_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : sans la comparaison de texte, chaque frame
+    réécrit les deux conteneurs — et l'écran s'en tirerait sans un symptôme
+    visible, ce qui est exactement pourquoi ce compteur existe."""
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}, "doc": DOC_PLEIN,
+                                  "actes": [{"t": "peint"}, {"t": "peint"}]},
+                       mutations=(
+        ("      if (h[k] === BANDES_HTML[k]) return;",
+         "      if (false) return;"),))
+    tr = [t for t in mut["traces"] if t["acte"] == "peint"]
+    assert tr[1]["ecrits"] == [3, 3], tr[1]
+
+
+def test_les_resumes_sont_ECHAPPES(tmp_path):
+    """R14 EN EXÉCUTION. Ces valeurs viennent du sous-arbre d'UNE AUTRE PIÈCE :
+    à cette frontière, une donnée d'ailleurs est une donnée non fiable — un
+    identifiant de matière importé d'un jeu rapporté d'une autre machine passe
+    par ici sans que personne ne l'ait relu."""
+    poison = '"><img src=x onerror=alert(1)>'
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "doc": {"texture": {"paper": poison},
+                                        "frame": {"family": poison}}})
+    assert "<img" not in d["bbas"], d["bbas"]
+    # les DEUX résumés empoisonnés, entièrement entités : plus un chevron ni un
+    # guillemet capable de refermer quoi que ce soit.
+    assert d["bbas"].count("&quot;&gt;&lt;img src=x onerror=alert(1)&gt;") == 2, d["bbas"]
+    # ET LA POSITION D'ATTRIBUT, celle pour laquelle R14 existe : le nom de la
+    # pièce vient de la table du CORE et atterrit dans `data-mod=` autant que
+    # dans l'infobulle. Une valeur qui s'y échapperait poserait un attribut de
+    # plus sur la balise — un `onload=`, par exemple.
+    a = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "ztable": {"10": 'texture" onload="boom',
+                                           "60": "type", "90": "__core__"}})
+    assert 'onload="boom"' not in a["bbas"], a["bbas"]
+    assert "&quot; onload=&quot;boom" in a["bbas"], a["bbas"]
+
+
+def test_un_resume_NON_ECHAPPE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE, et la limite de R14 NOMMÉE : le résumé passe par
+    une VARIABLE, pas par une lecture de champ littérale — le lint ne peut donc
+    pas le voir (même angle mort qu'en T3). C'est ce banc qui tient
+    l'échappement, et lui seul."""
+    casse = ('      + \'<i class="cf-type-bres">\' + esc(res) + \'</i></span>\'',
+             '      + \'<i class="cf-type-bres">\' + res + \'</i></span>\'')
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                  "doc": {"texture": {"paper": '"><img src=x>'}}},
+                       mutations=(casse,))
+    assert "<img" in mut["bbas"], mut["bbas"]
+    # ANCRE DE CONTRÔLE : la même source mutilée, passée au lint. R14 n'en dit
+    # RIEN — position texte, et variable nue. Ce n'est pas un trou à boucher
+    # (l'élargir ferait rougir chaque `+ cls +` légitime du lab) : c'est la
+    # frontière de la règle, et la raison pour laquelle ce banc existe.
+    src = _js().replace(casse[0], casse[1])
+    assert casse[1] in src, "la mutation n'a pas pris sur la source"
+    assert _r14(src) == [], _r14(src)
+    # ...et la règle n'est pas morte pour autant : une lecture de champ à la
+    # même place, dans une valeur d'attribut, elle, est bien vue.
+    sonde = ('function bandeHtml(b) {\n'
+             '  return \'<div data-mod="\' + b.mod + \'"></div>\';\n}\n')
+    assert _r14(sonde), "R14 ne mord plus sur une valeur d'attribut"
+
+
+def test_la_bande_60_reste_LA_LISTE_avec_toutes_ses_commandes(tmp_path):
+    """La bande z=60 n'est pas une rangée de plus : c'est la liste EXISTANTE,
+    déplacée à sa place dans la pile et pas réécrite. Œil, cadenas, ordre,
+    corbeille, badge de nature et glisser-déposer sont là, inchangés."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                "doc": DOC_PLEIN})
+    for cls in ("cf-type-row", "cf-type-eye", "cf-type-lock", "cf-type-kind",
+                "cf-type-mv", "cf-type-del"):
+        assert cls in d["liste"], cls
+    assert 'draggable="true"' in d["liste"], d["liste"]
+    assert d["liste"].count('class="cf-type-eye"') == 2, d["liste"]
+    # et les gestes de la pièce écrivent toujours, eux : la section n'a rien
+    # gelé (nudge de 1 mm, spec §6.1:307 — le pin de la T1 tient).
+    r = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                "doc": DOC_PLEIN,
+                                "actes": [{"t": "key", "k": "ArrowDown"}]})
+    assert r["slots"][0]["box"][1] == 21.0, r["slots"][0]["box"]
 
 
 if __name__ == "__main__":
