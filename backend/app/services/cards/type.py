@@ -40,12 +40,13 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import io
 import math
 import pathlib
 import re
 import struct
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request, Response
 from loguru import logger
 
 from .contract import (
@@ -53,6 +54,7 @@ from .contract import (
     DEFAULT_FMT,
     FORMATS,
     MM_PER_INCH,
+    deck_dir,
     geom as geom_of,
     is_valid_did,
     rnd,
@@ -454,6 +456,32 @@ SLOT_DEFAULTS: dict = {
     # ici, et non dans un état d'écran, parce qu'il doit voyager avec le deck :
     # un bloc protégé qui redevient libre à la réouverture ne protège rien.
     "lock": False,
+    # ── LE CALQUE D'IMAGE (spec §6.1, « calque d'image/motif ») ─────────────
+    # La spec veut que les éléments ajoutables soient « instanciés comme des
+    # objets Cardforge ORDINAIRES ». Un calque d'image est donc un slot P3
+    # d'une autre NATURE, pas un objet neuf : il hérite ainsi, gratuitement, de
+    # l'ordre de peinture dans la bande z=60, de l'œil, du verrou, du calque
+    # d'édition (glisser, poignées, flèches), de l'annulation et de la
+    # fluidité. La pile de calques d'un éditeur d'images, pour le prix d'une
+    # clé.
+    #
+    # `kind: "text"` PAR DÉFAUT — c'est ce qui rend les quatre gabarits livrés
+    # byte-identiques après l'ajout, et ce qui fait qu'un document écrit avant
+    # la 3b reste exactement ce qu'il était.
+    #
+    # Un calque d'image IGNORE les clés typographiques ; elles ne sont pas
+    # retirées de l'objet (la parité stricte des deux tables prime, et un slot
+    # partiel obligerait chaque lecteur à connaître les défauts). Elles sont
+    # INERTES : le painter ne les lit pas sur cette branche, et le panneau ne
+    # les montre pas.
+    "kind": "text",        # text | image
+    # `""` ou `img:{fichier}` — un NOM, jamais un chemin. Le fichier est écrit
+    # par `POST /image` dans le dossier du deck, et son nom est fabriqué par le
+    # serveur (`img_{n}.png`) : le motif ci-dessous est donc EXACT, pas
+    # permissif. Le stockage est côté serveur et non dans le navigateur parce
+    # qu'un calque de deck doit VOYAGER avec le deck (export, duplication).
+    "src": "",
+    "fit": "contain",      # contain (entre entière) | cover (remplit, découpé)
     "text": "",
 }
 
@@ -461,6 +489,8 @@ ALIGNS = ("left", "center", "right", "justify")
 VALIGNS = ("top", "middle", "bottom")
 CASES = ("none", "upper", "lower", "title")
 SIDES = ("front", "back", "both")
+KINDS = ("text", "image")
+FITS = ("contain", "cover")
 
 SIZE_PT_MIN, SIZE_PT_MAX = 2.0, 400.0
 READ_PT_MIN, READ_PT_MAX = 0.0, 400.0
@@ -492,6 +522,28 @@ PLATE_ALPHA_MIN, PLATE_ALPHA_MAX = 0.0, 1.0
 PLATE_RADIUS_MIN, PLATE_RADIUS_MAX = 0.0, 30.0
 SLOT_ID_RE = re.compile(r"^[a-z][a-z0-9_]{0,23}$")
 SLOTS_MAX = 40
+
+# ── LES IMAGES DE CALQUE ────────────────────────────────────────────────────
+# `SLOT_SRC_RE` est le motif du VOCABULAIRE (ce qu'un document a le droit de
+# nommer) ; `IMG_NAME_RE` celui de la ROUTE (ce qu'un GET a le droit de
+# demander). Les deux sont exacts, et pour la même raison : ces noms ne
+# viennent pas de l'utilisateur, ils sont FABRIQUÉS ICI par un compteur. Un
+# motif permissif aurait ouvert le dossier du deck (`job.json`, `paper.png`,
+# tout ce qu'une autre pièce y écrira demain) à la première lettre près.
+SLOT_SRC_RE = re.compile(r"^(|img:img_\d+\.png)$")
+IMG_NAME_RE = re.compile(r"^img_\d+\.png$")
+# Le plafond de NOMBRE. Il compte ce qui EXISTE sur le disque, pas ce qui a été
+# importé dans la session : un deck dupliqué arrive avec ses images.
+SLOT_IMAGES_MAX = 12
+# Le plafond de POIDS du corps, celui de la matière de P6 (64 Mo) — pesé AVANT
+# tout décodage, seul ordre qui protège la mémoire.
+IMG_MAX_BYTES = 64 * 1024 * 1024
+# Le côté long au-delà duquel une image importée est ré-échelonnée. MÊME
+# CHIFFRE que l'illustration de P1 (`cards/face.py:MAX_IMPORT_PX`), RECOPIÉ et
+# non importé : la règle 8 interdit à une pièce d'importer le module d'une
+# voisine. Le test de parité épingle les quatre endroits qui le portent (les
+# deux backends et les deux écrans).
+MAX_IMPORT_PX = 4096
 
 # L'encadré de règles de démonstration fait plus de 400 caractères : c'est le
 # seuil chiffré de la pièce (« l'encadré accepte >= 400 caractères et reste
@@ -727,6 +779,19 @@ def norm_slot(raw, index: int = 0) -> dict:
     # Faux par défaut, donc faux pour tout document écrit avant la 3b : un bloc
     # ne devient protégé que si quelqu'un l'a demandé.
     out["lock"] = bool(r.get("lock", False))
+    # LA NATURE DU BLOC. Une valeur inconnue retombe sur « text » : un `kind`
+    # inventé enverrait le painter dans une branche qui n'existe pas, et un
+    # bloc de texte inerte est une dégradation lisible, pas une panne.
+    out["kind"] = _choice(r.get("kind"), KINDS, SLOT_DEFAULTS["kind"])
+    # LA SOURCE. Le motif est exact (voir SLOT_SRC_RE) et appliqué SANS
+    # rognage : ce nom n'est jamais tapé par un humain, il est fabriqué par la
+    # route d'import. « img:img_1.png » suivi d'une espace n'est donc pas une
+    # faute de frappe à réparer, c'est une chaîne qui ne vient pas de nous.
+    # `fullmatch` et non `match` : `$` accepte un saut de ligne final, et un
+    # nom de fichier n'a pas de saut de ligne.
+    src = r.get("src") if isinstance(r.get("src"), str) else ""
+    out["src"] = src if SLOT_SRC_RE.fullmatch(src) else ""
+    out["fit"] = _choice(r.get("fit"), FITS, SLOT_DEFAULTS["fit"])
     out["text"] = str(r.get("text") or "")[:4000]
     return out
 
@@ -897,17 +962,31 @@ def layout(g, slots: list[dict], inks: dict | None = None,
         r = box_px(s["box"], g)
         o = _outside(r, safe)
         inside = not any(o.values())
+        # ── UN CALQUE D'IMAGE N'EST PAS JUGÉ COMME UN TEXTE ─────────────────
+        # Il n'a pas de glyphe : pas de corps composé, pas de plancher de
+        # lisibilité, pas de signe hors police. Les colonnes typographiques
+        # valent donc `None` — et non 0, qui se lirait comme une MESURE et
+        # aurait rempli le relevé de « blocs trop petits » imaginaires.
+        #
+        # CE QUI RESTE JUGÉ : la géométrie. Une image qui sort du cadre de
+        # composition est un défaut de fabrication exactement comme des glyphes
+        # qui en sortent — la coupe emporte ses pixels de la même façon. C'est
+        # la LISIBILITÉ qui est sans objet ici, pas le confinement.
+        img = s["kind"] == "image"
         row = {
             "id": s["id"],
             "label": s["label"],
             "on": s["on"],
             "side": s["side"],
+            "kind": s["kind"],
+            "src": s["src"],
+            "fit": s["fit"],
             "box_mm": [rnd(v, 3) for v in s["box"]],
             "box_px": [rnd(v, 2) for v in r],
-            "size_px": rnd(pt2px(s["size_pt"], g.dpi), 2),
-            "min_px": rnd(pt2px(s["min_pt"], g.dpi), 2),
-            "read_pt": rnd(s["read_pt"], 2),
-            "read_px": rnd(pt2px(s["read_pt"], g.dpi), 2),
+            "size_px": None if img else rnd(pt2px(s["size_pt"], g.dpi), 2),
+            "min_px": None if img else rnd(pt2px(s["min_pt"], g.dpi), 2),
+            "read_pt": None if img else rnd(s["read_pt"], 2),
+            "read_px": None if img else rnd(pt2px(s["read_pt"], g.dpi), 2),
             "posed_pt": None,
             "under_read": None,
             "inside_safe": inside,
@@ -920,7 +999,7 @@ def layout(g, slots: list[dict], inks: dict | None = None,
             # fonte, et le mot part quand même à l'impression.
             "missing_glyphs": None,
         }
-        if texts:
+        if texts and not img:
             miss = fmiss.get(s["font"])
             raw = texts.get(s["id"])
             if raw is None:
@@ -942,7 +1021,7 @@ def layout(g, slots: list[dict], inks: dict | None = None,
                 row["ink_px"] = [rnd(v, 2) for v in rect]
                 row["ink_out_px"] = io
                 row["ink_inside_safe"] = not any(io.values())
-        p = posed.get(s["id"])
+        p = None if img else posed.get(s["id"])
         try:
             pf = float(p)
         except (TypeError, ValueError):
@@ -1069,6 +1148,112 @@ def _check_did(did: str) -> None:
 
 
 # ════════════════════════════════════════════════════════════════════════════
+# 4bis. LES IMAGES DE CALQUE, SUR LE DISQUE DU DECK
+# ════════════════════════════════════════════════════════════════════════════
+# Patron `texture.py:post_paper` — le seul précédent du lab qui range un import
+# d'utilisateur AVEC LE DECK plutôt que dans le navigateur. Les deux
+# différences, et elles sont voulues :
+#
+#   · P6 garde UN fichier (`paper.png`) qu'il écrase à chaque import ; ici il y
+#     en a jusqu'à douze, et un COMPTEUR leur donne des noms. Écraser aurait
+#     changé l'image d'un calque en en important une autre.
+#   · le compteur vaut MAX + 1, jamais « le premier trou libre ». Un slot
+#     supprimé se rattrape par Ctrl+Z : son image doit rester joignable, et un
+#     numéro recyclé aurait fait revenir le bloc annulé avec une AUTRE image.
+#
+# PAS DE ROUTE DE SUPPRESSION, et c'est la même raison : tant que l'annulation
+# peut ramener le bloc, effacer ses octets serait une perte irréversible
+# déclenchée par un geste réversible. Le ramassage des images qu'aucun slot ne
+# nomme plus est un travail de la 3c (avec le reste du ménage de fin de phase).
+
+def type_dir(did: str, create: bool = False) -> pathlib.Path:
+    """`decks/<did>/type/`. `deck_dir` porte déjà le double garde-fou (motif
+    PUIS confinement) : on ne le refait pas, on s'appuie dessus."""
+    d = deck_dir(did, create=create) / "type"
+    if create:
+        d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def _deck_or_404(did: str, create: bool = False) -> pathlib.Path:
+    """Le dossier de la pièce, pour un deck QUI EXISTE DÉJÀ.
+
+    L'existence est vérifiée SANS `create` — sinon le contrôle se répondrait à
+    lui-même : `deck_dir(did, create=True)` fabrique le dossier, et le `is_dir`
+    qui suit ne peut plus qu'être vrai. Un identifiant bien formé mais inconnu
+    aurait alors fait naître un jeu vide à chaque import."""
+    _check_did(did)
+    try:
+        base = deck_dir(did)
+    except ValueError:
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if not base.is_dir():
+        raise HTTPException(404, "Deck introuvable")
+    return type_dir(did, create=create)
+
+
+def _next_img_index(d: pathlib.Path) -> tuple[int, int]:
+    """(numéro libre, nombre d'images existantes). Le numéro est MAX + 1 : les
+    trous laissés par une suppression manuelle ne sont pas repris."""
+    hauts, n = 0, 0
+    if d.is_dir():
+        for p in d.iterdir():
+            if IMG_NAME_RE.fullmatch(p.name) and p.is_file():
+                n += 1
+                hauts = max(hauts, int(p.name[4:-4]))
+    return hauts + 1, n
+
+
+def _store_slot_image(did: str, raw: bytes) -> dict:
+    """Décode, borne, écrit — dans cet ordre, et jamais en place.
+
+    Le décodage sert à DEUX choses : refuser ce qui n'est pas une image (un
+    `.zip` renommé, un fichier tronqué), et ramener le côté long sous
+    `MAX_IMPORT_PX`. L'écran réduit déjà avant d'envoyer ; on le refait ici
+    parce qu'un client n'est pas une garantie."""
+    from PIL import Image
+    d = _deck_or_404(did, create=True)
+    libre, n = _next_img_index(d)
+    if n >= SLOT_IMAGES_MAX:
+        raise HTTPException(
+            409, f"Ce jeu porte déjà {SLOT_IMAGES_MAX} images de calque, "
+                 f"le maximum. Supprimez-en une du dossier du jeu, ou "
+                 f"réutilisez une image déjà importée sur un autre calque.")
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img.load()
+    except Exception:
+        raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
+                                 "est attendue dans le corps de la requête")
+    # RGBA gardé : un calque d'image se pose PAR-DESSUS les couches du bas
+    # (papier, illustration, cadre de base), donc sa transparence porte —
+    # contrairement à la matière de P6, qui est un fond.
+    img = img.convert("RGBA")
+    if max(img.size) > MAX_IMPORT_PX:
+        k = MAX_IMPORT_PX / float(max(img.size))
+        img = img.resize((max(1, round(img.size[0] * k)),
+                          max(1, round(img.size[1] * k))), Image.LANCZOS)
+    name = f"img_{libre}.png"
+    tmp = d / (name + ".tmp")
+    img.save(tmp, format="PNG", optimize=False)
+    tmp.replace(d / name)
+    return {"file": name, "src": "img:" + name, "px": [img.size[0], img.size[1]],
+            "bytes": (d / name).stat().st_size, "n": n + 1,
+            "max": SLOT_IMAGES_MAX}
+
+
+def _read_slot_image(did: str, name: str) -> bytes | None:
+    d = type_dir(did)
+    p = d / name
+    try:
+        if not p.is_file():
+            return None
+        return p.read_bytes()
+    except OSError:
+        return None
+
+
+# ════════════════════════════════════════════════════════════════════════════
 # 5. ROUTES — relatives à /api/cards/{did}/type (règle 8)
 # ════════════════════════════════════════════════════════════════════════════
 
@@ -1155,3 +1340,57 @@ async def post_layout(did: str, body: dict | None = None):
     except (TypeError, ValueError, KeyError) as e:
         logger.exception("cards/type: mise en page impossible")
         raise HTTPException(400, f"Mise en page impossible: {e}")
+
+
+@router.post("/image")
+async def post_slot_image(did: str, request: Request):
+    """L'image d'un calque, importée par l'utilisateur — CORPS BRUT.
+
+    Elle est rangée AVEC LE DECK (`decks/{did}/type/img_{n}.png`) et non dans
+    le navigateur : un calque de deck doit voyager avec lui — export,
+    duplication, sauvegarde. La duplication de la 3a copie déjà le dossier, si
+    bien qu'un jeu dupliqué arrive avec ses images sans une ligne de plus.
+
+    Le corps est PESÉ avant d'être décodé (seul ordre qui protège la mémoire),
+    puis décodé — ce qui refuse du même geste ce qui n'est pas une image — puis
+    ramené sous `MAX_IMPORT_PX` de côté."""
+    raw = await request.body()
+    if not raw:
+        raise HTTPException(400, "Corps vide : envoyer une image")
+    if len(raw) > IMG_MAX_BYTES:
+        raise HTTPException(413, "Image trop lourde (max 64 Mo)")
+    return await asyncio.to_thread(_store_slot_image, did, raw)
+
+
+@router.get("/image/{name}")
+async def get_slot_image(did: str, name: str):
+    """L'image d'un calque, telle qu'elle a été rangée.
+
+    LISTE BLANCHE D'ABORD, DISQUE ENSUITE — l'ordre est le fond de l'affaire
+    (patron `forge3d.get_node_file`, 2c) : un motif appliqué APRÈS avoir composé
+    un chemin a déjà laissé le chemin exister. Le dossier `decks/{did}/type/`
+    n'a aujourd'hui que des `img_{n}.png`, mais rien ne garantit qu'il n'aura
+    pas d'état interne demain, et cette route ne doit pas s'élargir avec lui.
+
+    LES OCTETS SONT LUS ICI, jamais servis par `FileResponse` : celui-ci
+    re-stat le fichier au moment de l'ENVOI, donc APRÈS le contrôle — une
+    disparition entre les deux y lève RuntimeError, c'est-à-dire un 500 sur une
+    pièce qui n'en fait jamais.
+
+    LE CACHE EST PERMIS, et c'est une conséquence du compteur : `img_7.png` ne
+    change jamais de contenu (un import écrit `img_8.png`), donc `no-store` ne
+    protégerait de rien et coûterait un aller-retour à chaque frame de
+    l'aperçu."""
+    _check_did(did)
+    # `fullmatch` et non `match` : `$` accepte un saut de ligne final, et le
+    # nom vient d'une URL — c'est exactement le genre de caractère qu'on n'a
+    # pas envie de voir arriver jusqu'à un chemin.
+    if not IMG_NAME_RE.fullmatch(name or ""):
+        raise HTTPException(
+            400, f"Nom d'image invalide : {name!r} — les images de calque "
+                 f"s'appellent « img_1.png », « img_2.png », etc.")
+    data = await asyncio.to_thread(_read_slot_image, did, name)
+    if data is None:
+        raise HTTPException(404, f"Aucune image {name} dans ce jeu")
+    return Response(content=data, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=31536000, immutable"})

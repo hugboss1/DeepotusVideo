@@ -62,6 +62,14 @@
   font-size: 10px; padding: 0 1px; flex: none; opacity: .45; }
 .cf-type .cf-type-lock:hover { opacity: 1; }
 .cf-type .cf-type-lock.on { color: var(--amber); opacity: 1; }
+/* LA NATURE DU BLOC — un pictogramme, pas un mot : la liste porte deja un nom,
+   un identifiant et jusqu'a trois badges de mesure. Le calque d'image passe a
+   l'accent, le bloc de texte reste efface : le texte est le cas courant, il n'a
+   pas a se signaler (meme regle que le cadenas ouvert). */
+.cf-type .cf-type-kind { font-style: normal; font-size: 10px; flex: none;
+  color: var(--ink-muted); opacity: .5; width: 13px; text-align: center; cursor: help; }
+.cf-type .cf-type-kind.img { color: var(--accent); opacity: 1; }
+.cf-type .cf-type-ihead .cf-type-kind { font-size: 12px; }
 .cf-type .cf-type-nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .cf-type .cf-type-nm b { font-size: 12px; color: var(--ink-strong); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -100,6 +108,20 @@
 .cf-type .cf-type-cc { float: right; font-style: normal; color: var(--ink-muted);
   letter-spacing: 0; text-transform: none; }
 .cf-type .cf-type-text { min-height: 62px; font-size: 12px; }
+/* ── LA ZONE DE DEPOT D'UN CALQUE D'IMAGE ─────────────────────────────────
+   Elle occupe la place que le texte par defaut occupe sur l'autre panneau :
+   c'est le meme rang, c'est le contenu du bloc. Le patron visuel est celui de
+   la barre d'import de P1 — un cadre pointille qui s'allume au survol du
+   fichier tire, pour que la cible du geste soit evidente AVANT le lacher. */
+.cf-type .cf-type-drop { border: 1px dashed var(--stroke-strong); border-radius: var(--r);
+  padding: 14px 12px; display: flex; flex-direction: column; gap: 4px; cursor: pointer;
+  background: var(--bg-panel); text-align: center; }
+.cf-type .cf-type-drop:hover { border-color: var(--ink-soft); }
+.cf-type .cf-type-drop.over { border-color: var(--accent); background: var(--bg-panel-2); }
+.cf-type .cf-type-drop b { color: var(--ink-strong); font-size: 12px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cf-type .cf-type-drop .hint { font-size: 10.5px; }
+.cf-type .cf-type-warn { color: var(--amber); }
 .cf-type .cf-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 7px; }
 .cf-type .cf-type-f { min-width: 0; }
 .cf-type .cf-type-f input[type=color] { padding: 2px; height: 28px; cursor: pointer;

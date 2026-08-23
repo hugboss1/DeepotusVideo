@@ -108,13 +108,14 @@
   /* ═══ CF-TYPE-DEFAULTS-BEGIN ═══ */
   const SLOT_DEFAULTS = {
     "align": "left", "arc": 0.0, "autofit": true, "bold": false,
-    "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9", "font": "Inter",
-    "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0, "label": "Texte",
-    "last_pct": 25.0, "leading": 1.18, "lock": false, "min_pt": 5.0, "on": true,
-    "opacity": 100.0, "outline": 0.0, "outline_color": "#0a0a0c", "plate_alpha": 1.0,
-    "plate_color": null, "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0,
-    "shadow": 0.0, "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0,
-    "side": "front", "size_pt": 10.0, "text": "", "track": 0.0, "valign": "top",
+    "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9", "fit": "contain",
+    "font": "Inter", "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0,
+    "kind": "text", "label": "Texte", "last_pct": 25.0, "leading": 1.18, "lock": false,
+    "min_pt": 5.0, "on": true, "opacity": 100.0, "outline": 0.0,
+    "outline_color": "#0a0a0c", "plate_alpha": 1.0, "plate_color": null,
+    "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
+    "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0, "side": "front",
+    "size_pt": 10.0, "src": "", "text": "", "track": 0.0, "valign": "top",
     "wrap": true
   };
   /* ═══ CF-TYPE-DEFAULTS-END ═══ */
@@ -217,6 +218,22 @@
   const VALIGNS = ["top", "middle", "bottom"];
   const CASES = ["none", "upper", "lower", "title"];
   const SIDES = ["front", "back", "both"];
+  /* LA NATURE D'UN BLOC ET LE CADRAGE DE SON IMAGE — miroir de
+     cards/type.py:KINDS / FITS. Un calque d'image est un SLOT de cette bande,
+     pas un objet neuf : il herite ainsi de l'ordre de peinture, de l'oeil, du
+     verrou, du calque d'edition, de l'annulation et de la fluidite. */
+  const KINDS = ["text", "image"];
+  const FITS = ["contain", "cover"];
+  /* Le motif EXACT d'une source de calque, miroir de type.py:SLOT_SRC_RE. Ce
+     nom n'est jamais tape par un humain : la route d'import le fabrique
+     (`img_{n}.png`). Un motif permissif aurait ouvert le dossier du deck. */
+  const SRC_RE = /^(|img:img_\d+\.png)$/;
+  /* Cote long au-dela duquel une image importee est reduite AVANT l'envoi.
+     MEME CHIFFRE que l'illustration de P1 (mod-face.js:91 / face.py:92) et que
+     cards/type.py:MAX_IMPORT_PX, recopie et non partage : chaque piece porte
+     ses constantes (regle 8). Le serveur reduit de toute facon — un client
+     n'est pas une garantie ; ici on evite un aller-retour de 40 Mo. */
+  const MAX_IMPORT_PX = 4096;
   const SLOTS_MAX = 40;
   const TRACK_MIN_PC = -30;      /* miroir de cards/type.py:TRACK_MIN */
   /* LA PLAQUE DE FOND — rayon des coins, en millimetres. Miroir de
@@ -283,6 +300,14 @@
   const num = (v, d, lo, hi) => {
     const n = Number(v);
     return isFinite(n) ? clamp(n, lo, hi) : d;
+  };
+  /* UNE ENUMERATION, LUE COMME LE BACKEND LA LIT (miroir de
+     cards/type.py:_choice) : rognee, mise en bas de casse, puis comparee. Les
+     deux tables doivent rendre le MEME verdict sur la meme chaine, sans quoi
+     un document se lirait autrement a l'ecran qu'au controle. */
+  const pick = (v, list, d) => {
+    const s = String(v == null ? "" : v).trim().toLowerCase();
+    return list.indexOf(s) >= 0 ? s : d;
   };
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;")
     .replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -358,8 +383,30 @@
        de ce qui est peint (le painter ne le lit pas) — il n'arrete que les
        gestes de scene du calque d'edition. */
     s.lock = !!r.lock;
+    /* LA NATURE DU BLOC, puis sa source et son cadrage. `pick` est le miroir
+       exact de cards/type.py:_choice — une valeur inconnue retombe sur le
+       defaut plutot que d'envoyer le painter dans une branche qui n'existe
+       pas. La source, elle, n'est PAS rognee : ce nom vient de la route
+       d'import, pas d'une main humaine, donc « img:img_1.png » suivi d'une
+       espace n'est pas une faute de frappe a reparer — c'est une chaine qui ne
+       vient pas de nous. */
+    s.kind = pick(r.kind, KINDS, SLOT_DEFAULTS.kind);
+    s.src = SRC_RE.test(String(r.src == null ? "" : r.src)) ? String(r.src) : "";
+    s.fit = pick(r.fit, FITS, SLOT_DEFAULTS.fit);
     s.text = String(r.text == null ? "" : r.text).slice(0, 4000);
     return s;
+  }
+  /* UN CALQUE D'IMAGE, RECONNU EN UN SEUL ENDROIT. Trois passes d'encre, un
+     painter, une liste et un panneau posent la meme question ; ils la posent
+     donc au meme endroit. C'est aussi ce qui rend l'exclusion CHERCHABLE : la
+     quatrieme passe d'encre trouvera ce nom avant d'oublier la regle. */
+  function isImage(s) { return !!s && s.kind === "image"; }
+  /* Le fichier d'un calque, sans son prefixe — "" si la source est vide ou
+     illegale (elle a deja ete bornee par `normSlot`, mais le painter recoit
+     les slots du document TELS QUELS). */
+  function srcFile(s) {
+    const v = String((s && s.src) || "");
+    return (SRC_RE.test(v) && v.indexOf("img:") === 0) ? v.slice(4) : "";
   }
 
   /* La zone sure TELLE QU'ELLE EXISTE EN PIXELS, relue en millimetres depuis
@@ -1153,6 +1200,171 @@
     ctx.fill();
     ctx.restore();
   }
+  /* ── LES IMAGES DE CALQUE, CHARGEES UNE FOIS ────────────────────────────
+     Patron `IMGS` de mod-face : une entree par fichier, gardee pour toute la
+     vie de l'onglet. Le painter tourne a chaque frame ; sans ce cache, chaque
+     frame redecoderait le PNG.
+
+     L'ETAT EST RESOLU, JAMAIS REJETE. Une entree vaut `{img, ok}` : `ok:false`
+     dit « ce fichier n'est pas arrive », ce qui est un ETAT de la carte (le
+     damier), pas une panne du painter. Une promesse rejetee, elle, aurait
+     traverse le painter et noirci l'ecran des sept autres pieces.
+
+     LE PAINTER ATTEND, comme il attend deja ses polices (`ensureFonts`) : la
+     course est bornee (le CORE laisse 4 s a un painter, on n'y va jamais) et
+     le rendu suivant trouve le cache chaud. Un chargement qui arrive APRES la
+     course redemande un rendu de lui-meme — c'est la seule facon de voir
+     apparaitre une image lente sans toucher a la souris. */
+  const IMGS = new Map();          /* fichier -> {img, ok} ou Promise */
+  const IMG_WAIT_MS = 2500;        /* le painter a 4 s : on garde de la marge */
+  function imgRec(file) {
+    const v = IMGS.get(file);
+    return (v && !v.then) ? v : null;
+  }
+  function loadImg(file) {
+    const known = IMGS.get(file);
+    if (known) return known.then ? known : Promise.resolve(known);
+    let res = null;
+    /* LA PROMESSE ENTRE DANS LE CACHE AVANT QUE LE CHARGEMENT COMMENCE, et
+       l'ETAT ne la remplace qu'a la resolution. L'ordre inverse a un piege
+       reel : un echec SYNCHRONE (l'API du jeton refuse le chemin) ecrivait
+       l'etat, puis le `IMGS.set` d'apres l'ecrasait par la promesse — le cache
+       ne rendait plus jamais d'etat lisible et la boite restait au damier pour
+       toujours. */
+    const p = new Promise((r) => { res = r; }).then((rec) => {
+      IMGS.set(file, rec);
+      /* ARRIVEE TARDIVE : la course du painter est peut-etre deja finie et la
+         carte peinte sans l'image. On redemande un rendu — exactement comme
+         une police qui arrive (`loadFont`), et sous la meme garde : seulement
+         si un calque VIVANT porte ce fichier. Le CORE coalesce. */
+      if (rec.ok && !IN_AUDIT
+        && slots().some((s) => s.on && isImage(s) && srcFile(s) === file)) M.invalidate();
+      return rec;
+    });
+    IMGS.set(file, p);
+    let done = false;
+    const fin = (ok, im) => {
+      if (done) return;
+      done = true;
+      res({ img: ok ? im : null, ok: ok, file: file });
+    };
+    let url = "";
+    try { url = M.api.url("image/" + encodeURIComponent(file)); }
+    catch (e) { fin(false, null); return p; }
+    const im = new Image();
+    im.decoding = "sync";
+    im.onload = () => fin(true, im);
+    im.onerror = () => fin(false, null);
+    im.src = url;
+    return p;
+  }
+  function ensureImgs(files) {
+    const todo = files.filter((f) => f && !imgRec(f));
+    if (!todo.length) return Promise.resolve();
+    const all = Promise.all(todo.map(loadImg));
+    return Promise.race([all, new Promise((r) => setTimeout(r, IMG_WAIT_MS))]);
+  }
+
+  /* LE DAMIER — l'etat « ce fichier n'est pas arrive », peint DANS la boite.
+     Un rectangle vide se lit comme « le calque est casse » ; un damier et un
+     nom se lisent comme « ce fichier-la manque », ce qui est l'information
+     utile quand un deck a ete copie a moitie. C'est un etat, pas une erreur :
+     le painter ne leve pas et le releve ne compte rien.
+
+     CE DAMIER EST DANS LE FICHIER LIVRE, et c'est voulu. La toile de cette
+     passe EST celle qui part au PNG et au PDF : un trou transparent aurait
+     laisse partir une carte incomplete sans que rien ne le dise, alors qu'un
+     damier nomme est impossible a ne pas voir sur une epreuve. Le meme fait
+     est double dans la liste des blocs (badge « image absente »), pour le cas
+     ou le calque serait masque, sur l'autre face ou couvert par un voisin. */
+  const DAMIER_PX = 14;
+  function drawDamier(ctx, b, file) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(b[0], b[1], b[2], b[3]);
+    ctx.clip();
+    ctx.fillStyle = "#241f2b";
+    ctx.fillRect(b[0], b[1], b[2], b[3]);
+    ctx.fillStyle = "#39323f";
+    const n = DAMIER_PX;
+    for (let y = 0; y < b[3]; y += n) {
+      for (let x = 0; x < b[2]; x += n) {
+        if ((((x / n) | 0) + ((y / n) | 0)) % 2) continue;
+        ctx.fillRect(b[0] + x, b[1] + y, Math.min(n, b[2] - x), Math.min(n, b[3] - y));
+      }
+    }
+    if (file) {
+      const px = clamp(Math.round(Math.min(b[2] / 12, b[3] / 3)), 8, 34);
+      ctx.font = px.toFixed(3) + 'px "CFT Inter", sans-serif';
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = "#e6dfd4";
+      ctx.fillText(file, b[0] + b[2] / 2, b[1] + b[3] / 2);
+    }
+    ctx.restore();
+  }
+  /* LE CADRAGE — miroir de la regle de P1 (`fit_rect`), reduite aux deux modes
+     qu'un calque demande. `contain` fait entrer l'image ENTIERE (des bandes
+     restent sur le petit cote), `cover` REMPLIT la boite et le debordement est
+     DECOUPE : sans la decoupe, un calque « cover » aurait deborde sur ses
+     voisins et sur le fond perdu. */
+  function fitRect(sw, sh, b, mode) {
+    if (!(sw > 0) || !(sh > 0) || !(b[2] > 0) || !(b[3] > 0)) return null;
+    const k = (mode === "cover")
+      ? Math.max(b[2] / sw, b[3] / sh) : Math.min(b[2] / sw, b[3] / sh);
+    const w = sw * k, h = sh * k;
+    return [b[0] + (b[2] - w) / 2, b[1] + (b[3] - h) / 2, w, h];
+  }
+  /* UN CALQUE D'IMAGE. Meme squelette que `drawSlot` — opacite, rotation
+     autour du centre de la boite, plaque DESSOUS — et pas une seule passe de
+     glyphe : ce bloc porte peut-etre un `text` (le vocabulaire est commun),
+     il n'a rien a ecrire. */
+  function drawImgSlot(ctx, slot, g) {
+    const b = boxPx(slot, g);
+    if (!(b[2] > 0) || !(b[3] > 0)) return;
+    const file = srcFile(slot);
+    const rec = file ? imgRec(file) : null;
+    /* SOURCE VIDE = calque qui vient de naitre, l'image n'est pas encore
+       deposee. Ce n'est pas un manque : on ne salit pas la carte d'un damier
+       pour un etat d'attente que le panneau montre deja. RIEN n'est peint, pas
+       meme la plaque — exactement ce que fait le painter d'un bloc de texte
+       vide (`if (!m.empty) drawSlot(...)`), et pour la meme raison : un
+       cartouche sans son contenu est un defaut visible qu'on n'a pas demande. */
+    if (!file) return;
+    ctx.save();
+    ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);
+    if (slot.rotate) {
+      const cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(slot.rotate * Math.PI / 180);
+      ctx.translate(-cx, -cy);
+    }
+    /* LA PLAQUE D'ABORD, comme sous le texte : peinte apres, elle effacerait
+       l'image. Elle sert au meme usage — le cartouche derriere un calque a
+       fond transparent, la bande derriere une image « contain ». */
+    drawPlate(ctx, slot, g, { box: b });
+    if (!rec || !rec.ok) {
+      /* en cours de chargement OU absente : le damier dit lequel. Les deux
+         etats se ressemblent a l'ecran parce qu'ils se ressemblent en fait —
+         « pas encore la ». Un chargement qui aboutit redemande un rendu. */
+      drawDamier(ctx, b, file);
+      ctx.restore();
+      return;
+    }
+    const sw = rec.img.naturalWidth || rec.img.width;
+    const sh = rec.img.naturalHeight || rec.img.height;
+    const r = fitRect(sw, sh, b, slot.fit);
+    if (r) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(b[0], b[1], b[2], b[3]);
+      ctx.clip();
+      ctx.drawImage(rec.img, r[0], r[1], r[2], r[3]);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
   function drawSlot(ctx, slot, g, m) {
     ctx.save();
     ctx.globalAlpha = clamp(slot.opacity / 100, 0, 1);
@@ -1241,10 +1453,28 @@
           const slots = Array.isArray(st.slots) ? st.slots : [];
           const live = slots.filter((s) => s.on && (s.side === "both" || s.side === side));
           const fams = [];
-          live.forEach((s) => { if (fams.indexOf(s.font) < 0) fams.push(s.font); });
+          live.forEach((s) => { if (!isImage(s) && fams.indexOf(s.font) < 0) fams.push(s.font); });
           if (fams.length) await ensureFonts(fams);
+          /* les fichiers des calques d'image, charges UNE FOIS et attendus ici
+             — exactement comme les polices deux lignes plus haut, et pour la
+             meme raison : sans l'attente, la premiere frame peindrait un
+             damier a la place d'une image qui existe. */
+          const files = [];
+          live.forEach((s) => {
+            const f = isImage(s) ? srcFile(s) : "";
+            if (f && files.indexOf(f) < 0) files.push(f);
+          });
+          if (files.length) await ensureImgs(files);
           const meas = {};
           live.forEach((slot) => {
+            /* ── UN CALQUE D'IMAGE NE LAISSE AUCUNE MESURE ─────────────────
+               `meas` est l'entree des trois passes d'encre (controle
+               photometrique, releve du halo, second tirage) et du releve du
+               panneau. Un calque d'image n'a pas de glyphe : il n'a ni corps
+               compose, ni taux de survie, ni contraste. Y entrer l'aurait fait
+               compter comme un « slot vide » — un defaut annonce qui n'existe
+               pas. On sort AVANT `layoutSlot`. */
+            if (isImage(slot)) { drawImgSlot(ctx, slot, geom); return; }
             const text = textOf(slot, card);
             /* UN SLOT VIDE EST UN FAIT, PAS UN NON-EVENEMENT. Avant, il
                sortait de la boucle sans laisser de trace : la carte partait
@@ -1298,7 +1528,9 @@
          sans cela le painter attend au demarrage (jusqu'a 2,5 s a froid) et
          le releve chiffre apparait un battement apres la carte. */
       const used = [];
-      slots().forEach((s) => { if (used.indexOf(s.font) < 0) used.push(s.font); });
+      slots().forEach((s) => {
+        if (!isImage(s) && used.indexOf(s.font) < 0) used.push(s.font);
+      });
       if (used.length) await ensureFonts(used);
       renderAll();
       CF.on("core:geom", () => { renderAll(); syncOverlay(); });
@@ -1311,6 +1543,7 @@
       }
       window.addEventListener("resize", syncOverlay);
       document.addEventListener("keydown", onKey, true);
+      document.addEventListener("paste", onPaste);
       if (PANEL && typeof MutationObserver === "function") {
         new MutationObserver(() => syncOverlay()).observe(PANEL, { attributes: true, attributeFilter: ["class"] });
       }
@@ -1437,6 +1670,9 @@
     HOST.innerHTML = ''
       + '<div class="cf-type-bar">'
       + '  <button class="btn sm cf-type-add" type="button" title="Nouveau bloc de texte, posé au centre du cadre de composition">+ Slot</button>'
+      /* LA NATURE SE CHOISIT A LA NAISSANCE, et c'est pour cela qu'il y a deux
+         boutons plutot qu'une bascule dans le panneau. Voir `addImgSlot`. */
+      + '  <button class="btn sm cf-type-addimg" type="button" title="Nouveau calque d\'image, posé au centre du cadre de composition — il se peint au-dessus du cadre de base et sous le décor haut">+ Image</button>'
       + '  <button class="btn sm cf-type-preset" type="button" title="Poser un gabarit complet">Gabarits</button>'
       + '  <span class="stage-sep" aria-hidden="true"></span>'
       + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)">&#8630;</button>'
@@ -1466,6 +1702,7 @@
       + '</div>'
       + '<div class="cf-type-proof"></div>';
     HOST.querySelector(".cf-type-add").addEventListener("click", addSlot);
+    HOST.querySelector(".cf-type-addimg").addEventListener("click", addImgSlot);
     HOST.querySelector(".cf-type-preset").addEventListener("click", openPresets);
     HOST.querySelector(".cf-type-undo").addEventListener("click", undo);
     HOST.querySelector(".cf-type-redo").addEventListener("click", redo);
@@ -1508,6 +1745,39 @@
       size_pt: 10, min_pt: 5, align: "center", valign: "middle",
       autofit: CF.get("type.autofit", true),
       text: "Nouveau texte",
+    }, a.length);
+    pushUndo();
+    commit(a.concat([s]), s.id);
+    renderAll();
+  }
+  /* ── UN CALQUE D'IMAGE NAIT ICI, ET SEULEMENT ICI ───────────────────────
+     DECISION : la nature d'un bloc se pose A LA NAISSANCE ; le panneau la
+     MONTRE et ne la bascule pas.
+
+     Une bascule aurait change le SENS des reglages d'un bloc existant sous la
+     main de l'utilisateur : un `src` sur un bloc de texte ne veut rien dire,
+     une police et une casse sur un calque d'image non plus. Et elle aurait
+     pose une question sans bonne reponse — que faire du texte deja saisi, de
+     l'image deja importee, du reglage d'ajustement ? La manoeuvre honnete
+     (creer l'autre, deplacer la boite, supprimer le premier) tient en deux
+     clics et laisse une trace dans HIST, ce qu'une bascule silencieuse ne
+     ferait pas.
+
+     La palette d'elements de la tache 3 appellera CETTE fonction : elle n'aura
+     pas a savoir ce qu'est un calque d'image. */
+  function addImgSlot() {
+    const a = slots();
+    if (a.length >= SLOTS_MAX) { M.toast(SLOTS_MAX + " slots au maximum", true); return; }
+    const g = CF.geom(), sr = safeRectMm(g);
+    let n = 1;
+    while (a.filter((s) => s.id === "image" + n).length) n++;
+    const s = normSlot({
+      id: "image" + n, label: "Image " + n,
+      kind: "image", fit: "contain",
+      /* une boite CARREE au centre : un calque naissant n'a pas encore
+         d'image, donc pas de rapport de forme a respecter — le fit s'en
+         chargera au depot, et la poignee au millimetre pres. */
+      box: [sr[0] + sr[2] * 0.2, sr[1] + sr[3] * 0.3, sr[2] * 0.6, sr[3] * 0.3],
     }, a.length);
     pushUndo();
     commit(a.concat([s]), s.id);
@@ -1581,17 +1851,29 @@
     }
     const card = CF.card(CF.current());
     wrap.innerHTML = a.map((s) => {
-      const m = MEAS[s.id];
-      const au = auditOf(s.id);
-      const tofu = tofuOf(s, textOf(s, card));
+      /* UN CALQUE D'IMAGE N'A AUCUN BADGE DE TEXTE. Il n'entre pas dans le
+         relevé (le painter l'écarte), donc `m` et `au` sont vides pour lui de
+         toute façon — mais on le DIT ici plutôt que de compter là-dessus : un
+         badge « vide » sur un calque d'image annoncerait un défaut inexistant,
+         et c'est exactement le genre de compteur menteur que cette pièce
+         pourchasse. */
+      const img = isImage(s);
+      const m = img ? null : MEAS[s.id];
+      const au = img ? null : auditOf(s.id);
+      const tofu = img ? [] : tofuOf(s, textOf(s, card));
       const vide = m && m.empty;
       const bad = m && m.over && !vide;
       const shr = m && m.shrunk && !bad && !vide;
       const masq = au && !au.empty && au.exact && au.rate < SURV_MIN;
       const lowc = au && !au.empty && au.contrast_min != null && au.contrast_min < au.seuil;
+      const fichier = img ? srcFile(s) : "";
       /* le relevé du slot, en clair, au survol : ce sont les chiffres relus
          sur les octets du composite, pas une estimation. */
-      const tip = !au ? "mesure en cours" : (au.empty ? "slot sans glyphe"
+      const tip = img
+        ? ("calque d'image — " + (fichier ? fichier + ", cadrage "
+          + (s.fit === "cover" ? "remplir" : "entière")
+          : "aucune image déposée") + " · aucune mesure d'encre : ce bloc n'a pas de glyphe")
+        : !au ? "mesure en cours" : (au.empty ? "slot sans glyphe"
         : (au.total + " px de corps de glyphe · " + (au.exact ? fx(au.rate * 100, 1) + " % visibles"
           : "survie non mesurable (opacité < 100 %)")
           + (au.contrast_min != null ? " · contraste " + fx(au.contrast_min, 2) + ":1 (seuil "
@@ -1625,12 +1907,31 @@
         + (s.lock ? "Déverrouiller ce bloc" : "Verrouiller ce bloc — il refusera le glisser, "
           + "les poignées, les flèches et Suppr ; le panneau continuera de le régler")
         + '">' + (s.lock ? "&#128274;" : "&#128275;") + '</button>'
+        /* LE BADGE DE NATURE. La liste est la seule vue où les deux natures se
+           croisent : elle doit les distinguer d'un coup d'œil, sans quoi
+           « Image 1 » et « Texte 1 » se ressemblent jusqu'au clic. */
+        + '<em class="cf-type-kind' + (img ? " img" : "") + '" title="'
+        + esc(img ? "Calque d'image — il se peint dans sa boîte, au-dessus du "
+          + "cadre de base et sous le décor haut" : "Bloc de texte")
+        + '">' + (img ? "&#128444;" : "T") + '</em>'
         + '<span class="cf-type-nm"><b>' + esc(s.label) + '</b><i class="mono">' + esc(s.id) + '</i></span>'
-        + '<span class="cf-type-meta mono">' + esc(fontLabel(s.font)) + ' · ' + fx(m ? m.pt : s.size_pt, 1) + ' pt'
-        + (synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
+        + '<span class="cf-type-meta mono">'
+        + (img
+          ? (fichier ? esc(fichier) : "sans image")
+            + ' · ' + (s.fit === "cover" ? "remplir" : "entière")
+          : esc(fontLabel(s.font)) + ' · ' + fx(m ? m.pt : s.size_pt, 1) + ' pt')
+        + (!img && synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
           + (s.bold ? "G" : "") + (s.italic ? "I" : "") + '*</i>' : "")
         + (s.side !== "front" ? ' · ' + (s.side === "back" ? "verso" : "R/V") : "") + '</span>'
         + (vide ? '<em class="cf-type-badge bad" title="slot configuré, aucun glyphe posé">vide</em>' : '')
+        /* LE FICHIER QUI N'EST PAS ARRIVE. L'aperçu le dit déjà (damier + nom
+           dans la boîte) ; la liste le dit aussi, parce qu'un calque peut être
+           masqué, hors face ou caché sous un autre — et il partirait alors à
+           l'impression sans que rien ne l'ait annoncé. */
+        + (img && fichier && imgRec(fichier) && !imgRec(fichier).ok
+          ? '<em class="cf-type-badge bad" title="' + esc(fichier
+            + " n'est pas dans ce jeu — l'aperçu pose un damier à sa place")
+            + '">image absente</em>' : '')
         /* LE BADGE QUI MANQUAIT : ce texte contient des signes que cette
            police n'a pas. Le navigateur les emprunte ailleurs, sans un mot. */
         + (tofu.length && !vide ? '<em class="cf-type-badge bad" title="'
@@ -1829,20 +2130,87 @@
     const s = selSlot();
     if (!box || !s) return;
     const host = box.querySelector(".cf-type-meas");
+    if (!host) return;
+    /* LE MEME CONTENEUR PORTE DEUX RELEVES, ET IL FAUT LE BON. Le panneau d'un
+       calque d'image reutilise `.cf-type-meas` (c'est le pied de la section
+       « Boite », partagee) : y reecrire le releve TYPOGRAPHIQUE aurait ecrase
+       « image 200 x 100 px » par « corps 10 pt » a la premiere mise en page.
+       Le releve suit la nature du bloc, comme le panneau au-dessus de lui. */
     /* aucun champ n'est touche : ce conteneur ne porte que des mesures, jamais
        un input — la frappe en cours garde son focus. */
-    if (host) host.innerHTML = inspMeasInner(s);
+    host.innerHTML = isImage(s) ? imgMeasInner(s) : inspMeasInner(s);
   }
+  /* ── LES TROIS BLOCS QUE LES DEUX NATURES PARTAGENT ─────────────────────
+     Un bloc de texte et un calque d'image se règlent différemment SAUF sur
+     trois points : leur nom, leur plaque de fond et leur boîte. Ces trois-là
+     sont donc écrits UNE fois et appelés deux fois — la leçon du helper
+     d'encre de la tâche 1, appliquée au panneau : trois littéraux recopiés,
+     c'est trois occasions d'oublier le champ suivant d'un seul côté. */
+  function inspHead(s) {
+    const img = isImage(s);
+    return '<div class="cf-type-ihead">'
+      /* LA NATURE EST MONTREE, PAS BASCULEE — voir `addImgSlot`. Le panneau
+         dit ce qu'on édite ; il ne transforme pas un bloc en un autre. */
+      + '<em class="cf-type-kind' + (img ? " img" : "") + '" title="'
+      + esc(img ? "Calque d'image. La nature d'un bloc se choisit à sa création : "
+        + "pour passer au texte, créez un bloc de texte et supprimez celui-ci."
+        : "Bloc de texte. La nature d'un bloc se choisit à sa création : pour "
+        + "passer à l'image, créez un calque d'image et supprimez celui-ci.")
+      + '">' + (img ? "&#128444;" : "T") + '</em>'
+      + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="Nom du slot">'
+      + '<span class="counter mono cf-type-id">' + esc(s.id) + '</span>'
+      + '</div>';
+  }
+  function inspPlaque(s) {
+    return '<details class="grp cf-type-grp" open><summary>Plaque de fond</summary>'
+      + '<div class="grp-body"><div class="cf-type-grid">'
+      + '<label class="fld cf-type-f"><span class="lbl">Couleur plaque</span>'
+      + '<input type="color" class="cf-type-pcol" value="'
+      + esc(String(s.plate_color || "#1b1206").slice(0, 7))
+      + '" title="Rectangle peint SOUS le contenu de ce slot, dans sa boîte."></label>'
+      + nfield("plate_alpha", "Opacité plaque", s.plate_alpha, 0.05,
+        "Opacité de la plaque, de 0 à 1. Elle se multiplie avec l'opacité du slot : "
+        + "un slot à 50 % et une plaque à 0,8 posent 40 %.", 0, 1)
+      + nfield("plate_radius", "Rayon (mm)", s.plate_radius, 0.25,
+        "Rayon des coins de la plaque, en millimètres. Il est ramené à la moitié du "
+        + "petit côté de la boîte au dessin : au-delà, un coin arrondi est un disque.",
+        0, PLATE_RADIUS_MAX_MM)
+      + '</div>'
+      + '<div class="btn-row"><button class="btn sm cf-type-pnone" type="button"'
+      + ' title="Retire la plaque : le contenu revient sur le fond des autres couches">Sans plaque</button></div>'
+      + '<p class="hint">' + (s.plate_color
+        ? 'plaque ' + esc(s.plate_color) + ' à ' + fx(s.plate_alpha * 100, 0) + ' %'
+          + (s.plate_radius ? ', coins ' + fx(s.plate_radius, 2) + ' mm' : ', coins vifs')
+        : 'aucune plaque — posez une couleur pour en créer une')
+      + '</p></div></details>';
+  }
+  function inspBoite(s, mesures) {
+    return '<details class="grp cf-type-grp" open><summary>Boîte — millimètres depuis le coin de coupe</summary>'
+      + '<div class="grp-body"><div class="cf-type-grid">'
+      + nfield("bx", "X (mm)", s.box[0], 0.25, "Depuis le coin de coupe")
+      + nfield("by", "Y (mm)", s.box[1], 0.25, "Depuis le coin de coupe")
+      + nfield("bw", "Largeur (mm)", s.box[2], 0.25, "Largeur de la boîte")
+      + nfield("bh", "Hauteur (mm)", s.box[3], 0.25, "Hauteur de la boîte")
+      + '</div>'
+      + mesures
+      + '<div class="btn-row"><button class="btn sm cf-type-dup" type="button" title="Ctrl+D">Dupliquer</button>'
+      + '<button class="btn sm cf-type-center" type="button">Centrer</button>'
+      + '<button class="btn sm cf-type-fill" type="button" title="Étendre à toute la largeur du cadre de composition">Pleine largeur</button>'
+      + '</div></div></details>';
+  }
+
   function renderInsp() {
     const box = HOST && HOST.querySelector(".cf-type-insp");
     if (!box) return;
     const s = selSlot();
     if (!s) { box.innerHTML = '<p class="empty-note sm">Sélectionnez un slot pour en régler la typographie.</p>'; return; }
+    /* LE PANNEAU BASCULE SES SECTIONS SELON LA NATURE DU BLOC. Un calque
+       d'image n'a ni police, ni corps, ni casse, ni césure : les afficher
+       inertes aurait été onze réglages qui ne font rien — la faute qu'on
+       reproche aux barres concurrentes. */
+    if (isImage(s)) { renderInspImage(box, s); return; }
     box.innerHTML = ''
-      + '<div class="cf-type-ihead">'
-      + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="Nom du slot">'
-      + '<span class="counter mono cf-type-id">' + esc(s.id) + '</span>'
-      + '</div>'
+      + inspHead(s)
       + '<label class="fld cf-type-f"><span class="lbl">Texte par défaut<i class="cf-type-cc mono">'
       + Array.from(s.text).length + ' car.</i></span>'
       + '<textarea class="cf-type-text" rows="3" title="Utilisé tant que la colonne CSV du même nom est vide">'
@@ -1911,28 +2279,9 @@
          au meme endroit du panneau, avec les memes gabarits de champ. Un
          `input[type=color]` ne sait pas dire « rien » : le bouton « Sans
          plaque » est le SEUL chemin de retour, et sans lui une couleur posee
-         par erreur ne se reprenait plus. */
-      + '<details class="grp cf-type-grp" open><summary>Plaque de fond</summary>'
-      + '<div class="grp-body"><div class="cf-type-grid">'
-      + '<label class="fld cf-type-f"><span class="lbl">Couleur plaque</span>'
-      + '<input type="color" class="cf-type-pcol" value="'
-      + esc(String(s.plate_color || "#1b1206").slice(0, 7))
-      + '" title="Rectangle peint SOUS le texte de ce slot, dans sa boîte."></label>'
-      + nfield("plate_alpha", "Opacité plaque", s.plate_alpha, 0.05,
-        "Opacité de la plaque, de 0 à 1. Elle se multiplie avec l'opacité du slot : "
-        + "un slot à 50 % et une plaque à 0,8 posent 40 %.", 0, 1)
-      + nfield("plate_radius", "Rayon (mm)", s.plate_radius, 0.25,
-        "Rayon des coins de la plaque, en millimètres. Il est ramené à la moitié du "
-        + "petit côté de la boîte au dessin : au-delà, un coin arrondi est un disque.",
-        0, PLATE_RADIUS_MAX_MM)
-      + '</div>'
-      + '<div class="btn-row"><button class="btn sm cf-type-pnone" type="button"'
-      + ' title="Retire la plaque : le texte revient sur le fond des autres couches">Sans plaque</button></div>'
-      + '<p class="hint">' + (s.plate_color
-        ? 'plaque ' + esc(s.plate_color) + ' à ' + fx(s.plate_alpha * 100, 0) + ' %'
-          + (s.plate_radius ? ', coins ' + fx(s.plate_radius, 2) + ' mm' : ', coins vifs')
-        : 'aucune plaque — posez une couleur pour en créer une')
-      + '</p></div></details>'
+         par erreur ne se reprenait plus. Le bloc est partage avec le calque
+         d'image (`inspPlaque`) : c'est le meme fond, sous un autre contenu. */
+      + inspPlaque(s)
       + '<details class="grp cf-type-grp" open><summary>Contour, ombre, arc</summary>'
       + '<div class="grp-body cf-type-grid">'
       + nfield("outline", "Contour (pt)", s.outline, 0.1, "Épaisseur du contour", 0, 20)
@@ -1959,23 +2308,10 @@
         + "En dessous, le dernier mot de la ligne précédente lui est descendu — jamais un mot "
         + "n'est coupé ni remonté. 0 désactive le contrôle.", 0, 80)
       + '</div></details>'
-      + '<details class="grp cf-type-grp" open><summary>Boîte — millimètres depuis le coin de coupe</summary>'
-      + '<div class="grp-body"><div class="cf-type-grid">'
-      + nfield("bx", "X (mm)", s.box[0], 0.25, "Depuis le coin de coupe")
-      + nfield("by", "Y (mm)", s.box[1], 0.25, "Depuis le coin de coupe")
-      + nfield("bw", "Largeur (mm)", s.box[2], 0.25, "Largeur de la boîte")
-      + nfield("bh", "Hauteur (mm)", s.box[3], 0.25, "Hauteur de la boîte")
-      + '</div>'
-      + inspMeas(s)
-      + '<div class="btn-row"><button class="btn sm cf-type-dup" type="button" title="Ctrl+D">Dupliquer</button>'
-      + '<button class="btn sm cf-type-center" type="button">Centrer</button>'
-      + '<button class="btn sm cf-type-fill" type="button" title="Étendre à toute la largeur du cadre de composition">Pleine largeur</button>'
-      + '</div></div></details>';
+      + inspBoite(s, inspMeas(s));
 
     const id = s.id;
-    box.querySelector(".cf-type-label").addEventListener("change", (e) => {
-      patchSlot(id, { label: e.target.value }); renderAll();
-    });
+    wireInspCommun(box, id);
     const ta = box.querySelector(".cf-type-text");
     ta.addEventListener("input", () => {
       patchSlot(id, { text: ta.value }, true);
@@ -1987,6 +2323,17 @@
     box.querySelector(".cf-type-col").addEventListener("input", (e) => patchSlot(id, { color: e.target.value }, true));
     box.querySelector(".cf-type-ocol").addEventListener("input", (e) => patchSlot(id, { outline_color: e.target.value }, true));
     box.querySelector(".cf-type-scol").addEventListener("input", (e) => patchSlot(id, { shadow_color: e.target.value }, true));
+  }
+
+  /* ── LE BRANCHEMENT QUE LES DEUX PANNEAUX PARTAGENT ─────────────────────
+     Il est piloté par les ATTRIBUTS (`data-k`), pas par une liste de champs :
+     ajouter un réglage au panneau d'image n'oblige donc à rien ici, et un
+     champ retiré ne laisse pas un écouteur orphelin. Les trois blocs communs
+     (nom, plaque, boîte) ont leur branchement ici, une fois. */
+  function wireInspCommun(box, id) {
+    box.querySelector(".cf-type-label").addEventListener("change", (e) => {
+      patchSlot(id, { label: e.target.value }); renderAll();
+    });
     box.querySelector(".cf-type-pcol").addEventListener("input", (e) => patchSlot(id, { plate_color: e.target.value }, true));
     box.querySelector(".cf-type-pnone").addEventListener("click", () => {
       patchSlot(id, { plate_color: null });
@@ -2036,6 +2383,169 @@
       patchSlot(id, { box: [sr[0], cur.box[1], sr[2], cur.box[3]] });
       renderAll();
     });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     6bis. LE PANNEAU D'UN CALQUE D'IMAGE
+     ═════════════════════════════════════════════════════════════════════════
+     Les memes trois blocs communs (nom, plaque, boite) et, a la place des onze
+     reglages typographiques, les deux qui font un calque : SON IMAGE et SON
+     CADRAGE. Rien d'inerte n'est affiche — un champ « Interlettrage » sur un
+     calque d'image serait un mensonge poli. */
+  function imgMeasHtml(s) {
+    /* le MEME conteneur que le panneau de texte (`.cf-type-meas`) : c'est le
+       pied de la section « Boite », partagee, et `syncInspMeas` le reecrit
+       apres chaque mise en page — avec le releve de la bonne nature. */
+    return '<div class="cf-type-meas">' + imgMeasInner(s) + '</div>';
+  }
+  function imgMeasInner(s) {
+    const g = CF.geom(), b = boxPx(s, g);
+    const file = srcFile(s);
+    const rec = file ? imgRec(file) : null;
+    const sw = (rec && rec.ok) ? (rec.img.naturalWidth || rec.img.width) : 0;
+    const sh = (rec && rec.ok) ? (rec.img.naturalHeight || rec.img.height) : 0;
+    const r = (sw && sh) ? fitRect(sw, sh, b, s.fit) : null;
+    return '<p class="hint mono cf-type-bpx">'
+      + fx(b[2], 1) + ' x ' + fx(b[3], 1) + ' px de toile'
+      + (sw ? ' · image ' + sw + ' x ' + sh + ' px' : '')
+      /* LE CHIFFRE QUI DECIDE DE LA QUALITE D'IMPRESSION : combien de pixels
+         de la source tombent dans un pixel de la toile. En dessous de 1, la
+         toile agrandit — c'est le meme fait que la jauge de DPI de P1, dit
+         ici avec les grandeurs de ce panneau. */
+      + (r ? ' · posée ' + fx(r[2], 1) + ' x ' + fx(r[3], 1) + ' px, soit '
+        + fx(sw / Math.max(1, r[2]), 2) + ' pixel(s) d\'image par pixel de toile'
+        + (sw / Math.max(1, r[2]) < 0.999 ? ' — <b>la toile agrandit</b>' : '') : '')
+      + (file && rec && !rec.ok ? ' · <b>' + esc(file) + ' introuvable</b>' : '')
+      + ' · 1 mm = ' + fx(g.mm2px(1), 3) + ' px à ' + g.dpi + ' DPI</p>';
+  }
+  function renderInspImage(box, s) {
+    const file = srcFile(s);
+    const rec = file ? imgRec(file) : null;
+    box.innerHTML = ''
+      + inspHead(s)
+      /* LA ZONE DE DEPOT — patron de P1 (mod-face) : cliquer, deposer ou
+         coller, les trois chemins d'un import d'image dans ce lab. */
+      + '<div class="cf-type-drop" title="Déposez une image, collez-la (Ctrl+V) ou cliquez pour en choisir une">'
+      + '<input type="file" class="cf-type-file" accept="image/*" hidden>'
+      + '<b>' + (file ? esc(file) : 'Aucune image') + '</b>'
+      + '<span class="hint">' + (file
+        ? 'Déposez-en une autre pour la remplacer.'
+        : 'Déposez une image, collez-la ou cliquez ici.')
+      + '</span></div>'
+      + (file && rec && !rec.ok
+        ? '<p class="hint cf-type-warn">' + esc(file) + ' n\'est pas dans ce jeu : '
+          + 'l\'aperçu pose un damier à sa place. Déposez le fichier à nouveau.'
+        + '</p>' : '')
+      + segf("Cadrage", "fit", [["contain", "Entière"], ["cover", "Remplir"]], s.fit,
+        ["l'image entière tient dans la boîte — des bandes vides restent sur le petit côté",
+          "l'image remplit la boîte et ce qui dépasse est coupé"])
+      + segf("Face", "side", [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]], s.side,
+        ["recto seul", "verso seul", "recto et verso"])
+      + inspPlaque(s)
+      + '<details class="grp cf-type-grp" open><summary>Rotation, opacité</summary>'
+      + '<div class="grp-body cf-type-grid">'
+      + nfield("rotate", "Rotation (°)", s.rotate, 1, "Rotation autour du centre de la boîte", -180, 180)
+      + nfield("opacity", "Opacité (%)", s.opacity, 5, "Opacité du calque, plaque comprise", 0, 100)
+      + '</div>'
+      /* OU CE CALQUE SE PEINT, dit a l'ecran : la bande z=60 passe AU-DESSUS
+         du cadre de base (40) et SOUS le decor haut (70). Sans cette phrase,
+         « mon image passe derriere le cadre » devient un rapport de bogue. */
+      + '<p class="hint">Ce calque se peint au-dessus du cadre de base et sous le décor haut, '
+      + 'dans l\'ordre de la liste des blocs.</p>'
+      + '</details>'
+      + inspBoite(s, imgMeasHtml(s));
+
+    const id = s.id;
+    wireInspCommun(box, id);
+    const drop = box.querySelector(".cf-type-drop");
+    const file_in = box.querySelector(".cf-type-file");
+    drop.addEventListener("click", (e) => { if (e.target !== file_in) file_in.click(); });
+    file_in.addEventListener("change", async () => {
+      const f = file_in.files && file_in.files[0];
+      file_in.value = "";
+      if (f) await importImage(f, id);
+    });
+    ["dragenter", "dragover"].forEach((n) => drop.addEventListener(n, (e) => {
+      e.preventDefault(); drop.classList.add("over");
+    }));
+    ["dragleave", "drop"].forEach((n) => drop.addEventListener(n, () => drop.classList.remove("over")));
+    drop.addEventListener("drop", async (e) => {
+      e.preventDefault();
+      const fs = (e.dataTransfer && e.dataTransfer.files) || [];
+      if (fs.length) await importImage(fs[0], id);
+    });
+  }
+
+  /* LE COLLAGE — au niveau du document, comme dans P1, et garde par le meme
+     controle : le panneau doit etre ouvert ET un calque d'image selectionne.
+     Sans ces deux gardes, un Ctrl+V destine a un champ de texte partait au
+     backend en image. */
+  function onPaste(e) {
+    if (!panelOn()) return;
+    const s = selSlot();
+    if (!s || !isImage(s)) return;
+    const items = (e.clipboardData && e.clipboardData.items) || [];
+    let f = null;
+    for (let i = 0; i < items.length && !f; i++) {
+      if (items[i].kind === "file") {
+        const g = items[i].getAsFile();
+        if (g && /^image\//.test(g.type || "")) f = g;
+      }
+    }
+    if (!f) return;
+    e.preventDefault();
+    importImage(f, s.id);
+  }
+
+  /* LA REDUCTION AVANT L'ENVOI — patron `downscale` de mod-face. Le serveur
+     reduit de toute facon (il ne croit pas le client) ; ce qu'on evite ici est
+     un fichier de 40 Mo qui part sur le fil pour revenir a 4096 px. */
+  function downscaleImg(bmp, w, h) {
+    const k = MAX_IMPORT_PX / Math.max(w, h);
+    const nw = Math.max(1, Math.round(w * k)), nh = Math.max(1, Math.round(h * k));
+    const cv = document.createElement("canvas");
+    cv.width = nw; cv.height = nh;
+    const c = cv.getContext("2d");
+    c.imageSmoothingEnabled = true;
+    try { c.imageSmoothingQuality = "high"; } catch (e) { /* moteur ancien */ }
+    c.drawImage(bmp, 0, 0, nw, nh);
+    return new Promise((res) => cv.toBlob((b) => res(b), "image/png"));
+  }
+  async function importImage(f, id) {
+    if (!f || !/^image\//.test(f.type || "")) {
+      M.toast("ce fichier n'est pas une image", true);
+      return;
+    }
+    let body = f;
+    M.busy(true, "import de l'image…");
+    try {
+      /* `createImageBitmap` et non une URL d'objet : la pièce n'a pas le droit
+         de fabriquer d'URL de blob (elle n'a aucun chemin de livraison), et le
+         décodage direct s'en passe. */
+      let bmp = null;
+      try { bmp = await createImageBitmap(f); }
+      catch (e) { M.toast("image illisible : " + f.name, true); return; }
+      if (Math.max(bmp.width, bmp.height) > MAX_IMPORT_PX) {
+        body = await downscaleImg(bmp, bmp.width, bmp.height);
+      }
+      if (bmp.close) bmp.close();
+      const resp = await M.api.raw("POST", "image", body);
+      if (resp.status === 404) { M.toast("import impossible : le service de cartes n'est pas joignable", true); return; }
+      const d = await resp.json().catch(() => null);
+      if (!resp.ok) throw new Error((d && d.detail) || (resp.status + " " + resp.statusText));
+      /* ON RELIT L'IMAGE SERVIE, pas le fichier local : c'est elle que le
+         painter dessinera (bornée, ré-encodée). Une divergence entre les deux
+         serait invisible et partirait à l'impression. */
+      IMGS.delete(d.file);
+      await loadImg(d.file);
+      patchSlot(id, { src: d.src });
+      renderAll();
+      M.invalidate();
+      M.toast("image importée — " + d.px[0] + " x " + d.px[1] + " px ("
+        + d.n + " / " + d.max + ")");
+    } catch (e) {
+      M.toast(String((e && e.message) || e), true);
+    } finally { M.busy(false); }
   }
 
   /* ── selecteur de police : les 23 familles, chacune dans SA fonte ──────── */
@@ -3450,7 +3960,13 @@
       const rows = [];
       ids.forEach((id) => {
         const m = MEAS[id], slot = byId[id];
-        if (!slot) return;
+        /* Le releve ne PORTE deja pas les calques d'image (le painter les
+           ecarte avant `layoutSlot`) ; la garde est DITE ici quand meme :
+           cette passe part de `MEAS` aujourd'hui, elle pourrait repartir de
+           `slots()` demain, et l'exclusion doit survivre a ce changement-la.
+           Mesurer le contraste d'une image serait mesurer une photographie
+           contre un fond — un nombre sans metier. */
+        if (!slot || isImage(slot)) return;
         if (m.empty) {
           rows.push({ id: id, label: slot.label, empty: true, total: 0, vis: 0,
             masked: 0, rate: 1, contrast: null, seuil: wcagSeuil(m.pt, slot.bold) });
@@ -4007,7 +4523,13 @@
     try {
       const gg = CF.geomOf(g.fmt, alt, g.bleed_mm, g.safe_mm, g.corner_mm);
       const card = CF.card(CF.current());
-      const live = slots().filter((s) => s.on && (s.side === "both" || s.side === MEAS_SIDE));
+      /* LES CALQUES D'IMAGE SONT HORS SUJET ICI. Ce controle compare le meme
+         BLOC compose a deux definitions pour prouver qu'aucun caractere ne se
+         deplace ; une image, elle, est ré-échantillonnée par la toile — la
+         comparer reviendrait a mesurer l'interpolation du navigateur, pas la
+         stabilite de la mise en page. */
+      const live = slots().filter((s) => s.on && !isImage(s)
+        && (s.side === "both" || s.side === MEAS_SIDE));
       await ensureFonts(live.map((s) => s.font));
       const rows = [];
       const kUp = alt / g.dpi;
@@ -4118,7 +4640,11 @@
   function runSeries() {
     const cards = CF.cards() || [];
     const g = CF.geom();
-    const a = slots().filter((s) => s.on);
+    /* LES CALQUES D'IMAGE SORTENT ICI AUSSI. Ce contrôle remet en page CHAQUE
+       carte pour rendre l'étendue des corps composés ; un calque d'image n'a
+       pas de corps, et il serait compté « vide » sur les 200 cartes — un
+       compteur de défauts inventés, exactement ce que cette section refuse. */
+    const a = slots().filter((s) => s.on && !isImage(s));
     if (!a.length) { SERIES = null; return; }
     const cv = document.createElement("canvas");
     cv.width = 8; cv.height = 8;
@@ -4204,8 +4730,15 @@
     syncOverlay();
   }
   function stageCanvas() { return document.querySelector(".stage-canvas"); }
+  /* LE PANNEAU EST-IL DEVANT ? Deux surfaces s'en servent, pour deux raisons :
+     le calque d'edition (qui exige EN PLUS que les cadres soient demandes) et
+     le collage d'image (qui n'a rien a voir avec les cadres — coller dans un
+     panneau qu'on ne voit pas serait le vrai defaut). */
+  function panelOn() {
+    return !!(PANEL && PANEL.classList.contains("on"));
+  }
   function visible() {
-    return !!(PANEL && PANEL.classList.contains("on") && CF.get("type.show_boxes", true));
+    return !!(panelOn() && CF.get("type.show_boxes", true));
   }
   function syncOverlay() {
     if (!OV) return;
@@ -4250,10 +4783,16 @@
          glisser refusé sans marque à l'endroit où la main appuie se lit comme
          une panne. La classe change le trait de la boîte et le curseur des
          poignées ; le glyphe le dit en toutes lettres dans l'étiquette. */
+      /* LE CALQUE D'EDITION NE PEINT AUCUN CONTENU — il ne pose que des
+         boîtes, des poignées et une étiquette : un calque d'image s'y montre
+         donc exactement comme un bloc de texte, et c'est voulu (on y déplace
+         une boîte, pas une image). Seule l'étiquette gagne le pictogramme de
+         nature, pour que deux boîtes superposées se distinguent au survol. */
       let h = '<div class="cf-type-hbox' + (s.id === sel ? " on" : "") + (bad ? " bad" : "")
         + (s.lock ? " lock" : "")
         + '" data-id="' + esc(s.id) + '" style="' + st + '">'
-        + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "") + esc(s.label) + why + '</span>';
+        + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "")
+        + (isImage(s) ? "&#128444; " : "") + esc(s.label) + why + '</span>';
       if (s.id === sel) {
         h += HANDLES.map((hd) => '<i class="cf-type-hh cf-type-h-' + hd[0] + '" data-h="' + hd[0] + '"></i>').join("");
       }

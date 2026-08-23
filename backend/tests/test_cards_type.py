@@ -175,13 +175,14 @@ def test_au_moins_dix_reglages_par_slot():
     assert len(cles) >= REGLAGES_MIN, sorted(cles)
     for k in REGLAGES_NOMMES:
         assert k in TY.SLOT_DEFAULTS, k
-    # 36 clés en tout, dont 31 réglages (`hyphen` est arrivé avec la césure,
+    # 39 clés en tout, dont 34 réglages (`hyphen` est arrivé avec la césure,
     # `just_max` et `last_pct` avec le plafond d'élasticité et la ligne creuse,
     # `read_pt` avec le plancher de lisibilité, `plate_color` / `plate_alpha`
-    # / `plate_radius` avec la plaque de fond de la phase 3a, et `lock` avec le
-    # verrou d'édition de la 3b)
-    assert len(TY.SLOT_DEFAULTS) == 36, sorted(TY.SLOT_DEFAULTS)
-    assert len(cles) == 31, sorted(cles)
+    # / `plate_radius` avec la plaque de fond de la phase 3a, `lock` avec le
+    # verrou d'édition de la 3b, et `kind` / `src` / `fit` avec le calque
+    # d'image de la 3b-T2)
+    assert len(TY.SLOT_DEFAULTS) == 39, sorted(TY.SLOT_DEFAULTS)
+    assert len(cles) == 34, sorted(cles)
 
 
 # ═══════════ 4. le titre de 44 caractères et l'encadré de 400+ ══════════════
@@ -584,37 +585,68 @@ def test_le_controle_de_serie_existe_et_rend_l_etendue_des_corps():
     assert "au corps mini" in src and "cf-type-series" in src
 
 
-def test_p3_n_ecrit_aucun_octet_d_image():
+def test_p3_ne_LIVRE_aucun_octet_d_image():
     """PRIORITÉ CLIENT « 300 DPI avec fond perdu et zone de sécurité ». Le
     chunk `pHYs` se pose sur le FICHIER LIVRÉ, et cette pièce n'en produit
-    aucun : elle ne sait que poser du texte sur la toile du CORE. Aucun
-    encodage d'image, aucun téléchargement, ni à l'écran ni au backend — le
-    vérifier ici évite qu'on l'y ajoute par mégarde et qu'un deuxième chemin
-    d'export échappe à l'estampille de P7."""
+    aucun : elle ne sait que poser du texte (et, depuis la 3b, l'image d'un
+    calque) sur la toile du CORE. Aucun chemin d'EXPORT, ni à l'écran ni au
+    backend — le vérifier ici évite qu'un deuxième chemin de livraison échappe
+    à l'estampille de P7.
+
+    CE QUE LA 3b-T2 A CHANGÉ, ET CE QUI N'A PAS BOUGÉ. La pièce RANGE
+    désormais des octets : une image importée par l'utilisateur, écrite dans le
+    dossier du deck et resservie telle quelle (`img_{n}.png`). C'est un ASSET
+    D'ENTRÉE, l'exact contraire d'une livraison — il ENTRE, il ne sort pas, et
+    il ne porte aucune estampille de fabrication. La ligne rouge est donc
+    déplacée là où elle veut dire quelque chose : **P3 n'ENCODE aucune image de
+    CARTE et n'en livre aucune**. Le seul encodage d'écran reste celui de la
+    mesure (`asFile`) plus celui de la réduction avant import ; aucun des deux
+    ne devient un fichier remis à l'utilisateur."""
     src = _js()
     # AUCUN CHEMIN DE LIVRAISON. Ce sont ces noms-là qui font sortir un octet
-    # du module : un lien de téléchargement, une URL d'objet, une image en
-    # base64, un téléversement. Aucun n'est ici.
+    # du module vers l'utilisateur : un lien de téléchargement, une URL
+    # d'objet, une image en base64. Aucun n'est ici.
     for interdit in ("toDataURL", "M.download", "CF.download", "createObjectURL",
                      "URL.createObjectURL", "image/jpeg", "<a download"):
-        assert interdit not in src, f"P3 fabrique un fichier image : {interdit}"
-    # UN SEUL ENCODAGE, ET C'EST UNE MESURE. Le contrôle photométrique et le
-    # contrôle de définition n'ont pas le droit de mesurer une TOILE : leurs
-    # chiffres doivent sortir d'octets PNG, sinon « relu sur le fichier » est
-    # un mot. L'encodage est donc autorisé — une fois, dans `asFile`, dont le
-    # blob ne va nulle part : il est décodé sur place et jeté.
-    assert src.count("toBlob") == 1, "un second chemin d'encodage est apparu"
-    assert src.count('"image/png"') == 1
+        assert interdit not in src, f"P3 livre un fichier image : {interdit}"
+    # DEUX ENCODAGES, ET AUCUN N'EST UNE LIVRAISON.
+    #   1. `asFile` : le contrôle photométrique et le contrôle de définition
+    #      n'ont pas le droit de mesurer une TOILE — leurs chiffres doivent
+    #      sortir d'octets PNG, sinon « relu sur le fichier » est un mot. Le
+    #      blob est décodé sur place et jeté.
+    #   2. `downscaleImg` : la réduction d'une image AVANT son envoi à la route
+    #      d'import. Le blob part au backend de la pièce, et nulle part ailleurs.
+    assert src.count("toBlob") == 2, "un troisième chemin d'encodage est apparu"
+    assert src.count('"image/png"') == 2
     i = src.index("async function asFile(cv)")
     j = src.index("async function runAudit()")
-    assert i < src.index("cv.toBlob(") < j, "le seul toBlob n'est plus dans asFile"
-    # le blob n'est jamais téléversé : aucun appel d'API ne le porte
+    assert i < src.index("cv.toBlob(", i) < j, "le toBlob de mesure n'est plus dans asFile"
+    k = src.index("function downscaleImg(")
+    assert k < src.index("cv.toBlob(", k) < src.index("\n  async function importImage("), \
+        "le toBlob de réduction a déménagé hors de downscaleImg"
+    # le blob de MESURE n'est jamais téléversé : le seul envoi d'octets est
+    # l'import de calque, et il est nommé.
     assert "M.api.post(\"layout\"" in src
-    for appel in ("M.api.post(\"png", "M.api.blob(", "body: blob", "FormData"):
+    for appel in ("M.api.post(\"png", "M.api.blob(", "FormData"):
         assert appel not in src, f"le blob de mesure part au backend : {appel}"
+    assert src.count("M.api.raw(") == 1, "un second envoi d'octets est apparu"
+    assert 'M.api.raw("POST", "image"' in src
     py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
-    for interdit in ("PIL", "Image.", "FileResponse", "StreamingResponse", "pHYs"):
+    # LE BACKEND NE FABRIQUE TOUJOURS RIEN : pas de rendu, pas d'estampille de
+    # définition, pas de flux. Il DÉCODE une image reçue pour la borner (PIL,
+    # importé dans la fonction, comme P6) et la réécrit en PNG — c'est du
+    # rangement, pas de la fabrication.
+    for interdit in ("StreamingResponse", "pHYs", "ImageDraw", "ImageFont"):
         assert interdit not in py, f"cards/type.py fabrique un fichier : {interdit}"
+    # `FileResponse` reste interdit — pas le MOT (la docstring de la route dit
+    # justement pourquoi on ne s'en sert pas), mais la CHOSE : ni import, ni
+    # appel. Il re-stat le fichier au moment de l'envoi, donc APRÈS le
+    # contrôle, ce qui y lève RuntimeError sur une suppression concurrente —
+    # un 500 sur une pièce qui n'en fait jamais (patron `get_node_file`, 2c).
+    assert "fastapi.responses" not in py
+    assert "FileResponse(" not in py
+    assert py.count("from PIL import Image") == 1, \
+        "le décodage d'image s'est répandu dans le module"
 
 
 def test_la_feuille_de_style_ne_deborde_pas_de_la_piece():
@@ -1298,7 +1330,11 @@ def test_le_pied_de_l_inspecteur_donne_le_corps_COMPOSE_pas_le_corps_DEMANDE():
     src = _js()
     assert "function inspMeasInner(s)" in src and "function syncInspMeas()" in src
     assert '<div class="cf-type-meas">' in src
-    assert "host.innerHTML = inspMeasInner(s);" in src
+    # LE MÊME CONTENEUR PORTE DEUX RELEVÉS depuis la 3b-T2 (le panneau d'un
+    # calque d'image réutilise la section « Boîte ») : la réécriture suit donc
+    # la nature du bloc. Y remettre le relevé typographique d'office écraserait
+    # « image 200 x 100 px » à la première mise en page.
+    assert "host.innerHTML = isImage(s) ? imgMeasInner(s) : inspMeasInner(s);" in src
     # appelé par le relevé, entre la liste et le reste
     assert "renderList(); syncInspMeas(); renderProof();" in src
     # et l'état « pas encore composé » est nommé
@@ -2833,7 +2869,7 @@ def test_un_seul_bouton_applique_la_sortie_qui_suffit():
     assert ".cf-type-fixgo {" in CSS.read_text(encoding="utf-8")
 
 
-def test_les_reglages_du_domaine_passent_devant_les_replis():
+def test_les_reglages_du_domaine_passent_devant_les_replis(tmp_path):
     """MANQUE NOMMÉ PAR LES DEUX CRITIQUES : « aucun contrôle de casse,
     d'alignement horizontal ou vertical, de contour ni d'ombre portée
     n'apparaît sur le panneau de réglages ». Ils existaient tous — sous six
@@ -2841,30 +2877,33 @@ def test_les_reglages_du_domaine_passent_devant_les_replis():
     part pour qui ouvre le panneau.
 
     Aucun réglage n'a été retiré : ils ont changé de rang. Ce que touche un
-    typographe passe devant, ce qu'on règle une fois passe derrière."""
-    src = _js()
-    i = src.index("function renderInsp()")
-    corps = src[i:src.index("function openFontPicker")]
-    ordre = [corps.index('segf("Alignement"'), corps.index('segf("Vertical"'),
-             corps.index('segf("Casse"'), corps.index("<summary>Contour, ombre, arc</summary>"),
+    typographe passe devant, ce qu'on règle une fois passe derrière.
+
+    LU SUR LE PANNEAU RENDU, plus sur l'ordre des lignes du fichier (3b-T2) :
+    depuis que la plaque et la boîte sont partagées avec le calque d'image,
+    leur code vit AVANT `renderInsp` alors qu'elles s'affichent APRÈS. L'ordre
+    du fichier ne disait donc plus l'ordre de l'écran — et c'est l'ordre de
+    l'écran que ce test défend."""
+    corps = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False),
+                                              "sel": "titre"}})["insp"]
+    ordre = [corps.index(">Alignement<"), corps.index(">Vertical<"),
+             corps.index(">Casse<"), corps.index("<summary>Contour, ombre, arc</summary>"),
              corps.index("<summary>Opacité, justification</summary>"),
              corps.index("<summary>Boîte")]
     assert ordre == sorted(ordre), "l'ordre de l'inspecteur a changé"
     # les six réglages nommés sont AVANT le groupe replié, et le groupe
     # contour/ombre/arc est ouvert par défaut
-    assert corps.index('segf("Casse"') < corps.index("<summary>Opacité, justification</summary>")
+    assert corps.index(">Casse<") < corps.index("<summary>Opacité, justification</summary>")
     assert '<details class="grp cf-type-grp" open><summary>Contour, ombre, arc</summary>' in corps
     # et rien n'a disparu : les onze réglages nommés par la spec sont là — la
     # police par son bouton d'aperçu, les autres par leur champ ou leur segment
-    assert 'class="btn cf-type-font"' in corps and "esc(familyOf(s.font))" in corps
+    assert 'class="btn cf-type-font"' in corps
+    assert "font-family:'CFT" in corps, "le nom n'est plus écrit dans sa fonte"
     assert 'class="cf-type-col"' in corps, "le sélecteur de couleur a disparu"
     for k in REGLAGES_NOMMES:
         if k in ("font", "color"):     # bouton d'aperçu · sélecteur de couleur
             continue
-        expose = ('nfield("' + k + '"' in corps            # champ numérique
-                  or ', "' + k + '", [' in corps           # segment (align…)
-                  or 'data-k="' + k + '"' in corps)        # bascule
-        assert expose, k
+        assert 'data-k="' + k + '"' in corps, k
 
 
 # ════════ 9. LA PLAQUE DE FOND D'UN SLOT — JUGÉE SUR DES PIXELS ════════════
@@ -2906,8 +2945,10 @@ function hexOf(s) {
 function makeCtx(w, h) {
   const buf = new Uint8ClampedArray(w * h * 4);
   const texts = [];
+  const labels = [];
+  const draws = [];
   let S = { alpha: 1, fill: "#000000", stroke: "#000000", size: 10, font: "",
-    m: [1, 0, 0, 1, 0, 0] };
+    m: [1, 0, 0, 1, 0, 0], clip: null };
   const stack = [];
   const mul = (a, b) => [
     a[0] * b[0] + a[2] * b[1], a[1] * b[0] + a[3] * b[1],
@@ -2930,7 +2971,7 @@ function makeCtx(w, h) {
   /* un rectangle (eventuellement arrondi) EXPRIME EN COORDONNEES LOCALES,
      rasterise a travers la transformation courante : chaque pixel de la boite
      englobante est ramene en local par la transformation inverse. */
-  function fillLocal(rect, r, col, alpha) {
+  function fillLocal(rect, r, col, alpha, out) {
     const c = hexOf(col);
     if (!c) return null;
     const a = Math.max(0, Math.min(1, alpha * c[3]));
@@ -2944,11 +2985,28 @@ function makeCtx(w, h) {
     const x1 = Math.min(w, Math.ceil(Math.max.apply(null, xs)));
     const y1 = Math.min(h, Math.ceil(Math.max.apply(null, ys)));
     const iv = invOf(S.m);
+    /* LA FENETRE DE DECOUPE, s'il y en a une : un `clip()` pose un rectangle
+       EN COORDONNEES LOCALES du moment ou il a ete appele — on le retraverse
+       donc par SA propre transformation, pas par celle d'aujourd'hui. C'est ce
+       qui permet de mesurer que « cover » ne deborde pas de la boite. */
+    const cl = S.clip ? { r: S.clip.r, iv: invOf(S.clip.m) } : null;
     for (let py = y0; py < y1; py++) {
       for (let px = x0; px < x1; px++) {
         const lx = iv[0] * (px + 0.5) + iv[2] * (py + 0.5) + iv[4];
         const ly = iv[1] * (px + 0.5) + iv[3] * (py + 0.5) + iv[5];
         if (!inRR(rect, r, lx, ly)) continue;
+        if (cl) {
+          const gx = cl.iv[0] * (px + 0.5) + cl.iv[2] * (py + 0.5) + cl.iv[4];
+          const gy = cl.iv[1] * (px + 0.5) + cl.iv[3] * (py + 0.5) + cl.iv[5];
+          if (gx < cl.r[0] || gy < cl.r[1] || gx >= cl.r[0] + cl.r[2]
+            || gy >= cl.r[1] + cl.r[3]) continue;
+        }
+        /* le pave REELLEMENT peint, pixel par pixel : c'est lui, et non le
+           rectangle demande, qui dit si la decoupe a mordu. */
+        if (out) {
+          if (px < out.x0) out.x0 = px; if (px > out.x1) out.x1 = px;
+          if (py < out.y0) out.y0 = py; if (py > out.y1) out.y1 = py;
+        }
         const i = (py * w + px) << 2;
         const da = buf[i + 3] / 255;
         const na = a + da * (1 - a);
@@ -2980,6 +3038,21 @@ function makeCtx(w, h) {
       if (!c._path) return;
       fillLocal(c._path.r, c._path.k, S.fill, S.alpha);
     },
+    /* le damier de l'image absente peint des rectangles NUS, sans chemin. */
+    fillRect(x, y, ww, hh) { fillLocal([x, y, ww, hh], 0, S.fill, S.alpha); },
+    /* la fenetre de decoupe : le chemin courant, GARDE avec la transformation
+       qui l'a trace (c'est ainsi qu'une toile la retient). */
+    clip() { if (c._path) S.clip = { r: c._path.r.slice(), m: S.m.slice() }; },
+    /* L'IMAGE DE PAILLE EST UN APLAT. Ce que ce banc doit trancher n'est pas
+       le dessin d'une illustration mais SA BOITE DE DESTINATION et les pixels
+       qu'elle couvre vraiment — donc le `fit`, la decoupe, l'ordre avec la
+       plaque et l'opacite. On note l'appel ET le pave peint. */
+    drawImage(im, dx, dy, dw, dh) {
+      const out = { x0: 1e9, y0: 1e9, x1: -1, y1: -1 };
+      fillLocal([dx, dy, dw, dh], 0, (im && im._hex) || "#20c0ff", S.alpha, out);
+      draws.push({ dest: [dx, dy, dw, dh], alpha: S.alpha,
+        peint: out.x1 < 0 ? null : [out.x0, out.y0, out.x1 - out.x0 + 1, out.y1 - out.y0 + 1] });
+    },
     measureText(s) {
       let ww = 0;
       for (const ch of String(s)) ww += wOf(ch) * S.size;
@@ -2993,6 +3066,7 @@ function makeCtx(w, h) {
       if (!(ww > 0)) return;
       const r = fillLocal([x, y - S.size * 0.72, ww, S.size * 0.93], 0, S.fill, S.alpha);
       if (r) texts.push(r);
+      labels.push(String(t));
     },
     /* le contour est peint AVANT le remplissage par `drawSlot`, au meme
        endroit : le peindre ici doublerait le pave sans rien apprendre. */
@@ -3007,7 +3081,7 @@ function makeCtx(w, h) {
   ["lineWidth", "lineJoin", "miterLimit", "textAlign", "textBaseline",
     "shadowColor", "shadowBlur", "shadowOffsetX", "shadowOffsetY",
     "globalCompositeOperation"].forEach((k) => { c[k] = null; });
-  c._buf = buf; c._texts = texts;
+  c._buf = buf; c._texts = texts; c._labels = labels; c._draws = draws;
   c._at = (x, y) => {
     const i = ((y | 0) * w + (x | 0)) << 2;
     return [buf[i], buf[i + 1], buf[i + 2], buf[i + 3]];
@@ -3031,11 +3105,34 @@ function geom(fmt_mm, dpi, bleed_mm, safe_mm) {
 const G = geom([63, 88], 300, 3, 3);
 const DOC = { type: { optical_mm: 0.5 } };
 let MOD = null;
+/* ── LES IMAGES DE DECK, SERVIES PAR LE BANC ──────────────────────────────
+   `OPT.images = {"img_1.png": [w, h, "#hex"]}`. Un nom ABSENT de cette table
+   se comporte comme un 404 : c'est ainsi qu'on eprouve l'etat « image
+   absente » sans inventer un drapeau que le module ne connaitrait pas. */
+class ImageStub {
+  constructor() { this._src = ""; this.decoding = ""; }
+  set src(v) {
+    this._src = String(v);
+    const m = /(img_\d+\.png)/.exec(this._src);
+    const spec = (OPT.images || {})[m ? m[1] : ""] || null;
+    setTimeout(() => {
+      if (!spec) { if (this.onerror) this.onerror(new Error("404")); return; }
+      this.naturalWidth = spec[0]; this.naturalHeight = spec[1];
+      this.width = spec[0]; this.height = spec[1];
+      this._hex = spec[2] || "#20c0ff";
+      if (this.onload) this.onload();
+    }, 0);
+  }
+  get src() { return this._src; }
+}
+globalThis.Image = ImageStub;
+const urls = [];
 const CF = {
   register(cfg) {
     MOD = cfg;
     return { patch: (p) => Object.assign(DOC.type, p),
-      api: { get: async () => ({}), post: async () => ({}) },
+      api: { get: async () => ({}), post: async () => ({}),
+        url: (sub) => { urls.push(String(sub)); return "/api/cards/deck_00000000/type/" + sub; } },
       emit() { }, slot() { }, aside() { }, invalidate() { }, toast() { }, busy() { }, on() { } };
   },
   get(path, def) {
@@ -3067,6 +3164,9 @@ const BASE = { id: "rules", label: "Encadre", on: true, side: "front",
   shadow_dy: 0, rotate: 0, arc: 0, autofit: true, wrap: true, opacity: 100,
   just_max: 133, last_pct: 25, plate_color: null, plate_alpha: 1,
   plate_radius: 0, text: "" };
+/* `kind`, `src` et `fit` ne sont PAS dans BASE : un document d'AVANT la 3b ne
+   les porte pas, et c'est ce cas-la que la non-regression doit voir. Un slot
+   d'image les nomme explicitement dans OPT.slots. */
 
 const slots = (OPT.slots || [{}]).map((s) => {
   const o = Object.assign({}, BASE, s);
@@ -3075,7 +3175,12 @@ const slots = (OPT.slots || [{}]).map((s) => {
 });
 const ctx = makeCtx(G.canvas_px[0], G.canvas_px[1]);
 const painter = MOD.painters.filter((p) => p.z === 60)[0];
-await painter.fn(ctx, G, { type: { slots: slots } }, { fields: {} }, "front");
+/* `OPT.passes` : rejouer le painter sur le MEME contexte, comme le CORE le
+   fait a chaque frame. C'est ainsi qu'on mesure ce qu'un cache evite. */
+for (let pass = 0; pass < Math.max(1, OPT.passes || 1); pass++) {
+  await painter.fn(ctx, G, { type: { slots: slots } }, { fields: {} }, "front");
+  await new Promise((r) => setTimeout(r, 60));
+}
 await new Promise((r) => setTimeout(r, 200));
 
 /* FNV-1a sur tout le tampon : deux rendus identiques au bit pres rendent la
@@ -3120,6 +3225,13 @@ const rows = slots.map((s) => {
 });
 process.stdout.write(JSON.stringify({
   hash: hs.toString(16), n_textes: ctx._texts.length, slots: rows, exceptions: boom,
+  /* les APPELS D'IMAGE : boite de destination demandee, opacite en vigueur, et
+     le pave REELLEMENT peint (qui dit si la decoupe a mordu). */
+  draws: ctx._draws, labels: ctx._labels, urls: urls,
+  /* le RELEVE du painter, ouvert par mutation (patron `__solo`) : c'est lui
+     qui alimente les passes d'encre, donc c'est lui qui doit ignorer les
+     calques d'image. */
+  meas: globalThis.__meas ? Object.keys(globalThis.__meas()) : null,
 }));
 """
 
@@ -3172,8 +3284,9 @@ def test_les_trois_reglages_de_plaque_sont_dans_les_deux_tables():
     assert TY.SLOT_DEFAULTS["plate_color"] is None
     assert TY.SLOT_DEFAULTS["plate_alpha"] == 1.0
     assert TY.SLOT_DEFAULTS["plate_radius"] == 0.0
-    # et le compte total suit (les deux tables sont comparées ailleurs)
-    assert len(js) == 36, sorted(js)
+    # et le compte total suit (les deux tables sont comparées ailleurs) — 36 à
+    # l'arrivée du verrou, 39 depuis le calque d'image de la 3b-T2.
+    assert len(js) == 39, sorted(js)
 
 
 def test_la_plaque_est_bornee_des_deux_cotes():
@@ -3319,31 +3432,42 @@ def test_les_quatre_gabarits_rendent_a_l_octet_pres_comme_avant(tmp_path):
 #  trois littéraux recopiés — que le test épingle.)
 
 
-def test_le_panneau_offre_les_trois_reglages_de_plaque():
+def test_le_panneau_offre_les_trois_reglages_de_plaque(tmp_path):
     """« Un réglage qui n'a pas de commande n'existe pas pour l'utilisateur. »
     Les trois vivent dans l'inspecteur de slot, avec les patrons voisins : un
     `input[type=color]` comme la couleur du contour, deux champs numériques
-    comme l'opacité — et ils sont câblés sur `patchSlot`."""
-    src = JS.read_text(encoding="utf-8")
-    i = src.index("function renderInsp()")
-    corps = src[i:src.index("function openFontPicker")]
+    comme l'opacité — et ils sont câblés sur `patchSlot`.
+
+    LU SUR LE PANNEAU RENDU depuis la 3b-T2 : le bloc est partagé avec le
+    calque d'image (`inspPlaque`), donc son code ne vit plus dans le corps de
+    `renderInsp`. Ce que ce test défend n'a pas changé — ce sont les trois
+    commandes et leur rang à l'écran."""
+    corps = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False),
+                                              "sel": "titre"}})["insp"]
     assert "<summary>Plaque de fond</summary>" in corps
     assert 'class="cf-type-pcol"' in corps
-    assert 'nfield("plate_alpha"' in corps
-    assert 'nfield("plate_radius"' in corps
-    # câblés : la couleur par son écouteur dédié, les nombres par la boucle
-    # générique `input[type="number"][data-k]` déjà en place.
-    assert '.cf-type-pcol").addEventListener("input"' in corps
-    assert "{ plate_color: e.target.value }" in corps
+    assert 'data-k="plate_alpha"' in corps
+    assert 'data-k="plate_radius"' in corps
     # ... et le bouton qui RETIRE la plaque, sans quoi une couleur posée par
     # erreur ne se reprend plus (un `input[type=color]` ne sait pas dire null).
     assert 'class="btn sm cf-type-pnone"' in corps
-    assert "{ plate_color: null }" in corps
     # l'ordre de l'inspecteur n'a pas bougé : la plaque s'insère AVANT le
     # groupe contour/ombre/arc, qui reste devant opacité/justification.
     assert (corps.index("<summary>Plaque de fond</summary>")
             < corps.index("<summary>Contour, ombre, arc</summary>")
             < corps.index("<summary>Opacité, justification</summary>"))
+    # câblés : la couleur par son écouteur dédié, les nombres par la boucle
+    # générique `input[type="number"][data-k]`. Le branchement est commun aux
+    # deux natures de bloc depuis la 3b-T2, donc il est lu dans `wireInspCommun`
+    # — et le fait qu'il soit COMMUN est ce qui empêche le panneau d'image de
+    # perdre la plaque en silence.
+    src = _js()
+    i = src.index("function wireInspCommun(")
+    fil = src[i:src.index("\n  function ", i + 10)]
+    assert '.cf-type-pcol").addEventListener("input"' in fil
+    assert "{ plate_color: e.target.value }" in fil
+    assert "{ plate_color: null }" in fil
+    assert 'input[type="number"][data-k]' in fil
 
 
 # ════════ 10. LE VERROU, LE PAS DE LA SPEC, LA PASSE D'ENCRE PARTAGÉE ═══════
@@ -3567,6 +3691,11 @@ if (OPT.solo && globalThis.__solo) {
 process.stdout.write(JSON.stringify({
   slots: DOC.type.slots, sel: DOC.type.sel, traces: traces,
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
+  /* LE PANNEAU DE BLOC : c'est lui qui bascule ses sections selon le `kind`.
+     Le meme cache de selecteurs qui rend la liste le rend, sans un mot de
+     plus au module. */
+  insp: HOSTE.querySelector(".cf-type-insp")._h,
+  panneau: HOSTE._h,
   solo: solo, exceptions: boom,
 }));
 """
@@ -3624,7 +3753,10 @@ def test_le_verrou_est_la_36e_cle_des_deux_cotes():
     assert "lock" in TY.SLOT_DEFAULTS and "lock" in js
     assert TY.SLOT_DEFAULTS["lock"] is False and js["lock"] is False
     assert js == TY.SLOT_DEFAULTS
-    assert len(js) == len(TY.SLOT_DEFAULTS) == 36, sorted(js)
+    # `lock` est la 36e clé PAR SON ARRIVÉE ; le total, lui, a bougé depuis (39
+    # depuis le calque d'image de la tâche 2). Ce qui compte ici et ne bouge
+    # pas : les deux tables sont la MÊME, à la clé près.
+    assert len(js) == len(TY.SLOT_DEFAULTS) == 39, sorted(js)
     # normalisé des deux côtés, et sans surprise : tout ce qui n'est pas
     # explicitement vrai est faux (un document d'avant n'a pas la clé).
     assert TY.norm_slot({})["lock"] is False
@@ -4019,6 +4151,777 @@ def test_le_module_passe_le_lint_ELARGI():
     errs = [f for f in findings if not f["warn"]]
     assert not errs, "\n".join(f"{f['rule']} {f['file']}:{f['line']} {f['msg']}"
                                for f in errs)
+
+
+# ══════════════ 11. LE CALQUE D'IMAGE (phase 3b, tâche 2) ═══════════════════
+# Un calque d'image est un SLOT P3 d'une autre nature (`kind: "image"`), pas un
+# objet neuf : il hérite gratuitement de l'ordre de peinture, de l'œil, du
+# verrou, du calque d'édition, de HIST et de la fluidité. Ce que cette section
+# verrouille :
+#
+#   · le VOCABULAIRE — trois clés, mêmes bornes des deux côtés, défauts
+#     INERTES (les quatre gabarits livrés ne bougent pas d'un octet) ;
+#   · le STOCKAGE — serveur, dans le dossier du deck, numéroté par un COMPTEUR
+#     qui n'écrase jamais et ne recycle pas un numéro libéré ; borné en nombre,
+#     en poids et en côté ; servi par un GET dont le nom passe une liste
+#     blanche AVANT que le disque soit touché ;
+#   · le DESSIN — la plaque dessous, l'image dans sa boîte selon `fit`,
+#     l'opacité, et ZÉRO passe de glyphe ;
+#   · les EXCLUSIONS — un calque d'image n'entre ni dans le relevé du painter
+#     (donc dans aucune des trois passes d'encre), ni dans le juge de
+#     lisibilité du backend. Il n'a pas de texte : il n'y a rien à mesurer, et
+#     mesurer zéro aurait rempli le relevé de lignes « vides » mensongères.
+
+IMG_MAX_ATTENDU = 12          # images de calque par deck
+IMPORT_PX_ATTENDU = 4096      # côté long au-delà duquel un import est réduit
+MOD_FACE_JS = REPO / "frontend" / "cardforge" / "js" / "mod-face.js"
+
+
+def _png_bytes(w: int, h: int, couleur=(200, 40, 90)) -> bytes:
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (int(w), int(h)), couleur).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def _post_img(did: str, data: bytes):
+    return _api("POST", f"/api/cards/{did}/type/image", content=data,
+                headers={"Content-Type": "application/octet-stream"})
+
+
+def _type_dir(did: str) -> pathlib.Path:
+    return CT.deck_dir(did) / "type"
+
+
+# ── 11.1 le vocabulaire ─────────────────────────────────────────────────────
+
+def test_les_trois_cles_du_calque_d_image_sont_dans_les_deux_tables():
+    """39 clés par slot. Le bloc JS est du JSON littéral et l'égalité avec le
+    dictionnaire Python est STRICTE : trois clés ajoutées d'un seul côté font
+    rougir la suite. Celui-ci nomme ce qu'elles valent, et que le défaut est
+    INERTE — un slot d'avant la 3b reste un slot de texte sans image."""
+    js = json.loads(_bloc_js("DEFAULTS"))
+    for k in ("kind", "src", "fit"):
+        assert k in TY.SLOT_DEFAULTS, k
+        assert k in js, k
+        assert js[k] == TY.SLOT_DEFAULTS[k], k
+    assert TY.SLOT_DEFAULTS["kind"] == "text"
+    assert TY.SLOT_DEFAULTS["src"] == ""
+    assert TY.SLOT_DEFAULTS["fit"] == "contain"
+    assert len(js) == 39, sorted(js)
+    assert js == TY.SLOT_DEFAULTS
+
+
+def test_le_kind_et_le_fit_sont_sur_liste_blanche_des_deux_cotes():
+    """Deux énumérations, pas deux chaînes libres. Une valeur inconnue retombe
+    sur le défaut — jamais un `kind` inventé qui ferait sauter le painter dans
+    une branche qui n'existe pas."""
+    assert TY.KINDS == ("text", "image")
+    assert TY.FITS == ("contain", "cover")
+    assert TY.norm_slot({"kind": "image"})["kind"] == "image"
+    assert TY.norm_slot({"kind": "video"})["kind"] == "text"
+    assert TY.norm_slot({"kind": None})["kind"] == "text"
+    assert TY.norm_slot({"kind": 7})["kind"] == "text"
+    assert TY.norm_slot({"fit": "cover"})["fit"] == "cover"
+    assert TY.norm_slot({"fit": "fill"})["fit"] == "contain"
+    assert TY.norm_slot({})["fit"] == "contain"
+    # tolérance de saisie IDENTIQUE des deux côtés : rognée, mise en bas de
+    # casse, puis comparée. Deux lectures différentes de la même chaîne
+    # feraient rendre un document autrement à l'écran qu'au contrôle.
+    assert TY.norm_slot({"kind": " IMAGE "})["kind"] == "image"
+    assert TY.norm_slot({"fit": "COVER"})["fit"] == "cover"
+    src = _js()
+    assert 'const KINDS = ["text", "image"];' in src
+    assert 'const FITS = ["contain", "cover"];' in src
+    assert "s.kind = pick(r.kind, KINDS, SLOT_DEFAULTS.kind);" in src
+    assert "s.fit = pick(r.fit, FITS, SLOT_DEFAULTS.fit);" in src
+    # `pick` EST le miroir de `_choice` : même rognage, même bas de casse.
+    assert "const pick = (v, list, d) => {" in src
+    assert 'String(v == null ? "" : v).trim().toLowerCase()' in src
+
+
+SRC_REFUSES = (
+    "img:../../meta.json", "img:../img_1.png", "img:img_1.png/../x",
+    "/etc/passwd", "img:img_1.PNG", "img:img_.png", "img_1.png",
+    "img:paper.png", "http://ailleurs/x.png", "img:img_1.png ", "local:abc",
+    "img:img_1.png\nimg:img_2.png", "img:img_1.pngX", "img:", "img:img_01.png/",
+)
+
+
+def test_la_source_d_une_image_ne_peut_nommer_QUE_un_fichier_du_deck():
+    """`src` n'est pas un chemin : c'est un NOM que la route d'import a
+    fabriqué elle-même (`img_{n}.png`). Le motif est donc exact des deux côtés,
+    et tout le reste vaut « pas d'image » — pas une erreur, pas un chemin
+    raboté en silence."""
+    assert TY.norm_slot({"src": "img:img_7.png"})["src"] == "img:img_7.png"
+    assert TY.norm_slot({"src": "img:img_12.png"})["src"] == "img:img_12.png"
+    assert TY.norm_slot({"src": ""})["src"] == ""
+    assert TY.norm_slot({})["src"] == ""
+    assert TY.norm_slot({"src": None})["src"] == ""
+    assert TY.norm_slot({"src": 42})["src"] == ""
+    for mauvais in SRC_REFUSES:
+        assert TY.norm_slot({"src": mauvais})["src"] == "", mauvais
+    # L'ÉCRAN BORNE À LA MÊME RÈGLE, écrite au même motif.
+    assert TY.SLOT_SRC_RE.pattern == r"^(|img:img_\d+\.png)$"
+    assert r"/^(|img:img_\d+\.png)$/" in _js()
+    # ... et un corps mal formé traverse la route sans 500
+    did = _did()
+    r = _api("POST", f"/api/cards/{did}/type/layout",
+             json={"slots": [{"id": "a", "kind": ["image"], "src": {"x": 1},
+                              "fit": 3}]})
+    assert r.status_code == 200, r.text
+    row = r.json()["slots"][0]
+    assert row["kind"] == "text"
+
+
+# ── 11.2 le stockage : compteur, plafonds, liste blanche ────────────────────
+
+def test_la_route_d_import_ecrit_un_fichier_numerote_sans_jamais_ecraser():
+    """L'import répond par le NOM qu'il a écrit et par le `src` tout fait : le
+    client n'a pas à recomposer la chaîne (il l'aurait mal recomposée un jour).
+    Le second import ne touche pas au premier — pas d'écrasement, jamais."""
+    from PIL import Image
+    did = _did()
+    r = _post_img(did, _png_bytes(8, 5))
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["file"] == "img_1.png"
+    assert d["src"] == "img:img_1.png"
+    assert d["px"] == [8, 5]
+    r2 = _post_img(did, _png_bytes(9, 4))
+    assert r2.status_code == 200, r2.text
+    assert r2.json()["file"] == "img_2.png"
+    assert r2.json()["src"] == "img:img_2.png"
+    dd = _type_dir(did)
+    assert sorted(p.name for p in dd.glob("img_*.png")) == ["img_1.png", "img_2.png"]
+    # LE PREMIER FICHIER EST INTACT : c'est ce que « compteur » veut dire.
+    with Image.open(dd / "img_1.png") as im:
+        assert im.size == (8, 5)
+    with Image.open(dd / "img_2.png") as im:
+        assert im.size == (9, 4)
+    # aucun résidu temporaire n'est resté sur le disque
+    assert not list(dd.glob("*.tmp")), sorted(p.name for p in dd.iterdir())
+    # et le `src` rendu est ACCEPTÉ par la normalisation (les deux se parlent)
+    assert TY.norm_slot({"src": d["src"]})["src"] == d["src"]
+
+
+def test_le_compteur_est_LA_PROTECTION_contre_l_ecrasement(monkeypatch):
+    """MUTATION. Le test ci-dessus prouve qu'aucun fichier n'est écrasé ; il ne
+    prouverait rien si le compteur n'était pas ce qui l'empêche. On casse donc
+    le compteur — il rend toujours 1, ce que ferait un « premier nom libre »
+    mal écrit — et on vérifie que l'écrasement A LIEU. Sans cette contre-
+    épreuve, un import qui écrirait un nom au hasard passerait aussi."""
+    from PIL import Image
+    did = _did()
+    assert _post_img(did, _png_bytes(8, 5)).status_code == 200
+    monkeypatch.setattr(TY, "_next_img_index", lambda d: (1, 0))
+    r = _post_img(did, _png_bytes(64, 20))
+    assert r.status_code == 200, r.text
+    assert r.json()["file"] == "img_1.png"
+    with Image.open(_type_dir(did) / "img_1.png") as im:
+        assert im.size == (64, 20), \
+            "le compteur cassé n'écrase pas : le test d'écrasement ne prouve rien"
+
+
+def test_le_compteur_ne_recycle_pas_un_numero_libere():
+    """Le compteur vaut MAX + 1, pas « le premier trou ». Un slot supprimé peut
+    être annulé (Ctrl+Z) : son image doit rester joignable, et un import qui
+    reprendrait le numéro libéré ferait réapparaître le bloc annulé avec une
+    AUTRE image. Les trous sont donc gardés."""
+    did = _did()
+    for _ in range(3):
+        assert _post_img(did, _png_bytes(4, 4)).status_code == 200
+    (_type_dir(did) / "img_1.png").unlink()
+    r = _post_img(did, _png_bytes(6, 6))
+    assert r.status_code == 200, r.text
+    assert r.json()["file"] == "img_4.png", "le compteur a recyclé un numéro"
+    assert sorted(p.name for p in _type_dir(did).glob("img_*.png")) == \
+        ["img_2.png", "img_3.png", "img_4.png"]
+
+
+def test_la_treizieme_image_est_refusee_AVEC_un_mot():
+    """Un plafond nommé, qui COMPTE CE QUI EXISTE (pas ce qui a été importé
+    dans cette session). Le refus dit le chiffre et ce qu'il faut faire."""
+    assert TY.SLOT_IMAGES_MAX == IMG_MAX_ATTENDU
+    did = _did()
+    for i in range(TY.SLOT_IMAGES_MAX):
+        assert _post_img(did, _png_bytes(4, 4)).status_code == 200, i
+    r = _post_img(did, _png_bytes(4, 4))
+    assert r.status_code == 409, r.text
+    detail = r.json()["detail"]
+    assert "12" in detail and "image" in detail.lower(), detail
+    # le refus n'a rien écrit
+    assert len(list(_type_dir(did).glob("img_*.png"))) == IMG_MAX_ATTENDU
+
+
+def test_un_import_qui_n_est_pas_une_image_ne_fait_jamais_500():
+    """Doctrine de la pièce (spec §2.5) : jamais de 500, et un refus NOMMÉ."""
+    did = _did()
+    r = _post_img(did, b"ceci n'est pas une image")
+    assert r.status_code == 400, r.text
+    assert "image" in r.json()["detail"].lower()
+    r = _post_img(did, b"")
+    assert r.status_code == 400
+    assert "vide" in r.json()["detail"].lower()
+    # un PNG tronqué : illisible, donc refusé de la même main
+    r = _post_img(did, _png_bytes(8, 8)[:40])
+    assert r.status_code == 400, r.text
+    # identifiant de deck illégal / deck absent
+    assert _post_img("pas_un_deck", _png_bytes(4, 4)).status_code == 400
+    assert _post_img("deck_deadbeef", _png_bytes(4, 4)).status_code == 404
+    # rien n'a été écrit
+    assert not list(_type_dir(did).glob("img_*.png"))
+
+
+def test_le_poids_du_corps_est_borne_AVANT_le_decodage():
+    """64 Mo, comme la matière de P6 : le corps est pesé AVANT d'être confié à
+    la bibliothèque d'images — c'est le seul ordre qui protège la mémoire."""
+    assert TY.IMG_MAX_BYTES == 64 * 1024 * 1024
+    py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    i = py.index("async def post_slot_image")
+    corps = py[i:py.index("\n@router", i)]
+    assert corps.index("IMG_MAX_BYTES") < corps.index("_store_slot_image"), \
+        "le corps est décodé avant d'être pesé"
+    assert "413" in corps, "le refus de poids n'est pas nommé par son code"
+
+
+NOMS_REFUSES = ("job.json", "paper.png", "img_1.PNG", "img_.png",
+                "img_1.png.bak", "IMG_1.PNG", "img_1", "img_1.png%00.txt",
+                "..", "img_1.jpg", "%2e%2e%2fmeta.json", "img_1.png%0a",
+                "img_1.png%20")
+
+
+def test_la_route_qui_sert_une_image_filtre_le_NOM_avant_le_disque():
+    """LISTE BLANCHE D'ABORD, DISQUE ENSUITE — l'ordre est le fond de l'affaire
+    (patron `get_node_file`, 2c). Un motif appliqué APRÈS avoir composé un
+    chemin a déjà laissé le chemin exister."""
+    did = _did()
+    assert _post_img(did, _png_bytes(8, 5)).status_code == 200
+    for nom in NOMS_REFUSES:
+        r = _api("GET", f"/api/cards/{did}/type/image/{nom}")
+        assert r.status_code in (400, 404), (nom, r.status_code)
+        assert "image/png" not in r.headers.get("content-type", ""), nom
+    # L'ORDRE, ÉPINGLÉ SUR LA SOURCE : le motif est vérifié avant que le nom
+    # touche un dossier.
+    py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    i = py.index("async def get_slot_image")
+    corps = py[i:py.index("\n@router", i) if "\n@router" in py[i:] else len(py)]
+    assert "IMG_NAME_RE" in corps
+    assert corps.index("IMG_NAME_RE") < corps.index("_read_slot_image"), \
+        "le nom est filtré APRÈS que le chemin a été composé"
+    # et le SEUL endroit qui compose un chemin avec ce nom est le lecteur, en
+    # aval du filtre : la route elle-même ne touche pas au disque.
+    assert "type_dir(" not in corps
+
+
+def test_le_disque_N_EST_PAS_TOUCHE_par_un_nom_refuse(monkeypatch):
+    """L'ORDRE, MESURÉ ET PAS SEULEMENT RELU. On remplace le lecteur de disque
+    par un mouchard : sur les noms refusés, il ne doit JAMAIS être appelé. Un
+    filtre posé après la composition du chemin ferait rougir cette ligne — et
+    c'est la seule façon de le montrer sans lire le fichier source."""
+    did = _did()
+    assert _post_img(did, _png_bytes(8, 5)).status_code == 200
+    vus = []
+    vrai = TY._read_slot_image
+    monkeypatch.setattr(TY, "_read_slot_image",
+                        lambda d, n: (vus.append(n), vrai(d, n))[1])
+    for nom in NOMS_REFUSES:
+        _api("GET", f"/api/cards/{did}/type/image/{nom}")
+    assert vus == [], f"un nom refusé a atteint le disque : {vus}"
+    # ... et le mouchard n'est pas inerte : un nom LÉGAL, lui, y arrive.
+    r = _api("GET", f"/api/cards/{did}/type/image/img_1.png")
+    assert r.status_code == 200 and vus == ["img_1.png"], vus
+
+
+def test_l_image_servie_est_octet_pour_octet_celle_qui_est_sur_le_disque():
+    """Et son cache est PERMIS : un `img_{n}.png` ne change jamais de contenu
+    (le compteur n'écrase pas), donc `no-store` ne protégerait de rien et
+    coûterait un aller-retour à chaque frame de l'aperçu."""
+    did = _did()
+    assert _post_img(did, _png_bytes(8, 5)).status_code == 200
+    p = _type_dir(did) / "img_1.png"
+    r = _api("GET", f"/api/cards/{did}/type/image/img_1.png")
+    assert r.status_code == 200, r.text
+    assert r.content == p.read_bytes()
+    assert r.headers["content-type"] == "image/png"
+    assert "no-store" not in r.headers.get("cache-control", "").lower()
+    assert "immutable" in r.headers.get("cache-control", "").lower()
+    # une image ABSENTE : 404 nommé, et le nom demandé est dans la phrase
+    r = _api("GET", f"/api/cards/{did}/type/image/img_9.png")
+    assert r.status_code == 404, r.text
+    assert "img_9.png" in r.json()["detail"]
+    # deck absent : 404 aussi, jamais 500
+    r = _api("GET", "/api/cards/deck_deadbeef/type/image/img_1.png")
+    assert r.status_code == 404, r.text
+
+
+def test_aucune_route_ne_supprime_une_image_de_calque():
+    """DÉCISION ÉCRITE : pas de purge à la suppression d'un slot. Un bloc
+    supprimé se rattrape par Ctrl+Z, et une purge aurait effacé les octets
+    pendant que l'annulation était encore possible. Le ramassage des images
+    orphelines est un travail de la 3c, et c'est dit dans le code."""
+    from app.main import app
+    chemins = app.openapi().get("paths", {})
+    routes = {p: sorted(v) for p, v in chemins.items() if "/type/image" in p}
+    assert set(routes) == {"/api/cards/{did}/type/image",
+                           "/api/cards/{did}/type/image/{name}"}, sorted(routes)
+    assert routes["/api/cards/{did}/type/image"] == ["post"]
+    assert routes["/api/cards/{did}/type/image/{name}"] == ["get"]
+    py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    assert "3c" in py, "la dette du ramassage n'est pas consignée"
+
+
+def test_le_plafond_de_reduction_est_LE_MEME_des_trois_cotes():
+    """`MAX_IMPORT_PX` existait déjà pour l'illustration (P1). P3 le REPREND —
+    il ne l'IMPORTE PAS de `face.py` : la règle 8 interdit à une pièce
+    d'importer le module d'une voisine. Le chiffre est donc écrit ici et
+    ÉPINGLÉ contre les trois autres endroits qui le portent."""
+    from app.services.cards import face as FA
+    assert TY.MAX_IMPORT_PX == IMPORT_PX_ATTENDU
+    assert FA.MAX_IMPORT_PX == IMPORT_PX_ATTENDU
+    assert "const MAX_IMPORT_PX = 4096;" in _js()
+    assert "const MAX_IMPORT_PX = 4096;" in MOD_FACE_JS.read_text(encoding="utf-8")
+    py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    for interdit in ("from .face", "from . import face", "import face"):
+        assert interdit not in py, f"P3 importe une voisine : {interdit}"
+
+
+def test_une_image_trop_grande_est_reduite_AU_SERVEUR():
+    """Le client réduit avant d'envoyer (moins d'octets sur le fil) ; le
+    serveur réduit QUAND MÊME, parce qu'un client n'est pas une garantie."""
+    did = _did()
+    r = _post_img(did, _png_bytes(IMPORT_PX_ATTENDU + 400, 600))
+    assert r.status_code == 200, r.text
+    px = r.json()["px"]
+    assert max(px) == IMPORT_PX_ATTENDU, px
+    # le rapport de forme est gardé (600 * 4096 / 4496 = 546,7 -> 547)
+    assert px[1] == round(600 * IMPORT_PX_ATTENDU / (IMPORT_PX_ATTENDU + 400)), px
+    # et une image plus petite n'est PAS agrandie
+    r = _post_img(did, _png_bytes(40, 30))
+    assert r.json()["px"] == [40, 30]
+
+
+# ── 11.3 les exclusions : le juge de mise en page ───────────────────────────
+
+def test_le_juge_NE_MESURE_RIEN_de_typographique_sur_un_calque_d_image():
+    """Un calque d'image n'a pas de texte. Les colonnes typographiques du
+    relevé valent donc `None` — pas 0, pas « ok » : un zéro se lit comme une
+    mesure, un `None` se lit comme « sans objet ». Et il n'entre NI dans le
+    plancher de lisibilité NI dans les signes hors police.
+
+    Ce qui reste jugé : LA GÉOMÉTRIE. Une image qui sort du cadre de
+    composition est un défaut de fabrication comme un autre — la coupe emporte
+    ses pixels exactement comme elle emporterait des glyphes."""
+    g = CT.geom("poker_eu", 300)
+    txt = TY.norm_slot({"id": "titre", "text": "Créature", "read_pt": 12.0,
+                        "box": [5.0, 5.0, 50.0, 10.0], "font": "Cinzel"})
+    img = TY.norm_slot({"id": "fond", "kind": "image", "src": "img:img_1.png",
+                        "box": [5.0, 20.0, 50.0, 30.0], "read_pt": 12.0,
+                        "text": "Créature"})
+    rep = TY.layout(g, [txt, img],
+                    posed={"titre": 8.0, "fond": 8.0},
+                    texts={"titre": "Créature", "fond": "Créature"})
+    row = [r for r in rep["slots"] if r["id"] == "fond"][0]
+    assert row["kind"] == "image"
+    for k in ("size_px", "min_px", "read_pt", "read_px", "posed_pt",
+              "under_read", "missing_glyphs"):
+        assert row[k] is None, (k, row[k])
+    assert "fond" not in rep["summary"]["under_read"]
+    assert "fond" not in rep["summary"]["missing_glyphs"]
+    # la géométrie, elle, est là et elle est jugée
+    assert row["box_px"] and row["inside_safe"] is True
+    assert row["src"] == "img:img_1.png" and row["fit"] == "contain"
+    dehors = TY.norm_slot({"id": "hors", "kind": "image",
+                           "box": [-20.0, -20.0, 10.0, 10.0]})
+    rep2 = TY.layout(g, [dehors])
+    assert rep2["summary"]["outside_safe"] == ["hors"]
+    # CONTRE-ÉPREUVE : le slot de texte, lui, est mesuré comme avant.
+    rowt = [r for r in rep["slots"] if r["id"] == "titre"][0]
+    assert rowt["kind"] == "text"
+    assert rowt["posed_pt"] == 8.0 and rowt["under_read"] is True
+    assert rowt["size_px"] is not None and rowt["missing_glyphs"] is not None
+    assert rep["summary"]["under_read"] == ["titre"]
+
+
+# ── 11.4 le painter, mesuré au pixel ────────────────────────────────────────
+
+# une source NON CARRÉE dans une boîte d'un AUTRE rapport : c'est le seul cas
+# où « contain » et « cover » ne se confondent pas. 200 x 100 (rapport 2,0)
+# dans 30 x 20 mm (rapport 1,5).
+IMG_SRC_W, IMG_SRC_H = 200, 100
+IMG_HEX = "#20c0ff"
+IMG_BOX_MM = [10.0, 20.0, 30.0, 20.0]
+IMG_TABLE = {"img_1.png": [IMG_SRC_W, IMG_SRC_H, IMG_HEX]}
+
+
+def _slot_image(**kw) -> dict:
+    s = {"id": "fond", "label": "Calque d'image", "kind": "image",
+         "src": "img:img_1.png", "fit": "contain", "box": list(IMG_BOX_MM),
+         # UN TEXTE QUI NE DOIT JAMAIS ÊTRE POSÉ : c'est le piège du test.
+         "text": "Veilleur, Grand Oracle"}
+    s.update(kw)
+    return s
+
+
+def test_le_calque_d_image_se_peint_dans_sa_boite_selon_le_fit(tmp_path):
+    """« contain » entre ENTIÈREMENT dans la boîte (des bandes vides restent
+    sur le petit côté) ; « cover » la REMPLIT et déborde — mais le débordement
+    est DÉCOUPÉ, donc aucun pixel ne quitte la boîte. Les deux sont mesurés :
+    la boîte de destination demandée à la toile ET le pavé réellement peint."""
+    c = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="contain")],
+                                "images": IMG_TABLE})
+    v = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
+                                "images": IMG_TABLE})
+    box = c["slots"][0]["box"]
+    assert len(c["draws"]) == 1 and len(v["draws"]) == 1, (c["draws"], v["draws"])
+    dc, dv = c["draws"][0]["dest"], v["draws"][0]["dest"]
+    # contain : la largeur touche les deux bords, la hauteur non
+    kc = min(box[2] / IMG_SRC_W, box[3] / IMG_SRC_H)
+    assert dc[2] == pytest.approx(IMG_SRC_W * kc, abs=0.01)
+    assert dc[3] == pytest.approx(IMG_SRC_H * kc, abs=0.01)
+    assert dc[2] == pytest.approx(box[2], abs=0.01), "contain ne remplit pas la largeur"
+    assert dc[3] < box[3] - 1, "contain remplit la hauteur : ce n'est plus contain"
+    # ... et il est CENTRÉ : les deux bandes vides sont égales
+    assert dc[0] == pytest.approx(box[0], abs=0.01)
+    assert dc[1] - box[1] == pytest.approx((box[3] - dc[3]) / 2, abs=0.01)
+    # cover : la hauteur touche les deux bords, la largeur déborde
+    kv = max(box[2] / IMG_SRC_W, box[3] / IMG_SRC_H)
+    assert dv[2] == pytest.approx(IMG_SRC_W * kv, abs=0.01)
+    assert dv[3] == pytest.approx(box[3], abs=0.01), "cover ne remplit pas la hauteur"
+    assert dv[2] > box[2] + 1, "cover ne déborde pas : ce n'est plus cover"
+    assert dv[0] - box[0] == pytest.approx((box[2] - dv[2]) / 2, abs=0.01)
+    # LE DÉBORDEMENT EST DÉCOUPÉ : le pavé peint tient dans la boîte.
+    peint = v["draws"][0]["peint"]
+    assert peint is not None
+    assert peint[0] >= int(box[0]) - 1 and peint[1] >= int(box[1]) - 1
+    assert peint[0] + peint[2] <= box[0] + box[2] + 1, peint
+    assert peint[1] + peint[3] <= box[1] + box[3] + 1, peint
+    # et les deux rendus ne sont PAS le même (sans quoi tout ce qui précède
+    # serait vrai pour de mauvaises raisons)
+    assert c["hash"] != v["hash"]
+    # LA BANDE DU HAUT : vide en contain (lettrage), peinte en cover.
+    haut = c["slots"][0]
+    assert haut["coin_px"][3] == 0, "contain a peint la bande vide du haut"
+    assert v["slots"][0]["coin_px"][3] > 0, "cover a laissé la bande du haut vide"
+    # le centre est peint dans les deux cas, à la couleur de l'image
+    for d in (c, v):
+        assert d["slots"][0]["centre_px"][3] > 0
+        assert d["slots"][0]["centre_px"][0] == 0x20, d["slots"][0]["centre_px"]
+
+
+def test_le_cadrage_COVER_n_est_pas_un_CONTAIN_deguise(tmp_path):
+    """MUTATION. Les deux cadrages ne diffèrent que par un `max` là où l'autre
+    a un `min` : c'est la faute la plus facile à écrire et la plus difficile à
+    voir, parce que sur une image DÉJÀ au rapport de la boîte les deux rendus
+    sont identiques. On casse donc le `max` et on vérifie que le banc rougit."""
+    ref = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="contain")],
+                                  "images": IMG_TABLE})
+    mut = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
+                                  "images": IMG_TABLE},
+                       mutations=(('const k = (mode === "cover")\r\n'
+                                   "      ? Math.max(b[2] / sw, b[3] / sh) "
+                                   ": Math.min(b[2] / sw, b[3] / sh);",
+                                   "const k = Math.min(b[2] / sw, b[3] / sh);"),))
+    assert mut["hash"] == ref["hash"], \
+        "« cover » ramené à « contain » ne change pas le rendu : le test de fit ne prouve rien"
+    vrai = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
+                                   "images": IMG_TABLE})
+    assert vrai["hash"] != ref["hash"]
+
+
+def test_les_quatre_gabarits_ne_bougent_pas_apres_le_calque_d_image(tmp_path):
+    """Le seuil de non-régression de la tâche : chacun des quatre gabarits
+    livrés, rendu AVEC les trois clés neuves à leur défaut, doit sortir le même
+    tampon qu'un document d'AVANT (les clés absentes). Aucun gabarit ne nomme
+    `kind` : tous héritent de « text », et « text » est exactement ce que le
+    painter faisait avant qu'il y ait un `kind`."""
+    g = CT.geom("poker_eu", 300)
+    for pid in sorted(TY.PRESETS):
+        slots = TY.preset_slots(pid, g)
+        for s in slots:
+            assert s["kind"] == "text" and s["src"] == "" and s["fit"] == "contain", \
+                (pid, s["id"])
+        avant = _banc_plaque(tmp_path, {"slots": slots,
+                                        "drop": ["kind", "src", "fit"]})
+        apres = _banc_plaque(tmp_path, {"slots": slots})
+        assert apres["hash"] == avant["hash"], f"gabarit « {pid} » a bougé"
+        assert apres["n_textes"] > 0 and apres["draws"] == [], pid
+
+
+def test_le_calque_d_image_ne_pose_AUCUN_GLYPHE(tmp_path):
+    """Le slot porte un `text` — hérité du vocabulaire commun — et le painter
+    doit l'IGNORER. Le banc compte les appels de dessin : zéro pavé de glyphe,
+    et l'URL demandée est celle de la route de la pièce."""
+    d = _banc_plaque(tmp_path, {"slots": [_slot_image()], "images": IMG_TABLE})
+    assert d["n_textes"] == 0, "un calque d'image a posé du texte"
+    assert d["labels"] == [], d["labels"]
+    assert d["urls"] == ["image/img_1.png"], d["urls"]
+    # CONTRE-ÉPREUVE : le même slot en `kind: "text"` pose bien ses glyphes.
+    t = _banc_plaque(tmp_path, {"slots": [_slot_image(kind="text")],
+                                "images": IMG_TABLE})
+    assert t["n_textes"] > 0
+    assert t["draws"] == []
+
+
+def test_la_plaque_passe_SOUS_l_image_et_l_opacite_porte_sur_les_deux(tmp_path):
+    """Même règle que pour le texte, et pour la même raison : peinte au-dessus,
+    la plaque effacerait ce qu'elle est censée porter. La bande vide du
+    lettrage (contain) est l'endroit où la plaque se lit toute seule."""
+    slot = _slot_image(fit="contain", plate_color="#3050a0", plate_alpha=0.8)
+    d = _banc_plaque(tmp_path, {"slots": [slot], "images": IMG_TABLE})
+    row = d["slots"][0]
+    # la bande du haut ne porte QUE la plaque : bleu, à 204/255
+    assert row["coin_px"][3] == 204, row["coin_px"]
+    assert row["coin_px"][:3] == [0x30, 0x50, 0xa0], row["coin_px"]
+    # le centre porte l'IMAGE, opaque, par-dessus la plaque
+    assert row["centre_px"][3] == 255, row["centre_px"]
+    assert row["centre_px"][:3] == [0x20, 0xc0, 0xff], row["centre_px"]
+    # MUTATION : la plaque peinte APRÈS l'image l'effacerait — le banc le voit.
+    mut = _banc_plaque(tmp_path, {"slots": [slot], "images": IMG_TABLE},
+                       mutations=(
+        ("    drawPlate(ctx, slot, g, { box: b });\r\n    if (!rec || !rec.ok) {",
+         "    if (!rec || !rec.ok) {"),
+        ("      ctx.drawImage(rec.img, r[0], r[1], r[2], r[3]);\r\n      ctx.restore();",
+         "      ctx.drawImage(rec.img, r[0], r[1], r[2], r[3]);\r\n      ctx.restore();"
+         "\r\n      drawPlate(ctx, slot, g, { box: b });"),
+    ))
+    assert mut["slots"][0]["centre_px"][:3] != [0x20, 0xc0, 0xff], \
+        "la plaque au-dessus de l'image ne change rien : l'ordre n'est pas mesuré"
+
+    # L'OPACITÉ DU SLOT PORTE SUR L'IMAGE : 40 % de 255 = 102.
+    o = _banc_plaque(tmp_path, {"slots": [_slot_image(opacity=40)],
+                                "images": IMG_TABLE})
+    assert o["draws"][0]["alpha"] == pytest.approx(0.4, abs=1e-6)
+    assert o["slots"][0]["centre_px"][3] == 102, o["slots"][0]["centre_px"]
+
+
+def test_une_image_absente_laisse_un_damier_ET_SON_NOM(tmp_path):
+    """404, fichier effacé à la main, deck à moitié copié : l'aperçu doit dire
+    LEQUEL manque. Un rectangle vide se lit comme « le calque est cassé » ; un
+    damier et un nom se lisent comme « ce fichier-là n'est pas arrivé ». C'est
+    un ÉTAT, pas une erreur — le painter ne lève pas."""
+    d = _banc_plaque(tmp_path, {"slots": [_slot_image(src="img:img_9.png")],
+                                "images": IMG_TABLE})
+    assert d["exceptions"] == [], d["exceptions"]
+    assert d["draws"] == [], "une image absente a quand même été dessinée"
+    # le damier occupe la boîte
+    assert d["slots"][0]["centre_px"][3] > 0, "aucun damier n'a été posé"
+    # ... et le NOM du fichier manquant est écrit dessus
+    assert any("img_9.png" in t for t in d["labels"]), d["labels"]
+    # une image PRÉSENTE, elle, ne pose pas de damier (contre-épreuve)
+    ok = _banc_plaque(tmp_path, {"slots": [_slot_image()], "images": IMG_TABLE})
+    assert ok["labels"] == []
+    assert ok["hash"] != d["hash"]
+
+
+def test_le_cache_d_images_NE_REDECODE_PAS_a_chaque_frame(tmp_path):
+    """Le painter tourne à chaque frame ; sans cache, chaque frame redécoderait
+    le PNG. Le banc compte les URL demandées : deux calques qui portent LE MÊME
+    fichier, sur DEUX passes de painter, n'en demandent qu'une.
+
+    Et le cache garde un ÉTAT, jamais une promesse rejetée : un fichier absent
+    y entre comme « pas là » (le damier), ce qui est un état de la carte, pas
+    une panne qui traverserait le painter et noircirait les sept autres
+    pièces — le banc vérifie qu'aucune exception n'est remontée."""
+    d = _banc_plaque(tmp_path, {
+        "slots": [_slot_image(), dict(_slot_image(), id="fond2",
+                                      box=[10.0, 55.0, 30.0, 20.0]),
+                  dict(_slot_image(), id="fond3", src="img:img_9.png",
+                       box=[10.0, 78.0, 30.0, 8.0])],
+        "images": IMG_TABLE, "passes": 2})
+    assert d["exceptions"] == [], d["exceptions"]
+    assert sorted(d["urls"]) == ["image/img_1.png", "image/img_9.png"], d["urls"]
+    # les deux calques du même fichier sont bien dessinés tous les deux, aux
+    # deux passes : le cache sert, il ne remplace pas le dessin.
+    assert len(d["draws"]) == 4, d["draws"]
+
+
+def test_un_calque_d_image_sans_source_ne_peint_RIEN(tmp_path):
+    """`src` vide = le calque vient de naître, l'utilisateur n'a pas encore
+    déposé son image. Ce n'est pas un manque : c'est un état d'attente, et il
+    ne salit pas la carte d'un damier."""
+    vide = _banc_plaque(tmp_path, {"slots": [_slot_image(src="")],
+                                   "images": IMG_TABLE})
+    rien = _banc_plaque(tmp_path, {"slots": [_slot_image(src="", on=False)],
+                                   "images": IMG_TABLE})
+    assert vide["draws"] == [] and vide["labels"] == []
+    assert vide["hash"] == rien["hash"], "un calque sans source a peint"
+    # ... PAS MÊME SA PLAQUE, et c'est exactement ce que fait le painter d'un
+    # bloc de texte vide : un cartouche sans son contenu est un défaut visible
+    # que personne n'a demandé.
+    plaque = _banc_plaque(tmp_path, {"slots": [_slot_image(src="",
+                                                           plate_color="#3050a0")],
+                                     "images": IMG_TABLE})
+    assert plaque["hash"] == rien["hash"], "la plaque d'un calque vide est peinte"
+
+
+# ── 11.5 les exclusions : les trois passes d'encre ──────────────────────────
+
+MUT_MEAS = ("\r\n})();", "\r\n  globalThis.__meas = () => MEAS;\r\n})();")
+
+
+def test_les_passes_d_encre_IGNORENT_les_calques_d_image(tmp_path):
+    """LE RELEVÉ DU PAINTER (`MEAS`) est l'entrée des trois passes d'encre — le
+    contrôle photométrique, le relevé du halo, le second tirage. Un calque
+    d'image n'y entre pas : il n'a pas de glyphe, donc pas de taux de survie,
+    pas de contraste, pas de corps composé. Y entrer l'aurait fait compter
+    comme un « slot vide » — un défaut annoncé qui n'existe pas.
+
+    Le banc se fait ouvrir la fermeture par une mutation (patron `__solo`) et
+    lit les clés du relevé."""
+    opts = {"slots": [_slot_image(), dict(_slot_image(kind="text"), id="titre")],
+            "images": IMG_TABLE}
+    d = _banc_plaque(tmp_path, opts, mutations=(MUT_MEAS,))
+    assert d["meas"] is not None, "la porte du banc ne s'est pas ouverte sur MEAS"
+    assert d["meas"] == ["titre"], d["meas"]
+
+    # MUTATION : le calque d'image entre dans le relevé -> il entrerait dans
+    # les trois passes, et le banc le voit.
+    mut = _banc_plaque(tmp_path, opts, mutations=(
+        MUT_MEAS,
+        ('if (isImage(slot)) { drawImgSlot(ctx, slot, geom); return; }',
+         'if (isImage(slot)) { drawImgSlot(ctx, slot, geom); }'),
+    ))
+    assert "fond" in mut["meas"], \
+        "le calque d'image entre dans le relevé et le banc ne le voit pas"
+
+
+def test_les_trois_passes_d_encre_NOMMENT_l_exclusion_des_images():
+    """Les trois passes tournent sur `MEAS` ou sur `slots()` — la première est
+    déjà propre par construction, les deux autres doivent le DIRE. Une garde
+    écrite est ce qui empêche une quatrième passe de reprendre l'oubli."""
+    src = _js()
+    # le helper d'exclusion existe une seule fois et il est nommé
+    assert src.count("function isImage(") == 1
+    # les deux passes qui repartent de `slots()` filtrent explicitement
+    assert "const live = slots().filter((s) => s.on && !isImage(s)\n" in src, \
+        "le second tirage prend encore les calques d'image"
+    assert "if (!slot || isImage(slot)) return;" in src, \
+        "le contrôle photométrique ne dit pas qu'il saute les images"
+    # LE QUATRIÈME LIEU DE MESURE, celui qu'on oublie : le contrôle de SÉRIE
+    # remet en page chaque carte du deck. Un calque d'image y aurait compté
+    # « vide » 200 fois.
+    assert "const a = slots().filter((s) => s.on && !isImage(s));" in src, \
+        "le contrôle de série mesure encore les calques d'image"
+    # et le compte d'appels de `soloClone` n'a pas bougé : la quatrième passe
+    # devra passer par le helper (règle posée en T1).
+    assert src.count("soloClone(") == 4, "compte d'appels de soloClone modifié"
+    # `isImage` est le SEUL test de nature du module : personne ne compare
+    # `kind === "image"` à la main ailleurs (ce serait le prochain oubli).
+    assert src.count('kind === "image"') == 1, \
+        "la nature d'un bloc est testée hors de `isImage`"
+
+
+# ── 11.6 l'éditeur ──────────────────────────────────────────────────────────
+
+def _slots_image_verrou() -> list:
+    a = TY.norm_slot({"id": "fond", "label": "Calque d'image", "kind": "image",
+                      "src": "img:img_1.png", "fit": "cover",
+                      "box": [8.0, 20.0, 46.0, 30.0]})
+    b = TY.norm_slot({"id": "titre", "label": "Titre", "text": "Veilleur",
+                      "box": [10.0, 5.0, 40.0, 10.0]})
+    return [a, b]
+
+
+def test_le_panneau_de_calque_d_image_MASQUE_la_typographie(tmp_path):
+    """Le panneau bascule ses sections selon le `kind`. Un calque d'image n'a
+    ni police, ni corps, ni casse, ni césure — les afficher inertes aurait été
+    onze réglages qui ne font rien. Il gagne en échange sa zone de dépôt et son
+    cadrage. Ce qui RESTE des deux côtés : la boîte, la rotation, l'opacité, la
+    plaque, la face."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_image_verrou(),
+                                          "sel": "fond"}})
+    insp = d["insp"]
+    assert insp, "le panneau de bloc est vide"
+    # ce qu'un calque d'image N'A PAS
+    for absent in ("cf-type-font", 'data-k="size_pt"', 'data-k="min_pt"',
+                   'data-k="track"', 'data-k="leading"', 'data-k="read_pt"',
+                   'data-k="arc"', "cf-type-text", 'data-k="caps"',
+                   'data-k="align"', 'data-k="outline"', 'data-k="valign"',
+                   "cf-type-ocol", "cf-type-scol", 'data-k="just_max"'):
+        assert absent not in insp, f"réglage typographique offert à une image : {absent}"
+    # ce qu'il A
+    for present in ("cf-type-drop", 'data-k="fit"', 'data-k="bx"',
+                    'data-k="bw"', 'data-k="rotate"', 'data-k="opacity"',
+                    "cf-type-pcol", 'data-k="side"', "cf-type-file",
+                    "cf-type-dup", "cf-type-center"):
+        assert present in insp, f"le panneau d'image n'offre pas : {present}"
+    # LE KIND EST MONTRÉ, PAS BASCULÉ : aucun contrôle ne change la nature d'un
+    # bloc déjà né (décision de tâche — voir le commentaire du module).
+    assert 'data-k="kind"' not in insp, "le panneau bascule le kind d'un bloc né"
+    assert "cf-type-kind" in insp, "la nature du bloc n'est pas dite"
+    # LE PIED DE LA SECTION « BOÎTE » PORTE LES MESURES DE L'IMAGE, pas celles
+    # d'un corps composé — c'est le même conteneur (`cf-type-meas`) et il est
+    # réécrit après chaque mise en page (voir `syncInspMeas`).
+    assert 'class="cf-type-meas"' in insp
+    assert "px de toile" in insp
+    assert "demandé, pas encore composé" not in insp, \
+        "le pied d'un calque d'image parle encore de corps typographique"
+    # ... et il dit OÙ ce calque se peint : la bande z=60 passe au-dessus du
+    # cadre de base et sous le décor haut.
+    assert "au-dessus du cadre de base et sous le décor haut" in insp
+
+    # CONTRE-ÉPREUVE : sur un slot de TEXTE, le panneau n'a pas changé.
+    t = _banc_verrou(tmp_path, {"state": {"slots": _slots_image_verrou(),
+                                          "sel": "titre"}})
+    for present in ("cf-type-font", 'data-k="size_pt"', 'data-k="caps"',
+                    "cf-type-text", 'data-k="bx"', "cf-type-pcol",
+                    'data-k="arc"', 'data-k="just_max"', "cf-type-scol",
+                    "cf-type-dup", 'data-k="rotate"', 'data-k="opacity"'):
+        assert present in t["insp"], f"le panneau de texte a perdu : {present}"
+    assert "cf-type-drop" not in t["insp"]
+    assert 'data-k="fit"' not in t["insp"]
+
+
+def test_la_liste_badge_la_NATURE_du_bloc(tmp_path):
+    """La liste est la seule vue où les deux natures se croisent : elle doit
+    les distinguer d'un coup d'œil, et dire quel fichier porte un calque."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_image_verrou(),
+                                          "sel": "fond"}})
+    liste = d["liste"]
+    assert liste.count('class="cf-type-row') == 2, liste
+    assert "cf-type-kind" in liste, "aucun badge de nature dans la liste"
+    assert "img_1.png" in liste, "la liste ne dit pas quel fichier porte le calque"
+    # le badge « vide » (slot sans glyphe) ne doit JAMAIS toucher un calque
+    # d'image : il n'a pas de glyphe par nature.
+    ligne = liste.split('data-id="fond"')[1].split("cf-type-row")[0]
+    assert ">vide<" not in ligne, ligne
+
+
+def test_le_calque_d_image_NAIT_par_un_geste_a_lui(tmp_path):
+    """DÉCISION : le `kind` se pose À LA NAISSANCE. « + Image » crée un calque
+    d'image, « + Slot » un bloc de texte ; le panneau montre la nature sans la
+    changer. Basculer un bloc existant aurait changé le SENS de ses réglages
+    sous la main de l'utilisateur (un `src` sur un bloc de texte ne veut rien
+    dire, une police sur un calque d'image non plus) — et la manœuvre honnête,
+    créer l'autre puis supprimer le premier, est déjà à deux clics."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""}})
+    assert "cf-type-addimg" in d["panneau"], "aucun geste ne crée un calque d'image"
+    assert "cf-type-add" in d["panneau"]
+    src = _js()
+    # `addSlot` n'a pas changé de nature, `addImgSlot` naît en image
+    assert "function addImgSlot()" in src
+    assert 'kind: "image"' in src
+    # et AUCUN chemin d'édition n'écrit `kind` sur un bloc existant
+    assert "patchSlot(id, { kind:" not in src
+    assert 'patchSlot(id, { kind"' not in src
+
+
+def test_l_import_du_panneau_reduit_AVANT_d_envoyer(tmp_path):
+    """Le client réduit à `MAX_IMPORT_PX` avant l'envoi — le serveur le refait
+    de toute façon (il ne croit pas le client), mais un fichier de 40 Mo qui
+    part pour revenir à 4096 px est un aller-retour payé pour rien."""
+    src = _js()
+    i = src.index("async function importImage(")
+    corps = src[i:src.index("\n  function ", i)]
+    assert "MAX_IMPORT_PX" in corps, "l'import du panneau ne borne pas le côté"
+    assert 'M.api.raw("POST", "image"' in corps, "l'import ne passe pas par la route"
+    assert corps.index("MAX_IMPORT_PX") < corps.index('M.api.raw'), \
+        "la réduction a lieu APRÈS l'envoi"
+    # dépôt ET collage, les deux patrons de P1
+    assert 'drop.addEventListener("drop"' in src
+    assert '"paste"' in src
 
 
 if __name__ == "__main__":

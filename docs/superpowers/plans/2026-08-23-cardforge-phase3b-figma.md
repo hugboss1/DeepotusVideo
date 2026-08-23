@@ -257,26 +257,120 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 
 **Files:** mod-type.js, type.py, test_cards_type.py (+ mod-type.css).
 
-- [ ] Vocabulaire : `kind` ("text"|"image", défaut "text"), `src`, `fit`
+- [x] Vocabulaire : `kind` ("text"|"image", défaut "text"), `src`, `fit`
       (contain|cover) — 39 clés, parité, presets intacts.
-- [ ] Backend : `POST /type/image` (raw body, patron texture.py:post_paper,
+- [x] Backend : `POST /type/image` (raw body, patron texture.py:post_paper,
       `img_{n}.png` compteur SANS écrasement, plafonds nombre=12/taille/
       MAX_IMPORT_PX, jamais-500 nommé) + `GET /type/image/{name}` (whitelist
       du motif de nom, no-store ? NON — cache ok, fichiers immuables par
       compteur) + purge à la suppression du slot ? NON — les fichiers
       restent (un slot supprimé peut être annulé) ; un GC honnête = 3c, dit.
-- [ ] Painter z=60 : un slot image dessine son image dans sa boîte (fit,
+- [x] Painter z=60 : un slot image dessine son image dans sa boîte (fit,
       rotation, opacité, plaque DESSOUS), cache d'Image objets (patron
       IMGS — l'aperçu ne re-décode pas à chaque frame) ; image absente/404 =
       damier + nom (état, pas d'erreur) ; slots image EXCLUS des 3 passes
       d'encre et du juge de lisibilité (sans objet — testé).
-- [ ] Éditeur : le panneau de slot bascule ses sections selon kind (typo
+- [x] Éditeur : le panneau de slot bascule ses sections selon kind (typo
       masquée pour image ; import par dépôt/collage — patrons mod-face,
       réduction client MAX_IMPORT_PX avant envoi) ; « + calque d'image »
       dans la palette T3.
-- [ ] Banc : painter image mesuré au pixel (fit contain vs cover, opacité,
+- [x] Banc : painter image mesuré au pixel (fit contain vs cover, opacité,
       plaque dessous, rotation) ; la route bornée (13e image → refus nommé) ;
       RED d'abord partout.
+
+> **Livré (T2)** — 36 → **39 clés** (`kind` "text"|"image", `src`, `fit`
+> "contain"|"cover"), égalité JSON stricte tenue (mod-type.js:109 ↔
+> type.py:477). Les quatre gabarits sont byte-identiques, PROUVÉ au banc de
+> pixels (même empreinte FNV-1a avec les trois clés aux défauts et sans elles
+> du tout) : « text » est exactement ce que le painter faisait avant qu'il y
+> ait un `kind`.
+>
+> · **La NATURE se pose à la NAISSANCE, et le panneau la MONTRE sans la
+>   basculer** (`addImgSlot` :1758, bouton « + Image » à côté de « + Slot »).
+>   Une bascule sur un bloc existant aurait changé le SENS de ses réglages sous
+>   la main : un `src` sur un bloc de texte ne veut rien dire, une police et une
+>   casse sur un calque d'image non plus — et elle posait trois questions sans
+>   bonne réponse (que faire du texte saisi ? de l'image importée ? de
+>   l'ajustement ?). La manœuvre honnête — créer l'autre, déplacer la boîte,
+>   supprimer le premier — tient en deux clics et laisse UNE trace dans HIST,
+>   ce qu'une bascule silencieuse ne ferait pas. La palette de la T3 appellera
+>   `addImgSlot` : elle n'aura pas à savoir ce qu'est un calque d'image.
+> · **L'exclusion est un NON-ENTRÉE dans `MEAS`**, pas un filtre à chaque
+>   passe : le painter sort AVANT `layoutSlot` (:1467), donc le relevé ne porte
+>   jamais un calque d'image et les trois passes d'encre n'ont rien à ignorer.
+>   Les gardes sont écrites QUAND MÊME là où une passe repart de `slots()`
+>   (contrôle photométrique :3959, second tirage :4521, **et le contrôle de
+>   SÉRIE :4637 — la quatrième, celle qu'on oublie**, qui aurait compté un
+>   calque « vide » sur les 200 cartes du deck). `isImage` est le SEUL test de
+>   nature du module (pin de compte : `kind === "image"` n'apparaît qu'une
+>   fois).
+> · **Côté serveur, l'exclusion est DITE colonne par colonne** (type.py:975) :
+>   `size_px`, `min_px`, `read_pt`, `read_px`, `posed_pt`, `under_read`,
+>   `missing_glyphs` valent `None` — et non 0, qui se lirait comme une mesure.
+>   **La GÉOMÉTRIE, elle, reste jugée** : une image qui sort du cadre de
+>   composition est un défaut de fabrication comme un autre, la coupe emporte
+>   ses pixels exactement comme elle emporterait des glyphes. C'est la
+>   LISIBILITÉ qui est sans objet, pas le confinement — testé dans les deux
+>   sens.
+> · **Le compteur, et pourquoi il ne recycle pas.** `img_{n}.png` avec n =
+>   MAX + 1, jamais « le premier trou libre » : un slot supprimé se rattrape
+>   par Ctrl+Z, et un numéro recyclé aurait fait revenir le bloc annulé avec
+>   une AUTRE image. C'est aussi la raison de **l'absence de route DELETE** —
+>   effacer des octets sur un geste réversible. Le ramassage des images
+>   orphelines est consigné pour la 3c, dans le code. Le non-écrasement est
+>   prouvé PAR MUTATION : compteur cassé à « toujours 1 » → l'écrasement a bien
+>   lieu, donc le test d'origine mesure quelque chose.
+> · **Liste blanche AVANT le disque, mesuré et pas relu** : un mouchard
+>   remplace le lecteur de fichier et n'est JAMAIS appelé sur les onze noms
+>   refusés (`job.json`, `img_1.PNG`, `%2e%2e%2f…`, `img_1.png%00.txt`…), et
+>   il l'est sur un nom légal. Le cache est PERMIS (`immutable`) et c'est une
+>   conséquence du compteur : `img_7.png` ne change jamais de contenu.
+>   `FileResponse` refusé pour la raison de 2c (re-stat à l'envoi = 500 sur une
+>   pièce jamais-500) — le mot reste dans la docstring, la chose non (pin sur
+>   l'import et l'appel).
+> · **Le mécanisme de re-peinture est celui du module, pas un nouveau** : le
+>   painter ATTEND ses images comme il attend ses polices (`ensureImgs` mirroir
+>   d'`ensureFonts`, même course bornée à 2,5 s des 4 s du CORE), et une image
+>   qui arrive après la course redemande un rendu sous la MÊME garde que
+>   `loadFont` (« seulement si un calque vivant porte ce fichier »). Piège
+>   attrapé à la relecture : le cache doit recevoir la PROMESSE avant que le
+>   chargement démarre — un échec synchrone écrivait l'état puis se faisait
+>   écraser par la promesse, et la boîte restait au damier pour toujours.
+> · **Le damier n'est pas une erreur, c'est un état** — et il porte LE NOM du
+>   fichier manquant : « le calque est cassé » et « ce fichier-là n'est pas
+>   arrivé » ne se réparent pas pareil. Il est doublé d'un badge dans la liste,
+>   parce qu'un calque masqué, hors face ou caché sous un autre serait parti à
+>   l'impression sans que rien ne l'ait annoncé. `src` VIDE, lui, ne peint rien
+>   du tout : c'est un calque qui vient de naître, pas un manque.
+> · **Trois blocs du panneau sont désormais PARTAGÉS** (`inspHead`,
+>   `inspPlaque`, `inspBoite` :2139-2177) au lieu d'être recopiés pour la
+>   seconde nature — la leçon de `soloClone`, appliquée à l'éditeur. Le
+>   branchement commun (`wireInspCommun` :2323) est piloté par les ATTRIBUTS
+>   (`data-k`), donc ajouter un réglage au panneau d'image n'oblige à rien.
+>   **Conséquence sur deux tests d'avant** : leur oracle était l'ordre des
+>   LIGNES DU FICHIER, qui ne dit plus l'ordre de l'ÉCRAN (la plaque est écrite
+>   avant `renderInsp` et s'affiche après) ; ils lisent maintenant le panneau
+>   RENDU par le banc, ce qui est l'oracle qu'ils voulaient depuis le début.
+> · **Le même conteneur porte deux relevés** (`syncInspMeas`) : le pied de la
+>   section « Boîte » est réécrit après chaque mise en page, et il suit la
+>   nature du bloc — sinon « image 200 x 100 px » se faisait écraser par
+>   « corps 10 pt » à la première frame. Le relevé d'image publie le chiffre
+>   qui décide de l'impression : combien de pixels d'image par pixel de toile,
+>   et « la toile agrandit » quand il passe sous 1.
+> · **Compte** : 122 → **152 tests** dans test_cards_type.py (30 neufs, 0
+>   supprimé ; 5 amendés — le compte de clés ×3, et les deux tests d'ordre du
+>   panneau passés au panneau rendu). test_cards_models.py 154 (36 → 39 dans le
+>   nom et le compte). Lint intégral 0. `node --check` OK. **mod-type.js prend
+>   ~500 lignes nettes — au-dessus des ~400 annoncées par le plan** : le
+>   painter d'image (cache + damier + cadrage) et le second panneau sont deux
+>   surfaces neuves, et la moitié du volume est en commentaires. Le fichier
+>   passe 4411 → 4940 lignes ; la T4 (liste multi-bandes) devra viser plus
+>   court ou déclarer un découpage.
+>
+> **Reste à l'œil (3 min)** : déposer une vraie image dans le navigateur et
+> sentir le cadrage (entière vs remplir), la rotation, l'opacité, la plaque
+> dessous ; couper le fichier sur le disque pour voir le damier nommé ; coller
+> (Ctrl+V) une image dans un calque sélectionné.
 
 ### Task 3 : la palette d'éléments
 
