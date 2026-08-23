@@ -710,17 +710,51 @@ def test_les_sept_passent_le_juge_de_p3(mid):
 
 
 def test_le_gabarit_declare_ne_peut_pas_effacer_une_mise_en_page():
-    """`type.preset` reçoit l'ARCHÉTYPE (« dernier gabarit appliqué » : c'est
-    lui), pas l'un des quatre gabarits de P3. Ce n'est sans danger que parce
-    que l'écran REPLIE un identifiant inconnu sur « champion » et ne re-sème
-    JAMAIS un document qui porte déjà des slots — deux propriétés du source,
-    épinglées ici plutôt que supposées."""
+    """`type.preset` ne reçoit PAS l'un des quatre gabarits de P3. Ce n'est
+    sans danger que parce que l'écran REPLIE un identifiant inconnu sur
+    « champion » et ne re-sème JAMAIS un document qui porte déjà des slots —
+    deux propriétés du source, épinglées ici plutôt que supposées.
+
+    AMENDÉ (ronde 3b-T3). Le MODÈLE déclare toujours son archétype
+    (`model()["type"]["preset"] == mid`) ; le DECK, lui, reçoit désormais la
+    PROVENANCE préfixée. Les deux vocabulaires — clés de gabarits et
+    identifiants de modèles — vivaient dans un seul espace de noms et s'y
+    rencontraient déjà : « arcane » est un gabarit de P3 ET un archétype
+    d'usine."""
     for mid in IDS:
         assert MO.model(mid)["type"]["preset"] == mid
     src = JS_TYPE.read_text(encoding="utf-8")
     assert re.search(r"const p = PRESETS\[pid\] \|\| PRESETS\.champion;", src)
     assert re.search(r'if \(a\.length \|\| CF\.get\("type\.seeded", false\)\)',
                      src)
+
+
+def test_le_deck_INSTANCIE_dit_D_OU_IL_VIENT():
+    """LA COLLISION, FERMÉE DANS LES DEUX SENS ET PAR CONSTRUCTION. Un deck né
+    d'un modèle porte `preset = "modele:<id>"` ; aucune clé de gabarit et aucun
+    slug ne peut contenir « : », donc un gabarit ne peut plus désigner un
+    modèle et un modèle ne peut plus se faire passer pour un gabarit."""
+    assert MO.PRESET_MODELE == "modele:"
+    for mid in IDS:
+        doc = MO.instancier(mid)
+        assert doc["type"]["preset"] == "modele:" + mid, doc["type"]["preset"]
+    # AUCUNE clé de gabarit de P3 ne peut ressembler à une provenance...
+    for cle in TY.PRESETS:
+        assert MO.PRESET_MODELE not in cle, cle
+    # ... et « arcane » est bien le cas qui se produisait déjà.
+    assert "arcane" in TY.PRESETS and "arcane" in MO.MODELS
+    # ... ni aucun slug de modèle perso, quel que soit le nom demandé.
+    for nom in ("Champion", "modele:superstar", "Sort ::", "arcane"):
+        assert MO.PRESET_MODELE not in MO._slug(nom), nom
+    # LA PROVENANCE VIENT DE L'IDENTITÉ, PAS DE CE QUE LE MODÈLE DÉCLARE : un
+    # perso hérite du preset de son deck d'origine, donc potentiellement de la
+    # provenance d'un AUTRE modèle. Le lire aurait fait mentir le nouveau deck.
+    src = pathlib.Path(MO.__file__).read_text(encoding="utf-8")
+    i = src.index("def instancier(")
+    corps = src[i:src.index("\n# ═", i)]
+    assert 'PRESET_MODELE + m["id"]' in corps, corps
+    assert 'm["type"].get("preset")' not in corps, \
+        "l'instanciation lit encore le preset DÉCLARÉ par le modèle"
 
 
 # ═══════════════════════ 6. GET /api/cards/models ═══════════════════════════

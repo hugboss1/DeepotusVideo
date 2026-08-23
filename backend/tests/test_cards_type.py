@@ -3525,15 +3525,20 @@ function ctx2d() {
    vient d'écrire dedans (c'est ainsi qu'on lit la liste des blocs). */
 function elm(tag) {
   const cache = {}, cls = new Set(), lis = {};
+  /* LES OBSERVATEURS DE CLASSE. Node n'a pas de `MutationObserver` : sans ce
+     relais, la branche « le panneau s'efface » du module ne serait jamais
+     posée au banc, et le pin de fermeture des popovers ne mesurerait rien. */
+  const prevenir = () => (e._obs || []).forEach((fn) => fn([], null));
   const e = {
     tagName: String(tag || "div").toUpperCase(), style: {}, dataset: {},
     kids: [], listeners: lis, _h: "", value: "", textContent: "",
     options: { length: 0 },
     classList: {
-      add: (c) => { cls.add(c); }, remove: (c) => { cls.delete(c); },
+      add: (c) => { cls.add(c); prevenir(); },
+      remove: (c) => { cls.delete(c); prevenir(); },
       contains: (c) => cls.has(c),
       toggle: (c, v) => { const on = (v === undefined) ? !cls.has(c) : !!v;
-        if (on) cls.add(c); else cls.delete(c); },
+        if (on) cls.add(c); else cls.delete(c); prevenir(); },
     },
     addEventListener(t, fn) { (lis[t] = lis[t] || []).push(fn); },
     removeEventListener(t, fn) {
@@ -3543,7 +3548,10 @@ function elm(tag) {
     appendChild(c) { e.kids.push(c); return c; },
     insertAdjacentHTML() { }, setAttribute() { }, removeAttribute() { },
     setPointerCapture() { }, releasePointerCapture() { },
-    remove() { }, focus() { }, blur() { }, click() { }, scrollIntoView() { },
+    /* un nœud RETIRÉ le reste : c'est ainsi qu'on lit si un popover a été
+       fermé (son HTML, lui, se relit encore — et c'est voulu : on veut savoir
+       si quelqu'un l'a repeint APRÈS sa fermeture). */
+    remove() { e._out = true; }, focus() { }, blur() { }, click() { }, scrollIntoView() { },
     getContext: () => ctx2d(),
     querySelector(sel) { return (cache[sel] = cache[sel] || elm("div")); },
     querySelectorAll() { return []; },
@@ -3605,7 +3613,7 @@ const CF = {
 if (OPT.catalogue !== "sanscore") {
   CF.models = async () => {
     if (OPT.lent) await new Promise((r) => setTimeout(r, OPT.lent));
-    if (OPT.catalogue === "absent") throw new Error("backend injoignable (qa)");
+    if (OPT.catalogue === "absent") throw new Error(OPT.err || "backend injoignable (qa)");
     return Array.isArray(OPT.catalogue) ? OPT.catalogue : [];
   };
 }
@@ -3631,6 +3639,14 @@ globalThis.document = {
   body: { appendChild(c) { CORPS.push(c); return c; } },
   fonts: { add() { } },
   activeElement: null,
+};
+/* L'OBSERVATEUR DE CLASSE, de paille : il relaie ce que `elm.classList` vient
+   de faire. Le module s'en sert pour suivre l'état du panneau (devant /
+   derrière) — c'est ce qui lui dit qu'on a changé de pièce. Node n'en a pas. */
+globalThis.MutationObserver = class {
+  constructor(fn) { this._fn = fn; }
+  observe(el) { (el._obs = el._obs || []).push(this._fn); }
+  disconnect() { }
 };
 const boom = [];
 process.on("uncaughtException", (e) => { boom.push(String((e && e.message) || e)); });
@@ -3702,6 +3718,13 @@ for (const a of (OPT.actes || [])) {
     if (fn) fn({ target: cible });
     await new Promise((r) => setTimeout(r, 20));
     traces.push({ acte: "palclic", o: a.o, branche: !!fn });
+  } else if (a.t === "quitte") {
+    /* CHANGER DE PIÈCE : le CORE retire `.on` de la section du panneau. AU
+       CLAVIER (Entrée sur le rail), il n'y a pas de `pointerdown` — la
+       fermeture au clic dehors ne court donc pas, et c'est tout le sujet. */
+    PANNEAU.classList.remove("on");
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "quitte" });
   }
 }
 await new Promise((r) => setTimeout(r, (OPT.lent || 0) + 60));
@@ -3776,6 +3799,9 @@ if (OPT.norms && globalThis.__pal) {
 process.stdout.write(JSON.stringify({
   slots: DOC.type.slots, sel: DOC.type.sel, traces: traces, norm: norm,
   pal: pal, norms: norms, menus: menus().map((e) => e._h), toasts: TOASTS,
+  /* LE DERNIER POPOVER A-T-IL ÉTÉ RETIRÉ DU CORPS ? `null` s'il n'y en a
+     jamais eu — un banc qui n'ouvre pas de menu ne dit rien sur sa fermeture. */
+  ferme: (() => { const l = menus(); return l.length ? !!l[l.length - 1]._out : null; })(),
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
   /* LE PANNEAU DE BLOC : c'est lui qui bascule ses sections selon le `kind`.
      Le meme cache de selecteurs qui rend la liste le rend, sans un mot de
@@ -4905,6 +4931,82 @@ def test_un_calque_d_image_sans_source_ne_peint_RIEN(tmp_path):
     assert plaque["hash"] == rien["hash"], "la plaque d'un calque vide est peinte"
 
 
+# LE TEST DE ROTATION, rédigé par l'agent T2-3b et JAMAIS EXÉCUTÉ ; joué et
+# calibré par la ronde T3. Son auteur avait prévu ±2 px « au premier run » en
+# RAISONNANT sur la rastérisation par transformée inverse. MESURE : l'écart
+# maximum est de 0,39 px sur les huit valeurs (boîte 153,61 x 271,72 +
+# 354,33 x 236,22 px ; tournée, on lit 213 / 213 / 236 / 354 pour 212,66 /
+# 212,67 / 236,22 / 354,33 attendus). La tolérance est donc RESSERRÉE à ±1 px :
+# c'est l'arrondi d'échantillonnage au demi-pixel, et rien d'autre — à ±2 une
+# dérive d'un pixel serait passée. La propriété défendue : `drawImgSlot`
+# (mod-type.js) fait save() -> rotation -> rect(b)+clip()+drawImage, et la
+# découpe vit donc dans le repère TOURNÉ ; le test épingle cet ordre contre un
+# refactor qui sortirait le clip de la rotation.
+ROT_TOL_PX = 1
+
+def test_le_cadrage_SURVIT_A_LA_ROTATION(tmp_path):
+    """LA DÉCOUPE TOURNE AVEC LA BOÎTE, et rien ne le disait.
+
+    Un calque tourné à 90° est le cas où les deux fautes possibles se
+    séparent : si la découpe était posée AVANT la rotation (ou hors d'elle),
+    les pixels retenus seraient ceux du rectangle DROIT, et l'image dépasserait
+    de la boîte visible sur ses deux petits côtés. Le pavé réellement peint
+    doit donc être celui de la boîte TOURNÉE — largeur et hauteur échangées —
+    et c'est ce qu'on mesure.
+
+    Le rectangle de destination, lui, ne bouge PAS : la rotation vit dans la
+    transformation de la toile, pas dans la géométrie du cadrage. Deux fois la
+    même valeur serait le signe qu'on l'applique deux fois."""
+    droit = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
+                                    "images": IMG_TABLE})
+    tourne = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover", rotate=90)],
+                                     "images": IMG_TABLE})
+    b = droit["slots"][0]["box"]
+    cx, cy = b[0] + b[2] / 2, b[1] + b[3] / 2
+    # la boîte tournée d'un quart de tour autour de son centre : côtés échangés
+    attendu = [cx - b[3] / 2, cy - b[2] / 2, b[3], b[2]]
+    peint = tourne["draws"][0]["peint"]
+    assert peint is not None
+    for i, (v, a) in enumerate(zip(peint, attendu)):
+        assert abs(v - a) <= ROT_TOL_PX, (i, peint, attendu)
+    # CONTRE-ÉPREUVE : sans rotation, c'est la boîte droite qui est remplie.
+    droit_peint = droit["draws"][0]["peint"]
+    for i, (v, a) in enumerate(zip(droit_peint, b)):
+        assert abs(v - a) <= ROT_TOL_PX, (i, droit_peint, b)
+    # ... et les deux ne se confondent pas (la boîte n'est pas carrée)
+    assert abs(peint[2] - droit_peint[2]) > 50, (peint, droit_peint)
+    # LE CADRAGE EST LE MÊME OBJET : la rotation n'entre pas dans le calcul.
+    assert tourne["draws"][0]["dest"] == droit["draws"][0]["dest"]
+    assert tourne["hash"] != droit["hash"]
+
+
+def test_un_CLIP_HISSE_HORS_DE_LA_ROTATION_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : la découpe posée AVANT la rotation. C'est le
+    refactor plausible — « le clip ne dépend que de la boîte, sortons-le de la
+    branche » — et il donne une image qui déborde de sa boîte visible sur ses
+    deux petits côtés, sans que rien d'autre ne bouge. Le test ci-dessus
+    mesure donc bien cet ordre-là."""
+    mut = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover", rotate=90)],
+                                  "images": IMG_TABLE}, mutations=(
+        ("      ctx.beginPath();\r\n      ctx.rect(b[0], b[1], b[2], b[3]);\r\n"
+         "      ctx.clip();\r\n", ""),
+        ("ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
+         "    if (slot.rotate) {",
+         "ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
+         "    ctx.beginPath();\r\n    ctx.rect(b[0], b[1], b[2], b[3]);\r\n"
+         "    ctx.clip();\r\n    if (slot.rotate) {"),))
+    b = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
+                                "images": IMG_TABLE})["slots"][0]["box"]
+    cx, cy = b[0] + b[2] / 2, b[1] + b[3] / 2
+    attendu = [cx - b[3] / 2, cy - b[2] / 2, b[3], b[2]]
+    peint = mut["draws"][0]["peint"]
+    assert peint is not None
+    ecarts = [i for i, (v, a) in enumerate(zip(peint, attendu))
+              if abs(v - a) > ROT_TOL_PX]
+    assert ecarts, ("le clip hissé ne change rien : le test ne mesure pas "
+                    "l'ordre", peint, attendu)
+
+
 # ── 11.5 les exclusions : les trois passes d'encre ──────────────────────────
 
 MUT_MEAS = ("\r\n})();", "\r\n  globalThis.__meas = () => MEAS;\r\n})();")
@@ -5434,7 +5536,7 @@ def test_la_palette_offre_les_elements_DU_MODELE_dont_le_jeu_est_ne(tmp_path):
     els = m["elements"]
     assert els, "le modèle d'usine n'a plus d'éléments : ce test ne prouve rien"
     d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                          "preset": "superstar"},
+                                          "preset": "modele:superstar"},
                                 "catalogue": [m], "actes": [{"t": "pal"}]})
     menu = d["menus"][-1]
     assert _entrees(menu) == 3 + len(els), menu
@@ -5454,7 +5556,7 @@ def test_la_LISTE_DES_OFFRES_est_derivee_du_preset_AU_MOMENT_DE_PEINDRE(tmp_path
     réécrit le preset, sans recharger la page)."""
     m = _modele("superstar")
     d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                          "preset": "superstar"},
+                                          "preset": "modele:superstar"},
                                 "catalogue": [m], "pal": True},
                      mutations=(MUT_PAL,))
     offres = d["pal"]["offres"]
@@ -5480,7 +5582,7 @@ def test_un_element_de_modele_NAIT_a_sa_zone_avec_ses_REGLAGES(tmp_path):
     m = _modele("superstar")
     el = m["elements"][0]
     d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                          "preset": "superstar"},
+                                          "preset": "modele:superstar"},
                                 "catalogue": [m],
                                 "actes": [{"t": "pal"},
                                           {"t": "palclic", "o": "mod:" + el["id"]}]})
@@ -5500,7 +5602,7 @@ def test_ajouter_DEUX_FOIS_le_meme_element_RENOMME_comme_le_serveur(tmp_path):
     m = _modele("superstar")
     el = m["elements"][0]
     d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                          "preset": "superstar"},
+                                          "preset": "modele:superstar"},
                                 "catalogue": [m],
                                 "actes": [{"t": "pal"},
                                           {"t": "palclic", "o": "mod:" + el["id"]},
@@ -5612,7 +5714,7 @@ def test_un_modele_SANS_ELEMENTS_est_DIT(tmp_path):
         m = _modele("superstar")
         m["elements"] = els
         d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                              "preset": "superstar"},
+                                              "preset": "modele:superstar"},
                                     "catalogue": [m], "actes": [{"t": "pal"}]})
         menu = d["menus"][-1]
         assert _entrees(menu) == 3, menu
@@ -5634,20 +5736,76 @@ def test_sans_modele_la_palette_offre_les_trois_generiques_ET_SE_TAIT(tmp_path):
     assert "cf-type-paln" not in menu, menu
 
 
+def test_UN_GABARIT_LOCAL_NE_DESIGNE_JAMAIS_UN_MODELE(tmp_path):
+    """F2 — LA COLLISION D'ESPACE DE NOMS, REJOUÉE. « arcane » est une clé des
+    quatre gabarits de P3 ET l'identifiant d'un archétype d'usine : un deck
+    posé sur le GABARIT se voyait offrir les éléments d'un design dont il
+    n'était pas né. Depuis la ronde, la provenance est ÉCRITE à l'instanciation
+    (`modele:<id>`) et un preset sans préfixe ne désigne rien.
+
+    Les deux sens sont éprouvés ici : le gabarit qui n'attrape plus le modèle,
+    et le modèle qui reste bien servi quand il DIT d'où il vient."""
+    from app.services.cards import models as MD
+    arcane = MD.model("arcane")
+    els = arcane["elements"]
+    assert els, "l'archétype « arcane » n'a plus d'éléments : ce test ne prouve rien"
+    assert "arcane" in TY.PRESETS, "le gabarit « arcane » a disparu : le cas a changé"
+    # SENS 1 — le gabarit local ne reçoit RIEN, et ne dit rien : il n'a pas de
+    # modèle, ce n'est pas une anomalie.
+    gab = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "arcane"},
+                                  "catalogue": [arcane], "actes": [{"t": "pal"}]})
+    menu = gab["menus"][-1]
+    assert _entrees(menu) == 3, menu
+    assert "cf-type-paln" not in menu, menu
+    # SENS 2 — le deck INSTANCIÉ du même modèle, lui, les reçoit.
+    inst = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                             "preset": "modele:arcane"},
+                                   "catalogue": [arcane], "actes": [{"t": "pal"}]})
+    assert _entrees(inst["menus"][-1]) == 3 + len(els), inst["menus"][-1]
+    # ... et un modèle PERSO nommé « Champion » (slug « champion ») ne peut
+    # plus se faire passer pour le gabarit du même nom.
+    faux = dict(arcane, id="champion", label="Champion")
+    per = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "champion"},
+                                  "catalogue": [faux], "actes": [{"t": "pal"}]})
+    assert _entrees(per["menus"][-1]) == 3, per["menus"][-1]
+
+
+def test_la_COLLISION_rejouee_sans_le_prefixe_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : `modelCourant` remis à l'ancienne règle (l'id
+    NU) — et le deck posé sur le gabarit « arcane » se voit de nouveau offrir
+    les éléments du modèle « arcane ». Le test ci-dessus mesure bien le
+    défaut, pas le hasard."""
+    from app.services.cards import models as MD
+    arcane = MD.model("arcane")
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "arcane"},
+                                  "catalogue": [arcane], "actes": [{"t": "pal"}]},
+                       mutations=(
+        ('return p.indexOf(PRESET_MODELE) === 0 ? p.slice(PRESET_MODELE.length) : "";',
+         'return p;'),))
+    assert _entrees(mut["menus"][-1]) == 3 + len(arcane["elements"]), \
+        "l'ancienne règle n'attrape plus le modèle : le cas a changé de forme"
+
+
 def test_un_catalogue_INJOIGNABLE_est_un_ETAT_NOMME_pas_une_panne(tmp_path):
     """404, hors ligne, CORE plus ancien que la pièce : la palette garde ses
     trois entrées, les rend POSABLES, et dit ce qui manque. Aucune exception
     (`_banc_verrou` refuserait le relevé)."""
     for cat, mot in (("absent", "backend injoignable (qa)"),
-                     ("sanscore", "n'expose pas le catalogue")):
+                     ("sanscore", "pas disponible dans cette version")):
         d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                              "preset": "superstar"},
+                                              "preset": "modele:superstar"},
                                     "catalogue": cat,
                                     "actes": [{"t": "pal"},
                                               {"t": "palclic", "o": "gen:texte"}]})
         menu = d["menus"][-1]
         assert _entrees(menu) == 3, menu
-        assert "injoignable" in menu, menu
+        # LA PHRASE PARLE DU PRODUIT (« backend » est un mot banni du
+        # panneau, pin de la pièce), le DIAGNOSTIC vit dans l'infobulle.
+        assert "n'a pas pu être lu" in menu, menu
+        assert 'title="' in menu, menu
         assert mot in menu, menu
         # le catalogue absent ne bloque AUCUNE des trois entrées génériques
         assert len(d["slots"]) == 1 and d["slots"][0]["id"] == "texte1", d["slots"]
@@ -5662,7 +5820,7 @@ def test_le_catalogue_qui_arrive_APRES_ne_repeint_QUE_SON_ouverture(tmp_path):
     ouvertures, une seule requête, et la réponse ne doit repeindre que la
     dernière — sinon un popover fermé se remplit dans le vide."""
     m = _modele("superstar")
-    opts = {"state": {"slots": [], "sel": "", "preset": "superstar"},
+    opts = {"state": {"slots": [], "sel": "", "preset": "modele:superstar"},
             "catalogue": [m], "lent": 150,
             "actes": [{"t": "pal", "ms": 5}, {"t": "pal", "ms": 5}]}
     d = _banc_verrou(tmp_path, opts)
@@ -5687,7 +5845,7 @@ def test_la_palette_ECHAPPE_ce_qui_vient_du_CATALOGUE(tmp_path):
                                  "slots": [TY.norm_slot({"id": "z"})]}])
     for faux in (base, avec):
         d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                              "preset": "perso"},
+                                              "preset": "modele:perso"},
                                     "catalogue": [faux], "actes": [{"t": "pal"}]})
         menu = d["menus"][-1]
         assert "<img" not in menu, menu
@@ -5704,7 +5862,7 @@ def test_un_libelle_de_catalogue_NON_ECHAPPE_rougit(tmp_path):
             "elements": [{"id": "e1", "label": "E", "hint": poison,
                           "slots": [TY.norm_slot({"id": "z"})]}]}
     mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
-                                            "preset": "perso"},
+                                            "preset": "modele:perso"},
                                   "catalogue": [faux], "actes": [{"t": "pal"}]},
                        mutations=(("esc(o.hint)", "o.hint"),))
     assert "<img" in mut["menus"][-1], mut["menus"][-1]
@@ -5720,19 +5878,60 @@ def test_R14_attrape_un_ATTRIBUT_de_palette_non_echappe(tmp_path):
     if not lint.is_file():
         pytest.skip("lint_cardforge.py absent")
     src = JS.read_text(encoding="utf-8", newline="")
-    assert src.count("esc(o.id)") == 1
     faux = tmp_path / "depot"
     (faux / "frontend" / "cardforge" / "js").mkdir(parents=True)
     (faux / "frontend" / "cardforge" / "css").mkdir(parents=True)
     shutil.copy2(CSS, faux / "frontend" / "cardforge" / "css" / "mod-type.css")
-    (faux / "frontend" / "cardforge" / "js" / "mod-type.js").write_text(
-        src.replace("esc(o.id)", "o.id"), encoding="utf-8", newline="")
+    cible = faux / "frontend" / "cardforge" / "js" / "mod-type.js"
+    # `data-o="…"` est une lecture POINTÉE (`o.id`) en position d'attribut :
+    # c'est exactement ce que la règle sait juger.
+    assert src.count("esc(o.id)") == 1
+    cible.write_text(src.replace("esc(o.id)", "o.id"), encoding="utf-8",
+                     newline="")
     r = subprocess.run([sys.executable, str(lint), "--root", str(faux),
                         "--module", "type"],
                        capture_output=True, text=True, encoding="utf-8",
                        timeout=180)
     assert r.returncode == 1, (r.returncode, r.stdout[-2000:])
     assert "R14" in r.stdout, r.stdout[-2000:]
+    # LA LIMITE, MESURÉE ET NOMMÉE plutôt que supposée : la ronde a ajouté une
+    # seconde valeur d'attribut, `title="' + esc(MODELS_ERR) + '"`, et R14 ne
+    # la voit PAS — elle ne juge que les lectures pointées, une variable nue
+    # lui échappe par construction. Élargir la règle aux identifiants nus
+    # ferait rougir tout `class="' + cls + '"' du dépôt. C'est donc le banc qui
+    # tient celle-là (test ci-dessous), et cette ligne empêche qu'on l'oublie.
+    assert src.count("esc(MODELS_ERR)") == 1
+    cible.write_text(src.replace("esc(MODELS_ERR)", "MODELS_ERR"),
+                     encoding="utf-8", newline="")
+    r2 = subprocess.run([sys.executable, str(lint), "--root", str(faux),
+                         "--module", "type"],
+                        capture_output=True, text=True, encoding="utf-8",
+                        timeout=180)
+    assert r2.returncode == 0, ("R14 voit maintenant les variables nues : "
+                                "le pin du banc peut devenir un pin de règle",
+                                r2.stdout[-2000:])
+
+
+def test_le_DIAGNOSTIC_D_ECHEC_est_ECHAPPE_dans_son_infobulle(tmp_path):
+    """Ce que R14 ne peut pas juger, le banc le mesure. Le message d'échec
+    vient du réseau (c'est la phrase que le CORE rapporte) et il atterrit dans
+    une valeur d'ATTRIBUT — la position la plus grave, celle où un guillemet
+    referme l'attribut et pose ce qu'on veut sur la balise."""
+    poison = '"><img src=x onerror=alert(1)>'
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "modele:superstar"},
+                                "catalogue": "absent", "err": poison,
+                                "actes": [{"t": "pal"}]})
+    menu = d["menus"][-1]
+    assert "<img" not in menu, menu
+    assert "&quot;&gt;&lt;img" in menu, menu
+    # MUTATION DE CONTRÔLE : sans `esc`, le poison sort de l'attribut.
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "modele:superstar"},
+                                  "catalogue": "absent", "err": poison,
+                                  "actes": [{"t": "pal"}]},
+                       mutations=(("esc(MODELS_ERR)", "MODELS_ERR"),))
+    assert "<img" in mut["menus"][-1], mut["menus"][-1]
 
 
 def test_TOUTES_les_naissances_passent_par_LA_MEME_porte():
@@ -5786,6 +5985,292 @@ def test_P3_lit_le_catalogue_par_LE_CORE_et_par_AUCUN_RESEAU_NU():
     assert "models: modelsPublic," in core
     # la lecture seule, et rien de plus : aucune ÉCRITURE de modèle n'apparaît
     assert "POST" not in corps and "DELETE" not in corps
+
+
+# ═══════ 14. LA RONDE DE REVUE DE LA TÂCHE 3 ════════════════════════════════
+# Trois correctifs (Échap sous une garde de sélection, l'espace de noms partagé
+# entre gabarits et modèles, deux états muets) et quatre notes prises.
+
+def test_ECHAP_ferme_la_palette_sur_un_jeu_VIDE(tmp_path):
+    """F1 — Échap était SOUS `if (!selSlot()) return`, et `selSlot()` est nul
+    exactement quand le document n'a aucun bloc : c'est-à-dire l'état d'un jeu
+    neuf, celui où l'on ouvre justement la palette. Échap n'y fermait donc
+    rien, et la réponse du catalogue revenait repeindre un menu que
+    l'utilisateur croyait fermé."""
+    m = _modele("superstar")
+    opts = {"state": {"slots": [], "sel": "", "preset": "modele:superstar"},
+            "catalogue": [m], "lent": 150,
+            "actes": [{"t": "pal", "ms": 5}, {"t": "key", "k": "Escape"}]}
+    d = _banc_verrou(tmp_path, opts)
+    # le menu a été fermé AVANT que le catalogue n'arrive : il en reste aux
+    # trois génériques, la réponse ne l'a pas rattrapé.
+    assert len(d["menus"]) == 1, d["menus"]
+    assert _entrees(d["menus"][0]) == 3, d["menus"][0]
+    # ... et sur un jeu qui a des blocs, Échap fermait déjà (contrôle : le
+    # défaut était bien la GARDE, pas la branche).
+    plein = dict(opts, state={"slots": _slots_verrou(False), "sel": "titre",
+                              "preset": "modele:superstar"})
+    dp = _banc_verrou(tmp_path, plein)
+    assert _entrees(dp["menus"][0]) == 3, dp["menus"][0]
+
+
+def test_ECHAP_remis_SOUS_la_garde_de_selection_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : la branche Échap redescendue sous `if (!s)
+    return` — sur un jeu vide, le menu fermé se fait repeindre par la réponse
+    en vol, exactement comme la revue l'a mesuré."""
+    m = _modele("superstar")
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "modele:superstar"},
+                                  "catalogue": [m], "lent": 150,
+                                  "actes": [{"t": "pal", "ms": 5},
+                                            {"t": "key", "k": "Escape"}]},
+                       mutations=(
+        ('    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }\r\n'
+         '    const s = selSlot();\r\n    if (!s) return;',
+         '    const s = selSlot();\r\n    if (!s) return;\r\n'
+         '    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }'),))
+    assert _entrees(mut["menus"][0]) == 3 + len(m["elements"]), \
+        "le menu fermé n'a pas été repeint : la garde ne mesure rien"
+
+
+def test_le_MODELE_DISPARU_est_NOMME(tmp_path):
+    """F3a — le preset désigne un modèle que le catalogue CHARGÉ ne porte pas :
+    perso supprimé, jeu rapporté d'une autre machine. « ce jeu n'a pas de
+    modèle » et « son modèle n'est plus là » ne se réparent pas de la même
+    façon ; le second se dit."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "modele:disparu"},
+                                "catalogue": [_modele("superstar")],
+                                "actes": [{"t": "pal"}]})
+    menu = d["menus"][-1]
+    assert _entrees(menu) == 3, menu
+    assert "cf-type-paln" in menu, menu
+    assert "n'est plus disponible sur ce poste" in menu, menu
+    assert "disparu" in menu, menu
+    # l'identifiant vient du DOCUMENT : il est échappé comme le reste
+    poison = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                               "preset": 'modele:"><img src=x>'},
+                                     "catalogue": [_modele("superstar")],
+                                     "actes": [{"t": "pal"}]})
+    assert "<img" not in poison["menus"][-1], poison["menus"][-1]
+
+
+def test_un_CATALOGUE_VIDE_est_NOMME(tmp_path):
+    """F3b, côté écran — `!MODELS` est FAUX pour un tableau vide, et c'est
+    ainsi que cet état est resté muet. Or tout backend qui a la route sert au
+    moins les sept archétypes d'usine : une liste vide ne dit pas « ce poste
+    n'a pas de modèles », elle dit « personne n'a répondu »."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "modele:superstar"},
+                                "catalogue": [], "actes": [{"t": "pal"}]})
+    menu = d["menus"][-1]
+    assert _entrees(menu) == 3, menu
+    assert "cf-type-paln" in menu, menu
+    assert "aucun modèle disponible sur ce poste" in menu, menu
+
+
+def test_le_message_d_ECHEC_meurt_avec_la_NOUVELLE_TENTATIVE(tmp_path):
+    """N4 — `MODELS_ERR` retenu au-delà de l'échec faisait dire
+    « injoignable » à la palette pendant qu'une requête FRAÎCHE volait : un
+    état faux, et le seul que l'utilisateur voyait au moment précis où il
+    refaisait le geste."""
+    # Le dernier acte referme : sans lui, la 3e réponse (qui échoue aussi)
+    # repeindrait le menu et l'on ne verrait plus l'état INTERMÉDIAIRE — celui
+    # que l'utilisateur a sous les yeux pendant que sa tentative vole.
+    actes = [{"t": "pal", "ms": 5}, {"t": "pal", "ms": 400},
+             {"t": "pal", "ms": 5}, {"t": "quitte"}]
+    opts = {"state": {"slots": [], "sel": "", "preset": "modele:superstar"},
+            "catalogue": "absent", "lent": 150, "actes": actes}
+    d = _banc_verrou(tmp_path, opts)
+    assert len(d["menus"]) == 3, d["menus"]
+    # 1re ouverture : rien n'est encore su -> « chargement »
+    assert "chargement du catalogue" in d["menus"][0], d["menus"][0]
+    # 2e : la réponse est arrivée, l'échec est connu et NOMMÉ
+    assert "injoignable" in d["menus"][1], d["menus"][1]
+    # 3e : une tentative REPART -> plus « injoignable », « chargement »
+    assert "chargement du catalogue" in d["menus"][2], d["menus"][2]
+    assert "injoignable" not in d["menus"][2], d["menus"][2]
+    # MUTATION DE CONTRÔLE : le message survit au départ de la tentative.
+    mut = _banc_verrou(tmp_path, opts, mutations=(
+        ('    MODELS_ERR = "";\r\n    let lire;', "    let lire;"),))
+    assert "injoignable" in mut["menus"][2], mut["menus"][2]
+
+
+def test_le_PANNEAU_QUI_S_EFFACE_emporte_son_popover(tmp_path):
+    """N3 — le popover vit sur `document.body`, pas dans le panneau. La
+    fermeture au clic dehors ne le rattrape pas quand on change de pièce AU
+    CLAVIER (Entrée sur le rail = `click` sans `pointerdown`) : le menu restait
+    seul au-dessus d'un autre module. Il part avec la classe du panneau, le
+    même observateur que le calque d'édition."""
+    m = _modele("superstar")
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                          "preset": "modele:superstar"},
+                                "catalogue": [m], "lent": 150,
+                                "actes": [{"t": "pal", "ms": 5},
+                                          {"t": "quitte"}]})
+    assert d["ferme"] is True, "le popover n'a pas été retiré du corps"
+    assert _entrees(d["menus"][0]) == 3, \
+        "un menu orphelin s'est quand même fait repeindre"
+
+
+def test_le_popover_SURVIVANT_au_changement_de_piece_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE : l'observateur remis à son ancien corps (le seul
+    `syncOverlay`) — le menu reste posé sur le corps au-dessus d'une autre
+    pièce."""
+    m = _modele("superstar")
+    mut = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
+                                            "preset": "modele:superstar"},
+                                  "catalogue": [m], "lent": 150,
+                                  "actes": [{"t": "pal", "ms": 5},
+                                            {"t": "quitte"}]},
+                       mutations=(
+        ("          if (!panelOn()) { closeFontPicker(); closePalette(); }\r\n", ""),))
+    assert mut["ferme"] is False, "le menu part quand même : le pin ne mesure rien"
+
+
+# ── 14.1 LE BANC DU CORE : la capacité de lecture, éprouvée à l'EXÉCUTION ────
+# `CF.models` est la voie par laquelle P3 lit le catalogue (voir la section 13).
+# Ce qu'elle promet — une copie PROFONDE ET GELÉE, et une liste VIDE quand la
+# route est absente — était épinglé par des MATCHS DE SOURCE. Un match de
+# source ne dit rien de ce que le code FAIT : le mutant qui gèle le cache du
+# CORE et rend une copie NON gelée passait. C'est la leçon B1, appliquée à la
+# capacité que cette tâche a fait naître. Le banc charge le VRAI core.js dans
+# un `vm` sans DOM (patron `qa/test_core_contract.mjs:loadCF`) et bouchonne
+# `fetch` — le CORE n'est pas modifié pour être testé.
+
+CORE_JS = REPO / "frontend" / "cardforge" / "js" / "core.js"
+
+BANC_CORE = r"""
+import { readFileSync } from "node:fs";
+import vm from "node:vm";
+const SRC = readFileSync(process.argv[2], "utf8");
+const OPT = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+const appels = [];
+function rep(corps, ct, code) {
+  return {
+    ok: code >= 200 && code < 300, status: code, statusText: "qa",
+    headers: { get: (k) => (String(k).toLowerCase() === "content-type" ? ct : null) },
+    json: async () => JSON.parse(corps),
+  };
+}
+/* LES TROIS REPONSES QUI COMPTENT : la bonne, le catch-all SPA (200 + HTML —
+   « ce backend n'a pas la route ») et une panne qui PARLE en JSON. */
+const fetchQA = async (u) => {
+  appels.push(String(u));
+  if (OPT.route === "absente")
+    return rep("<!doctype html><title>SPA</title>", "text/html; charset=utf-8", 200);
+  if (OPT.route === "morte")
+    return rep('{"detail":"le backend a quelque chose a dire"}', "application/json", 500);
+  return rep(JSON.stringify({ models: OPT.models || [] }), "application/json", 200);
+};
+const ctx = vm.createContext({ console, setTimeout, clearTimeout, URL, fetch: fetchQA });
+ctx.globalThis = ctx;
+vm.runInContext(SRC, ctx, { filename: "core.js" });
+const CF = ctx.CF;
+const out = { erreur: null, liste: null, gele: null, gele_item: null,
+  ecriture_champ: null, ecriture_liste: null, cache: null, appels: 0, appels2: 0 };
+try {
+  const a = await CF.models();
+  out.liste = a;
+  out.gele = Object.isFrozen(a);
+  out.gele_item = a.length ? Object.isFrozen(a[0]) : null;
+  out.appels = appels.length;
+  /* ON ECRIT VRAIMENT DEDANS. Ce module est en mode strict (ESM) : une copie
+     gelee LEVE, une copie libre accepte — et si elle n'est pas une COPIE, la
+     seconde lecture rendra le mensonge. */
+  if (a.length) {
+    try { a[0].label = "PIRATE"; out.ecriture_champ = "acceptee"; }
+    catch (e) { out.ecriture_champ = "refusee:" + String(e && e.name); }
+  }
+  try { a.push({ id: "pirate" }); out.ecriture_liste = "acceptee"; }
+  catch (e) { out.ecriture_liste = "refusee:" + String(e && e.name); }
+  const b = await CF.models();
+  out.cache = b.map((m) => (m && m.label) || null);
+  out.appels2 = appels.length;
+} catch (e) { out.erreur = String((e && e.message) || e); }
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_core(tmp_path, opts: dict, mutations=()) -> dict:
+    """Fait tourner le VRAI core.js dans un `vm` sans DOM, `fetch` bouchonné."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du CORE ne peut pas tourner")
+    src = CORE_JS.read_text(encoding="utf-8", newline="")
+    for avant, apres in mutations:
+        assert avant in src, f"mutation introuvable : {avant!r}"
+        assert src.count(avant) == 1, f"mutation ambiguë : {avant!r}"
+        src = src.replace(avant, apres)
+    js = tmp_path / "core-banc.js"
+    js.write_text(src, encoding="utf-8", newline="")
+    banc = tmp_path / "banc-core.mjs"
+    banc.write_text(BANC_CORE, encoding="utf-8")
+    conf = tmp_path / "opts-core.json"
+    conf.write_text(json.dumps(opts, ensure_ascii=False), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8", timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+CAT_QA = [{"id": "superstar", "label": "Superstar", "elements": []},
+          {"id": "duel", "label": "Duel", "elements": []}]
+
+
+def test_CF_models_rend_une_copie_GELEE_et_le_cache_du_CORE_INTACT(tmp_path):
+    """N1 — PIN D'EXÉCUTION. On écrit vraiment dans ce que le CORE a rendu :
+    une copie gelée LÈVE (mode strict), et la lecture suivante prouve que le
+    cache de la galerie n'a pas bougé. Un module qui écrirait dans cette liste
+    empoisonnerait la galerie et les huit autres pièces, dans le même onglet,
+    sans rien casser tout de suite."""
+    d = _banc_core(tmp_path, {"models": CAT_QA})
+    assert d["erreur"] is None, d["erreur"]
+    assert [m["id"] for m in d["liste"]] == ["superstar", "duel"]
+    assert d["gele"] is True and d["gele_item"] is True, d
+    assert str(d["ecriture_champ"]).startswith("refusee:TypeError"), d["ecriture_champ"]
+    assert str(d["ecriture_liste"]).startswith("refusee:TypeError"), d["ecriture_liste"]
+    assert d["cache"] == ["Superstar", "Duel"], d["cache"]
+    # UNE requête, un cache : la seconde lecture ne repart pas au réseau.
+    assert d["appels"] == 1 and d["appels2"] == 1, (d["appels"], d["appels2"])
+
+
+def test_une_COPIE_NON_GELEE_rougit(tmp_path):
+    """MUTATION DE CONTRÔLE, celle que le match de source ne voyait pas : la
+    copie est bien faite, le gel non. Les écritures passent — et rien dans la
+    source ne l'aurait dit, `deepFreeze` y étant toujours écrit ailleurs."""
+    mut = _banc_core(tmp_path, {"models": CAT_QA}, mutations=(
+        ("      return deepFreeze(JSON.parse(JSON.stringify(l)));",
+         "      return JSON.parse(JSON.stringify(l));"),))
+    assert mut["gele"] is False, mut
+    assert mut["ecriture_champ"] == "acceptee", mut["ecriture_champ"]
+
+
+def test_SANS_COPIE_le_cache_du_CORE_est_empoisonne(tmp_path):
+    """La seconde moitié du pin : sans la copie profonde, écrire dans la liste
+    rendue écrit dans le cache de la GALERIE."""
+    mut = _banc_core(tmp_path, {"models": CAT_QA}, mutations=(
+        ("      return deepFreeze(JSON.parse(JSON.stringify(l)));", "      return l;"),))
+    assert mut["ecriture_champ"] == "acceptee", mut
+    assert mut["cache"][0] == "PIRATE", mut["cache"]
+
+
+def test_une_ROUTE_ABSENTE_rend_une_LISTE_VIDE_pas_une_panne(tmp_path):
+    """F3b, de bout en bout — la branche que `modelsPublic` existe pour
+    produire, et qui n'avait jamais été exercée. Le catch-all SPA rend 200 et
+    du HTML : c'est « ce backend n'a pas la route », donc AUCUN modèle, pas une
+    panne. Les autres erreurs, elles, REMONTENT : « aucun modèle » serait faux
+    quand le backend a quelque chose à dire."""
+    vide = _banc_core(tmp_path, {"route": "absente"})
+    assert vide["erreur"] is None, vide["erreur"]
+    assert vide["liste"] == [], vide["liste"]
+    assert vide["gele"] is True, vide
+    morte = _banc_core(tmp_path, {"route": "morte"})
+    assert morte["liste"] is None, morte
+    assert "quelque chose a dire" in str(morte["erreur"]), morte["erreur"]
 
 
 if __name__ == "__main__":

@@ -108,6 +108,26 @@ PERSO_MAX = 400            # garde-fou de listage : un dossier n'est pas une BDD
 # s'ouvrir ne doit pas se lister comme s'il s'ouvrait.
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
 ECHO_MAX = 40              # ce qu'un message d'erreur RECOPIE du client
+# ── LA PROVENANCE D'UN DECK, DITE À SA NAISSANCE (3b-T3, ronde) ─────────────
+# `doc.type.preset` portait DEUX vocabulaires dans un seul espace de noms : les
+# clés des quatre gabarits locaux de P3 (champion / sort / arcane / minimal,
+# écrites par `applyPreset`) et les identifiants de MODÈLES (écrits ici). Ils se
+# rencontraient déjà : « arcane » est un gabarit ET un archétype d'usine, si
+# bien qu'un deck posé sur le gabarit se voyait offrir les éléments d'un modèle
+# dont il n'était pas né. Et rien n'empêchait un modèle perso nommé
+# « Champion » de reproduire le cas sur les trois autres (`_slug` réserve les
+# ids d'usine, pas les clés de gabarits).
+# Le préfixe ferme les DEUX SENS PAR CONSTRUCTION : aucune clé de gabarit ni
+# aucun slug (`[^a-z0-9]+` -> `-`) ne peut contenir « : », donc un gabarit ne
+# peut plus désigner un modèle, et un modèle ne peut plus se faire passer pour
+# un gabarit. Ce n'est pas une clé de plus dans le document : c'est la même
+# clé, qui dit désormais D'OÙ elle vient.
+# CE QUE ÇA NE RATTRAPE PAS, et c'est dit plutôt que caché : un deck instancié
+# AVANT ce changement porte encore l'id nu, indiscernable d'une clé de gabarit.
+# L'écran ne devine pas — il ne propose rien. La palette d'éléments étant née
+# avec cette ronde, aucun comportement existant ne se perd ; recréer le jeu
+# depuis la galerie rétablit la provenance.
+PRESET_MODELE = "modele:"
 # La matière de repli quand un modèle perso portait un papier IMPORTÉ : le
 # défaut de l'écran (`DEF.paper`, mod-texture.js). Le fichier importé, lui,
 # reste dans le deck d'origine — un modèle ne l'emporte pas.
@@ -1065,7 +1085,13 @@ def instancier(mid, name=None) -> dict:
         # Mais posé en dur, il condamnait un modèle SANS slots — un perso
         # enregistré depuis un deck vide — à un document éternellement vide :
         # plus de modèle à poser, et plus de gabarit non plus.
-        "type": {"preset": m["type"].get("preset") or m["id"],
+        # LA PROVENANCE VIENT DE L'IDENTITÉ DU MODÈLE, PAS DE CE QU'IL DÉCLARE
+        # (voir `PRESET_MODELE`). `m["type"]["preset"]` n'est plus lu : sur un
+        # modèle perso, il porte ce que SON deck d'origine déclarait — donc,
+        # depuis ce changement, la provenance d'un AUTRE modèle. Un deck né de
+        # « mon-modele » aurait annoncé venir de « superstar ». Le seul fait
+        # sûr ici est l'identifiant du modèle qu'on instancie.
+        "type": {"preset": PRESET_MODELE + m["id"],
                  "slots": slots, "seeded": bool(slots),
                  "sel": (slots[0]["id"] if slots else "")},
         "texture": m["texture"],

@@ -1532,7 +1532,12 @@
     state: {
       slots: [],            /* [{id, label, box:[x,y,w,h] mm depuis la coupe, ...}] — LU par data et par print */
       sel: "",              /* slot selectionne */
-      preset: "champion",   /* dernier gabarit applique */
+      /* dernier gabarit applique — OU la PROVENANCE du jeu quand il est ne
+         d'un modele : « modele:<id> » (models.py:PRESET_MODELE). Les deux
+         vocabulaires partagent la cle mais plus l'espace de noms : un id de
+         modele porte son prefixe, une cle de gabarit n'en a pas et ne peut pas
+         en avoir. Voir la section 6bis. */
+      preset: "champion",
       seeded: false,        /* le gabarit de depart a deja ete pose une fois */
       font_default: "Inter",
       autofit: true,        /* defaut des nouveaux slots */
@@ -1570,7 +1575,17 @@
       document.addEventListener("keydown", onKey, true);
       document.addEventListener("paste", onPaste);
       if (PANEL && typeof MutationObserver === "function") {
-        new MutationObserver(() => syncOverlay()).observe(PANEL, { attributes: true, attributeFilter: ["class"] });
+        /* LE PANNEAU QUI S'EFFACE EMPORTE SES POPOVERS. Ils vivent sur
+           `document.body`, pas dans le panneau : rien ne les retire quand on
+           change de pièce. La fermeture au clic dehors ne suffit pas — passer
+           d'une pièce à l'autre AU CLAVIER (Entrée sur le rail) produit un
+           `click` sans `pointerdown`, et le menu restait seul au-dessus d'un
+           autre module. Même observateur que le calque d'édition, même
+           raison : la classe du panneau est ce qui dit « je suis devant ». */
+        new MutationObserver(() => {
+          syncOverlay();
+          if (!panelOn()) { closeFontPicker(); closePalette(); }
+        }).observe(PANEL, { attributes: true, attributeFilter: ["class"] });
       }
       M.invalidate();
     },
@@ -1968,12 +1983,18 @@
   function ensureModels() {
     if (MODELS) return Promise.resolve(MODELS);
     if (MODELS_REQ) return MODELS_REQ;
+    /* LE MESSAGE DE L'ÉCHEC PRÉCÉDENT MEURT AVEC LA NOUVELLE TENTATIVE. Retenu
+       au-delà, il faisait dire « injoignable » à la palette pendant qu'une
+       requête fraîche volait — un état faux, et le seul que l'utilisateur
+       voyait au moment précis où il refaisait le geste. */
+    MODELS_ERR = "";
     let lire;
     try {
       /* un CORE plus ancien que cette pièce : un ÉTAT nommé, pas un
-         « CF.models is not a function » dans la console. */
+         « CF.models is not a function » dans la console. La phrase parle du
+         PRODUIT et non de son montage — c'est la règle du panneau. */
       lire = (typeof CF.models === "function") ? CF.models()
-        : Promise.reject(new Error("ce CORE n'expose pas le catalogue des modèles"));
+        : Promise.reject(new Error("le catalogue des modèles n'est pas disponible dans cette version"));
     } catch (e) { lire = Promise.reject(e); }
     MODELS_REQ = Promise.resolve(lire).then((l) => {
       MODELS = Array.isArray(l) ? l : [];
@@ -1992,9 +2013,28 @@
     return ((m && m.elements) || []).filter(
       (e) => e && Array.isArray(e.slots) && e.slots.length);
   }
-  function modelCourant() {
+  /* ── D'OÙ CE JEU VIENT, ET COMMENT ON LE SAIT ───────────────────────────
+     `doc.type.preset` portait DEUX vocabulaires dans un seul espace de noms :
+     les clés des quatre gabarits locaux (`applyPreset`) et les identifiants de
+     MODÈLES (`models.py:instancier`). Ils se rencontraient DÉJÀ — « arcane »
+     est un gabarit ET un archétype d'usine — et un deck posé sur le gabarit
+     se voyait offrir les éléments d'un design dont il n'était pas né, ce que
+     la phrase de cette section affirmait pourtant impossible. Depuis la ronde
+     T3, l'instanciation ÉCRIT SA PROVENANCE : `preset = "modele:<id>"`
+     (models.py:PRESET_MODELE). Aucune clé de gabarit ni aucun slug ne peut
+     contenir « : » — les deux sens sont donc fermés par construction, et non
+     par une liste de noms réservés qu'il faudrait tenir à jour.
+     UN PRESET SANS PRÉFIXE N'EST PAS UN MODÈLE, même s'il porte le nom d'un :
+     c'est soit un gabarit, soit un jeu d'avant ce changement, et on ne peut
+     pas les distinguer. Deviner est exactement ce qui a produit le défaut. */
+  const PRESET_MODELE = "modele:";
+  function presetModele() {
     const p = String(CF.get("type.preset", "") || "");
-    return (p && MODELS) ? (MODELS.filter((m) => m && m.id === p)[0] || null) : null;
+    return p.indexOf(PRESET_MODELE) === 0 ? p.slice(PRESET_MODELE.length) : "";
+  }
+  function modelCourant() {
+    const id = presetModele();
+    return (id && MODELS) ? (MODELS.filter((m) => m && m.id === id)[0] || null) : null;
   }
   function paletteOffres() {
     return GENERIQUES.concat(elementsDe(modelCourant()).map((e) => ({
@@ -2008,12 +2048,30 @@
      en route, catalogue injoignable, modèle sans éléments — la palette le
      NOMME : « il n'y a rien » et « je n'ai pas pu regarder » ne se corrigent
      pas de la même façon. */
+  /* LE PANNEAU PARLE DU PRODUIT, PAS DE SON MONTAGE (règle épinglée de la
+     pièce : ni « backend » ni « verdict » à l'écran). Le détail technique de
+     l'échec n'est pas perdu pour autant — il part dans l'infobulle de la
+     phrase, où celui qui le cherche le trouve et où il n'encombre personne. */
   function paletteNote() {
-    if (MODELS_ERR) return "catalogue des modèles injoignable (" + MODELS_ERR
-      + ") — les entrées génériques restent.";
+    if (MODELS_ERR) return "le catalogue des modèles n'a pas pu être lu — "
+      + "les entrées génériques restent.";
     if (!MODELS) return "chargement du catalogue des modèles…";
+    /* LA LISTE VIDE EST UN ÉTAT, et c'est CELUI QUE `CF.models` FABRIQUE quand
+       la route est absente de ce backend. Tout backend qui a la route sert au
+       moins les sept archétypes d'usine : une liste vide ne veut donc pas dire
+       « ce poste n'a pas de modèles », elle veut dire « personne n'a
+       répondu ». `!MODELS` ne l'attrapait pas — un tableau vide est VRAI en
+       JS — et c'est ainsi que cet état est resté muet. */
+    if (!MODELS.length) return "aucun modèle disponible sur ce poste — les "
+      + "entrées génériques restent.";
+    const id = presetModele();
+    if (!id) return "";
     const m = modelCourant();
-    if (!m) return "";
+    /* SON MODÈLE A DISPARU : perso supprimé, jeu rapporté d'une autre machine.
+       Ce n'est pas « ce jeu ne vient d'aucun modèle » — c'est « le sien n'est
+       plus là », et les deux ne se réparent pas de la même façon. */
+    if (!m) return "le modèle « " + id + " » n'est plus disponible sur ce "
+      + "poste : ses éléments ne sont pas proposés.";
     return elementsDe(m).length ? ""
       : "modèle « " + m.label + " » sans éléments : rien de plus à poser ici.";
   }
@@ -2026,7 +2084,15 @@
       + ' data-o="' + esc(o.id) + '"><b>' + esc(o.label) + '</b><span>'
       + esc(o.hint) + '</span><i class="mono">' + Number(o.n)
       + (o.n > 1 ? " blocs" : " bloc") + '</i></button>').join("")
-      + (note ? '<p class="hint cf-type-paln">' + esc(note) + '</p>' : "");
+      /* le détail de l'échec vit dans l'infobulle : la phrase reste celle du
+         métier, le diagnostic reste atteignable. Valeur d'ATTRIBUT venue du
+         réseau — donc échappée. ATTENTION : R14 ne juge que les lectures
+         POINTÉES (`a.b`) ; une VARIABLE NUE comme celle-ci lui échappe par
+         construction. C'est donc le banc qui tient cet échappement-là
+         (message d'échec empoisonné, rendu relu) — mesuré, pas supposé. */
+      + (note ? '<p class="hint cf-type-paln"'
+        + (MODELS_ERR ? ' title="' + esc(MODELS_ERR) + '"' : "")
+        + '>' + esc(note) + '</p>' : "");
   }
   function paintPalette(menu) {
     if (menu) menu.innerHTML = paletteHtml();
@@ -2050,6 +2116,12 @@
     closeFontPicker();
     closePalette();
     const seq = ++PAL_SEQ;
+    /* LA DEMANDE PART AVANT LA PREMIÈRE PEINTURE, et ce n'est pas un détail
+       d'ordonnancement : la note dit l'état COURANT, et « une tentative vient
+       de partir » en fait partie. Peindre d'abord, c'était afficher l'échec de
+       la fois précédente au moment précis où l'utilisateur refaisait le
+       geste — le seul moment où il le regardait. */
+    const attente = ensureModels();
     const menu = document.createElement("div");
     /* `cf-type-palmenu` et non `cf-type-pal` : ce dernier est le BOUTON de la
        barre, et deux surfaces qui portent le même nom finissent par recevoir
@@ -2069,7 +2141,7 @@
       closePalette();
       palAdd(b.dataset.o);
     });
-    ensureModels().then(() => {
+    attente.then(() => {
       /* LA GARDE : la réponse peut arriver après que ce menu-ci a été fermé ou
          remplacé par une autre ouverture. On ne repeint QUE la sienne. */
       if (seq === PAL_SEQ && PAL_MENU === menu) paintPalette(menu);
@@ -5234,6 +5306,14 @@
     if (ctrl && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
     if (inField) return;
     if (ctrl && (e.key === "d" || e.key === "D")) { e.preventDefault(); dupSlot(); return; }
+    /* ÉCHAP N'A PAS BESOIN D'UNE SÉLECTION, et il était sous `if (!s) return`.
+       `selSlot()` est nul exactement quand le document n'a AUCUN bloc — c'est-
+       à-dire l'état d'un jeu neuf, celui où l'on ouvre « + Élément » et le
+       menu de polices. Échap n'y fermait donc rien, et la réponse du catalogue
+       revenait repeindre un menu que l'utilisateur croyait fermé. Les deux
+       fermetures remontent ensemble : le défaut était le même pour le menu de
+       polices, il était simplement plus vieux. */
+    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }
     const s = selSlot();
     if (!s) return;
     if (e.key === "Delete" || e.key === "Backspace") {
@@ -5246,7 +5326,6 @@
       delSlot(s.id);
       return;
     }
-    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }
     const d = e.shiftKey ? NUDGE_FINE_MM : NUDGE_MM;
     const map = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] };
     const mv = map[e.key];

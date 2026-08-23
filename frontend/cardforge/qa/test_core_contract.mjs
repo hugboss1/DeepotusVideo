@@ -699,7 +699,13 @@ async function testContract() {
             const d = await (await fetch(new URL('/api/cards/' + neuf, URL_).href)).json();
             const t = (d && d.deck && d.deck.type) || {};
             const n = Array.isArray(t.slots) ? t.slots.length : -1;
-            if (t.preset === 'superstar' && n === 12 && t.seeded === true)
+            /* `modele:superstar` et non `superstar` (ronde 3b-T3) : le preset
+               d'un deck DIT SA PROVENANCE. Sans le prefixe, l'id d'un modele
+               etait indiscernable d'une cle de gabarit de P3 — et « arcane »
+               est les deux, si bien qu'un deck pose sur le gabarit se voyait
+               offrir les elements d'un modele dont il n'etait pas ne. Voir
+               models.py:PRESET_MODELE. */
+            if (t.preset === 'modele:superstar' && n === 12 && t.seeded === true)
               ok(`galerie : le jeu cree porte le modele SUR LE DISQUE — preset=${t.preset} slots=${n} seeded=${t.seeded}`);
             else ko(`galerie : le jeu cree ne porte pas le modele — preset=${t.preset} slots=${n} seeded=${t.seeded}`);
           } catch (e) { ko('galerie : relecture serveur du jeu instancie impossible — ' + e.message); }
