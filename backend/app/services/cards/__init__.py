@@ -2,7 +2,7 @@
 """Card Forge — le domaine « cartes », monté sous `/api/cards`.
 
 CE FICHIER APPARTIENT À CORE et ne bouge plus : il assemble, il n'implémente
-rien. Les neuf pièces remplissent leur propre `<id>.py` et n'en sortent pas.
+rien. Les dix pièces remplissent leur propre `<id>.py` et n'en sortent pas.
 
 Le domaine vit HORS de `app/api/routes.py` — ce fichier passe déjà 6 500
 lignes, et huit builders qui l'éditent en parallèle, c'est huit conflits.
@@ -24,6 +24,7 @@ Assemblage (règle 8 de la spec) :
     /api/cards/{did}/print/…      P7     print.py
     /api/cards/{did}/gltf/…       P8     gltf.py
     /api/cards/{did}/forge3d/…    P9     forge3d.py
+    /api/cards/{did}/capture/…    P10    capture.py
 
 Chaque sous-module déclare `router = APIRouter()` avec des chemins RELATIFS
 et n'importe le routeur d'aucun autre : le préfixe `{did}` est posé ici, une
@@ -37,7 +38,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 from . import core
-from . import face, frame, data, solid, texture, gltf, forge3d
+from . import face, frame, data, solid, texture, gltf, forge3d, capture
 from . import models
 from . import type as type_mod
 from . import print as print_mod
@@ -68,6 +69,10 @@ router.include_router(print_mod.router, prefix="/{did}/print",
 router.include_router(gltf.router, prefix="/{did}/gltf", tags=["cards:gltf"])
 router.include_router(forge3d.router, prefix="/{did}/forge3d",
                       tags=["cards:forge3d"])
+# P10 s'appelle `capture` et non `import` : `import.py` serait inimportable
+# (mot réservé), et la règle 1 du lint exige que le fichier porte l'id.
+router.include_router(capture.router, prefix="/{did}/capture",
+                      tags=["cards:capture"])
 
 
 # ── le filet, EN DERNIER ────────────────────────────────────────────────────
@@ -78,7 +83,7 @@ router.include_router(forge3d.router, prefix="/{did}/forge3d",
 # domaine avant d'atteindre le garde-fou 400 de `_deck_or_404` et rendait
 # 200 text/html. Aucune traversée n'était possible (le double garde-fou de
 # `deck_dir` n'était même pas sollicité), mais une API qui répond du HTML est
-# un piège. Déclaré APRÈS les neuf sous-routeurs : Starlette apparie dans
+# un piège. Déclaré APRÈS les dix sous-routeurs : Starlette apparie dans
 # l'ordre, il ne peut donc rien masquer.
 @router.api_route("/{rest:path}",
                   methods=["GET", "POST", "PATCH", "PUT", "DELETE", "HEAD"],

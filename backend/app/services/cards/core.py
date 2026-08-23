@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Card Forge — CORE : le magasin de decks et les routes du noyau.
 
-Ce fichier appartient à CORE. Les huit pièces ne le touchent jamais ; elles
+Ce fichier appartient à CORE. Les dix pièces ne le touchent jamais ; elles
 lisent `contract.py` et écrivent leur propre `<id>.py`.
 
 Stockage — `outputs/decks/deck_xxxxxxxx/meta.json`, voisin de materials/,
@@ -156,9 +156,14 @@ def normalize_deck(raw: dict | None, did: str | None = None) -> dict:
     client partiel…). NE LÈVE JAMAIS.
 
     Le PARTITIONNEMENT est appliqué ici, et c'est le seul endroit : une clé
-    qui n'est ni une clé de CORE ni l'un des huit ids est jetée. Sans cela,
+    qui n'est ni une clé de CORE ni l'un des dix ids est jetée. Sans cela,
     un client (ou un module distrait) pourrait faire pousser le document
-    n'importe où et deux pièces finiraient par se marcher dessus."""
+    n'importe où et deux pièces finiraient par se marcher dessus.
+
+    LE REVERS, payé comptant : ce filtre ne trie pas, il EFFACE. Un id vivant
+    au rail mais oublié de `MODULE_IDS` voit son sous-arbre disparaître à
+    chaque autosave, sans un message — c'est l'histoire de `doc.forge3d`
+    (phases 2a à 3c). La liste et le rail se tiennent la main."""
     raw = raw if isinstance(raw, dict) else {}
     did = did or raw.get("id")
     doc = default_doc(did if is_valid_did(did) else "deck_00000000",

@@ -93,7 +93,10 @@ import subprocess
 import sys
 
 # --- TABLE Z GELEE (spec §2.2) ------------------------------------------
-# data, solid, print, gltf, forge3d n'ont AUCUN painter : ils ne dessinent pas la carte.
+# data, solid, print, gltf, forge3d, capture n'ont AUCUN painter : ils ne
+# dessinent pas la carte. Pour `capture` (P10) c'est la spec §9.4 qui le dit,
+# et la raison tient en une phrase : une carte IMPORTEE n'est pas la carte du
+# jeu, c'est son modele — ce sont les pieces qui l'adoptent qui dessinent.
 Z_TABLE = {
     "texture": {10, 30},
     "face": {20},
@@ -104,9 +107,10 @@ Z_TABLE = {
     "print": set(),
     "gltf": set(),
     "forge3d": set(),
+    "capture": set(),
 }
 MODULES = ["face", "frame", "type", "data", "solid", "texture", "print",
-           "gltf", "forge3d"]  # ordre = rang dans le rail (= numero de piece)
+           "gltf", "forge3d", "capture"]  # ordre = rang dans le rail (= piece)
 Z_CORE = 90                 # reperes fond perdu / coupe / zone sure
 
 FRONT_DIR = pathlib.Path("frontend/cardforge")

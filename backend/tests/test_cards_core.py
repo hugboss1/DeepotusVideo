@@ -583,6 +583,71 @@ def test_un_sous_arbre_absent_ou_mal_forme_survit():
     CC.delete_deck(did)
 
 
+# ── LES DIX SOUS-ARBRES (phase 4, D1) ───────────────────────────────────────
+# `MODULE_IDS` a été figé à HUIT le jour du gel, et il y est resté deux pièces
+# de trop longtemps. Conséquence MESURÉE avant correction : l'écran envoie
+# `doc.forge3d` à chaque autosave (`core.js:saveBody` prend tout id du tableau
+# JS `MODULES`, qui porte `forge3d` depuis la phase 2a), le backend le jetait
+# en silence — `normalize_deck` ne garde que ce qui est dans la liste — et
+# TOUTE édition du graphe P9 était perdue au rechargement en ligne. Aucun test
+# ne l'épinglait. Les deux tests ci-dessous roulent par LA ROUTE RÉELLE et non
+# par `write_deck` : c'est le cycle que vit l'utilisateur, PATCH puis GET, et
+# c'est le seul qui traverse `patch_deck` ET `read_deck`.
+
+def test_le_graphe_de_la_forge_SURVIT_a_un_cycle_PATCH_puis_GET():
+    """F2 : « doc.forge3d.graph reste LA vérité » (plan 2a) ne tenait pas une
+    seconde hors du navigateur. Le graphe part, revient — ou ne revient pas."""
+    did = _api("POST", "/api/cards/decks",
+               json={"name": "forge"}).json()["deck"]["id"]
+    graphe = {
+        "nodes": [{"id": "n1", "kind": "layer", "params": {"side": "front"}},
+                  {"id": "n2", "kind": "assemble", "params": {}}],
+        "edges": [{"from": "n1", "to": "n2", "port": "in"}],
+    }
+    r = _api("PATCH", f"/api/cards/{did}",
+             json={"forge3d": {"graph": graphe, "layout": {"n1": [10, 20]}}})
+    assert r.status_code == 200, r.text
+    doc = _api("GET", f"/api/cards/{did}").json()["deck"]
+    assert "forge3d" in doc, \
+        "le document ne porte AUCUN sous-arbre forge3d : la clé a été jetée"
+    assert doc["forge3d"].get("graph") == graphe, \
+        f"le graphe n'a pas survécu au cycle : {doc.get('forge3d')!r}"
+    assert doc["forge3d"].get("layout") == {"n1": [10, 20]}
+    CC.delete_deck(did)
+
+
+def test_capture_est_un_sous_arbre_comme_les_neuf_autres():
+    """P10 hériterait du même trou. La PARITÉ de traitement se prouve sur les
+    deux bouts : un sous-arbre bien formé survit, un `capture` mal formé
+    envoyé par un client donne `{}` sans erreur — jamais un 500, jamais un
+    document amputé."""
+    did = _api("POST", "/api/cards/decks",
+               json={"name": "capture"}).json()["deck"]["id"]
+    neuf = _api("GET", f"/api/cards/{did}").json()["deck"]
+    assert neuf.get("capture") == {}, \
+        "le document neuf ne sème pas capture : default_doc a une pièce de retard"
+    assert neuf.get("forge3d") == {}, "ni forge3d"
+
+    r = _api("PATCH", f"/api/cards/{did}",
+             json={"capture": {"analyzed": True, "bg": {"confidence": 0.71}}})
+    assert r.status_code == 200, r.text
+    doc = _api("GET", f"/api/cards/{did}").json()["deck"]
+    assert doc.get("capture", {}).get("analyzed") is True, doc.get("capture")
+    assert doc["capture"]["bg"] == {"confidence": 0.71}
+
+    # ... et le mal formé ne fait ni 500 ni dégât (patron des huit d'origine)
+    for pourri in (None, "texte", [1], 7):
+        r = _api("PATCH", f"/api/cards/{did}", json={"capture": pourri})
+        assert r.status_code == 200, (pourri, r.status_code, r.text[:200])
+        doc = _api("GET", f"/api/cards/{did}").json()["deck"]
+        assert doc["capture"]["analyzed"] is True, pourri
+    # un document dont le disque porte n'importe quoi se répare en `{}`
+    brut = CC.normalize_deck({"id": did, "capture": ["pas un objet"],
+                              "forge3d": None})
+    assert brut["capture"] == {} and brut["forge3d"] == {}
+    CC.delete_deck(did)
+
+
 def test_liste_et_suppression():
     avant = {d["id"] for d in CC.list_decks()}
     a = CC.create_deck("A")
@@ -1043,16 +1108,25 @@ def test_une_route_inconnue_du_domaine_ne_rend_jamais_du_html():
         assert not r.text.lstrip().startswith("<")
 
 
-def test_la_coquille_des_huit_pieces_est_valide():
-    """Les huit pièces existent, chacune avec son `router`, et chacune part
-    VIDE : le corps est le travail des builders, la coquille est gelée."""
+def test_la_coquille_des_dix_pieces_est_valide():
+    """LES DIX PIÈCES, dans l'ordre du rail, chacune avec SON `router`.
+
+    Ce test a épinglé HUIT ids pendant deux phases, pendant que le rail en
+    portait dix et que l'écran envoyait les dix à l'autosave. Il ne gardait
+    donc pas le contrat : il gardait un chiffre périmé, et c'est LUI qui
+    faisait passer la perte de `doc.forge3d` pour une décision.
+
+    La liste ne se relit pas d'un mot (« il y en a dix ») mais des ids EXACTS
+    et de leur ORDRE : le rang dans ce tuple est le numéro de la pièce au
+    rail, et `core.js:MODULES` porte la même suite. Les deux se tiennent la
+    main — le test de parité écran/backend est plus bas."""
     import importlib
     assert CT.MODULE_IDS == ("face", "frame", "type", "data", "solid",
-                             "texture", "print", "gltf")
+                             "texture", "print", "gltf", "forge3d", "capture")
     for mid in CT.MODULE_IDS:
         mod = importlib.import_module(f"app.services.cards.{mid}")
         assert hasattr(mod, "router"), mid
-        # « part VIDE » décrivait le jour du gel. Les huit builders ont depuis
+        # « part VIDE » décrivait le jour du gel. Les builders ont depuis
         # rempli leur module : ce qui reste vérifiable est le CONTRAT, à savoir
         # que chacun expose son propre routeur et n'emprunte celui de personne.
         from fastapi import APIRouter
@@ -1061,6 +1135,27 @@ def test_la_coquille_des_huit_pieces_est_valide():
             if autre != mid:
                 a = importlib.import_module(f"app.services.cards.{autre}")
                 assert mod.router is not a.router,                     f"{mid} et {autre} partagent le même routeur"
+    # ... et chaque id a bien son sous-arbre dans un document neuf : la liste
+    # ne sert à rien si `default_doc` n'en fait pas des clés.
+    doc = CC.default_doc("deck_a1b2c3d4")
+    for mid in CT.MODULE_IDS:
+        assert doc.get(mid) == {}, mid
+
+
+def test_la_liste_des_ids_est_LA_MEME_a_l_ecran_et_au_backend():
+    """LE COÛT D'UNE DIVERGENCE EST UN EFFACEMENT SILENCIEUX, et il a été payé
+    (F2) : `core.js:MODULES` porte les ids que l'autosave envoie,
+    `contract.MODULE_IDS` porte ceux que le backend garde. Un id présent d'un
+    seul côté est un sous-arbre qui part à chaque enregistrement et ne revient
+    jamais. La liste JS est LUE dans le fichier — pas recopiée ici, sinon ce
+    test ne comparerait que deux copies écrites par la même main."""
+    js = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+          "cardforge" / "js" / "core.js").read_text(encoding="utf-8")
+    m = re.search(r"const\s+MODULES\s*=\s*\[([^\]]*)\]", js)
+    assert m, "core.js:MODULES introuvable — le contrat de l'écran a bougé"
+    ids = tuple(re.findall(r'"([a-z0-9]+)"', m.group(1)))
+    assert ids == CT.MODULE_IDS, \
+        f"écran {ids} != backend {CT.MODULE_IDS}"
 
 
 def test_le_routeur_est_monte_sous_api_cards():

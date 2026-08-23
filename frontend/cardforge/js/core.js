@@ -59,8 +59,8 @@
      10 texture (papier sous l'illustration) · 20 face (illustration)
      30 texture (grain/foil au-dessus) · 40 frame (cadre) · 60 type (tout le
      texte) · 70 frame (ornements de dessus) · 90 CORE (reperes, jamais exporte)
-   data · solid · print · gltf · forge3d n'ont AUCUN painter : ils ne
-   dessinent pas la carte.
+   data · solid · print · gltf · forge3d · capture n'ont AUCUN painter : ils
+   ne dessinent pas la carte.
 
    Aucune dependance externe, aucun CDN, aucun build. Le bloc de geometrie est
    chargeable tel quel dans Node (aucun acces au DOM au chargement) : c'est ce
@@ -73,8 +73,13 @@
 
   const VERSION = "2.0.0";
 
-  /* ── les neuf ids geles, dans l'ordre du rail (= numero de piece) ───────── */
-  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d"];
+  /* ── les dix ids geles, dans l'ordre du rail (= numero de piece) ─────────
+     CE TABLEAU DECIDE DE CE QUI PART A L'AUTOSAVE (`saveBody`) : un id qui y
+     figure sans figurer dans `contract.MODULE_IDS` cote backend voit son
+     sous-arbre JETE a chaque enregistrement, sans un message. C'est arrive a
+     `forge3d` de la phase 2a a la phase 3c. Les deux listes se tiennent la
+     main : on ne touche pas l'une sans l'autre. */
+  const MODULES = ["face", "frame", "type", "data", "solid", "texture", "print", "gltf", "forge3d", "capture"];
   const ORDER = {};
   MODULES.forEach((id, i) => { ORDER[id] = i + 1; });
 
@@ -949,7 +954,7 @@
         + '<span class="ri-t">' + (m ? esc(m.title) : esc(id)) + '</span>'
         + '<em class="ri-i">' + (m ? esc(m.icon) : "·") + '</em>';
       /* le nom de la piece est TOUJOURS dans le title= : replie, le rail n'a
-         plus que le numero et l'icone — sans lui, neuf pastilles muettes. */
+         plus que le numero et l'icone — sans lui, dix pastilles muettes. */
       b.title = m ? m.title : "module absent : js/mod-" + id + ".js n'est pas chargé";
       b.addEventListener("click", () => show(id));
       rail.appendChild(b);
@@ -1515,7 +1520,7 @@
 
      Ce que cet ecran fait : ouvrir un jeu (neuf depuis un modele, ou repris
      dans la liste), dupliquer celui qui est ouvert, en faire un modele. Ce
-     sont des gestes de DOCUMENT — ils ne rentrent dans aucun des neuf
+     sont des gestes de DOCUMENT — ils ne rentrent dans aucun des dix
      sous-arbres, donc dans aucune piece : c'est le CORE qui les porte, comme
      le nom du jeu et le format.
 
@@ -1935,10 +1940,10 @@
   }
 
   /* ── les gestes ──────────────────────────────────────────────────────────
-     CHANGER DE JEU, C'EST RECHARGER LA PAGE. Les neuf pieces recoivent leur
+     CHANGER DE JEU, C'EST RECHARGER LA PAGE. Les dix pieces recoivent leur
      etat une seule fois, dans `init(host)`, au demarrage : rien dans le
      contrat ne leur demande de se refaire quand le document change sous
-     elles. Echanger le document en place laisserait donc neuf panneaux qui
+     elles. Echanger le document en place laisserait donc dix panneaux qui
      montrent l'ANCIEN jeu au-dessus d'une carte qui montre le nouveau — le
      genre de faux qu'on ne remarque qu'apres avoir travaille une heure
      dessus. `?deck=` est deja lu par `openDeck()` : on s'en sert. */
@@ -2001,8 +2006,14 @@
     } catch (e) { toast(galMsg(e), true); }
     finally { busy(false); }
   }
+  /* « Importer une carte » : la galerie ferme et la piece 10 s'ouvre. Le
+     bouton a tenu la place d'un panneau absent (un toast qui disait
+     honnetement « l'import arrive ») ; le panneau existe, le toast meurt.
+     Aucun geste de DOCUMENT ici : P10 depose dans le jeu OUVERT — c'est
+     pourquoi ce bouton ne cree ni ne duplique quoi que ce soit. */
   function galImport() {
-    toast("Importer une carte : phase 4 — l'import arrive. Le bouton tient la place, il ne fait pas semblant.");
+    closeGallery();
+    show("capture");
   }
 
   /* ── premier lancement ───────────────────────────────────────────────────

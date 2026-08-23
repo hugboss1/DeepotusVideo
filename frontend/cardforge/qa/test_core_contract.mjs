@@ -300,7 +300,7 @@ const BATTERIE = `(async () => {
     say("escamotage carte : second clic -> classe retiree ET cle effacee",
         (!cfg.classList.contains("stage-replie") && lsq("dz_cf_stage") === null) ? "TENU" : "OUVERT",
         cls() + " dz_cf_stage=" + JSON.stringify(lsq("dz_cf_stage")));
-    /* replie, une rangee du rail n'a plus que son numero : sans title=, neuf
+    /* replie, une rangee du rail n'a plus que son numero : sans title=, dix
        pastilles muettes. */
     const muettes = Array.prototype.filter.call(document.querySelectorAll(".rail-item"), (b) => !b.title).length;
     say("escamotage rail : chaque rangee nomme sa piece en title=",
@@ -350,14 +350,27 @@ const BATTERIE = `(async () => {
     say("galerie : la vignette est le PLAN DES ZONES, reellement peint",
         (cv && teintes.size >= 6) ? "TENU" : "OUVERT",
         cv ? (cv.width + "x" + cv.height + " -> " + teintes.size + " teintes") : "pas de vignette");
+    /* « IMPORTER UNE CARTE » N'EST PLUS UN PLACEHOLDER. Ce banc a epingle
+       pendant trois phases le toast qui nommait honnetement l'absence
+       (« phase 4 — l'import arrive ») ; la piece 10 existe, le toast est
+       mort. Le geste tient maintenant en deux faits : la galerie se REFERME
+       (P10 depose dans le jeu deja ouvert — il n'y a pas de document a
+       creer) et la piece 10 devient courante.
+       LA PREUVE SE PREND SUR LE RAIL et non sur un panneau : les modules de
+       ce banc sont factices et contract.html ne porte pas de
+       <section data-mod="capture"> — la rangee du rail, elle, est construite
+       par le CORE pour TOUT id de MODULES, module charge ou non. */
     document.getElementById("galImport").click();
-    const tst = document.getElementById("toast");
-    say("galerie : « Importer une carte » refuse en NOMMANT la phase",
-        (tst && !tst.classList.contains("hidden")
-         && tst.textContent.indexOf("phase 4 — l'import arrive") >= 0) ? "TENU" : "OUVERT",
-        tst ? tst.textContent.slice(0, 90) : "pas de toast");
-    say("galerie : le refus d'import ne referme pas l'ecran",
-        (gr && gr.dataset.open === "1") ? "TENU" : "OUVERT", gr ? gr.dataset.open : "?");
+    const rc = document.querySelector('.rail-item[data-mod="capture"]');
+    say("galerie : « Importer une carte » ouvre la piece 10 (capture)",
+        (rc && rc.classList.contains("active")) ? "TENU" : "OUVERT",
+        rc ? ("classes=[" + rc.className + "]") : "pas de rangee capture au rail");
+    say("galerie : l'import REFERME l'ecran (il travaille dans le jeu ouvert)",
+        (gr && gr.classList.contains("hidden") && gr.dataset.open === "0") ? "TENU" : "OUVERT",
+        gr ? ("classes=[" + gr.className + "] data-open=" + gr.dataset.open) : "?");
+    /* On ROUVRE pour prouver Echap : sans cela l'assertion suivante lirait
+       l'ecran deja ferme par l'import et ne prouverait plus rien. */
+    gb.click();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     say("galerie : Echap ferme (hidden posee ET data-open=0)",
         (gr && gr.classList.contains("hidden") && gr.dataset.open === "0") ? "TENU" : "OUVERT",

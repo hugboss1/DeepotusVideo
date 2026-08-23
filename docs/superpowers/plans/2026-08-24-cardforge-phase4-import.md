@@ -70,6 +70,17 @@ phase 4 étend `MODULE_IDS` à 10 (D1).
   `test_core_contract.mjs:305-307` ; aucune assertion de compte). L'écart de
   couverture du banc s'élargit (déjà : forge3d absent) — ACCEPTÉ, le banc teste le
   CORE sur modules factices, pas les modules.
+  **AMENDEMENT T1 (mesuré le 24/08)** : `contract.html` ne casse pas, mais
+  `test_core_contract.mjs:353-360` SI — le banc épinglait le toast du
+  placeholder au texte (`indexOf("phase 4 — l'import arrive") >= 0`) ET le fait
+  que le clic NE referme PAS la galerie. Les deux deviennent faux par
+  construction dès que `galImport` câble P10 : 2 contrôles OUVERTS sur 118,
+  mesuré avant correction. Réécrits sur la vérité neuve (la galerie se ferme,
+  la rangée `capture` du rail devient `.active` — la preuve se prend sur le
+  RAIL, `contract.html` n'ayant pas de `<section data-mod="capture">`), plus
+  une réouverture avant le contrôle d'Échap qui, sinon, lisait un écran déjà
+  fermé et ne prouvait plus rien. `test_core_contract.mjs` s'ajoute donc aux
+  fichiers de T1.
 
 ### 1.3 Primitives d'analyse (ce qui existe, ce qui manque)
 

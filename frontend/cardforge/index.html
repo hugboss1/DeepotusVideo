@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Card Forge — Deepotus Video Gen</title>
-<!-- COQUILLE [CORE] — gelee. Les 9 builders ne touchent JAMAIS ce fichier :
+<!-- COQUILLE [CORE] — gelee. Les 10 builders ne touchent JAMAIS ce fichier :
      ils remplissent leur <div class="cf-host"> depuis js/mod-<id>.js.
-     Ordre des feuilles : la coquille d'abord (elle importe les tokens), les 9
+     Ordre des feuilles : la coquille d'abord (elle importe les tokens), les 10
      modules ensuite — ainsi une regle de module l'emporte sur une primitive,
      jamais l'inverse. -->
 <link rel="stylesheet" href="cardforge.css">
@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="css/mod-print.css">
 <link rel="stylesheet" href="css/mod-gltf.css">
 <link rel="stylesheet" href="css/mod-forge3d.css">
+<link rel="stylesheet" href="css/mod-capture.css">
 <!-- visionneuse 3D embarquee (hors ligne, servie par l'app) : P5 et P8 s'en
      servent, elle est chargee ici une seule fois. -->
 <script type="module" src="/assets/model-viewer.min.js"></script>
@@ -60,7 +61,7 @@
 
 <main class="cf">
 
-  <!-- ══ 1. rail gauche : les 9 pieces, dans l'ordre gele ══ -->
+  <!-- ══ 1. rail gauche : les 10 pieces, dans l'ordre gele ══ -->
   <nav class="rail" id="rail"></nav>
 
   <!-- ══ 2. scene : LE moteur unique. Ce qu'on voit ici est le meme appel a
@@ -89,7 +90,7 @@
     </div>
   </section>
 
-  <!-- ══ 3. plan de travail : 9 sections VIDES. Chaque .cf-host porte la classe
+  <!-- ══ 3. plan de travail : 10 sections VIDES. Chaque .cf-host porte la classe
        .cf-<id> — c'est ce qui rend la regle 4 (« tout selecteur de
        css/mod-<id>.css contient .cf-<id> ») applicable sans effort. ══ -->
   <section class="work" id="work">
@@ -139,6 +140,11 @@
       <div class="cf-host cf-forge3d" data-host="forge3d"></div>
     </section>
 
+    <section class="cf-panel" id="cf-panel-capture" data-mod="capture">
+      <div class="panel-head"><b class="ph-n">10</b><h2>Import</h2><p class="hint">Reprendre une carte existante : dépôt recto/verso, mesures, couches isolées.</p></div>
+      <div class="cf-host cf-capture" data-host="capture"></div>
+    </section>
+
   </section>
 
   <!-- panneau lateral optionnel, cree a la demande par CF.aside() -->
@@ -148,7 +154,7 @@
 <div class="busy hidden" id="busy"><div class="busy-box"><i class="busy-spin"></i><span class="busy-l">traitement…</span></div></div>
 <div id="toast" class="toast hidden"></div>
 
-<!-- LE CONTRAT d'abord, les 9 pieces ensuite. Chaque module s'enregistre a
+<!-- LE CONTRAT d'abord, les 10 pieces ensuite. Chaque module s'enregistre a
      l'evaluation de son script ; le registre est gele au DOMContentLoaded. -->
 <script src="js/core.js"></script>
 <script src="js/mod-face.js"></script>
@@ -160,5 +166,6 @@
 <script src="js/mod-print.js"></script>
 <script src="js/mod-gltf.js"></script>
 <script src="js/mod-forge3d.js"></script>
+<script src="js/mod-capture.js"></script>
 </body>
 </html>

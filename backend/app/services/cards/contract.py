@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 """Card Forge — LE CONTRAT backend. Zéro code métier, zéro route.
 
-Ce fichier appartient à CORE et n'est écrit qu'une fois : les huit pièces
-(face, frame, type, data, solid, texture, print, gltf) le LISENT et ne le
-modifient jamais. Il tient trois choses, et rien d'autre :
+Ce fichier appartient à CORE et n'est écrit qu'une fois : les dix pièces
+(face, frame, type, data, solid, texture, print, gltf, forge3d, capture) le
+LISENT et ne le modifient jamais. Il tient trois choses, et rien d'autre :
 
   1. LA RÈGLE DE GÉOMÉTRIE, unique. Aucun module ne recalcule un pixel à
      partir des millimètres. Jamais.
@@ -70,10 +70,18 @@ __all__ = [
 ]
 
 # ── identités gelées ────────────────────────────────────────────────────────
-# Les huit pièces, dans l'ordre du rail. Un id hors de cette liste est refusé
-# partout : registre JS, sous-routeur backend, sous-arbre du document.
+# LA LISTE SUIT LE RAIL, dans son ordre (= le numéro de pièce). Un id hors
+# d'ici est refusé partout : registre JS, sous-routeur backend, sous-arbre du
+# document. La règle vaut dans les DEUX SENS, et c'est le second qui a coûté :
+# une pièce présente au rail mais absente d'ici est une pièce dont le document
+# MENT. `doc.forge3d` en a fait la démonstration pendant deux phases — l'écran
+# l'envoyait à chaque autosave (`core.js:saveBody` prend tout id du tableau JS
+# `MODULES`), `normalize_deck` le jetait en silence faute de le trouver ici, et
+# toute édition du graphe P9 était perdue au rechargement en ligne. La doctrine
+# du partitionnement était juste ; c'était la liste qui avait du retard.
+# Ajouter une pièce au rail SANS l'ajouter ici ne casse rien : ça efface.
 MODULE_IDS = ("face", "frame", "type", "data", "solid", "texture",
-              "print", "gltf")
+              "print", "gltf", "forge3d", "capture")
 
 DID_RE = re.compile(r"^deck_[0-9a-f]{8}$")
 
