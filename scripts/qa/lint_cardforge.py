@@ -58,8 +58,9 @@ Regles verifiees ici :
       figure pas (neuf, jamais suivi) le controle CRLF est SAUTE pour lui ;
       le controle NUL, lui, reste actif dans tous les cas, seul a ne pas
       dependre de l'historique. Voir check_r13() et _index_eol_map().
-  R14 « Echappement » : dans un corps de fonction dont le nom contient Html ou
-      paint, aucune lecture de champ (`a.b`) ne peut etre concatenee TELLE
+  R14 « Echappement » : dans un corps de fonction QUI ECRIT DU HTML — nom en
+      Html/paint, ou corps qui pose un innerHTML/outerHTML/insertAdjacentHTML
+      — aucune lecture de champ (`a.b`) ne peut etre concatenee TELLE
       QUELLE a l'ouverture d'une valeur d'attribut HTML. C'est la seule classe
       d'injection que ce script peut juger MECANIQUEMENT, et c'est la plus
       grave : un guillemet dans la valeur ferme l'attribut et pose ce qu'on
@@ -402,10 +403,29 @@ def check_r12(mid, path, text, add):
 # suivre son identifiant d'une PARENTHESE — la regle ecarte donc tout ce qui se
 # termine par un appel, sans liste a maintenir a jour.
 #
+# QUELLES FONCTIONS SONT BALAYEES : celles dont le nom contient Html ou paint —
+# le critere d'origine — ET, depuis la 3b, TOUTE fonction dont le corps POSE DU
+# HTML (`.innerHTML =`, `.outerHTML =`, `insertAdjacentHTML(`). Le filtre de
+# noms seul etait une liste a tenir a jour, et personne ne la tenait :
+# `renderInsp`, `renderList`, `buildStatics`, `fillPalettes`, `tileOut` en
+# ecrivent tout autant et passaient au travers (mesure a l'elargissement : 65
+# fonctions balayees en plus sur les 9 pieces, et 11 vraies valeurs
+# d'attribut non echappees, toutes corrigees). Le sink est le fait MECANIQUE
+# qui dit « cette fonction ecrit du HTML » ; un nom n'est qu'une intention.
+# Le surcout mesure est nul (le corps est deja decoupe pour l'analyse).
+#
 # PERIMETRE : LA POSITION D'ATTRIBUT, et elle seule. C'est le seul endroit que
 # ce script peut juger MECANIQUEMENT — le litteral qui precede se termine par
 # `attribut="`, donc la valeur atterrit dans une valeur d'attribut, ou un
 # guillemet suffit a s'echapper et a poser un `onerror=` sur l'element voisin.
+# LE GUILLEMET EST EXIGE. Il l'etait facultatif tant que la regle ne voyait que
+# des fonctions « …Html » ; l'elargissement l'a mise devant des fonctions qui
+# ecrivent du HTML ET DES PHRASES, et une phrase se termine par `nom=` tout
+# aussi bien qu'une balise : « la ligne y=42 », « 300 DPI = 12 / mm² »,
+# « tile?mat=…&seed=7 ». Cinq faux signalements de cette forme, zero valeur
+# d'attribut SANS guillemets dans tout le labo (mesure) : le guillemet tranche,
+# et il est exactement ce que la regle existe pour proteger — c'est lui que la
+# valeur injectee refermerait.
 # La position TEXTE (`'<b>' + x.y + '</b>'`) est deliberement HORS perimetre :
 # elle demande de savoir si `x.y` est un nombre mesure par le backend ou une
 # chaine venue de l'exterieur, et aucun regex ne le sait. La signaler aurait
@@ -414,6 +434,11 @@ def check_r12(mid, path, text, add):
 # protege plus rien. C'est un CLIQUET sur la classe la plus grave, pas une
 # preuve d'echappement global (meme doctrine que le reste du script).
 R14_NOMS = re.compile(r"Html|paint", re.I)
+# le FAIT qui dit « cette fonction ecrit du HTML », quel que soit son nom.
+# `[^=]` ecarte la COMPARAISON (`if (x.innerHTML == …)`), qui ne pose rien ;
+# `\+?` prend le `+=` (aucun dans le labo aujourd'hui — il n'a pas a etre le
+# trou par lequel une fonction ressortirait du perimetre demain).
+R14_SINK = re.compile(r"\.(?:inner|outer)HTML\s*\+?=[^=]|insertAdjacentHTML\s*\(")
 R14_DECL = re.compile(
     r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\("
     r"|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*"
@@ -423,8 +448,9 @@ R14_DECL = re.compile(
 # de provenance lisible ici, et le motif de la faute est l'acces a un champ.
 R14_CHAINE = re.compile(
     r"([\"'`])\s*\+\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)+)")
-# le litteral se termine sur l'ouverture d'une valeur d'attribut
-R14_ATTR_FIN = re.compile(r"[\w-]+\s*=\s*[\"']?$")
+# le litteral se termine sur l'ouverture d'une valeur d'attribut CITEE (voir
+# le pave ci-dessus : sans le guillemet, la prose `y=` en est une aussi)
+R14_ATTR_FIN = re.compile(r"[\w-]+\s*=\s*[\"']$")
 # membres STRUCTURELLEMENT numeriques : aucun balisage ne peut en sortir
 R14_SURS = ("length",)
 # `prev` significatif apres lequel un « / » ouvre une expression reguliere et
@@ -554,10 +580,16 @@ def check_r14(mid, path, text, add):
     sans_com, masque = _js_masque(text)
     for m in R14_DECL.finditer(masque):
         nom = m.group(1) or m.group(2)
-        if not nom or not R14_NOMS.search(nom):
+        if not nom:
             continue
         corps = _corps_fonction(masque, m.end() - 1)
         if corps is None:
+            continue
+        # le NOM (critere d'origine) OU le FAIT : un corps qui pose du HTML en
+        # ecrit, quel que soit son nom. Le sink se cherche dans `masque`, ou
+        # les chaines sont blanchies : le mot « innerHTML » dans un texte
+        # affiche ne fait pas d'une fonction une fabrique de HTML.
+        if not (R14_NOMS.search(nom) or R14_SINK.search(masque, corps[0], corps[1])):
             continue
         for h in R14_CHAINE.finditer(sans_com, corps[0], corps[1]):
             # le motif doit etre du CODE : dans `sans_com` les chaines sont

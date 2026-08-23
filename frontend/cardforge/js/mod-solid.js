@@ -492,19 +492,19 @@
 
   function buildStatics() {
     q("#cf-solid-views").innerHTML = VUES.map((v) =>
-      '<button type="button" class="seg-b cf-solid-v" data-v="' + v.id + '" title="' + esc(v.t) + '">' + esc(v.l) + '</button>').join("");
+      '<button type="button" class="seg-b cf-solid-v" data-v="' + esc(v.id) + '" title="' + esc(v.t) + '">' + esc(v.l) + '</button>').join("");
     q("#cf-solid-edges").innerHTML = TRANCHES.map((t) =>
-      '<button type="button" class="seg-b cf-solid-e" data-e="' + t.id + '">' + esc(t.l) + '</button>').join("");
+      '<button type="button" class="seg-b cf-solid-e" data-e="' + esc(t.id) + '">' + esc(t.l) + '</button>').join("");
     q("#cf-solid-reliefs").innerHTML = RELIEFS.map((r) =>
-      '<button type="button" class="seg-b cf-solid-r" data-r="' + r.id + '" title="' + esc(r.t)
+      '<button type="button" class="seg-b cf-solid-r" data-r="' + esc(r.id) + '" title="' + esc(r.t)
       + '">' + esc(r.l) + '</button>').join("");
     q("#cf-solid-poses").innerHTML = POSES.map((p) =>
-      '<button type="button" class="seg-b cf-solid-pose" data-pose="' + p.id + '" title="'
+      '<button type="button" class="seg-b cf-solid-pose" data-pose="' + esc(p.id) + '" title="'
       + esc(p.t) + '">' + esc(p.l) + '</button>').join("");
     q("#cf-solid-bornes").textContent = fr(LIM.thickness_mm[0], 2) + " – "
       + fr(LIM.thickness_mm[1], 2) + " mm";
     q("#cf-solid-env").innerHTML = ENVS.map((e) =>
-      '<option value="' + e.id + '">' + esc(e.l) + '</option>').join("");
+      '<option value="' + esc(e.id) + '">' + esc(e.l) + '</option>').join("");
     q("#cf-solid-ttsize").innerHTML = TAILLES.map((t) =>
       '<option value="' + t + '">' + t + " px</option>").join("");
     q("#cf-solid-atlas").innerHTML = ATLAS_CAPS.map((t) =>
@@ -514,7 +514,7 @@
        Le seuil « au moins 4 » devient lisible sur une image arretee. */
     q("#cf-solid-envn").textContent = q("#cf-solid-env").options.length + " env.";
     q("#cf-solid-pre").innerHTML = EPAISSEURS.map((p) =>
-      '<button type="button" class="chip cf-solid-p" data-v="' + p.v + '" title="' + esc(p.h) + '">'
+      '<button type="button" class="chip cf-solid-p" data-v="' + Number(p.v) + '" title="' + esc(p.h) + '">'
       + esc(p.l) + ' <b>' + fr(p.v, 2) + '</b></button>').join("");
   }
 

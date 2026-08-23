@@ -146,7 +146,7 @@ def models_root() -> Path:
 # ════════════════════════════════════════════════════════════════════════════
 # 1. LA FABRIQUE — un slot de modèle est un objet COMPLET
 # ════════════════════════════════════════════════════════════════════════════
-# Forme de stockage retenue : les 35 clés de `SLOT_DEFAULTS`, jamais un
+# Forme de stockage retenue : les 36 clés de `SLOT_DEFAULTS`, jamais un
 # partiel. Deux raisons. (a) `type.norm_slot` ne change alors RIEN — et cette
 # idempotence est la preuve, vérifiable en une ligne, que la donnée est propre
 # plutôt que « réparable ». (b) Le painter reçoit les slots du document TELS

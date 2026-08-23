@@ -175,12 +175,13 @@ def test_au_moins_dix_reglages_par_slot():
     assert len(cles) >= REGLAGES_MIN, sorted(cles)
     for k in REGLAGES_NOMMES:
         assert k in TY.SLOT_DEFAULTS, k
-    # 35 clés en tout, dont 30 réglages (`hyphen` est arrivé avec la césure,
+    # 36 clés en tout, dont 31 réglages (`hyphen` est arrivé avec la césure,
     # `just_max` et `last_pct` avec le plafond d'élasticité et la ligne creuse,
-    # `read_pt` avec le plancher de lisibilité, et `plate_color` / `plate_alpha`
-    # / `plate_radius` avec la plaque de fond de la phase 3a)
-    assert len(TY.SLOT_DEFAULTS) == 35, sorted(TY.SLOT_DEFAULTS)
-    assert len(cles) == 30, sorted(cles)
+    # `read_pt` avec le plancher de lisibilité, `plate_color` / `plate_alpha`
+    # / `plate_radius` avec la plaque de fond de la phase 3a, et `lock` avec le
+    # verrou d'édition de la 3b)
+    assert len(TY.SLOT_DEFAULTS) == 36, sorted(TY.SLOT_DEFAULTS)
+    assert len(cles) == 31, sorted(cles)
 
 
 # ═══════════ 4. le titre de 44 caractères et l'encadré de 400+ ══════════════
@@ -3172,7 +3173,7 @@ def test_les_trois_reglages_de_plaque_sont_dans_les_deux_tables():
     assert TY.SLOT_DEFAULTS["plate_alpha"] == 1.0
     assert TY.SLOT_DEFAULTS["plate_radius"] == 0.0
     # et le compte total suit (les deux tables sont comparées ailleurs)
-    assert len(js) == 35, sorted(js)
+    assert len(js) == 36, sorted(js)
 
 
 def test_la_plaque_est_bornee_des_deux_cotes():
@@ -3313,21 +3314,9 @@ def test_les_quatre_gabarits_rendent_a_l_octet_pres_comme_avant(tmp_path):
         assert apres["n_textes"] > 0, pid
 
 
-def test_les_mesures_d_encre_ignorent_la_plaque():
-    """La plaque est du DÉCOR, pas de l'encre. Les trois passes qui redessinent
-    un slot SEUL pour mesurer son encre (contrôle photométrique, halo d'ombre,
-    relevé sur fichier) doivent la couper : une plaque opaque sur toute la
-    boîte ferait passer chaque pixel de la boîte pour un corps de glyphe, et le
-    contrôle de masquage comme celui de contraste rendraient n'importe quoi."""
-    src = JS.read_text(encoding="utf-8")
-    assert src.count("opacity: 100, plate_color: null") == 3, \
-        "les trois redessins « encre seule » ne neutralisent pas tous la plaque"
-    for ancre in (
-        'Object.assign(clone(slot), { shadow: 0, shadow_dx: 0, shadow_dy: 0, '
-        'opacity: 100, plate_color: null })',
-        'Object.assign(clone(slot), { opacity: 100, plate_color: null })',
-    ):
-        assert ancre in src, ancre
+# (« les mesures d'encre ignorent la plaque » a déménagé en section 10 : les
+#  trois passes passent désormais par `soloClone`, et c'est le helper — plus
+#  trois littéraux recopiés — que le test épingle.)
 
 
 def test_le_panneau_offre_les_trois_reglages_de_plaque():
@@ -3355,6 +3344,608 @@ def test_le_panneau_offre_les_trois_reglages_de_plaque():
     assert (corps.index("<summary>Plaque de fond</summary>")
             < corps.index("<summary>Contour, ombre, arc</summary>")
             < corps.index("<summary>Opacité, justification</summary>"))
+
+
+# ════════ 10. LE VERROU, LE PAS DE LA SPEC, LA PASSE D'ENCRE PARTAGÉE ═══════
+# Phase 3b, tâche 1. Trois fondations et un filet :
+#
+#   · `lock` — 36e clé. Un bloc verrouillé refuse les GESTES DE SCÈNE (glisser,
+#     poignées, flèches, Suppr au clavier) et rien d'autre : il reste
+#     sélectionnable — c'est par la sélection qu'on atteint le panneau pour le
+#     déverrouiller — et le panneau l'édite normalement. Le verrou protège de
+#     la main qui dérape, pas de l'intention.
+#   · le pas du clavier passe à celui que la spec NOMME (§6.1:307) : 1 mm,
+#     Maj = 0,2 mm. L'ancien 0,5 / Maj 5 mm inversait le sens de Maj.
+#   · `soloClone` — les trois passes qui redessinent un slot SEUL partagent
+#     enfin un helper au lieu de recopier l'objet de neutralisation.
+#
+# Le banc ci-dessous ne fait pas tourner le painter : il fait tourner `init()`
+# et récupère les écouteurs LÀ OÙ LE MODULE LES POSE (pointerdown sur le
+# calque d'édition, keydown sur le document). Ce qu'il éprouve n'est donc pas
+# une fonction interne choisie à la main — c'est la surface que la main touche.
+
+BANC_VERROU = r"""
+import { readFileSync } from "node:fs";
+const SRC = readFileSync(process.argv[2], "utf8");
+const OPT = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+/* un contexte 2D de paille : ce banc ne juge AUCUN pixel (celui de la section
+   9 s'en charge), il lui faut seulement de quoi mesurer un texte pour que la
+   mise en page du panneau aboutisse. */
+function ctx2d() {
+  const c = {
+    canvas: { width: 8, height: 8 }, _size: 10,
+    save() { }, restore() { }, translate() { }, rotate() { }, setTransform() { },
+    clearRect() { }, beginPath() { }, closePath() { }, moveTo() { }, lineTo() { },
+    quadraticCurveTo() { }, arcTo() { }, rect() { }, roundRect() { }, fill() { },
+    fillText() { }, strokeText() { }, drawImage() { },
+    getImageData: (x, y, w, h) => ({ data: new Uint8ClampedArray(Math.max(4, w * h * 4)) }),
+    measureText(s) {
+      const w = Array.from(String(s)).length * 0.5 * c._size;
+      return { width: w, actualBoundingBoxAscent: c._size * 0.72,
+        actualBoundingBoxDescent: c._size * 0.21 };
+    },
+  };
+  Object.defineProperty(c, "font", { get() { return c._f || ""; },
+    set(v) { c._f = v; const m = /([\d.]+)px/.exec(v); if (m) c._size = parseFloat(m[1]); } });
+  ["globalAlpha", "fillStyle", "strokeStyle", "lineWidth", "lineJoin", "miterLimit",
+    "textAlign", "textBaseline", "shadowColor", "shadowBlur", "shadowOffsetX",
+    "shadowOffsetY", "globalCompositeOperation", "imageSmoothingEnabled"]
+    .forEach((k) => { c[k] = null; });
+  return c;
+}
+
+/* UN ELEMENT DE PAILLE. `querySelector` MEMORISE : le même sélecteur rend
+   toujours le même objet, sans quoi on ne pourrait pas relire ce que le module
+   vient d'écrire dedans (c'est ainsi qu'on lit la liste des blocs). */
+function elm(tag) {
+  const cache = {}, cls = new Set(), lis = {};
+  const e = {
+    tagName: String(tag || "div").toUpperCase(), style: {}, dataset: {},
+    kids: [], listeners: lis, _h: "", value: "", textContent: "",
+    options: { length: 0 },
+    classList: {
+      add: (c) => { cls.add(c); }, remove: (c) => { cls.delete(c); },
+      contains: (c) => cls.has(c),
+      toggle: (c, v) => { const on = (v === undefined) ? !cls.has(c) : !!v;
+        if (on) cls.add(c); else cls.delete(c); },
+    },
+    addEventListener(t, fn) { (lis[t] = lis[t] || []).push(fn); },
+    removeEventListener(t, fn) {
+      const a = lis[t] || [], i = a.indexOf(fn);
+      if (i >= 0) a.splice(i, 1);
+    },
+    appendChild(c) { e.kids.push(c); return c; },
+    insertAdjacentHTML() { }, setAttribute() { }, removeAttribute() { },
+    setPointerCapture() { }, releasePointerCapture() { },
+    remove() { }, focus() { }, blur() { }, click() { }, scrollIntoView() { },
+    getContext: () => ctx2d(),
+    querySelector(sel) { return (cache[sel] = cache[sel] || elm("div")); },
+    querySelectorAll() { return []; },
+    closest() { return null; },
+    getBoundingClientRect() { return e._rect || { left: 0, top: 0, width: 0, height: 0 }; },
+  };
+  Object.defineProperty(e, "innerHTML", { get: () => e._h, set: (v) => { e._h = String(v); } });
+  Object.defineProperty(e, "className", { get: () => "", set() { } });
+  return e;
+}
+
+function geom(fmt_mm, dpi, bleed_mm, safe_mm) {
+  const R = (x) => Math.floor(Number(x.toFixed(9)) + 0.5);
+  const px = (mm) => R(mm / 25.4 * dpi);
+  const canvas_px = [px(fmt_mm[0] + 2 * bleed_mm), px(fmt_mm[1] + 2 * bleed_mm)];
+  const trim_px = [px(fmt_mm[0]), px(fmt_mm[1])];
+  const bleed_off_px = [(canvas_px[0] - trim_px[0]) / 2, (canvas_px[1] - trim_px[1]) / 2];
+  const safe_px = [px(fmt_mm[0] - 2 * safe_mm), px(fmt_mm[1] - 2 * safe_mm)];
+  const safe_off_px = [bleed_off_px[0] + (trim_px[0] - safe_px[0]) / 2,
+    bleed_off_px[1] + (trim_px[1] - safe_px[1]) / 2];
+  return { fmt: "poker_eu", label: "Poker", dpi: dpi, canvas_px, trim_px, bleed_off_px,
+    safe_px, safe_off_px, bleed_mm, safe_mm, mm2px: (v) => v / 25.4 * dpi,
+    px2mm: (v) => v * 25.4 / dpi };
+}
+const G = geom([63, 88], 300, 3, 3);
+const DOC = { type: Object.assign(
+  { slots: [], sel: "", seeded: true, show_boxes: true, audit: false,
+    preset: "champion", optical_mm: 0.5 }, OPT.state || {}) };
+let MOD = null;
+const CF = {
+  register(cfg) {
+    MOD = cfg;
+    return { patch: (p) => Object.assign(DOC.type, p),
+      api: { get: async () => ({}), post: async () => ({}), raw: async () => ({ ok: false }) },
+      emit() { }, slot() { }, aside() { }, invalidate() { }, toast() { }, busy() { }, on() { } };
+  },
+  get(path, def) {
+    let v = DOC;
+    for (const p of String(path).split(".")) { if (v == null) return def; v = v[p]; }
+    return v === undefined ? def : v;
+  },
+  geom: () => G, geomOf: () => G, current: () => 0, cards: () => [],
+  card: () => ({ fields: {} }), on() { }, renderCard: async () => null, modules: () => [],
+};
+
+const HOSTE = elm("div");
+const PANNEAU = elm("div");
+PANNEAU.classList.add("on");        /* le calque n'est vivant que panneau OUVERT */
+HOSTE.closest = () => PANNEAU;
+const SCENE = elm("canvas");
+/* echelle 1 : un pixel d'ecran = un pixel de toile, donc un deplacement en
+   pixels se relit en millimetres sans conversion cachee. */
+SCENE._rect = { left: 0, top: 0, width: G.canvas_px[0], height: G.canvas_px[1] };
+const DOCQ = { ".stage-canvas": SCENE };
+const DOCL = {};
+const CORPS = [];
+globalThis.window = { CF: CF, addEventListener() { } };
+globalThis.document = {
+  createElement: (t) => elm(t),
+  querySelector: (sel) => (DOCQ[sel] = DOCQ[sel] || elm("div")),
+  querySelectorAll: () => [],
+  addEventListener(t, fn) { (DOCL[t] = DOCL[t] || []).push(fn); },
+  removeEventListener() { },
+  body: { appendChild(c) { CORPS.push(c); return c; } },
+  fonts: { add() { } },
+  activeElement: null,
+};
+const boom = [];
+process.on("uncaughtException", (e) => { boom.push(String((e && e.message) || e)); });
+(0, eval)(SRC);
+await MOD.init(HOSTE);
+await new Promise((r) => setTimeout(r, 60));
+
+/* LE CALQUE = l'element pose sur document.body qui porte un pointerdown.
+   Trouve, pas suppose : si le module changeait de support, ce banc le dirait. */
+const OV = CORPS.filter((e) => (e.listeners.pointerdown || []).length)[0];
+if (!OV) throw new Error("aucun calque d'edition n'a ete pose sur document.body");
+const onDown = OV.listeners.pointerdown[0];
+const onKey = (DOCL.keydown || [])[0];
+if (!onKey) throw new Error("aucun ecouteur clavier n'a ete pose sur le document");
+
+function ptr(id, x, y, h) {
+  const hb = { dataset: { id: id },
+    closest: (s) => (s === ".cf-type-hbox" ? hb : null) };
+  const cible = h ? { dataset: { h: h },
+    closest: (s) => (s === ".cf-type-hh" ? cible : (s === ".cf-type-hbox" ? hb : null)) } : hb;
+  return { isPrimary: true, target: cible, clientX: x, clientY: y, pointerId: 1,
+    altKey: false, preventDefault() { } };
+}
+function kev(a) {
+  return { key: a.k, target: { tagName: "DIV" }, shiftKey: !!a.maj, altKey: !!a.alt,
+    ctrlKey: !!a.ctrl, metaKey: false, preventDefault() { } };
+}
+const traces = [];
+for (const a of (OPT.actes || [])) {
+  if (a.t === "down") {
+    onDown(ptr(a.id, a.x || 0, a.y || 0, a.h));
+    /* LA TRACE QUI COMPTE : un glisser qui DEMARRE branche un pointermove sur
+       le calque. Zero ecouteur = aucun geste n'a commence. */
+    traces.push({ acte: "down", moves: (OV.listeners.pointermove || []).length });
+  } else if (a.t === "move") {
+    const mv = (OV.listeners.pointermove || [])[0];
+    if (mv) mv({ clientX: a.x || 0, clientY: a.y || 0, altKey: true });
+    traces.push({ acte: "move", branche: !!mv });
+  } else if (a.t === "up") {
+    const up = (OV.listeners.pointerup || [])[0];
+    if (up) up();
+    traces.push({ acte: "up", branche: !!up });
+  } else if (a.t === "key") {
+    onKey(kev(a));
+    traces.push({ acte: "key", k: a.k });
+  }
+}
+await new Promise((r) => setTimeout(r, 40));
+
+/* ── EQUIVALENCE DU HELPER D'ENCRE ────────────────────────────────────────
+   `soloClone` vit dans la fermeture du module : pour le comparer aux TROIS
+   LITTERAUX QU'IL REMPLACE, le banc se fait ouvrir la porte par une mutation
+   (`globalThis.__solo = soloClone;` pose juste avant la parenthese finale),
+   exactement comme les autres mutants — sur la COPIE, jamais sur le depot.
+   Ce qu'on compare est la SERIALISATION : memes cles, memes valeurs, meme
+   ORDRE. « Ca neutralise pareil » ne suffisait pas, il fallait « ca rend le
+   meme objet ». */
+let solo = null;
+if (OPT.solo && globalThis.__solo) {
+  const clone = (v) => JSON.parse(JSON.stringify(v));
+  const base = Object.assign({}, OPT.solo);
+  /* LES DEUX LITTERAUX D'AVANT, recopies mot pour mot depuis le code qui
+     precede le partage (mod-type.js:3410 / :3704 / :3908). */
+  const vieux_sans_ombre = Object.assign(clone(base),
+    { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null });
+  const vieux_avec_ombre = Object.assign(clone(base), { opacity: 100, plate_color: null });
+  const neuf_sans_ombre = globalThis.__solo(base);
+  const neuf_avec_ombre = globalThis.__solo(base, { shadow: true });
+  solo = {
+    egal_sans_ombre: JSON.stringify(neuf_sans_ombre) === JSON.stringify(vieux_sans_ombre),
+    egal_avec_ombre: JSON.stringify(neuf_avec_ombre) === JSON.stringify(vieux_avec_ombre),
+    /* et le CONTRAIRE : les deux formes ne sont pas la meme (sans quoi
+       l'egalite ci-dessus serait vraie pour de mauvaises raisons). */
+    formes_distinctes: JSON.stringify(neuf_sans_ombre) !== JSON.stringify(neuf_avec_ombre),
+    source_intacte: JSON.stringify(base) === JSON.stringify(OPT.solo),
+    sans_ombre: neuf_sans_ombre, avec_ombre: neuf_avec_ombre,
+  };
+}
+
+process.stdout.write(JSON.stringify({
+  slots: DOC.type.slots, sel: DOC.type.sel, traces: traces,
+  ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
+  solo: solo, exceptions: boom,
+}));
+"""
+
+
+def _banc_verrou(tmp_path, opts: dict, mutations=()) -> dict:
+    """Fait tourner `init()` du module dans un DOM de paille, puis joue les
+    gestes demandés SUR LES ÉCOUTEURS QUE LE MODULE A POSÉS. `mutations` casse
+    une protection avant exécution : un test qui passerait aussi sur le code
+    cassé ne prouverait rien."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de gestes ne peut pas tourner")
+    src = JS.read_text(encoding="utf-8", newline="")   # newline='' : CRLF gardé
+    for avant, apres in mutations:
+        assert avant in src, f"mutation introuvable : {avant!r}"
+        assert src.count(avant) == 1, f"mutation ambiguë : {avant!r}"
+        src = src.replace(avant, apres)
+    js = tmp_path / "mod-type-verrou.js"
+    js.write_text(src, encoding="utf-8", newline="")
+    banc = tmp_path / "banc-verrou.mjs"
+    banc.write_text(BANC_VERROU, encoding="utf-8")
+    conf = tmp_path / "opts-verrou.json"
+    conf.write_text(json.dumps(opts, ensure_ascii=False), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8", timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    d = json.loads(r.stdout)
+    assert d["exceptions"] == [], d["exceptions"]
+    return d
+
+
+def _slots_verrou(lock: bool) -> list:
+    """Deux blocs, dont le premier porte (ou non) le verrou. Objets COMPLETS :
+    le painter comme le calque reçoivent les slots du document tels quels."""
+    a = TY.norm_slot({"id": "titre", "label": "Titre", "box": [10.0, 20.0, 30.0, 10.0],
+                      "text": "Veilleur", "lock": lock})
+    b = TY.norm_slot({"id": "regles", "label": "Règles", "box": [8.0, 50.0, 46.0, 20.0],
+                      "text": "Vol, célérité."})
+    return [a, b]
+
+
+GLISSE = [{"t": "down", "id": "titre", "x": 0, "y": 0},
+          {"t": "move", "x": 118, "y": 59},      # ~10 mm x ~5 mm à 300 DPI
+          {"t": "up"}]
+
+
+def test_le_verrou_est_la_36e_cle_des_deux_cotes():
+    """Le verrou est une clé de slot comme les autres : il voyage avec le deck,
+    il se lit des deux côtés, et son défaut est NEUTRE — c'est ce qui garde les
+    quatre gabarits livrés byte-identiques (rendu prouvé plus bas)."""
+    js = json.loads(_bloc_js("DEFAULTS"))
+    assert "lock" in TY.SLOT_DEFAULTS and "lock" in js
+    assert TY.SLOT_DEFAULTS["lock"] is False and js["lock"] is False
+    assert js == TY.SLOT_DEFAULTS
+    assert len(js) == len(TY.SLOT_DEFAULTS) == 36, sorted(js)
+    # normalisé des deux côtés, et sans surprise : tout ce qui n'est pas
+    # explicitement vrai est faux (un document d'avant n'a pas la clé).
+    assert TY.norm_slot({})["lock"] is False
+    assert TY.norm_slot({"lock": True})["lock"] is True
+    assert TY.norm_slot({"lock": "oui"})["lock"] is True
+    assert TY.norm_slot({"lock": 0})["lock"] is False
+    src = _js()
+    assert "s.lock = !!r.lock;" in src, "normSlot de l'écran ignore le verrou"
+    # aucun gabarit livré ne naît verrouillé
+    g = CT.geom("poker_eu", 300)
+    for pid in sorted(TY.PRESETS):
+        for s in TY.preset_slots(pid, g):
+            assert s["lock"] is False, (pid, s["id"])
+
+
+def test_le_verrou_ne_change_pas_un_octet_du_rendu(tmp_path):
+    """Condition de non-régression de la 36e clé : à son défaut, elle ne peint
+    rien. Chacun des quatre gabarits doit sortir le même tampon avec et sans
+    la clé (le document d'AVANT la 3b)."""
+    g = CT.geom("poker_eu", 300)
+    for pid in sorted(TY.PRESETS):
+        slots = TY.preset_slots(pid, g)
+        avant = _banc_plaque(tmp_path, {"slots": slots, "drop": ["lock"]})
+        apres = _banc_plaque(tmp_path, {"slots": slots})
+        assert apres["hash"] == avant["hash"], f"gabarit « {pid} » a bougé"
+        assert apres["n_textes"] > 0, pid
+    # ... et un slot VERROUILLÉ se peint exactement comme le même déverrouillé :
+    # le verrou est une protection d'édition, pas un état de la carte.
+    libre = _banc_plaque(tmp_path, {"slots": _slots_verrou(False)})
+    ferme = _banc_plaque(tmp_path, {"slots": _slots_verrou(True)})
+    assert ferme["hash"] == libre["hash"], "le verrou change le fichier livré"
+
+
+def test_un_slot_verrouille_refuse_le_glisser_et_les_poignees(tmp_path):
+    """LE TEST QUI COMPTE. Le même glisser, sur le même bloc, verrou ouvert
+    puis fermé : la boîte bouge, puis elle ne bouge plus. Et le refus est un
+    NON-DÉMARRAGE — aucun pointermove n'est branché — pas un geste joué puis
+    annulé, qui aurait laissé une entrée d'annulation derrière lui."""
+    libre = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                    "actes": GLISSE})
+    assert libre["slots"][0]["box"][0] != 10.0, "le glisser de contrôle n'a rien bougé"
+    assert libre["traces"][0]["moves"] == 1, libre["traces"]
+
+    ferme = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                    "actes": GLISSE})
+    assert ferme["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0], ferme["slots"][0]["box"]
+    assert ferme["traces"][0]["moves"] == 0, \
+        "le glisser a DÉMARRÉ sur un bloc verrouillé (pointermove branché)"
+    assert ferme["traces"][1]["branche"] is False
+
+    # une POIGNÉE non plus : le redimensionnement passe par le même écouteur.
+    poignee = [{"t": "down", "id": "titre", "x": 0, "y": 0, "h": "se"},
+               {"t": "move", "x": 118, "y": 59}, {"t": "up"}]
+    hh = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                 "actes": poignee})
+    assert hh["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0], hh["slots"][0]["box"]
+
+    # MUTATION : le garde retiré du pointerdown -> le bloc verrouillé glisse.
+    sourd = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                    "actes": GLISSE},
+                         mutations=(("if (s.lock) return;   /* VERROU : aucun geste ne demarre */",
+                                      "if (false) return;"),))
+    assert sourd["slots"][0]["box"][0] != 10.0, \
+        "le verrou n'était pas ce qui arrêtait le glisser"
+
+
+def test_un_slot_verrouille_refuse_la_fleche_et_la_suppression(tmp_path):
+    """Le clavier est l'autre main sur la scène : flèches (déplacement),
+    Alt+flèches (redimensionnement), Suppr. Les trois s'arrêtent au verrou."""
+    actes = [{"t": "key", "k": "ArrowRight"},
+             {"t": "key", "k": "ArrowDown", "maj": True},
+             {"t": "key", "k": "ArrowRight", "alt": True},
+             {"t": "key", "k": "Delete"}]
+    ferme = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                    "actes": actes})
+    assert len(ferme["slots"]) == 2, "Suppr a effacé un bloc verrouillé"
+    assert ferme["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0], ferme["slots"][0]["box"]
+    # contrôle : déverrouillé, les mêmes touches font tout leur travail
+    libre = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                    "actes": actes})
+    assert len(libre["slots"]) == 1, "le contrôle n'a rien supprimé"
+
+    # MUTATION : le garde retiré du clavier -> la flèche pousse le bloc verrouillé.
+    sourd = _banc_verrou(tmp_path,
+                         {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                          "actes": [{"t": "key", "k": "ArrowRight"}]},
+                         mutations=(("if (s.lock) return;   /* VERROU : ni fleche ni Alt+fleche */",
+                                      "if (false) return;"),))
+    assert sourd["slots"][0]["box"][0] != 10.0, \
+        "le verrou n'était pas ce qui arrêtait la flèche"
+
+
+def test_le_verrou_laisse_la_selection_et_le_panneau_libres(tmp_path):
+    """« Le verrou protège des gestes de scène, pas de l'intention. » Cliquer
+    un bloc verrouillé le SÉLECTIONNE — sans quoi on ne pourrait plus atteindre
+    le panneau pour le déverrouiller —, et le panneau continue de l'éditer."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "regles"},
+                                "actes": [{"t": "down", "id": "titre", "x": 0, "y": 0},
+                                          {"t": "up"}]})
+    assert d["sel"] == "titre", "un bloc verrouillé ne se sélectionne plus"
+    assert d["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0]
+    # le cadenas se voit : dans la ligne de la liste ET sur la boîte de l'aperçu
+    assert 'class="cf-type-lock' in d["liste"], "aucun cadenas dans la liste"
+    assert "cf-type-hbox" in d["ov"] and " lock" in d["ov"], \
+        "la boîte verrouillée n'est pas marquée sur l'aperçu"
+    css = CSS.read_text(encoding="utf-8")
+    assert ".cf-type-hbox.lock" in css and ".cf-type-lock" in css
+    # ... et le bouton de la liste est câblé sur le verrou, avec UNE annulation
+    src = _js()
+    assert '{ lock: !s.lock }' in src, "le cadenas de la liste n'est pas câblé"
+    # LE CHEMIN DU PANNEAU N'EST PAS GARDÉ, et c'est voulu : `patchSlot` est la
+    # porte de TOUTE écriture de réglage (y compris celle qui déverrouille).
+    # Un garde ici enfermerait le bloc pour de bon.
+    corps = src[src.index("function patchSlot("):]
+    corps = corps[:corps.index("\n  }")]
+    assert "lock" not in corps, \
+        "patchSlot regarde le verrou : le panneau ne pourrait plus éditer (ni déverrouiller)"
+
+
+def test_la_copie_d_un_bloc_verrouille_nait_deverrouillee(tmp_path):
+    """DÉCISION, pinée ici. Ctrl+D ne touche pas au bloc protégé : il en pose
+    un AUTRE, à 2 mm, avec un identifiant neuf. C'est un acte d'intention, pas
+    un geste de scène — il reste donc permis. La copie, elle, naît OUVERTE :
+    le verrou marque un bloc DÉJÀ placé, et une copie qu'on vient de créer se
+    place. Née fermée, elle aurait refusé le glisser qui la suit d'une seconde,
+    sans que rien à l'écran ne dise pourquoi."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
+                                "actes": [{"t": "key", "k": "d", "ctrl": True}]})
+    assert len(d["slots"]) == 3, "Ctrl+D a été refusé sur un bloc verrouillé"
+    copie = [s for s in d["slots"] if s["id"] not in ("titre", "regles")]
+    assert len(copie) == 1, [s["id"] for s in d["slots"]]
+    assert copie[0]["lock"] is False, "la copie hérite du verrou"
+    assert d["slots"][0]["lock"] is True, "l'original a perdu son verrou"
+
+
+def test_le_pas_du_clavier_est_CELUI_DE_LA_SPEC(tmp_path):
+    """§6.1:307 nomme le patron : « pas 1 mm, Maj = 0,2 mm ». P3 faisait
+    0,5 mm et Maj = 5 mm — Maj y AGRANDISSAIT le pas au lieu de l'affiner,
+    l'inverse du geste de précision qu'il nomme. Les deux constantes d'avant
+    sont mortes, et le pas se mesure sur une boîte, pas sur une lecture."""
+    src = _js()
+    assert "const NUDGE_MM = 1, NUDGE_FINE_MM = 0.2," in src
+    assert "NUDGE_BIG_MM" not in src, "l'ancien pas de 5 mm survit"
+    assert "NUDGE_MM = 0.5" not in src
+    # le mémo du panneau dit la même chose que le code
+    assert "<b>flèches</b> 1 mm (<b>Maj</b> 0,2 mm)" in src
+
+    base = [10.0, 20.0, 30.0, 10.0]
+    def box(actes):
+        d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                    "actes": actes})
+        return d["slots"][0]["box"]
+    assert box([{"t": "key", "k": "ArrowRight"}])[0] == base[0] + 1.0
+    assert box([{"t": "key", "k": "ArrowUp"}])[1] == base[1] - 1.0
+    assert box([{"t": "key", "k": "ArrowRight", "maj": True}])[0] == base[0] + 0.2
+    assert box([{"t": "key", "k": "ArrowDown", "maj": True}])[1] == base[1] + 0.2
+    # Alt = redimensionnement, sémantique inchangée, nouveaux pas
+    assert box([{"t": "key", "k": "ArrowRight", "alt": True}])[2] == base[2] + 1.0
+    assert box([{"t": "key", "k": "ArrowDown", "alt": True, "maj": True}])[3] == base[3] + 0.2
+
+    # MUTATION : l'ancien pas restauré -> la mesure rougit.
+    vieux = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                                    "actes": [{"t": "key", "k": "ArrowRight"}]},
+                         mutations=(("const NUDGE_MM = 1,", "const NUDGE_MM = 0.5,"),))
+    assert vieux["slots"][0]["box"][0] == 10.5, vieux["slots"][0]["box"]
+
+
+def test_les_trois_passes_d_encre_partagent_UN_helper(tmp_path):
+    """La plaque est du DÉCOR, pas de l'encre. Les trois passes qui redessinent
+    un slot SEUL pour mesurer son encre (contrôle photométrique, halo d'ombre,
+    relevé sur fichier) doivent la couper : une plaque opaque sur toute la
+    boîte ferait passer chaque pixel de la boîte pour un corps de glyphe, et le
+    contrôle de masquage comme celui de contraste rendraient n'importe quoi.
+
+    Elles le faisaient TOUTES LES TROIS À LA MAIN, chacune avec son propre
+    littéral — trois occasions d'oublier la clé suivante. Elles passent
+    désormais par `soloClone`, et le COMPTE est épinglé : une quatrième passe
+    qui recopierait l'objet au lieu d'appeler le helper fait rougir ce test."""
+    src = _js_sans_commentaires()
+    assert src.count("function soloClone(") == 1, "le helper n'existe pas (ou en double)"
+    appels = len(re.findall(r"(?<!function )\bsoloClone\(", src))
+    assert appels == 3, (
+        f"{appels} appel(s) à soloClone : les passes « encre seule » sont trois "
+        "aujourd'hui (contrôle photométrique, halo d'ombre, relevé sur fichier). "
+        "Une quatrième doit PASSER PAR LE HELPER et monter ce compte à 4 — pas "
+        "recopier l'objet de neutralisation une quatrième fois.")
+    # ce que le helper garantit, énoncé une fois pour toutes : la plaque et
+    # l'opacité tombent TOUJOURS, l'ombre seulement quand on ne la mesure pas.
+    i0 = src.index("function soloClone(")
+    i1 = i0 + src[i0:].index("\n  }")
+    corps = src[i0:i1]
+    # ... et plus AUCUN littéral de neutralisation recopié hors du helper
+    assert all(i0 < m.start() < i1
+               for m in re.finditer(r"opacity: 100, plate_color: null", src)), \
+        "une passe neutralise encore l'encre à la main, hors du helper"
+    assert "plate_color: null" in corps and "opacity: 100" in corps
+    assert "shadow: 0, shadow_dx: 0, shadow_dy: 0" in corps
+    assert "garde && garde.shadow" in corps
+    # la passe du HALO est la seule à garder l'ombre — c'est elle qui la mesure
+    assert src.count("soloClone(slot, { shadow: true })") == 1
+
+
+def test_soloClone_rend_EXACTEMENT_les_objets_que_les_litteraux_rendaient(tmp_path):
+    """Un partage qui change une mesure d'un cheveu ne serait pas un partage,
+    ce serait une régression photométrique — et personne ne la verrait, ces
+    trois passes ne tournant que dans un navigateur. Le helper est donc
+    comparé aux DEUX LITTÉRAUX QU'IL REMPLACE, sur un slot qui porte tout ce
+    qu'il doit neutraliser (ombre décalée, opacité à 40, plaque bleue) : mêmes
+    clés, mêmes valeurs, MÊME ORDRE de sérialisation."""
+    slot = dict(TY.norm_slot({"id": "titre", "label": "Titre",
+                              "box": [10.0, 20.0, 30.0, 10.0], "text": "Veilleur",
+                              "shadow": 2.0, "shadow_dx": 1.0, "shadow_dy": -1.0,
+                              "shadow_color": "#101010", "opacity": 40.0,
+                              "plate_color": "#3050a0", "plate_alpha": 0.8,
+                              "plate_radius": 2.0, "lock": True}))
+    d = _banc_verrou(tmp_path,
+                     {"state": {"slots": _slots_verrou(False), "sel": "titre"},
+                      "solo": slot},
+                     mutations=(("\r\n})();", "\r\n  globalThis.__solo = soloClone;\r\n})();"),))
+    s = d["solo"]
+    assert s, "la porte du banc ne s'est pas ouverte sur soloClone"
+    assert s["egal_sans_ombre"], s["sans_ombre"]
+    assert s["egal_avec_ombre"], s["avec_ombre"]
+    assert s["formes_distinctes"], "les deux gardes rendent le même objet"
+    assert s["source_intacte"], "soloClone MUTE le slot qu'on lui passe"
+    # et ce qu'il neutralise, énoncé en clair sur les valeurs rendues
+    assert s["sans_ombre"]["shadow"] == 0 and s["sans_ombre"]["shadow_dx"] == 0
+    assert s["sans_ombre"]["shadow_dy"] == 0
+    assert s["avec_ombre"]["shadow"] == 2.0, "la passe du halo a perdu l'ombre"
+    assert s["avec_ombre"]["shadow_dx"] == 1.0 and s["avec_ombre"]["shadow_dy"] == -1.0
+    for forme in ("sans_ombre", "avec_ombre"):
+        assert s[forme]["opacity"] == 100, forme
+        assert s[forme]["plate_color"] is None, forme
+        # ... et RIEN D'AUTRE : la plaque garde son alpha et son rayon (ils ne
+        # peignent plus rien sans couleur), le texte et la boîte sont intacts.
+        assert s[forme]["plate_alpha"] == 0.8 and s[forme]["plate_radius"] == 2.0, forme
+        assert s[forme]["box"] == slot["box"] and s[forme]["text"] == slot["text"], forme
+        assert s[forme]["lock"] is True, forme
+
+
+def test_les_mesures_d_encre_ignorent_toujours_la_plaque(tmp_path):
+    """Le helper n'a pas changé ce qui est neutralisé : contre-épreuve au
+    pixel. Une plaque opaque sur toute la boîte, et le relevé continue de dire
+    « encre » pour les glyphes seuls — la même mesure qu'avant le partage."""
+    sans = _banc_plaque(tmp_path, {"slots": [{"text": PLAQUE_TXT}]})
+    avec = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]})
+    # la plaque PEINT (le rendu diffère) ...
+    assert avec["hash"] != sans["hash"]
+    # ... et le texte reste par-dessus, à sa couleur, dans les deux cas
+    assert avec["slots"][0]["glyphe_px"] == sans["slots"][0]["glyphe_px"]
+
+
+# ── R14 : le filtre de noms ne suffisait pas ────────────────────────────────
+
+def _lint():
+    import importlib.util
+    chemin = REPO / "scripts" / "qa" / "lint_cardforge.py"
+    if not chemin.is_file():
+        pytest.skip("lint_cardforge.py absent")
+    spec = importlib.util.spec_from_file_location("lint_cf_type", chemin)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _r14(src: str) -> list:
+    mod, trouves = _lint(), []
+    mod.check_r14("type", "sonde.js", src,
+                  lambda rule, path, line, msg, warn=False: trouves.append((line, msg)))
+    return trouves
+
+
+def test_la_regle_d_echappement_balaie_ce_QUI_ECRIT_DU_HTML_pas_ce_qui_le_dit():
+    """R14 ne regardait que les fonctions dont le NOM contient « Html » ou
+    « paint ». `renderInsp`, `renderList`, `buildStatics`, `fillPalettes` en
+    écrivent tout autant et n'étaient pas balayées — un filtre de noms est une
+    liste à tenir à jour, et personne ne la tient. Le critère est désormais
+    MÉCANIQUE : une fonction qui pose du `innerHTML` écrit du HTML.
+
+    Contre-épreuve dans les deux sens — la sonde fautive rougit, la fonction
+    qui n'écrit aucun HTML reste hors périmètre."""
+    fautive = ("function renderInsp() {\n"
+               "  box.innerHTML = '<i data-id=\"' + s.id + '\"></i>';\n"
+               "}\n")
+    assert _r14(fautive), "l'élargissement ne mord pas : la sonde passe"
+    # le nom seul ne suffisait pas ...
+    assert not _r14(fautive.replace("innerHTML", "textContent")), \
+        "une fonction qui n'écrit aucun HTML est balayée : périmètre trop large"
+    # ... et le vieux critère de nom tient toujours
+    assert _r14("function fooHtml() {\n"
+                "  return '<i data-id=\"' + s.id + '\">';\n"
+                "}\n")
+
+
+def test_la_regle_d_echappement_ne_prend_pas_la_PROSE_pour_un_attribut():
+    """L'élargissement a mis sous les yeux de la règle des fonctions qui
+    écrivent du HTML ET des phrases. « ligne y=42 », « 300 DPI = 12 / mm² »,
+    « &seed=7 » finissent tous par `nom=` : la fin de littéral ne suffit plus à
+    dire « valeur d'attribut ». Le GUILLEMET, lui, tranche — et c'est
+    exactement le cas que la règle existe pour attraper (un guillemet dans la
+    valeur ferme l'attribut). Une valeur d'attribut sans guillemets n'existe
+    nulle part dans ce labo ; la prose, elle, est partout."""
+    for prose in ('  el.innerHTML = "x";\n  rows.push("ligne y=" + P.filet.y);\n',
+                  '  el.innerHTML = "x";\n  u("t?a=" + b + "&seed=" + s.seed);\n',
+                  '  el.innerHTML = "x";\n  rows.push("à " + P.m.dpi + " DPI = " + P.m.par_mm2);\n'):
+        assert not _r14("function drawProof() {\n" + prose + "}\n"), prose
+    # et la vraie faute, guillemet compris, rougit toujours
+    assert _r14('function drawProof() {\n'
+                '  el.innerHTML = \'<b title="\' + P.m.par_mm2 + \'">x</b>\';\n'
+                '}\n')
+
+
+def test_le_module_passe_le_lint_ELARGI():
+    """Le filet, sur les neuf pièces du labo — R14 compris, dans sa version
+    élargie. S'il reste un `a.b` nu dans une valeur d'attribut quelque part,
+    c'est ici que ça se voit."""
+    mod = _lint()
+    findings, present = mod.run(REPO)
+    errs = [f for f in findings if not f["warn"]]
+    assert not errs, "\n".join(f"{f['rule']} {f['file']}:{f['line']} {f['msg']}"
+                               for f in errs)
 
 
 if __name__ == "__main__":

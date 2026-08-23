@@ -55,6 +55,13 @@
 .cf-type .cf-type-eye { background: none; border: 0; color: var(--ink-soft); cursor: pointer;
   font-size: 11px; padding: 0 1px; flex: none; }
 .cf-type .cf-type-row.on .cf-type-eye { color: var(--ink-strong); }
+/* le cadenas : meme rang que l'oeil, et EFFACE tant qu'il est ouvert — un
+   bloc libre est le cas normal, il n'a pas a se signaler. Ferme, il passe a
+   l'ambre : c'est un etat qui explique un refus, il doit se voir. */
+.cf-type .cf-type-lock { background: none; border: 0; color: var(--ink-muted); cursor: pointer;
+  font-size: 10px; padding: 0 1px; flex: none; opacity: .45; }
+.cf-type .cf-type-lock:hover { opacity: 1; }
+.cf-type .cf-type-lock.on { color: var(--amber); opacity: 1; }
 .cf-type .cf-type-nm { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .cf-type .cf-type-nm b { font-size: 12px; color: var(--ink-strong); font-weight: 600;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -214,6 +221,15 @@
 .cf-type .cf-type-hbox:hover { border-color: var(--ink-strong); background: color-mix(in srgb, var(--ink-soft) 8%, transparent); }
 .cf-type .cf-type-hbox.on { border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
 .cf-type .cf-type-hbox.bad { border: 1px solid var(--red); background: color-mix(in srgb, var(--red) 12%, transparent); }
+/* VERROUILLE : la boite le dit AVANT que le glisser ne soit refuse. Un curseur
+   « interdit » sur le corps comme sur les poignees, un trait pointille ambre —
+   un refus sans marque a l'endroit ou la main appuie se lit comme une panne. */
+.cf-type .cf-type-hbox.lock { cursor: not-allowed;
+  border: 1px dashed color-mix(in srgb, var(--amber) 70%, transparent); }
+.cf-type .cf-type-hbox.lock.on { border: 1px dashed var(--amber);
+  background: color-mix(in srgb, var(--amber) 7%, transparent); }
+.cf-type .cf-type-hbox.lock .cf-type-hh { cursor: not-allowed; border-color: var(--amber); }
+.cf-type .cf-type-hbox.lock .cf-type-htag { color: var(--amber); border-color: var(--amber); opacity: 1; }
 .cf-type .cf-type-htag { position: absolute; left: 0; bottom: 100%; margin-bottom: 2px;
   font-family: var(--f-ui); font-size: 9.5px; line-height: 1.4; white-space: nowrap;
   color: var(--ink-strong); background: var(--bg-panel-3); border: 1px solid var(--stroke-strong);

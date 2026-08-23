@@ -17,7 +17,7 @@ Ce que ce fichier verrouille — dans l'ordre de la spec §6.1/§6.2/§6.4
      le coin de COUPE. La table `ZONES` ci-dessous est recopiée de la spec et
      sert d'ORACLE : les boîtes des slots (ou leur réunion, pour une grille)
      doivent tomber dessus. Toutes tiennent dans la rogne.
-  4. **Un slot de modèle est un objet COMPLET** : les 35 clés de
+  4. **Un slot de modèle est un objet COMPLET** : les 36 clés de
      `SLOT_DEFAULTS`, et `norm_slot` ne le change PAS (idempotence = la
      donnée est propre, pas « réparable »).
   5. **Aucune police devinée.** Toute police citée par un modèle est dans la
@@ -350,13 +350,17 @@ def test_les_boites_tiennent_dans_la_rogne(mid):
 
 
 @pytest.mark.parametrize("mid", IDS)
-def test_un_slot_est_un_objet_complet_de_35_cles(mid):
+def test_un_slot_est_un_objet_complet_de_36_cles(mid):
     """Forme de stockage retenue : l'objet COMPLET, pas un partiel. Et
     `norm_slot` ne le change PAS — l'idempotence de la normalisation est la
     preuve que la donnée est propre (bornes, casse des couleurs, min_pt <=
-    size_pt, identifiants légaux)."""
+    size_pt, identifiants légaux).
+
+    36 depuis la phase 3b : `lock` (verrou d'édition) est arrivé. Les modèles
+    n'ont RIEN eu à changer — ils partent de `SLOT_DEFAULTS`, donc la clé y est
+    née à son défaut, et le compte ci-dessous est ce qui le prouve."""
     m = MO.model(mid)
-    assert len(TY.SLOT_DEFAULTS) == 35
+    assert len(TY.SLOT_DEFAULTS) == 36
     vus = set()
     for i, s in enumerate(_slots(m) + _elem_slots(m)):
         assert set(s) == set(TY.SLOT_DEFAULTS), \

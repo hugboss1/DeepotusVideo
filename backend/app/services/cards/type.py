@@ -441,6 +441,19 @@ SLOT_DEFAULTS: dict = {
     "opacity": 100.0,
     "side": "front",       # front | back | both
     "on": True,
+    # ── LE VERROU (spec §6.1, « liste de calques ordonnée … verrouillage ») ──
+    # Un bloc verrouillé refuse les GESTES DE SCÈNE de l'écran d'édition —
+    # glisser, poignées, flèches, Suppr au clavier — et rien d'autre : il reste
+    # sélectionnable (c'est par là qu'on le déverrouille) et le panneau
+    # continue de le régler. Le verrou protège de la main qui dérape, pas de
+    # l'intention.
+    #
+    # Le backend ne l'INTERPRÈTE pas : il le transporte. Aucun painter ne le
+    # lit, aucun calcul de mise en page ne le regarde — c'est exactement ce qui
+    # rend les quatre gabarits livrés byte-identiques après son arrivée. Il est
+    # ici, et non dans un état d'écran, parce qu'il doit voyager avec le deck :
+    # un bloc protégé qui redevient libre à la réouverture ne protège rien.
+    "lock": False,
     "text": "",
 }
 
@@ -711,6 +724,9 @@ def norm_slot(raw, index: int = 0) -> dict:
     out["opacity"] = _num(r.get("opacity"), 100.0, 0.0, 100.0)
     out["side"] = _choice(r.get("side"), SIDES, SLOT_DEFAULTS["side"])
     out["on"] = bool(r.get("on", True))
+    # Faux par défaut, donc faux pour tout document écrit avant la 3b : un bloc
+    # ne devient protégé que si quelqu'un l'a demandé.
+    out["lock"] = bool(r.get("lock", False))
     out["text"] = str(r.get("text") or "")[:4000]
     return out
 

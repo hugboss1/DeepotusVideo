@@ -110,11 +110,12 @@
     "align": "left", "arc": 0.0, "autofit": true, "bold": false,
     "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9", "font": "Inter",
     "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0, "label": "Texte",
-    "last_pct": 25.0, "leading": 1.18, "min_pt": 5.0, "on": true, "opacity": 100.0,
-    "outline": 0.0, "outline_color": "#0a0a0c", "plate_alpha": 1.0, "plate_color": null,
-    "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
-    "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0, "side": "front",
-    "size_pt": 10.0, "text": "", "track": 0.0, "valign": "top", "wrap": true
+    "last_pct": 25.0, "leading": 1.18, "lock": false, "min_pt": 5.0, "on": true,
+    "opacity": 100.0, "outline": 0.0, "outline_color": "#0a0a0c", "plate_alpha": 1.0,
+    "plate_color": null, "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0,
+    "shadow": 0.0, "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0,
+    "side": "front", "size_pt": 10.0, "text": "", "track": 0.0, "valign": "top",
+    "wrap": true
   };
   /* ═══ CF-TYPE-DEFAULTS-END ═══ */
 
@@ -225,7 +226,13 @@
      DESSIN — le painter recoit les slots du document tels quels, jamais
      repasses par `normSlot` (qui, lui, ne sert que le panneau). */
   const PLATE_RADIUS_MAX_MM = 30;
-  const NUDGE_MM = 0.5, NUDGE_BIG_MM = 5, SNAP_MM = 0.25, MIN_BOX_MM = 2;
+  /* LE PAS DU CLAVIER, tel que la spec le NOMME (§6.1:307, patron P2) : une
+     flèche pousse d'un millimètre, Maj AFFINE à deux dixièmes. P3 faisait
+     l'inverse — 0,5 mm et Maj = 5 mm — c'est-à-dire que la touche de
+     précision agrandissait le pas. Sur une carte de 63 x 88, 5 mm n'est pas
+     un « grand pas », c'est un déménagement ; et 0,5 mm ne se cale sur rien
+     (la grille d'accrochage du glisser vaut 0,25 mm). */
+  const NUDGE_MM = 1, NUDGE_FINE_MM = 0.2, SNAP_MM = 0.25, MIN_BOX_MM = 2;
   const UNDO_MAX = 60;
   const FONT_WAIT_MS = 2500;      /* le painter a 4 s : on garde de la marge */
 
@@ -346,6 +353,11 @@
     s.opacity = num(r.opacity, 100, 0, 100);
     s.side = SIDES.indexOf(r.side) >= 0 ? r.side : "front";
     s.on = r.on === undefined ? true : !!r.on;
+    /* LE VERROU. Faux par defaut, et faux pour tout document ecrit avant lui :
+       un slot ne devient protege que si quelqu'un l'a demande. Il ne dit RIEN
+       de ce qui est peint (le painter ne le lit pas) — il n'arrete que les
+       gestes de scene du calque d'edition. */
+    s.lock = !!r.lock;
     s.text = String(r.text == null ? "" : r.text).slice(0, 4000);
     return s;
   }
@@ -1446,8 +1458,9 @@
          la place revient a la liste des blocs. */
       + '    <details class="cf-type-keys"><summary>Raccourcis</summary>'
       + '<p class="hint">Sur l\'aperçu : <b>glisser</b> déplace, les coins redimensionnent. '
-      + 'Clavier : <b>flèches</b> 0,5 mm (<b>Maj</b> 5 mm), <b>Alt+flèches</b> redimensionne, '
-      + '<b>Ctrl+D</b> duplique, <b>Suppr</b> supprime, <b>Ctrl+Z</b> annule.</p></details>'
+      + 'Clavier : <b>flèches</b> 1 mm (<b>Maj</b> 0,2 mm), <b>Alt+flèches</b> redimensionne, '
+      + '<b>Ctrl+D</b> duplique, <b>Suppr</b> supprime, <b>Ctrl+Z</b> annule. '
+      + 'Un bloc <b>verrouillé</b> (cadenas) refuse ces gestes et reste réglable ici.</p></details>'
       + '  </div>'
       + '  <div class="cf-type-insp"></div>'
       + '</div>'
@@ -1506,9 +1519,17 @@
     const a = slots();
     let n = 2, nid = s.id + n;
     while (a.filter((x) => x.id === nid).length) { n++; nid = s.id + n; }
+    /* CTRL+D SUR UN BLOC VERROUILLE EST PERMIS, ET LA COPIE NAIT OUVERTE.
+       Dupliquer ne touche pas au bloc protege : cela en pose un AUTRE, a 2 mm,
+       avec un identifiant neuf — un acte d'intention, comme un reglage du
+       panneau, pas un geste de scene. Et le verrou marque un bloc DEJA place :
+       une copie qu'on vient de creer, elle, se place. Nee fermee, elle aurait
+       refuse le glisser qui la suit d'une seconde sans que rien a l'ecran ne
+       dise pourquoi. */
     const c = Object.assign(clone(s), {
       id: nid, label: s.label + " (copie)",
       box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
+      lock: false,
     });
     pushUndo();
     commit(a.concat([c]), nid);
@@ -1589,6 +1610,21 @@
       return '<div class="cf-type-row' + (s.id === sel ? " on" : "") + (s.on ? "" : " off")
         + '" data-id="' + esc(s.id) + '" data-audit="' + esc(tip) + '" title="' + esc(tip) + '" draggable="true">'
         + '<button class="cf-type-eye" type="button" title="Afficher / masquer">' + (s.on ? "&#9679;" : "&#9675;") + '</button>'
+        /* LE CADENAS. Meme rang que l'oeil : deux etats d'un bloc, pas deux
+           familles de commandes. Il protege des GESTES DE SCENE (glisser,
+           poignees, fleches, Suppr au clavier) et de rien d'autre — la ligne
+           reste cliquable, donc le panneau reste atteignable, donc le verrou
+           se reprend. Un verrou dont on ne sait plus sortir serait pire que
+           pas de verrou du tout.
+           CE QUI RESTE LIBRE, ET POURQUOI : l'oeil, l'ordre, la corbeille de
+           CETTE ligne, le panneau, Ctrl+D. Ce sont des actes VISES — on a
+           clique sur la commande de ce bloc-la. Le verrou arrete la main qui
+           derape sur l'apercu et la touche pressee au hasard, pas la decision
+           prise en connaissance de cause. */
+        + '<button class="cf-type-lock' + (s.lock ? " on" : "") + '" type="button" title="'
+        + (s.lock ? "Déverrouiller ce bloc" : "Verrouiller ce bloc — il refusera le glisser, "
+          + "les poignées, les flèches et Suppr ; le panneau continuera de le régler")
+        + '">' + (s.lock ? "&#128274;" : "&#128275;") + '</button>'
         + '<span class="cf-type-nm"><b>' + esc(s.label) + '</b><i class="mono">' + esc(s.id) + '</i></span>'
         + '<span class="cf-type-meta mono">' + esc(fontLabel(s.font)) + ' · ' + fx(m ? m.pt : s.size_pt, 1) + ' pt'
         + (synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
@@ -1601,7 +1637,7 @@
           + esc(tofu.join(" ") + ' — « ' + fontLabel(s.font) + ' » ne porte pas ' + (tofu.length > 1 ? 'ces signes' : 'ce signe')
             + ' (lu dans la table cmap du fichier). Le navigateur les dessine avec une autre police.')
           + '">' + esc(tofu.join("")) + ' hors police</em>' : '')
-        + (masq ? '<em class="cf-type-badge bad" title="' + au.masked + ' px d\'encre recouverts par une couche dessinée au-dessus">'
+        + (masq ? '<em class="cf-type-badge bad" title="' + Number(au.masked) + ' px d\'encre recouverts par une couche dessinée au-dessus">'
           + fx((1 - au.rate) * 100, 0) + ' % masqué</em>' : '')
         + (lowc && !masq ? '<em class="cf-type-badge bad" title="contraste mesuré contre le fond réellement derrière l\'encre">'
           + fx(au.contrast_min, 1) + ':1</em>' : '')
@@ -1610,7 +1646,7 @@
            carte ne se lira pas), puis « ajuste » — qui ne s'affiche PLUS quand
            le corps est passe sous le plancher de lisibilite : un badge vert
            sur un titre a 9 pt certifiait l'encombrement et taisait la lecture. */
-        + (bad ? '<em class="cf-type-badge bad" title="' + m.over_chars
+        + (bad ? '<em class="cf-type-badge bad" title="' + Number(m.over_chars)
           + ' caractères débordent du cadre — ils sont dessinés quand même">'
           + m.over_chars + ' hors cadre</em>'
           : (m && m.under_read)
@@ -1638,6 +1674,13 @@
       row.querySelector(".cf-type-eye").addEventListener("click", () => {
         const s = slots().filter((x) => x.id === id)[0];
         patchSlot(id, { on: !s.on });
+        renderAll();
+      });
+      row.querySelector(".cf-type-lock").addEventListener("click", () => {
+        const s = slots().filter((x) => x.id === id)[0];
+        /* UNE entree d'annulation PAR GESTE : patchSlot en pousse une seule,
+           comme l'oeil juste au-dessus. */
+        patchSlot(id, { lock: !s.lock });
         renderAll();
       });
       row.querySelectorAll(".cf-type-mv").forEach((b) => {
@@ -3357,6 +3400,31 @@
     return { ctx: x2, bytes: blob.size, w: cv.width, h: cv.height };
   }
 
+  /* ── L'ENCRE SEULE : UN SEUL OBJET DE NEUTRALISATION ────────────────────
+     Trois passes redessinent un slot TOUT SEUL pour mesurer son encre : le
+     controle photometrique (ce qui survit au composite), le releve du halo
+     d'ombre, et le tirage sur fichier. Les trois doivent voir LES GLYPHES et
+     rien d'autre :
+       · la PLAQUE de fond est du decor. Peinte ici, elle rendrait chaque
+         pixel de la boite opaque — donc « corps de glyphe » pour le masque —
+         et ni le taux de masquage ni le contraste ne mesureraient plus rien.
+         Dans le COMPOSITE elle reste : c'est meme le bon fond a mesurer
+         derriere le texte.
+       · l'OPACITE du slot est ramenee a 100 : on mesure de l'encre, pas un
+         reglage de fondu.
+       · l'OMBRE tombe aussi — c'est un degrade, pas de l'encre — SAUF pour la
+         passe qui la mesure justement (`{ shadow: true }`), parce qu'elle
+         existe bel et bien dans le fichier livre.
+     Les trois le faisaient A LA MAIN, chacune avec son propre litteral : trois
+     occasions d'oublier la cle suivante. Une QUATRIEME passe doit appeler ce
+     helper, pas recopier l'objet une quatrieme fois — le test qui compte les
+     appels le dit en toutes lettres. */
+  function soloClone(slot, garde) {
+    return Object.assign(clone(slot), (garde && garde.shadow)
+      ? { opacity: 100, plate_color: null }
+      : { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null });
+  }
+
   async function runAudit() {
     if (auditing || !HOST || IN_AUDIT) return;
     if (!Object.keys(MEAS).length) { AUDIT = null; AUDIT_DONE = AUDIT_STAMP; return; }
@@ -3401,13 +3469,9 @@
         const w = Math.max(1, x1 - x0), h = Math.max(1, y1 - y0);
         sctx.setTransform(1, 0, 0, 1, 0, 0);
         sctx.clearRect(x0, y0, w, h);
-        /* ombre coupee, opacite a 100 : on veut le CORPS des glyphes.
-           PLAQUE COUPEE AUSSI : elle est du decor, pas de l'encre. Peinte
-           ici, elle rendrait CHAQUE pixel de la boite opaque, donc « corps de
-           glyphe » pour le masque `A` ci-dessous — et le taux de masquage
-           comme le contraste ne mesureraient plus rien. Dans le COMPOSITE,
-           elle reste : c'est meme le bon fond a mesurer derriere le texte. */
-        const solo = Object.assign(clone(slot), { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null });
+        /* ombre coupee, opacite a 100, plaque coupee : on veut le CORPS des
+           glyphes, et rien que lui (voir soloClone). */
+        const solo = soloClone(slot);
         drawSlot(sctx, solo, g, m);
         const S = sctx.getImageData(x0, y0, w, h).data;
         /* `F` = LE FICHIER. `Fc` = la toile. Toutes les mesures publiees se
@@ -3701,7 +3765,8 @@
         if (slot.shadow > 0 || slot.shadow_dx || slot.shadow_dy) {
           sctx.setTransform(1, 0, 0, 1, 0, 0);
           sctx.clearRect(x0, y0, w, h);
-          drawSlot(sctx, Object.assign(clone(slot), { opacity: 100, plate_color: null }), g, m);
+          /* l'ombre GARDEE : c'est elle que cette passe mesure. */
+          drawSlot(sctx, soloClone(slot, { shadow: true }), g, m);
           const S2 = sctx.getImageData(x0, y0, w, h).data;
           let hx0 = 1e9, hy0 = 1e9, hx1 = -1, hy1 = -1;
           for (let q = 0; q < n; q++) {
@@ -3904,8 +3969,7 @@
     cv.width = w; cv.height = h;
     const cx = cv.getContext("2d", { willReadFrequently: true });
     cx.translate(-x0, -y0);
-    drawSlot(cx, Object.assign(clone(slot),
-      { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null }), gg, m);
+    drawSlot(cx, soloClone(slot), gg, m);
     const f = await countPng(cv);
     const wit = (witness && witness > 1) ? await witnessUpscale(cv, witness) : null;
     if (!f.bbox) return { m: m, empty: true, bytes: f.bytes };
@@ -4182,9 +4246,14 @@
         ? " · " + m.over_chars + " car. hors cadre"
         : " · entame la marge du format");
       const st = "left:" + (b[0] * k) + "px;top:" + (b[1] * k) + "px;width:" + (b[2] * k) + "px;height:" + (b[3] * k) + "px";
+      /* LE CADENAS SE VOIT SUR LA SCENE, pas seulement dans la liste : un
+         glisser refusé sans marque à l'endroit où la main appuie se lit comme
+         une panne. La classe change le trait de la boîte et le curseur des
+         poignées ; le glyphe le dit en toutes lettres dans l'étiquette. */
       let h = '<div class="cf-type-hbox' + (s.id === sel ? " on" : "") + (bad ? " bad" : "")
+        + (s.lock ? " lock" : "")
         + '" data-id="' + esc(s.id) + '" style="' + st + '">'
-        + '<span class="cf-type-htag">' + esc(s.label) + why + '</span>';
+        + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "") + esc(s.label) + why + '</span>';
       if (s.id === sel) {
         h += HANDLES.map((hd) => '<i class="cf-type-hh cf-type-h-' + hd[0] + '" data-h="' + hd[0] + '"></i>').join("");
       }
@@ -4211,6 +4280,12 @@
     if (id !== selId()) { mpatch({ sel: id }); renderAll(); }
     const s = slots().filter((x) => x.id === id)[0];
     if (!s) return;
+    /* La SELECTION vient d'avoir lieu (juste au-dessus) et reste libre sur un
+       bloc verrouille — c'est par elle qu'on atteint le panneau. Le
+       GESTE, lui, ne demarre pas : on sort AVANT pushUndo et AVANT de brancher
+       pointermove, si bien qu'il n'y a ni entree d'annulation a reprendre ni
+       ecouteur a defaire. Un geste joue puis annule aurait laisse les deux. */
+    if (s.lock) return;   /* VERROU : aucun geste ne demarre */
     const hd = e.target.closest(".cf-type-hh");
     pushUndo();
     dragState = {
@@ -4307,13 +4382,26 @@
     if (ctrl && (e.key === "d" || e.key === "D")) { e.preventDefault(); dupSlot(); return; }
     const s = selSlot();
     if (!s) return;
-    if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); delSlot(s.id); return; }
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      /* DIT, pas avale : effacer est un acte dont le refus silencieux se lit
+         comme une touche morte. (Les fleches, elles, se repetent : une
+         infobulle par pression noierait l'ecran — leur refus se lit sur le
+         cadenas de la boite, qui est sous les yeux.) */
+      if (s.lock) { M.toast("bloc verrouillé — ouvrez le cadenas pour le supprimer", true); return; }
+      delSlot(s.id);
+      return;
+    }
     if (e.key === "Escape") { closeFontPicker(); return; }
-    const d = e.shiftKey ? NUDGE_BIG_MM : NUDGE_MM;
+    const d = e.shiftKey ? NUDGE_FINE_MM : NUDGE_MM;
     const map = { ArrowLeft: [-d, 0], ArrowRight: [d, 0], ArrowUp: [0, -d], ArrowDown: [0, d] };
     const mv = map[e.key];
     if (!mv) return;
+    /* preventDefault AVANT le garde : la fleche etait destinee au bloc, pas a
+       la page. Refuser le deplacement ET laisser defiler l'ecran aurait fait
+       deux surprises au lieu d'une. */
     e.preventDefault();
+    if (s.lock) return;   /* VERROU : ni fleche ni Alt+fleche */
     const b = s.box.slice();
     if (e.altKey) { b[2] = Math.max(MIN_BOX_MM, b[2] + mv[0]); b[3] = Math.max(MIN_BOX_MM, b[3] + mv[1]); }
     else { b[0] += mv[0]; b[1] += mv[1]; }

@@ -33,7 +33,8 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
   par `CF.get` d'état publié (patron art_window — mod-face lit
   frame.art_window :1769) ; ÉCRITURE jamais (jeton scellé).
 - **Éléments des modèles (3a-T3)** : `{id, label, hint, slots:[35 clés
-  complètes]}` (models.py:172, exemple :277-286 ; paire étiquette+valeur =
+  complètes — **36 depuis la T1**, `lock` est arrivé]}` (models.py:172,
+  exemple :277-286 ; paire étiquette+valeur =
   `_duel_ligne` :302-317). **Le deck n'en garde AUCUNE copie** — le seul fil
   est `doc.type.preset` = l'id du modèle (:1063) ; l'écran doit fetch
   `GET /models` et retrouver l'entrée par preset.
@@ -44,13 +45,15 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
   écrasé). Un calque d'image de deck doit VOYAGER avec le deck → patron B.
 - **HIST** : P3 pousse AVANT le geste et POP si rien n'a bougé (:4215,
   :4292) ; P2 pousse À LA RELÂCHE (:2674). Les deux coalescent ≤1
-  patch/frame. **Écart de nudge** : la spec nomme le patron P2 (« pas 1 mm,
-  Maj = 0,2 mm » :307) ; P3 fait 0,5 / Maj=5 (:228) — l'INVERSE de Maj.
-- **Notes T1-3a à solder ici** : les 3 passes d'encre dupliquent l'objet de
-  neutralisation (:3410/:3704/:3908 — helper partagé demandé) ; le filtre
-  R14 (`Html|paint`) ne balaie ni renderInsp ni les futures galDraw-like ;
-  la branche arcTo du banc inexerçable (accumulation de chemin à ajouter si
-  bon marché).
+  patch/frame. ~~**Écart de nudge**~~ : la spec nomme le patron P2 (« pas 1 mm,
+  Maj = 0,2 mm » :307) ; P3 faisait 0,5 / Maj=5 (:228) — l'INVERSE de Maj.
+  **SOLDÉ en T1.**
+- **Notes T1-3a à solder ici** : ~~les 3 passes d'encre dupliquent l'objet de
+  neutralisation (:3410/:3704/:3908 — helper partagé demandé)~~ **SOLDÉ (T1,
+  `soloClone`)** ; ~~le filtre R14 (`Html|paint`) ne balaie ni renderInsp ni
+  les futures galDraw-like~~ **SOLDÉ (T1, critère = le sink innerHTML ; 11
+  vraies fautes trouvées et corrigées)** ; la branche arcTo du banc
+  inexerçable (accumulation de chemin à ajouter si bon marché) — RESTE.
 - **Tailles** : mod-frame 5033 l., mod-type 4323 l. (le fichier de la 3b),
   mod-face 4050, core 2254. mod-type va grossir : viser des AJOUTS de
   fonctions courtes ; si une tâche dépasse ~400 l. nettes, LE DIRE.
@@ -110,18 +113,100 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 
 **Files:** mod-type.js, type.py, test_cards_type.py, scripts/qa/lint_cardforge.py.
 
-- [ ] `lock` 36e clé (parité JSON stricte, presets byte-identiques) ; overlay
+- [x] `lock` 36e clé (parité JSON stricte, presets byte-identiques) ; overlay
       et clavier REFUSENT drag/resize/nudge/delete sur un slot verrouillé
       (sélection et panneau libres) ; badge cadenas (liste + hbox).
-- [ ] Nudge 1 mm / Maj 0,2 mm (pin ; l'ancien 0,5/5 mort).
-- [ ] `soloClone` : les 3 sites (:3410/:3704/:3908) passent par le helper,
+- [x] Nudge 1 mm / Maj 0,2 mm (pin ; l'ancien 0,5/5 mort).
+- [x] `soloClone` : les 3 sites (:3410/:3704/:3908) passent par le helper,
       pin de compte (== 3 aujourd'hui, le message dit pourquoi).
-- [ ] R14 : filtre de noms élargi (renderInsp, galDraw*, et le futur
+- [x] R14 : filtre de noms élargi (renderInsp, galDraw*, et le futur
       paletteHtml de la 3b) — le lint intégral reste 0 sur tout le dépôt
       (si l'élargissement révèle un site réel non échappé : le corriger,
       c'est le but).
-- [ ] Mutation : verrou ignoré au drag (rougit), nudge à 0,5 (rougit),
+- [x] Mutation : verrou ignoré au drag (rougit), nudge à 0,5 (rougit),
       soloClone contourné (compte rougit).
+
+> **Livré (T1)** — 35 → **36 clés** par slot (`lock`, bool, défaut false),
+> égalité JSON stricte tenue des deux côtés (mod-type.js:113 ↔ type.py:444-456).
+> Le backend ne l'INTERPRÈTE pas, il le TRANSPORTE : aucun painter ne le lit,
+> et c'est ce qui garde les 4 gabarits byte-identiques (prouvé : même empreinte
+> FNV-1a avec et sans la clé, et un slot verrouillé rend exactement comme le
+> même déverrouillé). Il est dans le document et non dans un état d'écran
+> parce qu'un bloc protégé qui redevient libre à la réouverture ne protège rien.
+>
+> · **Le banc de gestes (BANC_VERROU)** — nouveau, et c'est le vrai apport de
+>   la tâche : il fait tourner `MOD.init(host)` dans un DOM de paille et
+>   récupère les écouteurs **là où le module les pose** (pointerdown sur le
+>   calque posé sur `document.body`, keydown sur le document), puis joue des
+>   gestes dessus. Il ne teste donc pas une fonction interne choisie à la main.
+>   Il rend aussi le HTML du calque et celui de la liste : les tâches 2-4
+>   (kind image, palette, liste multi-bandes) peuvent s'y brancher.
+> · **Le refus est un NON-DÉMARRAGE**, pas un geste joué puis annulé : sur un
+>   bloc verrouillé, `onOvDown` sort AVANT `pushUndo()` et avant de brancher
+>   `pointermove` — le banc compte 0 écouteur pointermove (1 sur le contrôle).
+>   Rien à reprendre dans HIST, rien à défaire.
+> · **DÉCISION — Ctrl+D sur un bloc verrouillé est PERMIS, et la copie naît
+>   OUVERTE.** Dupliquer ne touche pas au bloc protégé : ça en pose un AUTRE,
+>   à 2 mm, avec un id neuf — un acte d'intention (comme un réglage du panneau),
+>   pas un geste de scène. Et le verrou marque un bloc DÉJÀ placé ; une copie
+>   qu'on vient de créer, elle, se place. Née fermée, elle aurait refusé le
+>   glisser qui la suit d'une seconde sans que rien à l'écran ne dise pourquoi.
+> · **Suppr est refusé AVEC UN MOT** (toast), les flèches en silence : une
+>   flèche se répète, un toast par pression noierait l'écran — et son refus se
+>   lit sur le cadenas de la boîte, qui est sous les yeux. Suppr, non : un
+>   effacement qui ne se produit pas se lit comme une touche morte.
+> · **Nudge** : `NUDGE_MM = 1, NUDGE_FINE_MM = 0.2` (mod-type.js:229).
+>   `NUDGE_BIG_MM` n'existe plus (pin sur son absence) ; le mémo du panneau dit
+>   les mêmes chiffres que le code ; le pas est MESURÉ au banc, pas relu
+>   (flèche → +1 mm, Maj → +0,2 mm, Alt → +1 mm de largeur, Alt+Maj → +0,2 mm
+>   de hauteur), et l'ancien 0,5 restauré par mutation rougit.
+> · **`soloClone(slot, garde)`** (mod-type.js:3399) remplace les 3 littéraux.
+>   Le seul écart entre les sites était l'OMBRE : la passe du halo la garde
+>   (c'est elle qui la mesure), les deux autres la coupent — d'où
+>   `soloClone(slot, { shadow: true })`, une fois et une seule. Pin de compte
+>   (3 appels) avec le message qui dit la règle de la 4ᵉ passe, + pin qu'aucun
+>   littéral de neutralisation ne subsiste HORS du helper.
+> · **L'équivalence est PROUVÉE, pas raisonnée** : ces trois passes ne tournent
+>   que dans un navigateur, une dérive d'un cheveu n'aurait fait rougir
+>   personne. Le banc se fait ouvrir la fermeture par une mutation
+>   (`globalThis.__solo = soloClone;` avant la parenthèse finale, sur la COPIE)
+>   et compare la SÉRIALISATION du helper aux deux littéraux d'avant, recopiés
+>   mot pour mot, sur un slot qui porte tout ce qu'il doit neutraliser : mêmes
+>   clés, mêmes valeurs, même ordre — plus « le slot source n'est pas muté » et
+>   « les deux gardes ne rendent pas le même objet ». Un `shadow_dy` oublié
+>   dans le helper fait rougir (vérifié par mutation).
+> · **R14 — mécanisme, pas liste de noms.** Une fonction est balayée si son nom
+>   contient Html/paint **ou si son corps pose du HTML** (`innerHTML`/
+>   `outerHTML`/`insertAdjacentHTML`) : le sink est le fait mécanique, un nom
+>   n'est qu'une intention. Mesure : **+65 fonctions** balayées sur les 9
+>   pièces, surcoût nul (0,50 s → 0,51 s — le corps est déjà découpé).
+>   **11 vraies valeurs d'attribut non échappées trouvées et corrigées** :
+>   mod-type `renderList` (2 : `au.masked`, `m.over_chars` → `Number(...)`),
+>   mod-face `renderPanel` (2) + `fillPalettes` (1, + `p.sky[1]`/`p.glow` dans
+>   le `style=` voisin, hors portée mécanique de la règle mais même faute),
+>   mod-solid `buildStatics` (6). Aucune n'était exploitable aujourd'hui
+>   (tables statiques locales) — c'est un cliquet, il se pose avant.
+> · **Et une CONTREPARTIE honnête** : l'élargissement a mis la règle devant des
+>   fonctions qui écrivent du HTML **et des phrases**, et une phrase finit par
+>   `nom=` aussi bien qu'une balise (« ligne y=42 », « 300 DPI = 12 / mm² »,
+>   « tile?mat=…&seed=7 » — 5 faux signalements dans mod-frame et mod-texture).
+>   `R14_ATTR_FIN` EXIGE donc désormais le guillemet (`nom="`), qui était
+>   facultatif : zéro attribut sans guillemets dans tout le labo (mesuré), et
+>   le guillemet est exactement ce que la valeur injectée refermerait. Les deux
+>   sens sont testés (la sonde fautive rougit, la prose non), et R14 rétréci
+>   par mutation fait rougir les deux sondes.
+> · **Compte** : 108 → **120 tests** dans test_cards_type.py (13 neufs, 1
+>   remplacé — l'ancien `test_les_mesures_d_encre_ignorent_la_plaque` épinglait
+>   les 3 littéraux que le helper supprime). Lint intégral 0. `node --check` OK
+>   sur les 3 JS touchés. Hors périmètre déclaré mais nécessaire :
+>   test_cards_models.py (35 → 36 clés, nom du test) et le commentaire
+>   models.py:149 — les modèles partent de `SLOT_DEFAULTS`, ils n'ont rien eu
+>   à changer d'autre.
+>
+> **Reste à l'œil (2 min)** : verrouiller un bloc dans le vrai navigateur et
+> sentir que le glisser refuse (curseur « interdit », cadenas ambre sur la
+> boîte), que le panneau continue de le régler, et que la flèche fait bien
+> 1 mm / 0,2 mm à la main.
 
 ### Task 2 : le calque d'image (kind + route + painter + éditeur)
 

@@ -2937,14 +2937,14 @@
       + '<input class="search sm cf-face-search" id="cf-face-search" type="text" placeholder="filtrer (loup, blason, braise…)" value="' + esc(CATFILTER) + '">'
       + '<select class="sm cf-face-sub" id="cf-face-subject" title="filtrer par sujet">'
       + '<option value="">tous les sujets (' + SUBJECTS.length + ')</option>'
-      + SUBJECTS.map((s) => '<option value="' + s.id + '"' + (CATTAG === s.id ? " selected" : "") + '>' + esc(s.label) + '</option>').join("")
+      + SUBJECTS.map((s) => '<option value="' + esc(s.id) + '"' + (CATTAG === s.id ? " selected" : "") + '>' + esc(s.label) + '</option>').join("")
       + '</select>'
       + '<span class="counter" id="cf-face-cat-count"></span>'
       + '<button class="btn sm" type="button" id="cf-face-rand">Au hasard</button>'
       + '</div>'
       + '<div class="chips cf-face-tags" id="cf-face-compos">'
       + '<button class="chip' + (CATCOMPO ? "" : " active") + '" type="button" data-compo="">toutes compositions</button>'
-      + COMPOS.map((c) => '<button class="chip' + (CATCOMPO === c.id ? " active" : "") + '" type="button" data-compo="' + c.id + '">' + esc(c.label) + '</button>').join("")
+      + COMPOS.map((c) => '<button class="chip' + (CATCOMPO === c.id ? " active" : "") + '" type="button" data-compo="' + esc(c.id) + '">' + esc(c.label) + '</button>').join("")
       + '</div>'
       + '<div class="cf-face-grid" id="cf-face-cat-grid"></div>'
       /* CE QUI A CHANGE : l'etiquette disait « Catalogue 72 » et « 72 faces
@@ -3101,8 +3101,8 @@
     box.innerHTML = '<span class="lbl">Palette — le même dessin, ' + PALETTES.length + ' teintes</span>'
       + '<div class="chips cf-face-pal" id="cf-face-palrow">'
       + PALETTES.map((p) => '<button class="chip' + (p.id === m[1] ? " active" : "")
-        + '" type="button" data-pal="' + p.id + '"><i style="background:'
-        + p.sky[1] + ';border-color:' + p.glow + '"></i>' + esc(p.label) + '</button>').join("")
+        + '" type="button" data-pal="' + esc(p.id) + '"><i style="background:'
+        + esc(p.sky[1]) + ';border-color:' + esc(p.glow) + '"></i>' + esc(p.label) + '</button>').join("")
       + '</div>';
     const row = q("#cf-face-palrow");
     if (row) row.addEventListener("click", (e) => {
