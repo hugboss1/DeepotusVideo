@@ -5185,13 +5185,24 @@
      que l'écran ne l'ait jamais montré. On le retire — le rang affiché et le
      graphe disent alors la même chose. */
   function rewireRow(g, procId, matId, trsId, morts) {
-    /* TROIS REGISTRES SANS PROTOTYPE, et c'est ici que le `{}` nu coûtait le
-       plus cher : `garde` protège les maillons de la chaîne réécrite. Un
-       maillon nommé « __proto__ » n'y posait AUCUNE clé propre — il était donc
-       relu comme surnuméraire et SUPPRIMÉ du graphe, c'est-à-dire que la
-       matière que l'utilisateur venait de poser disparaissait. Symétriquement
-       `off`/`purge` déclaraient morts, sans que rien ne les y ait mis, tout
-       nœud ou toute arête nommés « constructor » / « toString ». */
+    /* TROIS REGISTRES SANS PROTOTYPE — et LA RÉPARTITION DES TORTS EST
+       MESURÉE, pas devinée (chaque moitié remise à l'état de dette, seule) :
+
+         · `off` : 6 cas rouges. Il liste les surnuméraires, mais le filtre
+           `!off[n.id]` s'applique à TOUS les nœuds — un nœud nommé
+           « constructor », « toString » ou « __proto__ » y répondait vrai sans
+           que personne ne l'y ait mis, et QUITTAIT LE GRAPHE. C'est la matière
+           que l'utilisateur venait de poser qui disparaissait.
+         · `purge` : 6 cas rouges. Même mécanique sur les ARÊTES : l'arête
+           SOURCE (couche → traitement) sautait, et une rangée sans couche n'a
+           plus de rang — elle disparaissait de la liste au moment précis où
+           l'on éditait un de ses champs.
+         · `garde` : ZÉRO cas rouge, et c'est dit. Ses deux fautes s'annulent —
+           `garde["__proto__"] = 1` ne pose rien, mais la relecture traverse
+           l'accesseur et rend Object.prototype, qui est vrai ; « constructor »
+           et « toString », eux, posent bien une clé propre. Aligné quand même :
+           une sûreté qui tient à ce que deux bugs se compensent n'en est pas
+           une, et la moindre réécriture du filtre la perdrait. */
     const garde = sansProto();
     if (matId) garde[matId] = 1;
     if (trsId) garde[trsId] = 1;

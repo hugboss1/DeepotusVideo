@@ -1240,15 +1240,20 @@ savoir avant la T6 :
 `rewireRow` garde/off/purge :5178+, `maillonsAval` byId/vus :5219+, `freeId`
 pris :5242 passent à `sansProto()`/`connu()`. **Sonde différentielle** (les deux
 versions rejouées sur 25 combinaisons d'id piégé × poste de chaîne, plus les
-arêtes fantômes) : **30 écarts**, dont **0 pour `rowModel`**. Les trois autres
-détruisent pour de vrai — le maillon GARDÉ quittait le graphe, l'arête SOURCE
-de la rangée était purgée (une rangée sans couche perd son rang et disparaît de
-la liste au moment où l'on édite un de ses champs), `maillonsAval` rendait la
-liste VIDE, `freeId` déclarait pris un id que personne ne porte
-(« constructor » → « constructor2 »). **`rowModel` est aligné mais
-PROPHYLACTIQUE, et c'est dit dans le code et dans le test** : ce que la chaîne
-héritée y livre est une fonction ou une chaîne, jamais un objet à `.kind` du
-vocabulaire — pas de mutant, il survivrait en silence. Pin : section 8 du banc
+arêtes fantômes) : **30 écarts**, dont **0 pour `rowModel`**. Les autres
+détruisent pour de vrai — le maillon GARDÉ quittait le graphe (`off`), l'arête
+SOURCE de la rangée était purgée (`purge` — une rangée sans couche perd son rang
+et disparaît de la liste au moment où l'on édite un de ses champs),
+`maillonsAval` rendait la liste VIDE, `freeId` déclarait pris un id que personne
+ne porte (« constructor » → « constructor2 »). **DEUX registres sur six sont
+alignés mais PROPHYLACTIQUES, et c'est dit dans le code ET dans le test plutôt
+que couvert par un mutant qui survivrait en silence** : `rowModel` (ce que la
+chaîne héritée y livre est une fonction ou une chaîne, jamais un objet à
+`.kind` du vocabulaire) et `garde` de `rewireRow` (ses deux fautes s'annulent —
+`garde["__proto__"] = 1` ne pose rien, mais la relecture traverse l'accesseur et
+rend Object.prototype, qui est vrai). Ventilation mesurée moitié par moitié :
+`off` seul = 6 rouges, `purge` seul = 6 rouges, `garde` seul = 0.
+Pin : section 8 du banc
 de chaînes, 27 cas neufs (62 au total), `freeId` extrait en plus,
 `_banc_chaines` accepte des mutations. **3 mutants = le RETOUR EXACT à la dette**
 (registre nu ET lecture nue — ne remettre que le registre laissait `connu()`

@@ -8795,6 +8795,15 @@ def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
 # nue. Ne remettre que le registre laisserait `connu()` faire le travail
 # (`hasOwnProperty` répond juste même sur un `{}`) et seul « __proto__ »
 # rougirait — un demi-mutant qui donne une demi-mesure.
+#
+# RÉPARTITION DES TORTS DANS `rewireRow`, mesurée moitié par moitié : `off`
+# seul = 6 rouges (le nœud gardé quitte le graphe), `purge` seul = 6 rouges
+# (l'arête source de la rangée saute), `garde` seul = ZÉRO. Ce dernier est donc
+# prophylactique comme `rowModel` : sur un `{}`, écrire « __proto__ » ne pose
+# rien MAIS la relecture rend Object.prototype, qui est vrai — les deux fautes
+# s'annulent. Le mutant ci-dessous les remet toutes les trois ensemble, ce qui
+# est l'état réel de la dette ; la ventilation est écrite ici pour qu'on ne
+# croie pas `garde` couvert par lui.
 MUT_N4 = [
     ("rewireRow (garde/off/purge)", (
         ("const garde = sansProto();", "const garde = {};"),
