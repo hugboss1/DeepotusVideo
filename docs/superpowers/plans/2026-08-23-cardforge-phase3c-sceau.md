@@ -1225,14 +1225,41 @@ savoir avant la T6 :
       requête bornée).
 - [x] N2/N7/GC : consignés AVEC mesure fraîche (une ligne de chiffres
       chacun) dans la note de clôture.
-- [ ] Suite complète, lint intégral, contrat, cf_deploy -Backend +
-      -Check 0 écart, navigateur réel (Sceau à l'écran sur une carte —
-      l'arc-en-ciel et la phase canonique, le masque de foil téléchargé,
-      un motif dans l'hologramme au viewer, un verso custom multiply,
-      un décor IA si clé — SINON le refus nommé), plan+mémoire+push.
-- [ ] **Consigne de sortie de phase** : l'anneau-contour EXTRUDÉ 3D
-      (nœud `extrude`) transmis NOMMÉMENT à la phase 4/suivante avec la
-      raison (vocabulaire nouveau) ; les restes d'œil cumulés listés.
+- [x] Suite complète **11/11 (885 s, arbre quiescent)**, lint intégral 0,
+      batterie « contrat tenu », cf_deploy -Backend + **-Check 0 écart**
+      (par l'agent dettes). **Navigateur réel (23/08 soir, app déployée)** :
+      deck gravée + seal dorure 2,5 mm (écran+impression) → **l'anneau
+      REND** (348 px saturés/ligne, 6-9 seaux de teinte = l'arc-en-ciel) ;
+      **le masque de foil servi** (PNG 1-bit 2 183 o, `noir=foil`,
+      « toutes les cartes — l'anneau ne dépend que du cadre ») ; les
+      groupes « Sceau prismatique » et « Décor de cadre par IA » présents
+      au panneau avec leurs 5 classes ; **verso custom en multiply
+      VISIBLE** (image envoyée par la route frame durcie, centre
+      [130,67,67] = le rouge assombri par le calque) ; /pdf sans cartes →
+      refus nommé (« le navigateur doit rendre les cartes avant
+      l'imposition » — l'OCG Foil est prouvé aux tests sur PDF réels
+      parsés, deux fois indépendamment) ; AUCUN clic payant (le décor IA
+      reste à l'opt-in). Deck QA supprimé (200).
+- [x] **Consigne de sortie de phase — TRANSMIS à la phase 4** :
+      · le nœud `extrude` (l'anneau-contour 3D en objet — vocabulaire
+        nouveau : bloc miroir + writer + grammaire, la raison écrite en
+        tête de plan) ;
+      · l'« ondulation normale douce » du §6.2bis-d (la seule clause non
+        livrée, avouée en T3) ;
+      · la phase-pointeur de l'aperçu du Sceau (le peintre est prêt,
+        `sealStops(f, phase)` — seul le branchement manque) ;
+      · la décision produit du meta.json illisible qui se re-date (test
+        dédié posé, les yeux ouverts) ;
+      · l'affordance panneau du dos par-carte + l'image par carte ;
+      · le GC des images orphelines (chiffré : 17,4 Mo d'anciens nommages
+        sur 5 jeux) et la cuisson verso à 1200 dpi (9,2 s vs budget 4 s —
+        trois remèdes nommés).
+      **Restes à l'œil (~5 min, liste permanente)** : le chatoiement du
+      Sceau en tournant (écran ET 3D), la bande sous bannière aux largeurs
+      hautes, le masque de foil ouvert dans un vrai lecteur PDF (la couche
+      se toggle), un motif dans l'hologramme au viewer de l'artefact, le
+      verso multiply à l'œil, UN décor IA généré (opt-in payant ~0,03-0,08 $),
+      les hérités 2b/2d (fluidité, zoom, figer).
 
 #### Volet DETTES de la T6 — LIVRÉ (23/08)
 
