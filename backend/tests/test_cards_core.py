@@ -28,6 +28,7 @@ Ce qui est verrouillé :
 Run : <embedded python> backend/tests/test_cards_core.py
 """
 import asyncio
+import inspect
 import json
 import math
 import os
@@ -451,17 +452,28 @@ def test_to_dict_sert_les_pixels_tels_quels():
 
 def test_deck_dir_refuse_la_traversee():
     """Motif PUIS confinement. Aucune de ces entrées ne doit produire un
-    chemin."""
+    chemin.
+
+    LE SAUT DE LIGNE FINAL EST DANS LA LISTE, et il y est parce qu'il manquait :
+    `re.match` ancre au DÉBUT et `$` accepte un saut de ligne FINAL — si bien
+    que `"deck_a1b2c3d4\\n"` passait le motif, sortait un chemin, et aurait fait
+    naître un dossier de jeu au nom invisible. C'est très exactement le piège
+    que ce dépôt nomme deux fois dans ses commentaires (`fullmatch` et non
+    `match`) et qu'il ne s'appliquait pas ici."""
     for mauvais in ("..", "../..", "deck_../../x", "deck_XXXXXXXX",
                     "deck_0000000", "deck_000000000", "mat_a1b2c3d4",
                     "deck_a1b2c3d4/../..", "C:/windows", "", None, 42,
-                    "deck_a1b2c3d4\x00"):
+                    "deck_a1b2c3d4\x00", "deck_a1b2c3d4\n", "deck_a1b2c3d4\r\n",
+                    "\ndeck_a1b2c3d4", " deck_a1b2c3d4", "deck_a1b2c3d4 "):
         with pytest.raises(ValueError):
             CT.deck_dir(mauvais)
         assert CT.is_valid_did(mauvais) is False
     assert CT.is_valid_did("deck_a1b2c3d4") is True
     p = CT.deck_dir("deck_a1b2c3d4")
     assert str(p).startswith(str(CT.decks_root().resolve()))
+    # le motif lui-même : ancré des DEUX bouts, et lu avec `fullmatch`.
+    assert "fullmatch" in inspect.getsource(CT.is_valid_did), \
+        "is_valid_did lit son motif avec `match` : le saut de ligne final passe"
 
 
 def test_meta_json_est_ecrit_atomiquement():

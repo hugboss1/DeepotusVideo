@@ -372,6 +372,88 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 > dessous ; couper le fichier sur le disque pour voir le damier nommé ; coller
 > (Ctrl+V) une image dans un calque sélectionné.
 
+> **RONDE DE REVUE (T2) — FIX-FIRST, 2 bloquants + 2 moyens + 2 bas + 2
+> avenants, tous soldés.** Ce que la revue a mesuré et que la livraison
+> n'avait pas vu :
+>
+> · **B1 — `src` se normalisait en la CHAÎNE « undefined ».** La garde nulle
+>   portait sur l'opérande TESTÉ et non sur le RÉSULTAT : `SRC_RE` accepte la
+>   chaîne vide, donc le test passait, et c'est `String(undefined)` qui était
+>   rangé. Les 21 slots des quatre gabarits sortaient avec `src: "undefined"` —
+>   une source illégale que le backend RÉPARAIT à chaque chargement, c'est-à-
+>   dire l'idempotence que ce même commit venait d'inscrire dans models.py:149.
+>   **La vraie leçon n'est pas la ligne, c'est le TEST** : la parité des deux
+>   normaliseurs était épinglée par des MATCHS DE SOURCE (« cette ligne est dans
+>   le fichier »), et un match de source ne dit rien de ce que le code FAIT.
+>   Remplacé par une **parité d'EXÉCUTION** — `normSlot` ouvert par mutation
+>   (patron `__solo`), 13 entrées (document vide, absences explicites, slot
+>   d'avant la 3b, hostiles sur chaque clé neuve), comparaison clé par clé avec
+>   `norm_slot`, **plus l'idempotence JS** (`normSlot(normSlot(x)) ==
+>   normSlot(x)`) et **plus les gabarits rendus** (`norm_slot(s) == s` sur les
+>   21 slots : le backend n'a rien à réparer).
+> · **B2 — la course d'écriture : 6 imports simultanés → 1 fichier, 4 clients
+>   convaincus d'avoir écrit `img_1.png`, 2 vrais 500** (`PermissionError 13` /
+>   WinError 32 sur un `.tmp` partagé, reproduit au banc avant correction).
+>   Atteignable sans rien d'exotique : deux Ctrl+V rapprochés (le collage est
+>   posé sur `document`, `M.busy` grise le panneau mais pas le clavier), deux
+>   onglets. **Le compteur ne pouvait pas protéger : c'est une LECTURE**, et
+>   deux imports la font en même temps. Remède en trois pièces — temporaire
+>   unique (`img_{n}.{uuid}.tmp`), numéro **RÉSERVÉ** par `O_CREAT|O_EXCL` avec
+>   passage au suivant sur collision (leçon de la création exclusive 2c), et
+>   plafond **recompté après la réservation sur les numéros jusqu'au nôtre** (le
+>   premier arrivé garde sa place, le surnuméraire rend la sienne — sans quoi
+>   deux imports partis à 11 images auraient tous deux écrit la 13e). Plus une
+>   garde de vol à l'écran : le second import est un NON-DÉPART. Test : 6 POST
+>   `asyncio.gather` → 6 noms distincts, 6 tailles distinctes sur le disque,
+>   zéro 500, zéro `.tmp` survivant. La mutation a changé de cible avec le
+>   remède : un compteur qui MENT (toujours « 1 ») ne fait plus perdre aucune
+>   image, alors qu'avant il écrasait.
+> · **M3 — bombe de pixels, sur les DEUX portes.** Le corps est pesé (64 Mo),
+>   la TRAME ne l'était pas : un PNG de zéros de moins d'un mégaoctet déclare
+>   12000 x 12000, soit 144 Mpx, soit un demi-gigaoctet de tampon par requête —
+>   et le plafond par défaut de la bibliothèque se contente d'AVERTIR jusqu'à
+>   179 Mpx avant de décoder quand même. `IMG_MAX_PIXELS = 32 Mpx` (large pour
+>   une image ramenée à 4096 px de côté), lu dans l'EN-TÊTE **avant** `load()`,
+>   refus 413 nommé avec les dimensions. **`texture.py:_store_image` avait la
+>   même forme et est corrigé dans la même passe**, avec son test — les deux
+>   pièces portent le même chiffre, recopié et non partagé (règle 8).
+> · **M4 — le refactor avait fait SORTIR le HTML du champ de R14.** `inspHead`,
+>   `inspPlaque`, `inspBoite` et `imgMeasInner` RETOURNENT des chaînes : ni nom
+>   en `Html|paint`, ni sink `innerHTML =`. Mutation de contrôle : dé-échapper
+>   `esc(s.label)` dans `inspHead` rendait **zéro signalement**. Troisième
+>   critère ajouté, du même principe qu'en T1 (le fait, pas l'intention) :
+>   `return '<` — cherché dans `sans_com` (chaînes intactes) avec le délimiteur
+>   vérifié sur `masque`, pour qu'un `return '<` ÉCRIT DANS un texte affiché
+>   n'en soit pas un. **Différentiel mesuré : +29 fonctions balayées sur les 9
+>   pièces** (mod-type +15, mod-face +6, les autres 1 à 2), **0 nouveau
+>   signalement**, coût 1,26 → 1,30 s. La mutation est désormais ATTRAPÉE.
+> · **L5 — le lecteur d'image n'avait pas sa ceinture.** Mesuré, et c'était
+>   pire qu'annoncé : `_read_slot_image(did, "../meta.json")` rendait l'état
+>   interne du jeu. La route filtrait, la fonction non — alors que c'est ELLE
+>   qui compose le chemin. Doctrine `deck_dir` (motif PUIS confinement)
+>   appliquée là où le chemin naît ; un ramasse-miettes de la 3c ou une palette
+>   T3 qui l'appellerait n'héritait de rien.
+> · **L6 (pré-existant, adjacent) — `contract.is_valid_did` lisait son motif
+>   avec `match`.** `$` accepte un saut de ligne FINAL : `"deck_a1b2c3d4\n"`
+>   passait, ressortait de `deck_dir` en chemin valide, et aurait fait naître un
+>   dossier de jeu au nom invisible. C'est le piège que ce dépôt nomme deux fois
+>   dans ses propres commentaires. Passé en `fullmatch`, avec cinq entrées de
+>   plus dans le test de traversée (saut de ligne, CRLF, espaces de tête et de
+>   queue) et un pin sur le mot `fullmatch` lui-même. **52 appelants, une seule
+>   porte** — suite cards entière relancée.
+> · **Avenants.** (a) La police du damier n'était jamais chargée quand un deck
+>   ne portait que des calques d'image : le nom du fichier manquant se composait
+>   dans la fonte de repli à la première frame et dans la bonne à l'export —
+>   deux rendus différents du même document, sur des octets qui partent à
+>   l'impression. `DAMIER_FONT` est désormais joint aux familles attendues,
+>   **et seulement quand un damier va vraiment être peint** (on ne le sait
+>   qu'APRÈS la course des images). (b) Le compte du message d'import est
+>   recompté sur le disque APRÈS l'écriture (`n` / `max`, « 2 / 12 ») : calculé
+>   avant la réservation, il mentait dès que deux imports se croisaient.
+> · **Compte** : 152 → **162 tests** dans test_cards_type.py (+10),
+>   test_cards_texture.py +1 (la bombe), test_cards_core.py amendé (traversée).
+>   Lint intégral 0 avec le critère élargi.
+
 ### Task 3 : la palette d'éléments
 
 **Files:** mod-type.js, test_cards_type.py (+ css).

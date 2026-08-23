@@ -370,7 +370,13 @@ def format_table(dpi: int = DEFAULT_DPI) -> list[dict]:
 # ── chemins ─────────────────────────────────────────────────────────────────
 
 def is_valid_did(did) -> bool:
-    return bool(isinstance(did, str) and DID_RE.match(did))
+    """`fullmatch` et NON `match`. Le motif est ancré des deux bouts, mais `$`
+    accepte un saut de ligne FINAL : `re.match` laissait donc passer
+    « deck_a1b2c3d4\\n », qui ressortait de `deck_dir` en chemin valide et
+    aurait fait naître un dossier de jeu au nom invisible. Le dépôt écrit
+    `fullmatch` partout ailleurs pour cette raison exacte — ici il ne le
+    faisait pas, et c'est la porte d'entrée de cinquante-deux appelants."""
+    return bool(isinstance(did, str) and DID_RE.fullmatch(did))
 
 
 def decks_root() -> Path:

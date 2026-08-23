@@ -920,6 +920,68 @@ def test_matiere_importee_aller_retour():
     assert TX.read_state(did)["source"]["custom"] is True
 
 
+def _bombe_png(w: int, h: int) -> bytes:
+    """Un PNG VALIDE et minuscule qui déclare `w` x `h`.
+
+    Construit à la main, une ligne à la fois : la charge utile est faite de
+    zéros, donc zlib la réduit à quelques kilo-octets — et le tampon de
+    construction ne dépasse jamais une ligne. C'est exactement l'asymétrie
+    qu'une bombe de pixels exploite : un demi-mégaoctet sur le fil, des
+    centaines de mégaoctets en mémoire chez celui qui décode."""
+    import struct as _s
+    import zlib as _z
+
+    def chunk(typ: bytes, data: bytes) -> bytes:
+        return (_s.pack(">I", len(data)) + typ + data
+                + _s.pack(">I", _z.crc32(typ + data) & 0xFFFFFFFF))
+
+    ihdr = _s.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0)     # 8 bits, niveaux de gris
+    co = _z.compressobj(1)
+    ligne = b"\x00" * (w + 1)                            # filtre 0 + w octets
+    morceaux = [co.compress(ligne) for _ in range(h)]
+    morceaux.append(co.flush())
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", b"".join(morceaux)) + chunk(b"IEND", b""))
+
+
+def test_une_BOMBE_DE_PIXELS_est_refusee_sur_ses_DIMENSIONS():
+    """LE CORPS EST PESÉ, LA TRAME NON — et c'est la trame qui coûte.
+
+    64 Mo de plafond sur le corps ne disent RIEN de la mémoire qu'il faudra
+    pour le décoder : un PNG de quelques centaines de kilo-octets peut déclarer
+    12000 x 12000, soit 144 millions de pixels, soit un demi-gigaoctet de
+    tampon — par requête, et personne ne bornait `MAX_IMAGE_PIXELS` (le défaut
+    de la bibliothèque se contente d'un AVERTISSEMENT jusqu'à 179 Mpx).
+
+    Le refus se prend sur les DIMENSIONS DÉCLARÉES, lues dans l'en-tête, AVANT
+    tout décodage — c'est le seul endroit où il coûte zéro."""
+    from PIL import Image
+    did = _deck()
+    bombe = _bombe_png(12000, 12000)
+    # le piège est réel : quelques centaines de Ko sur le fil, 144 Mpx à décoder
+    assert len(bombe) < 1_000_000, len(bombe)
+    with Image.open(io.BytesIO(bombe)) as im:
+        assert im.size == (12000, 12000)       # l'en-tête suffit, sans décoder
+    assert TX.IMG_MAX_PIXELS == 32 * 1024 * 1024
+    for route in ("paper", "source"):
+        r = _api("POST", f"/api/cards/{did}/texture/{route}",
+                 content=bombe, headers={"Content-Type": "image/png"})
+        assert r.status_code == 413, (route, r.status_code, r.text[:200])
+        detail = r.json()["detail"]
+        assert "12000" in detail and "pixel" in detail.lower(), detail
+    # ... et une image normale passe toujours (le plafond ne gêne personne)
+    r = _api("POST", f"/api/cards/{did}/texture/paper",
+             content=_carte(300, 200), headers={"Content-Type": "image/png"})
+    assert r.status_code == 200, r.text
+    # LE CONTRÔLE EST AVANT LE DÉCODAGE, épinglé sur la source : après
+    # `img.load()`, le demi-gigaoctet est déjà alloué.
+    src = pathlib.Path(TX.__file__).read_text(encoding="utf-8")
+    i = src.index("def _store_image(")
+    corps = src[i:src.index("\n@router", i)]
+    assert corps.index("IMG_MAX_PIXELS") < corps.index("img.load()"), \
+        "les dimensions sont contrôlées APRÈS le décodage"
+
+
 def test_jamais_500_sur_un_corps_malforme():
     """Spec §2.5 : un corps mal formé ne doit JAMAIS faire 500."""
     did = _deck()

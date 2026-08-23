@@ -391,7 +391,15 @@
        espace n'est pas une faute de frappe a reparer — c'est une chaine qui ne
        vient pas de nous. */
     s.kind = pick(r.kind, KINDS, SLOT_DEFAULTS.kind);
-    s.src = SRC_RE.test(String(r.src == null ? "" : r.src)) ? String(r.src) : "";
+    /* LA GARDE PORTE SUR LA VALEUR RANGEE, PAS SEULEMENT SUR CELLE QU'ON
+       TESTE. Ecrit en une ligne — `SRC_RE.test(String(r.src == null ? "" :
+       r.src)) ? String(r.src) : ""` — le repli nul ne protegeait QUE le test :
+       le motif accepte la chaine vide, donc le test passait, et c'est
+       `String(undefined)` qui etait range. Les 21 slots des gabarits sortaient
+       avec `src: "undefined"` — une source illegale, que le backend REPARAIT a
+       chaque chargement. Une valeur, une variable, un seul chemin. */
+    const rawSrc = String(r.src == null ? "" : r.src);
+    s.src = SRC_RE.test(rawSrc) ? rawSrc : "";
     s.fit = pick(r.fit, FITS, SLOT_DEFAULTS.fit);
     s.text = String(r.text == null ? "" : r.text).slice(0, 4000);
     return s;
@@ -1278,6 +1286,15 @@
      est double dans la liste des blocs (badge « image absente »), pour le cas
      ou le calque serait masque, sur l'autre face ou couvert par un voisin. */
   const DAMIER_PX = 14;
+  /* LA POLICE DU DAMIER, NOMMEE ET CHARGEE COMME LES AUTRES. Elle ecrit un nom
+     de fichier sur la toile, donc dans le FICHIER LIVRE : si elle n'est pas
+     chargee au moment du rendu, le navigateur compose ce nom dans une fonte de
+     repli — et l'aperçu de la premiere frame ne ressemble alors pas a
+     l'export. Un lab dont deux rendus du meme document different est
+     exactement ce que la piece refuse. Elle est donc jointe aux familles que
+     le painter attend, mais SEULEMENT quand un damier va vraiment etre peint :
+     un deck dont toutes les images sont la ne paie rien. */
+  const DAMIER_FONT = "Inter";
   function drawDamier(ctx, b, file) {
     ctx.save();
     ctx.beginPath();
@@ -1295,7 +1312,7 @@
     }
     if (file) {
       const px = clamp(Math.round(Math.min(b[2] / 12, b[3] / 3)), 8, 34);
-      ctx.font = px.toFixed(3) + 'px "CFT Inter", sans-serif';
+      ctx.font = px.toFixed(3) + 'px "' + familyOf(DAMIER_FONT) + '", sans-serif';
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillStyle = "#e6dfd4";
@@ -1465,6 +1482,14 @@
             if (f && files.indexOf(f) < 0) files.push(f);
           });
           if (files.length) await ensureImgs(files);
+          /* LE DAMIER ECRIT UN NOM, DONC IL LUI FAUT SA POLICE. On ne le sait
+             qu'APRES la course ci-dessus : c'est elle qui dit quels fichiers
+             manquent. Sans cette ligne, le nom se composait dans la fonte de
+             repli a la premiere frame et dans la bonne a l'export — deux
+             rendus differents du meme document. */
+          if (files.some((f) => { const r = imgRec(f); return !r || !r.ok; })) {
+            await ensureFonts([DAMIER_FONT]);
+          }
           const meas = {};
           live.forEach((slot) => {
             /* ── UN CALQUE D'IMAGE NE LAISSE AUCUNE MESURE ─────────────────
@@ -2511,12 +2536,21 @@
     c.drawImage(bmp, 0, 0, nw, nh);
     return new Promise((res) => cv.toBlob((b) => res(b), "image/png"));
   }
+  /* UN SEUL IMPORT EN VOL. `M.busy` grise le panneau, mais le CLAVIER passe à
+     travers : deux Ctrl+V rapprochés lançaient deux imports, qui se
+     retrouvaient à écrire le même fichier au même instant. Le serveur sait
+     désormais s'en sortir (réservation exclusive du numéro), mais deux imports
+     que l'utilisateur n'a pas demandés restent deux imports : le second est un
+     NON-DÉPART — rien n'est envoyé, rien n'est à annuler. */
+  let IMPORTING = false;
   async function importImage(f, id) {
+    if (IMPORTING) { M.toast("un import est déjà en cours", true); return; }
     if (!f || !/^image\//.test(f.type || "")) {
       M.toast("ce fichier n'est pas une image", true);
       return;
     }
     let body = f;
+    IMPORTING = true;
     M.busy(true, "import de l'image…");
     try {
       /* `createImageBitmap` et non une URL d'objet : la pièce n'a pas le droit
@@ -2545,7 +2579,7 @@
         + d.n + " / " + d.max + ")");
     } catch (e) {
       M.toast(String((e && e.message) || e), true);
-    } finally { M.busy(false); }
+    } finally { IMPORTING = false; M.busy(false); }
   }
 
   /* ── selecteur de police : les 23 familles, chacune dans SA fonte ──────── */

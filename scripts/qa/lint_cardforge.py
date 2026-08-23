@@ -458,6 +458,14 @@ R14_NOMS = re.compile(r"Html|paint", re.I)
 # `\+?` prend le `+=` (aucun dans le labo aujourd'hui — il n'a pas a etre le
 # trou par lequel une fonction ressortirait du perimetre demain).
 R14_SINK = re.compile(r"\.(?:inner|outer)HTML\s*\+?=[^=]|insertAdjacentHTML\s*\(")
+# ... et le TROISIEME critere, celui qui manquait : une fonction qui RETOURNE
+# du balisage en fabrique, meme si c'est son appelante qui le pose. Le cas est
+# arrive tel quel en 3b-T2 : sortir trois blocs de HTML d'une fonction balayee
+# pour les partager entre deux panneaux leur faisait perdre le nom ET le sink,
+# et la regle ne les voyait plus. Le motif se cherche dans SANS_COM (les
+# chaines y sont intactes) et le delimiteur doit etre un vrai delimiteur —
+# c'est ce qui separe `return '<div…'` d'un texte qui contiendrait ces mots.
+R14_RETOUR = re.compile(r"\breturn\s*\(?\s*([\"'`])\s*<")
 R14_DECL = re.compile(
     r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\("
     r"|\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*"
@@ -606,6 +614,19 @@ def _dans_balise_ouverte(lit):
     return lit.rfind("<") > lit.rfind(">")
 
 
+def _retourne_html(sans_com, masque, a, b):
+    """Ce corps de fonction RETOURNE-t-il du balisage ?
+
+    Le motif se cherche dans `sans_com` — les chaines y sont intactes, et il
+    faut voir le `<` qui suit le guillemet ouvrant. Le delimiteur, lui, est
+    verifie sur `masque` : un `return '<` ECRIT DANS un texte affiche n'est pas
+    un retour de HTML, et c'est la seule chose qui separe les deux."""
+    for r in R14_RETOUR.finditer(sans_com, a, b):
+        if masque[r.start(1)] == sans_com[r.start(1)]:
+            return True
+    return False
+
+
 def check_r14(mid, path, text, add):
     sans_com, masque = _js_masque(text)
     for m in R14_DECL.finditer(masque):
@@ -616,10 +637,13 @@ def check_r14(mid, path, text, add):
         if corps is None:
             continue
         # le NOM (critere d'origine) OU le FAIT : un corps qui pose du HTML en
-        # ecrit, quel que soit son nom. Le sink se cherche dans `masque`, ou
-        # les chaines sont blanchies : le mot « innerHTML » dans un texte
-        # affiche ne fait pas d'une fonction une fabrique de HTML.
-        if not (R14_NOMS.search(nom) or R14_SINK.search(masque, corps[0], corps[1])):
+        # ecrit, quel que soit son nom, et un corps qui en RETOURNE en fabrique.
+        # Le sink se cherche dans `masque`, ou les chaines sont blanchies : le
+        # mot « innerHTML » dans un texte affiche ne fait pas d'une fonction une
+        # fabrique de HTML.
+        if not (R14_NOMS.search(nom)
+                or R14_SINK.search(masque, corps[0], corps[1])
+                or _retourne_html(sans_com, masque, corps[0], corps[1])):
             continue
         for h in R14_CHAINE.finditer(sans_com, corps[0], corps[1]):
             # le motif doit etre du CODE : dans `sans_com` les chaines sont

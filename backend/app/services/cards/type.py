@@ -42,9 +42,11 @@ import asyncio
 import copy
 import io
 import math
+import os
 import pathlib
 import re
 import struct
+import uuid
 
 from fastapi import APIRouter, HTTPException, Request, Response
 from loguru import logger
@@ -538,6 +540,14 @@ SLOT_IMAGES_MAX = 12
 # Le plafond de POIDS du corps, celui de la matière de P6 (64 Mo) — pesé AVANT
 # tout décodage, seul ordre qui protège la mémoire.
 IMG_MAX_BYTES = 64 * 1024 * 1024
+# Le plafond de TRAME, et ce n'est pas le même garde-fou. Le poids du corps ne
+# dit rien du coût du décodage : un PNG de zéros de quelques centaines de
+# kilo-octets déclare 12000 x 12000 sans effort, et ces 144 millions de pixels
+# demandent un demi-gigaoctet de tampon. 32 Mpx est large pour une image qu'on
+# ramène de toute façon à 4096 px de côté (un 4096 x 4096 en fait 16,8), et
+# ridicule à côté du plafond par défaut de la bibliothèque — qui, lui, se
+# contente d'AVERTIR jusqu'à 179 Mpx avant de décoder quand même.
+IMG_MAX_PIXELS = 32 * 1024 * 1024
 # Le côté long au-delà duquel une image importée est ré-échelonnée. MÊME
 # CHIFFRE que l'illustration de P1 (`cards/face.py:MAX_IMPORT_PX`), RECOPIÉ et
 # non importé : la règle 8 interdit à une pièce d'importer le module d'une
@@ -1204,23 +1214,30 @@ def _next_img_index(d: pathlib.Path) -> tuple[int, int]:
     return hauts + 1, n
 
 
-def _store_slot_image(did: str, raw: bytes) -> dict:
-    """Décode, borne, écrit — dans cet ordre, et jamais en place.
+def _decode_bounded(raw: bytes):
+    """Les octets reçus, décodés et ramenés dans leurs bornes — ou un refus.
 
-    Le décodage sert à DEUX choses : refuser ce qui n'est pas une image (un
-    `.zip` renommé, un fichier tronqué), et ramener le côté long sous
-    `MAX_IMPORT_PX`. L'écran réduit déjà avant d'envoyer ; on le refait ici
-    parce qu'un client n'est pas une garantie."""
+    L'ORDRE EST LE FOND DE L'AFFAIRE. Le corps a été PESÉ (64 Mo), et ce poids
+    ne dit RIEN de ce que le décodage coûtera : un PNG de quelques centaines de
+    kilo-octets peut déclarer 12000 x 12000, soit 144 millions de pixels, soit
+    un demi-gigaoctet de tampon — par requête. La bibliothèque ne défend pas
+    non plus : son plafond par défaut se contente d'un AVERTISSEMENT jusqu'à
+    179 Mpx, puis décode. On lit donc les dimensions dans l'EN-TÊTE
+    (`Image.open` n'a pas encore décodé une seule ligne), on refuse là, et le
+    décodage ne commence que pour ce qui a passé la porte."""
     from PIL import Image
-    d = _deck_or_404(did, create=True)
-    libre, n = _next_img_index(d)
-    if n >= SLOT_IMAGES_MAX:
-        raise HTTPException(
-            409, f"Ce jeu porte déjà {SLOT_IMAGES_MAX} images de calque, "
-                 f"le maximum. Supprimez-en une du dossier du jeu, ou "
-                 f"réutilisez une image déjà importée sur un autre calque.")
     try:
         img = Image.open(io.BytesIO(raw))
+        w, h = img.size
+    except Exception:
+        raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
+                                 "est attendue dans le corps de la requête")
+    if w * h > IMG_MAX_PIXELS:
+        raise HTTPException(
+            413, f"Image trop grande : {w} x {h} pixels, soit "
+                 f"{w * h // 1048576} millions de pixels pour un maximum de "
+                 f"{IMG_MAX_PIXELS // 1048576}. Réduisez-la avant de l'importer.")
+    try:
         img.load()
     except Exception:
         raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
@@ -1233,23 +1250,111 @@ def _store_slot_image(did: str, raw: bytes) -> dict:
         k = MAX_IMPORT_PX / float(max(img.size))
         img = img.resize((max(1, round(img.size[0] * k)),
                           max(1, round(img.size[1] * k))), Image.LANCZOS)
-    name = f"img_{libre}.png"
-    tmp = d / (name + ".tmp")
-    img.save(tmp, format="PNG", optimize=False)
-    tmp.replace(d / name)
-    return {"file": name, "src": "img:" + name, "px": [img.size[0], img.size[1]],
-            "bytes": (d / name).stat().st_size, "n": n + 1,
-            "max": SLOT_IMAGES_MAX}
+    return img
+
+
+def _store_slot_image(did: str, raw: bytes) -> dict:
+    """Décode, borne, RÉSERVE un numéro, écrit — dans cet ordre.
+
+    LA COURSE, ET POURQUOI LE COMPTEUR SEUL NE SUFFIT PAS. Deux imports peuvent
+    se croiser sans rien d'exotique : deux Ctrl+V rapprochés, deux onglets, un
+    dépôt multiple. Ils lisaient alors le même « prochain numéro », écrivaient
+    le même `.tmp` et se le reprenaient — six imports simultanés donnaient UN
+    fichier, quatre clients convaincus d'avoir écrit `img_1.png`, et deux 500
+    (sur Windows, `replace` d'un temporaire tenu par un autre lève WinError 32)
+    sur une pièce qui n'en fait jamais.
+
+    Deux remèdes, et il faut les deux :
+      · le temporaire porte un jeton unique — deux imports n'ont jamais le même
+        fichier de travail ;
+      · le numéro n'est pas LU, il est RÉSERVÉ : `O_CREAT|O_EXCL` crée le nom
+        final vide, et la création échoue pour tous sauf un. Celui qui perd
+        passe au numéro suivant. C'est la leçon de la création exclusive de la
+        2c, appliquée ici.
+    """
+    d = _deck_or_404(did, create=True)
+    libre, n = _next_img_index(d)
+    if n >= SLOT_IMAGES_MAX:
+        raise HTTPException(
+            409, f"Ce jeu porte déjà {SLOT_IMAGES_MAX} images de calque, "
+                 f"le maximum. Supprimez-en une du dossier du jeu, ou "
+                 f"réutilisez une image déjà importée sur un autre calque.")
+    img = _decode_bounded(raw)
+    tmp = d / f"img_{libre}.{uuid.uuid4().hex}.tmp"
+    try:
+        img.save(tmp, format="PNG", optimize=False)
+        # LA RÉSERVATION. On essaie les numéros à partir du premier libre CONNU ;
+        # une collision veut dire qu'un autre import vient de le prendre, et on
+        # passe au suivant. La borne de la boucle est celle du plafond plus une
+        # marge : au-delà, c'est que le dossier est plein de trous ET saturé.
+        for k in range(SLOT_IMAGES_MAX * 2 + 4):
+            name = f"img_{libre + k}.png"
+            final = d / name
+            try:
+                fd = os.open(str(final), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            except FileExistsError:
+                continue
+            except OSError as e:
+                # disque plein, dossier en lecture seule : nommé, jamais 500.
+                raise HTTPException(
+                    409, f"Écriture impossible dans le dossier du jeu : {e.strerror}")
+            os.close(fd)
+            # LE PLAFOND, RECOMPTÉ APRÈS LA RÉSERVATION. Deux imports partis
+            # ensemble sur un jeu à 11 images auraient tous deux vu « 11 » et
+            # écrit la 13e. Le compte se refait donc sur les numéros JUSQU'AU
+            # NÔTRE : le premier arrivé garde sa place, le surnuméraire rend la
+            # sienne. Déterministe, et sans refuser un import légitime.
+            avant_nous = sum(1 for p in d.iterdir()
+                             if IMG_NAME_RE.fullmatch(p.name) and p.is_file()
+                             and int(p.name[4:-4]) <= libre + k)
+            if avant_nous > SLOT_IMAGES_MAX:
+                final.unlink(missing_ok=True)
+                raise HTTPException(
+                    409, f"Ce jeu porte déjà {SLOT_IMAGES_MAX} images de calque, "
+                         f"le maximum. Supprimez-en une du dossier du jeu, ou "
+                         f"réutilisez une image déjà importée sur un autre calque.")
+            try:
+                os.replace(str(tmp), str(final))
+            except OSError as e:
+                # LE JALON NE SURVIT PAS À SON ÉCHEC. Il a été créé vide pour
+                # réserver le nom ; le laisser en place ferait compter — et
+                # servir — un PNG de zéro octet.
+                final.unlink(missing_ok=True)
+                raise HTTPException(
+                    409, f"Écriture impossible dans le dossier du jeu : {e.strerror}")
+            return {"file": name, "src": "img:" + name,
+                    "px": [img.size[0], img.size[1]],
+                    "bytes": final.stat().st_size,
+                    "n": _next_img_index(d)[1], "max": SLOT_IMAGES_MAX}
+        raise HTTPException(
+            409, f"Aucun numéro libre pour une image de calque dans ce jeu "
+                 f"(maximum {SLOT_IMAGES_MAX}).")
+    finally:
+        # le temporaire ne survit à rien : ni au succès (il a été déplacé), ni
+        # au refus, ni à une panne au milieu.
+        try:
+            tmp.unlink(missing_ok=True)
+        except OSError:                       # pragma: no cover - disque tenu
+            pass
 
 
 def _read_slot_image(did: str, name: str) -> bytes | None:
-    d = type_dir(did)
-    p = d / name
+    """Les octets d'une image de calque, ou `None`.
+
+    LA CEINTURE EST ICI AUSSI, et pas seulement chez l'appelant. La route
+    filtre déjà le nom — mais cette fonction COMPOSE un chemin, et la doctrine
+    du dépôt (`deck_dir` : motif PUIS confinement) veut que le garde-fou vive
+    là où le chemin naît. Mesuré avant de l'écrire : appelée en direct avec
+    « ../meta.json », elle rendait l'état interne du jeu. Un ramasse-miettes de
+    la 3c ou une palette qui l'appellerait n'hérite de rien de la route."""
+    if not is_valid_did(did) or not IMG_NAME_RE.fullmatch(name or ""):
+        return None
     try:
+        p = type_dir(did) / name
         if not p.is_file():
             return None
         return p.read_bytes()
-    except OSError:
+    except (OSError, ValueError):
         return None
 
 

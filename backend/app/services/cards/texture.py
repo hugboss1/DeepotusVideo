@@ -186,6 +186,11 @@ DEFAULT_ROUGHNESS = 0.92
 # rapport (`work_px`) — la barre, elle, dérive à 512 et ne le dit pas.
 WORK_MAX = 2560
 SRC_MAX_BYTES = 64 * 1024 * 1024
+# Le plafond de TRAME — le second garde-fou d'un import d'image, et il ne fait
+# PAS double emploi avec le plafond de poids ci-dessus (voir `_store_image`).
+# Même chiffre que `cards/type.py:IMG_MAX_PIXELS`, recopié et non partagé :
+# chaque pièce porte ses constantes (règle 8).
+IMG_MAX_PIXELS = 32 * 1024 * 1024
 PAPER_MAX_PX = 2048
 # La tuile de matière que l'écran exporte pour la faire RE-MESURER ici. Elle
 # est carrée par définition (une tuile qui ne l'est pas ne se répète pas comme
@@ -2175,6 +2180,23 @@ def _store_image(did: str, name: str, raw: bytes, cap: int | None = None) -> dic
     d = _dir_or_404(did, create=True)
     try:
         img = Image.open(io.BytesIO(raw))
+        w, h = img.size
+    except Exception:
+        raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "
+                                 "est attendue dans le corps de la requête")
+    # LE POIDS DU CORPS NE DIT RIEN DU COÛT DU DÉCODAGE. `SRC_MAX_BYTES` pèse
+    # ce qui arrive sur le fil ; un PNG de zéros de quelques centaines de
+    # kilo-octets déclare pourtant 12000 x 12000, et ces 144 millions de pixels
+    # demandent un demi-gigaoctet de tampon — par requête, et la bibliothèque
+    # se contente d'AVERTIR jusqu'à 179 Mpx avant de décoder quand même. Les
+    # dimensions se lisent dans l'EN-TÊTE, avant qu'une seule ligne soit
+    # décodée : c'est le seul endroit où ce refus coûte zéro.
+    if w * h > IMG_MAX_PIXELS:
+        raise HTTPException(
+            413, f"Image trop grande : {w} x {h} pixels, soit "
+                 f"{w * h // 1048576} millions de pixels pour un maximum de "
+                 f"{IMG_MAX_PIXELS // 1048576}. Réduisez-la avant de l'importer.")
+    try:
         img.load()
     except Exception:
         raise HTTPException(400, "Corps illisible : une image PNG/JPEG/WebP "

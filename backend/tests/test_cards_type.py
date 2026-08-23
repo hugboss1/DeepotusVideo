@@ -35,6 +35,7 @@ Ce que ce fichier verrouille, dans l'ordre des seuils de la spec (§4, pièce
 Run : <embedded python> backend/tests/test_cards_type.py
 """
 import asyncio
+import io
 import json
 import os
 import pathlib
@@ -3688,8 +3689,24 @@ if (OPT.solo && globalThis.__solo) {
   };
 }
 
+/* ── LES DEUX NORMALISEURS, EPROUVES L'UN CONTRE L'AUTRE ──────────────────
+   `normSlot` vit dans la fermeture : la meme porte que `soloClone`
+   (`globalThis.__norm = normSlot;` pose avant la parenthese finale) le rend
+   appelable. On rend DEUX passes : la premiere sert a la parite avec le
+   backend, la seconde a l'idempotence — une normalisation qui REPARE sa propre
+   sortie n'est pas une normalisation. */
+let norm = null;
+if (OPT.norm && globalThis.__norm) {
+  norm = { un: [], deux: [] };
+  OPT.norm.forEach((r, i) => {
+    const a = globalThis.__norm(r, i);
+    norm.un.push(a);
+    norm.deux.push(globalThis.__norm(a, i));
+  });
+}
+
 process.stdout.write(JSON.stringify({
-  slots: DOC.type.slots, sel: DOC.type.sel, traces: traces,
+  slots: DOC.type.slots, sel: DOC.type.sel, traces: traces, norm: norm,
   ov: OV._h, liste: HOSTE.querySelector(".cf-type-list")._h,
   /* LE PANNEAU DE BLOC : c'est lui qui bascule ses sections selon le `kind`.
      Le meme cache de selecteurs qui rend la liste le rend, sans un mot de
@@ -4142,6 +4159,55 @@ def test_les_cinq_faux_positifs_de_prose_restent_PROPRES():
         assert not trouves, f"mod-{mid}.js : {trouves}"
 
 
+def test_la_regle_d_echappement_balaie_AUSSI_ce_qui_RETOURNE_du_html():
+    """LE TROU QUE LE REFACTOR DE LA TÂCHE 2 A OUVERT. R14 balayait une
+    fonction sur son NOM (`Html|paint`) ou sur son SINK (`innerHTML =`). Sortir
+    trois blocs de HTML de `renderInsp` pour les partager entre les deux
+    natures de bloc leur a fait perdre les deux : `inspHead` ne s'appelle pas
+    `…Html` et ne pose rien — elle RETOURNE une chaîne, que son appelante pose.
+
+    Le critère suit le même principe qu'en T1 : le FAIT mécanique, pas
+    l'intention. Une fonction qui rend un littéral commençant par `<` fabrique
+    du balisage, quel que soit son nom et quel que soit qui l'affiche."""
+    mod = _lint()
+    # LA MUTATION QUI PROUVE LE CLIQUET : on dé-échappe la valeur d'attribut de
+    # `inspHead` et la règle doit l'attraper. Avant l'élargissement, elle
+    # rendait ZÉRO signalement — la fonction n'était pas balayée du tout.
+    src = JS.read_text(encoding="utf-8")
+    avant = 'class="cf-type-label" value="\' + esc(s.label) + \'"'
+    assert avant in src and src.count(avant) == 1, "l'ancre de mutation a bougé"
+    casse = src.replace(avant, 'class="cf-type-label" value="\' + s.label + \'"', 1)
+    trouves = []
+    mod.check_r14("type", JS, casse,
+                  lambda rule, path, line, msg, warn=False: trouves.append(msg))
+    assert trouves, "inspHead dé-échappée ne fait rien rougir : R14 ne la balaie pas"
+    assert any("inspHead" in m for m in trouves), trouves
+    # ... et le dépôt RÉEL, lui, reste propre (0 signalement sur les 9 pièces —
+    # c'est `test_le_module_passe_le_lint_ELARGI` qui le tient).
+    propres = []
+    mod.check_r14("type", JS, src,
+                  lambda rule, path, line, msg, warn=False: propres.append(msg))
+    assert not propres, propres
+
+
+def test_l_elargissement_de_R14_ne_prend_pas_la_PROSE_pour_du_balisage():
+    """Le différentiel de l'élargissement, mesuré : combien de fonctions en
+    plus sont balayées sur les neuf pièces, et zéro faux signalement. Une règle
+    qui crie sur du texte finit désactivée — c'est la leçon de la T1, reprise
+    telle quelle."""
+    mod = _lint()
+    total = 0
+    for chemin in sorted((REPO / "frontend" / "cardforge" / "js").glob("mod-*.js")):
+        src = chemin.read_text(encoding="utf-8")
+        trouves = []
+        mod.check_r14(chemin.stem, chemin, src,
+                      lambda rule, path, line, msg, warn=False: trouves.append(msg))
+        assert not trouves, f"{chemin.name} : {trouves}"
+        total += len(mod.R14_RETOUR.findall(src))
+    # le motif TROUVE quelque chose : sans cela l'élargissement serait décoratif
+    assert total > 0, "aucune fabrique de HTML par retour dans les neuf pièces"
+
+
 def test_le_module_passe_le_lint_ELARGI():
     """Le filet, sur les neuf pièces du labo — R14 compris, dans sa version
     élargie. S'il reste un `a.b` nu dans une valeur d'attribut quelque part,
@@ -4304,24 +4370,38 @@ def test_la_route_d_import_ecrit_un_fichier_numerote_sans_jamais_ecraser():
     assert not list(dd.glob("*.tmp")), sorted(p.name for p in dd.iterdir())
     # et le `src` rendu est ACCEPTÉ par la normalisation (les deux se parlent)
     assert TY.norm_slot({"src": d["src"]})["src"] == d["src"]
+    # LE COMPTE ANNONCÉ EST CELUI DU DISQUE, recompté APRÈS l'écriture — c'est
+    # lui que le message d'import affiche (« 2 / 12 »). Un compte calculé avant
+    # la réservation aurait menti dès que deux imports se croisent.
+    assert r.json()["n"] == 1 and r2.json()["n"] == 2
+    assert r2.json()["max"] == TY.SLOT_IMAGES_MAX
+    assert r2.json()["n"] == len(list(dd.glob("img_*.png")))
 
 
-def test_le_compteur_est_LA_PROTECTION_contre_l_ecrasement(monkeypatch):
-    """MUTATION. Le test ci-dessus prouve qu'aucun fichier n'est écrasé ; il ne
-    prouverait rien si le compteur n'était pas ce qui l'empêche. On casse donc
-    le compteur — il rend toujours 1, ce que ferait un « premier nom libre »
-    mal écrit — et on vérifie que l'écrasement A LIEU. Sans cette contre-
-    épreuve, un import qui écrirait un nom au hasard passerait aussi."""
+def test_un_compteur_QUI_MENT_ne_fait_perdre_aucune_image(monkeypatch):
+    """MUTATION, et elle a changé de cible avec le remède de la revue.
+
+    Le non-écrasement reposait sur le COMPTEUR (« lis le plus grand, ajoute
+    un ») — une lecture, donc quelque chose que deux imports simultanés font en
+    même temps et obtiennent pareil. Il repose désormais sur la RÉSERVATION :
+    le nom final est créé en exclusivité, et celui qui perd passe au suivant.
+    Le compteur n'est plus qu'un point de départ.
+
+    On le casse donc pour de bon — il rend toujours « 1 », ce qu'il rendrait
+    sous une course — et on vérifie qu'AUCUNE image n'est perdue quand même.
+    Avant le remède, la seconde écrivait par-dessus la première."""
     from PIL import Image
     did = _did()
     assert _post_img(did, _png_bytes(8, 5)).status_code == 200
     monkeypatch.setattr(TY, "_next_img_index", lambda d: (1, 0))
     r = _post_img(did, _png_bytes(64, 20))
     assert r.status_code == 200, r.text
-    assert r.json()["file"] == "img_1.png"
+    assert r.json()["file"] == "img_2.png", \
+        "un compteur qui ment écrase encore : la réservation ne protège pas"
     with Image.open(_type_dir(did) / "img_1.png") as im:
-        assert im.size == (64, 20), \
-            "le compteur cassé n'écrase pas : le test d'écrasement ne prouve rien"
+        assert im.size == (8, 5), "la première image a été écrasée"
+    with Image.open(_type_dir(did) / "img_2.png") as im:
+        assert im.size == (64, 20)
 
 
 def test_le_compteur_ne_recycle_pas_un_numero_libere():
@@ -4922,6 +5002,248 @@ def test_l_import_du_panneau_reduit_AVANT_d_envoyer(tmp_path):
     # dépôt ET collage, les deux patrons de P1
     assert 'drop.addEventListener("drop"' in src
     assert '"paste"' in src
+
+
+# ═══════ 12. LA RONDE DE REVUE DE LA TÂCHE 2 ════════════════════════════════
+# Ce que la revue adverse a mesuré, et qui est corrigé ici. Deux bloquants
+# (un lien de garde posé sur le mauvais opérande, une course d'écriture), deux
+# moyens (une bombe de pixels, un cliquet de lint que le refactor avait
+# contourné), deux bas (une ceinture manquante, un `match` là où le dépôt
+# écrit `fullmatch` partout ailleurs).
+
+# ── 12.1 B1 : les deux normaliseurs, ÉPROUVÉS L'UN CONTRE L'AUTRE ───────────
+# La parité des tables était pinnée par des MATCHS DE SOURCE (« cette ligne est
+# dans le fichier »). Un match de source ne dit rien de ce que le code FAIT :
+# `SRC_RE.test(String(r.src == null ? "" : r.src)) ? String(r.src) : ""` porte
+# sa garde nulle sur l'opérande TESTÉ et pas sur le RÉSULTAT — le motif accepte
+# la chaîne vide, donc le test passe, et c'est `String(undefined)` qui est
+# rangé. Les 21 slots des gabarits sortaient avec `src: "undefined"`.
+#
+# Le remède n'est pas un pin de plus sur la ligne : c'est de faire TOURNER les
+# deux normaliseurs sur la même batterie et de comparer leurs sorties.
+
+MUT_NORM = ("\r\n})();", "\r\n  globalThis.__norm = normSlot;\r\n})();")
+
+# la batterie : le document VIDE (le cas de B1), les absences explicites, un
+# slot d'AVANT la 3b, et des entrées hostiles sur chaque clé neuve.
+NORM_BATTERIE = [
+    {},
+    {"src": None},
+    {"src": ""},
+    {"id": "titre", "label": "Titre", "box": [10.0, 5.0, 40.0, 10.0],
+     "font": "Cinzel", "size_pt": 14.0, "text": "Veilleur"},
+    {"kind": "image", "src": "img:img_3.png", "fit": "cover"},
+    {"kind": " IMAGE ", "fit": "COVER", "src": "img:img_12.png"},
+    {"kind": "video", "fit": "fill", "src": "img:../../meta.json"},
+    {"kind": 7, "fit": None, "src": 42},
+    {"src": "img:img_1.png "},
+    {"src": "IMG:IMG_1.PNG"},
+    {"src": True},
+    {"kind": "image"},
+    {"id": "", "label": "", "box": "pas une boite", "opacity": "beaucoup"},
+]
+
+
+def test_les_deux_NORMALISEURS_rendent_le_MEME_slot(tmp_path):
+    """PARITÉ D'EXÉCUTION, pas de source. On ouvre la fermeture du module
+    (patron `__solo`), on fait tourner `normSlot` sur la batterie, et on compare
+    clé par clé au `norm_slot` du backend. C'est le seul test qui aurait vu
+    « undefined » : la ligne, elle, se lisait très bien."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "norm": NORM_BATTERIE},
+                     mutations=(MUT_NORM,))
+    js = d["norm"]
+    assert js, "la porte du banc ne s'est pas ouverte sur normSlot"
+    assert len(js["un"]) == len(NORM_BATTERIE)
+    for i, entree in enumerate(NORM_BATTERIE):
+        py = TY.norm_slot(entree, i)
+        ecran = js["un"][i]
+        assert set(ecran) == set(py), \
+            f"[{i}] clés divergentes : {sorted(set(ecran) ^ set(py))}"
+        for k in sorted(py):
+            assert ecran[k] == py[k], f"[{i}] {k} : écran {ecran[k]!r} != backend {py[k]!r}"
+    # LE CAS DE B1, NOMMÉ : un slot sans `src` n'a pas de source — pas la
+    # chaîne « undefined », qui est une source, et illégale.
+    assert js["un"][0]["src"] == ""
+    assert js["un"][1]["src"] == ""
+
+
+def test_le_normaliseur_de_l_ecran_est_IDEMPOTENT(tmp_path):
+    """`normSlot(normSlot(x)) == normSlot(x)`. C'est la propriété que le dépôt
+    exige des slots de modèles (« la normalisation ne change RIEN — cette
+    idempotence est la preuve que la donnée est propre ») ; l'écran doit la
+    tenir aussi, sans quoi la deuxième passe RÉPARE la première et le document
+    enregistré n'est pas celui qu'on relit."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "norm": NORM_BATTERIE},
+                     mutations=(MUT_NORM,))
+    for i in range(len(NORM_BATTERIE)):
+        assert d["norm"]["deux"][i] == d["norm"]["un"][i], \
+            f"[{i}] la seconde passe change le slot : {d['norm']['un'][i]}"
+
+
+def test_les_gabarits_de_l_ecran_ne_portent_AUCUNE_source(tmp_path):
+    """La conséquence visible de B1 : les 21 slots des quatre gabarits
+    passaient par `normSlot` et en ressortaient avec `src: "undefined"` — une
+    valeur que `norm_slot` refuse, donc un document que le backend RÉPARE au
+    chargement. Un document réparé à chaque tour n'est pas un document."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "seeded": False,
+                                          "preset": "champion", "sel": ""}})
+    slots = d["slots"]
+    assert len(slots) == len(TY.PRESETS["champion"]["slots"]), len(slots)
+    for s in slots:
+        assert s["src"] == "", f"{s['id']} : src = {s['src']!r}"
+        assert s["kind"] == "text" and s["fit"] == "contain", s["id"]
+        # ... et le backend n'a RIEN à réparer : il rend le slot tel quel.
+        assert TY.norm_slot(s) == s, f"{s['id']} : le backend le corrige"
+
+
+# ── 12.2 B2 : six imports simultanés font six fichiers ──────────────────────
+
+def _api_ensemble(appels):
+    """N requêtes lancées ENSEMBLE sur la même application, dans une seule
+    boucle. `asyncio.gather` les entrelace vraiment : le travail disque part en
+    `to_thread`, donc deux imports décodent et écrivent en même temps — c'est
+    la condition de course, jouée et pas supposée."""
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t", timeout=60.0) as c:
+            return await asyncio.gather(
+                *[c.request(m, p, **kw) for m, p, kw in appels],
+                return_exceptions=True)
+    return asyncio.run(go())
+
+
+def test_six_imports_SIMULTANES_font_six_fichiers():
+    """LA COURSE, REJOUÉE. Deux Ctrl+V rapprochés, deux onglets, un dépôt
+    multiple : rien n'empêche deux imports de se croiser. Ils lisaient tous le
+    même « prochain numéro », écrivaient tous le même `.tmp`, et se le
+    reprenaient — sur Windows, `replace` sur un fichier tenu par un autre lève
+    WinError 32, c'est-à-dire un 500 sur une pièce qui n'en fait jamais.
+
+    Après le remède : chaque import obtient SON numéro (création exclusive,
+    `O_CREAT|O_EXCL`, numéro suivant à chaque collision) et SON temporaire."""
+    did = _did()
+    n = 6
+    corps = [_png_bytes(8 + i, 5 + i) for i in range(n)]
+    reps = _api_ensemble([("POST", f"/api/cards/{did}/type/image",
+                           {"content": c,
+                            "headers": {"Content-Type": "application/octet-stream"}})
+                          for c in corps])
+    for r in reps:
+        assert not isinstance(r, BaseException), repr(r)
+        assert r.status_code != 500, r.text[:300]
+        assert r.status_code == 200, (r.status_code, r.text[:300])
+    noms = sorted(r.json()["file"] for r in reps)
+    assert len(set(noms)) == n, f"deux imports ont reçu le même nom : {noms}"
+    sur_disque = sorted(p.name for p in _type_dir(did).glob("img_*.png"))
+    assert sur_disque == noms, (sur_disque, noms)
+    # SIX FICHIERS, SIX IMAGES DISTINCTES : aucune n'a été écrasée par une autre
+    from PIL import Image
+    tailles = set()
+    for nom in sur_disque:
+        with Image.open(_type_dir(did) / nom) as im:
+            tailles.add(im.size)
+    assert tailles == {(8 + i, 5 + i) for i in range(n)}, tailles
+    # aucun temporaire n'a survécu, et aucun n'est partagé
+    assert not list(_type_dir(did).glob("*.tmp")), \
+        sorted(p.name for p in _type_dir(did).iterdir())
+
+
+def test_le_temporaire_d_un_import_est_A_LUI_SEUL():
+    """Le nom du temporaire porte de quoi le distinguer : deux imports qui
+    partagent `img_3.png.tmp` se marchent dessus même quand ils finissent par
+    obtenir deux numéros différents."""
+    src = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    i = src.index("def _store_slot_image(")
+    corps = src[i:src.index("\ndef ", i + 10)]
+    assert "uuid" in corps, "le temporaire n'a rien qui le distingue"
+    assert "O_EXCL" in corps, "le numéro n'est pas réservé par création exclusive"
+    assert corps.count(".tmp") >= 1
+
+
+def test_l_ecran_refuse_un_SECOND_import_pendant_le_premier():
+    """La garde de vol côté écran. `M.busy` grise le panneau, mais le CLAVIER
+    passe à travers : deux Ctrl+V rapprochés lançaient deux imports. Le refus
+    est ici un NON-DÉPART, pas un envoi annulé."""
+    src = _js()
+    i = src.index("async function importImage(")
+    corps = src[i:src.index("\n  function ", i)]
+    assert "IMPORTING" in corps, "aucune garde de vol sur l'import"
+    assert corps.index("IMPORTING") < corps.index('M.api.raw'), \
+        "la garde est posée APRÈS l'envoi"
+    # ... et elle est relâchée quoi qu'il arrive
+    assert "finally" in corps and "IMPORTING = false" in corps
+
+
+# ── 12.3 M3 : la bombe de pixels ────────────────────────────────────────────
+
+def _bombe_png(w: int, h: int) -> bytes:
+    """Un PNG VALIDE et minuscule qui déclare `w` x `h` (voir la jumelle de
+    test_cards_texture.py : la même arme, sur l'autre porte)."""
+    import struct as _s
+    import zlib as _z
+
+    def chunk(typ: bytes, data: bytes) -> bytes:
+        return (_s.pack(">I", len(data)) + typ + data
+                + _s.pack(">I", _z.crc32(typ + data) & 0xFFFFFFFF))
+
+    ihdr = _s.pack(">IIBBBBB", w, h, 8, 0, 0, 0, 0)
+    co = _z.compressobj(1)
+    ligne = b"\x00" * (w + 1)
+    morceaux = [co.compress(ligne) for _ in range(h)]
+    morceaux.append(co.flush())
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+            + chunk(b"IDAT", b"".join(morceaux)) + chunk(b"IEND", b""))
+
+
+def test_une_BOMBE_DE_PIXELS_est_refusee_sur_ses_DIMENSIONS():
+    """Le corps est pesé, la TRAME non — et c'est la trame qui coûte. 64 Mo de
+    plafond ne disent rien des 144 millions de pixels qu'un demi-mégaoctet peut
+    déclarer, soit un demi-gigaoctet de tampon PAR REQUÊTE. Le refus se prend
+    sur les dimensions DÉCLARÉES, lues dans l'en-tête, avant tout décodage."""
+    from PIL import Image
+    did = _did()
+    bombe = _bombe_png(12000, 12000)
+    assert len(bombe) < 1_000_000, len(bombe)
+    with Image.open(io.BytesIO(bombe)) as im:
+        assert im.size == (12000, 12000)
+    assert TY.IMG_MAX_PIXELS == 32 * 1024 * 1024
+    r = _post_img(did, bombe)
+    assert r.status_code == 413, (r.status_code, r.text[:200])
+    detail = r.json()["detail"]
+    assert "12000" in detail and "pixel" in detail.lower(), detail
+    assert not list(_type_dir(did).glob("img_*.png")), "la bombe a été écrite"
+    # une image normale, elle, passe : le plafond ne gêne personne
+    assert _post_img(did, _png_bytes(40, 30)).status_code == 200
+    # ORDRE ÉPINGLÉ : après `img.load()`, le tampon est déjà alloué.
+    py = pathlib.Path(TY.__file__).read_text(encoding="utf-8")
+    i = py.index("def _decode_bounded(")
+    corps = py[i:py.index("\ndef ", i + 10)]
+    assert corps.index("IMG_MAX_PIXELS") < corps.index("img.load()"), \
+        "les dimensions sont contrôlées APRÈS le décodage"
+    # et le plafond des deux pièces est le MÊME chiffre
+    from app.services.cards import texture as TX
+    assert TX.IMG_MAX_PIXELS == TY.IMG_MAX_PIXELS
+
+
+# ── 12.4 L5 : la ceinture du lecteur ────────────────────────────────────────
+
+def test_le_lecteur_d_image_porte_SA_PROPRE_liste_blanche():
+    """Doctrine `deck_dir` : motif PUIS confinement, et le second garde-fou vit
+    DANS la fonction qui compose le chemin — pas seulement chez son appelant.
+    Un ramasse-miettes de la 3c ou une palette qui appellerait `_read_slot_image`
+    en direct n'hérite de rien de la route."""
+    did = _did()
+    assert _post_img(did, _png_bytes(8, 5)).status_code == 200
+    assert TY._read_slot_image(did, "img_1.png") is not None
+    for nom in ("../meta.json", "..", "job.json", "img_1.PNG", "",
+                "img_1.png\n", "img_1.png ", "deck.json"):
+        assert TY._read_slot_image(did, nom) is None, nom
+    # ... et l'identifiant de deck aussi : la fonction ne suppose pas que son
+    # appelant a vérifié.
+    assert TY._read_slot_image("pas_un_deck", "img_1.png") is None
 
 
 if __name__ == "__main__":
