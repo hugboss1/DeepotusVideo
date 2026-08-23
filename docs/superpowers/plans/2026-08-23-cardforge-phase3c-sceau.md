@@ -1213,15 +1213,17 @@ savoir avant la T6 :
 
 ### Task 6 : dettes + intégration 3c
 
-- [ ] N4 : sansProto sur les 4 registres (mod-forge3d.js) + pin.
-- [ ] Banc boutons-de-rangée : querySelectorAll réel au banc de paille +
+- [x] N4 : sansProto sur les 4 registres (mod-forge3d.js) + pin.
+- [x] Banc boutons-de-rangée : querySelectorAll réel au banc de paille +
       les 4 boutons joués + dragstart/drop (le remède du plan 3b).
-- [ ] arcTo : accumulation de chemin au banc si ≤ ~30 l., sinon consigné
-      chiffré.
-- [ ] Pagination /decks : param `limit` (défaut raisonnable) + total ;
+- [x] arcTo : accumulation de chemin au banc si ≤ ~30 l., sinon consigné
+      chiffré. *(FAIT, mais BUDGET DÉPASSÉ — 43 l. de code pour
+      l'accumulation seule, 61 avec la relève qui la juge : chiffré
+      ci-dessous, commit isolé donc revertable.)*
+- [x] Pagination /decks : param `limit` (défaut raisonnable) + total ;
       la galerie l'utilise (le rabot 24 documenté devient une vraie
       requête bornée).
-- [ ] N2/N7/GC : consignés AVEC mesure fraîche (une ligne de chiffres
+- [x] N2/N7/GC : consignés AVEC mesure fraîche (une ligne de chiffres
       chacun) dans la note de clôture.
 - [ ] Suite complète, lint intégral, contrat, cf_deploy -Backend +
       -Check 0 écart, navigateur réel (Sceau à l'écran sur une carte —
@@ -1231,6 +1233,124 @@ savoir avant la T6 :
 - [ ] **Consigne de sortie de phase** : l'anneau-contour EXTRUDÉ 3D
       (nœud `extrude`) transmis NOMMÉMENT à la phase 4/suivante avec la
       raison (vocabulaire nouveau) ; les restes d'œil cumulés listés.
+
+#### Volet DETTES de la T6 — LIVRÉ (23/08 : bed9a05, 8550e48, 62e845d, 9a2139e)
+
+**1. N4 — les quatre registres nus (`mod-forge3d.js`).** `rowModel` :1000,
+`rewireRow` garde/off/purge :5178+, `maillonsAval` byId/vus :5219+, `freeId`
+pris :5242 passent à `sansProto()`/`connu()`. **Sonde différentielle** (les deux
+versions rejouées sur 25 combinaisons d'id piégé × poste de chaîne, plus les
+arêtes fantômes) : **30 écarts**, dont **0 pour `rowModel`**. Les trois autres
+détruisent pour de vrai — le maillon GARDÉ quittait le graphe, l'arête SOURCE
+de la rangée était purgée (une rangée sans couche perd son rang et disparaît de
+la liste au moment où l'on édite un de ses champs), `maillonsAval` rendait la
+liste VIDE, `freeId` déclarait pris un id que personne ne porte
+(« constructor » → « constructor2 »). **`rowModel` est aligné mais
+PROPHYLACTIQUE, et c'est dit dans le code et dans le test** : ce que la chaîne
+héritée y livre est une fonction ou une chaîne, jamais un objet à `.kind` du
+vocabulaire — pas de mutant, il survivrait en silence. Pin : section 8 du banc
+de chaînes, 27 cas neufs (62 au total), `freeId` extrait en plus,
+`_banc_chaines` accepte des mutations. **3 mutants = le RETOUR EXACT à la dette**
+(registre nu ET lecture nue — ne remettre que le registre laissait `connu()`
+faire le travail et seul « __proto__ » rougissait) → **18 cas rouges**, les 3
+noms piégés couverts, 0 sur le code sain.
+
+**2. Le banc boutons-de-rangée (dette 3b-T4).** Le trou mesuré, banc re-paillé
+pour l'occasion : **0 rangée trouvée, 0 écouteur câblé, 0 patch, document
+inchangé** après un clic sur l'œil ET après un glisser-déposer complet. Remède :
+un vrai `querySelectorAll` (analyseur de balises, sélecteurs `.classe`/`balise`,
+`closest` par le parent), rebâti à chaque écriture d'`innerHTML` ;
+`querySelector` reste MÉMORISÉ (le changer aurait déplacé le sol sous 200
+tests). Trois actes neufs (`rangee`, `ligne`, `drag`), **9 tests**, chaque geste
+jugé sur trois choses : l'écouteur est celui que le module a posé, le document
+change, la pile d'annulation gagne UNE entrée. **3 mutants** : l'œil sans
+annulation (le geste marche encore, seul le compteur le voit), les deux flèches
+rendues identiques, le `dragstart` qui n'annonce rien. *Nit mesuré au passage,
+inatteignable donc non corrigé* : `moveSlot(id, 0)` n'est pas gardé — il pousse
+un patch et une annulation pour un échange d'un bloc avec lui-même ; `dir` ne
+vient que de `data-d` = ±1.
+
+**3. La branche `arcTo` de `platePath`.** Accumulation réelle du chemin
+(`arcTo` au sens de la toile : tangentes, centre, aplatissement en 16 cordes)
+et remplissage par PARITÉ DE TRAVERSÉES — un rastériseur **indépendant** de
+`inRR` (réutiliser `inRR` en re-déduisant le rectangle aurait comparé la forme à
+elle-même). `roundRect` se retire DU CONTEXTE : aucune ligne du module ne bouge.
+**Mesure, plaque 54 × 18 mm à rayon 2 mm en poker 300 DPI (638 × 213 px, rayon
+23,6 px) : 135 243 pixels peints par `roundRect`, 135 242 par le repli — UN
+pixel d'écart (0,0007 %), sur UNE ligne de balayage, dans la bande d'un coin.**
+Bande peinte et boîte englobante identiques au pixel. Mutant : un des quatre
+raccords devient un segment droit (> 100 px d'écart, > 4 lignes touchées).
+**BUDGET : le plan disait « ≤ ~30 lignes de harnais » ; réel 43 lignes de code
+pour l'accumulation seule (`arcTo` en pèse 20), 61 avec la relève d'empreinte,
+80 commentaires compris.** Dépassement de ~43 %, dit plutôt que caché ; le
+commit est isolé.
+
+**4. Pagination `GET /decks`.** Forme retenue : **`{decks, total, limit}`**, où
+`decks` sont les résumés `{id,name,created,updated}` des `limit` plus récents,
+plus récent d'abord. `total` est la contrepartie du plafond (sans lui, 24 jeux
+reçus ne se distinguent plus de 2 195 dont on voit 24) ; `limit` est RAMENÉ dans
+[1, 500] (défaut 100) et la valeur retenue repart dans la réponse ; seul un
+`limit` non numérique est un 400 français. **Le plancher n'existe pas pour `0`
+mais pour le NÉGATIF** : `rows[:-5]` rend toute la liste moins les cinq
+derniers. **Mesures fraîches sur le poste de l'atelier (23/08, :8765) : 2 195
+jeux ; un document réel pèse 6 607 o, soit ~13,8 Mo si la route servait encore
+les documents entiers ; elle sert désormais 2 679 o à `limit=24` (54 914 o à 500,
+148 o à `limit=0` ou `-5` → retenu 1) — ~5 200 × moins d'octets.** Ce que ça
+n'achète PAS, et c'est écrit dans le code : le disque coûte pareil (13,5 s
+mesurées, inchangées — il faut ouvrir chaque `meta.json` pour trier sur
+`updated`). Balayage des consommateurs : `galDecksList` demande `?limit=24` et
+lit `total` (`GAL_DECKS_TOTAL` neuf) ; `galDrawDecks` dit le total DU SERVEUR ;
+`galFirstRun` n'est pas faussé (liste triée, jeu neuf en tête — vérifié et
+écrit) ; le bouchon de la batterie sert la forme neuve et un pin lit la
+REQUÊTE ; `test_cards_core.py:757` inchangé ; le ménage des jeux de banc de la
+batterie ne lit pas la liste. 8 tests neufs, **2 mutants joués par la VRAIE
+route** (limite non bornée, total dérivé de la tranche).
+
+**CONSIGNÉS AVEC LEURS CHIFFRES FRAIS (mesures du 23/08) :**
+
+- **N2 — `IMGS` n'a AUCUNE éviction intra-session** (mod-forge3d.js:3351-3353,
+  vidé seulement par `oublieLesImages()` : changement de deck ou face livrée).
+  Banc sur les VRAIES fonctions extraites : une entrée = une toile 240 × 336 ×
+  4 = **322 560 o (315 Kio)** — la réduction vaut 1/153 contre le bitmap source
+  (2977 × 4157 = 47,2 Mio), donc le cache fait bien son travail ; ce qu'il ne
+  fait pas, c'est OUBLIER. **100 relances d'un même nœud 3D → 100 entrées,
+  30,67 Mio** (chaque construction mint un `run_id` neuf, donc une clé neuve).
+  **Feuilleter un jeu de 60 cartes (6 rôles × 2 faces) → 720 entrées,
+  220,83 Mio.** `oublieLesImages()` ramène à 0 — mais il ne part qu'au
+  changement de deck. Remède non construit : un plafond LRU par namespace
+  (`noeud:` d'abord, c'est lui qui croît sans borne d'usage).
+- **N7 — un SEUL exécuteur partagé pour toutes les tâches bloquantes.**
+  **79 appels `asyncio.to_thread` dans `backend/app/services/cards/` (31 dans
+  `forge3d.py` seul) et ZÉRO `set_default_executor` / `ThreadPoolExecutor` /
+  limiteur dans tout `backend/app/`** : ils partagent le pool par défaut,
+  **32 workers sur cette machine** (`min(32, cpu_count + 4)`, cpu_count = 32).
+  Y coexistent des lectures de quelques ms (`list_deck_summaries`) et des
+  téléchargements de **120 s** (`asset3d_service._download`, :127, appelé par
+  `forge3d.py:2428` et `:2431`). Aucun symptôme observé — il faudrait 32 mesh3d
+  simultanés — mais la borne est celle-là, et elle n'est écrite nulle part.
+- **GC des orphelins.** Sur le poste de l'atelier : **2 198 jeux, 7 429
+  fichiers, 8 254,79 Mo** dans le dossier des jeux. **0 image de slot/cadre
+  (`img_N.png`)** — ces routes n'ont jamais servi ici, donc 0 orphelin de ce
+  type aujourd'hui, ce qui ne dit rien du vecteur. `forge3d/` sur **5 jeux :
+  131 fichiers, 149,33 Mo**, dont **2 dossiers de nœud orphelins (0,4 Mo)**
+  (leur id n'est plus dans le graphe) et surtout **18 fichiers de couche au
+  nommage ANCIEN (`role_face.png`, sans étiquette de carte) = 17,42 Mo** que
+  `_layer_filename` ne nomme plus depuis l'estampille par carte : plus aucune
+  route ne les référence ni ne les réclame. Les 91,9 Mo au nommage courant, eux,
+  sont ÉCRASÉS à chaque export (noms fixes) — ils ne s'accumulent pas.
+  Le seul moyen de récupérer quoi que ce soit reste de supprimer le jeu.
+  S'y ajoute le cas N7-T4 : supprimer une rangée de calque PENDANT un import en
+  vol laisse le PNG orphelin sur l'un des 8 emplacements.
+- **Cuisson du verso (T4, chiffres portés)** : tarot 1200 DPI, **1 536 ms par
+  calque à multiply**, six calques = **~9,2 s** contre les **4 000 ms** de
+  `PAINTER_MS`. Inatteignable au réglage livré (300 DPI, poignée de calques),
+  atteignable en poussant les deux curseurs. Remèdes non construits : borner la
+  cuisson à l'intersection calque/toile, cuire réduit pour l'aperçu, ou refuser
+  le 6e calque à multiply au-delà d'une définition.
+- **N7-3b / N1-T4, portés tels quels** : l'affordance de rangée et le panneau de
+  verso PAR CARTE (`back_same` décoché fait rendre le verso personnalisé DU JEU
+  — une image par carte demanderait une colonne et un magasin par carte, hors
+  3c, à reprendre en 3d avec le vocabulaire par carte).
 
 ## Auto-revue du plan
 
