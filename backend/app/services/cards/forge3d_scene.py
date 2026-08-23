@@ -377,6 +377,13 @@ def _motif_luma(raw: bytes, out_px: int):
     invisibles portent du blanc (le cas ordinaire d'un PNG détouré) déposerait
     son épaisseur SUR TOUTE LA CARTE. Transparent = rien à déposer.
 
+    ...Y COMPRIS QUAND LA TRANSPARENCE EST DANS LA PALETTE. Une image en mode
+    « P » n'a PAS de bande alpha (`getbands()` rend `("P",)`) : sa
+    transparence vit dans `info["transparency"]`, et un test sur les bandes
+    seul la manquait entièrement — un sigle palettisé détouré serait revenu
+    opaque. C'est le format que rendent la plupart des exports « PNG-8 », donc
+    pas un cas de laboratoire.
+
     Filtre EXPLICITE (BICUBIC, convention « maps de données » du fichier) : le
     défaut de la bibliothèque a déjà changé d'une version à l'autre, et le
     déterminisme est une PROMESSE ici, pas un effet de bord."""
@@ -393,7 +400,8 @@ def _motif_luma(raw: bytes, out_px: int):
         raise
     except Exception as e:
         raise ValueError(f"motif illisible ({e or type(e).__name__})")
-    if "A" in im.getbands():
+    if "A" in im.getbands() or (im.mode == "P"
+                                and "transparency" in im.info):
         fond = Image.new("RGBA", im.size, (0, 0, 0, 255))
         im = Image.alpha_composite(fond, im.convert("RGBA"))
     lum = im.convert("L")

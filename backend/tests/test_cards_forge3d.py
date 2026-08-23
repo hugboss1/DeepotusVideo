@@ -3006,6 +3006,42 @@ def test_les_motifs_s_incrustent_dans_le_canal_G_par_addition_bornee():
             break
 
 
+def test_un_motif_detoure_ne_depose_rien_sous_sa_transparence():
+    """`convert("L")` IGNORE l'alpha : un sigle détouré dont les pixels
+    INVISIBLES portent du blanc (le cas ordinaire d'un PNG détouré, et le
+    défaut de PIL sur un RGBA neuf) épaissirait TOUTE la carte. Transparent =
+    rien à déposer — et ça vaut aussi quand la transparence est dans la
+    PALETTE (mode « P », qui n'a pas de bande alpha du tout : c'est ce que
+    rend la plupart des exports « PNG-8 »)."""
+    from app.services.cards import forge3d_scene as SC
+    nu = SC._holo_thickness_png(64)
+
+    def blanc_invisible(mode):
+        im = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
+        if mode == "P":
+            # blanc partout, index 0 declare TRANSPARENT : zero bande alpha
+            p = Image.new("P", (64, 64), 0)
+            p.putpalette([255, 255, 255] * 256)
+            p.info["transparency"] = 0
+            im = p
+        return _png_bytes_de(im)
+
+    for mode in ("RGBA", "P"):
+        pose = SC.holo_finish("argent", False, 64,
+                              motifs=[(blanc_invisible(mode), 1.0)]
+                              )["iridescence"]["png"]
+        assert pose == nu, mode
+    # ...et le MÊME blanc, OPAQUE cette fois, dépose bel et bien (sinon le
+    # test ci-dessus passerait aussi sur un encodeur qui ne fait rien)
+    opaque = _png_bytes_de(Image.new("L", (64, 64), 255))
+    assert SC.holo_finish("argent", False, 64,
+                          motifs=[(opaque, 1.0)])["iridescence"]["png"] != nu
+    # un calque ILLISIBLE lève NOMMÉMENT (l'appelant en fait un aveu)
+    with pytest.raises(ValueError) as e:
+        SC.holo_finish("argent", False, 64, motifs=[(b"pas une image", 1.0)])
+    assert "motif" in str(e.value).lower()
+
+
 def test_le_cache_d_epaisseur_est_re_cle_sur_la_pile_sans_collision():
     """La 2b cachait sur UN entier (`out_px`). Avec les motifs, deux cartes
     aux piles différentes partageraient cette entrée : la seconde recevrait
