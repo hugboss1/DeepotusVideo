@@ -61,10 +61,12 @@ Regles verifiees ici :
   R14 « Echappement » : dans un corps de fonction QUI ECRIT DU HTML — nom en
       Html/paint, ou corps qui pose un innerHTML/outerHTML/insertAdjacentHTML
       — aucune lecture de champ (`a.b`) ne peut etre concatenee TELLE
-      QUELLE a l'ouverture d'une valeur d'attribut HTML. C'est la seule classe
+      QUELLE a l'ouverture d'une valeur d'attribut HTML, CITEE (`nom="`) OU
+      NUE dans une balise encore ouverte (`<div nom=`). C'est la seule classe
       d'injection que ce script peut juger MECANIQUEMENT, et c'est la plus
-      grave : un guillemet dans la valeur ferme l'attribut et pose ce qu'on
-      veut sur la balise. La position TEXTE est hors perimetre (voir le pave
+      grave : un guillemet dans la valeur citee ferme l'attribut et pose ce
+      qu'on veut sur la balise — et dans la valeur NUE, une espace suffit.
+      La position TEXTE est hors perimetre (voir le pave
       au-dessus de check_r14 : il faudrait savoir si le champ porte un nombre
       ou une chaine, ce qu'aucun regex ne sait). Cliquet, pas preuve.
 
@@ -415,17 +417,34 @@ def check_r12(mid, path, text, add):
 # Le surcout mesure est nul (le corps est deja decoupe pour l'analyse).
 #
 # PERIMETRE : LA POSITION D'ATTRIBUT, et elle seule. C'est le seul endroit que
-# ce script peut juger MECANIQUEMENT — le litteral qui precede se termine par
-# `attribut="`, donc la valeur atterrit dans une valeur d'attribut, ou un
-# guillemet suffit a s'echapper et a poser un `onerror=` sur l'element voisin.
-# LE GUILLEMET EST EXIGE. Il l'etait facultatif tant que la regle ne voyait que
-# des fonctions « …Html » ; l'elargissement l'a mise devant des fonctions qui
-# ecrivent du HTML ET DES PHRASES, et une phrase se termine par `nom=` tout
-# aussi bien qu'une balise : « la ligne y=42 », « 300 DPI = 12 / mm² »,
-# « tile?mat=…&seed=7 ». Cinq faux signalements de cette forme, zero valeur
-# d'attribut SANS guillemets dans tout le labo (mesure) : le guillemet tranche,
-# et il est exactement ce que la regle existe pour proteger — c'est lui que la
-# valeur injectee refermerait.
+# ce script peut juger MECANIQUEMENT. DEUX motifs la reconnaissent, et il en
+# faut deux :
+#
+#   1. ATTRIBUT CITE — le litteral se termine par `attribut="`. La valeur
+#      atterrit dans une valeur d'attribut ou un guillemet suffit a s'echapper
+#      et a poser un `onerror=` sur la balise.
+#   2. ATTRIBUT NU, DANS UNE BALISE OUVERTE — le litteral se termine par
+#      `attribut=` SANS guillemet, ET il est encore a l'interieur d'une balise
+#      (son dernier `<` vient apres son dernier `>`). C'est le patron
+#      `'<div data-id=' + x.y + '>'`, et c'est le PIRE des deux : sans
+#      guillemets, une simple ESPACE dans la valeur pose un attribut de plus.
+#
+# POURQUOI DEUX, ET PAS UN SEUL GUILLEMET FACULTATIF (l'histoire, pour que
+# personne ne refasse le tour) : le motif 1 seul RATE la classe 2 — mesure a
+# l'elargissement, la sonde `'<div data-id=' + s.id + '>'` passait partout. Et
+# `[\"']?` (guillemet facultatif, l'ecriture d'origine) attrape la PROSE, parce
+# qu'une phrase se termine par `nom=` tout aussi bien qu'une balise : « la
+# ligne y=42 », « 300 DPI = 12 / mm² », « tile?mat=…&seed=7 » — cinq faux
+# signalements reels dans mod-frame et mod-texture. Ce qui separe les deux
+# n'est pas le guillemet, c'est LA BALISE OUVERTE : une phrase n'a pas de `<`.
+#
+# LIMITE RESIDUELLE, ASSUMEE ET DITE : un SECOND attribut nu dans la MEME
+# balise, quand la balise est construite en plusieurs fragments
+# (`'<div id=' + a + ' name=' + b + '>'`), n'est pas vu — le fragment
+# `' name='` ne porte pas le `<` qui l'ouvre. Le voir demanderait de suivre
+# l'etat de balise A TRAVERS les fragments, c'est-a-dire un analyseur, pas une
+# regle lexicale. Le premier attribut de la balise, lui, est vu — et c'est deja
+# ce qui fait rougir la ligne.
 # La position TEXTE (`'<b>' + x.y + '</b>'`) est deliberement HORS perimetre :
 # elle demande de savoir si `x.y` est un nombre mesure par le backend ou une
 # chaine venue de l'exterieur, et aucun regex ne le sait. La signaler aurait
@@ -448,9 +467,11 @@ R14_DECL = re.compile(
 # de provenance lisible ici, et le motif de la faute est l'acces a un champ.
 R14_CHAINE = re.compile(
     r"([\"'`])\s*\+\s*([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)+)")
-# le litteral se termine sur l'ouverture d'une valeur d'attribut CITEE (voir
-# le pave ci-dessus : sans le guillemet, la prose `y=` en est une aussi)
+# MOTIF 1 : le litteral se termine sur l'ouverture d'une valeur d'attribut CITEE
 R14_ATTR_FIN = re.compile(r"[\w-]+\s*=\s*[\"']$")
+# MOTIF 2 : ... ou NUE — mais alors il faut la balise ouverte pour la distinguer
+# d'une phrase (voir le pave ci-dessus).
+R14_ATTR_NU = re.compile(r"[\w-]+\s*=\s*$")
 # membres STRUCTURELLEMENT numeriques : aucun balisage ne peut en sortir
 R14_SURS = ("length",)
 # `prev` significatif apres lequel un « / » ouvre une expression reguliere et
@@ -576,6 +597,15 @@ def _corps_fonction(masque, i_paren):
     return None if fin < 0 else (depart, fin)
 
 
+def _dans_balise_ouverte(lit):
+    """Ce fragment de litteral finit-il A L'INTERIEUR d'une balise ? Vrai quand
+    son dernier `<` vient apres son dernier `>` : la balise a ete ouverte dans
+    ce fragment et n'y est pas refermee, donc ce qui suit atterrit entre les
+    chevrons. C'est le seul indice LEXICAL qui separe `'<div data-id='` (une
+    balise) de `'a la ligne y='` (une phrase) — et il ne coute qu'un rfind."""
+    return lit.rfind("<") > lit.rfind(">")
+
+
 def check_r14(mid, path, text, add):
     sans_com, masque = _js_masque(text)
     for m in R14_DECL.finditer(masque):
@@ -604,14 +634,29 @@ def check_r14(mid, path, text, add):
             if chaine.rsplit(".", 1)[-1] in R14_SURS:
                 continue
             litteral = _litteral_avant(sans_com, h.start(1))
-            if litteral is None or not R14_ATTR_FIN.search(litteral):
-                continue                  # position TEXTE : hors perimetre
+            if litteral is None:
+                continue
+            cite = bool(R14_ATTR_FIN.search(litteral))
+            # attribut NU : il faut la balise encore ouverte pour le distinguer
+            # d'une phrase qui finit par `nom=` (voir le pave au-dessus).
+            nu = (not cite and bool(R14_ATTR_NU.search(litteral))
+                  and _dans_balise_ouverte(litteral))
+            if not (cite or nu):
+                continue                  # position TEXTE, ou prose : hors perimetre
             add("R14", path, sans_com.count("\n", 0, h.start()) + 1,
-                f"« {chaine} » ouvre une valeur d'ATTRIBUT dans le HTML de "
-                f"{nom}() sans passer par esc() : un guillemet dans cette "
-                f"valeur ferme l'attribut et pose ce qu'on veut sur la balise "
-                f"(un onerror=, par exemple). L'envelopper : esc(...) pour du "
-                f"texte, Number(...)/weight(...) pour un chiffre.")
+                (f"« {chaine} » tombe dans une balise ouverte de {nom}(), sur "
+                 f"une valeur d'attribut SANS guillemets, et sans passer par "
+                 f"esc() : une simple ESPACE dans cette valeur y pose un "
+                 f"attribut de plus (un onerror=, par exemple) — il n'y a meme "
+                 f"pas de guillemet a refermer. L'envelopper : esc(...) pour du "
+                 f"texte, Number(...)/weight(...) pour un chiffre ; et citer "
+                 f"l'attribut."
+                 if nu else
+                 f"« {chaine} » ouvre une valeur d'ATTRIBUT dans le HTML de "
+                 f"{nom}() sans passer par esc() : un guillemet dans cette "
+                 f"valeur ferme l'attribut et pose ce qu'on veut sur la balise "
+                 f"(un onerror=, par exemple). L'envelopper : esc(...) pour du "
+                 f"texte, Number(...)/weight(...) pour un chiffre."))
 
 
 ROUTER_OK = re.compile(r"^\s*router\s*=\s*APIRouter\(\s*\)\s*$", re.M)

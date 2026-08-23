@@ -3890,8 +3890,11 @@ def _lint():
     return mod
 
 
-def _r14(src: str) -> list:
-    mod, trouves = _lint(), []
+def _r14(src: str, mod=None) -> list:
+    """Les signalements de R14 sur une source. `mod` permet de faire tourner la
+    règle MUTILÉE (le module est réinstancié à chaque `_lint()`, la mutation ne
+    fuit donc pas d'un test à l'autre)."""
+    mod, trouves = (mod or _lint()), []
     mod.check_r14("type", "sonde.js", src,
                   lambda rule, path, line, msg, warn=False: trouves.append((line, msg)))
     return trouves
@@ -3935,6 +3938,76 @@ def test_la_regle_d_echappement_ne_prend_pas_la_PROSE_pour_un_attribut():
     assert _r14('function drawProof() {\n'
                 '  el.innerHTML = \'<b title="\' + P.m.par_mm2 + \'">x</b>\';\n'
                 '}\n')
+
+
+SONDE_NUE = ("function {nom}() {{\n"
+             "  el.innerHTML = '<div data-id=' + s.id + '>';\n"
+             "}}\n")
+
+
+def test_la_regle_d_echappement_attrape_AUSSI_l_attribut_SANS_guillemets():
+    """LA RÉGRESSION QU'A COÛTÉE LE GUILLEMET EXIGÉ, et sa réparation.
+
+    `'<div data-id=' + s.id + '>'` est un patron de DOM-XSS réel — et le PIRE
+    des deux : dans une valeur d'attribut citée il faut un guillemet pour
+    s'échapper ; sans guillemets, une simple ESPACE suffit à poser un attribut
+    de plus (`x onerror=…`). L'ancienne règle l'attrapait dans les fonctions
+    « …Html/paint » ; exiger le guillemet l'a fait rater PARTOUT.
+
+    La réparation n'est pas de rendre le guillemet à nouveau facultatif — ce
+    serait re-signaler la prose (« ligne y=42 »). C'est un SECOND motif :
+    `nom=` nu, MAIS seulement si le fragment est encore DANS une balise
+    ouverte (son dernier `<` vient après son dernier `>`). Une phrase n'a pas
+    de `<` ; une balise ouverte, si."""
+    for nom in ("renderX",      # balayée par le SINK (nom sans Html/paint)
+                "paintFoo",     # balayée par le NOM — la classe d'origine
+                "listeHtml"):
+        assert _r14(SONDE_NUE.format(nom=nom)), \
+            f"{nom}() : l'attribut SANS guillemets passe encore"
+    # le message NOMME ce qui est en jeu (une espace suffit), il ne recopie pas
+    # celui du cas cité — les deux fautes ne se réparent pas de la même façon.
+    msg = _r14(SONDE_NUE.format(nom="renderX"))[0][1]
+    assert "guillemets" in msg and "espace" in msg.lower(), msg
+    # le cas CITÉ reste attrapé (la réparation n'a rien remplacé)
+    assert _r14('function renderX() {\n'
+                '  el.innerHTML = \'<div data-id="\' + s.id + \'">\';\n'
+                '}\n')
+    # ... et la POSITION TEXTE reste hors périmètre : la balise est refermée.
+    assert not _r14('function renderX() {\n'
+                    '  el.innerHTML = \'<b>\' + s.id + \'</b>\';\n'
+                    '}\n')
+
+    # MUTATION : second motif retiré -> la sonde nue repasse.
+    mut = _lint()
+    mut.R14_ATTR_NU = re.compile(r"(?!x)x")      # ne matche jamais rien
+    assert not _r14(SONDE_NUE.format(nom="renderX"), mut), \
+        "le second motif n'était pas ce qui attrapait l'attribut nu"
+
+
+def test_les_cinq_faux_positifs_de_prose_restent_PROPRES():
+    """L'autre moitié du contrat : les cinq phrases que l'élargissement avait
+    fait rougir doivent rester muettes, et le test ne doit pas devenir creux si
+    quelqu'un les efface — on vérifie donc AUSSI qu'elles sont toujours là.
+
+    Ce sont de vraies lignes de deux modules voisins : « ligne y=42 »,
+    « r=3 mm », « 300 DPI = 12 / mm² », « tile?mat=…&seed=7 ». Aucune n'ouvre
+    une balise — c'est exactement ce que le second motif sait voir."""
+    mod = _lint()
+    for mid, proses in (
+        ("frame", ('" r=" + r.corner + " "',
+                   '"non isolable sur la ligne y=" + P.filet.y',
+                   'ligne y=" + P.filet.y + ")"',
+                   '" DPI = "')),
+        ("texture", ('"&seed=" + s.seed',)),
+    ):
+        chemin = REPO / "frontend" / "cardforge" / "js" / f"mod-{mid}.js"
+        src = chemin.read_text(encoding="utf-8")
+        for p in proses:
+            assert p in src, f"la prose épinglée a disparu de mod-{mid}.js : {p}"
+        trouves = []
+        mod.check_r14(mid, chemin, src,
+                      lambda rule, path, line, msg, warn=False: trouves.append((line, msg)))
+        assert not trouves, f"mod-{mid}.js : {trouves}"
 
 
 def test_le_module_passe_le_lint_ELARGI():

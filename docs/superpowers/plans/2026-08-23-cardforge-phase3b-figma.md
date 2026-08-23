@@ -141,6 +141,13 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 >   gestes dessus. Il ne teste donc pas une fonction interne choisie à la main.
 >   Il rend aussi le HTML du calque et celui de la liste : les tâches 2-4
 >   (kind image, palette, liste multi-bandes) peuvent s'y brancher.
+> · **Le verrou ne garde JAMAIS le panneau** — champs X/Y/L/H, centrer/remplir,
+>   leviers du relevé d'audit et remèdes compris : TOUTE écriture de réglage
+>   passe par `patchSlot`, et `patchSlot` ne regarde pas `lock` (voulu, testé —
+>   un garde là enfermerait le bloc pour de bon, y compris contre le clic qui
+>   le déverrouille). La liberté du panneau est entière, pas « quelques
+>   champs » : le verrou n'arrête que la main sur l'aperçu et la touche pressée
+>   au hasard.
 > · **Le refus est un NON-DÉMARRAGE**, pas un geste joué puis annulé : sur un
 >   bloc verrouillé, `onOvDown` sort AVANT `pushUndo()` et avant de brancher
 >   `pointermove` — le banc compte 0 écouteur pointermove (1 sur le contrôle).
@@ -155,12 +162,12 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 >   flèche se répète, un toast par pression noierait l'écran — et son refus se
 >   lit sur le cadenas de la boîte, qui est sous les yeux. Suppr, non : un
 >   effacement qui ne se produit pas se lit comme une touche morte.
-> · **Nudge** : `NUDGE_MM = 1, NUDGE_FINE_MM = 0.2` (mod-type.js:229).
+> · **Nudge** : `NUDGE_MM = 1, NUDGE_FINE_MM = 0.2` (mod-type.js:235).
 >   `NUDGE_BIG_MM` n'existe plus (pin sur son absence) ; le mémo du panneau dit
 >   les mêmes chiffres que le code ; le pas est MESURÉ au banc, pas relu
 >   (flèche → +1 mm, Maj → +0,2 mm, Alt → +1 mm de largeur, Alt+Maj → +0,2 mm
 >   de hauteur), et l'ancien 0,5 restauré par mutation rougit.
-> · **`soloClone(slot, garde)`** (mod-type.js:3399) remplace les 3 littéraux.
+> · **`soloClone(slot, garde)`** (mod-type.js:3422) remplace les 3 littéraux.
 >   Le seul écart entre les sites était l'OMBRE : la passe du halo la garde
 >   (c'est elle qui la mesure), les deux autres la coupent — d'où
 >   `soloClone(slot, { shadow: true })`, une fois et une seule. Pin de compte
@@ -186,16 +193,36 @@ du module propriétaire (une entrée d'annulation PAR GESTE), barre de fluidité
 >   le `style=` voisin, hors portée mécanique de la règle mais même faute),
 >   mod-solid `buildStatics` (6). Aucune n'était exploitable aujourd'hui
 >   (tables statiques locales) — c'est un cliquet, il se pose avant.
-> · **Et une CONTREPARTIE honnête** : l'élargissement a mis la règle devant des
->   fonctions qui écrivent du HTML **et des phrases**, et une phrase finit par
->   `nom=` aussi bien qu'une balise (« ligne y=42 », « 300 DPI = 12 / mm² »,
->   « tile?mat=…&seed=7 » — 5 faux signalements dans mod-frame et mod-texture).
->   `R14_ATTR_FIN` EXIGE donc désormais le guillemet (`nom="`), qui était
->   facultatif : zéro attribut sans guillemets dans tout le labo (mesuré), et
->   le guillemet est exactement ce que la valeur injectée refermerait. Les deux
->   sens sont testés (la sonde fautive rougit, la prose non), et R14 rétréci
->   par mutation fait rougir les deux sondes.
-> · **Compte** : 108 → **120 tests** dans test_cards_type.py (13 neufs, 1
+> · **La position d'attribut se reconnaît maintenant à DEUX motifs**, et il en
+>   faut deux. L'élargissement a mis la règle devant des fonctions qui écrivent
+>   du HTML **et des phrases**, et une phrase finit par `nom=` aussi bien
+>   qu'une balise (« ligne y=42 », « 300 DPI = 12 / mm² », « tile?mat=…&seed=7 »
+>   — 5 faux signalements dans mod-frame et mod-texture). **Premier réflexe :
+>   exiger le guillemet. C'ÉTAIT UNE RÉGRESSION** — signalée à la revue, et
+>   vraie : `'<div data-id=' + s.id + '>'` (attribut NON cité, patron DOM-XSS
+>   réel, et le PIRE des deux — une simple ESPACE y pose un attribut de plus,
+>   pas besoin de refermer un guillemet) était attrapé par l'ancienne règle
+>   dans les fonctions nommées, et le guillemet exigé le faisait rater PARTOUT.
+>   **Réparé** : motif 1 = `nom="` cité ; motif 2 = `nom=` nu **mais dans une
+>   balise encore ouverte** (`_dans_balise_ouverte` : dernier `<` après dernier
+>   `>`). Ce qui sépare la balise de la phrase n'est pas le guillemet, c'est le
+>   chevron — une phrase n'a pas de `<`. Différentiel mesuré : aucune classe
+>   que l'ancienne règle attrapait n'est perdue, la classe 2 est désormais vue
+>   AUSSI hors des fonctions nommées, les 5 proses restent muettes, dépôt réel
+>   à 0, coût 0,52 s.
+> · **Limite résiduelle, assumée et écrite dans le lint** : un SECOND attribut
+>   nu dans la MÊME balise construite en plusieurs fragments
+>   (`'<div id=' + a + ' name=' + b + '>'`) n'est pas vu — le fragment
+>   `' name='` ne porte pas le `<` qui l'ouvre. Le voir demanderait de suivre
+>   l'état de balise À TRAVERS les fragments, c'est-à-dire un analyseur, pas
+>   une règle lexicale. Le premier attribut, lui, est vu, et il fait déjà
+>   rougir la ligne.
+> · Les deux sens sont testés (sonde citée ET sonde nue rougissent, prose non,
+>   position texte non), les 5 faux positifs connus sont ÉPINGLÉS sur les vraies
+>   lignes de mod-frame/mod-texture (avec vérification que la prose est toujours
+>   là, pour que le pin ne devienne pas creux), et deux mutations tuent : R14
+>   rétréci au filtre de noms, et second motif retiré.
+> · **Compte** : 108 → **122 tests** dans test_cards_type.py (15 neufs, 1
 >   remplacé — l'ancien `test_les_mesures_d_encre_ignorent_la_plaque` épinglait
 >   les 3 littéraux que le helper supprime). Lint intégral 0. `node --check` OK
 >   sur les 3 JS touchés. Hors périmètre déclaré mais nécessaire :
