@@ -1004,6 +1004,48 @@ quatrième.** Toutes RED d'abord, toutes tuées par mutation. Suite `cards_frame
   perdu jusqu'à un ménage manuel dans le dossier du jeu. À joindre au
   ramassage des images orphelines de la T6.
 
+> **CLOSE (T2 — c58e43b + ronde 9905043, revue adverse : FIX-FIRST soldé).**
+> Le masque de foil vit : OCG « Foil » + /Separation réel + overprint,
+> l'anneau en VECTORIEL dans un PDF tout-raster (les mêmes béziers aplatis
+> au raster — le garde-fou anti-rounded_rectangle TENU a forcé le meilleur
+> design), noir=foil nommé partout, UN masque par deck (l'anneau ne dérive
+> que des mm du cadre), recto-seul (le premier jet dorait les deux pages
+> duplex — attrapé). La mesure à dents contre l'AA : les PLAGES par ligne
+> de balayage (2 propres vs 664 tramées — « exactement 2 valeurs » est
+> improuvable en mode-1). Ronde : la couture de parité était à 0,01 mm de
+> la règle (les triples SUR 0,00, jamais DANS (0;0,2) — les mutants du
+> plancher frame.py survivaient : fenêtres 1,70/1,81 ajoutées, QUATRE
+> constantes jumelles épinglées — FOIL_TRIM_MM n'a PAS de jumeau, 3,2 mm
+> est une contrainte d'imprimeur épinglée sur la spec) ; le message à
+> chiffre-qui-réfute-sa-phrase branché sur la vraie cause ; l'edge négatif
+> qui DORAIT LE VOISIN clampé ET err (« réparer en silence aurait été le
+> pire ») ; la porte foil juge LE JOB, pas l'artefact demandé ; et le banc
+> écran réel a trouvé un défaut non signalé (le bouton de téléchargement
+> ne lisait que plan.foil — décocher « impression » laissait un bouton
+> dont le clic 409ait). 104 tests print, 15+13 mutants.
+
+> **CLOSE (T4 — bfde919/d28b31f + ronde 07261a4, revue adverse : FIX-FIRST
+> soldé).** Le verso custom vit : BACKS+custom EN DERNIER (les 7 motifs
+> gardent leur rang), la PREMIÈRE pile ordonnée de P2 (≤6 calques,
+> multiply PRÉ-CUIT — et l'honnêteté mesurée : la précomposition ne change
+> AUCUN pixel opaque, ±1 niveau translucide (putImageData 8-bit) — ce
+> qu'elle achète est la SUITE D'OPÉRATIONS que le banc §4.2 vérifie, le
+> test renommé car « son ancien nom était la phrase fausse ») ; la purge
+> lâche les calques ENTIERS (« opacité/échelle décrivent comment montrer
+> une image absente » — l'inverse des textes de slots POUR LA MÊME
+> raison) ; le seuil anti-images RESSERRÉ (2 chargeurs nommés comptés) ;
+> le quintette rejoué sur la route frame. Ronde : le damier de calque
+> manquant EFFAÇAIT LA CARTE (boîte = max(W,H) — encart nommé 62 %×18 %,
+> le fond respire) ; bnum→num survivait (null jamais nourri — la
+> divergence T1 exacte : 0 à l'écran vs 1,0 au backend) ; "0x10"/"1_0"
+> bornés par regex décimale des deux côtés ; le jalon zéro-octet servi
+> 200-immutable corrigé dans LES DEUX magasins (« le plafond protège le
+> NUMÉRO, pas les octets » — asserté) ; le dos par-carte REND (testé) ;
+> LE GREP DE PROSE ATTRAPÉ UNE 3e FOIS (le pin cherchait « finally » —
+> le mot du commentaire : ré-ancré sur `} finally {` commentaires
+> retirés). 220+161 tests, 14+12 mutants. Cuisson chiffrée au plan T6
+> (1536 ms ×6 vs budget 4000).
+
 ### Task 5 : l'IA cadres
 
 **Files:** mod-frame.js, frame.py (route ai-models miroir), test_cards_frame.py.
