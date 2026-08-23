@@ -411,9 +411,9 @@ téléchargements), test_cards_print.py (+ test_cards_frame.py parité).
 - [x] Mutation : addition non bornée, hash de pile ignoré au cache,
       permutation silencieuse.
 
-**T3 LIVRÉE** (suite `cards_forge3d` 106 → 115, lint 0, `node --check`,
-`--geom` vert ; forge3d_scene.py 1668→1857, forge3d.py 2940→3158,
-mod-forge3d.js 5639→5820, mod-forge3d.css 371→389).
+**T3 LIVRÉE** (suite `cards_forge3d` 106 → 123 après la ronde de revue,
+lint 0, `node --check`, `--geom` vert ; forge3d_scene.py 1668→1909,
+forge3d.py 2940→3309, mod-forge3d.js 5639→5849, mod-forge3d.css 371→389).
 
 - **Le mécanisme de l'addition bornée, NOMMÉ** : chaque calque ne dépose que
   ce que l'épaisseur RESTANTE lui laisse — `min(luminance, 255 − g)` PUIS la
@@ -463,9 +463,112 @@ mod-forge3d.js 5639→5820, mod-forge3d.css 371→389).
   transparence vit dans `info["transparency"]`. Un test sur `getbands()` seul
   la manquait entièrement et le sigle revenait OPAQUE, épaississant toute la
   carte. Garde + test dédié ; le mutant qui retire la garde palette est tué.
-- **Reste pour une tâche ultérieure** : la ligne d'honnêteté « le cadre entier
-  reçoit la finition » du `scope.mesh` du Sceau — elle exige `doc.frame.seal`
-  (T1, en cours en parallèle) ; les deux moitiés existeront alors.
+### Ronde de revue adverse T3 (23/08) — 4 FIX-FIRST + nits + le câblage
+
+La revue a rendu quatre corrections de fond. Toutes RED d'abord, toutes
+tuées par mutation. Suite 115 → 123.
+
+- **F1 — la prose promettait plus que les octets.** À part PLEINE l'opérateur
+  DÉGÉNÈRE : `g + min(lum, 255 − g)` VAUT `min(g + lum, 255)`, donc
+  commutatif — et la part pleine était mon DÉFAUT des deux côtés. Vérifié
+  exhaustivement : 24 permutations de 4 calques à 1,0 → UNE sortie. La spec
+  n'est pas violée (elle ne demande que l'addition dans l'ordre de liste, qui
+  tient) ; c'est la docstring qui désavouait une somme commutative en la
+  décrivant. Correctif : paragraphe de docstring, clause au hint de l'écran
+  (« l'ordre compte dès qu'une part est < 1 »), et un test qui épingle
+  l'IDENTITÉ de permutation à 1,0 — le fait est DIT, plus redécouvert. **Zéro
+  octet livré ne change.** (Le premier pin de docstring cherchait deux mots
+  trop communs pour mourir avec la phrase : mutant SURVIVANT, mesuré, puis
+  ré-ancré sur l'égalité écrite en toutes lettres.)
+- **F2 — un calque corrompu coûtait TOUTE la finition, sans nommer le
+  calque.** La docstring promettait « un calque mort ne coûte ni l'artefact ni
+  la finition… DIT, avec sa source » : vrai d'un fichier ABSENT, faux d'un
+  fichier PRÉSENT MAIS TRONQUÉ — l'échec explosait dans `holo_finish` et
+  atterrissait dans l'`except` de `_habille`, qui jetait la recette entière
+  avec un « finition ignoree » anonyme. Chaque calque est désormais VALIDÉ un
+  par un (`motif_probe`) là où l'on sait d'où il vient. Coût assumé : un
+  décodage de plus par calque (≤ 4), écrit dans la docstring ; l'alternative
+  (compositeur tolérant) mettrait en cache une pile PARTIELLE sous une clé qui
+  prétend les porter tous.
+- **F3 — le défaut de part était le MAXIMUM de la plage.** Mesuré : une source
+  claire PLEIN-CADRE — et `paper`/`mat:` le sont exactement — à part pleine
+  remplit tout le film. Blanc pur → le canal G tombe à **UN SEUL niveau**, les
+  franges pour lesquelles la recette 2b existe DISPARAISSENT ; papier à 240 →
+  5,9 % de l'étendue, 2 niveaux sur 8. `MOTIF_GAIN_DEFAULT = 0,5` : les huit
+  marches survivent (étendue 127/255, ~50 %), le sigle découpé se lit encore
+  (écart de moyennes 63,5) — ET le défaut cesse d'être précisément le point où
+  la propriété d'ordre s'évanouit (F1). Le hint NOMME la conséquence en plus.
+  Le défaut part par `/info` (`motif_gain_default`) : l'écran ne le recopie
+  pas, il le lit.
+- **F4 — deux chaînes qui envoyaient au mauvais endroit.** Une matière de la
+  boutique est APP-WIDE : « fichier absent de ce jeu » est le message qu'une
+  machine ÉTRANGÈRE produira dès qu'un deck voyagera sans sa boutique → « …
+  absente de la boutique de ce poste (les matieres ne voyagent pas avec le
+  jeu) ». Et « rien où incruster », l'accent avalé par l'ASCII du bordereau,
+  se relisait « rien ou incruster » → « aucun endroit ou s'incruster ».
+- **Nits** : `_motif_src_ok` passe en `fullmatch` (le piège du `$` + `match`
+  pour la TROISIÈME fois dans ce dépôt — « img:img_1.png\n » traversait) ;
+  400/404 de `motif-sources` épinglés.
+
+**LE CÂBLAGE `scope.mesh` (décision 4, les deux moitiés existent).** P9 LIT
+`doc.frame.seal` dans le document du jeu — lecture d'état partagé, aucun
+import de frame.py (lecteur local `_sceau_du_doc`, parité testée contre
+`frame.seal_of`). Quand `seal.on && seal.scope.mesh` et qu'une couche de rôle
+`cadre` est au graphe, la recette du kind habille l'élément.
+
+- **Règle en une phrase : le Sceau COMBLE LE SILENCE, il ne couvre jamais une
+  parole.** Un nœud `material` qui NOMME une finition l'emporte — y compris
+  quand cette finition a ÉCHOUÉ (motif corrompu) : substituer alors la recette
+  du Sceau masquerait la panne sous un résultat plausible. Un `material` qui
+  ne nomme rien laisse le Sceau parler, et le bordereau le dit.
+- **L'honnêteté de portée va au BORDEREAU, pas à `ignored`** : appliquer le
+  Sceau est un FAIT (« la COUCHE ENTIERE recoit la finition — l'isolation
+  d'une sous-region n'existe pas »), pas une perte, et `ignored` ne nomme que
+  ce qui a été PERDU (invariant 2c, épinglé). Le Sceau ÉCARTÉ par un nœud
+  explicite, lui, est bien une perte : il va dans `ignored`.
+- **Divergence VOULUE avec `seal_of`, testée** : un métal ABSENT prend le
+  défaut du schéma partagé (les deux côtés s'accordent) ; un métal DIT MAIS
+  ILLISIBLE est REFUSÉ ici (P2 le remplace par l'argent — il doit peindre),
+  parce que livrer un métal faux sans un mot est ce que `holo_finish` existe
+  pour empêcher.
+- **L'aperçu de nœud reçoit le même traitement** (barre :443, « aperçu ==
+  fichier ») : sans quoi l'inspecteur montrerait un cadre nu que la
+  construction livrerait iridescent.
+- Le Sceau n'a PAS de `motifs` (T1 ne l'a pas ajouté, à raison) : sa finition
+  implicite part donc avec une pile VIDE, et sans anisotropie (aucun
+  interrupteur ne la demande — pas de réglage, pas de revendication).
+
+**Trouvé en revue de couture DE CETTE RONDE** (le câblage neuf en ouvrait la
+possibilité) : un cadre porté par un nœud `mesh3d` ne peut pas recevoir le
+Sceau — le GLB du moteur porte déjà ses matériaux. Sans un mot, cocher la
+portée 3D sur un tel cadre ne faisait RIEN, en silence : le pire des deux.
+Avoué désormais, au MÊME patron que la matière chaînée sur un mesh3d (avouée
+depuis la 2b) ; mutant tué. Nettoyage joint : le message d'un calque illisible
+ne se lit plus « motif … motif illisible » au bordereau (le préfixe de source
+appartient à l'appelant, la description au module scène).
+
+**Mutants de la ronde, 10 tués** : clause d'ordre retirée du hint · phrase qui
+porte le fait retirée de la docstring · validation par calque retirée · défaut
+de part remis au maximum · magasin app-wide re-dit « de ce jeu » · `fullmatch`
+redevenu `match` · `scope.mesh` ignoré · l'explicite ne gagne plus · honnêteté
+« couche entière » retirée du bordereau · sceau-sur-moteur redevenu silencieux.
+**Un mutant a SURVÉCU puis a été soldé** : le premier pin de docstring de F1
+cherchait « part pleine » et « commutatif », deux mots trop communs dans ce
+paragraphe pour mourir avec la phrase qui porte le fait — ré-ancré sur
+l'égalité `min(g + lum, 255)`, écrite en toutes lettres, et re-tué.
+
+**Clause de spec NON LIVRÉE, dite ici faute d'un aveu ailleurs** : §6.2bis-d
+demande les motifs « + **ondulation normale douce** » — une normal map dérivée
+du relief des calques, qui ferait ONDULER la lumière en plus de décaler les
+franges. Elle est HORS du périmètre de la décision 4 (qui ne parle que du
+canal G de l'épaisseur) et n'a **pas** été construite : aucun élément ne reçoit
+de `mat_maps.normal` du fait d'un motif. C'est la seule clause du volet (d)
+sans aveu jusqu'ici — à reprendre avec l'anneau-contour EXTRUDÉ, en phase 4.
+
+- **Reste pour une tâche ultérieure** : ~~la ligne d'honnêteté « le cadre
+  entier reçoit la finition » du `scope.mesh`~~ → LIVRÉE dans cette ronde (au
+  bordereau du build ; le hint d'écran du Sceau appartient à P2, que la T1 a
+  livré neutre).
 
 ### Task 4 : le verso custom
 

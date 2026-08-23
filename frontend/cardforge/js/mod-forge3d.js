@@ -1401,6 +1401,13 @@
     return {
       max: (lim && lim.motif_max) || 0,
       gain: (lim && lim.motif_gain) || null,
+      /* LE DÉFAUT VIENT DU CONTRAT, PAS D'ICI (F3). Écrire « 1 » à l'écran
+         ferait naître un calque que `clean_graph` ramènerait aussitôt à la
+         valeur du serveur — l'utilisateur verrait une part et le fichier en
+         porterait une autre. `null` quand le contrat n'est pas chargé : on
+         n'invente pas un défaut, on laisse le serveur poser le sien. */
+      defaut: (lim && lim.motif_gain_default != null)
+        ? lim.motif_gain_default : null,
     };
   }
 
@@ -1466,6 +1473,23 @@
       + 'epaissit le film la ou il est clair ; l\'ORDRE est l\'ordre '
       + 'd\'addition (le premier sert en premier, le suivant ne prend que ce '
       + 'qui reste).</p>'
+      /* F1 — LA CLAUSE QUI MANQUAIT, et elle est mesurée : à part PLEINE
+         l'opérateur dégénère en somme écrêtée, donc COMMUTATIF (24
+         permutations de 4 calques à 1,0 rendent un seul fichier). Promettre
+         « l'ordre compte » sans cette clause, c'est promettre plus que ce que
+         les octets tiennent. */
+      + '<p class="hint">l\'ordre compte des qu\'une part est < 1 : a part '
+      + 'pleine, chaque calque ne fait qu\'ajouter jusqu\'au plafond et '
+      + 'l\'ordre ne change plus le fichier.</p>'
+      /* F3 — la conséquence d'une part pleine sur une source PLEIN-CADRE
+         claire (« matiere de support » et les matieres de la boutique le sont
+         exactement) : le film est rempli partout et les franges disparaissent.
+         Mesuré : blanc pur a part pleine -> le canal d'epaisseur tombe a UN
+         seul niveau. D'ou le defaut servi par /info, plus doux. */
+      + '<p class="hint">une source claire <b>plein-cadre</b> a part pleine '
+      + 'ecrase l\'arc-en-ciel de base (le film est rempli partout, les '
+      + 'franges disparaissent) : gardez une part basse pour une texture, '
+      + 'montez-la pour un sigle decoupe.</p>'
       /* HONNÊTETÉ DE PORTÉE : la texture d'épaisseur est CARRÉE et couvre les
          UV de l'élément ENTIER — isoler une bande n'existe pas ici (comme
          l'arc-en-ciel de base de la 2b, qu'elle épaissit). Un utilisateur qui
@@ -5248,9 +5272,14 @@
     const liste = Array.isArray(mat.motifs) ? mat.motifs.slice() : [];
     if (field === "motif_add") {
       const src = String(rawValue || "");
-      const max = motifLimits().max;
-      if (!src || (max > 0 && liste.length >= max)) return;
-      liste.push({ src: src, gain: 1 });
+      const lim = motifLimits();
+      if (!src || (lim.max > 0 && liste.length >= lim.max)) return;
+      /* la part du calque neuf vient du CONTRAT (F3) ; si le contrat n'est
+         pas chargé, on ne l'écrit pas du tout — `clean_graph` posera SON
+         défaut, ce qui vaut toujours mieux qu'un chiffre inventé ici que le
+         serveur remplacerait sans que l'écran le sache. */
+      liste.push(lim.defaut != null ? { src: src, gain: lim.defaut }
+                                    : { src: src });
     } else {
       const i = Number(field.replace(/^motif_(src|gain)_/, ""));
       if (!isFinite(i) || i < 0 || i >= liste.length) return;

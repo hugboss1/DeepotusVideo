@@ -3006,6 +3006,217 @@ def test_les_motifs_s_incrustent_dans_le_canal_G_par_addition_bornee():
             break
 
 
+def test_a_part_PLEINE_l_addition_redevient_commutative_et_c_est_DIT():
+    """F1 (revue adverse) — L'AVEU QUI MANQUAIT. À `gain = 1`, l'opérateur
+    `g + min(lum, 255 − g)` VAUT `min(g + lum, 255)` : exactement la somme
+    finalement écrêtée que la docstring disait ne pas être, et donc
+    COMMUTATIF. L'ordre ne compte qu'à partir du moment où une part est < 1.
+
+    La spec n'est pas violée (elle demande l'addition DANS L'ORDRE DE LISTE,
+    ce qui tient) — c'est la PROSE qui promettait plus que le mesuré. Ce test
+    épingle le fait pour qu'il soit DIT et non redécouvert, des deux côtés :
+    dans les octets, dans la docstring, et dans le hint de l'écran."""
+    from app.services.cards import forge3d_scene as SC
+    import itertools
+    calques = [_png_bytes_de(Image.new("L", (32, 32), v))
+               for v in (0, 90, 180, 255)]
+    sorties = {SC.holo_finish("argent", False, 64,
+                              motifs=[(c, 1.0) for c in p])["iridescence"]["png"]
+               for p in itertools.permutations(calques)}
+    assert len(sorties) == 1, (
+        f"{len(sorties)} sorties pour 24 permutations a part pleine : "
+        f"l'operateur n'est plus celui que la docstring decrit")
+    # ...et DÈS QU'UNE PART EST < 1, l'ordre reprend ses droits
+    melange = [(calques[1], 1.0), (calques[2], 0.5), (calques[3], 0.8)]
+    sorties2 = {SC.holo_finish("argent", False, 64,
+                               motifs=list(p))["iridescence"]["png"]
+                for p in itertools.permutations(melange)}
+    assert len(sorties2) > 1, "l'ordre ne compte plus nulle part"
+    # LE FAIT EST ÉCRIT LÀ OÙ ON LE LIRA : la docstring de l'encodeur et le
+    # hint de l'écran. Une propriété mesurée mais tue est une propriété qu'on
+    # redécouvrira en revue (c'est exactement ce qui vient d'arriver).
+    # CLIQUET, PAS PREUVE (le mot du lint de ce dépôt) : aucun test ne peut
+    # juger de la PROSE. Ce pin s'accroche donc à la seule chose falsifiable
+    # qu'elle contienne — l'ÉGALITÉ mesurée ci-dessus, écrite en toutes
+    # lettres. Une première version cherchait « part pleine » et
+    # « commutatif » : deux mots assez communs dans ce paragraphe pour
+    # survivre à la suppression de la phrase qui porte le fait (mutant
+    # survivant, mesuré). L'égalité, elle, ne survit pas à une paraphrase qui
+    # perdrait le fond.
+    doc = SC._holo_thickness_bytes.__doc__
+    assert "min(g + lum, 255)" in doc, doc
+    js = re.sub(r"/\*.*?\*/", " ", JS.read_text(encoding="utf-8"), flags=re.S)
+    corps = js.split("function motifsHtml(")[1].split("\n  }")[0]
+    assert "part est < 1" in corps or "part < 1" in corps, corps[-600:]
+
+
+def test_la_part_par_defaut_laisse_vivre_l_arc_en_ciel():
+    """F3 (revue adverse) — le défaut de part ne peut pas être le MAXIMUM de
+    la plage. Mesuré : une source claire PLEIN-CADRE (et `paper`/`mat:` le
+    sont exactement) à part pleine écrase la recette 2b — blanc pur -> le
+    canal G tombe à UN SEUL niveau, les franges pour lesquelles
+    l'iridescence existe DISPARAISSENT.
+
+    Le défaut retenu garde les 8 niveaux de l'arc-en-ciel VIVANTS même sur le
+    pire cas, et l'écran NOMME quand même la conséquence d'une part pleine."""
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
+
+    def niveaux(png):
+        return set(_canal_g(png).getdata())
+
+    nu = niveaux(SC._holo_thickness_png(128))
+    assert len(nu) == 8                       # les 8 marches de la recette 2b
+    blanc = _png_bytes_de(Image.new("L", (48, 48), 255))
+    defaut = SC.MOTIF_GAIN_DEFAULT
+    assert F9.MOTIF_GAIN[0] < defaut < F9.MOTIF_GAIN[1], defaut
+    pose = niveaux(SC.holo_finish("argent", False, 128,
+                                  motifs=[(blanc, defaut)])["iridescence"]["png"])
+    assert len(pose) == 8, (defaut, sorted(pose))
+    assert max(pose) - min(pose) >= 120, (defaut, min(pose), max(pose))
+    # à part PLEINE, le même calque tue les franges — c'est ce qu'on refuse
+    # d'imposer par défaut (et ce que l'écran dit)
+    plein = niveaux(SC.holo_finish("argent", False, 128,
+                                   motifs=[(blanc, 1.0)])["iridescence"]["png"])
+    assert len(plein) == 1, sorted(plein)
+    # ...et AU DÉFAUT le sigle découpé se lit encore (le motif reste le sujet)
+    sig = _sigil(256, 0.28)
+    g = _canal_g(SC.holo_finish("argent", False, 256,
+                                motifs=[(sig, defaut)])["iridescence"]["png"])
+    ref = Image.open(io.BytesIO(sig)).convert("L").resize((256, 256),
+                                                          Image.BICUBIC)
+    din = [v for l, v in zip(ref.getdata(), g.getdata()) if l > 200]
+    dout = [v for l, v in zip(ref.getdata(), g.getdata()) if l < 30]
+    assert sum(din) / len(din) - sum(dout) / len(dout) > 40
+    # LE DÉFAUT A UNE SEULE SOURCE : le module scène. `clean_graph` le pose,
+    # /info le publie, l'écran le lit — jamais un « 1 » recopié quelque part.
+    g2 = {"nodes": [{"id": "m", "kind": "material", "finish": "argent",
+                     "motifs": [{"src": "paper"}]}], "edges": []}
+    assert F9.clean_graph(g2)["nodes"][0]["motifs"][0]["gain"] == defaut
+    js = re.sub(r"/\*.*?\*/", " ", JS.read_text(encoding="utf-8"), flags=re.S)
+    corps = js.split("function motifsHtml(")[1].split("\n  }")[0]
+    assert "plein-cadre" in corps, corps[-700:]
+
+
+def test_un_calque_illisible_ne_coute_PLUS_toute_la_finition():
+    """F2 (revue adverse, scénario MESURÉ sur l'app vivante) — la docstring
+    promettait « un calque mort ne coûte ni l'artefact ni la finition… DIT,
+    avec sa source ». C'était vrai d'un fichier ABSENT et FAUX d'un fichier
+    CORROMPU : l'échec de décodage explosait dans `holo_finish`, atterrissait
+    dans l'except de `_habille`, et emportait la recette ENTIÈRE — avec un
+    message qui ne nommait même pas le calque.
+
+    Chaque calque est donc VALIDÉ un par un, à l'endroit qui sait qui il est."""
+    from app.services.cards.contract import deck_dir
+    did = _deck("Calque corrompu")
+    _exporter_couches(did)
+    # un PNG TRONQUÉ : l'en-tête est bon, le décodage casse (le cas qui
+    # passait toutes les gardes de la route d'import puis mourait au build)
+    entier = _sigil(128, 0.3)
+    d = deck_dir(did) / "type"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "img_1.png").write_bytes(entier[:len(entier) // 2])
+    (d / "img_2.png").write_bytes(entier)
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 0.2},
+        {"id": "mt", "kind": "material", "finish": "dorure", "aniso": False,
+         "motifs": [{"src": "img:img_1.png", "gain": 1.0},
+                    {"src": "img:img_2.png", "gain": 1.0}]},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "corrompu"}],
+        "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "mt"},
+                  {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    art = r.json()["artifact"]
+    # LA FINITION SURVIT — c'est tout l'objet du correctif
+    doc, binv = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}").content)
+    assert "KHR_materials_iridescence" in doc["extensionsUsed"], art["ignored"]
+    iri = doc["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceIor"] == 1.6                  # la DORURE demandée
+    # L'AVEU NOMME LE CALQUE, pas « la finition »
+    dits = [x["why"] for x in art["ignored"] if "img_1.png" in (x.get("why") or "")]
+    assert dits, art["ignored"]
+    assert "finition ignoree" not in " ".join(dits), dits
+    assert not [x for x in art["ignored"] if "img_2.png" in (x.get("why") or "")]
+    # ...et le calque SAIN a bel et bien déposé (le mort est retiré, pas la pile)
+    idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][idx]["bufferView"]]
+    gband = Image.open(io.BytesIO(
+        binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]])
+    ).convert("RGB").split()[1]
+    from app.services.cards import forge3d_scene as SC
+    nu = _canal_g(SC._holo_thickness_png(gband.size[0]))
+    assert list(gband.getdata()) != list(nu.getdata())
+
+
+def test_les_refus_de_motif_nomment_le_MAGASIN_exact():
+    """F4 (revue adverse) — une matière de la boutique est APP-WIDE, pas
+    rangée dans le jeu : dire « fichier absent de ce jeu » est le message que
+    produira une machine ÉTRANGÈRE (le deck voyage, la boutique non), et il
+    enverrait chercher au mauvais endroit."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Magasins")
+    ignores: list = []
+    F9._motifs_resolus(did, {"id": "mt", "motifs": [
+        {"src": "mat:mat_dead1234", "gain": 1.0},
+        {"src": "img:img_7.png", "gain": 1.0},
+        {"src": "paper", "gain": 1.0}]}, ignores)
+    pourquoi = {x["why"] for x in ignores}
+    assert len(pourquoi) == 3, pourquoi
+    boutique = [w for w in pourquoi if "mat_dead1234" in w][0]
+    assert "boutique" in boutique and "poste" in boutique, boutique
+    assert "ce jeu" not in boutique, boutique
+    jeu = [w for w in pourquoi if "img_7.png" in w][0]
+    assert "ce jeu" in jeu, jeu
+    # l'aveu « motifs sans finition holo » ne doit pas se lire « ou » pour
+    # « où » une fois l'accent avalé par l'ASCII du bordereau
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 0.2},
+        {"id": "mt", "kind": "material", "mat": None, "finish": "aucune",
+         "motifs": [{"src": "paper"}]},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "sansholo"}],
+        "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "mt"},
+                  {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]}
+    # (le nœud matière sans matière NI finition est jeté : on le prouve à part)
+    assert F9.clean_graph(g)["nodes"] == [n for n in F9.clean_graph(g)["nodes"]]
+    phrase = F9._SANS_HOLO
+    assert "rien ou incruster" not in phrase, phrase
+    assert "aucun endroit" in phrase, phrase
+
+
+def test_la_liste_blanche_des_sources_est_un_FULLMATCH():
+    """Nit (le piège une TROISIÈME fois) : `re.match` + `$` accepte un saut
+    de ligne FINAL — « img:img_1.png\\n » traversait le nettoyage et allait
+    composer un chemin. `fullmatch`, comme `_scan_motif_sources` juste à
+    côté."""
+    from app.services.cards import forge3d as F9
+    for pourri in ("img:img_1.png\n", "paper\n", "mat:mat_0123abcd\n",
+                   "img:img_1.png\nimg:img_2.png", " paper", "paper "):
+        assert not F9._motif_src_ok(pourri), pourri
+        g = {"nodes": [{"id": "m", "kind": "material", "finish": "argent",
+                        "motifs": [{"src": pourri}]}], "edges": []}
+        assert F9.clean_graph(g)["nodes"][0]["motifs"] == [], pourri
+    for bon in ("img:img_1.png", "paper", "mat:mat_0123abcd"):
+        assert F9._motif_src_ok(bon), bon
+
+
+def test_motif_sources_refuse_un_jeu_inconnu_et_un_id_malforme():
+    """Nit : les deux refus de la route, comme ses voisines — 400 sur un
+    identifiant hors forme, 404 sur un jeu qui n'existe pas. Un 500 sur l'un
+    des deux serait la panne que la doctrine 2.5 interdit."""
+    r = _api("GET", "/api/cards/pas-un-id/forge3d/motif-sources")
+    assert r.status_code == 400, r.text
+    r = _api("GET", "/api/cards/deck_00000000/forge3d/motif-sources")
+    assert r.status_code == 404, r.text
+
+
 def test_un_motif_detoure_ne_depose_rien_sous_sa_transparence():
     """`convert("L")` IGNORE l'alpha : un sigle détouré dont les pixels
     INVISIBLES portent du blanc (le cas ordinaire d'un PNG détouré, et le
@@ -3039,7 +3250,7 @@ def test_un_motif_detoure_ne_depose_rien_sous_sa_transparence():
     # un calque ILLISIBLE lève NOMMÉMENT (l'appelant en fait un aveu)
     with pytest.raises(ValueError) as e:
         SC.holo_finish("argent", False, 64, motifs=[(b"pas une image", 1.0)])
-    assert "motif" in str(e.value).lower()
+    assert "illisible" in str(e.value).lower()
 
 
 def test_le_cache_d_epaisseur_est_re_cle_sur_la_pile_sans_collision():
@@ -3119,7 +3330,11 @@ def test_clean_graph_borne_les_motifs_du_noeud_material():
     assert [m["src"] for m in mot] == ["img:img_3.png", "paper",
                                        "mat:mat_0123abcd", "img:img_4.png"]
     assert mot[0]["gain"] == 0.5
-    assert mot[1]["gain"] == 1.0                    # défaut : la part pleine
+    # DÉFAUT, pas plafond (correction de revue F3) : une part absente prend la
+    # valeur SERVIE, qui n'est plus le maximum de la plage — une source claire
+    # plein-cadre à part pleine écrase l'arc-en-ciel de base.
+    assert mot[1]["gain"] == F9.MOTIF_GAIN_DEFAULT
+    assert F9.MOTIF_GAIN_DEFAULT < F9.MOTIF_GAIN[1]
     assert mot[2]["gain"] == F9.MOTIF_GAIN[1]       # ramené au plafond
     assert mot[3]["gain"] == F9.MOTIF_GAIN[0]       # ramené au plancher
     # une pile qui n'est pas une liste, ou absente : une pile VIDE, jamais 500
@@ -3283,6 +3498,180 @@ def test_la_route_motif_sources_agrege_les_sources_du_jeu():
         assert garde == tous[:F9.MOTIF_MAX]
     finally:
         MSTORE.delete_material(mat["id"])
+
+
+def _pose_sceau(did, **champs):
+    """`doc.frame.seal` posé sur le jeu — par le CŒUR (`patch_deck`), qui est
+    la voie partagée du document, jamais par un import du routeur de P2."""
+    from app.services.cards.core import read_deck, patch_deck
+    frame = dict(read_deck(did).get("frame") or {})
+    seal = dict(frame.get("seal") or {})
+    seal.setdefault("kind", "argent")
+    seal.setdefault("width_mm", 1.2)
+    scope = dict(seal.get("scope") or {})
+    for k, v in champs.items():
+        (scope if k in ("screen", "print", "mesh") else seal)[k] = v
+    seal["scope"] = {"screen": scope.get("screen", False),
+                     "print": scope.get("print", False),
+                     "mesh": scope.get("mesh", False)}
+    frame["seal"] = seal
+    assert patch_deck(did, {"frame": frame}) is not None
+
+
+def _graphe_cadre(mat=None, nom="sceau3d"):
+    n = [{"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+         {"id": "p", "kind": "plane", "depth_mm": 0.2},
+         {"id": "asm", "kind": "assemble"},
+         {"id": "art", "kind": "artifact", "name": nom}]
+    e = [{"from": "s", "to": "p"}, {"from": "p", "to": "asm"},
+         {"from": "asm", "to": "art"}]
+    if mat is not None:
+        n.insert(2, dict(mat, id="mt", kind="material"))
+        e = [{"from": "s", "to": "p"}, {"from": "p", "to": "mt"},
+             {"from": "mt", "to": "asm"}, {"from": "asm", "to": "art"}]
+    return {"nodes": n, "edges": e}
+
+
+def test_le_sceau_3d_habille_le_CADRE_ENTIER_et_le_dit_au_bordereau():
+    """Décision 4 du plan 3c, CÂBLÉE (les deux moitiés existent : la T1 a
+    livré `doc.frame.seal`). « 3D uniquement » = scope {screen:false,
+    print:false, mesh:true} : SEUL le nœud 3D reçoit le matériau iridescent.
+
+    Trois faits, mesurés dans le GLB livré et dans le bordereau :
+      1. seal.mesh + couche `cadre` SANS nœud material -> la recette du kind
+         du Sceau habille l'élément, et le bordereau DIT que c'est la COUCHE
+         ENTIÈRE (l'isolation d'une sous-région n'existe pas — §6.2bis-d) ;
+      2. un nœud material qui NOMME une finition l'emporte (l'explicite gagne
+         sur l'implicite), et le Sceau écarté est AVOUÉ ;
+      3. scope.mesh à false -> rien, aucune extension, aucun aveu."""
+    did = _deck("Sceau 3D")
+    _exporter_couches(did)
+
+    def build(g, nom):
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        a = r.json()["artifact"]
+        d, _ = _read_glb(_api(
+            "GET", f"/api/cards/{did}/forge3d/file/{a['glb']['name']}").content)
+        return a, d
+
+    # ── 3. le Sceau ÉTEINT (défaut) ne touche à rien ────────────────────────
+    a, d = build(_graphe_cadre(nom="eteint"), "eteint")
+    assert "extensionsUsed" not in d
+    assert a["ignored"] == [] and all("seal" not in x for x in a["elements_detail"])
+    # ...ni le Sceau allumé SANS la portée 3D
+    _pose_sceau(did, on=True, kind="dorure", screen=True, mesh=False)
+    a, d = build(_graphe_cadre(nom="ecran"), "ecran")
+    assert "extensionsUsed" not in d, d.get("extensionsUsed")
+    assert all("seal" not in x for x in a["elements_detail"]), a["elements_detail"]
+
+    # ── 1. portée 3D, aucune matière chaînée : la recette du kind s'applique ─
+    _pose_sceau(did, on=True, kind="dorure", screen=False, print=False,
+                mesh=True)
+    a, d = build(_graphe_cadre(nom="mesh"), "mesh")
+    assert set(d["extensionsUsed"]) == {"KHR_materials_iridescence",
+                                        "KHR_materials_clearcoat"}
+    iri = d["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceIor"] == 1.6                 # la DORURE, pas l'argent
+    assert d["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] == \
+        [1.0, 0.84, 0.55, 1.0]
+    # L'HONNÊTETÉ EST AU BORDEREAU, sur l'élément concerné — et « ignored »
+    # reste ce qu'il est (ce qui a été PERDU) : appliquer le Sceau n'est pas
+    # une perte, c'est un fait à dire.
+    assert a["ignored"] == [], a["ignored"]
+    ligne = [x for x in a["elements_detail"] if x.get("seal")]
+    assert len(ligne) == 1, a["elements_detail"]
+    assert ligne[0]["node"] == "p" and ligne[0]["seal"]["kind"] == "dorure"
+    assert "entiere" in ligne[0]["seal"]["why"].lower()
+    # une couche qui n'est PAS le cadre ne reçoit rien
+    g2 = _graphe_cadre(nom="autre")
+    g2["nodes"][0]["role"] = "illustration"
+    a2, d2 = build(g2, "autre")
+    assert "extensionsUsed" not in d2
+    assert all("seal" not in x for x in a2["elements_detail"])
+
+    # ── 1bis. UN CADRE PORTÉ PAR UN MOTEUR : le Sceau ne monte pas dessus,
+    #          et il le DIT (mêmes raisons que la matière chaînée sur mesh3d,
+    #          avouée depuis la 2b — un silence ici serait le pire des deux :
+    #          l'utilisateur a coché, l'écran n'a rien à répondre).
+    _job_servi(did, "m1", _glb_externe_63x88(), closed=True, engine="tripo")
+    gm = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "m1", "kind": "mesh3d", "engine": "tripo"},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "moteur"}],
+        "edges": [{"from": "s", "to": "m1"}, {"from": "m1", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    rm = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+              json={"graph": gm, "card": 0})
+    assert rm.status_code == 200, rm.text
+    am = rm.json()["artifact"]
+    dit = [x for x in am["ignored"] if "sceau 3D" in (x.get("why") or "")]
+    assert dit and dit[0]["node"] == "m1", am["ignored"]
+    assert "moteur" in dit[0]["why"]
+    assert all("seal" not in x for x in am["elements_detail"])
+
+    # ── 2. L'EXPLICITE GAGNE : un material qui nomme une finition ───────────
+    a, d = build(_graphe_cadre({"finish": "argent"}, nom="explicite"),
+                 "explicite")
+    iri = d["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceIor"] == 1.8                 # l'ARGENT du nœud
+    assert all("seal" not in x for x in a["elements_detail"]), a["elements_detail"]
+    ecarte = [x for x in a["ignored"] if "ceau" in (x.get("why") or "")]
+    assert ecarte and ecarte[0]["node"] == "mt", a["ignored"]
+    assert "explicite" in ecarte[0]["why"].lower()
+    # ...et un material SANS finition nommée laisse le Sceau combler le silence
+    from app.services import material_store as MSTORE
+    mat = MSTORE.create_material(name="sceau-silence")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (16, 16), (90, 90, 90)),
+            "normal": Image.new("RGB", (16, 16), (128, 128, 255))})
+        a, d = build(_graphe_cadre({"mat": mat["id"], "finish": "aucune"},
+                                   nom="silence"), "silence")
+        assert "KHR_materials_iridescence" in d["extensionsUsed"]
+        assert [x for x in a["elements_detail"] if x.get("seal")]
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_le_kind_du_sceau_est_LE_MEME_vocabulaire_des_deux_cotes():
+    """Parité d'EXÉCUTION, pas de prose : les `SEAL_KINDS` que P2 publie sont
+    EXACTEMENT les recettes que P9 sait cuire. Le jour où l'un des deux gagne
+    un métal, ce test tombe — au lieu d'un Sceau silencieusement ignoré au
+    build, ou pire, remplacé par l'argent."""
+    from app.services.cards import frame as P2
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
+    assert tuple(k["id"] for k in P2.SEAL_KINDS) == SC.HOLO_KINDS
+    # le DÉFAUT recopié localement (règle 8) est bien celui de P2
+    assert F9._SEAL_KIND_DEFAULT == P2.SEAL_DEFAULTS["kind"]
+    # et le lecteur LOCAL de P9 (règle 8 : aucun import de P2 dans le code)
+    # rend les mêmes trois champs que la normalisation de P2.
+    for brut in ({}, {"on": True, "kind": "dorure",
+                      "scope": {"mesh": True}},
+                 {"on": "oui", "kind": "cuivre", "scope": "non"},
+                 {"on": True, "kind": None, "scope": {"mesh": True}},
+                 {"on": True, "kind": "argent", "scope": {"mesh": "peut-etre"}}):
+        p2 = P2.seal_of(brut)
+        p9 = F9._sceau_du_doc({"frame": {"seal": brut}})
+        assert p9["on"] == p2["on"], brut
+        assert p9["mesh"] == p2["scope"]["mesh"], brut
+        # DEUX CAS QUE P2 CONFOND, séparés ici. Métal ABSENT = « non dit » :
+        # le schéma partagé lui donne un défaut, les deux côtés s'accordent.
+        # Métal DIT MAIS ILLISIBLE : P2 le remplace par l'argent (il doit bien
+        # peindre quelque chose), P9 REFUSE de cuire — livrer un métal faux
+        # sans un mot est exactement ce que `holo_finish` existe pour empêcher.
+        if "kind" not in brut or brut["kind"] in SC.HOLO_KINDS:
+            assert p9["kind"] == p2["kind"], brut
+        else:
+            assert p9["kind"] is None and p2["kind"] == "argent", brut
+    # ...et le refus se DIT au build plutôt que de livrer l'argent en douce
+    ig: list = []
+    assert F9._scelle({}, {"role": "cadre"}, None,
+                      {"on": True, "kind": None, "mesh": True}, ig) == {}
+    assert ig and "hors des recettes" in ig[0]["why"], ig
 
 
 def test_l_ecran_pose_les_motifs_sur_le_noeud_matiere_et_dit_ou_ca_se_voit():

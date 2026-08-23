@@ -39,7 +39,8 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
                             trs_de_face, HOLO_KINDS, HOLO_PX,
-                            MOTIF_MAX, MOTIF_GAIN)
+                            MOTIF_MAX, MOTIF_GAIN, MOTIF_GAIN_DEFAULT,
+                            motif_probe)
 # DEUXIÈME couture intra-pièce (délestage 2c, tâche 6) : la résolution des
 # chaînes du graphe, la fabrique d'UN élément et les règles du GLB d'un nœud
 # moteur SERVI vivent dans forge3d_apercu.py — le bloc que l'inspecteur et la
@@ -194,6 +195,14 @@ MOTIF_MAX_BYTES = 64 * 1024 * 1024   # même plafond que MAX_LAYER_BYTES : un
                                       # motif est une image de carte, et il est
                                       # PESÉ avant d'être décodé (seul ordre
                                       # qui protège la mémoire, spec 2.5)
+# L'AVEU SANS ACCENT, ÉCRIT UNE FOIS. Le bordereau part en ASCII (le reste de
+# ce fichier écrit « ignoree », « perime ») — et « rien où incruster » y
+# devenait « rien ou incruster », qui se lit comme une alternative et non
+# comme un lieu (relevé en revue adverse, F4). La tournure choisie ne peut
+# pas se relire de travers une fois l'accent tombé.
+_SANS_HOLO = ("motif(s) poses sans finition holographique : aucun endroit "
+              "ou s'incruster (le canal d'epaisseur n'existe qu'en argent "
+              "ou dorure)")
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -335,7 +344,13 @@ async def get_info(did: str):
             "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
                                 "finishes": list(MATERIAL_FINISHES),
                                 "motif_max": MOTIF_MAX,
-                                "motif_gain": list(MOTIF_GAIN)},
+                                "motif_gain": list(MOTIF_GAIN),
+                                # le DÉFAUT, pas seulement les bornes :
+                                # `clean_graph` le pose et l'écran doit poser
+                                # LE MÊME (un « 1 » recopié à l'écran ferait
+                                # naître un calque que le serveur ramènerait
+                                # aussitôt, sans que personne ne le voie).
+                                "motif_gain_default": MOTIF_GAIN_DEFAULT},
             "transform_limits": {"xy_mm": list(TRANSFORM_XY_MM),
                                  "z_mm": list(TRANSFORM_Z_MM),
                                  "rot_deg": list(TRANSFORM_ROT_DEG),
@@ -469,12 +484,18 @@ def _motif_src_ok(src) -> bool:
     celui de l'extension : « img:../../meta.json » n'y ressemble pas de loin,
     et c'est délibérément ce contrôle-CI qui le refuse, pas la lecture du
     fichier plus tard (liste blanche AVANT le disque — le patron durci de la
-    2c, `get_node_file`)."""
+    2c, `get_node_file`).
+
+    `fullmatch`, ET PAS `match` + `$` — le piège pour la TROISIÈME fois dans
+    ce dépôt : `$` accepte un saut de ligne FINAL, si bien que
+    « img:img_1.png\\n » traversait le nettoyage et allait composer un chemin.
+    `_scan_motif_sources`, juste à côté, utilise déjà `fullmatch` : deux
+    orthographes de la même règle, et une seule des deux disait vrai."""
     if not isinstance(src, str):
         return False
     if src == MOTIF_PAPER:
         return True
-    return bool(_MOTIF_IMG_RE.match(src) or _MOTIF_MAT_RE.match(src))
+    return bool(_MOTIF_IMG_RE.fullmatch(src) or _MOTIF_MAT_RE.fullmatch(src))
 
 
 def _clean_motifs(raw) -> list:
@@ -493,7 +514,8 @@ def _clean_motifs(raw) -> list:
         if not isinstance(m, dict) or not _motif_src_ok(m.get("src")):
             continue
         out.append({"src": m["src"],
-                    "gain": _num(m.get("gain"), MOTIF_GAIN[1], *MOTIF_GAIN)})
+                    "gain": _num(m.get("gain"), MOTIF_GAIN_DEFAULT,
+                                 *MOTIF_GAIN)})
         if len(out) >= MOTIF_MAX:
             break
     return out
@@ -1317,13 +1339,22 @@ def _motif_bytes(did: str, src: str) -> bytes:
     hors vocabulaire, absente du disque, illisible ou trop lourde — l'appelant
     en fait un aveu au bordereau, jamais un 500.
 
+    LE MESSAGE D'ABSENCE NOMME LE BON MAGASIN (correction de revue adverse,
+    F4). Une matière de la boutique est APP-WIDE : elle vit à côté de
+    l'application, pas dans le jeu. Répondre « fichier absent de ce jeu » est
+    le message qu'une machine ÉTRANGÈRE produira dès qu'un deck voyagera sans
+    sa boutique — et il enverrait chercher exactement au mauvais endroit.
+
     Le fichier est PESÉ avant d'être lu : ces images viennent de nos propres
     routes d'import (déjà bornées), mais un dossier de jeu est un dossier
     ORDINAIRE que rien n'empêche de remplir à la main."""
     p = _motif_path(did, src)
+    ou = ("absente de la boutique de ce poste (les matieres ne voyagent pas "
+          "avec le jeu)" if _MOTIF_MAT_RE.fullmatch(src)
+          else "fichier absent de ce jeu")
     try:
         if not p.is_file():
-            raise ValueError("fichier absent de ce jeu")
+            raise ValueError(ou)
         poids = p.stat().st_size
         if poids > MOTIF_MAX_BYTES:
             raise ValueError(f"{poids // 1048576} Mo : au-dela du plafond "
@@ -1339,7 +1370,16 @@ def _motifs_resolus(did, mat_n: dict, ignores: list) -> list:
     """La pile de motifs d'un nœud matière, RÉSOLUE en octets — et ce qui n'a
     pas pu l'être, AVOUÉ nommément (doctrine `ignored`, la même que la matière
     introuvable juste en dessous). Un calque mort ne coûte ni l'artefact ni la
-    finition : il est retiré de la pile et il est DIT, avec sa source."""
+    finition : il est retiré de la pile et il est DIT, avec sa source.
+
+    CHAQUE CALQUE EST DÉCODÉ ICI, UN PAR UN (correction de revue adverse, F2).
+    La phrase ci-dessus n'était vraie que d'un fichier ABSENT : un fichier
+    PRÉSENT MAIS CORROMPU (PNG tronqué sur le disque du jeu — mesuré sur
+    l'application vivante) échouait au fond de `holo_finish`, atterrissait
+    dans l'`except` de `_habille` et emportait la RECETTE ENTIÈRE, avec un
+    aveu qui parlait de « finition ignorée » sans nommer le calque. Ce module
+    est le SEUL à savoir d'où vient chaque calque : c'est donc ici que la
+    validation appartient, `motif_probe` par `motif_probe`."""
     pile: list = []
     for m in (mat_n.get("motifs") or []):
         src = m.get("src")
@@ -1347,7 +1387,12 @@ def _motifs_resolus(did, mat_n: dict, ignores: list) -> list:
             if did is None:
                 raise ValueError(f"motif « {src} » : sources de jeu "
                                  f"indisponibles dans ce contexte")
-            pile.append((_motif_bytes(did, src), m.get("gain")))
+            octets = _motif_bytes(did, src)
+            try:
+                motif_probe(octets)
+            except ValueError as e:
+                raise ValueError(f"motif « {src} » : {e}")
+            pile.append((octets, m.get("gain")))
         except ValueError as e:
             ignores.append({"node": mat_n["id"],
                             "why": f"{e}, calque retire de la pile"})
@@ -1407,9 +1452,86 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
         # le silence que le bordereau `ignored` existe pour rompre.
         ignores.append({
             "node": mat_n["id"],
-            "why": f"{len(mat_n['motifs'])} motif(s) poses sans finition "
-                   f"holographique : rien ou incruster (le canal "
-                   f"d'epaisseur n'existe qu'en argent ou dorure)"})
+            "why": f"{len(mat_n['motifs'])} {_SANS_HOLO}"})
+
+
+# ── LE SCEAU PRISMATIQUE, PORTÉE 3D (3c, décision 4 du plan) ────────────────
+# §6.2bis-d : « "3D uniquement" est une configuration de premier rang [...] et
+# SEUL le nœud 3D de bout de chaîne reçoit le matériau iridescent ». La vérité
+# du Sceau vit dans `doc.frame.seal` (livré par la T1) ; P9 la LIT dans le
+# document du jeu — une lecture d'état partagé, pas un import du routeur de P2
+# (règle 8 : ce fichier n'importe le routeur d'aucun autre, et n'importe pas
+# frame.py du tout). D'où ce lecteur LOCAL, au même patron de copie que
+# `_dpi_to_ppm`, avec sa parité testée contre `frame.seal_of`.
+_SEAL_MESH_WHY = ("sceau 3D : la COUCHE ENTIERE recoit la finition — "
+                  "l'isolation d'une sous-region n'existe pas dans l'export "
+                  "par couches (only_z porte sur une bande entiere)")
+# COPIE LOCALE du défaut de `frame.SEAL_DEFAULTS["kind"]` (règle 8, même patron
+# que `_dpi_to_ppm`), avec sa parité testée. Un Sceau dont le document ne dit
+# PAS le métal en nomme un quand même — par le schéma partagé, qui a un défaut.
+_SEAL_KIND_DEFAULT = "argent"
+
+
+def _sceau_du_doc(doc) -> dict:
+    """`{on, kind, mesh}` — les TROIS champs du Sceau que la 3D consomme, lus
+    défensivement dans le document du jeu. Ne lève jamais.
+
+    DEUX CAS QUE `frame.seal_of` CONFOND, et qu'il faut séparer ici. Un métal
+    ABSENT n'est pas un métal INCONNU : le premier est « non dit », et le
+    schéma partagé lui donne un défaut (argent) — le document le nomme donc,
+    par omission, et P9 le cuit comme P2 le peindrait. Le second est « dit,
+    mais illisible » : y répondre par l'argent livrerait un métal FAUX sans un
+    mot, exactement ce que la ValueError nommée de `holo_finish` existe pour
+    empêcher. D'où le `None`, dont l'appelant fait un aveu. La parité avec P2
+    est testée sur les deux branches, divergence comprise."""
+    d = doc if isinstance(doc, dict) else {}
+    f = d.get("frame")
+    s = f.get("seal") if isinstance(f, dict) else None
+    s = s if isinstance(s, dict) else {}
+    sc = s.get("scope")
+    sc = sc if isinstance(sc, dict) else {}
+    k = s.get("kind", _SEAL_KIND_DEFAULT)
+    return {"on": s.get("on") is True,
+            "kind": k if k in HOLO_KINDS else None,
+            "mesh": sc.get("mesh") is True}
+
+
+def _scelle(el: dict, layer: dict, mat_n, sceau: dict, ignores: list) -> dict:
+    """La finition du Sceau posée sur UN élément, quand elle lui revient.
+    Rend l'entrée à joindre au bordereau de cet élément (ou `{}`).
+
+    LA RÈGLE, EN UNE PHRASE : le Sceau COMBLE LE SILENCE du graphe, il ne
+    couvre jamais une parole. Un nœud `material` qui NOMME une finition
+    l'emporte — y compris quand cette finition a échoué (un motif corrompu),
+    parce que substituer alors la recette du Sceau masquerait la panne sous un
+    résultat plausible. Un `material` qui ne nomme rien (« aucune », le défaut
+    du menu) laisse le Sceau parler, et le bordereau le DIT.
+
+    L'HONNÊTETÉ DE PORTÉE EST OBLIGATOIRE ET VA AU BORDEREAU, PAS À `ignored`
+    (qui ne nomme que ce qui a été PERDU — invariant de la 2c, épinglé) :
+    appliquer le Sceau est un FAIT à dire, pas une perte. L'inverse — le Sceau
+    écarté par un nœud explicite — est bien une perte, et va donc, lui, dans
+    `ignored`."""
+    if not (sceau.get("on") and sceau.get("mesh")):
+        return {}
+    if (layer or {}).get("role") != "cadre":
+        return {}
+    if sceau.get("kind") is None:
+        ignores.append({"node": (mat_n or {}).get("id") or "seal",
+                        "why": "sceau 3D ignore : metal hors des recettes "
+                               f"connues ({', '.join(HOLO_KINDS)})"})
+        return {}
+    nomme = (isinstance(mat_n, dict)
+             and mat_n.get("finish") not in (None, "", "aucune"))
+    if nomme:
+        ignores.append({
+            "node": mat_n["id"],
+            "why": f"sceau 3D ecarte sur cette couche : le noeud material y "
+                   f"nomme deja « {mat_n['finish']} » — l'explicite l'emporte "
+                   f"sur l'implicite"})
+        return {}
+    el["finish"] = holo_finish(sceau["kind"], False)
+    return {"seal": {"kind": sceau["kind"], "why": _SEAL_MESH_WHY}}
 
 
 def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
@@ -1590,6 +1712,7 @@ async def post_build3d(did: str, body: dict | None = None):
     # aucune chance d'en dériver une seconde qui divergerait de l'autre.
     w_mm, h_mm = g.trim_mm
     doc_name = doc.get("name") or did
+    sceau = _sceau_du_doc(doc)      # 3c : la portée 3D du Sceau prismatique
 
     def work() -> dict:
         t0 = time.perf_counter()
@@ -1621,12 +1744,33 @@ async def post_build3d(did: str, body: dict | None = None):
                 bordereau.append({"name": nom_el, "kind": "externe",
                                   "node": proc["id"], "engine": ex["engine"],
                                   "credits": ex["credits"], **cote})
+                # LE SCEAU NON PLUS NE MONTE PAS SUR UN GLB DE MOTEUR, et il
+                # faut le DIRE — exactement comme la matière chaînée sur un
+                # mesh3d, avouée depuis la 2b (`_resolve_graph_elements`). Sans
+                # cette ligne, allumer la portée 3D sur un cadre porté par un
+                # moteur ne faisait RIEN, en silence : le pire des deux
+                # (l'utilisateur a coché, l'écran n'a rien à répondre).
+                if (sceau.get("on") and sceau.get("mesh")
+                        and layer.get("role") == "cadre"):
+                    ignores.append({
+                        "node": proc["id"],
+                        "why": "sceau 3D ignore sur cette couche : le GLB du "
+                               "moteur porte deja ses materiaux (la portee 3D "
+                               "du Sceau habille un plan ou un relief)"})
                 continue
             elements.append(_element_local(
                 out, proc, layer, nom_el, mat_n, trs_n, card_label, g,
                 ignores, did))
+            # LE SCEAU, PORTÉE 3D (3c) : APRÈS l'habillage, parce que la règle
+            # est « combler le silence » — il faut d'abord savoir si le graphe
+            # a parlé. La clé `seal` n'apparaît que sur l'élément qui la
+            # reçoit, exactement comme `cote` juste au-dessus : l'ajouter
+            # partout changerait le bordereau de TOUS les artefacts pour une
+            # information qu'ils n'ont pas.
             bordereau.append({"name": nom_el, "kind": "local",
-                              "node": proc["id"], **cote})
+                              "node": proc["id"], **cote,
+                              **_scelle(elements[-1], layer, mat_n, sceau,
+                                        ignores)})
         t_resolve = time.perf_counter()
 
         extras = {"deck": doc_name, "card": card_label, "format": g.fmt,
@@ -2610,6 +2754,13 @@ async def post_node_preview(did: str, body: dict | None = None):
             _out_dir(did), ch["proc"], ch["layer"],
             nom_element(ch["layer"]), ch["mat"], ch["trs"],
             card_label, g, ignored, did)
+        # APERÇU == FICHIER (barre de qualité §6.2bis :443) : le Sceau à
+        # portée 3D habille l'élément ICI AUSSI, sinon l'inspecteur montrerait
+        # un cadre nu que la construction livrerait iridescent. Il n'y a pas
+        # de bordereau dans un aperçu — l'aveu de portée appartient au build,
+        # qui écrit un livrable ; ce qui est PERDU, lui, part dans `ignored`,
+        # que l'aperçu porte déjà dans ses extras.
+        _scelle(el, ch["layer"], ch["mat"], _sceau_du_doc(doc), ignored)
         # I1 : `ignored` porte ICI tout ce qui a ete ecarte — les entrees
         # d'avant l'appel (source/maillon surnumeraire, sub_ignores) ET
         # celles que `_element_local`/`_habille` viennent d'y ajouter

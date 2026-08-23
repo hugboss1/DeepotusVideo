@@ -306,6 +306,19 @@ MOTIF_MAX = 4                  # calques ; au-delà, les QUATRE PREMIERS (§6.2b
                                # plein format, et quatre franges superposées ne
                                # se lisent déjà plus à l'œil)
 MOTIF_GAIN = (0.1, 1.0)        # la PART du calque dans l'addition bornée
+# LE DÉFAUT N'EST PAS LE MAXIMUM DE LA PLAGE, et c'est une correction de revue
+# adverse appuyée sur une mesure. À part PLEINE, une source claire PLEIN-CADRE
+# — et `paper` comme `mat:` le sont exactement — remplit tout le film : sur du
+# blanc pur le canal G tombe à UN SEUL niveau (255) et les franges pour
+# lesquelles la recette 2b existe DISPARAISSENT ; sur un papier à 240 il reste
+# 5,9 % de l'étendue et 2 niveaux sur 8. À 0,5 les huit marches survivent
+# (étendue 127 sur 255, soit ~50 %) et un sigle DÉCOUPÉ se lit toujours
+# (écart de moyennes 63,5 entre le dedans et le dehors du dessin).
+# Second effet, et il n'est pas cosmétique : à part pleine l'opérateur DÉGÉNÈRE
+# en somme commutative (voir `_holo_thickness_bytes`) — un défaut < 1 rend
+# l'ordre des calques load-bearing DANS LA CONFIGURATION PAR DÉFAUT, au lieu
+# de ne l'être que si l'utilisateur y touche.
+MOTIF_GAIN_DEFAULT = 0.5
 MOTIF_MAX_PIXELS = 32 * 1024 * 1024   # bombe de pixels : LE décodage est ici,
                                       # donc la garde aussi (copie locale du
                                       # chiffre du domaine, règle 8)
@@ -358,13 +371,35 @@ def motif_pile(motifs) -> tuple:
             continue
         if not isinstance(raw, (bytes, bytearray)) or not raw:
             continue
-        g = _f(gain, 1.0)
+        g = _f(gain, MOTIF_GAIN_DEFAULT)
         g = MOTIF_GAIN[0] if g < MOTIF_GAIN[0] else \
             MOTIF_GAIN[1] if g > MOTIF_GAIN[1] else g
         pile.append((hashlib.sha256(bytes(raw)).hexdigest(), g, bytes(raw)))
         if len(pile) >= MOTIF_MAX:
             break
     return tuple(pile)
+
+
+def motif_probe(raw) -> None:
+    """UN calque, VALIDÉ SEUL : rend `None` s'il se décodera, lève une
+    ValueError NOMMÉE sinon. Rien d'autre.
+
+    POURQUOI CETTE FONCTION EXISTE (correction de revue adverse, F2). L'échec
+    de décodage d'un calque se produisait AU FOND de `holo_finish`, remontait
+    à l'appelant comme « la finition a échoué », et lui coûtait la RECETTE
+    ENTIÈRE — avec un message qui ne nommait même pas le calque fautif.
+    Mesuré sur l'application vivante : un PNG tronqué sur le disque du jeu
+    donnait un artefact SANS iridescence et un aveu qui parlait de « finition
+    ignorée ». Or l'appelant est le SEUL à savoir d'où vient chaque calque :
+    c'est donc à lui de les valider un par un, avant de composer, pour retirer
+    le mort et garder le reste.
+
+    Le coût assumé est un décodage de plus par calque (≤ 4 par élément,
+    mesuré à quelques millisecondes sur une image de jeu) : la correction d'un
+    livrable faux vaut plus cher que ces millisecondes, et l'alternative —
+    rendre le compositeur tolérant — mettrait en cache une pile PARTIELLE sous
+    une clé qui prétend les porter tous."""
+    _motif_luma(raw, 8)
 
 
 def _motif_luma(raw: bytes, out_px: int):
@@ -399,7 +434,11 @@ def _motif_luma(raw: bytes, out_px: int):
     except ValueError:
         raise
     except Exception as e:
-        raise ValueError(f"motif illisible ({e or type(e).__name__})")
+        # SANS le mot « motif » : l'appelant préfixe déjà par la SOURCE
+        # (« motif « img:img_3.png » : … »), et le répéter donnait « motif …
+        # motif illisible » au bordereau. Le message reste self-describing
+        # sous `finition ignoree : …`, l'autre chemin par lequel il sort.
+        raise ValueError(f"illisible au decodage ({e or type(e).__name__})")
     if "A" in im.getbands() or (im.mode == "P"
                                 and "transparency" in im.info):
         fond = Image.new("RGBA", im.size, (0, 0, 0, 255))
@@ -500,6 +539,18 @@ def _holo_thickness_bytes(out_px: int, pile: tuple = ()) -> bytes:
     sait pas qui est arrivé le premier), si bien que « ordre des calques =
     ordre d'addition » n'y voudrait rien dire. Mesuré : `A(lum 100, part 1,0)`
     puis `B(lum 200, part 0,5)` sur un fond nul donne 178, l'ordre inverse 200.
+
+    …SAUF À PART PLEINE, ET IL FAUT LE DIRE (correction de revue adverse). À
+    `gain = 1` l'expression ci-dessus SE RÉDUIT À la somme écrêtée :
+    `g + min(lum, 255 − g)` VAUT `min(g + lum, 255)`, donc COMMUTATIF —
+    vérifié exhaustivement, 24 permutations de 4 calques à part pleine rendent
+    UNE seule sortie. L'ordre ne compte qu'à partir du moment où une part est
+    strictement inférieure à 1. La spec n'en souffre pas (elle demande
+    l'addition DANS L'ORDRE DE LISTE, ce qui tient dans les deux cas) ; c'est
+    la prose qui promettait plus que le mesuré, et c'est aussi pourquoi
+    `MOTIF_GAIN_DEFAULT` vaut 0,5 : le défaut de l'écran ne doit pas être
+    précisément le seul point où la propriété s'évanouit. Un test épingle
+    l'identité de permutation à 1,0 — le fait est DIT, pas redécouvert.
 
     TOUT SE FAIT EN OPÉRATIONS D'IMAGE (invert/darker/point/add), pas en
     boucle Python : à 1024² une boucle par pixel coûtait ~1 s par calque, ces
