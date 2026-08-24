@@ -620,9 +620,55 @@ sans reconstruction » (graphe : layer capture → assemble → artifact, GLB se
 **Fichiers** : forge3d.py, forge3d_scene.py, mod-forge3d.js, test_cards_forge3d.py,
 capture.py (l'écrivain du manifeste), test_cards_capture.py.
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `33a1b62`+`55b14e0`+`5212a59` (+~2600) puis ronde
+  `ce7f0f9` (+1102/−86). Le nœud `extrude` 10e kind (contour cadre|sceau —
+  MÊME courbe, largeurs par défaut distinctes ; EXTRUDE_MIN_MM copie avouée de
+  SEAL_MIN_MM lue par import ET octets) : volume vs analytique 0,003-0,004 %
+  (le produit périmètre-médian×largeur s'est révélé algébriquement EXACT, pas
+  approché comme le plan le croyait), arêtes appariées sur 6 configs
+  dégénérées, le plancher de segments RENVERSÉ par la mesure (l'aire ne
+  s'annule jamais par le compte — elle converge par en-dessous ; c'est la
+  largeur à la demi-carte qui casse, et mesh_measures le voit), STL cohérent,
+  Pearson anneau-Sceau 0,655. Nouveau miroir CF-FORGE3D-SIDES (front, back,
+  capture ; rôles PAR provenance — un cadre importé est jeté par clean_graph).
+  Manifeste capture : ROUTE POST /manifeste (3 raisons données), rendu EN
+  TOILE dans forge3d/ aux noms canoniques P9 (la fenêtre UV et bbox_mm
+  exigent la toile), schéma post_layers + proof capture SANS preuve
+  d'empilement empruntée ; `_lire_manifeste` ne validait RIEN avant T5 (le
+  plan lui prêtait des portes inexistantes — mesuré) : cohérence nom↔contenu
+  ajoutée. Le test de bout §7.1.6 : import→analyse→sujet local→manifeste→
+  graphe 8 nœuds→GLB servi, scrub_identity, bordereau avouant la provenance
+  au caractère près. 150 forge3d + 130 capture.
+- [x] Ronde adverse (opus) : 2 bloquants + 4 réels + 7 mineurs + 5 rejetés
+  mesurés (concurrence 24/24 propre, publication interrompue = échec sûr…).
+  B1 : LE MANIFESTE PÉRIMÉ N'ÉTAIT VU PAR PERSONNE — format changé → face
+  anamorphosée +22,7 % ignored:[] ; recto re-déposé → la VIEILLE couche
+  servie. Fermé : chaque ligne date sa copie (source_sha256 au moment de la
+  publication), 7 portes dont format/canvas/source comparés au COURANT, deux
+  409 « republie » nommés + la 3e porte (densité) + le cas qui n'est PAS un
+  mensonge (source effacée = aveu, pas refus). B2 : LES NORMALES FAUSSES
+  DERRIÈRE LE TÉMOIN « INFERMABLE » — cos stocké·géométrique 0,93/0,76 selon
+  l'agrégation, fermable en dix lignes SANS rendu (la leçon T1-LANCZOS
+  rejouée : le trou avoué était un couvercle) ; dédoublement capuchons/parois
+  + seuil d'arête vive 30° (le SECOND défaut, trouvé par la propre boucle du
+  livreur : coins vifs à 45°) → cos 0,999998, volume IDENTIQUE, 6 configs
+  ≥ 0,9997. R3 : le Sceau mesh était INERTE sur la configuration exacte de
+  T6 — l'extrusion sceau est maintenant SON CORPS (habillé auto du document,
+  explicite gagne — l'invariant 3c —, aucun corps = bordereau qui le dit),
+  prouvé en PESANT le GLB (une mutation a fait corriger le contrôle qui
+  lisait la clé au lieu de peser le solide). R4 : le « chiffre » du recto
+  était une CONSTANTE DE FORMAT maquillée en mesure (85,45 pour un aplat noir
+  comme une photo — leçon T4-a) → « face entière (WxH px) », et le chiffre du
+  sujet nomme son cadre (« % de la toile »). R5 avoué (l'écran appelant naît
+  en T6). R6 : le test de concurrence de la route ajouté. Mutation totale
+  47/47.
+- [x] CLOSE : leçons — (a) UN AVEU D'INFERMABILITÉ SE MESURE comme une
+  affirmation de succès (2e témoin-couvercle de la phase) ; (b) une copie
+  rendue date sa source (le manifeste qui ne portait pas le sha de son
+  origine servait le passé comme du présent) ; (c) on pèse le solide, on ne
+  lit pas sa clé. Dettes → T6 : le bouton « Publier vers la 3D » (R5), la
+  vérification navigateur du panneau P9 neuf, la tangente des parois (témoin
+  avoué restant), la recomposition (attend un fond isolé), contour SVG v2.
 
 ### T6 — La preuve deepotus-fragments + intégration (D9, D10)
 
