@@ -9113,6 +9113,11 @@ def test_l_extrusion_est_fermee_par_aretes_appariees_et_de_volume_exact():
         ecart = abs(rep["volume_mm3"] - exact) / exact
         assert ecart < 0.001, (larg, prof, rep["volume_mm3"], exact, ecart)
         # ── LE TROU N'EST PAS COMPTÉ ────────────────────────────────────
+        # MESURÉ le 24/08 : la couronne pèse 1,07 % du contour plein à
+        # 0,2 mm de large, 6,35 % à 1,2 mm, 10,50 % à 2,0 mm. La barre est
+        # posée au-dessus du pire des trois avec de la marge — ce qui
+        # compte est l'ORDRE DE GRANDEUR : un volume qui compterait le trou
+        # vaudrait 100 %.
         plein = (_EXT_W * _EXT_H - (4.0 - math.pi) * _EXT_R ** 2) * prof
         assert rep["volume_mm3"] < plein * 0.15, (rep["volume_mm3"], plein)
     # l'aire analytique est bien celle de la COURONNE : le produit
@@ -9578,6 +9583,9 @@ def test_l_extrusion_seule_est_IMPRIMABLE_et_le_sceau_s_y_branche():
     ).convert("RGB").split()[1]
     ref = Image.open(io.BytesIO(sig)).convert("L").resize(
         gband.size, Image.BICUBIC)
+    # MESURÉ le 24/08 sur l'anneau servi : r = 0,658 (canal G 1024²,
+    # un point sur trois). La barre est à 0,5 — au-dessus du bruit, sous la
+    # mesure, et elle ne bouge pas avec la taille de la texture.
     r_p = _correlation(ref, gband, pas=3)
     assert r_p > 0.5, r_p
     # et le motif a bel et bien ÉPAISSI : le canal diffère de la base nue
