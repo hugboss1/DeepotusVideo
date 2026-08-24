@@ -1074,6 +1074,16 @@ GLASS_IOR = 1.5
 # ce que cette forge produit : 0,5 mm pour un corps de carte, 0,6 mm pour
 # l'anneau du Sceau par défaut, 0,3 mm de dalle sous un relief. Une épaisseur
 # NON NULLE est ce qui bascule le rendu de « paroi mince » à « volume ».
+#
+# TÉMOIN VOLONTAIRE, AVOUÉ ET MESURÉ : la spec ajoute « this requires a
+# manifold/closed mesh », et nos plans (`quad_mesh`) ne le sont PAS — seules
+# l'extrusion et le relief le sont. Ce que la mesure dit : chargé dans le
+# viewer embarqué (model-viewer du dépôt), un plan translucide rend
+# parfaitement — écart moyen de 79,6 niveaux/255 contre le verre clair, teinte
+# lue. Ce que la mesure NE dit pas : ce qu'un AUTRE moteur en fera, et aucun
+# contrôle d'ici ne peut le voir. Refuser le volume sur un maillage ouvert
+# priverait le cas d'usage le plus courant (une carte est un plan) d'une
+# recette qui marche là où elle sera regardée ; l'aveu vaut mieux que le refus.
 GLASS_THICKNESS_MM = 1.0
 # LA DISTANCE D'ABSORPTION, ELLE, EST EN MÈTRES — la spec la donne en « world
 # space » quand l'épaisseur est en espace de maillage, et c'est un piège

@@ -8710,7 +8710,48 @@ function banc22() {
       J([DOC_GRAPH.nodes[0].side, HIST.length]));
 }
 
-banc18().then(banc21).then(banc22).then(
+/* ── T4 (phase 5) : LES DEUX FAMILLES DE FINITION, JOUEES POUR DE VRAI ────
+   FERMETURE DE TEMOIN, et le temoin etait exactement du genre que la lecon de
+   la phase 4 vise : un mutant qui faisait lire a `finishFamille` la liste
+   ENTIERE des finitions (au lieu de la famille demandee) laissait TOUS les
+   pins de source au vert — les deux mots `finishes_holo` / `finishes_glass`
+   sont encore dans le fichier, ils ne servent simplement plus a trier. Ce
+   cas-ci regarde ce que le bloc MONTRE, et le tue. */
+function bancT4() {
+  INFO = { graph_limits: INFO0.graph_limits,
+           materials: [{ id: "aaa", name: "gres", maps: ["normal"],
+                         color: "#8a6a43" }],
+           material_limits: {
+             tile_mm: [10, 200],
+             finishes: ["aucune", "argent", "verre"],
+             finishes_holo: ["argent"], finishes_glass: ["verre"],
+             motif_max: 4, motif_gain: [0.1, 1], motif_gain_default: 0.5 },
+           transform_limits: INFO0.transform_limits, mesh3d: INFO0.mesh3d };
+  MOTIFS = { images: [{ src: "img:img_1.png", label: "img 1" }],
+             paper: null, materials: [], degraded: null };
+  const bloc = (f) => matHtml(
+    { mat: { id: "m", kind: "material", mat: "aaa", finish: f } },
+    false, null);
+  const holo = bloc("argent"), vitre = bloc("verre");
+  dit("T4 une finition HOLO ouvre le bloc des motifs",
+      holo.indexOf("motifs dans l'hologramme") >= 0);
+  dit("T4 une finition VERRE ne l'ouvre PAS (aucun canal d'epaisseur)",
+      vitre.indexOf("motifs dans l'hologramme") < 0);
+  dit("T4 ... et le bloc verre DIT ce que la recette remplace",
+      vitre.indexOf("remplace la micro-surface") >= 0);
+  dit("T4 le libelle se DERIVE de la famille (jamais un adjectif faux)",
+      holo.indexOf("argent holographique") >= 0
+      && vitre.indexOf("verre holographique") < 0);
+  dit("T4 l'anisotropie est GRISEE hors d'une recette holo",
+      /data-field="aniso"[^>]*disabled/.test(vitre)
+      && !/data-field="aniso"[^>]*disabled/.test(holo));
+  dit("T4 l'occlusion est COCHEE par defaut, et active si une matiere est la",
+      /data-field="ao" checked>/.test(holo));
+  dit("T4 ... et l'ecran DIT qu'une matiere sans carte d'occlusion n'en a pas",
+      holo.indexOf("AUCUNE carte d'occlusion") >= 0);
+}
+
+banc18().then(banc21).then(banc22).then(bancT4).then(
   () => {
     videInspecteur();   /* aucune minuterie ne survit au banc */
     process.stdout.write(JSON.stringify(out));
@@ -8939,6 +8980,9 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # `GEN` : la garde de generation de `inspecte` ; `FIGE_PRET` :
                 # l'etat REEL du viewer du resultat (ronde 2c-T5).
                 "inspTimer", "INSP_MV", "GEN", "FIGE_PRET",
+                # phase 5 T4 : le bloc des motifs se joue POUR DE VRAI (c'est
+                # lui qui doit rester ferme sur une vitre), et il lit `MOTIFS`.
+                "MOTIFS",
                 # `camPending` declare aussi `camRaf`.
                 "camPending"):
         morceaux.append(_js_decl(src, nom, "let"))
@@ -8956,6 +9000,9 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # phase 5 T4 : les DEUX familles de finition, servies par
                 # /info — `matHtml` s'en sert pour décider ce qu'il montre.
                 "finishFamille", "estHolo", "estVerre",
+                # ... et le BLOC DES MOTIFS lui-meme : c'est ce qu'il MONTRE
+                # (ou pas) qui distingue une famille de l'autre a l'ecran.
+                "motifLimits", "motifSources", "motifOptions", "motifsHtml",
                 "finishLabel", "matHtml", "trsHtml", "thumbHtml",
                 "mesh3dInfo", "engineOf", "engineFor", "ultraCredits",
                 "engPrice", "usdTxt", "priceTxt", "sourceTxt", "chipHtml",
@@ -9033,9 +9080,10 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     # un banc ampute — une section commentee, une exception avalee — passerait
     # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
     # ronde de correction, 89 avec la publication de la T6, 127 avec la carte
-    # COMPLETE de la 2d-T2, 146 apres la ronde de revue de cette tache — le
-    # plancher garde la meme marge qu'avant.)
-    assert len(cas) >= 120, len(cas)
+    # COMPLETE de la 2d-T2, 146 apres la ronde de revue de cette tache, +7
+    # avec les deux familles de finition de la phase 5 — le plancher garde la
+    # meme marge qu'avant.)
+    assert len(cas) >= 127, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
@@ -10353,6 +10401,13 @@ def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
     }
     for kind, exts in _VERRE_EXTS.items():
         fin = SC.glass_finish(kind)
+        # LE 0.0 DE MÉTALLICITÉ SE LIT SUR LA RECETTE, PAS SEULEMENT DANS LE
+        # GLB, et c'est une fermeture de témoin : le writer pose DÉJÀ 0.0 par
+        # défaut, si bien qu'un mutant qui retirerait ce facteur de la recette
+        # SURVIVRAIT à la relecture du fichier. Ici, il meurt. (Un conducteur
+        # ne transmet rien : hériter du 1.0 d'une recette holo éteindrait toute
+        # la famille.)
+        assert fin["pbr"]["metallicFactor"] == 0.0, kind
         doc, _ = _read_glb(SC.write_scene_glb(
             [_quad_el(SC, kind, finish=fin)], name="v", extras={}))
         assert set(doc["extensionsUsed"]) == exts, kind

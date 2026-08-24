@@ -1614,7 +1614,17 @@ def _couleur_matiere(mid) -> str | None:
     NE LÈVE JAMAIS : une matière effacée depuis que le graphe a été câblé rend
     `None`, et la recette part sans teinte. L'aveu de la matière introuvable
     est déjà fait plus haut par `_habille` — le redire ici doublerait la
-    ligne au bordereau pour un seul fait."""
+    ligne au bordereau pour un seul fait.
+
+    TÉMOIN VOLONTAIRE, AVOUÉ : `props.color` est le RÉGLAGE de teinte du lab
+    Matières, pas la moyenne de la carte `basecolor`. Une matière dont la
+    carte est rouge vif mais dont le réglage est resté au blanc par défaut
+    donnera donc une absorption NEUTRE, et aucun contrôle d'ici ne le verra —
+    les deux valeurs sont légitimes, elles ne disent simplement pas la même
+    chose. La fermeture existe et elle est nommée (moyenner les pixels de
+    `basecolor`), mais c'est un PIPELINE de plus, hors de cette tâche.
+    L'atténuation d'ici : l'écran AFFICHE l'hex qui sera réellement utilisé —
+    l'utilisateur voit le blanc et comprend."""
     if not mid:
         return None
     try:
