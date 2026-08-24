@@ -11,7 +11,7 @@
    chaque rendu. A 600 DPI il est net ; sur un tarot il se re-proportionne ;
    et il y a un DOS, que la barre n'a pas du tout.
 
-   7 familles graphiques x 6 raretes = 42 combinaisons (la barre : 3).
+   8 familles graphiques x 6 raretes = 48 combinaisons (la barre : 3).
 
    doc.format.corner_mm donne le rayon de la coupe : le cadre ne le redecide
    pas, il le SUIT (le filet exterieur epouse le meme arrondi). La fenetre
@@ -38,7 +38,63 @@
     { id: "neon", label: "Néon", hint: "double trait lumineux, coins coupés" },
     { id: "sable", label: "Épure", hint: "un seul filet, grande marge, rien d'autre" },
     { id: "gravure", label: "Gravure", hint: "marge ivoire, aplat de pochoir décalé, repères" },
+    /* LA HUITIEME (phase 4, spec §7.2 — l'anatomie du Patriarche) : le
+       filigrane d'orfevre. Double filet a 2,1 et 3,2 mm de la coupe,
+       instruments aux quatre coins, medaillons a mi-chant, or calme sur noir.
+       L'IDENTIFIANT EST `filigrane` ET NON « filigrane-instrument » : les
+       trois tables JS-seules (FAM_FN, WIN_SHAPE, PROFILE) sont des objets
+       litteraux dont les tests lisent les cles en `\w+` — un trait d'union
+       demanderait des guillemets et casserait les trois lectures. Le NOM,
+       lui, est celui de la spec. */
+    { id: "filigrane", label: "Filigrane à instruments", hint: "double filet 2,1/3,2 mm, instruments de coin, médaillons" },
   ];
+  /* ── LES TRAITS MESURES DE CHAQUE FAMILLE (phase 4, D6) ──────────────────
+     A quoi ils servent : « adopter la bordure » (§7.1.5) doit choisir la
+     famille LA PLUS PROCHE d'une bordure MESUREE sur une carte importee. Sans
+     table de traits, « le plus proche » n'a pas de sens.
+
+     COMMENT ILS ONT ETE OBTENUS — a la mesure, jamais a l'estime. Chaque
+     famille est rendue par ses VRAIS peintres (`famProfile` + son `FAM_FN`)
+     sur le rasteriseur de controle, cellules de 0,125 mm, format poker a
+     300 DPI, `DEFAULTS` (donc rarete « rare »), fenetre decoupee comme dans
+     `paintFront`. `test_cards_frame.py` REJOUE cette mesure et compare a
+     cette table : elle n'est pas recopiable a la main.
+
+       · bande_mm = l'EPAISSEUR TYPIQUE de la marque que la famille pose en
+         propre : mediane de min(segment horizontal, segment vertical) sur les
+         cellules encrees par la famille SANS l'anneau plat.
+       · teinte_h = la teinte (degres, [0,360)) de la couleur DOMINANTE de la
+         lisiere exterieure de l'anneau, epaisse de `bande_mm` — exactement la
+         bande que `_couleur_bande` de la piece 10 preleve sur une carte
+         importee.
+
+     DEUX AUTRES DEFINITIONS ONT ETE MESUREES ET REJETEES, avec leurs
+     chiffres, parce qu'elles ne decrivent PAS une famille :
+       · la largeur de l'anneau PLAT vaut `inner_mm` — 5,50 mm pour sept
+         familles sur huit aux defauts, 0 pour « Neon » (zone « vide ») : elle
+         mesure un REGLAGE de l'utilisateur ;
+       · la profondeur du premier FRONT tonal retombe elle aussi sur
+         `inner_mm` (5,50) pour six familles, et ne separe que « Gravure »
+         (2,31 mm, la cuvette) et « Filigrane » (3,20 mm, la lisiere d'or).
+
+     CE QUE LA TABLE AVOUE. Six familles partagent la meme teinte (211,4°) :
+     leur anneau vient de `PAL`, dont la teinte appartient a la RARETE, pas a
+     la famille. Seules « Gravure » (ivoire) et « Filigrane » (or) s'ecartent
+     de la palette, et ce sont les deux seules que la teinte separe vraiment.
+     La teinte ne choisit donc pas une famille a elle seule — elle separe le
+     CHAUD du FROID, et la bande tranche a l'interieur. Les egalites
+     (« Arcane » et « Art deco » a 2,38 ; « Runique » et « Neon » a 1,50) sont
+     reelles : elles se tranchent par l'ORDRE DU CATALOGUE, des deux cotes. */
+  const FAMILY_TRAITS = {
+    runic: { bande_mm: 1.5, teinte_h: 211.4 },
+    arcane: { bande_mm: 2.38, teinte_h: 211.4 },
+    timber: { bande_mm: 3.13, teinte_h: 211.4 },
+    deco: { bande_mm: 2.38, teinte_h: 211.4 },
+    neon: { bande_mm: 1.5, teinte_h: 210.7 },
+    sable: { bande_mm: 2.63, teinte_h: 211.4 },
+    gravure: { bande_mm: 0.38, teinte_h: 55.4 },
+    filigrane: { bande_mm: 0.5, teinte_h: 42.1 },
+  };
   const RARITIES = [
     { id: "common", label: "Commune" },
     { id: "uncommon", label: "Peu commune" },
@@ -219,6 +275,108 @@
     on: false, kind: "argent", width_mm: 1.2,
     scope: { screen: true, print: false, mesh: false },
   };
+
+  /* ── « ADOPTER LA BORDURE » : LE CALCUL, ET RIEN QUE LUI (§7.1.5, D6) ─────
+     Ces quatre fonctions sont un MIROIR D'EXECUTION de `cards/frame.py` : le
+     test ne compare pas deux textes, il fait tourner les deux sources sur un
+     banc de mesures et exige le MEME choix et la MEME phrase. Une table
+     recopiee peut deriver en silence ; deux calculs qui rendent le meme
+     resultat sur un banc, non. */
+
+  /* La teinte d'une couleur « #rrggbb », en DEGRES — ou `null` quand il n'y
+     en a pas. Un gris n'a pas de teinte : lui en inventer une (0 = rouge)
+     ferait choisir une famille chaude pour une bordure d'acier. */
+  function teinteDe(hex) {
+    const s = String(hex == null ? "" : hex).trim().replace("#", "");
+    if (!/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)) return null;
+    const t = s.length === 3 ? s[0] + s[0] + s[1] + s[1] + s[2] + s[2] : s;
+    const n = parseInt(t, 16);
+    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (d === 0) return null;
+    let h;
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h *= 60;
+    return (h % 360 + 360) % 360;
+  }
+  /* L'ECART DE DEUX TEINTES EST CIRCULAIRE. 350 et 10 sont a 20 degres l'un
+     de l'autre, pas a 340 : la difference nue ferait passer un or legerement
+     rouge pour l'oppose d'un or legerement jaune. */
+  function ecartTeinte(a, b) {
+    const d = Math.abs(((a - b) % 360 + 360) % 360);
+    return d > 180 ? 360 - d : d;
+  }
+  /* LES DEUX ECHELLES DE LA DISTANCE — MESUREES SUR LA TABLE, PAS CHOISIES.
+     Additionner des millimetres et des degres demande un poids, et un poids
+     choisi a la main serait un GOUT. Chaque axe est donc divise par
+     l'ETENDUE que le catalogue lui-meme occupe sur cet axe : un ecart d'une
+     largeur-de-catalogue en bande pese alors exactement autant qu'un ecart
+     d'une largeur-de-catalogue en teinte. Ajouter une famille change les
+     echelles — c'est voulu : c'est le catalogue qui donne l'unite.
+     (Aux huit familles livrees : bande 2,75 mm, teinte 169,3 degres.) */
+  function traitsEchelles() {
+    let bMin = Infinity, bMax = -Infinity, hMax = 0;
+    const hs = [];
+    for (let i = 0; i < FAMILIES.length; i++) {
+      const t = FAMILY_TRAITS[FAMILIES[i].id];
+      if (!t) continue;
+      if (t.bande_mm < bMin) bMin = t.bande_mm;
+      if (t.bande_mm > bMax) bMax = t.bande_mm;
+      hs.push(t.teinte_h);
+    }
+    for (let i = 0; i < hs.length; i++) {
+      for (let j = i + 1; j < hs.length; j++) {
+        const d = ecartTeinte(hs[i], hs[j]);
+        if (d > hMax) hMax = d;
+      }
+    }
+    const b = bMax - bMin;
+    return { bande: b > 0 ? b : 1, teinte: hMax > 0 ? hMax : 1 };
+  }
+  /* LA FAMILLE LA PLUS PROCHE. En cas d'egalite, c'est l'ORDRE DU CATALOGUE
+     qui tranche (le `<` est strict) — la meme regle des deux cotes, sinon
+     deux egalites parfaites rendraient deux familles differentes. */
+  function familleProche(bandeMM, teinteH) {
+    const e = traitsEchelles();
+    let best = null;
+    for (let i = 0; i < FAMILIES.length; i++) {
+      const id = FAMILIES[i].id, t = FAMILY_TRAITS[id];
+      if (!t) continue;
+      const db = Math.abs(bandeMM - t.bande_mm) / e.bande;
+      const dh = (teinteH === null || teinteH === undefined)
+        ? 0 : ecartTeinte(teinteH, t.teinte_h) / e.teinte;
+      const d = db + dh;
+      if (!best || d < best.d - 1e-12) {
+        best = { id: id, d: d, d_bande: db, d_teinte: dh };
+      }
+    }
+    return best;
+  }
+  /* LA PHRASE D'ECART. Elle porte les MEMES nombres que le calcul ci-dessus,
+     au meme arrondi : le test les recalcule un a un et les cherche dans le
+     texte. L'unite d'un ecart de teinte est le DEGRE (la spec ecrivait « % »
+     — un pourcentage d'angle ne veut rien dire). */
+  function mm1(v) {
+    const s = (Math.round(Number(v) * 10) / 10).toFixed(1);
+    return s.replace(".", ",");
+  }
+  function phraseEcart(bandeMM, teinteH, id) {
+    const t = FAMILY_TRAITS[id];
+    let lab = id;
+    for (let i = 0; i < FAMILIES.length; i++) {
+      if (FAMILIES[i].id === id) { lab = FAMILIES[i].label; break; }
+    }
+    if (!t) return "famille inconnue : " + id;
+    const p = "bande " + mm1(bandeMM) + " mm ↔ " + lab + " "
+      + mm1(t.bande_mm) + " mm";
+    if (teinteH === null || teinteH === undefined) {
+      return p + ", teinte non mesurable";
+    }
+    return p + ", teinte à "
+      + Math.round(ecartTeinte(teinteH, t.teinte_h)) + "°";
+  }
   /* ═══ CF-FRAME-CATALOG-END ═══ */
 
   /* la borne du format courant, la SEULE porte par laquelle passent le dessin,
@@ -282,7 +440,7 @@
     steel: ["#39434f", "#c9d6e4", "#7e8d9d", "#eaf2fb", "#44505e"],
     rose: ["#7a4046", "#f6cfd0", "#c98189", "#fff0f0", "#84484e"],
   };
-  const WIN_SHAPE = { runic: "rect", arcane: "arch", timber: "rect", deco: "chamfer", neon: "chamfer", sable: "rect", gravure: "rect" };
+  const WIN_SHAPE = { runic: "rect", arcane: "arch", timber: "rect", deco: "chamfer", neon: "chamfer", sable: "rect", gravure: "rect", filigrane: "rect" };
 
   /* ═══════════════════════════════════════════════════════════════════════
      0. OUTILS
@@ -860,7 +1018,27 @@
        C'est ce qui la separe d'« Epure », l'autre anneau clair du catalogue,
        dont la moulure ne pese qu'un cheveu (0,14 u de large). */
     gravure: { kind: "burin", t: 2.1, moulure: "pochoir", plaque: "cartouche", hatch: 155, pitch: 1.9, zone: "ivoire" },
+    /* LA HUITIEME (phase 4) : l'orfevrerie. Sa zone est un anneau NOIR a
+       LISIERE D'OR — la seule du catalogue dont l'anneau porte deux masses
+       CONCENTRIQUES de tons opposes (« Gravure » partage bien son anneau,
+       mais du papier vers l'encre, donc du CLAIR vers le sombre ; ici c'est
+       l'inverse, du metal vers le noir). Sa masse propre n'est pas dans
+       l'anneau : elle est aux COINS (les instruments) et a MI-CHANT (les
+       medaillons), les deux seuls endroits qu'aucune des sept n'occupe
+       ensemble. */
+    filigrane: { kind: "filets", t: 1.7, moulure: "medaillon", plaque: "tablette", hatch: 133, pitch: 1.35, zone: "orfevre" },
   };
+  /* LES DEUX FILETS DU FILIGRANE, en millimetres depuis la COUPE. Ce ne sont
+     pas des epaisseurs mais des DISTANCES : la spec §7.2 mesure l'anatomie du
+     Patriarche a « ~2,1 et ~3,2 mm du bord ». Ecrits une fois, nommes,
+     mesurables — comme POCHOIR_MM juste dessous. */
+  const FIL_MM = [2.1, 3.2];
+  /* L'OR CALME et le NOIR de la spec §7.2 (« ors #8a6a2e->#d8b76a, noirs
+     #0b0a08-#141210 »). Comme l'ivoire de « Gravure », ils s'ecartent de PAL
+     — mais ils en gardent un dixieme, sans quoi les six raretes rendraient la
+     meme carte. */
+  const OR_STOPS = ["#d8b76a", "#8a6a2e"];
+  const NOIR_FILIGRANE = "#0b0a08";
   /* LE DECALAGE VOULU, en millimetres. Une estampe coloriee au pochoir pose
      ses aplats a la main : ils ne tombent jamais pile sur le trait, et c'est
      ce defaut-la qu'on reconnait (spec §6.2-7, « reperage decale 0,2 mm
@@ -1028,6 +1206,46 @@
       ctx.strokeStyle = rgba(mix(p.base[2], "#000000", 0.25), 0.6);
       ctx.lineWidth = Math.max(0.8, u * 0.5);
       ctx.beginPath(); cvp(cv); ctx.stroke();
+    } else if (pr.zone === "orfevre") {
+      /* L'ORFEVRERIE : un anneau d'OR fendu par un CHENAL NOIR, et le chenal
+         tombe exactement entre les deux filets (2,1 et 3,2 mm de la coupe).
+         C'est la lecture litterale du « filigrane double » de la spec §7.2 —
+         et c'est la seule masse concentrique EN TROIS BANDES du catalogue.
+
+         MESURE, PREMIER JET : l'anneau etait NOIR avec une lisiere d'or de
+         3,2 mm, donc « clair dehors, sombre dedans » — exactement le partage
+         de « Gravure » (ivoire dehors, cuvette dedans). Le gris normalise
+         efface la teinte : les deux ne differaient plus que par 0,9 mm de
+         lisiere, et la paire tombait a 22,43 / 255 la ou le catalogue a sept
+         ne descendait pas sous 31,60. Au-dessus du seuil (4), mais c'etait la
+         famille NEUVE qui tirait le catalogue vers le bas — la meme faute
+         qu'au premier jet de « Gravure » en 3a, et le meme remede : on
+         redessine la famille, on ne deplace pas le seuil. En trois bandes,
+         la paire remonte (voir le test) parce que l'INTERIEUR de l'anneau
+         est clair chez l'une et sombre chez l'autre.
+
+         L'or part du bord de TOILE : comme les sept autres, l'encre franchit
+         le trait de coupe et remplit le fond perdu. */
+      const noir = mix(p.base[2], NOIR_FILIGRANE, 0.9);
+      ctx.fillStyle = grad(T.x, T.y, T.x + T.w, T.y + T.h,
+        mix(p.base[0], OR_STOPS[0], 0.86), mix(p.base[2], OR_STOPS[1], 0.86));
+      ctx.fillRect(0, 0, m.W, m.H);
+      /* LE CHENAL. Ses deux bords sont les deux filets — mais bornes par la
+         place REELLE : sur un format minuscule (`micro`), 3,2 mm depassent la
+         bande, et un chenal plus large que l'anneau ne serait plus un chenal,
+         ce serait un anneau noir. */
+      const d0 = Math.min(FIL_MM[0] * u, m.inner * 0.5);
+      const d1 = Math.min(FIL_MM[1] * u, m.inner * 0.82);
+      if (d1 > d0) {
+        ctx.beginPath();
+        rrPath(ctx, T.x + d0, T.y + d0, T.w - 2 * d0, T.h - 2 * d0,
+          Math.max(0, T.r - d0));
+        rrPath(ctx, T.x + d1, T.y + d1, T.w - 2 * d1, T.h - 2 * d1,
+          Math.max(0, T.r - d1));
+        ctx.fillStyle = grad(T.x, T.y, T.x + T.w, T.y + T.h,
+          noir, mix(noir, "#ffffff", 0.10));
+        ctx.fill("evenodd");
+      }
     }
     /* LE RELIEF : une levre claire pres du bord de coupe, une ombre portee au
        bord de la bande. C'est ce qui fait qu'un anneau parait EPAIS et non
@@ -1184,6 +1402,31 @@
           ctx.fillRect(0, -t, L, t * 1.6); ctx.fillRect(-t, 0, t * 1.6, L);
           ctx.restore();
         });
+    } else if (pr.kind === "filets") {
+      /* LES MEDAILLONS DE MI-CHANT (spec §7.2). Quatre losanges d'or poses au
+         MILIEU de chaque cote, a cheval sur les deux filets — la seule
+         famille qui occupe ce point-la : « Art deco » a des masses au centre
+         du haut et du bas mais AUCUNE sur les montants, « Bois » a des
+         traverses pleine largeur (pas une masse locale), et les quatre coins
+         sont deja pris par trois familles. */
+      const or = mix(p.base[0], OR_STOPS[0], 0.86);
+      const orSombre = mix(p.base[2], OR_STOPS[1], 0.86);
+      const c = (FIL_MM[0] + FIL_MM[1]) * 0.5 * u;   /* entre les deux filets */
+      const R = t * 1.15;
+      const losange = (cx, cy, rx, ry, paint) => {
+        ctx.fillStyle = paint;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - ry); ctx.lineTo(cx + rx, cy);
+        ctx.lineTo(cx, cy + ry); ctx.lineTo(cx - rx, cy);
+        ctx.closePath(); ctx.fill();
+      };
+      const mx = m.trim.x + m.trim.w / 2, my = m.trim.y + m.trim.h / 2;
+      [[mx, m.trim.y + c, R * 1.6, R], [mx, m.trim.y + m.trim.h - c, R * 1.6, R],
+        [m.trim.x + c, my, R, R * 1.6], [m.trim.x + m.trim.w - c, my, R, R * 1.6]]
+        .forEach((d) => {
+          losange(d[0], d[1], d[2], d[3], or);
+          losange(d[0], d[1], d[2] * 0.44, d[3] * 0.44, orSombre);
+        });
     }
     ctx.restore();
   }
@@ -1290,6 +1533,37 @@
       ctx.lineWidth = Math.max(0.5, u * 0.22);
       ctx.beginPath(); winPathAt(ctx, m, shape, u * 0.6); ctx.stroke();
       ctx.beginPath(); winPathAt(ctx, m, shape, u * 3.2); ctx.stroke();
+    } else if (pr.moulure === "medaillon") {
+      /* LA MOULURE D'ORFEVRE N'EST PAS UN JONC — ET C'EST MESURE. Premier
+         jet : un anneau d'or PLEIN de 1,5 mm borde de deux filets. Or
+         « Gravure » pose exactement cette forme-la autour de sa fenetre (un
+         aplat de pochoir large, borde de deux traits), et le gris normalise
+         ne voit pas la difference entre un or et un vermillon : la paire
+         « Gravure x Filigrane » restait la plus serree du catalogue.
+         Ici la masse est DISCRETE : quatre medaillons a mi-chant de la
+         fenetre — les memes qu'a mi-chant de la carte, c'est la grammaire de
+         la famille — et un filet SEUL pour tout encadrement. Aucune autre
+         famille ne laisse les montants de sa fenetre nus. */
+      const or = mix(p.base[0], OR_STOPS[0], 0.86);
+      const orSombre = mix(p.base[2], OR_STOPS[1], 0.86);
+      ctx.strokeStyle = rgba(or, 0.9);
+      ctx.lineWidth = Math.max(0.5, u * 0.26);
+      ctx.beginPath(); winPathAt(ctx, m, shape, u * 0.9); ctx.stroke();
+      const R = u * 2.3;
+      const cx = m.win.x + m.win.w / 2, cy = m.win.y + m.win.h / 2;
+      [[cx, m.win.y - u * 0.9, R * 1.7, R], [cx, m.win.y + m.win.h + u * 0.9, R * 1.7, R],
+        [m.win.x - u * 0.9, cy, R, R * 1.7], [m.win.x + m.win.w + u * 0.9, cy, R, R * 1.7]]
+        .forEach((d) => {
+          [[1, or], [0.42, orSombre]].forEach((k) => {
+            ctx.fillStyle = k[1];
+            ctx.beginPath();
+            ctx.moveTo(d[0], d[1] - d[3] * k[0]);
+            ctx.lineTo(d[0] + d[2] * k[0], d[1]);
+            ctx.lineTo(d[0], d[1] + d[3] * k[0]);
+            ctx.lineTo(d[0] - d[2] * k[0], d[1]);
+            ctx.closePath(); ctx.fill();
+          });
+        });
     }
     ctx.restore();
   }
@@ -1341,6 +1615,20 @@
       ctx.lineTo(P.x + c, P.y + P.h); ctx.lineTo(P.x + c, P.y + P.h - c * 0.45);
       ctx.lineTo(P.x, P.y + P.h - c * 0.45); ctx.lineTo(P.x, P.y + c * 0.45);
       ctx.lineTo(P.x + c, P.y + c * 0.45); ctx.closePath();
+    } else if (k === "tablette") {
+      /* LA TABLETTE : un rectangle a ANGLES ABATTUS EN HAUT SEULEMENT — le
+         cartouche grave d'une plaque d'orfevre, pose sur son socle. Aucune
+         des sept ne coupe deux angles sur quatre : « biseau » les coupe tous,
+         « encoche » n'entaille que le haut mais sur toute sa largeur, et
+         « etage » monte une marche. */
+      const c = Math.min(u * 3.0, P.w / 8, P.h / 2);
+      ctx.moveTo(P.x + c, P.y);
+      ctx.lineTo(P.x + P.w - c, P.y);
+      ctx.lineTo(P.x + P.w, P.y + c);
+      ctx.lineTo(P.x + P.w, P.y + P.h);
+      ctx.lineTo(P.x, P.y + P.h);
+      ctx.lineTo(P.x, P.y + c);
+      ctx.closePath();
     } else {  /* epure : un rectangle strict, sans rayon */
       ctx.rect(P.x, P.y, P.w, P.h);
     }
@@ -1383,6 +1671,15 @@
         ctx.strokeRect(P.x + u * 1.1, P.y + u * 1.1, P.w - u * 2.2, P.h - u * 2.2);
         ctx.strokeRect(P.x + u * 1.8, P.y + u * 1.8, P.w - u * 3.6, P.h - u * 3.6);
       }
+    } else if (pr.plaque === "tablette") {
+      /* deux clous d'or aux extremites HAUTES, et rien d'autre : la tablette
+         est vissee sur la bande. (« planche » pose quatre rivets aux quatre
+         coins — deux, en haut seulement, ne se confondent pas avec.) */
+      ctx.fillStyle = mix(p.base[0], OR_STOPS[0], 0.86);
+      [[P.x + u * 2.2, P.y + u * 1.5], [P.x + P.w - u * 2.2, P.y + u * 1.5]]
+        .forEach((c) => {
+          ctx.beginPath(); ctx.arc(c[0], c[1], u * 0.55, 0, Math.PI * 2); ctx.fill();
+        });
     }
     ctx.restore();
   }
@@ -1399,7 +1696,7 @@
      Une rampe continue sur 65 px, c'est 60 tons la ou un aplat en donne 1, et
      c'est ce que l'oeil appelle « du bois » ou « du metal ».
 
-     Le profil est le MEME pour les six familles (l'ecart entre familles se
+     Le profil est le MEME pour les huit familles (l'ecart entre familles se
      joue ailleurs — zones, silhouettes — et un profil par famille le
      brouillerait). Il est trace en noir et blanc translucide, donc il obeit a
      la teinte de la rarete sans jamais la remplacer. */
@@ -1754,7 +2051,101 @@
     }
     ctx.restore();
   }
-  const FAM_FN = { runic: famRunic, arcane: famArcane, timber: famTimber, deco: famDeco, neon: famNeon, sable: famSable, gravure: famGravure };
+  /* LA HUITIEME FAMILLE (phase 4, l'anatomie du Patriarche §7.2).
+     Ce qu'aucune des sept ne savait faire : un DOUBLE FILET pose a des
+     distances NOMMEES de la coupe (2,1 et 3,2 mm — pas deduites de `edge_mm`
+     et `gap_mm`, qui restent a l'utilisateur), et des INSTRUMENTS aux quatre
+     coins. Trois traces, dessines au chemin — jamais un glyphe de police :
+     une police n'est pas garantie sur la machine du client, et un glyphe
+     manquant rendrait un rectangle vide dans le fichier livre.
+
+     LES INSTRUMENTS SONT ORIENTES PAR LE COIN, PAS MIROITES. `atCorners`
+     retourne le repere (scale -1) : les quatre coins porteraient alors le
+     MEME objet vu dans quatre miroirs, ce qui se lit comme un ornement, pas
+     comme un instrument. Chaque coin recoit donc son trace, en clair. */
+  function insCompas(ctx, k) {
+    /* le compas : pivot, deux jambes, l'arc que la pointe decrit */
+    ctx.beginPath(); ctx.arc(0, -k * 1.7, k * 0.42, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(0, -k * 1.7); ctx.lineTo(-k * 1.3, k * 1.8);
+    ctx.moveTo(0, -k * 1.7); ctx.lineTo(k * 1.3, k * 1.8);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(0, -k * 1.7, k * 3.7, Math.PI * 0.31, Math.PI * 0.69);
+    ctx.stroke();
+  }
+  function insSextant(ctx, k) {
+    /* le sextant : le limbe (un arc), l'alidade, la lunette */
+    ctx.beginPath();
+    ctx.arc(0, -k * 1.2, k * 2.5, Math.PI * 0.12, Math.PI * 0.88);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, -k * 1.2);
+    ctx.lineTo(Math.cos(Math.PI * 0.28) * k * 2.5, -k * 1.2 + Math.sin(Math.PI * 0.28) * k * 2.5);
+    ctx.moveTo(0, -k * 1.2);
+    ctx.lineTo(Math.cos(Math.PI * 0.72) * k * 2.5, -k * 1.2 + Math.sin(Math.PI * 0.72) * k * 2.5);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-k * 2.2, -k * 1.9); ctx.lineTo(k * 0.6, -k * 1.9);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(-k * 2.4, -k * 1.9, k * 0.4, 0, Math.PI * 2); ctx.fill();
+  }
+  function insPlume(ctx, k) {
+    /* la plume : la hampe, les barbes, le bec */
+    ctx.beginPath();
+    ctx.moveTo(-k * 1.9, -k * 2.1);
+    ctx.bezierCurveTo(-k * 0.4, -k * 0.9, k * 0.7, k * 0.6, k * 1.7, k * 2.2);
+    ctx.stroke();
+    for (let i = 1; i <= 5; i++) {
+      const t = i / 6;
+      const x = -k * 1.9 + (k * 3.6) * t, y = -k * 2.1 + (k * 4.3) * t * t;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - k * (1.05 - t * 0.7), y + k * (0.28 + t * 0.2));
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    ctx.moveTo(k * 1.7, k * 2.2); ctx.lineTo(k * 1.1, k * 1.9);
+    ctx.lineTo(k * 1.45, k * 2.65); ctx.closePath(); ctx.fill();
+  }
+  function famFiligrane(ctx, m, f) {
+    const p = pal(f), u = m.u, T = m.trim;
+    const or = mix(p.base[0], OR_STOPS[0], 0.86);
+    ctx.save();
+    /* LE DOUBLE FILET, a 2,1 et 3,2 mm de la COUPE. Il epouse le rayon de
+       decoupe comme le filet exterieur du moteur (`m.trim.r` rentre d'autant),
+       si bien qu'il reste parallele au bord sur les douze formats. */
+    ctx.strokeStyle = rgba(or, 0.92);
+    [[FIL_MM[0], 0.3], [FIL_MM[1], 0.18]].forEach((fi) => {
+      const d = fi[0] * u;
+      ctx.lineWidth = Math.max(0.5, u * fi[1]);
+      ctx.beginPath();
+      rrPath(ctx, T.x + d, T.y + d, T.w - 2 * d, T.h - 2 * d,
+        Math.max(0, T.r - d));
+      ctx.stroke();
+    });
+    /* LES INSTRUMENTS DE COIN. Ils se posent JUSTE EN DEDANS du second filet,
+       et leur taille suit la place reelle : sur un format minuscule il n'y a
+       pas 5 mm entre le filet et la bande, et un instrument a taille fixe
+       sortirait sur l'illustration. */
+    const libre = Math.max(0, m.inner - FIL_MM[1] * u);
+    const k = Math.max(u * 0.55, Math.min(u * 1.55, libre * 0.62 + u * 0.5));
+    const off = FIL_MM[1] * u + k * 2.4;
+    ctx.strokeStyle = rgba(or, 0.85);
+    ctx.fillStyle = rgba(or, 0.9);
+    ctx.lineWidth = Math.max(0.5, u * 0.2);
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const outils = [insCompas, insSextant, insPlume, insCompas];
+    [[T.x + off, T.y + off], [T.x + T.w - off, T.y + off],
+      [T.x + off, T.y + T.h - off], [T.x + T.w - off, T.y + T.h - off]]
+      .forEach((c, i) => {
+        ctx.save(); ctx.translate(c[0], c[1]);
+        outils[i](ctx, k);
+        ctx.restore();
+      });
+    ctx.restore();
+  }
+  const FAM_FN = { runic: famRunic, arcane: famArcane, timber: famTimber, deco: famDeco, neon: famNeon, sable: famSable, gravure: famGravure, filigrane: famFiligrane };
 
   function atCorners(ctx, r, fn) {
     const cs = [[r.x, r.y, 1, 1], [r.x + r.w, r.y, -1, 1], [r.x, r.y + r.h, 1, -1], [r.x + r.w, r.y + r.h, -1, -1]];
@@ -1814,7 +2205,7 @@
      ───────────────────────────────────────────────────────────────────────
      UNE SEULE SOURCE DE VERITE : le TRACE du contour. Ici il n'y a pas de
      bezier a porter ailleurs — l'anneau de coupe est un rectangle arrondi
-     dans les SEPT familles (`rrPath`, la fenetre seule change de forme), donc
+     dans les HUIT familles (`rrPath`, la fenetre seule change de forme), donc
      le Sceau se resume a SIX NOMBRES (x, y, w, h, r, largeur). C'est ce qui
      permet aux trois rasterisations de la spec — ecran, masque d'imprimeur,
      texture 3D — de deriver des memes millimetres au lieu de se repasser un
@@ -2905,6 +3296,99 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     9 bis. « ADOPTER LA BORDURE » — la seule chose que P2 lit de P10
+     ───────────────────────────────────────────────────────────────────────
+     CLOISONNEMENT (§7.1.5, D6). La piece 10 PUBLIE `doc.capture` et ne touche
+     l'etat de personne ; c'est ICI, chez P2, que la bordure mesuree devient
+     un cadre. La lecture est UNIVERSELLE et TOLERANTE (regle 3) : `border`
+     peut etre absent, `null`, ou partiel — chaque cas rend `null`, et un bloc
+     d'adoption sans matiere a adopter N'EXISTE PAS (patron `sectionsBasses`
+     de la 2d). C'est aussi le VERROU de la 3b applique a la lettre : quand la
+     matiere manque, il n'y a pas de bouton grise qui refuserait — il n'y a
+     AUCUN ECOUTEUR POSE, donc rien a defaire et aucune entree d'annulation a
+     reprendre.
+
+     CE QUE L'ADOPTION ECRIT, ET POURQUOI CES CLES-LA (le mapping, mesure a
+     la source) :
+       · la BANDE mesuree -> `inner_mm`. Le modele de la piece pose la bande
+         entre la coupe et `band` = coupe rentree de `inner_mm` : la largeur
+         de l'anneau EST `inner_mm` (le panneau l'appelle deja « Marge
+         intérieure (bande) »). `edge_mm` est un RETRAIT de filet et `line_mm`
+         une EPAISSEUR de trait : ni l'un ni l'autre n'est la bande.
+       · la COULEUR mesuree -> `line_color`, ET `metal: false`. `inkPaint`
+         rend le degrade metallique des que `metal` est vrai, et `line_color`
+         n'est alors JAMAIS lu : adopter une couleur en laissant le metal
+         allume serait un reglage qui ne regle rien.
+       · le RAYON mesure -> `window.r`. C'est le SEUL rayon que `doc.frame`
+         possede. Le rayon des coins de la CARTE est `doc.format.corner_mm` —
+         la decoupe, propriete de la piece 00 : P2 ne l'ecrit pas (regle du
+         cloisonnement), et `LIMITS.corner_mm` n'est ici que pour l'AFFICHER.
+         La fenetre est donc reposee ENTIERE (x, y, w, h inchanges, `r`
+         adopte) : `patch` remplace une cle par sa valeur, un `{r: …}` seul
+         effacerait la fenetre.
+       · `win_lock` — le verrou de proportions — est RESPECTE : arme, la
+         fenetre n'entre pas dans le patch. Il n'interdit pas le geste (« le
+         verrou ne gate JAMAIS le panneau », clôture 3b) ; il garde ce qu'il
+         garde, la fenetre, et la ligne d'ecart le DIT.
+     UN SEUL `set()`, donc UN SEUL `M.patch` et UN SEUL pas d'annulation.
+     ═══════════════════════════════════════════════════════════════════════ */
+  /* `Number()` EST TROP ACCUEILLANT POUR CETTE LECTURE-CI. `Number(null)`,
+     `Number("")` et `Number([])` valent TOUS ZERO : un `radius_mm: null` —
+     ce que la piece 10 publie quand elle n'a PAS su suivre le coin, et qu'elle
+     « laisse vide au lieu de l'inventer » — deviendrait un rayon de 0 mm, donc
+     une fenetre a angles vifs posee sur une mesure qui n'existe pas. On
+     n'accepte donc qu'un VRAI nombre fini. */
+  function nbLu(v) { return (typeof v === "number" && isFinite(v)) ? v : null; }
+  function bordureLue(b) {
+    if (!b || typeof b !== "object" || Array.isArray(b)) return null;
+    const mm = nbLu(b.mm);
+    if (mm === null || mm <= 0) return null;
+    const brut = String(b.color == null ? "" : b.color).trim();
+    const col = /^#[0-9a-fA-F]{6}$/.test(brut) ? brut.toLowerCase() : "";
+    const r = nbLu(b.radius_mm);
+    const cf = nbLu(b.confidence);
+    return {
+      mm: mm,
+      color: col,
+      teinte_h: col ? teinteDe(col) : null,
+      /* un rayon NEGATIF n'est pas une mesure a ramener dans ses bornes,
+         c'est une mesure qui n'a pas eu lieu : la ramener a 0 publierait un
+         angle vif que personne n'a vu. */
+      radius_mm: (r !== null && r >= 0) ? r : null,
+      confidence: cf === null ? null : cl(cf, 0, 1),
+    };
+  }
+  /* le releve du document, lu a la volee — jamais une copie gardee au chaud */
+  function bordureDuDoc() { return bordureLue(CF.get("capture.border", null)); }
+
+  function adoptionBordure(bo, f0, wm) {
+    const choix = familleProche(bo.mm, bo.teinte_h);
+    const patch = {
+      family: choix.id,
+      inner_mm: r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1])),
+    };
+    if (bo.color) { patch.line_color = bo.color; patch.metal = false; }
+    const verrou = !!(f0 && f0.win_lock);
+    let fenetre = "";
+    if (bo.radius_mm === null) {
+      fenetre = " · rayon non mesuré, fenêtre inchangée";
+    } else if (verrou) {
+      fenetre = " · verrou de proportions armé : fenêtre inchangée";
+    } else {
+      patch.window = {
+        x: r2(wm.x), y: r2(wm.y), w: r2(wm.w), h: r2(wm.h),
+        r: r2(cl(bo.radius_mm, LIMITS.win_r_mm[0], LIMITS.win_r_mm[1])),
+      };
+      fenetre = " · rayon " + mm1(patch.window.r) + " mm sur la fenêtre";
+    }
+    return {
+      famille: choix.id, choix: choix, patch: patch,
+      ecart: phraseEcart(bo.mm, bo.teinte_h, choix.id),
+      fenetre: fenetre,
+    };
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      10. INTERFACE
      ═══════════════════════════════════════════════════════════════════════ */
   const UI = {};
@@ -3020,7 +3504,14 @@
        fichier livre, agrandi, sans un pixel mou. */
     A.insertBefore(lo, A.firstChild);
 
-    /* ── colonne B : les reglages ── */
+    /* ── colonne B : « adopter la bordure » (§7.1.5), PUIS les reglages ──
+       Le bloc est VIDE au depart et se remplit dans `sync()` : la matiere
+       vient de `doc.capture`, qui est ecrit par la piece 10 APRES ce
+       `buildUI`. Un bouton construit ici serait un bouton qui ment jusqu'a la
+       premiere analyse. */
+    UI.adopt = h("div", "cff-adopt");
+    B.appendChild(UI.adopt);
+
     const g1 = grp("Filets, bande et matière", true);
     UI.lineRow = numRow("Épaisseur du filet", "line_mm", LIMITS.line_mm[0], LIMITS.line_mm[1], 0.05);
     g1.body.appendChild(UI.lineRow.el);
@@ -3406,7 +3897,13 @@
 
     document.addEventListener("keydown", onKey);
     document.addEventListener("paste", onPasteBack);
-    CF.on("core:doc", (p) => { if (!p || p.id === "frame" || p.id === "format") sync(); });
+    /* `capture` EN PLUS DES DEUX AUTRES : la bordure a adopter est publiee
+       par la piece 10, et sans cette branche le bloc d'adoption ne serait
+       peuple qu'au prochain reglage du cadre — un bouton qui arrive quand on
+       ne le cherche plus. Lecture SEULE : P2 n'ecrit jamais `doc.capture`. */
+    CF.on("core:doc", (p) => {
+      if (!p || p.id === "frame" || p.id === "format" || p.id === "capture") sync();
+    });
     CF.on("core:geom", sync);
     CF.on("core:cards", sync);
     /* le fichier a change : la loupe le remontre, et la preuve le RE-LIT.
@@ -3981,7 +4478,27 @@
 
      La paire la plus serree est donc EXACTEMENT celle d'avant, a la meme
      valeur : la septieme famille n'a rien coute au catalogue. (Hors fenetre
-     d'illustration : 7,88 / 255, la aussi inchange.) */
+     d'illustration : 7,88 / 255, la aussi inchange.)
+
+       LA HUITIEME (« Filigrane a instruments », phase 4) a suivi la MEME
+       regle, mesuree hors navigateur cette fois — `test_cards_frame.py` rend
+       les 8 x 6 combinaisons sur le rasteriseur de controle EN COULEUR et
+       compare les 168 paires en gris normalise. L'echelle n'est pas celle du
+       badge (ce banc ne peint que les couches de famille, sans la matiere ni
+       le texte, donc ses chiffres sont plus hauts) ; ce qui compte est
+       l'AVANT/APRES a methode constante :
+         sept familles, 126 paires      : 31,60 « Runique x Art deco » en Rare
+         PREMIER JET de la huitieme     : 22,43 « Gravure x Filigrane »
+         anneau redessine en 3 bandes   : 23,01 (presque rien)
+         moulure de fenetre en medaillons : 33,90
+         huit familles, 168 paires      : 31,60 « Runique x Art deco » en Rare
+       Soit, une fois de plus, la paire d'avant a la valeur d'avant.
+       Le premier jet ratait pour une raison PRECISE et reutilisable : sa
+       moulure de fenetre etait un JONC PLEIN borde de deux filets, c'est-a-
+       dire la forme meme de l'aplat de pochoir de « Gravure ». Le gris
+       normalise efface la teinte — un or et un vermillon a la meme place
+       sont le meme dessin. Ce n'est pas la couleur d'une famille neuve qui
+       la distingue, c'est OU elle met sa masse. */
   function silSig() {
     try {
       const g = CF.geom(), d = CF.doc();
@@ -6217,6 +6734,46 @@
 
   /* ── synchronisation de tout l'ecran ───────────────────────────────────── */
   let syncRaf = null;
+  /* LE BLOC D'ADOPTION, DERIVE — jamais un etat d'ecran garde au chaud. Il se
+     refait a chaque `sync()` parce que sa matiere n'est pas a nous : la piece
+     10 peut publier, remplacer ou effacer `doc.capture.border` a tout moment.
+     Sans matiere, le bloc est VIDE : zero bouton, zero ecouteur (verrou 3b). */
+  function renderAdopt(f0, g) {
+    const el = UI.adopt;
+    if (!el) return;
+    const bo = bordureDuDoc();
+    if (!bo) {
+      if (el.firstChild) el.textContent = "";
+      el.classList.add("hidden");
+      return;
+    }
+    const a = adoptionBordure(bo, f0, winMM(g, f0));
+    el.classList.remove("hidden");
+    el.textContent = "";
+    el.appendChild(label("Bordure importée", bo.confidence === null
+      ? "mesurée par l'import" : "confiance " + r2(bo.confidence)));
+    const row = h("div", "cff-row");
+    const b = h("button", "btn strong sm", "Adopter la bordure");
+    b.type = "button";
+    b.title = "Pose la famille la plus proche et les réglages MESURÉS "
+      + "(bande, couleur, rayon) — un seul pas d'annulation";
+    b.addEventListener("click", () => {
+      /* on RELIT tout au clic : entre la peinture du bouton et le clic, la
+         piece 10 a pu re-analyser, et adopter une mesure perimee serait
+         adopter une carte que personne n'a plus sous les yeux. */
+      const f1 = f(), g1 = CF.geom(), bo1 = bordureDuDoc();
+      if (!bo1) { M.toast("aucune bordure mesurée à adopter", true); return; }
+      const a1 = adoptionBordure(bo1, f1, winMM(g1, f1));
+      set(a1.patch, "bordure adoptée");
+      M.toast("bordure adoptée — " + a1.ecart);
+    });
+    row.appendChild(b);
+    el.appendChild(row);
+    const p = h("p", "hint cff-adoptread");
+    p.textContent = a.ecart + a.fenetre;
+    el.appendChild(p);
+  }
+
   function sync() {
     if (!ROOT) return;
     if (syncRaf) return;
@@ -6244,6 +6801,7 @@
       + dpiOf(ppm(g.dpi)) + " DPI — un écart de "
       + r2(Math.abs(dpiOf(ppm(g.dpi)) - g.dpi) / g.dpi * 100 * 1000) + " millionièmes. On l'écrit.";
     UI.empty.classList.toggle("hidden", f0.family !== "none");
+    renderAdopt(f0, g);
     UI.undo.disabled = !HIST.length;
     UI.redo.disabled = !REDO.length;
     UI.undo.textContent = "↶ Annuler" + (HIST.length ? " (" + HIST.length + ")" : "");

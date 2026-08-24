@@ -69,7 +69,7 @@ router = APIRouter()
 
 # ═════════════════════════════════════════════════════════════════════════════
 # LE CATALOGUE — miroir du bloc CF-FRAME-CATALOG de js/mod-frame.js.
-# 7 familles x 6 raretés = 42 combinaisons vectorielles (la barre Clash of
+# 8 familles x 6 raretés = 48 combinaisons vectorielles (la barre Clash of
 # Decks en sert TROIS, en PNG 638x1004, soit 255 DPI au format poker).
 # ═════════════════════════════════════════════════════════════════════════════
 FAMILIES = [
@@ -87,7 +87,61 @@ FAMILIES = [
      "hint": "un seul filet, grande marge, rien d'autre"},
     {"id": "gravure", "label": "Gravure",
      "hint": "marge ivoire, aplat de pochoir décalé, repères"},
+    # LA HUITIÈME (phase 4, spec §7.2 — l'anatomie du Patriarche) : le
+    # filigrane d'orfèvre. L'IDENTIFIANT est `filigrane` et non
+    # « filigrane-instrument » : les trois tables JS-seules (FAM_FN,
+    # WIN_SHAPE, PROFILE) sont des objets littéraux dont les tests lisent les
+    # clés en `\w+` — un trait d'union casserait les trois lectures. Le NOM
+    # de la spec, lui, est dans le libellé.
+    {"id": "filigrane", "label": "Filigrane à instruments",
+     "hint": "double filet 2,1/3,2 mm, instruments de coin, médaillons"},
 ]
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LES TRAITS MESURÉS DE CHAQUE FAMILLE (phase 4, D6) — miroir du bloc
+# CF-FRAME-CATALOG de js/mod-frame.js, et miroir d'EXÉCUTION : `test_cards_
+# frame.py` ne compare pas deux textes, il fait tourner les deux sources sur
+# un banc de mesures et exige le même choix et la même phrase.
+#
+# À QUOI ILS SERVENT : « adopter la bordure » (§7.1.5) choisit la famille LA
+# PLUS PROCHE d'une bordure MESURÉE sur une carte importée. Sans table de
+# traits, « le plus proche » n'a pas de sens.
+#
+# COMMENT ILS ONT ÉTÉ OBTENUS — à la mesure, jamais à l'estime. Chaque famille
+# est rendue par ses VRAIS peintres (`famProfile` + son `FAM_FN`) sur le
+# rastériseur de contrôle, cellules de 0,125 mm, format poker à 300 DPI,
+# `DEFAULTS` (donc rareté « rare »), fenêtre découpée comme dans `paintFront`.
+#   · bande_mm = l'ÉPAISSEUR TYPIQUE de la marque que la famille pose en
+#     propre : médiane de min(segment horizontal, segment vertical) sur les
+#     cellules encrées par la famille SANS l'anneau plat.
+#   · teinte_h = la teinte (degrés, [0,360)) de la couleur DOMINANTE de la
+#     lisière extérieure de l'anneau, épaisse de `bande_mm` — exactement la
+#     bande que `_couleur_bande` de la pièce 10 prélève sur une carte importée.
+#
+# DEUX AUTRES DÉFINITIONS ONT ÉTÉ MESURÉES ET REJETÉES, avec leurs chiffres,
+# parce qu'elles ne décrivent PAS une famille : la largeur de l'anneau PLAT
+# vaut `inner_mm` (5,50 mm pour sept familles sur huit aux défauts, 0 pour
+# « Néon », zone « vide ») — c'est un RÉGLAGE ; et la profondeur du premier
+# front tonal retombe sur `inner_mm` elle aussi, sauf « Gravure » (2,31) et
+# « Filigrane » (3,20).
+#
+# CE QUE LA TABLE AVOUE : six familles partagent 211,4° parce que leur anneau
+# vient de `PAL`, dont la teinte appartient à la RARETÉ. Seules « Gravure »
+# (ivoire) et « Filigrane » (or) s'écartent de la palette. La teinte sépare
+# donc le CHAUD du FROID ; la bande tranche à l'intérieur. Les égalités de
+# bande (Arcane/Art déco à 2,38 ; Runique/Néon à 1,50) sont réelles et se
+# tranchent par l'ORDRE DU CATALOGUE, des deux côtés.
+# ═════════════════════════════════════════════════════════════════════════════
+FAMILY_TRAITS = {
+    "runic": {"bande_mm": 1.5, "teinte_h": 211.4},
+    "arcane": {"bande_mm": 2.38, "teinte_h": 211.4},
+    "timber": {"bande_mm": 3.13, "teinte_h": 211.4},
+    "deco": {"bande_mm": 2.38, "teinte_h": 211.4},
+    "neon": {"bande_mm": 1.5, "teinte_h": 210.7},
+    "sable": {"bande_mm": 2.63, "teinte_h": 211.4},
+    "gravure": {"bande_mm": 0.38, "teinte_h": 55.4},
+    "filigrane": {"bande_mm": 0.5, "teinte_h": 42.1},
+}
 RARITIES = [
     {"id": "common", "label": "Commune"},
     {"id": "uncommon", "label": "Peu commune"},
@@ -202,6 +256,126 @@ def band_max_mm(tw: float, th: float) -> float:
 DEFAULTS = {
     "line_mm": 0.9, "gap_mm": 1.1, "edge_mm": 1.6, "inner_mm": 5.5,
 }
+
+
+# ── « ADOPTER LA BORDURE » : LE CALCUL, jumeau de mod-frame.js ───────────────
+# Ces quatre fonctions sont un MIROIR D'EXÉCUTION du bloc CF-FRAME-CATALOG :
+# le test fait tourner les deux sources sur un banc de mesures et exige le
+# même choix ET la même phrase. Une table recopiée peut dériver en silence ;
+# deux calculs qui rendent le même résultat sur un banc, non.
+#
+# LE MODULO DE JAVASCRIPT N'EST PAS CELUI DE PYTHON. `-1 % 6` vaut -1 en JS et
+# 5 ici : la formule de teinte passe par une valeur négative dès que le bleu
+# domine, et les deux langages rendraient alors deux teintes différentes pour
+# la MÊME couleur. `math.fmod` a le signe du dividende, comme JS — c'est lui
+# qu'on emploie partout où le JS écrit `%`.
+def _fmod_js(a: float, b: float) -> float:
+    return math.fmod(a, b)
+
+
+def teinte_de(hexa) -> float | None:
+    """La teinte d'un « #rrggbb », en DEGRÉS — ou None quand il n'y en a pas.
+
+    Un gris n'a pas de teinte : lui en inventer une (0 = rouge) ferait choisir
+    une famille chaude pour une bordure d'acier."""
+    s = str(hexa if hexa is not None else "").strip().replace("#", "")
+    if not re.fullmatch(r"[0-9a-fA-F]{3}|[0-9a-fA-F]{6}", s):
+        return None
+    if len(s) == 3:
+        s = s[0] * 2 + s[1] * 2 + s[2] * 2
+    n = int(s, 16)
+    r, g, b = (n >> 16) & 255, (n >> 8) & 255, n & 255
+    mx, mn = max(r, g, b), min(r, g, b)
+    d = mx - mn
+    if d == 0:
+        return None
+    if mx == r:
+        h = _fmod_js((g - b) / d, 6.0)
+    elif mx == g:
+        h = (b - r) / d + 2.0
+    else:
+        h = (r - g) / d + 4.0
+    h *= 60.0
+    return _fmod_js(_fmod_js(h, 360.0) + 360.0, 360.0)
+
+
+def ecart_teinte(a: float, b: float) -> float:
+    """L'écart de deux teintes est CIRCULAIRE : 350 et 10 sont à 20 degrés
+    l'un de l'autre, pas à 340."""
+    d = abs(_fmod_js(_fmod_js(a - b, 360.0) + 360.0, 360.0))
+    return 360.0 - d if d > 180.0 else d
+
+
+def traits_echelles() -> dict:
+    """Les deux échelles de la distance — MESURÉES SUR LA TABLE, pas choisies.
+
+    Additionner des millimètres et des degrés demande un poids, et un poids
+    choisi à la main serait un goût. Chaque axe est divisé par l'ÉTENDUE que
+    le catalogue occupe sur cet axe : un écart d'une largeur-de-catalogue en
+    bande pèse alors exactement autant qu'un écart d'une largeur-de-catalogue
+    en teinte. (Aux huit familles livrées : bande 2,75 mm, teinte 169,3°.)"""
+    bandes, teintes = [], []
+    for fa in FAMILIES:
+        t = FAMILY_TRAITS.get(fa["id"])
+        if not t:
+            continue
+        bandes.append(t["bande_mm"])
+        teintes.append(t["teinte_h"])
+    h_max = 0.0
+    for i in range(len(teintes)):
+        for j in range(i + 1, len(teintes)):
+            h_max = max(h_max, ecart_teinte(teintes[i], teintes[j]))
+    b = (max(bandes) - min(bandes)) if bandes else 0.0
+    return {"bande": b if b > 0 else 1.0, "teinte": h_max if h_max > 0 else 1.0}
+
+
+def famille_proche(bande_mm: float, teinte_h) -> dict | None:
+    """La famille la plus proche d'une bordure mesurée. En cas d'égalité,
+    l'ORDRE DU CATALOGUE tranche (le `<` est strict) — la même règle des deux
+    côtés, sinon deux égalités parfaites rendraient deux familles."""
+    e = traits_echelles()
+    best = None
+    for fa in FAMILIES:
+        fid = fa["id"]
+        t = FAMILY_TRAITS.get(fid)
+        if not t:
+            continue
+        db = abs(float(bande_mm) - t["bande_mm"]) / e["bande"]
+        dh = 0.0 if teinte_h is None \
+            else ecart_teinte(float(teinte_h), t["teinte_h"]) / e["teinte"]
+        d = db + dh
+        if best is None or d < best["d"] - 1e-12:
+            best = {"id": fid, "d": d, "d_bande": db, "d_teinte": dh}
+    return best
+
+
+def _mm1(v) -> str:
+    """Un millimètre écrit à une décimale, virgule française. `Math.round` de
+    JS arrondit vers +∞ à la demie (2,5 -> 3) ; `round()` de Python arrondit
+    au pair (2,5 -> 2). On écrit donc l'arrondi de JS, à la main."""
+    n = math.floor(float(v) * 10 + 0.5)
+    return f"{n / 10:.1f}".replace(".", ",")
+
+
+def phrase_ecart(bande_mm: float, teinte_h, fid: str) -> str:
+    """L'ÉCART AVOUÉ (§7.1.5, §9.1). Chaque chiffre de cette phrase est celui
+    du calcul, au même arrondi : le test les recalcule un à un et les cherche
+    dans le texte. L'unité d'un écart de teinte est le DEGRÉ — la spec
+    écrivait « % », et un pourcentage d'angle ne veut rien dire."""
+    t = FAMILY_TRAITS.get(fid)
+    lab = fid
+    for fa in FAMILIES:
+        if fa["id"] == fid:
+            lab = fa["label"]
+            break
+    if not t:
+        return f"famille inconnue : {fid}"
+    p = (f"bande {_mm1(bande_mm)} mm ↔ {lab} "
+         f"{_mm1(t['bande_mm'])} mm")
+    if teinte_h is None:
+        return p + ", teinte non mesurable"
+    ec = math.floor(ecart_teinte(float(teinte_h), t["teinte_h"]) + 0.5)
+    return p + f", teinte à {ec}°"
 
 # ── LE SCEAU : SCHÉMA ET BORNE, jumeau du bloc de mod-frame.js ───────────────
 # `doc.frame.seal` est le PREMIER sous-objet de `doc.frame` (les 28 autres clés
@@ -657,6 +831,12 @@ def catalog() -> dict:
     """Le catalogue complet. `combos` est CALCULÉ, jamais écrit à la main."""
     return {
         "families": FAMILIES,
+        # LES TRAITS MESURÉS (phase 4, D6) : ce sur quoi « adopter la
+        # bordure » choisit sa famille. Publiés pour être vérifiables de
+        # l'extérieur — et parce qu'un choix qu'on ne peut pas recalculer
+        # est un choix qu'il faut croire.
+        "family_traits": copy.deepcopy(FAMILY_TRAITS),
+        "family_scales": traits_echelles(),
         "rarities": RARITIES,
         "backs": BACKS,
         "corners": CORNERS,

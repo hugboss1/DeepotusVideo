@@ -107,7 +107,7 @@ def _exact_px(mm, dpi: int) -> float:
     return float((v * 100 + Fraction(1, 2)).__floor__()) / 100.0
 
 
-# ═══════════════ 1. LE CATALOGUE : 42 combinaisons, et une seule liste ══════
+# ═══════════════ 1. LE CATALOGUE : 48 combinaisons, et une seule liste ══════
 
 def test_au_moins_20_combinaisons():
     """La barre en propose 3. Le seuil de la spec est 20."""
@@ -115,7 +115,7 @@ def test_au_moins_20_combinaisons():
     assert cat["combos"] == len(FR.FAMILIES) * len(FR.RARITIES)
     assert cat["combos"] >= COMBOS_MIN, \
         f"{cat['combos']} combinaisons, seuil {COMBOS_MIN}"
-    assert cat["combos"] == 42, "7 familles x 6 raretés"
+    assert cat["combos"] == 48, "8 familles x 6 raretés"
     assert len(FR.FAMILIES) >= 4, "spec : >= 4 familles graphiques"
     assert len(FR.RARITIES) >= 5, "spec : >= 5 variantes de rareté"
     ids = [f["id"] for f in FR.FAMILIES]
@@ -379,7 +379,7 @@ def test_les_routes_du_cadre_repondent():
     assert "json" in r.headers.get("content-type", "").lower(), \
         "sans le montage du domaine, une route absente rend du HTML (piège 7)"
     cat = r.json()["catalog"]
-    assert cat["combos"] == 42
+    assert cat["combos"] == 48
     from app.main import app
     chemins = list(app.openapi().get("paths", {}))
     for attendu in ("/api/cards/{did}/frame/catalog",
@@ -7545,3 +7545,1194 @@ def test_le_decor_est_ADMIS_a_la_liste_blanche_des_modeles():
         "les sept habillages partagent un seul sous-objet `decor`"
     assert len({id(v["decor"]) for v in t.values()}) == len(t), \
         "deux habillages partagent le même `decor`"
+
+
+# ═══════ 19. LA HUITIÈME FAMILLE ET « ADOPTER LA BORDURE » (phase 4, T4) ════
+#
+# CE QUE CETTE SECTION VERROUILLE, et pourquoi chaque contrôle existe.
+#
+# §7.1.5 donne à P2 un geste : « adopter la bordure » — famille et réglages
+# LES PLUS PROCHES d'une bordure MESURÉE par la pièce 10, avec l'ÉCART AVOUÉ.
+# §9.1 en fait une exigence chiffrée : « l'écart famille↔mesure est celui
+# affiché ». Trois façons de se tromper, trois contrôles :
+#
+#   1. LA TABLE PEUT ÊTRE INVENTÉE. `FAMILY_TRAITS` prétend décrire ce que
+#      chaque famille DESSINE ; on rejoue donc la mesure sur les vrais
+#      peintres et on compare (§ « les traits sont la MESURE du rendu »).
+#   2. LES DEUX CÔTÉS PEUVENT DÉRIVER. Le catalogue est en double, et un
+#      test de TEXTE ne verrait pas deux calculs qui divergent sur une
+#      valeur limite. La parité se prend donc À L'EXÉCUTION : les deux
+#      sources tournent sur le MÊME banc de mesures et doivent rendre la
+#      même famille et la MÊME PHRASE.
+#   3. LA PHRASE PEUT MENTIR. Chaque chiffre affiché est recalculé ici,
+#      au même arrondi et dans la même unité (le DEGRÉ pour un angle).
+
+def _js_const(src: str, nom: str) -> str:
+    """Le SOURCE d'une const fléchée d'une ligne (`const cl = (v,a,b) => …;`)."""
+    m = re.search(r"^  const " + nom + r" = .*?;$", src, re.M)
+    assert m, f"const {nom} introuvable dans mod-frame.js"
+    return m.group(0)
+
+
+def _bloc_js(src: str) -> str:
+    """Le bloc CF-FRAME-CATALOG, ÉVALUABLE. Les deux marqueurs vivent dans un
+    commentaire : la tranche extraite s'ouvre sur la fin de l'un et se ferme
+    sur le début de l'autre. On la referme des deux côtés plutôt que de la
+    raboter — le bloc évalué reste celui du dépôt, à l'octet près."""
+    return "/*" + _catalog_block(src) + "*/"
+
+
+HUITIEME = "filigrane"
+
+
+def test_la_huitieme_famille_existe_des_deux_cotes():
+    """Une famille n'existe que si les DEUX catalogues la portent ET si les
+    trois tables JS-seules la connaissent : `FAM_FN` (le dessin), `WIN_SHAPE`
+    (la forme de fenêtre), `PROFILE` (les cinq signatures de silhouette). Une
+    entrée de menu sans peintre, c'est un cadre qui rend l'image d'une AUTRE
+    famille. C'est le patron exact de la septième (`gravure`, 3a)."""
+    src = _js()
+    ids = [f["id"] for f in FR.FAMILIES]
+    assert HUITIEME in ids, f"familles backend : {ids}"
+    assert (HUITIEME, "Filigrane à instruments") \
+        in _js_list(_catalog_block(src), "FAMILIES")
+    assert re.search(r"const FAM_FN = \{[^}]*" + HUITIEME + r": famFiligrane",
+                     src), f"{HUITIEME} n'a pas de peintre dans FAM_FN"
+    assert re.search(r"const WIN_SHAPE = \{[^}]*" + HUITIEME + r": \"\w+\"",
+                     src), f"{HUITIEME} n'a pas de forme de fenêtre"
+    assert "function famFiligrane(" in src, "le peintre famFiligrane n'existe pas"
+    rows = {r[0]: r for r in _profile_rows(src)}
+    assert HUITIEME in rows, f"{HUITIEME} n'a pas de profil de silhouette"
+    # les cinq colonnes NEUVES, nommées (le test générique les vérifie déjà
+    # colonne par colonne pour les huit)
+    assert rows[HUITIEME][1] == "filets", rows[HUITIEME]
+    assert rows[HUITIEME][3] == "medaillon", rows[HUITIEME]
+    assert rows[HUITIEME][4] == "tablette", rows[HUITIEME]
+    assert rows[HUITIEME][7] == "orfevre", rows[HUITIEME]
+    # ... et les branches qui les servent EXISTENT (une colonne sans branche
+    # rendrait la famille muette là où les sept autres dessinent)
+    for quoi, branche in (("ringZone", 'pr.zone === "orfevre"'),
+                          ("famProfile", 'pr.kind === "filets"'),
+                          ("winMoulding", 'pr.moulure === "medaillon"'),
+                          ("platePath", 'k === "tablette"'),
+                          ("plateTrim", 'pr.plaque === "tablette"')):
+        assert branche in _js_fn(src, quoi), \
+            f"{quoi} n'a pas de branche pour {HUITIEME} ({branche})"
+
+
+def test_le_double_filet_du_filigrane_est_a_2_1_et_3_2_mm():
+    """L'ANATOMIE DU PATRIARCHE, écrite en millimètres et non en `edge_mm`.
+    Spec §7.2 : « filets à ~2,1 et ~3,2 du bord ». Ces deux distances sont
+    celles de la CARTE, pas des curseurs de l'utilisateur — un filet posé par
+    `edge_mm` bougerait au premier réglage."""
+    src = _js()
+    m = re.search(r"const FIL_MM = \[([\d.]+), ([\d.]+)\];", src)
+    assert m, "FIL_MM absent de mod-frame.js"
+    assert (float(m.group(1)), float(m.group(2))) == (2.1, 3.2), m.group(0)
+    corps = _js_fn(src, "famFiligrane")
+    assert "FIL_MM[0]" in corps and "FIL_MM[1]" in corps, \
+        "le peintre ne pose pas ses filets aux distances nommées"
+    # les instruments sont des CHEMINS, jamais des glyphes : une police
+    # absente rendrait un rectangle vide dans le fichier livré
+    for nom in ("insCompas", "insSextant", "insPlume"):
+        assert f"function {nom}(" in src, f"instrument {nom} absent"
+        ins = _js_fn(src, nom)
+        assert "fillText" not in ins and "font" not in ins, \
+            f"{nom} passe par une police au lieu d'un tracé"
+
+
+# ── 19.1 LE BANC DE MESURE DES TRAITS ───────────────────────────────────────
+#
+# Le rastériseur de contrôle de la §15.2, avec DEUX ajouts que la mesure des
+# traits exige et que la mesure de couverture n'exigeait pas :
+#
+#   · LES COULEURS. `teinte_h` n'a pas de sens sur un masque binaire. Chaque
+#     `fill`/`stroke` compose sa couleur sur le fond (blanc), les dégradés
+#     valant la moyenne de leurs arrêts — le banc ne juge donc pas un ton
+#     précis, il juge une TEINTE, qui est ce que la table publie.
+#   · LA LARGEUR DU TRAIT. Le rastériseur de la §15.2 marque UNE cellule par
+#     point de chemin : toute famille dont la signature est un trait y
+#     mesurerait la même épaisseur (une cellule), et `bande_mm` serait une
+#     propriété du banc. `lineWidth` est donc honoré.
+#
+# Et la famille est rendue DEUX FOIS : telle qu'elle est peinte, et avec
+# l'anneau plat RETIRÉ DE LA SOURCE (`ringZone(ctx, m, f);` commenté dans
+# `famProfile`). La différence est ce que la famille pose EN PROPRE. Une
+# mutation de source, pas un seuil de couleur : rien à régler, rien à deviner.
+
+BANC_TRAITS = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const EXPORTS = "\nreturn { st: st, model: model, winMM: winMM, FAMILIES: FAMILIES,"
+  + " PROFILE: PROFILE, WIN_SHAPE: WIN_SHAPE, FAM_FN: FAM_FN,"
+  + " famProfile: famProfile, ringZone: ringZone, winMoulding: winMoulding,"
+  + " platePath: platePath, plateTrim: plateTrim, winPath: winPath };\n})();";
+const SANS = CODE.replace("    ringZone(ctx, m, f);", "    /* hors mesure */");
+if (SANS === CODE) { throw new Error("l'appel a ringZone n'a pas ete trouve"); }
+const modS = new Function("return (function(){ " + SANS + EXPORTS)();
+const mod = new Function("return (function(){ " + CODE + EXPORTS)();
+
+const N_BEZ = 12, N_ARC = 20;
+function parseCol(s) {
+  if (!s) return null;
+  s = String(s);
+  let m = /^rgba?\(\s*([-\d.]+)\s*,\s*([-\d.]+)\s*,\s*([-\d.]+)\s*(?:,\s*([-\d.]+)\s*)?\)$/.exec(s);
+  if (m) return [+m[1], +m[2], +m[3], m[4] === undefined ? 1 : +m[4]];
+  m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(s);
+  if (m) {
+    const t = m[1].length === 3
+      ? m[1][0] + m[1][0] + m[1][1] + m[1][1] + m[1][2] + m[1][2] : m[1];
+    const n = parseInt(t, 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 1];
+  }
+  return null;
+}
+function Grad() { this.stops = []; }
+Grad.prototype.addColorStop = function (p, c) { this.stops.push(c); };
+function colOf(v) {
+  if (v && v.stops) {
+    let r = 0, g = 0, b = 0, a = 0, n = 0;
+    for (const s of v.stops) {
+      const c = parseCol(s);
+      if (!c) continue;
+      r += c[0]; g += c[1]; b += c[2]; a += c[3]; n++;
+    }
+    return n ? [r / n, g / n, b / n, a / n] : null;
+  }
+  return parseCol(v);
+}
+function Rec(W, H, GW, GH) {
+  this.W = W; this.H = H; this.GW = GW; this.GH = GH;
+  this.cov = new Uint8Array(GW * GH);
+  this.covF = new Uint8Array(GW * GH);
+  this.R = new Float64Array(GW * GH).fill(255);
+  this.G = new Float64Array(GW * GH).fill(255);
+  this.B = new Float64Array(GW * GH).fill(255);
+  this.msk = new Uint8Array(GW * GH).fill(1);
+  this.stk = []; this.t = { sx: 1, sy: 1, tx: 0, ty: 0 };
+  this.sub = []; this.cur = null; this.ops = 0; this.plein = false;
+  this.fillStyle = ""; this.strokeStyle = ""; this.lineWidth = 1;
+  this.globalAlpha = 1; this.shadowBlur = 0; this.shadowColor = "";
+  this.lineCap = ""; this.lineJoin = ""; this.font = ""; this.textAlign = "";
+  this.textBaseline = ""; this.imageSmoothingEnabled = true;
+}
+Rec.prototype.save = function () {
+  this.stk.push({ t: { sx: this.t.sx, sy: this.t.sy, tx: this.t.tx, ty: this.t.ty },
+    msk: this.msk.slice() });
+};
+Rec.prototype.restore = function () {
+  const s = this.stk.pop();
+  if (s) { this.t = s.t; this.msk = s.msk; }
+};
+Rec.prototype.translate = function (x, y) {
+  this.t.tx += x * this.t.sx; this.t.ty += y * this.t.sy;
+};
+Rec.prototype.scale = function (x, y) { this.t.sx *= x; this.t.sy *= y; };
+Rec.prototype.rotate = function () {};
+Rec.prototype._p = function (x, y) {
+  return [x * this.t.sx + this.t.tx, y * this.t.sy + this.t.ty];
+};
+Rec.prototype.beginPath = function () { this.sub = []; this.cur = null; };
+Rec.prototype.moveTo = function (x, y) {
+  this.cur = [this._p(x, y)]; this.sub.push(this.cur);
+};
+Rec.prototype.lineTo = function (x, y) {
+  if (!this.cur) this.moveTo(x, y); else this.cur.push(this._p(x, y));
+};
+Rec.prototype.closePath = function () {};
+Rec.prototype.rect = function (x, y, w, h) {
+  this.moveTo(x, y); this.lineTo(x + w, y);
+  this.lineTo(x + w, y + h); this.lineTo(x, y + h);
+  this.cur = null;
+};
+Rec.prototype.arcTo = function (x1, y1, x2, y2) {
+  this.lineTo(x1, y1); this.lineTo(x2, y2);
+};
+Rec.prototype.arc = function (cx, cy, r, a0, a1) {
+  for (let i = 0; i <= N_ARC; i++) {
+    const a = a0 + (a1 - a0) * i / N_ARC;
+    const x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Rec.prototype.ellipse = function (cx, cy, rx, ry, rot, a0, a1) {
+  const ca = Math.cos(rot || 0), sa = Math.sin(rot || 0);
+  for (let i = 0; i <= N_ARC; i++) {
+    const a = a0 + (a1 - a0) * i / N_ARC;
+    const px = Math.cos(a) * rx, py = Math.sin(a) * ry;
+    const x = cx + px * ca - py * sa, y = cy + px * sa + py * ca;
+    if (i === 0 && !this.cur) this.moveTo(x, y); else this.lineTo(x, y);
+  }
+};
+Rec.prototype.bezierCurveTo = function (x1, y1, x2, y2, x3, y3) {
+  if (!this.cur) this.moveTo(x1, y1);
+  const p0 = this.cur[this.cur.length - 1];
+  const inv = { x: (p0[0] - this.t.tx) / this.t.sx, y: (p0[1] - this.t.ty) / this.t.sy };
+  for (let i = 1; i <= N_BEZ; i++) {
+    const t = i / N_BEZ, u = 1 - t;
+    const x = u * u * u * inv.x + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x3;
+    const y = u * u * u * inv.y + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y3;
+    this.lineTo(x, y);
+  }
+};
+Rec.prototype.quadraticCurveTo = function (x1, y1, x2, y2) {
+  this.bezierCurveTo(x1, y1, x1, y1, x2, y2);
+};
+Rec.prototype._ink = function (q, col) {
+  const ga = (this.globalAlpha == null) ? 1 : this.globalAlpha;
+  const a = Math.max(0, Math.min(1, col[3] * ga));
+  if (a <= 0.002) return;
+  this.R[q] = this.R[q] * (1 - a) + col[0] * a;
+  this.G[q] = this.G[q] * (1 - a) + col[1] * a;
+  this.B[q] = this.B[q] * (1 - a) + col[2] * a;
+  if (a >= 0.25) { this.cov[q] = 1; if (this.plein) this.covF[q] = 1; }
+};
+Rec.prototype._raster = function (eo, brut, col) {
+  const GW = this.GW, GH = this.GH;
+  for (let gy = 0; gy < GH; gy++) {
+    const y = (gy + 0.5) * this.H / GH;
+    const xs = [];
+    for (let s = 0; s < this.sub.length; s++) {
+      const sp = this.sub[s], n = sp.length;
+      if (n < 2) continue;
+      for (let i = 0; i < n; i++) {
+        const a = sp[i], b = sp[(i + 1) % n];
+        if ((a[1] <= y) === (b[1] <= y)) continue;
+        const t = (y - a[1]) / (b[1] - a[1]);
+        xs.push([a[0] + t * (b[0] - a[0]), b[1] > a[1] ? 1 : -1]);
+      }
+    }
+    if (xs.length < 2) continue;
+    xs.sort(function (p, q) { return p[0] - q[0]; });
+    let w = 0;
+    for (let i = 0; i < xs.length - 1; i++) {
+      w += xs[i][1];
+      const dedans = eo ? (i % 2 === 0) : (w !== 0);
+      if (!dedans) continue;
+      const x0 = xs[i][0], x1 = xs[i + 1][0];
+      let g0 = Math.floor(x0 * GW / this.W), g1 = Math.ceil(x1 * GW / this.W);
+      if (g0 < 0) g0 = 0;
+      if (g1 > GW) g1 = GW;
+      for (let gx = g0; gx < g1; gx++) {
+        const xc = (gx + 0.5) * this.W / GW;
+        if (xc < x0 || xc >= x1) continue;
+        const q = gy * GW + gx;
+        if (brut) { this._m[q] = 1; continue; }
+        if (this.msk[q] && col) this._ink(q, col);
+      }
+    }
+  }
+};
+Rec.prototype._trace = function (col) {
+  const GW = this.GW, GH = this.GH;
+  const cw = this.W / GW, ch = this.H / GH;
+  const pas = Math.min(cw, ch) * 0.5;
+  const marque = (x, y) => {
+    const r = Math.max(0, (Number(this.lineWidth) || 0) / 2);
+    const g0x = Math.floor((x - r) / cw), g1x = Math.floor((x + r) / cw);
+    const g0y = Math.floor((y - r) / ch), g1y = Math.floor((y + r) / ch);
+    for (let gy = Math.max(0, g0y); gy <= Math.min(GH - 1, g1y); gy++) {
+      for (let gx = Math.max(0, g0x); gx <= Math.min(GW - 1, g1x); gx++) {
+        const cx = (gx + 0.5) * cw, cy = (gy + 0.5) * ch;
+        if (r > 0 && Math.hypot(cx - x, cy - y) > r + Math.min(cw, ch) * 0.5) continue;
+        const q = gy * GW + gx;
+        if (this.msk[q] && col) this._ink(q, col);
+      }
+    }
+  };
+  for (let s = 0; s < this.sub.length; s++) {
+    const sp = this.sub[s];
+    for (let i = 0; i + 1 < sp.length; i++) {
+      const a = sp[i], b = sp[i + 1];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const n = Math.max(1, Math.ceil(L / pas));
+      for (let k = 0; k <= n; k++) {
+        marque(a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n);
+      }
+    }
+  }
+};
+Rec.prototype.fill = function (rule) {
+  this.ops++; this.plein = true;
+  this._raster(rule === "evenodd", false, colOf(this.fillStyle));
+  this.plein = false;
+};
+Rec.prototype.stroke = function () { this.ops++; this._trace(colOf(this.strokeStyle)); };
+Rec.prototype.clip = function (rule) {
+  this._m = new Uint8Array(this.GW * this.GH);
+  this._raster(rule === "evenodd", true, null);
+  for (let i = 0; i < this._m.length; i++) if (!this._m[i]) this.msk[i] = 0;
+};
+Rec.prototype.fillRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.fill();
+};
+Rec.prototype.strokeRect = function (x, y, w, h) {
+  this.beginPath(); this.rect(x, y, w, h); this.stroke();
+};
+Rec.prototype.createLinearGradient = function () { return new Grad(); };
+Rec.prototype.createRadialGradient = function () { return new Grad(); };
+Rec.prototype.createPattern = function () { return null; };
+Rec.prototype.drawImage = function () {};
+Rec.prototype.setLineDash = function () {};
+Rec.prototype.fillText = function () {};
+Rec.prototype.strokeText = function () {};
+Rec.prototype.measureText = function () { return { width: 0 }; };
+
+function teinte(r, g, b) {
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+  if (d < 1e-9) return -1;
+  let h;
+  if (mx === r) h = ((g - b) / d) % 6;
+  else if (mx === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  h *= 60;
+  return (h % 360 + 360) % 360;
+}
+function mediane(a) {
+  if (!a.length) return 0;
+  const b = a.slice().sort((x, y) => x - y);
+  return b[Math.floor(b.length / 2)];
+}
+function geomDe(c) {
+  return Object.assign({}, c.g, { mm2px: (v) => v / 25.4 * c.g.dpi });
+}
+function toileDe(m, g, GW, GH, source, f, shape) {
+  const k = new Rec(g.canvas_px[0], g.canvas_px[1], GW, GH);
+  k.beginPath(); k.rect(0, 0, k.W, k.H);
+  mod.winPath(k, m, shape); k.clip("evenodd");
+  k.save();
+  source.famProfile(k, m, f);
+  const fn = source.FAM_FN[f.family];
+  if (fn) fn(k, m, f);
+  k.restore();
+  return k;
+}
+
+/* ── 1. LES TRAITS, famille par famille ─────────────────────────────────── */
+const traits = [];
+for (const c of CAS.traits) {
+  const g = geomDe(c);
+  const f = mod.st({ frame: c.frame });
+  const m = mod.model(g, f);
+  const shape = mod.WIN_SHAPE[f.family] || "rect";
+  const GW = c.gw, GH = c.gh, cell = c.cell, u = g.mm2px(1), T = m.trim;
+  const B = toileDe(m, g, GW, GH, mod, f, shape);
+  const S = toileDe(m, g, GW, GH, modS, f, shape);
+  const dep = new Int32Array(GW * GH).fill(-1);
+  for (let gy = 0; gy < GH; gy++) {
+    const y = (gy + 0.5) * B.H / GH;
+    for (let gx = 0; gx < GW; gx++) {
+      const x = (gx + 0.5) * B.W / GW;
+      if (x < T.x || y < T.y || x >= T.x + T.w || y >= T.y + T.h) continue;
+      const d = Math.min(x - T.x, y - T.y, T.x + T.w - x, T.y + T.h - y) / u;
+      dep[gy * GW + gx] = Math.floor(d / cell);
+    }
+  }
+  const str = new Uint8Array(GW * GH);
+  let nStr = 0;
+  for (let q = 0; q < GW * GH; q++) {
+    if (dep[q] < 0 || !S.cov[q]) continue;
+    str[q] = 1; nStr++;
+  }
+  const runX = new Int32Array(GW * GH), runY = new Int32Array(GW * GH);
+  for (let gy = 0; gy < GH; gy++) {
+    let x0 = -1;
+    for (let gx = 0; gx <= GW; gx++) {
+      const on = gx < GW && str[gy * GW + gx];
+      if (on && x0 < 0) x0 = gx;
+      if (!on && x0 >= 0) {
+        for (let k2 = x0; k2 < gx; k2++) runX[gy * GW + k2] = gx - x0;
+        x0 = -1;
+      }
+    }
+  }
+  for (let gx = 0; gx < GW; gx++) {
+    let y0 = -1;
+    for (let gy = 0; gy <= GH; gy++) {
+      const on = gy < GH && str[gy * GW + gx];
+      if (on && y0 < 0) y0 = gy;
+      if (!on && y0 >= 0) {
+        for (let k2 = y0; k2 < gy; k2++) runY[k2 * GW + gx] = gy - y0;
+        y0 = -1;
+      }
+    }
+  }
+  const ep = [];
+  for (let q = 0; q < GW * GH; q++) if (str[q]) ep.push(Math.min(runX[q], runY[q]));
+  const bande = Math.round(mediane(ep) * cell * 100) / 100;
+  const nAnneau = Math.round(Math.min(T.w, T.h) / u / 2 / cell);
+  let seaux = new Map(), sn = 0, portee = "lisiere";
+  const preleve = (prof) => {
+    seaux = new Map(); sn = 0;
+    for (let q = 0; q < GW * GH; q++) {
+      if (dep[q] < 0 || dep[q] >= prof || !B.cov[q]) continue;
+      const r = B.R[q], gg = B.G[q], b = B.B[q];
+      sn++;
+      const key = ((r >> 4) << 8) | ((gg >> 4) << 4) | (b >> 4);
+      const e = seaux.get(key) || [0, 0, 0, 0];
+      e[0] += r; e[1] += gg; e[2] += b; e[3]++;
+      seaux.set(key, e);
+    }
+  };
+  preleve(Math.max(1, Math.round(bande / cell)));
+  if (!sn) { portee = "anneau"; preleve(nAnneau); }
+  let best = null;
+  for (const e of seaux.values()) if (!best || e[3] > best[3]) best = e;
+  const dom = best ? [best[0] / best[3], best[1] / best[3], best[2] / best[3]] : null;
+  traits.push({
+    famille: f.family, bande_mm: bande, cellules: nStr, portee: portee,
+    dom_rgb: dom ? dom.map((v) => Math.round(v)) : null,
+    teinte_h: dom ? Math.round(teinte(dom[0], dom[1], dom[2]) * 10) / 10 : -1,
+  });
+}
+
+/* ── 2. LES SILHOUETTES, en GRIS NORMALISÉ, toutes les paires ───────────── */
+function grayNorm(k) {
+  const n = k.GW * k.GH, o = new Float64Array(n);
+  let mn = 1e9, mx = -1e9;
+  for (let i = 0; i < n; i++) {
+    const v = 0.299 * k.R[i] + 0.587 * k.G[i] + 0.114 * k.B[i];
+    o[i] = v; if (v < mn) mn = v; if (v > mx) mx = v;
+  }
+  const s = (mx - mn) || 1;
+  for (let i = 0; i < n; i++) o[i] = (o[i] - mn) / s * 255;
+  return o;
+}
+const sil = { paires: [], min: null };
+if (CAS.silhouettes) {
+  const S = CAS.silhouettes;
+  const g = geomDe(S);
+  const GW = S.gw, GH = S.gh;
+  for (const ra of S.raretes) {
+    const gris = {};
+    for (const fa of S.familles) {
+      const f = mod.st({ frame: { family: fa, rarity: ra } });
+      const m = mod.model(g, f);
+      const shape = mod.WIN_SHAPE[fa] || "rect";
+      const k = toileDe(m, g, GW, GH, mod, f, shape);
+      k.save();
+      mod.winMoulding(k, m, f, shape);
+      k.restore();
+      if (f.plate && m.plate.h > g.mm2px(1) * 6) {
+        mod.platePath(k, m, f); k.fill(); mod.plateTrim(k, m, f);
+      }
+      gris[fa] = grayNorm(k);
+    }
+    for (let i = 0; i < S.familles.length; i++) {
+      for (let j = i + 1; j < S.familles.length; j++) {
+        const a = gris[S.familles[i]], b = gris[S.familles[j]];
+        let s = 0;
+        for (let q = 0; q < a.length; q++) s += Math.abs(a[q] - b[q]);
+        sil.paires.push({ a: S.familles[i], b: S.familles[j], rarete: ra,
+          d: Math.round(s / a.length * 100) / 100 });
+      }
+    }
+  }
+  for (const p of sil.paires) if (sil.min === null || p.d < sil.min) sil.min = p.d;
+}
+process.stdout.write(JSON.stringify({ traits: traits, silhouettes: sil }));
+"""
+
+
+def _banc_traits(tmp_path, cas: dict, code: str | None = None) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc des traits ne peut pas tourner")
+    js = tmp_path / "traits.js"
+    js.write_text(code if code is not None else _painter_js_source(),
+                  encoding="utf-8")
+    banc = tmp_path / "banc_traits.mjs"
+    banc.write_text(BANC_TRAITS, encoding="utf-8")
+    conf = tmp_path / "cas_traits.json"
+    conf.write_text(json.dumps(cas), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=600)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+# LA RÉSOLUTION DE LA MESURE, et pourquoi 0,125 mm et pas 0,25. MESURÉ sur
+# « Art déco », dont les trois gradins de coin sont séparés de 0,05 x t =
+# 0,13 mm : à 0,25 mm de cellule les trois masses FUSIONNENT et l'épaisseur
+# typique passe de 2,38 à 5,00 mm. Une résolution plus grossière que le plus
+# petit intervalle du dessin ne mesure plus le dessin.
+TRAITS_CELL = 0.125
+TRAITS_FMT = "poker_eu"
+# La tolérance : deux cellules sur la bande, deux degrés sur la teinte. Elle
+# n'est pas là pour absorber une table fausse — elle est là pour qu'un
+# arrondi de flottant ne fasse pas rougir une table juste.
+TRAITS_TOL_MM = 2 * TRAITS_CELL
+TRAITS_TOL_DEG = 2.0
+
+
+def _cas_traits(familles=None):
+    g = _geom_js(TRAITS_FMT, 3)
+    tw, th = CT.FORMATS[TRAITS_FMT]["trim_mm"]
+    gw, gh = round((tw + 6) / TRAITS_CELL), round((th + 6) / TRAITS_CELL)
+    ids = familles if familles is not None else [f["id"] for f in FR.FAMILIES]
+    return [{"g": g, "frame": {"family": i}, "gw": gw, "gh": gh,
+             "cell": TRAITS_CELL} for i in ids]
+
+
+def test_les_traits_de_famille_sont_la_MESURE_du_rendu(tmp_path):
+    """`FAMILY_TRAITS` PRÉTEND décrire ce que chaque famille dessine. Ici on
+    le rejoue : les huit familles sont rendues par leurs VRAIS peintres et
+    l'on compare la table aux chiffres qui en sortent.
+
+    Relevé du jour (0,125 mm de cellule, poker 300 DPI, DEFAULTS) :
+      runic 1,50 mm / 211,4°   arcane 2,38 / 211,4   timber 3,13 / 211,4
+      deco  2,38 / 211,4       neon   1,50 / 210,7   sable  2,63 / 211,4
+      gravure 0,38 / 55,4      filigrane 0,50 / 42,1
+
+    CE QUE CE CONTRÔLE INTERDIT : qu'on retouche un chiffre de la table « pour
+    que l'adoption tombe mieux ». La table décrit le dessin ; si l'on veut un
+    autre chiffre, c'est le DESSIN qu'on change."""
+    res = _banc_traits(tmp_path, {"traits": _cas_traits()})
+    mes = {t["famille"]: t for t in res["traits"]}
+    assert set(mes) == set(FR.FAMILY_TRAITS), \
+        f"mesurées {sorted(mes)} / table {sorted(FR.FAMILY_TRAITS)}"
+    for fid, t in FR.FAMILY_TRAITS.items():
+        m = mes[fid]
+        assert m["cellules"] > 200, \
+            f"{fid} : {m['cellules']} cellules propres — la famille ne pose " \
+            f"presque rien hors de l'anneau plat"
+        assert abs(m["bande_mm"] - t["bande_mm"]) <= TRAITS_TOL_MM, \
+            f"{fid} : bande mesurée {m['bande_mm']} mm, table {t['bande_mm']}"
+        assert m["teinte_h"] >= 0, f"{fid} : lisière sans teinte mesurable"
+        assert FR.ecart_teinte(m["teinte_h"], t["teinte_h"]) <= TRAITS_TOL_DEG, \
+            f"{fid} : teinte mesurée {m['teinte_h']}°, table {t['teinte_h']}°"
+
+
+def test_le_banc_des_traits_VOIT_une_table_fausse(tmp_path):
+    """LE CONTRÔLE NÉGATIF. Un banc qui ne peut pas rougir ne prouve rien : on
+    vide le peintre de la famille neuve ET sa branche de profil, et sa bande
+    mesurée doit cesser d'être celle de la table. (Mutation sur la COPIE du
+    banc, jamais sur le dépôt.)"""
+    code = _painter_js_source()
+    i = code.index("function famFiligrane(")
+    j = code.index("{", i)
+    mut = code[:j + 1] + " return; " + code[j + 1:]
+    sain = _banc_traits(tmp_path, {"traits": _cas_traits([HUITIEME])})
+    mort = _banc_traits(tmp_path, {"traits": _cas_traits([HUITIEME])}, mut)
+    a, b = sain["traits"][0], mort["traits"][0]
+    assert abs(a["bande_mm"] - FR.FAMILY_TRAITS[HUITIEME]["bande_mm"]) \
+        <= TRAITS_TOL_MM, a
+    assert b["cellules"] < a["cellules"], \
+        f"le peintre vidé pose encore autant de cellules : {b} vs {a}"
+
+
+def test_les_huit_silhouettes_restent_deux_a_deux_distinctes(tmp_path):
+    """LA QA DE SILHOUETTES, EN PAIRWISE 8 x 8. Le badge de l'écran mesure la
+    même chose au navigateur (`SIL_SEUIL = 4` / 255 sur gris normalisé) ; il
+    n'est pas dans la suite. On la mesure ici sur le rastériseur de contrôle,
+    en COULEUR, sur les mêmes étapes de signature (profil, dessin, moulure,
+    plaque) et les six raretés : 28 paires x 6 = 168 mesures.
+
+    LE SEUIL NE BOUGE PAS. Une famille qui passe dessous se REDESSINE — c'est
+    la règle écrite dans mod-frame.js depuis la septième, et la huitième ne
+    l'assouplit pas. On mesure DEUX minimums : celui des sept familles
+    d'avant, et celui des huit. Si le second est plus bas, c'est la famille
+    neuve qui tire le catalogue vers le bas, et c'est elle qu'on redessine.
+
+    NB : ces chiffres ne sont PAS ceux du badge (qui rend la toile livrée à
+    815 x 1110 avec la matière et le texte par-dessus). Ils sont plus élevés,
+    parce que ce banc ne peint que les couches de famille — la comparaison
+    qui compte ici est AVANT/APRÈS, à méthode constante.
+
+    RELEVÉ, à méthode constante (0,25 mm de cellule, poker 300 DPI) :
+      · SEPT familles, 126 mesures : minimum 31,60 / 255
+        (« Runique x Art déco » en Rare)
+      · PREMIER JET de la huitième — anneau noir à lisière d'or + moulure de
+        fenêtre en jonc plein : 22,43, et la paire la plus serrée devenait
+        « Gravure x Filigrane ». Au-dessus du seuil, mais la famille NEUVE
+        tirait le catalogue vers le bas. Deux redessins mesurés : l'anneau en
+        TROIS bandes (or / chenal noir / or) -> 23,01 (presque rien : ce
+        n'était pas là que ça se jouait), puis la moulure de fenêtre passée
+        du jonc plein à QUATRE MÉDAILLONS discrets -> 33,90.
+      · HUIT familles, 168 mesures : minimum 31,60 / 255, « Runique x Art
+        déco » en Rare — EXACTEMENT la paire et la valeur d'avant. La
+        huitième famille ne coûte rien au catalogue."""
+    src = _js()
+    m = re.search(r"const SIL_SEUIL = (\d+);", src)
+    assert m, "SIL_SEUIL absent de mod-frame.js"
+    seuil = float(m.group(1))
+    assert seuil == 4, "le seuil de silhouettes a bougé — re-mesurer avant"
+    g = _geom_js(TRAITS_FMT, 3)
+    tw, th = CT.FORMATS[TRAITS_FMT]["trim_mm"]
+    cell = 0.25
+    res = _banc_traits(tmp_path, {"traits": [], "silhouettes": {
+        "g": g, "gw": round((tw + 6) / cell), "gh": round((th + 6) / cell),
+        "familles": [f["id"] for f in FR.FAMILIES],
+        "raretes": [r["id"] for r in FR.RARITIES]}})
+    paires = res["silhouettes"]["paires"]
+    n = len(FR.FAMILIES)
+    assert len(paires) == n * (n - 1) // 2 * len(FR.RARITIES), len(paires)
+    pire = min(paires, key=lambda p: p["d"])
+    sans = [p for p in paires
+            if p["a"] != HUITIEME and p["b"] != HUITIEME]
+    pire7 = min(sans, key=lambda p: p["d"])
+    assert pire["d"] >= seuil, \
+        f"paire trop proche : {pire} (seuil {seuil}) — c'est la SILHOUETTE " \
+        f"qui doit changer, pas le seuil"
+    # LA HUITIÈME NE COÛTE RIEN AU CATALOGUE : le minimum des huit est celui
+    # des sept. C'est une exigence PLUS DURE que le seuil, et c'est elle qui a
+    # fait redessiner la famille deux fois (voir le relevé ci-dessus) — sans
+    # elle, une famille neuve peut diviser l'écart par deux et rester verte.
+    assert pire["d"] >= pire7["d"] - 0.01, \
+        f"la huitième famille tire le catalogue vers le bas : " \
+        f"{pire} contre {pire7} sans elle"
+    assert pire7["d"] == pytest.approx(31.60, abs=0.05), \
+        f"le catalogue à sept a bougé : {pire7} — re-mesurer avant de recopier"
+
+
+# ── 19.2 LE BANC D'ADOPTION : les deux sources jouées, pas relues ───────────
+
+BANC_ADOPTION = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = new Function("return (function(){ " + CODE
+  + "\nreturn { teinteDe: teinteDe, ecartTeinte: ecartTeinte,"
+  + " traitsEchelles: traitsEchelles, familleProche: familleProche,"
+  + " mm1: mm1, phraseEcart: phraseEcart, bordureLue: bordureLue,"
+  + " adoptionBordure: adoptionBordure, FAMILY_TRAITS: FAMILY_TRAITS };\n})();")();
+const out = { echelles: mod.traitsEchelles(), traits: mod.FAMILY_TRAITS,
+  teintes: [], mesures: [], bordures: [] };
+for (const c of (CAS.teintes || [])) {
+  out.teintes.push({ hex: c, h: mod.teinteDe(c) });
+}
+for (const m of (CAS.mesures || [])) {
+  const h = (m.teinte_h === undefined) ? null : m.teinte_h;
+  const ch = mod.familleProche(m.mm, h);
+  out.mesures.push({ nom: m.nom, id: ch.id, d: ch.d, d_bande: ch.d_bande,
+    d_teinte: ch.d_teinte, phrase: mod.phraseEcart(m.mm, h, ch.id) });
+}
+for (const b of (CAS.bordures || [])) {
+  const bo = mod.bordureLue(b.border);
+  if (!bo) { out.bordures.push({ nom: b.nom, lue: null }); continue; }
+  const a = mod.adoptionBordure(bo, b.frame || {}, b.win);
+  out.bordures.push({ nom: b.nom, lue: bo, famille: a.famille,
+    patch: a.patch, ecart: a.ecart, fenetre: a.fenetre });
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _adoption_js_source() -> str:
+    """LE CALCUL D'ADOPTION, extrait TEL QUEL : le bloc miroir en entier, plus
+    les deux fonctions qui l'emploient. Aucune réimplémentation — une
+    réimplémentation prouverait la réimplémentation."""
+    src = _js()
+    # LE BLOC EST BORNÉ PAR DEUX MOITIÉS DE COMMENTAIRE : les marqueurs
+    # `CF-FRAME-CATALOG-BEGIN/END` vivent DANS un `/* … */`, si bien que la
+    # tranche extraite commence par « ═══ */ » et finit par « /* ═══ ». On la
+    # REFERME des deux côtés au lieu de la raboter : le bloc évalué reste
+    # celui du dépôt, à l'octet près.
+    return "\n".join([_bloc_js(src), _js_const(src, "cl"),
+                      _js_const(src, "r2"), _js_fn(src, "nbLu"),
+                      _js_fn(src, "bordureLue"),
+                      _js_fn(src, "adoptionBordure")])
+
+
+def _banc_adoption(tmp_path, cas: dict, mutations=()) -> dict:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc d'adoption ne peut pas tourner")
+    code = _adoption_js_source()
+    for avant, apres in mutations:
+        assert avant in code, f"mutation introuvable : {avant!r}"
+        code = code.replace(avant, apres)
+    js = tmp_path / "adoption.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_adoption.mjs"
+    banc.write_text(BANC_ADOPTION, encoding="utf-8")
+    conf = tmp_path / "cas_adoption.json"
+    # L'INFINI NE TRAVERSE PAS JSON. `json.dumps(float("inf"))` écrit
+    # `Infinity`, que `JSON.parse` refuse ; et c'est justement la valeur que
+    # `isFinite` existe pour arrêter. On la fait passer par un jeton, remplacé
+    # par le littéral que JavaScript, lui, lit comme l'infini.
+    conf.write_text(json.dumps(cas).replace('"@INF@"', "1e999"),
+                    encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+# LE BANC DE MESURES : bandes de 0,5 à 6 mm, teintes tout autour du cercle —
+# et LE TOUR, 350 contre 10, que la spec §9.2 appelle par son nom. Un écart de
+# teinte calculé sans `min(d, 360-d)` rend 340 degrés pour ces deux-là.
+MESURES_BANC = [
+    {"nom": "fine-or", "mm": 0.5, "teinte_h": 45.0},
+    {"nom": "mince-ivoire", "mm": 0.9, "teinte_h": 55.0},
+    {"nom": "patriarche", "mm": 2.1, "teinte_h": 43.0},
+    {"nom": "moyenne-bleue", "mm": 2.4, "teinte_h": 211.0},
+    {"nom": "moyenne-verte", "mm": 2.6, "teinte_h": 140.0},
+    {"nom": "large-rouge", "mm": 3.2, "teinte_h": 10.0},
+    {"nom": "large-magenta", "mm": 4.0, "teinte_h": 300.0},
+    {"nom": "tres-large", "mm": 6.0, "teinte_h": 200.0},
+    {"nom": "tour-350", "mm": 2.1, "teinte_h": 350.0},
+    {"nom": "tour-010", "mm": 2.1, "teinte_h": 10.0},
+    {"nom": "tour-355-fine", "mm": 0.6, "teinte_h": 355.0},
+    {"nom": "sans-teinte", "mm": 3.0, "teinte_h": None},
+    {"nom": "bord-zero", "mm": 0.05, "teinte_h": 0.0},
+    {"nom": "bord-360", "mm": 5.0, "teinte_h": 359.9},
+]
+TEINTES_BANC = ["#d8b76a", "#8a6a2e", "#f7f0dd", "#2b5f96", "#0f2338",
+                "#c0c0c0", "#000000", "#ffffff", "#ff0000", "#00ff00",
+                "#0000ff", "#010200", "#fe0001", "abc", "#abc", "",
+                "#GGGGGG", "#12345", "  #D8B76A  "]
+
+
+def test_les_traits_et_le_plus_proche_sont_les_memes_des_deux_cotes(tmp_path):
+    """LA PARITÉ, PRISE À L'EXÉCUTION (§9.2). Pas une comparaison de textes :
+    les deux sources tournent sur le MÊME banc de 14 mesures et 19 couleurs,
+    et doivent rendre la même famille, la même distance et la MÊME PHRASE.
+
+    Une comparaison de textes ne verrait pas deux `%` qui ne se comportent pas
+    pareil — et c'est le cas ici : `-1 % 6` vaut -1 en JavaScript et 5 en
+    Python. La formule de teinte y passe dès que le bleu domine."""
+    res = _banc_adoption(tmp_path, {"teintes": TEINTES_BANC,
+                                    "mesures": MESURES_BANC})
+    # la table elle-même, à l'octet près
+    assert res["traits"] == FR.FAMILY_TRAITS, \
+        f"FAMILY_TRAITS diverge : JS {res['traits']} / py {FR.FAMILY_TRAITS}"
+    e = FR.traits_echelles()
+    assert res["echelles"]["bande"] == pytest.approx(e["bande"])
+    assert res["echelles"]["teinte"] == pytest.approx(e["teinte"])
+    # les teintes, couleur par couleur (y compris les formes REFUSÉES)
+    for row in res["teintes"]:
+        py = FR.teinte_de(row["hex"])
+        js = row["h"]
+        if py is None or js is None:
+            assert py is None and js is None, (row["hex"], js, py)
+        else:
+            assert js == pytest.approx(py, abs=1e-9), (row["hex"], js, py)
+    # le plus proche, mesure par mesure
+    assert len(res["mesures"]) == len(MESURES_BANC) >= 10
+    for row in res["mesures"]:
+        m = [x for x in MESURES_BANC if x["nom"] == row["nom"]][0]
+        py = FR.famille_proche(m["mm"], m["teinte_h"])
+        assert row["id"] == py["id"], (row["nom"], row["id"], py["id"])
+        assert row["d"] == pytest.approx(py["d"], abs=1e-9), row["nom"]
+        assert row["phrase"] == FR.phrase_ecart(m["mm"], m["teinte_h"],
+                                                py["id"]), row["nom"]
+
+
+def test_la_teinte_circulaire_est_indispensable(tmp_path):
+    """MUTATION. `min(d, 360 - d)` retiré : une bordure à 350° cesse d'être à
+    52° de l'or du filigrane (42,1°) et passe à 308. MESURÉ sur le banc — la
+    famille choisie CHANGE, et la phrase change de chiffre avec elle. Les deux
+    chiffres sont RECALCULÉS ici, jamais recopiés."""
+    cas = {"mesures": [m for m in MESURES_BANC
+                       if m["nom"] in ("tour-350", "tour-355-fine", "patriarche")]}
+    sain = {r["nom"]: r for r in _banc_adoption(tmp_path, cas)["mesures"]}
+    mut = {r["nom"]: r for r in _banc_adoption(tmp_path, cas, mutations=[
+        ("return d > 180 ? 360 - d : d;", "return d;")])["mesures"]}
+    assert sain["tour-350"]["id"] == HUITIEME, sain["tour-350"]
+    assert mut["tour-350"]["id"] != sain["tour-350"]["id"], \
+        f"la distance circulaire ne change RIEN : {mut['tour-350']}"
+    h8 = FR.FAMILY_TRAITS[HUITIEME]["teinte_h"]
+    court = math.floor(FR.ecart_teinte(350.0, h8) + 0.5)          # 52
+    long_ = math.floor(abs(350.0 - h8) + 0.5)                     # 308
+    assert court < 90 < long_, (court, long_)
+    assert f"teinte à {court}°" in sain["tour-350"]["phrase"], \
+        sain["tour-350"]["phrase"]
+    assert f"teinte à {court}°" not in mut["tour-350"]["phrase"], \
+        mut["tour-350"]["phrase"]
+    # ... et la mesure qui NE tourne PAS autour de 0 ne bouge pas : la
+    # mutation ne casse pas tout, elle casse exactement le tour
+    assert mut["patriarche"]["id"] == sain["patriarche"]["id"]
+
+
+# ── 19.3 CE QUE L'ADOPTION ÉCRIT ────────────────────────────────────────────
+#
+# LE MAPPING, et pourquoi ces clés-là (vérifié à la source, pas supposé) :
+#   bande mesurée -> `inner_mm`   (le modèle pose la bande entre la coupe et
+#                                  `trim` rentré de `inner_mm` ; le panneau
+#                                  l'appelle « Marge intérieure (bande) »)
+#   couleur       -> `line_color` + `metal: false` (sinon `inkPaint` rend le
+#                                  dégradé métallique et `line_color` n'est
+#                                  JAMAIS lu — un réglage qui ne règle rien)
+#   rayon         -> `window.r`   (le SEUL rayon de `doc.frame` ; celui de la
+#                                  CARTE est `doc.format.corner_mm`, propriété
+#                                  de la pièce 00 — P2 ne l'écrit pas)
+
+WIN_BANC = {"x": 6.6, "y": 6.6, "w": 49.8, "h": 44.4, "r": 2.5}
+
+
+def _cas_bordure(nom, border, frame=None):
+    return {"nom": nom, "border": border, "frame": frame or {},
+            "win": dict(WIN_BANC)}
+
+
+def test_l_adoption_pose_les_reglages_MESURES_clampes_par_LIMITS(tmp_path):
+    """Les trois grandeurs mesurées deviennent trois réglages, chacune dans
+    SES bornes. Une bordure de 40 mm mesurée sur une image mal cadrée ne doit
+    pas écrire 40 dans `inner_mm` : `LIMITS` est la borne, et elle mord."""
+    res = _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("patriarche", {"mm": 2.1, "color": "#d8b76a",
+                                    "radius_mm": 3.0, "confidence": 0.82}),
+        _cas_bordure("enorme", {"mm": 40.0, "color": "#8a6a2e",
+                                "radius_mm": 99.0, "confidence": 1.0}),
+        _cas_bordure("negatif", {"mm": 2.0, "color": "#2b5f96",
+                                 "radius_mm": -4.0, "confidence": 0.5}),
+        _cas_bordure("rayon-nul", {"mm": 2.0, "color": "#2b5f96",
+                                   "radius_mm": 0.0, "confidence": 0.5}),
+    ]})["bordures"]
+    r = {x["nom"]: x for x in res}
+    p = r["patriarche"]["patch"]
+    assert p["family"] == HUITIEME, p
+    assert p["inner_mm"] == 2.1, p
+    assert p["line_color"] == "#d8b76a" and p["metal"] is False, p
+    assert p["window"]["r"] == 3.0, p
+    # la fenêtre est reposée ENTIÈRE : un `{r: …}` seul l'effacerait
+    for k in ("x", "y", "w", "h"):
+        assert p["window"][k] == WIN_BANC[k], p["window"]
+    # les bornes MORDENT, des deux côtés
+    g = r["enorme"]["patch"]
+    assert g["inner_mm"] == FR.LIMITS["inner_mm"][1], g
+    assert g["window"]["r"] == FR.LIMITS["win_r_mm"][1], g
+    # ... mais un rayon NÉGATIF n'est pas une mesure hors bornes, c'est une
+    # mesure qui n'a pas eu lieu : on ne la ramène pas à 0 (ce serait publier
+    # un angle vif que personne n'a vu), on ne pose pas de fenêtre du tout.
+    assert r["negatif"]["lue"]["radius_mm"] is None, r["negatif"]["lue"]
+    assert "window" not in r["negatif"]["patch"], r["negatif"]
+    # ... un rayon de ZÉRO, lui, EST une mesure : des coins vifs se mesurent.
+    assert r["rayon-nul"]["patch"]["window"]["r"] == 0.0, r["rayon-nul"]
+
+
+def test_l_adoption_sans_clamp_ecrirait_hors_bornes(tmp_path):
+    """MUTATION : le `cl(...)` de la bande retiré. Une bordure de 40 mm
+    passerait telle quelle dans un curseur qui s'arrête à 20."""
+    cas = {"bordures": [_cas_bordure("enorme", {"mm": 40.0, "color": "",
+                                                "radius_mm": None})]}
+    mut = _banc_adoption(tmp_path, cas, mutations=[
+        ("inner_mm: r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1])),",
+         "inner_mm: r2(bo.mm),")])["bordures"][0]
+    assert mut["patch"]["inner_mm"] == 40.0, mut
+    sain = _banc_adoption(tmp_path, cas)["bordures"][0]
+    assert sain["patch"]["inner_mm"] == FR.LIMITS["inner_mm"][1], sain
+
+
+def test_le_verrou_de_proportions_garde_la_fenetre(tmp_path):
+    """LE VERROU DE LA 3b, APPLIQUÉ À LA LETTRE. `win_lock` garde la FENÊTRE :
+    armé, elle n'entre pas dans le patch — et la ligne d'écart le DIT, au lieu
+    de laisser croire que le rayon a été posé.
+
+    Ce qu'il ne fait PAS : interdire le geste. « Le verrou ne gate JAMAIS le
+    panneau » (clôture 3b) — la famille, la bande et la couleur s'adoptent
+    quand même, parce que le verrou ne garde pas ces trois-là."""
+    b = {"mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0, "confidence": 0.9}
+    res = {x["nom"]: x for x in _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("libre", b, {"win_lock": False}),
+        _cas_bordure("verrou", b, {"win_lock": True}),
+        _cas_bordure("sans-rayon", {"mm": 2.1, "color": "#d8b76a",
+                                    "radius_mm": None}, {"win_lock": False}),
+    ]})["bordures"]}
+    assert "window" in res["libre"]["patch"], res["libre"]
+    assert "window" not in res["verrou"]["patch"], res["verrou"]
+    assert "verrou" in res["verrou"]["fenetre"], res["verrou"]["fenetre"]
+    assert "window" not in res["sans-rayon"]["patch"], res["sans-rayon"]
+    assert "rayon non mesuré" in res["sans-rayon"]["fenetre"]
+    # le verrou ne gate PAS le reste
+    for nom in ("libre", "verrou"):
+        p = res[nom]["patch"]
+        assert p["family"] == HUITIEME and p["inner_mm"] == 2.1
+        assert p["line_color"] == "#d8b76a"
+
+
+def test_le_verrou_ignore_ecraserait_la_fenetre(tmp_path):
+    """MUTATION : le verrou lu à l'envers. La fenêtre que l'utilisateur a
+    verrouillée entrerait alors dans le patch."""
+    cas = {"bordures": [_cas_bordure(
+        "verrou", {"mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0},
+        {"win_lock": True})]}
+    mut = _banc_adoption(tmp_path, cas, mutations=[
+        ("const verrou = !!(f0 && f0.win_lock);",
+         "const verrou = false;")])["bordures"][0]
+    assert "window" in mut["patch"], mut
+
+
+def test_une_bordure_absente_ou_folle_ne_donne_RIEN_a_adopter(tmp_path):
+    """LECTURE TOLÉRANTE (règle 3, patron `sectionsBasses`). `doc.capture` est
+    la propriété d'une AUTRE pièce : absent, `null`, partiel, ou rempli de
+    n'importe quoi, chaque cas rend `null` — et un bloc d'adoption sans
+    matière à adopter n'existe pas."""
+    hostiles = [
+        ("absent", None), ("vide", {}), ("liste", []), ("texte", "beaucoup"),
+        ("mm-nul", {"mm": 0, "color": "#d8b76a"}),
+        ("mm-negatif", {"mm": -3, "color": "#d8b76a"}),
+        ("mm-texte", {"mm": "deux", "color": "#d8b76a"}),
+        ("mm-infini", {"mm": "@INF@", "color": "#d8b76a"}),
+        ("mm-nul-explicite", {"mm": None, "color": "#d8b76a"}),
+    ]
+    res = {x["nom"]: x for x in _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure(n, b) for n, b in hostiles]})["bordures"]}
+    for n, _b in hostiles:
+        assert res[n]["lue"] is None, (n, res[n])
+    # ... et une couleur folle ne fait pas tomber le geste : la bande, elle,
+    # est mesurable, donc on adopte ce qui est mesuré et rien de plus
+    partiel = _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("couleur-folle", {"mm": 2.1, "color": "rouge vif",
+                                       "radius_mm": None}),
+        _cas_bordure("couleur-absente", {"mm": 2.1}),
+    ]})["bordures"]
+    for x in partiel:
+        assert x["lue"] is not None, x
+        assert x["lue"]["color"] == "", x
+        assert "line_color" not in x["patch"], x
+        assert "metal" not in x["patch"], x
+        assert "teinte non mesurable" in x["ecart"], x["ecart"]
+
+
+def test_la_phrase_d_ecart_porte_LES_CHIFFRES_DU_CALCUL(tmp_path):
+    """§9.1 : « l'écart famille↔mesure est celui affiché ». Chaque nombre de
+    la phrase est recalculé ici — la bande mesurée, la bande de la famille
+    choisie, et l'écart de teinte EN DEGRÉS (la spec écrivait « % » ; un
+    pourcentage d'angle ne veut rien dire, et c'est amendé à la source).
+
+    LA PROSE SE MESURE : on ne cherche pas « la phrase contient un nombre »,
+    on reconstruit la phrase entière à partir du calcul et on exige
+    l'égalité."""
+    res = _banc_adoption(tmp_path, {"mesures": MESURES_BANC})["mesures"]
+    for row in res:
+        m = [x for x in MESURES_BANC if x["nom"] == row["nom"]][0]
+        t = FR.FAMILY_TRAITS[row["id"]]
+        lab = [f["label"] for f in FR.FAMILIES if f["id"] == row["id"]][0]
+        attendu = f"bande {FR._mm1(m['mm'])} mm ↔ {lab} {FR._mm1(t['bande_mm'])} mm"
+        if m["teinte_h"] is None:
+            attendu += ", teinte non mesurable"
+        else:
+            deg = math.floor(
+                FR.ecart_teinte(m["teinte_h"], t["teinte_h"]) + 0.5)
+            attendu += f", teinte à {deg}°"
+        assert row["phrase"] == attendu, (row["nom"], row["phrase"], attendu)
+        # ... et le chiffre affiché est celui du CALCUL, pas un second calcul
+        if m["teinte_h"] is not None:
+            deg = math.floor(
+                row["d_teinte"] * FR.traits_echelles()["teinte"] + 0.5)
+            assert f"teinte à {deg}°" in row["phrase"], (row, deg)
+
+
+def test_la_phrase_d_ecart_est_celle_de_la_spec():
+    """L'EXEMPLE DE LA SPEC, joué. §7.1.5 écrit « bande 2,1 mm ↔ famille sable
+    2,0 mm, teinte à N » : même forme, même ordre, même flèche. Le LIBELLÉ y
+    remplace l'identifiant (« Épure », pas « sable ») — c'est le mot que
+    l'utilisateur voit dans la grille des familles juste à côté."""
+    p = FR.phrase_ecart(2.1, 43.0, "sable")
+    assert p.startswith("bande 2,1 mm ↔ Épure "), p
+    assert " mm, teinte à " in p and p.endswith("°"), p
+    assert "%" not in p, "un écart d'angle n'est pas un pourcentage"
+
+
+# ── 19.4 LE NON-DÉPART : sans matière, il n'y a pas de bouton ───────────────
+#
+# Le verrou de la 3b est un NON-DÉPART : « 0 écouteur posé, rien à dépiler ».
+# Ici la même doctrine garde le geste d'adoption — quand `doc.capture.border`
+# n'a rien de mesurable, il n'y a pas un bouton grisé qui refuserait, il n'y a
+# AUCUN écouteur, donc aucune entrée d'annulation à reprendre.
+
+BANC_ADOPT_DOM = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const out = [];
+for (const c of CAS.cas) {
+  let ecouteurs = 0;
+  const clics = [];
+  const patches = [];
+  const toasts = [];
+  function El(tag) {
+    this.tag = tag; this.className = ""; this.innerHTML = "";
+    this.title = ""; this.type = ""; this.children = []; this.firstChild = null;
+    this._txt = "";
+    const s = new Set();
+    this.classList = {
+      add: (k) => s.add(k), remove: (k) => s.delete(k),
+      contains: (k) => s.has(k),
+      toggle: (k, on) => { if (on) s.add(k); else s.delete(k); },
+      _s: s,
+    };
+  }
+  Object.defineProperty(El.prototype, "textContent", {
+    get: function () { return this._txt; },
+    set: function (v) {
+      this._txt = String(v); this.children = []; this.firstChild = null;
+    },
+  });
+  El.prototype.appendChild = function (n) {
+    this.children.push(n);
+    this.firstChild = this.children[0];
+    return n;
+  };
+  El.prototype.addEventListener = function (t, fn) {
+    ecouteurs++; clics.push({ el: this, type: t, fn: fn });
+  };
+  El.prototype.querySelector = function () { return null; };
+  const document = { createElement: (t) => new El(t) };
+  const UI = { adopt: new El("div") };
+  const DOC = { capture: c.capture || {}, frame: c.frame || {} };
+  const CF = {
+    geom: () => c.g,
+    doc: () => DOC,
+    get: (path, dflt) => {
+      const parts = String(path).split(".");
+      let cur = DOC;
+      for (const p of parts) {
+        if (cur === null || typeof cur !== "object"
+          || !Object.prototype.hasOwnProperty.call(cur, p)) return dflt;
+        cur = cur[p];
+      }
+      return cur === undefined ? dflt : cur;
+    },
+  };
+  const M = { toast: (t) => toasts.push(String(t)) };
+  const f = () => c.frame || {};
+  const set = (partial, label) => patches.push({ patch: partial, label: label });
+  const mod = new Function("UI", "CF", "M", "f", "set", "document",
+    CODE + "\nreturn { renderAdopt: renderAdopt };")(UI, CF, M, f, set, document);
+  mod.renderAdopt(c.frame || {}, c.g);
+  const avantClic = ecouteurs;
+  if (c.clic && clics.length) { clics[0].fn(); }
+  const textes = [];
+  const marche = (n) => {
+    if (!n) return;
+    if (n._txt) textes.push(n._txt);
+    if (n.innerHTML) textes.push(n.innerHTML);
+    (n.children || []).forEach(marche);
+  };
+  marche(UI.adopt);
+  out.push({ nom: c.nom, ecouteurs: avantClic, enfants: UI.adopt.children.length,
+    cache: UI.adopt.classList.contains("hidden"), textes: textes,
+    patches: patches, toasts: toasts });
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_adopt_dom(tmp_path, cas: list) -> dict:
+    """`renderAdopt` JOUÉE, avec ses vraies fabriques de DOM (`h`, `label`,
+    `esc`) et son vrai `winMM`. Seul l'environnement est simulé : le document,
+    le registre du CORE et l'écriture."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du bloc d'adoption ne peut pas tourner")
+    src = _js()
+    code = "\n".join([
+        _bloc_js(src), _js_const(src, "cl"), _js_const(src, "r2"),
+        _js_const(src, "num"), _js_fn(src, "winMM"), _js_fn(src, "esc"),
+        _js_fn(src, "h"), _js_fn(src, "label"), _js_fn(src, "nbLu"),
+        _js_fn(src, "bordureLue"),
+        _js_fn(src, "bordureDuDoc"), _js_fn(src, "adoptionBordure"),
+        _js_fn(src, "renderAdopt")])
+    js = tmp_path / "adopt_dom.js"
+    js.write_text(code, encoding="utf-8")
+    banc = tmp_path / "banc_adopt_dom.mjs"
+    banc.write_text(BANC_ADOPT_DOM, encoding="utf-8")
+    conf = tmp_path / "cas_adopt_dom.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return {x["nom"]: x for x in json.loads(r.stdout)}
+
+
+def test_sans_bordure_mesuree_il_n_y_a_AUCUN_ECOUTEUR(tmp_path):
+    """LE NON-DÉPART (verrou 3b). Pas de bordure -> pas de bouton -> ZÉRO
+    écouteur posé et rien dans le bloc. Un bouton grisé aurait été un bouton
+    qui ment, et un écouteur posé « au cas où » serait un geste à défaire.
+
+    Les quatre états de `doc.capture` que la pièce 10 peut produire sont
+    joués : jamais analysé, analysé sans bordure trouvée (le refus mesuré de
+    §8), bordure partielle, bordure complète."""
+    g = _geom_js("poker_eu", 3)
+    cas = [
+        {"nom": "jamais", "g": g, "capture": {}, "frame": {}},
+        {"nom": "sans-bordure", "g": g, "frame": {},
+         "capture": {"analyzed": 1770000000000, "border": None}},
+        {"nom": "bordure-vide", "g": g, "frame": {},
+         "capture": {"analyzed": 1, "border": {}}},
+        {"nom": "bordure", "g": g, "frame": {},
+         "capture": {"analyzed": 1, "border": {
+             "mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0,
+             "confidence": 0.82}}},
+    ]
+    res = _banc_adopt_dom(tmp_path, cas)
+    for nom in ("jamais", "sans-bordure", "bordure-vide"):
+        r = res[nom]
+        assert r["ecouteurs"] == 0, f"{nom} : {r['ecouteurs']} écouteur(s) posé(s)"
+        assert r["enfants"] == 0, f"{nom} : le bloc n'est pas vide ({r})"
+        assert r["cache"] is True, nom
+    r = res["bordure"]
+    assert r["ecouteurs"] == 1, f"un seul bouton, un seul écouteur : {r}"
+    assert r["enfants"] == 3, r          # titre, rangée du bouton, écart
+    assert r["cache"] is False, r
+    assert any("Adopter la bordure" in t for t in r["textes"]), r["textes"]
+    assert any("bande 2,1 mm ↔" in t for t in r["textes"]), r["textes"]
+    assert any("confiance 0.82" in t for t in r["textes"]), r["textes"]
+
+
+def test_l_adoption_est_UN_SEUL_PAS_D_ANNULATION(tmp_path):
+    """Un clic = un `set()` = un `M.patch` = une entrée d'annulation. Quatre
+    clés écrites en QUATRE appels donneraient quatre Ctrl+Z pour revenir en
+    arrière — le défaut que `set()` existe pour empêcher."""
+    g = _geom_js("poker_eu", 3)
+    res = _banc_adopt_dom(tmp_path, [{
+        "nom": "clic", "g": g, "clic": True,
+        "frame": {"window": dict(WIN_BANC), "win_lock": False},
+        "capture": {"analyzed": 1, "border": {
+            "mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0,
+            "confidence": 0.82}}}])["clic"]
+    assert len(res["patches"]) == 1, \
+        f"{len(res['patches'])} écritures pour une adoption : {res['patches']}"
+    p = res["patches"][0]
+    assert p["label"] == "bordure adoptée", p
+    assert set(p["patch"]) == {"family", "inner_mm", "line_color", "metal",
+                               "window"}, p["patch"]
+    assert p["patch"]["family"] == HUITIEME, p
+    # le toast PORTE l'écart, le même que la ligne du panneau
+    assert len(res["toasts"]) == 1, res["toasts"]
+    assert FR.phrase_ecart(2.1, FR.teinte_de("#d8b76a"), HUITIEME) \
+        in res["toasts"][0], res["toasts"]
+
+
+def test_le_bloc_d_adoption_est_repeint_quand_capture_change():
+    """La matière n'est pas à nous : `doc.capture` peut naître, changer ou
+    disparaître à tout moment. Sans la branche `capture` de l'écouteur du
+    CORE, le bouton n'arriverait qu'au prochain réglage du cadre."""
+    src = _js()
+    m = re.search(r"CF\.on\(\"core:doc\", \(p\) => \{(.*?)\}\);", src, re.S)
+    assert m, "l'écouteur core:doc a changé de forme"
+    assert 'p.id === "capture"' in m.group(1), \
+        "P2 n'écoute pas les publications de la pièce 10"
+    # ... et P2 n'ÉCRIT jamais chez la pièce 10 (cloisonnement §7.1.5)
+    assert "patchAs" not in src
+    assert not re.search(r"M\.patch\(\s*\{\s*capture", src)
+
+
+def test_le_catalogue_publie_les_traits_mesures():
+    """Un choix qu'on ne peut pas recalculer est un choix qu'il faut croire.
+    `/catalog` publie donc la table ET les deux échelles de la distance."""
+    cat = FR.catalog()
+    assert cat["family_traits"] == FR.FAMILY_TRAITS
+    assert cat["family_traits"] is not FR.FAMILY_TRAITS, "table publiée par référence"
+    assert set(cat["family_scales"]) == {"bande", "teinte"}
+    assert cat["family_scales"]["bande"] == pytest.approx(2.75)
+    assert cat["family_scales"]["teinte"] == pytest.approx(169.3)
+    # les huit familles ont un trait, et rien qu'elles
+    assert set(FR.FAMILY_TRAITS) == {f["id"] for f in FR.FAMILIES}
+    for fid, t in FR.FAMILY_TRAITS.items():
+        assert set(t) == {"bande_mm", "teinte_h"}, (fid, t)
+        assert 0 < t["bande_mm"] <= FR.LIMITS["inner_mm"][1], (fid, t)
+        assert 0 <= t["teinte_h"] < 360, (fid, t)
