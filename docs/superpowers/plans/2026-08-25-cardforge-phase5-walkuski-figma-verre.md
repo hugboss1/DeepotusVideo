@@ -234,9 +234,60 @@ cassent pas la QA — vérifier), norm_slots étendu des deux côtés.
 **Fichiers** : mod-type.js, type.py, test_cards_type.py, mod-frame.js,
 frame.py, test_cards_frame.py.
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `2f48339`+`bddf8ed`+`af0128e`+`9729c35` puis ronde
+  `76046e8`. 8 clés frame (gem_x/y/r null=auto, corner global ×4 au repère
+  miroir, win_stroke) + 10 clés slot (49 au total) + KINDS×6 (rect/ellipse/
+  line/arrow — LE CERCLE du halo fermé : ellipse à boîte carrée, IoU 0,9973
+  contre le disque main, couverture π/4 à −0,0006). Gemme libérée (auto=écrin
+  z40, manuelle=z70 crans-selon-position, TROIS surfaces d'aveu, Ctrl+Z rend
+  l'auto), ornements globaux ×4, formes = slots z60 (pas de couche neuve),
+  contours d'encarts + liseré de fenêtre propre. Silhouettes 31,60 INCHANGÉ
+  avec la preuve d'impossibilité-par-construction (le banc arbitre part de
+  DEFAULTS, n'appelle ni paintTop ni cornerOrn). QUATRE bugs trouvés en
+  chemin dans ses fichiers : la parité num() cassée sur TOUTES les clés
+  numériques (null=0 écran vs défaut backend), l'attente de police des
+  formes (2,5 s), la boîte plate inattrapable, les formes traitées en
+  mentions du cadre. RED avoué rejoué par stash sur le bloc A. 298 frame +
+  271 type.
+- [x] Ronde adverse (opus) : 1 bloquant + 8 réels + 4 mineurs + 7 REJETÉS
+  mesurés (la rotation des formes MARCHE sur les deux bancs, la QA
+  silhouettes ne peut pas voir une gemme posée — par construction). LE
+  BLOQUANT : layout() ne connaissait pas les formes — SHAPES était du CODE
+  MORT au backend, une flèche au plafond livré encrait 2 mm HORS COUPE en
+  ok:True, aveugle des deux côtés → SHAPES branché, et l'encre d'une forme
+  DÉRIVÉE DU DOCUMENT SEUL par layout() (le verdict tient sans client) ; le
+  livreur a attrapé SON PROPRE premier jet faux (gonfler de head/2 aux 4
+  côtés créait un FAUX débord — l'enveloppe exacte des points réels, chiffres
+  mesurés remplaçant les prédits). Réels marquants : \d Unicode-Python vs
+  ASCII-JS — les chiffres arabes faisaient BASCULER LE RÉGIME de la gemme
+  (manuel backend / auto écran) → [0-9] dans 6 motifs py + 4 JS + un test qui
+  REFUSE \d des deux côtés ; la garde du liseré morte (st() normalisait
+  « bleu » → #000000 AVANT le painter — liseré noir muet) → défaut "" ;
+  L'AVEU « sans qu'un pixel bouge » ÉTAIT FAUX — le déploiement CHANGE
+  l'apparence des decks portant une valeur non numérique (plate_alpha:null :
+  plaque invisible→pleine, mesuré aux empreintes) : la correction est bonne,
+  l'aveu réécrit avec la mesure et le comportement épinglé ; gem_r/head_mm
+  bornés PAR LE FORMAT (la gemme 20 mm était plus large qu'une carte micro ;
+  un premier jet à min/2 mordait les 12 formats — corrigé min(tw,th), le
+  non-borné restant DIT) ; cornerOrn : le trait suit enfin l'échelle ; le
+  champ de gemme montre l'EFFECTIF ; LES DEUX TÉMOINS PINNÉS (séparables à
+  une sonde près — morts comme témoins, la leçon de phase 4 mot pour mot,
+  le bout de trait pinné DANS CHROME car le banc node n'a pas de notion de
+  cap) ; inspPlaque cohérent avec la garde. Dette T1 fermée (_sans_chemin
+  chez frame.py:ai_models, emprunt avoué). Ronde : 19/19 RED d'abord,
+  18/18 mutations dont 2 qui ont corrigé LE CONTRÔLE, les deux bancs Chrome
+  rejoués.
+- [x] CLOSE : leçons — (a) une constante « pour poser la même question au
+  même endroit » se VÉRIFIE branchée (SHAPES mort au backend = la garantie
+  vendue absente) ; (b) \d n'est pas un vocabulaire partagé entre langages —
+  [0-9] est la forme de parité, et le test refuse \d désormais ; (c) UN FAUX
+  DÉFAUT EST PIRE QU'UN DÉFAUT MANQUÉ (l'enveloppe exacte contre le
+  gonflement grossier) ; (d) 2e paire de témoins-couvercles de la phase —
+  pinnés. Dettes → T3 : le plancher d'affichage 12 px vs boîte nulle du
+  document (lasso/aimant lisent s.box, jamais le DOM), égaliser-les-tailles
+  sur une ligne la rendrait diagonale (à trancher et dire), bouts fléchés en
+  lot ; → T6 : models.py elements:[] (transmis à moitié fermé), le calque
+  d'image encore mention du cadre (dette écrite aux miroirs).
 
 ### T3 — Les outils Figma (D4)
 Multi-sélection, aligner/distribuer/égaliser, rotation à la poignée, guides
