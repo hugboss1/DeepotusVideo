@@ -297,7 +297,80 @@ vérification Chrome du geste réel.
 **Fichiers** : mod-type.js, test_cards_type.py (+ mod-frame.js si la
 sélection s'étend aux éléments P2 — dire lequel possède quoi AVANT de coder).
 
-- [ ] LIVRÉ
+- [x] LIVRÉ — commits `0d6d8fc` (P3) + `14496a1` (le Sceau) + `5c10247`
+  (les gestes que le lot rendait faux) + `4d29acc` (les deux derniers
+  lecteurs de `sel`). 329 tests type verts, 304 frame, lint 0 violation.
+  **QUI POSSÈDE QUOI, tranché AVANT de coder** : la multi-sélection reste
+  chez P3 et NE s'étend PAS aux éléments P2 cette phase. Trois raisons
+  mesurées : (a) gemme/fenêtre/ornements n'ont pas de boîte comparable —
+  (cx, cy, r), (x, y, w, h, r) et quatre décalages globaux ne partagent pas
+  d'enveloppe, donc « aligner à gauche » n'y a pas de sens ; (b) leur
+  annulation vit dans une AUTRE pile (`HIST` de mod-frame) que celle de P3
+  (`UNDO/REDO`), et un lot mixte demanderait une annulation inter-pièces —
+  de la machinerie neuve, pas un outil ; (c) leur surface de geste est la
+  MINI-CARTE (`mapHit`), celle de P3 le calque sur la carte : deux
+  surfaces, deux tests de prise. **Seul touché chez P2** : la
+  phase-pointeur (D4, dernier point), plus trois lignes de CSS pour la
+  bande — l'aimantation, elle, ne fait que LIRE `frame.art_window`, le
+  contrat publié.
+  **CONTRAT DE SÉLECTION NOUVEAU** : `doc.type.sel` est une LISTE (premier =
+  « key object » Figma). Migration douce EN LECTURE, en UN endroit
+  (`selIds`, seul `CF.get("type.sel")` de la pièce, prouvé par le compte) :
+  chaîne -> liste d'un, vide -> liste vide, identifiants morts filtrés. Les
+  anciens lecteurs appellent `selId()` = premier du lot : aucun n'a bougé.
+  `models.py` écrit toujours une chaîne, elle est lue telle quelle ; le
+  backend ne lit jamais `sel` (aucun miroir).
+  **LIVRÉ** : clic+Maj (bascule, sans démarrer de glisser), clic nu qui
+  GARDE le lot, Échap qui le vide, LASSO sur un fond de calque neuf (le
+  calque était `pointer-events: none` — rien n'attrapait en terrain vide),
+  glisser de lot à UN pas d'undo et UN delta partagé, barre contextuelle
+  (6 alignements sur l'enveloppe, 2 distributions à espaces égaux, 2
+  égalisations sur le premier sélectionné), réglages communs en lot avec
+  « mixte » et les bouts fléchés (qui ne visent que les flèches, dit à
+  l'écran), poignée de rotation (Maj 15°, GRISÉE en lot avec sa raison),
+  guides objet-à-objet (voisins + `art_window` + centre de carte, seuil
+  0,6 mm, Alt débraye, grille 0,25 en repli), gestes de profondeur par la
+  MÊME mécanique que les flèches de rangée (`ordreApres`, un seul
+  appelant). **LES DEUX PIÈGES TRANSMIS SONT MESURÉS** : lasso ET aimant
+  lisent `s.box`, chacun avec sa mutation qui fait lire la boîte gonflée
+  du calque et déplace le résultat de 0,5 mm. **LA DÉCISION TRANSMISE EST
+  TRANCHÉE** : égaliser la hauteur d'une ligne plate la rendrait DIAGONALE
+  — elle est ignorée et le toast le nomme ; en RÉFÉRENCE, l'égalisation
+  entière est refusée. **Sceau (D4)** : `sealStops(f, phase)` a enfin un
+  appelant — une BANDE D'APERÇU dans le panneau P2, ±0,15 autour de 0,35,
+  retour canonique au `pointerleave`. Écran seul PROUVÉ EN EXÉCUTION :
+  `sealPhaseLive` forcée à 0,71 laisse la trace du peintre IDENTIQUE, avec
+  le contrôle négatif qui la fait bouger.
+  **CE QUE LE LOT A RENDU FAUX, ET QUI EST RÉPARÉ DANS LA TÂCHE** : Suppr,
+  Ctrl+D, les flèches, le collage et la surbrillance de la liste lisaient
+  tous `selSlot()` — LE PREMIER du lot. Les cinq visent maintenant le lot
+  (verrou tenu en UN endroit, `lotLibre`, pour les trois gestes de
+  clavier). Et le danger qu'Échap venait de créer est fermé : `selSlot()`
+  retombe sur le premier bloc quand rien n'est désigné, et Échap rend cet
+  état COURANT — sans correction, « je relâche tout » serait devenu
+  l'antichambre d'un effacement au hasard. Le clavier ET le panneau disent
+  maintenant la même chose au même instant.
+  **UN TÉMOIN SURVIVANT AVOUÉ** : la tangence du lasso (`<=` contre `<`
+  dans `dansLasso`) est séparable en théorie — un rectangle dont un bord
+  coïncide EXACTEMENT avec celui d'une boîte — mais le pin dépendrait de
+  l'aller-retour flottant px -> mm, donc d'un arrondi et non d'une règle.
+  Non pinné, et dit.
+  **UN PIN A RATTRAPÉ UNE DÉRIVE DE RANGEMENT** : les fonctions de lot
+  s'étaient glissées dans la tranche `placeOu` -> `dupSlot` que
+  `test_TOUTES_les_naissances_passent_par_LA_MEME_porte` mesure (une
+  annulation, aucun `commit`) — le pin est resté juste, c'est le code qui
+  était mal rangé.
+  ~66 tests neufs (271 -> 329 type, 296 -> 304 frame), 11 mutants de
+  contrôle, banc Chrome des quatre gestes réels, lint cardforge
+  0 violation, pylint sans un seul signalement dans le code ajouté.
+  **Dettes vues en chemin, transmises à T6** : la liste de blocs se lit du
+  FOND vers la surface (rang 0 = peint en premier) alors que les bandes
+  fixes qui l'encadrent adoptent la convention Figma inverse — les
+  infobulles des gestes de profondeur nomment l'équivalence, mais les deux
+  moitiés de la même liste se lisent en sens contraires ; et le
+  redimensionnement d'un LOT (échelle autour de l'enveloppe) n'est pas de
+  cette phase — les poignées ne sont servies qu'en solo, et le lot montre
+  son enveloppe pour que l'absence se voie.
 - [ ] Ronde adverse + corrections
 - [ ] CLOSE
 
