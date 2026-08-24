@@ -234,6 +234,23 @@ absente = pas proposée (aucune erreur) ; invoquée quand même = 503 littéral 
 l'écart routes.py-400 ne fait pas jurisprudence chez cards). Tests sous espion
 étanche patché au point de CONSOMMATION (la leçon spy 3c), zéro dépense prouvée
 (compteur d'appels réels = 0).
+**AMENDEMENT ronde T3 (mesuré le 24/08)** : (1) le banc NEUTRALISE la vraie clé —
+`config._load_dotenv(override=True)` écrase le `setdefault` du test : la clé
+réelle vivait dans le processus de test, le filet était simple là où l'en-tête le
+croyait double ; `settings.FAL_KEY` est forcé à la valeur de banc APRÈS l'import
+de config, et l'en-tête dit pourquoi ; (2) la doctrine du détourage vaut de SES
+DEUX MOITIÉS : une couche qui garde ~tout (couverture ≥ seuil mesuré) est refusée
+avec son chiffre, comme la transparente — c'est le mode d'échec ordinaire de
+rembg (pas de sujet trouvé → image quasi intacte payée) ; (3) DEUX CLICS NE
+PAIENT PAS DEUX FOIS EN SILENCE : les POST /rembg concurrents sur un même jeu se
+COALESCENT (un seul appel fournisseur, tous servis du même résultat) — ou, si la
+coalescence mesurée s'avère fragile, l'aveu explicite à l'écran et ici ; (4) la
+réponse du fournisseur est PLAFONNÉE en octets (le même SRC_MAX_BYTES que
+l'admission) et sa destination contrôlée (loopback/privé/link-local refusés —
+l'API locale :8765 n'a pas d'authentification) ; (5) le sujet hérite de la
+RÉDUCTION d'admission (MAX_IMPORT_PX) comme toute image entrante ; (6) sans prix
+tabulé, la voie payante N'EST PAS OFFERTE (§8 « prix AVANT » — un bouton payant
+sans chiffre est un écart de spec, pas un libellé honnête).
 
 **D6 — Les adoptions vivent chez chaque pièce (cloisonnement §7.1.5).** P10 publie,
 ne touche jamais l'état des autres. P1, P2, P3 lisent `doc.capture` avec tolérance
