@@ -8382,3 +8382,40 @@ def test_une_ligne_PLATE_reste_attrapable_sur_le_calque_d_edition(tmp_path):
     # la position de la boîte de texte, qui n'a pas bougé.
     assert abs((b["top"] + b["h"] / 2) - bt["top"]) < 0.51, (b, bt)
     assert abs(b["w"] - bt["w"]) < 0.01, "la largeur, elle, n'avait pas à bouger"
+
+
+def test_une_forme_sans_encre_ne_peint_PAS_MEME_SA_PLAQUE(tmp_path):
+    """LE TROU QUE LA MUTATION A OUVERT, ET CE QU'IL VALAIT. Le test voisin
+    (« une forme sans encre ne peint rien ») reste VERT quand on retire la
+    garde de sortie de `drawShapeSlot` : sans elle, les gardes internes
+    (`if (fill)`, `if (trait)`) ne peignent rien non plus, et l'empreinte ne
+    bouge pas. La garde n'était donc pas mesurée par ce chemin-là.
+
+    ELLE PORTE POURTANT UNE DÉCISION, et c'est celle-ci : une forme qu'on n'a
+    pas encore habillée ne peint PAS MÊME SA PLAQUE. C'est exactement la règle
+    du bloc de texte vide (« un cartouche sans son contenu est un défaut
+    visible qu'on n'a pas demandé ») et celle du calque d'image sans source
+    (« RIEN n'est peint, pas même la plaque »). Sans la garde, poser un
+    rectangle depuis la palette puis lui retirer son encre laisserait un aplat
+    de plaque sur la carte — un objet qu'on croyait effacé.
+
+    Le témoin est la même forme AVEC son encre : elle, peint."""
+    nue = {"id": "forme", "kind": "rect", "box": [10.0, 20.0, 30.0, 16.0],
+           "text": "", "plate_color": "#20c0ff", "plate_alpha": 1.0,
+           "plate_stroke": "#ff4020", "plate_stroke_mm": 0.8}
+    pts = {"milieu": [25.0, 28.0], "bord_haut": [25.0, 20.0]}
+    d = _banc_plaque(tmp_path, {"slots": [nue], "points": pts})
+    assert d["points"]["milieu"][3] == 0, \
+        f"une forme sans encre a peint sa plaque : {d['points']}"
+    assert d["points"]["bord_haut"][3] == 0, \
+        f"une forme sans encre a peint sa bordure : {d['points']}"
+    # ... et les quatre natures suivent la même règle
+    for k in ("ellipse", "line", "arrow"):
+        o = _banc_plaque(tmp_path, {"slots": [dict(nue, kind=k)], "points": pts})
+        assert o["points"]["milieu"][3] == 0, (k, o["points"])
+    # LE TÉMOIN : la même forme HABILLÉE peint, plaque comprise. Sans lui,
+    # « rien n'est peint » se lirait aussi sur un painter mort.
+    vif = _banc_plaque(tmp_path, {"slots": [dict(nue, fill="#f2efe9")],
+                                  "points": pts})
+    assert vif["points"]["milieu"][3] > 200, vif["points"]
+    assert vif["points"]["bord_haut"][3] > 100, vif["points"]

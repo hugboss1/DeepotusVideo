@@ -1528,7 +1528,26 @@
       : [b[0], b[1], b[0] + b[2], b[1] + b[3]];
   }
   /* la tete flechee : un triangle isocele dont la POINTE est le bout et dont
-     la base est perpendiculaire au trait, `head` en arriere. */
+     la base est perpendiculaire au trait, `head` en arriere.
+
+     ── DEUX TEMOINS SURVIVANTS, AVOUES ET MESURES ─────────────────────────
+     La batterie de mutations de la T2 en a joue dix-huit ; deux restent
+     VERTES, et c'est voulu :
+       · la BASE de la tete vaut `head * 0.5` de chaque cote. Passee a 0,7,
+         sept tests de fleche restent verts (mesure : la sonde de base est a
+         5,5 mm de la pointe d'une tete de 6 mm, donc a 2,75 mm de demi-largeur
+         contre 1,4 mm demande — 3,85 mm ne la fait pas sortir) ;
+       · `lineCap` vaut « butt ». Passe a « round », neuf tests restent verts
+         (mesure : un bout arrondi deborde d'une DEMI-EPAISSEUR, soit 0,5 mm
+         sur un trait de 1 mm, et la sonde « rien 2 mm avant le depart » est a
+         quatre fois cette distance).
+     LES PINNER SERAIT UNE FAUTE, et la phase 4 l'a deja dit une fois
+     (cloture T4 : « echanger sextant et plume de coin est une DECISION DE
+     DESSIN, pas une propriete mesurable »). Une base a 0,45 ou un bout
+     arrondi restent une fleche ; ce que les tests tiennent, c'est OU l'encre
+     tombe — le fut, la pointe, la tete du bon cote, et rien la ou il ne doit
+     rien y avoir. Le jour ou quelqu'un change ces deux nombres, c'est qu'il
+     dessine ; il n'a pas a en rendre compte a la suite. */
   function arrowHead(ctx, px, py, ux, uy, head) {
     const bx = px - ux * head, by = py - uy * head;
     const nx = -uy * head * 0.5, ny = ux * head * 0.5;
