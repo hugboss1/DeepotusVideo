@@ -173,6 +173,13 @@ une capture est un point de départ, pas une pile). `GET .../capture/{nom}.png` 
 les fichiers du dossier capture par liste blanche de noms (regex stricte, pas de
 traversée). Un `?side` hors liste = refus français nommé, pas un 422 FastAPI.
 Jamais-500 partout.
+**AMENDEMENT ronde T1 (mesuré le 24/08)** : deux POST concurrents sur le même côté
+rendaient un 500 à 10 % (tmp CONSTANT partagé + `replace` disputé — WinError 32) —
+la règle devient : tmp à suffixe unique + `replace` gardé (dernier gagnant propre,
+refus nommé si l'OS refuse), prouvée EN CONCURRENCE par le test. Et le joker
+`GET /{nom}` à la racine du préfixe avalait d'avance toutes les routes GET futures
+de T2/T3/T5 (mesuré : `/ai-options` → 404 « fichier inconnu ») — le service passe
+sous `GET /file/{nom}` : le piège de classe meurt au lieu d'être documenté.
 
 **D3 — `doc.capture` est publié par la PIÈCE, pas par la route.** Le POST analyse et
 RÉPOND (le JSON d'analyse complet) ; mod-capture.js fait `M.patch({capture:{…}})` →
@@ -181,6 +188,13 @@ document ; les PNG, eux, sont stockés serveur par la route. Schéma §7.1.4 :
 `doc.capture = {analyzed, border:{mm,color,radius_mm,confidence}, boxes:[…],
 bg:{color,confidence}, palette, layers:{…}}`. Les boîtes sont en MM dans le doc
 (une unité par frontière, convertie au bord de l'API).
+**AMENDEMENT ronde T1 (décision de plan)** : l'analyse est une propriété du RECTO
+SEUL — les adoptions §7.1.5 (illustration, bordure, zones) sont des gestes de
+recto ; le verso est stocké pour l'adoption future en back_image (§6.2ter).
+Déposer un verso ne remet PAS l'analyse à zéro (seul un nouveau recto le fait), et
+l'écran le dit. Le schéma §7.1.4 reste sans axe de côté, en connaissance de cause —
+la trouvaille de ronde (« importer le verso effacera les mesures du recto ») est
+close par cette asymétrie, pas par un axe.
 
 **D4 — L'analyse réutilise ce qui se mesure déjà, n'invente que le chercheur de
 boîtes.** Bordure : balayage de gradient depuis les 4 bords (code neuf, pur PIL) →

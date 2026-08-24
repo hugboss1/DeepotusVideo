@@ -41,6 +41,16 @@
     { id: "verso", label: "Verso", nom: "source_verso.png" },
   ];
 
+  /* Le cote long au-dela duquel le SERVEUR reduit une image importee. MEME
+     CHIFFRE que cards/capture.py:MAX_IMPORT_PX, et que les sept autres
+     copies du lab (face/frame/type, en py comme en js) : la regle 8 interdit
+     de partager une constante entre pieces, alors on la RECOPIE et on
+     l'AVOUE. Le chiffre etait ici EN TOUTES LETTRES dans deux phrases
+     d'ecran — une huitieme copie que rien ne confrontait. Le test de la piece
+     lit maintenant les HUIT sur les fichiers, et refuse tout nombre nu. Cet
+     ecran ne reduit rien : il ne fait que dire ce que le serveur fera. */
+  const MAX_IMPORT_PX = 4096;
+
   /* Le cote MONTRE par le panneau. De la PRESENTATION : il ne va pas au
      document (deux onglets ouverts sur le meme jeu n'ont pas a se pousser du
      coude pour regarder chacun un cote). */
@@ -58,11 +68,17 @@
     painters: [],
 
     /* LE SCHEMA : ces cles sont les SEULES que M.patch({...}) acceptera.
-       Il porte deja les champs de l'analyse (spec §7.1.4) alors que rien ne
-       les remplit encore : le schema est GELE a l'enregistrement, et une cle
-       ajoutee plus tard serait refusee par le CORE sur les documents deja
-       ouverts. Les declarer maintenant coute zero octet dans un document
-       neuf — `default_doc` seme `{}` — et evite une migration. */
+       POURQUOI LES CHAMPS DE L'ANALYSE SONT LA ALORS QUE RIEN NE LES REMPLIT
+       ENCORE — et ce n'est PAS « pour eviter une migration » (la premiere
+       version de ce commentaire le disait ; verifie a la source, c'est faux :
+       `register()` refait `SCHEMA[id]` a CHAQUE chargement de page, une cle
+       ajoutee demain serait acceptee des le lendemain sur les documents deja
+       ecrits, et une cle stockee inconnue est simplement ignoree avec un
+       avertissement en console). La vraie raison est immediate : `upload()`
+       remet l'analyse a zero en patchant `analyzed/border/boxes/bg/palette/
+       layers`, et `patchAs` LEVE sur une cle hors schema. Sans ces sept
+       lignes, le premier depot d'un recto casse. Les mesures de T2 tomberont
+       dans les memes cles, sans rien a changer ici. */
     state: {
       sources: {},        /* {recto: {w, h, bytes, stamp}, verso: {…}} */
       analyzed: null,     /* horodatage de la derniere analyse, ou null */
@@ -159,8 +175,11 @@
       + '<p class="cf-capture-empty" id="cf-capture-empty">Déposez ici l\'image de la carte, ou choisissez un fichier.</p>'
       + '</div>'
       + '<div class="cf-capture-actions">'
-      + '<input type="file" accept="image/*" class="cf-capture-file" id="cf-capture-file">'
-      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="PNG, JPEG ou WebP — l\'image est réduite à 4096 px de côté par le serveur">Choisir un fichier…</button>'
+      /* LE FILTRE EST UNE PROMESSE. `image/*` ouvrait le selecteur sur HEIC,
+         SVG, AVIF et TIFF — que la route refuse en « corps illisible ». On ne
+         propose que ce que PIL sait ouvrir de l'autre cote. */
+      + '<input type="file" accept="image/png,image/jpeg,image/webp" class="cf-capture-file" id="cf-capture-file">'
+      + '<button class="btn strong sm" id="cf-capture-pick" type="button" title="PNG, JPEG ou WebP — le serveur réduit l\'image au-delà du plafond d\'import">Choisir un fichier…</button>'
       + '<button class="btn ghost sm hidden" id="cf-capture-replace" type="button" title="Déposer une autre image à la place de celle-ci">Remplacer</button>'
       + '</div>'
       + '</div>'
@@ -210,42 +229,95 @@
         /* On relit l'image SERVIE, pas le fichier local : c'est elle que
            l'analyse mesurera, et une divergence entre les deux serait
            invisible. Le `stamp` casse le cache du navigateur — sans lui, un
-           remplacement afficherait encore l'ancienne. */
-        img.src = M.api.url(d.nom) + "?t=" + (Number(i.stamp) || 0);
+           remplacement afficherait encore l'ancienne. Il est en
+           MILLISECONDES (backend) : en secondes, deux imports de la meme
+           seconde rendaient la MEME URL et le cache resservait l'ancienne
+           image — le remplacement etait dans le fichier et pas a l'ecran. */
+        /* UN APERCU QUI ECHOUE DOIT SE VOIR. Une <img> sans `onerror` qui
+           perd son fichier laisse le cadre vide pendant que l'etat annonce
+           « capture deposee » (gotcha des vignettes du dock : un onError
+           absent = une visibilite perimee). */
+        img.onerror = () => {
+          img.classList.add("hidden");
+          if (vide) {
+            vide.classList.remove("hidden");
+            vide.textContent = "L'image de cette capture ne se charge plus "
+              + "(fichier absent côté serveur). Déposez-la à nouveau.";
+          }
+          const e2 = $("#cf-capture-state");
+          if (e2) { e2.textContent = "capture illisible"; e2.className = "cf-capture-state ko"; }
+        };
+        img.onload = () => { img.classList.remove("hidden"); };
+        img.src = M.api.url("file/" + d.nom) + "?t=" + (Number(i.stamp) || 0);
         img.alt = "capture " + d.label;
         img.classList.remove("hidden");
       } else {
+        img.onerror = null;
+        img.onload = null;
         img.removeAttribute("src");
         img.classList.add("hidden");
       }
     }
-    if (vide) vide.classList.toggle("hidden", !!i);
+    if (vide) {
+      /* le texte d'accueil est REPOSE a chaque peinture : `onerror` l'a
+         peut-etre remplace par son message d'echec au tour precedent. */
+      vide.textContent = "Déposez ici l'image de la carte, ou choisissez un fichier.";
+      vide.classList.toggle("hidden", !!i);
+    }
     if (rempl) rempl.classList.toggle("hidden", !i);
 
+    /* L'ANALYSE EST UNE PROPRIETE DU RECTO (plan D3 amende). Afficher
+       « analysee » en regardant le verso dirait que les mesures portent sur
+       l'image montree — elles portent sur l'autre. */
+    const mesure = analysee() && SIDE === "recto";
     const etat = $("#cf-capture-state");
     if (etat) {
-      const quoi = !i ? "pas de capture"
-        : (analysee() ? "analysée" : "capture déposée");
-      etat.textContent = quoi;
-      etat.className = "cf-capture-state"
-        + (!i ? "" : (analysee() ? " ok" : " on"));
+      etat.textContent = !i ? "pas de capture"
+        : (mesure ? "analysée" : "capture déposée");
+      etat.className = "cf-capture-state" + (!i ? "" : (mesure ? " ok" : " on"));
     }
 
     txt("#cf-capture-r-side", d.label);
     txt("#cf-capture-r-px", i ? (i.w + " × " + i.h + " px") : "—");
     txt("#cf-capture-r-bytes", i ? weight(i.bytes) : "—",
       i ? (Number(i.bytes) || 0).toLocaleString("fr-FR") + " octets" : "");
-    txt("#cf-capture-r-an", analysee() ? String(st().analyzed) : "pas encore");
-    txt("#cf-capture-note", i
-      ? "Les mesures de l'analyse s'affichent ici dès que le document en porte : "
-        + "cet écran les LIT, il ne les garde pas."
-      : "PNG, JPEG ou WebP. L'image est ramenée à 4096 px de côté par le "
-        + "serveur, qui répond ses dimensions réelles.");
+    txt("#cf-capture-r-an", SIDE !== "recto" ? "propriété du recto"
+      : (analysee() ? String(st().analyzed) : "pas encore"));
+    txt("#cf-capture-note", !i
+      ? "PNG, JPEG ou WebP. Au-delà de " + MAX_IMPORT_PX + " px de côté, le "
+        + "serveur réduit l'image et répond ses dimensions réelles."
+      : (SIDE === "recto"
+        ? "Les mesures de l'analyse s'affichent ici dès que le document en porte : "
+          + "cet écran les LIT, il ne les garde pas."
+        : "L'analyse porte sur le RECTO — bordure, zones et fond s'y mesurent. "
+          + "Déposer un verso ne l'efface pas : il sert au dos de carte et à "
+          + "l'objet 3D."));
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
      3. LE DEPOT
      ═══════════════════════════════════════════════════════════════════════ */
+
+  /* CE QU'UN DEPOT EFFACE — une fonction PURE, et c'est deliberé : la regle
+     tient en trois lignes, elle ne touche a rien, et le test de la piece
+     l'EXECUTE (node, sur cette source-ci) au lieu de lire sa forme. Un
+     controle qui lit du texte ne voit pas un `|| true` glisse dans la garde ;
+     celui-la le voit.
+
+     UN NOUVEAU RECTO PERIME L'ANALYSE : elle decrit une image qui n'est plus
+     sur le disque, et la garder afficherait « analysee » au-dessus d'une
+     image que personne n'a mesuree.
+     UN VERSO, NON (plan D3 amende) : l'analyse est une propriete du RECTO —
+     les adoptions §7.1.5 sont des gestes de recto, le verso est stocke pour
+     le dos de carte et l'objet 3D (§6.2ter). Sans cette asymetrie, importer
+     son verso effacait les mesures du recto sans un mot. */
+  function effacements(side) {
+    if (side !== "recto") return {};
+    return {
+      analyzed: null, border: null, boxes: [],
+      bg: null, palette: [], layers: {},
+    };
+  }
   function wire(host) {
     const pick = host.querySelector("#cf-capture-pick");
     const rempl = host.querySelector("#cf-capture-replace");
@@ -294,7 +366,16 @@
       M.busy(true, "import de la carte…");
       const resp = await M.api.raw("POST",
         "card?side=" + encodeURIComponent(side), f);
-      if (resp.status === 404) {
+      /* UNE ROUTE ABSENTE N'EST PAS UN REFUS NOMME, et le code ne les
+         distingue pas : cette route rend un 404 « Deck introuvable » quand le
+         jeu a ete supprime dans un autre onglet. Traduire tout 404 en
+         « backend absent » declarait le domaine ETEINT parce qu'un jeu avait
+         disparu — le CORE a deja paye ce bug et ecrit son remede
+         (core.js:jsonNamed, §9bis) : la question se tranche sur le TYPE DE
+         REPONSE. Du HTML (le catch-all SPA) = il n'y a pas de route ; du
+         JSON = le backend parle, et c'est SA phrase qui doit arriver. */
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      if (ct.indexOf("json") < 0) {
         const x = new Error("route absente");
         x.missing = true;
         throw x;
@@ -306,13 +387,7 @@
       const maj = {};
       Object.keys(sources()).forEach((k) => { maj[k] = sources()[k]; });
       maj[side] = { w: d.w, h: d.h, bytes: d.bytes, stamp: d.stamp };
-      /* L'ANALYSE PRECEDENTE NE DECRIT PLUS CE QUI EST SUR LE DISQUE. La
-         garder afficherait « analysée » au-dessus d'une image que personne
-         n'a mesuree — exactement le genre de certitude que cette piece
-         s'interdit. On la retire ; c'est le seul effacement que ce depot
-         fait, et il est nomme. */
-      M.patch({ sources: maj, analyzed: null, border: null, boxes: [],
-                bg: null, palette: [], layers: {} });
+      M.patch(Object.assign({ sources: maj }, effacements(side)));
       paint();
       M.toast("carte importée — " + d.w + " × " + d.h + " px, " + weight(d.bytes));
     } catch (e) {

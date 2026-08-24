@@ -496,6 +496,17 @@ def test_un_meta_json_abime_se_repare():
     assert relu is not None
     assert relu["format"]["fmt"] == CT.DEFAULT_FMT
     assert set(CT.MODULE_IDS).issubset(relu)
+    # LE TEST NETTOIE SON ÉPAVE (hygiène antérieure à la phase 4, mesurée en
+    # ronde adverse). Le jeu abîmé restait sur le disque avec un `updated`
+    # re-daté à CHAQUE lecture ultérieure : il s'invitait dans la liste des
+    # jeux, en tête du tri par date, et faisait échouer environ un passage
+    # sur dix-sept du contrôle de tri (la résolution d'`updated` est la
+    # seconde — deux jeux de la même seconde se départagent au hasard).
+    # Le nettoyage est ASSERTÉ, sinon rien ne le tient : un `delete_deck`
+    # supprimé par mégarde repasserait vert et l'intermittence reviendrait
+    # sans que personne fasse le lien.
+    CC.delete_deck(doc["id"])
+    assert CC.read_deck(doc["id"]) is None, "l'épave du test est restée"
 
 
 def test_le_document_est_partitionne():
@@ -1156,6 +1167,48 @@ def test_la_liste_des_ids_est_LA_MEME_a_l_ecran_et_au_backend():
     ids = tuple(re.findall(r'"([a-z0-9]+)"', m.group(1)))
     assert ids == CT.MODULE_IDS, \
         f"écran {ids} != backend {CT.MODULE_IDS}"
+
+
+def test_le_LINT_connait_exactement_les_MEMES_pieces_que_le_contrat():
+    """LA LEÇON F2 N'AVAIT ÉTÉ APPLIQUÉE QU'À UN MIROIR SUR QUATRE. Le lint
+    porte sa propre liste `MODULES` et sa propre table `Z_TABLE` : une pièce
+    ajoutée au contrat mais oubliée là n'est simplement PAS CONTRÔLÉE — ni sa
+    règle 1 (4 fichiers), ni son scoping CSS, ni son `use strict`, ni ses
+    couches z. Un garde-fou qui ignore une pièce en silence est exactement le
+    défaut que la phase 4 vient de payer, à l'autre bout de la chaîne. La
+    liste est LUE dans le fichier du lint."""
+    lint = (pathlib.Path(__file__).resolve().parents[2] / "scripts" / "qa" /
+            "lint_cardforge.py").read_text(encoding="utf-8")
+    m = re.search(r"^MODULES\s*=\s*\[(.*?)\]", lint, re.S | re.M)
+    assert m, "lint_cardforge.py:MODULES introuvable"
+    ids = tuple(re.findall(r'"([a-z0-9]+)"', m.group(1)))
+    assert ids == CT.MODULE_IDS, f"lint {ids} != contrat {CT.MODULE_IDS}"
+    z = re.search(r"^Z_TABLE\s*=\s*\{(.*?)^\}", lint, re.S | re.M)
+    assert z, "lint_cardforge.py:Z_TABLE introuvable"
+    cles = tuple(re.findall(r'"([a-z0-9]+)"\s*:', z.group(1)))
+    assert set(cles) == set(CT.MODULE_IDS), \
+        f"Z_TABLE {sorted(cles)} != contrat {sorted(CT.MODULE_IDS)}"
+
+
+def test_la_COQUILLE_HTML_porte_les_dix_pieces_et_dans_L_ORDRE():
+    """Le quatrième miroir : `index.html`. Trois listes y vivent — les
+    feuilles, les panneaux, les scripts — et un module dont le `<script>`
+    manque ne se charge tout simplement pas : le rail affiche une pastille
+    grise (`.off`) et le panneau reste vide, sans une erreur. C'est le mode
+    de panne le plus silencieux de tout le lab, et rien ne le gardait."""
+    html = (pathlib.Path(__file__).resolve().parents[2] / "frontend" /
+            "cardforge" / "index.html").read_text(encoding="utf-8")
+    feuilles = tuple(re.findall(r'href="css/mod-([a-z0-9]+)\.css"', html))
+    panneaux = tuple(re.findall(r'data-mod="([a-z0-9]+)"', html))
+    scripts = tuple(re.findall(r'src="js/mod-([a-z0-9]+)\.js"', html))
+    hotes = tuple(re.findall(r'data-host="([a-z0-9]+)"', html))
+    for nom, vu in (("feuilles", feuilles), ("panneaux", panneaux),
+                    ("scripts", scripts), ("hôtes", hotes)):
+        assert vu == CT.MODULE_IDS, f"index.html {nom} : {vu}"
+    # ... et l'ordre des feuilles compte : la coquille d'abord, les modules
+    # ensuite, sinon une primitive écrase une règle de pièce.
+    assert html.index('href="cardforge.css"') < html.index('href="css/mod-')
+    assert html.index('src="js/core.js"') < html.index('src="js/mod-')
 
 
 def test_le_routeur_est_monte_sous_api_cards():
