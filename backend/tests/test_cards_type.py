@@ -6353,16 +6353,23 @@ def test_TOUTES_les_naissances_passent_par_LA_MEME_porte():
     """Une entrée d'annulation par geste, une sélection sur le premier né, un
     plafond compté avant : ces trois-là ne se tiennent que si les quatre
     naissances (texte, statistique, image, élément de modèle) passent par la
-    MÊME fonction. La leçon de `soloClone`, prise avant la quatrième copie."""
+    MÊME fonction. La leçon de `soloClone`, prise avant la quatrième copie.
+
+    T3 EN AJOUTE UNE CINQUIÈME — « adopter les zones » (§7.1.5) — et c'est
+    précisément le cas que ce contrôle existe pour tenir : une adoption qui
+    aurait fait naître ses slots dans une boucle rendrait N pas d'annulation
+    pour UN geste, et franchirait le plafond bloc par bloc au lieu de refuser
+    l'élément entier."""
     src = _js()
     deb, fin = src.index("function placeOu("), src.index("function dupSlot(")
     zone = src[deb:fin]
     assert zone.count("pushUndo()") == 1, \
         "plus d'une entrée d'annulation dans la zone des naissances"
-    # une définition, quatre appels
-    assert zone.count("naitre(") == 5, zone.count("naitre(")
+    # une définition, CINQ appels
+    assert zone.count("naitre(") == 6, zone.count("naitre(")
     for quoi in ("function addSlot()", "function addImgSlot()",
-                 "function addStatSlot()", "function palAdd("):
+                 "function addStatSlot()", "function palAdd(",
+                 "function adopterZones()"):
         assert quoi in src, quoi
     # `commit` re-normalise : il ne doit PAS être sur le chemin des naissances
     # (il remplacerait un id renommé au-delà de 24 signes par « slotN »).
@@ -7252,6 +7259,132 @@ def test_un_glisser_QUI_N_ANNONCE_RIEN_rougit(tmp_path):
     assert t["charge"] == "", t
     assert t["patchs"] == 0 and t["undo"] == 0, t
     assert _ids(mut) == ["titre", "regles"], mut["slots"]
+
+
+# ═══════ « ADOPTER LES ZONES » — la naissance groupée (phase 4, T3) ════════
+#
+# §7.1.5 donne à P3 un geste : « boîtes -> slots de gabarit (éditables
+# ensuite, §6.1) ». Ce qui se garde ICI est la moitié qui appartient à P3 —
+# ce que le SERVEUR fera des slots nés de cette adoption. La moitié qui
+# appartient au contrat de P10 (la lecture tolérante de `doc.capture`, les
+# libellés, l'aveu des tronquées) est gardée chez la pièce qui PUBLIE,
+# `test_cards_capture.py` : c'est son schéma qui casserait.
+#
+# LE RISQUE PROPRE À P3, et il est silencieux : un slot que `norm_slots`
+# RÉPARE au chargement suivant. L'utilisateur verrait d'autres identifiants
+# que ceux qu'il a adoptés, ou des boîtes déplacées, sans un mot — le défaut
+# `src: "undefined"` des 21 slots de gabarit, exactement.
+
+
+def _fonction_js_type(nom: str) -> str:
+    """Une fonction de `mod-type.js`, du `function nom(` à l'accolade de fin
+    de colonne 2 — l'indentation du module est stable."""
+    src = _js()
+    i = src.index("function " + nom + "(")
+    return src[i:src.index("\n  }", i)] + "\n  }\n"
+
+
+def _node_type(source: str) -> str:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : la règle ne peut pas être EXÉCUTÉE ici")
+    r = subprocess.run([node, "-e", source], capture_output=True, timeout=60)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[:600]
+    return r.stdout.decode("utf-8", "replace")
+
+
+# Les trois boîtes d'une carte réelle, en millimètres depuis le coin rogné —
+# le repère de `doc.capture.boxes` (T2) ET celui de `slot.box` (`safe_rect_mm`
+# est « la zone sûre en mm depuis le coin ROGNE »). Une unité par frontière :
+# il n'y a RIEN à convertir, et c'est ce que ce contrôle prouve.
+ZONES_MM = [{"x": 8.0, "y": 4.4, "w": 47.0, "h": 7.1, "tronquee": True},
+            {"x": 8.0, "y": 62.0, "w": 47.0, "h": 15.0, "tronquee": False},
+            {"x": 6.0, "y": 20.0, "w": 9.0, "h": 9.0, "tronquee": False}]
+
+
+def _specs_adoptees(base: int = 1) -> list:
+    """Les specs que l'écran ferait naître, produites par LA VRAIE fonction
+    de `mod-type.js`, exécutée dans node. Rien n'est réécrit ici : un test qui
+    recopierait la forme des specs ne mesurerait que lui-même."""
+    doc = json.dumps({"capture": {"boxes": ZONES_MM}}, ensure_ascii=False)
+    return json.loads(_node_type(
+        _fonction_js_type("specsZones")
+        + f"console.log(JSON.stringify(specsZones({doc}, {base})));"))
+
+
+def test_les_ZONES_ADOPTEES_traversent_le_normaliseur_du_SERVEUR_INTACTES():
+    """La naissance passe par `normSlots` côté écran, mais c'est
+    `type.py:norm_slots` qui a le dernier mot au chargement suivant. Les
+    deux doivent rendre le MÊME slot : un identifiant renommé ou une boîte
+    déplacée par le serveur serait une divergence MUETTE."""
+    specs = _specs_adoptees()
+    rows = TY.norm_slots(specs)
+    assert len(rows) == len(specs) == 3, (len(rows), len(specs))
+    for spec, row in zip(specs, rows):
+        assert row["id"] == spec["id"], \
+            f"le serveur renomme {spec['id']} en {row['id']}"
+        assert row["label"] == spec["label"], (spec["label"], row["label"])
+        assert row["box"] == spec["box"], (spec["box"], row["box"])
+        assert row["kind"] == "text", row["kind"]
+        assert row["text"] == "", row["text"]
+        assert row["src"] == "", \
+            "une source inventée : le défaut `src: \"undefined\"` rejoué"
+
+
+def test_les_MILLIMETRES_de_P10_sont_DEJA_ceux_d_un_SLOT():
+    """« Une unité par frontière » (D3), et la frontière est le coin ROGNÉ.
+    Les boîtes de P10 sont mesurées depuis le coin haut-gauche de l'image de
+    la carte ; `safe_rect_mm` place la zone sûre depuis le MÊME coin. Une
+    conversion cachée entre les deux ferait dériver toutes les adoptions du
+    même décalage — et personne ne le verrait sur une seule carte."""
+    g = TY.geom_of("poker_eu", 300)
+    sr = TY.safe_rect_mm(g)
+    rows = TY.norm_slots(_specs_adoptees())
+    # la zone sûre commence à ~3 mm : une boîte posée à y = 4,4 mm est DEDANS
+    # verticalement, et une boîte de 47 mm de large tient dans les 57 mm sûrs.
+    dedans = rows[1]
+    assert dedans["box"][0] >= sr[0] - 0.01, (dedans["box"], sr)
+    assert dedans["box"][0] + dedans["box"][2] <= sr[0] + sr[2] + 0.01, \
+        (dedans["box"], sr)
+    # ... et le repère n'est PAS celui de la zone sûre : une boîte à x = 6 mm
+    # (dans la marge) reste à 6 mm, elle n'est pas repoussée à 9.
+    assert rows[2]["box"][0] == 6.0, rows[2]["box"]
+
+
+def test_les_ZONES_ADOPTEES_ne_peuvent_pas_DEPASSER_le_plafond():
+    """`SLOTS_MAX` est le plafond de la PIÈCE, pas un second chiffre : la
+    valeur de l'écran est LUE et confrontée à celle du backend, et le
+    serveur tronque ce qui déborde. L'écran, lui, refuse l'élément ENTIER
+    avant de poser quoi que ce soit (`placeOu`) — une moitié d'adoption
+    serait un défaut muet."""
+    m = re.search(r"const SLOTS_MAX = (\d+)", _js())
+    assert m and int(m.group(1)) == TY.SLOTS_MAX == 40, (m, TY.SLOTS_MAX)
+    naitre = _fonction_js_type("naitre")
+    assert "placeOu(specs.length" in naitre, naitre
+    assert "slots().concat(specs)" in naitre, \
+        "les zones REMPLACENT les slots au lieu de s'y ajouter"
+    trop = TY.norm_slots(_specs_adoptees() * 20)
+    assert len(trop) == TY.SLOTS_MAX, len(trop)
+
+
+def test_l_ADOPTION_DES_ZONES_est_UN_SEUL_PAS_D_ANNULATION():
+    """« naitre() EN UN APPEL (un pas d'undo) ». La fonction d'adoption
+    n'appelle `naitre` qu'une fois et n'ajoute pas son propre `pushUndo` :
+    sinon un geste unique demanderait N annulations."""
+    corps = _fonction_js_type("adopterZones")
+    assert corps.count("naitre(") == 1, corps
+    assert "pushUndo" not in corps, corps
+    assert "commit(" not in corps, \
+        "l'adoption écrit à côté de la naissance atomique"
+    # UN SEUL APPEL DANS LA SOURCE NE VEUT PAS DIRE UN SEUL APPEL À
+    # L'EXÉCUTION : `naitre` posé dans une boucle reste UNE occurrence de
+    # texte et fait N naissances. Mesuré — la mutation « naître dans une
+    # boucle » restait verte ici. Aucune boucle sur ce chemin.
+    for boucle in ("forEach", "for (", "while (", ".reduce("):
+        assert boucle not in corps, \
+            f"la naissance est dans une boucle ({boucle})"
 
 
 if __name__ == "__main__":

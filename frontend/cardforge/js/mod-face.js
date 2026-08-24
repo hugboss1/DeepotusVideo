@@ -1647,6 +1647,122 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     3bis. ADOPTER UNE CARTE IMPORTEE  (P10 -> P1, spec §7.1.5, plan D6)
+
+     « Le sujet (ou le recadrage art) devient la pose. »
+
+     CE GESTE VIT ICI, PAS CHEZ P10, et c'est la decision D6 : la piece 10
+     PUBLIE (`doc.capture`) et ne touche jamais l'etat d'une voisine ; les
+     pieces qui adoptent lisent ce sous-arbre AVEC TOLERANCE et offrent LEUR
+     bouton. Un bouton d'adoption sans matiere a adopter n'existe pas — la
+     visibilite DERIVE du document, elle n'est pas gardee dans une variable.
+
+     PAS DE QUATRIEME SCHEMA DE SOURCE. `artSource` en connait trois
+     (`cat:`, `local:`, `img:`) ; un `capture:` de plus aurait double le
+     resolveur, le cache d'images, la vignette et la suppression, pour un cas
+     qui est exactement « une image importee ». Adopter, c'est donc faire
+     entrer les OCTETS dans la pile locale par le chemin EXISTANT
+     (`importFiles`, le meme que le glisser-deposer et que la mire) puis
+     poser `local:<cle>` par `afterImport`. Un seul pas d'annulation : celui
+     que `setArt` pousse deja.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* Les noms de fichier que la piece 10 SERT — miroir de capture.py:FILE_RE,
+     RECOPIE et non partage (regle 8). Le nom vient du DOCUMENT, donc du
+     dehors : il ne devient une URL qu'apres ce motif. */
+  const CAPTURE_FILE_RE = /^(?:source_(?:recto|verso)|sujet_recto)\.png$/;
+
+  /* L'URL d'un fichier de P10. CONSTRUITE A LA MAIN, ET C'EST ASSUME :
+     `M.api` est CONFINE au prefixe de la piece (regle 8 cote ecran) — depuis
+     P1 il ne peut pas designer `/capture/file/...`, et c'est precisement ce
+     qu'il protege (aucune piece ne PILOTE une autre). Lire un fichier servi
+     n'est pas piloter : c'est le meme geste que `imgURL`, qui construit deja
+     `/api/images/<nom>` a la main pour le magasin de l'application. Les deux
+     morceaux variables sont gardes : le nom par la liste blanche ci-dessus,
+     l'identifiant de jeu par sa forme. */
+  function captureURL(nom) {
+    const n = String(nom == null ? "" : nom);
+    if (!CAPTURE_FILE_RE.test(n)) return "";
+    const did = String((CF.doc() || {}).id || "");
+    if (!/^[A-Za-z0-9_-]{1,64}$/.test(did)) return "";
+    return "/api/cards/" + did + "/capture/file/" + n;
+  }
+
+  /* CE QU'IL Y A A ADOPTER, ou `null`. FONCTION PURE — elle ne lit que son
+     argument, et le test de P10 l'EXECUTE dans node : la regle ne se lit pas,
+     elle se joue (lecon T1, le `|| true` invisible a un controle textuel).
+
+     LA PRIORITE EST LE SUJET, PUIS LE RECTO ENTIER. Le second est le
+     « recadrage art » de la spec en version 1 : on pose la carte COMPLETE et
+     la fenetre d'illustration fait le cadrage. Le libelle le DIT — adopter
+     une carte entiere en croyant adopter un sujet detoure serait une
+     surprise a l'ecran, pas dans le code. */
+  function adoptionCapture(doc) {
+    /* capture.py:SUJET_NAME et le nom du recto, RECOPIES (regle 8) et
+       compares a l'identique : ces chaines viennent du document. */
+    const SUJET = "sujet_recto.png";
+    const plain = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+    const d = plain(doc) ? doc : {};
+    const c = plain(d.capture) ? d.capture : {};
+    const l = plain(c.layers) ? c.layers : {};
+    const s = plain(l.sujet) ? l.sujet : null;
+    if (s && String(s.file || "") === SUJET) {
+      return { nom: SUJET, sujet: true, stamp: Number(s.stamp) || 0,
+        libelle: "Adopter le sujet détouré de la carte importée" };
+    }
+    const src = plain(c.sources) ? c.sources : {};
+    if (!plain(src.recto)) return null;
+    return { nom: "source_recto.png", sujet: false,
+      stamp: Number(src.recto.stamp) || 0,
+      libelle: "Adopter le recto entier de la carte importée (recadrage art)" };
+  }
+
+  /* Une <img> chargee -> des octets PNG. PAS DE FOND PEINT : la couche
+     « sujet » est transparente, et un canvas rempli de blanc la rendrait
+     opaque — l'inverse exact de ce qu'on vient de payer. */
+  function imageBlob(im) {
+    const w = im.naturalWidth || im.width, h = im.naturalHeight || im.height;
+    if (!w || !h) return Promise.reject(new Error("image de capture illisible"));
+    const cv = newCanvas(w, h);
+    cv.getContext("2d").drawImage(im, 0, 0);
+    return new Promise((res, rej) => cv.toBlob((b) => {
+      if (b) res(b); else rej(new Error("le moteur n'a pas encodé l'image"));
+    }, "image/png"));
+  }
+
+  async function adopterCapture() {
+    const a = adoptionCapture(CF.doc());
+    if (!a) {
+      CF.toast("rien à adopter : reprenez d'abord une carte dans la pièce Import", true);
+      return;
+    }
+    const url = captureURL(a.nom);
+    if (!url) {
+      CF.toast("la pièce Import annonce un fichier que sa liste blanche ne sert pas", true);
+      return;
+    }
+    try {
+      /* L'HORODATAGE CASSE LE CACHE, et il n'est pas decoratif : `loadImage`
+         memorise par URL, et un second detourage aurait re-adopte le premier
+         sujet sans un mot. */
+      const im = await loadImage(url + "?t=" + a.stamp);
+      const blob = await imageBlob(im);
+      const nom = (a.sujet ? "sujet_detoure" : "carte_importee") + ".png";
+      const f = (typeof File === "function")
+        ? new File([blob], nom, { type: "image/png" })
+        : (function () { blob.name = nom; return blob; }());
+      const added = await importFiles([f]);
+      if (!added.length) throw new Error("l'import n'a rien retenu");
+      /* LE MEME CHEMIN DE RETOUR QU'UN DEPOT : pile, panneau, pose — et UN
+         SEUL pas d'annulation, celui de `setArt` dans `afterImport`. */
+      afterImport(added, a.sujet ? "détourée de la carte importée"
+        : "reprise entière de la carte importée");
+    } catch (e) {
+      CF.toast("adoption : " + String((e && e.message) || e), true);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      4. RESOLUTION DE L'ILLUSTRATION + CACHE
      ═══════════════════════════════════════════════════════════════════════ */
   /* CF.imageURL() construit /api/images/file/<nom> — cette route N'EXISTE PAS
@@ -2912,6 +3028,10 @@
     const g = CF.geom();
     const tab = ["cat", "imp", "ai"].indexOf(f.tab) >= 0 ? f.tab : "cat";
     const free = f.fit === "free";
+    /* CE QU'IL Y A A ADOPTER DE LA PIECE 10, calcule ICI et pas garde : le
+       panneau se repeint sur `core:doc` quand `capture` bouge, et la
+       dérivation est refaite. */
+    const adopt = adoptionCapture(CF.doc());
     HOST.innerHTML =
       '<div class="cf-face-gauge" id="cf-face-gauge"></div>'
       + '<div class="cf-face-warn hidden" id="cf-face-warn"></div>'
@@ -2990,6 +3110,21 @@
       + '<p class="hint">Un damier dessiné à la demande, rangé dans la pile comme une image '
       + 'déposée : posez-le pour caler le cadrage et la fenêtre d\'illustration, retirez-le '
       + 'd\'un clic. Sa vignette porte sa taille et son DPI comme les autres.</p>'
+      /* ── ADOPTER UNE CARTE IMPORTEE (§7.1.5) ────────────────────────────
+         DERIVE, jamais garde : le bloc n'existe QUE si `doc.capture` porte
+         de quoi l'alimenter. Le libelle vient de `adoptionCapture` et dit
+         LAQUELLE des deux sources sera prise. */
+      + (adopt
+        ? '<div class="cf-face-row"><button class="btn sm" type="button" id="cf-face-adopt">'
+          + esc(adopt.libelle) + '</button></div>'
+          + '<p class="hint">' + (adopt.sujet
+            ? 'La pièce Import a isolé un sujet sur la carte reprise : il entre '
+              + 'dans la pile comme une image déposée, et se pose aussitôt.'
+            : 'Aucun sujet détouré pour l\'instant — c\'est le RECTO ENTIER qui '
+              + 'entrera dans la pile, à recadrer ensuite avec la fenêtre '
+              + 'd\'illustration. Pour n\'adopter que le sujet, détourez-le '
+              + 'd\'abord depuis la pièce Import.') + '</p>'
+        : '')
       + '<div class="cf-face-grid" id="cf-face-pile-grid"></div>'
       + '</div>'
 
@@ -3606,6 +3741,10 @@
     ["dragenter", "dragover"].forEach((n) => drop.addEventListener(n, (e) => { e.preventDefault(); drop.classList.add("over"); }));
     ["dragleave", "drop"].forEach((n) => drop.addEventListener(n, () => drop.classList.remove("over")));
     q("#cf-face-mire").addEventListener("click", importMire);
+    /* Le bouton d'adoption N'EXISTE PAS quand il n'y a rien a adopter : on
+       ne cable que ce qui est la (patron sectionsBasses). */
+    const adopt = q("#cf-face-adopt");
+    if (adopt) adopt.addEventListener("click", adopterCapture);
     drop.addEventListener("drop", async (e) => {
       e.preventDefault();
       const a = await importFiles(e.dataTransfer && e.dataTransfer.files);
@@ -4045,6 +4184,12 @@
       wireKeys();
       CF.on("core:geom", () => { paintGauge(); readout(); });
       CF.on("core:cards", () => { paintGauge(); });
+      /* P10 PUBLIE, P1 SE SERT (plan D6). Le bouton « adopter » DERIVE de
+         `doc.capture` : sans cette ecoute, il n'apparaitrait qu'au prochain
+         changement d'onglet — c'est-a-dire jamais au moment ou l'utilisateur
+         revient d'importer sa carte. On ne repeint que sur CE sous-arbre :
+         repeindre le panneau a chaque frappe de P3 ferait perdre le curseur. */
+      CF.on("core:doc", (e) => { if (e && e.id === "capture") renderPanel(); });
     },
   });
 })();

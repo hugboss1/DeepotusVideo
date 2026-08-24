@@ -65,6 +65,16 @@
      coude pour regarder chacun un cote). */
   let SIDE = "recto";
   let BUSY = false;
+  /* LES VOIES DE DETOURAGE DE CE POSTE, LUES UNE FOIS AU MONTAGE.
+     De la CAPACITE DE MACHINE, pas du document : « rembg est-il installe
+     ici ? une cle fal est-elle posee ? » n'a rien a faire dans un jeu de
+     cartes qu'on peut ouvrir sur un autre ordinateur. Lu une fois par
+     panneau, pas a chaque peinture : une requete par repeinture ferait une
+     rafale a chaque evenement du document, et le prix clignoterait.
+     `null` = on ne sait pas encore (ou on n'a pas pu savoir) ; l'ecran ne
+     propose alors rien, ce qui est la bonne reponse dans les deux cas. */
+  let IA = null;
+  let IA_ERR = "";
   /* L'incrustation des boites sur l'apercu se replie : elle recouvre le
      dessin, et on veut pouvoir regarder la carte. De la PRESENTATION, donc
      pas du document — comme SIDE. */
@@ -116,13 +126,23 @@
       host.innerHTML = shell();
       wire(host);
       paint();
+      /* LES OPTIONS PARTENT AVANT LA PREMIERE PEINTURE ET N'ATTENDENT PAS :
+         l'ecran se peint tout de suite (sans le bloc IA), et le bloc apparait
+         quand la reponse arrive. Attendre le reseau pour afficher un panneau
+         d'import serait payer une capacite optionnelle avec le temps de
+         chargement de tout le reste. */
+      chargeOptions();
       /* Le document peut changer sous nos pieds : un autre onglet, une
          adoption, un jeu rouvert. On repeint sur l'evenement, jamais sur une
          copie gardee au chaud. */
       CF.on("core:doc", (e) => {
         if (!e || e.id === "capture" || e.id === "name" || e.id === "format") paint();
       });
-      CF.on("core:deck", () => paint());
+      /* UN AUTRE JEU, D'AUTRES OPTIONS ? Les voies ne dependent pas du jeu —
+         mais la CLE fal, elle, peut avoir ete posee dans les Reglages entre
+         deux ouvertures, et c'est le seul moment ou l'ecran repasse par ici
+         sans rechargement de page. On en profite pour relire. */
+      CF.on("core:deck", () => { chargeOptions(); });
       /* LE FORMAT PEUT BOUGER SOUS LES MESURES. Le CORE l'annonce
          (core.js:424) ; sans cette ligne, l'ecran gardait sa pastille verte et
          ses millimetres d'avant sur un jeu qui avait change de format. */
@@ -235,6 +255,56 @@
       && mm[0] > 0 && mm[1] > 0);
   }
 
+  /* LA COUCHE « SUJET » RANGEE PAR LE BACKEND, lue avec tolerance. Le nom du
+     fichier est SERVEUR (la liste blanche de capture.py le fabrique) : on ne
+     le compose pas ici, on lit celui qui a ete publie. */
+  function sujetInfo() {
+    const l = st().layers;
+    const s = isPlain(l) ? l.sujet : null;
+    return isPlain(s) && typeof s.file === "string" && s.file ? s : null;
+  }
+
+  /* L'OFFRE DE DETOURAGE — une fonction PURE, et c'est delibere : le test de
+     la piece l'EXECUTE dans node au lieu de lire sa forme (lecon T1, le
+     `|| true` qu'un controle textuel ne voit pas).
+
+     Elle repond a une seule question : « propose-t-on le bouton, et que
+     dit-il ? ». Trois raisons de ne rien proposer, et chacune a son motif
+     ecrit : on ne sait pas encore (ou on n'a pas pu savoir), aucune voie
+     n'existe sur ce poste, ou il n'y a pas de recto a detourer.
+
+     LE PRIX N'EST PAS ECRIT ICI. Il arrive dans `o.prix_usd`, que la route a
+     lu dans la table de tarifs de l'application. Un tarif absent de la table
+     ne devient PAS zero et ne devient pas un montant de repli : le bouton
+     dit « tarif non tabule » et reste cliquable — le fournisseur facturera
+     ce qu'il facture, et l'ecran ne pretend pas le savoir. */
+  function offreIA(o, aRecto) {
+    const s = isPlain(o) ? o : null;
+    const voie = s && (s.voie === "local" || s.voie === "fal") ? s.voie : null;
+    const off = { on: false, voie: voie, gratuit: voie === "local",
+      libelle: "Détourer le sujet", motif: "" };
+    if (!s) {
+      off.motif = "les voies de détourage n'ont pas encore été lues sur ce poste";
+      return off;
+    }
+    if (!voie) {
+      off.motif = String(s.motif
+        || "aucune voie de détourage n'est disponible sur ce poste");
+      return off;
+    }
+    if (!aRecto) {
+      off.motif = "déposez d'abord un recto : le sujet s'isole sur lui";
+      return off;
+    }
+    off.on = true;
+    off.libelle = voie === "local"
+      ? "Détourer le sujet — gratuit (local)"
+      : "Détourer le sujet (fal, "
+        + (estNombre(s.prix_usd) ? "~" + num(s.prix_usd, 3) + " $"
+          : "tarif non tabulé") + ")";
+    return off;
+  }
+
   /* LES LIGNES DU BLOC « FOND », branchees sur la PORTE QUI A REFUSE.
      L'ecran posait toujours l'uniformite en tete : sur un refus par
      couverture on lisait « uniformite 1,00 pour un plancher de 0,60 » — un
@@ -263,7 +333,16 @@
     /* La MESURE QUI A REFUSE vient en premier ; l'autre suit, pour situer. */
     const ordre = motif.indexOf("uni") === 0 || motif.indexOf("pourtour") === 0
       ? [uni, couv] : [couv, uni];
-    return [tete].concat(ordre).concat([g.option_ia ? String(g.option_ia) : null]);
+    /* LA PROMESSE A MAINTENANT UNE SUITE. T2 refusait le detourage local en
+       annoncant « une option payante, proposee a part avec son prix » — et
+       cette option n'existait nulle part. Elle existe : le bloc ci-dessous,
+       qui dit les voies de CE poste et le prix venu de la table. Sans ce
+       renvoi, la phrase envoyait chercher ailleurs. */
+    return [tete].concat(ordre).concat(g.option_ia
+      ? [String(g.option_ia),
+        "Le bloc « Détourage IA », plus bas, dit ce que ce poste sait faire "
+        + "et à quel prix."]
+      : [null]);
   }
 
   /* Un bloc de mesure : un titre, des lignes, et — s'il y a lieu — la
@@ -374,6 +453,37 @@
       + '<div class="cf-capture-mes" id="cf-capture-m-pal"></div>'
       + '</div>'
       + '<ul class="cf-capture-notes hidden" id="cf-capture-notes"></ul>'
+      + '</section>'
+
+      /* ── LE DÉTOURAGE IA (spec §7.1.3) ──────────────────────────────────
+         OPT-IN, et la section n'existe QUE si une voie existe : proposer un
+         bouton payant sur un poste sans clé, ou gratuit sans rembg, ce
+         serait une promesse qui échoue au clic. Le libellé PORTE le prix
+         quand la voie est payante — le tarif vient de la route (qui le lit
+         dans pricing.json), jamais d'une copie écrite ici. */
+      + '<section class="cf-capture-card hidden" id="cf-capture-ia">'
+      + '<header class="cf-capture-h"><b>Détourage IA</b>'
+      + '<span class="cf-capture-sub">isoler le sujet du recto — une option, jamais une étape obligée</span>'
+      + '<span class="cf-capture-spacer"></span>'
+      + '<span class="cf-capture-state" id="cf-capture-ia-etat">—</span>'
+      + '</header>'
+      + '<div class="cf-capture-body">'
+      + '<div class="cf-capture-drop">'
+      + '<div class="cf-capture-preview">'
+      + '<span class="cf-capture-frame hidden" id="cf-capture-sujet-cadre">'
+      + '<img class="cf-capture-img hidden" id="cf-capture-sujet" alt="" draggable="false">'
+      + '</span>'
+      + '<p class="cf-capture-empty" id="cf-capture-ia-vide">Le sujet détouré s\'affichera ici.</p>'
+      + '</div>'
+      + '<div class="cf-capture-actions">'
+      + '<button class="btn sm" id="cf-capture-detour" type="button">Détourer le sujet</button>'
+      + '<span class="cf-capture-spacer"></span>'
+      + '</div>'
+      + '</div>'
+      + '<div class="cf-capture-side">'
+      + '<p class="hint" id="cf-capture-ia-note"></p>'
+      + '</div>'
+      + '</div>'
       + '</section>'
 
       + '</div>';
@@ -493,7 +603,95 @@
       tog.textContent = BOITES ? "Masquer les zones" : "Montrer les zones";
     }
     mesures();
+    blocIA();
     dessineBoites();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     2ter. LE BLOC « DETOURAGE IA »
+
+     Il ne lit RIEN du reseau : `IA` a ete rempli une fois au montage. Ce que
+     cette fonction fait est de la peinture pure, sur deux sources — l'offre
+     (capacite du poste) et la couche deja rangee (etat du jeu).
+     ═══════════════════════════════════════════════════════════════════════ */
+  function blocIA() {
+    const carte = $("#cf-capture-ia");
+    if (!carte) return;
+    const off = offreIA(IA, !!info("recto"));
+    const suj = sujetInfo();
+    /* LA SECTION SE MONTRE DES QU'IL Y A QUELQUE CHOSE A DIRE : une offre,
+       ou une couche deja produite. Un poste sans voie ne voit rien — sauf
+       s'il en a produit une avant (jeu rapporte d'une autre machine), auquel
+       cas la cacher effacerait une matiere que P1 peut encore adopter. */
+    carte.classList.toggle("hidden", !off.on && !suj && !IA_ERR);
+
+    const b = $("#cf-capture-detour");
+    if (b) {
+      b.classList.toggle("hidden", !off.on);
+      b.textContent = suj ? off.libelle.replace("Détourer", "Redétourer")
+        : off.libelle;
+      b.title = off.on && off.gratuit
+        ? "rembg tourne sur cette machine : aucun appel, aucune dépense"
+        : "l'image part chez le fournisseur, qui facture directement — le "
+          + "tarif affiché vient de Réglages → Tarifs et budget";
+      b.disabled = !!BUSY;
+    }
+    const etat = $("#cf-capture-ia-etat");
+    if (etat) {
+      etat.textContent = suj ? "sujet isolé" : (off.on ? "disponible" : "indisponible");
+      etat.className = "cf-capture-state" + (suj ? " ok" : (off.on ? " on" : ""));
+    }
+    const img = $("#cf-capture-sujet");
+    const cadre = $("#cf-capture-sujet-cadre");
+    const vide = $("#cf-capture-ia-vide");
+    if (cadre) cadre.classList.toggle("hidden", !suj);
+    if (vide) vide.classList.toggle("hidden", !!suj);
+    if (img) {
+      if (suj) {
+        /* MEME PRECAUTION QUE L'APERCU DU RECTO : `onerror` avant `src`, et
+           l'horodatage en millisecondes pour casser le cache — sans lui, un
+           second detourage reafficherait le premier. */
+        img.onerror = () => {
+          img.classList.add("hidden");
+          if (vide) {
+            vide.classList.remove("hidden");
+            vide.textContent = "La couche détourée ne se charge plus (fichier "
+              + "absent côté serveur). Relancez le détourage.";
+          }
+        };
+        img.onload = () => { img.classList.remove("hidden"); };
+        img.src = M.api.url("file/" + suj.file) + "?t=" + (Number(suj.stamp) || 0);
+        img.alt = "sujet détouré";
+      } else {
+        img.onerror = null;
+        img.onload = null;
+        img.removeAttribute("src");
+        img.classList.add("hidden");
+      }
+    }
+    const note = $("#cf-capture-ia-note");
+    if (note) {
+      const parts = [];
+      if (IA_ERR) parts.push(IA_ERR);
+      if (off.motif) parts.push(off.motif);
+      if (off.on) {
+        parts.push(off.gratuit
+          ? "Le détourage tourne ICI : rien ne sort de la machine, rien n'est "
+            + "facturé."
+          : "L'image part chez fal.ai, qui facture directement. Le montant "
+            + "affiché vient de la table de tarifs de l'application.");
+      }
+      if (suj) {
+        parts.push("Couche « sujet » : " + suj.w + " × " + suj.h + " px, "
+          + weight(suj.bytes)
+          + (estNombre(suj.couverture)
+            ? " — elle garde " + num(suj.couverture * 100, 1) + " % de l'image"
+            : "")
+          + (suj.voie ? " (voie " + String(suj.voie) + ")" : "")
+          + ". La pièce Illustration peut l'adopter.");
+      }
+      note.textContent = parts.join(" ");
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -716,10 +914,12 @@
     const drop = host.querySelector("#cf-capture-drop");
     const ana = host.querySelector("#cf-capture-analyse");
     const tog = host.querySelector("#cf-capture-boxtog");
+    const det = host.querySelector("#cf-capture-detour");
     const ouvre = () => { if (file) { file.value = ""; file.click(); } };
     if (pick) pick.addEventListener("click", ouvre);
     if (rempl) rempl.addEventListener("click", ouvre);
     if (ana) ana.addEventListener("click", () => { analyser(); });
+    if (det) det.addEventListener("click", () => { detourer(); });
     if (tog) tog.addEventListener("click", () => { BOITES = !BOITES; paint(); });
     if (file) {
       file.addEventListener("change", () => {
@@ -851,6 +1051,72 @@
         + ", " + r.palette.length + " teintes");
     } catch (e) {
       M.toast(panne(e, "l'analyse"), true);
+    } finally {
+      BUSY = false;
+      M.busy(false);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     5. LE DETOURAGE IA (spec §7.1.3, plan D5)
+
+     OPT-IN de bout en bout : la disponibilite est lue AVANT le clic, le prix
+     est affiche AVANT le clic, et rien ne part sans le clic. La regle du
+     basculement (local d'abord, fal ensuite, rien sinon) vit COTE BACKEND —
+     un ecran qui la recopierait derivierait de lui au premier changement.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* CE QUE CE POSTE SAIT FAIRE. Un echec ici n'est pas une panne du panneau :
+     l'import et l'analyse continuent de fonctionner, seule l'option
+     disparait, et le motif se lit dans la note. */
+  async function chargeOptions() {
+    try {
+      IA = await lireJson(await M.api.raw("GET", "ai-options"));
+      IA_ERR = "";
+    } catch (e) {
+      IA = null;
+      IA_ERR = panne(e, "les options de détourage");
+    }
+    paint();
+  }
+
+  /* LE MEME VERROU BUSY QUE L'IMPORT ET L'ANALYSE, et pour la meme raison :
+     detourer pendant qu'un fichier monte detourerait l'image d'avant — sauf
+     qu'ici, ca peut couter un appel payant pour un resultat perime.
+
+     C'EST LA PIECE QUI PUBLIE (D3) : la route range le PNG et repond ; le
+     `M.patch` ci-dessous ecrit `layers.sujet` par la voie d'autosave unique.
+     `layers` est FUSIONNE et non remplace — T5 rangera d'autres couches a
+     cote, et les ecraser a chaque detourage serait un defaut muet. */
+  async function detourer() {
+    if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
+    const off = offreIA(IA, !!info("recto"));
+    if (!off.on) { M.toast(off.motif || "détourage indisponible", true); return; }
+    BUSY = true;
+    try {
+      M.busy(true, off.gratuit ? "détourage local…" : "détourage par fal.ai…");
+      const d = await lireJson(await M.api.raw("POST", "rembg"));
+      const maj = {};
+      const anc = isPlain(st().layers) ? st().layers : {};
+      Object.keys(anc).forEach((k) => { maj[k] = anc[k]; });
+      maj.sujet = {
+        file: String(d.layer || "sujet_recto.png"),
+        w: d.w, h: d.h, bytes: d.bytes, stamp: d.stamp,
+        voie: String(d.voie || ""),
+        couverture: estNombre(d.couverture) ? d.couverture : null,
+      };
+      M.patch({ layers: maj });
+      paint();
+      /* LA DEPENSE SE DIT APRES, AVEC LE MEME TARIF QU'AVANT LE CLIC (patron
+         du decor IA de P2). Deux chiffres differents de part et d'autre d'un
+         clic, c'est la confiance perdue. Et une voie gratuite ne parle pas
+         d'argent du tout. */
+      M.toast("sujet isolé — " + d.w + " × " + d.h + " px, " + weight(d.bytes)
+        + (d.voie === "local" ? " (local, gratuit)"
+          : (estNombre(d.prix_usd) ? " (fal, ~" + num(d.prix_usd, 3) + " $)"
+            : " (fal)")));
+    } catch (e) {
+      M.toast(panne(e, "le détourage"), true);
     } finally {
       BUSY = false;
       M.busy(false);

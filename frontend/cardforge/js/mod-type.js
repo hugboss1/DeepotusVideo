@@ -1573,6 +1573,10 @@
          les frames qui ne changent rien n'écrivent rien. */
       CF.on("core:render", () => { syncOverlay(); syncBands(); });
       CF.on("core:doc", (p) => { if (!SELF && p && p.id === "type") renderAll(); });
+      /* P10 PUBLIE, P3 SE SERT (plan D6). Sans cette ecoute, le bouton
+         « Zones importées » n'apparaitrait qu'a la peinture suivante — et
+         l'utilisateur qui revient d'analyser sa carte ne verrait rien. */
+      CF.on("core:doc", (p) => { if (p && p.id === "capture") renderAll(); });
       if (typeof ResizeObserver === "function") {
         const st = document.querySelector(".stage-wrap");
         if (st) new ResizeObserver(() => syncOverlay()).observe(st);
@@ -1724,6 +1728,11 @@
          modèle-là. Voir la section 6bis. */
       + '  <button class="btn sm cf-type-pal" type="button" title="Palette d\'éléments : zone de texte, zone de statistique, calque d\'image — et les éléments du modèle dont ce jeu est né">+ Élément</button>'
       + '  <button class="btn sm cf-type-preset" type="button" title="Poser un gabarit complet">Gabarits</button>'
+      /* ADOPTER LES ZONES MESUREES PAR LA PIECE 10 (§7.1.5). Ne se montre
+         QUE s'il y a de quoi : la visibilite DERIVE de `doc.capture.boxes`,
+         elle n'est pas gardee — un bouton qui s'affiche sans pouvoir agir
+         fait douter du clic. */
+      + '  <button class="btn sm cf-type-zones hidden" type="button" title="Reprendre les zones mesurées sur la carte importée : une boîte de la pièce Import = un bloc éditable ici">Zones importées</button>'
       + '  <span class="stage-sep" aria-hidden="true"></span>'
       + '  <button class="btn sm cf-type-undo" type="button" title="Annuler (Ctrl+Z)">&#8630;</button>'
       + '  <button class="btn sm cf-type-redo" type="button" title="Rétablir (Ctrl+Y)">&#8631;</button>'
@@ -1774,6 +1783,7 @@
     HOST.querySelector(".cf-type-addimg").addEventListener("click", addImgSlot);
     HOST.querySelector(".cf-type-pal").addEventListener("click", openPalette);
     HOST.querySelector(".cf-type-preset").addEventListener("click", openPresets);
+    HOST.querySelector(".cf-type-zones").addEventListener("click", adopterZones);
     HOST.querySelector(".cf-type-undo").addEventListener("click", undo);
     HOST.querySelector(".cf-type-redo").addEventListener("click", redo);
     HOST.querySelector(".cf-type-refit").addEventListener("click", refit);
@@ -1911,6 +1921,97 @@
          chargera au depot, et la poignee au millimetre pres. */
       box: [sr[0] + sr[2] * 0.2, sr[1] + sr[3] * 0.3, sr[2] * 0.6, sr[3] * 0.3],
     }], "calque d'image");
+  }
+
+  /* ═══ ADOPTER LES ZONES D'UNE CARTE IMPORTEE (P10 -> P3, §7.1.5) ═══════
+     « Boîtes -> slots de gabarit (éditables ensuite, §6.1). »
+
+     LE GESTE VIT ICI (plan D6) : la pièce 10 publie `doc.capture.boxes`, elle
+     ne touche jamais `doc.type`. P3 lit ce sous-arbre AVEC TOLÉRANCE et
+     offre SON bouton — dérivé, jamais gardé.
+
+     RIEN N'EST CONVERTI, ET C'EST LE POINT. Les boîtes de P10 sont en
+     MILLIMÈTRES depuis le coin rogné (« une unité par frontière », plan D3),
+     et `slot.box` l'est aussi (`safe_rect_mm` : « la zone sûre en mm depuis
+     le coin ROGNE »). Une conversion cachée entre les deux ferait dériver
+     toutes les adoptions du même décalage, et personne ne le verrait sur une
+     seule carte. Le test de P3 confronte les deux repères.
+
+     LES BOÎTES `tronquee` SONT ADOPTÉES QUAND MÊME. Leur mesure est un
+     MINIMUM — la bande exclue de P10 leur a coupé un côté — mais un slot est
+     ÉDITABLE : le rendre inatteignable serait pire que le donner court. Ce
+     qui n'est pas négociable, c'est de le DIRE (clôture T2, leçon (a) : une
+     coupe qui ne se dit pas devient une fausse mesure chez l'adoptant). */
+
+  /* CE QUE P3 LIT DE P10, ET RIEN D'AUTRE : le sous-arbre `capture`, remis
+     dans la forme qu'attend `specsZones`. `CF.get` est le SEUL lecteur de
+     document que cette pièce connaisse — `CF.doc()` n'est pas dans son
+     horizon, et le banc de gestes ne le sert même pas. */
+  function docCapture() {
+    return { capture: CF.get("capture", null) };
+  }
+
+  /* Les specs de slot que les zones de P10 donneraient. FONCTION PURE, et
+     c'est délibéré : le test l'EXÉCUTE dans node, sur cette source-ci. */
+  function specsZones(doc, base) {
+    const plain = (v) => !!v && typeof v === "object" && !Array.isArray(v);
+    const d = plain(doc) ? doc : {};
+    const c = plain(d.capture) ? d.capture : {};
+    const bs = Array.isArray(c.boxes) ? c.boxes : [];
+    const n0 = Math.max(1, Number(base) || 1);
+    const out = [];
+    bs.forEach((b) => {
+      if (!plain(b)) return;
+      const v = [Number(b.x), Number(b.y), Number(b.w), Number(b.h)];
+      /* UNE BOÎTE SANS TAILLE N'EST PAS UNE ZONE. `normSlot` la ramènerait à
+         ses valeurs par défaut (10 x 5 mm) posées en (0, 0) — un bloc au coin
+         de la carte que personne n'a demandé. On n'en fait rien plutôt. */
+      if (!v.every((n) => isFinite(n)) || v[2] <= 0 || v[3] <= 0) return;
+      const k = n0 + out.length;
+      out.push({
+        id: "zone" + k,
+        label: "zone importée n°" + k,
+        /* LE TEXTE RESTE VIDE, ET C'EST UN CHOIX : y écrire le libellé
+           peindrait « zone importée n°1 » sur la carte, à effacer une fois
+           par zone. Le calque d'édition, lui, montre la boîte. */
+        text: "",
+        box: [v[0], v[1], v[2], v[3]],
+        tronquee: !!b.tronquee,
+      });
+    });
+    return out;
+  }
+
+  /* L'AVEU QUI SUIT L'ADOPTION. Pure elle aussi : ce qu'elle dit est
+     exactement ce que l'utilisateur devra vérifier à la main. */
+  function phraseZones(n, tronquees) {
+    const t = Math.max(0, Number(tronquees) || 0);
+    return n + (n > 1 ? " zones adoptées" : " zone adoptée")
+      + (t ? ", dont " + t + (t > 1 ? " tronquées" : " tronquée")
+        + " au bord : leur taille est un minimum, à reprendre à la main"
+        : "");
+  }
+
+  function adopterZones() {
+    /* `libreN` choisit le premier numéro libre ; `normSlots` renommerait de
+       toute façon, mais en « zone12 » — un numéro choisi avant vaut mieux
+       qu'un suffixe collé après. */
+    const specs = specsZones(docCapture(), libreN(["zone"]));
+    if (!specs.length) {
+      M.toast("aucune zone à adopter : mesurez d'abord une carte dans la pièce Import", true);
+      return null;
+    }
+    const tronq = specs.filter((s) => s.tronquee).length;
+    /* `tronquee` est une information de PROVENANCE, pas un réglage de slot :
+       elle ne traverse pas la frontière (le schéma de `type.py` la jetterait,
+       et un document réparé en silence est un document qui ment). Elle sert
+       ici, dans la phrase, puis elle s'arrête. */
+    const nes = naitre(specs.map((s) => ({
+      id: s.id, label: s.label, text: s.text, box: s.box,
+    })), "zones importées");
+    if (!nes) return null;
+    M.toast(phraseZones(nes.length, tronq));
+    return nes;
   }
 
   /* ── LA ZONE DE STATISTIQUE : DEUX BLOCS, UNE SEULE NAISSANCE ───────────
@@ -5282,6 +5383,17 @@
     if (au) au.classList.toggle("active", CF.get("type.audit", true));
     const ov = HOST.querySelector(".cf-type-optv");
     if (ov && document.activeElement !== ov) ov.value = nv(CF.get("type.optical_mm", OPTICAL_MM_DEF));
+    /* LE BOUTON DES ZONES IMPORTEES, DERIVE A CHAQUE PEINTURE. Il porte le
+       COMPTE : « Zones importées » seul ne dit pas s'il en reste une ou
+       douze, et c'est le chiffre qui fait decider. */
+    const zn = HOST.querySelector(".cf-type-zones");
+    if (zn) {
+      const dispo = specsZones(docCapture(), 1).length;
+      zn.classList.toggle("hidden", !dispo);
+      if (dispo) {
+        zn.textContent = "Zones importées (" + dispo + ")";
+      }
+    }
     const rf = HOST.querySelector(".cf-type-refit");
     if (rf) {
       const was = CF.get("type.fit_rect", []), now = safeRectMm(CF.geom());

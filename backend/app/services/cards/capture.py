@@ -16,10 +16,13 @@ le routeur d'aucun autre (règle 8). Ce dont il a besoin vient de
 CE QUE CETTE PIÈCE TIENT AUJOURD'HUI, ET CE QU'ELLE NE TIENT PAS ENCORE
 
 Aujourd'hui : l'ADMISSION d'une carte existante (une photo, un scan, un PNG
-de production), le SERVICE des fichiers qu'elle range, et l'ANALYSE LOCALE —
+de production), le SERVICE des fichiers qu'elle range, l'ANALYSE LOCALE —
 bordure, zones occupées, fond, palette, et la confiance CHIFFRÉE de chacune
-(spec §7.1.2). Ce qui n'y est pas encore : le détourage IA opt-in (T3), les
-adoptions chez les pièces voisines (T3/T4), le manifeste de couches (T5).
+(spec §7.1.2) — et le DÉTOURAGE IA OPT-IN qui produit la couche « sujet »
+(spec §7.1.3). Ce qui n'y est pas encore : le manifeste de couches de P9
+(T5). Les ADOPTIONS, elles, ne seront jamais ici : elles vivent chez la
+pièce qui adopte (plan D6), et cette pièce-ci ne touche jamais l'état d'une
+voisine — elle publie, on vient se servir.
 
 Ce qui est déjà tranché, et qui ne bougera pas :
 
@@ -47,11 +50,19 @@ Ce qui est déjà tranché, et qui ne bougera pas :
      (leçon de clôture T1) : chaque confiance de ce fichier a un cas connu où
      elle s'effondre, et le test de la pièce le joue.
 
+  7. LE PAYANT EST OPT-IN, ET SON PRIX VIENT DE LA TABLE. Rien ici n'appelle
+     un fournisseur sans qu'on l'ait demandé ; `GET /ai-options` dit AVANT le
+     clic ce qui est disponible et ce que ça coûte, en lisant
+     `pricing.py` — jamais une copie (§8 :583). Une voie absente n'est pas
+     une erreur : la réponse le DIT et l'écran ne propose rien.
+
 Routes (toutes relatives à /api/cards/{did}/capture) :
 
     POST /card?side=recto|verso   corps BRUT : la carte à importer
     GET  /file/{nom}              un fichier du dossier, par liste blanche
     POST /analyse                 mesure le recto STOCKÉ, rend le relevé
+    GET  /ai-options              les voies de détourage, et leur prix
+    POST /rembg                   détoure le recto -> la couche « sujet »
 """
 from __future__ import annotations
 
@@ -59,6 +70,7 @@ import asyncio
 import io
 import math
 import re
+import sys
 import time
 import uuid
 from pathlib import Path
@@ -74,7 +86,8 @@ __all__ = ["router", "SIDES", "SRC_MAX_BYTES", "IMG_MAX_PIXELS",
            "MAX_IMPORT_PX", "FILE_RE", "cap_dir", "source_name",
            "analyse_recto", "BORD_FRONT_MIN", "BORD_MIN_BORDS",
            "ZONE_BLOC_MM", "ZONE_SOUS", "ZONE_SPAN_MIN", "FOND_SEUIL_UNI",
-           "PALETTE_N", "OPTION_IA"]
+           "PALETTE_N", "OPTION_IA", "SUJET_NAME", "PRIX_CLE",
+           "REMBG_FAL_MODELE", "PREFIXE_FAL", "PREFIXE_LOCAL", "ai_options"]
 
 # ── seuils ──────────────────────────────────────────────────────────────────
 # Les deux côtés d'une carte, et il n'y en a pas de troisième. La liste est le
@@ -127,7 +140,14 @@ MAX_IMPORT_PX = 4096
 # connaît que la fin de la chaîne ; `fullmatch` refuse en plus tout reste à
 # droite. Les deux ensemble : la ceinture et les bretelles d'un contrôle qui
 # décide d'un accès au disque.
-FILE_RE = re.compile(r"source_(?:recto|verso)\.png\Z")
+#
+# T3 L'ÉTEND D'UN NOM, PAS D'UN MOTIF. `sujet_recto.png` est la couche
+# produite par le détourage IA — un troisième nom FINI, écrit en toutes
+# lettres. Un motif du genre `(?:source|sujet)_\w+\.png` aurait ouvert la
+# porte à `sujet_verso.png` et à tout ce que T5 rangera là : une liste
+# blanche qui devine n'est plus une liste blanche.
+SUJET_NAME = "sujet_recto.png"
+FILE_RE = re.compile(r"(?:source_(?:recto|verso)|sujet_recto)\.png\Z")
 
 
 # ── disque ──────────────────────────────────────────────────────────────────
@@ -188,13 +208,35 @@ def _mpx(n: int) -> str:
     return s.replace(".", ",")
 
 
+def _servis() -> tuple:
+    """Les noms que le dossier sert, dans l'ordre où on les explique. Une
+    seule source pour le message de refus ET pour le libellé d'un fichier
+    absent : deux listes finissent par diverger."""
+    return tuple(source_name(s) for s in SIDES) + (SUJET_NAME,)
+
+
+def _quoi(nom: str) -> str:
+    """Ce qu'un nom de la liste blanche DÉSIGNE, en français.
+
+    Le calcul d'avant était `n[len("source_"):-len(".png")]` — une découpe
+    par longueur, juste pour les deux noms qu'elle connaissait et fausse dès
+    le troisième : « sujet_recto.png » y rendait « cto ». Une table dit ce
+    qu'elle sait et ne calcule rien."""
+    if nom == SUJET_NAME:
+        return "couche « sujet » du recto"
+    for s in SIDES:
+        if nom == source_name(s):
+            return f"capture {s}"
+    return "fichier"                       # inatteignable : la liste blanche
+
+
 def _name_or_404(nom: str) -> str:
     """Liste blanche. Voir `FILE_RE` : ni traversée, ni fichier temporaire."""
     n = str(nom or "")
     if not FILE_RE.fullmatch(n):
         raise HTTPException(
             404, "Fichier inconnu dans le dossier de capture : ce dossier ne "
-                 "sert que " + " et ".join(source_name(s) for s in SIDES) + ".")
+                 "sert que " + ", ".join(_servis()) + ".")
     return n
 
 
@@ -1149,6 +1191,309 @@ def _analyse_du_disque(did: str) -> dict:
     return analyse_recto(rgb, geo)
 
 
+# ── 6. le détourage IA opt-in (spec §7.1.3, plan D5) ────────────────────────
+#
+# LE BASCULEMENT EST CELUI DU PIPELINE SPRITE, ET C'EST LA SPEC QUI LE DIT
+# (:507 « même basculement que le pipeline sprite ») : voie LOCALE d'abord si
+# `rembg` s'importe, voie fal ensuite si une clé est enregistrée, rien sinon.
+# `sprite_service` porte les deux moitiés (`_rembg_api` :199-209 pour fal,
+# `_rembg_local_bytes` :219-221 pour le local) et `routes.py` porte le patron
+# de disponibilité, DEUX FOIS (:710-716 et :3837-3873). On ne l'importe pas —
+# règle 8, une pièce n'importe pas le module d'une voisine — on le RECOPIE,
+# et on l'avoue ici.
+#
+# UN ÉCART ASSUMÉ AVEC `routes.py` : là-bas, une dépendance absente rend 400.
+# Chez `cards`, §8 :581 dit 503 avec l'erreur littérale, et §8 fait loi dans
+# ce domaine. L'écart est écrit ici pour qu'il ne se lise pas comme un oubli.
+#
+# CE QUE `rembg` EST VRAIMENT SUR CE POSTE, mesuré le 24/08 : ABSENT — ni du
+# python de développement, ni du runtime embarqué de l'application, ni de
+# `requirements.txt`. La voie locale est donc, aujourd'hui, du code qui ne
+# s'exécute jamais en production ; le test de la pièce la joue avec un faux
+# module injecté dans `sys.modules`, faute de quoi la moitié du basculement
+# serait écrite et jamais éprouvée. L'empaqueter dans l'installeur est une
+# dette nommée (transmis de phase 3).
+
+REMBG_FAL_MODELE = "fal-ai/imageutils/rembg"
+# La CLÉ de tarif, pas le tarif. Le chiffre vit dans `pricing.DEFAULTS` et
+# nulle part ailleurs (§8 :583, « jamais recopié ») : ce qui est écrit ici est
+# le nom sous lequel on va le LIRE.
+PRIX_CLE = "rembg_api_usd"
+# Le préfixe de fournisseur des refus (§8 :584). Il n'est pas décoratif : il
+# dit OÙ aller regarder son compte quand un appel échoue.
+PREFIXE_FAL = "fal.ai rembg"
+PREFIXE_LOCAL = "rembg (local)"
+# Le temps qu'on laisse à la relève du résultat. Le fournisseur a déjà rendu
+# une URL à ce stade : ce qui reste est un téléchargement de quelques centaines
+# de kilo-octets.
+FAL_TIMEOUT_S = 120
+
+
+def _sans_chemin(e) -> str:
+    """L'erreur LITTÉRALE d'un fournisseur, moins les chemins absolus.
+
+    Ce n'est pas de la cosmétique. `FalSeedanceClient.upload_image` lève
+    `FileNotFoundError(f"Image not found: {image_path}")` — un chemin ABSOLU,
+    donc le nom de compte de l'utilisateur, dans une réponse HTTP. C'est
+    exactement l'incident de fuite de nom du gauntlet, et la jurisprudence
+    T1 (`_store_image`, qui ne rend que `strerror`) s'applique telle quelle.
+    Ce qui reste après le nettoyage est ce qui APPREND quelque chose : le
+    motif du refus, pas l'endroit où le fichier se trouvait."""
+    s = str(e).strip() or e.__class__.__name__
+    # d'abord les chemins AVEC extension : eux peuvent contenir des espaces
+    # (« C:\\Users\\...\\Mes documents\\x.png »), et un motif sans espace
+    # s'arrêterait au milieu en laissant le nom de compte derrière lui.
+    s = re.sub(r"[A-Za-z]:[\\/][^\r\n]*?\.(?:png|jpe?g|webp|tmp)\b", "…", s,
+               flags=re.I)
+    s = re.sub(r"[A-Za-z]:[\\/][^\s\"'<>]*", "…", s)
+    s = re.sub(r"/(?:home|Users|mnt|var|tmp|opt)/[^\s\"'<>]*", "…", s)
+    return s[:300]
+
+
+def _rembg_local_dispo() -> tuple:
+    """(disponible, motif de l'absence). L'ORDRE DES TROIS QUESTIONS EST LA
+    MESURE :
+
+      1. `sys.modules` — s'il est déjà chargé, la réponse est instantanée (et
+         c'est aussi ce qui rend la voie locale JOUABLE par un test, qui n'a
+         pas de moteur ONNX à installer pour prouver un basculement) ;
+      2. `find_spec` — présent sur le disque ? C'est une question de
+         CATALOGUE, elle ne charge rien. Sur ce poste elle rend `None`, et
+         c'est là que s'arrête le coût de la question ;
+      3. l'import réel, seulement si le catalogue dit oui. Un `rembg` présent
+         mais cassé (onnxruntime absent, DLL manquante) doit se dire
+         « présent et ne se charge pas », pas « installé ».
+
+    POURQUOI PAS DE MÉMO : l'import réussi peuple `sys.modules`, donc le
+    second appel repasse par la porte 1. Un mémo n'aurait rien gagné et
+    aurait figé une réponse que l'utilisateur peut changer en installant le
+    paquet sans redémarrer."""
+    import importlib
+    import importlib.util
+    if "rembg" in sys.modules:
+        return True, ""
+    try:
+        spec = importlib.util.find_spec("rembg")
+    except Exception as e:                                  # noqa: BLE001
+        return False, f"le module rembg ne se cherche pas ici ({e})"
+    if spec is None:
+        return False, ("rembg n'est pas installé dans ce runtime — la voie "
+                       "gratuite demande « pip install rembg »")
+    try:
+        importlib.import_module("rembg")
+    except Exception as e:                                  # noqa: BLE001
+        return False, f"rembg est présent mais ne se charge pas : {e}"
+    return True, ""
+
+
+def _fal_dispo() -> tuple:
+    """(disponible, motif de l'absence). Une CLÉ enregistrée, rien de plus :
+    on ne va pas interroger le fournisseur pour savoir s'il répondrait — ce
+    serait un appel pour préparer un appel."""
+    try:
+        from app.config import settings
+    except Exception as e:                                  # noqa: BLE001
+        return False, f"les réglages ne se lisent pas ici ({e})"
+    if getattr(settings, "FAL_KEY", ""):
+        return True, ""
+    return False, ("aucune clé fal enregistrée (Réglages -> Clés d'API) — la "
+                   "voie payante ne peut pas partir")
+
+
+def _prix_rembg():
+    """Le tarif unitaire, LU dans la table de l'application. `None` quand la
+    table ne le porte pas : l'écran écrit alors « tarif non tabulé » plutôt
+    qu'un montant de repli, qui serait le prix d'autre chose.
+
+    `isinstance(True, int)` vaut vrai en Python — un booléen glissé dans la
+    table sortirait ici en « 1,0 $ ». Il est exclu explicitement."""
+    try:
+        from app.services import pricing
+        v = (pricing.load() or {}).get(PRIX_CLE)
+    except Exception:                                       # noqa: BLE001
+        return None
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return float(v)
+
+
+def ai_options() -> dict:
+    """Ce que ce poste sait faire, et ce que ça coûte — AVANT le clic.
+
+    D5, mot pour mot : « option absente = pas proposée (aucune erreur) ». Une
+    route d'options qui refuserait quand rien n'est disponible obligerait
+    l'écran à traiter une absence de capacité comme une panne, et à afficher
+    un message rouge pour dire « cette fonction n'existe pas ici »."""
+    loc, loc_motif = _rembg_local_dispo()
+    fal, fal_motif = _fal_dispo()
+    voie = "local" if loc else ("fal" if fal else None)
+    motif = ""
+    if voie is None:
+        motif = (f"Le détourage par IA n'est disponible sur ce poste par "
+                 f"aucune des deux voies. Voie gratuite : {loc_motif}. Voie "
+                 f"payante : {fal_motif}.")
+    return {
+        "local": loc,
+        "fal": fal,
+        "voie": voie,
+        "gratuit": voie == "local",
+        "prix_usd": _prix_rembg(),
+        "devise": "USD",
+        "modele_fal": REMBG_FAL_MODELE,
+        "tarif_source": "la table de tarifs de l'application (Réglages -> "
+                        "Tarifs et budget, pricing.json) — le fournisseur "
+                        "facture directement",
+        "local_motif": loc_motif,
+        "fal_motif": fal_motif,
+        "motif": motif,
+    }
+
+
+def _rembg_local(raw: bytes) -> bytes:
+    """La voie GRATUITE, patron `sprite_service._rembg_local_bytes` (:219).
+    La disponibilité a déjà été tranchée par la route : ici on appelle."""
+    from rembg import remove
+    return remove(raw)
+
+
+async def _fal_upload(chemin: Path) -> str:
+    """L'image part chez le fournisseur. PREMIÈRE des trois primitives
+    réseau, et c'est délibéré qu'elles soient trois FONCTIONS DE MODULE : le
+    test pose son espion exactement ici — au point de CONSOMMATION — au lieu
+    de doubler la logique de `_rembg_fal` dans un faux."""
+    from app.services.fal_service import FalSeedanceClient
+    return await FalSeedanceClient.upload_image(chemin)
+
+
+async def _fal_rembg(url: str) -> str:
+    """L'appel PAYANT. Le dépliage de la réponse est celui de
+    `sprite_service._rembg_api` (:203-208), recopié : deux formes de retour
+    circulent chez ce fournisseur (`image.url` et `images[].url`)."""
+    import fal_client
+    res = await fal_client.subscribe_async(
+        REMBG_FAL_MODELE, arguments={"image_url": url})
+    out = ((res or {}).get("image") or {}).get("url") or next(
+        (im.get("url") for im in (res or {}).get("images", [])
+         if isinstance(im, dict) and im.get("url")), None)
+    if not out:
+        raise RuntimeError("le fournisseur n'a rendu aucune image")
+    return str(out)
+
+
+def _fal_lire(url: str) -> bytes:
+    import urllib.request
+    with urllib.request.urlopen(url, timeout=FAL_TIMEOUT_S) as r:
+        return r.read()
+
+
+async def _fal_download(url: str) -> bytes:
+    """La relève du résultat. L'URL VIENT DU DEHORS, donc elle est gardée :
+    `urlopen` sait ouvrir `file://`, et une réponse de fournisseur n'a pas à
+    pouvoir désigner un fichier de cette machine."""
+    u = str(url or "")
+    if not re.match(r"https?://", u, re.I):
+        raise RuntimeError(f"adresse de résultat inattendue : {u[:80]}")
+    return await asyncio.to_thread(_fal_lire, u)
+
+
+async def _rembg_fal(chemin: Path) -> bytes:
+    """La voie PAYANTE, en trois temps qui se nomment séparément.
+
+    §8 :584 — « échec fournisseur -> erreur littérale + préfixe fournisseur ».
+    Le préfixe seul ne suffit pas : « fal.ai rembg : 404 » ne dit pas si
+    l'envoi a échoué ou si c'est le résultat qui ne se relève pas, et ce ne
+    sont pas les mêmes gestes. Chaque temps porte donc son nom."""
+    try:
+        entree = await _fal_upload(chemin)
+    except Exception as e:                                  # noqa: BLE001
+        raise HTTPException(
+            502, f"{PREFIXE_FAL} (envoi de l'image) : {_sans_chemin(e)}")
+    try:
+        sortie = await _fal_rembg(entree)
+    except Exception as e:                                  # noqa: BLE001
+        raise HTTPException(
+            502, f"{PREFIXE_FAL} a refusé le détourage : {_sans_chemin(e)}")
+    try:
+        return await _fal_download(sortie)
+    except Exception as e:                                  # noqa: BLE001
+        raise HTTPException(
+            502, f"{PREFIXE_FAL} (relève du résultat) : {_sans_chemin(e)}")
+
+
+def _store_layer(did: str, name: str, data: bytes, prefixe: str) -> dict:
+    """Ranger une couche RGBA rendue par un fournisseur.
+
+    CE N'EST PAS `_store_image`, et la différence tient en une lettre : là-bas
+    on convertit en RGB — ce qui TUE l'alpha, c'est-à-dire tout l'objet d'un
+    détourage. Ici on convertit en RGBA et on MESURE ce qui a survécu.
+
+    L'écriture est celle de T1 (brouillon nominatif + `replace` patient) : deux
+    détourages simultanés sur le même jeu ne se disputent pas le fichier, et
+    le GET ne voit jamais un PNG à moitié écrit."""
+    from PIL import Image
+    d = _dir_or_404(did, create=True)
+    try:
+        img = Image.open(io.BytesIO(data))
+        w, h = img.size
+    except Exception as e:                                  # noqa: BLE001
+        raise HTTPException(
+            502, f"{prefixe} n'a pas rendu une image lisible "
+                 f"({e.__class__.__name__}) : rien n'est rangé.")
+    if w * h > IMG_MAX_PIXELS:
+        raise HTTPException(
+            502, f"{prefixe} a rendu une image de {_mpx(w * h)} millions de "
+                 f"pixels, au-delà du plafond de {_mpx(IMG_MAX_PIXELS)} "
+                 f"millions : rien n'est rangé.")
+    try:
+        img.load()
+        img = img.convert("RGBA")
+    except Exception as e:                                  # noqa: BLE001
+        raise HTTPException(
+            502, f"{prefixe} a rendu une image qui ne se décode pas "
+                 f"({e.__class__.__name__}) : rien n'est rangé.")
+    # CE QUI A SURVÉCU AU DÉTOURAGE, EN CLAIR. Un détourage rend une couche ;
+    # une couche entièrement transparente n'est pas une couche, c'est un
+    # échec silencieux — et P1 l'adopterait comme illustration, donnant une
+    # carte vide sans un mot. C'est la phrase du refus local, mot pour mot :
+    # « un détourage qui garde tout, ou rien, n'est pas un détourage ».
+    couverture = sum(img.getchannel("A").histogram()[128:]) / float(w * h)
+    if couverture <= 0.0:
+        raise HTTPException(
+            502, f"{prefixe} a rendu une couche ENTIÈREMENT transparente : il "
+                 f"n'y a aucun sujet dedans. Rien n'est rangé — une couche "
+                 f"vide adoptée comme illustration ferait une carte blanche.")
+    tmp = d / f"{name}.{uuid.uuid4().hex}.tmp"
+    try:
+        img.save(tmp, format="PNG", optimize=False)
+        _replace_avec_patience(tmp, d / name)
+    except OSError as e:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise HTTPException(
+            409, f"La couche détourée n'a pas pu être écrite : "
+                 f"{getattr(e, 'strerror', None) or e.__class__.__name__}. "
+                 f"Relancez le détourage.")
+    return {"w": w, "h": h, "bytes": (d / name).stat().st_size,
+            "stamp": int(time.time() * 1000),
+            "couverture": rnd(couverture, 4)}
+
+
+def _oublie_sujet(did: str) -> None:
+    """Le sujet détouré est une PROPRIÉTÉ DU RECTO : il meurt avec lui.
+
+    `effacements("recto")` remet `layers` à vide côté écran, mais le PNG,
+    lui, restait sur le disque — et `GET /file/sujet_recto.png` continuait de
+    servir le sujet de la carte PRÉCÉDENTE. P1 l'aurait adopté sans que rien
+    ne l'annonce : une illustration qui n'a aucun rapport avec la carte
+    qu'on vient d'importer."""
+    try:
+        (cap_dir(did) / SUJET_NAME).unlink()
+    except OSError:
+        pass                                # il n'y en avait pas : très bien
+
+
 # ── routes ──────────────────────────────────────────────────────────────────
 
 @router.post("/card")
@@ -1168,6 +1513,8 @@ async def post_card(did: str, request: Request, side: str | None = None):
         raise HTTPException(400, "Image trop lourde (max 64 Mo)")
     info = await asyncio.to_thread(_store_image, did, source_name(s), raw,
                                    MAX_IMPORT_PX)
+    if s == SIDES[0]:
+        await asyncio.to_thread(_oublie_sujet, did)
     return {"side": s, **info}
 
 
@@ -1193,6 +1540,75 @@ async def post_analyse(did: str):
     return await asyncio.to_thread(_analyse_du_disque, did)
 
 
+@router.get("/ai-options")
+async def get_ai_options(did: str):
+    """Les voies de détourage disponibles sur CE poste, et leur prix.
+
+    SERVIE MÊME SI LE JEU N'EXISTE PLUS, et c'est le précédent
+    `frame.py:ai_models` : « un menu qui s'éteint parce qu'un deck a été
+    supprimé est pire qu'inutile ». La question posée ici — « cette machine
+    sait-elle détourer, et à quel prix ? » — n'a pas de deck pour réponse.
+    Un identifiant MAL FORMÉ reste refusé : c'est la garde du domaine, et
+    elle ne dépend d'aucun dossier.
+
+    `to_thread` : la troisième porte de `_rembg_local_dispo` IMPORTE
+    réellement le module, et un import de rembg charge un moteur ONNX —
+    plusieurs secondes la première fois. Dans la boucle, ce serait toutes les
+    autres requêtes en attente. (Sur ce poste la question s'arrête à la
+    deuxième porte, qui ne coûte rien ; le `to_thread` est là pour le poste
+    où rembg EST installé.)"""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    return await asyncio.to_thread(ai_options)
+
+
+@router.post("/rembg")
+async def post_rembg(did: str):
+    """Le détourage OPT-IN du recto -> la couche « sujet » (spec §7.1.3).
+
+    ELLE NE PUBLIE RIEN, comme `/analyse` : la route range le PNG et REND ce
+    qu'elle a fait ; c'est `mod-capture.js` qui écrit
+    `doc.capture.layers.sujet` par la voie d'autosave unique (règle 12,
+    plan D3). Une seule main sur le document.
+
+    LE PRIX EST RENDU AVEC LE RÉSULTAT, et c'est le patron du décor IA de P2 :
+    la dépense se dit APRÈS avec le MÊME tarif qu'avant le clic. Deux chiffres
+    différents de part et d'autre d'un clic sont le meilleur moyen de perdre
+    la confiance de celui qui paie."""
+    d = _dir_or_404(did)
+    recto = d / source_name(SIDES[0])
+    if not recto.is_file():
+        raise HTTPException(
+            404, "Aucun recto à détourer sur ce jeu : déposez d'abord l'image "
+                 "de la carte à reprendre — le sujet s'isole sur le recto.")
+    o = await asyncio.to_thread(ai_options)
+    voie = o["voie"]
+    if voie is None:
+        # §8 :581 — 503 avec l'erreur LITTÉRALE. `routes.py` répond 400 sur le
+        # même cas (:710-720) ; chez `cards`, §8 fait loi, et l'écart est
+        # écrit en tête de section pour ne pas se lire comme un oubli.
+        raise HTTPException(
+            503, f"{o['motif']} L'analyse locale, elle, reste gratuite et "
+                 f"sans fournisseur.")
+    if voie == "local":
+        raw = await asyncio.to_thread(recto.read_bytes)
+        try:
+            data = await asyncio.to_thread(_rembg_local, raw)
+        except Exception as e:                              # noqa: BLE001
+            raise HTTPException(
+                502, f"{PREFIXE_LOCAL} a refusé le détourage : "
+                     f"{_sans_chemin(e)}")
+        prefixe = PREFIXE_LOCAL
+    else:
+        data = await _rembg_fal(recto)
+        prefixe = PREFIXE_FAL
+    info = await asyncio.to_thread(_store_layer, did, SUJET_NAME, data,
+                                   prefixe)
+    return {"layer": SUJET_NAME, "voie": voie, "gratuit": voie == "local",
+            "prix_usd": (o["prix_usd"] if voie == "fal" else None),
+            "devise": o["devise"], **info}
+
+
 @router.get("/file/{nom}")
 async def get_file(did: str, nom: str):
     """Un fichier du dossier de capture, par liste blanche de noms FINAUX.
@@ -1207,7 +1623,8 @@ async def get_file(did: str, nom: str):
     d = _dir_or_404(did)
     p = d / n
     if not p.is_file():
-        cote = n[len("source_"):-len(".png")]
-        raise HTTPException(404, f"Aucune capture {cote} sur ce jeu : déposez "
-                                 f"une image dans la pièce Import.")
+        suite = ("lancez le détourage IA depuis la pièce Import."
+                 if n == SUJET_NAME
+                 else "déposez une image dans la pièce Import.")
+        raise HTTPException(404, f"Aucune {_quoi(n)} sur ce jeu : {suite}")
     return _png(await asyncio.to_thread(p.read_bytes))

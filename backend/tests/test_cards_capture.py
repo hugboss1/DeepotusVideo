@@ -40,6 +40,26 @@ Ce qui est verrouillé, seuil par seuil :
      bordure irrégulière -> régularité en berne ; recto flou -> netteté en
      berne ; fond dégradé -> refus motivé portant sa mesure. Un chiffre de
      confiance qui ne peut pas être bas est un chiffre qui ment (clôture T1).
+  8. LE DÉTOURAGE IA EST OPT-IN, ET IL NE DÉPENSE RIEN ICI (T3, spec
+     §7.1.3, plan D5). Disponibilité honnête AVANT le clic, prix LU dans
+     `pricing.py` (jamais recopié — le contrôle déplace la table et exige
+     que la réponse suive), 503 littéral français quand aucune voie n'existe
+     (§8, et pas le 400 de `routes.py`), erreur de fournisseur PRÉFIXÉE et
+     sans chemin absolu. Les quatre portes du dehors — `fal_client`,
+     `FalSeedanceClient.upload_image`, `urlopen` — sont refermées sur un
+     COMPTEUR D'APPELS RÉELS asserté à ZÉRO dans chaque chemin.
+     LA VÉRITÉ SUR `rembg`, mesurée le 24/08 : il n'est installé NI dans le
+     python de développement NI dans le runtime embarqué, et il n'est pas
+     dans `requirements.txt`. La voie locale ne s'exécute donc jamais en
+     production aujourd'hui ; elle est jouée ici avec un faux module injecté
+     dans `sys.modules`, faute de quoi la moitié du basculement serait
+     écrite et jamais éprouvée.
+  9. LES ADOPTIONS VIVENT CHEZ L'ADOPTANT (plan D6), et leur contrat se
+     garde ICI — c'est le schéma de P10 qu'elles consomment. P1 (mod-face)
+     et P3 (mod-type) sont donc lus depuis ce fichier : `test_cards_face.py`
+     n'appartient pas à cette tâche, et la moitié qui est vraiment de P3 (ce
+     que le SERVEUR fait des slots nés) vit, elle, dans
+     `test_cards_type.py`.
 
 ────────────────────────────────────────────────────────────────────────────
 LES DEUX RONDES DE MUTATION. Le principe ne bouge pas : on REMET le défaut,
@@ -114,8 +134,67 @@ Ronde 4 (T2, corrections de revue) — 19 défauts remis, 19 vus :
   · `panne()` ne voit plus le rejet réseau (JS) ................... ROUGE
   · `effacements` oublie `zones_bande_mm` (JS) .................... ROUGE
 
-DEUX DE CES DIX-NEUF SONT DES TROUS QUE LA RONDE A OUVERTS, PAS FERMÉS, et
-c'est ce qui les rend intéressants :
+Ronde 5 (T3, le détourage IA et les adoptions) — 30 défauts remis, 30 vus :
+  · le basculement INVERSÉ : fal avant local ..................... ROUGE
+  · le 503 redevenu le 400 de `routes.py` ........................ ROUGE
+  · « aucune voie » transformé en ERREUR au lieu d'une réponse ... ROUGE
+  · le prix RECOPIÉ au lieu d'être lu dans `pricing` ............. ROUGE
+  · le préfixe de fournisseur retiré du refus .................... ROUGE
+  · `_sans_chemin` neutralisé (la fuite de nom rejouée) .......... ROUGE
+  · la couche ENTIÈREMENT transparente acceptée .................. ROUGE
+  · un nouveau recto ne tue plus le sujet d'avant ................ ROUGE
+  · la liste blanche non étendue (le sujet n'est pas servi) ...... ROUGE
+  · le 404 qui nomme le fichier par DÉCOUPE (le « cto ») ......... ROUGE
+  · la couche rangée en RGB : l'alpha meurt ...................... ROUGE
+  · le brouillon PARTAGÉ (le défaut grave de T1, rejoué) ......... ROUGE
+  · L'ESPION CONTOURNÉ : la route appelle un alias figé à
+    l'import — la sentinelle compte 1 et le dit .................. ROUGE
+  · le dépliage fal privé de la forme `images[]` ................. ROUGE
+  · la relève acceptant n'importe quel schéma d'adresse .......... ROUGE
+  · un rembg CASSÉ qui fait tomber la route au lieu de se dire ... ROUGE
+  · l'écran propose l'option même sans voie (JS) ................. ROUGE
+  · l'écran écrit un montant même sans tarif tabulé (JS) ......... ROUGE
+  · le verrou BUSY qui saute sur le détourage (JS) ............... ROUGE
+  · les options relues à CHAQUE peinture (JS) .................... ROUGE
+  · P1 préfère le recto entier au sujet détouré (JS) ............. ROUGE
+  · P1 pose l'illustration DEUX fois (deux annulations, JS) ...... ROUGE
+  · P1 construit l'URL SANS la liste blanche (JS) ................ ROUGE
+  · P3 accepte une boîte SANS taille (JS) ........................ ROUGE
+  · P3 tait les boîtes tronquées (JS) ............................ ROUGE
+  · P3 fait naître les zones DANS UNE BOUCLE (JS) ................ ROUGE
+  · P3 renomme les zones (le serveur les répare en silence, JS) .. ROUGE
+  · P3 CONVERTIT les mm au lieu de les reprendre (JS) ............ ROUGE
+  · le plafond de blocs n'est plus compté avant (JS) ............. ROUGE
+  · les zones REMPLACENT les blocs au lieu de s'y ajouter (JS) ... ROUGE
+
+TROIS DE CES TRENTE ONT OUVERT UN TROU AVANT DE LE FERMER, et ce sont les
+trois plus instructifs :
+  · « naître dans une boucle » restait VERT côté P3 : un `naitre(` dans un
+    `forEach` est toujours UNE occurrence de texte et fait N naissances. Le
+    contrôle de `test_cards_type.py` comptait les occurrences ; il refuse
+    maintenant toute boucle sur ce chemin.
+  · « l'URL sans liste blanche » restait VERT : le contrôle cherchait un
+    `…test(…)` dans le corps de `captureURL`, et celui de l'identifiant de
+    jeu le satisfaisait. La garde est désormais EXÉCUTÉE dans node, sur six
+    noms dont la traversée et le `%0A`.
+  · le corps de `_fal_rembg` n'était joué NULLE PART — espionné en entier
+    partout ailleurs. C'est le seul code payant du fichier : un bug de
+    dépliage y coûte un appel PAYÉ dont le résultat n'est pas lu. Il a
+    maintenant son contrôle, `fal_client` ouvert pour lui seul (les trois
+    autres portes restent fermées sur le compteur).
+
+LES TÉMOINS SURVIVANTS DE T3, AVOUÉS :
+  · `FAL_TIMEOUT_S` (120 s) n'est gardé par AUCUN contrôle — le ramener à
+    1 s survivrait à toute la suite. Le mesurer demanderait de tenir une
+    socket ouverte plus longtemps que le délai, c'est-à-dire un test qui
+    dure ce qu'il mesure. Un chiffre de confort, dit plutôt que gardé.
+  · le témoin de T1 sur `_replace_avec_patience` vaut ici tel quel : retirer
+    la reprise patiente SEULE, en gardant le brouillon unique, n'est vu
+    qu'environ une fois sur deux. Le défaut GRAVE — le brouillon partagé —
+    est vu, lui, à tous les coups (mutation 12).
+
+DEUX DES DIX-NEUF DE LA RONDE 4 SONT DES TROUS QUE LA RONDE A OUVERTS, PAS
+FERMÉS, et c'est ce qui les rend intéressants :
   · `core:geom` entouré de `/* */` laissait le contrôle VERT — il cherchait
     du code par son TEXTE, et un texte en commentaire est encore du texte.
     Les recherches de code passent désormais par `_code_js`, qui dépouille.
@@ -458,9 +537,15 @@ def test_le_service_ne_squatte_pas_les_routes_a_venir():
     `/rembg` et `/analyse` — et répondu « Fichier inconnu dans le dossier de
     capture » à qui interroge une route qui n'existe pas encore. Le
     diagnostic aurait coûté une demi-tâche à quelqu'un. Sous `/file/`, une
-    route absente redevient une route absente."""
+    route absente redevient une route absente.
+
+    AMENDEMENT T3 : deux des quatre noms de la liste d'origine ont pris
+    corps — `ai-options` répond maintenant 200 et `rembg` est un POST. Les
+    remplacer par les noms QUI RESTENT à venir (T5 : le manifeste de couches)
+    garde la CLASSE de piège, qui est ce que ce contrôle protège ; la liste,
+    elle, n'a jamais été le sujet."""
     did = _deck()
-    for futur in ("ai-options", "rembg", "analyse", "state"):
+    for futur in ("layers", "manifeste", "state"):
         r = _api("GET", f"/api/cards/{did}/capture/{futur}")
         assert r.status_code == 404, (futur, r.status_code)
         detail = (r.json() or {}).get("detail", "")
@@ -1149,34 +1234,99 @@ def test_l_analyse_SANS_RECTO_est_un_404_qui_dit_quoi_faire():
     CC.delete_deck(did)
 
 
-def test_l_analyse_ne_DEPENSE_rien_et_ne_sort_pas_de_la_machine():
-    """« GRATUIT, PIL pur, AUCUN appel réseau/fournisseur » (plan T2). Le jour
-    où T3 branchera le détourage payant, ce sera SOUS UNE AUTRE ROUTE : celle
-    -ci reste l'analyse qu'on peut relancer sans y penser.
+def _imports_par_fonction() -> dict:
+    """{nom de fonction (ou "<module>") : {modules importés dedans}}.
 
     LE BALAYAGE EST SUR L'ARBRE SYNTAXIQUE, PAS SUR LE TEXTE. La première
     écriture cherchait des sous-chaînes et rougissait sur un COMMENTAIRE de
-    T1 qui nomme les routes futures — un test qui interdit de parler d'une
-    chose n'est pas un test qui interdit de la faire. Ici on lit les IMPORTS
-    réels : une dépendance payante ne peut entrer que par là."""
+    T1 qui nomme les routes futures — un test qui interdit de PARLER d'une
+    chose n'est pas un test qui interdit de la FAIRE. Une dépendance payante
+    ne peut entrer que par un import, et un import a une fonction hôte."""
     import ast
     arbre = ast.parse(pathlib.Path(CP.__file__).read_text(encoding="utf-8"))
-    modules = set()
-    for n in ast.walk(arbre):
+    out: dict = {}
+
+    def _pose(hote, n):
+        s = out.setdefault(hote, set())
         if isinstance(n, ast.Import):
-            modules.update(a.name for a in n.names)
-        elif isinstance(n, ast.ImportFrom):
-            modules.add(n.module or "")
-            modules.update(f"{n.module or ''}.{a.name}" for a in n.names)
-    racines = {m.split(".")[0] for m in modules}
-    for interdit in ("httpx", "requests", "urllib", "aiohttp", "fal_client",
-                     "openai", "rembg", "replicate", "socket", "http"):
-        assert interdit not in racines, \
-            (f"« {interdit} » est IMPORTÉ par la pièce : l'analyse doit "
-             f"rester gratuite et locale ({sorted(racines)})")
+            s.update(a.name for a in n.names)
+        else:
+            s.add(n.module or "")
+            s.update(f"{n.module or ''}.{a.name}" for a in n.names)
+
+    def _marche(noeud, hote):
+        for enfant in ast.iter_child_nodes(noeud):
+            if isinstance(enfant, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _marche(enfant, enfant.name)
+            else:
+                if isinstance(enfant, (ast.Import, ast.ImportFrom)):
+                    _pose(hote, enfant)
+                _marche(enfant, hote)
+
+    _marche(arbre, "<module>")
+    return out
+
+
+# Les fonctions qui composent le RELEVÉ. Une dépendance payante importée dans
+# l'une d'elles serait un appel sur le chemin gratuit.
+ANALYSE_FNS = (
+    "analyse_recto", "_analyse_du_disque", "post_analyse", "_analyse_bordure",
+    "_analyse_zones", "_analyse_fond", "_analyse_palette", "_grille",
+    "_profils", "_front", "_mesure_fond", "_dominantes", "_couleur_bande",
+    "_rayon_coin", "_composants", "_fusionne", "_store_image", "post_card",
+)
+# ... et les SEULES fonctions autorisées à toucher un fournisseur. La liste
+# est courte EXPRÈS : elle est le périmètre de la dépense.
+PAYANTES_FNS = ("_fal_upload", "_fal_rembg", "_fal_lire", "_rembg_local",
+                "_rembg_local_dispo", "_prix_rembg")
+INTERDITS = ("httpx", "requests", "urllib", "aiohttp", "fal_client", "openai",
+             "rembg", "replicate", "socket", "http")
+
+
+def test_l_analyse_ne_DEPENSE_rien_et_ne_sort_pas_de_la_machine(monkeypatch):
+    """« GRATUIT, PIL pur, AUCUN appel réseau/fournisseur » (plan T2).
+
+    AMENDEMENT T3, ET C'EST LA VÉRITÉ NEUVE : la pièce SAIT maintenant
+    dépenser (`/rembg`), donc « aucun import payant dans le fichier » est
+    devenu faux par construction. Ce qui reste vrai, et ce qui compte, c'est
+    que la DÉPENSE A UN PÉRIMÈTRE : les modules payants n'entrent que par une
+    poignée de fonctions nommées, jamais au niveau du module, et jamais sur
+    le chemin de l'analyse. Le contrôle porte donc sur le périmètre — et il
+    est doublé d'une preuve DYNAMIQUE : l'analyse jouée pour de vrai, les
+    quatre portes du dehors fermées sur un compteur, qui reste à zéro."""
+    par_fn = _imports_par_fonction()
+    racines_module = {m.split(".")[0] for m in par_fn.get("<module>", set())}
+    for interdit in INTERDITS:
+        assert interdit not in racines_module, \
+            (f"« {interdit} » est importé AU NIVEAU DU MODULE : il partirait "
+             f"au chargement, pour toutes les routes")
+    for fn in ANALYSE_FNS + PAYANTES_FNS:
+        # LA LISTE DOIT RESTER VIVANTE : un renommage la viderait de son
+        # sens sans faire rougir personne (le périmètre deviendrait « aucune
+        # fonction », donc toujours respecté).
+        assert hasattr(CP, fn), \
+            f"{fn} a disparu : la liste du périmètre est périmée"
+    for fn in ANALYSE_FNS:
+        racines = {m.split(".")[0] for m in par_fn.get(fn, set())}
+        for interdit in INTERDITS:
+            assert interdit not in racines, \
+                f"« {interdit} » entre par {fn}(), qui est sur le chemin gratuit"
+    debordent = sorted(
+        fn for fn, mods in par_fn.items()
+        if fn not in PAYANTES_FNS
+        and ({m.split(".")[0] for m in mods} & set(INTERDITS)))
+    assert not debordent, \
+        (f"des fonctions hors périmètre touchent un fournisseur : {debordent} "
+         f"— la dépense doit rester dans {sorted(PAYANTES_FNS)}")
     # Les seules dépendances de calcul, et elles sont locales.
-    assert "app.services.pbr_service" in modules, sorted(modules)
-    assert "app.services.pixel_ops.chroma_key" in modules, sorted(modules)
+    tous = set().union(*par_fn.values()) if par_fn else set()
+    assert "app.services.pbr_service" in tous, sorted(tous)
+    assert "app.services.pixel_ops.chroma_key" in tous, sorted(tous)
+    # LA PREUVE DYNAMIQUE : l'analyse RÉELLE, portes fermées, compteur à zéro.
+    s = _sentinelle(monkeypatch)
+    did, _ = _pose_et_analyse(_synth(boites=TROIS))
+    s.zero()
+    CC.delete_deck(did)
 
 
 def test_les_PRIMITIVES_reutilisees_existent_encore_chez_elles():
@@ -2071,6 +2221,970 @@ def test_le_geste_ANALYSER_est_garde_contre_le_double_clic():
     peint = _corps_js("paint")
     assert "cf-capture-analyse" in peint, \
         "le bouton n'est pas piloté par l'état de l'écran"
+
+
+# ═══════════════════════ T3 — le détourage IA opt-in ════════════════════════
+#
+# CE QUE CETTE SECTION VERROUILLE, et pourquoi chaque contrôle existe.
+#
+# §7.1.3 donne à P10 UNE capacité payante : rembg, « fal 0,003 $/image OU
+# local si présent — MÊME basculement que le pipeline sprite », prix affiché.
+# D5 en fait une doctrine en quatre points, et chacun a son contrôle :
+#
+#   1. LA DISPONIBILITÉ EST HONNÊTE. `GET /ai-options` dit ce qui est vraiment
+#      là (import réussi ? clé posée ?) AVANT le clic. Rien de disponible n'est
+#      PAS une erreur : la réponse le dit, et l'écran ne propose pas l'option.
+#   2. LE PRIX VIENT DE LA TABLE. `pricing.load()["rembg_api_usd"]`, jamais une
+#      copie — le contrôle bouge la table et exige que la réponse suive.
+#   3. LE REFUS EST UN 503 LITTÉRAL FRANÇAIS. `routes.py` répond 400 sur
+#      dépendance absente ; chez `cards`, §8 fait loi et l'écart ne fait pas
+#      jurisprudence.
+#   4. ZÉRO DOLLAR. L'espion est posé au POINT DE CONSOMMATION — la fonction
+#      que LA ROUTE appelle — et un COMPTEUR D'APPELS RÉELS garde les quatre
+#      portes par lesquelles de l'argent peut sortir (`fal_client`,
+#      `FalSeedanceClient.upload_image`, `urlopen`). Il est asserté à ZÉRO
+#      dans chacun des quatre chemins.
+#
+# LA VÉRITÉ SUR `rembg` DANS CE RUNTIME, mesurée le 24/08 : il n'est installé
+# NI dans le python de développement NI dans le runtime embarqué de
+# l'application, et il n'est pas dans `requirements.txt`. La voie locale est
+# donc du code qui ne s'exécute JAMAIS ici — c'est pourquoi le test l'exerce
+# avec un faux module `rembg` injecté dans `sys.modules` : sans lui, la moitié
+# du basculement serait écrite et jamais jouée.
+
+
+def _png_rgba(w: int = 60, h: int = 80, opaque: bool = True) -> bytes:
+    """Un PNG RGBA plausible en retour de détourage : un disque opaque au
+    milieu, le reste transparent. `opaque=False` rend une couche ENTIÈREMENT
+    transparente — le « détourage » qui n'a rien gardé."""
+    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    if opaque:
+        ImageDraw.Draw(im).ellipse([w // 5, h // 5, w - w // 5, h - h // 5],
+                                   fill=(210, 180, 100, 255))
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+class _Sentinelle:
+    """LE COMPTEUR D'APPELS RÉELS. Il ne simule rien : il compte, puis il
+    LÈVE. Toute porte par laquelle un dollar peut sortir est refermée sur lui,
+    et chaque test de cette section finit par `sentinelle.zero()`.
+
+    Pourquoi un compteur ET une levée : la levée seule ferait rougir le test
+    au bon endroit, mais un appel avalé par un `except Exception:` quelque
+    part sur le chemin passerait inaperçu. Le compteur, lui, survit à tous les
+    filets."""
+
+    def __init__(self):
+        self.n = 0
+        self.portes: list = []
+
+    def _porte(self, nom):
+        def _refus(*a, **k):
+            self.n += 1
+            self.portes.append(nom)
+            raise AssertionError(
+                f"UN APPEL PAYANT RÉEL EST PARTI D'UN TEST : {nom}")
+        return _refus
+
+    def _porte_async(self, nom):
+        async def _refus(*a, **k):
+            self.n += 1
+            self.portes.append(nom)
+            raise AssertionError(
+                f"UN APPEL PAYANT RÉEL EST PARTI D'UN TEST : {nom}")
+        return _refus
+
+    def zero(self):
+        assert self.n == 0, f"{self.n} appel(s) réel(s) : {self.portes}"
+
+
+def _sentinelle(monkeypatch, sauf=()) -> _Sentinelle:
+    """Les quatre portes du dehors, refermées sur le compteur.
+
+    L'ESPION DE LA ROUTE EST AILLEURS (chaque test pose le sien sur la
+    fonction que la route appelle) ; celui-ci est la CEINTURE : si un chemin
+    oublié atteignait quand même le fournisseur, il compterait.
+
+    `sauf` laisse UNE porte ouverte pour le test qui veut exercer le code
+    qui la franchit — les autres restent fermées, et le compteur reste la
+    preuve pour elles. Un seul test s'en sert, et il le dit."""
+    s = _Sentinelle()
+    try:
+        import fal_client
+    except Exception:                                    # pragma: no cover
+        fal_client = None
+    if "fal_client" in sauf:
+        fal_client = None
+    if fal_client is not None:
+        for nom in ("subscribe_async", "upload_file_async", "upload_async",
+                    "submit_async", "run_async"):
+            if hasattr(fal_client, nom):
+                monkeypatch.setattr(fal_client, nom, s._porte_async(
+                    "fal_client." + nom))
+    try:
+        from app.services.fal_service import FalSeedanceClient
+        monkeypatch.setattr(FalSeedanceClient, "upload_image",
+                            staticmethod(s._porte_async(
+                                "FalSeedanceClient.upload_image")))
+    except Exception:                                    # pragma: no cover
+        pass
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        s._porte("urllib.request.urlopen"))
+    return s
+
+
+class _FauxRembg:
+    """Le module `rembg` que ce runtime n'a pas. Injecté dans `sys.modules`,
+    il rend la voie locale JOUABLE — `_rembg_local_dispo` le voit, et
+    `from rembg import remove` tombe sur `remove` d'ici."""
+
+    def __init__(self, sortie=None, casse=None):
+        self.appels = 0
+        self._sortie = sortie
+        self._casse = casse
+
+    def remove(self, data, *a, **k):
+        self.appels += 1
+        if self._casse:
+            raise self._casse
+        return self._sortie if self._sortie is not None else _png_rgba()
+
+
+def _pose_rembg(monkeypatch, faux: _FauxRembg):
+    monkeypatch.setitem(sys.modules, "rembg", faux)
+    return faux
+
+
+def _sans_rembg(monkeypatch):
+    monkeypatch.delitem(sys.modules, "rembg", raising=False)
+
+
+def _options(did: str):
+    return _api("GET", f"/api/cards/{did}/capture/ai-options")
+
+
+def _rembg(did: str):
+    return _api("POST", f"/api/cards/{did}/capture/rembg")
+
+
+def _deck_avec_recto(im=None) -> str:
+    did = _deck()
+    r = _post(did, _pngs(im if im is not None else _synth(boites=TROIS)),
+              "recto")
+    assert r.status_code == 200, r.text[:300]
+    return did
+
+
+# ── A. la disponibilité, dite avant le clic ─────────────────────────────────
+
+def test_les_OPTIONS_IA_disent_la_VERITE_sur_les_deux_voies(monkeypatch):
+    """« Disponibilité rapportée HONNÊTEMENT » (D5). Les quatre combinaisons
+    de (rembg importable, clé fal posée) sont jouées, et la voie annoncée est
+    celle que la route PRENDRAIT — locale d'abord, patron sprite."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    did = _deck()
+
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "")
+    j = _options(did).json()
+    assert j["local"] is False and j["fal"] is False, j
+    assert j["voie"] is None, j
+    assert j["motif"], "rien de disponible et rien à dire : l'écran ne peut " \
+                       "pas expliquer l'absence de l'option"
+
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    j = _options(did).json()
+    assert j["local"] is False and j["fal"] is True and j["voie"] == "fal", j
+    assert j["gratuit"] is False, j
+
+    _pose_rembg(monkeypatch, _FauxRembg())
+    j = _options(did).json()
+    assert j["local"] is True and j["voie"] == "local", \
+        "le local passe AVANT la voie payante (patron sprite)"
+    assert j["gratuit"] is True, j
+
+    monkeypatch.setattr(settings, "FAL_KEY", "")
+    j = _options(did).json()
+    assert j["local"] is True and j["fal"] is False and j["voie"] == "local", j
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_AUCUNE_voie_disponible_n_est_PAS_une_erreur(monkeypatch):
+    """D5, mot pour mot : « option absente = pas proposée (AUCUNE erreur) ».
+    Une route d'options qui répondrait 503 quand rien n'est là forcerait
+    l'écran à traiter une absence comme une panne."""
+    from app.config import settings
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "")
+    did = _deck()
+    r = _options(did)
+    assert r.status_code == 200, (r.status_code, r.text[:200])
+    CC.delete_deck(did)
+
+
+def test_les_OPTIONS_se_servent_meme_sans_recto_et_meme_sans_deck():
+    """Précédent `frame.py:ai_models` : « un menu qui s'éteint parce qu'un
+    deck a été supprimé est pire qu'inutile ». La question posée ici est
+    « cette machine sait-elle détourer ? » — elle n'a pas de deck pour
+    réponse. Un identifiant MAL FORMÉ reste refusé : c'est la garde de
+    domaine, pas celle du dossier."""
+    did = _deck()
+    CC.delete_deck(did)
+    assert _options(did).status_code == 200, "un deck supprimé éteint le menu"
+    r = _api("GET", "/api/cards/pas-un-did/capture/ai-options")
+    assert r.status_code in (400, 404), r.status_code
+
+
+def test_le_PRIX_vient_de_pricing_et_n_est_JAMAIS_recopie(monkeypatch):
+    """§8 :583 — « prix AVANT, depuis `pricing.py`, jamais recopié ». Deux
+    preuves, et la seconde est la seule qui vaille : l'ÉGALITÉ à la table, ET
+    le fait que déplacer la table déplace la réponse. Une constante recopiée
+    passe la première et tombe sur la seconde."""
+    from app.services import pricing
+    did = _deck()
+    j = _options(did).json()
+    assert j["prix_usd"] == pricing.load()["rembg_api_usd"], \
+        (j.get("prix_usd"), pricing.load().get("rembg_api_usd"))
+    assert j["devise"] == "USD", j
+
+    vraie = pricing.load
+    monkeypatch.setattr(pricing, "load",
+                        lambda: dict(vraie(), rembg_api_usd=0.0177))
+    j2 = _options(did).json()
+    assert j2["prix_usd"] == 0.0177, \
+        f"le prix ne suit pas la table : {j2.get('prix_usd')}"
+    CC.delete_deck(did)
+
+
+def test_le_prix_n_est_ecrit_EN_DUR_ni_dans_la_piece_ni_dans_l_ecran():
+    """Le tarif ne s'écrit qu'à UN endroit du produit : `pricing.DEFAULTS`.
+    Une copie dans la pièce ou dans une phrase d'écran survivrait à une
+    baisse de tarif et afficherait un prix faux — le pire des cas, parce
+    qu'il est crédible.
+
+    LE CHIFFRE CHERCHÉ VIENT DE LA TABLE, LUI AUSSI : l'écrire ici en aurait
+    fait la copie de plus. Et il est cherché EN CONTEXTE — la première
+    rédaction interdisait la suite « 0,003 » n'importe où, et rougissait sur
+    un commentaire d'arrondi qui parle de 0,0025 et 0,003 à propos d'autre
+    chose. Un contrôle qui rougit pour une raison qui n'est pas la sienne
+    finit désarmé."""
+    from app.services import pricing
+    brut = repr(float(pricing.DEFAULTS["rembg_api_usd"]))
+    motif = re.compile(re.escape(brut) + "|"
+                       + re.escape(brut.replace(".", ",")))
+    argent = re.compile(r"usd|\$|prix|tarif|rembg|price", re.I)
+    py = pathlib.Path(CP.__file__).read_text(encoding="utf-8")
+    for n, ligne in enumerate(py.splitlines(), 1):
+        if motif.search(ligne):
+            assert not argent.search(ligne), \
+                f"capture.py:{n} recopie le tarif : {ligne.strip()}"
+    # côté écran, les commentaires sont ÔTÉS : ce qui reste est du code, et un
+    # tarif dans du code est une copie, sans discussion possible.
+    code = _code_js(JS.read_text(encoding="utf-8"))
+    assert not motif.search(code), \
+        "le tarif est écrit en dur dans mod-capture.js"
+    assert "rembg_api_usd" not in code, \
+        "l'écran lit la table lui-même : le prix vient de la route"
+
+
+def test_la_route_d_options_ne_DEPENSE_rien(monkeypatch):
+    """Une route qui dit le prix ne doit pas le payer pour le savoir."""
+    s = _sentinelle(monkeypatch)
+    did = _deck()
+    for _ in range(3):
+        assert _options(did).status_code == 200
+    s.zero()
+    CC.delete_deck(did)
+
+
+# ── B. le détourage lui-même : quatre chemins, zéro dollar ──────────────────
+
+def test_le_detourage_SANS_RECTO_est_un_404_qui_dit_quoi_faire(monkeypatch):
+    _sentinelle(monkeypatch)
+    did = _deck()
+    r = _rembg(did)
+    assert r.status_code == 404, (r.status_code, r.text[:200])
+    d = r.json()["detail"]
+    assert "recto" in d and ("déposez" in d.lower() or "importez" in d.lower()), d
+    CC.delete_deck(did)
+
+
+def test_AUCUNE_voie_disponible_rend_503_LITTERAL_et_FRANCAIS(monkeypatch):
+    """D5 : « invoquée quand même = 503 littéral (§8) ». `routes.py` répond
+    400 sur dépendance absente (:710-720, :3835-3845) — l'écart est CONNU et
+    ne fait pas jurisprudence chez `cards`, où §8 :581 dit 503. Le message
+    doit nommer LES DEUX voies : sans cela, celui qui le lit ne sait pas s'il
+    doit installer quelque chose ou poser une clé."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "")
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 503, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert not re.search(r"[a-z]{4,} (is|not|the) ", d), f"anglais : {d}"
+    assert "rembg" in d and "fal" in d.lower(), d
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_LA_VOIE_LOCALE_produit_la_couche_SUJET_sans_un_centime(monkeypatch):
+    """Le basculement du patron sprite, moitié gratuite. Le faux `rembg` est
+    injecté dans `sys.modules` : c'est la SEULE façon de jouer ce chemin ici
+    (rembg n'est installé dans aucun des deux runtimes, mesuré le 24/08)."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    faux = _pose_rembg(monkeypatch, _FauxRembg())
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    espion_fal = []
+    monkeypatch.setattr(CP, "_rembg_fal",
+                        lambda *a, **k: espion_fal.append(a) or b"")
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 200, (r.status_code, r.text[:400])
+    j = r.json()
+    assert j["voie"] == "local", "la clé fal était posée : le local passe avant"
+    assert j["layer"] == "sujet_recto.png", j
+    assert j["w"] > 0 and j["h"] > 0 and j["bytes"] > 0, j
+    assert j["stamp"] > 1_600_000_000_000, "un horodatage en MILLISECONDES"
+    assert faux.appels == 1, f"{faux.appels} appel(s) à rembg local"
+    assert espion_fal == [], "la voie payante a été touchée"
+    # la couche est SERVIE par le GET de la pièce, et c'est de la RGBA
+    g = _get(did, "sujet_recto.png")
+    assert g.status_code == 200, (g.status_code, g.text[:200])
+    with Image.open(io.BytesIO(g.content)) as im:
+        assert im.mode == "RGBA", im.mode
+        assert im.getchannel("A").getextrema()[0] == 0, \
+            "aucune transparence : ce n'est pas une couche de sujet"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_LA_VOIE_FAL_est_JOUEE_ENTIEREMENT_sous_espion(monkeypatch):
+    """La moitié payante, exercée pour de vrai — le corps de `_rembg_fal`
+    tourne. L'espion est posé sur ses TROIS primitives réseau, c'est-à-dire
+    au POINT DE CONSOMMATION (leçon spy 3c) et non sur un alias importé
+    ailleurs ; le compteur de la sentinelle prouve que rien n'a fui à côté."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    vu = {"envois": 0, "appels": [], "tel": []}
+
+    async def faux_upload(chemin):
+        vu["envois"] += 1
+        return "https://fal.example/entree.png"
+
+    async def faux_rembg(url):
+        vu["appels"].append(url)
+        return "https://fal.example/sortie.png"
+
+    async def faux_download(url):
+        vu["tel"].append(url)
+        return _png_rgba()
+
+    monkeypatch.setattr(CP, "_fal_upload", faux_upload)
+    monkeypatch.setattr(CP, "_fal_rembg", faux_rembg)
+    monkeypatch.setattr(CP, "_fal_download", faux_download)
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 200, (r.status_code, r.text[:400])
+    j = r.json()
+    assert j["voie"] == "fal" and j["layer"] == "sujet_recto.png", j
+    assert vu["envois"] == 1, f"{vu['envois']} envois : une image, un envoi"
+    assert vu["appels"] == ["https://fal.example/entree.png"], vu
+    assert vu["tel"] == ["https://fal.example/sortie.png"], vu
+    assert (CP.cap_dir(did) / "sujet_recto.png").is_file()
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_un_ECHEC_FOURNISSEUR_rend_l_erreur_LITTERALE_avec_son_PREFIXE(
+        monkeypatch):
+    """§8 :584 — « échec fournisseur -> erreur littérale + préfixe
+    fournisseur ». Les deux voies échouent tour à tour, et chacune porte le
+    NOM de qui a refusé : « fal.ai » pour l'une, « rembg » pour l'autre. Sans
+    le préfixe, l'utilisateur ne sait pas où aller regarder son compte."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+
+    async def casse(*a, **k):
+        raise RuntimeError("crédit épuisé")
+
+    monkeypatch.setattr(CP, "_fal_upload", casse)
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert "fal" in d.lower() and "crédit épuisé" in d, d
+    assert not (CP.cap_dir(did) / "sujet_recto.png").exists(), \
+        "un échec a quand même écrit une couche"
+
+    _pose_rembg(monkeypatch, _FauxRembg(casse=RuntimeError("modèle absent")))
+    r = _rembg(did)
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert "rembg" in d.lower() and "modèle absent" in d, d
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_erreur_de_fournisseur_ne_FUIT_PAS_le_chemin_absolu(monkeypatch):
+    """La jurisprudence de la fuite de nom (T1, incident du gauntlet) : une
+    erreur littérale n'est pas une raison d'expédier `C:\\Users\\<compte>\\…`
+    dans une réponse HTTP. `FalSeedanceClient.upload_image` lève précisément
+    `FileNotFoundError(f"Image not found: {image_path}")`."""
+    from app.config import settings
+    s = _sentinelle(monkeypatch)
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    did = _deck_avec_recto()
+    chemin = str(CP.cap_dir(did) / "source_recto.png")
+
+    async def casse(*a, **k):
+        raise FileNotFoundError(f"Image not found: {chemin}")
+
+    monkeypatch.setattr(CP, "_fal_upload", casse)
+    d = _rembg(did).json()["detail"]
+    assert chemin not in d, d
+    assert "Users" not in d and ":\\" not in d, d
+    assert "Image not found" in d, f"l'erreur littérale a disparu : {d}"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_couche_ENTIEREMENT_TRANSPARENTE_est_REFUSEE(monkeypatch):
+    """« Un détourage qui garde tout, ou rien, n'est pas un détourage » — la
+    phrase est déjà celle du refus local (`_analyse_fond`). Une couche vide
+    rangée en silence deviendrait l'illustration adoptée par P1 : une carte
+    invisible, sans un mot."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg(sortie=_png_rgba(opaque=False)))
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    assert "transparent" in r.json()["detail"].lower(), r.json()["detail"]
+    assert not (CP.cap_dir(did) / "sujet_recto.png").exists()
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_REPONSE_QUI_N_EST_PAS_UNE_IMAGE_est_refusee_SANS_500(monkeypatch):
+    """Le fournisseur peut rendre du HTML, du JSON d'erreur, ou rien. Jamais
+    500 (§8)."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg(sortie=b"<html>oops</html>"))
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code != 500, r.text[:300]
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_la_COUCHE_SUJET_est_ECRITE_ATOMIQUEMENT_et_ne_laisse_pas_de_tmp(
+        monkeypatch):
+    """Le patron T1 : brouillon UNIQUE + `replace` patient. Deux détourages
+    concurrents sur le même jeu ne doivent ni se disputer le fichier ni
+    laisser un brouillon lisible par le GET."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg())
+    did = _deck_avec_recto()
+    assert _rembg(did).status_code == 200
+    assert _rembg(did).status_code == 200
+    restes = [p.name for p in CP.cap_dir(did).iterdir()
+              if p.name.endswith(".tmp")]
+    assert restes == [], restes
+    src = pathlib.Path(CP.__file__).read_text(encoding="utf-8")
+    i = src.index("def _store_layer")
+    corps = src[i:src.index("\ndef ", i + 10)]
+    assert "_replace_avec_patience" in corps, corps[:600]
+    assert "uuid" in corps, "le brouillon n'est pas nominatif (leçon T1)"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_un_NOUVEAU_RECTO_efface_la_couche_SUJET_du_DISQUE(monkeypatch):
+    """`effacements("recto")` remet `layers` à vide DANS LE DOCUMENT — mais le
+    PNG, lui, reste sur le disque et `GET /file/sujet_recto.png` continuerait
+    de servir le sujet de la carte PRÉCÉDENTE. P1 l'adopterait sans que rien
+    ne l'annonce."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg())
+    did = _deck_avec_recto()
+    assert _rembg(did).status_code == 200
+    assert (CP.cap_dir(did) / "sujet_recto.png").is_file()
+    assert _post(did, _pngs(_synth(bord_px=10)), "recto").status_code == 200
+    assert not (CP.cap_dir(did) / "sujet_recto.png").exists(), \
+        "le sujet de la carte d'avant survit au remplacement du recto"
+    # ... et un VERSO ne touche à rien (D3 amendé : l'analyse est du recto)
+    assert _rembg(did).status_code == 200
+    assert _post(did, _pngs(_synth()), "verso").status_code == 200
+    assert (CP.cap_dir(did) / "sujet_recto.png").is_file()
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_la_LISTE_BLANCHE_admet_le_sujet_et_RIEN_de_plus():
+    """La liste blanche du service s'étend d'UN nom, pas d'un motif. Et le
+    404 « fichier absent » doit nommer LE BON fichier : la première rédaction
+    découpait `n[len("source_"):-4]`, ce qui rendait « cto » pour
+    « sujet_recto.png »."""
+    for bon in ("source_recto.png", "source_verso.png", "sujet_recto.png"):
+        assert CP.FILE_RE.fullmatch(bon), bon
+    for mauvais in ("sujet_verso.png", "sujet_recto.png.tmp", "sujet.png",
+                    "sujet_recto.png\n", "../meta.json", "sujet_recto.PNG"):
+        assert not CP.FILE_RE.fullmatch(mauvais), repr(mauvais)
+    did = _deck()
+    r = _get(did, "sujet_recto.png")
+    assert r.status_code == 404, r.status_code
+    d = r.json()["detail"]
+    assert "cto" not in d.replace("recto", "").replace("Recto", ""), d
+    assert "sujet" in d.lower(), d
+    CC.delete_deck(did)
+
+
+def test_le_detourage_ne_touche_a_AUCUN_document(monkeypatch):
+    """D3 tenu jusqu'ici : la route range un PNG et RÉPOND. C'est la PIÈCE
+    qui publie `doc.capture.layers.sujet` par la voie d'autosave unique."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg())
+    did = _deck_avec_recto()
+    avant = json.dumps(CC.read_deck(did), sort_keys=True)
+    assert _rembg(did).status_code == 200
+    assert json.dumps(CC.read_deck(did), sort_keys=True) == avant, \
+        "la route a écrit dans le document"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_le_DEPLIAGE_de_la_reponse_fal_lit_LES_DEUX_FORMES(monkeypatch):
+    """LE SEUL MORCEAU DE CODE PAYANT QUE LES AUTRES CONTRÔLES N'EXÉCUTENT
+    PAS : le corps de `_fal_rembg`. Ailleurs il est espionné en entier, donc
+    son dépliage de réponse n'était joué nulle part — et c'est précisément
+    l'endroit où un bug coûte un appel PAYÉ pour rien : la facture part, le
+    résultat n'est pas lu.
+
+    Ce fournisseur rend deux formes (`image.url` et `images[].url`), comme
+    `sprite_service._rembg_api` le documente. Les deux sont jouées, plus le
+    cas « aucune image ».
+
+    LA PORTE `fal_client` EST OUVERTE ICI, ET C'EST LE SEUL TEST OÙ ELLE
+    L'EST : `subscribe_async` est remplacé par un faux qui REND une réponse
+    au lieu de lever. Les trois autres portes restent fermées sur le
+    compteur — aucun octet ne part, aucun dollar non plus."""
+    import fal_client
+    s = _sentinelle(monkeypatch, sauf=("fal_client",))
+    vu: list = []
+
+    def canne(payload):
+        async def _f(modele, arguments=None, **k):
+            vu.append((modele, dict(arguments or {})))
+            return payload
+        return _f
+
+    monkeypatch.setattr(fal_client, "subscribe_async",
+                        canne({"image": {"url": "https://f/a.png"}}))
+    assert asyncio.run(CP._fal_rembg("https://f/in.png")) == "https://f/a.png"
+    assert vu == [(CP.REMBG_FAL_MODELE, {"image_url": "https://f/in.png"})], vu
+
+    monkeypatch.setattr(fal_client, "subscribe_async",
+                        canne({"images": [{}, {"url": "https://f/b.png"}]}))
+    assert asyncio.run(CP._fal_rembg("https://f/in.png")) == "https://f/b.png"
+
+    for creux in ({}, {"images": []}, {"image": {}}, None):
+        with pytest.raises(Exception) as boom:
+            monkeypatch.setattr(fal_client, "subscribe_async", canne(creux))
+            asyncio.run(CP._fal_rembg("https://f/in.png"))
+        assert "aucune image" in str(boom.value), (creux, boom.value)
+    assert len(vu) == 6, vu
+    s.zero()
+
+
+def test_la_RELEVE_du_resultat_REFUSE_une_adresse_qui_n_est_pas_du_WEB(
+        monkeypatch):
+    """L'URL de sortie vient DU FOURNISSEUR, donc du dehors. `urlopen` sait
+    ouvrir `file://` : sans garde, une réponse mal formée — ou hostile —
+    ferait lire un fichier de cette machine et le rangerait comme « sujet »."""
+    s = _sentinelle(monkeypatch)
+    for mauvaise in ("file:///C:/Windows/win.ini", "ftp://x/y.png", "",
+                     "/etc/passwd", "javascript:1"):
+        with pytest.raises(Exception) as boom:
+            asyncio.run(CP._fal_download(mauvaise))
+        assert "adresse" in str(boom.value), (mauvaise, boom.value)
+    s.zero()
+
+
+def test_un_rembg_PRESENT_MAIS_CASSE_se_dit_AUTREMENT_qu_un_rembg_ABSENT(
+        monkeypatch):
+    """Les TROIS portes de `_rembg_local_dispo`, et la troisième est celle
+    qu'aucune machine de ce chantier ne peut franchir toute seule (rembg y
+    est absent). Elle se joue donc au point de CONSOMMATION : `find_spec`
+    dit oui, l'import échoue. C'est la situation réelle d'un rembg installé
+    sans son moteur ONNX — et « pas installé » serait alors un mauvais
+    conseil : le paquet EST là, c'est sa dépendance qui manque."""
+    import importlib
+    import importlib.util
+    _sans_rembg(monkeypatch)
+    absent, motif = CP._rembg_local_dispo()
+    assert absent is False and "pas installé" in motif, motif
+
+    monkeypatch.setattr(importlib.util, "find_spec",
+                        lambda n, *a, **k: object() if n == "rembg" else None)
+    monkeypatch.setattr(importlib, "import_module",
+                        lambda n, *a, **k: (_ for _ in ()).throw(
+                            ImportError("DLL load failed: onnxruntime")))
+    casse, motif2 = CP._rembg_local_dispo()
+    assert casse is False, "un rembg qui ne se charge pas est annoncé présent"
+    assert "ne se charge pas" in motif2 and "onnxruntime" in motif2, motif2
+    assert motif2 != motif, "les deux absences se disent de la même façon"
+
+
+# ── C. l'écran P10 : le bloc « Détourage IA » ───────────────────────────────
+
+def test_l_ecran_ne_PROPOSE_l_option_que_si_elle_EXISTE():
+    """La règle de l'offre vit dans une fonction PURE, exécutée dans node —
+    la leçon T1 : un contrôle qui lit du texte ne voit pas un `|| true`."""
+    fn = (_fonction_js("isPlain") + _fonction_js("estNombre")
+          + _fonction_js("num") + _fonction_js("offreIA"))
+    cas = json.dumps([
+        {"o": None, "recto": True},
+        {"o": {"local": False, "fal": False, "voie": None,
+               "motif": "ni l'un ni l'autre"}, "recto": True},
+        {"o": {"local": False, "fal": True, "voie": "fal",
+               "prix_usd": 0.003}, "recto": True},
+        {"o": {"local": False, "fal": True, "voie": "fal",
+               "prix_usd": 0.003}, "recto": False},
+        {"o": {"local": True, "fal": False, "voie": "local",
+               "gratuit": True}, "recto": True},
+        {"o": {"local": False, "fal": True, "voie": "fal",
+               "prix_usd": None}, "recto": True},
+    ], ensure_ascii=False)
+    sortie = _node(fn + f"""
+      const cas = {cas};
+      console.log(JSON.stringify(cas.map((c) => offreIA(c.o, c.recto))));
+    """)
+    rien, aucune, fal, sans_recto, local, sans_tarif = json.loads(sortie)
+    assert rien["on"] is False, rien
+    assert aucune["on"] is False and aucune["motif"], aucune
+    assert fal["on"] is True and fal["voie"] == "fal", fal
+    assert "0,003" in fal["libelle"] and "$" in fal["libelle"], fal["libelle"]
+    assert "fal" in fal["libelle"], fal["libelle"]
+    assert sans_recto["on"] is False, "pas de recto, pas de sujet à détourer"
+    assert local["on"] is True and "gratuit" in local["libelle"], local
+    assert "$" not in local["libelle"], local["libelle"]
+    assert sans_tarif["on"] is True, sans_tarif
+    assert "$" not in sans_tarif["libelle"], \
+        "un tarif absent ne s'affiche pas comme un montant"
+
+
+def test_l_ecran_lit_les_OPTIONS_UNE_FOIS_et_pas_a_chaque_PEINTURE():
+    """« lu d'ai-options au montage du panneau, pas à chaque frame » (T3-C).
+    Une requête par repeinture ferait une rafale à chaque événement du
+    document — et le prix clignoterait."""
+    js = JS.read_text(encoding="utf-8")
+    code = _code_js(js)
+    assert code.count('"ai-options"') + code.count("'ai-options'") == 1, \
+        "l'appel d'options est écrit à plusieurs endroits"
+    for muet in ("paint", "mesures", "dessineBoites"):
+        assert "ai-options" not in _corps_js(muet), \
+            f"{muet}() interroge le backend à chaque peinture"
+    assert "ai-options" in _corps_js("chargeOptions"), \
+        "l'appel n'est pas isolé dans son chargeur"
+    # `init` est une MÉTHODE du bloc `register` (« init(host) { »), pas une
+    # `function` : on lit son bloc, pas une déclaration qui n'existe pas.
+    i = js.index("init(host) {")
+    assert "chargeOptions" in js[i:js.index("\n    },", i)], \
+        "les options ne sont pas lues au montage du panneau"
+
+
+def test_le_bloc_de_DETOURAGE_publie_la_couche_DANS_LE_DOCUMENT():
+    """D3 : la route répond, la PIÈCE publie. Et le verrou BUSY est PARTAGÉ
+    avec l'import et l'analyse — détourer pendant qu'un fichier monte
+    détourerait l'image d'avant."""
+    corps = _corps_js("detourer")
+    assert re.search(r"if\s*\(\s*BUSY\s*\)", corps), corps[:400]
+    assert "BUSY = true" in corps and "BUSY = false" in corps, corps[:400]
+    assert "M.patch(" in corps, "la pièce ne publie pas"
+    assert "layers" in corps, "la couche n'entre pas dans `layers`"
+    assert "layers" in _cles_du_schema(), \
+        "`layers` n'est pas dans le schéma : `patchAs` lèverait"
+
+
+def test_le_refus_du_fond_POINTE_vers_le_bloc_de_detourage():
+    """Clôture T2 : « la phrase option_ia promet le prix que T3 apporte ». La
+    promesse doit maintenant AVOIR une suite visible à l'écran — sinon elle
+    envoie chercher une option qui n'est nulle part."""
+    js = JS.read_text(encoding="utf-8")
+    assert "cf-capture-ia" in js, "aucun bloc d'écran pour le détourage IA"
+    assert "option_ia" in _corps_js("lignesFond"), \
+        "la phrase de refus n'est plus reliée au bloc"
+
+
+# ── D. P1 « adopter l'illustration » (mod-face.js) ──────────────────────────
+
+FACE_JS = REPO / "frontend" / "cardforge" / "js" / "mod-face.js"
+TYPE_JS = REPO / "frontend" / "cardforge" / "js" / "mod-type.js"
+
+
+def _fonction_de(chemin: pathlib.Path, nom: str) -> str:
+    """La même extraction que `_fonction_js`, mais sur le fichier d'une
+    pièce VOISINE. Les adoptions vivent chez l'adoptant (D6) : leurs règles
+    ne sont pas dans mod-capture.js, et c'est le contrat de P10 qu'elles
+    consomment — d'où leur contrôle ICI."""
+    js = chemin.read_text(encoding="utf-8")
+    i = js.index("function " + nom + "(")
+    j = js.index("\n  }", i)
+    return js[i:j] + "\n  }\n"
+
+
+def test_P1_ADOPTER_est_DERIVE_de_doc_capture_et_dit_SA_SOURCE():
+    """§7.1.5 : « le sujet (ou le recadrage art) devient la pose ». La règle
+    est PURE et exécutée : un bouton d'adoption sans matière à adopter
+    n'existe pas (patron sectionsBasses, D6), et celui qui existe DIT ce
+    qu'il va prendre — le sujet détouré, ou le recto entier."""
+    fn = _fonction_de(FACE_JS, "adoptionCapture")
+    cas = json.dumps([
+        {},
+        {"capture": {}},
+        {"capture": {"sources": {"verso": {"stamp": 3}}}},
+        {"capture": {"sources": {"recto": {"stamp": 7}}}},
+        {"capture": {"sources": {"recto": {"stamp": 7}},
+                     "layers": {"sujet": {"file": "sujet_recto.png",
+                                          "stamp": 9}}}},
+        {"capture": {"layers": {"sujet": "pas un objet"},
+                     "sources": {"recto": {"stamp": 7}}}},
+        {"capture": {"layers": {"sujet": {"file": "../meta.json"}},
+                     "sources": {"recto": {"stamp": 7}}}},
+    ], ensure_ascii=False)
+    sortie = _node(fn + f"""
+      const cas = {cas};
+      console.log(JSON.stringify(cas.map((d) => adoptionCapture(d))));
+    """)
+    (vide, sans, verso, recto, sujet, sale, traversee) = json.loads(sortie)
+    assert vide is None and sans is None, (vide, sans)
+    assert verso is None, "le verso n'est pas une illustration de recto"
+    assert recto and recto["nom"] == "source_recto.png", recto
+    assert recto["sujet"] is False, recto
+    assert "recto entier" in recto["libelle"], recto["libelle"]
+    assert sujet and sujet["nom"] == "sujet_recto.png", sujet
+    assert sujet["sujet"] is True and sujet["stamp"] == 9, sujet
+    assert "sujet" in sujet["libelle"] and "détour" in sujet["libelle"], sujet
+    assert sale and sale["nom"] == "source_recto.png", \
+        "une couche mal formée doit retomber sur le recto, pas casser"
+    assert traversee and traversee["nom"] == "source_recto.png", \
+        "un nom de fichier venu du document n'est pas un chemin"
+
+
+def test_P1_ADOPTER_passe_par_l_import_EXISTANT_et_ne_cree_PAS_de_4e_schema():
+    """D6 : « adopter = importer les octets du sujet dans la pile P1 puis
+    `setArt("local:"+clé)` ». Un quatrième schéma (`capture:…`) aurait doublé
+    `artSource`, le cache d'images, la vignette et la suppression."""
+    js = FACE_JS.read_text(encoding="utf-8")
+    corps = _fonction_de(FACE_JS, "adopterCapture")
+    assert "importFiles(" in corps, "l'import ne passe pas par le mécanisme " \
+                                    "existant"
+    assert "afterImport(" in corps, "la pose ne passe pas par afterImport"
+    assert "setArt(" not in corps, \
+        "setArt est appelé DEUX fois (afterImport le fait déjà) : deux pas " \
+        "d'annulation pour un geste"
+    code = _code_js(js)
+    assert 'indexOf("capture:")' not in code and "capture:" not in code, \
+        "un quatrième schéma de source est né"
+    # LE BOUTON EST DÉRIVÉ DANS LA PEINTURE, ET CÂBLÉ SOUS GARDE. Un
+    # `q("#cf-face-adopt").addEventListener(...)` sans garde — le style de
+    # tous ses voisins, qui eux existent toujours — ferait tomber TOUT le
+    # panneau de P1 dès qu'il n'y a rien à adopter, c'est-à-dire dans le cas
+    # ordinaire. C'est la classe de défaut la plus chère de cette adoption.
+    assert 'id="cf-face-adopt"' in js, "le bouton n'est pas dans le panneau"
+    assert re.search(r'const adopt = adoptionCapture\(CF\.doc\(\)\);', code), \
+        "la dérivation ne se refait pas à chaque peinture"
+    assert re.search(r'const adopt = q\("#cf-face-adopt"\);\s*\n\s*if \(adopt\)',
+                     code), "le câblage du bouton n'est pas gardé"
+
+
+def test_P1_ADOPTER_ne_pese_QU_UN_pas_d_annulation():
+    """« UN pas d'undo » (T3-D). `afterImport` -> `setArt` -> `pushUndo` :
+    exactement un. Un `pushUndo` de plus sur le chemin d'adoption obligerait
+    à annuler deux fois un geste unique."""
+    corps = _fonction_de(FACE_JS, "adopterCapture")
+    assert "pushUndo" not in corps, corps
+
+
+def test_P1_ADOPTER_ne_sort_pas_du_domaine_de_la_piece():
+    """Règle 8 côté écran : `M.api` d'une pièce est CONFINÉ à son préfixe —
+    P1 ne peut donc pas s'en servir pour lire un fichier de P10. L'URL est
+    donc construite à la main, et les deux morceaux qui viennent du DOCUMENT
+    sont gardés : le nom par la liste blanche de P10 (recopiée, règle 8),
+    l'identifiant de jeu par sa forme.
+
+    LA GARDE EST EXÉCUTÉE, pas cherchée dans le texte : la première écriture
+    de ce contrôle acceptait n'importe quel `…test(…)` du corps — donc aussi
+    celui de l'identifiant — et une liste blanche retirée l'aurait laissé
+    vert (mesuré)."""
+    js = FACE_JS.read_text(encoding="utf-8")
+    m = re.search(r"^\s*const CAPTURE_FILE_RE = .*$", js, re.M)
+    assert m, "la liste blanche recopiée de P10 a disparu de mod-face.js"
+    src = (m.group(0) + "\n" + _fonction_de(FACE_JS, "captureURL"))
+    sortie = _node(
+        "const CF = { doc: () => ({ id: 'deck_12345678' }) };\n" + src + """
+        console.log(JSON.stringify([
+          captureURL("source_recto.png"), captureURL("sujet_recto.png"),
+          captureURL("../meta.json"), captureURL("source_recto.png\\n"),
+          captureURL("sujet_recto.png.tmp"), captureURL(""), captureURL(null),
+        ]));
+        """)
+    recto, sujet, trav, saut, tmp, vide, nul = json.loads(sortie)
+    assert recto == "/api/cards/deck_12345678/capture/file/source_recto.png", recto
+    assert sujet == "/api/cards/deck_12345678/capture/file/sujet_recto.png", sujet
+    for mauvais, quoi in ((trav, "traversée"), (saut, "saut de ligne final"),
+                          (tmp, "brouillon d'écriture"), (vide, "nom vide"),
+                          (nul, "nom absent")):
+        assert mauvais == "", f"{quoi} : {mauvais!r} devient une URL"
+    # ... et le jeu lui-même est une FORME, pas une chaîne quelconque.
+    sale = _node(
+        "const CF = { doc: () => ({ id: '../../etc' }) };\n" + src
+        + 'console.log(JSON.stringify(captureURL("source_recto.png")));')
+    assert json.loads(sale) == "", sale
+
+
+def test_DEUX_DETOURAGES_SIMULTANES_ne_font_AUCUN_500_ET_SERVENT(monkeypatch):
+    """Le patron de concurrence de T1, rejoué sur la couche détourée — et
+    avec ses DEUX moitiés : jamais 500, ET un plancher de service. La leçon
+    de clôture T1 tient en une phrase : « jamais-500 sous concurrence est un
+    demi-contrat » — un refus poli généralisé (409 pour tout le monde,
+    dossier vide) passerait la première moitié sans servir personne."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg())
+    did = _deck_avec_recto()
+    n = 12
+    reps = _en_parallele([("POST", f"/api/cards/{did}/capture/rembg", {})] * n)
+    codes: dict = {}
+    for r in reps:
+        codes[r.status_code] = codes.get(r.status_code, 0) + 1
+    assert 500 not in codes, codes
+    assert codes.get(200, 0) >= n - 1, f"plancher de service non tenu : {codes}"
+    # LE FICHIER FINAL EST ENTIER — un brouillon partagé le laisserait tronqué.
+    with Image.open(CP.cap_dir(did) / "sujet_recto.png") as im:
+        im.load()
+        assert im.mode == "RGBA", im.mode
+    assert [p.name for p in CP.cap_dir(did).iterdir()
+            if p.name.endswith(".tmp")] == []
+    s.zero()
+    CC.delete_deck(did)
+
+
+# ── E. P3 « adopter les zones » (mod-type.js) ───────────────────────────────
+
+def test_P3_les_ZONES_deviennent_des_SLOTS_avec_les_MM_de_P10():
+    """§7.1.5 : « boîtes -> slots de gabarit (éditables ensuite, §6.1) ». Les
+    millimètres de T2 sont DÉJÀ dans le repère de la carte (une unité par
+    frontière) : ils se reprennent tels quels, sans conversion."""
+    fn = _fonction_de(TYPE_JS, "specsZones")
+    doc = json.dumps({"capture": {"boxes": [
+        {"x": 8.0, "y": 6.0, "w": 47.0, "h": 7.0, "tronquee": False},
+        {"x": 8.0, "y": 62.0, "w": 47.0, "h": 15.0, "tronquee": True},
+        {"x": 6.0, "y": 20.0, "w": 9.0, "h": 9.0},
+    ]}}, ensure_ascii=False)
+    sortie = _node(fn + f"""
+      console.log(JSON.stringify(specsZones({doc}, 1)));
+    """)
+    specs = json.loads(sortie)
+    assert len(specs) == 3, specs
+    assert [s["id"] for s in specs] == ["zone1", "zone2", "zone3"], specs
+    assert specs[0]["label"] == "zone importée n°1", specs[0]
+    assert specs[0]["box"] == [8.0, 6.0, 47.0, 7.0], specs[0]
+    assert specs[1]["box"] == [8.0, 62.0, 47.0, 15.0], specs[1]
+    for s in specs:
+        assert s.get("kind", "text") == "text", s
+        assert s.get("text", "") == "", "un texte inventé se peindrait"
+
+
+def test_P3_les_ZONES_sont_LUES_avec_TOLERANCE():
+    """Dérivation PURE de `doc.capture.boxes` (D6). Un document sans P10, une
+    liste absente, une boîte qui n'est pas un objet, une mesure qui n'est pas
+    un nombre : rien de tout cela ne doit faire naître un slot faux."""
+    fn = _fonction_de(TYPE_JS, "specsZones")
+    cas = json.dumps([
+        {},
+        {"capture": {}},
+        {"capture": {"boxes": "trois"}},
+        {"capture": {"boxes": []}},
+        {"capture": {"boxes": [None, 3, {"x": 1}, {"x": 1, "y": 2, "w": 0,
+                                                   "h": 5}]}},
+        {"capture": {"boxes": [{"x": 1, "y": 2, "w": 3, "h": 4}]}},
+    ], ensure_ascii=False)
+    sortie = _node(fn + f"""
+      const cas = {cas};
+      console.log(JSON.stringify(cas.map((d) => specsZones(d, 1).length)));
+    """)
+    assert json.loads(sortie) == [0, 0, 0, 0, 0, 1], sortie
+
+
+def test_P3_l_AVEU_des_TRONQUEES_suit_l_adoption():
+    """Clôture T2, leçon (a) : « une coupe qui ne se dit pas devient une
+    fausse mesure chez l'adoptant ». Les boîtes `tronquee` sont ADOPTÉES —
+    elles sont éditables — mais le compte se dit."""
+    fn = _fonction_de(TYPE_JS, "phraseZones")
+    sortie = _node(fn + """
+      console.log(JSON.stringify([phraseZones(3, 0), phraseZones(3, 2),
+                                  phraseZones(1, 1)]));
+    """)
+    sans, avec, une = json.loads(sortie)
+    assert "3" in sans and "tronqu" not in sans, sans
+    assert "3" in avec and "2" in avec and "tronqu" in avec, avec
+    assert "tronqu" in une, une
+
+
+def test_P3_ADOPTER_naît_EN_UN_SEUL_APPEL_donc_UN_pas_d_annulation():
+    """`naitre(specs, quoi)` est la naissance ATOMIQUE multi-slots de P3 : un
+    `mpatch`, un `pushUndo`. Une boucle d'appels rendrait N pas d'annulation
+    pour un geste, et ferait sauter le plafond bloc par bloc au lieu de
+    refuser l'élément ENTIER."""
+    corps = _fonction_de(TYPE_JS, "adopterZones")
+    assert corps.count("naitre(") == 1, corps
+    assert "forEach" not in corps or "naitre(" not in corps.split("forEach")[1], \
+        "la naissance est dans une boucle"
+    assert "pushUndo" not in corps, "un second pas d'annulation"
+    assert "specsZones(" in corps and "phraseZones(" in corps, corps
+
+
+def test_P3_les_ZONES_S_AJOUTENT_et_RESPECTENT_le_plafond():
+    """« si le gabarit a déjà des slots, les zones S'AJOUTENT » — `naitre`
+    concatène, il ne remplace pas. Et le plafond de `type.py` (SLOTS_MAX) est
+    celui de la pièce, pas un second chiffre : il est LU sur les deux
+    sources."""
+    from app.services.cards import type as TY
+    js = TYPE_JS.read_text(encoding="utf-8")
+    m = re.search(r"const SLOTS_MAX = (\d+)", js)
+    assert m and int(m.group(1)) == TY.SLOTS_MAX, (m, TY.SLOTS_MAX)
+    naitre = _fonction_de(TYPE_JS, "naitre")
+    assert "slots().concat(" in naitre, naitre
+    assert "placeOu(" in naitre, "le plafond n'est plus dit avant"
+
+
+def test_P3_le_bouton_d_ADOPTION_n_existe_pas_sans_matiere():
+    """Patron sectionsBasses (D6) : la visibilité DÉRIVE du document. Un
+    bouton qui s'affiche sans pouvoir agir fait douter du clic — c'est la
+    leçon déjà payée par le bouton des zones de P10."""
+    js = TYPE_JS.read_text(encoding="utf-8")
+    code = _code_js(js)
+    assert "specsZones(" in code, "la dérivation n'existe pas"
+    assert re.search(r"specsZones\([^;]{0,60}\)\s*\.length", code), \
+        "la visibilité n'est pas dérivée du compte de zones"
+    # ... et la dérivation COMMANDE bien la visibilité, dans la peinture.
+    i = code.index("function renderAll(")
+    bloc = code[i:code.index("\n  }", i)]
+    assert "specsZones(" in bloc and 'toggle("hidden"' in bloc, \
+        "le bouton n'est pas caché/montré par la peinture"
 
 
 if __name__ == "__main__":
