@@ -1192,6 +1192,18 @@ def _box4(b) -> list | None:
     return v
 
 
+# ── LES FORMES DE GABARIT NE SONT PAS DES MENTIONS (phase 5, T2) ────────────
+# Le modèle d'occupation habille des MENTIONS : socle sous un chiffre posé dans
+# l'illustration, logement sous celui qui déborde sur l'anneau, ruban et gemme
+# qui s'écartent de ce que P3 écrit. Rien de tout cela n'a de sens pour un
+# rectangle décoratif. La liste est RECOPIÉE (règle 8) ; son jumeau est
+# `SHAPE_KINDS` de mod-frame.js et `SHAPES` de cards/type.py.
+# CE QUI N'EST PAS TRANCHÉ ICI : un CALQUE D'IMAGE reste une mention — il
+# l'était avant cette tâche, et le changer déplacerait le ruban sur des jeux
+# déjà enregistrés. Dette nommée au rapport.
+SHAPE_KINDS = ("rect", "ellipse", "line", "arrow")
+
+
 def _mentions(slots) -> list[dict]:
     """Les mentions obligatoires : les slots de texte de la pièce 03, lus en
     LECTURE UNIVERSELLE (règle 3). Le cadre ne les déplace jamais — c'est lui
@@ -1201,6 +1213,8 @@ def _mentions(slots) -> list[dict]:
         return out
     for s in slots:
         if not isinstance(s, dict):
+            continue
+        if str(s.get("kind") or "") in SHAPE_KINDS:
             continue
         box = _box4(s.get("box"))
         if box is None:

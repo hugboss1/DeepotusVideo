@@ -919,6 +919,23 @@
     if (!v.every(isFinite) || v[2] <= 0 || v[3] <= 0) return null;
     return v;
   }
+  /* ── LES FORMES DE GABARIT NE SONT PAS DES MENTIONS (phase 5, T2) ─────────
+     Le modele d'occupation habille des MENTIONS : il pose un socle sous un
+     chiffre qui tombe dans l'illustration, un logement sous celui qui deborde
+     sur l'anneau, et il ecarte le ruban et la gemme de ce que P3 ecrit. Rien
+     de tout cela n'a de sens pour un rectangle decoratif : un « socle » sous
+     un aplat serait une plaque de fond que personne n'a demandee, et le ruban
+     qui s'ecarte d'un trait de separation change de place pour rien.
+     La liste est RECOPIEE et non partagee (regle 8, chaque piece porte ses
+     constantes) ; son jumeau est `SHAPES` de mod-type.js et `SHAPES` de
+     cards/type.py, et le test compare les trois.
+
+     CE QUI N'EST PAS TRANCHE ICI, ET QUI EST DIT : un CALQUE D'IMAGE (3b-T2)
+     reste une mention. Il l'etait avant cette tache, il le reste — changer
+     cela deplacerait le ruban et retirerait des socles sur des jeux deja
+     enregistres, ce qui n'est pas le sujet de T2. La dette est nommee au
+     rapport, avec sa mesure. */
+  const SHAPE_KINDS = ["rect", "ellipse", "line", "arrow"];
   /* Les mentions obligatoires. Un slot mal forme est ignore, jamais une
      exception : le cadre doit se dessiner meme si P3 ecrit n'importe quoi. */
   function mentionsOf(slots) {
@@ -926,6 +943,7 @@
     if (!Array.isArray(slots)) return out;
     slots.forEach((s) => {
       if (!s || typeof s !== "object") return;
+      if (SHAPE_KINDS.indexOf(String(s.kind || "")) >= 0) return;
       const b = box4(s.box);
       if (b) out.push({ id: String(s.id || "slot"), box: b });
     });

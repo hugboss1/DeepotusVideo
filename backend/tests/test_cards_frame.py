@@ -9687,3 +9687,233 @@ def test_la_route_occupancy_transporte_le_placement_manuel():
                 "frame": dict(GEM_FRAME, fit=True, **folles), "slots": SLOTS}
         rr = _api("POST", f"/api/cards/{did}/frame/occupancy", json=body)
         assert rr.status_code == 200, (folles, rr.text)
+
+
+# ── 24.1 LA VÉRIFICATION NAVIGATEUR DES POIGNÉES DE GEMME ────────────────────
+#
+# Le banc de node prouve le PLACEMENT ; il ne prouve pas qu'une main peut
+# attraper la gemme. Ici la VRAIE mini-carte de P2 est dessinée dans un Chrome
+# sans tête, sur un vrai `<canvas>`, par les VRAIES fonctions du module —
+# `mapGeom`, `drawMapWith`, `mapHit` — et l'on mesure DEUX choses qu'aucun test
+# de source ne peut donner :
+#   1. la gemme est VISIBLE : de l'encre tombe dans le disque et pas à trois
+#      rayons de là, et l'anneau MANUEL se distingue de l'anneau AUTOMATIQUE
+#      (trait plein contre pointillé) ;
+#   2. la gemme est ATTRAPABLE : `mapHit` rend « gem » au centre, « gemr » sur
+#      l'anneau, et rend la main à la FENÊTRE dès qu'on s'éloigne — sans quoi
+#      un glisser destiné au cadre re-dessinerait la fenêtre.
+#
+# CE QUE CETTE PAGE NE PROUVE PAS, ET C'EST DIT : le PLAN. `gemDe` y est un
+# bouchon qui rend la boîte que `FR.occupancy` a calculée ICI — parce que le
+# plan est déjà prouvé, et à l'exécution des deux côtés, par
+# `test_le_placement_manuel_est_le_MEME_des_deux_cotes`. Cette page-ci prouve
+# le DESSIN et la PRISE, qui n'existent que dans un navigateur.
+
+def _banc_chrome(sonde: str) -> str:
+    """`BANC_CHROME` avec UNE AUTRE sonde. Le pilote (lancer Chrome, ouvrir le
+    protocole, nettoyer le profil) est écrit une fois ; ce qu'on lui demande de
+    mesurer change d'un test à l'autre."""
+    m = re.search(r"const SONDE = `.*?`;\n", BANC_CHROME, re.S)
+    assert m, "la sonde de BANC_CHROME n'est plus reconnaissable"
+    return BANC_CHROME.replace(m.group(0), "const SONDE = `" + sonde + "`;\n")
+
+
+def _page_gemme(tmp_path) -> pathlib.Path:
+    """La page MINIMALE : la VRAIE feuille de P2, le VRAI canevas `cff-map` et
+    les VRAIES fonctions de plan. Rien n'est recopié — ni le tracé ni la CSS."""
+    src = _js()
+    code = "\n".join([
+        _js_const(src, "cl"), _js_const(src, "r1"), _js_const(src, "r2"),
+        _js_const(src, "num"), _js_const(src, "has"),
+        _js_fn(src, "rgb"), _js_fn(src, "rgba"),
+        _js_fn(src, "rrPath"), _js_fn(src, "mapGeom"),
+        _js_fn(src, "drawMapWith"), _js_fn(src, "mapHit")])
+    tokens = (REPO / "frontend" / "shared" / "deepotus.tokens.css").as_uri()
+    css = CSS.as_uri()
+    g = _geom_js("poker_eu", 3)
+    # la gemme AUTOMATIQUE du document par défaut, calculée ICI par le backend :
+    # la page n'en invente pas la position, elle reçoit celle du plan.
+    gm = _gem(FR.occupancy(CT.geom("poker_eu", 300),
+                           dict(GEM_FRAME, fit=False), []))
+    page = tmp_path / "gemme.html"
+    page.write_text(
+        "<!doctype html><meta charset=\"utf-8\">"
+        f"<link rel=\"stylesheet\" href=\"{tokens}\">"
+        f"<link rel=\"stylesheet\" href=\"{css}\">"
+        "<body style=\"margin:0;background:var(--bg-app,#111)\">"
+        "<div class=\"cf-frame\" style=\"width:708px\">"
+        "<div class=\"cff-winwrap\"><canvas class=\"cff-map\"></canvas>"
+        "<div class=\"cff-winfields\"></div></div></div>"
+        "<script>window.__ERR=[];"
+        "window.onerror=function(m){window.__ERR.push(String(m));};"
+        "(function(){\n"
+        + code
+        + "\nvar MAP={w:168,h:232};"
+        "var UI={map:document.querySelector('.cff-map')};"
+        "var DOC={frame:{}};"
+        "var CF={geom:function(){return " + json.dumps(g) + ";}};"
+        "var f=function(){return DOC.frame;};"
+        "function gemDe(){return window.__GEM;}"
+        "window.__GEM=" + json.dumps(gm) + ";"
+        "window.__W={x:6.6,y:6.6,w:49.8,h:44.4,r:2.5};"
+        "window.__peint=function(gm){drawMapWith(window.__W,gm);};"
+        "window.__hit=function(x,y,gm){"
+        "return mapHit(window.__W,{x:x,y:y},mapGeom(),gm);};"
+        "window.__peint(window.__GEM);"
+        "})();</script></body>", encoding="utf-8")
+    return page
+
+
+SONDE_GEMME = """(() => {
+  const cv = document.querySelector(".cff-map");
+  const c = cv.getContext("2d");
+  const gm = window.__GEM;
+  const pad = 10, tw = 63, th = 88;
+  const s = Math.min((168 - 2 * pad) / tw, (232 - 2 * pad) / th);
+  const ox = (168 - tw * s) / 2, oy = (232 - th * s) / 2;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const px = (mmx, mmy) => {
+    const d = c.getImageData(Math.round((ox + mmx * s) * dpr),
+      Math.round((oy + mmy * s) * dpr), 1, 1).data;
+    return [d[0], d[1], d[2], d[3]];
+  };
+  /* L'ENCRE DE LA GEMME SE MESURE PAR DIFFERENCE, et c'est une correction :
+     le premier jet sondait « du vide a trois rayons de la » et trouvait
+     [240,180,40,51] — la FENETRE, peinte en accent translucide, dans laquelle
+     la gemme automatique tombe. Un point du plan n'est jamais vide « par
+     defaut ». On peint donc SANS puis AVEC, et l'on exige que le centre
+     CHANGE et que le point eloigne ne bouge PAS : c'est ce qui dit a la fois
+     « la gemme encre » et « elle n'encre qu'elle ». */
+  window.__peint(null);
+  const sansC = px(gm.cx, gm.cy), sansL = px(gm.cx, gm.cy + gm.r * 3.5);
+  window.__peint(gm);
+  const dedans = px(gm.cx, gm.cy);
+  const loin = px(gm.cx, gm.cy + gm.r * 3.5);
+  const empreinte = (etat) => {
+    window.__peint(etat);
+    const d = c.getImageData(0, 0, cv.width, cv.height).data;
+    let h = 0;
+    for (let i = 0; i < d.length; i += 7) { h = (h * 31 + d[i]) >>> 0; }
+    return h;
+  };
+  const auto = empreinte(Object.assign({}, gm, { manual: false }));
+  const manuel = empreinte(Object.assign({}, gm, { manual: true }));
+  window.__peint(gm);
+  return {
+    w: cv.width, h: cv.height, dedans: dedans, loin: loin,
+    sansC: sansC, sansL: sansL,
+    auto: auto, manuel: manuel,
+    hit_centre: window.__hit(gm.cx, gm.cy, gm),
+    hit_anneau: window.__hit(gm.cx + gm.r + 0.9, gm.cy, gm),
+    hit_loin: window.__hit(gm.cx, gm.cy + 22, gm),
+    hit_sans: window.__hit(gm.cx, gm.cy, null),
+    erreurs: window.__ERR || [],
+  };
+})()"""
+
+
+def test_les_poignees_de_gemme_TIENNENT_dans_un_vrai_navigateur(tmp_path):
+    """LA GEMME, VUE ET ATTRAPÉE. Quatre faits, tous mesurés sur la page rendue
+    par un Chrome sans tête :
+      1. le canevas a une taille réelle et l'encre de la gemme y tombe — on
+         relève les pixels DANS le disque et à trois rayons de là ;
+      2. l'état MANUEL se distingue de l'état AUTOMATIQUE à l'œil : les deux
+         rendus du MÊME plan diffèrent (trait plein contre pointillé). C'est le
+         premier des trois endroits où le gel se dit ;
+      3. `mapHit` rend « gem » au centre et « gemr » sur l'anneau ;
+      4. il rend la main à la fenêtre dès qu'on s'éloigne, et zéro erreur JS."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du navigateur ne peut pas tourner")
+    page = _page_gemme(tmp_path)
+    banc = tmp_path / "banc_chrome_gem.mjs"
+    banc.write_text(_banc_chrome(SONDE_GEMME), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(page)], capture_output=True,
+                       text=True, encoding="utf-8", timeout=300)
+    assert r.returncode == 0, (r.stdout[-1500:], r.stderr[-2000:])
+    v = json.loads(r.stdout)
+    if v.get("skip"):
+        pytest.skip("Chrome absent : la vérification navigateur ne peut pas tourner")
+    assert not v.get("erreur"), v.get("erreur")
+    assert v["erreurs"] == [], v["erreurs"]
+    assert v["w"] > 160 and v["h"] > 220, v
+    # 1. la gemme ENCRE le plan — mesuré PAR DIFFÉRENCE (un point du plan n'est
+    #    jamais vide par défaut : la fenêtre y est peinte en accent) — et elle
+    #    n'encre QU'ELLE : à trois rayons de là, rien n'a bougé.
+    assert v["dedans"] != v["sansC"], \
+        f"la gemme ne change rien au centre : {v['sansC']} -> {v['dedans']}"
+    assert v["dedans"][3] > 0, f"aucune encre dans la gemme : {v['dedans']}"
+    assert v["loin"] == v["sansL"], \
+        f"la gemme encre à trois rayons d'elle : {v['sansL']} -> {v['loin']}"
+    # 2. manuel et automatique NE SE RESSEMBLENT PAS
+    assert v["auto"] != v["manuel"], \
+        "le plan rend le même dessin en automatique et à la main : le gel ne se voit pas"
+    # 3. et 4. la prise
+    assert v["hit_centre"] == "gem", v["hit_centre"]
+    assert v["hit_anneau"] == "gemr", v["hit_anneau"]
+    assert v["hit_loin"] in ("move", "draw"), v["hit_loin"]
+    assert v["hit_sans"] in ("move", "draw"), \
+        "la gemme est attrapée alors qu'elle est éteinte"
+
+
+def test_une_forme_de_gabarit_n_est_PAS_une_mention_du_cadre(tmp_path):
+    """LE CADRE HABILLE DES MENTIONS, PAS DES DÉCORS (phase 5, T2).
+
+    Le modèle d'occupation pose un SOCLE sous un chiffre qui tombe dans
+    l'illustration, un LOGEMENT sous celui qui déborde sur l'anneau, et il
+    écarte le ruban et la gemme de ce que P3 écrit. Aucun de ces trois gestes
+    n'a de sens pour un rectangle décoratif : un socle sous un aplat serait une
+    plaque de fond que personne n'a demandée, et un ruban qui s'écarte d'un
+    trait de séparation change de place pour rien.
+
+    MESURE DU DÉFAUT ÉVITÉ : le même rectangle de 30 x 16 mm posé au milieu de
+    la fenêtre reçoit un socle s'il est déclaré `text`, et rien s'il est
+    déclaré `rect`. Sans ce filtre, chaque forme posée par la palette aurait
+    fait naître un meuble de cadre sous elle.
+
+    CE QUI N'EST PAS TRANCHÉ, ET LE TEST LE DIT : un CALQUE D'IMAGE reste une
+    mention. Il l'était avant cette tâche ; le changer déplacerait le ruban et
+    retirerait des socles sur des jeux déjà enregistrés."""
+    g = CT.geom("poker_eu", 300)
+    boite = [16.0, 12.0, 30.0, 16.0]          # en plein dans la fenêtre
+    comme_texte = FR.occupancy(g, dict(GEM_FRAME, fit=True),
+                               [{"id": "deco", "box": boite}])
+    assert [m["id"] for m in comme_texte["mentions"]] == ["deco"]
+    assert any(b["id"] == "socle:deco" for b in comme_texte["boxes"]), \
+        "le témoin ne mesure rien : un slot de texte devrait recevoir un socle"
+    for k in ("rect", "ellipse", "line", "arrow"):
+        o = FR.occupancy(g, dict(GEM_FRAME, fit=True),
+                         [{"id": "deco", "kind": k, "box": boite}])
+        assert o["mentions"] == [], (k, o["mentions"])
+        assert not [b for b in o["boxes"] if b["id"].startswith(("socle:", "seat:"))], \
+            (k, o["boxes"])
+    # le calque d'image, LUI, reste une mention — dit, pas supposé
+    img = FR.occupancy(g, dict(GEM_FRAME, fit=True),
+                       [{"id": "deco", "kind": "image", "box": boite}])
+    assert [m["id"] for m in img["mentions"]] == ["deco"], img["mentions"]
+    # les trois listes de natures sont la MÊME, à l'ordre près
+    from app.services.cards import type as TY2
+    js = re.search(r"const SHAPE_KINDS = \[(.*?)\];", _js())
+    assert js, "SHAPE_KINDS introuvable dans mod-frame.js"
+    trois = {tuple(sorted(re.findall(r'"([a-z]+)"', js.group(1)))),
+             tuple(sorted(FR.SHAPE_KINDS)), tuple(sorted(TY2.SHAPES))}
+    assert len(trois) == 1, trois
+
+
+def test_les_formes_ne_changent_PAS_le_plan_des_mentions_deja_posees():
+    """LA NON-RÉGRESSION DU FILTRE. Poser une forme au milieu d'un jeu ne doit
+    déplacer NI le ruban NI la gemme : le plan avec la forme est celui sans
+    elle, boîte par boîte. Un filtre qui aurait laissé passer la forme aurait
+    fait maigrir le ruban ou changer le coin de la gemme sans qu'un pixel de
+    texte ne bouge."""
+    g = CT.geom("poker_eu", 300)
+    sans = FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS)
+    avec = FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS + [
+        {"id": "sep", "kind": "line", "box": [4.0, 47.0, 55.0, 0.4]},
+        {"id": "halo", "kind": "ellipse", "box": [20.0, 10.0, 24.0, 24.0]},
+    ])
+    assert avec["boxes"] == sans["boxes"]
+    assert avec["collisions"] == sans["collisions"]
+    assert avec["count"] == sans["count"]
