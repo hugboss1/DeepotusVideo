@@ -187,7 +187,15 @@ la voie d'autosave unique (que D1 rend enfin étanche). Une seule écriture du
 document ; les PNG, eux, sont stockés serveur par la route.
 *(Précision T2, T1 ayant livré `POST /card` en admission seule : « le POST » se lit
 `POST /analyse`, qui court sur le recto STOCKÉ — relançable sans re-dépôt, geste
-« Analyser » explicite à l'écran ; l'admission ne calcule rien.)* Schéma §7.1.4 :
+« Analyser » explicite à l'écran ; l'admission ne calcule rien.)*
+**AMENDEMENT T2 (schéma livré, la ligne ci-dessus est périmée de trois clés)** :
+la réponse porte AUSSI `echelle` {mm_par_px, image_px, carte_mm, fmt, trim_mm,
+ratio_image, ratio_format} (un mm sans son cadre de référence ne veut rien dire
+si le format change), `ecart_ratio` et `notes` (l'aveu de ce qui n'a pas pu être
+mesuré) ; `border` s'étend (bords, regularite, nettete, epaisseurs_mm PAR BORD)
+et `bg` porte ses deux formes (mesure | refus {bg_failed, motif, uniformite,
+seuil, couverture, couverture_bornes, option_ia}). Tout en mm sauf `echelle`,
+imposé par un balayage DÉRIVÉ des clés de la réponse (jamais une liste en dur). Schéma §7.1.4 :
 `doc.capture = {analyzed, border:{mm,color,radius_mm,confidence}, boxes:[…],
 bg:{color,confidence}, palette, layers:{…}}`. Les boîtes sont en MM dans le doc
 (une unité par frontière, convertie au bord de l'API).
@@ -203,9 +211,17 @@ close par cette asymétrie, pas par un axe.
 boîtes.** Bordure : balayage de gradient depuis les 4 bords (code neuf, pur PIL) →
 épaisseur mm + couleur dominante + rayon de coin estimé + confiance = régularité de
 bande, clampée [0,1], cas dégénéré nommé (« aucun front trouvé » = bordure absente,
-jamais 0 mm confiance 1). Zones : `_micro_contrast` + `stats` PAR BLOCS (grille
-~32 px) → seuillage → composants connexes sur la grille grossière (code neuf) →
-boîtes mm + densité + netteté. Fond : `pixel_ops.chroma_key` tel quel — ses deux
+jamais 0 mm confiance 1). Zones : `_micro_contrast` + `stats` PAR BLOCS — **grille
+de 1,5 mm, PAS « ~32 px » (amendement T2, mesuré le 24/08 et REPRODUIT par la
+revue)** : un bloc en pixels rend le relevé dépendant de la résolution du scan
+(mêmes boîtes au 1/100 mm à 630/1060/2926 px avec 1,5 mm ; trois relevés
+différents + une boîte fantôme avec 32 px), pire IoU 0,735 à 1,5 mm contre 0,118
+à 3,2 mm et 0,050 à 2,5 mm — le millimètre est l'invariant, pas le pixel →
+seuillage → composants connexes sur la grille grossière (code neuf) → boîtes mm +
+densité + netteté ; la bande de retrait le long des bords (bordure + portée du
+passe-haut) est EXCLUE du regard : elle se NOMME en mm dans les notes et toute
+boîte qui la touche porte `tronquee:true` (amendement ronde T2 — une coupe qui ne
+se dit pas devient une fausse mesure chez l'adoptant). Fond : `pixel_ops.chroma_key` tel quel — ses deux
 portes mesurées SONT le refus §8 (« fond non uni → refus mesuré, pas détouré de
 travers ») ; le refus publie la mesure qui l'a causé. Palette : quantification
 (`pixel_ops`). **Chaque détection publie sa confiance chiffrée ; l'écran affiche le
