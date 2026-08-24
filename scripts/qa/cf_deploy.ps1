@@ -51,6 +51,17 @@ $LockPath  = Join-Path $AppRoot "cf_deploy.lock"
 $LAB_SETS     = @("frontend\cardforge")
 $BACKEND_SETS = @("backend\app\services\cards", "backend\tests")
 
+# LES FICHIERS ISOLES, HORS DES DOSSIERS CI-DESSUS. Une piece du lab n'edite
+# pas QUE son propre dossier : la phase 5 T1 a tabule `nano_banana_usd` dans
+# services\pricing.py, et ce fichier n'etait porte par AUCUN jeu. Resultat
+# mesure le 25/08 par la campagne reelle : l'app servait un pricing.py du
+# 20/08, `prix_usd("nano-banana")` rendait None, et la marche 2 de l'echelle
+# (l'edition de retouche) mourait sur "modele absent de la table de tarifs"
+# au lieu de monter a la marche 3. Le prix etait ecrit, teste, commite - et
+# jamais arrive. On synchronise donc AUSSI a l'unite, sans elargir le jeu a
+# tout services\ (ou dort du travail d'autres pieces, non depoye a dessein).
+$BACKEND_FILES = @("backend\app\services\pricing.py")
+
 function Say {
     param([string]$Message)
     Write-Host ((Get-Date).ToString("HH:mm:ss.fff") + " [pid " + $PID + "] " + $Message)
@@ -107,6 +118,47 @@ function Sync-Set {
     }
     Say ("  OK     " + $Rel + " : " + $n + " fichier(s) copie(s)")
     return $n
+}
+
+# Copie UN fichier depot -> app. Meme regle que Sync-Set : on n'ecrit que si
+# les octets different, et on ne supprime jamais cote app.
+function Sync-File {
+    param([string]$Rel)
+    $s = Join-Path $Repo $Rel
+    $d = Join-Path $AppRoot $Rel
+    if (-not (Test-Path $s)) {
+        Say ("  SAUTE  " + $Rel + " (absent du depot)")
+        return 0
+    }
+    if (Test-Path $d) {
+        if ((Get-Sha $s) -eq (Get-Sha $d)) {
+            Say ("  OK     " + $Rel + " : deja a jour")
+            return 0
+        }
+    }
+    $parent = Split-Path -Parent $d
+    if (-not (Test-Path $parent)) { New-Item -ItemType Directory -Path $parent -Force | Out-Null }
+    Copy-Item -Path $s -Destination $d -Force
+    Say ("  OK     " + $Rel + " : 1 fichier copie")
+    return 1
+}
+
+# Compare UN fichier sans rien ecrire.
+function Compare-File {
+    param([string]$Rel)
+    $gaps = New-Object System.Collections.Generic.List[string]
+    $s = Join-Path $Repo $Rel
+    $d = Join-Path $AppRoot $Rel
+    if (-not (Test-Path $s)) {
+        $gaps.Add("ABSENT-DEPOT  " + $Rel)
+        return $gaps
+    }
+    if (-not (Test-Path $d)) {
+        $gaps.Add("MANQUE-APP    " + $Rel)
+        return $gaps
+    }
+    if ((Get-Sha $s) -ne (Get-Sha $d)) { $gaps.Add("DIFFERE       " + $Rel) }
+    return $gaps
 }
 
 # Compare sans rien ecrire. Retourne la liste des ecarts.
@@ -350,6 +402,9 @@ if ($Check) {
     foreach ($s in ($LAB_SETS + $BACKEND_SETS)) {
         foreach ($g in (Compare-Set $s)) { $all.Add($g) }
     }
+    foreach ($s in $BACKEND_FILES) {
+        foreach ($g in (Compare-File $s)) { $all.Add($g) }
+    }
     if ($all.Count -eq 0) {
         Write-Host ""
         Write-Host "0 ecart : le depot et l'app sont identiques." -ForegroundColor Green
@@ -374,6 +429,7 @@ Lock-Acquire -Path $LockPath -TimeoutSec $TimeoutSec -StaleSec $StaleSec
 try {
     $total = 0
     foreach ($s in ($LAB_SETS + $BACKEND_SETS)) { $total = $total + (Sync-Set $s) }
+    foreach ($s in $BACKEND_FILES) { $total = $total + (Sync-File $s) }
     Say ("deploiement : " + $total + " fichier(s) mis a jour")
     Restart-Backend
     Say "OK : backend relance et vivant"
