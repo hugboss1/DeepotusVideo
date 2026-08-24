@@ -887,7 +887,15 @@
     }
     /* UN CLIGNOTEMENT COURT, pour que l'oeil retrouve OU il vient d'arriver.
        La classe se retire toute seule : un surlignage qui reste devient un
-       etat, et un etat qu'on n'a pas demande. */
+       etat, et un etat qu'on n'a pas demande.
+
+       UN SEUL SURLIGNAGE A LA FOIS. Mesure au navigateur : deux etapes
+       cliquees a moins de 1,4 s d'intervalle laissaient DEUX cibles cernees
+       — celle qu'on regarde et celle d'avant, chez une autre piece. Le
+       repere ne repere plus rien quand il y en a deux. */
+    Array.prototype.forEach.call(
+      document.querySelectorAll(".cf-capture-vise"),
+      (e) => e.classList.remove("cf-capture-vise"));
     cible.classList.add("cf-capture-vise");
     setTimeout(() => cible.classList.remove("cf-capture-vise"), 1400);
   }
