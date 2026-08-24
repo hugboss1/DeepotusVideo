@@ -288,11 +288,56 @@ Les 4 fichiers de la règle 1 (`mod-capture.js`, `mod-capture.css`, `capture.py`
 `galImport` câblé (`core.js:2005` : le toast placeholder meurt, `CF.show("capture")`
 naît). Jamais-500 partout.
 **Fichiers** : les 4 neufs + core.js + index.html + lint_cardforge.py +
-`__init__.py` + contract.py + core.py + test_cards_core.py.
+`__init__.py` + contract.py + core.py + test_cards_core.py
+(+ test_core_contract.mjs, amendement §1.2).
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `8906ecd` (livraison, 13 fichiers, +1276/−41) puis `bd8f599`
+  (ronde, 7 fichiers, +815/−120). RED F2 prouvé par la ROUTE réelle (PATCH→GET :
+  forge3d PERDU avant, graphe identique à l'octet après — et un 3e rouge est tombé
+  seul : le test qui gardait le chiffre « huit » périmé, celui qui faisait passer
+  la perte pour une décision). MODULE_IDS = 10, conséquences tenues ensemble,
+  parité core.js↔contract.py testée en lisant le JS depuis Python. Admission
+  post_paper complète + concurrence PROUVÉE (40 envois simultanés, recouvrement
+  ×34,7 → 40 servis, brouillon unique uuid + replace patient 5×20 ms, 409 nommé
+  SANS chemin absolu — la jurisprudence de la fuite de nom). Service sous
+  `GET /file/{nom}` (D2 amendé). Analyse = propriété du recto (D3 amendé, règle
+  dans une fonction PURE `effacements(side)` exécutée dans node par le test —
+  la 1re écriture textuelle ne voyait pas un `|| true`). 8 copies de
+  MAX_IMPORT_PX confrontées (4 py + 4 js). galImport câblé, toast placeholder
+  mort. Banc mjs : 2 contrôles réécrits sur la vérité neuve + réouverture avant
+  Échap. « huit »→« dix » : 7+ corrigés, l'histoire gardée. 29 tests capture,
+  93 core, lint 10/10, banc de contrat vert (contre l'arbre du dépôt via serveur
+  de scratchpad — le :8765 sert la copie déployée, le banc nu n'aurait rien
+  prouvé).
+- [x] Ronde adverse (opus) : 18 trouvailles réelles + 4 rejetées part-du-critique.
+  Le bloquant : deux POST concurrents = 500 mesuré à 10 % (tmp CONSTANT partagé)
+  — et la 1re moitié du fix rendait `{409:40}` dossier VIDE : « jamais-500 » seul
+  aurait vu un système poli qui ne sert PERSONNE → le test exige un PLANCHER DE
+  SERVICE (≥90 %, fichier final entier). Autres : DecompressionBombError écrasé
+  en « corps illisible » (le refus qui se trompe de raison au-delà de 179 Mpx) ;
+  le $-NEWLINE POUR LA 4e FOIS (FILE_RE `$`+`.match` — fullmatch d'office sur
+  toute liste blanche, désormais) ; le joker GET qui condamnait les routes
+  T2/T3/T5 ; le 404 deck-supprimé traduit « backend absent » (le remède jsonNamed
+  existait, P10 refaisait le geste à la main) ; le commentaire-doctrine FAUX sur
+  le gel du schéma (le code était juste pour une AUTRE raison — patchAs lève —
+  et c'est elle qui est écrite maintenant) ; mébipixels étiquetés « millions »
+  (137 vs 144 à vingt lignes d'écart dans le même fichier) ; 2 tests-au-texte
+  remplacés par les preuves DYNAMIQUES que le critique a mesurées possibles ;
+  témoin LANCZOS fermé en 3 lignes (damier : σ 6,0 vs 127,5, seuil 40) ; les
+  4 miroirs de la leçon F2 gardés (lint + index.html comptés dans l'ordre) ;
+  l'hygiène pré-existante de cards_core réparée (le deck abîmé laissé sur disque,
+  intermittence 1/17 antérieure à T1). RED de ronde : 19 défauts remis un à un,
+  18 vus.
+- [x] CLOSE : leçons — (a) « jamais-500 » sous concurrence est un demi-contrat :
+  il faut AUSSI le plancher de service, sinon le refus poli généralisé passe
+  vert ; (b) $-newline ×4 : toute liste blanche naît en `fullmatch`/`\Z`, le
+  test porte `%0A` d'office ; (c) le témoin survivant nouveau : retirer la
+  reprise patiente SEULE n'est vue qu'~1 fois sur 2 (exiger 40/40 rougirait à
+  tort sur machine chargée — entre un trou connu écrit et une intermittence
+  rouge, le trou écrit gagne). Résidu banc-qa-modele : auto-nettoyé au passage
+  suivant du banc (vérifié parti, 8 modèles en place). Incident :8765 clos
+  (backend vivant, health 177 ms ; la lenteur 13,8 s du listing à froid est
+  antérieure — jalon séparé posé hors phase).
 
 ### T2 — L'analyse locale gratuite (D3, D4)
 
