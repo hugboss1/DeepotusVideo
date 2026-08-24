@@ -2886,7 +2886,11 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
     src = _js()
     cles = _js_defaults_keys(src)
     assert len(cles) == len(set(cles)), f"clé en double dans DEFAULTS : {cles}"
-    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 40 depuis la phase 5-T2 (D3, « les éléments libérés ») : `gem_x`,
+    # `gem_y`, `gem_r` (le placement de la gemme, `null` = calculé),
+    # `corner_dx`, `corner_dy`, `corner_scale` (les ornements de coin) et
+    # `win_stroke_color` / `win_stroke_mm` (le liseré propre de la fenêtre).
+    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -4176,11 +4180,11 @@ def test_le_compte_de_cles_du_document_suit_le_sceau():
     nombre."""
     cles = _js_defaults_keys(_js())
     assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
-    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
     py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
-    assert "31 clés que l'on écrit" in py, \
-        "le commentaire de l'habillage ne suit pas les clés neuves (31 " \
-        "écrites, la 32e étant `art_window`, publiée par le painter)"
+    assert "39 clés que l'on écrit" in py, \
+        "le commentaire de l'habillage ne suit pas les clés neuves (39 " \
+        "écrites, la 40e étant `art_window`, publiée par le painter)"
 
 
 # ── 16.2 le PEINTRE : des pixels, pas des intentions ─────────────────────────
@@ -4957,7 +4961,7 @@ def test_le_schema_du_verso_custom_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "back_image" in cles and "back_layers" in cles, cles
-    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
     # les bornes, des deux côtés et au chiffre de la spec
     for k, attendu in (("back_opacity", BACK_OPACITY_SPEC),
                        ("back_scale", BACK_SCALE_SPEC)):
@@ -6336,11 +6340,14 @@ def test_le_decor_est_la_32e_cle_et_son_schema_est_le_meme_des_deux_cotes():
     """`decor` est un sous-objet — le SECOND de `doc.frame` après `seal`. Comme
     lui il a sa branche imbriquée dans `st()` et son miroir d'exécution au
     backend ; comme lui il naît ÉTEINT (aucune source) pour qu'aucun jeu déjà
-    enregistré ne change d'aspect."""
+    enregistré ne change d'aspect.
+
+    « 32e » est son rang D'ARRIVÉE et il ne bouge pas ; le TOTAL, lui, a
+    grandi (40 depuis les huit clés de la phase 5-T2)."""
     src = _js()
     cles = _js_defaults_keys(src)
     assert "decor" in cles, f"la clé decor manque à DEFAULTS : {cles}"
-    assert len(cles) == 32, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert f"porte toujours les {len(cles)} cles" in src, \
         "le commentaire de st() ne dit pas le compte réel"
     # les défauts, littéralement les mêmes
@@ -6462,10 +6469,29 @@ def test_la_route_ai_models_du_cadre_publie_le_TARIF_DE_L_APPLICATION():
     assert par_id["flux"]["provider"] == "fal"
     for m in d["models"]:
         assert set(m) == {"id", "label", "provider", "note", "usd_par_image"}, m
-    # un modèle absent de la table de tarifs n'affiche AUCUN montant :
-    # `pricing.estimate` retomberait sur FLUX, et ce repli serait un prix faux
-    if "nano-banana" in par_id:
-        assert par_id["nano-banana"]["usd_par_image"] is None
+    # UN MODÈLE ABSENT DE LA TABLE DE TARIFS N'AFFICHE AUCUN MONTANT :
+    # `pricing.estimate` retomberait sur FLUX, et ce repli serait un prix faux.
+    # LA RÈGLE EST ÉCRITE CONTRE LA TABLE, PAS CONTRE UN MODÈLE NOMMÉ, et
+    # c'est une correction de la phase 5 : l'assertion nommait `nano-banana`
+    # et affirmait « il n'a pas de prix » — un fait VRAI le jour où elle a été
+    # écrite, et que la tâche T1 de cette phase a rendu faux en tabulant
+    # `nano_banana_usd` (plan D2). Un test qui grave un état transitoire de la
+    # table de tarifs rougit quand la table s'enrichit, ce qui est exactement
+    # l'inverse de ce qu'il protège. Le CONTRAT, lui, ne bouge pas : ce qui est
+    # publié est ce que la table porte, et rien quand elle ne porte rien.
+    tarifs = pricing.load()
+    table = getattr(pricing, "_IMAGE_MODELS", {}) or {}
+    vus = 0
+    for m in d["models"]:
+        spec = table.get(m["id"])
+        cle = spec[2] if (spec and len(spec) > 2) else None
+        attendu_m = tarifs.get(cle) if cle else None
+        if attendu_m is None:
+            assert m["usd_par_image"] is None, m
+        else:
+            assert m["usd_par_image"] == pytest.approx(attendu_m), m
+            vus += 1
+    assert vus, "aucun modèle tabulé : la règle ne mesurerait rien"
     # ... et le repli existe pour que l'écran ne dise jamais « aucun modèle »
     # quand une clé EST posée
     assert set(FR._keyed_providers()) >= {"fal"}
@@ -9286,3 +9312,378 @@ def test_le_bloc_d_adoption_TIENT_dans_un_vrai_navigateur(tmp_path):
     assert v["lignePx"] <= v["colPx"], (v["lignePx"], v["colPx"])
 
 
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 24. LES ÉLÉMENTS LIBÉRÉS — phase 5, T2 (plan D3)
+#
+# Ce que la tâche promet, et que ce bloc mesure :
+#   · la gemme gagne un placement PERSISTÉ (gem_x, gem_y, gem_r en mm), `null`
+#     valant AUTOMATIQUE — le calcul de `placeGem` reste le défaut ;
+#   · le passage auto -> manuel SE DIT (patron T4 de la phase 4 : la ligne
+#     d'état le nomme, et un geste rend l'automatique) ;
+#   · les bornes MORDENT, des deux côtés, sur les MÊMES nombres ;
+#   · les ornements de coin gagnent un décalage et une échelle (globaux ×4) ;
+#   · la fenêtre gagne son liseré propre, à 0 mm par défaut donc INVISIBLE :
+#     les huit familles restent à l'octet ce qu'elles étaient, et la QA de
+#     silhouettes — qui rend les familles sur les DÉFAUTS — ne bouge pas.
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Le banc d'EXÉCUTION du placement : il évalue le VRAI bloc de mod-frame.js
+# (celui que `_painter_js_source` extrait déjà pour les peintres) et appelle
+# `occupancy` sur les mêmes entrées que le Python. Aucune réimplémentation —
+# une réimplémentation prouverait la réimplémentation.
+BANC_OCC = r"""
+import { readFileSync } from "node:fs";
+const SRC = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+globalThis.window = { CF: { get: () => [], register: () => ({}) } };
+const CF = globalThis.window.CF;
+const mod = (0, eval)(SRC + "\n({ occupancy: occupancy, st: st, gemManuel: gemManuel })");
+const out = [];
+for (const c of CAS.cas) {
+  try {
+    out.push({ nom: c.nom, ok: true,
+      occ: mod.occupancy({ trim_mm: c.trim_mm }, c.frame, c.slots || []) });
+  } catch (e) { out.push({ nom: c.nom, ok: false, err: String((e && e.message) || e) }); }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_occ(tmp_path, cas: list, code: str | None = None) -> list:
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc d'occupation ne peut pas tourner")
+    js = tmp_path / "occ.js"
+    js.write_text(code if code is not None else _painter_js_source(),
+                  encoding="utf-8")
+    banc = tmp_path / "banc_occ.mjs"
+    banc.write_text(BANC_OCC, encoding="utf-8")
+    conf = tmp_path / "cas_occ.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    return json.loads(r.stdout)
+
+
+GEM_FRAME = dict(FRAME)
+
+
+def _gem(o) -> dict:
+    return [b for b in o["boxes"] if b["id"] == "gem"][0]
+
+
+def test_la_gemme_sans_cles_reste_exactement_ou_le_calcul_la_pose():
+    """LA NON-RÉGRESSION D'ABORD. Trois clés neuves qui bougeraient une seule
+    gemme d'un centième de millimètre changeraient l'aspect de tout jeu déjà
+    enregistré. On compare donc le plan D'AVANT (aucune clé) au plan avec les
+    trois clés écrites à `None` — et à celui d'un document qui les porte
+    fausses (`""`, `[]`, `True`) : « absent » est le seul verdict possible."""
+    g = CT.geom("poker_eu", 300)
+    ref = FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS)
+    for faux in ({}, {"gem_x": None, "gem_y": None, "gem_r": None},
+                 {"gem_x": "", "gem_y": [], "gem_r": {}},
+                 {"gem_x": True, "gem_y": False, "gem_r": None},
+                 {"gem_x": "0x10", "gem_y": "1_0", "gem_r": float("nan")}):
+        o = FR.occupancy(g, dict(GEM_FRAME, fit=True, **faux), SLOTS)
+        assert o["boxes"] == ref["boxes"], faux
+        assert o["count"] == ref["count"], faux
+    assert _gem(ref)["manual"] is False, ref
+
+
+def test_la_main_gagne_sur_le_calcul_et_le_dit_dans_le_plan():
+    """LE CŒUR DE D3. Sur le jeu de slots réel, le calcul range la gemme en
+    ÉCRIN (aucun coin libre) : elle passe en couche 40, perd ses crans et
+    prend la taille de son hôte. Une position posée à la main la REPREND —
+    couche 70, ses crans, sa place — et le plan porte `manual: True` pour que
+    l'écran puisse le dire au lieu de le deviner."""
+    g = CT.geom("poker_eu", 300)
+    auto = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS))
+    assert auto["seat"] is True and auto["z"] == 40 and auto["pips"] == 0
+
+    gem = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True,
+                                    gem_x=31.5, gem_y=44.0, gem_r=6.0), SLOTS))
+    assert gem["manual"] is True and gem["seat"] is False
+    assert gem["z"] == 70, "la main pose un ornement, pas un écrin"
+    assert (gem["cx"], gem["cy"], gem["r"]) == (31.5, 44.0, 6.0)
+    assert gem["pips"] == 3, "la rareté « rare » compte 3 crans"
+    assert gem["lane"] == "posée à la main"
+    # LA BOÎTE GARDE LA FORME « gemme + portée des crans » : sa hauteur est le
+    # diamètre, sa largeur le rayon plus la portée. La rétrécir aurait fait
+    # DISPARAÎTRE des recouvrements bien réels.
+    port = 1.5 * 6.0 + 2 * FR.PIP_STEP_MM + FR.PIP_R_MM
+    assert gem["box"][3] == pytest.approx(12.0, abs=0.01)
+    assert gem["box"][2] == pytest.approx(6.0 + port, abs=0.01)
+
+
+def test_la_gemme_posee_a_la_main_est_JUGEE_par_le_compteur():
+    """Ce que le geste coûte est COMPTÉ, pas caché. Posée sur le coût, la
+    gemme redevient un meuble de la couche 70 qui recouvre une mention : le
+    compteur le dit en millimètres carrés et en pourcentage — exactement
+    comme il le disait du bandeau avant le modèle d'occupation."""
+    g = CT.geom("poker_eu", 300)
+    cout = [s for s in SLOTS if s["id"] == "cost"][0]["box"]
+    cx = cout[0] + cout[2] / 2
+    cy = cout[1] + cout[3] / 2
+    o = FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x=cx, gem_y=cy,
+                             gem_r=4.6), SLOTS)
+    par = {(c["a"], c["b"]): c for c in o["collisions"]}
+    assert ("gem", "cost") in par, o["collisions"]
+    assert par[("gem", "cost")]["pct"] > 50, par[("gem", "cost")]
+    assert o["count"] >= 1
+
+
+def test_les_crans_rentrent_quand_la_gemme_traverse_le_milieu():
+    """Les crans sortent de la gemme vers l'extérieur. Gardés du côté du coin
+    que le calcul avait choisi, ils partiraient HORS CARTE dès que la main
+    traverse la demi-largeur. Le côté se déduit donc de la POSITION."""
+    g = CT.geom("poker_eu", 300)
+    tw = g.trim_mm[0]
+    for x, sens in ((8.0, 1), (tw - 8.0, -1)):
+        gem = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x=x,
+                                        gem_y=44.0, gem_r=4.6), SLOTS))
+        assert gem["dir"] == sens, (x, gem)
+        assert gem["box"][0] >= -0.01, (x, gem)
+        assert gem["box"][0] + gem["box"][2] <= tw + 0.01, (x, gem)
+
+
+def test_chaque_cle_de_gemme_est_independante():
+    """Ne toucher QUE le rayon garde la position calculée, et l'inverse aussi.
+    Un `null` sur deux clés n'est pas « à moitié automatique » : c'est « ces
+    deux-là restent calculées »."""
+    g = CT.geom("poker_eu", 300)
+    seul_r = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_r=9.0), SLOTS))
+    assert seul_r["r"] == 9.0 and seul_r["manual"] is True
+    seul_x = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x=20.0), SLOTS))
+    assert seul_x["cx"] == 20.0
+    assert seul_x["r"] == FR.GEM_R_MM, "le rayon devait rester calculé"
+    # la position que garde `gem_r` seul est celle du MEILLEUR COIN — l'écrin
+    # ne se forme plus, donc ce n'est pas la boîte de l'hôte.
+    inner = min(GEM_FRAME["inner_mm"], FR.band_max_mm(*g.trim_mm))
+    off = inner + FR.GEM_R_MM * FR.GEM_OFF_F
+    assert seul_r["cx"] == pytest.approx(off, abs=0.01), seul_r
+
+
+def test_les_bornes_de_la_gemme_mordent_des_deux_cotes():
+    """`LIMITS` est la borne, et elle mord : un rayon de 900 mm est ramené au
+    plafond, un rayon de 0 au plancher (une gemme à rayon nul n'est pas un
+    réglage — le booléen `gem` existe pour l'éteindre). La POSITION, elle,
+    est ramenée au FORMAT au tracé, pas à un millimètre absolu."""
+    g = CT.geom("poker_eu", 300)
+    tw = g.trim_mm[0]
+    hi = FR.LIMITS["gem_r_mm"][1]
+    lo = FR.LIMITS["gem_r_mm"][0]
+    for demande, attendu in ((900.0, hi), (0.0, lo), (-5.0, lo)):
+        gem = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_r=demande),
+                                SLOTS))
+        assert gem["r"] == attendu, (demande, gem)
+    gem = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x=999.0,
+                                    gem_y=-40.0), SLOTS))
+    assert gem["cx"] == pytest.approx(tw, abs=0.01), gem
+    assert gem["cy"] == 0.0, gem
+
+
+def test_le_placement_manuel_est_le_MEME_des_deux_cotes(tmp_path):
+    """PARITÉ D'EXÉCUTION, pas de source. Le VRAI `occupancy` de mod-frame.js
+    tourne dans node sur les mêmes entrées que celui de cards/frame.py, et les
+    deux plans doivent être ÉGAUX clé par clé. Deux placements qui dérivent,
+    c'est un aperçu qui ment sur le fichier — et sur ce chemin-là, c'est la
+    pastille de vérification de l'écran qui passerait au rouge sans qu'un seul
+    pixel bouge."""
+    g = CT.geom("poker_eu", 300)
+    frames = [
+        dict(GEM_FRAME, fit=True),
+        dict(GEM_FRAME, fit=True, gem_x=31.5, gem_y=44.0, gem_r=6.0),
+        dict(GEM_FRAME, fit=True, gem_r=9.0),
+        dict(GEM_FRAME, fit=True, gem_x=8.0),
+        dict(GEM_FRAME, fit=True, gem_x=900.0, gem_y=-3.0, gem_r=0.0),
+        dict(GEM_FRAME, fit=True, gem_x="12.5", gem_y="7", gem_r="3.25"),
+        dict(GEM_FRAME, fit=True, gem_x="0x10", gem_y="1_0", gem_r=True),
+        dict(GEM_FRAME, fit=False, gem_x=55.0, gem_y=80.0, gem_r=2.0),
+        dict(GEM_FRAME, fit=True, rarity="mythic", gem_x=58.0, gem_y=6.0),
+    ]
+    cas = [{"nom": f"f{i}", "trim_mm": list(g.trim_mm), "frame": fr,
+            "slots": SLOTS} for i, fr in enumerate(frames)]
+    res = _banc_occ(tmp_path, cas)
+    assert len(res) == len(frames)
+    for r, fr in zip(res, frames):
+        assert r["ok"], (r["nom"], r.get("err"))
+        py = FR.occupancy(g, fr, SLOTS)
+        assert r["occ"]["boxes"] == py["boxes"], (r["nom"], r["occ"]["boxes"],
+                                                  py["boxes"])
+        assert r["occ"]["collisions"] == py["collisions"], r["nom"]
+        assert r["occ"]["count"] == py["count"], r["nom"]
+
+
+def test_le_gel_auto_vers_manuel_se_DIT_et_se_defait_en_un_geste():
+    """PATRON T4 (phase 4) : « le gel de la fenêtre auto se DIT quand elle
+    était auto ; Ctrl+Z rend l'auto ». Ici les trois surfaces qui doivent le
+    porter sont lues DANS LE SOURCE, parce qu'une promesse d'écran non tenue
+    est exactement ce que la clôture T4 reproche :
+      1. une phrase de passage, envoyée UNE FOIS et seulement quand on quitte
+         l'automatique (`ditLeGel` sort tout de suite si c'était déjà manuel) ;
+      2. une ligne d'état qui NOMME le régime et ce qu'il a coûté ;
+      3. le retour à l'automatique en un geste, et ce geste rend les TROIS
+         clés (deux nuls sur trois, c'est encore manuel)."""
+    src = _js()
+    dit = _js_fn(src, "ditLeGel")
+    assert "if (avantManuel) return;" in dit, \
+        "la phrase repartirait à chaque geste sur une gemme déjà manuelle"
+    assert "posée à la main" in dit and "automatique" in dit, dit
+    auto = _js_fn(src, "gemAuto")
+    for k in ("gem_x: null", "gem_y: null", "gem_r: null"):
+        assert k in auto, f"« Auto » ne rend pas {k} au calcul"
+    # `sync()` n'est qu'un coalesceur rAF : le corps vit dans `syncNow()`.
+    sy = _js_fn(src, "syncNow")
+    assert "UI.gemRead.innerHTML" in sy, "aucune ligne d'état pour la gemme"
+    assert "posée à la main" in sy and "Gemme <b>automatique</b>" in sy, \
+        "la ligne d'état ne nomme pas le régime en vigueur"
+    assert "n'essaie plus les quatre coins" in sy, \
+        "la ligne d'état ne dit pas ce que le régime manuel a coûté"
+    # le geste : le double-clic du plan vise le MEUBLE sous le pointeur
+    wm = _js_fn(src, "wireMap")
+    assert 'if (hit === "gem" || hit === "gemr") { gemAuto(); return; }' in wm, \
+        "le double-clic sur la gemme ne la rend pas automatique"
+    # et l'annulation empile l'ÉTAT D'AVANT, nuls compris
+    assert 'HIST.push({ before: d0.etait, label: "gemme" })' in wm, \
+        "Ctrl+Z reposerait la gemme au lieu de la rendre automatique"
+    assert "etait: {" in wm and "gem_x" in wm
+
+
+def test_les_ornements_de_coin_gardent_leur_symetrie_par_construction():
+    """LA DÉCISION, ÉCRITE ET TENUE : un décalage et une échelle GLOBAUX,
+    appliqués dans le repère MIROIR de chaque coin. C'est cette symétrie qui
+    fait lire les quatre ornements comme un cadre, et douze clés
+    indépendantes l'auraient laissée casser en silence.
+
+    Le test lit le mécanisme là où il vit : `atCorners` pose `scale(±1, ±1)`,
+    et `cornerOrn` décale APRÈS lui, dans ce repère-là."""
+    src = _js()
+    at = _js_fn(src, "atCorners")
+    assert "ctx.scale(c[2], c[3])" in at, \
+        "atCorners n'applique plus le miroir : le décalage global ne tiendrait plus"
+    fn = _js_fn(src, "cornerOrn")
+    assert "f.corner_dx" in fn and "f.corner_dy" in fn and "f.corner_scale" in fn
+    # la borne est celle du FORMAT, pas un millimètre absolu
+    assert "kMax" in fn and "Math.min(m.trim.w, m.trim.h) / 2" in fn, \
+        "un décalage de 20 mm sur `micro` enverrait les quatre ornements se croiser"
+    assert "LIMITS.corner_scale" in fn, "l'échelle n'est pas bornée par LIMITS"
+    # l'échelle multiplie l'UNITÉ de dessin, donc l'ornement grandit entier
+    assert "const u = m.u * cs;" in fn, \
+        "l'échelle ne passe pas par l'unité : le trait ne suivrait pas"
+
+
+def test_le_lisere_de_fenetre_ne_peint_rien_par_defaut():
+    """TROIS REFUS, et ils sont le contrat de ce trait : épaisseur nulle,
+    couleur illisible, et aucune dépendance au filet du cadre. Le premier est
+    ce qui garde les huit familles à l'octet — donc ce qui garde la QA de
+    silhouettes intacte."""
+    src = _js()
+    fn = _js_fn(src, "windowLiner")
+    assert "if (!(w > 0)) return;" in fn, \
+        "un liseré à 0 mm peindrait un trait que la presse refuse"
+    assert "HEX_RE.test(hex)" in fn, \
+        "une couleur illisible vaudrait « noir » — le défaut muet de plate_color"
+    assert "winPath(ctx, m, shape)" in fn, \
+        "le liseré redécrit la fenêtre au lieu de partager son tracé"
+    assert "f.line_mm" not in fn and "pal(" not in fn, \
+        "le liseré dépend du filet ou de la rareté : il n'est plus propre"
+    assert FR.LIMITS["win_stroke_mm"][0] == 0
+    # le défaut du document ne peint rien
+    m = re.search(r"win_stroke_color: \"(#[0-9a-fA-F]{6})\", win_stroke_mm: (\d+)",
+                  src)
+    assert m and float(m.group(2)) == 0.0, "le liseré est allumé par défaut"
+    # ... et il est peint APRÈS le filet et le Sceau, sur le même chemin
+    pf = _js_fn(src, "paintFront")
+    assert pf.index("paintSeal(") < pf.index("windowLiner("), \
+        "le liseré de l'utilisateur passerait sous le Sceau"
+    assert pf.index("windowLiner(") < pf.index("cornerOrn("), pf[:0]
+
+
+def test_les_habillages_portent_les_cles_neuves_a_leur_defaut_inerte():
+    """`models.py` DÉRIVE sa liste blanche de cadre des habillages
+    (`_FRAME_CLES = frozenset(archetype_frame("superstar"))`) : une clé qui
+    n'y serait pas serait JETÉE d'un modèle, en silence. Et elle doit y être
+    à sa valeur INERTE — un archétype qui figerait la gemme la figerait pour
+    tous les decks qui en naissent, y compris sur les formats où le calcul
+    aurait trouvé un coin libre."""
+    for nom, hab in FR.ARCHETYPE_FRAMES.items():
+        for k in ("gem_x", "gem_y", "gem_r"):
+            assert hab[k] is None, f"{nom} : {k} figé à {hab[k]!r}"
+        assert hab["corner_dx"] == 0 and hab["corner_dy"] == 0, nom
+        assert hab["corner_scale"] == 1, nom
+        assert hab["win_stroke_mm"] == 0, nom
+        assert re.fullmatch(r"#[0-9a-fA-F]{6}", hab["win_stroke_color"]), nom
+
+
+def test_la_qa_des_silhouettes_mesure_LE_DEFAUT_pas_l_etat_d_un_jeu():
+    """LA QUESTION POSÉE PAR LE PLAN, TRANCHÉE À LA SOURCE : « les silhouettes
+    se mesurent gemme en place AUTO — vérifie que déplacer une gemme ne casse
+    pas la QA (elle mesure le défaut, pas l'état d'un deck) ».
+
+    RÉPONSE MESURÉE, en deux parties.
+
+    (a) L'ARBITRE — le banc de `test_les_huit_silhouettes_restent_deux_a_deux_
+    distinctes` — construit chaque famille par
+    `mod.st({ frame: { family, rarity } })` : RIEN d'autre que la famille et
+    la rareté n'y entre, donc le reste vient de `DEFAULTS`, où les huit clés
+    neuves valent `null` / 0 / 1. Une gemme déplacée dans un deck ne peut pas
+    l'atteindre.
+
+    (b) ET IL NE PEINT NI LA GEMME NI LES COINS. Le banc trace la bande, le
+    profil, la signature de famille, la moulure et la plaque — `paintTop` (la
+    gemme) et `cornerOrn` n'y sont pas appelés du tout. Les deux meubles que
+    cette tâche libère sont donc HORS de la mesure de silhouette, ce que le
+    plan demandait de confirmer plutôt que de supposer.
+
+    Le badge du NAVIGATEUR, lui, rend la carte courante (`paintFamAt` part de
+    `f()`) : il VOIT une gemme déplacée. C'est voulu — il mesure ce deck-ci —
+    et sans conséquence sur le seuil, puisque les défauts ne bougent pas."""
+    src = _js()
+    i = BANC_TRAITS.index("if (CAS.silhouettes)")
+    bloc = BANC_TRAITS[i:BANC_TRAITS.index("process.stdout.write", i)]
+    assert "mod.st({ frame: { family: fa, rarity: ra } })" in bloc, \
+        "le banc de silhouettes ne part plus des DÉFAUTS"
+    assert "paintTop" not in bloc and "cornerOrn" not in bloc, \
+        "le banc de silhouettes peint la gemme ou les coins : une gemme " \
+        "déplacée deviendrait un axe de la mesure"
+    # les huit clés neuves naissent inertes — c'est ce qui rend (a) vrai
+    d = re.search(r"const DEFAULTS = \{(.*?)\n  \};", src, re.S).group(1)
+    d = re.sub(r"/\*.*?\*/", " ", d, flags=re.S)
+    assert "gem_x: null, gem_y: null, gem_r: null" in d, d
+    assert "corner_dx: 0, corner_dy: 0, corner_scale: 1" in d, d
+    assert "win_stroke_mm: 0" in d, d
+    # et le seuil n'a pas bougé
+    assert re.search(r"const SIL_SEUIL = 4;", src), "le seuil a bougé"
+
+
+def test_la_route_occupancy_transporte_le_placement_manuel():
+    """La route publie le MÊME plan que l'écran — c'est par elle que la
+    pastille de vérification confronte les deux. Un corps qui porte des clés
+    folles ne fait toujours JAMAIS 500 (spec §2.5)."""
+    did = _deck()
+    base = {"fmt": "poker_eu", "dpi": 300,
+            "frame": dict(GEM_FRAME, fit=True, gem_x=30.0, gem_y=20.0,
+                          gem_r=5.5),
+            "slots": SLOTS}
+    r = _api("POST", f"/api/cards/{did}/frame/occupancy", json=base)
+    assert r.status_code == 200, r.text
+    gem = _gem(r.json()["occupancy"])
+    assert gem["manual"] is True and (gem["cx"], gem["cy"], gem["r"]) == \
+        (30.0, 20.0, 5.5)
+    # `1e309` n'est PAS testable ici : `json.dumps` refuse `inf` avant même
+    # que la requête parte (le corps ne peut donc pas exister). La forme qui
+    # ARRIVE vraiment par la frontière est la CHAÎNE — et c'est celle-là que
+    # `_ou_nul` doit renvoyer à l'automatique.
+    for folles in ({"gem_x": "haut"}, {"gem_r": [1, 2]}, {"gem_y": None},
+                   {"gem_x": "1e309"}, {"gem_r": "Infinity"},
+                   {"gem_x": {"x": 1}}):
+        body = {"fmt": "poker_eu", "dpi": 300,
+                "frame": dict(GEM_FRAME, fit=True, **folles), "slots": SLOTS}
+        rr = _api("POST", f"/api/cards/{did}/frame/occupancy", json=body)
+        assert rr.status_code == 200, (folles, rr.text)

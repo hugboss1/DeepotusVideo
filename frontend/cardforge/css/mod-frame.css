@@ -118,6 +118,23 @@
 .cf-frame .cff-wbtn { grid-column: 1 / -1; }
 .cf-frame .cff-winread b { color: var(--ink-strong); }
 
+/* ── les elements liberes (phase 5, D3) ──────────────────────────────────────
+   Trois rangees de reglage qui doivent RENTRER dans la colonne : la lecon
+   `.cff-acts` (160 px de defilement horizontal mesures) dit qu'un cff-row de
+   champs numeriques se replie ou deborde. `flex-wrap` est deja sur `.cff-row` ;
+   ce qui manque ici est la BASE de chaque champ, sans quoi trois `numRow` a
+   `flex: 1` se serrent sous 60 px et leur pastille de bornes deborde. */
+.cf-frame .cff-cornadj > *, .cf-frame .cff-winline > * { flex: 1 1 148px; min-width: 0; }
+.cf-frame .cff-gemadj { align-items: flex-end; }
+.cf-frame .cff-gemadj .cff-gf { flex: 1 1 96px; min-width: 0; }
+.cf-frame .cff-gemadj .cff-gf input { width: 100%; }
+/* le champ VIDE vaut « automatique » : le texte de substitution le DIT, en
+   italique et en ton attenue — un zero grise aurait laisse croire a un reglage
+   pris a zero. */
+.cf-frame .cff-gemadj .cff-gf input::placeholder { font-style: italic; color: var(--ink-muted); }
+.cf-frame .cff-gemauto { flex: 0 0 auto; }
+.cf-frame .cff-gemread b { color: var(--ink-strong); }
+
 /* ── occupation : le compteur de recouvrements et la table des meubles ───── */
 .cf-frame .cff-occ { font-size: 10.5px; font-family: var(--f-mono); color: var(--ink-muted);
   border: 1px solid var(--stroke); background: var(--bg-base); border-radius: 99px;

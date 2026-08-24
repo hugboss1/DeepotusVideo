@@ -212,6 +212,32 @@
        « ne pas le montrer sans le perdre », exactement ce qu'un curseur
        d'opacite veut dire. */
     decor_alpha: [0, 1],
+    /* ── LES ELEMENTS LIBERES (phase 5, D3) ────────────────────────────────
+       LA GEMME. Son rayon part de 1 mm et non de 0 : une gemme a rayon nul
+       n'est pas un reglage, c'est une gemme qu'on aurait du eteindre (le
+       booleen `gem` existe pour cela, exactement comme `back_scale` refuse
+       l'echelle nulle). Le plafond 20 mm est la moitie du petit cote d'un
+       poker : au-dela l'anneau n'aurait plus de gemme mais une lune.
+       SA POSITION est en millimetres depuis le coin de COUPE, la meme
+       origine que la fenetre et que les slots de P3 — jamais deux
+       conventions dans un meme document. Le plafond 1000 est celui de
+       `_win_of` du backend, pour la meme raison : la borne qui MORD est
+       celle du format, appliquee au trace (`placeGem`), pas un millimetre
+       absolu. */
+    gem_r_mm: [1, 20],
+    gem_xy_mm: [0, 1000],
+    /* LES ORNEMENTS DE COIN. Le decalage est SIGNE (vers le dedans quand il
+       est positif, vers la coupe quand il est negatif) et s'applique dans le
+       repere MIROIR de chaque coin — voir `cornerOrn`. L'echelle part de
+       0,25 : sous cela l'ornement est un point, et le rendre invisible sans
+       l'eteindre serait le meme piege que l'echelle nulle d'un calque. */
+    corner_off_mm: [-20, 20],
+    corner_scale: [0.25, 3],
+    /* LE LISERE PROPRE DE LA FENETRE (§D3). Son plafond est 4 mm : au-dela,
+       sur un poker, le trait devient une moulure et il en existe deja une
+       par famille. Il va bien jusqu'a 0 — c'est le defaut, et « 0 » veut
+       dire « aucun lisere », pas « un liseré invisible ». */
+    win_stroke_mm: [0, 4],
   };
   /* ── LA BORNE QUE LE FORMAT IMPOSE, ET QU'IL MANQUAIT ─────────────────────
      BUG TROUVE PAR LE BALAYAGE DES DOUZE FORMATS, mesure avant correction :
@@ -483,8 +509,38 @@
     line_color: "", metal: true, metal_tone: "gold",
     grad: true, grad_angle: 118,
     corner: "scroll", gem: true, banner: true, banner_text: "",
+    /* ── LA GEMME LIBEREE (phase 5, D3) ──────────────────────────────────
+       Trois cles, et `null` vaut AUTOMATIQUE — exactement comme `window`
+       juste dessous, et pour la meme raison : le calcul de `placeGem` reste
+       le DEFAUT (il suit les mentions de P3, essaie les quatre coins, se
+       range en ecrin quand aucun n'est libre), et la main de l'utilisateur
+       GAGNE des qu'elle se pose. Chaque cle est independante : ne toucher
+       que le rayon garde la position calculee.
+       Nees nulles, elles ne changent l'aspect d'AUCUN jeu deja enregistre —
+       la meme regle que le Sceau eteint et le decor sans source. */
+    gem_x: null, gem_y: null, gem_r: null,
+    /* ── LES ORNEMENTS DE COIN, REGLABLES ────────────────────────────────
+       UN REGLAGE GLOBAL x4, ET C'EST UNE DECISION. Les quatre ornements
+       sont peints par `atCorners`, qui pose le MEME dessin dans quatre
+       reperes miroirs (scale ±1) : c'est cette symetrie qui fait qu'ils se
+       lisent comme un cadre et non comme quatre autocollants. Quatre
+       offsets independants (12 cles) permettraient de la casser sans qu'un
+       seul ecran ne le dise, pour un besoin que personne n'a formule. On
+       expose donc UN decalage et UNE echelle, appliques dans le repere
+       miroir de chaque coin — la symetrie tient par construction. Un
+       reglage par coin reste ouvert le jour ou quelqu'un le demande ; il
+       coutera trois cles de plus, pas une refonte. */
+    corner_dx: 0, corner_dy: 0, corner_scale: 1,
     plate: true, plate_alpha: 0.92,
     window: null, win_lock: false,
+    /* ── LE LISERE PROPRE DE LA FENETRE (phase 5, D3) ────────────────────
+       « La main sur les bordures des zones d'illustration. » Il est
+       INDEPENDANT de l'anneau de famille (`winMoulding`, une signature de
+       silhouette) et du filet interieur (`line_mm`, l'encre du cadre) :
+       c'est un trait de plus, pose sur le MEME chemin de fenetre, avec sa
+       couleur et son epaisseur. Ne 0 mm, il ne peint rien — les huit
+       familles restent a l'octet ce qu'elles etaient. */
+    win_stroke_color: "#000000", win_stroke_mm: 0,
     /* la fenetre EFFECTIVE, publiee pour les autres pieces : [x, y, w, h] en
        mm depuis la coupe, ou null quand aucun cadre ne masque rien. C'est le
        contrat que P1 lit (`frame.art_window`) depuis le premier jour — la
@@ -542,6 +598,27 @@
   const r2 = (v) => Math.round(v * 100) / 100;
   const byId = (arr, id) => { for (let i = 0; i < arr.length; i++) if (arr[i].id === id) return arr[i]; return null; };
   const idx = (arr, id) => { for (let i = 0; i < arr.length; i++) if (arr[i].id === id) return i; return 0; };
+  /* UNE COULEUR ECRITE, ou rien. Les trois formes que la toile ET le
+     backend lisent identiquement — jumeau du `_color` de cards/type.py. */
+  const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
+  /* ── UNE LONGUEUR QUI A LE DROIT DE NE PAS EXISTER ────────────────────────
+     `null` = AUTOMATIQUE, et ce n'est PAS zero. Le generique `num()` prend
+     `Number(null) === 0` et `Number("") === 0` la ou `float(None)` du miroir
+     LEVE et retombe sur « absent » : deux valeurs pour un meme document, donc
+     une pastille de verification rouge sans qu'un pixel bouge. On accepte donc
+     un NOMBRE FINI, ou une chaine numerique de la forme que les deux langages
+     lisent pareil (`BACK_NUM_RE`), et RIEN d'autre — tout le reste est
+     `null`. Jumeau d'execution de `_ou_nul` de cards/frame.py. */
+  function orNul(v, borne) {
+    let n = null;
+    if (typeof v === "number") n = isFinite(v) ? v : null;
+    else if (typeof v === "string" && BACK_NUM_RE.test(v)) {
+      const q = Number(v);
+      n = isFinite(q) ? q : null;
+    }
+    if (n === null) return null;
+    return r2(cl(n, borne[0], borne[1]));
+  }
 
   function rgb(h) {
     const s = String(h || "").replace("#", "");
@@ -574,7 +651,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 32 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 40 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -593,6 +670,21 @@
     o.plate_alpha = cl(num(o.plate_alpha, DEFAULTS.plate_alpha), 0, 1);
     o.socle_alpha = cl(num(o.socle_alpha, DEFAULTS.socle_alpha), 0, 1);
     o.grad_angle = cl(num(o.grad_angle, DEFAULTS.grad_angle), 0, 360);
+    /* ── LA GEMME LIBEREE : `null` VAUT ABSENT, PAS ZERO ──────────────────
+       `num()` prendrait `Number(null) === 0` et poserait la gemme au coin
+       (0, 0) la ou le miroir Python rendrait le DEFAUT calcule : deux
+       positions pour un meme document, donc une pastille de verification
+       rouge sans qu'un pixel bouge (la lecon `width_mm: null` du Sceau,
+       rejouee). `orNul` tranche pour « absent » AVANT de borner. */
+    o.gem_x = orNul(s.gem_x, LIMITS.gem_xy_mm);
+    o.gem_y = orNul(s.gem_y, LIMITS.gem_xy_mm);
+    o.gem_r = orNul(s.gem_r, LIMITS.gem_r_mm);
+    o.corner_dx = cl(num(o.corner_dx, DEFAULTS.corner_dx), LIMITS.corner_off_mm[0], LIMITS.corner_off_mm[1]);
+    o.corner_dy = cl(num(o.corner_dy, DEFAULTS.corner_dy), LIMITS.corner_off_mm[0], LIMITS.corner_off_mm[1]);
+    o.corner_scale = cl(num(o.corner_scale, DEFAULTS.corner_scale), LIMITS.corner_scale[0], LIMITS.corner_scale[1]);
+    o.win_stroke_mm = cl(num(o.win_stroke_mm, DEFAULTS.win_stroke_mm), LIMITS.win_stroke_mm[0], LIMITS.win_stroke_mm[1]);
+    o.win_stroke_color = HEX_RE.test(String(o.win_stroke_color || ""))
+      ? String(o.win_stroke_color).toLowerCase() : DEFAULTS.win_stroke_color;
     o.seal = sealOf(s.seal);
     o.decor = decorOf(s.decor);
     o.back_image = backImageOf(s.back_image);
@@ -876,7 +968,38 @@
     return { id: "banner", label: "bandeau de rareté", z: 70, movable: true, lane: lane,
       box: [r2(x), r2(y), r2(w), r2(h)] };
   }
-  function placeGem(tw, th, inner, rank, ms, fit) {
+  /* ── LA GEMME POSEE A LA MAIN (phase 5, D3) ───────────────────────────────
+     Ce que le document porte : `gem_x`, `gem_y` (le CENTRE, en mm depuis le
+     coin de coupe) et `gem_r` (le rayon, en mm). Chacune vaut `null` =
+     automatique, et chacune est INDEPENDANTE : bouger la gemme sans toucher
+     sa taille garde le rayon calcule, et l'inverse aussi.
+
+     TROIS CONSEQUENCES, ET AUCUNE N'EST UN DETAIL.
+
+     1. L'ECRIN NE SE FORME PLUS. Le calcul automatique, quand aucun coin
+        n'est libre, range la gemme SOUS le chiffre le plus recouvert : il
+        recalcule alors cx, cy ET r depuis la boite de l'hote. Le faire
+        au-dessus d'une position choisie a la main effacerait precisement les
+        nombres que la main vient de poser. La gemme posee reste donc en
+        couche 70, avec ses crans — et le compteur de recouvrements la juge
+        comme il juge le ruban : c'est LUI qui dit, en millimetres carres, ce
+        que le geste a coute.
+     2. LE COTE DES CRANS SE DEDUIT DE LA POSITION, pas du coin d'origine.
+        Les crans de rarete sortent de la gemme vers l'exterieur ; les garder
+        du cote du coin que le calcul avait choisi les enverrait hors carte
+        des que l'utilisateur traverse le milieu. Passe la demi-largeur, ils
+        rentrent.
+     3. LA BOITE RESERVEE GARDE LA MEME FORME (gemme + portee des crans) :
+        c'est elle que `occupancy` compte, et une boite qui retrecirait a la
+        pose manuelle ferait DISPARAITRE des recouvrements bien reels. */
+  function gemManuel(man) {
+    const m = (man && typeof man === "object" && !Array.isArray(man)) ? man : {};
+    const x = orNul(m.x, LIMITS.gem_xy_mm);
+    const y = orNul(m.y, LIMITS.gem_xy_mm);
+    const r = orNul(m.r, LIMITS.gem_r_mm);
+    return { x: x, y: y, r: r, on: (x !== null || y !== null || r !== null) };
+  }
+  function placeGem(tw, th, inner, rank, ms, fit, man) {
     let r = GEM_R_MM;
     const reach = 1.5 * r + Math.max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM;
     const off = inner + r * GEM_OFF_F;
@@ -893,6 +1016,19 @@
       if (!fit || cost <= 0) break;
     }
     let cx = best.cx, cy = best.cy, box = best.box, name = best.name;
+    const mn = gemManuel(man);
+    if (mn.on) {
+      cx = mn.x === null ? cx : cl(mn.x, 0, tw);
+      cy = mn.y === null ? cy : cl(mn.y, 0, th);
+      r = mn.r === null ? r : mn.r;
+      const port = 1.5 * r + Math.max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM;
+      const d2 = (cx > tw / 2) ? -1 : 1;
+      box = [d2 > 0 ? cx - r : cx - port, cy - r, r + port, 2 * r];
+      return { id: "gem", label: "gemme de rareté", z: 70, movable: true,
+        lane: "posée à la main", dir: d2, seat: false, manual: true,
+        shape: "disc", pips: rank, cx: r2(cx), cy: r2(cy), r: r2(r),
+        box: [r2(box[0]), r2(box[1]), r2(box[2]), r2(box[3])] };
+    }
     const seat = !!fit && best.cost > TOL_MM2;
     let host = null, shape = "disc";
     if (seat) {
@@ -914,6 +1050,7 @@
     }
     return { id: "gem", label: seat ? ("gemme en logement de " + host.id) : "gemme de rareté",
       z: seat ? 40 : 70, movable: true, lane: name, dir: best.dir, seat: seat,
+      manual: false,
       shape: shape, pips: seat ? 0 : rank, cx: r2(cx), cy: r2(cy), r: r2(r),
       box: [r2(box[0]), r2(box[1]), r2(box[2]), r2(box[3])] };
   }
@@ -931,7 +1068,10 @@
       : [r2(tw * 0.105), r2(th * 0.075), r2(tw * 0.79), r2(th * 0.505)];
     const boxes = [{ id: "window", label: "fenêtre d'illustration", z: 40, movable: false, lane: "posée", box: wbox }];
     const rank = idx(RARITIES, fr.rarity) + 1;
-    if (fr.gem !== false) boxes.push(placeGem(tw, th, inner, rank, ms, fit));
+    if (fr.gem !== false) {
+      boxes.push(placeGem(tw, th, inner, rank, ms, fit,
+        { x: fr.gem_x, y: fr.gem_y, r: fr.gem_r }));
+    }
     if (fr.banner !== false) {
       const lab = String(fr.banner_text || (byId(RARITIES, fr.rarity) || {}).label || "").trim().toUpperCase();
       if (lab) boxes.push(placeBanner(tw, th, inner, edge, lab, ms, wbox, fit));
@@ -2253,19 +2393,58 @@
     cs.forEach((c) => { ctx.save(); ctx.translate(c[0], c[1]); ctx.scale(c[2], c[3]); fn(ctx); ctx.restore(); });
   }
 
+  /* ── LE LISERE PROPRE DE LA FENETRE ──────────────────────────────────────
+     Trois refus, et ils sont le contrat de ce trait :
+       · une epaisseur nulle NE PEINT RIEN — pas de trait a 0,01 mm que la
+         presse refuserait (la lecon du plancher du Sceau) ;
+       · une couleur illisible NE PEINT RIEN non plus : elle ne vaut pas
+         « noir » (la lecon de `plate_color` de P3 — peindre du noir parce
+         qu'un import a ecrit « bleu » est un defaut visible et muet) ;
+       · il ne touche NI `line_mm` NI la moulure de famille : trois traits
+         independants sur un meme chemin, et chacun se regle seul. */
+  function windowLiner(ctx, m, f, shape) {
+    const w = num(f.win_stroke_mm, 0);
+    if (!(w > 0)) return;
+    const hex = String(f.win_stroke_color == null ? "" : f.win_stroke_color);
+    if (!HEX_RE.test(hex)) return;
+    ctx.save();
+    ctx.strokeStyle = hex;
+    ctx.lineWidth = m.u * w;
+    ctx.beginPath(); winPath(ctx, m, shape); ctx.stroke();
+    ctx.restore();
+  }
+
   /* ═══════════════════════════════════════════════════════════════════════
      5. ORNEMENTS DE COIN
      ═══════════════════════════════════════════════════════════════════════ */
   function cornerOrn(ctx, m, f) {
     if (f.corner === "none") return;
-    const u = m.u;
     const ink = inkPaint(ctx, m, f, false);
     ctx.save();
     ctx.strokeStyle = ink; ctx.fillStyle = ink;
-    ctx.lineWidth = Math.max(0.6, m.line * 0.9 || u * 0.3);
     ctx.lineJoin = "round"; ctx.lineCap = "round";
-    const off = m.edge + u * 1.6;
-    const R = { x: m.trim.x + off, y: m.trim.y + off, w: m.trim.w - 2 * off, h: m.trim.h - 2 * off };
+    const off = m.edge + m.u * 1.6;
+    /* ── LE DECALAGE ET L'ECHELLE, DANS LE REPERE MIROIR (phase 5, D3) ─────
+       `atCorners` translate au coin puis applique `scale(±1, ±1)` : dans ce
+       repere, « + » va TOUJOURS vers le dedans de la carte, aux quatre coins
+       a la fois. Un decalage pose ici garde donc la symetrie par
+       construction — c'est tout l'interet du reglage global (voir DEFAULTS).
+       L'echelle multiplie l'unite `u` du dessin, jamais des coordonnees une
+       a une : les vingt-trois nombres de `bracket`/`scroll`/`stud`/
+       `fleuron`/`spike` sont tous ecrits en `u`, donc l'ornement grandit
+       ENTIER, epaisseur de trait comprise (elle aussi part de `u`).
+       La BORNE EST CELLE DU FORMAT, pas un millimetre absolu : un decalage
+       de 20 mm sur un `micro` (31,75 mm de large) enverrait les quatre
+       ornements se croiser au centre. On rabote a ce que la demi-carte
+       laisse, exactement comme `model()` rabote `edge_mm` et `inner_mm`. */
+    const kMax = Math.max(0, Math.min(m.trim.w, m.trim.h) / 2 - off);
+    const cdx = cl(num(f.corner_dx, 0) * m.u, -kMax, kMax);
+    const cdy = cl(num(f.corner_dy, 0) * m.u, -kMax, kMax);
+    const cs = cl(num(f.corner_scale, 1), LIMITS.corner_scale[0], LIMITS.corner_scale[1]);
+    const u = m.u * cs;
+    ctx.lineWidth = Math.max(0.6, m.line * 0.9 || u * 0.3);
+    const R = { x: m.trim.x + off + cdx, y: m.trim.y + off + cdy,
+      w: m.trim.w - 2 * (off + cdx), h: m.trim.h - 2 * (off + cdy) };
     atCorners(ctx, R, (c) => {
       if (f.corner === "bracket") {
         c.beginPath(); c.moveTo(0, u * 7); c.lineTo(0, 0); c.lineTo(u * 7, 0); c.stroke();
@@ -2676,6 +2855,20 @@
       ctx.beginPath(); winPath(ctx, m, shape); ctx.stroke();
       ctx.restore();
     }
+
+    /* 6 bis. LE LISERE PROPRE DE LA FENETRE (phase 5, D3).
+          « La main sur les bordures des zones d'illustration. » Il vient
+          APRES le filet interieur du cadre et APRES le Sceau, parce qu'il est
+          le trait de l'utilisateur : celui qu'il pose EST celui qu'il voit,
+          au lieu d'etre a moitie mange par une signature de famille qu'il n'a
+          pas demandee. Il partage le CHEMIN de la fenetre (`winPath`) avec la
+          moulure, l'ombre portee et le filet — quatre traits, un seul trace :
+          « le piege des deux cadres » reste inexprimable ici aussi.
+          Ne 0 mm, il ne peint rien : pas un appel, pas un octet. C'est ce qui
+          garde les huit familles identiques a l'octet apres son arrivee, et
+          c'est ce que la QA de silhouettes mesure (elle rend les familles sur
+          les DEFAUTS). */
+    windowLiner(ctx, m, f, shape);
 
     /* 7. ornements de coin */
     cornerOrn(ctx, m, f);
@@ -3795,6 +3988,22 @@
     g2.body.appendChild(wrap);
     UI.winRead = h("p", "hint cff-winread");
     g2.body.appendChild(UI.winRead);
+    /* ── LE LISERE PROPRE DE LA FENETRE (phase 5, D3) ────────────────────
+       Il vit dans le groupe de la FENETRE et non dans « Filets » : c'est un
+       reglage de cette zone-la, et le ranger avec `line_mm` aurait laisse
+       croire qu'il en depend. */
+    const wl = h("div", "cff-row cff-winline");
+    UI.winStrokeColor = h("input", "cff-col");
+    UI.winStrokeColor.type = "color";
+    UI.winStrokeColor.title = "Couleur du liseré propre de la fenêtre — "
+      + "indépendant de la moulure de la famille et du filet du cadre";
+    UI.winStrokeColor.addEventListener("input", () =>
+      set({ win_stroke_color: UI.winStrokeColor.value }, "liseré de fenêtre"));
+    wl.appendChild(field("Liseré", UI.winStrokeColor));
+    UI.winStroke = numRow("Épaisseur du liseré", "win_stroke_mm",
+      LIMITS.win_stroke_mm[0], LIMITS.win_stroke_mm[1], 0.05, true);
+    wl.appendChild(UI.winStroke.el);
+    g2.body.appendChild(wl);
     B.appendChild(g2.el);
 
     /* ── ornements ── */
@@ -3805,6 +4014,40 @@
     UI.gem = check("Gemme de rareté", (v) => set({ gem: v }, "gemme"));
     orow.appendChild(UI.gem.el);
     g3.body.appendChild(orow);
+    /* ── LES ORNEMENTS DE COIN, REGLABLES (phase 5, D3) ──────────────────
+       Un decalage, une echelle, x4 : la symetrie tient par construction
+       (voir `cornerOrn`). */
+    const corn = h("div", "cff-row cff-cornadj");
+    UI.cornDx = numRow("Coins : décalage X", "corner_dx",
+      LIMITS.corner_off_mm[0], LIMITS.corner_off_mm[1], 0.1, true);
+    UI.cornDy = numRow("Coins : décalage Y", "corner_dy",
+      LIMITS.corner_off_mm[0], LIMITS.corner_off_mm[1], 0.1, true);
+    UI.cornS = numRow("Coins : échelle", "corner_scale",
+      LIMITS.corner_scale[0], LIMITS.corner_scale[1], 0.05, true, " x");
+    corn.appendChild(UI.cornDx.el); corn.appendChild(UI.cornDy.el);
+    corn.appendChild(UI.cornS.el);
+    g3.body.appendChild(corn);
+    /* ── LA GEMME LIBEREE (phase 5, D3) ──────────────────────────────────
+       Trois champs et un bouton. Ils ne sont pas la commodite du glisser :
+       ils sont la SEULE facon de poser un chiffre exact, et c'est par eux
+       que le placement se relit. La ligne d'etat juste dessous dit lequel
+       des deux regimes est en vigueur — le patron T4. */
+    const gmrow = h("div", "cff-row cff-gemadj");
+    UI.gemX = gemField("x", "Gemme X");
+    UI.gemY = gemField("y", "Gemme Y");
+    UI.gemR = gemField("r", "Rayon");
+    gmrow.appendChild(UI.gemX.el);
+    gmrow.appendChild(UI.gemY.el);
+    gmrow.appendChild(UI.gemR.el);
+    const gauto = h("button", "btn sm cff-gemauto", "Auto");
+    gauto.type = "button";
+    gauto.title = "Rend le placement de la gemme au calcul : elle réessaie les "
+      + "quatre coins et se range en écrin quand aucun n'est libre";
+    gauto.addEventListener("click", gemAuto);
+    gmrow.appendChild(gauto);
+    g3.body.appendChild(gmrow);
+    UI.gemRead = h("p", "hint cff-gemread");
+    g3.body.appendChild(UI.gemRead);
     const brow = h("div", "cff-row");
     UI.banner = check("Bandeau", (v) => set({ banner: v }, "bandeau"));
     UI.bannerText = h("input", "cff-txt");
@@ -4156,6 +4399,42 @@
     el.appendChild(row);
     return { el: el, rg: rg, nb: nb, rd: rd, key: key, unit: unit };
   }
+  /* ── UN CHAMP DE GEMME ────────────────────────────────────────────────────
+     Le champ VIDE vaut « automatique » et n'est pas zero : c'est la meme
+     distinction que `null` cote document, portee jusqu'au clavier. Vider le
+     champ rend donc CETTE cle au calcul (les deux autres restent), et le
+     bouton « Auto » les rend toutes les trois. */
+  function gemField(k, lbl) {
+    const el = h("label", "fld cff-wf cff-gf");
+    el.appendChild(h("span", "lbl", esc(lbl)));
+    const i = h("input");
+    i.type = "number"; i.step = 0.25;
+    i.placeholder = "auto";
+    i.title = "Millimètres depuis le coin de coupe · vide = placement calculé";
+    i.addEventListener("change", () => {
+      const s = String(i.value).trim();
+      const key = "gem_" + k;
+      const o = {};
+      if (s === "") { o[key] = null; set(o, "gemme automatique"); return; }
+      const g = CF.geom(), f0 = f(), gm = gemDe(g, f0);
+      const avant = !!(gm && gm.manual);
+      const borne = (k === "r") ? LIMITS.gem_r_mm : LIMITS.gem_xy_mm;
+      /* LES TROIS CLES PARTENT ENSEMBLE — meme raison qu'au glisser : poser
+         une seule coordonnee laisserait les deux autres au calcul, qui
+         REBOUGE des que P3 deplace une mention. Le champ dit un chiffre ; le
+         document doit dire un etat. */
+      o.gem_x = (gm ? r2(gm.cx) : 0);
+      o.gem_y = (gm ? r2(gm.cy) : 0);
+      o.gem_r = (gm ? r2(gm.r) : GEM_R_MM);
+      o[key] = r2(cl(num(s, o[key]), borne[0], borne[1]));
+      set(o, "gemme");
+      ditLeGel(avant);
+    });
+    el.appendChild(i);
+    const px = h("i", "cff-px sm");
+    el.appendChild(px);
+    return { el: el, i: i, px: px };
+  }
   function winField(k, lbl) {
     const el = h("label", "fld cff-wf");
     el.appendChild(h("span", "lbl", esc(lbl)));
@@ -4207,11 +4486,25 @@
     const s = Math.min((MAP.w - 2 * pad) / g.trim_mm[0], (MAP.h - 2 * pad) / g.trim_mm[1]);
     return { g: g, s: s, ox: (MAP.w - g.trim_mm[0] * s) / 2, oy: (MAP.h - g.trim_mm[1] * s) / 2 };
   }
+  /* ── LA GEMME SUR LE PLAN (phase 5, D3) ───────────────────────────────────
+     La mini-carte EST la surface de geste de P2 : c'est la que la fenetre se
+     deplace, se retaille et revient a l'automatique. La gemme y entre par la
+     meme porte, avec le meme vocabulaire (glisser = deplacer, l'anneau =
+     redimensionner, double-clic = auto) — un second mecanisme de glisser
+     ailleurs aurait ete un second `mapHit` a tenir a jour.
+     `gemDe` rend la gemme TELLE QUE LE PLAN LA PLACE : ce n'est pas une
+     seconde formule, c'est `placeGem` lui-meme, celui qui peint. */
+  function gemDe(g, f0) {
+    if (f0.gem === false) return null;
+    const b = findBox(planOf(g, f0), "gem");
+    return b ? b : null;
+  }
   /* `w` est la fenetre A DESSINER, pas forcement celle du document : pendant
      un geste, l'appelant passe la fenetre CANDIDATE (locale) pour que la
      mini-carte suive chaque evenement sans attendre le patch coalesce au rAF
-     (barre 9.6-2). `drawMap()` reste l'appel « etat courant du document ». */
-  function drawMapWith(w) {
+     (barre 9.6-2). `drawMap()` reste l'appel « etat courant du document ».
+     `gm` joue le meme role pour la gemme. */
+  function drawMapWith(w, gm) {
     const cv = UI.map;
     if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -4238,6 +4531,23 @@
     c.fillStyle = strong;
     const hx = X(w.x + w.w), hy = Y(w.y + w.h);
     c.fillRect(hx - 5, hy - 5, 10, 10);
+    /* LA GEMME, ET SON ANNEAU DE REDIMENSIONNEMENT. Le disque plein se
+       glisse, l'anneau se tire : deux prises, une seule forme a l'ecran, et
+       `mapHit` lit exactement ces deux zones-la. Le trait CHANGE quand le
+       placement est manuel — c'est le premier des trois endroits ou le gel se
+       dit (avec la ligne d'etat et le bouton « Auto »). */
+    const gb = (gm === undefined) ? gemDe(g, f()) : gm;
+    if (gb) {
+      const gr = Math.max(2.5, gb.r * mg.s);
+      c.beginPath(); c.arc(X(gb.cx), Y(gb.cy), gr, 0, Math.PI * 2);
+      c.fillStyle = rgba(strong.charAt(0) === "#" ? strong : "#ffffff", 0.22);
+      c.fill();
+      c.strokeStyle = gb.manual ? acc : ink;
+      c.lineWidth = gb.manual ? 1.8 : 1;
+      if (!gb.manual) c.setLineDash([2, 2]);
+      c.stroke();
+      c.setLineDash([]);
+    }
     c.fillStyle = ink;
     c.font = '9px ui-monospace, monospace';
     c.textAlign = "center";
@@ -4248,12 +4558,40 @@
   /* ── quelle prise la souris tient-elle ? UNE SEULE formule, relue au
         pointerdown ET au survol (curseur contextuel) : deux copies auraient
         fini par diverger (poignee agrandie d'un cote, oubliee de l'autre). */
-  function mapHit(w, p, mg) {
+  function mapHit(w, p, mg, gm) {
+    /* LA GEMME PASSE AVANT LA FENETRE, et l'ordre est le dessin : elle est
+       peinte PAR-DESSUS (couche 70 contre 40), donc c'est elle que la main
+       attrape quand les deux se recouvrent. L'inverse aurait fait redessiner
+       la fenetre a chaque tentative de saisir une gemme posee dedans. */
+    if (gm) {
+      const d = Math.hypot(p.x - gm.cx, p.y - gm.cy) * mg.s;
+      const rp = Math.max(2.5, gm.r * mg.s);
+      if (d <= rp) return "gem";
+      if (d <= rp + 12) return "gemr";
+    }
     const hx = w.x + w.w, hy = w.y + w.h;
     /* poignee : zone de saisie 12 px a l'ecran (barre 9.6-3 ; etait 8 px). */
     if (Math.abs(p.x - hx) * mg.s < 12 && Math.abs(p.y - hy) * mg.s < 12) return "size";
     if (p.x > w.x && p.x < hx && p.y > w.y && p.y < hy) return "move";
     return "draw";
+  }
+  /* ── LE GEL AUTO -> MANUEL SE DIT (patron T4, phase 4) ────────────────────
+     Poser la gemme a la main lui fait perdre TROIS comportements que
+     personne n'a demande a perdre : elle cesse d'essayer les quatre coins,
+     elle cesse de se ranger en ecrin sous un chiffre, et elle cesse de suivre
+     les mentions quand P3 les deplace. C'est grand et invisible — exactement
+     le cas de la fenetre au T4 de la phase 4, ou l'aveu est ne. La phrase
+     part UNE FOIS, au passage, et la ligne d'etat la garde ensuite. */
+  function ditLeGel(avantManuel) {
+    if (avantManuel) return;
+    M.toast("la gemme est désormais posée à la main : elle ne suit plus "
+      + "les mentions (Ctrl+Z, double-clic ou « Auto » la rendent automatique)");
+  }
+  /* LE RETOUR A L'AUTO EN UN GESTE — les trois cles d'un coup, parce que
+     l'automatique est un ETAT et non trois reglages qu'on remettrait un a un
+     (deux nuls sur trois, c'est encore manuel). */
+  function gemAuto() {
+    set({ gem_x: null, gem_y: null, gem_r: null }, "gemme automatique");
   }
   function wireMap(cv) {
     let drag = null, pendingWin = null, rafId = 0;
@@ -4270,8 +4608,17 @@
       const r = cv.getBoundingClientRect(), mg = mapGeom();
       return { x: (ev.clientX - r.left - mg.ox) / mg.s, y: (ev.clientY - r.top - mg.oy) / mg.s };
     };
+    /* LA GEMME PARTAGE LE MEME COALESCEUR que la fenetre — un seul rAF, un
+       seul patch par frame (spec 9.6-1), quel que soit le meuble tire. Deux
+       coalesceurs auraient rendu DEUX patchs par frame des que les deux
+       gestes se suivent, et le contrat de fluidite dit UN. */
+    let pendingGem = null;
     const flushWin = () => {
       rafId = 0;
+      if (pendingGem) {
+        const q = pendingGem; pendingGem = null;
+        M.patch(q);
+      }
       if (!pendingWin) return;
       const n = pendingWin; pendingWin = null;
       M.patch({ window: n });          /* <= 1 patch par frame (spec 9.6-1) */
@@ -4289,10 +4636,22 @@
          sur un etat qui pourrait rester coince (revue 7bis, re-revue,
          item 1). */
       if (!ev.isPrimary) return;
-      const g = CF.geom(), w = winMM(g, f()), p = toMM(ev), mg = mapGeom();
+      const g = CF.geom(), f0 = f(), w = winMM(g, f0), p = toMM(ev), mg = mapGeom();
       cv.setPointerCapture(ev.pointerId);
-      const hit = mapHit(w, p, mg);
-      if (hit === "size") drag = { mode: "size", w: w };
+      const gm = gemDe(g, f0);
+      const hit = mapHit(w, p, mg, gm);
+      if (hit === "gem" || hit === "gemr") {
+        /* CE QUI EST EMPILE, C'EST L'ETAT D'AVANT — nuls compris. Empiler la
+           position CALCULEE ferait de Ctrl+Z un « repose la ou c'etait », pas
+           un « rends-la automatique » : le retour a l'auto serait perdu au
+           premier geste, et l'aveu deviendrait un mensonge. */
+        drag = { mode: hit, gm: gm,
+          dx: p.x - gm.cx, dy: p.y - gm.cy,
+          etait: { gem_x: has(CF.doc().frame || {}, "gem_x") ? (CF.doc().frame || {}).gem_x : null,
+            gem_y: has(CF.doc().frame || {}, "gem_y") ? (CF.doc().frame || {}).gem_y : null,
+            gem_r: has(CF.doc().frame || {}, "gem_r") ? (CF.doc().frame || {}).gem_r : null },
+          manuel: !!gm.manual };
+      } else if (hit === "size") drag = { mode: "size", w: w };
       else if (hit === "move") drag = { mode: "move", w: w, dx: p.x - w.x, dy: p.y - w.y };
       else drag = { mode: "draw", w: w, ox: p.x, oy: p.y };
       MAPDRAG = true;
@@ -4302,12 +4661,33 @@
       if (!drag) {
         /* hors geste : curseur contextuel seulement — handler LEGER, aucun
            patch, aucun redessin de la carte (spec 9.6-3). */
-        const g = CF.geom(), w = winMM(g, f()), p = toMM(ev), mg = mapGeom();
-        const hit = mapHit(w, p, mg);
-        cv.style.cursor = hit === "size" ? "nwse-resize" : hit === "move" ? "move" : "crosshair";
+        const g = CF.geom(), f0 = f(), w = winMM(g, f0), p = toMM(ev), mg = mapGeom();
+        const hit = mapHit(w, p, mg, gemDe(g, f0));
+        cv.style.cursor = hit === "gem" ? "move" : hit === "gemr" ? "ew-resize"
+          : hit === "size" ? "nwse-resize" : hit === "move" ? "move" : "crosshair";
         return;
       }
       const g = CF.geom(), tw = g.trim_mm[0], th = g.trim_mm[1], p = toMM(ev), w = drag.w;
+      if (drag.mode === "gem" || drag.mode === "gemr") {
+        const gm = drag.gm;
+        let q;
+        if (drag.mode === "gem") {
+          const cx = r2(cl(p.x - drag.dx, 0, tw)), cy = r2(cl(p.y - drag.dy, 0, th));
+          /* LE RAYON PART AVEC — et c'est necessaire, pas decoratif : sans
+             lui, un jeu dont les mentions liberent un coin verrait la gemme
+             DEPLACEE garder sa position et reprendre le rayon calcule, donc
+             changer de taille toute seule. Un geste, un etat complet. */
+          q = { gem_x: cx, gem_y: cy, gem_r: r2(gm.r) };
+        } else {
+          const rr = r2(cl(Math.hypot(p.x - gm.cx, p.y - gm.cy),
+            LIMITS.gem_r_mm[0], LIMITS.gem_r_mm[1]));
+          q = { gem_x: r2(gm.cx), gem_y: r2(gm.cy), gem_r: rr };
+        }
+        pendingGem = q;
+        if (!rafId) rafId = scheduleFrame(flushWin);
+        drawMapWith(winMM(g, f()), { cx: q.gem_x, cy: q.gem_y, r: q.gem_r, manual: true });
+        return;
+      }
       let n;
       if (drag.mode === "move") n = { x: p.x - drag.dx, y: p.y - drag.dy, w: w.w, h: w.h, r: w.r };
       else if (drag.mode === "size") {
@@ -4327,9 +4707,19 @@
     const end = (ev) => {
       MAPDRAG = false;
       if (!drag) return;
+      const d0 = drag;
       const prev = drag.w;
       drag = null;
       if (rafId) { cancelFrame(rafId); rafId = 0; }
+      if (d0.mode === "gem" || d0.mode === "gemr") {
+        if (pendingGem) { M.patch(pendingGem); pendingGem = null; }
+        HIST.push({ before: d0.etait, label: "gemme" });
+        REDO.length = 0;
+        ditLeGel(d0.manuel);
+        sync();
+        if (ev) ev.preventDefault();
+        return;
+      }
       if (pendingWin) { M.patch({ window: pendingWin }); pendingWin = null; }
       /* une seule entree d'annulation par geste, pas une par pixel */
       HIST.push({ before: { window: { x: prev.x, y: prev.y, w: prev.w, h: prev.h, r: prev.r } }, label: "fenêtre" });
@@ -4339,7 +4729,15 @@
     };
     cv.addEventListener("pointerup", end);
     cv.addEventListener("pointercancel", end);
-    cv.addEventListener("dblclick", () => set({ window: null }, "fenêtre automatique"));
+    /* LE DOUBLE-CLIC REND L'AUTOMATIQUE — celui du meuble qu'il vise. Sur la
+       gemme il rend les trois cles a `null` (donc au calcul), ailleurs il
+       rend la fenetre a sa proportion. Le meme geste, la meme promesse. */
+    cv.addEventListener("dblclick", (ev) => {
+      const g = CF.geom(), f0 = f(), gm = gemDe(g, f0);
+      const hit = mapHit(winMM(g, f0), toMM(ev), mapGeom(), gm);
+      if (hit === "gem" || hit === "gemr") { gemAuto(); return; }
+      set({ window: null }, "fenêtre automatique");
+    });
     cv.addEventListener("keydown", (ev) => {
       const step = ev.shiftKey ? 0.2 : 1;
       const g = CF.geom(), w = winMM(g, f());
@@ -7068,6 +7466,42 @@
       + " <i>(l'encre en plus autour de la rogne, sur les quatre côtés)</i>"
       + " · <b>Zone sûre</b> " + r2(g.safe_mm) + " mm = <b>" + g.safe_px[0] + " x " + g.safe_px[1] + " px</b> à "
       + r2(g.safe_off_px[0]) + " x " + r2(g.safe_off_px[1]) + " px de la toile";
+
+    /* ── LES ELEMENTS LIBERES : LEURS CHIFFRES, ET L'AVEU DU GEL ───────────
+       La ligne d'etat de la gemme suit le patron T4 : elle NOMME le regime en
+       vigueur, elle donne les millimetres qui le portent, et elle dit ce que
+       le regime manuel a fait perdre. Les trois champs affichent le placement
+       EFFECTIF (celui que `placeGem` pose et que le peintre lit), jamais une
+       seconde formule ; en automatique ils restent VIDES et montrent le
+       chiffre calcule dans leur pastille de droite — un champ prerempli
+       aurait fait croire a un reglage qu'on n'a pas pris. */
+    setNum(UI.cornDx, f0.corner_dx, mmpx(f0.corner_dx));
+    setNum(UI.cornDy, f0.corner_dy, mmpx(f0.corner_dy));
+    setNum(UI.cornS, f0.corner_scale, r2(f0.corner_scale) + " x");
+    setNum(UI.winStroke, f0.win_stroke_mm, mmpx(f0.win_stroke_mm));
+    UI.winStrokeColor.value = f0.win_stroke_color || "#000000";
+    const gmb = gemDe(g, f0);
+    [["x", UI.gemX, "cx"], ["y", UI.gemY, "cy"], ["r", UI.gemR, "r"]].forEach((kv) => {
+      const cle = f0["gem_" + kv[0]];
+      const champ = kv[1];
+      if (document.activeElement !== champ.i) {
+        champ.i.value = (cle === null || cle === undefined) ? "" : r2(cle);
+      }
+      champ.px.textContent = gmb ? (r2(gmb[kv[2]]) + " mm") : "—";
+    });
+    if (!gmb) {
+      UI.gemRead.innerHTML = "Gemme <b>éteinte</b> — la case « Gemme de rareté » la rallume.";
+    } else if (gmb.manual) {
+      UI.gemRead.innerHTML = "Gemme <b>posée à la main</b> — centre "
+        + r2(gmb.cx) + " x " + r2(gmb.cy) + " mm, rayon " + r2(gmb.r) + " mm"
+        + " · elle n'essaie plus les quatre coins et ne se range plus en écrin"
+        + " sous une mention : le compteur d'occupation ci-dessus dit ce que"
+        + " cela coûte. <b>Auto</b> (ou un double-clic sur le plan) la rend au calcul.";
+    } else {
+      UI.gemRead.innerHTML = "Gemme <b>automatique</b> — " + esc(gmb.lane)
+        + ", centre " + r2(gmb.cx) + " x " + r2(gmb.cy) + " mm, rayon "
+        + r2(gmb.r) + " mm · glissez-la sur le plan pour la poser à la main.";
+    }
 
     drawOccupancy(g, f0);
 

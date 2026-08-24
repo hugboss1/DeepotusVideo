@@ -243,6 +243,27 @@ LIMITS = {
     # c'est « ne pas le montrer sans le perdre », ce qu'un curseur d'opacité
     # veut dire.
     "decor_alpha": [0, 1],
+    # ── LES ÉLÉMENTS LIBÉRÉS (phase 5, D3) ─────────────────────────────────
+    # LA GEMME. Son rayon part de 1 mm et non de 0 : une gemme à rayon nul
+    # n'est pas un réglage, c'est une gemme qu'on aurait dû éteindre (le
+    # booléen `gem` existe pour cela, exactement comme `back_scale` refuse
+    # l'échelle nulle). Le plafond 20 mm est la moitié du petit côté d'un
+    # poker : au-delà l'anneau n'aurait plus de gemme mais une lune.
+    # SA POSITION est en millimètres depuis le coin de COUPE, la même origine
+    # que la fenêtre et que les slots de P3. Le plafond 1000 est celui de
+    # `_win_of`, pour la même raison : la borne qui MORD est celle du format,
+    # appliquée au tracé (`_place_gem`), pas un millimètre absolu.
+    "gem_r_mm": [1, 20],
+    "gem_xy_mm": [0, 1000],
+    # LES ORNEMENTS DE COIN. Décalage SIGNÉ (positif = vers le dedans) dans le
+    # repère MIROIR de chaque coin ; l'échelle part de 0,25, sous quoi
+    # l'ornement est un point.
+    "corner_off_mm": [-20, 20],
+    "corner_scale": [0.25, 3],
+    # LE LISERÉ PROPRE DE LA FENÊTRE (D3). Plafond 4 mm : au-delà, sur un
+    # poker, le trait devient une moulure et il en existe déjà une par
+    # famille. 0 veut dire « aucun liseré », pas « un liseré invisible ».
+    "win_stroke_mm": [0, 4],
 }
 
 # ── LA BORNE QUE LE FORMAT IMPOSE ────────────────────────────────────────────
@@ -638,6 +659,34 @@ def _borne(v, defaut: float, lo: float, hi: float) -> float:
     return float(lo) if n < lo else (float(hi) if n > hi else n)
 
 
+def _ou_nul(v, borne) -> float | None:
+    """Une longueur qui a le droit de NE PAS EXISTER — `None` = AUTOMATIQUE.
+
+    Miroir d'exécution de `orNul()` de mod-frame.js. `None` n'est PAS zéro :
+    `Number(null)` vaut 0 côté écran là où `float(None)` lève ici, et une
+    gemme posée au coin (0, 0) d'un côté et au coin calculé de l'autre, c'est
+    une pastille de vérification rouge sans qu'un pixel bouge. On accepte donc
+    un nombre FINI ou une chaîne numérique de la forme que les deux langages
+    lisent pareil (`BACK_NUM_RE`), et rien d'autre.
+
+    LE BOOLÉEN EST REFUSÉ ICI ALORS QUE `_borne` L'ACCEPTE, et c'est voulu :
+    `_borne` sert une opacité (où « vrai » veut dire « à fond » a un sens),
+    celle-ci sert une COORDONNÉE — `gem_x: true` n'est pas « 1 mm », c'est un
+    document abîmé, et l'automatique est la bonne réponse."""
+    if isinstance(v, bool):              # AVANT `int` : bool EST un int
+        return None
+    if isinstance(v, (int, float)):
+        n = float(v)
+    elif isinstance(v, str) and BACK_NUM_RE.fullmatch(v):
+        n = float(v)
+    else:
+        return None
+    if not math.isfinite(n):
+        return None
+    lo, hi = float(borne[0]), float(borne[1])
+    return rnd(lo if n < lo else (hi if n > hi else n), 2)
+
+
 def back_layers_of(raw) -> list:
     """La pile de calques du verso, NORMALISÉE — miroir de `backLayersOf()`.
 
@@ -744,7 +793,7 @@ TOL_FRAC = 0.02       # ... ni sous cette fraction de la mention
 # L'HABILLAGE DES SEPT ARCHÉTYPES — phase 3a, tâche 2 (spec §6.2:318-363)
 #
 # CE QUE C'EST : pour chacun des sept archétypes, un réglage `doc.frame`
-# COMPLET — les 31 clés que l'on écrit, la trente-deuxième (`art_window`)
+# COMPLET — les 39 clés que l'on écrit, la quarantième (`art_window`)
 # étant PUBLIÉE par le painter et jamais saisie. (28 depuis la phase 3c-1 :
 # `seal`, le Sceau prismatique, qui reste ÉTEINT dans les sept habillages — un
 # archétype qui l'allumerait changerait l'aspect de tous les jeux déjà
@@ -800,6 +849,23 @@ _HABILLAGE_COMMUN = {
     # liste blanche des modèles les admet — voir models.py).
     "back_image": "", "back_layers": [],
     "fit": True, "socles": True, "seats": True, "socle_alpha": 0.82,
+    # ── LES ÉLÉMENTS LIBÉRÉS (phase 5, D3) ─────────────────────────────────
+    # LA GEMME EST AUTOMATIQUE DANS LES SEPT HABILLAGES, et ce n'est pas un
+    # oubli : un archétype qui la poserait à la main figerait son placement
+    # pour tous les decks qui en naissent — y compris sur les formats où le
+    # calcul aurait trouvé un coin libre. `None` = le calcul décide, et
+    # l'utilisateur reprend la main quand il le veut. Même raison que
+    # `window: null` : un archétype pose des RÉGLAGES, pas des positions
+    # figées.
+    "gem_x": None, "gem_y": None, "gem_r": None,
+    # LES ORNEMENTS DE COIN à leur place et à leur taille de dessin : les huit
+    # familles ont été mesurées ainsi (silhouettes 8x8), et un archétype qui
+    # les décalerait rendrait cette mesure fausse pour lui seul.
+    "corner_dx": 0, "corner_dy": 0, "corner_scale": 1,
+    # LE LISERÉ DE FENÊTRE À ZÉRO : il ne peint rien, donc les sept habillages
+    # restent à l'octet ce qu'ils étaient. La couleur existe quand même —
+    # c'est par elle que la liste blanche des modèles l'admet (models.py).
+    "win_stroke_color": "#000000", "win_stroke_mm": 0,
 }
 
 
@@ -1208,8 +1274,20 @@ def _place_banner(tw: float, th: float, inner: float, edge: float,
             "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
 
 
+def _gem_manuel(man) -> dict:
+    """Les trois clés de placement de la gemme, normalisées — miroir
+    d'exécution de `gemManuel()` de mod-frame.js. Chacune est INDÉPENDANTE :
+    ne toucher que le rayon garde la position calculée."""
+    m = man if isinstance(man, dict) else {}
+    x = _ou_nul(m.get("x"), LIMITS["gem_xy_mm"])
+    y = _ou_nul(m.get("y"), LIMITS["gem_xy_mm"])
+    r = _ou_nul(m.get("r"), LIMITS["gem_r_mm"])
+    return {"x": x, "y": y, "r": r,
+            "on": x is not None or y is not None or r is not None}
+
+
 def _place_gem(tw: float, th: float, inner: float, rank: int,
-               mentions: list[dict], fit: bool) -> dict:
+               mentions: list[dict], fit: bool, man=None) -> dict:
     """La gemme a quatre logements possibles : les quatre coins de la bande.
 
     Si AUCUN coin n'est libre — c'est le cas dès que la pièce 03 pose un coût
@@ -1236,6 +1314,33 @@ def _place_gem(tw: float, th: float, inner: float, rank: int,
         if not fit or cost <= 0.0:
             break
     cost, name, box, cx, cy, d = best
+    # ── LA GEMME POSÉE À LA MAIN (phase 5, D3) — miroir de `placeGem` ───────
+    # Le calcul ci-dessus reste le DÉFAUT ; la main de l'utilisateur GAGNE.
+    # Trois conséquences, écrites en toutes lettres dans mod-frame.js :
+    #   1. l'écrin ne se forme plus (il recalculerait cx, cy ET r depuis
+    #      l'hôte, effaçant les nombres que la main vient de poser) ;
+    #   2. le côté des crans se déduit de la POSITION, pas du coin d'origine
+    #      (sinon ils sortent de la carte dès qu'on traverse le milieu) ;
+    #   3. la boîte réservée garde la même forme (gemme + portée des crans) :
+    #      c'est elle que `occupancy` compte, et la rétrécir ferait
+    #      DISPARAÎTRE des recouvrements bien réels.
+    mn = _gem_manuel(man)
+    if mn["on"]:
+        if mn["x"] is not None:
+            cx = min(tw, max(0.0, mn["x"]))
+        if mn["y"] is not None:
+            cy = min(th, max(0.0, mn["y"]))
+        if mn["r"] is not None:
+            r = mn["r"]
+        port = 1.5 * r + max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM
+        d2 = -1 if cx > tw / 2 else 1
+        box = [cx - r if d2 > 0 else cx - port, cy - r, r + port, 2 * r]
+        return {"id": "gem", "label": "gemme de rareté", "z": 70,
+                "movable": True, "lane": "posée à la main", "dir": d2,
+                "seat": False, "manual": True, "shape": "disc", "pips": rank,
+                "cx": rnd(cx, 2), "cy": rnd(cy, 2), "r": rnd(r, 2),
+                "box": [rnd(box[0], 2), rnd(box[1], 2),
+                        rnd(box[2], 2), rnd(box[3], 2)]}
     seat = fit and cost > TOL_MM2
     shape, host = "disc", None
     if seat:
@@ -1264,6 +1369,7 @@ def _place_gem(tw: float, th: float, inner: float, rank: int,
                      else "gemme de rareté",
             "z": 40 if seat else 70,
             "movable": True, "lane": name, "dir": d, "seat": seat,
+            "manual": False,
             "shape": shape, "pips": 0 if seat else rank,
             "cx": rnd(cx, 2), "cy": rnd(cy, 2), "r": rnd(r, 2),
             "box": [rnd(box[0], 2), rnd(box[1], 2), rnd(box[2], 2), rnd(box[3], 2)]}
@@ -1297,7 +1403,9 @@ def occupancy(g, f: dict, slots) -> dict:
         if r["id"] == f.get("rarity"):
             rank = i + 1
     if f.get("gem", True):
-        boxes.append(_place_gem(tw, th, inner, rank, mentions, fit))
+        boxes.append(_place_gem(tw, th, inner, rank, mentions, fit,
+                                {"x": f.get("gem_x"), "y": f.get("gem_y"),
+                                 "r": f.get("gem_r")}))
     if f.get("banner", True):
         lab = str(f.get("banner_text") or "").strip()
         if not lab:
