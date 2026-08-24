@@ -139,7 +139,7 @@
     { kind: "relief", params: ["depth_mm", "base_mm", "grid"] },
     { kind: "extrude", params: ["contour", "width_mm", "depth_mm", "segments"] },
     { kind: "mesh3d", params: ["engine", "texture_prompt", "ultra"] },
-    { kind: "material", params: ["mat", "tile_mm", "finish", "aniso", "motifs"] },
+    { kind: "material", params: ["mat", "tile_mm", "finish", "aniso", "ao", "motifs"] },
     { kind: "transform", params: ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"] },
     { kind: "assemble", params: [] },
     { kind: "artifact", params: ["name"] },
@@ -297,6 +297,13 @@
   const HOLO = {
     argent: ["#e6ebf2", "#8c95a1", "#f4f7fa"],
     dorure: ["#f6d98d", "#b4842a", "#ffeec0"],
+    /* phase 5 (D5) — les trois verres. MÊME statut que les deux au-dessus :
+       une ESQUISSE de vignette, pas la recette. Le repli `HOLO_DEFAUT` reste
+       la règle pour tout mot que cette table ne connaît pas — c'est
+       précisément ce qui autorise cette table à ne PAS être un miroir. */
+    verre: ["#e8f6fb", "#8fbfd0", "#fbffff"],
+    "verre-depoli": ["#eef2f4", "#b3bdc2", "#f8fbfc"],
+    translucide: ["#f2ecf9", "#a898c4", "#fdfaff"],
   };
   const HOLO_DEFAUT = ["#d5dae2", "#8a93a0", "#eef1f6"];
   /* CE QU'UN NŒUD SANS CHAMP A QUAND MEME A DIRE. Un corps vide se lit comme
@@ -1481,11 +1488,40 @@
      rien. `tuile` et `anisotropie` ne deviennent donc éditables qu'une fois
      l'une des deux posée — sans quoi le nœud naîtrait vide, serait jeté, et
      la case cochée mentirait sur un graphe qui ne la porte pas. */
+  /* ── LES DEUX FAMILLES DE FINITION (phase 5, D5) — SERVIES, jamais sues ──
+     `finish` reste UN champ, donc les finitions sont exclusives par
+     construction : on n'habille pas une vitre d'un film irisé. Mais il y a
+     désormais DEUX vocabulaires derrière ce champ, et ils ne portent pas les
+     mêmes réglages — l'holographique a un canal d'épaisseur (les motifs) et
+     un peigne (l'anisotropie), le verre n'a ni l'un ni l'autre. « pas
+     aucune » ne suffit donc PLUS à décider ce que ce bloc montre : c'était
+     juste tant qu'il n'y avait qu'une famille, ça ferait maintenant ouvrir le
+     bloc des motifs sur une vitre où rien ne peut s'incruster.
+
+     LES DEUX LISTES VIENNENT DE /info (`material_limits.finishes_holo` /
+     `finishes_glass`) : cet écran ne sait pas ce qu'est « argent » ni
+     « verre », et une recette de plus d'un côté ou de l'autre s'affichera
+     toute seule, du bon côté. */
+  function finishFamille(cle) {
+    const lim = (INFO && INFO.material_limits) || null;
+    return (lim && lim[cle]) || [];
+  }
+
+  function estHolo(f) {
+    return !!f && finishFamille("finishes_holo").indexOf(String(f)) >= 0;
+  }
+
+  function estVerre(f) {
+    return !!f && finishFamille("finishes_glass").indexOf(String(f)) >= 0;
+  }
+
   function finishLabel(f) {
-    /* la seule finition qui ne soit pas holographique est l'absence de
-       finition — le libellé se DÉRIVE de la liste servie, il ne la recopie
-       pas (une recette de plus côté serveur s'affichera toute seule). */
-    return (f === "aucune") ? "aucune" : (f + " holographique");
+    /* le libellé se DÉRIVE de la famille servie, il ne recopie aucune table.
+       Un mot d'une famille future (ou « aucune ») s'affiche tel quel plutôt
+       que d'être décoré d'un adjectif faux. */
+    if (estHolo(f)) return f + " holographique";
+    if (estVerre(f)) return String(f).replace(/-/g, " ");
+    return String(f);
   }
 
   /* ── LES MOTIFS INCRUSTÉS (3c, spec §6.2bis-d :435-440) ──────────────────
@@ -1621,11 +1657,17 @@
     const mat = r.mat;
     const finitions = (lim && lim.finishes) || [];
     const pose = !!mat;
-    /* « holo » = toute finition qui n'est pas l'ABSENCE de finition — dérivé
-       de la valeur portée, jamais d'une liste de recettes recopiée ici (une
-       recette de plus côté serveur s'affichera toute seule, comme pour
-       `finishLabel`). */
-    const holo = !!(mat && mat.finish && mat.finish !== "aucune");
+    /* la LIGNE /info de la matière posée — c'est elle qui porte les cartes
+       réellement présentes sur le disque (`maps`) et la couleur (`color`).
+       Sans elle, deux réglages agissaient à l'aveugle : l'occlusion (cochée
+       sur une matière qui n'en porte aucune) et la teinte du translucide
+       (« la couleur du nœud », que l'écran ne montrait nulle part). */
+    const ligne = (mat && mat.mat)
+      ? mats.filter((x) => x.id === mat.mat)[0] || null : null;
+    const aAo = !!(ligne && (ligne.maps || []).indexOf("ao") >= 0);
+    /* la FAMILLE, servie : plus de « pas aucune » (voir `estHolo`). */
+    const holo = estHolo(mat && mat.finish);
+    const verre = estVerre(mat && mat.finish);
     const matSel = mats.length
       ? ('<label class="cf-forge3d-sel">matière<select data-field="mat">'
         + '<option value=""' + (mat && mat.mat ? "" : " selected") + '>aucune</option>'
@@ -1648,9 +1690,41 @@
       + numHtml("tuile", "tile_mm",
                 (mat && mat.tile_mm != null) ? mat.tile_mm : TILE_DEFAUT,
                 lim && lim.tile_mm, "1", "mm", !pose)
+      /* L'ANISOTROPIE N'EXISTE QUE DANS UNE RECETTE HOLOGRAPHIQUE : c'est
+         `holo_finish` qui pose le peigne, `glass_finish` n'en a pas. La case
+         ne s'active donc plus sur « une matière est posée » (elle ne faisait
+         alors rien du tout, en silence) mais sur la FAMILLE. */
       + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="aniso"'
-      + (mat && mat.aniso ? " checked" : "") + (pose ? "" : " disabled")
-      + '> anisotropie</label></div>'
+      + (mat && mat.aniso ? " checked" : "") + (holo ? "" : " disabled")
+      + '> anisotropie</label>'
+      /* L'OCCLUSION, ENFIN VISIBLE (phase 5, T4). Elle DESCENDAIT DÉJÀ dans le
+         GLB — le writer pose `occlusionTexture` dès que la matière en porte
+         une — mais cet écran n'en disait pas un mot et personne ne pouvait la
+         couper. Ce qui est exposé ici est donc l'EXISTANT : allumée par
+         défaut (les octets d'avant, au bit près), décochée elle n'est plus
+         cuite du tout. Aucune force ni aucun curseur : le writer ne sait pas
+         la faire varier, seulement la poser ou non — l'inventer serait
+         promettre un réglage qui n'agit pas. */
+      + '<label class="cf-forge3d-chk"><input type="checkbox" data-field="ao"'
+      + ((!mat || mat.ao !== false) ? " checked" : "")
+      + (ligne ? "" : " disabled") + '> occlusion</label></div>'
+      + (ligne && !aAo
+         ? '<p class="hint">cette matière ne porte AUCUNE carte d\'occlusion '
+           + '(le disque fait foi) : la case ne changera rien au fichier.</p>'
+         : "")
+      + (verre
+         ? '<p class="hint">le verre <b>remplace la micro-surface</b> de la '
+           + 'matière (rugosité et métal viennent de la recette) ; son relief '
+           + 'et son occlusion, eux, parlent encore. La lumière transmise est '
+           + 'teintée par la COUCHE elle-même — un vitrail, pas une vitre '
+           + 'blanche.</p>'
+           + '<p class="hint">« translucide » teinte en plus son absorption '
+           + 'avec la couleur de la matière choisie'
+           + (ligne && ligne.color ? ' (ici ' + esc(String(ligne.color)) + ')'
+                                   : " — aucune matière posée : il ne teinte "
+                                     + "rien")
+           + '.</p>'
+         : "")
       /* le bloc motifs SUIT la finition : sans recette holographique il n'y a
          pas de canal d'épaisseur où incruster quoi que ce soit (le backend
          l'avoue au bordereau plutôt que de faire semblant — même vérité des
@@ -1664,8 +1738,16 @@
       + 'garde la sienne.' + (isMesh && mat
         ? ' Ce rang est un moteur : la matière chaînée sera avouée comme '
           + 'ignorée au bordereau.' : "")
-      + (pose ? "" : ' Tuile et anisotropie s\'activent dès qu\'une matière ou '
-        + 'une finition est posée.') + '</p>';
+      + (pose ? "" : ' La tuile s\'active dès qu\'une matière ou une finition '
+        + 'est posée.')
+      /* CHAQUE CASE DIT CE QUI L'ACTIVE, ET C'EST LA MÊME RÈGLE QUE CÔTÉ
+         SERVEUR : l'anisotropie n'existe que dans une recette holographique
+         (`holo_finish`), l'occlusion ne peut venir que d'une MATIÈRE (une
+         recette n'en fabrique pas). Une case grisée sans motif est une
+         promesse muette. */
+      + (holo ? "" : ' L\'anisotropie demande une finition holographique.')
+      + (ligne ? "" : ' L\'occlusion vient de la matière : elle demande '
+        + 'qu\'une matière soit choisie.') + '</p>';
     return blocHtml("matière", !!mat, dedans, hote);
   }
 
@@ -5192,7 +5274,7 @@
     return true;
   }
 
-  const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso"];
+  const MAT_FIELDS = ["mat", "finish", "tile_mm", "aniso", "ao"];
   /* les champs de la PILE DE MOTIFS (3c) : indexés, donc pas énumérables dans
      `MAT_FIELDS`. Ils vont au MÊME écrivain (`editMat`) — un motif appartient
      au nœud matière, pas à un magasin à part. */
@@ -5589,6 +5671,13 @@
     if (field === "mat") mat.mat = String(rawValue || "") || null;
     else if (field === "finish") mat.finish = String(rawValue || "aucune");
     else if (field === "aniso") mat.aniso = !!rawValue;
+    /* L'OCCLUSION S'ÉCRIT DANS LES DEUX SENS, jamais par omission : le
+       serveur lit `ao !== false` (l'absence vaut « allumée », pour que les
+       graphes d'avant la phase 5 gardent leurs octets). Écrire `true`
+       explicitement quand l'utilisateur RE-COCHE est donc redondant côté
+       serveur — et load-bearing ici : sans ça, décocher puis re-cocher
+       laisserait `false` dans le graphe. */
+    else if (field === "ao") mat.ao = !!rawValue;
     else if (field === "tile_mm") {
       const v = Number(rawValue);
       if (isFinite(v)) mat.tile_mm = v; else delete mat.tile_mm;

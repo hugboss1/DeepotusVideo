@@ -924,6 +924,153 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
     }
 
 
+# ── LE VERRE (phase 5, D5) — TROIS RECETTES, LE MÊME PATRON QUE L'HOLO ──────
+# §D5 : « verre (transmission 1.0, ior 1.5, roughness 0.05), verre-depoli
+# (transmission 1.0, roughness ~0.4, KHR_materials_specular), translucide
+# (transmission ~0.7, volume thickness + attenuation teintée par la couleur du
+# nœud) ». Les quatre extensions correspondantes sont PRÉSENTES dans le viewer
+# embarqué (chaînes vérifiées dans model-viewer.min.js : transmissionFactor,
+# thicknessFactor, attenuationColor/Distance, specularColorFactor) — c'est ce
+# qui rend le verre livrable ICI sans une ligne de moteur payant.
+#
+# LES TROIS PARTAGENT L'INTERFACE, ELLES DIFFÈRENT PAR LE CORPS. `ior` vaut
+# 1,5 partout : verre sodocalcique, résine, albâtre appartiennent à la même
+# famille diélectrique (1,50 ± 0,05), et c'est ce chiffre qui fixe la
+# réflectance de Fresnel à incidence normale — F0 = ((1−1,5)/(1+1,5))² = 0,04,
+# les 4 % classiques d'un diélectrique. Le bloc `KHR_materials_ior` est donc
+# ÉCRIT alors qu'il porte le défaut de la spec : la recette le NOMME, et un
+# lecteur qui ouvre le fichier doit lire la recette, pas la deviner. (Le lab
+# Matières, lui, l'omet à 1,5 — `gltf_builder.py:739`. Divergence assumée : là
+# -bas l'ior est un CURSEUR dont le défaut ne veut rien dire, ici c'est une
+# constante de recette.)
+#
+# CE QU'AUCUNE DES TROIS N'ÉCRIT : `baseColorFactor`. [1,1,1,1] est le défaut
+# glTF, et la doctrine de ce writer est de ne jamais écrire un défaut (les
+# octets changeraient sans que le rendu bouge — voir le commentaire de
+# `png_base`). Conséquence VOULUE et non subie : sous transmission, la couleur
+# de base TEINTE la lumière transmise — donc c'est le PNG de la couche qui
+# teinte le verre (un vitrail), et le blanc franc quand il n'y a pas de PNG
+# (une extrusion). Une recette qui imposerait son blanc effacerait le vitrail.
+_GLASS_RECIPES = {
+    # POLI. `rough` 0,05 et pas 0,0 : un lobe de micro-facettes parfaitement
+    # lisse crénèle sur une carte d'environnement et se lit comme un miroir
+    # cassé ; 0,05 garde un reflet de largeur finie.
+    "verre": {"transmission": 1.0, "rough": 0.05},
+    # DÉPOLI. La transmission reste PLEINE (une gravure diffuse la lumière,
+    # elle ne l'absorbe pas) ; c'est la rugosité qui fait le voile — en glTF,
+    # le lobe transmis emprunte la MÊME `roughnessFactor` que le lobe réfléchi.
+    # `specular` 0,5 : la face gravée ne renvoie plus le pic spéculaire d'une
+    # vitre polie (F0 tombe de 4 % à 2 %) ; sans lui, le panneau dépoli se lit
+    # comme du plastique mouillé. La COULEUR spéculaire reste au défaut
+    # [1,1,1] — un dépoli est achromatique, l'écrire ne changerait rien.
+    "verre-depoli": {"transmission": 1.0, "rough": 0.4, "specular": 0.5},
+    # TRANSLUCIDE. 0,7 : sept dixièmes de la lumière traversent, trois
+    # restent en surface — c'est EXACTEMENT ce qui sépare une vitre (tout
+    # passe) d'un corps translucide (albâtre, résine, plastique laiteux).
+    # `rough` 0,2, entre le poli (0,05) et le dépoli (0,4) et plus près du
+    # poli : la diffusion d'un corps translucide se produit dans son VOLUME,
+    # pas sur sa peau — la mettre AUSSI sur la peau compterait deux fois le
+    # même effet.
+    "translucide": {"transmission": 0.7, "rough": 0.2, "volume": True},
+}
+GLASS_KINDS = tuple(_GLASS_RECIPES)
+GLASS_IOR = 1.5
+# L'ÉPAISSEUR DU CORPS, EN MILLIMÈTRES DE MAILLAGE. La spec KHR_materials_volume
+# est explicite : « Thickness is given in the coordinate space of the mesh » —
+# nos positions sont en mm, donc ce 1,0 est UN MILLIMÈTRE, et la racine
+# (scale 0,001) le ramène à 1 mm de monde. C'est l'ordre de grandeur de tout
+# ce que cette forge produit : 0,5 mm pour un corps de carte, 0,6 mm pour
+# l'anneau du Sceau par défaut, 0,3 mm de dalle sous un relief. Une épaisseur
+# NON NULLE est ce qui bascule le rendu de « paroi mince » à « volume ».
+GLASS_THICKNESS_MM = 1.0
+# LA DISTANCE D'ABSORPTION, ELLE, EST EN MÈTRES — la spec la donne en « world
+# space » quand l'épaisseur est en espace de maillage, et c'est un piège
+# d'unités qu'il faut écrire une fois pour toutes. 3 mm d'absorption pour
+# 1 mm d'épaisseur : la lumière ressort à couleur^(1/3) (Beer-Lambert), une
+# teinte franche qui n'avale pas la pièce. À distance ÉGALE à l'épaisseur, une
+# couleur saturée éteindrait le translucide.
+GLASS_ATTENUATION_MM = 3.0
+# LE FACTEUR D'ÉCHELLE DE LA RACINE, NOMMÉ ICI parce que c'est LUI qui convertit
+# les millimètres de recette en mètres de monde. Le writer l'écrit en dur sur le
+# nœud racine depuis la 2a ; un test épingle les deux ensemble, faute de quoi le
+# jour où l'échelle change la distance d'absorption mentirait en silence.
+MM_TO_M = 0.001
+
+
+def _srgb_lin(c8: int) -> float:
+    """Un octet sRGB -> son linéaire, arrondi à 6 décimales.
+
+    TOUS les facteurs de couleur d'un glTF sont LINÉAIRES (spec 2.0, « Colors
+    ... are given in linear space ») : poser le 0x33 d'un hex tel quel
+    donnerait une teinte deux fois trop claire. Jumeau de
+    `gltf_builder._lin_rgb` (le lab Matières) — RECOPIÉ et non importé, règle 8
+    (ce module n'importe le module d'aucune voisine), avec sa parité testée."""
+    c = c8 / 255.0
+    v = c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return round(v, 6)
+
+
+def _hex_lin(raw) -> list | None:
+    """`#rrggbb` -> [r, g, b] linéaires, ou `None` si ce n'est pas une couleur.
+
+    NE LÈVE JAMAIS : une couleur illisible (matière sans `props`, hex
+    tronqué, `None`) rend `None`, et l'appelant en fait « pas de teinte » —
+    l'absence d'absorption, qui est le défaut glTF. Refuser ici coûterait la
+    recette entière pour un champ décoratif."""
+    s = str(raw or "").strip().lstrip("#")
+    if len(s) != 6:
+        return None
+    try:
+        return [_srgb_lin(int(s[i:i + 2], 16)) for i in (0, 2, 4)]
+    except ValueError:
+        return None
+
+
+def glass_finish(kind: str, color=None) -> dict:
+    """UNE recette de verre (D5), prête pour le writer — MÊME FORME que le
+    paquet de `holo_finish` : un bloc `pbr` de facteurs, puis un sous-bloc par
+    extension.
+
+    `kind` hors `GLASS_KINDS` lève une ValueError NOMMÉE, exactement comme une
+    finition holographique inconnue : substituer du verre clair en douce
+    livrerait une carte fausse sans que personne le sache.
+
+    `color` (facultative) est la couleur de la MATIÈRE choisie sur le nœud —
+    `props.color` de la boutique, le seul endroit du graphe où une couleur soit
+    DITE. Elle ne sert qu'au `translucide`, dont elle teinte l'absorption ;
+    sans elle, ni `attenuationColor` ni `attenuationDistance` ne sont écrits
+    (leurs défauts glTF, [1,1,1] et +infini, valent tous deux « aucune
+    absorption » — deux clés pour rien).
+
+    LES DEUX FAMILLES SONT EXCLUSIVES : ce paquet ne porte JAMAIS
+    d'iridescence, de clearcoat ni d'anisotropie, et le paquet holo ne porte
+    jamais de transmission. Le writer refuse la chimère si on l'assemble à la
+    main."""
+    r = _GLASS_RECIPES.get(str(kind))
+    if r is None:
+        raise ValueError(f"finition de verre inconnue : {kind!r} "
+                         f"(connues : {', '.join(GLASS_KINDS)})")
+    fin = {
+        # metallicFactor 0.0 EXPLICITE, et ce n'est pas une redondance avec le
+        # défaut du writer : un conducteur ne transmet RIEN, donc un 1,0 hérité
+        # (celui des recettes holo) éteindrait toute la recette. Le poser ici
+        # l'épingle contre toute dérive du défaut d'en face.
+        "pbr": {"metallicFactor": 0.0, "roughnessFactor": r["rough"]},
+        "transmission": {"factor": r["transmission"]},
+        "ior": {"ior": GLASS_IOR},
+    }
+    if "specular" in r:
+        fin["specular"] = {"factor": r["specular"]}
+    if r.get("volume"):
+        vol = {"thickness": GLASS_THICKNESS_MM}
+        lin = _hex_lin(color)
+        if lin is not None:
+            vol["color"] = lin
+            vol["distance"] = round(GLASS_ATTENUATION_MM * MM_TO_M, 6)
+        fin["volume"] = vol
+    return fin
+
+
 def _quat_z(deg) -> list:
     """Le quaternion d'une rotation autour de +z — le SEUL axe qui ait un sens
     sur une pile de couches planes. Rend l'identité pour 0°."""
@@ -1609,6 +1756,29 @@ def write_scene_glb(elements: list, name: str, extras: dict,
         cc = cc if isinstance(cc, dict) else None
         ani = (fin or {}).get("anisotropy")
         ani = ani if isinstance(ani, dict) else None
+        # LE VERRE (phase 5, D5) — mêmes sous-blocs TYPÉS, mêmes raisons.
+        tra = (fin or {}).get("transmission")
+        tra = tra if isinstance(tra, dict) else None
+        ior = (fin or {}).get("ior")
+        ior = ior if isinstance(ior, dict) else None
+        spe = (fin or {}).get("specular")
+        spe = spe if isinstance(spe, dict) else None
+        vol = (fin or {}).get("volume")
+        vol = vol if isinstance(vol, dict) else None
+        # LES DEUX FAMILLES SONT EXCLUSIVES, ET C'EST MESURÉ ICI plutôt que
+        # promis à l'appelant. Un film irisé POSÉ SUR une vitre n'est pas une
+        # matière de ce catalogue : `holo_finish` et `glass_finish` sont
+        # disjoints par construction, et `MATERIAL_FINISHES` ne nomme jamais un
+        # kind deux fois. Reste le paquet assemblé À LA MAIN — un graphe brut,
+        # un appelant futur : refuser NOMMÉMENT vaut mieux que livrer une
+        # chimère que personne n'a demandée. Même classe de garde que celle de
+        # l'anisotropie sur des UV dépaquetées.
+        if (iri or cc or ani) and (tra or vol or spe):
+            raise ValueError(
+                f"finitions exclusives sur « {nom} » : une recette "
+                f"holographique (iridescence/clearcoat/anisotropie) et une "
+                f"recette de verre (transmission/volume/specular) ne "
+                f"s'habillent pas l'une l'autre — une seule a la fois")
         # LA FINITION EST-ELLE ACTIVE ? (résidu de re-revue Task 5) — c'est la
         # présence d'une RECETTE (le bloc `pbr`) qui compte, pas la simple
         # vérité du dictionnaire. Le saut de la map MR plus bas repose sur
@@ -1762,6 +1932,36 @@ def write_scene_glb(elements: list, name: str, extras: dict,
                         "index": add_texture(ani["png"],
                                              f"{nom}-anisotropie", True)}
                 ext["KHR_materials_anisotropy"] = bloc
+            # ── LE VERRE (D5) ────────────────────────────────────────────
+            # Aucun de ces quatre blocs n'entre dans `extensionsRequired` :
+            # comme l'iridescence, ce sont des ENJOLIVURES. Un lecteur qui les
+            # ignore montre la carte SANS le verre — il ne refuse pas le
+            # fichier. C'est exactement la dégradation propre que la 2b a
+            # actée, appliquée à la famille suivante.
+            if tra:
+                ext["KHR_materials_transmission"] = {
+                    "transmissionFactor": _f(tra.get("factor"), 1.0)}
+            if ior:
+                ext["KHR_materials_ior"] = {
+                    "ior": _f(ior.get("ior"), GLASS_IOR)}
+            if spe:
+                ext["KHR_materials_specular"] = {
+                    "specularFactor": _f(spe.get("factor"), 1.0)}
+            if vol:
+                bloc = {"thicknessFactor": _f(vol.get("thickness"),
+                                              GLASS_THICKNESS_MM)}
+                # LA TEINTE EST FACULTATIVE, ET SON ABSENCE EST UN FAIT : sans
+                # couleur de nœud, les deux défauts glTF ([1,1,1] et +infini)
+                # disent tous deux « aucune absorption ». Écrire l'un sans
+                # l'autre ne changerait rien au rendu et ferait croire à un
+                # réglage — les deux vont ensemble ou aucun.
+                col = vol.get("color")
+                if isinstance(col, (list, tuple)) and len(col) == 3:
+                    # RECOPIÉE, jamais partagée (même règle que baseColor).
+                    bloc["attenuationColor"] = [_f(v) for v in col]
+                    bloc["attenuationDistance"] = _f(
+                        vol.get("distance"), GLASS_ATTENUATION_MM * MM_TO_M)
+                ext["KHR_materials_volume"] = bloc
             if ext:
                 mat["extensions"] = ext
                 exts_used.update(ext)

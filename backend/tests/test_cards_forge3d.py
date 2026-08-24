@@ -789,8 +789,13 @@ def test_le_vocabulaire_gagne_export_des_deux_cotes():
     # §6.2bis-d). L'égalité de table ci-dessus suffirait à garder les deux
     # côtés d'accord, mais elle resterait verte si le paramètre disparaissait
     # DES DEUX côtés à la fois : ce pin-là nomme le champ, une fois.
+    # (Phase 5 T4 : `ao` s'intercale entre `aniso` et `motifs` — les deux
+    # cases voisines du bloc matière, l'une du peigne et l'autre de
+    # l'occlusion ; `motifs`, qui est une PILE et non un réglage, garde sa
+    # place de queue.)
     mat = [r for r in F9.NODE_KINDS if r["kind"] == "material"][0]
-    assert mat["params"] == ["mat", "tile_mm", "finish", "aniso", "motifs"]
+    assert mat["params"] == ["mat", "tile_mm", "finish", "aniso", "ao",
+                             "motifs"]
 
 
 def test_clean_graph_borne_le_noeud_export():
@@ -944,13 +949,25 @@ def test_info_publie_moteurs_prix_matieres_et_bornes(monkeypatch):
                     ).json()["mesh3d"]["has_fal"] is True
         monkeypatch.undo()      # les réglages redeviennent ceux du runtime
         # la boutique n'est plus vide (M3) : la matière créée voyage telle
-        # quelle, et CHAQUE entrée n'expose que id/name — jamais les maps.
+        # quelle, et CHAQUE entrée expose EXACTEMENT quatre clés.
+        # AMENDEMENT PHASE 5 (T4), et il est motivé : le contrat portait
+        # id/name SEULS, « jamais les maps ». Il en porte désormais deux de
+        # plus — la LISTE des maps présentes (jamais leurs octets : des noms,
+        # ceux que `read_material` relève déjà du disque) et la couleur. Sans
+        # elles, deux réglages agissaient à l'aveugle : la case d'occlusion,
+        # cochée sur une matière qui n'en porte aucune, et la teinte du
+        # `translucide`, dont la spec dit « la couleur du nœud » sans que
+        # l'écran puisse la montrer. Ce ne sont toujours PAS des pixels.
         assert isinstance(info["materials"], list)
-        assert all(set(m.keys()) == {"id", "name"} for m in info["materials"])
-        assert {"id": mat["id"], "name": "essai-info"} in info["materials"]
+        assert all(set(m.keys()) == {"id", "name", "maps", "color"}
+                   for m in info["materials"])
+        assert [m for m in info["materials"]
+                if m["id"] == mat["id"] and m["name"] == "essai-info"]
         # bornes matière/transform, épinglées littéralement (M6)
         assert info["material_limits"]["tile_mm"] == [10.0, 200.0]
-        assert info["material_limits"]["finishes"] == ["aucune", "argent", "dorure"]
+        assert info["material_limits"]["finishes"] == [
+            "aucune", "argent", "dorure", "verre", "verre-depoli",
+            "translucide"]
         assert info["transform_limits"]["xy_mm"] == [-100.0, 100.0]
         assert info["transform_limits"]["z_mm"] == [0.0, 10.0]
         assert info["transform_limits"]["rot_deg"] == [-180.0, 180.0]
@@ -999,8 +1016,10 @@ def test_info_degrade_au_lieu_de_500_si_prix_ou_matieres_explosent(monkeypatch):
         assert b2["mesh3d"]["engines"] == []
         assert "meshy_credit_usd" in b2["mesh3d"]["degraded"]
         # la boutique, elle, n'est pas touchée par la panne de prix : elle rend
-        # sa matière ET n'avoue aucune panne.
-        assert {"id": temoin["id"], "name": "temoin"} in b2["materials"]
+        # sa matière ET n'avoue aucune panne. (Phase 5 : l'entrée porte deux
+        # clés de plus — voir l'amendement au test de /info.)
+        assert [m for m in b2["materials"]
+                if m["id"] == temoin["id"] and m["name"] == "temoin"]
         assert b2["materials_degraded"] is None
     finally:
         material_store.delete_material(temoin["id"])
@@ -3803,7 +3822,10 @@ def test_l_ecran_pose_les_motifs_sur_le_noeud_matiere_et_dit_ou_ca_se_voit():
     # peut les retirer ; le backend, lui, l'avoue au bordereau)
     mh = rendu.split("function matHtml(")[1].split("\n  }")[0]
     assert "motifsHtml(mat, holo)" in mh and "mat.motifs.length" in mh
-    assert 'mat.finish !== "aucune"' in mh          # « holo » se DÉRIVE
+    # « holo » se DÉRIVE — et depuis la phase 5 il se dérive de la FAMILLE
+    # servie, plus d'un « pas aucune » : le verre n'est pas holographique et
+    # n'a aucun canal d'épaisseur où incruster un calque.
+    assert "estHolo(" in mh
     assert "ne s\\'incrusteront nulle part" in corps
     # une source vide n'est jamais un menu muet : elle est NOMMÉE
     assert "aucune source dans ce jeu" in corps
@@ -8913,6 +8935,9 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "chaineDe", "surnumeraire", "maillonsAval", "rewireRow",
                 "freeId", "zEmpilement", "editMat", "editTrs", "setGraph",
                 "numHtml", "procSelHtml", "geoHtml", "sideSelHtml", "blocHtml",
+                # phase 5 T4 : les DEUX familles de finition, servies par
+                # /info — `matHtml` s'en sert pour décider ce qu'il montre.
+                "finishFamille", "estHolo", "estVerre",
                 "finishLabel", "matHtml", "trsHtml", "thumbHtml",
                 "mesh3dInfo", "engineOf", "engineFor", "ultraCredits",
                 "engPrice", "usdTxt", "priceTxt", "sourceTxt", "chipHtml",
@@ -10257,3 +10282,348 @@ def test_la_liste_blanche_du_service_refuse_le_saut_de_ligne_final():
     r = _api("GET", f"/api/cards/{did}/forge3d/file/{nom}%0A")
     assert r.status_code == 400, (r.status_code, r.text[:200])
     assert "invalide" in r.json()["detail"].lower(), r.json()["detail"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# PHASE 5 — T4 : LE VERRE, L'OCCLUSION, L'ONDULATION (D5)
+# ═══════════════════════════════════════════════════════════════════════════
+# La barre est celle des clôtures 3c/4 : ON PÈSE LE FICHIER LIVRÉ. Une recette
+# de verre n'est PROUVÉE que relue dans le JSON du GLB, aux valeurs exactes, et
+# `extensionsUsed` doit être EXACT par recette — ni plus (une extension qui
+# n'habille rien), ni moins (un bloc écrit et non déclaré = un GLB invalide).
+
+# CE QUE CHAQUE RECETTE DOIT DÉCLARER, ET RIEN D'AUTRE. Les trois partagent
+# l'INTERFACE (transmission + ior : la même famille diélectrique) et se
+# distinguent par ce qu'elles ajoutent — le grain (specular) ou le corps
+# (volume). Cette table EST le discriminant : trois recettes, trois jeux
+# d'extensions distincts, relus dans les octets.
+_VERRE_EXTS = {
+    "verre": {"KHR_materials_transmission", "KHR_materials_ior"},
+    "verre-depoli": {"KHR_materials_transmission", "KHR_materials_ior",
+                     "KHR_materials_specular"},
+    "translucide": {"KHR_materials_transmission", "KHR_materials_ior",
+                    "KHR_materials_volume"},
+}
+
+
+def _lin(c8: int) -> float:
+    """sRGB 0..255 -> linéaire, la formule du standard écrite ICI À LA MAIN.
+    Le test ne doit pas emprunter la fonction qu'il vérifie."""
+    c = c8 / 255.0
+    v = c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+    return round(v, 6)
+
+
+def _quad_el(SC, nom: str, **kw) -> dict:
+    png = io.BytesIO()
+    Image.new("RGBA", (8, 8), (180, 180, 190, 255)).save(png, "PNG")
+    return {"name": nom, "mesh": SC.quad_mesh(63.0, 88.0),
+            "png": png.getvalue(), "alpha": False, "z_mm": 0.0, **kw}
+
+
+def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
+    """D5 : `verre` / `verre-depoli` / `translucide`, chaque paramètre relu
+    dans le JSON du GLB. `extensionsUsed` EXACT par recette,
+    `extensionsRequired` VIDE (le viewer qui ignore le verre montre la carte
+    sans verre — dégradation propre, jamais un fichier refusé)."""
+    from app.services.cards import forge3d_scene as SC
+    assert SC.GLASS_KINDS == ("verre", "verre-depoli", "translucide")
+    attendus = {
+        "verre": {"transmission": 1.0, "rough": 0.05},
+        "verre-depoli": {"transmission": 1.0, "rough": 0.4},
+        "translucide": {"transmission": 0.7, "rough": 0.2},
+    }
+    for kind, exts in _VERRE_EXTS.items():
+        fin = SC.glass_finish(kind)
+        doc, _ = _read_glb(SC.write_scene_glb(
+            [_quad_el(SC, kind, finish=fin)], name="v", extras={}))
+        assert set(doc["extensionsUsed"]) == exts, kind
+        assert "extensionsRequired" not in doc, kind
+        m = doc["materials"][0]
+        assert set(m["extensions"]) == exts, kind
+        pbr = m["pbrMetallicRoughness"]
+        # LE VERRE N'EST PAS UN MÉTAL : garder le 1.0 d'une recette holo
+        # éteindrait toute transmission (un conducteur ne transmet rien).
+        assert pbr["metallicFactor"] == 0.0, kind
+        assert pbr["roughnessFactor"] == attendus[kind]["rough"], kind
+        # ET PAS DE `baseColorFactor` : [1,1,1,1] est le défaut glTF, et la
+        # doctrine du writer est de ne jamais écrire un défaut (les octets
+        # changeraient sans que le rendu bouge). Conséquence VOULUE : c'est
+        # le PNG de la couche — ou le blanc — qui teinte la lumière transmise.
+        assert "baseColorFactor" not in pbr, kind
+        tr = m["extensions"]["KHR_materials_transmission"]
+        assert tr == {"transmissionFactor": attendus[kind]["transmission"]}, kind
+        assert m["extensions"]["KHR_materials_ior"] == {"ior": 1.5}, kind
+        # aucune trace de l'autre famille
+        for k in ("KHR_materials_iridescence", "KHR_materials_clearcoat",
+                  "KHR_materials_anisotropy"):
+            assert k not in m["extensions"], (kind, k)
+    # LE GRAIN DU DÉPOLI : `specularFactor` 0.5 — la réflexion spéculaire d'un
+    # verre gravé tombe de moitié (F0 4 % -> 2 %), sans quoi le panneau dépoli
+    # se lit comme du plastique mouillé. La COULEUR spéculaire, elle, reste au
+    # défaut [1,1,1] : un dépoli est achromatique, l'écrire ne changerait rien.
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "d", finish=SC.glass_finish("verre-depoli"))],
+        name="v", extras={}))
+    sp = doc["materials"][0]["extensions"]["KHR_materials_specular"]
+    assert sp == {"specularFactor": 0.5}, sp
+    # LE CORPS DU TRANSLUCIDE : une épaisseur NON NULLE bascule le rendu de
+    # « paroi mince » à « volume » (spec KHR_materials_volume). Sans couleur de
+    # nœud, ni `attenuationColor` ni `attenuationDistance` : les deux défauts
+    # glTF ([1,1,1] et +inf) valent « aucune absorption » — les écrire serait
+    # deux clés pour rien.
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "t", finish=SC.glass_finish("translucide"))],
+        name="v", extras={}))
+    vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
+    assert vol == {"thicknessFactor": 1.0}, vol
+    # une recette inconnue LÈVE, NOMMÉMENT (patron `holo_finish`) : remplacer
+    # en douce par du verre clair livrerait une carte fausse sans un mot.
+    with pytest.raises(ValueError) as e:
+        SC.glass_finish("plexiglas")
+    assert "verre" in str(e.value).lower() or "connues" in str(e.value)
+
+
+def test_la_teinte_du_translucide_VIENT_DE_LA_COULEUR_DU_NOEUD():
+    """« attenuationColor teintée par la couleur du nœud » : la couleur est
+    celle de la MATIÈRE choisie sur le nœud material (`props.color` de la
+    boutique — le seul endroit du graphe où une couleur soit dite). Convertie
+    en LINÉAIRE, comme tout facteur glTF."""
+    from app.services.cards import forge3d_scene as SC
+    fin = SC.glass_finish("translucide", color="#3366ff")
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "t", finish=fin)], name="v", extras={}))
+    vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
+    assert vol["attenuationColor"] == [_lin(0x33), _lin(0x66), _lin(0xFF)], vol
+    # LES DEUX UNITÉS NE SONT PAS LES MÊMES, et c'est la spec qui le dit :
+    # `thicknessFactor` est dans l'espace du MAILLAGE (nos millimètres),
+    # `attenuationDistance` dans l'espace du MONDE (nos mètres, après le
+    # 0,001 de la racine). 3 mm d'absorption pour 1 mm d'épaisseur : la
+    # lumière garde couleur^(1/3), une teinte présente qui n'avale pas la
+    # pièce.
+    assert vol["thicknessFactor"] == 1.0
+    assert vol["attenuationDistance"] == 0.003
+    # et le 0,001 de la racine EST le facteur de cette conversion : le jour où
+    # il change, ce contrôle tombe au lieu de laisser la distance mentir.
+    assert doc["nodes"][-1]["scale"] == [0.001, 0.001, 0.001]
+    # une couleur illisible ne teinte pas et ne lève pas : la recette dégrade
+    # vers le neutre (aucune absorption), jamais un 500 sur une donnée
+    assert set(SC.glass_finish("translucide", color="bleu")["volume"]) == \
+        {"thickness"}
+    # les deux autres recettes n'ont PAS de volume : une couleur n'y change rien
+    assert SC.glass_finish("verre", color="#3366ff").get("volume") is None
+
+
+def test_le_verre_est_un_HABIT_pas_une_GEOMETRIE():
+    """Le STL ne connaît ni matériau ni extension : poser du verre ne doit pas
+    déplacer un sommet. Octets STL identiques avec et sans."""
+    from app.services.cards import forge3d_scene as SC
+    m = SC.extrude_ring_mesh(63.0, 88.0, 3.0, 1.2, 0.6, 24)
+    nu = [{"name": "anneau", "mesh": m, "png": None, "alpha": False,
+           "z_mm": 0.0}]
+    verre = [dict(nu[0], finish=SC.glass_finish("verre-depoli"))]
+    assert SC._write_stl_binary(nu, "x") == SC._write_stl_binary(verre, "x")
+
+
+def test_les_deux_familles_de_finition_sont_EXCLUSIVES():
+    """Une finition à la fois : les deux vocabulaires sont DISJOINTS, chaque
+    fabrique ne rend QUE sa famille, et le writer REFUSE la chimère au lieu de
+    livrer un film irisé sur une vitre — même classe de garde que celle de
+    l'anisotropie sur un maillage aux UV dépaquetées."""
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
+    assert not (set(SC.HOLO_KINDS) & set(SC.GLASS_KINDS))
+    assert F9.MATERIAL_FINISHES == ("aucune",) + SC.HOLO_KINDS + SC.GLASS_KINDS
+    h = SC.holo_finish("argent", aniso=False, out_px=64)
+    for k in ("transmission", "ior", "specular", "volume"):
+        assert h.get(k) is None, k
+    g = SC.glass_finish("verre")
+    for k in ("iridescence", "clearcoat", "anisotropy"):
+        assert g.get(k) is None, k
+    chimere = dict(h)
+    chimere.update({k: v for k, v in g.items() if k != "pbr"})
+    with pytest.raises(ValueError) as e:
+        SC.write_scene_glb([_quad_el(SC, "chimere", finish=chimere)],
+                           name="v", extras={})
+    assert "exclusi" in str(e.value).lower(), str(e.value)
+
+
+def test_le_pack_MR_est_SAUTE_sous_une_finition_de_verre_aussi():
+    """La règle « une finition REMPLACE la micro-surface » (doctrine 2b) vaut
+    pour le verre exactement comme pour l'holo : garder les deux donnerait
+    rugosité = 0,05 x G/255 — un verre poli posé sur une matière mate virerait
+    au miroir noir. Le relief et l'occlusion, eux, parlent encore."""
+    from app.services.cards import forge3d_scene as SC
+    maps = SC.material_pngs({
+        "normal": Image.new("RGB", (16, 16), (128, 128, 255)),
+        "roughness": Image.new("L", (16, 16), 90),
+        "metallic": Image.new("L", (16, 16), 30),
+        "ao": Image.new("L", (16, 16), 170)})
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "vitre", mat_maps=maps,
+                  finish=SC.glass_finish("verre"))], name="v", extras={}))
+    m = doc["materials"][0]
+    assert "metallicRoughnessTexture" not in m["pbrMetallicRoughness"]
+    assert m["pbrMetallicRoughness"]["roughnessFactor"] == 0.05
+    assert "normalTexture" in m and "occlusionTexture" in m
+    assert not any(im["name"].endswith("-mr") for im in doc["images"])
+
+
+def test_le_vocabulaire_du_verre_est_SERVI_par_le_meme_canal_et_jamais_recopie():
+    """Miroir + parité : /info publie les DEUX familles par `material_limits`,
+    l'écran les LIT (il ne sait pas ce qu'est « verre »), et le libellé se
+    dérive au lieu d'être une table recopiée."""
+    from app.services.cards import forge3d_scene as SC
+    from app.services.cards import forge3d as F9
+    did = _deck("Verre info")
+    r = _api("GET", f"/api/cards/{did}/forge3d/info")
+    assert r.status_code == 200, r.text
+    lim = r.json()["material_limits"]
+    assert lim["finishes"] == list(F9.MATERIAL_FINISHES)
+    assert lim["finishes_holo"] == list(SC.HOLO_KINDS)
+    assert lim["finishes_glass"] == list(SC.GLASS_KINDS)
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    assert "finishes_holo" in rendu and "finishes_glass" in rendu
+    # AUCUNE DÉCISION ne se prend sur un mot de recette recopié : les quatre
+    # fonctions qui TRIENT (famille, libellé, corps du bloc, écriture) ne
+    # doivent contenir aucun des six noms. Le contrôle porte sur ces
+    # fonctions-là et pas sur le fichier entier, parce qu'UNE table les
+    # recopie légitimement et le dit : `HOLO`, les dégradés de vignette — une
+    # ESQUISSE, avec `HOLO_DEFAUT` en repli pour tout mot inconnu. C'est
+    # exactement cette clause de repli qui l'autorise à ne pas être un miroir.
+    # LE CONTRÔLE PORTE SUR LES LITTÉRAUX, pas sur les sous-chaînes : c'est
+    # sous cette forme-là qu'un vocabulaire se recopie (`f === "verre"`, une
+    # table `{"verre-depoli": …}`). Une PROSE qui contient le mot (« le verre
+    # remplace la micro-surface ») n'est pas une décision, et une variable
+    # locale nommée `verre` non plus.
+    for fn in ("estHolo", "estVerre", "finishLabel", "matHtml", "editMat"):
+        corps = rendu.split("function " + fn + "(")[1].split("\n  }")[0]
+        lits = {a or b for a, b in re.findall(
+            r"'((?:\\.|[^'\\])*)'|\"((?:\\.|[^\"\\])*)\"", corps)}
+        for k in SC.GLASS_KINDS + SC.HOLO_KINDS:
+            assert k not in lits, f"vocabulaire recopie dans {fn} : {k}"
+    assert "HOLO_DEFAUT" in rendu, "la table decorative n'a plus de repli"
+    # « holo » ne se déduit plus de « pas aucune » : le verre n'a pas de canal
+    # d'épaisseur, et le bloc motifs ne doit pas s'ouvrir dessus.
+    mh = rendu.split("function matHtml(")[1].split("\n  }")[0]
+    assert "estHolo(" in mh, "le bloc motifs se decide encore sur « pas aucune »"
+    assert "estVerre(" in mh
+    # l'anisotropie ne s'active plus sur « une matière est posée » : elle
+    # n'existe QUE dans une recette holographique, et une case grisée sans
+    # motif est une promesse muette.
+    assert 'data-field="aniso"' in mh and "(holo ?" in mh
+
+
+def test_clean_graph_accepte_une_finition_de_verre_et_refuse_l_inconnue():
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    for k in SC.GLASS_KINDS:
+        g = F9.clean_graph({"nodes": [{"id": "m", "kind": "material",
+                                       "finish": k}], "edges": []})
+        assert g["nodes"][0]["finish"] == k, k
+    g = F9.clean_graph({"nodes": [{"id": "m", "kind": "material",
+                                   "finish": "plexiglas"}], "edges": []})
+    # « aucune » + pas de matière = le nœud n'est rien : il est JETÉ
+    assert g["nodes"] == []
+
+
+def test_le_noeud_material_habille_EN_VERRE_par_la_route_et_teinte():
+    """Bout en bout : le graphe pose `translucide` sur une matière de la
+    boutique, et le GLB LIVRÉ porte le volume teinté par la couleur de CETTE
+    matière."""
+    from app.services import material_store as MSTORE
+    did = _deck("Verre bout")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="resine-t4", props={"color": "#3366ff"})
+    try:
+        assert MSTORE.read_material(mat["id"])["props"]["color"] == "#3366ff"
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (51, 102, 255)),
+            "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
+            "ao": Image.new("L", (32, 32), 150)})
+        g = {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "p", "kind": "plane", "depth_mm": 1.0},
+            {"id": "m", "kind": "material", "mat": mat["id"],
+             "tile_mm": 31.5, "finish": "translucide"},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "verre"}],
+            "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "m"},
+                      {"from": "m", "to": "asm"}, {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        b = r.json()["artifact"]
+        assert b["ignored"] == [], b["ignored"]
+        doc, _ = _read_glb(_api(
+            "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+        assert set(doc["extensionsUsed"]) == _VERRE_EXTS["translucide"]
+        vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
+        assert vol["attenuationColor"] == [_lin(0x33), _lin(0x66), _lin(0xFF)]
+        # l'occlusion de la matière est TOUJOURS là (le verre n'est pas un
+        # rouleau compresseur : il remplace la micro-surface, pas le reste)
+        assert "occlusionTexture" in doc["materials"][0]
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_l_occlusion_est_EXPOSEE_au_noeud_et_DEBRAYABLE():
+    """L'AO arrivait déjà (writer 2b + `tile_maps` la demande) mais l'écran
+    n'en disait pas un mot et personne ne pouvait la couper. Ce qui est exposé :
+    un réglage `ao` (défaut ALLUMÉ = les octets d'aujourd'hui, au bit près) et,
+    à l'écran, ce que la matière porte VRAIMENT (le disque fait foi)."""
+    from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
+    did = _deck("Occlusion")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="ao-t4")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (120, 120, 120)),
+            "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
+            "ao": Image.new("L", (32, 32), 140)})
+        # /info dit ce que chaque matière PORTE (déjà lu du disque par
+        # `read_material` : zéro I/O de plus)
+        info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
+        ligne = [m for m in info["materials"] if m["id"] == mat["id"]][0]
+        assert "ao" in ligne["maps"] and "normal" in ligne["maps"]
+        assert str(ligne["color"]).startswith("#")
+
+        def bati(ao):
+            n = {"id": "m", "kind": "material", "mat": mat["id"],
+                 "tile_mm": 31.5}
+            if ao is not None:
+                n["ao"] = ao
+            g = {"nodes": [
+                {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+                {"id": "p", "kind": "plane", "depth_mm": 1.0}, n,
+                {"id": "asm", "kind": "assemble"},
+                {"id": "art", "kind": "artifact", "name": "ao" + str(ao)}],
+                "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "m"},
+                          {"from": "m", "to": "asm"},
+                          {"from": "asm", "to": "art"}]}
+            r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                     json={"graph": g, "card": 0})
+            assert r.status_code == 200, r.text
+            b = r.json()["artifact"]
+            return _read_glb(_api(
+                "GET",
+                f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)[0]
+        # le DÉFAUT est l'état d'avant : l'occlusion est là sans qu'on demande
+        assert "occlusionTexture" in bati(None)["materials"][0]
+        assert "occlusionTexture" in bati(True)["materials"][0]
+        # débrayée : plus d'occlusionTexture, ET la map n'est plus cuite du tout
+        doc = bati(False)
+        assert "occlusionTexture" not in doc["materials"][0]
+        assert not any(im["name"].endswith("-ao") for im in doc["images"])
+        assert "normalTexture" in doc["materials"][0]     # le reste survit
+        # le nœud publie son paramètre des DEUX côtés
+        kinds = {k["kind"]: k["params"] for k in F9.NODE_KINDS}
+        assert "ao" in kinds["material"]
+        src = JS.read_text(encoding="utf-8")
+        rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+        assert '"ao"' in rendu
+        assert "occlusion" in rendu.lower()
+    finally:
+        MSTORE.delete_material(mat["id"])

@@ -39,6 +39,7 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
+                            glass_finish, GLASS_KINDS,
                             trs_de_face, HOLO_KINDS, HOLO_PX,
                             MOTIF_MAX, MOTIF_GAIN, MOTIF_GAIN_DEFAULT,
                             motif_probe)
@@ -140,10 +141,12 @@ CAPTURE_ROLES = ("recto", "illustration")
 #               de ses arcs. Un nœud `material` en aval l'habille — c'est là
 #               que le Sceau prismatique de la 3c se branche.
 # `mesh3d`    : image→3D par moteur, PAYANT (prix affiché avant).
-# `material`  : matière Material Forge + finition holo sur le nœud amont ; ses
-#               `motifs` sont les calques incrustés dans le canal G de
-#               l'épaisseur d'iridescence (3c, §6.2bis-d) — une LISTE ORDONNÉE
-#               de `{src, gain}`, l'ordre étant l'ordre d'addition.
+# `material`  : matière Material Forge + finition (holo ou VERRE, phase 5 D5)
+#               sur le nœud amont ; ses `motifs` sont les calques incrustés
+#               dans le canal G de l'épaisseur d'iridescence (3c, §6.2bis-d) —
+#               une LISTE ORDONNÉE de `{src, gain}`, l'ordre étant l'ordre
+#               d'addition. `ao` débraye l'occlusion de la matière (défaut
+#               ALLUMÉ : l'état d'avant la phase 5, au bit près).
 # `transform` : position/rotation/échelle en mm de carte de l'élément amont.
 # `assemble`  : fusionne les amonts en une scène.
 # `artifact`  : sorties (GLB + metadata + aperçu + STL si fermé).
@@ -159,7 +162,7 @@ NODE_KINDS = [
      "params": ["contour", "width_mm", "depth_mm", "segments"]},
     {"kind": "mesh3d", "params": ["engine", "texture_prompt", "ultra"]},
     {"kind": "material",
-     "params": ["mat", "tile_mm", "finish", "aniso", "motifs"]},
+     "params": ["mat", "tile_mm", "finish", "aniso", "ao", "motifs"]},
     {"kind": "transform", "params": ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"]},
     {"kind": "assemble", "params": []},
     {"kind": "artifact", "params": ["name"]},
@@ -259,7 +262,20 @@ MATERIAL_TILE_MM = (10.0, 200.0)
 # UNE seule vérité pour les finitions : les recettes vivent dans le module
 # scène, l'écran en reçoit la liste par /info. « aucune » est le seul mot que
 # ce fichier ajoute (l'absence de finition n'est pas une recette).
-MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS
+#
+# DEUX FAMILLES DEPUIS LA PHASE 5 (D5), UN SEUL CHAMP : `finish` reste UNE
+# chaîne, donc les finitions sont EXCLUSIVES par construction — on n'habille
+# pas une vitre d'un film irisé. Les deux vocabulaires partent par le MÊME
+# canal (/info, `material_limits`), séparément listés : l'écran doit savoir
+# LAQUELLE des deux il montre (le canal d'épaisseur des motifs n'existe que
+# côté holo), et il ne peut pas le deviner d'un simple « pas aucune ».
+MATERIAL_FINISHES = ("aucune",) + HOLO_KINDS + GLASS_KINDS
+# LES CINQ MAPS QU'UNE MATIÈRE PEUT DESCENDRE DANS LE GLB. Écrites une fois,
+# ici, parce que `_habille` en RETIRE l'occlusion quand le nœud la débraye —
+# deux listes qui dérivent, et la carte cuite ne serait plus celle qui est
+# demandée. (§5.2 : la couleur de base vient de la COUCHE, jamais de la
+# matière — d'où son absence de cette liste.)
+MATERIAL_MAP_KINDS = ("normal", "roughness", "metallic", "ao", "emissive")
 # ── LES SOURCES DE MOTIF (3c, §6.2bis-d) — vocabulaire FERMÉ ────────────────
 # Trois formes, et PAS un quatrième magasin (décision 4 du plan 3c) : une image
 # de calque du jeu (celle que P3 importe déjà), la matière de support importée
@@ -431,11 +447,28 @@ async def get_info(did: str):
                 "prompt_max": MESH3D_PROMPT_MAX,
                 "degraded": mesh3d_degraded,
             },
-            "materials": [{"id": m["id"], "name": m["name"]}
+            # LES MAPS ET LA COULEUR DE CHAQUE MATIÈRE (phase 5, T4) : le
+            # DISQUE fait foi (`read_material` les a déjà relevées — zéro I/O
+            # de plus), et l'écran cesse de deviner. Sans elles, il ne pouvait
+            # dire ni « cette matière porte une occlusion » ni « c'est CETTE
+            # couleur qui teintera le translucide » : deux réglages qui
+            # agissaient à l'aveugle.
+            "materials": [{"id": m["id"], "name": m["name"],
+                           "maps": list(m.get("maps") or []),
+                           "color": (m.get("props") or {}).get("color")}
                           for m in materials_raw],
             "materials_degraded": materials_degraded,
             "material_limits": {"tile_mm": list(MATERIAL_TILE_MM),
                                 "finishes": list(MATERIAL_FINISHES),
+                                # LES DEUX FAMILLES, SÉPARÉMENT (D5) : l'écran
+                                # doit savoir laquelle il montre — le bloc des
+                                # motifs n'a de sens que sur l'holo (le canal
+                                # d'épaisseur n'existe pas dans une vitre), et
+                                # l'anisotropie non plus. Le déduire d'un
+                                # « pas aucune » était juste tant qu'il n'y
+                                # avait qu'une famille ; ça ne l'est plus.
+                                "finishes_holo": list(HOLO_KINDS),
+                                "finishes_glass": list(GLASS_KINDS),
                                 "motif_max": MOTIF_MAX,
                                 "motif_gain": list(MOTIF_GAIN),
                                 # le DÉFAUT, pas seulement les bornes :
@@ -751,6 +784,14 @@ def clean_graph(raw) -> dict:
             node["tile_mm"] = _num(n.get("tile_mm"), 63.0, *MATERIAL_TILE_MM)
             node["finish"] = n.get("finish") if n.get("finish") in MATERIAL_FINISHES else "aucune"
             node["aniso"] = bool(n.get("aniso"))
+            # L'OCCLUSION EST ALLUMÉE PAR DÉFAUT, ET C'EST LOAD-BEARING : elle
+            # descendait déjà dans le GLB avant la phase 5 (le writer pose
+            # `occlusionTexture` dès que la matière en porte une). Un défaut à
+            # False aurait effacé l'occlusion de tous les graphes existants
+            # SANS UN MOT, sur une tâche qui prétend l'EXPOSER. `is not False`
+            # et pas `bool(...)` : c'est l'ABSENCE de la clé qui doit valoir
+            # « allumée », pas sa véracité.
+            node["ao"] = n.get("ao") is not False
             node["motifs"] = _clean_motifs(n.get("motifs"))
             if node["mat"] is None and node["finish"] == "aucune":
                 continue          # une matière sans matière ni finition n'est rien
@@ -1560,6 +1601,32 @@ def _motifs_resolus(did, mat_n: dict, ignores: list) -> list:
     return pile
 
 
+def _couleur_matiere(mid) -> str | None:
+    """LA COULEUR DU NŒUD — `props.color` de la matière choisie, ou `None`.
+
+    D'OÙ ELLE VIENT, DIT UNE FOIS : le nœud `material` ne porte pas de teinte
+    à lui ; la seule couleur qu'un graphe nomme est celle de la MATIÈRE de la
+    boutique qu'il désigne (`material_store`, `props["color"]`, un hex —
+    exactement celle que le lab Matières peint sur sa vignette). Le
+    `translucide` en teinte son absorption ; les deux autres recettes n'en font
+    rien.
+
+    NE LÈVE JAMAIS : une matière effacée depuis que le graphe a été câblé rend
+    `None`, et la recette part sans teinte. L'aveu de la matière introuvable
+    est déjà fait plus haut par `_habille` — le redire ici doublerait la
+    ligne au bordereau pour un seul fait."""
+    if not mid:
+        return None
+    try:
+        from app.services import material_store as MSTORE
+        mat = MSTORE.read_material(str(mid))
+    except Exception:                                   # noqa: BLE001
+        return None
+    props = (mat or {}).get("props")
+    col = props.get("color") if isinstance(props, dict) else None
+    return col if isinstance(col, str) else None
+
+
 def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
              ignores: list, did=None) -> None:
     """La MATIÈRE et la FINITION d'un élément local, posées sur son
@@ -1578,11 +1645,16 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
     if not isinstance(mat_n, dict):
         return
     if mat_n.get("mat"):
+        # L'OCCLUSION SE DÉBRAYE À LA SOURCE, pas au writer : la carte n'est
+        # même plus CUITE ni embarquée quand le nœud l'éteint (un GLB plus
+        # léger, et pas seulement une clé en moins). `is not False` — l'absence
+        # vaut « allumée », comme dans `clean_graph`, pour que le sidecar
+        # d'aperçu (qui peut recevoir un nœud non nettoyé) tombe du même côté.
+        kinds = tuple(k for k in MATERIAL_MAP_KINDS
+                      if k != "ao" or mat_n.get("ao") is not False)
         try:
             el["mat_maps"] = material_pngs(tile_maps(
-                mat_n["mat"],
-                ("normal", "roughness", "metallic", "ao", "emissive"),
-                mat_n["tile_mm"], w_mm, h_mm))
+                mat_n["mat"], kinds, mat_n["tile_mm"], w_mm, h_mm))
             if not el["mat_maps"]:
                 # une matière qui n'a QUE sa couleur de base n'habille RIEN
                 # ici (la base, c'est LA COUCHE — spec §5.2) : le dire, sinon
@@ -1597,7 +1669,23 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
             ignores.append({"node": mat_n["id"],
                             "why": f"matiere introuvable ou illisible sur "
                                    f"disque, element laisse nu : {e}"})
-    if mat_n.get("finish") and mat_n["finish"] != "aucune":
+    if mat_n.get("finish") in GLASS_KINDS:
+        # LE VERRE (phase 5, D5) — l'autre famille, au même point d'entrée.
+        # Ni anisotropie (le peigne d'un métal brossé n'a rien à faire sur une
+        # vitre) ni motifs : le canal d'épaisseur qui les porte n'existe que
+        # dans une recette holographique. Des calques posés puis basculés vers
+        # le verre sont donc AVOUÉS, exactement comme sans finition — c'est le
+        # même silence que `_SANS_HOLO` existe pour rompre.
+        try:
+            el["finish"] = glass_finish(mat_n["finish"],
+                                        color=_couleur_matiere(mat_n.get("mat")))
+        except ValueError as e:
+            ignores.append({"node": mat_n["id"],
+                            "why": f"finition ignoree : {e}"})
+        if mat_n.get("motifs"):
+            ignores.append({"node": mat_n["id"],
+                            "why": f"{len(mat_n['motifs'])} {_SANS_HOLO}"})
+    elif mat_n.get("finish") and mat_n["finish"] != "aucune":
         try:
             el["finish"] = holo_finish(mat_n["finish"],
                                        bool(mat_n.get("aniso")),
