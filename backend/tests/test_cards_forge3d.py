@@ -3859,8 +3859,17 @@ def test_les_textures_de_finition_sont_mutualisees_pas_celles_des_couches():
             "finish": fin} for i in range(3)]
     doc, _ = _read_glb(SC.write_scene_glb(els, name="x", extras={}))
     noms = [im["name"] for im in doc["images"]]
-    # 3 couches distinctes + 1 iridescence + 1 anisotropie, PAS 3 + 3 + 3
-    assert noms == ["s0", "s0-iridescence", "s0-anisotropie", "s1", "s2"], noms
+    # 3 couches distinctes + 1 ondulation + 1 iridescence + 1 anisotropie,
+    # PAS 3 + 3 + 3 + 3. (Phase 5 : l'ondulation de §6.2bis-d entre dans la
+    # recette, donc dans la mutualisation — c'est le MÊME pli sur les trois
+    # éléments, l'embarquer trois fois serait exactement le gâchis que ce
+    # test existe pour interdire. Elle est écrite AVANT les extensions parce
+    # que le writer pose les textures de matériau avant celles de finition.)
+    assert noms == ["s0", "s0-ondulation", "s0-iridescence", "s0-anisotropie",
+                    "s1", "s2"], noms
+    cibles_ond = {doc["materials"][i]["normalTexture"]["index"]
+                  for i in range(3)}
+    assert len(cibles_ond) == 1, cibles_ond
     # ...et les trois matériaux visent bien LA texture partagée
     cibles = {doc["materials"][i]["extensions"]
               ["KHR_materials_iridescence"]["iridescenceThicknessTexture"]["index"]
@@ -4901,7 +4910,16 @@ def test_node_preview_chaine_matiere_transform_et_ignores():
         assert r2.status_code == 200, r2.text
         doc2, _ = _read_glb(r2.content)
         m2 = doc2["materials"][0]
-        assert "normalTexture" not in m2 and "occlusionTexture" not in m2
+        # NU DE SA MATIÈRE : ni son relief ni son occlusion. La FINITION, elle,
+        # tient toujours (elle ne dépend pas de la boutique), et depuis la
+        # phase 5 elle apporte l'ondulation de §6.2bis-d — celle-là est un
+        # ornement de recette, pas la matière disparue. C'est le NOM qui les
+        # sépare, et c'est lui qu'on lit : `-normal` (matière) contre
+        # `-ondulation` (recette).
+        assert "occlusionTexture" not in m2
+        assert not any(im["name"].endswith("-normal") for im in doc2["images"])
+        i_n = doc2["textures"][m2["normalTexture"]["index"]]["source"]
+        assert doc2["images"][i_n]["name"].endswith("-ondulation")
         ignored2 = doc2["asset"]["extras"]["ignored"]
         motifs2 = {i["node"]: i["why"] for i in ignored2}
         assert "mat" in motifs2 and "introuvable" in motifs2["mat"], ignored2
@@ -10627,3 +10645,158 @@ def test_l_occlusion_est_EXPOSEE_au_noeud_et_DEBRAYABLE():
         assert "occlusion" in rendu.lower()
     finally:
         MSTORE.delete_material(mat["id"])
+
+
+# ── L'ONDULATION DOUCE (§6.2bis-d) — LA CLAUSE AVOUÉE TROIS FOIS ────────────
+# « une ondulation basse fréquence de la normale sur l'anneau du Sceau ». Elle
+# se tranche à la phase 5 : livrée MESURÉE, ou enterrée avec ses chiffres. Ce
+# banc est la moitié analytique de la mesure (l'autre moitié est le rendu au
+# viewer, hors CI — voir le rapport de tâche) : le GLB porte-t-il la carte, le
+# champ est-il celui qu'on annonce, et l'inclinaison est-elle DOUCE ?
+
+def _normales(png: bytes):
+    """Le décodage d'une normal map tangente : chaque pixel -> (nx, ny, nz)
+    dans [-1, 1]. Écrit ICI, pas emprunté au module."""
+    im = Image.open(io.BytesIO(png)).convert("RGB")
+    return im, [((r - 127.5) / 127.5, (g - 127.5) / 127.5, (b - 127.5) / 127.5)
+                for r, g, b in im.getdata()]
+
+
+def test_l_ondulation_du_sceau_est_DANS_LES_OCTETS_et_reste_DOUCE():
+    """Quatre mesures sur le fichier livré, aucune sur l'intention :
+      1. la carte EST dans le GLB, sous son nom, et c'est bien une normal map ;
+      2. le champ est RADIAL et SINUSOÏDAL — le compte de changements de signe
+         le long d'un rayon est celui des cycles annoncés, pas un dégradé ;
+      3. l'inclinaison MAXIMALE est celle de l'amplitude de la recette
+         (atan(0,12) = 6,84°) — « douce » est un angle, pas un adjectif ;
+      4. le centre n'est PAS singulier (la phase `sin` le ferme).
+    """
+    from app.services.cards import forge3d_scene as SC
+    fin = SC.holo_finish("argent", aniso=False, out_px=256)
+    assert fin["normal"] and fin["normal"]["png"]
+    # DÉTERMINISME, comme pour l'épaisseur : mêmes octets à chaque appel
+    assert SC.holo_finish("argent", aniso=False,
+                          out_px=256)["normal"]["png"] == fin["normal"]["png"]
+    doc, binv = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "anneau", finish=fin)], name="o", extras={}))
+    m = doc["materials"][0]
+    assert "normalTexture" in m, "l'ondulation n'est pas dans le GLB livré"
+    src = doc["textures"][m["normalTexture"]["index"]]["source"]
+    assert doc["images"][src]["name"] == "anneau-ondulation"
+    bv = doc["bufferViews"][doc["images"][src]["bufferView"]]
+    png = binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]]
+    im, nrm = _normales(png)
+    w, h = im.size
+    assert (w, h) == (256, 256)
+    c = w / 2.0
+
+    def au(x, y):
+        return nrm[y * w + x]
+
+    # 2. LE CHAMP EST RADIAL ET SINUSOÏDAL. Le long du rayon +x (y au centre),
+    # la composante x de la normale est −pente : elle doit changer de signe
+    # `2·cycles − 1` fois. LE COMPTE SE DÉRIVE, il ne se devine pas :
+    # `sin(2π·f·r)` s'annule à r = n/(2f), donc SIX fois sur (0, 1] pour f = 3
+    # — et le dernier zéro tombe au bord exact, hors des pixels échantillonnés.
+    # (Première écriture : « deux fois ». Elle confondait la période du sinus
+    # avec sa DEMI-période, et le champ mesuré — 5 — avait raison contre elle.)
+    #
+    # LA BANDE MORTE N'EST PAS UNE COMMODITÉ, C'EST LA QUANTIFICATION : un
+    # canal 8 bits ne peut pas valoir zéro (127,5 tombe entre deux octets), si
+    # bien qu'au VOISINAGE d'un zéro la valeur décodée saute entre −0,0039 et
+    # +0,0039 et fabrique des changements de signe qui ne sont pas dans le
+    # champ. Mesuré : 5 « changements » au lieu de 2 sans elle. Le seuil est
+    # deux fois et demie le pas de quantification — assez pour ignorer le
+    # bruit d'arrondi, cinquante fois trop peu pour cacher un lobe.
+    def _chgts(vals, seuil=0.01):
+        f = [v for v in vals if abs(v) > seuil]
+        return sum(1 for a, b in zip(f, f[1:]) if a * b < 0)
+    attendu_chg = 2 * SC._HOLO_RIPPLE_CYCLES - 1
+    ligne = [au(x, w // 2)[0] for x in range(w // 2 + 3, w - 2)]
+    assert _chgts(ligne) == attendu_chg, (_chgts(ligne), attendu_chg)
+    # ... et le champ est bien RADIAL : sur le rayon +y, c'est la composante y
+    # qui ondule, et la x qui reste nulle (le contraire d'un champ directionnel)
+    colonne = [au(w // 2, y)[1] for y in range(h // 2 + 3, h - 2)]
+    assert _chgts(colonne) == attendu_chg
+    assert max(abs(au(w // 2, y)[0]) for y in range(h // 2 + 3, h - 2)) < 0.02
+
+    # 3. L'INCLINAISON, EN DEGRÉS. Le maximum doit être atan(amplitude de la
+    # recette) = 6,84° ; la moyenne dit que l'ondulation est douce PARTOUT et
+    # pas seulement en un point.
+    #
+    # L'ANGLE SE LIT SUR x/y, PAS SUR z, ET C'EST UNE CORRECTION DE MESURE.
+    # Près du pôle, un octet de `z` couvre un ÉNORME cône : la valeur vraie
+    # 0,99287 s'arrondit à l'octet 254 (0,99216), et `acos` en rend 7,18° —
+    # l'octet voisin, 253, en rendrait 10,16°. L'écart de 0,34° n'était pas
+    # une erreur de recette, c'était la GRILLE. Le sinus (√(x²+y²)), lui, est
+    # finement résolu là où z ne l'est pas : un pas d'octet y vaut 1/127,5,
+    # soit ~0,45° à cette pente — l'arrondi ne peut donc décaler que d'une
+    # demi-marche.
+    angs = [math.degrees(math.asin(min(1.0, math.hypot(n[0], n[1]))))
+            for n in nrm]
+    amax, amoy = max(angs), sum(angs) / len(angs)
+    attendu = math.degrees(math.atan(SC._HOLO_RIPPLE_DEFAUT))
+    assert abs(amax - attendu) < 0.25, (amax, attendu)
+    assert 6.0 < amax < 7.5, amax          # DOUCE : un pli, pas une tôle
+    assert 3.0 < amoy < 5.5, amoy
+    # la composante z ne passe JAMAIS sous zéro (une normale tangente ne
+    # pointe pas sous la surface) : B reste strictement au-dessus de 127
+    assert min(p[2] for p in im.getdata()) > 127
+
+    # 4. LE CENTRE N'EST PAS SINGULIER — la phase `sin` y annule la pente.
+    # (L'arc-en-ciel de la 2b, lui, garde son moulin à vent : celui-ci se
+    # ferme, il ne se nomme pas.)
+    for dx, dy in ((0, 0), (1, 0), (0, 1), (-1, -1)):
+        n = au(int(c) + dx, int(c) + dy)
+        assert abs(n[0]) < 0.05 and abs(n[1]) < 0.05, (dx, dy, n)
+
+    # LE RELIEF D'UNE MATIÈRE GAGNE : l'ondulation est un ornement de recette,
+    # pas la donnée de l'utilisateur — et glTF n'accepte qu'UNE normalTexture.
+    maps = SC.material_pngs({"normal": Image.new("RGB", (16, 16),
+                                                 (120, 140, 250))})
+    doc2, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "anneau", mat_maps=maps, finish=fin)],
+        name="o", extras={}))
+    i2 = doc2["textures"][doc2["materials"][0]["normalTexture"]["index"]]["source"]
+    assert doc2["images"][i2]["name"] == "anneau-normal"
+    assert not any(im_["name"].endswith("-ondulation")
+                   for im_ in doc2["images"]), \
+        "l'ondulation est embarquée alors que rien ne la référence"
+    # LA RÉSOLUTION EST PLAFONNÉE, ET LE PLAFOND EST MESURÉ. Une carte à trois
+    # cycles n'a rien à dire au-delà de 256² : agrandie en bilinéaire jusqu'à
+    # 1024², elle s'écarte de la version cuite à 1024² de 0,122 niveau en
+    # moyenne et 1 niveau au pire (sur 255). Le PRIX, lui, n'est pas
+    # négligeable : 233 750 o à 1024² contre 30 123 o à 256² — sept fois la
+    # texture d'épaisseur (32 724 o) pour une décoration. Sans ce contrôle, le
+    # plafond peut disparaître et le GLB quadrupler sans que rien ne rougisse.
+    gros = SC.holo_finish("dorure", aniso=False, out_px=2048)
+    assert Image.open(io.BytesIO(gros["normal"]["png"])).size == \
+        (SC._HOLO_RIPPLE_PX, SC._HOLO_RIPPLE_PX) == (256, 256)
+    assert len(gros["normal"]["png"]) < 60_000, len(gros["normal"]["png"])
+    # ET LE VERRE N'EN PORTE PAS : c'est une feuille estampée, pas une vitre.
+    doc3, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "vitre", finish=SC.glass_finish("verre"))],
+        name="o", extras={}))
+    assert "normalTexture" not in doc3["materials"][0]
+
+
+def test_l_ondulation_arrive_sur_L_ANNEAU_DU_SCEAU_par_la_route():
+    """La clause nomme l'ANNEAU. Bout en bout, sur la configuration que la
+    preuve de phase 4 produit : portée mesh cochée + extrusion « sceau » ->
+    le matériau de la couronne LIVRÉE porte la carte d'ondulation."""
+    from app.services.cards import core as CC
+    did = _deck("Ondulation sceau")
+    _importe(did)
+    CC.patch_deck(did, {"frame": {"seal": {
+        "on": True, "kind": "dorure", "width_mm": 2.4,
+        "scope": {"screen": True, "print": False, "mesh": True}}}})
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": _graphe_importe("recto", extrude=True), "card": 0})
+    assert r.status_code == 200, r.text[:400]
+    a = r.json()["artifact"]
+    doc, _ = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{a['glb']['name']}").content)
+    mat = [m for m in doc["materials"] if m["name"] == "extrude_sceau"][0]
+    assert "normalTexture" in mat, "l'anneau du Sceau n'ondule pas"
+    src = doc["textures"][mat["normalTexture"]["index"]]["source"]
+    assert doc["images"][src]["name"] == "extrude_sceau-ondulation"

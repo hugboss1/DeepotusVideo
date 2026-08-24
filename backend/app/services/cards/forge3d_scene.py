@@ -550,14 +550,44 @@ def material_pngs(maps: dict) -> dict:
 # près par le test.
 _HOLO_RECIPES = {
     "argent": {"base": [0.95, 0.95, 0.97, 1.0], "rough": 0.12, "ior": 1.8,
-               "thickness": [200.0, 900.0]},
+               "thickness": [200.0, 900.0], "ripple": 0.12},
     "dorure": {"base": [1.0, 0.84, 0.55, 1.0], "rough": 0.12, "ior": 1.6,
-               "thickness": [200.0, 600.0]},
+               "thickness": [200.0, 600.0], "ripple": 0.12},
 }
 _HOLO_SECTORS = 48   # secteurs radiaux : mip-stables, zéro moiré (§6.2bis-c)
 _HOLO_CYCLE = 8          # niveaux d'épaisseur, un cycle complet tous les 8
 _HOLO_ANISO_STRENGTH = 0.85
 _HOLO_CLEARCOAT_ROUGH = 0.06
+# ── L'ONDULATION DOUCE (§6.2bis-d, la clause avouée non livrée TROIS fois) ──
+# « une ondulation basse fréquence de la normale sur l'anneau du Sceau ». Le
+# candidat MINIMAL et honnête : une normal map procédurale, une sinusoïde
+# RADIALE, en PIL pur (même patron que `_holo_thickness_png` — aucun aléa,
+# mêmes octets à chaque appel).
+#
+# TROIS CYCLES sur le demi-côté : sur une carte poker à 1024 px de cuisson, une
+# période fait ~170 px, soit ~10 mm de carte. « Basse fréquence » veut dire
+# CELA — et c'est aussi ce qui la rend mip-stable là où un grain fin moirerait
+# (le même souci que les 48 secteurs de l'épaisseur, mais sur l'axe radial).
+_HOLO_RIPPLE_CYCLES = 3
+# L'AMPLITUDE EST UNE PENTE, PAS UNE HAUTEUR, et c'est délibéré : elle se lit
+# alors directement en degrés d'inclinaison — atan(0,12) = 6,84°. Une
+# ondulation « douce » est une ondulation dont on peut DIRE l'angle. Elle vit
+# dans la recette (clé `ripple`) parce que c'est la recette qui décrit la
+# feuille ; les deux recettes portent aujourd'hui LE MÊME chiffre, et rien de
+# mesuré ne les distingue sur ce point — une dorure et un argent sont deux
+# feuilles estampées de la même façon. Le jour où une mesure les sépare, la
+# clé est déjà là.
+_HOLO_RIPPLE_DEFAUT = 0.12
+# ELLE SE CUIT À 256², PAS À LA TAILLE DE LA FINITION, ET C'EST MESURÉ. Une
+# carte à trois cycles n'a rien à dire au-delà : agrandie en bilinéaire jusqu'à
+# 1024², la version 256² s'écarte de la version 1024² de **0,122 niveau en
+# moyenne, 1 niveau au pire** (sur 255) — invisible, et c'est la
+# QUANTIFICATION 8 bits qui domine, pas la résolution. Le prix, lui, ne l'est
+# pas : 233 750 o à 1024² contre 30 123 o à 256², soit **−87 %** du poids de la
+# carte, et 1024² pesait à lui seul SEPT FOIS la texture d'épaisseur
+# (32 724 o). Une décoration qui coûterait quatre fois l'hologramme qu'elle
+# décore mériterait qu'on la refuse ; celle-ci, non.
+_HOLO_RIPPLE_PX = 256
 # §6.2bis : les finitions se cuisent entre 1024 et 2048. Le plafond est ICI,
 # et le MÊME que celui de `tile_maps` (bornes symétriques, revue Task 5) :
 # 4096² coûtait ~17 s et ~200 Mo pour un gain invisible sur une carte de
@@ -886,6 +916,56 @@ def _holo_aniso_png(out_px: int) -> bytes:
     return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
 
 
+@lru_cache(maxsize=8)
+def _holo_ripple_png(out_px: int, amp: float) -> bytes:
+    """L'ONDULATION DOUCE — une normal map tangente, sinusoïde RADIALE.
+
+    LE CHAMP : `pente(r) = amp · sin(2π · f · r)`, où `r` est la distance au
+    centre RAPPORTÉE au demi-côté (0 au centre, 1 au bord, ~1,41 aux coins), et
+    la pente est portée par le RAYON. La normale vaut donc
+    `normalize(−pente·(dx/d, dy/d), 1)`, remappée en 0..1 dans les trois
+    canaux — la convention OpenGL, celle que lit `normalTexture`.
+
+    POURQUOI `sin` ET PAS `cos` : à r → 0, `sin` tend vers 0, donc la normale
+    tend vers +z et il n'y a PAS de singularité au centre (un `cos` y mettrait
+    une pente maximale sans direction définie — un cône). C'est le même piège
+    de centre que l'arc-en-ciel de la 2b, mais celui-ci se ferme au lieu de se
+    nommer : il suffisait de choisir la bonne phase.
+
+    LE CHAMP EST INTÉGRABLE, et ça n'est pas cosmétique : il dérive de la
+    hauteur `h(r) = −amp/(2πf)·cos(2πf·r)`. Une normal map non intégrable est
+    un relief qui n'existe pas — elle se rend en tôle froissée dès qu'on
+    tourne l'objet.
+
+    ZÉRO ALÉA (la valeur d'un pixel ne dépend que de sa position), écriture par
+    RANGÉES comme les deux textures voisines, et `B` toujours > 127 (la
+    composante z reste positive : une normale tangente ne pointe jamais sous la
+    surface)."""
+    from PIL import Image
+    c = out_px / 2.0
+    sin, sqrt = math.sin, math.sqrt
+    k = 2.0 * math.pi * _HOLO_RIPPLE_CYCLES
+    data = bytearray(out_px * out_px * 3)
+    off = 0
+    for y in range(out_px):
+        dy = (y + 0.5) - c
+        for x in range(out_px):
+            dx = (x + 0.5) - c
+            d = sqrt(dx * dx + dy * dy)
+            r = d / c
+            p = amp * sin(k * r)
+            # au centre exact `d` est ~0 : la pente y vaut ~0 de toute façon,
+            # mais la division doit rester définie (garde, pas correctif).
+            ux, uy = (dx / d, dy / d) if d > 1e-9 else (0.0, 0.0)
+            nx, ny, nz = -p * ux, -p * uy, 1.0
+            ln = sqrt(nx * nx + ny * ny + 1.0)
+            data[off] = round((nx / ln * 0.5 + 0.5) * 255)
+            data[off + 1] = round((ny / ln * 0.5 + 0.5) * 255)
+            data[off + 2] = round((nz / ln * 0.5 + 0.5) * 255)
+            off += 3
+    return _png_bytes(Image.frombytes("RGB", (out_px, out_px), bytes(data)))
+
+
 def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
                 motifs=()) -> dict:
     """UNE finition holographique de la spec (§6.2bis-c), prête pour le
@@ -921,6 +1001,18 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
         "clearcoat": {"factor": 1.0, "rough": _HOLO_CLEARCOAT_ROUGH},
         "anisotropy": ({"strength": _HOLO_ANISO_STRENGTH,
                         "png": _holo_aniso_png(px)} if aniso else None),
+        # L'ONDULATION (§6.2bis-d) : elle appartient à LA RECETTE, donc à
+        # toute surface qui porte cette feuille — l'anneau du Sceau d'abord
+        # (c'est le cas que la clause nomme), et n'importe quel élément qu'un
+        # nœud `material` habille de la même dorure. La restreindre à l'anneau
+        # aurait demandé à cette fonction de savoir QUI elle habille : elle ne
+        # le sait pas, et le lui apprendre pour distinguer deux surfaces
+        # portant le MÊME métal aurait été une distinction sans différence.
+        # LE RELIEF D'UNE MATIÈRE LUI EST PRIORITAIRE (voir le writer) : cette
+        # ondulation est un ornement de feuille, pas la donnée de l'utilisateur.
+        "normal": {"png": _holo_ripple_png(min(px, _HOLO_RIPPLE_PX),
+                                           _f(r.get("ripple"),
+                                              _HOLO_RIPPLE_DEFAUT))},
     }
 
 
@@ -1756,6 +1848,8 @@ def write_scene_glb(elements: list, name: str, extras: dict,
         cc = cc if isinstance(cc, dict) else None
         ani = (fin or {}).get("anisotropy")
         ani = ani if isinstance(ani, dict) else None
+        ond = (fin or {}).get("normal")
+        ond = ond if isinstance(ond, dict) else None
         # LE VERRE (phase 5, D5) — mêmes sous-blocs TYPÉS, mêmes raisons.
         tra = (fin or {}).get("transmission")
         tra = tra if isinstance(tra, dict) else None
@@ -1868,6 +1962,18 @@ def write_scene_glb(elements: list, name: str, extras: dict,
         if mm.get("normal"):
             mat["normalTexture"] = {
                 "index": add_texture(mm["normal"], f"{nom}-normal", True)}
+        elif ond and ond.get("png"):
+            # L'ONDULATION DE LA FEUILLE (§6.2bis-d), EN SECOND SEULEMENT. Le
+            # relief d'une MATIÈRE est la donnée de l'utilisateur ; cette
+            # ondulation-ci est un ornement de recette. glTF n'accepte qu'UNE
+            # `normalTexture` par matériau — les additionner voudrait dire les
+            # composer en cuisson, ce qui mélangerait un relief mesuré (grain
+            # de papier, cuir) avec une sinusoïde décorative sans que personne
+            # puisse démêler l'un de l'autre. La règle est donc nette et dite :
+            # la matière parle, la feuille ondule quand la matière se tait.
+            mat["normalTexture"] = {
+                    "index": add_texture(ond["png"],
+                                         f"{nom}-ondulation", True)}
         # LE PACK MR EST SAUTÉ QUAND UNE FINITION EST POSÉE. glTF MULTIPLIE le
         # facteur par la texture : garder les deux donnerait rugosité =
         # 0,12 x G/255 et métallicité = 1,0 x B/255 — une dorure posée sur une
