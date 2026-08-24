@@ -113,6 +113,16 @@ fournisseur qui tombe), et une case ne S'OUVRE que si l'échelle complète
 tient sous le plafond (le reliquat inutilisable est avoué au bilan).
 (4) Sélection vide (?cases= ou ,,,) = RIEN, jamais tout — 400 nommé sur une
 route qui dépense.
+**PRÉCISION T5 (lue à la source par la sonde d'assurance)** : le plafond de
+6,00 $ est une ENVELOPPE TOTALE délibérée, pas un plafond par session —
+`campagne()` reprend son cumul du manifeste sur disque et le mur tient d'un
+POST à l'autre (épinglé par test). « Multi-session » signifie : chaque POST
+reprend où le précédent s'est arrêté, DANS l'enveloppe. La relever
+(SERIE_PLAFOND_USD) est une décision de l'UTILISATEUR, jamais un
+contournement d'agent — avec l'estimation ≈4,30 $ les 108 cases tiennent ;
+sous ~76 % de taux FLUX, la campagne bute vers la case ~90-100 et s'arrête
+proprement là. La phrase « 6,00 $ par SESSION » de l'amendement ci-dessus
+était une erreur de plan : la machinerie, plus sûre, fait foi.
 
 **D3 — Les éléments libérés + les formes.** Les gemmes et ornements de coin
 deviennent des ÉLÉMENTS ÉDITABLES : la gemme gagne des clés de position/taille
