@@ -68,6 +68,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import re
 import struct
 import time
 import uuid
@@ -98,7 +99,7 @@ __all__ = [
     "serie_accent", "serie_prompt", "serie_prompt_retouche",
     "sans_nom_d_artiste", "juger_image", "meilleur_candidat", "serie_root",
     "manifeste_lire", "manifeste_ecrire", "prix_usd", "serie_prix",
-    "campagne",
+    "campagne", "cout_echelle_usd", "devis", "manifeste_fusionner",
 ]
 
 # ── seuils ──────────────────────────────────────────────────────────────────
@@ -947,7 +948,11 @@ async def ai_models(did: str):
     except Exception as e:
         # La route de l'application lit aussi un réglage en base : un incident
         # là ne doit pas faire disparaître des modèles dont la clé EST posée.
-        erreur = str(e)[:200]
+        # LE CHEMIN N'EN SORT PAS : une erreur SQLAlchemy porte volontiers le
+        # DSN sqlite, donc le chemin absolu de la base — donc le nom de compte,
+        # dans un champ servi. (Même filtre que les motifs de refus de la
+        # série ; le jumeau `frame.py` porte la même ligne, à corriger là-bas.)
+        erreur = _sans_chemin(e)
         repli = True
         keyed = _keyed_providers()
         models = [{"id": mid, "label": spec["label"], "provider": spec["provider"],
@@ -1119,14 +1124,33 @@ SERIE_RATIO = "3:4"               # le même, dit comme l'édition l'écrit
 JUGE_FICHIER = "style_walkuski.py"
 FICHE_FICHIER = "style_walkuski.json"
 
-# LE CADRE, AVOUÉ. La fiche vise le 2:3 (0,667) — la branche portrait du
-# corpus est à 0,695 et la face de carte à 0,635. Le service de génération de
-# l'application ne connaît que six cadres NOMMÉS : le plus proche est
-# `portrait_4_3` (0,750), à 0,083 du 2:3 contre 0,105 pour `portrait_16_9`.
-# On prend donc le plus proche et on l'écrit ici plutôt que d'annoncer un
-# cadre qu'on ne demande pas. Le juge ne contrôle PAS le format (aucun de ses
-# seize contrôles ne porte sur le ratio), l'écart ne fausse donc aucun
-# verdict ; il se voit à l'œil, et T5 pourra ouvrir un cadre libre s'il gêne.
+# LE CADRE — ET POURQUOI C'EST LE MEILLEUR, PAS UN PIS-ALLER (aveu refait en
+# ronde : la première rédaction citait « la face de carte du Cardforge
+# (650x1024 = 0,635) », un nombre qui est la taille sous laquelle LA BARRE
+# refuse un import et le rapport d'AUCUN des 12 formats — le test le vérifie).
+#
+# Les vrais rapports, relus dans `contract.geom` : toile poker 815x1110 =
+# 0,7342, coupe 744x1039 = 0,7159. La fiche, elle, vise le 2:3 (0,6667) et le
+# corpus portrait est à 0,695. Le service ne connaît que six cadres NOMMÉS :
+# `portrait_4_3` (0,750) est à 0,0833 du 2:3, `portrait_16_9` (0,5625) à
+# 0,1042.
+#
+# CE QUE L'ÉCART COÛTE, POSÉ SUR LA CARTE (mesuré, test à l'appui) : en
+# « couvrir » sur la toile, une image 2:3 EXACTE perd 9,2 % de sa HAUTEUR —
+# précisément là où vit la composition (la masse tient 76 % de la hauteur, le
+# poids est bas-centre) ; le 3:4 demandé ne perd que 2,1 % de sa LARGEUR et
+# RIEN de sa hauteur. Le cadre choisi est donc le MEILLEUR des deux pour ce
+# que la fiche mesure, pas le moins mauvais.
+#
+# ET LE JUGE SURVIT AU RECADRAGE : la toile conforme recadrée à 0,7342 puis à
+# 0,7159 tient encore (mesuré des deux côtés — la revue et le banc d'ici).
+# Le verdict porte donc bien sur l'image que l'œil verra.
+#
+# LA MARCHE GPT, ELLE, LIVRE LE 2:3 EXACT : `image_providers._OPENAI_SIZE`
+# mappe `portrait_4_3` sur 1024x1536, soit 0,6667 pile. Le même nom de cadre
+# donne donc deux rapports selon la marche — c'est un BONUS sur la marche de
+# secours, pas un défaut, et les DEUX miroirs sont épinglés au test pour que
+# personne ne les fasse diverger en silence.
 
 # CF-FACE-SERIES-BEGIN
 SERIES = [
@@ -1160,8 +1184,19 @@ NOMS_INTERDITS = (
     "tomaszewski", "pagowski", "pągowski", "sadowski", "olbinski", "olbiński",
     "dudzinski", "dudziński", "fangor", "mlodozeniec", "młodożeniec",
     "cieslewicz", "cieślewicz", "gorowski", "górowski", "czerniawski",
+    # AJOUTS DE RONDE : deux affichistes de plus, chacun sous ses deux
+    # graphies (la diacritique n'est pas une protection — un rédacteur la
+    # tape rarement).
+    "gorka", "górka", "eidrigevicius", "eidrigevičius",
 )
-PHRASES_INTERDITES = ("in the style of", "polish poster", "à la manière de")
+PHRASES_INTERDITES = ("in the style of", "polish poster", "polishposter",
+                      "à la manière de")
+# ET UN MOTIF, parce qu'une liste de sous-chaînes ne voit pas ce qui se glisse
+# ENTRE deux mots : « a polish school poster » passait au travers de
+# « polish poster ». Le motif couvre l'école nommée en trois mots comme en un
+# seul. (Les évasions par espacement exotique — « p o l i s h » — ne sont PAS
+# visées : ces prompts sont construits par la machine, pas dictés.)
+MOTIFS_INTERDITS = (re.compile(r"polish.{0,12}poster", re.I),)
 
 
 # ── la fiche : la SOURCE des chiffres, jamais une décoration ────────────────
@@ -1518,6 +1553,12 @@ def sans_nom_d_artiste(prompt: str) -> str:
             raise ValueError(
                 "le prompt cite une manière (« " + phrase + " ») au lieu de "
                 "la décrire : un style est une palette et des fractions")
+    for motif in MOTIFS_INTERDITS:
+        vu = motif.search(bas)
+        if vu:
+            raise ValueError(
+                "le prompt cite une école (« " + vu.group(0) + " ») au lieu "
+                "de la décrire : un style est une palette et des fractions")
     return prompt
 
 
@@ -1682,6 +1723,34 @@ def manifeste_lire() -> tuple:
     return m, ""
 
 
+def manifeste_fusionner(case: str, ligne: dict, gagnee: bool,
+                        delta_usd: float) -> dict:
+    """UNE CASE, POSÉE SUR LE DISQUE, TOUT DE SUITE. Relit le manifeste, y
+    ajoute CETTE case et CE delta de dépense, écrit, rend le fusionné.
+
+    POURQUOI RELIRE PLUTÔT QU'ÉCRIRE L'OBJET EN MÉMOIRE : la ronde a mesuré un
+    second écrivain qui effaçait la dépense du premier (5,00 $ ramenés à
+    3,018 $). Un objet gardé en mémoire pendant toute une campagne est une
+    photo périmée du disque ; la fusion, elle, ne perd ni la case ni le
+    centime d'un voisin. Le verrou de campagne (`_coalesce`) sérialise déjà
+    les campagnes d'une même série — cette relecture est la ceinture pour tout
+    ce qui écrirait à côté (une reprise lancée hors ligne, un T5 qui répare
+    une case à la main).
+
+    LE DELTA PLUTÔT QUE LE TOTAL, pour la même raison : additionner un total
+    calculé en mémoire écraserait ce qu'un autre a dépensé entre-temps."""
+    m, _ = manifeste_lire()
+    if gagnee:
+        m["cases"][case] = dict(ligne)
+        m["refus"].pop(case, None)
+    else:
+        m["refus"][case] = dict(ligne)
+    m["depense_totale_usd"] = round(
+        float(m.get("depense_totale_usd") or 0.0) + float(delta_usd or 0.0), 4)
+    manifeste_ecrire(m)
+    return m
+
+
 def manifeste_ecrire(m: dict) -> None:
     """Écriture ATOMIQUE au patron de la phase 4 : brouillon UNIQUE (deux
     campagnes concurrentes ne se disputent pas le même temporaire) puis
@@ -1735,6 +1804,25 @@ def serie_prix() -> dict:
     return {m: prix_usd(m, 1) for m in SERIE_ECHELLE}
 
 
+def cout_echelle_usd() -> float:
+    """CE QUE COÛTE UNE CASE AU PIRE : l'échelle ENTIÈRE, six candidats FLUX +
+    une édition + un GPT. Calculé sur la table, jamais écrit — un plafond qui
+    se libelle dans une autre monnaie que la facture ne protège rien.
+
+    C'est le nombre qui décide si une case s'OUVRE (correction de ronde) : le
+    mur atteint au MILIEU d'une case brûlait les marches déjà payées sans
+    laisser de trace, et le bilan annonçait « 3 traitées, 0 refusées » pour de
+    l'argent parti. Une case ne commence donc que si elle peut finir."""
+    total = 0.0
+    for modele, n in ((SERIE_ECHELLE[0], SERIE_CANDIDATS),
+                      (SERIE_ECHELLE[1], 1), (SERIE_ECHELLE[2], 1)):
+        prix = prix_usd(modele, n)
+        if prix is None:                                  # pragma: no cover
+            continue
+        total += prix
+    return round(total, 4)
+
+
 # ── les trois voies : le MÊME chemin de service que `/images/generate` ──────
 #
 # La campagne est une route de CE backend : elle ne se parle pas à elle-même
@@ -1769,6 +1857,14 @@ async def _tirer_gpt(prompt: str) -> list:
     return list((out or {}).get("images") or [])
 
 
+def tient_sous_le_mur(cumul: float, cout: float) -> bool:
+    """LE MUR, EN UN SEUL ENDROIT. La boucle demande « cette case peut-elle
+    finir ? » et chaque tir demande « celui-ci passe-t-il ? » : deux questions,
+    une seule arithmétique. Écrites deux fois, elles auraient fini par
+    diverger — et la divergence n'aurait été visible que sur une facture."""
+    return (float(cumul) + float(cout)) <= SERIE_PLAFOND_USD + 1e-9
+
+
 class _Plafond(Exception):
     """Le mur, atteint. Levée plutôt que rendue : elle remonte de la marche où
     elle survient jusqu'à la boucle, sans qu'aucune marche intermédiaire ait à
@@ -1783,6 +1879,19 @@ def _cles_posees() -> dict:
 
 def _horodate() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# UN MESSAGE SERVI NE PORTE JAMAIS DE CHEMIN ABSOLU — la jurisprudence de la
+# fuite de nom de compte, appliquée à la porte que personne ne surveillait :
+# le MOTIF D'UN ÉCHEC. `PIL.UnidentifiedImageError` porte le chemin complet du
+# fichier ; ce motif part dans la réponse HTTP ET dans le manifeste écrit sur
+# le disque, que T5 publiera. La classe de l'exception reste (elle sert au
+# diagnostic), le chemin s'en va.
+_CHEMIN_RE = re.compile(r"""(?:[A-Za-z]:[\\/]|[\\/]{1,2})[^\s'"]{2,}""")
+
+
+def _sans_chemin(txt, n: int = 200) -> str:
+    return _CHEMIN_RE.sub("<chemin>", str(txt or ""))[:n]
 
 
 # ── LA CAMPAGNE — l'échelle de secours, le journal, le mur ──────────────────
@@ -1822,9 +1931,18 @@ SERIE_MOTIFS = {
 }
 
 
-async def _fabriquer_case(case: str, m: dict, journal: list) -> dict:
+async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
     """Une case, de bout en bout. Rend le verdict retenu (gagnant ou refus).
-    Lève `_Plafond` si le prochain tir ne tient pas sous le mur."""
+
+    `sac` porte la seule chose mutable de l'affaire : `depense_totale_usd`, le
+    cumul à cet instant. Ce n'est plus le MANIFESTE qu'on promène (il vit sur
+    le disque et se fusionne case par case) — un objet gardé en mémoire toute
+    une campagne finissait par écraser ce qu'un voisin avait écrit.
+
+    Lève `_Plafond` si un tir ne tient pas sous le mur ; en pratique la boucle
+    a déjà refusé d'OUVRIR une case qui ne pourrait pas finir, donc cette
+    levée-ci est la ceinture (les prix peuvent changer en cours de campagne :
+    `pricing.json` est éditable pendant qu'elle tourne)."""
     from app.config import settings
 
     async def _payer(modele: str, n: int) -> float:
@@ -1833,19 +1951,19 @@ async def _fabriquer_case(case: str, m: dict, journal: list) -> dict:
             raise RuntimeError(
                 "modèle « " + modele + " » absent de la table de tarifs : "
                 "aucun tir n'est lancé sans son prix")
-        avant = float(m.get("depense_totale_usd") or 0.0)
-        if avant + prix > SERIE_PLAFOND_USD + 1e-9:
+        avant = float(sac.get("depense_totale_usd") or 0.0)
+        if not tient_sous_le_mur(avant, prix):
             raise _Plafond()
         journal.append({"case": case, "modele": modele, "n": int(n),
                         "prix_usd": round(prix, 4),
                         "cumul_avant_usd": round(avant, 4),
                         "cumul_apres_usd": round(avant + prix, 4),
                         "at": _horodate(), "panne": False})
-        logger.info("cardforge/serie %s : %s x%d = %.4f USD "
-                    "(cumul %.4f -> %.4f, plafond %.2f)",
-                    case, modele, n, prix, avant, avant + prix,
-                    SERIE_PLAFOND_USD)
-        m["depense_totale_usd"] = round(avant + prix, 4)
+        logger.info(
+            f"cardforge/serie {case} : {modele} x{int(n)} = {prix:.4f} USD "
+            f"(cumul {avant:.4f} -> {avant + prix:.4f}, "
+            f"plafond {SERIE_PLAFOND_USD:.2f})")
+        sac["depense_totale_usd"] = round(avant + prix, 4)
         return prix
 
     async def _juger(noms: list) -> list:
@@ -1866,7 +1984,7 @@ async def _fabriquer_case(case: str, m: dict, journal: list) -> dict:
         noms = await _tirer_flux(prompt, SERIE_CANDIDATS, graine)
     except Exception as e:
         journal[-1]["panne"] = True
-        raise _Panne(str(e)[:200])
+        raise _Panne(_sans_chemin(e))
     if not noms:
         journal[-1]["panne"] = True
         raise _Panne("le générateur n'a rendu aucune image")
@@ -1884,7 +2002,7 @@ async def _fabriquer_case(case: str, m: dict, journal: list) -> dict:
                 serie_prompt_retouche(case, best.get("ecarts")), best["img"])
         except Exception as e:
             journal[-1]["panne"] = True
-            raise _Panne(str(e)[:200])
+            raise _Panne(_sans_chemin(e))
         if noms:
             neuf = meilleur_candidat(await _juger(noms))
             neuf["voie"] = "nano-banana"
@@ -1901,7 +2019,7 @@ async def _fabriquer_case(case: str, m: dict, journal: list) -> dict:
         noms = await _tirer_gpt(prompt)
     except Exception as e:
         journal[-1]["panne"] = True
-        raise _Panne(str(e)[:200])
+        raise _Panne(_sans_chemin(e))
     if noms:
         neuf = meilleur_candidat(await _juger(noms))
         neuf["voie"] = "gpt-image-2"
@@ -1922,40 +2040,68 @@ class _Panne(Exception):
 
 
 async def campagne(demandees=None, limite: int = 0) -> dict:
-    """Les cases MANQUANTES, une par une, jusqu'au mur ou à la limite."""
+    """Les cases MANQUANTES, une par une, jusqu'au mur ou à la limite.
+
+    DEUX RÈGLES NÉES DE LA RONDE, et elles tiennent ensemble :
+
+    (a) LE MANIFESTE S'ÉCRIT APRÈS CHAQUE CASE. Écrit après la boucle, il
+        disparaissait entièrement à la première exception : deux cases gagnées
+        ET PAYÉES perdues, `depense_totale` à 0,00 pour 0,054 $ partis — donc
+        un plafond qui ne protège plus rien dès la deuxième tentative.
+
+    (b) UNE CASE NE S'OUVRE QUE SI L'ÉCHELLE ENTIÈRE TIENT. Le mur atteint au
+        MILIEU d'une case laissait les marches déjà payées sans aucune trace,
+        et le bilan annonçait « 0 refusée ». Le reliquat inutilisable est
+        maintenant AVOUÉ.
+
+    Et l'`except` de la boucle attrape `Exception` : un juge qui tombe (une
+    image illisible EST un `OSError`, pas un `ValueError`) est traité comme un
+    fournisseur qui tombe — la case part en refus journalisé, la campagne
+    CONTINUE."""
     m, illisible = manifeste_lire()
     if not FAMILLES:                                      # pragma: no cover
         return dict(_bilan(m, [], [], [], "fiche"), illisible=illisible)
     voulues = list(demandees) if demandees else serie_cases()
     restantes = [c for c in voulues if c not in m["cases"]]
     traitees, refusees, journal = [], [], []
+    sac = {"depense_totale_usd": float(m.get("depense_totale_usd") or 0.0)}
+    echelle = cout_echelle_usd()
     arret = "fin" if restantes else "rien"
     for case in restantes:
         if limite and len(traitees) + len(refusees) >= limite:
             arret = "limite"
             break
+        if not tient_sous_le_mur(sac["depense_totale_usd"], echelle):
+            arret = "plafond"
+            break
+        avant = sac["depense_totale_usd"]
         try:
-            note = await _fabriquer_case(case, m, journal)
-        except _Plafond:
+            note = await _fabriquer_case(case, sac, journal)
+        except _Plafond:                                  # pragma: no cover
             arret = "plafond"
             break
         except _Panne as e:
             note = {"verdict": "HORS STYLE", "score": 0.0, "axes_rouges": [],
                     "voie": "", "motif": str(e), "prix_usd": 0.0}
-        except (KeyError, ValueError, RuntimeError) as e:
+        except Exception as e:
+            # UN JUGE QUI TOMBE = UN FOURNISSEUR QUI TOMBE. `except (KeyError,
+            # ValueError, RuntimeError)` laissait passer
+            # `PIL.UnidentifiedImageError`, qui est un `OSError` : la campagne
+            # levait et emportait tout. Le motif nomme la classe, pour qu'un
+            # incident se diagnostique sans relire le journal du serveur.
             note = {"verdict": "HORS STYLE", "score": 0.0, "axes_rouges": [],
-                    "voie": "", "motif": str(e)[:200], "prix_usd": 0.0}
+                    "voie": "", "prix_usd": 0.0,
+                    "motif": _sans_chemin(e.__class__.__name__ + " : " + str(e))}
         ligne = {"case": case, "famille": serie_famille(case),
                  "voie": note.get("voie") or "",
                  "score": round(float(note.get("score") or 0.0), 1),
                  "verdict": note.get("verdict") or "HORS STYLE",
                  "prix_usd": note.get("prix_usd", 0.0),
                  "at": _horodate()}
-        if note.get("verdict") == "TIENT" and note.get("img"):
+        gagnee = bool(note.get("verdict") == "TIENT" and note.get("img"))
+        if gagnee:
             ligne["img"] = note["img"]
             ligne["dE_median"] = note.get("dE_median")
-            m["cases"][case] = dict(ligne)
-            m["refus"].pop(case, None)
             traitees.append(ligne)
         else:
             ligne["axes_rouges"] = list(note.get("axes_rouges") or [])
@@ -1968,19 +2114,41 @@ async def campagne(demandees=None, limite: int = 0) -> dict:
                 ligne["motif"] = ("aucun candidat ne TIENT (meilleur score "
                                   + str(ligne["score"]) + ")")
             ligne["ecarts"] = [e["metrique"] for e in (note.get("ecarts") or [])]
-            m["refus"][case] = dict(ligne)
             refusees.append(ligne)
-    manifeste_ecrire(m)
-    return dict(_bilan(m, traitees, refusees, journal, arret),
+        # LE DISQUE, TOUT DE SUITE — et le cumul RESYNCHRONISÉ sur ce que le
+        # disque porte après fusion (si un voisin a dépensé pendant ce
+        # temps-là, le mur se resserre : l'erreur du bon côté).
+        m = manifeste_fusionner(case, ligne, gagnee,
+                                sac["depense_totale_usd"] - avant)
+        sac["depense_totale_usd"] = float(m["depense_totale_usd"])
+    return dict(_bilan(m, traitees, refusees, journal, arret, echelle),
                 illisible=illisible)
 
 
-def _bilan(m: dict, traitees, refusees, journal, arret: str) -> dict:
+def _usd(x: float) -> str:
+    """Un montant en français, pour un message lu par un humain."""
+    return ("%.2f" % float(x)).replace(".", ",")
+
+
+def _bilan(m: dict, traitees, refusees, journal, arret: str,
+           echelle: float = 0.0) -> dict:
     depense = round(float(m.get("depense_totale_usd") or 0.0), 4)
     faites = len(m.get("cases") or {})
     total = len(serie_cases())
     session = round(sum(float(l["prix_usd"]) for l in journal), 4)
+    reste = round(max(0.0, SERIE_PLAFOND_USD - depense), 4)
+    message = SERIE_MOTIFS.get(arret, arret)
+    if arret == "plafond":
+        # LE RELIQUAT EST AVOUÉ AVEC SES DEUX NOMBRES. « Plafond atteint » sur
+        # un compteur à 5,40 $ pour un plafond de 6,00 $ se lit comme une
+        # erreur ; ce qui manque, c'est de dire que 0,60 $ n'ouvre pas une
+        # case parce qu'une case coûte 1,96 $ au pire.
+        message = ("plafond de campagne atteint : reste " + _usd(reste)
+                   + " $ — insuffisant pour ouvrir une case, l'échelle "
+                   "complète coûte " + _usd(echelle) + " $. La campagne "
+                   "reprendra au prochain lancement.")
     return {
+        "echelle_usd": round(float(echelle), 4),
         "serie": SERIE_ID, "v": SERIE_V, "total": total, "faites": faites,
         # `n_refus` et non `refus` : la route d'état publie sous `refus` le
         # DICTIONNAIRE des refus. Deux formes sous une même clé, dans la même
@@ -1988,7 +2156,7 @@ def _bilan(m: dict, traitees, refusees, journal, arret: str) -> dict:
         # production.
         "restantes": total - faites, "n_refus": len(m.get("refus") or {}),
         "traitees": traitees, "refusees": refusees, "journal": journal,
-        "arret": arret, "message": SERIE_MOTIFS.get(arret, arret),
+        "arret": arret, "message": message,
         "depense_session_usd": session, "depense_totale_usd": depense,
         "plafond_usd": SERIE_PLAFOND_USD,
         "reste_usd": round(max(0.0, SERIE_PLAFOND_USD - depense), 4),
@@ -2027,12 +2195,23 @@ async def _coalesce(cle: str, faire):
 
 # ── les deux routes ─────────────────────────────────────────────────────────
 
-def _cases_demandees(brut: str) -> list:
-    """`?cases=a,b,c` → la liste, ou une levée qui NOMME la case inconnue.
-    Avaler un nom de case inconnu ferait croire à une campagne complète."""
-    voulues = [c.strip() for c in str(brut or "").split(",") if c.strip()]
-    if not voulues:
+def _cases_demandees(brut) -> list:
+    """`?cases=a,b,c` → la liste, ou une levée qui NOMME ce qui cloche.
+
+    LE PARAMÈTRE ABSENT (`None`) VEUT DIRE « TOUTE LA SÉRIE » ; LE PARAMÈTRE
+    PRÉSENT ET VIDE NE VEUT PAS DIRE ÇA. Mesuré en ronde : `?cases=` et
+    `?cases=,,,` rendaient 200 et lançaient les 108 cases. Sur une route qui
+    dépense, « je n'ai rien choisi » ne peut pas signifier « fais tout » —
+    c'est un refus nommé (D2-4)."""
+    if brut is None:
         return []
+    voulues = [c.strip() for c in str(brut).split(",") if c.strip()]
+    if not voulues:
+        raise ValueError(
+            "sélection vide : `cases` est présent mais ne nomme aucune case. "
+            "Retirez le paramètre pour viser toute la série, ou nommez les "
+            "cases — une case s'écrit « <composition>_<sujet> », par exemple "
+            + serie_cases()[0])
     legales = set(serie_cases())
     inconnues = [c for c in voulues if c not in legales]
     if inconnues:
@@ -2048,10 +2227,15 @@ def _cases_demandees(brut: str) -> list:
     return sortie
 
 
-def _limite_demandee(brut: str) -> int:
-    s = str(brut or "").strip()
-    if not s:
+def _limite_demandee(brut) -> int:
+    """Même règle que `cases` : absent = pas de borne, présent et vide = un
+    refus nommé (c'est une faute de frappe, pas une intention)."""
+    if brut is None:
         return 0
+    s = str(brut).strip()
+    if not s:
+        raise ValueError("`limite` est présent mais vide : retirez le "
+                         "paramètre, ou donnez un entier positif")
     try:
         n = int(s)
     except ValueError:
@@ -2069,9 +2253,17 @@ async def serie_etat(did: str):
     coûté, ce qu'il reste sous le plafond, et le prix de chaque marche.
 
     JAMAIS 500 : un manifeste abîmé rend un état VIDE et le dit (`illisible`),
-    une fiche illisible éteint la série et le dit aussi."""
+    une fiche illisible éteint la série et le dit aussi.
+
+    LE JEU DOIT EXISTER, comme pour la campagne. Le manifeste est GLOBAL (les
+    108 images sont un bien commun), mais la route vit sous un deck : rendre
+    200 ici quand la campagne rend 404 pour le même identifiant, c'est offrir
+    à un écran deux réponses contradictoires à la même question."""
     if not is_valid_did(did):
         raise HTTPException(400, "Identifiant de jeu invalide")
+    from .contract import deck_dir
+    if not deck_dir(did).is_dir():
+        raise HTTPException(404, "Jeu introuvable")
     m, illisible = manifeste_lire()
     total = len(serie_cases())
     return {
@@ -2095,10 +2287,61 @@ async def serie_etat(did: str):
     }
 
 
+def devis(voulues: list, limite: int = 0) -> dict:
+    """CE QUE CETTE DEMANDE FERAIT, ET CE QU'ELLE COÛTERAIT AU PIRE — sans
+    rien dépenser.
+
+    Le pire cas est l'échelle complète × les cases visées : 19,12 $ pour la
+    série entière, soit 3,19 fois le plafond. La campagne est donc
+    MULTI-SESSION par construction, et le devis le DIT plutôt que de laisser
+    l'utilisateur le découvrir au troisième « plafond atteint »."""
+    m, _ = manifeste_lire()
+    cibles = [c for c in (voulues or serie_cases()) if c not in m["cases"]]
+    if limite:
+        cibles = cibles[:limite]
+    echelle = cout_echelle_usd()
+    depense = round(float(m.get("depense_totale_usd") or 0.0), 4)
+    reste = round(max(0.0, SERIE_PLAFOND_USD - depense), 4)
+    ouvrables = int(reste / echelle) if echelle > 0 else 0
+    return {
+        "cases_manquantes": len(cibles),
+        "echelle_usd": echelle,
+        "pire_cas_usd": round(len(cibles) * echelle, 4),
+        "depense_courante_usd": depense,
+        "plafond_usd": SERIE_PLAFOND_USD,
+        "reste_usd": reste,
+        "cases_ouvrables": ouvrables,
+        "multi_session": len(cibles) > ouvrables,
+        "prix": serie_prix(), "devise": "USD",
+        "detail_echelle": {"flux": {"n": SERIE_CANDIDATS,
+                                    "usd": prix_usd(SERIE_ECHELLE[0],
+                                                    SERIE_CANDIDATS)},
+                           SERIE_ECHELLE[1]: {"n": 1,
+                                              "usd": prix_usd(SERIE_ECHELLE[1], 1)},
+                           SERIE_ECHELLE[2]: {"n": 1,
+                                              "usd": prix_usd(SERIE_ECHELLE[2], 1)}},
+    }
+
+
 @router.post("/serie/generer")
-async def serie_generer(did: str, cases: str = "", limite: str = ""):
+async def serie_generer(did: str, body: dict | None = None,
+                        cases: str | None = None, limite: str | None = None):
     """LA CAMPAGNE. Elle DÉPENSE — c'est la seule route de cette pièce qui le
     fasse — et elle s'arrête au plafond avec son bilan, reprenable.
+
+    ELLE EXIGE UNE CONFIRMATION EXPLICITE (`{"confirmer": true}`), et sans
+    elle rend le DEVIS. Ce n'est pas de la cérémonie : pendant la ronde, une
+    sonde a émis 436 requêtes vers le fournisseur (toutes refusées à
+    l'authentification — la clé du banc était neutralisée, zéro centime), et
+    ce qui les a déclenchées est un POST NU sur cette route. Une porte par
+    laquelle sortent 19 $ ne s'ouvre pas en la poussant du coude.
+
+    NOTE POUR T5 : le prix de chaque tir est relu dans `pricing.load()` À
+    CHAQUE APPEL (la table est la fusion des défauts et du `pricing.json` de
+    l'utilisateur, éditable pendant que la campagne tourne). Le mur se libelle
+    donc dans la monnaie du MOMENT : re-vérifier la table avant de relancer
+    une session, et lire `echelle_usd` du bilan pour savoir ce qu'une case
+    coûte au pire ce jour-là.
 
     Les paramètres sont des CHAÎNES et non des entiers typés : un
     `?limite=abc` doit rendre un refus FRANÇAIS qui dit ce qu'on attend, pas
@@ -2117,6 +2360,20 @@ async def serie_generer(did: str, cases: str = "", limite: str = ""):
         raise HTTPException(
             409, "La fiche de style est illisible (" + FICHE_ERREUR + ") : "
                  "aucune campagne ne peut être lancée sans ses bornes")
+    if (body or {}).get("confirmer") is not True:
+        d = devis(voulues, n)
+        raise HTTPException(400, detail={
+            "erreur": "confirmation requise",
+            "message": ("Cette campagne DÉPENSE. Elle vise "
+                        + str(d["cases_manquantes"]) + " case(s), soit au pire "
+                        + _usd(d["pire_cas_usd"]) + " $ pour un plafond de "
+                        + _usd(d["plafond_usd"]) + " $ par session (il reste "
+                        + _usd(d["reste_usd"]) + " $, de quoi ouvrir "
+                        + str(d["cases_ouvrables"]) + " case(s)). Renvoyez la "
+                        "MÊME requête avec {\"confirmer\": true} pour la "
+                        "lancer."),
+            "devis": d,
+        })
 
     async def _faire():
         return await campagne(voulues, n)
@@ -2126,9 +2383,10 @@ async def serie_generer(did: str, cases: str = "", limite: str = ""):
     except HTTPException:
         raise
     except Exception as e:                                # pragma: no cover
-        logger.warning("cardforge/serie : campagne interrompue : %s", e)
+        logger.warning(f"cardforge/serie : campagne interrompue : "
+                       f"{_sans_chemin(e)}")
         raise HTTPException(
-            409, "La campagne s'est interrompue : " + str(e)[:180])
+            409, "La campagne s'est interrompue : " + _sans_chemin(e, 180))
     out = dict(info)
     out["coalesce"] = not mien
     if not mien:

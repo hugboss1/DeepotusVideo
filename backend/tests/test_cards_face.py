@@ -2913,6 +2913,17 @@ class _Atelier:
         return self
 
 
+def _lancer(chemin: str, corps=None):
+    """UN LANCEMENT CONFIRMÉ. La route de campagne exige `{"confirmer": true}`
+    depuis l'incident de ronde (une sonde a émis 436 requêtes vers fal, toutes
+    refusées à l'authentification — la clé neutralisée a tenu, zéro centime) :
+    un POST NU lançait la série entière. Tous les tests qui veulent DÉPENSER
+    passent donc par ici, et ceux qui veulent le DEVIS appellent la route sans
+    corps, exprès."""
+    return _api("POST", chemin,
+                json={"confirmer": True} if corps is None else corps)
+
+
 def _serie_neuve():
     """Le disque, remis à zéro : chaque test de campagne part du même état."""
     d = FA.serie_root()
@@ -3167,7 +3178,7 @@ def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
     l'application (`image_providers._BANANA_ASPECT`), et le rapport d'édition
     de la pièce doit être CELUI de ce cadre — sinon une passe de retouche
     changerait la forme de l'image entre deux marches de l'échelle."""
-    from app.services.image_providers import _BANANA_ASPECT
+    from app.services.image_providers import _BANANA_ASPECT, _OPENAI_SIZE
     cible = 2.0 / 3.0
     ratios = {}
     for nom, asp in _BANANA_ASPECT.items():
@@ -3178,6 +3189,94 @@ def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
     assert FA.SERIE_RATIO == _BANANA_ASPECT[FA.SERIE_TAILLE], \
         "le cadre de l'édition ne suit pas celui de la génération"
     assert abs(ratios[FA.SERIE_TAILLE] - cible) == pytest.approx(0.0833, abs=1e-3)
+    # LE SECOND MIROIR, celui que la première version ne lisait pas : la
+    # marche GPT ne passe pas par les rapports de nano-banana, elle passe par
+    # une table de TAILLES. Et cette table rend le 2:3 EXACT pour le même nom
+    # de cadre — la marche de secours livre donc le cadre de la fiche, mieux
+    # que les deux autres. Ce n'est pas un défaut, c'est un bonus ; mais il
+    # doit être ÉPINGLÉ, sinon un jour la table change et la série se met à
+    # mélanger deux cadres sans que personne ne le voie.
+    l, h = (int(x) for x in _OPENAI_SIZE[FA.SERIE_TAILLE].split("x"))
+    assert (l, h) == (1024, 1536)
+    assert l / h == pytest.approx(cible, abs=1e-4), (l, h)
+    assert "2:3" in pathlib.Path(FA.__file__).read_text(encoding="utf-8"), \
+        "le cadre visé n'est nommé nulle part dans la pièce"
+
+
+def test_le_cadre_est_LE_MEILLEUR_pas_un_pis_aller():
+    """L'AVEU, REFAIT PAR LA MESURE (correction de ronde). La première
+    rédaction disait « la face de carte du Cardforge (650×1024 = 0,635) » :
+    ce nombre est la taille sous laquelle la BARRE refuse un import, il n'est
+    le rapport d'AUCUN des 12 formats. Les vrais rapports sont ceux de
+    `contract.geom`, et ils décident du sens de l'écart.
+
+    Posée en « couvrir » sur la toile du poker (0,7342), une image 2:3 EXACTE
+    perd 9,2 % de sa HAUTEUR — là où vit la composition (la masse occupe 76 %
+    de la hauteur, le poids est bas-centre). Le 3:4 demandé, lui, ne perd que
+    2,1 % de sa LARGEUR et RIEN de sa hauteur. Le cadre choisi n'est donc pas
+    le moins mauvais : c'est le meilleur des deux pour ce que la fiche
+    mesure."""
+    g = CT.geom("poker_eu", 300)
+    toile = g.canvas_px[0] / g.canvas_px[1]
+    coupe = g.trim_px[0] / g.trim_px[1]
+    assert toile == pytest.approx(0.7342, abs=1e-3)
+    assert coupe == pytest.approx(0.7159, abs=1e-3)
+    # 0,635 EST LE RAPPORT DE 650x1024 — la taille sous laquelle la BARRE
+    # refuse un import (`BAR_REFUSAL_PX`), pas un format d'ici : aucun des 12
+    # ne porte cette trame, et aucun n'a ce rapport. (Le plus proche est
+    # bridge_us à 0,6429, à huit millièmes — assez pour qu'un aveu qui cite
+    # 0,635 comme « la face de carte du Cardforge » soit faux.)
+    assert FA.BAR_REFUSAL_PX == (650, 1024)
+    assert 650 / 1024 == pytest.approx(0.635, abs=1e-3)
+    tous = {f: CT.geom(f, 300).trim_px[0] / CT.geom(f, 300).trim_px[1]
+            for f in CT.FORMATS}
+    assert not [f for f, r in tous.items() if abs(r - 0.635) < 1e-3], tous
+    for f in CT.FORMATS:
+        g2 = CT.geom(f, 300)
+        assert tuple(g2.trim_px) != (650, 1024)
+        assert tuple(g2.canvas_px) != (650, 1024)
+    perte_2_3 = 1.0 - (2.0 / 3.0) / toile            # hauteur rognée
+    perte_3_4 = 1.0 - toile / 0.75                   # largeur rognée
+    assert perte_2_3 == pytest.approx(0.092, abs=2e-3)
+    assert perte_3_4 == pytest.approx(0.021, abs=2e-3)
+    assert perte_3_4 < perte_2_3
+    py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
+    # LE NOMBRE PEUT RESTER — la correction se garde, c'est l'usage qui
+    # change : 0,635 n'est plus présenté comme « la face de carte du
+    # Cardforge » mais comme ce qu'il est. Ce qui doit avoir DISPARU est
+    # l'affirmation, et ce qui doit être LÀ sont les deux vrais rapports.
+    assert "la face de carte du Cardforge (650" not in py
+    for vrai in ("0,7342", "0,7159", "9,2 %", "2,1 %"):
+        assert vrai in py, f"l'aveu ne porte pas la mesure {vrai}"
+    assert "0,1042" in py, "l'écart de portrait_16_9 est encore arrondi faux"
+    assert "0,105" not in py
+
+
+def test_le_juge_SURVIT_au_recadrage_reel_de_la_carte(tmp_path):
+    """LA MOITIÉ QUI MANQUAIT À L'AVEU. Dire « le juge ne contrôle pas le
+    format » ne suffit pas : l'image générée en 3:4 sera RECADRÉE à la toile
+    puis à la coupe, et c'est l'image RECADRÉE que l'œil verra. Si le verdict
+    s'effondrait au recadrage, la série serait jugée sur une image que
+    personne ne regarde.
+
+    On recadre donc la toile conforme aux deux rapports réels de la carte et
+    on rejoue le juge dessus."""
+    im = _toile_conforme()
+    ref = FA.juger_image(_ecrire(im, tmp_path / "plein.png"))
+    assert ref["verdict"] == "TIENT"
+    for nom, ratio in (("toile", 0.7342), ("coupe", 0.7159)):
+        w, h = im.size
+        cible_w = int(round(h * ratio))
+        dx = max(0, (w - cible_w) // 2)
+        coupee = im.crop((dx, 0, dx + min(w, cible_w), h))
+        v = FA.juger_image(_ecrire(coupee, tmp_path / f"{nom}.png"))
+        assert v["verdict"] == "TIENT", (nom, v)
+        assert not v["axes_rouges"], (nom, v["axes_rouges"])
+
+
+def _ecrire(im, chemin):
+    im.save(chemin)
+    return chemin
 
 
 def test_AUCUN_prompt_de_serie_ne_nomme_un_artiste():
@@ -3187,6 +3286,16 @@ def test_AUCUN_prompt_de_serie_ne_nomme_un_artiste():
     porte par des nombres."""
     interdits = [n.lower() for n in FA.NOMS_INTERDITS]
     assert "walkuski" in interdits and "wałkuski" in interdits
+    # LES TROUS MESURÉS PAR LA RONDE, refermés : deux affichistes de plus, et
+    # l'ÉCOLE nommée autrement qu'en deux mots collés — « a polish school
+    # poster » passait au travers d'une liste de sous-chaînes.
+    for nom in ("górka", "gorka", "eidrigevičius", "eidrigevicius"):
+        assert nom in interdits, nom
+    for essai in ("a polish school poster, oil on board",
+                  "polishposter style, bone-coloured",
+                  "in the manner of a POLISH theatre POSTER"):
+        with pytest.raises(ValueError):
+            FA.sans_nom_d_artiste(essai)
     for case in FA.serie_cases():
         p = FA.serie_prompt(case).lower()
         for nom in interdits:
@@ -3332,6 +3441,13 @@ def test_GET_serie_ne_fait_JAMAIS_500(monkeypatch):
         r = _api("GET", f"/api/cards/{did}/face/serie")
         assert r.status_code in (400, 404), (did, r.status_code)
         assert r.status_code != 500
+    # UN JEU VALIDE MAIS ABSENT : 404 des DEUX côtés. L'état rendait 200 quand
+    # la campagne rendait 404 — le manifeste est global, mais la route vit
+    # sous un deck, et deux réponses différentes pour la même question sont
+    # une invitation à écrire un écran qui se trompe.
+    r = _api("GET", "/api/cards/deck_00000000/face/serie")
+    assert r.status_code == 404, r.status_code
+    assert isinstance(r.json()["detail"], str)
     # un manifeste ABÎMÉ sur le disque se lit toléramment, il ne casse pas
     _serie_neuve()
     (FA.serie_root() / "walkuski.json").write_text("{ pas du json",
@@ -3357,7 +3473,7 @@ def test_la_campagne_pose_la_case_gagnante_au_magasin_et_au_manifeste(
     at = _Atelier(flux=["saturee", "conforme", "saturee", "saturee",
                         "saturee", "saturee"]).pose(monkeypatch)
     did = _deck()
-    r = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=1")
+    r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
     assert r.status_code == 200, r.text
     d = r.json()
     assert len(d["traitees"]) == 1 and not d["refusees"]
@@ -3386,7 +3502,7 @@ def test_le_manifeste_est_VERSIONNE_et_ne_laisse_aucun_brouillon(monkeypatch):
     _serie_neuve()
     _Atelier(flux="conforme").pose(monkeypatch)
     did = _deck()
-    _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2")
+    _lancer(f"/api/cards/{did}/face/serie/generer?limite=2")
     d = FA.serie_root()
     assert not list(d.glob("*.tmp")), list(d.glob("*.tmp"))
     m = json.loads((d / "walkuski.json").read_text("utf-8"))
@@ -3429,10 +3545,10 @@ def test_la_reprise_ne_refait_PAS_les_cases_faites(monkeypatch):
     _serie_neuve()
     at = _Atelier(flux="conforme").pose(monkeypatch)
     did = _deck()
-    a = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2").json()
+    a = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2").json()
     faites = {t["case"] for t in a["traitees"]}
     n_appels = len(at.appels)
-    b = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2").json()
+    b = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2").json()
     assert not (faites & {t["case"] for t in b["traitees"]}), \
         "une case déjà faite a été REPAYÉE"
     assert len(at.appels) == n_appels + 2
@@ -3451,8 +3567,7 @@ def test_l_echelle_de_secours_retouche_puis_gpt_puis_laisse_le_vectoriel(
     at = _Atelier(flux="retouchable", banana="saturee",
                   gpt="saturee").pose(monkeypatch)
     did = _deck()
-    d = _api("POST",
-             f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
     assert [a[0] for a in at.appels] == ["flux", "nano-banana", "gpt-image-2"]
     assert not d["traitees"] and len(d["refusees"]) == 1
     ref = d["refusees"][0]
@@ -3463,18 +3578,165 @@ def test_l_echelle_de_secours_retouche_puis_gpt_puis_laisse_le_vectoriel(
     # ... et la RETOUCHE gagne quand elle rattrape le coup
     _serie_neuve()
     at2 = _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
-    d2 = _api("POST",
-              f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    d2 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
     assert [a[0] for a in at2.appels] == ["flux", "nano-banana"]
     assert d2["traitees"][0]["voie"] == "nano-banana"
     # ... et un lot ENTIÈREMENT hors style saute la retouche : il n'y a rien
     # à retoucher, on monte directement d'une marche
     _serie_neuve()
     at3 = _Atelier(flux="saturee", gpt="conforme").pose(monkeypatch)
-    d3 = _api("POST",
-              f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    d3 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
     assert [a[0] for a in at3.appels] == ["flux", "gpt-image-2"]
     assert d3["traitees"][0]["voie"] == "gpt-image-2"
+    s.zero()
+
+
+def test_une_image_illisible_ne_perd_NI_les_cases_NI_la_depense(monkeypatch):
+    """LE BLOQUANT DE LA RONDE. `PIL.UnidentifiedImageError` EST un `OSError` :
+    il passait à côté de l'`except (KeyError, ValueError, RuntimeError)` de la
+    boucle, la campagne LEVAIT, et comme le manifeste ne s'écrivait qu'APRÈS
+    la boucle, les cases déjà GAGNÉES ET PAYÉES disparaissaient avec la
+    dépense. Mesuré : deux cases perdues, `depense_totale` à 0,00 alors que
+    0,054 $ étaient partis. Répété, c'est une dépense sans borne au compteur
+    figé — le plafond ne protège plus rien.
+
+    Deux corrections, un seul test : le manifeste s'écrit APRÈS CHAQUE CASE, et
+    un juge qui tombe est traité comme un fournisseur qui tombe (la case part
+    en refus journalisé, la campagne CONTINUE)."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme")
+    vrai_poser = at._poser
+    etat = {"n": 0}
+
+    def _poser_casse(genre):
+        etat["n"] += 1
+        nom = vrai_poser(genre)
+        if etat["n"] == 13:            # la 3e case, 1er candidat (6 par case)
+            (_settings.images_path / nom).write_bytes(b"ceci n'est pas un PNG")
+        return nom
+    monkeypatch.setattr(at, "_poser", _poser_casse)
+    at.pose(monkeypatch)
+    did = _deck()
+    r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=4")
+    assert r.status_code == 200, r.text[:300]
+    d = r.json()
+    # les deux premières cases sont SAUVÉES, sur le disque
+    m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
+    assert len(m["cases"]) == 3, sorted(m["cases"])
+    assert len(d["traitees"]) == 3 and len(d["refusees"]) == 1
+    # la dépense est JUSTE : elle vaut la somme du journal, pas zéro
+    assert m["depense_totale_usd"] == pytest.approx(
+        sum(l["prix_usd"] for l in d["journal"])), (m, d["journal"])
+    assert m["depense_totale_usd"] > 0
+    # la case fautive est en refus, avec le motif technique
+    ref = d["refusees"][0]
+    assert ref["case"] in m["refus"]
+    assert ref["motif"], "un refus muet n'apprend rien"
+    s.zero()
+
+
+def test_un_refus_ne_publie_JAMAIS_un_chemin_absolu(monkeypatch):
+    """TROUVÉ EN ÉCRIVANT LES PREUVES DE LA RONDE. Le motif d'un refus
+    recopiait l'exception telle quelle ; `PIL.UnidentifiedImageError` porte le
+    CHEMIN COMPLET du fichier, donc le nom de compte de l'utilisateur — dans
+    une réponse HTTP **et** dans le manifeste écrit sur le disque, que T5
+    publiera. C'est la jurisprudence de la fuite de nom, rejouée par une porte
+    que personne ne surveillait : le motif d'échec.
+
+    La classe de l'exception reste (elle sert au diagnostic), le chemin part."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme")
+    vrai_poser = at._poser
+
+    def _poser_casse(genre):
+        nom = vrai_poser(genre)
+        (_settings.images_path / nom).write_bytes(b"pas un PNG")
+        return nom
+    monkeypatch.setattr(at, "_poser", _poser_casse)
+    at.pose(monkeypatch)
+    did = _deck()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    motif = d["refusees"][0]["motif"]
+    brut = json.dumps(d, ensure_ascii=False) + (
+        FA.serie_root() / "walkuski.json").read_text(encoding="utf-8")
+    compte = pathlib.Path.home().name
+    assert compte not in brut, "le nom de compte est parti dans la réponse"
+    assert not re.search(r"[A-Za-z]:[\\/]", brut), "un chemin absolu est servi"
+    assert "UnidentifiedImageError" in motif, \
+        "la classe de l'exception sert au diagnostic : elle reste"
+    # un motif de fournisseur passe par le même filtre
+    assert "<chemin>" in FA._sans_chemin(r"echec sur C:\Users\qqun\a.png")
+    assert "qqun" not in FA._sans_chemin(r"echec sur C:\Users\qqun\a.png")
+    s.zero()
+
+
+def test_le_manifeste_est_ecrit_APRES_CHAQUE_CASE(monkeypatch):
+    """La contre-preuve du bloquant, prise du côté du disque : le manifeste
+    porte la case N pendant que la case N+1 se fabrique. Écrit après la
+    boucle, il ne porterait rien tant que la campagne n'est pas finie."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme")
+    vus = []
+    vrai_poser = at._poser
+
+    def _poser_espion(genre):
+        m, _ = FA.manifeste_lire()
+        vus.append(len(m["cases"]))
+        return vrai_poser(genre)
+    monkeypatch.setattr(at, "_poser", _poser_espion)
+    at.pose(monkeypatch)
+    did = _deck()
+    _lancer(f"/api/cards/{did}/face/serie/generer?limite=3")
+    # 6 candidats par case : au 1er candidat de la 2e case le disque porte
+    # déjà 1 case, au 1er de la 3e il en porte 2.
+    assert vus[0] == 0 and vus[6] == 1 and vus[12] == 2, vus
+    s.zero()
+
+
+def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
+    """LE MUR ATTEINT EN COURS DE CASE BRÛLAIT SANS TRACE. Mesuré par la
+    revue : reste 0,058 $, la marche FLUX et la marche nano partent (0,057 $),
+    la 3e ne passe pas — la case n'est tracée NULLE PART et le bilan annonce
+    « 3 traitées, 0 refusées » pour de l'argent parti en fumée.
+
+    Une case ne s'OUVRE donc que si L'ÉCHELLE COMPLÈTE tient sous le plafond,
+    et le reliquat inutilisable est AVOUÉ au bilan. Le coût de l'échelle vient
+    de la table (6 × FLUX + 1 nano + 1 GPT), jamais d'un nombre écrit ici."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    # LE SCÉNARIO QUI DISTINGUE, et c'est celui que la revue a mesuré : il
+    # faut que le reliquat COUVRE les premières marches sans couvrir la
+    # dernière, et que la case CLIMBE. Tarifs du banc : 6 × 0,01 = 0,06 pour
+    # FLUX, 0,02 pour l'édition, 5,00 pour le GPT — échelle 5,08. Une case
+    # traitée laisse 0,92 de reliquat : de quoi payer FLUX et l'édition (0,08)
+    # et se faire arrêter sur la dernière marche, sans aucune trace.
+    p = _prix_de_banc(monkeypatch, flux_image_usd=0.01, nano_banana_usd=0.02,
+                      gpt_image_2_usd=5.00)
+    echelle = (FA.SERIE_CANDIDATS * p["flux_image_usd"]
+               + p["nano_banana_usd"] + p["gpt_image_2_usd"])
+    assert FA.cout_echelle_usd() == pytest.approx(echelle) == pytest.approx(5.08)
+    _Atelier(flux="retouchable", banana="saturee",
+             gpt="saturee").pose(monkeypatch)
+    did = _deck()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
+    assert d["arret"] == "plafond"
+    assert not d["traitees"] and len(d["refusees"]) == 1
+    assert d["depense_totale_usd"] == pytest.approx(5.08), \
+        "une case a été ouverte à moitié : de l'argent parti sans trace"
+    assert d["reste_usd"] == pytest.approx(0.92)
+    assert d["echelle_usd"] == pytest.approx(5.08)
+    # LE RELIQUAT EST AVOUÉ, avec les deux nombres qui le rendent lisible
+    assert "0,92" in d["message"] and "5,08" in d["message"], d["message"]
+    assert d["reste_usd"] < d["echelle_usd"]
+    # ... et TOUT tir du journal appartient à une case TRACÉE
+    tracees = {t["case"] for t in d["traitees"]} | {r["case"] for r in d["refusees"]}
+    assert {l["case"] for l in d["journal"]} == tracees
+    assert len(d["journal"]) == 3, d["journal"]
+    # le mur est UNE seule arithmétique, partagée par la boucle et par le tir
+    assert FA.tient_sous_le_mur(5.0, 1.0) and not FA.tient_sous_le_mur(5.0, 1.01)
     s.zero()
 
 
@@ -3488,7 +3750,7 @@ def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     _prix_de_banc(monkeypatch, flux_image_usd=0.30)
     _Atelier(flux="conforme").pose(monkeypatch)
     did = _deck()
-    d = _api("POST", f"/api/cards/{did}/face/serie/generer").json()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond", d["arret"]
     assert len(d["traitees"]) == 3, [t["case"] for t in d["traitees"]]
     assert d["depense_totale_usd"] == pytest.approx(5.40)
@@ -3497,7 +3759,7 @@ def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     assert "plafond" in d["message"].lower()
     assert len(d["journal"]) == 3
     # un second POST ne dépense plus rien : le mur tient d'un appel à l'autre
-    e = _api("POST", f"/api/cards/{did}/face/serie/generer").json()
+    e = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert e["arret"] == "plafond" and not e["traitees"]
     assert e["depense_totale_usd"] == pytest.approx(5.40)
     s.zero()
@@ -3513,7 +3775,7 @@ def test_le_prix_de_chaque_appel_vient_de_pricing_et_se_journalise_AVANT(
     p = _prix_de_banc(monkeypatch)
     _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
     did = _deck()
-    d = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
     j = d["journal"]
     assert [l["modele"] for l in j] == ["flux", "nano-banana"]
     assert j[0]["prix_usd"] == pytest.approx(
@@ -3531,6 +3793,90 @@ def test_le_prix_de_chaque_appel_vient_de_pricing_et_se_journalise_AVANT(
     s.zero()
 
 
+def test_la_campagne_EXIGE_une_confirmation_et_rend_le_devis(monkeypatch):
+    """D2-2, NÉE D'UN INCIDENT. Une sonde de critique a émis 436 requêtes vers
+    fal, toutes refusées à l'authentification : la clé neutralisée du banc a
+    tenu et rien n'a été facturé — mais la route, elle, avait bel et bien
+    lancé la série ENTIÈRE sur un POST NU. Une route qui dépense ne se
+    déclenche pas par accident.
+
+    Sans `{"confirmer": true}` elle répond le DEVIS et ne dépense RIEN. Le
+    devis est la réponse utile : ce qu'on s'apprête à faire, ce que ça coûte
+    au pire, ce qui reste sous le plafond."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    for corps in ({}, {"confirmer": False}, {"confirmer": "oui"}, None):
+        r = _api("POST", f"/api/cards/{did}/face/serie/generer",
+                 **({} if corps is None else {"json": corps}))
+        assert r.status_code == 400, (corps, r.status_code)
+        d = r.json()["detail"]
+        assert "confirmer" in json.dumps(d), d
+        assert d["devis"]["cases_manquantes"] == 108
+        assert not at.appels, "LE DEVIS A DÉPENSÉ"
+    assert not (FA.serie_root() / "walkuski.json").is_file(), \
+        "le devis a écrit un manifeste"
+    # avec la confirmation, la campagne part
+    r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
+    assert r.status_code == 200 and len(at.appels) == 1
+    s.zero()
+
+
+def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
+    """Le devis n'est pas un slogan : chaque nombre se refait. Le pire cas est
+    l'échelle complète × les cases que CETTE demande viserait — donc 19,12 $
+    pour la série entière, 3,19 fois le plafond : la campagne est
+    MULTI-SESSION par construction, et le devis le dit."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    p = _prix_de_banc(monkeypatch)
+    _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    d = _api("POST", f"/api/cards/{did}/face/serie/generer",
+             json={}).json()["detail"]["devis"]
+    echelle = (FA.SERIE_CANDIDATS * p["flux_image_usd"]
+               + p["nano_banana_usd"] + p["gpt_image_2_usd"])
+    assert d["echelle_usd"] == pytest.approx(echelle) == pytest.approx(0.177)
+    assert d["cases_manquantes"] == 108
+    assert d["pire_cas_usd"] == pytest.approx(108 * echelle)
+    assert d["pire_cas_usd"] == pytest.approx(19.116, abs=1e-3)
+    assert d["plafond_usd"] == pytest.approx(6.0)
+    assert d["depense_courante_usd"] == 0.0
+    assert d["reste_usd"] == pytest.approx(6.0)
+    assert d["cases_ouvrables"] == int(6.0 / echelle) == 33
+    assert d["multi_session"] is True
+    # le devis suit la DEMANDE : deux cases visées, deux cases chiffrées
+    d2 = _api("POST", f"/api/cards/{did}/face/serie/generer"
+                      "?cases=vista_tower,medallion_wolf", json={}
+              ).json()["detail"]["devis"]
+    assert d2["cases_manquantes"] == 2
+    assert d2["pire_cas_usd"] == pytest.approx(2 * echelle)
+    assert d2["multi_session"] is False
+    s.zero()
+
+
+def test_une_selection_VIDE_ne_lance_pas_toute_la_serie(monkeypatch):
+    """MESURÉ : `?cases=` et `?cases=,,,` rendaient 200 et tentaient les 108
+    cases. Sur une route qui dépense, « je n'ai rien choisi » ne peut pas
+    vouloir dire « fais tout » : c'est un 400 nommé (D2-4)."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    for q in ("?cases=", "?cases=,,,", "?cases=%20", "?limite=", "?limite=0",
+              "?limite=-4", "?limite=abc"):
+        r = _lancer(f"/api/cards/{did}/face/serie/generer{q}")
+        assert r.status_code == 400, (q, r.status_code, r.text[:160])
+        assert isinstance(r.json()["detail"], str), q
+    assert not at.appels, "une sélection vide a dépensé"
+    # le paramètre ABSENT, lui, garde son sens : toute la série
+    d = _api("POST", f"/api/cards/{did}/face/serie/generer",
+             json={}).json()["detail"]["devis"]
+    assert d["cases_manquantes"] == 108
+    s.zero()
+
+
 def test_deux_campagnes_simultanees_ne_depensent_pas_double(monkeypatch):
     """LA LEÇON T3 DE LA PHASE 4 : la concurrence d'un geste PAYANT se
     COALESCE. Deux POST partis ensemble sur la même série ne doivent produire
@@ -3545,7 +3891,8 @@ def test_deux_campagnes_simultanees_ne_depensent_pas_double(monkeypatch):
         async with AsyncClient(transport=ASGITransport(app=app),
                                base_url="http://t", timeout=600.0) as c:
             return await asyncio.gather(*[
-                c.post(f"/api/cards/{did}/face/serie/generer?limite=1")
+                c.post(f"/api/cards/{did}/face/serie/generer?limite=1",
+                       json={"confirmer": True})
                 for _ in range(6)])
 
     reps = asyncio.run(deux())
@@ -3567,13 +3914,12 @@ def test_les_parametres_cases_et_limite_bornent_la_session(monkeypatch):
     _Atelier(flux="conforme").pose(monkeypatch)
     did = _deck()
     voulues = "stained_beacon,medallion_wolf"
-    d = _api("POST", f"/api/cards/{did}/face/serie/generer?cases={voulues}"
-                     ).json()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?cases={voulues}").json()
     assert {t["case"] for t in d["traitees"]} == set(voulues.split(","))
-    e = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=3").json()
+    e = _lancer(f"/api/cards/{did}/face/serie/generer?limite=3").json()
     assert len(e["traitees"]) == 3 and e["arret"] == "limite"
     # une case inconnue est NOMMÉE, pas avalée
-    f = _api("POST", f"/api/cards/{did}/face/serie/generer?cases=pas_une_case")
+    f = _lancer(f"/api/cards/{did}/face/serie/generer?cases=pas_une_case")
     assert f.status_code == 400
     assert "pas_une_case" in f.json()["detail"]
     s.zero()
@@ -3590,12 +3936,12 @@ def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
     _Atelier(flux="conforme").pose(monkeypatch)
     for did, attendu in (("pas_un_deck", 400), ("deck_ZZZZZZZZ", 400),
                          ("deck_00000000", 404)):
-        r = _api("POST", f"/api/cards/{did}/face/serie/generer")
+        r = _lancer(f"/api/cards/{did}/face/serie/generer")
         assert r.status_code == attendu, (did, r.status_code, r.text[:200])
     did = _deck()
     for q in ("?limite=0", "?limite=-4", "?limite=abc", "?cases=",
               "?cases=,,,", "?limite=99999"):
-        r = _api("POST", f"/api/cards/{did}/face/serie/generer{q}")
+        r = _lancer(f"/api/cards/{did}/face/serie/generer{q}")
         assert r.status_code in (200, 400), (q, r.status_code)
         assert r.status_code != 500
     # un générateur qui TOMBE ne fait pas tomber la route : la case est
@@ -3605,7 +3951,7 @@ def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
     async def _casse(prompt, n, graine):
         raise RuntimeError("fournisseur indisponible")
     monkeypatch.setattr(FA, "_tirer_flux", _casse)
-    r = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2")
+    r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2")
     assert r.status_code == 200, r.text
     d = r.json()
     assert not d["traitees"] and len(d["refusees"]) == 2
@@ -3741,6 +4087,29 @@ def test_la_retombee_vectorielle_est_AVOUEE_a_l_ecran():
     assert "108" not in ong
     css = CSS.read_text(encoding="utf-8")
     assert ".cf-face-retombee" in css, "l'insigne n'est pas habillé"
+
+
+def test_le_compteur_de_depense_est_AFFICHE_pas_seulement_charge():
+    """D2 dit « le compteur s'affiche » — il était CHARGÉ et jamais lu. Une
+    dépense qu'on ne voit pas est une dépense qu'on ne surveille pas ; le
+    plafond doit être lisible AVANT d'être atteint. Dérivé pur de l'état déjà
+    en mémoire (aucun appel de plus), et toujours AUCUN bouton de campagne :
+    l'écran informe, il ne dépense pas."""
+    src = js_code()
+    note = src[src.index('id="cf-face-serie-note"'):]
+    note = note[:note.index("</p>'")]
+    assert "SERIE.depense" in note and "SERIE.plafond" in note, note[:400]
+    assert "usdFmt" in note, "le montant n'est pas formaté comme les autres"
+    assert "plafond" in note.lower()
+    # ET LA CONDITION N'EST PAS MORTE : la première rédaction de ce contrôle
+    # ne lisait que la présence des NOMS, si bien qu'un `false ?` à la place
+    # de la garde laissait le test vert sur un compteur jamais rendu (mutation
+    # jouée, survivante). La garde elle-même est donc épinglée.
+    assert "(SERIE.plafond ? " in note, \
+        "la garde du compteur ne lit plus l'état : le montant ne s'affichera pas"
+    # aucun déclencheur de campagne dans l'écran (T5 seule dépense)
+    assert "serie/generer" not in src, "un bouton de campagne est apparu"
+    assert "confirmer" not in src
 
 
 def test_la_serie_ne_cree_PAS_un_quatrieme_schema_de_source():

@@ -3240,6 +3240,15 @@
         + (SERIE.total || DRAWINGS) + '. Les autres restent le <b>dessin vectoriel</b>, '
         + 'marqué comme tel sur la vignette'
         + (SERIE.ok ? '' : ' — l\'état de la série n\'a pas pu être lu')
+        /* LE COMPTEUR DE DEPENSE, AFFICHE (D2 : « le compteur s'affiche »).
+           Il etait charge et jamais lu : une depense qu'on ne voit pas est
+           une depense qu'on ne surveille pas, et le plafond doit etre
+           lisible AVANT d'etre atteint. Derive pur de l'etat deja en
+           memoire — aucun appel de plus. La campagne, elle, ne se lance PAS
+           d'ici : cet ecran informe, il ne depense pas. */
+        + (SERIE.plafond ? '. Dépense de la série : <b>' + esc(usdFmt(SERIE.depense))
+          + '</b> sur un plafond de <b>' + esc(usdFmt(SERIE.plafond)) + '</b> par session'
+          : '')
         + '.</p>')
       + '<div class="cf-face-row">'
       + '<button class="btn sm" type="button" id="cf-face-proof">Recompter le catalogue</button>'
