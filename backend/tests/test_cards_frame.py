@@ -7611,13 +7611,18 @@ def test_la_huitieme_famille_existe_des_deux_cotes():
     assert rows[HUITIEME][7] == "orfevre", rows[HUITIEME]
     # ... et les branches qui les servent EXISTENT (une colonne sans branche
     # rendrait la famille muette là où les sept autres dessinent)
+    # UNE branche, et une seule : `in` ne compte pas, et une famille dont la
+    # grammaire apparaît deux fois dans la même fonction a un `else if` mort
+    # quelque part. On compte.
     for quoi, branche in (("ringZone", 'pr.zone === "orfevre"'),
                           ("famProfile", 'pr.kind === "filets"'),
                           ("winMoulding", 'pr.moulure === "medaillon"'),
                           ("platePath", 'k === "tablette"'),
                           ("plateTrim", 'pr.plaque === "tablette"')):
-        assert branche in _js_fn(src, quoi), \
-            f"{quoi} n'a pas de branche pour {HUITIEME} ({branche})"
+        n = _js_fn(src, quoi).count(branche)
+        assert n == 1, \
+            f"{quoi} porte {n} branche(s) pour {HUITIEME} ({branche}) — " \
+            f"il en faut exactement une"
 
 
 def test_le_double_filet_du_filigrane_est_a_2_1_et_3_2_mm():
@@ -7651,23 +7656,25 @@ def test_le_double_filet_du_filigrane_est_a_2_1_et_3_2_mm():
 #     valant la moyenne de leurs arrêts — le banc ne juge donc pas un ton
 #     précis, il juge une TEINTE, qui est ce que la table publie.
 #   · LA LARGEUR DU TRAIT. Le rastériseur de la §15.2 marque UNE cellule par
-#     point de chemin : toute famille dont la signature est un trait y
-#     mesurerait la même épaisseur (une cellule), et `bande_mm` serait une
-#     propriété du banc. `lineWidth` est donc honoré.
+#     point de chemin, quelle que soit `lineWidth`. Ici cela FAUSSERAIT LA
+#     MESURE : le front de 0,9 mm que la pièce 10 relève sur sept familles est
+#     la LÈVRE DE RELIEF, un trait de 0,55 mm de large. Réduite à une cellule,
+#     elle deviendrait un accident de banc au lieu d'une bande. `lineWidth`
+#     est donc honoré.
 #
-# Et la famille est rendue DEUX FOIS : telle qu'elle est peinte, et avec
-# l'anneau plat RETIRÉ DE LA SOURCE (`ringZone(ctx, m, f);` commenté dans
-# `famProfile`). La différence est ce que la famille pose EN PROPRE. Une
-# mutation de source, pas un seuil de couleur : rien à régler, rien à deviner.
+# Le second module (`modS`, l'anneau plat retiré de la source) reste chargé :
+# il ne sert plus la table — la voie de production l'a remplacée — mais le
+# rastériseur l'expose et le contrôle négatif s'en sert.
 
 BANC_TRAITS = r"""
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 const CODE = readFileSync(process.argv[2], "utf8");
 const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
 const EXPORTS = "\nreturn { st: st, model: model, winMM: winMM, FAMILIES: FAMILIES,"
   + " PROFILE: PROFILE, WIN_SHAPE: WIN_SHAPE, FAM_FN: FAM_FN,"
   + " famProfile: famProfile, ringZone: ringZone, winMoulding: winMoulding,"
-  + " platePath: platePath, plateTrim: plateTrim, winPath: winPath };\n})();";
+  + " platePath: platePath, plateTrim: plateTrim, winPath: winPath,"
+  + " bandPaint: bandPaint, pal: pal, mix: mix, rgba: rgba };\n})();";
 const SANS = CODE.replace("    ringZone(ctx, m, f);", "    /* hors mesure */");
 if (SANS === CODE) { throw new Error("l'appel a ringZone n'a pas ete trouve"); }
 const modS = new Function("return (function(){ " + SANS + EXPORTS)();
@@ -7908,82 +7915,71 @@ function toileDe(m, g, GW, GH, source, f, shape) {
   k.restore();
   return k;
 }
+/* LA CARTE, dans l'ordre de `paintFront` : le corps (la matiere de bande),
+   la signature de famille, la moulure, la plaque. Ce qui MANQUE, et pourquoi
+   c'est dit : `matter()` (trames, patine, usures) est un GRAIN par pixel que
+   ce rasteriseur ne sait pas representer honnetement — et le detecteur de
+   front de la piece 10 RELEVE son plancher avec le bruit du profil, donc un
+   faux grain deplacerait la mesure au lieu de l'affiner. On mesure la carte
+   SANS son grain, et la table le dit. */
+function carteDe(m, g, GW, GH, f, shape) {
+  const k = new Rec(g.canvas_px[0], g.canvas_px[1], GW, GH);
+  const u = g.mm2px(1), p = mod.pal(f);
+  k.beginPath(); k.rect(0, 0, k.W, k.H); mod.winPath(k, m, shape);
+  k.fillStyle = mod.bandPaint(k, m, f);
+  k.fill("evenodd");
+  k.save();
+  k.beginPath(); k.rect(0, 0, k.W, k.H); mod.winPath(k, m, shape);
+  k.clip("evenodd");
+  mod.famProfile(k, m, f);
+  const fn = mod.FAM_FN[f.family];
+  if (fn) fn(k, m, f);
+  mod.winMoulding(k, m, f, shape);
+  k.restore();
+  if (f.plate && m.plate.h > u * 6) {
+    k.save();
+    k.globalAlpha = f.plate_alpha;
+    const gr = k.createLinearGradient(0, m.plate.y, 0, m.plate.y + m.plate.h);
+    gr.addColorStop(0, mod.mix(p.plate, "#ffffff", 0.10));
+    gr.addColorStop(1, p.plate);
+    k.fillStyle = gr;
+    mod.platePath(k, m, f); k.fill();
+    k.globalAlpha = 1;
+    k.strokeStyle = mod.rgba(p.line, 0.35);
+    k.lineWidth = Math.max(0.5, u * 0.16);
+    mod.platePath(k, m, f); k.stroke();
+    mod.plateTrim(k, m, f);
+    k.restore();
+  }
+  return k;
+}
 
-/* ── 1. LES TRAITS, famille par famille ─────────────────────────────────── */
-const traits = [];
-for (const c of CAS.traits) {
+/* ── 1. LES RENDUS : la carte de chaque famille, en OCTETS ──────────────────
+   Le banc ne mesure plus rien ici. Il RASTERISE, écrit les octets, et laisse
+   la pièce 10 les mesurer avec SES analyseurs : c'est la voie de production,
+   la seule dont l'unité soit celle du relevé qui entrera par la frontière. */
+const rendus = [];
+for (const c of (CAS.rendus || [])) {
   const g = geomDe(c);
   const f = mod.st({ frame: c.frame });
   const m = mod.model(g, f);
   const shape = mod.WIN_SHAPE[f.family] || "rect";
-  const GW = c.gw, GH = c.gh, cell = c.cell, u = g.mm2px(1), T = m.trim;
-  const B = toileDe(m, g, GW, GH, mod, f, shape);
-  const S = toileDe(m, g, GW, GH, modS, f, shape);
-  const dep = new Int32Array(GW * GH).fill(-1);
-  for (let gy = 0; gy < GH; gy++) {
-    const y = (gy + 0.5) * B.H / GH;
-    for (let gx = 0; gx < GW; gx++) {
-      const x = (gx + 0.5) * B.W / GW;
-      if (x < T.x || y < T.y || x >= T.x + T.w || y >= T.y + T.h) continue;
-      const d = Math.min(x - T.x, y - T.y, T.x + T.w - x, T.y + T.h - y) / u;
-      dep[gy * GW + gx] = Math.floor(d / cell);
-    }
-  }
-  const str = new Uint8Array(GW * GH);
-  let nStr = 0;
+  const GW = c.gw, GH = c.gh, T = m.trim;
+  const k = carteDe(m, g, GW, GH, f, shape);
+  const buf = Buffer.allocUnsafe(GW * GH * 3);
   for (let q = 0; q < GW * GH; q++) {
-    if (dep[q] < 0 || !S.cov[q]) continue;
-    str[q] = 1; nStr++;
+    buf[q * 3] = Math.max(0, Math.min(255, Math.round(k.R[q])));
+    buf[q * 3 + 1] = Math.max(0, Math.min(255, Math.round(k.G[q])));
+    buf[q * 3 + 2] = Math.max(0, Math.min(255, Math.round(k.B[q])));
   }
-  const runX = new Int32Array(GW * GH), runY = new Int32Array(GW * GH);
-  for (let gy = 0; gy < GH; gy++) {
-    let x0 = -1;
-    for (let gx = 0; gx <= GW; gx++) {
-      const on = gx < GW && str[gy * GW + gx];
-      if (on && x0 < 0) x0 = gx;
-      if (!on && x0 >= 0) {
-        for (let k2 = x0; k2 < gx; k2++) runX[gy * GW + k2] = gx - x0;
-        x0 = -1;
-      }
-    }
-  }
-  for (let gx = 0; gx < GW; gx++) {
-    let y0 = -1;
-    for (let gy = 0; gy <= GH; gy++) {
-      const on = gy < GH && str[gy * GW + gx];
-      if (on && y0 < 0) y0 = gy;
-      if (!on && y0 >= 0) {
-        for (let k2 = y0; k2 < gy; k2++) runY[k2 * GW + gx] = gy - y0;
-        y0 = -1;
-      }
-    }
-  }
-  const ep = [];
-  for (let q = 0; q < GW * GH; q++) if (str[q]) ep.push(Math.min(runX[q], runY[q]));
-  const bande = Math.round(mediane(ep) * cell * 100) / 100;
-  const nAnneau = Math.round(Math.min(T.w, T.h) / u / 2 / cell);
-  let seaux = new Map(), sn = 0, portee = "lisiere";
-  const preleve = (prof) => {
-    seaux = new Map(); sn = 0;
-    for (let q = 0; q < GW * GH; q++) {
-      if (dep[q] < 0 || dep[q] >= prof || !B.cov[q]) continue;
-      const r = B.R[q], gg = B.G[q], b = B.B[q];
-      sn++;
-      const key = ((r >> 4) << 8) | ((gg >> 4) << 4) | (b >> 4);
-      const e = seaux.get(key) || [0, 0, 0, 0];
-      e[0] += r; e[1] += gg; e[2] += b; e[3]++;
-      seaux.set(key, e);
-    }
-  };
-  preleve(Math.max(1, Math.round(bande / cell)));
-  if (!sn) { portee = "anneau"; preleve(nAnneau); }
-  let best = null;
-  for (const e of seaux.values()) if (!best || e[3] > best[3]) best = e;
-  const dom = best ? [best[0] / best[3], best[1] / best[3], best[2] / best[3]] : null;
-  traits.push({
-    famille: f.family, bande_mm: bande, cellules: nStr, portee: portee,
-    dom_rgb: dom ? dom.map((v) => Math.round(v)) : null,
-    teinte_h: dom ? Math.round(teinte(dom[0], dom[1], dom[2]) * 10) / 10 : -1,
+  writeFileSync(c.fichier, buf);
+  const px = (v, tot, n) => Math.round(v / tot * n);
+  rendus.push({
+    nom: c.nom, famille: f.family, fichier: c.fichier, w: GW, h: GH,
+    /* LA COUPE, en cellules : c'est elle qu'un import verrait — une photo de
+       carte ne porte pas le fond perdu. */
+    coupe: [px(T.x, k.W, GW), px(T.y, k.H, GH),
+      px(T.x + T.w, k.W, GW), px(T.y + T.h, k.H, GH)],
   });
 }
 
@@ -8031,7 +8027,7 @@ if (CAS.silhouettes) {
   }
   for (const p of sil.paires) if (sil.min === null || p.d < sil.min) sil.min = p.d;
 }
-process.stdout.write(JSON.stringify({ traits: traits, silhouettes: sil }));
+process.stdout.write(JSON.stringify({ rendus: rendus, silhouettes: sil }));
 """
 
 
@@ -8055,74 +8051,199 @@ def _banc_traits(tmp_path, cas: dict, code: str | None = None) -> dict:
     return json.loads(r.stdout)
 
 
-# LA RÉSOLUTION DE LA MESURE, et pourquoi 0,125 mm et pas 0,25. MESURÉ sur
-# « Art déco », dont les trois gradins de coin sont séparés de 0,05 x t =
-# 0,13 mm : à 0,25 mm de cellule les trois masses FUSIONNENT et l'épaisseur
-# typique passe de 2,38 à 5,00 mm. Une résolution plus grossière que le plus
-# petit intervalle du dessin ne mesure plus le dessin.
-TRAITS_CELL = 0.125
+# ── LA VOIE DE PRODUCTION, ET POURQUOI LA PREMIÈRE TABLE ÉTAIT FAUSSE ───────
+#
+# La première écriture mesurait, sur le rendu, l'ÉPAISSEUR TYPIQUE de la marque
+# que chaque famille pose. C'est une grandeur honnête, et elle ne sert à rien :
+# ce qui entre par la frontière, c'est `doc.capture.border.mm`, et celui-là est
+# la PROFONDEUR DU PREMIER FRONT depuis le bord. Deux grandeurs sous le même
+# nom. MESURÉ par la revue en rendant chaque famille et en la passant dans la
+# vraie voie : 2 familles sur 8 se reconnaissaient.
+#
+# La table se mesure donc PAR LA VOIE QUI LA CONSOMMERA — le banc rastérise,
+# écrit les octets, et `cards.capture` les mesure avec SES analyseurs. Elle
+# parle désormais la langue de son entrée, et l'axe s'appelle ce qu'il est :
+# `front_mm`, pas « bande ». (Le mot « bande » reste dans la PHRASE affichée :
+# c'est le mot de l'écran, celui de la spec §7.1.5, et le curseur qui reçoit
+# la mesure s'appelle « Marge intérieure (bande) ».)
+TRAITS_CELL = 0.1              # 0,1 mm : la coupe fait 630 x 880 px
 TRAITS_FMT = "poker_eu"
-# La tolérance : deux cellules sur la bande, deux degrés sur la teinte. Elle
-# n'est pas là pour absorber une table fausse — elle est là pour qu'un
-# arrondi de flottant ne fasse pas rougir une table juste.
-TRAITS_TOL_MM = 2 * TRAITS_CELL
-TRAITS_TOL_DEG = 2.0
 
 
-def _cas_traits(familles=None):
+def _cas_rendus(tmp_path, familles=None):
     g = _geom_js(TRAITS_FMT, 3)
     tw, th = CT.FORMATS[TRAITS_FMT]["trim_mm"]
     gw, gh = round((tw + 6) / TRAITS_CELL), round((th + 6) / TRAITS_CELL)
     ids = familles if familles is not None else [f["id"] for f in FR.FAMILIES]
-    return [{"g": g, "frame": {"family": i}, "gw": gw, "gh": gh,
-             "cell": TRAITS_CELL} for i in ids]
+    return [{"nom": i, "g": g, "frame": {"family": i}, "gw": gw, "gh": gh,
+             "fichier": str(tmp_path / f"rendu_{i}.rgb")} for i in ids]
 
 
-def test_les_traits_de_famille_sont_la_MESURE_du_rendu(tmp_path):
-    """`FAMILY_TRAITS` PRÉTEND décrire ce que chaque famille dessine. Ici on
-    le rejoue : les huit familles sont rendues par leurs VRAIS peintres et
-    l'on compare la table aux chiffres qui en sortent.
+def _traits_mesures(tmp_path, familles=None, code=None) -> dict:
+    """Chaque famille RENDUE, puis mesurée par les analyseurs de la PIÈCE 10.
 
-    Relevé du jour (0,125 mm de cellule, poker 300 DPI, DEFAULTS) :
-      runic 1,50 mm / 211,4°   arcane 2,38 / 211,4   timber 3,13 / 211,4
-      deco  2,38 / 211,4       neon   1,50 / 210,7   sable  2,63 / 211,4
-      gravure 0,38 / 55,4      filigrane 0,50 / 42,1
+    `cards.capture` est importée en LECTURE SEULE — c'est le module de la
+    pièce voisine, jamais modifié ici. C'est le seul moyen d'avoir la même
+    unité des deux côtés de la frontière."""
+    from PIL import Image
 
-    CE QUE CE CONTRÔLE INTERDIT : qu'on retouche un chiffre de la table « pour
-    que l'adoption tombe mieux ». La table décrit le dessin ; si l'on veut un
-    autre chiffre, c'est le DESSIN qu'on change."""
-    res = _banc_traits(tmp_path, {"traits": _cas_traits()})
-    mes = {t["famille"]: t for t in res["traits"]}
+    from app.services.cards import capture as CAP
+    cas = _cas_rendus(tmp_path, familles)
+    res = _banc_traits(tmp_path, {"rendus": cas}, code)
+    tw = CT.FORMATS[TRAITS_FMT]["trim_mm"][0]
+    out = {}
+    for r in res["rendus"]:
+        octets = pathlib.Path(r["fichier"]).read_bytes()
+        im = Image.frombytes("RGB", (r["w"], r["h"]), octets)
+        # LA COUPE, ET RIEN QU'ELLE : une photo de carte ne porte pas le fond
+        # perdu, et c'est une photo de carte que la pièce 10 reçoit.
+        im = im.crop(tuple(r["coupe"]))
+        mm_par_px = tw / float(im.size[0])
+        notes = []
+        b, _ep = CAP._analyse_bordure(im, mm_par_px, notes)
+        out[r["famille"]] = {
+            "border": b, "notes": notes,
+            "front_mm": None if b is None else b["mm"],
+            "color": None if b is None else b["color"],
+            "teinte_h": None if b is None else FR.teinte_de(b["color"]),
+            "saturation": None if b is None else FR.saturation_de(b["color"]),
+        }
+    return out
+
+
+def test_les_traits_sont_la_MESURE_de_la_VOIE_DE_PRODUCTION(tmp_path):
+    """`FAMILY_TRAITS` PRÉTEND décrire ce que la pièce 10 mesurera sur une
+    carte de cette famille. Ici on le rejoue PAR LA VOIE RÉELLE : les huit
+    familles sont rendues par leurs vrais peintres, les octets sont recadrés
+    à la coupe, et ce sont les analyseurs de `cards.capture` — pas une
+    reformulation — qui rendent le relevé.
+
+    AUCUNE TOLÉRANCE SUR LE FRONT. `_analyse_bordure` rend un multiple entier
+    de `mm_par_px` (0,1 mm ici) : la mesure est exacte et reproductible, et
+    une tolérance ne servirait qu'à cacher une table fausse. La ronde l'a
+    montré en échangeant deux valeurs voisines de l'ancienne table : elles
+    tenaient dans la tolérance et le choix de famille changeait quand même.
+    La teinte, elle, est comparée à 0,05° — la moitié du dernier chiffre
+    STOCKÉ, rien de plus.
+
+    Relevé du jour (poker 300 DPI, cellules de 0,1 mm, DEFAULTS) :
+      runic 0,9 / #08121d / 211,4    arcane 0,9 / #08121d / 211,4
+      timber 0,9 / #86a3c3 / 211,5   deco   0,9 / #08121d / 211,4
+      neon  3,2 / #1c4067 / 211,2    sable  0,9 / #90a5bb / 210,7
+      gravure 0,9 / #acaba5 / 51,4   filigrane 0,9 / #9d8650 / 42,1"""
+    mes = _traits_mesures(tmp_path)
     assert set(mes) == set(FR.FAMILY_TRAITS), \
         f"mesurées {sorted(mes)} / table {sorted(FR.FAMILY_TRAITS)}"
     for fid, t in FR.FAMILY_TRAITS.items():
         m = mes[fid]
-        assert m["cellules"] > 200, \
-            f"{fid} : {m['cellules']} cellules propres — la famille ne pose " \
-            f"presque rien hors de l'anneau plat"
-        assert abs(m["bande_mm"] - t["bande_mm"]) <= TRAITS_TOL_MM, \
-            f"{fid} : bande mesurée {m['bande_mm']} mm, table {t['bande_mm']}"
-        assert m["teinte_h"] >= 0, f"{fid} : lisière sans teinte mesurable"
-        assert FR.ecart_teinte(m["teinte_h"], t["teinte_h"]) <= TRAITS_TOL_DEG, \
-            f"{fid} : teinte mesurée {m['teinte_h']}°, table {t['teinte_h']}°"
+        assert m["border"] is not None, \
+            f"{fid} : la pièce 10 REFUSE de mesurer cette carte — {m['notes']}"
+        assert m["front_mm"] == t["front_mm"], \
+            f"{fid} : front mesuré {m['front_mm']} mm, table {t['front_mm']}"
+        if t["teinte_h"] is None:
+            assert m["teinte_h"] is None, \
+                f"{fid} : la table dit « sans teinte », la mesure dit " \
+                f"{m['teinte_h']}° (saturation {m['saturation']})"
+        else:
+            assert m["teinte_h"] is not None, \
+                f"{fid} : teinte refusée (saturation {m['saturation']:.4f}) " \
+                f"alors que la table porte {t['teinte_h']}°"
+            assert abs(m["teinte_h"] - t["teinte_h"]) <= 0.05, \
+                f"{fid} : teinte mesurée {m['teinte_h']}, table {t['teinte_h']}"
 
 
 def test_le_banc_des_traits_VOIT_une_table_fausse(tmp_path):
     """LE CONTRÔLE NÉGATIF. Un banc qui ne peut pas rougir ne prouve rien : on
-    vide le peintre de la famille neuve ET sa branche de profil, et sa bande
-    mesurée doit cesser d'être celle de la table. (Mutation sur la COPIE du
-    banc, jamais sur le dépôt.)"""
+    retire la LÈVRE DE RELIEF de `ringZone` — celle qui fait le front de
+    0,9 mm chez sept familles sur huit — et le front mesuré DOIT changer.
+    (Mutation sur la COPIE du banc, jamais sur le dépôt.)"""
     code = _painter_js_source()
-    i = code.index("function famFiligrane(")
-    j = code.index("{", i)
-    mut = code[:j + 1] + " return; " + code[j + 1:]
-    sain = _banc_traits(tmp_path, {"traits": _cas_traits([HUITIEME])})
-    mort = _banc_traits(tmp_path, {"traits": _cas_traits([HUITIEME])}, mut)
-    a, b = sain["traits"][0], mort["traits"][0]
-    assert abs(a["bande_mm"] - FR.FAMILY_TRAITS[HUITIEME]["bande_mm"]) \
-        <= TRAITS_TOL_MM, a
-    assert b["cellules"] < a["cellules"], \
-        f"le peintre vidé pose encore autant de cellules : {b} vs {a}"
+    ancre = 'ctx.strokeStyle = "rgba(255,255,255,.16)";'
+    assert code.count(ancre) == 1, "la lèvre de relief a changé de forme"
+    mut = code.replace(ancre, 'ctx.strokeStyle = "rgba(255,255,255,0)";')
+    sain = _traits_mesures(tmp_path, ["runic"])["runic"]
+    mort = _traits_mesures(tmp_path, ["runic"], mut)["runic"]
+    assert sain["front_mm"] == FR.FAMILY_TRAITS["runic"]["front_mm"], sain
+    assert mort["front_mm"] != sain["front_mm"], \
+        f"retirer la lèvre ne change pas le front mesuré : {mort}"
+
+
+# ── 19.1bis L'ALLER-RETOUR : ce que la pièce 10 rend, P2 le reconnaît-il ? ──
+#
+# LE CONTRÔLE QUI MANQUAIT, ET QUI A FAIT TOMBER LA PREMIÈRE TABLE. Une table
+# de traits peut être exacte et INUTILE : il suffit qu'elle mesure une autre
+# grandeur que celle qui entre par la frontière. On ferme donc la boucle —
+# rendre la famille, la faire mesurer par la pièce 10, donner le relevé à
+# `famille_proche` — et l'on épingle l'issue HONNÊTE, y compris là où elle est
+# négative. Prétendre une reconnaissance que la géométrie interdit serait
+# exactement le badge menteur que ce dépôt refuse partout ailleurs.
+
+ALLER_RETOUR = {
+    # celles qui se reconnaissent, et POURQUOI
+    "neon": "neon",          # seule à ne pas porter la lèvre : front 3,2
+    "sable": "sable",        # sa teinte s'écarte de 0,7° des trois jumelles
+    "timber": "timber",      # 0,1° — le plus mince écart qui décide encore
+    "gravure": "gravure",    # ivoire : teinte chaude, loin des froides
+    "filigrane": "filigrane",  # or : la plus chaude des huit
+    "runic": "runic",        # première du groupe froid : elle gagne l'égalité
+    # celles que la mesure NE PEUT PAS distinguer : même front, même couleur
+    # au bit près (#08121d). Elles tombent sur la première du groupe.
+    "arcane": "runic",
+    "deco": "runic",
+}
+INDISCERNABLES = {"arcane", "deco"}
+
+
+def test_l_ALLER_RETOUR_de_la_piece_10_vers_P2(tmp_path):
+    """Chaque famille rendue → mesurée par la pièce 10 → adoptée par P2.
+
+    SIX FAMILLES SUR HUIT se reconnaissent. Les deux autres (Arcane, Art déco)
+    rendent EXACTEMENT le même relevé que Runique — même front de 0,9 mm, même
+    couleur de lisière #08121d — et aucune distance ne sépare deux points
+    confondus. Elles tombent sur la première du groupe, et la PHRASE le dit :
+    c'est le contrat, pas un accident."""
+    mes = _traits_mesures(tmp_path)
+    obtenu, avoue = {}, {}
+    for fid, m in mes.items():
+        ch = FR.famille_proche(m["front_mm"], m["teinte_h"])
+        obtenu[fid] = ch["id"]
+        avoue[fid] = FR.phrase_ecart(m["front_mm"], m["teinte_h"], ch)
+    assert obtenu == ALLER_RETOUR, obtenu
+    reconnues = {k for k, v in obtenu.items() if k == v}
+    assert len(reconnues) == 6, sorted(reconnues)
+    # LES INDISCERNABLES SONT VRAIMENT INDISCERNABLES — on le PROUVE au lieu
+    # de le supposer : leur relevé est identique à celui de la famille qui les
+    # rafle, front ET couleur.
+    for fid in INDISCERNABLES:
+        assert mes[fid]["front_mm"] == mes[obtenu[fid]]["front_mm"], fid
+        assert mes[fid]["color"] == mes[obtenu[fid]]["color"], \
+            f"{fid} rend {mes[fid]['color']}, {obtenu[fid]} rend " \
+            f"{mes[obtenu[fid]]['color']} — elles sont donc séparables"
+    # ... ET LA PHRASE AVOUE. Pas de reconnaissance annoncée là où le
+    # catalogue a tranché par son ordre.
+    for fid in INDISCERNABLES | {"runic"}:
+        assert "voisine" in avoue[fid], (fid, avoue[fid])
+        assert "le catalogue retient la première" in avoue[fid], avoue[fid]
+    for fid in ("neon", "gravure", "filigrane"):
+        assert "voisine" not in avoue[fid], (fid, avoue[fid])
+
+
+def test_le_cas_PATRIARCHE_tombe_sur_le_filigrane():
+    """L'ORACLE CHAUD (§7.2, D9). Une bordure d'or de 2,1 mm — l'anatomie du
+    Patriarche — doit choisir « Filigrane à instruments ». C'est le cas d'usage
+    NOMMÉ de la huitième famille ; s'il tombe ailleurs, la famille ne sert à
+    rien. On vérifie aussi la marge : la deuxième est loin."""
+    h = FR.teinte_de("#d8b76a")
+    ch = FR.famille_proche(2.1, h)
+    assert ch["id"] == "filigrane", (ch, h)
+    assert not ch["voisines"], \
+        f"le choix n'est pas net : {ch['voisines']}"
+    # ... et l'or reste l'or sur toute la plage du dossier fabricant
+    for hexa in ("#8a6a2e", "#d8b76a", "#c9992f", "#a5813a"):
+        c = FR.famille_proche(2.1, FR.teinte_de(hexa))
+        assert c["id"] == "filigrane", (hexa, c["id"])
+    # ... tandis qu'un or PÂLE (l'ivoire de l'estampe) va bien chez Gravure
+    assert FR.famille_proche(2.1, FR.teinte_de("#acaba5"))["id"] != "filigrane"
 
 
 def test_les_huit_silhouettes_restent_deux_a_deux_distinctes(tmp_path):
@@ -8196,27 +8317,31 @@ import { readFileSync } from "node:fs";
 const CODE = readFileSync(process.argv[2], "utf8");
 const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
 const mod = new Function("return (function(){ " + CODE
-  + "\nreturn { teinteDe: teinteDe, ecartTeinte: ecartTeinte,"
-  + " traitsEchelles: traitsEchelles, familleProche: familleProche,"
-  + " mm1: mm1, phraseEcart: phraseEcart, bordureLue: bordureLue,"
-  + " adoptionBordure: adoptionBordure, FAMILY_TRAITS: FAMILY_TRAITS };\n})();")();
+  + "\nreturn { teinteDe: teinteDe, satDe: satDe, rgbDe: rgbDe,"
+  + " ecartTeinte: ecartTeinte, traitsEchelles: traitsEchelles,"
+  + " familleProche: familleProche, mm1: mm1, nb2: nb2,"
+  + " phraseEcart: phraseEcart, bordureLue: bordureLue,"
+  + " adoptionBordure: adoptionBordure, FAMILY_TRAITS: FAMILY_TRAITS,"
+  + " PROCHE_EPS: PROCHE_EPS, SAT_MIN: SAT_MIN };\n})();")();
 const out = { echelles: mod.traitsEchelles(), traits: mod.FAMILY_TRAITS,
+  eps: mod.PROCHE_EPS, sat_min: mod.SAT_MIN,
   teintes: [], mesures: [], bordures: [] };
 for (const c of (CAS.teintes || [])) {
-  out.teintes.push({ hex: c, h: mod.teinteDe(c) });
+  out.teintes.push({ hex: c, h: mod.teinteDe(c), s: mod.satDe(c) });
 }
 for (const m of (CAS.mesures || [])) {
   const h = (m.teinte_h === undefined) ? null : m.teinte_h;
   const ch = mod.familleProche(m.mm, h);
-  out.mesures.push({ nom: m.nom, id: ch.id, d: ch.d, d_bande: ch.d_bande,
-    d_teinte: ch.d_teinte, phrase: mod.phraseEcart(m.mm, h, ch.id) });
+  out.mesures.push({ nom: m.nom, id: ch.id, d: ch.d, d_front: ch.d_front,
+    d_teinte: ch.d_teinte, voisines: ch.voisines,
+    phrase: mod.phraseEcart(m.mm, h, ch) });
 }
 for (const b of (CAS.bordures || [])) {
   const bo = mod.bordureLue(b.border);
   if (!bo) { out.bordures.push({ nom: b.nom, lue: null }); continue; }
-  const a = mod.adoptionBordure(bo, b.frame || {}, b.win);
+  const a = mod.adoptionBordure(bo, b.win);
   out.bordures.push({ nom: b.nom, lue: bo, famille: a.famille,
-    patch: a.patch, ecart: a.ecart, fenetre: a.fenetre });
+    patch: a.patch, ecart: a.ecart, precisions: a.precisions });
 }
 process.stdout.write(JSON.stringify(out));
 """
@@ -8224,16 +8349,12 @@ process.stdout.write(JSON.stringify(out));
 
 def _adoption_js_source() -> str:
     """LE CALCUL D'ADOPTION, extrait TEL QUEL : le bloc miroir en entier, plus
-    les deux fonctions qui l'emploient. Aucune réimplémentation — une
+    les fonctions qui l'emploient. Aucune réimplémentation — une
     réimplémentation prouverait la réimplémentation."""
     src = _js()
-    # LE BLOC EST BORNÉ PAR DEUX MOITIÉS DE COMMENTAIRE : les marqueurs
-    # `CF-FRAME-CATALOG-BEGIN/END` vivent DANS un `/* … */`, si bien que la
-    # tranche extraite commence par « ═══ */ » et finit par « /* ═══ ». On la
-    # REFERME des deux côtés au lieu de la raboter : le bloc évalué reste
-    # celui du dépôt, à l'octet près.
     return "\n".join([_bloc_js(src), _js_const(src, "cl"),
-                      _js_const(src, "r2"), _js_fn(src, "nbLu"),
+                      _js_const(src, "r2"), _js_const(src, "CONF_FAIBLE"),
+                      _js_fn(src, "nb2"), _js_fn(src, "nbLu"),
                       _js_fn(src, "bordureLue"),
                       _js_fn(src, "adoptionBordure")])
 
@@ -8266,9 +8387,13 @@ def _banc_adoption(tmp_path, cas: dict, mutations=()) -> dict:
     return json.loads(r.stdout)
 
 
-# LE BANC DE MESURES : bandes de 0,5 à 6 mm, teintes tout autour du cercle —
-# et LE TOUR, 350 contre 10, que la spec §9.2 appelle par son nom. Un écart de
-# teinte calculé sans `min(d, 360-d)` rend 340 degrés pour ces deux-là.
+# LE BANC DE MESURES : fronts de 0,5 à 6 mm, teintes tout autour du cercle —
+# LE TOUR (350 contre 10, que la spec §9.2 appelle par son nom) et LES DEUX
+# CRÊTES, ces relevés qui tombent pile entre deux familles et où un dixième de
+# degré change la réponse. Les crêtes sont là parce que la ronde a montré
+# qu'un « témoin survivant » choisi sans elles avait une raison FAUSSE :
+# déplacer une teinte de 0,7° passait pour inoffensif alors qu'il basculait le
+# choix sur toute une crête.
 MESURES_BANC = [
     {"nom": "fine-or", "mm": 0.5, "teinte_h": 45.0},
     {"nom": "mince-ivoire", "mm": 0.9, "teinte_h": 55.0},
@@ -8284,46 +8409,81 @@ MESURES_BANC = [
     {"nom": "sans-teinte", "mm": 3.0, "teinte_h": None},
     {"nom": "bord-zero", "mm": 0.05, "teinte_h": 0.0},
     {"nom": "bord-360", "mm": 5.0, "teinte_h": 359.9},
+    # LES DEUX CRÊTES, mesurées : à 210,9° Épure gagne d'un dixième sur
+    # Runique ; à 211,35° Runique gagne d'un vingtième sur Bois sculpté.
+    {"nom": "crete-sable", "mm": 0.9, "teinte_h": 210.9},
+    {"nom": "crete-timber", "mm": 0.9, "teinte_h": 211.35},
 ]
+# LES COULEURS DU BANC : les ors et les noirs de la spec, les primaires, les
+# formes REFUSÉES, et — depuis la ronde — les GRIS À 1 LSB qui choisissaient
+# une famille au hasard, plus les trois formes de dièse que `replace` de
+# JavaScript et `replace` de Python ne lisaient PAS pareil.
 TEINTES_BANC = ["#d8b76a", "#8a6a2e", "#f7f0dd", "#2b5f96", "#0f2338",
                 "#c0c0c0", "#000000", "#ffffff", "#ff0000", "#00ff00",
                 "#0000ff", "#010200", "#fe0001", "abc", "#abc", "",
-                "#GGGGGG", "#12345", "  #D8B76A  "]
+                "#GGGGGG", "#12345", "  #D8B76A  ",
+                "#6a6b6c", "#6c6b6a", "#282a28", "#acaba5", "#08121d",
+                "##d8b76a", "###abc", "d8b76a#"]
 
 
 def test_les_traits_et_le_plus_proche_sont_les_memes_des_deux_cotes(tmp_path):
     """LA PARITÉ, PRISE À L'EXÉCUTION (§9.2). Pas une comparaison de textes :
-    les deux sources tournent sur le MÊME banc de 14 mesures et 19 couleurs,
-    et doivent rendre la même famille, la même distance et la MÊME PHRASE.
+    les deux sources tournent sur le MÊME banc de 16 relevés et 27 couleurs,
+    et doivent rendre la même famille, la même distance, les mêmes voisines et
+    la MÊME PHRASE.
 
     Une comparaison de textes ne verrait pas deux `%` qui ne se comportent pas
-    pareil — et c'est le cas ici : `-1 % 6` vaut -1 en JavaScript et 5 en
-    Python. La formule de teinte y passe dès que le bleu domine."""
+    pareil — `-1 % 6` vaut -1 en JavaScript et 5 en Python, et la formule de
+    teinte y passe dès que le bleu domine. Elle ne verrait pas non plus deux
+    `replace` qui ne remplacent pas le même nombre d'occurrences : « ##d8b76a »
+    traversait d'un côté et pas de l'autre."""
     res = _banc_adoption(tmp_path, {"teintes": TEINTES_BANC,
                                     "mesures": MESURES_BANC})
-    # la table elle-même, à l'octet près
     assert res["traits"] == FR.FAMILY_TRAITS, \
         f"FAMILY_TRAITS diverge : JS {res['traits']} / py {FR.FAMILY_TRAITS}"
+    assert res["eps"] == FR.PROCHE_EPS
+    assert res["sat_min"] == FR.SAT_MIN
     e = FR.traits_echelles()
-    assert res["echelles"]["bande"] == pytest.approx(e["bande"])
+    assert res["echelles"]["front"] == pytest.approx(e["front"])
     assert res["echelles"]["teinte"] == pytest.approx(e["teinte"])
-    # les teintes, couleur par couleur (y compris les formes REFUSÉES)
     for row in res["teintes"]:
-        py = FR.teinte_de(row["hex"])
-        js = row["h"]
+        py, js = FR.teinte_de(row["hex"]), row["h"]
         if py is None or js is None:
             assert py is None and js is None, (row["hex"], js, py)
         else:
             assert js == pytest.approx(py, abs=1e-9), (row["hex"], js, py)
-    # le plus proche, mesure par mesure
+        pys, jss = FR.saturation_de(row["hex"]), row["s"]
+        if pys is None or jss is None:
+            assert pys is None and jss is None, (row["hex"], jss, pys)
+        else:
+            assert jss == pytest.approx(pys, abs=1e-12), (row["hex"], jss, pys)
     assert len(res["mesures"]) == len(MESURES_BANC) >= 10
     for row in res["mesures"]:
         m = [x for x in MESURES_BANC if x["nom"] == row["nom"]][0]
         py = FR.famille_proche(m["mm"], m["teinte_h"])
         assert row["id"] == py["id"], (row["nom"], row["id"], py["id"])
         assert row["d"] == pytest.approx(py["d"], abs=1e-9), row["nom"]
-        assert row["phrase"] == FR.phrase_ecart(m["mm"], m["teinte_h"],
-                                                py["id"]), row["nom"]
+        assert row["voisines"] == py["voisines"], row["nom"]
+        assert row["phrase"] == FR.phrase_ecart(m["mm"], m["teinte_h"], py), \
+            row["nom"]
+
+
+def test_les_trois_formes_de_diese_se_lisent_pareil():
+    """`replace` de JavaScript ne remplace QUE LA PREMIÈRE occurrence ; celui
+    de Python les remplace toutes. MESURÉ par la ronde : « ##d8b76a » rendait
+    42,0° d'un côté et rien de l'autre — cinq formes divergeaient, toutes hors
+    du banc d'alors. Les deux côtés emploient maintenant une forme GLOBALE, et
+    les trois formes sont au banc."""
+    src = _js()
+    assert 'replace(/#/g, "")' in _js_fn(src, "rgbDe"), \
+        "le JS ne retire pas TOUS les dièses"
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    assert '.replace("#", "")' in _py_fn(py, "_rgb_de"), \
+        "le Python a changé de forme : re-mesurer la parité"
+    for hexa in ("##d8b76a", "###abc", "#d8b76a"):
+        assert FR.teinte_de(hexa) is not None, hexa
+    assert FR.teinte_de("##d8b76a") == pytest.approx(42.0)
+    assert FR.teinte_de("###abc") == FR.teinte_de("#abc")
 
 
 def test_la_teinte_circulaire_est_indispensable(tmp_path):
@@ -8332,14 +8492,15 @@ def test_la_teinte_circulaire_est_indispensable(tmp_path):
     famille choisie CHANGE, et la phrase change de chiffre avec elle. Les deux
     chiffres sont RECALCULÉS ici, jamais recopiés."""
     cas = {"mesures": [m for m in MESURES_BANC
-                       if m["nom"] in ("tour-350", "tour-355-fine", "patriarche")]}
+                       if m["nom"] in ("tour-350", "tour-355-fine",
+                                       "patriarche")]}
     sain = {r["nom"]: r for r in _banc_adoption(tmp_path, cas)["mesures"]}
     mut = {r["nom"]: r for r in _banc_adoption(tmp_path, cas, mutations=[
         ("return d > 180 ? 360 - d : d;", "return d;")])["mesures"]}
-    assert sain["tour-350"]["id"] == HUITIEME, sain["tour-350"]
+    assert sain["tour-350"]["id"] == "filigrane", sain["tour-350"]
     assert mut["tour-350"]["id"] != sain["tour-350"]["id"], \
         f"la distance circulaire ne change RIEN : {mut['tour-350']}"
-    h8 = FR.FAMILY_TRAITS[HUITIEME]["teinte_h"]
+    h8 = FR.FAMILY_TRAITS["filigrane"]["teinte_h"]
     court = math.floor(FR.ecart_teinte(350.0, h8) + 0.5)          # 52
     long_ = math.floor(abs(350.0 - h8) + 0.5)                     # 308
     assert court < 90 < long_, (court, long_)
@@ -8347,15 +8508,86 @@ def test_la_teinte_circulaire_est_indispensable(tmp_path):
         sain["tour-350"]["phrase"]
     assert f"teinte à {court}°" not in mut["tour-350"]["phrase"], \
         mut["tour-350"]["phrase"]
-    # ... et la mesure qui NE tourne PAS autour de 0 ne bouge pas : la
-    # mutation ne casse pas tout, elle casse exactement le tour
     assert mut["patriarche"]["id"] == sain["patriarche"]["id"]
+
+
+# ── 19.1ter LE SEUIL DE SATURATION : le gris ne choisit plus au hasard ──────
+
+def test_le_seuil_de_saturation_tombe_dans_le_creux(tmp_path):
+    """LES DEUX SEUILS NE SONT PAS DES CHIFFRES RONDS, C'EST UN CREUX MESURÉ.
+
+    Et le SECOND seuil est né ici même. La première écriture n'avait que la
+    saturation HSV ; ce test l'a démentie au premier passage : `#141516` est
+    un gris à UN LSB près et sa saturation vaut 0,091 — trois fois le seuil.
+    Une saturation est RELATIVE au maximum ; dans les tons sombres, deux
+    unités de bruit pèsent autant qu'un vrai écart dans les tons clairs. Il
+    faut donc les deux : un plancher ABSOLU de chroma (le bruit de
+    quantification l'est) et un plancher relatif (un presque-blanc a une
+    teinte réelle mais illisible).
+
+    Deux populations, relevées et non supposées :
+      · les GRIS — ceux que la ronde a joués (`#6a6b6c`, `#6c6b6a`) et des
+        neutres de tous les tons : chroma 0 à 2 ;
+      · les DOMINANTES QUE LA VOIE DE PRODUCTION REND VRAIMENT sur les huit
+        familles : chroma 7 (l'ivoire de Gravure) à 138.
+    La marge est MINCE — 2,5x au-dessus du bruit, 1,4x sous l'ivoire — et
+    c'est écrit ici plutôt que caché : l'ivoire de « Gravure » est la teinte
+    la moins certaine des huit, et si un jour son anneau change, ce test
+    rougit avant l'utilisateur."""
+    def chroma(h):
+        c = FR._rgb_de(h)
+        return max(c) - min(c)
+    GRIS = ("#6a6b6c", "#6c6b6a", "#808080", "#c0c0c0", "#ffffff",
+            "#000000", "#282a28", "#141516", "#fefdfe", "#010002")
+    assert max(chroma(h) for h in GRIS) <= 2, [(h, chroma(h)) for h in GRIS]
+    mes = _traits_mesures(tmp_path)
+    vraies = [t["color"] for t in mes.values() if t["color"] is not None]
+    assert len(vraies) == len(FR.FAMILIES)
+    assert max(chroma(h) for h in GRIS) < FR.CHROMA_MIN \
+        <= min(chroma(h) for h in vraies), \
+        f"le plancher de chroma {FR.CHROMA_MIN} n'est pas dans le creux : " \
+        f"gris <= {max(chroma(h) for h in GRIS)}, dominantes >= " \
+        f"{min(chroma(h) for h in vraies)}"
+    assert FR.SAT_MIN <= min(FR.saturation_de(h) for h in vraies), \
+        [(h, round(FR.saturation_de(h), 4)) for h in vraies]
+    # AUCUN gris ne garde de teinte, quel que soit son ton — c'est ce que le
+    # plancher absolu ajoute, et la saturation seule ne savait pas le faire.
+    assert all(FR.teinte_de(h) is None for h in GRIS), \
+        [(h, FR.teinte_de(h)) for h in GRIS if FR.teinte_de(h) is not None]
+    # ... et le seuil FAIT SON TRAVAIL : les deux gris de la ronde n'ont plus
+    # de teinte, donc ils ne choisissent plus deux familles opposées.
+    a = FR.famille_proche(0.9, FR.teinte_de("#6a6b6c"))
+    b = FR.famille_proche(0.9, FR.teinte_de("#6c6b6a"))
+    assert FR.teinte_de("#6a6b6c") is None and FR.teinte_de("#6c6b6a") is None
+    assert a["id"] == b["id"], (a["id"], b["id"])
+
+
+def test_sans_seuil_deux_gris_jumeaux_choisissent_deux_familles(tmp_path):
+    """LE CONTRÔLE NÉGATIF DU SEUIL, sur la mutation exacte de la ronde : la
+    garde ramenée à l'égalité stricte. Les deux gris redeviennent « teintés »
+    et repartent chacun de son côté."""
+    cas = {"teintes": ["#6a6b6c", "#6c6b6a"]}
+    mut = _banc_adoption(tmp_path, cas, mutations=[
+        ("if (d < CHROMA_MIN || (mx && d / mx < SAT_MIN)) return null;",
+         "if (d === 0) return null;")])
+    t = {r["hex"]: r["h"] for r in mut["teintes"]}
+    assert t["#6a6b6c"] is not None and t["#6c6b6a"] is not None, t
+    # ... et ces deux teintes-là, données au MÊME choix de famille, partent
+    # chacune de son côté : c'est le tirage au sort que le seuil arrête.
+    a = FR.famille_proche(0.9, t["#6a6b6c"])["id"]
+    b = FR.famille_proche(0.9, t["#6c6b6a"])["id"]
+    assert a != b, \
+        f"la mutation ne sépare pas les deux gris : {a} / {b} ({t})"
+    sain = _banc_adoption(tmp_path, cas)
+    assert all(r["h"] is None for r in sain["teintes"]), sain["teintes"]
+    assert FR.famille_proche(0.9, None)["id"] \
+        == FR.famille_proche(0.9, None)["id"]
 
 
 # ── 19.3 CE QUE L'ADOPTION ÉCRIT ────────────────────────────────────────────
 #
 # LE MAPPING, et pourquoi ces clés-là (vérifié à la source, pas supposé) :
-#   bande mesurée -> `inner_mm`   (le modèle pose la bande entre la coupe et
+#   front mesuré  -> `inner_mm`   (le modèle pose la bande entre la coupe et
 #                                  `trim` rentré de `inner_mm` ; le panneau
 #                                  l'appelle « Marge intérieure (bande) »)
 #   couleur       -> `line_color` + `metal: false` (sinon `inkPaint` rend le
@@ -8365,12 +8597,12 @@ def test_la_teinte_circulaire_est_indispensable(tmp_path):
 #                                  CARTE est `doc.format.corner_mm`, propriété
 #                                  de la pièce 00 — P2 ne l'écrit pas)
 
-WIN_BANC = {"x": 6.6, "y": 6.6, "w": 49.8, "h": 44.4, "r": 2.5}
+WIN_BANC = {"x": 6.6, "y": 6.6, "w": 49.8, "h": 44.4, "r": 2.5, "auto": False}
+WIN_AUTO = dict(WIN_BANC, auto=True)
 
 
-def _cas_bordure(nom, border, frame=None):
-    return {"nom": nom, "border": border, "frame": frame or {},
-            "win": dict(WIN_BANC)}
+def _cas_bordure(nom, border, win=None):
+    return {"nom": nom, "border": border, "win": dict(win or WIN_BANC)}
 
 
 def test_l_adoption_pose_les_reglages_MESURES_clampes_par_LIMITS(tmp_path):
@@ -8389,24 +8621,45 @@ def test_l_adoption_pose_les_reglages_MESURES_clampes_par_LIMITS(tmp_path):
     ]})["bordures"]
     r = {x["nom"]: x for x in res}
     p = r["patriarche"]["patch"]
-    assert p["family"] == HUITIEME, p
+    assert p["family"] == "filigrane", p
     assert p["inner_mm"] == 2.1, p
     assert p["line_color"] == "#d8b76a" and p["metal"] is False, p
     assert p["window"]["r"] == 3.0, p
-    # la fenêtre est reposée ENTIÈRE : un `{r: …}` seul l'effacerait
     for k in ("x", "y", "w", "h"):
         assert p["window"][k] == WIN_BANC[k], p["window"]
-    # les bornes MORDENT, des deux côtés
     g = r["enorme"]["patch"]
     assert g["inner_mm"] == FR.LIMITS["inner_mm"][1], g
     assert g["window"]["r"] == FR.LIMITS["win_r_mm"][1], g
-    # ... mais un rayon NÉGATIF n'est pas une mesure hors bornes, c'est une
-    # mesure qui n'a pas eu lieu : on ne la ramène pas à 0 (ce serait publier
-    # un angle vif que personne n'a vu), on ne pose pas de fenêtre du tout.
+    # ... un rayon NÉGATIF n'est pas une mesure hors bornes, c'est une mesure
+    # qui n'a pas eu lieu : on ne la ramène pas à 0 (ce serait publier un angle
+    # vif que personne n'a vu), on ne pose pas de fenêtre du tout.
     assert r["negatif"]["lue"]["radius_mm"] is None, r["negatif"]["lue"]
     assert "window" not in r["negatif"]["patch"], r["negatif"]
     # ... un rayon de ZÉRO, lui, EST une mesure : des coins vifs se mesurent.
     assert r["rayon-nul"]["patch"]["window"]["r"] == 0.0, r["rayon-nul"]
+
+
+def test_le_clamp_de_la_bande_SE_DIT_dans_la_phrase(tmp_path):
+    """LE CLAMP ÉTAIT MUET, et celui du rayon parlait. MESURÉ par la ronde :
+    « bande 25,0 mm ↔ Bois sculpté 3,1 mm » pendant que le document recevait
+    20. L'écran annonçait un réglage que le jeu ne portait pas.
+
+    Le test confronte la PHRASE au PATCH : la valeur dite doit être celle
+    écrite, sur les deux branches (clampée, non clampée)."""
+    res = {x["nom"]: x for x in _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("clampe", {"mm": 25.0, "color": "", "radius_mm": None}),
+        _cas_bordure("dedans", {"mm": 2.0, "color": "", "radius_mm": None}),
+    ]})["bordures"]}
+    c = res["clampe"]
+    borne = FR.LIMITS["inner_mm"][1]
+    assert c["patch"]["inner_mm"] == borne, c["patch"]
+    assert f"ramenée à {FR._mm1(borne)} mm" in c["precisions"], c["precisions"]
+    assert "la borne du curseur" in c["precisions"], c["precisions"]
+    # la phrase d'écart, elle, dit la MESURE — c'est son rôle : elle compare
+    # ce qui a été mesuré à ce que la famille porte.
+    assert c["ecart"].startswith("bande 25,0 mm ↔"), c["ecart"]
+    # ... et sans clamp, personne ne parle de borne
+    assert "ramenée" not in res["dedans"]["precisions"], res["dedans"]
 
 
 def test_l_adoption_sans_clamp_ecrirait_hors_bornes(tmp_path):
@@ -8415,50 +8668,78 @@ def test_l_adoption_sans_clamp_ecrirait_hors_bornes(tmp_path):
     cas = {"bordures": [_cas_bordure("enorme", {"mm": 40.0, "color": "",
                                                 "radius_mm": None})]}
     mut = _banc_adoption(tmp_path, cas, mutations=[
-        ("inner_mm: r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1])),",
-         "inner_mm: r2(bo.mm),")])["bordures"][0]
+        ("const bande = r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1]));",
+         "const bande = r2(bo.mm);")])["bordures"][0]
     assert mut["patch"]["inner_mm"] == 40.0, mut
     sain = _banc_adoption(tmp_path, cas)["bordures"][0]
     assert sain["patch"]["inner_mm"] == FR.LIMITS["inner_mm"][1], sain
 
 
-def test_le_verrou_de_proportions_garde_la_fenetre(tmp_path):
-    """LE VERROU DE LA 3b, APPLIQUÉ À LA LETTRE. `win_lock` garde la FENÊTRE :
-    armé, elle n'entre pas dans le patch — et la ligne d'écart le DIT, au lieu
-    de laisser croire que le rayon a été posé.
+def test_le_verrou_de_proportions_ne_garde_PAS_le_rayon(tmp_path):
+    """CORRECTION DE RONDE. Le premier jet retirait la fenêtre du patch dès que
+    `win_lock` était armé. Or `win_lock` est un verrou de PROPORTIONS — son
+    libellé le dit et ses trois lectures le font : la hauteur recopie
+    l'échelle. Un rayon n'est pas une proportion, et l'adoption ne touche ni
+    la largeur ni la hauteur. Le verrou n'a donc rien à garder ici.
 
-    Ce qu'il ne fait PAS : interdire le geste. « Le verrou ne gate JAMAIS le
-    panneau » (clôture 3b) — la famille, la bande et la couleur s'adoptent
-    quand même, parce que le verrou ne garde pas ces trois-là."""
+    On le vérifie DEUX FOIS : à la source (le verrou n'est plus lu par le
+    calcul d'adoption) et au banc (le patch porte la fenêtre)."""
+    # le CODE, commentaires retirés : le mot `win_lock` doit encore pouvoir
+    # être EXPLIQUÉ dans la prose (il l'est, longuement) sans faire rougir.
+    corps = re.sub(r"/\*.*?\*/", " ",
+                   _js_fn(_js(), "adoptionBordure"), flags=re.S)
+    assert "win_lock" not in corps, \
+        "le calcul d'adoption consulte encore le verrou de proportions"
+    b = {"mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0, "confidence": 0.9}
+    r = _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("rayon", b)]})["bordures"][0]
+    assert r["patch"]["window"]["r"] == 3.0, r["patch"]
+    # ... et la LARGEUR comme la HAUTEUR sortent inchangées : c'est ce que le
+    # verrou garde, et l'adoption n'y touche pas, verrou ou non.
+    assert r["patch"]["window"]["w"] == WIN_BANC["w"], r["patch"]
+    assert r["patch"]["window"]["h"] == WIN_BANC["h"], r["patch"]
+
+
+def test_le_GEL_de_la_fenetre_automatique_est_dit(tmp_path):
+    """UNE FENÊTRE « AUTO » SE RE-PROPORTIONNE AU FORMAT ; UNE FOIS POSÉE, NON.
+    Mesuré au passage poker -> tarot : 16 mm de hauteur en moins, et
+    `publishWindow` gèle la pose de P1 avec. C'est grand, c'est invisible, et
+    une phrase suffit — mais elle ne doit apparaître QUE là où elle est vraie."""
     b = {"mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0, "confidence": 0.9}
     res = {x["nom"]: x for x in _banc_adoption(tmp_path, {"bordures": [
-        _cas_bordure("libre", b, {"win_lock": False}),
-        _cas_bordure("verrou", b, {"win_lock": True}),
-        _cas_bordure("sans-rayon", {"mm": 2.1, "color": "#d8b76a",
-                                    "radius_mm": None}, {"win_lock": False}),
+        _cas_bordure("auto", b, WIN_AUTO),
+        _cas_bordure("manuelle", b, WIN_BANC),
+        _cas_bordure("auto-sans-rayon", {"mm": 2.1, "color": "#d8b76a",
+                                         "radius_mm": None}, WIN_AUTO),
     ]})["bordures"]}
-    assert "window" in res["libre"]["patch"], res["libre"]
-    assert "window" not in res["verrou"]["patch"], res["verrou"]
-    assert "verrou" in res["verrou"]["fenetre"], res["verrou"]["fenetre"]
-    assert "window" not in res["sans-rayon"]["patch"], res["sans-rayon"]
-    assert "rayon non mesuré" in res["sans-rayon"]["fenetre"]
-    # le verrou ne gate PAS le reste
-    for nom in ("libre", "verrou"):
-        p = res[nom]["patch"]
-        assert p["family"] == HUITIEME and p["inner_mm"] == 2.1
-        assert p["line_color"] == "#d8b76a"
+    assert "cesse de se re-proportionner" in res["auto"]["precisions"], \
+        res["auto"]["precisions"]
+    assert "Ctrl+Z" in res["auto"]["precisions"]
+    assert "cesse de se re-proportionner" not in res["manuelle"]["precisions"], \
+        res["manuelle"]["precisions"]
+    # ... et sans rayon, la fenêtre n'est pas posée du tout : rien à geler
+    assert "cesse de se re-proportionner" \
+        not in res["auto-sans-rayon"]["precisions"]
+    assert "window" not in res["auto-sans-rayon"]["patch"]
 
 
-def test_le_verrou_ignore_ecraserait_la_fenetre(tmp_path):
-    """MUTATION : le verrou lu à l'envers. La fenêtre que l'utilisateur a
-    verrouillée entrerait alors dans le patch."""
-    cas = {"bordures": [_cas_bordure(
-        "verrou", {"mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0},
-        {"win_lock": True})]}
-    mut = _banc_adoption(tmp_path, cas, mutations=[
-        ("const verrou = !!(f0 && f0.win_lock);",
-         "const verrou = false;")])["bordures"][0]
-    assert "window" in mut["patch"], mut
+def test_la_confiance_de_la_mesure_est_AFFICHEE(tmp_path):
+    """La confiance était calculée par la pièce 10, transportée jusqu'ici, et
+    JAMAIS montrée. C'est pourtant la seule chose qui sépare une adoption sûre
+    d'une adoption à 21 % — les millimètres, eux, sont les mêmes."""
+    res = {x["nom"]: x for x in _banc_adoption(tmp_path, {"bordures": [
+        _cas_bordure("sure", {"mm": 2.1, "color": "", "radius_mm": None,
+                              "confidence": 0.82}),
+        _cas_bordure("faible", {"mm": 2.1, "color": "", "radius_mm": None,
+                                "confidence": 0.21}),
+        _cas_bordure("sans", {"mm": 2.1, "color": "", "radius_mm": None}),
+    ]})["bordures"]}
+    assert "confiance 0,82" in res["sure"]["precisions"], res["sure"]
+    assert "PEU SÛRE" not in res["sure"]["precisions"]
+    assert "PEU SÛRE" in res["faible"]["precisions"], res["faible"]
+    assert "0,21" in res["faible"]["precisions"], res["faible"]
+    assert res["sans"]["lue"]["confidence"] is None
+    assert "confiance" not in res["sans"]["precisions"], res["sans"]
 
 
 def test_une_bordure_absente_ou_folle_ne_donne_RIEN_a_adopter(tmp_path):
@@ -8484,20 +8765,25 @@ def test_une_bordure_absente_ou_folle_ne_donne_RIEN_a_adopter(tmp_path):
         _cas_bordure("couleur-folle", {"mm": 2.1, "color": "rouge vif",
                                        "radius_mm": None}),
         _cas_bordure("couleur-absente", {"mm": 2.1}),
+        _cas_bordure("couleur-grise", {"mm": 2.1, "color": "#6a6b6c"}),
     ]})["bordures"]
-    for x in partiel:
+    for x in partiel[:2]:
         assert x["lue"] is not None, x
         assert x["lue"]["color"] == "", x
         assert "line_color" not in x["patch"], x
         assert "metal" not in x["patch"], x
-        assert "teinte non mesurable" in x["ecart"], x["ecart"]
+        assert "non mesurable (gris)" in x["ecart"], x["ecart"]
+    # un gris LISIBLE, lui, se pose bien comme couleur — c'est sa TEINTE qui
+    # n'existe pas, pas la couleur.
+    gris = partiel[2]
+    assert gris["patch"]["line_color"] == "#6a6b6c", gris
+    assert "non mesurable (gris)" in gris["ecart"], gris["ecart"]
 
 
 def test_la_phrase_d_ecart_porte_LES_CHIFFRES_DU_CALCUL(tmp_path):
     """§9.1 : « l'écart famille↔mesure est celui affiché ». Chaque nombre de
-    la phrase est recalculé ici — la bande mesurée, la bande de la famille
-    choisie, et l'écart de teinte EN DEGRÉS (la spec écrivait « % » ; un
-    pourcentage d'angle ne veut rien dire, et c'est amendé à la source).
+    la phrase est recalculé ici — le front mesuré, celui de la famille choisie,
+    et l'écart de teinte EN DEGRÉS.
 
     LA PROSE SE MESURE : on ne cherche pas « la phrase contient un nombre »,
     on reconstruit la phrase entière à partir du calcul et on exige
@@ -8507,16 +8793,26 @@ def test_la_phrase_d_ecart_porte_LES_CHIFFRES_DU_CALCUL(tmp_path):
         m = [x for x in MESURES_BANC if x["nom"] == row["nom"]][0]
         t = FR.FAMILY_TRAITS[row["id"]]
         lab = [f["label"] for f in FR.FAMILIES if f["id"] == row["id"]][0]
-        attendu = f"bande {FR._mm1(m['mm'])} mm ↔ {lab} {FR._mm1(t['bande_mm'])} mm"
-        if m["teinte_h"] is None:
-            attendu += ", teinte non mesurable"
+        attendu = (f"bande {FR._mm1(m['mm'])} mm ↔ {lab} "
+                   f"{FR._mm1(t['front_mm'])} mm")
+        if m["teinte_h"] is None and t["teinte_h"] is None:
+            attendu += ", ni la mesure ni la famille n'a de teinte"
+        elif m["teinte_h"] is None:
+            attendu += ", teinte de la mesure non mesurable (gris)"
+        elif t["teinte_h"] is None:
+            attendu += ", la famille n'a pas de teinte propre"
         else:
             deg = math.floor(
                 FR.ecart_teinte(m["teinte_h"], t["teinte_h"]) + 0.5)
             attendu += f", teinte à {deg}°"
+        if row["voisines"]:
+            s = "s" if len(row["voisines"]) > 1 else ""
+            noms = ", ".join(FR._label_de(v) for v in row["voisines"])
+            attendu += (f" — {len(row['voisines'])} famille{s} voisine{s} à "
+                        f"moins de {FR._mm1(FR.PROCHE_EPS * 100)} % ({noms}) :"
+                        f" le catalogue retient la première")
         assert row["phrase"] == attendu, (row["nom"], row["phrase"], attendu)
-        # ... et le chiffre affiché est celui du CALCUL, pas un second calcul
-        if m["teinte_h"] is not None:
+        if m["teinte_h"] is not None and t["teinte_h"] is not None:
             deg = math.floor(
                 row["d_teinte"] * FR.traits_echelles()["teinte"] + 0.5)
             assert f"teinte à {deg}°" in row["phrase"], (row, deg)
@@ -8526,11 +8822,41 @@ def test_la_phrase_d_ecart_est_celle_de_la_spec():
     """L'EXEMPLE DE LA SPEC, joué. §7.1.5 écrit « bande 2,1 mm ↔ famille sable
     2,0 mm, teinte à N » : même forme, même ordre, même flèche. Le LIBELLÉ y
     remplace l'identifiant (« Épure », pas « sable ») — c'est le mot que
-    l'utilisateur voit dans la grille des familles juste à côté."""
+    l'utilisateur voit dans la grille des familles juste à côté.
+
+    L'UNITÉ EST LE DEGRÉ, ET L'AMENDEMENT EXISTE. La spec écrivait « 6 % » ;
+    la première écriture de ce test affirmait « amendé à la source » alors que
+    la source ne l'était pas — une revendication d'amendement se vérifie comme
+    un fait. Elle l'est désormais : l'orchestrateur a amendé spec :510 le
+    24/08 (commit 9f030be), et ce test LIT le fichier au lieu de le croire."""
     p = FR.phrase_ecart(2.1, 43.0, "sable")
     assert p.startswith("bande 2,1 mm ↔ Épure "), p
     assert " mm, teinte à " in p and p.endswith("°"), p
     assert "%" not in p, "un écart d'angle n'est pas un pourcentage"
+    spec = (REPO / "docs" / "superpowers" / "specs"
+            / "2026-08-19-cardforge-universel-design.md")
+    txt = spec.read_text(encoding="utf-8")
+    assert "teinte à 6° »" in txt, \
+        "l'amendement de la spec (« % » -> degré) n'est pas dans le fichier"
+    assert "l'unité\n     d'un écart de teinte est le degré" in txt, txt[:0]
+
+
+def test_la_phrase_AVOUE_les_familles_voisines(tmp_path):
+    """LA QUASI-ÉGALITÉ SE DIT. Trois familles rendent le même relevé (même
+    front, même couleur au bit près) : annoncer « Runique » sans un mot
+    laisserait croire à une reconnaissance là où le catalogue a tranché par
+    son ORDRE. La phrase nomme les voisines et dit la règle."""
+    ch = FR.famille_proche(0.9, 211.4)
+    assert ch["id"] == "runic", ch
+    assert set(ch["voisines"]) >= {"arcane", "deco"}, ch["voisines"]
+    p = FR.phrase_ecart(0.9, 211.4, ch)
+    assert "voisines à moins de 2,0 %" in p, p
+    assert "Arcane" in p and "Art déco" in p, p
+    assert "le catalogue retient la première" in p, p
+    # ... et un choix NET ne dit rien de tel
+    net = FR.famille_proche(3.2, 211.2)
+    assert net["id"] == "neon" and not net["voisines"], net
+    assert "voisine" not in FR.phrase_ecart(3.2, 211.2, net)
 
 
 # ── 19.4 LE NON-DÉPART : sans matière, il n'y a pas de bouton ───────────────
@@ -8630,7 +8956,8 @@ def _banc_adopt_dom(tmp_path, cas: list) -> dict:
     src = _js()
     code = "\n".join([
         _bloc_js(src), _js_const(src, "cl"), _js_const(src, "r2"),
-        _js_const(src, "num"), _js_fn(src, "winMM"), _js_fn(src, "esc"),
+        _js_const(src, "num"), _js_const(src, "CONF_FAIBLE"),
+        _js_fn(src, "winMM"), _js_fn(src, "esc"), _js_fn(src, "nb2"),
         _js_fn(src, "h"), _js_fn(src, "label"), _js_fn(src, "nbLu"),
         _js_fn(src, "bordureLue"),
         _js_fn(src, "bordureDuDoc"), _js_fn(src, "adoptionBordure"),
@@ -8680,7 +9007,7 @@ def test_sans_bordure_mesuree_il_n_y_a_AUCUN_ECOUTEUR(tmp_path):
     assert r["cache"] is False, r
     assert any("Adopter la bordure" in t for t in r["textes"]), r["textes"]
     assert any("bande 2,1 mm ↔" in t for t in r["textes"]), r["textes"]
-    assert any("confiance 0.82" in t for t in r["textes"]), r["textes"]
+    assert any("confiance 0,82" in t for t in r["textes"]), r["textes"]
 
 
 def test_l_adoption_est_UN_SEUL_PAS_D_ANNULATION(tmp_path):
@@ -8690,7 +9017,8 @@ def test_l_adoption_est_UN_SEUL_PAS_D_ANNULATION(tmp_path):
     g = _geom_js("poker_eu", 3)
     res = _banc_adopt_dom(tmp_path, [{
         "nom": "clic", "g": g, "clic": True,
-        "frame": {"window": dict(WIN_BANC), "win_lock": False},
+        "frame": {"window": {k: WIN_BANC[k] for k in ("x", "y", "w", "h", "r")},
+                  "win_lock": False},
         "capture": {"analyzed": 1, "border": {
             "mm": 2.1, "color": "#d8b76a", "radius_mm": 3.0,
             "confidence": 0.82}}}])["clic"]
@@ -8700,11 +9028,13 @@ def test_l_adoption_est_UN_SEUL_PAS_D_ANNULATION(tmp_path):
     assert p["label"] == "bordure adoptée", p
     assert set(p["patch"]) == {"family", "inner_mm", "line_color", "metal",
                                "window"}, p["patch"]
-    assert p["patch"]["family"] == HUITIEME, p
+    assert p["patch"]["family"] == "filigrane", p
     # le toast PORTE l'écart, le même que la ligne du panneau
     assert len(res["toasts"]) == 1, res["toasts"]
-    assert FR.phrase_ecart(2.1, FR.teinte_de("#d8b76a"), HUITIEME) \
+    ch = FR.famille_proche(2.1, FR.teinte_de("#d8b76a"))
+    assert FR.phrase_ecart(2.1, FR.teinte_de("#d8b76a"), ch) \
         in res["toasts"][0], res["toasts"]
+    assert "confiance 0,82" in res["toasts"][0], res["toasts"]
 
 
 def test_le_bloc_d_adoption_est_repeint_quand_capture_change():
@@ -8723,16 +9053,236 @@ def test_le_bloc_d_adoption_est_repeint_quand_capture_change():
 
 def test_le_catalogue_publie_les_traits_mesures():
     """Un choix qu'on ne peut pas recalculer est un choix qu'il faut croire.
-    `/catalog` publie donc la table ET les deux échelles de la distance."""
+    `/catalog` publie donc la table, les deux échelles de la distance et le
+    seuil de voisinage.
+
+    ET TOUT SORT EN COPIE PROFONDE. `family_traits` avait la sienne, ses
+    voisines non : un appelant qui touchait le dictionnaire rendu écrivait
+    dans les tables du module, pour tout le processus. La moitié d'une garde
+    n'en est pas une — on le vérifie EN PROFONDEUR, sous-objet compris."""
     cat = FR.catalog()
     assert cat["family_traits"] == FR.FAMILY_TRAITS
-    assert cat["family_traits"] is not FR.FAMILY_TRAITS, "table publiée par référence"
-    assert set(cat["family_scales"]) == {"bande", "teinte"}
-    assert cat["family_scales"]["bande"] == pytest.approx(2.75)
-    assert cat["family_scales"]["teinte"] == pytest.approx(169.3)
+    assert set(cat["family_scales"]) == {"front", "teinte"}
+    assert cat["family_scales"]["front"] == pytest.approx(2.3)
+    assert cat["family_scales"]["teinte"] == pytest.approx(169.4)
+    assert cat["family_eps"] == FR.PROCHE_EPS
     # les huit familles ont un trait, et rien qu'elles
     assert set(FR.FAMILY_TRAITS) == {f["id"] for f in FR.FAMILIES}
     for fid, t in FR.FAMILY_TRAITS.items():
-        assert set(t) == {"bande_mm", "teinte_h"}, (fid, t)
-        assert 0 < t["bande_mm"] <= FR.LIMITS["inner_mm"][1], (fid, t)
-        assert 0 <= t["teinte_h"] < 360, (fid, t)
+        assert set(t) == {"front_mm", "teinte_h"}, (fid, t)
+        assert 0 < t["front_mm"] <= FR.LIMITS["inner_mm"][1], (fid, t)
+        assert t["teinte_h"] is None or 0 <= t["teinte_h"] < 360, (fid, t)
+    # AUCUNE table du module n'est jointe par référence, sous-objets compris
+    a, b = FR.catalog(), FR.catalog()
+    a["families"][0]["label"] = "PIRATÉ"
+    a["family_traits"]["runic"]["front_mm"] = 99
+    a["presets"][0]["label"] = "PIRATÉ"
+    a["limits"]["inner_mm"][1] = 999
+    a["rarities"][0]["id"] = "PIRATÉ"
+    a["seal_defaults"]["scope"]["screen"] = "PIRATÉ"
+    assert b["families"][0]["label"] != "PIRATÉ"
+    assert FR.FAMILIES[0]["label"] != "PIRATÉ"
+    assert FR.FAMILY_TRAITS["runic"]["front_mm"] != 99
+    assert FR.PRESETS[0]["label"] != "PIRATÉ"
+    assert FR.LIMITS["inner_mm"][1] != 999
+    assert FR.RARITIES[0]["id"] != "PIRATÉ"
+    assert FR.SEAL_DEFAULTS["scope"]["screen"] is True
+
+
+# ── 19.5 LE BLOC DANS UN VRAI NAVIGATEUR ────────────────────────────────────
+#
+# Le banc DOM prouve la logique ; il ne prouve pas qu'on VOIT quelque chose.
+# Ici la vraie feuille de style et le vrai `renderAdopt` se rencontrent dans un
+# Chrome sans tête : le bloc existe, il a une hauteur, il porte ses tokens, et
+# il ne pousse pas la largeur de défilement du panneau (le défaut déjà payé
+# par `.cff-acts`, mesuré à 160 px de débordement).
+
+BANC_CHROME = r"""
+import { readFileSync, existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+const PAGE = process.argv[2];
+const CHROME = [process.env.CHROME_PATH,
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"]
+  .filter(Boolean).find((p) => existsSync(p));
+if (!CHROME) { process.stdout.write(JSON.stringify({ skip: "chrome" })); process.exit(0); }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const SONDE = `(() => {
+  const el = document.querySelector(".cff-adopt");
+  const col = document.querySelector(".cff-colB");
+  const cs = getComputedStyle(el);
+  const r = el.getBoundingClientRect();
+  const bouton = el.querySelector("button");
+  const ligne = el.querySelector(".cff-adoptread");
+  return {
+    enfants: el.children.length,
+    hauteur: Math.round(r.height), largeur: Math.round(r.width),
+    fond: cs.backgroundColor, bordG: cs.borderLeftWidth,
+    couleurLigne: ligne ? getComputedStyle(ligne).color : null,
+    bouton: bouton ? bouton.textContent : null,
+    ligne: ligne ? ligne.textContent : null,
+    debord: col.scrollWidth - col.clientWidth,
+    lignePx: ligne ? Math.round(ligne.getBoundingClientRect().width) : 0,
+    colPx: Math.round(col.getBoundingClientRect().width),
+    erreurs: window.__ERR || [],
+  };
+})()`;
+const port = await new Promise((res, rej) => {
+  const s = createServer(); s.on("error", rej);
+  s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => res(p)); });
+});
+const profile = join(tmpdir(), "dzcffqa", "p" + port);
+try { rmSync(profile, { recursive: true, force: true }); } catch { }
+mkdirSync(profile, { recursive: true });
+const proc = spawn(CHROME, ["--headless=new", "--disable-gpu",
+  "--remote-debugging-port=" + port, "--remote-allow-origins=*",
+  "--user-data-dir=" + profile, "--window-size=1200,900", "--no-first-run",
+  "--allow-file-access-from-files", "--no-default-browser-check",
+  "--disable-background-networking", "--disable-sync", "about:blank"],
+  { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+const cleanup = () => {
+  try { spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" }); } catch { }
+  try { rmSync(profile, { recursive: true, force: true, maxRetries: 3 }); } catch { }
+};
+process.on("exit", cleanup);
+try {
+  const fetchJson = async (u, tries = 80) => {
+    for (let i = 0; i < tries; i++) {
+      try { const r = await fetch(u); if (r.ok) return await r.json(); } catch { }
+      await sleep(250);
+    }
+    throw new Error("injoignable " + u);
+  };
+  await fetchJson("http://127.0.0.1:" + port + "/json/version");
+  let target = null;
+  for (let i = 0; i < 60 && !target; i++) {
+    const list = await fetchJson("http://127.0.0.1:" + port + "/json/list", 1).catch(() => []);
+    target = (list || []).find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+    if (!target) await sleep(200);
+  }
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((res, rej) => {
+    ws.addEventListener("open", res, { once: true });
+    ws.addEventListener("error", rej, { once: true });
+  });
+  let id = 0; const pend = new Map();
+  ws.addEventListener("message", (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.id && pend.has(m.id)) {
+      const p = pend.get(m.id); pend.delete(m.id);
+      m.error ? p.rej(new Error(m.error.message)) : p.res(m.result);
+    }
+  });
+  const send = (method, params = {}) => new Promise((res, rej) => {
+    const i = ++id; pend.set(i, { res, rej });
+    ws.send(JSON.stringify({ id: i, method, params }));
+  });
+  await send("Page.enable"); await send("Runtime.enable");
+  await send("Page.navigate", { url: "file:///" + PAGE.replace(/\\/g, "/") });
+  await sleep(1500);
+  const r = await send("Runtime.evaluate", { expression: SONDE, returnByValue: true });
+  if (r.exceptionDetails) {
+    process.stdout.write(JSON.stringify({ erreur: JSON.stringify(r.exceptionDetails).slice(0, 600) }));
+  } else {
+    process.stdout.write(JSON.stringify(r.result.value));
+  }
+} finally { cleanup(); }
+"""
+
+
+def _page_adopt(tmp_path, border: dict) -> pathlib.Path:
+    """La page MINIMALE : les vrais tokens, la VRAIE feuille de P2, et le VRAI
+    `renderAdopt` qui construit le bloc. Rien n'est recopié — ni le balisage
+    ni la CSS."""
+    src = _js()
+    code = "\n".join([
+        _bloc_js(src), _js_const(src, "cl"), _js_const(src, "r2"),
+        _js_const(src, "num"), _js_const(src, "CONF_FAIBLE"),
+        _js_fn(src, "winMM"), _js_fn(src, "esc"), _js_fn(src, "nb2"),
+        _js_fn(src, "h"), _js_fn(src, "label"), _js_fn(src, "nbLu"),
+        _js_fn(src, "bordureLue"), _js_fn(src, "bordureDuDoc"),
+        _js_fn(src, "adoptionBordure"), _js_fn(src, "renderAdopt")])
+    tokens = (REPO / "frontend" / "shared" / "deepotus.tokens.css").as_uri()
+    css = CSS.as_uri()
+    g = _geom_js("poker_eu", 3)
+    page = tmp_path / "adopt.html"
+    page.write_text(
+        "<!doctype html><meta charset=\"utf-8\">"
+        f"<link rel=\"stylesheet\" href=\"{tokens}\">"
+        f"<link rel=\"stylesheet\" href=\"{css}\">"
+        "<body style=\"margin:0;background:var(--bg-app,#111)\">"
+        "<div class=\"cf-frame\" style=\"width:708px\">"
+        "<div class=\"cff-cols\"><div class=\"cff-colB\" style=\"width:340px\">"
+        "<div class=\"cff-adopt\"></div></div></div></div>"
+        "<script>window.__ERR=[];"
+        "window.onerror=function(m){window.__ERR.push(String(m));};"
+        "(function(){\n"
+        + code
+        + "\nvar UI={adopt:document.querySelector('.cff-adopt')};"
+        "var DOC={capture:{analyzed:1,border:" + json.dumps(border) + "},"
+        "frame:{}};"
+        "var CF={geom:function(){return " + json.dumps(g) + ";},"
+        "doc:function(){return DOC;},"
+        "get:function(p,d){var c=DOC,ps=String(p).split('.');"
+        "for(var i=0;i<ps.length;i++){"
+        "if(c===null||typeof c!=='object'||!Object.prototype"
+        ".hasOwnProperty.call(c,ps[i]))return d;c=c[ps[i]];}"
+        "return c===undefined?d:c;}};"
+        "var M={toast:function(){}};var f=function(){return DOC.frame;};"
+        "var set=function(){};"
+        "renderAdopt(DOC.frame, CF.geom());"
+        "})();</script></body>", encoding="utf-8")
+    return page
+
+
+def test_le_bloc_d_adoption_TIENT_dans_un_vrai_navigateur(tmp_path):
+    """LE BLOC, VU. Le banc DOM prouve la logique ; il ne prouve pas qu'on voit
+    quelque chose. Ici la VRAIE feuille de P2 et le VRAI `renderAdopt` se
+    rencontrent dans un Chrome sans tête.
+
+    Quatre faits, tous mesurés sur la page rendue :
+      1. le bloc a une hauteur (il n'est pas replié à zéro) ;
+      2. il porte ses tokens — un fond et un liseré, pas une couleur en dur ;
+      3. la ligne d'écart, longue par construction, se REPLIE : la colonne ne
+         gagne pas un pixel de défilement horizontal (le défaut déjà payé par
+         `.cff-acts`, 160 px mesurés) ;
+      4. aucune erreur JavaScript."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du navigateur ne peut pas tourner")
+    page = _page_adopt(tmp_path, {"mm": 25.0, "color": "#d8b76a",
+                                  "radius_mm": 3.0, "confidence": 0.21})
+    banc = tmp_path / "banc_chrome.mjs"
+    banc.write_text(BANC_CHROME, encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(page)], capture_output=True,
+                       text=True, encoding="utf-8", timeout=300)
+    assert r.returncode == 0, (r.stdout[-1500:], r.stderr[-2000:])
+    v = json.loads(r.stdout)
+    if v.get("skip"):
+        pytest.skip("Chrome absent : la vérification navigateur ne peut pas tourner")
+    assert not v.get("erreur"), v.get("erreur")
+    assert v["erreurs"] == [], v["erreurs"]
+    assert v["enfants"] == 3, v
+    assert v["hauteur"] > 40, v
+    assert v["largeur"] > 200, v
+    # les tokens : un fond OPAQUE et un liseré à gauche, pas les valeurs par
+    # défaut du navigateur
+    assert v["fond"] not in ("rgba(0, 0, 0, 0)", "transparent"), v["fond"]
+    assert v["bordG"] not in ("0px", ""), v["bordG"]
+    assert v["couleurLigne"] not in (None, "rgb(0, 0, 0)"), v["couleurLigne"]
+    # le texte est bien celui du calcul
+    assert v["bouton"] == "Adopter la bordure", v["bouton"]
+    assert "bande 25,0 mm ↔" in v["ligne"], v["ligne"]
+    assert "PEU SÛRE" in v["ligne"] and "0,21" in v["ligne"], v["ligne"]
+    assert "ramenée à 20,0 mm" in v["ligne"], v["ligne"]
+    # ... et il TIENT : pas un pixel de débordement horizontal
+    assert v["debord"] <= 0, f"la colonne déborde de {v['debord']} px"
+    assert v["lignePx"] <= v["colPx"], (v["lignePx"], v["colPx"])
+
+

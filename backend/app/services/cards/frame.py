@@ -107,41 +107,52 @@ FAMILIES = [
 # PLUS PROCHE d'une bordure MESURÉE sur une carte importée. Sans table de
 # traits, « le plus proche » n'a pas de sens.
 #
-# COMMENT ILS ONT ÉTÉ OBTENUS — à la mesure, jamais à l'estime. Chaque famille
-# est rendue par ses VRAIS peintres (`famProfile` + son `FAM_FN`) sur le
-# rastériseur de contrôle, cellules de 0,125 mm, format poker à 300 DPI,
-# `DEFAULTS` (donc rareté « rare »), fenêtre découpée comme dans `paintFront`.
-#   · bande_mm = l'ÉPAISSEUR TYPIQUE de la marque que la famille pose en
-#     propre : médiane de min(segment horizontal, segment vertical) sur les
-#     cellules encrées par la famille SANS l'anneau plat.
-#   · teinte_h = la teinte (degrés, [0,360)) de la couleur DOMINANTE de la
-#     lisière extérieure de l'anneau, épaisse de `bande_mm` — exactement la
-#     bande que `_couleur_bande` de la pièce 10 prélève sur une carte importée.
+# MESURÉS PAR LA VOIE DE PRODUCTION, ET C'EST UNE CORRECTION DE RONDE. La
+# première table mesurait l'ÉPAISSEUR TYPIQUE de la marque de chaque famille.
+# Grandeur honnête, et sans rapport avec ce qui entre par la frontière :
+# `doc.capture.border.mm` est la PROFONDEUR DU PREMIER FRONT depuis le bord.
+# Deux grandeurs sous un même nom — et l'aller-retour P10 -> P2 ne se
+# reconnaissait que 2 fois sur 8. La table est donc mesurée en rendant chaque
+# famille (poker 300 DPI, `DEFAULTS`, rareté « rare », cellules de 0,1 mm,
+# l'ordre de `paintFront` : corps, signature, moulure, plaque — le GRAIN de
+# `matter()` exclu, un rastériseur de contrôle ne sait pas le représenter et
+# le détecteur de front relève son plancher avec le bruit) puis en passant les
+# octets dans les analyseurs de la PIÈCE 10 eux-mêmes :
+#   · front_mm = `_analyse_bordure(...)["mm"]` — la profondeur du premier
+#     front, exactement l'unité qui arrivera par `doc.capture.border.mm` ;
+#   · teinte_h = la teinte du `_couleur_bande` publié, lu sur le HEXA (donc
+#     arrondi 8 bits, la seule forme que la frontière peut porter — le flottant
+#     du banc donnait 55,4° pour Gravure là où la voie réelle donne 51,4°, et
+#     ces 4 degrés lui faisaient perdre sa propre famille).
 #
-# DEUX AUTRES DÉFINITIONS ONT ÉTÉ MESURÉES ET REJETÉES, avec leurs chiffres,
-# parce qu'elles ne décrivent PAS une famille : la largeur de l'anneau PLAT
-# vaut `inner_mm` (5,50 mm pour sept familles sur huit aux défauts, 0 pour
-# « Néon », zone « vide ») — c'est un RÉGLAGE ; et la profondeur du premier
-# front tonal retombe sur `inner_mm` elle aussi, sauf « Gravure » (2,31) et
-# « Filigrane » (3,20).
-#
-# CE QUE LA TABLE AVOUE : six familles partagent 211,4° parce que leur anneau
-# vient de `PAL`, dont la teinte appartient à la RARETÉ. Seules « Gravure »
-# (ivoire) et « Filigrane » (or) s'écartent de la palette. La teinte sépare
-# donc le CHAUD du FROID ; la bande tranche à l'intérieur. Les égalités de
-# bande (Arcane/Art déco à 2,38 ; Runique/Néon à 1,50) sont réelles et se
-# tranchent par l'ORDRE DU CATALOGUE, des deux côtés.
+# CE QUE LA TABLE AVOUE, ET QUE LA GÉOMÉTRIE IMPOSE. Sept familles sur huit
+# rendent un front de 0,90 mm : ce n'est pas leur dessin, c'est la LÈVRE DE
+# RELIEF que `ringZone` pose à 1,2 mm de la coupe et qui occupe [0,92 ; 1,48].
+# Seule « Néon » en diffère (3,20 mm) — sa zone est « vide », `ringZone` sort
+# avant la lèvre, et son premier front est le halo du biseau. L'axe du front
+# ne sépare donc QUE Néon. La teinte, elle, ne sépare que le CHAUD du FROID :
+# cinq familles (Runique, Arcane, Bois, Art déco, Épure) tirent leur anneau de
+# `PAL`, dont la teinte appartient à la RARETÉ, et tiennent dans 0,8 degré ;
+# trois d'entre elles rendent la MÊME couleur au bit près (#08121d).
+# CONSÉQUENCE ASSUMÉE : Arcane et Art déco ne peuvent pas se reconnaître —
+# elles tombent sur Runique, la première du groupe, et la PHRASE avoue la
+# quasi-égalité. Six familles sur huit se reconnaissent (test d'aller-retour).
+# Prétendre mieux serait prétendre une mesure que le dessin ne porte pas.
 # ═════════════════════════════════════════════════════════════════════════════
 FAMILY_TRAITS = {
-    "runic": {"bande_mm": 1.5, "teinte_h": 211.4},
-    "arcane": {"bande_mm": 2.38, "teinte_h": 211.4},
-    "timber": {"bande_mm": 3.13, "teinte_h": 211.4},
-    "deco": {"bande_mm": 2.38, "teinte_h": 211.4},
-    "neon": {"bande_mm": 1.5, "teinte_h": 210.7},
-    "sable": {"bande_mm": 2.63, "teinte_h": 211.4},
-    "gravure": {"bande_mm": 0.38, "teinte_h": 55.4},
-    "filigrane": {"bande_mm": 0.5, "teinte_h": 42.1},
+    "runic": {"front_mm": 0.9, "teinte_h": 211.4},
+    "arcane": {"front_mm": 0.9, "teinte_h": 211.4},
+    "timber": {"front_mm": 0.9, "teinte_h": 211.5},
+    "deco": {"front_mm": 0.9, "teinte_h": 211.4},
+    "neon": {"front_mm": 3.2, "teinte_h": 211.2},
+    "sable": {"front_mm": 0.9, "teinte_h": 210.7},
+    "gravure": {"front_mm": 0.9, "teinte_h": 51.4},
+    "filigrane": {"front_mm": 0.9, "teinte_h": 42.1},
 }
+# L'ÉGALITÉ QU'ON AVOUE. Deux familles à moins de ce dixième de largeur de
+# catalogue l'une de l'autre ne sont pas départageables par la mesure : la
+# phrase le DIT au lieu de laisser croire à une reconnaissance.
+PROCHE_EPS = 0.02
 RARITIES = [
     {"id": "common", "label": "Commune"},
     {"id": "uncommon", "label": "Peu commune"},
@@ -273,21 +284,70 @@ def _fmod_js(a: float, b: float) -> float:
     return math.fmod(a, b)
 
 
-def teinte_de(hexa) -> float | None:
-    """La teinte d'un « #rrggbb », en DEGRÉS — ou None quand il n'y en a pas.
+# ── LE SEUIL DE SATURATION, ET POURQUOI L'ÉGALITÉ EXACTE NE SUFFIT PAS ──────
+# Premier jet : « un gris n'a pas de teinte » gardé par `max == min`. MESURÉ
+# par la ronde : `#6a6b6c` rend « teinte à 1° » et choisit Arcane, `#6c6b6a`
+# rend « teinte à 12° » et choisit Filigrane — deux gris que personne ne
+# distingue, deux familles opposées. Le gris EXACT est un événement de mesure
+# nulle : la couleur qui arrive vient d'une quantification median-cut sur une
+# photo, elle n'est jamais exactement neutre.
+# DEUX SEUILS, ET LE SECOND EST NÉ D'UN ÉCHEC DE BANC. Le premier jet n'avait
+# que la saturation HSV. Le banc l'a démentie tout de suite : `#141516` est un
+# gris à UN LSB près, et sa saturation vaut 0,091 — trois fois le seuil. Une
+# saturation est RELATIVE au maximum ; dans les tons sombres, deux unités de
+# bruit pèsent autant qu'un vrai écart dans les tons clairs. Il faut donc :
+#   · CHROMA_MIN, un plancher ABSOLU (max − min en unités 8 bits) — le bruit
+#     de quantification, lui, est absolu : 2 unités quel que soit le ton ;
+#   · SAT_MIN, un plancher RELATIF — un presque-blanc à 6 unités de chroma a
+#     une teinte réelle mais illisible, et n'a rien à décider.
+# MESURÉS (test « le seuil de saturation tombe dans le creux ») : les gris à
+# 1 LSB donnent chroma 2 et saturation ≤ 0,091 ; la dominante la moins saturée
+# que la voie de production rende vraiment est l'ivoire de « Gravure », chroma
+# 7 et saturation 0,041. Les seuils se posent entre les deux populations.
+# LA MARGE EST MINCE — 2,5x au-dessus du bruit, 1,4x sous l'ivoire — et c'est
+# écrit plutôt que caché : l'ivoire de « Gravure » est la teinte la moins
+# certaine des huit, et le test rougit avant l'utilisateur si son anneau
+# change. Jumeaux de `SAT_MIN` / `CHROMA_MIN` de js/mod-frame.js.
+SAT_MIN = 0.03
+CHROMA_MIN = 5
 
-    Un gris n'a pas de teinte : lui en inventer une (0 = rouge) ferait choisir
-    une famille chaude pour une bordure d'acier."""
+
+def _rgb_de(hexa):
+    """(r, g, b) d'un « #rrggbb » ou « #rgb », ou None. `replace` remplace
+    TOUTES les occurrences ici comme en JS (`replaceAll`) : sans cela
+    « ##d8b76a » traversait d'un côté et pas de l'autre."""
     s = str(hexa if hexa is not None else "").strip().replace("#", "")
     if not re.fullmatch(r"[0-9a-fA-F]{3}|[0-9a-fA-F]{6}", s):
         return None
     if len(s) == 3:
         s = s[0] * 2 + s[1] * 2 + s[2] * 2
     n = int(s, 16)
-    r, g, b = (n >> 16) & 255, (n >> 8) & 255, n & 255
-    mx, mn = max(r, g, b), min(r, g, b)
+    return (n >> 16) & 255, (n >> 8) & 255, n & 255
+
+
+def saturation_de(hexa) -> float | None:
+    """La saturation HSV — (max − min) / max. None si la couleur n'est pas
+    lisible ; 0 pour un noir pur (dont la teinte ne veut rien dire non plus)."""
+    c = _rgb_de(hexa)
+    if c is None:
+        return None
+    mx, mn = max(c), min(c)
+    return 0.0 if mx == 0 else (mx - mn) / float(mx)
+
+
+def teinte_de(hexa) -> float | None:
+    """La teinte d'un « #rrggbb », en DEGRÉS — ou None quand elle ne veut rien
+    dire : couleur illisible, ou saturation sous `SAT_MIN`.
+
+    Un gris n'a pas de teinte : lui en inventer une (0 = rouge) ferait choisir
+    une famille chaude pour une bordure d'acier."""
+    c = _rgb_de(hexa)
+    if c is None:
+        return None
+    r, g, b = c
+    mx, mn = max(c), min(c)
     d = mx - mn
-    if d == 0:
+    if d < CHROMA_MIN or (mx and d / float(mx) < SAT_MIN):
         return None
     if mx == r:
         h = _fmod_js((g - b) / d, 6.0)
@@ -312,40 +372,72 @@ def traits_echelles() -> dict:
     Additionner des millimètres et des degrés demande un poids, et un poids
     choisi à la main serait un goût. Chaque axe est divisé par l'ÉTENDUE que
     le catalogue occupe sur cet axe : un écart d'une largeur-de-catalogue en
-    bande pèse alors exactement autant qu'un écart d'une largeur-de-catalogue
-    en teinte. (Aux huit familles livrées : bande 2,75 mm, teinte 169,3°.)"""
-    bandes, teintes = [], []
+    front pèse alors exactement autant qu'un écart d'une largeur-de-catalogue
+    en teinte. (Aux huit familles livrées : front 2,30 mm, teinte 169,4°.)
+
+    L'étendue de teinte est le MAXIMUM des distances CIRCULAIRES par paires,
+    et non max−min : sur un cercle, « l'étendue » d'un nuage n'est pas une
+    différence de coordonnées. Elle sature à 180° — deux familles diamétrale-
+    ment opposées donnent la plus grande étendue possible, et c'est juste."""
+    fronts, teintes = [], []
     for fa in FAMILIES:
         t = FAMILY_TRAITS.get(fa["id"])
         if not t:
             continue
-        bandes.append(t["bande_mm"])
-        teintes.append(t["teinte_h"])
+        fronts.append(t["front_mm"])
+        if t["teinte_h"] is not None:
+            teintes.append(t["teinte_h"])
     h_max = 0.0
     for i in range(len(teintes)):
         for j in range(i + 1, len(teintes)):
             h_max = max(h_max, ecart_teinte(teintes[i], teintes[j]))
-    b = (max(bandes) - min(bandes)) if bandes else 0.0
-    return {"bande": b if b > 0 else 1.0, "teinte": h_max if h_max > 0 else 1.0}
+    b = (max(fronts) - min(fronts)) if fronts else 0.0
+    return {"front": b if b > 0 else 1.0, "teinte": h_max if h_max > 0 else 1.0}
 
 
-def famille_proche(bande_mm: float, teinte_h) -> dict | None:
+def _ecart_axe_teinte(mesure, trait, echelle: float) -> float:
+    """L'axe de teinte quand l'une des deux teintes N'EXISTE PAS.
+
+    « Pas de teinte » n'est pas « teinte inconnue » : c'est une VALEUR — la
+    couleur est neutre. Deux neutres se ressemblent (écart nul) ; un or et un
+    gris ne se ressemblent pas du tout (écart maximal, une largeur de
+    catalogue). Rendre 0 dans tous les cas ferait gagner d'office toute
+    famille sans teinte, quelle que soit la couleur importée."""
+    if mesure is None and trait is None:
+        return 0.0
+    if mesure is None or trait is None:
+        return 1.0
+    return ecart_teinte(float(mesure), float(trait)) / echelle
+
+
+def famille_proche(front_mm: float, teinte_h) -> dict | None:
     """La famille la plus proche d'une bordure mesurée. En cas d'égalité,
     l'ORDRE DU CATALOGUE tranche (le `<` est strict) — la même règle des deux
-    côtés, sinon deux égalités parfaites rendraient deux familles."""
+    côtés, sinon deux égalités parfaites rendraient deux familles.
+
+    Rend AUSSI les VOISINES : celles qui tombent à moins de `PROCHE_EPS` du
+    choix. Le catalogue en porte de vraies (Arcane et Art déco rendent le même
+    front et la même couleur au bit près que Runique) et l'écart affiché doit
+    le dire — sinon l'écran annonce une reconnaissance là où il a tiré au
+    sort."""
     e = traits_echelles()
     best = None
+    tous = []
     for fa in FAMILIES:
         fid = fa["id"]
         t = FAMILY_TRAITS.get(fid)
         if not t:
             continue
-        db = abs(float(bande_mm) - t["bande_mm"]) / e["bande"]
-        dh = 0.0 if teinte_h is None \
-            else ecart_teinte(float(teinte_h), t["teinte_h"]) / e["teinte"]
+        db = abs(float(front_mm) - t["front_mm"]) / e["front"]
+        dh = _ecart_axe_teinte(teinte_h, t["teinte_h"], e["teinte"])
         d = db + dh
+        tous.append((fid, d, db, dh))
         if best is None or d < best["d"] - 1e-12:
-            best = {"id": fid, "d": d, "d_bande": db, "d_teinte": dh}
+            best = {"id": fid, "d": d, "d_front": db, "d_teinte": dh}
+    if best is None:
+        return None
+    best["voisines"] = [fid for fid, d, _b, _h in tous
+                        if fid != best["id"] and d <= best["d"] + PROCHE_EPS]
     return best
 
 
@@ -357,25 +449,52 @@ def _mm1(v) -> str:
     return f"{n / 10:.1f}".replace(".", ",")
 
 
-def phrase_ecart(bande_mm: float, teinte_h, fid: str) -> str:
-    """L'ÉCART AVOUÉ (§7.1.5, §9.1). Chaque chiffre de cette phrase est celui
-    du calcul, au même arrondi : le test les recalcule un à un et les cherche
-    dans le texte. L'unité d'un écart de teinte est le DEGRÉ — la spec
-    écrivait « % », et un pourcentage d'angle ne veut rien dire."""
-    t = FAMILY_TRAITS.get(fid)
-    lab = fid
+def _label_de(fid) -> str:
     for fa in FAMILIES:
         if fa["id"] == fid:
-            lab = fa["label"]
-            break
+            return fa["label"]
+    return str(fid)
+
+
+def phrase_ecart(front_mm: float, teinte_h, choix) -> str:
+    """L'ÉCART AVOUÉ (§7.1.5, §9.1). Chaque chiffre de cette phrase est celui
+    du calcul, au même arrondi : le test les recalcule un à un et reconstruit
+    la phrase entière. L'unité d'un écart de teinte est le DEGRÉ — la spec
+    l'écrivait en « % » et l'orchestrateur l'a amendée en ce sens le 24/08
+    (spec :510, commit 9f030be).
+
+    `choix` est le relevé de `famille_proche` — ou un simple identifiant quand
+    l'appelant n'a pas besoin des voisines. LE MOT « bande » RESTE : c'est
+    celui de la spec et celui du curseur qui reçoit la mesure ; et des deux
+    côtés de la flèche il désigne bien la MÊME grandeur, la profondeur du
+    premier front."""
+    if isinstance(choix, dict):
+        fid = choix.get("id")
+        voisines = list(choix.get("voisines") or [])
+    else:
+        fid, voisines = choix, []
+    t = FAMILY_TRAITS.get(fid)
     if not t:
         return f"famille inconnue : {fid}"
-    p = (f"bande {_mm1(bande_mm)} mm ↔ {lab} "
-         f"{_mm1(t['bande_mm'])} mm")
-    if teinte_h is None:
-        return p + ", teinte non mesurable"
-    ec = math.floor(ecart_teinte(float(teinte_h), t["teinte_h"]) + 0.5)
-    return p + f", teinte à {ec}°"
+    p = (f"bande {_mm1(front_mm)} mm ↔ {_label_de(fid)} "
+         f"{_mm1(t['front_mm'])} mm")
+    ht = t["teinte_h"]
+    if teinte_h is None and ht is None:
+        p += ", ni la mesure ni la famille n'a de teinte"
+    elif teinte_h is None:
+        p += ", teinte de la mesure non mesurable (gris)"
+    elif ht is None:
+        p += ", la famille n'a pas de teinte propre"
+    else:
+        ec = math.floor(ecart_teinte(float(teinte_h), ht) + 0.5)
+        p += f", teinte à {ec}°"
+    if voisines:
+        s = "s" if len(voisines) > 1 else ""
+        noms = ", ".join(_label_de(v) for v in voisines)
+        p += (f" — {len(voisines)} famille{s} voisine{s} à moins de "
+              f"{_mm1(PROCHE_EPS * 100)} % ({noms}) : le catalogue retient "
+              f"la première")
+    return p
 
 # ── LE SCEAU : SCHÉMA ET BORNE, jumeau du bloc de mod-frame.js ───────────────
 # `doc.frame.seal` est le PREMIER sous-objet de `doc.frame` (les 28 autres clés
@@ -829,20 +948,26 @@ def archetype_frame(nom: str) -> dict:
 
 def catalog() -> dict:
     """Le catalogue complet. `combos` est CALCULÉ, jamais écrit à la main."""
+    # TOUT SORT EN COPIE PROFONDE, ET C'EST UNE CORRECTION DE RONDE. Les six
+    # listes du catalogue sortaient NUES : un appelant qui touchait le
+    # dictionnaire rendu écrivait dans les tables du module, pour tout le
+    # processus. `family_traits` avait sa copie, ses voisines non — la moitié
+    # d'une garde n'en est pas une.
     return {
-        "families": FAMILIES,
+        "families": copy.deepcopy(FAMILIES),
         # LES TRAITS MESURÉS (phase 4, D6) : ce sur quoi « adopter la
         # bordure » choisit sa famille. Publiés pour être vérifiables de
         # l'extérieur — et parce qu'un choix qu'on ne peut pas recalculer
         # est un choix qu'il faut croire.
         "family_traits": copy.deepcopy(FAMILY_TRAITS),
         "family_scales": traits_echelles(),
-        "rarities": RARITIES,
-        "backs": BACKS,
-        "corners": CORNERS,
-        "metals": METALS,
-        "presets": PRESETS,
-        "limits": LIMITS,
+        "family_eps": PROCHE_EPS,
+        "rarities": copy.deepcopy(RARITIES),
+        "backs": copy.deepcopy(BACKS),
+        "corners": copy.deepcopy(CORNERS),
+        "metals": copy.deepcopy(METALS),
+        "presets": copy.deepcopy(PRESETS),
+        "limits": copy.deepcopy(LIMITS),
         # la borne que le FORMAT ajoute aux bornes absolues : au-delà, la bande
         # s'inverserait. Publiée pour qu'elle soit vérifiable de l'extérieur.
         "band_min_mm": BAND_MIN_MM,
@@ -850,12 +975,12 @@ def catalog() -> dict:
                         for k, v in FORMATS.items()},
         # LE SCEAU : ses métaux, son plancher d'imprimeur et son schéma —
         # joignables de l'extérieur, comme le reste du catalogue.
-        "seal_kinds": SEAL_KINDS,
+        "seal_kinds": copy.deepcopy(SEAL_KINDS),
         "seal_min_mm": SEAL_MIN_MM,
         "seal_defaults": copy.deepcopy(SEAL_DEFAULTS),
         # LE VERSO PERSONNALISÉ : ses modes de fusion, ses plafonds et les
         # défauts d'un calque — joignables de l'extérieur comme le reste.
-        "back_blends": BACK_BLENDS,
+        "back_blends": copy.deepcopy(BACK_BLENDS),
         "back_layers_max": BACK_LAYERS_MAX,
         "back_images_max": BACK_IMAGES_MAX,
         "back_layer_defaults": dict(BACK_LAYER_DEFAULTS),

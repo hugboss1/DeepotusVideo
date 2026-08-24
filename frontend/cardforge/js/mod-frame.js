@@ -53,48 +53,52 @@
      famille LA PLUS PROCHE d'une bordure MESUREE sur une carte importee. Sans
      table de traits, « le plus proche » n'a pas de sens.
 
-     COMMENT ILS ONT ETE OBTENUS — a la mesure, jamais a l'estime. Chaque
-     famille est rendue par ses VRAIS peintres (`famProfile` + son `FAM_FN`)
-     sur le rasteriseur de controle, cellules de 0,125 mm, format poker a
-     300 DPI, `DEFAULTS` (donc rarete « rare »), fenetre decoupee comme dans
-     `paintFront`. `test_cards_frame.py` REJOUE cette mesure et compare a
-     cette table : elle n'est pas recopiable a la main.
+     MESURES PAR LA VOIE DE PRODUCTION, ET C'EST UNE CORRECTION DE RONDE. La
+     premiere table mesurait l'EPAISSEUR TYPIQUE de la marque de chaque
+     famille. Grandeur honnete, et sans rapport avec ce qui entre par la
+     frontiere : `doc.capture.border.mm` est la PROFONDEUR DU PREMIER FRONT
+     depuis le bord. Deux grandeurs sous un meme nom — et l'aller-retour
+     P10 -> P2 ne se reconnaissait que 2 fois sur 8. La table est donc mesuree
+     en RENDANT chaque famille (poker 300 DPI, `DEFAULTS`, cellules de 0,1 mm,
+     l'ordre de `paintFront`) puis en passant les OCTETS dans les analyseurs
+     de la piece 10 eux-memes. `test_cards_frame.py` rejoue cette mesure et
+     compare a cette table : elle n'est pas recopiable a la main.
 
-       · bande_mm = l'EPAISSEUR TYPIQUE de la marque que la famille pose en
-         propre : mediane de min(segment horizontal, segment vertical) sur les
-         cellules encrees par la famille SANS l'anneau plat.
-       · teinte_h = la teinte (degres, [0,360)) de la couleur DOMINANTE de la
-         lisiere exterieure de l'anneau, epaisse de `bande_mm` — exactement la
-         bande que `_couleur_bande` de la piece 10 preleve sur une carte
-         importee.
+       · front_mm = `_analyse_bordure(...)["mm"]`, exactement l'unite qui
+         arrivera par `doc.capture.border.mm` ;
+       · teinte_h = la teinte du `_couleur_bande` publie, lue sur l'HEXA (donc
+         ARRONDI 8 BITS, la seule forme que la frontiere porte — le flottant
+         du banc donnait 55,4° pour Gravure la ou la voie reelle donne 51,4°,
+         et ces 4 degres lui faisaient perdre sa propre famille).
 
-     DEUX AUTRES DEFINITIONS ONT ETE MESUREES ET REJETEES, avec leurs
-     chiffres, parce qu'elles ne decrivent PAS une famille :
-       · la largeur de l'anneau PLAT vaut `inner_mm` — 5,50 mm pour sept
-         familles sur huit aux defauts, 0 pour « Neon » (zone « vide ») : elle
-         mesure un REGLAGE de l'utilisateur ;
-       · la profondeur du premier FRONT tonal retombe elle aussi sur
-         `inner_mm` (5,50) pour six familles, et ne separe que « Gravure »
-         (2,31 mm, la cuvette) et « Filigrane » (3,20 mm, la lisiere d'or).
-
-     CE QUE LA TABLE AVOUE. Six familles partagent la meme teinte (211,4°) :
-     leur anneau vient de `PAL`, dont la teinte appartient a la RARETE, pas a
-     la famille. Seules « Gravure » (ivoire) et « Filigrane » (or) s'ecartent
-     de la palette, et ce sont les deux seules que la teinte separe vraiment.
-     La teinte ne choisit donc pas une famille a elle seule — elle separe le
-     CHAUD du FROID, et la bande tranche a l'interieur. Les egalites
-     (« Arcane » et « Art deco » a 2,38 ; « Runique » et « Neon » a 1,50) sont
-     reelles : elles se tranchent par l'ORDRE DU CATALOGUE, des deux cotes. */
+     CE QUE LA TABLE AVOUE, ET QUE LA GEOMETRIE IMPOSE. Sept familles sur huit
+     rendent un front de 0,90 mm : ce n'est pas leur dessin, c'est la LEVRE DE
+     RELIEF que `ringZone` pose a 1,2 mm de la coupe et dont l'encre occupe
+     [0,92 ; 1,48]. Seule « Neon » en differe (3,20 mm) — sa zone est « vide »,
+     `ringZone` sort AVANT la levre, et son premier front est le halo du
+     biseau. L'axe du front ne separe donc QUE Neon. La teinte, elle, ne
+     separe que le CHAUD du FROID : cinq familles (Runique, Arcane, Bois, Art
+     deco, Epure) tirent leur anneau de `PAL`, dont la teinte appartient a la
+     RARETE, et tiennent dans 0,8 degre ; trois d'entre elles rendent la MEME
+     couleur au bit pres (#08121d). CONSEQUENCE ASSUMEE : Arcane et Art deco
+     ne peuvent pas se reconnaitre — elles tombent sur Runique, la premiere du
+     groupe, et la PHRASE avoue la quasi-egalite. Six familles sur huit se
+     reconnaissent a l'aller-retour. Pretendre mieux serait pretendre une
+     mesure que le dessin ne porte pas. */
   const FAMILY_TRAITS = {
-    runic: { bande_mm: 1.5, teinte_h: 211.4 },
-    arcane: { bande_mm: 2.38, teinte_h: 211.4 },
-    timber: { bande_mm: 3.13, teinte_h: 211.4 },
-    deco: { bande_mm: 2.38, teinte_h: 211.4 },
-    neon: { bande_mm: 1.5, teinte_h: 210.7 },
-    sable: { bande_mm: 2.63, teinte_h: 211.4 },
-    gravure: { bande_mm: 0.38, teinte_h: 55.4 },
-    filigrane: { bande_mm: 0.5, teinte_h: 42.1 },
+    runic: { front_mm: 0.9, teinte_h: 211.4 },
+    arcane: { front_mm: 0.9, teinte_h: 211.4 },
+    timber: { front_mm: 0.9, teinte_h: 211.5 },
+    deco: { front_mm: 0.9, teinte_h: 211.4 },
+    neon: { front_mm: 3.2, teinte_h: 211.2 },
+    sable: { front_mm: 0.9, teinte_h: 210.7 },
+    gravure: { front_mm: 0.9, teinte_h: 51.4 },
+    filigrane: { front_mm: 0.9, teinte_h: 42.1 },
   };
+  /* L'EGALITE QU'ON AVOUE. Deux familles a moins de ce centieme de largeur de
+     catalogue l'une de l'autre ne sont pas departageables par la mesure : la
+     phrase le DIT au lieu de laisser croire a une reconnaissance. */
+  const PROCHE_EPS = 0.02;
   const RARITIES = [
     { id: "common", label: "Commune" },
     { id: "uncommon", label: "Peu commune" },
@@ -283,17 +287,57 @@
      recopiee peut deriver en silence ; deux calculs qui rendent le meme
      resultat sur un banc, non. */
 
-  /* La teinte d'une couleur « #rrggbb », en DEGRES — ou `null` quand il n'y
-     en a pas. Un gris n'a pas de teinte : lui en inventer une (0 = rouge)
-     ferait choisir une famille chaude pour une bordure d'acier. */
-  function teinteDe(hex) {
-    const s = String(hex == null ? "" : hex).trim().replace("#", "");
+  /* ── LE SEUIL DE SATURATION, ET POURQUOI L'EGALITE EXACTE NE SUFFIT PAS ──
+     Premier jet : « un gris n'a pas de teinte », garde par `max === min`.
+     MESURE par la ronde : `#6a6b6c` rend « teinte a 1° » et choisit Arcane,
+     `#6c6b6a` rend « teinte a 12° » et choisit Filigrane — deux gris que
+     personne ne distingue, deux familles opposees. Le gris EXACT est un
+     evenement de mesure nulle : la couleur qui arrive vient d'une
+     quantification median-cut sur une photo, elle n'est jamais exactement
+     neutre.
+     DEUX SEUILS, ET LE SECOND EST NE D'UN ECHEC DE BANC. Le premier jet
+     n'avait que la saturation HSV ; le banc l'a dementie tout de suite :
+     `#141516` est un gris a UN LSB pres, et sa saturation vaut 0,091 — trois
+     fois le seuil. Une saturation est RELATIVE au maximum, et dans les tons
+     sombres deux unites de bruit pesent autant qu'un vrai ecart dans les tons
+     clairs. Il faut donc un plancher ABSOLU (`CHROMA_MIN`, en unites 8 bits —
+     le bruit de quantification, lui, est absolu : 2 unites quel que soit le
+     ton) ET un plancher RELATIF (`SAT_MIN` — un presque-blanc a 6 unites de
+     chroma a une teinte reelle mais illisible, et n'a rien a decider).
+     MESURES : gris a 1 LSB = chroma 2, saturation <= 0,091 ; la dominante la
+     moins saturee que la voie de production rende vraiment est l'ivoire de
+     Gravure, chroma 7 et saturation 0,041. Les seuils se posent entre les
+     deux populations. Jumeaux de cards/frame.py. */
+  const SAT_MIN = 0.03;
+  const CHROMA_MIN = 5;
+  /* `replace` de JavaScript ne remplace QUE LA PREMIERE occurrence, `replace`
+     de Python les remplace TOUTES : « ##d8b76a » traversait d'un cote et pas
+     de l'autre. Une regex globale, des deux cotes. */
+  function rgbDe(hex) {
+    const s = String(hex == null ? "" : hex).trim().replace(/#/g, "");
     if (!/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s)) return null;
     const t = s.length === 3 ? s[0] + s[0] + s[1] + s[1] + s[2] + s[2] : s;
     const n = parseInt(t, 16);
-    const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  /* la saturation HSV — (max − min) / max. `null` si la couleur n'est pas
+     lisible ; 0 pour un noir pur, dont la teinte ne veut rien dire non plus. */
+  function satDe(hex) {
+    const c = rgbDe(hex);
+    if (!c) return null;
+    const mx = Math.max(c[0], c[1], c[2]), mn = Math.min(c[0], c[1], c[2]);
+    return mx === 0 ? 0 : (mx - mn) / mx;
+  }
+  /* La teinte d'une couleur « #rrggbb », en DEGRES — ou `null` quand elle ne
+     veut rien dire : couleur illisible, ou saturation sous `SAT_MIN`. Un gris
+     n'a pas de teinte : lui en inventer une (0 = rouge) ferait choisir une
+     famille chaude pour une bordure d'acier. */
+  function teinteDe(hex) {
+    const c = rgbDe(hex);
+    if (!c) return null;
+    const r = c[0], g = c[1], b = c[2];
     const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
-    if (d === 0) return null;
+    if (d < CHROMA_MIN || (mx && d / mx < SAT_MIN)) return null;
     let h;
     if (mx === r) h = ((g - b) / d) % 6;
     else if (mx === g) h = (b - r) / d + 2;
@@ -322,10 +366,15 @@
     for (let i = 0; i < FAMILIES.length; i++) {
       const t = FAMILY_TRAITS[FAMILIES[i].id];
       if (!t) continue;
-      if (t.bande_mm < bMin) bMin = t.bande_mm;
-      if (t.bande_mm > bMax) bMax = t.bande_mm;
-      hs.push(t.teinte_h);
+      if (t.front_mm < bMin) bMin = t.front_mm;
+      if (t.front_mm > bMax) bMax = t.front_mm;
+      if (t.teinte_h !== null && t.teinte_h !== undefined) hs.push(t.teinte_h);
     }
+    /* l'etendue de teinte est le MAXIMUM DES DISTANCES CIRCULAIRES par
+       paires, et non max−min : sur un cercle, « l'etendue » d'un nuage n'est
+       pas une difference de coordonnees. Elle sature a 180°, et c'est juste :
+       deux familles diametralement opposees sont l'ecart le plus grand qui
+       existe. */
     for (let i = 0; i < hs.length; i++) {
       for (let j = i + 1; j < hs.length; j++) {
         const d = ecartTeinte(hs[i], hs[j]);
@@ -333,25 +382,47 @@
       }
     }
     const b = bMax - bMin;
-    return { bande: b > 0 ? b : 1, teinte: hMax > 0 ? hMax : 1 };
+    return { front: b > 0 ? b : 1, teinte: hMax > 0 ? hMax : 1 };
+  }
+  /* L'AXE DE TEINTE QUAND L'UNE DES DEUX TEINTES N'EXISTE PAS. « Pas de
+     teinte » n'est pas « teinte inconnue » : c'est une VALEUR — la couleur
+     est neutre. Deux neutres se ressemblent (ecart nul) ; un or et un gris
+     pas du tout (ecart maximal, une largeur de catalogue). Rendre 0 dans tous
+     les cas ferait gagner d'office toute famille sans teinte, quelle que soit
+     la couleur importee. */
+  function ecartAxeTeinte(mesure, trait, echelle) {
+    const a = (mesure === null || mesure === undefined);
+    const b = (trait === null || trait === undefined);
+    if (a && b) return 0;
+    if (a || b) return 1;
+    return ecartTeinte(mesure, trait) / echelle;
   }
   /* LA FAMILLE LA PLUS PROCHE. En cas d'egalite, c'est l'ORDRE DU CATALOGUE
      qui tranche (le `<` est strict) — la meme regle des deux cotes, sinon
-     deux egalites parfaites rendraient deux familles differentes. */
-  function familleProche(bandeMM, teinteH) {
+     deux egalites parfaites rendraient deux familles differentes.
+     Elle rend AUSSI les VOISINES : celles qui tombent a moins de
+     `PROCHE_EPS`. Le catalogue en porte de vraies (Arcane et Art deco rendent
+     le meme front et la meme couleur au bit pres que Runique) et l'ecart
+     affiche doit le dire — sinon l'ecran annonce une reconnaissance la ou il
+     a tire au sort. */
+  function familleProche(frontMM, teinteH) {
     const e = traitsEchelles();
     let best = null;
+    const tous = [];
     for (let i = 0; i < FAMILIES.length; i++) {
       const id = FAMILIES[i].id, t = FAMILY_TRAITS[id];
       if (!t) continue;
-      const db = Math.abs(bandeMM - t.bande_mm) / e.bande;
-      const dh = (teinteH === null || teinteH === undefined)
-        ? 0 : ecartTeinte(teinteH, t.teinte_h) / e.teinte;
+      const db = Math.abs(frontMM - t.front_mm) / e.front;
+      const dh = ecartAxeTeinte(teinteH, t.teinte_h, e.teinte);
       const d = db + dh;
+      tous.push([id, d]);
       if (!best || d < best.d - 1e-12) {
-        best = { id: id, d: d, d_bande: db, d_teinte: dh };
+        best = { id: id, d: d, d_front: db, d_teinte: dh };
       }
     }
+    if (!best) return null;
+    best.voisines = tous.filter((x) => x[0] !== best.id
+      && x[1] <= best.d + PROCHE_EPS).map((x) => x[0]);
     return best;
   }
   /* LA PHRASE D'ECART. Elle porte les MEMES nombres que le calcul ci-dessus,
@@ -362,20 +433,39 @@
     const s = (Math.round(Number(v) * 10) / 10).toFixed(1);
     return s.replace(".", ",");
   }
-  function phraseEcart(bandeMM, teinteH, id) {
-    const t = FAMILY_TRAITS[id];
-    let lab = id;
+  function labelDe(id) {
     for (let i = 0; i < FAMILIES.length; i++) {
-      if (FAMILIES[i].id === id) { lab = FAMILIES[i].label; break; }
+      if (FAMILIES[i].id === id) return FAMILIES[i].label;
     }
+    return String(id);
+  }
+  /* `choix` est le releve de `familleProche` — ou un simple identifiant quand
+     l'appelant n'a pas besoin des voisines. LE MOT « bande » RESTE : c'est
+     celui de la spec et celui du curseur qui recoit la mesure ; et des deux
+     cotes de la fleche il designe bien la MEME grandeur, la profondeur du
+     premier front. */
+  function phraseEcart(frontMM, teinteH, choix) {
+    const objet = !!(choix && typeof choix === "object");
+    const id = objet ? choix.id : choix;
+    const voisines = (objet && choix.voisines) ? choix.voisines : [];
+    const t = FAMILY_TRAITS[id];
     if (!t) return "famille inconnue : " + id;
-    const p = "bande " + mm1(bandeMM) + " mm ↔ " + lab + " "
-      + mm1(t.bande_mm) + " mm";
-    if (teinteH === null || teinteH === undefined) {
-      return p + ", teinte non mesurable";
+    let p = "bande " + mm1(frontMM) + " mm ↔ " + labelDe(id) + " "
+      + mm1(t.front_mm) + " mm";
+    const sansM = (teinteH === null || teinteH === undefined);
+    const sansT = (t.teinte_h === null || t.teinte_h === undefined);
+    if (sansM && sansT) p += ", ni la mesure ni la famille n'a de teinte";
+    else if (sansM) p += ", teinte de la mesure non mesurable (gris)";
+    else if (sansT) p += ", la famille n'a pas de teinte propre";
+    else p += ", teinte à " + Math.round(ecartTeinte(teinteH, t.teinte_h)) + "°";
+    if (voisines.length) {
+      const s = voisines.length > 1 ? "s" : "";
+      p += " — " + voisines.length + " famille" + s + " voisine" + s
+        + " à moins de " + mm1(PROCHE_EPS * 100) + " % ("
+        + voisines.map(labelDe).join(", ")
+        + ") : le catalogue retient la première";
     }
-    return p + ", teinte à "
-      + Math.round(ecartTeinte(teinteH, t.teinte_h)) + "°";
+    return p;
   }
   /* ═══ CF-FRAME-CATALOG-END ═══ */
 
@@ -965,7 +1055,7 @@
   function inkPaint(ctx, m, f, vertical) { return f.metal ? metalPaint(ctx, m, f, vertical) : lineInk(f); }
 
   /* ═══════════════════════════════════════════════════════════════════════
-     4. LES 6 FAMILLES — chacune sa grammaire. Tout est trace, rien n'est
+     4. LES 8 FAMILLES — chacune sa grammaire. Tout est trace, rien n'est
         echantillonne : c'est ce qui rend le cadre net a n'importe quel DPI.
      ═══════════════════════════════════════════════════════════════════════ */
   /* ── LE PROFIL DE BANDE : la signature STRUCTURELLE de chaque famille ─────
@@ -2059,10 +2149,21 @@
      une police n'est pas garantie sur la machine du client, et un glyphe
      manquant rendrait un rectangle vide dans le fichier livre.
 
-     LES INSTRUMENTS SONT ORIENTES PAR LE COIN, PAS MIROITES. `atCorners`
-     retourne le repere (scale -1) : les quatre coins porteraient alors le
-     MEME objet vu dans quatre miroirs, ce qui se lit comme un ornement, pas
-     comme un instrument. Chaque coin recoit donc son trace, en clair. */
+     TROIS TRACES SUR QUATRE COINS, ET LE QUATRIEME REPETE LE COMPAS — dit
+     ici parce que la premiere ecriture pretendait autre chose (« orientes par
+     le coin »), ce qui etait FAUX : aucune rotation n'est appliquee et le
+     compas est identique en haut a gauche et en bas a droite. Ce qui est vrai,
+     et qui suffit : on n'emploie PAS `atCorners`, qui retourne le repere
+     (scale -1) et poserait le meme objet dans quatre miroirs — un ornement,
+     pas un instrument. Chaque coin recoit son trace, pose a l'endroit.
+
+     CE QU'AUCUN TEST NE MESURE, ET C'EST AVOUE : QUEL coin porte QUEL
+     instrument. Echanger le sextant et la plume laisse la suite entierement
+     verte — meme encre, meme silhouette, meme empreinte distincte, meme
+     aller-retour. Les tests tiennent que les trois traces EXISTENT, qu'ils
+     sont des chemins et non des glyphes, et que la famille encre ; leur
+     REPARTITION est une decision de dessin, pas une propriete mesurable, et
+     personne ne devrait croire qu'un test la garde. */
   function insCompas(ctx, k) {
     /* le compas : pivot, deux jambes, l'arc que la pointe decrit */
     ctx.beginPath(); ctx.arc(0, -k * 1.7, k * 0.42, 0, Math.PI * 2); ctx.fill();
@@ -3326,10 +3427,14 @@
          La fenetre est donc reposee ENTIERE (x, y, w, h inchanges, `r`
          adopte) : `patch` remplace une cle par sa valeur, un `{r: …}` seul
          effacerait la fenetre.
-       · `win_lock` — le verrou de proportions — est RESPECTE : arme, la
-         fenetre n'entre pas dans le patch. Il n'interdit pas le geste (« le
-         verrou ne gate JAMAIS le panneau », clôture 3b) ; il garde ce qu'il
-         garde, la fenetre, et la ligne d'ecart le DIT.
+       · `win_lock` NE GARDE PAS LE RAYON, et c'est une correction de ronde.
+         Le premier jet retirait la fenetre du patch des que le verrou etait
+         arme. Or `win_lock` est un verrou de PROPORTIONS — son libelle le dit
+         (« Verrou de proportions ») et ses trois lectures le font : la
+         hauteur recopie l'echelle. Un rayon n'est pas une proportion, et
+         l'adoption ne touche ni la largeur ni la hauteur. Le rayon s'adopte
+         donc sous verrou comme hors verrou : « le verrou ne gate JAMAIS le
+         panneau » (clôture 3b), il garde exactement ce qu'il garde.
      UN SEUL `set()`, donc UN SEUL `M.patch` et UN SEUL pas d'annulation.
      ═══════════════════════════════════════════════════════════════════════ */
   /* `Number()` EST TROP ACCUEILLANT POUR CETTE LECTURE-CI. `Number(null)`,
@@ -3361,30 +3466,56 @@
   /* le releve du document, lu a la volee — jamais une copie gardee au chaud */
   function bordureDuDoc() { return bordureLue(CF.get("capture.border", null)); }
 
-  function adoptionBordure(bo, f0, wm) {
+  /* SOUS CE CHIFFRE, LA PHRASE LE DIT. Une bordure relevee a 0,21 de
+     confiance et une relevee a 0,98 posent les memes millimetres : le seul
+     endroit ou la difference peut exister, c'est l'ecran. */
+  const CONF_FAIBLE = 0.5;
+  function nb2(v) {
+    return (Math.round(Number(v) * 100) / 100).toFixed(2).replace(".", ",");
+  }
+  function adoptionBordure(bo, wm) {
     const choix = familleProche(bo.mm, bo.teinte_h);
-    const patch = {
-      family: choix.id,
-      inner_mm: r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1])),
-    };
+    const bande = r2(cl(bo.mm, LIMITS.inner_mm[0], LIMITS.inner_mm[1]));
+    const patch = { family: choix.id, inner_mm: bande };
     if (bo.color) { patch.line_color = bo.color; patch.metal = false; }
-    const verrou = !!(f0 && f0.win_lock);
-    let fenetre = "";
+    const dits = [];
+    /* LE CLAMP SE DIT. Il etait MUET : une bordure mesuree a 25 mm rendait
+       « bande 25,0 mm ↔ … » et posait 20 — l'ecran annoncait un reglage que
+       le document ne portait pas. Celui du rayon, lui, se disait deja. */
+    if (Math.abs(bande - bo.mm) > 0.005) {
+      dits.push("ramenée à " + mm1(bande) + " mm, la borne du curseur");
+    }
     if (bo.radius_mm === null) {
-      fenetre = " · rayon non mesuré, fenêtre inchangée";
-    } else if (verrou) {
-      fenetre = " · verrou de proportions armé : fenêtre inchangée";
+      dits.push("rayon non mesuré, fenêtre inchangée");
     } else {
+      /* LE VERROU DE PROPORTIONS NE GARDE PAS LE RAYON. `win_lock` tient le
+         RATIO de la fenetre (son libelle le dit, ses trois lectures le font :
+         la hauteur recopie l'echelle). Un rayon n'est pas une proportion, et
+         l'adoption ne touche ni la largeur ni la hauteur : le verrou n'a rien
+         a garder ici. « Le verrou ne gate jamais le panneau » (cloture 3b). */
+      const ray = r2(cl(bo.radius_mm, LIMITS.win_r_mm[0], LIMITS.win_r_mm[1]));
       patch.window = {
-        x: r2(wm.x), y: r2(wm.y), w: r2(wm.w), h: r2(wm.h),
-        r: r2(cl(bo.radius_mm, LIMITS.win_r_mm[0], LIMITS.win_r_mm[1])),
+        x: r2(wm.x), y: r2(wm.y), w: r2(wm.w), h: r2(wm.h), r: ray,
       };
-      fenetre = " · rayon " + mm1(patch.window.r) + " mm sur la fenêtre";
+      dits.push("rayon " + mm1(ray) + " mm sur la fenêtre"
+        + (Math.abs(ray - bo.radius_mm) > 0.005 ? " (ramené à la borne)" : ""));
+      /* ET CE QUE CELA COUTE, DIT UNE FOIS. Poser la fenetre la fait passer
+         d'AUTOMATIQUE a manuelle : elle cesse de se re-proportionner au
+         format. MESURE poker -> tarot : 16 mm de hauteur en moins, et
+         `publishWindow` gele la pose de P1 avec. C'est grand et invisible. */
+      if (wm.auto) {
+        dits.push("la fenêtre cesse de se re-proportionner au format "
+          + "(Ctrl+Z la rend automatique)");
+      }
+    }
+    if (bo.confidence !== null) {
+      dits.push((bo.confidence < CONF_FAIBLE ? "mesure PEU SÛRE, confiance "
+        : "confiance ") + nb2(bo.confidence));
     }
     return {
       famille: choix.id, choix: choix, patch: patch,
-      ecart: phraseEcart(bo.mm, bo.teinte_h, choix.id),
-      fenetre: fenetre,
+      ecart: phraseEcart(bo.mm, bo.teinte_h, choix),
+      precisions: dits.length ? " · " + dits.join(" · ") : "",
     };
   }
 
@@ -6747,11 +6878,11 @@
       el.classList.add("hidden");
       return;
     }
-    const a = adoptionBordure(bo, f0, winMM(g, f0));
+    const a = adoptionBordure(bo, winMM(g, f0));
     el.classList.remove("hidden");
     el.textContent = "";
     el.appendChild(label("Bordure importée", bo.confidence === null
-      ? "mesurée par l'import" : "confiance " + r2(bo.confidence)));
+      ? "mesurée par l'import" : "confiance " + nb2(bo.confidence)));
     const row = h("div", "cff-row");
     const b = h("button", "btn strong sm", "Adopter la bordure");
     b.type = "button";
@@ -6763,14 +6894,14 @@
          adopter une carte que personne n'a plus sous les yeux. */
       const f1 = f(), g1 = CF.geom(), bo1 = bordureDuDoc();
       if (!bo1) { M.toast("aucune bordure mesurée à adopter", true); return; }
-      const a1 = adoptionBordure(bo1, f1, winMM(g1, f1));
+      const a1 = adoptionBordure(bo1, winMM(g1, f1));
       set(a1.patch, "bordure adoptée");
-      M.toast("bordure adoptée — " + a1.ecart);
+      M.toast("bordure adoptée — " + a1.ecart + a1.precisions);
     });
     row.appendChild(b);
     el.appendChild(row);
     const p = h("p", "hint cff-adoptread");
-    p.textContent = a.ecart + a.fenetre;
+    p.textContent = a.ecart + a.precisions;
     el.appendChild(p);
   }
 

@@ -234,6 +234,27 @@
 .cf-frame .cff-blnum { width: 6.5ch; }
 .cf-frame .cff-backread b { color: var(--ink-strong); }
 
+/* ── « ADOPTER LA BORDURE » (phase 4, §7.1.5) ────────────────────────────
+   Le bloc n'existe que lorsque la piece 10 a MESURE une bordure : sans
+   matiere, `renderAdopt` le vide et le cache. Il se distingue donc des
+   groupes de reglages voisins — c'est une PROPOSITION venue d'ailleurs, pas
+   un curseur de plus — par un liseré et un fond, comme l'etat vide juste
+   au-dessus, et par la meme grammaire de tokens (aucune couleur en dur).
+   La ligne d'ecart est longue par construction (elle avoue le clamp, le
+   rayon, le gel de la fenetre et la confiance) : elle se replie, elle ne
+   pousse pas la largeur de defilement du panneau — le defaut deja paye par
+   `.cff-acts` plus haut. */
+.cf-frame .cff-adopt { border: 1px solid var(--stroke-strong);
+  border-left: 3px solid var(--accent, var(--stroke-strong));
+  border-radius: var(--r); background: var(--bg-panel-2);
+  padding: 9px 11px; display: flex; flex-direction: column; gap: 7px;
+  min-width: 0; }
+.cf-frame .cff-adopt .cff-row { align-items: center; }
+.cf-frame .cff-adoptread { margin: 0; font-size: 10.5px;
+  color: var(--ink-soft); font-family: var(--f-mono);
+  font-variant-numeric: tabular-nums; line-height: 1.5;
+  overflow-wrap: anywhere; min-width: 0; }
+
 @media (max-width: 1120px) {
   .cf-frame .cff-cols { grid-template-columns: minmax(0, 1fr); }
 }
