@@ -1754,12 +1754,27 @@
        courant le dépasse — sinon l'utilisateur monte un graphe entier avant
        d'apprendre qu'il ne se construira pas. */
     const maxEl = Number(lim && lim.max_elements) || 0;
-    const trop = (maxEl > 0 && rows.length > maxEl)
-      ? ('<p class="hint cf-forge3d-trop"><b>' + rows.length + ' éléments</b> — '
+    const n = nbElements(graph);
+    const trop = (maxEl > 0 && n > maxEl)
+      ? ('<p class="hint cf-forge3d-trop"><b>' + n + ' éléments</b> — '
         + 'le maximum construisible est ' + maxEl
         + ' : retire des rangs, la construction refuserait.</p>')
       : "";
-    host.innerHTML = body + trop + reseed;
+    /* T5 — LA LISTE NE SAIT PAS MONTRER UNE EXTRUSION, ET ELLE LE DIT. Un
+       rang de cette vue part d'une COUCHE ; une extrusion n'en a pas (sa
+       forme vient du format). Elle est donc bel et bien construite — le
+       compte ci-dessus la porte, le bordereau la nomme — mais elle n'a pas
+       de rang où s'afficher. Taire ce fait laisserait lire « il n'y a pas
+       d'extrusion » là où il faut lire « cette vue-ci ne les montre pas » :
+       exactement la famille de silences que le canvas (spec §5.6, L'écran)
+       existe pour fermer. */
+    const nExt = nbExtrusions(graph);
+    const hors = nExt
+      ? ('<p class="hint">' + nExt + ' extrusion(s) dans ce graphe — un rang '
+        + 'part d\'une couche, une extrusion n\'en a pas : elles se règlent '
+        + 'sur la vue canvas. Elles sont construites quand même.</p>')
+      : "";
+    host.innerHTML = body + hors + trop + reseed;
     sondeMoteurs(graph);
     paintCost();
   }

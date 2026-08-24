@@ -9738,6 +9738,13 @@ def test_l_ecran_porte_l_extrusion_et_la_provenance_importee():
     assert re.search(r"extrude: \[", gram), gram
     assert '"extrude"' not in gram, "un fil ne doit pas pouvoir ENTRER dans " \
                                     "une extrusion : sa forme vient du format"
+    # LA VUE LISTE DIT CE QU'ELLE NE SAIT PAS MONTRER : un rang part d'une
+    # couche, une extrusion n'en a pas. Taire ce fait laisserait lire « il n'y
+    # a pas d'extrusion » là où il faut lire « cette vue-ci ne les montre
+    # pas » — et le compte d'éléments, lui, les porte bel et bien.
+    pg = rendu.split("function paintGraph(")[1].split("\n  }")[0]
+    assert "nbExtrusions" in pg and "nbElements" in pg, pg
+    assert "vue canvas" in pg and "construites quand" in pg, pg
     # le troisième manifeste est CHARGÉ, pas deviné
     cm = rendu.split("async function chargeManifeste(")[1].split("\n  }")[0]
     assert "MANIFEST_CAPTURE" in cm and "CAPTURE_SIDE" in cm, cm
