@@ -96,6 +96,23 @@ plafond avec le bilan (cases faites/restantes), reprenable. Les TESTS de la
 machinerie roulent en espion/faux (zéro dépense) ; seule LA CAMPAGNE réelle
 dépense, sur le backend déployé, en une tâche dédiée qui journalise chaque
 centime.
+**AMENDEMENT ronde T1 (mesuré le 25/08)** : (1) LE PIRE CAS EST 19,12 $ =
+3,19× le plafond (échelle complète 0,177 $/case × 108) — 33 cases seulement
+tiennent au pire ; le plafond reste 6,00 $ par SESSION et la campagne est
+MULTI-SESSION par construction ; le taux de passage FLUX (il faut ≥ 76,4 %
+pour finir en une session) est INCONNU : T5 le mesure sur ses premières cases
+et ré-estime AVANT de continuer. (2) La route de campagne exige une
+CONFIRMATION EXPLICITE (corps {"confirmer": true}) — sans elle, elle répond
+le DEVIS (cases manquantes, pire cas, dépense courante, plafond) sans rien
+dépenser : l'incident de ronde (une sonde de critique a émis 436 requêtes
+refusées à l'authentification — la clé neutralisée du banc a tenu, zéro
+centime) a prouvé qu'un POST nu lançait la série entière. (3) Le manifeste
+s'écrit APRÈS CHAQUE CASE (une panne d'image au milieu ne perd plus les cases
+payées ni la dépense — l'except s'élargit : un juge qui tombe = un
+fournisseur qui tombe), et une case ne S'OUVRE que si l'échelle complète
+tient sous le plafond (le reliquat inutilisable est avoué au bilan).
+(4) Sélection vide (?cases= ou ,,,) = RIEN, jamais tout — 400 nommé sur une
+route qui dépense.
 
 **D3 — Les éléments libérés + les formes.** Les gemmes et ornements de coin
 deviennent des ÉLÉMENTS ÉDITABLES : la gemme gagne des clés de position/taille
