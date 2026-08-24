@@ -184,7 +184,10 @@ sous `GET /file/{nom}` : le piège de classe meurt au lieu d'être documenté.
 **D3 — `doc.capture` est publié par la PIÈCE, pas par la route.** Le POST analyse et
 RÉPOND (le JSON d'analyse complet) ; mod-capture.js fait `M.patch({capture:{…}})` →
 la voie d'autosave unique (que D1 rend enfin étanche). Une seule écriture du
-document ; les PNG, eux, sont stockés serveur par la route. Schéma §7.1.4 :
+document ; les PNG, eux, sont stockés serveur par la route.
+*(Précision T2, T1 ayant livré `POST /card` en admission seule : « le POST » se lit
+`POST /analyse`, qui court sur le recto STOCKÉ — relançable sans re-dépôt, geste
+« Analyser » explicite à l'écran ; l'admission ne calcule rien.)* Schéma §7.1.4 :
 `doc.capture = {analyzed, border:{mm,color,radius_mm,confidence}, boxes:[…],
 bg:{color,confidence}, palette, layers:{…}}`. Les boîtes sont en MM dans le doc
 (une unité par frontière, convertie au bord de l'API).
