@@ -87,7 +87,8 @@ __all__ = ["router", "SIDES", "SRC_MAX_BYTES", "IMG_MAX_PIXELS",
            "analyse_recto", "BORD_FRONT_MIN", "BORD_MIN_BORDS",
            "ZONE_BLOC_MM", "ZONE_SOUS", "ZONE_SPAN_MIN", "FOND_SEUIL_UNI",
            "PALETTE_N", "OPTION_IA", "SUJET_NAME", "PRIX_CLE",
-           "REMBG_FAL_MODELE", "PREFIXE_FAL", "PREFIXE_LOCAL", "ai_options"]
+           "REMBG_FAL_MODELE", "PREFIXE_FAL", "PREFIXE_LOCAL", "ai_options",
+           "COUCHE_COUV_MAX", "FAL_TIMEOUT_S"]
 
 # ── seuils ──────────────────────────────────────────────────────────────────
 # Les deux côtés d'une carte, et il n'y en a pas de troisième. La liste est le
@@ -1225,8 +1226,27 @@ PREFIXE_FAL = "fal.ai rembg"
 PREFIXE_LOCAL = "rembg (local)"
 # Le temps qu'on laisse à la relève du résultat. Le fournisseur a déjà rendu
 # une URL à ce stade : ce qui reste est un téléchargement de quelques centaines
-# de kilo-octets.
+# de kilo-octets. CHIFFRE DE CONFORT, ET AUCUN TEST NE LE GARDE : le mesurer
+# demanderait de tenir une socket ouverte plus longtemps que le délai,
+# c'est-à-dire un test qui dure ce qu'il mesure. Dit plutôt que gardé.
 FAL_TIMEOUT_S = 120
+# LE PLAFOND DE COUVERTURE — la seconde moitié de la doctrine.
+# « Un détourage qui garde TOUT, ou rien, n'est pas un détourage » : la moitié
+# « rien » (couche transparente) sautait aux yeux, la moitié « tout » est
+# pourtant le mode d'échec ORDINAIRE de rembg — aucun sujet trouvé, l'image
+# ressort quasi intacte, l'utilisateur a payé, et P1 adopte sa carte entière
+# comme « sujet détouré ».
+# MESURÉ sur une carte de 630 x 880 : rien retiré = 1,00000 ; un cadre d'UN
+# pixel retiré = 0,99456 ; un sujet posé à 4 px du bord = 0,97833 ; un sujet
+# ovale ordinaire = 0,52181. Le plancher se pose donc entre les deux
+# premiers : en dessous, il reste au moins le liséré d'un pixel de vrai
+# retrait ; au-dessus, rien n'a été retiré nulle part.
+# CE QU'IL FAUT SAVOIR AVANT DE LE DÉPLACER : c'est une PART, donc il dépend
+# de la résolution — sur une trame au plafond d'import, un cadre d'un pixel ne
+# pèse plus que 0,0008. Le chiffre reste juste pour ce qu'il attrape (une
+# image RENDUE INTACTE, qui vaut exactement 1) et il est dit ici pour qu'on ne
+# le prenne pas pour une mesure de qualité de détourage.
+COUCHE_COUV_MAX = 0.995
 
 
 def _sans_chemin(e) -> str:
@@ -1246,6 +1266,13 @@ def _sans_chemin(e) -> str:
     s = re.sub(r"[A-Za-z]:[\\/][^\r\n]*?\.(?:png|jpe?g|webp|tmp)\b", "…", s,
                flags=re.I)
     s = re.sub(r"[A-Za-z]:[\\/][^\s\"'<>]*", "…", s)
+    # LE CHEMIN UNC, et il en dit plus qu'un chemin local : `\\SRV-PAIE\part`
+    # porte le nom d'une MACHINE de l'entreprise et celui d'un partage. C'est
+    # la forme ordinaire d'un poste de bureau, et elle manquait.
+    s = re.sub(r"\\\\[^\s\"'<>]+", "…", s)
+    # ... et le raccourci `~/`, qui n'est un raccourci que jusqu'à ce qu'un
+    # outil le développe : il désigne le dossier de compte.
+    s = re.sub(r"~[\\/][^\s\"'<>]*", "…", s)
     s = re.sub(r"/(?:home|Users|mnt|var|tmp|opt)/[^\s\"'<>]*", "…", s)
     return s[:300]
 
@@ -1326,7 +1353,18 @@ def ai_options() -> dict:
     un message rouge pour dire « cette fonction n'existe pas ici »."""
     loc, loc_motif = _rembg_local_dispo()
     fal, fal_motif = _fal_dispo()
-    voie = "local" if loc else ("fal" if fal else None)
+    prix = _prix_rembg()
+    # SANS PRIX TABULÉ, LA VOIE PAYANTE N'EST PAS OFFERTE. §8 :583 dit « prix
+    # AVANT, depuis pricing.py » : un bouton payant sans chiffre n'est pas un
+    # libellé honnête, c'est un écart de spec. La clé RESTE annoncée présente
+    # (`fal` vaut vrai) — ce qui manque n'est pas la clé, c'est le tarif, et
+    # les deux se réparent à des endroits différents.
+    if fal and prix is None:
+        fal_motif = ("la clé est enregistrée, mais le tarif du détourage n'est "
+                     "pas dans la table (Réglages -> Tarifs et budget) : le "
+                     "prix se dit AVANT l'appel, donc la voie payante n'est "
+                     "pas proposée")
+    voie = "local" if loc else ("fal" if (fal and prix is not None) else None)
     motif = ""
     if voie is None:
         motif = (f"Le détourage par IA n'est disponible sur ce poste par "
@@ -1337,7 +1375,7 @@ def ai_options() -> dict:
         "fal": fal,
         "voie": voie,
         "gratuit": voie == "local",
-        "prix_usd": _prix_rembg(),
+        "prix_usd": prix,
         "devise": "USD",
         "modele_fal": REMBG_FAL_MODELE,
         "tarif_source": "la table de tarifs de l'application (Réglages -> "
@@ -1381,18 +1419,84 @@ async def _fal_rembg(url: str) -> str:
 
 
 def _fal_lire(url: str) -> bytes:
+    """La lecture, BORNÉE. `read()` sans argument ramène tout ce que le
+    fournisseur veut bien envoyer : le refus « image trop grande » d'à côté ne
+    parlait que des PIXELS, et il arrivait APRÈS que tout soit en mémoire. On
+    demande donc UN OCTET DE PLUS que le plafond — s'il arrive, c'est qu'il y
+    en avait trop, et on n'a pas eu besoin de tout lire pour le savoir. Le
+    plafond est celui de l'admission : ce qui entre par une route ou par
+    l'autre pèse pareil."""
     import urllib.request
     with urllib.request.urlopen(url, timeout=FAL_TIMEOUT_S) as r:
-        return r.read()
+        data = r.read(SRC_MAX_BYTES + 1)
+    if len(data) > SRC_MAX_BYTES:
+        raise RuntimeError(
+            f"réponse trop lourde : au-delà de {SRC_MAX_BYTES // 1048576} Mo "
+            f"d'octets, la relève s'arrête")
+    return data
+
+
+def _destination_sure(url: str) -> str:
+    """"" si la destination est acceptable, sinon la RAISON du refus.
+
+    LE SCHÉMA NE SUFFIT PAS, ET LE DOCSTRING D'AVANT VALAIT CONTRE LUI-MÊME :
+    il disait « une réponse de fournisseur n'a pas à pouvoir désigner un
+    fichier de cette machine », puis laissait passer
+    `http://127.0.0.1:8765/api/settings` — l'API locale de cette application,
+    qui n'a AUCUNE authentification. Une réponse mal formée, ou hostile,
+    désignait donc le backend de l'utilisateur.
+
+    CE QU'ON NE FAIT PAS, ET POURQUOI : on ne RÉSOUT aucun nom. Une résolution
+    DNS est un appel réseau — dans une fonction dont tout l'objet est de
+    décider s'il faut faire un appel réseau, et dans un banc qui n'en fait
+    aucun. Un nom public qui pointerait vers 127.0.0.1 passerait donc : c'est
+    une limite connue, écrite ici, et non un oubli. Ce que ce garde-fou
+    attrape est le cas réel — une IP littérale de la machine ou du réseau
+    local dans une réponse de fournisseur."""
+    import ipaddress
+    from urllib.parse import urlsplit
+    try:
+        hote = (urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return "adresse illisible"
+    if not hote:
+        return "aucun hôte"
+    if hote == "localhost" or hote.endswith(".localhost"):
+        return "la machine locale (localhost)"
+    try:
+        ip = ipaddress.ip_address(hote)
+    except ValueError:
+        return ""                       # un NOM : voir le pavé ci-dessus
+    # L'ORDRE DES QUATRE FAMILLES EST CELUI DE LEUR PRÉCISION, et il n'est pas
+    # cosmétique : `ipaddress` range 127.0.0.0/8, ::1, 169.254/16 et 0.0.0.0/8
+    # DANS les réseaux privés — poser `is_private` en premier ferait dire
+    # « un réseau privé (127.0.0.1) » de la boucle locale, et le mot juste est
+    # ce qui apprend à l'utilisateur où sa réponse voulait aller. Le refus est
+    # le même dans les quatre cas ; le diagnostic, non.
+    if ip.is_loopback:
+        return f"la boucle locale ({ip})"
+    if ip.is_link_local:
+        return f"le lien-local ({ip})"
+    if ip.is_unspecified or ip.is_multicast or ip.is_reserved:
+        return f"une adresse réservée ({ip})"
+    if ip.is_private:
+        return f"un réseau privé ({ip})"
+    return ""
 
 
 async def _fal_download(url: str) -> bytes:
-    """La relève du résultat. L'URL VIENT DU DEHORS, donc elle est gardée :
-    `urlopen` sait ouvrir `file://`, et une réponse de fournisseur n'a pas à
-    pouvoir désigner un fichier de cette machine."""
+    """La relève du résultat. L'URL VIENT DU DEHORS : son schéma ET sa
+    destination sont gardés (`urlopen` sait ouvrir `file://`, et le reste du
+    raisonnement est dans `_destination_sure`)."""
     u = str(url or "")
     if not re.match(r"https?://", u, re.I):
         raise RuntimeError(f"adresse de résultat inattendue : {u[:80]}")
+    mauvaise = _destination_sure(u)
+    if mauvaise:
+        raise RuntimeError(
+            f"destination interdite pour un résultat de fournisseur : "
+            f"{mauvaise}. Un détourage se relève sur le web, pas sur cette "
+            f"machine ni sur le réseau local.")
     return await asyncio.to_thread(_fal_lire, u)
 
 
@@ -1451,17 +1555,40 @@ def _store_layer(did: str, name: str, data: bytes, prefixe: str) -> dict:
         raise HTTPException(
             502, f"{prefixe} a rendu une image qui ne se décode pas "
                  f"({e.__class__.__name__}) : rien n'est rangé.")
-    # CE QUI A SURVÉCU AU DÉTOURAGE, EN CLAIR. Un détourage rend une couche ;
-    # une couche entièrement transparente n'est pas une couche, c'est un
-    # échec silencieux — et P1 l'adopterait comme illustration, donnant une
-    # carte vide sans un mot. C'est la phrase du refus local, mot pour mot :
-    # « un détourage qui garde tout, ou rien, n'est pas un détourage ».
+    # LE SUJET HÉRITE DE LA RÉDUCTION D'ADMISSION. Le recto est ramené à
+    # `MAX_IMPORT_PX` en entrant ; le sujet, lui, ressortait à la taille que
+    # le fournisseur voulait bien rendre — mesuré : un scan de 6000 px de côté
+    # donnait un recto au plafond et un sujet resté à 6000. Deux tailles pour
+    # la même carte, et P1 adoptant la plus lourde des deux. La réduction est
+    # AVANT la mesure de couverture : le chiffre publié doit décrire le
+    # fichier rangé, pas celui qu'on a reçu.
+    if max(img.size) > MAX_IMPORT_PX:
+        k = MAX_IMPORT_PX / float(max(img.size))
+        img = img.resize((max(1, round(img.size[0] * k)),
+                          max(1, round(img.size[1] * k))), Image.LANCZOS)
+        w, h = img.size
+    # CE QUI A SURVÉCU AU DÉTOURAGE, EN CLAIR — ET LA DOCTRINE VAUT DE SES
+    # DEUX MOITIÉS. Un détourage rend une couche ; une couche entièrement
+    # transparente n'est pas une couche, et une couche qui garde TOUT non
+    # plus. La seconde est même le mode d'échec ORDINAIRE de rembg (aucun
+    # sujet trouvé -> l'image ressort intacte) : l'utilisateur a payé, et P1
+    # adopterait sa carte entière comme « sujet détouré ». C'est la phrase du
+    # refus local, mot pour mot : « un détourage qui garde tout, ou rien,
+    # n'est pas un détourage ».
     couverture = sum(img.getchannel("A").histogram()[128:]) / float(w * h)
     if couverture <= 0.0:
         raise HTTPException(
             502, f"{prefixe} a rendu une couche ENTIÈREMENT transparente : il "
                  f"n'y a aucun sujet dedans. Rien n'est rangé — une couche "
                  f"vide adoptée comme illustration ferait une carte blanche.")
+    if couverture >= COUCHE_COUV_MAX:
+        raise HTTPException(
+            502, f"{prefixe} a rendu une couche qui garde "
+                 f"{_fr(couverture * 100, 1)} % de l'image, au-delà du "
+                 f"plafond de {_fr(COUCHE_COUV_MAX * 100, 1)} % : rien n'a "
+                 f"été retiré. C'est ce que rend un détourage qui n'a trouvé "
+                 f"aucun sujet. Rien n'est rangé — la carte entière adoptée "
+                 f"comme « sujet » serait la carte de départ.")
     tmp = d / f"{name}.{uuid.uuid4().hex}.tmp"
     try:
         img.save(tmp, format="PNG", optimize=False)
@@ -1478,6 +1605,51 @@ def _store_layer(did: str, name: str, data: bytes, prefixe: str) -> dict:
     return {"w": w, "h": h, "bytes": (d / name).stat().st_size,
             "stamp": int(time.time() * 1000),
             "couverture": rnd(couverture, 4)}
+
+
+# ── DEUX CLICS NE PAIENT PAS DEUX FOIS ──────────────────────────────────────
+#
+# MESURÉ : douze POST simultanés sur le même jeu donnaient DOUZE invocations
+# du fournisseur et onze résultats jetés — un double-clic, deux onglets, ou un
+# client qui réessaie, et la facture est multipliée sans que rien ne le dise.
+# Le verrou BUSY de l'écran ne protège qu'UN onglet ; le contrat de la route,
+# lui, doit tenir tout seul.
+#
+# LA COALESCENCE EST PAR JEU : un appel en vol pour `did`, tous les demandeurs
+# suivants attendent CELUI-LÀ et reçoivent le même relevé. Deux jeux
+# différents ne s'attendent pas.
+#
+# POURQUOI IL N'Y A PAS DE VERROU : asyncio est à un seul fil d'exécution, et
+# il n'y a AUCUN `await` entre la lecture du dictionnaire et son écriture —
+# la séquence est donc atomique du point de vue de la boucle. Un `asyncio.Lock`
+# ici n'ajouterait rien qu'un objet à créer et une occasion de se tromper.
+#
+# CE QUI N'EST PAS COALESCÉ, ET C'EST UN CHOIX : deux clics SÉPARÉS dans le
+# temps. Un « Redétourer » est une demande explicite — mettre le résultat en
+# cache empêcherait de relancer après un changement de recto et rendrait le
+# bouton menteur. La coalescence protège de l'ACCIDENT, pas de l'intention.
+_EN_VOL: dict = {}
+
+
+async def _coalesce(did: str, faire):
+    """(résultat, `True` si c'est CETTE requête qui a payé).
+
+    `shield` n'est pas décoratif : sans lui, un client qui referme son onglet
+    pendant l'attente annulerait la tâche partagée — donc l'appel PAYANT —
+    et les onze autres repartiraient avec une annulation. Un appel lancé se
+    termine et se range ; c'est déjà facturé."""
+    tache = _EN_VOL.get(did)
+    if tache is None or tache.done():
+        tache = asyncio.ensure_future(faire())
+        _EN_VOL[did] = tache
+        mien = True
+    else:
+        mien = False
+    try:
+        return await asyncio.shield(tache), mien
+    finally:
+        if _EN_VOL.get(did) is tache and tache.done():
+            _EN_VOL.pop(did, None)
 
 
 def _oublie_sujet(did: str) -> None:
@@ -1590,23 +1762,32 @@ async def post_rembg(did: str):
         raise HTTPException(
             503, f"{o['motif']} L'analyse locale, elle, reste gratuite et "
                  f"sans fournisseur.")
-    if voie == "local":
-        raw = await asyncio.to_thread(recto.read_bytes)
-        try:
-            data = await asyncio.to_thread(_rembg_local, raw)
-        except Exception as e:                              # noqa: BLE001
-            raise HTTPException(
-                502, f"{PREFIXE_LOCAL} a refusé le détourage : "
-                     f"{_sans_chemin(e)}")
-        prefixe = PREFIXE_LOCAL
-    else:
-        data = await _rembg_fal(recto)
-        prefixe = PREFIXE_FAL
-    info = await asyncio.to_thread(_store_layer, did, SUJET_NAME, data,
-                                   prefixe)
+    async def _faire() -> dict:
+        if voie == "local":
+            raw = await asyncio.to_thread(recto.read_bytes)
+            try:
+                data = await asyncio.to_thread(_rembg_local, raw)
+            except Exception as e:                          # noqa: BLE001
+                raise HTTPException(
+                    502, f"{PREFIXE_LOCAL} a refusé le détourage : "
+                         f"{_sans_chemin(e)}")
+            prefixe = PREFIXE_LOCAL
+        else:
+            data = await _rembg_fal(recto)
+            prefixe = PREFIXE_FAL
+        return await asyncio.to_thread(_store_layer, did, SUJET_NAME, data,
+                                       prefixe)
+
+    info, mien = await _coalesce(did, _faire)
     return {"layer": SUJET_NAME, "voie": voie, "gratuit": voie == "local",
             "prix_usd": (o["prix_usd"] if voie == "fal" else None),
-            "devise": o["devise"], **info}
+            "devise": o["devise"],
+            # `coalesce` dit à CETTE réponse si elle a payé ou si elle a été
+            # servie du travail d'une autre. L'écran n'en fait rien pour
+            # l'instant ; le contrat, lui, est mesurable — et c'est ce qui
+            # empêche la coalescence de disparaître sans bruit.
+            "coalesce": not mien,
+            **info}
 
 
 @router.get("/file/{nom}")

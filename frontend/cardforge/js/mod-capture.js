@@ -138,11 +138,18 @@
       CF.on("core:doc", (e) => {
         if (!e || e.id === "capture" || e.id === "name" || e.id === "format") paint();
       });
-      /* UN AUTRE JEU, D'AUTRES OPTIONS ? Les voies ne dependent pas du jeu —
-         mais la CLE fal, elle, peut avoir ete posee dans les Reglages entre
-         deux ouvertures, et c'est le seul moment ou l'ecran repasse par ici
-         sans rechargement de page. On en profite pour relire. */
-      CF.on("core:deck", () => { chargeOptions(); });
+      /* UN AUTRE JEU : ON REPEINT D'ABORD, ON RELIT ENSUITE — et l'ordre est
+         une CORRECTION, pas un detail de style. `chargeOptions` ATTEND un
+         fetch, et le fetch du CORE n'a pas de delai d'attente : sur un
+         backend lent ou un processus orphelin (le scenario documente de ce
+         depot), peindre APRES laissait a l'ecran l'apercu, les mesures ET LE
+         SUJET du jeu PRECEDENT, sans fin. C'est exactement le defaut que
+         `_oublie_sujet` venait de tuer cote serveur.
+         Ce qui est local est instantane et passe devant ; ce qui depend du
+         reseau arrive quand il arrive (les voies ne dependent pas du jeu,
+         mais la CLE fal a pu etre posee dans les Reglages entre-temps, et
+         c'est le seul moment ou l'ecran repasse par ici sans rechargement). */
+      CF.on("core:deck", () => { paint(); chargeOptions(); });
       /* LE FORMAT PEUT BOUGER SOUS LES MESURES. Le CORE l'annonce
          (core.js:424) ; sans cette ligne, l'ecran gardait sa pastille verte et
          ses millimetres d'avant sur un jeu qui avait change de format. */
@@ -255,13 +262,30 @@
       && mm[0] > 0 && mm[1] > 0);
   }
 
+  /* LA LISTE BLANCHE DES NOMS SERVIS — miroir de capture.py:FILE_RE, RECOPIE
+     et non partage (regle 8), et c'est la SECONDE copie d'ecran (mod-face.js
+     porte l'autre, pour l'adoption P1). Ce que ce motif garde : le nom d'un
+     fichier arrive par le DOCUMENT, donc du dehors — un document rapporte
+     d'une autre machine, ecrit par une version plus ancienne, ou simplement
+     abime. Il ne devient une URL qu'apres etre passe par ici. P1 se fait
+     verifier cette garde par execution ; P10 doit tenir le meme standard. */
+  const CAPTURE_FILE_RE = /^(?:source_(?:recto|verso)|sujet_recto)\.png$/;
+
+  /* Le nom de fichier d'une couche du document, FILTRE — "" si le document
+     dit n'importe quoi. */
+  function fichierSujet(s) {
+    const n = isPlain(s) ? String(s.file || "") : "";
+    return CAPTURE_FILE_RE.test(n) ? n : "";
+  }
+
   /* LA COUCHE « SUJET » RANGEE PAR LE BACKEND, lue avec tolerance. Le nom du
      fichier est SERVEUR (la liste blanche de capture.py le fabrique) : on ne
-     le compose pas ici, on lit celui qui a ete publie. */
+     le compose pas ici, on lit celui qui a ete publie — et on le repasse par
+     la liste blanche avant d'en faire quoi que ce soit. */
   function sujetInfo() {
     const l = st().layers;
     const s = isPlain(l) ? l.sujet : null;
-    return isPlain(s) && typeof s.file === "string" && s.file ? s : null;
+    return fichierSujet(s) ? s : null;
   }
 
   /* L'OFFRE DE DETOURAGE — une fonction PURE, et c'est delibere : le test de
@@ -296,12 +320,23 @@
       off.motif = "déposez d'abord un recto : le sujet s'isole sur lui";
       return off;
     }
+    /* SANS PRIX TABULE, LA VOIE PAYANTE N'EST PAS OFFERTE. §8 dit « prix
+       AVANT » : un bouton payant sans chiffre n'est pas un libelle honnete,
+       c'est un ecart de spec. La route tient deja cette regle ; l'ecran la
+       tient AUSSI — un backend d'une version anterieure ne doit pas pouvoir
+       faire naitre ce bouton-la. La voie GRATUITE, elle, ne depend d'aucun
+       tarif. */
+    if (voie === "fal" && !estNombre(s.prix_usd)) {
+      off.voie = null;
+      off.motif = "le tarif du détourage n'est pas dans la table de "
+        + "l'application (Réglages → Tarifs et budget) : le prix se dit AVANT "
+        + "l'appel, donc l'option payante n'est pas proposée";
+      return off;
+    }
     off.on = true;
     off.libelle = voie === "local"
       ? "Détourer le sujet — gratuit (local)"
-      : "Détourer le sujet (fal, "
-        + (estNombre(s.prix_usd) ? "~" + num(s.prix_usd, 3) + " $"
-          : "tarif non tabulé") + ")";
+      : "Détourer le sujet (fal, ~" + num(s.prix_usd, 3) + " $)";
     return off;
   }
 
@@ -660,7 +695,10 @@
           }
         };
         img.onload = () => { img.classList.remove("hidden"); };
-        img.src = M.api.url("file/" + suj.file) + "?t=" + (Number(suj.stamp) || 0);
+        /* LE NOM REPASSE PAR LA LISTE BLANCHE avant de devenir une URL : il
+           vient du document, pas de nous (voir `fichierSujet`). */
+        img.src = M.api.url("file/" + fichierSujet(suj))
+          + "?t=" + (Number(suj.stamp) || 0);
         img.alt = "sujet détouré";
       } else {
         img.onerror = null;
@@ -1090,8 +1128,26 @@
      cote, et les ecraser a chaque detourage serait un defaut muet. */
   async function detourer() {
     if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
-    const off = offreIA(IA, !!info("recto"));
+    let off = offreIA(IA, !!info("recto"));
     if (!off.on) { M.toast(off.motif || "détourage indisponible", true); return; }
+    /* LE PRIX AFFICHE PEUT NE PLUS ETRE LE PRIX RENDU. Les options sont lues
+       au montage ; la table de tarifs, elle, se modifie dans les Reglages a
+       tout moment (mesure : table multipliee par 83, bouton inchange jusqu'a
+       reouverture du panneau). Relire est GRATUIT et LOCAL — `/ai-options` ne
+       parle a personne — alors on relit juste avant de payer. Si le chiffre a
+       bouge, LE GESTE NE PART PAS : le bouton se re-libelle et l'utilisateur
+       re-consent d'un clic. Consentir a un montant et en payer un autre est
+       le genre de chose qui ne se rattrape pas apres coup. */
+    const avant = off;
+    await chargeOptions();
+    off = offreIA(IA, !!info("recto"));
+    if (!off.on) { M.toast(off.motif || "détourage indisponible", true); return; }
+    if (off.libelle !== avant.libelle) {
+      M.toast("le tarif a changé depuis l'affichage : « " + avant.libelle
+        + " » → « " + off.libelle + " ». Rien n'a été envoyé — relancez si "
+        + "vous êtes d'accord.", true);
+      return;
+    }
     BUSY = true;
     try {
       M.busy(true, off.gratuit ? "détourage local…" : "détourage par fal.ai…");
@@ -1100,6 +1156,10 @@
       const anc = isPlain(st().layers) ? st().layers : {};
       Object.keys(anc).forEach((k) => { maj[k] = anc[k]; });
       maj.sujet = {
+        /* TROISIEME COPIE AVOUEE du nom de la couche (capture.py:SUJET_NAME
+           et mod-face.js portent les deux autres) : c'est un REPLI, pour le
+           cas ou la route repondrait sans `layer`. La regle 8 recopie plutot
+           que de partager, et exige que la copie se dise. */
         file: String(d.layer || "sujet_recto.png"),
         w: d.w, h: d.h, bytes: d.bytes, stamp: d.stamp,
         voie: String(d.voie || ""),

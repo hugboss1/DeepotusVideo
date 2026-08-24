@@ -1730,6 +1730,27 @@
     }, "image/png"));
   }
 
+  /* CETTE ADOPTION EST-ELLE DEJA DANS LA PILE ? Adopter deux fois de suite
+     posait deux entrees identiques (mesure : 2 entrees pour 2 clics), qui se
+     suppriment ensuite une par une et se ressemblent trait pour trait dans la
+     grille. Le remede est le plus petit qui soit honnete : on ne reimporte
+     pas, on REPOSE celle qui est la, et on le DIT.
+
+     L'IDENTITE EST JUGEE SUR (nom, largeur, hauteur, octets) — pas sur les
+     octets eux-memes, et c'est avoue : le blob sort du meme encodeur pour la
+     meme source, donc la taille est stable. Deux sujets reellement differents
+     qui tomberaient sur les memes quatre nombres sont un cas que cette
+     fonction ne couvre pas, et elle ne pretend pas le couvrir. */
+  function dejaDansLaPile(pile, rec) {
+    const l = Array.isArray(pile) ? pile : [];
+    for (let i = 0; i < l.length; i++) {
+      const p = l[i];
+      if (p && p.name === rec.name && p.w === rec.w && p.h === rec.h
+        && p.bytes === rec.bytes) return p;
+    }
+    return null;
+  }
+
   async function adopterCapture() {
     const a = adoptionCapture(CF.doc());
     if (!a) {
@@ -1748,15 +1769,28 @@
       const im = await loadImage(url + "?t=" + a.stamp);
       const blob = await imageBlob(im);
       const nom = (a.sujet ? "sujet_detoure" : "carte_importee") + ".png";
-      const f = (typeof File === "function")
-        ? new File([blob], nom, { type: "image/png" })
-        : (function () { blob.name = nom; return blob; }());
-      const added = await importFiles([f]);
+      const rec = {
+        name: nom, bytes: blob.size,
+        w: im.naturalWidth || im.width, h: im.naturalHeight || im.height,
+      };
+      /* UN SEUL CHEMIN DE RETOUR, DANS LES DEUX CAS. Reposer l'entree
+         existante par `afterImport` plutot que par un `setArt` a part garde
+         UN pas d'annulation et UNE seule facon de finir ce geste. */
+      const deja = dejaDansLaPile(PILE, rec);
+      let added = null;
+      if (deja) {
+        added = [deja];
+      } else {
+        const f = (typeof File === "function")
+          ? new File([blob], nom, { type: "image/png" })
+          : (function () { blob.name = nom; return blob; }());
+        added = await importFiles([f]);
+      }
       if (!added.length) throw new Error("l'import n'a rien retenu");
-      /* LE MEME CHEMIN DE RETOUR QU'UN DEPOT : pile, panneau, pose — et UN
-         SEUL pas d'annulation, celui de `setArt` dans `afterImport`. */
-      afterImport(added, a.sujet ? "détourée de la carte importée"
-        : "reprise entière de la carte importée");
+      afterImport(added, deja
+        ? "déjà dans la pile — reposée plutôt que réimportée"
+        : (a.sujet ? "détourée de la carte importée"
+          : "reprise entière de la carte importée"));
     } catch (e) {
       CF.toast("adoption : " + String((e && e.message) || e), true);
     }

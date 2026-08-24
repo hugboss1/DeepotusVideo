@@ -1983,13 +1983,33 @@
   }
 
   /* L'AVEU QUI SUIT L'ADOPTION. Pure elle aussi : ce qu'elle dit est
-     exactement ce que l'utilisateur devra vérifier à la main. */
-  function phraseZones(n, tronquees) {
+     exactement ce que l'utilisateur devra vérifier à la main.
+
+     `deja` COMPTE CE QUI ÉTAIT DÉJÀ LÀ. Adopter deux fois posait six blocs
+     SUPERPOSÉS pour trois boîtes (mesuré) — invisibles l'un sous l'autre sur
+     l'aperçu, et parfaitement silencieux. On ne décide pas à la place de
+     l'utilisateur (un second relevé peut légitimement se réadopter après un
+     changement de recto) : on le DIT, et il regarde sa liste. */
+  function phraseZones(n, tronquees, deja) {
     const t = Math.max(0, Number(tronquees) || 0);
+    const d = Math.max(0, Number(deja) || 0);
     return n + (n > 1 ? " zones adoptées" : " zone adoptée")
       + (t ? ", dont " + t + (t > 1 ? " tronquées" : " tronquée")
         + " au bord : leur taille est un minimum, à reprendre à la main"
-        : "");
+        : "")
+      + (d ? " — " + d + (d > 1 ? " zones importées étaient déjà posées"
+        : " zone importée était déjà posée")
+        + ", les nouvelles se superposent" : "");
+  }
+
+  /* Les blocs nés d'une adoption précédente. Le critère est l'IDENTIFIANT :
+     `normSlot` le borne à `^[a-z][a-z0-9_]{0,23}$`, et « zone<N> » n'est
+     fabriqué que par ici — un bloc que l'utilisateur aurait renommé sort du
+     compte, ce qui est la bonne réponse (il ne le reconnaîtra plus comme
+     « importé » non plus). */
+  function zonesDejaPosees() {
+    return slots().filter((s) => /^zone\d+$/.test(String((s && s.id) || "")))
+      .length;
   }
 
   function adopterZones() {
@@ -2002,6 +2022,7 @@
       return null;
     }
     const tronq = specs.filter((s) => s.tronquee).length;
+    const deja = zonesDejaPosees();
     /* `tronquee` est une information de PROVENANCE, pas un réglage de slot :
        elle ne traverse pas la frontière (le schéma de `type.py` la jetterait,
        et un document réparé en silence est un document qui ment). Elle sert
@@ -2010,7 +2031,7 @@
       id: s.id, label: s.label, text: s.text, box: s.box,
     })), "zones importées");
     if (!nes) return null;
-    M.toast(phraseZones(nes.length, tronq));
+    M.toast(phraseZones(nes.length, tronq, deja));
     return nes;
   }
 

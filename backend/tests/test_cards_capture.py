@@ -43,11 +43,20 @@ Ce qui est verrouillé, seuil par seuil :
   8. LE DÉTOURAGE IA EST OPT-IN, ET IL NE DÉPENSE RIEN ICI (T3, spec
      §7.1.3, plan D5). Disponibilité honnête AVANT le clic, prix LU dans
      `pricing.py` (jamais recopié — le contrôle déplace la table et exige
-     que la réponse suive), 503 littéral français quand aucune voie n'existe
-     (§8, et pas le 400 de `routes.py`), erreur de fournisseur PRÉFIXÉE et
-     sans chemin absolu. Les quatre portes du dehors — `fal_client`,
-     `FalSeedanceClient.upload_image`, `urlopen` — sont refermées sur un
-     COMPTEUR D'APPELS RÉELS asserté à ZÉRO dans chaque chemin.
+     que la réponse suive) et SANS TARIF TABULÉ LA VOIE PAYANTE N'EST PAS
+     OFFERTE, 503 littéral français quand aucune voie n'existe (§8, et pas
+     le 400 de `routes.py`), erreur de fournisseur PRÉFIXÉE et sans chemin
+     absolu, réponse du fournisseur PLAFONNÉE en octets et sa destination
+     contrôlée, couche refusée si elle garde tout OU rien, DEUX CLICS NE
+     PAIENT PAS DEUX FOIS (coalescence par jeu). Les portes du dehors —
+     `fal_client` (ses seize noms), `FalSeedanceClient.upload_image`,
+     `urlopen` — sont refermées sur un COMPTEUR D'APPELS RÉELS asserté à
+     ZÉRO dans chaque chemin.
+     ET LA VRAIE CLÉ N'ENTRE PAS DANS CE PROCESSUS : `os.environ.setdefault`
+     ne tient pas contre le `_load_dotenv(override=True)` de `app/config.py`
+     (mesuré : la clé réelle, 69 signes, vivait ici) — l'objet `settings` est
+     forcé après l'import, une fixture le refait à chaque test, et un
+     contrôle l'épingle.
      LA VÉRITÉ SUR `rembg`, mesurée le 24/08 : il n'est installé NI dans le
      python de développement NI dans le runtime embarqué, et il n'est pas
      dans `requirements.txt`. La voie locale ne s'exécute donc jamais en
@@ -183,7 +192,48 @@ trois plus instructifs :
     maintenant son contrôle, `fal_client` ouvert pour lui seul (les trois
     autres portes restent fermées sur le compteur).
 
-LES TÉMOINS SURVIVANTS DE T3, AVOUÉS :
+Ronde 6 (T3, corrections de revue) — 22 défauts remis, 22 vus :
+  · LA VRAIE CLÉ FAL remise dans le processus de test .............. ROUGE
+  · le plafond de couverture retiré (une couche intacte passe) ..... ROUGE
+  · ... et mis SI BAS qu'un vrai détourage est refusé .............. ROUGE
+  · le repeint qui attend à nouveau le réseau (JS) ................. ROUGE
+  · la coalescence supprimée : chacun paie ......................... ROUGE
+  · ... et la coalescence qui ne distingue plus les jeux ........... ROUGE
+  · la lecture du résultat redevenue sans borne .................... ROUGE
+  · la destination du résultat plus jugée (127.0.0.1 passe) ........ ROUGE
+  · ... et jugée dans le MAUVAIS ORDRE (le mot juste se perd) ...... ROUGE
+  · le sujet qui n'hérite plus de la réduction d'admission ......... ROUGE
+  · le plafond de trame x10000 dans `_store_layer` ................. ROUGE
+  · le 409 d'écriture devenu 418 .................................. ROUGE
+  · `imageBlob` peignant un fond blanc avant le sujet (JS) ......... ROUGE
+  · P1 réimportant en silence au lieu de reposer (JS) .............. ROUGE
+  · P3 taisant les zones déjà posées (JS) .......................... ROUGE
+  · le prix qui n'est plus relu avant de payer (JS) ................ ROUGE
+  · la voie payante offerte sans tarif tabulé (route) .............. ROUGE
+  · ... et la même, côté écran (JS) ................................ ROUGE
+  · la copie d'écran de la liste blanche qui DÉRIVE (JS) ........... ROUGE
+  · le nettoyage de chemin reperdant UNC et le tilde ............... ROUGE
+  · le refus « sans recto » qui part quand même chez fal ........... ROUGE
+  · l'écran fabriquant l'URL sans filtrer le nom (JS) .............. ROUGE
+
+DEUX DE CES VINGT-DEUX ONT D'ABORD SURVÉCU, et les deux enseignent :
+  · retirer la branche « boucle locale » de `_destination_sure` ne changeait
+    RIEN au verdict — `ipaddress` range 127.0.0.0/8, ::1, 169.254/16 et
+    0.0.0.0/8 DANS les réseaux privés, donc le refus tombait quand même,
+    sous un autre nom. Ce n'était donc pas un trou de garde mais un trou de
+    DIAGNOSTIC : le contrôle exige maintenant le MOT JUSTE, cas par cas, et
+    l'ordre des branches est devenu porteur.
+  · la mutation prévue pour `s.zero()` portait sur le TEST et non sur le
+    code : retirer une assertion ne peut pas faire rougir la suite. Elle a
+    été remplacée par un vrai défaut — le refus « sans recto » qui part
+    quand même chez le fournisseur — que la sentinelle voit.
+
+TROIS TÉMOINS FERMÉS PAR CETTE RONDE (la revue les avait mesurés survivants) :
+`IMG_MAX_PIXELS` dans `_store_layer`, le code 409 de l'échec d'écriture, et
+`imageBlob` — la fonction dont tout le métier est « garder l'alpha qu'on
+vient de payer », et qui n'était jouée nulle part.
+
+LES TÉMOINS SURVIVANTS DE T3, AVOUÉS (deux, plus une limite dite) :
   · `FAL_TIMEOUT_S` (120 s) n'est gardé par AUCUN contrôle — le ramener à
     1 s survivrait à toute la suite. Le mesurer demanderait de tenir une
     socket ouverte plus longtemps que le délai, c'est-à-dire un test qui
@@ -191,7 +241,12 @@ LES TÉMOINS SURVIVANTS DE T3, AVOUÉS :
   · le témoin de T1 sur `_replace_avec_patience` vaut ici tel quel : retirer
     la reprise patiente SEULE, en gardant le brouillon unique, n'est vu
     qu'environ une fois sur deux. Le défaut GRAVE — le brouillon partagé —
-    est vu, lui, à tous les coups (mutation 12).
+    est vu, lui, à tous les coups (mutation 12 de la ronde 5).
+  · LIMITE DITE, ET PAS UN TÉMOIN : `_destination_sure` ne RÉSOUT aucun nom
+    (une résolution DNS est un appel réseau, dans une fonction dont l'objet
+    est de décider s'il faut en faire un). Un nom public qui pointerait vers
+    127.0.0.1 passerait donc. Ce qui est attrapé est le cas réel : une IP
+    littérale de la machine ou du réseau local dans une réponse.
 
 DEUX DES DIX-NEUF DE LA RONDE 4 SONT DES TROUS QUE LA RONDE A OUVERTS, PAS
 FERMÉS, et c'est ce qui les rend intéressants :
@@ -263,6 +318,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+import time
 import zlib
 
 _tmp = tempfile.mkdtemp()
@@ -279,9 +335,31 @@ import pytest                                                   # noqa: E402
 from httpx import AsyncClient, ASGITransport                     # noqa: E402
 from PIL import Image, ImageDraw                                 # noqa: E402
 
+from app.config import settings as _settings                     # noqa: E402
 from app.services.cards import capture as CP                     # noqa: E402
 from app.services.cards import contract as CT                    # noqa: E402
 from app.services.cards import core as CC                        # noqa: E402
+
+# ── LA VRAIE CLÉ FAL N'ENTRE PAS DANS CE PROCESSUS ──────────────────────────
+#
+# `os.environ.setdefault("FAL_KEY", …)` vingt lignes plus haut NE SUFFIT PAS,
+# et c'est mesuré : `app/config.py` fait `_load_dotenv(ENV_FILE, override=True)`
+# À L'IMPORT — délibérément, pour qu'un lanceur qui exporte une variable vide
+# ne masque pas les clés enregistrées de l'utilisateur. Conséquence pour un
+# banc : le `.env` du dossier de données GAGNE, et `settings.FAL_KEY` valait la
+# VRAIE clé (69 signes, mesuré le 24/08). Le `setdefault`, lui, n'avait même
+# pas d'effet — la variable n'était pas absente, elle était réécrite après.
+#
+# CE QUE ÇA CHANGE : la voie par défaut du basculement devenait la voie
+# PAYANTE, et la seule chose entre ce banc et une facture était UNE couche de
+# monkeypatch là où l'en-tête en revendiquait deux. Rien n'a fui (chaque test
+# pose son espion, et la sentinelle compte), mais un banc dont la sûreté tient
+# à ce que personne n'oublie une ligne n'est pas un banc sûr — et T5 écrira
+# contre celui-ci.
+#
+# ON FORCE DONC L'OBJET, PAS L'ENVIRONNEMENT, et APRÈS l'import de config :
+# c'est le seul point où l'on gagne contre un `override=True` déjà joué.
+_settings.FAL_KEY = "test-key"
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 JS = REPO / "frontend" / "cardforge" / "js" / "mod-capture.js"
@@ -289,6 +367,19 @@ CSS = REPO / "frontend" / "cardforge" / "css" / "mod-capture.css"
 
 
 # ═══════════════════════ outillage ══════════════════════════════════════════
+
+@pytest.fixture(autouse=True)
+def _clef_de_banc(monkeypatch):
+    """LA SECONDE COUCHE, celle que l'en-tête revendiquait sans l'avoir.
+
+    Le forçage au niveau module tient au chargement ; celui-ci tient à CHAQUE
+    test, y compris ceux qui rendent la main après avoir posé leur propre
+    valeur. Un test qui remettrait une vraie clé — par mégarde, par un import
+    tardif, par un `settings.reload()` d'une autre pièce — repartirait de la
+    valeur de banc au test suivant."""
+    monkeypatch.setattr(_settings, "FAL_KEY", "test-key", raising=False)
+    yield
+
 
 def _api(method: str, path: str, **kw):
     """Un appel HTTP réel contre l'application montée, en process."""
@@ -1278,7 +1369,7 @@ ANALYSE_FNS = (
 # ... et les SEULES fonctions autorisées à toucher un fournisseur. La liste
 # est courte EXPRÈS : elle est le périmètre de la dépense.
 PAYANTES_FNS = ("_fal_upload", "_fal_rembg", "_fal_lire", "_rembg_local",
-                "_rembg_local_dispo", "_prix_rembg")
+                "_rembg_local_dispo", "_prix_rembg", "_destination_sure")
 INTERDITS = ("httpx", "requests", "urllib", "aiohttp", "fal_client", "openai",
              "rembg", "replicate", "socket", "http")
 
@@ -2301,15 +2392,23 @@ class _Sentinelle:
 
 
 def _sentinelle(monkeypatch, sauf=()) -> _Sentinelle:
-    """Les quatre portes du dehors, refermées sur le compteur.
+    """Les portes du dehors, refermées sur le compteur.
 
     L'ESPION DE LA ROUTE EST AILLEURS (chaque test pose le sien sur la
     fonction que la route appelle) ; celui-ci est la CEINTURE : si un chemin
     oublié atteignait quand même le fournisseur, il compterait.
 
-    `sauf` laisse UNE porte ouverte pour le test qui veut exercer le code
-    qui la franchit — les autres restent fermées, et le compteur reste la
-    preuve pour elles. Un seul test s'en sert, et il le dit."""
+    `sauf` laisse UNE porte ouverte pour le test qui veut exercer le code qui
+    la franchit — les autres restent fermées, et le compteur reste la preuve
+    pour elles. Deux tests s'en servent, et chacun le dit. La porte ouverte
+    n'est JAMAIS ouverte sur le réseau : le test qui la demande y pose son
+    propre faux, qui rend des octets sans sortir de la machine.
+
+    LE MODULE `fal_client` PORTE NEUF NOMS EXPORTÉS QUI PARTENT AU DEHORS, et
+    la liste ci-dessous les couvre tous — pas seulement `subscribe_async`. La
+    première rédaction en fermait cinq : un chemin qui aurait appelé `run`,
+    `submit` ou `upload` (les variantes SYNCHRONES) serait passé au travers,
+    et l'écart ne se voyait qu'en lisant `dir(fal_client)`."""
     s = _Sentinelle()
     try:
         import fal_client
@@ -2318,11 +2417,17 @@ def _sentinelle(monkeypatch, sauf=()) -> _Sentinelle:
     if "fal_client" in sauf:
         fal_client = None
     if fal_client is not None:
-        for nom in ("subscribe_async", "upload_file_async", "upload_async",
-                    "submit_async", "run_async"):
+        for nom in ("subscribe_async", "submit_async", "run_async",
+                    "stream_async", "upload_async", "upload_file_async",
+                    "result_async", "status_async"):
             if hasattr(fal_client, nom):
                 monkeypatch.setattr(fal_client, nom, s._porte_async(
                     "fal_client." + nom))
+        for nom in ("subscribe", "submit", "run", "stream", "upload",
+                    "upload_file", "result", "status"):
+            if hasattr(fal_client, nom):
+                monkeypatch.setattr(fal_client, nom,
+                                    s._porte("fal_client." + nom))
     try:
         from app.services.fal_service import FalSeedanceClient
         monkeypatch.setattr(FalSeedanceClient, "upload_image",
@@ -2330,24 +2435,57 @@ def _sentinelle(monkeypatch, sauf=()) -> _Sentinelle:
                                 "FalSeedanceClient.upload_image")))
     except Exception:                                    # pragma: no cover
         pass
-    import urllib.request
-    monkeypatch.setattr(urllib.request, "urlopen",
-                        s._porte("urllib.request.urlopen"))
+    if "urlopen" not in sauf:
+        import urllib.request
+        monkeypatch.setattr(urllib.request, "urlopen",
+                            s._porte("urllib.request.urlopen"))
     return s
+
+
+def test_la_VRAIE_CLE_FAL_n_entre_PAS_dans_ce_processus():
+    """LE BLOQUANT DE LA RONDE, ÉPINGLÉ. `os.environ.setdefault("FAL_KEY", …)`
+    en tête de fichier ne tient PAS : `app/config.py` fait
+    `_load_dotenv(ENV_FILE, override=True)` À L'IMPORT, et le `.env` du
+    dossier de données gagne. Mesuré le 24/08 : `settings.FAL_KEY` valait la
+    VRAIE clé (69 signes) dans le processus de test, donc la voie par défaut
+    du basculement était la voie PAYANTE.
+
+    Rien n'a fui — chaque test pose son espion et la sentinelle compte — mais
+    la sûreté du banc tenait à ce que personne n'oublie une ligne. Ce contrôle
+    la rend structurelle : si un jour l'ordre des imports change, ou si une
+    pièce recharge les réglages, il rougit AVANT que quiconque écrive un
+    nouveau test contre ce banc."""
+    from app.config import settings
+    assert settings.FAL_KEY == "test-key", \
+        (f"la clé fal du processus de test n'est pas neutralisée "
+         f"({len(settings.FAL_KEY or '')} signes) — un appel oublié partirait "
+         f"pour de bon")
+    # ... et l'objet `settings` du test est bien CELUI que la pièce lit.
+    from app.config import settings as autre
+    assert autre is settings
+    assert CP._fal_dispo()[0] is True, "la clé de banc doit rester CRÉDIBLE"
 
 
 class _FauxRembg:
     """Le module `rembg` que ce runtime n'a pas. Injecté dans `sys.modules`,
     il rend la voie locale JOUABLE — `_rembg_local_dispo` le voit, et
-    `from rembg import remove` tombe sur `remove` d'ici."""
+    `from rembg import remove` tombe sur `remove` d'ici.
 
-    def __init__(self, sortie=None, casse=None):
+    `pause` ouvre une VRAIE fenêtre de recouvrement : la route appelle
+    `remove` dans un fil (`to_thread`), donc douze requêtes simultanées ne se
+    chevauchent que si le travail dure. Sans elle, la coalescence se
+    mesurerait sur une course qui n'a pas lieu."""
+
+    def __init__(self, sortie=None, casse=None, pause=0.0):
         self.appels = 0
         self._sortie = sortie
         self._casse = casse
+        self._pause = pause
 
     def remove(self, data, *a, **k):
         self.appels += 1
+        if self._pause:
+            time.sleep(self._pause)
         if self._casse:
             raise self._casse
         return self._sortie if self._sortie is not None else _png_rgba()
@@ -2410,8 +2548,88 @@ def test_les_OPTIONS_IA_disent_la_VERITE_sur_les_deux_voies(monkeypatch):
     monkeypatch.setattr(settings, "FAL_KEY", "")
     j = _options(did).json()
     assert j["local"] is True and j["fal"] is False and j["voie"] == "local", j
+
+    # SANS PRIX TABULÉ, LA VOIE PAYANTE N'EST PAS OFFERTE (§8 « prix AVANT »).
+    # Un bouton payant sans chiffre n'est pas un libellé honnête, c'est un
+    # écart de spec : on ne peut pas dire le prix avant, donc on ne propose
+    # pas. La voie GRATUITE, elle, ne dépend d'aucun tarif.
+    from app.services import pricing
+    vraie = pricing.load
+    monkeypatch.setattr(pricing, "load",
+                        lambda: {k: v for k, v in vraie().items()
+                                 if k != CP.PRIX_CLE})
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    j = _options(did).json()
+    assert j["fal"] is True and j["prix_usd"] is None, j
+    assert j["voie"] is None, "une voie payante sans prix reste offerte"
+    assert "tarif" in (j["fal_motif"] + j["motif"]).lower(), j
+    _pose_rembg(monkeypatch, _FauxRembg())
+    j = _options(did).json()
+    assert j["voie"] == "local", "le gratuit ne dépend pas d'un tarif"
     s.zero()
     CC.delete_deck(did)
+
+
+def test_SANS_PRIX_TABULE_le_detourage_PAYANT_ne_part_pas(monkeypatch):
+    """L'autre bout de la même règle : la route refuse aussi. Un écran d'une
+    version antérieure — ou un client hors CF — ne doit pas pouvoir déclencher
+    une dépense dont personne n'a pu annoncer le montant."""
+    from app.config import settings
+    from app.services import pricing
+    s = _sentinelle(monkeypatch)
+    vraie = pricing.load
+    monkeypatch.setattr(pricing, "load",
+                        lambda: {k: v for k, v in vraie().items()
+                                 if k != CP.PRIX_CLE})
+    _sans_rembg(monkeypatch)
+    monkeypatch.setattr(settings, "FAL_KEY", "cle-de-test")
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 503, (r.status_code, r.text[:300])
+    assert "tarif" in r.json()["detail"].lower(), r.json()["detail"]
+    s.zero()
+    CC.delete_deck(did)
+
+
+# Les 22 noms sur lesquels les DEUX listes blanches sont jugées : celle du
+# backend (`capture.FILE_RE`) et sa copie d'écran (`mod-face.CAPTURE_FILE_RE`).
+# UN SEUL corpus, et c'est le point : deux demi-tests sur deux corpus
+# différents ne prouvent aucune parité (leçon T4, « la parité compte TOUS les
+# miroirs »).
+NOMS_JUGES = (
+    "source_recto.png", "source_verso.png", "sujet_recto.png",
+    "sujet_verso.png", "sujet.png", "source.png", "source_recto.PNG",
+    "Source_recto.png", "source_recto.png.tmp", "source_recto.png\n",
+    "source_recto.png ", " source_recto.png", "source_recto.png\r",
+    "../meta.json", "..%2fmeta.json", "capture/source_recto.png",
+    "source_recto.jpg", "source_rectoXpng", "", "sujet_recto.png.bak",
+    "sujet_recto", "sujet_recto.png?x=1",
+)
+
+
+def test_les_DEUX_listes_blanches_rendent_LE_MEME_VERDICT():
+    """PARITÉ MESURÉE PAR EXÉCUTION, sur un corpus PARTAGÉ. `mod-face.js`
+    porte une copie de `FILE_RE` (règle 8 : on recopie, on ne partage pas) —
+    et une copie qui dériverait laisserait P1 fabriquer une URL que le backend
+    refuse, ou l'inverse. Les deux motifs sont joués sur les 22 mêmes noms,
+    l'un en Python, l'autre dans node."""
+    js = FACE_JS.read_text(encoding="utf-8")
+    m = re.search(r"^\s*const CAPTURE_FILE_RE = (.*);\s*$", js, re.M)
+    assert m, "la copie de la liste blanche a disparu de mod-face.js"
+    sortie = _node(
+        "const RE = " + m.group(1) + ";\n"
+        "const noms = " + json.dumps(list(NOMS_JUGES)) + ";\n"
+        "console.log(JSON.stringify(noms.map((n) => RE.test(n))));")
+    cote_js = json.loads(sortie)
+    cote_py = [bool(CP.FILE_RE.fullmatch(n)) for n in NOMS_JUGES]
+    ecarts = [(n, a, b) for n, a, b in zip(NOMS_JUGES, cote_py, cote_js)
+              if a != b]
+    assert not ecarts, f"les deux listes blanches divergent : {ecarts}"
+    # ... et elles disent OUI aux trois noms servis, NON à tout le reste.
+    assert [n for n, ok in zip(NOMS_JUGES, cote_py) if ok] == \
+        ["source_recto.png", "source_verso.png", "sujet_recto.png"], \
+        [n for n, ok in zip(NOMS_JUGES, cote_py) if ok]
 
 
 def test_AUCUNE_voie_disponible_n_est_PAS_une_erreur(monkeypatch):
@@ -2505,12 +2723,13 @@ def test_la_route_d_options_ne_DEPENSE_rien(monkeypatch):
 # ── B. le détourage lui-même : quatre chemins, zéro dollar ──────────────────
 
 def test_le_detourage_SANS_RECTO_est_un_404_qui_dit_quoi_faire(monkeypatch):
-    _sentinelle(monkeypatch)
+    s = _sentinelle(monkeypatch)
     did = _deck()
     r = _rembg(did)
     assert r.status_code == 404, (r.status_code, r.text[:200])
     d = r.json()["detail"]
     assert "recto" in d and ("déposez" in d.lower() or "importez" in d.lower()), d
+    s.zero()                       # le patron vaut aussi pour les refus
     CC.delete_deck(did)
 
 
@@ -2657,6 +2876,44 @@ def test_une_erreur_de_fournisseur_ne_FUIT_PAS_le_chemin_absolu(monkeypatch):
     assert chemin not in d, d
     assert "Users" not in d and ":\\" not in d, d
     assert "Image not found" in d, f"l'erreur littérale a disparu : {d}"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_couche_QUI_NE_RETIRE_RIEN_est_REFUSEE_AVEC_SON_CHIFFRE(
+        monkeypatch):
+    """LA DOCTRINE VAUT DE SES DEUX MOITIÉS. « Un détourage qui garde TOUT, ou
+    rien, n'est pas un détourage » : la moitié « rien » était implémentée, la
+    moitié « tout » ne l'était pas — et c'est pourtant le mode d'échec le plus
+    ORDINAIRE de rembg (aucun sujet trouvé -> l'image ressort quasi intacte).
+    L'utilisateur PAIE, et P1 adopte sa carte entière comme « sujet détouré ».
+
+    LE SEUIL EST MESURÉ, sur une carte de 630 x 880 :
+      · rien retiré ................................. couverture 1,00000
+      · un cadre d'UN pixel retiré .................. couverture 0,99456
+      · un sujet posé à 4 px du bord ................ couverture 0,97833
+      · un sujet ovale ordinaire .................... couverture 0,52181
+    Le plancher se pose donc à 0,995 : en dessous, il reste au moins le
+    liséré d'un pixel de vrai retrait ; au-dessus, RIEN n'a été retiré nulle
+    part. (Le chiffre est une PART, donc il dépend de la résolution : sur une
+    trame au plafond d'import, un cadre d'un pixel ne pèse plus que 0,0008 —
+    dit ici, parce qu'aucun détourage réel ne retire un seul pixel de bord.)"""
+    s = _sentinelle(monkeypatch)
+    assert CP.COUCHE_COUV_MAX == 0.995, CP.COUCHE_COUV_MAX
+    intacte = Image.new("RGBA", (60, 80), (30, 30, 30, 255))
+    buf = io.BytesIO()
+    intacte.save(buf, format="PNG")
+    _pose_rembg(monkeypatch, _FauxRembg(sortie=buf.getvalue()))
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert "100" in d and "%" in d, f"le chiffre du refus manque : {d}"
+    assert "99" in d or "0,995" in d or "99,5" in d, d
+    assert not (CP.cap_dir(did) / "sujet_recto.png").exists()
+    # ... et un détourage ORDINAIRE passe : le plancher ne mord pas sur lui.
+    _pose_rembg(monkeypatch, _FauxRembg())
+    assert _rembg(did).status_code == 200
     s.zero()
     CC.delete_deck(did)
 
@@ -2881,9 +3138,13 @@ def test_l_ecran_ne_PROPOSE_l_option_que_si_elle_EXISTE():
     assert sans_recto["on"] is False, "pas de recto, pas de sujet à détourer"
     assert local["on"] is True and "gratuit" in local["libelle"], local
     assert "$" not in local["libelle"], local["libelle"]
-    assert sans_tarif["on"] is True, sans_tarif
-    assert "$" not in sans_tarif["libelle"], \
-        "un tarif absent ne s'affiche pas comme un montant"
+    # SANS PRIX TABULÉ, LA VOIE PAYANTE N'EST PAS OFFERTE (§8 « prix AVANT »).
+    # L'écran tient la même règle que la route — défense en profondeur : un
+    # backend d'une version antérieure ne doit pas pouvoir faire naître un
+    # bouton payant sans chiffre.
+    assert sans_tarif["on"] is False, sans_tarif
+    assert "tarif" in sans_tarif["motif"].lower(), sans_tarif
+    assert "$" not in sans_tarif["libelle"], sans_tarif["libelle"]
 
 
 def test_l_ecran_lit_les_OPTIONS_UNE_FOIS_et_pas_a_chaque_PEINTURE():
@@ -2917,6 +3178,82 @@ def test_le_bloc_de_DETOURAGE_publie_la_couche_DANS_LE_DOCUMENT():
     assert "layers" in corps, "la couche n'entre pas dans `layers`"
     assert "layers" in _cles_du_schema(), \
         "`layers` n'est pas dans le schéma : `patchAs` lèverait"
+
+
+def test_le_REPEINT_d_un_changement_de_jeu_n_ATTEND_PAS_LE_RESEAU():
+    """RÉGRESSION DE LA LIVRAISON, ÉPINGLÉE. `core:deck` passait de `paint()`
+    à `chargeOptions()`, qui ATTEND un `fetch` nu (le `rawFetch` du CORE n'a
+    pas de délai d'attente) AVANT de repeindre. Backend lent ou processus
+    orphelin — le scénario documenté de ce dépôt — et le panneau montrait
+    l'aperçu, les mesures ET LE SUJET du jeu PRÉCÉDENT, sans fin : exactement
+    le défaut que `_oublie_sujet` venait de tuer côté serveur.
+
+    L'ordre est donc : repeindre D'ABORD (ce qui est local et instantané),
+    relire les options ENSUITE. Le contrôle porte sur l'ORDRE dans le code
+    dépouillé — un `await` glissé entre les deux le ferait rougir."""
+    code = _code_js(JS.read_text(encoding="utf-8"))
+    i = code.index('CF.on("core:deck"')
+    ligne = code[i:code.index("\n", i + 20)]
+    assert "paint()" in ligne, \
+        f"le changement de jeu ne repeint plus tout de suite : {ligne.strip()}"
+    assert ligne.index("paint()") < ligne.index("chargeOptions"), \
+        f"le repeint attend le réseau : {ligne.strip()}"
+    assert "await" not in ligne, ligne.strip()
+
+
+def test_le_PRIX_est_RELU_juste_avant_de_PAYER():
+    """Le prix affiché pouvait ne plus être le prix rendu : les options sont
+    lues au montage, et une table déplacée entre-temps (Réglages -> Tarifs)
+    laissait le bouton sur l'ancien chiffre jusqu'à réouverture du panneau.
+    Mesuré : table multipliée par 83, bouton inchangé.
+
+    La relecture est GRATUITE et LOCALE (`/ai-options` ne parle à personne) :
+    on la refait juste avant le POST, et si le chiffre a bougé, le POST NE
+    PART PAS — le bouton se re-libelle et l'utilisateur re-consent d'un clic.
+    Consentir à 0,003 $ et payer 0,25 $ est le genre de chose qui ne se
+    rattrape pas après coup."""
+    corps = _corps_js("detourer")
+    assert "chargeOptions" in corps, \
+        "le prix n'est pas relu avant l'appel payant"
+    assert corps.index("chargeOptions") < corps.index('"rembg"'), \
+        "la relecture arrive APRÈS le POST : elle ne protège rien"
+    assert "return" in corps[corps.index("chargeOptions"):
+                             corps.index('"rembg"')], \
+        "un prix qui a bougé n'arrête pas le geste"
+
+
+def test_le_NOM_de_la_couche_est_une_COPIE_AVOUEE_et_FILTREE():
+    """Deux mineurs de la ronde, et ils tiennent ensemble. (1) Le nom
+    `sujet_recto.png` est une TROISIÈME copie du même identifiant (capture.py
+    et mod-face.js portent les deux autres) : la règle 8 veut qu'une copie
+    soit AVOUÉE là où elle est écrite. (2) L'écran fabrique une URL avec le
+    nom que le DOCUMENT lui donne — il doit le filtrer comme P1 le fait, et
+    non lui faire confiance parce qu'il vient « de chez nous »."""
+    js = JS.read_text(encoding="utf-8")
+    i = js.index('"sujet_recto.png"')
+    autour = js[max(0, i - 900):i]
+    assert re.search(r"recopi|copie|règle 8|regle 8|miroir", autour, re.I), \
+        "la copie du nom de couche n'est pas avouée"
+    m = re.search(r"^\s*const CAPTURE_FILE_RE = (.*);\s*$", js, re.M)
+    assert m, "l'écran n'a pas de liste blanche pour les noms du document"
+    corps = _corps_js("blocIA")
+    assert "CAPTURE_FILE_RE" in corps or "fichierSujet" in corps, \
+        "blocIA fabrique une URL sans filtrer le nom venu du document"
+    # LA GARDE EST EXÉCUTÉE, pas cherchée : même standard que P1.
+    sortie = _node(
+        m.group(0) + "\n"
+        + _fonction_js("isPlain") + _fonction_js("fichierSujet") + """
+        console.log(JSON.stringify([
+          fichierSujet({file: "sujet_recto.png"}),
+          fichierSujet({file: "../meta.json"}),
+          fichierSujet({file: "sujet_recto.png\\n"}),
+          fichierSujet({}), fichierSujet(null), fichierSujet("x"),
+        ]));
+        """)
+    bon, trav, saut, vide, nul, pas_objet = json.loads(sortie)
+    assert bon == "sujet_recto.png", bon
+    for mauvais in (trav, saut, vide, nul, pas_objet):
+        assert mauvais == "", mauvais
 
 
 def test_le_refus_du_fond_POINTE_vers_le_bloc_de_detourage():
@@ -3011,6 +3348,139 @@ def test_P1_ADOPTER_passe_par_l_import_EXISTANT_et_ne_cree_PAS_de_4e_schema():
                      code), "le câblage du bouton n'est pas gardé"
 
 
+BANC_ALPHA = r"""
+/* Une toile de paille A QUATRE CANAUX. Ce banc ne juge pas une mise en page :
+   il juge des OCTETS D'ALPHA. `drawImage` compose en `source-over`, comme un
+   vrai contexte 2D — c'est ce qui rend la mutation visible : un `fillRect`
+   opaque posé AVANT le dessin donne un fond alpha 255, et le sujet composé
+   par-dessus ne redevient jamais transparent. */
+function toile(w, h) {
+  const px = new Uint8ClampedArray(w * h * 4);          /* tout à zéro */
+  const ctx = {
+    fillStyle: "#000000", globalAlpha: 1, imageSmoothingEnabled: true,
+    save() { }, restore() { }, translate() { }, rotate() { }, setTransform() { },
+    clearRect(x, y, cw, ch) { for (let i = 0; i < px.length; i++) px[i] = 0; },
+    fillRect(x, y, cw, ch) {
+      const c = coul(ctx.fillStyle);
+      for (let j = y; j < y + ch; j++) {
+        for (let i = x; i < x + cw; i++) melange(px, (j * w + i) * 4, c);
+      }
+    },
+    drawImage(im) {
+      for (let j = 0; j < Math.min(h, im.h); j++) {
+        for (let i = 0; i < Math.min(w, im.w); i++) {
+          const s = (j * im.w + i) * 4;
+          melange(px, (j * w + i) * 4,
+            [im.px[s], im.px[s + 1], im.px[s + 2], im.px[s + 3] / 255]);
+        }
+      }
+    },
+  };
+  return { width: w, height: h, getContext: () => ctx, _px: px,
+    toBlob(cb) { cb({ type: "image/png", size: px.length, _px: px }); } };
+}
+function coul(s) {
+  const m = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(s));
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16), 1]
+    : [255, 255, 255, 1];
+}
+/* source-over : a_out = a_src + a_dst * (1 - a_src) */
+function melange(px, o, c) {
+  const as = c[3], ad = px[o + 3] / 255, ao = as + ad * (1 - as);
+  if (ao <= 0) { px[o] = px[o + 1] = px[o + 2] = px[o + 3] = 0; return; }
+  px[o] = (c[0] * as + px[o] * ad * (1 - as)) / ao;
+  px[o + 1] = (c[1] * as + px[o + 1] * ad * (1 - as)) / ao;
+  px[o + 2] = (c[2] * as + px[o + 2] * ad * (1 - as)) / ao;
+  px[o + 3] = Math.round(ao * 255);
+}
+globalThis.document = { createElement: () => toile(1, 1) };
+function newCanvas(w, h) { return toile(w, h); }
+"""
+
+
+def test_P1_le_TRANSFERT_DES_OCTETS_garde_l_ALPHA_qu_on_vient_de_payer():
+    """TÉMOIN FERMÉ (ronde) : `imageBlob` n'était jouée NULLE PART. C'est
+    pourtant la fonction dont TOUT le métier tient en une phrase — garder
+    l'alpha qu'on vient de payer — et un `fillRect` blanc posé avant le
+    dessin la rendrait opaque sans faire bouger un seul contrôle. Une couche
+    « sujet » recomposée sur du blanc, adoptée par P1, redonne exactement la
+    carte de départ : la dépense pour rien, en silence.
+
+    La fonction est donc EXÉCUTÉE, sur une toile de paille à quatre canaux
+    qui compose en `source-over` comme un vrai contexte 2D."""
+    src = BANC_ALPHA + _fonction_de(FACE_JS, "imageBlob")
+    sortie = _node(src + """
+      /* 4 x 3 : deux colonnes opaques, deux transparentes. */
+      const w = 4, h = 3, px = new Uint8ClampedArray(w * h * 4);
+      for (let j = 0; j < h; j++) {
+        for (let i = 0; i < w; i++) {
+          const o = (j * w + i) * 4;
+          px[o] = 200; px[o + 1] = 180; px[o + 2] = 120;
+          px[o + 3] = (i < 2) ? 255 : 0;
+        }
+      }
+      imageBlob({ naturalWidth: w, naturalHeight: h, w: w, h: h, px: px })
+        .then((b) => {
+          const a = [];
+          for (let k = 3; k < b._px.length; k += 4) a.push(b._px[k]);
+          console.log(JSON.stringify({ type: b.type, alpha: a }));
+        })
+        .catch((e) => { console.log(JSON.stringify({ err: String(e) })); });
+    """)
+    d = json.loads(sortie)
+    assert "err" not in d, d
+    assert d["type"] == "image/png", d
+    # DEUX COLONNES SUR QUATRE RESTENT PARFAITEMENT TRANSPARENTES.
+    assert d["alpha"] == [255, 255, 0, 0, 255, 255, 0, 0, 255, 255, 0, 0], \
+        f"l'alpha n'a pas survécu au transfert : {d['alpha']}"
+    assert 0 in d["alpha"], "plus aucun pixel transparent : le sujet est un carré"
+    # ... et une image sans taille est refusée plutôt que rendue vide.
+    vide = _node(src + """
+      imageBlob({ naturalWidth: 0, naturalHeight: 0 })
+        .then(() => console.log('"passe"'))
+        .catch((e) => console.log(JSON.stringify(String(e.message || e))));
+    """)
+    assert "illisible" in json.loads(vide), vide
+
+
+def test_P1_ADOPTER_DEUX_FOIS_ne_pollue_pas_la_pile_EN_SILENCE():
+    """Adopter deux fois de suite posait DEUX entrées identiques dans la pile
+    (mesuré). Le remède est le plus petit qui soit honnête : si la pile porte
+    déjà cette adoption — même nom, mêmes pixels, mêmes octets — on ne
+    ré-importe pas, on RE-POSE celle qui est là, et on le DIT.
+
+    L'IDENTITÉ EST JUGÉE SUR (nom, largeur, hauteur, octets) et pas sur les
+    octets eux-mêmes : c'est avoué ici. Le blob sort du même encodeur pour la
+    même source, donc la taille est stable ; deux sujets réellement
+    différents qui tomberaient sur les mêmes quatre nombres sont un cas que
+    ce contrôle ne couvre pas, et il ne prétend pas le couvrir."""
+    corps = _fonction_de(FACE_JS, "adopterCapture")
+    assert "dejaDansLaPile" in corps, "aucune détection de doublon"
+    fn = _fonction_de(FACE_JS, "dejaDansLaPile")
+    sortie = _node(fn + """
+      const pile = [
+        { key: "a1", name: "sujet_detoure.png", w: 630, h: 880, bytes: 4242 },
+        { key: "b2", name: "carte_importee.png", w: 630, h: 880, bytes: 9000 },
+      ];
+      const t = (rec) => { const r = dejaDansLaPile(pile, rec); return r ? r.key : null; };
+      console.log(JSON.stringify([
+        t({ name: "sujet_detoure.png", w: 630, h: 880, bytes: 4242 }),
+        t({ name: "carte_importee.png", w: 630, h: 880, bytes: 9000 }),
+        t({ name: "sujet_detoure.png", w: 630, h: 880, bytes: 4243 }),
+        t({ name: "sujet_detoure.png", w: 629, h: 880, bytes: 4242 }),
+        t({ name: "autre.png", w: 630, h: 880, bytes: 4242 }),
+      ]));
+    """)
+    memes, autre, octets, taille, nom = json.loads(sortie)
+    assert memes == "a1" and autre == "b2", (memes, autre)
+    assert octets is None and taille is None and nom is None, \
+        (octets, taille, nom)
+    # ... et l'écran le dit au lieu de faire comme si de rien n'était.
+    chaines = " ".join(_chaines_js(FACE_JS.read_text(encoding="utf-8")))
+    assert "déjà dans la pile" in chaines, \
+        "le doublon est sauté en silence — le pire des deux"
+
+
 def test_P1_ADOPTER_ne_pese_QU_UN_pas_d_annulation():
     """« UN pas d'undo » (T3-D). `afterImport` -> `setArt` -> `pushUndo` :
     exactement un. Un `pushUndo` de plus sur le chemin d'adoption obligerait
@@ -3056,30 +3526,258 @@ def test_P1_ADOPTER_ne_sort_pas_du_domaine_de_la_piece():
     assert json.loads(sale) == "", sale
 
 
-def test_DEUX_DETOURAGES_SIMULTANES_ne_font_AUCUN_500_ET_SERVENT(monkeypatch):
-    """Le patron de concurrence de T1, rejoué sur la couche détourée — et
-    avec ses DEUX moitiés : jamais 500, ET un plancher de service. La leçon
-    de clôture T1 tient en une phrase : « jamais-500 sous concurrence est un
-    demi-contrat » — un refus poli généralisé (409 pour tout le monde,
-    dossier vide) passerait la première moitié sans servir personne."""
+def test_DOUZE_DETOURAGES_SIMULTANES_ne_paient_QU_UNE_FOIS(monkeypatch):
+    """LE CONTRAT A CHANGÉ, ET C'EST UNE CORRECTION DE FOND. La première
+    rédaction gravait l'inverse : « au moins n-1 réponses 200 », c'est-à-dire
+    DOUZE FACTURES pour un double-clic ou deux onglets — mesuré, 12 requêtes
+    simultanées donnaient 12 invocations du fournisseur et 11 résultats jetés.
+    Un plancher de service qui compte les paiements n'est pas un plancher de
+    service.
+
+    Les POST concurrents sur un MÊME jeu se COALESCENT : un seul appel part,
+    tous les demandeurs sont servis du même résultat. Ce qui reste de T1 est
+    intact — jamais 500, fichier final entier, aucun brouillon abandonné.
+
+    CE QUI N'EST PAS COALESCÉ, ET POURQUOI : deux clics SÉPARÉS dans le temps.
+    Un « Redétourer » est une demande explicite ; mettre le résultat en cache
+    empêcherait de relancer après un changement de recto, et rendrait le
+    bouton menteur. La coalescence protège de l'accident (le double-clic, les
+    deux onglets), pas de l'intention."""
     s = _sentinelle(monkeypatch)
-    _pose_rembg(monkeypatch, _FauxRembg())
+    faux = _pose_rembg(monkeypatch, _FauxRembg(pause=0.20))
     did = _deck_avec_recto()
     n = 12
     reps = _en_parallele([("POST", f"/api/cards/{did}/capture/rembg", {})] * n)
     codes: dict = {}
     for r in reps:
         codes[r.status_code] = codes.get(r.status_code, 0) + 1
-    assert 500 not in codes, codes
-    assert codes.get(200, 0) >= n - 1, f"plancher de service non tenu : {codes}"
+    assert codes == {200: n}, codes
+    assert faux.appels == 1, \
+        (f"{faux.appels} invocations du fournisseur pour {n} clics : "
+         f"{faux.appels - 1} facture(s) de trop")
+    # TOUS SERVIS DU MÊME RÉSULTAT — même couche, même horodatage.
+    corps = [r.json() for r in reps]
+    assert len({c["stamp"] for c in corps}) == 1, [c["stamp"] for c in corps]
+    assert len({c["bytes"] for c in corps}) == 1, corps[0]
+    # ... et UN SEUL a réellement payé : les autres le disent.
+    payeurs = [c for c in corps if c.get("coalesce") is False]
+    assert len(payeurs) == 1, [c.get("coalesce") for c in corps]
     # LE FICHIER FINAL EST ENTIER — un brouillon partagé le laisserait tronqué.
     with Image.open(CP.cap_dir(did) / "sujet_recto.png") as im:
         im.load()
         assert im.mode == "RGBA", im.mode
     assert [p.name for p in CP.cap_dir(did).iterdir()
             if p.name.endswith(".tmp")] == []
+    # DEUX JEUX NE SE COALESCENT PAS ENSEMBLE : la clé est le jeu.
+    did2 = _deck_avec_recto()
+    reps2 = _en_parallele(
+        [("POST", f"/api/cards/{d}/capture/rembg", {}) for d in (did, did2)])
+    assert [r.status_code for r in reps2] == [200, 200], reps2
+    assert faux.appels == 3, faux.appels
+    # ... ET UN ÉCHEC SE PARTAGE AUSSI : personne ne repart avec un faux succès.
+    faux2 = _pose_rembg(monkeypatch,
+                        _FauxRembg(casse=RuntimeError("modèle absent"),
+                                   pause=0.20))
+    mauvais = _en_parallele(
+        [("POST", f"/api/cards/{did}/capture/rembg", {})] * 4)
+    assert {r.status_code for r in mauvais} == {502}, \
+        [r.status_code for r in mauvais]
+    assert faux2.appels == 1, faux2.appels
     s.zero()
     CC.delete_deck(did)
+    CC.delete_deck(did2)
+
+
+def test_UN_CLIC_APRES_L_AUTRE_paie_bien_DEUX_FOIS_et_c_est_voulu(monkeypatch):
+    """Le revers de la coalescence, épinglé pour qu'il reste un CHOIX. Deux
+    demandes séparées sont deux demandes : la seconde relance le fournisseur.
+    Si un jour quelqu'un veut un cache, ce contrôle le lui dira en face."""
+    s = _sentinelle(monkeypatch)
+    faux = _pose_rembg(monkeypatch, _FauxRembg())
+    did = _deck_avec_recto()
+    assert _rembg(did).status_code == 200
+    assert _rembg(did).status_code == 200
+    assert faux.appels == 2, faux.appels
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_la_REPONSE_du_fournisseur_est_PLAFONNEE_EN_OCTETS(monkeypatch):
+    """« 502 trop grande » ne parlait que des PIXELS, et il était contrôlé
+    APRÈS que tout soit en mémoire : `urlopen().read()` sans borne ramenait
+    d'abord l'intégralité de ce que le fournisseur voulait bien envoyer. Le
+    plafond est le MÊME que celui de l'admission (`SRC_MAX_BYTES`) : ce qui
+    entre par une route ou par l'autre pèse pareil.
+
+    LA PORTE `urlopen` EST OUVERTE ICI, ET SUR UN FAUX QUI NE SORT PAS DE LA
+    MACHINE : il rend des octets depuis la mémoire. Les autres portes restent
+    fermées sur le compteur."""
+    import urllib.request
+    s = _sentinelle(monkeypatch, sauf=("urlopen",))
+    monkeypatch.setattr(CP, "SRC_MAX_BYTES", 2048)
+    lus: list = []
+
+    class _Faux:
+        def __init__(self, taille):
+            self._d = b"x" * taille
+        def read(self, n=None):
+            lus.append(n)
+            return self._d if n is None else self._d[:n]
+        def __enter__(self):
+            return self
+        def __exit__(self, *a):
+            return False
+
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda u, timeout=None: _Faux(4096))
+    with pytest.raises(Exception) as boom:
+        asyncio.run(CP._fal_download("https://f/x.png"))
+    assert "lourde" in str(boom.value) or "octets" in str(boom.value), boom.value
+    # LA BORNE EST DEMANDÉE À LA LECTURE, pas mesurée après coup.
+    assert lus and lus[0] is not None and lus[0] <= CP.SRC_MAX_BYTES + 1, lus
+    # ... et une réponse de taille normale passe.
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        lambda u, timeout=None: _Faux(100))
+    assert asyncio.run(CP._fal_download("https://f/x.png")) == b"x" * 100
+    s.zero()
+
+
+def test_la_RELEVE_refuse_une_destination_LOCALE_ou_PRIVEE(monkeypatch):
+    """LA GARDE CONTRÔLAIT LE SCHÉMA, PAS LA DESTINATION — et son propre
+    docstring valait mot pour mot contre elle : `http://127.0.0.1:8765/api/…`
+    passait, alors que l'API locale de cette application n'a AUCUNE
+    authentification. Une réponse de fournisseur mal formée, ou hostile,
+    désignait donc le backend de l'utilisateur.
+
+    Les IP LITTÉRALES sont jugées (loopback, privées, lien-local, réservées) ;
+    `localhost` aussi, par son nom. Ce qui n'est PAS fait, et c'est dit : on
+    ne RÉSOUT aucun nom — une résolution DNS est un appel réseau, et ce banc
+    n'en fait aucun. Un nom public qui pointerait vers 127.0.0.1 passerait
+    donc ; c'est une limite connue, pas un oubli."""
+    LE_MOT_JUSTE = (
+        ("http://127.0.0.1:8765/api/settings", "boucle locale"),
+        ("http://localhost:8765/api/settings", "localhost"),
+        ("https://LOCALHOST/x.png", "localhost"),
+        ("http://[::1]/x.png", "boucle locale"),
+        ("http://192.168.1.10/x.png", "réseau privé"),
+        ("http://10.0.0.5/x.png", "réseau privé"),
+        ("http://172.16.4.4/x.png", "réseau privé"),
+        ("http://169.254.169.254/latest/meta-data", "lien-local"),
+        ("http://0.0.0.0/x.png", "réservée"),
+    )
+    s = _sentinelle(monkeypatch)
+    for mauvaise, attendu in LE_MOT_JUSTE:
+        with pytest.raises(Exception) as boom:
+            asyncio.run(CP._fal_download(mauvaise))
+        dit = str(boom.value).lower()
+        assert "destination" in dit, (mauvaise, boom.value)
+        # LE MOT JUSTE, ET PAS SEULEMENT LE REFUS. `ipaddress` range la boucle
+        # locale, le lien-local et 0.0.0.0 DANS les réseaux privés : un ordre
+        # de branches inversé refuserait pareil mais dirait « un réseau privé
+        # (127.0.0.1) » — et c'est le diagnostic qui apprend à l'utilisateur
+        # où sa réponse voulait aller. Sans ce contrôle, retirer la branche
+        # « boucle locale » ne faisait rougir personne (mesuré).
+        assert attendu in dit, (mauvaise, attendu, boom.value)
+    s.zero()
+
+
+def test_la_couche_SUJET_herite_de_la_REDUCTION_d_admission(monkeypatch):
+    """Le recto est ramené à `MAX_IMPORT_PX` à l'admission ; le sujet, lui,
+    ressortait à la taille que le fournisseur voulait bien rendre. Un scan de
+    6000 px donnait donc un recto de 4096 et un sujet de 6000 — deux tailles
+    pour la même carte, et P1 adoptant la plus lourde des deux.
+
+    Le plafond est monkeypatché bas pour que le contrôle coûte des pixels et
+    pas des mégaoctets : ce qu'il prouve est que la constante EST consultée
+    au moment de ranger."""
+    s = _sentinelle(monkeypatch)
+    monkeypatch.setattr(CP, "MAX_IMPORT_PX", 64)
+    _pose_rembg(monkeypatch, _FauxRembg(sortie=_png_rgba(200, 160)))
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 200, r.text[:300]
+    j = r.json()
+    assert max(j["w"], j["h"]) == 64, (j["w"], j["h"])
+    assert (j["w"], j["h"]) == (64, 51), (j["w"], j["h"])
+    # L'ALPHA SURVIT À LA RÉDUCTION — c'est tout l'objet de la couche.
+    with Image.open(CP.cap_dir(did) / "sujet_recto.png") as im:
+        assert im.mode == "RGBA" and im.getchannel("A").getextrema()[0] == 0
+    src = pathlib.Path(CP.__file__).read_text(encoding="utf-8")
+    i = src.index("def _store_layer")
+    assert "MAX_IMPORT_PX" in src[i:src.index("\ndef ", i + 10)]
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_couche_TROP_GRANDE_EN_PIXELS_est_refusee_AVEC_SON_COMPTE(
+        monkeypatch):
+    """TÉMOIN FERMÉ (ronde) : `IMG_MAX_PIXELS` multiplié par dix mille dans
+    `_store_layer` SURVIVAIT à toute la suite. Le plafond de trame vaut pour
+    ce qui entre par le fournisseur exactement comme pour ce qui entre par
+    l'admission — c'est le même demi-gigaoctet de tampon."""
+    s = _sentinelle(monkeypatch)
+    bombe = _bombe_png(8000, 5000)              # 40 Mpx : au-delà des 33,5
+    assert 8000 * 5000 > CP.IMG_MAX_PIXELS
+    _pose_rembg(monkeypatch, _FauxRembg(sortie=bombe))
+    did = _deck_avec_recto()
+    r = _rembg(did)
+    assert r.status_code == 502, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert "40" in d and "pixel" in d.lower(), d
+    assert "rembg" in d.lower(), "le préfixe de fournisseur a disparu"
+    assert not (CP.cap_dir(did) / "sujet_recto.png").exists()
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_une_ECRITURE_DE_COUCHE_REFUSEE_rend_409_NOMME(monkeypatch):
+    """TÉMOIN FERMÉ (ronde) : le code 409 de l'échec d'écriture pouvait
+    devenir 418 sans faire rougir personne. Le disque plein, le fichier tenu
+    par un antivirus, le dossier en lecture seule : un refus nommé, pas une
+    trace de pile — et pas de brouillon laissé derrière."""
+    s = _sentinelle(monkeypatch)
+    _pose_rembg(monkeypatch, _FauxRembg())
+    # LE RECTO D'ABORD : `_store_image` passe par le même remplacement, et le
+    # casser avant le dépôt ferait échouer l'admission au lieu de la couche.
+    did = _deck_avec_recto()
+
+    def _plein(tmp, final):
+        raise OSError(28, "No space left on device")
+
+    monkeypatch.setattr(CP, "_replace_avec_patience", _plein)
+    r = _rembg(did)
+    assert r.status_code == 409, (r.status_code, r.text[:300])
+    d = r.json()["detail"]
+    assert "couche" in d.lower() and "No space left" in d, d
+    assert ":\\" not in d and "Users" not in d, d
+    assert [p.name for p in CP.cap_dir(did).iterdir()
+            if p.name.endswith(".tmp")] == [], "un brouillon est resté"
+    s.zero()
+    CC.delete_deck(did)
+
+
+def test_le_NETTOYAGE_de_chemin_couvre_AUSSI_UNC_et_le_tilde():
+    """`_sans_chemin` connaissait `C:\\…` et `/home/…`. Deux formes
+    manquaient, et ce sont celles d'un poste d'entreprise : le chemin UNC
+    (`\\\\serveur\\partage\\…`, qui porte un nom de machine ET un nom de
+    partage) et le raccourci `~/` (qui se développe en nom de compte dès
+    qu'un outil l'affiche)."""
+    assert "olivi" not in CP._sans_chemin(
+        FileNotFoundError(r"Image not found: C:\Users\olivi\jeu\x.png"))
+    for brut, interdit in (
+            (r"cannot open \\SRV-PAIE\partage\cartes\recto.png", "SRV-PAIE"),
+            (r"open ~/Documents/DeepotusVideoGen/decks/x.png", "Documents"),
+            ("no such file: /home/olivi/decks/x.png", "olivi"),
+            ("no such file: /Users/olivi/decks/x.png", "olivi")):
+        net = CP._sans_chemin(RuntimeError(brut))
+        assert interdit not in net, (brut, net)
+        assert "…" in net, (brut, net)
+    # ... et ce qui APPREND quelque chose survit au nettoyage.
+    assert "Image not found" in CP._sans_chemin(
+        FileNotFoundError(r"Image not found: C:\Users\olivi\x.png"))
+
+
+# ── C. l'écran P10 : le bloc « Détourage IA » ───────────────────────────────
 
 
 # ── E. P3 « adopter les zones » (mod-type.js) ───────────────────────────────
@@ -3135,13 +3833,19 @@ def test_P3_l_AVEU_des_TRONQUEES_suit_l_adoption():
     elles sont éditables — mais le compte se dit."""
     fn = _fonction_de(TYPE_JS, "phraseZones")
     sortie = _node(fn + """
-      console.log(JSON.stringify([phraseZones(3, 0), phraseZones(3, 2),
-                                  phraseZones(1, 1)]));
+      console.log(JSON.stringify([phraseZones(3, 0, 0), phraseZones(3, 2, 0),
+                                  phraseZones(1, 1, 0), phraseZones(3, 0, 3),
+                                  phraseZones(3, 2, 1)]));
     """)
-    sans, avec, une = json.loads(sortie)
+    sans, avec, une, redite, tout = json.loads(sortie)
     assert "3" in sans and "tronqu" not in sans, sans
     assert "3" in avec and "2" in avec and "tronqu" in avec, avec
     assert "tronqu" in une, une
+    # ADOPTER DEUX FOIS EMPILE DES SLOTS SUPERPOSÉS. Le remède minimal, et le
+    # seul qui ne décide pas à la place de l'utilisateur : le DIRE.
+    assert "déjà" in redite and "3" in redite, redite
+    assert "déjà" not in sans, sans
+    assert "tronqu" in tout and "déjà" in tout, tout
 
 
 def test_P3_ADOPTER_naît_EN_UN_SEUL_APPEL_donc_UN_pas_d_annulation():
