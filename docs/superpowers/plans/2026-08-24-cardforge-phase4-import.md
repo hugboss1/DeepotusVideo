@@ -368,9 +368,51 @@ bordure de x mm POSÉE par le test → retrouvée à tolérance chiffrée ; boî
 → retrouvées ; fond non uni → refus motivé portant la mesure.
 **Fichiers** : capture.py, mod-capture.js, mod-capture.css, test_cards_capture.py.
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `b41ba19` (+1948/−62) puis ronde `7b24997` (+839/−137).
+  `POST /analyse` gratuite, PIL pur, to_thread, répond sans publier (la pièce
+  publie, D3). Bordure au PREMIER front L1 (le front-au-max était le défaut :
+  bandeau de titre battant la bordure 540 vs 455 — tombé contre la vérité
+  connue AVANT les tests) ; rayon corrigé du biais de rastérisation par
+  INVERSION de la formule connue (r−√r ; posés 10..90 px retrouvés < 0,10 mm,
+  tolérance 1,0→0,15 mm) ; zones grille 1,5 MM (amendement D4 : le mm est
+  l'invariant, le px dépend du scan — mêmes boîtes au 1/100 mm sur 3
+  résolutions, reproduit par la revue) + composants connexes neufs + bande de
+  retrait NOMMÉE en mm + `tronquee:true` sur toute boîte qui la touche ;
+  chroma_key tel quel, refus portant SA porte (motif) et ses bornes ; palette ;
+  échelle par le format (3 formats → mm exacts 1e-3) + bandeau de divergence
+  sur core:geom (« le format a changé depuis cette mesure ») ; epaisseurs_mm
+  PAR BORD en dict (l'appariement par indice était faux 4/4 sur le banc de la
+  ronde) ; isFinite(Number(null))→0,00 fermé par estNombre + test de classe.
+  67 tests (vérités connues posées→retrouvées aux tolérances avouées), lint
+  10/10, écran vérifié Chrome sans tête (4 états, 0 erreur). Régression T1
+  trouvée en chemin (pin forge3d « 9 modules ») réparée par l'orchestrateur
+  (`1b2e1e7`).
+- [x] Ronde adverse (opus) : 1 bloquant + 6 réels + 9 mineurs + 4 REJETÉS par
+  la mesure (l'incrustation-ratio est juste PAR CONSTRUCTION — les % dérivent
+  de l'image ; le 409-illisible tient sur vraie troncature IDAT ; 4 témoins
+  rejoués exacts ; zéro prix recopié). Le bloquant : la bande morte du retrait
+  (3-9 mm aveugles au bord) publiait des boîtes COUPÉES indiscernables de
+  mesures — précisément où vivent les bandeaux de titre (le cas Patriarche),
+  et T3 en fera naître des slots. Réels marquants : bords/epaisseurs triés par
+  des clés DIFFÉRENTES ; l'écran nommait la mauvaise porte du refus ; l'aveu
+  BORD_FRONT_RATIO faux dans ses DEUX moitiés (le ratio mord sur profil
+  texturé ×31 et pas sur l'image minuscule — l'inverse exact de l'aveu) ;
+  coûts réécrits sur la mesure au plafond (1,1 s à 4096², c'est CE chiffre qui
+  justifie to_thread) ; le balayage « tout en mm » dérivé des clés au lieu
+  d'une liste en dur (la revue avait fait passer une clé px déclarée proprement
+  — 56 verts, aucun contrôle ne voyait). Ronde : 11 tests neufs tous RED
+  d'abord, 19/19 mutations vues dont 2 trous que la ronde elle-même a ouverts
+  et fermés (le contrôle-par-texte dépouillé par _code_js ; le chemin de panne
+  joué en faisant mourir _grille), ré-extension (c) REFUSÉE avec sa raison
+  (une boîte fausse est pire qu'une boîte courte avouée).
+- [x] CLOSE : leçons — (a) une coupe qui ne se dit pas devient une fausse
+  mesure chez l'adoptant (`tronquee` est né de là) ; (b) L'AVEU DE TÉMOIN SE
+  MESURE comme une affirmation de succès — le « témoin qui n'en était pas
+  un » a quitté la liste (6 restants) et est devenu une garde vivante avec
+  diagnostic (texture|plat) ; (c) la grille en mm est l'invariant du relevé.
+  Dettes T3+ : bg.color d'un bordé = la couleur du POURTOUR (dit à l'écran,
+  T3 en tient compte pour la couche fond) ; la phrase option_ia promet le prix
+  que T3 apporte de pricing.py ; layers reste vide jusqu'à T3/T5.
 
 ### T3 — Le détourage IA opt-in + adoptions P1/P3 (D5, D6)
 
