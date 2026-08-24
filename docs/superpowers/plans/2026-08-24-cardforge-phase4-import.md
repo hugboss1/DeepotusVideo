@@ -732,19 +732,58 @@ hors CI), + intégration.
   un plancher de 0,60 — un pourtour noir est parfaitement uni. Ce que la
   mesure dit vraiment est ailleurs et l'écran l'affiche : « le détourage
   garderait 9,7 % de l'image ».
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE DE PHASE (consigne de sortie ci-dessous)
+- [x] Ronde adverse (sonnet, revue courte pré-poussée) : verdict « la poussée
+  peut partir » — zéro bloquant, zéro réel ; UNE trouvaille cosmétique (la
+  garde de purge compte SEPT mots interdits, la prose disait six — plus
+  stricte que documentée, jamais plus faible). La revue a re-prouvé la purge
+  indépendamment (parseur de chunks écrit à la main : IHDR+34·IDAT+IEND
+  exactement, zéro tEXt, et le pseudo Windows réel testé EN PLUS des 7),
+  l'addition-pure du recalage de spec (la table du 19/08 reste verbatim), le
+  dépli des 3 mécanismes d'escamotage, la preuve synthétique conforme à son
+  annonce (STL vérifié à l'octet), le déployé sain (health 200, meshy_mock
+  true, deepotus-fragments en galerie).
+- [x] CLOSE DE PHASE — voir consigne de sortie.
 
 ---
 
-## 4. Consigne de sortie de phase (à remplir en clôture)
+## 4. Consigne de sortie de phase
 
-- [ ] Bilan de phase (livré, chiffres, poussée).
-- **Attendus de l'utilisateur (courant, aucune bloquante)** : les 92 faces + le dos
-  commun (le dossier fabricant ne les contient pas — F1) ; le tir meshy-7 réel
-  (~30-35 cr) ; UN décor IA réel (~0,03-0,08 $) ; l'œil ~5 min (liste permanente +
-  P10 neuf).
-- **Transmis potentiels (à arbitrer en clôture)** : ondulation douce (2 phases
-  d'aveu — trancher ou enterrer), phase-pointeur (prêt, jamais branché), contour
-  SVG d'extrude (v2), empaquetage rembg local (installeur), GC images orphelines
-  (17,4 Mo mesurés en 3c), perf cuisson verso 1200 dpi (9,2 s vs budget 4 s).
+- [x] **PHASE 4 CLOSE 24-25/08** : P10 « capture » vivant de bout en bout
+  (admission durcie sous concurrence → analyse locale gratuite à confiances
+  mesurées → rembg opt-in COALESCÉ à clé neutralisée-prouvée → adoptions
+  P1/P2/P3 → manifeste daté → 3D par extrude + side capture) ; MODULE_IDS
+  8→10 (le bug le plus ancien du chantier — doc.forge3d jeté en silence
+  depuis la 2a — réparé) ; 8e famille `filigrane` avec la table re-mesurée
+  PAR LA VOIE DE PRODUCTION (aller-retour 6/8, indiscernables PROUVÉS) ;
+  nœud `extrude` aux preuves analytiques (normales dédoublées cos 0,999998) ;
+  Sceau mesh habillant son corps ; PREUVE PATRIARCHE réelle dans l'app
+  déployée — 3 divergences avec la table du 19/08 PUBLIÉES non retouchées,
+  la spec recalée en addition-pure, l'oracle P2 infirmé AVEC SA CAUSE
+  (la marge noire pré-front) et sa contre-épreuve (42° → filigrane sans
+  voisine) ; le fond : refus attendu, mesure inverse (9,7 % de couverture
+  affiché). Chantier ANNEXE en cours de phase : perf listing ×61 (index
+  revalidé par stat) + 3 bugs antérieurs réparés (500 d'autosave, fantôme
+  « Mon jeu », perte de sous-arbre 40/40 sous verrou par deck). Suite
+  COMPLÈTE 64 fichiers verte (1 270 s) ; 12 fichiers cards (capture 130,
+  frame 271, type 232, forge3d 150, core 127…) ; lint 10/10 ; banc de
+  contrat JS tenu ; déployé + vérifié navigateur ZÉRO dépense ; restent en
+  place pour l'œil : le jeu « Atelier Deepotus » (deck_77245083, GLB/STL/
+  manifeste du Patriarche) + le modèle perso deepotus-fragments. ~27 commits
+  locaux poussés en clôture.
+- **Attendus de l'utilisateur (courant, aucune bloquante)** : les 92 faces + le
+  dos commun (le dossier fabricant ne les contient pas — F1, vérifié aux
+  octets) ; le tir meshy-7 réel (~30-35 cr) ; UN décor IA réel
+  (~0,03-0,08 $) ; UN rembg réel (0,003 $) ; l'œil ~5 min (P10 complet,
+  l'anneau irisé au viewer, le badge silhouettes 8 familles, la table
+  d'anatomie recalée à relire).
+- **Transmis — ARBITRÉS** : vers la PHASE 5 (le chantier Wałkuski/Figma/verre
+  la prend naturellement) : ondulation douce (3 phases d'aveu — l'axe
+  matériaux 3D la tranche), phase-pointeur (l'axe écran), contour SVG
+  d'extrude (l'axe formes), LA PALETTE D'ÉLÉMENTS DES MODÈLES PERSO VIDE +
+  l'absence de primitive cercle (le halo posé en calque d'image faute de
+  mieux — l'axe formes le règle), le border.color aveugle à l'or derrière
+  une marge sombre (échantillonner la bande d'ORNEMENT, pas la marge
+  pré-front). Restent transmis sans preneur : empaquetage rembg local
+  (installeur), GC images orphelines (17,4 Mo), perf cuisson verso 1200 dpi,
+  la dette de banc perso.length===1 (meurt avec tout modèle perso durable),
+  FAL_TIMEOUT_S non gardé, la tangente des parois d'extrude (témoin avoué).
