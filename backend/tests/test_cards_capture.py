@@ -4717,3 +4717,333 @@ def test_PUBLIER_partage_le_VERROU_et_n_appelle_la_route_QU_UNE_FOIS():
     # ... et la carte courante suit : un manifeste écrit pour la carte 1 alors
     # que l'écran en montre une autre nommerait le mauvais fichier chez P9.
     assert "CF.current()" in corps, "la carte courante n'est pas transmise"
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T6 — LE PARCOURS §7.2 DE BOUT EN BOUT, SUR UNE CARTE DE SYNTHÈSE
+#
+# LE VRAI FICHIER NE MONTE PAS EN CI, et c'est une décision, pas un oubli :
+# « Le Patriarche des Vieilles Maisons » appartient à l'utilisateur, il vit
+# hors dépôt (`.superpowers/samples/`, ignoré) et le rejouer ici ferait
+# dépendre la suite d'un actif tiers. Le gardien permanent est donc une carte
+# de SYNTHÈSE AU MÊME GABARIT — 1060 x 1484 px, 5:7 — dont on POSE la vérité
+# au dixième de millimètre, exactement la doctrine §9.1.
+#
+# CE QUE CE BLOC PROUVE, ET QUE RIEN D'AUTRE NE PROUVAIT : que les dix pièces
+# se tiennent la main SUR UN MÊME JEU. Chaque tâche a mesuré son morceau ;
+# ici on fait le geste entier, une fois, dans l'ordre du parcours de preuve
+# (spec §7.2:572-577) : import -> analyse -> adoptions P1/P2/P3 -> Sceau en
+# portée 3D seule -> « enregistré comme modèle » -> galerie -> manifeste ->
+# graphe -> GLB + STL + masque de foil.
+#
+# AUCUNE DONNÉE PERSONNELLE (spec §7.2:578) : le jeu s'appelle du pseudonyme
+# fixe de ce dépôt, et rien d'autre.
+# ═══════════════════════════════════════════════════════════════════════════
+
+# Le pseudonyme, écrit UNE FOIS. L'incident du gauntlet précédent (le vrai nom
+# de l'utilisateur parti dans 58 binaires) a une jurisprudence : aucun gabarit,
+# aucun test, aucun artefact ne porte un nom réel.
+PSEUDO = "Atelier Deepotus"
+
+# Le gabarit du dossier fabricant, à l'octet : 1060 x 1484 px, ratio 5:7 exact.
+# Sur un poker_eu (63 x 88 mm) cela fait 0,059434 mm/px — le chiffre n'est pas
+# rond, et c'est justement pourquoi les tolérances ci-dessous sont écrites.
+PAT_W, PAT_H = 1060, 1484
+PAT_MM_PX = 63.0 / PAT_W
+# La vérité POSÉE, en millimètres, reprise de la table d'anatomie de la spec
+# (:551-558). Ce sont les nombres que le dessin ci-dessous met dans les pixels.
+FILET_1_MM = 2.1          # le filet extérieur
+FILET_2_MM = 3.2          # le filet intérieur
+TITRE_MM = (4.4, 11.5)    # le bandeau de titre, en y
+EPITHETE_MM = (76.0, 78.5)
+HALO = (31.4, 27.1, 13.9)  # centre x, centre y, rayon
+NOIR_PAT = (11, 10, 8)     # #0b0a08 — le plus sombre de la palette de la spec
+OR_PAT = (216, 183, 106)   # #d8b76a — l'or chaud du titre
+OR_SOMBRE = (138, 106, 46)  # #8a6a2e — l'autre bout du dégradé d'or
+
+
+def _mmpx(v: float) -> int:
+    return int(round(float(v) / PAT_MM_PX))
+
+
+def _carte_patriarche():
+    """Une carte au gabarit du Patriarche, à vérité connue.
+
+    Ce n'est PAS un fac-similé : c'est la même ANATOMIE (double filet d'or
+    sur fond noir, bandeau de titre, épithète basse, anneau de halo) posée
+    aux millimètres que la spec donne, pour que la mesure ait quelque chose
+    de vrai à retrouver."""
+    im = Image.new("RGB", (PAT_W, PAT_H), NOIR_PAT)
+    d = ImageDraw.Draw(im)
+    # le « full-art » : un dégradé doux, pour que l'énergie locale ne soit
+    # pas nulle au centre (une carte plate ne dirait rien des zones)
+    for y in range(_mmpx(12.0), _mmpx(70.0), 4):
+        k = 14 + int(26 * (1 - abs((y - _mmpx(41.0)) / float(_mmpx(29.0)))))
+        d.rectangle([_mmpx(6.0), y, PAT_W - _mmpx(6.0), y + 3],
+                    fill=(k, k - 2, k - 5))
+    for r_mm, col in ((FILET_1_MM, OR_PAT), (FILET_2_MM, OR_SOMBRE)):
+        p = _mmpx(r_mm)
+        d.rectangle([p, p, PAT_W - p - 1, PAT_H - p - 1], outline=col,
+                    width=max(2, _mmpx(0.25)))
+    d.rectangle([_mmpx(8.0), _mmpx(TITRE_MM[0]), PAT_W - _mmpx(8.0),
+                 _mmpx(TITRE_MM[1])], fill=(64, 52, 26))
+    d.rectangle([_mmpx(12.0), _mmpx(EPITHETE_MM[0]), PAT_W - _mmpx(12.0),
+                 _mmpx(EPITHETE_MM[1])], fill=(58, 47, 24))
+    cx, cy, r = _mmpx(HALO[0]), _mmpx(HALO[1]), _mmpx(HALO[2])
+    d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=OR_PAT,
+              width=max(2, _mmpx(0.2)))
+    return im
+
+
+def _patch(did: str, corps: dict):
+    return _api("PATCH", f"/api/cards/{did}", json=corps)
+
+
+def test_LE_PARCOURS_DE_PREUVE_7_2_DE_BOUT_EN_BOUT(monkeypatch):
+    """LE GESTE ENTIER, dans l'ordre de la spec §7.2:572-577.
+
+    Ce test est long parce que le parcours l'est : le découper en dix
+    contrôles indépendants rendrait dix verts sur un chemin que personne
+    n'aurait jamais parcouru — c'est exactement le trou que la revue T4 a
+    trouvé sur l'aller-retour P10 -> P2 (« test_cards_frame n'importait
+    jamais cards.capture : la boucle n'avait jamais été fermée »).
+
+    ZÉRO DÉPENSE : la sentinelle compte les appels réseau, aucun moteur n'est
+    lancé, rembg n'est jamais invoqué (le détourage IA reste opt-in — et sur
+    un portrait pleine carte il n'a rien à isoler)."""
+    s = _sentinelle(monkeypatch)
+    from app.services.cards import frame as FR
+    from app.services.cards import type as TY
+
+    # ── 1. UN JEU, ET UNE CARTE REPRISE ──────────────────────────────────
+    did = CC.create_deck(PSEUDO, {"fmt": "poker_eu"})["id"]
+    r = _post(did, _pngs(_carte_patriarche()), "recto")
+    assert r.status_code == 200, r.text[:300]
+    depot = r.json()
+    assert (depot["w"], depot["h"]) == (PAT_W, PAT_H), depot
+    assert depot["w"] * 7 == depot["h"] * 5, "le gabarit n'est plus 5:7"
+
+    # ── 2. MESURER (local, gratuit, rejouable) ───────────────────────────
+    rel = _analyse(did).json()
+    ech = rel["echelle"]
+    assert ech["image_px"] == [PAT_W, PAT_H], ech
+    assert ech["fmt"] == "poker_eu", ech
+    # L'ÉCART DE RATIO EST UNE MESURE, PAS UN ÉCHEC : 5:7 exact contre
+    # 88/63, cela fait +0,23 % — publié, jamais absorbé en silence.
+    assert 0.002 <= rel["ecart_ratio"] <= 0.003, rel["ecart_ratio"]
+
+    bo = rel["border"]
+    # LA VÉRITÉ POSÉE EST RETROUVÉE : le premier front tombe sur le filet
+    # extérieur, à 2,1 mm. La tolérance est celle du pas de balayage.
+    assert abs(bo["mm"] - FILET_1_MM) <= 0.15, (bo["mm"], FILET_1_MM)
+    assert bo["confidence"] >= 0.9, bo
+    # ... ET LA COULEUR PUBLIÉE EST CELLE DE LA BANDE QUI PRÉCÈDE LE FRONT,
+    # PAS CELLE DE L'ORNEMENT. Ce n'est pas un défaut caché : c'est ce que
+    # « profondeur du premier front » veut dire, et c'est LOURD DE
+    # CONSÉQUENCE pour P2 — sur une carte dont la marge extérieure est
+    # sombre et l'ornement doré, la teinte relevée est le NOIR. Le contrôle
+    # l'épingle ici pour que personne ne redécouvre la surprise sur un vrai
+    # fichier (elle a été mesurée telle quelle sur le Patriarche, 24/08).
+    fond_hex = "#%02x%02x%02x" % NOIR_PAT
+    assert bo["color"] == fond_hex, (bo["color"], fond_hex)
+    assert bo["color"] != "#%02x%02x%02x" % OR_PAT
+
+    # LA BANDE EXCLUE MANGE LE BANDEAU DE TITRE, et le relevé le DIT. C'est
+    # le bloquant de la ronde T2 (« précisément où vivent les bandeaux de
+    # titre — le cas Patriarche ») : la bande morte vaut bordure + portée du
+    # filtre, soit ~6 mm, et le titre de la spec vit à y 4,4-11,5.
+    assert rel["zones_bande_mm"] >= TITRE_MM[0], rel["zones_bande_mm"]
+    assert any("tronquee" in n or "bande" in n for n in rel["notes"]), \
+        rel["notes"]
+    assert rel["boxes"], "aucune zone candidate sur une carte qui en porte"
+
+    # LE FOND N'EST PAS REFUSÉ, ET LE CHIFFRE DIT POURQUOI CE N'EST PAS UNE
+    # BONNE NOUVELLE. Le plan attendait un refus (« portrait pleine carte =
+    # fond non uni ») ; la mesure dit l'inverse, et c'est la MESURE qui est
+    # publiée (clôture T4). Le pourtour d'une carte à marge noire est
+    # PARFAITEMENT uniforme — uniformité 1,00, très au-dessus du plancher de
+    # 0,60 — donc `chroma_key` accepte. Ce qu'il rendrait, en revanche, est
+    # écrit noir sur blanc : une couverture d'environ 10 %, c'est-à-dire un
+    # détourage qui mangerait le portrait et ne garderait que l'or.
+    bg = rel["bg"]
+    assert not bg.get("bg_failed"), bg
+    assert bg["uniformite"] >= 0.99 and bg["seuil"] == 0.6, bg
+    assert bg["couverture"] < 0.25, \
+        ("un détourage local garderait si peu de l'image qu'il n'est pas le "
+         "bon outil pour un full-art", bg)
+
+    # ── 2bis. C'EST LA PIÈCE QUI PUBLIE, PAS LA ROUTE (plan D3) ──────────
+    # Les deux routes ci-dessus n'ont RIEN écrit dans le document : elles
+    # rangent des fichiers et répondent. Ce qui met le relevé dans
+    # `doc.capture`, c'est `M.patch` — et le filtre qui choisit les clés est
+    # `releve()`, dans mod-capture.js. On le fait tourner sur la VRAIE
+    # réponse, et on PATCHE par la route réelle : c'est aussi le contrôle de
+    # D1 (sans `capture` dans MODULE_IDS, tout ce sous-arbre serait jeté en
+    # silence, exactement comme `forge3d` l'était avant T1).
+    filtre = (_fonction_js("isPlain") + _fonction_js("estNombre")
+              + _fonction_js("releve"))
+    publie = json.loads(_node(filtre + f"""
+      console.log(JSON.stringify(releve({json.dumps(rel, ensure_ascii=False)})));
+    """))
+    publie["sources"] = {"recto": {"w": depot["w"], "h": depot["h"],
+                                   "bytes": depot["bytes"],
+                                   "stamp": depot["stamp"]}}
+    assert _patch(did, {"capture": publie}).status_code == 200
+    doc = CC.read_deck(did)
+    assert doc["capture"]["analyzed"], \
+        "le relevé n'a pas survécu au cycle PATCH -> lecture (D1)"
+    assert doc["capture"]["border"]["mm"] == bo["mm"], doc["capture"]["border"]
+
+    # ── 3. ADOPTION P1 : LE RECTO ENTIER, À RECADRER ─────────────────────
+    # Aucun sujet détouré (rembg est opt-in et n'a pas été tiré) : la pièce
+    # Illustration DOIT donc annoncer le recto entier, pas inventer un sujet.
+    fn = _fonction_de(FACE_JS, "adoptionCapture")
+    sortie = _node(fn + f"""
+      console.log(JSON.stringify(adoptionCapture(
+        {json.dumps(doc, ensure_ascii=False)})));
+    """)
+    ad = json.loads(sortie)
+    assert ad, "la pièce Illustration n'offre rien à adopter"
+    assert ad["sujet"] is False, "un sujet inventé là où rembg n'a pas tourné"
+    assert ad["nom"] == "source_recto.png", ad
+    assert "recadrage art" in ad["libelle"], ad["libelle"]
+
+    # ── 4. ADOPTION P2 : LA FAMILLE AU RELEVÉ, ET L'ÉCART AVOUÉ ──────────
+    # La teinte d'un gris est un bruit (ronde T4) : la marge noire n'a pas de
+    # teinte exploitable, le choix se fait donc SUR LE FRONT SEUL — et la
+    # phrase avoue les voisines au lieu de prétendre une reconnaissance.
+    teinte = FR.teinte_de(bo["color"])
+    choix = FR.famille_proche(bo["mm"], teinte)
+    assert choix is not None, "aucune famille proposée"
+    phrase = FR.phrase_ecart(bo["mm"], teinte, choix)
+    assert f"{FR._mm1(bo['mm'])} mm" in phrase, (phrase, bo["mm"])
+    if teinte is None:
+        assert "gris" in phrase, phrase
+    # ... et le patch d'adoption entre VRAIMENT dans le document.
+    _patch(did, {"frame": {"family": choix["id"],
+                           "inner_mm": round(bo["mm"], 2)}})
+    apres = CC.read_deck(did)
+    assert apres["frame"]["family"] == choix["id"], apres["frame"]["family"]
+
+    # ── 5. ADOPTION P3 : LES ZONES DEVIENNENT DES SLOTS ──────────────────
+    specs = json.loads(_node(
+        _fonction_de(TYPE_JS, "specsZones") + f"""
+      console.log(JSON.stringify(specsZones(
+        {json.dumps(apres, ensure_ascii=False)}, 1)));
+    """))
+    assert len(specs) == len(rel["boxes"]), (len(specs), len(rel["boxes"]))
+    slots = TY.norm_slots(specs)
+    assert len(slots) == min(len(specs), TY.SLOTS_MAX), (len(slots), len(specs))
+    _patch(did, {"type": {"slots": specs}})
+    assert len(CC.read_deck(did)["type"]["slots"]) == len(slots)
+
+    # ── 6. LE SCEAU, EN PORTÉE 3D SEULE (spec §6.2bis-d, :560-562) ───────
+    _patch(did, {"frame": {"seal": {
+        "on": True, "kind": "dorure", "width_mm": 1.2,
+        "scope": {"screen": False, "print": False, "mesh": True}}}})
+    sceau = CC.read_deck(did)["frame"]["seal"]
+    assert sceau["on"] is True, sceau
+    assert sceau["scope"] == {"screen": False, "print": False,
+                              "mesh": True}, sceau
+
+    # ── 7. « ENREGISTRER COMME MODÈLE » (voie perso, §6.4) ───────────────
+    m = _api("POST", "/api/cards/models",
+             json={"did": did, "name": "deepotus-fragments"})
+    assert m.status_code == 200, m.text[:300]
+    modele = m.json()["model"]
+    assert modele["label"] == "deepotus-fragments", modele
+    assert modele["custom"] is True, "un modèle d'usine de plus, pas un perso"
+    assert modele["format"] == "poker_eu", modele
+    # LE MODÈLE PORTE LE SCEAU EN PORTÉE 3D SEULE — c'est tout l'objet de
+    # « enregistré comme modèle » : le réglage se réutilise, pas la carte.
+    assert modele["frame"]["seal"]["scope"] == {
+        "screen": False, "print": False, "mesh": True}, modele["frame"]
+    # ── 8. ... ET IL PARAÎT EN GALERIE ──────────────────────────────────
+    gal = _api("GET", "/api/cards/models").json()
+    ids = [x.get("id") for x in gal["models"]]
+    assert modele["id"] in ids, (modele["id"], ids)
+    mien = [x for x in gal["models"] if x.get("id") == modele["id"]][0]
+    assert mien.get("illisible") is None, mien
+    # Le modèle transporte les RÉGLAGES, pas les illustrations (§6.4).
+    assert "source_recto" not in json.dumps(mien, ensure_ascii=False), \
+        "un modèle ne transporte pas les images du jeu"
+
+    # ── 9. LE MANIFESTE DES COUCHES IMPORTÉES (§7.1.6) ──────────────────
+    pub = _manifeste(did)
+    assert pub.status_code == 200, pub.text[:400]
+    man = pub.json()["layers"]
+    assert [l["role"] for l in man["layers"]] == ["recto"], man["layers"]
+    assert man["format"] == "poker_eu" and man["side"] == "capture", man
+    assert man["proof"]["capture"]["source_px"] == [PAT_W, PAT_H], man["proof"]
+
+    # ── 10. LE GRAPHE : la face en plan, le Sceau en extrusion HABILLÉE ──
+    # L'extrusion `sceau` n'a AUCUN matériau explicite : c'est l'habillage
+    # automatique de la ronde T5 (R3) qui doit jouer — le Sceau du document,
+    # en portée mesh, EST son corps. Et le relief de typo se pose au-dessus.
+    # LE RELIEF PLUTÔT QUE LE PLAN, ET C'EST LE STL QUI TRANCHE : un `plane`
+    # est un quad texturé — il n'a pas de volume, et P9 REFUSE alors le STL
+    # au lieu de le livrer cassé (mesuré : « un plan texture n'a pas de
+    # volume »). Le parcours §7.2:576 demande justement « la typo en relief
+    # fin » : c'est un `relief` sur socle, et il est FERMÉ.
+    g = {"nodes": [
+        {"id": "face", "kind": "layer", "role": "recto", "side": "capture"},
+        {"id": "typo", "kind": "relief", "depth_mm": 0.25, "base_mm": 0.35},
+        {"id": "anneau", "kind": "extrude", "contour": "sceau",
+         "depth_mm": 0.5},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "fragment"}],
+        "edges": [{"from": "face", "to": "typo"},
+                  {"from": "typo", "to": "asm"},
+                  {"from": "anneau", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    b = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert b.status_code == 200, b.text[:600]
+    art = b.json()["artifact"]
+    assert art["ignored"] == [], art["ignored"]
+    par_nom = {d2["name"]: d2 for d2 in art["elements_detail"]}
+    assert "extrude_sceau" in par_nom, sorted(par_nom)
+    # L'HABILLAGE AUTOMATIQUE A JOUÉ : le bordereau porte la clé du Sceau.
+    anneau = par_nom["extrude_sceau"]
+    assert anneau.get("seal"), \
+        ("le Sceau en portée mesh n'habille pas son extrusion", anneau)
+
+    # ── 11. GLB, STL — et on PÈSE LE SOLIDE, on ne lit pas sa clé ────────
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}")
+    assert glb.status_code == 200 and glb.content[:4] == b"glTF"
+    gdoc = _glb_doc(glb.content)
+    mat = [m2 for m2 in gdoc["materials"] if m2["name"] == "extrude_sceau"][0]
+    assert "KHR_materials_iridescence" in mat.get("extensions", {}), mat
+    ex = gdoc["asset"].get("extras") or {}
+    assert ex["size_mm"] == [63.0, 88.0] and ex["card"] == "c01", ex
+    assert art["stl"]["written"] is True, art["stl"]
+    stl = _api("GET", f"/api/cards/{did}/forge3d/file/{art['stl']['name']}")
+    assert stl.status_code == 200 and len(stl.content) == art["stl"]["bytes"]
+    # un STL binaire : en-tête de 80 octets + le compte de triangles
+    tri = struct.unpack("<I", stl.content[80:84])[0]
+    assert tri > 0 and len(stl.content) == 84 + 50 * tri, (tri, len(stl.content))
+
+    # ── 12. LE MASQUE DE FOIL : LA BASE RESTE CALME (P7, portée print) ──
+    # Le Sceau est en portée 3D SEULE. L'impression ne doit donc RIEN
+    # recevoir : pas de masque, et un refus qui NOMME la case à cocher.
+    foil = _api("GET", f"/api/cards/{did}/print/foil-mask?dpi=600")
+    assert foil.status_code == 409, (foil.status_code, foil.text[:200])
+    assert "impression" in foil.json()["detail"], foil.json()["detail"]
+    from app.services.cards.print import foil_plan
+    from app.services.cards.contract import geom as _geom
+    doc_fin = CC.read_deck(did)
+    plan = foil_plan(doc_fin.get("frame"), _geom("poker_eu", 600))
+    assert plan["on"] is False, plan
+
+    # ── LE BANC RANGE SON MODÈLE ────────────────────────────────────────
+    # Ce fichier de test n'isole PAS `DEEPOTUS_DATA_DIR` (les décks de banc
+    # vivent dans le vrai dossier de données depuis T1) : un modèle laissé
+    # ici apparaîtrait dans la galerie de l'utilisateur à chaque passage.
+    # On efface CELUI QU'ON A CRÉÉ, par son identifiant rendu — jamais par
+    # son nom : un `deepotus-fragments` déposé à la main par l'utilisateur
+    # ne doit pas disparaître parce qu'un banc est passé.
+    sup = _api("DELETE", f"/api/cards/models/{modele['id']}")
+    assert sup.status_code == 200, sup.text[:200]
+
+    # ── ZÉRO DÉPENSE, PROUVÉE ───────────────────────────────────────────
+    s.zero()
