@@ -19,10 +19,11 @@ Aujourd'hui : l'ADMISSION d'une carte existante (une photo, un scan, un PNG
 de production), le SERVICE des fichiers qu'elle range, l'ANALYSE LOCALE —
 bordure, zones occupées, fond, palette, et la confiance CHIFFRÉE de chacune
 (spec §7.1.2) — et le DÉTOURAGE IA OPT-IN qui produit la couche « sujet »
-(spec §7.1.3). Ce qui n'y est pas encore : le manifeste de couches de P9
-(T5). Les ADOPTIONS, elles, ne seront jamais ici : elles vivent chez la
-pièce qui adopte (plan D6), et cette pièce-ci ne touche jamais l'état d'une
-voisine — elle publie, on vient se servir.
+(spec §7.1.3) et, depuis T5, la PUBLICATION DES COUCHES IMPORTÉES au format
+de manifeste de P9 (spec §7.1.6, plan D7) — une carte importée peut partir
+en 3D sans être reconstruite. Les ADOPTIONS, elles, ne seront jamais ici :
+elles vivent chez la pièce qui adopte (plan D6), et cette pièce-ci ne touche
+jamais l'état d'une voisine — elle publie, on vient se servir.
 
 Ce qui est déjà tranché, et qui ne bougera pas :
 
@@ -63,16 +64,21 @@ Routes (toutes relatives à /api/cards/{did}/capture) :
     POST /analyse                 mesure le recto STOCKÉ, rend le relevé
     GET  /ai-options              les voies de détourage, et leur prix
     POST /rembg                   détoure le recto -> la couche « sujet »
+    POST /manifeste?card=N        publie les couches importées pour P9
 """
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
+import json
 import math
 import re
+import struct
 import sys
 import time
 import uuid
+import zlib
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, Response
@@ -88,7 +94,9 @@ __all__ = ["router", "SIDES", "SRC_MAX_BYTES", "IMG_MAX_PIXELS",
            "ZONE_BLOC_MM", "ZONE_SOUS", "ZONE_SPAN_MIN", "FOND_SEUIL_UNI",
            "PALETTE_N", "OPTION_IA", "SUJET_NAME", "PRIX_CLE",
            "REMBG_FAL_MODELE", "PREFIXE_FAL", "PREFIXE_LOCAL", "ai_options",
-           "COUCHE_COUV_MAX", "FAL_TIMEOUT_S"]
+           "COUCHE_COUV_MAX", "FAL_TIMEOUT_S",
+           "P9_DIR", "CAPTURE_SIDE", "ROLE_RECTO", "ROLE_SUJET",
+           "MANIFEST_SCHEMA", "_ppm", "_card_label"]
 
 # ── seuils ──────────────────────────────────────────────────────────────────
 # Les deux côtés d'une carte, et il n'y en a pas de troisième. La liste est le
@@ -1666,6 +1674,277 @@ def _oublie_sujet(did: str) -> None:
         pass                                # il n'y en avait pas : très bien
 
 
+# ── 7. LE MANIFESTE DES COUCHES IMPORTÉES (T5, plan D7 amendé) ─────────────
+#
+# CE QUE CE MANIFESTE EST, ET CE QU'IL N'EST PAS. P9 sait partir d'un
+# manifeste de couches — celui que les PEINTRES écrivent après avoir prouvé
+# leur empilement. Les couches importées ne passeraient jamais cette preuve :
+# elles n'ont jamais été empilées, elles ont été photographiées. Leur
+# manifeste est donc le LEUR (`layers_{carte}_capture.json`, `side` et
+# `source` valant tous deux « capture »), au MÊME schéma, avec une preuve
+# d'une autre nature : l'EMPREINTE de chaque fichier et la COUVERTURE mesurée
+# du sujet (T3). C'est ce qui fait de « une carte importée peut partir en 3D
+# sans être reconstruite » (spec §7.1.6) un fait vérifiable.
+#
+# IL NE LISTE QUE CE QUI EXISTE (amendement D7 du 24/08). Deux fichiers, pas
+# quatre : le SUJET détouré s'il a été produit (rôle `illustration`) et la
+# FACE ENTIÈRE importée (rôle `recto`). Aucune tâche n'a jamais découpé de
+# bordure ni de fond isolés — nommer un `cadre` ou un `fond-matiere` que rien
+# ne porte serait inventer un fichier.
+#
+# OÙ IL ÉCRIT, ET POURQUOI CE N'EST PAS UNE ENTORSE. Les fichiers partent dans
+# `decks/{did}/forge3d/`, le dossier de P9 — parce que c'est LÀ que P9 lit ses
+# manifestes et ses couches, à un chemin qu'elle construit elle-même. Écrire
+# ailleurs obligerait la voisine à apprendre le dossier de celle-ci : le
+# couplage serait le même, dans l'autre sens, et en double (le manifeste ici,
+# les PNG là). La règle 8 interdit d'IMPORTER le module d'une voisine — pas de
+# déposer un fichier au format public qu'elle publie. Rien de ce que les
+# peintres ont écrit n'est touché : leurs noms portent `_front`/`_back`, ceux-
+# ci portent `_capture`.
+#
+# LES OCTETS SONT RENDUS AU FORMAT DE LA CARTE, pas recopiés tels quels. Une
+# couche de P9 est une TOILE : `canvas_px` de large, fond perdu compris, et
+# c'est sur cette convention que reposent la fenêtre UV du quad, la boîte en
+# millimètres et le recadrage à la coupe d'un relief. La face importée est
+# posée dans le rectangle de COUPE de cette toile ; le fond perdu reste
+# TRANSPARENT — une capture n'en a pas, et en inventer un serait peindre.
+P9_DIR = "forge3d"
+CAPTURE_SIDE = "capture"
+# LES DEUX RÔLES, DANS L'ORDRE OÙ ILS S'EMPILERAIENT (le sujet par-dessus la
+# face). Jumeaux de `forge3d.py:CAPTURE_ROLES` — la parité est testée.
+ROLE_RECTO = "recto"
+ROLE_SUJET = "illustration"
+MANIFEST_SCHEMA = "card-3d/layers-manifest@1"
+
+
+def _ppm(dpi: float) -> int:
+    """DPI -> pixels par mètre, arrondi demi-haut. COPIE LOCALE de
+    `forge3d.py:_dpi_to_ppm` (lui-même copie de `face.py:dpi_to_ppm`) — règle
+    8, zéro import pièce->pièce, et la parité est testée contre P9. Le pHYs
+    d'une couche importée doit porter la MÊME densité que celui d'une couche
+    peinte du même jeu : c'est la même toile."""
+    return int(math.floor(float(dpi) / 0.0254 + 0.5))
+
+
+def _card_label(raw) -> str:
+    """`c01`, `c02`… — l'étiquette de carte qui nomme les fichiers de P9.
+    COPIE du patron de `forge3d.py:_card_idx` (règle 8, parité testée) : une
+    entrée non numérique ou négative retombe sur la première carte, JAMAIS une
+    exception (spec §8)."""
+    try:
+        v = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        v = 0.0
+    if not math.isfinite(v):
+        v = 0.0
+    n = int(v)
+    return f"c{(n if n >= 0 else 0) + 1:02d}"
+
+
+def _sur_la_toile(im, geo):
+    """La face importée, POSÉE dans le rectangle de coupe d'une toile de jeu.
+
+    L'image est ramenée à `trim_px` puis collée à l'offset de fond perdu. La
+    mise à l'échelle est NON UNIFORME quand le scan n'a pas le ratio du format
+    — et c'est le choix assumé : une carte importée EST la carte, la déformer
+    de quelques pour cent la fait tenir dans son format, alors qu'un
+    letterbox y ajouterait des bandes que personne n'a photographiées. L'écart
+    est PUBLIÉ (`ecart_ratio`, mesuré par l'analyse), jamais absorbé en
+    silence."""
+    from PIL import Image
+    cw, ch = geo.canvas_px
+    tw, th = geo.trim_px
+    ox, oy = int(round(geo.bleed_off_px[0])), int(round(geo.bleed_off_px[1]))
+    toile = Image.new("RGBA", (int(cw), int(ch)), (0, 0, 0, 0))
+    face = im.convert("RGBA").resize((max(1, int(tw)), max(1, int(th))),
+                                     Image.LANCZOS)
+    toile.paste(face, (ox, oy))
+    return toile
+
+
+def _png_de_toile(img, ppm: int) -> bytes:
+    """Les octets PNG d'une couche importée, pHYs COMPRIS.
+
+    LE CHUNK EST ÉCRIT À LA MAIN, et deux voies plus simples ont été essayées
+    puis écartées, mesurées :
+      · `PngInfo.add(b"pHYs", ...)` est SILENCIEUSEMENT IGNORÉ par la
+        bibliothèque (vérifié sur les octets : aucun `pHYs` dans le fichier) —
+        elle n'écrit avant l'IDAT qu'une liste fermée de chunks connus ;
+      · le paramètre `dpi=`, lui, écrit bien le chunk, mais avec SA constante
+        (39,3701 pouces par mètre tronqués) et non 1/0,0254. Les deux tombent
+        d'accord sur les densités du lab, et rien ne garantit qu'elles le
+        restent : la densité publiée dans le manifeste doit être `_ppm()` À
+        L'ENTIER, celle-là même que P9 écrit pour une couche peinte du même
+        jeu, sans quoi une même toile porterait deux densités.
+    Le chunk se glisse juste après l'IHDR, dont la taille est FIXE (13 octets
+    de données) — c'est le seul endroit valide au regard du format, et c'est
+    aussi celui où P9 pose le sien."""
+    buf = io.BytesIO()
+    img.save(buf, format="PNG", optimize=False)
+    brut = buf.getvalue()
+    corps = struct.pack(">IIB", int(ppm), int(ppm), 1)
+    chunk = (struct.pack(">I", len(corps)) + b"pHYs" + corps
+             + struct.pack(">I", zlib.crc32(b"pHYs" + corps) & 0xFFFFFFFF))
+    coupe = 8 + 25                       # signature + chunk IHDR (13 + 12)
+    return brut[:coupe] + chunk + brut[coupe:]
+
+
+def _ligne_couche(role: str, fname: str, data: bytes, img, geo) -> dict:
+    """UNE ligne du manifeste, au schéma de `post_layers` — mesurée sur les
+    OCTETS ÉCRITS, jamais sur l'intention.
+
+    `z` reste VIDE et `module` dit « capture », pour les deux rôles : la
+    Z_TABLE du CORE est le rang d'un peintre dans un empilement, et rien n'a
+    empilé ces couches-ci. Leur donner le z de la couche homonyme laisserait
+    croire à une provenance qu'elles n'ont pas.
+
+    `bbox_mm` suit la convention EXACTE de P9 : origine au coin de TOILE (fond
+    perdu compris), y vers le bas — c'est ce repère-là que `_layer_box_mm`
+    sait retourner vers celui de la coupe."""
+    w, h = img.size
+    alpha = img.getchannel("A")
+    bbox = alpha.getbbox()
+    cover = (w * h - alpha.histogram()[0]) / float(w * h) * 100.0
+    toile_mm = (geo.trim_mm[0] + 2.0 * geo.bleed_mm,
+                geo.trim_mm[1] + 2.0 * geo.bleed_mm)
+    bbox_mm = None if bbox is None else [
+        rnd(bbox[0] * toile_mm[0] / w, 2), rnd(bbox[1] * toile_mm[1] / h, 2),
+        rnd(bbox[2] * toile_mm[0] / w, 2), rnd(bbox[3] * toile_mm[1] / h, 2)]
+    return {"role": role, "z": [], "module": "capture", "file": fname,
+            "mode": "isolee",
+            "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
+            "bbox_px": list(bbox) if bbox else None, "bbox_mm": bbox_mm,
+            "coverage_pct": rnd(cover, 2)}
+
+
+def _ecrit_manifeste(did: str, card_raw) -> dict:
+    """Publie les couches importées au format de P9. Tout le travail disque et
+    PIL de la route — appelé en `to_thread`."""
+    from PIL import Image
+    d = _dir_or_404(did)
+    recto = d / source_name(SIDES[0])
+    if not recto.is_file():
+        raise HTTPException(
+            404, "Aucun recto importé sur ce jeu : déposez d'abord l'image de "
+                 "la carte à reprendre — un manifeste sans face n'a rien à "
+                 "décrire.")
+    from . import core as cards_core
+    doc = cards_core.read_deck(did)
+    if not doc:
+        raise HTTPException(
+            409, "Le document de ce jeu ne se lit plus : sans son format, une "
+                 "couche importée n'a ni taille ni millimètres. Rouvrez le "
+                 "jeu.")
+    geo = cards_core.geom_of(doc)
+    label = _card_label(card_raw)
+    ppm = _ppm(geo.dpi)
+    out = deck_dir(did) / P9_DIR
+    out.mkdir(parents=True, exist_ok=True)
+
+    sources = [(ROLE_RECTO, recto)]
+    sujet = d / SUJET_NAME
+    if sujet.is_file():
+        # L'ORDRE EST CELUI DE L'EMPILEMENT : la face d'abord, le sujet
+        # au-dessus. Le manifeste ne rend pas de z (voir `_ligne_couche`),
+        # mais l'ordre de la liste, lui, est lisible et il ne coûte rien
+        # d'être juste.
+        sources.append((ROLE_SUJET, sujet))
+
+    lignes: list = []
+    couv_sujet = None
+    ratios: list = []
+    for role, chemin in sources:
+        try:
+            with Image.open(chemin) as im:
+                im.load()
+                brut = im.convert("RGBA")
+        except Exception as e:                              # noqa: BLE001
+            raise HTTPException(
+                409, f"La couche « {role} » ne se relit pas sur le disque "
+                     f"({e.__class__.__name__}). Redéposez l'image de la "
+                     f"carte, puis relancez la publication.")
+        ratios.append((role, brut.size))
+        toile = _sur_la_toile(brut, geo)
+        fname = f"{role}_{label}_{CAPTURE_SIDE}.png"
+        data = _png_de_toile(toile, ppm)
+        tmp = out / f"{fname}.{uuid.uuid4().hex}.tmp"
+        try:
+            tmp.write_bytes(data)
+            _replace_avec_patience(tmp, out / fname)
+        except OSError as e:
+            try:
+                tmp.unlink()
+            except OSError:
+                pass
+            raise HTTPException(
+                409, f"La couche « {role} » n'a pas pu être écrite : "
+                     f"{getattr(e, 'strerror', None) or e.__class__.__name__}. "
+                     f"Relancez la publication.")
+        ligne = _ligne_couche(role, fname, data, toile, geo)
+        lignes.append(ligne)
+        if role == ROLE_SUJET:
+            couv_sujet = ligne["coverage_pct"]
+
+    # L'ÉCART DE RATIO, MESURÉ SUR LA FACE ELLE-MÊME (le même calcul que
+    # `analyse_recto`, sur la même image — pas une valeur relue d'un document
+    # qui a pu changer de format depuis).
+    src_px = dict(ratios)[ROLE_RECTO]
+    ratio_img = src_px[1] / float(src_px[0])
+    ratio_fmt = geo.trim_mm[1] / float(geo.trim_mm[0])
+    ecart = ratio_img / ratio_fmt - 1.0
+    manifest = {
+        "schema": MANIFEST_SCHEMA,
+        "deck": {"id": did, "name": doc.get("name")},
+        "card": {"index": int(label[1:]) - 1, "label": label},
+        "side": CAPTURE_SIDE,
+        "source": CAPTURE_SIDE,
+        "format": geo.fmt,
+        "canvas_px": [int(geo.canvas_px[0]), int(geo.canvas_px[1])],
+        "canvas_mm": [rnd(geo.trim_mm[0] + 2.0 * geo.bleed_mm, 3),
+                      rnd(geo.trim_mm[1] + 2.0 * geo.bleed_mm, 3)],
+        "size_mm": [geo.trim_mm[0], geo.trim_mm[1]],
+        "bleed_mm": geo.bleed_mm,
+        "phys_ppm": ppm,
+        "layers": lignes,
+        # ── LA PREUVE, ET SA DETTE, ÉCRITES ENSEMBLE ────────────────────
+        # Pas de `proof.client` / `proof.backend` : il n'y a pas eu
+        # d'empilement à re-jouer. Ce qui en tient lieu est l'empreinte de
+        # chaque ligne (P9 la RECALCULE avant de construire) et la couverture
+        # mesurée du sujet. La recomposition fond+sujet attend un fond isolé,
+        # qu'aucune tâche n'a produit : la dette est NOMMÉE, pas simulée.
+        "proof": {"capture": {
+            "note": "couches importees : aucune preuve d'empilement de "
+                    "peintres (rien ne les a empilees). L'empreinte de "
+                    "chaque fichier et la couverture mesuree du sujet en "
+                    "tiennent lieu.",
+            "couverture_sujet_pct": couv_sujet,
+            "recomposition": None,
+            "recomposition_why": (
+                "aucune couche de fond isolee n'existe : la recomposition "
+                "fond+sujet attend qu'une tache en produise une"),
+            "source_px": [int(src_px[0]), int(src_px[1])],
+            "ecart_ratio": rnd(ecart, 4),
+        }},
+        "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    nom_manifeste = f"layers_{label}_{CAPTURE_SIDE}.json"
+    tmp = out / f"{nom_manifeste}.{uuid.uuid4().hex}.tmp"
+    try:
+        tmp.write_text(json.dumps(manifest, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        _replace_avec_patience(tmp, out / nom_manifeste)
+    except OSError as e:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise HTTPException(
+            409, f"Le manifeste n'a pas pu être écrit : "
+                 f"{getattr(e, 'strerror', None) or e.__class__.__name__}. "
+                 f"Relancez la publication.")
+    return {"manifeste": nom_manifeste, "layers": manifest}
+
+
 # ── routes ──────────────────────────────────────────────────────────────────
 
 @router.post("/card")
@@ -1788,6 +2067,38 @@ async def post_rembg(did: str):
             # empêche la coalescence de disparaître sans bruit.
             "coalesce": not mien,
             **info}
+
+
+@router.post("/manifeste")
+async def post_manifeste(did: str, card: str | None = None):
+    """Publie les couches importées au format de manifeste de P9 (T5, D7).
+
+    POURQUOI UNE ROUTE, ET PAS « AU FIL DE L'EAU » APRÈS L'ANALYSE OU LE
+    DÉTOURAGE — trois raisons mesurées, pas une préférence :
+
+      1. LE MANIFESTE DÉPEND DU FORMAT DU JEU, pas seulement des images. La
+         toile, les millimètres, la densité physique et jusqu'au nom des
+         fichiers (`c01`) viennent de la géométrie du document, qui peut
+         changer APRÈS l'import. Un manifeste écrit en douce à l'analyse
+         serait périmé au premier changement de format, sans que personne
+         l'ait demandé ; un geste explicite se REJOUE — exactement l'argument
+         qui a déjà séparé « Analyser » de l'admission (T2).
+      2. ON NE CHARGE PAS LA ROUTE QUI PAIE. `/rembg` est le seul geste
+         facturé de la pièce ; lui ajouter deux rendus de toile et deux
+         écritures disque allongerait la fenêtre pendant laquelle un résultat
+         DÉJÀ payé peut échouer à se ranger. Le travail gratuit ne se greffe
+         pas sur le travail cher.
+      3. ELLE ÉCRIT CHEZ LA VOISINE. Déposer dans `decks/{did}/forge3d/` est
+         un acte qui se voit et se déclenche, pas un effet de bord de deux
+         autres routes.
+
+    Comme `/analyse` et `/rembg` : elle range des fichiers et REND ce qu'elle
+    a fait — c'est l'écran qui publie le document (règle 12, plan D3).
+
+    `to_thread` : deux rendus LANCZOS à la taille de toile (1050 x 1500 px sur
+    un poker à 300 DPI) plus deux écritures PNG — le même ordre de grandeur
+    que l'analyse au plafond, donc le même traitement."""
+    return await asyncio.to_thread(_ecrit_manifeste, did, card)
 
 
 @router.get("/file/{nom}")

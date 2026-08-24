@@ -35,6 +35,7 @@ from .contract import deck_dir
 # n'aient pas à changer d'orthographe. Ce fichier garde le contrat HTTP
 # (routes, bornes, blocs miroir).
 from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
+                            extrude_ring_mesh, ring_area_mm2,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
@@ -63,7 +64,16 @@ from . import forge3d_apercu as _APERCU
 # emporterait aussi.
 from .forge3d_apercu import (_resolve_graph_elements, _layer_filename,
                              _PREVIEW_ASM_ID, _borne_apercu_glb,
-                             _sous_graphe_apercu, nom_element)
+                             _sous_graphe_apercu, nom_element,
+                             # T5 : DEUX NOMS REVIENNENT, parce qu'ils sont
+                             # LUS (le critère de l'élagage T6 de la 2c, pas
+                             # une exception). Le nœud `extrude` est le seul
+                             # traitement SANS couche source : sa résolution
+                             # ne peut pas passer par `_resolve_graph_elements`
+                             # (qui exige une source), mais elle doit
+                             # descendre la MÊME chaîne aval et traduire le
+                             # MÊME transform — deux recopies auraient dérivé.
+                             _chaine_aval, _trs_dict)
 
 router = APIRouter()
 
@@ -92,6 +102,29 @@ LAYER_ROLES = [
 ]
 # ═══ CF-FORGE3D-LAYERS-END ═══
 
+# ── LES CÔTÉS D'UNE SOURCE — BLOC MIROIR (T5, D7) ───────────────────────────
+# ═══ CF-FORGE3D-SIDES-BEGIN ═══
+# Miroir JS dans mod-forge3d.js ; parité champ à champ, dans l'ordre.
+# `front`/`back` : les deux faces PEINTES, celles que `post_layers` exporte
+#                  après la preuve d'empilement des peintres (phase 1).
+# `capture`      : les couches IMPORTÉES (P10). Elles n'ont pas de preuve
+#                  d'empilement — elles n'ont jamais été empilées — et leur
+#                  manifeste est le LEUR (`layers_{carte}_capture.json`,
+#                  `source: "capture"`), écrit par la pièce Import. Ce n'est
+#                  donc PAS une troisième face de la carte : c'est une
+#                  troisième PROVENANCE, sur la face avant.
+LAYER_SIDES = ("front", "back", "capture")
+CAPTURE_SIDE = "capture"
+# LES RÔLES QUE LA PROVENANCE `capture` PEUT PORTER, ET RIEN D'AUTRE (D7
+# amendé) : le manifeste importé ne liste QUE ce qui existe sur le disque.
+# `illustration` est le SUJET détouré (T3, `sujet_recto.png`) — un vrai rôle
+# de peintre, tenu par un vrai fichier. `recto` est la FACE ENTIÈRE importée :
+# un rôle qui dit ce qu'il est, jamais un rôle de peintre qu'il n'est pas (ni
+# `cadre`, ni `fond-matiere` — aucune tâche n'a découpé de bordure ni de fond,
+# et un manifeste ne nomme pas un fichier qui n'existe pas).
+CAPTURE_ROLES = ("recto", "illustration")
+# ═══ CF-FORGE3D-SIDES-END ═══
+
 # ── LE VOCABULAIRE DU GRAPHE — BLOC MIROIR ──────────────────────────────────
 # ═══ CF-FORGE3D-NODES-BEGIN ═══
 # Miroir JS dans mod-forge3d.js ; test de parité champ à champ.
@@ -99,6 +132,13 @@ LAYER_ROLES = [
 # `plane`     : plan texturé, GRATUIT (quad aux dimensions de la carte).
 # `relief`    : dalle en relief, GRATUITE — grille déplacée par l'alpha,
 #               solide FERMÉ par construction (imprimable).
+# `extrude`   : la COURONNE de contour (T5, D8) — le seul traitement qui
+#               n'a PAS de couche source : sa forme vient du FORMAT de la
+#               carte, pas d'une image. `contour` nomme laquelle des deux
+#               courbes v1 il suit, `width_mm` de combien il rentre depuis la
+#               coupe, `depth_mm` de combien il s'élève, `segments` la finesse
+#               de ses arcs. Un nœud `material` en aval l'habille — c'est là
+#               que le Sceau prismatique de la 3c se branche.
 # `mesh3d`    : image→3D par moteur, PAYANT (prix affiché avant).
 # `material`  : matière Material Forge + finition holo sur le nœud amont ; ses
 #               `motifs` sont les calques incrustés dans le canal G de
@@ -115,6 +155,8 @@ NODE_KINDS = [
     {"kind": "layer", "params": ["role", "side"]},
     {"kind": "plane", "params": ["depth_mm"]},
     {"kind": "relief", "params": ["depth_mm", "base_mm", "grid"]},
+    {"kind": "extrude",
+     "params": ["contour", "width_mm", "depth_mm", "segments"]},
     {"kind": "mesh3d", "params": ["engine", "texture_prompt", "ultra"]},
     {"kind": "material",
      "params": ["mat", "tile_mm", "finish", "aniso", "motifs"]},
@@ -134,6 +176,43 @@ RELIEF_GRID = (48, 256)              # subdivisions de la grille — axe X (gx)
                                       # la carte (un tarot portrait à 256
                                       # donne gy=439, ~452k triangles)
 RELIEF_GRID_DEFAULT = 160
+
+# ── extrude (T5, D8) : la couronne de contour ──────────────────────────────
+# LE PLANCHER PARTAGÉ AVEC LE SCEAU. `frame.py:SEAL_MIN_MM` (:519) vaut 0,2 mm
+# — « le trait minimal d'un imprimeur foil (§6.2bis-b) ». Une couronne plus
+# ÉTROITE que ce trait ne se dore pas, et une couronne moins HAUTE que lui ne
+# se sent pas sous le doigt : le même chiffre borne donc la largeur ET la
+# profondeur. VALEUR RECOPIÉE, JAMAIS IMPORTÉE (règle 8 : ce fichier n'importe
+# le module d'aucune voisine — même patron que `_dpi_to_ppm` et
+# `_SEAL_KIND_DEFAULT`), et le test de la pièce LIT `frame.py` pour épingler
+# le jumeau au lieu de croire ce commentaire.
+EXTRUDE_MIN_MM = 0.2
+EXTRUDE_WIDTH_MM = (EXTRUDE_MIN_MM, 20.0)
+EXTRUDE_DEPTH_MM = (EXTRUDE_MIN_MM, 5.0)
+# LES DEUX CONTOURS NOMMÉS v1 (D8). Ils partagent la MÊME courbe — le
+# rectangle arrondi de la COUPE, au rayon de coin du format — et se
+# distinguent par leur largeur PAR DÉFAUT. Correspondance publiée, comme
+# demandé : `sceau` reprend `frame.py:SEAL_DEFAULTS["width_mm"]` (:522, 1,2 mm
+# — « l'anneau épouse la coupe et creuse vers l'intérieur sur width_mm »),
+# `cadre` prend une bande de cadre plus large. Le vrai TRACÉ vectoriel de P2
+# (contour SVG) est la v2 nommée du plan, pas un troisième mot ici.
+EXTRUDE_CONTOURS = ("cadre", "sceau")
+EXTRUDE_WIDTH_DEFAULT = {"cadre": 2.0, "sceau": 1.2}
+EXTRUDE_DEPTH_DEFAULT = 0.6
+# LE PLANCHER DE `segments`, MESURÉ (banc du 24/08, poker 63x88 r=3, largeur
+# 1,2 mm — aire analytique 351,70 mm2) :
+#   1 station par coin  ->  178,32 mm2, soit **-49,3 %** : l'arc devient un
+#                           point, le rectangle arrondi devient un losange ;
+#   2 stations (ici)    ->  345,12 mm2, -1,87 % (une corde par coin) ;
+#   3 stations          ->  349,89 mm2, -0,51 % ; 25 -> -0,004 %.
+# L'aire d'un capuchon ne s'ANNULE jamais par le compte de segments — elle
+# converge par au-dessous, de façon monotone : ce qui l'annule, MESURÉ, c'est
+# la LARGEUR à la demi-carte (à 31,5 mm sur un poker, l'appariement d'arêtes
+# tombe et `mesh_measures` rend `closed: False`). D'où DEUX gardes de nature
+# différente : ce plancher-ci contre la dégénérescence de FORME, et le rabot
+# géométrique de `post_build3d` contre l'inversion du contour.
+EXTRUDE_SEGMENTS = (1, 64)
+EXTRUDE_SEGMENTS_DEFAULT = 24         # -0,004 % d'écart au volume analytique
 RELIEF_GRID_PREVIEW = 96             # l'apercu d'UN noeud (node-preview, 2c)
                                       # privilegie la vitesse : le vrai grid
                                       # ne joue qu'au build (post_build3d,
@@ -320,12 +399,26 @@ async def get_info(did: str):
 
     return {"schema": MANIFEST_SCHEMA, "layer_roles": LAYER_ROLES,
             "node_kinds": NODE_KINDS,
+            # T5 — LES PROVENANCES ET LEURS RÔLES, SERVIS. L'écran ne recopie
+            # NI la liste des côtés NI celle des rôles importables : les deux
+            # sont des vocabulaires fermés du contrat, exactement comme
+            # `export_formats` et `finishes`.
+            "layer_sides": list(LAYER_SIDES),
+            "capture_side": CAPTURE_SIDE,
+            "capture_roles": list(CAPTURE_ROLES),
             "graph_limits": {
                "plane_depth_mm": list(PLANE_DEPTH_MM),
                "relief_depth_mm_max": RELIEF_DEPTH_MM_MAX,
                "relief_base_mm": list(RELIEF_BASE_MM),
                "relief_grid": list(RELIEF_GRID),
                "relief_grid_default": RELIEF_GRID_DEFAULT,
+               "extrude_contours": list(EXTRUDE_CONTOURS),
+               "extrude_width_mm": list(EXTRUDE_WIDTH_MM),
+               "extrude_width_default": dict(EXTRUDE_WIDTH_DEFAULT),
+               "extrude_depth_mm": list(EXTRUDE_DEPTH_MM),
+               "extrude_depth_default": EXTRUDE_DEPTH_DEFAULT,
+               "extrude_segments": list(EXTRUDE_SEGMENTS),
+               "extrude_segments_default": EXTRUDE_SEGMENTS_DEFAULT,
                "max_elements": MAX_GRAPH_ELEMENTS,
                "export_formats": list(EXPORT_FORMATS),
             },
@@ -593,12 +686,42 @@ def clean_graph(raw) -> dict:
         node = {"id": node_id, "kind": n["kind"]}
         ids.add(node["id"])
         if n["kind"] == "layer":
+            # LE CÔTÉ D'ABORD, LE RÔLE ENSUITE — l'ordre compte depuis T5 :
+            # le vocabulaire des rôles DÉPEND de la provenance. Une source
+            # `capture` ne connaît que les rôles que le manifeste importé peut
+            # porter (`CAPTURE_ROLES`) ; une face peinte ne connaît que les
+            # six rôles de la Z_TABLE. Croiser les deux — un `cadre` en
+            # provenance `capture`, un `recto` au recto peint — nommerait un
+            # fichier que rien n'écrit jamais.
+            s_val = n.get("side")
+            node["side"] = (s_val if isinstance(s_val, str) and s_val in LAYER_SIDES
+                            else "front")
             r_val = n.get("role")
-            node["role"] = r_val if isinstance(r_val, str) and r_val in roles else None
-            node["side"] = "back" if n.get("side") == "back" else "front"
+            connus = (set(CAPTURE_ROLES) if node["side"] == CAPTURE_SIDE
+                      else roles)
+            node["role"] = r_val if isinstance(r_val, str) and r_val in connus else None
             node["composite"] = bool(n.get("composite"))
+            if node["side"] == CAPTURE_SIDE:
+                # PAS DE COMPOSITE IMPORTÉ : le composite est le RÉSULTAT de
+                # l'empilement des peintres, et une capture n'a jamais été
+                # empilée. La face entière importée porte le rôle `recto` —
+                # elle se nomme, elle n'emprunte pas le nom d'une preuve.
+                node["composite"] = False
             if node["role"] is None and not node["composite"]:
                 continue                      # une source sans source n'est rien
+        elif n["kind"] == "extrude":
+            c_val = n.get("contour")
+            node["contour"] = (c_val if isinstance(c_val, str)
+                               and c_val in EXTRUDE_CONTOURS
+                               else EXTRUDE_CONTOURS[0])
+            node["width_mm"] = _num(n.get("width_mm"),
+                                    EXTRUDE_WIDTH_DEFAULT[node["contour"]],
+                                    *EXTRUDE_WIDTH_MM)
+            node["depth_mm"] = _num(n.get("depth_mm"), EXTRUDE_DEPTH_DEFAULT,
+                                    *EXTRUDE_DEPTH_MM)
+            node["segments"] = int(_num(n.get("segments"),
+                                        EXTRUDE_SEGMENTS_DEFAULT,
+                                        *EXTRUDE_SEGMENTS))
         elif n["kind"] == "plane":
             node["depth_mm"] = _num(n.get("depth_mm"), 0.0, *PLANE_DEPTH_MM)
         elif n["kind"] == "relief":
@@ -1172,7 +1295,26 @@ async def post_layers(did: str,
 def _lire_manifeste(out: Path, card_label: str, side: str) -> dict | None:
     """Le manifeste d'export d'un côté, ou None. Illisible vaut ABSENT —
     jamais une exception qui deviendrait un 500 (même discipline que
-    `_job_read`)."""
+    `_job_read`).
+
+    CE QUE CETTE FONCTION VALIDAIT AVANT T5, EXACTEMENT : rien. Elle lisait le
+    JSON et rendait le dictionnaire — ni le sha256 des fichiers, ni les
+    boîtes, ni même que le contenu parlait du côté qu'on lui demandait. Le
+    plan la décrivait avec des portes qu'elle n'avait pas ; la mesure a
+    tranché, et la seule porte qui manquait VRAIMENT est celle-ci.
+
+    LA COHÉRENCE NOM <-> CONTENU (T5). Le nom du fichier PORTE le côté ; le
+    contenu le REDIT. Les deux doivent dire la même chose, sans quoi un
+    `layers_c01_capture.json` contenant `side: "front"` ferait résoudre des
+    couches importées contre le manifeste des peintres — le piège relevé en
+    revue 3c, un fichier qui ment sur ce qu'il est. Un manifeste MUET sur son
+    côté (aucune clé `side`) n'est pas un menteur : il est accepté, et c'est
+    ce qui garde lisibles les manifestes écrits avant que la clé existe.
+
+    Le refus est un ABSENT NOMMÉ dans le journal, pas une exception : cette
+    fonction est appelée depuis la construction, et faire tomber un artefact
+    entier sur un fichier de côté abîmé serait disproportionné — l'appelant,
+    lui, sait dire « exporte les couches d'abord »."""
     p = out / f"layers_{card_label}_{side}.json"
     if not p.is_file():
         return None
@@ -1181,7 +1323,15 @@ def _lire_manifeste(out: Path, card_label: str, side: str) -> dict | None:
     except (ValueError, OSError, UnicodeDecodeError):
         logger.warning(f"cards/forge3d: manifeste illisible ({p.name})")
         return None
-    return m if isinstance(m, dict) else None
+    if not isinstance(m, dict):
+        return None
+    dit = m.get("side")
+    if dit is not None and dit != side:
+        logger.warning(
+            f"cards/forge3d: manifeste incoherent ({p.name} annonce "
+            f"side={dit!r}) - ignore")
+        return None
+    return m
 
 
 def _layer_box_mm(manifest, layer_node: dict, w_mm: float, h_mm: float,
@@ -1534,6 +1684,180 @@ def _scelle(el: dict, layer: dict, mat_n, sceau: dict, ignores: list) -> dict:
     return {"seal": {"kind": sceau["kind"], "why": _SEAL_MESH_WHY}}
 
 
+def _nom_element(layer_node) -> str:
+    """LE NOM D'UN ÉLÉMENT DE COUCHE, provenance comprise (T5).
+
+    `nom_element` (le sidecar) ne connaît que deux faces et ne suffixe que le
+    verso. Une TROISIÈME provenance a exactement le même besoin, pour la même
+    raison (M3, 2d) : une carte peut porter son `illustration` peinte ET son
+    `illustration` importée dans le même artefact — deux nœuds, deux maillages
+    et deux MATÉRIAUX homonymes si le nom ne les sépare pas. Le suffixe ne
+    touche QUE la provenance importée : un artefact recto/verso garde ses
+    octets à l'identique."""
+    if isinstance(layer_node, dict) and layer_node.get("side") == CAPTURE_SIDE:
+        return f"{layer_node.get('role') or CAPTURE_SIDE}_{CAPTURE_SIDE}"
+    return nom_element(layer_node)
+
+
+# ── LE NŒUD `extrude` (T5, D8) — LE SEUL TRAITEMENT SANS COUCHE SOURCE ─────
+# `_resolve_graph_elements` (le sidecar) exige de chaque traitement une couche
+# entrante : c'est juste pour un plan, un relief ou un moteur, qui tirent tous
+# leur matière d'une PNG. Une extrusion, elle, tire sa forme du FORMAT — elle
+# n'a rien à recevoir. Sa résolution vit donc ici, et elle réutilise les DEUX
+# primitives de la descente de chaîne plutôt que de les recopier.
+def _resoud_extrudes(graph: dict, ignores: list) -> list[dict]:
+    """Les candidats `extrude` du graphe, au même type que ceux du sidecar
+    (`{proc, layer, mat, trs}`) — avec `layer: None`, qui EST le
+    discriminant : pas une couche absente, une couche qui n'a pas lieu d'être.
+
+    Deux pertes avouées, comme partout : une extrusion dont la chaîne ne
+    rejoint pas d'assemble, et une arête ENTRANTE (l'écran ne peut pas en
+    dessiner — sa grammaire ne mène pas à `extrude` — mais l'API brute, si)."""
+    nodes_by_id = {n["id"]: n for n in graph["nodes"]}
+    outgoing: dict[str, list[str]] = {}
+    entrants: dict[str, int] = {}
+    for e in graph["edges"]:
+        outgoing.setdefault(e["from"], []).append(e["to"])
+        entrants[e["to"]] = entrants.get(e["to"], 0) + 1
+    out: list[dict] = []
+    for n in graph["nodes"]:
+        if n["kind"] != "extrude":
+            continue
+        if entrants.get(n["id"]):
+            ignores.append({
+                "node": n["id"],
+                "why": f"{entrants[n['id']]} arete(s) entrante(s) ignoree(s) "
+                       f"sur une extrusion : sa forme vient du format de la "
+                       f"carte, pas d'une couche"})
+        mat_n, trs_n, relie = _chaine_aval(n["id"], nodes_by_id, outgoing,
+                                           ignores)
+        if not relie:
+            ignores.append({"node": n["id"],
+                            "why": "extrusion non reliee a un assemble"})
+            continue
+        out.append({"proc": n, "layer": None, "mat": mat_n, "trs": trs_n})
+    return out
+
+
+def _resoud_tout(graph: dict) -> tuple[list[dict], list[dict]]:
+    """LES ÉLÉMENTS DU GRAPHE, dans l'ORDRE DES NŒUDS — couches sourcées ET
+    extrusions mêlées.
+
+    L'ordre des nœuds est un contrat de la 2c (le bordereau, donc l'écran, le
+    suit). `sorted` est STABLE : un graphe SANS extrusion rend exactement la
+    liste du sidecar, dans exactement le même ordre — les octets d'un artefact
+    d'avant T5 ne bougent pas d'un cran."""
+    candidats, ignores = _resolve_graph_elements(graph)
+    extras = _resoud_extrudes(graph, ignores)
+    if not extras:
+        return candidats, ignores
+    rang = {n["id"]: i for i, n in enumerate(graph["nodes"])}
+    tout = sorted(candidats + extras,
+                  key=lambda c: rang.get(c["proc"]["id"], 0))
+    return tout, ignores
+
+
+def _nom_extrude(proc: dict) -> str:
+    """Le nom d'un élément d'extrusion — PRÉFIXÉ, et c'est la leçon M3 de la
+    2d : `cadre` tout court entrerait en collision avec la couche `cadre` d'un
+    graphe qui porte les deux, et le GLB sortirait deux nœuds ET deux
+    matériaux homonymes que Blender fusionne."""
+    return f"extrude_{proc['contour']}"
+
+
+def _element_extrude(proc: dict, nom_el: str, mat_n, trs_n, g,
+                     ignores: list, did=None) -> dict:
+    """UN élément d'EXTRUSION prêt pour l'assemblage : la couronne du contour,
+    habillée et placée comme n'importe quel élément local.
+
+    LE RABOT GÉOMÉTRIQUE EST ICI, PAS DANS `clean_graph` : la borne dépend du
+    FORMAT de la carte, que le nettoyage du graphe ne connaît pas (il tourne
+    aussi sur un graphe posté sans deck en tête). Au-delà de la demi-carte, le
+    contour rentré s'inverse — MESURÉ : à `min(w, h) / 2` pile, l'appariement
+    d'arêtes tombe et le solide n'est plus fermé. On rabote, et on le DIT :
+    livrer une couronne muette plus étroite que demandée serait un mensonge
+    silencieux, refuser tout l'artefact pour un curseur trop poussé serait
+    disproportionné."""
+    w_mm, h_mm = g.trim_mm
+    d = float(proc["width_mm"])
+    d_max = min(w_mm, h_mm) / 2.0 - EXTRUDE_MIN_MM
+    if d > d_max:
+        rabote = max(EXTRUDE_MIN_MM, d_max)
+        ignores.append({
+            "node": proc["id"],
+            "why": f"largeur d'extrusion ramenee de {d:g} a {rabote:g} mm : "
+                   f"au-dela de la demi-carte ({min(w_mm, h_mm) / 2.0:g} mm) "
+                   f"le contour rentre s'inverse et la couronne cesse d'etre "
+                   f"un solide ferme"})
+        d = rabote
+    mesh = extrude_ring_mesh(w_mm, h_mm, g.corner_mm, d,
+                             float(proc["depth_mm"]), int(proc["segments"]))
+    el = {"name": nom_el, "mesh": mesh, "alpha": False, "z_mm": 0.0}
+    habille = (_habille if did is None else partial(_habille, did=did))
+    habille(el, mat_n, w_mm, h_mm, ignores)
+    trs = _trs_dict(trs_n)
+    if trs is not None:
+        el["trs"] = trs
+    return el
+
+
+# ── LES COUCHES IMPORTÉES (T5, D7) — LE MANIFESTE EST LE CONTRAT ───────────
+def _preuve_capture(out: Path, card_label: str, layer: dict,
+                    manifeste) -> dict:
+    """LE MANIFESTE IMPORTÉ, VÉRIFIÉ AVANT DE CONSTRUIRE — ou 409 nommé.
+
+    Les couches de P10 n'ont AUCUNE preuve d'empilement : elles n'ont jamais
+    été empilées (D7). Ce qui en tient lieu est ici, et c'est mesurable —
+    l'EMPREINTE. Le manifeste nomme un fichier et son sha256 ; on vérifie que
+    le fichier que la résolution va lire est CELUI-LÀ, octet pour octet. Un
+    manifeste qui ment sur ses empreintes est refusé NOMMÉ, jamais suivi.
+
+    Quatre portes, chacune avec son mot : le manifeste absent, la provenance
+    qui n'est pas `capture`, le rôle que le manifeste ne porte pas, et
+    l'empreinte qui ne correspond pas. Rend la LIGNE du manifeste (l'appelant
+    y lit la couverture pour le bordereau)."""
+    role = layer.get("role")
+    fname = _layer_filename(layer, card_label)
+    if not isinstance(manifeste, dict):
+        raise HTTPException(
+            409, f"aucun manifeste de couches importees pour {card_label} : "
+                 f"publie-le depuis la piece Import "
+                 f"(POST capture/manifeste) avant de construire")
+    if manifeste.get("source") != CAPTURE_SIDE:
+        raise HTTPException(
+            409, f"le manifeste {card_label}/{CAPTURE_SIDE} n'annonce pas la "
+                 f"provenance « {CAPTURE_SIDE} » : il ne decrit pas des "
+                 f"couches importees")
+    rows = manifeste.get("layers")
+    rows = rows if isinstance(rows, list) else []
+    row = next((r for r in rows if isinstance(r, dict) and r.get("role") == role),
+               None)
+    if row is None:
+        dispo = ", ".join(sorted({str(r.get("role")) for r in rows
+                                  if isinstance(r, dict) and r.get("role")}))
+        raise HTTPException(
+            409, f"le manifeste importe ne porte pas la couche « {role} » "
+                 f"(il porte : {dispo or 'aucune'}) — relance l'import ou "
+                 f"choisis un autre role")
+    if row.get("file") != fname:
+        raise HTTPException(
+            409, f"le manifeste importe nomme « {row.get('file')} » pour "
+                 f"« {role} », la resolution lit « {fname} » : le manifeste "
+                 f"et le graphe ne parlent pas du meme fichier")
+    p = out / fname
+    if not p.is_file():
+        raise HTTPException(
+            409, f"couche importee absente du disque : {fname} — republie le "
+                 f"manifeste depuis la piece Import")
+    vu = hashlib.sha256(p.read_bytes()).hexdigest()
+    if vu != row.get("sha256"):
+        raise HTTPException(
+            409, f"empreinte de {fname} differente de celle du manifeste "
+                 f"importe : le fichier a change depuis la publication "
+                 f"(republie le manifeste)")
+    return row
+
+
 def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
                    mat_n, trs_n, card_label: str, g, ignores: list,
                    did=None) -> dict:
@@ -1685,7 +2009,7 @@ async def post_build3d(did: str, body: dict | None = None):
     graph = clean_graph(body.get("graph"))
 
     # ── résolution du graphe : PURE, sans E/S — borne AVANT tout travail ────
-    candidats, ignores = _resolve_graph_elements(graph)
+    candidats, ignores = _resoud_tout(graph)
     # MOTIF 1/2 (distinct du "couche introuvable" ci-dessous, en revue) : le
     # graphe lui-même ne produit AUCUN élément — structurellement vide (aucun
     # nœud plane/relief) ou mal câblé (une source, ou l'assemblage, manque).
@@ -1694,7 +2018,8 @@ async def post_build3d(did: str, body: dict | None = None):
         raise HTTPException(
             409, "graphe vide : 0 element resolu (aucun noeud "
                  "plane/relief/mesh3d relie a la fois a une couche source et "
-                 "a l'assemblage) - exporte les couches d'abord et relie "
+                 "a l'assemblage, ni aucune extrusion reliee a l'assemblage) "
+                 "- exporte les couches d'abord et relie "
                  "layer -> plane/relief/mesh3d -> assemble")
     if len(candidats) > MAX_GRAPH_ELEMENTS:
         raise HTTPException(
@@ -1725,12 +2050,39 @@ async def post_build3d(did: str, body: dict | None = None):
         for ch in candidats:
             proc, layer = ch["proc"], ch["layer"]
             mat_n, trs_n = ch["mat"], ch["trs"]
-            nom_el = nom_element(layer)
+            # ── L'EXTRUSION (T5) : le seul élément sans couche source. Elle
+            #    court AVANT la dérivation du nom et du côté, qui parlent
+            #    toutes deux d'une couche qu'elle n'a pas.
+            if layer is None:
+                nom_el = _nom_extrude(proc)
+                elements.append(_element_extrude(proc, nom_el, mat_n, trs_n,
+                                                 g, ignores, did))
+                bordereau.append({"name": nom_el, "kind": "local",
+                                  "node": proc["id"],
+                                  "contour": proc["contour"]})
+                continue
+            nom_el = _nom_element(layer)
             # LE CÔTÉ AU BORDEREAU, ET SEULEMENT QUAND IL Y EN A UN À DIRE
             # (M3) : la clé n'apparaît que sur un élément de verso. L'ajouter
             # partout ferait changer le bordereau — donc l'écran — de TOUS les
             # artefacts recto, pour une information qu'ils n'ont pas.
             cote = {"side": "back"} if layer["side"] == "back" else {}
+            if layer["side"] == CAPTURE_SIDE:
+                # LA PROVENANCE S'AVOUE, ET AVEC SON CHIFFRE (D7). Le
+                # manifeste importé est vérifié AVANT la construction — c'est
+                # l'empreinte qui remplace la preuve d'empilement que ces
+                # couches n'ont pas — et la couverture MESURÉE du fichier
+                # entre au bordereau : « importée » sans chiffre ne serait
+                # qu'une étiquette.
+                if CAPTURE_SIDE not in manifestes:
+                    manifestes[CAPTURE_SIDE] = _lire_manifeste(
+                        out, card_label, CAPTURE_SIDE)
+                row = _preuve_capture(out, card_label, layer,
+                                      manifestes[CAPTURE_SIDE])
+                couv = _num(row.get("coverage_pct"), 0.0, 0.0, 100.0)
+                cote = {"side": CAPTURE_SIDE,
+                        "import": f"couche importee (couverture "
+                                  f"{f'{couv:.1f}'.replace('.', ',')} %)"}
             if proc["kind"] == "mesh3d":
                 side = layer["side"]
                 if side not in manifestes:
@@ -2710,7 +3062,7 @@ async def post_node_preview(did: str, body: dict | None = None):
     if node is None:
         raise HTTPException(400, f"noeud {nid} absent du graphe")
     kind = node["kind"]
-    if kind not in ("plane", "relief", "mesh3d"):
+    if kind not in ("plane", "relief", "mesh3d", "extrude"):
         raise HTTPException(400, f"noeud non prévisualisable : {kind}")
 
     if kind == "mesh3d":
@@ -2746,13 +3098,44 @@ async def post_node_preview(did: str, body: dict | None = None):
     # ── plane/relief : sous-graphe synthetique, le MEME resolveur que
     #    build3d — AUCUN aveu de la resolution ne s'evapore (I1) ──────────
     ignored: list[dict] = []
-    ch = _sous_graphe_apercu(graph, nid, node, RELIEF_GRID_PREVIEW, ignored)
+    if kind == "extrude":
+        # UNE EXTRUSION N'A PAS DE SOUS-GRAPHE À SYNTHÉTISER : sa forme vient
+        # du format, et `_sous_graphe_apercu` exigerait d'elle une couche
+        # source qu'elle n'aura jamais. Sa chaîne AVAL, elle, se descend par la
+        # MÊME primitive que partout — et comme ailleurs dans l'inspecteur,
+        # l'aperçu montre l'option DÉJÀ posée sur le nœud même si la chaîne ne
+        # rejoint pas encore un assemble.
+        outgoing: dict[str, list[str]] = {}
+        for e in graph["edges"]:
+            outgoing.setdefault(e["from"], []).append(e["to"])
+        mat_n, trs_n, _relie = _chaine_aval(nid, nodes_by_id, outgoing,
+                                            ignored)
+        ch = {"proc": node, "layer": None, "mat": mat_n, "trs": trs_n}
+    else:
+        ch = _sous_graphe_apercu(graph, nid, node, RELIEF_GRID_PREVIEW,
+                                 ignored)
     g = geom_of(doc)
 
     def work() -> bytes:
+        if ch["layer"] is None:
+            el = _element_extrude(ch["proc"], _nom_extrude(ch["proc"]),
+                                  ch["mat"], ch["trs"], g, ignored, did)
+            return write_scene_glb(
+                [el], name="apercu",
+                extras={"schema": PREVIEW_SCHEMA, "preview": True,
+                        "ignored": ignored})
+        if ch["layer"]["side"] == CAPTURE_SIDE:
+            # MÊME CONTRAT QUE LA CONSTRUCTION (D7) : l'inspecteur vérifie le
+            # manifeste importé AVANT de lire le fichier. Sans ce contrôle,
+            # une couche importée absente tomberait sur le refus GÉNÉRIQUE du
+            # sidecar (« exporte les couches d'abord (POST /layers) ») — une
+            # consigne juste pour les peintres et fausse pour un import.
+            _preuve_capture(_out_dir(did), card_label, ch["layer"],
+                            _lire_manifeste(_out_dir(did), card_label,
+                                            CAPTURE_SIDE))
         el = _element_local(
             _out_dir(did), ch["proc"], ch["layer"],
-            nom_element(ch["layer"]), ch["mat"], ch["trs"],
+            _nom_element(ch["layer"]), ch["mat"], ch["trs"],
             card_label, g, ignored, did)
         # APERÇU == FICHIER (barre de qualité §6.2bis :443) : le Sceau à
         # portée 3D habille l'élément ICI AUSSI, sinon l'inspecteur montrerait

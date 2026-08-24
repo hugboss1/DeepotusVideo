@@ -13,6 +13,43 @@ docs/superpowers/plans/2026-08-19-cardforge-phase1-couches.md, Task 1) :
      champ à champ et dans l'ordre des deux côtés : une table recopiée à la
      main qui dérive est un mensonge.
 
+────────────────────────────────────────────────────────────────────────────
+T5 (2026-08-24) — LE NŒUD `extrude` (D8) ET LA PROVENANCE `capture` (D7)
+
+RONDE DE MUTATION : 20 défauts remis un à un dans le code livré, 20 vus
+(le principe ne change pas : on remet le défaut, on joue le contrôle qui doit
+le voir, on restaure).
+  · le triangle dégénéré n'est plus sauté (arête de longueur nulle) .. ROUGE
+  · le contour rentré reprend le centre d'arc de l'extérieur ......... ROUGE
+  · le capuchon du dessous garde le sens du dessus (le miroir) ....... ROUGE
+  · le plancher de stations retombe à 1 (le losange, -49 %) .......... ROUGE
+  · l'aire analytique compte le contour PLEIN (le trou compte) ....... ROUGE
+  · le plancher d'extrusion diverge de SEAL_MIN_MM ................... ROUGE
+  · le contour ne décide plus de la largeur par défaut ............... ROUGE
+  · les rôles de peintre passent côté import ......................... ROUGE
+  · `_lire_manifeste` ne vérifie plus son côté (nom vs contenu) ...... ROUGE
+  · l'empreinte du manifeste importé n'est plus vérifiée ............. ROUGE
+  · le manifeste importé accepte n'importe quelle provenance ......... ROUGE
+  · le nom d'élément ne dit plus la provenance importée .............. ROUGE
+  · le bordereau tait la provenance importée ......................... ROUGE
+  · le rabot géométrique se tait ..................................... ROUGE
+  · les extrusions sont ajoutées APRÈS les rangs (l'ordre) ........... ROUGE
+  · une arête entrante sur une extrusion est tue ..................... ROUGE
+  · `CAPTURE_ROLES` nomme un rôle de peintre ......................... ROUGE
+  · (JS) l'écran offre l'import sur un rôle de peintre ............... ROUGE
+  · (JS) le compte d'éléments oublie les extrusions .................. ROUGE
+  · (JS) l'écran écrit une provenance que le rôle ne porte pas ....... ROUGE
+  · (JS) la naissance d'une extrusion recopie ses défauts ............ ROUGE
+
+TÉMOIN SURVIVANT, VOLONTAIRE ET AVOUÉ : remplacer TOUTES les normales de la
+couronne par (0, 0, 1) — des normales plates, fausses sur les parois comme
+sur les capuchons du dessous — laisse les 143 contrôles VERTS. Rien ici ne
+mesure l'OMBRAGE d'une extrusion : la fermeture, le volume, l'orientation des
+faces et les bornes d'accesseurs sont tous indifférents aux normales, et la
+seule barre honnête serait une comparaison de rendu (hors périmètre de cette
+tâche, et hors périmètre du lab : le domaine ne rend rien au serveur). Le trou
+est ÉCRIT plutôt que bouché par un contrôle qui n'aurait mesuré que lui-même.
+
 Run : <python embarqué> backend/tests/test_cards_forge3d.py
       .\\scripts\\run-tests.ps1 -Filter cards_forge3d
 """
@@ -681,9 +718,15 @@ def test_le_vocabulaire_gagne_export_des_deux_cotes():
     js_table = [{"kind": k, "params": [p.strip().strip('"') for p in ps.split(",") if p.strip()]}
                 for k, ps in js_rows]
     assert js_table == F9.NODE_KINDS, (js_table, F9.NODE_KINDS)
+    # T5 : `extrude` entre au vocabulaire, a sa place — juste apres les deux
+    # geometries locales dont il est le troisieme (plan, relief, couronne) et
+    # AVANT le moteur payant. L'ordre est un contrat : c'est lui que les deux
+    # tables comparent champ a champ.
     assert [r["kind"] for r in F9.NODE_KINDS] == [
-        "layer", "plane", "relief", "mesh3d", "material", "transform",
-        "assemble", "artifact", "export"]
+        "layer", "plane", "relief", "extrude", "mesh3d", "material",
+        "transform", "assemble", "artifact", "export"]
+    ext = [r for r in F9.NODE_KINDS if r["kind"] == "extrude"][0]
+    assert ext["params"] == ["contour", "width_mm", "depth_mm", "segments"]
     # le format d'un export est un vocabulaire FERMÉ (comme LAYER_MODES) :
     # publié par /info avec le reste, jamais recopié à l'écran.
     assert F9.EXPORT_FORMATS == ("glb", "stl", "metadata", "preview")
@@ -6896,8 +6939,15 @@ def test_le_verso_entre_dans_le_graphe_par_un_second_manifeste():
     # deux lignes-ci disent seulement ou elle vit.
     exp = rendu.split("async function exportLayers(")[1].split("\n  }\n")[0]
     assert 'face === "front"' in exp, exp
-    assert "if (cardLabel(carte) !== MANIFEST_CARD) MANIFEST_BACK = null;" \
-        in exp, exp
+    # T5 — LE LACHER EST DEVENU UN BLOC (la provenance IMPORTEE part avec le
+    # verso, meme argument : elle est etiquetee par carte). On epingle donc la
+    # GARDE et son CONTENU, pas une ligne recopiee : les deux manifestes qui ne
+    # portent pas leur propre etiquette tombent sous la MEME condition.
+    garde = re.search(r"if \(cardLabel\(carte\) !== MANIFEST_CARD\) \{"
+                      r"(.*?)\n\s+\}", exp, re.S)
+    assert garde, exp
+    assert "MANIFEST_BACK = null" in garde.group(1), garde.group(1)
+    assert "MANIFEST_CAPTURE = null" in garde.group(1), garde.group(1)
     assert re.search(
         r"\}\s*else if \(cardLabel\(carte\) === MANIFEST_CARD\) \{\s*"
         r"MANIFEST_BACK = rep\.layers;", exp), exp
@@ -8462,7 +8512,110 @@ async function banc21() {
       J([MANIFEST_CARD, MANIFEST_BACK && MANIFEST_BACK.card]));
 }
 
-banc18().then(banc21).then(
+
+/* ══ 22. T5 — L'EXTRUSION ET LES PROVENANCES, SUR LES VRAIES FONCTIONS ═════
+   Ce que les pins de source ne disent pas : ce que l'ecran REFUSE, et ce
+   qu'il COMPTE. Trois proprietes, mesurees ici : une extrusion nait avec les
+   defauts SERVIS (jamais un chiffre de l'ecran), elle COMPTE comme element
+   (sans quoi le plafond mentirait d'autant), et un cote qu'un role ne porte
+   pas ne s'offre ni ne s'ecrit. */
+function banc22() {
+  const LIM = { max_elements: 12,
+                export_formats: ["glb", "stl", "metadata", "preview"],
+                extrude_contours: ["cadre", "sceau"],
+                extrude_width_mm: [0.2, 20],
+                extrude_width_default: { cadre: 2, sceau: 1.2 },
+                extrude_depth_mm: [0.2, 5], extrude_depth_default: 0.6,
+                extrude_segments: [1, 64], extrude_segments_default: 24 };
+  INFO = { graph_limits: LIM, materials: [],
+           material_limits: { tile_mm: [10, 200], finishes: ["aucune"] },
+           transform_limits: { xy_mm: [-100, 100], z_mm: [0, 10],
+                               rot_deg: [-180, 180], scale: [0.1, 4] },
+           mesh3d: { engines: [], default_engine: "meshy-7" } };
+  LAST_MANIFEST = { side: "front", layers: [{ role: "cadre" }] };
+  MANIFEST_BACK = null;
+  MANIFEST_CAPTURE = { side: "capture", source: "capture",
+                       layers: [{ role: "recto" }, { role: "illustration" }] };
+  DOC_GRAPH = { nodes: [{ id: "asm", kind: "assemble" }], edges: [] };
+  HIST.length = 0; TOASTS.length = 0; PATCHES.length = 0;
+
+  /* ── LA NAISSANCE ─────────────────────────────────────────────────────── */
+  naitExtrude();
+  const ne = (DOC_GRAPH.nodes || []).filter((n) => n.kind === "extrude")[0];
+  dit("T5 naissance extrusion",
+      !!ne && ne.contour === "cadre" && ne.width_mm === 2
+      && ne.depth_mm === 0.6 && ne.segments === 24 && HIST.length === 1,
+      J([ne, HIST.length]));
+  dit("T5 l'id d'une extrusion DIT son contour (le bordereau l'affiche tel "
+      + "quel)", !!ne && ne.id.indexOf("cadre") >= 0, ne && ne.id);
+  dit("T5 elle nait LIBRE (aucune arete) — le geste suivant est de tirer le "
+      + "fil vers l'assemblage",
+      (DOC_GRAPH.edges || []).length === 0, J(DOC_GRAPH.edges));
+  dit("T5 son corps porte ses quatre champs",
+      ["contour", "width_mm", "depth_mm", "segments"].every(
+        (c) => nodeBodyHtml(ne.id).indexOf('data-field="' + c + '"') >= 0),
+      nodeBodyHtml(ne.id));
+  dit("T5 rien ne peut ENTRER dans une extrusion",
+      !aEntree("extrude") && aSortie("extrude"),
+      J([aEntree("extrude"), aSortie("extrude")]));
+  dit("T5 son titre est son CONTOUR, pas son id",
+      noeudTitre(ne) === "cadre", noeudTitre(ne));
+
+  /* ── LE COMPTE D'ELEMENTS ─────────────────────────────────────────────── */
+  const avant = nbElements(DOC_GRAPH);
+  dit("T5 compte d'elements",
+      avant === 1 && nbExtrusions(DOC_GRAPH) === 1
+      && rowsDe(DOC_GRAPH).length === 0, J([avant, rowsDe(DOC_GRAPH).length]));
+  dit("T5 le pied de palette AFFICHE ce compte (le plafond se lit avant le "
+      + "refus)", paletteHtml().indexOf(">1 / 12 ") >= 0
+      || paletteHtml().indexOf("1 / 12") >= 0, paletteHtml());
+  /* le plafond mord sur les extrusions comme sur les rangs */
+  INFO = { graph_limits: Object.assign({}, LIM, { max_elements: 1 }),
+           materials: [], material_limits: INFO.material_limits,
+           transform_limits: INFO.transform_limits, mesh3d: INFO.mesh3d };
+  TOASTS.length = 0;
+  const n0 = (DOC_GRAPH.nodes || []).length;
+  naitExtrude();
+  dit("T5 le plafond compte les extrusions (une de plus est REFUSEE, et "
+      + "dite)", (DOC_GRAPH.nodes || []).length === n0 && TOASTS.length === 1,
+      J(TOASTS));
+  INFO = { graph_limits: LIM, materials: [],
+           material_limits: INFO.material_limits,
+           transform_limits: INFO.transform_limits, mesh3d: INFO.mesh3d };
+
+  /* ── LA PROVENANCE ────────────────────────────────────────────────────── */
+  dit("T5 provenance offerte",
+      couchesRestantes(DOC_GRAPH).some(
+        (r) => r.side === "capture" && r.role === "recto"
+               && r.label.indexOf("import") >= 0),
+      J(couchesRestantes(DOC_GRAPH)));
+  dit("T5 un role de peintre n'offre PAS l'import",
+      J(sidesPour("cadre")) === J(["front", "back"]), J(sidesPour("cadre")));
+  dit("T5 un role d'import n'offre QUE l'import",
+      J(sidesPour("recto")) === J(["capture"]), J(sidesPour("recto")));
+  dit("T5 `illustration` existe des DEUX cotes de la frontiere",
+      J(sidesPour("illustration")) === J(["front", "back", "capture"]),
+      J(sidesPour("illustration")));
+
+  /* ── LE REFUS D'ECRITURE (le nœud disparaitrait cote serveur) ──────────── */
+  DOC_GRAPH = { nodes: [
+    { id: "s", kind: "layer", role: "cadre", side: "front" },
+    { id: "p", kind: "plane", depth_mm: 0.2 },
+    { id: "asm", kind: "assemble" }],
+    edges: [{ from: "s", to: "p" }, { from: "p", to: "asm" }] };
+  HIST.length = 0; PATCHES.length = 0;
+  editGraph("p", "side", "capture", "p");
+  dit("T5 provenance refusee",
+      DOC_GRAPH.nodes[0].side === "front" && HIST.length === 0
+      && PATCHES.length === 0,
+      J([DOC_GRAPH.nodes[0].side, HIST.length, PATCHES.length]));
+  editGraph("p", "side", "back", "p");
+  dit("T5 ... mais un cote LEGITIME s'ecrit bel et bien",
+      DOC_GRAPH.nodes[0].side === "back" && HIST.length === 1,
+      J([DOC_GRAPH.nodes[0].side, HIST.length]));
+}
+
+banc18().then(banc21).then(banc22).then(
   () => {
     videInspecteur();   /* aucune minuterie ne survit au banc */
     process.stdout.write(JSON.stringify(out));
@@ -8483,6 +8636,10 @@ let INFO = null, ARTIFACT = null, LAST_MANIFEST = null, SEL = null;
 /* 2d T2 : le manifeste VERSO. Il vit a cote du recto, sous la MEME etiquette
    de carte — le banc le pose a la main, comme il pose deja `LAST_MANIFEST`. */
 let MANIFEST_BACK = null;
+/* T5 : le manifeste des couches IMPORTEES — meme etiquette de carte, meme
+   pose a la main. Il est declare ICI et pas extrait du module pour la meme
+   raison que les deux autres : c'est un ETAT que le banc pilote. */
+let MANIFEST_CAPTURE = null;
 /* ── LE « DISQUE » ET LE RAIL, PILOTES (ronde de revue 2d-T2, S1) ──────────
    La course d'export ne se mesure pas sur des stubs de logique : `exportLayers`
    et `cardChanged` sont les VRAIES fonctions, et ce sont le TRANSPORT et la
@@ -8606,6 +8763,10 @@ function $(sel) {
   return Object.prototype.hasOwnProperty.call(DOM, sel) ? DOM[sel] : null;
 }
 function paintVue() {}
+/* T5 : les deux repeints cibles de `editGraph`. Stubs — ils ne font que du
+   DOM, et ce banc mesure ce qui est ECRIT dans le graphe. */
+function paintChamps() {}
+function repeintChaine() {}
 function paintUndo() {}
 function paintNodeThumb() {}
 function paintCost() {}
@@ -8664,7 +8825,19 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # ronde de revue 2d-T2 (S1) : la COURSE d'export se rejoue sur
                 # les vraies fonctions — il lui faut les roles de couche et le
                 # registre des jobs que `oublieLesJobs` vide.
-                "LAYER_ROLES", "POLLS", "SEEN"):
+                "LAYER_ROLES", "POLLS", "SEEN",
+                # T5 : le vocabulaire des PROVENANCES (le bloc miroir en
+                # declare trois d'affilee : LAYER_SIDES, CAPTURE_SIDE,
+                # CAPTURE_ROLES) et les deux tables qui en derivent — celle
+                # de l'œil (SIDE_LABELS) et celle des ids (SIDE_SUFFIX).
+                "LAYER_SIDES", "CAPTURE_SIDE", "CAPTURE_ROLES",
+                "SIDE_LABELS", "SIDE_SUFFIX",
+                # T5 : `editGraph` entre au banc — c'est LUI qui refuse
+                # d'ecrire une provenance qu'un role ne porte pas. Ses tables
+                # de champs viennent avec (`MOTIF_RE` declare aussi
+                # `MOTIF_STRUCT_RE`).
+                "MAT_FIELDS", "MOTIF_RE", "MOTIF_STRUCT_RE", "TRS_FIELDS",
+                "STRUCT_FIELDS"):
         morceaux.append(_js_decl(src, nom))
     morceaux.append(_js_decl(src, "INSP_MS"))
     for nom in ("ROWS_MEMO", "ARETE", "INSP_SUJET", "INSP_JETON", "INSP_URL",
@@ -8675,6 +8848,11 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 "camPending"):
         morceaux.append(_js_decl(src, nom, "let"))
     for nom in ("esc", "weight", "connu", "sansProto", "kindLabel",
+                # T5 : la provenance (mot de l'œil, suffixe d'id, rôles
+                # compatibles) et le nœud EXTRUSION (ses contours servis, ses
+                # champs, sa naissance, et le compte d'elements qui l'inclut).
+                "sideLabel", "suffixeCote", "sidesPour", "extrudeContours",
+                "extrudeHtml", "naitExtrude", "nbExtrusions", "nbElements",
                 "noeudTitre", "rowModel", "graphRows", "rowsDe", "rowDuNoeud",
                 "lienValide", "aEntree", "aSortie", "chaineAttendue",
                 "chaineDe", "surnumeraire", "maillonsAval", "rewireRow",
@@ -8701,6 +8879,7 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # d'un nœud (herite de sa couche source pour les maillons) et
                 # l'arrangement en deux blocs. `rowHtml` entre au banc parce
                 # que c'est LA vue liste qui nomme un rang.
+                "defaultEngine", "editGraph",
                 "coteDe", "defaultGraph", "cotesDesNoeuds", "bornePos",
                 "rangH", "poseBloc", "seedLayout", "rowHtml",
                 # ronde de revue 2d-T2 : la liste des elements assembles
@@ -8859,3 +9038,723 @@ def test_un_registre_NU_rougit_sur_un_id_de_Object_prototype(tmp_path, quoi,
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T5 — LE NŒUD `extrude` (D8) ET LA PROVENANCE `capture` (D7)
+#
+# Deux nouveautés qui ne se ressemblent pas : l'une est de la GÉOMÉTRIE (une
+# couronne de contour, dont tout se mesure : fermeture, volume, orientation),
+# l'autre est un CONTRAT DE PROVENANCE (des couches importées qui entrent dans
+# le graphe sans emprunter la preuve d'empilement des peintres).
+#
+# La barre est celle de §9.1 : « extrusion fermée / volume positif /
+# imprimable », et « GLB assemblé : bornes exactes, scrub_identity, dimensions
+# physiques ». Aucun chiffre de ce bloc n'est postulé — chacun est comparé à
+# une valeur ANALYTIQUE (l'aire exacte d'un rectangle arrondi) ou à une mesure
+# de référence prise ici même.
+# ═══════════════════════════════════════════════════════════════════════════
+
+_EXT_W, _EXT_H, _EXT_R = 63.0, 88.0, 3.0     # poker_eu, rayon de coin du lab
+
+
+def _aretes(mesh: dict) -> dict:
+    """Le compte d'occurrences de chaque arête, PAR POSITION (même clé que
+    `mesh_measures` : c'est la position qui ferme un solide, pas l'indice)."""
+    pos, idx = mesh["positions"], mesh["indices"]
+    out: dict = {}
+    for t in range(0, len(idx), 3):
+        tri = (idx[t], idx[t + 1], idx[t + 2])
+        for k in range(3):
+            a, b = tri[k], tri[(k + 1) % 3]
+            ka = tuple(round(pos[a * 3 + i], 6) for i in range(3))
+            kb = tuple(round(pos[b * 3 + i], 6) for i in range(3))
+            e = (ka, kb) if ka <= kb else (kb, ka)
+            out[e] = out.get(e, 0) + 1
+    return out
+
+
+def _aire_polygone(pts) -> float:
+    s = 0.0
+    n = len(pts)
+    for i in range(n):
+        x1, y1 = pts[i]
+        x2, y2 = pts[(i + 1) % n]
+        s += x1 * y2 - x2 * y1
+    return s / 2.0
+
+
+def test_l_extrusion_est_fermee_par_aretes_appariees_et_de_volume_exact():
+    """§9.1 — « extrusion fermée / volume positif / imprimable ».
+
+    TROIS mesures indépendantes, pas une :
+      1. FERMÉE PAR ARÊTES APPARIÉES — chaque arête appartient à EXACTEMENT
+         deux faces. C'est la preuve topologique ; `closed` du constructeur
+         n'est qu'une DÉCLARATION, et une déclaration ne prouve rien.
+      2. VOLUME POSITIF, ET SANS COMPTER LE TROU. La divergence signée d'une
+         surface fermée en forme d'anneau enferme la MATIÈRE, pas le disque :
+         le volume mesuré doit valoir l'aire ANALYTIQUE de la couronne
+         (`W.H - (4-pi)r^2` moins la même chose pour le contour rentré) fois
+         la profondeur — et il doit être BIEN PLUS PETIT que l'aire du contour
+         extérieur entier fois la profondeur, sans quoi le trou serait compté.
+      3. IMPRIMABLE — le drapeau que la route gate sur le STL.
+    """
+    from app.services.cards import forge3d_scene as SC
+    for larg, prof in ((1.2, 0.4), (2.0, 0.6), (0.2, 0.2)):
+        m = SC.extrude_ring_mesh(_EXT_W, _EXT_H, _EXT_R, larg, prof, 24)
+        aretes = _aretes(m)
+        boiteuses = {e: n for e, n in aretes.items() if n != 2}
+        assert not boiteuses, (larg, prof, list(boiteuses.items())[:3])
+        rep = SC.mesh_measures(m)
+        assert rep["closed"] is True and m["closed"] is True, (larg, prof)
+        exact = SC.ring_area_mm2(_EXT_W, _EXT_H, _EXT_R, larg) * prof
+        assert exact > 0
+        assert rep["volume_mm3"] > 0, rep
+        ecart = abs(rep["volume_mm3"] - exact) / exact
+        assert ecart < 0.001, (larg, prof, rep["volume_mm3"], exact, ecart)
+        # ── LE TROU N'EST PAS COMPTÉ ────────────────────────────────────
+        plein = (_EXT_W * _EXT_H - (4.0 - math.pi) * _EXT_R ** 2) * prof
+        assert rep["volume_mm3"] < plein * 0.15, (rep["volume_mm3"], plein)
+    # l'aire analytique est bien celle de la COURONNE : le produit
+    # « périmètre médian x largeur » lui est algébriquement égal (les deux se
+    # développent en 2d(W+H) - 4d^2 - (8-2pi)rd + (4-pi)d^2). On le VÉRIFIE,
+    # parce qu'un plan qui l'annonçait « seulement approché » avait tort.
+    d = 1.2
+    p_med = (2 * (_EXT_W - d) + 2 * (_EXT_H - d)
+             - (8.0 - 2 * math.pi) * (_EXT_R - d / 2.0))
+    assert abs(SC.ring_area_mm2(_EXT_W, _EXT_H, _EXT_R, d) - p_med * d) < 1e-9
+
+
+def test_le_plancher_de_segments_empeche_le_capuchon_de_degenerer():
+    """« segments clampé au plancher pour que les capuchons ne dégénèrent
+    JAMAIS » (D8) — et la question du plan (« à quel compte l'aire d'un
+    capuchon s'annule ? ») a une réponse MESURÉE, qui n'est pas celle qu'on
+    attendait : elle ne s'annule JAMAIS par le compte de segments. Elle
+    converge par au-dessous, de façon monotone. Ce qui l'annule est la
+    LARGEUR à la demi-carte — d'où deux gardes de nature différente, et ce
+    test-ci ne juge que la première.
+
+    LE PLANCHER GARDE LA FORME. À une seule station par coin (ce que
+    `segments = 0` donnerait sans le `max(2, ...)` du constructeur), l'arc
+    devient un point : le rectangle arrondi devient un LOSANGE et la couronne
+    perd la moitié de son aire. Le plancher interdit cet état — deux stations
+    au minimum, c'est-à-dire une corde par coin."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    exact = SC.ring_area_mm2(_EXT_W, _EXT_H, _EXT_R, 1.2)
+
+    def aire(seg):
+        ext, inte = SC._rrect_stations(_EXT_W, _EXT_H, _EXT_R, 1.2, seg)
+        return _aire_polygone(ext) - _aire_polygone(inte), len(ext)
+
+    # ── CE QUE LE PLANCHER INTERDIT, CALCULÉ ICI (référence, pas un appel) :
+    #    les quatre points de DÉBUT d'arc, et rien d'autre.
+    losange_ext = [(0.0, _EXT_R), (_EXT_W - _EXT_R, 0.0),
+                   (_EXT_W, _EXT_H - _EXT_R), (_EXT_R, _EXT_H)]
+    r_in, d = _EXT_R - 1.2, 1.2
+    c = max(_EXT_R, d)
+    losange_int = [(c - r_in, c), (_EXT_W - c, c - r_in),
+                   (_EXT_W - c + r_in, _EXT_H - c), (c, _EXT_H - c + r_in)]
+    perdu = (_aire_polygone(losange_ext) - _aire_polygone(losange_int)) / exact
+    assert perdu < 0.55, perdu          # 50,7 % de l'aire, mesuré : un losange
+    assert perdu > 0.45, perdu
+
+    # ── LE CONSTRUCTEUR NE DESCEND JAMAIS LÀ, quoi qu'on lui passe ────────
+    for seg in (-5, 0, 1):
+        a, stations = aire(seg)
+        assert stations == 8, (seg, stations)     # 2 stations x 4 coins
+        assert abs(a - exact) / exact < 0.02, (seg, a, exact)
+    # ... et la convergence est monotone au-dessus (mesures du 24/08 :
+    # -1,87 % à 1 segment, -0,51 % à 2, -0,23 % à 3, -0,004 % au défaut).
+    ecarts = [(exact - aire(s)[0]) / exact for s in (1, 2, 3, 8, 24)]
+    assert all(e > 0 for e in ecarts), ecarts
+    assert ecarts == sorted(ecarts, reverse=True), ecarts
+    assert abs(ecarts[0] - 0.0187) < 0.001, ecarts[0]
+    assert ecarts[-1] < 0.0001, ecarts[-1]
+    # ── LA BORNE PUBLIÉE EST BIEN CE PLANCHER-LÀ ─────────────────────────
+    assert F9.EXTRUDE_SEGMENTS[0] == 1
+    assert F9.EXTRUDE_SEGMENTS_DEFAULT == 24
+
+
+def test_l_orientation_des_capuchons_est_prouvee_par_produit_signe():
+    """Le miroir de la 2b s'est DÉJÀ rejoué au capuchon en 3c : une surface
+    retournée reste `closed` — seule l'aire signée le dit. Chaque triangle
+    PLAT du dessus tourne dans le sens direct vu de +z, chaque triangle plat
+    du dessous dans le sens inverse. Et le témoin : un maillage MIROITÉ (x ->
+    -x) garde sa fermeture et INVERSE son volume."""
+    from app.services.cards import forge3d_scene as SC
+    prof = 0.5
+    m = SC.extrude_ring_mesh(_EXT_W, _EXT_H, _EXT_R, 1.2, prof, 16)
+    pos, idx = m["positions"], m["indices"]
+    haut = bas = 0
+    for t in range(0, len(idx), 3):
+        a, b, c = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
+        if not (pos[a + 2] == pos[b + 2] == pos[c + 2]):
+            continue                      # une paroi, pas un capuchon
+        cz = ((pos[b] - pos[a]) * (pos[c + 1] - pos[a + 1])
+              - (pos[b + 1] - pos[a + 1]) * (pos[c] - pos[a]))
+        assert abs(cz) > 1e-9, "triangle de capuchon d'aire nulle"
+        if pos[a + 2] > 0:
+            assert cz > 0, "capuchon du dessus retourné (normale vers -z)"
+            haut += 1
+        else:
+            assert cz < 0, "capuchon du dessous retourné (normale vers +z)"
+            bas += 1
+    assert haut > 0 and haut == bas, (haut, bas)
+    # LE TÉMOIN : le miroir passe la fermeture et RETOURNE le volume.
+    miroir = {"positions": list(pos), "indices": list(idx)}
+    for k in range(0, len(miroir["positions"]), 3):
+        miroir["positions"][k] = -miroir["positions"][k]
+    assert SC.mesh_measures(miroir)["closed"] is True
+    assert SC.mesh_measures(miroir)["volume_mm3"] < 0
+    assert SC.mesh_measures(m)["volume_mm3"] > 0
+
+
+def test_l_extrusion_tient_sur_les_cas_degeneres_et_dit_ou_elle_casse():
+    """Les configurations où la couronne pourrait s'ouvrir — et la seule où
+    elle s'ouvre VRAIMENT, mesurée plutôt que supposée.
+
+    Coins vifs (rayon nul), largeur PLUS GRANDE que le rayon (le contour
+    rentré perd ses arcs), largeur ÉGALE au rayon, rayon valant la demi-carte
+    (les segments droits ont une longueur nulle), carte minuscule : toutes
+    fermées, toutes au volume analytique. À `largeur = min(w, h) / 2` PILE, en
+    revanche, l'appariement tombe — c'est ce chiffre-là que le rabot
+    géométrique de la route garde, et c'est pour ça qu'il existe."""
+    from app.services.cards import forge3d_scene as SC
+    cas = (("coins vifs", 63.0, 88.0, 0.0, 1.2),
+           ("largeur > rayon", 63.0, 88.0, 3.0, 6.0),
+           ("largeur = rayon", 63.0, 88.0, 3.0, 3.0),
+           ("rayon = demi-carte", 40.0, 40.0, 20.0, 1.2),
+           ("carte minuscule", 30.0, 40.0, 2.0, 0.2))
+    for nom, w, h, r, d in cas:
+        m = SC.extrude_ring_mesh(w, h, r, d, 0.4, 24)
+        assert not [e for e, n in _aretes(m).items() if n != 2], nom
+        rep = SC.mesh_measures(m)
+        assert rep["closed"] is True, nom
+        exact = SC.ring_area_mm2(w, h, r, d) * 0.4
+        assert abs(rep["volume_mm3"] - exact) / exact < 0.001, (nom, rep, exact)
+    # ── LÀ OÙ ÇA CASSE, MESURÉ ──────────────────────────────────────────
+    casse = SC.extrude_ring_mesh(63.0, 88.0, 3.0, 63.0 / 2, 0.4, 24)
+    assert SC.mesh_measures(casse)["closed"] is False, \
+        "le contour rentré s'inverse à la demi-carte : si ce cas passe " \
+        "encore, le rabot géométrique de la route n'a plus de raison d'être"
+
+
+def test_le_plancher_de_l_extrusion_est_LE_JUMEAU_de_SEAL_MIN_MM():
+    """« depth_mm au plancher partagé avec SEAL_MIN_MM, jumeau épinglé par un
+    test qui lit frame.py » (D8).
+
+    P9 n'importe le module d'aucune voisine (règle 8) : le chiffre est
+    RECOPIÉ, et l'aveu est dans le commentaire de la constante. Un commentaire
+    ne se vérifie pas tout seul — CE test-ci va lire la source de P2, à la
+    fois par l'import (la valeur qui court) et par les OCTETS du fichier (le
+    littéral qui y est écrit) : une réécriture de l'un sans l'autre rougit.
+
+    La correspondance des CONTOURS est épinglée de la même manière : la
+    largeur par défaut de `sceau` est celle du Sceau prismatique."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import frame as P2
+    assert F9.EXTRUDE_MIN_MM == P2.SEAL_MIN_MM, (F9.EXTRUDE_MIN_MM,
+                                                 P2.SEAL_MIN_MM)
+    assert F9.EXTRUDE_WIDTH_MM[0] == P2.SEAL_MIN_MM
+    assert F9.EXTRUDE_DEPTH_MM[0] == P2.SEAL_MIN_MM
+    assert F9.EXTRUDE_WIDTH_DEFAULT["sceau"] == P2.SEAL_DEFAULTS["width_mm"]
+    # ... et le LITTÉRAL, lu dans les octets de P2 : la valeur qui court et
+    # celle qui est écrite sont la même (une copie qui dérive d'un côté
+    # seulement est exactement le défaut que la règle des miroirs vise).
+    src_p2 = (ROOT / "backend" / "app" / "services" / "cards"
+              / "frame.py").read_text(encoding="utf-8")
+    assert re.search(r"^SEAL_MIN_MM = 0\.2$", src_p2, re.M), \
+        "SEAL_MIN_MM n'est plus écrit 0.2 dans frame.py"
+    assert re.search(r'"width_mm": 1\.2', src_p2), \
+        "la largeur par défaut du Sceau n'est plus 1.2 dans frame.py"
+    # LE COMMENTAIRE DE LA COPIE NOMME SA SOURCE (patron des copies du lab).
+    src_p9 = (ROOT / "backend" / "app" / "services" / "cards"
+              / "forge3d.py").read_text(encoding="utf-8")
+    bloc = src_p9.split("EXTRUDE_MIN_MM = ")[0][-1400:]
+    assert "SEAL_MIN_MM" in bloc and "frame.py" in bloc, bloc[-400:]
+
+
+def test_clean_graph_borne_le_noeud_extrude():
+    """Le 10e kind traverse le nettoyage comme les neuf autres : contour hors
+    vocabulaire ramené au premier, cotes ramenées dans les bornes servies,
+    défaut de LARGEUR qui dépend du contour choisi (c'est tout ce qui
+    distingue les deux courbes v1), et JAMAIS une levée sur un type hostile."""
+    from app.services.cards import forge3d as F9
+    g = {"nodes": [
+        {"id": "a", "kind": "extrude", "contour": "sceau"},
+        {"id": "b", "kind": "extrude", "contour": "vortex"},
+        {"id": "c", "kind": "extrude", "contour": ["cadre"], "width_mm": 999,
+         "depth_mm": -3, "segments": 5000},
+        {"id": "d", "kind": "extrude", "width_mm": "x", "segments": None},
+    ], "edges": []}
+    n = {x["id"]: x for x in F9.clean_graph(g)["nodes"]}
+    assert len(n) == 4, n
+    assert n["a"]["contour"] == "sceau"
+    assert n["a"]["width_mm"] == F9.EXTRUDE_WIDTH_DEFAULT["sceau"]
+    assert n["b"]["contour"] == "cadre"          # inconnu -> le premier
+    assert n["b"]["width_mm"] == F9.EXTRUDE_WIDTH_DEFAULT["cadre"]
+    assert n["a"]["width_mm"] != n["b"]["width_mm"], \
+        "les deux contours ne se distinguent QUE par leur largeur par défaut"
+    assert n["c"]["contour"] == "cadre"          # non hachable -> réparé
+    assert n["c"]["width_mm"] == F9.EXTRUDE_WIDTH_MM[1]
+    assert n["c"]["depth_mm"] == F9.EXTRUDE_DEPTH_MM[0]
+    assert n["c"]["segments"] == F9.EXTRUDE_SEGMENTS[1]
+    assert n["d"]["width_mm"] == F9.EXTRUDE_WIDTH_DEFAULT["cadre"]
+    assert n["d"]["segments"] == F9.EXTRUDE_SEGMENTS_DEFAULT
+    assert isinstance(n["d"]["segments"], int)
+    # les défauts SERVIS sont ceux que le nettoyage pose (l'écran les recopie
+    # depuis /info, jamais depuis une constante à lui).
+    did = _deck("Extrude info")
+    lim = _api("GET", f"/api/cards/{did}/forge3d/info").json()["graph_limits"]
+    assert lim["extrude_contours"] == list(F9.EXTRUDE_CONTOURS)
+    assert lim["extrude_width_mm"] == list(F9.EXTRUDE_WIDTH_MM)
+    assert lim["extrude_width_default"] == dict(F9.EXTRUDE_WIDTH_DEFAULT)
+    assert lim["extrude_depth_mm"] == list(F9.EXTRUDE_DEPTH_MM)
+    assert lim["extrude_segments"] == list(F9.EXTRUDE_SEGMENTS)
+    assert lim["extrude_segments_default"] == F9.EXTRUDE_SEGMENTS_DEFAULT
+
+
+def test_la_provenance_capture_entre_dans_la_grammaire_des_deux_cotes():
+    """`side: "capture"` (D7) — le vocabulaire des rôles DÉPEND de la
+    provenance, et c'est la moitié qui compte : un rôle de peintre importé (ou
+    un rôle d'import au recto) nommerait un fichier que rien n'écrit jamais.
+    Le nœud est alors JETÉ, comme une source sans source.
+
+    Le miroir JS porte la MÊME table (bloc CF-FORGE3D-SIDES), champ à champ et
+    dans l'ordre : c'est la seule façon que l'écran et le serveur nomment le
+    même fichier."""
+    from app.services.cards import forge3d as F9
+    assert F9.LAYER_SIDES == ("front", "back", "capture")
+    assert F9.CAPTURE_SIDE == "capture"
+    assert F9.CAPTURE_ROLES == ("recto", "illustration")
+    g = {"nodes": [
+        {"id": "a", "kind": "layer", "role": "recto", "side": "capture"},
+        {"id": "b", "kind": "layer", "role": "illustration", "side": "capture",
+         "composite": True},
+        {"id": "c", "kind": "layer", "role": "cadre", "side": "capture"},
+        {"id": "d", "kind": "layer", "role": "recto", "side": "front"},
+        {"id": "e", "kind": "layer", "role": "cadre", "side": "verso"},
+        {"id": "f", "kind": "layer", "role": "illustration", "side": ["back"]},
+    ], "edges": []}
+    n = {x["id"]: x for x in F9.clean_graph(g)["nodes"]}
+    assert n["a"]["side"] == "capture" and n["a"]["role"] == "recto"
+    # PAS DE COMPOSITE IMPORTÉ : le composite est le résultat d'un empilement.
+    assert n["b"]["side"] == "capture" and n["b"]["composite"] is False
+    assert "c" not in n, "un rôle de peintre n'existe pas côté import"
+    assert "d" not in n, "un rôle d'import n'existe pas sur une face peinte"
+    assert n["e"]["side"] == "front", "un côté inconnu retombe sur le recto"
+    assert n["f"]["side"] == "front", "un côté non hachable ne lève pas"
+    # ── LE MIROIR JS ────────────────────────────────────────────────────
+    src = JS.read_text(encoding="utf-8")
+    bloc = src.split("CF-FORGE3D-SIDES-BEGIN")[1].split("CF-FORGE3D-SIDES-END")[0]
+    js_sides = re.search(r"const LAYER_SIDES = \[([^\]]*)\];", bloc)
+    js_roles = re.search(r"const CAPTURE_ROLES = \[([^\]]*)\];", bloc)
+    js_cote = re.search(r'const CAPTURE_SIDE = "([a-z]+)";', bloc)
+    assert js_sides and js_roles and js_cote, bloc
+    lire = lambda m: [x.strip().strip('"') for x in m.group(1).split(",")
+                      if x.strip()]                             # noqa: E731
+    assert lire(js_sides) == list(F9.LAYER_SIDES)
+    assert lire(js_roles) == list(F9.CAPTURE_ROLES)
+    assert js_cote.group(1) == F9.CAPTURE_SIDE
+
+
+def test_le_manifeste_incoherent_entre_son_nom_et_son_contenu_est_IGNORE():
+    """LA SEULE PORTE QUE `_lire_manifeste` N'AVAIT PAS, et la mesure l'a
+    dit : avant T5 cette fonction ne validait RIEN — ni sha256, ni boîtes, ni
+    côté. Elle lisait le JSON et rendait le dictionnaire.
+
+    Le nom du fichier PORTE le côté ; le contenu le REDIT. Un
+    `layers_c01_capture.json` qui annonce `side: "front"` ferait résoudre des
+    couches importées contre le manifeste des peintres — un fichier qui ment
+    sur ce qu'il est. Il vaut ABSENT, et le journal le nomme.
+
+    Un manifeste MUET sur son côté, lui, n'est pas un menteur : il passe (les
+    fichiers écrits avant que la clé existe restent lisibles)."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Manifeste incoherent")
+    out = F9._out_dir(did, create=True)
+    (out / "layers_c01_capture.json").write_text(
+        json.dumps({"side": "front", "layers": []}), encoding="utf-8")
+    assert F9._lire_manifeste(out, "c01", "capture") is None
+    (out / "layers_c01_capture.json").write_text(
+        json.dumps({"side": "capture", "layers": [], "source": "capture"}),
+        encoding="utf-8")
+    assert F9._lire_manifeste(out, "c01", "capture") is not None
+    # muet -> accepté (rétro-compatibilité assumée, écrite)
+    (out / "layers_c01_front.json").write_text(
+        json.dumps({"layers": []}), encoding="utf-8")
+    assert F9._lire_manifeste(out, "c01", "front") == {"layers": []}
+    # ... et un manifeste de peintre qui annoncerait l'autre face tombe aussi
+    (out / "layers_c01_back.json").write_text(
+        json.dumps({"side": "front", "layers": []}), encoding="utf-8")
+    assert F9._lire_manifeste(out, "c01", "back") is None
+
+
+# ── L'OUTILLAGE DE LA PROVENANCE IMPORTÉE (côté P9) ────────────────────────
+#
+# Ces tests construisent le manifeste importé EN PASSANT PAR LA PIÈCE IMPORT
+# (sa route `capture/manifeste`) : c'est elle l'écrivain, et le mesurer par un
+# fichier écrit à la main ne prouverait rien du contrat réel.
+
+def _importe(did: str, im=None, sujet=None):
+    """Dépose une face (et, si on veut, un sujet détouré POSÉ) puis publie le
+    manifeste importé. Rend la réponse de publication.
+
+    LE SUJET EST POSÉ, PAS PAYÉ : la route de détourage est opt-in et son
+    faux fournisseur vit dans test_cards_capture.py. Ici, ce qui se mesure est
+    ce que P9 fait d'un manifeste importé — le fichier suffit."""
+    from app.services.cards import capture as P10
+    im = im if im is not None else Image.new("RGB", (630, 880), (30, 26, 20))
+    r = _api("POST", f"/api/cards/{did}/capture/card", content=_png(im),
+             headers={"Content-Type": "image/png"})
+    assert r.status_code == 200, r.text
+    if sujet is not None:
+        (P10.cap_dir(did) / P10.SUJET_NAME).write_bytes(_png(sujet))
+    r = _api("POST", f"/api/cards/{did}/capture/manifeste")
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def _graphe_importe(role="recto", extrude=True, finition=None, motifs=None):
+    nodes = [{"id": "src", "kind": "layer", "role": role, "side": "capture"},
+             {"id": "pl", "kind": "plane", "depth_mm": 0.0},
+             {"id": "asm", "kind": "assemble"},
+             {"id": "art", "kind": "artifact", "name": "importee"}]
+    edges = [{"from": "src", "to": "pl"}, {"from": "pl", "to": "asm"},
+             {"from": "asm", "to": "art"}]
+    if extrude:
+        nodes.insert(2, {"id": "ext", "kind": "extrude", "contour": "sceau",
+                         "depth_mm": 0.5})
+        if finition:
+            nodes.insert(3, {"id": "mt", "kind": "material",
+                             "finish": finition, "aniso": False,
+                             **({"motifs": motifs} if motifs else {})})
+            edges += [{"from": "ext", "to": "mt"}, {"from": "mt", "to": "asm"}]
+        else:
+            edges.append({"from": "ext", "to": "asm"})
+    return {"nodes": nodes, "edges": edges}
+
+
+def test_une_couche_importee_traverse_le_graphe_et_le_bordereau_l_AVOUE():
+    """§7.1.6 — « les couches importées entrent dans le manifeste de P9 comme
+    sources de nœuds ». Le chemin complet côté P9 : le nœud `layer` en
+    provenance `capture` trouve son fichier, l'élément porte un NOM qui dit sa
+    provenance (sans quoi un `illustration` peint et un `illustration` importé
+    sortiraient deux matériaux homonymes — la leçon M3 de la 2d), et le
+    bordereau AVOUE la provenance AVEC SON CHIFFRE."""
+    did = _deck("Import 3D")
+    pub = _importe(did, sujet=Image.new("RGBA", (300, 300), (200, 170, 110, 255)))
+    roles = [l["role"] for l in pub["layers"]["layers"]]
+    assert roles == ["recto", "illustration"], roles
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": _graphe_importe("illustration", extrude=False),
+                   "card": 0})
+    assert r.status_code == 200, r.text
+    art = r.json()["artifact"]
+    detail = art["elements_detail"]
+    assert len(detail) == 1, detail
+    assert detail[0]["name"] == "illustration_capture", detail
+    assert detail[0]["side"] == "capture", detail
+    assert "couche importee" in detail[0]["import"], detail
+    assert "couverture" in detail[0]["import"], detail
+    # le chiffre du bordereau est CELUI du manifeste, pas un autre
+    ligne = [l for l in pub["layers"]["layers"]
+             if l["role"] == "illustration"][0]
+    attendu = f"{ligne['coverage_pct']:.1f}".replace(".", ",")
+    assert attendu in detail[0]["import"], (attendu, detail[0]["import"])
+    # ... et le GLB est SERVI, avec les dimensions physiques et zéro identité
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}")
+    assert glb.status_code == 200
+    doc, _binv = _read_glb(glb.content)
+    assert doc["scenes"] and doc["nodes"]
+    assert doc["asset"].get("generator") is None, doc["asset"]
+    ex = doc["asset"].get("extras") or {}
+    assert ex.get("size_mm") == [63.0, 88.0] and ex.get("unit") == "metre"
+    assert ex.get("card") == "c01" and ex.get("format") == "poker_eu"
+    assert [m["name"] for m in doc["materials"]] == ["illustration_capture"]
+
+
+def test_le_manifeste_importe_qui_MENT_est_refuse_NOMME():
+    """L'empreinte REMPLACE la preuve d'empilement (D7 amendé) — donc elle
+    doit être LOAD-BEARING, pas décorative. Cinq mensonges, cinq refus
+    nommés, aucun 500 : manifeste absent, provenance qui n'est pas un import,
+    rôle que le manifeste ne porte pas, fichier nommé autrement que celui que
+    la résolution lit, et empreinte qui ne correspond plus aux octets."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Manifeste menteur")
+    _importe(did)
+    out = F9._out_dir(did)
+    p = out / "layers_c01_capture.json"
+    entier = json.loads(p.read_text(encoding="utf-8"))
+    g = _graphe_importe("recto", extrude=False)
+
+    def build():
+        return _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                    json={"graph": g, "card": 0})
+
+    assert build().status_code == 200                     # l'état sain d'abord
+
+    def abime(mut, mot):
+        m = json.loads(json.dumps(entier))
+        mut(m)
+        p.write_text(json.dumps(m), encoding="utf-8")
+        r = build()
+        assert r.status_code == 409, (mot, r.status_code, r.text[:200])
+        assert mot in r.json()["detail"], (mot, r.json()["detail"])
+        p.write_text(json.dumps(entier), encoding="utf-8")
+        assert build().status_code == 200, "l'état sain ne se restaure pas"
+
+    abime(lambda m: m.__setitem__("source", "peintres"), "provenance")
+    abime(lambda m: m["layers"].clear(), "ne porte pas la couche")
+    abime(lambda m: m["layers"][0].__setitem__("file", "ailleurs.png"),
+          "ne parlent pas du meme fichier")
+    abime(lambda m: m["layers"][0].__setitem__("sha256", "0" * 64),
+          "empreinte")
+    # ... et le manifeste ABSENT
+    octets = p.read_bytes()
+    p.unlink()
+    r = build()
+    assert r.status_code == 409 and "manifeste" in r.json()["detail"], r.text
+    p.write_bytes(octets)
+    # ... et le FICHIER absent (le manifeste seul ne suffit pas)
+    png = out / "recto_c01_capture.png"
+    brut = png.read_bytes()
+    png.unlink()
+    r = build()
+    assert r.status_code == 409 and "absente du disque" in r.json()["detail"]
+    png.write_bytes(brut)
+    assert build().status_code == 200
+
+
+def test_l_extrusion_seule_est_IMPRIMABLE_et_le_sceau_s_y_branche():
+    """Les deux moitiés de D8 dans un seul artefact : « imprimable » (le STL
+    est ÉCRIT parce que tous les éléments sont des solides fermés — un plan
+    texturé, lui, le refuserait) et « le matériau par référence de nœud : le
+    Sceau 3c s'y branche tel quel ».
+
+    LA PREUVE DU SCEAU N'EST PAS UN NOM D'EXTENSION — c'est le canal G de
+    l'épaisseur d'iridescence, RELU dans les octets du GLB servi et corrélé au
+    motif incrusté (le banc Pearson de la 3c, réutilisé tel quel)."""
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Extrusion imprimable")
+    # un calque de motif à incruster (la route d'import de P3 pose ces noms)
+    from app.services.cards.contract import deck_dir
+    d3 = deck_dir(did) / "type"
+    d3.mkdir(parents=True, exist_ok=True)
+    sig = _sigil(256, 0.32)
+    (d3 / "img_1.png").write_bytes(sig)
+    g = {"nodes": [
+        {"id": "ext", "kind": "extrude", "contour": "sceau", "width_mm": 1.2,
+         "depth_mm": 0.6, "segments": 32},
+        {"id": "mt", "kind": "material", "finish": "argent", "aniso": False,
+         "motifs": [{"src": "img:img_1.png", "gain": 1.0}]},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "anneau"}],
+        "edges": [{"from": "ext", "to": "mt"}, {"from": "mt", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    art = r.json()["artifact"]
+    assert art["ignored"] == [], art["ignored"]
+    # ── IMPRIMABLE ──────────────────────────────────────────────────────
+    assert art["stl"]["written"] is True, art["stl"]
+    stl = _api("GET", f"/api/cards/{did}/forge3d/file/{art['stl']['name']}")
+    assert stl.status_code == 200 and len(stl.content) > 84
+    tris = struct.unpack("<I", stl.content[80:84])[0]
+    assert tris * 50 + 84 == len(stl.content), (tris, len(stl.content))
+    # ── LE SCEAU, RELU DANS LES OCTETS ──────────────────────────────────
+    glb = _api("GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}")
+    doc, binv = _read_glb(glb.content)
+    assert "KHR_materials_iridescence" in doc["extensionsUsed"]
+    assert "KHR_materials_iridescence" not in doc.get("extensionsRequired", [])
+    iri = doc["materials"][0]["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceIor"] == 1.8               # la recette ARGENT
+    idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][idx]["bufferView"]]
+    gband = Image.open(io.BytesIO(
+        binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]])
+    ).convert("RGB").split()[1]
+    ref = Image.open(io.BytesIO(sig)).convert("L").resize(
+        gband.size, Image.BICUBIC)
+    r_p = _correlation(ref, gband, pas=3)
+    assert r_p > 0.5, r_p
+    # et le motif a bel et bien ÉPAISSI : le canal diffère de la base nue
+    nu = _canal_g(SC._holo_thickness_png(gband.size[0]))
+    assert list(gband.getdata()) != list(nu.getdata())
+
+
+def test_le_rabot_geometrique_de_l_extrusion_S_AVOUE():
+    """Au-delà de la demi-carte le contour rentré s'inverse (mesuré : le
+    maillage cesse d'être fermé). La route rabote — et le DIT. Livrer une
+    couronne muette plus étroite que demandée serait un mensonge silencieux ;
+    refuser tout l'artefact pour un curseur trop poussé serait
+    disproportionné."""
+    did = _deck("Rabot", fmt="micro")
+    geo = _api("GET", f"/api/cards/{did}/geom").json()["geom"]
+    w, h = geo["trim_mm"][0], geo["trim_mm"][1]
+    g = {"nodes": [
+        {"id": "ext", "kind": "extrude", "contour": "cadre", "width_mm": 20.0,
+         "depth_mm": 0.4},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "rabot"}],
+        "edges": [{"from": "ext", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    art = r.json()["artifact"]
+    assert min(w, h) / 2.0 < 20.0, (w, h)     # le format DOIT mordre
+    dits = [x["why"] for x in art["ignored"] if x["node"] == "ext"]
+    assert dits and "largeur d'extrusion ramenee" in dits[0], art["ignored"]
+    assert "demi-carte" in dits[0], dits[0]
+    # ... et le solide livré reste fermé : le rabot n'est pas décoratif
+    assert art["stl"]["written"] is True, art["stl"]
+
+
+def test_l_extrusion_sans_assemble_est_AVOUEE_et_ses_aretes_entrantes_aussi():
+    """Deux pertes que l'écran ne peut PAS produire (sa grammaire l'interdit)
+    et que l'API brute, elle, produit : une extrusion qui ne rejoint pas
+    l'assemblage, et une arête ENTRANTE sur un nœud dont la forme vient du
+    format. Les deux sont AVOUÉES, jamais tues — invariant `artifact@1`."""
+    did = _deck("Extrusion orpheline")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 0.2},
+        {"id": "orphelin", "kind": "extrude", "contour": "cadre"},
+        {"id": "nourri", "kind": "extrude", "contour": "sceau"},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "aveux"}],
+        "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "asm"},
+                  {"from": "s", "to": "nourri"},
+                  {"from": "nourri", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    aveux = {x["node"]: x["why"] for x in r.json()["artifact"]["ignored"]}
+    assert "orphelin" in aveux and "non reliee a un assemble" in aveux["orphelin"]
+    assert "nourri" in aveux and "entrante" in aveux["nourri"], aveux
+    # celle qui est reliée est bel et bien CONSTRUITE malgré son arête morte
+    noms = [d["name"] for d in r.json()["artifact"]["elements_detail"]]
+    assert "extrude_sceau" in noms and "cadre" in noms, noms
+
+
+def test_l_ordre_des_elements_suit_les_NŒUDS_extrusions_comprises():
+    """L'ordre du bordereau est un contrat de la 2c (l'écran le suit). Les
+    extrusions se RANGENT parmi les rangs, elles ne s'ajoutent pas à la fin —
+    et un graphe SANS extrusion rend exactement la liste d'avant T5."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Ordre")
+    _exporter_couches(did)
+    g = {"nodes": [
+        {"id": "ex1", "kind": "extrude", "contour": "cadre"},
+        {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+        {"id": "p", "kind": "plane", "depth_mm": 0.2},
+        {"id": "ex2", "kind": "extrude", "contour": "sceau"},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "ordre"}],
+        "edges": [{"from": "ex1", "to": "asm"}, {"from": "s", "to": "p"},
+                  {"from": "p", "to": "asm"}, {"from": "ex2", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text
+    assert [d["node"] for d in r.json()["artifact"]["elements_detail"]] == \
+        ["ex1", "p", "ex2"]
+    # SANS extrusion, la résolution est celle du sidecar, à l'identique
+    propre = F9.clean_graph({"nodes": [n for n in g["nodes"]
+                                       if n["kind"] != "extrude"],
+                             "edges": g["edges"]})
+    a, ia = F9._resolve_graph_elements(propre)
+    b, ib = F9._resoud_tout(propre)
+    assert [c["proc"]["id"] for c in a] == [c["proc"]["id"] for c in b]
+    assert ia == ib
+
+
+def test_l_inspecteur_previsualise_une_extrusion_et_une_couche_importee():
+    """L'aperçu d'UN nœud (§5.6) couvre les deux nouveautés. L'extrusion n'a
+    pas de sous-graphe à synthétiser (rien ne l'alimente) ; la couche importée
+    passe par le MÊME contrôle de manifeste que la construction — sans quoi
+    son absence tomberait sur le refus des peintres (« exporte les couches
+    d'abord, POST /layers »), une consigne fausse pour un import."""
+    did = _deck("Apercu T5")
+    _importe(did)
+    g = _graphe_importe("recto", extrude=True)
+    r = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+             json={"graph": g, "nid": "ext", "card": 0})
+    assert r.status_code == 200, r.text[:300]
+    doc, _b = _read_glb(r.content)
+    assert (doc["asset"].get("extras") or {}).get("preview") is True
+    assert len(doc["meshes"]) == 1
+    r2 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g, "nid": "pl", "card": 0})
+    assert r2.status_code == 200, r2.text[:300]
+    # ... et le refus de l'import est le SIEN
+    from app.services.cards import forge3d as F9
+    (F9._out_dir(did) / "recto_c01_capture.png").unlink()
+    r3 = _api("POST", f"/api/cards/{did}/forge3d/node-preview",
+              json={"graph": g, "nid": "pl", "card": 0})
+    assert r3.status_code == 409, r3.status_code
+    assert "POST /layers" not in r3.json()["detail"], r3.json()["detail"]
+    assert "absente du disque" in r3.json()["detail"], r3.json()["detail"]
+
+
+def test_l_ecran_porte_l_extrusion_et_la_provenance_importee():
+    """Ce que l'écran doit MONTRER — et les pins de source ne disent QUE cela
+    (le comportement, lui, se mesure au banc node ci-dessous) : le kind dans
+    la palette, ses quatre champs bornés par /info, la grammaire des fils, le
+    troisième manifeste chargé, et le refus d'un côté que le rôle ne porte
+    pas."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    # la palette fait naître une extrusion, par la MÊME délégation `data-act`
+    assert 'data-act="pal-extrude"' in rendu
+    assert "naitExtrude" in rendu
+    # ses champs, et AUCUNE borne écrite ici : tout vient de graph_limits
+    corps = rendu.split("function extrudeHtml(")[1].split("\n  }")[0]
+    assert 'data-field="contour"' in corps, corps
+    for champ in ("width_mm", "depth_mm", "segments"):
+        assert '"' + champ + '"' in corps, champ
+    assert "extrude_contours" in corps and "extrude_width_mm" in corps
+    assert "extrude_depth_mm" in corps and "extrude_segments" in corps
+    assert not re.search(r"\b(0\.2|20\.0|1\.2|2\.0|24)\b", corps), corps
+    # la naissance prend ses défauts du CONTRAT, jamais d'un chiffre d'ici
+    ne = rendu.split("function naitExtrude(")[1].split("\n  }")[0]
+    assert "extrude_width_default" in ne and "extrude_depth_default" in ne
+    assert "extrude_segments_default" in ne
+    # la grammaire : l'extrusion mène quelque part et rien ne mène à elle
+    gram = rendu.split("const GRAMMAIRE = {")[1].split("};")[0]
+    assert re.search(r"extrude: \[", gram), gram
+    assert '"extrude"' not in gram, "un fil ne doit pas pouvoir ENTRER dans " \
+                                    "une extrusion : sa forme vient du format"
+    # le troisième manifeste est CHARGÉ, pas deviné
+    cm = rendu.split("async function chargeManifeste(")[1].split("\n  }")[0]
+    assert "MANIFEST_CAPTURE" in cm and "CAPTURE_SIDE" in cm, cm
+    assert "recus[2]" in cm, cm
+
+
+def test_le_banc_de_palette_mesure_l_extrusion_et_les_provenances(tmp_path):
+    """Le banc node, étendu : les VRAIES fonctions de l'écran jouent la
+    naissance d'une extrusion, le compte d'éléments qui l'inclut, et la garde
+    de provenance (`sidesPour`) qui empêche de poser un côté que le rôle ne
+    porte pas. Les cas neufs sont dans `_BANC_PALETTE` — ce test-ci ne fait
+    que relever le PLANCHER de cas mesurés."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    import base64
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0,
+                            0.3, 4)
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    glb = SC.write_scene_glb(
+        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
+          "z_mm": 0.0}], name="apercu",
+        extras={"schema": F9.PREVIEW_SCHEMA, "preview": True, "ignored": []})
+    cas = _banc_palette(tmp_path, base64.b64encode(glb).decode("ascii"))
+    noms = {c["nom"] for c in cas}
+    for attendu in ("T5 naissance extrusion", "T5 compte d'elements",
+                    "T5 provenance refusee", "T5 provenance offerte"):
+        assert attendu in noms, sorted(noms)

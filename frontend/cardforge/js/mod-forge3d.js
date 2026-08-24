@@ -95,12 +95,49 @@
   ];
   /* ═══ CF-FORGE3D-LAYERS-END ═══ */
 
+  /* ── LES CÔTÉS D'UNE SOURCE — BLOC MIROIR (T5, D7) ──────────────────────
+     ═══ CF-FORGE3D-SIDES-BEGIN ═══
+     Miroir Python dans forge3d.py, entre les mêmes marqueurs ; parité champ
+     à champ, dans l'ordre.
+     `front`/`back` : les deux faces PEINTES, celles que l'export de couches
+                      livre après la preuve d'empilement.
+     `capture`      : les couches IMPORTÉES (pièce Import). Pas une troisième
+                      face : une troisième PROVENANCE, sur la face avant. Leur
+                      manifeste est le leur (`layers_{carte}_capture.json`), et
+                      il ne porte que les rôles ci-dessous — un import ne
+                      découpe ni cadre ni fond, et ne les nomme donc jamais. */
+  const LAYER_SIDES = ["front", "back", "capture"];
+  const CAPTURE_SIDE = "capture";
+  const CAPTURE_ROLES = ["recto", "illustration"];
+  /* ═══ CF-FORGE3D-SIDES-END ═══ */
+
+  /* le mot de l'œil pour une provenance — jamais l'identifiant nu. */
+  const SIDE_LABELS = { front: "recto", back: "verso", capture: "import" };
+
+  function sideLabel(s) {
+    return connu(SIDE_LABELS, s) ? SIDE_LABELS[s] : String(s == null ? "" : s);
+  }
+
+  /* LE SUFFIXE D'IDENTITÉ D'UNE SOURCE — miroir du NOM D'ÉLÉMENT du backend
+     (`nom_element` suffixe `_verso` au verso, `_nom_element` suffixe
+     `_capture` à un import ; le recto n'en porte aucun). Il nomme l'id du
+     nœud que la palette pose, pour que le bordereau (`elements_detail.node`)
+     et l'écran désignent le même objet. Ce n'est PAS `sideLabel` : l'un
+     s'adresse à l'œil, l'autre est une clé — les confondre ferait dériver le
+     jour où un libellé change. */
+  const SIDE_SUFFIX = { front: "", back: "_verso", capture: "_capture" };
+
+  function suffixeCote(s) {
+    return connu(SIDE_SUFFIX, s) ? SIDE_SUFFIX[s] : "";
+  }
+
   /* ═══ CF-FORGE3D-NODES-BEGIN ═══
      Miroir Python dans forge3d.py ; parité testée champ à champ. */
   const NODE_KINDS = [
     { kind: "layer", params: ["role", "side"] },
     { kind: "plane", params: ["depth_mm"] },
     { kind: "relief", params: ["depth_mm", "base_mm", "grid"] },
+    { kind: "extrude", params: ["contour", "width_mm", "depth_mm", "segments"] },
     { kind: "mesh3d", params: ["engine", "texture_prompt", "ultra"] },
     { kind: "material", params: ["mat", "tile_mm", "finish", "aniso", "motifs"] },
     { kind: "transform", params: ["x_mm", "y_mm", "z_mm", "rot_deg", "scale"] },
@@ -246,7 +283,7 @@
      artefact, export) et le repli NOMME du kind `mesh3d` — voir la note
      « LE preview.png D'UN JOB N'EST SERVI PAR AUCUNE ROUTE » plus bas. */
   const PICTO = {
-    layer: "▤", plane: "▭", relief: "◧", mesh3d: "⬢",
+    layer: "▤", plane: "▭", relief: "◧", mesh3d: "⬢", extrude: "▢",
     material: "◍", transform: "✥", assemble: "⧉",
     artifact: "◆", export: "⭳",
   };
@@ -266,6 +303,8 @@
      une panne ; ces phrases disent la fonction du nœud (et, pour l'export,
      l'engagement du bordereau). */
   const KIND_HINTS = {
+    extrude: "la couronne du contour de la carte, en volume — sa forme vient "
+      + "du format, pas d'une couche : elle n'a donc pas d'entrée.",
     assemble: "réunit les éléments de toutes les chaînes en un seul artefact.",
     artifact: "porte le nom du fichier construit — « Construire », ci-dessous.",
     export: "point de téléchargement : il n'éteint rien du bordereau.",
@@ -278,7 +317,8 @@
      est du recto), et c'est ce qui permet de comparer deux côtés sans
      recopier trois fois le même ternaire. */
   function coteDe(n) {
-    return (n && n.side === "back") ? "back" : "front";
+    const s = n && n.side;
+    return (LAYER_SIDES.indexOf(s) >= 0) ? s : "front";
   }
 
   /* UN MANIFESTE A-T-IL QUELQUE CHOSE À OFFRIR ? — et surtout : la question
@@ -383,9 +423,13 @@
                                     RÉPONSE, pas une panne : la palette le DIT
                                     au lieu d'un menu plus court sans motif) */
   let MANIFEST_CARD = null;     /* l'étiquette de carte (c01, c02…) POUR
-                                    LAQUELLE les DEUX ont été chargés — legs 5 :
-                                    c'est elle qu'on confronte à la carte
+                                    LAQUELLE les TROIS ont été chargés — legs
+                                    5 : c'est elle qu'on confronte à la carte
                                     courante à chaque peinture */
+  let MANIFEST_CAPTURE = null;  /* le manifeste des couches IMPORTÉES (T5) —
+                                    écrit par la pièce Import, pas par
+                                    l'export. `null` = rien d'importé (ou pas
+                                    encore publié), ce qui est une RÉPONSE */
   let ARTIFACT = null;          /* le dernier bordereau de build3d */
   let PREVIEW_URL = null;       /* objectURL du GLB monté dans model-viewer —
                                     révoquée avant d'en poser une nouvelle */
@@ -553,6 +597,7 @@
       /* le VERSO part avec le recto : un manifeste verso survivant sèmerait
          le graphe du deck suivant avec les couches de celui qu'on quitte. */
       MANIFEST_BACK = null;
+      MANIFEST_CAPTURE = null;
       MANIFEST_CARD = null;
       ARTIFACT = null;
       /* M1 — un chargement de manifeste en vol appartient au deck PRÉCÉDENT :
@@ -750,7 +795,14 @@
            bien sur le disque, et revenir sur la carte le relit
            (`chargeManifeste` charge les deux faces). */
         if (face === "front") {
-          if (cardLabel(carte) !== MANIFEST_CARD) MANIFEST_BACK = null;
+          if (cardLabel(carte) !== MANIFEST_CARD) {
+            MANIFEST_BACK = null;
+            /* T5 — LA PROVENANCE IMPORTÉE LÂCHE AVEC LE VERSO, et pour la
+               MÊME raison : elle est étiquetée par carte, et le recto qui
+               ré-étiquette ne peut pas emmener avec lui le manifeste importé
+               d'une AUTRE carte. */
+            MANIFEST_CAPTURE = null;
+          }
           LAST_MANIFEST = rep.layers;
           MANIFEST_CARD = cardLabel(carte);
         } else if (cardLabel(carte) === MANIFEST_CARD) {
@@ -912,7 +964,8 @@
        les DEUX : un chargement séquentiel exposé par deux verrous aurait laissé
        `seedDefault` semer un graphe recto seul sur une carte qui a un verso. */
     const recus = await Promise.all(
-      [litManifeste(label, "front"), litManifeste(label, "back")]);
+      [litManifeste(label, "front"), litManifeste(label, "back"),
+       litManifeste(label, CAPTURE_SIDE)]);
     /* M1 — CE CHARGEMENT PEUT ÊTRE RASSIS : un changement de deck pendant la
        requête a incrémenté `GEN`. Écrire son résultat poserait un manifeste —
        et surtout un APPARIEMENT — appartenant à ce qui n'est plus à l'écran.
@@ -926,6 +979,7 @@
     if (gen !== GEN) return;
     LAST_MANIFEST = recus[0];
     MANIFEST_BACK = recus[1];
+    MANIFEST_CAPTURE = recus[2];
     /* l'étiquette est posée MÊME en échec : un 404 est une réponse (« jamais
        exporté pour cette carte »), pas une raison de re-demander en boucle
        à chaque peinture. */
@@ -1179,11 +1233,58 @@
         : "");
   }
 
+  /* ── LE NŒUD EXTRUSION (T5) — quatre champs, toutes bornes SERVIES ──────
+     Aucun chiffre n'est écrit ici : contours, bornes et défauts viennent de
+     `/info` (`graph_limits.extrude_*`), au même patron que la géométrie d'un
+     traitement. Le nœud n'a PAS de source à choisir — sa forme vient du
+     format de la carte — d'où l'absence de menu de côté ou de rôle. */
+  function extrudeHtml(n, lim) {
+    const cont = (lim && lim.extrude_contours) || [];
+    const w = (lim && lim.extrude_width_mm) || null;
+    const p = (lim && lim.extrude_depth_mm) || null;
+    const s = (lim && lim.extrude_segments) || null;
+    const choisi = n.contour || (cont[0] || "");
+    return '<div class="cf-forge3d-line">'
+      + (cont.length
+        ? ('<select class="cf-forge3d-contour" data-field="contour" '
+          + 'title="la courbe suivie : le cadre du format, ou l\'anneau du '
+          + 'Sceau">'
+          + cont.map((c) => '<option value="' + esc(c) + '"'
+            + ((c === choisi) ? " selected" : "") + '>' + esc(c)
+            + '</option>').join("")
+          + '</select>')
+        : '<span class="hint">contours indisponibles — le contrat /info n\'a '
+          + 'pas été chargé.</span>')
+      + numHtml("largeur", "width_mm", n.width_mm, w, "0.05", "mm")
+      + numHtml("profondeur", "depth_mm", n.depth_mm, p, "0.05", "mm")
+      + numHtml("arcs", "segments", n.segments, s, "1", "")
+      + '</div>';
+  }
+
+  /* LES PROVENANCES QU'UN RÔLE PEUT PORTER — et c'est une garde, pas une
+     commodité (T5). Les deux vocabulaires ne se recouvrent que sur
+     `illustration` : proposer « import » sur un `cadre` ferait naître un nœud
+     que `clean_graph` JETTE (un rôle de peintre n'existe pas côté import), et
+     le nœud disparaîtrait au premier aller-retour serveur sans un mot. La
+     règle est dérivée des deux tables miroir, jamais écrite en dur. */
+  function sidesPour(role) {
+    const peintre = LAYER_ROLES.some((r) => r.role === role);
+    const importe = CAPTURE_ROLES.indexOf(role) >= 0;
+    return LAYER_SIDES.filter((s) => (s === CAPTURE_SIDE) ? importe : peintre);
+  }
+
   function sideSelHtml(layer) {
-    const dos = !!(layer && layer.side === "back");
-    return '<select class="cf-forge3d-side" data-field="side">'
-      + '<option value="front"' + (dos ? "" : " selected") + '>recto</option>'
-      + '<option value="back"' + (dos ? " selected" : "") + '>verso</option>'
+    const cote = coteDe(layer);
+    const offres = sidesPour(layer && layer.role);
+    /* un rôle inconnu des deux tables (un graphe posté à la main) n'offre
+       rien : on montre au moins CE QU'IL EST, plutôt qu'un menu vide. */
+    const liste = offres.length ? offres : [cote];
+    return '<select class="cf-forge3d-side" data-field="side"'
+      + ((liste.length < 2) ? ' disabled title="ce rôle n\'existe que d\'un'
+        + ' côté"' : "") + '>'
+      + liste.map((s) => '<option value="' + esc(s) + '"'
+        + ((s === cote) ? " selected" : "") + '>' + esc(sideLabel(s))
+        + '</option>').join("")
       + '</select>';
   }
 
@@ -1309,8 +1410,7 @@
   function sourceTxt(job) {
     const s = (job && job.source) || null;
     if (!s) return "";
-    return (s.role || "composite") + " · "
-      + ((s.side === "back") ? "verso" : "recto")
+    return (s.role || "composite") + " · " + sideLabel(coteDe(s))
       + (s.file ? " · " + s.file : "");
   }
 
@@ -1339,7 +1439,7 @@
        infobulle. */
     const quoi = src
       ? ('<i class="cf-forge3d-src"> · ' + esc((job.source.role || "composite")
-        + " " + ((job.source.side === "back") ? "verso" : "recto")) + '</i>')
+        + " " + sideLabel(coteDe(job.source))) + '</i>')
       : "";
     /* ÉCHAPPER À LA FRONTIÈRE, UNE FOIS. `step`, `error` et `closed_note` sont
        les SEULES valeurs de cette fonction écrites par le backend (tout le
@@ -2850,6 +2950,7 @@
      les traitements de la liste). */
   const KIND_LABELS = {
     layer: "couche", plane: "plan", relief: "relief", mesh3d: "mesh 3D",
+    extrude: "extrusion",
     material: "matière", transform: "placement", assemble: "assemblage",
     artifact: "artefact", export: "export",
   };
@@ -2880,6 +2981,11 @@
     layer: ["plane", "relief", "mesh3d"],
     plane: ["material", "transform", "assemble"],
     relief: ["material", "transform", "assemble"],
+    /* L'EXTRUSION N'EST LA SUITE DE RIEN (T5) : aucune entrée de cette table
+       ne la nomme, donc `aEntree("extrude")` est FAUX et le nœud naît sans
+       poignée d'entrée — exactement comme une couche, et pour la raison
+       inverse : la couche vient du manifeste, l'extrusion vient du format. */
+    extrude: ["material", "transform", "assemble"],
     mesh3d: ["material", "transform", "assemble"],
     material: ["transform", "assemble"],
     transform: ["assemble"],
@@ -2936,9 +3042,9 @@
      rien ne rend lisible. L'id complet reste en infobulle de l'en-tête. */
   function noeudTitre(n) {
     if (n.kind === "layer") {
-      return (n.role || "composite") + " · "
-        + ((n.side === "back") ? "verso" : "recto");
+      return (n.role || "composite") + " · " + sideLabel(coteDe(n));
     }
+    if (n.kind === "extrude") return n.contour || "contour";
     if (n.kind === "artifact") return n.name || "artefact";
     if (n.kind === "mesh3d") return n.engine || "moteur";
     if (n.kind === "material") {
@@ -3046,6 +3152,13 @@
         : '<p class="hint">couche non reliée à un traitement — elle ne sera '
           + 'pas construite.</p>';
       if (r && att.role === "layer") proc = r.proc.id;
+    } else if (n.kind === "extrude") {
+      /* PAS DE `r` À CHERCHER : une extrusion n'a pas de rang (un rang part
+         d'une couche). Elle porte ses champs TOUJOURS, et c'est juste — ce
+         qui lui manquerait pour être construite est l'ASSEMBLAGE en aval, ce
+         que la grammaire des fils dit déjà à l'écran. */
+      champs = kindHintHtml(n) + extrudeHtml(n, lim);
+      proc = n.id;
     } else if (PROC_KINDS.indexOf(n.kind) >= 0) {
       champs = r
         ? ('<div class="cf-forge3d-line">' + procSelHtml(n) + geoHtml(n, lim)
@@ -3434,7 +3547,9 @@
      verso. Un nom faux ne ment pas — il 404, et la vignette retombe sur son
      aplat. */
   function layerFile(l) {
-    const side = (l && l.side === "back") ? "back" : "front";
+    const side = coteDe(l);
+    /* un import n'a pas de composite (rien ne l'a empilé) : son rôle est
+       toujours nommé, et `coteDe` a déjà normalisé la provenance. */
     const role = (l && !l.composite && l.role) ? l.role : "composite";
     return role + "_" + cardLabel() + "_" + side + ".png";
   }
@@ -4214,7 +4329,13 @@
       pris[coteDe(n) + ":" + String(n.role || "composite")] = 1;
     });
     const out = [];
-    [[LAST_MANIFEST, "front"], [MANIFEST_BACK, "back"]].forEach((paire) => {
+    /* T5 — TROIS MANIFESTES, ET LE MÊME DÉDOUBLONNAGE PAR CÔTÉ. La provenance
+       importée est une clé de plus dans la même table, pas un second
+       mécanisme : un `illustration` peint et un `illustration` importé sont
+       deux sources distinctes, et le jour où les deux existent, les deux
+       s'offrent. */
+    [[LAST_MANIFEST, "front"], [MANIFEST_BACK, "back"],
+     [MANIFEST_CAPTURE, CAPTURE_SIDE]].forEach((paire) => {
       const cote = paire[1];
       ((paire[0] && paire[0].layers) || []).forEach((l) => {
         if (!l || !l.role) return;
@@ -4224,10 +4345,24 @@
            seconde entrée poserait deux nœuds pour la même PNG. */
         pris[cle] = 1;
         out.push({ cle: cle, role: role, side: cote,
-                   label: role + ((cote === "back") ? " (verso)" : "") });
+                   label: role + ((cote === "front") ? ""
+                     : (" (" + sideLabel(cote) + ")")) });
       });
     });
     return out;
+  }
+
+  /* CE QUI COMPTE COMME ÉLÉMENT CONSTRUIT — les rangs (couche -> traitement)
+     ET les extrusions, qui n'ont pas de rang mais produisent bel et bien un
+     élément côté serveur (`_resoud_tout`). Sans elles, le compteur du pied de
+     palette et le garde de plafond mentaient tous les deux d'autant. */
+  function nbExtrusions(graph) {
+    return ((graph && graph.nodes) || [])
+      .filter((n) => n.kind === "extrude").length;
+  }
+
+  function nbElements(graph) {
+    return rowsDe(graph).length + nbExtrusions(graph);
   }
 
   /* LE PLAFOND EST DIT AVANT, PAS DÉCOUVERT AU REFUS. `build3d` rend un 400
@@ -4243,7 +4378,7 @@
   function plafondAtteint(graph, phrase) {
     const lim = (INFO && INFO.graph_limits) || null;
     const maxEl = Number(lim && lim.max_elements) || 0;
-    const n = rowsDe(graph).length;
+    const n = nbElements(graph);
     if (!(maxEl > 0) || n < maxEl) return false;
     M.toast(n + " élément(s) — le maximum construisible est " + maxEl + " : "
       + phrase + ". Retire un rang d'abord.", true);
@@ -4286,7 +4421,7 @@
        que le bordereau (`elements_detail.node`) affiche tel quel. */
     next.nodes = (next.nodes || []).concat([
       { id: freeId(next.nodes || [],
-                   choisi.role + ((choisi.side === "back") ? "_verso" : "")),
+                   choisi.role + suffixeCote(choisi.side)),
         kind: "layer", role: choisi.role, side: choisi.side }]);
     setGraph(next, "+ couche");
     paintVue();
@@ -4308,6 +4443,38 @@
     next.nodes = (next.nodes || []).concat([
       { id: freeId(next.nodes || [], "t"), kind: "plane", depth_mm: 0 }]);
     setGraph(next, "+ traitement");
+    paintVue();
+  }
+
+  function naitExtrude() {
+    const graph = get("graph");
+    if (!graph) return;
+    if (plafondAtteint(graph, "une extrusion de plus ne serait pas construite")) return;
+    const cont = extrudeContours();
+    if (!cont.length) {
+      M.toast("contours indisponibles : le contrat /info n'a pas été chargé "
+        + "(backend injoignable ?) — une extrusion sans contour ne serait pas "
+        + "construite.", true);
+      return;
+    }
+    const next = JSON.parse(JSON.stringify(graph));
+    /* ELLE NAÎT LIBRE, comme un traitement : c'est un ÉLÉMENT, pas un maillon
+       (le geste suivant est de tirer le fil vers l'assemblage). Le contour et
+       les cotes viennent du contrat servi, jamais d'un chiffre écrit ici —
+       `clean_graph` poserait les mêmes, et deux défauts qui dérivent feraient
+       naître un nœud dont l'écran et le serveur ne disent pas la même chose.
+       L'id PORTE le contour, comme celui d'une couche porte son côté. */
+    const lim = (INFO && INFO.graph_limits) || null;
+    const choisi = cont[0];
+    const larg = (lim && lim.extrude_width_default
+      && lim.extrude_width_default[choisi]);
+    next.nodes = (next.nodes || []).concat([
+      { id: freeId(next.nodes || [], "extrude_" + choisi), kind: "extrude",
+        contour: choisi,
+        width_mm: Number(larg),
+        depth_mm: Number(lim && lim.extrude_depth_default),
+        segments: Number(lim && lim.extrude_segments_default) }]);
+    setGraph(next, "+ extrusion");
     paintVue();
   }
 
@@ -4430,7 +4597,7 @@
     const art = (graph.nodes || []).filter((n) => n.kind === "artifact")[0];
     const lim = (INFO && INFO.graph_limits) || null;
     const maxEl = Number(lim && lim.max_elements) || 0;
-    const n = rowsDe(graph).length;
+    const n = nbElements(graph);
     const plein = (maxEl > 0 && n >= maxEl);
     const sansProc = "désigne un traitement (plan, relief ou moteur) : "
       + "un maillon appartient à une chaîne";
@@ -4452,6 +4619,16 @@
       + '<button class="btn sm" type="button" data-act="pal-proc"'
       + (plein ? " disabled" : "")
       + ' title="un plan, à relier à une couche">+ traitement</button>'
+      /* L'EXTRUSION NAÎT SANS RIEN DEMANDER : pas de couche à choisir (sa
+         forme vient du format), pas de traitement à désigner (elle EN est
+         un). Le seul refus possible est le plafond d'éléments — et elle en
+         est un, elle aussi. */
+      + '<button class="btn sm" type="button" data-act="pal-extrude"'
+      + ((plein || !extrudeContours().length) ? " disabled" : "") + ' title="'
+      + esc(extrudeContours().length
+        ? "la couronne du contour de la carte, en volume"
+        : "contours indisponibles — le contrat /info n'a pas été chargé")
+      + '">+ extrusion</button>'
       + '<button class="btn sm" type="button" data-act="pal-mat"'
       + (proc ? "" : " disabled") + ' title="'
       + esc(proc ? ("habille « " + noeudTitre(proc) + " »") : sansProc)
@@ -4683,6 +4860,9 @@
     } else if (act === "pal-proc") {
       e.preventDefault();
       naitProc();
+    } else if (act === "pal-extrude") {
+      e.preventDefault();
+      naitExtrude();
     } else if (act === "pal-mat") {
       e.preventDefault();
       naitMaillon("material");
@@ -5019,8 +5199,17 @@
      — ils changent ce que le nœud MONTRE au-delà de leur propre valeur. Le nom
      d'un artefact est son TITRE d'en-tête (`noeudTitre`), et le format d'un
      export commande TOUT son corps (poids et bouton, ou motif de refus). */
+  /* T5 : `contour` en fait partie — c'est le TITRE d'en-tête d'une extrusion
+     (`noeudTitre`), au même titre que `name` pour un artefact. */
   const STRUCT_FIELDS = ["engine", "ultra", "mat", "finish", "side", "name",
-                         "format"];
+                         "format", "contour"];
+
+  /* les contours SERVIS par /info — jamais une liste écrite ici (le miroir
+     NODE_KINDS nomme le PARAMÈTRE, le contrat nomme ses VALEURS). */
+  function extrudeContours() {
+    const lim = (INFO && INFO.graph_limits) || null;
+    return (lim && lim.extrude_contours) || [];
+  }
 
   /* clone + modifie + setGraph : `graph` est deep-freeze par le CORE dès
      qu'il est posé (schema simple, fusion superficielle) — une mutation en
@@ -5060,9 +5249,35 @@
          et il vient de /info — jamais d'une constante d'ici. */
       if (proc.kind === "mesh3d" && !proc.engine) proc.engine = defaultEngine();
     } else if (field === "side") {
+      /* LE NŒUD ÉDITÉ EST LA COUCHE — soit celle qui alimente ce traitement
+         (vue liste, corps d'un nœud couche relié), soit LUI-MÊME. */
       const edge = next.edges.filter((e) => e.to === procId)[0];
-      const layer = edge ? next.nodes.filter((n) => n.id === edge.from)[0] : null;
-      if (layer) layer.side = (rawValue === "back") ? "back" : "front";
+      const layer = (proc.kind === "layer") ? proc
+        : (edge ? next.nodes.filter((n) => n.id === edge.from)[0] : null);
+      /* SEULE UNE PROVENANCE QUE LE RÔLE PORTE S'ÉCRIT (T5) : le menu ne peut
+         pas en proposer d'autre, et `clean_graph` JETTE un `cadre` importé
+         (rôle inconnu de la table capture) — écrire une valeur que le serveur
+         effacera ferait disparaître le nœud sans un mot. Refus SILENCIEUX et
+         AVANT `setGraph`, comme le format d'un export : laisser passer
+         pousserait une entrée d'annulation pour un graphe inchangé. */
+      if (!layer || sidesPour(layer.role).indexOf(String(rawValue)) < 0) {
+        paintChamps(procId, nid, field);
+        return;
+      }
+      layer.side = String(rawValue);
+    } else if (field === "contour") {
+      const cont = extrudeContours();
+      if (cont.indexOf(String(rawValue)) < 0) {
+        paintChamps(procId, nid, field);
+        return;
+      }
+      proc.contour = String(rawValue);
+    } else if (field === "segments") {
+      const v = Math.round(Number(rawValue));
+      if (isFinite(v)) proc.segments = v; else delete proc.segments;
+    } else if (field === "width_mm") {
+      const v = Number(rawValue);
+      if (isFinite(v)) proc.width_mm = v; else delete proc.width_mm;
     } else if (field === "grid") {
       const v = Math.round(Number(rawValue));
       if (isFinite(v)) proc.grid = v; else delete proc.grid;

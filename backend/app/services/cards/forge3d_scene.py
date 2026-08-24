@@ -152,6 +152,204 @@ def relief_mesh(alpha_img, w_mm: float, h_mm: float, depth_mm: float,
             "closed": True, "uv_axis_aligned": True}
 
 
+# ── L'EXTRUSION DE CONTOUR (T5, D8) — LA COURONNE ───────────────────────────
+# Le transmis de la 3c : un contour FERMÉ, décalé vers l'intérieur d'une
+# largeur, extrudé sur une profondeur — deux capuchons plats et deux parois.
+# C'est la « profondeur d'extrusion » du parcours guidé (spec §7.2:569) et le
+# support du filigrane du Patriarche (:574, « filigrane en extrusion +
+# matériau Sceau prismatique »).
+#
+# UNE COURBE, DEUX CONTOURS NOMMÉS. `cadre` et `sceau` partagent la MÊME
+# courbe — le rectangle arrondi de la COUPE, au rayon de coin du format — et
+# ce n'est pas un raccourci : le Sceau prismatique de P2 épouse le contour de
+# la carte, c'est sa définition (§6.2bis). Ce qui les distingue est la LARGEUR
+# par défaut que le contrat HTTP leur donne (forge3d.py), pas leur géométrie.
+# Un troisième contour — le TRACÉ SVG que P2 dessine — est la v2 nommée du
+# plan (« contour SVG d'extrude », transmis de phase 4).
+#
+# L'OFFSET D'UN RECTANGLE ARRONDI EST EXACT, et c'est ce qui fait tenir la
+# couronne sans bibliothèque de géométrie : rentrer de `d` donne le rectangle
+# arrondi [d, W-d] x [d, H-d] de rayon max(r-d, 0), dont les CENTRES d'arc
+# valent max(r, d) sur chaque axe. Les deux contours se parcourent donc
+# STATION PAR STATION, au même angle : le point intérieur est toujours SUR LE
+# MÊME RAYON que l'extérieur (quand r >= d) ou au coin du rectangle rentré
+# (quand r < d), jamais de l'autre côté. C'est ce qui garantit une bande de
+# quads d'aire strictement positive, donc une couronne fermée.
+_EXTRUDE_EPS = 1e-9
+
+
+def _rrect_stations(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
+                    segments: int) -> tuple[list, list]:
+    """Les DEUX contours de la couronne, station par station, sens direct.
+
+    Rend `(exterieur, interieur)`, deux listes de MÊME longueur : la station k
+    de l'un répond à la station k de l'autre. Les stations sont réparties par
+    COIN — `segments` subdivisions d'arc par coin, donc `segments + 1` points,
+    et les quatre segments droits sont les intervalles entre deux coins.
+
+    `m` (le nombre de stations d'un coin) NE DESCEND JAMAIS SOUS 2 quand le
+    rayon existe, et c'est la garde mesurée du plancher : à une seule station
+    par coin, l'arc est remplacé par un point et le capuchon d'une couronne
+    de poker perd **49,3 %** de son aire analytique (178,32 mm2 mesurés contre
+    351,70 exacts, largeur 1,2 mm) — la carte devient un losange. À deux
+    stations (`segments = 1`, le plancher publié) l'arc est une CORDE et
+    l'écart tombe à −1,87 % ; à trois, −0,51 %. Le rayon NUL, lui, n'a pas
+    d'arc du tout : une seule station suffit, et c'est le seul cas où `m` vaut
+    1 (sinon quatre points identiques feraient quatre triangles plats)."""
+    r_out = max(0.0, float(r_mm))
+    d = float(width_mm)
+    c_out = r_out                       # centre d'arc du contour extérieur
+    c_in = max(r_out, d)                # ... et du contour rentré
+    r_in = max(r_out - d, 0.0)
+    m = 1 if r_out <= _EXTRUDE_EPS else max(2, int(segments) + 1)
+    coins = ((c_out, c_out, c_in, c_in, 180.0),
+             (w_mm - c_out, c_out, w_mm - c_in, c_in, 270.0),
+             (w_mm - c_out, h_mm - c_out, w_mm - c_in, h_mm - c_in, 0.0),
+             (c_out, h_mm - c_out, c_in, h_mm - c_in, 90.0))
+    ext: list = []
+    inte: list = []
+    for (ox, oy, ix, iy, a0) in coins:
+        for i in range(m):
+            a = math.radians(a0 + (90.0 * i / (m - 1) if m > 1 else 0.0))
+            ca, sa = math.cos(a), math.sin(a)
+            ext.append((ox + r_out * ca, oy + r_out * sa))
+            inte.append((ix + r_in * ca, iy + r_in * sa))
+    return ext, inte
+
+
+def _anneau_indices(pts: list) -> tuple[list, list]:
+    """Les SOMMETS UNIQUES d'un contour et la table station -> sommet.
+
+    Deux stations voisines peuvent tomber au MÊME point — un coin de rayon nul
+    (les `segments + 1` stations s'y écrasent), un rectangle arrondi dont le
+    rayon vaut la demi-carte (le segment droit a une longueur nulle). Les
+    laisser en sommets distincts fabriquerait des triangles d'aire nulle, et
+    une arête de longueur nulle casse l'appariement d'arêtes qui PROUVE la
+    fermeture. On les FUSIONNE, y compris entre le dernier et le premier (le
+    contour est fermé : ses deux bouts sont voisins)."""
+    vs: list = []
+    idx: list = []
+    for p in pts:
+        if vs and abs(vs[-1][0] - p[0]) < _EXTRUDE_EPS \
+                and abs(vs[-1][1] - p[1]) < _EXTRUDE_EPS:
+            idx.append(len(vs) - 1)
+        else:
+            vs.append(p)
+            idx.append(len(vs) - 1)
+    if len(vs) > 1 and abs(vs[-1][0] - vs[0][0]) < _EXTRUDE_EPS \
+            and abs(vs[-1][1] - vs[0][1]) < _EXTRUDE_EPS:
+        mort = len(vs) - 1
+        vs.pop()
+        idx = [0 if j == mort else j for j in idx]
+    return vs, idx
+
+
+def extrude_ring_mesh(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
+                      depth_mm: float, segments: int) -> dict:
+    """LA COURONNE EXTRUDÉE : le contour fermé du format, rentré de
+    `width_mm`, élevé de `depth_mm` — deux capuchons plats et deux parois, un
+    solide FERMÉ par construction.
+
+    Repère de la COUPE, comme `quad_mesh`/`relief_mesh` : origine au coin de
+    coupe, y vers le HAUT, base à z = 0 et dessus à z = `depth_mm`.
+
+    UV : projection planaire sur la carte (u = x/w, v = 1 - y/h), donc
+    alignée sur les axes comme le quad — c'est ce qui rend le canal
+    d'épaisseur du Sceau (secteurs radiaux, §6.2bis-c) lisible sur l'anneau et
+    ce qui autorise l'anisotropie. Les PAROIS, elles, héritent du même repère
+    dégénéré que la jupe d'un relief (mêmes u,v en haut et en bas) : assumé et
+    dit, exactement comme là-bas.
+
+    Précondition : `width_mm` strictement inférieure à la demi-carte. Au-delà
+    le contour rentré s'inverse et la couronne n'est plus un solide — MESURÉ :
+    à `width_mm = min(w, h) / 2` pile (31,5 mm sur un poker), l'appariement
+    d'arêtes tombe et `mesh_measures` rend `closed: False`. C'est le contrat
+    HTTP (`clean_graph` + le rabot géométrique de `post_build3d`) qui tient
+    cette borne et l'AVOUE au bordereau ; ici on la nomme."""
+    depth = float(depth_mm)
+    ext, inte = _rrect_stations(w_mm, h_mm, r_mm, width_mm, segments)
+    vo, io = _anneau_indices(ext)
+    vi, ii = _anneau_indices(inte)
+    n_o, n_i = len(vo), len(vi)
+    # quatre anneaux de sommets : extérieur/intérieur x dessus/dessous. Les
+    # capuchons et les parois PARTAGENT ces sommets — c'est ce partage qui
+    # ferme le solide (même principe que les anneaux de bord d'un relief).
+    ot0, it0, ob0, ib0 = 0, n_o, n_o + n_i, 2 * n_o + n_i
+    pos: list = []
+    uv: list = []
+    for anneau, z in ((vo, depth), (vi, depth), (vo, 0.0), (vi, 0.0)):
+        for (x, y) in anneau:
+            pos += [x, y, z]
+            uv += [x / w_mm, 1.0 - y / h_mm]
+    idx: list = []
+
+    def tri(a: int, b: int, c: int) -> None:
+        # TROIS SOMMETS DISTINCTS OU RIEN. Les stations fusionnées (coin de
+        # rayon nul, segment droit de longueur nulle) rendent ici deux indices
+        # égaux : le triangle serait plat, son arête doublée casserait la
+        # preuve de fermeture. Le SAUTER laisse la surface exacte — la voisine
+        # du quad, elle, couvre déjà la place (démonstration : chaque arête du
+        # maillage reste appariée, et le test l'exige sur les six cas).
+        if a != b and b != c and a != c:
+            idx.extend([a, b, c])
+
+    n = len(ext)
+    for k in range(n):
+        k2 = (k + 1) % n
+        ot, ot2 = ot0 + io[k], ot0 + io[k2]
+        it, it2 = it0 + ii[k], it0 + ii[k2]
+        ob, ob2 = ob0 + io[k], ob0 + io[k2]
+        ib, ib2 = ib0 + ii[k], ib0 + ii[k2]
+        tri(ot, ot2, it2)          # capuchon du dessus : normale +z
+        tri(ot, it2, it)
+        tri(ob, ib, ib2)           # capuchon du dessous : normale -z
+        tri(ob, ib2, ob2)
+        tri(ot, ob, ob2)           # paroi extérieure : normale vers dehors
+        tri(ot, ob2, ot2)
+        tri(it, it2, ib2)          # paroi intérieure : normale vers le trou
+        tri(it, ib2, ib)
+    nrm = [0.0] * len(pos)
+    for t in range(0, len(idx), 3):
+        i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3
+        ux, uy, uz = (pos[i1] - pos[i0], pos[i1 + 1] - pos[i0 + 1],
+                      pos[i1 + 2] - pos[i0 + 2])
+        vx, vy, vz = (pos[i2] - pos[i0], pos[i2 + 1] - pos[i0 + 1],
+                      pos[i2 + 2] - pos[i0 + 2])
+        cx, cy, cz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+        for k in (i0, i1, i2):
+            nrm[k] += cx
+            nrm[k + 1] += cy
+            nrm[k + 2] += cz
+    for k in range(0, len(nrm), 3):
+        ln = math.sqrt(nrm[k] ** 2 + nrm[k + 1] ** 2 + nrm[k + 2] ** 2) or 1.0
+        nrm[k] /= ln
+        nrm[k + 1] /= ln
+        nrm[k + 2] /= ln
+    return {"positions": pos, "normals": nrm, "uvs": uv, "indices": idx,
+            "closed": True, "uv_axis_aligned": True}
+
+
+def ring_area_mm2(w_mm: float, h_mm: float, r_mm: float,
+                  width_mm: float) -> float:
+    """L'AIRE ANALYTIQUE EXACTE de la couronne — la barre de mesure du volume.
+
+    Un rectangle arrondi vaut `W.H - (4 - pi).r^2` : le rectangle plein moins
+    les quatre coins que les arcs ont mangés. La couronne est la différence
+    entre celui de la coupe et celui de la coupe rentrée de `d`.
+
+    LE PRODUIT « PÉRIMÈTRE MÉDIAN x LARGEUR » N'EST PAS UNE APPROXIMATION ICI,
+    il est ALGÉBRIQUEMENT ÉGAL (développé des deux côtés : les deux donnent
+    `2d(W+H) - 4d^2 - (8-2pi)rd + (4-pi)d^2`). On garde quand même la forme
+    par différence d'aires : elle se relit sur la figure, et elle reste juste
+    le jour où le contour ne sera plus un rectangle arrondi."""
+    k = 4.0 - math.pi
+    d = float(width_mm)
+    r_in = max(float(r_mm) - d, 0.0)
+    a_out = float(w_mm) * float(h_mm) - k * float(r_mm) ** 2
+    a_in = (float(w_mm) - 2 * d) * (float(h_mm) - 2 * d) - k * r_in ** 2
+    return a_out - a_in
+
+
 def mesh_measures(mesh: dict) -> dict:
     """Fermeture et volume signé, MESURES locales — copie du principe de
     `mesh_report` de P8 (règle 8 : pas d'import pièce->pièce), réduite aux
@@ -1397,8 +1595,23 @@ def write_scene_glb(elements: list, name: str, extras: dict,
             attrs["TANGENT"] = add_accessor(
                 [1.0, 0.0, 0.0, -1.0] * (len(m["positions"]) // 3),
                 4, 5126, "VEC4", 34962)
-        pbr = {"baseColorTexture": {"index": add_texture(el["png"], nom)},
-               "metallicFactor": 0.0, "roughnessFactor": 0.9}
+        # LA COULEUR DE BASE VIENT DE LA COUCHE — QUAND IL Y EN A UNE. Un
+        # élément d'EXTRUSION (T5) n'a pas de PNG source : sa forme vient du
+        # format, pas d'une image. Sans texture, glTF applique son
+        # `baseColorFactor` par défaut ([1,1,1,1]) — qu'on n'écrit donc PAS
+        # (l'écrire changerait les octets sans changer le rendu), et qu'un
+        # matériau de finition remplace plus bas par la recette du Sceau. Le
+        # `.get` garde les octets d'un élément de couche IDENTIQUES à ceux de
+        # la 2a : la clé est là, la texture est posée, rien n'a bougé.
+        # (L'ORDRE DES CLÉS EST LOAD-BEARING : le JSON du GLB est sérialisé
+        # dans l'ordre d'insertion, et des octets de scène 2a doivent rester
+        # les mêmes octets. `baseColorTexture` garde donc sa place de tête
+        # quand elle existe, au lieu d'être ajoutée après coup.)
+        png_base = el.get("png")
+        pbr = ({"baseColorTexture": {"index": add_texture(png_base, nom)}}
+               if png_base else {})
+        pbr["metallicFactor"] = 0.0
+        pbr["roughnessFactor"] = 0.9
         mat = {"name": nom, "pbrMetallicRoughness": pbr,
                **({"alphaMode": "BLEND", "doubleSided": True}
                   if el.get("alpha") else {})}
