@@ -309,9 +309,68 @@ Le viewer vérifié en réel (un artefact verre chargé, vu).
 **Fichiers** : forge3d_scene.py, forge3d.py, mod-forge3d.js,
 test_cards_forge3d.py.
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `89aacc8`+`173eff1`+`f874033`+`1a9aa05` puis ronde
+  `f17a53c`. _GLASS_RECIPES ×3 au patron holo (chaque paramètre justifié à
+  la source : F0 4 %, le dépoli achromatique, la diffusion volumique pas
+  comptée deux fois ; LE PIÈGE D'UNITÉS épinglé — thickness en mm-maillage,
+  attenuationDistance en mètres-monde après le 0,001 de racine) ;
+  extensionsUsed DISTINCT par recette, extensionsRequired absent, la
+  chimère holo+verre LÈVE dans les deux sens, STL identique à l'octet sur
+  les 5 finitions ; le viewer VU (verre 118 niveaux d'écart à travers, le
+  voile du dépoli, le bleu du translucide). L'ONDULATION DOUCE LIVRÉE — la
+  clause aux 3 aveux SOLDÉE : sinusoïde radiale (la phase sin ferme la
+  singularité du centre), 6,843° nominal / 7,073° aux octets, mesurée au
+  viewer (de face 15,04 = le maximum — la prose « dépend du rasage » était
+  fausse dans le bon sens, phi se compte depuis +Y), PLAFOND DE RÉSOLUTION
+  MESURÉ (256² vs 1024² : 0,122 niveau pour 7× moins d'octets, épinglé).
+  Occlusion : le pipeline EXISTAIT (tile_maps demandait ao, le writer
+  posait) — il manquait la vue et l'interrupteur ; défaut allumé = les
+  octets d'avant AU BIT PRÈS (prouvé sur les deux arbres) ; corollaires
+  honnêtes (l'aniso par famille — sha identiques, aucun aveu dû ; holo
+  dérivé des listes servies). 169 tests.
+- [x] Ronde adverse (opus) : 2 bloquants + 5 réels + 5 mineurs + 5 rejetés
+  mesurés (BLEND+transmission autorisé et fonctionnel ; l'invariant
+  Sceau-vs-verre TIENT — « l'explicite l'emporte » au bordereau pesé).
+  B1 : LA RONDE DE MUTATION AVAIT TUÉ L'ORACLE, PAS LE PRODUIT — le mutant
+  phare changeait une constante JAMAIS ATTEINTE (les recettes portent leur
+  ripple explicite) et rougissait parce que le test dérivait son attendu de
+  la même constante ; 3 essais du critique → 3 survivants réels (dont
+  emissive retirable en silence — 0 occurrence dans 10 899 lignes de banc,
+  sur LA constante fraîchement extraite). LA RÈGLE EST NÉE ET ÉCRITE : un
+  mutant qui ne change pas le produit ne compte pas (empreinte à quatre
+  faces) — ronde REJOUÉE : 42/42 changent le produit, 42 vus, 0 survivant,
+  avec DEUX façons de s'absoudre rencontrées et écrites (l'empreinte trop
+  étroite absolvait 18 vrais mutants ; un filtre -k périmé rapportait
+  survivant un mutant qui mourait — LE FILTRE FAIT PARTIE DE L'ORACLE).
+  B2 : 5 clés de production dans le banc de LA pièce payante — et le .env
+  n'était pas la seule porte (HEYGEN venait de l'environnement du LANCEUR) :
+  deux verrous, purge par FORME DE NOM (_KEY/_TOKEN/_SECRET/_PASSWORD),
+  le test pèse le résultat. R1 : l'ondulation BYTE-INVISIBLE dès qu'une
+  matière est posée (derive_maps dérive toujours normal — sha identiques
+  avant/après sur le cas courant) → l'aveu au bordereau patron _SANS_HOLO +
+  l'écran + la carte plus cuite pour la poubelle. R2 : sur l'anneau que la
+  clause NOMME, verre et dépoli rendaient LA MÊME IMAGE (100,0 % des pixels,
+  aplat blanc saturé — les 23,77 venaient d'une plaque texturée, jamais
+  d'une extrusion) → GLASS_BASE_NU (le vert-bleu du verre flotté) agit où
+  la physique le permet (translucide : 100 %→21 % saturés), l'aveu CHIFFRÉ
+  partout ailleurs — plus jamais silencieux. R4 : le témoin volume était un
+  COUVERCLE (3e de la phase — le drapeau closed vit sur le maillage, la
+  garde jumelle deux lignes au-dessus) → porte à trois voies (fermé=volume,
+  ouvert=paroi mince AVOUÉE), le témoin meurt. R5 : LE CHIFFRE A CONDAMNÉ
+  L'AVEU — ΔE76 médian 86,4 entre props.color et la moyenne des cartes,
+  16/18 matières encore #ffffff : « teinté par la couleur du nœud » ne
+  teintait RIEN → la teinte vient de la carte basecolor désormais (le
+  réglage = repli sans image). R3 : prose des caméras corrigée (le verdict
+  LIVRÉE renforcé — de face est le maximum).
+- [x] CLOSE : leçons — (a) UN MUTANT QUI NE CHANGE PAS LE PRODUIT NE COMPTE
+  PAS, et l'empreinte comme le filtre font partie de l'oracle (la règle des
+  rondes de mutation du chantier, désormais) ; (b) un banc se purge par la
+  FORME DES NOMS de secrets, pas par une liste de fournisseurs ; (c) un
+  aveu de teinte se mesure en ΔE contre la vérité qu'il prétend porter
+  (86,4 = un défaut, pas un témoin) ; (d) 3e témoin-couvercle de la phase.
+  Pour T6 à l'œil (~2 min) : le dépoli contre le verre clair au viewer, le
+  translucide teinté par SA carte, l'anneau ondulé (subtil sur 1,2 mm —
+  c'est sur un plan que le pli se voit), la case occlusion et ses phrases.
 
 ### T5 — LA CAMPAGNE RÉELLE (D2 — la seule tâche qui dépense)
 Déploiement de la machinerie T1 → campagne sur le backend déployé (vraies
