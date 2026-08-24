@@ -1726,11 +1726,28 @@ def _ppm(dpi: float) -> int:
     return int(math.floor(float(dpi) / 0.0254 + 0.5))
 
 
+# LE PLAFOND D'INDEX DE CARTE (ronde T5, M11). MESURÉ : `?card=99999999`
+# écrivait `layers_c100000000_capture.json` — un nom de fichier que rien ne
+# borne — et brûlait 691 ms de rééchantillonnage par appel, pour une carte qui
+# n'existe dans aucun jeu.
+#
+# ÉCART ASSUMÉ, ET SA RAISON : la ronde demandait de borner « au compte réel
+# du deck ». Ce compte n'est PAS une notion du serveur — il naît de
+# `build_deck` chez P4 (quantités comprises) et vit dans l'écran (`CF.cards`) ;
+# le document, lui, ne porte qu'une table brute. Borner à ses lignes
+# refuserait une carte que P9 sert bel et bien (une ligne de quantité 3 fait
+# trois cartes). Le plafond est donc un NOMBRE NOMMÉ, du même genre que
+# `MAX_GRAPH_ELEMENTS` chez P9 : il ne prétend pas connaître le jeu, il borne
+# ce que CETTE route écrit. Le refus est un 404 — cette carte-là n'existe pas.
+CARTE_MAX = 999
+
+
 def _card_label(raw) -> str:
     """`c01`, `c02`… — l'étiquette de carte qui nomme les fichiers de P9.
     COPIE du patron de `forge3d.py:_card_idx` (règle 8, parité testée) : une
     entrée non numérique ou négative retombe sur la première carte, JAMAIS une
-    exception (spec §8)."""
+    exception (spec §8). Au-delà de `CARTE_MAX`, refus NOMMÉ (M11) — le seul
+    endroit de cette pièce où un index de carte se refuse."""
     try:
         v = float(raw)
     except (TypeError, ValueError, OverflowError):
@@ -1738,7 +1755,13 @@ def _card_label(raw) -> str:
     if not math.isfinite(v):
         v = 0.0
     n = int(v)
-    return f"c{(n if n >= 0 else 0) + 1:02d}"
+    n = n if n >= 0 else 0
+    if n >= CARTE_MAX:
+        raise HTTPException(
+            404, f"Carte n° {n + 1} : ce jeu n'en a pas tant. L'index de "
+                 f"carte s'arrête à {CARTE_MAX} — au-delà, il n'y a pas de "
+                 f"carte à décrire, seulement un nom de fichier à inventer.")
+    return f"c{n + 1:02d}"
 
 
 def _sur_la_toile(im, geo):
@@ -1789,7 +1812,8 @@ def _png_de_toile(img, ppm: int) -> bytes:
     return brut[:coupe] + chunk + brut[coupe:]
 
 
-def _ligne_couche(role: str, fname: str, data: bytes, img, geo) -> dict:
+def _ligne_couche(role: str, fname: str, data: bytes, img, geo,
+                  source_nom: str, source_sha: str, source_px) -> dict:
     """UNE ligne du manifeste, au schéma de `post_layers` — mesurée sur les
     OCTETS ÉCRITS, jamais sur l'intention.
 
@@ -1800,7 +1824,19 @@ def _ligne_couche(role: str, fname: str, data: bytes, img, geo) -> dict:
 
     `bbox_mm` suit la convention EXACTE de P9 : origine au coin de TOILE (fond
     perdu compris), y vers le bas — c'est ce repère-là que `_layer_box_mm`
-    sait retourner vers celui de la coupe."""
+    sait retourner vers celui de la coupe.
+
+    LES TROIS CLÉS `source_*` SONT LA MOITIÉ QUI MANQUAIT (ronde T5, B1). Une
+    couche importée est une COPIE, et une copie se périme : re-déposer un
+    recto sans republier laissait P9 construire l'ANCIENNE face, sans un mot.
+    La ligne porte donc le nom du fichier d'origine, son empreinte AU MOMENT
+    de la publication, et ses pixels — P9 confronte les trois au disque avant
+    de construire et refuse NOMMÉ plutôt que de livrer une carte périmée.
+
+    `coverage_pct` MESURE LE FICHIER ÉCRIT (la part opaque de la toile), pas
+    le contenu : sur la face entière c'est le rapport coupe/toile, une
+    CONSTANTE DE FORMAT. C'est pour ça que le bordereau ne l'affiche pas comme
+    une mesure de sujet — voir `_dit_provenance` chez P9."""
     w, h = img.size
     alpha = img.getchannel("A")
     bbox = alpha.getbbox()
@@ -1814,7 +1850,9 @@ def _ligne_couche(role: str, fname: str, data: bytes, img, geo) -> dict:
             "mode": "isolee",
             "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data),
             "bbox_px": list(bbox) if bbox else None, "bbox_mm": bbox_mm,
-            "coverage_pct": rnd(cover, 2)}
+            "coverage_pct": rnd(cover, 2),
+            "source_file": source_nom, "source_sha256": source_sha,
+            "source_px": [int(source_px[0]), int(source_px[1])]}
 
 
 def _ecrit_manifeste(did: str, card_raw) -> dict:
@@ -1855,7 +1893,8 @@ def _ecrit_manifeste(did: str, card_raw) -> dict:
     ratios: list = []
     for role, chemin in sources:
         try:
-            with Image.open(chemin) as im:
+            octets_source = chemin.read_bytes()
+            with Image.open(io.BytesIO(octets_source)) as im:
                 im.load()
                 brut = im.convert("RGBA")
         except Exception as e:                              # noqa: BLE001
@@ -1864,6 +1903,10 @@ def _ecrit_manifeste(did: str, card_raw) -> dict:
                      f"({e.__class__.__name__}). Redéposez l'image de la "
                      f"carte, puis relancez la publication.")
         ratios.append((role, brut.size))
+        # L'EMPREINTE DE LA SOURCE EST PRISE SUR LES OCTETS QU'ON VIENT DE
+        # LIRE (B1) — pas sur une seconde lecture qui pourrait tomber sur un
+        # fichier déjà remplacé entre les deux.
+        src_sha = hashlib.sha256(octets_source).hexdigest()
         toile = _sur_la_toile(brut, geo)
         fname = f"{role}_{label}_{CAPTURE_SIDE}.png"
         data = _png_de_toile(toile, ppm)
@@ -1880,10 +1923,25 @@ def _ecrit_manifeste(did: str, card_raw) -> dict:
                 409, f"La couche « {role} » n'a pas pu être écrite : "
                      f"{getattr(e, 'strerror', None) or e.__class__.__name__}. "
                      f"Relancez la publication.")
-        ligne = _ligne_couche(role, fname, data, toile, geo)
+        ligne = _ligne_couche(role, fname, data, toile, geo, chemin.name,
+                              src_sha, brut.size)
         lignes.append(ligne)
         if role == ROLE_SUJET:
             couv_sujet = ligne["coverage_pct"]
+    # ── LES ORPHELINS DE LA PUBLICATION PRÉCÉDENTE (ronde T5, M11) ───────
+    # Le publieur POSSÈDE ses noms canoniques : republier après avoir effacé
+    # le sujet laissait `illustration_c01_capture.png` sur le disque, plus
+    # nommée par aucun manifeste et pourtant servie par le GET de P9. Un
+    # fichier que plus rien ne nomme est un piège, pas un vestige.
+    vivants = {l["file"] for l in lignes}
+    for role in (ROLE_RECTO, ROLE_SUJET):
+        nom = f"{role}_{label}_{CAPTURE_SIDE}.png"
+        if nom in vivants:
+            continue
+        try:
+            (out / nom).unlink()
+        except OSError:
+            pass                            # il n'y en avait pas : très bien
 
     # L'ÉCART DE RATIO, MESURÉ SUR LA FACE ELLE-MÊME (le même calcul que
     # `analyse_recto`, sur la même image — pas une valeur relue d'un document
@@ -1917,7 +1975,12 @@ def _ecrit_manifeste(did: str, card_raw) -> dict:
                     "peintres (rien ne les a empilees). L'empreinte de "
                     "chaque fichier et la couverture mesuree du sujet en "
                     "tiennent lieu.",
-            "couverture_sujet_pct": couv_sujet,
+            # LE CHIFFRE NOMME SON CADRE (ronde T5, R4) : le sujet avait DEUX
+            # grandeurs sous le même mot — 50,0 % « de l'image rendue par le
+            # détourage » chez `/rembg`, 42,9 % « de la toile » ici. Deux
+            # cadres, deux nombres, un seul nom : la clé porte désormais le
+            # sien, et le bordereau de P9 le répète en toutes lettres.
+            "couverture_sujet_pct_toile": couv_sujet,
             "recomposition": None,
             "recomposition_why": (
                 "aucune couche de fond isolee n'existe : la recomposition "
@@ -2095,9 +2158,15 @@ async def post_manifeste(did: str, card: str | None = None):
     Comme `/analyse` et `/rembg` : elle range des fichiers et REND ce qu'elle
     a fait — c'est l'écran qui publie le document (règle 12, plan D3).
 
-    `to_thread` : deux rendus LANCZOS à la taille de toile (1050 x 1500 px sur
-    un poker à 300 DPI) plus deux écritures PNG — le même ordre de grandeur
-    que l'analyse au plafond, donc le même traitement."""
+    L'ÉCRAN QUI L'APPELLE NAÎT EN T6. Mesuré le 24/08 : aucun appelant dans
+    `mod-capture.js` — le chemin §7.1.6 est vrai par l'API, pas encore par un
+    clic. Le bouton (« Publier vers la 3D ») appartient à la tâche
+    d'intégration ; le dire ici vaut mieux que de laisser croire à un contrat
+    déjà câblé.
+
+    `to_thread` : deux rendus LANCZOS à la taille de toile (815 x 1110 px sur
+    un poker à 300 DPI, fond perdu compris) plus deux écritures PNG — le même
+    ordre de grandeur que l'analyse au plafond, donc le même traitement."""
     return await asyncio.to_thread(_ecrit_manifeste, did, card)
 
 

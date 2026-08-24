@@ -5287,6 +5287,16 @@
         return;
       }
       proc.contour = String(rawValue);
+    /* DETTE NOMMÉE (ronde T5, M13), et elle est de CLASSE, pas de T5 : cet
+       écrivain accepte n'importe quelle cote FINIE et la pousse telle quelle
+       dans le graphe — `clean_graph` la ramènera dans ses bornes, en
+       SILENCE, et le champ affichera ensuite une valeur que l'utilisateur n'a
+       pas tapée sans qu'on lui ait dit pourquoi. C'est le patron de tous les
+       numériques d'ici depuis la 2a (`depth_mm`, `base_mm`, `grid`), pas une
+       nouveauté de l'extrusion : le `min`/`max` du champ HTML freine le
+       spinner mais pas la frappe. Le remède est le même pour les six et
+       n'appartient pas à cette tâche — le dire vaut mieux que le refaire à
+       moitié sur les deux derniers arrivés. */
     } else if (field === "segments") {
       const v = Math.round(Number(rawValue));
       if (isFinite(v)) proc.segments = v; else delete proc.segments;

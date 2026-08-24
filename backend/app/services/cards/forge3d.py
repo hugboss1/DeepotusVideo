@@ -1307,9 +1307,15 @@ def _lire_manifeste(out: Path, card_label: str, side: str) -> dict | None:
     contenu le REDIT. Les deux doivent dire la même chose, sans quoi un
     `layers_c01_capture.json` contenant `side: "front"` ferait résoudre des
     couches importées contre le manifeste des peintres — le piège relevé en
-    revue 3c, un fichier qui ment sur ce qu'il est. Un manifeste MUET sur son
-    côté (aucune clé `side`) n'est pas un menteur : il est accepté, et c'est
-    ce qui garde lisibles les manifestes écrits avant que la clé existe.
+    revue 3c, un fichier qui ment sur ce qu'il est.
+
+    LA TOLÉRANCE AU MUET S'ARRÊTE À LA PROVENANCE IMPORTÉE (ronde T5, M8). Un
+    manifeste de PEINTRE sans clé `side` n'est pas un menteur : il en existe
+    d'écrits avant que la clé existe, et les refuser casserait des jeux réels.
+    Un manifeste de CAPTURE, lui, n'a aucun héritage à protéger — T5 est sa
+    NAISSANCE : tous ceux qui existent portent leur côté, et un fichier muet à
+    ce nom-là ne peut venir que d'une main. Mesuré : `side` supprimé, la
+    construction rendait 200.
 
     Le refus est un ABSENT NOMMÉ dans le journal, pas une exception : cette
     fonction est appelée depuis la construction, et faire tomber un artefact
@@ -1326,6 +1332,11 @@ def _lire_manifeste(out: Path, card_label: str, side: str) -> dict | None:
     if not isinstance(m, dict):
         return None
     dit = m.get("side")
+    if dit is None and side == CAPTURE_SIDE:
+        logger.warning(
+            f"cards/forge3d: manifeste importe muet sur son cote ({p.name}) "
+            f"- ignore")
+        return None
     if dit is not None and dit != side:
         logger.warning(
             f"cards/forge3d: manifeste incoherent ({p.name} annonce "
@@ -1613,6 +1624,9 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
 # (règle 8 : ce fichier n'importe le routeur d'aucun autre, et n'importe pas
 # frame.py du tout). D'où ce lecteur LOCAL, au même patron de copie que
 # `_dpi_to_ppm`, avec sa parité testée contre `frame.seal_of`.
+_SEAL_EXTRUDE_WHY = ("sceau 3D : l'extrusion de contour « sceau » EST le "
+                     "corps du Sceau du document - son metal et sa largeur "
+                     "viennent de lui")
 _SEAL_MESH_WHY = ("sceau 3D : la COUCHE ENTIERE recoit la finition — "
                   "l'isolation d'une sous-region n'existe pas dans l'export "
                   "par couches (only_z porte sur une bande entiere)")
@@ -1620,6 +1634,10 @@ _SEAL_MESH_WHY = ("sceau 3D : la COUCHE ENTIERE recoit la finition — "
 # que `_dpi_to_ppm`), avec sa parité testée. Un Sceau dont le document ne dit
 # PAS le métal en nomme un quand même — par le schéma partagé, qui a un défaut.
 _SEAL_KIND_DEFAULT = "argent"
+# ... et la LARGEUR par défaut, même copie avouée (`frame.SEAL_DEFAULTS`),
+# même parité testée. C'est aussi celle que `EXTRUDE_WIDTH_DEFAULT` donne au
+# contour `sceau` : une seule vérité, écrite une fois.
+_SEAL_WIDTH_DEFAULT = EXTRUDE_WIDTH_DEFAULT["sceau"]
 
 
 def _sceau_du_doc(doc) -> dict:
@@ -1643,7 +1661,14 @@ def _sceau_du_doc(doc) -> dict:
     k = s.get("kind", _SEAL_KIND_DEFAULT)
     return {"on": s.get("on") is True,
             "kind": k if k in HOLO_KINDS else None,
-            "mesh": sc.get("mesh") is True}
+            "mesh": sc.get("mesh") is True,
+            # LA LARGEUR AUSSI (ronde T5, R3) : le corps 3D du Sceau est une
+            # COURONNE, et une couronne a une largeur. Sans elle, l'écran
+            # dessinerait une bande de 1,2 mm pendant que la 3D en livrerait
+            # une autre. Bornée comme tout ce qui vient d'un document ; le
+            # défaut est celui du schéma partagé.
+            "width_mm": _num(s.get("width_mm"), _SEAL_WIDTH_DEFAULT,
+                             *EXTRUDE_WIDTH_MM)}
 
 
 def _scelle(el: dict, layer: dict, mat_n, sceau: dict, ignores: list) -> dict:
@@ -1766,7 +1791,7 @@ def _nom_extrude(proc: dict) -> str:
 
 
 def _element_extrude(proc: dict, nom_el: str, mat_n, trs_n, g,
-                     ignores: list, did=None) -> dict:
+                     ignores: list, did=None, largeur=None) -> dict:
     """UN élément d'EXTRUSION prêt pour l'assemblage : la couronne du contour,
     habillée et placée comme n'importe quel élément local.
 
@@ -1777,9 +1802,20 @@ def _element_extrude(proc: dict, nom_el: str, mat_n, trs_n, g,
     d'arêtes tombe et le solide n'est plus fermé. On rabote, et on le DIT :
     livrer une couronne muette plus étroite que demandée serait un mensonge
     silencieux, refuser tout l'artefact pour un curseur trop poussé serait
-    disproportionné."""
+    disproportionné.
+
+    OÙ IL MORD VRAIMENT (relevé en ronde T5, M7) : `clean_graph` plafonne
+    déjà la largeur à 20 mm, et la demi-carte du plus petit format du lab
+    (micro, 31,75 x 44,45) vaut 15,87 mm — le rabot n'est donc atteignable
+    QUE sur `micro`, et par un graphe qui y demande plus de 15,67 mm. Sur un
+    poker (demi-carte 31,5 mm) il ne peut pas mordre : la première rédaction
+    de ce commentaire le justifiait par un cas poker inatteignable, ce qui
+    apprenait à chercher le défaut au mauvais endroit. Le comportement, lui,
+    ne bouge pas — c'est le patron pré-T5 (`clean_graph` rabote en silence,
+    la route rabote en le DISANT) ; la dette de classe est nommée ici."""
     w_mm, h_mm = g.trim_mm
-    d = float(proc["width_mm"])
+    # `largeur` (R3) : celle du Sceau du document, quand c'est LUI le corps.
+    d = float(proc["width_mm"] if largeur is None else largeur)
     d_max = min(w_mm, h_mm) / 2.0 - EXTRUDE_MIN_MM
     if d > d_max:
         rabote = max(EXTRUDE_MIN_MM, d_max)
@@ -1802,8 +1838,40 @@ def _element_extrude(proc: dict, nom_el: str, mat_n, trs_n, g,
 
 
 # ── LES COUCHES IMPORTÉES (T5, D7) — LE MANIFESTE EST LE CONTRAT ───────────
-def _preuve_capture(out: Path, card_label: str, layer: dict,
-                    manifeste) -> dict:
+# LE DOSSIER DE LA PIÈCE IMPORT, RECOPIÉ (règle 8 : ce fichier n'importe le
+# module d'aucune voisine — même patron que `_dpi_to_ppm` et
+# `_SEAL_KIND_DEFAULT`, avec sa parité testée contre `capture.cap_dir`). P9 a
+# besoin d'y RELIRE la source d'une couche importée pour savoir si la copie
+# qu'elle a sous la main est encore d'actualité ; le NOM du fichier, lui, vient
+# du manifeste, jamais d'une convention d'ici.
+_CAPTURE_DIR = "capture"
+
+
+def _dit_provenance(row: dict) -> str:
+    """LA PHRASE DU BORDEREAU pour une couche importée — et elle ne maquille
+    PAS une constante de format en mesure (ronde T5, R4).
+
+    `coverage_pct` mesure la part OPAQUE de la toile. Sur la face entière,
+    c'est le rapport coupe/toile : 85,45 % sur tout poker, quel que soit ce
+    qu'il y a dessus — un aplat noir et une photographie donnent le MÊME
+    chiffre. L'afficher là comme une couverture apprend à lire une constante
+    de format comme un relevé (la leçon T4-a, mot pour mot). La face entière
+    dit donc ce qu'elle EST et ce qu'elle PÈSE en pixels ; seul le sujet, dont
+    le chiffre décrit vraiment son contenu, publie un pourcentage — et il
+    NOMME son cadre, parce qu'il en existe deux (celui du détourage, celui de
+    la toile)."""
+    px = row.get("source_px")
+    taille = (f" ({int(px[0])}x{int(px[1])} px)"
+              if isinstance(px, (list, tuple)) and len(px) == 2 else "")
+    if row.get("role") == CAPTURE_ROLES[0]:
+        return f"face entiere importee{taille}"
+    couv = _num(row.get("coverage_pct"), 0.0, 0.0, 100.0)
+    return (f"couche importee{taille} : "
+            f"{f'{couv:.1f}'.replace('.', ',')} % de la toile")
+
+
+def _preuve_capture(did: str, out: Path, card_label: str, layer: dict,
+                    manifeste, g, ignores: list) -> dict:
     """LE MANIFESTE IMPORTÉ, VÉRIFIÉ AVANT DE CONSTRUIRE — ou 409 nommé.
 
     Les couches de P10 n'ont AUCUNE preuve d'empilement : elles n'ont jamais
@@ -1812,10 +1880,31 @@ def _preuve_capture(out: Path, card_label: str, layer: dict,
     le fichier que la résolution va lire est CELUI-LÀ, octet pour octet. Un
     manifeste qui ment sur ses empreintes est refusé NOMMÉ, jamais suivi.
 
-    Quatre portes, chacune avec son mot : le manifeste absent, la provenance
-    qui n'est pas `capture`, le rôle que le manifeste ne porte pas, et
-    l'empreinte qui ne correspond pas. Rend la LIGNE du manifeste (l'appelant
-    y lit la couverture pour le bordereau)."""
+    SEPT portes, chacune avec son mot : le manifeste absent, la provenance qui
+    n'est pas `capture`, le rôle que le manifeste ne porte pas, le fichier
+    qu'il nomme et qui n'est pas celui qu'on lit, l'empreinte de la copie —
+    et, depuis la ronde T5 (B1), les DEUX portes du PÉRIMÉ :
+
+      · LE FORMAT. Mesuré : un manifeste publié en poker, un PATCH vers tarot,
+        et la construction rendait 200 avec la face ANAMORPHOSÉE de 22,7 %,
+        une fenêtre UV décalée de 2,8 px et un bordereau affichant les
+        millimètres du poker. La copie est rendue à la toile d'UN format ; un
+        autre format la rend fausse, pas approximative.
+      · LA SOURCE. Mesuré : re-déposer un recto (rouge -> vert) sans republier
+        laissait l'artefact porter la couche ROUGE. La copie est datée, sa
+        source vit ; le manifeste porte l'empreinte qu'elle avait, et on la
+        confronte au disque.
+
+    Le test de la livraison prouvait que REPUBLIER marche — il ne jouait jamais
+    le cas où l'on ne republie PAS, celui-là même que les trois raisons de la
+    route invoquent. Les deux refus disent « republie », parce que c'est le
+    geste qui répare.
+
+    UNE SOURCE DISPARUE N'EST PAS UN MENSONGE : la copie reste ce qu'elle
+    était, on ne peut simplement plus le vérifier. C'est un AVEU au bordereau,
+    pas un refus — effacer sa capture n'a jamais périmé un artefact.
+
+    Rend la LIGNE du manifeste (l'appelant y lit la provenance à afficher)."""
     role = layer.get("role")
     fname = _layer_filename(layer, card_label)
     if not isinstance(manifeste, dict):
@@ -1855,7 +1944,91 @@ def _preuve_capture(out: Path, card_label: str, layer: dict,
             409, f"empreinte de {fname} differente de celle du manifeste "
                  f"importe : le fichier a change depuis la publication "
                  f"(republie le manifeste)")
+    # ── LE PÉRIMÉ, PORTE 1 : LE FORMAT ──────────────────────────────────
+    fmt = manifeste.get("format")
+    if fmt != g.fmt:
+        raise HTTPException(
+            409, f"couches importees publiees en {fmt}, ce jeu est en "
+                 f"{g.fmt} : la face a ete rendue a la toile d'un autre "
+                 f"format et serait anamorphosee — republie le manifeste "
+                 f"depuis la piece Import")
+    toile = manifeste.get("canvas_px")
+    if list(toile or []) != list(g.canvas_px):
+        raise HTTPException(
+            409, f"couches importees publiees pour une toile de "
+                 f"{toile} px, ce jeu en demande {list(g.canvas_px)} "
+                 f"(densite ou fond perdu changes) — republie le manifeste "
+                 f"depuis la piece Import")
+    # ── LE PÉRIMÉ, PORTE 2 : LA SOURCE ──────────────────────────────────
+    src_nom = row.get("source_file")
+    src_sha = row.get("source_sha256")
+    if not (isinstance(src_nom, str) and isinstance(src_sha, str)):
+        raise HTTPException(
+            409, f"le manifeste importe ne dit pas de quelle source vient "
+                 f"« {role} » : il a ete ecrit par une version qui ne "
+                 f"datait pas ses copies — republie le manifeste")
+    ps = deck_dir(did) / _CAPTURE_DIR / src_nom
+    if not ps.is_file():
+        ignores.append({
+            "node": fname,
+            "why": f"empreinte de source non verifiable : {src_nom} n'est "
+                   f"plus dans le dossier d'import (la copie est servie "
+                   f"telle quelle)"})
+    elif hashlib.sha256(ps.read_bytes()).hexdigest() != src_sha:
+        raise HTTPException(
+            409, f"la source « {src_nom} » a change depuis la publication : "
+                 f"la couche « {role} » decrit l'image precedente — republie "
+                 f"le manifeste depuis la piece Import")
     return row
+
+
+def _sceau_extrusion(proc: dict, mat_n, sceau: dict, ignores: list):
+    """LE SCEAU DU DOCUMENT, quand il revient à CETTE extrusion (ronde T5,
+    R3) — `{kind, width_mm}` ou `None`.
+
+    CE QUI ÉTAIT CASSÉ, MESURÉ : portée 3D cochée + couche importée +
+    extrusion `sceau` — c'est-à-dire EXACTEMENT la configuration que la preuve
+    de bout doit produire — rendait 200 sans la moindre iridescence, sans une
+    clé au bordereau, `ignored` vide. `_scelle` sort sur `role != "cadre"`, et
+    une extrusion n'a pas de couche du tout : le Sceau n'avait aucun corps où
+    se poser, et personne ne le disait. La branche `mesh3d` de cette même
+    route confesse pourtant le principe depuis la 2b (« le pire des deux :
+    l'utilisateur a coché, l'écran n'a rien à répondre ») — T5 rouvrait le
+    silence qu'elle avait fermé.
+
+    LA RÈGLE EST CELLE DE `_scelle`, MOT POUR MOT : le Sceau COMBLE LE
+    SILENCE, il ne couvre jamais une parole. Un nœud `material` qui NOMME une
+    finition l'emporte — y compris quand elle échoue.
+
+    LA LARGEUR VIENT DU DOCUMENT, elle aussi : `contour: "sceau"` NOMME
+    l'anneau du Sceau, et l'anneau du Sceau a la largeur que le document lui
+    donne. Le nœud garde la sienne quand le Sceau ne le touche pas (portée
+    éteinte, matériau explicite) ; quand il le touche, la substitution est
+    DITE au bordereau avec les deux chiffres — un curseur qui cesse d'agir
+    sans un mot serait le même silence, un cran plus loin."""
+    if not (sceau.get("on") and sceau.get("mesh")):
+        return None
+    if proc.get("contour") != "sceau":
+        return None
+    if sceau.get("kind") is None:
+        ignores.append({"node": proc["id"],
+                        "why": "sceau 3D ignore : metal hors des recettes "
+                               f"connues ({', '.join(HOLO_KINDS)})"})
+        return None
+    if isinstance(mat_n, dict) and mat_n.get("finish") not in (None, "", "aucune"):
+        ignores.append({
+            "node": mat_n["id"],
+            "why": f"sceau 3D ecarte sur cette extrusion : le noeud material "
+                   f"y nomme deja « {mat_n['finish']} » — l'explicite "
+                   f"l'emporte sur l'implicite"})
+        return None
+    return {"kind": sceau["kind"], "width_mm": sceau.get("width_mm")}
+
+
+_SANS_CORPS = ("sceau 3D sans corps : la portee mesh est cochee mais ce "
+               "graphe n'a ni couche « cadre » ni extrusion « sceau » - "
+               "ajoute une extrusion de contour sceau (ou une couche cadre) "
+               "pour lui donner un volume")
 
 
 def _element_local(out: Path, proc: dict, layer: dict, nom_el: str,
@@ -2047,6 +2220,11 @@ async def post_build3d(did: str, body: dict | None = None):
         externes: list[dict] = []
         bordereau: list[dict] = []
         manifestes: dict = {}
+        # LE SCEAU A-T-IL TROUVÉ UN CORPS, OU SEULEMENT PARLÉ ? (R3) La
+        # question se pose à la FIN, une fois tous les éléments vus : cocher
+        # la portée 3D sur un graphe qui n'a ni cadre ni couronne ne doit pas
+        # rendre le silence de la 2b.
+        sceau_vu = False
         for ch in candidats:
             proc, layer = ch["proc"], ch["layer"]
             mat_n, trs_n = ch["mat"], ch["trs"]
@@ -2055,11 +2233,31 @@ async def post_build3d(did: str, body: dict | None = None):
             #    toutes deux d'une couche qu'elle n'a pas.
             if layer is None:
                 nom_el = _nom_extrude(proc)
-                elements.append(_element_extrude(proc, nom_el, mat_n, trs_n,
-                                                 g, ignores, did))
+                # LE SCEAU D'ABORD (R3) : c'est lui qui décide de la LARGEUR
+                # de la couronne quand c'est son corps qu'on construit, et la
+                # géométrie se cuit après — pas l'inverse.
+                avant = len(ignores)
+                sc = _sceau_extrusion(proc, mat_n, sceau, ignores)
+                if sc is not None or len(ignores) > avant:
+                    sceau_vu = True
+                elements.append(_element_extrude(
+                    proc, nom_el, mat_n, trs_n, g, ignores, did,
+                    largeur=(sc or {}).get("width_mm")))
+                dit = {}
+                if sc is not None:
+                    elements[-1]["finish"] = holo_finish(sc["kind"], False)
+                    dit = {"seal": {"kind": sc["kind"],
+                                    "width_mm": sc["width_mm"],
+                                    "why": _SEAL_EXTRUDE_WHY}}
+                    if abs(float(sc["width_mm"])
+                           - float(proc["width_mm"])) > 1e-9:
+                        # LA SUBSTITUTION SE DIT (jamais un curseur qui cesse
+                        # d'agir en silence) : les DEUX chiffres, et lequel a
+                        # gagné.
+                        dit["seal"]["node_width_mm"] = proc["width_mm"]
                 bordereau.append({"name": nom_el, "kind": "local",
                                   "node": proc["id"],
-                                  "contour": proc["contour"]})
+                                  "contour": proc["contour"], **dit})
                 continue
             nom_el = _nom_element(layer)
             # LE CÔTÉ AU BORDEREAU, ET SEULEMENT QUAND IL Y EN A UN À DIRE
@@ -2077,12 +2275,9 @@ async def post_build3d(did: str, body: dict | None = None):
                 if CAPTURE_SIDE not in manifestes:
                     manifestes[CAPTURE_SIDE] = _lire_manifeste(
                         out, card_label, CAPTURE_SIDE)
-                row = _preuve_capture(out, card_label, layer,
-                                      manifestes[CAPTURE_SIDE])
-                couv = _num(row.get("coverage_pct"), 0.0, 0.0, 100.0)
-                cote = {"side": CAPTURE_SIDE,
-                        "import": f"couche importee (couverture "
-                                  f"{f'{couv:.1f}'.replace('.', ',')} %)"}
+                row = _preuve_capture(did, out, card_label, layer,
+                                      manifestes[CAPTURE_SIDE], g, ignores)
+                cote = {"side": CAPTURE_SIDE, "import": _dit_provenance(row)}
             if proc["kind"] == "mesh3d":
                 side = layer["side"]
                 if side not in manifestes:
@@ -2104,6 +2299,7 @@ async def post_build3d(did: str, body: dict | None = None):
                 # (l'utilisateur a coché, l'écran n'a rien à répondre).
                 if (sceau.get("on") and sceau.get("mesh")
                         and layer.get("role") == "cadre"):
+                    sceau_vu = True          # il a PARLÉ, même pour refuser
                     ignores.append({
                         "node": proc["id"],
                         "why": "sceau 3D ignore sur cette couche : le GLB du "
@@ -2119,10 +2315,14 @@ async def post_build3d(did: str, body: dict | None = None):
             # reçoit, exactement comme `cote` juste au-dessus : l'ajouter
             # partout changerait le bordereau de TOUS les artefacts pour une
             # information qu'ils n'ont pas.
+            avant = len(ignores)
+            scelle = _scelle(elements[-1], layer, mat_n, sceau, ignores)
+            if scelle or len(ignores) > avant:
+                sceau_vu = True
             bordereau.append({"name": nom_el, "kind": "local",
-                              "node": proc["id"], **cote,
-                              **_scelle(elements[-1], layer, mat_n, sceau,
-                                        ignores)})
+                              "node": proc["id"], **cote, **scelle})
+        if sceau.get("on") and sceau.get("mesh") and not sceau_vu:
+            ignores.append({"node": "seal", "why": _SANS_CORPS})
         t_resolve = time.perf_counter()
 
         extras = {"deck": doc_name, "card": card_label, "format": g.fmt,
@@ -3130,9 +3330,9 @@ async def post_node_preview(did: str, body: dict | None = None):
             # une couche importée absente tomberait sur le refus GÉNÉRIQUE du
             # sidecar (« exporte les couches d'abord (POST /layers) ») — une
             # consigne juste pour les peintres et fausse pour un import.
-            _preuve_capture(_out_dir(did), card_label, ch["layer"],
+            _preuve_capture(did, _out_dir(did), card_label, ch["layer"],
                             _lire_manifeste(_out_dir(did), card_label,
-                                            CAPTURE_SIDE))
+                                            CAPTURE_SIDE), g, ignored)
         el = _element_local(
             _out_dir(did), ch["proc"], ch["layer"],
             _nom_element(ch["layer"]), ch["mat"], ch["trs"],
@@ -3677,7 +3877,15 @@ async def get_file(did: str, name: str):
     if read_deck(did) is None:
         raise HTTPException(404, "Deck introuvable")
     import re as _re
-    if not _re.match(r"^[A-Za-z0-9._-]{1,90}$", name or ""):
+    # `fullmatch` + `\Z`, PAS `match` + `$` — CINQUIÈME occurrence du même
+    # piège dans ce chantier (clôture T1-b : « toute liste blanche naît en
+    # fullmatch/\Z »). En Python, `$` apparie AUSSI juste avant un saut de
+    # ligne final : « artefact.glb\n », qui arrive tel quel d'une URL
+    # percent-encodée `%0A`, passait ce contrôle. INERTE ici — le motif
+    # n'accepte ni séparateur ni point-point, et le `\n` final ferait de toute
+    # façon échouer l'ouverture du fichier — mais une liste blanche qui décide
+    # d'un accès au disque ne se garde pas « par chance ».
+    if not _re.fullmatch(r"[A-Za-z0-9._-]{1,90}\Z", name or ""):
         raise HTTPException(400, "Nom invalide")
     p = _out_dir(did) / name
     if not p.is_file():

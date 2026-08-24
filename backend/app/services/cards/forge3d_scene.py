@@ -244,6 +244,52 @@ def _anneau_indices(pts: list) -> tuple[list, list]:
     return vs, idx
 
 
+# L'ANGLE AU-DELÀ DUQUEL UNE ARÊTE DE PAROI EST VIVE (ronde T5, B2 étendu).
+# Le dédoublement capuchons/parois ne suffit pas : une paroi a ses PROPRES
+# arêtes vives — le coin d'un format à rayon NUL en porte quatre, et un sommet
+# partagé entre deux pans perpendiculaires y moyenne deux normales à 90°, donc
+# 45° d'erreur sur chaque (mesuré : cos pondéré 0,982 sur un contour à coins
+# vifs, contre 0,999998 sur un contour arrondi). Au-dessus de ce seuil, le
+# sommet de paroi est DÉDOUBLÉ ; en dessous, il reste partagé et l'arc se rend
+# lisse — ce qu'on veut d'un contour arrondi.
+# CE QUE LE SEUIL VAUT, MESURÉ : au défaut de 24 segments, l'arc tourne de
+# 3,75° par corde et sa jonction avec le segment droit de 1,87° — tout est
+# doux, la couronne nominale ne gagne pas un sommet. Au PLANCHER (1 segment),
+# la corde unique tourne de 45° à la jonction : elle devient vive, et c'est
+# juste — un coin à une seule corde EST un chanfrein.
+_EXTRUDE_ANGLE_VIF_DEG = 30.0
+
+
+def _bords_de_paroi(vs: list, seuil_deg: float = _EXTRUDE_ANGLE_VIF_DEG):
+    """Les sommets d'une PAROI, dédoublés aux arêtes vives.
+
+    Rend `(positions, debut, fin)` : `debut[j]` est le sommet qu'utilise le
+    quad qui PART du rang `j`, `fin[j]` celui du quad qui y ARRIVE. Ils sont
+    le même sur une arête douce (l'arc se lisse), deux sommets distincts sur
+    une arête vive (le coin reste vif)."""
+    n = len(vs)
+    if n < 3:
+        return list(vs), list(range(n)), list(range(n))
+    seuil = math.cos(math.radians(seuil_deg))
+    out: list = []
+    debut = [0] * n
+    fin = [0] * n
+    for j in range(n):
+        ax, ay = vs[j][0] - vs[j - 1][0], vs[j][1] - vs[j - 1][1]
+        bx, by = vs[(j + 1) % n][0] - vs[j][0], vs[(j + 1) % n][1] - vs[j][1]
+        la = math.hypot(ax, ay) or 1.0
+        lb = math.hypot(bx, by) or 1.0
+        vif = (ax * bx + ay * by) / (la * lb) < seuil
+        fin[j] = len(out)
+        out.append(vs[j])
+        if vif:
+            debut[j] = len(out)
+            out.append(vs[j])
+        else:
+            debut[j] = fin[j]
+    return out, debut, fin
+
+
 def extrude_ring_mesh(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
                       depth_mm: float, segments: int) -> dict:
     """LA COURONNE EXTRUDÉE : le contour fermé du format, rentré de
@@ -260,6 +306,21 @@ def extrude_ring_mesh(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
     dégénéré que la jupe d'un relief (mêmes u,v en haut et en bas) : assumé et
     dit, exactement comme là-bas.
 
+    HUIT ANNEAUX DE SOMMETS, PAS QUATRE — et c'est un CORRECTIF, pas une
+    élégance (ronde T5, D8 amendé). La première livraison partageait ses
+    sommets entre capuchons et parois, comme le fait un relief : la moyenne
+    des normales de face y mélangeait alors le ±z d'un capuchon et le radial
+    d'une paroi, et le capuchon du dessus sortait à **14, 27 puis 45 degrés**
+    de +z sur son pourtour (produit scalaire stocké·géométrique pondéré par
+    l'aire : 0,758, contre 0,971 pour un relief). Un anneau ainsi lissé se
+    rend en BOURRELET, et le Sceau prismatique — jugé sur ses franges
+    angulaires, qui dépendent de la normale — y perd exactement ce qu'il
+    apporte. Les sommets sont donc DÉDOUBLÉS : chaque famille de faces a les
+    siens, l'arête vive est vive (capuchons à 0,00°). Le solide reste FERMÉ
+    et son volume ne bouge pas d'un chiffre : `mesh_measures` apparie ses
+    arêtes par POSITION, et deux sommets distincts au même point rendent la
+    même clé — mesuré avant/après (volume identique, `closed` identique).
+
     Précondition : `width_mm` strictement inférieure à la demi-carte. Au-delà
     le contour rentré s'inverse et la couronne n'est plus un solide — MESURÉ :
     à `width_mm = min(w, h) / 2` pile (31,5 mm sur un poker), l'appariement
@@ -270,17 +331,28 @@ def extrude_ring_mesh(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
     ext, inte = _rrect_stations(w_mm, h_mm, r_mm, width_mm, segments)
     vo, io = _anneau_indices(ext)
     vi, ii = _anneau_indices(inte)
-    n_o, n_i = len(vo), len(vi)
-    # quatre anneaux de sommets : extérieur/intérieur x dessus/dessous. Les
-    # capuchons et les parois PARTAGENT ces sommets — c'est ce partage qui
-    # ferme le solide (même principe que les anneaux de bord d'un relief).
-    ot0, it0, ob0, ib0 = 0, n_o, n_o + n_i, 2 * n_o + n_i
     pos: list = []
     uv: list = []
-    for anneau, z in ((vo, depth), (vi, depth), (vo, 0.0), (vi, 0.0)):
-        for (x, y) in anneau:
-            pos += [x, y, z]
-            uv += [x / w_mm, 1.0 - y / h_mm]
+
+    def anneau(pts: list, z: float) -> int:
+        """Un anneau de sommets posé à `z` — rend son indice de base."""
+        base = len(pos) // 3
+        for (x, y) in pts:
+            pos.extend((x, y, z))
+            uv.extend((x / w_mm, 1.0 - y / h_mm))
+        return base
+
+    # HUIT ANNEAUX : quatre pour les capuchons, quatre pour les parois. Les
+    # positions se répètent d'une famille à l'autre — c'est le POINT : la
+    # fermeture se mesure par position, l'ombrage par sommet. Les parois ont
+    # en plus LEURS propres arêtes vives (`_bords_de_paroi`), et n'ont donc
+    # pas le même compte de sommets que les capuchons sur un contour à coins.
+    po, deb_o, fin_o = _bords_de_paroi(vo)
+    pi, deb_i, fin_i = _bords_de_paroi(vi)
+    ct_o, ct_i = anneau(vo, depth), anneau(vi, depth)      # capuchon dessus
+    cb_o, cb_i = anneau(vo, 0.0), anneau(vi, 0.0)          # capuchon dessous
+    wo_t, wo_b = anneau(po, depth), anneau(po, 0.0)        # paroi extérieure
+    wi_t, wi_b = anneau(pi, depth), anneau(pi, 0.0)        # paroi intérieure
     idx: list = []
 
     def tri(a: int, b: int, c: int) -> None:
@@ -296,18 +368,23 @@ def extrude_ring_mesh(w_mm: float, h_mm: float, r_mm: float, width_mm: float,
     n = len(ext)
     for k in range(n):
         k2 = (k + 1) % n
-        ot, ot2 = ot0 + io[k], ot0 + io[k2]
-        it, it2 = it0 + ii[k], it0 + ii[k2]
-        ob, ob2 = ob0 + io[k], ob0 + io[k2]
-        ib, ib2 = ib0 + ii[k], ib0 + ii[k2]
-        tri(ot, ot2, it2)          # capuchon du dessus : normale +z
-        tri(ot, it2, it)
-        tri(ob, ib, ib2)           # capuchon du dessous : normale -z
-        tri(ob, ib2, ob2)
-        tri(ot, ob, ob2)           # paroi extérieure : normale vers dehors
-        tri(ot, ob2, ot2)
-        tri(it, it2, ib2)          # paroi intérieure : normale vers le trou
-        tri(it, ib2, ib)
+        a, a2 = io[k], io[k2]                    # rang de station, extérieur
+        b, b2 = ii[k], ii[k2]                    # ... et intérieur
+        tri(ct_o + a, ct_o + a2, ct_i + b2)      # capuchon du dessus : +z
+        tri(ct_o + a, ct_i + b2, ct_i + b)
+        tri(cb_o + a, cb_i + b, cb_i + b2)       # capuchon du dessous : -z
+        tri(cb_o + a, cb_i + b2, cb_o + a2)
+        # LES PAROIS lisent `debut`/`fin` : le quad qui PART du rang `a` et
+        # ARRIVE au rang `a2`. Sur une arête douce les deux désignent le même
+        # sommet (l'arc se lisse), sur une arête vive deux sommets distincts.
+        oa, oa2 = deb_o[a], fin_o[a2]
+        ia, ia2 = deb_i[b], fin_i[b2]
+        if a != a2:
+            tri(wo_t + oa, wo_b + oa, wo_b + oa2)    # paroi extérieure
+            tri(wo_t + oa, wo_b + oa2, wo_t + oa2)
+        if b != b2:
+            tri(wi_t + ia, wi_t + ia2, wi_b + ia2)   # paroi intérieure
+            tri(wi_t + ia, wi_b + ia2, wi_b + ia)
     nrm = [0.0] * len(pos)
     for t in range(0, len(idx), 3):
         i0, i1, i2 = idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3

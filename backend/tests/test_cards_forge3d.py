@@ -16,7 +16,36 @@ docs/superpowers/plans/2026-08-19-cardforge-phase1-couches.md, Task 1) :
 ────────────────────────────────────────────────────────────────────────────
 T5 (2026-08-24) — LE NŒUD `extrude` (D8) ET LA PROVENANCE `capture` (D7)
 
-RONDE DE MUTATION : 20 défauts remis un à un dans le code livré, 20 vus
+RONDE DE CORRECTIONS (24/08, après revue adverse) — 2 bloquants, 4 réels,
+7 mineurs. Ce que la revue a mesuré et que la livraison ne voyait pas :
+
+  · B1 — LE MANIFESTE PÉRIMÉ N'ÉTAIT VU PAR PERSONNE. Deux formes mesurées
+    par la route réelle : publié en poker puis PATCH vers tarot -> 200,
+    `ignored: []`, face anamorphosée de 22,7 %, fenêtre UV décalée de 2,8 px ;
+    et un recto re-déposé (rouge -> vert) sans republier -> l'artefact
+    portait la couche ROUGE. Le test de la livraison prouvait que REPUBLIER
+    marche ; il ne jouait jamais le cas où l'on ne republie PAS — celui-là
+    même que les trois raisons de la route invoquent. Le manifeste date
+    désormais ses copies (format, toile, empreinte de LA SOURCE) et P9
+    confronte les trois avant de construire.
+  · B2 — LES NORMALES (voir la leçon ci-dessous).
+  · R3 — LE SCEAU 3D ÉTAIT INERTE sur la configuration que la preuve de bout
+    doit produire (portée mesh + couche importée + extrusion « sceau ») :
+    200, aucune iridescence, `ignored: []`. `_scelle` sort sur role != cadre,
+    et une extrusion n'a pas de couche. La branche `mesh3d` de la même route
+    confessait pourtant le principe depuis la 2b.
+  · R4 — LE CHIFFRE DU BORDEREAU MENTAIT DEUX FOIS : `coverage_pct` de la
+    face entière vaut 85,45 % sur TOUT poker (le rapport coupe/toile, une
+    constante de format maquillée en mesure — leçon T4-a) ; et le sujet avait
+    DEUX grandeurs sous le même mot (50,0 % du cadre de détourage chez
+    `/rembg`, 42,9 % de la toile au manifeste).
+
+RONDE DE MUTATION (corrections) : 21 défauts remis, 21 vus — dont un qui a
+fait CORRIGER LE CONTRÔLE : « la largeur du document ne descend plus dans la
+géométrie » passait, parce que le test lisait la clé du bordereau au lieu de
+PESER le solide livré. Il pèse maintenant le GLB.
+
+RONDE DE MUTATION (livraison) : 20 défauts remis un à un dans le code livré, 20 vus
 (le principe ne change pas : on remet le défaut, on joue le contrôle qui doit
 le voir, on restaure).
   · le triangle dégénéré n'est plus sauté (arête de longueur nulle) .. ROUGE
@@ -41,14 +70,40 @@ le voir, on restaure).
   · (JS) l'écran écrit une provenance que le rôle ne porte pas ....... ROUGE
   · (JS) la naissance d'une extrusion recopie ses défauts ............ ROUGE
 
-TÉMOIN SURVIVANT, VOLONTAIRE ET AVOUÉ : remplacer TOUTES les normales de la
-couronne par (0, 0, 1) — des normales plates, fausses sur les parois comme
-sur les capuchons du dessous — laisse les 143 contrôles VERTS. Rien ici ne
-mesure l'OMBRAGE d'une extrusion : la fermeture, le volume, l'orientation des
-faces et les bornes d'accesseurs sont tous indifférents aux normales, et la
-seule barre honnête serait une comparaison de rendu (hors périmètre de cette
-tâche, et hors périmètre du lab : le domaine ne rend rien au serveur). Le trou
-est ÉCRIT plutôt que bouché par un contrôle qui n'aurait mesuré que lui-même.
+LE TÉMOIN DE LA LIVRAISON A ÉTÉ FERMÉ, ET IL CACHAIT UN DÉFAUT. Il disait :
+« remplacer toutes les normales de la couronne par (0, 0, 1) laisse les 143
+contrôles verts — rien ici ne mesure l'ombrage, la seule barre honnête serait
+une comparaison de rendu (hors périmètre) ». Les deux moitiés étaient fausses.
+
+  · LA BARRE EXISTE, et elle tient en quinze lignes : le produit scalaire de
+    la normale STOCKÉE par la normale GÉOMÉTRIQUE, pondéré par l'aire
+    (`_cos_normales`). Aucun rendu, aucune image — de l'arithmétique sur le
+    maillage qu'on écrit déjà.
+  · ET ELLE RÉVÉLAIT UN DÉFAUT RÉEL : capuchons et parois PARTAGEAIENT leurs
+    sommets, la moyenne y mélangeait ±z et radial, et le capuchon du dessus
+    sortait jusqu'à 18,31° de +z (cos pondéré 0,9349, pire triangle 0,7176).
+    Un anneau ainsi lissé se rend en bourrelet, et le Sceau prismatique —
+    jugé sur ses franges angulaires, qui dépendent de la normale — y perd
+    exactement ce qu'il apporte. Après dédoublement : cos 0,999998, capuchons
+    à 0,00°, fermeture et volume inchangés à la sixième décimale.
+
+LA LEÇON, ÉCRITE UNE FOIS POUR TOUTES : **un aveu d'infermabilité se mesure
+comme une affirmation de succès.** C'est la leçon T1-LANCZOS (« le témoin se
+ferme en trois lignes ») et la leçon T2-b (« l'aveu de témoin se mesure »)
+rejouées ENSEMBLE — et cette fois le trou avoué n'était pas un trou, c'était
+un couvercle. Avant d'écrire « ceci ne se mesure pas », on cherche la barre
+pendant dix minutes de plus.
+
+TÉMOIN SURVIVANT, VOLONTAIRE ET AVOUÉ (la liste, honnêtement tenue) : la
+TANGENTE constante que le writer émet sous anisotropie (`[1, 0, 0, -1]` par
+sommet) est DÉGÉNÉRÉE sur les parois d'une couronne comme elle l'est déjà sur
+la jupe d'un relief — la normale y est radiale, donc parallèle à cette
+tangente sur deux des quatre pans. Aucun contrôle ne le voit, et celui-ci
+n'est PAS fermable par la même arithmétique : une tangente juste demande des
+UV non dégénérées sur les parois (les nôtres répètent u,v du haut au bas),
+c'est-à-dire un dépliage, c'est-à-dire un autre maillage. Le domaine porte
+déjà l'aveu au même endroit pour le relief (« la jupe fait 0,3 mm et ne reçoit
+aucun peigne regardable ») ; la couronne hérite du même, avec sa raison.
 
 Run : <python embarqué> backend/tests/test_cards_forge3d.py
       .\\scripts\\run-tests.ps1 -Filter cards_forge3d
@@ -9181,6 +9236,122 @@ def test_le_plancher_de_segments_empeche_le_capuchon_de_degenerer():
     assert F9.EXTRUDE_SEGMENTS_DEFAULT == 24
 
 
+def _cos_normales(mesh: dict) -> tuple:
+    """LE CONTRÔLE QUE LA LIVRAISON T5 A CRU IMPOSSIBLE : la justesse des
+    normales, MESURÉE, sans le moindre rendu.
+
+    Pour chaque triangle : la normale GÉOMÉTRIQUE (produit vectoriel de ses
+    deux arêtes, normalisé) contre la normale STOCKÉE (moyenne de ses trois
+    sommets, normalisée). Leur produit scalaire vaut 1 quand le maillage
+    déclare ce que sa géométrie fait, et il s'effondre dès qu'un sommet
+    partagé mélange deux familles de faces. Pondéré par l'AIRE, parce qu'un
+    triangle de coin ne pèse pas ce que pèse un pan de paroi.
+
+    Rend `(cos pondéré, pire triangle, |nz| minimal des capuchons)` — le
+    troisième chiffre isole les faces PLATES, celles dont l'écart se voyait à
+    l'œil sur l'anneau livré (14, 27 puis 45 degrés de +z)."""
+    pos, nrm, idx = mesh["positions"], mesh["normals"], mesh["indices"]
+    tot = aires = 0.0
+    pire, plat = 1.0, 1.0
+    for t in range(0, len(idx), 3):
+        i = (idx[t] * 3, idx[t + 1] * 3, idx[t + 2] * 3)
+        ux, uy, uz = (pos[i[1]] - pos[i[0]], pos[i[1] + 1] - pos[i[0] + 1],
+                      pos[i[1] + 2] - pos[i[0] + 2])
+        vx, vy, vz = (pos[i[2]] - pos[i[0]], pos[i[2] + 1] - pos[i[0] + 1],
+                      pos[i[2] + 2] - pos[i[0] + 2])
+        cx, cy, cz = uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx
+        ln = math.sqrt(cx * cx + cy * cy + cz * cz)
+        if ln <= 0:
+            continue
+        sx = sum(nrm[k] for k in i) / 3.0
+        sy = sum(nrm[k + 1] for k in i) / 3.0
+        sz = sum(nrm[k + 2] for k in i) / 3.0
+        sl = math.sqrt(sx * sx + sy * sy + sz * sz) or 1.0
+        c = (sx * cx / ln + sy * cy / ln + sz * cz / ln) / sl
+        tot += (ln / 2.0) * c
+        aires += ln / 2.0
+        pire = min(pire, c)
+        if pos[i[0] + 2] == pos[i[1] + 2] == pos[i[2] + 2]:
+            plat = min(plat, abs(sz / sl))
+    return tot / aires, pire, plat
+
+
+def test_les_normales_de_la_couronne_sont_JUSTES_et_ca_se_mesure():
+    """B2 (ronde T5) — LA LEÇON, D'ABORD : la livraison avait déclaré ce
+    contrôle impossible (« la seule barre honnête serait une comparaison de
+    rendu ») et posé un témoin survivant volontaire dessus. Il se ferme en
+    quinze lignes, et il CACHAIT un défaut — c'est la leçon T1-LANCZOS
+    rejouée, doublée de la leçon T2-b : un aveu d'infermabilité se mesure
+    comme une affirmation de succès.
+
+    LE DÉFAUT, MESURÉ SUR LA LIVRAISON : les capuchons et les parois
+    PARTAGEAIENT leurs sommets, la moyenne des normales de face y mélangeait
+    donc ±z et radial, et le capuchon du dessus sortait jusqu'à **18,31
+    degrés** de +z (|nz| minimal 0,949 ; cos pondéré par l'aire 0,9349, pire
+    triangle 0,7176). Un anneau ainsi lissé se rend en bourrelet, et le Sceau
+    prismatique — jugé sur ses franges angulaires, qui dépendent de la
+    normale — y perd exactement ce qu'il apporte.
+
+    APRÈS DÉDOUBLEMENT : 400 sommets -> 800, mêmes 800 triangles, cos 0,999998
+    (pire 0,999894), capuchons à **0,00 degré**. Et ce qui ne bouge PAS : la
+    fermeture et le volume, à la sixième décimale — `mesh_measures` apparie
+    ses arêtes par POSITION, et deux sommets distincts au même point rendent
+    la même clé."""
+    from app.services.cards import forge3d_scene as SC
+    m = SC.extrude_ring_mesh(_EXT_W, _EXT_H, _EXT_R, 1.2, 0.6, 24)
+    cos, pire, plat = _cos_normales(m)
+    assert cos >= 0.99, cos
+    assert pire >= 0.99, pire
+    # LES CAPUCHONS SONT PLATS, exactement : c'est là que le défaut vivait.
+    assert plat > 0.9999, (plat, math.degrees(math.acos(min(1.0, plat))))
+    # LE DÉDOUBLEMENT EST STRUCTUREL, et il ne coûte QUE des sommets.
+    assert len(m["positions"]) // 3 == 800, len(m["positions"]) // 3
+    rep = SC.mesh_measures(m)
+    assert rep["triangles"] == 800 and rep["closed"] is True, rep
+    assert abs(rep["volume_mm3"] - 211.009594) < 1e-5, rep["volume_mm3"]
+    # ── LE TÉMOIN QUI SURVIVAIT, MAINTENANT ROUGE ────────────────────────
+    plates = dict(m)
+    plates["normals"] = [0.0, 0.0, 1.0] * (len(m["positions"]) // 3)
+    cos_plat, _p, plat_plat = _cos_normales(plates)
+    assert cos_plat < 0.99, cos_plat
+    assert plat_plat > 0.9999, "un capuchon du dessous plat en +z reste plat " \
+                               "en |nz| : c'est le cos pondéré qui le voit"
+    # ... et la référence du lab reste au-dessus de sa propre barre
+    ref = SC.relief_mesh(Image.new("L", (16, 16), 128), 63.0, 88.0, 1.0,
+                         0.3, 24)
+    assert _cos_normales(ref)[0] > 0.98, _cos_normales(ref)[0]
+    # ── LA PAROI A SES PROPRES ARÊTES VIVES, ET LE PREMIER CORRECTIF NE
+    #    LES VOYAIT PAS. Un contour à coins VIFS (rayon nul) fait se
+    #    rencontrer deux pans perpendiculaires : un sommet partagé y moyenne
+    #    deux normales à 90°, donc 45° d'erreur sur chacune — mesuré, cos
+    #    0,9824 après le seul dédoublement capuchons/parois. Le seuil
+    #    d'arête vive le ferme : 1,000000.
+    vif = SC.extrude_ring_mesh(_EXT_W, _EXT_H, 0.0, 1.2, 0.4, 24)
+    assert _cos_normales(vif)[0] > 0.9999, _cos_normales(vif)
+    # ... et il ne coûte RIEN au contour arrondi nominal : à 24 segments,
+    # l'arc tourne de 3,75° par corde et sa jonction de 1,87°, tout est doux
+    # (le compte de sommets ci-dessus le prouve : 800, pas un de plus).
+    assert SC._EXTRUDE_ANGLE_VIF_DEG == 30.0
+    # LA JUSTESSE TIENT SUR LES CAS DÉGÉNÉRÉS, pas seulement sur le nominal
+    for (w, h, r, d) in ((63.0, 88.0, 0.0, 1.2), (63.0, 88.0, 3.0, 6.0),
+                         (63.0, 88.0, 3.0, 3.0), (40.0, 40.0, 20.0, 1.2),
+                         (30.0, 40.0, 2.0, 0.2)):
+        m2 = SC.extrude_ring_mesh(w, h, r, d, 0.4, 24)
+        c2 = _cos_normales(m2)
+        assert c2[0] >= 0.999 and c2[2] > 0.9999, (w, h, r, d, c2)
+        # le dédoublement ne casse RIEN de ce que la livraison prouvait
+        rep2 = SC.mesh_measures(m2)
+        assert rep2["closed"] is True, (w, h, r, d)
+        exact = SC.ring_area_mm2(w, h, r, d) * 0.4
+        assert abs(rep2["volume_mm3"] - exact) / exact < 0.001, (w, h, r, d)
+    # ... y compris au PLANCHER de segments, où la corde unique devient une
+    # arête vive (45° à la jonction) et se dédouble : c'est juste, un coin à
+    # une seule corde EST un chanfrein.
+    plancher = SC.extrude_ring_mesh(_EXT_W, _EXT_H, _EXT_R, 1.2, 0.4, 1)
+    assert _cos_normales(plancher)[0] > 0.9999, _cos_normales(plancher)
+    assert SC.mesh_measures(plancher)["closed"] is True
+
+
 def test_l_orientation_des_capuchons_est_prouvee_par_produit_signe():
     """Le miroir de la 2b s'est DÉJÀ rejoué au capuchon en 3c : une surface
     retournée reste `closed` — seule l'aire signée le dit. Chaque triangle
@@ -9449,7 +9620,12 @@ def test_une_couche_importee_traverse_le_graphe_et_le_bordereau_l_AVOUE():
     sortiraient deux matériaux homonymes — la leçon M3 de la 2d), et le
     bordereau AVOUE la provenance AVEC SON CHIFFRE."""
     did = _deck("Import 3D")
-    pub = _importe(did, sujet=Image.new("RGBA", (300, 300), (200, 170, 110, 255)))
+    # UN VRAI SUJET DÉTOURÉ : un disque opaque sur du transparent. Un aplat
+    # plein rendrait la MÊME couverture que la face entière et ce test
+    # n'aurait plus rien à distinguer.
+    sujet = Image.new("RGBA", (300, 300), (0, 0, 0, 0))
+    ImageDraw.Draw(sujet).ellipse([40, 40, 260, 260], fill=(200, 170, 110, 255))
+    pub = _importe(did, sujet=sujet)
     roles = [l["role"] for l in pub["layers"]["layers"]]
     assert roles == ["recto", "illustration"], roles
     r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
@@ -9461,13 +9637,18 @@ def test_une_couche_importee_traverse_le_graphe_et_le_bordereau_l_AVOUE():
     assert len(detail) == 1, detail
     assert detail[0]["name"] == "illustration_capture", detail
     assert detail[0]["side"] == "capture", detail
+    # LE CHIFFRE NOMME SON CADRE (ronde T5, R4) : « N % de la toile », jamais
+    # une « couverture » nue — le sujet a deux grandeurs sous ce mot-là (celle
+    # du détourage, celle de la toile) et le bordereau doit dire laquelle.
     assert "couche importee" in detail[0]["import"], detail
-    assert "couverture" in detail[0]["import"], detail
+    assert "% de la toile" in detail[0]["import"], detail
     # le chiffre du bordereau est CELUI du manifeste, pas un autre
     ligne = [l for l in pub["layers"]["layers"]
              if l["role"] == "illustration"][0]
     attendu = f"{ligne['coverage_pct']:.1f}".replace(".", ",")
     assert attendu in detail[0]["import"], (attendu, detail[0]["import"])
+    # ... et il DÉCRIT le contenu : un sujet détouré couvre moins que la face
+    assert ligne["coverage_pct"] < 60.0, ligne["coverage_pct"]
     # ... et le GLB est SERVI, avec les dimensions physiques et zéro identité
     glb = _api("GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}")
     assert glb.status_code == 200
@@ -9583,9 +9764,13 @@ def test_l_extrusion_seule_est_IMPRIMABLE_et_le_sceau_s_y_branche():
     ).convert("RGB").split()[1]
     ref = Image.open(io.BytesIO(sig)).convert("L").resize(
         gband.size, Image.BICUBIC)
-    # MESURÉ le 24/08 sur l'anneau servi : r = 0,658 (canal G 1024²,
-    # un point sur trois). La barre est à 0,5 — au-dessus du bruit, sous la
-    # mesure, et elle ne bouge pas avec la taille de la texture.
+    # MESURÉ le 24/08 sur l'anneau servi : **r = 0,655** (canal G 1024², un
+    # point sur trois — la fonction de corrélation de ce fichier, sur le
+    # chemin de ce test). La première rédaction disait 0,658 : un chiffre
+    # relevé sur un banc de côté dont le disque n'avait pas tout à fait le
+    # même rayon — re-mesuré par la voie de production (ronde T5, M9). La
+    # barre reste à 0,5 : au-dessus du bruit, sous la mesure, et elle ne
+    # bouge pas avec la taille de la texture.
     r_p = _correlation(ref, gband, pas=3)
     assert r_p > 0.5, r_p
     # et le motif a bel et bien ÉPAISSI : le canal diffère de la base nue
@@ -9773,3 +9958,302 @@ def test_le_banc_de_palette_mesure_l_extrusion_et_les_provenances(tmp_path):
     for attendu in ("T5 naissance extrusion", "T5 compte d'elements",
                     "T5 provenance refusee", "T5 provenance offerte"):
         assert attendu in noms, sorted(noms)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RONDE T5 — CE QUE LA REVUE A MESURÉ, ET QUE LA LIVRAISON NE VOYAIT PAS
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _geo_de(did: str):
+    from app.services.cards import core as CC
+    return CC.geom_of(CC.read_deck(did))
+
+
+def test_le_manifeste_importe_PERIME_est_refuse_NOMME_sur_ses_DEUX_formes():
+    """B1 (ronde T5) — LE DÉFAUT QUE LE TEST DE LA LIVRAISON NE POUVAIT PAS
+    VOIR. Il prouvait que REPUBLIER marche ; il ne jouait jamais le cas où
+    l'on ne republie PAS — celui-là même que les trois raisons de la route
+    invoquent pour exister.
+
+    FORME 1, LE FORMAT. Mesuré : manifeste publié en poker, PATCH vers tarot,
+    construction -> **200**, `ignored: []`, la face anamorphosée de 22,7 %, la
+    fenêtre UV décalée de 2,8 px et le bordereau affichant les millimètres du
+    poker. La copie est rendue à la toile d'UN format ; un autre format la
+    rend fausse, pas approximative.
+
+    FORME 2, LA SOURCE. Mesuré : re-déposer un recto (rouge -> vert) sans
+    republier, et l'artefact portait la couche ROUGE — l'image précédente,
+    livrée sans un mot.
+
+    Les deux refus disent « republie », parce que c'est le geste qui répare.
+    Et le troisième cas, celui qui n'est PAS un mensonge : une source effacée
+    ne périme rien, elle rend seulement la vérification impossible — c'est un
+    AVEU au bordereau."""
+    from app.services.cards import capture as P10
+    from app.services.cards import core as CC
+    did = _deck("Perime")
+    _importe(did, im=Image.new("RGB", (630, 880), (200, 20, 20)))
+    g = _graphe_importe("recto", extrude=False)
+
+    def build():
+        return _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                    json={"graph": g, "card": 0})
+
+    assert build().status_code == 200                     # l'état sain d'abord
+
+    # ── FORME 1 : LE FORMAT A CHANGÉ SOUS LE MANIFESTE ──────────────────
+    avant = _geo_de(did).canvas_px
+    CC.patch_deck(did, {"format": {"fmt": "tarot_eu"}})
+    assert _geo_de(did).canvas_px != avant
+    r = build()
+    assert r.status_code == 409, (r.status_code, r.text[:200])
+    detail = r.json()["detail"]
+    assert "poker_eu" in detail and "tarot_eu" in detail, detail
+    assert "republie" in detail, detail
+    CC.patch_deck(did, {"format": {"fmt": "poker_eu"}})
+    assert build().status_code == 200, "l'état sain ne se restaure pas"
+
+    # ... et la MÊME porte attrape un changement de DENSITÉ à format constant
+    # (la toile change, la copie ne le sait pas).
+    CC.patch_deck(did, {"format": {"fmt": "poker_eu", "dpi": 600}})
+    r2 = build()
+    assert r2.status_code == 409, r2.status_code
+    assert "toile" in r2.json()["detail"], r2.json()["detail"]
+    CC.patch_deck(did, {"format": {"fmt": "poker_eu", "dpi": 300}})
+    assert build().status_code == 200
+
+    # ── FORME 2 : LA SOURCE A CHANGÉ SOUS LE MANIFESTE ──────────────────
+    vert = _png(Image.new("RGB", (630, 880), (20, 200, 20)))
+    r3 = _api("POST", f"/api/cards/{did}/capture/card", content=vert,
+              headers={"Content-Type": "image/png"})
+    assert r3.status_code == 200
+    r4 = build()
+    assert r4.status_code == 409, (r4.status_code, r4.text[:200])
+    assert "a change depuis la publication" in r4.json()["detail"]
+    assert "republie" in r4.json()["detail"]
+    # republier RÉPARE — et c'est bien la nouvelle image qui part en 3D
+    assert _api("POST", f"/api/cards/{did}/capture/manifeste").status_code == 200
+    r5 = build()
+    assert r5.status_code == 200, r5.text[:300]
+    from app.services.cards import forge3d as F9
+    im = Image.open(io.BytesIO(
+        (F9._out_dir(did) / "recto_c01_capture.png").read_bytes())).convert("RGB")
+    assert im.getpixel((im.size[0] // 2, im.size[1] // 2))[1] > 150, "la " \
+        "couche servie est encore la PRÉCÉDENTE"
+
+    # ── LE CAS QUI N'EST PAS UN MENSONGE : la source a disparu ──────────
+    (P10.cap_dir(did) / "source_recto.png").unlink()
+    r6 = build()
+    assert r6.status_code == 200, r6.text[:300]
+    dits = [x["why"] for x in r6.json()["artifact"]["ignored"]]
+    assert any("non verifiable" in w for w in dits), dits
+
+
+def test_le_manifeste_importe_MUET_sur_son_cote_est_refuse():
+    """M8 (ronde T5) — la tolérance au manifeste sans clé `side` protège un
+    HÉRITAGE : des fichiers de peintres écrits avant que la clé existe. La
+    provenance importée n'en a aucun — T5 est sa naissance, tous ceux qui
+    existent portent leur côté. Mesuré : `side` supprimé, la construction
+    rendait 200."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Muet")
+    _importe(did)
+    p = F9._out_dir(did) / "layers_c01_capture.json"
+    entier = json.loads(p.read_text(encoding="utf-8"))
+    g = _graphe_importe("recto", extrude=False)
+    sans = {k: v for k, v in entier.items() if k != "side"}
+    p.write_text(json.dumps(sans), encoding="utf-8")
+    assert F9._lire_manifeste(F9._out_dir(did), "c01", "capture") is None
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 409, r.status_code
+    assert "manifeste" in r.json()["detail"], r.json()["detail"]
+    p.write_text(json.dumps(entier), encoding="utf-8")
+    assert _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                json={"graph": g, "card": 0}).status_code == 200
+    # ... et la tolérance RESTE pour les peintres (l'héritage, lui, existe)
+    out = F9._out_dir(did)
+    (out / "layers_c01_front.json").write_text(
+        json.dumps({"layers": []}), encoding="utf-8")
+    assert F9._lire_manifeste(out, "c01", "front") == {"layers": []}
+
+
+def test_le_SCEAU_3D_habille_l_extrusion_ou_DIT_qu_il_n_a_pas_de_corps():
+    """R3 (ronde T5) — LE SILENCE QUE T5 ROUVRAIT. Portée 3D cochée + couche
+    importée + extrusion `sceau` — la configuration EXACTE que la preuve de
+    bout doit produire — rendait 200 sans la moindre iridescence, sans une
+    clé au bordereau, `ignored` vide. La branche `mesh3d` de la même route
+    confesse pourtant le principe depuis la 2b (« l'utilisateur a coché,
+    l'écran n'a rien à répondre »).
+
+    Trois cas, et le troisième est celui qui manquait :
+      1. HABILLÉ AUTOMATIQUEMENT — l'extrusion `sceau` EST le corps du Sceau
+         du document : son métal et sa LARGEUR en viennent, le bordereau le
+         dit, et le GLB porte l'iridescence.
+      2. L'EXPLICITE GAGNE — un nœud `material` qui nomme une finition
+         l'emporte, et la mise à l'écart est AVOUÉE (invariant 3c : le Sceau
+         comble le silence, il ne couvre jamais une parole).
+      3. AUCUN CORPS — portée cochée, ni cadre ni couronne : le bordereau LE
+         DIT au lieu de se taire."""
+    from app.services.cards import core as CC
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Sceau 3D")
+    _importe(did)
+    CC.patch_deck(did, {"frame": {"seal": {
+        "on": True, "kind": "dorure", "width_mm": 2.4,
+        "scope": {"screen": True, "print": False, "mesh": True}}}})
+
+    def build(g):
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text[:400]
+        return r.json()["artifact"]
+
+    # ── 1. HABILLÉ AUTOMATIQUEMENT ──────────────────────────────────────
+    g1 = _graphe_importe("recto", extrude=True)          # extrusion « sceau »
+    a1 = build(g1)
+    anneau = [d for d in a1["elements_detail"]
+              if d["name"] == "extrude_sceau"][0]
+    assert anneau.get("seal"), (anneau, a1["ignored"])
+    assert anneau["seal"]["kind"] == "dorure"
+    assert anneau["seal"]["width_mm"] == 2.4
+    # la largeur du DOCUMENT a gagné celle du nœud — et la substitution se DIT
+    assert anneau["seal"]["node_width_mm"] == 1.2, anneau["seal"]
+    doc1, _b1 = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{a1['glb']['name']}").content)
+    mat = [m for m in doc1["materials"] if m["name"] == "extrude_sceau"][0]
+    iri = mat["extensions"]["KHR_materials_iridescence"]
+    assert iri["iridescenceIor"] == 1.6, iri          # la recette DORURE
+    assert not [x for x in a1["ignored"] if x["node"] == "seal"], a1["ignored"]
+    # ── ET LA GÉOMÉTRIE A SUIVI, MESURÉE DANS LES OCTETS LIVRÉS ──────────
+    # Le bordereau qui annonce 2,4 mm pendant que la couronne en fait 1,2
+    # serait exactement le mensonge que R4 vient de fermer ailleurs : on ne
+    # lit donc PAS la clé, on pèse le solide. Un graphe à UN seul élément
+    # rend la mesure sans ambiguïté.
+    gg = _geo_de(did)
+    seul = {"nodes": [
+        {"id": "ext", "kind": "extrude", "contour": "sceau", "width_mm": 1.2,
+         "depth_mm": 0.5},
+        {"id": "asm", "kind": "assemble"},
+        {"id": "art", "kind": "artifact", "name": "anneauseul"}],
+        "edges": [{"from": "ext", "to": "asm"},
+                  {"from": "asm", "to": "art"}]}
+    a4 = build(seul)
+    octets = _api(
+        "GET", f"/api/cards/{did}/forge3d/file/{a4['glb']['name']}").content
+    monde = SC.glb_scene_mesh(octets, world=False)
+    vu = abs(SC.mesh_measures(monde)["volume_mm3"])
+    pour = lambda mm: SC.ring_area_mm2(                       # noqa: E731
+        gg.trim_mm[0], gg.trim_mm[1], gg.corner_mm, mm) * 0.5
+    assert abs(vu - pour(2.4)) / pour(2.4) < 0.005, (vu, pour(2.4), pour(1.2))
+    assert abs(vu - pour(1.2)) / pour(1.2) > 0.5,         "la couronne livrée a la largeur du NŒUD, pas celle du Sceau : le "         "bordereau annoncerait 2,4 mm sur un solide de 1,2"
+
+    # ── 2. L'EXPLICITE GAGNE ────────────────────────────────────────────
+    g2 = _graphe_importe("recto", extrude=True, finition="argent")
+    a2 = build(g2)
+    anneau2 = [d for d in a2["elements_detail"]
+               if d["name"] == "extrude_sceau"][0]
+    assert "seal" not in anneau2, anneau2
+    dits = [x["why"] for x in a2["ignored"] if "sceau 3D ecarte" in x["why"]]
+    assert dits and "argent" in dits[0], a2["ignored"]
+    doc2, _b2 = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{a2['glb']['name']}").content)
+    mat2 = [m for m in doc2["materials"] if m["name"] == "extrude_sceau"][0]
+    assert mat2["extensions"]["KHR_materials_iridescence"][
+        "iridescenceIor"] == 1.8, "la finition EXPLICITE (argent) doit gagner"
+
+    # ── 3. AUCUN CORPS : le bordereau LE DIT ────────────────────────────
+    g3 = _graphe_importe("recto", extrude=False)
+    a3 = build(g3)
+    sans = [x for x in a3["ignored"] if x["node"] == "seal"]
+    assert sans, a3["ignored"]
+    assert "sans corps" in sans[0]["why"], sans
+    assert "extrusion" in sans[0]["why"] and "cadre" in sans[0]["why"], sans
+
+
+def test_le_SCEAU_AUTO_incruste_bien_ses_motifs_dans_l_anneau():
+    """R3, la barre de qualité : le Sceau posé AUTOMATIQUEMENT sur l'anneau
+    n'est pas seulement une clé de bordereau — c'est la même recette, les
+    mêmes octets. On la relit dans le canal G du GLB servi et on la corrèle à
+    la texture d'épaisseur nue (le motif, lui, appartient au nœud `material`,
+    que ce chemin-ci n'a pas)."""
+    from app.services.cards import core as CC
+    from app.services.cards import forge3d_scene as SC
+    did = _deck("Sceau auto")
+    _importe(did)
+    CC.patch_deck(did, {"frame": {"seal": {
+        "on": True, "kind": "argent", "width_mm": 1.2,
+        "scope": {"screen": True, "print": False, "mesh": True}}}})
+    g = _graphe_importe("recto", extrude=True)
+    r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+             json={"graph": g, "card": 0})
+    assert r.status_code == 200, r.text[:400]
+    art = r.json()["artifact"]
+    doc, binv = _read_glb(_api(
+        "GET", f"/api/cards/{did}/forge3d/file/{art['glb']['name']}").content)
+    mat = [m for m in doc["materials"] if m["name"] == "extrude_sceau"][0]
+    iri = mat["extensions"]["KHR_materials_iridescence"]
+    idx = doc["textures"][iri["iridescenceThicknessTexture"]["index"]]["source"]
+    bv = doc["bufferViews"][doc["images"][idx]["bufferView"]]
+    gband = Image.open(io.BytesIO(
+        binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]])
+    ).convert("RGB").split()[1]
+    nu = _canal_g(SC._holo_thickness_png(gband.size[0]))
+    # LES MÊMES OCTETS : le Sceau automatique cuit la recette du document,
+    # pas une approximation posée à la va-vite.
+    assert list(gband.getdata()) == list(nu.getdata())
+    assert _correlation(nu, gband, pas=7) > 0.999
+
+
+def test_les_octets_d_une_scene_2a_n_ont_pas_bouge():
+    """M10 (ronde T5) — L'AFFIRMATION LA PLUS LOURDE DE T5 (« les octets d'un
+    artefact d'avant T5 ne bougent pas d'un cran ») était VRAIE et gardée par
+    RIEN. Le writer a changé (le PNG de base est devenu facultatif), le
+    résolveur a changé (les extrusions s'y mêlent), et la seule preuve était
+    une comparaison faite à la main, une fois.
+
+    Le pin est celui de la 3c (`_THICK_NU`) : un GLB de référence, construit
+    ici, comparé à son empreinte. Il ne dit pas « c'est joli », il dit « c'est
+    LE MÊME fichier »."""
+    from app.services.cards import forge3d_scene as SC
+    png = _png(Image.new("RGBA", (8, 8), (12, 34, 56, 255)))
+    quad = SC.quad_mesh(63.0, 88.0)
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 200), 63.0, 88.0, 0.8,
+                            0.3, 6)
+    glb = SC.write_scene_glb(
+        [{"name": "illustration", "mesh": quad, "png": png, "alpha": True,
+          "z_mm": 0.2},
+         {"name": "cadre", "mesh": relief, "png": png, "alpha": False,
+          "z_mm": 0.0}],
+        name="reference", extras={"deck": "REF", "card": "c01",
+                                  "format": "poker_eu",
+                                  "size_mm": [63.0, 88.0], "unit": "metre",
+                                  "schema": "card-3d/artifact@1"})
+    assert hashlib.sha256(glb).hexdigest() == _GLB_2A_SHA, (
+        "les octets d'une scène 2a ont changé — si c'est voulu, la nouvelle "
+        "empreinte se mesure et s'écrit ICI, avec la raison")
+    assert len(glb) == _GLB_2A_BYTES
+
+
+# L'empreinte de la scène de référence ci-dessus, MESURÉE le 24/08 (ronde T5).
+_GLB_2A_SHA = "453b540f3fe72ff2b61a3281314403692967d9c392d1a766092d3a70ee2e34d8"
+_GLB_2A_BYTES = 10080
+
+
+def test_la_liste_blanche_du_service_refuse_le_saut_de_ligne_final():
+    """M12 (ronde T5) — CINQUIÈME occurrence du $-newline dans ce chantier,
+    et la première dans CE fichier. `re.match(r"^…$")` apparie aussi juste
+    avant un saut de ligne final : « artefact.glb%0A » passait la liste
+    blanche. INERTE (le motif n'accepte ni séparateur ni point-point, et le
+    `\\n` ferait de toute façon échouer l'ouverture) — mais la clôture T1-b
+    est sans nuance : toute liste blanche naît en `fullmatch`/`\\Z`, et son
+    test porte `%0A` d'office."""
+    did = _deck("Newline")
+    _exporter_couches(did)
+    from app.services.cards import forge3d as F9
+    nom = "layers_c01_front.json"
+    assert (F9._out_dir(did) / nom).is_file()
+    assert _api("GET", f"/api/cards/{did}/forge3d/file/{nom}").status_code == 200
+    r = _api("GET", f"/api/cards/{did}/forge3d/file/{nom}%0A")
+    assert r.status_code == 400, (r.status_code, r.text[:200])
+    assert "invalide" in r.json()["detail"].lower(), r.json()["detail"]

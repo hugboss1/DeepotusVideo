@@ -63,6 +63,15 @@ Ce qui est verrouillé, seuil par seuil :
      production aujourd'hui ; elle est jouée ici avec un faux module injecté
      dans `sys.modules`, faute de quoi la moitié du basculement serait
      écrite et jamais éprouvée.
+ 11. UNE COPIE SE PÉRIME, ET LE MANIFESTE LA DATE (ronde T5, B1). Chaque
+     ligne porte le nom de sa source, son empreinte AU MOMENT de la
+     publication et ses pixels ; P9 confronte les trois au disque avant de
+     construire, et refuse NOMMÉ (« republie ») plutôt que de livrer une
+     carte périmée. Le format et la toile sont datés de la même façon : la
+     face est rendue à la toile d'UN format, un autre format la rend fausse.
+     Une source EFFACÉE, elle, ne périme rien — c'est un aveu au bordereau,
+     pas un refus.
+
  10. LE MANIFESTE DES COUCHES IMPORTÉES (T5, plan D7 amendé, spec §7.1.6).
      Il est écrit par une ROUTE et pas au fil de l'eau, et le test dit
      pourquoi : il DÉPEND du format du jeu (toile, millimètres, densité), donc
@@ -111,6 +120,16 @@ Ronde 2 (corrections) — 19 défauts remis, 18 vus :
   · plafond réécrit en toutes lettres dans une phrase (JS) ......... ROUGE
   · `capture` retiré du lint ; `<script>` retiré d'index.html ...... ROUGE
   · le test du meta.json abîmé qui ne nettoie plus son épave ....... ROUGE
+
+Ronde 6 (T5, corrections de ronde) — 8 défauts remis, 8 vus :
+  · le manifeste ne date plus ses copies (format/toile/source) ...... ROUGE
+  · l'index de carte redevient sans borne ........................... ROUGE
+  · les orphelins de la publication précédente restent .............. ROUGE
+  · le manifeste s'écrit sans brouillon sous la concurrence ......... ROUGE
+  · le recto réaffiche sa constante de format en « couverture » ..... ROUGE
+  · le chiffre du sujet ne nomme plus son cadre ..................... ROUGE
+  (+ les deux gardes de P9 que ce fichier alimente : format confronté,
+   empreinte de source confrontée — jouées côté forge3d.)
 
 Ronde 5 (T5, le manifeste importé) — 5 défauts remis, 5 vus :
   · la face importée n'est plus posée dans la toile (recopie brute) . ROUGE
@@ -3995,7 +4014,15 @@ def test_le_manifeste_importe_est_au_SCHEMA_de_P9(monkeypatch):
     # ── LES LIGNES : la forme de `post_layers`, chiffres RECALCULÉS ──────
     for l in m["layers"]:
         assert set(l) == {"role", "z", "module", "file", "mode", "sha256",
-                          "bytes", "bbox_px", "bbox_mm", "coverage_pct"}, l
+                          "bytes", "bbox_px", "bbox_mm", "coverage_pct",
+                          "source_file", "source_sha256", "source_px"}, l
+        # ── LA COPIE EST DATÉE (ronde T5, B1) : le nom de sa source, son
+        #    empreinte AU MOMENT de la publication, et ses pixels. Les trois
+        #    se vérifient sur le disque, ici comme chez P9.
+        src = CP.cap_dir(did) / l["source_file"]
+        assert src.is_file(), l["source_file"]
+        assert hashlib.sha256(src.read_bytes()).hexdigest() == l["source_sha256"]
+        assert l["source_px"] == list(Image.open(src).size), l
         p = _p9_dir(did) / l["file"]
         octets = p.read_bytes()
         assert hashlib.sha256(octets).hexdigest() == l["sha256"], l["role"]
@@ -4017,6 +4044,10 @@ def test_le_manifeste_importe_est_au_SCHEMA_de_P9(monkeypatch):
         "un manifeste importé n'emprunte PAS la preuve d'empilement"
     c = pr["capture"]
     assert "aucune preuve d'empilement" in c["note"]
+    assert "couverture_sujet_pct" not in c, \
+        "un chiffre de couverture qui ne nomme pas son cadre : il en existe " \
+        "deux (celui du détourage, celui de la toile)"
+    assert "couverture_sujet_pct_toile" in c, c
     assert c["recomposition"] is None and c["recomposition_why"]
     assert "fond" in c["recomposition_why"]
     assert c["source_px"] == [SYNTH_W, SYNTH_H]
@@ -4036,7 +4067,7 @@ def test_le_manifeste_ne_liste_QUE_ce_qui_existe(monkeypatch):
     did = _deck_avec_recto()
     m = _manifeste(did).json()["layers"]
     assert [l["role"] for l in m["layers"]] == ["recto"]
-    assert m["proof"]["capture"]["couverture_sujet_pct"] is None
+    assert m["proof"]["capture"]["couverture_sujet_pct_toile"] is None
     # le sujet arrive (posé comme le poserait un détourage)
     from app.services.cards import capture as CP
     (CP.cap_dir(did) / CP.SUJET_NAME).write_bytes(_png_rgba(300, 400))
@@ -4044,7 +4075,7 @@ def test_le_manifeste_ne_liste_QUE_ce_qui_existe(monkeypatch):
     roles = [l["role"] for l in m2["layers"]]
     assert roles == ["recto", "illustration"], roles
     ligne = [l for l in m2["layers"] if l["role"] == "illustration"][0]
-    assert m2["proof"]["capture"]["couverture_sujet_pct"] == \
+    assert m2["proof"]["capture"]["couverture_sujet_pct_toile"] == \
         ligne["coverage_pct"]
     # LE SUJET EST DÉTOURÉ : il couvre MOINS que la face entière (sinon la
     # « couche » publiée serait la carte de départ — la doctrine T3).
@@ -4225,7 +4256,7 @@ def test_UNE_CARTE_IMPORTEE_PART_EN_3D_SANS_ETRE_RECONSTRUITE(monkeypatch):
     """§7.1.6, LE TEST DE BOUT — et c'est le geste complet, pas une pièce de
     puzzle : on dépose une carte, on la MESURE, on en isole le sujet par la
     voie locale (faux module, ZÉRO dépense), on PUBLIE le manifeste, puis on
-    construit un graphe de cinq nœuds chez P9. Il en sort un GLB SERVI.
+    construit un graphe de HUIT nœuds chez P9. Il en sort un GLB SERVI.
 
     Ce que la construction n'a PAS fait, et c'est tout l'objet : reconstruire
     la carte. Aucun painter n'a tourné, aucune couche n'a été exportée — la
@@ -4264,7 +4295,7 @@ def test_UNE_CARTE_IMPORTEE_PART_EN_3D_SANS_ETRE_RECONSTRUITE(monkeypatch):
     man = pub.json()["layers"]
     assert [l["role"] for l in man["layers"]] == ["recto", "illustration"]
 
-    # ── 5. PARTIR EN 3D — cinq nœuds, aucune couche exportée ────────────
+    # ── 5. PARTIR EN 3D — huit nœuds, aucune couche exportée ────────────
     g = {"nodes": [
         {"id": "face", "kind": "layer", "role": "recto", "side": "capture"},
         {"id": "plan", "kind": "plane", "depth_mm": 0.0},
@@ -4294,13 +4325,21 @@ def test_UNE_CARTE_IMPORTEE_PART_EN_3D_SANS_ETRE_RECONSTRUITE(monkeypatch):
     par_nom = {d["name"]: d for d in art["elements_detail"]}
     assert set(par_nom) == {"recto_capture", "illustration_capture",
                             "extrude_sceau"}, sorted(par_nom)
-    for role, nom in (("recto", "recto_capture"),
-                      ("illustration", "illustration_capture")):
-        d = par_nom[nom]
-        assert d["side"] == "capture", d
-        ligne = [l for l in man["layers"] if l["role"] == role][0]
-        chiffre = f"{ligne['coverage_pct']:.1f}".replace(".", ",")
-        assert "couche importee" in d["import"] and chiffre in d["import"], d
+    # LE RECTO NE MAQUILLE PAS UNE CONSTANTE DE FORMAT EN MESURE (R4) : sa
+    # part opaque de toile vaut le rapport coupe/toile, la MÊME sur toute
+    # carte du format. Il dit donc ce qu'il EST et ce qu'il pèse en pixels.
+    face = par_nom["recto_capture"]
+    assert face["side"] == "capture", face
+    assert "face entiere importee" in face["import"], face
+    assert "%" not in face["import"], face
+    src = [l for l in man["layers"] if l["role"] == "recto"][0]["source_px"]
+    assert f"{src[0]}x{src[1]} px" in face["import"], (src, face)
+    # LE SUJET, LUI, MESURE VRAIMENT SON CONTENU — et il NOMME SON CADRE.
+    suj = par_nom["illustration_capture"]
+    ligne = [l for l in man["layers"] if l["role"] == "illustration"][0]
+    chiffre = f"{ligne['coverage_pct']:.1f}".replace(".", ",")
+    assert suj["side"] == "capture" and "couche importee" in suj["import"], suj
+    assert f"{chiffre} % de la toile" in suj["import"], suj
     assert par_nom["extrude_sceau"]["contour"] == "sceau"
 
     # ── LE GLB EST SERVI, ET IL EST PROPRE ──────────────────────────────
@@ -4344,3 +4383,132 @@ def _glb_doc(data: bytes) -> dict:
     assert data[:4] == b"glTF"
     n = struct.unpack("<I", data[12:16])[0]
     return json.loads(data[20:20 + n].decode("utf-8").rstrip("\x00 "))
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# RONDE T5 — CE QUE LA REVUE A MESURÉ, CÔTÉ IMPORT
+# ═══════════════════════════════════════════════════════════════════════════
+
+def test_vingt_quatre_publications_simultanees_rendent_UN_manifeste(monkeypatch):
+    """R6 (ronde T5) — LA CONCURRENCE PASSAIT, ET RIEN NE L'ÉPINGLAIT. C'est
+    exactement la leçon T1 : le patron d'écriture (brouillon nominatif +
+    `replace` patient) a été recopié de l'admission, il TIENT (24 sur 24
+    mesurés par la revue), mais un patron recopié sans son test se perd à la
+    première réécriture.
+
+    Ce qui est exigé : tous servis (aucun 500, aucun 409 de course), UN seul
+    manifeste sur le disque, et des empreintes COHÉRENTES — le sha publié doit
+    décrire les octets réellement posés, pas ceux d'un autre tour."""
+    s = _sentinelle(monkeypatch)
+    did = _deck_avec_recto()
+
+    async def go():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t", timeout=600.0) as c:
+            return await asyncio.gather(*[
+                c.post(f"/api/cards/{did}/capture/manifeste")
+                for _ in range(24)], return_exceptions=True)
+
+    reps = asyncio.run(go())
+    codes = [getattr(r, "status_code", r) for r in reps]
+    assert all(c == 200 for c in codes), codes
+    # UN SEUL manifeste, et AUCUN brouillon oublié
+    fichiers = sorted(p.name for p in _p9_dir(did).iterdir())
+    assert fichiers.count("layers_c01_capture.json") == 1, fichiers
+    assert not [n for n in fichiers if n.endswith(".tmp")], fichiers
+    # L'EMPREINTE PUBLIÉE DÉCRIT LES OCTETS POSÉS — c'est le seul contrôle qui
+    # verrait un `replace` qui laisse deux tours se mélanger.
+    m = _lit_manifeste(did)
+    for l in m["layers"]:
+        octets = (_p9_dir(did) / l["file"]).read_bytes()
+        assert hashlib.sha256(octets).hexdigest() == l["sha256"], l["file"]
+        assert len(octets) == l["bytes"], l["file"]
+    # ... et TOUTES les réponses décrivent le même fichier (le manifeste rendu
+    # par chaque appel est celui qu'on relit sur le disque).
+    shas = {tuple(sorted(x["sha256"] for x in r.json()["layers"]["layers"]))
+            for r in reps}
+    assert len(shas) == 1, shas
+    s.zero()
+
+
+def test_le_chiffre_du_recto_ne_DEGUISE_PAS_une_constante_de_format(monkeypatch):
+    """R4 (ronde T5) — `coverage_pct` de la face entière vaut le rapport
+    coupe/toile : 85,45 % sur TOUT poker, quel que soit ce qu'il y a dessus.
+    Le bordereau l'affichait comme une « couverture », c'est-à-dire comme un
+    relevé. C'est la leçon T4-a mot pour mot : une constante de format
+    maquillée en mesure.
+
+    LA PREUVE QUE C'EN EST UNE : un aplat noir et une photographie donnent la
+    MÊME phrase de bordereau à la taille près — parce qu'il n'y a rien à
+    mesurer là. Le sujet, lui, mesure vraiment, et il NOMME son cadre."""
+    from app.services.cards import forge3d as F9
+    s = _sentinelle(monkeypatch)
+    phrases = []
+    couvertures = []
+    for im in (Image.new("RGB", (630, 880), (0, 0, 0)),
+               _synth(bord_px=26, boites=TROIS)):
+        did = _deck()
+        assert _post(did, _pngs(im), "recto").status_code == 200
+        m = _manifeste(did).json()["layers"]
+        ligne = [l for l in m["layers"] if l["role"] == "recto"][0]
+        couvertures.append(ligne["coverage_pct"])
+        phrases.append(F9._dit_provenance(ligne))
+    assert couvertures[0] == couvertures[1], couvertures
+    assert phrases[0] == phrases[1], phrases
+    assert "face entiere importee" in phrases[0], phrases[0]
+    assert "%" not in phrases[0], phrases[0]
+    assert "630x880 px" in phrases[0], phrases[0]
+    # ── LE SUJET, LUI, MESURE — ET IL DIT DANS QUEL CADRE ────────────────
+    from app.services.cards import capture as CP
+    did = _deck_avec_recto()
+    (CP.cap_dir(did) / CP.SUJET_NAME).write_bytes(_png_rgba(300, 400))
+    m = _manifeste(did).json()["layers"]
+    suj = [l for l in m["layers"] if l["role"] == "illustration"][0]
+    phrase = F9._dit_provenance(suj)
+    assert "% de la toile" in phrase, phrase
+    assert f"{suj['coverage_pct']:.1f}".replace(".", ",") in phrase, phrase
+    # DEUX CADRES, DEUX NOMBRES : celui de `/rembg` décrit l'image rendue par
+    # le détourage, celui du manifeste décrit la TOILE. Ils diffèrent, et
+    # c'est normal — ce qui ne l'était pas, c'est qu'ils partageaient un nom.
+    assert suj["coverage_pct"] != couvertures[0]
+    s.zero()
+
+
+def test_l_index_de_carte_est_BORNE_et_les_orphelins_sont_ramasses(monkeypatch):
+    """M11 (ronde T5), les deux moitiés.
+
+    LA BORNE. Mesuré : `?card=99999999` écrivait `layers_c100000000_capture`
+    — un nom de fichier que rien ne bornait — et brûlait 691 ms de
+    rééchantillonnage pour une carte qui n'existe dans aucun jeu. Refus 404
+    NOMMÉ, et la carte juste en dessous du plafond, elle, passe.
+
+    LES ORPHELINS. Le publieur POSSÈDE ses noms canoniques : republier après
+    avoir effacé le sujet laissait `illustration_c01_capture.png` sur le
+    disque, plus nommée par aucun manifeste et pourtant servie par le GET de
+    P9 — une couche fantôme qu'un graphe pouvait encore viser."""
+    from app.services.cards import capture as CP
+    s = _sentinelle(monkeypatch)
+    did = _deck_avec_recto()
+    r = _manifeste(did, 99999999)
+    assert r.status_code == 404, r.status_code
+    assert str(CP.CARTE_MAX) in r.json()["detail"], r.json()["detail"]
+    # RIEN N'A ÉTÉ ÉCRIT — pas même le dossier de P9 : le refus tombe AVANT
+    # le premier rééchantillonnage, c'est tout l'intérêt de la borne.
+    assert not _p9_dir(did).exists() or not [
+        q for q in _p9_dir(did).iterdir()
+        if q.name.startswith("layers_c1000")], "un nom a été écrit"
+    # la dernière carte SOUS le plafond passe
+    assert _manifeste(did, CP.CARTE_MAX - 1).status_code == 200
+    # ── LES ORPHELINS ───────────────────────────────────────────────────
+    (CP.cap_dir(did) / CP.SUJET_NAME).write_bytes(_png_rgba(300, 400))
+    m = _manifeste(did).json()["layers"]
+    assert len(m["layers"]) == 2
+    orphelin = _p9_dir(did) / "illustration_c01_capture.png"
+    assert orphelin.is_file()
+    CP._oublie_sujet(did)
+    m2 = _manifeste(did).json()["layers"]
+    assert [l["role"] for l in m2["layers"]] == ["recto"]
+    assert not orphelin.is_file(), \
+        "une couche que plus aucun manifeste ne nomme reste servie par P9"
+    s.zero()
