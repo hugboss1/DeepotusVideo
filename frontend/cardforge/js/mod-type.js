@@ -2985,6 +2985,80 @@
     });
   }
 
+  function dupSlot() {
+    const ids = dulot();
+    /* RIEN DE DESIGNE, RIEN A DUPLIQUER : `selSlot()` serait retombe sur le
+       premier bloc, et Ctrl+D juste apres un Echap aurait pose la copie d'un
+       bloc que personne n'avait choisi (meme raison que `delLot`). */
+    if (!ids.length) return;
+    if (ids.length > 1) { dupLot(ids); return; }
+    const a = slots();
+    const s = a.filter((x) => x.id === ids[0])[0];
+    if (!s) return;
+    let n = 2, nid = s.id + n;
+    while (a.filter((x) => x.id === nid).length) { n++; nid = s.id + n; }
+    /* CTRL+D SUR UN BLOC VERROUILLE EST PERMIS, ET LA COPIE NAIT OUVERTE.
+       Dupliquer ne touche pas au bloc protege : cela en pose un AUTRE, a 2 mm,
+       avec un identifiant neuf — un acte d'intention, comme un reglage du
+       panneau, pas un geste de scene. Et le verrou marque un bloc DEJA place :
+       une copie qu'on vient de creer, elle, se place. Nee fermee, elle aurait
+       refuse le glisser qui la suit d'une seconde sans que rien a l'ecran ne
+       dise pourquoi. */
+    const c = Object.assign(clone(s), {
+      id: nid, label: s.label + " (copie)",
+      box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
+      lock: false,
+    });
+    pushUndo();
+    commit(a.concat([c]), nid);
+    renderAll();
+  }
+  /* DUPLIQUER UN LOT : les copies naissent ENSEMBLE, decalees du meme 2 mm,
+     et ce sont ELLES qu'on tient apres — dupliquer trois blocs pour se
+     retrouver a en regler un seul serait une demi-copie. Le plafond est
+     compte AVANT, sur le lot entier (patron `placeOu`) : la moitie d'une
+     duplication est un defaut muet, pas un compromis. */
+  function dupLot(ids) {
+    const a = slots();
+    if (!placeOu(ids.length, "duplication de " + ids.length + " blocs")) return;
+    const par = {};
+    a.forEach((s) => { par[s.id] = s; });
+    const pris = a.map((s) => s.id);
+    const nes = [];
+    ids.forEach((q) => {
+      const s = par[q];
+      if (!s) return;
+      let n = 2, nid = s.id + n;
+      while (pris.indexOf(nid) >= 0) { n++; nid = s.id + n; }
+      pris.push(nid);
+      nes.push(Object.assign(clone(s), {
+        id: nid, label: s.label + " (copie)",
+        box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
+        lock: false,
+      }));
+    });
+    if (!nes.length) return;
+    pushUndo();
+    commit(a.concat(nes), nes.map((s) => s.id));
+    renderAll();
+  }
+  /* LA CORBEILLE D'UNE RANGEE NE VISE QUE SA RANGEE, et le RESTE DU LOT
+     SURVIT : effacer un bloc d'un lot de trois ne doit pas relacher les deux
+     autres. Quand le lot devient vide, la designation retombe sur un
+     survivant — un `sel` mort ferait regler un fantome (la lecon de la
+     corbeille de la ronde 3c). Le repli `|| selId()` d'avant est retire : il
+     n'avait plus d'appelant depuis que le clavier passe par `delLot`, et un
+     repli sans appelant fait CROIRE qu'un danger est couvert. */
+  function delSlot(id) {
+    const a = slots(), i = a.map((s) => s.id).indexOf(id);
+    if (i < 0) return;
+    pushUndo();
+    const next = a.slice(0, i).concat(a.slice(i + 1));
+    const reste = selIds().filter((q) => q !== id);
+    commit(next, reste.length ? reste
+      : (next.length ? [next[Math.min(i, next.length - 1)].id] : []));
+    renderAll();
+  }
   /* ── CE QUE LE LOT REND FAUX SI L'ON N'Y TOUCHE PAS (phase 5, D4) ────────
      Suppr, Ctrl+D et les fleches lisaient `selSlot()` — LE PREMIER du lot.
      Sur une selection de trois blocs, Suppr en effacait un et laissait les
@@ -3059,71 +3133,6 @@
     renderAll();
     return true;
   }
-  function dupSlot() {
-    const ids = dulot();
-    /* RIEN DE DESIGNE, RIEN A DUPLIQUER : `selSlot()` serait retombe sur le
-       premier bloc, et Ctrl+D juste apres un Echap aurait pose la copie d'un
-       bloc que personne n'avait choisi (meme raison que `delLot`). */
-    if (!ids.length) return;
-    if (ids.length > 1) { dupLot(ids); return; }
-    const a = slots();
-    const s = a.filter((x) => x.id === ids[0])[0];
-    if (!s) return;
-    let n = 2, nid = s.id + n;
-    while (a.filter((x) => x.id === nid).length) { n++; nid = s.id + n; }
-    /* CTRL+D SUR UN BLOC VERROUILLE EST PERMIS, ET LA COPIE NAIT OUVERTE.
-       Dupliquer ne touche pas au bloc protege : cela en pose un AUTRE, a 2 mm,
-       avec un identifiant neuf — un acte d'intention, comme un reglage du
-       panneau, pas un geste de scene. Et le verrou marque un bloc DEJA place :
-       une copie qu'on vient de creer, elle, se place. Nee fermee, elle aurait
-       refuse le glisser qui la suit d'une seconde sans que rien a l'ecran ne
-       dise pourquoi. */
-    const c = Object.assign(clone(s), {
-      id: nid, label: s.label + " (copie)",
-      box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
-      lock: false,
-    });
-    pushUndo();
-    commit(a.concat([c]), nid);
-    renderAll();
-  }
-  /* DUPLIQUER UN LOT : les copies naissent ENSEMBLE, decalees du meme 2 mm,
-     et ce sont ELLES qu'on tient apres — dupliquer trois blocs pour se
-     retrouver a en regler un seul serait une demi-copie. Le plafond est
-     compte AVANT, sur le lot entier (patron `placeOu`) : la moitie d'une
-     duplication est un defaut muet, pas un compromis. */
-  function dupLot(ids) {
-    const a = slots();
-    if (!placeOu(ids.length, "duplication de " + ids.length + " blocs")) return;
-    const par = {};
-    a.forEach((s) => { par[s.id] = s; });
-    const pris = a.map((s) => s.id);
-    const nes = [];
-    ids.forEach((q) => {
-      const s = par[q];
-      if (!s) return;
-      let n = 2, nid = s.id + n;
-      while (pris.indexOf(nid) >= 0) { n++; nid = s.id + n; }
-      pris.push(nid);
-      nes.push(Object.assign(clone(s), {
-        id: nid, label: s.label + " (copie)",
-        box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
-        lock: false,
-      }));
-    });
-    if (!nes.length) return;
-    pushUndo();
-    commit(a.concat(nes), nes.map((s) => s.id));
-    renderAll();
-  }
-  function delSlot(id) {
-    const a = slots(), i = a.map((s) => s.id).indexOf(id || selId());
-    if (i < 0) return;
-    pushUndo();
-    const next = a.slice(0, i).concat(a.slice(i + 1));
-    commit(next, next.length ? next[Math.min(i, next.length - 1)].id : "");
-    renderAll();
-  }
   /* ── LES DEUX FLECHES DE RANGEE SONT DES GESTES DE PROFONDEUR ────────────
      « Descendre » (d = +1) avance d'un rang dans le tableau, donc RAPPROCHE
      de la surface ; « Monter » recule. Elles passent par la MEME mecanique
@@ -3196,7 +3205,10 @@
   function renderList() {
     const wrap = HOST && HOST.querySelector(".cf-type-list");
     if (!wrap) return;                 /* pas de panneau : rien a ecrire dedans */
-    const a = slots(), sel = selId();
+    /* LA LISTE MONTRE TOUT LE LOT, pas seulement sa tete : trois rangees
+       designees et une seule allumee, c'est une liste qui contredit la carte —
+       et c'est par la liste qu'on verifie ce qu'on a pris au lasso. */
+    const a = slots(), lot = selIds();
     if (!a.length) {
       wrap.innerHTML = '<div class="cf-type-empty">'
         + '<b>Aucun slot de texte.</b>'
@@ -3261,7 +3273,7 @@
               + au.ink_core_px[3] + " px" : "") : "")
           + (au.halo_px ? " · halo d'ombre " + au.halo_px[2] + " x " + au.halo_px[3]
             + " px, à " + fx(au.halo_clear_mm, 2) + " mm du cadre de composition" : "")));
-      return '<div class="cf-type-row' + (s.id === sel ? " on" : "") + (s.on ? "" : " off")
+      return '<div class="cf-type-row' + (lot.indexOf(s.id) >= 0 ? " on" : "") + (s.on ? "" : " off")
         + '" data-id="' + esc(s.id) + '" data-audit="' + esc(tip) + '" title="' + esc(tip) + '" draggable="true">'
         + '<button class="cf-type-eye" type="button" title="Afficher / masquer">' + (s.on ? "&#9679;" : "&#9675;") + '</button>'
         /* LE CADENAS. Meme rang que l'oeil : deux etats d'un bloc, pas deux
@@ -4466,7 +4478,13 @@
      backend en image. */
   function onPaste(e) {
     if (!panelOn()) return;
-    const s = selSlot();
+    /* UN SEUL CALQUE DESIGNE, ET C'EST UNE TROISIEME FOIS LA MEME REGLE (avec
+       Suppr et Ctrl+D) : `selSlot()` retombait sur le PREMIER bloc quand rien
+       n'etait designe — un Ctrl+V apres un Echap serait parti dans un calque
+       que personne n'avait choisi. Et sur un LOT, « colle dans lequel ? » n'a
+       pas de bonne reponse : on ne devine pas, on ne fait rien. */
+    const l = selSlots();
+    const s = l.length === 1 ? l[0] : null;
     if (!s || !isImage(s)) return;
     const items = (e.clipboardData && e.clipboardData.items) || [];
     let f = null;

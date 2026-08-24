@@ -10438,3 +10438,55 @@ def test_le_PLANCHER_du_lasso_separe_un_CLIC_d_un_RECTANGLE(tmp_path):
         mutations=[("const LASSO_MIN_MM = 0.5;", "const LASSO_MIN_MM = 0;")])
     assert mut["sel"] == ["bloc"], \
         "le plancher n'était pas ce qui séparait le clic du rectangle"
+
+
+def test_la_LISTE_allume_TOUTES_les_rangees_du_lot(tmp_path):
+    """LE LECTEUR QU'ON OUBLIE. La liste de blocs allumait la rangée du
+    PREMIER désigné : trois blocs pris au lasso, une seule rangée allumée —
+    une liste qui contredit la carte, et c'est justement par la liste qu'on
+    vérifie ce que le lasso a pris."""
+    d = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un", "trois"]}})
+    par = {r["id"]: r["sel"] for r in d["rangees"]}
+    assert par == {"un": True, "deux": False, "trois": True}, par
+    # MUTATION : la rangée redevient un test d'égalité au premier
+    mut = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un", "trois"]}},
+                       mutations=[("(lot.indexOf(s.id) >= 0 ? \" on\" : \"\")",
+                                   "(s.id === lot[0] ? \" on\" : \"\")")])
+    pm = {r["id"]: r["sel"] for r in mut["rangees"]}
+    assert pm == {"un": True, "deux": False, "trois": False}, pm
+
+
+def test_le_COLLAGE_exige_UN_SEUL_calque_designe():
+    """LA TROISIÈME FOIS LA MÊME RÈGLE (avec Suppr et Ctrl+D). Le collage
+    visait `selSlot()`, qui retombe sur le PREMIER bloc quand rien n'est
+    désigné : un Ctrl+V après un Échap serait parti dans un calque que
+    personne n'avait choisi. Et sur un LOT, « colle dans lequel ? » n'a pas de
+    bonne réponse : on ne devine pas, on ne fait rien."""
+    src = _js()
+    fn = _js_fn(src, "onPaste")
+    # LE CODE, PAS LA PROSE : le commentaire NOMME `selSlot()` pour dire d'où
+    # vient le défaut, et une recherche naïve de la chaîne le prendrait pour le
+    # défaut lui-même.
+    assert "const s = selSlot();" not in fn, \
+        "le collage lit encore le repli du premier bloc"
+    assert "const l = selSlots();" in fn and "l.length === 1" in fn, fn[:400]
+    assert "isImage(s)" in fn, "le collage ne vérifie plus la nature du bloc"
+
+
+def test_la_CORBEILLE_d_une_rangee_laisse_VIVRE_le_reste_du_lot(tmp_path):
+    """Effacer un bloc d'un lot de trois ne doit pas relâcher les deux autres :
+    la corbeille d'une rangée vise SA rangée. Le reste du lot survit, et le lot
+    vidé retombe sur un survivant plutôt que sur un fantôme."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "rangee", "id": "deux", "b": "del"}]},
+        mutations=[MUT_UNDO])
+    assert _ids(d) == ["un", "trois"], d["slots"]
+    assert d["sel"] == ["un", "trois"], d["sel"]
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    # le DERNIER du lot efface : la désignation retombe sur un survivant
+    s = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["deux"]},
+        "actes": [{"t": "rangee", "id": "deux", "b": "del"}]},
+        mutations=[MUT_UNDO])
+    assert s["sel"] == ["trois"], s["sel"]
