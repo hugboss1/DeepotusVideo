@@ -476,7 +476,23 @@ SLOT_DEFAULTS: dict = {
     # partiel obligerait chaque lecteur à connaître les défauts). Elles sont
     # INERTES : le painter ne les lit pas sur cette branche, et le panneau ne
     # les montre pas.
-    "kind": "text",        # text | image
+    # ── LES FORMES DE GABARIT (spec §6.1, phase 5 D3) ──────────────────────
+    # `rect`, `ellipse`, `line`, `arrow` élargissent la MÊME liste que
+    # `image` : une forme est un SLOT d'une autre nature, pas un objet neuf.
+    # Elle hérite donc, sans une ligne de plus, de l'ordre de peinture dans la
+    # bande z=60, de l'œil, du verrou, du calque d'édition (glisser, poignées,
+    # flèches), de l'annulation, de la fluidité et de `doc.type.slots` — le
+    # contrat que P4 et P7 lisent déjà. C'est le raisonnement du calque
+    # d'image, rejoué : « la pile de calques d'un éditeur d'images, pour le
+    # prix d'une clé ».
+    #
+    # CE QUI EN DÉCOULE POUR LE z, ET C'EST LA DÉCISION : il n'y a pas de
+    # couche « formes ». Une forme se peint dans la couche 60, comme le texte
+    # et comme les calques d'image, dans l'ordre de la liste ; l'export par
+    # couches la rend donc avec eux. Une couche à part aurait demandé un
+    # painter de plus, un z de plus au CORE, et aurait cassé l'unique chose
+    # qui rend ces objets simples : ils sont des slots.
+    "kind": "text",        # text | image | rect | ellipse | line | arrow
     # `""` ou `img:{fichier}` — un NOM, jamais un chemin. Le fichier est écrit
     # par `POST /image` dans le dossier du deck, et son nom est fabriqué par le
     # serveur (`img_{n}.png`) : le motif ci-dessous est donc EXACT, pas
@@ -484,6 +500,49 @@ SLOT_DEFAULTS: dict = {
     # qu'un calque de deck doit VOYAGER avec le deck (export, duplication).
     "src": "",
     "fit": "contain",      # contain (entre entière) | cover (remplit, découpé)
+    # ── L'ENCRE D'UNE FORME ────────────────────────────────────────────────
+    # `None` = PAS DE REMPLISSAGE et PAS DE CONTOUR, et c'est le défaut. Une
+    # forme sans encre n'est donc pas un carré noir : elle ne peint RIEN, ce
+    # qui rend les quatre gabarits livrés byte-identiques après l'arrivée de
+    # ces dix clés. Une couleur illisible ne vaut pas « noir » non plus (la
+    # règle de `plate_color`, §6.1) : elle vaut PAS DE COULEUR.
+    #
+    # QUI LIT QUOI : `rect` et `ellipse` remplissent avec `fill` / `fill_alpha`
+    # et se bordent avec `stroke` / `stroke_mm`. `line` et `arrow` n'ont pas
+    # d'intérieur : leur fût ET leur(s) tête(s) prennent `stroke`, et `fill`
+    # leur est INERTE — comme les onze réglages typographiques le sont à un
+    # calque d'image. Les clés ne sont pas retirées de l'objet (la parité
+    # stricte des deux tables prime, et un slot partiel obligerait chaque
+    # lecteur à connaître les défauts).
+    "fill": None,          # hex (#rgb, #rrggbb, #rrggbbaa) ou None
+    "fill_alpha": 1.0,     # 0..1, multiplié par l'opacité du slot
+    "stroke": None,        # hex ou None
+    "stroke_mm": 0.0,      # épaisseur du contour, en MILLIMÈTRES
+    # LA TÊTE FLÉCHÉE, en millimètres, et ses deux bouts INDÉPENDANTS. Une
+    # flèche par défaut pointe vers sa FIN : c'est le sens de lecture, et
+    # c'est ce qu'on dessine neuf fois sur dix.
+    "head_mm": 3.0,
+    "arrow_start": False,
+    "arrow_end": True,
+    # L'AXE D'UNE LIGNE, ET POURQUOI IL N'Y A PAS D'ANGLE. Une ligne va d'un
+    # COIN DE SA BOÎTE À L'AUTRE : du haut-gauche au bas-droit, ou du
+    # bas-gauche au haut-droit quand `flip` est vrai. Cette règle donne
+    # l'horizontale (boîte de hauteur nulle), la verticale (largeur nulle) et
+    # les deux diagonales sans un réglage de plus — et surtout, la ligne se
+    # déplace et se retaille avec les MÊMES poignées que tous les autres
+    # slots, parce qu'elle n'a rien d'autre qu'une boîte. Un angle libre
+    # aurait demandé une seconde géométrie, une seconde poignée et une
+    # seconde convention de rotation (`rotate` existe déjà et fait tourner la
+    # boîte entière, forme comprise).
+    "flip": False,
+    # ── LE CONTOUR PROPRE D'UNE ZONE (spec §6.1, « la main sur les bordures
+    # des encarts ») ────────────────────────────────────────────────────────
+    # Il borde la MÊME plaque que `plate_color` remplit, sur TOUT slot quelle
+    # que soit sa nature — et il est INDÉPENDANT d'elle : border un encadré de
+    # règles SANS rien peindre dessous est précisément le cas demandé. À 0 mm
+    # il n'y a pas un trait fin, il n'y a PAS DE TRAIT.
+    "plate_stroke": None,
+    "plate_stroke_mm": 0.0,
     "text": "",
 }
 
@@ -491,8 +550,18 @@ ALIGNS = ("left", "center", "right", "justify")
 VALIGNS = ("top", "middle", "bottom")
 CASES = ("none", "upper", "lower", "title")
 SIDES = ("front", "back", "both")
-KINDS = ("text", "image")
+KINDS = ("text", "image", "rect", "ellipse", "line", "arrow")
+# Les quatre natures qui DESSINENT au lieu de composer. Nommées une fois : le
+# painter, le panneau et le relevé posent la même question, ils la posent donc
+# au même endroit (la règle de `is_image` de la 3b).
+SHAPES = ("rect", "ellipse", "line", "arrow")
 FITS = ("contain", "cover")
+# Les bornes des longueurs de forme, en millimètres. 20 mm de trait sur une
+# carte de 63 mm est déjà une bande ; 40 mm de tête est la plus longue flèche
+# qu'un poker porte. Ce ne sont pas des chiffres ronds pour faire joli : ce
+# sont les plafonds au-delà desquels le réglage cesse d'être ce qu'il dit.
+STROKE_MM_MIN, STROKE_MM_MAX = 0.0, 20.0
+HEAD_MM_MIN, HEAD_MM_MAX = 0.0, 40.0
 
 SIZE_PT_MIN, SIZE_PT_MAX = 2.0, 400.0
 READ_PT_MIN, READ_PT_MAX = 0.0, 400.0
@@ -704,10 +773,30 @@ DEFAULT_PRESET = "champion"
 # 3. NORMALISATION — un corps mal formé ne fait JAMAIS 500 (spec §2.5)
 # ════════════════════════════════════════════════════════════════════════════
 
+# LE MOTIF D'UN NOMBRE ÉCRIT EN CHAÎNE, et pourquoi il est plus étroit que
+# `float()`. `float()` lit « 1_0 » (10.0) et « infinity » ; `Number()` de
+# JavaScript lit « 0x10 » (16) et refuse le premier. Un jeu édité à la main
+# suffit à produire les trois, et chacun rendrait alors DEUX valeurs pour un
+# même document — donc une pastille de vérification rouge sans qu'un pixel
+# bouge. On n'accepte donc que la forme que les deux langages lisent
+# IDENTIQUEMENT ; jumeau de `NUM_RE` de mod-type.js.
+_NUM_RE = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?")
+
+
 def _num(value, default: float, lo: float, hi: float) -> float:
-    try:
-        f = float(value)
-    except (TypeError, ValueError, OverflowError):
+    if isinstance(value, bool):          # AVANT `int` : un bool EST un int
+        f = 1.0 if value else 0.0
+    elif isinstance(value, (int, float)):
+        try:
+            f = float(value)
+        except (OverflowError, ValueError):     # un int de 400 chiffres
+            return float(default)
+    elif isinstance(value, str) and _NUM_RE.fullmatch(value.strip()):
+        try:
+            f = float(value.strip())
+        except (ValueError, OverflowError):     # pragma: no cover
+            return float(default)
+    else:
         return float(default)
     if not math.isfinite(f):
         return float(default)
@@ -802,6 +891,23 @@ def norm_slot(raw, index: int = 0) -> dict:
     src = r.get("src") if isinstance(r.get("src"), str) else ""
     out["src"] = src if SLOT_SRC_RE.fullmatch(src) else ""
     out["fit"] = _choice(r.get("fit"), FITS, SLOT_DEFAULTS["fit"])
+    # L'ENCRE D'UNE FORME. Les trois couleurs suivent la règle de
+    # `plate_color` : une couleur illisible vaut PAS DE COULEUR, jamais noir.
+    out["fill"] = _color(r.get("fill"), None)
+    out["fill_alpha"] = _num(r.get("fill_alpha"), SLOT_DEFAULTS["fill_alpha"],
+                             PLATE_ALPHA_MIN, PLATE_ALPHA_MAX)
+    out["stroke"] = _color(r.get("stroke"), None)
+    out["stroke_mm"] = _num(r.get("stroke_mm"), SLOT_DEFAULTS["stroke_mm"],
+                            STROKE_MM_MIN, STROKE_MM_MAX)
+    out["head_mm"] = _num(r.get("head_mm"), SLOT_DEFAULTS["head_mm"],
+                          HEAD_MM_MIN, HEAD_MM_MAX)
+    out["arrow_start"] = bool(r.get("arrow_start", False))
+    out["arrow_end"] = bool(r.get("arrow_end", True))
+    out["flip"] = bool(r.get("flip", False))
+    out["plate_stroke"] = _color(r.get("plate_stroke"), None)
+    out["plate_stroke_mm"] = _num(r.get("plate_stroke_mm"),
+                                  SLOT_DEFAULTS["plate_stroke_mm"],
+                                  STROKE_MM_MIN, STROKE_MM_MAX)
     out["text"] = str(r.get("text") or "")[:4000]
     return out
 

@@ -107,15 +107,20 @@
 
   /* ═══ CF-TYPE-DEFAULTS-BEGIN ═══ */
   const SLOT_DEFAULTS = {
-    "align": "left", "arc": 0.0, "autofit": true, "bold": false,
-    "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9", "fit": "contain",
-    "font": "Inter", "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0,
+    "align": "left", "arc": 0.0, "arrow_end": true, "arrow_start": false,
+    "autofit": true, "bold": false,
+    "box": [0.0, 0.0, 10.0, 5.0], "caps": "none", "color": "#f2efe9",
+    "fill": null, "fill_alpha": 1.0, "fit": "contain", "flip": false,
+    "font": "Inter", "head_mm": 3.0,
+    "hyphen": false, "id": "slot", "italic": false, "just_max": 133.0,
     "kind": "text", "label": "Texte", "last_pct": 25.0, "leading": 1.18, "lock": false,
     "min_pt": 5.0, "on": true, "opacity": 100.0, "outline": 0.0,
     "outline_color": "#0a0a0c", "plate_alpha": 1.0, "plate_color": null,
-    "plate_radius": 0.0, "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
+    "plate_radius": 0.0, "plate_stroke": null, "plate_stroke_mm": 0.0,
+    "read_pt": 0.0, "rotate": 0.0, "shadow": 0.0,
     "shadow_color": "#000000", "shadow_dx": 0.0, "shadow_dy": 0.0, "side": "front",
-    "size_pt": 10.0, "src": "", "text": "", "track": 0.0, "valign": "top",
+    "size_pt": 10.0, "src": "", "stroke": null, "stroke_mm": 0.0,
+    "text": "", "track": 0.0, "valign": "top",
     "wrap": true
   };
   /* ═══ CF-TYPE-DEFAULTS-END ═══ */
@@ -222,8 +227,28 @@
      cards/type.py:KINDS / FITS. Un calque d'image est un SLOT de cette bande,
      pas un objet neuf : il herite ainsi de l'ordre de peinture, de l'oeil, du
      verrou, du calque d'edition, de l'annulation et de la fluidite. */
-  const KINDS = ["text", "image"];
+  /* LES FORMES DE GABARIT (phase 5, D3) elargissent la MEME liste : une
+     forme est un SLOT d'une autre nature, pas un objet neuf. Elle herite donc
+     de l'ordre de peinture dans la bande z=60, de l'oeil, du verrou, du
+     calque d'edition (glisser, poignees, fleches), de l'annulation, de la
+     fluidite et de `doc.type.slots`. IL N'Y A PAS DE COUCHE « FORMES » :
+     elles vivent en 60 avec le texte et les calques d'image, dans l'ordre de
+     la liste, et l'export par couches les rend avec eux. */
+  const KINDS = ["text", "image", "rect", "ellipse", "line", "arrow"];
+  /* Les quatre natures qui DESSINENT au lieu de composer, nommees UNE fois —
+     le painter, le panneau, la liste et le releve posent la meme question,
+     ils la posent donc au meme endroit (la regle de `isImage`). */
+  const SHAPES = ["rect", "ellipse", "line", "arrow"];
   const FITS = ["contain", "cover"];
+  /* Les bornes des longueurs de forme, en millimetres — miroirs de
+     cards/type.py:STROKE_MM_MAX / HEAD_MM_MAX. 20 mm de trait sur une carte
+     de 63 mm est deja une bande ; 40 mm de tete est la plus longue fleche
+     qu'un poker porte. */
+  const STROKE_MM_MAX = 20;
+  const HEAD_MM_MAX = 40;
+  /* la SEULE lecture d'une couleur de cette piece — trois formes, et les
+     memes que `_color` de cards/type.py lit. */
+  const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
   /* Le motif EXACT d'une source de calque, miroir de type.py:SLOT_SRC_RE. Ce
      nom n'est jamais tape par un humain : la route d'import le fabrique
      (`img_{n}.png`). Un motif permissif aurait ouvert le dossier du deck. */
@@ -297,8 +322,30 @@
      ═════════════════════════════════════════════════════════════════════════ */
   const clone = (v) => JSON.parse(JSON.stringify(v));
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  /* ── UN NOMBRE, LU COMME `float()` LE LIT (miroir de cards/type.py:_num) ──
+     PREMIER JET, ET SA FAUTE : `Number(v)`. `Number(null)` vaut ZERO et
+     `Number("")` aussi, la ou `float(None)` et `float("")` LEVENT et retombent
+     sur le DEFAUT. Un document qui porte `plate_alpha: null` sortait donc a 0
+     ici et a 1 au backend — deux valeurs pour un meme document, donc une
+     pastille de verification rouge sans qu'un seul pixel bouge. C'est la
+     lecon `width_mm: null` de la phase 3c et la lecon F3 de la phase 4,
+     payees deux fois ailleurs et jamais ici ; elle est reglee A LA SOURCE, au
+     seul endroit ou cette piece lit un nombre.
+
+     CE QUI EST ADMIS, et pourquoi c'est cette liste-la : un NOMBRE fini ; un
+     BOOLEEN (`float(True)` vaut 1.0 — un bool EST un int en Python) ; une
+     CHAINE de la forme que les deux langages lisent IDENTIQUEMENT. Le motif
+     exclut ce que l'un accepte et pas l'autre : « 0x10 » (16 en JS, ValueError
+     ici), « 1_0 » (10 en Python, NaN en JS), « inf » / « nan » (float() les
+     lit, et `isfinite` les refuse ensuite des deux cotes). Tout le reste — un
+     tableau, un objet, `null`, la chaine vide — vaut ABSENT. */
+  const NUM_RE = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
   const num = (v, d, lo, hi) => {
-    const n = Number(v);
+    let n;
+    if (typeof v === "number") n = v;
+    else if (typeof v === "boolean") n = v ? 1 : 0;
+    else if (typeof v === "string" && NUM_RE.test(v.trim())) n = Number(v.trim());
+    else return d;
     return isFinite(n) ? clamp(n, lo, hi) : d;
   };
   /* UNE ENUMERATION, LUE COMME LE BACKEND LA LIT (miroir de
@@ -401,14 +448,41 @@
     const rawSrc = String(r.src == null ? "" : r.src);
     s.src = SRC_RE.test(rawSrc) ? rawSrc : "";
     s.fit = pick(r.fit, FITS, SLOT_DEFAULTS.fit);
+    /* ── L'ENCRE D'UNE FORME (phase 5, D3) ────────────────────────────────
+       Les trois couleurs suivent la regle de `plate_color` : une couleur
+       illisible ne vaut pas « noir », elle vaut PAS DE COULEUR. Peindre du
+       noir sur une forme parce qu'un import a ecrit « bleu » serait un defaut
+       visible et muet — exactement celui qu'on a refuse pour la plaque. */
+    s.fill = couleurOuNul(r.fill);
+    s.fill_alpha = num(r.fill_alpha, 1, 0, 1);
+    s.stroke = couleurOuNul(r.stroke);
+    s.stroke_mm = num(r.stroke_mm, 0, 0, STROKE_MM_MAX);
+    s.head_mm = num(r.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX);
+    /* les deux bouts, INDEPENDANTS ; une fleche pointe vers sa FIN par
+       defaut, parce que c'est le sens de lecture. `undefined` seul retombe
+       sur le defaut — `null` vaut faux, comme `bool(None)` du miroir. */
+    s.arrow_start = r.arrow_start === undefined ? false : !!r.arrow_start;
+    s.arrow_end = r.arrow_end === undefined ? true : !!r.arrow_end;
+    s.flip = r.flip === undefined ? false : !!r.flip;
+    s.plate_stroke = couleurOuNul(r.plate_stroke);
+    s.plate_stroke_mm = num(r.plate_stroke_mm, 0, 0, STROKE_MM_MAX);
     s.text = String(r.text == null ? "" : r.text).slice(0, 4000);
     return s;
+  }
+  /* Une couleur ECRITE, ou `null` — jamais une couleur inventee. Miroir de
+     `_color(..., None)` de cards/type.py. */
+  function couleurOuNul(v) {
+    const h = String(v == null ? "" : v).trim();
+    return HEX_RE.test(h) ? h.toLowerCase() : null;
   }
   /* UN CALQUE D'IMAGE, RECONNU EN UN SEUL ENDROIT. Trois passes d'encre, un
      painter, une liste et un panneau posent la meme question ; ils la posent
      donc au meme endroit. C'est aussi ce qui rend l'exclusion CHERCHABLE : la
      quatrieme passe d'encre trouvera ce nom avant d'oublier la regle. */
   function isImage(s) { return !!s && s.kind === "image"; }
+  /* UNE FORME, RECONNUE EN UN SEUL ENDROIT — meme regle, meme raison : le
+     painter, le panneau, la liste et le releve posent la meme question. */
+  function isShape(s) { return !!s && SHAPES.indexOf(s.kind) >= 0; }
   /* Le fichier d'un calque, sans son prefixe — "" si la source est vide ou
      illegale (elle a deja ete bornee par `normSlot`, mais le painter recoit
      les slots du document TELS QUELS). */
@@ -1189,11 +1263,25 @@
     ctx.arcTo(x, y, x + w, y, r);
     ctx.closePath();
   }
+  /* ── LA PLAQUE, ET SON CONTOUR PROPRE (phase 5, D3) ──────────────────────
+     « La main sur les bordures des encarts. » Le fond et le bord sont DEUX
+     reglages independants sur la MEME forme : on peut border un encadre de
+     regles sans rien peindre dessous (c'est le cas demande), remplir sans
+     border (c'est ce qui existait), ou les deux. La forme, elle, reste UNE —
+     `platePath`, un seul trace, donc un bord qui epouse exactement le rayon
+     du fond au lieu de le suivre de loin.
+     A 0 mm il n'y a pas un trait fin : il n'y a PAS DE TRAIT. Et une couleur
+     illisible ne vaut pas « noir » — c'est la regle de `plate_color`,
+     appliquee a son bord. */
   function drawPlate(ctx, slot, g, m) {
     const hex = String(slot.plate_color == null ? "" : slot.plate_color);
-    if (!/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(hex)) return;
+    const fond = HEX_RE.test(hex);
+    const sh = String(slot.plate_stroke == null ? "" : slot.plate_stroke);
+    const smm = num(slot.plate_stroke_mm, 0, 0, STROKE_MM_MAX);
+    const bord = HEX_RE.test(sh) && smm > 0;
+    if (!fond && !bord) return;
     const pa = num(slot.plate_alpha, 1, 0, 1);
-    if (pa <= 0) return;
+    if (!bord && pa <= 0) return;
     const b = m.box;
     if (!(b[2] > 0) || !(b[3] > 0)) return;
     ctx.save();
@@ -1202,10 +1290,25 @@
        il REMPLACE. Un slot a 50 % avec une plaque a 80 % pose donc 40 %, et
        non 80 % — ce qui aurait fait ressortir le fond quand on efface le
        texte. */
-    ctx.globalAlpha = num(slot.opacity, 100, 0, 100) / 100 * pa;
-    ctx.fillStyle = hex;
-    platePath(ctx, b, plateRadiusPx(slot, g, b));
-    ctx.fill();
+    const op = num(slot.opacity, 100, 0, 100) / 100;
+    const r = plateRadiusPx(slot, g, b);
+    if (fond && pa > 0) {
+      ctx.globalAlpha = op * pa;
+      ctx.fillStyle = hex;
+      platePath(ctx, b, r);
+      ctx.fill();
+    }
+    if (bord) {
+      /* LE BORD NE PREND PAS `plate_alpha` : celui-la est l'opacite du FOND
+         (son libelle le dit, et un cartouche a 20 % avec un liseré net est
+         precisement ce qu'on veut pouvoir faire). Il prend l'opacite du SLOT,
+         comme tout ce que ce slot peint. */
+      ctx.globalAlpha = op;
+      ctx.strokeStyle = sh;
+      ctx.lineWidth = g.mm2px(smm);
+      platePath(ctx, b, r);
+      ctx.stroke();
+    }
     ctx.restore();
   }
   /* ── LES IMAGES DE CALQUE, CHARGEES UNE FOIS ────────────────────────────
@@ -1382,6 +1485,142 @@
     ctx.restore();
   }
 
+  /* ═════════════════════════════════════════════════════════════════════════
+     4 bis. LES FORMES DE GABARIT (phase 5, D3)
+     ─────────────────────────────────────────────────────────────────────────
+     Meme squelette que `drawImgSlot` — opacite, rotation autour du centre de
+     la boite, plaque DESSOUS — et pas une seule passe de glyphe. Une forme
+     porte peut-etre un `text` (le vocabulaire est commun a tous les slots) :
+     elle n'a rien a ecrire, et le texte par-dessus une forme se fait avec DEUX
+     slots. Pas d'imbrication : un slot est une boite, et deux boites se
+     rangent l'une sur l'autre par l'ordre de la liste.
+
+     LES QUATRE RECETTES, ecrites ici parce que c'est ici qu'on les lit :
+
+       rect     LA BOITE, telle quelle, angles vifs. Le rectangle a coins
+                arrondis existe deja — c'est la PLAQUE (`plate_radius`), et
+                lui donner un second rayon aurait fait deux facons de dessiner
+                le meme objet.
+       ellipse  INSCRITE dans la boite : centre = centre de la boite, demi-axes
+                = demi-cotes. LE CERCLE EST LE CAS PARTICULIER D'UNE BOITE
+                CARREE — rayon = demi-cote, position = centre. C'est la recette
+                qui ferme le transmis de la phase 4 (« pas de cercle : le halo
+                Patriarche pose en calque d'image ») : un halo se pose
+                desormais en une ellipse a boite carree, et il suit le format
+                comme n'importe quel slot.
+       line     D'UN COIN DE LA BOITE A L'AUTRE : (x, y) -> (x+w, y+h), ou
+                (x, y+h) -> (x+w, y) quand `flip` est vrai. Une boite de
+                hauteur nulle donne l'horizontale, une boite de largeur nulle
+                la verticale, et les deux diagonales viennent gratuitement.
+       arrow    la meme ligne, plus une TETE a l'un des bouts, a l'autre, aux
+                deux ou a aucun. La tete est un triangle plein de `head_mm` de
+                long, large de `head_mm` a sa base, pointe SUR le bout —
+                l'encre de la tete est celle du trait (`stroke`), parce que
+                c'est la meme fleche.
+
+     `fill` est INERTE sur `line` et `arrow` : elles n'ont pas d'interieur. La
+     cle n'est pas retiree de l'objet (la parite stricte des deux tables
+     prime), elle n'est simplement pas lue — exactement comme les onze
+     reglages typographiques d'un calque d'image. */
+  function shapeSeg(slot, b) {
+    return slot.flip
+      ? [b[0], b[1] + b[3], b[0] + b[2], b[1]]
+      : [b[0], b[1], b[0] + b[2], b[1] + b[3]];
+  }
+  /* la tete flechee : un triangle isocele dont la POINTE est le bout et dont
+     la base est perpendiculaire au trait, `head` en arriere. */
+  function arrowHead(ctx, px, py, ux, uy, head) {
+    const bx = px - ux * head, by = py - uy * head;
+    const nx = -uy * head * 0.5, ny = ux * head * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(bx + nx, by + ny);
+    ctx.lineTo(bx - nx, by - ny);
+    ctx.closePath();
+    ctx.fill();
+  }
+  function drawShapeSlot(ctx, slot, g) {
+    const b = boxPx(slot, g);
+    const fill = HEX_RE.test(String(slot.fill == null ? "" : slot.fill))
+      ? String(slot.fill) : "";
+    const stroke = HEX_RE.test(String(slot.stroke == null ? "" : slot.stroke))
+      ? String(slot.stroke) : "";
+    const smm = num(slot.stroke_mm, 0, 0, STROKE_MM_MAX);
+    const spx = g.mm2px(smm);
+    const trait = !!stroke && spx > 0;
+    const droite = (slot.kind === "line" || slot.kind === "arrow");
+    /* RIEN A PEINDRE = RIEN DE PEINT. Le pendant du calque d'image sans
+       source : une forme qu'on n'a pas encore habillee n'est pas un carre
+       noir. Le panneau la montre (elle a une boite, des poignees, une ligne
+       de liste) ; la carte, non. */
+    if (droite ? !trait : (!fill && !trait)) return;
+    /* une boite plate est LEGITIME pour un trait (c'est ainsi qu'on fait une
+       horizontale) et vide de sens pour une surface. */
+    if (!droite && (!(b[2] > 0) || !(b[3] > 0))) return;
+    ctx.save();
+    ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);
+    if (slot.rotate) {
+      const cx = b[0] + b[2] / 2, cy = b[1] + b[3] / 2;
+      ctx.translate(cx, cy);
+      ctx.rotate(slot.rotate * Math.PI / 180);
+      ctx.translate(-cx, -cy);
+    }
+    /* LA PLAQUE D'ABORD, comme sous le texte et sous une image : peinte
+       apres, elle effacerait la forme. */
+    drawPlate(ctx, slot, g, { box: b });
+    ctx.lineJoin = "round";
+    ctx.lineCap = "butt";
+    if (droite) {
+      const s = shapeSeg(slot, b);
+      const dx = s[2] - s[0], dy = s[3] - s[1];
+      const L = Math.hypot(dx, dy);
+      if (L > 0) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = spx;
+        ctx.beginPath();
+        ctx.moveTo(s[0], s[1]);
+        ctx.lineTo(s[2], s[3]);
+        ctx.stroke();
+        if (slot.kind === "arrow") {
+          const head = g.mm2px(num(slot.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX));
+          if (head > 0) {
+            const ux = dx / L, uy = dy / L;
+            ctx.fillStyle = stroke;
+            if (slot.arrow_end) arrowHead(ctx, s[2], s[3], ux, uy, head);
+            if (slot.arrow_start) arrowHead(ctx, s[0], s[1], -ux, -uy, head);
+          }
+        }
+      }
+    } else {
+      const trace = () => {
+        ctx.beginPath();
+        if (slot.kind === "ellipse") {
+          ctx.ellipse(b[0] + b[2] / 2, b[1] + b[3] / 2, b[2] / 2, b[3] / 2,
+            0, 0, Math.PI * 2);
+        } else ctx.rect(b[0], b[1], b[2], b[3]);
+      };
+      if (fill) {
+        /* LE REMPLISSAGE PREND `fill_alpha` MULTIPLIE par l'opacite du slot —
+           la regle de la plaque, tenue par la forme : un slot a 50 % avec un
+           remplissage a 80 % pose 40 %, et non 80 %. */
+        const fa = num(slot.fill_alpha, 1, 0, 1);
+        if (fa > 0) {
+          ctx.save();
+          ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100 * fa, 0, 1);
+          ctx.fillStyle = fill;
+          trace(); ctx.fill();
+          ctx.restore();
+        }
+      }
+      if (trait) {
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = spx;
+        trace(); ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
   function drawSlot(ctx, slot, g, m) {
     ctx.save();
     ctx.globalAlpha = clamp(slot.opacity / 100, 0, 1);
@@ -1469,8 +1708,18 @@
           const st = (doc && doc.type) || {};
           const slots = Array.isArray(st.slots) ? st.slots : [];
           const live = slots.filter((s) => s.on && (s.side === "both" || s.side === side));
+          /* NI UN CALQUE D'IMAGE NI UNE FORME NE DEMANDE DE POLICE. Les deux
+             portent un `font` (le vocabulaire est commun a tous les slots) et
+             aucun des deux n'ecrit un glyphe : le charger ferait ATTENDRE le
+             painter — jusqu'a 2,5 s a froid — pour une fonte que personne ne
+             posera. Mesure de la faute avant correction : une carte dont le
+             seul slot est une fleche demandait « Inter » et retardait sa
+             premiere frame d'autant. */
           const fams = [];
-          live.forEach((s) => { if (!isImage(s) && fams.indexOf(s.font) < 0) fams.push(s.font); });
+          live.forEach((s) => {
+            if (isImage(s) || isShape(s)) return;
+            if (fams.indexOf(s.font) < 0) fams.push(s.font);
+          });
           if (fams.length) await ensureFonts(fams);
           /* les fichiers des calques d'image, charges UNE FOIS et attendus ici
              — exactement comme les polices deux lignes plus haut, et pour la
@@ -1500,6 +1749,12 @@
                compter comme un « slot vide » — un defaut annonce qui n'existe
                pas. On sort AVANT `layoutSlot`. */
             if (isImage(slot)) { drawImgSlot(ctx, slot, geom); return; }
+            /* UNE FORME NE LAISSE AUCUNE MESURE NON PLUS, et pour la meme
+               raison qu'un calque d'image : elle n'a pas de glyphe, donc ni
+               corps compose, ni taux de survie, ni contraste. Y entrer la
+               ferait compter comme « slot vide » — un defaut annonce qui
+               n'existe pas. On sort AVANT `layoutSlot`. */
+            if (isShape(slot)) { drawShapeSlot(ctx, slot, geom); return; }
             const text = textOf(slot, card);
             /* UN SLOT VIDE EST UN FAIT, PAS UN NON-EVENEMENT. Avant, il
                sortait de la boucle sans laisser de trace : la carte partait
@@ -1923,6 +2178,54 @@
     }], "calque d'image");
   }
 
+  /* ── UNE FORME NAIT ICI, ET SEULEMENT ICI (phase 5, D3) ─────────────────
+     Meme doctrine que le calque d'image : la nature se pose A LA NAISSANCE,
+     le panneau la MONTRE et ne la bascule pas. Une bascule aurait change le
+     SENS des reglages d'un bloc existant sous la main de l'utilisateur (une
+     police sur une ellipse, une tete flechee sur un titre) et pose une
+     question sans bonne reponse.
+
+     QUATRE BOITES DE DEPART, chacune choisie pour que la forme SE VOIE tout
+     de suite au lieu d'etre un objet a chercher :
+       · un rectangle large et bas — un bandeau ;
+       · une ellipse a boite CARREE : donc un CERCLE, la demande la plus
+         frequente (le halo), et la recette est ainsi montree du premier coup ;
+       · une ligne et une fleche HORIZONTALES (hauteur nulle) : c'est le trait
+         qu'on trace neuf fois sur dix, et cela expose la regle de l'axe.
+     ET CHACUNE NAIT HABILLEE : `fill` ou `stroke` pose, sans quoi le bouton
+     poserait un objet invisible. */
+  const SHAPE_NEE = {
+    rect: { rel: [0.15, 0.42, 0.7, 0.12], fill: "#f2efe9", fill_alpha: 0.14,
+      stroke: "#f2efe9", stroke_mm: 0.3, label: "Rectangle" },
+    ellipse: { carre: true, rel: [0.3, 0.34, 0.4, 0.4], fill: "#f2efe9",
+      fill_alpha: 0.12, stroke: "#f2efe9", stroke_mm: 0.4, label: "Ellipse" },
+    line: { rel: [0.12, 0.5, 0.76, 0], fill: null, fill_alpha: 1,
+      stroke: "#f2efe9", stroke_mm: 0.5, label: "Ligne" },
+    arrow: { rel: [0.12, 0.5, 0.76, 0], fill: null, fill_alpha: 1,
+      stroke: "#f2efe9", stroke_mm: 0.5, label: "Flèche" },
+  };
+  function addShapeSlot(kind) {
+    const spec = SHAPE_NEE[kind];
+    if (!spec) return null;
+    const g = CF.geom(), sr = safeRectMm(g), n = libreN([kind]);
+    let w = sr[2] * spec.rel[2], h = sr[3] * spec.rel[3];
+    let x = sr[0] + sr[2] * spec.rel[0], y = sr[1] + sr[3] * spec.rel[1];
+    if (spec.carre) {
+      /* LE CERCLE EST UNE ELLIPSE A BOITE CARREE : on prend le PLUS PETIT des
+         deux cotes proposes et on recentre, sinon « ellipse » naitrait ovale
+         sur tous les formats non carres et la recette resterait cachee. */
+      const c = Math.min(w, h);
+      x += (w - c) / 2; y += (h - c) / 2;
+      w = c; h = c;
+    }
+    return naitre([{
+      id: kind + n, label: spec.label + " " + n,
+      kind: kind, box: [x, y, w, h],
+      fill: spec.fill, fill_alpha: spec.fill_alpha,
+      stroke: spec.stroke, stroke_mm: spec.stroke_mm,
+    }], spec.label.toLowerCase());
+  }
+
   /* ═══ ADOPTER LES ZONES D'UNE CARTE IMPORTEE (P10 -> P3, §7.1.5) ═══════
      « Boîtes -> slots de gabarit (éditables ensuite, §6.1). »
 
@@ -2119,6 +2422,25 @@
     { id: "gen:image", label: "Calque d'image", n: 1,
       hint: "Une image du jeu, dans sa boîte — au-dessus du cadre de base et "
         + "sous le décor haut." },
+    /* ── LES QUATRE FORMES (phase 5, D3) ────────────────────────────────
+       Chaque entrée NAÎT HABILLÉE : une forme posée sans encre serait un
+       bouton qui ne pose rien de visible — le reproche qu'on fait aux barres
+       concurrentes. L'infobulle dit ce que la forme EST, pas comment elle
+       est faite. */
+    { id: "gen:rect", label: "Rectangle", n: 1,
+      hint: "Un aplat rectangulaire — un bandeau, une réglure, un fond de "
+        + "colonne. Les coins s'arrondissent par la plaque de fond." },
+    { id: "gen:ellipse", label: "Ellipse", n: 1,
+      hint: "Une ellipse inscrite dans sa boîte. Une boîte CARRÉE donne un "
+        + "cercle parfait : rayon = demi-côté — c'est ainsi qu'on pose un "
+        + "halo ou une pastille." },
+    { id: "gen:line", label: "Ligne", n: 1,
+      hint: "Un trait d'un coin de la boîte à l'autre. Aplatissez la boîte "
+        + "pour l'horizontale, resserrez-la pour la verticale ; « Retourner » "
+        + "prend l'autre diagonale." },
+    { id: "gen:arrow", label: "Flèche", n: 1,
+      hint: "Une ligne avec un bout fléché — longueur de tête réglable, et "
+        + "chaque bout se met ou s'enlève." },
   ];
   let MODELS = null, MODELS_REQ = null, MODELS_ERR = "";
   let PAL_SEQ = 0, PAL_MENU = null;
@@ -2248,6 +2570,10 @@
     if (oid === "gen:texte") return addSlot();
     if (oid === "gen:stat") return addStatSlot();
     if (oid === "gen:image") return addImgSlot();
+    if (oid === "gen:rect") return addShapeSlot("rect");
+    if (oid === "gen:ellipse") return addShapeSlot("ellipse");
+    if (oid === "gen:line") return addShapeSlot("line");
+    if (oid === "gen:arrow") return addShapeSlot("arrow");
     const o = paletteOffres().filter((x) => x.id === oid)[0];
     /* l'offre a pu disparaître entre le clic et ici (poser un gabarit réécrit
        le preset) : on le DIT, on ne pose rien au hasard. */
@@ -2370,9 +2696,13 @@
          et c'est exactement le genre de compteur menteur que cette pièce
          pourchasse. */
       const img = isImage(s);
-      const m = img ? null : MEAS[s.id];
-      const au = img ? null : auditOf(s.id);
-      const tofu = img ? [] : tofuOf(s, textOf(s, card));
+      /* ... ET UNE FORME NON PLUS : elle n'a pas de glyphe pour la même
+         raison, et le painter l'écarte du relevé au même endroit. */
+      const forme = isShape(s);
+      const muet = img || forme;
+      const m = muet ? null : MEAS[s.id];
+      const au = muet ? null : auditOf(s.id);
+      const tofu = muet ? [] : tofuOf(s, textOf(s, card));
       const vide = m && m.empty;
       const bad = m && m.over && !vide;
       const shr = m && m.shrunk && !bad && !vide;
@@ -2385,6 +2715,12 @@
         ? ("calque d'image — " + (fichier ? fichier + ", cadrage "
           + (s.fit === "cover" ? "remplir" : "entière")
           : "aucune image déposée") + " · aucune mesure d'encre : ce bloc n'a pas de glyphe")
+        : forme
+        ? ((SHAPE_LABELS[s.kind] || "forme") + " — "
+          + (s.fill || s.stroke
+            ? "trait " + fx(s.stroke_mm, 2) + " mm"
+            : "aucune encre : cette forme ne se peint pas encore")
+          + " · aucune mesure d'encre : ce bloc n'a pas de glyphe")
         : !au ? "mesure en cours" : (au.empty ? "slot sans glyphe"
         : (au.total + " px de corps de glyphe · " + (au.exact ? fx(au.rate * 100, 1) + " % visibles"
           : "survie non mesurable (opacité < 100 %)")
@@ -2422,17 +2758,18 @@
         /* LE BADGE DE NATURE. La liste est la seule vue où les deux natures se
            croisent : elle doit les distinguer d'un coup d'œil, sans quoi
            « Image 1 » et « Texte 1 » se ressemblent jusqu'au clic. */
-        + '<em class="cf-type-kind' + (img ? " img" : "") + '" title="'
-        + esc(img ? "Calque d'image — il se peint dans sa boîte, au-dessus du "
-          + "cadre de base et sous le décor haut" : "Bloc de texte")
-        + '">' + (img ? "&#128444;" : "T") + '</em>'
+        + '<em class="cf-type-kind' + (img || forme ? " img" : "") + '" title="'
+        + esc(kindTitre(s)) + '">' + kindGlyphe(s) + '</em>'
         + '<span class="cf-type-nm"><b>' + esc(s.label) + '</b><i class="mono">' + esc(s.id) + '</i></span>'
         + '<span class="cf-type-meta mono">'
         + (img
           ? (fichier ? esc(fichier) : "sans image")
             + ' · ' + (s.fit === "cover" ? "remplir" : "entière")
+          : forme
+          ? esc(SHAPE_LABELS[s.kind] || s.kind) + ' · '
+            + (s.stroke_mm ? fx(s.stroke_mm, 2) + ' mm' : 'sans trait')
           : esc(fontLabel(s.font)) + ' · ' + fx(m ? m.pt : s.size_pt, 1) + ' pt')
-        + (!img && synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
+        + (!muet && synthNote(s) ? ' · <i class="cf-type-syn" title="' + esc(synthNote(s)) + '">'
           + (s.bold ? "G" : "") + (s.italic ? "I" : "") + '*</i>' : "")
         + (s.side !== "front" ? ' · ' + (s.side === "back" ? "verso" : "R/V") : "") + '</span>'
         + (vide ? '<em class="cf-type-badge bad" title="slot configuré, aucun glyphe posé">vide</em>' : '')
@@ -2813,7 +3150,8 @@
        Le releve suit la nature du bloc, comme le panneau au-dessus de lui. */
     /* aucun champ n'est touche : ce conteneur ne porte que des mesures, jamais
        un input — la frappe en cours garde son focus. */
-    host.innerHTML = isImage(s) ? imgMeasInner(s) : inspMeasInner(s);
+    host.innerHTML = isImage(s) ? imgMeasInner(s)
+      : isShape(s) ? shapeMesInner(s) : inspMeasInner(s);
   }
   /* ── LES TROIS BLOCS QUE LES DEUX NATURES PARTAGENT ─────────────────────
      Un bloc de texte et un calque d'image se règlent différemment SAUF sur
@@ -2821,23 +3159,42 @@
      sont donc écrits UNE fois et appelés deux fois — la leçon du helper
      d'encre de la tâche 1, appliquée au panneau : trois littéraux recopiés,
      c'est trois occasions d'oublier le champ suivant d'un seul côté. */
+  /* LE GLYPHE DE NATURE, EN UN SEUL ENDROIT — trois surfaces le posent (la
+     liste, l'en-tete du panneau, l'etiquette du calque d'edition) et trois
+     litteraux recopies, c'est trois occasions d'oublier la nature suivante. */
+  const KIND_GLYPHE = { image: "\u{1F5BC}", rect: "▬", ellipse: "⬭",
+    line: "╱", arrow: "→" };
+  function kindGlyphe(s) { return KIND_GLYPHE[s && s.kind] || "T"; }
+  function kindTitre(s) {
+    if (isImage(s)) return "Calque d'image — il se peint dans sa boîte, "
+      + "au-dessus du cadre de base et sous le décor haut";
+    if (isShape(s)) return (SHAPE_LABELS[s.kind] || "Forme")
+      + " — une forme de gabarit, peinte dans la même couche que le texte, "
+      + "dans l'ordre de la liste";
+    return "Bloc de texte";
+  }
   function inspHead(s) {
     const img = isImage(s);
     return '<div class="cf-type-ihead">'
       /* LA NATURE EST MONTREE, PAS BASCULEE — voir `addImgSlot`. Le panneau
          dit ce qu'on édite ; il ne transforme pas un bloc en un autre. */
-      + '<em class="cf-type-kind' + (img ? " img" : "") + '" title="'
-      + esc(img ? "Calque d'image. La nature d'un bloc se choisit à sa création : "
-        + "pour passer au texte, créez un bloc de texte et supprimez celui-ci."
-        : "Bloc de texte. La nature d'un bloc se choisit à sa création : pour "
-        + "passer à l'image, créez un calque d'image et supprimez celui-ci.")
-      + '">' + (img ? "&#128444;" : "T") + '</em>'
+      + '<em class="cf-type-kind' + (img || isShape(s) ? " img" : "") + '" title="'
+      + esc(kindTitre(s) + ". La nature d'un bloc se choisit à sa création : "
+        + "pour en changer, créez le bloc voulu et supprimez celui-ci.")
+      + '">' + kindGlyphe(s) + '</em>'
       + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="Nom du slot">'
       + '<span class="counter mono cf-type-id">' + esc(s.id) + '</span>'
       + '</div>';
   }
+  /* ── LA PLAQUE DE FOND, ET SON CONTOUR PROPRE (phase 5, D3) ──────────────
+     Ce bloc est partage par les TROIS panneaux (texte, image, forme) : « la
+     main sur les bordures des encarts » vaut donc pour toute zone, quelle que
+     soit sa nature, et sans un litteral de plus. Le fond et le bord sont deux
+     reglages independants sur la meme forme — border sans remplir est le cas
+     demande, et c'est celui que la phrase de pied nomme en premier quand il
+     est en vigueur. */
   function inspPlaque(s) {
-    return '<details class="grp cf-type-grp" open><summary>Plaque de fond</summary>'
+    return '<details class="grp cf-type-grp" open><summary>Plaque de fond et bordure</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
       + '<label class="fld cf-type-f"><span class="lbl">Couleur plaque</span>'
       + '<input type="color" class="cf-type-pcol" value="'
@@ -2850,13 +3207,26 @@
         "Rayon des coins de la plaque, en millimètres. Il est ramené à la moitié du "
         + "petit côté de la boîte au dessin : au-delà, un coin arrondi est un disque.",
         0, PLATE_RADIUS_MAX_MM)
+      + '<label class="fld cf-type-f"><span class="lbl">Couleur bordure</span>'
+      + '<input type="color" class="cf-type-bcol" value="'
+      + esc(String(s.plate_stroke || "#f2efe9").slice(0, 7))
+      + '" title="Contour de la zone. Il suit exactement le rayon de la plaque, '
+      + 'et il existe SANS elle : on peut border un encadré sans rien peindre dessous."></label>'
+      + nfield("plate_stroke_mm", "Bordure (mm)", s.plate_stroke_mm, 0.1,
+        "Épaisseur du contour de la zone, en millimètres. 0 = pas de bordure du tout "
+        + "— pas un trait fin que la presse refuserait.", 0, STROKE_MM_MAX)
       + '</div>'
       + '<div class="btn-row"><button class="btn sm cf-type-pnone" type="button"'
-      + ' title="Retire la plaque : le contenu revient sur le fond des autres couches">Sans plaque</button></div>'
+      + ' title="Retire la plaque : le contenu revient sur le fond des autres couches">Sans plaque</button>'
+      + '<button class="btn sm cf-type-bnone" type="button"'
+      + ' title="Retire la bordure de la zone">Sans bordure</button></div>'
       + '<p class="hint">' + (s.plate_color
         ? 'plaque ' + esc(s.plate_color) + ' à ' + fx(s.plate_alpha * 100, 0) + ' %'
           + (s.plate_radius ? ', coins ' + fx(s.plate_radius, 2) + ' mm' : ', coins vifs')
         : 'aucune plaque — posez une couleur pour en créer une')
+      + ' · ' + (s.plate_stroke && s.plate_stroke_mm > 0
+        ? 'bordure ' + esc(s.plate_stroke) + ' de ' + fx(s.plate_stroke_mm, 2) + ' mm'
+        : 'aucune bordure — posez une épaisseur pour en créer une')
       + '</p></div></details>';
   }
   function inspBoite(s, mesures) {
@@ -2884,6 +3254,7 @@
        inertes aurait été onze réglages qui ne font rien — la faute qu'on
        reproche aux barres concurrentes. */
     if (isImage(s)) { renderInspImage(box, s); return; }
+    if (isShape(s)) { renderInspShape(box, s); return; }
     box.innerHTML = ''
       + inspHead(s)
       + '<label class="fld cf-type-f"><span class="lbl">Texte par défaut<i class="cf-type-cc mono">'
@@ -3012,6 +3383,16 @@
     box.querySelector(".cf-type-pcol").addEventListener("input", (e) => patchSlot(id, { plate_color: e.target.value }, true));
     box.querySelector(".cf-type-pnone").addEventListener("click", () => {
       patchSlot(id, { plate_color: null });
+      renderAll();
+    });
+    box.querySelector(".cf-type-bcol").addEventListener("input",
+      (e) => patchSlot(id, { plate_stroke: e.target.value }, true));
+    box.querySelector(".cf-type-bnone").addEventListener("click", () => {
+      /* LES DEUX CLÉS D'UN COUP : « sans bordure » est un ÉTAT, pas une
+         couleur retirée. Ne rendre que la couleur laisserait une épaisseur
+         qui reprendrait au premier choix de teinte — et l'inverse laisserait
+         une couleur qui ne peint rien, donc un réglage qui ment. */
+      patchSlot(id, { plate_stroke: null, plate_stroke_mm: 0 });
       renderAll();
     });
     const inputs = box.querySelectorAll('input[type="number"][data-k]');
@@ -3149,6 +3530,141 @@
       const fs = (e.dataTransfer && e.dataTransfer.files) || [];
       if (fs.length) await importImage(fs[0], id);
     });
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     6ter. LE PANNEAU D'UNE FORME (phase 5, D3)
+     ═════════════════════════════════════════════════════════════════════════
+     Les memes trois blocs communs (nom, plaque, boite) et, a la place des onze
+     reglages typographiques, ceux qui font une forme : SON ENCRE, et — pour
+     une ligne ou une fleche — son axe et ses bouts. Rien d'inerte n'est
+     affiche : un champ « Interlettrage » sur une ellipse serait le meme
+     mensonge poli qu'un champ « Police » sur un calque d'image.
+
+     LE LIBELLE DE LA BOITE CHANGE DE SENS SELON LA FORME, et c'est le point :
+     pour une ligne, la boite n'est pas un cadre, c'est le SEGMENT (d'un coin
+     a l'autre). Le dire evite le rapport de bogue « ma ligne ne remplit pas sa
+     boite ». */
+  const SHAPE_LABELS = { rect: "Rectangle", ellipse: "Ellipse",
+    line: "Ligne", arrow: "Flèche" };
+  function shapeNote(s) {
+    if (s.kind === "ellipse") {
+      const car = Math.abs(s.box[2] - s.box[3]) < 0.02;
+      return car
+        ? "Boîte carrée : c'est un <b>cercle</b> de " + fx(s.box[2] / 2, 2)
+          + " mm de rayon, centré sur la boîte."
+        : "Ellipse inscrite : demi-axes " + fx(s.box[2] / 2, 2) + " et "
+          + fx(s.box[3] / 2, 2) + " mm. Égalisez largeur et hauteur pour un cercle.";
+    }
+    if (s.kind === "line" || s.kind === "arrow") {
+      return "Le trait va d'un <b>coin de la boîte à l'autre</b>"
+        + (s.flip ? " (bas-gauche → haut-droit)" : " (haut-gauche → bas-droit)")
+        + " : hauteur nulle = horizontale, largeur nulle = verticale.";
+    }
+    return "L'aplat occupe toute la boîte. Les coins s'arrondissent par le "
+      + "rayon de la plaque de fond.";
+  }
+  function renderInspShape(box, s) {
+    const droite = (s.kind === "line" || s.kind === "arrow");
+    box.innerHTML = ''
+      + inspHead(s)
+      + '<p class="hint cf-type-shnote">' + shapeNote(s) + '</p>'
+      + '<details class="grp cf-type-grp" open><summary>Encre</summary>'
+      + '<div class="grp-body"><div class="cf-type-grid">'
+      + (droite ? ''
+        : '<label class="fld cf-type-f"><span class="lbl">Remplissage</span>'
+          + '<input type="color" class="cf-type-fcol" value="'
+          + esc(String(s.fill || "#f2efe9").slice(0, 7))
+          + '" title="Couleur de l’intérieur de la forme"></label>'
+          + nfield("fill_alpha", "Opacité du remplissage", s.fill_alpha, 0.05,
+            "Opacité de l’intérieur, de 0 à 1. Elle se multiplie avec l’opacité "
+            + "du bloc : un bloc à 50 % et un remplissage à 0,8 posent 40 %.",
+            0, 1))
+      + '<label class="fld cf-type-f"><span class="lbl">'
+      + (droite ? "Couleur du trait" : "Contour") + '</span>'
+      + '<input type="color" class="cf-type-scol2" value="'
+      + esc(String(s.stroke || "#f2efe9").slice(0, 7))
+      + '" title="' + esc(droite
+        ? "Couleur du trait et de sa ou ses têtes"
+        : "Couleur du contour de la forme") + '"></label>'
+      + nfield("stroke_mm", "Épaisseur (mm)", s.stroke_mm, 0.1,
+        "Épaisseur du trait, en millimètres. 0 = pas de trait du tout — pas un "
+        + "trait fin que la presse refuserait.", 0, STROKE_MM_MAX)
+      + '</div>'
+      + '<div class="btn-row">'
+      + (droite ? '' : '<button class="btn sm cf-type-nofill" type="button"'
+        + ' title="Retire le remplissage : il ne reste que le contour">Sans remplissage</button>')
+      + '<button class="btn sm cf-type-nostroke" type="button"'
+      + ' title="Retire le trait">Sans trait</button></div>'
+      + '<p class="hint">' + (s.fill || s.stroke
+        ? (droite ? 'trait ' + esc(String(s.stroke || "aucun"))
+          : 'remplissage ' + esc(String(s.fill || "aucun"))
+            + ' · contour ' + esc(String(s.stroke || "aucun")))
+          + ' à ' + fx(s.stroke_mm, 2) + ' mm'
+        : 'aucune encre — cette forme ne se peint pas encore')
+      + '</p></div></details>'
+      + (droite
+        ? '<details class="grp cf-type-grp" open><summary>Axe et bouts</summary>'
+          + '<div class="grp-body">'
+          + '<div class="btn-row">'
+          + '<button class="btn sm cf-type-t" data-k="flip" type="button"'
+          + ' title="Prend l’autre diagonale de la boîte">'
+          + (s.flip ? "↗ Retournée" : "↘ Retourner") + '</button>'
+          + (s.kind === "arrow"
+            ? '<button class="btn sm cf-type-t' + (s.arrow_start ? " on" : "")
+              + '" data-k="arrow_start" type="button" title="Tête au départ du trait">'
+              + (s.arrow_start ? "◀ Bout de départ" : "Bout de départ") + '</button>'
+              + '<button class="btn sm cf-type-t' + (s.arrow_end ? " on" : "")
+              + '" data-k="arrow_end" type="button" title="Tête à la fin du trait">'
+              + (s.arrow_end ? "Bout d’arrivée ▶" : "Bout d’arrivée") + '</button>'
+            : '')
+          + '</div>'
+          + (s.kind === "arrow"
+            ? '<div class="cf-type-grid">'
+              + nfield("head_mm", "Tête (mm)", s.head_mm, 0.5,
+                "Longueur de la tête fléchée, en millimètres. Sa base est aussi "
+                + "large que sa longueur.", 0, HEAD_MM_MAX)
+              + '</div>'
+            : '')
+          + '</div></details>'
+        : '')
+      + segf("Face", "side", [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]], s.side,
+        ["recto seul", "verso seul", "recto et verso"])
+      + inspPlaque(s)
+      + '<details class="grp cf-type-grp" open><summary>Rotation, opacité</summary>'
+      + '<div class="grp-body cf-type-grid">'
+      + nfield("rotate", "Rotation (°)", s.rotate, 1, "Rotation autour du centre de la boîte", -180, 180)
+      + nfield("opacity", "Opacité (%)", s.opacity, 5, "Opacité de la forme, plaque comprise", 0, 100)
+      + '</div>'
+      + '<p class="hint">Cette forme se peint au-dessus du cadre de base et '
+      + 'sous le décor haut, dans l\'ordre de la liste des blocs — comme un '
+      + 'texte et comme un calque d\'image. Pour écrire par-dessus, posez un '
+      + 'bloc de texte : une forme ne contient pas de texte.</p>'
+      + '</details>'
+      + inspBoite(s, shapeMesHtml(s));
+
+    const id = s.id;
+    wireInspCommun(box, id);
+    const fc = box.querySelector(".cf-type-fcol");
+    if (fc) fc.addEventListener("input", (e) => patchSlot(id, { fill: e.target.value }, true));
+    box.querySelector(".cf-type-scol2").addEventListener("input",
+      (e) => patchSlot(id, { stroke: e.target.value }, true));
+    const nf = box.querySelector(".cf-type-nofill");
+    if (nf) nf.addEventListener("click", () => { patchSlot(id, { fill: null }); renderAll(); });
+    box.querySelector(".cf-type-nostroke").addEventListener("click",
+      () => { patchSlot(id, { stroke: null }); renderAll(); });
+  }
+  function shapeMesHtml(s) {
+    return '<div class="cf-type-meas">' + shapeMesInner(s) + '</div>';
+  }
+  function shapeMesInner(s) {
+    const g = CF.geom(), b = boxPx(s, g);
+    return '<p class="hint mono cf-type-bpx">'
+      + fx(b[2], 1) + ' x ' + fx(b[3], 1) + ' px de toile'
+      + ' · trait ' + fx(s.stroke_mm, 2) + ' mm = ' + fx(g.mm2px(s.stroke_mm), 1) + ' px'
+      + (s.kind === "arrow" ? ' · tête ' + fx(s.head_mm, 2) + ' mm = '
+        + fx(g.mm2px(s.head_mm), 1) + ' px' : '')
+      + ' · 1 mm = ' + fx(g.mm2px(1), 3) + ' px à ' + g.dpi + ' DPI</p>';
   }
 
   /* LE COLLAGE — au niveau du document, comme dans P1, et garde par le meme
@@ -5430,6 +5946,9 @@
      ═════════════════════════════════════════════════════════════════════════ */
   const HANDLES = [["nw", 0, 0], ["n", 0.5, 0], ["ne", 1, 0], ["e", 1, 0.5],
     ["se", 1, 1], ["s", 0.5, 1], ["sw", 0, 1], ["w", 0, 0.5]];
+  /* le plancher de SAISIE d'une boite plate, en pixels d'ecran — la meme
+     grandeur que la zone de saisie de la poignee du plan de P2 (12 px). */
+  const GRAB_PX = 12;
 
   function buildOverlay() {
     OV = document.createElement("div");
@@ -5487,7 +6006,21 @@
       const why = !bad ? "" : (m.over
         ? " · " + m.over_chars + " car. hors cadre"
         : " · entame la marge du format");
-      const st = "left:" + (b[0] * k) + "px;top:" + (b[1] * k) + "px;width:" + (b[2] * k) + "px;height:" + (b[3] * k) + "px";
+      /* ── UNE BOITE PLATE RESTE ATTRAPABLE (phase 5, D3) ─────────────────
+         Une ligne horizontale, c'est une boite de HAUTEUR NULLE — c'est la
+         regle de l'axe, et c'est la forme qu'on trace neuf fois sur dix.
+         Rendue telle quelle, sa boite d'edition fait ZERO pixel de haut :
+         elle est invisible, ses poignees se superposent, et le seul chemin
+         qui reste pour la deplacer est le panneau. La boite AFFICHEE recoit
+         donc un plancher de saisie ; le DOCUMENT, lui, ne bouge pas — le
+         geste calcule toujours a partir de `s.box` (voir `onOvDown`, qui lit
+         le slot et non le DOM). Le plancher ne s'applique qu'aux FORMES et
+         qu'a la dimension degeneree : une boite de texte plate est un
+         defaut a voir, pas une prise a offrir. */
+      const gw = (isShape(s) && b[2] * k < GRAB_PX) ? GRAB_PX / k : b[2];
+      const gh = (isShape(s) && b[3] * k < GRAB_PX) ? GRAB_PX / k : b[3];
+      const gx = b[0] - (gw - b[2]) / 2, gy = b[1] - (gh - b[3]) / 2;
+      const st = "left:" + (gx * k) + "px;top:" + (gy * k) + "px;width:" + (gw * k) + "px;height:" + (gh * k) + "px";
       /* LE CADENAS SE VOIT SUR LA SCENE, pas seulement dans la liste : un
          glisser refusé sans marque à l'endroit où la main appuie se lit comme
          une panne. La classe change le trait de la boîte et le curseur des
@@ -5501,7 +6034,8 @@
         + (s.lock ? " lock" : "")
         + '" data-id="' + esc(s.id) + '" style="' + st + '">'
         + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "")
-        + (isImage(s) ? "&#128444; " : "") + esc(s.label) + why + '</span>';
+        + ((isImage(s) || isShape(s)) ? kindGlyphe(s) + " " : "")
+        + esc(s.label) + why + '</span>';
       if (s.id === sel) {
         h += HANDLES.map((hd) => '<i class="cf-type-hh cf-type-h-' + hd[0] + '" data-h="' + hd[0] + '"></i>').join("");
       }

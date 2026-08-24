@@ -140,6 +140,18 @@
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cf-type .cf-type-drop .hint { font-size: 10.5px; }
 .cf-type .cf-type-warn { color: var(--amber); }
+
+/* ── le panneau d'une FORME (phase 5, D3) ────────────────────────────────────
+   La note de recette (« boite carree = cercle », « le trait va d'un coin a
+   l'autre ») est la premiere ligne du panneau : elle dit ce que la boite
+   VEUT DIRE pour cette nature-la, avant tout reglage. Sans elle, « ma ligne
+   ne remplit pas sa boite » devient un rapport de bogue. */
+.cf-type .cf-type-shnote { border-left: 2px solid var(--stroke-strong);
+  padding-left: 8px; margin: 2px 0 6px; }
+.cf-type .cf-type-shnote b { color: var(--ink-strong); }
+/* les deux bascules de bout de fleche portent leur etat : un bouton qui ne
+   change pas d'aspect quand on l'active est un bouton dont on doute. */
+.cf-type .cf-type-t.on { border-color: var(--accent); color: var(--ink-strong); }
 .cf-type .cf-type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 7px; }
 .cf-type .cf-type-f { min-width: 0; }
 .cf-type .cf-type-f input[type=color] { padding: 2px; height: 28px; cursor: pointer;

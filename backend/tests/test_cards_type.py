@@ -176,14 +176,17 @@ def test_au_moins_dix_reglages_par_slot():
     assert len(cles) >= REGLAGES_MIN, sorted(cles)
     for k in REGLAGES_NOMMES:
         assert k in TY.SLOT_DEFAULTS, k
-    # 39 clés en tout, dont 34 réglages (`hyphen` est arrivé avec la césure,
+    # 49 clés en tout, dont 44 réglages (`hyphen` est arrivé avec la césure,
     # `just_max` et `last_pct` avec le plafond d'élasticité et la ligne creuse,
     # `read_pt` avec le plancher de lisibilité, `plate_color` / `plate_alpha`
     # / `plate_radius` avec la plaque de fond de la phase 3a, `lock` avec le
-    # verrou d'édition de la 3b, et `kind` / `src` / `fit` avec le calque
-    # d'image de la 3b-T2)
-    assert len(TY.SLOT_DEFAULTS) == 39, sorted(TY.SLOT_DEFAULTS)
-    assert len(cles) == 34, sorted(cles)
+    # verrou d'édition de la 3b, `kind` / `src` / `fit` avec le calque
+    # d'image de la 3b-T2, et les DIX de la phase 5-T2 : l'encre des formes
+    # (`fill`, `fill_alpha`, `stroke`, `stroke_mm`), la flèche (`head_mm`,
+    # `arrow_start`, `arrow_end`), l'axe (`flip`) et le contour propre d'une
+    # zone (`plate_stroke`, `plate_stroke_mm`))
+    assert len(TY.SLOT_DEFAULTS) == 49, sorted(TY.SLOT_DEFAULTS)
+    assert len(cles) == 44, sorted(cles)
 
 
 # ═══════════ 4. le titre de 44 caractères et l'encadré de 400+ ══════════════
@@ -395,6 +398,24 @@ def test_le_contrat_sortant_de_la_piece_a_la_forme_gelee():
 
 def _js() -> str:
     return JS.read_text(encoding="utf-8")
+
+
+def _js_fn(src: str, nom: str) -> str:
+    """Le SOURCE d'une fonction de `mod-type.js`, accolades équilibrées.
+    Jumeau de l'outil du même nom de `test_cards_frame.py` : lire une fonction
+    ENTIÈRE vaut mieux que chercher une ligne dans tout le fichier — « cette
+    chaîne est quelque part » ne dit pas dans quelle fonction."""
+    i = src.index("function " + nom + "(")
+    j = src.index("{", i)
+    n = 0
+    for k in range(j, len(src)):
+        if src[k] == "{":
+            n += 1
+        elif src[k] == "}":
+            n -= 1
+            if n == 0:
+                return src[i:k + 1]
+    raise AssertionError("accolades non équilibrées pour " + nom)
 
 
 def _js_sans_commentaires() -> str:
@@ -1335,7 +1356,10 @@ def test_le_pied_de_l_inspecteur_donne_le_corps_COMPOSE_pas_le_corps_DEMANDE():
     # calque d'image réutilise la section « Boîte ») : la réécriture suit donc
     # la nature du bloc. Y remettre le relevé typographique d'office écraserait
     # « image 200 x 100 px » à la première mise en page.
-    assert "host.innerHTML = isImage(s) ? imgMeasInner(s) : inspMeasInner(s);" in src
+    # (trois relevés depuis la phase 5-T2 : une forme n'a ni corps composé ni
+    # image, elle a un trait et une tête)
+    assert "host.innerHTML = isImage(s) ? imgMeasInner(s)" in src
+    assert ": isShape(s) ? shapeMesInner(s) : inspMeasInner(s);" in src
     # appelé par le relevé, entre la liste et le reste
     assert "renderList(); syncInspMeas(); renderProof();" in src
     # et l'état « pas encore composé » est nommé
@@ -3077,6 +3101,54 @@ function makeCtx(w, h) {
     },
     closePath() { if (c._poly && c._poly.length) c._poly.push(c._poly[0].slice()); },
     rect(x, y, ww, hh) { c._poly = null; c._path = { r: [x, y, ww, hh], k: 0 }; },
+    /* ── L'ELLIPSE, APLATIE EN CORDES (phase 5 T2-B) ────────────────────────
+       Meme parti que `arcTo` juste au-dessus : le banc n'a pas de moteur de
+       courbes, il aplatit. 128 cordes sur un tour — a 300 DPI le plus grand
+       demi-axe d'une carte fait ~520 px, donc la fleche de corde vaut
+       r*(1-cos(pi/128)) < 0,16 px : sous le pixel, donc invisible pour une
+       sonde. C'est cette approximation, et elle seule, qui autorise la
+       tolerance d'IoU du test. */
+    ellipse(cx, cy, rx, ry, rot, a0, a1) {
+      const P = [];
+      const co = Math.cos(rot || 0), si = Math.sin(rot || 0);
+      for (let k = 0; k <= 128; k++) {
+        const t = (a0 || 0) + ((a1 === undefined ? Math.PI * 2 : a1) - (a0 || 0)) * k / 128;
+        const ex = rx * Math.cos(t), ey = ry * Math.sin(t);
+        P.push([cx + ex * co - ey * si, cy + ex * si + ey * co]);
+      }
+      c._path = null; c._poly = P;
+    },
+    arc(cx, cy, r, a0, a1) { c.ellipse(cx, cy, r, r, 0, a0, a1); },
+    /* ── LE TRAIT, RASTERISE COMME UN RUBAN ─────────────────────────────────
+       Une toile trace un contour ; ce banc n'en a pas. Chaque segment devient
+       le QUADRILATERE de largeur `lineWidth` centre dessus (bout carre), et
+       chaque sommet interieur recoit un carre de raccord — c'est la jointure
+       « round » approchee au carre, une demi-largeur de cote. Ce qu'on mesure
+       ici n'est pas la finesse d'une jointure : c'est OU l'encre tombe. */
+    stroke() {
+      const w = Math.max(0.6, Number(c.lineWidth) || 1);
+      let P = c._poly;
+      if (!P && c._path) {
+        const r = c._path.r;
+        P = [[r[0], r[1]], [r[0] + r[2], r[1]], [r[0] + r[2], r[1] + r[3]],
+          [r[0], r[1] + r[3]], [r[0], r[1]]];
+      }
+      if (!P || P.length < 2) return;
+      const h = w / 2;
+      for (let i = 1; i < P.length; i++) {
+        const a = P[i - 1], b = P[i];
+        const dx = b[0] - a[0], dy = b[1] - a[1];
+        const L = Math.hypot(dx, dy);
+        if (!(L > 1e-9)) continue;
+        const nx = -dy / L * h, ny = dx / L * h;
+        fillLocal(null, 0, S.stroke, S.alpha, null,
+          [[a[0] + nx, a[1] + ny], [b[0] + nx, b[1] + ny],
+            [b[0] - nx, b[1] - ny], [a[0] - nx, a[1] - ny]]);
+        if (i < P.length - 1) {
+          fillLocal([b[0] - h, b[1] - h, w, w], 0, S.stroke, S.alpha);
+        }
+      }
+    },
     roundRect(x, y, ww, hh, rr) {
       const v = Array.isArray(rr) ? Number(rr[0]) : Number(rr);
       c._poly = null;
@@ -3283,6 +3355,59 @@ function empreinte(b) {
   }
   return l;
 }
+/* ── LES SONDES A VERITE CONNUE (phase 5 T2-B) ──────────────────────────────
+   `OPT.points = {nom: [mm_x, mm_y]}` : la couleur RELUE au point de la carte
+   que le test a calcule LUI-MEME, en millimetres depuis le coin de coupe. Le
+   test ne demande jamais au code teste ou son encre est tombee ; il pose un
+   point et regarde. */
+const ptPx = (mm) => [Math.round(G.bleed_off_px[0] + G.mm2px(mm[0])),
+  Math.round(G.bleed_off_px[1] + G.mm2px(mm[1]))];
+const points = {};
+Object.keys(OPT.points || {}).forEach((k) => {
+  const p = ptPx(OPT.points[k]);
+  points[k] = ctx._at(p[0], p[1]);
+});
+/* `OPT.pave = [x, y, w, h]` en mm : les EXTREMES des pixels encres dans cette
+   fenetre. C'est la boite REELLEMENT peinte, pas celle qu'on a demandee. */
+function paveDe(mm) {
+  const a = ptPx([mm[0], mm[1]]), b = ptPx([mm[0] + mm[2], mm[1] + mm[3]]);
+  const x0 = Math.max(0, a[0] - 6), y0 = Math.max(0, a[1] - 6);
+  const x1 = Math.min(G.canvas_px[0], b[0] + 6), y1 = Math.min(G.canvas_px[1], b[1] + 6);
+  let mnx = 1e9, mny = 1e9, mxx = -1, mxy = -1, n = 0;
+  for (let py = y0; py < y1; py++) {
+    for (let px = x0; px < x1; px++) {
+      if (ctx._at(px, py)[3] === 0) continue;
+      n++;
+      if (px < mnx) mnx = px; if (px > mxx) mxx = px;
+      if (py < mny) mny = py; if (py > mxy) mxy = py;
+    }
+  }
+  return n ? { x: mnx, y: mny, w: mxx - mnx + 1, h: mxy - mny + 1, n: n }
+    : { x: null, y: null, w: 0, h: 0, n: 0 };
+}
+/* `OPT.masque = [x, y, w, h]` en mm : le masque PEINT dans cette fenetre,
+   confronte au DISQUE INSCRIT construit ici a la main (centre de la boite,
+   rayon = demi-petit-cote). L'intersection sur l'union, chiffree. */
+function masqueDe(mm) {
+  const a = ptPx([mm[0], mm[1]]), b = ptPx([mm[0] + mm[2], mm[1] + mm[3]]);
+  const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2;
+  const rx = (b[0] - a[0]) / 2, ry = (b[1] - a[1]) / 2;
+  let inter = 0, union = 0, peints = 0, cellules = 0, attendus = 0;
+  for (let py = a[1]; py < b[1]; py++) {
+    for (let px = a[0]; px < b[0]; px++) {
+      cellules++;
+      const dx = (px + 0.5 - cx) / rx, dy = (py + 0.5 - cy) / ry;
+      const dedans = (dx * dx + dy * dy) <= 1;
+      const encre = ctx._at(px, py)[3] > 0;
+      if (dedans) attendus++;
+      if (encre) peints++;
+      if (dedans && encre) inter++;
+      if (dedans || encre) union++;
+    }
+  }
+  return { peints: peints, attendus: attendus, cellules: cellules,
+    iou: union ? Math.round(inter / union * 10000) / 10000 : 0 };
+}
 const rows = slots.map((s) => {
   const b = boxOf(s);
   const lib = freePoint(b);
@@ -3305,6 +3430,10 @@ process.stdout.write(JSON.stringify({
   /* les APPELS D'IMAGE : boite de destination demandee, opacite en vigueur, et
      le pave REELLEMENT peint (qui dit si la decoupe a mordu). */
   draws: ctx._draws, labels: ctx._labels, urls: urls,
+  /* les sondes a verite connue (phase 5 T2-B) */
+  points: points,
+  pave: OPT.pave ? paveDe(OPT.pave) : null,
+  masque: OPT.masque ? masqueDe(OPT.masque) : null,
   /* le RELEVE du painter, ouvert par mutation (patron `__solo`) : c'est lui
      qui alimente les passes d'encre, donc c'est lui qui doit ignorer les
      calques d'image. */
@@ -3362,8 +3491,9 @@ def test_les_trois_reglages_de_plaque_sont_dans_les_deux_tables():
     assert TY.SLOT_DEFAULTS["plate_alpha"] == 1.0
     assert TY.SLOT_DEFAULTS["plate_radius"] == 0.0
     # et le compte total suit (les deux tables sont comparées ailleurs) — 36 à
-    # l'arrivée du verrou, 39 depuis le calque d'image de la 3b-T2.
-    assert len(js) == 39, sorted(js)
+    # l'arrivée du verrou, 39 depuis le calque d'image de la 3b-T2, 49 depuis
+    # les formes de la phase 5-T2.
+    assert len(js) == 49, sorted(js)
 
 
 def test_la_plaque_est_bornee_des_deux_cotes():
@@ -3422,8 +3552,13 @@ def test_la_plaque_est_peinte_SOUS_le_texte_du_slot(tmp_path):
     apres = _banc_plaque(tmp_path, {"slots": [PLAQUE_SLOT]}, mutations=(
         ("    drawPlate(ctx, slot, g, m);\r\n    const strokeW = pxOfPt(slot.outline, g);",
          "    const strokeW = pxOfPt(slot.outline, g);"),
-        ("    ctx.restore();\r\n  }\r\n\r\n  /* ═════", "    drawPlate(ctx, slot, g, m);\r\n"
-         "    ctx.restore();\r\n  }\r\n\r\n  /* ═════"),
+        # L'ANCRE VISE LA FIN DE `drawSlot`, ET ELLE LE DIT : depuis la phase
+        # 5-T2, `drawShapeSlot` se termine sur les mêmes trois lignes et
+        # l'ancre courte devenait ambiguë (mutation refusée par le banc — ce
+        # qui est exactement ce qu'on lui demande de faire). Le `});` de la
+        # boucle des passes d'encre, juste avant, appartient à `drawSlot` seul.
+        ("   });\r\n    ctx.restore();\r\n  }\r\n",
+         "   });\r\n    drawPlate(ctx, slot, g, m);\r\n    ctx.restore();\r\n  }\r\n"),
     ))
     mr, mg, mb = apres["slots"][0]["glyphe_px"][:3]
     assert (mr, mg, mb) != (239, 231, 214), \
@@ -3600,7 +3735,7 @@ def test_le_panneau_offre_les_trois_reglages_de_plaque(tmp_path):
     commandes et leur rang à l'écran."""
     corps = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(False),
                                               "sel": "titre"}})["insp"]
-    assert "<summary>Plaque de fond</summary>" in corps
+    assert "<summary>Plaque de fond et bordure</summary>" in corps
     assert 'class="cf-type-pcol"' in corps
     assert 'data-k="plate_alpha"' in corps
     assert 'data-k="plate_radius"' in corps
@@ -3609,7 +3744,7 @@ def test_le_panneau_offre_les_trois_reglages_de_plaque(tmp_path):
     assert 'class="btn sm cf-type-pnone"' in corps
     # l'ordre de l'inspecteur n'a pas bougé : la plaque s'insère AVANT le
     # groupe contour/ombre/arc, qui reste devant opacité/justification.
-    assert (corps.index("<summary>Plaque de fond</summary>")
+    assert (corps.index("<summary>Plaque de fond et bordure</summary>")
             < corps.index("<summary>Contour, ombre, arc</summary>")
             < corps.index("<summary>Opacité, justification</summary>"))
     # câblés : la couleur par son écouteur dédié, les nombres par la boucle
@@ -4251,9 +4386,10 @@ def test_le_verrou_est_la_36e_cle_des_deux_cotes():
     assert TY.SLOT_DEFAULTS["lock"] is False and js["lock"] is False
     assert js == TY.SLOT_DEFAULTS
     # `lock` est la 36e clé PAR SON ARRIVÉE ; le total, lui, a bougé depuis (39
-    # depuis le calque d'image de la tâche 2). Ce qui compte ici et ne bouge
-    # pas : les deux tables sont la MÊME, à la clé près.
-    assert len(js) == len(TY.SLOT_DEFAULTS) == 39, sorted(js)
+    # depuis le calque d'image de la tâche 2, 49 depuis les formes de la phase
+    # 5-T2). Ce qui compte ici et ne bouge pas : les deux tables sont la MÊME,
+    # à la clé près.
+    assert len(js) == len(TY.SLOT_DEFAULTS) == 49, sorted(js)
     # normalisé des deux côtés, et sans surprise : tout ce qui n'est pas
     # explicitement vrai est faux (un document d'avant n'a pas la clé).
     assert TY.norm_slot({})["lock"] is False
@@ -4755,7 +4891,7 @@ def test_les_trois_cles_du_calque_d_image_sont_dans_les_deux_tables():
     assert TY.SLOT_DEFAULTS["kind"] == "text"
     assert TY.SLOT_DEFAULTS["src"] == ""
     assert TY.SLOT_DEFAULTS["fit"] == "contain"
-    assert len(js) == 39, sorted(js)
+    assert len(js) == 49, sorted(js)
     assert js == TY.SLOT_DEFAULTS
 
 
@@ -4763,7 +4899,7 @@ def test_le_kind_et_le_fit_sont_sur_liste_blanche_des_deux_cotes():
     """Deux énumérations, pas deux chaînes libres. Une valeur inconnue retombe
     sur le défaut — jamais un `kind` inventé qui ferait sauter le painter dans
     une branche qui n'existe pas."""
-    assert TY.KINDS == ("text", "image")
+    assert TY.KINDS[:2] == ("text", "image")
     assert TY.FITS == ("contain", "cover")
     assert TY.norm_slot({"kind": "image"})["kind"] == "image"
     assert TY.norm_slot({"kind": "video"})["kind"] == "text"
@@ -4778,7 +4914,12 @@ def test_le_kind_et_le_fit_sont_sur_liste_blanche_des_deux_cotes():
     assert TY.norm_slot({"kind": " IMAGE "})["kind"] == "image"
     assert TY.norm_slot({"fit": "COVER"})["fit"] == "cover"
     src = _js()
-    assert 'const KINDS = ["text", "image"];' in src
+    # les DEUX listes, ÉGALES à l'ordre près : `test_les_quatre_formes_sont_
+    # dans_les_deux_vocabulaires` verrouille la ligne entière ; celui-ci
+    # verrouille l'ÉGALITÉ des deux tables, quelle que soit leur longueur.
+    m = re.search(r"const KINDS = \[(.*?)\];", src)
+    assert m, "KINDS introuvable dans mod-type.js"
+    assert tuple(re.findall(r'"([a-z]+)"', m.group(1))) == TY.KINDS, m.group(1)
     assert 'const FITS = ["contain", "cover"];' in src
     assert "s.kind = pick(r.kind, KINDS, SLOT_DEFAULTS.kind);" in src
     assert "s.fit = pick(r.fit, FITS, SLOT_DEFAULTS.fit);" in src
@@ -5375,9 +5516,16 @@ def test_un_CLIP_HISSE_HORS_DE_LA_ROTATION_rougit(tmp_path):
                                   "images": IMG_TABLE}, mutations=(
         ("      ctx.beginPath();\r\n      ctx.rect(b[0], b[1], b[2], b[3]);\r\n"
          "      ctx.clip();\r\n", ""),
-        ("ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
+        # L'ANCRE PORTE LE `if (!file) return;` QUI LA PRÉCÈDE, et c'est une
+        # correction de la phase 5-T2 : `drawShapeSlot` ouvre sa passe sur la
+        # MÊME paire de lignes (opacité puis rotation — c'est justement le
+        # squelette partagé qu'on a voulu), et l'ancre courte est devenue
+        # ambiguë. Le banc l'a REFUSÉE au lieu de muter la mauvaise fonction.
+        ("    if (!file) return;\r\n    ctx.save();\r\n"
+         "    ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
          "    if (slot.rotate) {",
-         "ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
+         "    if (!file) return;\r\n    ctx.save();\r\n"
+         "    ctx.globalAlpha = clamp(num(slot.opacity, 100, 0, 100) / 100, 0, 1);\r\n"
          "    ctx.beginPath();\r\n    ctx.rect(b[0], b[1], b[2], b[3]);\r\n"
          "    ctx.clip();\r\n    if (slot.rotate) {"),))
     b = _banc_plaque(tmp_path, {"slots": [_slot_image(fit="cover")],
@@ -5834,6 +5982,22 @@ def _entrees(menu: str) -> int:
     return menu.count('class="cf-type-mi"')
 
 
+def _n_generiques() -> int:
+    """Le nombre d'entrées GÉNÉRIQUES de la palette, LU dans le source.
+
+    Il valait 3, écrit en dur dans une quinzaine d'assertions ; la phase 5 en a
+    posé quatre de plus (les formes) et les quinze ont rougi d'un coup. Ce que
+    ces tests mesurent n'a jamais été « il y en a trois » : c'est « les
+    génériques SONT LÀ quoi qu'il arrive au catalogue, et les éléments du
+    modèle s'y AJOUTENT ». Le compte se dérive donc, et la propriété reste
+    vraie à la prochaine entrée."""
+    bloc = re.search(r"const GENERIQUES = \[(.*?)\n  \];", _js(), re.S)
+    assert bloc, "GENERIQUES introuvable dans mod-type.js"
+    n = len(re.findall(r'id: "gen:', bloc.group(1)))
+    assert n >= 3, n
+    return n
+
+
 def test_la_palette_vit_dans_la_barre_et_pose_son_menu_sur_le_corps(tmp_path):
     """Le bouton existe, il est CÂBLÉ, et son clic pose un popover — trouvé
     dans `document.body`, pas supposé. Les trois entrées génériques y sont
@@ -5844,7 +6008,7 @@ def test_la_palette_vit_dans_la_barre_et_pose_son_menu_sur_le_corps(tmp_path):
     assert d["traces"][0]["cable"] is True, d["traces"]
     assert len(d["menus"]) == 1, d["menus"]
     menu = d["menus"][0]
-    assert _entrees(menu) == 3, menu
+    assert _entrees(menu) == _n_generiques(), menu
     for lib in ("Zone de texte", "Zone de statistique", "Calque d'image"):
         assert lib in menu, menu
     for oid in ("gen:texte", "gen:stat", "gen:image"):
@@ -5924,7 +6088,7 @@ def test_la_palette_offre_les_elements_DU_MODELE_dont_le_jeu_est_ne(tmp_path):
                                           "preset": "modele:superstar"},
                                 "catalogue": [m], "actes": [{"t": "pal"}]})
     menu = d["menus"][-1]
-    assert _entrees(menu) == 3 + len(els), menu
+    assert _entrees(menu) == _n_generiques() + len(els), menu
     for e in els:
         assert 'data-o="mod:' + e["id"] + '"' in menu, menu
         assert e["label"] in menu, menu
@@ -5945,10 +6109,12 @@ def test_la_LISTE_DES_OFFRES_est_derivee_du_preset_AU_MOMENT_DE_PEINDRE(tmp_path
                                 "catalogue": [m], "pal": True},
                      mutations=(MUT_PAL,))
     offres = d["pal"]["offres"]
+    ng = _n_generiques()
     assert [o["id"] for o in offres[:3]] == ["gen:texte", "gen:stat", "gen:image"]
     assert [o["n"] for o in offres[:3]] == [1, 2, 1], offres[:3]
-    assert [o["id"] for o in offres[3:]] == ["mod:" + e["id"] for e in m["elements"]]
-    for o, e in zip(offres[3:], m["elements"]):
+    assert all(o["id"].startswith("gen:") for o in offres[:ng]), offres[:ng]
+    assert [o["id"] for o in offres[ng:]] == ["mod:" + e["id"] for e in m["elements"]]
+    for o, e in zip(offres[ng:], m["elements"]):
         assert o["label"] == e["label"] and o["hint"] == e["hint"]
         assert o["n"] == len(e["slots"])
     assert d["pal"]["note"] == "", d["pal"]["note"]
@@ -5957,7 +6123,7 @@ def test_la_LISTE_DES_OFFRES_est_derivee_du_preset_AU_MOMENT_DE_PEINDRE(tmp_path
                                            "preset": "minimal"},
                                  "catalogue": [m], "pal": True},
                       mutations=(MUT_PAL,))
-    assert len(d2["pal"]["offres"]) == 3, d2["pal"]["offres"]
+    assert len(d2["pal"]["offres"]) == _n_generiques(), d2["pal"]["offres"]
 
 
 def test_un_element_de_modele_NAIT_a_sa_zone_avec_ses_REGLAGES(tmp_path):
@@ -6102,7 +6268,7 @@ def test_un_modele_SANS_ELEMENTS_est_DIT(tmp_path):
                                               "preset": "modele:superstar"},
                                     "catalogue": [m], "actes": [{"t": "pal"}]})
         menu = d["menus"][-1]
-        assert _entrees(menu) == 3, menu
+        assert _entrees(menu) == _n_generiques(), menu
         assert "cf-type-paln" in menu, menu
         assert "sans éléments" in menu, menu
         assert m["label"] in menu, menu
@@ -6117,7 +6283,7 @@ def test_sans_modele_la_palette_offre_les_trois_generiques_ET_SE_TAIT(tmp_path):
                                 "catalogue": [_modele("superstar")],
                                 "actes": [{"t": "pal"}]})
     menu = d["menus"][-1]
-    assert _entrees(menu) == 3, menu
+    assert _entrees(menu) == _n_generiques(), menu
     assert "cf-type-paln" not in menu, menu
 
 
@@ -6141,20 +6307,20 @@ def test_UN_GABARIT_LOCAL_NE_DESIGNE_JAMAIS_UN_MODELE(tmp_path):
                                             "preset": "arcane"},
                                   "catalogue": [arcane], "actes": [{"t": "pal"}]})
     menu = gab["menus"][-1]
-    assert _entrees(menu) == 3, menu
+    assert _entrees(menu) == _n_generiques(), menu
     assert "cf-type-paln" not in menu, menu
     # SENS 2 — le deck INSTANCIÉ du même modèle, lui, les reçoit.
     inst = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
                                              "preset": "modele:arcane"},
                                    "catalogue": [arcane], "actes": [{"t": "pal"}]})
-    assert _entrees(inst["menus"][-1]) == 3 + len(els), inst["menus"][-1]
+    assert _entrees(inst["menus"][-1]) == _n_generiques() + len(els), inst["menus"][-1]
     # ... et un modèle PERSO nommé « Champion » (slug « champion ») ne peut
     # plus se faire passer pour le gabarit du même nom.
     faux = dict(arcane, id="champion", label="Champion")
     per = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": "",
                                             "preset": "champion"},
                                   "catalogue": [faux], "actes": [{"t": "pal"}]})
-    assert _entrees(per["menus"][-1]) == 3, per["menus"][-1]
+    assert _entrees(per["menus"][-1]) == _n_generiques(), per["menus"][-1]
 
 
 def test_la_COLLISION_rejouee_sans_le_prefixe_rougit(tmp_path):
@@ -6170,7 +6336,7 @@ def test_la_COLLISION_rejouee_sans_le_prefixe_rougit(tmp_path):
                        mutations=(
         ('return p.indexOf(PRESET_MODELE) === 0 ? p.slice(PRESET_MODELE.length) : "";',
          'return p;'),))
-    assert _entrees(mut["menus"][-1]) == 3 + len(arcane["elements"]), \
+    assert _entrees(mut["menus"][-1]) == _n_generiques() + len(arcane["elements"]), \
         "l'ancienne règle n'attrape plus le modèle : le cas a changé de forme"
 
 
@@ -6186,7 +6352,7 @@ def test_un_catalogue_INJOIGNABLE_est_un_ETAT_NOMME_pas_une_panne(tmp_path):
                                     "actes": [{"t": "pal"},
                                               {"t": "palclic", "o": "gen:texte"}]})
         menu = d["menus"][-1]
-        assert _entrees(menu) == 3, menu
+        assert _entrees(menu) == _n_generiques(), menu
         # LA PHRASE PARLE DU PRODUIT (« backend » est un mot banni du
         # panneau, pin de la pièce), le DIAGNOSTIC vit dans l'infobulle.
         assert "n'a pas pu être lu" in menu, menu
@@ -6210,13 +6376,13 @@ def test_le_catalogue_qui_arrive_APRES_ne_repeint_QUE_SON_ouverture(tmp_path):
             "actes": [{"t": "pal", "ms": 5}, {"t": "pal", "ms": 5}]}
     d = _banc_verrou(tmp_path, opts)
     assert len(d["menus"]) == 2, d["menus"]
-    assert _entrees(d["menus"][0]) == 3, d["menus"][0]
+    assert _entrees(d["menus"][0]) == _n_generiques(), d["menus"][0]
     assert "chargement du catalogue" in d["menus"][0], d["menus"][0]
-    assert _entrees(d["menus"][1]) == 3 + len(m["elements"]), d["menus"][1]
+    assert _entrees(d["menus"][1]) == _n_generiques() + len(m["elements"]), d["menus"][1]
     mut = _banc_verrou(tmp_path, opts, mutations=(
         ("if (seq === PAL_SEQ && PAL_MENU === menu) paintPalette(menu);",
          "if (true) paintPalette(menu);"),))
-    assert _entrees(mut["menus"][0]) == 3 + len(m["elements"]), \
+    assert _entrees(mut["menus"][0]) == _n_generiques() + len(m["elements"]), \
         "la garde d'étiquette ne mesure rien"
 
 
@@ -6365,12 +6531,17 @@ def test_TOUTES_les_naissances_passent_par_LA_MEME_porte():
     zone = src[deb:fin]
     assert zone.count("pushUndo()") == 1, \
         "plus d'une entrée d'annulation dans la zone des naissances"
-    # une définition, CINQ appels
-    assert zone.count("naitre(") == 6, zone.count("naitre(")
+    # une définition, SIX appels (le sixième est `addShapeSlot`, phase 5-T2 :
+    # les quatre formes passent par UNE porte, pas par quatre)
+    assert zone.count("naitre(") == 7, zone.count("naitre(")
     for quoi in ("function addSlot()", "function addImgSlot()",
-                 "function addStatSlot()", "function palAdd(",
-                 "function adopterZones()"):
+                 "function addStatSlot()", "function addShapeSlot(",
+                 "function palAdd(", "function adopterZones()"):
         assert quoi in src, quoi
+    # LES QUATRE FORMES NE FONT QU'UNE NAISSANCE. Quatre `addRectSlot`,
+    # `addEllipseSlot`… auraient été quatre occasions d'oublier `pushUndo`.
+    assert src.count("function addShapeSlot(") == 1, \
+        "plusieurs portes de naissance pour les formes"
     # `commit` re-normalise : il ne doit PAS être sur le chemin des naissances
     # (il remplacerait un id renommé au-delà de 24 signes par « slotN »).
     assert "commit(" not in zone, "une naissance repasse par `commit`"
@@ -6427,13 +6598,13 @@ def test_ECHAP_ferme_la_palette_sur_un_jeu_VIDE(tmp_path):
     # le menu a été fermé AVANT que le catalogue n'arrive : il en reste aux
     # trois génériques, la réponse ne l'a pas rattrapé.
     assert len(d["menus"]) == 1, d["menus"]
-    assert _entrees(d["menus"][0]) == 3, d["menus"][0]
+    assert _entrees(d["menus"][0]) == _n_generiques(), d["menus"][0]
     # ... et sur un jeu qui a des blocs, Échap fermait déjà (contrôle : le
     # défaut était bien la GARDE, pas la branche).
     plein = dict(opts, state={"slots": _slots_verrou(False), "sel": "titre",
                               "preset": "modele:superstar"})
     dp = _banc_verrou(tmp_path, plein)
-    assert _entrees(dp["menus"][0]) == 3, dp["menus"][0]
+    assert _entrees(dp["menus"][0]) == _n_generiques(), dp["menus"][0]
 
 
 def test_ECHAP_remis_SOUS_la_garde_de_selection_rougit(tmp_path):
@@ -6451,7 +6622,7 @@ def test_ECHAP_remis_SOUS_la_garde_de_selection_rougit(tmp_path):
          '    const s = selSlot();\r\n    if (!s) return;',
          '    const s = selSlot();\r\n    if (!s) return;\r\n'
          '    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }'),))
-    assert _entrees(mut["menus"][0]) == 3 + len(m["elements"]), \
+    assert _entrees(mut["menus"][0]) == _n_generiques() + len(m["elements"]), \
         "le menu fermé n'a pas été repeint : la garde ne mesure rien"
 
 
@@ -6465,7 +6636,7 @@ def test_le_MODELE_DISPARU_est_NOMME(tmp_path):
                                 "catalogue": [_modele("superstar")],
                                 "actes": [{"t": "pal"}]})
     menu = d["menus"][-1]
-    assert _entrees(menu) == 3, menu
+    assert _entrees(menu) == _n_generiques(), menu
     assert "cf-type-paln" in menu, menu
     assert "n'est plus disponible sur ce poste" in menu, menu
     assert "disparu" in menu, menu
@@ -6486,7 +6657,7 @@ def test_un_CATALOGUE_VIDE_est_NOMME(tmp_path):
                                           "preset": "modele:superstar"},
                                 "catalogue": [], "actes": [{"t": "pal"}]})
     menu = d["menus"][-1]
-    assert _entrees(menu) == 3, menu
+    assert _entrees(menu) == _n_generiques(), menu
     assert "cf-type-paln" in menu, menu
     assert "aucun modèle disponible sur ce poste" in menu, menu
 
@@ -6531,7 +6702,7 @@ def test_le_PANNEAU_QUI_S_EFFACE_emporte_son_popover(tmp_path):
                                 "actes": [{"t": "pal", "ms": 5},
                                           {"t": "quitte"}]})
     assert d["ferme"] is True, "le popover n'a pas été retiré du corps"
-    assert _entrees(d["menus"][0]) == 3, \
+    assert _entrees(d["menus"][0]) == _n_generiques(), \
         "un menu orphelin s'est quand même fait repeindre"
 
 
@@ -7389,3 +7560,825 @@ def test_l_ADOPTION_DES_ZONES_est_UN_SEUL_PAS_D_ANNULATION():
 
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 14. LES FORMES DE GABARIT — phase 5, T2 (plan D3)
+#
+# « P3 gagne des KINDS de formes : rect, ellipse (ferme le transmis cercle —
+#   le halo devient une vraie ellipse à rayon), line, arrow. »
+#
+# LA DÉCISION DE FOND, ET ELLE SE MESURE ICI : une forme est un SLOT d'une
+# autre nature, pas un objet neuf. Elle hérite donc, sans une ligne de plus,
+# de l'ordre de peinture dans la bande z=60, de l'œil, du verrou, du calque
+# d'édition (glisser, poignées, flèches), de l'annulation, de la fluidité, de
+# la liste, de l'export par couches et de `doc.type.slots` — le contrat que P4
+# et P7 lisent déjà. C'est exactement le raisonnement du calque d'image de la
+# 3b-T2, rejoué : « la pile de calques d'un éditeur d'images, pour le prix
+# d'une clé ».
+#
+# CE QUI EN DÉCOULE POUR LE z : les formes se peignent dans la couche 60,
+# comme le texte et comme les calques d'image, dans l'ordre de la liste. Il n'y
+# a pas de couche « formes » : il y a des slots, et ils sont où les slots sont.
+# ═════════════════════════════════════════════════════════════════════════════
+
+FORMES = ("rect", "ellipse", "line", "arrow")
+CLES_FORMES = ("fill", "fill_alpha", "stroke", "stroke_mm", "head_mm",
+               "arrow_start", "arrow_end", "flip")
+CLES_CONTOUR = ("plate_stroke", "plate_stroke_mm")
+
+
+def test_les_quatre_formes_sont_dans_les_deux_vocabulaires():
+    """`KINDS` s'élargit des DEUX côtés ou d'aucun : une valeur que l'écran
+    connaît et que le backend ignore, c'est un slot RÉPARÉ en « text » à
+    chaque chargement — un document que le serveur réécrit sous l'auteur."""
+    assert TY.KINDS == ("text", "image") + FORMES, TY.KINDS
+    src = _js()
+    assert 'const KINDS = ["text", "image", "rect", "ellipse", "line", "arrow"];' \
+        in src, "le vocabulaire de l'écran diverge"
+    for k in FORMES:
+        assert TY.norm_slot({"kind": k})["kind"] == k, k
+        assert TY.norm_slot({"kind": k.upper()})["kind"] == k, k
+        assert TY.norm_slot({"kind": " " + k + " "})["kind"] == k, k
+    # une nature inventée retombe toujours sur le texte
+    assert TY.norm_slot({"kind": "polygon"})["kind"] == "text"
+    assert TY.norm_slot({"kind": "arrowhead"})["kind"] == "text"
+
+
+def test_les_dix_cles_neuves_sont_dans_les_deux_tables_et_INERTES():
+    """49 clés par slot. Le bloc JS est du JSON littéral et l'égalité avec le
+    dictionnaire Python est STRICTE.
+
+    ET LE DÉFAUT NE PEINT RIEN : `fill` et `stroke` naissent nuls, `stroke_mm`
+    et `plate_stroke_mm` à 0. C'est ce qui garde les quatre gabarits livrés
+    identiques À L'OCTET après l'arrivée de dix réglages — la même règle que
+    `plate_color: null` de la 3a et `kind: "text"` de la 3b."""
+    js = json.loads(_bloc_js("DEFAULTS"))
+    assert js == TY.SLOT_DEFAULTS
+    assert len(js) == 49, sorted(js)
+    for k in CLES_FORMES + CLES_CONTOUR:
+        assert k in js and k in TY.SLOT_DEFAULTS, k
+    assert TY.SLOT_DEFAULTS["fill"] is None
+    assert TY.SLOT_DEFAULTS["stroke"] is None
+    assert TY.SLOT_DEFAULTS["plate_stroke"] is None
+    assert TY.SLOT_DEFAULTS["stroke_mm"] == 0.0
+    assert TY.SLOT_DEFAULTS["plate_stroke_mm"] == 0.0
+    assert TY.SLOT_DEFAULTS["fill_alpha"] == 1.0
+    assert TY.SLOT_DEFAULTS["arrow_end"] is True
+    assert TY.SLOT_DEFAULTS["arrow_start"] is False
+    assert TY.SLOT_DEFAULTS["flip"] is False
+    assert TY.SLOT_DEFAULTS["head_mm"] == 3.0
+
+
+def test_les_couleurs_de_forme_valent_PAS_DE_COULEUR_quand_elles_sont_folles():
+    """La leçon de `plate_color`, appliquée aux trois couleurs neuves : une
+    couleur illisible ne vaut pas « noir ». Peindre du noir sur une forme
+    parce qu'un import a écrit « bleu » serait un défaut visible et muet."""
+    for k in ("fill", "stroke", "plate_stroke"):
+        assert TY.norm_slot({k: "#a1b2c3"})[k] == "#a1b2c3"
+        assert TY.norm_slot({k: "#A1B2C3"})[k] == "#a1b2c3", "bas de casse"
+        assert TY.norm_slot({k: "#abc"})[k] == "#abc"
+        assert TY.norm_slot({k: "#a1b2c3ff"})[k] == "#a1b2c3ff", "l'alpha 8 signes"
+        for fou in ("bleu", "", None, 7, [], {}, "#12345", "rgb(1,2,3)"):
+            assert TY.norm_slot({k: fou})[k] is None, (k, fou)
+
+
+def test_les_longueurs_de_forme_sont_bornees_des_deux_cotes():
+    """Des millimètres, pas des chaînes libres. Un trait de 900 mm sur une
+    carte de 63 mm n'est pas un réglage : il est ramené au plafond, et le
+    plafond est le MÊME des deux côtés."""
+    assert (TY.STROKE_MM_MIN, TY.STROKE_MM_MAX) == (0.0, 20.0)
+    assert (TY.HEAD_MM_MIN, TY.HEAD_MM_MAX) == (0.0, 40.0)
+    for k, hi in (("stroke_mm", TY.STROKE_MM_MAX),
+                  ("plate_stroke_mm", TY.STROKE_MM_MAX),
+                  ("head_mm", TY.HEAD_MM_MAX)):
+        assert TY.norm_slot({k: 900})[k] == hi, k
+        assert TY.norm_slot({k: -3})[k] == 0.0, k
+        assert TY.norm_slot({k: "pas un nombre"})[k] == TY.SLOT_DEFAULTS[k], k
+        assert TY.norm_slot({k: None})[k] == TY.SLOT_DEFAULTS[k], k
+    assert TY.norm_slot({"fill_alpha": 9})["fill_alpha"] == 1.0
+    assert TY.norm_slot({"fill_alpha": -1})["fill_alpha"] == 0.0
+    src = _js()
+    assert "const STROKE_MM_MAX = 20;" in src, "la borne de l'écran diverge"
+    assert "const HEAD_MM_MAX = 40;" in src, "la borne de l'écran diverge"
+
+
+# ── 14.1 LE PEINTRE : des pixels à VÉRITÉ CONNUE ────────────────────────────
+#
+# Le banc de pixels (`_banc_plaque`) fait tourner le VRAI painter z=60 sur un
+# tampon réel. On y pose une forme dont on connaît la géométrie AVANT de la
+# peindre, et on relit les octets aux points que le TEST a calculés — jamais
+# ceux que le code testé annonce.
+
+RECT_SLOT = {"id": "forme", "kind": "rect", "box": [10.0, 20.0, 30.0, 16.0],
+             "fill": "#20c0ff", "stroke": None, "stroke_mm": 0.0, "text": ""}
+
+
+def test_un_rect_encre_SA_BOITE_et_rien_de_plus(tmp_path):
+    """VÉRITÉ CONNUE : une boîte de 30 x 16 mm posée à (10, 20). À 300 DPI
+    c'est 354,33 x 188,98 px. On relit le pavé RÉELLEMENT encré et on le
+    compare à cette arithmétique-là, faite ici."""
+    d = _banc_plaque(tmp_path, {"slots": [RECT_SLOT],
+                                "pave": [10.0, 20.0, 30.0, 16.0],
+                                "points": {"dedans": [25.0, 28.0],
+                                           "gauche": [8.0, 28.0],
+                                           "droite": [42.0, 28.0],
+                                           "haut": [25.0, 18.0],
+                                           "bas": [25.0, 38.0]}})
+    p = d["points"]
+    assert p["dedans"][3] > 200, "le rect ne peint rien à son centre"
+    assert p["dedans"][:3] == [32, 192, 255], p["dedans"]      # #20c0ff
+    for nom in ("gauche", "droite", "haut", "bas"):
+        assert p[nom][3] == 0, (nom, p[nom])
+    pv = d["pave"]
+    attendu_w = 30.0 / 25.4 * 300
+    attendu_h = 16.0 / 25.4 * 300
+    assert abs(pv["w"] - attendu_w) <= 2, (pv, attendu_w)
+    assert abs(pv["h"] - attendu_h) <= 2, (pv, attendu_h)
+
+
+ELL_SLOT = {"id": "halo", "kind": "ellipse", "box": [16.0, 30.0, 24.0, 24.0],
+            "fill": "#20c0ff", "stroke": None, "stroke_mm": 0.0, "text": ""}
+
+
+def test_une_ellipse_a_boite_CARREE_est_le_DISQUE_inscrit(tmp_path):
+    """LE TRANSMIS DE LA PHASE 4 SE FERME ICI. Il n'existait « pas de cercle »
+    et le halo du Patriarche était posé en calque d'image ; la recette est
+    désormais écrite dans le code ET mesurée : ellipse + boîte carrée = disque,
+    rayon = demi-côté, centre = centre de la boîte.
+
+    LA PREUVE EST UN IoU, pas une impression. Le banc construit le disque
+    ATTENDU à la main (centre de la boîte, demi-côté) et le confronte au
+    masque PEINT, pixel par pixel. Un rendu qui déborderait, se décalerait ou
+    resterait rectangulaire ferait chuter le chiffre ; un « ça a l'air rond »
+    ne l'aurait pas vu.
+
+    Le second chiffre est la COUVERTURE : un rectangle plein occuperait 100 %
+    de la boîte, le disque inscrit en occupe π/4 = 78,54 %. C'est lui qui
+    sépare les deux formes sans rien savoir de leur position."""
+    d = _banc_plaque(tmp_path, {"slots": [ELL_SLOT],
+                                "masque": [16.0, 30.0, 24.0, 24.0],
+                                "points": {"dedans": [28.0, 42.0],
+                                           "coin_hg": [17.0, 31.0],
+                                           "coin_hd": [39.0, 31.0],
+                                           "coin_bg": [17.0, 53.0],
+                                           "coin_bd": [39.0, 53.0]}})
+    m = d["masque"]
+    assert m["peints"] > 0, "l'ellipse ne peint rien"
+    part = m["peints"] / float(m["cellules"])
+    assert 0.76 <= part <= 0.81, f"couverture {part:.4f} : ce n'est pas un disque"
+    assert m["iou"] >= 0.97, f"IoU {m['iou']:.4f} contre le disque attendu"
+    assert d["points"]["dedans"][3] > 200, d["points"]
+    for nom in ("coin_hg", "coin_hd", "coin_bg", "coin_bd"):
+        assert d["points"][nom][3] == 0, (nom, d["points"][nom])
+
+
+def test_un_rect_de_MEME_boite_couvre_toute_sa_boite(tmp_path):
+    """LE TÉMOIN DE LA MESURE PRÉCÉDENTE. Sans lui, « couverture entre 76 % et
+    81 % » ne prouve rien : il faut montrer que la MÊME mesure sur la MÊME
+    boîte rend 100 % pour un rectangle. Deux formes, un seul instrument."""
+    d = _banc_plaque(tmp_path, {"slots": [dict(ELL_SLOT, kind="rect")],
+                                "masque": [16.0, 30.0, 24.0, 24.0]})
+    m = d["masque"]
+    part = m["peints"] / float(m["cellules"])
+    assert part > 0.99, f"couverture {part:.4f} : le rect n'est pas plein"
+    # ... et son IoU contre le DISQUE est justement mauvais : π/4
+    assert 0.77 <= m["iou"] <= 0.80, m["iou"]
+
+
+FLECHE_SLOT = {"id": "fleche", "kind": "arrow", "box": [10.0, 40.0, 40.0, 0.0],
+               "stroke": "#ff4020", "stroke_mm": 1.0, "head_mm": 6.0,
+               "arrow_start": False, "arrow_end": True, "text": ""}
+
+
+def test_une_fleche_posee_a_VERITE_CONNUE_met_son_trait_et_sa_tete_au_bon_endroit(tmp_path):
+    """VÉRITÉ CONNUE, la plus exigeante du bloc. Une flèche horizontale de
+    (10, 40) à (50, 40) mm — boîte de 40 x 0 mm —, trait de 1 mm, tête de
+    6 mm, pointe à droite.
+
+    Ce qu'on exige, et qui se calcule sans le code testé :
+      · de l'encre AU MILIEU du fût, à (30, 40) ;
+      · de l'encre juste avant la POINTE, à (49,6 ; 40) ;
+      · de l'encre à la base de la tête, ÉCARTÉE du fût : à (44,5 ; ±1,4 mm)
+        il y a la tête, et il n'y aurait RIEN sans elle — le fût ne fait que
+        1 mm de large, donc ± 0,5 mm autour de y = 40 ;
+      · RIEN 2 mm avant le départ, ni 2 mm après la pointe, ni 4 mm au-dessus
+        du fût à mi-course (là où la tête n'est pas) ;
+      · et l'autre bout est NU (`arrow_start` faux) : à (15,5 ; 41,4) il n'y a
+        rien, alors que c'est le SYMÉTRIQUE EXACT d'un point encré à l'autre
+        bout (44,5 ; 41,4)."""
+    d = _banc_plaque(tmp_path, {"slots": [FLECHE_SLOT], "points": {
+        "fut_milieu": [30.0, 40.0],
+        "pointe": [49.6, 40.0],
+        "tete_base_haut": [44.5, 41.4],
+        "tete_base_bas": [44.5, 38.6],
+        "avant_depart": [8.0, 40.0],
+        "apres_pointe": [52.0, 40.0],
+        "au_dessus_du_fut": [30.0, 36.0],
+        "bout_nu": [15.5, 41.4],
+    }})
+    p = d["points"]
+    for nom in ("fut_milieu", "pointe", "tete_base_haut", "tete_base_bas"):
+        assert p[nom][3] > 200, (nom, p[nom])
+        assert p[nom][:3] == [255, 64, 32], (nom, p[nom])   # #ff4020
+    for nom in ("avant_depart", "apres_pointe", "au_dessus_du_fut", "bout_nu"):
+        assert p[nom][3] == 0, (nom, p[nom])
+
+
+def test_les_deux_bouts_de_la_fleche_sont_INDEPENDANTS(tmp_path):
+    """`arrow_start` et `arrow_end` sont deux réglages, pas un. Le témoin est
+    le MÊME point (11,5 ; 41,4) : vide quand le bout de départ est nu, encré
+    quand il porte sa tête."""
+    # les DEUX points sont symétriques à l'axe de la flèche : à 5,5 mm de leur
+    # pointe, la tête de 6 mm est large de 2,75 mm de part et d'autre, donc
+    # 1,4 mm y tombe DEDANS. Choisir deux points asymétriques aurait fait
+    # « prouver » l'indépendance par la géométrie plutôt que par le réglage.
+    pts = {"depart_haut": [15.5, 41.4], "fin_haut": [44.5, 41.4],
+           "fut_milieu": [30.0, 40.0]}
+    nu = _banc_plaque(tmp_path, {"slots": [FLECHE_SLOT], "points": pts})
+    assert nu["points"]["depart_haut"][3] == 0, nu["points"]
+    assert nu["points"]["fin_haut"][3] > 200, nu["points"]
+    deux = _banc_plaque(tmp_path, {"slots": [
+        dict(FLECHE_SLOT, arrow_start=True)], "points": pts})
+    assert deux["points"]["depart_haut"][3] > 200, deux["points"]
+    assert deux["points"]["fin_haut"][3] > 200, "la tête de fin a disparu"
+    aucun = _banc_plaque(tmp_path, {"slots": [
+        dict(FLECHE_SLOT, arrow_start=False, arrow_end=False)], "points": pts})
+    assert aucun["points"]["depart_haut"][3] == 0
+    assert aucun["points"]["fin_haut"][3] == 0, "une tête sans bout demandé"
+    # ... et le fût reste : une flèche sans tête est un trait, pas rien
+    assert aucun["points"]["fut_milieu"][3] > 200
+
+
+def test_la_tete_de_fleche_SUIT_sa_longueur(tmp_path):
+    """`head_mm` est une longueur, pas un interrupteur. Une tête de 12 mm
+    encre un point que la tête de 6 mm ne touche pas — et le fût, lui, ne
+    bouge pas d'un pixel."""
+    pts = {"loin_derriere": [39.0, 41.4], "fut_milieu": [30.0, 40.0]}
+    court = _banc_plaque(tmp_path, {"slots": [FLECHE_SLOT], "points": pts})
+    assert court["points"]["loin_derriere"][3] == 0, court["points"]
+    longue = _banc_plaque(tmp_path, {"slots": [dict(FLECHE_SLOT, head_mm=12.0)],
+                                     "points": pts})
+    assert longue["points"]["loin_derriere"][3] > 200, longue["points"]
+    assert longue["points"]["fut_milieu"][3] > 200
+
+
+def test_la_ligne_va_D_UN_COIN_A_L_AUTRE_et_le_flip_la_retourne(tmp_path):
+    """LA DÉCISION D'AXE, MESURÉE. Une ligne va du coin haut-gauche de sa
+    boîte au coin bas-droit ; `flip` la fait partir du coin bas-gauche. C'est
+    la règle la plus simple qui donne l'horizontale (hauteur nulle), la
+    verticale (largeur nulle) et les deux diagonales sans un réglage d'angle
+    de plus — et ce test la sépare de son contraire au pixel.
+
+    Boîte 20 x 20 mm posée à (10, 40) : la diagonale descendante passe par
+    (15, 45) et PAS par (15, 55) ; retournée, l'inverse exactement."""
+    box = {"id": "trait", "kind": "line", "box": [10.0, 40.0, 20.0, 20.0],
+           "stroke": "#20c0ff", "stroke_mm": 1.2, "text": ""}
+    pts = {"descendante": [15.0, 45.0], "montante": [15.0, 55.0]}
+    a = _banc_plaque(tmp_path, {"slots": [box], "points": pts})
+    assert a["points"]["descendante"][3] > 200, a["points"]
+    assert a["points"]["montante"][3] == 0, a["points"]
+    b = _banc_plaque(tmp_path, {"slots": [dict(box, flip=True)], "points": pts})
+    assert b["points"]["montante"][3] > 200, b["points"]
+    assert b["points"]["descendante"][3] == 0, b["points"]
+
+
+ENCART = {"id": "rules", "text": "X", "align": "left", "valign": "top",
+          "size_pt": 7.0, "min_pt": 7.0, "autofit": False, "wrap": False,
+          "plate_color": None, "box": [10.0, 20.0, 30.0, 16.0]}
+
+
+def test_le_contour_propre_d_un_encart_borde_SANS_remplir(tmp_path):
+    """`plate_stroke` + `plate_stroke_mm` sur TOUTE zone — « la main sur les
+    bordures des encarts ». Le cas qui compte est celui SANS plaque : un
+    encadré de règles qu'on veut BORDER sans rien peindre dessous. Le bord
+    doit exister et l'intérieur rester vide.
+
+    Le témoin porte un texte d'un signe, posé en haut à gauche : la sonde du
+    milieu-bas est donc à distance de tout glyphe, et ce qu'elle mesure est le
+    FOND — pas une lettre."""
+    slot = dict(ENCART, plate_stroke="#ff4020", plate_stroke_mm=0.8)
+    d = _banc_plaque(tmp_path, {"slots": [slot], "points": {
+        "bord_haut": [25.0, 20.0],
+        "bord_gauche": [10.0, 32.0],
+        "milieu": [25.0, 32.0],
+        "dehors": [25.0, 17.0],
+    }})
+    p = d["points"]
+    assert p["bord_haut"][3] > 150 and p["bord_haut"][:3] == [255, 64, 32], p
+    assert p["bord_gauche"][3] > 150, p
+    assert p["milieu"][3] == 0, "le contour a REMPLI la zone"
+    assert p["dehors"][3] == 0, p
+    # ... et avec une plaque, les deux coexistent : fond + bord
+    d2 = _banc_plaque(tmp_path, {"slots": [dict(slot, plate_color="#20c0ff")],
+                                 "points": {"milieu": [25.0, 32.0],
+                                            "bord_haut": [25.0, 20.0]}})
+    assert d2["points"]["milieu"][:3] == [32, 192, 255], d2["points"]
+    assert d2["points"]["bord_haut"][:3] == [255, 64, 32], d2["points"]
+
+
+def test_le_contour_d_encart_a_zero_mm_ne_peint_RIEN(tmp_path):
+    """Le pendant du liseré de fenêtre de P2 : à 0 mm il n'y a pas un trait
+    fin, il n'y a PAS DE TRAIT. C'est cette ligne-là qui garde les gabarits
+    livrés identiques."""
+    ref = _banc_plaque(tmp_path, {"slots": [ENCART]})
+    for var in ({"plate_stroke": "#ff4020", "plate_stroke_mm": 0.0},
+                {"plate_stroke": None, "plate_stroke_mm": 2.0},
+                {"plate_stroke": "bleu", "plate_stroke_mm": 2.0}):
+        d = _banc_plaque(tmp_path, {"slots": [dict(ENCART, **var)]})
+        assert d["hash"] == ref["hash"], var
+
+
+def test_un_encart_VIDE_ne_recoit_ni_fond_ni_bord(tmp_path):
+    """LA RÈGLE HÉRITÉE, ET ELLE VAUT AUSSI POUR LE BORD. Un bloc de texte
+    sans glyphe ne peint RIEN — pas même sa plaque : « un cartouche sans son
+    contenu est un défaut visible qu'on n'a pas demandé ». Le contour propre
+    suit son fond : le donner au bloc vide aurait posé un cadre rouge autour
+    d'une colonne CSV manquante, exactement le compteur menteur que cette
+    pièce pourchasse."""
+    vide = dict(ENCART, text="", plate_color="#20c0ff",
+                plate_stroke="#ff4020", plate_stroke_mm=0.8)
+    d = _banc_plaque(tmp_path, {"slots": [vide], "points": {
+        "bord_haut": [25.0, 20.0], "milieu": [25.0, 32.0]}})
+    assert d["points"]["bord_haut"][3] == 0, d["points"]
+    assert d["points"]["milieu"][3] == 0, d["points"]
+
+
+def test_une_forme_sans_encre_ne_peint_RIEN(tmp_path):
+    """Le pendant du calque d'image sans source : une forme sans remplissage
+    ni contour n'est pas un carré noir, c'est une forme qu'on n'a pas encore
+    habillée. Le panneau la montre ; la carte, non."""
+    vide = {"id": "forme", "kind": "rect", "box": [10.0, 20.0, 30.0, 16.0],
+            "text": ""}
+    ref = _banc_plaque(tmp_path, {"slots": [dict(vide, kind="text")]})
+    for k in FORMES:
+        d = _banc_plaque(tmp_path, {"slots": [dict(vide, kind=k)]})
+        assert d["hash"] == ref["hash"], \
+            f"{k} sans encre peint quelque chose"
+
+
+def test_une_forme_n_entre_PAS_dans_le_releve_typographique(tmp_path):
+    """Le relevé alimente les trois passes d'encre (contraste, halo, survie) et
+    le panneau. Une forme n'a pas de glyphe : y entrer la ferait compter comme
+    « slot vide » — un défaut annoncé qui n'existe pas, exactement ce qu'on a
+    évité pour les calques d'image."""
+    d = _banc_plaque(tmp_path, {"slots": [
+        dict(RECT_SLOT, id="forme"),
+        {"id": "titre", "text": "Veilleur", "box": [4.0, 4.0, 50.0, 8.0]},
+    ]}, mutations=(MUT_MEAS,))
+    assert d["meas"] is not None, "la porte du relevé ne s'est pas ouverte"
+    assert d["meas"] == ["titre"], d["meas"]
+
+
+def test_les_quatre_gabarits_livres_restent_identiques_A_L_OCTET(tmp_path):
+    """DIX CLÉS NEUVES, ZÉRO PIXEL BOUGÉ. On rend chaque gabarit avec les clés
+    et SANS elles (le banc les retire du slot, comme le ferait un document
+    écrit avant cette phase) : les deux empreintes doivent être ÉGALES."""
+    g = CT.geom("poker_eu", 300)
+    for pid in TY.PRESETS:
+        slots = TY.preset_slots(pid, g)
+        avant = _banc_plaque(tmp_path, {"slots": slots,
+                                        "drop": list(CLES_FORMES + CLES_CONTOUR)})
+        apres = _banc_plaque(tmp_path, {"slots": slots})
+        assert avant["hash"] == apres["hash"], \
+            f"{pid} : les clés neuves changent le gabarit livré"
+
+
+def test_les_deux_NORMALISEURS_rendent_le_MEME_slot_de_FORME(tmp_path):
+    """PARITÉ D'EXÉCUTION sur les dix clés neuves — la leçon B1 rejouée. Deux
+    normaliseurs qui divergent, c'est un document que le serveur RÉPARE au
+    chargement, et personne ne le voit."""
+    batterie = [
+        {"kind": "rect", "fill": "#20c0ff", "stroke": "#000", "stroke_mm": 1.5},
+        {"kind": "ellipse", "fill_alpha": 0.5},
+        {"kind": "line", "flip": True, "stroke_mm": "2.5"},
+        {"kind": "arrow", "head_mm": 900, "arrow_start": 1, "arrow_end": 0},
+        {"kind": "ARROW", "head_mm": -4, "flip": "oui"},
+        {"kind": "arrow", "head_mm": None, "stroke": "bleu", "fill": ""},
+        {"plate_stroke": "#ABCDEF", "plate_stroke_mm": 999},
+        {"plate_stroke": [1], "plate_stroke_mm": "beaucoup"},
+        {"kind": "rect", "fill": "#a1b2c3ff", "fill_alpha": "0.25"},
+        {"kind": " Line ", "stroke": "#ABC", "arrow_end": None},
+    ]
+    d = _banc_verrou(tmp_path, {"state": {"slots": [], "sel": ""},
+                                "norm": batterie},
+                     mutations=(MUT_NORM,))
+    js = d["norm"]
+    assert js and len(js["un"]) == len(batterie)
+    for i, entree in enumerate(batterie):
+        py = TY.norm_slot(entree, i)
+        ecran = js["un"][i]
+        assert set(ecran) == set(py), \
+            f"[{i}] clés divergentes : {sorted(set(ecran) ^ set(py))}"
+        for k in sorted(py):
+            assert ecran[k] == py[k], \
+                f"[{i}] {k} : écran {ecran[k]!r} != backend {py[k]!r}"
+        # ... et la seconde passe ne change rien (idempotence)
+        assert js["deux"][i] == js["un"][i], f"[{i}] seconde passe"
+
+
+def test_la_palette_offre_une_entree_PAR_FORME_en_francais():
+    """« une entrée de palette par forme, étiquetée français ». Et chaque
+    entrée doit NAÎTRE habillée : une forme posée sans encre serait un bouton
+    qui ne pose rien de visible — le reproche qu'on fait aux barres
+    concurrentes."""
+    src = _js()
+    bloc = re.search(r"const GENERIQUES = \[(.*?)\n  \];", src, re.S)
+    assert bloc, "GENERIQUES introuvable"
+    txt = bloc.group(1)
+    for oid, libelle in (("gen:rect", "Rectangle"), ("gen:ellipse", "Ellipse"),
+                         ("gen:line", "Ligne"), ("gen:arrow", "Flèche")):
+        assert f'id: "{oid}"' in txt, f"{oid} absent de la palette"
+        assert f'label: "{libelle}"' in txt, f"{oid} : libellé {libelle!r}"
+    # chaque entrée est branchée, sinon le clic ne pose rien
+    fn = _js_fn(src, "palAdd")
+    for oid in ("gen:rect", "gen:ellipse", "gen:line", "gen:arrow"):
+        assert f'"{oid}"' in fn, f"{oid} n'est pas branché dans palAdd"
+    # ... et la naissance pose une encre
+    nais = _js_fn(src, "addShapeSlot")
+    assert "fill:" in nais and "stroke:" in nais, \
+        "une forme naît sans encre : le bouton ne poserait rien de visible"
+
+
+def test_le_panneau_d_une_forme_ne_montre_AUCUN_reglage_typographique():
+    """Onze réglages inertes sur un objet qui n'a pas de glyphe, c'est le
+    mensonge poli qu'on a refusé pour les calques d'image. Le panneau bascule
+    sur la nature du bloc, comme il le fait déjà."""
+    src = _js()
+    fn = _js_fn(src, "renderInsp")
+    assert "if (isShape(s)) { renderInspShape(box, s); return; }" in fn, \
+        "le panneau ne bascule pas sur la nature « forme »"
+    forme = _js_fn(src, "renderInspShape")
+    for interdit in ("Police", "Corps (pt)", "Interlettrage", "Interligne",
+                     "Blancs max", "Dern. ligne"):
+        assert interdit not in forme, \
+            f"le panneau d'une forme montre « {interdit} », qui ne fait rien"
+    for attendu in ("Remplissage", "Contour", "Épaisseur"):
+        assert attendu in forme, f"le panneau d'une forme n'offre pas « {attendu} »"
+
+
+def test_le_peintre_des_formes_passe_sous_la_ROTATION_existante():
+    """Une forme tourne comme un calque d'image tourne : autour du centre de
+    sa boîte, dans la même passe. C'est le précédent de `drawImgSlot`, et le
+    recopier ailleurs aurait donné deux conventions de rotation dans une même
+    pièce."""
+    src = _js()
+    fn = _js_fn(src, "drawShapeSlot")
+    assert "ctx.rotate(slot.rotate * Math.PI / 180)" in fn, \
+        "la forme ne tourne pas autour du centre de sa boîte"
+    assert "drawPlate(ctx, slot, g, { box: b })" in fn, \
+        "la plaque n'est pas peinte SOUS la forme"
+    assert "if (isShape(slot)) { drawShapeSlot(ctx, slot, geom); return; }" in src, \
+        "le painter compose une forme au lieu de la dessiner"
+
+
+def test_une_forme_TOURNEE_emporte_son_encre(tmp_path):
+    """La rotation n'est pas décorative : un rect tourné de 90° doit encrer là
+    où sa boîte tournée tombe, et PAS là où sa boîte droite tombait. Le témoin
+    est un point que la rotation fait passer de vide à encré, et un autre qui
+    fait l'inverse."""
+    slot = {"id": "forme", "kind": "rect", "box": [20.0, 30.0, 30.0, 6.0],
+            "fill": "#20c0ff", "text": ""}
+    pts = {"bout_droit": [48.0, 33.0], "bout_tourne": [35.0, 45.0]}
+    droit = _banc_plaque(tmp_path, {"slots": [slot], "points": pts})
+    assert droit["points"]["bout_droit"][3] > 200, droit["points"]
+    assert droit["points"]["bout_tourne"][3] == 0, droit["points"]
+    tourne = _banc_plaque(tmp_path, {"slots": [dict(slot, rotate=90)],
+                                     "points": pts})
+    assert tourne["points"]["bout_tourne"][3] > 200, tourne["points"]
+    assert tourne["points"]["bout_droit"][3] == 0, tourne["points"]
+
+
+def test_l_opacite_du_slot_porte_AUSSI_sur_la_forme(tmp_path):
+    """La règle de la plaque, tenue par la forme : l'opacité du slot
+    MULTIPLIE celle du remplissage. Un slot à 50 % avec un remplissage à 80 %
+    pose 40 %, et non 80 % — sans quoi baisser l'opacité d'un bloc ferait
+    ressortir sa forme."""
+    plein = _banc_plaque(tmp_path, {"slots": [RECT_SLOT],
+                                    "points": {"c": [25.0, 28.0]}})
+    demi = _banc_plaque(tmp_path, {"slots": [dict(RECT_SLOT, opacity=50)],
+                                   "points": {"c": [25.0, 28.0]}})
+    quart = _banc_plaque(tmp_path, {"slots": [
+        dict(RECT_SLOT, opacity=50, fill_alpha=0.5)],
+        "points": {"c": [25.0, 28.0]}})
+    assert plein["points"]["c"][3] == 255, plein["points"]
+    assert 120 <= demi["points"]["c"][3] <= 136, demi["points"]
+    assert 58 <= quart["points"]["c"][3] <= 70, quart["points"]
+
+
+# ── 14.2 LA VÉRIFICATION NAVIGATEUR D'UNE FLÈCHE POSÉE ──────────────────────
+#
+# LE BANC DE NODE PROUVE LA GÉOMÉTRIE ; IL NE PROUVE PAS LA TOILE. Son
+# contexte 2D est une réimplémentation : `stroke()` y est un ruban de
+# quadrilatères, `ellipse()` un polygone de 128 cordes, `arcTo` seize accords.
+# Ce sont des approximations honnêtes et documentées — et une approximation ne
+# dit rien de ce que Chrome dessine vraiment.
+#
+# Ici le MODULE ENTIER est chargé dans un Chrome sans tête, avec un CORE
+# bouchonné, et le VRAI painter z=60 compose sur un VRAI `<canvas>`. On relit
+# ensuite les pixels aux points que ce test a calculés en millimètres.
+# C'est la première fois que ces formes rencontrent un rastériseur de
+# production ; c'est aussi le seul endroit où `ctx.ellipse` est celui du
+# navigateur et non le nôtre.
+
+BANC_CHROME_TYPE = r"""
+import { readFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { spawn, spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import { tmpdir } from "node:os";
+const PAGE = process.argv[2];
+const SONDE = readFileSync(process.argv[3], "utf8");
+const CHROME = [process.env.CHROME_PATH,
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe"]
+  .filter(Boolean).find((p) => existsSync(p));
+if (!CHROME) { process.stdout.write(JSON.stringify({ skip: "chrome" })); process.exit(0); }
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const port = await new Promise((res, rej) => {
+  const s = createServer(); s.on("error", rej);
+  s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => res(p)); });
+});
+const profile = join(tmpdir(), "dzcftype", "p" + port);
+try { rmSync(profile, { recursive: true, force: true }); } catch { }
+mkdirSync(profile, { recursive: true });
+const proc = spawn(CHROME, ["--headless=new", "--disable-gpu",
+  "--remote-debugging-port=" + port, "--remote-allow-origins=*",
+  "--user-data-dir=" + profile, "--window-size=1200,900", "--no-first-run",
+  "--allow-file-access-from-files", "--no-default-browser-check",
+  "--disable-background-networking", "--disable-sync", "about:blank"],
+  { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+const cleanup = () => {
+  try { spawnSync("taskkill", ["/pid", String(proc.pid), "/T", "/F"], { stdio: "ignore" }); } catch { }
+  try { rmSync(profile, { recursive: true, force: true, maxRetries: 3 }); } catch { }
+};
+process.on("exit", cleanup);
+try {
+  const fetchJson = async (u, tries = 80) => {
+    for (let i = 0; i < tries; i++) {
+      try { const r = await fetch(u); if (r.ok) return await r.json(); } catch { }
+      await sleep(250);
+    }
+    throw new Error("injoignable " + u);
+  };
+  await fetchJson("http://127.0.0.1:" + port + "/json/version");
+  let target = null;
+  for (let i = 0; i < 60 && !target; i++) {
+    const list = await fetchJson("http://127.0.0.1:" + port + "/json/list", 1).catch(() => []);
+    target = (list || []).find((t) => t.type === "page" && t.webSocketDebuggerUrl);
+    if (!target) await sleep(200);
+  }
+  const ws = new WebSocket(target.webSocketDebuggerUrl);
+  await new Promise((res, rej) => {
+    ws.addEventListener("open", res, { once: true });
+    ws.addEventListener("error", rej, { once: true });
+  });
+  let id = 0; const pend = new Map();
+  ws.addEventListener("message", (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.id && pend.has(m.id)) {
+      const p = pend.get(m.id); pend.delete(m.id);
+      m.error ? p.rej(new Error(m.error.message)) : p.res(m.result);
+    }
+  });
+  const send = (method, params = {}) => new Promise((res, rej) => {
+    const i = ++id; pend.set(i, { res, rej });
+    ws.send(JSON.stringify({ id: i, method, params }));
+  });
+  await send("Page.enable"); await send("Runtime.enable");
+  await send("Page.navigate", { url: "file:///" + PAGE.replace(/\\/g, "/") });
+  await sleep(2000);
+  const r = await send("Runtime.evaluate",
+    { expression: SONDE, awaitPromise: true, returnByValue: true });
+  if (r.exceptionDetails) {
+    process.stdout.write(JSON.stringify({
+      erreur: JSON.stringify(r.exceptionDetails).slice(0, 900) }));
+  } else {
+    process.stdout.write(JSON.stringify(r.result.value));
+  }
+} finally { cleanup(); }
+"""
+
+
+def _page_formes(tmp_path, slots: list) -> pathlib.Path:
+    """La page MINIMALE, et elle charge LE MODULE ENTIER : un CORE bouchonné,
+    puis `mod-type.js` tel qu'il est livré. Aucune fonction n'est extraite,
+    aucune n'est recopiée — c'est le painter du produit qui compose."""
+    g = CT.geom("poker_eu", 300)
+    geo = {"fmt": "poker_eu", "label": "Poker", "dpi": 300,
+           "canvas_px": list(g.canvas_px), "trim_px": list(g.trim_px),
+           "bleed_off_px": list(g.bleed_off_px), "safe_px": list(g.safe_px),
+           "safe_off_px": list(g.safe_off_px), "bleed_mm": 3, "safe_mm": 3}
+    page = tmp_path / "formes.html"
+    page.write_text(
+        "<!doctype html><meta charset=\"utf-8\">"
+        "<body style=\"margin:0;background:#111\">"
+        "<canvas id=\"cf-type-essai\"></canvas>"
+        "<script>window.__ERR=[];"
+        "window.onerror=function(m){window.__ERR.push(String(m));};"
+        "window.__G=" + json.dumps(geo) + ";"
+        "window.__G.mm2px=function(v){return v/25.4*300;};"
+        "window.__G.px2mm=function(v){return v*25.4/300;};"
+        "window.__DOC={type:{slots:" + json.dumps(slots, ensure_ascii=False)
+        + "}};"
+        "window.CF={"
+        "register:function(c){window.__MOD=c;return{"
+        "patch:function(p){Object.assign(window.__DOC.type,p);},"
+        "api:{get:async function(){return{};},post:async function(){return{};},"
+        "url:function(s){return '/api/cards/deck_00000000/type/'+s;}},"
+        "emit:function(){},slot:function(){},aside:function(){},"
+        "invalidate:function(){},toast:function(){},busy:function(){},"
+        "on:function(){}};},"
+        "get:function(p,d){var c=window.__DOC,ps=String(p).split('.');"
+        "for(var i=0;i<ps.length;i++){if(c===null||typeof c!=='object'"
+        "||!Object.prototype.hasOwnProperty.call(c,ps[i]))return d;c=c[ps[i]];}"
+        "return c===undefined?d:c;},"
+        "geom:function(){return window.__G;},current:function(){return 0;},"
+        "cards:function(){return[];},card:function(){return{fields:{}};},"
+        "on:function(){},renderCard:async function(){return null;},"
+        "modules:function(){return[];}};"
+        "</script>"
+        f"<script src=\"{JS.as_uri()}\"></script>"
+        "</body>", encoding="utf-8")
+    return page
+
+
+SONDE_FORMES = """(async () => {
+  const cv = document.getElementById("cf-type-essai");
+  cv.width = window.__G.canvas_px[0];
+  cv.height = window.__G.canvas_px[1];
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  const p = (window.__MOD.painters || []).filter((q) => q.z === 60)[0];
+  if (!p) return { erreur: "aucun painter z=60" };
+  await p.fn(ctx, window.__G, window.__DOC, { fields: {} }, "front");
+  const px = (mmx, mmy) => {
+    const d = ctx.getImageData(
+      Math.round(window.__G.bleed_off_px[0] + mmx / 25.4 * 300),
+      Math.round(window.__G.bleed_off_px[1] + mmy / 25.4 * 300), 1, 1).data;
+    return [d[0], d[1], d[2], d[3]];
+  };
+  const pts = window.__PTS || {};
+  const out = {};
+  Object.keys(pts).forEach((k) => { out[k] = px(pts[k][0], pts[k][1]); });
+  /* LE DISQUE, COMPTE PAR CHROME LUI-MEME : combien de cellules d'une boite
+     carree sont encrees. Un rectangle en remplirait 100 %, le disque inscrit
+     pi/4 = 78,54 %. C'est le meme instrument que le banc de node, mais le
+     rasteriseur, lui, est celui du produit. */
+  let disque = null;
+  if (window.__BOX) {
+    const b = window.__BOX;
+    const x0 = Math.round(window.__G.bleed_off_px[0] + b[0] / 25.4 * 300);
+    const y0 = Math.round(window.__G.bleed_off_px[1] + b[1] / 25.4 * 300);
+    const w = Math.round(b[2] / 25.4 * 300), h = Math.round(b[3] / 25.4 * 300);
+    const d = ctx.getImageData(x0, y0, w, h).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+    disque = { peints: n, cellules: w * h };
+  }
+  return { points: out, disque: disque, erreurs: window.__ERR || [] };
+})()"""
+
+
+def _chrome_formes(tmp_path, slots, points, box=None):
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du navigateur ne peut pas tourner")
+    page = _page_formes(tmp_path, slots)
+    txt = page.read_text(encoding="utf-8").replace(
+        "</body>",
+        "<script>window.__PTS=" + json.dumps(points) + ";"
+        + ("window.__BOX=" + json.dumps(box) + ";" if box else "")
+        + "</script></body>")
+    page.write_text(txt, encoding="utf-8")
+    sonde = tmp_path / "sonde.js"
+    sonde.write_text(SONDE_FORMES, encoding="utf-8")
+    banc = tmp_path / "banc_chrome_type.mjs"
+    banc.write_text(BANC_CHROME_TYPE, encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(page), str(sonde)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, (r.stdout[-1500:], r.stderr[-2000:])
+    v = json.loads(r.stdout)
+    if v.get("skip"):
+        pytest.skip("Chrome absent : la vérification navigateur ne peut pas tourner")
+    assert not v.get("erreur"), v.get("erreur")
+    assert v.get("erreurs") == [], v.get("erreurs")
+    return v
+
+
+def test_une_fleche_et_un_cercle_TIENNENT_dans_un_vrai_navigateur(tmp_path):
+    """LE PAINTER DU PRODUIT, SUR UN VRAI CANEVAS. Le module entier est chargé
+    dans un Chrome sans tête ; le painter z=60 compose ; on relit les octets.
+
+    Les mêmes vérités connues que le banc de node — mais mesurées cette fois
+    sur `ctx.stroke` et `ctx.ellipse` du NAVIGATEUR, pas sur les nôtres :
+      · le fût de la flèche, sa pointe et la base de sa tête sont encrés ;
+      · rien avant le départ, rien après la pointe, rien au-dessus du fût ;
+      · une ellipse à boîte carrée couvre π/4 de sa boîte, à un cheveu près."""
+    fleche = dict(FLECHE_SLOT, id="fleche", side="front", on=True,
+                  font="Inter", label="Flèche")
+    v = _chrome_formes(tmp_path, [fleche], {
+        "fut_milieu": [30.0, 40.0],
+        "pointe": [49.6, 40.0],
+        "tete_base_haut": [44.5, 41.4],
+        "avant_depart": [8.0, 40.0],
+        "apres_pointe": [52.0, 40.0],
+        "au_dessus_du_fut": [30.0, 36.0],
+        "bout_nu": [15.5, 41.4],
+    })
+    p = v["points"]
+    for nom in ("fut_milieu", "pointe", "tete_base_haut"):
+        assert p[nom][3] > 200, (nom, p[nom])
+        assert p[nom][:3] == [255, 64, 32], (nom, p[nom])
+    for nom in ("avant_depart", "apres_pointe", "au_dessus_du_fut", "bout_nu"):
+        assert p[nom][3] == 0, (nom, p[nom])
+
+    cercle = dict(ELL_SLOT, id="halo", side="front", on=True, font="Inter",
+                  label="Halo")
+    v2 = _chrome_formes(tmp_path, [cercle], {"centre": [28.0, 42.0],
+                                             "coin_hg": [17.0, 31.0]},
+                        box=[16.0, 30.0, 24.0, 24.0])
+    assert v2["points"]["centre"][3] > 200, v2["points"]
+    assert v2["points"]["coin_hg"][3] == 0, v2["points"]
+    d = v2["disque"]
+    part = d["peints"] / float(d["cellules"])
+    assert 0.77 <= part <= 0.80, \
+        f"couverture {part:.4f} : ce n'est pas le disque inscrit (π/4 = 0,7854)"
+
+
+def test_la_bordure_de_zone_est_offerte_sur_LES_TROIS_natures():
+    """« `plate_stroke` + `plate_stroke_mm` sur TOUTE zone. » Le réglage vit
+    dans `inspPlaque`, le bloc que les TROIS panneaux partagent (texte, image,
+    forme) : un bloc par nature aurait été trois occasions d'oublier la
+    bordure sur l'une d'elles. Le test lit le partage là où il est, pas la
+    présence d'une chaîne quelque part dans le fichier."""
+    src = _js()
+    pl = _js_fn(src, "inspPlaque")
+    assert 'class="cf-type-bcol"' in pl, "aucun sélecteur de couleur de bordure"
+    assert 'nfield("plate_stroke_mm"' in pl, "aucune épaisseur de bordure"
+    assert "cf-type-bnone" in pl, "aucun retrait de bordure"
+    # les trois panneaux appellent CE bloc-là
+    for fn in ("renderInsp", "renderInspImage", "renderInspShape"):
+        assert "inspPlaque(s)" in _js_fn(src, fn), \
+            f"{fn} n'offre pas la plaque (donc pas la bordure)"
+    # « sans bordure » rend les DEUX clés : un état, pas une couleur retirée
+    wire = _js_fn(src, "wireInspCommun")
+    assert "{ plate_stroke: null, plate_stroke_mm: 0 }" in wire, \
+        "« sans bordure » laisserait une épaisseur ou une couleur orpheline"
+    # et le pied de section NOMME l'état courant des deux
+    assert "aucune bordure — posez une épaisseur" in pl, \
+        "le panneau ne dit pas qu'il n'y a pas de bordure"
+
+
+def _boite_ov(html: str) -> dict:
+    """La boîte du calque d'édition, relue dans le style que `paintOverlay`
+    écrit. On lit ce que le DOM PORTE, pas ce que la fonction dit faire."""
+    m = re.search(r"left:([-\d.]+)px;top:([-\d.]+)px;"
+                  r"width:([-\d.]+)px;height:([-\d.]+)px", html)
+    assert m, html[:400]
+    return {"left": float(m.group(1)), "top": float(m.group(2)),
+            "w": float(m.group(3)), "h": float(m.group(4))}
+
+
+def test_une_ligne_PLATE_reste_attrapable_sur_le_calque_d_edition(tmp_path):
+    """UNE LIGNE HORIZONTALE EST UNE BOÎTE DE HAUTEUR NULLE — c'est la règle
+    de l'axe, et c'est la forme qu'on trace neuf fois sur dix. Rendue telle
+    quelle, sa boîte d'édition ferait ZÉRO pixel de haut : invisible, poignées
+    superposées, et le seul chemin restant pour la déplacer serait le panneau.
+
+    La boîte AFFICHÉE reçoit donc un plancher de saisie ; le DOCUMENT ne bouge
+    pas. Quatre faits, tous relus sur le style que le calque écrit :
+      1. la boîte d'une ligne plate a une hauteur non nulle à l'écran ;
+      2. elle reste CENTRÉE sur la ligne (le plancher pousse des deux côtés) ;
+      3. le slot, lui, garde sa hauteur nulle — et le geste part de LUI ;
+      4. LE TÉMOIN : une boîte de TEXTE plate n'est PAS gonflée. Un défaut à
+         voir n'est pas une prise à offrir, et sans ce témoin le test dirait
+         seulement « quelque chose a une hauteur »."""
+    # objet COMPLET : le calque d'edition recoit les slots du document tels
+    # quels, et un partiel serait ecarte par le filtre `on` avant d'etre peint.
+    plate = TY.norm_slot({"id": "trait", "kind": "line", "label": "Trait",
+                          "box": [10.0, 40.0, 40.0, 0.0],
+                          "stroke": "#20c0ff", "stroke_mm": 0.5})
+    # LE CALQUE SE REPEINT QUAND LA SELECTION CHANGE : on part sans selection
+    # et l'on pose la main sur la ligne, ce qui est exactement le geste dont
+    # on teste la prise.
+    d = _banc_verrou(tmp_path, {"state": {"slots": [plate], "sel": ""},
+                                "actes": [{"t": "down", "id": "trait"},
+                                          {"t": "up"}]})
+    b = _boite_ov(d["ov"])
+    assert b["h"] > 0, f"la boîte d'édition d'une ligne plate est plate : {b}"
+    assert d["slots"][0]["box"][3] == 0.0, d["slots"][0]["box"]
+
+    t = _banc_verrou(tmp_path, {
+        "state": {"slots": [dict(plate, kind="text", id="txt", label="T")],
+                  "sel": ""},
+        "actes": [{"t": "down", "id": "txt"}, {"t": "up"}]})
+    bt = _boite_ov(t["ov"])
+    assert bt["h"] == 0, f"une boîte de TEXTE plate a été gonflée : {bt}"
+    # ... et le gonflement est CENTRÉ : le milieu de la boîte de la forme est
+    # la position de la boîte de texte, qui n'a pas bougé.
+    assert abs((b["top"] + b["h"] / 2) - bt["top"]) < 0.51, (b, bt)
+    assert abs(b["w"] - bt["w"]) < 0.01, "la largeur, elle, n'avait pas à bouger"
