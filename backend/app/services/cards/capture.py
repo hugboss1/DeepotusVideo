@@ -315,9 +315,14 @@ def _png(data: bytes) -> Response:
 
 # ── analyse locale : les seuils, et la mesure qui les pose ───────────────────
 #
-# AUCUN CHIFFRE DE CETTE SECTION N'EST DEVINÉ. Chacun porte la mesure qui l'a
-# fixé, prise sur les cartes de synthèse du test (630 x 880 px pour un poker
-# 63 x 88 mm, bordure de 26 px, trois cartouches à fort contraste).
+# CHAQUE CHIFFRE DE CETTE SECTION EST MESURÉ OU RAISONNÉ, ET CHACUN LE DIT.
+# La première version de cette phrase annonçait « aucun chiffre n'est deviné »
+# — c'était faux pour trois d'entre eux (la proximité de coin, le seuil de
+# fusion, la taille du sous-échantillon de palette), qui sont des choix de bon
+# sens qu'aucune mesure ne fixe. Une promesse trop large sur une page de
+# constantes est pire qu'une constante nue : elle décourage de vérifier.
+# Les mesures viennent des cartes de synthèse du test (630 x 880 px pour un
+# poker 63 x 88 mm, bordure de 26 px, trois cartouches à fort contraste).
 
 # LE BALAYAGE DE BORDURE. On sonde depuis chaque bord vers l'intérieur, sur le
 # quart du petit côté : une bande de bordure de carte fait 2 à 5 mm sur 63,
@@ -334,19 +339,28 @@ BORD_MARGE = 0.20
 # pose au milieu du vide. C'est LUI qui rend la bordure ABSENTE plutôt que
 # « 0 mm, confiance 1 » sur une carte pleine illustration.
 BORD_FRONT_MIN = 40
-# ... et le front doit DOMINER le reste du profil : un fondu régulier peut
-# cumuler 40 de dénivelé sans qu'aucune marche ne se distingue.
-# CE QU'IL PEUT ET NE PEUT PAS, MESURÉ : sur un profil qui plonge sur le quart
-# du petit côté d'une carte, la marche MÉDIANE ne peut pas dépasser ~5 en L1
-# (255 x 3 niveaux répartis sur ~157 rangées), donc le plancher absolu ci-dessus
-# décide TOUJOURS avant ce rapport. Il ne mord que sur un profil COURT — une
-# image minuscule, ou une carte sondée sur quelques rangées. Il reste parce que
-# ce cas-là existe, et il est avoué non gardé dans l'en-tête du test.
+# ... et le front doit DOMINER le reste du profil.
+# CE QU'IL FAIT VRAIMENT, RE-MESURÉ — et l'aveu précédent avait tort DEUX
+# FOIS. Il prétendait que ce rapport ne peut pas mordre sur une carte (parce
+# qu'un fondu monotone ne cumule que ~5 de marche médiane) et qu'il ne mord
+# que sur une image minuscule. Les deux sont faux, et c'est le PROFIL
+# OSCILLANT qui le montre : sur des rayures de 2 px, la marche médiane vaut
+# 455 et le plancher passe de 40 à 1824 — le rapport décide seul, et il
+# refuse. Sur une image de 40 x 56, à l'inverse, la marche médiane vaut ZÉRO
+# et le rapport ne joue aucun rôle. Ce qu'il attrape n'est donc pas un fondu :
+# c'est une bordure à FILETS FINS ou un scan TRAMÉ, où aucun front ne domine
+# la trame. Le refus doit alors nommer cette cause-là — voir `_front`, qui
+# rend son diagnostic, et la note « profil texturé » de `_analyse_bordure`.
 BORD_FRONT_RATIO = 4.0
 # UN SEUL BORD N'EST PAS UNE BANDE. Un liseré trouvé en haut et nulle part
 # ailleurs est un élément de mise en page, pas une bordure de carte.
 BORD_MIN_BORDS = 2
 # La distance L1 sous laquelle deux couleurs se valent, pour le suivi de coin.
+# RAISONNÉ, PAS MESURÉ — et c'est dit : 60 sur 765, soit 20 niveaux par canal,
+# le voisinage d'une couleur « la même à l'œil ». Il faut qu'il tolère un
+# dégradé de bande et un anticrénelage sans confondre le dehors de la carte
+# avec sa bordure. Aucun cas de synthèse ne le contraint aujourd'hui ; le jour
+# où un coin réel le démentira, ce chiffre-là bougera avec sa mesure.
 BORD_COIN_PROCHE = 60
 # La fenêtre de recherche d'un rayon de coin : 15 % du petit côté (~9 mm sur
 # 63) — largement au-delà de tout rayon de carte réel.
@@ -357,15 +371,21 @@ BORD_COIN_FENETRE = 0.15
 # résolution du scan — la même carte à 1060 px et au plafond d'import
 # n'aurait pas les mêmes boîtes. Un bloc de 1,5 mm vaut 25 px sur le scan
 # (1060 px pour 63 mm) — les « ~32 px » du plan, à la résolution qu'il avait en
-# tête — et il donne TOUJOURS une grille de ~42 colonnes, quelle que soit
-# l'image. C'est aussi la hauteur d'une ligne de texte de carte : une zone plus
-# fine qu'un bloc n'est pas une zone, c'est un trait.
+# tête — et il donne une grille de ~42 colonnes DÈS 168 px DE LARGE, quelle
+# que soit la trame au-dessus. En dessous, le plancher de 4 px par bloc mord
+# et la grille rétrécit (15 colonnes à 60 px, mesuré) : la phrase « toujours
+# 42 colonnes » était fausse là où le bloc ne peut plus être un bloc. C'est
+# aussi la hauteur d'une ligne de texte de carte : une zone plus fine qu'un
+# bloc n'est pas une zone, c'est un trait.
 ZONE_BLOC_MM = 1.5
 # Les pixels de TRAVAIL par bloc. L'image est ramenée à `cols * ZONE_SOUS` de
-# large avant la carte d'énergie : le coût devient constant (8 ms mesurés au
-# lieu de ~1 s sur une image au plafond d'import) et le résultat cesse de
-# dépendre de la finesse du scan. Huit pixels par bloc suffisent à voir une
-# arête de lettre.
+# large avant la carte d'énergie. Le coût n'en devient pas CONSTANT — la
+# première rédaction l'écrivait, et la mesure la dément : `_grille` prend
+# 7,9 ms sur 630 x 880 et 35,9 ms au plafond d'import, parce que la RÉDUCTION
+# qui mène au sous-échantillon lit, elle, toute la trame. Ce qui devient
+# constant, c'est la carte d'énergie elle-même, et c'est la partie chère : le
+# coût est AMORTI à partir de la grille. Huit pixels par bloc suffisent à voir
+# une arête de lettre.
 ZONE_SOUS = 8
 # Le rayon du passe-haut, en pixels de TRAVAIL. `_micro_contrast` floue deux
 # fois (r puis 2r) : sa portée totale vaut ~9r, soit ici 1,5 bloc — et c'est ce
@@ -385,6 +405,8 @@ ZONE_MIN_BLOCS = 2                 # un bloc seul est un point, pas une boîte
 ZONE_MAX_BOITES = 12               # un relevé se lit ; 400 boîtes ne se lisent pas
 # Deux boîtes dont la plus petite est à moitié dans l'autre n'en font qu'une :
 # les composants sont disjoints, mais leurs RECTANGLES peuvent s'emboîter.
+# RAISONNÉ : « à moitié dedans » est la définition qu'on a choisie, et une
+# demie est le seul point où la question n'a pas de réponse arbitraire.
 ZONE_FUSION = 0.50
 
 # LE FOND — les deux portes de `pixel_ops.chroma_key`, RECOPIÉES ici pour
@@ -405,8 +427,23 @@ OPTION_IA = ("Le détourage local s'arrête ici : ce fond n'est pas assez uni "
              "isoler un fond comme celui-là — c'est une option payante, "
              "proposée à part avec son prix.")
 
+# L'ÉCART DE RATIO SOUS LEQUEL ON SE TAIT. Il était nu dans le code, et un
+# seuil nu est un seuil qu'on n'ose plus bouger. Sa raison : un poker_eu de
+# 630 px de large vaut 880 px de haut ; 879 ou 881 — l'arrondi d'UN pixel —
+# donnent déjà ±0,11 % d'écart. Une note à chaque analyse sur un demi-pour-cent
+# serait du bruit qui apprendrait à ne plus lire les notes. Au-delà, l'écart
+# est celui d'un vrai recadrage, et il se dit. Mesuré aux deux bords :
+# +0,45 % se tait, +0,57 % parle.
+ECART_RATIO_MUET = 0.005
+
 PALETTE_N = 6                      # « ~6 teintes dominantes » (plan D4)
-PALETTE_TRAVAIL_PX = 256           # côté long du sous-échantillon de comptage
+# Côté long du sous-échantillon de comptage. RAISONNÉ : compter des teintes
+# DOMINANTES n'a pas besoin de la trame entière — 256 px de côté font encore
+# 65 000 échantillons pour six couleurs, et la réduction coûte moins que la
+# quantification qu'elle évite. Le chiffre n'est pas gardé par un test : le
+# ramener à 24 px change les teintes mineures, ce que le contrôle de palette
+# voit, mais rien n'épingle 256 en particulier.
+PALETTE_TRAVAIL_PX = 256
 
 
 def _hexa(rgb) -> str:
@@ -472,11 +509,18 @@ def _profils(im) -> dict:
     return out
 
 
-def _front(profil) -> dict | None:
+def _front(profil) -> dict:
     """La PREMIÈRE marche du profil : sa position (= l'épaisseur en px), sa
     hauteur, et le BRUIT du profil entier. Sans ce dernier, un fondu régulier
     finirait par cumuler assez de dénivelé pour se faire passer pour une
     bordure.
+
+    ELLE REND TOUJOURS UN DIAGNOSTIC, jamais `None` : `ok` dit s'il y a un
+    front, et sinon `cause` dit POURQUOI il n'y en a pas — « plat » (rien ne
+    dépasse le plancher absolu) ou « texture » (le plancher a été RELEVÉ par
+    l'agitation du profil). Les deux refus ne se ressemblent pas du tout à
+    l'écran, et celui qui les lit doit pouvoir les distinguer : un scan tramé
+    n'appelle pas le même geste qu'une carte pleine illustration.
 
     LA PREMIÈRE, ET PAS LA PLUS HAUTE — la première écriture prenait le
     maximum, et une carte de synthèse à trois cartouches l'a démentie en une
@@ -485,7 +529,8 @@ def _front(profil) -> dict | None:
     annonçait une bordure de 6 mm là où le test en avait posé 2,6. Une bordure
     est ce qui BORDE : le premier front en venant du bord, par définition."""
     if len(profil) < 3:
-        return None
+        return {"ok": False, "cause": "court", "bruit": 0,
+                "plancher": float(BORD_FRONT_MIN), "pic": 0}
     d = [_l1(profil[k], profil[k - 1]) for k in range(1, len(profil))]
     trie = sorted(d)
     bruit = trie[len(trie) // 2]
@@ -516,9 +561,11 @@ def _front(profil) -> dict | None:
             j += 1
         net = (_clamp01(1.0 - bruit / float(v))
                * _clamp01(2.0 / (1.0 + large)))
-        return {"k": i + 1, "pic": v, "bruit": bruit, "largeur": large,
-                "nettete": net}
-    return None
+        return {"ok": True, "k": i + 1, "pic": v, "bruit": bruit,
+                "largeur": large, "nettete": net, "plancher": plancher}
+    return {"ok": False,
+            "cause": "texture" if plancher > BORD_FRONT_MIN else "plat",
+            "bruit": bruit, "plancher": plancher, "pic": max(d)}
 
 
 def _rayon_coin(im, profils: dict) -> float | None:
@@ -534,7 +581,10 @@ def _rayon_coin(im, profils: dict) -> float | None:
     LA RANGÉE EXTÉRIEURE, ET PAS LE MILIEU DE LA BANDE : une première version
     sondait à mi-bande, où la corde d'un cercle de rayon r ne mesure plus r.
     Mesuré : 10 px lus pour 40 px posés, à la profondeur 13 — soit exactement
-    `40 - sqrt(40² - 27²)`. Le rayon ne se lit qu'au bord."""
+    `40 - sqrt(40² - 27²)`. Le rayon ne se lit qu'au bord.
+
+    ET LA COURSE LUE N'EST PAS LE RAYON : `_rayon_depuis_course` la corrige.
+    C'est là que vit la seconde moitié de la mesure."""
     w, h = im.size
     maxr = max(2, int(min(w, h) * BORD_COIN_FENETRE))
     px = im.load()
@@ -559,7 +609,33 @@ def _rayon_coin(im, profils: dict) -> float | None:
     if len(vues) < 4:                       # moins de la moitié : on se tait
         return None
     vues.sort()
-    return float(vues[len(vues) // 2])
+    return _rayon_depuis_course(float(vues[len(vues) // 2]))
+
+
+def _rayon_depuis_course(course: float) -> float:
+    """La course lue sur la rangée extérieure -> le RAYON.
+
+    LES DEUX NE SONT PAS LE MÊME NOMBRE, et l'écart est calculable. La rangée
+    extérieure a une HAUTEUR : son premier pixel plein n'est pas celui qui
+    touche le disque, c'est celui dont le CENTRE y entre. Pour un arc de
+    rayon r centré en (r, r), ce pixel est à `r - sqrt(r)` du coin, à un demi
+    près. La course sous-estime donc le rayon de `sqrt(r)` — 3 px sur 10,
+    9 px sur 90, soit 12 à 30 % : un biais qui grandit avec le rayon et qu'on
+    ne peut pas laisser dans une tolérance.
+
+    CE N'EST PAS UN ARTEFACT DU MONTAGE DE TEST. Le calcul ne parle que de la
+    grille de pixels : tout arc rastérisé s'y plie, celui d'une carte scannée
+    comme celui d'une bibliothèque de dessin. La correction appartient donc à
+    la mesure, pas au test — et le test, lui, pose des rayons ronds et exige
+    de les retrouver.
+
+    L'inversion de `c = r - sqrt(r)` est `r = ((1 + sqrt(1 + 4c)) / 2)²`.
+    Mesurée sur des rayons posés de 10, 20, 40, 60 et 90 px : elle rend 10,2 ;
+    20,5 ; 40,3 ; 60,8 et 90,5 — sous 0,10 mm d'écart partout. Une course
+    NULLE reste un rayon nul : un coin carré n'a pas de rayon caché."""
+    if course <= 0.0:
+        return 0.0
+    return ((1.0 + math.sqrt(1.0 + 4.0 * course)) / 2.0) ** 2
 
 
 def _couleur_bande(im, bord_px: int):
@@ -605,26 +681,53 @@ def _analyse_bordure(im, mm_par_px: float, notes: list):
     1,0 -> 0,5 -> 0,167 à sigma 0, 1 et 3 px)."""
     profils = _profils(im)
     fronts = {nom: _front(p) for nom, p in profils.items()}
-    vus = {nom: f for nom, f in fronts.items() if f}
+    vus = {nom: f for nom, f in fronts.items() if f["ok"]}
     if len(vus) < BORD_MIN_BORDS:
-        notes.append(
-            f"Bordure : aucun front franc sur {4 - len(vus)} des 4 bords "
-            f"(il en faut {BORD_MIN_BORDS}). La carte n'a pas de bande de "
-            f"bordure mesurable, ou elle se confond avec l'illustration — "
-            f"rien n'est publié plutôt qu'une épaisseur de zéro.")
+        # LE REFUS DOIT NOMMER SA VRAIE CAUSE. « Aucun front franc » couvrait
+        # deux situations qui n'appellent pas le même geste : une carte pleine
+        # illustration (rien ne dépasse le plancher) et un scan TRAMÉ ou une
+        # bordure à filets fins (le plancher a été relevé par l'agitation du
+        # profil, et aucune marche ne le dépasse plus). La seconde ressortait
+        # sous la phrase de la première — un refus qui envoie chercher au
+        # mauvais endroit.
+        tex = [f for f in fronts.values()
+               if not f["ok"] and f.get("cause") == "texture"]
+        if tex:
+            notes.append(
+                f"Bordure : profil TEXTURÉ sur {len(tex)} des 4 bords — la "
+                f"marche médiane y vaut {max(f['bruit'] for f in tex)}, ce qui "
+                f"relève le plancher de détection de {BORD_FRONT_MIN} à "
+                f"{int(max(f['plancher'] for f in tex))}, et aucune marche ne "
+                f"le dépasse. Une bordure à filets fins, ou un scan tramé, "
+                f"donne ce profil : il n'y a pas UNE bande à mesurer. Rien "
+                f"n'est publié.")
+        else:
+            notes.append(
+                f"Bordure : aucun front franc sur {4 - len(vus)} des 4 bords "
+                f"(il en faut {BORD_MIN_BORDS}). La carte n'a pas de bande de "
+                f"bordure mesurable, ou elle se confond avec l'illustration — "
+                f"rien n'est publié plutôt qu'une épaisseur de zéro.")
         return None, 0.0
     eps = [f["k"] for f in vus.values()]
     ep_px = sorted(eps)[len(eps) // 2]
     regularite = _clamp01(1.0 - (max(eps) - min(eps)) / float(max(eps)))
     nettete = min(f["nettete"] for f in vus.values())
     conf = _clamp01(len(vus) / 4.0 * regularite * nettete)
+    # LES ÉPAISSEURS SONT UN DICTIONNAIRE, ET C'EST UNE CORRECTION. Elles
+    # sortaient en LISTE triée par valeur, à côté d'une liste de bords triée
+    # par NOM : les apparier par indice — ce que tout lecteur fait — était
+    # faux dès que l'ordre des mesures n'était pas l'ordre de l'alphabet.
+    # Mesuré sur des bandes de 1,0 / 2,0 / 3,0 / 4,0 mm posées à gauche, en
+    # haut, à droite et en bas : les quatre couples étaient faux. Un
+    # dictionnaire ne peut pas se désapparier.
+    epaisseurs = {nom: rnd(f["k"] * mm_par_px, 3) for nom, f in vus.items()}
     out = {"mm": rnd(ep_px * mm_par_px, 3),
            "color": _hexa(_couleur_bande(im, ep_px)),
            "confidence": rnd(conf, 3),
-           "bords": sorted(vus),
+           "bords": sorted(epaisseurs),
            "regularite": rnd(regularite, 3),
            "nettete": rnd(nettete, 3),
-           "epaisseurs_mm": [rnd(e * mm_par_px, 3) for e in sorted(eps)]}
+           "epaisseurs_mm": epaisseurs}
     r = _rayon_coin(im, profils)
     out["radius_mm"] = rnd(r * mm_par_px, 3) if r is not None else None
     if r is None:
@@ -727,7 +830,8 @@ def _fusionne(boites: list) -> list:
     return bs
 
 
-def _analyse_zones(im, mm_par_px: float, bord_px: float, notes: list) -> list:
+def _analyse_zones(im, mm_par_px: float, bord_px: float, notes: list):
+    """(boîtes en mm, largeur EN MM de la bande exclue le long des bords)."""
     from app.services.pbr_service import stats
     g, cols, rows, bloc_px = _grille(im, mm_par_px)
     s = stats(g)
@@ -737,7 +841,7 @@ def _analyse_zones(im, mm_par_px: float, bord_px: float, notes: list) -> list:
             f"soit (étendue {s['span']} sur 255, plancher {ZONE_SPAN_MIN}). "
             f"Aucune boîte n'est publiée — un seuil relatif sur une image "
             f"plate ne découpe que du bruit.")
-        return []
+        return [], 0.0
     seuil = s["p5"] + ZONE_FRAC * (s["p95"] - s["p5"])
     # LE RETRAIT. La bande de bordure est le plus fort contraste de la carte :
     # sans retrait, son anneau relie toutes les zones en un seul composant qui
@@ -748,6 +852,33 @@ def _analyse_zones(im, mm_par_px: float, bord_px: float, notes: list) -> list:
                   + math.ceil(ZONE_PORTEE_BLOCS))
     if 2 * retrait >= min(cols, rows):       # une carte plus petite que sa marge
         retrait = 0
+    # ... ET IL FAUT LE DIRE. Ce retrait n'est pas gratuit : il BLANCHIT une
+    # bande de plusieurs millimètres le long des quatre bords — 6,00 mm
+    # mesurés pour une bordure de 2,6 mm — et un cartouche posé dedans
+    # ressortait COUPÉ à la frontière du masque, avec une densité et une
+    # netteté parfaitement saines. Rien, dans le relevé, ne distinguait la
+    # coupe d'une mesure (mesuré : un cartouche de 30 x 9 mm collé au coin
+    # rendait un recouvrement de 0,459 avec ce qui avait été posé, et `notes`
+    # était vide). C'est le cas du bandeau de titre collé au cadre, et P3 fera
+    # naître des slots de ces millimètres-là.
+    #
+    # CE QU'ON NE FAIT PAS, ET POURQUOI : on ne ré-étend PAS les boîtes vers
+    # l'extérieur pour « récupérer » la coupe. Le retrait existe pour exclure
+    # l'énergie de la bordure elle-même ; une ré-extension gober ait le cadre et
+    # rendrait une boîte fausse au lieu d'une boîte courte. Entre une mesure
+    # tronquée AVOUÉE et une mesure inventée, on garde la première — et
+    # l'adoptant lit `tronquee`. La ré-extension mesurée reste une dette.
+    bande_mm = rnd(retrait * bloc_px * mm_par_px, 2)
+    if retrait:
+        portee_mm = rnd(math.ceil(ZONE_PORTEE_BLOCS) * bloc_px * mm_par_px, 2)
+        notes.append(
+            f"Zones : une bande de {_fr(bande_mm)} mm le long des quatre bords "
+            f"est exclue de la recherche — la bande de bordure "
+            f"({_fr(rnd(bord_px * mm_par_px, 2))} mm) plus la portée du filtre "
+            f"({_fr(portee_mm)} mm), sans quoi l'anneau du cadre relie toutes "
+            f"les zones en une seule. Les boîtes qui la touchent portent "
+            f"« tronquee » : de ce côté-là, leur bord est celui du masque et "
+            f"non celui du dessin.")
     lire = g.load()
     masque = [[(lire[x, y] > seuil
                 and retrait <= x < cols - retrait
@@ -781,8 +912,18 @@ def _analyse_zones(im, mm_par_px: float, bord_px: float, notes: list) -> list:
             # NETTETÉ : l'énergie moyenne du rectangle, ramenée à [0,1]. Elle
             # dit combien la zone tranche, la densité dit si elle est pleine.
             "nettete": rnd(somme / float(bw * bh * 255), 3),
+            # TRONQUÉE : un côté au moins bute sur la frontière du masque. Ce
+            # que le drapeau affirme est exactement « DE CE CÔTÉ-LÀ, ON NE
+            # VOIT PAS PLUS LOIN » — pas « cette boîte a certainement été
+            # coupée ». Une zone qui commence pile au premier bloc autorisé
+            # est indiscernable d'une zone coupée, et c'est justement pour ça
+            # qu'on la marque : la mesure est un MINIMUM, pas une taille, et
+            # celui qui l'adopte doit le savoir avant d'en faire un slot.
+            "tronquee": bool(c["x0"] <= retrait or c["y0"] <= retrait
+                             or c["x1"] >= cols - retrait
+                             or c["y1"] >= rows - retrait),
         })
-    return out
+    return out, bande_mm
 
 
 # ── 3. le fond : le verdict de `chroma_key`, et la mesure qui l'explique ─────
@@ -834,26 +975,41 @@ def _analyse_fond(im, notes: list) -> dict:
                 "uniformite": rnd(uni, 3),
                 "couverture": rnd(couv, 3),
                 "seuil": FOND_SEUIL_UNI}
-    motif = ("pourtour non uni" if uni < FOND_SEUIL_UNI
-             else "couverture hors bornes")
+    # RIEN À DÉTOURER N'EST PAS UN FOND DIFFICILE. Sous le plancher de
+    # couverture, ce qui survivrait au détourage est vide : l'image est d'une
+    # seule couleur, il n'y a pas de sujet. Proposer là une option PAYANTE,
+    # c'est vendre un service sans objet — mesuré sur un aplat gris, la
+    # couverture vaut 0,0 % et l'option était proposée quand même.
+    rien = couv < FOND_COUV_MIN
     if uni < FOND_SEUIL_UNI:
+        motif = "pourtour non uni"
         notes.append(f"Fond : pourtour uni à {_fr(uni, 3)} pour un plancher de "
                      f"{_fr(FOND_SEUIL_UNI)} — le détourage local refuse.")
+    elif rien:
+        motif = "rien à détourer"
+        notes.append(f"Fond : la couleur du pourtour couvre toute l'image "
+                     f"({_fr((1.0 - couv) * 100, 1)} %) — il ne resterait "
+                     f"{_fr(couv * 100, 1)} % de sujet, sous le plancher de "
+                     f"{FOND_COUV_MIN:.0%}. Il n'y a rien à détourer ici, ni "
+                     f"localement ni autrement.")
     else:
+        motif = "couverture hors bornes"
         notes.append(f"Fond : le pourtour est uni ({_fr(uni, 3)}) mais la "
-                     f"couleur retirée couvrirait {_fr(couv * 100, 1)} % de "
+                     f"couleur retirée laisserait {_fr(couv * 100, 1)} % de "
                      f"l'image, hors des bornes "
                      f"[{FOND_COUV_MIN:.0%}, {FOND_COUV_MAX:.0%}] — un "
                      f"détourage qui garde tout, ou rien, n'est pas un "
                      f"détourage.")
-    return {"bg_failed": True,
-            "motif": motif,
-            "uniformite": rnd(uni, 3),
-            "seuil": FOND_SEUIL_UNI,
-            "couverture": rnd(couv, 3),
-            "couverture_bornes": [FOND_COUV_MIN, FOND_COUV_MAX],
-            "color": _hexa(m["cle"]),
-            "option_ia": OPTION_IA}
+    out = {"bg_failed": True,
+           "motif": motif,
+           "uniformite": rnd(uni, 3),
+           "seuil": FOND_SEUIL_UNI,
+           "couverture": rnd(couv, 3),
+           "couverture_bornes": [FOND_COUV_MIN, FOND_COUV_MAX],
+           "color": _hexa(m["cle"])}
+    if not rien:
+        out["option_ia"] = OPTION_IA
+    return out
 
 
 # ── 4. la palette ───────────────────────────────────────────────────────────
@@ -910,7 +1066,7 @@ def analyse_recto(im, geo) -> dict:
     ratio_img = h / float(w)
     ratio_fmt = geo.trim_mm[1] / float(geo.trim_mm[0])
     ecart = ratio_img / ratio_fmt - 1.0
-    if abs(ecart) > 0.005:
+    if abs(ecart) > ECART_RATIO_MUET:
         notes.append(
             f"Échelle : l'image est {'plus haute' if ecart > 0 else 'plus large'} "
             f"que le format {geo.fmt} de {_fr(abs(ecart) * 100, 1)} % "
@@ -927,7 +1083,8 @@ def analyse_recto(im, geo) -> dict:
                     "ratio_image": rnd(ratio_img, 4),
                     "ratio_format": rnd(ratio_fmt, 4)},
         "ecart_ratio": _signe(ecart, 4),
-        "border": None, "boxes": [], "bg": None, "palette": [],
+        "border": None, "boxes": [], "zones_bande_mm": None,
+        "bg": None, "palette": [],
         "notes": notes,
     }
     bord_px = 0.0
@@ -936,7 +1093,8 @@ def analyse_recto(im, geo) -> dict:
     except Exception as e:                                  # noqa: BLE001
         notes.append(f"Bordure : mesure impossible sur cette image ({e}).")
     try:
-        out["boxes"] = _analyse_zones(im, mm_par_px, bord_px, notes)
+        out["boxes"], out["zones_bande_mm"] = _analyse_zones(
+            im, mm_par_px, bord_px, notes)
     except Exception as e:                                  # noqa: BLE001
         notes.append(f"Zones : mesure impossible sur cette image ({e}).")
     try:
@@ -962,9 +1120,17 @@ def _analyse_du_disque(did: str) -> dict:
     try:
         from PIL import Image
     except Exception as e:                                  # noqa: BLE001
-        # §8 : dépendance absente -> 503 avec l'erreur LITTÉRALE.
+        # §8 : dépendance absente -> 503 avec l'erreur LITTÉRALE. UNE PRÉCISION
+        # QUE LA PREMIÈRE RÉDACTION S'ÉPARGNAIT : PIL n'est PAS une dépendance
+        # optionnelle de ce laboratoire — la moitié des pièces l'importent, et
+        # sans elle il n'y a pas d'application. Ce garde-fou couvre une
+        # INSTALLATION CASSÉE, pas une option absente ; la doctrine 503 de §8,
+        # elle, vise les dépendances vraiment facultatives, et T3 en aura une
+        # (rembg local). Il est écrit ici parce qu'un 500 sur une installation
+        # abîmée n'apprend rien à personne — et le test de la pièce le JOUE, en
+        # retirant la bibliothèque du chargeur le temps d'une requête.
         raise HTTPException(503, f"L'analyse a besoin de la bibliothèque "
-                                 f"d'images, absente ici : {e}")
+                                 f"d'images (PIL), introuvable ici : {e}")
     try:
         with Image.open(p) as im:
             im.load()
@@ -1018,8 +1184,12 @@ async def post_analyse(did: str):
     mesurées de ce fichier. Un POST à paramètres serait une surface de plus à
     nettoyer pour zéro service rendu.
 
-    `to_thread` : la mesure prend de 40 à 200 ms de CPU selon la trame, et la
-    boucle d'événements sert d'autres requêtes pendant ce temps."""
+    `to_thread` : la mesure prend 35 ms de CPU sur un scan de 630 x 880 et
+    1,1 s sur une trame carrée AU PLAFOND D'IMPORT (mesuré — la première
+    rédaction annonçait « 40 à 200 ms », qui était le petit bout de
+    l'intervalle pris pour l'intervalle). Une seconde de calcul dans la boucle
+    bloquerait toutes les autres requêtes : c'est justement le chiffre du
+    plafond qui rend ce `to_thread` obligatoire, pas facultatif."""
     return await asyncio.to_thread(_analyse_du_disque, did)
 
 

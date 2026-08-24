@@ -91,8 +91,43 @@ Ronde 3 (T2, l'analyse) — 20 défauts remis, 20 vus :
   · le verrou BUSY saute sur `analyser()` (JS) ..................... ROUGE
   · les boîtes placées au jugé, sans l'échelle (JS) ................ ROUGE
 
-ET LES TÉMOINS QUI SURVIVENT À LA RONDE 3, AVOUÉS ET MESURÉS. Sept réglages
-peuvent bouger sans qu'aucun contrôle ne rougisse, et ce n'est pas un oubli :
+Ronde 4 (T2, corrections de revue) — 19 défauts remis, 19 vus :
+  · la bande exclue n'est plus nommée dans les notes .............. ROUGE
+  · plus aucune boîte n'est marquée `tronquee` .................... ROUGE
+  · TOUTES les boîtes sont marquées `tronquee` (le drapeau qui
+    ne discrimine plus) ............................................ ROUGE
+  · la bande n'est plus publiée en mm ............................. ROUGE
+  · le relevé n'initialise plus `zones_bande_mm` (la clé manque
+    quand une détection LÈVE) ...................................... ROUGE
+  · `epaisseurs_mm` redevient une liste triée par taille .......... ROUGE
+  · la note « profil texturé » disparaît .......................... ROUGE
+  · `_front` ne distingue plus texture et aplat ................... ROUGE
+  · le rayon n'est plus corrigé du biais de rangée ................ ROUGE
+  · l'option IA proposée même sans sujet à détourer ............... ROUGE
+  · le seuil de silence du ratio revient à zéro ................... ROUGE
+  · le 503 de dépendance absente redevient un 500 ................. ROUGE
+  · les lignes du fond reprennent l'ordre fixe (JS) ............... ROUGE
+  · les bornes de couverture ne sont plus écrites (JS) ............ ROUGE
+  · `divergence` ne compare plus rien (JS) ........................ ROUGE
+  · `core:geom` MIS EN COMMENTAIRE (JS) ........................... ROUGE
+  · `peutIncruster` oublie l'échelle (JS) ......................... ROUGE
+  · `panne()` ne voit plus le rejet réseau (JS) ................... ROUGE
+  · `effacements` oublie `zones_bande_mm` (JS) .................... ROUGE
+
+DEUX DE CES DIX-NEUF SONT DES TROUS QUE LA RONDE A OUVERTS, PAS FERMÉS, et
+c'est ce qui les rend intéressants :
+  · `core:geom` entouré de `/* */` laissait le contrôle VERT — il cherchait
+    du code par son TEXTE, et un texte en commentaire est encore du texte.
+    Les recherches de code passent désormais par `_code_js`, qui dépouille.
+  · retirer `zones_bande_mm` de l'initialisation du relevé ne se voyait sur
+    aucun chemin heureux : la clé est réécrite juste après. Elle ne manque
+    que si la détection LÈVE — un chemin gardé que rien n'exécutait. Il l'est
+    maintenant (`test_une_DETECTION_QUI_LEVE…`), en faisant mourir `_grille`.
+
+ET LES TÉMOINS QUI SURVIVENT À LA RONDE 3, AVOUÉS ET MESURÉS. Six réglages
+peuvent bouger sans qu'aucun contrôle ne rougisse, et ce n'est pas un oubli
+(le septième, `BORD_FRONT_RATIO`, a été RETOURNÉ par la ronde — voir plus
+bas) :
 
   · `ZONE_SOUS` (8 pixels de travail par bloc) de 4 à 24 — les trois boîtes
     restent trouvées et appariées dans tout cet intervalle. C'est le témoin
@@ -108,15 +143,21 @@ peuvent bouger sans qu'aucun contrôle ne rougisse, et ce n'est pas un oubli :
     coins de 40, 90 et 140 px : l'épaisseur, la confiance et le rayon sont
     IDENTIQUES. La marge protège d'un cas plus dur que tout ce qu'on sait
     fabriquer sans deviner ; elle reste, avouée comme non gardée.
-  · `BORD_FRONT_RATIO` (4) abaissé à 1 — et celui-là mérite sa phrase : sur un
-    profil qui plonge sur 25 % du petit côté, la marche MÉDIANE ne peut pas
-    dépasser ~5 en L1 (255 x 3 niveaux répartis sur ~157 rangées), donc le
-    plancher absolu de 40 décide TOUJOURS avant le rapport. Le rapport ne mord
-    que sur un profil court, c'est-à-dire une image minuscule. Mesuré sur des
-    dégradés raides et sur une bande rayée : aucun des deux ne le fait jouer.
   · `asyncio.to_thread` retiré de la route — l'analyse bloquerait la boucle
     d'événements. Aucun test en-processus ne peut le voir : le transport ASGI
     du banc joue tout dans la même boucle de toute façon.
+
+LE TÉMOIN QUI N'EN ÉTAIT PAS UN — `BORD_FRONT_RATIO`, retourné par la ronde 4.
+L'aveu de la ronde 3 disait que ce rapport ne peut pas mordre sur une carte
+(un fondu monotone ne cumule que ~5 de marche médiane) et qu'il ne mord que
+sur une image minuscule. Re-mesuré, C'EST L'INVERSE : sur un profil OSCILLANT
+— des rayures de 2 px — la marche médiane vaut 455 et le plancher passe de 40
+à 1824, donc le rapport décide seul ; sur une image de 40 x 56, la marche
+médiane vaut ZÉRO et il ne joue aucun rôle. Ce qu'il attrape est une bordure à
+filets fins ou un scan tramé, et ce refus-là a maintenant SA note et SON
+contrôle (`test_une_bordure_TEXTUREE…`). Leçon : un aveu qui explique pourquoi
+un garde-fou ne peut pas servir mérite la même mesure qu'une affirmation de
+succès — celui-ci était une hypothèse écrite au présent.
 
 ET LE TÉMOIN DE LA RONDE 2, AVOUÉ — c'en est un NOUVEAU : celui de la ronde 1
 (LANCZOS) est fermé par `test_la_reduction_FILTRE_vraiment…`. Retirer
@@ -305,15 +346,21 @@ def _iou(a, b) -> float:
     return inter / (a[2] * a[3] + b[2] * b[3] - inter)
 
 
-def _chaines_js(src: str) -> list:
-    """Les LITTÉRAUX DE CHAÎNE d'un source JS, commentaires exclus.
+def _scan_js(src: str):
+    """(littéraux de chaîne, source SANS ses commentaires).
 
-    Un automate de dix lignes, et il en faut un : les commentaires de ce
-    chantier sont en français, donc pleins d'apostrophes, et toute recherche
-    de `'…'` par expression régulière prend un commentaire pour une chaîne.
-    On suit donc l'état — dans un commentaire, dans une chaîne, ailleurs —
-    et on ne rend que ce qui est vraiment une chaîne."""
-    out, i, n = [], 0, len(src)
+    Un automate de vingt lignes, et il en faut un pour DEUX raisons :
+
+      · les commentaires de ce chantier sont en français, donc pleins
+        d'apostrophes, et toute recherche de `'…'` par expression régulière
+        prend un commentaire pour une chaîne ;
+      · un contrôle qui cherche du CODE par son texte est satisfait par ce
+        même code MIS EN COMMENTAIRE. Mesuré : l'écoute de `core:geom`
+        neutralisée en l'entourant de `/* */` laissait le contrôle vert. Un
+        garde-fou qu'on peut désactiver sans faire rougir un test n'est pas
+        gardé — on cherche donc dans le code dépouillé.
+    """
+    chaines, code, i, n = [], [], 0, len(src)
     while i < n:
         c = src[i]
         if c == "/" and i + 1 < n and src[i + 1] == "*":
@@ -331,11 +378,21 @@ def _chaines_js(src: str) -> list:
                     continue
                 buf.append(src[j])
                 j += 1
-            out.append("".join(buf))
+            chaines.append("".join(buf))
+            code.append(src[i:min(j + 1, n)])
             i = j + 1
         else:
+            code.append(c)
             i += 1
-    return out
+    return chaines, "".join(code)
+
+
+def _chaines_js(src: str) -> list:
+    return _scan_js(src)[0]
+
+
+def _code_js(src: str) -> str:
+    return _scan_js(src)[1]
 
 
 def _cles_du_schema() -> set:
@@ -1161,26 +1218,6 @@ def test_une_BORDURE_POSEE_en_mm_est_RETROUVEE_a_tolerance_chiffree():
         CC.delete_deck(did)
 
 
-def test_le_RAYON_DE_COIN_pose_est_retrouve_a_tolerance_PLUS_LACHE():
-    """Rayon posé 40 px = 4,0 mm, mesuré 3,4 mm — et l'écart n'est PAS du
-    bruit : `ImageDraw.rounded_rectangle` inscrit l'arc dans une boîte de
-    2r+1 px, donc le premier pixel plein de la rangée extérieure tombe à
-    `r - sqrt((r+0.5)² - r²)` ≈ r - 6,3 px pour r = 40. La vérité posée et la
-    vérité RASTÉRISÉE diffèrent de 0,63 mm : la tolérance est de 1,0 mm, dix
-    fois celle de l'épaisseur, et c'est écrit ici parce qu'un rayon se lit sur
-    une courbe quand une bande se lit sur une marche."""
-    did, a = _pose_et_analyse(_synth(26, rayon=40))
-    b = a["border"]
-    assert b and b["radius_mm"] is not None, a["notes"]
-    assert abs(b["radius_mm"] - 4.0) <= 1.0, \
-        (f"rayon posé 4,0 mm, mesuré {b['radius_mm']} mm")
-    CC.delete_deck(did)
-    # Un coin CARRÉ rend zéro, et c'est une mesure, pas un aveu d'échec.
-    did, a = _pose_et_analyse(_synth(26))
-    assert a["border"]["radius_mm"] == 0.0, a["border"]
-    CC.delete_deck(did)
-
-
 def test_une_bordure_IRREGULIERE_a_une_confiance_PLUS_BASSE():
     """Le chiffre doit BOUGER DANS LE BON SENS. Bandes posées de 1,0 / 2,6 /
     4,0 / 6,0 mm : la régularité tombe à 1 - (6-1)/6 = 0,167, et la confiance
@@ -1197,8 +1234,10 @@ def test_une_bordure_IRREGULIERE_a_une_confiance_PLUS_BASSE():
     assert a and b
     assert a["confidence"] < b["confidence"], (a["confidence"], b["confidence"])
     assert a["confidence"] < 0.5, a
-    # et les quatre épaisseurs mesurées SONT les quatre posées
-    assert a["epaisseurs_mm"] == [1.0, 2.6, 4.0, 6.0], a["epaisseurs_mm"]
+    # et les quatre épaisseurs mesurées SONT les quatre posées, CHACUNE À SON
+    # BORD (gauche 10, haut 40, droite 26, bas 60 px).
+    assert a["epaisseurs_mm"] == {"gauche": 1.0, "haut": 4.0,
+                                 "droite": 2.6, "bas": 6.0}, a["epaisseurs_mm"]
     CC.delete_deck(did)
 
 
@@ -1426,6 +1465,214 @@ def test_L_ECHELLE_VIENT_DU_FORMAT_DU_DECK_et_pas_de_l_image():
         CC.delete_deck(did)
 
 
+def test_la_BANDE_EXCLUE_du_retrait_est_NOMMEE_et_les_boites_coupees_AVOUEES():
+    """LA TROUVAILLE BLOQUANTE DE LA RONDE. Le retrait qui empêche l'anneau de
+    bordure d'avaler les zones (contrôle voisin) blanchit AUSSI une bande de
+    plusieurs millimètres le long des quatre bords — 6,00 mm mesurés pour une
+    bordure de 2,6 mm. Un cartouche posé dedans ressortait COUPÉ à la
+    frontière du masque, avec une densité et une netteté parfaitement
+    saines : rien, dans le relevé, ne distinguait la coupe d'une mesure.
+    Mesuré, cartouche de 30 x 9 mm : collé au coin -> IoU 0,459 ; à 3 mm du
+    bord -> 0,503 — SOUS le seuil d'appariement de 0,60 de cette suite ; et
+    `notes` était VIDE dans les cinq cas.
+
+    C'est le cas du Patriarche (bandeau de titre collé au cadre), et T3 fera
+    naître des slots de ces millimètres-là. Trois exigences : la bande est
+    publiée EN MILLIMÈTRES, la note la nomme avec ses deux termes, et toute
+    boîte qui la touche porte `tronquee`."""
+    did, a = _pose_et_analyse(_synth(26, [(27, 27, 300, 90, (235, 220, 160))]))
+    assert a["zones_bande_mm"] and a["zones_bande_mm"] > 0, a["zones_bande_mm"]
+    note = [n for n in a["notes"] if "bande" in n and "exclue" in n]
+    assert note, a["notes"]
+    assert _fr_py(a["zones_bande_mm"]) in note[0], (a["zones_bande_mm"], note)
+    assert a["boxes"], a["notes"]
+    assert all(b.get("tronquee") is True for b in a["boxes"]), a["boxes"]
+    CC.delete_deck(did)
+    # ... et une boîte LOIN du bord ne porte pas le drapeau : sinon il ne
+    # dirait rien, il décorerait.
+    did, a = _pose_et_analyse(_synth(26, [(200, 200, 300, 90, (235, 220, 160))]))
+    assert a["boxes"], a["notes"]
+    assert all(b.get("tronquee") is False for b in a["boxes"]), a["boxes"]
+    CC.delete_deck(did)
+
+
+def _fr_py(v, n=2):
+    """Le MÊME écrivain de nombres que la source (`capture._fr`) — pas une
+    seconde recette. Deux façons d'écrire un nombre dans un test et dans le
+    code, c'est un faux-rouge qui attend son zéro final : `str(rnd(0.250,3))`
+    donne « 0.25 » quand `_fr` donne « 0,250 »."""
+    return CP._fr(v, n)
+
+
+def test_les_QUATRE_EPAISSEURS_sont_APPARIEES_a_leur_bord():
+    """DEUX TRIS, DEUX CLÉS. `bords` sortait de `sorted(vus)` — l'ordre
+    ALPHABÉTIQUE des noms — et `epaisseurs_mm` de `sorted(eps)` — l'ordre
+    NUMÉRIQUE des épaisseurs. Les apparier par indice était donc faux dès que
+    l'ordre des mesures n'était pas l'ordre de l'alphabet. Mesuré sur des
+    bandes posées gauche 1,0 / haut 2,0 / droite 3,0 / bas 4,0 mm :
+    l'appariement par indice donnait {bas: 1,0, droite: 2,0, gauche: 3,0,
+    haut: 4,0} — les QUATRE fausses. `epaisseurs_mm` est un DICTIONNAIRE."""
+    im = Image.new("RGB", (SYNTH_W, SYNTH_H), OR)
+    # gauche 10 px, haut 20 px, droite 30 px, bas 40 px
+    ImageDraw.Draw(im).rectangle(
+        [10, 20, SYNTH_W - 31, SYNTH_H - 41], fill=NOIR)
+    did, a = _pose_et_analyse(im)
+    b = a["border"]
+    assert b["epaisseurs_mm"] == {"gauche": 1.0, "haut": 2.0,
+                                 "droite": 3.0, "bas": 4.0}, b["epaisseurs_mm"]
+    # `bords` et le dictionnaire disent la MÊME chose — une seule vérité.
+    assert b["bords"] == sorted(b["epaisseurs_mm"]), b
+    CC.delete_deck(did)
+    # ... et quand un bord seulement est vu, il n'y en a QU'UN dans le
+    # dictionnaire : on ne publie pas trois trous pour faire quatre.
+    im = Image.new("RGB", (SYNTH_W, SYNTH_H), OR)
+    ImageDraw.Draw(im).rectangle([0, 20, SYNTH_W - 1, SYNTH_H - 1], fill=NOIR)
+    did, a = _pose_et_analyse(im)
+    if a["border"]:
+        assert set(a["border"]["epaisseurs_mm"]) == set(a["border"]["bords"])
+        assert len(a["border"]["bords"]) < 4, a["border"]
+    CC.delete_deck(did)
+
+
+def test_une_bordure_TEXTUREE_est_refusee_pour_SA_VRAIE_RAISON():
+    """LE TÉMOIN `BORD_FRONT_RATIO`, RETOURNÉ PAR LA RONDE. L'aveu de la
+    livraison disait deux choses, toutes deux fausses : que le rapport ne mord
+    jamais sur une carte, et qu'il ne mord que sur une image minuscule.
+
+    Mesuré : sur un profil OSCILLANT (rayures de 2 px), la marche médiane vaut
+    455 et le plancher passe de 40 à 1824 — le rapport décide, et il décide
+    seul. Sur une image de 40 x 56, la marche médiane vaut 0 : le rapport ne
+    joue AUCUN rôle. C'est l'inverse exact de ce qui était écrit.
+
+    Conséquence réelle, et c'est elle qu'on garde : un scan tramé ou une
+    bordure à filets fins rend `border: null` avec une note qui disait
+    « aucun front franc » — un refus qui ne nomme pas sa cause. La note doit
+    dire le PROFIL TEXTURÉ et ses deux chiffres."""
+    ray = Image.new("RGB", (SYNTH_W, SYNTH_H), NOIR)
+    d = ImageDraw.Draw(ray)
+    for y in range(0, SYNTH_H, 4):
+        d.rectangle([0, y, SYNTH_W - 1, y + 1], fill=OR)
+    did, a = _pose_et_analyse(ray)
+    assert a["border"] is None, a["border"]
+    tex = [n for n in a["notes"] if "textur" in n.lower()]
+    assert tex, a["notes"]
+    assert "455" in tex[0] and "1824" in tex[0], tex[0]
+    # ... et le refus ORDINAIRE (dégradé doux, marche médiane nulle) garde sa
+    # note à lui : les deux causes ne se confondent pas.
+    grad = Image.new("RGB", (SYNTH_W, SYNTH_H))
+    dg = ImageDraw.Draw(grad)
+    for y in range(SYNTH_H):
+        dg.line([(0, y), (SYNTH_W, y)],
+                fill=(int(20 + y * 0.25), 40, int(200 - y * 0.2)))
+    CC.delete_deck(did)
+    did, a = _pose_et_analyse(grad)
+    assert a["border"] is None
+    assert not any("textur" in n.lower() for n in a["notes"]), a["notes"]
+    assert any("front franc" in n for n in a["notes"]), a["notes"]
+    CC.delete_deck(did)
+
+
+def test_l_option_IA_n_est_PAS_proposee_quand_il_n_y_a_RIEN_a_detourer():
+    """Un aplat total refuse par la porte de COUVERTURE : 0,0 % de l'image
+    survivrait au détourage, c'est-à-dire qu'il n'y a pas de sujet. Proposer
+    là une option PAYANTE, c'est vendre un service sans objet."""
+    did, a = _pose_et_analyse(Image.new("RGB", (SYNTH_W, SYNTH_H), (90, 90, 90)))
+    bg = a["bg"]
+    assert bg["bg_failed"] is True and bg["couverture"] == 0.0, bg
+    assert "option_ia" not in bg, bg.get("option_ia")
+    assert "rien" in bg["motif"] or "rien" in " ".join(a["notes"]).lower(), \
+        (bg["motif"], a["notes"])
+    CC.delete_deck(did)
+
+
+def test_le_RAYON_est_CORRIGE_du_biais_de_la_rangee_exterieure():
+    """LE BIAIS ÉTAIT CONNU, ÉCRIT, EXACT — ET ABSORBÉ PAR UNE TOLÉRANCE DIX
+    FOIS TROP LARGE. La ronde a eu raison : un biais qu'on sait calculer se
+    corrige, il ne se tolère pas.
+
+    D'OÙ IL VIENT : la rangée extérieure d'un coin arrondi a une HAUTEUR. Le
+    premier pixel plein de cette rangée n'est pas à `r` du coin mais à
+    `r - sqrt(r)` environ — le pixel dont le centre entre le premier dans le
+    disque. Ce n'est PAS un artefact de la bibliothèque de dessin du test :
+    c'est vrai de tout arc rastérisé, donc du scan d'une vraie carte. La
+    correction appartient à la MESURE, pas au montage.
+
+    Mesuré avant correction, rayons posés 10/20/40/60/90 px : 7/16/34/53/81 px
+    lus, soit 3 à 9 px de moins — 12 à 30 % du rayon. Après inversion, l'écart
+    tombe sous 0,10 mm, et la tolérance passe de 1,00 mm à 0,15 mm : la même
+    que l'épaisseur de bande, parce que c'est la même résolution — 1,5 px."""
+    tol = 1.5 * SYNTH_MM_PX
+    for r_px in (10, 20, 40, 60, 90):
+        im = Image.new("RGB", (SYNTH_W, SYNTH_H), (255, 255, 255))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle([0, 0, SYNTH_W - 1, SYNTH_H - 1], radius=r_px,
+                            fill=OR)
+        d.rectangle([26, 26, SYNTH_W - 27, SYNTH_H - 27], fill=NOIR)
+        did, a = _pose_et_analyse(im)
+        vu = a["border"]["radius_mm"]
+        attendu = r_px * SYNTH_MM_PX
+        assert abs(vu - attendu) <= tol, \
+            (f"rayon posé {attendu:.2f} mm, mesuré {vu} mm "
+             f"(tolérance {tol:.2f} mm)")
+        CC.delete_deck(did)
+    # ... et un coin CARRÉ rend toujours zéro : la correction ne fabrique pas
+    # un rayon là où la course vaut zéro pixel.
+    did, a = _pose_et_analyse(_synth(26))
+    assert a["border"]["radius_mm"] == 0.0, a["border"]
+    CC.delete_deck(did)
+
+
+def test_le_SEUIL_DE_SILENCE_de_l_ecart_de_ratio_est_NOMME_et_tenu():
+    """Le 0,005 nu de la livraison : sous un demi-pour-cent d'écart, l'image
+    est au format à l'arrondi d'un pixel près (un poker_eu de 630 px de large
+    fait 880 px de haut ; 879 ou 881 donnent déjà ±0,11 %), et une note à
+    chaque analyse serait du bruit. Il porte maintenant un nom et sa raison.
+    Mesuré aux deux bords : +0,0045 se tait, +0,0057 parle."""
+    assert 0.0 < CP.ECART_RATIO_MUET < 0.05, CP.ECART_RATIO_MUET
+    for cible, parle in ((0.004, False), (0.006, True)):
+        hh = int(round(SYNTH_W * (88.0 / 63.0) * (1 + cible)))
+        did, a = _pose_et_analyse(_synth(26).resize((SYNTH_W, hh)))
+        assert abs(a["ecart_ratio"]) > 0, a["ecart_ratio"]
+        vu = any("ratio" in n for n in a["notes"])
+        assert vu is parle, (cible, a["ecart_ratio"], a["notes"])
+        CC.delete_deck(did)
+
+
+def test_une_dependance_ABSENTE_rend_503_avec_l_erreur_LITTERALE():
+    """La doctrine §8 était REVENDIQUÉE et jamais jouée. On la joue : la
+    bibliothèque d'images est retirée du chargeur le temps d'une requête, et
+    le refus doit être un 503 qui PORTE l'erreur, pas un 500.
+
+    (Ce que la prose de la source dit maintenant : PIL n'est pas une
+    dépendance optionnelle de ce laboratoire — ce garde-fou couvre une
+    installation cassée, pas une option absente. La doctrine 503 vise les
+    dépendances vraiment facultatives, et T3 en aura une.)"""
+    import types
+    did = _deck()
+    _post(did, _pngs(_synth(26)), "recto")
+    # `PIL.Image` AUSSI, et c'est le piège du montage : `from PIL import Image`
+    # ne s'arrête pas à l'attribut manquant, il retombe sur le SOUS-MODULE —
+    # qui est encore dans le chargeur. Une première écriture ne retirait que
+    # `PIL` et la route répondait 200, la bibliothèque toujours là.
+    vrais = {k: v for k, v in sys.modules.items()
+             if k == "PIL" or k.startswith("PIL.")}
+    for k in vrais:
+        del sys.modules[k]
+    sys.modules["PIL"] = types.ModuleType("PIL")     # un PIL sans `Image`
+    try:
+        r = _analyse(did)
+    finally:
+        sys.modules.pop("PIL", None)
+        sys.modules.update(vrais)
+    assert r.status_code == 503, (r.status_code, r.text[:300])
+    detail = r.json()["detail"]
+    assert "Image" in detail or "PIL" in detail, detail
+    assert re.search(r"[éèêàç]", detail), detail
+    # la pièce remarche une fois la bibliothèque revenue
+    assert _analyse(did).status_code == 200
+    CC.delete_deck(did)
+
+
 def test_les_MESURES_franchissent_la_frontiere_en_MILLIMETRES():
     """Plan D3 : « une unité par frontière, convertie au bord de l'API ». Le
     relevé ne parle qu'en millimètres — la seule exception est `echelle`, dont
@@ -1434,7 +1681,14 @@ def test_les_MESURES_franchissent_la_frontiere_en_MILLIMETRES():
 
     LE PIÈGE ÉTAIT ÉCRIT : la bordure publiait son épaisseur en pixels À CÔTÉ
     de ses millimètres, « pour le confort ». Deux unités pour une mesure, et
-    la première pièce qui adopte (T3, T4) doit choisir laquelle croire."""
+    la première pièce qui adopte (T3, T4) doit choisir laquelle croire.
+
+    ET LE BALAYAGE SE DÉRIVE DE LA RÉPONSE, il ne récite pas quatre noms. La
+    première écriture nommait `border`, `boxes`, `bg`, `palette` EN DUR : la
+    ronde a ajouté un `retrait_px` au sommet du relevé, proprement déclaré
+    partout, et les 56 contrôles sont restés verts. C'est la leçon des miroirs
+    de T1 appliquée à un balayage — ce qu'on énumère à la main, on cesse de
+    l'énumérer le jour où l'on ajoute une clé."""
     did, a = _pose_et_analyse(_synth(26, TROIS))
 
     def balaie(v, chemin):
@@ -1447,7 +1701,10 @@ def test_les_MESURES_franchissent_la_frontiere_en_MILLIMETRES():
             for i, x in enumerate(v):
                 balaie(x, f"{chemin}[{i}]")
 
-    for cle in ("border", "boxes", "bg", "palette"):
+    balayees = set(a) - {"echelle"}
+    assert len(balayees) >= 6, balayees
+    for cle in sorted(balayees):
+        assert "px" not in cle.split("_"), f"{cle} traverse l'API en pixels"
         balaie(a[cle], cle)
     # ... et `echelle` porte l'exception, EXPLICITEMENT nommée.
     assert a["echelle"]["image_px"] == [SYNTH_W, SYNTH_H], a["echelle"]
@@ -1479,9 +1736,17 @@ def test_une_image_PATHOLOGIQUE_degrade_l_analyse_SANS_500():
     """Spec §8 : jamais 500. Un pixel, trois pixels, un aplat total — chacun
     rend un relevé DÉGRADÉ ET AVOUÉ (les détections absentes, les notes qui
     disent pourquoi), pas une trace de pile."""
+    # LA RÉFÉRENCE : les clés d'un relevé SAIN. Un relevé dégradé doit être
+    # aussi COMPLET — vide, pas amputé. Une clé qui n'apparaît que sur le
+    # chemin heureux force chaque lecteur à un `if` de plus, et l'écran, lui,
+    # lèverait sur une valeur `undefined` (c'est la leçon `patchAs` de T1).
+    did, sain = _pose_et_analyse(_synth(26, TROIS))
+    cles = set(sain)
+    CC.delete_deck(did)
     for (w, h) in ((1, 1), (2, 3), (SYNTH_W, SYNTH_H)):
         im = Image.new("RGB", (w, h), (90, 90, 90))
         did, a = _pose_et_analyse(im)
+        assert set(a) == cles, (w, h, sorted(cles - set(a)), sorted(set(a) - cles))
         assert a["border"] is None, (w, h, a["border"])
         assert a["boxes"] == [], (w, h, a["boxes"])
         assert a["bg"].get("bg_failed") is True, (w, h, a["bg"])
@@ -1489,6 +1754,41 @@ def test_une_image_PATHOLOGIQUE_degrade_l_analyse_SANS_500():
         assert a["palette"], (w, h, a["palette"])
         assert a["analyzed"] > 1_000_000_000_000, a["analyzed"]
         CC.delete_deck(did)
+
+
+def test_une_DETECTION_QUI_LEVE_laisse_le_releve_COMPLET_et_l_AVOUE():
+    """LE CHEMIN GARDÉ, ENFIN JOUÉ. Chaque détection de `analyse_recto` est
+    entourée d'un `try` qui écrit une note et continue — c'est ce qui tient la
+    promesse « jamais 500 » sur une image pathologique. Mais rien ne
+    l'exécutait : les images dégénérées passent par le chemin NORMAL (elles
+    rendent zéro boîte, sans lever).
+
+    Ce que le contrôle exige, et que la ronde a mis en lumière : sur ce
+    chemin-là aussi, le relevé reste COMPLET. Une clé qui n'existe que si la
+    détection réussit oblige chaque lecteur à un `if` de plus — et côté écran,
+    `patchAs` reçoit un `undefined` que `sanitize` refuse (leçon T1)."""
+    did = _deck()
+    _post(did, _pngs(_synth(26, TROIS)), "recto")
+    complet = set(_analyse(did).json())
+    vrai = CP._grille
+
+    def _grille_qui_meurt(*a, **k):
+        raise RuntimeError("panne simulée par le test")
+
+    CP._grille = _grille_qui_meurt
+    try:
+        r = _analyse(did)
+    finally:
+        CP._grille = vrai
+    assert r.status_code == 200, (r.status_code, r.text[:300])
+    a = r.json()
+    assert set(a) == complet, sorted(complet - set(a))
+    assert a["boxes"] == [] and a["zones_bande_mm"] is None, a["zones_bande_mm"]
+    assert any("panne simulée" in n for n in a["notes"]), a["notes"]
+    # ... et les AUTRES détections ont quand même travaillé : une panne de
+    # zones n'emporte pas la bordure.
+    assert a["border"] and a["border"]["mm"] == 2.6, a["border"]
+    CC.delete_deck(did)
 
 
 def test_un_aplat_GRENU_ne_fabrique_pas_de_zones():
@@ -1636,6 +1936,127 @@ def test_l_incrustation_des_boites_n_est_PAS_un_painter():
         "les quatre côtés doivent être posés en pourcentages"
     js = JS.read_text(encoding="utf-8")
     assert 'painters: []' in js.replace('painters:[', 'painters: [')
+
+
+def test_le_refus_du_fond_nomme_a_l_ecran_la_PORTE_QUI_A_REFUSE():
+    """Le JSON disait juste (`motif` nomme la porte), l'écran non : il posait
+    TOUJOURS la ligne d'uniformité en tête. Sur un refus par COUVERTURE on
+    lisait donc « uniformité 1,00 pour un plancher de 0,60 » — un chiffre qui
+    PASSE, présenté comme la cause d'un refus — puis la couverture sans ses
+    bornes, alors que `couverture_bornes` était publié et lu par personne.
+
+    La règle est EXÉCUTÉE : on extrait `lignesFond` de la vraie source et on
+    lui donne les deux refus."""
+    src = (_fonction_js("isPlain") + _fonction_js("estNombre")
+           + _fonction_js("num") + _fonction_js("lignesFond"))
+    sortie = _node(src + """
+      const uni = {bg_failed:true, motif:"pourtour non uni", uniformite:0.246,
+                   seuil:0.6, couverture:0.15, couverture_bornes:[0.05,0.95],
+                   option_ia:"IA"};
+      const cou = {bg_failed:true, motif:"couverture hors bornes",
+                   uniformite:1, seuil:0.6, couverture:0.0,
+                   couverture_bornes:[0.05,0.95]};
+      const ok = {color:"#1e3c78", confidence:1, couverture:0.358, seuil:0.6};
+      console.log(JSON.stringify([lignesFond(uni), lignesFond(cou),
+                                  lignesFond(ok)]));
+    """)
+    par_uni, par_couv, sain = json.loads(sortie)
+    par_uni = " | ".join(x for x in par_uni if x)
+    par_couv = " | ".join(x for x in par_couv if x)
+    sain = " | ".join(x for x in sain if x)
+    # le refus par uniformité mène avec l'uniformité...
+    assert "uniformit" in par_uni.split("|")[1], par_uni
+    assert "0,25" in par_uni and "0,60" in par_uni, par_uni
+    # ... et le refus par COUVERTURE mène avec la couverture ET ses bornes,
+    # sans jamais donner l'uniformité pour cause.
+    assert "couverture" in par_couv.split("|")[1].lower(), par_couv
+    assert "5" in par_couv and "95" in par_couv, \
+        f"les bornes ne sont pas écrites : {par_couv}"
+    tete = par_couv.split("|")[1].lower()
+    assert "uniformit" not in tete, \
+        f"la mauvaise porte est nommée en tête : {par_couv}"
+    assert "refus" not in sain.lower(), sain
+
+
+def test_l_ecran_DIT_quand_le_FORMAT_a_bouge_sous_les_mesures():
+    """Le piège était nommé dans un commentaire, pas fermé. Le CORE émet
+    `core:geom` quand le format change (core.js:424) ; P10 ne l'écoutait pas.
+    Après un passage poker -> tarot, l'écran gardait sa pastille verte et
+    affichait « 63,0 x 88,0 mm (poker_eu) » sur un jeu tarot : des
+    millimètres faux de 11 %, présentés comme mesurés.
+
+    La décision vit dans une fonction PURE, exécutée ici."""
+    fn = _fonction_js("isPlain") + _fonction_js("divergence")
+    sortie = _node(fn + """
+      const d = (e, f) => JSON.stringify(divergence(e, {format: {fmt: f}}));
+      console.log([d({fmt:"poker_eu"}, "poker_eu"), d({fmt:"poker_eu"}, "tarot_eu"),
+                   d(null, "poker_eu"), d({fmt:"poker_eu"}, null),
+                   d({}, "tarot_eu")].join("|"));
+    """)
+    memes, autres, sans_e, sans_f, vide = sortie.strip().split("|")
+    assert json.loads(memes) is None, memes
+    assert json.loads(autres) == {"avant": "poker_eu", "apres": "tarot_eu"}, autres
+    for muet in (sans_e, sans_f, vide):
+        assert json.loads(muet) is None, muet
+    # ... et l'écran se REPEINT sur l'événement, sinon la divergence attend
+    # un clic pour se voir. LA RECHERCHE PORTE SUR LE CODE DÉPOUILLÉ : la
+    # ligne mise en commentaire satisfaisait le contrôle précédent (mesuré en
+    # l'entourant de `/* */` — vert), ce qui en faisait un garde-fou qu'on
+    # pouvait débrancher sans rien casser.
+    code = _code_js(JS.read_text(encoding="utf-8"))
+    assert re.search(r'CF\.on\(\s*"core:geom"', code), \
+        "P10 n'écoute pas core:geom : le format peut bouger sans qu'elle le sache"
+    assert "divergence(" in _code_js(_corps_js("mesures")), \
+        "la divergence est calculée mais jamais affichée"
+
+
+def test_le_bouton_des_ZONES_ne_promet_que_ce_qu_il_peut_faire():
+    """Sa visibilité tenait au seul `boxes.length` ; l'incrustation, elle,
+    exige AUSSI `echelle.carte_mm` — sans quoi elle n'a pas d'unité où poser
+    ses pourcentages. Un document venu d'une version antérieure (des boîtes,
+    pas d'échelle) affichait donc un bouton qui ne faisait rien. Les deux
+    conditions sont la MÊME : `peutIncruster`."""
+    src = (_fonction_js("isPlain") + _fonction_js("estNombre")
+           + _fonction_js("peutIncruster"))
+    sortie = _node(src + """
+      const p = (s) => peutIncruster(s) ? 1 : 0;
+      console.log([p({boxes:[{x:1}], echelle:{carte_mm:[63,88]}}),
+                   p({boxes:[], echelle:{carte_mm:[63,88]}}),
+                   p({boxes:[{x:1}], echelle:null}),
+                   p({boxes:[{x:1}], echelle:{carte_mm:[0,88]}}),
+                   p({})].join(""));
+    """)
+    assert sortie.strip() == "10000", sortie
+    # ... et c'est ELLE que les deux endroits interrogent.
+    for f in ("paint", "dessineBoites"):
+        assert "peutIncruster(" in _corps_js(f), f
+
+
+def test_une_PANNE_DE_RESEAU_ne_se_dit_pas_dans_la_langue_du_navigateur():
+    """`panne()` ne traduisait que `e.missing` : un `fetch` rejeté (backend
+    éteint, câble débranché) ressortait en « Failed to fetch », en anglais et
+    sans dire ce qu'il faut faire. Le CORE a déjà écrit le remède
+    (`core.js:1244`, « backend injoignable ») ; on l'applique."""
+    src = _fonction_js("panne")
+    sortie = _node(src + """
+      const e1 = new Error("route absente"); e1.missing = true;
+      const e2 = new TypeError("Failed to fetch");
+      const e3 = new Error("Côté inconnu : « dos »");
+      console.log([panne(e1, "l'analyse"), panne(e2, "l'analyse"),
+                   panne(e3, "l'analyse")].join("|"));
+    """)
+    absente, reseau, nomme = sortie.strip().split("|")
+    assert "backend absent" in absente, absente
+    # LA PHRASE DU NAVIGATEUR RESTE, EN PARENTHÈSES, ET C'EST VOULU : la
+    # doctrine du lab est « l'erreur LITTÉRALE, préfixée » — celui qui
+    # diagnostique veut le mot exact, celui qui lit veut la phrase française.
+    # Ce qui est interdit, c'est que la phrase anglaise soit TOUT le message.
+    assert reseau.startswith("backend injoignable"), reseau
+    assert "service local" in reseau, reseau
+    assert reseau != "Failed to fetch", reseau
+    # ... et un refus NOMMÉ par le backend traverse intact : le remède ne doit
+    # pas avaler la phrase que la route a pris la peine d'écrire.
+    assert nomme == "Côté inconnu : « dos »", nomme
 
 
 def test_le_geste_ANALYSER_est_garde_contre_le_double_clic():

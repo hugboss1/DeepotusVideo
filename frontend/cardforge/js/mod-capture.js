@@ -100,7 +100,12 @@
       echelle: null,      /* {mm_par_px, image_px, carte_mm, fmt, ratio_*} */
       ecart_ratio: null,  /* ratio image / ratio format − 1, SIGNE */
       border: null,       /* {mm, color, radius_mm, confidence, …} ou null */
-      boxes: [],          /* [{x, y, w, h, densite, nettete}] — en MILLIMETRES */
+      boxes: [],          /* [{x, y, w, h, densite, nettete, tronquee}] — en MM */
+      /* La bande, EN MM, que la recherche de zones exclut le long des quatre
+         bords (bordure + portee du filtre). Elle n'est pas un detail : une
+         boite qui la touche est COUPEE, pas mesuree — elle porte `tronquee`,
+         et l'ecran le dit avant que P3 en fasse un slot. */
+      zones_bande_mm: null,
       bg: null,           /* {color, confidence} ou le refus mesure */
       palette: [],        /* [{hex, part}] dominantes */
       notes: [],          /* ce que l'analyse n'a PAS pu mesurer, et pourquoi */
@@ -115,9 +120,13 @@
          adoption, un jeu rouvert. On repeint sur l'evenement, jamais sur une
          copie gardee au chaud. */
       CF.on("core:doc", (e) => {
-        if (!e || e.id === "capture" || e.id === "name") paint();
+        if (!e || e.id === "capture" || e.id === "name" || e.id === "format") paint();
       });
       CF.on("core:deck", () => paint());
+      /* LE FORMAT PEUT BOUGER SOUS LES MESURES. Le CORE l'annonce
+         (core.js:424) ; sans cette ligne, l'ecran gardait sa pastille verte et
+         ses millimetres d'avant sur un jeu qui avait change de format. */
+      CF.on("core:geom", () => paint());
     },
   });
 
@@ -195,6 +204,66 @@
     if (!isFinite(n) || n <= 0) return "—";
     try { return new Date(n).toLocaleString("fr-FR"); }
     catch (e) { return String(ms); }
+  }
+
+  /* LE FORMAT A-T-IL BOUGE SOUS LES MESURES ? Une fonction PURE, et c'est
+     delibere : le test l'execute au lieu de lire sa forme.
+
+     Le releve porte le format sur lequel il a ete calcule (`echelle.fmt`) ;
+     le document, lui, peut changer de format a tout moment par le widget de
+     la barre. Apres un passage poker -> tarot, l'ecran continuait d'afficher
+     « 63,0 x 88,0 mm (poker_eu) » sur un jeu tarot : des millimetres faux de
+     11 %, presentes comme mesures. Le piege etait NOMME dans un commentaire
+     et pas ferme — le CORE emet pourtant `core:geom` a chaque changement. */
+  function divergence(echelle, doc) {
+    if (!isPlain(echelle) || !isPlain(doc) || !isPlain(doc.format)) return null;
+    const avant = String(echelle.fmt || "");
+    const apres = String(doc.format.fmt || "");
+    if (!avant || !apres || avant === apres) return null;
+    return { avant: avant, apres: apres };
+  }
+
+  /* L'INCRUSTATION EST-ELLE POSSIBLE ? Une seule reponse pour deux endroits.
+     La visibilite du bouton tenait au seul `boxes.length` quand le dessin,
+     lui, exige AUSSI l'echelle : un document venu d'une version anterieure
+     (des boites, pas d'echelle) montrait un bouton qui ne faisait rien. */
+  function peutIncruster(s) {
+    const e = isPlain(s) && isPlain(s.echelle) ? s.echelle : null;
+    const bs = isPlain(s) && Array.isArray(s.boxes) ? s.boxes : [];
+    const mm = e && Array.isArray(e.carte_mm) ? e.carte_mm : null;
+    return !!(bs.length && mm && estNombre(mm[0]) && estNombre(mm[1])
+      && mm[0] > 0 && mm[1] > 0);
+  }
+
+  /* LES LIGNES DU BLOC « FOND », branchees sur la PORTE QUI A REFUSE.
+     L'ecran posait toujours l'uniformite en tete : sur un refus par
+     couverture on lisait « uniformite 1,00 pour un plancher de 0,60 » — un
+     chiffre qui PASSE, donne pour cause du refus — puis la couverture sans
+     ses bornes, alors que le backend les publie. Le JSON disait juste,
+     l'ecran mentait ; c'est l'ecran qu'on corrige. */
+  function lignesFond(g) {
+    if (!isPlain(g)) return ["non mesuré"];
+    if (!g.bg_failed) {
+      return ["pourtour " + String(g.color || "?"),
+        estNombre(g.couverture)
+          ? "le détourage garderait " + num(g.couverture * 100, 1)
+            + " % de l'image" : null];
+    }
+    const motif = String(g.motif || "mesure hors bornes");
+    const bornes = Array.isArray(g.couverture_bornes) ? g.couverture_bornes : null;
+    const tete = "détourage local refusé — " + motif;
+    const uni = "uniformité du pourtour " + num(g.uniformite, 2)
+      + " pour un plancher de " + num(g.seuil, 2);
+    const couv = estNombre(g.couverture)
+      ? "couverture retirée " + num(g.couverture * 100, 1) + " %"
+        + (bornes && estNombre(bornes[0]) && estNombre(bornes[1])
+          ? " — attendue entre " + num(bornes[0] * 100, 0) + " % et "
+            + num(bornes[1] * 100, 0) + " %" : "")
+      : null;
+    /* La MESURE QUI A REFUSE vient en premier ; l'autre suit, pour situer. */
+    const ordre = motif.indexOf("uni") === 0 || motif.indexOf("pourtour") === 0
+      ? [uni, couv] : [couv, uni];
+    return [tete].concat(ordre).concat([g.option_ia ? String(g.option_ia) : null]);
   }
 
   /* Un bloc de mesure : un titre, des lignes, et — s'il y a lieu — la
@@ -294,6 +363,9 @@
       + '<span class="cf-capture-spacer"></span>'
       + '<span class="cf-capture-state" id="cf-capture-m-when">—</span>'
       + '</header>'
+      /* LE FORMAT A BOUGE : un bandeau, et pas une pastille discrete. Les
+         millimetres du releve ne decrivent plus la carte du jeu. */
+      + '<p class="cf-capture-alerte hidden" id="cf-capture-m-diverge"></p>'
       + '<div class="cf-capture-mgrid">'
       + '<div class="cf-capture-mes" id="cf-capture-m-echelle"></div>'
       + '<div class="cf-capture-mes" id="cf-capture-m-bord"></div>'
@@ -414,9 +486,10 @@
     }
     const tog = $("#cf-capture-boxtog");
     if (tog) {
-      const bs = st().boxes;
+      /* LA MEME CONDITION QUE LE DESSIN. Un bouton qui s'affiche sans pouvoir
+         agir est pire qu'un bouton absent : il fait douter du clic. */
       tog.classList.toggle("hidden",
-        !(SIDE === "recto" && !!i && Array.isArray(bs) && bs.length));
+        !(SIDE === "recto" && !!i && peutIncruster(st())));
       tog.textContent = BOITES ? "Masquer les zones" : "Montrer les zones";
     }
     mesures();
@@ -440,6 +513,17 @@
     carte.classList.toggle("hidden", !on);
     if (!on) return;
     txt("#cf-capture-m-when", "mesuré le " + quand(s.analyzed));
+
+    const div = divergence(s.echelle, CF.doc());
+    const bandeau = $("#cf-capture-m-diverge");
+    if (bandeau) {
+      bandeau.classList.toggle("hidden", !div);
+      if (div) {
+        bandeau.textContent = "Le format du jeu a changé depuis cette mesure : "
+          + div.avant + " → " + div.apres + ". Les millimètres ci-dessous "
+          + "décrivent la carte d'avant — relancez « Remesurer ».";
+      }
+    }
 
     const e = isPlain(s.echelle) ? s.echelle : {};
     const px = Array.isArray(e.image_px) ? e.image_px : [];
@@ -466,47 +550,43 @@
       estNombre(b.radius_mm)
         ? "rayon de coin estimé " + num(b.radius_mm, 2) + " mm"
         : "rayon de coin : non mesuré",
-      Array.isArray(b.epaisseurs_mm) && b.epaisseurs_mm.length
-        ? "les quatre bords : "
-          + b.epaisseurs_mm.map((v) => num(v, 2)).join(" / ") + " mm"
+      /* LES BORDS VUS, CHACUN AVEC LE SIEN. La ligne annonçait « les quatre
+         bords » et alignait les valeurs TRIEES PAR TAILLE a cote d'une liste
+         de noms triee par ALPHABET : trois valeurs sous une etiquette qui en
+         promettait quatre, et l'appariement faux. Le backend rend maintenant
+         un dictionnaire ; on l'ecrit tel quel. */
+      isPlain(b.epaisseurs_mm) && Object.keys(b.epaisseurs_mm).length
+        ? "les " + Object.keys(b.epaisseurs_mm).length + " bords vus : "
+          + Object.keys(b.epaisseurs_mm).sort()
+            .map((k) => k + " " + num(b.epaisseurs_mm[k], 2)).join(" · ") + " mm"
         : null,
       "régularité " + num(b.regularite, 2) + " · netteté " + num(b.nettete, 2),
     ] : ["aucune bordure mesurable sur cette carte"],
       b ? b.confidence : null, b ? "" : "vide");
 
     const bx = Array.isArray(s.boxes) ? s.boxes : [];
+    /* LA BANDE EXCLUE SE DIT AVANT LES BOITES. Une boite `tronquee` bute sur
+       la frontiere du masque : sa mesure est un MINIMUM, pas une taille, et
+       celui qui l'adopte doit le lire avant d'en faire un slot. */
     bloc("#cf-capture-m-zones", "Zones occupées",
-      bx.length
+      (bx.length
         ? [bx.length + (bx.length > 1 ? " zones candidates" : " zone candidate")]
           .concat(bx.map((z, k) => isPlain(z)
             ? (k + 1) + " · " + num(z.w, 1) + " × " + num(z.h, 1) + " mm"
               + " en (" + num(z.x, 1) + " ; " + num(z.y, 1) + ") — densité "
               + num(z.densite, 2) + " · netteté " + num(z.nettete, 2)
+              + (z.tronquee ? " — TRONQUÉE par la bande exclue" : "")
             : null))
-        : ["aucune zone candidate"],
+        : ["aucune zone candidate"])
+        .concat(estNombre(s.zones_bande_mm) && s.zones_bande_mm > 0
+          ? ["bande exclue le long des bords : " + num(s.zones_bande_mm, 2)
+             + " mm (bordure + portée du filtre)"] : []),
       null, bx.length ? "" : "vide");
 
     const g = isPlain(s.bg) ? s.bg : null;
-    if (g && g.bg_failed) {
-      bloc("#cf-capture-m-fond", "Fond", [
-        "détourage local refusé — " + String(g.motif || "mesure hors bornes"),
-        "uniformité du pourtour " + num(g.uniformite, 2) + " pour un plancher "
-          + "de " + num(g.seuil, 2),
-        estNombre(g.couverture)
-          ? "couverture retirée " + num(g.couverture * 100, 1) + " %"
-          : null,
-        String(g.option_ia || ""),
-      ], null, "ko");
-    } else if (g) {
-      bloc("#cf-capture-m-fond", "Fond", [
-        "pourtour " + String(g.color || "?"),
-        estNombre(g.couverture)
-          ? "le détourage garderait " + num(g.couverture * 100, 1)
-            + " % de l'image" : null,
-      ], g.confidence);
-    } else {
-      bloc("#cf-capture-m-fond", "Fond", ["non mesuré"], null, "vide");
-    }
+    bloc("#cf-capture-m-fond", "Fond", lignesFond(g),
+      g && !g.bg_failed ? g.confidence : null,
+      g ? (g.bg_failed ? "ko" : "") : "vide");
 
     const pal = Array.isArray(s.palette) ? s.palette : [];
     const hote = bloc("#cf-capture-m-pal", "Palette",
@@ -552,25 +632,29 @@
     if (!hote) return;
     while (hote.firstChild) hote.removeChild(hote.firstChild);
     const s = st();
-    const e = isPlain(s.echelle) ? s.echelle : null;
     const bs = Array.isArray(s.boxes) ? s.boxes : [];
-    const mm = e && Array.isArray(e.carte_mm) ? e.carte_mm : null;
-    const lw = mm ? Number(mm[0]) : 0;
-    const lh = mm ? Number(mm[1]) : 0;
     const on = BOITES && SIDE === "recto" && !!info("recto") && analysee()
-      && bs.length > 0 && lw > 0 && lh > 0;
+      && peutIncruster(s);
     hote.classList.toggle("hidden", !on);
     if (!on) return;
+    const mm = s.echelle.carte_mm;
+    const lw = mm[0];
+    const lh = mm[1];
     bs.forEach((b, k) => {
       if (!isPlain(b)) return;
       const el = document.createElement("span");
-      el.className = "cf-capture-box";
+      /* Une boite coupee par la bande exclue se VOIT : son trait est
+         interrompu. Un rectangle plein dirait « voila la zone » d'un bord que
+         personne n'a mesure. */
+      el.className = "cf-capture-box" + (b.tronquee ? " tronquee" : "");
       el.style.left = (100 * (Number(b.x) || 0) / lw) + "%";
       el.style.top = (100 * (Number(b.y) || 0) / lh) + "%";
       el.style.width = (100 * (Number(b.w) || 0) / lw) + "%";
       el.style.height = (100 * (Number(b.h) || 0) / lh) + "%";
       el.title = "zone " + (k + 1) + " — " + num(b.w, 1) + " × " + num(b.h, 1)
-        + " mm, densité " + num(b.densite, 2);
+        + " mm, densité " + num(b.densite, 2)
+        + (b.tronquee ? " — tronquée par la bande exclue : cette taille est un "
+          + "minimum" : "");
       const n = document.createElement("i");
       n.textContent = String(k + 1);
       el.appendChild(n);
@@ -599,7 +683,8 @@
     if (side !== "recto") return {};
     return {
       analyzed: null, echelle: null, ecart_ratio: null,
-      border: null, boxes: [], bg: null, palette: [], notes: [],
+      border: null, boxes: [], zones_bande_mm: null,
+      bg: null, palette: [], notes: [],
       layers: {},
     };
   }
@@ -618,6 +703,7 @@
       ecart_ratio: estNombre(r.ecart_ratio) ? r.ecart_ratio : null,
       border: isPlain(r.border) ? r.border : null,
       boxes: Array.isArray(r.boxes) ? r.boxes : [],
+      zones_bande_mm: estNombre(r.zones_bande_mm) ? r.zones_bande_mm : null,
       bg: isPlain(r.bg) ? r.bg : null,
       palette: Array.isArray(r.palette) ? r.palette : [],
       notes: Array.isArray(r.notes) ? r.notes.map(String) : [],
@@ -686,9 +772,22 @@
     return d || {};
   }
 
+  /* CE QU'ON MONTRE QUAND CA RATE, et il y a TROIS cas, pas deux. La premiere
+     ecriture n'en traduisait qu'un : un `fetch` REJETE — backend eteint, cable
+     debranche — ressortait tel quel, « Failed to fetch », en anglais et sans
+     dire quoi faire. Le CORE a deja ecrit ce remede (core.js:1244, « backend
+     injoignable ») ; on l'applique ici plutot que de le redecouvrir. */
   function panne(e, quoi) {
-    return e && e.missing ? "backend absent : " + quoi + " exige /api/cards"
-      : String((e && e.message) || e);
+    if (e && e.missing) return "backend absent : " + quoi + " exige /api/cards";
+    const m = String((e && e.message) || e);
+    /* `fetch` rejette avec un TypeError et un message que le navigateur
+       choisit (« Failed to fetch », « NetworkError… », « Load failed ») : on
+       reconnait le TYPE, pas la phrase — elle change d'un navigateur a l'autre. */
+    if (e instanceof TypeError) {
+      return "backend injoignable (" + m + ") — " + quoi
+        + " a besoin du service local";
+    }
+    return m;
   }
 
   async function upload(f, side) {
