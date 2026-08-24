@@ -174,9 +174,56 @@ refusé), ZÉRO dépense.
 **Fichiers** : face.py, mod-face.js, test_cards_face.py, pricing.py,
 image_providers.py (si un délégué manque), routes.py (si liste de modèles).
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `f4ea790`+`791f032` (+6151) puis ronde `74193a2`.
+  Manifeste global-app {DATA_ROOT}/cardforge_series/walkuski.json (cases et
+  refus SÉPARÉS — une case refusée reste manquante et se re-tente, son refus
+  garde ses axes), doc.face.serie porté par le DOCUMENT (la voie voyage avec
+  le jeu), sélecteur P1 (n/108, retombée vectorielle avouée par insigne,
+  compteur de dépense affiché), copie du juge EN DÉPÔT (style_walkuski.py/
+  .json, empreintes à fins-de-ligne normalisées + test de fraîcheur vs
+  l'amont), nano_banana_usd 0,039 re-vérifié à la source fal datée, pipeline
+  6-candidats-FLUX→juge→nano-edit→GPT→vectoriel-avoué, poids de familles
+  RE-DÉRIVÉS du juge (8/4/3/1 œuvres → 54/27/20/7 aux plus forts restes),
+  coalescence 6 POST→1 tir, sentinelle 16 noms fal + preuve de prise, clé du
+  banc neutralisée STRUCTURELLEMENT (DEEPOTUS_DATA_DIR — le banc ne charge
+  plus le vrai .env : le bloquant T3-phase-4 refermé à la racine pour cette
+  pièce), zéro nom d'artiste prouvé par empoisonnement aux trois voies.
+  142 tests face (98→142), lint 10/10.
+- [x] Ronde adverse (opus) : 1 bloquant + 5 réels + 4 mineurs + 4 rejetés,
+  ET UN INCIDENT INSTRUCTIF AVOUÉ PAR LE CRITIQUE : sa propre sonde a émis
+  436 requêtes vers fal — TOUTES refusées à l'authentification (la clé
+  neutralisée du banc a tenu, zéro centime) — prouvant qu'un POST nu lançait
+  la série entière → la CONFIRMATION-DEVIS est née de là (D2-2). Le
+  bloquant : une image illisible (UnidentifiedImageError EST un OSError,
+  hors de l'except étroit) effaçait la SESSION ENTIÈRE — cases payées
+  perdues, compteur à 0,00 → le manifeste s'écrit APRÈS CHAQUE CASE par
+  FUSION-DELTA (relecture disque + delta de dépense, qui tue aussi le
+  double-écrivain mesuré 5,0→3,018). Réels : le pire cas 19,12 $ = 3,19× le
+  plafond ÉCRIT AU PLAN (multi-session, 33 cases ouvrables par session de
+  6 $, T5 mesure le taux FLUX) ; le mur en cours de case brûlait sans trace
+  → une case ne s'ouvre que si l'échelle complète tient (UNE arithmétique
+  partagée — l'unification a tué le mutant survivant) ; sélection vide =
+  RIEN jamais tout (400) ; l'aveu de cadre refait sur la géométrie vraie
+  (0,635 était… la taille de refus de la barre ! coupe réelle 0,7159 ;
+  portrait_4_3 = LE MEILLEUR cadre — le 2:3 exact coûterait 9,2 % de la
+  hauteur ; et la marche GPT livre le 2:3 EXACT de la fiche — bonus
+  épinglé aux DEUX miroirs) ; le compteur affiché. En écrivant les preuves :
+  une FUITE DE CHEMIN ABSOLU dans les motifs de refus (le nom de compte
+  serait parti dans le manifeste public de T5 — filtrée ; dette jumelle
+  frame.py:ai_models routée vers la ronde T2) et le journal loguru en %s
+  jamais formaté (la ligne dont T5 dépend). Mutation 12/12 dont 2 qui ont
+  corrigé le CONTRÔLE, et la mutation sans-confirmation MESURANT le coût du
+  défaut (3 min de banc, 19 $ en vrai).
+- [x] CLOSE : leçons — (a) une route qui dépense répond un DEVIS à un appel
+  nu, elle ne part pas (l'incident de sonde est la preuve par l'exemple
+  que la défense en couches marche : c'est la clé neutralisée qui a arrêté
+  436 requêtes, pas une garde) ; (b) le journal d'une dépense s'écrit en
+  FUSION-DELTA après chaque unité payée, jamais en total après la boucle ;
+  (c) un chiffre d'aveu se vérifie contre la géométrie qu'il prétend citer
+  (0,635 venait d'une constante sans rapport). Dettes → T5 : mesurer le
+  taux FLUX sur les premières cases et ré-estimer ; relire pricing.load()
+  avant ; les candidats perdants au magasin (~648 PNG — purge à trancher
+  T5/T6) ; l'œil T6 : le témoin refreshSel (data-ai/data-cat).
 
 ### T2 — Les éléments libérés + les formes + les bordures (D3)
 Gemme/ornements édités (position/taille persistées, défaut calculé, aveu du
