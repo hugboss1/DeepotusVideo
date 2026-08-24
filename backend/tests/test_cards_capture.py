@@ -1,10 +1,13 @@
 # -*- coding: utf-8 -*-
 """Card Forge — P10 « Import » (id de module `capture`). Les seuils, mesurés.
 
-CE QUE CE FICHIER TIENT AUJOURD'HUI (tâche T1, la coquille) : l'ADMISSION
-d'une image de carte et le SERVICE des fichiers du dossier `capture/`. Rien
-d'autre : l'analyse (bordure, zones, fond, palette) est la tâche T2 et ses
-seuils à vérité connue arriveront ici, sous ces tests-là.
+CE QUE CE FICHIER TIENT : l'ADMISSION d'une image de carte, le SERVICE des
+fichiers du dossier `capture/` (T1), et L'ANALYSE LOCALE — bordure, zones,
+fond, palette — mesurée sur des CARTES DE SYNTHÈSE À VÉRITÉ CONNUE (T2,
+spec §9.1). Le test POSE une bordure de x mm, trois cartouches, un fond ; il
+exige que l'analyse les retrouve à une tolérance CHIFFRÉE ET ÉCRITE DANS
+L'ASSERTION — une tolérance qui ne se lit nulle part est une tolérance qu'on
+élargit en silence le jour où le test rougit.
 
 Ce qui est verrouillé, seuil par seuil :
 
@@ -27,7 +30,16 @@ Ce qui est verrouillé, seuil par seuil :
      pile : le second envoi écrase le premier, et les octets servis sont ceux
      du second.
   5. JAMAIS 500 (spec §8) : corps illisible, JSON à la place d'un PNG, deck
-     inconnu, nom inconnu — chacun a son refus nommé.
+     inconnu, nom inconnu, image pathologique — chacun a son refus nommé ou
+     son relevé DÉGRADÉ AVOUÉ.
+  6. L'ANALYSE COURT SUR LE RECTO STOCKÉ, GRATUITEMENT. Pas de corps, pas de
+     réseau, pas de fournisseur : la source est balayée pour qu'aucun appel
+     payant ne s'y glisse à T3. Elle est REJOUABLE, et déposer un verso ne
+     l'efface pas (D3 amendé).
+  7. CHAQUE CONFIANCE A UN CAS CONNU OÙ ELLE S'EFFONDRE, et il est joué :
+     bordure irrégulière -> régularité en berne ; recto flou -> netteté en
+     berne ; fond dégradé -> refus motivé portant sa mesure. Un chiffre de
+     confiance qui ne peut pas être bas est un chiffre qui ment (clôture T1).
 
 ────────────────────────────────────────────────────────────────────────────
 LES DEUX RONDES DE MUTATION. Le principe ne bouge pas : on REMET le défaut,
@@ -57,7 +69,56 @@ Ronde 2 (corrections) — 19 défauts remis, 18 vus :
   · `capture` retiré du lint ; `<script>` retiré d'index.html ...... ROUGE
   · le test du meta.json abîmé qui ne nettoie plus son épave ....... ROUGE
 
-ET LE TÉMOIN QUI SURVIT, AVOUÉ — c'en est un NOUVEAU : celui de la ronde 1
+Ronde 3 (T2, l'analyse) — 20 défauts remis, 20 vus :
+  · seuil de refus du fond mis à zéro .............................. ROUGE
+  · `_clamp01` qui rend toujours 1 (la confiance ne bouge plus) .... ROUGE
+  · clamp retiré, confiance libre de dépasser 1 .................... ROUGE
+  · échelle prise sur la HAUTEUR au lieu de la largeur ............. ROUGE
+  · échelle en dur (0,1 mm/px) au lieu du format ................... ROUGE
+  · front = la PLUS HAUTE marche au lieu de la PREMIÈRE ............ ROUGE
+  · plancher de front abaissé à 1 (tout dégradé devient bordure) ... ROUGE
+  · rayon de coin sondé à MI-BANDE (les huit sondes) ............... ROUGE
+  · fusion des boîtes désactivée ................................... ROUGE
+  · retrait de bordure supprimé (l'anneau redevient une zone) ...... ROUGE
+  · plancher d'étendue supprimé (le grain devient du dessin) ....... ROUGE
+  · 404 sans recto remplacé par un relevé vide ..................... ROUGE
+  · le prix recopié dans la phrase d'option IA ..................... ROUGE
+  · les pixels retraversent la frontière (`border.px` revient) ..... ROUGE
+  · une clé de mesure disparaît du schéma de l'écran (JS) .......... ROUGE
+  · `effacements` oublie une clé de mesure (JS) .................... ROUGE
+  · `estNombre` relâché : `Number(null)` redevient zéro (JS) ....... ROUGE
+  · `analyser()` relit la réponse à la main (JS) ................... ROUGE
+  · le verrou BUSY saute sur `analyser()` (JS) ..................... ROUGE
+  · les boîtes placées au jugé, sans l'échelle (JS) ................ ROUGE
+
+ET LES TÉMOINS QUI SURVIVENT À LA RONDE 3, AVOUÉS ET MESURÉS. Sept réglages
+peuvent bouger sans qu'aucun contrôle ne rougisse, et ce n'est pas un oubli :
+
+  · `ZONE_SOUS` (8 pixels de travail par bloc) de 4 à 24 — les trois boîtes
+    restent trouvées et appariées dans tout cet intervalle. C'est le témoin
+    de classe LANCZOS de la ronde 1 : un réglage de COÛT et de finesse, dont
+    la dégradation est graduelle et n'a pas de seuil honnête à épingler.
+  · `ZONE_MIN_BLOCS` (2) et `ZONE_MAX_BOITES` (12) — des réglages de LISIBILITÉ
+    du relevé. Les fabriquer en test demanderait une carte à quarante taches
+    d'un bloc, qui ne ressemble à aucun import réel.
+  · `BORD_MIN_BORDS` (2) abaissé à 1 — le facteur n/4 de la confiance plafonne
+    déjà une « bordure » d'un seul bord à 0,25, donc l'écran la donne pour ce
+    qu'elle vaut. Le garde-fou est une ceinture, pas la bretelle.
+  · `BORD_MARGE` (20 % de chaque extrémité) ramenée à 2 % — mesuré sur des
+    coins de 40, 90 et 140 px : l'épaisseur, la confiance et le rayon sont
+    IDENTIQUES. La marge protège d'un cas plus dur que tout ce qu'on sait
+    fabriquer sans deviner ; elle reste, avouée comme non gardée.
+  · `BORD_FRONT_RATIO` (4) abaissé à 1 — et celui-là mérite sa phrase : sur un
+    profil qui plonge sur 25 % du petit côté, la marche MÉDIANE ne peut pas
+    dépasser ~5 en L1 (255 x 3 niveaux répartis sur ~157 rangées), donc le
+    plancher absolu de 40 décide TOUJOURS avant le rapport. Le rapport ne mord
+    que sur un profil court, c'est-à-dire une image minuscule. Mesuré sur des
+    dégradés raides et sur une bande rayée : aucun des deux ne le fait jouer.
+  · `asyncio.to_thread` retiré de la route — l'analyse bloquerait la boucle
+    d'événements. Aucun test en-processus ne peut le voir : le transport ASGI
+    du banc joue tout dans la même boucle de toute façon.
+
+ET LE TÉMOIN DE LA RONDE 2, AVOUÉ — c'en est un NOUVEAU : celui de la ronde 1
 (LANCZOS) est fermé par `test_la_reduction_FILTRE_vraiment…`. Retirer
 `_replace_avec_patience` SEUL, en gardant le brouillon unique, n'est vu
 qu'environ une fois sur deux : sans la reprise, la course rend
@@ -171,6 +232,120 @@ def _get(did: str, nom: str):
     """Le service passe sous /file/ — voir `capture.get_file` : à la racine du
     préfixe, le joker avalait toutes les routes GET des tâches suivantes."""
     return _api("GET", f"/api/cards/{did}/capture/file/{nom}")
+
+
+# ── les cartes de SYNTHÈSE, et la vérité qu'on y pose (spec §9.1) ───────────
+#
+# Le poste de mesure de toute cette section : un poker_eu (63 x 88 mm) rendu à
+# 630 x 880 px, soit EXACTEMENT 0,1 mm par pixel. Ce chiffre rond n'est pas de
+# la coquetterie — il rend la vérité posée lisible en millimètres sans
+# arrondi intermédiaire : une bordure de 26 px EST une bordure de 2,6 mm.
+SYNTH_W, SYNTH_H = 630, 880
+SYNTH_MM_PX = 63.0 / SYNTH_W          # 0,1 mm/px
+OR = (216, 183, 106)                  # la bande
+NOIR = (20, 18, 12)                   # l'intérieur
+
+
+def _synth(bord_px: int = 26, boites=(), bord=OR, fond=NOIR,
+           w: int = SYNTH_W, h: int = SYNTH_H, rayon: int = 0,
+           dehors=(255, 255, 255)):
+    """Une carte à VÉRITÉ CONNUE : bande de `bord_px`, intérieur uni, et les
+    cartouches qu'on veut, posés au pixel."""
+    im = Image.new("RGB", (w, h), dehors)
+    d = ImageDraw.Draw(im)
+    if rayon:
+        d.rounded_rectangle([0, 0, w - 1, h - 1], radius=rayon, fill=bord)
+    else:
+        d.rectangle([0, 0, w - 1, h - 1], fill=bord)
+    if bord_px:
+        d.rectangle([bord_px, bord_px, w - bord_px - 1, h - bord_px - 1],
+                    fill=fond)
+    for (x, y, bw, bh, col) in boites:
+        d.rectangle([x, y, x + bw - 1, y + bh - 1], fill=col)
+    return im
+
+
+def _pngs(im) -> bytes:
+    buf = io.BytesIO()
+    im.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+# Trois cartouches POSÉS, aux places d'une vraie carte : un bandeau de titre,
+# une boîte de capacité, un badge de camp. Leurs coordonnées en px sont la
+# vérité ; leurs millimètres s'en déduisent par SYNTH_MM_PX et rien d'autre.
+TROIS_BOITES_PX = ((80, 60, 470, 70), (80, 620, 470, 150), (60, 200, 90, 90))
+TROIS_COULEURS = ((230, 210, 150), (200, 190, 170), (240, 230, 120))
+TROIS = tuple((x, y, w, h, c) for (x, y, w, h), c
+              in zip(TROIS_BOITES_PX, TROIS_COULEURS))
+
+
+def _analyse(did: str):
+    return _api("POST", f"/api/cards/{did}/capture/analyse")
+
+
+def _pose_et_analyse(im, fmt: str | None = None):
+    """Le geste réel, de bout en bout : on dépose, puis on demande la mesure.
+    Le relevé est rendu avec le `did` pour que l'appelant range son deck."""
+    did = (CC.create_deck("import", {"fmt": fmt})["id"] if fmt else _deck())
+    r = _post(did, _pngs(im), "recto")
+    assert r.status_code == 200, r.text[:300]
+    a = _analyse(did)
+    assert a.status_code == 200, (a.status_code, a.text[:400])
+    return did, a.json()
+
+
+def _iou(a, b) -> float:
+    """Intersection sur union de deux boîtes [x, y, w, h]."""
+    ix = max(0.0, min(a[0] + a[2], b[0] + b[2]) - max(a[0], b[0]))
+    iy = max(0.0, min(a[1] + a[3], b[1] + b[3]) - max(a[1], b[1]))
+    inter = ix * iy
+    if not inter:
+        return 0.0
+    return inter / (a[2] * a[3] + b[2] * b[3] - inter)
+
+
+def _chaines_js(src: str) -> list:
+    """Les LITTÉRAUX DE CHAÎNE d'un source JS, commentaires exclus.
+
+    Un automate de dix lignes, et il en faut un : les commentaires de ce
+    chantier sont en français, donc pleins d'apostrophes, et toute recherche
+    de `'…'` par expression régulière prend un commentaire pour une chaîne.
+    On suit donc l'état — dans un commentaire, dans une chaîne, ailleurs —
+    et on ne rend que ce qui est vraiment une chaîne."""
+    out, i, n = [], 0, len(src)
+    while i < n:
+        c = src[i]
+        if c == "/" and i + 1 < n and src[i + 1] == "*":
+            j = src.find("*/", i + 2)
+            i = n if j < 0 else j + 2
+        elif c == "/" and i + 1 < n and src[i + 1] == "/":
+            j = src.find("\n", i)
+            i = n if j < 0 else j + 1
+        elif c in "\"'`":
+            j, buf = i + 1, []
+            while j < n and src[j] != c:
+                if src[j] == "\\" and j + 1 < n:
+                    buf.append(src[j + 1])
+                    j += 2
+                    continue
+                buf.append(src[j])
+                j += 1
+            out.append("".join(buf))
+            i = j + 1
+        else:
+            i += 1
+    return out
+
+
+def _cles_du_schema() -> set:
+    """Les clés du bloc `state:` de mod-capture.js — le SCHÉMA que `patchAs`
+    fait respecter. Lues sur le fichier : le JS n'est importable d'aucune
+    façon depuis Python, et c'est cette frontière-là qui casse en silence."""
+    js = JS.read_text(encoding="utf-8")
+    i = js.index("state: {")
+    bloc = js[i:js.index("\n    },", i)]
+    return set(re.findall(r"^\s{6}([a-z_]+):", bloc, re.M))
 
 
 def _en_parallele(appels):
@@ -804,8 +979,15 @@ def test_deposer_un_VERSO_n_efface_pas_l_analyse_du_RECTO():
     LA RÈGLE EST EXÉCUTÉE, PAS LUE. La première écriture de ce contrôle
     lisait la forme du code (« la garde est là, l'effacement vient après ») :
     un `|| true` glissé dans la garde la laissait verte — mesuré. La décision
-    vit donc dans une fonction PURE de trois lignes, que ce test extrait de
-    la vraie source et fait tourner dans node."""
+    vit donc dans une fonction PURE, que ce test extrait de la vraie source
+    et fait tourner dans node.
+
+    ET LA LISTE DES CLÉS N'EST PAS RECOPIÉE ICI (renfort T2) : elle se DÉRIVE
+    du schéma déclaré par le module. Le contrôle nommait cinq clés en dur, et
+    T2 en a ajouté trois (`echelle`, `ecart_ratio`, `notes`) — une mesure
+    oubliée dans `effacements` aurait survécu à un nouveau recto, c'est-à-dire
+    aurait décrit une image qui n'est plus sur le disque, et le test serait
+    resté vert. Toute clé de mesure ajoutée demain tombe désormais ici."""
     fn = _fonction_js("effacements")
     sortie = _node(fn + """
       const dump = (s) => JSON.stringify(effacements(s));
@@ -816,8 +998,13 @@ def test_deposer_un_VERSO_n_efface_pas_l_analyse_du_RECTO():
     assert json.loads(verso) == {}, f"un verso efface : {verso}"
     assert json.loads(autre) == {}, autre
     assert recto.get("analyzed", "absent") is None, recto
-    for k in ("border", "boxes", "bg", "palette", "layers"):
-        assert k in recto, (k, recto)
+    # `sources` est le SEUL sous-arbre qu'un dépôt ne doit pas effacer (c'est
+    # lui qu'il vient d'écrire) ; tout le reste décrit la mesure.
+    mesure = _cles_du_schema() - {"sources"}
+    manquantes = mesure - set(recto)
+    assert not manquantes, \
+        (f"un nouveau recto laisserait {sorted(manquantes)} en place : ces "
+         f"mesures décriraient une image qui n'est plus sur le disque")
     # ... et l'écran le DIT : une asymétrie muette serait une surprise.
     js = JS.read_text(encoding="utf-8")
     assert re.search(r"analyse[^\n]{0,80}recto", js, re.I), \
@@ -831,12 +1018,24 @@ def test_l_ecran_distingue_UNE_ROUTE_ABSENTE_d_un_REFUS_NOMME():
     404 « Deck introuvable » AVANT de lire le corps — un jeu effacé dans un
     autre onglet aurait donc affiché « backend absent : l'import exige
     /api/cards ». La question se tranche sur le TYPE DE RÉPONSE, pas sur le
-    code : du HTML = pas de route, du JSON = le backend parle."""
-    corps = _corps_js("upload")
+    code : du HTML = pas de route, du JSON = le backend parle.
+
+    LA RÈGLE VIT À UN SEUL ENDROIT (renfort T2). Elle était écrite dans
+    `upload()` ; `analyser()` est arrivé avec le même besoin, et une règle
+    recopiée est une règle qui dérive — le second appel aurait pu perdre la
+    nuance sans que rien ne rougisse. Le contrôle exige donc la règle dans
+    `lireJson` ET son usage par les DEUX appels."""
+    corps = _corps_js("lireJson")
     assert "content-type" in corps.lower(), corps[-700:]
     assert "json" in corps, corps[-700:]
     assert "resp.status === 404" not in corps, \
         "le 404 est encore traduit en aveugle en « route absente »"
+    for appel in ("upload", "analyser"):
+        c = _corps_js(appel)
+        assert "lireJson(" in c, \
+            f"{appel}() lit la réponse à la main : la règle va diverger"
+    # ... et l'échec de route reste NOMMÉ, pas silencieux.
+    assert "missing" in _corps_js("panne")
 
 
 def test_l_ecran_ne_promet_que_les_formats_que_PIL_sait_ouvrir():
@@ -873,6 +1072,584 @@ def test_le_bouton_de_la_galerie_ne_promet_plus_la_phase_4():
     corps = core[i:core.index("\n  }", i)]
     assert "phase 4" not in corps, corps
     assert 'show("capture")' in corps, corps
+
+
+# ═══════════════════════ T2 — l'analyse, à vérité connue ════════════════════
+
+def test_l_analyse_SANS_RECTO_est_un_404_qui_dit_quoi_faire():
+    """L'analyse court sur le recto STOCKÉ : sans recto, il n'y a rien à
+    mesurer, et le refus doit envoyer déposer — pas annoncer une panne."""
+    did = _deck()
+    r = _analyse(did)
+    assert r.status_code == 404, (r.status_code, r.text[:300])
+    detail = r.json()["detail"]
+    assert "recto" in detail.lower(), detail
+    assert re.search(r"dépos", detail, re.I), detail
+    # ... et un verso SEUL ne suffit pas non plus : la mesure est du recto.
+    _post(did, _pngs(_synth()), "verso")
+    r = _analyse(did)
+    assert r.status_code == 404, (r.status_code, r.text[:200])
+    CC.delete_deck(did)
+
+
+def test_l_analyse_ne_DEPENSE_rien_et_ne_sort_pas_de_la_machine():
+    """« GRATUIT, PIL pur, AUCUN appel réseau/fournisseur » (plan T2). Le jour
+    où T3 branchera le détourage payant, ce sera SOUS UNE AUTRE ROUTE : celle
+    -ci reste l'analyse qu'on peut relancer sans y penser.
+
+    LE BALAYAGE EST SUR L'ARBRE SYNTAXIQUE, PAS SUR LE TEXTE. La première
+    écriture cherchait des sous-chaînes et rougissait sur un COMMENTAIRE de
+    T1 qui nomme les routes futures — un test qui interdit de parler d'une
+    chose n'est pas un test qui interdit de la faire. Ici on lit les IMPORTS
+    réels : une dépendance payante ne peut entrer que par là."""
+    import ast
+    arbre = ast.parse(pathlib.Path(CP.__file__).read_text(encoding="utf-8"))
+    modules = set()
+    for n in ast.walk(arbre):
+        if isinstance(n, ast.Import):
+            modules.update(a.name for a in n.names)
+        elif isinstance(n, ast.ImportFrom):
+            modules.add(n.module or "")
+            modules.update(f"{n.module or ''}.{a.name}" for a in n.names)
+    racines = {m.split(".")[0] for m in modules}
+    for interdit in ("httpx", "requests", "urllib", "aiohttp", "fal_client",
+                     "openai", "rembg", "replicate", "socket", "http"):
+        assert interdit not in racines, \
+            (f"« {interdit} » est IMPORTÉ par la pièce : l'analyse doit "
+             f"rester gratuite et locale ({sorted(racines)})")
+    # Les seules dépendances de calcul, et elles sont locales.
+    assert "app.services.pbr_service" in modules, sorted(modules)
+    assert "app.services.pixel_ops.chroma_key" in modules, sorted(modules)
+
+
+def test_les_PRIMITIVES_reutilisees_existent_encore_chez_elles():
+    """L'analyse emprunte `_micro_contrast` (PRIVÉE), `stats` et `chroma_key`
+    à deux services voisins. Un renommage là-bas ferait tomber la route en
+    production avec une trace de pile ; ici il fait rougir un test qui NOMME
+    le contrat emprunté."""
+    from app.services.pbr_service import _micro_contrast, stats
+    from app.services.pixel_ops import chroma_key
+    im = Image.new("L", (32, 32), 128)
+    assert _micro_contrast(im, 1.5).size == (32, 32)
+    s = stats(im)
+    assert {"mean", "median", "p5", "p95", "span"} <= set(s)
+    out, ok = chroma_key(Image.new("RGB", (40, 40), (10, 20, 30)))
+    assert out.mode == "RGBA" and isinstance(ok, bool)
+
+
+def test_une_BORDURE_POSEE_en_mm_est_RETROUVEE_a_tolerance_chiffree():
+    """LE CŒUR DE §9.1 : le test pose x mm de bordure, l'analyse rend x.
+
+    TOLÉRANCE : 1,5 pixel, soit 0,15 mm sur ce poste (630 px pour 63 mm). Ce
+    n'est pas un chiffre de confort — c'est la RÉSOLUTION de la mesure : le
+    front est localisé à la rangée près, et une rangée d'hésitation (le côté
+    d'un bord anticrénelé) est le pire cas physique. Une tolérance plus large
+    laisserait passer une erreur d'échelle ; plus étroite, elle rougirait sur
+    une image ré-encodée."""
+    tol = 1.5 * SYNTH_MM_PX
+    for bord_px in (13, 26, 40):
+        did, a = _pose_et_analyse(_synth(bord_px))
+        b = a["border"]
+        attendu = bord_px * SYNTH_MM_PX
+        assert b, f"bordure de {bord_px} px non vue : {a['notes']}"
+        assert abs(b["mm"] - attendu) <= tol, \
+            (f"bordure posée {attendu:.3f} mm, mesurée {b['mm']} mm "
+             f"(tolérance {tol:.3f} mm)")
+        # ... et la COULEUR de la bande est celle qu'on a peinte, à l'octet.
+        assert b["color"] == "#d8b76a", (b["color"], bord_px)
+        assert 0.0 <= b["confidence"] <= 1.0, b
+        CC.delete_deck(did)
+
+
+def test_le_RAYON_DE_COIN_pose_est_retrouve_a_tolerance_PLUS_LACHE():
+    """Rayon posé 40 px = 4,0 mm, mesuré 3,4 mm — et l'écart n'est PAS du
+    bruit : `ImageDraw.rounded_rectangle` inscrit l'arc dans une boîte de
+    2r+1 px, donc le premier pixel plein de la rangée extérieure tombe à
+    `r - sqrt((r+0.5)² - r²)` ≈ r - 6,3 px pour r = 40. La vérité posée et la
+    vérité RASTÉRISÉE diffèrent de 0,63 mm : la tolérance est de 1,0 mm, dix
+    fois celle de l'épaisseur, et c'est écrit ici parce qu'un rayon se lit sur
+    une courbe quand une bande se lit sur une marche."""
+    did, a = _pose_et_analyse(_synth(26, rayon=40))
+    b = a["border"]
+    assert b and b["radius_mm"] is not None, a["notes"]
+    assert abs(b["radius_mm"] - 4.0) <= 1.0, \
+        (f"rayon posé 4,0 mm, mesuré {b['radius_mm']} mm")
+    CC.delete_deck(did)
+    # Un coin CARRÉ rend zéro, et c'est une mesure, pas un aveu d'échec.
+    did, a = _pose_et_analyse(_synth(26))
+    assert a["border"]["radius_mm"] == 0.0, a["border"]
+    CC.delete_deck(did)
+
+
+def test_une_bordure_IRREGULIERE_a_une_confiance_PLUS_BASSE():
+    """Le chiffre doit BOUGER DANS LE BON SENS. Bandes posées de 1,0 / 2,6 /
+    4,0 / 6,0 mm : la régularité tombe à 1 - (6-1)/6 = 0,167, et la confiance
+    la suit. Sans cette exigence, une « confiance » constante à 1 passerait
+    tous les autres contrôles de ce fichier."""
+    did, reg = _pose_et_analyse(_synth(26))
+    CC.delete_deck(did)
+    irr = Image.new("RGB", (SYNTH_W, SYNTH_H), OR)
+    # gauche 10, haut 40, droite 26, bas 60 px
+    ImageDraw.Draw(irr).rectangle(
+        [10, 40, SYNTH_W - 27, SYNTH_H - 61], fill=NOIR)
+    did, a = _pose_et_analyse(irr)
+    a, b = a["border"], reg["border"]
+    assert a and b
+    assert a["confidence"] < b["confidence"], (a["confidence"], b["confidence"])
+    assert a["confidence"] < 0.5, a
+    # et les quatre épaisseurs mesurées SONT les quatre posées
+    assert a["epaisseurs_mm"] == [1.0, 2.6, 4.0, 6.0], a["epaisseurs_mm"]
+    CC.delete_deck(did)
+
+
+def test_un_recto_FLOU_fait_tomber_la_confiance_puis_la_bordure():
+    """LA SECONDE PART DE LA CONFIANCE, et son cas connu. Le profil de bord
+    est une MOYENNE sur 60 % du bord : elle écrase le grain (un bruit uniforme
+    de ±28 par canal laisse la netteté à 0,993 — mesuré). Ce qu'elle n'écrase
+    pas, c'est un front ÉTALÉ — la photo floue d'une carte. Mesuré à sigma
+    0 / 1 / 3 px : confiance 1,00 -> 0,50 -> 0,167, puis plus de bordure du
+    tout à sigma 6 (le front ne domine plus le plancher)."""
+    from PIL import ImageFilter
+    vues = []
+    for sigma in (0, 1, 3):
+        im = _synth(26)
+        if sigma:
+            im = im.filter(ImageFilter.GaussianBlur(sigma))
+        did, a = _pose_et_analyse(im)
+        assert a["border"], (sigma, a["notes"])
+        vues.append(a["border"]["confidence"])
+        CC.delete_deck(did)
+    assert vues[0] > vues[1] > vues[2], vues
+    assert vues[2] < 0.3, vues
+    did, a = _pose_et_analyse(_synth(26).filter(ImageFilter.GaussianBlur(6)))
+    assert a["border"] is None, a["border"]
+    CC.delete_deck(did)
+
+
+def test_une_carte_SANS_bordure_n_en_publie_AUCUNE_et_le_DIT():
+    """« Aucun front trouvé » = bordure ABSENTE du résultat, jamais « 0 mm,
+    confiance 1 » (plan D4). Une carte pleine illustration, un dégradé doux :
+    la bonne réponse est de se taire et d'expliquer."""
+    grad = Image.new("RGB", (SYNTH_W, SYNTH_H))
+    d = ImageDraw.Draw(grad)
+    for y in range(SYNTH_H):
+        d.line([(0, y), (SYNTH_W, y)],
+               fill=(int(20 + y * 0.25), 40, int(200 - y * 0.2)))
+    did, a = _pose_et_analyse(grad)
+    assert a["border"] is None, a["border"]
+    assert any("ordure" in n for n in a["notes"]), a["notes"]
+    # LE PIÈGE NOMMÉ PAR LE PLAN, épinglé : pas de zéro rassurant.
+    assert not isinstance(a["border"], dict), a["border"]
+    CC.delete_deck(did)
+    # ... et un contraste sous le plancher (L1 = 24 pour un plancher de 40)
+    # se tait aussi, alors que L1 = 45 se voit : le plancher est un seuil,
+    # pas une opinion.
+    for delta, attendu in ((15, True), (8, False)):
+        im = Image.new("RGB", (SYNTH_W, SYNTH_H),
+                       (120 + delta, 120 + delta, 120 + delta))
+        ImageDraw.Draw(im).rectangle(
+            [26, 26, SYNTH_W - 27, SYNTH_H - 27], fill=(120, 120, 120))
+        did, a = _pose_et_analyse(im)
+        assert bool(a["border"]) is attendu, (delta, a["border"], a["notes"])
+        CC.delete_deck(did)
+
+
+def test_les_TROIS_BOITES_POSEES_sont_retrouvees_ET_COMPTEES():
+    """La seconde vérité connue de §9.1. Trois cartouches posés au pixel :
+    l'analyse doit en rendre TROIS — le compte exact, pas « au moins » — et
+    chacun doit recouvrir le sien.
+
+    SEUIL D'APPARIEMENT : IoU >= 0,60. Le plafond n'est pas libre — les
+    boîtes sont quantifiées sur une grille de 1,5 mm, donc un cartouche de
+    9 x 9 mm mesuré à un bloc près ne PEUT pas dépasser ~0,74 d'IoU. Mesuré
+    sur les trois : 0,914 / 0,890 / 0,735. Le seuil est posé sous le pire des
+    trois, et loin au-dessus du 0,05 que rendait une grille de 2,5 mm."""
+    did, a = _pose_et_analyse(_synth(26, TROIS))
+    boites = a["boxes"]
+    assert len(boites) == 3, [(b["x"], b["y"], b["w"], b["h"]) for b in boites]
+    trouvees = [[b["x"], b["y"], b["w"], b["h"]] for b in boites]
+    for (x, y, w, h) in TROIS_BOITES_PX:
+        posee = [v * SYNTH_MM_PX for v in (x, y, w, h)]
+        meilleur = max(_iou(posee, t) for t in trouvees)
+        assert meilleur >= 0.60, \
+            (f"cartouche posé {[round(v, 1) for v in posee]} mm : meilleur "
+             f"recouvrement {meilleur:.3f} sur {trouvees}")
+    for b in boites:
+        assert 0.0 < b["densite"] <= 1.0, b
+        assert 0.0 < b["nettete"] <= 1.0, b
+        assert b["x"] >= 0 and b["y"] >= 0, b
+    CC.delete_deck(did)
+
+
+def test_la_bordure_ne_DEVORE_pas_les_boites():
+    """LE DÉFAUT MESURÉ PENDANT L'ÉCRITURE, épinglé pour de bon. La bande de
+    bordure est le plus fort contraste de la carte : sans retrait, son anneau
+    relie les trois cartouches en UN SEUL composant faisant le tour de
+    l'image — mesuré, une boîte de 570 x 825 px au lieu de trois. Une boîte
+    qui couvre plus des trois quarts de la carte est cet anneau-là."""
+    did, a = _pose_et_analyse(_synth(26, TROIS))
+    carte = a["echelle"]["carte_mm"]
+    for b in a["boxes"]:
+        part = (b["w"] * b["h"]) / float(carte[0] * carte[1])
+        assert part < 0.75, (part, b, "l'anneau de bordure est passé en zone")
+    CC.delete_deck(did)
+
+
+def test_deux_boites_EMBOITEES_n_en_font_qu_UNE():
+    """LA FUSION, ET LE CAS QU'ELLE EXISTE POUR RÉGLER. Les composants connexes
+    sont disjoints par construction — mais leurs RECTANGLES peuvent
+    s'emboîter : un cartouche CREUX (un cadre à filet) est un seul composant
+    dont la boîte englobe tout ce qui est posé dedans, et un pictogramme au
+    centre en est un second, sans contact.
+
+    Deux boîtes pour une seule zone donneraient deux slots superposés à P3.
+    Mesuré sur le montage ci-dessous : 2 composants, 1 boîte après fusion —
+    et 2 si l'on remonte le seuil de fusion au-dessus de 1."""
+    im = _synth(26)
+    d = ImageDraw.Draw(im)
+    d.rectangle([100, 200, 520, 620], outline=(235, 220, 160), width=6)
+    d.rectangle([270, 380, 350, 460], fill=(240, 230, 120))
+    did, a = _pose_et_analyse(im)
+    assert len(a["boxes"]) == 1, \
+        [(b["x"], b["y"], b["w"], b["h"]) for b in a["boxes"]]
+    b = a["boxes"][0]
+    # ... et la boîte fusionnée est bien celle du cadre POSÉ (10 x 20 mm,
+    # 42 x 42 mm), à un bloc près.
+    assert _iou([b["x"], b["y"], b["w"], b["h"]], [10.0, 20.0, 42.0, 42.0]) \
+        >= 0.85, b
+    CC.delete_deck(did)
+
+
+def test_un_FOND_NON_UNI_est_refuse_AVEC_LA_MESURE_QUI_A_REFUSE():
+    """Spec §8 :589 — « fond non uni à l'import -> refus mesuré du détourage
+    local + proposition de l'option IA ». Le refus doit porter le CHIFFRE et
+    le SEUIL, et proposer la suite sans en donner le prix (le prix vient de
+    `pricing.py` par la route d'options, jamais d'une copie)."""
+    grad = Image.new("RGB", (SYNTH_W, SYNTH_H))
+    d = ImageDraw.Draw(grad)
+    for y in range(SYNTH_H):
+        d.line([(0, y), (SYNTH_W, y)],
+               fill=(int(20 + y * 0.25), 40, int(200 - y * 0.2)))
+    did, a = _pose_et_analyse(grad)
+    bg = a["bg"]
+    assert bg.get("bg_failed") is True, bg
+    assert bg["seuil"] == CP.FOND_SEUIL_UNI == 0.60, bg
+    assert 0.0 <= bg["uniformite"] < bg["seuil"], \
+        f"le refus n'est pas motivé par sa mesure : {bg}"
+    assert bg["motif"] == "pourtour non uni", bg
+    phrase = bg["option_ia"]
+    assert "IA" in phrase and "payante" in phrase, phrase
+    # LE PRIX N'EST PAS RECOPIÉ (doctrine D5) : aucun chiffre monétaire ici.
+    assert not re.search(r"\d[\d ,.]*\s*(\$|€|USD|EUR)", phrase), phrase
+    # LA NOTE PORTE LE MÊME CHIFFRE, ÉCRIT EN FRANÇAIS. Les notes sont de la
+    # prose (l'écran les affiche telles quelles) : « 0.246 » au milieu de
+    # trois lignes à virgule décimale se voit — mesuré à l'écran, corrigé.
+    fr = str(bg["uniformite"]).replace(".", ",")
+    assert any("ond" in n and fr in n for n in a["notes"]), (fr, a["notes"])
+    assert not any(re.search(r"\d\.\d", n) for n in a["notes"]), \
+        [n for n in a["notes"] if re.search(r"\d\.\d", n)]
+    CC.delete_deck(did)
+
+
+def test_un_FOND_UNI_rend_sa_couleur_POSEE_et_sa_confiance():
+    """L'autre côté de la porte : pourtour uni, sujet assez grand pour que la
+    couverture tienne dans [5 %, 95 %]. La couleur rendue est celle POSÉE.
+
+    TOLÉRANCE : 6 niveaux par canal. La clé est la MÉDIANE des échantillons
+    de pourtour — sur un aplat elle est exacte, et les 6 niveaux couvrent un
+    ré-encodage qui ne serait pas sans perte. Mesuré ici : écart 0."""
+    fond = (30, 60, 120)
+    uni = Image.new("RGB", (SYNTH_W, SYNTH_H), fond)
+    ImageDraw.Draw(uni).rectangle([120, 180, 500, 700], fill=(230, 200, 90))
+    did, a = _pose_et_analyse(uni)
+    bg = a["bg"]
+    assert not bg.get("bg_failed"), bg
+    vu = tuple(int(bg["color"][i:i + 2], 16) for i in (1, 3, 5))
+    assert max(abs(v - p) for v, p in zip(vu, fond)) <= 6, (bg["color"], fond)
+    assert bg["confidence"] == bg["uniformite"] >= CP.FOND_SEUIL_UNI, bg
+    assert CP.FOND_COUV_MIN <= bg["couverture"] <= CP.FOND_COUV_MAX, bg
+    CC.delete_deck(did)
+
+
+def test_la_MESURE_du_fond_et_le_VERDICT_de_chroma_key_ne_divergent_pas():
+    """LA MESURE PUBLIÉE VIENT D'ICI, LE VERDICT VIENT DE `pixel_ops`. Deux
+    formules pour un seul refus : si elles dérivaient, le message dirait
+    « pourtour non uni à 0,82 » sur un refus causé par autre chose — un
+    utilisateur chercherait un fond que rien ne condamne. Le contrôle exige
+    l'accord sur les deux cas, dans les deux sens."""
+    from app.services.pixel_ops import chroma_key
+    grad = Image.new("RGB", (300, 420))
+    d = ImageDraw.Draw(grad)
+    for y in range(420):
+        d.line([(0, y), (300, y)], fill=(int(20 + y * 0.5), 40, int(200 - y * 0.4)))
+    uni = Image.new("RGB", (300, 420), (30, 60, 120))
+    ImageDraw.Draw(uni).rectangle([60, 90, 240, 330], fill=(230, 200, 90))
+    for im, attendu in ((grad, False), (uni, True)):
+        m = CP._mesure_fond(im)
+        _, ok = chroma_key(im, tolerance=CP.FOND_TOLERANCE,
+                           feather=CP.FOND_FEATHER)
+        assert ok is attendu, (attendu, ok)
+        porte = (m["uniformite"] >= CP.FOND_SEUIL_UNI
+                 and CP.FOND_COUV_MIN <= m["couverture"] <= CP.FOND_COUV_MAX)
+        assert porte is ok, \
+            (f"la mesure d'ici dit {porte} là où chroma_key dit {ok} : "
+             f"uniformité {m['uniformite']:.3f}, couverture {m['couverture']:.3f}")
+
+
+def test_la_PALETTE_rend_les_teintes_POSEES():
+    """Quantification adaptative sur une carte peinte de cinq aplats connus :
+    les deux dominants doivent sortir À L'OCTET (une médiane de coupe sur une
+    zone uniforme rend la couleur elle-même), et les parts doivent faire 1."""
+    did, a = _pose_et_analyse(_synth(26, TROIS))
+    hexs = [c["hex"] for c in a["palette"]]
+    assert len(hexs) == CP.PALETTE_N == 6, hexs
+    assert "#d8b76a" in hexs, hexs        # la bande
+    assert "#14120c" in hexs, hexs        # l'intérieur (20,18,12)
+    parts = [c["part"] for c in a["palette"]]
+    assert abs(sum(parts) - 1.0) < 0.02, parts
+    assert parts == sorted(parts, reverse=True), parts
+    CC.delete_deck(did)
+
+
+def test_L_ECHELLE_VIENT_DU_FORMAT_DU_DECK_et_pas_de_l_image():
+    """La MÊME image, trois formats : les millimètres changent, et chacun est
+    exactement `trim_mm[0] * px / largeur`. C'est la preuve que l'échelle
+    n'est pas un hasard de l'image — elle vient du document."""
+    octets = _synth(26)
+    for fmt, trim in (("poker_eu", 63.0), ("tarot_eu", 70.0), ("mini", 44.0)):
+        did, a = _pose_et_analyse(octets, fmt)
+        attendu = trim * 26 / SYNTH_W
+        assert a["echelle"]["fmt"] == fmt, a["echelle"]
+        assert abs(a["border"]["mm"] - attendu) < 1e-3, \
+            (fmt, a["border"]["mm"], attendu)
+        assert abs(a["echelle"]["carte_mm"][0] - trim) < 0.01, a["echelle"]
+        CC.delete_deck(did)
+
+
+def test_les_MESURES_franchissent_la_frontiere_en_MILLIMETRES():
+    """Plan D3 : « une unité par frontière, convertie au bord de l'API ». Le
+    relevé ne parle qu'en millimètres — la seule exception est `echelle`, dont
+    le rôle EST de dire dans quel cadre ces millimètres se lisent (la trame de
+    l'image en pixels, et le facteur qui l'y ramène).
+
+    LE PIÈGE ÉTAIT ÉCRIT : la bordure publiait son épaisseur en pixels À CÔTÉ
+    de ses millimètres, « pour le confort ». Deux unités pour une mesure, et
+    la première pièce qui adopte (T3, T4) doit choisir laquelle croire."""
+    did, a = _pose_et_analyse(_synth(26, TROIS))
+
+    def balaie(v, chemin):
+        if isinstance(v, dict):
+            for k, x in v.items():
+                assert "px" not in k.split("_") and not k.endswith("_px"), \
+                    f"{chemin}.{k} traverse l'API en pixels"
+                balaie(x, f"{chemin}.{k}")
+        elif isinstance(v, list):
+            for i, x in enumerate(v):
+                balaie(x, f"{chemin}[{i}]")
+
+    for cle in ("border", "boxes", "bg", "palette"):
+        balaie(a[cle], cle)
+    # ... et `echelle` porte l'exception, EXPLICITEMENT nommée.
+    assert a["echelle"]["image_px"] == [SYNTH_W, SYNTH_H], a["echelle"]
+    assert abs(a["echelle"]["mm_par_px"] - SYNTH_MM_PX) < 1e-6, a["echelle"]
+    CC.delete_deck(did)
+
+
+def test_l_ECART_DE_RATIO_est_MESURE_et_publie_au_lieu_d_etre_un_echec():
+    """Une image carrée sur un poker_eu : les mm sont calés sur la LARGEUR, et
+    l'écart de ratio dit de combien la hauteur les dément. Publier l'écart
+    plutôt que refuser, c'est le laisser servir — mais il doit être JUSTE :
+    1,0000 / 1,3968 - 1 = -0,2841, au signe près."""
+    did, a = _pose_et_analyse(_synth(24, w=600, h=600))
+    attendu = 1.0 / (88.0 / 63.0) - 1.0
+    assert abs(a["ecart_ratio"] - attendu) < 1e-3, (a["ecart_ratio"], attendu)
+    assert a["ecart_ratio"] < 0, "une image plus large que le format"
+    assert any("ratio" in n for n in a["notes"]), a["notes"]
+    assert not any(re.search(r"\d\.\d", n) for n in a["notes"]), \
+        ["une note écrit un nombre à l'anglaise", a["notes"]]
+    CC.delete_deck(did)
+    # ... et un ratio JUSTE ne fait pas de bruit.
+    did, a = _pose_et_analyse(_synth(26))
+    assert abs(a["ecart_ratio"]) < 1e-6, a["ecart_ratio"]
+    assert not any("ratio" in n for n in a["notes"]), a["notes"]
+    CC.delete_deck(did)
+
+
+def test_une_image_PATHOLOGIQUE_degrade_l_analyse_SANS_500():
+    """Spec §8 : jamais 500. Un pixel, trois pixels, un aplat total — chacun
+    rend un relevé DÉGRADÉ ET AVOUÉ (les détections absentes, les notes qui
+    disent pourquoi), pas une trace de pile."""
+    for (w, h) in ((1, 1), (2, 3), (SYNTH_W, SYNTH_H)):
+        im = Image.new("RGB", (w, h), (90, 90, 90))
+        did, a = _pose_et_analyse(im)
+        assert a["border"] is None, (w, h, a["border"])
+        assert a["boxes"] == [], (w, h, a["boxes"])
+        assert a["bg"].get("bg_failed") is True, (w, h, a["bg"])
+        assert a["notes"], (w, h, "un relevé vide qui ne dit pas pourquoi")
+        assert a["palette"], (w, h, a["palette"])
+        assert a["analyzed"] > 1_000_000_000_000, a["analyzed"]
+        CC.delete_deck(did)
+
+
+def test_un_aplat_GRENU_ne_fabrique_pas_de_zones():
+    """LE PLANCHER D'ÉTENDUE, ET SON CAS QUI COMPTE. Un aplat PARFAIT ne prouve
+    rien : son énergie est nulle partout, donc le seuil relatif ne découpe
+    rien même sans plancher. Le vrai piège est le GRAIN — le scan d'une zone
+    vide de la carte. Mesuré sur un aplat gris bruité de ±8 niveaux : sans le
+    plancher, 12 « zones » sortent de nulle part ; avec, zéro. À ±4 : une
+    contre zéro. Le plancher de 10 est ce qui sépare le grain du dessin (la
+    carte de synthèse, elle, mesure une étendue de 89)."""
+    import random
+    random.seed(3)
+    im = Image.new("RGB", (SYNTH_W, SYNTH_H))
+    px = im.load()
+    for y in range(SYNTH_H):
+        for x in range(SYNTH_W):
+            n = 120 + random.randint(-8, 8)
+            px[x, y] = (n, n, n)
+    did, a = _pose_et_analyse(im)
+    assert a["boxes"] == [], \
+        f"{len(a['boxes'])} zones inventées sur du grain : {a['boxes'][:2]}"
+    assert any("tendue" in n for n in a["notes"]), a["notes"]
+    CC.delete_deck(did)
+
+
+def test_l_analyse_est_REJOUABLE_et_ne_touche_a_aucun_fichier():
+    """« Relançable sans re-dépôt » (plan D3 précisé T2). Deux analyses de
+    suite rendent les mêmes mesures, et le dossier ne bouge pas : la route
+    RÉPOND, elle n'écrit rien — c'est la pièce qui publie."""
+    did = _deck()
+    _post(did, _pngs(_synth(26, TROIS)), "recto")
+    a = _analyse(did).json()
+    b = _analyse(did).json()
+    for k in ("border", "boxes", "bg", "palette", "echelle", "ecart_ratio"):
+        assert a[k] == b[k], k
+    assert b["analyzed"] >= a["analyzed"]
+    d = CT.deck_dir(did) / "capture"
+    assert sorted(p.name for p in d.iterdir()) == ["source_recto.png"]
+    CC.delete_deck(did)
+
+
+def test_deposer_un_VERSO_ne_change_RIEN_a_la_mesure_du_recto():
+    """L'asymétrie de D3 amendé, vue côté ROUTE cette fois (le contrôle
+    voisin la prouve côté écran, dans node)."""
+    did = _deck()
+    _post(did, _pngs(_synth(26, TROIS)), "recto")
+    avant = _analyse(did).json()
+    _post(did, _pngs(_synth(13)), "verso")
+    apres = _analyse(did).json()
+    assert avant["border"] == apres["border"], (avant["border"], apres["border"])
+    assert avant["boxes"] == apres["boxes"]
+    CC.delete_deck(did)
+
+
+def test_l_analyse_ne_rend_JAMAIS_500_meme_sur_un_recto_abime():
+    """Un PNG tronqué posé À LA MAIN dans le dossier — l'accident réel d'un
+    disque plein ou d'un dossier copié à moitié. La route doit le NOMMER."""
+    did = _deck()
+    d = CT.deck_dir(did, create=True) / "capture"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "source_recto.png").write_bytes(_pngs(_synth(26))[:400])
+    r = _analyse(did)
+    assert r.status_code != 500, r.text[:300]
+    assert r.status_code in (400, 409), (r.status_code, r.text[:200])
+    assert "json" in r.headers.get("content-type", "")
+    assert re.search(r"[éèêàç]", r.json()["detail"]), r.json()["detail"]
+    CC.delete_deck(did)
+
+
+# ═══════════════════════ l'écran, côté mesures ══════════════════════════════
+
+def test_le_SCHEMA_de_l_ecran_couvre_TOUTES_les_cles_du_releve():
+    """LA FRONTIÈRE QUI CASSE EN SILENCE. `patchAs` LÈVE sur une clé hors
+    schéma : une clé publiée par `analyse_recto` et absente du bloc `state:`
+    de mod-capture.js ne « manquerait » pas à l'écran — elle ferait échouer le
+    geste « Analyser » en entier, avec pour tout diagnostic « capture ne
+    possède pas ecart_ratio » dans un toast. Rien d'autre que ce contrôle ne
+    tient les deux bouts : le JS n'est importable d'aucune façon depuis
+    Python, et le Python n'est lu par aucun test JS."""
+    from app.services.cards.contract import geom
+    releve = CP.analyse_recto(_synth(26, TROIS), geom("poker_eu", 300))
+    schema = _cles_du_schema()
+    hors = set(releve) - schema
+    assert not hors, \
+        (f"le backend publie {sorted(hors)} — `M.patch` lèvera : ajoutez-les "
+         f"au bloc `state:` de mod-capture.js")
+    # ... et dans l'autre sens : `releve()` ne doit pas inventer de clés.
+    js = _corps_js("releve")
+    for cle in sorted(set(releve)):
+        assert cle + ":" in js, \
+            f"releve() ne recopie pas « {cle} » : la mesure se perdrait"
+
+
+def test_l_ecran_ecrit_TOUJOURS_un_CHIFFRE_de_confiance():
+    """Spec §7.1.2 : « l'écran affiche le chiffre, jamais une certitude ». La
+    règle est EXÉCUTÉE : on extrait `conf` et `num` de la vraie source et on
+    les fait tourner dans node. Une version qui rendrait « bonne » ou
+    « fiable » sur un nombre tomberait ici, et une virgule anglaise aussi."""
+    src = (_fonction_js("estNombre") + _fonction_js("num")
+           + _fonction_js("conf"))
+    sortie = _node(src + """
+      console.log([conf(0.84), conf(1), conf(0), conf(null), conf("x"),
+                   num(2.6, 2), num(0.1665, 2)].join("|"));
+    """)
+    vus = sortie.strip().split("|")
+    assert vus[0] == "confiance 0,84", vus
+    assert vus[1] == "confiance 1,00", vus
+    assert vus[2] == "confiance 0,00", "une confiance NULLE s'écrit aussi"
+    assert vus[3] == "confiance inconnue" and vus[4] == "confiance inconnue", vus
+    assert vus[5] == "2,60" and vus[6] == "0,17", vus
+    # AUCUN ADJECTIF DE CERTITUDE dans les phrases d'ÉCRAN.
+    #
+    # LES COMMENTAIRES NE SONT PAS DES PHRASES D'ÉCRAN, et la première
+    # écriture les confondait : un `'` d'apostrophe française dans un
+    # commentaire (« qu'on n'a pas ») ferme un faux littéral, et tout le
+    # commentaire entrait dans le balayage — le contrôle rougissait sur la
+    # DOCTRINE qui interdit le mot. On dépouille donc pour de bon.
+    plat = " ".join(_chaines_js(JS.read_text(encoding="utf-8"))).lower()
+    assert "confiance " in plat, "le dépouillage a mangé les phrases d'écran"
+    assert "deux decimales" not in plat, "un commentaire a survécu au dépouillage"
+    for mot in ("fiable", "certaine", "sûre", "excellente", "parfaite",
+                "bonne détection", "détection correcte"):
+        assert mot not in plat, f"« {mot} » remplace un chiffre à l'écran"
+    # ET LA CLASSE DE DÉFAUT EST FERMÉE, pas seulement l'occurrence trouvée.
+    # `isFinite(Number(x))` est VRAI pour `null` : partout où l'écran s'en
+    # servait pour décider s'il a une mesure, une mesure absente devenait un
+    # zéro affiché (le rayon de coin non suivi, l'écart de ratio jamais
+    # calculé). Le seul test d'existence autorisé est `estNombre`.
+    js = JS.read_text(encoding="utf-8")
+    assert "isFinite(Number(" not in js, \
+        ("`isFinite(Number(x))` est de retour : il accepte null et le peint "
+         "en zéro — utiliser `estNombre`")
+
+
+def test_l_incrustation_des_boites_n_est_PAS_un_painter():
+    """§9.4 : P10 n'a aucun z et ne dessine pas la carte. L'aperçu des boîtes
+    est de l'HTML posé PAR-DESSUS l'<img>, en pourcentages de la carte —
+    donc dans la même unité que `boxes`, sans mesurer une seule fois la mise
+    en page. Un canvas ici serait un painter clandestin."""
+    corps = _corps_js("dessineBoites")
+    for interdit in ("getContext", "canvas", "CanvasRenderingContext"):
+        assert interdit not in corps, interdit
+    assert "carte_mm" in corps, "les boîtes ne sont pas placées par l'échelle"
+    assert corps.count('+ "%"') >= 4, \
+        "les quatre côtés doivent être posés en pourcentages"
+    js = JS.read_text(encoding="utf-8")
+    assert 'painters: []' in js.replace('painters:[', 'painters: [')
+
+
+def test_le_geste_ANALYSER_est_garde_contre_le_double_clic():
+    """Patron BUSY de T1, étendu au second geste : le MÊME verrou que
+    l'import — mesurer pendant qu'un fichier monte mesurerait l'image d'avant.
+    Et le bouton n'existe pas sans recto : l'analyse porte sur lui."""
+    corps = _corps_js("analyser")
+    assert re.search(r"if\s*\(\s*BUSY\s*\)", corps), corps[:400]
+    assert "BUSY = true" in corps and "BUSY = false" in corps, corps[:400]
+    assert 'info("recto")' in corps, corps[:400]
+    assert "M.patch(" in corps, "la PIÈCE publie (D3) — pas la route"
+    peint = _corps_js("paint")
+    assert "cf-capture-analyse" in peint, \
+        "le bouton n'est pas piloté par l'état de l'écran"
 
 
 if __name__ == "__main__":
