@@ -7,9 +7,15 @@ lisent `contract.py` et écrivent leur propre `<id>.py`.
 Stockage — `outputs/decks/deck_xxxxxxxx/meta.json`, voisin de materials/,
 sprites/ et assets3d/. AUCUNE table SQL : ni les matières ni les sprites n'en
 ont, et un deck n'est pas plus relationnel qu'une matière. `meta.json` est
-écrit ATOMIQUEMENT (tmp + `.replace()`) — l'autosave de l'écran tape toutes
-les 900 ms, une écriture interrompue laisserait un document tronqué que la
-prochaine ouverture lirait comme un deck vide.
+écrit ATOMIQUEMENT (brouillon à suffixe unique + `replace` patient) —
+l'autosave de l'écran tape toutes les 900 ms, une écriture interrompue
+laisserait un document tronqué que la prochaine ouverture lirait comme un
+deck vide.
+
+À côté des dossiers de jeux vit `decks_index.json`, l'index de LISTING : un
+CACHE des quatre champs affichés, revalidé par un stat par jeu. `meta.json`
+reste la vérité — l'index ne dispense que de l'OUVRIR. Voir la section
+« l'index de listing », plus bas, pour ce qu'il coûte et ce qu'il rapporte.
 
 Le document est PARTITIONNÉ (spec 2.3) : un sous-arbre par pièce, plus les
 clés de CORE. `normalize_deck` ne lève jamais — un `meta.json` abîmé se
@@ -37,7 +43,9 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import os
 import shutil
+import time
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -190,14 +198,60 @@ def geom_of(doc: dict) -> CardGeom:
 
 # ── magasin sur disque ──────────────────────────────────────────────────────
 
+# La PATIENCE du remplacement final, patron T1 (`capture.py:_store_image`,
+# RECOPIÉ et non partagé entre modules — règle 8 ; ici, DANS le fichier, une
+# seule fonction sert les deux écritures atomiques du magasin). Sur Windows,
+# `replace` par-dessus un fichier que quelqu'un LIT échoue avec WinError 5, et
+# deux `replace` visant la même destination se refusent l'un l'autre
+# (MoveFileEx, partage). Une seconde tentative après un souffle les absorbe :
+# le conflit dure le temps d'un appel système, pas d'une requête. Le plafond
+# est court EXPRÈS (5 x 20 ms = 100 ms au pire) — au-delà, ce n'est plus une
+# course mais un vrai problème de disque, et il doit se DIRE.
+REPLACE_ESSAIS = 5
+REPLACE_PAUSE_S = 0.02
+
+
+def _replace_patient(tmp, final) -> None:
+    for reste in range(REPLACE_ESSAIS - 1, -1, -1):
+        try:
+            tmp.replace(final)
+            return
+        except OSError:
+            if not reste:
+                raise
+            time.sleep(REPLACE_PAUSE_S)
+
+
 def write_deck(doc: dict) -> dict:
-    """Écrit meta.json ATOMIQUEMENT (tmp + replace)."""
+    """Écrit meta.json ATOMIQUEMENT : brouillon à SUFFIXE UNIQUE, puis
+    `replace` PATIENT.
+
+    LE TEMPORAIRE À NOM FIXE NE SUFFISAIT PAS, ET C'EST MESURÉ. `meta.json.tmp`
+    est le même fichier pour tout le monde : deux autosaves simultanées sur le
+    même jeu y écrivent l'une par-dessus l'autre. Et même seule, une autosave
+    butait sur le listing : `replace` par-dessus un `meta.json` qu'un balayage
+    est en train de LIRE refuse avec WinError 5 — 2 échecs sur 12 autosaves
+    face à 8 listings concurrents, mesurés AVANT ce correctif, et un `PATCH`
+    qui répondait 500 à l'utilisateur pour une frappe au clavier. Le défaut
+    précède l'index de listing (reproduit à l'identique sur l'arbre d'avant) ;
+    l'index le rend simplement plus visible, puisqu'il RESTE des lectures.
+
+    Le brouillon unique donne à chaque écriture LE SIEN, la patience absorbe la
+    course, et le `replace` reste atomique : le dernier arrivé gagne
+    proprement, jamais un document tronqué."""
     did = doc.get("id")
     d = deck_dir(did, create=True)
-    tmp = d / "meta.json.tmp"
-    tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2),
-                   encoding="utf-8")
-    tmp.replace(d / "meta.json")
+    tmp = d / f"meta.json.{uuid4().hex}.tmp"
+    try:
+        tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2),
+                       encoding="utf-8")
+        _replace_patient(tmp, d / "meta.json")
+    except OSError:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass               # le brouillon n'a peut-être jamais existé
+        raise
     return doc
 
 
@@ -211,22 +265,42 @@ def create_deck(name: str = "Mon jeu", fmt: dict | None = None,
     return write_deck(doc)
 
 
-def read_deck(did: str) -> dict | None:
-    """Document, ou None si le dossier/meta est absent. Un meta.json corrompu
-    est normalisé plutôt que de faire tomber l'appelant."""
+def _lit_meta(did: str) -> tuple[dict | None, bool]:
+    """(document, lisible) — LE SEUL endroit du magasin qui OUVRE un meta.json.
+
+    `lisible` dit si les octets ont été COMPRIS ; il ne change RIEN au document
+    rendu. La réparation reste exactement celle d'avant, RE-DATAGE COMPRIS :
+    `normalize_deck` remplit `created`/`updated` avec l'heure courante, si bien
+    qu'un document abîmé est, à chaque lecture, le plus récent du backend. Ce
+    comportement est ÉPINGLÉ par les tests, il n'est pas corrigé ici.
+
+    Le drapeau ne sert qu'à une chose, et elle est en aval : interdire à
+    l'index de listing de METTRE EN CACHE un document réparé. Le figer
+    changerait par la bande une sémantique que la 3c a délibérément laissée en
+    place — et l'index n'a pas à trancher une question de produit.
+    """
     try:
         d = deck_dir(did)
     except ValueError:
-        return None
+        return None, False
     f = d / "meta.json"
     if not f.is_file():
-        return None
+        return None, False
     try:
         raw = json.loads(f.read_text(encoding="utf-8"))
     except (OSError, ValueError) as e:
         logger.warning(f"cards: meta.json illisible pour {did}: {e}")
-        raw = {}
-    return normalize_deck(raw, did)
+        return normalize_deck({}, did), False
+    return normalize_deck(raw, did), True
+
+
+def read_deck(did: str) -> dict | None:
+    """Document, ou None si le dossier/meta est absent. Un meta.json corrompu
+    est normalisé plutôt que de faire tomber l'appelant.
+
+    Façade de `_lit_meta` : les cinquante appelants du domaine n'ont que faire
+    du drapeau de lisibilité, et la signature ne bouge pas d'une virgule."""
+    return _lit_meta(did)[0]
 
 
 DECK_SUMMARY_KEYS = ("id", "name", "created", "updated")
@@ -242,9 +316,11 @@ def deck_summary(doc: dict) -> dict:
     L'ARRIVÉE, après les avoir fait traverser le réseau, le parseur JSON et le
     tas de l'onglet. Le rabot passe ici : 2 679 octets servis à `limit=24`.
 
-    CE QUE CELA N'ACHÈTE PAS, ET IL FAUT LE DIRE : le disque coûte pareil (il
-    faut ouvrir chaque meta.json pour connaître `updated`, donc pour trier) —
-    13,5 s mesurées le 23/08, inchangées.
+    CE QUE CELA N'ACHETAIT PAS — et qui est soldé depuis : le disque coûtait
+    pareil, puisqu'il fallait ouvrir chaque meta.json pour connaître `updated`,
+    donc pour trier (13,5 s mesurées le 23/08, inchangées par le rabot ;
+    13,8 s au déployé le 24/08). C'est l'index de listing, plus bas, qui a pris
+    cette moitié-là : un stat par jeu, zéro ouverture quand rien n'a bougé.
 
     L'entrée est un document DÉJÀ NORMALISÉ (`read_deck`) : `name` y est une
     chaîne non vide et les deux dates des chaînes. La coercition ci-dessous est
@@ -253,36 +329,255 @@ def deck_summary(doc: dict) -> dict:
     return {k: str(doc.get(k) or "") for k in DECK_SUMMARY_KEYS}
 
 
-def _decks_tries(projette):
-    """Le balayage, UNE FOIS. `updated` n'a qu'une précision d'une seconde :
-    le mtime de meta.json départage. `projette` décide de ce qu'on GARDE —
-    deux boucles jumelles auraient été deux tris à maintenir d'accord."""
-    rows = []
-    for d in decks_root().iterdir():
-        if not d.is_dir() or not is_valid_did(d.name):
-            continue
-        doc = read_deck(d.name)
-        if not doc:
-            continue
+# ── l'index de listing ──────────────────────────────────────────────────────
+# L'AUTRE MOITIÉ DE LA DETTE « pagination /decks ». La 3c a raboté les OCTETS
+# servis ; le BALAYAGE, lui, n'avait pas bougé — la route rouvrait CHAQUE
+# meta.json pour connaître `updated`, donc pour trier, et elle le refaisait
+# intégralement à chaque appel, y compris quand rien n'avait changé.
+#
+#   · déployé, 24/08 : `GET /decks?limit=1` = 13 850 ms à froid pour
+#     2 198 jeux — le même backend répond 177 ms sur /health ;
+#   · corpus synthétique de 2 200 jeux minimaux, cache OS CHAUD (la partie
+#     reproductible) : 2 200 ouvertures et ~5 800 ms, à chaque appel.
+#
+# Le remède est un CACHE, et il s'assume comme tel : `meta.json` reste LA
+# VÉRITÉ, l'index ne dispense que de l'OUVRIR. Chaque jeu est revalidé par UN
+# stat de son meta.json — (mtime, taille) concordants, l'entrée sert ;
+# discordants, on relit. Une édition faite HORS de l'app (un script QA, une
+# restauration de sauvegarde, un éditeur de texte) est donc vue au stat
+# suivant, sans qu'aucun chemin d'écriture ait eu à prévenir qui que ce soit.
+# C'est POURQUOI les chemins d'écriture n'entretiennent PAS l'index : la
+# revalidation les rattrape tous, et l'autosave de l'écran tape toutes les
+# 900 ms — lui faire réécrire un fichier de 2 200 entrées à chaque frappe
+# coûterait bien plus cher que le balayage qu'on est venu supprimer.
+#
+# LE PIÈGE QUI SE NOMME : le mtime du dossier `decks/` NE BOUGE PAS quand un
+# `meta.json` imbriqué change — un dossier n'est daté que par les entrées
+# qu'on lui AJOUTE ou qu'on lui RETIRE. Invalider l'index sur l'horodatage de
+# la racine serait donc FAUX, et faux en silence. C'est le stat PAR JEU qui
+# fait foi ; le test `test_le_MTIME_DU_DOSSIER_RACINE_...` le MESURE au lieu
+# de le croire sur parole.
+#
+# LE TROU CONNU, ÉCRIT PLUTÔT QUE MASQUÉ : deux écritures d'un même meta.json
+# qui tombent dans le MÊME tic d'horodatage du système de fichiers ET rendent
+# le même nombre d'octets sont indiscernables au stat. C'est le trou de tout
+# cache (mtime, taille) ; la fenêtre vaut la granularité de l'horloge de
+# fichier (~15 ms sur Windows), l'autosave tape toutes les 900 ms et réécrit
+# `updated` à chaque passage.
+
+# LE NOM NE PEUT PAS ÊTRE PRIS POUR UN JEU : il ne satisfait pas `DID_RE`
+# (`^deck_[0-9a-f]{8}$`), et le balayage ne retient que des DOSSIERS. Deux
+# verrous, la doctrine de `deck_dir` — le motif PUIS le confinement.
+INDEX_NAME = "decks_index.json"
+INDEX_VERSION = 1
+
+def _index_lu() -> dict:
+    """Les entrées de l'index, ou RIEN. NE LÈVE JAMAIS.
+
+    Illisible, tronqué, vide, remplacé par une liste, d'une VERSION inconnue :
+    autant de façons de dire « cache absent ». On rebalaye, on réécrit, et
+    personne ne s'en aperçoit — sauf le chronomètre du premier passage."""
+    try:
+        brut = json.loads(
+            (decks_root() / INDEX_NAME).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(brut, dict) or brut.get("v") != INDEX_VERSION:
+        return {}
+    entrees = brut.get("decks")
+    return entrees if isinstance(entrees, dict) else {}
+
+
+def _index_ecrit(entrees: dict) -> None:
+    """Pose l'index ATOMIQUEMENT, et sans jamais faire tomber le listing.
+
+    Brouillon à SUFFIXE UNIQUE puis `_replace_patient`, comme `write_deck` :
+    deux listings simultanés ne se disputent pas le même brouillon, et le
+    dernier arrivé gagne proprement — l'index est un cache, deux vérités
+    concurrentes y sont la même à un balayage près.
+
+    AUCUNE INDENTATION : personne ne lit ce fichier à l'œil, et 2 200 entrées
+    indentées, ce sont des octets et du temps de sérialisation pour rien.
+
+    UN ÉCHEC D'ÉCRITURE N'EST PAS UNE ERREUR DE LA ROUTE — disque plein,
+    dossier en lecture seule, antivirus qui tient le fichier : la liste est
+    déjà calculée et JUSTE, elle sera simplement froide au passage suivant.
+    Le journal reçoit `strerror` et RIEN D'AUTRE : `str(e)` porterait le
+    chemin absolu, donc le nom de compte (la jurisprudence de la fuite)."""
+    racine = decks_root()
+    tmp = racine / f"{INDEX_NAME}.{uuid4().hex}.tmp"
+    try:
+        tmp.write_text(json.dumps({"v": INDEX_VERSION, "decks": entrees},
+                                  ensure_ascii=False), encoding="utf-8")
+        _replace_patient(tmp, racine / INDEX_NAME)
+        return
+    except OSError as e:
+        motif = getattr(e, "strerror", None) or e.__class__.__name__
+        logger.debug(f"cards: index de listing non posé ({motif})")
         try:
-            mtime = (d / "meta.json").stat().st_mtime
+            tmp.unlink()
         except OSError:
-            mtime = 0.0
-        rows.append((doc.get("updated") or "", mtime, projette(doc)))
+            pass                   # le brouillon n'a peut-être jamais existé
+
+
+def _entree_a_jour(vieille, st) -> dict | None:
+    """L'entrée d'index si elle CONCORDE avec le disque, sinon None.
+
+    Concorder, c'est porter le MÊME horodatage à la nanoseconde et la MÊME
+    taille que le meta.json qu'on vient de stat. L'horodatage est gardé en
+    NANOSECONDES ENTIÈRES exprès : `st_mtime` est un flottant, et un flottant
+    qui fait l'aller-retour par JSON est une comparaison d'égalité qu'on ne
+    veut pas avoir à défendre.
+
+    Les trois champs servis doivent en outre être des CHAÎNES. Un index qui
+    ment sur leur type — parce qu'une main l'a édité, parce qu'un vieux
+    schéma traîne — ne doit pas faire sortir un entier là où l'écran attend un
+    nom : il redevient simplement un cache absent, pour ce jeu-là."""
+    if not isinstance(vieille, dict):
+        return None
+    if (vieille.get("mtime") != st.st_mtime_ns
+            or vieille.get("size") != st.st_size):
+        return None
+    if not all(isinstance(vieille.get(k), str)
+               for k in ("name", "created", "updated")):
+        return None
+    return vieille
+
+
+def _entree_de_document(doc: dict, st, lisible: bool) -> dict | None:
+    """L'entrée d'index d'un document qu'on VIENT de lire — ou None quand il
+    ne doit pas être mis en cache.
+
+    Un document RÉPARÉ (`lisible` faux) n'entre JAMAIS : `normalize_deck` lui
+    a donné l'heure courante, et cette date-là n'est vraie qu'une seconde. La
+    figer ferait mentir l'index pour toujours, et déciderait en douce d'une
+    question de produit que la 3c a laissée ouverte."""
+    if not lisible:
+        return None
+    r = deck_summary(doc)
+    return {"name": r["name"], "created": r["created"],
+            "updated": r["updated"],
+            "mtime": st.st_mtime_ns, "size": st.st_size}
+
+
+def _resume_d_entree(did: str, entree: dict) -> dict:
+    """Le résumé servi DEPUIS l'index. `id` vient du NOM DU DOSSIER, jamais de
+    l'entrée : un index qui se tromperait d'identifiant ne peut pas faire
+    sortir le nom d'un jeu sous l'identifiant d'un autre."""
+    return {"id": did, "name": entree["name"],
+            "created": entree["created"], "updated": entree["updated"]}
+
+
+# ── le balayage ─────────────────────────────────────────────────────────────
+
+def _dossiers_de_decks() -> list:
+    """Les DOSSIERS de jeux, et rien d'autre.
+
+    `os.scandir` plutôt qu'`iterdir` : le parcours rend déjà les métadonnées de
+    chaque entrée, si bien qu'`is_dir()` ne coûte pas un appel système de plus.
+    Le MOTIF est éprouvé D'ABORD — une comparaison de chaîne ne coûte rien —
+    ce qui écarte l'index, ses brouillons et tout fichier de service sans même
+    les interroger."""
+    try:
+        with os.scandir(decks_root()) as it:
+            return [e for e in it if is_valid_did(e.name) and e.is_dir()]
+    except OSError:
+        return []
+
+
+def _mtime_meta(e) -> float:
+    try:
+        return os.stat(os.path.join(e.path, "meta.json")).st_mtime
+    except OSError:
+        return 0.0
+
+
+def _trie(rows: list) -> list:
+    """LE TRI, à UN SEUL endroit. `updated` n'a qu'une précision d'une
+    seconde : le mtime de meta.json départage. Deux boucles jumelles auraient
+    été deux tris à maintenir d'accord."""
     rows.sort(key=lambda r: (r[0], r[1]), reverse=True)
     return [r[2] for r in rows]
 
 
 def list_decks() -> list[dict]:
-    """Tous les decks ENTIERS, plus récent d'abord."""
-    return _decks_tries(lambda doc: doc)
+    """Tous les decks ENTIERS, plus récent d'abord.
+
+    AUCUN INDEX ICI, ET C'EST ASSUMÉ : un index de quatre champs ne peut pas
+    rendre un document complet, et mettre les documents en cache reviendrait à
+    recopier le magasin à côté du magasin. Qui veut TOUT paye le balayage ; la
+    route, elle, ne veut que les résumés."""
+    rows = []
+    for e in _dossiers_de_decks():
+        doc = read_deck(e.name)
+        if not doc:
+            continue
+        rows.append((doc.get("updated") or "", _mtime_meta(e), doc))
+    return _trie(rows)
 
 
 def list_deck_summaries() -> list[dict]:
-    """Tous les decks en RÉSUMÉS de quatre champs, plus récent d'abord. Même
-    balayage, mais on ne GARDE pas 2 195 documents complets en mémoire pour
-    n'en afficher que quatre champs de vingt-quatre d'entre eux."""
-    return _decks_tries(deck_summary)
+    """Tous les decks en RÉSUMÉS de quatre champs, plus récent d'abord —
+    servis par l'INDEX partout où le disque n'a pas bougé.
+
+    UN STAT PAR JEU, ZÉRO OUVERTURE quand rien n'a changé. Les jeux dont
+    (mtime, taille) concordent avec l'index en sortent ; les autres — inconnus,
+    discordants, illisibles — sont RELUS par le chemin de lecture ORDINAIRE
+    (`_lit_meta`, celui de `read_deck` à la réparation près), puis l'index est
+    réécrit s'il a changé.
+
+    LE PREMIER PASSAGE EST LE BALAYAGE D'AVANT, une fois. Ensuite l'index
+    existe, et il SURVIT au redémarrage du backend — c'est le seul moyen que
+    l'ouverture de la galerie ne repaye pas ses 13,8 s après chaque relance.
+
+    L'index ne peut RIEN AJOUTER à la liste : elle ne sort jamais de ce que le
+    balayage a réellement vu sur le disque. Une entrée pour un jeu disparu est
+    donc muette (et s'efface à la réécriture), et un jeu absent de l'index est
+    simplement relu."""
+    connues = _index_lu()
+    neuves, rows = {}, []
+    for e in _dossiers_de_decks():
+        chemin = os.path.join(e.path, "meta.json")
+        try:
+            st = os.stat(chemin)
+        except OSError:
+            continue           # pas de meta.json : ce dossier n'est pas un jeu
+        entree = _entree_a_jour(connues.get(e.name), st)
+        if entree is not None:
+            neuves[e.name] = entree
+            rows.append((entree["updated"], st.st_mtime,
+                         _resume_d_entree(e.name, entree)))
+            continue
+        doc, lisible = _lit_meta(e.name)
+        if doc is None:
+            continue                   # disparu entre le stat et la lecture
+        rows.append((doc.get("updated") or "", st.st_mtime, deck_summary(doc)))
+        # L'EMPREINTE MISE EN CACHE EST CELLE D'AVANT LA LECTURE — `st`, jamais
+        # un stat repris APRÈS — et l'ordre n'est pas une coquetterie. Une
+        # écriture peut tomber pendant la lecture ; elle avance le mtime.
+        #
+        #   · enregistrée avec l'empreinte d'APRÈS, l'entrée porterait un
+        #     contenu périmé sous une empreinte à jour, que plus AUCUN stat ne
+        #     viendrait contredire : périmée pour toujours ;
+        #   · enregistrée avec l'empreinte d'AVANT, la même course laisse une
+        #     entrée que le prochain stat invalide d'office. Au pire une
+        #     relecture de plus, jamais un mensonge.
+        #
+        # (Un second stat pour « vérifier » que rien n'a bougé n'ajouterait
+        # RIEN : le banc de mutation l'a montré inobservable, parce que la
+        # seule course qu'il attraperait est déjà celle du trou de tic nommé
+        # plus haut — et dans ce trou-là, les deux stats sont d'accord.)
+        fraiche = _entree_de_document(doc, st, lisible)
+        if fraiche is not None:
+            neuves[e.name] = fraiche
+    # ON N'ÉCRIT QUE SI LE CACHE A CHANGÉ. La comparaison porte sur le
+    # CONTENU, pas sur un drapeau « j'ai relu quelque chose » : un jeu
+    # ILLISIBLE est relu à chaque balayage sans jamais entrer dans l'index —
+    # avec un drapeau, sa seule présence ferait réécrire le fichier entier à
+    # chaque ouverture de la galerie, pour rien.
+    if neuves != connues:
+        _index_ecrit(neuves)
+    return _trie(rows)
 
 
 def patch_deck(did: str, body: dict | None) -> dict | None:
@@ -522,9 +817,21 @@ async def patch_deck_route(did: str, body: dict | None = None):
     """Autosave de l'écran (spec 2.2 §10). Fusion partielle de
     {name?, format?, face?, frame?, type?, data?, solid?, texture?, print?,
     gltf?}. Toute clé étrangère est ignorée, toute valeur invalide reprend
-    son défaut — jamais d'erreur 500."""
+    son défaut — jamais d'erreur 500.
+
+    « JAMAIS 500 » VALAIT POUR LE CORPS, PAS POUR LE DISQUE, et c'était le
+    trou : cette route était la SEULE des trois qui écrivent à ne pas border
+    l'`OSError`. Un refus d'écriture y ressortait en trace nue, quand ses deux
+    sœurs (`post_deck`, `duplicate_deck_route`) disent depuis toujours ce que
+    l'OS a refusé, en français et SANS le chemin absolu (donc sans le nom de
+    compte — la jurisprudence de la fuite)."""
     _deck_or_404(did)
-    doc = await asyncio.to_thread(patch_deck, did, body)
+    try:
+        doc = await asyncio.to_thread(patch_deck, did, body)
+    except OSError as e:
+        logger.exception("cards: enregistrement du deck impossible")
+        raise HTTPException(500, "Enregistrement du deck impossible : "
+                                 f"écriture refusée ({e.strerror or 'E/S'})")
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
     return {"deck": doc}

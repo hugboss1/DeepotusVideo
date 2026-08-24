@@ -36,6 +36,7 @@ import pathlib
 import re
 import sys
 import tempfile
+import threading
 import time
 from fractions import Fraction
 
@@ -478,10 +479,15 @@ def test_deck_dir_refuse_la_traversee():
 
 
 def test_meta_json_est_ecrit_atomiquement():
+    """AUCUN brouillon ne survit — et le pin cherche `*.tmp`, pas le seul nom
+    `meta.json.tmp` : depuis le patron T1, le brouillon porte un suffixe
+    UNIQUE, si bien qu'un pin sur le nom fixe serait devenu vrai par accident
+    et ne surveillerait plus rien."""
     doc = CC.create_deck("Jeu témoin")
     d = CT.deck_dir(doc["id"])
     assert (d / "meta.json").is_file()
-    assert not (d / "meta.json.tmp").exists(), "aucun temporaire ne survit"
+    restes = list(d.glob("*.tmp"))
+    assert restes == [], [p.name for p in restes]
     relu = json.loads((d / "meta.json").read_text(encoding="utf-8"))
     assert relu["id"] == doc["id"] and relu["name"] == "Jeu témoin"
 
@@ -861,6 +867,616 @@ def test_un_TOTAL_derive_de_la_TRANCHE_rougit(monkeypatch):
     finally:
         for did in faits:
             CC.delete_deck(did)
+
+
+# ── L'INDEX DE LISTING (performance, hors phase 4) ──────────────────────────
+# La 3c a raboté les OCTETS servis, pas le BALAYAGE. La route relisait CHAQUE
+# meta.json pour connaître `updated`, donc pour trier — et elle le refaisait à
+# chaque appel, y compris quand rien n'avait bougé.
+#
+#   · déployé, 24/08 : GET /api/cards/decks?limit=1 = 13 850 ms à froid pour
+#     2 198 jeux (le même backend répond 177 ms sur /health) ;
+#   · corpus synthétique de 2 200 jeux minimaux, cache OS CHAUD, la partie
+#     reproductible : 2 200 ouvertures et ~5 800 ms, à CHAQUE appel.
+#
+# Le remède est un index de listing revalidé PAR STAT. Ce qui est verrouillé
+# ci-dessous est un COMPTE D'OUVERTURES, jamais un chrono : un `assert ms < X`
+# rougit sur une machine chargée et ne prouve rien de la règle. Le contrat de
+# la route, lui, NE BOUGE PAS D'UN OCTET — les pins de la 3c au-dessus sont
+# restés mot pour mot.
+
+
+def _espion_de_meta(monkeypatch) -> dict:
+    """Compte les OUVERTURES RÉELLES de meta.json, sur `pathlib` lui-même.
+
+    L'ESPION NE VISE AUCUNE FONCTION DU MAGASIN, ET C'EST DÉLIBÉRÉ. Patcher
+    `read_deck` compterait les appels d'un NOM, pas les accès au DISQUE : le
+    jour où le balayage passe par une autre porte, le compte tombe à zéro et
+    le test se déclare vert en ne mesurant plus rien. C'est le piège du spy
+    qui fuit, et il s'évite en visant l'ouverture elle-même.
+
+    LE SCEAU DE L'INSTRUMENT est dans les tests qui s'en servent : chacun
+    exige d'abord un compte NON NUL sur le passage à froid. Si le magasin
+    passait un jour de `Path.read_text` à `open()`, le compteur tomberait à
+    zéro PARTOUT — et c'est cette assertion-là qui rougirait, au lieu de
+    laisser un test creux passer.
+    """
+    vrai = pathlib.Path.read_text
+    vu = {"n": 0}
+
+    def espion(self, *a, **kw):
+        if self.name == "meta.json":
+            vu["n"] += 1
+        return vrai(self, *a, **kw)
+
+    monkeypatch.setattr(pathlib.Path, "read_text", espion)
+    return vu
+
+
+def _compte(vu: dict, appel):
+    """(ouvertures de meta.json, valeur rendue) pour UN appel."""
+    vu["n"] = 0
+    out = appel()
+    return vu["n"], out
+
+
+def _listing(limit: int = 500):
+    return _api("GET", "/api/cards/decks", params={"limit": limit})
+
+
+def test_un_SECOND_listing_sans_changement_n_OUVRE_AUCUN_meta_json(monkeypatch):
+    """L'INVARIANT DE LA TÂCHE. Deux listings de suite, rien n'a bougé entre
+    les deux : le second ne doit toucher AUCUN meta.json. C'est cela qui fait
+    tomber les 13,8 s — pas un plafond d'octets de plus.
+
+    Le premier passage, lui, balaye tout : c'est le prix payé UNE FOIS, et il
+    sert ici de sceau à l'instrument (un compteur qui ne compte rien serait
+    vert des deux côtés)."""
+    faits = _decks_de_banc(6)
+    try:
+        vu = _espion_de_meta(monkeypatch)
+        froid, un = _compte(vu, CC.list_deck_summaries)
+        assert froid >= len(faits), (
+            f"l'espion n'a vu que {froid} ouvertures pour {len(faits)} jeux "
+            "de banc : il ne mesure plus le disque")
+        chaud, deux = _compte(vu, CC.list_deck_summaries)
+        assert chaud == 0, (
+            f"{chaud} meta.json rouverts alors que rien n'a bougé (un jeu "
+            "ILLISIBLE, lui, est relu à chaque fois : c'est voulu)")
+        assert deux == un, "l'index ne rend pas la MÊME liste que le disque"
+        # …et par la ROUTE RÉELLE, qui balaye dans un thread : le compteur est
+        # posé sur pathlib, donc il voit aussi ce thread-là.
+        n3, r = _compte(vu, _listing)
+        assert r.status_code == 200, r.text
+        assert n3 == 0, n3
+        assert [x["id"] for x in r.json()["decks"]] == [x["id"] for x in un]
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_RENOMMAGE_est_vu_au_listing_suivant_et_ne_RELIT_QUE_LUI(monkeypatch):
+    """La revalidation est PAR JEU : un jeu modifié coûte UNE relecture, les
+    2 199 autres coûtent un stat."""
+    faits = _decks_de_banc(6)
+    cible = faits[2]
+    try:
+        CC.list_deck_summaries()                      # l'index existe
+        vu = _espion_de_meta(monkeypatch)
+        assert _compte(vu, CC.list_deck_summaries)[0] == 0
+        assert _api("PATCH", f"/api/cards/{cible}",
+                    json={"name": "renommé au vol"}).status_code == 200
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 1, f"{n} relectures pour UN renommage"
+        ligne = [x for x in lignes if x["id"] == cible][0]
+        assert ligne["name"] == "renommé au vol", ligne
+        assert lignes[0]["id"] == cible, "le jeu modifié n'est pas en tête"
+        # et l'on retombe à zéro : le renommage est entré dans l'index
+        assert _compte(vu, CC.list_deck_summaries)[0] == 0
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_une_EDITION_HORS_DE_L_APP_est_VUE(monkeypatch):
+    """Un script QA, un éditeur de texte, une restauration de sauvegarde :
+    l'index est un CACHE, `meta.json` reste LA VÉRITÉ. Aucun chemin d'écriture
+    de l'app n'est passé par là, et pourtant le listing suivant le voit —
+    parce que c'est le stat PAR JEU qui fait foi."""
+    faits = _decks_de_banc(4)
+    cible = faits[1]
+    try:
+        CC.list_deck_summaries()
+        f = CC.deck_dir(cible) / "meta.json"
+        brut = json.loads(f.read_text(encoding="utf-8"))
+        brut["name"] = "édité hors de l'app"
+        brut["updated"] = "2099-01-01T00:00:00Z"
+        f.write_text(json.dumps(brut, ensure_ascii=False, indent=2),
+                     encoding="utf-8")
+        vu = _espion_de_meta(monkeypatch)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 1, f"{n} relectures : l'édition externe a coûté trop cher"
+        assert lignes[0]["id"] == cible, [x["id"] for x in lignes[:3]]
+        assert lignes[0]["name"] == "édité hors de l'app", lignes[0]
+        assert lignes[0]["updated"] == "2099-01-01T00:00:00Z", lignes[0]
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_le_MTIME_DU_DOSSIER_RACINE_ne_voit_PAS_un_meta_json_imbrique():
+    """LE PIÈGE WINDOWS, MESURÉ PLUTÔT QU'AFFIRMÉ. Invalider l'index sur le
+    mtime de `decks/` serait FAUX : modifier `decks/deck_x/meta.json` ne
+    touche pas l'horodatage de `decks/` — un dossier n'est daté que par les
+    entrées qu'on lui AJOUTE ou qu'on lui RETIRE. C'est pour cela que la
+    revalidation est un stat PAR JEU."""
+    did = CC.create_deck("piège de racine")["id"]
+    try:
+        racine = CC.decks_root()
+        avant = racine.stat().st_mtime_ns
+        time.sleep(0.05)
+        CC.patch_deck(did, {"name": "modifié en profondeur"})
+        assert racine.stat().st_mtime_ns == avant, (
+            "le mtime de decks/ a bougé sur une écriture imbriquée : "
+            "le piège nommé n'en est pas un sur ce système")
+    finally:
+        CC.delete_deck(did)
+
+
+def test_une_CREATION_une_COPIE_et_une_SUPPRESSION_sont_VUES(monkeypatch):
+    """Les trois autres chemins d'écriture. Aucun n'entretient l'index — la
+    revalidation par stat les rattrape tous, et c'est ce qui est prouvé ici."""
+    faits = _decks_de_banc(3)
+    try:
+        CC.list_deck_summaries()
+        vu = _espion_de_meta(monkeypatch)
+        neuf = CC.create_deck("le petit nouveau")["id"]
+        faits.append(neuf)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 1, n
+        assert lignes[0]["id"] == neuf and lignes[0]["name"] == "le petit nouveau"
+
+        copie = _api("POST", f"/api/cards/decks/{neuf}/duplicate")
+        assert copie.status_code == 200, copie.text
+        cid = copie.json()["deck"]["id"]
+        faits.append(cid)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 1, n
+        par_id = {x["id"]: x for x in lignes}
+        assert par_id[cid]["name"] == "copie de le petit nouveau", par_id[cid]
+
+        assert _api("DELETE", f"/api/cards/{cid}").status_code == 200
+        faits.remove(cid)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 0, f"{n} relectures pour une SUPPRESSION"
+        assert cid not in {x["id"] for x in lignes}, "le jeu supprimé est resté"
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_JEU_ILLISIBLE_n_est_PAS_mis_en_CACHE(monkeypatch):
+    """L'INDEX N'IMMORTALISE PAS LE MENSONGE. `read_deck` RE-DATE un meta.json
+    illisible à chaque lecture — sémantique ÉPINGLÉE plus haut
+    (`test_un_jeu_ILLISIBLE_se_RE_DATE_...`), pas corrigée ici. Un index qui
+    mettrait ce document en cache figerait la date bidon et changerait, par la
+    bande, un comportement que la 3c a délibérément laissé en place.
+
+    Le remède : un jeu qu'on ne sait pas LIRE n'entre pas dans l'index. Il est
+    relu à chaque balayage — il est rare, et il redevient sain dès qu'on le
+    répare."""
+    sain = CC.create_deck("un jeu qui va bien")["id"]
+    did = CC.create_deck("bientôt illisible")["id"]
+    try:
+        CC.list_deck_summaries()                      # l'index prend l'empreinte
+        (CC.deck_dir(did) / "meta.json").write_text("{pas du json",
+                                                    encoding="utf-8")
+        vu = _espion_de_meta(monkeypatch)
+        n1, un = _compte(vu, CC.list_deck_summaries)
+        assert n1 == 1, n1
+        time.sleep(1.1)
+        n2, deux = _compte(vu, CC.list_deck_summaries)
+        assert n2 == 1, (
+            f"{n2} ouvertures : l'index a mis le jeu illisible en cache "
+            "(0) ou relit tout le monde (>1)")
+        a = [x for x in un if x["id"] == did][0]["updated"]
+        b = [x for x in deux if x["id"] == did][0]["updated"]
+        assert b > a, (a, b, "la date bidon a été figée par l'index")
+        assert [x["id"] for x in deux][0] == did
+    finally:
+        CC.delete_deck(did)
+        CC.delete_deck(sain)
+
+
+POISONS = [
+    "{ pas du json",                              # tronqué
+    "",                                           # vide
+    "[]",                                         # pas un objet
+    '{"decks": {}}',                              # sans version
+    '{"v": 999999, "decks": {}}',                 # version inconnue
+    '{"v": 1}',                                   # sans entrées
+    '{"v": 1, "decks": "pas un objet"}',
+    '{"v": 1, "decks": {"deck_deadbeef": {"name": "fantôme", "created": "",'
+    ' "updated": "9999-01-01T00:00:00Z", "mtime": 1, "size": 1}}}',
+    '{"v": 1, "decks": {"deck_deadbeef": 42}}',
+]
+
+
+@pytest.mark.parametrize("poison", POISONS)
+def test_un_INDEX_ABIME_se_RECONSTRUIT_en_silence(monkeypatch, poison):
+    """JAMAIS-500, côté cache. Un index tronqué, vide, d'un schéma inconnu, ou
+    qui parle d'un jeu qui n'existe plus : l'issue reste JUSTE, la route reste
+    à 200, et l'index se refait tout seul au passage suivant.
+
+    LE FANTÔME EST LE CAS QUI COMPTE VRAIMENT : un index qui MENT par excès ne
+    doit pas faire apparaître un jeu absent du disque. La liste ne sort JAMAIS
+    de ce que le balayage a réellement vu — l'index ne fait que dispenser de
+    l'OUVRIR."""
+    faits = _decks_de_banc(4)
+    try:
+        CC.list_deck_summaries()
+        (CC.decks_root() / CC.INDEX_NAME).write_text(poison, encoding="utf-8")
+        r = _listing()
+        assert r.status_code == 200, r.text
+        ids = [x["id"] for x in r.json()["decks"]]
+        assert set(faits) <= set(ids), (poison, ids[:8])
+        assert "deck_deadbeef" not in ids, "l'index a inventé un jeu"
+        assert all(CT.is_valid_did(i) for i in ids), ids[:8]
+        # …et il s'est refait : le passage suivant ne rouvre plus rien
+        vu = _espion_de_meta(monkeypatch)
+        assert _compte(vu, CC.list_deck_summaries)[0] == 0, poison
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_le_FICHIER_D_INDEX_ne_peut_JAMAIS_passer_pour_un_JEU():
+    """Le nom est choisi pour qu'AUCUNE confusion ne soit possible : il ne
+    satisfait pas `DID_RE`, et le balayage ne retient que des DOSSIERS. Deux
+    verrous, la doctrine de `deck_dir` (le motif PUIS le confinement)."""
+    assert CT.is_valid_did(CC.INDEX_NAME) is False
+    with pytest.raises(ValueError):
+        CT.deck_dir(CC.INDEX_NAME)
+    racine = CC.decks_root()
+    faits = _decks_de_banc(2)
+    intrus = [racine / CC.INDEX_NAME,
+              racine / f"{CC.INDEX_NAME}.abcdef.tmp",   # un brouillon oublié
+              racine / "notes.txt"]
+    (racine / "pas_un_deck").mkdir(exist_ok=True)
+    (racine / f"{CC.INDEX_NAME}.abcdef.tmp").write_text("{}", encoding="utf-8")
+    (racine / "notes.txt").write_text("bonjour", encoding="utf-8")
+    try:
+        ids = [x["id"] for x in CC.list_deck_summaries()]
+        assert set(faits) <= set(ids)
+        assert all(CT.is_valid_did(i) for i in ids), ids[:8]
+        for p in intrus:
+            assert p.name not in ids
+        assert "pas_un_deck" not in ids
+    finally:
+        for p in intrus[1:]:
+            p.unlink(missing_ok=True)
+        (racine / "pas_un_deck").rmdir()
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_des_LISTINGS_SIMULTANES_pendant_des_ECRITURES_ne_rendent_JAMAIS_un_500():
+    """LA CONCURRENCE, ET SON PLANCHER DE SERVICE. La leçon de T1 : « jamais de
+    500 » tout seul est un DEMI-CONTRAT — un serveur qui refuserait poliment
+    tout le monde passerait vert. On exige donc AUSSI que tout le monde soit
+    SERVI, et servi JUSTE : les DEUX côtés répondent 200, et chaque listing
+    porte les jeux du banc.
+
+    Ce que l'on secoue : huit listings et douze autosaves en même temps, donc
+    des réécritures d'index concurrentes ET des `replace` sur des `meta.json`
+    qu'un balayage est en train de lire.
+
+    CE TEST A TROUVÉ UN VRAI 500, ANTÉRIEUR À L'INDEX. `write_deck` posait son
+    brouillon sur un nom FIXE (`meta.json.tmp`) et remplaçait sans patience :
+    sur Windows, `replace` par-dessus un fichier ouvert en lecture refuse avec
+    WinError 5. Mesuré 2 échecs sur 12 autosaves — reproduits À L'IDENTIQUE
+    sur l'arbre d'AVANT l'index, donc pas une régression de celui-ci — et un
+    `PATCH` qui rendait 500 pour une frappe au clavier. Corrigé au patron T1
+    (brouillon unique + `replace` patient)."""
+    faits = _decks_de_banc(12)
+    listings, ecritures, pepins = [], [], []
+
+    def lit():
+        try:
+            r = _listing()
+            listings.append((r.status_code, r.json()))
+        except Exception as e:                                 # noqa: BLE001
+            pepins.append(repr(e))
+
+    def ecrit(did):
+        try:
+            for _ in range(3):
+                r = _api("PATCH", f"/api/cards/{did}",
+                         json={"name": f"secoué {time.time():.3f}"})
+                ecritures.append(r.status_code)
+        except Exception as e:                                 # noqa: BLE001
+            pepins.append(repr(e))
+
+    try:
+        # LES QUATRE ÉCRIVAINS TAPENT SUR LE MÊME JEU, et c'est le cas RÉEL :
+        # deux onglets ouverts sur la même partie, ou l'un des huit builders
+        # qui enregistre pendant que l'écran autosauve. Un brouillon à nom FIXE
+        # (`meta.json.tmp`) est alors LE MÊME FICHIER pour tout le monde : l'un
+        # le remplace pendant que l'autre y écrit encore.
+        fils = ([threading.Thread(target=lit) for _ in range(8)]
+                + [threading.Thread(target=ecrit, args=(faits[0],))
+                   for _ in range(4)])
+        for f in fils:
+            f.start()
+        for f in fils:
+            f.join(timeout=120)
+        assert not pepins, pepins
+        # LE PLANCHER DE SERVICE, des deux côtés : personne n'est refusé.
+        assert len(listings) == 8, (len(listings), "plancher de service")
+        assert ecritures == [200] * 12, ecritures
+        for code, corps in listings:
+            assert code == 200, (code, corps)
+            ids = {x["id"] for x in corps["decks"]}
+            assert set(faits) <= ids, sorted(set(faits) - ids)
+            assert corps["total"] >= len(faits)
+            for ligne in corps["decks"]:
+                assert set(ligne) == {"id", "name", "created", "updated"}, ligne
+        # …et aucun brouillon n'a survécu à la bousculade.
+        for did in faits:
+            restes = list(CC.deck_dir(did).glob("*.tmp"))
+            assert restes == [], [p.name for p in restes]
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_DISQUE_QUI_REFUSE_L_ECRITURE_est_dit_EN_FRANCAIS_sur_les_TROIS_routes(
+        monkeypatch):
+    """La route `PATCH` était la SEULE des trois qui écrivent à ne pas border
+    l'`OSError` : un refus du disque y ressortait en trace nue. Ses deux sœurs
+    disent depuis toujours ce que l'OS a refusé, en français — et SANS le
+    chemin absolu, qui porterait le nom de compte."""
+    did = CC.create_deck("disque plein")["id"]
+    avant = {p.name for p in CC.decks_root().iterdir()}
+    try:
+        def refuse(*a, **kw):
+            raise OSError(28, "Il n'y a plus d'espace disponible sur le disque")
+
+        monkeypatch.setattr(CC, "write_deck", refuse)
+        for methode, chemin in (("PATCH", f"/api/cards/{did}"),
+                                ("POST", "/api/cards/decks"),
+                                ("POST", f"/api/cards/decks/{did}/duplicate")):
+            r = _api(methode, chemin, json={"name": "x"})
+            assert r.status_code == 500, (methode, chemin, r.status_code)
+            detail = r.json()["detail"]
+            assert "impossible" in detail and "refusée" in detail, detail
+            assert "espace" in detail, detail
+            assert "\\" not in detail and "/Users" not in detail, detail
+    finally:
+        # les deux routes de CRÉATION posent le dossier AVANT d'écrire : un
+        # refus les laisse derrière, et le test emporte ses épaves.
+        for p in CC.decks_root().iterdir():
+            if p.name not in avant and CT.is_valid_did(p.name):
+                CC.delete_deck(p.name)
+        CC.delete_deck(did)
+
+
+def test_une_ECRITURE_PENDANT_LA_LECTURE_n_entre_PAS_dans_l_index(monkeypatch):
+    """LA COURSE LA PLUS FINE, jouée à la main faute de pouvoir l'attendre.
+
+    Une écriture qui tombe pendant la lecture donne un contenu PÉRIMÉ. Mise en
+    cache sous l'empreinte d'APRÈS, l'entrée serait périmée POUR TOUJOURS —
+    plus aucun stat ne la contredirait. Mise en cache sous l'empreinte d'AVANT
+    (c'est le choix, et il tient en un seul stat), le prochain stat l'invalide
+    d'office : une relecture de plus, jamais un mensonge.
+
+    La fenêtre est de quelques microsecondes : on ne l'attend pas, on la
+    PROVOQUE, en faisant écrire la lecture elle-même."""
+    faits = _decks_de_banc(3)
+    cible = faits[1]
+    try:
+        CC.list_deck_summaries()
+        f = CC.deck_dir(cible) / "meta.json"
+        vrai = CC._lit_meta
+
+        def lit_puis_ecrit(did):
+            out = vrai(did)
+            if did == cible:
+                brut = json.loads(f.read_text(encoding="utf-8"))
+                brut["name"] = "écrit pendant sa propre lecture"
+                f.write_text(json.dumps(brut, ensure_ascii=False, indent=2),
+                             encoding="utf-8")
+            return out
+
+        f.touch()                       # invalide l'entrée : le jeu sera relu
+        monkeypatch.setattr(CC, "_lit_meta", lit_puis_ecrit)
+        CC.list_deck_summaries()
+        monkeypatch.setattr(CC, "_lit_meta", vrai)
+
+        vu = _espion_de_meta(monkeypatch)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 1, (
+            "le jeu écrit PENDANT sa lecture est entré dans l'index : son "
+            "empreinte et son contenu ne viennent pas du même instant")
+        ligne = [x for x in lignes if x["id"] == cible][0]
+        assert ligne["name"] == "écrit pendant sa propre lecture", ligne
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_LISTING_STABLE_ne_REECRIT_PAS_l_index():
+    """L'index n'est posé que s'il a CHANGÉ, et « changé » se juge sur le
+    CONTENU, pas sur un drapeau « j'ai relu quelque chose ».
+
+    LE CAS QUI SÉPARE LES DEUX est le jeu ILLISIBLE : il est relu à CHAQUE
+    balayage (sa date est re-datée, il n'entre jamais dans le cache). Avec un
+    drapeau, sa seule présence ferait réécrire 328 Kio à chaque ouverture de
+    la galerie — pour reposer exactement les mêmes octets."""
+    faits = _decks_de_banc(3)
+    abime = CC.create_deck("abîmé")["id"]
+    try:
+        CC.list_deck_summaries()
+        p = CC.decks_root() / CC.INDEX_NAME
+        avant = p.stat().st_mtime_ns
+        time.sleep(0.05)
+        CC.list_deck_summaries()
+        CC.list_deck_summaries()
+        assert p.stat().st_mtime_ns == avant, "l'index est reposé pour rien"
+
+        (CC.deck_dir(abime) / "meta.json").write_text("{pas du json",
+                                                      encoding="utf-8")
+        CC.list_deck_summaries()                  # le jeu abîmé sort du cache
+        stable = p.stat().st_mtime_ns
+        time.sleep(0.05)
+        CC.list_deck_summaries()
+        CC.list_deck_summaries()
+        assert p.stat().st_mtime_ns == stable, (
+            "un jeu illisible fait réécrire l'index à chaque listing")
+    finally:
+        CC.delete_deck(abime)
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_l_IDENTIFIANT_SERVI_vient_du_DOSSIER_jamais_de_l_index():
+    """Un index qui se tromperait d'identifiant ne doit pas pouvoir servir le
+    nom d'un jeu sous l'identifiant d'un AUTRE. L'entrée n'en porte pas — et
+    si une main lui en glisse un, il est ignoré."""
+    faits = _decks_de_banc(3)
+    cible = faits[1]
+    p = CC.decks_root() / CC.INDEX_NAME
+    try:
+        CC.list_deck_summaries()
+        brut = json.loads(p.read_text(encoding="utf-8"))
+        assert "id" not in brut["decks"][cible], brut["decks"][cible]
+        assert set(brut["decks"][cible]) == {"name", "created", "updated",
+                                             "mtime", "size"}
+        brut["decks"][cible]["id"] = "deck_deadbeef"
+        p.write_text(json.dumps(brut, ensure_ascii=False), encoding="utf-8")
+        ids = {x["id"] for x in CC.list_deck_summaries()}
+        assert "deck_deadbeef" not in ids, "l'index a imposé son identifiant"
+        assert cible in ids
+    finally:
+        p.unlink(missing_ok=True)          # l'index truqué ne survit pas au test
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_INDEX_CRU_SANS_REVALIDATION_rougit(monkeypatch):
+    """MUTATION n°1 — le stat est ignoré, l'entrée d'index est crue sur parole.
+    L'édition faite HORS de l'app devient alors INVISIBLE : le listing sert
+    l'ancien nom et n'ouvre rien. Les deux assertions de
+    `test_une_EDITION_HORS_DE_L_APP_est_VUE` tombent."""
+    faits = _decks_de_banc(4)
+    cible = faits[1]
+    try:
+        CC.list_deck_summaries()
+        f = CC.deck_dir(cible) / "meta.json"
+        brut = json.loads(f.read_text(encoding="utf-8"))
+        brut["name"] = "édité hors de l'app"
+        f.write_text(json.dumps(brut, ensure_ascii=False), encoding="utf-8")
+        monkeypatch.setattr(CC, "_entree_a_jour",
+                            lambda vieille, st: vieille
+                            if isinstance(vieille, dict) else None)
+        vu = _espion_de_meta(monkeypatch)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        assert n == 0, n                      # le pin exige 1
+        ligne = [x for x in lignes if x["id"] == cible][0]
+        assert ligne["name"] != "édité hors de l'app", ligne
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_une_VERSION_D_INDEX_IGNOREE_rougit(monkeypatch):
+    """MUTATION n°2 — `_index_lu` ne regarde plus `v`. Un index d'un schéma
+    INCONNU est alors servi tel quel, et ce qu'il raconte passe pour la
+    vérité. Le pin `test_un_INDEX_ABIME_se_RECONSTRUIT_en_silence` tombe sur
+    le cas `{"v": 999999}`.
+
+    Le mensonge est monté à l'empreinte EXACTE du disque : c'est bien la
+    VERSION, et elle seule, qui doit le refuser."""
+    faits = _decks_de_banc(3)
+    cible = faits[1]
+    try:
+        CC.list_deck_summaries()
+        p = CC.decks_root() / CC.INDEX_NAME
+        brut = json.loads(p.read_text(encoding="utf-8"))
+        brut["v"] = 999999
+        brut["decks"][cible]["name"] = "menteur d'un schéma inconnu"
+        p.write_text(json.dumps(brut, ensure_ascii=False), encoding="utf-8")
+
+        sain = [x for x in CC.list_deck_summaries() if x["id"] == cible][0]
+        assert sain["name"] != "menteur d'un schéma inconnu", sain
+
+        p.write_text(json.dumps(brut, ensure_ascii=False), encoding="utf-8")
+        monkeypatch.setattr(
+            CC, "_index_lu",
+            lambda: json.loads(p.read_text(encoding="utf-8"))["decks"])
+        menti = [x for x in CC.list_deck_summaries() if x["id"] == cible][0]
+        assert menti["name"] == "menteur d'un schéma inconnu", menti
+    finally:
+        for did in faits:
+            CC.delete_deck(did)
+
+
+def test_un_JEU_ILLISIBLE_MIS_EN_CACHE_rougit(monkeypatch):
+    """MUTATION n°3 — la garde « lisible » saute et le document réparé entre
+    dans l'index. La date bidon est alors FIGÉE : deux balayages à plus d'une
+    seconde d'écart rendent la MÊME date, ce que le pin de la 3c interdit."""
+    did = CC.create_deck("bientôt illisible")["id"]
+    try:
+        CC.list_deck_summaries()
+        (CC.deck_dir(did) / "meta.json").write_text("{pas du json",
+                                                    encoding="utf-8")
+        vrai = CC._entree_de_document
+        monkeypatch.setattr(CC, "_entree_de_document",
+                            lambda doc, st, lisible: vrai(doc, st, True))
+        un = [x for x in CC.list_deck_summaries() if x["id"] == did][0]
+        time.sleep(1.1)
+        vu = _espion_de_meta(monkeypatch)
+        n, lignes = _compte(vu, CC.list_deck_summaries)
+        deux = [x for x in lignes if x["id"] == did][0]
+        assert n == 0, n                       # le pin exige 1
+        assert deux["updated"] == un["updated"], (un, deux)   # le pin exige >
+    finally:
+        CC.delete_deck(did)
+
+
+# ── LES DEUX TÉMOINS SURVIVANTS, AVOUÉS ─────────────────────────────────────
+# Douze mutations jouées SUR LA SOURCE, dix tuées : le stat ignoré, la version
+# d'index ignorée, le jeu illisible mis en cache, l'identifiant repris de
+# l'entrée, l'empreinte prise APRÈS la lecture, l'index reposé à chaque
+# listing, le `replace` nu de `meta.json`, le brouillon à nom fixe, le tri
+# retourné, l'`OSError` du PATCH laissée nue. Deux survivent, et elles sont
+# ÉCRITES plutôt que masquées.
+#
+# 1. LE `replace` NU DE L'INDEX. Retirer sa patience ne fait rougir aucun
+#    test, et ce n'est pas un oubli : l'échec d'écriture de l'index est DÉJÀ
+#    avalé — c'est un cache, et un cache qu'on n'a pas pu poser ne coûte qu'un
+#    balayage de plus au passage suivant. Aucune assertion de JUSTESSE ne peut
+#    donc le voir. On l'attraperait en exigeant un taux de pose sous
+#    concurrence, mais la leçon T1 (c) est explicite : entre un TROU CONNU
+#    ÉCRIT et une INTERMITTENCE ROUGE, le trou écrit gagne. La patience reste
+#    malgré tout, parce qu'un listing qui ne réussirait JAMAIS à poser son
+#    index resterait froid pour toujours — et c'est exactement les 13,8 s
+#    qu'on est venu chercher.
+#
+#    SON JUMEAU SUR `meta.json`, LUI, EST BIEN VU — mais pas à tous les coups :
+#    le `replace` nu y est tué 4 fois sur 5 (5 essais). C'est le témoin
+#    intermittent de la leçon T1 (c), pris du BON côté : le code corrigé, lui,
+#    est vert 8 fois sur 8. Un test qui rougit parfois sur du code SAIN serait
+#    inacceptable ; un test qui rate parfois un mutant est un test qui manque
+#    de dents, pas un test qui ment.
+#
+# 2. LE FILTRE `is_valid_did` DU BALAYAGE. Le retirer ne change RIEN à ce qui
+#    est servi, et c'est la preuve que le second verrou tient : un dossier au
+#    nom étranger, même avec un `meta.json` dedans, est refusé un cran plus
+#    loin par `deck_dir` (le motif PUIS le confinement — la doctrine que ce
+#    fichier vérifie déjà en haut). Le filtre est la CEINTURE par-dessus les
+#    bretelles ; il ne se juge pas au résultat mais au coût, puisqu'il évite
+#    d'aller stat-er et lire ce qu'on sait déjà refuser.
 
 
 def test_geom_du_document():
