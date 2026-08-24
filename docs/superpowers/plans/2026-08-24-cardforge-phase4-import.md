@@ -676,8 +676,15 @@ Extraction Patriarche (pypdf, page 5, 1060×1484, script one-shot sous scripts/q
 erreur littérale si le PDF manque) → `.superpowers/samples/` hors dépôt (ignore
 vérifié AVANT écriture, métadonnées purgées) ; le parcours §7.2 REJOUÉ ET MESURÉ
 sur le vrai fichier dans l'app déployée : import → analyse (mesures vs table
-d'anatomie :549-556, tolérances avouées ; NB : portrait pleine carte = fond non uni
-attendu → le REFUS local est la bonne réponse, rembg reste opt-in non tiré) →
+d'anatomie :549-556, tolérances avouées ; ~~NB : portrait pleine carte = fond non uni
+attendu → le REFUS local est la bonne réponse~~ — **AMENDÉ T6, mesuré le 24/08 :
+le fond N'EST PAS refusé. Le pourtour d'une carte à marge noire est
+PARFAITEMENT uni (uniformité 1,00 contre un plancher de 0,60) et la couverture
+tombe dans les bornes (9,7 % dans [5 %, 95 %]) : `chroma_key` accepte. Ce qui
+condamne le détourage local sur un full-art n'est donc pas un refus, c'est le
+CHIFFRE que l'écran affiche — « le détourage garderait 9,7 % de l'image », soit
+un détourage qui mangerait le portrait et ne laisserait que l'or. La mesure est
+publiée, la table n'est pas retouchée** ; rembg reste opt-in non tiré) →
 adoptions P1/P2/P3 → famille filigrane-instrument → Sceau 3D-seul → verso (dos
 commun absent : verso 3c par défaut, avoué) → « enregistré comme modèle » → galerie
 → export par couches → graphe (illustration mesh, filigrane extrude+Sceau, typo
@@ -688,7 +695,43 @@ zéro dépense ; mémoire ; poussée.
 test_cards_capture.py (la preuve scriptée sur SYNTHÉTIQUE — le vrai fichier reste
 hors CI), + intégration.
 
-- [ ] LIVRÉ
+- [x] LIVRÉ — commits `d3b4c06` (les deux écrans), `62ab2c5` (le parcours de
+  preuve §7.2 sur synthétique), `b8ec613` (défaut trouvé au navigateur).
+  Extraction Patriarche : `scripts/qa/cf_extract_patriarch.py` → 1060 × 1484
+  RGB, 2 193 816 o, ratio 1,400000 exact, `.gitignore:67` vérifié AVANT
+  écriture, métadonnées prouvées absentes (chunks relus : IHDR + 34 IDAT +
+  IEND, zéro tEXt, et six mots interdits cherchés dans les octets).
+  Étapes-liens D10 (4 liens, `CF.show` + dépli `<details>`/onglet/rail +
+  ancre + repérage) et « Publier vers la 3D » (dette R5 fermée PAR L'ÉCRAN) :
+  4 fonctions pures jouées dans node, 7 tests RED d'abord, 9/9 mutations
+  vues — dont deux qui ont fait CORRIGER LE CONTRÔLE (une classe voisine
+  cherchée comme sous-chaîne restait trouvée après renommage ; une ancre
+  CITÉE dans un commentaire suffisait, d'où `_code_js` sur les fichiers
+  visés). P2 gagne deux ancres sans style (`cff-grp-sceau`, `cff-grp-dos`).
+  Le parcours de preuve joué EN ENTIER sur une carte de synthèse au gabarit
+  du dossier fabricant, 4/4 mutations vues.
+  **PREUVE RÉELLE, app déployée, zéro dépense** (`meshy_mock=true` lu à la
+  route ET préséance `if mock_enabled(): … else:` relue à la SOURCE
+  déployée ; rembg jamais tiré) : import → analyse → adoptions P1/P2/P3 →
+  Sceau 3D seul → modèle → galerie → manifeste → graphe → GLB 5 448 300 o +
+  STL 7 252 684 o (145 052 triangles) + metadata ; anneau PESÉ dans le GLB
+  (800 sommets, 2 400 indices, bbox 63 × 88 × 0,5 mm, iridescence 1,6 IOR
+  200-600 nm) ; viewer 3D chargé (0,063 × 0,088 × 0,0006 m).
+  **TROIS MESURES CONTRE LA TABLE :7.2 QUI DIVERGENT, PUBLIÉES ET NON
+  RETOUCHÉES** (clôture T4) : (1) les filets sont TROIS — 1,19 / 2,67 /
+  3,21 mm — et la table en annonce deux (~2,1 et ~3,2) : le 3,2 tombe juste,
+  le 2,1 ne correspond à aucun filet mesuré ; (2) l'oracle P2 « or chaud →
+  filigrane sans voisine » est FAUX SUR CE FICHIER — `border.color` publie
+  la couleur de la bande QUI PRÉCÈDE le premier front, donc le noir
+  `#010203` de la marge, la teinte est déclarée non mesurable (gris) et le
+  choix tombe sur `runic` (d = 1,1257 ; d_front 0,1257 ; d_teinte 1,0000)
+  avec SIX voisines. Le chaînon n'est pas cassé : `famille_proche(1,189 ;
+  42,0°)` rend bien `filigrane` sans voisine — c'est l'anatomie de la carte
+  (marge sombre avant l'ornement doré) qui interdit à P2 de voir l'or ;
+  (3) le fond n'est PAS refusé (le plan l'attendait) : uniformité 1,00 pour
+  un plancher de 0,60 — un pourtour noir est parfaitement uni. Ce que la
+  mesure dit vraiment est ailleurs et l'écran l'affiche : « le détourage
+  garderait 9,7 % de l'image ».
 - [ ] Ronde adverse + corrections
 - [ ] CLOSE DE PHASE (consigne de sortie ci-dessous)
 

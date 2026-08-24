@@ -557,6 +557,29 @@ filigrane or à instruments. Anatomie mesurée sur l'image (1060×1484 px, 5:7 =
 | épithète | y ~76–78,5, une ligne, serif or, casse mixte | slot P3 |
 | palette | noirs #0b0a08–#141210, ors #8a6a2e→#d8b76a | palette du modèle |
 
+*(La colonne « mesure » ci-dessus est celle de la RELECTURE À L'ŒIL du 19/08,
+avant que le fichier existe. Le fichier existe depuis le 24/08
+(`scripts/qa/cf_extract_patriarch.py`, 1060 × 1484 RGB) et le recalage
+annoncé :548 a été fait. Ce qui a été RELEVÉ SUR LES PIXELS, sur 149 lignes
+balayées, cadre poker 63 × 88 mm :)*
+
+| zone | annoncé (19/08, à l'œil) | MESURÉ (24/08, sur les pixels) | écart |
+|---|---|---|---|
+| filets du filigrane | ~2,1 et ~3,2 | **1,19** (96 % des lignes), **2,67** (78 %), **3,21** (74 %) — TROIS filets, pas deux | 3,2 → 3,21 : +0,01 mm. Le « ~2,1 » ne correspond à AUCUN filet relevé (voisins à 1,19 et 2,67) |
+| titre | y 4,4–11,5 | rangées d'or franc à y 8,74–8,97 · 10,04–10,46 · 10,70–11,00 · 11,47–14,92 | le bandeau descend plus bas qu'annoncé ; rien d'or franc entre 4,5 et 8,7 |
+| épithète | y ~76–78,5 | rangées d'or franc à y 78,45–79,11 · 83,09–84,93 | +2,4 mm sur la première |
+| anneau de halo | centre (31,4 ; 27,1), rayon ~13,9 | 2,4 % de points d'or sur ce cercle (6,7 % à r 12,9) — **aucun anneau franc à ce rayon** | non confirmé |
+| palette, ors | #8a6a2e→#d8b76a | dominantes d'or franc : #806030, #604020, #705030, #504020, #907040 (4,86 % des pixels) | plus sombres et plus rabattues que la fourchette annoncée |
+| palette, noirs | #0b0a08–#141210 | #000000 (33 %), #000004, #000404, #000408, #040404 | le fond est plus noir qu'annoncé |
+
+*(Ces écarts sont PUBLIÉS et non corrigés en amont : la table du 19/08 garde
+sa trace, et c'est la mesure qui fait foi pour l'implémentation. Conséquence
+mesurée sur P2 : la bande relevée par P10 est la marge NOIRE qui précède le
+premier filet — `border.color` rend #010203, la teinte est déclarée non
+mesurable, et « adopter la bordure » choisit sur le front seul en avouant six
+familles voisines. Le chaînon n'est pas en cause : avec la teinte de l'or
+(42,0°), `famille_proche` rend bien « Filigrane à instruments » sans voisine.)*
+
 Modèle `deepotus-fragments` = format poker_eu, full-art, famille « filigrane-instrument »
 + Sceau prismatique **en portée « 3D uniquement »** (§6.2bis-d — écran et impression en
 or calme), slots titre/épithète ci-dessus, palette d'éléments : anneau de halo,
