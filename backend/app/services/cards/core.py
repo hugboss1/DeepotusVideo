@@ -46,6 +46,7 @@ import math
 import os
 import shutil
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -198,28 +199,70 @@ def geom_of(doc: dict) -> CardGeom:
 
 # ── magasin sur disque ──────────────────────────────────────────────────────
 
-# La PATIENCE du remplacement final, patron T1 (`capture.py:_store_image`,
-# RECOPIÉ et non partagé entre modules — règle 8 ; ici, DANS le fichier, une
-# seule fonction sert les deux écritures atomiques du magasin). Sur Windows,
-# `replace` par-dessus un fichier que quelqu'un LIT échoue avec WinError 5, et
+# LA PATIENCE FACE AU CONFLIT DE PARTAGE, patron T1 (`capture.py:_store_image`,
+# RECOPIÉ et non partagé entre modules — règle 8 ; ici, DANS le fichier, un
+# seul couple de constantes sert les DEUX bouts du même conflit). Sur Windows,
+# `replace` par-dessus un fichier que quelqu'un LIT échoue avec WinError 5,
 # deux `replace` visant la même destination se refusent l'un l'autre
-# (MoveFileEx, partage). Une seconde tentative après un souffle les absorbe :
-# le conflit dure le temps d'un appel système, pas d'une requête. Le plafond
-# est court EXPRÈS (5 x 20 ms = 100 ms au pire) — au-delà, ce n'est plus une
-# course mais un vrai problème de disque, et il doit se DIRE.
-REPLACE_ESSAIS = 5
-REPLACE_PAUSE_S = 0.02
+# (MoveFileEx), et symétriquement OUVRIR un fichier qu'un `replace` est en
+# train de remplacer échoue aussi. Une seconde tentative après un souffle les
+# absorbe : le conflit dure le temps d'un appel système, pas d'une requête.
+#
+# Le plafond est court EXPRÈS : CINQ essais séparés par QUATRE pauses, soit
+# 80 ms au pire — et non 100, l'arithmétique de la première écriture comptait
+# une pause qui n'existe pas (le cinquième essai lève au lieu de dormir ;
+# 82 ms mesurés sur un remplacement qui refuse toujours). Au-delà, ce n'est
+# plus une course mais un vrai problème de disque, et il doit se DIRE.
+PARTAGE_ESSAIS = 5
+PARTAGE_PAUSE_S = 0.02
 
 
 def _replace_patient(tmp, final) -> None:
-    for reste in range(REPLACE_ESSAIS - 1, -1, -1):
+    for reste in range(PARTAGE_ESSAIS - 1, -1, -1):
         try:
             tmp.replace(final)
             return
         except OSError:
             if not reste:
                 raise
-            time.sleep(REPLACE_PAUSE_S)
+            time.sleep(PARTAGE_PAUSE_S)
+
+
+# L'ÂGE À PARTIR DUQUEL UN BROUILLON EST UNE ÉPAVE. Il n'est pas décoratif :
+# un brouillon JEUNE peut appartenir à une écriture EN COURS dans un autre fil,
+# et le ramasser rejouerait, en pire, le défaut du nom fixe. Cinq minutes,
+# c'est mille fois la durée d'une écriture (~6 ms) et une fraction de session.
+BROUILLON_RASSIS_S = 300.0
+
+
+def _balaye_les_brouillons(d) -> None:
+    """Ramasse les brouillons RASSIS d'un dossier de jeu.
+
+    LE SUFFIXE UNIQUE A UN REVERS, ET IL N'ÉTAIT PAS PAYÉ : une écriture
+    interrompue par autre chose qu'une `OSError` — l'arrêt du processus, une
+    coupure de courant, un `KeyboardInterrupt` — laisse une épave que plus RIEN
+    ne réutilise. Le nom fixe d'avant, lui, était au moins repris au coup
+    suivant. Sans ramassage, un dossier de jeu accumule ses épaves pour
+    toujours, et `duplicate_deck` les recopiait fidèlement dans chaque copie.
+
+    L'échec du ramassage est SANS GRAVITÉ et se tait : quelqu'un d'autre l'a
+    pris, ou le disque refuse — l'écriture qui suit, elle, dira ce qu'il faut.
+
+    LE COÛT EST PAYÉ À CHAQUE AUTOSAVE, donc il a été mesuré : 0,13 ms sur un
+    dossier propre, 0,38 ms sur un dossier qui porte huit brouillons, contre
+    6,8 ms pour l'écriture entière. Deux pour cent, pour un dossier de jeu qui
+    ne grossit plus jamais tout seul."""
+    limite = time.time() - BROUILLON_RASSIS_S
+    try:
+        epaves = list(d.glob("meta.json.*.tmp"))
+    except OSError:
+        return
+    for p in epaves:
+        try:
+            if p.stat().st_mtime < limite:
+                p.unlink()
+        except OSError:
+            pass
 
 
 def write_deck(doc: dict) -> dict:
@@ -241,6 +284,7 @@ def write_deck(doc: dict) -> dict:
     proprement, jamais un document tronqué."""
     did = doc.get("id")
     d = deck_dir(did, create=True)
+    _balaye_les_brouillons(d)
     tmp = d / f"meta.json.{uuid4().hex}.tmp"
     try:
         tmp.write_text(json.dumps(doc, ensure_ascii=False, indent=2),
@@ -265,41 +309,83 @@ def create_deck(name: str = "Mon jeu", fmt: dict | None = None,
     return write_deck(doc)
 
 
-def _lit_meta(did: str) -> tuple[dict | None, bool]:
-    """(document, lisible) — LE SEUL endroit du magasin qui OUVRE un meta.json.
+META_LU = "lu"                # les octets ont été compris
+META_CORROMPU = "corrompu"    # les octets sont là, et ce n'est pas du JSON
+META_ABSENT = "absent"        # pas de meta.json, ou pas un identifiant de jeu
+META_REFUS = "refus"          # le fichier existe, et il s'est REFUSÉ à l'instant
 
-    `lisible` dit si les octets ont été COMPRIS ; il ne change RIEN au document
-    rendu. La réparation reste exactement celle d'avant, RE-DATAGE COMPRIS :
-    `normalize_deck` remplit `created`/`updated` avec l'heure courante, si bien
-    qu'un document abîmé est, à chaque lecture, le plus récent du backend. Ce
-    comportement est ÉPINGLÉ par les tests, il n'est pas corrigé ici.
 
-    Le drapeau ne sert qu'à une chose, et elle est en aval : interdire à
-    l'index de listing de METTRE EN CACHE un document réparé. Le figer
-    changerait par la bande une sémantique que la 3c a délibérément laissée en
-    place — et l'index n'a pas à trancher une question de produit.
+def _lit_meta(did: str) -> tuple[dict | None, str]:
+    """(document, état) — LE SEUL endroit du magasin qui OUVRE un meta.json.
+
+    QUATRE ÉTATS, ET LA DISTINCTION QUI COMPTE EST « CORROMPU » CONTRE
+    « REFUS ». Les deux se présentaient sous un même `except (OSError,
+    ValueError)`, et le remède unique était de RÉPARER — c'est-à-dire de
+    fabriquer un document neuf, nommé « Mon jeu », daté de MAINTENANT.
+
+      · CORROMPU (`ValueError`) : les octets sont là et ne sont pas du JSON.
+        La réparation est la bonne réponse, et elle ne bouge pas d'un iota —
+        re-datage compris, comportement ÉPINGLÉ par les tests. `normalize_deck`
+        remplit `created`/`updated` avec l'heure courante, si bien qu'un
+        document abîmé est, à chaque lecture, le plus récent du backend.
+      · REFUS (`OSError`) : le fichier existe, il est SAIN, et il s'est refusé
+        à cet instant précis — sur Windows, ouvrir un `meta.json` qu'un
+        `replace` est en train de remplacer échoue ainsi. Une milliseconde plus
+        tard, il se lit. Réparer là-dessus, c'est INVENTER un document :
+        mesuré 32 courses sur 32, le faux « Mon jeu » prenait la PREMIÈRE
+        LIGNE de la galerie, devant le jeu qu'on venait justement de modifier.
+        Pire, `PATCH` lit-modifie-écrit : le document inventé, vide, écrasait
+        le vrai.
+
+    UN REFUS NE REND DONC RIEN, et c'est à l'appelant de décider. Le listing
+    sert ce que l'index sait déjà (vrai, peut-être d'une seconde) ; les routes
+    par identifiant répondent « introuvable ». LE MARCHÉ EST DIT : un 404
+    passager sur un jeu qui existe est un défaut mineur et qui se corrige au
+    rafraîchissement suivant ; écraser ce jeu par un document vide n'en est
+    pas un.
     """
     try:
         d = deck_dir(did)
     except ValueError:
-        return None, False
+        return None, META_ABSENT
     f = d / "meta.json"
     if not f.is_file():
-        return None, False
+        return None, META_ABSENT
+    # LA PATIENCE, DU CÔTÉ DE LA LECTURE. C'est le MÊME conflit de partage que
+    # celui du `replace`, vu de l'autre bout : plutôt que d'abandonner au
+    # premier refus, on laisse passer l'appel système qui tenait le fichier.
+    # Sans elle, la seule bonne réponse au refus — ne rien rendre — faisait
+    # SILENCIEUSEMENT SAUTER l'autosave qui l'avait provoqué (mesuré : 1 sur
+    # 12 sous bousculade). Avec elle, le refus qui reste est un vrai refus.
+    octets = None
+    for reste in range(PARTAGE_ESSAIS - 1, -1, -1):
+        try:
+            octets = f.read_text(encoding="utf-8")
+            break
+        except OSError as e:
+            if not reste:
+                # LE CHEMIN ABSOLU NE VA PAS AU JOURNAL : `str(e)` le porte,
+                # donc le nom de compte (la jurisprudence de la fuite).
+                motif = getattr(e, "strerror", None) or e.__class__.__name__
+                logger.debug(
+                    f"cards: meta.json refusé pour {did} : {motif}")
+                return None, META_REFUS
+            time.sleep(PARTAGE_PAUSE_S)
     try:
-        raw = json.loads(f.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as e:
+        raw = json.loads(octets)
+    except ValueError as e:
         logger.warning(f"cards: meta.json illisible pour {did}: {e}")
-        return normalize_deck({}, did), False
-    return normalize_deck(raw, did), True
+        return normalize_deck({}, did), META_CORROMPU
+    return normalize_deck(raw, did), META_LU
 
 
 def read_deck(did: str) -> dict | None:
-    """Document, ou None si le dossier/meta est absent. Un meta.json corrompu
-    est normalisé plutôt que de faire tomber l'appelant.
+    """Document, ou None si le dossier/meta est absent — ou si le fichier s'est
+    REFUSÉ à l'instant. Un meta.json CORROMPU, lui, est normalisé plutôt que de
+    faire tomber l'appelant.
 
     Façade de `_lit_meta` : les cinquante appelants du domaine n'ont que faire
-    du drapeau de lisibilité, et la signature ne bouge pas d'une virgule."""
+    de l'état détaillé, et la signature ne bouge pas d'une virgule."""
     return _lit_meta(did)[0]
 
 
@@ -348,8 +434,13 @@ def deck_summary(doc: dict) -> dict:
 # suivant, sans qu'aucun chemin d'écriture ait eu à prévenir qui que ce soit.
 # C'est POURQUOI les chemins d'écriture n'entretiennent PAS l'index : la
 # revalidation les rattrape tous, et l'autosave de l'écran tape toutes les
-# 900 ms — lui faire réécrire un fichier de 2 200 entrées à chaque frappe
-# coûterait bien plus cher que le balayage qu'on est venu supprimer.
+# 900 ms. Lui faire relire puis réécrire un fichier de 2 200 entrées, c'est
+# +17 ms sur CHAQUE frappe (9,8 de lecture et de vérification, 7,2 d'écriture)
+# — un autosave multiplié par deux à quatre selon ce que coûte l'écriture
+# elle-même, la fourchette venant du `patch_deck` mesuré, pas du surcoût, qui
+# lui ne bouge pas. Et cela ne supprimerait pas UN SEUL des stats de
+# revalidation : ils restent nécessaires pour voir les éditions faites hors de
+# l'app, ce qu'aucun entretien au fil de l'eau ne peut couvrir.
 #
 # LE PIÈGE QUI SE NOMME : le mtime du dossier `decks/` NE BOUGE PAS quand un
 # `meta.json` imbriqué change — un dossier n'est daté que par les entrées
@@ -361,9 +452,14 @@ def deck_summary(doc: dict) -> dict:
 # LE TROU CONNU, ÉCRIT PLUTÔT QUE MASQUÉ : deux écritures d'un même meta.json
 # qui tombent dans le MÊME tic d'horodatage du système de fichiers ET rendent
 # le même nombre d'octets sont indiscernables au stat. C'est le trou de tout
-# cache (mtime, taille) ; la fenêtre vaut la granularité de l'horloge de
-# fichier (~15 ms sur Windows), l'autosave tape toutes les 900 ms et réécrit
-# `updated` à chaque passage.
+# cache (mtime, taille). Sa fenêtre a été MESURÉE ici plutôt que devinée :
+# l'horodatage avance de 0,35 ms au plus serré, 1,0 ms en médiane (2 963
+# valeurs distinctes en 3 s, NTFS) — et non les ~15 ms qu'affirmait la
+# première écriture, qui prenait le quantum d'ordonnancement pour la
+# résolution du système de fichiers. Le trou est donc SIX FOIS plus étroit
+# qu'annoncé ; la conclusion prudente, elle, ne change pas. L'autosave tape
+# toutes les 900 ms et réécrit `updated` à chaque passage : la ronde adverse
+# n'a pas réussi à atteindre ce trou par `write_deck` en 500 tentatives.
 
 # LE NOM NE PEUT PAS ÊTRE PRIS POUR UN JEU : il ne satisfait pas `DID_RE`
 # (`^deck_[0-9a-f]{8}$`), et le balayage ne retient que des DOSSIERS. Deux
@@ -371,21 +467,49 @@ def deck_summary(doc: dict) -> dict:
 INDEX_NAME = "decks_index.json"
 INDEX_VERSION = 1
 
-def _index_lu() -> dict:
-    """Les entrées de l'index, ou RIEN. NE LÈVE JAMAIS.
+# Drapeau de module : l'avertissement « index non posable » se dit UNE FOIS.
+_INDEX_PLAINTE_DITE = False
+
+def _index_lu() -> tuple[dict, bool]:
+    """(entrées PROPRES, le fichier était-il déjà propre). NE LÈVE JAMAIS.
 
     Illisible, tronqué, vide, remplacé par une liste, d'une VERSION inconnue :
     autant de façons de dire « cache absent ». On rebalaye, on réécrit, et
-    personne ne s'en aperçoit — sauf le chronomètre du premier passage."""
+    personne ne s'en aperçoit — sauf le chronomètre du premier passage.
+
+    LE MOTIF EST LA SEULE BRETELLE DE CE CHEMIN-LÀ, et c'est ce qui rend le
+    filtre obligatoire ICI. La branche d'index sert `_resume_d_entree` SANS
+    jamais passer par `deck_dir` — contrairement à la branche de relecture,
+    qui, elle, est bordée deux fois. Une clé qui n'est pas un identifiant de
+    jeu s'écarte donc à la LECTURE, et non en espérant qu'un garde-fou plus
+    loin la refuse : il n'y en a pas.
+
+    LE SECOND RETOUR EXISTE POUR UNE RAISON PRÉCISE. Écarter une clé à la
+    lecture ne la fait pas disparaître du FICHIER : elle n'est plus jamais
+    servie, mais elle survit à tous les listings, parce que le cache calculé
+    est alors identique au cache lu et que rien ne déclenche la réécriture.
+    `intact` faux veut dire « le fichier porte de la pollution » — et cela
+    suffit à le faire reposer, propre."""
     try:
         brut = json.loads(
             (decks_root() / INDEX_NAME).read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        return {}
+        return {}, True
     if not isinstance(brut, dict) or brut.get("v") != INDEX_VERSION:
-        return {}
+        return {}, True
     entrees = brut.get("decks")
-    return entrees if isinstance(entrees, dict) else {}
+    if not isinstance(entrees, dict):
+        return {}, True
+    propres, intact = {}, True
+    for k, v in entrees.items():
+        e = _entree_normalisee(v) if is_valid_did(k) else None
+        if e is None:
+            intact = False       # clé étrangère, ou entrée qui ne tient pas
+            continue
+        if e is not v:
+            intact = False       # il a fallu la ramener à cinq clés
+        propres[k] = e
+    return propres, intact
 
 
 def _index_ecrit(entrees: dict) -> None:
@@ -412,12 +536,60 @@ def _index_ecrit(entrees: dict) -> None:
         _replace_patient(tmp, racine / INDEX_NAME)
         return
     except OSError as e:
+        global _INDEX_PLAINTE_DITE
         motif = getattr(e, "strerror", None) or e.__class__.__name__
-        logger.debug(f"cards: index de listing non posé ({motif})")
+        # « AU-DELÀ, C'EST UN VRAI PROBLÈME DE DISQUE, ET IL DOIT SE DIRE » —
+        # la phrase était démentie par un `logger.debug`, muet en exploitation.
+        # Un index qu'on ne peut plus poser, ce sont 13,8 s à CHAQUE ouverture
+        # de la galerie, pour toujours, sans un signal. UNE SEULE FOIS malgré
+        # tout : répété à chaque listing, l'avertissement noierait le journal
+        # au lieu de le renseigner.
+        if not _INDEX_PLAINTE_DITE:
+            _INDEX_PLAINTE_DITE = True
+            logger.warning(
+                f"cards: l'index de listing n'a pas pu être posé ({motif}) — "
+                "la galerie repayera le balayage complet à chaque ouverture. "
+                "Message non répété.")
         try:
             tmp.unlink()
         except OSError:
             pass                   # le brouillon n'a peut-être jamais existé
+
+
+INDEX_CLES = ("name", "created", "updated", "mtime", "size")
+
+
+def _entree_normalisee(vieille) -> dict | None:
+    """L'entrée d'index ramenée à CINQ clés, ou None si elle ne tient pas
+    debout. Rend l'objet REÇU quand il est déjà propre — l'appelant se sert de
+    cette identité pour savoir s'il a fallu nettoyer.
+
+    RAMENÉE, PAS RELAYÉE, et c'est la différence qui compte : rendre l'ancienne
+    telle quelle laissait survivre tout ce qu'une main — ou un schéma défunt —
+    y avait glissé. Une clé étrangère de cinq kilo-octets traversait listing
+    après listing et grossissait le cache pour toujours.
+
+    Les trois champs servis doivent être des CHAÎNES et les deux empreintes
+    des ENTIERS. Un index qui ment sur leur type ne doit pas faire sortir un
+    nombre là où l'écran attend un nom : il redevient un cache absent, pour ce
+    jeu-là seulement. (`bool` est un `int` en Python — un `true` glissé dans
+    `mtime` se refuse comme le reste.)"""
+    if not isinstance(vieille, dict):
+        return None
+    if not all(isinstance(vieille.get(k), str)
+               for k in ("name", "created", "updated")):
+        return None
+    for k in ("mtime", "size"):
+        v = vieille.get(k)
+        if not isinstance(v, int) or isinstance(v, bool):
+            return None
+    # DÉJÀ PROPRE : cinq clés présentes et bien typées, donc CES cinq-là. On
+    # rend l'objet reçu — reconstruire 2 200 dictionnaires par listing pour
+    # aboutir aux mêmes octets coûtait 14 ms mesurées, et le cas courant est
+    # justement celui-là.
+    if len(vieille) == len(INDEX_CLES):
+        return vieille
+    return {k: vieille[k] for k in INDEX_CLES}
 
 
 def _entree_a_jour(vieille, st) -> dict | None:
@@ -429,10 +601,11 @@ def _entree_a_jour(vieille, st) -> dict | None:
     qui fait l'aller-retour par JSON est une comparaison d'égalité qu'on ne
     veut pas avoir à défendre.
 
-    Les trois champs servis doivent en outre être des CHAÎNES. Un index qui
-    ment sur leur type — parce qu'une main l'a édité, parce qu'un vieux
-    schéma traîne — ne doit pas faire sortir un entier là où l'écran attend un
-    nom : il redevient simplement un cache absent, pour ce jeu-là."""
+    LA GARDE DE FORME VIT UN CRAN PLUS HAUT : `_index_lu` ne rend que des
+    entrées à cinq clés bien typées. Il reste ici le contrôle des trois
+    chaînes — trois `isinstance`, pas un dictionnaire de plus — parce que
+    c'est `_resume_d_entree` qui les indexera juste après, et qu'un `KeyError`
+    dans un listing serait un 500 pour un cache abîmé."""
     if not isinstance(vieille, dict):
         return None
     if (vieille.get("mtime") != st.st_mtime_ns
@@ -471,18 +644,28 @@ def _resume_d_entree(did: str, entree: dict) -> dict:
 # ── le balayage ─────────────────────────────────────────────────────────────
 
 def _dossiers_de_decks() -> list:
-    """Les DOSSIERS de jeux, et rien d'autre.
+    """Les DOSSIERS de jeux, et rien d'autre. LÈVE si le disque refuse.
 
     `os.scandir` plutôt qu'`iterdir` : le parcours rend déjà les métadonnées de
     chaque entrée, si bien qu'`is_dir()` ne coûte pas un appel système de plus.
     Le MOTIF est éprouvé D'ABORD — une comparaison de chaîne ne coûte rien —
     ce qui écarte l'index, ses brouillons et tout fichier de service sans même
-    les interroger."""
-    try:
-        with os.scandir(decks_root()) as it:
-            return [e for e in it if is_valid_did(e.name) and e.is_dir()]
-    except OSError:
-        return []
+    les interroger.
+
+    ELLE A AVALÉ L'`OSError` LE TEMPS D'UNE LIVRAISON, et c'était une
+    régression en deux temps. La liste vide passait pour « vous n'avez aucun
+    jeu », en 200, là où la version d'avant laissait le refus du disque faire
+    son erreur ; et le listing CONTINUAIT jusqu'à écraser l'index avec `{}` —
+    le cache de 2 200 entrées effacé par un accès refusé passager, et tout à
+    repayer au passage suivant.
+
+    UN BALAYAGE QUI N'A PAS EU LIEU N'EST PAS UN BALAYAGE VIDE. Il lève, la
+    route le nomme en français, et l'index n'est pas touché puisque
+    l'exception n'atteint jamais sa pose. `decks_root()` — qui fait un
+    `mkdir` — est appelé ici en connaissance de cause : un dossier de sortie
+    irrécupérable doit lever de la même façon."""
+    with os.scandir(decks_root()) as it:
+        return [e for e in it if is_valid_did(e.name) and e.is_dir()]
 
 
 def _mtime_meta(e) -> float:
@@ -534,7 +717,7 @@ def list_deck_summaries() -> list[dict]:
     balayage a réellement vu sur le disque. Une entrée pour un jeu disparu est
     donc muette (et s'efface à la réécriture), et un jeu absent de l'index est
     simplement relu."""
-    connues = _index_lu()
+    connues, intact = _index_lu()
     neuves, rows = {}, []
     for e in _dossiers_de_decks():
         chemin = os.path.join(e.path, "meta.json")
@@ -548,9 +731,21 @@ def list_deck_summaries() -> list[dict]:
             rows.append((entree["updated"], st.st_mtime,
                          _resume_d_entree(e.name, entree)))
             continue
-        doc, lisible = _lit_meta(e.name)
+        doc, etat = _lit_meta(e.name)
         if doc is None:
-            continue                   # disparu entre le stat et la lecture
+            if etat == META_REFUS:
+                # LE FICHIER EST SAIN, il s'est juste refusé à cet instant
+                # (un `replace` le tenait). On sert ce que l'index SAIT —
+                # vrai, peut-être d'une seconde — et l'entrée reste en place
+                # pour que le passage suivant la revalide. On n'INVENTE rien :
+                # un faux « Mon jeu » daté de maintenant prendrait la tête de
+                # la galerie, devant le jeu qu'on vient de modifier.
+                vieille = _entree_normalisee(connues.get(e.name))
+                if vieille is not None:
+                    neuves[e.name] = vieille
+                    rows.append((vieille["updated"], st.st_mtime,
+                                 _resume_d_entree(e.name, vieille)))
+            continue        # disparu, ou refusé sans rien de connu à servir
         rows.append((doc.get("updated") or "", st.st_mtime, deck_summary(doc)))
         # L'EMPREINTE MISE EN CACHE EST CELLE D'AVANT LA LECTURE — `st`, jamais
         # un stat repris APRÈS — et l'ordre n'est pas une coquetterie. Une
@@ -567,7 +762,7 @@ def list_deck_summaries() -> list[dict]:
         # RIEN : le banc de mutation l'a montré inobservable, parce que la
         # seule course qu'il attraperait est déjà celle du trou de tic nommé
         # plus haut — et dans ce trou-là, les deux stats sont d'accord.)
-        fraiche = _entree_de_document(doc, st, lisible)
+        fraiche = _entree_de_document(doc, st, etat == META_LU)
         if fraiche is not None:
             neuves[e.name] = fraiche
     # ON N'ÉCRIT QUE SI LE CACHE A CHANGÉ. La comparaison porte sur le
@@ -575,7 +770,7 @@ def list_deck_summaries() -> list[dict]:
     # ILLISIBLE est relu à chaque balayage sans jamais entrer dans l'index —
     # avec un drapeau, sa seule présence ferait réécrire le fichier entier à
     # chaque ouverture de la galerie, pour rien.
-    if neuves != connues:
+    if neuves != connues or not intact:
         _index_ecrit(neuves)
     return _trie(rows)
 
@@ -626,13 +821,19 @@ def duplicate_deck(did: str) -> dict | None:
 
     `copytree` refuse une destination existante, et `new_did` ne rend qu'un
     identifiant libre : la copie ne peut pas écraser un voisin.
+
+    LES BROUILLONS SONT EXCLUS, et c'est la seule exception au « tout » :
+    `meta.json.<hex>.tmp` n'appartient à personne — c'est l'écriture d'un
+    autre, en cours ou interrompue. Recopié, il transformait une épave en
+    deux, puis en quatre au duplicata suivant.
     """
     doc = read_deck(did)
     if doc is None:
         return None
     src = deck_dir(did)
     neuf = new_did()
-    shutil.copytree(src, deck_dir(neuf))
+    shutil.copytree(src, deck_dir(neuf),
+                    ignore=shutil.ignore_patterns("*.tmp"))
     doc["id"] = neuf
     doc["name"] = clean_name(f"copie de {doc['name']}")
     doc["created"] = doc["updated"] = _now_iso()
@@ -659,6 +860,59 @@ def _deck_or_404(did: str) -> dict:
     if doc is None:
         raise HTTPException(404, "Deck introuvable")
     return doc
+
+
+# ── la coalescence des écritures ────────────────────────────────────────────
+# UN VERROU PAR JEU, sur la route qui LIT-MODIFIE-ÉCRIT.
+#
+# `patch_deck` relit le document, y pose le sous-arbre reçu, et réécrit le
+# tout. Deux requêtes qui arrivent ensemble lisent donc le MÊME document
+# d'avant : la seconde à écrire efface le travail de la première, sans un
+# conflit, sans un journal, sans un message. Mesuré 40 fois sur 40 sur deux
+# sous-arbres DIFFÉRENTS — c'est-à-dire très exactement le cas que la
+# docstring de `patch_deck` promettait sûr (« ce qu'il n'envoie pas survit »).
+# Une prose qui promet plus que le code, c'est la pire espèce de faux.
+#
+# LE VERROU EST PAR JEU : deux onglets sur la même partie s'attendent le temps
+# d'une écriture (~6 ms), deux jeux différents ne s'attendent JAMAIS. Il tient
+# à travers l'`await` du `to_thread`, ce qui est tout l'intérêt — c'est
+# pendant ce séjour dans le fil de travail que la course avait lieu.
+#
+# CE QU'IL NE COUVRE PAS, ET IL FAUT LE DIRE : il vit dans CE processus. Deux
+# backends sur le même dossier, ou un script qui écrit à côté de l'app, se
+# marchent encore dessus. C'est alors `write_deck` — atomique — qui garantit
+# qu'aucun document ne sort TRONQUÉ, à défaut de garantir qu'aucun ne se perd.
+_VERROUS: dict[str, asyncio.Lock] = {}
+_VERROUS_EN_COURS: dict[str, int] = {}
+
+
+@asynccontextmanager
+async def _verrou_du_deck(did: str):
+    """Le verrou d'un jeu, créé à la demande et RAMASSÉ par le dernier partant.
+
+    Le ramassage n'est pas de la coquetterie : un backend qui voit passer deux
+    mille jeux ne doit pas garder deux mille verrous. Il rend en plus le
+    harnais de test honnête — un `asyncio.Lock` reste lié à la boucle qui l'a
+    attendu, et une requête suivante, sous une AUTRE boucle, lèverait sur un
+    verrou survivant. Ne rien laisser derrière soi, c'est ne rien confondre.
+
+    Le dictionnaire n'a pas de garde : tout ceci vit dans la boucle
+    d'événements, un seul fil, et rien n'est attendu entre le `get` et le
+    `set`."""
+    v = _VERROUS.get(did)
+    if v is None:
+        v = _VERROUS[did] = asyncio.Lock()
+    _VERROUS_EN_COURS[did] = _VERROUS_EN_COURS.get(did, 0) + 1
+    try:
+        async with v:
+            yield
+    finally:
+        reste = _VERROUS_EN_COURS[did] - 1
+        if reste:
+            _VERROUS_EN_COURS[did] = reste
+        else:
+            _VERROUS_EN_COURS.pop(did, None)
+            _VERROUS.pop(did, None)
 
 
 # ── routes ──────────────────────────────────────────────────────────────────
@@ -739,7 +993,16 @@ async def get_decks(limit: str | None = None):
     une valeur qui n'est pas un nombre est un 400 (phrase française, patron
     `_q_num` — défini plus bas dans ce fichier, résolu à l'appel)."""
     n = borne_limite(limit)
-    rows = await asyncio.to_thread(list_deck_summaries)
+    try:
+        rows = await asyncio.to_thread(list_deck_summaries)
+    except OSError as e:
+        # UN BALAYAGE QUI N'A PAS EU LIEU N'EST PAS UN BALAYAGE VIDE. Servir
+        # `{"decks": [], "total": 0}` en 200 sur un dossier illisible, c'est
+        # dire à l'écran « vous n'avez aucun jeu » — un mensonge poli, et le
+        # pire message possible pour qui vient d'en perdre deux mille.
+        logger.exception("cards: listing des jeux impossible")
+        raise HTTPException(500, "Liste des jeux impossible : lecture refusée "
+                                 f"({e.strerror or 'E/S'})")
     return {"decks": rows[:n], "total": len(rows), "limit": n}
 
 
@@ -824,17 +1087,28 @@ async def patch_deck_route(did: str, body: dict | None = None):
     l'`OSError`. Un refus d'écriture y ressortait en trace nue, quand ses deux
     sœurs (`post_deck`, `duplicate_deck_route`) disent depuis toujours ce que
     l'OS a refusé, en français et SANS le chemin absolu (donc sans le nom de
-    compte — la jurisprudence de la fuite)."""
+    compte — la jurisprudence de la fuite).
+
+    LA FUSION EST SÉRIALISÉE PAR JEU (`_verrou_du_deck`). Sans cela, deux
+    requêtes qui arrivent ensemble lisent le MÊME document d'avant et la
+    seconde à écrire efface le sous-arbre de la première — 40 fois sur 40,
+    en silence, contre la promesse même de la fusion partielle."""
     _deck_or_404(did)
-    try:
-        doc = await asyncio.to_thread(patch_deck, did, body)
-    except OSError as e:
-        logger.exception("cards: enregistrement du deck impossible")
-        raise HTTPException(500, "Enregistrement du deck impossible : "
-                                 f"écriture refusée ({e.strerror or 'E/S'})")
-    if doc is None:
-        raise HTTPException(404, "Deck introuvable")
-    return {"deck": doc}
+    # LE VERROU ENGLOBE LE LIRE-MODIFIER-ÉCRIRE ENTIER, `to_thread` compris :
+    # c'est PENDANT ce séjour dans le fil de travail que la course avait lieu.
+    # Tout ce qui suit reste DEDANS — une branche sortie d'un cran ferait
+    # retomber la garde une variable trop loin, ce que ce dépôt a déjà payé.
+    async with _verrou_du_deck(did):
+        try:
+            doc = await asyncio.to_thread(patch_deck, did, body)
+        except OSError as e:
+            logger.exception("cards: enregistrement du deck impossible")
+            raise HTTPException(
+                500, "Enregistrement du deck impossible : écriture refusée "
+                     f"({e.strerror or 'E/S'})")
+        if doc is None:
+            raise HTTPException(404, "Deck introuvable")
+        return {"deck": doc}
 
 
 @router.delete("/{did}")
