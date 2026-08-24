@@ -298,9 +298,11 @@
      l'echelle usuelle — assez pour se sentir, trop peu pour surprendre. La
      grille reste le REPLI quand rien n'aimante, et Alt debraye les deux. */
   const GUIDE_MM = 0.6;
-  /* le pas de la rotation tenue a Maj (patron Figma), et la longueur du bras
-     de la poignee au-dessus de la boite, en pixels d'ecran. */
-  const ROT_STEP_DEG = 15, ROT_ARM_PX = 22;
+  /* le pas de la rotation tenue a Maj (patron Figma). La LONGUEUR DU BRAS de
+     la poignee, elle, n'est pas ici : c'est de la mise en page, elle vit dans
+     la feuille de style et nulle part ailleurs. Une constante ecrite en double
+     est une garantie qu'on croit tenir — la lecon SHAPES de la ronde T2. */
+  const ROT_STEP_DEG = 15;
   const UNDO_MAX = 60;
   const FONT_WAIT_MS = 2500;      /* le painter a 4 s : on garde de la marge */
 
@@ -2983,10 +2985,90 @@
     });
   }
 
-  function dupSlot() {
-    const s = selSlot();
-    if (!s) return;
+  /* ── CE QUE LE LOT REND FAUX SI L'ON N'Y TOUCHE PAS (phase 5, D4) ────────
+     Suppr, Ctrl+D et les fleches lisaient `selSlot()` — LE PREMIER du lot.
+     Sur une selection de trois blocs, Suppr en effacait un et laissait les
+     deux autres, les fleches en poussaient un et disloquaient un lot qu'on
+     venait d'aligner, Ctrl+D en dupliquait un. Ce ne sont pas des
+     ameliorations : ce sont des defauts introduits PAR la multi-selection, et
+     ils se reparent ici, au meme patron que le glisser de lot — un geste, UN
+     pas d'annulation, et les blocs verrouilles ne suivent pas mais le refus
+     se DIT. */
+  /* ── CE QUE LE CLAVIER VISE, ET RIEN D'AUTRE ─────────────────────────────
+     LA SELECTION VIDE EST UN ETAT, PAS UN SOUS-ENTENDU. `selSlot()` retombe
+     sur le PREMIER bloc quand rien n'est designe — c'est ce qui faisait, avant
+     cette tache, que Suppr sur un document sans designation effacait un bloc
+     que personne n'avait choisi. L'etat vide etait alors rarissime (un jeu
+     legue) ; Echap le rend COURANT, et le laisser tel quel aurait fait de la
+     touche « je relache tout » l'antichambre d'un effacement au hasard.
+     Le clavier vise donc LE LOT, et un lot vide ne vise rien — le panneau dit
+     la meme chose au meme instant (`renderInsp` ci-dessous). */
+  const dulot = () => selIds();
+  /* les membres du lot que le verrou laisse passer, et le compte de ceux qu'il
+     retient — la meme paire que `onOvDown` calcule pour le glisser. */
+  function lotLibre(ids) {
+    const par = {};
+    slots().forEach((s) => { par[s.id] = s; });
+    const libres = ids.filter((q) => par[q] && !par[q].lock);
+    return { libres: libres, bloques: ids.length - libres.length };
+  }
+  function ditVerrous(n, quoi) {
+    if (!n) return;
+    M.toast(n + " bloc(s) verrouillé(s) " + quoi
+      + " — ouvrez leur cadenas d'abord", true);
+  }
+  function delLot() {
+    const ids = dulot();
+    if (!ids.length) return;
+    const l = lotLibre(ids);
+    if (!l.libres.length) {
+      M.toast(ids.length > 1
+        ? "tout le lot est verrouillé — ouvrez un cadenas pour supprimer"
+        : "bloc verrouillé — ouvrez le cadenas pour le supprimer", true);
+      return;
+    }
     const a = slots();
+    const i0 = a.map((s) => s.id).indexOf(l.libres[0]);
+    const next = a.filter((s) => l.libres.indexOf(s.id) < 0);
+    pushUndo();
+    /* LA DESIGNATION RETOMBE SUR UN SURVIVANT — un `sel` mort ferait regler
+       un fantome (la lecon de la corbeille de rangee), et un lot entierement
+       efface laisse une selection VIDE, pas un fantome. */
+    commit(next, next.length
+      ? [next[Math.min(i0, next.length - 1)].id] : []);
+    ditVerrous(l.bloques, "n'ont pas été supprimés");
+    renderAll();
+  }
+  /* la poussee au clavier, sur tout le lot et du MEME pas : arrondir chaque
+     boite pour elle-meme aurait deforme le lot, exactement comme au glisser. */
+  function nudgeLot(mv, taille) {
+    const l = lotLibre(dulot());
+    if (!l.libres.length) return false;
+    const par = {};
+    slots().forEach((s) => { par[s.id] = s; });
+    const map = {};
+    l.libres.forEach((q) => {
+      const b = par[q].box.slice();
+      if (taille) {
+        b[2] = Math.max(MIN_BOX_MM, b[2] + mv[0]);
+        b[3] = Math.max(MIN_BOX_MM, b[3] + mv[1]);
+      } else { b[0] += mv[0]; b[1] += mv[1]; }
+      map[q] = b.map((v) => Math.round(v * 1e3) / 1e3);
+    });
+    appliqueBoites(map);
+    renderAll();
+    return true;
+  }
+  function dupSlot() {
+    const ids = dulot();
+    /* RIEN DE DESIGNE, RIEN A DUPLIQUER : `selSlot()` serait retombe sur le
+       premier bloc, et Ctrl+D juste apres un Echap aurait pose la copie d'un
+       bloc que personne n'avait choisi (meme raison que `delLot`). */
+    if (!ids.length) return;
+    if (ids.length > 1) { dupLot(ids); return; }
+    const a = slots();
+    const s = a.filter((x) => x.id === ids[0])[0];
+    if (!s) return;
     let n = 2, nid = s.id + n;
     while (a.filter((x) => x.id === nid).length) { n++; nid = s.id + n; }
     /* CTRL+D SUR UN BLOC VERROUILLE EST PERMIS, ET LA COPIE NAIT OUVERTE.
@@ -3003,6 +3085,35 @@
     });
     pushUndo();
     commit(a.concat([c]), nid);
+    renderAll();
+  }
+  /* DUPLIQUER UN LOT : les copies naissent ENSEMBLE, decalees du meme 2 mm,
+     et ce sont ELLES qu'on tient apres — dupliquer trois blocs pour se
+     retrouver a en regler un seul serait une demi-copie. Le plafond est
+     compte AVANT, sur le lot entier (patron `placeOu`) : la moitie d'une
+     duplication est un defaut muet, pas un compromis. */
+  function dupLot(ids) {
+    const a = slots();
+    if (!placeOu(ids.length, "duplication de " + ids.length + " blocs")) return;
+    const par = {};
+    a.forEach((s) => { par[s.id] = s; });
+    const pris = a.map((s) => s.id);
+    const nes = [];
+    ids.forEach((q) => {
+      const s = par[q];
+      if (!s) return;
+      let n = 2, nid = s.id + n;
+      while (pris.indexOf(nid) >= 0) { n++; nid = s.id + n; }
+      pris.push(nid);
+      nes.push(Object.assign(clone(s), {
+        id: nid, label: s.label + " (copie)",
+        box: [s.box[0] + 2, s.box[1] + 2, s.box[2], s.box[3]],
+        lock: false,
+      }));
+    });
+    if (!nes.length) return;
+    pushUndo();
+    commit(a.concat(nes), nes.map((s) => s.id));
     renderAll();
   }
   function delSlot(id) {
@@ -3923,7 +4034,12 @@
        reglages, ils ont une barre d'outils. */
     const lot = selSlots();
     if (lot.length > 1) { renderInspMulti(box, lot); return; }
-    const s = selSlot();
+    /* UN LOT VIDE NE MONTRE RIEN — et c'est un changement voulu : le panneau
+       affichait les reglages du PREMIER bloc quand rien n'etait designe, donc
+       apres chaque Echap il aurait continue d'en regler un que l'utilisateur
+       venait explicitement de relacher. Le clavier vise le meme lot vide
+       (`dulot`), les deux surfaces disent donc la meme chose. */
+    const s = lot[0] || null;
     if (!s) { box.innerHTML = '<p class="empty-note sm">Sélectionnez un slot pour en régler la typographie.</p>'; return; }
     /* LE PANNEAU BASCULE SES SECTIONS SELON LA NATURE DU BLOC. Un calque
        d'image n'a ni police, ni corps, ni casse, ni césure : les afficher
@@ -7180,9 +7296,10 @@
       /* DIT, pas avale : effacer est un acte dont le refus silencieux se lit
          comme une touche morte. (Les fleches, elles, se repetent : une
          infobulle par pression noierait l'ecran — leur refus se lit sur le
-         cadenas de la boite, qui est sous les yeux.) */
-      if (s.lock) { M.toast("bloc verrouillé — ouvrez le cadenas pour le supprimer", true); return; }
-      delSlot(s.id);
+         cadenas de la boite, qui est sous les yeux.)
+         LE LOT ENTIER PART EN UN PAS — voir `delLot`, qui porte aussi le
+         refus du verrou et la retombee de la designation. */
+      delLot();
       return;
     }
     const d = e.shiftKey ? NUDGE_FINE_MM : NUDGE_MM;
@@ -7193,11 +7310,9 @@
        la page. Refuser le deplacement ET laisser defiler l'ecran aurait fait
        deux surprises au lieu d'une. */
     e.preventDefault();
-    if (s.lock) return;   /* VERROU : ni fleche ni Alt+fleche */
-    const b = s.box.slice();
-    if (e.altKey) { b[2] = Math.max(MIN_BOX_MM, b[2] + mv[0]); b[3] = Math.max(MIN_BOX_MM, b[3] + mv[1]); }
-    else { b[0] += mv[0]; b[1] += mv[1]; }
-    patchSlot(s.id, { box: b.map((v) => Math.round(v * 1e3) / 1e3) });
-    renderAll();
+    /* VERROU : ni fleche ni Alt+fleche — et sur un LOT, les blocs libres
+       passent pendant que les verrouilles restent (meme doctrine que le
+       glisser de lot). `nudgeLot` porte les deux moities. */
+    nudgeLot(mv, !!e.altKey);
   }
 })();
