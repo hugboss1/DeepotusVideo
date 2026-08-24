@@ -142,9 +142,12 @@ def test_le_core_connait_la_piece_forge3d():
     assert "forge3d" in ids, (
         "forge3d absent de la table MODULES gelée du CORE — "
         "CF.register(\"forge3d\", ...) lèvera dans un vrai navigateur")
-    # le rail est dans l'ordre de MODULES (core.js:1349-1350) : forge3d doit
-    # occuper le rang 9, en dernier de la liste gelée.
-    assert ids[-1] == "forge3d" and len(ids) == 9, ids
+    # le rail est dans l'ordre de MODULES : forge3d occupe le rang 9 de la
+    # liste gelée — qui en compte DIX depuis la phase 4 (T1, P10 « capture »
+    # en dernier). Le compte exact et l'ordre complet des dix sont épinglés
+    # chez le CORE (test_cards_core.py, la coquille des dix pièces) ; ici on
+    # tient le rang de LA pièce, pas la liste entière une seconde fois.
+    assert ids.index("forge3d") == 8 and len(ids) == 10 and ids[-1] == "capture", ids
 
 
 CORE = ROOT / "frontend" / "cardforge" / "js" / "core.js"
