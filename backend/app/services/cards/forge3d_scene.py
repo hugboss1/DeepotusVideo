@@ -577,16 +577,36 @@ _HOLO_RIPPLE_CYCLES = 3
 # mesuré ne les distingue sur ce point — une dorure et un argent sont deux
 # feuilles estampées de la même façon. Le jour où une mesure les sépare, la
 # clé est déjà là.
-_HOLO_RIPPLE_DEFAUT = 0.12
+#
+# IL N'Y A PAS DE CONSTANTE DE DÉFAUT, ET C'EST UNE CORRECTION DE RONDE (B1).
+# Il y en avait une — `_HOLO_RIPPLE_DEFAUT = 0.12` — que `_f(r.get("ripple"),
+# …)` n'ATTEIGNAIT JAMAIS, puisque les deux recettes portent leur chiffre.
+# Elle a coûté cher : le contrôle DÉRIVAIT son attendu d'elle, si bien qu'un
+# mutant qui la déplaçait faisait rougir le banc SANS CHANGER UN SEUL OCTET
+# LIVRÉ (un oracle tué, pas un produit) — pendant qu'un mutant qui déplaçait
+# la VRAIE valeur, celle d'une recette, passait au vert avec un pli de 20°.
+# La pente se lit donc directement dans la recette, et le banc l'épingle
+# RECETTE PAR RECETTE, en littéral.
 # ELLE SE CUIT À 256², PAS À LA TAILLE DE LA FINITION, ET C'EST MESURÉ. Une
 # carte à trois cycles n'a rien à dire au-delà : agrandie en bilinéaire jusqu'à
 # 1024², la version 256² s'écarte de la version 1024² de **0,122 niveau en
 # moyenne, 1 niveau au pire** (sur 255) — invisible, et c'est la
 # QUANTIFICATION 8 bits qui domine, pas la résolution. Le prix, lui, ne l'est
-# pas : 233 750 o à 1024² contre 30 123 o à 256², soit **−87 %** du poids de la
-# carte, et 1024² pesait à lui seul SEPT FOIS la texture d'épaisseur
-# (32 724 o). Une décoration qui coûterait quatre fois l'hologramme qu'elle
-# décore mériterait qu'on la refuse ; celle-ci, non.
+# pas : 233 750 o à 1024² contre 30 123 o à 256², soit −87 % du poids de la
+# carte.
+#
+# CE QUE COÛTE ENCORE L'ONDULATION, MESURÉ CONTRE LE VRAI AVANT (M2) — et pas
+# seulement contre sa propre version 1024², qui serait un point de comparaison
+# complaisant. Le GLB d'un élément fini, sans ondulation puis avec :
+#   · un PLAN   : 34 576 -> 64 864 o, soit **+30 288 o (+88 %)** ;
+#   · un ANNEAU : 69 668 -> 99 956 o, soit +30 288 o (+43 %).
+# La carte d'ondulation pèse **0,92 fois** la texture d'épaisseur qu'elle
+# accompagne (30 123 contre 32 724 o) : ce n'est pas un accessoire gratuit,
+# c'est une seconde texture de plein droit. C'est aussi pourquoi elle n'est
+# même pas CUITE quand le writer va la jeter (voir `ondulation=` plus bas et
+# l'aveu `_ONDUL_ETEINTE` côté contrat) : sur le cas le plus courant — une
+# matière posée, qui porte son propre relief — ces 30 Ko étaient payés pour
+# la poubelle.
 _HOLO_RIPPLE_PX = 256
 # §6.2bis : les finitions se cuisent entre 1024 et 2048. Le plafond est ICI,
 # et le MÊME que celui de `tile_maps` (bornes symétriques, revue Task 5) :
@@ -967,7 +987,7 @@ def _holo_ripple_png(out_px: int, amp: float) -> bytes:
 
 
 def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
-                motifs=()) -> dict:
+                motifs=(), ondulation: bool = True) -> dict:
     """UNE finition holographique de la spec (§6.2bis-c), prête pour le
     writer : facteurs PBR, bloc iridescence (+ sa texture d'épaisseur),
     clearcoat, et l'anisotropie SEULEMENT si on la demande.
@@ -1010,9 +1030,20 @@ def holo_finish(kind: str, aniso: bool, out_px: int = 1024,
         # portant le MÊME métal aurait été une distinction sans différence.
         # LE RELIEF D'UNE MATIÈRE LUI EST PRIORITAIRE (voir le writer) : cette
         # ondulation est un ornement de feuille, pas la donnée de l'utilisateur.
-        "normal": {"png": _holo_ripple_png(min(px, _HOLO_RIPPLE_PX),
-                                           _f(r.get("ripple"),
-                                              _HOLO_RIPPLE_DEFAUT))},
+        # la pente vient de LA RECETTE, sans défaut derrière : `kind` a déjà
+        # été validé contre `_HOLO_RECIPES` dix lignes plus haut, donc la clé
+        # existe. Un défaut ici ne protégerait de rien et masquerait une
+        # recette incomplète (B1).
+        #
+        # `ondulation=False` : L'APPELANT SAIT QUE LE WRITER LA JETTERA (une
+        # matière est posée et porte SON relief). Ne pas la cuire économise
+        # 65 536 itérations Python pour la poubelle — sur le cas le PLUS
+        # COURANT, puisque `derive_maps` dérive toujours une normale (R1/M4).
+        # Le paquet ne porte alors pas la clé du tout : le writer n'a rien à
+        # décider, et le bordereau, lui, DIT pourquoi.
+        **({"normal": {"png": _holo_ripple_png(min(px, _HOLO_RIPPLE_PX),
+                                               float(r["ripple"]))}}
+           if ondulation else {}),
     }
 
 
@@ -1067,6 +1098,23 @@ _GLASS_RECIPES = {
 }
 GLASS_KINDS = tuple(_GLASS_RECIPES)
 GLASS_IOR = 1.5
+# LA COULEUR D'UN VERRE QUI N'A PAS D'IMAGE — correction de ronde (R2), et
+# elle vient d'une MESURE, pas d'un goût. Sur l'anneau du Sceau — la surface
+# que la clause §6.2bis-d NOMME — un élément d'extrusion n'a AUCUN PNG : le
+# matériau retombait donc sur le `baseColorFactor` par défaut de glTF, blanc
+# PUR, et sous transmission le blanc pur ÉCRÊTE. Mesuré dans la configuration
+# exacte de l'app : 100 % des pixels de l'anneau saturés en blanc, et `verre`
+# et `verre-depoli` rendaient LA MÊME IMAGE au pixel près.
+#
+# Le remède est physique autant que pratique : un verre flotté RÉEL n'est pas
+# blanc, il est légèrement vert-bleu (l'oxyde de fer de la silice — c'est ce
+# qu'on voit sur la tranche d'une vitre). Ce triplet-ci est ce vert-bleu très
+# pâle en LINÉAIRE ; il laisse de la marge sous l'écrêtage, donc la
+# micro-surface (le seul écart entre poli et dépoli) a de nouveau de quoi se
+# voir. Il ne s'applique QU'AUX éléments SANS image : une couche texturée
+# garde son vitrail — la lumière transmise reste teintée par le dessin, ce qui
+# était et reste la bonne propriété.
+GLASS_BASE_NU = [0.86, 0.93, 0.90, 1.0]
 # L'ÉPAISSEUR DU CORPS, EN MILLIMÈTRES DE MAILLAGE. La spec KHR_materials_volume
 # est explicite : « Thickness is given in the coordinate space of the mesh » —
 # nos positions sont en mm, donc ce 1,0 est UN MILLIMÈTRE, et la racine
@@ -1128,7 +1176,7 @@ def _hex_lin(raw) -> list | None:
         return None
 
 
-def glass_finish(kind: str, color=None) -> dict:
+def glass_finish(kind: str, color=None, closed=None) -> dict:
     """UNE recette de verre (D5), prête pour le writer — MÊME FORME que le
     paquet de `holo_finish` : un bloc `pbr` de facteurs, puis un sous-bloc par
     extension.
@@ -1160,10 +1208,29 @@ def glass_finish(kind: str, color=None) -> dict:
         "pbr": {"metallicFactor": 0.0, "roughnessFactor": r["rough"]},
         "transmission": {"factor": r["transmission"]},
         "ior": {"ior": GLASS_IOR},
+        # la couleur du verre NU (R2) — le writer ne la pose que si l'élément
+        # n'a PAS d'image. Voir `GLASS_BASE_NU`.
+        "base_nu": list(GLASS_BASE_NU),
     }
     if "specular" in r:
         fin["specular"] = {"factor": r["specular"]}
-    if r.get("volume"):
+    if r.get("volume") and closed:
+        # LA PORTE À TROIS VOIES (R4) — et le témoin de la livraison meurt ici.
+        # La spec de KHR_materials_volume est nette : « a non-zero thickness
+        # switches from thin-walled to volumetric behavior. This requires a
+        # manifold/closed mesh. » Le drapeau EST sur le maillage depuis la 2a
+        # (`quad_mesh` -> closed False, `extrude_ring_mesh` -> True), et le
+        # patron de garde jumeau est deux blocs plus haut (l'anisotropie sur
+        # des UV dépaquetées). L'aveu « on ne peut pas savoir » était donc un
+        # COUVERCLE : on peut savoir, et voici les trois voies.
+        #   · FERMÉ  -> volume PLEIN : épaisseur + absorption teintée.
+        #   · OUVERT -> PAROI MINCE : pas de bloc volume du tout. La
+        #     transmission (0,7) et la rugosité SURVIVENT — c'est bien du
+        #     translucide, il lui manque l'absorption dans l'épaisseur. Et
+        #     l'appelant l'AVOUE au bordereau (`_VERRE_PAROI_MINCE`).
+        #   · INCONNU (`closed=None`, un appelant qui ne sait pas) -> paroi
+        #     mince aussi : on n'écrit pas un volume qu'on ne peut pas
+        #     justifier.
         vol = {"thickness": GLASS_THICKNESS_MM}
         lin = _hex_lin(color)
         if lin is not None:
@@ -1968,6 +2035,17 @@ def write_scene_glb(elements: list, name: str, extras: dict,
         png_base = el.get("png")
         pbr = ({"baseColorTexture": {"index": add_texture(png_base, nom)}}
                if png_base else {})
+        # LE VERRE SANS IMAGE PORTE LA COULEUR DE SA RECETTE (R2). Le blanc pur
+        # par défaut de glTF ÉCRÊTE sous transmission — mesuré sur l'anneau du
+        # Sceau : un aplat blanc saturé où poli et dépoli rendaient la MÊME
+        # image. La clé est posée AVANT les facteurs, à la place qu'aurait
+        # occupée une `baseColorTexture` : l'ordre d'insertion est
+        # load-bearing (les octets d'une scène 2a ne bougent pas — elle n'a ni
+        # `finish` ni, donc, de `base_nu`).
+        if not png_base:
+            b_nu = (fin or {}).get("base_nu")
+            if isinstance(b_nu, (list, tuple)) and len(b_nu) == 4:
+                pbr["baseColorFactor"] = [_f(v) for v in b_nu]
         pbr["metallicFactor"] = 0.0
         pbr["roughnessFactor"] = 0.9
         mat = {"name": nom, "pbrMetallicRoughness": pbr,

@@ -1665,6 +1665,18 @@
     const ligne = (mat && mat.mat)
       ? mats.filter((x) => x.id === mat.mat)[0] || null : null;
     const aAo = !!(ligne && (ligne.maps || []).indexOf("ao") >= 0);
+    /* le RELIEF de la matière (R1) : c'est lui qui décide du sort de
+       l'ondulation du Sceau — un matériau glTF n'accepte qu'UNE
+       `normalTexture`, et la donnée de l'utilisateur passe avant l'ornement
+       de la recette. Le cas est le cas COURANT (le lab dérive toujours une
+       normale), et le taire laissait croire à un pli absent du fichier. */
+    const aRelief = !!(ligne && (ligne.maps || []).indexOf("normal") >= 0);
+    /* la BOUTIQUE EST-ELLE MUETTE ? (M3) Une panne (ou un /info non chargé)
+       laisse cet écran sans la ligne de la matière : il ne peut alors RIEN
+       dire de ce qu'elle porte — ni son occlusion, ni son relief, ni sa
+       couleur. Une case cochée et grisée sans ce mot ferait croire à un état
+       connu. */
+    const muet = !!(mat && mat.mat && !ligne);
     /* la FAMILLE, servie : plus de « pas aucune » (voir `estHolo`). */
     const holo = estHolo(mat && mat.finish);
     const verre = estVerre(mat && mat.finish);
@@ -1712,18 +1724,66 @@
          ? '<p class="hint">cette matière ne porte AUCUNE carte d\'occlusion '
            + '(le disque fait foi) : la case ne changera rien au fichier.</p>'
          : "")
+      /* M3 — LA CASE GRISÉE QUI AGIT QUAND MÊME. Le nœud porte une matière,
+         mais la boutique ne répond pas : le réglage d'occlusion CONTINUE
+         d'agir à la construction (il vit dans le graphe, pas ici), et
+         l'écran ne peut ni le montrer ni le changer. Le dire vaut mieux
+         qu'une case morte au sens inconnu. */
+      + (muet
+         ? '<p class="hint">' + esc(panne || "matière inconnue de ce contrat")
+           + ' — l\'écran ne peut pas dire ce que cette matière porte '
+           + '(occlusion, relief, couleur). Les réglages du graphe, eux, '
+           + 'agissent toujours à la construction.</p>'
+         : "")
+      /* R2 — L'INDISCERNABILITÉ, DITE AVANT DE CONSTRUIRE. Une EXTRUSION n'a
+         pas d'image : sous une recette à transmission pleine, elle ne montre
+         que le décor, et un décor uni n'a rien à flouter. Mesuré au viewer :
+         « verre » et « verre dépoli » y rendent la MÊME image, écart moyen
+         0,000 niveau. Ce n'est pas un défaut de recette — c'est la rugosité
+         qui les sépare, et elle n'a rien à brouiller. Le bordereau le dit
+         aussi ; ici on le dit AVANT que l'utilisateur choisisse. */
+      + (verre && r.proc && r.proc.kind === "extrude"
+         ? '<p class="hint">cette extrusion n\'a <b>pas d\'image</b> : la '
+           + 'lumière transmise n\'y montre que le décor, et un décor uni n\'a '
+           + 'rien à flouter — « verre » et « verre dépoli » y rendent la '
+           + '<b>même image</b> (mesuré). Le grain du dépoli se voit sur une '
+           + 'couche texturée ; « translucide », lui, se distingue par sa '
+           + 'teinte.</p>'
+         : "")
+      /* R1 — L'ONDULATION DU SCEAU, ÉTEINTE PAR LE RELIEF DE LA MATIÈRE.
+         Même vérité que le bordereau du backend, dite AVANT de construire. */
+      + (holo && aRelief
+         ? '<p class="hint">cette matière porte sa propre carte de relief : '
+           + 'l\'<b>ondulation</b> de la feuille ne sera pas posée (un '
+           + 'matériau glTF n\'accepte qu\'un relief, et c\'est le vôtre qui '
+           + 'gagne). La construction le dira aussi.</p>'
+         : "")
       + (verre
          ? '<p class="hint">le verre <b>remplace la micro-surface</b> de la '
            + 'matière (rugosité et métal viennent de la recette) ; son relief '
            + 'et son occlusion, eux, parlent encore. La lumière transmise est '
            + 'teintée par la COUCHE elle-même — un vitrail, pas une vitre '
            + 'blanche.</p>'
+           /* D'OÙ VIENT LA TEINTE, EXACTEMENT (R5). Le réglage de couleur du
+              lab n'est PAS la couleur de l'image : mesuré sur les 18 matières
+              installées, ΔE76 médian 86,4 entre les deux, et seize d'entre
+              elles portent encore le blanc par défaut. C'est donc la MOYENNE
+              de l'image qui teinte — et l'écran ne montre un hex que dans le
+              seul cas où ce hex est bien celui qui sera utilisé (matière sans
+              image). Afficher l'autre serait afficher un chiffre faux. */
            + '<p class="hint">« translucide » teinte en plus son absorption '
-           + 'avec la couleur de la matière choisie'
-           + (ligne && ligne.color ? ' (ici ' + esc(String(ligne.color)) + ')'
-                                   : " — aucune matière posée : il ne teinte "
-                                     + "rien")
-           + '.</p>'
+           + (!ligne
+              ? 'avec la couleur de la matière — aucune matière posée : il ne '
+                + 'teinte rien.'
+              : ((ligne.maps || []).indexOf("basecolor") >= 0
+                 ? 'avec la <b>moyenne de l\'image</b> de la matière choisie '
+                   + '(pas son réglage de couleur : les deux diffèrent sur '
+                   + 'toute la boutique).'
+                 : 'avec le réglage de couleur de la matière'
+                   + (ligne.color ? ' (ici ' + esc(String(ligne.color)) + ')'
+                                  : "")
+                   + ' — elle n\'a pas d\'image.'))
+           + '</p>'
          : "")
       /* le bloc motifs SUIT la finition : sans recette holographique il n'y a
          pas de canal d'épaisseur où incruster quoi que ce soit (le backend

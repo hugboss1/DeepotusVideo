@@ -121,31 +121,69 @@ Trois choses, et une seule discipline : ON PÈSE LE FICHIER LIVRÉ.
     dans mod-forge3d.js. Ce qui manquait n'était pas le pipeline, c'était la
     VUE et l'interrupteur.
   · L'ONDULATION §6.2bis-d, avouée non livrée TROIS phases — TRANCHÉE ICI, et
-    LIVRÉE, sur des chiffres : au viewer réel (model-viewer du dépôt, serveur
-    de scratchpad, zéro dépense), écart moyen de 10,75 niveaux/255 sur 58,3 %
-    des pixels de l'anneau (3/4), 13,44 sur 67,7 % d'un plan plein format,
-    1,96 presque de face — l'effet dépend du rasage, ce qu'une perturbation de
-    normale DOIT faire. Douceur : 6,84° d'inclinaison maximale.
+    LIVRÉE, sur des chiffres. Au viewer réel (model-viewer du dépôt, serveur
+    de scratchpad, zéro dépense), écart moyen en niveaux/255 sur les pixels de
+    l'anneau : **15,04 DE FACE** (58,1 % des pixels), 10,82 en 3/4, 2,26 en
+    rasant, 3,45 en très rasant ; 13,44 sur un plan plein format.
+    Douceur : 6,84° nominal, 7,07° lus dans les octets (la grille 8 bits).
 
-DEUX CORRECTIONS DE MESURE, écrites parce qu'elles ont failli passer :
+TROIS CORRECTIONS DE MESURE, écrites parce qu'elles ont failli passer :
   · le compte de changements de signe d'un sinus se DÉRIVE (2·f − 1), il ne se
     devine pas : la première écriture confondait période et demi-période, et
     le champ mesuré (5) avait raison contre elle ;
   · l'angle d'une normale se lit sur x/y, pas sur z — près du pôle, un octet
-    de z couvre 7,18° pour 6,84° attendus, et l'écart ÉTAIT la grille.
+    de z couvre 7,18° pour 6,84° attendus, et l'écart ÉTAIT la grille ;
+  · « l'effet dépend du rasage » ÉTAIT FAUX, ET DANS LE BON SENS : il est
+    MAXIMAL DE FACE (15,04) et minimal en rasant (2,26). La caméra que la
+    livraison appelait « presque de face » (phi = 25°) regardait la carte PAR
+    AU-DESSUS — donc en rasant : `camera-orbit` compte phi depuis +Y, et notre
+    carte est un plan XY. Le verdict LIVRÉE n'en souffre pas (l'effet est plus
+    fort que ce qui était annoncé), la prose si.
 
-RONDE DE MUTATION : 23 défauts remis, 23 vus. Le seul survivant du premier
-tour a été FERMÉ (la leçon « un aveu d'infermabilité se mesure », appliquée à
-soi) : `finishFamille` rendant la liste entière laissait tous les pins de
-SOURCE verts — sept cas au banc node, qui regardent ce que le bloc MONTRE,
-le tuent maintenant.
+RONDE DE MUTATION — LA RÈGLE, ÉCRITE UNE FOIS POUR TOUTES :
+**UN MUTANT QUI NE CHANGE PAS LE PRODUIT NE COMPTE PAS.** Avant de compter un
+mutant rouge, on vérifie que l'empreinte du produit livré a bougé (GLB + STL +
+refus nommés + bordereau + /info + `clean_graph` côté serveur, HTML rendu côté
+écran). La livraison a compté 23/23 sans cette règle, et la ronde adverse a
+montré ce qu'elle valait : le mutant phare (`_HOLO_RIPPLE_DEFAUT` déplacé) ne
+changeait PAS UN OCTET — les deux recettes portent leur pente — et rougissait
+parce que le contrôle DÉRIVAIT son attendu de la même constante. Un oracle
+tué, pas un produit. Pendant ce temps, trois vrais défauts survivaient : la
+pente de la DORURE triplée (20,11° au lieu de 6,84), `MATERIAL_MAP_KINDS`
+privé de son émissive, et l'aveu verre-sur-motifs supprimé. La constante morte
+a été SUPPRIMÉE, les angles sont épinglés RECETTE PAR RECETTE en littéral, et
+les trois trous ont leur contrôle.
+BILAN REJOUÉ : **42 mutants, 42 qui changent le produit, 42 vus, 0 survivant.**
 
-TÉMOINS SURVIVANTS, VOLONTAIRES ET AVOUÉS (à la source, avec leur mesure) :
-KHR_materials_volume demande un maillage fermé et nos plans ne le sont pas
-(le viewer embarqué rend quand même — 79,6 niveaux d'écart mesurés ; un autre
-moteur, personne ici ne peut le voir) ; et `props.color` est le réglage de
-teinte du lab, pas la moyenne de la carte `basecolor` (fermeture nommée :
-moyenner les pixels — un pipeline de plus).
+ET DEUX FAÇONS D'ABSOUDRE, RENCONTRÉES DANS CETTE RONDE MÊME :
+  · UN INSTRUMENT TROP ÉTROIT. La première empreinte ne pesait que les octets
+    d'un GLB : elle a classé « ne compte pas » DIX-HUIT mutants dont plusieurs
+    changeaient bel et bien ce que l'utilisateur reçoit (la teinte en sRGB,
+    l'occlusion née éteinte, la garde d'exclusivité retirée). Élargie aux
+    quatre faces du produit, elle en a compté 42 sur 42.
+  · UN FILTRE `-k` PÉRIMÉ. Un contrôle renommé, et le mutant qui le tuait est
+    revenu « SURVIVANT ». Le filtre fait partie de l'oracle.
+
+CE QUE LA RONDE A CHANGÉ AU PRODUIT, ET PAS SEULEMENT AU BANC :
+  · le dossier de données du banc est ISOLÉ (cinq clés de production vivaient
+    dans le processus de la pièce qui porte Meshy et fal — mesuré : 69, 40,
+    164, 51, 54 signes) ;
+  · le volume du verre a une PORTE À TROIS VOIES (fermé -> volume plein,
+    ouvert -> paroi mince AVOUÉE) : le témoin « on ne peut pas savoir » était
+    un couvercle, le drapeau vit sur le maillage depuis la 2a ;
+  · l'ondulation n'est plus CUITE quand le writer va la jeter, et le
+    bordereau DIT pourquoi (le cas est le cas courant : le lab dérive
+    toujours une normale, donc la fonctionnalité ne changeait pas un octet
+    sur le chemin le plus emprunté) ;
+  · la teinte du translucide vient de la MOYENNE DE L'IMAGE et non du réglage
+    de couleur : ΔE76 médian 86,4 entre les deux sur les 18 matières
+    installées, 18/18 au-dessus de 20, et seize portent encore le blanc par
+    défaut. Ce n'était pas un témoin, c'était un défaut ;
+  · l'indiscernabilité `verre` / `verre-depoli` sur une surface SANS IMAGE est
+    AVOUÉE avec son chiffre (0,000 niveau d'écart, 796 pixels) : à
+    transmission pleine il n'y a rien derrière à flouter, et la couleur de
+    recette (`GLASS_BASE_NU`) n'y change rien — elle agit sur le
+    `translucide` (pixels saturés 100 % -> 21,1 %), pas sur les deux autres.
 
 Run : <python embarqué> backend/tests/test_cards_forge3d.py
       .\\scripts\\run-tests.ps1 -Filter cards_forge3d
@@ -161,11 +199,35 @@ import tempfile
 _tmp = tempfile.mkdtemp()
 os.environ["DATABASE_URL"] = \
     f"sqlite+aiosqlite:///{pathlib.Path(_tmp, 't.db').as_posix()}"
-os.environ.setdefault("FAL_KEY", "test-key")
+# ── B2 (2/2) : L'ENVIRONNEMENT DU PROCESSUS, PURGÉ DE SES IDENTIFIANTS, et
+# AVANT tout import de la config. Le `.env` n'est pas la seule porte, et c'est
+# MESURÉ : une fois le dossier de données isolé, `HEYGEN_API_KEY` restait à
+# 54 signes — il venait de l'environnement du lanceur, pas du fichier. La
+# règle est donc posée sur la FORME du nom (un identifiant se termine par
+# `_KEY`, `_TOKEN`, `_SECRET` ou `_PASSWORD`), pas sur une liste de
+# fournisseurs qui prendrait du retard au premier ajout. `DATABASE_URL`,
+# `IMAGES_FOLDER`, `DEEPOTUS_DATA_DIR` n'y répondent pas : le banc garde ses
+# propres réglages.
+for _k in [k for k in os.environ
+           if k.endswith(("_KEY", "_TOKEN", "_SECRET", "_PASSWORD"))]:
+    os.environ.pop(_k, None)
+os.environ["FAL_KEY"] = "test-key"
 os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
 os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
+# ── B2 (ronde T4) : LE DOSSIER DE DONNÉES, ISOLÉ — ET C'EST LA LEÇON T1 MOT
+# POUR MOT, SUR LA PIÈCE QUI PORTE LA ROUTE PAYANTE. Le `setdefault`
+# ci-dessus ne tient RIEN : `app/config.py` charge `DATA_ROOT/.env` avec
+# `override=True` à l'import, donc l'environnement réel gagne. MESURÉ dans ce
+# processus AVANT la correction : FAL_KEY 69 signes, MESHY_API_KEY 40,
+# OPENAI_API_KEY 164, ELEVENLABS 51, HEYGEN 54 — cinq clés de PRODUCTION
+# vivantes dans le banc de la pièce qui sait appeler Meshy et fal. Un dossier
+# de données NEUF ferme la porte à la source : il n'y a pas de `.env` à
+# charger. Un test le PROUVE plus bas — un banc qui croit neutraliser une clé
+# doit le montrer.
+os.environ["DEEPOTUS_DATA_DIR"] = str(pathlib.Path(_tmp, "data"))
 pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 pathlib.Path(_tmp, "outputs").mkdir(exist_ok=True)
+pathlib.Path(_tmp, "data").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest                                                     # noqa: E402
@@ -200,6 +262,37 @@ def _deck(nom: str = "Forge", fmt: str | None = None) -> str:
     r = _api("POST", "/api/cards/decks", json=corps)
     assert r.status_code == 200, r.text
     return r.json()["deck"]["id"]
+
+
+def test_les_cles_du_banc_sont_NEUTRALISEES_et_ca_se_MESURE():
+    """B2 (ronde T4) — LE BANC PROUVE SA PROPRE SÛRETÉ, et sur CETTE pièce
+    plus qu'ailleurs : c'est elle qui porte `mesh3d` (Meshy et fal, les deux
+    moteurs PAYANTS du lab). Le `setdefault("FAL_KEY", …)` du haut de fichier
+    ne tenait rien — `app/config.py` charge `DATA_ROOT/.env` en
+    `override=True` à l'import, et l'environnement réel gagnait.
+
+    MESURÉ AVANT LA CORRECTION, dans ce processus exact : FAL_KEY 69 signes,
+    MESHY_API_KEY 40, OPENAI_API_KEY 164, ELEVENLABS_API_KEY 51,
+    HEYGEN_API_KEY 54. Cinq clés de production. Ce contrôle-ci est ce qui
+    empêche la porte de se rouvrir : il ne relit PAS l'expression de la
+    correction (un `DEEPOTUS_DATA_DIR` posé quelque part), il pèse le
+    RÉSULTAT — la longueur de ce que le processus tient réellement."""
+    from app.config import settings, DATA_ROOT
+    # le dossier de données du banc est le TEMPORAIRE, jamais celui de l'user
+    assert str(DATA_ROOT).startswith(_tmp), (str(DATA_ROOT), _tmp)
+    assert not (DATA_ROOT / ".env").is_file(), \
+        "un .env a ete ecrit dans le dossier de banc : la porte se rouvre"
+    assert settings.FAL_KEY == "test-key", \
+        f"cle fal non neutralisee ({len(settings.FAL_KEY or '')} signes)"
+    # les QUATRE autres : une clé vraie fait des dizaines de signes, une clé
+    # absente en fait zéro. Le seuil nomme la différence au lieu de la deviner.
+    for nom in ("MESHY_API_KEY", "OPENAI_API_KEY", "ELEVENLABS_API_KEY",
+                "HEYGEN_API_KEY"):
+        v = getattr(settings, nom, "") or ""
+        assert len(v) <= 12, f"{nom} : {len(v)} signes — une VRAIE cle"
+    # ... et le simulateur Meshy n'est pas allumé par accident : un banc qui
+    # croit simuler pendant qu'il a la clé est le pire des deux mondes.
+    assert not settings.has_meshy, "le banc dispose d'un Meshy REEL"
 
 
 def test_la_piece_est_complete_et_passe_le_lint():
@@ -4359,11 +4452,25 @@ def test_la_chaine_matiere_et_transform_habille_l_element_local():
                  json={"graph": g, "card": 0})
         assert r.status_code == 200, r.text
         b = r.json()["artifact"]
-        assert b["ignored"] == [], b["ignored"]
+        # AMENDEMENT PHASE 5 (R1) : le bordereau n'est PLUS vide ici, et c'est
+        # le correctif, pas une régression. Cette matière porte une carte de
+        # relief ; un matériau glTF n'accepte qu'UNE `normalTexture`, donc
+        # l'ondulation de la recette est jetée — sur LE cas le plus courant
+        # (`derive_maps` dérive toujours une normale). Le taire laissait
+        # croire à un pli qui n'existe nulle part dans le fichier.
+        assert [x for x in b["ignored"]
+                if x["node"] == "mt" and "ondulation eteinte" in x["why"]], \
+            b["ignored"]
+        assert len(b["ignored"]) == 1, b["ignored"]
         doc, _ = _read_glb(_api(
             "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
         m = doc["materials"][0]
         assert "normalTexture" in m and "occlusionTexture" in m
+        # ... et la normale posée est bien celle de LA MATIÈRE, pas un pli
+        i_n = doc["textures"][m["normalTexture"]["index"]]["source"]
+        assert doc["images"][i_n]["name"] == "cadre-normal"
+        assert not any(im["name"].endswith("-ondulation")
+                       for im in doc["images"]), "le pli est cuit pour rien"
         # la finition SAUTE la map MR (doctrine Task 5) et pose SA recette
         assert "metallicRoughnessTexture" not in m["pbrMetallicRoughness"]
         assert m["pbrMetallicRoughness"]["baseColorFactor"] == \
@@ -4916,7 +5023,13 @@ def test_node_preview_chaine_matiere_transform_et_ignores():
         extras = doc["asset"]["extras"]
         assert extras["schema"] == "card-3d/apercu@1"
         assert extras["preview"] is True
-        assert extras["ignored"] == []
+        # AMENDEMENT PHASE 5 (R1) : l'aperçu dit la MÊME chose que la
+        # construction — cette matière porte son relief, donc l'ondulation de
+        # la recette est éteinte, et l'aveu voyage avec l'aperçu. Deux
+        # bordereaux qui divergeraient seraient pires qu'un seul silence.
+        assert [x for x in extras["ignored"]
+                if "ondulation eteinte" in x["why"]], extras["ignored"]
+        assert len(extras["ignored"]) == 1, extras["ignored"]
         m = doc["materials"][0]
         assert "normalTexture" in m and "occlusionTexture" in m
         assert set(doc.get("extensionsUsed", [])) == {
@@ -8765,8 +8878,9 @@ function bancT4() {
                          color: "#8a6a43" }],
            material_limits: {
              tile_mm: [10, 200],
-             finishes: ["aucune", "argent", "verre"],
-             finishes_holo: ["argent"], finishes_glass: ["verre"],
+             finishes: ["aucune", "argent", "verre", "translucide"],
+             finishes_holo: ["argent"],
+             finishes_glass: ["verre", "translucide"],
              motif_max: 4, motif_gain: [0.1, 1], motif_gain_default: 0.5 },
            transform_limits: INFO0.transform_limits, mesh3d: INFO0.mesh3d };
   MOTIFS = { images: [{ src: "img:img_1.png", label: "img 1" }],
@@ -8791,6 +8905,50 @@ function bancT4() {
       /data-field="ao" checked>/.test(holo));
   dit("T4 ... et l'ecran DIT qu'une matiere sans carte d'occlusion n'en a pas",
       holo.indexOf("AUCUNE carte d'occlusion") >= 0);
+  /* R1 — L'ONDULATION ETEINTE PAR LE RELIEF DE LA MATIERE, DITE A L'ECRAN.
+     La matiere de INFO ci-dessus ne porte QUE ["normal", "ao"] : elle a donc
+     un relief, et le pli de la feuille sera jete. */
+  dit("T4/R1 l'ecran DIT que le relief de la matiere eteint l'ondulation",
+      holo.indexOf("ondulation") >= 0
+      && holo.indexOf("c'est le v") >= 0);
+  const sansRelief = Object.assign({}, INFO, { materials: [
+    { id: "aaa", name: "gres", maps: ["ao"], color: "#8a6a43" }] });
+  const avant = INFO;
+  INFO = sansRelief;
+  const sansPli = bloc("argent");
+  INFO = avant;
+  dit("T4/R1 ... et se TAIT quand la matiere n'a pas de relief (le pli tient)",
+      sansPli.indexOf("ondulation") < 0);
+  dit("T4/R1 ... et se tait aussi sous une VITRE (pas de pli a eteindre)",
+      vitre.indexOf("ondulation") < 0);
+  /* M3 — LA BOUTIQUE MUETTE : le noeud porte une matiere que /info ne
+     connait pas (panne, ou contrat pas charge). La case d'occlusion est
+     grisee ET cochee, et le reglage AGIT quand meme a la construction. */
+  const enPanne = Object.assign({}, INFO, { materials: [],
+                                            materials_degraded: "disque HS" });
+  INFO = enPanne;
+  const muet = bloc("argent");
+  INFO = avant;
+  dit("T4/M3 une boutique muette est DITE, jamais une case morte",
+      muet.indexOf("disque HS") >= 0
+      && muet.indexOf("agissent toujours") >= 0);
+  dit("T4/M3 ... et la case d'occlusion y est grisee",
+      /data-field="ao"[^>]*disabled/.test(muet));
+  /* R5 — D'OU VIENT LA TEINTE, DIT SANS CHIFFRE FAUX. La matiere de INFO
+     ci-dessus n'a PAS de `basecolor` : c'est son reglage qui teindra, et
+     l'ecran a donc le droit d'afficher l'hex. */
+  const tl = bloc("translucide");
+  dit("T4/R5 sans image, l'ecran montre le REGLAGE (c'est lui qui teint)",
+      tl.indexOf("#8a6a43") >= 0 && tl.indexOf("pas d'image") >= 0);
+  const avecImg = Object.assign({}, INFO, { materials: [
+    { id: "aaa", name: "gres", maps: ["basecolor", "normal"],
+      color: "#8a6a43" }] });
+  INFO = avecImg;
+  const tl2 = bloc("translucide");
+  INFO = avant;
+  dit("T4/R5 avec image, c'est la MOYENNE qui teint — et aucun hex n'est "
+      + "montre (il serait faux)",
+      tl2.indexOf("moyenne de l'image") >= 0 && tl2.indexOf("#8a6a43") < 0);
 }
 
 banc18().then(banc21).then(banc22).then(bancT4).then(
@@ -9122,10 +9280,10 @@ def test_le_harnais_de_palette_refuse_le_maillon_flottant_et_dit_les_exports(
     # un banc ampute — une section commentee, une exception avalee — passerait
     # sinon en vert sans rien mesurer. (43 cas a la livraison T5, 83 apres la
     # ronde de correction, 89 avec la publication de la T6, 127 avec la carte
-    # COMPLETE de la 2d-T2, 146 apres la ronde de revue de cette tache, +7
-    # avec les deux familles de finition de la phase 5 — le plancher garde la
-    # meme marge qu'avant.)
-    assert len(cas) >= 127, len(cas)
+    # COMPLETE de la 2d-T2, 146 apres la ronde de revue de cette tache, +14
+    # avec les deux familles de finition de la phase 5 et les aveux de sa
+    # ronde — le plancher garde la meme marge qu'avant.)
+    assert len(cas) >= 134, len(cas)
 
 
 def test_le_harnais_de_chaines_tient_l_aller_retour_canvas_liste(tmp_path):
@@ -10423,10 +10581,20 @@ def _lin(c8: int) -> float:
 
 
 def _quad_el(SC, nom: str, **kw) -> dict:
+    """Un PLAN texturé — maillage OUVERT (`closed: False`)."""
     png = io.BytesIO()
     Image.new("RGBA", (8, 8), (180, 180, 190, 255)).save(png, "PNG")
     return {"name": nom, "mesh": SC.quad_mesh(63.0, 88.0),
             "png": png.getvalue(), "alpha": False, "z_mm": 0.0, **kw}
+
+
+def _anneau_el(SC, nom: str, **kw) -> dict:
+    """L'ANNEAU DU SCEAU — maillage FERMÉ (`closed: True`) et SANS image, le
+    seul des deux qui prenne un volume plein (R4) et celui que la clause
+    §6.2bis-d nomme."""
+    return {"name": nom, "mesh": SC.extrude_ring_mesh(63.0, 88.0, 3.0, 1.2,
+                                                      0.6, 24),
+            "png": None, "alpha": False, "z_mm": 0.0, **kw}
 
 
 def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
@@ -10442,7 +10610,10 @@ def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
         "translucide": {"transmission": 0.7, "rough": 0.2},
     }
     for kind, exts in _VERRE_EXTS.items():
-        fin = SC.glass_finish(kind)
+        # `closed=True` : LE VOLUME NE S'ÉCRIT QUE SUR UN MAILLAGE FERMÉ (R4).
+        # Le contrôle des extensions se joue donc sur la porte OUVERTE de la
+        # porte à trois voies ; l'autre branche a son contrôle à elle.
+        fin = SC.glass_finish(kind, closed=True)
         # LE 0.0 DE MÉTALLICITÉ SE LIT SUR LA RECETTE, PAS SEULEMENT DANS LE
         # GLB, et c'est une fermeture de témoin : le writer pose DÉJÀ 0.0 par
         # défaut, si bien qu'un mutant qui retirerait ce facteur de la recette
@@ -10488,7 +10659,7 @@ def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
     # glTF ([1,1,1] et +inf) valent « aucune absorption » — les écrire serait
     # deux clés pour rien.
     doc, _ = _read_glb(SC.write_scene_glb(
-        [_quad_el(SC, "t", finish=SC.glass_finish("translucide"))],
+        [_quad_el(SC, "t", finish=SC.glass_finish("translucide", closed=True))],
         name="v", extras={}))
     vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
     assert vol == {"thicknessFactor": 1.0}, vol
@@ -10499,15 +10670,215 @@ def test_les_trois_recettes_de_verre_sont_PESEES_dans_le_glb():
     assert "verre" in str(e.value).lower() or "connues" in str(e.value)
 
 
+def test_le_volume_a_une_PORTE_A_TROIS_VOIES_selon_le_maillage():
+    """R4 — LE TÉMOIN QUI ÉTAIT UN COUVERCLE. « KHR_materials_volume demande
+    un maillage fermé et nos plans ne le sont pas » : c'était vrai, et c'était
+    MESURABLE — le drapeau vit sur le maillage depuis la 2a. Trois voies :
+
+      · FERMÉ (l'anneau)   -> volume PLEIN, épaisseur + absorption ;
+      · OUVERT (le plan)   -> PAROI MINCE : pas de bloc volume du tout, mais
+        la transmission et la rugosité TIENNENT — c'est encore du translucide,
+        il lui manque l'absorption dans l'épaisseur ;
+      · INCONNU (`closed=None`) -> paroi mince aussi : on n'écrit pas un
+        volume qu'on ne peut pas justifier.
+    """
+    from app.services.cards import forge3d_scene as SC
+    assert SC.extrude_ring_mesh(63.0, 88.0, 3.0, 1.2, 0.6, 24)["closed"] is True
+    assert SC.quad_mesh(63.0, 88.0).get("closed") is not True
+    # FERMÉ : le volume entier
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_anneau_el(SC, "anneau",
+                    finish=SC.glass_finish("translucide", color="#3366ff",
+                                           closed=True))],
+        name="v", extras={}))
+    ext = doc["materials"][0]["extensions"]
+    assert set(ext) == _VERRE_EXTS["translucide"]
+    assert ext["KHR_materials_volume"]["thicknessFactor"] == 1.0
+    assert "attenuationColor" in ext["KHR_materials_volume"]
+    # OUVERT et INCONNU : paroi mince — le volume TOMBE, le reste RESTE
+    for closed in (False, None):
+        fin = SC.glass_finish("translucide", color="#3366ff", closed=closed)
+        assert "volume" not in fin, closed
+        doc2, _ = _read_glb(SC.write_scene_glb(
+            [_quad_el(SC, "plan", finish=fin)], name="v", extras={}))
+        e2 = doc2["materials"][0]["extensions"]
+        assert set(e2) == {"KHR_materials_transmission",
+                           "KHR_materials_ior"}, (closed, set(e2))
+        assert e2["KHR_materials_transmission"]["transmissionFactor"] == 0.7
+        assert doc2["materials"][0]["pbrMetallicRoughness"][
+            "roughnessFactor"] == 0.2
+    # et les DEUX autres recettes n'ont RIEN à perdre : elles n'ont pas de
+    # volume, fermé ou pas. Avouer une « paroi mince » sur elles serait FAUX.
+    for kind in ("verre", "verre-depoli"):
+        for closed in (True, False, None):
+            assert "volume" not in SC.glass_finish(kind, closed=closed)
+
+
+def test_la_PAROI_MINCE_est_AVOUEE_au_bordereau_et_le_ferme_ne_l_est_pas():
+    """R4, la moitié qui parle : un translucide posé sur un PLAN perd son
+    absorption — et le bordereau le DIT, au patron `_SANS_HOLO`. Sur une
+    extrusion (fermée), rien à avouer : le volume est entier."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    # LE PLAN : l'aveu tombe, et il nomme le fait, pas l'intention
+    ig: list = []
+    el = {"mesh": SC.quad_mesh(63.0, 88.0)}
+    F9._habille(el, {"id": "m", "finish": "translucide", "tile_mm": 63.0,
+                     "mat": None}, 63.0, 88.0, ig)
+    assert [x for x in ig if x["why"] == F9._VERRE_PAROI_MINCE], ig
+    assert "volume" not in el["finish"]
+    # L'ANNEAU : volume plein, bordereau MUET (un aveu est une PERTE, et il
+    # n'y en a aucune)
+    ig2: list = []
+    el2 = {"mesh": SC.extrude_ring_mesh(63.0, 88.0, 3.0, 1.2, 0.6, 24)}
+    F9._habille(el2, {"id": "m", "finish": "translucide", "tile_mm": 63.0,
+                      "mat": None}, 63.0, 88.0, ig2)
+    assert ig2 == [], ig2
+    assert el2["finish"]["volume"]["thickness"] == 1.0
+    # UN VERRE CLAIR SUR UN PLAN N'AVOUE RIEN : il n'a jamais eu de volume.
+    # (`_VERRE_A_VOLUME` se DÉRIVE des recettes — un aveu faux serait pire
+    # qu'un silence.)
+    assert F9._VERRE_A_VOLUME == ("translucide",)
+    ig3: list = []
+    F9._habille({"mesh": SC.quad_mesh(63.0, 88.0)},
+                {"id": "m", "finish": "verre", "tile_mm": 63.0, "mat": None},
+                63.0, 88.0, ig3)
+    # (cet élément n'a pas d'image non plus, donc l'aveu R2 tombe — celui-ci
+    # est un AUTRE fait ; on ne cherche ici que la paroi mince.)
+    assert not [x for x in ig3 if x["why"] == F9._VERRE_PAROI_MINCE], ig3
+
+
+def test_l_INDISCERNABILITE_du_verre_sans_fond_est_AVOUEE_pas_tue():
+    """R2 — L'EXIGENCE ÉTAIT « DISCERNABLES, OU AVOUÉES ». La mesure a tranché
+    contre l'espoir : au viewer, dans la configuration exacte de l'app, sur
+    l'anneau du Sceau, `verre` et `verre-depoli` rendent la MÊME image — écart
+    moyen 0,000 niveau, maximum 0, sur 796 pixels. La correction de couleur
+    (`GLASS_BASE_NU`) n'y change RIEN : l'écrêtage la mange (elle agit sur le
+    `translucide`, où la part de pixels saturés tombe de 100 % à 21,1 %).
+
+    Ce n'est pas un défaut de recette : à transmission pleine, la surface ne
+    montre que ce qu'il y a DERRIÈRE, et flouter un décor uniforme ne change
+    rien. C'est donc AVOUÉ — au bordereau et à l'écran — au lieu d'être
+    maquillé par une recette fausse."""
+    from app.services.cards import forge3d as F9
+    from app.services.cards import forge3d_scene as SC
+    # les deux recettes CONCERNÉES se dérivent, elles ne se recopient pas
+    assert F9._VERRE_PLEINE_TRANSMISSION == ("verre", "verre-depoli")
+    assert "translucide" not in F9._VERRE_PLEINE_TRANSMISSION
+    anneau = SC.extrude_ring_mesh(63.0, 88.0, 3.0, 1.2, 0.6, 24)
+    for kind in ("verre", "verre-depoli"):
+        ig: list = []
+        F9._habille({"mesh": anneau},
+                    {"id": "m", "finish": kind, "tile_mm": 63.0, "mat": None},
+                    63.0, 88.0, ig)
+        assert [x for x in ig if x["why"] == F9._VERRE_SANS_FOND], (kind, ig)
+    # AVEC une image, rien à avouer : le vitrail montre le dessin, et le grain
+    # du dépoli a enfin quelque chose à brouiller.
+    png = io.BytesIO()
+    Image.new("RGBA", (8, 8), (200, 60, 40, 255)).save(png, "PNG")
+    ig2: list = []
+    F9._habille({"mesh": SC.quad_mesh(63.0, 88.0), "png": png.getvalue()},
+                {"id": "m", "finish": "verre-depoli", "tile_mm": 63.0,
+                 "mat": None}, 63.0, 88.0, ig2)
+    assert not [x for x in ig2 if x["why"] == F9._VERRE_SANS_FOND], ig2
+    # LE TRANSLUCIDE, LUI, SE DISTINGUE (12,93 de moyenne contre les deux
+    # autres, mesuré) : il n'a rien à avouer de ce côté-là.
+    ig3: list = []
+    F9._habille({"mesh": anneau},
+                {"id": "m", "finish": "translucide", "tile_mm": 63.0,
+                 "mat": None}, 63.0, 88.0, ig3)
+    assert not [x for x in ig3 if x["why"] == F9._VERRE_SANS_FOND], ig3
+    # ... et l'écran le dit AVANT, sur le nœud qui n'a pas d'image
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    mh = rendu.split("function matHtml(")[1].split("\n  }")[0]
+    assert 'r.proc.kind === "extrude"' in mh
+    assert "rien à flouter" in mh and "même image" in mh
+
+
+def test_le_verre_SANS_IMAGE_porte_la_couleur_de_sa_recette():
+    """R2 — L'ANNEAU DU SCEAU RENDAIT UN APLAT BLANC SATURÉ. Un élément
+    d'extrusion n'a AUCUN PNG : le matériau retombait sur le blanc PUR par
+    défaut de glTF, qui ÉCRÊTE sous transmission — mesuré à la revue, 100 %
+    des pixels saturés, et `verre` / `verre-depoli` rendus au pixel près
+    IDENTIQUES sur la surface que la clause NOMME.
+
+    La couleur de recette ne s'écrit QUE là : une couche texturée garde son
+    vitrail (la lumière transmise teintée par le dessin), ce qui était et
+    reste la bonne propriété."""
+    from app.services.cards import forge3d_scene as SC
+    # SANS image : la couleur de recette est dans les octets
+    doc, _ = _read_glb(SC.write_scene_glb(
+        [_anneau_el(SC, "anneau", finish=SC.glass_finish("verre"))],
+        name="v", extras={}))
+    pbr = doc["materials"][0]["pbrMetallicRoughness"]
+    assert pbr["baseColorFactor"] == SC.GLASS_BASE_NU
+    assert "baseColorTexture" not in pbr
+    # ... et elle n'est PAS le blanc pur : c'est tout l'objet de la correction
+    assert pbr["baseColorFactor"] != [1.0, 1.0, 1.0, 1.0]
+    assert max(pbr["baseColorFactor"][:3]) < 1.0
+    # AVEC image : rien n'est écrit, la couche teinte (le vitrail)
+    doc2, _ = _read_glb(SC.write_scene_glb(
+        [_quad_el(SC, "couche", finish=SC.glass_finish("verre"))],
+        name="v", extras={}))
+    pbr2 = doc2["materials"][0]["pbrMetallicRoughness"]
+    assert "baseColorTexture" in pbr2 and "baseColorFactor" not in pbr2
+    # ET UNE FINITION HOLO N'EN VEUT PAS : sa recette porte SA base à elle.
+    doc3, _ = _read_glb(SC.write_scene_glb(
+        [_anneau_el(SC, "or",
+                    finish=SC.holo_finish("dorure", aniso=False, out_px=64))],
+        name="v", extras={}))
+    assert doc3["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] == \
+        [1.0, 0.84, 0.55, 1.0]
+
+
+def test_la_couleur_du_noeud_est_la_MOYENNE_DE_L_IMAGE_pas_le_reglage():
+    """R5 — LE CHIFFRE A TRANCHÉ CONTRE L'AVEU. La livraison lisait
+    `props.color` (le réglage de teinte du lab) et avouait la divergence comme
+    un témoin. Mesuré sur les 18 matières de la boutique réelle : ΔE76 médian
+    **86,4** entre le réglage et la moyenne de l'image, 18/18 au-dessus de 20,
+    et SEIZE portent encore le blanc par défaut. Le « teinté par la couleur du
+    nœud » ne teintait donc rien sur presque toute la boutique.
+
+    La couleur vient maintenant de la MOYENNE de la carte `basecolor` ; le
+    réglage ne sert que si la matière n'a pas d'image."""
+    from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
+    mat = MSTORE.create_material(name="moyenne-t4", props={"color": "#ffffff"})
+    try:
+        # une image à DEUX aplats : la moyenne est calculable à la main, et
+        # elle n'est ni l'un ni l'autre — un « prend le premier pixel » meurt.
+        im = Image.new("RGB", (32, 32), (0, 0, 0))
+        im.paste(Image.new("RGB", (32, 16), (200, 100, 40)), (0, 0))
+        MSTORE.save_maps(mat["id"], {"basecolor": im})
+        assert F9._couleur_matiere(mat["id"]) == "#643214", \
+            F9._couleur_matiere(mat["id"])       # (200,100,40)/2 = (100,50,20)
+        # ... et surtout : PAS le réglage, qui est resté au blanc
+        assert F9._couleur_matiere(mat["id"]) != "#ffffff"
+    finally:
+        MSTORE.delete_material(mat["id"])
+    # SANS image, le réglage reprend la main — c'est alors LUI qui est vrai
+    mat2 = MSTORE.create_material(name="reglage-t4", props={"color": "#3366ff"})
+    try:
+        assert F9._couleur_matiere(mat2["id"]) == "#3366ff"
+    finally:
+        MSTORE.delete_material(mat2["id"])
+    # une matière effacée ne lève pas et ne teinte pas
+    assert F9._couleur_matiere("mat_deadbeef") is None
+    assert F9._couleur_matiere(None) is None
+
+
 def test_la_teinte_du_translucide_VIENT_DE_LA_COULEUR_DU_NOEUD():
     """« attenuationColor teintée par la couleur du nœud » : la couleur est
-    celle de la MATIÈRE choisie sur le nœud material (`props.color` de la
-    boutique — le seul endroit du graphe où une couleur soit dite). Convertie
-    en LINÉAIRE, comme tout facteur glTF."""
+    celle de la MATIÈRE choisie sur le nœud material — la MOYENNE de son image
+    (voir `test_la_couleur_du_noeud_est_la_MOYENNE_DE_L_IMAGE_pas_le_reglage`).
+    Convertie en LINÉAIRE, comme tout facteur glTF."""
     from app.services.cards import forge3d_scene as SC
-    fin = SC.glass_finish("translucide", color="#3366ff")
+    # sur l'ANNEAU : fermé, donc volume plein — la seule branche où une
+    # absorption teintée ait un sens (R4).
+    fin = SC.glass_finish("translucide", color="#3366ff", closed=True)
     doc, _ = _read_glb(SC.write_scene_glb(
-        [_quad_el(SC, "t", finish=fin)], name="v", extras={}))
+        [_anneau_el(SC, "t", finish=fin)], name="v", extras={}))
     vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
     assert vol["attenuationColor"] == [_lin(0x33), _lin(0x66), _lin(0xFF)], vol
     # LES DEUX UNITÉS NE SONT PAS LES MÊMES, et c'est la spec qui le dit :
@@ -10523,10 +10894,11 @@ def test_la_teinte_du_translucide_VIENT_DE_LA_COULEUR_DU_NOEUD():
     assert doc["nodes"][-1]["scale"] == [0.001, 0.001, 0.001]
     # une couleur illisible ne teinte pas et ne lève pas : la recette dégrade
     # vers le neutre (aucune absorption), jamais un 500 sur une donnée
-    assert set(SC.glass_finish("translucide", color="bleu")["volume"]) == \
-        {"thickness"}
+    assert set(SC.glass_finish("translucide", color="bleu",
+                               closed=True)["volume"]) == {"thickness"}
     # les deux autres recettes n'ont PAS de volume : une couleur n'y change rien
-    assert SC.glass_finish("verre", color="#3366ff").get("volume") is None
+    assert SC.glass_finish("verre", color="#3366ff",
+                           closed=True).get("volume") is None
 
 
 def test_le_verre_est_un_HABIT_pas_une_GEOMETRIE():
@@ -10648,11 +11020,16 @@ def test_le_noeud_material_habille_EN_VERRE_par_la_route_et_teinte():
     boutique, et le GLB LIVRÉ porte le volume teinté par la couleur de CETTE
     matière."""
     from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
     did = _deck("Verre bout")
     _exporter_couches(did)
-    mat = MSTORE.create_material(name="resine-t4", props={"color": "#3366ff"})
+    mat = MSTORE.create_material(name="resine-t4", props={"color": "#ffffff"})
     try:
-        assert MSTORE.read_material(mat["id"])["props"]["color"] == "#3366ff"
+        # LA MATIÈRE PORTE LE BLANC PAR DÉFAUT ET UNE IMAGE BLEUE — c'est la
+        # configuration de SEIZE des dix-huit matières de la boutique réelle,
+        # et c'est elle qui condamnait l'ancienne lecture : `props.color`
+        # aurait teinté en BLANC, c'est-à-dire pas du tout (R5).
+        assert MSTORE.read_material(mat["id"])["props"]["color"] == "#ffffff"
         MSTORE.save_maps(mat["id"], {
             "basecolor": Image.new("RGB", (32, 32), (51, 102, 255)),
             "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
@@ -10670,15 +11047,154 @@ def test_le_noeud_material_habille_EN_VERRE_par_la_route_et_teinte():
                  json={"graph": g, "card": 0})
         assert r.status_code == 200, r.text
         b = r.json()["artifact"]
-        assert b["ignored"] == [], b["ignored"]
+        # UN PLAN EST UN MAILLAGE OUVERT : paroi mince, et le bordereau le DIT
+        # (R4). C'est le cas COURANT — une carte est un plan — d'où l'aveu
+        # plutôt qu'un refus.
+        assert [x for x in b["ignored"] if x["why"] == F9._VERRE_PAROI_MINCE], \
+            b["ignored"]
         doc, _ = _read_glb(_api(
             "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
-        assert set(doc["extensionsUsed"]) == _VERRE_EXTS["translucide"]
-        vol = doc["materials"][0]["extensions"]["KHR_materials_volume"]
-        assert vol["attenuationColor"] == [_lin(0x33), _lin(0x66), _lin(0xFF)]
+        assert set(doc["extensionsUsed"]) == {"KHR_materials_transmission",
+                                              "KHR_materials_ior"}
+        assert "KHR_materials_volume" not in doc["materials"][0]["extensions"]
         # l'occlusion de la matière est TOUJOURS là (le verre n'est pas un
         # rouleau compresseur : il remplace la micro-surface, pas le reste)
         assert "occlusionTexture" in doc["materials"][0]
+
+        # ── ET LA MÊME RECETTE SUR UNE EXTRUSION : VOLUME PLEIN, TEINTÉ ────
+        # La porte à trois voies traverse la ROUTE, pas seulement la fonction
+        # pure — et c'est sur l'anneau que la teinte de la matière se lit.
+        g2 = {"nodes": [
+            {"id": "ext", "kind": "extrude", "contour": "sceau",
+             "width_mm": 1.2, "depth_mm": 0.6},
+            {"id": "m", "kind": "material", "mat": mat["id"],
+             "tile_mm": 31.5, "finish": "translucide"},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "verreferme"}],
+            "edges": [{"from": "ext", "to": "m"}, {"from": "m", "to": "asm"},
+                      {"from": "asm", "to": "art"}]}
+        r2 = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                  json={"graph": g2, "card": 0})
+        assert r2.status_code == 200, r2.text
+        b2 = r2.json()["artifact"]
+        assert not [x for x in b2["ignored"]
+                    if x["why"] == F9._VERRE_PAROI_MINCE], b2["ignored"]
+        doc2, _ = _read_glb(_api(
+            "GET",
+            f"/api/cards/{did}/forge3d/file/{b2['glb']['name']}").content)
+        assert set(doc2["extensionsUsed"]) == _VERRE_EXTS["translucide"]
+        vol = doc2["materials"][0]["extensions"]["KHR_materials_volume"]
+        assert vol["attenuationColor"] == [_lin(0x33), _lin(0x66), _lin(0xFF)]
+        assert vol["attenuationDistance"] == 0.003
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_les_CINQ_maps_de_la_matiere_DESCENDENT_dans_le_glb():
+    """B1-b — LE TROU LE PLUS BÊTE DE LA LIVRAISON. `MATERIAL_MAP_KINDS` a été
+    EXTRAIT par cette tâche (pour que le débrayage de l'occlusion ne fasse pas
+    dériver deux listes) et RIEN ne le mesurait : lui retirer « emissive »
+    laissait 161 contrôles verts pendant que les cartes émissives
+    disparaissaient du GLB en silence. Le mot n'apparaissait pas une seule fois
+    dans ce banc.
+
+    Les cinq sont donc PESÉES dans le fichier livré, chacune à son nom, et la
+    constante est confrontée à ce que le GLB porte VRAIMENT — pas à elle-même.
+    (La couleur de base n'y est pas : §5.2, elle vient de la COUCHE.)"""
+    from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
+    assert F9.MATERIAL_MAP_KINDS == ("normal", "roughness", "metallic", "ao",
+                                     "emissive")
+    did = _deck("Cinq maps")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="cinq-t4")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (120, 120, 120)),
+            "normal": Image.new("RGB", (32, 32), (128, 128, 255)),
+            "roughness": Image.new("L", (32, 32), 90),
+            "metallic": Image.new("L", (32, 32), 40),
+            "ao": Image.new("L", (32, 32), 150),
+            "emissive": Image.new("RGB", (32, 32), (200, 40, 10))})
+        g = {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "p", "kind": "plane", "depth_mm": 1.0},
+            {"id": "m", "kind": "material", "mat": mat["id"], "tile_mm": 31.5},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "cinq"}],
+            "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "m"},
+                      {"from": "m", "to": "asm"}, {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        b = r.json()["artifact"]
+        assert b["ignored"] == [], b["ignored"]
+        doc, binv = _read_glb(_api(
+            "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+        m0 = doc["materials"][0]
+        # les CINQ, chacune à sa place dans le matériau glTF
+        assert "normalTexture" in m0 and "occlusionTexture" in m0
+        assert "emissiveTexture" in m0, "la carte emissive a disparu"
+        assert m0["emissiveFactor"] == [1.0, 1.0, 1.0]
+        assert "metallicRoughnessTexture" in m0["pbrMetallicRoughness"]
+        noms = {im["name"] for im in doc["images"]}
+        for suffixe in ("-normal", "-mr", "-ao", "-emissive"):
+            assert any(n.endswith(suffixe) for n in noms), (suffixe, noms)
+        # ... et ce sont bien SES octets : l'émissive relue au pixel
+        i_e = doc["textures"][m0["emissiveTexture"]["index"]]["source"]
+        bve = doc["bufferViews"][doc["images"][i_e]["bufferView"]]
+        px = Image.open(io.BytesIO(
+            binv[bve["byteOffset"]:bve["byteOffset"] + bve["byteLength"]])
+        ).convert("RGB").getpixel((4, 4))
+        assert px[0] > 150 and px[1] < 90 and px[2] < 60, px
+    finally:
+        MSTORE.delete_material(mat["id"])
+
+
+def test_des_motifs_sous_une_finition_de_VERRE_sont_AVOUES():
+    """B1-c — LA PHRASE DU COMMIT QUE RIEN NE TENAIT. Le verre n'a pas de canal
+    d'épaisseur : des calques posés puis basculés vers une vitre ne
+    s'incrustent NULLE PART, et l'aveu doit tomber au bordereau exactement
+    comme sans finition (`_SANS_HOLO`). Supprimer cet aveu laissait 161
+    contrôles verts — le silence que `_SANS_HOLO` existe justement pour
+    rompre, rouvert par la tâche qui s'en réclamait."""
+    from app.services import material_store as MSTORE
+    from app.services.cards import forge3d as F9
+    did = _deck("Verre motifs")
+    _exporter_couches(did)
+    mat = MSTORE.create_material(name="verre-motifs-t4")
+    try:
+        MSTORE.save_maps(mat["id"], {
+            "basecolor": Image.new("RGB", (32, 32), (90, 90, 110))})
+        g = {"nodes": [
+            {"id": "s", "kind": "layer", "role": "cadre", "side": "front"},
+            {"id": "p", "kind": "plane", "depth_mm": 1.0},
+            {"id": "m", "kind": "material", "mat": mat["id"], "tile_mm": 31.5,
+             "finish": "verre-depoli",
+             "motifs": [{"src": "mat:" + mat["id"], "gain": 0.5}]},
+            {"id": "asm", "kind": "assemble"},
+            {"id": "art", "kind": "artifact", "name": "vmotifs"}],
+            "edges": [{"from": "s", "to": "p"}, {"from": "p", "to": "m"},
+                      {"from": "m", "to": "asm"}, {"from": "asm", "to": "art"}]}
+        r = _api("POST", f"/api/cards/{did}/forge3d/build3d",
+                 json={"graph": g, "card": 0})
+        assert r.status_code == 200, r.text
+        b = r.json()["artifact"]
+        # LA MÊME PHRASE que sans finition — une seule vérité, pas deux. On la
+        # CHERCHE dans le bordereau au lieu de prendre la première ligne : ce
+        # nœud en produit une autre (la matière n'a que sa couleur de base),
+        # et un contrôle qui lit `[0]` mesurerait l'ORDRE des aveux, pas leur
+        # présence.
+        dits = [x["why"] for x in b["ignored"]
+                if x["node"] == "m" and F9._SANS_HOLO in x["why"]]
+        assert dits, ("aucun aveu : le calque disparait en silence sous une "
+                      "vitre", b["ignored"])
+        assert dits[0].startswith("1 "), dits[0]     # le COMPTE de calques
+        # ... et la vitre, elle, est bien posée : l'aveu ne coûte pas la
+        # recette (le calque est perdu, pas la finition)
+        doc, _ = _read_glb(_api(
+            "GET", f"/api/cards/{did}/forge3d/file/{b['glb']['name']}").content)
+        assert set(doc["extensionsUsed"]) == _VERRE_EXTS["verre-depoli"]
     finally:
         MSTORE.delete_material(mat["id"])
 
@@ -10759,13 +11275,82 @@ def _normales(png: bytes):
                 for r, g, b in im.getdata()]
 
 
+# L'ANGLE DE CHAQUE RECETTE, EN LITTÉRAL — correction de ronde B1, et c'est LA
+# leçon de cette tâche. L'ancien contrôle ne mesurait QUE l'argent et il
+# DÉRIVAIT son attendu de la constante de défaut : un mutant qui déplaçait
+# cette constante le faisait rougir sans changer un octet livré (l'oracle tué,
+# pas le produit), pendant qu'un mutant qui déplaçait la pente de la DORURE
+# passait au vert avec un pli de 20,11°. Ces chiffres-ci sont LUS DES OCTETS,
+# recette par recette, et écrits à la main : ils ne bougent pas avec le code.
+#
+# DEUX CHIFFRES PAR RECETTE, et ils ne disent pas la même chose (M1) : le
+# NOMINAL, atan(pente), ce que la recette demande ; et le LU, ce que la grille
+# 8 bits rend — l'écart (7,073 contre 6,843, soit 0,23°) EST la quantification,
+# pas une erreur. La MOYENNE, elle, est stable au millième : c'est sur elle
+# que le contrôle serre, et le maximum garde une tolérance qui nomme sa raison.
+_ONDUL_PAR_RECETTE = {
+    # kind : (pente de recette, nominal°, max lu°, moyenne lue°)
+    "argent": (0.12, 6.843, 7.073, 4.345),
+    "dorure": (0.12, 6.843, 7.073, 4.345),
+}
+
+
+def _angles_ondulation(png: bytes):
+    """(max, moyenne) de l'inclinaison en degrés, lue sur x/y (jamais sur z —
+    voir la note de grille dans le contrôle)."""
+    _im, nrm = _normales(png)
+    angs = [math.degrees(math.asin(min(1.0, math.hypot(n[0], n[1]))))
+            for n in nrm]
+    return max(angs), sum(angs) / len(angs)
+
+
+def test_l_ondulation_a_SON_angle_DANS_CHAQUE_recette():
+    """B1 — LE TROU QUE LA RONDE A OUVERT. Une seule recette était mesurée, et
+    son attendu venait de la même constante que le code : deux mutants
+    survivaient (la pente de la dorure déplacée, la carte partagée). Ici,
+    CHAQUE recette est cuite, écrite dans un GLB, relue AUX OCTETS, et son
+    angle comparé à un littéral.
+
+    Le partage de la carte entre recettes de même pente est un FAIT, pas un
+    hasard : il est épinglé aussi, sinon un mutant pourrait le casser (deux
+    fois les mêmes octets dans le fichier) sans que rien ne rougisse."""
+    from app.services.cards import forge3d_scene as SC
+    assert set(_ONDUL_PAR_RECETTE) == set(SC.HOLO_KINDS), \
+        "une recette holo n'a pas son angle epingle"
+    vus = {}
+    for kind, (pente, nominal, amax_att, amoy_att) in _ONDUL_PAR_RECETTE.items():
+        assert SC._HOLO_RECIPES[kind]["ripple"] == pente, kind
+        assert abs(math.degrees(math.atan(pente)) - nominal) < 0.01, kind
+        fin = SC.holo_finish(kind, aniso=False, out_px=256)
+        doc, binv = _read_glb(SC.write_scene_glb(
+            [_quad_el(SC, kind, finish=fin)], name="o", extras={}))
+        m = doc["materials"][0]
+        src = doc["textures"][m["normalTexture"]["index"]]["source"]
+        bv = doc["bufferViews"][doc["images"][src]["bufferView"]]
+        png = binv[bv["byteOffset"]:bv["byteOffset"] + bv["byteLength"]]
+        vus[kind] = png
+        amax, amoy = _angles_ondulation(png)
+        # LA MOYENNE SERRE (stable au millième), LE MAXIMUM RESPIRE : près du
+        # pic, un pas d'octet vaut ~0,45° — un seuil plus étroit se casserait
+        # sur une version de Pillow, pas sur une régression.
+        assert abs(amoy - amoy_att) < 0.02, (kind, amoy, amoy_att)
+        assert abs(amax - amax_att) < 0.30, (kind, amax, amax_att)
+        # DOUCE, dit une fois par recette et sans dérivation : un pli, pas une
+        # tôle. (Un mutant à 0,36 de pente sort à 20,11° et meurt ici.)
+        assert amax < 7.5, (kind, amax)
+    # deux recettes de MÊME pente rendent LA MÊME carte — le writer la partage
+    # ensuite dans le GLB (une seule image pour deux matériaux finis pareil).
+    assert len(set(vus.values())) == 1, "la carte n'est plus partagee"
+
+
 def test_l_ondulation_du_sceau_est_DANS_LES_OCTETS_et_reste_DOUCE():
     """Quatre mesures sur le fichier livré, aucune sur l'intention :
       1. la carte EST dans le GLB, sous son nom, et c'est bien une normal map ;
       2. le champ est RADIAL et SINUSOÏDAL — le compte de changements de signe
          le long d'un rayon est celui des cycles annoncés, pas un dégradé ;
-      3. l'inclinaison MAXIMALE est celle de l'amplitude de la recette
-         (atan(0,12) = 6,84°) — « douce » est un angle, pas un adjectif ;
+      3. l'inclinaison MAXIMALE est celle de l'amplitude de la recette — voir
+         `test_l_ondulation_a_SON_angle_DANS_CHAQUE_recette`, qui l'épingle en
+         LITTÉRAL et par recette (B1) ;
       4. le centre n'est PAS singulier (la phase `sin` le ferme).
     """
     from app.services.cards import forge3d_scene as SC
@@ -10829,13 +11414,16 @@ def test_l_ondulation_du_sceau_est_DANS_LES_OCTETS_et_reste_DOUCE():
     # finement résolu là où z ne l'est pas : un pas d'octet y vaut 1/127,5,
     # soit ~0,45° à cette pente — l'arrondi ne peut donc décaler que d'une
     # demi-marche.
-    angs = [math.degrees(math.asin(min(1.0, math.hypot(n[0], n[1]))))
-            for n in nrm]
-    amax, amoy = max(angs), sum(angs) / len(angs)
-    attendu = math.degrees(math.atan(SC._HOLO_RIPPLE_DEFAUT))
-    assert abs(amax - attendu) < 0.25, (amax, attendu)
-    assert 6.0 < amax < 7.5, amax          # DOUCE : un pli, pas une tôle
-    assert 3.0 < amoy < 5.5, amoy
+    # LES DEUX CHIFFRES SONT LITTÉRAUX ET SE DISENT ENSEMBLE (M1) : 6,843° est
+    # ce que la recette DEMANDE (atan 0,12), 7,073° est ce que la grille 8 bits
+    # REND. L'ancien contrôle dérivait son attendu de la constante du module et
+    # consommait 92 % de son seuil (0,2306 sur 0,25) sans que personne le
+    # sache : il n'était pas serré, il était bancal. La valeur par recette
+    # vit dans `_ONDUL_PAR_RECETTE`.
+    amax, amoy = _angles_ondulation(png)
+    assert abs(amax - 7.073) < 0.30, amax
+    assert abs(amoy - 4.345) < 0.02, amoy
+    assert amax < 7.5, amax                # DOUCE : un pli, pas une tôle
     # la composante z ne passe JAMAIS sous zéro (une normale tangente ne
     # pointe pas sous la surface) : B reste strictement au-dessus de 127
     assert min(p[2] for p in im.getdata()) > 127

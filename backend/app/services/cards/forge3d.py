@@ -39,7 +39,7 @@ from .forge3d_scene import (quad_mesh, relief_mesh, mesh_measures,
                             write_scene_glb, _write_stl_binary,
                             read_glb, glb_scene_mesh, glb_triangle_estimate,
                             material_pngs, holo_finish, apply_fit_inplace,
-                            glass_finish, GLASS_KINDS,
+                            glass_finish, GLASS_KINDS, _GLASS_RECIPES,
                             trs_de_face, HOLO_KINDS, HOLO_PX,
                             MOTIF_MAX, MOTIF_GAIN, MOTIF_GAIN_DEFAULT,
                             motif_probe)
@@ -298,6 +298,59 @@ MOTIF_MAX_BYTES = 64 * 1024 * 1024   # même plafond que MAX_LAYER_BYTES : un
 _SANS_HOLO = ("motif(s) poses sans finition holographique : aucun endroit "
               "ou s'incruster (le canal d'epaisseur n'existe qu'en argent "
               "ou dorure)")
+# ── LES DEUX AVEUX DE LA PHASE 5, MÊME DOCTRINE QUE `_SANS_HOLO` ────────────
+# Un réglage qui cesse d'agir SANS UN MOT est le silence que le bordereau
+# existe pour rompre. Ces deux-là ont été trouvés par la ronde adverse : ils
+# décrivaient des cas RÉELS et FRÉQUENTS que rien ne disait.
+#
+# R1 — l'ondulation contre le relief d'une matière. Le cas est LE cas courant :
+# `derive_maps` dérive TOUJOURS une normale, donc dès qu'une matière est posée
+# le pli de la feuille est jeté. Sans cette ligne, la fonctionnalité livrée
+# par la tâche ne changeait pas un octet sur le chemin le plus emprunté, et
+# personne ne pouvait le savoir.
+_ONDUL_ETEINTE = ("ondulation eteinte : la matiere posee porte SA PROPRE "
+                  "carte de relief, et un materiau glTF n'en accepte qu'une "
+                  "- le relief de la matiere gagne, le pli de la feuille "
+                  "n'est meme pas cuit")
+# R4 — le volume contre un maillage ouvert. Écrit sans accent comme le reste
+# du bordereau.
+_VERRE_PAROI_MINCE = ("verre en PAROI MINCE : le volume (epaisseur et "
+                      "absorption teintee) demande un maillage FERME, et "
+                      "celui-ci est ouvert (un plan, une dalle de relief). "
+                      "La transmission et la rugosite tiennent - seule "
+                      "l'absorption dans l'epaisseur tombe ; une extrusion, "
+                      "elle, est fermee et prend le volume entier")
+# LES RECETTES QUI ONT UN VOLUME À PERDRE — dérivé des recettes elles-mêmes,
+# jamais recopié : avouer une « paroi mince » sur un `verre` (qui n'a jamais
+# eu de volume) serait un aveu FAUX.
+_VERRE_A_VOLUME = tuple(k for k in GLASS_KINDS
+                        if _GLASS_RECIPES[k].get("volume"))
+# R2 — L'INDISCERNABILITÉ, AVOUÉE PARCE QU'ELLE EST MESURÉE. Sur un élément
+# SANS IMAGE — l'anneau du Sceau, précisément la surface que la clause
+# §6.2bis-d nomme — `verre` et `verre-depoli` rendent LA MÊME IMAGE. Chiffres
+# du banc viewer, configuration exacte de l'app (camera-controls seul, ni
+# environment-image ni exposure), gros plan à 0,075 m : écart moyen **0,000
+# niveau, maximum 0, 0 % des 796 pixels de l'anneau**.
+#
+# ET CE N'EST PAS UN DÉFAUT DE RECETTE, C'EST DE LA PHYSIQUE : à transmission
+# pleine, la surface ne montre QUE ce qu'il y a derrière elle ; derrière un
+# filet de 1,2 mm il n'y a que le décor, uniforme — et flouter un champ
+# uniforme ne change rien. C'est la RUGOSITÉ qui sépare les deux recettes, et
+# la rugosité n'a rien à faire quand il n'y a pas de contraste à brouiller.
+# La correction de couleur (`GLASS_BASE_NU`) a été gardée parce qu'elle AGIT
+# là où elle peut : sur le `translucide`, elle fait tomber la part de pixels
+# saturés de 100 % à 21,1 % (écart moyen 9,21). Sur les deux recettes à
+# transmission pleine, elle est mangée par l'écrêtage — mesuré, dit, pas
+# maquillé.
+_VERRE_SANS_FOND = ("verre a transmission pleine sur un element SANS IMAGE : "
+                    "la surface ne montre que le decor, et un decor uni n'a "
+                    "rien a flouter - MESURE au viewer, « verre » et "
+                    "« verre-depoli » y rendent la MEME image (ecart moyen "
+                    "0,000 niveau sur 796 pixels de l'anneau). Le grain du "
+                    "depoli se voit sur une couche TEXTUREE, ou quand un "
+                    "objet passe derriere la vitre")
+_VERRE_PLEINE_TRANSMISSION = tuple(
+    k for k in GLASS_KINDS if _GLASS_RECIPES[k]["transmission"] >= 1.0)
 TRANSFORM_XY_MM = (-100.0, 100.0)
 TRANSFORM_Z_MM = (0.0, 10.0)
 TRANSFORM_ROT_DEG = (-180.0, 180.0)
@@ -1601,35 +1654,55 @@ def _motifs_resolus(did, mat_n: dict, ignores: list) -> list:
     return pile
 
 
+# LA TAILLE À LAQUELLE ON MOYENNE UNE CARTE DE COULEUR DE BASE. 32² suffit
+# largement pour une MOYENNE (on ne cherche pas un détail, on cherche un
+# barycentre), et le rééchantillonnage est EXPLICITE — même discipline que
+# `material_pngs` : le défaut de PIL a déjà changé d'une version à l'autre, et
+# la teinte livrée ne doit pas dépendre de la version de Pillow installée.
+_COULEUR_MOY_PX = 32
+
+
 def _couleur_matiere(mid) -> str | None:
-    """LA COULEUR DU NŒUD — `props.color` de la matière choisie, ou `None`.
+    """LA COULEUR DU NŒUD — la MOYENNE de la carte `basecolor` de la matière
+    choisie, ou son réglage `props.color` à défaut de carte, ou `None`.
 
-    D'OÙ ELLE VIENT, DIT UNE FOIS : le nœud `material` ne porte pas de teinte
-    à lui ; la seule couleur qu'un graphe nomme est celle de la MATIÈRE de la
-    boutique qu'il désigne (`material_store`, `props["color"]`, un hex —
-    exactement celle que le lab Matières peint sur sa vignette). Le
-    `translucide` en teinte son absorption ; les deux autres recettes n'en font
-    rien.
+    D'OÙ ELLE VIENT, ET POURQUOI CE N'EST PAS `props.color` : la livraison
+    lisait le réglage de teinte du lab Matières, et l'avouait comme un témoin
+    (« les deux valeurs sont légitimes »). LA RONDE A DEMANDÉ LE CHIFFRE, ET
+    LE CHIFFRE A TRANCHÉ CONTRE L'AVEU. Mesuré sur les 18 matières de la
+    boutique réelle, écart CIE ΔE76 entre le réglage et la moyenne de
+    l'image : **médian 86,4, moyen 77,5, maximum 95,4, minimum 37,0 —
+    18 sur 18 au-dessus de 20**. Et la cause est simple : SEIZE des dix-huit
+    portent le blanc par DÉFAUT (`#ffffff`) pendant que leur image est sombre.
+    Autrement dit, « teintée par la couleur du nœud » ne teintait RIEN sur
+    presque toute la boutique, et se trompait sur le reste. Ce n'était pas un
+    témoin, c'était un défaut.
 
-    NE LÈVE JAMAIS : une matière effacée depuis que le graphe a été câblé rend
-    `None`, et la recette part sans teinte. L'aveu de la matière introuvable
-    est déjà fait plus haut par `_habille` — le redire ici doublerait la
-    ligne au bordereau pour un seul fait.
+    LE COÛT EST NOMMÉ : un décodage PNG de plus par construction qui pose un
+    `translucide`. C'est le même fichier que `tile_maps` ouvre déjà pour cuire
+    ses niveaux (`load_maps` y ajoute toujours `basecolor`) ; on ne crée donc
+    pas un accès disque d'une NATURE nouvelle, on en paie un second.
 
-    TÉMOIN VOLONTAIRE, AVOUÉ : `props.color` est le RÉGLAGE de teinte du lab
-    Matières, pas la moyenne de la carte `basecolor`. Une matière dont la
-    carte est rouge vif mais dont le réglage est resté au blanc par défaut
-    donnera donc une absorption NEUTRE, et aucun contrôle d'ici ne le verra —
-    les deux valeurs sont légitimes, elles ne disent simplement pas la même
-    chose. La fermeture existe et elle est nommée (moyenner les pixels de
-    `basecolor`), mais c'est un PIPELINE de plus, hors de cette tâche.
-    L'atténuation d'ici : l'écran AFFICHE l'hex qui sera réellement utilisé —
-    l'utilisateur voit le blanc et comprend."""
+    NE LÈVE JAMAIS : une matière effacée depuis que le graphe a été câblé, une
+    image illisible, un `props` absent — tout rend `None`, et la recette part
+    sans teinte. L'aveu de la matière introuvable est déjà fait par `_habille`."""
     if not mid:
         return None
     try:
         from app.services import material_store as MSTORE
+        from PIL import Image as _I
         mat = MSTORE.read_material(str(mid))
+        if mat is None:
+            return None
+        if "basecolor" in (mat.get("maps") or []):
+            im = MSTORE.load_maps(str(mid), kinds=["basecolor"]).get("basecolor")
+            if im is not None:
+                p = _COULEUR_MOY_PX
+                pet = im.convert("RGB").resize((p, p), _I.BILINEAR)
+                px = list(pet.getdata())
+                n = len(px)
+                moy = [int(round(sum(q[i] for q in px) / n)) for i in range(3)]
+                return "#%02x%02x%02x" % tuple(moy)
     except Exception:                                   # noqa: BLE001
         return None
     props = (mat or {}).get("props")
@@ -1686,24 +1759,56 @@ def _habille(el: dict, mat_n, w_mm: float, h_mm: float,
         # dans une recette holographique. Des calques posés puis basculés vers
         # le verre sont donc AVOUÉS, exactement comme sans finition — c'est le
         # même silence que `_SANS_HOLO` existe pour rompre.
+        # LA PORTE À TROIS VOIES DU VOLUME (R4) : le drapeau de fermeture vit
+        # sur le MAILLAGE, qui est déjà posé sur l'élément quand on arrive ici
+        # (les deux points d'appel le construisent avant). Fermé -> volume
+        # plein ; ouvert -> paroi mince, et ON LE DIT.
+        ferme = (el.get("mesh") or {}).get("closed") is True
         try:
-            el["finish"] = glass_finish(mat_n["finish"],
-                                        color=_couleur_matiere(mat_n.get("mat")))
+            el["finish"] = glass_finish(
+                mat_n["finish"], color=_couleur_matiere(mat_n.get("mat")),
+                closed=ferme)
         except ValueError as e:
             ignores.append({"node": mat_n["id"],
                             "why": f"finition ignoree : {e}"})
+        else:
+            if not ferme and "volume" not in el["finish"] \
+                    and mat_n["finish"] in _VERRE_A_VOLUME:
+                ignores.append({"node": mat_n["id"],
+                                "why": _VERRE_PAROI_MINCE})
+            # R2 : l'indiscernabilité, dite là où elle se produit — un élément
+            # sans image (une extrusion) sous une recette à transmission
+            # pleine. `el.get("png")` est la question exacte : c'est ce que le
+            # writer regarde pour poser (ou non) une `baseColorTexture`.
+            if not el.get("png") \
+                    and mat_n["finish"] in _VERRE_PLEINE_TRANSMISSION:
+                ignores.append({"node": mat_n["id"],
+                                "why": _VERRE_SANS_FOND})
         if mat_n.get("motifs"):
             ignores.append({"node": mat_n["id"],
                             "why": f"{len(mat_n['motifs'])} {_SANS_HOLO}"})
     elif mat_n.get("finish") and mat_n["finish"] != "aucune":
+        # L'ONDULATION EST-ELLE SEULEMENT REGARDABLE ? (R1) Le writer ne pose
+        # qu'UNE `normalTexture`, et le relief d'une MATIÈRE gagne. Or le lab
+        # Matières DÉRIVE toujours une normale : dès qu'une matière est posée,
+        # le pli de la feuille est jeté — sur le cas le plus courant, donc, la
+        # fonctionnalité ne change pas un octet. La cuire quand même coûterait
+        # 65 536 itérations pour la poubelle (M4), et se taire serait
+        # exactement le silence que `_SANS_HOLO` existe pour rompre.
+        ondule = not (el.get("mat_maps") or {}).get("normal")
         try:
             el["finish"] = holo_finish(mat_n["finish"],
                                        bool(mat_n.get("aniso")),
                                        motifs=_motifs_resolus(did, mat_n,
-                                                              ignores))
+                                                              ignores),
+                                       ondulation=ondule)
         except ValueError as e:
             ignores.append({"node": mat_n["id"],
                             "why": f"finition ignoree : {e}"})
+        else:
+            if not ondule:
+                ignores.append({"node": mat_n["id"],
+                                "why": _ONDUL_ETEINTE})
     elif mat_n.get("motifs"):
         # DES MOTIFS SANS FINITION NE S'INCRUSTENT NULLE PART (3c) : le canal
         # G d'épaisseur n'existe QUE dans une recette holographique. Le taire
