@@ -244,8 +244,30 @@ testée §9.2 — ET la copie du lint si le lint en porte une : la parité compt
 les miroirs) ; « adopter la bordure » choisit la famille au plus proche des mesures
 (distance à teinte CIRCULAIRE — min(d, 360−d)), pose les réglages MESURÉS clampés
 par `LIMITS`, respecte le verrou 3b (lock = non-départ), et AFFICHE l'écart
-(« bande 2,1 mm ↔ sable 2,0 mm, teinte à N° » — l'unité d'un angle est le degré) —
-le test §9.1 exige que l'écart affiché SOIT l'écart calculé, même chiffre.
+(« bande 2,1 mm ↔ sable 2,0 mm, teinte à N° » — l'unité d'un angle est le degré ;
+spec :510 amendée en ce sens le 24/08) — le test §9.1 exige que l'écart affiché
+SOIT l'écart calculé, même chiffre.
+**AMENDEMENT ronde T4 (l'aller-retour mesuré : 2/8 avant correction)** :
+(1) les axes de FAMILY_TRAITS se mesurent PAR LA VOIE DE PRODUCTION — le banc
+rend chaque famille puis la passe dans les analyseurs de P10 EUX-MÊMES
+(`_analyse_bordure`, `_couleur_bande`, teinte sur le dominant ARRONDI 8 bits —
+la seule forme que la frontière peut porter) : `border.mm` est une profondeur
+de premier front, pas une épaisseur de trait, et la table doit parler la même
+langue que l'entrée ; (2) la dégénérescence est un FAIT AVOUÉ : cinq familles
+froides (runic/arcane/timber/deco/sable) sont indiscernables depuis leur
+lisière (même front ~0,9 mm, même teinte de rareté ~211°) — le test
+d'aller-retour épingle l'issue honnête (gravure/filigrane se reconnaissent par
+la teinte chaude, néon par son front creux ; les jumelles froides tombent sur
+la première du groupe et la PHRASE avoue la quasi-égalité) au lieu de
+prétendre une reconnaissance que la géométrie interdit ; (3) la teinte d'un
+GRIS est un bruit : seuil de saturation mesuré (pas d'égalité exacte), et la
+phrase le dit ; (4) `win_lock` est un verrou de PROPORTIONS : le rayon n'en
+est pas une, il s'adopte même sous verrou (« le verrou ne gate jamais le
+panneau », 3b) ; (5) adopter un rayon fige la fenêtre auto en manuelle
+(−16 mm de hauteur mesurés au passage poker→tarot) : la ligne d'écart LE DIT
+quand la fenêtre était auto, et Ctrl+Z rend l'auto ; (6) l'id de la 8e famille
+est `filigrane` (un trait d'union casserait les lectures `\w+` des trois
+tables — limite d'outillage assumée), le libellé porte le nom de la spec.
 
 **D7 — P9 : côté `capture` + manifeste propre, jamais une preuve empruntée.** Les
 couches importées ne passeraient pas la preuve d'empilement des peintres — leur

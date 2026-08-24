@@ -507,7 +507,9 @@ même mécanique qu'une matière de support importée). Prix affiché avant l'ap
 5. **Adoption** (chaque pièce chez elle, lecture tolérante) :
    - P1 « adopter l'illustration » → le sujet (ou le recadrage art) devient la pose ;
    - P2 « adopter la bordure » → famille + réglages LES PLUS PROCHES, **écart avoué**
-     (« bande 2,1 mm ↔ famille sable 2,0 mm, teinte à 6 % ») ;
+     (« bande 2,1 mm ↔ famille sable 2,0 mm, teinte à 6° ») ; *(amendé T4 24/08 :
+     l'original écrivait « 6 % » — un pourcentage d'angle ne mesure rien, l'unité
+     d'un écart de teinte est le degré)* ;
    - P3 « adopter les zones » → boîtes → slots de gabarit (éditables ensuite, §6.1).
 6. Les couches importées entrent dans le manifeste de P9 comme sources de nœuds — une
    carte importée peut partir en 3D sans être reconstruite.
