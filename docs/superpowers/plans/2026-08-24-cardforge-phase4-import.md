@@ -297,6 +297,17 @@ avoue la provenance. Rôles mappés : sujet→`illustration`, bordure→`cadre`,
 fond→`fond-matiere`. « Une carte importée peut partir en 3D sans être reconstruite »
 (§7.1.6) devient un test. L'implémenteur vérifie les portes exactes de
 `_lire_manifeste` à la source avant d'écrire.
+**AMENDEMENT T5 (la réalité des tâches livrées)** : le mappage ci-dessus a été
+écrit avant T2/T3 — les fichiers qui EXISTENT sont source_recto(.verso).png et
+sujet_recto.png ; AUCUNE tâche n'a découpé de bordure ni de fond isolés. Le
+manifeste capture ne liste QUE ce qui existe, avec sa provenance honnête :
+sujet→`illustration` (si présent), et le RECTO ENTIER comme entrée propre
+(la face complète de la carte — c'est le chemin minimal vrai de « partir en 3D
+sans reconstruction » : la face importée texture un plan au format carte) ;
+il n'invente jamais un `cadre` ou un `fond-matiere` qu'aucun fichier ne porte.
+La preuve du manifeste = empreintes sha256 + la couverture mesurée du sujet
+(le premier chiffre de recomposition disponible, T3) — la recomposition
+fond+sujet attendra qu'un fond isolé existe (dette nommée, pas simulée).
 
 **D8 — Le nœud `extrude` (10e kind) : l'anneau-contour en objet.** Le transmis 3c :
 contour fermé → anneau extrudé (largeur mm, profondeur mm — plancher partagé avec
@@ -465,9 +476,52 @@ d'undo, slots éditables §6.1) ; les deux boutons dérivés purs de `doc.captur
 **Fichiers** : capture.py, mod-capture.js, mod-face.js, mod-type.js,
 test_cards_capture.py, test_cards_type.py (si la naissance se teste là).
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `bbaa115` (+~1000) puis ronde `842ab7f`. ai-options
+  honnête (voie local|fal|null, prix de pricing par ÉGALITÉ testée, motifs
+  composés, servie même jeu supprimé) ; rembg au basculement sprite (local
+  d'abord — ABSENT des deux runtimes, prouvé find_spec, joué par faux module —
+  sinon fal, sinon 503 littéral composant les DEUX motifs ; 502 préfixé avec
+  l'étape) ; sujet RGBA deck-local au patron atomique T1, réduit comme toute
+  image (MAX_IMPORT_PX), couverture publiée ; adoption P1 (sujet sinon recto
+  entier avoué, pile locale + setArt local:, pas de 4e schéma, un pas d'undo,
+  dédoublonnage avoué) ; adoption P3 (naitre UN appel, zones s'ajoutent,
+  SLOTS_MAX confronté, tronquee adoptées + phrase « leur taille est un
+  minimum », le drapeau ne traverse pas la frontière du document) ; galerie
+  de tests 103→119 capture + 232 type.
+- [x] Ronde adverse (opus) : 1 bloquant + 7 réels + 7 mineurs + les grandes
+  affirmations vérifiées VRAIES (le périmètre AST fonction-par-fonction jugé
+  MEILLEUR que la liste de portes revendiquée ; zero() jamais masqué ;
+  tronquee ne casse rien en traversant norm_slots). LE BLOQUANT : la vraie
+  clé fal VIVAIT dans le processus de test — config._load_dotenv(override=True)
+  écrasait le setdefault du banc : le filet était simple là où l'en-tête le
+  croyait double. Fermé en TROIS couches (settings forcé après import +
+  fixture autouse + test-preuve) et la sentinelle étendue de 5 à SEIZE noms
+  de fal_client. Réels : la régression du repeint (paint() derrière un fetch
+  sans délai — le panneau montrait le jeu précédent sans fin) ; la moitié
+  « garde-tout » de la doctrine (rembg sans sujet rend l'image quasi intacte
+  PAYÉE — seuil 0,995 posé entre 0,99456 et 1,00000 mesurés) ; DEUX CLICS =
+  DEUX FACTURES (12 simultanés → 12 invocations mesurées ; réparé par
+  COALESCENCE par jeu : 12→1 invocation, tous servis, l'échec aussi se
+  partage) ; aucun plafond d'octets sur la réponse fournisseur (borné à la
+  LECTURE) ; la garde d'URL jugeait le schéma pas la destination
+  (127.0.0.1:8765 passait — loopback/privé/lien-local refusés avec le mot
+  juste par cas) ; le sujet non réduit (6000 px intact vs recto 4096) ;
+  TROIS témoins non avoués dont imageBlob jouée NULLE PART (le métier
+  « garder l'alpha qu'on vient de payer » — un fillRect blanc ne faisait
+  bouger aucun contrôle ; désormais banc node, la mutation rougit) ;
+  l'adoption répétée polluait en silence (dédoublonnage + phrase). Mutation
+  de ronde 22/22 dont 2 qui ont fait corriger LE CONTRÔLE (le mot juste par
+  branche ; la mutation qui portait sur le test au lieu du code). RÉSEAU : 0
+  prouvé pile socket coupée sur les deux suites (351 tests).
+- [x] CLOSE : leçons — (a) UN BANC QUI CROIT NEUTRALISER UNE CLÉ LE PROUVE
+  (setdefault ne tient pas contre un dotenv override=True ; le test-preuve de
+  neutralisation est né de là) ; (b) l'argent se garde en COUCHES quantifiées
+  (périmètre AST + sentinelle complète + clé neutralisée — et le compte de
+  noms d'un module se vérifie, 5≠16) ; (c) la concurrence d'un geste PAYANT
+  se coalesce, elle ne se « sert » pas (le contrat « tout le monde est servi »
+  gravait « tout le monde paie »). Dettes → T5/T6 : layers ne porte que
+  sujet ; la recomposition attend un fond isolé (D7 amendé) ; FAL_TIMEOUT_S
+  non gardé (avoué) ; rembg local à empaqueter (installeur, dette 3c).
 
 ### T4 — L'adoption P2 + la famille « filigrane-instrument » (D6, D9)
 
