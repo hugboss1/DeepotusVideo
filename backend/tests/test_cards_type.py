@@ -8973,27 +8973,27 @@ def test_distribuer_pose_des_ESPACES_EGAUX_et_ne_bouge_pas_les_extremes():
     portée, donc 80 mm de blanc pour 2 intervalles = 40 mm chacun, et les
     positions tombent sur 0 / 50 / 100."""
     h = json.loads(_pures_js(
-        ["distribue"],
+        ["enveloppe", "distribue"],
         "console.log(JSON.stringify(distribue("
-        "[[0,0,10,5],[20,0,10,5],[100,0,10,5]],'h')));"))
+        "[[0,0,10,5],[20,0,10,5],[100,0,10,5]],'h')));"))["boxes"]
     assert [b[0] for b in h] == [0.0, 50.0, 100.0], h
     assert [b[1] for b in h] == [0.0, 0.0, 0.0], "l'axe H a bougé Y"
     v = json.loads(_pures_js(
-        ["distribue"],
+        ["enveloppe", "distribue"],
         "console.log(JSON.stringify(distribue("
-        "[[0,0,5,10],[0,20,5,10],[0,100,5,10]],'v')));"))
+        "[[0,0,5,10],[0,20,5,10],[0,100,5,10]],'v')));"))["boxes"]
     assert [b[1] for b in v] == [0.0, 50.0, 100.0], v
     # DEUX BOÎTES N'ONT RIEN À DISTRIBUER : un seul blanc est déjà égal à
     # lui-même. Rien ne bouge — et surtout pas « les coller ».
     deux = json.loads(_pures_js(
-        ["distribue"],
+        ["enveloppe", "distribue"],
         "console.log(JSON.stringify(distribue([[0,0,10,5],[80,0,10,5]],'h')));"))
-    assert deux == [[0.0, 0.0, 10.0, 5.0], [80.0, 0.0, 10.0, 5.0]], deux
+    assert deux["boxes"] == [[0.0, 0.0, 10.0, 5.0], [80.0, 0.0, 10.0, 5.0]], deux
     # ... et l'ORDRE D'ARRIVÉE ne décide de rien : c'est la POSITION qui range.
     melange = json.loads(_pures_js(
-        ["distribue"],
+        ["enveloppe", "distribue"],
         "console.log(JSON.stringify(distribue("
-        "[[100,0,10,5],[0,0,10,5],[20,0,10,5]],'h')));"))
+        "[[100,0,10,5],[0,0,10,5],[20,0,10,5]],'h')));"))["boxes"]
     assert [b[0] for b in melange] == [100.0, 0.0, 50.0], melange
 
 
@@ -9525,7 +9525,13 @@ def test_EGALISER_SUR_UNE_LIGNE_EN_REFERENCE_refuse_ET_LE_DIT(tmp_path):
     assert par["un"][3] == 10.0 and par["deux"][3] == 4.0, "le lot a été aplati"
     assert d["traces"][0]["undo"] == 0 and d["traces"][0]["patchs"] == 0, d["traces"]
     msg = " ".join(t["m"] for t in d["toasts"])
-    assert "référence" in msg and "diagonale" in msg, d["toasts"]
+    # LA PHRASE A CHANGÉ À LA RONDE (R1) ET C'EST VOULU : le refus ne parle
+    # plus de « diagonale », parce que la RAISON du refus n'est pas là. Ce qui
+    # refuse, c'est la dimension nulle de la RÉFÉRENCE — elle aplatirait tout
+    # le lot, et c'est vrai d'un titre plat comme d'une ligne. La diagonale
+    # reste le motif de l'autre branche (une ligne MEMBRE, ignorée).
+    assert "référence" in msg and "hauteur nulle" in msg, d["toasts"]
+    assert "« Trait »" in msg, "le refus ne nomme pas le bloc en cause"
 
 
 # ── 16.3 LES RÉGLAGES COMMUNS, ÉDITÉS EN LOT ────────────────────────────────
@@ -10058,7 +10064,7 @@ def _page_gestes(tmp_path, slots: list) -> pathlib.Path:
     return page
 
 
-def _chrome_gestes(tmp_path, slots):
+def _chrome_gestes(tmp_path, slots, sonde_js=None):
     import shutil
     import subprocess
     node = shutil.which("node")
@@ -10066,7 +10072,7 @@ def _chrome_gestes(tmp_path, slots):
         pytest.skip("node absent : le banc du navigateur ne peut pas tourner")
     page = _page_gestes(tmp_path, slots)
     sonde = tmp_path / "sonde_gestes.js"
-    sonde.write_text(SONDE_GESTES, encoding="utf-8")
+    sonde.write_text(sonde_js or SONDE_GESTES, encoding="utf-8")
     banc = tmp_path / "banc_chrome_gestes.mjs"
     banc.write_text(BANC_CHROME_TYPE, encoding="utf-8")
     r = subprocess.run([node, str(banc), str(page), str(sonde)],
@@ -10490,3 +10496,547 @@ def test_la_CORBEILLE_d_une_rangee_laisse_VIVRE_le_reste_du_lot(tmp_path):
         "actes": [{"t": "rangee", "id": "deux", "b": "del"}]},
         mutations=[MUT_UNDO])
     assert s["sel"] == ["trois"], s["sel"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 17. LA RONDE ADVERSE DE T3 — un bloquant, trois réels, deux mineurs
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# CE QUE LA REVUE A MESURÉ, ET QUE CETTE SECTION VERROUILLE :
+#
+#   B1. La barre contextuelle IGNORAIT le verrou, EN SILENCE. Le même bloc
+#       verrouillé tenait au glisser (« 1 bloc verrouillé n'a pas suivi ») puis
+#       BOUGEAIT à « aligner » un clic plus tard, sans un mot ; « égaliser » le
+#       redimensionnait. Le cadenas n'existait qu'au clavier et au glisser.
+#   R1. La garde de référence d'`egalise` testait le KIND, pas la DIMENSION :
+#       un bloc de TEXTE à hauteur nulle aplatissait tout le lot — le danger
+#       que la clause écrite trois lignes plus haut nomme en toutes lettres.
+#   R2. `distribue` prenait le bord GAUCHE maximal pour portée, pas le bord
+#       DROIT maximal : sur des boîtes qui se chevauchent — la carte NORMALE —
+#       un membre sortait de l'enveloppe par la gauche.
+#   R3. Le témoin de tangence était avouable... et FAUX de mesure : `dansLasso`
+#       est une fonction pure millimètres -> booléen, donc pinnable par le même
+#       harnais que les autres. L'aveu se mesure ; celui-là ne se mesurait pas.
+#   M3. Trois règles pour une liste : le lasso et l'aimant écartaient les blocs
+#       MASQUÉS, la barre les prenait. Une seule règle est tranchée ici.
+
+
+def _lot_verrou(i_verrou: int) -> list:
+    """Trois blocs de largeurs et de positions DIFFÉRENTES — sans quoi
+    « aligner » ne prouverait rien — dont un verrouillé."""
+    lot = [TY.norm_slot({"id": "un", "label": "Un", "box": [10.0, 20.0, 30.0, 8.0],
+                         "text": "1"}),
+           TY.norm_slot({"id": "deux", "label": "Deux", "box": [14.0, 40.0, 12.0, 6.0],
+                         "text": "2"}),
+           TY.norm_slot({"id": "trois", "label": "Trois", "box": [6.0, 60.0, 20.0, 4.0],
+                         "text": "3"})]
+    lot[i_verrou]["lock"] = True
+    return lot
+
+
+# ── B1 : LE VERROU VAUT AUSSI POUR LA BARRE, ET IL EST UNE ANCRE ────────────
+
+def test_B1_ALIGNER_laisse_le_bloc_VERROUILLE_en_ANCRE(tmp_path):
+    """LE BLOQUANT DE LA RONDE. Le verrou protégeait des gestes de scène
+    (glisser, poignées, flèches, Suppr) et de rien d'autre : la barre
+    contextuelle déplaçait un bloc verrouillé sans un mot, un clic après que le
+    glisser l'avait refusé.
+
+    LA RÈGLE TRANCHÉE (patron Figma) : un bloc verrouillé est une ANCRE. Il
+    compte dans l'ENVELOPPE — c'est justement sur lui qu'on veut aligner le
+    reste — mais il ne reçoit PAS le patch, et l'écran le dit.
+
+    Vérité connue : l'enveloppe des trois vaut [6, 20, 34, 44], donc « aligner
+    à gauche » veut 6 pour tout le monde. « deux » est verrouillé : il reste à
+    14, et c'est bien l'enveloppe des TROIS (6) que les deux autres prennent —
+    pas celle des deux libres (10)."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_verrou(1), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["deux"] == [14.0, 40.0, 12.0, 6.0], "le bloc verrouillé a bougé"
+    assert par["un"][0] == 6.0 and par["trois"][0] == 6.0, par
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "verrouill" in msg and "align" in msg, d["toasts"]
+
+
+def test_B1_DISTRIBUER_laisse_le_bloc_VERROUILLE_en_place_et_le_DIT(tmp_path):
+    """Même règle, deuxième famille. Le verrouillé ne bouge pas, les libres
+    prennent la place que le calcul leur donne, et la phrase sort."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_verrou(1), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "distv"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["deux"][1] == 40.0, "le bloc verrouillé a été distribué"
+    assert par["un"][1] == 20.0 and par["trois"][1] == 60.0, par
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "verrouill" in msg and "distribu" in msg, d["toasts"]
+
+
+def test_B1_EGALISER_ne_REDIMENSIONNE_PAS_un_bloc_verrouille(tmp_path):
+    """Troisième famille, et c'est la plus grave : « égaliser » ne déplaçait
+    pas le bloc protégé, il le REDIMENSIONNAIT (hauteur 6 -> 8, zéro toast).
+
+    LA RÉFÉRENCE RESTE LE PREMIER SÉLECTIONNÉ même verrouillé : il DONNE sa
+    taille (c'est le « key object »), il n'en reçoit pas."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_verrou(1), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "eqh"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["deux"][3] == 6.0, "le bloc verrouillé a été redimensionné"
+    assert par["trois"][3] == 8.0, par
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "verrouill" in msg and "égalis" in msg, d["toasts"]
+    # ... et la RÉFÉRENCE verrouillée donne quand même sa taille
+    r = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_verrou(0), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "eqh"}]},
+        mutations=[MUT_UNDO])
+    pr = {s["id"]: s["box"] for s in r["slots"]}
+    assert pr["un"][3] == 8.0, "la référence verrouillée a été touchée"
+    assert pr["deux"][3] == 8.0 and pr["trois"][3] == 8.0, pr
+
+
+def test_B1_TOUT_le_lot_verrouille_ne_bouge_RIEN_et_ne_s_annule_pas(tmp_path):
+    """Le bord : aucun bloc libre. Rien n'est écrit, rien n'est empilé, et la
+    phrase est celle du verrou — pas « le lot est déjà dans cette
+    disposition », qui serait faux."""
+    lot = [dict(s, lock=True) for s in _lot_verrou(0)]
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    assert [s["box"] for s in d["slots"]] == [b["box"] for b in lot], d["slots"]
+    assert d["traces"][0]["undo"] == 0 and d["traces"][0]["patchs"] == 0, d["traces"]
+    assert any("verrouill" in t["m"] for t in d["toasts"]), d["toasts"]
+
+
+def test_B1_le_cadenas_ANNONCE_la_barre_dans_ce_qu_il_refuse():
+    """LA QUESTION N'ÉTAIT NI TRANCHÉE NI DITE : ni l'infobulle du cadenas ni
+    la doctrine des libertés ne mentionnaient « aligner ». Un verrou dont on
+    découvre la portée en la dépassant n'est pas un verrou."""
+    src = _js()
+    fn = _js_fn(src, "renderList")
+    i = fn.index("Verrouiller ce bloc")
+    bulle = fn[i:i + 400]
+    for mot in ("aligner", "distribuer", "égaliser"):
+        assert mot in bulle, f"l'infobulle du cadenas ne nomme pas « {mot} »"
+    # ... et la doctrine écrite au-dessus de la rangée aussi
+    assert "barre de lot" in src, \
+        "la doctrine des libertés ne nomme pas la barre contextuelle"
+
+
+# ── R1 : LA GARDE DE RÉFÉRENCE TESTE LA DIMENSION, PAS LA NATURE ────────────
+
+def test_R1_un_TEXTE_a_hauteur_NULLE_en_reference_est_REFUSE_aussi():
+    """LA CLAUSE ÉTAIT ÉCRITE ET LA GARDE NE LA TENAIT PAS. « Sa hauteur nulle
+    aplatirait tout le lot » vaut pour N'IMPORTE QUELLE nature : le champ
+    « Hauteur » du panneau accepte 0, et `norm_slot` le borne à [0, 500]. Un
+    bloc de texte à hauteur nulle en référence aplatissait donc tout le lot,
+    sans un mot.
+
+    La branche REFUS se teste désormais sur la DIMENSION seule. La branche
+    IGNORES, elle, garde la nature : une LIGNE membre reste ignorée (l'agrandir
+    la rendrait diagonale), un TEXTE membre à hauteur nulle est agrandi comme
+    les autres — c'est un bloc plat, pas un axe."""
+    r = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,0],[5,20,8,4],[3,40,12,6]],"
+        "['text','text','image'],'h')));"))
+    assert r["refuse"] == "reference", r
+    assert [b[3] for b in r["boxes"]] == [0.0, 4.0, 6.0], r["boxes"]
+    # ... et un TEXTE plat MEMBRE (pas référence) suit le lot : il est plat,
+    # pas axial — l'agrandir ne change pas sa nature.
+    m = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[5,20,8,0],[3,40,30,0]],"
+        "['rect','text','line'],'h')));"))
+    assert m["ignores"] == [2], m
+    assert [b[3] for b in m["boxes"]] == [10.0, 10.0, 0.0], m["boxes"]
+
+
+def test_R1_le_refus_ne_dit_plus_LIGNE_PLATE_sur_un_texte(tmp_path):
+    """« Une ligne plate » est FAUX quand la référence est un titre. La phrase
+    se généralise — et elle garde le remède, qui est le même."""
+    lot = [TY.norm_slot({"id": "plat", "label": "Titre plat",
+                         "box": [0.0, 0.0, 20.0, 0.0], "text": "t"}),
+           TY.norm_slot({"id": "b", "label": "B", "box": [5.0, 20.0, 8.0, 4.0],
+                         "text": "b"})]
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["plat", "b"]},
+        "actes": [{"t": "barre", "v": "eqh"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["b"][3] == 4.0, "le lot a été aplati"
+    assert d["traces"][0]["undo"] == 0, d["traces"]
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "ligne plate" not in msg, msg
+    assert "hauteur nulle" in msg and "référence" in msg, msg
+
+
+def test_R1_les_champs_de_TAILLE_ont_un_PLANCHER_dans_le_panneau():
+    """LA PORTE D'ENTRÉE SE FERME AUSSI. Le champ « Hauteur » n'avait pas de
+    `min` : c'est par là que la boîte à dimension nulle entre. Les champs de
+    LARGEUR et de HAUTEUR portent désormais le plancher de la pièce ; ceux de
+    POSITION, eux, gardent leur liberté (une boîte peut être à x = 0)."""
+    src = _js()
+    fn = _js_fn(src, "inspBoite")
+    for cle in ("bw", "bh"):
+        m = re.search(r'nfield\("' + cle + r'"[\s\S]{0,180}?\)\n', fn)
+        assert m and "plancherBoite(s)" in m.group(0), \
+            f"{cle} n'a pas de plancher : {m.group(0) if m else None}"
+    for cle in ("bx", "by"):
+        m = re.search(r'nfield\("' + cle + r'"[^\n]*', fn)
+        assert "plancher" not in m.group(0), \
+            f"{cle} a hérité d'un plancher qui n'a pas de sens pour une position"
+    # ET LE PLANCHER SUIT LA NATURE : une LIGNE horizontale EST une boîte de
+    # hauteur nulle (la règle de l'axe, et `SHAPE_NEE.line` en fait naître une
+    # comme ça). Un plancher de 2 mm posé en dur aurait rendu toute ligne
+    # droite inatteignable au panneau — la correction aurait cassé une nature
+    # pour en protéger une autre.
+    out = json.loads(_pures_js(
+        ["plancherBoite"],
+        "const MIN_BOX_MM=2;console.log(JSON.stringify(["
+        "plancherBoite({kind:'text'}),plancherBoite({kind:'rect'}),"
+        "plancherBoite({kind:'line'}),plancherBoite({kind:'arrow'}),"
+        "plancherBoite({kind:'image'})]));"))
+    assert out == [2, 2, 0, 0, 2], out
+
+
+# ── R2 : LA PORTÉE DE LA DISTRIBUTION EST L'ENVELOPPE, PAS UN BORD GAUCHE ───
+
+def test_R2_distribuer_des_boites_QUI_SE_CHEVAUCHENT_garde_l_enveloppe():
+    """LA CARTE NORMALE : un rectangle de fond, un titre et une statistique
+    posés DEDANS. L'ancienne portée allait du bord gauche minimal au bord
+    gauche MAXIMAL + sa largeur — donc 55 au lieu de 60 — et le calcul poussait
+    un membre HORS de l'enveloppe, par la gauche.
+
+    Vérité connue : fond [0, 0, 60, 40], titre [10, 5, 30, 8], stat
+    [45, 5, 10, 8]. L'enveloppe horizontale va de 0 à 60, les objets font
+    100 mm : l'espace égal est NÉGATIF (−20). L'INVARIANT EXACT, et il faut le
+    dire juste — ma première écriture de ce test affirmait « aucun membre ne
+    sort de l'enveloppe », ce qui est ARITHMÉTIQUEMENT IMPOSSIBLE quand les
+    objets ne tiennent pas dans leur propre portée :
+
+      · aucun membre ne commence AVANT le début de l'enveloppe (c'était le
+        défaut : un bord à −5 mm) ;
+      · le DERNIER dans l'ordre finit EXACTEMENT à la fin de l'enveloppe —
+        c'est ça, « la portée est l'enveloppe » ;
+      · un membre du MILIEU peut déborder quand le jeu est négatif : c'est le
+        chevauchement lui-même, et il est avoué par le calcul (`jeu`) puis
+        dit à l'écran."""
+    r = json.loads(_pures_js(
+        ["enveloppe", "distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,60,40],[10,5,30,8],[45,5,10,8]],'h')));"))
+    bords = [b[0] for b in r["boxes"]]
+    droits = [b[0] + b[2] for b in r["boxes"]]
+    assert min(bords) == 0.0, f"un membre part avant l'enveloppe : {bords}"
+    # ordre des centres : titre (25), fond (30), stat (50) — le dernier ferme
+    assert r["boxes"][2][0] + r["boxes"][2][2] == 60.0, r["boxes"]
+    assert [b[0] for b in r["boxes"]] == [10.0, 0.0, 50.0], r["boxes"]
+    assert max(droits) == 70.0, "le débord du milieu n'est plus mesuré"
+    assert r["jeu"] == -20.0, r["jeu"]
+
+    # LE CONTRÔLE : l'ancienne portée (bord gauche maximal + sa largeur) ne
+    # ferme pas l'enveloppe — le lot se distribue sur 55 mm au lieu de 60, et
+    # la sélection cesse de couvrir ce qu'elle couvrait.
+    # (la portée d'avant se recalcule APRÈS `ord`, sinon la mutation lirait
+    # `ord` avant sa déclaration — un mutant qui ne compile pas ne mesure rien)
+    mut = json.loads(_node_type(
+        _fonction_js_type("enveloppe") + _fonction_js_type("distribue")
+        # `_js()` lit en newlines universelles (\n), là où `_banc_verrou` garde
+        # les CRLF : deux portes, deux conventions — se tromper de convention
+        # rend une mutation SILENCIEUSEMENT inopérante, donc un contrôle vert
+        # qui ne contrôle rien. C'est pour ça que l'assertion d'en dessous
+        # exige que le mutant DIFFÈRE.
+        .replace("    const jeu = (fin - deb - somme) / (n - 1);\n"
+                 "    let pos = deb;",
+                 "    const deb2 = boxes[ord[0]][i0];\n"
+                 "    const fin2 = boxes[ord[n - 1]][i0] + boxes[ord[n - 1]][i1];\n"
+                 "    const jeu = (fin2 - deb2 - somme) / (n - 1);\n"
+                 "    let pos = deb2;")
+        + "console.log(JSON.stringify(distribue("
+          "[[0,0,60,40],[10,5,30,8],[45,5,10,8]],'h')));"))
+    assert mut["boxes"][2][0] + mut["boxes"][2][2] == 55.0, \
+        "la mutation ne change pas la portée : le test ne prouve pas la correction"
+
+
+def test_R2_l_ordre_de_distribution_est_celui_des_CENTRES():
+    """Patron Figma : c'est le CENTRE qui range, pas le bord gauche. Sur des
+    boîtes de largeurs très différentes, le bord gauche donne un ordre que
+    l'œil ne lit pas — un large bloc commençant tôt passerait « avant » un
+    petit bloc pourtant plus à gauche visuellement."""
+    r = json.loads(_pures_js(
+        ["enveloppe", "distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,40,5],[5,0,4,5],[60,0,10,5]],'h')));"))
+    # centres : 20, 7, 65 -> l'ordre est [1, 0, 2]
+    # enveloppe 0..70, somme 54, jeu = (70 - 0 - 54) / 2 = 8
+    assert r["jeu"] == 8.0, r["jeu"]
+    assert [b[0] for b in r["boxes"]] == [12.0, 0.0, 60.0], r["boxes"]
+
+
+def test_R2_les_trois_verites_connues_d_avant_tiennent_encore():
+    """La correction ne doit pas déplacer ce qui était juste : trois boîtes
+    disjointes de largeurs égales donnent toujours 0 / 50 / 100."""
+    h = json.loads(_pures_js(
+        ["enveloppe", "distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,10,5],[20,0,10,5],[100,0,10,5]],'h')));"))
+    assert [b[0] for b in h["boxes"]] == [0.0, 50.0, 100.0], h
+    assert h["jeu"] == 40.0, h["jeu"]
+    v = json.loads(_pures_js(
+        ["enveloppe", "distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,5,10],[0,20,5,10],[0,100,5,10]],'v')));"))
+    assert [b[1] for b in v["boxes"]] == [0.0, 50.0, 100.0], v
+    deux = json.loads(_pures_js(
+        ["enveloppe", "distribue"],
+        "console.log(JSON.stringify(distribue([[0,0,10,5],[80,0,10,5]],'h')));"))
+    assert [b[0] for b in deux["boxes"]] == [0.0, 80.0], deux
+
+
+def test_R2_le_chevauchement_se_DIT_a_l_ecran(tmp_path):
+    """Un espace NÉGATIF n'est pas une erreur d'arithmétique, c'est un fait :
+    les blocs ne tiennent pas dans leur propre portée. Il se dit, avec son
+    chiffre — sinon l'utilisateur voit ses blocs se superposer sans savoir
+    pourquoi."""
+    lot = [TY.norm_slot({"id": "fond", "label": "Fond", "kind": "rect",
+                         "box": [0.0, 0.0, 60.0, 40.0], "fill": "#f2efe9"}),
+           TY.norm_slot({"id": "titre", "label": "Titre", "box": [10.0, 5.0, 30.0, 8.0],
+                         "text": "t"}),
+           TY.norm_slot({"id": "stat", "label": "Stat", "box": [45.0, 5.0, 10.0, 8.0],
+                         "text": "9"})]
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["fond", "titre", "stat"]},
+        "actes": [{"t": "barre", "v": "disth"}]},
+        mutations=[MUT_UNDO])
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "chevauch" in msg, d["toasts"]
+    assert "20" in msg, msg
+    bords = [s["box"][0] for s in d["slots"]]
+    assert min(bords) == 0.0, bords
+
+
+# ── R3 : LE TÉMOIN SE PINNE — l'aveu se mesure ─────────────────────────────
+
+def test_R3_le_lasso_prend_ce_qu_il_TOUCHE_A_LA_TANGENCE_EXACTE():
+    """L'AVEU ÉTAIT FAUX DE MESURE, et c'est la quatrième fois de la phase que
+    la leçon se paie. J'avais déclaré la tangence « non pinnable sans dépendre
+    d'un aller-retour flottant px -> mm ». `dansLasso` est une fonction PURE
+    millimètres -> booléen : le harnais qui joue `aligne` et `egalise` la joue
+    aussi, sans un pixel dans l'affaire.
+
+    Trois faces tangentes d'une ligne plate posée à y = 40, x de 10 à 50 :
+      · un lasso dont le BORD HAUT est exactement 40 la touche ;
+      · un lasso dont le BORD BAS est exactement 40 la touche ;
+      · un lasso dont le BORD GAUCHE est exactement 50 la touche.
+    Et le CONTRÔLE, à un millième au-delà (40,001), ne la touche pas — sans
+    lui, le test passerait aussi sur un `dansLasso` qui rend toujours vrai."""
+    out = json.loads(_pures_js(
+        ["dansLasso"],
+        "const S={box:[10,40,40,0]};const o={};"
+        "o.haut=dansLasso(S,[5,40,55,45]);"
+        "o.bas=dansLasso(S,[5,35,55,40]);"
+        "o.gauche=dansLasso(S,[50,35,60,45]);"
+        "o.droite=dansLasso(S,[0,35,10,45]);"
+        "o.hors_bas=dansLasso(S,[5,40.001,55,45]);"
+        "o.hors_haut=dansLasso(S,[5,35,55,39.999]);"
+        "o.hors_gauche=dansLasso(S,[50.001,35,60,45]);"
+        "console.log(JSON.stringify(o));"))
+    for face in ("haut", "bas", "gauche", "droite"):
+        assert out[face] is True, (face, out)
+    for hors in ("hors_bas", "hors_haut", "hors_gauche"):
+        assert out[hors] is False, (hors, out)
+    # LA MUTATION : « touche » devient « recouvre strictement ». Les quatre
+    # faces tangentes basculent ; le contrôle, lui, reste faux des deux côtés.
+    mut = json.loads(_node_type(
+        _fonction_js_type("dansLasso")
+        .replace("b[0] <= r[2] && b[0] + b[2] >= r[0]",
+                 "b[0] < r[2] && b[0] + b[2] > r[0]")
+        .replace("b[1] <= r[3] && b[1] + b[3] >= r[1]",
+                 "b[1] < r[3] && b[1] + b[3] > r[1]")
+        + "const S={box:[10,40,40,0]};const o={};"
+          "o.haut=dansLasso(S,[5,40,55,45]);"
+          "o.bas=dansLasso(S,[5,35,55,40]);"
+          "o.gauche=dansLasso(S,[50,35,60,45]);"
+          "o.hors_bas=dansLasso(S,[5,40.001,55,45]);"
+          "console.log(JSON.stringify(o));"))
+    assert mut["haut"] is False and mut["bas"] is False and mut["gauche"] is False, mut
+    assert mut["hors_bas"] is False, \
+        "le contrôle bascule avec la mutation : il ne contrôle rien"
+
+
+# ── M3 : UNE SEULE RÈGLE POUR LES BLOCS MASQUÉS ────────────────────────────
+
+def test_M3_les_gestes_de_LOT_agissent_sur_le_VISIBLE_et_le_disent(tmp_path):
+    """TROIS RÈGLES POUR UNE LISTE, RAMENÉES À UNE. Le lasso écarte les blocs
+    masqués (il ne peut pas les toucher), l'aimant les écarte (ils ne sont pas
+    à l'écran), la barre les prenait — donc l'enveloppe d'un alignement
+    comptait une boîte que personne ne voit, et un bloc éteint se déplaçait
+    dans le dos de l'utilisateur.
+
+    LA RÈGLE TRANCHÉE : les gestes de lot agissent sur le VISIBLE. Ce n'est pas
+    le choix de Figma (qui déplace les masqués), et c'est délibéré : ici l'œil
+    de la rangée est le seul moyen de mettre un bloc « de côté » pendant qu'on
+    travaille, et le mettre de côté doit vouloir dire quelque chose.
+
+    Vérité connue : « trois » masqué, l'enveloppe des deux visibles commence à
+    10 (et non 6, qui est le bord de « trois »)."""
+    lot = _lot3()
+    lot[2]["on"] = False
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["trois"] == [6.0, 60.0, 20.0, 4.0], "un bloc masqué a bougé"
+    assert par["un"][0] == 10.0 and par["deux"][0] == 10.0, \
+        f"l'enveloppe a compté le bloc masqué : {par}"
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "masqué" in msg, d["toasts"]
+    # ... et un lot dont il ne reste qu'UN visible n'a plus rien à aligner
+    lot2 = _lot3()
+    lot2[1]["on"] = False
+    lot2[2]["on"] = False
+    v = _banc_verrou(tmp_path, {
+        "state": {"slots": lot2, "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    assert v["traces"][0]["undo"] == 0 and v["traces"][0]["patchs"] == 0, v["traces"]
+    assert any("visible" in t["m"] for t in v["toasts"]), v["toasts"]
+
+
+# ── 17.1 LE BANC CHROME DE LA RONDE — B1, R1, R2 en gestes réels ───────────
+#
+# Les trois défauts de la ronde ont été TROUVÉS dans un navigateur, sur des
+# gestes que le banc de node ne jouait pas : verrouiller par le cadenas de la
+# rangée, puis désigner trois blocs à la souris, puis pousser un bouton de la
+# barre. C'est donc là qu'ils se pinnent — le calque, la liste et la barre
+# reliés par le vrai routage d'évènements.
+
+SONDE_RONDE = r"""(async () => {
+  const out = {};
+  const host = document.getElementById("cf-host");
+  await window.__MOD.init(host);
+  await new Promise((r) => setTimeout(r, 400));
+  const attends = () => new Promise((r) => setTimeout(r, 90));
+  const boxes = () => {
+    const o = {};
+    window.__DOC.type.slots.forEach((s) => { o[s.id] = s.box.slice(); });
+    return o;
+  };
+  const rang = (id) => document.querySelector('.cf-type-row[data-id="' + id + '"]');
+  const clic = (el, maj) => el.dispatchEvent(new MouseEvent("click",
+    { bubbles: true, cancelable: true, shiftKey: !!maj }));
+  const designe = async (ids) => {
+    for (let i = 0; i < ids.length; i++) {
+      const r = rang(ids[i]);
+      if (!r) return false;
+      clic(r, i > 0);
+      await attends();
+    }
+    return true;
+  };
+  const barre = async (a) => {
+    const b = document.querySelector('.cf-type-alg[data-a="' + a + '"]');
+    if (!b) return false;
+    window.__TOASTS.length = 0;
+    b.click();
+    await attends();
+    return true;
+  };
+
+  /* B1 — LE CADENAS DE LA RANGÉE, PUIS LA BARRE */
+  const cad = rang("deux").querySelector(".cf-type-lock");
+  cad.click();
+  await attends();
+  out.verrouille = (window.__DOC.type.slots.filter((s) => s.id === "deux")[0] || {}).lock;
+  out.b1_designe = await designe(["un", "deux", "trois"]);
+  out.b1_barre = await barre("left");
+  out.b1 = { boxes: boxes(), toasts: window.__TOASTS.slice() };
+
+  /* R1 — UN TEXTE À HAUTEUR NULLE EN RÉFÉRENCE */
+  out.r1_designe = await designe(["plat", "norm"]);
+  out.r1_barre = await barre("eqh");
+  out.r1 = { boxes: boxes(), toasts: window.__TOASTS.slice() };
+
+  /* R2 — LA CARTE NORMALE : un fond, un titre, une statistique DEDANS */
+  out.r2_designe = await designe(["fond", "titre", "stat"]);
+  out.r2_barre = await barre("disth");
+  out.r2 = { boxes: boxes(), toasts: window.__TOASTS.slice() };
+
+  out.erreurs = window.__ERR || [];
+  return out;
+})()"""
+
+
+def test_la_RONDE_tient_dans_un_VRAI_navigateur(tmp_path):
+    """LES TROIS DÉFAUTS DE LA RONDE, REJOUÉS LÀ OÙ ILS ONT ÉTÉ TROUVÉS.
+
+    B1 — le cadenas est posé PAR LA RANGÉE, les trois blocs sont désignés À LA
+    SOURIS (clic puis Maj+clic), et « aligner à gauche » est POUSSÉ : le bloc
+    verrouillé reste à 14, les deux autres tombent à 6 — c'est-à-dire sur
+    l'enveloppe des TROIS, l'ancre comprise — et la phrase sort.
+
+    R1 — un TITRE à hauteur nulle en référence : l'égalisation est refusée,
+    rien n'est aplati, et le refus nomme le bloc.
+
+    R2 — la carte normale (un fond, un titre, une stat posés dedans) : la
+    distribution garde l'enveloppe (rien avant 0, le dernier ferme à 60) et
+    avoue le chevauchement avec son chiffre."""
+    slots = [
+        TY.norm_slot({"id": "un", "label": "Un", "box": [10.0, 4.0, 30.0, 6.0],
+                      "text": "1", "font": "Inter"}),
+        TY.norm_slot({"id": "deux", "label": "Deux", "box": [14.0, 12.0, 12.0, 5.0],
+                      "text": "2", "font": "Inter"}),
+        TY.norm_slot({"id": "trois", "label": "Trois", "box": [6.0, 20.0, 20.0, 4.0],
+                      "text": "3", "font": "Inter"}),
+        TY.norm_slot({"id": "plat", "label": "Titre plat", "box": [10.0, 28.0, 20.0, 0.0],
+                      "text": "p", "font": "Inter"}),
+        TY.norm_slot({"id": "norm", "label": "Normal", "box": [10.0, 32.0, 8.0, 4.0],
+                      "text": "n", "font": "Inter"}),
+        TY.norm_slot({"id": "fond", "label": "Fond", "kind": "rect",
+                      "box": [0.0, 40.0, 60.0, 20.0], "fill": "#f2efe9",
+                      "font": "Inter"}),
+        TY.norm_slot({"id": "titre", "label": "Titre", "box": [10.0, 44.0, 30.0, 8.0],
+                      "text": "t", "font": "Inter"}),
+        TY.norm_slot({"id": "stat", "label": "Stat", "box": [45.0, 44.0, 10.0, 8.0],
+                      "text": "9", "font": "Inter"}),
+    ]
+    v = _chrome_gestes(tmp_path, slots, SONDE_RONDE)
+
+    # ── B1 ───────────────────────────────────────────────────────────────
+    assert v["verrouille"] is True, "le cadenas de la rangée n'a pas pris"
+    assert v["b1_designe"] and v["b1_barre"], v
+    b = v["b1"]["boxes"]
+    assert b["deux"] == [14.0, 12.0, 12.0, 5.0], \
+        f"le bloc verrouillé a bougé sous la barre : {b['deux']}"
+    assert b["un"][0] == 6.0 and b["trois"][0] == 6.0, b
+    msg = " ".join(v["b1"]["toasts"])
+    assert "verrouill" in msg and "align" in msg, v["b1"]["toasts"]
+
+    # ── R1 ───────────────────────────────────────────────────────────────
+    assert v["r1_designe"] and v["r1_barre"], v
+    r = v["r1"]["boxes"]
+    assert r["norm"][3] == 4.0, f"le lot a été aplati : {r['norm']}"
+    assert r["plat"][3] == 0.0, r["plat"]
+    m1 = " ".join(v["r1"]["toasts"])
+    assert "hauteur nulle" in m1 and "Titre plat" in m1, v["r1"]["toasts"]
+
+    # ── R2 ───────────────────────────────────────────────────────────────
+    assert v["r2_designe"] and v["r2_barre"], v
+    d = v["r2"]["boxes"]
+    trio = [d["fond"], d["titre"], d["stat"]]
+    assert min(x[0] for x in trio) == 0.0, f"un membre part avant l'enveloppe : {trio}"
+    assert d["stat"][0] + d["stat"][2] == 60.0, f"le dernier ne ferme pas : {d['stat']}"
+    assert [x[0] for x in trio] == [10.0, 0.0, 50.0], trio
+    m2 = " ".join(v["r2"]["toasts"])
+    assert "chevauch" in m2 and "20" in m2, v["r2"]["toasts"]

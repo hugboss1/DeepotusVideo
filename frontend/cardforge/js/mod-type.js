@@ -671,13 +671,31 @@
     const i0 = axe === "v" ? 1 : 0, i1 = axe === "v" ? 3 : 2;
     const n = boxes.length;
     const out = boxes.map((b) => b.slice());
-    if (n < 3) return out;
-    const ord = boxes.map((b, i) => i)
-      .sort((a, b) => (boxes[a][i0] - boxes[b][i0]) || (a - b));
+    if (n < 3) return { boxes: out, jeu: 0 };
+    /* ── LA PORTEE EST L'ENVELOPPE, PAS UN BORD GAUCHE (ronde T3, R2) ──────
+       LE DEFAUT, ET IL SORTAIT SUR LA CARTE NORMALE : la portee allait du
+       bord gauche minimal au bord gauche MAXIMAL PLUS SA LARGEUR. Sur des
+       boites disjointes rangees de gauche a droite, les deux coincident ; sur
+       des boites QUI SE CHEVAUCHENT — un rectangle de fond, un titre et une
+       statistique poses DEDANS — le bord droit maximal appartient au FOND,
+       qui n'est pas le dernier par son bord gauche. Mesure : portee 55 au lieu
+       de 60, et un membre pousse HORS de l'enveloppe, par la gauche (bord a
+       -5 mm). L'enveloppe existe deja en fonction pure : on s'en sert. */
+    const env = enveloppe(boxes);
+    const deb = env[i0], fin = env[i0] + env[i1];
+    /* ── ET L'ORDRE EST CELUI DES CENTRES (patron Figma) ──────────────────
+       Le bord gauche donne un ordre que l'oeil ne lit pas : un bloc LARGE qui
+       commence tot passerait « avant » un petit bloc pourtant plus a gauche
+       visuellement. Le centre est ce qu'on voit. */
+    const ord = boxes.map((b, i) => i).sort((a, b) => (
+      (boxes[a][i0] + boxes[a][i1] / 2) - (boxes[b][i0] + boxes[b][i1] / 2)) || (a - b));
     let somme = 0;
     for (let k = 0; k < n; k++) somme += boxes[k][i1];
-    const deb = boxes[ord[0]][i0];
-    const fin = boxes[ord[n - 1]][i0] + boxes[ord[n - 1]][i1];
+    /* UN JEU NEGATIF N'EST PAS UNE FAUTE DE CALCUL, C'EST UN FAIT : les blocs
+       ne tiennent pas dans leur propre portee, donc « espaces egaux » veut
+       dire « chevauchements egaux ». Il est RENDU pour que l'ecran le dise
+       avec son chiffre — un utilisateur qui voit ses blocs se superposer sans
+       un mot croit a une panne. */
     const jeu = (fin - deb - somme) / (n - 1);
     let pos = deb;
     for (let k = 0; k < n; k++) {
@@ -685,7 +703,7 @@
       out[j][i0] = Math.round(pos * 1e3) / 1e3;
       pos += boxes[j][i1] + jeu;
     }
-    return out;
+    return { boxes: out, jeu: Math.round(jeu * 1e3) / 1e3 };
   }
   /* EGALISER SUR LE PREMIER SELECTIONNE (le « key object » de Figma) : ni la
      plus grande, ni la moyenne — sans quoi deux egalisations de suite
@@ -706,8 +724,22 @@
     const plat = (k, b) => (k === "line" || k === "arrow") && b[i1] === 0;
     const out = boxes.map((b) => b.slice());
     if (!boxes.length) return { boxes: out, ignores: [], refuse: "vide", ref: 0 };
-    if (plat(kinds[0], boxes[0])) {
-      return { boxes: out, ignores: [], refuse: "reference", ref: boxes[0][i1] };
+    /* ── LE REFUS SE TESTE SUR LA DIMENSION, PAS SUR LA NATURE (ronde T3, R1)
+       LA CLAUSE ETAIT ECRITE TROIS LIGNES PLUS HAUT ET LA GARDE NE LA TENAIT
+       PAS. « Sa hauteur nulle aplatirait tout le lot » ne dit rien de la
+       nature du bloc : le champ « Hauteur » du panneau accepte zero et
+       `norm_slot` le borne a [0, 500], donc un TITRE a hauteur nulle en
+       reference aplatissait le lot entier — mesure : deux 8 -> 0, trois
+       6 -> 0, zero toast. La question a poser est « la reference a-t-elle une
+       dimension ? », et elle se pose sur la dimension.
+
+       LA BRANCHE `ignores`, ELLE, GARDE LA NATURE (juste en dessous) : une
+       LIGNE membre reste ignoree parce que l'agrandir la rendrait DIAGONALE —
+       un changement de nature ; un TEXTE membre plat est agrandi comme les
+       autres, parce qu'il est plat, pas axial. Deux questions differentes,
+       deux gardes differentes. */
+    if (boxes[0][i1] === 0) {
+      return { boxes: out, ignores: [], refuse: "reference", ref: 0 };
     }
     const ref = boxes[0][i1];
     const ignores = [];
@@ -3286,10 +3318,22 @@
            CETTE ligne, le panneau, Ctrl+D. Ce sont des actes VISES — on a
            clique sur la commande de ce bloc-la. Le verrou arrete la main qui
            derape sur l'apercu et la touche pressee au hasard, pas la decision
-           prise en connaissance de cause. */
+           prise en connaissance de cause.
+           ── ET LA BARRE DE LOT EN FAIT PARTIE (ronde T3, B1) ──────────────
+           Aligner, distribuer et egaliser sont des gestes de SCENE : la main
+           designe trois blocs et pousse un bouton, sans regarder lequel est
+           protege. Le meme bloc tenait au glisser puis bougeait a « aligner »
+           un clic plus tard, SANS UN MOT — mesure de la ronde. Un verrou dont
+           on decouvre la portee en la depassant n'est pas un verrou.
+           Un bloc verrouille y est desormais une ANCRE : il compte dans
+           l'enveloppe et il donne sa taille en reference, il ne recoit pas le
+           patch, et la phrase le dit. */
         + '<button class="cf-type-lock' + (s.lock ? " on" : "") + '" type="button" title="'
         + (s.lock ? "Déverrouiller ce bloc" : "Verrouiller ce bloc — il refusera le glisser, "
-          + "les poignées, les flèches et Suppr ; le panneau continuera de le régler")
+          + "les poignées, la rotation, les flèches, Suppr, et les commandes de "
+          + "la barre de lot (aligner, distribuer, égaliser) : il y sert alors "
+          + "d'ANCRE, c'est-à-dire qu'on aligne sur lui sans le déplacer. "
+          + "Le panneau, lui, continuera de le régler")
         + '">' + (s.lock ? "&#128274;" : "&#128275;") + '</button>'
         /* LE BADGE DE NATURE. La liste est la seule vue où les deux natures se
            croisent : elle doit les distinguer d'un coup d'œil, sans quoi
@@ -3820,13 +3864,34 @@
         : '')
       + '</p></div></details>';
   }
+  /* le plancher qu'un champ de TAILLE impose, selon la nature du bloc : zero
+     pour les deux natures AXIALES (une ligne ou une fleche horizontale a une
+     hauteur nulle par construction), le plancher de la piece pour tout le
+     reste. Une seule question, un seul endroit. */
+  function plancherBoite(s) {
+    return (s && (s.kind === "line" || s.kind === "arrow")) ? 0 : MIN_BOX_MM;
+  }
   function inspBoite(s, mesures) {
     return '<details class="grp cf-type-grp" open><summary>Boîte — millimètres depuis le coin de coupe</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
       + nfield("bx", "X (mm)", s.box[0], 0.25, "Depuis le coin de coupe")
       + nfield("by", "Y (mm)", s.box[1], 0.25, "Depuis le coin de coupe")
-      + nfield("bw", "Largeur (mm)", s.box[2], 0.25, "Largeur de la boîte")
-      + nfield("bh", "Hauteur (mm)", s.box[3], 0.25, "Hauteur de la boîte")
+      /* ── LE PLANCHER DES TAILLES, ET C'EST LA PORTE D'ENTREE (ronde T3, R1)
+         Ces deux champs n'avaient pas de `min` : c'est par la qu'une boite a
+         DIMENSION NULLE entre dans le document, et une boite plate en
+         reference d'une egalisation aplatissait tout le lot. La garde
+         d'`egalise` est le filet ; ce plancher-ci est la porte.
+
+         IL SUIT LA NATURE, ET IL LE FAUT : une LIGNE horizontale EST une
+         boite de hauteur nulle — c'est la regle de l'axe de la piece, et
+         `SHAPE_NEE.line` en fait naitre une comme ca. Un plancher de 2 mm
+         pose en dur aurait rendu toute ligne droite inatteignable au panneau.
+         Les champs de POSITION, eux, gardent leur liberte : une boite a x = 0
+         est legitime, une boite de 0 mm de large ne l'est que pour un axe. */
+      + nfield("bw", "Largeur (mm)", s.box[2], 0.25, "Largeur de la boîte",
+        plancherBoite(s))
+      + nfield("bh", "Hauteur (mm)", s.box[3], 0.25, "Hauteur de la boîte",
+        plancherBoite(s))
       + '</div>'
       + mesures
       + '<div class="btn-row"><button class="btn sm cf-type-dup" type="button" title="Ctrl+D">Dupliquer</button>'
@@ -3986,40 +4051,100 @@
      fonction pure qui va bien et repose le resultat en UN patch. Toute la
      verite arithmetique est au banc de node, sur des rectangles poses a la
      main ; ici on ne verifie que le branchement. */
+  /* le PARTICIPE de chaque famille, pour que la phrase du verrou nomme LE
+     geste qu'on vient de refuser et pas « le geste » en general. */
+  const BARRE_QUOI = {
+    disth: "distribués", distv: "distribués",
+    eqw: "égalisés", eqh: "égalisés",
+  };
   function barreGeste(a) {
-    const list = selSlots();
-    if (list.length < 2) return;
-    const ids = list.map((s) => s.id);
-    const boxes = list.map((s) => s.box.slice());
-    if (a === "disth" || a === "distv") {
-      if (list.length < 3) {
-        M.toast("distribuer demande au moins trois blocs : entre deux, l'espace "
-          + "est déjà égal à lui-même", true);
-        return;
+    /* ── UNE SEULE REGLE POUR LES BLOCS MASQUES (ronde T3, M3) ────────────
+       TROIS REGLES POUR UNE LISTE, RAMENEES A UNE. Le lasso ecarte les blocs
+       masques (il ne peut pas les toucher), l'aimant les ecarte (ils ne sont
+       pas a l'ecran), la barre les prenait — donc l'enveloppe d'un alignement
+       comptait une boite que personne ne voit, et un bloc eteint se deplacait
+       dans le dos de l'utilisateur.
+
+       LE CHOIX EST ASSUME ET IL N'EST PAS CELUI DE FIGMA (qui deplace les
+       masques) : ici l'oeil de la rangee est le seul moyen de mettre un bloc
+       « de cote » pendant qu'on travaille, et le mettre de cote doit vouloir
+       dire quelque chose. */
+    const tous = selSlots();
+    const list = tous.filter((s) => s.on);
+    const masques = tous.length - list.length;
+    const ditMasques = () => {
+      if (masques) {
+        M.toast(masques + " bloc(s) masqué(s) du lot ignoré(s) : les gestes de "
+          + "lot agissent sur ce qui est à l'écran");
       }
-      poseBoites(ids, distribue(boxes, a === "distv" ? "v" : "h"));
+    };
+    if (list.length < 2) {
+      if (masques) {
+        M.toast("il ne reste qu'un bloc visible dans ce lot : rien à aligner "
+          + "(les blocs masqués sont ignorés)", true);
+      }
       return;
     }
-    if (a === "eqw" || a === "eqh") {
+    /* ── LE VERROU VAUT AUSSI POUR LA BARRE, ET IL EST UNE ANCRE (B1) ─────
+       LE BLOQUANT DE LA RONDE : le cadenas n'existait qu'au clavier et au
+       glisser. Le MEME bloc tenait au glisser (« 1 bloc verrouillé n'a pas
+       suivi ») puis BOUGEAIT a « aligner » un clic plus tard, sans un mot, et
+       « egaliser » le REDIMENSIONNAIT.
+
+       LA REGLE TRANCHEE (patron Figma) : un bloc verrouille est une ANCRE. Il
+       COMPTE dans l'enveloppe et il DONNE sa taille quand il est la reference
+       — c'est justement sur lui qu'on veut aligner le reste — mais il ne
+       RECOIT pas le patch, et l'ecran le dit. Les dix commandes passent par
+       ici : une porte, pas dix. */
+    const l = lotLibre(list.map((s) => s.id));
+    const boxes = list.map((s) => s.box.slice());
+    let res = null;
+    if (a === "disth" || a === "distv") {
+      if (list.length < 3) {
+        M.toast("distribuer demande au moins trois blocs visibles : entre deux, "
+          + "l'espace est déjà égal à lui-même", true);
+        return;
+      }
+      const d = distribue(boxes, a === "distv" ? "v" : "h");
+      res = d.boxes;
+      if (d.jeu < 0) {
+        M.toast("ces blocs ne tiennent pas dans leur propre portée : l'espace "
+          + "égal vaut " + fx(d.jeu, 2) + " mm — ils se chevauchent d'autant");
+      }
+    } else if (a === "eqw" || a === "eqh") {
       const dim = a === "eqh" ? "h" : "w";
       const mot = dim === "h" ? "hauteur" : "largeur";
       const r = egalise(boxes, list.map((s) => s.kind), dim);
       if (r.refuse) {
-        M.toast("le premier sélectionné est une ligne plate : prendre sa " + mot
-          + " nulle comme référence aplatirait tout le lot, et l'égalisation "
-          + "rendrait les autres lignes diagonales — désignez d'abord un bloc "
-          + "de référence à " + mot + " réelle", true);
+        /* LA PHRASE NE DIT PLUS « UNE LIGNE PLATE » : c'est faux quand la
+           reference est un titre a hauteur nulle, et c'est precisement le cas
+           que la garde vient d'attraper. */
+        M.toast("le premier sélectionné (« " + list[0].label + " ») a une " + mot
+          + " nulle : la prendre comme référence aplatirait tout le lot — "
+          + "désignez d'abord un bloc de référence à " + mot + " réelle", true);
         return;
       }
-      poseBoites(ids, r.boxes);
+      res = r.boxes;
       if (r.ignores.length) {
         M.toast(r.ignores.length + (r.ignores.length > 1
           ? " lignes ignorées : égaliser leur " + mot + " les rendrait diagonales"
           : " ligne ignorée : égaliser sa " + mot + " la rendrait diagonale"));
       }
+    } else {
+      res = aligne(boxes, a);
+    }
+    /* SEULS LES LIBRES RECOIVENT — les ancres ont deja servi, dans le calcul. */
+    const garde = [], gboxes = [];
+    list.forEach((s, i) => {
+      if (l.libres.indexOf(s.id) >= 0) { garde.push(s.id); gboxes.push(res[i]); }
+    });
+    if (!garde.length) {
+      ditVerrous(l.bloques, "n'ont pas été " + (BARRE_QUOI[a] || "alignés"));
       return;
     }
-    poseBoites(ids, aligne(boxes, a));
+    poseBoites(garde, gboxes);
+    ditVerrous(l.bloques, "n'ont pas été " + (BARRE_QUOI[a] || "alignés"));
+    ditMasques();
   }
   function poseBoites(ids, boxes) {
     const par = {};
