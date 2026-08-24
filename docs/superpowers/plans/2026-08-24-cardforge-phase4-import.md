@@ -319,6 +319,21 @@ appariées —, volume positif calculé SANS compter le trou de l'anneau, orient
 des capuchons testée, imprimable §9.1) ; segments au plancher pour que les capuchons
 ne dégénèrent pas. Le filigrane du Patriarche est son cas d'usage nommé (:574
 « filigrane en extrusion + matériau Sceau prismatique »).
+**AMENDEMENT ronde T5** : (1) les normales se MESURENT sans rendu (produit
+scalaire stocké·géométrique pondéré par l'aire — la couronne livrée sortait à
+cos 0,758 par sommets partagés capuchon/paroi : dédoublés, cos ≥ 0,99, fermeture
+et volume inchangés ; le témoin « infermable » cachait un défaut — la leçon
+T1-LANCZOS ET la leçon T2-b rejouées ensemble : l'aveu d'infermabilité se mesure
+aussi) ; (2) le manifeste capture porte le FORMAT et le SHA DE SA SOURCE, et
+`_preuve_capture` les compare au courant — un manifeste d'un autre format ou
+d'une source re-déposée = 409 nommé « republie », jamais un artefact anamorphosé
+silencieux ; (3) le Sceau à portée mesh HABILLE l'extrusion `contour:"sceau"`
+(le corps 3D du Sceau du document — un matériau explicite gagne, l'invariant
+3c), et quand la portée mesh est cochée SANS aucun corps (ni cadre ni extrusion
+sceau — le cas carte importée), le bordereau LE DIT au lieu de se taire ;
+(4) le bordereau ne maquille pas une constante de format en mesure : le recto
+entier se dit « face entière », le chiffre du sujet nomme son CADRE (« N % de
+la toile »).
 
 **D9 — La preuve fragments roule sur la seule face qui existe (F1).** Extraction du
 Patriarche par pypdf (page 5, l'image 1060×1484) vers
