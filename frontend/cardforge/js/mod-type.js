@@ -290,6 +290,17 @@
      un « grand pas », c'est un déménagement ; et 0,5 mm ne se cale sur rien
      (la grille d'accrochage du glisser vaut 0,25 mm). */
   const NUDGE_MM = 1, NUDGE_FINE_MM = 0.2, SNAP_MM = 0.25, MIN_BOX_MM = 2;
+  /* ── LE SEUIL D'AIMANTATION OBJET-A-OBJET, EN MILLIMETRES (phase 5, D4) ──
+     IL DOIT ETRE PLUS GRAND QUE LE PAS DE GRILLE, sans quoi il ne se
+     declencherait jamais : le glisser arrondit deja a 0,25 mm, donc un aimant
+     a 0,2 mm n'attraperait que les cibles elles-memes multiples de la grille.
+     0,6 mm = un peu plus de deux pas, soit environ 7 px sur un apercu a
+     l'echelle usuelle — assez pour se sentir, trop peu pour surprendre. La
+     grille reste le REPLI quand rien n'aimante, et Alt debraye les deux. */
+  const GUIDE_MM = 0.6;
+  /* le pas de la rotation tenue a Maj (patron Figma), et la longueur du bras
+     de la poignee au-dessus de la boite, en pixels d'ecran. */
+  const ROT_STEP_DEG = 15, ROT_ARM_PX = 22;
   const UNDO_MAX = 60;
   const FONT_WAIT_MS = 2500;      /* le painter a 4 s : on garde de la marge */
 
@@ -589,6 +600,184 @@
     }
     return (bad ? "<b>" : "") + "l'encre s'arrête à " + fx(c, 2) + " mm du bord de coupe"
       + (bad ? ", pour " + fx(mg, 2) + " mm de marge au format</b>" : "");
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     1bis. LES OUTILS FIGMA — DE L'ARITHMETIQUE SUR DES RECTANGLES (phase 5, D4)
+     ─────────────────────────────────────────────────────────────────────────
+     Aligner, distribuer, egaliser et aimanter sont des fonctions PURES : des
+     boites en millimetres entrent, des boites en millimetres sortent. Aucune
+     ne touche au document, aucune ne lit le DOM, aucune ne connait la
+     selection. C'est deliberé, et pour deux raisons.
+
+     LA PREMIERE : une verite qui se pose a la main. « Le lot est aligne » est
+     invérifiable a l'oeil sur une capture ; « le bord gauche des trois boites
+     vaut 6,0 mm » se relit au chiffre pres, dans node, sans navigateur. Le
+     banc de test EXTRAIT ces fonctions-ci et les joue contre des rectangles
+     poses a la main (test_cards_type.py, section 16).
+
+     LA SECONDE, ET C'EST LE PIEGE TRANSMIS PAR LA CLOTURE T2 : le calque
+     d'edition GONFLE la boite affichee d'une forme plate (plancher de saisie
+     de 12 px, `paintOverlay`) pendant que le DOCUMENT garde sa hauteur nulle.
+     Un outil qui lirait le DOM lirait donc la boite gonflee — deux verites
+     pour un meme rectangle, et la mauvaise gagnerait a l'aimantation comme au
+     lasso. En n'ayant AUCUN acces au DOM, ces fonctions ne peuvent pas se
+     tromper de source : l'appelant leur passe `s.box`, et rien d'autre.
+     ═════════════════════════════════════════════════════════════════════════ */
+  /* le plus petit rectangle qui contient le lot — la CIBLE des six
+     alignements. `null` sur un lot vide : [0, 0, 0, 0] serait un rectangle au
+     coin de coupe, donc une cible inventee. */
+  function enveloppe(boxes) {
+    if (!boxes || !boxes.length) return null;
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (b[0] < x0) x0 = b[0];
+      if (b[1] < y0) y0 = b[1];
+      if (b[0] + b[2] > x1) x1 = b[0] + b[2];
+      if (b[1] + b[3] > y1) y1 = b[1] + b[3];
+    }
+    return [x0, y0, x1 - x0, y1 - y0];
+  }
+  /* LES SIX ALIGNEMENTS, SUR L'ENVELOPPE DU LOT (patron Figma). Un alignement
+     horizontal ne touche jamais y ni les tailles, et reciproquement : c'est ce
+     qui rend « aligner a gauche puis en haut » previsible. L'arrondi au
+     millieme est celui du glisser (`onOvMove`) — une seule precision dans la
+     piece. */
+  function aligne(boxes, mode) {
+    const env = enveloppe(boxes);
+    if (!env) return [];
+    const r3 = (v) => Math.round(v * 1e3) / 1e3;
+    return boxes.map((b) => {
+      let x = b[0], y = b[1];
+      if (mode === "left") x = env[0];
+      else if (mode === "hcenter") x = env[0] + (env[2] - b[2]) / 2;
+      else if (mode === "right") x = env[0] + env[2] - b[2];
+      else if (mode === "top") y = env[1];
+      else if (mode === "vcenter") y = env[1] + (env[3] - b[3]) / 2;
+      else if (mode === "bottom") y = env[1] + env[3] - b[3];
+      return [r3(x), r3(y), b[2], b[3]];
+    });
+  }
+  /* DISTRIBUER = EGALISER LES BLANCS, pas les positions (definition Figma).
+     Trois boites de largeurs differentes reparties « a pas constant »
+     laisseraient des blancs inegaux — precisement le defaut qu'on corrige.
+     Les EXTREMES ne bougent pas : la portee est donnee, on ne fait que
+     repartir dedans. Moins de trois boites : un seul blanc est deja egal a
+     lui-meme, donc rien a faire (et surtout pas « les coller »). */
+  function distribue(boxes, axe) {
+    const i0 = axe === "v" ? 1 : 0, i1 = axe === "v" ? 3 : 2;
+    const n = boxes.length;
+    const out = boxes.map((b) => b.slice());
+    if (n < 3) return out;
+    const ord = boxes.map((b, i) => i)
+      .sort((a, b) => (boxes[a][i0] - boxes[b][i0]) || (a - b));
+    let somme = 0;
+    for (let k = 0; k < n; k++) somme += boxes[k][i1];
+    const deb = boxes[ord[0]][i0];
+    const fin = boxes[ord[n - 1]][i0] + boxes[ord[n - 1]][i1];
+    const jeu = (fin - deb - somme) / (n - 1);
+    let pos = deb;
+    for (let k = 0; k < n; k++) {
+      const j = ord[k];
+      out[j][i0] = Math.round(pos * 1e3) / 1e3;
+      pos += boxes[j][i1] + jeu;
+    }
+    return out;
+  }
+  /* EGALISER SUR LE PREMIER SELECTIONNE (le « key object » de Figma) : ni la
+     plus grande, ni la moyenne — sans quoi deux egalisations de suite
+     donneraient deux resultats.
+
+     ── LA DECISION TRANSMISE PAR LA CLOTURE T2, TRANCHEE ICI ──────────────
+     Une ligne horizontale EST une boite de hauteur nulle (regle de l'axe : le
+     trait va d'un coin de la boite a l'autre). Egaliser sa hauteur ne la
+     redimensionne pas : elle la rend DIAGONALE — un changement de NATURE, pas
+     de taille. Une ligne ou une fleche dont la dimension VISEE est nulle est
+     donc IGNOREE, et l'ecran le dit (le toast nomme le compte). Une ligne
+     deja oblique, elle, suit le lot : son angle est un choix, pas un axe.
+     Et si la REFERENCE elle-meme est la ligne plate, tout le lot passerait a
+     zero — le titre, l'encadre et l'illustration deviendraient invisibles d'un
+     clic : le lot n'est alors pas touche du tout, et le refus porte un nom. */
+  function egalise(boxes, kinds, dim) {
+    const i1 = dim === "h" ? 3 : 2;
+    const plat = (k, b) => (k === "line" || k === "arrow") && b[i1] === 0;
+    const out = boxes.map((b) => b.slice());
+    if (!boxes.length) return { boxes: out, ignores: [], refuse: "vide", ref: 0 };
+    if (plat(kinds[0], boxes[0])) {
+      return { boxes: out, ignores: [], refuse: "reference", ref: boxes[0][i1] };
+    }
+    const ref = boxes[0][i1];
+    const ignores = [];
+    for (let i = 1; i < boxes.length; i++) {
+      if (plat(kinds[i], boxes[i])) { ignores.push(i); continue; }
+      out[i][i1] = ref;
+    }
+    return { boxes: out, ignores: ignores, refuse: null, ref: ref };
+  }
+  /* ── L'ORDRE DE PEINTURE, DEPLACE — UNE SEULE MECANIQUE ─────────────────
+     LE TABLEAU `doc.type.slots` EST L'ORDRE DE PEINTURE : le rang 0 se peint
+     en PREMIER (donc au fond), le dernier se peint en DERNIER (donc devant).
+     C'est deja ce que deplacent les deux fleches de rangee ; les gestes de
+     canvas (devant / derriere / tout devant / tout derriere) y deplacent
+     aussi, et par CETTE fonction-ci. Deux verites d'ordre, ce serait une liste
+     et une carte qui se contredisent au premier export.
+
+     UN LOT SE DEPLACE EN BLOC, ordre relatif conserve : la place d'insertion
+     se compte dans la liste des NON-selectionnes, sans quoi « avancer d'un
+     cran » aurait fait passer les membres du lot les uns par-dessus les
+     autres.
+     Rend `null` quand il n'y a rien a faire (deja au bout, ou ordre
+     inchange) : un patch qui ne change rien serait un Ctrl+Z qui ne defait
+     rien. */
+  function ordreApres(ids, lot, geste) {
+    const dedans = ids.filter((q) => lot.indexOf(q) >= 0);
+    if (!dedans.length || dedans.length === ids.length) return null;
+    const dehors = ids.filter((q) => lot.indexOf(q) < 0);
+    let pos;
+    if (geste === "tout-avant") pos = dehors.length;
+    else if (geste === "tout-arriere") pos = 0;
+    else {
+      const bout = geste === "avant" ? dedans[dedans.length - 1] : dedans[0];
+      const rang = ids.indexOf(bout);
+      let avant = 0;
+      for (let i = 0; i < rang; i++) { if (lot.indexOf(ids[i]) < 0) avant++; }
+      pos = geste === "avant" ? avant + 1 : avant - 1;
+    }
+    if (pos < 0 || pos > dehors.length) return null;
+    const out = dehors.slice(0, pos).concat(dedans, dehors.slice(pos));
+    if (out.every((v, i) => v === ids[i])) return null;
+    return out;
+  }
+  /* L'AIMANT OBJET-A-OBJET. Trois prises par axe — bord, centre, bord — et la
+     CIBLE LA PLUS PROCHE gagne, jamais la premiere lue. `cibles` est
+     {x: [{mm, de}], y: [{mm, de}]} : des millimetres, pas des elements — c'est
+     la frontiere qui empeche cette fonction de lire le DOM par accident.
+     Rend la boite deplacee, les lignes de guide a dessiner et, par axe, s'il y
+     a eu prise : c'est ce drapeau qui decide si la GRILLE reprend la main. */
+  function aimante(box, cibles, seuil) {
+    const out = { box: box.slice(), lignes: [], hitX: false, hitY: false };
+    const axes = [
+      { axe: "x", i: 0, cand: [box[0], box[0] + box[2] / 2, box[0] + box[2]] },
+      { axe: "y", i: 1, cand: [box[1], box[1] + box[3] / 2, box[1] + box[3]] },
+    ];
+    for (let a = 0; a < axes.length; a++) {
+      const A = axes[a], liste = (cibles && cibles[A.axe]) || [];
+      let best = null;
+      for (let c = 0; c < A.cand.length; c++) {
+        for (let t = 0; t < liste.length; t++) {
+          const d = liste[t].mm - A.cand[c];
+          if (Math.abs(d) > seuil) continue;
+          if (best && Math.abs(d) >= Math.abs(best.d)) continue;
+          best = { d: d, mm: liste[t].mm, de: liste[t].de };
+        }
+      }
+      if (!best) continue;
+      out.box[A.i] = Math.round((box[A.i] + best.d) * 1e3) / 1e3;
+      out.lignes.push({ axe: A.axe, mm: best.mm, de: best.de });
+      if (A.axe === "x") out.hitX = true; else out.hitY = true;
+    }
+    return out;
   }
 
   /* ═════════════════════════════════════════════════════════════════════════
@@ -1963,10 +2152,87 @@
     try { return M.patch(partial); } finally { SELF = false; }
   }
   const slots = () => (CF.get("type.slots", []) || []).slice();
-  const selId = () => CF.get("type.sel", "");
+  /* ── LA SELECTION EST UNE LISTE (phase 5, D4) ───────────────────────────
+     `doc.type.sel` porte desormais une LISTE d'identifiants, dans l'ordre ou
+     l'utilisateur les a pris : le PREMIER est le « key object » du patron
+     Figma (celui qui donne sa taille a « egaliser »), et c'est lui que
+     `selId()` continue de rendre — TOUS les anciens lecteurs (le panneau, la
+     liste, le calque d'edition) marchent sans une ligne de changement.
+
+     LA MIGRATION EST DOUCE DANS LE SENS DE LA LECTURE, et c'est ici qu'elle
+     se fait, EN UN SEUL ENDROIT : une chaine se lit comme une liste d'un
+     element, la chaine vide comme une liste vide. Un deck enregistre avant
+     cette tache s'ouvre donc tel quel, et le document que `models.py`
+     fabrique (`"sel": slots[0]["id"]`, une chaine) aussi. L'ECRITURE, elle,
+     est toujours une liste : une seule forme sort d'ici.
+
+     LES IDENTIFIANTS MORTS SONT FILTRES : une selection qui survit a la
+     suppression de son bloc ferait regler un fantome par le panneau.
+     LE BACKEND NE LIT JAMAIS `sel` — `type.py` ne le connait pas — donc il
+     n'y a aucun miroir a tenir de ce cote. */
+  function selIds() {
+    const raw = CF.get("type.sel", "");
+    const bruts = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+    const vivants = slots().map((s) => s.id);
+    const out = [];
+    bruts.forEach((v) => {
+      const id = String(v == null ? "" : v);
+      if (vivants.indexOf(id) >= 0 && out.indexOf(id) < 0) out.push(id);
+    });
+    return out;
+  }
+  const selId = () => selIds()[0] || "";
+  /* les slots du lot, dans l'ordre de la SELECTION (pas celui de la liste) :
+     c'est cet ordre qui designe la reference d'« egaliser ». */
+  function selSlots() {
+    const par = {};
+    slots().forEach((s) => { par[s.id] = s; });
+    return selIds().map((id) => par[id]).filter(Boolean);
+  }
   function selSlot() {
     const a = slots(), id = selId();
     return a.filter((s) => s.id === id)[0] || a[0] || null;
+  }
+  /* la forme d'ECRITURE de la selection, acceptee en chaine ou en liste — un
+     appelant n'a pas a savoir laquelle des deux il tient. */
+  function selNorm(v) {
+    if (Array.isArray(v)) return v.map((x) => String(x)).filter((x) => x);
+    return v ? [String(v)] : [];
+  }
+  /* ── DESIGNER, LA REGLE UNIQUE DES DEUX SURFACES ────────────────────────
+     La liste de blocs et le calque d'edition designent le meme lot : la regle
+     est donc ecrite UNE fois et appelee des deux cotes (deux litteraux
+     recopies, c'est deux occasions d'oublier la moitie Maj d'un seul cote).
+
+     LE PATRON FIGMA, EN TROIS LIGNES :
+       · Maj bascule — deux fois sur le meme bloc et il SORT du lot ;
+       · un clic nu sur un bloc DEJA du lot ne reduit rien : sans cela, tout
+         glisser de groupe commencerait par detruire le groupe ;
+       · un clic nu sur un bloc du dehors remplace le lot par lui seul.
+     Rend `true` si le lot a change (donc s'il faut repeindre). */
+  function designe(id, ajoute) {
+    const cur = selIds(), i = cur.indexOf(id);
+    let next;
+    if (ajoute) next = (i >= 0) ? cur.slice(0, i).concat(cur.slice(i + 1)) : cur.concat([id]);
+    else if (i >= 0) return false;          /* deja dedans : le lot est garde */
+    else next = [id];
+    if (next.length === cur.length && next.every((v, k) => v === cur[k])) return false;
+    mpatch({ sel: next });
+    return true;
+  }
+  /* ── LE LASSO PREND CE QU'IL TOUCHE, ET IL LIT LE DOCUMENT ──────────────
+     « Touche » et non « contient » : sur une carte de 63 x 88 mm, exiger
+     l'inclusion complete obligerait a partir hors de la carte pour attraper un
+     titre pleine largeur (c'est aussi la regle de Figma).
+
+     ET LA BOITE EST CELLE DU DOCUMENT — le piege transmis par la cloture T2 :
+     le calque d'edition GONFLE la boite affichee d'une forme plate (plancher
+     de saisie 12 px, `paintOverlay`), le document non. Un lasso branche sur le
+     DOM attraperait donc une ligne a un demi-millimetre de la ou elle est. */
+  function dansLasso(s, r) {
+    const b = s.box;   /* CF-LASSO-DOC */
+    return b[0] <= r[2] && b[0] + b[2] >= r[0]
+      && b[1] <= r[3] && b[1] + b[3] >= r[1];
   }
   function textOf(slot, card) {
     const f = (card && card.fields) ? card.fields[slot.id] : null;
@@ -1974,29 +2240,29 @@
     return v.trim() !== "" ? v : String(slot.text || "");
   }
   function pushUndo() {
-    UNDO.push({ slots: clone(slots()), sel: selId() });
+    UNDO.push({ slots: clone(slots()), sel: selIds() });
     if (UNDO.length > UNDO_MAX) UNDO.shift();
     REDO.length = 0;
   }
   function commit(next, sel) {
     const p = { slots: next.map((s, i) => normSlot(s, i)) };
-    if (sel !== undefined) p.sel = sel;
+    if (sel !== undefined) p.sel = selNorm(sel);
     mpatch(p);
   }
   function undo() {
     if (!UNDO.length) { M.toast("rien à annuler"); return; }
-    const cur = { slots: clone(slots()), sel: selId() };
+    const cur = { slots: clone(slots()), sel: selIds() };
     const prev = UNDO.pop();
     REDO.push(cur);
-    mpatch({ slots: prev.slots, sel: prev.sel });
+    mpatch({ slots: prev.slots, sel: selNorm(prev.sel) });
     renderAll();
   }
   function redo() {
     if (!REDO.length) { M.toast("rien à rétablir"); return; }
-    const cur = { slots: clone(slots()), sel: selId() };
+    const cur = { slots: clone(slots()), sel: selIds() };
     const nx = REDO.pop();
     UNDO.push(cur);
-    mpatch({ slots: nx.slots, sel: nx.sel });
+    mpatch({ slots: nx.slots, sel: selNorm(nx.sel) });
     renderAll();
   }
 
@@ -2032,7 +2298,7 @@
        caracteres) et celui qu'on regle en premier neuf fois sur dix. */
     const first = (next.filter((s) => s.id === "title")[0] || next[0] || {}).id || "";
     mpatch({
-      slots: next, preset: pid, seeded: true, sel: first,
+      slots: next, preset: pid, seeded: true, sel: selNorm(first),
       fit_rect: safeRectMm(g).map((v) => Math.round(v * 1e4) / 1e4),
     });
     if (!silent) M.toast("gabarit « " + (PRESETS[pid] || {}).label + " » posé — " + next.length + " slots");
@@ -2219,7 +2485,7 @@
     const next = normSlots(slots().concat(specs));
     const nes = next.slice(next.length - specs.length);
     pushUndo();
-    mpatch({ slots: next, sel: nes[0].id });
+    mpatch({ slots: next, sel: [nes[0].id] });
     renderAll();
     return nes;
   }
@@ -2747,14 +3013,30 @@
     commit(next, next.length ? next[Math.min(i, next.length - 1)].id : "");
     renderAll();
   }
+  /* ── LES DEUX FLECHES DE RANGEE SONT DES GESTES DE PROFONDEUR ────────────
+     « Descendre » (d = +1) avance d'un rang dans le tableau, donc RAPPROCHE
+     de la surface ; « Monter » recule. Elles passent par la MEME mecanique
+     que les boutons du panneau : `zApplique`, seul appelant d'`ordreApres`.
+     La designation ne bouge que si la rangee n'etait pas deja du lot — sans
+     quoi une fleche de rangee detruirait la selection multiple en cours. */
   function moveSlot(id, dir) {
-    const a = slots(), i = a.map((s) => s.id).indexOf(id);
-    const j = i + dir;
-    if (i < 0 || j < 0 || j >= a.length) return;
+    const cur = selIds();
+    zApplique([id], dir > 0 ? "avant" : "arriere",
+      cur.indexOf(id) >= 0 ? cur : [id]);
+  }
+  function zApplique(ids, geste, sel) {
+    const a = slots(), ordre = a.map((s) => s.id);
+    const lot = ids.filter((q) => ordre.indexOf(q) >= 0);
+    if (!lot.length) return false;
+    const nx = ordreApres(ordre, lot, geste);
+    if (!nx) return false;
+    const par = {};
+    a.forEach((s) => { par[s.id] = s; });
+    const cur = selIds();
     pushUndo();
-    const t = a[i]; a[i] = a[j]; a[j] = t;
-    commit(a, id);
+    commit(nx.map((q) => par[q]), sel || (cur.length ? cur : lot));
     renderAll();
+    return true;
   }
   function patchSlot(id, partial, noUndo) {
     const a = slots(), i = a.map((s) => s.id).indexOf(id);
@@ -2762,6 +3044,41 @@
     if (!noUndo) pushUndo();
     a[i] = normSlot(Object.assign(clone(a[i]), partial), i);
     commit(a);
+  }
+  /* ── UN GESTE DE GROUPE = UN SEUL PATCH, DONC UN SEUL PAS D'ANNULATION ───
+     `patchSlot` appele n fois poserait n entrees d'annulation (ou, pire, une
+     entree posee AVANT un etat deja a moitie modifie). Ici les boites du lot
+     entrent ensemble et sortent ensemble : la pile ne voit qu'un pas, et le
+     document ne voit qu'une revision. C'est le patron HIST de la piece,
+     applique a n boites au lieu d'une. */
+  function appliqueBoites(map, noUndo) {
+    const a = slots();
+    let touche = false;
+    const next = a.map((s, i) => {
+      if (!Object.prototype.hasOwnProperty.call(map, s.id)) return s;
+      touche = true;
+      return normSlot(Object.assign(clone(s), { box: map[s.id] }), i);
+    });
+    if (!touche) return;
+    if (!noUndo) pushUndo();
+    commit(next);
+  }
+  /* ── UN REGLAGE POSE SUR TOUT LE LOT, EN UN SEUL PAS ─────────────────────
+     `quels` filtre les blocs concernes (les bouts fleches ne visent que les
+     fleches) ; les autres sont laisses INTACTS, et l'ecran dit combien. */
+  function patchLot(ids, partial, quels) {
+    const a = slots();
+    let n = 0;
+    const next = a.map((s, i) => {
+      if (ids.indexOf(s.id) < 0) return s;
+      if (quels && !quels(s)) return s;
+      n++;
+      return normSlot(Object.assign(clone(s), partial), i);
+    });
+    if (!n) return 0;
+    pushUndo();
+    commit(next);
+    return n;
   }
 
   /* ── liste des slots ───────────────────────────────────────────────────── */
@@ -2915,7 +3232,10 @@
       const id = row.dataset.id;
       row.addEventListener("click", (e) => {
         if (e.target.closest("button")) return;
-        mpatch({ sel: id }); renderAll(); syncOverlay();
+        /* LA LISTE DESIGNE COMME LE CALQUE : Maj bascule, un clic nu remplace.
+           Deux surfaces pour la meme selection, donc UNE seule regle — c'est
+           `designe` qui la porte, et elle est appelee des deux cotes. */
+        designe(id, e.shiftKey); renderAll(); syncOverlay();
       });
       row.querySelector(".cf-type-eye").addEventListener("click", () => {
         const s = slots().filter((x) => x.id === id)[0];
@@ -3280,7 +3600,39 @@
       + '">' + kindGlyphe(s) + '</em>'
       + '<input type="text" class="cf-type-label" value="' + esc(s.label) + '" maxlength="40" title="Nom du slot">'
       + '<span class="counter mono cf-type-id">' + esc(s.id) + '</span>'
+      + '</div>'
+      + inspZ();
+  }
+  /* ── LES QUATRE GESTES DE PROFONDEUR, DANS LES QUATRE PANNEAUX ───────────
+     Ecrits UNE fois et poses par `inspHead` (donc par les trois panneaux de
+     bloc) et par le panneau de lot : quatre litteraux recopies, ce serait
+     quatre occasions d'en oublier un. Les infobulles NOMMENT l'equivalence
+     avec les fleches de rangee — la liste se lit du fond vers la surface,
+     et c'est le genre de detail qui se decouvre autrement au mauvais moment. */
+  function inspZ() {
+    const b = (z, txt, tit) => '<button class="btn sm cf-type-z" type="button"'
+      + ' data-z="' + z + '" title="' + esc(tit) + '">' + txt + '</button>';
+    return '<div class="cf-type-zbar" title="Ordre de peinture — le dernier de la liste se peint DEVANT">'
+      + b("tout-arriere", "&#8676; Fond",
+        "Tout au fond : peint en premier, donc sous tous les autres blocs")
+      + b("arriere", "&#8592; Derrière",
+        "Un cran vers le fond — c'est la flèche « Monter » de la rangée, "
+        + "la liste se lisant du fond vers la surface")
+      + b("avant", "Devant &#8594;",
+        "Un cran vers la surface — c'est la flèche « Descendre » de la rangée")
+      + b("tout-avant", "Surface &#8677;",
+        "Tout devant : peint en dernier, donc par-dessus tous les autres blocs")
       + '</div>';
+  }
+  function wireZ(box) {
+    box.querySelectorAll(".cf-type-z").forEach((b) => {
+      b.addEventListener("click", () => {
+        if (!zApplique(selIds(), b.dataset.z)) {
+          M.toast(b.dataset.z.indexOf("arriere") >= 0
+            ? "déjà au fond de la pile" : "déjà à la surface de la pile");
+        }
+      });
+    });
   }
   /* ── LA PLAQUE DE FOND, ET SON CONTOUR PROPRE (phase 5, D3) ──────────────
      Ce bloc est partage par les TROIS panneaux (texte, image, forme) : « la
@@ -3360,9 +3712,217 @@
       + '</div></div></details>';
   }
 
+  /* ═════════════════════════════════════════════════════════════════════════
+     6quater. LE PANNEAU D'UN LOT (phase 5, D4)
+     ─────────────────────────────────────────────────────────────────────────
+     DEUX BLOCS OU PLUS N'ONT PAS UN PANNEAU DE TROIS FOIS TRENTE CHAMPS : ils
+     ont la BARRE CONTEXTUELLE (aligner, distribuer, egaliser), les gestes de
+     profondeur, et les seuls reglages qui ont un sens sur toutes les natures
+     a la fois. Le reste appartient a un bloc precis, et il est atteignable en
+     un clic — celui qui reduit le lot a ce bloc-la.
+
+     LA VALEUR AFFICHEE SUIT LE PATRON FIGMA : commune, elle s'affiche ;
+     differente, elle s'affiche « mixte » et aucun bouton n'est actif. Montrer
+     la valeur du PREMIER ferait croire que c'est celle de tous, et un clic
+     sur « recto » ne dirait pas qu'il vient de deplacer trois blocs.
+     ═════════════════════════════════════════════════════════════════════════ */
+  /* la valeur COMMUNE d'une cle sur le lot, ou le marqueur de melange */
+  function commun(list, k) {
+    if (!list.length) return { mix: false, v: null };
+    const v = list[0][k];
+    for (let i = 1; i < list.length; i++) {
+      if (list[i][k] !== v) return { mix: true, v: null };
+    }
+    return { mix: false, v: v };
+  }
+  /* LE MARQUEUR DE MELANGE : une valeur qu'AUCUNE enumeration de la piece ne
+     porte, donc aucun bouton du bandeau segmente ne s'allume. */
+  const MIXTE = "__mixte__";
+  const ALIGNEMENTS = [
+    ["left", "&#8676;", "Aligner les bords gauches sur l'enveloppe du lot"],
+    ["hcenter", "&#8596;", "Centrer horizontalement dans l'enveloppe du lot"],
+    ["right", "&#8677;", "Aligner les bords droits sur l'enveloppe du lot"],
+    ["top", "&#8607;", "Aligner les bords hauts sur l'enveloppe du lot"],
+    ["vcenter", "&#8597;", "Centrer verticalement dans l'enveloppe du lot"],
+    ["bottom", "&#8615;", "Aligner les bords bas sur l'enveloppe du lot"],
+  ];
+  function renderInspMulti(box, list) {
+    const n = list.length;
+    const fleches = list.filter((s) => s.kind === "arrow").length;
+    const cSide = commun(list, "side");
+    const cLock = commun(list, "lock");
+    const cDeb = commun(list, "arrow_start");
+    const cFin = commun(list, "arrow_end");
+    const puce = (k, lbl, c, tit, off) => '<button class="chip cf-type-t'
+      + (c.mix ? " mix" : (c.v ? " active" : "")) + (off ? " off" : "")
+      + '" data-k="' + k + '" type="button" title="' + esc(tit) + '">'
+      + lbl + (c.mix ? " <i>mixte</i>" : "") + '</button>';
+    box.innerHTML = ''
+      + '<div class="cf-type-ihead">'
+      + '<em class="cf-type-kind img" title="Sélection multiple">&#9635;</em>'
+      + '<b class="cf-type-lotn">' + n + ' blocs sélectionnés</b>'
+      + '<span class="counter mono cf-type-id">'
+      + esc(list.slice(0, 3).map((s) => s.id).join(" ")) + (n > 3 ? " …" : "") + '</span>'
+      + '</div>'
+      + inspZ()
+      /* LA BARRE CONTEXTUELLE — six alignements, deux distributions, deux
+         egalisations. Elle n'existe QU'ICI : sur un bloc seul, l'enveloppe de
+         la selection EST sa boite, donc les dix commandes seraient inertes. */
+      + '<div class="cf-type-abar">'
+      + ALIGNEMENTS.map((a) => '<button class="btn sm cf-type-alg" type="button"'
+        + ' data-a="' + a[0] + '" title="' + esc(a[2]) + '">' + a[1] + '</button>').join("")
+      + '<span class="stage-sep" aria-hidden="true"></span>'
+      + '<button class="btn sm cf-type-alg" type="button" data-a="disth" title="'
+      + esc("Espaces horizontaux égaux entre les blocs — les deux extrêmes ne "
+        + "bougent pas, le blanc se répartit. Trois blocs au moins.")
+      + '">&#8596;&#8801;</button>'
+      + '<button class="btn sm cf-type-alg" type="button" data-a="distv" title="'
+      + esc("Espaces verticaux égaux entre les blocs — les deux extrêmes ne "
+        + "bougent pas, le blanc se répartit. Trois blocs au moins.")
+      + '">&#8597;&#8801;</button>'
+      + '<span class="stage-sep" aria-hidden="true"></span>'
+      + '<button class="btn sm cf-type-alg" type="button" data-a="eqw" title="'
+      + esc("Même largeur que le PREMIER sélectionné (« " + list[0].label + " »)")
+      + '">&#8660; =</button>'
+      + '<button class="btn sm cf-type-alg" type="button" data-a="eqh" title="'
+      + esc("Même hauteur que le PREMIER sélectionné (« " + list[0].label + " »). "
+        + "Les lignes et flèches à hauteur nulle sont ignorées : les égaliser "
+        + "les rendrait diagonales.")
+      + '">&#8661; =</button>'
+      + '</div>'
+      + '<p class="hint">La référence des égalisations est le <b>premier '
+      + 'sélectionné</b> (« ' + esc(list[0].label) + ' ») — le patron Figma. '
+      + 'Les alignements, eux, se calculent sur l’<b>enveloppe</b> du lot.</p>'
+      + segf("Face" + (cSide.mix ? " — mixte" : ""), "side",
+        [["front", "Recto"], ["back", "Verso"], ["both", "R+V"]],
+        cSide.mix ? MIXTE : cSide.v,
+        ["recto seul", "verso seul", "recto et verso"])
+      + '<div class="cf-type-tog">'
+      + puce("lock", "&#128274; Verrou", cLock,
+        "Verrouille ou déverrouille tout le lot d'un coup")
+      + puce("arrow_start", "&#8592; Bout de départ", cDeb,
+        "Bout fléché au départ du trait — appliqué à toutes les flèches du lot ("
+        + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
+        !fleches)
+      + puce("arrow_end", "Bout d’arrivée &#8594;", cFin,
+        "Bout fléché à l'arrivée du trait — appliqué à toutes les flèches du lot ("
+        + fleches + " sur " + n + " blocs) ; les autres natures l'ignorent",
+        !fleches)
+      + '</div>'
+      + '<p class="hint">'
+      + (fleches
+        ? '<b>' + fleches + ' flèche' + (fleches > 1 ? 's' : '') + '</b> dans ce lot : '
+          + 'les bouts fléchés ne visent qu’elle' + (fleches > 1 ? 's' : '')
+          + ', les autres natures restent intactes.'
+        : 'Aucune flèche dans ce lot — les deux bouts fléchés n’ont rien à viser.')
+      + ' La rotation se règle bloc par bloc : en lot, chacun tournerait sur '
+      + 'son propre centre.</p>';
+    wireZ(box);
+    box.querySelectorAll(".cf-type-alg").forEach((b) => {
+      b.addEventListener("click", () => barreGeste(b.dataset.a));
+    });
+    box.querySelectorAll(".cf-type-seg").forEach((seg) => {
+      seg.addEventListener("click", (e) => {
+        const b = e.target.closest("button[data-v]");
+        if (!b) return;
+        patchLot(selIds(), { [seg.dataset.k]: b.dataset.v });
+        renderAll();
+      });
+    });
+    box.querySelectorAll(".cf-type-t").forEach((b) => {
+      b.addEventListener("click", () => lotBascule(b.dataset.k));
+    });
+  }
+  /* ── UNE PUCE BASCULEE SUR TOUT LE LOT ───────────────────────────────────
+     MIXTE BASCULE VERS « TOUS OUI » (patron Figma) : c'est le seul choix qui
+     rende le lot homogene en un clic, et le clic suivant le rend homogene a
+     l'autre bout. Les bouts fleches ne visent QUE les fleches — la decision
+     transmise par la cloture T2 — et les autres natures ne sont pas
+     touchees : leur cle existe (elle est dans la table des 49) mais elle ne
+     veut rien dire sur un titre. L'ecran le dit avant et apres. */
+  function lotBascule(k) {
+    const fleche = (k === "arrow_start" || k === "arrow_end");
+    const quels = fleche ? ((s) => s.kind === "arrow") : null;
+    const list = selSlots();
+    const vises = quels ? list.filter(quels) : list;
+    if (!vises.length) {
+      M.toast("aucune flèche dans ce lot : les bouts fléchés ne visent que les "
+        + "flèches, et les autres natures les ignorent", true);
+      return;
+    }
+    const c = commun(vises, k);
+    const n = patchLot(selIds(), { [k]: c.mix ? true : !c.v }, quels);
+    renderAll();
+    if (fleche) {
+      M.toast(n + " flèche(s) sur " + list.length + " bloc(s) — les autres natures "
+        + "n'ont pas de bout fléché et n'ont pas bougé");
+    }
+  }
+  /* ── LA BARRE CONTEXTUELLE, BRANCHEE SUR LES FONCTIONS PURES ─────────────
+     Ce geste ne calcule RIEN : il lit les boites du DOCUMENT, appelle la
+     fonction pure qui va bien et repose le resultat en UN patch. Toute la
+     verite arithmetique est au banc de node, sur des rectangles poses a la
+     main ; ici on ne verifie que le branchement. */
+  function barreGeste(a) {
+    const list = selSlots();
+    if (list.length < 2) return;
+    const ids = list.map((s) => s.id);
+    const boxes = list.map((s) => s.box.slice());
+    if (a === "disth" || a === "distv") {
+      if (list.length < 3) {
+        M.toast("distribuer demande au moins trois blocs : entre deux, l'espace "
+          + "est déjà égal à lui-même", true);
+        return;
+      }
+      poseBoites(ids, distribue(boxes, a === "distv" ? "v" : "h"));
+      return;
+    }
+    if (a === "eqw" || a === "eqh") {
+      const dim = a === "eqh" ? "h" : "w";
+      const mot = dim === "h" ? "hauteur" : "largeur";
+      const r = egalise(boxes, list.map((s) => s.kind), dim);
+      if (r.refuse) {
+        M.toast("le premier sélectionné est une ligne plate : prendre sa " + mot
+          + " nulle comme référence aplatirait tout le lot, et l'égalisation "
+          + "rendrait les autres lignes diagonales — désignez d'abord un bloc "
+          + "de référence à " + mot + " réelle", true);
+        return;
+      }
+      poseBoites(ids, r.boxes);
+      if (r.ignores.length) {
+        M.toast(r.ignores.length + (r.ignores.length > 1
+          ? " lignes ignorées : égaliser leur " + mot + " les rendrait diagonales"
+          : " ligne ignorée : égaliser sa " + mot + " la rendrait diagonale"));
+      }
+      return;
+    }
+    poseBoites(ids, aligne(boxes, a));
+  }
+  function poseBoites(ids, boxes) {
+    const par = {};
+    slots().forEach((s) => { par[s.id] = s; });
+    const map = {};
+    let bouge = false;
+    ids.forEach((id, i) => {
+      const av = par[id] ? par[id].box : null;
+      if (!av) return;
+      if (av.some((v, k) => Math.abs(v - boxes[i][k]) > 1e-6)) bouge = true;
+      map[id] = boxes[i];
+    });
+    /* RIEN A FAIRE SE DIT, ET NE S'ANNULE PAS : un patch identique poserait
+       une entree d'annulation qui ne defait rien. */
+    if (!bouge) { M.toast("le lot est déjà dans cette disposition"); return; }
+    appliqueBoites(map);
+    renderAll();
+  }
+
   function renderInsp() {
     const box = HOST && HOST.querySelector(".cf-type-insp");
     if (!box) return;
+    /* LE LOT PASSE AVANT LE BLOC : deux blocs designes n'ont pas un panneau de
+       reglages, ils ont une barre d'outils. */
+    const lot = selSlots();
+    if (lot.length > 1) { renderInspMulti(box, lot); return; }
     const s = selSlot();
     if (!s) { box.innerHTML = '<p class="empty-note sm">Sélectionnez un slot pour en régler la typographie.</p>'; return; }
     /* LE PANNEAU BASCULE SES SECTIONS SELON LA NATURE DU BLOC. Un calque
@@ -3493,6 +4053,7 @@
      champ retiré ne laisse pas un écouteur orphelin. Les trois blocs communs
      (nom, plaque, boîte) ont leur branchement ici, une fois. */
   function wireInspCommun(box, id) {
+    wireZ(box);
     box.querySelector(".cf-type-label").addEventListener("change", (e) => {
       patchSlot(id, { label: e.target.value }); renderAll();
     });
@@ -6065,6 +6626,59 @@
   /* le plancher de SAISIE d'une boite plate, en pixels d'ecran — la meme
      grandeur que la zone de saisie de la poignee du plan de P2 (12 px). */
   const GRAB_PX = 12;
+  /* en-dessous, un « lasso » est un CLIC DANS LE VIDE : il vide le lot au lieu
+     de selectionner ce qu'un rectangle de deux dixiemes de millimetre touche. */
+  const LASSO_MIN_MM = 0.5;
+  /* ── CE QUI VIT A L'ECRAN ET NULLE PART AILLEURS ────────────────────────
+     Les lignes de guide et le rectangle du lasso sont du DOM pose sur
+     l'apercu : rien de ce qu'ils montrent ne peut partir dans un PNG ni dans
+     un PDF, et rien n'en est ecrit au document. Ils vivent donc ICI, en
+     variables de module, jamais dans `doc.type`. */
+  let GUIDES = [];
+  let LASSO = null;          /* [x0, y0, x1, y1] en mm depuis la coupe */
+  let lassoState = null;
+
+  /* ── UN POINT D'ECRAN, EN MILLIMETRES DEPUIS LA COUPE ────────────────────
+     La conversion inverse de `boxPx`, et la SEULE de la piece : le lasso et la
+     rotation en ont besoin, et deux formules auraient fini par diverger d'un
+     fond perdu. */
+  function ovMm(cx, cy) {
+    const g = CF.geom(), k = ovScale(), r = OV.getBoundingClientRect();
+    return [((cx - r.left) / k - g.bleed_off_px[0]) * 25.4 / g.dpi,
+      ((cy - r.top) / k - g.bleed_off_px[1]) * 25.4 / g.dpi];
+  }
+  /* ── LES CIBLES D'AIMANTATION, LUES DANS LE DOCUMENT ─────────────────────
+     Trois prises par slot et par axe (bord, centre, bord), plus la FENETRE
+     D'ILLUSTRATION que P2 publie (`frame.art_window` — le meme contrat que
+     mod-face lit depuis le premier jour, en millimetres depuis la coupe :
+     il n'y a rien a convertir) et le CENTRE DE CARTE.
+
+     `s.box`, JAMAIS LE DOM : c'est le piege transmis par la cloture T2, et
+     c'est la seule raison pour laquelle cette fonction existe separement de
+     `paintOverlay`, qui, lui, gonfle les boites plates pour la main. */
+  function ciblesAimant(exclus, side) {
+    const g = CF.geom(), k = 25.4 / g.dpi;
+    const cx = { x: [], y: [] };
+    const pousse = (axe, mm, de) => {
+      cx[axe].push({ mm: Math.round(mm * 1e4) / 1e4, de: de });
+    };
+    const trois = (b, de) => {
+      pousse("x", b[0], de); pousse("x", b[0] + b[2] / 2, de); pousse("x", b[0] + b[2], de);
+      pousse("y", b[1], de); pousse("y", b[1] + b[3] / 2, de); pousse("y", b[1] + b[3], de);
+    };
+    slots().forEach((s) => {
+      if (!s.on || (s.side !== "both" && s.side !== side)) return;
+      if (exclus.indexOf(s.id) >= 0) return;
+      trois(s.box, s.label);
+    });
+    const w = CF.get("frame.art_window", null);
+    if (Array.isArray(w) && w.length === 4 && w.every((v) => isFinite(Number(v)))) {
+      trois(w.map(Number), "fenêtre d’illustration");
+    }
+    pousse("x", g.trim_px[0] * k / 2, "centre de carte");
+    pousse("y", g.trim_px[1] * k / 2, "centre de carte");
+    return cx;
+  }
 
   function buildOverlay() {
     OV = document.createElement("div");
@@ -6107,12 +6721,23 @@
      substituee localement — feedback immediat (spec 9.6-2), sans attendre le
      patch coalesce au rAF ni le repaint complet de la carte qui le suit.
      Appel par defaut (sans argument) : inchange, lit le document. */
-  function paintOverlay(liveId, liveBox) {
+  function paintOverlay(liveMap) {
     if (!OV || OV.classList.contains("hidden")) return;
-    const g = CF.geom(), k = ovScale(), sel = selId(), side = MEAS_SIDE;
+    const g = CF.geom(), k = ovScale(), lot = selIds(), side = MEAS_SIDE;
+    const solo = lot.length === 1;
+    const vus = [];
     const sr = safeRectPx(g);
-    OV.innerHTML = slots().filter((s) => s.on && (s.side === "both" || s.side === side)).map((s) => {
-      const live = (liveId && s.id === liveId) ? Object.assign({}, s, { box: liveBox }) : s;
+    /* LE FOND DU CALQUE : la seule surface qui attrape le pointeur en terrain
+       vide, donc la seule par ou un LASSO peut commencer. Il est ecrit EN
+       PREMIER — les boites qui suivent le recouvrent (ordre de peinture du
+       DOM), donc chacune garde ses propres gestes. */
+    OV.innerHTML = '<i class="cf-type-ovbg"></i>'
+      + slots().filter((s) => s.on && (s.side === "both" || s.side === side)).map((s) => {
+      const nb = (liveMap && Object.prototype.hasOwnProperty.call(liveMap, s.id))
+        ? liveMap[s.id] : null;
+      const live = nb ? Object.assign({}, s, { box: nb }) : s;
+      const sel = lot.indexOf(s.id) >= 0 ? s.id : "";
+      if (sel) vus.push(live.box);
       const b = boxPx(live, g), m = MEAS[s.id];
       /* ── UNE FORME EST JUGEE SUR SON ENCRE GEOMETRIQUE ──────────────────
          Elle n'entre pas dans `MEAS` (pas de glyphe, donc pas de mesure de
@@ -6169,11 +6794,67 @@
         + '<span class="cf-type-htag">' + (s.lock ? "&#128274; " : "")
         + ((isImage(s) || isShape(s)) ? kindGlyphe(s) + " " : "")
         + esc(s.label) + why + '</span>';
-      if (s.id === sel) {
-        h += HANDLES.map((hd) => '<i class="cf-type-hh cf-type-h-' + hd[0] + '" data-h="' + hd[0] + '"></i>').join("");
+      if (sel) {
+        /* ── LES POIGNEES DE TAILLE NE SONT SERVIES QU'EN SOLO ─────────────
+           Redimensionner un LOT n'est pas « redimensionner n boites » : c'est
+           une geometrie de groupe (une echelle autour d'une enveloppe), et
+           elle n'est pas de cette phase. Servir huit poignees a un lot aurait
+           donne huit prises qui n'auraient retaille qu'une boite sur n — un
+           geste qui ment. Le lot, lui, se DEPLACE, et son enveloppe se voit
+           (ci-dessous). */
+        if (solo) {
+          h += HANDLES.map((hd) => '<i class="cf-type-hh cf-type-h-' + hd[0]
+            + '" data-h="' + hd[0] + '"></i>').join("");
+        }
+        /* ── LA POIGNEE DE ROTATION (phase 5, D4) ──────────────────────────
+           Au-dessus de la boite, le patron Figma. EN LOT ELLE EST GRISEE, et
+           la raison est ecrite dans son infobulle : faire tourner chacun sur
+           SON centre est une surprise (le lot se disloque), et faire tourner
+           le lot en ORBITE autour de son enveloppe est une geometrie neuve —
+           pas un outil de plus. Elle reste VISIBLE pour que l'absence soit un
+           fait dit, pas un bouton qu'on cherche. */
+        h += '<i class="cf-type-rot' + (solo ? "" : " off")
+          + '" data-h="rot" title="'
+          + esc(solo
+            ? "Rotation autour du centre de la boîte — Maj par pas de "
+              + ROT_STEP_DEG + "°"
+            : "Rotation indisponible en sélection multiple : chaque bloc "
+              + "tournerait sur SON centre et le lot se disloquerait. "
+              + "Désignez un seul bloc.")
+          + '"></i>';
       }
       return h + "</div>";
-    }).join("");
+    }).join("")
+      /* ── L'ENVELOPPE DU LOT, LES GUIDES ET LE LASSO — ECRITS EN DERNIER ──
+         Ils ne portent aucun geste (pointer-events: none) : ce sont des
+         marques. Ecrits apres les boites, ils passent par-dessus sans jamais
+         leur voler un clic. */
+      + (vus.length > 1 ? (function () {
+        const env = enveloppe(vus);
+        const e0 = [g.bleed_off_px[0] + g.mm2px(env[0]), g.bleed_off_px[1] + g.mm2px(env[1])];
+        return '<i class="cf-type-env" style="left:' + (e0[0] * k) + 'px;top:'
+          + (e0[1] * k) + 'px;width:' + (g.mm2px(env[2]) * k) + 'px;height:'
+          + (g.mm2px(env[3]) * k) + 'px"></i>';
+      }()) : "")
+      /* LA LIGNE PORTE LE NOM DE SA CIBLE : « ca s'est colle » ne dit pas SUR
+         QUOI, et c'est la moitie de l'information — trois voisins alignes au
+         dixieme donnent trois cibles a la meme place. */
+      + GUIDES.map((gd) => '<i class="cf-type-guide '
+        + (gd.axe === "x" ? "gx" : "gy") + '" title="'
+        + esc((gd.axe === "x" ? "aligné sur " : "aligné sur ") + gd.de
+          + " — " + fx(gd.mm, 2) + " mm") + '" style="'
+        + (gd.axe === "x"
+          ? "left:" + ((g.bleed_off_px[0] + g.mm2px(gd.mm)) * k)
+          : "top:" + ((g.bleed_off_px[1] + g.mm2px(gd.mm)) * k))
+        + 'px"></i>').join("")
+      + (LASSO ? (function () {
+        const x0 = Math.min(LASSO[0], LASSO[2]), y0 = Math.min(LASSO[1], LASSO[3]);
+        return '<i class="cf-type-lasso" style="left:'
+          + ((g.bleed_off_px[0] + g.mm2px(x0)) * k) + 'px;top:'
+          + ((g.bleed_off_px[1] + g.mm2px(y0)) * k) + 'px;width:'
+          + (g.mm2px(Math.abs(LASSO[2] - LASSO[0])) * k) + 'px;height:'
+          + (g.mm2px(Math.abs(LASSO[3] - LASSO[1])) * k) + 'px"></i>';
+      }()) : "");
   }
   function onOvDown(e) {
     /* un second pointeur (tactile multi-doigts, desormais possible —
@@ -6190,9 +6871,25 @@
        qui pourrait rester coince (revue 7bis, re-revue, item 1). */
     if (!e.isPrimary) return;
     const hb = e.target.closest(".cf-type-hbox");
-    if (!hb) return;
+    /* ── LE TERRAIN VIDE : LE LASSO (phase 5, D4) ─────────────────────────
+       Le calque entier est `pointer-events: none` ; seuls le fond et les
+       boites attrapent. Un appui sur le FOND n'appartient a aucun bloc : c'est
+       la seule place ou un rectangle de selection peut naitre. */
+    if (!hb) {
+      if (e.target.closest && e.target.closest(".cf-type-ovbg")) startLasso(e);
+      return;
+    }
     const id = hb.dataset.id;
-    if (id !== selId()) { mpatch({ sel: id }); renderAll(); }
+    /* MAJ BASCULE ET S'ARRETE LA. Un glisser qui demarrerait sur le meme appui
+       deplacerait le lot au premier tremblement de la main, juste apres qu'on
+       vient de l'agrandir — le geste le plus facile a rater de tout Figma. */
+    if (e.shiftKey) {
+      designe(id, true);
+      renderAll(); syncOverlay();
+      e.preventDefault();
+      return;
+    }
+    if (designe(id, false)) { renderAll(); }
     const s = slots().filter((x) => x.id === id)[0];
     if (!s) return;
     /* La SELECTION vient d'avoir lieu (juste au-dessus) et reste libre sur un
@@ -6201,11 +6898,32 @@
        pointermove, si bien qu'il n'y a ni entree d'annulation a reprendre ni
        ecouteur a defaire. Un geste joue puis annule aurait laisse les deux. */
     if (s.lock) return;   /* VERROU : aucun geste ne demarre */
-    const hd = e.target.closest(".cf-type-hh");
+    const hd = e.target.closest(".cf-type-hh")
+      || (e.target.closest(".cf-type-rot") || null);
+    const geste = hd ? hd.dataset.h : null;
+    const lot = selIds();
+    /* LA POIGNEE DE ROTATION EST GRISEE EN LOT, et le refus se DIT : un
+       curseur qui ne fait rien se lit comme une panne. */
+    if (geste === "rot" && lot.length > 1) {
+      M.toast("rotation indisponible en sélection multiple : chacun tournerait "
+        + "sur son propre centre et le lot se disloquerait — désignez un seul bloc", true);
+      return;
+    }
+    /* LE LOT QUI BOUGE : tous les designes SAUF les verrouilles. Le verrou vaut
+       aussi en lot — sinon il suffirait d'attraper un voisin pour deplacer un
+       bloc protege, ce qui viderait le cadenas de son sens. Le refus est dit au
+       RELACHEMENT (`onOvUp`), quand on sait qu'il y a bien eu un deplacement. */
+    const par = {};
+    slots().forEach((x) => { par[x.id] = x; });
+    const vise = (lot.indexOf(id) >= 0 && !geste) ? lot : [id];
+    const libres = vise.filter((q) => par[q] && !par[q].lock);
     pushUndo();
     dragState = {
       id: id, box: s.box.slice(), x0: e.clientX, y0: e.clientY,
-      k: ovScale(), dpi: CF.geom().dpi, h: hd ? hd.dataset.h : null, moved: false,
+      k: ovScale(), dpi: CF.geom().dpi, h: geste, moved: false,
+      ids: libres, boxes: libres.map((q) => par[q].box.slice()),
+      bloques: vise.length - libres.length,
+      rot0: num(s.rotate, 0, -180, 180), a0: angleVers(e, s.box),
     };
     /* la capture est un CONFORT (le pointeur peut sortir de la carte pendant
        le glisser), pas une condition : un pointerId inconnu la fait lever, et
@@ -6216,6 +6934,63 @@
     OV.addEventListener("pointerup", onOvUp);
     OV.addEventListener("pointercancel", onOvUp);
     e.preventDefault();
+  }
+  /* l'angle du pointeur autour du CENTRE d'une boite, en radians — la seule
+     trigonometrie de la piece, et elle sert deux fois (au depart du geste pour
+     retenir l'origine, a chaque mouvement pour la difference). */
+  function angleVers(e, box) {
+    const g = CF.geom(), k = ovScale(), r = OV.getBoundingClientRect();
+    const b = boxPx({ box: box }, g);
+    return Math.atan2(e.clientY - (r.top + (b[1] + b[3] / 2) * k),
+      e.clientX - (r.left + (b[0] + b[2] / 2) * k));
+  }
+  /* ── LE LASSO : TROIS ECOUTEURS A LUI, ET AUCUN PATCH EN COURS DE ROUTE ──
+     Il n'ecrit qu'au relachement, et il n'ecrit QUE la selection : aucune
+     boite ne bouge, donc aucune entree d'annulation n'est posee (un Ctrl+Z qui
+     defait une selection serait un Ctrl+Z perdu pour l'edition d'avant). */
+  function startLasso(e) {
+    const p = ovMm(e.clientX, e.clientY);
+    lassoState = { maj: !!e.shiftKey, base: selIds() };
+    LASSO = [p[0], p[1], p[0], p[1]];
+    try { OV.setPointerCapture(e.pointerId); } catch (err) { /* pointeur synthetique */ }
+    OV.addEventListener("pointermove", onLassoMove);
+    OV.addEventListener("pointerup", onLassoUp);
+    OV.addEventListener("pointercancel", onLassoUp);
+    e.preventDefault();
+  }
+  function onLassoMove(e) {
+    if (!LASSO) return;
+    const p = ovMm(e.clientX, e.clientY);
+    LASSO[2] = p[0]; LASSO[3] = p[1];
+    paintOverlay();          /* du DOM, rien d'autre : pas un patch */
+  }
+  function onLassoUp() {
+    OV.removeEventListener("pointermove", onLassoMove);
+    OV.removeEventListener("pointerup", onLassoUp);
+    OV.removeEventListener("pointercancel", onLassoUp);
+    const L = lassoState, r = LASSO;
+    lassoState = null; LASSO = null;
+    if (!L || !r) { paintOverlay(); return; }
+    const rect = [Math.min(r[0], r[2]), Math.min(r[1], r[3]),
+      Math.max(r[0], r[2]), Math.max(r[1], r[3])];
+    /* UN LASSO MINUSCULE EST UN CLIC DANS LE VIDE : il vide le lot. Sans ce
+       plancher, le moindre tremblement au relachement aurait selectionne ce
+       que deux dixiemes de millimetre touchent. */
+    const petit = (rect[2] - rect[0]) < LASSO_MIN_MM && (rect[3] - rect[1]) < LASSO_MIN_MM;
+    const side = MEAS_SIDE;
+    const pris = petit ? [] : slots()
+      .filter((s) => s.on && (s.side === "both" || s.side === side) && dansLasso(s, rect))
+      .map((s) => s.id);
+    let next = pris;
+    if (L.maj) {
+      next = L.base.slice();
+      pris.forEach((q) => { if (next.indexOf(q) < 0) next.push(q); });
+    }
+    const cur = selIds();
+    if (next.length !== cur.length || next.some((v, i) => v !== cur[i])) {
+      mpatch({ sel: next });
+    }
+    renderAll(); syncOverlay();
   }
   let dragRaf = 0;
   /* repli setTimeout si rAF est absent, annulation SYMETRIQUE (le meme
@@ -6232,12 +7007,56 @@
     const mmPerPx = 25.4 / g.dpi / dragState.k;   /* px ecran -> mm */
     let dx = (e.clientX - dragState.x0) * mmPerPx;
     let dy = (e.clientY - dragState.y0) * mmPerPx;
-    if (!e.altKey) { dx = Math.round(dx / SNAP_MM) * SNAP_MM; dy = Math.round(dy / SNAP_MM) * SNAP_MM; }
-    const b = dragState.box.slice();
     const h = dragState.h;
+    /* ── LA ROTATION A LA POIGNEE (phase 5, D4) ────────────────────────────
+       La valeur vit dans `slot.rotate`, qui existait deja et que le painter
+       applique depuis la phase 1 : cette poignee ne cree PAS une seconde
+       verite d'angle, elle donne une prise a celle qui est la. Maj cale sur
+       15° (patron Figma). L'angle est ramene dans [-180, 180], la plage que
+       `normSlot` et `type.py` bornent tous deux. */
+    if (h === "rot") {
+      let deg = dragState.rot0
+        + (angleVers(e, dragState.box) - dragState.a0) * 180 / Math.PI;
+      if (e.shiftKey) deg = Math.round(deg / ROT_STEP_DEG) * ROT_STEP_DEG;
+      deg = ((deg + 180) % 360 + 360) % 360 - 180;
+      dragState.moved = true;
+      dragState.rot = Math.round(deg * 1e3) / 1e3;
+      if (dragRaf) return;
+      dragRaf = scheduleFrame(() => {
+        dragRaf = 0;
+        if (dragState && dragState.rot != null) {
+          patchSlot(dragState.id, { rotate: dragState.rot }, true);
+          dragState.rot = null;
+        }
+      });
+      return;
+    }
+    const b = dragState.box.slice();
     let nb;
-    if (!h) nb = [b[0] + dx, b[1] + dy, b[2], b[3]];
-    else {
+    GUIDES = [];
+    if (!h) {
+      /* ── DEPLACER : L'AIMANT D'ABORD, LA GRILLE EN REPLI ─────────────────
+         L'aimantation objet-a-objet cherche les bords et les centres des
+         VOISINS (lus dans le document), de la fenetre d'illustration et du
+         centre de carte. Quand elle prend, elle POSE la valeur exacte de la
+         cible ; quand elle ne prend pas, la grille de 0,25 mm reste ce
+         qu'elle a toujours ete. Alt DEBRAYE les deux — c'est la meme touche
+         qui debrayait deja la grille, donc une seule promesse a retenir :
+         « Alt = a main levee ». */
+      const brut = [b[0] + dx, b[1] + dy, b[2], b[3]];
+      if (e.altKey) nb = brut;
+      else {
+        const A = aimante(brut, ciblesAimant(dragState.ids, MEAS_SIDE), GUIDE_MM);
+        const gx = Math.round(dx / SNAP_MM) * SNAP_MM;
+        const gy = Math.round(dy / SNAP_MM) * SNAP_MM;
+        nb = [A.hitX ? A.box[0] : b[0] + gx, A.hitY ? A.box[1] : b[1] + gy, b[2], b[3]];
+        GUIDES = A.lignes;
+      }
+    } else {
+      if (!e.altKey) {
+        dx = Math.round(dx / SNAP_MM) * SNAP_MM;
+        dy = Math.round(dy / SNAP_MM) * SNAP_MM;
+      }
       let x = b[0], y = b[1], w = b[2], ht = b[3];
       if (h.indexOf("w") >= 0) { x = b[0] + dx; w = b[2] - dx; }
       if (h.indexOf("e") >= 0) { w = b[2] + dx; }
@@ -6247,16 +7066,34 @@
       if (ht < MIN_BOX_MM) { ht = MIN_BOX_MM; if (h.indexOf("n") >= 0) y = b[1] + b[3] - MIN_BOX_MM; }
       nb = [x, y, w, ht];
     }
+    const r3 = (v) => Math.round(v * 1e3) / 1e3;
+    const fin = nb.map(r3);
     dragState.moved = true;
-    dragState.next = nb.map((v) => Math.round(v * 1e3) / 1e3);
+    /* ── LE LOT SUIT LE MEME DELTA, PAS SON PROPRE ARRONDI ──────────────────
+       Le deplacement est calcule UNE fois, sur la boite attrapee (c'est elle
+       qui aimante, c'est elle qui se cale sur la grille), puis reporte tel
+       quel sur les autres. Arrondir chaque boite pour elle-meme aurait
+       DEFORME le lot : deux blocs alignes au dixieme se seraient decales l'un
+       de l'autre au premier glisser. Un redimensionnement, lui, ne touche que
+       la boite attrapee (les poignees ne sont servies qu'en solo). */
+    const ddx = fin[0] - dragState.box[0], ddy = fin[1] - dragState.box[1];
+    const nexts = {};
+    if (dragState.h) nexts[dragState.id] = fin;
+    else {
+      dragState.ids.forEach((q, i) => {
+        const s0 = dragState.boxes[i];
+        nexts[q] = [r3(s0[0] + ddx), r3(s0[1] + ddy), s0[2], s0[3]];
+      });
+    }
+    dragState.next = nexts;
     /* retour local immediat (spec 9.6-2) : le calque suit CHAQUE evenement —
        bon marche, c'est juste le DOM du calque, pas un repaint de carte. */
-    paintOverlay(dragState.id, dragState.next);
+    paintOverlay(nexts);
     if (dragRaf) return;
     dragRaf = scheduleFrame(() => {
       dragRaf = 0;
       if (dragState && dragState.next) {
-        patchSlot(dragState.id, { box: dragState.next }, true);
+        appliqueBoites(dragState.next, true);
         /* vide APRES application : sans ca, onOvUp (ci-dessous) trouvait
            encore un dragState.next non nul quand ce rAF avait deja fini son
            travail avant le relachement, et repatchait EN DOUBLE la meme
@@ -6278,9 +7115,20 @@
        redevenait null AVANT que le rAF ne s'execute, et son garde
        `if (dragState && dragState.next)` avalait le patch en silence. */
     if (dragRaf) { cancelFrame(dragRaf); dragRaf = 0; }
-    if (dragState && dragState.next) { patchSlot(dragState.id, { box: dragState.next }, true); }
+    if (dragState && dragState.next) { appliqueBoites(dragState.next, true); }
+    if (dragState && dragState.rot != null) {
+      patchSlot(dragState.id, { rotate: dragState.rot }, true);
+    }
     if (dragState && !dragState.moved) UNDO.pop();
+    /* LE REFUS DU VERROU EN LOT, DIT UNE FOIS ET AU BON MOMENT : au
+       relachement, quand on SAIT qu'il y a eu deplacement. Au `pointerdown`,
+       la phrase serait partie a chaque simple clic de designation. */
+    if (dragState && dragState.moved && dragState.bloques) {
+      M.toast(dragState.bloques + " bloc(s) verrouillé(s) du lot n'ont pas suivi "
+        + "— ouvrez leur cadenas pour les déplacer", true);
+    }
     dragState = null;
+    GUIDES = [];
     renderAll();
   }
 
@@ -6295,6 +7143,19 @@
     if (ctrl && (e.key === "y" || e.key === "Y")) { e.preventDefault(); redo(); return; }
     if (inField) return;
     if (ctrl && (e.key === "d" || e.key === "D")) { e.preventDefault(); dupSlot(); return; }
+    /* LES GESTES DE PROFONDEUR AU CLAVIER (patron Figma) : Ctrl+] avance,
+       Ctrl+[ recule, Maj pousse jusqu'au bout. Les BOUTONS du panneau restent
+       le chemin qu'on trouve sans le savoir — un raccourci n'est jamais la
+       seule porte d'une commande. */
+    if (ctrl && (e.key === "]" || e.key === "[")) {
+      e.preventDefault();
+      const av = e.key === "]";
+      if (!zApplique(selIds(), e.shiftKey ? (av ? "tout-avant" : "tout-arriere")
+        : (av ? "avant" : "arriere"))) {
+        M.toast(av ? "déjà à la surface de la pile" : "déjà au fond de la pile");
+      }
+      return;
+    }
     /* ÉCHAP N'A PAS BESOIN D'UNE SÉLECTION, et il était sous `if (!s) return`.
        `selSlot()` est nul exactement quand le document n'a AUCUN bloc — c'est-
        à-dire l'état d'un jeu neuf, celui où l'on ouvre « + Élément » et le
@@ -6302,7 +7163,16 @@
        revenait repeindre un menu que l'utilisateur croyait fermé. Les deux
        fermetures remontent ensemble : le défaut était le même pour le menu de
        polices, il était simplement plus vieux. */
-    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }
+    if (e.key === "Escape") {
+      closeFontPicker(); closePalette();
+      /* ÉCHAP VIDE AUSSI LE LOT (phase 5, D4) : une sélection qu'on ne sait
+         pas relâcher se traîne d'un geste à l'autre — et le lot RESTE
+         l'entrée du panneau, donc la relâcher doit être aussi facile que la
+         prendre. La garde est un fait, pas une politesse : sans elle, chaque
+         Échap sur un menu écrirait une révision au document. */
+      if (selIds().length) { mpatch({ sel: [] }); renderAll(); syncOverlay(); }
+      return;
+    }
     const s = selSlot();
     if (!s) return;
     if (e.key === "Delete" || e.key === "Backspace") {

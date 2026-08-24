@@ -4058,13 +4058,23 @@ const onDown = OV.listeners.pointerdown[0];
 const onKey = (DOCL.keydown || [])[0];
 if (!onKey) throw new Error("aucun ecouteur clavier n'a ete pose sur le document");
 
-function ptr(id, x, y, h) {
+function ptr(id, x, y, h, maj) {
   const hb = { dataset: { id: id },
     closest: (s) => (s === ".cf-type-hbox" ? hb : null) };
   const cible = h ? { dataset: { h: h },
     closest: (s) => (s === ".cf-type-hh" ? cible : (s === ".cf-type-hbox" ? hb : null)) } : hb;
   return { isPrimary: true, target: cible, clientX: x, clientY: y, pointerId: 1,
-    altKey: false, preventDefault() { } };
+    altKey: false, shiftKey: !!maj, preventDefault() { } };
+}
+/* LE FOND DU CALQUE — la surface qui n'appartient a AUCUNE boite, celle ou le
+   lasso commence. Dans un vrai navigateur c'est un element a part (le calque
+   lui-meme est `pointer-events: none`) : ici on rend donc une cible dont
+   `closest(".cf-type-hbox")` vaut NULL, ce qui est exactement ce que le module
+   doit voir pour savoir qu'il est en terrain vide. */
+function fond(x, y, maj) {
+  const bg = { dataset: {}, closest: (s) => (s === ".cf-type-ovbg" ? bg : null) };
+  return { isPrimary: true, target: bg, clientX: x, clientY: y, pointerId: 1,
+    altKey: false, shiftKey: !!maj, preventDefault() { } };
 }
 function kev(a) {
   return { key: a.k, target: { tagName: "DIV" }, shiftKey: !!a.maj, altKey: !!a.alt,
@@ -4151,14 +4161,78 @@ for (const a of (OPT.actes || [])) {
       patchs: PATCHS.length - avP,
       undo: (avU == null || undoN() == null) ? null : undoN() - avU });
   } else if (a.t === "down") {
-    onDown(ptr(a.id, a.x || 0, a.y || 0, a.h));
+    const avU0 = undoN();
+    onDown(ptr(a.id, a.x || 0, a.y || 0, a.h, a.maj));
     /* LA TRACE QUI COMPTE : un glisser qui DEMARRE branche un pointermove sur
        le calque. Zero ecouteur = aucun geste n'a commence. */
-    traces.push({ acte: "down", moves: (OV.listeners.pointermove || []).length });
+    traces.push({ acte: "down", moves: (OV.listeners.pointermove || []).length,
+      sel: JSON.parse(JSON.stringify(DOC.type.sel)),
+      undo: (avU0 == null || undoN() == null) ? null : undoN() - avU0 });
   } else if (a.t === "move") {
     const mv = (OV.listeners.pointermove || [])[0];
-    if (mv) mv({ clientX: a.x || 0, clientY: a.y || 0, altKey: true });
-    traces.push({ acte: "move", branche: !!mv });
+    /* `alt` PAR DEFAUT VRAI : les bancs d'avant les guides mesuraient un
+       deplacement NU (ni grille ni aimant), et ils doivent continuer de le
+       mesurer. Un banc qui veut eprouver l'aimantation le dit (`alt: false`). */
+    if (mv) mv({ clientX: a.x || 0, clientY: a.y || 0,
+      altKey: a.alt === undefined ? true : !!a.alt, shiftKey: !!a.maj });
+    /* LE CALQUE TEL QU'IL EST PENDANT LE GESTE : les lignes de guide ne vivent
+       QUE la, entre deux `pointermove`. Les lire a la fin du banc ne dirait
+       rien — `onOvUp` les efface, et c'est justement ce qu'on veut mesurer. */
+    traces.push({ acte: "move", branche: !!mv, ov: OV._h });
+  } else if (a.t === "lasso") {
+    /* LE LASSO, DANS SON ORDRE REEL : appui sur le FOND du calque, glisser,
+       relachement. C'est le seul geste qui commence hors de toute boite. */
+    const avU = undoN(), avP = PATCHS.length;
+    onDown(fond(a.x0 || 0, a.y0 || 0, a.maj));
+    const mv = (OV.listeners.pointermove || [])[0];
+    if (mv) mv({ clientX: a.x1 || 0, clientY: a.y1 || 0, altKey: false, shiftKey: !!a.maj });
+    const up = (OV.listeners.pointerup || [])[0];
+    if (up) up();
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "lasso", branche: !!(mv && up),
+      sel: JSON.parse(JSON.stringify(DOC.type.sel)),
+      patchs: PATCHS.length - avP,
+      undo: (avU == null || undoN() == null) ? null : undoN() - avU });
+  } else if (a.t === "barre") {
+    /* UN BOUTON DE LA BARRE CONTEXTUELLE, joue sur l'ECOUTEUR QUE LE PANNEAU A
+       POSE — jamais sur une fonction choisie a la main. */
+    const insp = HOSTE.querySelector(".cf-type-insp");
+    const b = insp.querySelectorAll("." + (a.cl || "cf-type-alg"))
+      .filter((x) => x.dataset[a.dk || "a"] === a.v)[0];
+    const fn = b && (b.listeners.click || [])[0];
+    const avP = PATCHS.length, avU = undoN();
+    if (fn) fn({ target: b, currentTarget: b, preventDefault() { } });
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "barre", v: a.v, trouve: !!b, cable: !!fn,
+      patchs: PATCHS.length - avP,
+      undo: (avU == null || undoN() == null) ? null : undoN() - avU });
+  } else if (a.t === "lot") {
+    /* UN REGLAGE EN LOT, joue sur l'ECOUTEUR du panneau multiple. Les deux
+       familles que le DOM de paille sait retrouver (elles portent une CLASSE)
+       sont les bandeaux segmentes et les puces — les champs numeriques, eux,
+       se lisent par un selecteur d'attribut que ce DOM n'a pas. */
+    const insp = HOSTE.querySelector(".cf-type-insp");
+    const avP = PATCHS.length, avU = undoN();
+    let cable = false;
+    if (a.seg) {
+      const seg = insp.querySelectorAll(".cf-type-seg")
+        .filter((x) => x.dataset.k === a.k)[0];
+      const fn = seg && (seg.listeners.click || [])[0];
+      const cible = { dataset: { v: a.v } };
+      cible.closest = (s) => (s === "button[data-v]" ? cible : null);
+      cable = !!fn;
+      if (fn) fn({ target: cible });
+    } else {
+      const b = insp.querySelectorAll(".cf-type-t")
+        .filter((x) => x.dataset.k === a.k)[0];
+      const fn = b && (b.listeners.click || [])[0];
+      cable = !!fn;
+      if (fn) fn({ target: b, currentTarget: b });
+    }
+    await new Promise((r) => setTimeout(r, 20));
+    traces.push({ acte: "lot", k: a.k, v: a.v === undefined ? null : a.v,
+      cable: cable, patchs: PATCHS.length - avP,
+      undo: (avU == null || undoN() == null) ? null : undoN() - avU });
   } else if (a.t === "up") {
     const up = (OV.listeners.pointerup || [])[0];
     if (up) up();
@@ -4448,10 +4522,20 @@ def test_un_slot_verrouille_refuse_le_glisser_et_les_poignees(tmp_path):
     assert hh["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0], hh["slots"][0]["box"]
 
     # MUTATION : le garde retiré du pointerdown -> le bloc verrouillé glisse.
+    #
+    # DEPUIS T3, LE VERROU EST TENU À DEUX ENDROITS et la mutation doit les
+    # ouvrir TOUS LES DEUX pour prouver quelque chose : (1) le geste ne DÉMARRE
+    # pas sur un bloc verrouillé, (2) un bloc verrouillé du LOT ne SUIT pas le
+    # glisser d'un voisin. Ce ne sont pas deux copies de la même garde — ce sont
+    # deux questions (« puis-je commencer ici ? », « qui bouge avec moi ? ») —,
+    # mais elles se recouvrent sur le bloc attrapé. N'en retirer qu'une laissait
+    # la mutation VERTE : le mutant survivant a été trouvé ici même.
     sourd = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "titre"},
                                     "actes": GLISSE},
                          mutations=(("if (s.lock) return;   /* VERROU : aucun geste ne demarre */",
-                                      "if (false) return;"),))
+                                      "if (false) return;"),
+                                    ("const libres = vise.filter((q) => par[q] && !par[q].lock);",
+                                     "const libres = vise.filter((q) => par[q]);")))
     assert sourd["slots"][0]["box"][0] != 10.0, \
         "le verrou n'était pas ce qui arrêtait le glisser"
 
@@ -4489,7 +4573,7 @@ def test_le_verrou_laisse_la_selection_et_le_panneau_libres(tmp_path):
     d = _banc_verrou(tmp_path, {"state": {"slots": _slots_verrou(True), "sel": "regles"},
                                 "actes": [{"t": "down", "id": "titre", "x": 0, "y": 0},
                                           {"t": "up"}]})
-    assert d["sel"] == "titre", "un bloc verrouillé ne se sélectionne plus"
+    assert d["sel"] == ["titre"], "un bloc verrouillé ne se sélectionne plus"
     assert d["slots"][0]["box"] == [10.0, 20.0, 30.0, 10.0]
     # le cadenas se voit : dans la ligne de la liste ET sur la boîte de l'aperçu
     assert 'class="cf-type-lock' in d["liste"], "aucun cadenas dans la liste"
@@ -6029,7 +6113,7 @@ def test_la_zone_de_statistique_NAIT_EN_PAIRE_et_ne_laisse_QU_UNE_annulation(tmp
                                           {"t": "palclic", "o": "gen:stat"}]})
     s = d["slots"]
     assert [x["id"] for x in s] == ["etiq1", "val1"], [x["id"] for x in s]
-    assert d["sel"] == "etiq1", d["sel"]
+    assert d["sel"] == ["etiq1"], d["sel"]
     assert s[0]["align"] == "left" and s[1]["align"] == "right"
     # LA VALEUR EST EN CHASSE FIXE — le seul emprunt à `_duel_ligne` qui ne
     # soit pas de la décoration : une colonne de chiffres proportionnelle
@@ -6078,7 +6162,7 @@ def test_les_deux_autres_generiques_naissent_par_la_palette(tmp_path):
     assert [x["id"] for x in s] == ["image1", "texte1"], [x["id"] for x in s]
     assert s[0]["kind"] == "image" and s[0]["fit"] == "contain"
     assert s[1]["kind"] == "text"
-    assert d["sel"] == "texte1", d["sel"]
+    assert d["sel"] == ["texte1"], d["sel"]
 
 
 def test_la_palette_offre_les_elements_DU_MODELE_dont_le_jeu_est_ne(tmp_path):
@@ -6143,7 +6227,7 @@ def test_un_element_de_modele_NAIT_a_sa_zone_avec_ses_REGLAGES(tmp_path):
                                           {"t": "palclic", "o": "mod:" + el["id"]}]})
     s = d["slots"]
     assert len(s) == len(el["slots"]), [x["id"] for x in s]
-    assert d["sel"] == el["slots"][0]["id"], d["sel"]
+    assert d["sel"] == [el["slots"][0]["id"]], d["sel"]
     for ne, ref in zip(s, el["slots"]):
         assert ne == ref, (ne["id"], sorted(k for k in ref if ne.get(k) != ref[k]))
         assert TY.norm_slot(ne) == ne, ne["id"]
@@ -6170,7 +6254,7 @@ def test_ajouter_DEUX_FOIS_le_meme_element_RENOMME_comme_le_serveur(tmp_path):
     n = len(el["slots"])
     assert ids[n].startswith(ids[0]) and ids[n] != ids[0], ids
     # la sélection suit le SECOND ajout, sur son premier bloc
-    assert d["sel"] == ids[n], d["sel"]
+    assert d["sel"] == [ids[n]], d["sel"]
 
 
 # la batterie de collisions : l'écran et le serveur doivent renommer PAREIL.
@@ -6622,10 +6706,12 @@ def test_ECHAP_remis_SOUS_la_garde_de_selection_rougit(tmp_path):
                                   "actes": [{"t": "pal", "ms": 5},
                                             {"t": "key", "k": "Escape"}]},
                        mutations=(
-        ('    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }\r\n'
-         '    const s = selSlot();\r\n    if (!s) return;',
-         '    const s = selSlot();\r\n    if (!s) return;\r\n'
-         '    if (e.key === "Escape") { closeFontPicker(); closePalette(); return; }'),))
+        # LA MUTATION DIT LA MÊME CHOSE QU'AVANT, EN UNE LIGNE : la garde de
+        # sélection REMISE AU-DESSUS d'Échap. (La branche Échap a grandi en
+        # T3 — elle vide aussi le lot — et la déplacer bloc à bloc aurait fait
+        # d'un pin de comportement un pin de mise en page.)
+        ('    if (e.key === "Escape") {',
+         '    if (!selSlot()) return;\r\n    if (e.key === "Escape") {'),))
     assert _entrees(mut["menus"][0]) == _n_generiques() + len(m["elements"]), \
         "le menu fermé n'a pas été repeint : la garde ne mesure rien"
 
@@ -7274,7 +7360,7 @@ MUT_UNDO = ("\r\n})();", "\r\n  globalThis.__undo = () => UNDO.length;\r\n})();"
 def _banc_rangees(tmp_path, actes, lock=False, mutations=()):
     """Le banc de gestes, avec la porte de la pile d'annulation ouverte."""
     return _banc_verrou(tmp_path,
-                        {"state": {"slots": _slots_verrou(lock), "sel": "titre"},
+                        {"state": {"slots": _slots_verrou(lock), "sel": ["titre"]},
                          "doc": DOC_PLEIN, "actes": actes},
                         mutations=(MUT_UNDO,) + tuple(mutations))
 
@@ -7352,7 +7438,7 @@ def test_la_corbeille_supprime_le_bloc_et_deplace_la_designation(tmp_path):
     t = d["traces"][0]
     assert t["cable"] and t["patchs"] == 1 and t["undo"] == 1, t
     assert _ids(d) == ["regles"], d["slots"]
-    assert d["sel"] == "regles", d["sel"]
+    assert d["sel"] == ["regles"], d["sel"]
     assert [r["id"] for r in d["rangees"]] == ["regles"], d["rangees"]
 
 
@@ -7382,10 +7468,10 @@ def test_le_clic_sur_la_ligne_DESIGNE_mais_pas_a_travers_un_bouton(tmp_path):
     travail — sans quoi chaque appui sur l'œil redésignerait aussi le bloc."""
     d = _banc_rangees(tmp_path, [{"t": "ligne", "id": "regles"}])
     assert d["traces"][0]["cable"] and d["traces"][0]["patchs"] == 1, d["traces"]
-    assert d["sel"] == "regles", d["sel"]
+    assert d["sel"] == ["regles"], d["sel"]
     g = _banc_rangees(tmp_path, [{"t": "ligne", "id": "regles", "bouton": True}])
     assert g["traces"][0]["patchs"] == 0, g["traces"]
-    assert g["sel"] == "titre", g["sel"]
+    assert g["sel"] == ["titre"], g["sel"]
 
 
 # ── LES MUTANTS DE LA SECTION : chacun casse UNE moitié du geste ─────────────
@@ -8779,3 +8865,1026 @@ def test_le_compte_de_cles_des_modeles_suit_la_table():
     # ... et la table est bien DÉRIVÉE, donc les clés neuves y sont déjà
     s = MD._slot("x", "X", [0, 0, 10, 5])
     assert set(s) == set(TY.SLOT_DEFAULTS), set(s) ^ set(TY.SLOT_DEFAULTS)
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 16. LES OUTILS FIGMA (phase 5, T3 — décision D4)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# CE QUE CETTE SECTION GARDE, ET POURQUOI ELLE COMMENCE PAR DES FONCTIONS
+# PURES. Aligner, distribuer, égaliser et aimanter sont de l'ARITHMÉTIQUE sur
+# des rectangles : leur vérité se pose en millimètres et se relit en
+# millimètres, sans DOM, sans navigateur et sans opinion. Elles sont donc
+# écrites comme des fonctions sans effet de bord, EXTRAITES du module et
+# EXÉCUTÉES dans node contre des chiffres posés à la main. Le geste de l'écran,
+# lui, ne fait que les appeler — c'est la seule façon de mesurer « le lot est
+# aligné » autrement qu'en relisant sa propre intention.
+#
+# LE PIÈGE TRANSMIS PAR LA CLÔTURE T2, ET IL EST NOMMÉ ICI : le calque
+# d'édition GONFLE la boîte d'une forme plate (plancher de saisie 12 px) alors
+# que le DOCUMENT garde sa hauteur nulle. Un lasso ou un aimant qui lirait le
+# DOM lirait donc la boîte gonflée : deux vérités pour un rectangle. Tout ce
+# qui suit lit `s.box`, et un test le prouve en posant le lasso DANS la bande
+# gonflée mais HORS de la boîte du document — il ne doit rien attraper.
+
+
+def _pures_js(noms, appel: str) -> str:
+    """Les fonctions PURES de `mod-type.js`, extraites et exécutées dans node.
+    Rien n'est recopié : un test qui réécrirait la formule ne mesurerait que
+    lui-même (la leçon B1)."""
+    src = "".join(_fonction_js_type(n) for n in noms)
+    return _node_type(src + appel)
+
+
+# les trois rectangles de référence, posés à la main — les seuls chiffres de
+# la section, et tous les résultats attendus en découlent par soustraction.
+LOT3 = [[10.0, 20.0, 30.0, 8.0],
+        [14.0, 40.0, 12.0, 6.0],
+        [6.0, 60.0, 20.0, 4.0]]
+# enveloppe : x de 6 à 40 (34 mm), y de 20 à 64 (44 mm)
+ENV3 = [6.0, 20.0, 34.0, 44.0]
+
+
+def test_l_enveloppe_d_un_lot_est_le_plus_petit_rectangle_qui_le_contient():
+    """L'enveloppe est la base des six alignements : si elle est fausse, les
+    six le sont ensemble et aucun ne le dit."""
+    env = json.loads(_pures_js(
+        ["enveloppe"], f"console.log(JSON.stringify(enveloppe({json.dumps(LOT3)})));"))
+    assert env == ENV3, env
+    # un lot VIDE n'a pas d'enveloppe — et ce n'est pas [0,0,0,0], qui serait un
+    # rectangle au coin de coupe, donc une cible d'alignement inventée.
+    vide = json.loads(_pures_js(["enveloppe"],
+                                "console.log(JSON.stringify(enveloppe([])));"))
+    assert vide is None, vide
+
+
+def test_les_SIX_alignements_posent_les_millimetres_attendus():
+    """Vérité connue, calculée à la main sur l'enveloppe [6, 20, 34, 44] :
+
+      · gauche  -> x = 6 partout ;
+      · droite  -> x = 40 - largeur : 10, 28, 20 ;
+      · centreH -> x = 6 + (34 - largeur)/2 : 8, 17, 13 ;
+      · haut    -> y = 20 partout ;
+      · bas     -> y = 64 - hauteur : 56, 58, 60 ;
+      · centreV -> y = 20 + (44 - hauteur)/2 : 38, 39, 40.
+
+    ET CE QUI NE BOUGE PAS : un alignement horizontal ne touche JAMAIS y ni
+    les tailles. Sans ce contrôle, une formule qui recentre aussi en vertical
+    passerait — et déplacerait la moitié de la carte."""
+    out = json.loads(_pures_js(
+        ["enveloppe", "aligne"],
+        "const L=" + json.dumps(LOT3) + ";"
+        "const M=['left','hcenter','right','top','vcenter','bottom'];"
+        "const o={};M.forEach((m)=>{o[m]=aligne(L,m);});"
+        "console.log(JSON.stringify(o));"))
+    assert [b[0] for b in out["left"]] == [6.0, 6.0, 6.0], out["left"]
+    assert [b[0] for b in out["right"]] == [10.0, 28.0, 20.0], out["right"]
+    assert [b[0] for b in out["hcenter"]] == [8.0, 17.0, 13.0], out["hcenter"]
+    assert [b[1] for b in out["top"]] == [20.0, 20.0, 20.0], out["top"]
+    assert [b[1] for b in out["bottom"]] == [56.0, 58.0, 60.0], out["bottom"]
+    assert [b[1] for b in out["vcenter"]] == [38.0, 39.0, 40.0], out["vcenter"]
+    for m in ("left", "hcenter", "right"):
+        assert [b[1] for b in out[m]] == [20.0, 40.0, 60.0], (m, out[m])
+    for m in ("top", "vcenter", "bottom"):
+        assert [b[0] for b in out[m]] == [10.0, 14.0, 6.0], (m, out[m])
+    for m in out:
+        assert [b[2:] for b in out[m]] == [[30.0, 8.0], [12.0, 6.0], [20.0, 4.0]], m
+
+
+def test_distribuer_pose_des_ESPACES_EGAUX_et_ne_bouge_pas_les_extremes():
+    """« Espaces égaux » est la définition de Figma : ce sont les BLANCS entre
+    les rectangles qui deviennent égaux, pas les positions — trois boîtes de
+    largeurs différentes réparties « à pas constant » laisseraient des blancs
+    inégaux, ce qui est justement le défaut qu'on vient corriger.
+
+    Vérité connue : 0(10) / 20(10) / 100(10) — 30 mm d'objets dans 110 mm de
+    portée, donc 80 mm de blanc pour 2 intervalles = 40 mm chacun, et les
+    positions tombent sur 0 / 50 / 100."""
+    h = json.loads(_pures_js(
+        ["distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,10,5],[20,0,10,5],[100,0,10,5]],'h')));"))
+    assert [b[0] for b in h] == [0.0, 50.0, 100.0], h
+    assert [b[1] for b in h] == [0.0, 0.0, 0.0], "l'axe H a bougé Y"
+    v = json.loads(_pures_js(
+        ["distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[0,0,5,10],[0,20,5,10],[0,100,5,10]],'v')));"))
+    assert [b[1] for b in v] == [0.0, 50.0, 100.0], v
+    # DEUX BOÎTES N'ONT RIEN À DISTRIBUER : un seul blanc est déjà égal à
+    # lui-même. Rien ne bouge — et surtout pas « les coller ».
+    deux = json.loads(_pures_js(
+        ["distribue"],
+        "console.log(JSON.stringify(distribue([[0,0,10,5],[80,0,10,5]],'h')));"))
+    assert deux == [[0.0, 0.0, 10.0, 5.0], [80.0, 0.0, 10.0, 5.0]], deux
+    # ... et l'ORDRE D'ARRIVÉE ne décide de rien : c'est la POSITION qui range.
+    melange = json.loads(_pures_js(
+        ["distribue"],
+        "console.log(JSON.stringify(distribue("
+        "[[100,0,10,5],[0,0,10,5],[20,0,10,5]],'h')));"))
+    assert [b[0] for b in melange] == [100.0, 0.0, 50.0], melange
+
+
+def test_egaliser_prend_la_taille_du_PREMIER_SELECTIONNE():
+    """Le patron Figma du « key object » : la référence est le premier
+    sélectionné, pas la plus grande ni la moyenne — sans quoi égaliser deux
+    fois de suite donnerait deux résultats."""
+    r = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[5,20,8,4],[3,40,12,6]],"
+        "['rect','text','image'],'h')));"))
+    assert r["ref"] == 10.0, r
+    assert [b[3] for b in r["boxes"]] == [10.0, 10.0, 10.0], r["boxes"]
+    assert r["ignores"] == [], r
+    assert [b[2] for b in r["boxes"]] == [20.0, 8.0, 12.0], "la largeur a bougé"
+    w = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[5,20,8,4],[3,40,12,6]],"
+        "['rect','text','image'],'w')));"))
+    assert [b[2] for b in w["boxes"]] == [20.0, 20.0, 20.0], w["boxes"]
+
+
+def test_une_LIGNE_est_EXCLUE_de_l_egalisation_de_sa_dimension_NULLE():
+    """LA DÉCISION TRANSMISE PAR LA CLÔTURE T2, TRANCHÉE ICI. Une ligne
+    horizontale est une boîte de HAUTEUR NULLE — c'est la règle de l'axe.
+    Égaliser sa hauteur sur un lot ne la « redimensionne » pas : elle la rend
+    DIAGONALE, parce que le trait va d'un coin de la boîte à l'autre. Ce n'est
+    pas un redimensionnement, c'est un changement de nature.
+
+    La règle tranchée : une ligne ou une flèche dont la dimension VISÉE est
+    nulle est IGNORÉE, et l'écran le dit. Une ligne déjà oblique (hauteur non
+    nulle), elle, s'égalise comme tout le monde — son angle est un choix de
+    l'utilisateur, pas un axe."""
+    r = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[5,20,8,4],[3,40,30,0]],"
+        "['rect','text','line'],'h')));"))
+    assert r["ignores"] == [2], r
+    assert r["boxes"][2] == [3.0, 40.0, 30.0, 0.0], r["boxes"]
+    assert [b[3] for b in r["boxes"][:2]] == [10.0, 10.0], r["boxes"]
+    # LE TÉMOIN : sur la LARGEUR, cette même ligne n'est pas dégénérée — elle
+    # s'égalise. L'exclusion vise la dimension nulle, pas la nature « ligne ».
+    w = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[5,20,8,4],[3,40,30,0]],"
+        "['rect','text','line'],'w')));"))
+    assert w["ignores"] == [], w
+    assert [b[2] for b in w["boxes"]] == [20.0, 20.0, 20.0], w["boxes"]
+    # ... et une flèche OBLIQUE (hauteur 5) suit le lot : elle n'est pas plate.
+    o = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[0,0,20,10],[3,40,30,5]],['rect','arrow'],'h')));"))
+    assert o["ignores"] == [], o
+    assert o["boxes"][1][3] == 10.0, o["boxes"]
+
+
+def test_une_LIGNE_EN_REFERENCE_fait_REFUSER_l_egalisation_ENTIERE():
+    """L'autre moitié de la même décision, et elle est pire : si la RÉFÉRENCE
+    est la ligne plate, sa hauteur nulle s'appliquerait à tout le lot — le
+    titre, l'encadré et l'illustration deviendraient invisibles d'un clic. Le
+    lot n'est pas touché du tout, et le refus porte un nom."""
+    r = json.loads(_pures_js(
+        ["egalise"],
+        "console.log(JSON.stringify(egalise("
+        "[[3,40,30,0],[0,0,20,10]],['line','rect'],'h')));"))
+    assert r["refuse"] == "reference", r
+    assert r["boxes"] == [[3.0, 40.0, 30.0, 0.0], [0.0, 0.0, 20.0, 10.0]], r["boxes"]
+    assert r["ignores"] == [], r
+
+
+def test_l_aimant_colle_au_PLUS_PROCHE_et_seulement_SOUS_LE_SEUIL():
+    """L'aimant objet-à-objet, en arithmétique pure. Boîte [10, 20, 30, 8] :
+    ses candidats horizontaux sont 10 (bord gauche), 25 (centre) et 40 (bord
+    droit), ses candidats verticaux 20, 24 et 28.
+
+    Vérité connue : une cible à 9,7 attire le bord gauche de 0,3 mm ; une
+    cible à 40,9 est à 0,9 mm du bord droit, donc HORS du seuil de 0,6 — elle
+    ne fait rien. La boîte part à 9,7 et pas ailleurs."""
+    r = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:9.7,de:'A'},{mm:40.9,de:'B'}],y:[{mm:20.5,de:'C'}]},0.6)));"))
+    assert r["box"] == [9.7, 20.5, 30.0, 8.0], r["box"]
+    assert r["hitX"] is True and r["hitY"] is True, r
+    assert sorted((g["axe"], g["mm"], g["de"]) for g in r["lignes"]) == \
+        [("x", 9.7, "A"), ("y", 20.5, "C")], r["lignes"]
+    # LE SEUIL EST UNE FRONTIÈRE, PAS UNE INTENTION : 0,6 colle, 0,61 non.
+    pile = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:10.6,de:'A'}],y:[]},0.6)));"))
+    assert pile["box"][0] == 10.6 and pile["hitX"] is True, pile
+    juste = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:10.61,de:'A'}],y:[]},0.6)));"))
+    assert juste["box"][0] == 10.0 and juste["hitX"] is False, juste
+    assert juste["lignes"] == [], juste
+    # DEUX CIBLES DANS LE SEUIL : la plus proche gagne, pas la première lue.
+    duel = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:10.2,de:'loin'},{mm:9.9,de:'pres'}],y:[]},0.6)));"))
+    assert duel["box"][0] == 9.9, duel
+    assert duel["lignes"][0]["de"] == "pres", duel["lignes"]
+
+
+def test_l_aimant_colle_AUSSI_par_le_CENTRE_et_par_le_BORD_OPPOSE():
+    """Trois prises par axe, et c'est ce qui fait la différence entre « caler
+    à gauche » et « centrer sur » : une cible à 25,1 attrape le CENTRE de la
+    boîte, donc son bord gauche part à 10,1 — la boîte se déplace de 0,1 mm,
+    pas de 15."""
+    c = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:25.1,de:'centre'}],y:[]},0.6)));"))
+    assert c["box"][0] == 10.1, c["box"]
+    assert c["lignes"][0]["mm"] == 25.1, c["lignes"]
+    d = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],"
+        "{x:[{mm:40.4,de:'droite'}],y:[]},0.6)));"))
+    assert d["box"][0] == 10.4, d["box"]
+    # AUCUNE CIBLE : la boîte ressort telle quelle, et rien n'est signalé.
+    n = json.loads(_pures_js(
+        ["aimante"],
+        "console.log(JSON.stringify(aimante([10,20,30,8],{x:[],y:[]},0.6)));"))
+    assert n["box"] == [10.0, 20.0, 30.0, 8.0], n
+    assert n["hitX"] is False and n["hitY"] is False and n["lignes"] == [], n
+
+
+def test_le_seuil_d_aimantation_est_PLUS_GRAND_que_le_pas_de_grille():
+    """UN SEUIL SOUS LE PAS DE GRILLE NE SERAIT JAMAIS ATTEIGNABLE. Le glisser
+    arrondit déjà à 0,25 mm : un aimant à 0,2 mm ne se déclencherait que sur
+    les cibles elles-mêmes multiples de la grille, c'est-à-dire presque
+    jamais. Le seuil est donc écrit, et il est plus grand."""
+    src = _js()
+    m = re.search(r"const GUIDE_MM = ([\d.]+)", src)
+    assert m, "le seuil d'aimantation n'est pas nommé"
+    seuil = float(m.group(1))
+    g = re.search(r"SNAP_MM = ([\d.]+)", src)
+    assert seuil > float(g.group(1)), (seuil, g.group(1))
+
+
+# ── 16.1 LA SÉLECTION MULTIPLE — `doc.type.sel` devient une LISTE ────────────
+#
+# LE CONTRAT NOUVEAU, ÉCRIT ICI PARCE QU'IL EST LE SEUL À CHANGER DE FORME :
+#
+#   · `doc.type.sel` est désormais une LISTE d'identifiants, dans l'ordre où
+#     l'utilisateur les a pris. Le PREMIER est le « key object » du patron
+#     Figma : c'est lui qui donne sa taille à « égaliser », et c'est lui que
+#     l'ancien `selId()` continue de rendre.
+#   · LA MIGRATION EST DOUCE, DANS LE SENS DE LA LECTURE : une chaîne est lue
+#     comme une liste d'un élément, la chaîne vide comme une liste vide. Un
+#     deck enregistré avant cette tâche, et le document que `models.py` fabrique
+#     (`"sel": slots[0]["id"]`, une chaîne), s'ouvrent donc sans conversion.
+#   · L'ÉCRITURE, ELLE, EST TOUJOURS UNE LISTE : une seule forme sort d'ici.
+#   · Les identifiants MORTS sont filtrés à la lecture — une sélection qui
+#     survit à la suppression de son bloc réglerait un fantôme.
+#   · LE BACKEND NE LIT JAMAIS `sel` : `type.py` ne le connaît pas, `models.py`
+#     ne fait que l'écrire une fois. Aucun miroir n'est donc à tenir.
+
+_GEO3 = CT.geom("poker_eu", 300)
+
+
+def _clx(mm: float) -> float:
+    """Millimètres depuis le coin de coupe -> pixels client du banc. Le banc
+    pose la scène à l'échelle 1 (un pixel d'écran = un pixel de toile), donc la
+    conversion est celle du fichier livré, sans facteur caché."""
+    return _GEO3.bleed_off_px[0] + mm / 25.4 * 300
+
+
+def _cly(mm: float) -> float:
+    return _GEO3.bleed_off_px[1] + mm / 25.4 * 300
+
+
+def _lot2(**kw) -> list:
+    """Deux blocs de texte empilés, boîtes rondes en millimètres."""
+    a = TY.norm_slot(dict({"id": "a", "label": "A", "box": [10.0, 20.0, 30.0, 8.0],
+                           "text": "A"}, **kw))
+    b = TY.norm_slot({"id": "b", "label": "B", "box": [10.0, 40.0, 30.0, 8.0],
+                      "text": "B"})
+    return [a, b]
+
+
+def test_la_selection_est_une_LISTE_et_relit_encore_une_CHAINE(tmp_path):
+    """Les deux moitiés du contrat, mesurées ensemble : ce qui SORT est
+    toujours une liste, ce qui ENTRE peut être l'ancienne chaîne."""
+    # un document NEUF, sélection vide : un clic écrit une LISTE d'un élément
+    d = _banc_verrou(tmp_path, {"state": {"slots": _lot2(), "sel": ""},
+                                "actes": [{"t": "down", "id": "b"}, {"t": "up"}]})
+    assert d["sel"] == ["b"], d["sel"]
+    # un document ANCIEN, `sel` en chaîne : il est lu, et Maj+clic l'étend
+    v = _banc_verrou(tmp_path, {"state": {"slots": _lot2(), "sel": "a"},
+                                "actes": [{"t": "down", "id": "b", "maj": True}]})
+    assert v["sel"] == ["a", "b"], v["sel"]
+    # ... et le document que `models.py` fabrique porte EXACTEMENT cette forme
+    import app.services.cards.models as MD
+    py = pathlib.Path(MD.__file__).read_text(encoding="utf-8")
+    assert '"sel": (slots[0]["id"] if slots else "")' in py, \
+        "models.py n'écrit plus la chaîne que la lecture tolère"
+
+
+def test_MAJ_clic_ajoute_puis_RETIRE_du_lot(tmp_path):
+    """Le patron Figma : Maj bascule. Deux fois sur le même bloc et il sort du
+    lot — sans quoi on ne pourrait retirer qu'en repartant de zéro."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2(), "sel": ""},
+        "actes": [{"t": "down", "id": "a"}, {"t": "up"},
+                  {"t": "down", "id": "b", "maj": True},
+                  {"t": "down", "id": "b", "maj": True}]},
+        mutations=[MUT_UNDO])
+    bas = [t for t in d["traces"] if t["acte"] == "down"]
+    assert [t["sel"] for t in bas] == [["a"], ["a", "b"], ["a"]], d["traces"]
+    # MAJ+CLIC NE DÉMARRE PAS DE GLISSER : il désigne, point. Un geste qui
+    # commencerait ici déplacerait le lot au premier tremblement de main.
+    # (le clic NU, lui, en démarre un : c'est la moitié témoin de la mesure)
+    assert [t["moves"] for t in bas] == [1, 0, 0], d["traces"]
+    # ... et il ne pose AUCUNE entrée d'annulation : désigner n'est pas éditer.
+    assert [t["undo"] for t in bas] == [1, 0, 0], d["traces"]
+
+
+def test_un_clic_NU_sur_un_bloc_DEJA_du_lot_garde_le_lot(tmp_path):
+    """Le geste qui rend la multi-sélection utilisable : reprendre le lot à la
+    main. Un clic nu sur un bloc HORS du lot le réduit à lui seul (patron
+    Figma) ; sur un bloc DÉJÀ dedans, il ne le réduit pas — sinon tout glisser
+    de groupe commencerait par le détruire."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2(), "sel": ""},
+        "actes": [{"t": "down", "id": "a"},
+                  {"t": "down", "id": "b", "maj": True},
+                  {"t": "down", "id": "a"}]})
+    assert d["traces"][2]["sel"] == ["a", "b"], d["traces"]
+    r = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2(), "sel": ["a", "b"]},
+        "actes": [{"t": "down", "id": "b"}, {"t": "up"}]})
+    assert r["sel"] == ["a", "b"], r["sel"]
+    # un bloc HORS du lot, lui, le remplace
+    s = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2() + [TY.norm_slot(
+            {"id": "c", "label": "C", "box": [10.0, 60.0, 30.0, 8.0]})],
+            "sel": ["a", "b"]},
+        "actes": [{"t": "down", "id": "c"}, {"t": "up"}]})
+    assert s["sel"] == ["c"], s["sel"]
+
+
+def test_ECHAP_vide_la_selection(tmp_path):
+    """Échap ferme les menus (acquis de la phase 4) ET vide le lot. Une
+    sélection qu'on ne sait pas relâcher se traîne d'un geste à l'autre."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2(), "sel": ["a", "b"]},
+        "actes": [{"t": "key", "k": "Escape"}]})
+    assert d["sel"] == [], d["sel"]
+    # ... et Échap sur une sélection DÉJÀ vide n'écrit rien du tout
+    v = _banc_verrou(tmp_path, {"state": {"slots": _lot2(), "sel": []},
+                                "actes": [{"t": "key", "k": "Escape"}]})
+    n = _banc_verrou(tmp_path, {"state": {"slots": _lot2(), "sel": []},
+                                "actes": []})
+    assert v["patchs"] == n["patchs"], (v["patchs"], n["patchs"])
+
+
+def _lot_trait() -> list:
+    """Une LIGNE PLATE (hauteur nulle) et un bloc de texte plus bas. La ligne
+    est le piège transmis par la clôture T2 : son calque d'édition est gonflé
+    à 12 px, son document ne l'est pas."""
+    return [TY.norm_slot({"id": "trait", "kind": "line", "label": "Trait",
+                          "box": [10.0, 40.0, 40.0, 0.0],
+                          "stroke": "#20c0ff", "stroke_mm": 0.5}),
+            TY.norm_slot({"id": "titre", "label": "Titre",
+                          "box": [10.0, 60.0, 40.0, 8.0], "text": "T"})]
+
+
+def test_le_LASSO_prend_ce_qu_il_TOUCHE(tmp_path):
+    """Le lasso de Figma prend ce qu'il TOUCHE (intersection), pas seulement ce
+    qu'il contient : sur une carte de 63 x 88 mm, exiger l'inclusion complète
+    obligerait à partir hors de la carte pour attraper un titre pleine
+    largeur."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_trait(), "sel": []},
+        "actes": [{"t": "lasso", "x0": _clx(5.0), "y0": _cly(39.5),
+                   "x1": _clx(55.0), "y1": _cly(40.5)}]})
+    assert d["sel"] == ["trait"], d["sel"]
+    # le lasso qui prend les DEUX
+    b = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_trait(), "sel": []},
+        "actes": [{"t": "lasso", "x0": _clx(5.0), "y0": _cly(30.0),
+                   "x1": _clx(55.0), "y1": _cly(70.0)}]})
+    assert b["sel"] == ["trait", "titre"], b["sel"]
+    # MAJ + LASSO AJOUTE au lot au lieu de le remplacer
+    m = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_trait(), "sel": ["titre"]},
+        "actes": [{"t": "lasso", "x0": _clx(5.0), "y0": _cly(39.5),
+                   "x1": _clx(55.0), "y1": _cly(40.5), "maj": True}]})
+    assert m["sel"] == ["titre", "trait"], m["sel"]
+    # UN CLIC NU DANS LE VIDE VIDE LE LOT — et ne pose aucune annulation
+    v = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_trait(), "sel": ["titre", "trait"]},
+        "actes": [{"t": "lasso", "x0": _clx(30.0), "y0": _cly(20.0),
+                   "x1": _clx(30.0), "y1": _cly(20.0)}]},
+        mutations=[MUT_UNDO])
+    assert v["sel"] == [], v["sel"]
+    assert v["traces"][0]["undo"] == 0, v["traces"]
+
+
+# LA MUTATION QUI SÉPARE LES DEUX VÉRITÉS : elle fait lire au lasso la boîte
+# GONFLÉE du calque d'édition, exactement comme le ferait un lasso branché sur
+# le DOM. Sans elle, « le lasso lit le document » serait une phrase de
+# commentaire — le test voisin passerait aussi bien sur le code fautif.
+MUT_LASSO_DOM = (
+    "    const b = s.box;   /* CF-LASSO-DOC */",
+    "    const b = (isShape(s) && s.box[3] === 0)\r\n"
+    "      ? [s.box[0], s.box[1] - 0.508, s.box[2], 1.016] : s.box;")
+
+
+def test_le_LASSO_lit_la_boite_du_DOCUMENT_et_JAMAIS_le_calque(tmp_path):
+    """LE PIÈGE TRANSMIS PAR LA CLÔTURE T2, ÉPROUVÉ. Le calque d'édition donne
+    à une ligne plate un plancher de saisie de 12 px — soit ±0,508 mm autour
+    de sa position à 300 DPI. Sa boîte AFFICHÉE couvre donc 39,49 à 40,51 mm ;
+    sa boîte de DOCUMENT est le segment y = 40, épaisseur nulle.
+
+    Le lasso est posé entre 40,25 et 40,45 mm : DANS la bande gonflée, HORS du
+    document. Il ne doit RIEN attraper — et la mutation, qui fait lire la boîte
+    gonflée, doit l'attraper. Deux vérités pour un rectangle, séparées."""
+    acte = [{"t": "lasso", "x0": _clx(5.0), "y0": _cly(40.25),
+             "x1": _clx(55.0), "y1": _cly(40.45)}]
+    d = _banc_verrou(tmp_path, {"state": {"slots": _lot_trait(), "sel": []},
+                                "actes": acte})
+    assert d["sel"] == [], \
+        "le lasso a attrapé une ligne qui n'est pas là : il lit le calque"
+    mut = _banc_verrou(tmp_path, {"state": {"slots": _lot_trait(), "sel": []},
+                                  "actes": acte}, mutations=[MUT_LASSO_DOM])
+    assert mut["sel"] == ["trait"], \
+        "la mutation ne change rien : le test ne sépare pas les deux boîtes"
+    # ... et le DOCUMENT n'a pas bougé d'un millimètre dans les deux cas
+    assert d["slots"][0]["box"] == [10.0, 40.0, 40.0, 0.0], d["slots"][0]
+
+
+def test_le_lot_GLISSE_ENSEMBLE_en_UN_SEUL_pas_d_annulation(tmp_path):
+    """Le contrat d'annulation de la pièce, tenu sur un geste de groupe : UN
+    glisser = UNE entrée, quel que soit le nombre de blocs. 150 px d'écran à
+    l'échelle 1 valent exactement 12,7 mm — les deux boîtes partent de 10 et
+    arrivent à 22,7."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2(), "sel": ["a", "b"]},
+        "actes": [{"t": "down", "id": "a", "x": 400, "y": 400},
+                  {"t": "move", "x": 550, "y": 400},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    boxes = {s["id"]: s["box"] for s in d["slots"]}
+    assert boxes["a"] == [22.7, 20.0, 30.0, 8.0], boxes
+    assert boxes["b"] == [22.7, 40.0, 30.0, 8.0], boxes
+    assert d["undo"] == 1, d["undo"]
+    # LE TÉMOIN : un bloc HORS du lot ne bouge pas.
+    t = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot2() + [TY.norm_slot(
+            {"id": "c", "label": "C", "box": [10.0, 60.0, 30.0, 8.0]})],
+            "sel": ["a"]},
+        "actes": [{"t": "down", "id": "a", "x": 400, "y": 400},
+                  {"t": "move", "x": 550, "y": 400},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    bt = {s["id"]: s["box"] for s in t["slots"]}
+    assert bt["a"][0] == 22.7 and bt["b"][0] == 10.0 and bt["c"][0] == 10.0, bt
+    assert t["undo"] == 1, t["undo"]
+
+
+def test_un_bloc_VERROUILLE_du_lot_ne_suit_PAS_le_glisser(tmp_path):
+    """Le verrou vaut aussi en lot — sinon il suffirait d'attraper un voisin
+    pour déplacer un bloc protégé, ce qui viderait le cadenas de son sens."""
+    lot = _lot2()
+    lot[1]["lock"] = True
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["a", "b"]},
+        "actes": [{"t": "down", "id": "a", "x": 400, "y": 400},
+                  {"t": "move", "x": 550, "y": 400},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    boxes = {s["id"]: s["box"] for s in d["slots"]}
+    assert boxes["a"] == [22.7, 20.0, 30.0, 8.0], boxes
+    assert boxes["b"] == [10.0, 40.0, 30.0, 8.0], "le bloc verrouillé a suivi"
+    assert any("verrouill" in t["m"] for t in d["toasts"]), d["toasts"]
+
+
+def test_UN_SEUL_lecteur_de_type_sel_dans_toute_la_piece():
+    """LA MIGRATION SE VÉRIFIE PAR L'ABSENCE DE SECOND LECTEUR. Tant qu'un seul
+    endroit lit `type.sel`, la tolérance (chaîne ou liste) et le filtrage des
+    identifiants morts sont vrais partout. Un second `CF.get("type.sel"` serait
+    un endroit où l'ancienne forme reviendrait."""
+    src = _js()
+    assert src.count('CF.get("type.sel"') == 1, \
+        "plus d'un lecteur brut de `type.sel` : la migration a un trou"
+    lec = _js_fn(src, "selIds")
+    assert 'CF.get("type.sel"' in lec, "le lecteur unique n'est pas `selIds`"
+    # et `selId()` reste le PREMIER du lot : c'est lui que les anciens
+    # lecteurs (panneau, calque, liste) continuent d'appeler
+    assert "const selId = () => selIds()[0]" in src, \
+        "`selId` n'est plus dérivé de la liste"
+
+
+# ── 16.2 LA BARRE CONTEXTUELLE — aligner, distribuer, égaliser ──────────────
+#
+# Les fonctions pures ci-dessus SAVENT ; cette section vérifie qu'un bouton du
+# panneau les APPELLE, sur les bonnes boîtes, et qu'un Ctrl+Z défait le geste
+# entier. C'est la moitié qu'aucune vérité arithmétique ne couvre : une barre
+# parfaitement calculée mais branchée sur le mauvais lot serait verte partout.
+
+def _lot3() -> list:
+    """Trois blocs aux boîtes de LOT3 — les mêmes chiffres que les fonctions
+    pures, pour que le résultat attendu se relise sans recalcul."""
+    return [TY.norm_slot({"id": "un", "label": "Un", "box": LOT3[0], "text": "1"}),
+            TY.norm_slot({"id": "deux", "label": "Deux", "box": LOT3[1], "text": "2"}),
+            TY.norm_slot({"id": "trois", "label": "Trois", "box": LOT3[2], "text": "3"})]
+
+
+def test_la_barre_n_apparait_QU_A_PARTIR_DE_DEUX_blocs(tmp_path):
+    """« Aligner » sur un bloc seul n'a pas de sens : l'enveloppe de la
+    sélection EST sa boîte, donc les six boutons ne bougeraient rien. Une barre
+    de dix commandes inertes est exactement ce que cette pièce refuse."""
+    un = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un"]}})
+    assert "cf-type-abar" not in un["insp"], "la barre s'affiche sur un bloc seul"
+    deux = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un", "deux"]}})
+    assert "cf-type-abar" in deux["insp"], "la barre manque à deux blocs"
+    assert "2 blocs" in deux["insp"], deux["insp"][:400]
+
+
+def test_ALIGNER_A_GAUCHE_pose_les_millimetres_de_la_fonction_pure(tmp_path):
+    """Le bouton appelle `aligne` sur les boîtes du LOT — et sur elles seules.
+    Vérité connue (enveloppe [6, 20, 34, 44]) : les trois bords gauches
+    tombent à 6,0."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    assert d["traces"][0]["cable"], d["traces"]
+    assert [s["box"][0] for s in d["slots"]] == [6.0, 6.0, 6.0], d["slots"]
+    # ... et RIEN d'autre n'a bougé : ni les Y, ni les tailles
+    assert [s["box"][1] for s in d["slots"]] == [20.0, 40.0, 60.0], d["slots"]
+    # UN SEUL PAS D'ANNULATION POUR TROIS BOÎTES — le contrat de la pièce
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    assert d["traces"][0]["patchs"] == 1, d["traces"]
+    # LE TÉMOIN : hors du lot, rien ne bouge — et l'enveloppe change avec le
+    # lot. Sans « trois », elle commence à 10 (et non 6), donc les deux
+    # premiers restent à 10 et le troisième garde son 6.
+    t = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    assert [s["box"][0] for s in t["slots"]] == [10.0, 10.0, 6.0], t["slots"]
+
+
+def test_ALIGNER_sur_DEUX_blocs_prend_LEUR_enveloppe(tmp_path):
+    """Le témoin du test précédent, mesuré pour lui-même : l'enveloppe de
+    « un » et « deux » commence à 10 (et non 6, qui est le bord de « trois »)."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux"]},
+        "actes": [{"t": "barre", "v": "left"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["un"][0] == 10.0 and par["deux"][0] == 10.0, par
+    assert par["trois"][0] == 6.0, "un bloc hors du lot a été déplacé"
+
+
+def test_DISTRIBUER_appelle_la_fonction_pure_sur_le_LOT(tmp_path):
+    """Trois boîtes verticales de LOT3 : distribuées, elles tombent à
+    20 / 41 / 60 — le calcul de la fonction pure, joué par le bouton."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux", "trois"]},
+        "actes": [{"t": "barre", "v": "distv"}]},
+        mutations=[MUT_UNDO])
+    assert [s["box"][1] for s in d["slots"]] == [20.0, 41.0, 60.0], d["slots"]
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    # DEUX BLOCS : rien à distribuer, et l'écran le DIT au lieu de ne rien faire
+    r = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux"]},
+        "actes": [{"t": "barre", "v": "distv"}]},
+        mutations=[MUT_UNDO])
+    assert r["traces"][0]["undo"] == 0, r["traces"]
+    assert any("trois" in t["m"] for t in r["toasts"]), r["toasts"]
+
+
+def _lot_avec_ligne() -> list:
+    return [TY.norm_slot({"id": "un", "label": "Un", "box": [0.0, 0.0, 20.0, 10.0],
+                          "text": "1"}),
+            TY.norm_slot({"id": "deux", "label": "Deux", "box": [5.0, 20.0, 8.0, 4.0],
+                          "text": "2"}),
+            TY.norm_slot({"id": "trait", "kind": "line", "label": "Trait",
+                          "box": [3.0, 40.0, 30.0, 0.0],
+                          "stroke": "#20c0ff", "stroke_mm": 0.5})]
+
+
+def test_EGALISER_LA_HAUTEUR_ignore_la_ligne_ET_LE_DIT(tmp_path):
+    """LA DÉCISION TRANSMISE, VUE DEPUIS L'ÉCRAN. La ligne garde sa hauteur
+    nulle, les deux autres prennent celle du PREMIER sélectionné (10 mm) — et
+    le toast nomme l'exclusion avec sa raison. Un refus muet ferait croire à
+    une commande cassée."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_avec_ligne(), "sel": ["un", "deux", "trait"]},
+        "actes": [{"t": "barre", "v": "eqh"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["un"][3] == 10.0 and par["deux"][3] == 10.0, par
+    assert par["trait"][3] == 0.0, "la ligne est devenue diagonale"
+    assert d["traces"][0]["undo"] == 1, d["traces"]
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "1 ligne" in msg and "diagonale" in msg, d["toasts"]
+    # ... et sur la LARGEUR, la même ligne suit le lot : rien n'est ignoré
+    w = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_avec_ligne(), "sel": ["un", "deux", "trait"]},
+        "actes": [{"t": "barre", "v": "eqw"}]},
+        mutations=[MUT_UNDO])
+    assert [s["box"][2] for s in w["slots"]] == [20.0, 20.0, 20.0], w["slots"]
+    assert all("diagonale" not in t["m"] for t in w["toasts"]), w["toasts"]
+
+
+def test_EGALISER_SUR_UNE_LIGNE_EN_REFERENCE_refuse_ET_LE_DIT(tmp_path):
+    """Le pire cas : la ligne est le premier sélectionné. Sa hauteur nulle
+    aplatirait tout le lot d'un clic. Rien ne bouge, rien ne s'annule, et la
+    phrase donne le remède (désigner un autre bloc en premier)."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot_avec_ligne(), "sel": ["trait", "un", "deux"]},
+        "actes": [{"t": "barre", "v": "eqh"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["un"][3] == 10.0 and par["deux"][3] == 4.0, "le lot a été aplati"
+    assert d["traces"][0]["undo"] == 0 and d["traces"][0]["patchs"] == 0, d["traces"]
+    msg = " ".join(t["m"] for t in d["toasts"])
+    assert "référence" in msg and "diagonale" in msg, d["toasts"]
+
+
+# ── 16.3 LES RÉGLAGES COMMUNS, ÉDITÉS EN LOT ────────────────────────────────
+
+def test_le_panneau_de_LOT_montre_MIXTE_quand_les_valeurs_different(tmp_path):
+    """Le patron Figma : une valeur commune s'affiche, des valeurs différentes
+    s'affichent « mixte ». Sans cette distinction, le panneau d'un lot montre
+    la valeur du premier et l'utilisateur croit que c'est celle de tous."""
+    lot = _lot3()
+    lot[1]["side"] = "back"
+    d = _banc_verrou(tmp_path, {"state": {"slots": lot, "sel": ["un", "deux"]}})
+    assert "mixte" in d["insp"], d["insp"][:800]
+    # ... et quand elles sont d'accord, la valeur commune est ACTIVE
+    m = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un", "deux"]}})
+    assert 'data-v="front" title="recto seul"' in m["insp"].replace(
+        'class="seg-b active"', 'class="seg-b active"'), "le segment commun manque"
+    assert 'seg-b active" type="button" data-v="front"' in m["insp"], m["insp"][:900]
+
+
+def test_un_reglage_COMMUN_se_pose_sur_TOUT_le_lot_en_UN_pas(tmp_path):
+    """La face, choisie une fois pour trois blocs. Un patch, une annulation."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "trois"]},
+        "actes": [{"t": "lot", "seg": True, "k": "side", "v": "back"}]},
+        mutations=[MUT_UNDO])
+    assert d["traces"][0]["cable"], d["traces"]
+    par = {s["id"]: s["side"] for s in d["slots"]}
+    assert par == {"un": "back", "deux": "front", "trois": "back"}, par
+    assert d["traces"][0]["undo"] == 1 and d["traces"][0]["patchs"] == 1, d["traces"]
+
+
+def test_les_BOUTS_FLECHES_s_appliquent_AU_LOT_et_les_autres_IGNORENT(tmp_path):
+    """LA DÉCISION TRANSMISE PAR LA CLÔTURE T2 : oui, `arrow_start` et
+    `arrow_end` s'éditent en lot. Les natures qui n'ont pas de bout fléché
+    (texte, image, rectangle, ellipse) ne sont PAS touchées — et l'écran dit
+    combien de blocs la commande vise réellement, avant le clic."""
+    lot = [TY.norm_slot({"id": "f1", "kind": "arrow", "label": "F1",
+                         "box": [0.0, 0.0, 30.0, 0.0], "stroke": "#fff",
+                         "stroke_mm": 0.5}),
+           TY.norm_slot({"id": "f2", "kind": "arrow", "label": "F2",
+                         "box": [0.0, 10.0, 30.0, 0.0], "stroke": "#fff",
+                         "stroke_mm": 0.5}),
+           TY.norm_slot({"id": "txt", "label": "Texte", "box": [0.0, 20.0, 30.0, 6.0],
+                         "text": "x"})]
+    ids = ["f1", "f2", "txt"]
+    d = _banc_verrou(tmp_path, {"state": {"slots": lot, "sel": ids}})
+    # l'écran annonce la portée AVANT le clic : 2 flèches sur 3 blocs
+    assert "2 flèche" in d["insp"], d["insp"][:1200]
+    r = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ids},
+        "actes": [{"t": "lot", "k": "arrow_start"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s for s in r["slots"]}
+    assert par["f1"]["arrow_start"] is True and par["f2"]["arrow_start"] is True, par
+    # le TÉMOIN : le bloc de texte a bien la clé (elle est dans la table) et
+    # elle n'a PAS bougé — la commande l'a ignoré, elle ne l'a pas écrasé.
+    assert par["txt"]["arrow_start"] is False, par["txt"]
+    assert r["traces"][0]["undo"] == 1, r["traces"]
+    # ... et un lot SANS aucune flèche refuse et le dit
+    sans = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux"]},
+        "actes": [{"t": "lot", "k": "arrow_start"}]},
+        mutations=[MUT_UNDO])
+    assert sans["traces"][0]["undo"] == 0, sans["traces"]
+    assert any("flèche" in t["m"] for t in sans["toasts"]), sans["toasts"]
+
+
+# ── 16.4 LES GESTES DE PROFONDEUR — UNE SEULE MÉCANIQUE D'ORDRE ─────────────
+#
+# L'ORDRE DE PEINTURE EST CELUI DU TABLEAU `doc.type.slots` : le rang 0 se
+# peint EN PREMIER (donc au fond), le dernier se peint EN DERNIER (donc
+# devant). C'est déjà ce que déplacent les deux flèches de rangée. Les gestes
+# de canvas s'y branchent par la MÊME fonction : deux vérités d'ordre, c'est
+# une liste et une carte qui se contredisent au premier export.
+
+def test_l_ordre_APRES_un_geste_de_profondeur_a_une_verite_connue():
+    """La fonction pure, jouée dans node. Quatre gestes, un lot, et le cas du
+    BORD : au bout de la pile, un geste ne rend RIEN — pas un ordre identique.
+    Un patch qui ne change rien serait un Ctrl+Z qui ne défait rien."""
+    out = json.loads(_pures_js(
+        ["ordreApres"],
+        "const I=['a','b','c','d'];const o={};"
+        "[['b','avant'],['b','arriere'],['b','tout-avant'],['b','tout-arriere'],"
+        "['a','arriere'],['d','avant']].forEach((q)=>{"
+        "o[q[0]+':'+q[1]]=ordreApres(I,[q[0]],q[1]);});"
+        "o['lot:tout-avant']=ordreApres(I,['a','c'],'tout-avant');"
+        "o['lot:avant']=ordreApres(I,['a','b'],'avant');"
+        "console.log(JSON.stringify(o));"))
+    assert out["b:avant"] == ["a", "c", "b", "d"], out
+    assert out["b:arriere"] == ["b", "a", "c", "d"], out
+    assert out["b:tout-avant"] == ["a", "c", "d", "b"], out
+    assert out["b:tout-arriere"] == ["b", "a", "c", "d"], out
+    assert out["a:arriere"] is None, out
+    assert out["d:avant"] is None, out
+    # UN LOT SE DÉPLACE EN BLOC, ordre relatif conservé
+    assert out["lot:tout-avant"] == ["b", "d", "a", "c"], out
+    assert out["lot:avant"] == ["c", "a", "b", "d"], out
+
+
+def test_les_quatre_gestes_de_profondeur_reordonnent_ET_UNE_ANNULATION(tmp_path):
+    """Les boutons, joués. Et le bord ne fait RIEN — ni patch, ni annulation."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un"]},
+        "actes": [{"t": "barre", "cl": "cf-type-z", "dk": "z", "v": "avant"}]},
+        mutations=[MUT_UNDO])
+    assert _ids(d) == ["deux", "un", "trois"], d["slots"]
+    assert d["traces"][0]["undo"] == 1 and d["traces"][0]["patchs"] == 1, d["traces"]
+    t = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un"]},
+        "actes": [{"t": "barre", "cl": "cf-type-z", "dk": "z", "v": "tout-avant"}]},
+        mutations=[MUT_UNDO])
+    assert _ids(t) == ["deux", "trois", "un"], t["slots"]
+    b = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un"]},
+        "actes": [{"t": "barre", "cl": "cf-type-z", "dk": "z", "v": "arriere"}]},
+        mutations=[MUT_UNDO])
+    assert _ids(b) == ["un", "deux", "trois"], b["slots"]
+    assert b["traces"][0]["patchs"] == 0 and b["traces"][0]["undo"] == 0, b["traces"]
+    # LA SÉLECTION SURVIT AU GESTE : on continue de régler le même bloc
+    assert d["sel"] == ["un"], d["sel"]
+
+
+def test_les_fleches_de_RANGEE_et_les_gestes_de_CANVAS_partagent_la_mecanique():
+    """« Les gestes appellent la MÊME mécanique, pas une seconde vérité
+    d'ordre. » Mesuré à la source : `moveSlot` (la flèche de rangée) et le
+    bouton de profondeur passent tous deux par `zApplique`, qui est le seul
+    appelant d'`ordreApres`."""
+    src = _js()
+    mv = _js_fn(src, "moveSlot")
+    assert "zApplique(" in mv, "la flèche de rangée a gardé son propre calcul"
+    assert "splice" not in mv, "la flèche de rangée réordonne encore elle-même"
+    corps = _js_fn(src, "zApplique")
+    assert "ordreApres(" in corps, "zApplique n'appelle pas la fonction d'ordre"
+    assert src.count("ordreApres(") == 2, \
+        "`ordreApres` a plus d'un appelant : il y a une seconde vérité d'ordre"
+
+
+# ── 16.5 LA ROTATION À LA POIGNÉE ───────────────────────────────────────────
+
+def test_la_poignee_de_ROTATION_est_servie_en_SOLO_et_GRISEE_en_LOT(tmp_path):
+    """Elle reste VISIBLE en lot — une commande absente se cherche, une
+    commande grisée s'explique — et son infobulle dit la raison : chacun
+    tournerait sur SON centre, donc le lot se disloquerait."""
+    solo = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un"]}})
+    assert 'class="cf-type-rot"' in solo["ov"], solo["ov"][:600]
+    lot = _banc_verrou(tmp_path, {"state": {"slots": _lot3(), "sel": ["un", "deux"]}})
+    assert 'class="cf-type-rot off"' in lot["ov"], lot["ov"][:900]
+    assert "disloquerait" in lot["ov"], lot["ov"][:900]
+    # ... et les poignées de TAILLE ne sont pas servies au lot (géométrie de
+    # groupe : ce n'est pas de cette phase, et huit prises qui ne retaillent
+    # qu'une boîte sur n seraient un geste qui ment)
+    assert "cf-type-hh" in solo["ov"] and "cf-type-hh" not in lot["ov"], lot["ov"][:900]
+
+
+def test_la_ROTATION_tourne_le_bloc_et_MAJ_cale_sur_QUINZE_degres(tmp_path):
+    """Vérité connue : la boîte « un » couvre 10..40 x 20..28 mm, son centre est
+    donc à (25, 24) mm, soit (330,5 ; 318,9) px d'écran à l'échelle 1. On
+    appuie PLEIN EST du centre (angle 0) et on relâche PLEIN SUD (angle +90°) :
+    la valeur part de 0 et arrive à 90."""
+    cx, cy = _clx(25.0), _cly(24.0)
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un"]},
+        "actes": [{"t": "down", "id": "un", "h": "rot", "x": cx + 100, "y": cy},
+                  {"t": "move", "x": cx, "y": cy + 100},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s for s in d["slots"]}
+    assert abs(par["un"]["rotate"] - 90.0) < 0.001, par["un"]["rotate"]
+    assert d["undo"] == 1, d["undo"]
+    # ... et la BOÎTE n'a pas bougé : une rotation n'est pas un déplacement
+    assert par["un"]["box"] == LOT3[0], par["un"]["box"]
+    # MAJ CALE SUR 15° : 40° de mouvement réel tombent sur 45
+    m = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un"]},
+        "actes": [{"t": "down", "id": "un", "h": "rot", "x": cx + 100, "y": cy},
+                  {"t": "move", "x": cx + 76.6, "y": cy + 64.3, "maj": True},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    pm = {s["id"]: s for s in m["slots"]}
+    assert pm["un"]["rotate"] == 45.0, pm["un"]["rotate"]
+
+
+def test_la_ROTATION_est_REFUSEE_en_lot_et_le_refus_se_DIT(tmp_path):
+    """Le geste ne démarre pas (aucun pointermove branché) et la phrase donne
+    le remède. Un curseur qui ne fait rien se lit comme une panne."""
+    cx, cy = _clx(25.0), _cly(24.0)
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _lot3(), "sel": ["un", "deux"]},
+        "actes": [{"t": "down", "id": "un", "h": "rot", "x": cx + 100, "y": cy}]},
+        mutations=[MUT_UNDO])
+    assert d["traces"][0]["moves"] == 0, d["traces"]
+    assert d["traces"][0]["undo"] == 0, d["traces"]
+    assert any("disloquerait" in t["m"] for t in d["toasts"]), d["toasts"]
+
+
+# ── 16.6 LES GUIDES OBJET-À-OBJET ───────────────────────────────────────────
+#
+# TROIS RÉGIMES, ET IL FAUT LES TROIS POUR QUE LA MESURE VEUILLE DIRE QUELQUE
+# CHOSE : l'aimant prend (la boîte tombe sur le millimètre EXACT du voisin), la
+# grille reprend (rien à proximité : 0,25 mm comme avant), Alt débraye les deux
+# (main levée). Un test qui ne montrerait que le premier ne dirait pas si
+# l'aimant a remplacé la grille ou s'il l'a simplement doublée.
+#
+# Les déplacements sont donnés en PIXELS D'ÉCRAN (le banc est à l'échelle 1),
+# et les millimètres attendus s'en déduisent par 25,4/300 — la conversion du
+# fichier livré, pas une constante de test.
+
+def _voisin(x: float) -> list:
+    """Un bloc mobile à [10, 20, 30, 8] et un voisin fixe dont le bord gauche
+    est posé à `x`."""
+    return [TY.norm_slot({"id": "mob", "label": "Mobile", "box": [10.0, 20.0, 30.0, 8.0],
+                          "text": "m"}),
+            TY.norm_slot({"id": "fixe", "label": "Fixe", "box": [x, 40.0, 20.0, 8.0],
+                          "text": "f"})]
+
+
+def test_l_AIMANT_pose_la_boite_sur_le_BORD_EXACT_du_voisin(tmp_path):
+    """235 px d'écran valent 19,8967 mm : le bord gauche du mobile arrive à
+    29,8967, soit 0,1033 mm du bord du voisin (30). Sous le seuil de 0,6 :
+    l'aimant prend et pose 30,0 EXACTEMENT — pas 29,75, qui est ce que la
+    grille de 0,25 mm aurait donné."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _voisin(30.0), "sel": ["mob"]},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 630, "y": 400, "alt": False},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["mob"] == [30.0, 20.0, 30.0, 8.0], par
+    assert par["fixe"][0] == 30.0, "le voisin a bougé"
+    assert d["undo"] == 1, d["undo"]
+    # LA LIGNE DE GUIDE EXISTE PENDANT LE GESTE, et elle nomme sa cible
+    ov = d["traces"][1]["ov"]
+    assert "cf-type-guide gx" in ov, ov[:600]
+    assert "Fixe" in ov, ov[:600]
+    # ... et elle a disparu au relâchement : un guide qui reste est une marque
+    # que plus rien ne justifie
+    assert "cf-type-guide" not in d["ov"], d["ov"][:600]
+
+
+def test_la_GRILLE_reste_le_REPLI_quand_rien_n_aimante(tmp_path):
+    """Le même geste, le voisin déplacé hors de portée : 19,8967 mm arrondis au
+    quart de millimètre font 19,75, donc 29,75. La grille n'a pas été retirée,
+    elle est passée dessous."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _voisin(58.0), "sel": ["mob"]},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 630, "y": 400, "alt": False},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["mob"] == [29.5, 20.0, 30.0, 8.0], par
+    assert "cf-type-guide" not in d["traces"][1]["ov"], d["traces"][1]["ov"][:600]
+
+
+def test_ALT_DEBRAYE_l_aimant_ET_la_grille(tmp_path):
+    """« Alt = à main levée », une seule promesse à retenir : c'est déjà la
+    touche qui débrayait la grille, elle débraye maintenant les deux. 19,8967
+    mm bruts, sans arrondi et sans aimant."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": _voisin(30.0), "sel": ["mob"]},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 630, "y": 400, "alt": True},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["mob"] == [29.473, 20.0, 30.0, 8.0], par
+    assert "cf-type-guide" not in d["traces"][1]["ov"], d["traces"][1]["ov"][:600]
+
+
+def test_la_FENETRE_D_ILLUSTRATION_est_une_CIBLE_d_aimantation(tmp_path):
+    """P2 publie `frame.art_window` en millimètres depuis la coupe — le même
+    contrat que P1 lit depuis le premier jour. P3 le lit comme cible : caler un
+    titre sur le bord de la fenêtre est le geste le plus fréquent d'une mise en
+    page de carte, et personne ne devrait avoir à recopier un nombre pour
+    l'obtenir.
+
+    24 px = 2,032 mm vers la gauche : le bord part à 7,968, soit 0,032 mm du
+    bord de fenêtre (8). L'aimant pose 8,0."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": [TY.norm_slot({"id": "mob", "label": "Mobile",
+                                          "box": [10.0, 20.0, 30.0, 8.0],
+                                          "text": "m"})],
+                  "sel": ["mob"]},
+        "doc": {"frame": {"art_window": [8.0, 12.0, 40.0, 40.0]}},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 376, "y": 400, "alt": False},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    assert d["slots"][0]["box"] == [8.0, 20.0, 30.0, 8.0], d["slots"][0]["box"]
+    assert "fen" in d["traces"][1]["ov"], d["traces"][1]["ov"][:800]
+
+
+def test_le_CENTRE_DE_CARTE_est_une_CIBLE_d_aimantation(tmp_path):
+    """La carte poker fait 744 px de rogne à 300 DPI, soit 62,992 mm : son
+    centre est à 31,496 — un nombre que personne ne tape à la main. 77 px de
+    déplacement portent le CENTRE de la boîte à 31,5193, soit 0,0233 mm de la
+    cible : le bord gauche se pose à 16,496."""
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": [TY.norm_slot({"id": "mob", "label": "Mobile",
+                                          "box": [10.0, 20.0, 30.0, 8.0],
+                                          "text": "m"})],
+                  "sel": ["mob"]},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 477, "y": 400, "alt": False},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    assert d["slots"][0]["box"] == [16.496, 20.0, 30.0, 8.0], d["slots"][0]["box"]
+    assert "centre de carte" in d["traces"][1]["ov"], d["traces"][1]["ov"][:800]
+
+
+# LA MUTATION QUI SÉPARE LES DEUX BOÎTES, CÔTÉ AIMANT : elle fait publier au
+# fournisseur de cibles la boîte GONFLÉE d'une forme plate, exactement comme le
+# ferait un aimant branché sur le DOM.
+MUT_AIMANT_DOM = (
+    "      trois(s.box, s.label);",
+    "      trois((isShape(s) && s.box[3] === 0)\r\n"
+    "        ? [s.box[0], s.box[1] - 0.508, s.box[2], 1.016] : s.box, s.label);")
+
+
+def test_l_AIMANT_lit_la_boite_du_DOCUMENT_et_JAMAIS_le_calque(tmp_path):
+    """LE MÊME PIÈGE QUE LE LASSO, DE L'AUTRE CÔTÉ DU GESTE. Une ligne plate
+    est une cible à y = 40 et à rien d'autre ; son calque d'édition, lui,
+    couvre 39,49 à 40,51 mm.
+
+    366 px portent le bord haut du mobile à 40,988 : à 0,988 mm de la vraie
+    cible (hors seuil) mais à 0,48 mm du bord de la boîte GONFLÉE (dans le
+    seuil). Lu au document, l'aimant ne prend pas et la grille pose 41,0 ; lu
+    au calque, il collerait à 40,508. Les deux valeurs sont mesurées."""
+    # LA BOÎTE FAIT 12 mm DE HAUT, ET CE N'EST PAS UN DÉTAIL : à 6 mm, son
+    # CENTRE serait tombé sur le centre de carte (43,984 mm) et l'aimant aurait
+    # pris par là — le test aurait mesuré la mauvaise cible. Une vérité connue
+    # se pose en écartant les autres.
+    slots = [TY.norm_slot({"id": "mob", "label": "Mobile", "box": [10.0, 10.0, 20.0, 12.0],
+                           "text": "m"}),
+             TY.norm_slot({"id": "trait", "kind": "line", "label": "Trait",
+                           "box": [10.0, 40.0, 40.0, 0.0],
+                           "stroke": "#20c0ff", "stroke_mm": 0.5})]
+    actes = [{"t": "down", "id": "mob", "x": 400, "y": 400},
+             {"t": "move", "x": 400, "y": 766, "alt": False},
+             {"t": "up"}]
+    d = _banc_verrou(tmp_path, {"state": {"slots": slots, "sel": ["mob"]},
+                                "actes": actes}, mutations=[MUT_UNDO])
+    assert d["slots"][0]["box"][1] == 41.0, d["slots"][0]["box"]
+    mut = _banc_verrou(tmp_path, {"state": {"slots": slots, "sel": ["mob"]},
+                                  "actes": actes},
+                       mutations=[MUT_UNDO, MUT_AIMANT_DOM])
+    assert mut["slots"][0]["box"][1] == 40.508, \
+        "la mutation ne change rien : le test ne sépare pas les deux boîtes"
+
+
+def test_le_LOT_ENTIER_suit_l_aimant_de_la_boite_ATTRAPEE(tmp_path):
+    """L'aimantation d'un lot est celle de la boîte qu'on tient : c'est elle
+    qui se cale, les autres suivent du MÊME delta. Chaque boîte s'aimantant
+    pour elle-même aurait disloqué le lot au premier voisin."""
+    lot = [TY.norm_slot({"id": "mob", "label": "Mobile", "box": [10.0, 20.0, 30.0, 8.0],
+                         "text": "m"}),
+           TY.norm_slot({"id": "amis", "label": "Ami", "box": [12.0, 32.0, 6.0, 4.0],
+                         "text": "a"}),
+           TY.norm_slot({"id": "fixe", "label": "Fixe", "box": [30.0, 60.0, 20.0, 8.0],
+                         "text": "f"})]
+    d = _banc_verrou(tmp_path, {
+        "state": {"slots": lot, "sel": ["mob", "amis"]},
+        "actes": [{"t": "down", "id": "mob", "x": 400, "y": 400},
+                  {"t": "move", "x": 630, "y": 400, "alt": False},
+                  {"t": "up"}]},
+        mutations=[MUT_UNDO])
+    par = {s["id"]: s["box"] for s in d["slots"]}
+    assert par["mob"][0] == 30.0, par
+    # le compagnon a pris EXACTEMENT le même delta (20,0 mm), pas son propre
+    # arrondi : 12 + 20 = 32
+    assert par["amis"][0] == 32.0, par
+    assert par["fixe"][0] == 30.0, "le bloc hors du lot a bougé"
+    assert d["undo"] == 1, d["undo"]

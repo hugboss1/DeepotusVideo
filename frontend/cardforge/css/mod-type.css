@@ -302,6 +302,53 @@
 .cf-type .cf-type-h-sw { left: 0; top: 100%; cursor: nesw-resize; }
 .cf-type .cf-type-h-w { left: 0; top: 50%; cursor: ew-resize; }
 
+/* ── LE FOND DU CALQUE : la seule surface qui attrape en terrain vide ─────
+   Le calque est `pointer-events: none` ; les boites, elles, sont `auto`. Sans
+   ce fond, un appui hors de toute boite n'atteignait RIEN — donc aucun lasso
+   n'etait exprimable. Il est ecrit EN PREMIER dans le calque : les boites qui
+   suivent le recouvrent (ordre de peinture du DOM) et gardent leurs gestes. */
+.cf-type .cf-type-ovbg { position: absolute; inset: 0; pointer-events: auto;
+  cursor: crosshair; touch-action: none; }
+/* la poignee de ROTATION, au-dessus de la boite (patron Figma). Grisee en
+   selection multiple : elle reste VISIBLE pour que l'absence soit un fait dit,
+   pas un bouton qu'on cherche — son infobulle porte la raison. */
+.cf-type .cf-type-rot { position: absolute; left: 50%; top: -22px;
+  width: 12px; height: 12px; margin-left: -6px; border-radius: 50%;
+  background: var(--bg-panel); border: 1px solid var(--accent);
+  cursor: grab; touch-action: none; }
+.cf-type .cf-type-rot::after { content: ""; position: absolute; left: 50%;
+  top: 11px; width: 1px; height: 11px; margin-left: -0.5px;
+  background: color-mix(in srgb, var(--accent) 60%, transparent); }
+.cf-type .cf-type-rot.off { border-color: var(--ink-soft); cursor: not-allowed;
+  opacity: .55; }
+.cf-type .cf-type-rot.off::after { background: color-mix(in srgb, var(--ink-soft) 50%, transparent); }
+/* l'ENVELOPPE du lot, les GUIDES et le LASSO : des marques, jamais des prises
+   (`pointer-events: none`). Rien de ce qu'elles montrent ne peut partir dans
+   un PNG ni dans un PDF — c'est du DOM pose sur l'apercu. */
+.cf-type .cf-type-env { position: absolute; pointer-events: none;
+  border: 1px dashed color-mix(in srgb, var(--accent) 70%, transparent);
+  border-radius: 2px; }
+.cf-type .cf-type-guide { position: absolute; pointer-events: none;
+  background: var(--red); opacity: .85; }
+.cf-type .cf-type-guide.gx { top: 0; bottom: 0; width: 1px; }
+.cf-type .cf-type-guide.gy { left: 0; right: 0; height: 1px; }
+.cf-type .cf-type-lasso { position: absolute; pointer-events: none;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* ── LE PANNEAU D'UN LOT : la barre contextuelle et les gestes de z ──────── */
+.cf-type .cf-type-abar, .cf-type .cf-type-zbar { display: flex; flex-wrap: wrap;
+  align-items: center; gap: 4px; margin: 6px 0; }
+.cf-type .cf-type-abar .btn, .cf-type .cf-type-zbar .btn { min-width: 30px; }
+.cf-type .cf-type-lotn { font-family: var(--f-ui); font-size: 12px;
+  color: var(--ink-strong); flex: 1; }
+/* MIXTE : ni allume ni eteint — la valeur n'est pas la meme partout, et
+   montrer celle du premier ferait croire que c'est celle de tous. */
+.cf-type .chip.mix { border-style: dashed;
+  color: var(--amber); border-color: color-mix(in srgb, var(--amber) 70%, transparent); }
+.cf-type .chip.mix i { font-style: normal; opacity: .8; font-size: 9.5px; }
+.cf-type .chip.off { opacity: .5; }
+
 /* ── selecteur de police : chaque famille rendue DANS SA FONTE ──────────── */
 .cf-type.cf-type-fp { position: fixed; z-index: 90; width: 328px; max-height: 372px;
   display: flex; flex-direction: column; background: var(--bg-panel);
