@@ -563,6 +563,33 @@ FITS = ("contain", "cover")
 STROKE_MM_MIN, STROKE_MM_MAX = 0.0, 20.0
 HEAD_MM_MIN, HEAD_MM_MAX = 0.0, 40.0
 
+
+# ── LA BORNE QUE LE FORMAT IMPOSE À LA TÊTE FLÉCHÉE ─────────────────────────
+# LES BORNES DES CURSEURS SONT EN MILLIMÈTRES ABSOLUS ; UNE CARTE, NON. C'est
+# la leçon que la pièce 02 a déjà écrite trois fois (`bandMaxMM`, `sealMaxMM`,
+# et le décalage des ornements de coin, qui nomme `micro`), et que celle-ci
+# devait apprendre : 40 mm de tête sur un `micro` (31,75 x 44,45 mm) est une
+# tête PLUS LARGE QUE LA CARTE.
+#
+# LA BORNE RÉELLE SE DÉDUIT DU FORMAT, et c'est `min(tw, th)` : la base d'une
+# tête s'étend de `head_mm / 2` de part et d'autre du trait, donc elle occupe
+# `head_mm` en travers. Au-delà du petit côté de la carte, la tête ne rentre
+# plus, où qu'on la pose.
+#
+# ELLE NE MORD QUE LÀ OÙ LE FORMAT L'IMPOSE, et c'est le patron de
+# `sealMaxMM` : sur poker (63 x 88) elle vaut 40 — le plafond du curseur est
+# le plus serré des deux et rien ne bouge ; sur `micro` (31,75 x 44,45) elle
+# vaut 31,75, et c'est elle qui décide. Un premier jet posait `min / 2` : la
+# borne mordait alors sur les DOUZE formats et le plafond du curseur devenait
+# du code mort — une borne qui mord partout n'est plus une borne de format,
+# c'est un autre plafond écrit deux fois.
+#
+# Elle s'applique AU TRACÉ et à l'encre publiée, comme `min(f.edge_mm, cap)`
+# du cadre ; le curseur, lui, garde sa course.
+def head_max_mm(tw: float, th: float) -> float:
+    v = min(float(tw or 0), float(th or 0))
+    return min(HEAD_MM_MAX, v if v > 0 else 0.0)
+
 SIZE_PT_MIN, SIZE_PT_MAX = 2.0, 400.0
 READ_PT_MIN, READ_PT_MAX = 0.0, 400.0
 
@@ -601,8 +628,12 @@ SLOTS_MAX = 40
 # viennent pas de l'utilisateur, ils sont FABRIQUÉS ICI par un compteur. Un
 # motif permissif aurait ouvert le dossier du deck (`job.json`, `paper.png`,
 # tout ce qu'une autre pièce y écrira demain) à la première lettre près.
-SLOT_SRC_RE = re.compile(r"^(|img:img_\d+\.png)$")
-IMG_NAME_RE = re.compile(r"^img_\d+\.png$")
+# `[0-9]` ET NON `\d`, pour la raison de `_NUM_RE` : `\d` de Python accepte
+# « img:img_١٢.png » (chiffres arabo-indiens) là où celui de JavaScript le
+# refuse. Un nom que le backend admet et que le client ne sait pas fabriquer
+# est une source qui ne se relit jamais.
+SLOT_SRC_RE = re.compile(r"^(|img:img_[0-9]+\.png)$")
+IMG_NAME_RE = re.compile(r"^img_[0-9]+\.png$")
 # Le plafond de NOMBRE. Il compte ce qui EXISTE sur le disque, pas ce qui a été
 # importé dans la session : un deck dupliqué arrive avec ses images.
 SLOT_IMAGES_MAX = 12
@@ -780,7 +811,15 @@ DEFAULT_PRESET = "champion"
 # même document — donc une pastille de vérification rouge sans qu'un pixel
 # bouge. On n'accepte donc que la forme que les deux langages lisent
 # IDENTIQUEMENT ; jumeau de `NUM_RE` de mod-type.js.
-_NUM_RE = re.compile(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?")
+#
+# `[0-9]` EXPLICITE, ET C'EST UNE CORRECTION DE RONDE. `\d` de Python est
+# UNICODE, `\d` de JavaScript est ASCII : « ١٢ » (deux chiffres arabo-indiens)
+# faisait `fullmatch` VRAI ici — `float("١٢")` vaut 12.0 — et FAUX à l'écran,
+# qui retombait sur le défaut. Mesuré : trois écarts sur les clés de forme, et
+# côté cadre le RÉGIME de la gemme qui bascule (backend manuel à cx = 12,
+# écran automatique à cx = 7,85). Un motif qui se lit dans deux alphabets
+# différents n'est pas un motif partagé.
+_NUM_RE = re.compile(r"[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?")
 
 
 def _num(value, default: float, lo: float, hi: float) -> float:
@@ -801,6 +840,12 @@ def _num(value, default: float, lo: float, hi: float) -> float:
     if not math.isfinite(f):
         return float(default)
     return min(hi, max(lo, f))
+
+
+def _bool(value, default: bool) -> bool:
+    """Un booléen, ou le défaut. Jumeau d'exécution de `bl()` de mod-type.js :
+    SEUL un vrai booléen décide. Voir `norm_slot` pour la mesure."""
+    return value if isinstance(value, bool) else bool(default)
 
 
 def _choice(value, allowed: tuple[str, ...], default: str) -> str:
@@ -901,9 +946,18 @@ def norm_slot(raw, index: int = 0) -> dict:
                             STROKE_MM_MIN, STROKE_MM_MAX)
     out["head_mm"] = _num(r.get("head_mm"), SLOT_DEFAULTS["head_mm"],
                           HEAD_MM_MIN, HEAD_MM_MAX)
-    out["arrow_start"] = bool(r.get("arrow_start", False))
-    out["arrow_end"] = bool(r.get("arrow_end", True))
-    out["flip"] = bool(r.get("flip", False))
+    # ── UN BOOLÉEN, LU COMME LES DEUX LANGAGES LE LISENT ────────────────────
+    # `bool([])` vaut FAUX en Python, `!![]` vaut VRAI en JavaScript : une
+    # flèche dessinée à un bout ici l'aurait été à l'autre là-bas. `_bool` ne
+    # laisse donc décider qu'un VRAI booléen ; tout le reste vaut le défaut.
+    #
+    # LA CLASSE EST PLUS LARGE QUE CES TROIS CLÉS. `wrap`, `on`, `lock`,
+    # `autofit`, `bold`, `italic`, `hyphen` portent la MÊME divergence, et elle
+    # est ANTÉRIEURE à la phase 5 : les toucher changerait la lecture de
+    # documents déjà enregistrés. Dette NOMMÉE, pas silence.
+    out["arrow_start"] = _bool(r.get("arrow_start"), False)
+    out["arrow_end"] = _bool(r.get("arrow_end"), True)
+    out["flip"] = _bool(r.get("flip"), False)
     out["plate_stroke"] = _color(r.get("plate_stroke"), None)
     out["plate_stroke_mm"] = _num(r.get("plate_stroke_mm"),
                                   SLOT_DEFAULTS["plate_stroke_mm"],
@@ -994,6 +1048,78 @@ def box_px(box, g) -> list[float]:
     ]
 
 
+# ── L'ENCRE GÉOMÉTRIQUE D'UNE FORME ────────────────────────────────────────
+# LA RECETTE, en toutes lettres, parce que c'est elle qui décide d'un verdict
+# de fabrication — et parce que le PREMIER JET était faux d'une façon
+# instructive : il gonflait la boîte de `head_mm / 2` SUR LES QUATRE CÔTÉS.
+# Mesuré : une flèche HORIZONTALE de 40 mm avec une tête de 31,5 mm sortait
+# alors « hors cadre à gauche » de 5,75 mm — alors que sa tête ne déborde que
+# vers le HAUT et le BAS. Un faux défaut est pire qu'un défaut manqué : il
+# apprend à ne plus croire le voyant.
+#
+# LA RECETTE EXACTE, forme par forme :
+#   rect / ellipse  la boîte, gonflée de `stroke_mm / 2` sur les quatre côtés.
+#                   Le contour est CENTRÉ sur le chemin (convention de la
+#                   toile, la même que le filet du cadre) et le chemin a des
+#                   segments dans les deux sens : le gonflement est isotrope.
+#   line / arrow    on part du SEGMENT (d'un coin de la boîte à l'autre,
+#                   `flip` prenant l'autre diagonale). Le trait, bout CARRÉ,
+#                   déborde de `stroke_mm / 2` PERPENDICULAIREMENT : sur l'axe
+#                   x de `|uy| * w/2`, sur l'axe y de `|ux| * w/2` — donc rien
+#                   du tout en x pour une horizontale. La tête, elle, est un
+#                   TRIANGLE dont on prend les trois sommets : la pointe (un
+#                   coin de la boîte) et les deux bases à `head/2` de part et
+#                   d'autre, `head` en arrière. On prend l'enveloppe de tous
+#                   ces points — pas une marge uniforme.
+#
+# CE QUI N'ENTRE PAS DANS LE CALCUL : la couleur. Une flèche qui déborde ne
+# devient pas correcte parce qu'on ne lui a pas encore choisi son encre — et
+# un verdict qui basculerait au choix d'une teinte serait un verdict qu'on ne
+# croit plus.
+def _ink_forme_mm(s: dict, tw: float, th: float) -> list[float]:
+    """L'encre d'une forme, en MILLIMÈTRES depuis le coin de coupe. Jumeau
+    d'exécution de `shapeInkMm` de mod-type.js."""
+    x, y, w, h = [float(v) for v in s["box"]]
+    demi = _num(s.get("stroke_mm"), 0.0, STROKE_MM_MIN, STROKE_MM_MAX) / 2.0
+    if s["kind"] not in ("line", "arrow"):
+        return [x - demi, y - demi, w + 2 * demi, h + 2 * demi]
+    # le segment, d'un coin à l'autre
+    if s.get("flip"):
+        p0, p1 = (x, y + h), (x + w, y)
+    else:
+        p0, p1 = (x, y), (x + w, y + h)
+    dx, dy = p1[0] - p0[0], p1[1] - p0[1]
+    lg = math.hypot(dx, dy)
+    ux, uy = (dx / lg, dy / lg) if lg > 0 else (1.0, 0.0)
+    pts = [p0, p1]
+    # le trait : quatre coins, décalés de la NORMALE au segment
+    nx, ny = -uy * demi, ux * demi
+    for p in (p0, p1):
+        pts += [(p[0] + nx, p[1] + ny), (p[0] - nx, p[1] - ny)]
+    if s["kind"] == "arrow":
+        tete = min(_num(s.get("head_mm"), SLOT_DEFAULTS["head_mm"],
+                        HEAD_MM_MIN, HEAD_MM_MAX), head_max_mm(tw, th))
+        if tete > 0 and lg >= 0:
+            hx, hy = -uy * tete / 2.0, ux * tete / 2.0
+            for arme, p, sens in ((s.get("arrow_end"), p1, 1),
+                                  (s.get("arrow_start"), p0, -1)):
+                if not arme:
+                    continue
+                bx = p[0] - sens * ux * tete
+                by = p[1] - sens * uy * tete
+                pts += [(bx + hx, by + hy), (bx - hx, by - hy)]
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return [min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)]
+
+
+def _ink_forme(s: dict, g) -> list[float]:
+    """La même encre, en pixels de TOILE."""
+    tw, th = g.trim_mm
+    r = _ink_forme_mm(s, float(tw), float(th))
+    return box_px(r, g)
+
+
 # Seuil de bruit du confinement : un dix-millième de pixel. Ce n'est PAS une
 # marge de tolérance — un vrai débordement se compte en dixièmes de pixel au
 # minimum. C'est le résidu de l'aller-retour millimètres <-> pixels : le
@@ -1078,7 +1204,7 @@ def layout(g, slots: list[dict], inks: dict | None = None,
         r = box_px(s["box"], g)
         o = _outside(r, safe)
         inside = not any(o.values())
-        # ── UN CALQUE D'IMAGE N'EST PAS JUGÉ COMME UN TEXTE ─────────────────
+        # ── UN BLOC SANS GLYPHE N'EST PAS JUGÉ COMME UN TEXTE ───────────────
         # Il n'a pas de glyphe : pas de corps composé, pas de plancher de
         # lisibilité, pas de signe hors police. Les colonnes typographiques
         # valent donc `None` — et non 0, qui se lirait comme une MESURE et
@@ -1088,7 +1214,15 @@ def layout(g, slots: list[dict], inks: dict | None = None,
         # composition est un défaut de fabrication exactement comme des glyphes
         # qui en sortent — la coupe emporte ses pixels de la même façon. C'est
         # la LISIBILITÉ qui est sans objet ici, pas le confinement.
-        img = s["kind"] == "image"
+        #
+        # LES FORMES SONT DANS CE SAC, ET C'EST LA LIGNE POUR LAQUELLE `SHAPES`
+        # EXISTE. La question « ce bloc a-t-il des glyphes ? » se pose ici et
+        # nulle part ailleurs — c'est ce que le commentaire de `SHAPES` promet
+        # depuis son arrivée, et ce qu'il ne tenait pas : `layout()` lisait
+        # `kind == "image"` seul, si bien qu'une ellipse sortait avec
+        # `size_px 41.67` et `read_pt 0.0` dans son relevé, et passait même par
+        # `missing_chars` — on lui cherchait des glyphes absents.
+        muet = s["kind"] == "image" or s["kind"] in SHAPES
         row = {
             "id": s["id"],
             "label": s["label"],
@@ -1099,10 +1233,10 @@ def layout(g, slots: list[dict], inks: dict | None = None,
             "fit": s["fit"],
             "box_mm": [rnd(v, 3) for v in s["box"]],
             "box_px": [rnd(v, 2) for v in r],
-            "size_px": None if img else rnd(pt2px(s["size_pt"], g.dpi), 2),
-            "min_px": None if img else rnd(pt2px(s["min_pt"], g.dpi), 2),
-            "read_pt": None if img else rnd(s["read_pt"], 2),
-            "read_px": None if img else rnd(pt2px(s["read_pt"], g.dpi), 2),
+            "size_px": None if muet else rnd(pt2px(s["size_pt"], g.dpi), 2),
+            "min_px": None if muet else rnd(pt2px(s["min_pt"], g.dpi), 2),
+            "read_pt": None if muet else rnd(s["read_pt"], 2),
+            "read_px": None if muet else rnd(pt2px(s["read_pt"], g.dpi), 2),
             "posed_pt": None,
             "under_read": None,
             "inside_safe": inside,
@@ -1115,7 +1249,7 @@ def layout(g, slots: list[dict], inks: dict | None = None,
             # fonte, et le mot part quand même à l'impression.
             "missing_glyphs": None,
         }
-        if texts and not img:
+        if texts and not muet:
             miss = fmiss.get(s["font"])
             raw = texts.get(s["id"])
             if raw is None:
@@ -1126,7 +1260,20 @@ def layout(g, slots: list[dict], inks: dict | None = None,
                     tofu_ids.append(s["id"])
             elif miss is not None:
                 row["missing_glyphs"] = []
-        ink = inks.get(s["id"])
+        # ── L'ENCRE D'UNE FORME EST DÉRIVÉE ICI, PAS ATTENDUE DU CLIENT ─────
+        # C'est le choix de la ronde, et il a deux raisons. (a) L'encre d'une
+        # forme se DÉDUIT DU DOCUMENT SEUL — la boîte, `stroke_mm`, `head_mm`,
+        # les deux bouts — là où l'encre d'un texte dépend des fontes
+        # réellement posées, ce qui est précisément pourquoi `inks` existe.
+        # (b) Le verdict tient alors SANS client : une route appelée
+        # directement, un contrôle avant vol de P7, un deck relu sur le disque
+        # sont jugés comme l'écran les juge.
+        #
+        # LE DÉFAUT QUE CELA FERME, mesuré : une flèche `[10, 5, 40, 0]` avec
+        # une tête de 40 mm encre jusqu'à y = −2,0 mm, soit 2 mm HORS COUPE, et
+        # `layout` répondait `ok: True`. Sa BOÎTE était dans la zone sûre ;
+        # c'est son ENCRE qui en sortait, et personne ne la regardait.
+        ink = _ink_forme(s, g) if s["kind"] in SHAPES else inks.get(s["id"])
         if isinstance(ink, (list, tuple)) and len(ink) == 4:
             try:
                 rect = [float(v) for v in ink]
@@ -1137,7 +1284,7 @@ def layout(g, slots: list[dict], inks: dict | None = None,
                 row["ink_px"] = [rnd(v, 2) for v in rect]
                 row["ink_out_px"] = io
                 row["ink_inside_safe"] = not any(io.values())
-        p = None if img else posed.get(s["id"])
+        p = None if muet else posed.get(s["id"])
         try:
             pf = float(p)
         except (TypeError, ValueError):

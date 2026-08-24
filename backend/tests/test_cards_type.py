@@ -4949,9 +4949,13 @@ def test_la_source_d_une_image_ne_peut_nommer_QUE_un_fichier_du_deck():
     assert TY.norm_slot({"src": 42})["src"] == ""
     for mauvais in SRC_REFUSES:
         assert TY.norm_slot({"src": mauvais})["src"] == "", mauvais
-    # L'ÉCRAN BORNE À LA MÊME RÈGLE, écrite au même motif.
-    assert TY.SLOT_SRC_RE.pattern == r"^(|img:img_\d+\.png)$"
-    assert r"/^(|img:img_\d+\.png)$/" in _js()
+    # L'ÉCRAN BORNE À LA MÊME RÈGLE, écrite au même motif — et `[0-9]` PLUTÔT
+    # QUE `\d` depuis la ronde de la phase 5 : `\d` de Python est UNICODE,
+    # celui de JavaScript est ASCII, si bien que `img:img_١٢.png` (chiffres
+    # arabo-indiens) passait ici et pas là-bas. Le motif est le même mot à mot
+    # des deux côtés parce qu'il n'a plus de sens dépendant du langage.
+    assert TY.SLOT_SRC_RE.pattern == r"^(|img:img_[0-9]+\.png)$"
+    assert r"/^(|img:img_[0-9]+\.png)$/" in _js()
     # ... et un corps mal formé traverse la route sans 500
     did = _did()
     r = _api("POST", f"/api/cards/{did}/type/layout",
@@ -8296,6 +8300,24 @@ def test_une_fleche_et_un_cercle_TIENNENT_dans_un_vrai_navigateur(tmp_path):
     for nom in ("avant_depart", "apres_pointe", "au_dessus_du_fut", "bout_nu"):
         assert p[nom][3] == 0, (nom, p[nom])
 
+    # ── LE BOUT DE TRAIT, PINNÉ LÀ OÙ IL EXISTE ────────────────────────────
+    # Le banc de node n'a aucune notion de cap (son `stroke()` est un ruban de
+    # quadrilatères, et son commentaire le dit) : y chercher `butt` contre
+    # `round` serait un contrôle qui ne mesure rien. Chrome, lui, les sépare —
+    # un bout arrondi déborde d'une DEMI-ÉPAISSEUR au-delà de la pointe, soit
+    # 0,5 mm sur un trait de 1 mm. La sonde est posée à 0,3 mm au-delà : vide
+    # avec un bout carré, encrée avec un bout rond.
+    #
+    # C'ÉTAIT UN « TÉMOIN SURVIVANT » AVEC UNE RAISON FAUSSE. Je l'avais écrit
+    # non séparable ; il l'est, à une sonde près, et une propriété séparable à
+    # coût nul se PINNE (la clôture T2 de la phase 4 : l'aveu se mesure).
+    nu = dict(fleche, id="trait", arrow_end=False, head_mm=0.0)
+    v3 = _chrome_formes(tmp_path, [nu], {"pointe": [49.6, 40.0],
+                                         "apres_pointe": [50.3, 40.0]})
+    assert v3["points"]["pointe"][3] > 200, v3["points"]
+    assert v3["points"]["apres_pointe"][3] == 0, \
+        "le trait déborde de son extrémité : le bout n'est plus carré"
+
     cercle = dict(ELL_SLOT, id="halo", side="front", on=True, font="Inter",
                   label="Halo")
     v2 = _chrome_formes(tmp_path, [cercle], {"centre": [28.0, 42.0],
@@ -8419,3 +8441,341 @@ def test_une_forme_sans_encre_ne_peint_PAS_MEME_SA_PLAQUE(tmp_path):
                                   "points": pts})
     assert vif["points"]["milieu"][3] > 200, vif["points"]
     assert vif["points"]["bord_haut"][3] > 100, vif["points"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 15. RONDE T2 — CE QUE LA REVUE A MESURÉ, ET QUI NE TENAIT PAS
+# ═════════════════════════════════════════════════════════════════════════════
+
+def test_layout_TAIT_les_colonnes_typographiques_d_une_forme():
+    """LE BLOQUANT. `SHAPES` était du code MORT au backend : `layout()` posait
+    `img = kind == "image"` seul, si bien qu'une forme sortait avec des
+    CHIFFRES dans les colonnes de lisibilité — `size_px 41.67`, `read_pt 0.0` —
+    trois lignes sous un commentaire qui dit « et non 0, qui se lirait comme
+    une MESURE ». Une forme passait même par `missing_chars`, c'est-à-dire
+    qu'on lui cherchait des glyphes absents.
+
+    La question « ce bloc a-t-il des glyphes ? » se pose désormais UNE fois,
+    au seul endroit prévu pour elle, et `SHAPES` sert enfin à ce que son
+    commentaire promet."""
+    g = CT.geom("poker_eu", 300)
+    for k in TY.SHAPES:
+        s = TY.norm_slot({"id": "f", "kind": k, "box": [10, 10, 30, 10],
+                          "text": "Veilleur", "read_pt": 12.0, "size_pt": 10.0})
+        r = TY.layout(g, [s])["slots"][0]
+        for col in ("size_px", "min_px", "read_pt", "read_px", "posed_pt",
+                    "under_read", "missing_glyphs"):
+            assert r[col] is None, (k, col, r[col])
+    # LE TÉMOIN : un bloc de TEXTE, lui, porte bien ces chiffres — sans quoi
+    # « tout est None » se lirait aussi sur un `layout` mort.
+    t = TY.norm_slot({"id": "t", "kind": "text", "box": [10, 10, 30, 10],
+                      "text": "Veilleur", "read_pt": 12.0, "size_pt": 10.0})
+    rt = TY.layout(g, [t])["slots"][0]
+    assert rt["size_px"] is not None and rt["read_pt"] == 12.0
+
+
+def test_la_ZONE_SURE_VOIT_l_encre_geometrique_d_une_forme():
+    """LE DÉFAUT MESURÉ PAR LA REVUE, ET SA SORTIE. Une flèche posée en haut
+    de carte, boîte `[10, 5, 40, 0]`, tête au plafond (`head_mm` 40) : sa tête
+    encre jusqu'à **y = −2,0 mm**, soit 2 mm HORS COUPE — et `layout` rendait
+    `ok: True`, `outside_safe: []`. La boîte, elle, était bien dans la zone
+    sûre : c'est l'ENCRE qui en sortait, et personne ne la regardait.
+
+    DÉCISION, ET ELLE EST DITE : c'est `layout()` qui GONFLE le rectangle
+    jugé, pas le client qui envoie l'encre. Deux raisons. (a) L'encre d'une
+    forme est DÉRIVABLE DU DOCUMENT SEUL — la boîte, `stroke_mm`, `head_mm`,
+    les deux bouts — là où l'encre d'un texte dépend des fontes posées, ce qui
+    est précisément pourquoi `inks` existe. (b) Le verdict tient alors SANS
+    client : une route appelée directement, un contrôle avant vol de P7, un
+    deck relu sur le disque sont jugés comme l'écran les juge.
+
+    LA RECETTE, en toutes lettres : la boîte, gonflée de
+    `max(stroke_mm / 2, head_mm / 2 si un bout est armé)` sur les quatre
+    côtés. Le trait est CENTRÉ sur le chemin (donc la moitié de part et
+    d'autre) et la tête est un triangle dont le demi-écart maximal au segment
+    vaut `head_mm / 2` — sa pointe, elle, est le coin de la boîte et ne
+    dépasse pas. La COULEUR n'entre pas dans le calcul : une flèche qui
+    déborde ne devient pas correcte parce qu'on ne lui a pas encore choisi son
+    encre."""
+    g = CT.geom("poker_eu", 300)
+    haut = TY.norm_slot({"id": "fleche", "kind": "arrow",
+                         "box": [10.0, 5.0, 40.0, 0.0],
+                         "stroke": "#ff4020", "stroke_mm": 1.0,
+                         "head_mm": 40.0, "arrow_end": True})
+    d = TY.layout(g, [haut])
+    r = d["slots"][0]
+    assert d["summary"]["ok"] is False, \
+        "la flèche du plafond passe toujours pour correcte"
+    assert d["summary"]["outside_safe"] == ["fleche"], d["summary"]
+    assert r["ink_inside_safe"] is False, r
+    # LE DÉBORD EST NOMMÉ, et il porte le nombre : la tête monte 2,0 mm
+    # au-dessus du trait de coupe, donc 5,0 mm au-dessus du cadre sûr.
+    assert r["ink_out_px"]["top"] > 0, r["ink_out_px"]
+    # LES CHIFFRES SONT CEUX DU CALCUL, refaits ici à la main. Sur poker
+    # (63 x 88), la borne de format vaut min(63, 88) = 63 : le plafond du
+    # curseur (40) est le plus serré des deux, la tête reste donc ENTIÈRE et
+    # sa demi-largeur vaut 20 mm. L'encre monte à 5 − 20 = **−15,0 mm** de la
+    # coupe ; le cadre sûr commence à 2,9633 mm, d'où **17,9633 mm de débord**.
+    y0_mm = (r["ink_px"][1] - g.bleed_off_px[1]) * 25.4 / 300
+    assert -15.05 < y0_mm < -14.95, y0_mm
+    safe_haut = (g.safe_off_px[1] - g.bleed_off_px[1]) * 25.4 / 300
+    assert abs(r["ink_out_px"]["top"] * 25.4 / 300 - (safe_haut - y0_mm)) < 0.01
+    assert 17.95 < r["ink_out_px"]["top"] * 25.4 / 300 < 17.98, r["ink_out_px"]
+    assert 2.9 < safe_haut < 3.0
+    # LE TÉMOIN : la MÊME flèche descendue au milieu de la carte tient, et le
+    # dit. Il porte la MÊME tête : ce qui change est la place, pas le réglage.
+    bas = TY.norm_slot(dict(haut, box=[10.0, 44.0, 40.0, 0.0]))
+    d2 = TY.layout(g, [bas])
+    assert d2["summary"]["ok"] is True, (d2["summary"], d2["slots"][0]["ink_px"])
+    assert d2["slots"][0]["ink_inside_safe"] is True
+    # ... ET LE FAUX DÉFAUT QUE LE PREMIER JET PRODUISAIT : la tête d'une
+    # flèche HORIZONTALE ne déborde que vers le haut et le bas. Une marge
+    # uniforme la faisait sortir « à gauche » de 5,75 mm — un voyant qu'on
+    # apprend à ne plus croire.
+    ink = d2["slots"][0]["ink_px"]
+    assert abs(ink[0] - (g.bleed_off_px[0] + 10.0 / 25.4 * 300)) < 0.6, ink
+
+
+def test_l_encre_d_une_forme_suit_SES_LONGUEURS_et_pas_sa_couleur():
+    """La recette, éprouvée réglage par réglage : le trait gonfle de sa
+    moitié, la tête de sa moitié quand un bout est armé, et RIEN quand aucun
+    ne l'est. La couleur ne change pas un millimètre."""
+    g = CT.geom("poker_eu", 300)
+    mm = 300 / 25.4
+
+    def ink(**kw):
+        s = TY.norm_slot(dict({"id": "f", "kind": "arrow",
+                               "box": [10.0, 40.0, 40.0, 0.0],
+                               "stroke_mm": 0.0, "head_mm": 0.0,
+                               "arrow_end": False}, **kw))
+        return TY.layout(g, [s])["slots"][0]["ink_px"]
+
+    nu = ink()
+    assert abs(nu[3]) < 0.01, nu           # rien à gonfler : hauteur nulle
+    trait = ink(stroke_mm=2.0)
+    assert abs(trait[3] - 2.0 * mm) < 0.5, trait
+    tete = ink(head_mm=6.0, arrow_end=True)
+    assert abs(tete[3] - 6.0 * mm) < 0.5, tete
+    # le MAX, pas la somme : au même endroit, le plus large gagne
+    deux = ink(stroke_mm=2.0, head_mm=6.0, arrow_end=True)
+    assert abs(deux[3] - 6.0 * mm) < 0.5, deux
+    # une tête sur une LIGNE ne compte pas : `line` n'a pas de tête
+    ligne = TY.norm_slot({"id": "f", "kind": "line", "box": [10, 40, 40, 0],
+                          "stroke_mm": 2.0, "head_mm": 40.0, "arrow_end": True})
+    li = TY.layout(g, [ligne])["slots"][0]["ink_px"]
+    assert abs(li[3] - 2.0 * mm) < 0.5, li
+    # ... et la COULEUR ne bouge rien
+    assert ink(stroke_mm=2.0, stroke="#ff4020") == trait
+
+
+def test_l_ecran_VOIT_le_meme_debord_que_le_backend(tmp_path):
+    """« L'écran aveugle au même endroit » : `MEAS` écarte les formes, donc
+    `m` valait `null`, donc le liseré d'alerte du calque d'édition ne partait
+    JAMAIS pour une forme. Le calque calcule désormais l'encre géométrique
+    lui-même — la même recette, écrite une fois de chaque côté — et la boîte
+    fautive porte sa marque."""
+    fleche = TY.norm_slot({"id": "fleche", "label": "Flèche", "kind": "arrow",
+                           "box": [10.0, 5.0, 40.0, 0.0], "stroke": "#ff4020",
+                           "stroke_mm": 1.0, "head_mm": 40.0})
+    d = _banc_verrou(tmp_path, {"state": {"slots": [fleche], "sel": ""},
+                                "actes": [{"t": "down", "id": "fleche"},
+                                          {"t": "up"}]})
+    assert "cf-type-hbox" in d["ov"] and " bad" in d["ov"], \
+        "le calque d'édition ne marque pas la flèche qui sort du cadre"
+    assert "hors cadre" in d["ov"], d["ov"][:400]
+    # LE TÉMOIN : la même flèche 20 mm plus bas n'est PAS marquée.
+    ok = TY.norm_slot(dict(fleche, box=[10.0, 44.0, 40.0, 0.0]))
+    d2 = _banc_verrou(tmp_path, {"state": {"slots": [ok], "sel": ""},
+                                 "actes": [{"t": "down", "id": "fleche"},
+                                           {"t": "up"}]})
+    assert " bad" not in d2["ov"], d2["ov"][:400]
+
+
+# ── 15.1 `\\d` N'EST PAS LE MÊME DES DEUX CÔTÉS ──────────────────────────────
+
+CHIFFRES_EXOTIQUES = ("١٢", "१२", "１２")     # arabe · devanagari · pleine chasse
+
+
+def test_les_chiffres_NON_ASCII_tombent_des_DEUX_cotes():
+    """`\\d` de Python est UNICODE, `\\d` de JavaScript est ASCII. « ١٢ » (deux
+    chiffres arabo-indiens) faisait donc `fullmatch` VRAI ici — `float("١٢")`
+    vaut 12.0 — et FAUX à l'écran, qui retombait sur le défaut. Mesuré par la
+    revue : trois écarts sur les clés neuves, et LE RÉGIME DE LA GEMME QUI
+    BASCULE (voir le jumeau dans `test_cards_frame.py`).
+
+    Le motif est donc ancré sur `[0-9]` explicitement, des deux côtés. Ce
+    n'est pas une préférence : c'est la seule forme que les deux langages
+    lisent pareil, et c'est déjà la règle écrite pour `BACK_NUM_RE`."""
+    for ex in CHIFFRES_EXOTIQUES:
+        assert TY._NUM_RE.fullmatch(ex) is None, ex
+        for k in ("stroke_mm", "head_mm", "plate_stroke_mm", "size_pt",
+                  "opacity", "plate_alpha"):
+            assert TY.norm_slot({k: ex})[k] == TY.SLOT_DEFAULTS[k], (k, ex)
+    # ... et l'ASCII, lui, passe toujours
+    assert TY.norm_slot({"stroke_mm": "2.5"})["stroke_mm"] == 2.5
+    # LES DEUX MOTIFS SONT LE MÊME MOT À MOT. Écrits `\d` de part et d'autre,
+    # ils se LISAIENT très bien et rendaient deux verdicts : c'est le seul
+    # contrôle qui l'aurait vu avant que la revue le mesure.
+    assert r"/^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$/" in _js()
+    assert "\\d" not in TY._NUM_RE.pattern
+
+
+def test_le_nom_d_une_image_ne_peut_PAS_porter_des_chiffres_exotiques():
+    """La même faille sur les DEUX motifs de nom : `img:img_١٢.png` passait
+    ici (`\\d` unicode) et pas à l'écran. Un nom que le backend accepte et que
+    le client ne sait pas fabriquer est une source qui ne se relit jamais."""
+    for ex in CHIFFRES_EXOTIQUES:
+        assert TY.SLOT_SRC_RE.fullmatch(f"img:img_{ex}.png") is None, ex
+        assert TY.IMG_NAME_RE.fullmatch(f"img_{ex}.png") is None, ex
+        assert TY.norm_slot({"src": f"img:img_{ex}.png"})["src"] == ""
+    assert TY.SLOT_SRC_RE.fullmatch("img:img_12.png") is not None
+    assert "\\d" not in TY.SLOT_SRC_RE.pattern
+    assert "\\d" not in TY.IMG_NAME_RE.pattern
+
+
+def test_les_trois_booleens_NEUFS_lisent_la_MEME_chose_des_deux_cotes():
+    """`[]` et `{}` valent VRAI en JavaScript (`!![]`) et FAUX en Python
+    (`bool([])`). Sur `arrow_start` / `arrow_end` / `flip`, une flèche
+    dessinée à un bout ici l'aurait été à l'autre là-bas.
+
+    LA CLASSE EST PLUS LARGE QUE MES TROIS CLÉS — `wrap`, `on`, `lock`,
+    `autofit`, `bold`, `italic`, `hyphen` portent la MÊME divergence, et elle
+    est ANTÉRIEURE à cette phase. Je ferme ce que j'ai ouvert et je NOMME le
+    reste : mon commit annonçait la fermeture de la classe entière, ce qui
+    était faux.
+
+    LA RÈGLE DES TROIS NEUVES : seul un VRAI booléen décide ; tout le reste
+    vaut le défaut. C'est plus strict que `bool()` et que `!!`, et c'est la
+    seule lecture que les deux langages partagent."""
+    for k, defaut in (("arrow_start", False), ("arrow_end", True),
+                      ("flip", False)):
+        assert TY.norm_slot({k: True})[k] is True, k
+        assert TY.norm_slot({k: False})[k] is False, k
+        for fou in ([], {}, "oui", "", 0, 1, None, [0]):
+            assert TY.norm_slot({k: fou})[k] is defaut, (k, fou)
+
+
+def test_head_mm_est_borne_PAR_LE_FORMAT_et_pas_seulement_en_absolu():
+    """Même défaut que le rayon de gemme, même remède : 40 mm de tête sur un
+    `micro` (31,75 x 44,45 mm) est une tête PLUS LARGE QUE LA CARTE. La borne
+    absolue reste le plafond du curseur ; celle qui MORD vient du format."""
+    petit = CT.geom("micro", 300)
+    tw, th = petit.trim_mm
+    assert TY.head_max_mm(tw, th) < TY.HEAD_MM_MAX
+    assert TY.head_max_mm(tw, th) == min(tw, th)
+    grand = CT.geom("tarot_eu", 300)
+    assert TY.head_max_mm(*grand.trim_mm) == TY.HEAD_MM_MAX, \
+        "la borne du format mord là où le format ne l'impose pas"
+    # elle s'applique AU TRACÉ, comme `min(f.edge_mm, cap)` du cadre
+    s = TY.norm_slot({"id": "f", "kind": "arrow", "box": [4, 20, 20, 0],
+                      "stroke_mm": 0.5, "head_mm": 40.0, "arrow_end": True})
+    r = TY.layout(petit, [s])["slots"][0]
+    mm = 300 / 25.4
+    assert r["ink_px"][3] <= TY.head_max_mm(tw, th) * mm + 0.5, r["ink_px"]
+
+
+def test_le_pied_du_panneau_de_plaque_NE_CONTREDIT_PAS_la_carte():
+    """DEUX PHRASES DU MÊME PANNEAU SE CONTREDISAIENT. Sur une forme sans
+    encre, la carte ne peint RIEN — pas même la plaque, c'est la règle et elle
+    est mesurée — pendant que le pied de la section affirmait « plaque
+    #20c0ff à 100 % · bordure 0,80 mm ». Le pied porte désormais la CONDITION
+    de la garde quand le bloc est une forme."""
+    src = _js()
+    pl = _js_fn(src, "inspPlaque")
+    assert "plaqueMuette(s)" in pl, \
+        "le pied de la plaque ne consulte pas la garde du painter"
+    fn = _js_fn(src, "plaqueMuette")
+    assert "isShape(s)" in fn and "stroke" in fn, fn
+    # la phrase EXISTE et nomme la cause
+    assert "tant que cette forme n\u2019a pas d\u2019encre" in pl, pl
+
+
+def test_les_deux_temoins_survivants_sont_PINNES_par_une_sonde(tmp_path):
+    """LA RAISON ÉCRITE NE TENAIT PAS À LA MESURE, et c'est exactement ce que
+    la clôture T2 de la phase 4 interdit (« l'aveu se mesure comme une
+    affirmation de succès »).
+
+    Ce que j'avais écrit : « la base de la tête et le bout de trait sont des
+    décisions de dessin, non séparables ». MESURÉ PAR LA REVUE, et reproduit
+    ici : les deux SONT séparables, à une sonde près.
+      · la base de la tête (`head * 0.5`) : la sonde (44,5 ; 43,2) est DEHORS
+        à 0,5 et DEDANS à 0,7 — un demi-millimètre de plus qu'il n'en faut ;
+      · le bout de trait : le banc node n'a aucune notion de cap, mais CHROME
+        sépare `butt` de `round` à 0,4 mm au-delà du départ.
+    Une propriété séparable à coût nul se PINNE. Le témoin meurt, la mesure
+    reste."""
+    p = _banc_plaque(tmp_path, {"slots": [FLECHE_SLOT], "points": {
+        "base_dehors": [44.5, 43.2],
+        "base_dedans": [44.5, 41.4],
+    }})
+    # à 0,5, la base de la tête vaut 2,75 mm de demi-largeur à cet endroit :
+    # 1,4 mm tombe dedans, 3,2 mm tombe dehors. C'est CE couple qui pinne.
+    assert p["points"]["base_dedans"][3] > 200, p["points"]
+    assert p["points"]["base_dehors"][3] == 0, \
+        "la base de la tête est plus large que 0,5 x sa longueur"
+    # LE BOUT DE TRAIT NE SE PINNE PAS ICI, ET LE BANC LE DIT LUI-MÊME : son
+    # `stroke()` est un ruban de quadrilatères qui n'a AUCUNE notion de cap
+    # (c'est écrit dans son propre commentaire). Le chercher dans node aurait
+    # été un contrôle qui ne mesure rien — une mutation `butt` -> `round` y
+    # reste verte, vérifié. Il est pinné où il EXISTE : dans le banc Chrome,
+    # sur le rastériseur du produit (voir
+    # `test_une_fleche_et_un_cercle_TIENNENT_dans_un_vrai_navigateur`).
+    q = _banc_plaque(tmp_path, {"slots": [
+        dict(FLECHE_SLOT, arrow_end=False, head_mm=0.0)],
+        "points": {"pointe": [49.6, 40.0]}})
+    assert q["points"]["pointe"][3] > 200, q["points"]
+
+
+def test_le_rendu_d_un_deck_qui_portait_null_CHANGE_et_c_est_ecrit(tmp_path):
+    """L'AVEU ÉTAIT FAUX, ET C'EST LUI QU'ON CORRIGE — pas la correction.
+
+    Mon commit annonçait « dix clés neuves, ZÉRO PIXEL BOUGÉ ». C'est vrai des
+    dix clés ; c'est FAUX de la réparation de `num()` qui les accompagnait.
+    MESURÉ par la revue et reproduit ici : un deck déjà enregistré qui porte
+    `plate_alpha: null` rendait une plaque INVISIBLE avant (`Number(null)`
+    valait 0) et rend une plaque PLEINE après (`float(None)` retombe sur le
+    défaut, 1,0). Le painter reçoit les slots du document TELS QUELS —
+    `normalize_deck` ne repasse pas les slots — donc la valeur atteint la
+    toile. Idem pour `opacity: ""` : bloc invisible avant, visible après.
+
+    LA CORRECTION EST BONNE : elle aligne l'écran sur le backend, qui rendait
+    DÉJÀ 1,0, et c'est l'écran qui mentait. Ce qui devait changer, c'est la
+    phrase — et ce test ÉPINGLE le nouveau comportement pour que personne ne
+    le « répare » en croyant restaurer l'ancien."""
+    slot = {"id": "rules", "text": "X", "align": "left", "valign": "top",
+            "size_pt": 7.0, "min_pt": 7.0, "autofit": False, "wrap": False,
+            "box": [10.0, 20.0, 30.0, 16.0], "plate_color": "#3050a0"}
+    pts = {"milieu": [25.0, 32.0]}
+    # `plate_alpha: null` = ABSENT, donc le DÉFAUT (1,0) : plaque pleine.
+    nul = _banc_plaque(tmp_path, {"slots": [dict(slot, plate_alpha=None)],
+                                  "points": pts})
+    assert nul["points"]["milieu"] == [48, 80, 160, 255], nul["points"]
+    assert TY.norm_slot({"plate_alpha": None})["plate_alpha"] == 1.0
+    # ... et la chaîne vide se lit pareil des deux côtés
+    vide = _banc_plaque(tmp_path, {"slots": [dict(slot, opacity="")],
+                                   "points": pts})
+    assert vide["points"]["milieu"][3] == 255, vide["points"]
+    assert TY.norm_slot({"opacity": ""})["opacity"] == 100.0
+    # LE TÉMOIN : un ZÉRO ÉCRIT reste un zéro. Ce qui change, c'est la lecture
+    # de l'ABSENCE — pas celle d'une valeur posée.
+    zero = _banc_plaque(tmp_path, {"slots": [dict(slot, plate_alpha=0)],
+                                   "points": pts})
+    assert zero["points"]["milieu"][3] == 0, zero["points"]
+    assert TY.norm_slot({"plate_alpha": 0})["plate_alpha"] == 0.0
+
+
+def test_le_compte_de_cles_des_modeles_suit_la_table():
+    """`models.py` dit en toutes lettres combien de clés porte un slot de
+    modèle. Le chiffre était resté à 39 alors que la table en porte 49 depuis
+    les formes — la même ligne de prose que `frame.py` portait, corrigée là et
+    oubliée ici. `models.py` n'appartient à personne cette ronde : c'est la
+    PROSE seule qui bouge, pas une ligne de code."""
+    import app.services.cards.models as MD
+    py = pathlib.Path(MD.__file__).read_text(encoding="utf-8")
+    n = len(TY.SLOT_DEFAULTS)
+    assert f"les {n} clés de `SLOT_DEFAULTS`" in py, \
+        f"models.py ne dit pas le compte réel ({n})"
+    assert "les 39 clés" not in py, "le compte périmé est toujours là"
+    # ... et la table est bien DÉRIVÉE, donc les clés neuves y sont déjà
+    s = MD._slot("x", "X", [0, 0, 10, 5])
+    assert set(s) == set(TY.SLOT_DEFAULTS), set(s) ^ set(TY.SLOT_DEFAULTS)

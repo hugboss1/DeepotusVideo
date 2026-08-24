@@ -596,8 +596,12 @@ def seal_of(raw) -> dict:
 # Un motif permissif ouvrirait `decks/{did}/frame/` — qui n'a aujourd'hui que
 # des `img_N.png`, mais rien ne garantit qu'il n'aura pas d'état interne
 # demain, et cette porte ne doit pas s'élargir avec lui.
-BACK_SRC_RE = re.compile(r"(|img:img_\d+\.png)")
-BACK_IMG_NAME_RE = re.compile(r"img_\d+\.png")
+# `[0-9]` ET NON `\d` : `\d` de Python est UNICODE, celui de JavaScript est
+# ASCII. `img:img_١٢.png` (chiffres arabo-indiens) passait donc ici et pas à
+# l'écran — une source que le backend admet et que le client ne sait pas
+# fabriquer est une image qui ne se relit jamais.
+BACK_SRC_RE = re.compile(r"(|img:img_[0-9]+\.png)")
+BACK_IMG_NAME_RE = re.compile(r"img_[0-9]+\.png")
 # LA FORME D'UN NOMBRE ÉCRIT EN CHAÎNE. `float()` et `Number()` ne lisent pas
 # les mêmes chaînes, et l'écart n'est pas théorique — MESURÉ sur les deux
 # normaliseurs : « 0x10 » vaut 16 en JavaScript et LÈVE ici ; « 1_0 » vaut 10
@@ -606,7 +610,14 @@ BACK_IMG_NAME_RE = re.compile(r"img_\d+\.png")
 # jeu édité à la main suffit à les produire. On n'accepte donc QUE la forme que
 # les deux langages lisent identiquement. Jumeau de `BACK_NUM_RE` de
 # mod-frame.js.
-BACK_NUM_RE = re.compile(r"-?\d+(\.\d+)?")
+#
+# TROISIÈME ÉCART, ET LE PLUS SOURNOIS : `\d` de Python est UNICODE, celui de
+# JavaScript est ASCII. `fullmatch("١٢")` était donc VRAI ici — `float("١٢")`
+# vaut 12.0 — et FAUX à l'écran. Mesuré : avec `gem_x: "١٢"`, le backend
+# publiait une gemme MANUELLE à cx = 12 et l'écran retombait sur
+# l'AUTOMATIQUE à cx = 7,85. Ce n'est plus un centième de millimètre qui
+# diverge, c'est le RÉGIME du meuble. `[0-9]` explicite ferme les trois.
+BACK_NUM_RE = re.compile(r"-?[0-9]+(\.[0-9]+)?")
 BACK_LAYERS_MAX = 6          # spec §6.2ter, plan 3c décision 5
 BACK_IMAGES_MAX = 8          # images de verso par jeu (plan 3c décision 5)
 BACK_LAYER_DEFAULTS = {"src": "", "opacity": 1.0, "scale": 1.0,
@@ -864,8 +875,11 @@ _HABILLAGE_COMMUN = {
     "corner_dx": 0, "corner_dy": 0, "corner_scale": 1,
     # LE LISERÉ DE FENÊTRE À ZÉRO : il ne peint rien, donc les sept habillages
     # restent à l'octet ce qu'ils étaient. La couleur existe quand même —
-    # c'est par elle que la liste blanche des modèles l'admet (models.py).
-    "win_stroke_color": "#000000", "win_stroke_mm": 0,
+    # c'est par elle que la liste blanche des modèles l'admet (models.py) —
+    # et elle naît VIDE, comme `line_color` deux lignes plus haut : « pas de
+    # couleur » est un état, `#000000` en est un autre, et c'est le second qui
+    # rendait morte la garde du painter (voir `windowLiner`).
+    "win_stroke_color": "", "win_stroke_mm": 0,
 }
 
 
@@ -1288,6 +1302,23 @@ def _place_banner(tw: float, th: float, inner: float, edge: float,
             "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
 
 
+# ── LA BORNE QUE LE FORMAT IMPOSE AU RAYON DE LA GEMME ──────────────────────
+# LES BORNES DES CURSEURS SONT EN MILLIMÈTRES ABSOLUS ; UNE CARTE, NON. Ce
+# fichier l'a déjà écrit deux fois (`band_max_mm`, `seal_max_mm`) et les
+# ornements de coin une troisième — en NOMMANT `micro`. Le rayon de gemme,
+# lui, était resté au plafond absolu : mesuré, 20 mm de rayon sur un `micro`
+# (31,75 x 44,45 mm) donne une gemme de 40 mm de diamètre, PLUS LARGE QUE LA
+# CARTE, dont l'encre sort de la toile des deux côtés.
+#
+# La borne réelle est la demi-carte : au-delà, le disque ne rentre nulle part.
+# Elle NE MORD QUE LÀ OÙ LE FORMAT L'IMPOSE — sur poker (63 x 88) elle vaut
+# 31,5 et le plafond du curseur (20) reste le plus serré ; sur `micro` elle
+# vaut 15,87 et c'est elle qui décide. Jumeau de `gemMaxRMM` de mod-frame.js.
+def gem_max_r_mm(tw: float, th: float) -> float:
+    v = min(float(tw or 0), float(th or 0)) / 2.0
+    return min(LIMITS["gem_r_mm"][1], v if v > 0 else 0.0)
+
+
 def _gem_manuel(man) -> dict:
     """Les trois clés de placement de la gemme, normalisées — miroir
     d'exécution de `gemManuel()` de mod-frame.js. Chacune est INDÉPENDANTE :
@@ -1345,7 +1376,9 @@ def _place_gem(tw: float, th: float, inner: float, rank: int,
         if mn["y"] is not None:
             cy = min(th, max(0.0, mn["y"]))
         if mn["r"] is not None:
-            r = mn["r"]
+            # LA BORNE DU FORMAT S'APPLIQUE AU PLAN, donc au dessin — comme
+            # `min(edge_mm, cap)` du cadre et la largeur du Sceau.
+            r = min(mn["r"], gem_max_r_mm(tw, th))
         port = 1.5 * r + max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM
         d2 = -1 if cx > tw / 2 else 1
         box = [cx - r if d2 > 0 else cx - port, cy - r, r + port, 2 * r]
@@ -2192,6 +2225,20 @@ def price_table() -> dict:
         return {}
 
 
+# ── UNE PANNE NE PUBLIE PAS LE DISQUE DE L'UTILISATEUR ──────────────────────
+# DETTE ROUTÉE DE T1, ET C'EST LE MÊME DÉFAUT QU'ELLE VIENT DE FERMER CHEZ
+# ELLE : `str(e)` d'une exception de fichier porte le chemin ABSOLU, donc le
+# nom de compte Windows, et cette route le publiait tel quel dans une réponse
+# HTTP. Le motif est RECOPIÉ depuis `face.py` (règle 8 : chaque pièce porte
+# ses constantes) et l'emprunt est avoué ici plutôt que partagé par un import
+# transversal.
+_CHEMIN_RE = re.compile(r"""(?:[A-Za-z]:[\\/]|[\\/]{1,2})[^\s'"]{2,}""")
+
+
+def _sans_chemin(txt, n: int = 200) -> str:
+    return _CHEMIN_RE.sub("<chemin>", str(txt or ""))[:n]
+
+
 def _keyed_providers() -> set:
     """Les fournisseurs d'image dont la clé est enregistrée. Sert UNIQUEMENT de
     repli quand la route de l'application ne répond pas : sans lui, un incident
@@ -2231,7 +2278,7 @@ async def ai_models(did: str):
     except Exception as e:
         # La route de l'application lit aussi un réglage en base : un incident
         # là ne doit pas faire disparaître des modèles dont la clé EST posée.
-        erreur = str(e)[:200]
+        erreur = _sans_chemin(e)
         repli = True
         keyed = _keyed_providers()
         models = [{"id": mid, "label": spec["label"],

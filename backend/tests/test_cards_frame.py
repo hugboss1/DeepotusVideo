@@ -9595,9 +9595,13 @@ def test_le_lisere_de_fenetre_ne_peint_rien_par_defaut():
         "le liseré dépend du filet ou de la rareté : il n'est plus propre"
     assert FR.LIMITS["win_stroke_mm"][0] == 0
     # le défaut du document ne peint rien
-    m = re.search(r"win_stroke_color: \"(#[0-9a-fA-F]{6})\", win_stroke_mm: (\d+)",
-                  src)
-    assert m and float(m.group(2)) == 0.0, "le liseré est allumé par défaut"
+    # LA COULEUR NAÎT VIDE depuis la ronde : `#000000` rendait la garde
+    # « une couleur illisible ne peint rien » MORTE, parce que `st()`
+    # normalisait « bleu » vers ce noir-là AVANT que le painter la voie.
+    m = re.search(r'win_stroke_color: "(\w*)", win_stroke_mm: (\d+)', src)
+    assert m, "le défaut du liseré n'est plus reconnaissable"
+    assert m.group(1) == "", "la couleur du liseré ne naît pas vide"
+    assert float(m.group(2)) == 0.0, "le liseré est allumé par défaut"
     # ... et il est peint APRÈS le filet et le Sceau, sur le même chemin
     pf = _js_fn(src, "paintFront")
     assert pf.index("paintSeal(") < pf.index("windowLiner("), \
@@ -9618,7 +9622,9 @@ def test_les_habillages_portent_les_cles_neuves_a_leur_defaut_inerte():
         assert hab["corner_dx"] == 0 and hab["corner_dy"] == 0, nom
         assert hab["corner_scale"] == 1, nom
         assert hab["win_stroke_mm"] == 0, nom
-        assert re.fullmatch(r"#[0-9a-fA-F]{6}", hab["win_stroke_color"]), nom
+        # VIDE, comme `line_color` : « pas de couleur » est un état, et c'est
+        # celui qui garde vivante la garde du painter.
+        assert hab["win_stroke_color"] == "", nom
 
 
 def test_la_qa_des_silhouettes_mesure_LE_DEFAUT_pas_l_etat_d_un_jeu():
@@ -9917,3 +9923,249 @@ def test_les_formes_ne_changent_PAS_le_plan_des_mentions_deja_posees():
     assert avec["boxes"] == sans["boxes"]
     assert avec["collisions"] == sans["collisions"]
     assert avec["count"] == sans["count"]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 25. RONDE T2 — CE QUE LA REVUE A MESURÉ SUR LE CADRE
+# ═════════════════════════════════════════════════════════════════════════════
+
+CHIFFRES_EXOTIQUES = ("١٢", "१२", "１２")     # arabe · devanagari · pleine chasse
+
+
+def test_les_chiffres_NON_ASCII_ne_font_PAS_basculer_le_regime_de_la_gemme():
+    """LE DÉFAUT LE PLUS SOURNOIS DE LA RONDE. `\\d` de Python est UNICODE,
+    `\\d` de JavaScript est ASCII : `BACK_NUM_RE.fullmatch("١٢")` était VRAI
+    ici et FAUX à l'écran. Conséquence mesurée par la revue : avec
+    `gem_x: "١٢"`, le BACKEND lisait 12,0 et publiait une gemme MANUELLE
+    (cx = 12), l'ÉCRAN retombait sur l'automatique (cx = 7,85). Ce n'est plus
+    un centième de millimètre qui diverge : c'est le RÉGIME du meuble.
+
+    Le motif est ancré sur `[0-9]` — la seule forme que les deux langages
+    lisent pareil, ce que le commentaire de `BACK_NUM_RE` promettait déjà."""
+    for ex in CHIFFRES_EXOTIQUES:
+        assert FR.BACK_NUM_RE.fullmatch(ex) is None, ex
+        assert FR._ou_nul(ex, FR.LIMITS["gem_xy_mm"]) is None, ex
+        assert FR._borne(ex, 1.0, 0.0, 1.0) == 1.0, ex
+    g = CT.geom("poker_eu", 300)
+    auto = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS))
+    for ex in CHIFFRES_EXOTIQUES:
+        o = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x=ex), SLOTS))
+        assert o["manual"] is False, (ex, o)
+        assert o == auto, (ex, o)
+    # ... et l'ASCII passe toujours
+    assert _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True, gem_x="12"),
+                             SLOTS))["cx"] == 12.0
+    # LES DEUX MOTIFS SONT LE MÊME MOT À MOT : écrits `\d` de part et d'autre,
+    # ils se LISAIENT très bien et rendaient deux verdicts.
+    assert "\\d" not in FR.BACK_NUM_RE.pattern
+    assert r"/^-?[0-9]+(\.[0-9]+)?$/" in _js()
+
+
+def test_les_noms_d_image_du_verso_refusent_les_chiffres_exotiques():
+    """Même faille, mêmes deux motifs : `img:img_١٢.png` passait ici et pas à
+    l'écran — une source que le backend accepte et que le client ne sait pas
+    fabriquer est une image qui ne se relit jamais."""
+    for ex in CHIFFRES_EXOTIQUES:
+        assert FR.BACK_SRC_RE.fullmatch(f"img:img_{ex}.png") is None, ex
+        assert FR.BACK_IMG_NAME_RE.fullmatch(f"img_{ex}.png") is None, ex
+        assert FR.back_image_of(f"img:img_{ex}.png") == ""
+    assert FR.BACK_SRC_RE.fullmatch("img:img_12.png") is not None
+    assert "\\d" not in FR.BACK_SRC_RE.pattern
+    assert "\\d" not in FR.BACK_IMG_NAME_RE.pattern
+    assert r"/^(|img:img_[0-9]+\.png)$/" in _js()
+
+
+def test_les_trois_ecritures_exotiques_rendent_le_MEME_plan_des_deux_cotes(tmp_path):
+    """La parité d'exécution, rejouée sur les trois écritures. C'est le seul
+    contrôle qui aurait vu le défaut : les deux tables se lisaient très bien,
+    et c'est le VERDICT du motif qui divergeait."""
+    g = CT.geom("poker_eu", 300)
+    frames = [dict(GEM_FRAME, fit=True, gem_x=ex) for ex in CHIFFRES_EXOTIQUES]
+    frames += [dict(GEM_FRAME, fit=True, gem_r=ex) for ex in CHIFFRES_EXOTIQUES]
+    frames += [dict(GEM_FRAME, fit=True, gem_x="12", gem_y="١٢")]
+    cas = [{"nom": f"x{i}", "trim_mm": list(g.trim_mm), "frame": fr,
+            "slots": SLOTS} for i, fr in enumerate(frames)]
+    res = _banc_occ(tmp_path, cas)
+    for r, fr in zip(res, frames):
+        assert r["ok"], (r["nom"], r.get("err"))
+        assert r["occ"]["boxes"] == FR.occupancy(g, fr, SLOTS)["boxes"], \
+            (r["nom"], fr)
+
+
+def test_le_rayon_de_la_gemme_est_borne_PAR_LE_FORMAT():
+    """LA BORNE ABSOLUE NE SUFFISAIT PAS, et la pièce le savait déjà trois
+    fois : `bandMaxMM`, `sealMaxMM`, et mon propre `cornerOrn` qui NOMME
+    `micro`. Mesuré : rayon au plafond du curseur (20 mm) sur un `micro`
+    (31,75 x 44,45 mm) → une gemme de 40 mm de diamètre, PLUS LARGE QUE LA
+    CARTE, dont l'encre sort de la toile des deux côtés.
+
+    `gem_max_r_mm` suit le patron de `sealMaxMM` : la borne du curseur reste
+    ce qu'elle est, celle du FORMAT s'applique au TRACÉ."""
+    petit = CT.geom("micro", 300)
+    tw, th = petit.trim_mm
+    assert FR.gem_max_r_mm(tw, th) < FR.LIMITS["gem_r_mm"][1]
+    assert 2 * FR.gem_max_r_mm(tw, th) <= min(tw, th)
+    grand = CT.geom("tarot_eu", 300)
+    assert FR.gem_max_r_mm(*grand.trim_mm) == FR.LIMITS["gem_r_mm"][1], \
+        "la borne du format mord là où le format ne l'impose pas"
+    # ... et elle s'applique au PLAN, donc au dessin
+    gem = _gem(FR.occupancy(petit, dict(GEM_FRAME, fit=True, gem_r=20.0,
+                                        gem_x=tw / 2, gem_y=th / 2), []))
+    # le plan publie ses millimètres au CENTIÈME (`rnd(r, 2)`) : c'est ce
+    # nombre-là que le peintre lit, donc c'est lui qu'on compare.
+    assert gem["r"] == FR.rnd(FR.gem_max_r_mm(tw, th), 2), gem
+    # CE QUI EST BORNÉ, ET CE QUI NE L'EST PAS — dit plutôt que supposé. Le
+    # DISQUE rentre désormais dans la carte : c'était le défaut mesuré (40 mm
+    # de diamètre sur 31,75 mm de large, encre hors toile des deux côtés).
+    assert gem["cx"] - gem["r"] >= -0.01, gem
+    assert gem["cx"] + gem["r"] <= tw + 0.01, gem
+    assert gem["cy"] - gem["r"] >= -0.01, gem
+    assert gem["cy"] + gem["r"] <= th + 0.01, gem
+    # LA PORTÉE DES CRANS, ELLE, N'EST PAS BORNÉE, et c'est volontaire : une
+    # gemme posée À LA MAIN au centre d'une carte minuscule, avec le rayon au
+    # plafond, laisse ses crans de rareté sortir. C'est le geste de
+    # l'utilisateur, pas un calcul qui dérape — et c'est le COMPTEUR
+    # d'occupation qui le lui dit, comme il le dit du ruban. Mesuré ici pour
+    # que le jour où quelqu'un veut le borner, il sache ce qu'il change.
+    assert gem["box"][0] < 0, \
+        "la portée des crans ne sort plus : la borne a changé de sens"
+
+
+def test_la_borne_de_format_de_la_gemme_est_la_MEME_des_deux_cotes(tmp_path):
+    """Une borne appliquée d'un seul côté, c'est une gemme de deux tailles."""
+    petit = CT.geom("micro", 300)
+    tw, th = petit.trim_mm
+    frames = [dict(GEM_FRAME, fit=True, gem_r=20.0, gem_x=tw / 2, gem_y=th / 2),
+              dict(GEM_FRAME, fit=True, gem_r=999.0),
+              dict(GEM_FRAME, fit=True, gem_r=1.0)]
+    cas = [{"nom": f"m{i}", "trim_mm": [tw, th], "frame": fr, "slots": []}
+           for i, fr in enumerate(frames)]
+    for r, fr in zip(_banc_occ(tmp_path, cas), frames):
+        assert r["ok"], r.get("err")
+        assert r["occ"]["boxes"] == FR.occupancy(petit, fr, [])["boxes"], fr
+
+
+def test_la_couleur_du_lisere_de_fenetre_NE_VAUT_PAS_NOIR():
+    """MA GARDE ÉTAIT MORTE. `windowLiner` refuse une couleur illisible — mais
+    `st()` normalisait « bleu » en `#000000` AVANT que le painter la voie :
+    l'écran posait un liseré NOIR de 2 mm, muet, c'est-à-dire exactement le
+    « défaut visible et muet » que mon propre en-tête interdit.
+
+    Le défaut devient `""` — la valeur que `line_color` porte déjà dans le
+    même fichier et que la liste blanche des modèles admet — et le painter ne
+    peint que sur un hexa lisible. La garde est vivante."""
+    src = _js()
+    d = re.search(r"const DEFAULTS = \{(.*?)\n  \};", src, re.S).group(1)
+    d = re.sub(r"/\*.*?\*/", " ", d, flags=re.S)
+    assert 'win_stroke_color: ""' in d, d
+    fn = _js_fn(src, "st")
+    assert "HEX_RE.test" in fn and "win_stroke_color" in fn, fn
+    assert 'DEFAULTS.win_stroke_color' in fn, fn
+    for nom, hab in FR.ARCHETYPE_FRAMES.items():
+        assert hab["win_stroke_color"] == "", nom
+
+
+def test_le_lisere_de_fenetre_DIT_qu_il_peut_mordre_le_fond_perdu():
+    """LE MINEUR AVOUÉ. La fenêtre, elle, est bornée à la rogne ; le liseré,
+    posé DESSUS et centré sur le chemin, met jusqu'à la moitié de son
+    épaisseur au-delà. Sur une fenêtre calée au trait de coupe et un liseré au
+    plafond (4 mm), ce sont 2 mm de fond perdu — de l'encre que la lame
+    emporte.
+
+    CHOIX AVOUÉ : on le DIT au lieu de le borner. Un liseré qui mord le fond
+    perdu est LÉGITIME (c'est ainsi qu'on borde une illustration à fond
+    perdu) ; le borner aurait interdit un dessin réel pour éviter une
+    surprise. L'aide du champ porte donc le chiffre, et ce test l'exige."""
+    src = _js()
+    fn = _js_fn(src, "buildPanel") if "function buildPanel(" in src else src
+    assert "moitié de son épaisseur" in src and "fond perdu" in src, \
+        "l'écran ne dit pas que le liseré peut mordre le fond perdu"
+    # la mesure qui le justifie : la moitié de 4 mm au-delà de la coupe
+    assert FR.LIMITS["win_stroke_mm"][1] == 4
+
+
+def test_la_carte_des_poignees_suit_la_FORME_de_l_ecrin():
+    """`_place_gem` publie `shape: "rect"` quand l'écrin épouse une mention
+    large et plate (une signature de 17 x 3,7 mm) — et la mini-carte dessinait
+    un DISQUE quand même, donc une prise ronde sur un cartouche. Le plan dit
+    la forme ; la carte des poignées doit la suivre."""
+    src = _js()
+    dm = _js_fn(src, "drawMapWith")
+    assert 'gb.shape === "rect"' in dm, \
+        "la mini-carte dessine toujours un disque"
+    mh = _js_fn(src, "mapHit")
+    assert 'gm.shape === "rect"' in mh, \
+        "la prise de la gemme est ronde sur un écrin rectangulaire"
+    # le plan publie bien les deux formes — sans quoi ce test ne mesure rien
+    g = CT.geom("poker_eu", 300)
+    ecrin = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True), SLOTS))
+    assert ecrin["seat"] is True and ecrin["shape"] in ("disc", "rect")
+    # POUR OBTENIR UN CARTOUCHE IL FAUT LES DEUX CONDITIONS À LA FOIS : aucun
+    # coin libre (sinon la gemme s'y pose et reste un disque) ET un hôte PLAT
+    # (17 x 3,7 mm : 17 > 1,6 x 3,7, donc au-delà de `GEM_SEAT_RATIO`).
+    quatre = [{"id": f"m{i}", "box": [x, y, 17.0, 3.7]}
+              for i, (x, y) in enumerate(((3.0, 7.0), (43.0, 7.0),
+                                          (3.0, 77.0), (43.0, 77.0)))]
+    plat = _gem(FR.occupancy(g, dict(GEM_FRAME, fit=True), quatre))
+    assert plat["seat"] is True, plat
+    assert plat["shape"] == "rect", plat
+
+
+def test_l_echelle_des_coins_emporte_l_EPAISSEUR_du_trait():
+    """« L'ornement grandit ENTIER, épaisseur comprise » — FAUX dès que
+    `line_mm` > 0. Mesuré par la revue : dessin ×12, trait CONSTANT à
+    9,57 px ; à l'échelle 0,25 l'ornement devient une tache, à 3 un fil.
+    Mon témoin `line_mm: 0` donnait, lui, le comportement annoncé — c'est
+    précisément le cas qui NE mord pas.
+
+    L'épaisseur part donc de `m.line * 0.9 * cs` : la phrase redevient vraie
+    aux deux échelles."""
+    src = _js()
+    fn = _js_fn(src, "cornerOrn")
+    assert "m.line * 0.9 * cs" in fn, \
+        "l'épaisseur du trait de coin ne suit pas l'échelle"
+
+
+def test_les_champs_de_gemme_montrent_le_placement_EFFECTIF():
+    """L'écran se contredisait lui-même : le champ affichait la valeur BRUTE
+    du document (500) pendant que sa pastille et la ligne d'état, deux
+    centimètres plus bas, disaient 63 — le placement que `placeGem` pose
+    vraiment. Et l'input n'avait ni `min` ni `max`, donc rien ne disait où
+    s'arrêtait la course.
+
+    CHOIX AVOUÉ : le champ montre L'EFFECTIF, et il porte ses bornes. Le
+    brut n'est pas une information utile — c'est un nombre que rien ne
+    dessine ; l'effectif est celui du plan, de la pastille, de la ligne
+    d'état et du peintre. Un écran d'accord avec lui-même."""
+    src = _js()
+    fn = _js_fn(src, "syncNow")
+    # LE PIN PORTE SUR L'EXPRESSION QUI AFFECTE, pas sur la présence du mot
+    # `gmb` quelque part dans la fonction : le premier jet de ce test cherchait
+    # « gmb[kv[2]] » et restait VERT quand on remettait `r2(cle)`, parce que la
+    # pastille, deux lignes plus bas, contient déjà `gmb`. Une mutation l'a dit.
+    assert ': r2(gmb[kv[2]]);' in fn, \
+        "le champ de gemme n'affiche pas le placement EFFECTIF"
+    assert "r2(cle)" not in fn, \
+        "le champ de gemme affiche encore la valeur brute du document"
+    assert "champ.i.min" in fn and "champ.i.max" in fn, \
+        "l'input de gemme n'a ni min ni max"
+
+
+def test_la_route_ai_models_ne_fuit_PAS_de_chemin_absolu():
+    """DETTE ROUTÉE DE T1, DANS MON FICHIER. `ai_models` publiait
+    `str(e)[:200]` tel quel : la MÊME fuite de chemin absolu — donc du nom de
+    compte de l'utilisateur — dans une réponse HTTP que T1 vient de filtrer
+    chez lui. Le motif est RECOPIÉ (règle 8, chaque pièce porte ses
+    constantes) et l'emprunt est avoué à la source."""
+    py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
+    assert "def _sans_chemin(" in py, "frame.py n'a pas de filtre de chemin"
+    assert "erreur = str(e)[:200]" not in py, "la fuite est toujours là"
+    for brut, dedans in (
+            (r"C:\Users\dupont\AppData\jeu.json", "dupont"),
+            ("/home/dupont/deck/meta.json", "dupont"),
+            (r"ouverture de C:\Users\dupont\x.png refusée", "dupont")):
+        out = FR._sans_chemin(brut)
+        assert dedans not in out, (brut, out)
+        assert "<chemin>" in out, (brut, out)
+    # ... et un message SANS chemin traverse intact
+    assert FR._sans_chemin("la clé fal est absente") == "la clé fal est absente"

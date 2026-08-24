@@ -135,7 +135,7 @@
   /* le motif du VOCABULAIRE : ce qu'un document a le droit de nommer. Il est
      ANCRE des deux bouts — le piege du `$` sans ancre de tete a deja ete paye
      trois fois dans ce depot. Jumeau de `BACK_SRC_RE` de cards/frame.py. */
-  const BACK_SRC_RE = /^(|img:img_\d+\.png)$/;
+  const BACK_SRC_RE = /^(|img:img_[0-9]+\.png)$/;
   /* LA FORME D'UN NOMBRE ECRIT EN CHAINE, et pourquoi elle est si etroite.
      `Number()` et `float()` ne lisent PAS les memes chaines, et l'ecart n'est
      pas theorique — MESURE sur les deux normaliseurs : « 0x10 » vaut 16 en
@@ -146,7 +146,7 @@
      deux langages lisent identiquement : une decimale simple, sans espace,
      sans base, sans exposant, sans souligne. Tout le reste = ABSENT.
      Jumeau de `BACK_NUM_RE` de cards/frame.py. */
-  const BACK_NUM_RE = /^-?\d+(\.\d+)?$/;
+  const BACK_NUM_RE = /^-?[0-9]+(\.[0-9]+)?$/;
   /* LE DECOR DE CADRE PAR IA (spec §6.3, plan 3c decision 6). Une image
      GENEREE devient le fond de la bande : `doc.frame.decor = {src, alpha}`.
      Elle vit dans le magasin d'images de l'APPLICATION (`/api/images`), pas
@@ -285,6 +285,20 @@
      rejette. Sous le plancher il n'y a pas un anneau etroit, il n'y a PAS
      D'ANNEAU — et la ligne d'etat le dit. */
   const SEAL_MIN_MM = 0.2;
+  /* ── LA BORNE DU RAYON DE GEMME, AU MEME PATRON ───────────────────────────
+     LES BORNES DES CURSEURS SONT EN MILLIMETRES ABSOLUS ; UNE CARTE, NON. Ce
+     fichier l'ecrit deja deux fois au-dessus (`bandMaxMM`, `sealMaxMM`) et une
+     troisieme dans `cornerOrn`, qui NOMME `micro`. Le rayon de gemme, lui,
+     etait reste au plafond absolu : mesure, 20 mm de rayon sur un `micro`
+     (31,75 x 44,45 mm) donne une gemme de 40 mm de DIAMETRE, plus large que
+     la carte, dont l'encre sort de la toile des deux cotes.
+     La borne reelle est la demi-carte, et elle NE MORD QUE LA OU LE FORMAT
+     L'IMPOSE : 31,5 sur poker (le curseur, a 20, reste le plus serre), 15,87
+     sur micro. Jumeau de `gem_max_r_mm` de cards/frame.py. */
+  function gemMaxRMM(tw, th) {
+    const v = Math.min(Number(tw) || 0, Number(th) || 0) / 2;
+    return Math.min(LIMITS.gem_r_mm[1], v > 0 ? v : 0);
+  }
   function sealMaxMM(tw, th, edgeMM, wm) {
     const e = Number(edgeMM) || 0;
     const W = Number(tw) || 0, H = Number(th) || 0;
@@ -540,7 +554,14 @@
        c'est un trait de plus, pose sur le MEME chemin de fenetre, avec sa
        couleur et son epaisseur. Ne 0 mm, il ne peint rien — les huit
        familles restent a l'octet ce qu'elles etaient. */
-    win_stroke_color: "#000000", win_stroke_mm: 0,
+    /* LA COULEUR NAIT VIDE, comme `line_color`, et c'est une CORRECTION DE
+       RONDE : nee a `#000000`, `st()` normalisait « bleu » vers ce noir-la
+       AVANT que le painter la voie — ma garde « une couleur illisible NE
+       PEINT RIEN » etait donc MORTE, et l'ecran posait un lisere NOIR de
+       2 mm, muet. C'est le « defaut visible et muet » que l'en-tete de
+       `windowLiner` interdit en toutes lettres. « Pas de couleur » est un
+       ETAT ; le noir en est un autre. */
+    win_stroke_color: "", win_stroke_mm: 0,
     /* la fenetre EFFECTIVE, publiee pour les autres pieces : [x, y, w, h] en
        mm depuis la coupe, ou null quand aucun cadre ne masque rien. C'est le
        contrat que P1 lit (`frame.art_window`) depuis le premier jour — la
@@ -1038,7 +1059,9 @@
     if (mn.on) {
       cx = mn.x === null ? cx : cl(mn.x, 0, tw);
       cy = mn.y === null ? cy : cl(mn.y, 0, th);
-      r = mn.r === null ? r : mn.r;
+      /* LA BORNE DU FORMAT S'APPLIQUE AU PLAN, donc au dessin — comme
+         `Math.min(f.edge_mm, cap)` du cadre et la largeur du Sceau. */
+      r = mn.r === null ? r : Math.min(mn.r, gemMaxRMM(tw, th));
       const port = 1.5 * r + Math.max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM;
       const d2 = (cx > tw / 2) ? -1 : 1;
       box = [d2 > 0 ? cx - r : cx - port, cy - r, r + port, 2 * r];
@@ -2450,7 +2473,13 @@
        L'echelle multiplie l'unite `u` du dessin, jamais des coordonnees une
        a une : les vingt-trois nombres de `bracket`/`scroll`/`stud`/
        `fleuron`/`spike` sont tous ecrits en `u`, donc l'ornement grandit
-       ENTIER, epaisseur de trait comprise (elle aussi part de `u`).
+       ENTIER, epaisseur de trait comprise — ET C'EST UNE CORRECTION DE RONDE :
+       la phrase etait FAUSSE des que `line_mm` > 0, parce que l'epaisseur
+       partait de `m.line * 0.9` qui, lui, ne suit pas l'echelle. Mesure :
+       dessin x12 entre les deux bouts du curseur, trait CONSTANT a 9,57 px —
+       une tache a 0,25, un fil a 3. Mon propre temoin (`line_mm: 0`) donnait
+       le comportement annonce parce que c'est le seul cas ou le trait ne
+       vient PAS de `m.line`. L'echelle porte donc sur les deux termes.
        La BORNE EST CELLE DU FORMAT, pas un millimetre absolu : un decalage
        de 20 mm sur un `micro` (31,75 mm de large) enverrait les quatre
        ornements se croiser au centre. On rabote a ce que la demi-carte
@@ -2460,7 +2489,7 @@
     const cdy = cl(num(f.corner_dy, 0) * m.u, -kMax, kMax);
     const cs = cl(num(f.corner_scale, 1), LIMITS.corner_scale[0], LIMITS.corner_scale[1]);
     const u = m.u * cs;
-    ctx.lineWidth = Math.max(0.6, m.line * 0.9 || u * 0.3);
+    ctx.lineWidth = Math.max(0.6, m.line * 0.9 * cs || u * 0.3);
     const R = { x: m.trim.x + off + cdx, y: m.trim.y + off + cdy,
       w: m.trim.w - 2 * (off + cdx), h: m.trim.h - 2 * (off + cdy) };
     atCorners(ctx, R, (c) => {
@@ -4014,7 +4043,8 @@
     UI.winStrokeColor = h("input", "cff-col");
     UI.winStrokeColor.type = "color";
     UI.winStrokeColor.title = "Couleur du liseré propre de la fenêtre — "
-      + "indépendant de la moulure de la famille et du filet du cadre";
+      + "indépendant de la moulure de la famille et du filet du cadre. "
+      + "Tant que l'épaisseur vaut 0, aucun liseré n'est peint.";
     UI.winStrokeColor.addEventListener("input", () =>
       set({ win_stroke_color: UI.winStrokeColor.value }, "liseré de fenêtre"));
     wl.appendChild(field("Liseré", UI.winStrokeColor));
@@ -4022,6 +4052,23 @@
       LIMITS.win_stroke_mm[0], LIMITS.win_stroke_mm[1], 0.05, true);
     wl.appendChild(UI.winStroke.el);
     g2.body.appendChild(wl);
+    /* ── CE QUE LE LISERE PEUT MORDRE, DIT ────────────────────────────────
+       La FENETRE est bornee a la rogne ; le lisere, pose dessus et CENTRE sur
+       le chemin, met jusqu'a la moitie de son epaisseur au-dela. Sur une
+       fenetre calee au trait de coupe et un lisere au plafond, ce sont 2 mm
+       de fond perdu — de l'encre que la lame emporte.
+       CHOIX AVOUE : on le DIT au lieu de le borner. Un lisere qui mord le
+       fond perdu est LEGITIME (c'est ainsi qu'on borde une illustration a
+       fond perdu) ; le borner aurait interdit un dessin reel pour eviter une
+       surprise. */
+    g2.body.appendChild(h("p", "hint cff-winlineread",
+      "Le liseré est <b>centré</b> sur le bord de la fenêtre : il pose la "
+      + "<b>moitié de son épaisseur</b> de chaque côté. Sur une fenêtre calée "
+      + "au trait de coupe, un liseré de " + r2(LIMITS.win_stroke_mm[1])
+      + " mm met donc " + r2(LIMITS.win_stroke_mm[1] / 2)
+      + " mm dans le <b>fond perdu</b> — de l'encre que la lame emporte. "
+      + "C'est voulu quand on borde une illustration à fond perdu ; ailleurs, "
+      + "rentrez la fenêtre d'autant."));
     B.appendChild(g2.el);
 
     /* ── ornements ── */
@@ -4557,7 +4604,17 @@
     const gb = (gm === undefined) ? gemDe(g, f()) : gm;
     if (gb) {
       const gr = Math.max(2.5, gb.r * mg.s);
-      c.beginPath(); c.arc(X(gb.cx), Y(gb.cy), gr, 0, Math.PI * 2);
+      c.beginPath();
+      /* LA CARTE DES POIGNEES SUIT LA FORME QUE LE PLAN PUBLIE. Une gemme
+         rangee en ecrin sous une mention LARGE ET PLATE (une signature de
+         17 x 3,7 mm) devient un CARTOUCHE — `placeGem` le dit par
+         `shape: "rect"` — et la mini-carte dessinait un disque quand meme :
+         une prise ronde sur un objet rectangulaire, donc une prise qui rate
+         ses coins et en attrape a cote. */
+      if (gb.shape === "rect" && gb.box) {
+        rrPath(c, X(gb.box[0]), Y(gb.box[1]), gb.box[2] * mg.s,
+          gb.box[3] * mg.s, Math.min(3, gb.box[3] * mg.s / 2));
+      } else c.arc(X(gb.cx), Y(gb.cy), gr, 0, Math.PI * 2);
       c.fillStyle = rgba(strong.charAt(0) === "#" ? strong : "#ffffff", 0.22);
       c.fill();
       c.strokeStyle = gb.manual ? acc : ink;
@@ -4582,10 +4639,24 @@
        attrape quand les deux se recouvrent. L'inverse aurait fait redessiner
        la fenetre a chaque tentative de saisir une gemme posee dedans. */
     if (gm) {
-      const d = Math.hypot(p.x - gm.cx, p.y - gm.cy) * mg.s;
-      const rp = Math.max(2.5, gm.r * mg.s);
-      if (d <= rp) return "gem";
-      if (d <= rp + 12) return "gemr";
+      /* LA PRISE SUIT LA FORME PUBLIEE, pour la meme raison que le trace :
+         un ecrin rectangulaire s'attrape par son cartouche, pas par un
+         disque qui rate ses coins et en attrape a cote. La couronne de
+         redimensionnement, elle, garde sa largeur d'ecran (12 px) tout
+         autour. */
+      if (gm.shape === "rect" && gm.box) {
+        const b = gm.box, e = 12 / mg.s;
+        const dedans = p.x >= b[0] && p.x <= b[0] + b[2]
+          && p.y >= b[1] && p.y <= b[1] + b[3];
+        if (dedans) return "gem";
+        if (p.x >= b[0] - e && p.x <= b[0] + b[2] + e
+          && p.y >= b[1] - e && p.y <= b[1] + b[3] + e) return "gemr";
+      } else {
+        const d = Math.hypot(p.x - gm.cx, p.y - gm.cy) * mg.s;
+        const rp = Math.max(2.5, gm.r * mg.s);
+        if (d <= rp) return "gem";
+        if (d <= rp + 12) return "gemr";
+      }
     }
     const hx = w.x + w.w, hy = w.y + w.h;
     /* poignee : zone de saisie 12 px a l'ecran (barre 9.6-3 ; etait 8 px). */
@@ -7497,15 +7568,37 @@
     setNum(UI.cornDy, f0.corner_dy, mmpx(f0.corner_dy));
     setNum(UI.cornS, f0.corner_scale, r2(f0.corner_scale) + " x");
     setNum(UI.winStroke, f0.win_stroke_mm, mmpx(f0.win_stroke_mm));
-    UI.winStrokeColor.value = f0.win_stroke_color || "#000000";
+    /* le SELECTEUR ne sait pas dire « aucune » : il montre donc une teinte de
+       depart quand il n'y en a pas, et c'est l'EPAISSEUR qui decide (0 = pas
+       de lisere). Le meme parti que la couleur de plaque de P3. */
+    UI.winStrokeColor.value = f0.win_stroke_color || "#f2efe9";
+    /* ── LE CHAMP MONTRE L'EFFECTIF, ET IL PORTE SES BORNES ───────────────
+       CORRECTION DE RONDE : le champ affichait la valeur BRUTE du document
+       (500) pendant que sa pastille et la ligne d'etat, deux centimetres plus
+       bas, disaient 63 — le placement que `placeGem` pose vraiment. L'ecran
+       se contredisait lui-meme, et l'input n'avait ni `min` ni `max`, donc
+       rien ne disait ou s'arrete la course.
+       CHOIX : c'est L'EFFECTIF qui s'affiche. Le brut n'est pas une
+       information utile — c'est un nombre que rien ne dessine ; l'effectif
+       est celui du plan, de la pastille, de la ligne d'etat et du peintre.
+       Le champ VIDE garde son sens (« automatique ») : c'est l'ABSENCE de
+       cle qui le vide, pas la valeur. */
     const gmb = gemDe(g, f0);
+    const rMax = gemMaxRMM(g.trim_mm[0], g.trim_mm[1]);
+    const bornes = { x: [0, r2(g.trim_mm[0])], y: [0, r2(g.trim_mm[1])],
+      r: [LIMITS.gem_r_mm[0], r2(rMax)] };
     [["x", UI.gemX, "cx"], ["y", UI.gemY, "cy"], ["r", UI.gemR, "r"]].forEach((kv) => {
       const cle = f0["gem_" + kv[0]];
       const champ = kv[1];
+      champ.i.min = bornes[kv[0]][0];
+      champ.i.max = bornes[kv[0]][1];
       if (document.activeElement !== champ.i) {
-        champ.i.value = (cle === null || cle === undefined) ? "" : r2(cle);
+        champ.i.value = (cle === null || cle === undefined || !gmb)
+          ? "" : r2(gmb[kv[2]]);
       }
-      champ.px.textContent = gmb ? (r2(gmb[kv[2]]) + " mm") : "—";
+      champ.px.textContent = gmb
+        ? (r2(gmb[kv[2]]) + " mm · " + bornes[kv[0]][0] + " → "
+          + bornes[kv[0]][1]) : "—";
     });
     if (!gmb) {
       UI.gemRead.innerHTML = "Gemme <b>éteinte</b> — la case « Gemme de rareté » la rallume.";

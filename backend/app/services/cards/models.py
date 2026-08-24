@@ -172,16 +172,17 @@ def models_root() -> Path:
 # ════════════════════════════════════════════════════════════════════════════
 # 1. LA FABRIQUE — un slot de modèle est un objet COMPLET
 # ════════════════════════════════════════════════════════════════════════════
-# Forme de stockage retenue : les 39 clés de `SLOT_DEFAULTS`, jamais un
+# Forme de stockage retenue : les 49 clés de `SLOT_DEFAULTS`, jamais un
 # partiel. Deux raisons. (a) `type.norm_slot` ne change alors RIEN — et cette
 # idempotence est la preuve, vérifiable en une ligne, que la donnée est propre
 # plutôt que « réparable ». (b) Le painter reçoit les slots du document TELS
 # QUELS : un partiel obligerait chaque lecteur à connaître les défauts.
 #
-# Les modèles n'ont RIEN eu à changer aux phases 3b-T1 (`lock`) et 3b-T2
-# (`kind`/`src`/`fit`) : ils partent de `SLOT_DEFAULTS`, donc les clés y sont
-# nées à leur défaut. Tous leurs slots sont des blocs de TEXTE — un archétype
-# décrit des zones à remplir, pas des images de deck.
+# Les modèles n'ont RIEN eu à changer aux phases 3b-T1 (`lock`), 3b-T2
+# (`kind`/`src`/`fit`) ni 5-T2 (les dix clés des formes) : ils partent de
+# `SLOT_DEFAULTS`, donc les clés y sont nées à leur défaut. Tous leurs slots
+# sont des blocs de TEXTE — un archétype décrit des zones à remplir, pas des
+# images ni des décors de deck.
 
 def _slot(sid: str, label: str, box, **kw) -> dict:
     s = copy.deepcopy(type_mod.SLOT_DEFAULTS)

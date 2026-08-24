@@ -246,13 +246,28 @@
      qu'un poker porte. */
   const STROKE_MM_MAX = 20;
   const HEAD_MM_MAX = 40;
+  /* ── LA BORNE QUE LE FORMAT IMPOSE A LA TETE FLECHEE ────────────────────
+     LES BORNES DES CURSEURS SONT EN MILLIMETRES ABSOLUS ; UNE CARTE, NON.
+     La piece 02 l'a deja ecrit trois fois (`bandMaxMM`, `sealMaxMM`, le
+     decalage des ornements de coin) ; celle-ci devait l'apprendre : 40 mm de
+     tete sur un `micro` (31,75 x 44,45 mm) est une tete PLUS LARGE QUE LA
+     CARTE. La base s'etend de `head_mm/2` de part et d'autre du trait, donc
+     elle occupe `head_mm` en travers : au-dela du petit cote, elle ne rentre
+     nulle part. La borne NE MORD QUE LA OU LE FORMAT L'IMPOSE (patron
+     `sealMaxMM`) — 40 sur poker, 31,75 sur micro.
+     Elle s'applique AU TRACE, le curseur garde sa course.
+     Jumeau de `head_max_mm` de cards/type.py. */
+  function headMaxMM(tw, th) {
+    const v = Math.min(Number(tw) || 0, Number(th) || 0);
+    return Math.min(HEAD_MM_MAX, v > 0 ? v : 0);
+  }
   /* la SEULE lecture d'une couleur de cette piece — trois formes, et les
      memes que `_color` de cards/type.py lit. */
   const HEX_RE = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
   /* Le motif EXACT d'une source de calque, miroir de type.py:SLOT_SRC_RE. Ce
      nom n'est jamais tape par un humain : la route d'import le fabrique
      (`img_{n}.png`). Un motif permissif aurait ouvert le dossier du deck. */
-  const SRC_RE = /^(|img:img_\d+\.png)$/;
+  const SRC_RE = /^(|img:img_[0-9]+\.png)$/;
   /* Cote long au-dela duquel une image importee est reduite AVANT l'envoi.
      MEME CHIFFRE que l'illustration de P1 (mod-face.js:91 / face.py:92) et que
      cards/type.py:MAX_IMPORT_PX, recopie et non partage : chaque piece porte
@@ -339,7 +354,7 @@
      ici), « 1_0 » (10 en Python, NaN en JS), « inf » / « nan » (float() les
      lit, et `isfinite` les refuse ensuite des deux cotes). Tout le reste — un
      tableau, un objet, `null`, la chaine vide — vaut ABSENT. */
-  const NUM_RE = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
+  const NUM_RE = /^[+-]?([0-9]+\.?[0-9]*|\.[0-9]+)([eE][+-]?[0-9]+)?$/;
   const num = (v, d, lo, hi) => {
     let n;
     if (typeof v === "number") n = v;
@@ -458,17 +473,25 @@
     s.stroke = couleurOuNul(r.stroke);
     s.stroke_mm = num(r.stroke_mm, 0, 0, STROKE_MM_MAX);
     s.head_mm = num(r.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX);
-    /* les deux bouts, INDEPENDANTS ; une fleche pointe vers sa FIN par
-       defaut, parce que c'est le sens de lecture. `undefined` seul retombe
-       sur le defaut — `null` vaut faux, comme `bool(None)` du miroir. */
-    s.arrow_start = r.arrow_start === undefined ? false : !!r.arrow_start;
-    s.arrow_end = r.arrow_end === undefined ? true : !!r.arrow_end;
-    s.flip = r.flip === undefined ? false : !!r.flip;
+    /* ── UN BOOLEEN, LU COMME LES DEUX LANGAGES LE LISENT ─────────────────
+       `!![]` vaut VRAI ici et `bool([])` vaut FAUX au miroir : une fleche
+       dessinee a un bout d'un cote l'aurait ete a l'autre de l'autre. `bl` ne
+       laisse donc decider qu'un VRAI booleen ; tout le reste vaut le defaut.
+       LA CLASSE EST PLUS LARGE QUE CES TROIS CLES (`wrap`, `on`, `lock`,
+       `autofit`, `bold`, `italic`, `hyphen` portent la meme divergence) et
+       elle est ANTERIEURE a cette phase : les toucher changerait la lecture
+       de documents deja enregistres. Dette NOMMEE, pas silence. */
+    s.arrow_start = bl(r.arrow_start, false);
+    s.arrow_end = bl(r.arrow_end, true);
+    s.flip = bl(r.flip, false);
     s.plate_stroke = couleurOuNul(r.plate_stroke);
     s.plate_stroke_mm = num(r.plate_stroke_mm, 0, 0, STROKE_MM_MAX);
     s.text = String(r.text == null ? "" : r.text).slice(0, 4000);
     return s;
   }
+  /* un booleen, ou le defaut — miroir d'execution de `_bool` de
+     cards/type.py. SEUL un vrai booleen decide. */
+  function bl(v, d) { return (typeof v === "boolean") ? v : !!d; }
   /* Une couleur ECRITE, ou `null` — jamais une couleur inventee. Miroir de
      `_color(..., None)` de cards/type.py. */
   function couleurOuNul(v) {
@@ -1522,6 +1545,56 @@
      cle n'est pas retiree de l'objet (la parite stricte des deux tables
      prime), elle n'est simplement pas lue — exactement comme les onze
      reglages typographiques d'un calque d'image. */
+  /* ── L'ENCRE GEOMETRIQUE D'UNE FORME ─────────────────────────────────────
+     La MEME recette que `_ink_forme_mm` de cards/type.py, ecrite une fois de
+     chaque cote — et le PREMIER JET etait faux d'une facon instructive : il
+     gonflait la boite de `head_mm/2` SUR LES QUATRE COTES. Mesure : une
+     fleche HORIZONTALE de 40 mm a tete de 31,5 mm sortait alors « hors cadre
+     a gauche » de 5,75 mm, alors que sa tete ne deborde que vers le haut et
+     le bas. Un faux defaut est pire qu'un defaut manque : il apprend a ne
+     plus croire le voyant.
+     ON PREND DONC L'ENVELOPPE DES POINTS REELS : les quatre coins du ruban
+     (segment decale de la NORMALE, bout carre) et les trois sommets de chaque
+     tete armee.
+     ELLE EXISTE ICI PARCE QUE L'ECRAN ETAIT AVEUGLE AU MEME ENDROIT : `MEAS`
+     ecarte les formes, donc `m` valait `null`, donc le lisere d'alerte du
+     calque d'edition ne partait JAMAIS pour une forme qui sort du cadre. */
+  function shapeInkMm(slot, tw, th) {
+    const x = slot.box[0], y = slot.box[1], w = slot.box[2], h = slot.box[3];
+    const demi = num(slot.stroke_mm, 0, 0, STROKE_MM_MAX) / 2;
+    if (slot.kind !== "line" && slot.kind !== "arrow") {
+      return [x - demi, y - demi, w + 2 * demi, h + 2 * demi];
+    }
+    const p0 = slot.flip ? [x, y + h] : [x, y];
+    const p1 = slot.flip ? [x + w, y] : [x + w, y + h];
+    const dx = p1[0] - p0[0], dy = p1[1] - p0[1];
+    const lg = Math.hypot(dx, dy);
+    const ux = lg > 0 ? dx / lg : 1, uy = lg > 0 ? dy / lg : 0;
+    const pts = [p0, p1];
+    const nx = -uy * demi, ny = ux * demi;
+    [p0, p1].forEach((p) => {
+      pts.push([p[0] + nx, p[1] + ny], [p[0] - nx, p[1] - ny]);
+    });
+    if (slot.kind === "arrow") {
+      const tete = Math.min(num(slot.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX),
+        headMaxMM(tw, th));
+      if (tete > 0) {
+        const hx = -uy * tete / 2, hy = ux * tete / 2;
+        [[slot.arrow_end, p1, 1], [slot.arrow_start, p0, -1]].forEach((e) => {
+          if (!e[0]) return;
+          const bx = e[1][0] - e[2] * ux * tete, by = e[1][1] - e[2] * uy * tete;
+          pts.push([bx + hx, by + hy], [bx - hx, by - hy]);
+        });
+      }
+    }
+    const xs = pts.map((p) => p[0]), ys = pts.map((p) => p[1]);
+    const x0 = Math.min.apply(null, xs), y0 = Math.min.apply(null, ys);
+    return [x0, y0, Math.max.apply(null, xs) - x0, Math.max.apply(null, ys) - y0];
+  }
+  function shapeInkPx(slot, g) {
+    const tw = g.trim_px[0] * 25.4 / g.dpi, th = g.trim_px[1] * 25.4 / g.dpi;
+    return boxPx({ box: shapeInkMm(slot, tw, th) }, g);
+  }
   function shapeSeg(slot, b) {
     return slot.flip
       ? [b[0], b[1] + b[3], b[0] + b[2], b[1]]
@@ -1530,24 +1603,23 @@
   /* la tete flechee : un triangle isocele dont la POINTE est le bout et dont
      la base est perpendiculaire au trait, `head` en arriere.
 
-     ── DEUX TEMOINS SURVIVANTS, AVOUES ET MESURES ─────────────────────────
-     La batterie de mutations de la T2 en a joue dix-huit ; deux restent
-     VERTES, et c'est voulu :
-       · la BASE de la tete vaut `head * 0.5` de chaque cote. Passee a 0,7,
-         sept tests de fleche restent verts (mesure : la sonde de base est a
-         5,5 mm de la pointe d'une tete de 6 mm, donc a 2,75 mm de demi-largeur
-         contre 1,4 mm demande — 3,85 mm ne la fait pas sortir) ;
-       · `lineCap` vaut « butt ». Passe a « round », neuf tests restent verts
-         (mesure : un bout arrondi deborde d'une DEMI-EPAISSEUR, soit 0,5 mm
-         sur un trait de 1 mm, et la sonde « rien 2 mm avant le depart » est a
-         quatre fois cette distance).
-     LES PINNER SERAIT UNE FAUTE, et la phase 4 l'a deja dit une fois
-     (cloture T4 : « echanger sextant et plume de coin est une DECISION DE
-     DESSIN, pas une propriete mesurable »). Une base a 0,45 ou un bout
-     arrondi restent une fleche ; ce que les tests tiennent, c'est OU l'encre
-     tombe — le fut, la pointe, la tete du bon cote, et rien la ou il ne doit
-     rien y avoir. Le jour ou quelqu'un change ces deux nombres, c'est qu'il
-     dessine ; il n'a pas a en rendre compte a la suite. */
+     ── DEUX NOMBRES QUI ETAIENT DES TEMOINS, ET QUI SONT MAINTENANT PINNES ──
+     LA RAISON QUE J'AVAIS ECRITE NE TENAIT PAS A LA MESURE, et c'est
+     exactement ce que la cloture T2 de la phase 4 interdit (« l'aveu se
+     mesure comme une affirmation de succes »). J'avais ecrit que la base de
+     la tete et le bout de trait etaient des decisions de dessin NON
+     SEPARABLES. La revue a mesure le contraire, et la mesure est reproduite
+     dans la suite :
+       · la BASE (`head * 0.5`) se separe par UNE sonde : a 44,5 mm et 3,2 mm
+         de l'axe, la tete de 6 mm est DEHORS a 0,5 (demi-largeur 2,75) et
+         DEDANS a 0,7 (3,85). Le couple (44,5 ; 41,4) dedans / (44,5 ; 43,2)
+         dehors pinne le nombre a un demi-millimetre pres ;
+       · le BOUT DE TRAIT : le banc node n'a aucune notion de cap — mon propre
+         commentaire de banc le dit —, donc l'y chercher etait vain ; mais un
+         bout arrondi deborde d'une DEMI-EPAISSEUR au-dela de la pointe, et
+         une sonde a 0,7 mm au-dela le voit sur les deux rasteriseurs.
+     UNE PROPRIETE SEPARABLE A COUT NUL SE PINNE. Le temoin meurt, la mesure
+     reste — et ce qui etait un gout redevient un fait. */
   function arrowHead(ctx, px, py, ux, uy, head) {
     const bx = px - ux * head, by = py - uy * head;
     const nx = -uy * head * 0.5, ny = ux * head * 0.5;
@@ -1601,7 +1673,12 @@
         ctx.lineTo(s[2], s[3]);
         ctx.stroke();
         if (slot.kind === "arrow") {
-          const head = g.mm2px(num(slot.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX));
+          /* LA BORNE DU FORMAT S'APPLIQUE AU TRACE, comme celle de la bande
+             et celle du Sceau chez P2 : 40 mm de tete sur un `micro` est une
+             tete plus large que la carte. */
+          const head = g.mm2px(Math.min(
+            num(slot.head_mm, SLOT_DEFAULTS.head_mm, 0, HEAD_MM_MAX),
+            headMaxMM(g.trim_px[0] * 25.4 / g.dpi, g.trim_px[1] * 25.4 / g.dpi)));
           if (head > 0) {
             const ux = dx / L, uy = dy / L;
             ctx.fillStyle = stroke;
@@ -3212,6 +3289,20 @@
      reglages independants sur la meme forme — border sans remplir est le cas
      demande, et c'est celui que la phrase de pied nomme en premier quand il
      est en vigueur. */
+  /* ── LA PLAQUE EST-ELLE MUETTE SUR CE BLOC ? ─────────────────────────────
+     DEUX PHRASES DU MEME PANNEAU SE CONTREDISAIENT. Sur une forme sans
+     encre, la carte ne peint RIEN — pas meme la plaque, c'est la garde de
+     `drawShapeSlot` et elle est mesuree — pendant que le pied de cette
+     section affirmait « plaque #20c0ff a 100 % · bordure 0,80 mm ». Le pied
+     consulte donc la MEME condition que le painter : une seule question, un
+     seul endroit. */
+  function plaqueMuette(s) {
+    if (!isShape(s)) return false;
+    const fill = HEX_RE.test(String(s.fill == null ? "" : s.fill));
+    const trait = HEX_RE.test(String(s.stroke == null ? "" : s.stroke))
+      && num(s.stroke_mm, 0, 0, STROKE_MM_MAX) > 0;
+    return (s.kind === "line" || s.kind === "arrow") ? !trait : (!fill && !trait);
+  }
   function inspPlaque(s) {
     return '<details class="grp cf-type-grp" open><summary>Plaque de fond et bordure</summary>'
       + '<div class="grp-body"><div class="cf-type-grid">'
@@ -3246,6 +3337,12 @@
       + ' · ' + (s.plate_stroke && s.plate_stroke_mm > 0
         ? 'bordure ' + esc(s.plate_stroke) + ' de ' + fx(s.plate_stroke_mm, 2) + ' mm'
         : 'aucune bordure — posez une épaisseur pour en créer une')
+      /* LA CONDITION DE LA GARDE, DITE ICI : sans elle, le pied annonçait un
+         fond et un liseré que la carte ne peint pas. */
+      + (plaqueMuette(s)
+        ? " — <b>rien n’est peint tant que cette forme n’a pas d’encre</b> "
+          + "(remplissage ou contour) : la plaque suit son bloc."
+        : '')
       + '</p></div></details>';
   }
   function inspBoite(s, mesures) {
@@ -6017,12 +6114,29 @@
     OV.innerHTML = slots().filter((s) => s.on && (s.side === "both" || s.side === side)).map((s) => {
       const live = (liveId && s.id === liveId) ? Object.assign({}, s, { box: liveBox }) : s;
       const b = boxPx(live, g), m = MEAS[s.id];
-      const outSafe = m && anyOut(outsideBy(m.ink, sr));
-      const bad = m && (m.over || outSafe);
+      /* ── UNE FORME EST JUGEE SUR SON ENCRE GEOMETRIQUE ──────────────────
+         Elle n'entre pas dans `MEAS` (pas de glyphe, donc pas de mesure de
+         composition), et le calque en concluait qu'il n'y avait RIEN a
+         signaler : une fleche dont la tete monte 2 mm au-dessus du trait de
+         coupe ne portait aucune marque. Son encre, elle, se DEDUIT — meme
+         recette que le backend, un seul endroit de chaque cote. */
+      const forme = isShape(s);
+      const inkF = forme ? shapeInkPx(live, g) : null;
+      const outSafe = forme ? anyOut(outsideBy(inkF, sr))
+        : (m && anyOut(outsideBy(m.ink, sr)));
+      const bad = forme ? outSafe : (m && (m.over || outSafe));
       /* LE LISERE D'ALERTE EST ICI, PAS DANS LA TOILE : ce calque est du DOM
          pose sur l'apercu, rien de ce qu'il montre ne peut partir dans un PNG
          ni dans un PDF. Un cadre d'alerte peint par le painter, si. */
-      const why = !bad ? "" : (m.over
+      const why = !bad ? "" : (forme
+        /* LE DEBORD D'UNE FORME EST NOMME EN MILLIMETRES : c'est la grandeur
+           qu'on remet dans le champ de la boite, et la seule qui se verifie
+           a la regle sur l'epreuve. */
+        ? " · hors cadre de " + fx(Math.max.apply(null,
+          [outsideBy(inkF, sr).left, outsideBy(inkF, sr).top,
+            outsideBy(inkF, sr).right, outsideBy(inkF, sr).bottom])
+          * 25.4 / g.dpi, 2) + " mm"
+        : m.over
         ? " · " + m.over_chars + " car. hors cadre"
         : " · entame la marge du format");
       /* ── UNE BOITE PLATE RESTE ATTRAPABLE (phase 5, D3) ─────────────────
