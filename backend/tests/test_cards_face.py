@@ -3657,6 +3657,51 @@ def test_la_piece_appelle_le_SERVICE_et_jamais_un_client_http_vers_elle_meme():
          "(un import + un appel chacun)")
 
 
+def test_les_trois_voies_SAVENT_appeler_leur_service(monkeypatch):
+    """LE CONTRÔLE QUI PROTÈGE T5. Toute la campagne est jouée par des espions
+    posés SUR les trois `_tirer_*` : leur corps — le seul endroit qui touche un
+    vrai générateur — n'est donc jamais exécuté par le banc. Une dérive de
+    signature (`_flux_generate` gagne un paramètre, `image_providers.generate`
+    en renomme un) ne se verrait qu'en campagne RÉELLE, après avoir payé les
+    cases précédentes.
+
+    Ici les trois corps sont exécutés pour de bon, avec la VRAIE signature du
+    service en face : on remplace la fonction de service par un faux qui
+    commence par `inspect.signature(vraie).bind(...)`. L'appel est donc
+    vérifié contre le contrat réel, et rien ne sort de la machine."""
+    import inspect
+    from app.api import routes as RT
+    from app.services import image_providers as IP
+    vus = []
+
+    def _garde(vraie, retour):
+        async def _faux(*a, **k):
+            inspect.signature(vraie).bind(*a, **k)   # lève si la signature dérive
+            vus.append((getattr(vraie, "__name__", "?"), a, sorted(k)))
+            return retour
+        return _faux
+
+    monkeypatch.setattr(RT, "_flux_generate",
+                        _garde(RT._flux_generate, {"images": ["a.png"], "seed": 1}))
+    monkeypatch.setattr(IP, "generate",
+                        _garde(IP.generate, {"images": ["b.png"], "seed": None}))
+    p = FA.serie_prompt("vista_tower")
+    assert asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 42)) == ["a.png"]
+    assert asyncio.run(FA._tirer_banana(p, "src.png")) == ["b.png"]
+    assert asyncio.run(FA._tirer_gpt(p)) == ["b.png"]
+    assert [v[0] for v in vus] == ["_flux_generate", "generate", "generate"]
+    # le cadre demandé est bien celui de la pièce, pas un défaut du service
+    assert FA.SERIE_TAILLE in vus[0][1]
+    assert vus[1][1][0] == "nano-banana" and vus[2][1][0] == "gpt-image-2"
+    # ... et le garde-fou de nom vaut sur les TROIS voies, pas seulement à la
+    # construction du prompt : c'est la dernière porte avant le fournisseur.
+    for voie, args in ((FA._tirer_flux, ("in the style of Walkuski", 1, 0)),
+                       (FA._tirer_banana, ("by Walkuski", "src.png")),
+                       (FA._tirer_gpt, ("by Walkuski",))):
+        with pytest.raises(ValueError):
+            asyncio.run(voie(*args))
+
+
 # ── H. l'écran : la voie, la retombée avouée, le miroir ──────────────────────
 
 def test_la_serie_est_au_MIROIR_entre_l_ecran_et_la_piece():
