@@ -94,7 +94,8 @@ __all__ = [
     "price_table", "SUB_RENAMES",
     # ── la série « affiche polonaise » (phase 5, T1) ────────────────────────
     "SERIES", "SERIE_ID", "SERIE_V", "SERIE_JUGE", "SERIE_PLAFOND_USD",
-    "SERIE_CANDIDATS", "FAMILLES", "NOMS_INTERDITS", "PALETTE_NEUTRE",
+    "SERIE_CANDIDATS", "SERIE_FLUX_MAX", "FAMILLES", "NOMS_INTERDITS",
+    "PALETTE_NEUTRE",
     "fiche_style", "serie_cases", "serie_famille", "serie_familles",
     "serie_accent", "serie_prompt", "serie_prompt_retouche",
     "sans_nom_d_artiste", "juger_image", "meilleur_candidat", "serie_root",
@@ -1119,6 +1120,21 @@ SERIE_V = 1                       # schéma du manifeste
 SERIE_DIR = "cardforge_series"    # sous `DATA_ROOT`, patron des modèles perso
 SERIE_PLAFOND_USD = 6.00          # LE MUR (plan D2) — dur, pas indicatif
 SERIE_CANDIDATS = 6               # candidats par case à la première marche
+# LE PLAFOND DU FOURNISSEUR, MESURÉ EN PAYANT (campagne T5, 25/08/2026).
+# `fal-ai/flux/schnell` refuse `num_images > 4`, et il le refuse à la
+# VALIDATION DU CORPS, avant tout calcul :
+#   {'type': 'less_than_equal', 'loc': ['body', 'num_images'],
+#    'msg': 'Input should be less than or equal to 4', 'input': 6}
+# Les six candidats du plan D2 partent donc en DEUX tirs (4 + 2). Le prix ne
+# bouge pas d'un centime : il se compte à l'IMAGE (6 × 0,003 $), jamais à
+# l'appel — `_payer` reste inchangé, et le plafond de campagne aussi. C'est
+# une contrainte de TRANSPORT, pas de facturation.
+#
+# CE QUI A LAISSÉ PASSER LE DÉFAUT : le banc vérifiait la SIGNATURE de
+# `_flux_generate` (elle liait, et elle liait juste) mais jamais la VALEUR de
+# son troisième argument. Une signature n'est pas un contrat de domaine : le
+# fournisseur avait le droit de refuser un nombre que la fonction acceptait.
+SERIE_FLUX_MAX = 4
 SERIE_TAILLE = "portrait_4_3"     # cadre demandé au service de génération
 SERIE_RATIO = "3:4"               # le même, dit comme l'édition l'écrit
 JUGE_FICHIER = "style_walkuski.py"
@@ -1835,10 +1851,27 @@ def cout_echelle_usd() -> float:
 # ses branches inlined.
 
 async def _tirer_flux(prompt: str, n: int, graine: int) -> list:
+    """Les `n` candidats, en autant de tirs que le fournisseur en accepte.
+
+    Le nom est vérifié UNE fois, avant le premier tir : la garde est la même
+    pour tous les lots, et rien ne part si elle lève."""
     from app.api.routes import _flux_generate
-    out = await _flux_generate(sans_nom_d_artiste(prompt), SERIE_TAILLE, n,
-                               seed=int(graine))
-    return list((out or {}).get("images") or [])
+    propre = sans_nom_d_artiste(prompt)
+    noms: list = []
+    reste = max(0, int(n))
+    tir = 0
+    while reste > 0:
+        lot = min(reste, SERIE_FLUX_MAX)
+        # UNE GRAINE PAR TIR. La même graine pour les deux lots rendrait le
+        # second identique au premier : on paierait six images pour n'en
+        # juger que quatre distinctes. Décalée par le RANG du tir, elle reste
+        # déterministe — la même case retire toujours les mêmes candidats.
+        out = await _flux_generate(propre, SERIE_TAILLE, lot,
+                                   seed=(int(graine) + tir) & 0x7FFFFFFF)
+        noms.extend((out or {}).get("images") or [])
+        reste -= lot
+        tir += 1
+    return noms
 
 
 async def _tirer_banana(prompt: str, source: str) -> list:

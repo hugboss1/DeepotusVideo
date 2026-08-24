@@ -4032,13 +4032,20 @@ def test_les_trois_voies_SAVENT_appeler_leur_service(monkeypatch):
     monkeypatch.setattr(IP, "generate",
                         _garde(IP.generate, {"images": ["b.png"], "seed": None}))
     p = FA.serie_prompt("vista_tower")
-    assert asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 42)) == ["a.png"]
+    # FLUX part en PLUSIEURS tirs depuis la campagne réelle (SERIE_FLUX_MAX) :
+    # six candidats ne tiennent pas dans un appel. Le nombre d'appels est
+    # DÉRIVÉ, jamais écrit — sinon ce test redeviendrait un pin périmé.
+    n_tirs = -(-FA.SERIE_CANDIDATS // FA.SERIE_FLUX_MAX)
+    assert asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 42)) \
+        == ["a.png"] * n_tirs
     assert asyncio.run(FA._tirer_banana(p, "src.png")) == ["b.png"]
     assert asyncio.run(FA._tirer_gpt(p)) == ["b.png"]
-    assert [v[0] for v in vus] == ["_flux_generate", "generate", "generate"]
+    assert [v[0] for v in vus] == ["_flux_generate"] * n_tirs \
+        + ["generate", "generate"]
     # le cadre demandé est bien celui de la pièce, pas un défaut du service
     assert FA.SERIE_TAILLE in vus[0][1]
-    assert vus[1][1][0] == "nano-banana" and vus[2][1][0] == "gpt-image-2"
+    assert vus[n_tirs][1][0] == "nano-banana"
+    assert vus[n_tirs + 1][1][0] == "gpt-image-2"
     # ... et le garde-fou de nom vaut sur les TROIS voies, pas seulement à la
     # construction du prompt : c'est la dernière porte avant le fournisseur.
     for voie, args in ((FA._tirer_flux, ("in the style of Walkuski", 1, 0)),
@@ -4046,6 +4053,82 @@ def test_les_trois_voies_SAVENT_appeler_leur_service(monkeypatch):
                        (FA._tirer_gpt, ("by Walkuski",))):
         with pytest.raises(ValueError):
             asyncio.run(voie(*args))
+
+
+def test_aucun_tir_FLUX_ne_depasse_le_plafond_du_fournisseur(monkeypatch):
+    """LE DÉFAUT QUE SEULE LA CAMPAGNE PAYANTE POUVAIT VOIR (T5, 25/08).
+
+    Le contrôle voisin vérifie la SIGNATURE de `_flux_generate` : elle liait,
+    et elle liait juste. Mais `fal-ai/flux/schnell` refuse `num_images > 4` —
+    à la VALIDATION du corps, avant de calculer quoi que ce soit. Les six
+    candidats de `SERIE_CANDIDATS` partaient donc en UN appel, et les DOUZE
+    premières cases de la campagne réelle sont mortes sur le même 422, sans
+    qu'une image soit produite (magasin d'images inchangé à l'octet).
+
+    Ce que ce test épingle, et qu'aucun autre ne disait : la VALEUR du
+    troisième argument, contre le plafond du fournisseur. Le nombre d'appels
+    est DÉRIVÉ des deux constantes — un pin écrit à la main redeviendrait
+    faux au premier réglage."""
+    from app.api import routes as RT
+    vus = []
+
+    async def _faux(prompt, size, n, **k):
+        vus.append((int(n), k.get("seed")))
+        return {"images": ["f%d_%d.png" % (len(vus), i) for i in range(int(n))],
+                "seed": k.get("seed")}
+
+    monkeypatch.setattr(RT, "_flux_generate", _faux)
+    p = FA.serie_prompt("vista_tower")
+    noms = asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 4242))
+
+    # 0. LE PLAFOND EST UN FAIT DU FOURNISSEUR, PAS UN RÉGLAGE — et cette
+    #    ligne-ci est la seule du test qui ne se dérive de rien. Le premier
+    #    jet ne l'avait pas, et sa ronde de mutation l'a payé : porter
+    #    SERIE_FLUX_MAX à 8 ramenait le tir unique de six (le défaut EXACT
+    #    qui a tué douze cases payées) et le contrôle restait VERT, parce
+    #    qu'il dérivait son attendu de la constante qu'il prétend garder.
+    #    Un oracle qui cite l'accusé ne juge personne.
+    assert FA.SERIE_FLUX_MAX <= 4, (
+        "fal-ai/flux/schnell refuse num_images > 4 : 422 à la validation du "
+        "corps, mesuré en campagne réelle le 25/08/2026")
+
+    # 1. aucun tir ne demande plus que ce que le fournisseur accepte
+    assert vus, "aucun tir émis"
+    assert max(n for n, _ in vus) <= FA.SERIE_FLUX_MAX, vus
+    # 2. et pourtant les six candidats sont bien là : le lot est découpé,
+    #    pas rogné (rogner reviendrait à payer six et juger quatre)
+    assert sum(n for n, _ in vus) == FA.SERIE_CANDIDATS, vus
+    assert len(noms) == FA.SERIE_CANDIDATS, noms
+    assert len(vus) == -(-FA.SERIE_CANDIDATS // FA.SERIE_FLUX_MAX), vus
+    # 3. une graine par tir : deux lots à la même graine rendraient deux fois
+    #    la même image, et la sur-génération ne servirait plus à rien
+    assert len(set(g for _, g in vus)) == len(vus), vus
+    # 4. ... et le tirage reste DÉTERMINISTE d'un lancement à l'autre
+    vus2 = list(vus)
+    del vus[:]
+    asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 4242))
+    assert vus == vus2, (vus, vus2)
+
+
+def test_le_prix_d_une_case_se_compte_a_l_IMAGE_pas_a_l_APPEL(monkeypatch):
+    """LE COROLLAIRE DU DÉCOUPAGE, ÉPINGLÉ. Découper six candidats en deux
+    appels ne doit RIEN changer à la facture ni au mur : `_payer` est appelé
+    UNE fois pour `SERIE_CANDIDATS` images, avant le premier tir. Sans ce
+    contrôle, un futur découpage qui paierait par appel doublerait la
+    dépense d'une campagne sans qu'un seul test rougisse."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    p = _prix_de_banc(monkeypatch)
+    at = _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    assert len(d["journal"]) == 1, d["journal"]
+    assert d["journal"][0]["modele"] == "flux"
+    assert d["journal"][0]["n"] == FA.SERIE_CANDIDATS
+    assert d["journal"][0]["prix_usd"] == pytest.approx(
+        FA.SERIE_CANDIDATS * p["flux_image_usd"])
+    assert at.appels[0][2] == FA.SERIE_CANDIDATS
+    s.zero()
 
 
 # ── H. l'écran : la voie, la retombée avouée, le miroir ──────────────────────
