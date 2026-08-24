@@ -371,8 +371,47 @@ sélection s'étend aux éléments P2 — dire lequel possède quoi AVANT de cod
   redimensionnement d'un LOT (échelle autour de l'enveloppe) n'est pas de
   cette phase — les poignées ne sont servies qu'en solo, et le lot montre
   son enveloppe pour que l'absence se voie.
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] Ronde adverse (opus) : 1 bloquant + 3 réels + 3 mineurs + 7 rejetés
+  mesurés (l'aimant-sur-soi exclu prouvé au témoin 0,25 mm, le survol-Sceau
+  vs drag-P2 = trois rAF séparés…). LE BLOQUANT : la barre contextuelle
+  IGNORAIT LE VERROU — dix commandes de géométrie sans une garde, le même
+  bloc verrouillé tenait au glisser (« n'a pas suivi ») puis BOUGEAIT à
+  l'alignement un clic plus tard, sans un mot → le verrou vaut en ANCRE par
+  UNE porte (lotLibre) : il compte dans l'enveloppe et donne sa taille en
+  référence, ne reçoit jamais le patch, la phrase nomme le geste ;
+  l'infobulle du cadenas mise à jour et LUE par un test. Réels : la garde
+  d'égalisation testait le KIND pas la dimension (un TEXTE à hauteur 0 —
+  champ sans min — aplatissait le lot en silence) → refus sur la dimension
+  nulle quelle que soit la nature + plancher d'entrée QUI SUIT LA NATURE
+  (les lignes restent atteignables) ; la distribution prenait le bord GAUCHE
+  maximal (sur une carte normale — fond+titre+stat — le titre sautait SUR la
+  stat) → l'enveloppe fait la portée, l'ordre est celui des centres, et
+  L'INVARIANT DU LIVREUR S'EST RÉVÉLÉ IMPOSSIBLE (« aucun membre ne sort »
+  quand les objets ne tiennent pas — l'invariant exact écrit, le
+  chevauchement avoué avec son chiffre à l'écran) ; LE TÉMOIN DE TANGENCE
+  PINNÉ (4 faces + 3 contrôles au millième — l'excuse de l'arrondi était
+  fausse DE MESURE, 4e application de la leçon) et la tâche NE REVENDIQUE
+  PLUS AUCUN témoin survivant. Mineurs : les comptes des messages de commit
+  contredits par leurs diffs (mesurés et rectifiés au rapport — les totaux
+  finaux exacts ; LA PROSE D'UN COMMIT SE MESURE AUSSI) ; le dépassement de
+  procédure f0f7dbf (le livreur cochait sa case LIVRÉ — ronde/CLOSE
+  intactes ; les cases sont à l'orchestrateur, acte pris) ; les gestes de
+  lot agissent sur le VISIBLE (règle tranchée CONTRE Figma avec sa raison :
+  l'œil de la rangée doit vouloir dire quelque chose — toast qui compte les
+  masqués ignorés). Ronde : 344/344 type + 304 frame, banc Chrome ÉTENDU
+  (cadenas par la rangée, B1/R1/R2 verts du premier coup).
+- [x] CLOSE : leçons — (a) DIX COMMANDES NEUVES = DIX RENCONTRES AVEC LE
+  VERROU (une écriture de géométrie qui n'a pas croisé lock n'est pas
+  finie) ; (b) un invariant s'écrit APRÈS avoir cherché le cas qui le casse
+  (celui du livreur était arithmétiquement impossible) ; (c) 4e témoin
+  démasqué par la mesure — la tâche qui n'a pas de témoin honnête n'en
+  revendique aucun ; (d) la prose des commits se mesure comme le reste.
+  Dettes → T6 : la liste de blocs se lit du fond vers la surface vs les
+  bandes fixes en sens Figma (les infobulles nomment l'équivalence — à
+  arbitrer à l'œil) ; le redimensionnement de LOT (échelle d'enveloppe) non
+  livré — l'enveloppe s'affiche pour que l'absence se voie ; la bande du
+  Sceau vérifiée au banc node seul (sa preuve qui compte — le déterminisme
+  d'export — est exécutée).
 
 ### T4 — Le verre, l'occlusion, l'ondulation tranchée (D5)
 _GLASS_RECIPES ×3 + extensions au writer (PESÉES dans le GLB : transmission/
