@@ -165,6 +165,24 @@
   ];
   /* CF-FACE-COMPOS-END */
 
+  /* CF-FACE-SERIES-BEGIN */
+  /* LES VOIES D'ILLUSTRATION (phase 5, D1). Le catalogue vectoriel est le
+     SOCLE : 108 dessins calcules ici, zero octet de reseau, nets a n'importe
+     quelle definition. La serie « affiche polonaise » est une SECONDE VOIE
+     posee a cote — les MEMES 108 cases (memes sujets, memes compositions,
+     memes noms), habillees d'images peintes dans un langage visuel mesure.
+     Elle ne remplace rien : une case sans image retombe sur son dessin, et la
+     vignette le DIT (l'insigne « vectoriel »). Le choix de voie est porte par
+     `doc.face.serie`, donc par le DOCUMENT : il voyage avec le jeu — a
+     l'export, a la duplication, sur un autre poste. Une preference
+     d'application aurait fait de la meme carte deux cartes differentes selon
+     la machine qui l'ouvre. Miroir de cards/face.py:SERIES. */
+  const SERIES = [
+    { id: "vectoriel", label: "Vectoriel" },
+    { id: "walkuski", label: "Affiche polonaise" },
+  ];
+  /* CF-FACE-SERIES-END */
+
   const PAL_BY = {}, SUB_BY = {}, COM_BY = {};
   PALETTES.forEach((p) => { PAL_BY[p.id] = p; });
   SUBJECTS.forEach((s) => { SUB_BY[s.id] = s; });
@@ -211,6 +229,65 @@
   CATALOG.forEach((c) => { CAT_BY[c.id] = c; });
   const DRAWINGS = SUBJECTS.length * COMPOS.length;      /* 108 dessins */
   const COMBINATIONS = DRAWINGS * PALETTES.length;       /* 1296 combinaisons */
+
+  /* ── L'ETAT DE LA SERIE — lu au backend, jamais devine ────────────────────
+     `SERIE.cases` mappe « <compo>_<sujet> » vers le fichier du magasin
+     d'images. Tant qu'il est vide (et il l'est tant que la campagne n'a pas
+     tourne), la voie « affiche polonaise » montre 108 dessins vectoriels
+     marques comme tels : un ecran honnete a l'etat zero. */
+  let SERIE = { cases: {}, refus: {}, faites: 0, total: 0, depense: 0,
+    plafond: 0, ok: false };
+
+  async function serieLoad() {
+    try {
+      const r = await M.api.get("serie");
+      SERIE = {
+        cases: (r && r.cases) || {}, refus: (r && r.refus) || {},
+        faites: Number((r && r.faites) || 0),
+        total: Number((r && r.total) || DRAWINGS),
+        depense: Number((r && r.depense_totale_usd) || 0),
+        plafond: Number((r && r.plafond_usd) || 0), ok: true,
+      };
+    } catch (e) {
+      /* Un backend plus ancien n'a pas cette route : la voie de serie reste
+         offerte et VIDE, ce qui la rend entierement vectorielle — jamais une
+         grille de vignettes cassees. */
+      SERIE = { cases: {}, refus: {}, faites: 0, total: DRAWINGS, depense: 0,
+        plafond: 0, ok: false };
+    }
+  }
+
+  /* La voie active, DERIVEE de l'etat : une valeur inconnue dans le document
+     (jeu venu d'une version future, fichier retouche a la main) retombe sur
+     le vectoriel plutot que de vider la grille. */
+  function serieActive() {
+    const s = String(CF.get("face.serie", "vectoriel") || "vectoriel");
+    for (let i = 0; i < SERIES.length; i++) {
+      if (SERIES[i].id === s) return s === "vectoriel" ? "" : s;
+    }
+    return "";
+  }
+  function serieCase(c) { return c.compo + "_" + c.subject; }
+  function serieLabel() {
+    const id = serieActive();
+    for (let i = 0; i < SERIES.length; i++) {
+      if (SERIES[i].id === id) return SERIES[i].label;
+    }
+    return SERIES[0].label;
+  }
+  /* Le fichier de la case, ou "" — et "" veut dire « le dessin ». */
+  function serieImg(c) {
+    if (!serieActive()) return "";
+    const e = SERIE.cases[serieCase(c)];
+    return (e && e.img) ? String(e.img) : "";
+  }
+  /* La source que POSE une vignette : `img:` pour une case peinte, `cat:`
+     pour un dessin. Pas de quatrieme schema — une case de serie EST un
+     fichier du magasin d'images. */
+  function tileSrc(c) {
+    const f = serieImg(c);
+    return f ? "img:" + f : "cat:" + c.id;
+  }
 
   /* Le meme dessin dans une autre palette — c'est un identifiant, pas un
      filtre : la face reste deterministe (meme graine = memes montagnes). */
@@ -2330,9 +2407,13 @@
   function refreshSel() {
     const cur = CF.get("face.src", null);
     Array.prototype.forEach.call(document.querySelectorAll(".cf-face-tile"), (t) => {
-      const k = t.getAttribute("data-cat") ? "cat:" + t.getAttribute("data-cat")
-        : t.getAttribute("data-imp") ? "local:" + t.getAttribute("data-imp")
-          : t.getAttribute("data-ai") ? "img:" + t.getAttribute("data-ai") : null;
+      /* `data-ai` D'ABORD : une vignette de SERIE porte les deux (`data-cat`
+         pour la case, `data-ai` pour le fichier peint), et c'est le fichier
+         qui est pose. L'ordre inverse aurait marque « on » la mauvaise
+         vignette des que la serie serait active. */
+      const k = t.getAttribute("data-ai") ? "img:" + t.getAttribute("data-ai")
+        : t.getAttribute("data-cat") ? "cat:" + t.getAttribute("data-cat")
+          : t.getAttribute("data-imp") ? "local:" + t.getAttribute("data-imp") : null;
       if (k) t.classList.toggle("on", k === cur);
     });
     fillPalettes();
@@ -2827,16 +2908,39 @@
       const stop = Math.min(rows.length, i + 12);
       for (; i < stop; i++) {
         const c = rows[i];
+        const f = serieImg(c);
         const b = document.createElement("button");
         b.type = "button";
-        b.className = "cf-face-tile" + (cur === "cat:" + c.id ? " on" : "");
-        b.title = c.label + " · palette " + (PAL_BY[c.palette] || {}).label
-          + " — vectoriel, redessiné à la taille de la pose";
+        b.className = "cf-face-tile" + (cur === tileSrc(c) ? " on" : "");
         b.setAttribute("data-cat", c.id);
-        b.appendChild(thumbCanvas(c, 84, 118));
+        if (f) {
+          /* Une case peinte : le MEME attribut que les faces generees
+             (`data-ai`), donc la meme resolution `img:` — pas un quatrieme
+             schema de source. */
+          b.setAttribute("data-ai", f);
+          b.title = c.label + " — série « " + serieLabel() + " », image peinte";
+          const im = document.createElement("img");
+          im.alt = "";
+          im.src = imgURL(f);
+          b.appendChild(im);
+        } else {
+          b.title = c.label + " · palette " + (PAL_BY[c.palette] || {}).label
+            + " — vectoriel, redessiné à la taille de la pose";
+          b.appendChild(thumbCanvas(c, 84, 118));
+        }
         const s = document.createElement("span");
         s.textContent = c.label;
         b.appendChild(s);
+        /* LA RETOMBEE, AVOUEE SUR LA VIGNETTE (D1). Sans cet insigne, une
+           serie a moitie peinte se lit comme une serie complete dont la
+           moitie serait « ratee » : l'utilisateur chercherait un defaut la ou
+           il n'y a qu'une case pas encore faite. */
+        if (!f && serieActive()) {
+          const v = document.createElement("em");
+          v.className = "cf-face-retombee";
+          v.textContent = "vectoriel";
+          b.appendChild(v);
+        }
         grid.appendChild(b);
       }
       if (i < rows.length) { requestAnimationFrame(step); return; }
@@ -3061,6 +3165,7 @@
     const f = CF.doc().face;
     const g = CF.geom();
     const tab = ["cat", "imp", "ai"].indexOf(f.tab) >= 0 ? f.tab : "cat";
+    const serie = serieActive() || "vectoriel";
     const free = f.fit === "free";
     /* CE QU'IL Y A A ADOPTER DE LA PIECE 10, calcule ICI et pas garde : le
        panneau se repeint sur `core:doc` quand `capture` bouge, et la
@@ -3087,6 +3192,15 @@
          EXPLICATIONS passent sous la grille : elles se lisent apres, pas
          avant. Les 18 sujets deviennent un menu au lieu de trois lignes de
          jetons — 53 px repris a la grille. */
+      /* LE SELECTEUR DE VOIE, AU-DESSUS DES FILTRES. Il est DERIVE de
+         `doc.face.serie` (aucun etat local), et le compte « n / 108 » vient
+         du manifeste, pas d'une constante. */
+      + '<div class="seg sm cf-face-series" id="cf-face-series">'
+      + SERIES.map((s) => '<button class="seg-b' + (serie === s.id ? " active" : "")
+        + '" type="button" data-voie="' + esc(s.id) + '">' + esc(s.label)
+        + (s.id === "vectoriel" ? " " + DRAWINGS
+          : " " + SERIE.faites + "/" + (SERIE.total || DRAWINGS)) + '</button>').join("")
+      + '</div>'
       + '<div class="cf-face-row">'
       + '<input class="search sm cf-face-search" id="cf-face-search" type="text" placeholder="filtrer (loup, blason, braise…)" value="' + esc(CATFILTER) + '">'
       + '<select class="sm cf-face-sub" id="cf-face-subject" title="filtrer par sujet">'
@@ -3117,6 +3231,16 @@
       + '<p class="hint cf-face-count">' + SUBJECTS.length + ' sujets × ' + COMPOS.length
       + ' compositions = <b>' + DRAWINGS + ' dessins</b>. Chacun se recolore en '
       + PALETTES.length + ' palettes : <b>' + COMBINATIONS + ' combinaisons</b> en tout.</p>'
+      /* L'AVEU CHIFFRE DE LA VOIE ACTIVE. Il n'apparait que quand une serie
+         est choisie, et il dit les DEUX nombres : ce qui est peint, et ce qui
+         reste le dessin. */
+      + (serie === "vectoriel" ? ''
+        : '<p class="hint cf-face-serie-note" id="cf-face-serie-note">Série <b>'
+        + esc(serieLabel()) + '</b> : <b>' + SERIE.faites + '</b> case(s) peinte(s) sur '
+        + (SERIE.total || DRAWINGS) + '. Les autres restent le <b>dessin vectoriel</b>, '
+        + 'marqué comme tel sur la vignette'
+        + (SERIE.ok ? '' : ' — l\'état de la série n\'a pas pu être lu')
+        + '.</p>')
       + '<div class="cf-face-row">'
       + '<button class="btn sm" type="button" id="cf-face-proof">Recompter le catalogue</button>'
       + '</div>'
@@ -3761,7 +3885,23 @@
     });
     q("#cf-face-cat-grid").addEventListener("click", (e) => {
       const b = e.target.closest("[data-cat]");
-      if (b) setArt("cat:" + b.getAttribute("data-cat"));
+      if (!b) return;
+      /* Une case PEINTE pose son fichier ; une case sans image pose le
+         dessin. C'est la retombee, cote geste. */
+      const f = b.getAttribute("data-ai");
+      if (f) setArt("img:" + f); else setArt("cat:" + b.getAttribute("data-cat"));
+    });
+    /* LE SELECTEUR DE VOIE. Il ecrit dans le DOCUMENT (la voie voyage avec le
+       jeu) puis relit l'etat de la serie : le compte affiche est celui du
+       manifeste au moment du clic, pas celui du chargement de la page. */
+    q("#cf-face-series").addEventListener("click", async (e) => {
+      const b = e.target.closest("[data-voie]");
+      if (!b) return;
+      const voie = b.getAttribute("data-voie");
+      if (voie === (serieActive() || "vectoriel")) return;
+      M.patch({ serie: voie });
+      if (voie !== "vectoriel") await serieLoad();
+      renderPanel();
     });
 
     /* importees */
@@ -4185,6 +4325,8 @@
       bg: "#12161c",             /* fond visible en « contenir » */
       win: "auto",               /* fenetre d'illustration (WIN_MODES) */
       eff_dpi: 0,                /* MESURE en DPI reels, lue par P7 ; 0 = rien */
+      serie: "vectoriel",        /* voie d'illustration (SERIES) — portee par
+                                    le DOCUMENT : elle voyage avec le jeu */
       seeded: false,             /* le premier ecran s'auto-garnit une fois */
       tab: "cat",
       prompt: "", model: "", size: "portrait_4_3", nimg: 1,
@@ -4193,6 +4335,10 @@
     async init(host) {
       HOST = host;
       await pileLoad();
+      /* L'ETAT DE LA SERIE, UNE FOIS : c'est un manifeste (des noms de
+         fichiers), pas des images — la grille reste vectorielle et gratuite
+         tant que la voie « affiche polonaise » n'est pas choisie. */
+      await serieLoad();
       /* Les modeles ET leur tarif : la route de la piece va les chercher dans
          la table de tarifs de l'application. Si elle manque (backend plus
          ancien), on retombe sur la liste seule — sans prix plutot qu'avec un

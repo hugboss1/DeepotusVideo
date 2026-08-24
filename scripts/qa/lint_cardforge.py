@@ -127,7 +127,15 @@ TEST_DIR = pathlib.Path("backend/tests")
 # meme traitement. Ni l'un ni l'autre ne compte pour la regle 1 (1 JS + 1 CSS
 # + 1 py + 1 test) : ce ne sont pas LE py du module, ce sont des fichiers
 # internes en plus.
-EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"]}
+# style_walkuski.py est le sidecar de `face` (phase 5, T1) : la COPIE DATEE du
+# juge de style ne du skill user-level `walkuski-style`. Il n'a pas de router
+# (c'est un mesureur PIL pur, zero HTTP) mais il vit dans BACK_DIR, donc R13
+# (octets sains) et le reste de R8 le regardent comme les autres. Il est
+# volontairement VERBATIM : un test compare son empreinte a celle de l'amont,
+# et toute retouche locale — meme un reformatage — ferait diverger la copie de
+# la source qu'elle date.
+EXTRA_PY = {"forge3d": ["forge3d_scene.py", "forge3d_apercu.py"],
+            "face": ["style_walkuski.py"]}
 
 # R13 (octets sains) couvre TOUT le labo frontend, pas seulement les 9
 # fichiers mod-<id>.{js,css} + le harnais .mjs : core.js, cardforge.css,

@@ -146,6 +146,17 @@
   background: var(--bg-base); color: var(--ink-soft); font-size: 12px; cursor: pointer; padding: 0; }
 .cf-face-tile .cf-face-del:hover { color: var(--red); border-color: var(--red); }
 
+/* ── voie d'illustration (serie) ─────────────────────────────────────────── */
+.cf-face-series { flex: none; }
+/* L'INSIGNE DE RETOMBEE. Discret — c'est une mention, pas une alerte : la
+   case n'est pas en faute, elle n'est simplement pas encore peinte. Il se
+   pose SUR la vignette pour rester lisible dans une grille qui defile. */
+.cf-face-tile .cf-face-retombee { position: absolute; top: 8px; left: 8px;
+  padding: 1px 4px; border-radius: 4px; font-size: 8.5px; letter-spacing: .04em;
+  background: var(--bg-base); border: 1px solid var(--stroke);
+  color: var(--ink-muted); }
+.cf-face-serie-note b { color: var(--ink-strong); }
+
 .cf-face-drop { flex: none; }
 .cf-face-drop b { color: var(--ink-strong); font-size: 12.5px; }
 .cf-face-nodb { color: var(--red); }

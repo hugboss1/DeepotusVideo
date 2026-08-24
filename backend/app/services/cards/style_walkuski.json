@@ -1,0 +1,2813 @@
+{
+  "n_oeuvres": 16,
+  "oeuvres": [
+    "01_1986_w_sredniowieczu.jpg",
+    "02_1987_lowca_wezy.jpg",
+    "03_1987_lampart.jpg",
+    "04_1988_stormy_monday.jpg",
+    "05_1988_widmo_wolnosci.jpg",
+    "06_1989_betrayed.jpg",
+    "07_1990_caligula.jpg",
+    "08_1990_skrzypek_na_dachu.jpg",
+    "09_1991_king_lear.jpg",
+    "10_1991_ghetto.jpg",
+    "11_1993_danton.jpg",
+    "12_1996_wielki_tydzien.jpg",
+    "13_1999_la_juive.jpg",
+    "14_2000_hommage_dali.jpg",
+    "15_2002_norma.jpg",
+    "16_2018_bella_figura.jpg"
+  ],
+  "formats": {
+    "portrait": {
+      "n": 11,
+      "ratio_med": 0.6953,
+      "ratio_min": 0.688,
+      "ratio_max": 0.74
+    },
+    "paysage": {
+      "n": 5,
+      "ratio_med": 1.4384,
+      "ratio_min": 1.3902,
+      "ratio_max": 1.4521
+    }
+  },
+  "n_monochromes": 3,
+  "n_sans_accent_isole": 10,
+  "metriques": {
+    "format.ratio_l_sur_h": {
+      "med": 0.7081,
+      "min": 0.688,
+      "max": 1.4521,
+      "p10": 0.6923,
+      "p25": 0.695,
+      "p75": 1.3982,
+      "p90": 1.44,
+      "n": 16
+    },
+    "tons.L_p05": {
+      "med": 32.45,
+      "min": 0.4,
+      "max": 67.9,
+      "p10": 8.5,
+      "p25": 12.775,
+      "p75": 58.975,
+      "p90": 64.3,
+      "n": 16
+    },
+    "tons.L_p50": {
+      "med": 99.8,
+      "min": 32.7,
+      "max": 149.9,
+      "p10": 63.3,
+      "p25": 77.725,
+      "p75": 116.225,
+      "p90": 126.7,
+      "n": 16
+    },
+    "tons.L_p95": {
+      "med": 196.85,
+      "min": 141.1,
+      "max": 249.8,
+      "p10": 176.1,
+      "p25": 191.85,
+      "p75": 213.3,
+      "p90": 232.45,
+      "n": 16
+    },
+    "tons.etendue_p05_p95": {
+      "med": 170.05,
+      "min": 122.8,
+      "max": 219.5,
+      "p10": 128.25,
+      "p25": 139.0,
+      "p75": 186.6,
+      "p90": 207.65,
+      "n": 16
+    },
+    "tons.part_sombre_L_moins_64": {
+      "med": 0.2096,
+      "min": 0.0159,
+      "max": 0.6641,
+      "p10": 0.0594,
+      "p25": 0.0953,
+      "p75": 0.4451,
+      "p90": 0.5137,
+      "n": 16
+    },
+    "tons.part_claire_L_plus_200": {
+      "med": 0.0418,
+      "min": 0.008,
+      "max": 0.3191,
+      "p10": 0.0117,
+      "p25": 0.0242,
+      "p75": 0.0829,
+      "p90": 0.1315,
+      "n": 16
+    },
+    "saturation.S_hsv_p50": {
+      "med": 68.0,
+      "min": 24.0,
+      "max": 173.0,
+      "p10": 35.5,
+      "p25": 40.0,
+      "p75": 106.75,
+      "p90": 151.5,
+      "n": 16
+    },
+    "saturation.S_hsv_p95": {
+      "med": 147.5,
+      "min": 63.0,
+      "max": 255.0,
+      "p10": 77.5,
+      "p25": 111.25,
+      "p75": 191.0,
+      "p90": 214.0,
+      "n": 16
+    },
+    "saturation.C_lab_p50": {
+      "med": 9.85,
+      "min": 3.9,
+      "max": 40.6,
+      "p10": 4.8,
+      "p25": 6.525,
+      "p75": 19.05,
+      "p90": 29.3,
+      "n": 16
+    },
+    "saturation.C_lab_p95": {
+      "med": 30.8,
+      "min": 8.8,
+      "max": 64.3,
+      "p10": 11.05,
+      "p25": 22.45,
+      "p75": 42.4,
+      "p90": 59.2,
+      "n": 16
+    },
+    "saturation.part_quasi_gris_C_moins_10": {
+      "med": 0.503,
+      "min": 0.1424,
+      "max": 0.9769,
+      "p10": 0.1837,
+      "p25": 0.2699,
+      "p75": 0.7026,
+      "p90": 0.8977,
+      "n": 16
+    },
+    "fond.h": {
+      "med": 82.2,
+      "min": 31.2,
+      "max": 294.4,
+      "p10": 34.18,
+      "p25": 40.6,
+      "p75": 90.3,
+      "p90": 109.44,
+      "n": 13
+    },
+    "fond.C": {
+      "med": 32.8,
+      "min": 18.0,
+      "max": 60.3,
+      "p10": 24.3,
+      "p25": 29.3,
+      "p75": 42.3,
+      "p90": 57.5,
+      "n": 13
+    },
+    "fond.L": {
+      "med": 130.8,
+      "min": 93.6,
+      "max": 176.4,
+      "p10": 99.88,
+      "p25": 101.7,
+      "p75": 153.9,
+      "p90": 159.86,
+      "n": 13
+    },
+    "fond.part_de_surface": {
+      "med": 0.2883,
+      "min": 0.0292,
+      "max": 0.6853,
+      "p10": 0.1178,
+      "p25": 0.1762,
+      "p75": 0.3953,
+      "p90": 0.6355,
+      "n": 13
+    },
+    "fond.part_coloree_totale": {
+      "med": 0.4355,
+      "min": 0.0365,
+      "max": 0.7182,
+      "p10": 0.1343,
+      "p25": 0.3226,
+      "p75": 0.6777,
+      "p90": 0.7048,
+      "n": 13
+    },
+    "accent.h": {
+      "med": 45.5,
+      "min": 21.4,
+      "max": 84.2,
+      "p10": 27.15,
+      "p25": 33.975,
+      "p75": 71.425,
+      "p90": 80.75,
+      "n": 6
+    },
+    "accent.C": {
+      "med": 34.1,
+      "min": 24.8,
+      "max": 48.7,
+      "p10": 25.65,
+      "p25": 27.825,
+      "p75": 39.85,
+      "p90": 44.85,
+      "n": 6
+    },
+    "accent.L": {
+      "med": 93.95,
+      "min": 65.4,
+      "max": 216.2,
+      "p10": 75.0,
+      "p25": 86.675,
+      "p75": 158.75,
+      "p90": 198.1,
+      "n": 6
+    },
+    "accent.part_de_surface": {
+      "med": 0.0462,
+      "min": 0.0051,
+      "max": 0.2324,
+      "p10": 0.0077,
+      "p25": 0.0129,
+      "p75": 0.0801,
+      "p90": 0.1577,
+      "n": 6
+    },
+    "accent.part_noyau_C30": {
+      "med": 0.005,
+      "min": 0.0,
+      "max": 0.164,
+      "p10": 0.0006,
+      "p25": 0.0012,
+      "p75": 0.0328,
+      "p90": 0.1025,
+      "n": 6
+    },
+    "accent.ecart_teinte_au_fond": {
+      "med": 48.5,
+      "min": 31.8,
+      "max": 102.8,
+      "p10": 34.1,
+      "p25": 38.3,
+      "p75": 70.775,
+      "p90": 89.75,
+      "n": 6
+    },
+    "composition.centroide_x": {
+      "med": 0.4461,
+      "min": 0.3593,
+      "max": 0.5359,
+      "p10": 0.3831,
+      "p25": 0.403,
+      "p75": 0.4706,
+      "p90": 0.5091,
+      "n": 16
+    },
+    "composition.centroide_y": {
+      "med": 0.4744,
+      "min": 0.3398,
+      "max": 0.6415,
+      "p10": 0.3422,
+      "p25": 0.384,
+      "p75": 0.5307,
+      "p90": 0.5634,
+      "n": 16
+    },
+    "composition.masse_bbox.part_surface": {
+      "med": 0.5061,
+      "min": 0.4069,
+      "max": 0.8306,
+      "p10": 0.4146,
+      "p25": 0.4491,
+      "p75": 0.5781,
+      "p90": 0.6513,
+      "n": 16
+    },
+    "composition.masse_bbox.centre_y": {
+      "med": 0.5108,
+      "min": 0.3907,
+      "max": 0.6051,
+      "p10": 0.3978,
+      "p25": 0.4702,
+      "p75": 0.5531,
+      "p90": 0.5649,
+      "n": 16
+    },
+    "composition.masse_bbox.largeur": {
+      "med": 0.6925,
+      "min": 0.5019,
+      "max": 0.9191,
+      "p10": 0.5535,
+      "p25": 0.6279,
+      "p75": 0.7389,
+      "p90": 0.791,
+      "n": 16
+    },
+    "composition.masse_bbox.hauteur": {
+      "med": 0.7591,
+      "min": 0.6111,
+      "max": 0.9036,
+      "p10": 0.6784,
+      "p25": 0.7304,
+      "p75": 0.8181,
+      "p90": 0.8538,
+      "n": 16
+    },
+    "composition.part_vide_E_moins_4": {
+      "med": 0.4325,
+      "min": 0.2903,
+      "max": 0.6326,
+      "p10": 0.3198,
+      "p25": 0.3525,
+      "p75": 0.4965,
+      "p90": 0.546,
+      "n": 16
+    },
+    "composition.energie_moyenne": {
+      "med": 10.665,
+      "min": 6.32,
+      "max": 19.41,
+      "p10": 7.175,
+      "p25": 8.4825,
+      "p75": 12.8075,
+      "p90": 14.335,
+      "n": 16
+    },
+    "composition.part_bande_centrale": {
+      "med": 0.3917,
+      "min": 0.2535,
+      "max": 0.5856,
+      "p10": 0.3182,
+      "p25": 0.3472,
+      "p75": 0.464,
+      "p90": 0.5219,
+      "n": 16
+    },
+    "composition.part_rangee_haute": {
+      "med": 0.3023,
+      "min": 0.1978,
+      "max": 0.5421,
+      "p10": 0.2114,
+      "p25": 0.2547,
+      "p75": 0.4619,
+      "p90": 0.4975,
+      "n": 16
+    },
+    "composition.part_rangee_basse": {
+      "med": 0.3284,
+      "min": 0.1165,
+      "max": 0.5969,
+      "p10": 0.1578,
+      "p25": 0.2273,
+      "p75": 0.4224,
+      "p90": 0.5255,
+      "n": 16
+    }
+  },
+  "tiers_median": [
+    [
+      0.0954,
+      0.1214,
+      0.0814
+    ],
+    [
+      0.1039,
+      0.1124,
+      0.0684
+    ],
+    [
+      0.1033,
+      0.1327,
+      0.0971
+    ]
+  ],
+  "palette_maitre": [
+    {
+      "hex": "#4D453B",
+      "part_moyenne": 0.2463,
+      "part_relative": 0.2463,
+      "L": 29.7,
+      "C": 7.3,
+      "h": 78.2,
+      "nom": "gris sombre",
+      "n_dominantes": 32
+    },
+    {
+      "hex": "#1F1A18",
+      "part_moyenne": 0.2032,
+      "part_relative": 0.2032,
+      "L": 10.0,
+      "C": 3.1,
+      "h": 48.9,
+      "nom": "noir",
+      "n_dominantes": 25
+    },
+    {
+      "hex": "#837E7C",
+      "part_moyenne": 0.1259,
+      "part_relative": 0.1259,
+      "L": 53.0,
+      "C": 2.2,
+      "h": 45.6,
+      "nom": "gris moyen",
+      "n_dominantes": 16
+    },
+    {
+      "hex": "#7B6B47",
+      "part_moyenne": 0.109,
+      "part_relative": 0.109,
+      "L": 45.8,
+      "C": 22.2,
+      "h": 87.5,
+      "nom": "ocre-jaune",
+      "n_dominantes": 14
+    },
+    {
+      "hex": "#C2AC7F",
+      "part_moyenne": 0.0879,
+      "part_relative": 0.0879,
+      "L": 71.1,
+      "C": 25.8,
+      "h": 86.5,
+      "nom": "ocre-jaune",
+      "n_dominantes": 11
+    },
+    {
+      "hex": "#D2CCC7",
+      "part_moyenne": 0.0864,
+      "part_relative": 0.0864,
+      "L": 82.4,
+      "C": 3.6,
+      "h": 77.4,
+      "nom": "gris clair",
+      "n_dominantes": 13
+    },
+    {
+      "hex": "#A32E2B",
+      "part_moyenne": 0.0585,
+      "part_relative": 0.0585,
+      "L": 37.7,
+      "C": 56.0,
+      "h": 32.1,
+      "nom": "rouge-orange",
+      "n_dominantes": 5
+    },
+    {
+      "hex": "#9B5B4D",
+      "part_moyenne": 0.0425,
+      "part_relative": 0.0425,
+      "L": 45.5,
+      "C": 31.4,
+      "h": 37.7,
+      "nom": "rouge-orange",
+      "n_dominantes": 7
+    },
+    {
+      "hex": "#9F93B0",
+      "part_moyenne": 0.0403,
+      "part_relative": 0.0403,
+      "L": 62.9,
+      "C": 16.4,
+      "h": 306.4,
+      "nom": "magenta",
+      "n_dominantes": 5
+    }
+  ],
+  "conventions": {
+    "L": "CIE L* (D65) remis a l'echelle 0..255",
+    "C": "chroma CIE LCh (unites LAB)",
+    "h": "teinte CIE LCh en degres",
+    "S": "saturation HSV 0..255",
+    "E": "|L - flou_gaussien(L, r=1.5% du petit cote)|",
+    "seuils": {
+      "sombre": "L<64",
+      "clair": "L>200",
+      "gris": "C<10",
+      "vide": "E<4"
+    },
+    "bbox_masse": "intervalle contenant 80% de l'energie sur chaque axe"
+  },
+  "inset": 0.0,
+  "par_oeuvre": [
+    {
+      "fichier": "01_1986_w_sredniowieczu.jpg",
+      "px_source": [
+        636,
+        438
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 636,
+        "hauteur": 438,
+        "ratio_l_sur_h": 1.4521,
+        "portrait": false
+      },
+      "palette": [
+        {
+          "hex": "#59554E",
+          "part": 0.1388,
+          "L": 36.3,
+          "C": 4.7,
+          "h": 87.2,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#484036",
+          "part": 0.135,
+          "L": 27.6,
+          "C": 7.5,
+          "h": 78.3,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#77797D",
+          "part": 0.1299,
+          "L": 50.8,
+          "C": 2.4,
+          "h": 271.7,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#C5C1BD",
+          "part": 0.1281,
+          "L": 78.3,
+          "C": 2.6,
+          "h": 74.9,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#666461",
+          "part": 0.1221,
+          "L": 42.5,
+          "C": 2.0,
+          "h": 84.8,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#999A9C",
+          "part": 0.1191,
+          "L": 63.6,
+          "C": 1.2,
+          "h": 271.4,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#504940",
+          "part": 0.1183,
+          "L": 31.4,
+          "C": 6.6,
+          "h": 79.6,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#3E362B",
+          "part": 0.1087,
+          "L": 23.1,
+          "C": 8.4,
+          "h": 80.0,
+          "nom": "gris sombre"
+        }
+      ],
+      "tons": {
+        "L_p05": 58.9,
+        "L_p50": 100.5,
+        "L_p95": 200.6,
+        "etendue_p05_p95": 141.8,
+        "part_sombre_L_moins_64": 0.0993,
+        "part_claire_L_plus_200": 0.0521
+      },
+      "saturation": {
+        "S_hsv_p50": 37.0,
+        "S_hsv_p95": 86.0,
+        "C_lab_p50": 6.3,
+        "C_lab_p95": 11.0,
+        "part_quasi_gris_C_moins_10": 0.8984
+      },
+      "fond": {
+        "monochrome": true,
+        "part_coloree": 0.0008
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.3593,
+        "centroide_y": 0.3428,
+        "masse_bbox": {
+          "x0": 0.0964,
+          "x1": 0.8125,
+          "y0": 0.0152,
+          "y1": 0.8712,
+          "part_surface": 0.6131,
+          "centre_y": 0.4432,
+          "largeur": 0.7161,
+          "hauteur": 0.8561
+        },
+        "part_vide_E_moins_4": 0.4999,
+        "energie_moyenne": 6.65,
+        "tiers": [
+          [
+            0.1714,
+            0.1636,
+            0.1255
+          ],
+          [
+            0.1711,
+            0.0848,
+            0.0518
+          ],
+          [
+            0.1037,
+            0.0998,
+            0.0283
+          ]
+        ],
+        "part_bande_centrale": 0.3483,
+        "part_rangee_haute": 0.4605,
+        "part_rangee_basse": 0.2318
+      }
+    },
+    {
+      "fichier": "02_1987_lowca_wezy.jpg",
+      "px_source": [
+        570,
+        410
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 570,
+        "hauteur": 410,
+        "ratio_l_sur_h": 1.3902,
+        "portrait": false
+      },
+      "palette": [
+        {
+          "hex": "#8D8C86",
+          "part": 0.1498,
+          "L": 58.2,
+          "C": 3.4,
+          "h": 103.1,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#4F453A",
+          "part": 0.1424,
+          "L": 30.0,
+          "C": 8.5,
+          "h": 74.9,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#7F7C7B",
+          "part": 0.1373,
+          "L": 52.2,
+          "C": 1.3,
+          "h": 45.3,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#686159",
+          "part": 0.1247,
+          "L": 41.6,
+          "C": 5.7,
+          "h": 77.2,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#483C31",
+          "part": 0.124,
+          "L": 26.2,
+          "C": 9.3,
+          "h": 69.6,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#747272",
+          "part": 0.114,
+          "L": 48.2,
+          "C": 0.8,
+          "h": 19.5,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#565351",
+          "part": 0.1075,
+          "L": 35.5,
+          "C": 1.8,
+          "h": 63.4,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#B7B9AF",
+          "part": 0.1003,
+          "L": 74.7,
+          "C": 5.4,
+          "h": 117.6,
+          "nom": "gris clair"
+        }
+      ],
+      "tons": {
+        "L_p05": 67.2,
+        "L_p50": 116.0,
+        "L_p95": 192.3,
+        "etendue_p05_p95": 125.2,
+        "part_sombre_L_moins_64": 0.0159,
+        "part_claire_L_plus_200": 0.0378
+      },
+      "saturation": {
+        "S_hsv_p50": 41.0,
+        "S_hsv_p95": 91.0,
+        "C_lab_p50": 8.6,
+        "C_lab_p95": 14.2,
+        "part_quasi_gris_C_moins_10": 0.6421
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#919171",
+        "h": 108.8,
+        "C": 18.0,
+        "L": 151.5,
+        "nom": "vert",
+        "part_de_surface": 0.0292,
+        "part_coloree_totale": 0.0365
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4065,
+        "centroide_y": 0.6415,
+        "masse_bbox": {
+          "x0": 0.0964,
+          "x1": 0.7682,
+          "y0": 0.2391,
+          "y1": 0.971,
+          "part_surface": 0.4917,
+          "centre_y": 0.6051,
+          "largeur": 0.6719,
+          "hauteur": 0.7319
+        },
+        "part_vide_E_moins_4": 0.4953,
+        "energie_moyenne": 10.97,
+        "tiers": [
+          [
+            0.0696,
+            0.0976,
+            0.0306
+          ],
+          [
+            0.0444,
+            0.1115,
+            0.0494
+          ],
+          [
+            0.2691,
+            0.2035,
+            0.1243
+          ]
+        ],
+        "part_bande_centrale": 0.4126,
+        "part_rangee_haute": 0.1978,
+        "part_rangee_basse": 0.5969
+      }
+    },
+    {
+      "fichier": "03_1987_lampart.jpg",
+      "px_source": [
+        422,
+        598
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 422,
+        "hauteur": 598,
+        "ratio_l_sur_h": 0.7057,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#464338",
+          "part": 0.1398,
+          "L": 28.4,
+          "C": 7.2,
+          "h": 97.5,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#6B6B71",
+          "part": 0.1376,
+          "L": 45.4,
+          "C": 3.6,
+          "h": 290.7,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#98928C",
+          "part": 0.1298,
+          "L": 60.9,
+          "C": 4.1,
+          "h": 74.5,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#625C58",
+          "part": 0.129,
+          "L": 39.5,
+          "C": 3.5,
+          "h": 62.9,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#7D7774",
+          "part": 0.1222,
+          "L": 50.5,
+          "C": 3.0,
+          "h": 55.1,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#C1BCB4",
+          "part": 0.1154,
+          "L": 76.4,
+          "C": 4.7,
+          "h": 86.0,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#3C392E",
+          "part": 0.1151,
+          "L": 23.9,
+          "C": 7.4,
+          "h": 97.2,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#52504C",
+          "part": 0.111,
+          "L": 34.1,
+          "C": 2.6,
+          "h": 90.3,
+          "nom": "gris sombre"
+        }
+      ],
+      "tons": {
+        "L_p05": 61.4,
+        "L_p50": 109.7,
+        "L_p95": 195.2,
+        "etendue_p05_p95": 133.9,
+        "part_sombre_L_moins_64": 0.0807,
+        "part_claire_L_plus_200": 0.0394
+      },
+      "saturation": {
+        "S_hsv_p50": 35.0,
+        "S_hsv_p95": 69.0,
+        "C_lab_p50": 6.6,
+        "C_lab_p95": 11.1,
+        "part_quasi_gris_C_moins_10": 0.8969
+      },
+      "fond": {
+        "monochrome": true,
+        "part_coloree": 0.0054
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.3925,
+        "centroide_y": 0.3398,
+        "masse_bbox": {
+          "x0": 0.1218,
+          "x1": 0.7048,
+          "y0": 0.0547,
+          "y1": 0.7526,
+          "part_surface": 0.4069,
+          "centre_y": 0.4036,
+          "largeur": 0.583,
+          "hauteur": 0.6979
+        },
+        "part_vide_E_moins_4": 0.3412,
+        "energie_moyenne": 15.11,
+        "tiers": [
+          [
+            0.182,
+            0.285,
+            0.0751
+          ],
+          [
+            0.1467,
+            0.1131,
+            0.0343
+          ],
+          [
+            0.0878,
+            0.0578,
+            0.0182
+          ]
+        ],
+        "part_bande_centrale": 0.4558,
+        "part_rangee_haute": 0.5421,
+        "part_rangee_basse": 0.1638
+      }
+    },
+    {
+      "fichier": "04_1988_stormy_monday.jpg",
+      "px_source": [
+        429,
+        617
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 429,
+        "hauteur": 617,
+        "ratio_l_sur_h": 0.6953,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#47443D",
+          "part": 0.1529,
+          "L": 28.9,
+          "C": 4.7,
+          "h": 92.2,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#957C5D",
+          "part": 0.1342,
+          "L": 53.6,
+          "C": 21.2,
+          "h": 76.2,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#A89473",
+          "part": 0.1334,
+          "L": 62.3,
+          "C": 20.3,
+          "h": 83.4,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#77736F",
+          "part": 0.1325,
+          "L": 48.7,
+          "C": 2.9,
+          "h": 74.6,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#C1B495",
+          "part": 0.121,
+          "L": 73.6,
+          "C": 17.5,
+          "h": 91.2,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#6D6256",
+          "part": 0.1137,
+          "L": 42.2,
+          "C": 8.7,
+          "h": 75.2,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#3A3930",
+          "part": 0.1127,
+          "L": 23.8,
+          "C": 6.0,
+          "h": 104.3,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#555450",
+          "part": 0.0996,
+          "L": 35.7,
+          "C": 2.5,
+          "h": 99.8,
+          "nom": "gris sombre"
+        }
+      ],
+      "tons": {
+        "L_p05": 59.2,
+        "L_p50": 116.9,
+        "L_p95": 190.5,
+        "etendue_p05_p95": 131.3,
+        "part_sombre_L_moins_64": 0.0832,
+        "part_claire_L_plus_200": 0.018
+      },
+      "saturation": {
+        "S_hsv_p50": 51.0,
+        "S_hsv_p95": 124.0,
+        "C_lab_p50": 9.0,
+        "C_lab_p95": 31.1,
+        "part_quasi_gris_C_moins_10": 0.5359
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#A88E5D",
+        "h": 84.4,
+        "C": 29.8,
+        "L": 153.9,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.2863,
+        "part_coloree_totale": 0.3226
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4303,
+        "centroide_y": 0.5733,
+        "masse_bbox": {
+          "x0": 0.1573,
+          "x1": 0.8277,
+          "y0": 0.1771,
+          "y1": 0.9349,
+          "part_surface": 0.508,
+          "centre_y": 0.556,
+          "largeur": 0.6704,
+          "hauteur": 0.7578
+        },
+        "part_vide_E_moins_4": 0.4601,
+        "energie_moyenne": 8.55,
+        "tiers": [
+          [
+            0.0782,
+            0.1311,
+            0.0291
+          ],
+          [
+            0.0167,
+            0.1116,
+            0.0626
+          ],
+          [
+            0.2023,
+            0.246,
+            0.1224
+          ]
+        ],
+        "part_bande_centrale": 0.4888,
+        "part_rangee_haute": 0.2384,
+        "part_rangee_basse": 0.5707
+      }
+    },
+    {
+      "fichier": "05_1988_widmo_wolnosci.jpg",
+      "px_source": [
+        865,
+        600
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 865,
+        "hauteur": 600,
+        "ratio_l_sur_h": 1.4417,
+        "portrait": false
+      },
+      "palette": [
+        {
+          "hex": "#70543A",
+          "part": 0.1505,
+          "L": 38.0,
+          "C": 21.2,
+          "h": 67.8,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#1C0708",
+          "part": 0.1402,
+          "L": 3.8,
+          "C": 8.7,
+          "h": 16.7,
+          "nom": "noir"
+        },
+        {
+          "hex": "#2C100C",
+          "part": 0.1277,
+          "L": 8.4,
+          "C": 16.1,
+          "h": 29.5,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#59361F",
+          "part": 0.1221,
+          "L": 26.3,
+          "C": 24.6,
+          "h": 57.9,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#3D231B",
+          "part": 0.1203,
+          "L": 16.9,
+          "C": 15.5,
+          "h": 43.0,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#0F0305",
+          "part": 0.12,
+          "L": 1.6,
+          "C": 3.6,
+          "h": 6.6,
+          "nom": "noir"
+        },
+        {
+          "hex": "#060001",
+          "part": 0.1139,
+          "L": 0.4,
+          "C": 1.7,
+          "h": 5.8,
+          "nom": "noir"
+        },
+        {
+          "hex": "#9C825D",
+          "part": 0.1053,
+          "L": 55.9,
+          "C": 24.2,
+          "h": 79.0,
+          "nom": "ocre-jaune"
+        }
+      ],
+      "tons": {
+        "L_p05": 0.4,
+        "L_p50": 32.7,
+        "L_p95": 141.1,
+        "etendue_p05_p95": 140.7,
+        "part_sombre_L_moins_64": 0.6641,
+        "part_claire_L_plus_200": 0.008
+      },
+      "saturation": {
+        "S_hsv_p50": 173.0,
+        "S_hsv_p95": 255.0,
+        "C_lab_p50": 12.6,
+        "C_lab_p95": 37.0,
+        "part_quasi_gris_C_moins_10": 0.4203
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#805729",
+        "h": 69.5,
+        "C": 35.0,
+        "L": 103.4,
+        "nom": "ocre-orange",
+        "part_de_surface": 0.2583,
+        "part_coloree_totale": 0.4355
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.5228,
+        "centroide_y": 0.4442,
+        "masse_bbox": {
+          "x0": 0.1693,
+          "x1": 0.8724,
+          "y0": 0.1015,
+          "y1": 0.9286,
+          "part_surface": 0.5815,
+          "centre_y": 0.515,
+          "largeur": 0.7031,
+          "hauteur": 0.8271
+        },
+        "part_vide_E_moins_4": 0.3452,
+        "energie_moyenne": 10.37,
+        "tiers": [
+          [
+            0.0879,
+            0.1365,
+            0.1638
+          ],
+          [
+            0.0936,
+            0.0946,
+            0.1598
+          ],
+          [
+            0.0511,
+            0.1434,
+            0.0694
+          ]
+        ],
+        "part_bande_centrale": 0.3744,
+        "part_rangee_haute": 0.3881,
+        "part_rangee_basse": 0.2638
+      }
+    },
+    {
+      "fichier": "06_1989_betrayed.jpg",
+      "px_source": [
+        442,
+        636
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 442,
+        "hauteur": 636,
+        "ratio_l_sur_h": 0.695,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#4E4F52",
+          "part": 0.1579,
+          "L": 33.6,
+          "C": 1.9,
+          "h": 277.8,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#A19A97",
+          "part": 0.1286,
+          "L": 64.1,
+          "C": 3.2,
+          "h": 51.2,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#BDB8B3",
+          "part": 0.1278,
+          "L": 75.0,
+          "C": 3.3,
+          "h": 74.8,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#857F7E",
+          "part": 0.1275,
+          "L": 53.7,
+          "C": 2.5,
+          "h": 33.1,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#25251F",
+          "part": 0.1232,
+          "L": 14.5,
+          "C": 4.2,
+          "h": 109.0,
+          "nom": "noir"
+        },
+        {
+          "hex": "#333330",
+          "part": 0.1225,
+          "L": 21.2,
+          "C": 2.0,
+          "h": 109.7,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#42464A",
+          "part": 0.1092,
+          "L": 29.5,
+          "C": 3.0,
+          "h": 256.7,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#666363",
+          "part": 0.1033,
+          "L": 42.2,
+          "C": 1.3,
+          "h": 19.6,
+          "nom": "gris sombre"
+        }
+      ],
+      "tons": {
+        "L_p05": 37.0,
+        "L_p50": 94.6,
+        "L_p95": 193.8,
+        "etendue_p05_p95": 156.7,
+        "part_sombre_L_moins_64": 0.2365,
+        "part_claire_L_plus_200": 0.0265
+      },
+      "saturation": {
+        "S_hsv_p50": 24.0,
+        "S_hsv_p95": 63.0,
+        "C_lab_p50": 3.9,
+        "C_lab_p95": 8.8,
+        "part_quasi_gris_C_moins_10": 0.9769
+      },
+      "fond": {
+        "monochrome": true,
+        "part_coloree": 0.001
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4403,
+        "centroide_y": 0.3417,
+        "masse_bbox": {
+          "x0": 0.1199,
+          "x1": 0.824,
+          "y0": 0.0625,
+          "y1": 0.7214,
+          "part_surface": 0.4639,
+          "centre_y": 0.3919,
+          "largeur": 0.7041,
+          "hauteur": 0.6589
+        },
+        "part_vide_E_moins_4": 0.3935,
+        "energie_moyenne": 10.49,
+        "tiers": [
+          [
+            0.1732,
+            0.1941,
+            0.1158
+          ],
+          [
+            0.0968,
+            0.1548,
+            0.1134
+          ],
+          [
+            0.0795,
+            0.0428,
+            0.0297
+          ]
+        ],
+        "part_bande_centrale": 0.3917,
+        "part_rangee_haute": 0.4831,
+        "part_rangee_basse": 0.1519
+      }
+    },
+    {
+      "fichier": "07_1990_caligula.jpg",
+      "px_source": [
+        407,
+        550
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 407,
+        "hauteur": 550,
+        "ratio_l_sur_h": 0.74,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#29231C",
+          "part": 0.1769,
+          "L": 14.2,
+          "C": 5.9,
+          "h": 76.3,
+          "nom": "noir"
+        },
+        {
+          "hex": "#B6796E",
+          "part": 0.1582,
+          "L": 56.8,
+          "C": 27.5,
+          "h": 35.1,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#614940",
+          "part": 0.1387,
+          "L": 33.3,
+          "C": 12.8,
+          "h": 46.8,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#14130E",
+          "part": 0.1338,
+          "L": 5.8,
+          "C": 2.8,
+          "h": 101.2,
+          "nom": "noir"
+        },
+        {
+          "hex": "#1C1A13",
+          "part": 0.1149,
+          "L": 9.3,
+          "C": 5.1,
+          "h": 96.6,
+          "nom": "noir"
+        },
+        {
+          "hex": "#CDB5B3",
+          "part": 0.103,
+          "L": 75.6,
+          "C": 9.2,
+          "h": 26.8,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#A7554A",
+          "part": 0.1013,
+          "L": 45.9,
+          "C": 39.2,
+          "h": 33.8,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#63271D",
+          "part": 0.0731,
+          "L": 24.3,
+          "C": 33.1,
+          "h": 37.1,
+          "nom": "rouge-orange"
+        }
+      ],
+      "tons": {
+        "L_p05": 14.8,
+        "L_p50": 78.1,
+        "L_p95": 198.5,
+        "etendue_p05_p95": 183.7,
+        "part_sombre_L_moins_64": 0.4512,
+        "part_claire_L_plus_200": 0.0474
+      },
+      "saturation": {
+        "S_hsv_p50": 83.0,
+        "S_hsv_p95": 197.0,
+        "C_lab_p50": 9.6,
+        "C_lab_p95": 58.6,
+        "part_quasi_gris_C_moins_10": 0.5119
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#BA4C39",
+        "h": 37.7,
+        "C": 55.1,
+        "L": 119.4,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.2883,
+        "part_coloree_totale": 0.3428
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4436,
+        "centroide_y": 0.5271,
+        "masse_bbox": {
+          "x0": 0.2042,
+          "x1": 0.757,
+          "y0": 0.1458,
+          "y1": 0.9583,
+          "part_surface": 0.4492,
+          "centre_y": 0.5521,
+          "largeur": 0.5528,
+          "hauteur": 0.8125
+        },
+        "part_vide_E_moins_4": 0.4792,
+        "energie_moyenne": 10.84,
+        "tiers": [
+          [
+            0.0405,
+            0.2167,
+            0.0046
+          ],
+          [
+            0.1091,
+            0.214,
+            0.0411
+          ],
+          [
+            0.1387,
+            0.1154,
+            0.1199
+          ]
+        ],
+        "part_bande_centrale": 0.546,
+        "part_rangee_haute": 0.2617,
+        "part_rangee_basse": 0.3741
+      }
+    },
+    {
+      "fichier": "08_1990_skrzypek_na_dachu.jpg",
+      "px_source": [
+        315,
+        219
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 315,
+        "hauteur": 219,
+        "ratio_l_sur_h": 1.4384,
+        "portrait": false
+      },
+      "palette": [
+        {
+          "hex": "#A19ABB",
+          "part": 0.1728,
+          "L": 65.2,
+          "C": 18.6,
+          "h": 299.8,
+          "nom": "violet"
+        },
+        {
+          "hex": "#908FB5",
+          "part": 0.1476,
+          "L": 60.7,
+          "C": 21.5,
+          "h": 293.5,
+          "nom": "violet"
+        },
+        {
+          "hex": "#A091AB",
+          "part": 0.1403,
+          "L": 62.2,
+          "C": 15.7,
+          "h": 312.4,
+          "nom": "magenta"
+        },
+        {
+          "hex": "#291B1D",
+          "part": 0.1313,
+          "L": 11.6,
+          "C": 7.4,
+          "h": 10.6,
+          "nom": "noir"
+        },
+        {
+          "hex": "#5F3C3D",
+          "part": 0.1199,
+          "L": 29.4,
+          "C": 16.6,
+          "h": 20.3,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#7C626F",
+          "part": 0.1046,
+          "L": 44.5,
+          "C": 13.2,
+          "h": 345.4,
+          "nom": "rouge"
+        },
+        {
+          "hex": "#937989",
+          "part": 0.0989,
+          "L": 53.7,
+          "C": 13.8,
+          "h": 339.2,
+          "nom": "magenta"
+        },
+        {
+          "hex": "#BDB1C5",
+          "part": 0.0847,
+          "L": 73.7,
+          "C": 11.7,
+          "h": 312.9,
+          "nom": "magenta"
+        }
+      ],
+      "tons": {
+        "L_p05": 27.9,
+        "L_p50": 149.9,
+        "L_p95": 186.1,
+        "etendue_p05_p95": 158.2,
+        "part_sombre_L_moins_64": 0.1495,
+        "part_claire_L_plus_200": 0.0263
+      },
+      "saturation": {
+        "S_hsv_p50": 53.0,
+        "S_hsv_p95": 118.0,
+        "C_lab_p50": 16.8,
+        "C_lab_p95": 25.2,
+        "part_quasi_gris_C_moins_10": 0.1424
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#9693BD",
+        "h": 294.4,
+        "C": 23.3,
+        "L": 159.7,
+        "nom": "violet",
+        "part_de_surface": 0.3657,
+        "part_coloree_totale": 0.6185
+      },
+      "accent": {
+        "hex": "#7A493F",
+        "h": 37.2,
+        "C": 24.8,
+        "L": 92.9,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.0715,
+        "part_noyau_C30": 0.0011,
+        "ecart_teinte_au_fond": 102.8
+      },
+      "composition": {
+        "centroide_x": 0.4953,
+        "centroide_y": 0.5223,
+        "masse_bbox": {
+          "x0": 0.146,
+          "x1": 0.8984,
+          "y0": 0.1963,
+          "y1": 0.9224,
+          "part_surface": 0.5462,
+          "centre_y": 0.5594,
+          "largeur": 0.7524,
+          "hauteur": 0.726
+        },
+        "part_vide_E_moins_4": 0.4216,
+        "energie_moyenne": 8.81,
+        "tiers": [
+          [
+            0.1053,
+            0.0803,
+            0.0215
+          ],
+          [
+            0.0433,
+            0.1711,
+            0.2126
+          ],
+          [
+            0.1028,
+            0.1612,
+            0.1018
+          ]
+        ],
+        "part_bande_centrale": 0.4126,
+        "part_rangee_haute": 0.2071,
+        "part_rangee_basse": 0.3659
+      }
+    },
+    {
+      "fichier": "09_1991_king_lear.jpg",
+      "px_source": [
+        344,
+        500
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 344,
+        "hauteur": 500,
+        "ratio_l_sur_h": 0.688,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#23231D",
+          "part": 0.1441,
+          "L": 13.5,
+          "C": 4.3,
+          "h": 108.9,
+          "nom": "noir"
+        },
+        {
+          "hex": "#8F8668",
+          "part": 0.1355,
+          "L": 56.0,
+          "C": 17.5,
+          "h": 95.3,
+          "nom": "vert"
+        },
+        {
+          "hex": "#3C3A2C",
+          "part": 0.1331,
+          "L": 24.2,
+          "C": 9.2,
+          "h": 102.1,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#696048",
+          "part": 0.1297,
+          "L": 41.0,
+          "C": 15.1,
+          "h": 92.0,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#4C4E42",
+          "part": 0.1212,
+          "L": 32.7,
+          "C": 7.6,
+          "h": 115.7,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#2C2D27",
+          "part": 0.1209,
+          "L": 18.2,
+          "C": 4.2,
+          "h": 115.9,
+          "nom": "noir"
+        },
+        {
+          "hex": "#D8D4C9",
+          "part": 0.1097,
+          "L": 84.9,
+          "C": 5.9,
+          "h": 95.3,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#161611",
+          "part": 0.1058,
+          "L": 7.1,
+          "C": 3.2,
+          "h": 110.2,
+          "nom": "noir"
+        }
+      ],
+      "tons": {
+        "L_p05": 17.6,
+        "L_p50": 72.7,
+        "L_p95": 233.6,
+        "etendue_p05_p95": 215.9,
+        "part_sombre_L_moins_64": 0.443,
+        "part_claire_L_plus_200": 0.0842
+      },
+      "saturation": {
+        "S_hsv_p50": 42.0,
+        "S_hsv_p95": 154.0,
+        "C_lab_p50": 5.2,
+        "C_lab_p95": 29.8,
+        "part_quasi_gris_C_moins_10": 0.6765
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#8C7941",
+        "h": 90.3,
+        "C": 32.8,
+        "L": 130.8,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.173,
+        "part_coloree_totale": 0.2053
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4529,
+        "centroide_y": 0.3961,
+        "masse_bbox": {
+          "x0": 0.1439,
+          "x1": 0.8258,
+          "y0": 0.1094,
+          "y1": 0.849,
+          "part_surface": 0.5043,
+          "centre_y": 0.4792,
+          "largeur": 0.6818,
+          "hauteur": 0.7396
+        },
+        "part_vide_E_moins_4": 0.3876,
+        "energie_moyenne": 12.62,
+        "tiers": [
+          [
+            0.1525,
+            0.2158,
+            0.098
+          ],
+          [
+            0.1394,
+            0.1485,
+            0.0323
+          ],
+          [
+            0.0322,
+            0.0276,
+            0.1538
+          ]
+        ],
+        "part_bande_centrale": 0.3918,
+        "part_rangee_haute": 0.4662,
+        "part_rangee_basse": 0.2136
+      }
+    },
+    {
+      "fichier": "10_1991_ghetto.jpg",
+      "px_source": [
+        354,
+        500
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 354,
+        "hauteur": 500,
+        "ratio_l_sur_h": 0.708,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#2D2315",
+          "part": 0.1657,
+          "L": 14.5,
+          "C": 11.4,
+          "h": 78.1,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#BBA465",
+          "part": 0.1352,
+          "L": 68.1,
+          "C": 35.7,
+          "h": 90.3,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#1A180D",
+          "part": 0.1266,
+          "L": 8.1,
+          "C": 6.9,
+          "h": 101.0,
+          "nom": "noir"
+        },
+        {
+          "hex": "#A27E47",
+          "part": 0.1215,
+          "L": 55.1,
+          "C": 35.7,
+          "h": 78.4,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#CCC07D",
+          "part": 0.1198,
+          "L": 77.3,
+          "C": 35.7,
+          "h": 98.8,
+          "nom": "vert"
+        },
+        {
+          "hex": "#7A502A",
+          "part": 0.1193,
+          "L": 37.9,
+          "C": 32.2,
+          "h": 65.1,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#4E3019",
+          "part": 0.112,
+          "L": 23.0,
+          "C": 23.0,
+          "h": 61.3,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#0F0E07",
+          "part": 0.1,
+          "L": 3.9,
+          "C": 3.0,
+          "h": 103.5,
+          "nom": "noir"
+        }
+      ],
+      "tons": {
+        "L_p05": 13.7,
+        "L_p50": 76.6,
+        "L_p95": 198.8,
+        "etendue_p05_p95": 185.0,
+        "part_sombre_L_moins_64": 0.461,
+        "part_claire_L_plus_200": 0.0442
+      },
+      "saturation": {
+        "S_hsv_p50": 133.0,
+        "S_hsv_p95": 229.0,
+        "C_lab_p50": 21.1,
+        "C_lab_p95": 59.1,
+        "part_quasi_gris_C_moins_10": 0.2801
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#B4944B",
+        "h": 85.7,
+        "C": 42.3,
+        "L": 159.9,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.3552,
+        "part_coloree_totale": 0.6098
+      },
+      "accent": {
+        "hex": "#7B3D19",
+        "h": 53.8,
+        "C": 41.0,
+        "L": 84.6,
+        "nom": "ocre-orange",
+        "part_de_surface": 0.083,
+        "part_noyau_C30": 0.0409,
+        "ecart_teinte_au_fond": 31.8
+      },
+      "composition": {
+        "centroide_x": 0.4769,
+        "centroide_y": 0.5415,
+        "masse_bbox": {
+          "x0": 0.0478,
+          "x1": 0.9669,
+          "y0": 0.0547,
+          "y1": 0.9583,
+          "part_surface": 0.8306,
+          "centre_y": 0.5065,
+          "largeur": 0.9191,
+          "hauteur": 0.9036
+        },
+        "part_vide_E_moins_4": 0.355,
+        "energie_moyenne": 13.37,
+        "tiers": [
+          [
+            0.0632,
+            0.1091,
+            0.0878
+          ],
+          [
+            0.1315,
+            0.1089,
+            0.0742
+          ],
+          [
+            0.1397,
+            0.122,
+            0.1636
+          ]
+        ],
+        "part_bande_centrale": 0.34,
+        "part_rangee_haute": 0.2601,
+        "part_rangee_basse": 0.4253
+      }
+    },
+    {
+      "fichier": "11_1993_danton.jpg",
+      "px_source": [
+        444,
+        640
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 444,
+        "hauteur": 640,
+        "ratio_l_sur_h": 0.6937,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#1A1B16",
+          "part": 0.1448,
+          "L": 9.5,
+          "C": 3.7,
+          "h": 117.2,
+          "nom": "noir"
+        },
+        {
+          "hex": "#B9BCBF",
+          "part": 0.143,
+          "L": 76.1,
+          "C": 1.9,
+          "h": 255.8,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#8D8073",
+          "part": 0.1284,
+          "L": 54.4,
+          "C": 9.2,
+          "h": 73.2,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#A09B92",
+          "part": 0.1275,
+          "L": 64.2,
+          "C": 5.4,
+          "h": 88.1,
+          "nom": "gris moyen"
+        },
+        {
+          "hex": "#0F0F0D",
+          "part": 0.1249,
+          "L": 4.3,
+          "C": 1.0,
+          "h": 110.2,
+          "nom": "noir"
+        },
+        {
+          "hex": "#7E5241",
+          "part": 0.121,
+          "L": 39.3,
+          "C": 23.9,
+          "h": 47.1,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#ADAEAE",
+          "part": 0.1142,
+          "L": 71.0,
+          "C": 0.4,
+          "h": 199.4,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#37342C",
+          "part": 0.0962,
+          "L": 21.8,
+          "C": 5.6,
+          "h": 93.6,
+          "nom": "gris sombre"
+        }
+      ],
+      "tons": {
+        "L_p05": 10.0,
+        "L_p50": 123.8,
+        "L_p95": 194.1,
+        "etendue_p05_p95": 184.1,
+        "part_sombre_L_moins_64": 0.341,
+        "part_claire_L_plus_200": 0.0119
+      },
+      "saturation": {
+        "S_hsv_p50": 36.0,
+        "S_hsv_p95": 144.0,
+        "C_lab_p50": 4.4,
+        "C_lab_p95": 30.5,
+        "part_quasi_gris_C_moins_10": 0.7809
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#884230",
+        "h": 40.6,
+        "C": 37.5,
+        "L": 93.6,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.104,
+        "part_coloree_totale": 0.1165
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.5359,
+        "centroide_y": 0.4331,
+        "masse_bbox": {
+          "x0": 0.2368,
+          "x1": 0.8797,
+          "y0": 0.125,
+          "y1": 0.9401,
+          "part_surface": 0.524,
+          "centre_y": 0.5326,
+          "largeur": 0.6429,
+          "hauteur": 0.8151
+        },
+        "part_vide_E_moins_4": 0.5636,
+        "energie_moyenne": 6.32,
+        "tiers": [
+          [
+            0.0382,
+            0.1117,
+            0.152
+          ],
+          [
+            0.0798,
+            0.1899,
+            0.1954
+          ],
+          [
+            0.0544,
+            0.0516,
+            0.127
+          ]
+        ],
+        "part_bande_centrale": 0.3532,
+        "part_rangee_haute": 0.3019,
+        "part_rangee_basse": 0.233
+      }
+    },
+    {
+      "fichier": "12_1996_wielki_tydzien.jpg",
+      "px_source": [
+        586,
+        412
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 586,
+        "hauteur": 412,
+        "ratio_l_sur_h": 1.4223,
+        "portrait": false
+      },
+      "palette": [
+        {
+          "hex": "#0B0A12",
+          "part": 0.1514,
+          "L": 3.0,
+          "C": 4.0,
+          "h": 294.2,
+          "nom": "noir"
+        },
+        {
+          "hex": "#C4A896",
+          "part": 0.1354,
+          "L": 70.8,
+          "C": 15.0,
+          "h": 60.6,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#433939",
+          "part": 0.1319,
+          "L": 25.0,
+          "C": 4.7,
+          "h": 20.3,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#E8D8D4",
+          "part": 0.1254,
+          "L": 87.5,
+          "C": 6.2,
+          "h": 39.3,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#342521",
+          "part": 0.1252,
+          "L": 16.3,
+          "C": 8.4,
+          "h": 40.3,
+          "nom": "noir"
+        },
+        {
+          "hex": "#20202E",
+          "part": 0.1251,
+          "L": 12.8,
+          "C": 10.1,
+          "h": 293.1,
+          "nom": "violet"
+        },
+        {
+          "hex": "#8C6D59",
+          "part": 0.1028,
+          "L": 48.6,
+          "C": 18.4,
+          "h": 59.5,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#151725",
+          "part": 0.1028,
+          "L": 8.2,
+          "C": 10.5,
+          "h": 289.2,
+          "nom": "violet"
+        }
+      ],
+      "tons": {
+        "L_p05": 7.7,
+        "L_p50": 53.9,
+        "L_p95": 227.1,
+        "etendue_p05_p95": 219.5,
+        "part_sombre_L_moins_64": 0.5663,
+        "part_claire_L_plus_200": 0.1364
+      },
+      "saturation": {
+        "S_hsv_p50": 98.0,
+        "S_hsv_p95": 154.0,
+        "C_lab_p50": 10.1,
+        "C_lab_p95": 30.0,
+        "part_quasi_gris_C_moins_10": 0.4942
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#AE7A59",
+        "h": 57.7,
+        "C": 30.8,
+        "L": 142.3,
+        "nom": "ocre-orange",
+        "part_de_surface": 0.1762,
+        "part_coloree_totale": 0.3319
+      },
+      "accent": {
+        "hex": "#68272D",
+        "h": 21.4,
+        "C": 31.8,
+        "L": 65.4,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.0051,
+        "part_noyau_C30": 0.0014,
+        "ecart_teinte_au_fond": 36.4
+      },
+      "composition": {
+        "centroide_x": 0.3895,
+        "centroide_y": 0.3475,
+        "masse_bbox": {
+          "x0": 0.0833,
+          "x1": 0.8177,
+          "y0": 0.0852,
+          "y1": 0.6963,
+          "part_surface": 0.4488,
+          "centre_y": 0.3907,
+          "largeur": 0.7344,
+          "hauteur": 0.6111
+        },
+        "part_vide_E_moins_4": 0.2984,
+        "energie_moyenne": 19.41,
+        "tiers": [
+          [
+            0.3286,
+            0.1097,
+            0.0737
+          ],
+          [
+            0.135,
+            0.109,
+            0.1275
+          ],
+          [
+            0.0591,
+            0.0349,
+            0.0225
+          ]
+        ],
+        "part_bande_centrale": 0.2535,
+        "part_rangee_haute": 0.512,
+        "part_rangee_basse": 0.1165
+      }
+    },
+    {
+      "fichier": "13_1999_la_juive.jpg",
+      "px_source": [
+        617,
+        893
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 617,
+        "hauteur": 893,
+        "ratio_l_sur_h": 0.6909,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#A93030",
+          "part": 0.1879,
+          "L": 39.2,
+          "C": 57.0,
+          "h": 30.6,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#212932",
+          "part": 0.1586,
+          "L": 16.2,
+          "C": 7.0,
+          "h": 262.9,
+          "nom": "noir"
+        },
+        {
+          "hex": "#A82D2D",
+          "part": 0.1544,
+          "L": 38.5,
+          "C": 58.1,
+          "h": 31.2,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#C9A15E",
+          "part": 0.1434,
+          "L": 68.5,
+          "C": 40.7,
+          "h": 80.6,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#EFDAAF",
+          "part": 0.1174,
+          "L": 87.8,
+          "C": 23.8,
+          "h": 88.1,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#544641",
+          "part": 0.1025,
+          "L": 31.0,
+          "C": 7.3,
+          "h": 46.1,
+          "nom": "gris sombre"
+        },
+        {
+          "hex": "#9B573E",
+          "part": 0.0917,
+          "L": 44.4,
+          "C": 36.9,
+          "h": 46.1,
+          "nom": "ocre-orange"
+        },
+        {
+          "hex": "#7C2E32",
+          "part": 0.0441,
+          "L": 30.6,
+          "C": 37.5,
+          "h": 24.0,
+          "nom": "rouge-orange"
+        }
+      ],
+      "tons": {
+        "L_p05": 39.9,
+        "L_p50": 99.1,
+        "L_p95": 231.3,
+        "etendue_p05_p95": 191.4,
+        "part_sombre_L_moins_64": 0.1783,
+        "part_claire_L_plus_200": 0.1265
+      },
+      "saturation": {
+        "S_hsv_p50": 141.0,
+        "S_hsv_p95": 189.0,
+        "C_lab_p50": 37.5,
+        "C_lab_p95": 59.3,
+        "part_quasi_gris_C_moins_10": 0.2393
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#A92E2E",
+        "h": 31.2,
+        "C": 58.1,
+        "L": 99.5,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.3953,
+        "part_coloree_totale": 0.7101
+      },
+      "accent": {
+        "hex": "#CFA753",
+        "h": 84.2,
+        "C": 48.7,
+        "L": 180.0,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.2324,
+        "part_noyau_C30": 0.164,
+        "ecart_teinte_au_fond": 53.0
+      },
+      "composition": {
+        "centroide_x": 0.4508,
+        "centroide_y": 0.5263,
+        "masse_bbox": {
+          "x0": 0.2151,
+          "x1": 0.717,
+          "y0": 0.1406,
+          "y1": 0.9531,
+          "part_surface": 0.4078,
+          "centre_y": 0.5469,
+          "largeur": 0.5019,
+          "hauteur": 0.8125
+        },
+        "part_vide_E_moins_4": 0.4435,
+        "energie_moyenne": 13.56,
+        "tiers": [
+          [
+            0.0522,
+            0.2121,
+            0.0383
+          ],
+          [
+            0.0975,
+            0.1723,
+            0.0241
+          ],
+          [
+            0.1199,
+            0.2013,
+            0.0824
+          ]
+        ],
+        "part_bande_centrale": 0.5856,
+        "part_rangee_haute": 0.3026,
+        "part_rangee_basse": 0.4035
+      }
+    },
+    {
+      "fichier": "14_2000_hommage_dali.jpg",
+      "px_source": [
+        563,
+        795
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 563,
+        "hauteur": 795,
+        "ratio_l_sur_h": 0.7082,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#AA9471",
+          "part": 0.1447,
+          "L": 62.4,
+          "C": 21.7,
+          "h": 82.4,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#C5A87B",
+          "part": 0.1346,
+          "L": 70.4,
+          "C": 27.5,
+          "h": 81.2,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#0F1009",
+          "part": 0.1303,
+          "L": 4.4,
+          "C": 3.3,
+          "h": 116.6,
+          "nom": "noir"
+        },
+        {
+          "hex": "#595036",
+          "part": 0.1252,
+          "L": 34.2,
+          "C": 16.7,
+          "h": 92.3,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#786B4E",
+          "part": 0.124,
+          "L": 45.7,
+          "C": 18.2,
+          "h": 88.7,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#928264",
+          "part": 0.116,
+          "L": 55.1,
+          "C": 18.5,
+          "h": 86.0,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#332E1C",
+          "part": 0.1154,
+          "L": 19.0,
+          "C": 12.5,
+          "h": 94.8,
+          "nom": "ocre-jaune"
+        },
+        {
+          "hex": "#E8C78F",
+          "part": 0.1098,
+          "L": 81.8,
+          "C": 32.6,
+          "h": 82.9,
+          "nom": "ocre-jaune"
+        }
+      ],
+      "tons": {
+        "L_p05": 9.3,
+        "L_p50": 129.6,
+        "L_p95": 208.7,
+        "etendue_p05_p95": 199.4,
+        "part_sombre_L_moins_64": 0.2332,
+        "part_claire_L_plus_200": 0.0824
+      },
+      "saturation": {
+        "S_hsv_p50": 93.0,
+        "S_hsv_p95": 143.0,
+        "C_lab_p50": 18.5,
+        "C_lab_p95": 35.6,
+        "part_quasi_gris_C_moins_10": 0.1582
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#C1A576",
+        "h": 82.2,
+        "C": 28.3,
+        "L": 176.4,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.6853,
+        "part_coloree_totale": 0.7182
+      },
+      "accent": null,
+      "composition": {
+        "centroide_x": 0.4685,
+        "centroide_y": 0.438,
+        "masse_bbox": {
+          "x0": 0.114,
+          "x1": 0.886,
+          "y0": 0.1068,
+          "y1": 0.8542,
+          "part_surface": 0.577,
+          "centre_y": 0.4805,
+          "largeur": 0.7721,
+          "hauteur": 0.7474
+        },
+        "part_vide_E_moins_4": 0.2903,
+        "energie_moyenne": 12.0,
+        "tiers": [
+          [
+            0.1681,
+            0.0782,
+            0.1773
+          ],
+          [
+            0.1098,
+            0.0692,
+            0.1066
+          ],
+          [
+            0.0913,
+            0.149,
+            0.0505
+          ]
+        ],
+        "part_bande_centrale": 0.2964,
+        "part_rangee_haute": 0.4236,
+        "part_rangee_basse": 0.2908
+      }
+    },
+    {
+      "fichier": "15_2002_norma.jpg",
+      "px_source": [
+        444,
+        600
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 444,
+        "hauteur": 600,
+        "ratio_l_sur_h": 0.74,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#FDF9EE",
+          "part": 0.251,
+          "L": 98.0,
+          "C": 5.8,
+          "h": 95.4,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#AF312C",
+          "part": 0.2135,
+          "L": 40.4,
+          "C": 60.3,
+          "h": 33.3,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#AC2B27",
+          "part": 0.1931,
+          "L": 39.0,
+          "C": 61.8,
+          "h": 33.7,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#812C29",
+          "part": 0.1868,
+          "L": 30.9,
+          "C": 42.4,
+          "h": 30.8,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#C17C6F",
+          "part": 0.0909,
+          "L": 58.9,
+          "C": 31.2,
+          "h": 35.8,
+          "nom": "rouge-orange"
+        },
+        {
+          "hex": "#FDF9ED",
+          "part": 0.0416,
+          "L": 97.9,
+          "C": 6.3,
+          "h": 96.5,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#FCF9EE",
+          "part": 0.012,
+          "L": 97.9,
+          "C": 5.7,
+          "h": 98.9,
+          "nom": "gris clair"
+        },
+        {
+          "hex": "#FFFDF4",
+          "part": 0.0111,
+          "L": 99.2,
+          "C": 4.6,
+          "h": 101.0,
+          "nom": "gris clair"
+        }
+      ],
+      "tons": {
+        "L_p05": 67.9,
+        "L_p50": 106.0,
+        "L_p95": 249.8,
+        "etendue_p05_p95": 181.9,
+        "part_sombre_L_moins_64": 0.0382,
+        "part_claire_L_plus_200": 0.3191
+      },
+      "saturation": {
+        "S_hsv_p50": 162.0,
+        "S_hsv_p95": 199.0,
+        "C_lab_p50": 40.6,
+        "C_lab_p95": 64.3,
+        "part_quasi_gris_C_moins_10": 0.3158
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#AD2F2B",
+        "h": 33.3,
+        "C": 60.3,
+        "L": 101.4,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.6321,
+        "part_coloree_totale": 0.6777
+      },
+      "accent": {
+        "hex": "#F0CEA3",
+        "h": 77.3,
+        "C": 26.5,
+        "L": 216.2,
+        "nom": "ocre-jaune",
+        "part_de_surface": 0.0103,
+        "part_noyau_C30": 0.0,
+        "ecart_teinte_au_fond": 44.0
+      },
+      "composition": {
+        "centroide_x": 0.4485,
+        "centroide_y": 0.5046,
+        "masse_bbox": {
+          "x0": 0.0951,
+          "x1": 0.9049,
+          "y0": 0.0729,
+          "y1": 0.9245,
+          "part_surface": 0.6896,
+          "centre_y": 0.4987,
+          "largeur": 0.8099,
+          "hauteur": 0.8516
+        },
+        "part_vide_E_moins_4": 0.6326,
+        "energie_moyenne": 8.28,
+        "tiers": [
+          [
+            0.1029,
+            0.084,
+            0.1112
+          ],
+          [
+            0.0987,
+            0.1035,
+            0.0783
+          ],
+          [
+            0.1394,
+            0.1562,
+            0.1258
+          ]
+        ],
+        "part_bande_centrale": 0.3437,
+        "part_rangee_haute": 0.298,
+        "part_rangee_basse": 0.4214
+      }
+    },
+    {
+      "fichier": "16_2018_bella_figura.jpg",
+      "px_source": [
+        556,
+        800
+      ],
+      "inset": 0.0,
+      "format": {
+        "largeur": 556,
+        "hauteur": 800,
+        "ratio_l_sur_h": 0.695,
+        "portrait": true
+      },
+      "palette": [
+        {
+          "hex": "#5E5E2E",
+          "part": 0.155,
+          "L": 38.9,
+          "C": 28.4,
+          "h": 105.7,
+          "nom": "vert"
+        },
+        {
+          "hex": "#565C2E",
+          "part": 0.155,
+          "L": 37.5,
+          "C": 27.5,
+          "h": 111.8,
+          "nom": "vert"
+        },
+        {
+          "hex": "#464A2D",
+          "part": 0.1509,
+          "L": 30.4,
+          "C": 18.2,
+          "h": 112.9,
+          "nom": "vert"
+        },
+        {
+          "hex": "#6B6F46",
+          "part": 0.1304,
+          "L": 45.5,
+          "C": 24.0,
+          "h": 111.2,
+          "nom": "vert"
+        },
+        {
+          "hex": "#2B2B29",
+          "part": 0.1236,
+          "L": 17.5,
+          "C": 1.4,
+          "h": 109.8,
+          "nom": "noir"
+        },
+        {
+          "hex": "#989E7F",
+          "part": 0.1114,
+          "L": 63.9,
+          "C": 17.3,
+          "h": 116.4,
+          "nom": "vert"
+        },
+        {
+          "hex": "#3A3D2D",
+          "part": 0.1087,
+          "L": 25.0,
+          "C": 10.5,
+          "h": 115.9,
+          "nom": "vert"
+        },
+        {
+          "hex": "#574F2F",
+          "part": 0.0651,
+          "L": 33.6,
+          "C": 20.2,
+          "h": 95.4,
+          "nom": "vert"
+        }
+      ],
+      "tons": {
+        "L_p05": 43.3,
+        "L_p50": 93.1,
+        "L_p95": 166.1,
+        "etendue_p05_p95": 122.8,
+        "part_sombre_L_moins_64": 0.1859,
+        "part_claire_L_plus_200": 0.0114
+      },
+      "saturation": {
+        "S_hsv_p50": 93.0,
+        "S_hsv_p95": 151.0,
+        "C_lab_p50": 20.7,
+        "C_lab_p95": 33.1,
+        "part_quasi_gris_C_moins_10": 0.2092
+      },
+      "fond": {
+        "monochrome": false,
+        "hex": "#5D6130",
+        "h": 109.6,
+        "C": 29.3,
+        "L": 101.7,
+        "nom": "vert",
+        "part_de_surface": 0.6363,
+        "part_coloree_totale": 0.6834
+      },
+      "accent": {
+        "hex": "#8B4239",
+        "h": 32.9,
+        "C": 36.4,
+        "L": 95.0,
+        "nom": "rouge-orange",
+        "part_de_surface": 0.0209,
+        "part_noyau_C30": 0.0086,
+        "ecart_teinte_au_fond": 76.7
+      },
+      "composition": {
+        "centroide_x": 0.3767,
+        "centroide_y": 0.5534,
+        "masse_bbox": {
+          "x0": 0.161,
+          "x1": 0.7154,
+          "y0": 0.1901,
+          "y1": 0.9505,
+          "part_surface": 0.4215,
+          "centre_y": 0.5703,
+          "largeur": 0.5543,
+          "hauteur": 0.7604
+        },
+        "part_vide_E_moins_4": 0.5285,
+        "energie_moyenne": 7.7,
+        "tiers": [
+          [
+            0.0843,
+            0.1061,
+            0.0253
+          ],
+          [
+            0.1178,
+            0.1692,
+            0.0169
+          ],
+          [
+            0.1656,
+            0.2224,
+            0.0924
+          ]
+        ],
+        "part_bande_centrale": 0.4977,
+        "part_rangee_haute": 0.2157,
+        "part_rangee_basse": 0.4804
+      }
+    }
+  ]
+}

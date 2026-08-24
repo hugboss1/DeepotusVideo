@@ -19,6 +19,13 @@ _PRICING_FILE = DATA_ROOT / "pricing.json"
 # Directional defaults (USD). Editable in Settings -> Pricing & budget.
 DEFAULTS = {
     "flux_image_usd": 0.003,          # fal.ai FLUX schnell, per image
+    # fal.ai nano-banana (Gemini), per image — text-to-image AND /edit share
+    # the same rate. Re-verified 2026-08-24 on fal.ai/models/fal-ai/nano-banana:
+    # "Your request will cost $0.039 per image. For $1.00, you can run this
+    # model 25 times." Untabulated until then, which made `estimate` fall back
+    # to the FLUX rate (0.003) for it — a price 13x too low, served as if it
+    # were the model's own.
+    "nano_banana_usd": 0.039,
     "gpt_image_2_usd": 0.12,          # OpenAI gpt-image-2, per image (portrait, directional)
     "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
@@ -77,6 +84,9 @@ DEFAULTS = {
 # image-gen model id -> (label, billing provider, pricing key in DEFAULTS)
 _IMAGE_MODELS = {
     "flux":             ("FLUX image",       "fal",    "flux_image_usd"),
+    # id + label mirror routes.list_image_models so the Cardforge screens can
+    # join the two tables on the id alone.
+    "nano-banana":      ("Nano Banana (Gemini)", "fal", "nano_banana_usd"),
     "gpt-image-2":      ("GPT Image 2",      "openai", "gpt_image_2_usd"),
     "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
     "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),

@@ -47,6 +47,7 @@ Run : .\\scripts\\run-tests.ps1 -Filter cards
 """
 import asyncio
 import io
+import json
 import math
 import os
 import pathlib
@@ -62,16 +63,33 @@ os.environ["DATABASE_URL"] = \
 os.environ.setdefault("FAL_KEY", "test-key")
 os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
 os.environ["OUTPUTS_FOLDER"] = str(pathlib.Path(_tmp, "outputs"))
+# LE DOSSIER DE DONNÉES AUSSI (P5-T1). Le manifeste de série vit dans
+# `DATA_ROOT`, et sans cette ligne le banc l'écrivait dans le dossier de
+# données RÉEL de l'utilisateur. Elle referme au passage la porte du bloquant
+# de la phase 4 : `app/config.py` charge `DATA_ROOT/.env` avec `override=True`
+# à l'import, donc un dossier de données neuf = aucune vraie clé dans ce
+# processus. La ceinture (`_settings.FAL_KEY`) reste posée en dessous, et un
+# test la PROUVE — un banc qui croit neutraliser une clé doit le montrer.
+os.environ["DEEPOTUS_DATA_DIR"] = str(pathlib.Path(_tmp, "data"))
 pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 pathlib.Path(_tmp, "outputs").mkdir(exist_ok=True)
+pathlib.Path(_tmp, "data").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 import pytest                                                   # noqa: E402
 from httpx import AsyncClient, ASGITransport                    # noqa: E402
-from PIL import Image                                           # noqa: E402
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter     # noqa: E402
 
+from app.config import settings as _settings                    # noqa: E402
 from app.services.cards import contract as CT                   # noqa: E402
 from app.services.cards import face as FA                       # noqa: E402
+
+# ON FORCE L'OBJET, PAS L'ENVIRONNEMENT, ET APRÈS L'IMPORT DE CONFIG — la
+# leçon T3 de la phase 4, recopiée ici parce que c'est ici que la série
+# dépense. `os.environ.setdefault` ne tient pas contre un `.env` chargé en
+# `override=True` ; ces deux lignes-ci, si.
+_settings.FAL_KEY = "test-key"
+_settings.OPENAI_API_KEY = "test-key-openai"
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 JS = ROOT / "frontend" / "cardforge" / "js" / "mod-face.js"
@@ -524,7 +542,11 @@ def test_le_module_respecte_les_regles_de_cloisonnement():
     R11 : la source commence par "use strict". R4/R5 : la feuille et les ids
     portent le préfixe de la pièce."""
     chemins = sorted(r.path for r in FA.router.routes)
-    assert chemins == ["/ai-models", "/png/{fmt}/{dpi}"], chemins
+    # LA LISTE EST UN PIN, PAS UNE FORMALITÉ : elle compte les routes que la
+    # pièce ouvre. La phase 5 en ajoute DEUX — l'état de la série et la
+    # campagne — et la seule qui dépense est un POST nommé.
+    assert chemins == ["/ai-models", "/png/{fmt}/{dpi}", "/serie",
+                       "/serie/generer"], chemins
     for p in chemins:
         assert not p.startswith("/api"), f"chemin absolu interdit : {p}"
     py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
@@ -1477,10 +1499,16 @@ def test_le_cout_de_la_generation_est_un_montant_pas_un_compte():
     assert par_id["flux"]["usd_par_image"] == pytest.approx(attendu), \
         "le prix affiché doit être CELUI de l'application, pas une copie"
     assert par_id["flux"]["provider"] == "fal"
-    # un modèle absent de la table de tarifs n'affiche AUCUN montant :
-    # `pricing.estimate` retomberait sur FLUX, et ce repli serait un prix faux
+    # UN MODÈLE ABSENT DE LA TABLE N'AFFICHE AUCUN MONTANT — la règle n'a pas
+    # changé, son illustration si : `nano-banana` était l'exemple du trou, il
+    # est TABULÉ depuis la phase 5 (0,039 $, re-vérifié à la source le
+    # 24/08/2026). L'écran publie donc son prix, par ÉGALITÉ à la table ; ce
+    # qui reste interdit, c'est le repli silencieux sur le tarif de FLUX.
     if "nano-banana" in par_id:
-        assert par_id["nano-banana"]["usd_par_image"] is None
+        assert par_id["nano-banana"]["usd_par_image"] == \
+            pytest.approx(pricing.load()["nano_banana_usd"])
+        assert par_id["nano-banana"]["usd_par_image"] != \
+            pytest.approx(attendu), "le prix de FLUX resservi pour un autre"
     # l'écran multiplie et totalise, et il dit d'où vient le tarif
     src = js_code()
     assert "usdFmt(n * u)" in src, "le total, pas seulement le tarif unitaire"
@@ -2667,6 +2695,1021 @@ def test_la_molette_p1_coalesce_son_zoom_a_la_frame():
         "la clôture désarme l'annulation avant d'avoir écrit l'état final"
     # 4. l'invariant sous-le-curseur ne bouge pas
     assert "artWindow(g)" in roue, "la molette ignore à nouveau la fenêtre"
+
+
+# ═══ 15. LA SÉRIE — une VOIE d'images à côté du vectoriel (phase 5, T1) ══════
+#
+# CE QUE CETTE SECTION GARDE. La série « affiche polonaise » est 108 images
+# posées À CÔTÉ des 108 dessins vectoriels, jamais à leur place : toute case
+# absente retombe sur le dessin, et l'écran l'AVOUE. La machinerie qui les
+# fabrique dépense de l'argent réel ; ces tests, eux, n'en dépensent pas UN
+# CENTIME, et ce n'est pas une intention, c'est un compte :
+#
+#   * chaque test de campagne pose son ESPION sur les trois seules fonctions
+#     de la pièce qui appellent un générateur (`_tirer_flux`, `_tirer_banana`,
+#     `_tirer_gpt`) — l'espion écrit une image SYNTHÉTIQUE sur le disque local
+#     et rend son nom ;
+#   * la SENTINELLE (patron `test_cards_capture.py`, recopié et non importé —
+#     règle 8 : deux bancs ne partagent pas un outil) referme derrière lui les
+#     seize noms de `fal_client`, `FalSeedanceClient.upload_image`,
+#     `image_providers.generate`, `urlopen` et `httpx.AsyncClient` : si un
+#     chemin oublié atteignait quand même le fournisseur, il COMPTERAIT ;
+#   * `sentinelle.zero()` clôt chaque test.
+#
+# LE JUGE, LUI, TOURNE POUR DE VRAI : `mesure_style.py` est du PIL pur, il ne
+# sort pas de la machine et il est gratuit. Les images qu'il juge sont
+# fabriquées ici, par construction : une conforme à la fiche (fond sourd, une
+# masse centrale, la lumière rare) et son TÉMOIN saturé/éclairci — exactement
+# la dérive d'un générateur laissé libre. Le verdict n'est donc pas une
+# opinion du banc : c'est le même script que celui qui a mesuré le corpus.
+
+
+def _rgb(h: str) -> tuple:
+    h = h.lstrip("#")
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+
+
+def _toile(w=300, h=450, graine=7, cx=0.45, cy=0.47, fw=0.69, fh=0.76,
+           grain=0.35, fond=0.0):
+    """Une image SYNTHÉTIQUE bâtie sur la fiche : neuf teintes maîtres, un
+    fond plat rongé aux bords, UNE masse centrale texturée, un point clair
+    rare, un geste rouge. Les paramètres de composition sont ce qui la fait
+    passer ou non — c'est ainsi qu'on fabrique un candidat conforme et un
+    candidat seulement « à retoucher », sans jamais appeler un modèle."""
+    import random
+    R = random.Random(graine)
+    sol, noir, gris = _rgb("#4D453B"), _rgb("#1F1A18"), _rgb("#837E7C")
+    clair, ocre_s = _rgb("#D2CCC7"), _rgb("#7B6B47")
+    ocre_c, rouge = _rgb("#C2AC7F"), _rgb("#A32E2B")
+    im = Image.new("RGB", (w, h), sol)
+    d = ImageDraw.Draw(im)
+    d.rectangle([0, 0, w, int(h * 0.10)], fill=noir)
+    d.rectangle([0, int(h * 0.92), w, h], fill=noir)
+    d.rectangle([0, 0, int(w * 0.07), h], fill=noir)
+    d.rectangle([int(w * 0.94), 0, w, h], fill=noir)
+    mx, my, mw, mh = cx * w, cy * h, fw * w, fh * h
+    box = [mx - mw / 2, my - mh / 2, mx + mw / 2, my + mh / 2]
+    d.ellipse(box, fill=ocre_s)
+    for i in range(60):
+        y = box[1] + (box[3] - box[1]) * i / 60.0
+        c = ocre_c if i % 3 == 0 else (gris if i % 3 == 1 else ocre_s)
+        d.line([box[0] + R.random() * 8, y, box[2] - R.random() * 8, y],
+               fill=c, width=2)
+    d.ellipse([mx - w * 0.05, my + mh * 0.13, mx + w * 0.05, my + mh * 0.26],
+              fill=rouge)
+    px = im.load()
+    for _ in range(int(mw * mh * grain * 2)):
+        x = R.randrange(max(1, int(box[0]) + 1), min(w - 1, int(box[2]) - 1))
+        y = R.randrange(max(1, int(box[1]) + 1), min(h - 1, int(box[3]) - 1))
+        r, g, b = px[x, y]
+        k = R.randint(-26, 26)
+        px[x, y] = (max(0, min(255, r + k)), max(0, min(255, g + k)),
+                    max(0, min(255, b + k)))
+    # LE POINT CLAIR EST POSÉ APRÈS LE GRAIN : sous le grain il retombait sous
+    # L=200 et « part claire » — un axe CRITIQUE — sortait de la bande par le
+    # bas. Mesuré : 0,74 % pour une bande qui commence à 1,17 %.
+    d.ellipse([mx - mw * 0.16, my - mh * 0.26, mx + mw * 0.16, my - mh * 0.05],
+              fill=clair)
+    if fond:
+        for _ in range(int(w * h * fond)):
+            x, y = R.randrange(1, w - 1), R.randrange(1, h - 1)
+            r, g, b = px[x, y]
+            k = R.randint(-14, 14)
+            px[x, y] = (max(0, min(255, r + k)), max(0, min(255, g + k)),
+                        max(0, min(255, b + k)))
+    return im
+
+
+def _toile_conforme():
+    """TIENT — mesuré 96,9 % / dE 16,8 au juge de la fiche."""
+    return _toile()
+
+
+def _toile_a_retoucher():
+    """A RETOUCHER — mesuré 68,8 % sans AUCUN rouge critique : la matière et
+    la clé tonale tiennent, la composition non (masse trop petite, posée trop
+    bas). C'est précisément le cas qu'une passe d'édition rattrape."""
+    return _toile(graine=11, cx=0.45, cy=0.70, fw=0.42, fh=0.40, fond=0.20)
+
+
+def _toile_saturee():
+    """HORS STYLE — le témoin négatif du skill, refait ici : ×3 de saturation,
+    ×1,55 de clarté, sur-netteté. Mesuré : deux axes CRITIQUES hors corpus
+    (chroma p95 80,0 pour 11–59 ; part quasi-grise 4,2 % pour 18–90 %)."""
+    im = ImageEnhance.Color(_toile_conforme()).enhance(3.0)
+    im = ImageEnhance.Brightness(im).enhance(1.55)
+    return im.filter(ImageFilter.SHARPEN)
+
+
+class _Sentinelle:
+    """LE COMPTEUR D'APPELS RÉELS — patron `test_cards_capture.py`, RECOPIÉ.
+    Il ne simule rien : il compte, puis il lève. Le compteur survit à tous les
+    `except Exception:` du chemin ; la levée seule ne survivrait pas."""
+
+    def __init__(self):
+        self.n = 0
+        self.portes: list = []
+
+    def _porte(self, nom):
+        def _refus(*a, **k):
+            self.n += 1
+            self.portes.append(nom)
+            raise AssertionError(
+                f"UN APPEL PAYANT RÉEL EST PARTI D'UN TEST : {nom}")
+        return _refus
+
+    def _porte_async(self, nom):
+        async def _refus(*a, **k):
+            self.n += 1
+            self.portes.append(nom)
+            raise AssertionError(
+                f"UN APPEL PAYANT RÉEL EST PARTI D'UN TEST : {nom}")
+        return _refus
+
+    def zero(self):
+        assert self.n == 0, f"{self.n} appel(s) réel(s) : {self.portes}"
+
+
+def _sentinelle(monkeypatch) -> _Sentinelle:
+    """Les portes du dehors, refermées sur le compteur. L'espion de la route
+    est ailleurs (chaque test pose le sien sur les trois `_tirer_*`) ;
+    celle-ci est la CEINTURE."""
+    s = _Sentinelle()
+    try:
+        import fal_client
+    except Exception:                                    # pragma: no cover
+        fal_client = None
+    if fal_client is not None:
+        for nom in ("subscribe_async", "submit_async", "run_async",
+                    "stream_async", "upload_async", "upload_file_async",
+                    "result_async", "status_async"):
+            if hasattr(fal_client, nom):
+                monkeypatch.setattr(fal_client, nom,
+                                    s._porte_async("fal_client." + nom))
+        for nom in ("subscribe", "submit", "run", "stream", "upload",
+                    "upload_file", "result", "status"):
+            if hasattr(fal_client, nom):
+                monkeypatch.setattr(fal_client, nom,
+                                    s._porte("fal_client." + nom))
+    try:
+        from app.services.fal_service import FalSeedanceClient
+        monkeypatch.setattr(FalSeedanceClient, "upload_image",
+                            staticmethod(s._porte_async(
+                                "FalSeedanceClient.upload_image")))
+    except Exception:                                    # pragma: no cover
+        pass
+    from app.services import image_providers as IP
+    monkeypatch.setattr(IP, "generate",
+                        s._porte_async("image_providers.generate"))
+    import urllib.request
+    monkeypatch.setattr(urllib.request, "urlopen",
+                        s._porte("urllib.request.urlopen"))
+    import httpx as _hx
+    monkeypatch.setattr(_hx, "AsyncClient", s._porte("httpx.AsyncClient"))
+    return s
+
+
+class _Atelier:
+    """L'ESPION DES TROIS VOIES. Il écrit une image synthétique dans le
+    magasin d'images et rend son nom — le même contrat que le vrai
+    générateur, sans le fournisseur. `flux` / `banana` / `gpt` disent QUEL
+    genre d'image chaque voie rend (un genre, ou une liste par candidat)."""
+
+    def __init__(self, flux="saturee", banana="saturee", gpt="saturee"):
+        self.flux, self.banana, self.gpt = flux, banana, gpt
+        self.appels: list = []
+
+    _GENRES = {"conforme": _toile_conforme, "retouchable": _toile_a_retoucher,
+               "saturee": _toile_saturee}
+
+    def _poser(self, genre: str) -> str:
+        import uuid as _u
+        nom = f"banc_{_u.uuid4().hex[:10]}.png"
+        _settings.images_path.mkdir(parents=True, exist_ok=True)
+        self._GENRES[genre]().save(_settings.images_path / nom)
+        return nom
+
+    def _genres(self, spec, n):
+        if isinstance(spec, str):
+            return [spec] * n
+        return list(spec)[:n] or ["saturee"]
+
+    async def tirer_flux(self, prompt, n, graine):
+        self.appels.append(("flux", prompt, n))
+        return [self._poser(g) for g in self._genres(self.flux, n)]
+
+    async def tirer_banana(self, prompt, source):
+        self.appels.append(("nano-banana", prompt, 1))
+        return [self._poser(self._genres(self.banana, 1)[0])]
+
+    async def tirer_gpt(self, prompt):
+        self.appels.append(("gpt-image-2", prompt, 1))
+        return [self._poser(self._genres(self.gpt, 1)[0])]
+
+    def pose(self, monkeypatch):
+        monkeypatch.setattr(FA, "_tirer_flux", self.tirer_flux)
+        monkeypatch.setattr(FA, "_tirer_banana", self.tirer_banana)
+        monkeypatch.setattr(FA, "_tirer_gpt", self.tirer_gpt)
+        return self
+
+
+def _serie_neuve():
+    """Le disque, remis à zéro : chaque test de campagne part du même état."""
+    d = FA.serie_root()
+    for p in list(d.glob("*.json")) + list(d.glob("*.tmp")):
+        try:
+            p.unlink()
+        except OSError:                                  # pragma: no cover
+            pass
+
+
+def _py_sans_texte(chemin: pathlib.Path) -> str:
+    """Le CODE d'un module Python, sans ses commentaires ni ses chaînes.
+
+    LA VERSION AU REGEX ÉTAIT FAUSSE, ET ELLE MENTAIT DANS LE SENS RASSURANT.
+    Retirer les commentaires par `#[^\\n]*` mange aussi un `#4D453B` écrit
+    DANS une docstring — donc la fin de cette ligne, donc parfois le `\"\"\"`
+    qui la ferme : le compte de guillemets triples devient impair, la
+    passe suivante apparie n'importe quoi et avale des centaines de lignes de
+    code. Mesuré ici : 126 guillemets triples avant, 125 après, et
+    `_flux_generate` (présent 3 fois) tombait à ZÉRO — un contrôle
+    « aucun prix écrit en dur » aurait alors été vert sur du vide.
+
+    `tokenize` ne se trompe pas : il SAIT ce qui est une chaîne."""
+    import io as _io
+    import tokenize as _tk
+    src = chemin.read_text(encoding="utf-8")
+    out = []
+    for tok in _tk.generate_tokens(_io.StringIO(src).readline):
+        if tok.type in (_tk.COMMENT, _tk.STRING):
+            continue
+        out.append(tok.string)
+    return " ".join(out)
+
+
+def _prix_de_banc(monkeypatch, **surcharges):
+    """La table de tarifs du banc. On ne recopie AUCUN prix dans le test : on
+    part de la vraie table et on n'écrase que ce que le scénario exige."""
+    from app.services import pricing
+    base = dict(pricing.DEFAULTS)
+    base.update(surcharges)
+    monkeypatch.setattr(pricing, "load", lambda: dict(base))
+    return base
+
+
+# ── A. le tarif nano-banana, re-vérifié à la source ──────────────────────────
+
+def test_le_tarif_nano_banana_est_TABULE_et_publie_par_egalite():
+    """RE-VÉRIFIÉ LE 24/08/2026 sur la page du modèle
+    (fal.ai/models/fal-ai/nano-banana) : « Your request will cost $0.039 per
+    image. » Le chiffre entre dans la table de tarifs de l'application —
+    l'écran ne le recopie pas, il le LIT.
+
+    Sans cette ligne, `pricing.estimate` retombait EN SILENCE sur le tarif de
+    FLUX (0,003) pour nano-banana : un prix 13 fois trop bas, affiché comme
+    s'il était le sien. La pièce préférait donc ne rien afficher du tout
+    (« tarif non tabulé »). Maintenant elle affiche, et l'égalité est
+    testée."""
+    from app.services import pricing
+    assert pricing.DEFAULTS["nano_banana_usd"] == 0.039
+    assert pricing._IMAGE_MODELS["nano-banana"][1] == "fal"
+    assert pricing._IMAGE_MODELS["nano-banana"][2] == "nano_banana_usd"
+    # le devis passe par la table, pour n images
+    devis = pricing.estimate({"kind": "image", "model": "nano-banana", "n": 3})
+    assert devis["total_usd"] == pytest.approx(3 * 0.039)
+    # ET LE REPLI SILENCIEUX RESTE INTERDIT : un modèle hors table n'a pas de
+    # prix, il n'hérite pas de celui de FLUX. La campagne refuse alors de
+    # tirer — mieux vaut une marche sautée qu'une facture au tarif d'un autre.
+    assert FA.prix_usd("modele-inconnu") is None
+    assert FA.prix_usd("nano-banana", 2) == pytest.approx(2 * 0.039)
+    assert set(FA.serie_prix()) == {"flux", "nano-banana", "gpt-image-2"}
+    assert all(v is not None for v in FA.serie_prix().values())
+    # ... et l'écran /ai-models le publie par ÉGALITÉ à la table
+    did = _deck()
+    r = _api("GET", f"/api/cards/{did}/face/ai-models")
+    assert r.status_code == 200, r.text
+    par_id = {m["id"]: m for m in r.json()["models"]}
+    assert "nano-banana" in par_id, sorted(par_id)
+    assert par_id["nano-banana"]["usd_par_image"] == \
+        pytest.approx(pricing.load()["nano_banana_usd"])
+
+
+# ── B. le juge et la fiche, EN DÉPÔT, datés, et frais ────────────────────────
+
+def _sha_norme(p: pathlib.Path) -> str:
+    """L'empreinte des octets AVEC LES FINS DE LIGNE NORMALISÉES. Le dépôt
+    stocke en LF, `core.autocrlf` peut rendre du CRLF à la copie de travail :
+    une empreinte brute rougirait selon la machine, pas selon le contenu."""
+    import hashlib
+    return hashlib.sha256(
+        p.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def test_le_juge_et_la_fiche_vivent_EN_DEPOT_avec_leur_provenance():
+    """LE SKILL EST HORS DÉPÔT (`~/.claude/skills/`) : la campagne tournera
+    sur un backend déployé, où ce dossier n'existe pas. Le juge et la fiche
+    sont donc COPIÉS dans la pièce — et une copie, dans ce projet, DATE SA
+    SOURCE (leçon de clôture de la phase 4).
+
+    La déclaration ne se contente pas de dire d'où vient la copie : elle
+    porte l'empreinte, et ce test la recalcule. Une retouche silencieuse du
+    juge en dépôt rougit ici."""
+    d = pathlib.Path(FA.__file__).parent
+    juge = d / "style_walkuski.py"
+    fiche = d / "style_walkuski.json"
+    assert juge.is_file() and fiche.is_file()
+    decl = FA.SERIE_JUGE
+    assert "walkuski-style" in decl["origine"], decl
+    assert decl["copie_le"] == "2026-08-24"
+    assert decl["sha256"]["style_walkuski.py"] == _sha_norme(juge)
+    assert decl["sha256"]["style_walkuski.json"] == _sha_norme(fiche)
+    # la fiche est bien celle du corpus mesuré, pas un gabarit vide
+    f = FA.fiche_style()
+    assert f["n_oeuvres"] == 16 and len(f["palette_maitre"]) == 9
+    assert f["metriques"]["saturation.C_lab_p50"]["med"] == pytest.approx(9.85)
+
+
+def test_la_copie_du_juge_est_FRAICHE_face_au_skill():
+    """LE TEST DE FRAÎCHEUR. Si le skill est là (poste de développement), les
+    deux copies doivent être IDENTIQUES : le jour où la fiche est re-mesurée,
+    ce test rougit et rappelle de recopier — sinon la campagne jugerait avec
+    une fiche périmée sans que personne ne le voie.
+
+    Sur une machine sans le skill (le backend déployé, l'intégration
+    continue), il n'y a rien à comparer : le contrôle se SAUTE en le disant,
+    il ne se déclare pas vert."""
+    src = pathlib.Path.home() / ".claude" / "skills" / "walkuski-style"
+    if not src.is_dir():
+        pytest.skip("skill walkuski-style absent de cette machine : "
+                    "la fraîcheur ne peut pas se mesurer ici")
+    d = pathlib.Path(FA.__file__).parent
+    paires = [(src / "scripts" / "mesure_style.py", d / "style_walkuski.py"),
+              (src / "fiche_style.json", d / "style_walkuski.json")]
+    for amont, aval in paires:
+        assert amont.is_file(), amont.name
+        assert _sha_norme(amont) == _sha_norme(aval), (
+            f"{aval.name} a divergé de {amont.name} : recopiez-le et "
+            f"remettez la date + l'empreinte dans FA.SERIE_JUGE")
+
+
+# ── C. les cases, les familles ───────────────────────────────────────────────
+
+def test_les_108_cases_de_serie_sont_celles_du_catalogue():
+    """La série HABILLE la grille existante : elle n'invente ni sujet ni
+    composition. 18 × 6 = 108 cases `<compo>_<sujet>`, en bijection avec les
+    108 dessins — les noms et les thèmes sont CONSERVÉS (D1)."""
+    cases = FA.serie_cases()
+    assert len(cases) == 108 and len(set(cases)) == 108
+    attendu = {f"{c['compo']}_{c['subject']}" for c in FA.CATALOG}
+    assert set(cases) == attendu
+    for c in cases:
+        compo, sujet = c.split("_", 1)
+        assert compo in dict(FA.COMPOS) and sujet in dict(FA.SUBJECTS)
+
+
+def test_le_tirage_de_famille_tient_EXACTEMENT_les_poids_mesures():
+    """« 50 % ocre, 25 % rouge, 19 % graphite, 6 % violet » est une MESURE du
+    corpus (8/16, 4/16, 3/16, 1/16). Sur 108 cases, un tirage probabiliste
+    l'aurait tenu « à peu près » ; la pièce le tient EXACTEMENT — 54/27/20/7 —
+    parce qu'elle RANGE les cases par empreinte et coupe aux quantités, au
+    lieu de lancer un dé. C'est la même exigence que `scene_of` : un équilibre
+    annoncé se vérifie."""
+    from collections import Counter
+    n = Counter(FA.serie_famille(c) for c in FA.serie_cases())
+    assert dict(n) == {"ocre": 54, "rouge": 27, "graphite": 20, "violet": 7}
+    assert sum(n.values()) == 108
+    assert dict(FA.FAMILLES) == {"ocre": 54, "rouge": 27, "graphite": 20,
+                                 "violet": 7}
+
+
+def test_le_tirage_de_famille_est_STABLE_par_case():
+    """La même case retire TOUJOURS la même famille — sinon une reprise de
+    campagne fabriquerait, pour la case qu'elle reprend, une image d'une
+    autre famille que celle du prompt journalisé."""
+    a = {c: FA.serie_famille(c) for c in FA.serie_cases()}
+    b = {c: FA.serie_famille(c) for c in reversed(FA.serie_cases())}
+    assert a == b
+    # ... ET IL EST DISPERSÉ, PAS EN BLOCS. Couper la grille dans l'ordre du
+    # catalogue tiendrait les mêmes comptes exacts (54/27/20/7) et donnerait
+    # une série BANDÉE : les neuf premiers sujets tout en ocre, les quatre
+    # suivants tout en rouge — chaque sujet monochrome sur ses six
+    # compositions. C'est l'empreinte qui casse les blocs, et c'est mesurable :
+    # les 18 sujets ET les 6 compositions portent chacun au moins deux
+    # familles.
+    from collections import defaultdict
+    par_sujet, par_compo = defaultdict(set), defaultdict(set)
+    for c in FA.serie_cases():
+        compo, _, sujet = c.partition("_")
+        par_sujet[sujet].add(a[c])
+        par_compo[compo].add(a[c])
+    assert min(len(v) for v in par_sujet.values()) >= 2, \
+        "un sujet entier tombe dans une seule famille : le tirage est bandé"
+    assert min(len(v) for v in par_compo.values()) >= 2
+    # ... et la valeur ne dépend d'aucun état de module : elle se recalcule
+    # à froid dans un interpréteur neuf.
+    import subprocess
+    code = ("import sys; sys.path.insert(0, r'%s');"
+            "from app.services.cards import face as F;"
+            "print(F.serie_famille('vista_tower'), F.serie_famille('stained_beacon'))"
+            % str(ROOT / "backend"))
+    env = dict(os.environ)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                         text=True, env=env, timeout=180)
+    assert out.returncode == 0, out.stderr[-800:]
+    assert out.stdout.split() == [FA.serie_famille("vista_tower"),
+                                  FA.serie_famille("stained_beacon")]
+
+
+# ── D. le prompt : ancré sur la fiche, jamais sur un nom ─────────────────────
+
+def test_le_prompt_se_construit_SUR_LA_FICHE_et_ne_recopie_pas_ses_chiffres(
+        monkeypatch):
+    """LE PIN DE D6. Les fractions du prompt (masse, vide, part sombre, part
+    claire) et ses hexadécimaux VIENNENT de `style_walkuski.json`. Une fiche
+    re-mesurée doit changer le prompt toute seule — sinon la « fiche » n'est
+    qu'une décoration et les vrais chiffres sont dans le code."""
+    vrai = FA.serie_prompt("vista_tower")
+    assert "69%" in vrai and "76%" in vrai and "43%" in vrai
+    f = FA.fiche_style()
+    faux = json.loads(json.dumps(f))
+    faux["metriques"]["composition.masse_bbox.largeur"]["med"] = 0.31
+    faux["metriques"]["composition.part_vide_E_moins_4"]["med"] = 0.58
+    monkeypatch.setattr(FA, "fiche_style", lambda: faux)
+    autre = FA.serie_prompt("vista_tower")
+    assert "31%" in autre and "58%" in autre
+    assert "69%" not in autre, "la largeur de masse était écrite en dur"
+
+
+def test_le_prompt_porte_les_six_blocs_et_le_cadre_portrait():
+    """La structure du gabarit : matière, sujet, composition, palette, clé
+    tonale, interdits — dans cet ordre. Et le cadre est un PORTRAIT annoncé,
+    parce que le corpus l'est (0,695 médian sur ses 11 affiches portrait)."""
+    p = FA.serie_prompt("medallion_dragon")
+    for morceau in ("craquelure", "portrait", "Palette strictly limited",
+                    "Dark-keyed", "Not photographic"):
+        assert morceau in p, morceau
+    assert p.index("craquelure") < p.index("Palette strictly limited") \
+        < p.index("Dark-keyed") < p.index("Not photographic")
+    # le sujet et la composition sont ceux de la case, pas un texte générique
+    assert "dragon" in p.lower()
+    assert FA.serie_prompt("medallion_dragon") != FA.serie_prompt("vista_dragon")
+    assert FA.serie_prompt("medallion_dragon") != FA.serie_prompt("medallion_wolf")
+
+
+def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
+    """L'AVEU DU CADRE, MESURÉ. La fiche vise le 2:3 (0,667) ; le service de
+    génération de l'application ne connaît que six cadres NOMMÉS. On ne peut
+    donc pas demander le cadre de la fiche — on demande le plus proche, et on
+    le PROUVE plutôt que de l'affirmer : `portrait_4_3` (0,750) est à 0,083 du
+    2:3, `portrait_16_9` (0,562) à 0,104.
+
+    Les ratios ne sont pas recopiés ici : ils se lisent dans la table de
+    l'application (`image_providers._BANANA_ASPECT`), et le rapport d'édition
+    de la pièce doit être CELUI de ce cadre — sinon une passe de retouche
+    changerait la forme de l'image entre deux marches de l'échelle."""
+    from app.services.image_providers import _BANANA_ASPECT
+    cible = 2.0 / 3.0
+    ratios = {}
+    for nom, asp in _BANANA_ASPECT.items():
+        a, b = (float(x) for x in asp.split(":"))
+        ratios[nom] = a / b
+    plus_proche = min(ratios, key=lambda k: abs(ratios[k] - cible))
+    assert FA.SERIE_TAILLE == plus_proche, (FA.SERIE_TAILLE, ratios)
+    assert FA.SERIE_RATIO == _BANANA_ASPECT[FA.SERIE_TAILLE], \
+        "le cadre de l'édition ne suit pas celui de la génération"
+    assert abs(ratios[FA.SERIE_TAILLE] - cible) == pytest.approx(0.0833, abs=1e-3)
+
+
+def test_AUCUN_prompt_de_serie_ne_nomme_un_artiste():
+    """LA RÈGLE DURE DU SKILL, BALAYÉE SUR LES 108 PROMPTS. Un nom d'artiste
+    vivant dans un prompt payant, c'est un refus facturé au mieux, un pastiche
+    juridiquement sale au pire — et c'est la ligne du projet. Un style se
+    porte par des nombres."""
+    interdits = [n.lower() for n in FA.NOMS_INTERDITS]
+    assert "walkuski" in interdits and "wałkuski" in interdits
+    for case in FA.serie_cases():
+        p = FA.serie_prompt(case).lower()
+        for nom in interdits:
+            assert nom not in p, f"{case} : « {nom} » dans le prompt"
+        assert "in the style of" not in p
+        assert "polish poster" not in p, \
+            "même l'école ne se nomme pas : on décrit, on ne cite pas"
+
+
+def test_un_prompt_qui_nommerait_un_artiste_est_REFUSE_avant_l_envoi(
+        monkeypatch):
+    """« Un grep avant l'envoi coûte zéro et évite un refus facturé » : la
+    règle est STRUCTURELLE, pas seulement testée.
+
+    LES DEUX MOITIÉS COMPTENT, et la seconde est celle qui manquait : vérifier
+    la fonction de garde ne prouve pas qu'on s'en sert. On empoisonne donc la
+    table des sujets — la seule prose écrite à la main de tout le pipeline —
+    et le prompt doit REFUSER de naître. Sans l'appel au garde-fou dans
+    `serie_prompt`, ce contrôle passe au vert et le nom part chez le
+    fournisseur."""
+    assert FA.sans_nom_d_artiste("a single gaunt watchtower, bone-coloured")
+    with pytest.raises(ValueError) as e:
+        FA.sans_nom_d_artiste("in the style of Wałkuski, oil on board")
+    assert "artiste" in str(e.value).lower()
+    poison = dict(FA.SUJETS_SCENE)
+    poison["tower"] = "a watchtower after Walkuski, bone-coloured"
+    monkeypatch.setattr(FA, "SUJETS_SCENE", poison)
+    with pytest.raises(ValueError):
+        FA.serie_prompt("vista_tower")
+    with pytest.raises(ValueError):
+        FA.serie_prompt_retouche("vista_tower", [])
+
+
+def test_le_meilleur_candidat_prefere_le_VERDICT_avant_le_score():
+    """Un lot mêle les natures : trier sur le seul score choisirait un « hors
+    style » à 90 % contre un « à retoucher » à 60 %. Or l'un est refusé par un
+    axe CRITIQUE — chroma p95 hors corpus, la dérive du générateur libre — et
+    l'autre non. Ce sont deux natures, pas deux notes ; c'est aussi ce qui
+    décide si l'échelle monte d'une marche ou de deux."""
+    lot = [{"verdict": "HORS STYLE", "score": 90.0, "img": "a.png"},
+           {"verdict": "A RETOUCHER", "score": 60.0, "img": "b.png"},
+           {"verdict": "HORS STYLE", "score": 95.0, "img": "c.png"}]
+    assert FA.meilleur_candidat(lot)["img"] == "b.png"
+    lot.append({"verdict": "TIENT", "score": 79.0, "img": "d.png"})
+    assert FA.meilleur_candidat(lot)["img"] == "d.png"
+    assert FA.meilleur_candidat([]) == {}
+
+
+def test_l_accent_est_RARE_et_ne_touche_que_l_ocre():
+    """« Un geste coloré unique dans un monde gris » : 6 œuvres sur 16 portent
+    une seconde teinte, 10 n'en portent aucune. La fraction est relue dans la
+    fiche (`n_sans_accent_isole`), pas décidée : 6/16 des 54 cases ocre, soit
+    20. Et jamais ailleurs — les régimes rouge, violet et graphite disent
+    eux-mêmes « no second hue » / « no hue anywhere »."""
+    f = FA.fiche_style()
+    avec = [c for c in FA.serie_cases() if FA.serie_accent(c)]
+    attendu = int(round(54 * (f["n_oeuvres"] - f["n_sans_accent_isole"])
+                        / f["n_oeuvres"]))
+    assert len(avec) == attendu == 20
+    assert all(FA.serie_famille(c) == "ocre" for c in avec)
+    # ... et l'accent SE VOIT dans le prompt, sinon la mesure ne sert à rien
+    p_avec = FA.serie_prompt(avec[0])
+    sans = [c for c in FA.serie_cases()
+            if FA.serie_famille(c) == "ocre" and not FA.serie_accent(c)]
+    assert "One single accent" in p_avec
+    assert "One single accent" not in FA.serie_prompt(sans[0])
+
+
+def test_la_palette_du_prompt_SORT_de_la_fiche_et_le_graphite_est_sans_couleur():
+    """Les hexadécimaux imposés au générateur sont les teintes MAÎTRES de la
+    fiche — aucune couleur inventée. Et le régime graphite (20 cases sur 108)
+    n'en porte AUCUNE : « essentiellement sans couleur » est un fait
+    vérifiable, pas une figure de style."""
+    maitres = {e["hex"].upper() for e in FA.fiche_style()["palette_maitre"]}
+    vus = set()
+    for case in FA.serie_cases():
+        p = FA.serie_prompt(case)
+        hexs = {h.upper() for h in re.findall(r"#[0-9A-Fa-f]{6}", p)}
+        assert hexs <= maitres, f"{case} : {hexs - maitres} hors fiche"
+        assert hexs, f"{case} : aucun hexadécimal imposé"
+        vus |= hexs
+        if FA.serie_famille(case) == "graphite":
+            colorees = {h for h in hexs
+                        if h not in FA.PALETTE_NEUTRE}
+            assert not colorees, f"{case} : graphite avec {colorees}"
+    assert len(vus) >= 7, "la série n'exploite qu'une poignée de teintes"
+
+
+# ── E. le juge, joué pour de vrai sur des synthétiques ───────────────────────
+
+def test_le_juge_retient_la_conforme_et_REFUSE_la_saturee(tmp_path):
+    """LA PREUVE DU JUGE, sans un centime. Deux images fabriquées ici : l'une
+    tenue dans les bandes de la fiche, l'autre saturée ×3 et éclaircie ×1,55 —
+    la dérive exacte d'un modèle laissé libre. Le juge tranche, et il dit sur
+    QUELS axes critiques il refuse."""
+    a, b = tmp_path / "a.png", tmp_path / "b.png"
+    _toile_conforme().save(a)
+    _toile_saturee().save(b)
+    va, vb = FA.juger_image(a), FA.juger_image(b)
+    assert va["verdict"] == "TIENT", va
+    assert va["score"] >= 78 and va["dE_median"] <= 30
+    assert not va["axes_rouges"]
+    assert vb["verdict"] == "HORS STYLE", vb
+    assert vb["axes_rouges"], "un refus sans axe nommé n'apprend rien"
+    assert any("chroma" in x for x in vb["axes_rouges"]), vb["axes_rouges"]
+    assert va["score"] > vb["score"]
+    # et le troisième genre est bien AU MILIEU : ni tenu, ni hors style
+    c = tmp_path / "c.png"
+    _toile_a_retoucher().save(c)
+    vc = FA.juger_image(c)
+    assert vc["verdict"] == "A RETOUCHER", vc
+    assert not vc["axes_rouges"]
+
+
+# ── F. l'état de la série ────────────────────────────────────────────────────
+
+def test_GET_serie_dit_l_etat_le_plafond_et_les_prix(monkeypatch):
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    did = _deck()
+    r = _api("GET", f"/api/cards/{did}/face/serie")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert d["serie"] == "walkuski" and d["v"] == FA.SERIE_V
+    assert d["total"] == 108 and d["faites"] == 0 and d["restantes"] == 108
+    assert d["plafond_usd"] == pytest.approx(6.0)
+    assert d["depense_totale_usd"] == 0.0
+    assert d["reste_usd"] == pytest.approx(6.0)
+    from app.services import pricing
+    assert d["prix"]["flux"] == pytest.approx(pricing.load()["flux_image_usd"])
+    assert d["prix"]["nano-banana"] == \
+        pytest.approx(pricing.load()["nano_banana_usd"])
+    assert d["familles"] == {"ocre": 54, "rouge": 27, "graphite": 20,
+                             "violet": 7}
+    assert d["juge"]["copie_le"] == FA.SERIE_JUGE["copie_le"]
+    assert isinstance(d["cases"], dict) and isinstance(d["refus"], dict)
+    s.zero()
+
+
+def test_GET_serie_ne_fait_JAMAIS_500(monkeypatch):
+    s = _sentinelle(monkeypatch)
+    for did in ("pas_un_deck", "deck_ZZZZZZZZ", "", "deck_00000000%0a"):
+        r = _api("GET", f"/api/cards/{did}/face/serie")
+        assert r.status_code in (400, 404), (did, r.status_code)
+        assert r.status_code != 500
+    # un manifeste ABÎMÉ sur le disque se lit toléramment, il ne casse pas
+    _serie_neuve()
+    (FA.serie_root() / "walkuski.json").write_text("{ pas du json",
+                                                   encoding="utf-8")
+    did = _deck()
+    r = _api("GET", f"/api/cards/{did}/face/serie")
+    assert r.status_code == 200, r.text
+    assert r.json()["faites"] == 0
+    assert r.json()["illisible"], "un manifeste illisible se DIT"
+    _serie_neuve()
+    s.zero()
+
+
+# ── G. la campagne ───────────────────────────────────────────────────────────
+
+def test_la_campagne_pose_la_case_gagnante_au_magasin_et_au_manifeste(
+        monkeypatch):
+    """LE CHEMIN HEUREUX. Six candidats FLUX, le juge note, le meilleur qui
+    TIENT gagne : son fichier reste dans le magasin d'images de l'application
+    et le manifeste porte son nom, son score et sa voie."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux=["saturee", "conforme", "saturee", "saturee",
+                        "saturee", "saturee"]).pose(monkeypatch)
+    did = _deck()
+    r = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=1")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert len(d["traitees"]) == 1 and not d["refusees"]
+    t = d["traitees"][0]
+    assert t["verdict"] == "TIENT" and t["voie"] == "flux"
+    assert t["score"] >= 78
+    assert (_settings.images_path / t["img"]).is_file()
+    # UN SEUL appel de générateur : six candidats en une fois, pas six appels
+    assert [a[0] for a in at.appels] == ["flux"]
+    assert at.appels[0][2] == FA.SERIE_CANDIDATS
+    # le manifeste porte la case
+    m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
+    assert m["v"] == FA.SERIE_V and m["serie"] == "walkuski"
+    case = t["case"]
+    assert m["cases"][case]["img"] == t["img"]
+    assert m["cases"][case]["famille"] == FA.serie_famille(case)
+    assert m["depense_totale_usd"] > 0
+    s.zero()
+
+
+def test_le_manifeste_est_VERSIONNE_et_ne_laisse_aucun_brouillon(monkeypatch):
+    """Écriture atomique au patron de la phase 4 : brouillon UNIQUE, puis
+    remplacement. Un `walkuski.json` tronqué serait un manifeste qui perd 108
+    images payées."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2")
+    d = FA.serie_root()
+    assert not list(d.glob("*.tmp")), list(d.glob("*.tmp"))
+    m = json.loads((d / "walkuski.json").read_text("utf-8"))
+    assert set(m) >= {"v", "serie", "cases", "refus", "depense_totale_usd",
+                      "plafond_usd"}
+    assert len(m["cases"]) == 2
+    s.zero()
+
+
+def test_l_ecriture_du_manifeste_est_ATOMIQUE_pas_seulement_propre(
+        monkeypatch):
+    """L'ABSENCE DE BROUILLON NE PROUVE PAS L'ATOMICITÉ : une écriture DIRECTE
+    dans le fichier final n'en laisse pas non plus, et perdrait 108 images
+    payées à la première interruption. Ce contrôle-ci distingue les deux — on
+    fait échouer le RENOMMAGE. Une implémentation atomique lève et laisse le
+    manifeste PRÉCÉDENT intact ; une écriture directe n'aurait rien à renommer,
+    ne lèverait pas, et aurait déjà écrasé le fichier."""
+    _serie_neuve()
+    FA.manifeste_ecrire({"cases": {"vista_tower": {"img": "a.png"}},
+                         "refus": {}, "depense_totale_usd": 1.0})
+    final = FA.serie_root() / "walkuski.json"
+    avant = final.read_text(encoding="utf-8")
+    assert "vista_tower" in avant
+
+    def _refus(self, cible):
+        raise OSError(13, "le fichier est verrouille")
+    monkeypatch.setattr(pathlib.Path, "replace", _refus)
+    with pytest.raises(OSError):
+        FA.manifeste_ecrire({"cases": {}, "refus": {},
+                             "depense_totale_usd": 9.0})
+    assert final.read_text(encoding="utf-8") == avant, \
+        "le manifeste précédent a été perdu par une écriture interrompue"
+    monkeypatch.undo()
+    assert not list(FA.serie_root().glob("*.tmp")), "brouillon abandonné"
+    _serie_neuve()
+
+
+def test_la_reprise_ne_refait_PAS_les_cases_faites(monkeypatch):
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    a = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2").json()
+    faites = {t["case"] for t in a["traitees"]}
+    n_appels = len(at.appels)
+    b = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2").json()
+    assert not (faites & {t["case"] for t in b["traitees"]}), \
+        "une case déjà faite a été REPAYÉE"
+    assert len(at.appels) == n_appels + 2
+    assert b["faites"] == 4 and b["restantes"] == 104
+    s.zero()
+
+
+def test_l_echelle_de_secours_retouche_puis_gpt_puis_laisse_le_vectoriel(
+        monkeypatch):
+    """L'ÉCHELLE DE D2, marche par marche. FLUX ne rend qu'un « à retoucher » :
+    une passe nano-banana. Toujours refusé : un GPT Image 2. Toujours refusé :
+    la case RESTE VECTORIELLE — et le refus est journalisé avec ses axes
+    rouges, parce qu'un refus muet ne dit pas quoi changer."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="retouchable", banana="saturee",
+                  gpt="saturee").pose(monkeypatch)
+    did = _deck()
+    d = _api("POST",
+             f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    assert [a[0] for a in at.appels] == ["flux", "nano-banana", "gpt-image-2"]
+    assert not d["traitees"] and len(d["refusees"]) == 1
+    ref = d["refusees"][0]
+    assert ref["voie"] == "gpt-image-2"
+    assert ref["axes_rouges"], "le refus ne nomme aucun axe"
+    m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
+    assert ref["case"] in m["refus"] and ref["case"] not in m["cases"]
+    # ... et la RETOUCHE gagne quand elle rattrape le coup
+    _serie_neuve()
+    at2 = _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
+    d2 = _api("POST",
+              f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    assert [a[0] for a in at2.appels] == ["flux", "nano-banana"]
+    assert d2["traitees"][0]["voie"] == "nano-banana"
+    # ... et un lot ENTIÈREMENT hors style saute la retouche : il n'y a rien
+    # à retoucher, on monte directement d'une marche
+    _serie_neuve()
+    at3 = _Atelier(flux="saturee", gpt="conforme").pose(monkeypatch)
+    d3 = _api("POST",
+              f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    assert [a[0] for a in at3.appels] == ["flux", "gpt-image-2"]
+    assert d3["traitees"][0]["voie"] == "gpt-image-2"
+    s.zero()
+
+
+def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
+    """LE PLAFOND EST UN MUR, PAS UN VŒU. À 0,30 $ l'image et six candidats,
+    chaque case coûte 1,80 $ : trois cases tiennent sous 6,00 $, la quatrième
+    ne PART PAS. La campagne s'arrête proprement, rend son bilan, et le
+    prochain POST reprend là où elle s'est arrêtée."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    _prix_de_banc(monkeypatch, flux_image_usd=0.30)
+    _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    d = _api("POST", f"/api/cards/{did}/face/serie/generer").json()
+    assert d["arret"] == "plafond", d["arret"]
+    assert len(d["traitees"]) == 3, [t["case"] for t in d["traitees"]]
+    assert d["depense_totale_usd"] == pytest.approx(5.40)
+    assert d["reste_usd"] == pytest.approx(0.60)
+    assert d["faites"] == 3 and d["restantes"] == 105
+    assert "plafond" in d["message"].lower()
+    assert len(d["journal"]) == 3
+    # un second POST ne dépense plus rien : le mur tient d'un appel à l'autre
+    e = _api("POST", f"/api/cards/{did}/face/serie/generer").json()
+    assert e["arret"] == "plafond" and not e["traitees"]
+    assert e["depense_totale_usd"] == pytest.approx(5.40)
+    s.zero()
+
+
+def test_le_prix_de_chaque_appel_vient_de_pricing_et_se_journalise_AVANT(
+        monkeypatch):
+    """AUCUN PRIX RECOPIÉ, ET LE JOURNAL PRÉCÈDE L'APPEL. Le journal porte,
+    pour chaque tir, le modèle, le nombre d'images, le prix et le cumul
+    AVANT — c'est ce qui rend le plafond vérifiable après coup."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    p = _prix_de_banc(monkeypatch)
+    _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
+    did = _deck()
+    d = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    j = d["journal"]
+    assert [l["modele"] for l in j] == ["flux", "nano-banana"]
+    assert j[0]["prix_usd"] == pytest.approx(
+        FA.SERIE_CANDIDATS * p["flux_image_usd"])
+    assert j[1]["prix_usd"] == pytest.approx(p["nano_banana_usd"])
+    assert j[0]["cumul_avant_usd"] == 0.0
+    assert j[1]["cumul_avant_usd"] == pytest.approx(j[0]["prix_usd"])
+    assert d["depense_totale_usd"] == pytest.approx(
+        sum(l["prix_usd"] for l in j))
+    # la pièce ne porte AUCUN montant écrit à la main
+    sans = _py_sans_texte(pathlib.Path(FA.__file__))
+    assert "_flux_generate" in sans, "le dépouillement a mangé le code"
+    for montant in ("0.039", "0.003", "0.12"):
+        assert montant not in sans, f"{montant} recopié dans la pièce"
+    s.zero()
+
+
+def test_deux_campagnes_simultanees_ne_depensent_pas_double(monkeypatch):
+    """LA LEÇON T3 DE LA PHASE 4 : la concurrence d'un geste PAYANT se
+    COALESCE. Deux POST partis ensemble sur la même série ne doivent produire
+    qu'UNE campagne — sinon un double-clic double la facture, en silence."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    at = _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+
+    async def deux():
+        from app.main import app
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://t", timeout=600.0) as c:
+            return await asyncio.gather(*[
+                c.post(f"/api/cards/{did}/face/serie/generer?limite=1")
+                for _ in range(6)])
+
+    reps = asyncio.run(deux())
+    assert all(r.status_code == 200 for r in reps)
+    assert len(at.appels) == 1, \
+        f"{len(at.appels)} tirs pour six clics simultanés"
+    corps = [r.json() for r in reps]
+    assert sum(1 for c in corps if c["coalesce"]) == 5
+    faites = {t["case"] for c in corps for t in c["traitees"]}
+    assert len(faites) == 1
+    m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
+    assert len(m["cases"]) == 1
+    s.zero()
+
+
+def test_les_parametres_cases_et_limite_bornent_la_session(monkeypatch):
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    voulues = "stained_beacon,medallion_wolf"
+    d = _api("POST", f"/api/cards/{did}/face/serie/generer?cases={voulues}"
+                     ).json()
+    assert {t["case"] for t in d["traitees"]} == set(voulues.split(","))
+    e = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=3").json()
+    assert len(e["traitees"]) == 3 and e["arret"] == "limite"
+    # une case inconnue est NOMMÉE, pas avalée
+    f = _api("POST", f"/api/cards/{did}/face/serie/generer?cases=pas_une_case")
+    assert f.status_code == 400
+    assert "pas_une_case" in f.json()["detail"]
+    s.zero()
+
+
+def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    # LE PLAFOND BORNE AUSSI LE BANC : sans limite, `?cases=` lance la
+    # campagne ENTIÈRE (108 cases × 6 candidats). À 0,30 $ l'image le mur
+    # tombe après trois cases — le test reste court ET prouve que la voie
+    # « sans limite » est bien tenue par le plafond, pas par la patience.
+    _prix_de_banc(monkeypatch, flux_image_usd=0.30)
+    _Atelier(flux="conforme").pose(monkeypatch)
+    for did, attendu in (("pas_un_deck", 400), ("deck_ZZZZZZZZ", 400),
+                         ("deck_00000000", 404)):
+        r = _api("POST", f"/api/cards/{did}/face/serie/generer")
+        assert r.status_code == attendu, (did, r.status_code, r.text[:200])
+    did = _deck()
+    for q in ("?limite=0", "?limite=-4", "?limite=abc", "?cases=",
+              "?cases=,,,", "?limite=99999"):
+        r = _api("POST", f"/api/cards/{did}/face/serie/generer{q}")
+        assert r.status_code in (200, 400), (q, r.status_code)
+        assert r.status_code != 500
+    # un générateur qui TOMBE ne fait pas tomber la route : la case est
+    # refusée, la campagne continue, et le motif est dit
+    _serie_neuve()
+
+    async def _casse(prompt, n, graine):
+        raise RuntimeError("fournisseur indisponible")
+    monkeypatch.setattr(FA, "_tirer_flux", _casse)
+    r = _api("POST", f"/api/cards/{did}/face/serie/generer?limite=2")
+    assert r.status_code == 200, r.text
+    d = r.json()
+    assert not d["traitees"] and len(d["refusees"]) == 2
+    assert "indisponible" in json.dumps(d["refusees"], ensure_ascii=False)
+    # LE PRIX EST JOURNALISÉ AVANT L'APPEL, ET C'EST ICI QUE ÇA SE VOIT : un
+    # tir qui TOMBE laisse quand même sa ligne, marquée `panne`. Journalisé
+    # après, il ne laisserait rien — et le plafond compterait faux dans le
+    # sens dangereux (on ne sait pas si le fournisseur a facturé avant de
+    # tomber ; compter est l'erreur du bon côté).
+    assert len(d["journal"]) == 2, d["journal"]
+    assert all(l["panne"] for l in d["journal"]), d["journal"]
+    assert d["depense_totale_usd"] > 0
+    s.zero()
+
+
+def test_la_cle_du_banc_est_neutralisee_et_la_sentinelle_COMPTE(monkeypatch):
+    """LE BANC PROUVE SA PROPRE SÛRETÉ (leçon T3 de la phase 4). Deux moitiés :
+    la clé du processus n'est pas la vraie, et la sentinelle attrape pour de
+    bon ce qu'elle prétend attraper."""
+    from app.config import settings
+    assert settings.FAL_KEY == "test-key", \
+        f"clé fal non neutralisée ({len(settings.FAL_KEY or '')} signes)"
+    s = _sentinelle(monkeypatch)
+    from app.services import image_providers as IP
+    with pytest.raises(AssertionError):
+        asyncio.run(IP.generate("nano-banana", "x", "square", 1))
+    assert s.n == 1 and "image_providers.generate" in s.portes[0]
+
+
+def test_la_piece_appelle_le_SERVICE_et_jamais_un_client_http_vers_elle_meme():
+    """La campagne est une route du backend : elle ne doit pas se parler à
+    elle-même en HTTP. Elle appelle le MÊME chemin de service que
+    `/images/generate` — `_flux_generate` pour FLUX, la façade
+    `image_providers` pour les deux autres (l'idiome de routes.py, répété à
+    ses trois appels)."""
+    py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
+    assert "from app.api.routes import _flux_generate" in py
+    assert "from app.services import image_providers" in py
+    sans = _py_sans_texte(pathlib.Path(FA.__file__))
+    for interdit in ("httpx", "AsyncClient", "urlopen", "requests"):
+        assert interdit not in sans, f"{interdit} : la pièce sort en HTTP"
+    # les TROIS voies passent par TROIS fonctions nommées, et rien d'autre
+    for fn in ("_tirer_flux", "_tirer_banana", "_tirer_gpt"):
+        assert f"async def {fn}(" in py, fn
+    assert sans.count("_flux_generate") == 2, \
+        "FLUX est appelé ailleurs que dans `_tirer_flux` (import + appel)"
+    assert sans.count("image_providers") == 4, \
+        ("la façade est nommée ailleurs que dans les deux `_tirer_*` "
+         "(un import + un appel chacun)")
+
+
+# ── H. l'écran : la voie, la retombée avouée, le miroir ──────────────────────
+
+def test_la_serie_est_au_MIROIR_entre_l_ecran_et_la_piece():
+    assert js_pairs("SERIES") == list(FA.SERIES)
+    assert FA.SERIES[0][0] == "vectoriel", \
+        "le vectoriel reste le socle : il est la voie par défaut"
+
+
+def test_le_selecteur_de_serie_est_DERIVE_et_voyage_avec_le_deck():
+    """`doc.face.serie` est porté par le DOCUMENT, pas par une préférence
+    d'application : la voie choisie voyage avec le jeu (export, duplication,
+    autre poste). Une préférence `dz_*` aurait fait de la même carte deux
+    cartes différentes selon la machine qui l'ouvre."""
+    src = js_code()
+    assert re.search(r"serie:\s*\"vectoriel\"", src), \
+        "doc.face.serie absent de l'état du module"
+    assert "dz_serie" not in src and "localStorage" not in src.split(
+        "function pileLoad")[0], "la voie ne se range pas hors du document"
+    assert 'M.api.get("serie")' in src, "l'état de série vient de la route"
+    # le sélecteur est DÉRIVÉ de l'état : il se lit dans le document au rendu
+    bloc = src[src.index('id="cf-face-series"'):]
+    bloc = bloc[:bloc.index("</div>'")]
+    assert "SERIES.map" in bloc, "les voies sont dérivées de la table"
+    assert "active" in bloc
+
+
+def test_la_retombee_vectorielle_est_AVOUEE_a_l_ecran():
+    """D1 : « la série habille, elle ne remplace pas ». Une case sans image
+    montre le DESSIN, avec un insigne qui le dit — un écran qui montrerait le
+    vectoriel en silence laisserait croire que la série est complète."""
+    src = js_code()
+    assert "cf-face-retombee" in src, "l'insigne de retombée n'existe pas"
+    assert "vectoriel" in src
+    # le compte « n / 108 » est calculé, jamais écrit
+    ong = src[src.index("data-tab=\"cat\""):]
+    ong = ong[:ong.index("</button>")]
+    assert "108" not in ong
+    css = CSS.read_text(encoding="utf-8")
+    assert ".cf-face-retombee" in css, "l'insigne n'est pas habillé"
+
+
+def test_la_serie_ne_cree_PAS_un_quatrieme_schema_de_source():
+    """Les trois schémas de `artSource` (`cat:`, `local:`, `img:`) suffisent :
+    une case de série EST un fichier du magasin d'images, donc `img:`. Un
+    quatrième schéma aurait doublé la table de résolution pour rien."""
+    src = js_code()
+    art = src[src.index("async function artSource("):]
+    art = art[:art.index("\n  }")]
+    for schema in ('"cat:"', '"local:"', '"img:"'):
+        assert schema in art, schema
+    assert "serie:" not in art, "un quatrième schéma est né dans artSource"
+    # la tuile de série pose bien une source `img:`
+    assert 'setArt("img:" + ' in src
 
 
 if __name__ == "__main__":
