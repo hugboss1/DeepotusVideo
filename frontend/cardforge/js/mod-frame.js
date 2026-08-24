@@ -3696,6 +3696,12 @@
        TROIS portees sont independantes, et la ligne d'etat dit toujours
        lesquelles sont declarees ET ce que CET ecran montre. */
     const g16 = grp("Sceau prismatique — contour holographique", false);
+    /* UNE ANCRE, ET RIEN D'AUTRE. Les groupes de cette piece n'ont pas d'id ;
+       le parcours guide de P10 (spec §7.2:570, « regler le Sceau
+       prismatique ») a besoin de SAVOIR OU IL EST pour l'ouvrir et l'amener
+       sous les yeux. Cette classe ne porte aucun style : elle est le point
+       d'accroche d'un lien, et le banc de P10 verifie qu'elle existe ici. */
+    g16.el.classList.add("cff-grp-sceau");
     const srow = h("div", "cff-row");
     UI.sealOn = check("Contour holographique", (v) => setSeal({ on: v }, "sceau"));
     UI.sealKind = sel(SEAL_KINDS, (v) => setSeal({ kind: v }, "métal du sceau"));
@@ -3838,6 +3844,9 @@
 
     /* ── dos de carte ── */
     const g4 = grp("Dos de carte", false);
+    /* La seconde ancre du parcours guide de P10 (§7.2:572, « editer le
+       verso ») — meme raison, meme absence de style que `cff-grp-sceau`. */
+    g4.el.classList.add("cff-grp-dos");
     UI.backGrid = h("div", "cff-grid cff-backs");
     g4.body.appendChild(UI.backGrid);
     const bkrow = h("div", "cff-row");

@@ -380,6 +380,144 @@
       : [null]);
   }
 
+  /* ═══════════════════════════════════════════════════════════════════════
+     1ter. LE PARCOURS GUIDE, ET LA PUBLICATION VERS LA 3D
+
+     Quatre fonctions PURES, et c'est delibere : le test de la piece les
+     EXECUTE dans node (lecon T1, le `|| true` qu'un controle textuel ne voit
+     pas). Elles ne touchent ni au DOM ni au reseau — elles repondent a
+     quatre questions, et rien d'autre.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* LES QUATRE ETAPES DU PARCOURS §7.2:564-570 — DES LIENS, PAS UN ASSISTANT.
+     Le plan (D10) a tranche et l'avoue : un wizard modal serait du chrome
+     sans substance. Les quatre capacites EXISTENT deja, chacune chez elle ;
+     ce qui manquait n'etait pas une machine a etapes, c'etait de savoir OU
+     ELLES SONT quand on arrive d'une carte qu'on vient de reprendre.
+
+     LA TABLE EST DANS LA FONCTION, et pas a cote : elle voyage avec la regle
+     que le test execute. Chaque etape porte la piece a ouvrir, les
+     SELECTEURS de son ancre (le premier trouve gagne — une voisine peut
+     n'en rendre qu'un selon son etat) et, s'il le faut, les commandes a
+     CLIQUER pour deplier ce qui est escamote (un onglet, un repli).
+
+     LE COUPLAGE EST AVOUE. Ces selecteurs appartiennent a P1 et P2 ; P10 ne
+     les rend pas. C'est un contrat entre pieces, donc il se teste : le banc
+     lit mod-face.js et mod-frame.js et exige que chaque aiguille y soit
+     ecrite. Un lien mort ferait douter du clic — la lecon deja payee par le
+     bouton des zones (T2).
+
+     ET LE PARCOURS N'EXISTE QUE SI UNE CAPTURE EST PUBLIEE (D10). Quatre
+     liens vers un travail qui n'a pas commence ne guident personne. */
+  function parcours(s) {
+    const d = isPlain(s) ? s : {};
+    const src = isPlain(d.sources) ? d.sources : {};
+    if (!isPlain(src.recto)) return [];
+    return [
+      { id: "illustration", piece: "face",
+        titre: "Importer l'illustration",
+        quoi: "la pile d'images de la pièce Illustration — ou, d'un clic, "
+          + "« adopter » ce qui vient d'être repris ici",
+        ouvre: ['#cf-face-tabs button[data-tab="imp"]'],
+        cibles: ["#cf-face-adopt", "#cf-face-drop", "#cf-face-pane-imp"] },
+      { id: "bordure", piece: "frame",
+        titre: "Choisir ou importer la bordure",
+        quoi: "le catalogue de familles, et « adopter la bordure » qui pose "
+          + "les mesures relevées sur la carte reprise",
+        ouvre: [],
+        cibles: [".cff-adopt", ".cff-grid"] },
+      { id: "sceau", piece: "frame",
+        titre: "Régler le Sceau prismatique",
+        quoi: "métal, largeur de bande, et les trois portées — écran, "
+          + "impression, 3D — réglables séparément",
+        ouvre: [],
+        cibles: [".cff-grp-sceau"] },
+      { id: "verso", piece: "frame",
+        titre: "Éditer le verso",
+        quoi: "le dos de carte : motif du catalogue, image importée et "
+          + "calques de texture",
+        ouvre: [],
+        cibles: [".cff-grp-dos", "#cf-frame-backdrop"] },
+    ];
+  }
+
+  /* LE BOUTON « PUBLIER VERS LA 3D » EXISTE-T-IL ? (dette R5 de T5.)
+
+     Deux conditions, et chacune a sa raison : sans recto il n'y a rien a
+     decrire, et sans MESURE le manifeste parlerait d'une face que personne
+     n'a regardee. Le refus PORTE SON MOTIF — un bouton absent sans
+     explication envoie chercher une panne. */
+  function offrePublier(s) {
+    const d = isPlain(s) ? s : {};
+    const src = isPlain(d.sources) ? d.sources : {};
+    const off = { on: false, motif: "" };
+    if (!isPlain(src.recto)) {
+      off.motif = "déposez d'abord un recto : c'est lui que la Forge 3D "
+        + "recevra en couche.";
+      return off;
+    }
+    if (!d.analyzed) {
+      off.motif = "analysez le recto d'abord : le manifeste porte le format "
+        + "et les millimètres de la mesure.";
+      return off;
+    }
+    off.on = true;
+    return off;
+  }
+
+  /* CE QUE LE BORDEREAU DE LA ROUTE DEVIENT COMME PHRASE. Le toast ne recite
+     pas un texte appris : il REPREND ce que le serveur vient d'ecrire —
+     combien de couches, lesquelles, sous quel nom de manifeste et a quel
+     format. Une reponse vide se DIT vide plutot que d'annoncer un succes. */
+  function bordereau(d) {
+    const r = isPlain(d) ? d : {};
+    const m = isPlain(r.layers) ? r.layers : {};
+    const ls = Array.isArray(m.layers) ? m.layers : [];
+    if (!isPlain(r.layers)) {
+      return "publication terminée, mais le serveur n'a pas rendu de "
+        + "bordereau : ouvrez la pièce Forge 3D pour voir ce qui a été écrit.";
+    }
+    const roles = [];
+    ls.forEach((l) => { if (isPlain(l) && l.role) roles.push(String(l.role)); });
+    const n = ls.length;
+    if (!n) {
+      return "aucune couche publiée : le manifeste est vide (redéposez le "
+        + "recto, puis relancez).";
+    }
+    const toile = Array.isArray(m.canvas_px) ? m.canvas_px : null;
+    return n + (n > 1 ? " couches publiées" : " couche publiée")
+      + " vers la Forge 3D"
+      + (roles.length ? " — " + roles.join(" · ") : "")
+      + " (" + String(r.manifeste || "manifeste sans nom")
+      + (m.format ? ", format " + String(m.format) : "")
+      + (toile && toile.length === 2
+        ? ", toile " + toile[0] + " × " + toile[1] + " px" : "")
+      + ")";
+  }
+
+  /* DEPLIER CE QUI EST SUR LE CHEMIN. Une ancre sous un `<details>` ferme est
+     une ancre invisible : le clic aurait l'air de n'avoir rien fait. On
+     remonte donc la lignee et on ouvre.
+
+     PURE AU SENS OU ELLE NE CONNAIT QUE `parentNode`, `tagName` et `open` :
+     le test la joue dans node sur un arbre de mensonge, sans navigateur. Le
+     garde-fou de profondeur n'est pas de la superstition — un `parentNode`
+     circulaire (moteur exotique, arbre detache mal forme) ferait tourner la
+     page a l'infini pour un lien de navigation. */
+  function deplie(cible) {
+    let n = cible;
+    let ouverts = 0;
+    let garde = 0;
+    while (n && n.nodeType === 1 && garde++ < 64) {
+      if (n.tagName === "DETAILS" && n.open === false) {
+        n.open = true;
+        ouverts++;
+      }
+      n = n.parentNode;
+    }
+    return ouverts;
+  }
+
   /* Un bloc de mesure : un titre, des lignes, et — s'il y a lieu — la
      pastille de confiance. Construit par createElement/textContent (regle 14)
      parce que son contenu VIENT du document ; le squelette, lui, reste un
@@ -521,6 +659,23 @@
       + '</div>'
       + '</section>'
 
+      /* ── ET MAINTENANT (spec §7.2:564-570, plan D10) ────────────────────
+         Les quatre capacités réelles du parcours, en LIENS. Pas de fenêtre
+         modale, pas d'étapes à cocher : chacune ouvre la pièce concernée,
+         déplie ce qui est escamoté et amène l'ancre sous les yeux.
+         Et, dessous, le geste qui manquait à §7.1.6 : publier les couches
+         importées vers la Forge 3D. */
+      + '<section class="cf-capture-card cf-capture-suite hidden" id="cf-capture-suite">'
+      + '<header class="cf-capture-h"><b>Et maintenant</b>'
+      + '<span class="cf-capture-sub">quatre gestes, chacun chez la pièce qui le sait faire</span>'
+      + '</header>'
+      + '<ol class="cf-capture-etapes" id="cf-capture-etapes"></ol>'
+      + '<div class="cf-capture-pub">'
+      + '<button class="btn strong sm hidden" id="cf-capture-publier" type="button" title="Écrit les couches importées dans le manifeste que la pièce Forge 3D sait lire — local, gratuit, rejouable">Publier vers la 3D</button>'
+      + '<p class="hint" id="cf-capture-pub-note"></p>'
+      + '</div>'
+      + '</section>'
+
       + '</div>';
   }
 
@@ -639,7 +794,113 @@
     }
     mesures();
     blocIA();
+    suite();
     dessineBoites();
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     2quater. « ET MAINTENANT » — le parcours guidé et la publication 3D
+
+     Tout se DERIVE du document (patron sectionsBasses) : ni la liste ni le
+     bouton ne gardent un etat d'ecran. Un jeu rouvert sans capture n'a pas
+     de section ; un recto sans mesure a la liste mais pas le bouton, et la
+     note dit pourquoi.
+     ═══════════════════════════════════════════════════════════════════════ */
+  function suite() {
+    const carte = $("#cf-capture-suite");
+    if (!carte) return;
+    const s = st();
+    const pas = parcours(s);
+    carte.classList.toggle("hidden", !pas.length);
+    const ol = $("#cf-capture-etapes");
+    if (ol) {
+      while (ol.firstChild) ol.removeChild(ol.firstChild);
+      pas.forEach((e) => {
+        const li = document.createElement("li");
+        li.className = "cf-capture-etape";
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "lnk cf-capture-go";
+        b.textContent = e.titre;
+        b.title = "Ouvre la pièce « " + String(e.piece) + " » et amène la "
+          + "section sous les yeux";
+        b.addEventListener("click", () => aller(e));
+        li.appendChild(b);
+        const q = document.createElement("span");
+        q.className = "cf-capture-quoi";
+        q.textContent = " — " + e.quoi;
+        li.appendChild(q);
+        ol.appendChild(li);
+      });
+    }
+    const off = offrePublier(s);
+    const b = $("#cf-capture-publier");
+    if (b) {
+      b.classList.toggle("hidden", !off.on);
+      b.disabled = !!BUSY;
+    }
+    txt("#cf-capture-pub-note", off.on
+      ? "Écrit le manifeste des couches importées dans le dossier de la "
+        + "pièce Forge 3D : la face reprise (et le sujet détouré s'il "
+        + "existe) deviennent des sources de nœuds. Local, gratuit, "
+        + "rejouable — un nouveau format se republie."
+      : off.motif);
+  }
+
+  /* UNE ETAPE-LIEN : ouvrir la piece, deplier ce qui la cache, poser l'ancre
+     sous les yeux. Et le DIRE quand la destination n'existe pas dans cette
+     version de l'ecran — une piece qui a change d'id ne doit pas se solder
+     par un clic sans effet.
+
+     LE DEPLI DU RAIL PASSE PAR SON PROPRE BOUTON. Le CORE n'expose pas
+     `setFold` (c'est une preference d'ecran, pas un contrat de module) : on
+     clique le chevron, exactement comme un humain — aucune API nouvelle,
+     aucun etat duplique. */
+  function aller(e) {
+    if (!e || !e.piece) return;
+    try { CF.show(e.piece); } catch (x) {
+      M.toast("la pièce « " + String(e.piece) + " » n'existe pas sur cette "
+        + "version : " + String((x && x.message) || x), true);
+      return;
+    }
+    deplieRail();
+    (e.ouvre || []).forEach((sel) => {
+      const c = document.querySelector(sel);
+      if (c && typeof c.click === "function") c.click();
+    });
+    let cible = null;
+    (e.cibles || []).forEach((sel) => {
+      if (!cible) cible = document.querySelector(sel);
+    });
+    if (!cible) {
+      M.toast("la pièce est ouverte, mais la section « " + String(e.titre)
+        + " » n'a pas été trouvée dans cette version de l'écran.", true);
+      return;
+    }
+    /* DEPUIS LA CIBLE ELLE-MEME, et non depuis son parent : deux des quatre
+       ancres SONT le `<details>` (le Sceau, le dos de carte). Deplier a
+       partir du parent les aurait laisses fermes — le clic aurait defile
+       jusqu'a un titre replie. */
+    deplie(cible);
+    if (typeof cible.scrollIntoView === "function") {
+      cible.scrollIntoView({ block: "nearest" });
+    }
+    /* UN CLIGNOTEMENT COURT, pour que l'oeil retrouve OU il vient d'arriver.
+       La classe se retire toute seule : un surlignage qui reste devient un
+       etat, et un etat qu'on n'a pas demande. */
+    cible.classList.add("cf-capture-vise");
+    setTimeout(() => cible.classList.remove("cf-capture-vise"), 1400);
+  }
+
+  function deplieRail() {
+    const root = document.querySelector(".cf");
+    const b = document.getElementById("railFoldBtn");
+    if (root && b && root.classList.contains("rail-replie")
+      && typeof b.click === "function") {
+      b.click();
+      return true;
+    }
+    return false;
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -953,6 +1214,8 @@
     const ana = host.querySelector("#cf-capture-analyse");
     const tog = host.querySelector("#cf-capture-boxtog");
     const det = host.querySelector("#cf-capture-detour");
+    const pub = host.querySelector("#cf-capture-publier");
+    if (pub) pub.addEventListener("click", () => { publier(); });
     const ouvre = () => { if (file) { file.value = ""; file.click(); } };
     if (pick) pick.addEventListener("click", ouvre);
     if (rempl) rempl.addEventListener("click", ouvre);
@@ -1177,6 +1440,46 @@
             : " (fal)")));
     } catch (e) {
       M.toast(panne(e, "le détourage"), true);
+    } finally {
+      BUSY = false;
+      M.busy(false);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
+     6. « PUBLIER VERS LA 3D » (spec §7.1.6, dette R5 de T5)
+
+     T5 avait ecrit la route et l'a AVOUE sans appelant : « le chemin §7.1.6
+     est vrai par l'API, pas encore par un clic ». Le voici, ce clic.
+
+     CE QUE CE GESTE N'ECRIT PAS : le document. La route range des fichiers
+     dans le dossier de P9 et rend son bordereau ; il n'y a rien a patcher
+     dans `doc.capture` — le manifeste EST le contrat, et P9 le relit (avec
+     les empreintes qui le datent, ronde T5). Un `M.patch` ici ferait une
+     seconde verite a maintenir.
+
+     LE MEME VERROU BUSY QUE LES TROIS AUTRES GESTES : publier pendant qu'un
+     fichier monte publierait l'image d'avant, et le manifeste porterait le
+     sha d'une source qui n'existe deja plus.
+
+     ET LA CARTE COURANTE SUIT (`CF.current()`) : le manifeste nomme ses
+     fichiers d'apres l'index de carte (`c01`, `c02`…). Publier toujours la
+     premiere ecrirait chez la voisine pendant qu'on regarde la troisieme. */
+  async function publier() {
+    if (BUSY) { M.toast("un traitement est déjà en cours"); return; }
+    const off = offrePublier(st());
+    if (!off.on) { M.toast(off.motif || "rien à publier", true); return; }
+    BUSY = true;
+    try {
+      M.busy(true, "publication des couches vers la Forge 3D…");
+      const n = Number(CF.current());
+      const carte = isFinite(n) && n >= 0 ? n : 0;
+      const d = await lireJson(await M.api.raw(
+        "POST", "manifeste?card=" + encodeURIComponent(carte)));
+      paint();
+      M.toast(bordereau(d));
+    } catch (e) {
+      M.toast(panne(e, "la publication vers la 3D"), true);
     } finally {
       BUSY = false;
       M.busy(false);

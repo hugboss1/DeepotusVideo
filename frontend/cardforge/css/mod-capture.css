@@ -135,3 +135,26 @@
 /* `.hidden` est deja pose par la coquille (cardforge.css:35, avec !important) :
    cette feuille ne le redeclare pas — deux definitions pour une meme classe,
    c'est la regle qui gagne au hasard de l'ordre des feuilles. */
+
+/* ── « ET MAINTENANT » : le parcours guide et la publication 3D (D10) ─────
+   Une LISTE, pas un assistant. Les numeros viennent de l'<ol> : ils disent
+   un ordre CONSEILLE, pas une machine a etapes — on peut sauter, revenir,
+   ne jamais y toucher. */
+.cf-capture .cf-capture-etapes { margin: 0; padding: 0 0 0 20px; display: flex;
+  flex-direction: column; gap: 5px; }
+.cf-capture .cf-capture-etape { font-size: 10.5px; line-height: 1.5;
+  color: var(--ink-muted); }
+.cf-capture .cf-capture-go { font-size: 11px; font-weight: 600; }
+.cf-capture .cf-capture-quoi { overflow-wrap: anywhere; }
+.cf-capture .cf-capture-pub { display: flex; align-items: flex-start; gap: 9px;
+  flex-wrap: wrap; }
+.cf-capture .cf-capture-pub .hint { flex: 1 1 220px; min-width: 0; margin: 0; }
+
+/* LA CIBLE D'UN LIEN, LE TEMPS D'UN CLIGNOTEMENT. Elle vit chez la VOISINE
+   (P1, P2) et non dans ce panneau : c'est le seul selecteur de cette feuille
+   qui sorte de `.cf-capture`, et il est avoue. Il ne pose ni disposition ni
+   couleur de fond permanente — juste un cerne qui s'efface avec la classe,
+   retiree par le script apres 1,4 s. Sans lui, arriver au bon endroit se
+   confond avec n'avoir rien fait. */
+.cf-capture-vise { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent);
+  outline-offset: 2px; border-radius: var(--r); }

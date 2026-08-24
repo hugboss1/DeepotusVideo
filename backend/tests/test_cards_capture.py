@@ -4512,3 +4512,208 @@ def test_l_index_de_carte_est_BORNE_et_les_orphelins_sont_ramasses(monkeypatch):
     assert not orphelin.is_file(), \
         "une couche que plus aucun manifeste ne nomme reste servie par P9"
     s.zero()
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# T6 — LES DEUX MORCEAUX D'ÉCRAN QUI MANQUAIENT (plan D10 et dette R5 de T5)
+#
+# Ce que T5 a laissé écrit noir sur blanc dans `post_manifeste` : « L'ÉCRAN QUI
+# L'APPELLE NAÎT EN T6. Mesuré le 24/08 : aucun appelant dans mod-capture.js —
+# le chemin §7.1.6 est vrai par l'API, pas encore par un clic. » Ce bloc ferme
+# la dette, et il la ferme PAR L'ÉCRAN : un bouton qui publie, et quatre
+# étapes-liens qui mènent aux quatre capacités réelles du parcours §7.2:564-570.
+#
+# PAS D'ASSISTANT MODAL (D10) : un wizard serait du chrome sans substance. Les
+# quatre étapes sont des LIENS — `CF.show` + ancre + dépli de ce qui est
+# escamoté — et le contrôle ci-dessous exige que chaque ancre EXISTE chez la
+# pièce visée. Un lien mort est pire qu'une absence de lien : il fait douter du
+# clic (la leçon déjà payée par le bouton des zones, T2).
+# ═══════════════════════════════════════════════════════════════════════════
+
+FRAME_JS = REPO / "frontend" / "cardforge" / "js" / "mod-frame.js"
+
+
+def test_le_PARCOURS_GUIDE_est_QUATRE_ETAPES_et_PAS_UN_ASSISTANT():
+    """§7.2:564-570 énumère quatre capacités ; D10 tranche leur forme : « une
+    liste d'étapes-liens », pas un wizard modal. La règle vit dans une
+    fonction PURE, exécutée dans node (leçon T1 : un contrôle qui lit du texte
+    ne voit pas un `|| true`)."""
+    fn = _fonction_js("isPlain") + _fonction_js("parcours")
+    sortie = _node(fn + """
+      const s = {sources: {recto: {w: 10, h: 14, bytes: 9, stamp: 3}}};
+      console.log(JSON.stringify(parcours(s)));
+    """)
+    etapes = json.loads(sortie)
+    assert len(etapes) == 4, etapes
+    assert [e["id"] for e in etapes] == ["illustration", "bordure", "sceau",
+                                         "verso"], etapes
+    for e in etapes:
+        assert e["titre"] and e["quoi"], e
+        assert e["piece"] in CT.MODULE_IDS, e
+        assert isinstance(e["cibles"], list) and e["cibles"], e
+    # ... et l'écran ne fabrique AUCUNE fenêtre modale pour les porter.
+    # (`backdrop` NU serait un faux ami : `#cf-frame-backdrop` est la zone de
+    #  dépôt du verso chez P2, une ancre parfaitement légitime. Ce qui trahit
+    #  une modale, c'est `::backdrop`, `<dialog>` ou `showModal`.)
+    code = _code_js(JS.read_text(encoding="utf-8"))
+    for interdit in ("showModal", "<dialog", "::backdrop", "wizard"):
+        assert interdit not in code, f"assistant modal : {interdit}"
+
+
+def test_le_PARCOURS_ne_PARAIT_QU_AVEC_UNE_CAPTURE_PUBLIEE():
+    """D10 : « affichée quand une capture est publiée ». Lecture TOLÉRANTE du
+    document — un `doc.capture` vide, partiel ou abîmé ne fait pas naître
+    quatre liens vers un travail qui n'a pas commencé."""
+    fn = _fonction_js("isPlain") + _fonction_js("parcours")
+    cas = json.dumps([
+        {}, {"sources": None}, {"sources": {}},
+        {"sources": {"verso": {"stamp": 1}}},
+        {"sources": {"recto": "oui"}},
+        {"sources": {"recto": {"stamp": 1}}},
+    ], ensure_ascii=False)
+    sortie = _node(fn + f"""
+      console.log(JSON.stringify({cas}.map((s) => parcours(s).length)));
+    """)
+    assert json.loads(sortie) == [0, 0, 0, 0, 0, 4], sortie
+
+
+def test_chaque_ETAPE_MENE_A_UNE_ANCRE_QUI_EXISTE_VRAIMENT():
+    """LE CONTRÔLE QUI COMPTE. Une étape-lien est un contrat entre deux
+    pièces : P10 promet une destination, une VOISINE la rend. Rien n'oblige la
+    voisine à garder son id — et le jour où elle le change, le lien meurt en
+    silence. Le contrôle lit donc les FICHIERS visés et exige que chaque
+    sélecteur y soit écrit."""
+    fn = _fonction_js("isPlain") + _fonction_js("parcours")
+    sortie = _node(fn + """
+      console.log(JSON.stringify(parcours({sources: {recto: {stamp: 1}}})));
+    """)
+    # DÉPOUILLÉ DE SES COMMENTAIRES (le remède déjà écrit en T2) : une ancre
+    # CITÉE dans une prose d'à-côté suffisait à faire passer le contrôle
+    # pendant que le vrai `classList.add` portait un autre nom — mutation
+    # mesurée. On ne cherche que dans le code qui s'exécute.
+    sources = {"face": _code_js(FACE_JS.read_text(encoding="utf-8")),
+               "frame": _code_js(FRAME_JS.read_text(encoding="utf-8")),
+               "type": _code_js(TYPE_JS.read_text(encoding="utf-8"))}
+    for e in json.loads(sortie):
+        src = sources.get(e["piece"])
+        assert src, f"etape vers une piece non couverte : {e['piece']}"
+        for sel in list(e["cibles"]) + list(e.get("ouvre") or []):
+            # Un sélecteur COMPOSÉ (`#hôte button[data-tab="x"]`) se vérifie
+            # morceau par morceau : chaque id, chaque classe et chaque
+            # attribut doit être écrit quelque part dans le fichier de la
+            # pièce visée. Un nom d'élément nu (`button`) n'apprend rien —
+            # il n'entre pas dans la liste des aiguilles.
+            aiguilles = (re.findall(r"[#.]([A-Za-z][\w-]*)", sel)
+                         + re.findall(r"\[([^\]]+)\]", sel))
+            assert aiguilles, f"selecteur sans aiguille verifiable : {sel}"
+            for aiguille in aiguilles:
+                # LA RECHERCHE EST BORNÉE, et c'est une mutation qui l'a
+                # exigé : `"cff-grp-sceau" in src` reste VRAI quand la pièce
+                # voisine renomme sa classe en `cff-grp-sceau-x` — le lien
+                # est mort et le contrôle restait vert. Un nom de classe se
+                # cherche comme un MOT, tiret compris.
+                motif = (r"(?<![\w-])" + re.escape(aiguille) + r"(?![\w-])")
+                assert re.search(motif, src), \
+                    (f"l'etape {e['id']} vise {aiguille} (dans {sel}), "
+                     f"introuvable dans mod-{e['piece']}.js")
+
+
+def test_le_DEPLI_OUVRE_les_sections_escamotees_SUR_LE_CHEMIN():
+    """« CF.show + ancre + dépli des sections escamotées si besoin » (D10).
+    Une ancre sous un `<details>` fermé est une ancre invisible : le clic
+    aurait l'air de n'avoir rien fait. La marche est PURE (elle ne connaît que
+    parentNode/tagName/open) — node la joue sur un arbre de mensonge."""
+    fn = _fonction_js("deplie")
+    sortie = _node(fn + """
+      const noeud = (tag, open, parent) => ({nodeType: 1, tagName: tag,
+        open: open, parentNode: parent});
+      const racine = noeud("DIV", undefined, null);
+      const d1 = noeud("DETAILS", false, racine);
+      const mid = noeud("DIV", undefined, d1);
+      const d2 = noeud("DETAILS", true, mid);
+      const cible = noeud("SPAN", undefined, d2);
+      const n = deplie(cible);
+      console.log(JSON.stringify([n, d1.open, d2.open, deplie(null)]));
+    """)
+    n, un, deux, rien = json.loads(sortie)
+    assert n == 1, "le details ferme n'a pas ete ouvert (ou l'ouvert compte)"
+    assert un is True and deux is True, (un, deux)
+    assert rien == 0, "une cible absente doit rendre 0, pas lever"
+
+
+def test_PUBLIER_VERS_LA_3D_n_existe_qu_avec_un_RECTO_ANALYSE():
+    """Dette R5 de T5, fermée PAR L'ÉCRAN. Le bouton dérive du document
+    (patron sectionsBasses, D6) : sans recto il n'y a rien à publier, et sans
+    MESURE le manifeste décrirait une face que personne n'a regardée. Chaque
+    refus porte son motif — un bouton absent sans explication fait chercher
+    une panne."""
+    fn = _fonction_js("isPlain") + _fonction_js("offrePublier")
+    cas = json.dumps([
+        {}, {"sources": {"verso": {"stamp": 1}}},
+        {"sources": {"recto": {"stamp": 1}}},
+        {"sources": {"recto": {"stamp": 1}}, "analyzed": 0},
+        {"sources": {"recto": {"stamp": 1}}, "analyzed": 1787000000000},
+    ], ensure_ascii=False)
+    sortie = _node(fn + f"""
+      console.log(JSON.stringify({cas}.map((s) => offrePublier(s))));
+    """)
+    rien, verso, sans_mesure, zero, ok = json.loads(sortie)
+    assert rien["on"] is False and rien["motif"], rien
+    assert verso["on"] is False and "recto" in verso["motif"], verso
+    assert sans_mesure["on"] is False, sans_mesure
+    assert "analys" in sans_mesure["motif"].lower(), sans_mesure
+    assert zero["on"] is False, "un horodatage nul n'est pas une analyse"
+    assert ok["on"] is True and ok["motif"] == "", ok
+
+
+def test_le_TOAST_de_PUBLICATION_REPREND_LE_BORDEREAU_REEL(monkeypatch):
+    """Le toast ne récite pas une phrase apprise : il REPREND ce que la route
+    a répondu. Le contrôle prend donc la VRAIE réponse de `/manifeste` — pas
+    un objet inventé à la main, qui dériverait du jour où le schéma bouge — et
+    la passe à la fonction d'écran dans node."""
+    s = _sentinelle(monkeypatch)
+    did = _deck_avec_recto()
+    (CP.cap_dir(did) / CP.SUJET_NAME).write_bytes(_png_rgba(300, 400))
+    rep = _manifeste(did)
+    assert rep.status_code == 200, rep.text[:300]
+    corps = json.dumps(rep.json(), ensure_ascii=False)
+    fn = _fonction_js("isPlain") + _fonction_js("bordereau")
+    sortie = _node(fn + f"""
+      console.log(bordereau({corps}));
+      console.log(bordereau(null));
+      console.log(bordereau({{layers: {{layers: []}}}}));
+    """)
+    phrase, vide, aucune = sortie.split("\n")[:3]
+    assert "2 couches publiées vers la Forge 3D" in phrase, phrase
+    assert "recto" in phrase and "illustration" in phrase, phrase
+    assert rep.json()["manifeste"] in phrase, phrase
+    assert "poker_eu" in phrase, phrase
+    assert "publiée" not in vide and vide, "une reponse vide doit se dire"
+    assert "aucune couche" in aucune.lower(), aucune
+    s.zero()
+
+
+def test_PUBLIER_partage_le_VERROU_et_n_appelle_la_route_QU_UNE_FOIS():
+    """Le même verrou `BUSY` que l'import, l'analyse et le détourage — et
+    pour la même raison : publier pendant qu'un fichier monte publierait
+    l'image d'avant. Et la route n'est nommée qu'à UN endroit (une route
+    recopiée est une route qui dérive)."""
+    js = JS.read_text(encoding="utf-8")
+    code = _code_js(js)
+    # LE CHEMIN DE ROUTE, pas le MOT : « manifeste » se dit aussi en français
+    # dans les phrases d'écran, et compter le mot ferait rougir la prose.
+    assert len(re.findall(r"manifeste\?card=", code)) == 1, \
+        "la route de publication est ecrite a plusieurs endroits"
+    corps = _corps_js("publier")
+    # LA GARDE, PAS SEULEMENT LA VARIABLE : retirer le `if (BUSY)` en laissant
+    # le `BUSY = true` plus bas laissait ce contrôle VERT (mutation mesurée) —
+    # or c'est exactement le défaut qui compte, deux clics concurrents.
+    assert re.search(r"if \(BUSY\)", corps), \
+        "la publication ne prend pas le verrou partage"
+    assert "BUSY = true" in corps and "BUSY = false" in corps, corps
+    assert "M.busy(" in corps, "aucun voile d'attente"
+    assert "bordereau(" in corps, "le toast n'est pas celui du bordereau"
+    assert "offrePublier(" in corps, "le geste ne reverifie pas son offre"
+    # ... et la carte courante suit : un manifeste écrit pour la carte 1 alors
+    # que l'écran en montre une autre nommerait le mauvais fichier chez P9.
+    assert "CF.current()" in corps, "la carte courante n'est pas transmise"
