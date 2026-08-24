@@ -10169,3 +10169,281 @@ def test_la_route_ai_models_ne_fuit_PAS_de_chemin_absolu():
         assert "<chemin>" in out, (brut, out)
     # ... et un message SANS chemin traverse intact
     assert FR._sans_chemin("la clé fal est absente") == "la clé fal est absente"
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# 20. LA PHASE-POINTEUR DU SCEAU (phase 5, T3 — décision D4, dernier point)
+# ═════════════════════════════════════════════════════════════════════════════
+#
+# LE TRANSMIS, RECONDUIT TROIS FOIS ET SOLDÉ ICI. `sealStops(f, phase)` accepte
+# une phase depuis la phase 3c ; personne ne lui en a jamais passé d'autre que
+# la constante canonique. Une souplesse que rien n'appelle est du code mort
+# déguisé en promesse : ou bien elle sert, ou bien elle disparaît.
+#
+# ELLE SERT — ET ELLE SERT LÀ OÙ ELLE NE PEUT RIEN CASSER. Le contrat de la
+# pièce est que L'APERÇU EST LE FICHIER LIVRÉ, au pixel : le peintre ne lit
+# donc AUCUNE horloge, AUCUN pointeur (c'est le test
+# `test_la_phase_du_fichier_livre_est_canonique`, qui interdit `clientX`,
+# `Date.now` et `requestAnimationFrame` dans `paintSeal`). Faire vivre la phase
+# sur la carte aurait mis un pointeur dans le chemin du fichier.
+#
+# La phase vivante habite donc une SURFACE À ELLE : une bande d'aperçu dans le
+# panneau du Sceau, hors de tout chemin de rendu. Le pointeur la promène autour
+# de 0,35 (±0,15 : l'arc-en-ciel fait un tour complet sur la course, sans que
+# le repos cesse d'être le fichier livré), `pointerleave` la rend à sa valeur
+# canonique, et RIEN n'est écrit au document.
+#
+# CE QUE CETTE SECTION PROUVE, DANS L'ORDRE :
+#   1. la course de phase est une fonction pure, à vérité connue ;
+#   2. le survol change les arrêts de dégradé de la BANDE, et le relâchement
+#      les rend canoniques ;
+#   3. AUCUN patch, AUCUN `set` : le document ne bouge pas ;
+#   4. LE PEINTRE NE VOIT PAS LA PHASE VIVANTE — mesuré en la forçant à une
+#      autre valeur et en relisant la trace du peintre (identique), avec le
+#      contrôle négatif qui prouve que cette trace saurait le voir.
+
+SEAL_AMP_SPEC = 0.15
+
+
+def _node_frame(source: str) -> str:
+    """Une tranche de `mod-frame.js`, EXÉCUTÉE dans node. Jumeau de l'outil du
+    même nom de `test_cards_type.py` : une règle qui se lit ne prouve rien, une
+    règle qui se joue prouve ce qu'elle rend."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : la règle ne peut pas être EXÉCUTÉE ici")
+    r = subprocess.run([node, "-e", source], capture_output=True, timeout=60)
+    assert r.returncode == 0, r.stderr.decode("utf-8", "replace")[:800]
+    return r.stdout.decode("utf-8", "replace")
+
+
+def test_la_course_de_phase_est_une_fonction_PURE_a_verite_connue():
+    """0 -> 0,20 ; 0,5 -> 0,35 (la canonique, au repos comme au milieu) ;
+    1 -> 0,50. Hors [0, 1], la course est bornée : un pointeur qui sort de la
+    bande ne pousse pas la phase au-delà de son amplitude."""
+    src = _js()
+    m = re.search(r"const SEAL_AMP = ([\d.]+);", src)
+    assert m, "l'amplitude de la phase vivante n'est pas nommée"
+    assert float(m.group(1)) == SEAL_AMP_SPEC, m.group(1)
+    fn = _js_fn(src, "sealPhaseAt")
+    out = json.loads(_node_frame(
+        _js_const(src, "cl") + "\n"
+        + "const SEAL_PHASE = " + str(SEAL_PHASE_SPEC) + ";\n"
+        + "const SEAL_AMP = " + m.group(1) + ";\n" + fn + "\n"
+        + "console.log(JSON.stringify([0,0.25,0.5,0.75,1,-3,7]"
+        + ".map(sealPhaseAt)));"))
+    assert out == [0.2, 0.275, 0.35, 0.425, 0.5, 0.2, 0.5], out
+
+
+BANC_SEALPREV = r"""
+import { readFileSync } from "node:fs";
+const CODE = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+
+/* LE DOM DE PAILLE : de quoi poser un canevas, y brancher des ecouteurs et
+   RELIRE les arrets de degrade que le module y pose. Rien d'autre — cette
+   bande ne dessine qu'un rectangle. */
+const LARGEUR = 240, HAUTEUR = 14;
+let arrets = [];
+function ctx2d() {
+  return {
+    setTransform() { }, clearRect() { }, fillRect() { },
+    createLinearGradient() {
+      const g = { addColorStop: (t, c) => { arrets.push([t, c]); } };
+      return g;
+    },
+    save() { }, restore() { }, beginPath() { }, moveTo() { }, lineTo() { },
+    stroke() { }, fill() { },
+    set fillStyle(v) { }, get fillStyle() { return ""; },
+    set strokeStyle(v) { }, get strokeStyle() { return ""; },
+    set lineWidth(v) { }, get lineWidth() { return 1; },
+    set globalAlpha(v) { }, get globalAlpha() { return 1; },
+  };
+}
+function el(tag) {
+  const lis = {};
+  return {
+    tagName: String(tag).toUpperCase(), style: {}, className: "", title: "",
+    _txt: "", listeners: lis, width: 0, height: 0,
+    set textContent(v) { this._txt = String(v); },
+    get textContent() { return this._txt; },
+    addEventListener(t, fn) { (lis[t] = lis[t] || []).push(fn); },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: LARGEUR, height: HAUTEUR }),
+    getContext: () => ctx2d(),
+    appendChild(n) { return n; },
+    classList: { add() { }, remove() { }, toggle() { }, contains: () => false },
+  };
+}
+const PATCHS = [];
+const document = { createElement: (t) => el(t) };
+const window = { devicePixelRatio: 1 };
+const rafs = [];
+const raf = (fn) => { rafs.push(fn); return rafs.length; };
+const caf = () => { };
+const UI = { sealPrev: el("canvas"), sealPhase: el("span") };
+const FRAME = CAS.frame;
+const f = () => FRAME;
+const M = { patch: (p) => { PATCHS.push(p); }, toast: () => { } };
+const mod = new Function("UI", "f", "M", "document", "window",
+  "requestAnimationFrame", "cancelAnimationFrame",
+  CODE + "\nreturn { drawSealPrev: drawSealPrev, wireSealPrev: wireSealPrev,"
+  + " sealStops: sealStops, SEAL_PHASE: SEAL_PHASE,"
+  + " phase: function () { return sealPhaseLive; } };")(
+  UI, f, M, document, window, raf, caf);
+
+mod.wireSealPrev(UI.sealPrev);
+const lis = UI.sealPrev.listeners;
+const vide = () => { arrets = []; };
+const vider = () => { while (rafs.length) { rafs.shift()(); } };
+const out = { branche: Object.keys(lis).sort(), phases: [], stops: [] };
+/* AU REPOS : la bande montre la phase canonique */
+vide(); mod.drawSealPrev();
+out.repos = { phase: mod.phase(), arrets: arrets.slice() };
+out.canon = mod.sealStops(FRAME, mod.SEAL_PHASE);
+for (const x of CAS.survols) {
+  (lis.pointermove || []).forEach((fn) => fn({ clientX: x }));
+  vider();
+  vide(); mod.drawSealPrev();
+  out.phases.push(mod.phase());
+  out.stops.push(arrets.slice());
+}
+(lis.pointerleave || []).forEach((fn) => fn({}));
+vider();
+vide(); mod.drawSealPrev();
+out.apres = { phase: mod.phase(), arrets: arrets.slice() };
+out.patchs = PATCHS.length;
+out.texte = UI.sealPhase.textContent;
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def _banc_sealprev(tmp_path, frame: dict, survols: list) -> dict:
+    """La bande d'aperçu du Sceau, JOUÉE : ses vrais écouteurs, son vrai
+    dessin, ses vrais arrêts de dégradé — relus sur le contexte 2D de paille."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc de la bande du Sceau ne peut pas tourner")
+    js = tmp_path / "sealprev.js"
+    js.write_text(_sceau_js_source(), encoding="utf-8")
+    banc = tmp_path / "banc_sealprev.mjs"
+    banc.write_text(BANC_SEALPREV, encoding="utf-8")
+    conf = tmp_path / "cas_sealprev.json"
+    conf.write_text(json.dumps({"frame": frame, "survols": survols}),
+                    encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=180)
+    assert r.returncode == 0, r.stderr[-2500:]
+    return json.loads(r.stdout)
+
+
+def _frame_sceau() -> dict:
+    """Un cadre dont le Sceau est allumé et DANS la portée écran — c'est le
+    seul régime où la phase a un effet (hors portée, la base est un métal
+    calme, et c'est ce que le témoin mesure)."""
+    return {"family": "runic", "seal": {"on": True, "kind": "dorure",
+                                        "width_mm": 1.2,
+                                        "scope": {"screen": True, "print": False,
+                                                  "mesh": False}}}
+
+
+def test_le_SURVOL_de_la_bande_fait_VIVRE_la_phase_autour_de_la_canonique(tmp_path):
+    """Trois positions sur une bande de 240 px : le bord gauche, le milieu, le
+    bord droit. La phase suit 0,20 / 0,35 / 0,50 et les arrêts de dégradé
+    CHANGENT avec elle — mesurés sur ce que le module pose vraiment, pas sur
+    l'intention."""
+    d = _banc_sealprev(tmp_path, _frame_sceau(), [0, 120, 240])
+    assert d["branche"] == ["pointerleave", "pointermove"], d["branche"]
+    assert d["repos"]["phase"] == SEAL_PHASE_SPEC, d["repos"]
+    assert d["phases"] == [0.2, 0.35, 0.5], d["phases"]
+    # au milieu, la bande montre EXACTEMENT le fichier livré
+    assert d["stops"][1] == d["canon"], (d["stops"][1], d["canon"])
+    # aux deux bords, non — sans quoi la course ne montrerait rien
+    assert d["stops"][0] != d["canon"], d["stops"][0]
+    assert d["stops"][2] != d["canon"], d["stops"][2]
+    assert d["stops"][0] != d["stops"][2], "les deux bords rendent le même dégradé"
+    # ET LE RELÂCHEMENT REND LA CANONIQUE : la bande au repos EST le fichier
+    assert d["apres"]["phase"] == SEAL_PHASE_SPEC, d["apres"]
+    assert d["apres"]["arrets"] == d["canon"], d["apres"]
+
+
+def test_la_phase_vivante_n_ECRIT_RIEN_au_document(tmp_path):
+    """L'aveu à mesurer : « écran seul, jamais écrite au doc ». Un survol
+    complet de la bande, et le compteur de patchs reste à zéro. Une phase
+    écrite au document aurait voyagé dans le deck, donc dans le fichier
+    livré — le contraire exact de ce qu'on construit."""
+    d = _banc_sealprev(tmp_path, _frame_sceau(), list(range(0, 241, 12)))
+    assert d["patchs"] == 0, d["patchs"]
+    # et la valeur courante est DITE à l'écran : une phase qui bouge sans se
+    # nommer est un scintillement, pas une mesure
+    assert "0,35" in d["texte"] or "0.35" in d["texte"], d["texte"]
+
+
+def test_hors_portee_ecran_la_bande_reste_dans_sa_BASE_CALME(tmp_path):
+    """LE TÉMOIN DE PORTÉE. Hors de la portée écran, `sealStops` rend le métal
+    du kind — cinq arrêts fixes, sans arc-en-ciel. La phase a beau vivre, la
+    bande ne bouge pas : c'est la garde `sealLive` qui décide, et elle est en
+    amont de la phase."""
+    froid = {"family": "runic", "seal": {"on": True, "kind": "dorure",
+                                         "width_mm": 1.2,
+                                         "scope": {"screen": False, "print": True,
+                                                   "mesh": True}}}
+    d = _banc_sealprev(tmp_path, froid, [0, 120, 240])
+    assert d["phases"] == [0.2, 0.35, 0.5], d["phases"]
+    assert d["stops"][0] == d["stops"][1] == d["stops"][2] == d["canon"], d["stops"]
+    assert len(d["canon"]) == 5, d["canon"]
+
+
+# ── 20.1 LE PEINTRE NE VOIT PAS LA PHASE VIVANTE ────────────────────────────
+
+def test_le_PEINTRE_ne_lit_JAMAIS_la_phase_vivante(tmp_path):
+    """LA PREUVE QUI COMPTE, ET ELLE EST EXÉCUTÉE. On force `sealPhaseLive` à
+    0,71 — une valeur qu'aucun repos ne produirait — et l'on relit la TRACE du
+    peintre (le hachage de ses opérations, arrêts de dégradé compris) : elle
+    est identique à celle du module intact. Le fichier livré ne bouge pas d'un
+    arrêt.
+
+    LE CONTRÔLE NÉGATIF est dans le même test, et il est indispensable : on
+    branche ENSUITE le peintre sur la phase vivante, et la trace CHANGE. Sans
+    lui, « la trace est identique » ne prouverait que l'insensibilité de
+    l'instrument."""
+    cas = [_cas_sceau("phase-vivante", SEAL_ON)]
+    ref = _banc_sceau(tmp_path, cas)[0]
+    force = _banc_sceau(tmp_path, cas, mutations=[
+        ("let sealPhaseLive = SEAL_PHASE;", "let sealPhaseLive = 0.71;")])[0]
+    assert ref["ok"] and force["ok"], (ref.get("err"), force.get("err"))
+    assert force["trace"] == ref["trace"], \
+        "la phase vivante a atteint le peintre : l'aperçu n'est plus le fichier"
+    assert force["stops"] == ref["stops"], (force["stops"], ref["stops"])
+    fuite = _banc_sceau(tmp_path, cas, mutations=[
+        ("let sealPhaseLive = SEAL_PHASE;", "let sealPhaseLive = 0.71;"),
+        ("const stops = sealStops(f, SEAL_PHASE);",
+         "const stops = sealStops(f, sealPhaseLive);")])[0]
+    assert fuite["ok"], fuite.get("err")
+    assert fuite["trace"] != ref["trace"], \
+        "la trace ne verrait pas une fuite de phase : le contrôle ne mesure rien"
+
+
+def test_le_peintre_et_sealStops_n_ont_PAS_CHANGE_pour_ce_branchement():
+    """« Chirurgical : le painter et `sealStops` ne changent pas, seul le
+    branchement naît. » Mesuré à la source : le peintre appelle toujours la
+    CONSTANTE, et le nom de la phase vivante n'apparaît ni dans `paintSeal` ni
+    dans `sealStops`."""
+    src = _js()
+    p = _js_fn(src, "paintSeal")
+    assert "sealStops(f, SEAL_PHASE)" in p, "le peintre a changé de phase"
+    assert "sealPhaseLive" not in p, "le peintre lit la phase vivante"
+    assert "sealPhaseAt" not in p, "le peintre calcule une phase"
+    st = _js_fn(src, "sealStops")
+    assert "sealPhaseLive" not in st and "SEAL_AMP" not in st, \
+        "`sealStops` a été touché : il devait rester la fonction de 3c"
+    # ... et la bande est bien BRANCHÉE par le panneau, pas seulement écrite
+    ui = _js_fn(src, "buildUI")
+    assert "wireSealPrev(" in ui, "la bande n'est jamais branchée"
+    assert "UI.sealPrev" in ui, "la bande n'est jamais posée dans le panneau"
+    assert "drawSealPrev()" in _js_fn(src, "syncNow"), \
+        "la bande ne suit pas les réglages du Sceau"

@@ -2550,6 +2550,39 @@
      configuration de premier rang, pas une case oubliee.
      ═══════════════════════════════════════════════════════════════════════ */
   const SEAL_PHASE = 0.35;      /* LA PHASE CANONIQUE — celle du fichier livre */
+  /* ── LA PHASE VIVANTE : ECRAN SEUL, ET SEULEMENT DANS LE PANNEAU ─────────
+     LE TRANSMIS, RECONDUIT TROIS FOIS, SOLDE ICI. `sealStops(f, phase)`
+     accepte une phase depuis la 3c ; personne ne lui en a jamais passe d'autre
+     que la constante. Une souplesse que rien n'appelle est du code mort
+     deguise en promesse.
+
+     ELLE SERT — ET LA OU ELLE NE PEUT RIEN CASSER. Le contrat de la piece est
+     que L'APERCU EST LE FICHIER LIVRE, au pixel : `paintSeal` ne lit donc
+     AUCUNE horloge et AUCUN pointeur (un test l'interdit nommement). Faire
+     vivre la phase SUR LA CARTE aurait mis un pointeur dans le chemin du
+     fichier — la carte est rendue par le MEME appel que l'export, un painter
+     ne peut pas distinguer les deux (core.js : c'est le principe qui rend le
+     bug WYSIWYG inexprimable).
+
+     La phase vivante habite donc UNE SURFACE A ELLE : une bande d'apercu dans
+     le panneau du Sceau, hors de tout chemin de rendu. Le pointeur la promene
+     autour de 0,35 (+/- 0,15 : l'arc-en-ciel fait un TOUR COMPLET sur la
+     course de la bande, et le repos reste exactement le fichier livre),
+     `pointerleave` la rend a la canonique, et RIEN n'est ecrit au document —
+     cette valeur ne voyage pas, ne s'enregistre pas, ne s'exporte pas. */
+  const SEAL_AMP = 0.15;
+  let sealPhaseLive = SEAL_PHASE;
+  /* la course, en fonction PURE : la position du pointeur sur la bande, de 0
+     a 1, rendue en phase. Bornee — un pointeur qui sort de la bande ne pousse
+     pas la phase au-dela de son amplitude. */
+  function sealPhaseAt(u) {
+    /* ARRONDI AU DIX-MILLIEME, et ce n'est pas de la coquetterie : 0,35 - 0,15
+       vaut 0,19999999999999998 en binaire, et cette valeur-la s'AFFICHE dans
+       la ligne d'etat sous les yeux de quelqu'un. Le pas de la course (1/2400
+       de tour) reste bien plus fin que ce qu'un oeil separe. */
+    return Math.round(
+      (SEAL_PHASE + (cl(Number(u) || 0, 0, 1) - 0.5) * 2 * SEAL_AMP) * 1e4) / 1e4;
+  }
   const SEAL_STOPS = 12;        /* arrets du degrade arc-en-ciel */
   /* l'axe du degrade, FIXE : il ne suit PAS `grad_angle`. Celui-la incline la
      matiere de la BANDE ; le Sceau est un contour pose par-dessus, et le faire
@@ -2711,6 +2744,73 @@
       ctx.globalAlpha = 1;
     }
     ctx.restore();
+  }
+
+  /* ── LA BANDE D'APERCU DU SCEAU — la seule surface de la phase vivante ───
+     Elle vit ICI, contre le peintre, pour que les deux phases se lisent cote a
+     cote : celle que le fichier porte (constante, juste au-dessus) et celle
+     que la main promene (variable, juste ici). Ce n'est pas une carte : c'est
+     un rectangle de degrade dans le panneau, et il n'y a aucun chemin par
+     lequel il puisse entrer dans un PNG ou dans un PDF.
+
+     ELLE MONTRE `sealStops` TEL QUEL, sans un mot de plus : les memes arrets
+     que le peintre poserait sur l'anneau, a la phase demandee. Hors de la
+     portee ECRAN, `sealStops` rend le metal calme et la bande ne bouge donc
+     pas quand la phase change — c'est la garde `sealLive` qui decide, en
+     amont, et l'ecran montre alors ce que le contour montre vraiment. */
+  const SEAL_PREV = { w: 240, h: 14 };
+  function drawSealPrev() {
+    const cv = UI.sealPrev;
+    if (!cv || typeof cv.getContext !== "function") return;
+    const dpr = Math.min(2, (window && window.devicePixelRatio) || 1);
+    cv.width = Math.max(1, Math.round(SEAL_PREV.w * dpr));
+    cv.height = Math.max(1, Math.round(SEAL_PREV.h * dpr));
+    cv.style.width = SEAL_PREV.w + "px";
+    cv.style.height = SEAL_PREV.h + "px";
+    const c = cv.getContext("2d");
+    c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    c.clearRect(0, 0, SEAL_PREV.w, SEAL_PREV.h);
+    const gr = c.createLinearGradient(0, 0, SEAL_PREV.w, 0);
+    const stops = sealStops(f(), sealPhaseLive);
+    for (let i = 0; i < stops.length; i++) gr.addColorStop(stops[i][0], stops[i][1]);
+    c.fillStyle = gr;
+    c.fillRect(0, 0, SEAL_PREV.w, SEAL_PREV.h);
+    /* LA VALEUR SE NOMME. Une phase qui bouge sans se dire est un
+       scintillement ; dite, c'est une mesure — et le mot « canonique »
+       rappelle laquelle des deux part chez l'imprimeur. */
+    if (UI.sealPhase) {
+      const vive = Math.abs(sealPhaseLive - SEAL_PHASE) > 1e-9;
+      UI.sealPhase.textContent = vive
+        ? "phase " + r2(sealPhaseLive) + " (survol) — le fichier livré garde "
+          + r2(SEAL_PHASE)
+        : "phase canonique " + r2(SEAL_PHASE) + " — celle du fichier livré";
+    }
+  }
+  /* LE BRANCHEMENT, ET RIEN QUE LUI (patron §9.6 de la piece : un seul rAF,
+     un seul redessin par frame). Aucun `set`, aucun `M.patch` : cette bande
+     n'ecrit pas au document, et c'est ce qui la rend inoffensive. */
+  function wireSealPrev(cv) {
+    if (!cv) return;
+    let raf = 0;
+    const has = typeof requestAnimationFrame === "function";
+    const plan = (fn) => (has ? requestAnimationFrame(fn) : setTimeout(fn, 16));
+    const stop = (id) => { if (has) cancelAnimationFrame(id); else clearTimeout(id); };
+    cv.addEventListener("pointermove", (ev) => {
+      const r = cv.getBoundingClientRect();
+      if (!r.width) return;
+      sealPhaseLive = sealPhaseAt((ev.clientX - r.left) / r.width);
+      if (raf) return;
+      raf = plan(() => { raf = 0; drawSealPrev(); });
+    });
+    cv.addEventListener("pointerleave", () => {
+      /* LE RETOUR A LA CANONIQUE EST IMMEDIAT et il annule la frame en vol :
+         sans cette annulation, un rAF programme au dernier mouvement repeignait
+         la phase vivante APRES le retour au repos, et la bande restait sur une
+         couleur que plus rien ne justifiait. */
+      if (raf) { stop(raf); raf = 0; }
+      sealPhaseLive = SEAL_PHASE;
+      drawSealPrev();
+    });
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -3964,6 +4064,21 @@
       scoperow.appendChild(c.el);
     });
     g16.body.appendChild(scoperow);
+    /* LA BANDE D'APERCU DU SCEAU (phase 5, D4) — la surface de la phase
+       vivante, et la SEULE. Survolee, elle promene la phase autour de la
+       canonique ; relachee, elle y revient. Rien de ce qu'elle montre
+       n'atteint le document ni le fichier livre. */
+    g16.body.appendChild(label("Aperçu du contour",
+      "survolez : la lumière tourne, le fichier ne bouge pas"));
+    UI.sealPrev = h("canvas", "cff-sealprev");
+    UI.sealPrev.title = "Les mêmes arrêts de dégradé que l'anneau du Sceau. "
+      + "Le survol fait vivre la phase autour de la valeur canonique — À "
+      + "L'ÉCRAN SEULEMENT : le fichier livré garde la phase " + SEAL_PHASE
+      + ", et rien de ce réglage n'est écrit dans le jeu.";
+    g16.body.appendChild(UI.sealPrev);
+    UI.sealPhase = h("p", "hint mono cff-sealphase");
+    g16.body.appendChild(UI.sealPhase);
+    wireSealPrev(UI.sealPrev);
     UI.sealRead = h("p", "hint cff-sealread");
     g16.body.appendChild(UI.sealRead);
     B.appendChild(g16.el);
@@ -7505,6 +7620,10 @@
       UI.sealScope[k].input.checked = !!f0.seal.scope[k];
     });
     UI.sealRead.innerHTML = sealText(f0, g);
+    /* la bande suit les REGLAGES du Sceau (metal, portee) : elle montre les
+       arrets que le contour porte MAINTENANT, a la phase ou la main l'a
+       laissee — canonique au repos. */
+    drawSealPrev();
     /* LE DECOR : l'opacite, l'etat, et le cout du clic. L'invite n'est PAS
        reecrite ici — elle est pre-remplie une fois puis appartient a
        l'utilisateur ; la reposer a chaque `sync` effacerait ce qu'il tape. */

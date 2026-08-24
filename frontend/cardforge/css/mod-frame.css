@@ -91,6 +91,14 @@
 .cf-frame .cff-scope { gap: 14px; padding: 6px 9px 2px; border-radius: 8px;
   border: 1px solid var(--stroke); background: var(--bg-panel-3); }
 .cf-frame .cff-sealread b { color: var(--ink-strong); }
+/* LA BANDE D'APERCU DU SCEAU (phase 5, D4) : les memes arrets de degrade que
+   l'anneau, deroules a plat. Le curseur dit qu'on peut la promener — c'est le
+   seul endroit du labo ou la phase du foil bouge, et elle ne bouge QU'ICI :
+   le fichier livre garde la phase canonique. */
+.cf-frame .cff-sealprev { display: block; width: 240px; height: 14px;
+  border-radius: 4px; border: 1px solid var(--stroke-strong);
+  cursor: ew-resize; touch-action: none; }
+.cf-frame .cff-sealphase { margin: 3px 0 0; font-size: 10px; }
 
 /* ── Decor de cadre par IA (spec §6.3) ────────────────────────────────────
    L'invite est un vrai champ de saisie, pas une ligne : on y ecrit plusieurs
