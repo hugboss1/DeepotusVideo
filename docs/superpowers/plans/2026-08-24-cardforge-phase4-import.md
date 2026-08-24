@@ -460,11 +460,67 @@ réglages MESURÉS clampés `LIMITS` + verrou 3b respecté + écart AFFICHÉ = �
 CALCULÉ (test d'égalité au chiffre, §9.1) ; 8e famille « filigrane-instrument »
 (double filets ~2,1/~3,2 mm, instruments de coin, médaillons mi-chant, vectoriel
 déterministe) + silhouette QA pairwise (`SIL_SEUIL=4`) + parité.
-**Fichiers** : frame.py, mod-frame.js, test_cards_frame.py.
+**Fichiers** : frame.py, mod-frame.js, test_cards_frame.py (+ mod-frame.css en
+ronde).
 
-- [ ] LIVRÉ
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `be65fd4` (+1941/−12) puis ronde `2c28306` (+1236/−409).
+  FAMILY_TRAITS mesurée d'abord au banc propre (chaque famille rendue avec/sans
+  sa signature — deux définitions naïves rejetées avec leurs chiffres), puis
+  RE-MESURÉE PAR LA VOIE DE PRODUCTION après la ronde (le banc rend, recadre à
+  la coupe, et ce sont `_analyse_bordure`/`_couleur_bande` de P10 EUX-MÊMES qui
+  relèvent — l'axe s'appelle `front_mm`, la teinte se lit sur l'hexa 8 bits
+  publié). Adoption P2 : mapping vérifié à la source (mm→inner_mm ;
+  couleur→line_color + metal:false car inkPaint ne lit jamais line_color métal
+  allumé ; rayon→window.r reposée entière ; rayon négatif REFUSÉ — une mesure
+  qui n'a pas eu lieu — et null jamais 0) ; pondération par l'étendue que le
+  catalogue occupe sur chaque axe (publiée /catalog family_scales, étendue de
+  teinte CIRCULAIRE par paires) ; verrou : le rayon s'adopte même sous
+  win_lock (un rayon n'est pas une proportion) ; le gel de la fenêtre auto se
+  DIT quand elle était auto (−16 mm mesurés poker→tarot sinon invisibles),
+  Ctrl+Z rend l'auto. 8e famille id `filigrane` (libellé « Filigrane à
+  instruments » — le trait d'union casserait les lectures \w+, limite
+  d'outillage assumée) : double filet FIL_MM 2,1/3,2 de la coupe, instruments
+  au chemin, médaillons ; REDESSINÉE quand elle serrait Gravure (jonc plein =
+  la forme de Gravure en gris normalisé → 4 médaillons discrets : 22,43→33,90)
+  — silhouettes 8×8 = 168 mesures, minimum 31,60 IDENTIQUE au catalogue à 7 :
+  la 8e ne coûte rien. 271 tests frame (30 neufs T4), lint 10/10, Chrome sans
+  tête sur le bloc d'adoption, le -1%6 JS/Python fermé par fmod (parité
+  d'exécution 14 mesures + 19 couleurs + 2 crêtes + 3 dièses).
+- [x] Ronde adverse (opus) : 1 bloquant + 9 réels/mineurs + 7 REJETÉS par la
+  mesure (étendue circulaire correcte, instruments sur tarot 0,3 % rognés — la
+  crainte du livreur ne se réalisait pas, mm1 0 divergence sur 16 pièges…).
+  LE BLOQUANT : l'aller-retour P10→P2 mesuré de bout en bout par la revue =
+  2/8 — border.mm (profondeur de premier front, 0,88 mm pour 7 familles !) et
+  bande_mm (épaisseur de trait) étaient DEUX GRANDEURS SOUS LE MÊME NOM, et
+  test_cards_frame n'importait jamais cards.capture : la boucle n'avait jamais
+  été fermée. Après re-mesure par la voie de production : 6/8 se reconnaissent
+  (néon par son front creux 3,2, gravure/filigrane par la teinte chaude),
+  arcane/deco PROUVÉS indiscernables (même relevé que runic à l'octet — le
+  test le prouve au lieu de le supposer) et la phrase avoue les voisines.
+  Autres : la teinte d'un gris à 1 LSB choisissait une famille au hasard
+  (DEUX planchers nés d'un échec du propre banc du livreur : chroma ≥ 5 ET
+  sat ≥ 0,03 — la saturation seule laissait passer #141516 à 3× le seuil) ;
+  la teinte de table float irreproductible en 8 bits (4° qui faisaient perdre
+  à Gravure sa famille) ; le repli silencieux de Néon (lisière blanche,
+  prélèvement sur la demi-carte) résolu structurellement ; la tolérance 2×
+  plus large que l'écart qu'elle protégeait → égalité EXACTE sur le front
+  (une tolérance ne servirait qu'à cacher une table fausse) ; le témoin
+  survivant à raison FAUSSE (sur crête il changeait la famille — crêtes au
+  banc, l'ancien témoin rougit, le neuf : échanger sextant/plume de coin,
+  décision de dessin pas propriété mesurable) ; L'AMENDEMENT DE SPEC
+  REVENDIQUÉ N'EXISTAIT PAS (fait par l'orchestrateur — spec :510 % → degré
+  avec trace — et le test LIT désormais la spec au lieu de revendiquer).
+  Mutation de ronde : 11/11 rougissent.
+- [x] CLOSE : leçons — (a) UNE TABLE DE CORRESPONDANCE SE MESURE PAR LA VOIE
+  QUI LA CONSOMMERA : deux grandeurs sous le même nom ne se voient qu'en
+  fermant la boucle de bout en bout (le test d'aller-retour est né de là) ;
+  (b) une revendication d'amendement se vérifie comme un fait — le test lit
+  la source amendée, il ne l'affirme pas ; (c) l'indiscernabilité prouvée
+  vaut mieux qu'une reconnaissance prétendue (arcane==runic à l'octet, dit).
+  Dettes → T6 : confirmer sur le VRAI Patriarche (≈2,1 mm ; or chaud →
+  filigrane sans voisine — sinon publier la mesure, pas retoucher la table) ;
+  badge silhouettes au navigateur (l'arbitre reste le badge) ; la table est
+  mesurée sans le grain de matter() (avoué aux deux miroirs).
 
 ### T5 — P9 : le nœud `extrude` + la source `capture` (D7, D8)
 
