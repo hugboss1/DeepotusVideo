@@ -105,6 +105,48 @@ c'est-à-dire un dépliage, c'est-à-dire un autre maillage. Le domaine porte
 déjà l'aveu au même endroit pour le relief (« la jupe fait 0,3 mm et ne reçoit
 aucun peigne regardable ») ; la couronne hérite du même, avec sa raison.
 
+────────────────────────────────────────────────────────────────────────────
+T4 (2026-08-25, PHASE 5) — LE VERRE, L'OCCLUSION, L'ONDULATION TRANCHÉE (D5)
+
+Trois choses, et une seule discipline : ON PÈSE LE FICHIER LIVRÉ.
+
+  · LE VERRE — trois recettes (`verre`, `verre-depoli`, `translucide`) au
+    patron holo exact, relues dans le JSON du GLB. `extensionsUsed` est EXACT
+    par recette et les trois jeux sont DISTINCTS — c'est ce qui fait de la
+    table `_VERRE_EXTS` un discriminant et pas une décoration.
+    `extensionsRequired` reste vide (dégradation propre). Le STL est
+    inchangé, à l'octet : le verre est un habit, pas une géométrie.
+  · L'OCCLUSION — l'état d'AVANT a été mesuré avant d'écrire une ligne : elle
+    descendait DÉJÀ dans le GLB, et ni « ao » ni « occlusion » n'existaient
+    dans mod-forge3d.js. Ce qui manquait n'était pas le pipeline, c'était la
+    VUE et l'interrupteur.
+  · L'ONDULATION §6.2bis-d, avouée non livrée TROIS phases — TRANCHÉE ICI, et
+    LIVRÉE, sur des chiffres : au viewer réel (model-viewer du dépôt, serveur
+    de scratchpad, zéro dépense), écart moyen de 10,75 niveaux/255 sur 58,3 %
+    des pixels de l'anneau (3/4), 13,44 sur 67,7 % d'un plan plein format,
+    1,96 presque de face — l'effet dépend du rasage, ce qu'une perturbation de
+    normale DOIT faire. Douceur : 6,84° d'inclinaison maximale.
+
+DEUX CORRECTIONS DE MESURE, écrites parce qu'elles ont failli passer :
+  · le compte de changements de signe d'un sinus se DÉRIVE (2·f − 1), il ne se
+    devine pas : la première écriture confondait période et demi-période, et
+    le champ mesuré (5) avait raison contre elle ;
+  · l'angle d'une normale se lit sur x/y, pas sur z — près du pôle, un octet
+    de z couvre 7,18° pour 6,84° attendus, et l'écart ÉTAIT la grille.
+
+RONDE DE MUTATION : 23 défauts remis, 23 vus. Le seul survivant du premier
+tour a été FERMÉ (la leçon « un aveu d'infermabilité se mesure », appliquée à
+soi) : `finishFamille` rendant la liste entière laissait tous les pins de
+SOURCE verts — sept cas au banc node, qui regardent ce que le bloc MONTRE,
+le tuent maintenant.
+
+TÉMOINS SURVIVANTS, VOLONTAIRES ET AVOUÉS (à la source, avec leur mesure) :
+KHR_materials_volume demande un maillage fermé et nos plans ne le sont pas
+(le viewer embarqué rend quand même — 79,6 niveaux d'écart mesurés ; un autre
+moteur, personne ici ne peut le voir) ; et `props.color` est le réglage de
+teinte du lab, pas la moyenne de la carte `basecolor` (fermeture nommée :
+moyenner les pixels — un pipeline de plus).
+
 Run : <python embarqué> backend/tests/test_cards_forge3d.py
       .\\scripts\\run-tests.ps1 -Filter cards_forge3d
 """

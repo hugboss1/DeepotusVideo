@@ -1755,12 +1755,19 @@ def write_scene_glb(elements: list, name: str, extras: dict,
       · `mat_maps` — le paquet de `material_pngs` : normale, pack MR, AO,
         émissive. Le pack MR ramène metallicFactor/roughnessFactor à 1.0 (les
         niveaux sont dans les octets, pas dans les facteurs).
-      · `finish`  — le paquet de `holo_finish` : une feuille holographique
-        REMPLACE la micro-surface de la matière (le pack MR est alors SAUTÉ,
-        glTF multipliant facteur x texture) et laisse parler son relief et son
-        occlusion. Ses trois extensions n'apparaissent QUE dans
-        `extensionsUsed`, jamais dans `extensionsRequired`. Une anisotropie
-        exige un maillage `uv_axis_aligned` — sinon ValueError NOMMÉE.
+      · `finish`  — le paquet de `holo_finish` OU de `glass_finish` (phase 5,
+        D5), jamais les deux : une finition REMPLACE la micro-surface de la
+        matière (le pack MR est alors SAUTÉ, glTF multipliant facteur x
+        texture) et laisse parler son relief et son occlusion. Ses extensions
+        n'apparaissent QUE dans `extensionsUsed`, jamais dans
+        `extensionsRequired` — un lecteur qui les ignore montre la carte sans
+        la finition, il ne refuse pas le fichier. Une anisotropie exige un
+        maillage `uv_axis_aligned` — sinon ValueError NOMMÉE ; un paquet qui
+        mêlerait les deux familles lève aussi, NOMMÉMENT.
+        Le sous-bloc `normal` (l'ondulation §6.2bis-d) ne s'écrit que si la
+        MATIÈRE n'apporte pas son propre relief : glTF n'a qu'une
+        `normalTexture`, et la donnée de l'utilisateur passe avant l'ornement
+        de la recette.
       · `trs`     — translation/rotation/échelle du nœud ; sans elle, seul le
         `z_mm` de la 2a est écrit (voir `_node_trs`).
 
