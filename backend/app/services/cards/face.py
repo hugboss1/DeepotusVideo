@@ -1387,7 +1387,16 @@ INTERDITS = (
     "vivid colours. No busy composition, no crowd, no second focal point, no "
     "background scenery detail. No text, no lettering, no title, no logo, no "
     "signature, no watermark, no border, no frame. No lens flare, no bokeh, "
-    "no rim light, no glowing particles, no golden hour, no bright sky.")
+    "no rim light, no glowing particles, no golden hour, no bright sky. "
+    # LA MOITIÉ QUI MANQUAIT, ÉCRITE SUR CE QUE LA CAMPAGNE A MESURÉ. La liste
+    # ci-dessus ne refusait que l'excès (trop clair, trop saturé, trop chargé)
+    # — et le générateur tombait exactement de l'AUTRE côté, sur les six axes
+    # à la fois. Une liste négative qui ne refuse qu'un bord pousse au bord
+    # opposé.
+    "And equally: no vast empty background, not a small subject lost in empty "
+    "space, not a tiny distant figure, no wide margins of nothing. Not an "
+    "underexposed or near-black image, no crushed blacks, not a flat "
+    "silhouette without interior modelling, not a grey wash without any hue.")
 
 # La MÉTAMORPHOSE, sujet par sujet — la seule part que la mesure ne sait pas
 # écrire (le skill le dit : « la mesure ne voit pas le geste »). Une figure
@@ -1439,16 +1448,23 @@ SUJETS_SCENE = {
 # `medallion` n'a aucun horizon, `heraldry` est symétrique, `depths` est une
 # colonne d'eau — mais dite en contraintes de peinture, pas en dessin.
 COMPOS_SCENE = {
+    # LE VOCABULAIRE DU VIDE, RETIRÉ DES SCÈNES AUSSI (T5bis). « bare
+    # unmodulated ground », « flat and empty », « a flat ground » disaient au
+    # générateur exactement ce que le bloc COMPO venait de lui interdire — et
+    # sur 84 candidats c'est le vide qui a gagné (0,744 pour un plafond de
+    # 0,546). Le SENS de chaque composition est intact — un horizon bas reste
+    # un horizon bas, le disque reste un disque : seul « vide » devient
+    # « uni, mais peint ».
     "vista": "one low horizon line far down the frame; everything above it is "
-             "bare unmodulated ground, no scenery, no second landmark",
+             "plain painted ground, no scenery, no second landmark",
     "medallion": "no horizon at all; the form is enclosed in one worn disc, "
-                 "the rest of the frame flat and empty",
+                 "the rest of the frame plain but worked in paint",
     "heraldry": "strictly symmetrical about the vertical axis, the form and "
                 "its own mirrored shadow, no horizon, no scenery",
     "depths": "the form suspended in a vertical column of dark water, a few "
               "faint vertical rays, nothing else",
-    "backlight": "one pale disc of weak light behind the form and a flat "
-                 "ground below it, nothing else in the frame",
+    "backlight": "one pale disc of weak light behind the form and a plain "
+                 "painted ground below it, nothing else in the frame",
     "stained": "the form set inside one tall pointed arch, thin lead lines "
                "dividing the field into large plain panes",
 }
@@ -1501,8 +1517,9 @@ def _bloc_palette(famille: str, accent: bool) -> str:
         bloc = ("Palette strictly limited to: %s and %s for the ground (about "
                 "%d%% of the canvas together), %s and %s for the neutral "
                 "modelling (about %d%%), %s and %s for the bone-ochre lit "
-                "form (about %d%%). Desaturated throughout: the median pixel "
-                "is near-neutral."
+                "form (about %d%%). Muted throughout - but the colour is "
+                "really there: the median pixel keeps a faint warm tint, it "
+                "does not go grey."
                 % (hx[0], hx[1], part_sol, hx[2], hx[3], part_mod,
                    teintes[0]["hex"], second, part_forme))
         if accent:
@@ -1522,14 +1539,37 @@ def _bloc_palette(famille: str, accent: bool) -> str:
 
 
 def _bloc_compo(compo: str) -> str:
-    """[3 COMPO] — les fractions de la fiche, énoncées comme des placements."""
+    """[3 COMPO] — les fractions de la fiche, énoncées comme des placements.
+
+    LE SENS EST CELUI QUE LA CAMPAGNE A MESURÉ, et il est l'INVERSE de ce
+    qu'on croyait (T5bis, 84 candidats payés, mesurés au juge) :
+
+        masse (surface)  0,194  pour une bande [0,415 ; 0,651] — 83/84 SOUS
+        masse (largeur)  0,314  pour [0,553 ; 0,791]           — 81/84 SOUS
+        part de vide     0,744  pour [0,320 ; 0,546]           — 84/84 AU-DESSUS
+
+    Le générateur ne REMPLIT pas la toile : il la VIDE. Il lisait « about 43 %
+    of the canvas left as quiet, unmodulated ground with no detail at all »
+    comme une consigne de vide maximal, et rendait une petite forme perdue
+    dans le noir — l'exact contraire de l'affiche, où une figure unique
+    ÉCRASE le cadre.
+
+    Les nombres ne changent pas (ils restent tirés de la fiche) ; c'est leur
+    ÉNONCÉ qui change. La masse devient un PLANCHER, dit en premier et en
+    capitales ; le fond cesse d'être un vide pour redevenir de la MATIÈRE
+    PEINTE — qui porte de l'énergie locale, donc fait redescendre la part de
+    vide sans qu'on ait à la nommer."""
     scene = COMPOS_SCENE.get(compo, "no scenery, no second subject")
-    return ("Vertical composition, 2:3 portrait. The form occupies about %d%% "
-            "of the frame width and %d%% of its height, its mass centred on "
-            "x=%.2f and y=%.2f, the heaviest weight low-centre, the right "
-            "third emptier than the left. %s. About %d%% of the canvas is "
-            "left as quiet, unmodulated dark ground with no detail at all; "
-            "the edges are eaten away and dissolve into flat unlit darkness."
+    return ("Vertical composition, 2:3 portrait. THE SINGLE FORM DOMINATES "
+            "THE FRAME: it fills AT LEAST %d%% of the frame width and AT "
+            "LEAST %d%% of its height - monumental, seen close, so large that "
+            "it runs past the top and the bottom edge of the frame. Its mass "
+            "is centred on x=%.2f and y=%.2f, the heaviest weight low-centre, "
+            "the right third emptier than the left. %s. The remaining %d%% of "
+            "the canvas is quiet ground - but it is PAINTED ground: scumbled "
+            "and uneven, carrying the craquelure and the drag of the brush, "
+            "never a flat empty void. Only the outermost edges are eaten away "
+            "into unlit darkness."
             % (_pc(_med("composition.masse_bbox.largeur", 0.69)),
                _pc(_med("composition.masse_bbox.hauteur", 0.76)),
                _med("composition.centroide_x", 0.45),
@@ -1541,13 +1581,34 @@ def _bloc_compo(compo: str) -> str:
 def _bloc_cle() -> str:
     """[5 CLÉ] — la clé tonale, chiffrée SUR LES SEUILS DU JUGE. Le prompt
     demande exactement ce que le juge mesurera : « sous 25 % de clarté » est
-    le seuil `L<64` du mesureur, pas un chiffre choisi à la main."""
+    le seuil `L<64` du mesureur, pas un chiffre choisi à la main.
+
+    CORRIGÉ PAR LA MESURE (T5bis, mêmes 84 candidats) :
+
+        L médian      41,9  pour une bande [63,3 ; 126,7] — 62/84 SOUS
+        part sombre   0,773 pour [0,059 ; 0,514]          — 62/84 AU-DESSUS
+        part claire   0,002 pour [0,012 ; 0,132]          — 46/84 SOUS
+
+    « Dark-keyed » et « deep shadow occupies more area than light » étaient
+    lus comme « éteins tout » : le générateur rendait des toiles quasi noires
+    où le point clair n'existait PAS (0,2 % de toile au-dessus du seuil, pour
+    4,2 % attendus). Et une toile noire est aussi une toile grise — c'est le
+    même défaut qui faisait tomber la chroma médiane à 3,55 pour un plancher
+    à 4,80, y compris sur les cases de régime ROUGE.
+
+    Donc : la clé est dite par sa MÉDIANE — la valeur même que le juge
+    mesure — la part sombre est un PLAFOND (« no more »), et le point clair
+    devient une EXIGENCE plutôt qu'une permission."""
     sw = _juge_module()
-    return ("Dark-keyed: roughly %d%% of the canvas below %d%% lightness, only "
-            "%d%% above %d%% lightness. Full tonal range from true black to "
-            "one small bone highlight. Deep shadow occupies more area than "
-            "light."
-            % (_pc(_med("tons.part_sombre_L_moins_64", 0.21)),
+    return ("Mid-dark key, NOT a black canvas: the overall mid-tone of the "
+            "painting sits around %d%% lightness. About %d%% of the canvas "
+            "falls below %d%% lightness - no more than that. There MUST be a "
+            "real bone-white highlight present on the form: about %d%% of the "
+            "canvas above %d%% lightness, a true bone white, never absent and "
+            "never dimmed. Full tonal range, from true black to that "
+            "highlight, with modelling all the way between."
+            % (int(round(_med("tons.L_p50", 99.8) / 255.0 * 100)),
+               _pc(_med("tons.part_sombre_L_moins_64", 0.21)),
                int(round(sw.SEUIL_SOMBRE / 255.0 * 100)),
                max(1, _pc(_med("tons.part_claire_L_plus_200", 0.042))),
                int(round(sw.SEUIL_CLAIR / 255.0 * 100))))

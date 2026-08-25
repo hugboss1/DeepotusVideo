@@ -3156,15 +3156,72 @@ def test_le_prompt_porte_les_six_blocs_et_le_cadre_portrait():
     tonale, interdits — dans cet ordre. Et le cadre est un PORTRAIT annoncé,
     parce que le corpus l'est (0,695 médian sur ses 11 affiches portrait)."""
     p = FA.serie_prompt("medallion_dragon")
+    # Le marqueur du bloc CLÉ ne peut pas être son premier mot : « Dark-keyed »
+    # a dû partir (T5bis — le générateur le lisait comme « éteins tout »). On
+    # épingle ce que le bloc FAIT — citer le seuil clair du juge — et non la
+    # tournure du jour.
+    cle = "%d%% lightness" % int(round(FA._juge_module().SEUIL_CLAIR / 255.0 * 100))
     for morceau in ("craquelure", "portrait", "Palette strictly limited",
-                    "Dark-keyed", "Not photographic"):
+                    cle, "Not photographic"):
         assert morceau in p, morceau
     assert p.index("craquelure") < p.index("Palette strictly limited") \
-        < p.index("Dark-keyed") < p.index("Not photographic")
+        < p.index(cle) < p.index("Not photographic")
     # le sujet et la composition sont ceux de la case, pas un texte générique
     assert "dragon" in p.lower()
     assert FA.serie_prompt("medallion_dragon") != FA.serie_prompt("vista_dragon")
     assert FA.serie_prompt("medallion_dragon") != FA.serie_prompt("medallion_wolf")
+
+
+def test_le_prompt_pousse_du_COTE_QUE_LA_CAMPAGNE_A_MESURE():
+    """LE SENS DU GABARIT, ÉPINGLÉ — et il est l'INVERSE de l'intuition.
+
+    Sur les 84 candidats payés de T5, mesurés au juge, le générateur sortait
+    de la bande TOUJOURS du même côté, et jamais celui qu'on croyait :
+
+        masse (surface) 0,194 pour [0,415 ; 0,651] -> 83/84 SOUS le plancher
+        part de vide    0,744 pour [0,320 ; 0,546] -> 84/84 AU-DESSUS
+        L médian        41,9  pour [63,3 ; 126,7]  -> 62/84 SOUS
+        part claire     0,002 pour [0,012 ; 0,132] -> 46/84 SOUS
+
+    Il ne remplissait pas la toile : il la VIDAIT, et il l'éteignait. Le
+    gabarit doit donc POUSSER — forme qui écrase le cadre, point clair
+    EXIGÉ — et sa liste négative doit refuser les DEUX bords, pas seulement
+    l'excès. Sans ce contrôle, une reformulation qui « allège » le prompt
+    ramènerait le défaut sans qu'un test rougisse, et il se paierait une
+    seconde fois en candidats."""
+    p = FA.serie_prompt("medallion_dragon")
+    bas = p.lower()
+    # 1. la masse est un PLANCHER, pas une indication
+    assert "at least" in bas, "la masse doit être un plancher (mesuré 83/84 sous)"
+    assert "dominates the frame" in bas
+    # 2. le point clair est EXIGÉ, pas permis (mesuré 0,002 pour 0,042 attendus)
+    assert "must be" in bas and "highlight" in bas
+    # 3. le fond est de la matière, pas un vide (mesuré 84/84 au-dessus)
+    assert "painted ground" in bas
+    assert "no detail at all" not in bas, \
+        "la tournure qui a produit 74 % de vide est revenue"
+    # 4. la liste négative refuse AUSSI le bord où le générateur tombe
+    for refus in ("no vast empty background", "not a small subject lost",
+                  "no crushed blacks"):
+        assert refus in bas, refus
+    # 5. et rien de tout cela n'a introduit de nombre écrit à la main : les
+    #    fractions restent celles de la fiche
+    for cle, _lbl in (("composition.masse_bbox.largeur", ""),
+                      ("composition.masse_bbox.hauteur", ""),
+                      ("composition.part_vide_E_moins_4", ""),
+                      ("tons.part_sombre_L_moins_64", "")):
+        assert "%d%%" % FA._pc(FA._med(cle)) in p, cle
+    # 6. le vocabulaire du vide ne revient par AUCUNE porte — les six scènes
+    #    de composition le disaient aussi, et elles annulaient le bloc COMPO
+    #    juste au-dessus d'elles (« flat and empty », « bare unmodulated »)
+    for compo, scene in FA.COMPOS_SCENE.items():
+        for mot in ("unmodulated", "flat and empty", "a flat ground"):
+            assert mot not in scene.lower(), (compo, mot)
+    # 7. la garde du nom d'artiste tient sur les 108 cases après réécriture,
+    #    et les 108 prompts portent bien la poussée (aucune case oubliée)
+    for case in FA.serie_cases():
+        p108 = FA.sans_nom_d_artiste(FA.serie_prompt(case))
+        assert "AT LEAST" in p108 and "There MUST be" in p108, case
 
 
 def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
