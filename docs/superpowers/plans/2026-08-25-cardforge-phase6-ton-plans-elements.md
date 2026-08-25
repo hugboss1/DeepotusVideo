@@ -143,7 +143,7 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
 - Créer : `backend/tests/test_cards_serie_ton.py` (NOUVEAU fichier — la règle
   un-processus-par-fichier garde la suite rapide)
 
-- [ ] **T1-A (RED)** : écrire `test_cards_serie_ton.py` — les tests d'or du
+- [x] **T1-A (RED)** : écrire `test_cards_serie_ton.py` — les tests d'or du
   refactor juge (métriques identiques avant/après sur 2 PNG synthétiques
   fabriqués dans le test), `tonales()` existe et rend les 3 clés de la fiche,
   `mise_au_ton` : (1) image trop claire synthétique → les 3 métriques entrent
@@ -151,20 +151,20 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   IDENTIQUES sur deux appels (déterminisme) et score tonal jamais dégradé ;
   (3) axes non tonals intouchés par la promesse (la fonction ne prétend
   corriger que le ton : le rapport liste `axes_vises`). Lancer : ROUGE.
-- [ ] **T1-B (GREEN)** : implémenter `tonales()` dans style_walkuski (extraite
+- [x] **T1-B (GREEN)** : implémenter `tonales()` dans style_walkuski (extraite
   de `mesurer`, appelée par lui), puis `mise_au_ton(src, dst, fiche) -> dict`
   dans face.py (premier jet analytique noir/blanc/gamma depuis l'histogramme
   de luminance, raffinement grille 3×3×3, LUT PIL `point`). Suite du fichier
   verte.
-- [ ] **T1-C (RED)** : tests de la voie — `_fabriquer_case` monkey-patché
+- [x] **T1-C (RED)** : tests de la voie — `_fabriquer_case` monkey-patché
   (tirages factices, juge réel sur images synthétiques) : un candidat « HORS
   STYLE aux axes tous tonals » gagne un frère ajusté qui TIENT et la case est
   servie SANS tir supplémentaire (sentinelle : tout `_tirer_*` non prévu
   lève) ; un candidat aux axes mixtes n'en gagne pas ; le journal de dépense
   est inchangé par la passe. Lancer : ROUGE.
-- [ ] **T1-D (GREEN)** : brancher la passe dans `_fabriquer_case` (après
+- [x] **T1-D (GREEN)** : brancher la passe dans `_fabriquer_case` (après
   chaque `_juger` de lot, avant `meilleur_candidat`). Vert.
-- [ ] **T1-E (RED)** : tests du rescapage — DATA_ROOT temporaire avec faux
+- [x] **T1-E (RED)** : tests du rescapage — DATA_ROOT temporaire avec faux
   journal (lignes `_payer` + `FLUX: saved` aux seeds fnv1a32 réels), faux
   rebut (images synthétiques nommées comme le journal), manifeste avec refus :
   dry-run rend le rapport (mappées/non mappées/absentes, rien d'écrit) ;
@@ -172,32 +172,34 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   INCHANGÉE, `prix_usd: 0.0`, refus popé, magasin peuplé d'un PNG réel ;
   re-POST → `deja_servie` (idempotent) ; clés fournisseur neutralisées au
   banc (patron des tests de campagne existants). Lancer : ROUGE.
-- [ ] **T1-F (GREEN)** : implémenter le parseur de journal (regex `[0-9]`,
+- [x] **T1-F (GREEN)** : implémenter le parseur de journal (regex `[0-9]`,
   jamais `\d` — parité multi-langages) + `POST /serie/rescaper`. Vert, puis
   la SUITE ENTIÈRE cards (`scripts/run-tests.ps1` sur les fichiers cards) :
-  verte.
-- [ ] **T1-G** : commit (« serie : la mise au ton déterministe — la voie et le
-  rescapage, zéro centime »).
-- [ ] **T1-H (RÉEL)** : déployer sur l'app (le verrou cardforge), relancer le
-  backend (T2 D'ABORD — le .env doit porter le mock avant la relance),
-  `POST /serie/rescaper` dry-run RÉEL → lire le rapport (couverture du
-  mapping sur les 292), puis `{"appliquer": true}` → bilan RÉEL (combien de
-  cases montent au-dessus de 2/108 ?). Vérifier `GET /serie` + 2-3 images
-  servies à l'œil (les métriques ne disent pas tout — l'utilisateur juge en
-  dernier). AUCUNE dépense au registre (vérifier `depense_totale_usd`
-  avant/après : 7,467 identique).
+  verte. **RELEVÉ : 11/11 serie_ton + 147/147 face** ; le juge recopié au
+  skill et RE-ÉPINGLÉ (`copie_le` 25/08, sha `81a0e9e5…` — le refactor
+  `tonales()` appartient au mesureur, la copie ne diverge pas).
+- [x] **T1-G** : commit `6e8ea1e`.
+- [x] **T1-H (RÉEL) — LE RESCAPAGE A GAGNÉ 2 CASES, 0,000 $.** Dry-run réel :
+  16 journaux lus, 11 cases tentables, 234 candidats mappés par la graine,
+  42 non-mappés (tirs gpt/banana sans nom au journal) + 73 absents COMPTÉS,
+  stained_tower sautée (déjà servie). `{"appliquer": true}` :
+  **vista_pines 87,5→93,8 TIENT** (le témoin prédit) et **vista_tower
+  65,6→78,1 TIENT** ; les 9 autres butent sur des rouges NON tonals
+  (68,8–82,1, chroma/part de vide — hors du champ promis, dit au rapport).
+  `depense_totale_usd` 7,467 INCHANGÉE, manifeste 4/108, `prix_usd: 0.0` +
+  `mise_au_ton` + `source_rebut` sur les deux lignes, le rebut intact.
 
 ### T2 — MESHY_MOCK au .env (D4)
 
-- [ ] **T2-A** : lire le `.env` du DATA_ROOT (grep `MESHY_MOCK` seulement — on
-  ne lit pas les clés), ajouter/mettre à jour la ligne `MESHY_MOCK=1` avec
-  un commentaire daté (`# 25/08/2026 : simulateur par defaut — mettre 0 pour
-  le Meshy reel (credits)`). Encodage UTF-8 sans BOM préservé.
-- [ ] **T2-B** : relancer le backend de l'app (tuer l'orphelin :8765 APRÈS
-  T2-A, relancer par le lanceur de l'app), vérifier `GET /api/health` :
-  `version: "2.5.0"` ET `meshy_mock: true` — la 2.5.0 servie et le mock
-  survivant prouvés d'un coup.
-- [ ] **T2-C** : noter la décision au CHANGELOG (une ligne, phase 6).
+- [x] **T2-A** : `MESHY_MOCK=1` écrit au .env du DATA_ROOT avec commentaire
+  daté, UTF-8 sans BOM, sans lire les clés.
+- [x] **T2-B** : orphelin 2.4.0 (PID 47764, parent disparu) arrêté par
+  `stop.ps1`, relance à l'identique (`runtime\python -m uvicorn`, cwd
+  backend) : health rend `version: "2.5.0"` ET `meshy_mock: true` — la
+  2.5.0 servie et le mock survivant prouvés d'un coup (le processus neuf n'a
+  AUCUNE variable du lanceur).
+- [ ] **T2-C** : noter la décision au CHANGELOG (une ligne, à la clôture de
+  phase avec la section v2.6).
 
 ### T3 — Les plans du décor : gemme/bandeau, empilement, placeMenu (D5)
 
@@ -205,25 +207,43 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
 empilement, placeMenu), `frontend/cardforge/js/mod-frame.js` (plan
 d'occupation — régime manuel), `frontend/cardforge/qa/` (banc).
 
-- [ ] **T3-A (RED)** : au banc qa (patron `test_core_contract.mjs`), épingler
-  le défaut : plan avec gemme MANUELLE + calque texte au-dessus dans l'ordre
-  → l'ordre de peinture rendu place ENCORE la gemme au-dessus. Le test
-  échoue sur l'attendu inverse. + un cas bandeau. Lancer : ROUGE.
-- [ ] **T3-B (GREEN)** : l'ornement en régime manuel rejoint la pile
-  réordonnable (position initiale : juste au-dessus du calque le plus haut au
-  moment du passage en manuel — le geste ne change rien à l'œil, puis les
-  boutons devant/derrière agissent). Strate 70 conservée en automatique.
-  Écran et export par le même chemin (vérifier le painter unique). Vert.
-- [ ] **T3-C (RED→GREEN)** : la preuve d'empilement — reproduire la
-  non-détermination du 1er tour post-édition (le banc la décrit au plan de
-  phase 5 §transmis), corriger la course, et le message nomme les couches
-  RÉELLEMENT en recouvrement (pas « les mauvaises »).
-- [ ] **T3-D (RED→GREEN)** : `placeMenu` sous 618 px : le menu se borne au
-  viewport (clamp + repli), cas au banc si le banc porte le DOM, sinon
-  preuve au navigateur (fenêtre 590 px, capture).
-- [ ] **T3-E** : commit + déploiement + preuve dans l'app déployée (la carte
-  témoin `deck_14154201` : gemme déplacée sur le titre, passer le titre
-  devant → il SE VOIT), capture d'écran au bilan.
+- [x] **T3-A (RED)** : RECALÉ EN EXÉCUTION MESURÉE (mieux que le plan) : les
+  strates sont VERROUILLÉES par le CORE (`Z_TABLE`, un painter ne peint que
+  son z — un ornement ne PEUT PAS rejoindre la pile de P3). Le remède
+  conforme : le PLAN d'ornement (`gem_plan`/`banner_plan`, « dessus » 70 /
+  « dessous » 40). RED en 5 tests backend (section 25 de
+  test_cards_frame.py) : défaut/valeurs inconnues au bit près, dessous→40,
+  MIROIR python↔JS au banc de rangées, répartition `ornementsAuPlan`
+  exécutée au banc node, pin DEFAULTS 40→42.
+- [x] **T3-B (GREEN)** : python (`_plan_ornement`, `_place_gem`/`_place_banner`
+  + habillage commun — la liste blanche des modèles suit d'elle-même) ; JS
+  (`planOrnement`, `ornementsAuPlan`, `st()` normalise, occupancy passe,
+  `paintTop(…, couche)` peint 70 ET 40 — le même peintre écran/export, le
+  z=40 l'appelle en queue de `paintFront`) ; UI : select « Plan » dans les
+  rangées gemme et bandeau (Ctrl+Z par `set()`) ; la liste des calques DIT
+  « (sous les blocs) ». **308/308 frame, 166/166 models, coutures type
+  retendues.** Commit `dcca7d3`.
+- [ ] **T3-C (OUVERT, mécanisme localisé)** : la preuve d'empilement vit dans
+  `runAudit` (mod-type.js:6100-6522) — composite re-rendu par
+  `CF.renderCard`, solo par slot depuis `MEAS`, gardes `AUDIT_STAMP/DONE`.
+  Hypothèse à vérifier au banc : au 1er tour post-édition, `MEAS` (mise en
+  page) et le composite peuvent se croiser — le solo se dessine aux
+  positions d'AVANT et le masquage accuse les mauvaises couches. NOTE : la
+  rétrogradation de la gemme (T3-B) supprime la cause n°1 du reproche réel
+  (l'ornement 70 masquait, le message disait « une couche au-dessus »).
+- [x] **T3-D (GREEN)** : `placeMenu` se cale sur SA largeur MESURÉE
+  (getBoundingClientRect après pose), marge droite 8 px, `max-width` au
+  viewport — la cause était le paramètre (420) plus étroit que la boîte
+  réelle, sans borne de largeur : débordement dès `r.left > vw − 420`
+  (~618 px). Prouvé au navigateur : viewport 590 px, menu right 582,
+  **débordement 0 px**, max-width 574 posé.
+- [x] **T3-E (preuves dans l'app déployée, backend relancé 2.5.0)** : sonde
+  pixel sur `CF.renderCard` (le composite du FICHIER) du deck témoin
+  `deck_14154201` — gemme manuelle (50,42 ; 12,85) sous la fenêtre du titre :
+  plan « dessus » = or de gemme au centre ; bascule par le SELECT réel de
+  l'UI → `gem_plan: "dessous"` persisté, **6 644 pixels changent** dans la
+  zone titre∩gemme entre les deux rendus — le titre se peint PAR-DESSUS. Le
+  deck vitrine reste en « dessous » (la demande utilisateur exacte).
 
 ### T4 — Les éléments ajustables + primitives + elements:[] — BLOQUÉ (D6)
 
@@ -233,9 +253,11 @@ RED d'abord, ~8 tests backend (elements) + banc frontend (libération), est.
 
 ### T5 — Le GC des bancs (D7)
 
-- [ ] **T5-A** : inventaire MESURÉ (script jetable au scratchpad) :
-  combien de jeux au nom « Nouveau jeu », leur poids, la part sans contenu
-  adopté, les 96 restants nommés. Rapport chiffré au bilan.
+- [x] **T5-A** : inventaire MESURÉ le 25/08 : **2 206 jeux, dont 2 110
+  « Nouveau jeu » = 6,1 Go** ; les 96 autres sont tous NOMMÉS (vitrine
+  27,7 Mo, campagne, démos 24-88 Mo, preuves de phases). Le critère « nom
+  exact » est discriminant à lui seul sur ce magasin — T5-B ajoutera la
+  ceinture « rien d'adopté ».
 - [ ] **T5-B (RED)** : `backend/tests/test_gc_decks.py` — le critère STRICT
   (nom exact + rien d'adopté), le dry-run n'écrit rien, `--deplacer` déplace
   et écrit `_POURQUOI.txt`, un deck nommé autrement ou avec un import N'EST
