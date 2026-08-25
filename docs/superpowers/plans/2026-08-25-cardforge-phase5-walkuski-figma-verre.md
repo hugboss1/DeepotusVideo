@@ -556,7 +556,90 @@ gemme déplacée + bordures custom + artefact 3D verre dépoli), suite complète
 quiescente, lint, banc de contrat, déploiement final, vérification navigateur,
 mémoire, poussée.
 
-- [ ] LIVRÉ
+- [ ] LIVRÉ — commits `52c522a` (les deux dettes de code) + `8624442` (le banc
+  de contrat). **LES DETTES ROUTÉES.** (1) « par session » → ENVELOPPE
+  TOTALE aux DEUX textes servis (le devis de la route, le compteur de P1),
+  contrôlés À L'ÉGALITÉ — une sous-chaîne resterait verte sur une phrase qui
+  garde les deux formules — et le balayage de la pièce porte sur les CHAÎNES
+  seules : le commentaire qui documente la dette CITE forcément la formule
+  fautive (le grep de prose, 4e rencontre). (2) LES SIX 404 DE P9 : ils
+  étaient déjà attrapés côté JavaScript ; le bruit vivait côté NAVIGATEUR,
+  au niveau réseau, hors de portée de tout `try`. Nouvelle route
+  `GET /forge3d/layers/<carte>` — les trois côtés en UNE réponse qui existe
+  toujours, `null` par côté absent. MESURÉ SUR L'APP SERVIE, avant/après, en
+  posant l'ancien JS puis en le reprenant : **6 requêtes toutes en 404 → 2
+  requêtes toutes deux en 200**, même page, même jeu. L'inventaire mis en
+  cache dans `/info` aurait été la solution la moins chère et la plus fausse
+  (P10 écrit le manifeste de capture depuis une AUTRE pièce) ; la lecture est
+  fraîche à chaque appel, et le repli sur les trois sondes reste — TOUS les
+  cas déjà écrits du banc node passent par lui, il n'est pas mort.
+  (3) LA PURGE DES CANDIDATS PERDANTS : 357 `gen_*` au magasin, sondés
+  contre TOUS les consommateurs (toutes les colonnes texte de la base, tout
+  fichier texte sous DATA_ROOT — les 2 206 documents de jeu compris —, et le
+  dépôt) ; les journaux ne comptent PAS comme consommateurs (une trace n'est
+  pas une référence). **293 fichiers non consommés et datés du jour de la
+  campagne = 261,6 Mo**, exactement le chiffre transmis par T5, retrouvé par
+  une voie indépendante. Magasin 411 → 118 fichiers, 359,7 → 98,1 Mo. GARDÉS
+  et DITS : la case servie `gen_6c573ebd.png` (référencée deux fois : le
+  manifeste ET `deck_631a955e/meta.json`), 19 autres consommés (posts
+  programmés, jobs, graphes Studio, deux matières), et **44 orphelins
+  ANTÉRIEURS à la campagne (8,5 Mo) laissés en place** — ils ne sont pas de
+  cette campagne, et « en cas de doute on garde ». Les 293 sont DÉPLACÉS
+  (`DATA_ROOT/rebut_serie_walkuski_2026-08-25/`, avec son `_POURQUOI.txt`),
+  pas détruits : le magasin est propre et l'écran ne les voit plus, le geste
+  irréversible reste à l'utilisateur. Manifeste INTACT — 1 case servie, 11
+  refus avec leurs scores, 5,892 $ / 6,00 $. (4) LE TÉMOIN `refreshSel`
+  SOLDÉ À L'ŒIL : la vignette de la case servie porte bien `data-ai` ET
+  `data-cat` ; cliquée, elle s'allume, et elle est **la seule** allumée —
+  l'ordre inverse n'aurait rien allumé du tout.
+  **LE DECK TÉMOIN « Vitrine Deepotus » (`deck_14154201`)**, monté au
+  navigateur : série active (l'écran lit « enveloppe totale », la case
+  `stained_tower` adoptée en `img:gen_6c573ebd.png`, les autres vignettes
+  marquées « vectoriel ») ; P3 = flèche à DEUX bouts armés (tête 3 mm),
+  ellipse à boîte carrée (le halo), rect à contour `plate_stroke` #e0b64a de
+  0,4 mm tapé au clavier ; multi-sélection de 3 par Maj+clics RÉELS sur la
+  carte, ALIGNER (centre vertical) → rect 20→27, flèche 44→32, **l'ellipse
+  VERROUILLÉE tient à 30 et la phrase sort** (« 1 bloc(s) verrouillé(s) n'ont
+  pas été alignés »), DISTRIBUER → espaces 4,000 / 4,000 mm, extrêmes fixes ;
+  **un guide qui aimante pendant un vrai glisser** — le bord droit du rect
+  tombe sur 48,590 mm = le bord droit du slot `artist` au micron, là où le
+  glisser nu aurait donné 48,407 et la grille 0,25 mm 48,5. P2 = famille
+  Filigrane/Légendaire, gemme GLISSÉE à la main (50,42 × 12,85 mm, r 5,64) avec
+  son aveu, **Ctrl+Z rend l'automatique** (`null/null/null`, « logement de
+  atk ») et Ctrl+Y la repose, ornement de coin ×1,3, liseré de fenêtre 0,5 mm,
+  Sceau allumé en portée **écran + 3D**. P9 = artefact construit (12
+  éléments, GLB **8 380 276 octets**) : `extensionsUsed` porte
+  **transmission + ior + specular** (+ clearcoat/iridescence du Sceau),
+  `extensionsRequired` **ABSENT** ; le matériau `illustration` en
+  verre-dépoli pèse `transmission=1.0 ior=1.5 specular=0.5` avec sa carte
+  d'occlusion (`illustration-ao`, la case cochée) ; et **l'ondulation se lit
+  exactement où la clause le dit** — `cadre`, `cadre_verso` et
+  `extrude_sceau`, qui n'ont AUCUN nœud matière, portent tous
+  `cadre-ondulation` en carte normale, tandis qu'`illustration`, qui en a un,
+  porte `illustration-normal` : l'aveu R1 de T4 vérifié aux octets servis.
+  Le bordereau dit l'habillage automatique de l'extrusion (« l'extrusion de
+  contour « sceau » EST le corps du Sceau du document — son métal et sa
+  largeur viennent de lui ») et le refus nommé du STL. **Viewer 3D chargé**
+  (`loaded=true`, dimensions 0,063 × 0,088 × 0,0018 m = la carte au
+  millimètre), le Sceau arc-en-ciel visible sur la tranche.
+  **Console : 0 erreur sur un chargement propre** — 60 requêtes, toutes en
+  200 ou 304, les deux `layers/c01` comprises.
+  **DETTE TRANSMISE, NON LIVRÉE — `models.py:1260 elements: []`.** La moitié
+  restante n'est pas une implémentation, c'est QUATRE arbitrages produit que
+  le plan ne tranche pas : (a) contre quelle grille « standard » se mesure un
+  slot « non standard » — le seul repère connu du backend est le modèle
+  d'origine (`preset = "modele:<id>"`), et un jeu né d'un gabarit local ou
+  monté à la main n'en a AUCUN (la dette resterait à moitié ouverte) ;
+  (b) les extras restent-ils AUSSI dans `type.slots` (sans quoi appliquer le
+  modèle perd ce qu'il devait porter) ; (c) toute forme devient-elle un
+  élément, ou seulement celles hors grille ; (d) un élément par slot extra,
+  ou un élément qui GROUPE les slots parents (le patron d'usine groupe —
+  « 7e statistique » — et rien dans le code ne dit comment deviner le
+  groupe). Estimation à 3–4 h avec RED d'abord, ~8 tests et la ronde de
+  mutation, une fois les quatre arbitrages posés — au-delà du plafond de 2 h,
+  donc pas de demi-livraison. **Vu en chemin et déjà mesuré** : `naitre` →
+  `normSlots` renomme les identifiants en collision, donc la re-pose d'un
+  élément ne demande AUCUN changement d'écran ; le travail est backend seul.
 - [ ] Ronde adverse + corrections
 - [ ] CLOSE DE PHASE
 
