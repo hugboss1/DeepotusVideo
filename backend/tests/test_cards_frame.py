@@ -2897,7 +2897,10 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
     # `win_stroke_color` / `win_stroke_mm` (le liseré propre de la fenêtre).
     # 42 depuis la phase 6-T3 (D5, « le plan des ornements ») : `gem_plan` et
     # `banner_plan` (« dessus » = décor haut, « dessous » = sous les blocs).
-    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 44 depuis la phase 6-T4 : `banner_x` / `banner_y` — le bandeau posé à
+    # la main, au patron de la gemme (null = calcul). 45 : `decor_pose`, la
+    # pose du décor PUBLIÉE (patron art_window — jamais saisie à la main).
+    assert len(cles) == 45, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -3503,8 +3506,10 @@ def test_le_banc_applique_la_garde_de_visibilite_de_la_plaque(tmp_path):
 
 def test_les_sept_archetypes_ont_un_habillage_complet_et_legal():
     """L'objet de la tâche : pour CHAQUE archétype §6.2, un réglage doc.frame
-    COMPLET — toutes les clés réelles sauf `art_window`, que le peintre publie
-    lui-même et que personne ne saisit à la main.
+    COMPLET — toutes les clés réelles sauf `art_window` et, depuis la phase
+    6-T4, `decor_pose` : les deux sont PUBLIÉES par le peintre lui-même et
+    personne ne les saisit à la main (un archétype qui en figerait une
+    mentirait au premier repaint).
 
     C'est cette table que la tâche 3 (models.py) IMPORTE : un modèle qui
     retaperait les réglages serait une seconde source de vérité, et la
@@ -3512,7 +3517,7 @@ def test_les_sept_archetypes_ont_un_habillage_complet_et_legal():
     pas à son archétype."""
     A = FR.ARCHETYPE_FRAMES
     assert tuple(A) == ARCHETYPES, list(A)
-    cles = set(_js_defaults_keys(_js())) - {"art_window"}
+    cles = set(_js_defaults_keys(_js())) - {"art_window", "decor_pose"}
     fams = {f["id"] for f in FR.FAMILIES}
     rars = {r["id"] for r in FR.RARITIES}
     backs = {b["id"] for b in FR.BACKS}
@@ -4187,8 +4192,10 @@ def test_le_compte_de_cles_du_document_suit_le_sceau():
     nombre."""
     cles = _js_defaults_keys(_js())
     assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
-    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
-    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan` ; 44 depuis
+    # la 6-T4 : `banner_x` / `banner_y` (le bandeau posé à la main) ; 45 :
+    # `decor_pose` publiée (patron art_window).
+    assert len(cles) == 45, f"{len(cles)} clés dans DEFAULTS : {cles}"
     py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
     assert "39 clés que l'on écrit" in py, \
         "le commentaire de l'habillage ne suit pas les clés neuves (39 " \
@@ -4969,8 +4976,10 @@ def test_le_schema_du_verso_custom_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "back_image" in cles and "back_layers" in cles, cles
-    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
-    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan` ; 44 depuis
+    # la 6-T4 : `banner_x` / `banner_y` (le bandeau posé à la main) ; 45 :
+    # `decor_pose` publiée (patron art_window).
+    assert len(cles) == 45, f"{len(cles)} clés dans DEFAULTS : {cles}"
     # les bornes, des deux côtés et au chiffre de la spec
     for k, attendu in (("back_opacity", BACK_OPACITY_SPEC),
                        ("back_scale", BACK_SCALE_SPEC)):
@@ -6356,8 +6365,10 @@ def test_le_decor_est_la_32e_cle_et_son_schema_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "decor" in cles, f"la clé decor manque à DEFAULTS : {cles}"
-    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
-    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan` ; 44 depuis
+    # la 6-T4 : `banner_x` / `banner_y` (le bandeau posé à la main) ; 45 :
+    # `decor_pose` publiée (patron art_window).
+    assert len(cles) == 45, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert f"porte toujours les {len(cles)} cles" in src, \
         "le commentaire de st() ne dit pas le compte réel"
     # les défauts, littéralement les mêmes
@@ -10599,3 +10610,94 @@ def test_la_repartition_du_decor_par_plan_s_execute_au_banc(tmp_path):
     assert par["dessus"]["z40"] == []
     assert sorted(par["dessous"]["z40"]) == ["banner", "gem"]
     assert par["dessous"]["z70"] == []
+
+
+# =============================================================================
+# 26. LE BANDEAU POSE A LA MAIN - phase 6, T4-B (la liberation continue)
+#
+# La demande utilisateur du 25/08 : « ajuster manuellement TOUS les elements
+# tel que le bandeau de rarete ». La gemme a recu sa liberation en phase 5
+# (D3) ; le bandeau recoit la meme, au meme patron : `banner_x` / `banner_y`
+# (coin haut-gauche, mm), `null` = calcul, chaque cle INDEPENDANTE, bornes
+# des DEUX cotes, et le plan d occupation DIT le regime (`manual`, lane
+# « posee a la main »). La largeur reste au LABEL et la hauteur au metier :
+# la main choisit OU, pas COMBIEN - un bandeau etire a la main mentirait sur
+# son texte.
+# =============================================================================
+
+BAN_FRAME = dict(FRAME, fit=True, banner=True)
+
+
+def test_le_bandeau_pose_a_la_main_gagne_sur_la_voie_libre():
+    """Les deux cles posees : la boite part du point dit, la voie libre ne
+    joue plus, le plan porte `manual: True` et la lane le NOMME. La largeur
+    ne bouge pas (c est celle du label) ; la hauteur redevient celle du
+    metier."""
+    g = CT.geom("poker_eu", 300)
+    auto = _ban(FR.occupancy(g, dict(BAN_FRAME), SLOTS))
+    assert auto["manual"] is False
+    o = FR.occupancy(g, dict(BAN_FRAME, banner_x=4.0, banner_y=61.5), SLOTS)
+    ban = _ban(o)
+    assert ban["manual"] is True
+    assert ban["lane"] == "posée à la main"
+    assert ban["box"][0] == pytest.approx(4.0)
+    assert ban["box"][1] == pytest.approx(61.5)
+    assert ban["box"][2] == pytest.approx(auto["box"][2])
+    assert ban["box"][3] == pytest.approx(FR.BANNER_H_MM)
+
+
+def test_une_seule_cle_de_bandeau_laisse_l_autre_au_calcul():
+    """`banner_y` seul : l ordonnee est a la main, l abscisse reste celle du
+    calcul (le centrage) - chaque cle est INDEPENDANTE, comme gem_x avant
+    elle."""
+    g = CT.geom("poker_eu", 300)
+    auto = _ban(FR.occupancy(g, dict(BAN_FRAME), SLOTS))
+    demi = _ban(FR.occupancy(g, dict(BAN_FRAME, banner_y=61.5), SLOTS))
+    assert demi["manual"] is True
+    assert demi["box"][1] == pytest.approx(61.5)
+    assert demi["box"][0] == pytest.approx(auto["box"][0])
+
+
+def test_le_bandeau_manuel_est_BORNE_au_format():
+    """Une main qui ecrit 999 ne sort pas de la carte : l abscisse se borne a
+    `tw - largeur`, l ordonnee a `th - hauteur`, et le negatif revient a
+    zero."""
+    g = CT.geom("poker_eu", 300)
+    tw, th = float(g.trim_mm[0]), float(g.trim_mm[1])
+    ban = _ban(FR.occupancy(g, dict(BAN_FRAME, banner_x=999.0,
+                                    banner_y=-5.0), SLOTS))
+    assert ban["box"][0] == pytest.approx(tw - ban["box"][2])
+    assert ban["box"][1] == pytest.approx(0.0)
+    assert ban["box"][0] + ban["box"][2] <= tw + 1e-6
+    assert ban["box"][1] + ban["box"][3] <= th + 1e-6
+
+
+def test_des_cles_de_bandeau_fausses_valent_l_absence():
+    """"", [], True, "0x10" : AUCUNE ne bouge un millimetre - le plan est
+    au bit pres celui d un document qui ne porte pas les cles (le patron de
+    gem_x, rejoue)."""
+    g = CT.geom("poker_eu", 300)
+    ref = FR.occupancy(g, dict(BAN_FRAME), SLOTS)
+    for faux in ({"banner_x": "", "banner_y": []},
+                 {"banner_x": True, "banner_y": False},
+                 {"banner_x": "0x10", "banner_y": "1_0"},
+                 {"banner_x": None, "banner_y": None}):
+        o = FR.occupancy(g, dict(BAN_FRAME, **faux), SLOTS)
+        assert o["boxes"] == ref["boxes"], faux
+
+
+def test_le_bandeau_manuel_est_MIROIR_python_js(tmp_path):
+    """Le banc de rangees, encore : les memes cles manuelles rendent la meme
+    boite et le meme regime des deux cotes."""
+    g = CT.geom("poker_eu", 300)
+    cas = [{"nom": "ban_main", "trim_mm": list(g.trim_mm),
+            "frame": dict(BAN_FRAME, banner_x=4.0, banner_y=61.5),
+            "slots": SLOTS}]
+    rendu = _banc_occ(tmp_path, cas)
+    assert rendu[0]["ok"], rendu
+    js = [b for b in rendu[0]["occ"]["boxes"] if b["id"] == "banner"][0]
+    py = _ban(FR.occupancy(g, dict(BAN_FRAME, banner_x=4.0,
+                                   banner_y=61.5), SLOTS))
+    assert js["manual"] is True
+    assert js["box"] == pytest.approx(py["box"])
+    assert js["lane"] == py["lane"]

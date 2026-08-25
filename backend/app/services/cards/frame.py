@@ -874,6 +874,10 @@ _HABILLAGE_COMMUN = {
     # gardent le défaut de toujours — et c'est par ces clés que la liste
     # blanche des modèles les admet (models.py, `_FRAME_CLES` dérivée).
     "gem_plan": "dessus", "banner_plan": "dessus",
+    # LE BANDEAU POSÉ À LA MAIN (phase 6, T4-B), au patron de la gemme :
+    # `None` = le calcul décide, un archétype pose des RÉGLAGES, jamais des
+    # positions figées.
+    "banner_x": None, "banner_y": None,
     # LES ORNEMENTS DE COIN à leur place et à leur taille de dessin : les huit
     # familles ont été mesurées ainsi (silhouettes 8x8), et un archétype qui
     # les décalerait rendrait cette mesure fausse pour lui seul.
@@ -1256,9 +1260,21 @@ def _free_lanes(occupied: list[tuple[float, float]], lo: float,
     return lanes
 
 
+def _ban_manuel(man) -> dict:
+    """Les deux clés de placement du bandeau, normalisées — le patron de
+    `_gem_manuel`, rejoué (phase 6, T4-B). Coin HAUT-GAUCHE en mm ; chaque
+    clé est INDÉPENDANTE : ne poser que l'ordonnée garde l'abscisse
+    calculée (le centrage). La largeur reste au LABEL et la hauteur au
+    métier : la main choisit OÙ, pas COMBIEN."""
+    m = man if isinstance(man, dict) else {}
+    x = _ou_nul(m.get("x"), LIMITS["gem_xy_mm"])
+    y = _ou_nul(m.get("y"), LIMITS["gem_xy_mm"])
+    return {"x": x, "y": y, "on": x is not None or y is not None}
+
+
 def _place_banner(tw: float, th: float, inner: float, edge: float,
                   label: str, mentions: list[dict], wbox: list,
-                  fit: bool, plan: str = "dessus") -> dict:
+                  fit: bool, plan: str = "dessus", man=None) -> dict:
     """Le bandeau garde sa largeur et son centrage ; il choisit son ORDONNÉE,
     et il MAIGRIT si la seule voie libre est plus étroite que lui — c'est le
     « la bande se scinde autour de lui » du cahier des charges, appliqué au
@@ -1274,6 +1290,19 @@ def _place_banner(tw: float, th: float, inner: float, edge: float,
     h = BANNER_H_MM
     x = tw / 2.0 - w / 2.0
     y0 = th - inner - h * 0.62
+    # ── LE BANDEAU POSÉ À LA MAIN (phase 6, T4-B) — la main GAGNE sur la
+    # voie libre, et la boîte se BORNE au format : une abscisse de 999 ne
+    # sort pas de la carte, elle s'arrête à `tw - largeur`.
+    mn = _ban_manuel(man)
+    if mn["on"]:
+        if mn["x"] is not None:
+            x = min(max(0.0, mn["x"]), max(0.0, tw - w))
+        y = y0 if mn["y"] is None else min(max(0.0, mn["y"]),
+                                           max(0.0, th - h))
+        return {"id": "banner", "label": "bandeau de rareté",
+                "z": 40 if plan == "dessous" else 70, "plan": plan,
+                "movable": True, "lane": "posée à la main", "manual": True,
+                "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
     lo, hi = edge, th - edge
     y, lane = y0, "naturelle"
     if fit:
@@ -1304,7 +1333,7 @@ def _place_banner(tw: float, th: float, inner: float, edge: float,
             lane = "aucune voie libre"
     return {"id": "banner", "label": "bandeau de rareté",
             "z": 40 if plan == "dessous" else 70, "plan": plan,
-            "movable": True, "lane": lane,
+            "movable": True, "lane": lane, "manual": False,
             "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
 
 
@@ -1480,7 +1509,9 @@ def occupancy(g, f: dict, slots) -> dict:
         if lab:
             boxes.append(_place_banner(tw, th, inner, edge, lab, mentions,
                                        wbox, fit,
-                                       _plan_ornement(f.get("banner_plan"))))
+                                       _plan_ornement(f.get("banner_plan")),
+                                       {"x": f.get("banner_x"),
+                                        "y": f.get("banner_y")}))
 
     # Socles et logements : le cadre FOURNIT le fond dont la mention a besoin.
     # Une mention posée sur l'illustration reçoit une plaque ; une mention qui

@@ -1055,6 +1055,10 @@ def _normaliser_perso(raw: dict, fichier: Path) -> dict:
         "finish": fin if fin in FINISHES else DEFAULT_FINISH,
         "texture": _texture_sans_import(raw.get("texture")),
         "elements": _elements_normalises(els),
+        # La grille de référence et son éventuelle divination SURVIVENT au
+        # disque (phase 6, T4) : une clé qui ne survit pas n'existe pas.
+        "grille": _texte(raw.get("grille"), "", 60),
+        "grille_devinee": bool(raw.get("grille_devinee")),
         "fonts_note": notes if isinstance(notes, list) else [],
         "custom": True,
         "fichier": fichier.name,
@@ -1218,6 +1222,84 @@ def _reserver(base: str):
     return p, p.open("x", encoding="utf-8")
 
 
+def _souche(ident) -> str:
+    """L'id sans son suffixe NUMÉRIQUE — le parent que le produit écrit
+    lui-même : `dupSlot` suffixe en chiffres (`s.id + n`) et `norm_slots`
+    renomme les collisions pareil. Un id tout en chiffres reste lui-même :
+    personne ne le regroupe avec rien (arbitrage (d), 26/08)."""
+    s = str(ident or "")
+    return re.sub(r"[0-9]+\Z", "", s) or s
+
+
+def _grille_de_reference(typ: dict, slots: list) -> tuple:
+    """(ids de la grille, nom, devinée ?) — l'arbitrage (a), tranché le
+    26/08 : « deviner une grille ».
+
+    `modele:<id>` → les slots de CE modèle (usine, puis perso sur disque) ;
+    un gabarit du catalogue → ses slots ; sinon la grille se DEVINE : le
+    gabarit dont les identifiants recouvrent le mieux ceux du jeu (départage
+    par l'ordre du catalogue), et la divination SE DIT — une carte devinée
+    qui ne le dit pas est une carte fausse."""
+    preset = str((typ or {}).get("preset") or "").strip()
+    if preset.startswith("modele:"):
+        mid = preset.split(":", 1)[1]
+        if mid in MODELS:
+            usine = (MODELS[mid].get("type") or {}).get("slots") or []
+            return {s.get("id") for s in usine}, preset, False
+        if _id_utilisable(mid):
+            try:
+                raw = json.loads((models_root() / (mid + ".json"))
+                                 .read_text(encoding="utf-8"))
+                t = raw.get("type") if isinstance(raw.get("type"), dict) else {}
+                ids = {s.get("id") for s in (t.get("slots") or [])
+                       if isinstance(s, dict)}
+                if ids:
+                    return ids, preset, False
+            except (OSError, ValueError):
+                pass                    # le modèle d'origine a disparu : on devine
+    if preset in type_mod.PRESETS:
+        return ({s["id"] for s in type_mod.PRESETS[preset]["slots"]},
+                preset, False)
+    miens = {s.get("id") for s in slots or [] if isinstance(s, dict)}
+    meilleur, score = None, -1
+    for pid, p in type_mod.PRESETS.items():
+        ids = {s["id"] for s in p["slots"]}
+        n = len(ids & miens)
+        if n > score:                   # strict : le PREMIER du catalogue gagne
+            meilleur, score = pid, n
+    ids = {s["id"] for s in type_mod.PRESETS[meilleur]["slots"]}
+    return ids, meilleur, True
+
+
+def _elements_du_deck(slots: list, grille: set, nom_grille: str,
+                      devinee: bool) -> list:
+    """La palette DÉRIVÉE du deck (arbitrages (b)(c)(d)) : seuls les slots
+    HORS grille deviennent des éléments, ils RESTENT dans `type.slots`
+    (l'élément pointe, il ne déplace pas — la re-pose passe par le renommage
+    de `norm_slots`), et ceux qui partagent une souche font UN élément."""
+    groupes: dict = {}
+    for s in slots or []:
+        sid = s.get("id")
+        if sid in grille:
+            continue
+        groupes.setdefault(_souche(sid) or str(sid), []).append(s)
+    out = []
+    for souche, membres in groupes.items():
+        label = re.sub(r"[\s0-9]+\Z", "", str(membres[0].get("label") or ""))
+        n = len(membres)
+        out.append({
+            "id": _texte(souche, membres[0].get("id") or "element", 40),
+            "label": _texte(label, souche or "Élément", 40),
+            "hint": _texte(
+                "Hors de la grille « " + str(nom_grille) + " »"
+                + (" (devinée)" if devinee else "") + " : "
+                + str(n) + (" blocs repris" if n > 1 else " bloc repris")
+                + " du jeu d'origine.", "", 240),
+            "slots": copy.deepcopy(membres),
+        })
+    return out
+
+
 def modele_depuis_deck(doc: dict, nom=None) -> dict:
     """Le modèle que porte un deck : format, cadre, typo, matière, finition.
 
@@ -1232,6 +1314,7 @@ def modele_depuis_deck(doc: dict, nom=None) -> dict:
     gltf = doc.get("gltf") if isinstance(doc.get("gltf"), dict) else {}
     fin = str(gltf.get("finish") or "").strip().lower()
     slots = type_mod.norm_slots(typ.get("slots"))
+    grille_ids, grille_nom, grille_devinee = _grille_de_reference(typ, slots)
     m = {
         "id": "",
         "label": _texte(nom, doc.get("name") or "Mon modèle"),
@@ -1256,9 +1339,14 @@ def modele_depuis_deck(doc: dict, nom=None) -> dict:
                  "slots": slots},
         "finish": fin if fin in FINISHES else DEFAULT_FINISH,
         "texture": _texture_sans_import(doc.get("texture")),
-        # Un modèle perso n'a pas de palette d'éléments : il n'en a jamais
-        # déclaré. La liste est VIDE plutôt qu'absente (le contrat §6.1 tient).
-        "elements": [],
+        # LA PALETTE DÉRIVÉE (phase 6, T4 — la dette de la phase 5 soldée) :
+        # les slots HORS de la grille de référence deviennent des éléments
+        # ajoutables, groupés par souche d'identifiant. La grille et son
+        # éventuelle divination s'écrivent juste en dessous.
+        "elements": _elements_du_deck(slots, grille_ids, grille_nom,
+                                      grille_devinee),
+        "grille": grille_nom,
+        "grille_devinee": grille_devinee,
         # Les polices employées, DÉCLARÉES elles aussi — l'invariant « aucune
         # police sans note » vaut pour les modèles perso comme pour les
         # autres, même si aucune n'est ici un repli.

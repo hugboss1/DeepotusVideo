@@ -1711,3 +1711,155 @@ def test_un_deck_instancie_sur_un_decor_purge_NAIT_SANS_IMAGE():
         assert f["decor"]["alpha"] == 0.6, f["decor"]
     finally:
         p.unlink()
+
+
+# =============================================================================
+# 21. LA PALETTE D ELEMENTS DES MODELES PERSO - phase 6, T4 (dette phase 5)
+#
+# `models.py` ecrivait `elements: []` : un modele perso n a jamais declare de
+# palette. Les QUATRE arbitrages ont ete TRANCHES par l utilisateur (26/08) :
+#   (a) sans origine connue, la grille de reference se DEVINE (le gabarit au
+#       meilleur recouvrement d identifiants) et la divination SE DIT ;
+#   (b) les extras restent AUSSI dans type.slots (l element POINTE, il ne
+#       deplace pas) ;
+#   (c) seuls les slots HORS GRILLE deviennent des elements (les formes en
+#       font toujours partie : aucun gabarit n en porte) ;
+#   (d) les extras qui partagent une meme SOUCHE d identifiant (l id sans son
+#       suffixe numerique - la convention que dupSlot et norm_slots ecrivent
+#       EUX-MEMES) font UN element ; un element par orphelin sinon.
+# =============================================================================
+
+
+def _doc_type(preset, slots):
+    return {"format": {"fmt": "poker_eu"}, "name": "banc elements",
+            "type": {"preset": preset, "slots": slots}}
+
+
+def _ids_grille_champion():
+    g = CT.geom("poker_eu", 300)
+    return [s["id"] for s in TY.preset_slots("champion", g)]
+
+
+def _slot_min(sid, label=None, kind=None):
+    s = {"id": sid, "label": label or sid, "box": [5.0, 5.0, 12.0, 6.0]}
+    if kind:
+        s["kind"] = kind
+    return s
+
+
+def test_la_souche_est_le_parent_que_le_produit_ecrit():
+    """`_souche` retire le suffixe NUMERIQUE - la convention de dupSlot
+    (`s.id + n`) et de norm_slots (renommage des collisions). Un id tout en
+    chiffres reste lui-meme : personne ne le regroupe avec rien."""
+    assert MO._souche("rect12") == "rect"
+    assert MO._souche("val6") == "val"
+    assert MO._souche("stat") == "stat"
+    assert MO._souche("7") == "7"
+    assert MO._souche("") == ""
+
+
+def test_la_grille_d_un_deck_ne_d_un_modele_est_celle_du_modele():
+    """(a) chemin connu : `preset = "modele:superstar"` -> la grille est
+    CELLE du modele d usine, rien n est devine. (b) : l extra reste AUSSI
+    dans type.slots."""
+    base = [{"id": s["id"], "label": s["label"], "box": list(s["box"])}
+            for s in MO.MODELS["superstar"]["type"]["slots"]]
+    doc = _doc_type("modele:superstar", base + [_slot_min("badge1")])
+    m = MO.modele_depuis_deck(doc, "banc-grille-modele")
+    assert m["grille"] == "modele:superstar"
+    assert m["grille_devinee"] is False
+    assert [e["slots"][0]["id"] for e in m["elements"]] == ["badge1"]
+    assert "badge1" in [s["id"] for s in m["type"]["slots"]]
+
+
+def test_la_grille_d_un_gabarit_connu_est_le_gabarit():
+    """(a) chemin connu : un preset du catalogue des gabarits est SA propre
+    grille. (d) : deux extras de meme souche font UN element a deux slots."""
+    slots = [_slot_min(i) for i in _ids_grille_champion()]
+    slots += [_slot_min("rect1", "Cadre 1", kind="rect"),
+              _slot_min("rect2", "Cadre 2", kind="rect")]
+    m = MO.modele_depuis_deck(_doc_type("champion", slots), "banc-gabarit")
+    assert m["grille"] == "champion" and m["grille_devinee"] is False
+    assert len(m["elements"]) == 1
+    e = m["elements"][0]
+    assert e["id"] == "rect"
+    assert [s["id"] for s in e["slots"]] == ["rect1", "rect2"]
+    assert all(s["kind"] == "rect" for s in e["slots"])
+
+
+def test_sans_grille_connue_la_grille_se_DEVINE_et_le_dit():
+    """(a) LE CHEMIN TRANCHE : un deck monte main (`preset: "perso"`) mesure
+    ses identifiants contre les gabarits connus ; le meilleur recouvrement
+    gagne, et la divination S ECRIT (`grille_devinee: True` + le hint de
+    l element la dit) - une carte devinee qui ne le dit pas est une carte
+    fausse."""
+    slots = [_slot_min(i) for i in ("title", "rules", "cost", "flavor")]
+    slots.append(_slot_min("medaille1", "Medaille"))
+    m = MO.modele_depuis_deck(_doc_type("perso", slots), "banc-devine")
+    assert m["grille"] == "champion"
+    assert m["grille_devinee"] is True
+    assert len(m["elements"]) == 1
+    assert m["elements"][0]["slots"][0]["id"] == "medaille1"
+    assert "devin" in m["elements"][0]["hint"].lower()
+
+
+def test_les_formes_sont_des_elements_hors_grille():
+    """(c) : les formes ne sont JAMAIS de la grille (aucun gabarit n en
+    porte) - trois formes de souches distinctes font trois elements, et pas
+    un slot de la grille ne devient element."""
+    slots = [_slot_min(i) for i in _ids_grille_champion()]
+    slots += [_slot_min("rect1", kind="rect"),
+              _slot_min("ellipse1", kind="ellipse"),
+              _slot_min("arrow1", kind="arrow")]
+    m = MO.modele_depuis_deck(_doc_type("champion", slots), "banc-formes")
+    assert sorted(e["id"] for e in m["elements"]) == ["arrow", "ellipse",
+                                                      "rect"]
+    grille = set(_ids_grille_champion())
+    for e in m["elements"]:
+        for s in e["slots"]:
+            assert s["id"] not in grille
+
+
+def test_un_modele_sans_extras_garde_une_palette_vide():
+    """Le contrat 6.1 tient : rien hors grille -> `elements: []`, une liste
+    VIDE plutot qu absente."""
+    slots = [_slot_min(i) for i in _ids_grille_champion()]
+    m = MO.modele_depuis_deck(_doc_type("champion", slots), "banc-vide")
+    assert m["elements"] == []
+    assert m["grille"] == "champion"
+
+
+def test_le_groupement_et_l_orphelin_portent_leurs_noms():
+    """(d) : stat7 + stat8 -> UN element « stat » a deux slots, badge1 ->
+    un element orphelin ; le label vient du premier slot, souffle de ses
+    chiffres."""
+    slots = [_slot_min(i) for i in _ids_grille_champion()]
+    slots += [_slot_min("stat7", "Statistique 7"),
+              _slot_min("stat8", "Statistique 8"),
+              _slot_min("badge1", "Badge")]
+    m = MO.modele_depuis_deck(_doc_type("champion", slots), "banc-groupe")
+    par_id = {e["id"]: e for e in m["elements"]}
+    assert set(par_id) == {"stat", "badge"}
+    assert [s["id"] for s in par_id["stat"]["slots"]] == ["stat7", "stat8"]
+    assert par_id["stat"]["label"] == "Statistique"
+    assert [s["id"] for s in par_id["badge"]["slots"]] == ["badge1"]
+
+
+def test_l_aller_retour_disque_garde_grille_et_elements():
+    """L enregistrement puis la relecture par la voie PUBLIQUE (la route du
+    catalogue) conservent la palette derivee ET la grille avec son aveu de
+    divination - une cle qui ne survit pas au disque n existe pas."""
+    slots = [_slot_min(i) for i in ("title", "rules", "cost")]
+    slots.append(_slot_min("sceau1", "Sceau"))
+    m = MO.enregistrer(_doc_type("perso", slots), "banc aller retour")
+    assert m["id"]
+    r = _api("GET", "/api/cards/models")
+    assert r.status_code == 200, r.text
+    ligne = [x for x in r.json()["models"] if x["id"] == m["id"]]
+    assert ligne, "le modele enregistre n est pas au catalogue"
+    lu = ligne[0]
+    assert lu["grille"] == "champion" and lu["grille_devinee"] is True
+    assert [e["id"] for e in lu["elements"]] == ["sceau"]
+    assert [s["id"] for s in lu["elements"][0]["slots"]] == ["sceau1"]
+    r2 = _api("DELETE", f"/api/cards/models/{m['id']}")
+    assert r2.status_code == 200, r2.text

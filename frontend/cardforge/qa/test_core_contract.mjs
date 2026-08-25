@@ -480,8 +480,14 @@ const BATTERIE_MODELE = `(async () => {
   /* LE NOM QUE CE BANC ECRIT — declare UNE fois : c'est par lui qu'il
      reconnait sa propre carte dans la galerie, et donc par lui qu'il decide
      quoi detruire a la fin. Deux copies auraient diverge au premier
-     changement de libelle, et la divergence aurait porte sur un DELETE. */
-  const NOM_MODELE_BANC = "Banc QA modele";
+     changement de libelle, et la divergence aurait porte sur un DELETE.
+     LE JETON (phase 6, T6-A — la trouvaille de la ronde de phase 5) : sans
+     lui, un modele UTILISATEUR nomme par hasard « Banc QA modele » serait
+     reconnu par l'egalite de libelle, et donc DETRUIT en fin de course. Le
+     suffixe aleatoire rend l'egalite impossible a satisfaire par autre
+     chose que la carte que CE passage-ci vient d'ecrire. */
+  const NOM_MODELE_BANC = "Banc QA modele "
+    + Math.random().toString(36).slice(2, 8);
   const gb = document.getElementById("galleryBtn");
   if (!gb) { say("galerie : bouton present avant « enregistrer comme modele »", "OUVERT", "absent"); return { out }; }
   gb.click();

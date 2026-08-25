@@ -6631,12 +6631,15 @@ def test_TOUTES_les_naissances_passent_par_LA_MEME_porte():
     zone = src[deb:fin]
     assert zone.count("pushUndo()") == 1, \
         "plus d'une entrée d'annulation dans la zone des naissances"
-    # une définition, SIX appels (le sixième est `addShapeSlot`, phase 5-T2 :
-    # les quatre formes passent par UNE porte, pas par quatre)
-    assert zone.count("naitre(") == 7, zone.count("naitre(")
+    # une définition, SEPT appels (le sixième est `addShapeSlot`, phase 5-T2 :
+    # les quatre formes passent par UNE porte, pas par quatre ; le septième
+    # est `addDecorShapes`, phase 6-T4 : les formes du décor naissent par la
+    # MÊME porte que tout le monde)
+    assert zone.count("naitre(") == 8, zone.count("naitre(")
     for quoi in ("function addSlot()", "function addImgSlot()",
                  "function addStatSlot()", "function addShapeSlot(",
-                 "function palAdd(", "function adopterZones()"):
+                 "function palAdd(", "function adopterZones()",
+                 "function addDecorShapes()"):
         assert quoi in src, quoi
     # LES QUATRE FORMES NE FONT QU'UNE NAISSANCE. Quatre `addRectSlot`,
     # `addEllipseSlot`… auraient été quatre occasions d'oublier `pushUndo`.

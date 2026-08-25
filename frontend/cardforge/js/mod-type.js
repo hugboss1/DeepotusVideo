@@ -2379,6 +2379,13 @@
          modèle-là. Voir la section 6bis. */
       + '  <button class="btn sm cf-type-pal" type="button" title="Palette d\'éléments : zone de texte, zone de statistique, calque d\'image — et les éléments du modèle dont ce jeu est né">+ Élément</button>'
       + '  <button class="btn sm cf-type-preset" type="button" title="Poser un gabarit complet">Gabarits</button>'
+      /* REMPLACER LE DECOR PAR DES FORMES (phase 6, T4-B — demande du
+         25/08). Le patron « Zones importees » : P2 ne touche jamais
+         doc.type, P3 lit le plan OFFICIEL (POST /frame/occupancy, le
+         miroir que l ecran confronte deja) et pose SES formes a l endroit
+         exact de la gemme et du bandeau. Eteindre l ornement reste le
+         geste de P2 - chaque piece garde son droit. */
+      + '  <button class="btn sm cf-type-decorformes" type="button" title="Poser des formes à l\'emplacement exact de la gemme et du bandeau — puis éteignez-les dans Cadre pour les remplacer par vos formes">Formes du décor</button>'
       /* ADOPTER LES ZONES MESUREES PAR LA PIECE 10 (§7.1.5). Ne se montre
          QUE s'il y a de quoi : la visibilite DERIVE de `doc.capture.boxes`,
          elle n'est pas gardee — un bouton qui s'affiche sans pouvoir agir
@@ -2434,6 +2441,7 @@
     HOST.querySelector(".cf-type-addimg").addEventListener("click", addImgSlot);
     HOST.querySelector(".cf-type-pal").addEventListener("click", openPalette);
     HOST.querySelector(".cf-type-preset").addEventListener("click", openPresets);
+    HOST.querySelector(".cf-type-decorformes").addEventListener("click", addDecorShapes);
     HOST.querySelector(".cf-type-zones").addEventListener("click", adopterZones);
     HOST.querySelector(".cf-type-undo").addEventListener("click", undo);
     HOST.querySelector(".cf-type-redo").addEventListener("click", redo);
@@ -2620,6 +2628,49 @@
       fill: spec.fill, fill_alpha: spec.fill_alpha,
       stroke: spec.stroke, stroke_mm: spec.stroke_mm,
     }], spec.label.toLowerCase());
+  }
+
+  /* ═══ LES FORMES DU DECOR (P2 -> P3, phase 6 T4-B) ════════════════════
+     « Remplacer la gemme / le bandeau par des formes primitives » (demande
+     du 25/08). MEME CLOISONNEMENT que « Zones importees » ET que
+     `art_window` : P2 PUBLIE la pose de son decor (`frame.decor_pose`, une
+     mesure du calcul qui peint — jamais recalculee ici), P3 la lit AVEC
+     TOLERANCE et pose SES formes. Aucun reseau nu : le pin de la section
+     6bis l'interdit a toutes les pieces, et il a raison. Eteindre
+     l'ornement reste le geste de P2 — le toast dit ce qui reste a faire. */
+  function addDecorShapes() {
+    const d = CF.get("frame.decor_pose", null);
+    const fini = (v) => typeof v === "number" && isFinite(v);
+    const gem = (d && d.gem && fini(d.gem.cx) && fini(d.gem.cy)
+      && fini(d.gem.r) && d.gem.r > 0) ? d.gem : null;
+    const bbox = (d && d.banner && Array.isArray(d.banner.box)
+      && d.banner.box.length === 4 && d.banner.box.every(fini))
+      ? d.banner.box : null;
+    const ell = SHAPE_NEE.ellipse || {};
+    const rct = SHAPE_NEE.rect || {};
+    const specs = [];
+    if (gem) {
+      specs.push({ id: "gemmeforme", label: "Gemme (forme)",
+        kind: "ellipse",
+        box: [gem.cx - gem.r, gem.cy - gem.r, 2 * gem.r, 2 * gem.r],
+        fill: ell.fill, fill_alpha: ell.fill_alpha,
+        stroke: ell.stroke, stroke_mm: ell.stroke_mm });
+    }
+    if (bbox) {
+      specs.push({ id: "bandeauforme", label: "Bandeau (forme)",
+        kind: "rect", box: bbox.slice(0, 4),
+        fill: rct.fill, fill_alpha: rct.fill_alpha,
+        stroke: rct.stroke, stroke_mm: rct.stroke_mm });
+    }
+    if (!specs.length) {
+      M.toast("aucune pose de décor publiée : allumez la gemme ou le "
+        + "bandeau dans Cadre (une gemme rangée en écrin ne compte pas)",
+        false);
+      return;
+    }
+    naitre(specs, "formes du décor");
+    M.toast(specs.length + " forme(s) posée(s) à l'emplacement du décor — "
+      + "éteignez la gemme/le bandeau dans Cadre pour les remplacer");
   }
 
   /* ═══ ADOPTER LES ZONES D'UNE CARTE IMPORTEE (P10 -> P3, §7.1.5) ═══════

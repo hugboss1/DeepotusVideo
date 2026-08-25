@@ -536,6 +536,9 @@
        le texte a 100 % et AUCUN reglage de plan des blocs ne pouvait la
        battre. */
     gem_plan: "dessus", banner_plan: "dessus",
+    /* Le bandeau pose a la main (phase 6, T4-B), au patron de la gemme :
+       null = le calcul decide. */
+    banner_x: null, banner_y: null,
     /* ── LA GEMME LIBEREE (phase 5, D3) ──────────────────────────────────
        Trois cles, et `null` vaut AUTOMATIQUE — exactement comme `window`
        juste dessous, et pour la meme raison : le calcul de `placeGem` reste
@@ -582,6 +585,12 @@
        et la pose par defaut laissait jusqu'a 70 % de l'illustration sous le
        cadre. Publiee par `publishWindow`, jamais saisie a la main. */
     art_window: null,
+    /* LA POSE DU DECOR, PUBLIEE (phase 6, T4-B) — le contrat que P3 lit
+       (« Formes du decor ») : la gemme VISIBLE (l'ecrin est exclu) et le
+       bandeau, en mm depuis la coupe — la MEME mesure que le peintre.
+       Publiee par `publishDecor`, jamais saisie a la main (patron
+       art_window juste au-dessus). */
+    decor_pose: null,
     back: "guilloche", back_same: true, back_label: true,
     /* LE VERSO PERSONNALISE — l'image de fond et LA PREMIERE PILE ORDONNEE de
        P2 (tout le reste y est booleen ou enumere). `st()` leur donne donc
@@ -685,7 +694,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 42 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 45 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -854,6 +863,37 @@
      que `winMM` fait dessiner), en mm depuis la coupe — une mesure du calcul
      qui peint, pas une seconde formule. Differee et gardee par comparaison :
      un painter qui patche sans garde serait une boucle de rendu. */
+  /* LA POSE DU DECOR — meme raison d'etre et meme mecanique que
+     publishWindow : une mesure DU CALCUL QUI PEINT (planOf), publiee pour
+     que P3 pose ses « Formes du decor » sans reseau nu ni recalcul.
+     Differee et gardee par comparaison : un painter qui patche sans garde
+     serait une boucle de rendu. */
+  let DECPUB = null;
+  function publishDecor(g, f) {
+    let pub = null;
+    if (f.family !== "none") {
+      const plan = planOf(g, f);
+      const gem = plan.boxes.filter((b) => b.id === "gem" && !b.seat)[0] || null;
+      const ban = plan.boxes.filter((b) => b.id === "banner")[0] || null;
+      if (gem || ban) {
+        pub = {
+          gem: gem ? { cx: r2(gem.cx), cy: r2(gem.cy), r: r2(gem.r) } : null,
+          banner: ban ? { box: [r2(ban.box[0]), r2(ban.box[1]),
+            r2(ban.box[2]), r2(ban.box[3])] } : null,
+        };
+      }
+    }
+    const cur = CF.get("frame.decor_pose", null);
+    const same = JSON.stringify(cur === undefined ? null : cur)
+      === JSON.stringify(pub);
+    if (same) return;
+    if (DECPUB) clearTimeout(DECPUB);
+    DECPUB = setTimeout(() => {
+      DECPUB = null;
+      M.patch({ decor_pose: pub });
+    }, 120);
+  }
+
   let WINPUB = null;
   function publishWindow(g, f) {
     const w = (f.family === "none") ? null : winMM(g, f);
@@ -995,11 +1035,24 @@
     if (cur < hi) lanes.push([cur, hi]);
     return lanes;
   }
-  function placeBanner(tw, th, inner, edge, label, ms, wbox, fit, plan) {
+  function placeBanner(tw, th, inner, edge, label, ms, wbox, fit, plan, man) {
     const w = Math.min(tw * BANNER_MAX_F, BANNER_CH_MM * (label.length + BANNER_PAD_CH));
     let h = BANNER_H_MM;
-    const x = tw / 2 - w / 2;
+    let x = tw / 2 - w / 2;
     const y0 = th - inner - h * 0.62;
+    /* LE BANDEAU POSE A LA MAIN (phase 6, T4-B) : la main GAGNE sur la voie
+       libre, la boite se BORNE au format — miroir de `_place_banner` de
+       frame.py, au bit pres. */
+    const mn = banManuel(man);
+    if (mn.on) {
+      if (mn.x !== null) x = Math.min(Math.max(0, mn.x), Math.max(0, tw - w));
+      const y1 = mn.y === null ? y0
+        : Math.min(Math.max(0, mn.y), Math.max(0, th - h));
+      return { id: "banner", label: "bandeau de rareté",
+        z: plan === "dessous" ? 40 : 70, plan: plan, movable: true,
+        lane: "posée à la main", manual: true,
+        box: [r2(x), r2(y1), r2(w), r2(h)] };
+    }
     let y = y0, lane = "naturelle";
     if (fit) {
       const occ = ms.filter((m) => m.box[0] < x + w && m.box[0] + m.box[2] > x)
@@ -1021,6 +1074,7 @@
     }
     return { id: "banner", label: "bandeau de rareté",
       z: plan === "dessous" ? 40 : 70, plan: plan, movable: true, lane: lane,
+      manual: false,
       box: [r2(x), r2(y), r2(w), r2(h)] };
   }
   /* ── LA GEMME POSEE A LA MAIN (phase 5, D3) ───────────────────────────────
@@ -1053,6 +1107,16 @@
     const y = orNul(m.y, LIMITS.gem_xy_mm);
     const r = orNul(m.r, LIMITS.gem_r_mm);
     return { x: x, y: y, r: r, on: (x !== null || y !== null || r !== null) };
+  }
+  /* Le bandeau pose a la main (phase 6, T4-B) — le patron de gemManuel,
+     rejoue : coin HAUT-GAUCHE en mm, chaque cle INDEPENDANTE, la largeur
+     reste au LABEL et la hauteur au metier. Miroir de `_ban_manuel` de
+     frame.py. */
+  function banManuel(man) {
+    const m = (man && typeof man === "object" && !Array.isArray(man)) ? man : {};
+    const x = orNul(m.x, LIMITS.gem_xy_mm);
+    const y = orNul(m.y, LIMITS.gem_xy_mm);
+    return { x: x, y: y, on: (x !== null || y !== null) };
   }
   /* Le PLAN d'un ornement du decor (phase 6, D5) : "dessous" le fait peindre
      en couche 40 — au-dessus du cadre de base, SOUS tous les blocs de P3 —
@@ -1151,7 +1215,8 @@
     if (fr.banner !== false) {
       const lab = String(fr.banner_text || (byId(RARITIES, fr.rarity) || {}).label || "").trim().toUpperCase();
       if (lab) boxes.push(placeBanner(tw, th, inner, edge, lab, ms, wbox, fit,
-        planOrnement(fr.banner_plan)));
+        planOrnement(fr.banner_plan),
+        { x: fr.banner_x, y: fr.banner_y }));
     }
     const socles = [], seats = [];
     const band = [inner, inner, tw - 2 * inner, th - 2 * inner];
@@ -3675,6 +3740,7 @@
         z: 40, async fn(ctx, geom, doc, card, side) {
           const f = st(doc);
           publishWindow(geom, f);
+          publishDecor(geom, f);
           if (side !== "back") {
             /* LE DECOR DE L'IA, ATTENDU ICI — meme raison que les images du
                verso, plus bas : sans l'attente la premiere frame peint un
@@ -4299,6 +4365,22 @@
       + "la mise en page empile";
     brow.appendChild(field("Plan", UI.bannerPlan));
     g3.body.appendChild(brow);
+    /* ── LE BANDEAU POSE A LA MAIN (phase 6, T4-B) — le patron de la
+       gemme : deux champs, l'effectif affiche, Auto rend au calcul. */
+    const bmrow = h("div", "cff-row cff-gemadj");
+    UI.banX = banField("x", "Bandeau X");
+    UI.banY = banField("y", "Bandeau Y");
+    bmrow.appendChild(UI.banX.el);
+    bmrow.appendChild(UI.banY.el);
+    const bauto = h("button", "btn sm cff-gemauto", "Auto");
+    bauto.type = "button";
+    bauto.title = "Rend le placement du bandeau au calcul : il reprend sa "
+      + "voie libre sous la fenêtre";
+    bauto.addEventListener("click", banAuto);
+    bmrow.appendChild(bauto);
+    g3.body.appendChild(bmrow);
+    UI.banRead = h("p", "hint cff-gemread");
+    g3.body.appendChild(UI.banRead);
     const prow2 = h("div", "cff-row");
     UI.plate = check("Plaque de texte", (v) => set({ plate: v }, "plaque"));
     UI.plateA = numRow("Opacité", "plate_alpha", 0, 1, 0.01, true);
@@ -4857,6 +4939,39 @@
      (deux nuls sur trois, c'est encore manuel). */
   function gemAuto() {
     set({ gem_x: null, gem_y: null, gem_r: null }, "gemme automatique");
+  }
+  function banAuto() {
+    set({ banner_x: null, banner_y: null }, "bandeau automatique");
+  }
+  function banDe(g, f0) {
+    return findBox(planOf(g, f0), "banner");
+  }
+  /* Le champ du bandeau — gemField, rejoue pour deux cles : LES DEUX
+     PARTENT ENSEMBLE (le champ dit un chiffre, le document doit dire un
+     ETAT), et le coin part de la boite que le plan publie. */
+  function banField(k, lbl) {
+    const el = h("label", "fld cff-wf cff-gf");
+    el.appendChild(h("span", "lbl", esc(lbl)));
+    const i = h("input");
+    i.type = "number"; i.step = 0.25;
+    i.placeholder = "auto";
+    i.title = "Millimètres depuis le coin de coupe · vide = placement calculé";
+    i.addEventListener("change", () => {
+      const s = String(i.value).trim();
+      const key = "banner_" + k;
+      const o = {};
+      if (s === "") { o[key] = null; set(o, "bandeau automatique"); return; }
+      const g = CF.geom(), f0 = f(), b = banDe(g, f0);
+      o.banner_x = (b ? r2(b.box[0]) : 0);
+      o.banner_y = (b ? r2(b.box[1]) : 0);
+      o[key] = r2(cl(num(s, o[key]), LIMITS.gem_xy_mm[0],
+        LIMITS.gem_xy_mm[1]));
+      set(o, "bandeau");
+    });
+    el.appendChild(i);
+    const px = h("i", "cff-px sm");
+    el.appendChild(px);
+    return { el: el, i: i, px: px };
   }
   function wireMap(cv) {
     let drag = null, pendingWin = null, rafId = 0;
@@ -7782,6 +7897,33 @@
         ? (r2(gmb[kv[2]]) + " mm · " + bornes[kv[0]][0] + " → "
           + bornes[kv[0]][1]) : "—";
     });
+    /* ── LE BANDEAU : memes regles que la gemme — l'EFFECTIF s'affiche,
+       le champ vide veut dire « automatique ». */
+    const bnb = banDe(g, f0);
+    [["x", UI.banX, 0], ["y", UI.banY, 1]].forEach((kv) => {
+      const cle = f0["banner_" + kv[0]];
+      const champ = kv[1];
+      champ.i.min = 0;
+      champ.i.max = r2(g.trim_mm[kv[2]]);
+      if (document.activeElement !== champ.i) {
+        champ.i.value = (cle === null || cle === undefined || !bnb)
+          ? "" : r2(bnb.box[kv[2]]);
+      }
+      champ.px.textContent = bnb
+        ? (r2(bnb.box[kv[2]]) + " mm · 0 → " + r2(g.trim_mm[kv[2]])) : "—";
+    });
+    if (!bnb) {
+      UI.banRead.innerHTML = "Bandeau <b>éteint ou sans texte</b> — la case "
+        + "« Bandeau » et un nom de rareté le rallument.";
+    } else if (bnb.manual) {
+      UI.banRead.innerHTML = "Bandeau <b>posé à la main</b> — coin "
+        + r2(bnb.box[0]) + " x " + r2(bnb.box[1]) + " mm"
+        + " · il ne cherche plus de voie libre : le compteur d'occupation"
+        + " ci-dessus dit ce que cela coûte. <b>Auto</b> le rend au calcul.";
+    } else {
+      UI.banRead.innerHTML = "Bandeau <b>automatique</b> — " + esc(bnb.lane)
+        + ", coin " + r2(bnb.box[0]) + " x " + r2(bnb.box[1]) + " mm.";
+    }
     if (!gmb) {
       UI.gemRead.innerHTML = "Gemme <b>éteinte</b> — la case « Gemme de rareté » la rallume.";
     } else if (gmb.manual) {
