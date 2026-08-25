@@ -306,6 +306,56 @@ def _fond_et_accent(couleurs: list, n_pix: int) -> tuple[dict | None, dict | Non
 # mesure d'une image
 # --------------------------------------------------------------------------
 
+def _tons_et_chroma(couleurs: list, n_pix: int) -> tuple:
+    """Le bloc tons/chroma de `mesurer`, en UNE passe sur les couleurs
+    uniques : rend (tons, C_pond, masse_gris) — les deux derniers nourrissent
+    le bloc saturation de `mesurer`. Extrait en phase 6 pour que la mise au
+    ton de la serie vise CES nombres-ci et jamais une formule voisine."""
+    L_pond: list[tuple[float, float]] = []
+    C_pond: list[tuple[float, float]] = []
+    masse_sombre = masse_claire = masse_gris = 0.0
+    for cnt, rgb in couleurs:
+        lab = rgb_vers_lab(rgb)
+        L255 = lab[0] * 2.55
+        c, _ = chroma_teinte(lab)
+        L_pond.append((L255, cnt))
+        C_pond.append((c, cnt))
+        if L255 < SEUIL_SOMBRE:
+            masse_sombre += cnt
+        if L255 > SEUIL_CLAIR:
+            masse_claire += cnt
+        if c < SEUIL_GRIS:
+            masse_gris += cnt
+
+    p05 = _percentile_pondere(L_pond, 0.05)
+    p50 = _percentile_pondere(L_pond, 0.50)
+    p95 = _percentile_pondere(L_pond, 0.95)
+    tons = {
+        "L_p05": round(p05, 1),
+        "L_p50": round(p50, 1),
+        "L_p95": round(p95, 1),
+        "etendue_p05_p95": round(p95 - p05, 1),
+        "part_sombre_L_moins_64": round(masse_sombre / n_pix, 4),
+        "part_claire_L_plus_200": round(masse_claire / n_pix, 4),
+    }
+    return tons, C_pond, masse_gris
+
+
+def tonales(im: Image.Image) -> dict:
+    """Les grandeurs TONALES seules, sur la MEME vignette que `mesurer`
+    (256, LANCZOS, couleurs uniques ponderees). C'est la cible de la mise au
+    ton : la passe qui corrige une image vise exactement ce que le juge
+    mesurera ensuite."""
+    vig = im.convert("RGB").copy()
+    vig.thumbnail((TAILLE_PALETTE, TAILLE_PALETTE), Image.LANCZOS)
+    n_pix = vig.size[0] * vig.size[1]
+    couleurs = vig.getcolors(maxcolors=n_pix) or []
+    if not couleurs:
+        couleurs = [(n_pix, (0, 0, 0))]
+    tons, _, _ = _tons_et_chroma(couleurs, n_pix)
+    return tons
+
+
 def mesurer(chemin: str, inset: float = 0.0, n_palette: int = 8) -> dict:
     im0 = Image.open(chemin)
     im0.draft("RGB", im0.size)  # decodage JPEG accelere si dispo
@@ -357,34 +407,8 @@ def mesurer(chemin: str, inset: float = 0.0, n_palette: int = 8) -> dict:
         })
     res["palette"] = palette
 
-    # ---- tons, saturation, gris ----------------------------------------------
-    L_pond: list[tuple[float, float]] = []
-    C_pond: list[tuple[float, float]] = []
-    masse_sombre = masse_claire = masse_gris = 0.0
-    for cnt, rgb in couleurs:
-        lab = rgb_vers_lab(rgb)
-        L255 = lab[0] * 2.55
-        c, _ = chroma_teinte(lab)
-        L_pond.append((L255, cnt))
-        C_pond.append((c, cnt))
-        if L255 < SEUIL_SOMBRE:
-            masse_sombre += cnt
-        if L255 > SEUIL_CLAIR:
-            masse_claire += cnt
-        if c < SEUIL_GRIS:
-            masse_gris += cnt
-
-    p05 = _percentile_pondere(L_pond, 0.05)
-    p50 = _percentile_pondere(L_pond, 0.50)
-    p95 = _percentile_pondere(L_pond, 0.95)
-    res["tons"] = {
-        "L_p05": round(p05, 1),
-        "L_p50": round(p50, 1),
-        "L_p95": round(p95, 1),
-        "etendue_p05_p95": round(p95 - p05, 1),
-        "part_sombre_L_moins_64": round(masse_sombre / n_pix, 4),
-        "part_claire_L_plus_200": round(masse_claire / n_pix, 4),
-    }
+    # ---- tons, saturation, gris (extrait : `_tons_et_chroma`) ---------------
+    res["tons"], C_pond, masse_gris = _tons_et_chroma(couleurs, n_pix)
 
     # saturation HSV en parallele de la chroma LAB
     hsv = vig.convert("HSV")

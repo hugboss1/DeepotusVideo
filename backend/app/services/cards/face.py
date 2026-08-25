@@ -101,6 +101,8 @@ __all__ = [
     "sans_nom_d_artiste", "juger_image", "meilleur_candidat", "serie_root",
     "manifeste_lire", "manifeste_ecrire", "prix_usd", "serie_prix",
     "campagne", "cout_echelle_usd", "devis", "manifeste_fusionner",
+    # ── la mise au ton (phase 6, T1) ────────────────────────────────────────
+    "mise_au_ton", "journal_vers_cases", "TONALES_CRITIQUES",
 ]
 
 # ── seuils ──────────────────────────────────────────────────────────────────
@@ -1182,14 +1184,16 @@ SERIES = [
 SERIE_JUGE = {
     "origine": "skill walkuski-style (user-level, ~/.claude/skills/"
                "walkuski-style/) — scripts/mesure_style.py + fiche_style.json",
-    "copie_le": "2026-08-24",
+    # Recopié le 25/08 (phase 6) : le mesureur expose `tonales()` — la mise
+    # au ton vise SES nombres — sans changer un seul verdict (test d'or).
+    "copie_le": "2026-08-25",
     "corpus": "16 affiches 1986-2018, mesurées le 24/08/2026",
     # Empreintes SHA-256 des octets AVEC FINS DE LIGNE NORMALISÉES (le dépôt
     # stocke en LF, une copie de travail peut porter du CRLF : une empreinte
     # brute dirait « périmé » pour un contenu identique).
     "sha256": {
         "style_walkuski.py":
-            "1a7b3bd0bcd01d55ed6449c3fda0a8422b43a3104ac85fd35c5713007b2901c4",
+            "81a0e9e55b35172f5fb0bbb25eb442f9a87e6c2eddabde734f5d471ad9b9a103",
         "style_walkuski.json":
             "cd12cf8604c87a8d530857ec10b92e4c10c58085c1d5e0a38e5aae20d7c387c4",
     },
@@ -1743,6 +1747,139 @@ def meilleur_candidat(notes) -> dict:
                                            n["score"]), default={})
 
 
+# ── LA MISE AU TON — gratuite, déterministe, le juge jamais relâché ─────────
+#
+# Le levier de formulation est ÉPUISÉ (campagne du 25/08 : 3 réécritures,
+# part claire 0,002→0,485, jamais dans la bande) : le générateur n'obéit pas
+# aux consignes tonales. La passe corrige APRÈS coup : UNE courbe de niveaux
+# (noir/blanc/gamma) choisie par grille déterministe pour ramener les axes
+# tonals dans la bande VERTE du corpus — les grandeurs mêmes que le juge
+# mesure, calculées par LUI (`style_walkuski.tonales`). La fiche et
+# `verifier` ne bougent pas : la barre prouvée reste la barre.
+
+TONALES_AXES = ("tons.L_p05", "tons.L_p50", "tons.L_p95",
+                "tons.etendue_p05_p95", "tons.part_sombre_L_moins_64",
+                "tons.part_claire_L_plus_200")
+# Les deux seuls axes CRITIQUES qu'une courbe tonale sait corriger — les
+# autres critiques (chroma, part quasi-grise, part de vide) sortent du champ
+# et un candidat qui y est rouge n'est PAS rescuable au ton.
+TONALES_CRITIQUES = ("part claire (L>200)", "L median")
+_TON_NOIRS = (0, 6, 12)          # sortie basse : assombrir le plancher
+_TON_BLANCS = (215, 231, 247, 255)   # sortie haute : comprimer les clairs
+
+
+def _bandes_tonales(fiche: dict) -> dict:
+    """{cle: (lo, hi, med)} des axes tonals — la bande VERTE [p10, p90] de
+    `verifier`, min/max en repli, la médiane comme point de visée."""
+    mets = fiche.get("metriques") or {}
+    out = {}
+    for cle in TONALES_AXES:
+        st = mets.get(cle)
+        if not st:
+            continue
+        lo = st.get("p10", st.get("min"))
+        hi = st.get("p90", st.get("max"))
+        if lo is None or hi is None:
+            continue
+        med = st.get("med", (float(lo) + float(hi)) / 2.0)
+        out[cle] = (float(lo), float(hi), float(med))
+    return out
+
+
+def _ecart_bandes(t: dict, bandes: dict) -> tuple:
+    """(axes hors bande verte, somme des écarts à la médiane normalisés par
+    la largeur de bande) — l'ordre de tri d'une courbe candidate. Deux
+    nombres, comparés lexicographiquement : d'abord RENTRER, ensuite se
+    rapprocher du cœur du corpus."""
+    hors, dist = 0, 0.0
+    for cle, (lo, hi, med) in bandes.items():
+        v = float(t[cle.split(".", 1)[1]])
+        if v < lo or v > hi:
+            hors += 1
+        dist += abs(v - med) / ((hi - lo) or 1.0)
+    return hors, round(dist, 6)
+
+
+def _lut_niveaux(noir: int, blanc: int, gamma: float) -> list:
+    """`y = noir + (blanc - noir) * (x/255)^gamma`, 256 entrées entières —
+    la courbe de niveaux classique, appliquée aux trois canaux."""
+    out = []
+    for x in range(256):
+        y = noir + (blanc - noir) * ((x / 255.0) ** gamma)
+        out.append(max(0, min(255, int(round(y)))))
+    return out
+
+
+def mise_au_ton(src, dst, fiche: dict) -> dict:
+    """Choisit UNE courbe de niveaux par grille déterministe (3 noirs ×
+    4 blancs × 3 gammas autour du gamma analytique de la médiane), la note
+    sur une vignette quantifiée (64 couleurs — la recherche est approchée,
+    l'ÉLECTION est exacte), puis vérifie la courbe élue sur les nombres
+    EXACTS de la vignette du juge. N'écrit `dst` QUE si les nombres exacts
+    s'améliorent ; le fichier écrit est un PNG réel. Zéro aléa, zéro appel,
+    zéro centime."""
+    from PIL import Image
+    sw = _juge_module()
+    bandes = _bandes_tonales(fiche)
+    if not bandes:                                        # pragma: no cover
+        return {"applique": False, "motif": "fiche sans bornes tonales",
+                "axes_vises": []}
+    im = Image.open(str(src)).convert("RGB")
+    vig = im.copy()
+    vig.thumbnail((256, 256), Image.LANCZOS)
+    t0 = sw.tonales(vig)
+    hors0, d0 = _ecart_bandes(t0, bandes)
+    axes_vises = [c for c, (lo, hi, _m) in bandes.items()
+                  if not (lo <= float(t0[c.split(".", 1)[1]]) <= hi)]
+    if not axes_vises:
+        return {"applique": False,
+                "motif": "les axes tonals sont déjà dans le corpus",
+                "axes_vises": []}
+    meth = getattr(Image, "Quantize", None)
+    mc = meth.MEDIANCUT if meth is not None else 0
+    q = vig.quantize(colors=64, method=mc,
+                     dither=Image.Dither.NONE).convert("RGB")
+    med_cible = bandes.get("tons.L_p50", (0.0, 255.0, 118.0))[2]
+    m0 = min(254.0, max(1.0, float(t0["L_p50"])))
+    g0 = math.log(max(1e-6, med_cible / 255.0)) / math.log(m0 / 255.0)
+    g0 = min(2.4, max(0.5, g0))
+    gammas = tuple(sorted({round(g0 * f, 3) for f in (0.85, 1.0, 1.15)}))
+    best = None
+    for noir in _TON_NOIRS:
+        for blanc in _TON_BLANCS:
+            for g in gammas:
+                lut = _lut_niveaux(noir, blanc, g)
+                marque = _ecart_bandes(sw.tonales(q.point(lut * 3)), bandes)
+                # STRICTEMENT meilleur : à égalité le PREMIER de la grille
+                # gagne — l'ordre de parcours fait partie du déterminisme.
+                if best is None or marque < best[0]:
+                    best = (marque, (noir, blanc, g))
+    noir, blanc, g = best[1]
+    lut = _lut_niveaux(noir, blanc, g)
+    t1 = sw.tonales(vig.point(lut * 3))
+    hors1, d1 = _ecart_bandes(t1, bandes)
+    if (hors1, d1) >= (hors0, d0):
+        return {"applique": False, "motif": "aucune courbe ne fait mieux",
+                "axes_vises": axes_vises}
+    im.point(lut * 3).save(str(dst), "PNG")
+    return {"applique": True,
+            "courbe": {"noir": noir, "blanc": blanc, "gamma": g},
+            "axes_vises": axes_vises,
+            "hors_avant": hors0, "hors_apres": hors1}
+
+
+def _rescuable_au_ton(note: dict) -> bool:
+    """Rescuable = pas TIENT, aucun axe rouge HORS des deux critiques
+    tonals, et au moins UN écart `tons.*` : la courbe ne sait corriger que
+    le ton — on ne promet jamais plus que ce qu'elle sait faire."""
+    if note.get("verdict") == "TIENT":
+        return False
+    if not set(note.get("axes_rouges") or []) <= set(TONALES_CRITIQUES):
+        return False
+    return any(str(e.get("cle") or "").startswith("tons.")
+               for e in note.get("ecarts") or [])
+
+
 # ── le manifeste : {DATA_ROOT}/cardforge_series/walkuski.json ───────────────
 #
 # SCHÉMA VERSIONNÉ (patron des modèles perso) :
@@ -2072,6 +2209,21 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
             note = await asyncio.to_thread(juger_image, chemin)
             note["img"] = str(nom)
             notes.append(note)
+        # LA MISE AU TON : un frère GRATUIT par candidat rescuable — la même
+        # toile, la courbe en plus, jugée comme les autres. Aucun `_payer`
+        # ici : la passe est locale, et `meilleur_candidat` départage.
+        for note in list(notes):
+            if not _rescuable_au_ton(note):
+                continue
+            src = settings.images_path / note["img"]
+            dst = src.with_name(src.stem + "_ton.png")
+            r = await asyncio.to_thread(mise_au_ton, src, dst, fiche_style())
+            if not r.get("applique"):
+                continue
+            frere = await asyncio.to_thread(juger_image, dst)
+            frere["img"] = dst.name
+            frere["mise_au_ton"] = True
+            notes.append(frere)
         return notes
 
     prompt = serie_prompt(case)
@@ -2197,6 +2349,8 @@ async def campagne(demandees=None, limite: int = 0) -> dict:
                  "verdict": note.get("verdict") or "HORS STYLE",
                  "prix_usd": note.get("prix_usd", 0.0),
                  "at": _horodate()}
+        if note.get("mise_au_ton"):
+            ligne["mise_au_ton"] = True
         gagnee = bool(note.get("verdict") == "TIENT" and note.get("img"))
         if gagnee:
             ligne["img"] = note["img"]
@@ -2498,4 +2652,191 @@ async def serie_generer(did: str, body: dict | None = None,
     if not mien:
         out["message"] = ("une campagne était déjà en vol sur cette série : "
                           "ce bilan est le sien — " + str(out.get("message")))
+    return out
+
+
+# ── LE RESCAPAGE DU REBUT — la voie qui ne PEUT pas dépenser ────────────────
+#
+# Les candidats refusés de la campagne du 25/08 sont déjà PAYÉS ; leurs
+# octets dorment au rebut. La mise au ton en repêche gratuitement ce qu'elle
+# sait corriger. La correspondance candidat→case n'existe QUE dans le journal
+# de l'application : la graine FLUX y est déterministe (`fnv1a32` de la
+# case), c'est ELLE qui mappe — jamais un appariement d'horloges.
+
+_REBUT_DEFAUT = "rebut_serie_walkuski_2026-08-25"
+_DOSSIER_RE = re.compile(r"[A-Za-z0-9._-]+\Z")
+_JOURNAL_FLUX_RE = re.compile(
+    r"FLUX: saved [0-9]+ image\(s\), seed=([0-9]+): \[([^\]]*)\]")
+
+
+def journal_vers_cases(lignes) -> tuple:
+    """{fichier: case} par la GRAINE FLUX du journal — `fnv1a32(SERIE_ID +
+    ":" + case)` et sa +1 (les lots 4+2 du correctif « FLUX max 4 img »)
+    identifient la case sans rien deviner. Rend (mapping, non_mappes) : un
+    seed hors catalogue envoie ses fichiers dans `non_mappes` — la
+    couverture se DIT. Les tirs nano-banana/gpt n'écrivent pas leurs noms au
+    journal : leurs fichiers restent non mappés, et c'est compté aussi."""
+    graines = {}
+    for case in serie_cases():
+        g = fnv1a32(SERIE_ID + ":" + case) & 0x7FFFFFFF
+        graines[g] = case
+        graines[g + 1] = case
+    mapping: dict = {}
+    non_mappes: list = []
+    for ligne in lignes:
+        m = _JOURNAL_FLUX_RE.search(str(ligne))
+        if not m:
+            continue
+        case = graines.get(int(m.group(1)))
+        for nom in re.findall(r"'([^']+)'", m.group(2)):
+            if case:
+                mapping[nom] = case
+            else:
+                non_mappes.append(nom)
+    return mapping, non_mappes
+
+
+def _rescaper(reb: _Path, appliquer: bool) -> dict:
+    """Le corps du rescapage, hors boucle d'événements. AUCUN `_payer`,
+    AUCUN `_tirer_*` sur ce chemin : PIL et le juge, en local. Le rebut
+    n'est jamais modifié — les essais vont dans un dossier temporaire, seul
+    le gagnant est COPIÉ au magasin."""
+    import shutil
+    import tempfile
+    from app.config import DATA_ROOT, settings
+
+    m, illisible = manifeste_lire()
+    lignes: list = []
+    n_logs = 0
+    ldir = DATA_ROOT / "logs"
+    if ldir.is_dir():
+        for p in sorted(ldir.glob("deepotus-*.log")):
+            try:
+                lignes.extend(p.read_text(encoding="utf-8",
+                                          errors="replace").splitlines())
+                n_logs += 1
+            except OSError:                               # pragma: no cover
+                continue
+    mapping, hors_catalogue = journal_vers_cases(lignes)
+    presents = {p.name for p in reb.iterdir() if p.is_file()}
+    par_case: dict = {}
+    absents = 0
+    for nom, case in mapping.items():
+        if nom in presents:
+            par_case.setdefault(case, []).append(nom)
+        else:
+            absents += 1
+    non_mappes = [n for n in sorted(presents)
+                  if n.rsplit(".", 1)[-1].lower() in ("png", "jpg", "jpeg")
+                  and n not in mapping]
+    deja: list = []
+    gagnees: dict = {}
+    cases_rap: dict = {}
+    for case in sorted(par_case):
+        if case in m["cases"]:
+            deja.append(case)
+            continue
+        noms = sorted(par_case[case])
+        cases_rap[case] = {"candidats": len(noms)}
+        if not appliquer:
+            continue
+        notes = []
+        with tempfile.TemporaryDirectory(dir=str(DATA_ROOT)) as tmp:
+            for nom in noms:
+                dst = _Path(tmp) / (nom.rsplit(".", 1)[0] + "_ton.png")
+                try:
+                    r = mise_au_ton(reb / nom, dst, fiche_style())
+                    if not r.get("applique"):
+                        continue
+                    note = juger_image(dst)
+                except Exception as e:
+                    # une image illisible est un candidat perdu, pas une
+                    # panne de rescapage : on la compte et on continue.
+                    cases_rap[case].setdefault("illisibles", 0)
+                    cases_rap[case]["illisibles"] += 1
+                    logger.warning(f"cardforge/rescaper {case} : {nom} : "
+                                   f"{_sans_chemin(e)}")
+                    continue
+                note["src"] = nom
+                note["chemin"] = str(dst)
+                notes.append(note)
+            best = meilleur_candidat(notes)
+            cases_rap[case]["essayes"] = len(notes)
+            if best:
+                cases_rap[case]["meilleur"] = {
+                    "score": best.get("score"),
+                    "verdict": best.get("verdict")}
+            if best.get("verdict") != "TIENT":
+                continue
+            nouveau = "gen_" + uuid.uuid4().hex[:8] + ".png"
+            settings.images_path.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(best["chemin"], settings.images_path / nouveau)
+        ligne = {"case": case, "famille": serie_famille(case),
+                 "voie": "flux", "score": round(float(best["score"]), 1),
+                 "verdict": "TIENT", "prix_usd": 0.0, "at": _horodate(),
+                 "img": nouveau, "dE_median": best.get("dE_median"),
+                 "mise_au_ton": True, "rescape_le": _horodate(),
+                 "source_rebut": best["src"]}
+        m = manifeste_fusionner(case, ligne, gagnee=True, delta_usd=0.0)
+        gagnees[case] = {"img": nouveau, "score": ligne["score"],
+                         "verdict": "TIENT", "mise_au_ton": True,
+                         "source_rebut": best["src"]}
+        logger.info(f"cardforge/rescaper {case} : SERVIE par mise au ton "
+                    f"(source {best['src']}, score {ligne['score']}, "
+                    f"0.0000 USD)")
+    out = {"serie": SERIE_ID, "applique": appliquer, "dossier": reb.name,
+           "journaux_lus": n_logs, "cases": cases_rap,
+           "deja_servies": deja,
+           "candidats_non_mappes": len(non_mappes),
+           "fichiers_absents": absents,
+           "depense_totale_usd": m.get("depense_totale_usd"),
+           "illisible": illisible}
+    if gagnees:
+        out["gagnees"] = gagnees
+    return out
+
+
+@router.post("/serie/rescaper")
+async def serie_rescaper(did: str, body: dict | None = None):
+    """LE RESCAPAGE GRATUIT. Sans `{"appliquer": true}`, la route RAPPORTE
+    (couverture du mapping, candidats par case — rien d'écrit) : le patron
+    devis-avant-geste, transposé à une route qui MODIFIE sans dépenser.
+    Avec, les cases dont un candidat mis au ton TIENT sont servies à
+    `prix_usd: 0.0` et `delta_usd=0.0` — la dépense totale ne bouge pas.
+    Le rebut n'est jamais modifié : sa suppression appartient à
+    l'utilisateur."""
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de jeu invalide")
+    from .contract import deck_dir
+    if not deck_dir(did).is_dir():
+        raise HTTPException(404, "Jeu introuvable")
+    if FICHE_ERREUR:                                      # pragma: no cover
+        raise HTTPException(
+            409, "La fiche de style est illisible (" + FICHE_ERREUR + ") : "
+                 "aucun rescapage ne peut être jugé sans ses bornes")
+    brut = (body or {}).get("dossier")
+    dossier = str(brut) if brut is not None else _REBUT_DEFAUT
+    if not _DOSSIER_RE.fullmatch(dossier):
+        raise HTTPException(
+            400, "Nom de dossier de rebut invalide : lettres, chiffres, "
+                 "point, tiret et souligné seulement")
+    from app.config import DATA_ROOT
+    reb = DATA_ROOT / dossier
+    if not reb.is_dir():
+        raise HTTPException(404, "Dossier de rebut introuvable : " + dossier)
+    appliquer = (body or {}).get("appliquer") is True
+
+    async def _faire():
+        return await asyncio.to_thread(_rescaper, reb, appliquer)
+
+    try:
+        info, mien = await _coalesce(SERIE_ID, _faire)
+    except HTTPException:                                 # pragma: no cover
+        raise
+    except Exception as e:                                # pragma: no cover
+        logger.warning(f"cardforge/rescaper : interrompu : {_sans_chemin(e)}")
+        raise HTTPException(
+            409, "Le rescapage s'est interrompu : " + _sans_chemin(e, 180))
+    out = dict(info)
+    out["coalesce"] = not mien
     return out

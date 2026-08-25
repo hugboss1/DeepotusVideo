@@ -544,9 +544,11 @@ def test_le_module_respecte_les_regles_de_cloisonnement():
     chemins = sorted(r.path for r in FA.router.routes)
     # LA LISTE EST UN PIN, PAS UNE FORMALITÉ : elle compte les routes que la
     # pièce ouvre. La phase 5 en ajoute DEUX — l'état de la série et la
-    # campagne — et la seule qui dépense est un POST nommé.
+    # campagne — et la seule qui dépense est un POST nommé. La phase 6 ajoute
+    # le RESCAPAGE : un POST qui ne peut PAS dépenser (PIL et le juge, en
+    # local — aucun `_payer` sur son chemin).
     assert chemins == ["/ai-models", "/png/{fmt}/{dpi}", "/serie",
-                       "/serie/generer"], chemins
+                       "/serie/generer", "/serie/rescaper"], chemins
     for p in chemins:
         assert not p.startswith("/api"), f"chemin absolu interdit : {p}"
     py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
@@ -3031,7 +3033,7 @@ def test_le_juge_et_la_fiche_vivent_EN_DEPOT_avec_leur_provenance():
     assert juge.is_file() and fiche.is_file()
     decl = FA.SERIE_JUGE
     assert "walkuski-style" in decl["origine"], decl
-    assert decl["copie_le"] == "2026-08-24"
+    assert decl["copie_le"] == "2026-08-25"
     assert decl["sha256"]["style_walkuski.py"] == _sha_norme(juge)
     assert decl["sha256"]["style_walkuski.json"] == _sha_norme(fiche)
     # la fiche est bien celle du corpus mesuré, pas un gabarit vide
