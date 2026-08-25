@@ -3194,8 +3194,23 @@ def test_le_prompt_pousse_du_COTE_QUE_LA_CAMPAGNE_A_MESURE():
     # 1. la masse est un PLANCHER, pas une indication
     assert "at least" in bas, "la masse doit être un plancher (mesuré 83/84 sous)"
     assert "dominates the frame" in bas
-    # 2. le point clair est EXIGÉ, pas permis (mesuré 0,002 pour 0,042 attendus)
-    assert "must be" in bas and "highlight" in bas
+    # 2. LE POINT CLAIR : PRÉSENT **ET** BORNÉ — les deux moitiés, parce que
+    #    chacune sans l'autre a produit un défaut MESURÉ sur 84 candidats
+    #    payés, pour une bande [0,012 ; 0,132] :
+    #      - gabarit d'origine (« only 4% above »)        -> 0,002, absent
+    #      - premier correctif (« never absent nor dimmed ») -> 0,230, envahissant
+    #    Le pendule a traversé la bande de part en part. Un seul des deux
+    #    contrôles ci-dessous, et il la retraverse au réglage suivant.
+    assert "highlight" in bas
+    assert "one small bone-white highlight" in bas, "le point clair doit être PETIT"
+    assert "no more than that" in bas, "et BORNÉ, sinon il envahit la toile"
+    assert "never dimmed" not in bas, "la tournure qui a produit 0,230 est revenue"
+    # 3. ... et l'ombre profonde garde un PLANCHER. « no more than that » s'y
+    #    appliquait au premier correctif : la part sombre est tombée à 0,072
+    #    pour un plancher de 0,059, la toile a viré au blanc (L médian 192,2
+    #    pour un plafond de bande à 126,7).
+    assert "at least %d%% of the canvas is genuine deep shadow" \
+        % FA._pc(FA._med("tons.part_sombre_L_moins_64")) in bas
     # 3. le fond est de la matière, pas un vide (mesuré 84/84 au-dessus)
     assert "painted ground" in bas
     assert "no detail at all" not in bas, \
@@ -3221,7 +3236,8 @@ def test_le_prompt_pousse_du_COTE_QUE_LA_CAMPAGNE_A_MESURE():
     #    et les 108 prompts portent bien la poussée (aucune case oubliée)
     for case in FA.serie_cases():
         p108 = FA.sans_nom_d_artiste(FA.serie_prompt(case))
-        assert "AT LEAST" in p108 and "There MUST be" in p108, case
+        assert "AT LEAST" in p108, case
+        assert "ONE SMALL bone-white highlight" in p108, case
 
 
 def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
