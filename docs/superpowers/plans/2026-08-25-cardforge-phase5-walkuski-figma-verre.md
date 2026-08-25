@@ -640,12 +640,51 @@ mémoire, poussée.
   donc pas de demi-livraison. **Vu en chemin et déjà mesuré** : `naitre` →
   `normSlots` renomme les identifiants en collision, donc la re-pose d'un
   élément ne demande AUCUN changement d'écran ; le travail est backend seul.
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE DE PHASE
+- [x] Ronde adverse (sonnet, revue courte pré-poussée) : verdict « la poussée
+  peut partir » — UNE trouvaille cosmétique (le banc de contrat reconnaît son
+  modèle par ÉGALITÉ DE LIBELLÉ — la classe du défaut corrigé déplacée d'un
+  cran, probabilité quasi nulle, transmise : suffixer d'un jeton). Vérifiés
+  en direct : la purge (293+1 au rebut, 5 fichiers au hasard à 0 référence
+  dans 2 206 meta.json + le manifeste + la base, la case servie toujours au
+  magasin ET servie 200) ; la route layers (fullmatch \Z, traversée en octets
+  littéraux → 404, le %0A → 400, avec un FAUX POSITIF creusé et résolu —
+  c'était curl qui normalisait, pas une faille) ; les textes « enveloppe
+  totale » lus SERVIS ; deepotus-fragments protégé et présent ; health 200 +
+  mock + 0 écart ; 147 face + 174 forge3d + lint verts.
+- [x] CLOSE DE PHASE — consigne ci-dessous.
 
-## 4. Consigne de sortie (à remplir)
+## 4. Consigne de sortie de phase
 
-- [ ] Bilan, dépense réelle totale vs plafond, poussée.
-- Restes attendus de l'utilisateur : l'œil sur la série (~5 min), les 92 faces
-  fabricant (toujours à fournir), meshy-7/décor IA/rembg réels (opt-ins
-  distincts de la campagne).
+- [x] **PHASE 5 CLOSE 25/08** : les trois axes de la demande utilisateur
+  LIVRÉS — la voie de série Wałkuski (skill mesuré, machinerie
+  devis/enveloppe, campagne RÉELLE close à 5,892 $/6,00 $ : 1/108 servie à
+  92,9 = LE SCORE DU KRÓL LEAR AUTHENTIQUE — la barre prouvée atteignable,
+  le correctif final déployé, LA DÉCISION UTILISATEUR POSÉE : relever
+  l'enveloppe ~2 $ pour une sonde post-correctif / ~15 $ au taux courant
+  déconseillé / en rester à 1/108 honnête ; SERIE_PLAFOND_USD ne se touche
+  que sur son ordre) ; l'éditabilité Figma entière (formes/flèches/ellipse,
+  multi-sélection au verrou-ancre, guides au micron, gemme et ornements
+  libérés, phase-pointeur écran-seul) ; le verre 3D (3 recettes pesées aux
+  octets, occlusion, l'ondulation aux 3 aveux SOLDÉE). Le deck témoin
+  `deck_14154201` « Vitrine Deepotus » traverse tout, mesuré. Suite complète
+  64/64 (1 599 s), lint 10/10, banc de contrat tenu (et son défaut
+  DESTRUCTEUR corrigé — il a failli emporter deepotus-fragments), déployé à
+  0 écart, ~37 commits poussés en clôture. Dépense totale de phase :
+  5,892 $ au registre (≈5,68 $ facturés), zéro hors campagne, aucun
+  garde-fou contourné.
+- **Restes attendus de l'utilisateur** : LA DÉCISION D'ENVELOPPE (la série) ;
+  l'œil ~5 min (Vitrine Deepotus : la carte Wałkuski + Sceau, la gemme, les
+  formes, le verre dépoli + l'ondulation au viewer) ; le rebut
+  `rebut_serie_walkuski_2026-08-25/` (261,6 Mo) à supprimer ou garder ; les
+  92 faces fabricant (toujours à fournir) ; meshy-7/décor IA/rembg réels
+  (opt-ins distincts).
+- **Transmis (chantier suivant)** : elements:[] des modèles perso (4
+  arbitrages produit posés noir sur blanc ci-dessus, est. 3-4 h) ;
+  MESHY_MOCK ne vit que dans l'environnement du LANCEUR (toute relance du
+  backend le perd — l'écrire au .env est une décision produit) ; la preuve
+  d'empilement non déterministe au 1er tour post-édition (et son message qui
+  accuse les mauvaises couches) ; placeMenu déborde sous 618 px ; 2 206
+  jeux/8,36 Go dans outputs/decks (2 110 « Nouveau jeu » de bancs, GC à
+  trancher) ; le jeton du banc de contrat ; le calque d'image encore mention
+  du cadre ; la liste fond-vers-surface vs bandes Figma ; le
+  redimensionnement de LOT ; contour SVG d'extrude (v2, depuis la phase 4).
