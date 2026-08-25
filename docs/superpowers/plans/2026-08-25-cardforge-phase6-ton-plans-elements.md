@@ -245,11 +245,41 @@ d'occupation — régime manuel), `frontend/cardforge/qa/` (banc).
   zone titre∩gemme entre les deux rendus — le titre se peint PAR-DESSUS. Le
   deck vitrine reste en « dessous » (la demande utilisateur exacte).
 
-### T4 — Les éléments ajustables + primitives + elements:[] — BLOQUÉ (D6)
+### T4 — Les éléments ajustables + primitives + elements:[] (D6, DÉBLOQUÉ 26/08)
 
-AUCUN code avant les réponses de l'utilisateur (§4). À la levée du blocage :
-RED d'abord, ~8 tests backend (elements) + banc frontend (libération), est.
-3-4 h backend + 2-3 h frontend, dans une session dédiée si besoin.
+- [x] **T4-A — la palette `elements:[]` des modèles perso, LIVRÉE** (les 4
+  arbitrages §4). RED 8 tests (section 21 de test_cards_models.py) puis
+  GREEN : `_souche` (l'id sans suffixe numérique — la convention que
+  `dupSlot`/`norm_slots` écrivent eux-mêmes), `_grille_de_reference`
+  (`modele:<id>` usine puis perso sur disque, gabarit du catalogue, sinon
+  DIVINATION par meilleur recouvrement d'identifiants, départage par
+  l'ordre du catalogue, et l'aveu `grille`/`grille_devinee` SURVIT au
+  disque par `_normaliser_perso`), `_elements_du_deck` (hors grille
+  seulement, groupés par souche, label du premier slot sans ses chiffres,
+  hint qui dit la provenance ET la divination). L'écran n'a besoin
+  d'AUCUN changement (mesuré en phase 5 : la palette lit le modèle).
+  **174/174 models verts.**
+- [x] **T4-B — le bandeau posé à la main + les formes du décor, LIVRÉS.**
+  `banner_x`/`banner_y` au patron exact de la gemme (coin haut-gauche,
+  clés indépendantes, bornées au format, `manual` + lane « posée à la
+  main » au plan, python↔JS au bit près — 6 tests neufs section 26,
+  DEFAULTS 45 clés, pins retendus, **313/313 frame**) ; UI : champs
+  Bandeau X/Y à l'EFFECTIF + Auto + ligne d'état ; le peintre suit la
+  boîte du plan sans une ligne de plus. « Formes du décor » (P3) :
+  **premier jet RECALÉ PAR LES PINS D'ARCHITECTURE** — un `fetch(` nu vers
+  `/frame/occupancy` violait « aucun réseau nu dans une pièce » ET la
+  porte unique des naissances (2 rouges au banc type, mérités). Le remède
+  conforme est le patron `art_window` : **P2 PUBLIE `frame.decor_pose`**
+  (gemme visible — écrin exclu — et bandeau, la mesure du calcul qui
+  peint, différée-gardée-par-comparaison, 45e clé jamais saisie à la
+  main, exclue des archétypes comme art_window), P3 la lit avec tolérance
+  et fait naître ses formes PAR LA PORTE (`naitre`, nommée au pin des
+  naissances 7→8). Éteindre l'ornement reste le geste de P2, le toast le
+  dit. **Prouvé dans l'app déployée (chemin final)** : champ banY 61,5 →
+  « Bandeau posé à la main — coin 17,9 x 61,5 mm » ; pose publiée lue,
+  bouton → `bandeauforme` rect à [17,9 ; 61,5 ; 27,2 ; 5,2] et
+  `gemmeforme` ellipse 11,3×11,3 au cercle exact de la gemme, re-clics
+  renommés (`…2`, `…3`). Zéro réseau depuis P3.
 
 ### T5 — Le GC des bancs (D7)
 
@@ -258,22 +288,37 @@ RED d'abord, ~8 tests backend (elements) + banc frontend (libération), est.
   27,7 Mo, campagne, démos 24-88 Mo, preuves de phases). Le critère « nom
   exact » est discriminant à lui seul sur ce magasin — T5-B ajoutera la
   ceinture « rien d'adopté ».
-- [ ] **T5-B (RED)** : `backend/tests/test_gc_decks.py` — le critère STRICT
-  (nom exact + rien d'adopté), le dry-run n'écrit rien, `--deplacer` déplace
-  et écrit `_POURQUOI.txt`, un deck nommé autrement ou avec un import N'EST
-  PAS déplacé, idempotence. ROUGE puis GREEN (`scripts/gc_decks.py`).
-- [ ] **T5-C** : dry-run RÉEL sur le magasin (rapport à l'utilisateur — le
-  `--deplacer` n'est lancé QUE sur son ordre).
+- [x] **T5-B (RED→GREEN)** : `test_gc_decks.py` (5 tests) +
+  `scripts/gc_decks.py`. Le critère a été RECALÉ au réel pendant l'écriture :
+  « rien d'adopté » aurait tout gardé (les jeux de banc PORTENT du contenu —
+  6,1 Go/2110 ≈ 3 Mo pièce) ; la vraie ceinture est nom EXACT « Nouveau
+  jeu » ET ZÉRO référence externe (octets de la base + tout .json du
+  dossier de données, magasin et rebuts exclus — un rebut d'hier ne
+  vaccine pas le GC du jour, épinglé). Méta illisible / dossier hors forme
+  = gardé. L'outil DÉPLACE vers `rebut_decks_<date>/` + `_POURQUOI.txt`,
+  ne supprime JAMAIS un octet (compte de fichiers prouvé identique).
+- [x] **T5-C (RÉEL, sur ordre utilisateur « construit » du 26/08)** :
+  dry-run — 2 206 vus, 2 109 candidats, gardés : 93 nommés + 3 métas
+  illisibles + **1 « Nouveau jeu » SAUVÉ par la ceinture** (cité dans
+  deepotus.db) ; puis rangement — **2 109 jeux (6 213,9 Mo) →
+  `rebut_decks_2026-08-26/`**. L'app relue : 94 jeux au listing, série
+  4/108 et 7,467 $ inchangés, vitrine et deck de campagne en place. La
+  suppression définitive du rebut appartient à l'utilisateur.
 
 ### T6 — Finitions transmises
 
-- [ ] **T6-A** : le jeton du banc de contrat (le banc reconnaît SON modèle
-  par un suffixe jeton, plus par égalité de libellé — la trouvaille de la
-  ronde de phase 5).
-- [ ] **T6-B** : le calque d'image dit encore « mention du cadre » (libellé) ;
-  la liste des blocs s'affiche fond-vers-surface OU bandes façon Figma —
-  trancher pour LA MÊME CONVENTION que les bandes (le décor haut « ouvre »
-  la liste, mod-type.js:3448) et le dire dans l'aide.
+- [x] **T6-A** : le jeton du banc de contrat POSÉ — `NOM_MODELE_BANC` porte
+  un suffixe aléatoire par passage : l'égalité de libellé ne peut plus
+  reconnaître (donc DÉTRUIRE) qu'une carte que CE passage-ci a écrite. Un
+  modèle utilisateur nommé par hasard « Banc QA modele » est hors
+  d'atteinte.
+- [ ] **T6-B (repro requis)** : « le calque d'image dit encore mention du
+  cadre » — INTROUVABLE au grep (aucun libellé « mention du cadre » dans
+  frontend/cardforge). L'observation venait de l'écran de phase 5 sans
+  repro consigné : demander à l'utilisateur OÙ il l'a vu avant de
+  corriger au hasard. La liste des blocs fond-vers-surface vs bandes
+  Figma reste à trancher (même convention que les bandes — le décor haut
+  ouvre la liste, mod-type.js:3448) : chirurgie UI à faire posément.
 - [ ] **T6-C** : le redimensionnement de LOT (multi-sélection → poignées
   d'échelle groupée, ancre au coin opposé — comportement Figma).
 - [ ] **T6-D** : le contour SVG d'extrude v2 (transmis phase 4) : SEULEMENT
@@ -293,20 +338,35 @@ poser à la place des formes primitives héritant position/taille ; (ii) la
 palette `elements:[]` des modèles perso (backend). Les 4 arbitrages de la
 phase 5, avec recommandation :
 
-- **(a)** Contre quelle grille se mesure un slot « non standard » quand le
-  jeu n'a AUCUN modèle d'origine (gabarit local, montage main) ?
-  *Recommandation : sans `preset = "modele:<id>"` connu, AUCUN élément déduit
-  — la palette reste vide et l'écran le dit ; on ne devine pas une grille.*
-- **(b)** Les extras restent-ils AUSSI dans `type.slots` ?
-  *Recommandation : OUI — l'élément POINTE le slot, il ne le déplace pas ;
-  appliquer le modèle re-pose tout sans perte.*
-- **(c)** Toute forme devient-elle un élément, ou seulement celles hors
-  grille ? *Recommandation : seulement hors grille — la grille standard
-  reste la grille ; un élément est ce qui la dépasse.*
-- **(d)** Un élément par slot extra, ou un élément qui GROUPE les slots
-  parents (patron d'usine « 7e statistique ») ? *Recommandation : GROUPER
-  quand les slots extra partagent un même parent nommé, un élément par slot
-  sinon — et le nom du groupe vient du parent, rien n'est deviné.*
+**TRANCHÉS PAR L'UTILISATEUR (26/08)** :
+
+- **(a) DEVINER UNE GRILLE.** Sans `preset = "modele:<id>"` connu, la grille
+  de référence se DEVINE : le gabarit connu dont l'ensemble d'identifiants
+  de slots recouvre le mieux celui du jeu (départage déterministe par
+  l'ordre du catalogue). La divination SE DIT : le modèle porte la grille
+  retenue (`grille` + `grille_devinee: true`) — une carte devinée qui ne le
+  dit pas est une carte fausse.
+- **(b) OUI** — les extras restent AUSSI dans `type.slots` : l'élément
+  POINTE le slot, il ne le déplace pas ; appliquer le modèle re-pose tout
+  sans perte.
+- **(c) HORS GRILLE seulement** — la grille standard reste la grille ; un
+  élément est ce qui la dépasse (toutes les formes en font partie : aucun
+  gabarit d'usine n'en porte).
+- **(d) GROUPÉ** — les slots extra qui partagent un même parent nommé font
+  UN élément (patron d'usine « 7e statistique ») ; un élément par slot
+  orphelin sinon, et le nom du groupe vient du parent, rien n'est deviné.
+
+## 4bis. Ordres utilisateur exécutés en cours de phase (26/08)
+
+- **« 3) supprimer »** : le rebut de série
+  `rebut_serie_walkuski_2026-08-25/` est SUPPRIMÉ (294 fichiers,
+  261,6 Mo) — après archivage au magasin des 2 sources brutes que le
+  manifeste nomme (`source_rebut` : gen_0c881927, gen_2e1f4397 — la
+  provenance reste vraie, ~2 Mo).
+- **« 4) publie »** : la release GitHub **v2.2.0 « Catalogue de
+  démarrage »** est EN LIGNE (installeur 148 Mo du Bureau Export, notes
+  du dépôt, `--latest=false` — la v2.5.0 garde « Latest »). L'échelle des
+  releases est complète : 1.15.1 → 2.1 → 2.2 → 2.3 → 2.4 → 2.5.
 
 ## 5. Consigne de sortie de phase
 
