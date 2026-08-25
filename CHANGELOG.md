@@ -4,6 +4,156 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.5.0 "Cardforge composable"
+
+**Card Forge accepte enfin une carte qui vient d'ailleurs, et laisse composer
+la sienne comme dans un éditeur vectoriel.** Une 10e pièce importe un scan ou
+un rendu, le mesure en local et gratuitement, et propose trois adoptions
+cloisonnées ; la pièce Mise en page passe à la multi-sélection façon Figma
+(lot, alignements, distributions, guides d'aimantation, rotation) ; la 3D
+gagne le nœud `extrude`, les matériaux **verre** et une occlusion enfin
+visible. En prime, une voie d'illustrations « série » entièrement plafonnée :
+le mur de dépense est dur, pas indicatif.
+
+## Importer une carte (phase 4)
+
+- **10e pièce, « capture »** : dépôt recto/verso, aperçu, état analysé ou
+  non, admission durcie (brouillon unique uuid, `replace` patient, 409 nommé
+  sans chemin absolu) et service par liste blanche. `MODULE_IDS` passe de 8 à
+  10 — ce qui répare au passage le plus ancien bug du chantier : `doc.forge3d`
+  était jeté en silence depuis la phase 2a.
+- **Analyse locale, gratuite** (PIL pur, hors boucle) : bordure au premier
+  front, zones par grille 1,5 mm + composants connexes, drapeau `tronquee`
+  sur toute boîte qui touche la bande de retrait, fond `chroma_key`, palette,
+  échelle déduite du format (3 formats, mm exacts) et bandeau de divergence
+  quand le format a changé depuis la mesure. **Les confiances sont publiées
+  chiffrées, jamais en certitudes.**
+- **Détourage IA opt-in** : disponibilité honnête et prix lus de la table de
+  tarifs, bascule locale/fal, 503 littéral. Deux gardes payantes : la
+  coalescence par jeu (12 clics simultanés → **1** invocation, donc 1 facture)
+  et le refus du « garde-tout » (un détourage payé qui rend l'image quasi
+  intacte est rejeté au seuil mesuré 0,995).
+- **Trois adoptions cloisonnées** — l'illustration (P1), la bordure (P2, la
+  famille la plus proche avec l'écart affiché) et les zones (P3, boîtes →
+  slots) — chacune en **un** pas d'annulation.
+- **8e famille de cadre, « filigrane-instrument »** (doubles filets,
+  instruments de coin, médaillons mi-chant), dont la table de traits est
+  re-mesurée par la voie de production : le banc rend, recadre à la coupe, et
+  ce sont les mesureurs de la pièce capture qui relèvent.
+- **Parcours de preuve** joué en entier sur une carte réelle, dans l'app
+  déployée, à 0 $ : import → analyse → adoptions → Sceau → modèle → galerie →
+  manifeste → graphe → GLB + STL + metadata. Trois divergences avec la table
+  d'anatomie ont été **publiées non retouchées**, avec leur cause.
+
+## La carte importée part en 3D (phase 4)
+
+Nœud **`extrude`** (10e kind) et anneau-contour en objet (cadre ou Sceau,
+largeur et profondeur en mm, matériau assignable) : volume à 0,003–0,004 % de
+l'analytique, normales dédoublées et arête vive à 30°. Le nœud `layer` gagne
+le côté `capture` et un **manifeste de capture propre** (source, empreinte
+datée à la publication, 7 portes de péremption) : une carte importée n'emprunte
+jamais la preuve d'empilement d'une autre.
+
+## Composer comme dans Figma (phase 5)
+
+- **La sélection devient un LOT** (premier = objet-clé), migration douce en
+  lecture : clic+Maj, clic nu qui garde le lot, Échap qui vide, **lasso** sur
+  un calque de fond, glisser de lot en **un** pas d'undo.
+- **Barre contextuelle** : 6 alignements, 2 distributions, 2 égalisations ;
+  réglages communs en lot avec la valeur « mixte » ; poignée de rotation
+  (Maj = 15°, grisée en lot **avec sa raison**).
+- **Guides d'aimantation objet-à-objet** — voisins, fenêtre du cadre, centre
+  de carte — seuil 0,6 mm, Alt débraye, grille 0,25 mm en repli.
+- Les cinq gestes que le lot rendait faux (Suppr, Ctrl+D, flèches, collage,
+  surbrillance : tous lisaient le premier du lot) sont réparés dans la tâche.
+- **Périmètre tranché avant de coder** : la multi-sélection reste chez la mise
+  en page et ne s'étend pas aux éléments du cadre cette phase — trois raisons
+  mesurées, écrites.
+
+## Formes, éléments, Sceau (phase 5)
+
+Gemme de rareté et ornements de coin libérés (déplaçables, redimensionnables,
+Ctrl+Z rend l'automatique) ; **primitives de formes** — `rect`, `ellipse`,
+`line`, `arrow` rejoignent `text` et `image` — le halo se ferme désormais par
+une ellipse à boîte carrée (IoU 0,9973 contre le disque tracé à la main) ; le
+liseré `plate_stroke` s'applique à toute zone. Un bloquant trouvé au passage :
+la mise en page du serveur ne connaissait pas les formes, et une flèche
+pouvait encrer 2 mm hors coupe en se déclarant conforme. Enfin, la
+**phase-pointeur du Sceau** — transmise et avouée trois fois — a son appelant :
+la bande d'aperçu module la phase à l'écran, et **seulement** à l'écran.
+
+## Le verre, l'occlusion, l'ondulation (phase 5)
+
+**3 recettes de matériaux verre** (verre, verre dépoli, translucide) avec les
+extensions transmission / volume / ior / specular au writer glTF,
+`extensionsUsed` distinct par recette, `extensionsRequired` absent, STL
+identique à l'octet sur les 5 finitions. **L'occlusion devient visible et
+débrayable** — le pipeline existait, il manquait la vue et l'interrupteur ;
+allumée par défaut, elle rend les octets d'avant au bit près. Et
+**l'ondulation douce** (clause aux 3 aveux, transmise depuis la phase 3c) est
+tranchée et livrée : sinusoïde radiale, 6,843° nominal / 7,073° aux octets,
+avec l'aveu que la matière posée la rend invisible aux octets.
+
+## La voie « série » d'illustrations (phase 5)
+
+À côté du vectoriel — **jamais à sa place** — une voie d'images générées, avec
+manifeste versionné (cases faites et refus séparés, une case refusée reste
+manquante et se re-tente), sélecteur qui affiche « n/108 », insigne de
+retombée vectorielle et compteur de dépense. La machinerie est **plafonnée par
+un mur dur** : devis affiché avant, confirmation obligatoire, journal de
+dépense écrit après chaque case en fusion-delta, une case ne s'ouvre que si
+l'échelle complète tient. Aucun nom d'artiste vivant n'entre dans un prompt,
+prouvé par empoisonnement aux trois voies. La campagne réelle a fermé son
+enveloppe d'elle-même (5,892 $ sur 6,00 $, reliquat avoué 0,108 $) et a acheté
+trois correctifs de machinerie en conditions réelles, un diagnostic inversé
+sur la retenue des générateurs, et la preuve que la barre est atteignable.
+Le plafond a été relevé à 8,00 $ le 25/08 **sur ordre explicite** — la règle
+écrite reste : ce nombre ne bouge que sur ordre de l'utilisateur.
+
+## Fiabilité & outillage
+
+Perf du listing des jeux **×61** (index revalidé par `stat`) ; pagination et
+galerie qui cessent de relire des milliers de jeux ; nouvelle route de couches
+qui éteint les **six 404** d'un jeu neuf (6 requêtes en 404 → 2 en 200) ; trois
+bugs antérieurs réparés (500 d'autosave, jeu fantôme, perte de sous-arbre sous
+verrou) ; verrou de déploiement qui porte aussi les **fichiers isolés** (un
+prix écrit, testé et commité n'était jamais arrivé à l'app) ; et un banc de
+contrat corrigé d'un défaut destructeur — il ne détruit plus que ce qu'il a
+écrit.
+
+## Empaquetage
+
+L'installeur cesse d'embarquer la chaîne de sauvegardes du bundle
+(`frontend\dist\assets\*.js.bak_*`, ~13 Mo de fichiers de développement que le
+serveur statique aurait servis à qui devinait un nom), et la racine d'étape du
+script de construction se déduit du profil au lieu d'une lettre de lecteur
+codée en dur.
+
+## Chiffres
+
+Suite complète **64 fichiers verts**, lint **10/10 modules, 0 violation** ;
+tests par pièce en fin de cycle : mise en page 329, cadre 304, visage 147,
+forge3d 174, capture 130, core 127. `MODULE_IDS` 8 → 10, nœuds 3D 9 → 10 kinds,
+familles de cadre 7 → 8, formes 2 → 6 kinds, clés de slot 49. Catalogue
+vectoriel : 18 sujets × 6 compositions = 108 dessins × 12 palettes = 1 296 ids,
+0 octet réseau. **199 commits** depuis v2.4.0. **Dépense réelle totale du cycle :
+5,892 $**, entièrement dans l'enveloppe de la série ; tout le reste à 0 $.
+
+## Reste connu — nommé
+
+Palette d'éléments des modèles perso à moitié vide (4 arbitrages produit
+posés, pas une implémentation) ; redimensionnement de LOT non livré ; contour
+SVG d'`extrude` v2 ; preuve d'empilement non déterministe au 1er tour
+post-édition, et son message qui accuse les mauvaises couches ; menu de
+placement qui déborde sous 618 px ; le calque d'image encore traité en mention
+du cadre ; la liste de blocs qui se lit fond → surface contre la convention
+inverse des bandes qui l'encadrent ; ramasse-miettes des jeux de banc et des
+images orphelines à trancher ; empaquetage du détourage local dans
+l'installeur ; le chapitre du guide illustré sur l'import et la composition
+n'est pas écrit.
+
+---
+
 # 🐙 Deepotus Video Gen — v2.4.0 "Cardforge universel"
 
 **Card Forge** passe de l'éditeur 8 modules à un atelier complet : la carte

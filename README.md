@@ -1,4 +1,4 @@
-# 🐙 Deepotus Video Gen — v2.4.0
+# 🐙 Deepotus Video Gen — v2.5.0
 
 Local Windows studio for generating 9:16 crypto/Web3 videos — Seedance clips,
 HeyGen talking avatars, spatial compositions, and RSS→reel news posts — with a
@@ -81,10 +81,16 @@ zone (`TrimBox`/`BleedBox`, cut marks), CSV-driven decks, PBR textures (8
 maps), and glTF/GLB 3D export with real card thickness, all computed locally
 (Pillow + pypdf). v2.4.0 adds the pixel-proven **layered export** and a free,
 local **Forge 3D graph** — plane/relief treatments, tiled materials,
-holographic finishes, glTF/GLB + STL artifacts. The only steps that use keys
-are optional: AI face generation (fal.ai) and the image→3D engines of the
-Forge 3D graph (5 fal engines billed in $, or Meshy 6/7 in credits — the
-price is shown before every launch).
+holographic finishes, glTF/GLB + STL artifacts. v2.5.0 adds **card import** —
+drop a scan or a render, measure it locally (border, zones, background,
+palette, scale from the format) and adopt its art, border or zones — plus
+**Figma-style multi-selection** in the layout piece (batch move, 6 alignments,
+distributions, object-to-object snapping guides, rotation handle, rect /
+ellipse / line / arrow shapes), an `extrude` 3D node and **glass materials**.
+The only steps that use keys are optional: AI face generation (fal.ai), the
+optional AI cut-out on import, and the image→3D engines of the Forge 3D graph
+(5 fal engines billed in $, or Meshy 6/7 in credits — the price is shown
+before every launch).
 
 ## Required API keys (bring-your-own)
 **fal.ai** is required (images + video, and **music generation** since v2.2.0 —

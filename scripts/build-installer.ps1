@@ -21,8 +21,11 @@ param(
     [string]$AppDir = (Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)),
     # SHORT staging root: the elevenlabs SDK ships 135-char filenames; staged
     # under a deep project tree they exceed MAX_PATH and abort the Inno
-    # compiler. A 5-char root keeps the longest path well under 260.
-    [string]$StageRoot = "D:\dz",
+    # compiler. A short root keeps the longest path well under 260.
+    # Default derived from the profile (no machine-specific literal): the old
+    # "D:\dz" default silently pointed at a CD-ROM drive on the build machine
+    # (constat build v2.5.0) and every build had to override it by hand.
+    [string]$StageRoot = (Join-Path $env:USERPROFILE "dz"),
     [switch]$SkipDownloads
 )
 $ErrorActionPreference = "Stop"
@@ -82,6 +85,19 @@ foreach ($f in @("frontend\SOURCE.md", "frontend\package.json",
                  "frontend\index.html")) {
     $p = Join-Path $stageApp $f
     if (Test-Path $p) { Remove-Item $p -Force; Write-Host "  removed $f" -ForegroundColor Green }
+}
+# Bundle-patch backups (frontend\dist\assets\*.js.bak_*) are the dev patch
+# chain, never loaded by the app: ~13 MB of dead weight the SPA mount would
+# happily serve to anyone who guessed a filename. They shipped in every build
+# up to 2.4.0; strip them here.
+$stagedAssets = Join-Path $stageApp "frontend\dist\assets"
+if (Test-Path $stagedAssets) {
+    $baks = @(Get-ChildItem $stagedAssets -File -Filter "*.js.bak_*")
+    if ($baks.Count -gt 0) {
+        $bakMB = [math]::Round((($baks | Measure-Object Length -Sum).Sum) / 1MB, 1)
+        $baks | Remove-Item -Force
+        Write-Host "  removed $($baks.Count) bundle backup(s) ($bakMB MB)" -ForegroundColor Green
+    }
 }
 # Backend tests are dev-only and pull in stub fixtures.
 $stagedTests = Join-Path $stageApp "backend\tests"
@@ -200,7 +216,7 @@ if (-not $iscc) { throw "ISCC.exe not found after install -- install Inno Setup 
 Write-Host "Compiling installer with: $iscc" -ForegroundColor Cyan
 & $iscc "/DStageDir=$stage" (Join-Path $instDir "deepotus.iss") | Select-Object -Last 4
 
-# The .iss decides where the exe lands (OutputDir= — currently the OneDrive
+# The .iss decides where the exe lands (OutputDir= - currently the OneDrive
 # Desktop export folder); resolve it instead of assuming installer\output.
 $outDir = (Select-String -Path (Join-Path $instDir "deepotus.iss") -Pattern '^OutputDir=(.+)$').Matches.Groups[1].Value.Trim()
 if (-not $outDir) { $outDir = Join-Path $instDir "output" }

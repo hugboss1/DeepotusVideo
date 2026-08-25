@@ -17,7 +17,11 @@ Il est resté affiché en v2.0.0 pendant tout le cycle 2.1.0 (audit 06/08).
 Au prochain bump (le patch version doit TOUJOURS être le dernier maillon) :
   1. éditer OLD/NEW ci-dessous, APP_VERSION dans backend/app/config.py,
      MyAppVersion dans installer/deepotus.iss, le titre de README.md ET le
-     <div class="dz-ver"> de frontend/dist/index.html ;
+     <div class="dz-ver"> de frontend/dist/index.html ; le guide illustré
+     porte AUSSI le numéro deux fois par langue (docs/guide/en.html et
+     fr.html : le sous-titre et le pied de page) — carte complète des
+     porteurs de version : `grep -rn "v<ancienne version>"` ;
+     puis l'entrée CHANGELOG.md et installer/RELEASE-v<nouvelle>.md ;
   2. archiver .bak_version HORS de frontend/dist/assets (sinon il reste dans
      la chaîne détectée par repatch_all) ;
   3. relancer : python scripts/patch_bundle_version.py — le backup frais
@@ -35,8 +39,8 @@ import sys
 BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 BAK = BUNDLE.parent / (BUNDLE.name + ".bak_version")
 
-OLD = "v2.3.0"
-NEW = "v2.4.0"
+OLD = "v2.4.0"
+NEW = "v2.5.0"
 EXPECT = 4  # occurrences exactes du libellé dans le bundle baseline
 
 
