@@ -169,6 +169,12 @@
     { id: "fleuron", label: "Fleuron" },
     { id: "spike", label: "Pointe" },
   ];
+  /* Le PLAN d'un ornement du decor (phase 6, D5) : les deux couches que
+     `ornementsAuPlan` sait peindre. */
+  const PLANS = [
+    { id: "dessus", label: "au-dessus des blocs" },
+    { id: "dessous", label: "sous les blocs" },
+  ];
   /* LE SCEAU PRISMATIQUE (spec §6.2bis) — pas un archetype de mise en page :
      un CONTOUR holographique combinable avec tout archetype. Deux recettes,
      les memes que le materiau 3D de la phase 2b (argent / dorure). */
@@ -523,6 +529,13 @@
     line_color: "", metal: true, metal_tone: "gold",
     grad: true, grad_angle: 118,
     corner: "scroll", gem: true, banner: true, banner_text: "",
+    /* ── LE PLAN DES ORNEMENTS (phase 6, D5) ─────────────────────────────
+       "dessus" = decor haut (couche 70, le defaut de toujours) ; "dessous"
+       = couche 40, au-dessus du cadre de base et SOUS tous les blocs de P3
+       — le remede au bug du 25/08 : une gemme deplacee a la main recouvrait
+       le texte a 100 % et AUCUN reglage de plan des blocs ne pouvait la
+       battre. */
+    gem_plan: "dessus", banner_plan: "dessus",
     /* ── LA GEMME LIBEREE (phase 5, D3) ──────────────────────────────────
        Trois cles, et `null` vaut AUTOMATIQUE — exactement comme `window`
        juste dessous, et pour la meme raison : le calcul de `placeGem` reste
@@ -672,7 +685,7 @@
        ete enregistre. Un document jamais configure repart des defauts.
        L'empreinte ne peut PAS etre « il manque des cles » : le registre du
        CORE fusionne le state declare avant l'hydratation, donc doc.frame
-       porte toujours les 40 cles. Elle tient a la SEULE valeur impossible :
+       porte toujours les 42 cles. Elle tient a la SEULE valeur impossible :
        aucun dos ne s'appelle "none" dans le catalogue livre, et l'interface
        ne sait ecrire que des identifiants du catalogue. */
     const coquille = (s0.back === "none");
@@ -683,6 +696,8 @@
     o.rarity = byId(RARITIES, o.rarity) ? o.rarity : DEFAULTS.rarity;
     o.back = byId(BACKS, o.back) ? o.back : DEFAULTS.back;
     o.corner = byId(CORNERS, o.corner) ? o.corner : DEFAULTS.corner;
+    o.gem_plan = planOrnement(o.gem_plan);
+    o.banner_plan = planOrnement(o.banner_plan);
     o.metal_tone = byId(METALS, o.metal_tone) ? o.metal_tone : DEFAULTS.metal_tone;
     o.line_mm = cl(num(o.line_mm, DEFAULTS.line_mm), LIMITS.line_mm[0], LIMITS.line_mm[1]);
     o.gap_mm = cl(num(o.gap_mm, DEFAULTS.gap_mm), LIMITS.gap_mm[0], LIMITS.gap_mm[1]);
@@ -980,7 +995,7 @@
     if (cur < hi) lanes.push([cur, hi]);
     return lanes;
   }
-  function placeBanner(tw, th, inner, edge, label, ms, wbox, fit) {
+  function placeBanner(tw, th, inner, edge, label, ms, wbox, fit, plan) {
     const w = Math.min(tw * BANNER_MAX_F, BANNER_CH_MM * (label.length + BANNER_PAD_CH));
     let h = BANNER_H_MM;
     const x = tw / 2 - w / 2;
@@ -1004,7 +1019,8 @@
           : (h < BANNER_H_MM - 1e-9 ? "voie libre, ruban aminci" : "voie libre");
       } else lane = "aucune voie libre";
     }
-    return { id: "banner", label: "bandeau de rareté", z: 70, movable: true, lane: lane,
+    return { id: "banner", label: "bandeau de rareté",
+      z: plan === "dessous" ? 40 : 70, plan: plan, movable: true, lane: lane,
       box: [r2(x), r2(y), r2(w), r2(h)] };
   }
   /* ── LA GEMME POSEE A LA MAIN (phase 5, D3) ───────────────────────────────
@@ -1038,7 +1054,23 @@
     const r = orNul(m.r, LIMITS.gem_r_mm);
     return { x: x, y: y, r: r, on: (x !== null || y !== null || r !== null) };
   }
-  function placeGem(tw, th, inner, rank, ms, fit, man) {
+  /* Le PLAN d'un ornement du decor (phase 6, D5) : "dessous" le fait peindre
+     en couche 40 — au-dessus du cadre de base, SOUS tous les blocs de P3 —
+     au lieu du decor haut (70). Toute autre valeur vaut "dessus" : lecture
+     TOLERANTE, comme gemManuel avant lui — miroir de `_plan_ornement` de
+     frame.py. */
+  function planOrnement(v) {
+    return v === "dessous" ? "dessous" : "dessus";
+  }
+  /* La repartition que les DEUX peintres consultent : quels ornements du
+     decor (gemme libre, bandeau) se peignent a cette couche-ci. La fenetre,
+     les socles, les logements et la gemme rangee en ecrin n'en sont pas :
+     eux appartiennent au meuble de la couche 40 depuis toujours. */
+  function ornementsAuPlan(boxes, z) {
+    return (boxes || []).filter((b) => b
+      && ((b.id === "gem" && !b.seat) || b.id === "banner") && b.z === z);
+  }
+  function placeGem(tw, th, inner, rank, ms, fit, man, plan) {
     let r = GEM_R_MM;
     const reach = 1.5 * r + Math.max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM;
     const off = inner + r * GEM_OFF_F;
@@ -1065,7 +1097,8 @@
       const port = 1.5 * r + Math.max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM;
       const d2 = (cx > tw / 2) ? -1 : 1;
       box = [d2 > 0 ? cx - r : cx - port, cy - r, r + port, 2 * r];
-      return { id: "gem", label: "gemme de rareté", z: 70, movable: true,
+      return { id: "gem", label: "gemme de rareté",
+        z: plan === "dessous" ? 40 : 70, plan: plan, movable: true,
         lane: "posée à la main", dir: d2, seat: false, manual: true,
         shape: "disc", pips: rank, cx: r2(cx), cy: r2(cy), r: r2(r),
         box: [r2(box[0]), r2(box[1]), r2(box[2]), r2(box[3])] };
@@ -1090,7 +1123,8 @@
       name = "logement de " + host.id;
     }
     return { id: "gem", label: seat ? ("gemme en logement de " + host.id) : "gemme de rareté",
-      z: seat ? 40 : 70, movable: true, lane: name, dir: best.dir, seat: seat,
+      z: (seat || plan === "dessous") ? 40 : 70, plan: plan,
+      movable: true, lane: name, dir: best.dir, seat: seat,
       manual: false,
       shape: shape, pips: seat ? 0 : rank, cx: r2(cx), cy: r2(cy), r: r2(r),
       box: [r2(box[0]), r2(box[1]), r2(box[2]), r2(box[3])] };
@@ -1111,11 +1145,13 @@
     const rank = idx(RARITIES, fr.rarity) + 1;
     if (fr.gem !== false) {
       boxes.push(placeGem(tw, th, inner, rank, ms, fit,
-        { x: fr.gem_x, y: fr.gem_y, r: fr.gem_r }));
+        { x: fr.gem_x, y: fr.gem_y, r: fr.gem_r },
+        planOrnement(fr.gem_plan)));
     }
     if (fr.banner !== false) {
       const lab = String(fr.banner_text || (byId(RARITIES, fr.rarity) || {}).label || "").trim().toUpperCase();
-      if (lab) boxes.push(placeBanner(tw, th, inner, edge, lab, ms, wbox, fit));
+      if (lab) boxes.push(placeBanner(tw, th, inner, edge, lab, ms, wbox, fit,
+        planOrnement(fr.banner_plan)));
     }
     const socles = [], seats = [];
     const band = [inner, inner, tw - 2 * inner, th - 2 * inner];
@@ -3548,17 +3584,24 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
-     8. ORNEMENTS DE DESSUS — z = 70 (par-dessus le texte de P3)
+     8. ORNEMENTS DE DESSUS — z = 70 (par-dessus le texte de P3), OU z = 40
+     quand le PLAN de l'ornement dit « dessous » (phase 6, D5) : la meme
+     fonction peint les deux couches, `ornementsAuPlan` repartit — le peintre
+     et le compteur lisent le meme calcul, et l'ecran et l'export le meme
+     peintre.
      ═══════════════════════════════════════════════════════════════════════ */
-  function paintTop(ctx, g, f, card, side) {
+  function paintTop(ctx, g, f, card, side, couche) {
     if (f.family === "none") return;
     const m = model(g, f), p = pal(f), u = m.u;
     if (side === "back") return;
+    couche = couche === 40 ? 40 : 70;
     /* LES PLACEMENTS VIENNENT DU PLAN, pas d'une constante. C'est ce qui rend
        « le ruban ne mange plus la signature » vrai dans le FICHIER, pas
        seulement a l'ecran : le painter et le compteur lisent le meme calcul. */
     const plan = planOf(g, f);
-    const gemB = findBox(plan, "gem"), banB = findBox(plan, "banner");
+    const auPlan = ornementsAuPlan(plan.boxes, couche);
+    const gemB = auPlan.find((b) => b.id === "gem") || null;
+    const banB = auPlan.find((b) => b.id === "banner") || null;
     const mmx = (v) => m.trim.x + v * u, mmy = (v) => m.trim.y + v * u;
 
     if (f.gem && gemB && !gemB.seat) {
@@ -3640,6 +3683,11 @@
             const dfs = decorFiles(f);
             if (dfs.length) await ensureFrameImgs(dfs, "app");
             paintFront(ctx, geom, f, card, doc);
+            /* LES ORNEMENTS AU PLAN « dessous » (phase 6, D5) : peints ICI,
+               en queue de couche 40 — au-dessus du cadre de base et de ses
+               meubles, SOUS tous les blocs de P3. Meme peintre que la couche
+               70 : l'ecran et l'export ne peuvent pas diverger. */
+            paintTop(ctx, geom, f, card, side, 40);
             return;
           }
           /* LES IMAGES DU VERSO, ATTENDUES ICI — le patron de `ensureImgs` de
@@ -4225,6 +4273,13 @@
       + "quatre coins et se range en écrin quand aucun n'est libre";
     gauto.addEventListener("click", gemAuto);
     gmrow.appendChild(gauto);
+    /* ── LE PLAN DE LA GEMME (phase 6, D5) — le remede au bug du 25/08 :
+       « sous les blocs » la peint en couche 40, le texte passe devant. */
+    UI.gemPlan = sel(PLANS, (v) => set({ gem_plan: v }, "plan de la gemme"));
+    UI.gemPlan.title = "« au-dessus des blocs » = le décor haut de toujours ; "
+      + "« sous les blocs » = la gemme passe sous tout ce que la mise en page "
+      + "empile (textes, images, formes)";
+    gmrow.appendChild(field("Plan", UI.gemPlan));
     g3.body.appendChild(gmrow);
     UI.gemRead = h("p", "hint cff-gemread");
     g3.body.appendChild(UI.gemRead);
@@ -4237,6 +4292,12 @@
     UI.bannerText.addEventListener("change", () => set({ banner_text: UI.bannerText.value }, "texte du bandeau"));
     brow.appendChild(UI.banner.el);
     brow.appendChild(field("Texte", UI.bannerText));
+    UI.bannerPlan = sel(PLANS, (v) => set({ banner_plan: v },
+      "plan du bandeau"));
+    UI.bannerPlan.title = "« au-dessus des blocs » = le décor haut de "
+      + "toujours ; « sous les blocs » = le bandeau passe sous tout ce que "
+      + "la mise en page empile";
+    brow.appendChild(field("Plan", UI.bannerPlan));
     g3.body.appendChild(brow);
     const prow2 = h("div", "cff-row");
     UI.plate = check("Plaque de texte", (v) => set({ plate: v }, "plaque"));
@@ -7647,6 +7708,8 @@
     UI.backRead.innerHTML = backText(f0);
     UI.metalTone.value = f0.metal_tone;
     UI.corner.value = f0.corner;
+    UI.gemPlan.value = f0.gem_plan;
+    UI.bannerPlan.value = f0.banner_plan;
     if (document.activeElement !== UI.bannerText) UI.bannerText.value = f0.banner_text || "";
     UI.color.value = f0.line_color || rgbHex(pal(f0).line);
 

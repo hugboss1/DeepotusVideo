@@ -7164,13 +7164,15 @@ COUTURES = [
      "`resFace` doit la rejouer à l'identique, sinon la rangée « illustration » "
      "dira « vide » sur une carte qui en porte une"),
     (MOD_FRAME, "if (fr.banner !== false) {",
-     'if (CF.get("frame.banner", null) !== false) on.push("bandeau");',
+     'if (CF.get("frame.banner", null) !== false) on.push("bandeau" + sous("banner_plan"));',
      "P2 ne teste plus le bandeau par `!== false` : `resDecor` rejoue ce test "
-     "PRÉCIS pour ne pas avoir à recopier le défaut `banner: true`"),
+     "PRÉCIS pour ne pas avoir à recopier le défaut `banner: true` (et depuis "
+     "la phase 6-T3, la rangée DIT la rétrogradation « sous les blocs »)"),
     (MOD_FRAME, "if (f.gem && gemB && !gemB.seat) {",
-     'if (CF.get("frame.gem", null) !== false) on.push("gemme");',
+     'if (CF.get("frame.gem", null) !== false) on.push("gemme" + sous("gem_plan"));',
      "P2 ne peint plus la gemme sur une valeur simplement VRAIE : `resDecor` "
-     "suppose qu'une clé absente (donc le défaut `gem: true`) la peint"),
+     "suppose qu'une clé absente (donc le défaut `gem: true`) la peint (et "
+     "depuis la phase 6-T3, la rangée DIT la rétrogradation « sous les blocs »)"),
     (MOD_FRAME, 'if (f.family === "none") return;',
      'if (lu("frame.family") === "none") return AUCUN;',
      "P2 ne sort plus du décor haut sur `family === \"none\"` : la rangée "

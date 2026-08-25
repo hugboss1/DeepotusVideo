@@ -869,6 +869,11 @@ _HABILLAGE_COMMUN = {
     # `window: null` : un archétype pose des RÉGLAGES, pas des positions
     # figées.
     "gem_x": None, "gem_y": None, "gem_r": None,
+    # LE PLAN DES ORNEMENTS (phase 6, D5) : « dessus » = décor haut (70),
+    # « dessous » = couche 40, sous les blocs de P3. Les sept habillages
+    # gardent le défaut de toujours — et c'est par ces clés que la liste
+    # blanche des modèles les admet (models.py, `_FRAME_CLES` dérivée).
+    "gem_plan": "dessus", "banner_plan": "dessus",
     # LES ORNEMENTS DE COIN à leur place et à leur taille de dessin : les huit
     # familles ont été mesurées ainsi (silhouettes 8x8), et un archétype qui
     # les décalerait rendrait cette mesure fausse pour lui seul.
@@ -1253,7 +1258,7 @@ def _free_lanes(occupied: list[tuple[float, float]], lo: float,
 
 def _place_banner(tw: float, th: float, inner: float, edge: float,
                   label: str, mentions: list[dict], wbox: list,
-                  fit: bool) -> dict:
+                  fit: bool, plan: str = "dessus") -> dict:
     """Le bandeau garde sa largeur et son centrage ; il choisit son ORDONNÉE,
     et il MAIGRIT si la seule voie libre est plus étroite que lui — c'est le
     « la bande se scinde autour de lui » du cahier des charges, appliqué au
@@ -1297,7 +1302,8 @@ def _place_banner(tw: float, th: float, inner: float, edge: float,
                 lane = "voie libre"
         else:
             lane = "aucune voie libre"
-    return {"id": "banner", "label": "bandeau de rareté", "z": 70,
+    return {"id": "banner", "label": "bandeau de rareté",
+            "z": 40 if plan == "dessous" else 70, "plan": plan,
             "movable": True, "lane": lane,
             "box": [rnd(x, 2), rnd(y, 2), rnd(w, 2), rnd(h, 2)]}
 
@@ -1331,8 +1337,18 @@ def _gem_manuel(man) -> dict:
             "on": x is not None or y is not None or r is not None}
 
 
+def _plan_ornement(v) -> str:
+    """Le PLAN d'un ornement du décor (phase 6, D5) : « dessous » le fait
+    peindre en couche 40 — au-dessus du cadre de base, SOUS tous les blocs de
+    P3 — au lieu du décor haut (70). Toute autre valeur vaut « dessus » :
+    lecture TOLÉRANTE, comme `gem_x` avant lui — un document étranger ne fait
+    pas lever le painter."""
+    return "dessous" if v == "dessous" else "dessus"
+
+
 def _place_gem(tw: float, th: float, inner: float, rank: int,
-               mentions: list[dict], fit: bool, man=None) -> dict:
+               mentions: list[dict], fit: bool, man=None,
+               plan: str = "dessus") -> dict:
     """La gemme a quatre logements possibles : les quatre coins de la bande.
 
     Si AUCUN coin n'est libre — c'est le cas dès que la pièce 03 pose un coût
@@ -1382,7 +1398,8 @@ def _place_gem(tw: float, th: float, inner: float, rank: int,
         port = 1.5 * r + max(0, rank - 1) * PIP_STEP_MM + PIP_R_MM
         d2 = -1 if cx > tw / 2 else 1
         box = [cx - r if d2 > 0 else cx - port, cy - r, r + port, 2 * r]
-        return {"id": "gem", "label": "gemme de rareté", "z": 70,
+        return {"id": "gem", "label": "gemme de rareté",
+                "z": 40 if plan == "dessous" else 70, "plan": plan,
                 "movable": True, "lane": "posée à la main", "dir": d2,
                 "seat": False, "manual": True, "shape": "disc", "pips": rank,
                 "cx": rnd(cx, 2), "cy": rnd(cy, 2), "r": rnd(r, 2),
@@ -1414,7 +1431,7 @@ def _place_gem(tw: float, th: float, inner: float, rank: int,
     return {"id": "gem",
             "label": ("gemme en logement de " + host["id"]) if seat
                      else "gemme de rareté",
-            "z": 40 if seat else 70,
+            "z": 40 if (seat or plan == "dessous") else 70, "plan": plan,
             "movable": True, "lane": name, "dir": d, "seat": seat,
             "manual": False,
             "shape": shape, "pips": 0 if seat else rank,
@@ -1452,7 +1469,8 @@ def occupancy(g, f: dict, slots) -> dict:
     if f.get("gem", True):
         boxes.append(_place_gem(tw, th, inner, rank, mentions, fit,
                                 {"x": f.get("gem_x"), "y": f.get("gem_y"),
-                                 "r": f.get("gem_r")}))
+                                 "r": f.get("gem_r")},
+                                _plan_ornement(f.get("gem_plan"))))
     if f.get("banner", True):
         lab = str(f.get("banner_text") or "").strip()
         if not lab:
@@ -1461,7 +1479,8 @@ def occupancy(g, f: dict, slots) -> dict:
         lab = lab.upper()
         if lab:
             boxes.append(_place_banner(tw, th, inner, edge, lab, mentions,
-                                       wbox, fit))
+                                       wbox, fit,
+                                       _plan_ornement(f.get("banner_plan"))))
 
     # Socles et logements : le cadre FOURNIT le fond dont la mention a besoin.
     # Une mention posée sur l'illustration reçoit une plaque ; une mention qui

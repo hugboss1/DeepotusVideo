@@ -812,7 +812,12 @@ def test_le_compteur_est_affiche_et_le_painter_lit_le_meme_plan():
     # le painter ne recalcule pas une position dans son coin
     assert src.count("planOf(g, f)") >= 2, \
         "paintFront et paintTop doivent lire le plan, pas des constantes"
-    assert 'findBox(plan, "banner")' in src and 'findBox(plan, "gem")' in src
+    # Depuis la phase 6 (D5), paintTop repartit gemme et bandeau par
+    # `ornementsAuPlan` (couche 40 ou 70 selon le plan de l'ornement) — les
+    # boites viennent toujours du MEME plan d'occupation, jamais d'une
+    # constante.
+    assert "ornementsAuPlan(plan.boxes, couche)" in src, \
+        "paintTop doit repartir les ornements par leur plan"
     assert "collisions=" in src, "le compte doit partir dans le PNG livré"
 
 
@@ -2890,7 +2895,9 @@ def test_le_compte_de_cles_ecrit_dans_le_source_est_le_vrai():
     # `gem_y`, `gem_r` (le placement de la gemme, `null` = calculé),
     # `corner_dx`, `corner_dy`, `corner_scale` (les ornements de coin) et
     # `win_stroke_color` / `win_stroke_mm` (le liseré propre de la fenêtre).
-    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5, « le plan des ornements ») : `gem_plan` et
+    # `banner_plan` (« dessus » = décor haut, « dessous » = sous les blocs).
+    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert "les 22 cles" not in src and "22 clés" not in src, \
         "le commentaire périmé « 22 clés » est toujours là"
     assert f"porte toujours les {len(cles)} cles" in src, \
@@ -4180,7 +4187,8 @@ def test_le_compte_de_cles_du_document_suit_le_sceau():
     nombre."""
     cles = _js_defaults_keys(_js())
     assert "seal" in cles, f"la clé seal manque à DEFAULTS : {cles}"
-    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
+    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
     py = pathlib.Path(FR.__file__).read_text(encoding="utf-8")
     assert "39 clés que l'on écrit" in py, \
         "le commentaire de l'habillage ne suit pas les clés neuves (39 " \
@@ -4961,7 +4969,8 @@ def test_le_schema_du_verso_custom_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "back_image" in cles and "back_layers" in cles, cles
-    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
+    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
     # les bornes, des deux côtés et au chiffre de la spec
     for k, attendu in (("back_opacity", BACK_OPACITY_SPEC),
                        ("back_scale", BACK_SCALE_SPEC)):
@@ -6347,7 +6356,8 @@ def test_le_decor_est_la_32e_cle_et_son_schema_est_le_meme_des_deux_cotes():
     src = _js()
     cles = _js_defaults_keys(src)
     assert "decor" in cles, f"la clé decor manque à DEFAULTS : {cles}"
-    assert len(cles) == 40, f"{len(cles)} clés dans DEFAULTS : {cles}"
+    # 42 depuis la phase 6-T3 (D5) : `gem_plan` et `banner_plan`.
+    assert len(cles) == 42, f"{len(cles)} clés dans DEFAULTS : {cles}"
     assert f"porte toujours les {len(cles)} cles" in src, \
         "le commentaire de st() ne dit pas le compte réel"
     # les défauts, littéralement les mêmes
@@ -10447,3 +10457,145 @@ def test_le_peintre_et_sealStops_n_ont_PAS_CHANGE_pour_ce_branchement():
     assert "UI.sealPrev" in ui, "la bande n'est jamais posée dans le panneau"
     assert "drawSealPrev()" in _js_fn(src, "syncNow"), \
         "la bande ne suit pas les réglages du Sceau"
+
+
+# =============================================================================
+# 25. LE PLAN DES ORNEMENTS - phase 6, T3 (D5)
+#
+# LE BUG RAPPORTE (25/08) : la gemme deplacee a la main recouvrait le texte a
+# 100 %, et AUCUN reglage de plan des blocs ne pouvait la battre - le decor
+# haut (couche 70) se peint apres tout ce que P3 empile, par construction de
+# Z_TABLE. Le remede tient dans le PLAN D OCCUPATION : `gem_plan` et
+# `banner_plan` valent "dessus" (couche 70, le defaut de toujours) ou
+# "dessous" - l ornement passe alors en couche 40, au-dessus du cadre de base
+# et SOUS tous les blocs de P3. Le texte passe devant se voit enfin, et les
+# boutons devant/derriere des blocs retrouvent leur sens.
+# =============================================================================
+
+
+def _ban(o) -> dict:
+    return [b for b in o["boxes"] if b["id"] == "banner"][0]
+
+
+PLAN_FRAME = dict(FRAME, fit=True, banner=True,
+                  gem_x=31.5, gem_y=44.0, gem_r=6.0)
+
+
+def test_le_plan_d_ornement_par_defaut_et_les_valeurs_inconnues():
+    """Sans cle, RIEN ne bouge : gemme manuelle et bandeau restent couche 70,
+    boites au bit pres. Et une valeur inconnue ("milieu", 3, [], True, "")
+    vaut le defaut - un document etranger ne fait pas lever le painter, il
+    est LU avec tolerance comme gem_x avant lui."""
+    g = CT.geom("poker_eu", 300)
+    ref = FR.occupancy(g, dict(PLAN_FRAME), SLOTS)
+    assert _gem(ref)["z"] == 70
+    assert _ban(ref)["z"] == 70
+    assert _gem(ref)["plan"] == "dessus"
+    assert _ban(ref)["plan"] == "dessus"
+    for faux in ("milieu", 3, [], True, ""):
+        o = FR.occupancy(g, dict(PLAN_FRAME, gem_plan=faux,
+                                 banner_plan=faux), SLOTS)
+        assert o["boxes"] == ref["boxes"], faux
+
+
+def test_le_plan_dessous_passe_l_ornement_sous_les_blocs():
+    """LE REMEDE MESURE : `gem_plan="dessous"` -> couche 40 dans le plan
+    d occupation, et RIEN d autre ne bouge (position, crans, boite, manual).
+    Pareil pour le bandeau. La couche 40 est peinte AVANT les blocs de P3 :
+    c est tout le remede."""
+    g = CT.geom("poker_eu", 300)
+    ref = FR.occupancy(g, dict(PLAN_FRAME), SLOTS)
+    o = FR.occupancy(g, dict(PLAN_FRAME, gem_plan="dessous",
+                             banner_plan="dessous"), SLOTS)
+    gem, gref = _gem(o), _gem(ref)
+    assert gem["z"] == 40 and gref["z"] == 70
+    assert gem["plan"] == "dessous"
+    for cle in ("cx", "cy", "r", "pips", "box", "manual", "seat", "lane"):
+        assert gem[cle] == gref[cle], cle
+    ban, bref = _ban(o), _ban(ref)
+    assert ban["z"] == 40 and bref["z"] == 70
+    assert ban["plan"] == "dessous"
+    assert ban["box"] == bref["box"]
+    # la gemme rangee en ECRIN (auto, aucun coin libre) reste couche 40 comme
+    # avant : le plan ne concerne que l ornement qu on voit, pas son logement
+    ecrin = _gem(FR.occupancy(g, dict(FRAME, fit=True,
+                                      gem_plan="dessous"), SLOTS))
+    assert ecrin["seat"] is True and ecrin["z"] == 40
+
+
+def test_le_plan_d_ornement_est_miroir_python_js(tmp_path):
+    """La parite du banc de rangees, etendue au plan : les MEMES cas rendent
+    les MEMES couches des deux cotes. L ecran confronte ce plan au backend a
+    chaque changement - une divergence serait un mensonge d apercu."""
+    g = CT.geom("poker_eu", 300)
+    cas = []
+    for plan in ("dessus", "dessous"):
+        cas.append({"nom": "plan_" + plan, "trim_mm": list(g.trim_mm),
+                    "frame": dict(PLAN_FRAME, gem_plan=plan,
+                                  banner_plan=plan),
+                    "slots": SLOTS})
+    rendu = _banc_occ(tmp_path, cas)
+    for r in rendu:
+        assert r["ok"], r
+        plan = r["nom"].split("_", 1)[1]
+        py = FR.occupancy(g, dict(PLAN_FRAME, gem_plan=plan,
+                                  banner_plan=plan), SLOTS)
+        js_gem = [b for b in r["occ"]["boxes"] if b["id"] == "gem"][0]
+        js_ban = [b for b in r["occ"]["boxes"] if b["id"] == "banner"][0]
+        assert js_gem["z"] == _gem(py)["z"], plan
+        assert js_ban["z"] == _ban(py)["z"], plan
+        assert js_gem["plan"] == plan and js_ban["plan"] == plan
+
+
+BANC_PLAN = r"""
+import { readFileSync } from "node:fs";
+const SRC = readFileSync(process.argv[2], "utf8");
+const CAS = JSON.parse(readFileSync(process.argv[3], "utf8"));
+const mod = (0, eval)(SRC + "\n({ occupancy: occupancy, ornementsAuPlan: ornementsAuPlan })");
+const out = [];
+for (const c of CAS.cas) {
+  try {
+    const occ = mod.occupancy({ trim_mm: c.trim_mm }, c.frame, c.slots || []);
+    out.push({ nom: c.nom, ok: true,
+      z40: mod.ornementsAuPlan(occ.boxes, 40).map((b) => b.id),
+      z70: mod.ornementsAuPlan(occ.boxes, 70).map((b) => b.id) });
+  } catch (e) { out.push({ nom: c.nom, ok: false, err: String((e && e.message) || e) }); }
+}
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+def test_la_repartition_du_decor_par_plan_s_execute_au_banc(tmp_path):
+    """`ornementsAuPlan(boxes, z)` est LA fonction que les deux peintres de
+    P2 consultent : elle repartit gemme et bandeau entre la couche 40 et la
+    couche 70 selon leur plan, et ne rend JAMAIS la fenetre, les socles ou
+    les logements (eux ne sont pas des ornements peints par le decor haut).
+    On l execute au banc sur la VRAIE source - pas de grep de prose."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du plan ne peut pas tourner")
+    g = CT.geom("poker_eu", 300)
+    js = tmp_path / "occ_plan.js"
+    js.write_text(_painter_js_source(), encoding="utf-8")
+    banc = tmp_path / "banc_plan.mjs"
+    banc.write_text(BANC_PLAN, encoding="utf-8")
+    cas = [{"nom": "dessus", "trim_mm": list(g.trim_mm),
+            "frame": dict(PLAN_FRAME), "slots": SLOTS},
+           {"nom": "dessous", "trim_mm": list(g.trim_mm),
+            "frame": dict(PLAN_FRAME, gem_plan="dessous",
+                          banner_plan="dessous"), "slots": SLOTS}]
+    conf = tmp_path / "cas_plan.json"
+    conf.write_text(json.dumps({"cas": cas}), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(js), str(conf)],
+                       capture_output=True, text=True, encoding="utf-8",
+                       timeout=300)
+    assert r.returncode == 0, r.stderr[-3000:]
+    rendu = json.loads(r.stdout)
+    par = {v["nom"]: v for v in rendu}
+    assert par["dessus"]["ok"] and par["dessous"]["ok"], rendu
+    assert sorted(par["dessus"]["z70"]) == ["banner", "gem"]
+    assert par["dessus"]["z40"] == []
+    assert sorted(par["dessous"]["z40"]) == ["banner", "gem"]
+    assert par["dessous"]["z70"] == []

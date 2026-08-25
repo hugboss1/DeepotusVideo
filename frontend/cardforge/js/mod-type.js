@@ -3542,8 +3542,13 @@
   function resDecor() {
     if (lu("frame.family") === "none") return AUCUN;
     const on = [];
-    if (CF.get("frame.gem", null) !== false) on.push("gemme");
-    if (CF.get("frame.banner", null) !== false) on.push("bandeau");
+    /* UN ORNEMENT RETROGRADE SE DIT (phase 6, D5) : au plan « dessous » il
+       se peint en couche 40, sous les blocs — le taire ici ferait de cette
+       rangee une carte fausse (il est encore peint, ailleurs). */
+    const sous = (k) => (CF.get("frame." + k, null) === "dessous"
+      ? " (sous les blocs)" : "");
+    if (CF.get("frame.gem", null) !== false) on.push("gemme" + sous("gem_plan"));
+    if (CF.get("frame.banner", null) !== false) on.push("bandeau" + sous("banner_plan"));
     return on.length ? on.join(" + ") : AUCUN;
   }
   const BANDES = {
@@ -4791,7 +4796,15 @@
   function placeMenu(menu, e, w) {
     const r = e.currentTarget.getBoundingClientRect();
     const vw = (typeof window !== "undefined" && window.innerWidth) || (w + 16);
-    menu.style.left = Math.max(8, Math.min(vw - w, r.left)) + "px";
+    /* LA LARGEUR REELLE, PAS LE PARAMETRE (phase 6, T3-D). Sous ~618 px le
+       menu de palette DEBORDAIT : le parametre disait 420 quand la boite,
+       bordures et defilement compris, en mesurait davantage — et le calage
+       n'avait ni marge droite ni borne de largeur. Le menu se retrecit
+       d'abord (max-width au viewport), puis se cale sur SA largeur mesuree :
+       plus aucun viewport ne le voit sortir. */
+    menu.style.maxWidth = Math.max(240, vw - 16) + "px";
+    const mw = menu.getBoundingClientRect().width || w;
+    menu.style.left = Math.max(8, Math.min(vw - mw - 8, r.left)) + "px";
     menu.style.top = (r.bottom + 6) + "px";
     const off = (ev) => {
       if (menu.contains(ev.target)) return;
