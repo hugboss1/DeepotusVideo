@@ -71,7 +71,12 @@ if (Test-Path $stagedScripts) {
     $kept = (Get-ChildItem $stagedScripts -File).Name
     Write-Host "  scripts\ trimmed to: $($kept -join ', ')" -ForegroundColor Green
 }
+# .cache\starter-packs holds the RAW upstream zips the starter catalog was
+# built from (scripts\build_starter_catalog.py, dev-only); the catalog the app
+# actually serves lives in backend\app\assets\starter. .superpowers is agent
+# scratch. Neither is read by anything the buyer runs.
 foreach ($d in @("docs\superpowers", "docs\plans", ".claude", ".pytest_cache",
+                 ".cache", ".superpowers",
                  "frontend\patches", "frontend\public")) {
     $p = Join-Path $stageApp $d
     if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed $d" -ForegroundColor Green }
