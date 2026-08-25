@@ -1118,7 +1118,11 @@ async def stamp_png(did: str, fmt: str, dpi: int, request: Request,
 SERIE_ID = "walkuski"
 SERIE_V = 1                       # schéma du manifeste
 SERIE_DIR = "cardforge_series"    # sous `DATA_ROOT`, patron des modèles perso
-SERIE_PLAFOND_USD = 6.00          # LE MUR (plan D2) — dur, pas indicatif
+SERIE_PLAFOND_USD = 8.00          # LE MUR (plan D2) — dur, pas indicatif.
+# 6,00 à la naissance (T1) ; RELEVÉ À 8,00 LE 25/08/2026 SUR ORDRE EXPLICITE
+# DE L'UTILISATEUR (« relève à 8$ »), pour la sonde post-correctif de la
+# clôture T5. Ce nombre ne bouge QUE sur un ordre utilisateur — jamais un
+# agent (la leçon de la campagne, écrite au plan).
 SERIE_CANDIDATS = 6               # candidats par case à la première marche
 # LE PLAFOND DU FOURNISSEUR, MESURÉ EN PAYANT (campagne T5, 25/08/2026).
 # `fal-ai/flux/schnell` refuse `num_images > 4`, et il le refuse à la
