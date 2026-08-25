@@ -503,9 +503,52 @@ navigateur + le juge rejoué sur 10 cases au hasard depuis les fichiers servis.
 **Prérequis** : T1 clos ; prix re-vérifiés LE JOUR MÊME ; l'utilisateur a déjà
 donné l'opt-in (24/08) — le plafond et le journal sont la protection.
 
-- [ ] LIVRÉ (le bilan de campagne : cases, dépense totale, refus)
-- [ ] Ronde adverse + corrections
-- [ ] CLOSE
+- [x] LIVRÉ — commits `d850346`+`8f3d769`+`f5f0e9a`+`1399e39`+`4f500aa` +
+  le pin modèles `338a2d7` (orchestrateur). LA CAMPAGNE RÉELLE : enveloppe
+  close à **5,892 $ / 6,00 $** (facturé ≈5,676 $ — 0,216 $ d'écriture
+  prudente pour des appels refusés à la validation), 5 sessions, 54 cases
+  tentées, **1 SERVIE** (`stained_tower`, voie FLUX, score **92,9 = le
+  Król Lear authentique en aveugle**, 0 axe rouge, vérifiée sur les octets
+  SERVIS + l'écran « 1/108 » + l'adoption setArt mesurée). Le mur machinerie
+  a fermé la campagne de lui-même, reliquat avoué (0,108 $), AUCUN garde-fou
+  contourné, AUCUN tir au-delà.
+  CE QUE L'ENVELOPPE A ACHETÉ : (1) l'assurance de l'étape A a attrapé une
+  régression de suite (le pin 39→49 du 3e lecteur de SLOT_DEFAULTS — que
+  seule la suite complète pouvait voir) ; (2) TROIS défauts de machinerie
+  réels corrigés en conditions réelles (cf_deploy aveugle à pricing.py —
+  l'app servait nano-banana à prix null ; FLUX refuse >4 images/appel —
+  deux tirs 4+2 ; le gabarit) ; (3) LE DIAGNOSTIC INVERSÉ : les générateurs
+  SUR-OBÉISSENT à la retenue (ils vidaient la toile — 84/84 au-dessus du
+  plafond de vide — l'hypothèse du brief était fausse, réfutée par l'agent
+  SANS re-télécharger le corpus sous droits, dont il a refusé le
+  téléchargement : le consentement est à l'utilisateur seul) ; (4) la
+  preuve que LA BARRE EST ATTEIGNABLE ; (5) le pipeline entier prouvé
+  (génération→juge→manifeste→écran→adoption). Trajectoire des sondes :
+  méd 65,7 → 78,6 → 73,5 avec le pendule TRAVERSÉ TROIS FOIS (vider →
+  éclairer → re-éclairer : « la borne et la pression vont ensemble » — le
+  correctif final garde « dark » ET borne le point clair, déployé).
+  L'agent a aussi avoué TROIS défauts de ses propres bancs (l'oracle qui
+  cite l'accusé, le BOM+CRLF double piège, le contrôle sain rouge) et un
+  4e (son banc accusait le produit d'un échec d'adoption qui était le sien
+  — il lisait face.art, une clé inexistante).
+- [x] Ronde adverse + corrections — T5 est une tâche d'OPÉRATIONS : ses
+  arrêts-et-rapports (étape A, règle des 8 $, règle D, l'enveloppe) ONT ÉTÉ
+  ses rondes, chacun vérifié par l'orchestrateur ; ses trois commits de
+  machinerie portent tests + mutation (5/5, 6/6, 4/6 avec 2 équivalents-au-
+  contrat avoués : un test qui garde des PROPRIÉTÉS laisse passer les
+  mutants de PROSE, c'est voulu).
+- [x] CLOSE : leçons — (a) L'ASSURANCE AVANT DE PAYER (la suite complète)
+  attrape ce que les filtres par-fichier ne voient pas ; (b) le réel est le
+  seul banc des intégrations de fournisseurs (3 défauts en 2 sondes) ;
+  (c) UN RÉGLAGE À LA FOIS, et la borne avec la pression — le pendule coûte
+  une sonde par traversée ; (d) un agent ne télécharge pas des œuvres sous
+  droits sur l'ordre d'un autre agent, et ne relève JAMAIS un plafond
+  d'argent. LA DÉCISION UTILISATEUR EST POSÉE (relever l'enveloppe ~2 $
+  pour une sonde post-correctif / ~15 $ pour pousser au taux courant —
+  déconseillé / en rester là : 1/108 honnête et reprenable). Dettes → T6 :
+  les textes « par session » (route + écran) vs l'enveloppe TOTALE réelle ;
+  les 6×404 P9 sur deck neuf ; LES 293 CANDIDATS PERDANTS (261,6 Mo) à
+  purger-ou-garder.
 
 ### T6 — Intégration, preuve, poussée
 Un deck témoin remonté de bout en bout (série Wałkuski + formes/flèches +
