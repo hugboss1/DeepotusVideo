@@ -2459,14 +2459,21 @@ async def serie_generer(did: str, body: dict | None = None,
         d = devis(voulues, n)
         raise HTTPException(400, detail={
             "erreur": "confirmation requise",
+            # LA PHRASE DIT L'ENVELOPPE, PAS UNE SESSION. `devis()` relit
+            # `depense_totale_usd` DU MANIFESTE SUR DISQUE : le mur tient d'un
+            # POST à l'autre (épinglé par le test du plafond dur). Écrire
+            # « par session » promettait une remise à zéro qui n'existe pas —
+            # sur une route qui dépense, c'était une invitation à relancer.
             "message": ("Cette campagne DÉPENSE. Elle vise "
                         + str(d["cases_manquantes"]) + " case(s), soit au pire "
-                        + _usd(d["pire_cas_usd"]) + " $ pour un plafond de "
-                        + _usd(d["plafond_usd"]) + " $ par session (il reste "
+                        + _usd(d["pire_cas_usd"]) + " $ sur une ENVELOPPE "
+                        "TOTALE de " + _usd(d["plafond_usd"]) + " $ (il reste "
                         + _usd(d["reste_usd"]) + " $, de quoi ouvrir "
-                        + str(d["cases_ouvrables"]) + " case(s)). Renvoyez la "
-                        "MÊME requête avec {\"confirmer\": true} pour la "
-                        "lancer."),
+                        + str(d["cases_ouvrables"]) + " case(s)). L'enveloppe "
+                        "est CUMULATIVE : chaque lancement reprend la dépense "
+                        "déjà journalisée, elle ne se remet jamais à zéro. "
+                        "Renvoyez la MÊME requête avec {\"confirmer\": true} "
+                        "pour la lancer."),
             "devis": d,
         })
 

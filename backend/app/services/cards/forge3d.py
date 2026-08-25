@@ -4070,6 +4070,64 @@ async def post_library(did: str, art: str):
             "title": titre, "files": info["files"]}
 
 
+@router.get("/layers/{card_label}")
+async def get_layers(did: str, card_label: str):
+    r"""LES TROIS MANIFESTES D'UNE CARTE, EN UNE RÉPONSE QUI EXISTE TOUJOURS.
+
+    DETTE T5 → T6. L'écran sondait `file/layers_c01_{front,back,capture}.json`
+    un fichier à la fois et tolérait le 404 proprement — côté JavaScript :
+    `litManifeste` attrape et rend `null`. Mais un 404 se journalise dans la
+    console du NAVIGATEUR, au niveau réseau, hors de portée de tout `try` :
+    ouvrir P9 sur un jeu SANS export peignait six lignes rouges qui
+    n'annonçaient aucune panne. Le bruit qui ne veut rien dire est exactement
+    ce qui fait rater celui qui veut dire quelque chose.
+
+    « Pas d'export pour cette carte » devient donc un `null` dans un 200, pas
+    une absence de ressource. Une requête au lieu de trois, et l'état lu FRAIS
+    à chaque appel : un INVENTAIRE mis en cache dans `/info` aurait été la
+    solution la moins chère et la plus fausse — P10 écrit
+    `layers_c01_capture.json` depuis une AUTRE pièce, et l'inventaire de P9
+    aurait alors juré qu'il n'y a pas d'import.
+
+    CE QUI EST SERVI EST LE FICHIER TEL QUEL, pas la version validée de
+    `_lire_manifeste` (cohérence nom<->contenu, provenance) : cette route
+    REMPLACE UN TRANSPORT, elle ne change pas ce que l'écran reçoit. La
+    validation reste où elle est — dans la construction, qui est ce qui la
+    justifie."""
+    from .core import read_deck
+    from .contract import is_valid_did
+    if not is_valid_did(did):
+        raise HTTPException(400, "Identifiant de deck invalide")
+    if read_deck(did) is None:
+        raise HTTPException(404, "Deck introuvable")
+    import re as _re
+    # `fullmatch` + `\Z` : SIXIÈME occurrence du piège de la clôture T1-b
+    # (« toute liste blanche naît en fullmatch/\Z »). Ici encore le `$` de
+    # `match` accepterait « c01\n », arrivé tel quel d'un `%0A` d'URL.
+    if not _re.fullmatch(r"c[0-9]{2,9}\Z", card_label or ""):
+        raise HTTPException(
+            400, "Étiquette de carte invalide : attendu « c01 », « c02 »…")
+    out = _out_dir(did)
+
+    def _brut(side: str):
+        p = out / f"layers_{card_label}_{side}.json"
+        if not p.is_file():
+            return None
+        try:
+            m = json.loads(p.read_text(encoding="utf-8"))
+        except (ValueError, OSError, UnicodeDecodeError):
+            # ILLISIBLE VAUT ABSENT — la même discipline que `_lire_manifeste`
+            # et `_job_read` : l'écran sait dire « exportez les couches
+            # d'abord », il ne saurait rien faire d'un 500.
+            logger.warning(f"cards/forge3d: manifeste illisible ({p.name})")
+            return None
+        return m if isinstance(m, dict) else None
+
+    manifestes = await asyncio.to_thread(
+        lambda: {side: _brut(side) for side in LAYER_SIDES})
+    return {"ok": True, "card": card_label, "manifestes": manifestes}
+
+
 @router.get("/file/{name}")
 async def get_file(did: str, name: str):
     """Un livrable, tel qu'il a été construit (patron P8)."""

@@ -3247,7 +3247,8 @@
            memoire — aucun appel de plus. La campagne, elle, ne se lance PAS
            d'ici : cet ecran informe, il ne depense pas. */
         + (SERIE.plafond ? '. Dépense de la série : <b>' + esc(usdFmt(SERIE.depense))
-          + '</b> sur un plafond de <b>' + esc(usdFmt(SERIE.plafond)) + '</b> par session'
+          + '</b> sur une <b>enveloppe totale</b> de <b>' + esc(usdFmt(SERIE.plafond))
+          + '</b> — elle est CUMULATIVE : chaque campagne reprend le total déjà dépensé, elle ne repart jamais de zéro'
           : '')
         + '.</p>')
       + '<div class="cf-face-row">'

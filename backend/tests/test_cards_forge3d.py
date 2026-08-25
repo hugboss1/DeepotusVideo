@@ -8951,7 +8951,108 @@ function bancT4() {
       tl2.indexOf("moyenne de l'image") >= 0 && tl2.indexOf("#8a6a43") < 0);
 }
 
-banc18().then(banc21).then(banc22).then(bancT4).then(
+/* ── T6 : LES SIX 404 D'UN JEU NEUF, MESURES A LA SOURCE ─────────────────
+   Ce banc joue les VRAIES `litLesTrois` / `chargeManifeste`, et il compte
+   DEUX choses que seul le transport peut dire : combien de requetes partent,
+   et combien de SONDES DE FICHIER (celles qui peignaient les 404 rouges dans
+   la console) restent. Les deux branches sont jouees — la route agregee et
+   son repli — parce qu'un repli jamais joue est une garantie non tenue. */
+async function bancT6() {
+  const razT6 = (carte) => {
+    GETS.length = 0; SONDES.length = 0;
+    CARTE = carte; GEN += 1;
+    LAST_MANIFEST = null; MANIFEST_BACK = null; MANIFEST_CAPTURE = null;
+    MANIFEST_CARD = null; refreshManifest.busy = null;
+  };
+
+  /* ── LE JEU NEUF : AUCUN EXPORT, ET POURTANT ZERO LIGNE ROUGE ─────────── */
+  DISQUE = {};
+  razT6(0);
+  GETR = async () => ({ ok: true, card: "c01",
+                        manifestes: { front: null, back: null,
+                                      capture: null } });
+  await chargeManifeste();
+  dit("T6 une seule requete pour les trois cotes d'une carte",
+      GETS.length === 1 && GETS[0] === "layers/c01", J(GETS));
+  dit("T6 zero sonde de fichier : les six 404 du jeu neuf n'existent plus",
+      SONDES.length === 0, J(SONDES));
+  dit("T6 ... et l'absence est bien LUE comme une absence (pas d'export)",
+      LAST_MANIFEST === null && MANIFEST_BACK === null
+      && MANIFEST_CAPTURE === null && MANIFEST_CARD === "c01",
+      J([LAST_MANIFEST, MANIFEST_BACK, MANIFEST_CAPTURE, MANIFEST_CARD]));
+
+  /* ── LA REQUETE PORTE LA CARTE AFFICHEE, PAS LA PREMIERE ────────────────
+     MESURE NEE D'UN SURVIVANT : la carte figee a « c01 » passait tous les
+     cas ci-dessus, parce qu'ils tenaient tous sur la premiere carte. Un
+     transport qui demande toujours c01 servirait le manifeste d'UNE AUTRE
+     carte a l'ecran — exactement le mensonge que le legs 5 avait ferme. */
+  razT6(1);
+  GETR = async (route) => ({ ok: true, card: "c02",
+                             manifestes: { front: { vu: String(route) },
+                                           back: null, capture: null } });
+  await chargeManifeste();
+  dit("T6 la requete unique porte l'etiquette de la carte AFFICHEE",
+      GETS.length === 1 && GETS[0] === "layers/c02" && MANIFEST_CARD === "c02",
+      J([GETS, MANIFEST_CARD]));
+
+  /* ── LES TROIS COTES POSES DEPUIS LA REPONSE UNIQUE ───────────────────── */
+  razT6(0);
+  const F = { side: "front", card: { label: "c01" } };
+  const B = { side: "back", card: { label: "c01" } };
+  const C = { side: "capture", card: { label: "c01" } };
+  GETR = async () => ({ ok: true, card: "c01",
+                        manifestes: { front: F, back: B, capture: C } });
+  await chargeManifeste();
+  dit("T6 le trio est pose depuis la reponse unique, dans le bon ordre",
+      LAST_MANIFEST === F && MANIFEST_BACK === B && MANIFEST_CAPTURE === C,
+      J([LAST_MANIFEST, MANIFEST_BACK, MANIFEST_CAPTURE]));
+  dit("T6 ... toujours une seule requete, toujours zero sonde",
+      GETS.length === 1 && SONDES.length === 0, J([GETS, SONDES]));
+
+  /* ── LE REPLI : LA ROUTE MANQUE, LES COUCHES SONT LA QUAND MEME ───────── */
+  DISQUE = { c01_front: F, c01_back: B };
+  razT6(0);
+  GETR = async () => { throw new Error("404 layers/c01"); };
+  await chargeManifeste();
+  /* LA COMPARAISON EST DE VALEUR, PAS D'IDENTITE — et c'est le repli qui
+     l'impose : il passe par le transport blob, donc par un aller-retour
+     JSON. Un `===` y serait faux POUR UNE BONNE RAISON, et c'est justement
+     ce que la branche du haut, elle, peut affirmer. */
+  dit("T6 repli sur les sondes quand la route manque : les couches du disque "
+      + "sont LUES (un ecran plus neuf que son backend n'efface rien)",
+      J(LAST_MANIFEST) === J(F) && J(MANIFEST_BACK) === J(B),
+      J([LAST_MANIFEST, MANIFEST_BACK]));
+  dit("T6 ... et le repli sonde bien les TROIS cotes",
+      SONDES.length === 3
+      && SONDES.join("|").indexOf("layers_c01_capture.json") >= 0, J(SONDES));
+
+  /* ── UNE REPONSE SANS MARQUE NE VAUT PAS « AUCUN EXPORT » ─────────────── */
+  razT6(0);
+  GETR = async () => ({});          /* piece degradee : 200, mais rien dedans */
+  await chargeManifeste();
+  dit("T6 un 200 SANS marque (`ok`+`manifestes`) retombe sur les sondes — "
+      + "le lire « aucun export » effacerait des couches reelles",
+      J(LAST_MANIFEST) === J(F) && SONDES.length === 3,
+      J([LAST_MANIFEST, SONDES]));
+  /* ... ET LA MOITIE `ok` DE LA MARQUE PORTE SEULE. Le cas ci-dessus
+     survivrait a la suppression de `d.ok` (un `{}` n'a pas de `manifestes`
+     non plus) : le mutant serait absous par un oracle trop large — la lecon
+     T4, encore. Celui-ci a la forme d'une reponse valide et lui manque la
+     SEULE chose qui dit d'ou elle vient. */
+  razT6(0);
+  GETR = async () => ({ card: "c01", manifestes: { front: null, back: null,
+                                                   capture: null } });
+  await chargeManifeste();
+  dit("T6 une reponse BIEN FORMEE mais anonyme (pas de `ok`) retombe aussi "
+      + "sur les sondes",
+      J(LAST_MANIFEST) === J(F) && SONDES.length === 3,
+      J([LAST_MANIFEST, SONDES]));
+
+  GETR = null;
+  DISQUE = {};
+}
+
+banc18().then(banc21).then(banc22).then(bancT4).then(bancT6).then(
   () => {
     videInspecteur();   /* aucune minuterie ne survit au banc */
     process.stdout.write(JSON.stringify(out));
@@ -9009,6 +9110,12 @@ const PATCHES = [];
    stub : zero requete veut dire zero apercu construit, cote serveur compris. */
 let RAW = null;
 const INSPECTES = [];
+/* T6 : le transport de la ROUTE AGREGEE (`layers/<carte>`) et les deux
+   journaux qui la mesurent — combien de requetes, et combien de sondes de
+   fichier (celles qui peignaient les 404 dans la console du navigateur). */
+let GETR = null;
+const GETS = [];
+const SONDES = [];
 const M = {
   toast: (t) => { TOASTS.push(String(t)); },
   patch: (p) => {
@@ -9022,8 +9129,11 @@ const M = {
       return RAW(methode, route, corps);
     },
     /* LE LECTEUR DE MANIFESTE : une cle absente de `DISQUE` LEVE, exactement
-       comme le 404 que `M.api.blob` transforme en `ApiMissing`. */
+       comme le 404 que `M.api.blob` transforme en `ApiMissing`. Les routes
+       demandees sont JOURNALISEES : c'est ce compte-la qui dit si les sondes
+       une-par-une ont tourne (T6 — les six 404 du jeu neuf). */
     blob: async (methode, route) => {
+      SONDES.push(String(route));
       const m = /layers_(c\d+)_(front|back)\.json$/.exec(String(route));
       const cle = m ? (m[1] + "_" + m[2]) : "";
       if (!Object.prototype.hasOwnProperty.call(DISQUE, cle)) {
@@ -9031,6 +9141,15 @@ const M = {
       }
       const texte = JSON.stringify(DISQUE[cle]);
       return { text: async () => texte };
+    },
+    /* LE GET, PILOTE — et NON ARME PAR DEFAUT (T6). C'est ce qui fait que
+       TOUS les cas deja ecrits de ce banc continuent de passer par le REPLI
+       (les trois sondes) : le repli n'est donc jamais du code mort, il est
+       mesure a chaque execution. Le cas qui veut la route agregee l'arme. */
+    get: async (route) => {
+      GETS.push(String(route));
+      if (typeof GETR !== "function") throw new Error("aucun GET arme");
+      return GETR(route);
     },
     post: async (route, fd) => {
       POSTES.push(String(route) + ":" + (fd && fd.get ? fd.get("side") : ""));
@@ -9234,7 +9353,10 @@ def _banc_palette(tmp_path, glb_b64: str) -> list:
                 # ... et LA COURSE D'EXPORT (S1) : l'export, le chargement de
                 # manifeste et le comparateur de carte, tous REELS. Seuls le
                 # transport et la position du rail sont pilotes.
-                "cardLabel", "litManifeste", "chargeManifeste",
+                # T6 : `litLesTrois` — la requete unique et son REPLI sur les
+                # sondes une-par-une. C'est elle qui eteint les six 404 d'un
+                # jeu neuf, et c'est le banc qui le compte.
+                "cardLabel", "litManifeste", "litLesTrois", "chargeManifeste",
                 "refreshManifest", "oublieLesJobs", "cardChanged",
                 "exportLayers",
                 # 2d T4 : la vue canvas se suffit. La DECISION est pure, donc
@@ -11485,3 +11607,131 @@ def test_l_ondulation_arrive_sur_L_ANNEAU_DU_SCEAU_par_la_route():
     assert "normalTexture" in mat, "l'anneau du Sceau n'ondule pas"
     src = doc["textures"][mat["normalTexture"]["index"]]["source"]
     assert doc["images"][src]["name"] == "extrude_sceau-ondulation"
+
+
+# ── T6 : les six 404 d'un jeu neuf, éteints à la source ─────────────────────
+
+def test_les_trois_manifestes_se_lisent_en_UNE_reponse_QUI_EXISTE_TOUJOURS():
+    """DETTE T5 → T6. L'écran sondait `file/layers_c01_{front,back,capture}
+    .json` un par un et tolérait le 404 proprement — côté JavaScript :
+    `litManifeste` attrape et rend `null`. Mais un 404 se journalise dans la
+    console du NAVIGATEUR, au niveau réseau, hors de portée de tout `try` :
+    ouvrir P9 sur un jeu SANS export peignait six lignes rouges qui
+    n'annonçaient aucune panne. Le bruit qui ne veut rien dire est exactement
+    ce qui fait rater celui qui veut dire quelque chose.
+
+    « Pas d'export pour cette carte » devient donc un `null` dans un 200, pas
+    une absence de ressource. Une requête au lieu de trois, et l'état lu
+    FRAIS (un inventaire mis en cache aurait manqué un manifeste importé par
+    P10 entre deux peintures)."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Forge")
+    r = _api("GET", f"/api/cards/{did}/forge3d/layers/c01")
+    assert r.status_code == 200, r.text[:300]
+    d = r.json()
+    assert d["ok"] is True and d["card"] == "c01"
+    # LES TROIS CÔTÉS SONT NOMMÉS, TOUS À null — l'absence est une RÉPONSE.
+    assert set(d["manifestes"]) == set(F9.LAYER_SIDES), d["manifestes"]
+    assert all(v is None for v in d["manifestes"].values()), d["manifestes"]
+    # ... et ce que la route sert est LE FICHIER TEL QUEL : elle remplace un
+    # transport, elle ne change pas ce que l'écran reçoit.
+    out = F9._out_dir(did, create=True)
+    (out / "layers_c01_front.json").write_text(
+        json.dumps({"side": "front", "layers": [], "temoin": "recto"}),
+        encoding="utf-8")
+    d = _api("GET", f"/api/cards/{did}/forge3d/layers/c01").json()
+    assert d["manifestes"]["front"]["temoin"] == "recto"
+    assert d["manifestes"]["back"] is None
+    assert d["manifestes"]["capture"] is None
+    # une AUTRE carte ne voit pas le manifeste de celle-ci
+    d2 = _api("GET", f"/api/cards/{did}/forge3d/layers/c02").json()
+    assert all(v is None for v in d2["manifestes"].values()), d2
+
+
+def test_la_route_des_manifestes_refuse_NOMMEMENT_et_ne_tombe_jamais():
+    r"""Une route qui remplace un 404 attendu ne doit pas en rendre d'autres
+    par surprise — ni un 500 sur un fichier abîmé. Le jeu inconnu reste un
+    404 (c'est la RESSOURCE qui manque, pas l'export) ; l'étiquette hors
+    grammaire est un 400 nommé, en `fullmatch`/`\Z` comme toute liste blanche
+    de cette pièce (sixième occurrence du piège `$`) ; et un JSON illisible
+    vaut ABSENT, exactement comme chez `_lire_manifeste`."""
+    from app.services.cards import forge3d as F9
+    did = _deck("Forge")
+    assert _api("GET", "/api/cards/deck_00000000/forge3d/layers/c01"
+                ).status_code == 404
+    for mauvais in ("x01", "c1", "c01x", "c01%0A", "C01", "c" + "9" * 12):
+        r = _api("GET", f"/api/cards/{did}/forge3d/layers/{mauvais}")
+        assert r.status_code == 400, (mauvais, r.status_code)
+        assert "tiquette" in r.text, (mauvais, r.text[:200])
+    # `..` N'ATTEINT JAMAIS LA GARDE — mesuré : le routeur normalise le
+    # chemin avant nous et rend 404. C'est la bonne réponse, et c'est écrit
+    # ici pour que personne ne croie que la liste blanche l'a attrapé (elle
+    # l'attraperait, mais ce n'est pas ELLE qu'on mesure sur ce cas).
+    assert _api("GET", f"/api/cards/{did}/forge3d/layers/..").status_code == 404
+    out = F9._out_dir(did, create=True)
+    (out / "layers_c03_back.json").write_text("{ pas du json",
+                                              encoding="utf-8")
+    d = _api("GET", f"/api/cards/{did}/forge3d/layers/c03")
+    assert d.status_code == 200 and d.json()["manifestes"]["back"] is None
+    # ... et un JSON valide qui n'est pas un objet ne passe pas non plus
+    (out / "layers_c04_front.json").write_text("[1, 2]", encoding="utf-8")
+    d = _api("GET", f"/api/cards/{did}/forge3d/layers/c04").json()
+    assert d["manifestes"]["front"] is None, d
+
+
+def test_l_ecran_lit_LES_TROIS_EN_UN_et_garde_les_sondes_en_REPLI():
+    """Le couplage, épinglé sur la source : `chargeManifeste` demande les
+    trois côtés NOMMÉS à `litLesTrois`, sous la MÊME garde de génération
+    qu'avant (rien de l'appariement du trio ne bouge — seul le transport
+    change) ; et `litLesTrois` garde les sondes une-par-une en REPLI, pour
+    qu'un backend plus vieux que l'écran n'efface pas des couches bien
+    présentes sur le disque. Le repli n'est pas du code mort : TOUS les cas
+    déjà écrits du banc node passent par lui (leur `M.api.get` n'est pas
+    armé)."""
+    src = JS.read_text(encoding="utf-8")
+    rendu = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    cm = rendu.split("async function chargeManifeste(")[1].split("\n  }")[0]
+    assert "litLesTrois" in cm, cm
+    assert '"front"' in cm and '"back"' in cm and "CAPTURE_SIDE" in cm, cm
+    assert "recus[2]" in cm and "gen !== GEN" in cm, cm
+    lt = rendu.split("async function litLesTrois(")[1].split("\n  }")[0]
+    assert '"layers/"' in lt, lt
+    assert "litManifeste" in lt, "le repli une-par-une a disparu : " + lt
+    # LE REPLI EST GARDÉ PAR UNE MARQUE, pas par « la réponse est vraie » :
+    # un 200 d'une autre route (ou un `{}` d'une pièce dégradée) ne doit pas
+    # se lire « aucun export ».
+    assert "ok" in lt and "manifestes" in lt, lt
+
+
+def test_le_banc_de_palette_mesure_LA_REQUETE_UNIQUE_et_son_repli(tmp_path):
+    """Le banc node, sur les VRAIES fonctions : avec la route agrégée armée,
+    `chargeManifeste` fait UNE requête et ZÉRO sonde de fichier (les six 404
+    du jeu neuf sont morts à la source) ; sans elle, il retombe sur les trois
+    sondes et pose exactement les mêmes manifestes qu'avant. Ce test-ci ne
+    fait que relever le PLANCHER de cas mesurés."""
+    from app.services.cards import forge3d as F9x
+    from app.services.cards import forge3d_scene as SC
+    import base64
+    relief = SC.relief_mesh(Image.new("L", (8, 8), 255), 63.0, 88.0, 1.0,
+                            0.3, 4)
+    png = io.BytesIO()
+    Image.new("RGBA", (4, 4), (9, 9, 9, 255)).save(png, "PNG")
+    glb = SC.write_scene_glb(
+        [{"name": "x", "mesh": relief, "png": png.getvalue(), "alpha": False,
+          "z_mm": 0.0}], name="apercu",
+        extras={"schema": F9x.PREVIEW_SCHEMA, "preview": True, "ignored": []})
+    cas = _banc_palette(tmp_path, base64.b64encode(glb).decode("ascii"))
+    # CE TEST-CI NE JUGE QUE SES CAS. Le banc entier est deja juge par
+    # `test_le_harnais_de_palette_...`, avec le GLB que ses cas exigent (un
+    # `ignored` non vide) ; re-affirmer « tout est vert » depuis un montage
+    # different aurait fabrique un oracle faux — la lecon T4 (« le filtre
+    # fait partie de l'oracle »), une case plus loin.
+    t6 = {c["nom"]: c for c in cas if c["nom"].startswith("T6 ")}
+    for attendu in ("T6 une seule requete", "T6 zero sonde de fichier",
+                    "T6 le trio est pose depuis la reponse unique",
+                    "T6 repli sur les sondes quand la route manque"):
+        vus = [n for n in t6 if n.startswith(attendu)]
+        assert vus, (attendu, sorted(t6))
+    assert len(t6) >= 9, sorted(t6)
+    for nom, c in t6.items():
+        assert c["ok"], (nom, c.get("detail"))

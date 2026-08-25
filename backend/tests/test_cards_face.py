@@ -4293,5 +4293,78 @@ def test_la_serie_ne_cree_PAS_un_quatrieme_schema_de_source():
     assert 'setArt("img:" + ' in src
 
 
+# ── T6 : la dette de prose de T5 — « par session » contre l'enveloppe TOTALE ──
+
+def test_le_devis_dit_ENVELOPPE_TOTALE_et_jamais_par_session(monkeypatch):
+    """DETTE T5 → T6, ET C'EST UNE PHRASE D'ARGENT. Les deux textes SERVIS
+    annonçaient « un plafond de 6,00 $ PAR SESSION » alors que la machinerie,
+    elle, applique une ENVELOPPE TOTALE : `devis()` relit
+    `depense_totale_usd` DU MANIFESTE SUR DISQUE, et
+    `test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan` épingle déjà que
+    le mur tient d'un POST à l'autre. Le texte promettait donc une remise à
+    zéro qui n'existe pas — la pire des erreurs de prose sur une route qui
+    dépense : elle invite à relancer.
+
+    LE CONTRÔLE EST UNE ÉGALITÉ, PAS UNE SOUS-CHAÎNE. Un `assert "enveloppe"
+    in message` resterait vert sur une phrase qui garde AUSSI « par session »
+    à côté ; une phrase d'argent se relit en entier. Les NOMBRES, eux, ne sont
+    jamais recopiés : ils viennent du devis que la même réponse porte."""
+    s = _sentinelle(monkeypatch)
+    _serie_neuve()
+    _Atelier(flux="conforme").pose(monkeypatch)
+    did = _deck()
+    detail = _api("POST", f"/api/cards/{did}/face/serie/generer").json()["detail"]
+    d = detail["devis"]
+    attendu = (
+        "Cette campagne DÉPENSE. Elle vise " + str(d["cases_manquantes"])
+        + " case(s), soit au pire " + FA._usd(d["pire_cas_usd"])
+        + " $ sur une ENVELOPPE TOTALE de " + FA._usd(d["plafond_usd"])
+        + " $ (il reste " + FA._usd(d["reste_usd"]) + " $, de quoi ouvrir "
+        + str(d["cases_ouvrables"]) + " case(s)). L'enveloppe est CUMULATIVE : "
+        "chaque lancement reprend la dépense déjà journalisée, elle ne se "
+        "remet jamais à zéro. Renvoyez la MÊME requête avec "
+        "{\"confirmer\": true} pour la lancer.")
+    assert detail["message"] == attendu, detail["message"]
+    assert "par session" not in detail["message"].lower()
+    # ET AUCUNE AUTRE PHRASE SERVIE NE LE PROMET. Le balayage porte sur les
+    # CHAÎNES seules, pas sur le fichier : un commentaire Python n'est jamais
+    # servi, et celui qui documente cette dette CITE forcément la formule
+    # fautive (le grep de prose de la phase 3, quatrième rencontre). Ce qui se
+    # mesure, c'est ce que l'utilisateur peut lire.
+    import io as _io
+    import tokenize as _tk
+    src = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
+    chaines = [t.string for t in _tk.generate_tokens(_io.StringIO(src).readline)
+               if t.type == _tk.STRING]
+    assert chaines, "le dépouillement n'a trouvé aucune chaîne"
+    coupables = [c for c in chaines if "par session" in c.lower()]
+    assert not coupables, coupables
+    s.zero()
+
+
+def test_l_ecran_P1_dit_ENVELOPPE_TOTALE_et_jamais_par_session():
+    """L'AUTRE MOITIÉ DE LA MÊME DETTE, du côté servi à l'œil. Le compteur de
+    P1 lisait « sur un plafond de X par session ». Même correction, même
+    contrôle par ÉGALITÉ sur le fragment rendu — et la garde `(SERIE.plafond ?`
+    reste en place (elle a déjà eu un mutant survivant, cf. le test du
+    compteur affiché)."""
+    src = js_code()
+    note = src[src.index('id="cf-face-serie-note"'):]
+    note = note[:note.index("</p>'")]
+    frag = note[note.index("(SERIE.plafond ? "):]
+    frag = frag[:frag.index("\n")]
+    assert frag == (
+        "(SERIE.plafond ? '. Dépense de la série : <b>' + esc(usdFmt(SERIE.depense))"), frag
+    suite = note[note.index(frag) + len(frag):]
+    suite = suite[:suite.index(": '')")]
+    assert suite == (
+        "\n          + '</b> sur une <b>enveloppe totale</b> de <b>'"
+        " + esc(usdFmt(SERIE.plafond))\n"
+        "          + '</b> — elle est CUMULATIVE : chaque campagne reprend le total"
+        " déjà dépensé, elle ne repart jamais de zéro'\n          "), repr(suite)
+    assert "par session" not in src.lower(), \
+        "« par session » survit quelque part dans la pièce"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))

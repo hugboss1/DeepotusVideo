@@ -963,6 +963,37 @@
     }
   }
 
+  /* LES TROIS EN UNE REQUÊTE — ET LES SIX 404 D'UN JEU NEUF AVEC.
+     `litManifeste` attrapait déjà proprement le 404 (« pas de couches
+     exportées » EST une réponse) : c'est du côté du NAVIGATEUR que le bruit
+     restait. Un 404 se journalise au niveau réseau, hors de portée de tout
+     `try` — ouvrir P9 sur un jeu sans export peignait six lignes rouges dans
+     la console qui n'annonçaient aucune panne. La route `layers/<carte>`
+     répond 200 avec un `null` par côté : l'absence redevient une VALEUR.
+
+     LE REPLI RESTE, ET IL N'EST PAS MORT. Un écran plus neuf que son backend
+     (déploiement partiel) doit lire les couches qui SONT sur le disque plutôt
+     que de jurer qu'il n'y en a pas : sur le moindre échec de la route
+     agrégée, on refait les sondes une par une. Tous les cas du banc node
+     passent par ce chemin-là (leur transport n'arme pas `get`), donc il est
+     mesuré à chaque exécution.
+
+     LA MARQUE, PAS LA VÉRACITÉ : on n'accepte la réponse que si elle porte
+     `ok` ET `manifestes`. Un `{}` rendu par une pièce dégradée se lirait
+     sinon « aucun export », et effacerait à l'écran des couches bien réelles
+     — le mensonge exact que ce repli existe pour empêcher. */
+  async function litLesTrois(label, cotes) {
+    try {
+      const d = await M.api.get("layers/" + encodeURIComponent(label));
+      if (d && d.ok && d.manifestes) {
+        return cotes.map((c) => (d.manifestes[c] || null));
+      }
+    } catch (e) {
+      /* route absente ou en panne : les sondes reprennent la main. */
+    }
+    return await Promise.all(cotes.map((c) => litManifeste(label, c)));
+  }
+
   async function chargeManifeste() {
     const label = cardLabel();
     const gen = GEN;
@@ -970,9 +1001,7 @@
        UNE, et l'appelant qui attend le manifeste (le seed) attend donc bien
        les DEUX : un chargement séquentiel exposé par deux verrous aurait laissé
        `seedDefault` semer un graphe recto seul sur une carte qui a un verso. */
-    const recus = await Promise.all(
-      [litManifeste(label, "front"), litManifeste(label, "back"),
-       litManifeste(label, CAPTURE_SIDE)]);
+    const recus = await litLesTrois(label, ["front", "back", CAPTURE_SIDE]);
     /* M1 — CE CHARGEMENT PEUT ÊTRE RASSIS : un changement de deck pendant la
        requête a incrémenté `GEN`. Écrire son résultat poserait un manifeste —
        et surtout un APPARIEMENT — appartenant à ce qui n'est plus à l'écran.
