@@ -1600,14 +1600,14 @@ def _bloc_cle() -> str:
     mesure — la part sombre est un PLAFOND (« no more »), et le point clair
     devient une EXIGENCE plutôt qu'une permission."""
     sw = _juge_module()
-    return ("Mid key, held at the middle: the overall mid-tone of the painting "
-            "sits at about %d%% lightness - neither a black canvas nor a "
-            "bright one. At least %d%% of the canvas is genuine deep shadow, "
-            "below %d%% lightness. There is ONE SMALL bone-white highlight on "
-            "the form, and it stays small: about %d%% of the canvas above %d%% "
-            "lightness - no more than that, a coin of light on a dark "
-            "painting, never a lit scene. Full tonal range, from true black to "
-            "that one highlight, with modelling all the way between."
+    return ("Mid-dark key: the painting is dark overall, and its mid-tone sits "
+            "at about %d%% lightness - dark, but not a black canvas. At least "
+            "%d%% of the canvas is genuine deep shadow, below %d%% lightness. "
+            "Against that dark, ONE SMALL bone-white highlight on the form, "
+            "and it stays small: about %d%% of the canvas above %d%% lightness "
+            "- no more than that, a coin of light on a dark painting, never a "
+            "lit scene, never a bright image. Full tonal range, from true "
+            "black to that one highlight, with modelling all the way between."
             % (int(round(_med("tons.L_p50", 99.8) / 255.0 * 100)),
                _pc(_med("tons.part_sombre_L_moins_64", 0.21)),
                int(round(sw.SEUIL_SOMBRE / 255.0 * 100)),

@@ -3211,6 +3211,16 @@ def test_le_prompt_pousse_du_COTE_QUE_LA_CAMPAGNE_A_MESURE():
     #    pour un plafond de bande à 126,7).
     assert "at least %d%% of the canvas is genuine deep shadow" \
         % FA._pc(FA._med("tons.part_sombre_L_moins_64")) in bas
+    # 4. LE MOT « DARK » DANS LA CLÉ — et ce contrôle-ci a été payé.
+    #    T5ter l'a retiré (« Mid-dark key » -> « Mid key, held at the
+    #    middle ») en croyant qu'il suffisait de BORNER le point clair. La
+    #    mesure a dit le contraire, sur 84 candidats de plus :
+    #      part claire  0,230 -> 0,485   (plafond de bande 0,132)
+    #      L médian     192,2 -> 199,1   (plafond de bande 126,7)
+    #    Borner l'excès NE SUFFIT PAS quand on vient de retirer le seul mot
+    #    qui tirait vers le bas. La borne et la pression vont ensemble.
+    assert "mid-dark key" in bas, "la clé a reperdu son mot « dark »"
+    assert "the painting is dark overall" in bas
     # 3. le fond est de la matière, pas un vide (mesuré 84/84 au-dessus)
     assert "painted ground" in bas
     assert "no detail at all" not in bas, \
@@ -3238,6 +3248,7 @@ def test_le_prompt_pousse_du_COTE_QUE_LA_CAMPAGNE_A_MESURE():
         p108 = FA.sans_nom_d_artiste(FA.serie_prompt(case))
         assert "AT LEAST" in p108, case
         assert "ONE SMALL bone-white highlight" in p108, case
+        assert "Mid-dark key" in p108, case
 
 
 def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
