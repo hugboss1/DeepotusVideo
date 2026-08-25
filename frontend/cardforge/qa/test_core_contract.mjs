@@ -477,6 +477,11 @@ const BATTERIE_SEME = `(() => {
 const BATTERIE_MODELE = `(async () => {
   const out = [];
   const say = (k, v, d) => out.push({ k, verdict: v, detail: String(d) });
+  /* LE NOM QUE CE BANC ECRIT — declare UNE fois : c'est par lui qu'il
+     reconnait sa propre carte dans la galerie, et donc par lui qu'il decide
+     quoi detruire a la fin. Deux copies auraient diverge au premier
+     changement de libelle, et la divergence aurait porte sur un DELETE. */
+  const NOM_MODELE_BANC = "Banc QA modele";
   const gb = document.getElementById("galleryBtn");
   if (!gb) { say("galerie : bouton present avant « enregistrer comme modele »", "OUVERT", "absent"); return { out }; }
   gb.click();
@@ -496,7 +501,7 @@ const BATTERIE_MODELE = `(async () => {
       (form && !form.classList.contains("hidden") && nm) ? "TENU" : "OUVERT",
       form ? ("classes=[" + form.className + "] champ=" + !!nm) : "pas de formulaire");
   if (!nm) return { out };
-  nm.value = "Banc QA modele";
+  nm.value = NOM_MODELE_BANC;
   document.getElementById("galSaveGo").click();
   let cartes = [];
   for (let i = 0; i < 80; i++) {
@@ -508,9 +513,28 @@ const BATTERIE_MODELE = `(async () => {
     const t = c.querySelector(".cf-gal-tag");
     return t && t.textContent === "perso";
   });
+  /* LE BANC RECONNAIT SON MODELE PAR SON NOM, PAS PAR SON RANG.
+     Deux defauts se refermaient ici, et le second etait DESTRUCTEUR.
+     (1) « perso.length === 1 » exigeait un magasin de modeles VIERGE : sur
+     une machine ou l'utilisateur a deja enregistre un modele, ce cas
+     rougissait sans qu'aucun code ne soit en cause. Ce que la ligne AFFIRME
+     est « le modele enregistre apparait tout de suite » — c'est cela qu'on
+     mesure : une carte de plus, et LA SIENNE parmi les perso.
+     (2) le slug rendu etait celui de « perso[0] », et c'est lui que le banc
+     DETRUIT en fin de course (DELETE /models/<slug>). Avec deux modeles
+     perso, l'ordre de la galerie decidait donc lequel serait efface — le
+     banc a failli emporter un modele d'utilisateur, et il ne l'aurait dit
+     nulle part. Il ne detruit plus que ce qu'il a lui-meme ecrit. */
+  const labelDe = (c) => {
+    const l = c.querySelector(".cf-gal-lab");
+    return l ? l.textContent.trim() : "";
+  };
+  const mien = perso.filter((c) => labelDe(c) === NOM_MODELE_BANC)[0] || null;
   say("galerie : le modele enregistre est RE-LISTE tout de suite",
-      (cartes.length === avant + 1 && perso.length === 1) ? "TENU" : "OUVERT",
-      avant + " -> " + cartes.length + " carte(s), perso = " + perso.map((c) => c.dataset.model).join(","));
+      (cartes.length === avant + 1 && !!mien) ? "TENU" : "OUVERT",
+      avant + " -> " + cartes.length + " carte(s), le mien = "
+      + (mien ? mien.dataset.model : "ABSENT") + ", perso = "
+      + perso.map((c) => c.dataset.model).join(","));
   const tst = document.getElementById("toast");
   say("galerie : l'enregistrement du modele le DIT",
       (tst && tst.textContent.indexOf("enregistré") >= 0) ? "TENU" : "OUVERT",
@@ -518,7 +542,7 @@ const BATTERIE_MODELE = `(async () => {
   say("galerie : le formulaire se referme une fois le modele ecrit",
       (form && form.classList.contains("hidden")) ? "TENU" : "OUVERT",
       form ? ("classes=[" + form.className + "]") : "?");
-  return { out, slug: perso.length ? perso[0].dataset.model : null };
+  return { out, slug: mien ? mien.dataset.model : null };
 })()`;
 
 /* ── batterie « dupliquer » ────────────────────────────────────────────────
