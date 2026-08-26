@@ -218,6 +218,47 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   7,953 $/8,00 $ au manifeste relu, reste 0,047 $ < échelle 0,177 → PLUS
   AUCUNE case ouvrable : relever l'enveloppe ou clore appartient à
   l'utilisateur.**
+- [x] **T1-J (RÉEL) — L'ENVELOPPE À 10 $ (ordre du 26/08) : +14 CASES SUR
+  26 SONDES, LA SÉRIE À 24/108, LE MUR REFERMÉ À 9,900 $.** L'ordre
+  utilisateur explicite (« relève l'enveloppe à 10$ ») est arrivé sur le
+  rapport T1-I. Le relèvement est un commit SÉPARÉ (`5eeb4fe`) :
+  `SERIE_PLAFOND_USD` 8,00 → 10,00 (l'historique 6 → 8 → 10 au
+  commentaire), pins retendus dans test_cards_face.py (état/devis à 10,
+  reliquat 2,92 → 4,92, frontière du mur 9+1 / 9+1,01, plafond dur 4 → 5
+  cases, ratio du devis 1,91×), suites cards_face 147 et serie_ton 11
+  VERTES au harnais ; déployé par copie sha-vérifiée vers l'app installée
+  (le face.py installé était identique au dépôt), stop.ps1 + relance
+  uvicorn (santé en 2 s, 2.5.0), et le devis machine a dit le mur neuf :
+  reste 2,047, 11 ouvrables. **Quatorze servies** (toutes voie flux
+  0,018 $ ; 8 par frère ajusté, 6 directes) : stained_monolith graphite
+  **100,0** (LE PREMIER SCORE PARFAIT — un frère ajusté) · stained_golem
+  rouge **96,4** (record des directes) · medallion_wolf ocre 93,8 ·
+  stained_sphinx ocre 93,8 · medallion_crystals ocre 92,9 ·
+  stained_crystals ocre 92,9 · vista_crystals ocre 89,3 · heraldry_wolf
+  ocre 89,3 · vista_wolf ocre 87,5 · medallion_sphinx ocre 85,7 ·
+  heraldry_crystals graphite 85,7 · vista_ship graphite 84,4 ·
+  medallion_monolith graphite 84,4 · stained_citadel rouge 78,6. DOUZE
+  refus (1,617 $) en trois modes : (a) « gpt trop clair » ×6 — flux rate,
+  gpt rend une image dont `part claire` RESTE rouge après mise au ton
+  (vista_dragon 71,4, depths_knight 78,6, stained_archer 85,7,
+  stained_serpent 78,6, vista_whale 62,5, depths_wolf 78,6) ; (b) trop
+  plein/saturé (non tonal, hors du champ de la passe) — vista_phoenix
+  78,6, stained_beacon 82,1, vista_golem 68,8, heraldry_monolith 85,7,
+  depths_citadel 78,1 ; (c) heraldry_sphinx 75,0 A RETOUCHER à l'échelle
+  COMPLÈTE 0,177 (seul tir banana du jour). LES RÉGULARITÉS MESURÉES :
+  les 18 sujets ont tous été sondés ≥ 1 fois ; 5 compositions sur 6 ont
+  servi (vista 10 · stained 7 · medallion 4 · heraldry 2 · depths 1 —
+  backlight 0, structurelle) ; les sujets « masse sombre » portent
+  (crystals 4/4, wolf 4/5, sphinx 3/4, monolith 3/5, citadel 2/3) quand
+  les lumineux et les figures humaines échouent (phoenix, dragon, beacon,
+  knight, archer : 0/5) ; 22 des 24 cases servies l'ont été par flux
+  (0,018 $ ou 0 $ rescapées), 2 par gpt. **Bilan du 26/08, les deux
+  enveloppes : la série passe de 4/108 à 24/108 (+20) pour 2,433 $ — 20
+  servies sur 33 sondes (61 %), contre 2 directes sur 66 tirs à la
+  campagne close ; 13 des 20 gagnantes sont des frères ajustés. État
+  final au manifeste relu : dépense 9,900 $/10,00 $, reste 0,100 $ <
+  échelle 0,177 → 0 case ouvrable, le devis machine le confirme. La
+  suite (relever encore, ou clore à 24) appartient à l'utilisateur.**
 
 ### T2 — MESHY_MOCK au .env (D4)
 
