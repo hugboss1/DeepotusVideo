@@ -286,6 +286,35 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   famille : ocre 19 · graphite 8 · rouge 6 · violet 1 ; médiane 87,5,
   quatorze ≥ 90, deux 100,0. **Cumul du 26/08 : 4/108 → 34/108 (+30) pour
   4,386 $ en trois enveloppes — 30 servies sur 55 sondes (55 %).**
+- [x] **T1-L (RÉEL) — L'ENVELOPPE À 15 $ (troisième ordre du 26/08) : +8
+  CASES SUR 25 SONDES, LA SÉRIE À 42/108 — LE VIVIER TENTABLE ÉPUISÉ AVANT
+  LE MUR.** Relèvement au commit `f953ce9` (12→15, pins re-dérivés — garde
+  d'ouverture reliquat 4,84, plafond dur 8 cases/14,40, devis 84 ouvrables,
+  ratio 1,27× ; 147+11 verts ; déployé, relancé, devis neuf 3,147/17).
+  Sondes par lots de 2 (`?cases=a,b`), devis avant chaque POST. **Huit
+  servies** : medallion_portal graphite **96,9** flux DIRECTE (le portail
+  finit **5/5**, jamais sous 93,8) · heraldry_phoenix rouge **90,6** gpt+ton
+  (LE SUJET « CONDAMNÉ » 0/4 tombe) · heraldry_serpent ocre 89,3 ·
+  heraldry_knight graphite 87,5 · heraldry_dragon ocre 84,4 directe ·
+  heraldry_archer ocre 84,4 (l'archer 0/3 tombe) · medallion_citadel
+  violet 82,1 directe (2e violet servi) · depths_beacon ocre 82,1 gpt+ton
+  (le phare 0/5 tombe au 6e essai). **heraldry fait 6/8 sur l'enveloppe**
+  — la composition « faible » de la campagne close finit à 9 servies.
+  Dix-sept refus (2,625 $) : 10 « gpt trop clair » (dont medallion_phoenix
+  **92,9** et heraldry_golem/medallion_archer 89,3 — des scores TIENT tués
+  par le seul axe part claire), 4 vide/L-médian (depths), 2 à l'échelle
+  complète, et un mode NEUF : **le filtre de sécurité OpenAI rejette le
+  sujet archer** (400 safety, vista_archer et depths_archer — l'arc est lu
+  comme une arme ; flux, lui, accepte). ÉTAT FINAL VÉRIFIÉ (GET + compte) :
+  **42/108, dépense 14,622 $/15,00 $, reste 0,378 $ — et 42+51 refus = 93 =
+  TOUT le catalogue hors backlight tenté : le vivier est épuisé, le mur n'a
+  pas fermé.** Les 18 sujets ont tous ≥ 1 carte servie ; compositions :
+  vista 11 · stained 11 · heraldry 9 · medallion 7 · depths 4 · backlight 0
+  (exclue, structurelle — un levier neuf serait requis) ; médiane 87,5,
+  seize ≥ 90, deux 100,0. **Cumul du 26/08 : 4/108 → 42/108 (+38) pour
+  7,155 $ en quatre enveloppes — 38 servies sur 80 sondes (48 %). Le reste
+  de 0,378 $ ne peut aller qu'à backlight (levier requis) ou au re-broyage
+  de refus : décision utilisateur.**
 
 ### T2 — MESHY_MOCK au .env (D4)
 
