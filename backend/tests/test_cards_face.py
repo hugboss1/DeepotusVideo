@@ -3507,9 +3507,9 @@ def test_GET_serie_dit_l_etat_le_plafond_et_les_prix(monkeypatch):
     d = r.json()
     assert d["serie"] == "walkuski" and d["v"] == FA.SERIE_V
     assert d["total"] == 108 and d["faites"] == 0 and d["restantes"] == 108
-    assert d["plafond_usd"] == pytest.approx(8.0)  # relevé utilisateur 25/08
+    assert d["plafond_usd"] == pytest.approx(10.0)  # relevé utilisateur 26/08
     assert d["depense_totale_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(8.0)
+    assert d["reste_usd"] == pytest.approx(10.0)
     from app.services import pricing
     assert d["prix"]["flux"] == pytest.approx(pricing.load()["flux_image_usd"])
     assert d["prix"]["nano-banana"] == \
@@ -3797,10 +3797,11 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
     # faut que le reliquat COUVRE les premières marches sans couvrir la
     # dernière, et que la case CLIMBE. Tarifs du banc : 6 × 0,01 = 0,06 pour
     # FLUX, 0,02 pour l'édition, 5,00 pour le GPT — échelle 5,08. Une case
-    # traitée laisse 2,92 de reliquat sous l'enveloppe de 8,00 (relevé
-    # utilisateur du 25/08 ; c'était 0,92 sous celle de 6,00) : de quoi payer
-    # FLUX et l'édition (0,08) et se faire arrêter sur la dernière marche,
-    # sans aucune trace — si la garde d'ouverture n'existait pas.
+    # traitée laisse 4,92 de reliquat sous l'enveloppe de 10,00 (relevé
+    # utilisateur du 26/08 ; c'était 2,92 sous celle de 8,00 et 0,92 sous
+    # celle de 6,00) : de quoi payer FLUX et l'édition (0,08) et se faire
+    # arrêter sur la dernière marche, sans aucune trace — si la garde
+    # d'ouverture n'existait pas.
     p = _prix_de_banc(monkeypatch, flux_image_usd=0.01, nano_banana_usd=0.02,
                       gpt_image_2_usd=5.00)
     echelle = (FA.SERIE_CANDIDATS * p["flux_image_usd"]
@@ -3814,29 +3815,30 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
     assert not d["traitees"] and len(d["refusees"]) == 1
     assert d["depense_totale_usd"] == pytest.approx(5.08), \
         "une case a été ouverte à moitié : de l'argent parti sans trace"
-    assert d["reste_usd"] == pytest.approx(2.92)
+    assert d["reste_usd"] == pytest.approx(4.92)
     assert d["echelle_usd"] == pytest.approx(5.08)
     # LE RELIQUAT EST AVOUÉ, avec les deux nombres qui le rendent lisible
-    assert "2,92" in d["message"] and "5,08" in d["message"], d["message"]
+    assert "4,92" in d["message"] and "5,08" in d["message"], d["message"]
     assert d["reste_usd"] < d["echelle_usd"]
     # ... et TOUT tir du journal appartient à une case TRACÉE
     tracees = {t["case"] for t in d["traitees"]} | {r["case"] for r in d["refusees"]}
     assert {l["case"] for l in d["journal"]} == tracees
     assert len(d["journal"]) == 3, d["journal"]
     # le mur est UNE seule arithmétique, partagée par la boucle et par le tir
-    # (la frontière suit l'enveloppe : 8,00 depuis le relevé utilisateur)
-    assert FA.tient_sous_le_mur(7.0, 1.0) and not FA.tient_sous_le_mur(7.0, 1.01)
+    # (la frontière suit l'enveloppe : 10,00 depuis le relevé utilisateur)
+    assert FA.tient_sous_le_mur(9.0, 1.0) and not FA.tient_sous_le_mur(9.0, 1.01)
     s.zero()
 
 
 def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     """LE PLAFOND EST UN MUR, PAS UN VŒU. À 0,30 $ l'image et six candidats,
     chaque case coûte 1,80 $ en voie FLUX mais S'OUVRE à l'échelle complète
-    (1,959 $) : quatre cases tiennent sous l'enveloppe de 8,00 $ (7,20 payés,
-    7,359 d'ouverture), la cinquième ne PART PAS (9,159 > 8). La campagne
+    (1,959 $) : cinq cases tiennent sous l'enveloppe de 10,00 $ (9,00 payés,
+    9,159 d'ouverture), la sixième ne PART PAS (10,959 > 10). La campagne
     s'arrête proprement, rend son bilan, et le prochain POST reprend là où
-    elle s'est arrêtée. (Le scénario était à 3 cases sous l'enveloppe de
-    6,00 $ — re-dérivé au relevé utilisateur du 25/08.)"""
+    elle s'est arrêtée. (Le scénario était à 4 cases sous l'enveloppe de
+    8,00 $ et 3 sous celle de 6,00 — re-dérivé au relevé utilisateur du
+    26/08.)"""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     _prix_de_banc(monkeypatch, flux_image_usd=0.30)
@@ -3844,16 +3846,16 @@ def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond", d["arret"]
-    assert len(d["traitees"]) == 4, [t["case"] for t in d["traitees"]]
-    assert d["depense_totale_usd"] == pytest.approx(7.20)
-    assert d["reste_usd"] == pytest.approx(0.80)
-    assert d["faites"] == 4 and d["restantes"] == 104
+    assert len(d["traitees"]) == 5, [t["case"] for t in d["traitees"]]
+    assert d["depense_totale_usd"] == pytest.approx(9.00)
+    assert d["reste_usd"] == pytest.approx(1.00)
+    assert d["faites"] == 5 and d["restantes"] == 103
     assert "plafond" in d["message"].lower()
-    assert len(d["journal"]) == 4
+    assert len(d["journal"]) == 5
     # un second POST ne dépense plus rien : le mur tient d'un appel à l'autre
     e = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert e["arret"] == "plafond" and not e["traitees"]
-    assert e["depense_totale_usd"] == pytest.approx(7.20)
+    assert e["depense_totale_usd"] == pytest.approx(9.00)
     s.zero()
 
 
@@ -3918,7 +3920,7 @@ def test_la_campagne_EXIGE_une_confirmation_et_rend_le_devis(monkeypatch):
 def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     """Le devis n'est pas un slogan : chaque nombre se refait. Le pire cas est
     l'échelle complète × les cases que CETTE demande viserait — donc 19,12 $
-    pour la série entière, 3,19 fois le plafond : la campagne est
+    pour la série entière, 1,91 fois le plafond : la campagne est
     MULTI-SESSION par construction, et le devis le dit."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
@@ -3933,10 +3935,10 @@ def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     assert d["cases_manquantes"] == 108
     assert d["pire_cas_usd"] == pytest.approx(108 * echelle)
     assert d["pire_cas_usd"] == pytest.approx(19.116, abs=1e-3)
-    assert d["plafond_usd"] == pytest.approx(8.0)  # relevé utilisateur 25/08
+    assert d["plafond_usd"] == pytest.approx(10.0)  # relevé utilisateur 26/08
     assert d["depense_courante_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(8.0)
-    assert d["cases_ouvrables"] == int(8.0 / echelle) == 45
+    assert d["reste_usd"] == pytest.approx(10.0)
+    assert d["cases_ouvrables"] == int(10.0 / echelle) == 56
     assert d["multi_session"] is True
     # le devis suit la DEMANDE : deux cases visées, deux cases chiffrées
     d2 = _api("POST", f"/api/cards/{did}/face/serie/generer"

@@ -1120,11 +1120,13 @@ async def stamp_png(did: str, fmt: str, dpi: int, request: Request,
 SERIE_ID = "walkuski"
 SERIE_V = 1                       # schéma du manifeste
 SERIE_DIR = "cardforge_series"    # sous `DATA_ROOT`, patron des modèles perso
-SERIE_PLAFOND_USD = 8.00          # LE MUR (plan D2) — dur, pas indicatif.
-# 6,00 à la naissance (T1) ; RELEVÉ À 8,00 LE 25/08/2026 SUR ORDRE EXPLICITE
-# DE L'UTILISATEUR (« relève à 8$ »), pour la sonde post-correctif de la
-# clôture T5. Ce nombre ne bouge QUE sur un ordre utilisateur — jamais un
-# agent (la leçon de la campagne, écrite au plan).
+SERIE_PLAFOND_USD = 10.00         # LE MUR (plan D2) — dur, pas indicatif.
+# 6,00 à la naissance (T1) ; 8,00 le 25/08/2026 (« relève à 8$ », la sonde
+# post-correctif de la clôture T5) ; RELEVÉ À 10,00 LE 26/08/2026 SUR ORDRE
+# EXPLICITE DE L'UTILISATEUR (« relève l'enveloppe à 10$ »), pour poursuivre
+# la relance T1-I — la voie de mise au ton en ligne a servi 6 cases sur
+# 7 sondes sous l'enveloppe de 8. Ce nombre ne bouge QUE sur un ordre
+# utilisateur — jamais un agent (la leçon de la campagne, écrite au plan).
 SERIE_CANDIDATS = 6               # candidats par case à la première marche
 # LE PLAFOND DU FOURNISSEUR, MESURÉ EN PAYANT (campagne T5, 25/08/2026).
 # `fal-ai/flux/schnell` refuse `num_images > 4`, et il le refuse à la
@@ -2545,7 +2547,7 @@ def devis(voulues: list, limite: int = 0) -> dict:
     rien dépenser.
 
     Le pire cas est l'échelle complète × les cases visées : 19,12 $ pour la
-    série entière, soit 3,19 fois le plafond. La campagne est donc
+    série entière, soit 1,91 fois le plafond. La campagne est donc
     MULTI-SESSION par construction, et le devis le DIT plutôt que de laisser
     l'utilisateur le découvrir au troisième « plafond atteint »."""
     m, _ = manifeste_lire()
