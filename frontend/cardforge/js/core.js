@@ -970,12 +970,15 @@
     const rail = el("#rail");
     if (!rail) return;
     rail.innerHTML = "";
-    MODULES.forEach((id) => {
+    MODULES.forEach((id, i) => {
       const m = REG[id];
       const b = document.createElement("button");
       b.type = "button";
       b.className = "rail-item" + (id === ACTIVE ? " active" : "") + (m ? "" : " off");
       b.dataset.mod = id;
+      /* le rang nourrit la CASCADE du repli (design 26/08 §4.4) : 25 ms de
+         decalage par ligne, de haut en bas — cardforge.css le lit. */
+      b.style.setProperty("--ri", String(i));
       b.innerHTML = '<i class="ri-n">' + String(ORDER[id]).padStart(2, "0") + '</i>'
         + '<span class="ri-t">' + (m ? esc(m.title) : esc(id)) + '</span>'
         + '<em class="ri-i">' + (RAIL_SVG[id] || (m ? esc(m.icon) : "·")) + '</em>';
@@ -1044,7 +1047,8 @@
      deploye : l'etat par defaut ne s'ecrit pas, seul le repli se retient. */
   const LS_RAIL = "dz_cf_rail";      /* "1" = rail replie (cle absente = deploye) */
   const LS_STAGE = "dz_cf_stage";    /* "1" = colonne carte repliee */
-  const FOLD = { rail: false, stage: false };
+  const LS_FMT = "dz_cf_fmt";        /* "1" = barre de format repliee (zone 7) */
+  const FOLD = { rail: false, stage: false, fmt: false };
 
   /* ── LA COULISSE DES PANNEAUX (phase 6, T6-G) : la piece DIT, le CORE
      arbitre. `CF.coulisse(mod, niveau)` — niveau = combien de colonnes du
@@ -1089,11 +1093,30 @@
       sb.title = FOLD.stage ? "Déployer la colonne carte" : "Replier la colonne carte";
       sb.setAttribute("aria-expanded", FOLD.stage ? "false" : "true");
     }
+    /* zone 7 du design 26/08 : la barre de format, meme patron que la scene */
+    const fb = el(".fmtbar");
+    if (fb) fb.classList.toggle("replie", FOLD.fmt);
+    const ffb = el("#fmtFoldBtn");
+    if (ffb) {
+      ffb.title = FOLD.fmt ? "Déployer la barre de format" : "Replier la barre de format";
+      ffb.setAttribute("aria-expanded", FOLD.fmt ? "false" : "true");
+    }
   }
   function setFold(which, on_) {
     const etait = FOLD[which];
     FOLD[which] = !!on_;
-    foldEcrit(which === "rail" ? LS_RAIL : LS_STAGE, FOLD[which]);
+    /* la cascade (etiquettes + rebond d'icones) ne s'ARME que sur le GESTE :
+       la restauration au chargement pose l'etat final sans animation
+       (design 26/08 §4.6 — initFold tourne AVANT buildRail). */
+    if (which === "rail" && hasDOM) {
+      const root = el(".cf");
+      if (root) {
+        root.classList.add("rail-anime");
+        setTimeout(() => { root.classList.remove("rail-anime"); }, 700);
+      }
+    }
+    foldEcrit(which === "rail" ? LS_RAIL : which === "stage" ? LS_STAGE : LS_FMT,
+              FOLD[which]);
     applyFold();
     /* ROUVRIR la colonne carte : pendant le repli, `#stageWrap` etait en
        display:none, donc clientWidth 0 — un redessin survenu la aurait fige
@@ -1110,6 +1133,7 @@
   function initFold() {
     FOLD.rail = foldLu(LS_RAIL);
     FOLD.stage = foldLu(LS_STAGE);
+    FOLD.fmt = foldLu(LS_FMT);
     applyFold();
   }
 
@@ -2351,6 +2375,9 @@
        etre statique — voir buildRail). */
     const sf = el("#stageFoldBtn");
     if (sf) sf.addEventListener("click", () => setFold("stage", !FOLD.stage));
+    /* la barre de format (zone 7, edge « down ») — meme patron, meme mur */
+    const ffb = el("#fmtFoldBtn");
+    if (ffb) ffb.addEventListener("click", () => setFold("fmt", !FOLD.fmt));
 
     /* ── le pied devient la COMMANDE du zoom (T6-H) ──────────────────────── */
     const zi = el("#zoomIn"), zo = el("#zoomOut"), zf = el("#zoomFit"), z1 = el("#zoom100");

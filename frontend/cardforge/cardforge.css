@@ -218,7 +218,11 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
    l'utilisateur aurait pris pour un bug de rendu). */
 .cf.rail-replie .rail { padding: 8px 5px 14px; }
 .cf.rail-replie .rail-item { flex-direction: column; gap: 2px; padding: 6px 2px; }
-.cf.rail-replie .rail-item .ri-t { display: none; }
+/* l'etiquette ne disparait plus d'un bloc : elle s'echappe en CASCADE
+   (opacite, glissement, hauteur) — voir le bloc design 26/08 en fin de
+   fichier, qui porte les transitions et leurs decalages par rangee. */
+.cf.rail-replie .rail-item .ri-t { opacity: 0; transform: translateX(-22px);
+  max-height: 0; overflow: hidden; }
 .cf.rail-replie .rail-fold { padding: 7px 2px; }
 .cf.rail-replie .rail-fold .rf-t { display: none; }
 .cf.rail-replie .rail-fold .rf-c { transform: rotate(180deg); }   /* le chevron se retourne */
@@ -478,3 +482,34 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 .btn.strong{ background:var(--cat-fill); border-color:var(--cat-line); }
 .cf-panel.on .panel-head .ph-n{ color:var(--cat); }
 :focus-visible{ outline-color:var(--cat-line); }
+
+/* ═══ Fin du design 26/08 — cascade du rail, zone 7 (barre de format) ═══════
+   §4.4 du handoff : l'etiquette s'echappe (opacite 200 ms, glissement
+   -22 px sur 380 ms, 25 ms de decalage par rangee — la variable --ri est
+   posee par buildRail) et les icones rebondissent en cascade. Le rebond ne
+   joue que sur le GESTE (.rail-anime, armee par setFold) : la restauration
+   au chargement pose l'etat final sans animation. */
+.rail-item .ri-t{ max-height:36px;
+  transition:opacity var(--dur-label) var(--ease-panel) calc(var(--ri,0)*25ms),
+             transform 380ms var(--ease-panel) calc(var(--ri,0)*25ms),
+             max-height var(--dur-panel) var(--ease-panel); }
+@keyframes dzRailPop{ 0%{transform:scale(1)} 35%{transform:scale(.74)}
+  70%{transform:scale(1.08)} 100%{transform:scale(1)} }
+.cf.rail-anime.rail-replie .rail-item .ri-i svg{
+  animation:dzRailPop 460ms var(--ease-panel) both;
+  animation-delay:calc(var(--ri,0)*25ms); }
+/* zone 7 : la barre de format s'escamote (edge « down » : chevron -90
+   deploye, 90 replie), l'etat est une preference d'ecran (dz_cf_fmt). */
+.fmtbar{ overflow:hidden; max-height:200px;   /* marge pour 2-3 rangees en fenetre etroite */
+  transition:max-height var(--dur-panel) var(--ease-panel); }
+.fmtbar > :not(.fmt-fold){ transition:opacity var(--dur-label) var(--ease-panel); }
+.fmtbar.replie{ max-height:34px; }
+.fmtbar.replie > :not(.fmt-fold){ opacity:0; pointer-events:none; }
+.fmt-fold{ flex:none; margin-left:8px; background:none; border:0; padding:0;
+  cursor:pointer; align-self:flex-start; }
+.fmt-fold .ff-c{ display:inline-flex; width:22px; height:22px;
+  align-items:center; justify-content:center; border-radius:6px;
+  background:var(--cat-fill); color:var(--cat); transform:rotate(-90deg);
+  transition:transform var(--dur-panel) var(--ease-panel); }
+.fmt-fold .ff-c svg{ width:12px; height:12px; display:block; }
+.fmtbar.replie .fmt-fold .ff-c{ transform:rotate(90deg); }

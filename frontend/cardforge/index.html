@@ -44,13 +44,16 @@
 <!-- ══ widget de format — CORE SEUL. C'est le seul endroit de tout le lab d'ou
      part un CF.setFormat ; les millimetres, les pouces et les pixels sont
      affiches en permanence, jamais l'un sans les autres. ══ -->
-<div class="fmtbar">
+<div class="fmtbar" id="fmtbar">
   <label class="fw"><span class="lbl">Format</span><select id="fmtSel"></select></label>
   <label class="fw"><span class="lbl">Définition</span><div class="seg sm" id="dpiSeg"></div></label>
   <label class="fw num"><span class="lbl">Fond perdu</span><input type="number" id="bleedInp" min="0" max="10" step="0.5"><i>mm</i></label>
   <label class="fw num"><span class="lbl">Zone sûre</span><input type="number" id="safeInp" min="0" max="10" step="0.5"><i>mm</i></label>
   <label class="fw num"><span class="lbl">Rayon de coin</span><input type="number" id="cornerInp" min="0" max="8" step="0.5"><i>mm</i></label>
   <div class="fmt-read mono" id="fmtRead"></div>
+  <!-- zone 7 du design 26/08 : le chevron unique, edge « down » (-90 deploye,
+       90 replie). Cable par core.js:wireStage, etat dz_cf_fmt. -->
+  <button class="fmt-fold" id="fmtFoldBtn" type="button" aria-expanded="true" aria-controls="fmtbar" title="Replier la barre de format"><i class="ff-c"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.8 5.6 9 12l5.8 6.4z"/></svg></i></button>
 </div>
 
 <!-- bandeau d'erreur API (domaine /api/cards pas encore monte, backend muet…) -->

@@ -1149,11 +1149,38 @@ règle (l'or = marque seulement) s'applique au token réel.
    emoji) ; le conteneur du hub pose `--cat` + `data-category` — toute la
    section en hérite.
 
-## Ce qui RESTE (petit, nommé)
+## Fin du chantier (26/08, seconde passe) — TOUT le « reste » est soldé
 
-- La cascade de repli du rail (décalage 25 ms/ligne, rebond d'icônes) — le
-  repli actuel anime la largeur seule (`--dur-panel`/`--ease-panel`).
-- La conversion chevron des zones 7 (barre de format) et 9 (groupes de
-  formulaire épars) — zones 1-6 et 8 couvertes.
-- Le chevron unifié du rail de navigation du bundle (le caret actuel reste).
-- La passe de vérification des contrastes 4,5:1 sur les 6 aplats.
+4. **La cascade de repli du rail Cardforge** (§4.4) : `buildRail` pose
+   `--ri` (le rang) sur chaque ligne ; l'étiquette s'échappe (opacité
+   `--dur-label`, glissement −22 px / 380 ms, décalage 25 ms × rang,
+   hauteur sur `--dur-panel`) et les icônes rebondissent en cascade
+   (`dzRailPop` 1→.74→1.08→1 sur 460 ms). Le rebond n'est ARMÉ que par le
+   geste (classe `.rail-anime` posée par `setFold`, retirée à 700 ms) : la
+   restauration au chargement pose l'état final **sans animation** (§4.6).
+5. **Zone 7 — la barre de format s'escamote** (`edge: down`) : chevron
+   unique en bout de barre (`#fmtFoldBtn`, −90° déployé / 90° replié),
+   `max-height` animée `--dur-panel`, contenu en `opacity --dur-label`,
+   clé `dz_cf_fmt`, aria-expanded/controls — le même patron `setFold`
+   que le rail et la scène.
+6. **Le chevron du bundle unifié** (`patch_bundle_dzchevron.py`, chaîné
+   après dzdesign) : les entrées `caret` (triangle bas) et `caretR`
+   (triangle droit) de la carte d'icônes deviennent LE chevron du design —
+   base pointe gauche, `caretR` = même tracé tourné 180°. Le bouton
+   « Collapse » du rail de navigation pointe désormais dans la direction du
+   mouvement de fermeture ; les en-têtes repliables du bundle et les
+   flèches « suivant » partagent le même glyphe par rotation.
+7. **Zone 9 — inventaire clos** : les clés d'état d'écran des pièces
+   (`dz_cf_*`) ne portent plus AUCUNE affordance de repli non convertie —
+   `type_mono` est un sélecteur de nombre de colonnes, `forge`/`deck*` des
+   sélections de vue/document, `zoom` la loupe. Rail, scène, colonnes P2,
+   barre de format : tous au chevron unique.
+8. **La passe de contraste 4,5:1 : LES SIX PASSENT** (calcul WCAG,
+   OKLCH→sRGB, texte `--cat-ink #14181d` sur aplat `oklch(.72 .13 h)`) :
+   3D 7,18:1 · 3D Studio 6,87:1 · Sprites 7,65:1 · Tuiles 7,55:1 ·
+   Matières 7,09:1 · Cartes 6,80:1.
+
+**Écart assumé restant** (dit, pas caché) : la transition de teinte 300 ms
+au changement de catégorie (§3.2) n'a pas de consommateur visible côté
+bundle (les contenus de section sont des iframes qui posent leur propre
+`--cat`) — à brancher le jour où un écran du hub lit `--cat` en direct.
