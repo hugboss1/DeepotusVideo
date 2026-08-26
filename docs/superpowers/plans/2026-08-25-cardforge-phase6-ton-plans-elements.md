@@ -259,6 +259,33 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   final au manifeste relu : dépense 9,900 $/10,00 $, reste 0,100 $ <
   échelle 0,177 → 0 case ouvrable, le devis machine le confirme. La
   suite (relever encore, ou clore à 24) appartient à l'utilisateur.**
+- [x] **T1-K (RÉEL) — L'ENVELOPPE À 12 $ (second ordre du 26/08) : +10 CASES
+  SUR 22 SONDES, LA SÉRIE À 34/108, LE MUR REFERMÉ À 11,853 $.** Relèvement
+  au commit séparé `d9fe431` (10,00 → 12,00 ; pins retendus dont la garde
+  d'ouverture RE-DÉRIVÉE — à 12 ce sont DEUX cases de banc qui s'ouvrent,
+  10,16 payés / reliquat 1,84 avoué / journal 6 —, plafond dur 6 cases,
+  devis 67 ouvrables, ratio 1,59× ; 147+11 verts ; déployé sha-vérifié,
+  backend relancé, devis neuf : 2,100 / 11 ouvrables). **Dix servies**
+  (toutes flux 0,018 $ ; 5 par frère ajusté) : stained_dragon graphite
+  **100,0 (2e SCORE PARFAIT — le dragon était 0/2)** · depths_portal rouge
+  **96,9** · stained_portal graphite 93,8 · heraldry_portal ocre 93,8 ·
+  depths_grimoire ocre 90,6 · vista_grimoire ocre 87,5 · medallion_grimoire
+  ocre 84,4 · stained_grimoire rouge 84,4 · stained_knight graphite 82,1
+  (le chevalier était 0/2) · heraldry_grimoire ocre 78,1. LE FAIT SAILLANT :
+  **le grimoire gagne dans les CINQ compositions servables** (0/2 avant
+  l'enveloppe) et **le portail finit 4/4** (93,8 · 93,8 · 93,8 · 96,9) —
+  quand le sujet rend une masse sombre, la composition ne compte presque
+  plus. Douze refus (1,773 $) : 9 « gpt trop clair » (ship×2, whale,
+  citadel, golem, sphinx, serpent, dragon-medallion, knight-vista — la
+  passe ne rentre jamais un gpt sur-éclairé), depths_monolith 89,3 (claire
+  en voie flux), depths_crystals 87,5 (chroma, échelle complète),
+  stained_phoenix 65,6 (le phénix 0/2, condamné comme sujet). État final
+  VÉRIFIÉ (GET + devis machine) : **34/108, 11,853 $/12,00 $, reste
+  0,147 < 0,177 → 0 ouvrable**. Servies par composition : vista 11 ·
+  stained 11 · medallion 5 · heraldry 4 · depths 3 (backlight 0) ; par
+  famille : ocre 19 · graphite 8 · rouge 6 · violet 1 ; médiane 87,5,
+  quatorze ≥ 90, deux 100,0. **Cumul du 26/08 : 4/108 → 34/108 (+30) pour
+  4,386 $ en trois enveloppes — 30 servies sur 55 sondes (55 %).**
 
 ### T2 — MESHY_MOCK au .env (D4)
 
