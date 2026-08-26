@@ -940,6 +940,32 @@
   }
 
   let ACTIVE = MODULES[0];
+
+  /* ── MÀJ design 26/08/2026 : le jeu d'icônes « glyphe bicolore » (1b) ─────
+     Tracés du handoff (DESIGN.md §15-2.3) repris tels quels : grille 24×24,
+     masses pleines currentColor, le support à opacité .28–.45, découpes par
+     fill-rule — jamais un tracé peint couleur de fond. Le rail les rend à
+     16 px (cardforge.css) ; l'emoji `icon:` des modules reste le repli des
+     bancs sans DOM et des modules absents. */
+  const SVG_O = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">';
+  const RAIL_SVG = {
+    face: SVG_O + '<rect x="5" y="3" width="14" height="18" rx="2.2" opacity=".3"/><rect x="7.4" y="5.4" width="9.2" height="8" rx="1.2"/></svg>',
+    frame: SVG_O + '<path fill-rule="evenodd" d="M3.4 4.4h17.2v15.2H3.4zm2.8 2.8v9.6h11.6V7.2z"/><rect x="7.4" y="8.4" width="9.2" height="7.2" opacity=".3"/></svg>',
+    type: SVG_O + '<path d="M12 3.6 19.6 18h-3.9L12 10.4 8.3 18H4.4z"/><rect x="8.4" y="13.4" width="7.2" height="2.4"/><rect x="4.4" y="19.8" width="15.2" height="1.8" rx=".9" opacity=".35"/></svg>',
+    data: SVG_O + '<rect x="3.4" y="5" width="17.2" height="14" rx="2" opacity=".28"/><path d="M3.4 7a2 2 0 0 1 2-2h13.2a2 2 0 0 1 2 2v2.4H3.4z"/><rect x="6" y="11.8" width="5" height="1.9" rx=".9"/><rect x="13" y="11.8" width="5" height="1.9" rx=".9"/><rect x="6" y="15.3" width="5" height="1.9" rx=".9"/><rect x="13" y="15.3" width="5" height="1.9" rx=".9"/></svg>',
+    solid: SVG_O + '<rect x="7.4" y="3.4" width="12.2" height="14.6" rx="2" opacity=".32"/><rect x="4.4" y="6.4" width="12.2" height="14.6" rx="2"/></svg>',
+    texture: SVG_O + '<circle cx="12" cy="12" r="8.6" opacity=".3"/><path d="M12 3.4a8.6 8.6 0 0 1 0 17.2z"/></svg>',
+    print: SVG_O + '<rect x="3.4" y="8" width="17.2" height="8" rx="1.8" opacity=".32"/><path d="M7 3.4h10V8H7z"/><rect x="7" y="13.6" width="10" height="7" rx="1.2"/></svg>',
+    gltf: SVG_O + '<path d="M3.6 13.4h2.8v4.4h11.2v-4.4h2.8v6.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8z" opacity=".32"/><path d="M12 2.6 17.2 8h-3.6v7.6h-3.2V8H6.8z"/></svg>',
+    forge3d: SVG_O + '<path d="M10.4 5.2 17.2 9v7.4l-6.8 3.8-6.8-3.8V9z" opacity=".32"/><path d="M10.4 5.2 17.2 9l-6.8 3.9L3.6 9z"/><path d="M19.6 2.2l.9 2.3 2.3.9-2.3.9-.9 2.3-.9-2.3-2.3-.9 2.3-.9z"/></svg>',
+    capture: SVG_O + '<path d="M3.6 13.4h2.8v4.4h11.2v-4.4h2.8v6.2a1.8 1.8 0 0 1-1.8 1.8H5.4a1.8 1.8 0 0 1-1.8-1.8z" opacity=".32"/><path d="M12 15.8 6.8 10.4h3.6V2.8h3.2v7.6h3.6z"/></svg>',
+  };
+  /* le chevron UNIQUE (DESIGN.md §15-4.1) : pointe vers la GAUCHE déployé,
+     toute orientation par rotation CSS. Une seule icône dans tout le lab ;
+     les pièces la lisent par `CF.chevronSVG`, gardé `typeof` chez elles
+     (patron sanscore, T6-G — les CF de paille des bancs node ne l'ont pas). */
+  const CHEVRON_SVG = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M14.8 5.6 9 12l5.8 6.4z"/></svg>';
+
   function buildRail() {
     const rail = el("#rail");
     if (!rail) return;
@@ -952,7 +978,7 @@
       b.dataset.mod = id;
       b.innerHTML = '<i class="ri-n">' + String(ORDER[id]).padStart(2, "0") + '</i>'
         + '<span class="ri-t">' + (m ? esc(m.title) : esc(id)) + '</span>'
-        + '<em class="ri-i">' + (m ? esc(m.icon) : "·") + '</em>';
+        + '<em class="ri-i">' + (RAIL_SVG[id] || (m ? esc(m.icon) : "·")) + '</em>';
       /* le nom de la piece est TOUJOURS dans le title= : replie, le rail n'a
          plus que le numero et l'icone — sans lui, dix pastilles muettes. */
       b.title = m ? m.title : "module absent : js/mod-" + id + ".js n'est pas chargé";
@@ -968,7 +994,8 @@
     f.type = "button";
     f.className = "rail-fold";
     f.id = "railFoldBtn";
-    f.innerHTML = '<i class="rf-c">&#8249;</i><span class="rf-t">Replier</span>';
+    f.innerHTML = '<i class="rf-c">' + CHEVRON_SVG + '</i><span class="rf-t">Replier</span>';
+    f.setAttribute("aria-controls", "rail");
     f.addEventListener("click", () => setFold("rail", !FOLD.rail));
     rail.appendChild(f);
     applyFold();
@@ -2434,6 +2461,9 @@
     /* la piece DIT combien de ses colonnes dorment ; le CORE donne la place
        liberee a la scene (T6-G). UI seulement — rien du document. */
     coulisse: coulisse,
+    /* le chevron unique du design 26/08 — les pieces le lisent garde `typeof`
+       (patron sanscore) : une chaine SVG, jamais un noeud partage. */
+    chevronSVG: CHEVRON_SVG,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
     /* LECTURE SEULE, copie profonde gelee — voir `modelsPublic` (§9bis). */
     models: modelsPublic,

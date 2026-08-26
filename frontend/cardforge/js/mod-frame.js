@@ -4611,7 +4611,10 @@
     function colFold(colEl, cle, quoi) {
       const b = h("button", "cff-colfold");
       b.type = "button";
-      b.innerHTML = '<i class="cff-cf-c">&#8249;</i><span class="cff-cf-t">' + esc(quoi) + '</span>';
+      /* le chevron unique du design 26/08, garde `typeof` (patron sanscore) */
+      b.innerHTML = '<i class="cff-cf-c">'
+        + (typeof CF.chevronSVG === "string" ? CF.chevronSVG : "&#8249;")
+        + '</i><span class="cff-cf-t">' + esc(quoi) + '</span>';
       b.addEventListener("click", () => {
         PLI[cle] = !PLI[cle];
         pliEcrit(cle === "a" ? LS_COL_A : LS_COL_B, PLI[cle]);

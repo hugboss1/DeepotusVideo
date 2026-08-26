@@ -447,3 +447,34 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
   :root { --rail-w: 132px; --stage-w: 240px; }
   .fw select { min-width: 150px; }
 }
+
+/* ═══ MÀJ design 26/08/2026 — teinte de catégorie, icônes 1b, chevron unique ═
+   Le Cardforge appartient à la catégorie « Cartes » : il pose --cat, et
+   SEULS les points d'action listés au DESIGN.md §15-3.2 la lisent (étape
+   active du rail, boutons forts, focus) — budget de couleur ~10 %. Le
+   `.btn.primary` (la seule DÉPENSE de l'écran) reste à l'or de marque :
+   le coût est une sémantique de marque, pas de catégorie. */
+:root{ --cat:var(--cat-cartes); }
+.rail-item .ri-i{ font-size:0; line-height:0; }
+.rail-item .ri-i svg{ width:16px; height:16px; display:block; }
+.rail-item.active{ background:var(--cat-fill); border-color:var(--cat-line);
+  box-shadow:inset 2px 0 0 var(--cat); }
+.rail-item.active .ri-n, .rail-item.active .ri-i{ color:var(--cat); }
+/* le chevron UNIQUE (bouton 22×22 rayon 6, glyphe plein 12 px) — rail,
+   colonne carte, colonnes P2 ; la rotation partage durée et courbe avec le
+   mouvement du panneau (« le chevron pousse le panneau »). */
+.rf-c, .sf-c, .cff-cf-c{ display:inline-flex; width:22px; height:22px; flex:none;
+  align-items:center; justify-content:center; border-radius:6px;
+  background:var(--cat-fill); color:var(--cat);
+  transition:transform var(--dur-panel) var(--ease-panel); }
+/* les règles d'origine (.rail-fold .rf-c, .stage-fold .sf-c) sont plus
+   spécifiques que .rf-c : la durée du design se redit à leur niveau —
+   rotation et panneau partagent 460 ms / ease-panel. */
+.rail-fold .rf-c, .stage-fold .sf-c, .cff-colfold .cff-cf-c{
+  transition:transform var(--dur-panel) var(--ease-panel); }
+.rf-c svg, .sf-c svg, .cff-cf-c svg{ width:12px; height:12px; display:block; }
+.cf{ transition:grid-template-columns var(--dur-panel) var(--ease-panel); }
+.rail-item .ri-t{ transition:opacity var(--dur-label) var(--ease-panel); }
+.btn.strong{ background:var(--cat-fill); border-color:var(--cat-line); }
+.cf-panel.on .panel-head .ph-n{ color:var(--cat); }
+:focus-visible{ outline-color:var(--cat-line); }

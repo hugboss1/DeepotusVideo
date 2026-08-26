@@ -151,3 +151,29 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
 .hover\:bg-deep-800\/40:hover{background-color:#1c1c2166}
 .hover\:bg-deep-800\/60:hover{background-color:#1c1c2199}
 .hover\:text-bio-cyan:hover{color:rgb(240 180 41 / var(--tw-text-opacity, 1))}
+
+/* ── MÀJ design 26/08/2026 — catégories Game Assets + mouvement (DESIGN.md §15)
+   Même patron que le reste du fichier : la SOURCE des valeurs est
+   frontend/shared/deepotus.tokens.css, on ne fait que les exposer à la page
+   du bundle (theme-v2 est sa couche de tokens). Six teintes OKLCH à clarté
+   et chroma identiques ; --cat est posée par le conteneur du hub Game
+   Assets (patch dzdesign) ; hors section, l'or de marque demeure. */
+:root{
+  --cat-3d:oklch(.72 .13 255); --cat-3dstudio:oklch(.72 .13 300);
+  --cat-sprites:oklch(.72 .13 200); --cat-tuiles:oklch(.72 .13 145);
+  --cat-matieres:oklch(.72 .13 80); --cat-cartes:oklch(.72 .13 25);
+  --cat:var(--accent);
+  --cat-fill:oklch(from var(--cat) l c h / .14);
+  --cat-line:oklch(from var(--cat) l c h / .55);
+  --cat-ink:#14181d;
+  --ok:var(--green); --fail:var(--red);
+  --ease-panel:cubic-bezier(.22,1,.36,1);
+  --ease-pop:cubic-bezier(.34,1.56,.64,1);
+  --dur-panel:460ms; --dur-fill:440ms; --dur-label:200ms; --dur-press:170ms;
+}
+:root[data-theme="light"]{
+  --cat-3d:oklch(.52 .12 255); --cat-3dstudio:oklch(.52 .12 300);
+  --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
+  --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
+  --cat-ink:#ffffff;
+}

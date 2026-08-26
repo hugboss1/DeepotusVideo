@@ -107,3 +107,36 @@ a:hover{color:var(--ink-strong)}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
 }
+
+/* ═══ MÀJ design 26/08/2026 — catégories Game Assets, mouvement, sémantique ══
+   Réf : DESIGN.md §15 (handoff « Icônes Deepotus », variante 1b + barre 2a).
+   Six teintes à clarté et chroma IDENTIQUES (OKLCH) : seule la teinte varie,
+   aucune catégorie ne domine. --cat est posée par le CONTENEUR de la section
+   pilotée (hub Game Assets côté bundle, :root du Cardforge) ; hors section
+   elle vaut l'or de marque — barre supérieure, crédits et rail global ne
+   changent pas. Dérivés par calcul (jamais d'hexa recopié à la main). */
+:root{
+  --cat-3d:oklch(.72 .13 255);        /* bleu   — 3D */
+  --cat-3dstudio:oklch(.72 .13 300);  /* violet — 3D Studio */
+  --cat-sprites:oklch(.72 .13 200);   /* cyan   — Sprites 2D */
+  --cat-tuiles:oklch(.72 .13 145);    /* vert   — Tuiles */
+  --cat-matieres:oklch(.72 .13 80);   /* ambre  — Matières */
+  --cat-cartes:oklch(.72 .13 25);     /* rouge  — Cartes */
+  --cat:var(--accent);
+  --cat-fill:oklch(from var(--cat) l c h / .14);
+  --cat-line:oklch(from var(--cat) l c h / .55);
+  --cat-ink:#14181d;
+  /* sémantique : les ✓/✗ ne prennent JAMAIS la teinte de catégorie */
+  --ok:var(--green); --fail:var(--red);
+  /* mouvement du design (repli, remplissage, libellés, enfoncement) */
+  --ease-panel:cubic-bezier(.22,1,.36,1);
+  --ease-pop:cubic-bezier(.34,1.56,.64,1);
+  --dur-panel:460ms; --dur-fill:440ms; --dur-label:200ms; --dur-press:170ms;
+}
+:root[data-theme="light"]{
+  /* mêmes teintes, clarté abaissée : oklch .72 est illisible sur fond clair */
+  --cat-3d:oklch(.52 .12 255); --cat-3dstudio:oklch(.52 .12 300);
+  --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
+  --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
+  --cat-ink:#ffffff;
+}
