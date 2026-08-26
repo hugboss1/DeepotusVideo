@@ -2966,20 +2966,33 @@ def _mesh3d_closed(raw: bytes) -> tuple:
         return None, f"fermeture non mesurée : {e}", 0
 
 
-async def _mesh3d_rapatrie(url: str, dest: Path) -> None:
-    """UN binaire Meshy ramené dans le nœud (`_fetch_url` est mock-aware),
-    borné au même plafond que le reste du domaine AVANT d'atteindre le disque.
+# LA BORNE ANTI-HOSTILE DU RAPATRIEMENT (phase 6, recalée par le tir réel du
+# 26/08). L'ancienne règle refusait d'ÉCRIRE au-delà de MAX_EXT_GLB_BYTES —
+# et le premier tir meshy-7 réel l'a démentie : le moteur rend 1 963 262
+# triangles (92 940 156 octets), la tâche était PAYÉE (30 crédits) et
+# RÉUSSIE, les octets déjà en mémoire, le filet `outputs/meshy3d` les
+# téléchargeait de toute façon — le refus ne protégeait que la perte du
+# modèle. La doctrine de la clôture (« un artefact payé ne se jette pas :
+# on dégrade, motif nommé ») vaut donc pour les DEUX voies ; ce plafond-ci
+# ne refuse plus que la réponse HOSTILE, celle qui menace la mémoire et le
+# disque, à 8 fois le plus gros modèle mesuré.
+MAX_RAPATRIE_BYTES = 768 * 1024 * 1024
 
-    C'est le SEUL endroit de la chaîne où la borne peut encore agir : ici, le
-    fichier n'est pas écrit tant que nous n'avons pas dit oui. Côté fal, la
-    couture de téléchargement écrit elle-même — quand nous voyons la taille,
-    le fichier est déjà là et payé : la mesure de fermeture dégrade alors au
-    lieu de refuser (voir `_run_mesh3d`)."""
+
+async def _mesh3d_rapatrie(url: str, dest: Path) -> None:
+    """UN binaire Meshy ramené dans le nœud (`_fetch_url` est mock-aware).
+
+    Un artefact LÉGITIME s'écrit même au-delà de `MAX_EXT_GLB_BYTES` : la
+    mesure de fermeture dégradera (motif nommé, artefact conservé), comme la
+    voie fal l'a toujours fait — le tir réel du 26/08 a prouvé que refuser
+    ici jetait un modèle payé et réussi. Seule la réponse au-delà de
+    `MAX_RAPATRIE_BYTES` (hostile : elle menace la RAM et le disque) est
+    refusée AVANT d'écrire, avec son littéral."""
     from app.services import meshy_service as MS
     data = await MS._fetch_url(url)
-    if len(data) > MAX_EXT_GLB_BYTES:
-        raise RuntimeError(f"meshy: {dest.name} trop lourd ({len(data)} o, "
-                           f"maximum {MAX_EXT_GLB_BYTES} o)")
+    if len(data) > MAX_RAPATRIE_BYTES:
+        raise RuntimeError(f"meshy: {dest.name} refusé ({len(data)} o, "
+                           f"plafond anti-hostile {MAX_RAPATRIE_BYTES} o)")
     dest.parent.mkdir(parents=True, exist_ok=True)
     await asyncio.to_thread(dest.write_bytes, data)
 
@@ -3304,9 +3317,11 @@ async def _run_mesh3d(did: str, nid: str, node: dict, provider: str,
             # téléchargement qui l'y a mis) et il est PAYÉ : refuser ne le
             # récupérerait pas, ça ne ferait que le rendre inutilisable. On
             # dégrade donc comme pour un maillage trop dense — mesure refusée,
-            # motif nommé, artefact conservé. La borne, elle, garde tout son
-            # mordant là où elle peut encore agir : `_mesh3d_rapatrie`, qui
-            # décide s'il ÉCRIT ou non les octets qu'il vient de recevoir.
+            # motif nommé, artefact conservé. Cette doctrine vaut pour les
+            # DEUX voies depuis le tir réel du 26/08 (meshy-7 : ~2 M de
+            # triangles, 93 Mo — le refus d'écrire jetait 30 crédits) ; le
+            # mordant restant est `MAX_RAPATRIE_BYTES`, la borne anti-hostile
+            # de `_mesh3d_rapatrie`.
             closed, note, tris = None, (
                 f"fermeture non mesurée : GLB trop lourd ({taille} o, "
                 f"plafond {MAX_EXT_GLB_BYTES} o)"), 0

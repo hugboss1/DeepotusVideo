@@ -2548,12 +2548,16 @@ def test_le_rapatriement_des_textures_est_borne(monkeypatch):
 
 
 def test_les_bornes_de_taille_du_glb_livre_sont_nommees(monkeypatch):
-    """I4 — les deux branches de la borne, chacune avec son LITTÉRAL, prouvées
-    en abaissant la constante (la vraie, 64 Mo, n'est pas testable à taille
-    réelle). Elles ne finissent PAS pareil, et c'est voulu : côté fal le
-    fichier est déjà sur le disque et PAYÉ, refuser ne le récupérerait pas —
-    la mesure dégrade et l'artefact reste ; côté Meshy, `_mesh3d_rapatrie`
-    décide encore s'il écrit, et c'est là que la borne garde son mordant."""
+    """I4, RECALÉ PAR LE TIR RÉEL du 26/08 (phase 6) : meshy-7 rend
+    1 963 262 triangles / 92 940 156 octets — le refus d'écrire de
+    `_mesh3d_rapatrie` jetait un artefact PAYÉ (30 crédits) que le filet
+    `outputs/meshy3d` téléchargeait de toute façon. Les DEUX voies finissent
+    désormais PAREIL pour un artefact légitime au-delà de
+    `MAX_EXT_GLB_BYTES` : le fichier est écrit, la mesure dégrade (motif
+    nommé), le job est SERVI. La borne qui refuse d'écrire est
+    l'ANTI-HOSTILE `MAX_RAPATRIE_BYTES` : au-delà, refus littéral et rien
+    sur le disque — elle protège la RAM et le disque d'une réponse hostile,
+    plus jamais le portefeuille d'un modèle réussi."""
     from app.config import settings as cfg
     from app.services import asset3d_service as A3D
     from app.services import meshy_service as MS
@@ -2585,8 +2589,9 @@ def test_les_bornes_de_taille_du_glb_livre_sont_nommees(monkeypatch):
         f"fermeture non mesurée : GLB trop lourd ({len(glb)} o, plafond 10 o)")
     assert (_dossier_noeud(did, "m1") / "model.glb").read_bytes() == glb
 
-    # côté Meshy : le fichier n'est pas encore écrit, la borne REFUSE et le
-    # job échoue avec son motif nommé.
+    # côté Meshy : un GLB légitime au-delà de MAX_EXT_GLB_BYTES est ÉCRIT et
+    # le job SERVI, dégradé avec le MÊME littéral que fal — plus jamais un
+    # modèle payé jeté par sa propre ceinture.
     avant = (cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED)
     cfg.MESHY_MOCK = True
     cfg.MESHY_MOCK_SPEED = 0.01
@@ -2596,10 +2601,25 @@ def test_les_bornes_de_taille_du_glb_livre_sont_nommees(monkeypatch):
                   json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
         assert r2.status_code == 200, r2.text
         job2 = _attendre_job(did, "m1")
-        assert job2["status"] == "failed", job2
-        assert job2["error"] == (
-            f"meshy: model.glb trop lourd ({len(MS.tiny_glb())} o, "
-            f"maximum 10 o)"), job2["error"]
+        assert job2["status"] == "served", job2   # l'artefact PAYÉ est gardé
+        assert job2["closed"] is None
+        assert job2["closed_note"] == (
+            f"fermeture non mesurée : GLB trop lourd "
+            f"({len(MS.tiny_glb())} o, plafond 10 o)"), job2["closed_note"]
+        assert (_dossier_noeud(did, "m1")
+                / "model.glb").read_bytes() == MS.tiny_glb()
+
+        # ... et l'ANTI-HOSTILE garde tout son mordant : au-delà de
+        # MAX_RAPATRIE_BYTES, refus nommé, rien d'écrit, job en échec.
+        monkeypatch.setattr(F9, "MAX_RAPATRIE_BYTES", 5)
+        r3 = _api("POST", f"/api/cards/{did}/forge3d/mesh3d/m1",
+                  json={"graph": _graphe_mesh3d("meshy-7"), "card": 0})
+        assert r3.status_code == 200, r3.text
+        job3 = _attendre_job(did, "m1")
+        assert job3["status"] == "failed", job3
+        assert job3["error"] == (
+            f"meshy: model.glb refusé ({len(MS.tiny_glb())} o, plafond "
+            f"anti-hostile 5 o)"), job3["error"]
         assert not (_dossier_noeud(did, "m1") / "model.glb").exists()
     finally:
         cfg.MESHY_MOCK, cfg.MESHY_MOCK_SPEED = avant
