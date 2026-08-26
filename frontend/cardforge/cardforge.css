@@ -25,6 +25,12 @@
   --sel-ink: var(--accent-ink);
   --rail-w: 188px;
   --stage-w: 384px;
+  /* les deux colonnes CENTRALES du gabarit (T6-G) : par defaut, la scene est
+     fixe et le travail prend le reste — exactement l'ecran d'avant. La
+     coulisse des panneaux REDECLARE ces variables (bloc « COULISSE »), le
+     gabarit de `.cf`, lui, ne se dedouble jamais. */
+  --scene-col: var(--stage-w);
+  --travail-col: minmax(0, 1fr);
 }
 
 html, body { height: 100%; margin: 0; overflow: hidden;
@@ -92,7 +98,7 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 
 /* ── grille : rail · scene · plan de travail · lateral optionnel ─────────── */
 .cf { flex: 1; min-height: 0;
-  display: grid; grid-template-columns: var(--rail-w) var(--stage-w) minmax(0, 1fr) auto;
+  display: grid; grid-template-columns: var(--rail-w) var(--scene-col) var(--travail-col) auto;
   transition: grid-template-columns .18s var(--ease); }
 
 /* ── ESCAMOTAGE (rail · colonne carte) ───────────────────────────────────────
@@ -113,6 +119,21 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
    au contenu masque. */
 .cf.rail-replie { --rail-w: 46px; }     /* numeros + icones seuls, titres au title= */
 .cf.stage-replie { --stage-w: 36px; }   /* bande de reouverture, contenu retire */
+
+/* ── LA COULISSE DES PANNEAUX (phase 6, T6-G) ───────────────────────────────
+   Une piece dont des colonnes dorment le DIT (`CF.coulisse(mod, niveau)`) ;
+   le CORE pose la classe selon la piece ACTIVE, et c'est la SCENE qui absorbe
+   chaque pixel au-dela du plafond du travail — le gabarit ne se dedouble
+   toujours pas, les VARIABLES basculent. Les plafonds : 470 px laissent a la
+   colonne survivante sa largeur de media query (280/300 px) plus la bande de
+   reouverture ; 200 px quand tout dort (bandes + entete, le reste defile).
+   La colonne carte REPLIEE garde le dernier mot : ses variables sont
+   re-declarees APRES (meme specificite — l'ordre tranche), replier la carte
+   PUIS des colonnes ne doit pas rouvrir la carte, la place revient au
+   travail. */
+.cf.travail-mince { --scene-col: minmax(var(--stage-w), 1fr); --travail-col: minmax(0, 470px); }
+.cf.travail-bande { --scene-col: minmax(var(--stage-w), 1fr); --travail-col: minmax(0, 200px); }
+.cf.stage-replie { --scene-col: var(--stage-w); --travail-col: minmax(0, 1fr); }
 .rail { border-right: 1px solid var(--stroke); background: var(--bg-panel);
   overflow-y: auto; padding: 8px 8px 14px; display: flex; flex-direction: column; gap: 2px; }
 .rail-item { display: flex; align-items: center; gap: 9px; width: 100%; text-align: left;
@@ -146,8 +167,13 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 .stage-head { display: flex; align-items: center; gap: 7px; padding: 7px 10px;
   border-bottom: 1px solid var(--stroke); background: var(--bg-panel); flex-wrap: wrap; }
 .stage-sep { width: 1px; height: 16px; background: var(--stroke); }
-.stage-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center;
-  padding: 14px; overflow: hidden;
+/* Le centrage est aux MARGES AUTO du canevas, pas au flex du conteneur (T6-H) :
+   les marges auto centrent un canevas petit ET s'annulent quand il deborde —
+   un flex centre rendrait le coin haut-gauche INATTEIGNABLE au defilement.
+   `overflow: auto` : l'apercu zoome se glisse aux ascenseurs, a la molette
+   nue et au bouton du milieu (core.js:wireStage). */
+.stage-wrap { flex: 1; min-height: 0; display: flex;
+  padding: 14px; overflow: auto;
   /* damier neutre : il dit « ceci est de l'alpha », et il est construit avec
      les tokens, donc il suit le theme clair sans une regle de plus */
   background-color: var(--bg-panel-3);
@@ -155,7 +181,9 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
     linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%),
     linear-gradient(45deg, var(--bg-panel-2) 25%, transparent 25% 75%, var(--bg-panel-2) 75%);
   background-size: 18px 18px; background-position: 0 0, 9px 9px; }
-.stage-canvas { display: block; max-width: 100%; max-height: 100%;
+/* pas de plafond a 100 % : c'est drawPreview qui taille (adaptation x zoom),
+   un plafond CSS ecraserait le zoom en silence. */
+.stage-canvas { display: block; margin: auto;
   box-shadow: 0 10px 30px rgba(0,0,0,.45); border-radius: 2px; }
 :root[data-theme="light"] .stage-canvas { box-shadow: 0 8px 24px rgba(23,21,18,.20); }
 .stage-foot { flex: none; border-top: 1px solid var(--stroke); background: var(--bg-panel);
@@ -163,6 +191,12 @@ select option, select optgroup { background-color: var(--bg-panel-2); color: var
 .stage-read { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; font-size: 10.5px; }
 .stage-read b { color: var(--ink-strong); font-size: 11.5px; font-weight: 600; }
 .stage-read span { color: var(--ink-muted); margin-right: 6px; }
+/* le pied « N % apercu » devenu COMMANDE (T6-H) : − / % / + / Adapter / 100 % */
+.stage-zoom { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; font-size: 10.5px; }
+.stage-zoom b { color: var(--ink-strong); font-size: 11.5px; font-weight: 600;
+  min-width: 4.5ch; text-align: right; }
+.stage-zoom span { color: var(--ink-muted); margin-right: 4px; }
+.stage-zoom .btn.sm { padding: 2px 7px; }
 .stage-err { font-size: 10.5px; color: var(--red); line-height: 1.45; }
 /* le chevron de la colonne carte : le SEUL survivant du repli (voir plus bas),
    donc il ne peut pas etre un `.btn` — il doit pouvoir devenir une bande

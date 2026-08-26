@@ -2162,6 +2162,20 @@
         if (st) new ResizeObserver(() => syncOverlay()).observe(st);
       }
       window.addEventListener("resize", syncOverlay);
+      /* LE ZOOM ET LE PAN DE L'APERCU (T6-H) deplacent le canevas SANS
+         re-rendre la carte : `core:scene` part de drawPreview (le zoom
+         retaille), et le defilement de la colonne (le pan) se coalesce au
+         rAF — un scroll en produit des dizaines par seconde, et
+         `paintOverlay` reconstruit du DOM. */
+      CF.on("core:scene", () => syncOverlay());
+      const sw = document.querySelector(".stage-wrap");
+      if (sw) {
+        let svRaf = 0;
+        sw.addEventListener("scroll", () => {
+          if (svRaf) return;
+          svRaf = requestAnimationFrame(() => { svRaf = 0; syncOverlay(); });
+        });
+      }
       document.addEventListener("keydown", onKey, true);
       document.addEventListener("paste", onPaste);
       if (PANEL && typeof MutationObserver === "function") {
@@ -2402,6 +2416,11 @@
       + '  <button class="btn sm cf-type-redo" type="button" title="Rétablir (Ctrl+Y)">&#8631;</button>'
       + '  <button class="chip cf-type-boxes" type="button" title="Cadres d\'édition sur l\'aperçu (jamais exportés)">&#9635; Cadres</button>'
       + '  <button class="chip cf-type-audit" type="button" title="Contrôle photométrique : relit le fichier de la carte et compte l\'encre réellement visible, slot par slot">&#9673; Lisibilité</button>'
+      /* LA COLONNE UNIQUE (phase 6, T6-G) : liste des calques et inspecteur
+         EMPILES pour rendre la largeur a la carte. Etat d ecran (dz_cf_*),
+         jamais du document ; la piece le DIT au CORE (CF.coulisse) et la
+         scene absorbe la place. */
+      + '  <button class="chip cf-type-mono" type="button" aria-pressed="false" title="Liste des calques et inspecteur en une seule colonne — la carte gagne la largeur libérée">&#9636; 1 colonne</button>'
       + '  <label class="cf-type-opt" title="Marge optique retranchée de chaque boîte avant composition : les repères de coupe d\'une rotative dérivent de ±0,5 mm.">'
       + '<span>Marge optique</span><input type="number" class="cf-type-optv" step="0.25" min="0" max="' + OPTICAL_MM_MAX + '"><i>mm</i></label>'
       + '  <button class="btn sm cf-type-refit hidden" type="button" title="Réadapter la mise en page au format courant">Réadapter</button>'
@@ -2475,6 +2494,40 @@
     };
     ov.addEventListener("change", applyOpt);
     ov.addEventListener("keydown", (e) => { if (e.key === "Enter") { applyOpt(); e.preventDefault(); } });
+
+    /* ── la colonne unique (T6-G) : le patron 2d de la coquille, au niveau
+       du panneau — la classe sur `.cf-type-cols`, la VARIABLE bascule
+       (mod-type.css), l'absence de cle veut dire DEUX colonnes. */
+    const monoBtn = HOST.querySelector(".cf-type-mono");
+    const monoLu = () => {
+      try { return localStorage.getItem("dz_cf_type_mono") === "1"; }
+      catch (e) { return false; }                  /* stockage refuse (mode prive) */
+    };
+    const monoEcrit = (on) => {
+      try {
+        if (on) localStorage.setItem("dz_cf_type_mono", "1");
+        else localStorage.removeItem("dz_cf_type_mono");
+      } catch (e) { /* stockage refuse */ }
+    };
+    const monoApplique = (on) => {
+      const cols = HOST.querySelector(".cf-type-cols");
+      if (cols) cols.classList.toggle("mono", on);
+      if (monoBtn) {
+        monoBtn.classList.toggle("active", on);
+        monoBtn.setAttribute("aria-pressed", on ? "true" : "false");
+      }
+      /* la piece DIT, le CORE donne la place liberee a la scene. Un CORE
+         plus vieux que la piece n'a pas la clef (patron « sanscore » du
+         banc) : l'empilement local tient quand meme, seul le gain de
+         largeur manque. */
+      if (typeof CF.coulisse === "function") CF.coulisse("type", on ? 1 : 0);
+    };
+    if (monoBtn) monoBtn.addEventListener("click", () => {
+      const on = !monoLu();
+      monoEcrit(on);
+      monoApplique(on);
+    });
+    monoApplique(monoLu());
   }
 
   /* ── CE QUE COÛTE UNE NAISSANCE, DIT AVANT ──────────────────────────────
@@ -7135,6 +7188,24 @@
     OV.style.top = r.top + "px";
     OV.style.width = r.width + "px";
     OV.style.height = r.height + "px";
+    /* LE CALQUE SE ROGNE A LA BOITE VISIBLE DE LA COLONNE (T6-H, mesure au
+       banc navigateur du 26/08) : zoome, le canevas DEBORDE la colonne
+       (overflow), mais son rect garde la boite ENTIERE — un calque non
+       rogne couvrait le pied de scene et VOLAIT les clics des commandes du
+       zoom. clip-path rogne le dessin ET la prise (le hit-test l'honore). */
+    const w = document.querySelector(".stage-wrap");
+    if (w) {
+      const rw = w.getBoundingClientRect();
+      /* inset(haut droite bas gauche) = ce qu'on RETRANCHE de la boite du
+         calque : chaque cote coupe ce qui depasse de la colonne DE CE
+         COTE-LA (haut : la colonne commence plus bas ; bas : le canevas
+         finit plus bas qu'elle — mesure au banc, le signe inverse laissait
+         le bas du calque couvrir le pied). */
+      const ins = [Math.max(0, rw.top - r.top), Math.max(0, r.right - rw.right),
+        Math.max(0, r.bottom - rw.bottom), Math.max(0, rw.left - r.left)];
+      OV.style.clipPath = (ins[0] || ins[1] || ins[2] || ins[3])
+        ? "inset(" + ins.map((v) => Math.round(v) + "px").join(" ") + ")" : "none";
+    }
     paintOverlay();
   }
   function ovScale() {

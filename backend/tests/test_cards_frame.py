@@ -9781,6 +9781,9 @@ def _page_gemme(tmp_path) -> pathlib.Path:
         "var CF={geom:function(){return " + json.dumps(g) + ";}};"
         "var f=function(){return DOC.frame;};"
         "function gemDe(){return window.__GEM;}"
+        # pin RETENDU (T6-F) : drawMapWith dessine desormais AUSSI le
+        # bandeau ; cette page-ci prouve la GEMME, son bandeau est eteint.
+        "function banDe(){return null;}"
         "window.__GEM=" + json.dumps(gm) + ";"
         "window.__W={x:6.6,y:6.6,w:49.8,h:44.4,r:2.5};"
         "window.__peint=function(gm){drawMapWith(window.__W,gm);};"
@@ -10701,3 +10704,254 @@ def test_le_bandeau_manuel_est_MIROIR_python_js(tmp_path):
     assert js["manual"] is True
     assert js["box"] == pytest.approx(py["box"])
     assert js["lane"] == py["lane"]
+
+
+# =============================================================================
+# 27. LE BANDEAU A LA SOURIS - phase 6, T6-F
+#
+# T4-B a donne les cles (`banner_x`/`banner_y`, section 26), les champs et la
+# ligne d etat ; il manquait le GESTE. La carte des poignees est LA surface
+# de geste de P2 (phase 5 : la gemme y entre par la meme porte que la
+# fenetre) ; le bandeau y entre a son tour, avec le meme vocabulaire :
+# glisser = deplacer (les DEUX cles partent ensemble), double-clic =
+# automatique, une entree d annulation PAR GESTE qui empile l etat d AVANT
+# (nuls compris), le gel qui se DIT une fois. Pas d anneau : la largeur est
+# celle du label et la hauteur celle du metier - la main choisit OU, pas
+# COMBIEN (section 26). La priorite de prise suit l ordre de peinture :
+# gemme > bandeau > fenetre.
+# =============================================================================
+
+
+def test_la_carte_des_poignees_DESSINE_le_bandeau():
+    """Une prise invisible n est pas une prise : le plan peint la boite que
+    `banDe` publie (celle du peintre), AVANT la gemme (l ordre de peinture
+    est l ordre de prise : la gemme, plus petite, reste attrapable
+    par-dessus), et le trait dit le regime - plein quand la main a pose,
+    pointille quand le calcul place (le vocabulaire de la gemme)."""
+    src = _js()
+    dm = _js_fn(src, "drawMapWith")
+    assert "function drawMapWith(w, gm, bn)" in dm, \
+        "la carte ne recoit pas de bandeau candidat : le geste ne peut pas la suivre"
+    assert "const bb = (bn === undefined) ? banDe(g, f()) : bn;" in dm, \
+        "le bandeau dessine n'est pas celui que le plan publie"
+    assert "bb.manual ? acc : ink" in dm, \
+        "le trait du bandeau ne dit pas le regime (plein manuel / encre auto)"
+    assert dm.index("banDe(") < dm.index("gemDe("), \
+        "le bandeau est peint apres la gemme : elle ne serait plus attrapable dessus"
+
+
+def test_la_prise_du_bandeau_suit_sa_boite_et_cede_a_la_gemme():
+    """`mapHit` rend « ban » dans la boite du bandeau, APRES la gemme et
+    AVANT la poignee de la fenetre - l ordre du dessin, toujours. Pas de
+    couronne : ses deux cles sont un COIN, pas une taille."""
+    src = _js()
+    mh = _js_fn(src, "mapHit")
+    assert "function mapHit(w, p, mg, gm, bn)" in mh, \
+        "mapHit ne connait pas le bandeau"
+    assert '"ban"' in mh, "aucune prise « ban » dans mapHit"
+    assert mh.index('return "gem"') < mh.index('return "ban"') < mh.index('return "size"'), \
+        "l'ordre des prises n'est plus celui de la peinture (gemme > bandeau > fenetre)"
+
+
+def test_le_glisser_du_bandeau_ECRIT_les_deux_cles_et_s_annule_en_un_geste():
+    """Le patron de la gemme, rejoue trait pour trait :
+      1. le pointerdown empile l ETAT D AVANT, nuls compris - Ctrl+Z rend
+         l AUTOMATIQUE, pas « repose ou c etait » ;
+      2. le mouvement passe par le MEME coalesceur (un patch par frame,
+         spec 9.6-1) et se borne MIROIR du backend (`tw - largeur`,
+         `th - hauteur`, section 26) ;
+      3. la fin de geste empile UNE entree d annulation et le gel se DIT
+         une fois (`ditLeGelBandeau` sort si c etait deja manuel) ;
+      4. le double-clic sur le bandeau le rend automatique (les deux cles
+         a null par `banAuto`), et le curseur annonce la prise."""
+    src = _js()
+    wm = _js_fn(src, "wireMap")
+    assert 'hit === "ban"' in wm, "wireMap ignore la prise « ban »"
+    assert "etait: { banner_x:" in wm, \
+        "le pointerdown n'empile pas l'etat d'avant du bandeau (nuls compris)"
+    assert "tw - bb.box[2]" in wm and "th - bb.box[3]" in wm, \
+        "le glisser n'est pas borne miroir du backend"
+    assert wm.count("pendingGem = q;") == 2, \
+        "le bandeau ne passe pas par le coalesceur commun : deux patchs par frame"
+    assert 'HIST.push({ before: d0.etait, label: "bandeau" })' in wm, \
+        "pas d'entree d'annulation par geste pour le bandeau"
+    assert "ditLeGelBandeau(d0.manuel)" in wm, "le gel du bandeau ne se dit pas"
+    assert 'if (hit === "ban") { banAuto(); return; }' in wm, \
+        "le double-clic sur le bandeau ne le rend pas automatique"
+    assert 'hit === "ban" ? "move"' in wm, \
+        "le curseur n'annonce pas la prise du bandeau"
+    gel = _js_fn(src, "ditLeGelBandeau")
+    assert "if (avantManuel) return;" in gel, \
+        "la phrase repartirait a chaque geste sur un bandeau deja manuel"
+    assert "posé à la main" in gel, gel
+
+
+def _page_bandeau(tmp_path) -> pathlib.Path:
+    """La page du banc gemme (24.1), rejouee avec le bandeau : les VRAIES
+    fonctions de plan, la VRAIE feuille, et les boites CALCULEES ICI par le
+    backend (la page n invente aucune position)."""
+    src = _js()
+    code = "\n".join([
+        _js_const(src, "cl"), _js_const(src, "r1"), _js_const(src, "r2"),
+        _js_const(src, "num"), _js_const(src, "has"),
+        _js_fn(src, "rgb"), _js_fn(src, "rgba"),
+        _js_fn(src, "rrPath"), _js_fn(src, "mapGeom"),
+        _js_fn(src, "drawMapWith"), _js_fn(src, "mapHit")])
+    tokens = (REPO / "frontend" / "shared" / "deepotus.tokens.css").as_uri()
+    css = CSS.as_uri()
+    g = _geom_js("poker_eu", 3)
+    o = FR.occupancy(CT.geom("poker_eu", 300), dict(FRAME, fit=True), SLOTS)
+    gm = _gem(o)
+    bn = _ban(o)
+    page = tmp_path / "bandeau.html"
+    page.write_text(
+        "<!doctype html><meta charset=\"utf-8\">"
+        f"<link rel=\"stylesheet\" href=\"{tokens}\">"
+        f"<link rel=\"stylesheet\" href=\"{css}\">"
+        "<body style=\"margin:0;background:var(--bg-app,#111)\">"
+        "<div class=\"cf-frame\" style=\"width:708px\">"
+        "<div class=\"cff-winwrap\"><canvas class=\"cff-map\"></canvas>"
+        "<div class=\"cff-winfields\"></div></div></div>"
+        "<script>window.__ERR=[];"
+        "window.onerror=function(m){window.__ERR.push(String(m));};"
+        "(function(){\n"
+        + code
+        + "\nvar MAP={w:168,h:232};"
+        "var UI={map:document.querySelector('.cff-map')};"
+        "var DOC={frame:{}};"
+        "var CF={geom:function(){return " + json.dumps(g) + ";}};"
+        "var f=function(){return DOC.frame;};"
+        "function gemDe(){return window.__GEM;}"
+        "function banDe(){return window.__BAN;}"
+        "window.__GEM=" + json.dumps(gm) + ";"
+        "window.__BAN=" + json.dumps(bn) + ";"
+        "window.__W={x:6.6,y:6.6,w:49.8,h:44.4,r:2.5};"
+        "window.__peint=function(gm,bn){drawMapWith(window.__W,gm,bn);};"
+        "window.__hit=function(x,y,gm,bn){"
+        "return mapHit(window.__W,{x:x,y:y},mapGeom(),gm,bn);};"
+        "window.__peint(window.__GEM,window.__BAN);"
+        "})();</script></body>", encoding="utf-8")
+    return page
+
+
+SONDE_BANDEAU = """(() => {
+  const cv = document.querySelector(".cff-map");
+  const c = cv.getContext("2d");
+  const gm = window.__GEM, bn = window.__BAN;
+  const bcx = bn.box[0] + bn.box[2] / 2, bcy = bn.box[1] + bn.box[3] / 2;
+  const lyy = bn.box[1] - 6;
+  const pad = 10, tw = 63, th = 88;
+  const s = Math.min((168 - 2 * pad) / tw, (232 - 2 * pad) / th);
+  const ox = (168 - tw * s) / 2, oy = (232 - th * s) / 2;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const px = (mmx, mmy) => {
+    const d = c.getImageData(Math.round((ox + mmx * s) * dpr),
+      Math.round((oy + mmy * s) * dpr), 1, 1).data;
+    return [d[0], d[1], d[2], d[3]];
+  };
+  /* MEME MESURE PAR DIFFERENCE que la sonde gemme : on peint SANS puis AVEC
+     le bandeau, le centre doit CHANGER et le point a six millimetres
+     au-dessus ne doit PAS bouger. */
+  window.__peint(gm, null);
+  const sansC = px(bcx, bcy), sansL = px(bcx, lyy);
+  window.__peint(gm, bn);
+  const dedans = px(bcx, bcy);
+  const loin = px(bcx, lyy);
+  const empreinte = (etat) => {
+    window.__peint(gm, etat);
+    const d = c.getImageData(0, 0, cv.width, cv.height).data;
+    let h = 0;
+    for (let i = 0; i < d.length; i += 7) { h = (h * 31 + d[i]) >>> 0; }
+    return h;
+  };
+  const auto = empreinte(Object.assign({}, bn, { manual: false }));
+  const manuel = empreinte(Object.assign({}, bn, { manual: true }));
+  window.__peint(gm, bn);
+  return {
+    w: cv.width, h: cv.height, dedans: dedans, loin: loin,
+    sansC: sansC, sansL: sansL,
+    auto: auto, manuel: manuel,
+    hit_bandeau: window.__hit(bcx, bcy, gm, bn),
+    hit_gemme: window.__hit(gm.cx, gm.cy, gm, bn),
+    hit_sans: window.__hit(bcx, bcy, gm, null),
+    hit_loin: window.__hit(bcx, lyy, gm, bn),
+    erreurs: window.__ERR || [],
+  };
+})()"""
+
+
+def test_les_poignees_de_bandeau_TIENNENT_dans_un_vrai_navigateur(tmp_path):
+    """LE BANDEAU, VU ET ATTRAPE - la sonde gemme (24.1), rejouee :
+      1. son encre tombe dans sa boite et pas a six millimetres au-dessus ;
+      2. manuel et automatique ne se ressemblent pas (plein / pointille) ;
+      3. `mapHit` rend « ban » au centre du bandeau, la gemme GAGNE sur sa
+         propre boite, et bandeau eteint = la main revient a la fenetre."""
+    import shutil
+    import subprocess
+    node = shutil.which("node")
+    if not node:
+        pytest.skip("node absent : le banc du navigateur ne peut pas tourner")
+    page = _page_bandeau(tmp_path)
+    banc = tmp_path / "banc_chrome_ban.mjs"
+    banc.write_text(_banc_chrome(SONDE_BANDEAU), encoding="utf-8")
+    r = subprocess.run([node, str(banc), str(page)], capture_output=True,
+                       text=True, encoding="utf-8", timeout=300)
+    assert r.returncode == 0, (r.stdout[-1500:], r.stderr[-2000:])
+    v = json.loads(r.stdout)
+    if v.get("skip"):
+        pytest.skip("Chrome absent : la vérification navigateur ne peut pas tourner")
+    assert not v.get("erreur"), v.get("erreur")
+    assert v["erreurs"] == [], v["erreurs"]
+    assert v["w"] > 160 and v["h"] > 220, v
+    assert v["dedans"] != v["sansC"], \
+        f"le bandeau ne change rien au centre de sa boite : {v['sansC']} -> {v['dedans']}"
+    assert v["loin"] == v["sansL"], \
+        f"le bandeau encre hors de sa boite : {v['sansL']} -> {v['loin']}"
+    assert v["auto"] != v["manuel"], \
+        "le plan rend le meme dessin en automatique et a la main : le gel ne se voit pas"
+    assert v["hit_bandeau"] == "ban", v["hit_bandeau"]
+    assert v["hit_gemme"] == "gem", v["hit_gemme"]
+    assert v["hit_sans"] in ("move", "draw"), \
+        "le bandeau est attrape alors qu'il est eteint"
+    assert v["hit_loin"] in ("move", "draw"), v["hit_loin"]
+
+
+# =============================================================================
+# 28. LES COLONNES COULISSANTES DE L ECRAN CADRE - phase 6, T6-G
+#
+# Le mecanisme 2d de la coquille (chevron, classe, la VARIABLE bascule,
+# dz_cf_*, absence de cle = deploye) est ETENDU au niveau du panneau, pas
+# duplique : chaque colonne de P2 (`cff-colA` epreuve & catalogue,
+# `cff-colB` reglages) se replie en bande de reouverture, et la piece DIT
+# au CORE combien de colonnes dorment (`CF.coulisse`) - c est le CORE qui
+# donne la place liberee a la scene (banc core, section zoom/coulisse).
+# =============================================================================
+
+
+def test_les_colonnes_du_cadre_COULISSENT_et_la_piece_le_dit_au_CORE():
+    """Quatre faits, lus dans la source :
+      1. l etat vit dans le stockage local de la piece (dz_cf_frame_colA /
+         colB), et l absence de cle veut dire DEPLOYE (removeItem) ;
+      2. chaque colonne porte son chevron (`cff-colfold`), reversible ;
+      3. la piece annonce au CORE le COMPTE de colonnes repliees ;
+      4. la feuille replie par la VARIABLE (un seul gabarit de grille), le
+         contenu replie est RETIRE du flux et la bande est verticale."""
+    src = _js()
+    assert 'dz_cf_frame_colA' in src and 'dz_cf_frame_colB' in src, \
+        "l'etat des colonnes ne persiste pas (famille dz_cf_*)"
+    assert "localStorage.removeItem" in src, \
+        "l'etat deploye s'ecrit au lieu de s'effacer (absence de cle = deploye)"
+    assert "cff-colfold" in src, "aucun chevron de colonne"
+    assert 'CF.coulisse("frame", (PLI.a ? 1 : 0) + (PLI.b ? 1 : 0));' in src, \
+        "la piece ne dit pas au CORE combien de colonnes dorment"
+    css = CSS.read_text(encoding="utf-8")
+    assert "var(--cff-colA" in css and "var(--cff-colB" in css, \
+        "le gabarit de cff-cols ne bascule pas par la variable"
+    assert ".cf-frame .cff-cols.a-replie { --cff-colA:" in css, \
+        "replier la colonne A ne redeclare pas sa variable"
+    assert ".cf-frame .cff-cols.b-replie { --cff-colB:" in css, \
+        "replier la colonne B ne redeclare pas sa variable"
+    assert ":not(.cff-colfold) { display: none; }" in css, \
+        "le contenu replie reste dans le flux au lieu d'en etre retire"
+    assert "writing-mode: vertical-rl" in css, \
+        "la bande de reouverture n'est pas verticale (patron stage-fold)"

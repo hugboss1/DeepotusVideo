@@ -32,10 +32,38 @@
   padding: 10px 12px; background: var(--bg-panel); display: flex; flex-direction: column; gap: 8px; }
 .cf-frame .cff-presets { display: flex; flex-wrap: wrap; gap: 6px; }
 
-/* ── les deux colonnes ───────────────────────────────────────────────────── */
-.cf-frame .cff-cols { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(300px, 380px);
+/* ── les deux colonnes — COULISSANTES (phase 6, T6-G) ─────────────────────
+   Le gabarit ne se dedouble pas : les largeurs sont des VARIABLES (le patron
+   de la coquille), et replier une colonne les redeclare. Le contenu replie
+   est RETIRE du flux (patron ETAT REPLIE) ; seul le chevron survit et
+   devient la bande verticale de reouverture. La media query etroite, en bas
+   de cette feuille, change la FORME du gabarit (deux pistes -> une) : le
+   repli y survit quand meme, parce qu'il tient au display:none du contenu,
+   pas a la largeur de la piste. */
+.cf-frame .cff-cols { display: grid;
+  grid-template-columns: var(--cff-colA, minmax(280px, 1fr)) var(--cff-colB, minmax(300px, 380px));
   gap: 14px; align-items: start; }
+.cf-frame .cff-cols.a-replie { --cff-colA: 30px; }
+.cf-frame .cff-cols.b-replie { --cff-colB: 30px; }
 .cf-frame .cff-colA, .cf-frame .cff-colB { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.cf-frame .cff-cols.a-replie .cff-colA > :not(.cff-colfold),
+.cf-frame .cff-cols.b-replie .cff-colB > :not(.cff-colfold) { display: none; }
+.cf-frame .cff-colfold { display: flex; align-items: center; justify-content: flex-start;
+  gap: 7px; background: transparent; border: 1px solid transparent; border-radius: 8px;
+  color: var(--ink-muted); padding: 4px 7px; font-size: 11px; cursor: pointer; }
+.cf-frame .cff-colfold:hover { border-color: var(--stroke); color: var(--ink-strong);
+  background: var(--bg-base); }
+.cf-frame .cff-colfold .cff-cf-c { font-style: normal; font-size: 13px; line-height: 1;
+  transition: transform .18s var(--ease); }
+.cf-frame .cff-colfold .cff-cf-t { letter-spacing: .12em; text-transform: uppercase;
+  font-size: 9.5px; }
+.cf-frame .cff-cols.a-replie .cff-colA .cff-colfold,
+.cf-frame .cff-cols.b-replie .cff-colB .cff-colfold { flex-direction: column;
+  justify-content: flex-start; gap: 10px; padding: 6px 2px; min-height: 220px; }
+.cf-frame .cff-cols.a-replie .cff-colA .cff-colfold .cff-cf-c,
+.cf-frame .cff-cols.b-replie .cff-colB .cff-colfold .cff-cf-c { transform: rotate(180deg); }
+.cf-frame .cff-cols.a-replie .cff-colA .cff-colfold .cff-cf-t,
+.cf-frame .cff-cols.b-replie .cff-colB .cff-colfold .cff-cf-t { writing-mode: vertical-rl; }
 .cf-frame .cff-lbl { display: flex; align-items: baseline; gap: 8px; }
 .cf-frame .cff-lbl i { font-style: normal; font-size: 10px; color: var(--ink-muted); }
 

@@ -4589,6 +4589,55 @@
       + "<kbd>[</kbd> <kbd>]</kbd> famille · <kbd>,</kbd> <kbd>.</kbd> rareté · "
       + "<kbd>D</kbd> double filet · <kbd>M</kbd> métal · <kbd>G</kbd> gemme · <kbd>V</kbd> recto/verso"));
 
+    /* ── LES COLONNES COULISSANTES (phase 6, T6-G) ────────────────────────
+       Le patron 2d de la coquille (chevron, classe, la VARIABLE bascule,
+       dz_cf_*, absence de cle = deploye), transpose au niveau du panneau :
+       chaque colonne se replie en bande de reouverture, et la piece DIT au
+       CORE combien de colonnes dorment (`CF.coulisse`) — c'est lui qui
+       donne la place liberee a la scene. L'etat est une PREFERENCE
+       D'ECRAN, jamais un morceau du deck. Les aides sont locales : chaque
+       piece est un fichier a part, sans import partage (patron
+       scheduleFrame de wireMap). */
+    const LS_COL_A = "dz_cf_frame_colA", LS_COL_B = "dz_cf_frame_colB";
+    function pliLu(k) {
+      try { return localStorage.getItem(k) === "1"; }
+      catch (e) { return false; }                  /* stockage refuse (mode prive) */
+    }
+    function pliEcrit(k, on) {
+      try { if (on) localStorage.setItem(k, "1"); else localStorage.removeItem(k); }
+      catch (e) { /* stockage refuse */ }
+    }
+    const PLI = { a: pliLu(LS_COL_A), b: pliLu(LS_COL_B) };
+    function colFold(colEl, cle, quoi) {
+      const b = h("button", "cff-colfold");
+      b.type = "button";
+      b.innerHTML = '<i class="cff-cf-c">&#8249;</i><span class="cff-cf-t">' + esc(quoi) + '</span>';
+      b.addEventListener("click", () => {
+        PLI[cle] = !PLI[cle];
+        pliEcrit(cle === "a" ? LS_COL_A : LS_COL_B, PLI[cle]);
+        appliquePli();
+      });
+      colEl.insertBefore(b, colEl.firstChild);
+      return b;
+    }
+    function appliquePli() {
+      cols.classList.toggle("a-replie", PLI.a);
+      cols.classList.toggle("b-replie", PLI.b);
+      [[UI.foldA, PLI.a, "épreuve & catalogue"],
+        [UI.foldB, PLI.b, "réglages du cadre"]].forEach((kv) => {
+        if (!kv[0]) return;
+        kv[0].title = (kv[1] ? "Déployer la colonne " : "Replier la colonne ") + kv[2];
+        kv[0].setAttribute("aria-expanded", kv[1] ? "false" : "true");
+      });
+      /* la piece DIT, le CORE arbitre : 0, 1 ou 2 colonnes repliees. Un
+         CORE plus vieux que la piece n'a pas la clef (patron « sanscore ») :
+         le repli local tient quand meme, seul le gain de largeur manque. */
+      if (typeof CF.coulisse === "function") CF.coulisse("frame", (PLI.a ? 1 : 0) + (PLI.b ? 1 : 0));
+    }
+    UI.foldA = colFold(A, "a", "Épreuve & catalogue");
+    UI.foldB = colFold(B, "b", "Réglages du cadre");
+    appliquePli();
+
     /* Le panneau est en display:none tant qu'une autre piece est active : ses
        canvas mesurent alors 0 px de large et les vignettes sortiraient floues
        a l'affichage. On redessine quand la largeur CHANGE — la comparaison
@@ -4827,7 +4876,7 @@
      mini-carte suive chaque evenement sans attendre le patch coalesce au rAF
      (barre 9.6-2). `drawMap()` reste l'appel « etat courant du document ».
      `gm` joue le meme role pour la gemme. */
-  function drawMapWith(w, gm) {
+  function drawMapWith(w, gm, bn) {
     const cv = UI.map;
     if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -4854,6 +4903,23 @@
     c.fillStyle = strong;
     const hx = X(w.x + w.w), hy = Y(w.y + w.h);
     c.fillRect(hx - 5, hy - 5, 10, 10);
+    /* LE BANDEAU SUR LE PLAN (phase 6, T6-F). Peint AVANT la gemme : l'ordre
+       de peinture est l'ordre de prise (`mapHit`), et la gemme, plus petite,
+       doit rester attrapable par-dessus. Meme vocabulaire que la gemme :
+       trait plein quand la main a pose, pointille quand le calcul place. */
+    const bb = (bn === undefined) ? banDe(g, f()) : bn;
+    if (bb) {
+      c.beginPath();
+      rrPath(c, X(bb.box[0]), Y(bb.box[1]), bb.box[2] * mg.s, bb.box[3] * mg.s,
+        Math.min(2, bb.box[3] * mg.s / 2));
+      c.fillStyle = rgba(strong.charAt(0) === "#" ? strong : "#ffffff", 0.14);
+      c.fill();
+      c.strokeStyle = bb.manual ? acc : ink;
+      c.lineWidth = bb.manual ? 1.8 : 1;
+      if (!bb.manual) c.setLineDash([2, 2]);
+      c.stroke();
+      c.setLineDash([]);
+    }
     /* LA GEMME, ET SON ANNEAU DE REDIMENSIONNEMENT. Le disque plein se
        glisse, l'anneau se tire : deux prises, une seule forme a l'ecran, et
        `mapHit` lit exactement ces deux zones-la. Le trait CHANGE quand le
@@ -4891,7 +4957,7 @@
   /* ── quelle prise la souris tient-elle ? UNE SEULE formule, relue au
         pointerdown ET au survol (curseur contextuel) : deux copies auraient
         fini par diverger (poignee agrandie d'un cote, oubliee de l'autre). */
-  function mapHit(w, p, mg, gm) {
+  function mapHit(w, p, mg, gm, bn) {
     /* LA GEMME PASSE AVANT LA FENETRE, et l'ordre est le dessin : elle est
        peinte PAR-DESSUS (couche 70 contre 40), donc c'est elle que la main
        attrape quand les deux se recouvrent. L'inverse aurait fait redessiner
@@ -4915,6 +4981,15 @@
         if (d <= rp) return "gem";
         if (d <= rp + 12) return "gemr";
       }
+    }
+    /* LE BANDEAU APRES LA GEMME, AVANT LA FENETRE — l'ordre du dessin,
+       toujours : il est peint sous la gemme et sur la fenetre. Pas de
+       couronne : ses deux cles sont un COIN, pas une taille (la largeur est
+       celle du label, la hauteur celle du metier). */
+    if (bn) {
+      const b = bn.box;
+      if (p.x >= b[0] && p.x <= b[0] + b[2]
+        && p.y >= b[1] && p.y <= b[1] + b[3]) return "ban";
     }
     const hx = w.x + w.w, hy = w.y + w.h;
     /* poignee : zone de saisie 12 px a l'ecran (barre 9.6-3 ; etait 8 px). */
@@ -4942,6 +5017,14 @@
   }
   function banAuto() {
     set({ banner_x: null, banner_y: null }, "bandeau automatique");
+  }
+  /* LE GEL DU BANDEAU SE DIT AUSSI (T6-F) — la meme phrase de passage que la
+     gemme : poser a la main lui fait perdre la recherche de voie libre, et
+     c'est invisible. Une fois, au passage ; la ligne d'etat la garde. */
+  function ditLeGelBandeau(avantManuel) {
+    if (avantManuel) return;
+    M.toast("le bandeau est désormais posé à la main : il ne cherche plus "
+      + "de voie libre (Ctrl+Z, double-clic ou « Auto » le rendent automatique)");
   }
   function banDe(g, f0) {
     return findBox(planOf(g, f0), "banner");
@@ -5018,8 +5101,8 @@
       if (!ev.isPrimary) return;
       const g = CF.geom(), f0 = f(), w = winMM(g, f0), p = toMM(ev), mg = mapGeom();
       cv.setPointerCapture(ev.pointerId);
-      const gm = gemDe(g, f0);
-      const hit = mapHit(w, p, mg, gm);
+      const gm = gemDe(g, f0), bn = banDe(g, f0);
+      const hit = mapHit(w, p, mg, gm, bn);
       if (hit === "gem" || hit === "gemr") {
         /* CE QUI EST EMPILE, C'EST L'ETAT D'AVANT — nuls compris. Empiler la
            position CALCULEE ferait de Ctrl+Z un « repose la ou c'etait », pas
@@ -5031,6 +5114,14 @@
             gem_y: has(CF.doc().frame || {}, "gem_y") ? (CF.doc().frame || {}).gem_y : null,
             gem_r: has(CF.doc().frame || {}, "gem_r") ? (CF.doc().frame || {}).gem_r : null },
           manuel: !!gm.manual };
+      } else if (hit === "ban") {
+        /* L'ETAT D'AVANT, nuls compris — le patron de la gemme : Ctrl+Z doit
+           rendre l'AUTOMATIQUE, pas « repose ou c'etait ». */
+        drag = { mode: "ban", bn: bn,
+          dx: p.x - bn.box[0], dy: p.y - bn.box[1],
+          etait: { banner_x: has(CF.doc().frame || {}, "banner_x") ? (CF.doc().frame || {}).banner_x : null,
+            banner_y: has(CF.doc().frame || {}, "banner_y") ? (CF.doc().frame || {}).banner_y : null },
+          manuel: !!bn.manual };
       } else if (hit === "size") drag = { mode: "size", w: w };
       else if (hit === "move") drag = { mode: "move", w: w, dx: p.x - w.x, dy: p.y - w.y };
       else drag = { mode: "draw", w: w, ox: p.x, oy: p.y };
@@ -5042,8 +5133,9 @@
         /* hors geste : curseur contextuel seulement — handler LEGER, aucun
            patch, aucun redessin de la carte (spec 9.6-3). */
         const g = CF.geom(), f0 = f(), w = winMM(g, f0), p = toMM(ev), mg = mapGeom();
-        const hit = mapHit(w, p, mg, gemDe(g, f0));
+        const hit = mapHit(w, p, mg, gemDe(g, f0), banDe(g, f0));
         cv.style.cursor = hit === "gem" ? "move" : hit === "gemr" ? "ew-resize"
+          : hit === "ban" ? "move"
           : hit === "size" ? "nwse-resize" : hit === "move" ? "move" : "crosshair";
         return;
       }
@@ -5066,6 +5158,22 @@
         pendingGem = q;
         if (!rafId) rafId = scheduleFrame(flushWin);
         drawMapWith(winMM(g, f()), { cx: q.gem_x, cy: q.gem_y, r: q.gem_r, manual: true });
+        return;
+      }
+      if (drag.mode === "ban") {
+        const bb = drag.bn;
+        /* bornes MIROIR du backend (section 26 du banc) : l'abscisse se borne
+           a `tw - largeur`, l'ordonnee a `th - hauteur` — la boite candidate
+           que la carte montre est deja celle que le plan servira. */
+        const bx = r2(cl(p.x - drag.dx, 0, tw - bb.box[2]));
+        const by = r2(cl(p.y - drag.dy, 0, th - bb.box[3]));
+        const q = { banner_x: bx, banner_y: by };
+        pendingGem = q;      /* le MEME coalesceur que gemme et fenetre : un
+                                patch par frame, quel que soit le meuble tire
+                                (spec 9.6-1). */
+        if (!rafId) rafId = scheduleFrame(flushWin);
+        drawMapWith(winMM(g, f()), undefined,
+          { box: [bx, by, bb.box[2], bb.box[3]], manual: true });
         return;
       }
       let n;
@@ -5100,6 +5208,16 @@
         if (ev) ev.preventDefault();
         return;
       }
+      if (d0.mode === "ban") {
+        if (pendingGem) { M.patch(pendingGem); pendingGem = null; }
+        /* une seule entree d'annulation par geste, l'etat d'AVANT dedans */
+        HIST.push({ before: d0.etait, label: "bandeau" });
+        REDO.length = 0;
+        ditLeGelBandeau(d0.manuel);
+        sync();
+        if (ev) ev.preventDefault();
+        return;
+      }
       if (pendingWin) { M.patch({ window: pendingWin }); pendingWin = null; }
       /* une seule entree d'annulation par geste, pas une par pixel */
       HIST.push({ before: { window: { x: prev.x, y: prev.y, w: prev.w, h: prev.h, r: prev.r } }, label: "fenêtre" });
@@ -5114,8 +5232,9 @@
        rend la fenetre a sa proportion. Le meme geste, la meme promesse. */
     cv.addEventListener("dblclick", (ev) => {
       const g = CF.geom(), f0 = f(), gm = gemDe(g, f0);
-      const hit = mapHit(winMM(g, f0), toMM(ev), mapGeom(), gm);
+      const hit = mapHit(winMM(g, f0), toMM(ev), mapGeom(), gm, banDe(g, f0));
       if (hit === "gem" || hit === "gemr") { gemAuto(); return; }
+      if (hit === "ban") { banAuto(); return; }
       set({ window: null }, "fenêtre automatique");
     });
     cv.addEventListener("keydown", (ev) => {

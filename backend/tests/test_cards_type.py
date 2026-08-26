@@ -11128,3 +11128,65 @@ def test_la_preuve_publiee_vient_d_UNE_passe():
     assert "couvreursDe(" in audit, "les recouvreurs ne sont pas mesures"
     assert "couvreurs:" in audit, "les rangees ne portent pas leurs recouvreurs"
     assert "recouvert par : " in src, "le message ne nomme toujours personne"
+
+
+# ═══════ 30. la colonne unique et le calque qui suit l'aperçu (T6-G/H) ═══════
+# Phase 6, demande du 26/08. Deux extensions d'ÉCRAN, zéro clé de document :
+#   · « 1 colonne » : liste des calques et inspecteur EMPILÉS pour rendre la
+#     largeur à la carte — le patron 2d de la coquille (variable, dz_cf_*,
+#     absence de clé = deux colonnes), et la pièce DIT au CORE (CF.coulisse)
+#     que sa colonne dort ;
+#   · le calque d'édition SUIT le zoom et le pan de l'aperçu (T6-H) : il se
+#     cale déjà sur le rect du canevas (ovScale), il lui manquait les deux
+#     resynchronisations (core:scene, défilement de la colonne).
+
+
+def test_l_ecran_typo_se_range_en_UNE_colonne_et_le_dit_au_CORE():
+    """Le chip « 1 colonne » : un état d'écran (dz_cf_type_mono, absence de
+    clé = deux colonnes), la classe `mono` sur `.cf-type-cols`, la variable
+    qui bascule (le gabarit ne se dédouble pas — la media query étroite
+    redéclare la MÊME variable), et la pièce annonce `CF.coulisse` pour que
+    la scène absorbe la largeur libérée."""
+    src = JS.read_text(encoding="utf-8")
+    assert "cf-type-mono" in src, "aucun chip « 1 colonne » dans la barre"
+    assert "dz_cf_type_mono" in src, "l'état ne persiste pas (famille dz_cf_*)"
+    assert "localStorage.removeItem" in src, \
+        "l'état par défaut s'écrit au lieu de s'effacer (absence de clé = déployé)"
+    assert 'CF.coulisse("type", on ? 1 : 0)' in src, \
+        "la pièce ne dit pas au CORE que sa colonne dort"
+    assert 'aria-pressed' in src, "le chip ne porte pas son état (aria-pressed)"
+    css = CSS.read_text(encoding="utf-8")
+    assert "var(--cft-cols" in css, \
+        "le gabarit de cf-type-cols ne bascule pas par la variable"
+    assert ".cf-type .cf-type-cols.mono { --cft-cols: minmax(0, 1fr); }" in css, \
+        "le mode « 1 colonne » ne redéclare pas la variable"
+    i = css.index("@media")
+    assert "--cft-cols" in css[i:], \
+        "la media query étroite pose encore un gabarit en dur (il se dédoublerait)"
+    assert "grid-template-columns" not in css[i:], \
+        "la media query étroite pose encore un gabarit en dur (il se dédoublerait)"
+
+
+def test_le_calque_d_edition_SUIT_le_zoom_et_le_pan_de_l_apercu():
+    """L'overlay est du DOM fixé sur body, calé sur le rect du canevas : si
+    l'aperçu bouge sans le dire, les boîtes dérivent. Deux resynchronisations,
+    toutes deux rAF-coalescées côté défilement (un scroll en produit des
+    dizaines par seconde) : `core:scene` (drawPreview redimensionne le
+    canevas — zoom) et le défilement de `.stage-wrap` (pan)."""
+    src = JS.read_text(encoding="utf-8")
+    assert 'CF.on("core:scene"' in src, \
+        "le calque d'édition ignore le zoom : les boîtes dérivent du canevas"
+    assert '.stage-wrap' in src and 'addEventListener("scroll"' in src, \
+        "le calque d'édition ignore le pan : les boîtes dérivent au défilement"
+    assert "svRaf" in src, "le défilement resynchronise sans coalescence rAF"
+    # LE CALQUE SE ROGNE À LA BOÎTE VISIBLE DE LA COLONNE. Mesuré au banc
+    # navigateur du 26/08 : zoomé, le canevas DÉBORDE la colonne (overflow)
+    # mais son rect garde la boîte entière — le calque non rogné couvrait le
+    # pied de scène et VOLAIT les clics des commandes du zoom. clip-path
+    # rogne le dessin ET la prise (le hit-test l'honore).
+    assert "clipPath" in src, \
+        "le calque d'édition n'est pas rogné : zoomé, il couvre le pied de scène"
+    i = src.index("function syncOverlay")
+    bloc = src[i:src.index("function ovScale")]
+    assert "clipPath" in bloc and ".stage-wrap" in bloc, \
+        "le rognage ne vit pas dans syncOverlay (il doit suivre chaque resynchronisation)"

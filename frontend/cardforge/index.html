@@ -86,6 +86,16 @@
     </div>
     <div class="stage-foot">
       <div class="stage-read mono" id="stageRead"></div>
+      <!-- le « N % apercu » du pied est desormais la COMMANDE du zoom (T6-H).
+           Etat d'ECRAN seul (dz_cf_zoom), jamais du document : un jeu exporte
+           ne transporte pas la loupe de son auteur. Cable par core.js:wireStage. -->
+      <div class="stage-zoom mono" id="stageZoom">
+        <button class="btn sm" id="zoomOut" type="button" title="Réduire l'aperçu (Ctrl+molette)">&#8722;</button>
+        <b id="zoomPct">— %</b><span>aperçu</span>
+        <button class="btn sm" id="zoomIn" type="button" title="Agrandir l'aperçu (Ctrl+molette)">+</button>
+        <button class="btn sm" id="zoomFit" type="button" title="Adapter la carte à la colonne">Adapter</button>
+        <button class="btn sm" id="zoom100" type="button" title="Un pixel du fichier = un pixel d'écran">100&nbsp;%</button>
+      </div>
       <div class="stage-err hidden" id="stageErr"></div>
     </div>
   </section>

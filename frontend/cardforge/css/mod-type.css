@@ -25,8 +25,13 @@
 /* chaque colonne defile POUR ELLE-MEME : sans quoi l'inspecteur, plus haut
    que la fenetre, debordait par-dessus le releve du bas — celui qui porte
    justement les chiffres qu'on vient verifier. */
-.cf-type .cf-type-cols { display: grid; grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.15fr);
+/* le gabarit bascule par la VARIABLE (patron de la coquille, T6-G) : le chip
+   « 1 colonne » et la media query etroite redeclarent la MEME `--cft-cols`
+   — deux gabarits en dur auraient diverge au premier amendement. */
+.cf-type .cf-type-cols { display: grid;
+  grid-template-columns: var(--cft-cols, minmax(230px, 1fr) minmax(280px, 1.15fr));
   gap: 12px; align-items: stretch; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.cf-type .cf-type-cols.mono { --cft-cols: minmax(0, 1fr); }
 .cf-type .cf-type-left,
 .cf-type .cf-type-insp { overflow-y: auto; padding-right: 4px; }
 .cf-type .cf-type-left { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -413,7 +418,8 @@
 .cf-type .cf-type-deft tr.no td { color: var(--amber); }
 .cf-type .cf-type-deft td.mono { font-variant-numeric: tabular-nums; }
 
-/* ── fenetre etroite : une seule colonne ────────────────────────────────── */
+/* ── fenetre etroite : une seule colonne — par la VARIABLE (T6-G), et la
+   selection a trois classes du chip garde le dernier mot a toute largeur. */
 @media (max-width: 1180px) {
-  .cf-type .cf-type-cols { grid-template-columns: minmax(0, 1fr); }
+  .cf-type .cf-type-cols { --cft-cols: minmax(0, 1fr); }
 }

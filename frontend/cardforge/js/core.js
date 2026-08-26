@@ -977,6 +977,7 @@
     assertId(id);
     ACTIVE = id;
     syncPanels();
+    applyFold();     /* la coulisse est PAR PIECE : la grille suit l'active */
   }
   function syncPanels() {
     if (!hasDOM) return;
@@ -1018,6 +1019,19 @@
   const LS_STAGE = "dz_cf_stage";    /* "1" = colonne carte repliee */
   const FOLD = { rail: false, stage: false };
 
+  /* ── LA COULISSE DES PANNEAUX (phase 6, T6-G) : la piece DIT, le CORE
+     arbitre. `CF.coulisse(mod, niveau)` — niveau = combien de colonnes du
+     panneau dorment (0 = tout ouvert). La classe suit la piece ACTIVE :
+     passer a une piece sans colonnes repliees rend la grille d'origine.
+     L'etat PAR PIECE vit chez la piece (ses cles dz_cf_*) — ici ne vit que
+     l'arbitrage, comme les hotes. */
+  const TRAVAIL = {};
+  function coulisse(id, niveau) {
+    assertId(id);
+    TRAVAIL[id] = Math.max(0, niveau | 0);
+    applyFold();
+  }
+
   function foldLu(k) {
     try { return localStorage.getItem(k) === "1"; }
     catch (e) { return false; }                    /* stockage refusé (mode privé) */
@@ -1032,6 +1046,11 @@
     if (root) {
       root.classList.toggle("rail-replie", FOLD.rail);
       root.classList.toggle("stage-replie", FOLD.stage);
+      /* la coulisse de la piece ACTIVE : 1 colonne repliee = travail mince,
+         tout replie = bande. La scene absorbe la place (cardforge.css). */
+      const niv = TRAVAIL[ACTIVE] || 0;
+      root.classList.toggle("travail-mince", niv === 1);
+      root.classList.toggle("travail-bande", niv >= 2);
     }
     const rb = el("#railFoldBtn");
     if (rb) {
@@ -1067,6 +1086,33 @@
     applyFold();
   }
 
+  /* ── LE ZOOM D'APERCU (phase 6, T6-H) : un etat d'ECRAN, jamais du
+     document (patron phase-pointeur du Sceau, phase 5). ZOOM multiplie le
+     facteur d'ADAPTATION (1 = la carte remplit la colonne) ; il vit dans le
+     stockage local — absence de cle = adapter, l'etat par defaut ne s'ecrit
+     pas — et ni le painter ni l'autosave ne le voient : le fichier livre
+     est rendu a canvas_px quoi qu'il arrive. */
+  const LS_ZOOM = "dz_cf_zoom";
+  const ZOOM_MIN = 0.25, ZOOM_MAX = 8;
+  let ZOOM = 1;
+  function zoomLu() {
+    try {
+      const v = parseFloat(localStorage.getItem(LS_ZOOM));
+      return (isFinite(v) && v > 0) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v)) : 1;
+    } catch (e) { return 1; }                      /* stockage refuse (mode prive) */
+  }
+  function zoomSet(z) {
+    ZOOM = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+    if (Math.abs(ZOOM - 1) < 1e-9) ZOOM = 1;
+    try {
+      if (ZOOM === 1) localStorage.removeItem(LS_ZOOM);
+      else localStorage.setItem(LS_ZOOM, String(ZOOM));
+    } catch (e) { /* stockage refuse */ }
+    /* re-echelonner le bitmap deja rendu : aucun painter n'est rejoue. */
+    return drawPreview(false);
+  }
+  function initZoom() { ZOOM = zoomLu(); }
+
   /* ── apercu : le MEME bitmap que le fichier livre, REDUIT ────────────────
      Pas « le meme appel a une autre echelle » : le MEME APPEL, point. On rend
      a canvas_px puis on reduit avec drawImage. Un painter ne peut donc pas
@@ -1094,9 +1140,15 @@
       const aw = Math.max(80, stage.clientWidth - pad), ah = Math.max(80, stage.clientHeight - pad);
       const fit = Math.min(aw / g.canvas_px[0], ah / g.canvas_px[1]);
       const dpr = Math.min(2, (typeof devicePixelRatio === "number" ? devicePixelRatio : 1) || 1);
-      PREV_SCALE = Math.max(0.02, fit);
-      out.width = Math.max(1, Math.round(g.canvas_px[0] * PREV_SCALE * dpr));
-      out.height = Math.max(1, Math.round(g.canvas_px[1] * PREV_SCALE * dpr));
+      /* adaptation x ZOOM (T6-H) : a 1, l'ecran d'avant au pixel pres. */
+      PREV_SCALE = Math.max(0.02, fit * ZOOM);
+      /* la SOURCE reste la definition plafond : au-dela, le bitmap serait de
+         la memoire pour rien (FULL est rendu a canvas_px, drawImage
+         n'inventera pas un pixel). C'est le CSS qui agrandit — honnete : on
+         regarde les pixels du fichier, grossis (la loupe de P2 fait mieux). */
+      const bs = Math.min(PREV_SCALE * dpr, 1);
+      out.width = Math.max(1, Math.round(g.canvas_px[0] * bs));
+      out.height = Math.max(1, Math.round(g.canvas_px[1] * bs));
       out.style.width = Math.round(g.canvas_px[0] * PREV_SCALE) + "px";
       out.style.height = Math.round(g.canvas_px[1] * PREV_SCALE) + "px";
       const c2 = out.getContext("2d");
@@ -1106,11 +1158,21 @@
       c2.drawImage(FULL, 0, 0, out.width, out.height);
       const rd = el("#stageRead");
       if (rd) {
+        /* les MESURES seulement — les mm restent les mm : rien ici ne lit le
+           zoom. Le « N % apercu » vit dans la commande du pied (#zoomPct). */
         rd.innerHTML = '<b>' + g.canvas_px[0] + ' x ' + g.canvas_px[1] + ' px</b>'
           + '<span>toile @ ' + g.dpi + ' DPI</span>'
-          + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><span>coupe</span>'
-          + '<b>' + Math.round(PREV_SCALE * 100) + ' %</b><span>aperçu</span>';
+          + '<b>' + g.trim_px[0] + ' x ' + g.trim_px[1] + ' px</b><span>coupe</span>';
       }
+      const zp = el("#zoomPct");
+      if (zp) zp.textContent = Math.round(PREV_SCALE * 100) + " %";
+      const zf = el("#zoomFit");
+      if (zf) zf.classList.toggle("active", ZOOM === 1);
+      /* l'apercu vient de changer de taille : les calques poses DESSUS (le
+         calque d'edition de P3 se cale sur le rect du canevas) se
+         resynchronisent la-dessus — drawPreview(false) ne passe par aucun
+         core:render. */
+      emitCore("core:scene", { scale: PREV_SCALE, zoom: ZOOM });
       const nav = el("#stageNav");
       if (nav) nav.textContent = "carte " + (CUR + 1) + " / " + cards().length;
       const err = el("#stageErr");
@@ -2152,6 +2214,8 @@
     initTheme();
     initFold();          /* AVANT buildRail : la classe de repli est posee avant
                             la premiere peinture (aucun clignotement) */
+    initZoom();          /* meme raison : le zoom retenu vaut des la premiere
+                            peinture, pas apres un clignotement d'adaptation */
     buildRail();
     buildFormatWidget();
     wireStage();
@@ -2260,6 +2324,73 @@
        etre statique — voir buildRail). */
     const sf = el("#stageFoldBtn");
     if (sf) sf.addEventListener("click", () => setFold("stage", !FOLD.stage));
+
+    /* ── le pied devient la COMMANDE du zoom (T6-H) ──────────────────────── */
+    const zi = el("#zoomIn"), zo = el("#zoomOut"), zf = el("#zoomFit"), z1 = el("#zoom100");
+    if (zi) zi.addEventListener("click", () => { zoomSet(ZOOM * 1.25).catch(() => { }); });
+    if (zo) zo.addEventListener("click", () => { zoomSet(ZOOM / 1.25).catch(() => { }); });
+    if (zf) zf.addEventListener("click", () => { zoomSet(1).catch(() => { }); });
+    if (z1) z1.addEventListener("click", () => {
+      /* 100 % : un pixel du fichier = un pixel d'ecran. ZOOM est RELATIF a
+         l'adaptation ; l'absolu se vise en divisant par elle. */
+      const fit = ZOOM > 0 ? (PREV_SCALE / ZOOM) : 0;
+      zoomSet(fit > 0 ? 1 / fit : 1).catch(() => { });
+    });
+    const wrap = el("#stageWrap");
+    if (wrap) {
+      /* LES GESTES DE LA SCENE S'ECOUTENT EN PHASE DE CAPTURE, SUR document
+         — mesure au banc navigateur du 26/08 : le calque d'edition de P3
+         est du DOM pose PAR-DESSUS le canevas (fixe sur body), un ecouteur
+         sur la colonne ne voyait JAMAIS la molette ni le bouton du milieu
+         des qu'une piece pose son calque. La garde est GEOMETRIQUE : le
+         geste doit tomber dans la boite visible de la colonne (colonne
+         repliee -> boite vide, aucun vol aux autres surfaces). */
+      const surScene = (ev) => {
+        const r = wrap.getBoundingClientRect();
+        return r.width > 0 && ev.clientX >= r.left && ev.clientX <= r.right
+          && ev.clientY >= r.top && ev.clientY <= r.bottom;
+      };
+      /* Ctrl+molette zoome VERS LE POINTEUR (le point sous la souris ne
+         bouge pas) ; la molette nue garde son sens — faire defiler l'apercu
+         zoome. passive:false, sinon preventDefault est un voeu et le
+         navigateur zoome la page entiere. */
+      document.addEventListener("wheel", (ev) => {
+        if (!ev.ctrlKey || !surScene(ev)) return;
+        ev.preventDefault();
+        const out = el("#stageCanvas");
+        const r0 = out ? out.getBoundingClientRect() : null;
+        const k = ev.deltaY < 0 ? 1.12 : 1 / 1.12;
+        zoomSet(ZOOM * k).then(() => {
+          if (!r0 || !out || !r0.width) return;
+          const r1 = out.getBoundingClientRect();
+          const px = (ev.clientX - r0.left) / r0.width;
+          const py = (ev.clientY - r0.top) / r0.height;
+          wrap.scrollLeft += (r1.left - ev.clientX) + px * r1.width;
+          wrap.scrollTop += (r1.top - ev.clientY) + py * r1.height;
+        }).catch(() => { });
+      }, { passive: false, capture: true });
+      /* le bouton du MILIEU glisse l'apercu — le gauche appartient aux
+         pieces (P3 deplace ses blocs sur la carte), il n'est pas touche.
+         stopPropagation : le calque au-dessus ne doit pas voir ce geste,
+         c'est celui de la coquille. */
+      let pan = null;
+      document.addEventListener("pointerdown", (ev) => {
+        if (ev.button !== 1 || !surScene(ev)) return;
+        ev.stopPropagation();
+        pan = { x: ev.clientX, y: ev.clientY, sl: wrap.scrollLeft, st: wrap.scrollTop };
+        try { wrap.setPointerCapture(ev.pointerId); } catch (e) { /* pointeur deja parti */ }
+        wrap.style.cursor = "grabbing";
+        ev.preventDefault();
+      }, true);
+      wrap.addEventListener("pointermove", (ev) => {
+        if (!pan) return;
+        wrap.scrollLeft = pan.sl - (ev.clientX - pan.x);
+        wrap.scrollTop = pan.st - (ev.clientY - pan.y);
+      });
+      const finPan = () => { pan = null; wrap.style.cursor = ""; };
+      wrap.addEventListener("pointerup", finPan);
+      wrap.addEventListener("pointercancel", finPan);
+    }
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
@@ -2300,6 +2431,9 @@
     renderErrors: () => LAST_ERRORS.slice(),
     on: on, off: off,
     toast: toast, busy: busy, show: show,
+    /* la piece DIT combien de ses colonnes dorment ; le CORE donne la place
+       liberee a la scene (T6-G). UI seulement — rien du document. */
+    coulisse: coulisse,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
     /* LECTURE SEULE, copie profonde gelee — voir `modelsPublic` (§9bis). */
     models: modelsPublic,

@@ -2273,5 +2273,172 @@ def test_le_routeur_est_monte_sous_api_cards():
             "sans ce montage, l'iframe affiche la SPA en cascade (piège n°7)"
 
 
+# ═══════════════ le zoom d'aperçu et la coulisse des panneaux ═══════════════
+# Phase 6, T6-G/T6-H (demande du 26/08). Deux extensions de la COQUILLE, au
+# patron 2d (une classe sur `.cf`, la VARIABLE bascule, dz_cf_*, absence de
+# clé = état par défaut) :
+#   · la COULISSE : une pièce dont des colonnes dorment le DIT
+#     (`CF.coulisse(mod, niveau)`) ; le CORE pose `travail-mince`/`bande`
+#     selon la pièce ACTIVE et c'est la SCÈNE qui absorbe chaque pixel
+#     au-delà du plafond du travail ;
+#   · le ZOOM : un état d'ÉCRAN SEUL (patron phase-pointeur de la phase 5) —
+#     il multiplie le facteur d'adaptation de l'aperçu, ne touche NI le
+#     document NI l'export, persiste `dz_cf_zoom`, et le pied « N % aperçu »
+#     devient sa commande.
+
+_SHELL = pathlib.Path(__file__).resolve().parents[2] / "frontend" / "cardforge"
+
+
+def _coquille(nom: str) -> str:
+    return (_SHELL / nom).read_text(encoding="utf-8")
+
+
+def _fn_js(src: str, nom: str) -> str:
+    """Le SOURCE d'une fonction de `core.js`, accolades équilibrées (le
+    patron `_js_fn` du banc frame)."""
+    i = src.index("function " + nom + "(")
+    j = src.index("{", i)
+    n = 0
+    for k in range(j, len(src)):
+        if src[k] == "{":
+            n += 1
+        elif src[k] == "}":
+            n -= 1
+            if n == 0:
+                return src[i:k + 1]
+    raise AssertionError("accolades non equilibrees pour " + nom)
+
+
+def test_le_gabarit_de_grille_reste_UN_la_coulisse_comprise():
+    """« LE GABARIT DE GRILLE NE SE DÉDOUBLE PAS : c'est la VARIABLE qui
+    bascule » (cardforge.css, escamotage 2d). La coulisse des panneaux entre
+    par la même porte : le gabarit unique de `.cf` est fait de variables,
+    les états `travail-mince`/`travail-bande` REDÉCLARENT les variables (la
+    scène devient la colonne flexible, le travail se plafonne), et la
+    colonne carte REPLIÉE garde le dernier mot — ses variables sont
+    re-déclarées APRÈS (même spécificité : l'ordre tranche)."""
+    css = _coquille("cardforge.css")
+    assert css.count("grid-template-columns: var(--rail-w)") == 1, \
+        "le gabarit de .cf s'est dédoublé"
+    assert "grid-template-columns: var(--rail-w) var(--scene-col) var(--travail-col) auto" in css, \
+        "le gabarit de .cf n'est pas fait des variables scène/travail"
+    assert "--scene-col: var(--stage-w)" in css, \
+        "la scène n'a pas de largeur par défaut (celle d'aujourd'hui)"
+    assert "--travail-col: minmax(0, 1fr)" in css, \
+        "le travail n'a pas sa flexibilité par défaut (celle d'aujourd'hui)"
+    assert ".cf.travail-mince {" in css and ".cf.travail-bande {" in css, \
+        "aucun état de coulisse sur la grille"
+    assert "minmax(var(--stage-w), 1fr)" in css, \
+        "la scène n'absorbe pas la place libérée (elle doit devenir flexible)"
+    i_mince = css.index(".cf.travail-mince")
+    i_stage = css.index(".cf.stage-replie { --scene-col:")
+    assert i_mince < i_stage, \
+        "la colonne carte repliée ne garde pas le dernier mot sur la coulisse"
+
+
+def test_la_coulisse_est_un_service_du_CORE_et_la_piece_ACTIVE_decide():
+    """`CF.coulisse(mod, niveau)` : la pièce DIT (0, 1, 2 colonnes
+    repliées), le CORE arbitre — la classe suit la pièce ACTIVE (changer de
+    pièce rend la grille d'origine), et `show` réapplique."""
+    src = _coquille("js/core.js")
+    fn = _fn_js(src, "coulisse")
+    assert "assertId(id)" in fn, "coulisse accepte un module inconnu"
+    assert "applyFold()" in fn, "coulisse ne réapplique pas l'état de la grille"
+    ap = _fn_js(src, "applyFold")
+    assert "TRAVAIL[ACTIVE]" in ap, \
+        "la grille ne suit pas la pièce ACTIVE (une pièce replierait pour toutes)"
+    assert '"travail-mince"' in ap and '"travail-bande"' in ap, ap
+    sh = _fn_js(src, "show")
+    assert "applyFold()" in sh, \
+        "changer de pièce ne réapplique pas la coulisse de la pièce active"
+    assert "coulisse: coulisse," in src, "CF.coulisse n'est pas au contrat"
+
+
+def test_le_zoom_est_un_etat_d_ECRAN_seul_et_persiste_hors_document():
+    """Le patron phase-pointeur (phase 5) : l'état d'écran ne touche jamais
+    le fichier livré. Le zoom vit dans `dz_cf_zoom` (absence de clé =
+    adapter), multiplie le facteur d'adaptation de l'APERÇU seulement, et
+    ni le painter ni l'autosave ne le voient. La définition PLAFOND du
+    bitmap reste la source : zoomer n'invente pas de pixels."""
+    src = _coquille("js/core.js")
+    assert 'const LS_ZOOM = "dz_cf_zoom"' in src, "le zoom ne persiste pas"
+    zs = _fn_js(src, "zoomSet")
+    assert "localStorage.removeItem(LS_ZOOM)" in zs, \
+        "l'état par défaut (adapter) s'écrit au lieu de s'effacer"
+    dp = _fn_js(src, "drawPreview")
+    assert "PREV_SCALE = Math.max(0.02, fit * ZOOM)" in dp, \
+        "le zoom ne compose pas le facteur d'adaptation"
+    assert "Math.min(PREV_SCALE * dpr, 1)" in dp, \
+        "le bitmap d'aperçu dépasse la définition de la source (mémoire pour rien)"
+    assert "ZOOM" not in _fn_js(src, "renderRaw"), \
+        "le painter voit le zoom : l'export n'est plus l'aperçu"
+    assert "ZOOM" not in _fn_js(src, "saveBody"), \
+        "l'autosave transporte le zoom : l'état d'écran fuit dans le document"
+
+
+def test_le_pied_devient_la_COMMANDE_du_zoom_et_la_molette_suit():
+    """« il existe déjà un 44 % aperçu en pied : brancher dessus » — le pied
+    porte désormais − / % / + / Adapter / 100 %, la molette zoome avec Ctrl
+    (passive:false, sinon preventDefault est un vœu) VERS le pointeur, et
+    le bouton du MILIEU glisse l'aperçu (le gauche appartient aux pièces :
+    P3 y déplace ses blocs)."""
+    html = _coquille("index.html")
+    for did in ("zoomOut", "zoomPct", "zoomIn", "zoomFit", "zoom100"):
+        assert 'id="' + did + '"' in html, f"{did} absent du pied de scène"
+    assert html.index('id="stageRead"') < html.index('id="zoomPct"'), \
+        "la commande de zoom n'est pas dans le pied, à côté des mesures"
+    src = _coquille("js/core.js")
+    ws = _fn_js(src, "wireStage")
+    assert '"wheel"' in ws and "passive: false" in ws, \
+        "la molette est passive : le navigateur zoome la page à la place"
+    assert "ev.ctrlKey" in ws, \
+        "la molette nue zoome : elle doit garder son sens (défiler)"
+    assert "ev.button !== 1" in ws, \
+        "le pan ne se limite pas au bouton du milieu (le gauche est aux pièces)"
+    # LES GESTES DE LA SCÈNE S'ÉCOUTENT EN CAPTURE, SUR document. Mesuré au
+    # banc navigateur du 26/08 : le calque d'édition de P3 est du DOM posé
+    # PAR-DESSUS le canevas (fixé sur body) — un écouteur sur la colonne ne
+    # voyait JAMAIS la molette ni le bouton du milieu dès que la pièce pose
+    # son calque. La garde est géométrique (la boîte visible de la colonne).
+    assert 'document.addEventListener("wheel"' in ws, \
+        "la molette s'écoute sous le calque d'édition : morte en écran 03"
+    assert "capture: true" in ws, \
+        "sans phase de capture, le calque d'édition avale le geste avant la scène"
+    assert "surScene(ev)" in ws, \
+        "aucune garde géométrique : la molette Ctrl serait volée à toute la page"
+    assert 'document.addEventListener("pointerdown"' in ws, \
+        "le bouton du milieu s'écoute sous le calque d'édition : mort en écran 03"
+    for did in ("#zoomIn", "#zoomOut", "#zoomFit", "#zoom100"):
+        assert '"' + did + '"' in ws, f"{did} n'est pas câblé"
+    dp = _fn_js(src, "drawPreview")
+    assert '"#zoomPct"' in dp, "le pourcentage du pied ne suit pas l'aperçu"
+    assert "aperçu</span>" not in dp, \
+        "le pourcentage est encore écrit dans stageRead : deux afficheurs divergeraient"
+
+
+def test_l_apercu_zoome_DEFILE_et_reste_centre_quand_il_est_petit():
+    """Le centrage passe de flex à `margin: auto` : les marges auto centrent
+    un canevas petit ET s'annulent quand il déborde — un conteneur flex
+    centré rend le coin haut-gauche INATTEIGNABLE au défilement. La colonne
+    défile (`overflow: auto`), et le canevas n'est plus plafonné à 100 %
+    (le plafond tuait le zoom). L'aperçu déplacé le DIT aux pièces :
+    `core:scene` part de drawPreview (le calque d'édition de P3 se cale sur
+    le rect du canevas)."""
+    css = _coquille("cardforge.css")
+    i = css.index(".stage-wrap {")
+    bloc = css[i:css.index("}", i)]
+    assert "overflow: auto" in bloc, "la colonne ne défile pas : pan impossible"
+    assert "align-items: center" not in bloc, \
+        "le centrage flex rend le coin haut-gauche inatteignable une fois zoomé"
+    j = css.index(".stage-canvas {")
+    blocC = css[j:css.index("}", j)]
+    assert "margin: auto" in blocC, "le canevas n'est plus centré quand il est petit"
+    assert "max-width: 100%" not in blocC and "max-height: 100%" not in blocC, \
+        "le plafond à 100 % écrase le zoom"
+    src = _coquille("js/core.js")
+    assert '"core:scene"' in src, \
+        "l'aperçu bouge sans le dire : les calques posés dessus dériveraient"
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-q"]))
