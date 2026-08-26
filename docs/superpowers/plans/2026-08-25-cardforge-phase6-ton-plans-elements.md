@@ -188,6 +188,36 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   (68,8–82,1, chroma/part de vide — hors du champ promis, dit au rapport).
   `depense_totale_usd` 7,467 INCHANGÉE, manifeste 4/108, `prix_usd: 0.0` +
   `mise_au_ton` + `source_rebut` sur les deux lignes, le rebut intact.
+- [x] **T1-I (RÉEL) — LA RELANCE DU 26/08 : +6 CASES SUR 7 SONDES, 0,486 $,
+  L'ENVELOPPE ÉPUISÉE.** Le rebut supprimé (§4bis), la relance = reprise de
+  la GÉNÉRATION par la voie armée de la mise au ton (D2/T1-D), sur des cases
+  JAMAIS tentées, variées en familles ET en sujets — la campagne close
+  n'avait vu que les 13 premières du catalogue. Protocole tenu à chaque tir :
+  `?cases=<case>` (une case à la fois), POST nu → devis relu, puis la MÊME
+  requête `{"confirmer": true}` ; tarif du jour RELU au devis : nano-banana
+  0,039 (et non 0,02 au 25/08) → échelle 0,177 $/case, 3 ouvrables au départ
+  (reste 0,533). **Six servies** :
+  - `vista_citadel` ocre, flux, **84,4 TIENT**, 0,018 $ (`gen_440bed3b_ton`)
+  - `stained_wolf` rouge, flux, **87,5 TIENT**, 0,018 $ (`gen_1a8bcbae_ton`)
+  - `depths_whale` violet, gpt, **85,7 TIENT**, 0,138 $ (`gen_0368bdc2_ton`)
+  - `vista_sphinx` graphite, flux, **82,1 TIENT**, 0,018 $ (`gen_e76b70b4` —
+    la seule DIRECTE, sans mise au ton)
+  - `vista_portal` ocre, flux, **93,8 TIENT**, 0,018 $ (`gen_b4096cfb_ton`)
+  - `vista_serpent` ocre, gpt, **89,3 TIENT**, 0,138 $ (`gen_36dfe11a_ton`)
+  Cinq des six gagnantes sont des FRÈRES AJUSTÉS (`mise_au_ton: true`, img
+  `*_ton.png`) : c'est la voie en ligne qui porte le taux de 2/66 (campagne
+  close) à 6/7 — et la voie gpt-image-2 GAGNE désormais (2 cases : ses refus
+  d'hier n'étaient que tonals, le frère gratuit les rentre). UN refus :
+  `backlight_grimoire` (ocre, gpt, 85,7 HORS STYLE, 0,138 $) — la mise au
+  ton a TOURNÉ (`mise_au_ton: true`) mais `part claire (L>200)` RESTE rouge
+  (écarts : L p95, étendue tonale) : le contre-jour exige plus de lumière
+  que la courbe ne peut en rentrer sans casser l'étendue — backlight est
+  0/3 toutes époques, structurellement dure, à ne pas re-sonder sans levier
+  neuf. Compositions : vista INVAINCUE 6/6 ; les 4 familles sont servies
+  (ocre 6 · rouge 2 · violet 1 · graphite 1). **Série 10/108, dépense
+  7,953 $/8,00 $ au manifeste relu, reste 0,047 $ < échelle 0,177 → PLUS
+  AUCUNE case ouvrable : relever l'enveloppe ou clore appartient à
+  l'utilisateur.**
 
 ### T2 — MESHY_MOCK au .env (D4)
 
