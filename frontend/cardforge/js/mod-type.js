@@ -1987,6 +1987,11 @@
      ═════════════════════════════════════════════════════════════════════════ */
   let MEAS = {};            /* id -> mesure de la derniere passe du painter */
   let MEAS_SIDE = "front";
+  /* LA GENERATION DE PASSE (T3-C) : montee a CHAQUE echange de MEAS. C'est
+     elle qui permet a l'audit de PROUVER que sa preuve vient d'UNE passe —
+     la garde IN_AUDIT avale la montee de stamp des passes etrangeres, la
+     generation, elle, ne ment pas. */
+  let MEAS_GEN = 0;
   /* ── LE RELEVE NE SE VIDE PLUS QUAND UNE AUTRE PIECE REND LE VERSO ───────
      Le painter z=60 tourne pour CHAQUE rendu, d'ou qu'il vienne : l'apercu,
      mais aussi l'atlas de P8 ou une vignette de P2, qui demandent le VERSO.
@@ -2096,6 +2101,7 @@
           const dispo = MEAS_BY_SIDE[autre] && Object.keys(MEAS_BY_SIDE[autre]).length;
           if (live.length || !dispo) { MEAS = meas; MEAS_SIDE = side; }
           else { MEAS = MEAS_BY_SIDE[autre]; MEAS_SIDE = autre; }
+          MEAS_GEN++;
           if (IN_AUDIT) return;
           AUDIT_STAMP++;
           scheduleReport();
@@ -3418,7 +3424,16 @@
           + esc(tofu.join(" ") + ' — « ' + fontLabel(s.font) + ' » ne porte pas ' + (tofu.length > 1 ? 'ces signes' : 'ce signe')
             + ' (lu dans la table cmap du fichier). Le navigateur les dessine avec une autre police.')
           + '">' + esc(tofu.join("")) + ' hors police</em>' : '')
-        + (masq ? '<em class="cf-type-badge bad" title="' + Number(au.masked) + ' px d\'encre recouverts par une couche dessinée au-dessus">'
+        /* LE BADGE NOMME SES RECOUVREURS (T3-C) : « une couche dessinée
+           au-dessus » faisait chercher l'utilisateur parmi les blocs quand
+           le coupable était la gemme du décor haut — mesuré sur le terrain.
+           Les noms viennent de `couvreursDe`, la géométrie qui les désigne. */
+        + (masq ? '<em class="cf-type-badge bad" title="' + Number(au.masked)
+          + ' px d\'encre recouverts — '
+          + esc(au.couvreurs && au.couvreurs.length
+            ? 'recouvert par : ' + au.couvreurs.join(", ")
+            : 'aucun recouvreur nommé parmi les couches : re-peindre et re-jouer la preuve')
+          + '">'
           + fx((1 - au.rate) * 100, 0) + ' % masqué</em>' : '')
         + (lowc && !masq ? '<em class="cf-type-badge bad" title="contraste mesuré contre le fond réellement derrière l\'encre">'
           + fx(au.contrast_min, 1) + ':1</em>' : '')
@@ -5590,8 +5605,14 @@
       const A = AUDIT, out = [];
       A.masked.forEach((r) => {
         out.push("<b>" + esc(r.label) + "</b> : " + r.masked + " px d'encre sur " + r.total
-          + " sont recouverts par une couche dessinée au-dessus — "
-          + fx((1 - r.rate) * 100, 1) + " % des glyphes ne sont pas dans le fichier livré.");
+          + " sont recouverts — "
+          + fx((1 - r.rate) * 100, 1) + " % des glyphes ne sont pas dans le fichier livré. "
+          /* LE DETAIL NOMME (T3-C) : la geometrie designe les couches
+             au-dessus dont la boite mange ce pave d'encre — les blocs de P3
+             peints apres lui, et le decor haut au plan « dessus ». */
+          + (r.couvreurs && r.couvreurs.length
+            ? "Recouvert par : " + esc(r.couvreurs.join(", ")) + "."
+            : "Aucun recouvreur nommé parmi les couches : re-peindre et re-jouer la preuve."));
       });
       A.lowc.forEach((r) => {
         out.push("<b>" + esc(r.label) + "</b> : contraste mesuré " + fx(r.contrast_min, 2)
@@ -6148,6 +6169,31 @@
       : { shadow: 0, shadow_dx: 0, shadow_dy: 0, opacity: 100, plate_color: null });
   }
 
+  /* LES RECOUVREURS D'UN PAVE D'ENCRE (T3-C). FONCTION PURE, executee par le
+     banc dans node : qui, parmi les couches peintes AU-DESSUS de ce bloc,
+     recouvre son encre ? `inkMm` = le pave [x, y, w, h] en mm depuis la
+     coupe ; `apres` = les couches de P3 posees APRES lui dans l'ordre de
+     peinture ({label, box} en mm) ; `decor` = les ornements du decor haut au
+     plan « dessus » (la gemme en boite circonscrite). Rend les libelles dans
+     l'ordre de peinture. Le seuil : un chevauchement sous 0,2 mm2 est du
+     bruit d'anticrenelage, pas une couche. */
+  function couvreursDe(inkMm, apres, decor) {
+    if (!inkMm || !Array.isArray(inkMm) || inkMm.length !== 4) return [];
+    const ov = (a, b) => {
+      const w = Math.min(a[0] + a[2], b[0] + b[2]) - Math.max(a[0], b[0]);
+      const h = Math.min(a[1] + a[3], b[1] + b[3]) - Math.max(a[1], b[1]);
+      return (w > 0 && h > 0) ? w * h : 0;
+    };
+    const out = [];
+    (apres || []).concat(decor || []).forEach((c) => {
+      if (c && Array.isArray(c.box) && c.box.length === 4
+        && ov(inkMm, c.box) >= 0.2) {
+        out.push(String(c.label || c.id || "?"));
+      }
+    });
+    return out;
+  }
+
   async function runAudit() {
     if (auditing || !HOST || IN_AUDIT) return;
     if (!Object.keys(MEAS).length) { AUDIT = null; AUDIT_DONE = AUDIT_STAMP; return; }
@@ -6156,11 +6202,28 @@
     try {
       const g = CF.geom();
       const comp = await CF.renderCard(CF.current(), { face: MEAS_SIDE });
-      /* les mesures d'APRES le rendu : ce sont celles de la passe qui vient de
-         produire `comp`, pas celles d'avant l'attente. */
+      /* LA PASSE EST FIGEE ICI, A LA RESOLUTION DU RENDU (T3-C). Le painter
+         echange le global MEAS a CHAQUE passe et la garde IN_AUDIT avale la
+         montee de stamp de TOUTE passe achevee pendant l'audit — pas
+         seulement la sienne. Lire MEAS apres `asFile` (fenetre mesuree a
+         ~2,9 s sur le deck reel) laissait une passe retardataire (une fonte
+         ou une image qui finit de charger : le 1er tour apres une edition,
+         exactement) glisser SA mise en page sous le composite d'une autre :
+         l'encre solo d'une passe comptee contre le fichier d'une autre, un
+         masquage fantome non deterministe, sans aucune invalidation. On fige
+         donc la reference, le cote ET la generation — et toute passe
+         etrangere REFUSE la publication plus bas. */
+      const meas = MEAS, side = MEAS_SIDE, gen = MEAS_GEN;
       const file = await asFile(comp);
+      if (gen !== MEAS_GEN) {
+        /* une passe etrangere s'est glissee dans la fenetre d'encodage : la
+           preuve serait un melange de deux passes — on re-joue, on ne
+           publie pas. */
+        scheduleAudit();
+        return;
+      }
       let devMax = 0, devN = 0;
-      const ids = Object.keys(MEAS);
+      const ids = Object.keys(meas);
       const cw = comp.width, ch = comp.height;
       const cctx = comp.getContext("2d");
       const fctx = file.ctx;
@@ -6168,11 +6231,29 @@
       scr.width = cw; scr.height = ch;
       const sctx = scr.getContext("2d");
       const byId = {};
-      slots().forEach((s) => { byId[s.id] = s; });
+      const liste = slots();
+      const rang = {};
+      liste.forEach((s, i) => { byId[s.id] = s; rang[s.id] = i; });
+      /* LES RECOUVREURS CANDIDATS AU-DESSUS DU TEXTE : le decor haut au plan
+         « dessus » (la pose que P2 publie — `frame.decor_pose`, la mesure du
+         calcul qui peint) ; les couches de P3 posees APRES un bloc s'y
+         ajoutent rangee par rangee. */
+      const decor = [];
+      const dp = CF.get("frame.decor_pose", null);
+      if (dp && dp.gem && CF.get("frame.gem_plan", null) !== "dessous") {
+        decor.push({ label: "gemme (décor haut)",
+          box: [dp.gem.cx - dp.gem.r, dp.gem.cy - dp.gem.r,
+            2 * dp.gem.r, 2 * dp.gem.r] });
+      }
+      if (dp && dp.banner && Array.isArray(dp.banner.box)
+        && CF.get("frame.banner_plan", null) !== "dessous") {
+        decor.push({ label: "bandeau (décor haut)",
+          box: dp.banner.box.slice(0, 4) });
+      }
       const sr = safeRectPx(g);
       const rows = [];
       ids.forEach((id) => {
-        const m = MEAS[id], slot = byId[id];
+        const m = meas[id], slot = byId[id];
         /* Le releve ne PORTE deja pas les calques d'image (le painter les
            ecarte avant `layoutSlot`) ; la garde est DITE ici quand meme :
            cette passe part de `MEAS` aujourd'hui, elle pourrait repartir de
@@ -6517,8 +6598,23 @@
             (sr[0] + sr[2]) - (inkRect[0] + inkRect[2]),
             (sr[1] + sr[3]) - (inkRect[1] + inkRect[3])) * 25.4 / g.dpi;
         }
+        /* LES RECOUVREURS NOMMES (T3-C) : le pave d'encre en mm depuis la
+           coupe, confronte aux couches peintes AU-DESSUS de ce bloc — celles
+           de P3 posees apres lui dans l'ordre de peinture, et le decor haut
+           au plan « dessus ». Le message cesse d'accuser « une couche » :
+           il nomme celles que la geometrie designe. */
+        const inkMm = inkRect ? [
+          g.px2mm(inkRect[0] - g.bleed_off_px[0]),
+          g.px2mm(inkRect[1] - g.bleed_off_px[1]),
+          g.px2mm(inkRect[2]), g.px2mm(inkRect[3])] : null;
+        const apres = liste.filter((s2) => rang[s2.id] > rang[id]
+          && s2.on !== false
+          && (!s2.side || s2.side === "both" || s2.side === side))
+          .map((s2) => ({ label: s2.label || s2.id, box: s2.box }));
+        const couvreurs = couvreursDe(inkMm, apres, decor);
         rows.push({
           id: id, label: slot.label, empty: false, exact: exact,
+          couvreurs: couvreurs,
           total: total, vis: vis, masked: total - vis,
           rate: total ? vis / total : 1,
           ink_px: inkRect, ink_core_px: coreRect, clear_mm: clear, clipped: clipped,
@@ -6544,8 +6640,15 @@
          REGLE a l'ecran, pas une constante — sinon le chiffre du champ et le
          chiffre du verdict parlaient de deux choses. */
       const optMm = clamp(Number(CF.get("type.optical_mm", OPTICAL_MM_DEF)) || 0, 0, OPTICAL_MM_MAX);
+      /* LA GARDE DE PUBLICATION (T3-C) : si une passe etrangere a echange
+         MEAS pendant le comptage, cette preuve melange deux passes — on la
+         JETTE et on re-joue, on ne publie pas un mensonge coherent. */
+      if (gen !== MEAS_GEN) {
+        scheduleAudit();
+        return;
+      }
       AUDIT = {
-        stamp: stamp, side: MEAS_SIDE, card: CF.current(),
+        stamp: stamp, side: side, card: CF.current(),
         canvas: [cw, ch], rows: rows, optical_mm: optMm,
         /* la PROVENANCE des chiffres : un PNG de tant d'octets, relu, et
            l'ecart mesure entre cette relecture et l'apercu. */

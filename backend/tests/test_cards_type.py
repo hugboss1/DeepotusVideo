@@ -11045,3 +11045,86 @@ def test_la_RONDE_tient_dans_un_VRAI_navigateur(tmp_path):
     assert [x[0] for x in trio] == [10.0, 0.0, 50.0], trio
     m2 = " ".join(v["r2"]["toasts"])
     assert "chevauch" in m2 and "20" in m2, v["r2"]["toasts"]
+
+
+# =============================================================================
+# 26. LA PREUVE D EMPILEMENT VIENT D UNE PASSE, ET ELLE NOMME SES RECOUVREURS
+#     (phase 6, T3-C)
+#
+# LE DEFAUT DU TERRAIN (transmis phase 5) : au premier tour apres une edition,
+# le controle photometrique etait NON DETERMINISTE et son message accusait
+# « une couche dessinee au-dessus » sans nommer laquelle. CAUSE MESUREE sur
+# pieces (26/08) : le painter echange le global MEAS a CHAQUE passe et la
+# garde IN_AUDIT avale la montee d AUDIT_STAMP pour TOUTE passe achevee
+# pendant l audit (pas seulement la sienne) ; or runAudit lisait MEAS apres
+# la fenetre `await asFile(comp)` - mesuree a ~2,9 s sur le deck reel. Une
+# passe retardataire (fonte ou image qui finit de charger : exactement le
+# 1er tour) reecrivait MEAS avec une AUTRE mise en page, sans invalidation :
+# l audit publiait l encre-solo d une passe contre le composite d une autre.
+#
+# L INVARIANT REPARE : une preuve publiee vient d UNE passe (generation
+# MEAS_GEN figee a la resolution du rendu, publication REFUSEE et re-jouee si
+# une passe etrangere s est glissee), et les recouvrements NOMMENT leurs
+# recouvreurs mesures (couvreursDe, fonction pure executee ici meme).
+# =============================================================================
+
+
+def test_les_recouvreurs_sont_NOMMES_par_une_fonction_executee():
+    """`couvreursDe(inkMm, apres, decor)` : qui recouvre ce pave d encre,
+    parmi les couches peintes au-dessus ? Executee dans node sur la VRAIE
+    source : chevauchement reel -> nomme dans l ordre de peinture ;
+    effleurement sous 0,2 mm2 -> bruit d anticrenelage, pas une couche ;
+    entree sans boite -> ignoree sans lever."""
+    out = _node_type(
+        _fonction_js_type("couvreursDe")
+        + 'console.log(JSON.stringify(['
+        + 'couvreursDe([10,10,20,5], [{label:"Image 2", box:[12,8,10,10]},'
+        + ' {label:"Loin", box:[50,50,5,5]}],'
+        + ' [{label:"gemme (d\u00e9cor haut)", box:[28,11,6,6]}]),'
+        + 'couvreursDe([10,10,20,5], [], []),'
+        + 'couvreursDe([10,10,20,5], [{label:"Effleure", box:[29.9,14.9,5,5]}], []),'
+        + 'couvreursDe([10,10,20,5], [{label:"Sans boite"}], [null]),'
+        + 'couvreursDe(null, [{label:"X", box:[0,0,99,99]}], [])'
+        + ']));')
+    a, b, c, d, e = json.loads(out)
+    assert a == ["Image 2", "gemme (décor haut)"]
+    assert b == [] and c == [] and d == [] and e == []
+
+
+def test_la_preuve_publiee_vient_d_UNE_passe():
+    """PINS DE COUTURE + MUTANTS (le patron des coutures, applique a
+    l invariant T3-C). Chaque pin a son mutant plausible, verifie ABSENT."""
+    src = _js()
+    i = src.index("async function runAudit(")
+    audit = src[i:src.index("function scheduleAudit(", i)]
+    # 1. le painter MONTE la generation a chaque echange de MEAS
+    j = src.index("MEAS_BY_SIDE[side] = meas;")
+    peintre = src[j:src.index("scheduleReport();", j)]
+    assert "MEAS_GEN++" in peintre, \
+        "le painter n estampille pas ses passes"
+    # 2. l audit FIGE sa passe a la resolution du rendu (avant asFile)
+    fige = "const meas = MEAS, side = MEAS_SIDE, gen = MEAS_GEN;"
+    assert fige in audit, "l audit ne fige pas la passe du composite"
+    assert audit.index(fige) < audit.index("await asFile("), \
+        "la passe est figee APRES la fenetre asFile : la course est ouverte"
+    # 3. la publication est REFUSEE et re-jouee sur passe etrangere -
+    #    une garde avant la boucle (economie) et une avant la publication
+    assert audit.count("gen !== MEAS_GEN") >= 2, \
+        "moins de deux gardes de passe etrangere"
+    garde = audit[audit.index("gen !== MEAS_GEN"):]
+    assert "scheduleAudit();" in garde, \
+        "une passe etrangere ne re-planifie pas l audit"
+    # 4. MUTANT : la boucle des rangees lit l INSTANTANE, jamais le global
+    rangees = audit[audit.index("ids.forEach"):]
+    assert "meas[id]" in rangees, "la boucle ne lit pas l instantane"
+    assert "MEAS[id]" not in rangees, \
+        "la boucle relit le GLOBAL : le refactor a ete defait"
+    assert "Object.keys(meas)" in audit, "les ids ne viennent pas de la passe"
+    # 5. le cote publie est celui de la passe figee, pas le global du moment
+    assert "side: side" in audit
+    assert "side: MEAS_SIDE" not in audit, \
+        "AUDIT.side relit le global : une passe verso etrangere signerait recto"
+    # 6. les rangees portent leurs recouvreurs et le detail les NOMME
+    assert "couvreursDe(" in audit, "les recouvreurs ne sont pas mesures"
+    assert "couvreurs:" in audit, "les rangees ne portent pas leurs recouvreurs"
+    assert "recouvert par : " in src, "le message ne nomme toujours personne"

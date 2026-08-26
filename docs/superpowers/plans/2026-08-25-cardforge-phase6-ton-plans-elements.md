@@ -223,14 +223,34 @@ d'occupation — régime manuel), `frontend/cardforge/qa/` (banc).
   rangées gemme et bandeau (Ctrl+Z par `set()`) ; la liste des calques DIT
   « (sous les blocs) ». **308/308 frame, 166/166 models, coutures type
   retendues.** Commit `dcca7d3`.
-- [ ] **T3-C (OUVERT, mécanisme localisé)** : la preuve d'empilement vit dans
-  `runAudit` (mod-type.js:6100-6522) — composite re-rendu par
-  `CF.renderCard`, solo par slot depuis `MEAS`, gardes `AUDIT_STAMP/DONE`.
-  Hypothèse à vérifier au banc : au 1er tour post-édition, `MEAS` (mise en
-  page) et le composite peuvent se croiser — le solo se dessine aux
-  positions d'AVANT et le masquage accuse les mauvaises couches. NOTE : la
-  rétrogradation de la gemme (T3-B) supprime la cause n°1 du reproche réel
-  (l'ornement 70 masquait, le message disait « une couche au-dessus »).
+- [x] **T3-C — SOLDÉ (26/08, méthode systématique).** CAUSE RACINE mesurée
+  sur pièces : le painter échange le global `MEAS` à CHAQUE passe et la
+  garde `IN_AUDIT` avale la montée d'`AUDIT_STAMP` pour TOUTE passe achevée
+  pendant l'audit (pas seulement la sienne) ; `runAudit` lisait `MEAS`
+  APRÈS la fenêtre `await asFile` — **fenêtre mesurée à ~2,9 s sur le deck
+  réel** (montée à ~140 ms, audit de ~790 à ~3 725 ms). Une passe
+  retardataire (fonte/image qui finit de charger : le 1er tour post-édition,
+  exactement) glissait SA mise en page sous le composite d'une autre →
+  l'encre-solo d'une passe comptée contre le fichier d'une autre, masquage
+  fantôme non déterministe, publié SANS invalidation (la montée avalée).
+  Les protocoles pilotés par l'inspecteur ne le reproduisent pas : deux
+  chemins d'auto-guérison les couvrent (l'audit re-rend le document
+  COURANT ; `renderAll` ré-arme le minuteur) — c'est pourquoi seul le
+  terrain le voyait. L'INVARIANT RÉPARÉ : « une preuve publiée vient d'UNE
+  passe » — génération `MEAS_GEN` montée à chaque échange, passe FIGÉE à la
+  résolution du rendu (`const meas = MEAS, side = MEAS_SIDE, gen =
+  MEAS_GEN;` AVANT `asFile`, épinglé), DEUX gardes qui REFUSENT la
+  publication et re-planifient sur passe étrangère, la boucle lit
+  l'instantané (mutant « MEAS[id] » vérifié absent), le côté publié est
+  celui de la passe. ET LE MESSAGE NOMME : `couvreursDe` (fonction PURE
+  exécutée au banc node — chevauchement ≥ 0,2 mm², sinon bruit
+  d'anticrénelage) confronte le pavé d'encre aux couches peintes AU-DESSUS
+  (blocs de P3 postérieurs + décor haut au plan « dessus » via la pose
+  publiée `decor_pose`) ; badge et détail disent « recouvert par : … ».
+  2 tests neufs (section 26 de test_cards_type.py). **Prouvé dans l'app
+  déployée** : gemme r14 au plan « dessus » posée sur le titre → badge
+  « 63 % masqué », infobulle « 9 461 px d'encre recouverts — recouvert
+  par : gemme (décor haut) ».
 - [x] **T3-D (GREEN)** : `placeMenu` se cale sur SA largeur MESURÉE
   (getBoundingClientRect après pose), marge droite 8 px, `max-width` au
   viewport — la cause était le paramètre (420) plus étroit que la boîte
