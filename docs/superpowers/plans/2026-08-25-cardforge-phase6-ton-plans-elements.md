@@ -347,6 +347,85 @@ d'occupation — régime manuel), `frontend/cardforge/qa/` (banc).
 - [ ] **T6-E** : suite complète verte + lint + déploiement + poussée +
   clôture de phase au présent document.
 
+#### Demande utilisateur du 26/08 (2e session) — T6-F/G/H
+
+Trois livrables d'ergonomie des écrans 02 Cadre et 03 Typographie, dans la
+SOURCE (`frontend/cardforge/`), au patron des mécanismes déjà prouvés :
+
+- [x] **T6-F — le bandeau à la souris (priorité), LIVRÉ.** Le bandeau a ses
+  clés (`banner_x`/`banner_y`, T4-B) et ses champs ; il lui manquait le
+  GESTE. La carte des poignées (`wireMap`, mod-frame.js) a gagné la prise
+  « ban » : le bandeau est DESSINÉ sur le plan (trait plein manuel /
+  pointillé auto, le vocabulaire de la gemme), glisser écrit
+  `banner_x`/`banner_y` (coalesceur partagé, un patch par frame, bornés
+  miroir du backend `tw−w`/`th−h`), double-clic = `banAuto()`, une entrée
+  d'annulation par geste (l'état d'AVANT, nuls compris), le gel se DIT une
+  fois (`ditLeGelBandeau`). Priorité de prise = ordre de peinture : gemme >
+  bandeau > fenêtre. L'aperçu central n'a PAS de drag de gemme (vérifié) :
+  le plan est la seule surface de geste, le bandeau y entre par la même
+  porte. RED section 27 de test_cards_frame.py (4 tests : pins de source +
+  banc Chrome rejoué du patron gemme — encre par différence, empreintes
+  auto≠manuel, prises) ; pin RETENDU dit : la page du banc gemme gagne un
+  bouchon `banDe` (drawMapWith dessine désormais aussi le bandeau).
+  **PROUVÉ dans l'app déployée (banc CDP, vrais événements souris)** :
+  coin auto 14,5×76,04 → glisser +9/−6 mm → **23,5×70,04 au centième
+  près**, ligne d'état « posé à la main » + toast du gel ; **Ctrl+Z rend
+  les deux clés à null** (l'automatique, pas « repose où c'était ») ;
+  double-clic → null + « automatique — voie libre, ruban aminci ».
+- [x] **T6-G — les colonnes coulissantes (02 et 03), LIVRÉES.** Le
+  mécanisme 2d (classe sur `.cf`, la VARIABLE bascule, dz_cf_*, absence de
+  clé = déployé, replié gagne sur la media-query) est ÉTENDU au niveau des
+  panneaux, pas dupliqué : le gabarit de `.cf` devient
+  `var(--rail-w) var(--scene-col) var(--travail-col) auto` (UN gabarit,
+  défauts identiques à l'existant), et le CORE a gagné `CF.coulisse(mod,
+  niveau)` — une pièce DIT combien de ses colonnes dorment (0/1/2),
+  `applyFold` pose `travail-mince`/`travail-bande` selon la pièce ACTIVE,
+  et la scène absorbe chaque pixel au-delà du plafond (`--scene-col:
+  minmax(var(--stage-w), 1fr)`, travail plafonné 470 px / 200 px). La
+  colonne carte REPLIÉE garde le dernier mot (ses variables re-déclarées
+  après, l'ordre tranche). P2 : chaque colonne (`cff-colA` épreuve &
+  catalogue, `cff-colB` réglages) porte son chevron → bande verticale de
+  réouverture (patron stage-fold, contenu RETIRÉ du flux), clés
+  `dz_cf_frame_colA`/`colB`. P3 : chip « 1 colonne » (`dz_cf_type_mono`),
+  liste et inspecteur EMPILÉS, gabarit de `.cf-type-cols` par la variable
+  `--cft-cols` (la media query redéclare la MÊME variable). L'appel
+  `CF.coulisse` est GARDÉ par `typeof` (patron « sanscore » : un CORE plus
+  vieux que la pièce — c'est le cas des CF de paille des bancs node, 121
+  rouges mérités avant la garde). RED : banc core (2 tests grille/service),
+  frame section 28, type section 30. **PROUVÉ dans l'app déployée** :
+  replier « réglages du cadre » → grille `188/384/912` → `188/826/470`
+  (la scène +442 px), carte 355 → 459 px, `dz_cf_frame_colB=1` ; les deux
+  → `travail-bande` ; rechargement → P1 SANS coulisse (par pièce), P2 la
+  retrouve ; mono P3 : carte à pleine largeur (717 px, 1723 px zoomée).
+- [x] **T6-H — le zoom d'aperçu (02 et 03, la scène étant une), LIVRÉ.**
+  État d'ÉCRAN SEUL (patron phase-pointeur) : `ZOOM` multiplie le facteur
+  d'adaptation (`PREV_SCALE = fit × ZOOM`), ne touche NI le document NI
+  l'export (renderRaw/saveBody l'ignorent — épinglé), persiste
+  `dz_cf_zoom` RELATIF à l'adaptation (absence de clé = adapter ; même
+  facteur = même taille de carte à l'écran d'un DPI à l'autre). Le pied
+  « N % aperçu » est devenu la COMMANDE : − / % / + / Adapter / 100 %
+  (100 % = un pixel du fichier = un pixel d'écran). Ctrl+molette zoome
+  vers le pointeur, la molette nue défile, le bouton du milieu glisse.
+  Centrage par `margin: auto` (un flex centré rendait le coin haut-gauche
+  inatteignable), `overflow: auto`, `max-width/height: 100 %` retirés du
+  canevas, la définition PLAFOND du bitmap reste la source
+  (`min(PREV_SCALE·dpr, 1)` — le CSS grossit, honnête, la loupe fait
+  mieux). DEUX REMÈDES MESURÉS AU BANC (le calque d'édition de P3 est du
+  DOM fixé sur body par-dessus le canevas) : (1) le calque se ROGNE à la
+  boîte visible de la colonne (`clip-path`, dessin ET prise — non rogné il
+  couvrait le pied et VOLAIT les clics des commandes ; le premier jet
+  inversait l'inset bas, démasqué par `elementFromPoint` = `cf-type-hbox`
+  sous le bouton +) ; (2) molette et bouton-milieu s'écoutent en PHASE DE
+  CAPTURE sur document, garde géométrique `surScene` (un écouteur sur la
+  colonne ne voyait JAMAIS le geste sous le calque). Resynchronisations :
+  `core:scene` (émis par drawPreview) + scroll de `.stage-wrap`
+  (rAF-coalescé). RED : banc core (3 tests), type section 30. **PROUVÉ
+  dans l'app déployée** : 42 % → **161 %** aux boutons du pied, toile/coupe
+  INCHANGÉES (les mm restent les mm), défilement né, calque calé à 0 px
+  d'écart, pan milieu +120/+60 px suivi par le calque, **glisser de bloc à
+  161 % juste à 0,08 mm de l'attendu** puis Ctrl+Z, rechargement → 161 %
+  restitué, Adapter → 44 % et la clé s'efface.
+
 ## 4. Les arbitrages utilisateur (T4 — à trancher avant tout code)
 
 La demande neuve : « ajuster manuellement TOUS les éléments (ex. bandeau de
