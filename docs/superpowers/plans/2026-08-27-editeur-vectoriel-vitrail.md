@@ -110,6 +110,22 @@ frontend/atelier/atelier.js       + panneau « Éléments vectoriels » par chap
 
 ## Phase 0 — Socle & contrats (détaillée, prête à exécuter après validation)
 
+> **RELEVÉ (27/08, validation utilisateur reçue) : PHASE 0 LIVRÉE ET
+> DÉPLOYÉE.** Quatre cycles RED→GREEN constatés (magasin disque, index
+> SQLite, CRUD 5 routes, miroirs+mount) ; banc `test_vector_docs.py` 5 tests
+> verts, banc qa node 10 contrôles verts, 9 fichiers de tests voisins verts ;
+> déployé sha-vérifié (14 fichiers), santé 2.5.0. Preuves app réelle : doc
+> « Baie vitrail - demo » créé v1 → réécrit v2 → rouvert dans
+> `/vectorlab/?doc=` (SVG 640×960, calques verre+plombs, 6 objets, cadre de
+> plomb à 18), archive `.v1.json` sur disque, panneau « Éléments
+> vectoriels » servi par l'Atelier (aucun chapitre réel : le panneau par
+> chapitre est verrouillé aux miroirs du banc, sans polluer les données).
+> Deux adaptations en route, sans dévier du plan : le banc qa cardforge est
+> navigateur (pas node) — le qa Vectorlab est un vrai banc node autonome
+> (`qa/run.mjs`), comme le plan le nommait ; `package.json {type: module}`
+> local pour que node lise les mêmes fichiers ESM que le navigateur.
+> Prochaine étape : phase 1 (dessin), sur ordre.
+
 Livrable : la surface `/vectorlab` servie, le CRUD complet des documents
 versionnés ancrables à un chapitre, un canvas SVG qui affiche un document —
 ouvrable depuis l'Atelier. Preuve : banc backend vert + créer/rouvrir un doc
@@ -122,7 +138,7 @@ depuis l'app réelle.
 - Create: `backend/app/services/vector_store.py`
 - Test: `backend/tests/test_vector_docs.py`
 
-- [ ] **Step 1 : écrire le test qui échoue**
+- [x] **Step 1 : écrire le test qui échoue**
 
 ```python
 """Vectorlab — documents vectoriels versionnés (fichiers + index SQLite).
@@ -151,17 +167,17 @@ def test_le_magasin_ecrit_atomique_et_historise():
     assert json.loads((dossier / f"{did}.json").read_text("utf-8"))["nom"] == "Baie v2"
 ```
 
-- [ ] **Step 2 : le voir échouer** — `pytest tests/test_vector_docs.py -q` →
+- [x] **Step 2 : le voir échouer** — `pytest tests/test_vector_docs.py -q` →
   `ModuleNotFoundError: app.services.vector_store`
-- [ ] **Step 3 : implémenter `vector_store.py`** (uuid4 hex pour `did` ;
+- [x] **Step 3 : implémenter `vector_store.py`** (uuid4 hex pour `did` ;
   dossier depuis `settings`/env `VECTOR_FOLDER` avec défaut
   `DeepotusVideoGenData/assets/vector` ; `ecrire` = rotation `.v<n>.json`
   (garder 10), écriture `tmp` + `os.replace`)
-- [ ] **Step 4 : le voir passer**, puis ajouter au même fichier le test du
+- [x] **Step 4 : le voir passer**, puis ajouter au même fichier le test du
   modèle SQLite (VectorDoc: id/name/chapter_id/entity_id/role/version/
   updated_at, insertion + relecture via `async_session_factory`), le voir
   échouer, implémenter (classe + entrée `_auto_migrate`), le voir passer
-- [ ] **Step 5 : commit** — `vectorlab : magasin disque atomique historise + index VectorDoc`
+- [x] **Step 5 : commit** — `vectorlab : magasin disque atomique historise + index VectorDoc`
 
 ### Task 0.2 : routes CRUD `/api/vector/docs`
 
@@ -169,18 +185,18 @@ def test_le_magasin_ecrit_atomique_et_historise():
 - Modify: `backend/app/api/routes.py` (section `# /vectorlab`)
 - Test: `backend/tests/test_vector_docs.py` (section app, patron test_style_da)
 
-- [ ] **Step 1 : test RED (app bootée, stubs du banc, zéro clé réelle)** —
+- [x] **Step 1 : test RED (app bootée, stubs du banc, zéro clé réelle)** —
   `POST /api/vector/docs {name, role, chapter_id?, doc}` → `{id, version:1}` ;
   `GET /api/vector/docs?chapter_id=&role=` → liste filtrée triée
   updated_at ; `GET /api/vector/docs/{id}` → `{meta, doc}` ;
   `PUT /api/vector/docs/{id} {doc}` → version bump ; `DELETE` → 200 et le
   fichier part en historique (pas de suppression brute) ; rôles limités à
   `("decor","lumiere","personnage","libre")` sinon 400
-- [ ] **Step 2 : le voir échouer** (404 sur les routes)
-- [ ] **Step 3 : implémenter** (handlers minces sur vector_store + VectorDoc)
-- [ ] **Step 4 : le voir passer** ; relancer aussi
+- [x] **Step 2 : le voir échouer** (404 sur les routes)
+- [x] **Step 3 : implémenter** (handlers minces sur vector_store + VectorDoc)
+- [x] **Step 4 : le voir passer** ; relancer aussi
   `run-tests.ps1 -Filter vector`
-- [ ] **Step 5 : commit** — `vectorlab : CRUD /vector/docs versionne, ancrable chapitre/entite`
+- [x] **Step 5 : commit** — `vectorlab : CRUD /vector/docs versionne, ancrable chapitre/entite`
 
 ### Task 0.3 : surface servie + canvas lecture
 
@@ -190,16 +206,16 @@ def test_le_magasin_ecrit_atomique_et_historise():
   `js/mod-doc.js`
 - Test: `frontend/vectorlab/qa/doc_compile.test.mjs` (node, patron cardforge/qa)
 
-- [ ] **Step 1 : test RED qa** — `compilerSVG(doc)` rend un `<svg>` string :
+- [x] **Step 1 : test RED qa** — `compilerSVG(doc)` rend un `<svg>` string :
   taille du doc, un `<g>` par calque (ordre, `display:none` si invisible), un
   `<path d>` par objet path, rect/ellipse natifs ; `parserDoc(json)` refuse
   (`throw`) un doc sans `v`/`taille`/`calques`
-- [ ] **Step 2 : le voir échouer** (`node qa/run.mjs` — runner copié du
+- [x] **Step 2 : le voir échouer** (`node qa/run.mjs` — runner copié du
   cardforge, sortie UTF-8 forcée, leçon du harnais)
-- [ ] **Step 3 : implémenter mod-doc** (compilation pure, aucune lecture DOM)
-- [ ] **Step 4 : passer** ; puis index.html + core.js chargent `?doc=<id>`
+- [x] **Step 3 : implémenter mod-doc** (compilation pure, aucune lecture DOM)
+- [x] **Step 4 : passer** ; puis index.html + core.js chargent `?doc=<id>`
   via l'API et affichent le SVG (zoom/pan basiques molette+glisser)
-- [ ] **Step 5 : preuve navigateur** — créer un doc par curl, ouvrir
+- [x] **Step 5 : preuve navigateur** — créer un doc par curl, ouvrir
   `http://127.0.0.1:8765/vectorlab/?doc=<id>`, voir le rendu ; commit
   `vectorlab : surface servie, compilation doc->SVG prouvée au banc qa`
 
@@ -210,7 +226,7 @@ def test_le_magasin_ecrit_atomique_et_historise():
 - Test: assertion miroir dans `backend/tests/test_vector_docs.py` (le JS
   contient le panneau et l'appel `/vector/docs?chapter_id=`)
 
-- [ ] Panneau « Éléments vectoriels » sous le chapitre ouvert : liste (nom,
+- [x] Panneau « Éléments vectoriels » sous le chapitre ouvert : liste (nom,
   rôle, version), « + Décor / + Lumière / + Personnage » (POST puis ouverture
   `/vectorlab/?doc=`), lien « ouvrir ». RED (assertion miroir) → GREEN →
   preuve navigateur réelle → commit — `atelier : panneau elements vectoriels par chapitre`
