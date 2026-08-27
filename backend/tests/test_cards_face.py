@@ -3578,9 +3578,9 @@ def test_GET_serie_dit_l_etat_le_plafond_et_les_prix(monkeypatch):
     d = r.json()
     assert d["serie"] == "walkuski" and d["v"] == FA.SERIE_V
     assert d["total"] == 108 and d["faites"] == 0 and d["restantes"] == 108
-    assert d["plafond_usd"] == pytest.approx(15.0)  # relevé utilisateur 26/08
+    assert d["plafond_usd"] == pytest.approx(16.0)  # relevé utilisateur 27/08
     assert d["depense_totale_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(15.0)
+    assert d["reste_usd"] == pytest.approx(16.0)
     from app.services import pricing
     assert d["prix"]["nano-banana-pro"] == \
         pytest.approx(pricing.load()["nano_banana_pro_usd"])
@@ -3875,12 +3875,12 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
     # LE SCÉNARIO QUI DISTINGUE, et c'est celui que la revue a mesuré : il
     # faut que le reliquat COUVRE la première marche sans couvrir la
     # seconde, et que la case CLIMBE. Tarifs du banc : 0,08 pour Nano Banana
-    # Pro, 5,00 pour le GPT — échelle 5,08. DEUX cases traitées laissent
-    # 4,84 de reliquat sous l'enveloppe de 15,00 (relevé utilisateur du
-    # 26/08 ; c'était 1,84 sous celle de 12,00, une case et 4,92 sous celle
-    # de 10,00, 2,92 sous 8,00, 0,92 sous 6,00) : de quoi payer la première
-    # marche (0,08) et se faire arrêter sur la seconde, sans aucune trace —
-    # si la garde d'ouverture n'existait pas.
+    # Pro, 5,00 pour le GPT — échelle 5,08. TROIS cases traitées laissent
+    # 0,76 de reliquat sous l'enveloppe de 16,00 (relevé utilisateur du
+    # 27/08 ; c'était deux cases et 4,84 sous celle de 15,00, 1,84 sous
+    # 12,00, une case et 4,92 sous 10,00, 2,92 sous 8,00, 0,92 sous 6,00) :
+    # de quoi payer la première marche (0,08) et se faire arrêter sur la
+    # seconde, sans aucune trace — si la garde d'ouverture n'existait pas.
     p = _prix_de_banc(monkeypatch, nano_banana_pro_usd=0.08,
                       gpt_image_2_fal_usd=5.00)
     echelle = p["nano_banana_pro_usd"] + p["gpt_image_2_fal_usd"]
@@ -3889,34 +3889,33 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond"
-    assert not d["traitees"] and len(d["refusees"]) == 2
-    assert d["depense_totale_usd"] == pytest.approx(10.16), \
+    assert not d["traitees"] and len(d["refusees"]) == 3
+    assert d["depense_totale_usd"] == pytest.approx(15.24), \
         "une case a été ouverte à moitié : de l'argent parti sans trace"
-    assert d["reste_usd"] == pytest.approx(4.84)
+    assert d["reste_usd"] == pytest.approx(0.76)
     assert d["echelle_usd"] == pytest.approx(5.08)
     # LE RELIQUAT EST AVOUÉ, avec les deux nombres qui le rendent lisible
-    assert "4,84" in d["message"] and "5,08" in d["message"], d["message"]
+    assert "0,76" in d["message"] and "5,08" in d["message"], d["message"]
     assert d["reste_usd"] < d["echelle_usd"]
     # ... et TOUT tir du journal appartient à une case TRACÉE
     tracees = {t["case"] for t in d["traitees"]} | {r["case"] for r in d["refusees"]}
     assert {l["case"] for l in d["journal"]} == tracees
-    assert len(d["journal"]) == 4, d["journal"]
+    assert len(d["journal"]) == 6, d["journal"]
     # le mur est UNE seule arithmétique, partagée par la boucle et par le tir
-    # (la frontière suit l'enveloppe : 15,00 depuis le relevé utilisateur)
-    assert FA.tient_sous_le_mur(14.0, 1.0) and not FA.tient_sous_le_mur(14.0, 1.01)
+    # (la frontière suit l'enveloppe : 16,00 depuis le relevé utilisateur)
+    assert FA.tient_sous_le_mur(15.0, 1.0) and not FA.tient_sous_le_mur(15.0, 1.01)
     s.zero()
 
 
 def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     """LE PLAFOND EST UN MUR, PAS UN VŒU. À 1,80 $ le candidat unique, chaque
     case coûte 1,80 $ en voie Nano Banana Pro mais S'OUVRE à l'échelle
-    complète (1,959 $) : huit cases tiennent sous l'enveloppe de 15,00 $
-    (14,40 payés, 14,559 d'ouverture), la neuvième ne PART PAS
-    (16,359 > 15). La campagne s'arrête proprement, rend son bilan, et le
-    prochain POST reprend là où elle s'est arrêtée. (Le scénario était à
-    6 cases sous l'enveloppe de 12,00 $, 5 sous 10,00, 4 sous 8,00 et 3 sous
-    6,00 — re-dérivé au relevé utilisateur du 26/08, retendu au même total à
-    la paire fal du 27/08.)"""
+    complète (1,959 $) : huit cases tiennent sous l'enveloppe de 16,00 $
+    (14,40 payés, 16,359 à l'ouverture de la neuvième — elle ne PART PAS).
+    La campagne s'arrête proprement, rend son bilan, et le prochain POST
+    reprend là où elle s'est arrêtée. (Le scénario était à 8 cases aussi
+    sous 15,00 $, 6 sous 12,00, 5 sous 10,00, 4 sous 8,00 et 3 sous 6,00 —
+    re-dérivé à chaque relevé utilisateur, la paire fal du 27/08 comprise.)"""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     _prix_de_banc(monkeypatch, nano_banana_pro_usd=1.80,
@@ -3927,7 +3926,7 @@ def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
     assert d["arret"] == "plafond", d["arret"]
     assert len(d["traitees"]) == 8, [t["case"] for t in d["traitees"]]
     assert d["depense_totale_usd"] == pytest.approx(14.40)
-    assert d["reste_usd"] == pytest.approx(0.60)
+    assert d["reste_usd"] == pytest.approx(1.60)
     assert d["faites"] == 8 and d["restantes"] == 100
     assert "plafond" in d["message"].lower()
     assert len(d["journal"]) == 8
@@ -4014,10 +4013,10 @@ def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     assert d["cases_manquantes"] == 108
     assert d["pire_cas_usd"] == pytest.approx(108 * echelle)
     assert d["pire_cas_usd"] == pytest.approx(31.86, abs=1e-3)
-    assert d["plafond_usd"] == pytest.approx(15.0)  # relevé utilisateur 26/08
+    assert d["plafond_usd"] == pytest.approx(16.0)  # relevé utilisateur 27/08
     assert d["depense_courante_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(15.0)
-    assert d["cases_ouvrables"] == int(15.0 / echelle) == 50
+    assert d["reste_usd"] == pytest.approx(16.0)
+    assert d["cases_ouvrables"] == int(16.0 / echelle) == 54
     assert d["multi_session"] is True
     # le détail du devis nomme LA PAIRE, une image par marche
     assert set(d["detail_echelle"]) == set(FA.SERIE_ECHELLE)
