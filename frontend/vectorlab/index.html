@@ -9,6 +9,7 @@
 <body>
   <header class="bar">
     <div class="brand">◧ Vectorlab</div>
+    <button id="btnBiblio" title="Bibliothèque des documents">⌂</button>
     <div class="doc"><b id="docTitle">…</b> <span id="docMeta"></span></div>
     <span id="temoin" title="État d'enregistrement">✓</span>
     <div class="spacer"></div>
@@ -29,6 +30,29 @@
     </span>
     <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
   </header>
+  <section id="biblio" class="biblio">
+    <div class="bib-outils">
+      <input id="bibNouvNom" type="text" placeholder="nom du nouveau document"/>
+      <select id="bibNouvRole" title="Rôle du nouveau document">
+        <option value="libre">libre</option>
+        <option value="decor">décor</option>
+        <option value="lumiere">lumière</option>
+        <option value="personnage">personnage</option>
+      </select>
+      <input id="bibNouvTaille" type="text" value="640×960" title="Taille du document en px (L×H)"/>
+      <button id="bibCreer" class="primaire" title="Crée le document et l'ouvre dans l'éditeur">＋ Créer</button>
+      <span class="spacer"></span>
+      <input id="bibRecherche" type="search" placeholder="rechercher par nom…"/>
+      <select id="bibRole" title="Filtrer par rôle">
+        <option value="">tous les rôles</option>
+        <option value="decor">décor</option>
+        <option value="lumiere">lumière</option>
+        <option value="personnage">personnage</option>
+        <option value="libre">libre</option>
+      </select>
+    </div>
+    <div id="bibListe" class="bib-liste"></div>
+  </section>
   <div class="rangee">
     <nav id="outils" class="outils">
       <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)">▢</button>

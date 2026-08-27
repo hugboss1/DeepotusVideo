@@ -611,6 +611,30 @@ def test_le_miroir_atelier_bibliotheque():
     assert "liaison" in js
 
 
+# ── N. miroirs de la bibliothèque du Vectorlab (accès menu général) ──────────
+
+def test_le_miroir_bibliotheque_vectorlab():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vlab = racine / "frontend" / "vectorlab"
+    html = (vlab / "index.html").read_text("utf-8")
+    # la section bibliothèque et le retour ⌂ vivent dans la coquille
+    assert 'id="biblio"' in html and 'id="btnBiblio"' in html
+    assert 'id="bibRecherche"' in html and 'id="bibRole"' in html
+    assert 'id="bibCreer"' in html and 'id="bibNouvTaille"' in html
+    bib = (vlab / "js" / "mod-biblio.js").read_text("utf-8")
+    # la page interroge la liste, ouvre ?doc=, duplique, supprime (archive)
+    assert "/vector/docs" in bib and '"?doc="' in bib
+    assert "/duplicate" in bib and '"DELETE"' in bib
+    assert "vignette.png?v=" in bib
+    core = (vlab / "js" / "core.js").read_text("utf-8")
+    # sans ?doc, l'éditeur bascule en mode bibliothèque
+    assert "ouvrirBiblio" in core
+    css = (vlab / "vectorlab.css").read_text("utf-8")
+    # la teinte de catégorie et les popups des selects natifs (patron
+    # dropdown-theming : le popup suit color-scheme, pas le CSS du bouton)
+    assert "--cat-vectoriel" in css and "color-scheme" in css
+
+
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───
 
 def test_le_pont_cartes_deck_id_et_la_migration():

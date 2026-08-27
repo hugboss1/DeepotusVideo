@@ -10,6 +10,7 @@ import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
 import { initVitrail } from "./mod-vitrail.js";
+import { initBiblio } from "./mod-biblio.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -296,8 +297,9 @@ function dessinerRegles() {
 async function charger() {
   const id = new URLSearchParams(location.search).get("doc");
   if (!id) {
-    $("#docTitle").textContent = "Vectorlab";
-    $("#docMeta").textContent = "aucun document — ouvre ?doc=<id>";
+    // sans ?doc : la page d'accueil BIBLIOTHÈQUE (chantier 27/08) — liste,
+    // recherche, création ; l'éditeur reste caché (body.mode-biblio)
+    VL.ouvrirBiblio();
     return;
   }
   try {
@@ -439,5 +441,6 @@ initStyle(VL);
 initOutils(VL);
 initExport(VL);
 initVitrail(VL);
+initBiblio(VL);
 window.VL = VL;
 charger();

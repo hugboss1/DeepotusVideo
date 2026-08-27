@@ -1,5 +1,12 @@
-/* Vectorlab — thème sobre sombre. Phase 1 : outils, règles, calques, overlay. */
+/* Vectorlab — thème sobre sombre. Phase 1 : outils, règles, calques, overlay.
+   27/08 : la feuille de tokens partagée apporte --cat-vectoriel (teinte de
+   catégorie, DESIGN.md §15) — la surface reste sombre, la teinte accentue. */
+@import url("/shared/deepotus.tokens.css");
 * { box-sizing: border-box; }
+:root { --cat: var(--cat-vectoriel, oklch(.72 .13 340)); }
+/* menus natifs : le popup d'un <select> suit color-scheme, pas le CSS du
+   déclencheur (patron dropdown-theming) */
+select { color-scheme: dark; }
 html, body { height: 100%; margin: 0; }
 body {
   display: flex; flex-direction: column;
@@ -120,6 +127,56 @@ button:disabled { opacity: .4; cursor: default; }
 .exp-menu label { display: flex; align-items: center; gap: 6px;
   color: #8b93a0; font-size: 12px; padding: 2px 4px; }
 .hidden { display: none; }
+
+/* ── page d'accueil bibliothèque (27/08) ── */
+#biblio { display: none; }
+.mode-biblio #biblio {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+  border-top: 2px solid var(--cat);
+}
+.mode-biblio .rangee,
+.mode-biblio #btnGrille, .mode-biblio #btnAnnuler, .mode-biblio #btnRefaire,
+.mode-biblio .exp-conteneur, .mode-biblio #btnSauver,
+.mode-biblio #zoomLabel, .mode-biblio #temoin { display: none; }
+.bib-outils {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: #171a20; border-bottom: 1px solid #262b34;
+  flex-wrap: wrap;
+}
+.bib-outils input[type="text"], .bib-outils input[type="search"] {
+  background: #232833; color: #d6d9de; border: 1px solid #313847;
+  border-radius: 6px; padding: 5px 8px; font-size: 13px;
+}
+#bibNouvNom { width: 210px; }
+#bibNouvTaille { width: 84px; }
+#bibRecherche { width: 220px; }
+.bib-outils select { background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 6px; padding: 5px 6px; }
+#bibCreer { background: color-mix(in oklab, var(--cat) 16%, #232833);
+  border-color: color-mix(in oklab, var(--cat) 48%, #313847); }
+#bibCreer:hover { background: color-mix(in oklab, var(--cat) 26%, #232833); }
+.bib-liste {
+  flex: 1; overflow: auto; padding: 14px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 12px; align-content: start;
+}
+.bib-carte {
+  background: #171a20; border: 1px solid #262b34; border-radius: 10px;
+  padding: 10px; display: flex; flex-direction: column; gap: 6px;
+  cursor: pointer;
+}
+.bib-carte:hover { border-color: var(--cat); }
+.bib-vig { height: 120px; display: flex; align-items: center;
+  justify-content: center; background: #101216; border-radius: 7px;
+  overflow: hidden; }
+.bib-vig img { max-width: 100%; max-height: 100%; }
+.bib-sans { font-size: 42px; color: #3a4150; }
+.bib-nom { font-weight: 600; color: #eef1f5; overflow: hidden;
+  text-overflow: ellipsis; white-space: nowrap; }
+.bib-meta { color: #8b93a0; font-size: 12px; }
+.bib-actions { display: flex; gap: 6px; }
+.bib-actions button { flex: 1; padding: 3px 4px; font-size: 12px; }
+.bib-vide { color: #8b93a0; padding: 24px; grid-column: 1 / -1; }
 
 /* ── panneau Vitrail (phase 5) ── */
 #panneauVitrail { padding: 6px 10px; border-bottom: 1px solid #262b34;
