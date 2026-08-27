@@ -53,6 +53,17 @@ function compilerObjet(o, ctx = {}) {
            + ` ry="${+o.ry}"${st}${tr}/>`;
     case "path":
       return `<path${t} d="${escAttr(o.d)}"${st}${tr}/>`;
+    case "texte": {
+      const s = o.style || {};
+      const escTexte = (v) => String(v).replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      let attrs = ` x="${+o.x}" y="${+o.y}"`;
+      if (s.police) attrs += ` font-family="${escAttr(s.police)}"`;
+      attrs += ` font-size="${Number(s.corps || 16)}"`;
+      if (s.graisse) attrs += ` font-weight="${escAttr(s.graisse)}"`;
+      if (s.interlettrage) attrs += ` letter-spacing="${Number(s.interlettrage)}"`;
+      return `<text${t}${attrs}${st}${tr}>${escTexte(o.contenu || "")}</text>`;
+    }
     case "groupe":
       return `<g${t}${st}${tr}>`
            + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
@@ -205,7 +216,12 @@ function _mapperObjet(o, av, ap) {
     case "ellipse":
       o.cx = fx(o.cx); o.cy = fy(o.cy);
       o.rx = Math.abs(o.rx * sx); o.ry = Math.abs(o.ry * sy); break;
-    case "texte": o.x = fx(o.x); o.y = fy(o.y); break;
+    case "texte":
+      o.x = fx(o.x); o.y = fy(o.y);
+      if (o.style && o.style.corps) {     // le corps suit la hauteur
+        o.style.corps = Math.round(o.style.corps * sy * 100) / 100;
+      }
+      break;
     case "path": {
       const segs = chemin_parser(o.d);
       for (const s of segs) {
