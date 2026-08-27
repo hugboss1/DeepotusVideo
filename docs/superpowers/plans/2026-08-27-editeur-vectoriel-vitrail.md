@@ -461,6 +461,38 @@ transparent (superposition). **Preuve :** PNG visible dans la Library de
 l'app réelle ; banc : l'export SVG d'un doc de référence est stable ; aucun
 tir payant (le conditionnement de planche reste opt-in utilisateur).
 
+### Expansion d'exécution (27/08, phase 3 livrée)
+
+TRANCHÉ (le point laissé ouvert) : **le client compile, le serveur stocke
+et sert**. Un port Python du compilateur créerait un DEUXIÈME compilateur à
+maintenir en parité ; le compilateur JS est unique, verrouillé par le
+snapshot qa au diff exact — la « preuve de parité » n'a plus d'objet. Le
+`GET export.svg` sert donc le DERNIER SVG poussé (`POST …/export {svg}`,
+écrit atomiquement `<id>.svg` à côté du JSON), avec un 404 parlant tant que
+rien n'a été exporté ; l'UI ré-exporte à chaque demande, la staleness est
+documentée. Le PNG se rasterise au client (SVG → Image → canvas ×k → blob)
+et part par `POST /images/upload` EXISTANT (nom `vector_<id>_<k>x.png`) —
+il apparaît dans la Library comme tout PNG du dossier. « → Bible » :
+l'export 2× est ajouté à `inspiration_images` de l'entité choisie par le
+`PUT /bible/entities/{id}` EXISTANT — le conditionnement de planche reste
+l'affaire de la machinerie en place (opt-in payant de l'utilisateur,
+aucun tir ici). Fond transparent : compilation d'un clone sans `fond`
+(case cochée d'office pour un rôle `lumiere`).
+
+- [ ] **T4.1 backend** : `POST /api/vector/docs/{id}/export` {svg} (400 si
+  pas un `<svg`, 404 id inconnu, écrit `<id>.svg` atomique) et
+  `GET /api/vector/docs/{id}/export.svg` (sert image/svg+xml, 404 parlant
+  avant tout export, le ré-export remplace) — RED pytest d'abord
+- [ ] **T4.2 client** : `mod-export.js` — menu Exporter (SVG serveur +
+  téléchargement, PNG 1×/2×/4× → Library, case fond transparent), la
+  rasterisation canvas — node --check
+- [ ] **T4.3 → bible** : dialogue de liaison (liste des entités, ajout de
+  l'export 2× aux `inspiration_images`) — node --check
+- [ ] **T4.4 déploiement & preuve réelle** : SVG stocké/servi vérifié,
+  **PNG visibles dans la Library réelle** (1× et 2×, dimensions
+  doublées), PNG lumière à pixel alpha VÉRIFIÉ, liaison bible constatée
+  sur une entité de test créée puis retirée, relevé au plan
+
 ## Phase 5 — Vitrail natif
 
 Contrats : mode vitrail lisant la fiche épinglée via `GET /api/vector/vitrail`
