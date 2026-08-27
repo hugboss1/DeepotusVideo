@@ -583,7 +583,30 @@ rôle ; vignettes (mini-export PNG au save) ; recherche par nom. **Preuve :**
 scénario réel : 2 chapitres partagent un décor, l'édition se propage, la
 duplication isole ; banc CRUD des liaisons.
 
-### Expansion d'exécution (27/08, phase 5 livrée)
+> **RELEVÉ (27/08) : PHASE 6 LIVRÉE ET DÉPLOYÉE — LE PLAN VECTORLAB EST
+> COMPLET (0→6).** Six cycles RED→GREEN pytest (vignettes magasin+routes,
+> liaisons CRUD + cascades doc/chapitre, liste fusionnée + recherche `q`,
+> dupliquer, miroir éditeur, miroir atelier — **16 tests banc vector**, un
+> 7e cycle éclair : supprimer un doc emporte sa vignette, artefact dérivé) ;
+> suites voisines atelier ×2, manuscript, style ×2 vertes ; qa node 203
+> contrôles intacts. Déployé sha-vérifié (11 fichiers), stop+relance,
+> santé 2.5.0. **Preuve réelle au complet, par la vraie UI** (chapitres de
+> TEST créés puis SUPPRIMÉS, docs jetables archivés par DELETE, les docs
+> réels intouchés) : tiroir Bibliothèque ouvert au bouton, recherche
+> « partagé » (debounce réel), **Instancier cliqué dans A puis B** (badge ◇
+> bibliothèque, puis badge réf des deux côtés, liaison serveur double, le
+> tiroir dit « Rien à instancier » une fois lié) ; **édition par le vrai
+> pipeline** (VL.executer ellipse rubis + VL.sauver → v2) : **les DEUX
+> panneaux affichent v2 et la vignette née au Sauver** (img chargée,
+> naturalWidth>0, cache-buster ?v=2) ; **Dupliquer cliqué dans B** (prompt
+> du flux) → copie propre v1 à vignette héritée, la liaison B↔source
+> REMPLACÉE ; source réédité v3 → **A affiche v3 réf, la copie de B reste
+> figée à 2 objets** pendant que le source en porte 3. Nettoyage vérifié
+> aux endpoints : 0 liaison restante, 0 chapitre TEST, la liste ne rend
+> plus que « Baie vitrail - demo » et « Vitrail - baie generee ». Périmètre
+> assumé : la vignette suit le save de façon asynchrone (un panneau
+> rafraîchi dans la seconde peut montrer la précédente) ; l'atelier reste
+> sans banc qa propre — ses miroirs pytest le verrouillent.
 
 Décisions : la liaison vit dans SQLite — `VectorDocLink`
 (`vector_doc_links`, PK COMPOSITE `chapter_id+doc_id` = unicité gratuite,
@@ -622,29 +645,29 @@ autres chapitres (badge ⚓ — D4 le promettait) — avec bouton Instancier ;
 les lignes du chapitre gagnent la vignette, le badge « réf » et
 Dupliquer/Retirer sur les docs liés.
 
-- [ ] **T6.1 vignettes au magasin + routes** : vector_store
+- [x] **T6.1 vignettes au magasin + routes** : vector_store
   `ecrire_vignette/lire_vignette/a_vignette/copier_vignette` (atomique) ;
   routes POST vignette (400 magic, 404 doc inconnu) + GET vignette.png
   (404 parlant) ; `_vector_meta.vignette` — pytest RED d'abord
-- [ ] **T6.2 liaisons** : modèle `VectorDocLink` + `POST/GET/DELETE
+- [x] **T6.2 liaisons** : modèle `VectorDocLink` + `POST/GET/DELETE
   /vector/links` (409 double et déjà-propre, 404 doc inconnu, filtres
   `chapter_id`/`doc_id` au GET) ; DELETE doc → liaisons emportées ; DELETE
   chapitre → liaisons emportées — pytest RED d'abord (le banc CRUD du
   contrat)
-- [ ] **T6.3 liste fusionnée + recherche** : `?chapter_id=` rend propres +
+- [x] **T6.3 liste fusionnée + recherche** : `?chapter_id=` rend propres +
   liés (`liaison: true`, tri updated_at desc) ; `?q=` insensible à la
   casse, cumulable — pytest RED d'abord
-- [ ] **T6.4 dupliquer** : copie indépendante (contenu du disque, v1,
+- [x] **T6.4 dupliquer** : copie indépendante (contenu du disque, v1,
   vignette copiée), liaison remplacée si présente, 404 source inconnue —
   pytest RED d'abord
-- [ ] **T6.5 éditeur : vignette au save** : `VL.vignette()` dans
+- [x] **T6.5 éditeur : vignette au save** : `VL.vignette()` dans
   mod-export.js (rasteriser 256/max, POST binaire), accroche non bloquante
   dans `sauver()` — node --check + miroir pytest
-- [ ] **T6.6 Atelier : bibliothèque + lignes enrichies** : tiroir
+- [x] **T6.6 Atelier : bibliothèque + lignes enrichies** : tiroir
   Bibliothèque (recherche, rôle, Instancier, badges ◇/⚓), lignes du
   chapitre (vignette, badge réf, Dupliquer/Retirer sur les liés) — miroirs
   pytest RED → GREEN, node --check
-- [ ] **T6.7 déploiement & preuve réelle** : patron sha+stop+relance+santé ;
+- [x] **T6.7 déploiement & preuve réelle** : patron sha+stop+relance+santé ;
   scénario réel sur 2 chapitres de TEST créés puis SUPPRIMÉS (docs
   jetables archivés par DELETE, les docs réels « Baie vitrail - demo » et
   « Vitrail - baie generee » intouchés) : un décor de bibliothèque
