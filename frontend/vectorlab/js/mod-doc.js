@@ -402,6 +402,37 @@ export function op_calque_supprimer(doc, id) {
 }
 
 
+/* ── historique (T1.5) : annulation par INSTANTANÉS du JSON ──
+   `capturer(doc)` AVANT chaque commande ; `annuler(courant)` rend l'état
+   capturé et empile le courant côté refaire ; `refaire(courant)` fait
+   l'inverse. Tout entre et sort en CLONE — aucune référence partagée. */
+export class Historique {
+  constructor(cap = 100) {
+    this.cap = cap;
+    this._avant = [];
+    this._apres = [];
+  }
+  _clone(doc) { return JSON.parse(JSON.stringify(doc)); }
+  capturer(doc) {
+    this._avant.push(this._clone(doc));
+    if (this._avant.length > this.cap) this._avant.shift();
+    this._apres.length = 0;         // une nouvelle commande invalide refaire
+  }
+  peutAnnuler() { return this._avant.length > 0; }
+  peutRefaire() { return this._apres.length > 0; }
+  annuler(courant) {
+    if (!this.peutAnnuler()) throw new Error("rien à annuler");
+    this._apres.push(this._clone(courant));
+    return this._avant.pop();
+  }
+  refaire(courant) {
+    if (!this.peutRefaire()) throw new Error("rien à refaire");
+    this._avant.push(this._clone(courant));
+    return this._apres.pop();
+  }
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
