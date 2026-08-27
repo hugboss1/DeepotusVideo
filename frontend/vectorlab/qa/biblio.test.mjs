@@ -1,7 +1,7 @@
 // biblio.test.mjs — la page d'accueil bibliothèque (chantier 27/08) : la
 // logique PURE de mod-biblio (parseTaille, docVierge, bibLigne, bibVide).
 // Le DOM n'entre jamais ici — initBiblio n'est pas importé par le banc.
-import { parseTaille, docVierge, bibLigne, bibVide }
+import { parseTaille, docVierge, bibLigne, bibVide, FORMATS, formatVersDoc }
   from "../js/mod-biblio.js";
 import { parserDoc } from "../js/mod-doc.js";
 
@@ -87,8 +87,35 @@ const meta = (sur) => ({
      m.includes("baie") && m.includes("decor"), m);
 }
 
+/* ── formats à la création (éditeur complet, E5) ── */
+{
+  ok("FORMATS : au moins 8 entrées, ids uniques", FORMATS.length >= 8
+     && new Set(FORMATS.map((f) => f.id)).size === FORMATS.length,
+     FORMATS.length);
+  const a4 = formatVersDoc("a4p");
+  ok("A4 portrait = 2480×3508 px à 300 dpi, affiché en mm",
+     a4.w === 2480 && a4.h === 3508 && a4.unites.affichage === "mm"
+     && a4.unites.dpi === 300, JSON.stringify(a4));
+  const carte = formatVersDoc("carte");
+  ok("carte poker = 750×1050 px", carte.w === 750 && carte.h === 1050
+     && carte.unites.affichage === "mm", JSON.stringify(carte));
+  const libre = formatVersDoc("libre", "800x600");
+  ok("libre lit la taille saisie", libre.w === 800 && libre.h === 600
+     && libre.unites.affichage === "px");
+  const vit = formatVersDoc("vitrail");
+  ok("vitrail = 640×960 px", vit.w === 640 && vit.h === 960);
+  let refus = 0;
+  try { formatVersDoc("timbre-poste"); } catch { refus++; }
+  ok("format inconnu refusé", refus === 1);
+  const d = docVierge("A4", a4.w, a4.h, a4.unites);
+  let accepte = true;
+  try { parserDoc(d); } catch { accepte = false; }
+  ok("docVierge porte les unités et passe parserDoc",
+     accepte && d.unites.affichage === "mm" && d.unites.dpi === 300);
+}
+
 if (echecs.length) {
   console.error("ECHECS biblio :\n- " + echecs.join("\n- "));
   process.exit(1);
 }
-console.log("QA biblio : PASS (14 controles)");
+console.log("QA biblio : PASS (21 controles)");

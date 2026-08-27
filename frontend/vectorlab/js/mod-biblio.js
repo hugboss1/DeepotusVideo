@@ -18,12 +18,44 @@ export function parseTaille(texte) {
   return { w, h };
 }
 
-export function docVierge(nom, w, h) {
-  return {
+export function docVierge(nom, w, h, unites) {
+  const doc = {
     v: 1, nom: String(nom || "Sans titre"), taille: { w, h },
     calques: [{ id: "c1", nom: "calque 1", visible: true, verrou: false,
                 objets: [] }],
   };
+  if (unites) doc.unites = { affichage: unites.affichage, dpi: unites.dpi };
+  return doc;
+}
+
+/* ── formats de document (éditeur complet, E5) : les physiques posent
+   mm/300 dpi et calculent les px ; les px posent px/96 ; « libre » lit
+   la taille saisie ── */
+export const FORMATS = [
+  { id: "libre", libelle: "Libre (px)" },
+  { id: "carre", libelle: "Carré — 2048×2048", w: 2048, h: 2048 },
+  { id: "16x9", libelle: "16:9 — 1920×1080", w: 1920, h: 1080 },
+  { id: "9x16", libelle: "9:16 — 1080×1920", w: 1080, h: 1920 },
+  { id: "a4p", libelle: "A4 portrait — 210×297 mm", mm: [210, 297] },
+  { id: "a4l", libelle: "A4 paysage — 297×210 mm", mm: [297, 210] },
+  { id: "a5p", libelle: "A5 — 148×210 mm", mm: [148, 210] },
+  { id: "carte", libelle: "Carte (poker) — 63,5×88,9 mm", mm: [63.5, 88.9] },
+  { id: "vitrail", libelle: "Vitrail — 640×960", w: 640, h: 960 },
+];
+
+export function formatVersDoc(id, tailleTexte) {
+  const f = FORMATS.find((x) => x.id === id);
+  if (!f) throw new Error(`format inconnu : ${id}`);
+  if (f.mm) {
+    const dpi = 300;
+    const px = (mm) => Math.round(mm / 25.4 * dpi);
+    return { w: px(f.mm[0]), h: px(f.mm[1]),
+             unites: { affichage: "mm", dpi } };
+  }
+  const unites = { affichage: "px", dpi: 96 };
+  if (f.w) return { w: f.w, h: f.h, unites };
+  const t = parseTaille(tailleTexte);
+  return { w: t.w, h: t.h, unites };
 }
 
 function badge(d) {
@@ -86,18 +118,30 @@ export function initBiblio(VL) {
   }
 
   async function creer() {
-    let taille;
-    try { taille = parseTaille($("#bibNouvTaille").value); }
-    catch (e) { VL.toast(e.message, true); return; }
+    let spec;
+    try {
+      spec = formatVersDoc($("#bibNouvFormat").value,
+                           $("#bibNouvTaille").value);
+    } catch (e) { VL.toast(e.message, true); return; }
     const nom = $("#bibNouvNom").value.trim() || "Sans titre";
     const r = await fetch("/api/vector/docs", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: nom, role: $("#bibNouvRole").value,
-                             doc: docVierge(nom, taille.w, taille.h) }),
+                             doc: docVierge(nom, spec.w, spec.h,
+                                            spec.unites) }),
     });
     const d = await r.json().catch(() => ({}));
     if (!r.ok) { VL.toast(d.detail || r.statusText, true); return; }
     ouvrir(d.id);
+  }
+
+  function majFormat() {
+    const id = $("#bibNouvFormat").value;
+    const taille = $("#bibNouvTaille");
+    if (id === "libre") { taille.disabled = false; return; }
+    const spec = formatVersDoc(id);
+    taille.value = `${spec.w}×${spec.h}`;
+    taille.disabled = true;
   }
 
   async function dupliquer(id) {
@@ -138,6 +182,10 @@ export function initBiblio(VL) {
     debounce = setTimeout(rafraichir, 300);
   });
   $("#bibRole").addEventListener("change", rafraichir);
+  // le select des formats est peuplé depuis la table (jamais recopié)
+  $("#bibNouvFormat").innerHTML = FORMATS.map((f) =>
+    `<option value="${f.id}">${esc(f.libelle)}</option>`).join("");
+  $("#bibNouvFormat").addEventListener("change", majFormat);
   $("#bibCreer").addEventListener("click", () =>
     creer().catch((e) => VL.toast(e.message, true)));
   $("#bibNouvNom").addEventListener("keydown", (ev) => {
