@@ -335,15 +335,28 @@ def creer_export(base, nom, tris, cible_mm=None, source="",
     mf3_nom = _slug(nom) + ".3mf"
     (dossier / stl_nom).write_bytes(ecrire_stl(monde))
     (dossier / mf3_nom).write_bytes(ecrire_3mf(monde, nom=nom))
+    # la garde du plateau (Centauri Carbon 2 : 256 mm) — AVERTIT, n'interdit
+    # pas : couper est le métier du slicer
+    bb = bbox(monde)
+    plus_grande = max(b[1] - b[0] for b in bb)
+    avertissement = None
+    if plus_grande > 256.0 + 1e-6:
+        avertissement = (f"{plus_grande:.0f} mm dépasse le plateau de la "
+                         "Centauri Carbon 2 (256 mm) — le slicer devra "
+                         "couper ou réduire")
     meta = {"nom": str(nom), "source": str(source),
             "cible_mm": (float(cible_mm) if cible_mm is not None else None),
             "etancheite": etancheite, "stl": stl_nom, "mf3": mf3_nom,
             "triangles": len(monde),
+            "avertissement": avertissement,
             "cree": _dt.datetime.now(_dt.timezone.utc).isoformat()}
     (dossier / "impression.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
-    return {"dossier": dossier.name, "stl": stl_nom, "mf3": mf3_nom,
-            "triangles": len(monde)}
+    out = {"dossier": dossier.name, "stl": stl_nom, "mf3": mf3_nom,
+           "triangles": len(monde)}
+    if avertissement:
+        out["avertissement"] = avertissement
+    return out
 
 
 def lister_exports(base):

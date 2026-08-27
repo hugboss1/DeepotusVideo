@@ -329,3 +329,19 @@ def test_le_miroir_vectorlab_extrusion():
     assert 'id="expPrint3d"' in html
     boolmod = (vlab / "js" / "mod-bool.js").read_text("utf-8")
     assert "export function versMulti" in boolmod
+
+
+# ── E. la garde du plateau : > 256 mm AVERTIT, n'interdit pas ────────────────
+
+def test_l_export_avertit_au_dela_du_plateau():
+    from app.services import print3d as P3
+    base = pathlib.Path(_tmp, "print3d-garde")
+    grand = P3.creer_export(base, "Trop grand", _deux_triangles(),
+                            cible_mm=300, source="banc")
+    assert "256" in (grand.get("avertissement") or "")
+    meta = _json.loads((base / grand["dossier"] / "impression.json")
+                       .read_text("utf-8"))
+    assert "256" in (meta.get("avertissement") or "")
+    petit = P3.creer_export(base, "Ca tient", _deux_triangles(),
+                            cible_mm=80, source="banc")
+    assert petit.get("avertissement") is None
