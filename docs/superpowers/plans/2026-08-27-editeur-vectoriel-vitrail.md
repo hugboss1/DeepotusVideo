@@ -461,6 +461,21 @@ transparent (superposition). **Preuve :** PNG visible dans la Library de
 l'app réelle ; banc : l'export SVG d'un doc de référence est stable ; aucun
 tir payant (le conditionnement de planche reste opt-in utilisateur).
 
+> **RELEVÉ (27/08) : PHASE 4 LIVRÉE ET DÉPLOYÉE.** Tranché : le client
+> compile, le serveur stocke atomique et sert (`POST …/export` + `GET
+> export.svg` — RED pytest puis GREEN, banc vector 6 tests) ; menu Exporter
+> (SVG, PNG 1×/2×/4× rasterisés canvas → `POST /images/upload` existant,
+> fond transparent coché d'office en rôle lumière, → Bible). Preuves app
+> réelles sur la « Baie vitrail - demo » : SVG stocké et servi en
+> image/svg+xml (l'ogive dedans) ; **PNG 1× (640×960) et 2× (1280×1920)
+> VISIBLES dans la Library réelle** ; **PNG transparent à alpha 0 constaté
+> au pixel**, l'opaque au coin exactement #F8F4E3 ; **liaison Bible par le
+> vrai flux du menu** (export 2× ajouté aux `inspiration_images` d'une
+> entité de test, retirée ensuite) — **aucun tir payant**. La preuve a
+> attrapé un défaut réel : l'export transparent écrasait l'opaque (même
+> nom) → suffixe `_t`. Staleness du GET documentée (sert le dernier
+> export). Prochaine étape : phase 5 (vitrail natif), sur ordre.
+
 ### Expansion d'exécution (27/08, phase 3 livrée)
 
 TRANCHÉ (le point laissé ouvert) : **le client compile, le serveur stocke
@@ -479,16 +494,16 @@ l'affaire de la machinerie en place (opt-in payant de l'utilisateur,
 aucun tir ici). Fond transparent : compilation d'un clone sans `fond`
 (case cochée d'office pour un rôle `lumiere`).
 
-- [ ] **T4.1 backend** : `POST /api/vector/docs/{id}/export` {svg} (400 si
+- [x] **T4.1 backend** : `POST /api/vector/docs/{id}/export` {svg} (400 si
   pas un `<svg`, 404 id inconnu, écrit `<id>.svg` atomique) et
   `GET /api/vector/docs/{id}/export.svg` (sert image/svg+xml, 404 parlant
   avant tout export, le ré-export remplace) — RED pytest d'abord
-- [ ] **T4.2 client** : `mod-export.js` — menu Exporter (SVG serveur +
+- [x] **T4.2 client** : `mod-export.js` — menu Exporter (SVG serveur +
   téléchargement, PNG 1×/2×/4× → Library, case fond transparent), la
   rasterisation canvas — node --check
-- [ ] **T4.3 → bible** : dialogue de liaison (liste des entités, ajout de
+- [x] **T4.3 → bible** : dialogue de liaison (liste des entités, ajout de
   l'export 2× aux `inspiration_images`) — node --check
-- [ ] **T4.4 déploiement & preuve réelle** : SVG stocké/servi vérifié,
+- [x] **T4.4 déploiement & preuve réelle** : SVG stocké/servi vérifié,
   **PNG visibles dans la Library réelle** (1× et 2×, dimensions
   doublées), PNG lumière à pixel alpha VÉRIFIÉ, liaison bible constatée
   sur une entité de test créée puis retirée, relevé au plan
