@@ -219,6 +219,12 @@ export function contour_en_multi(objet, tol = TOL) {
   return _contourEnMulti(objet, tol);
 }
 
+/* anneaux (aplatir_objet) → multi martinez — la sémantique evenodd des
+   sous-chemins (XOR), exposée pour l'extrusion d'impression (phase 3) */
+export function versMulti(anneaux) {
+  return _versMulti(anneaux);
+}
+
 function _contourEnMulti(objet, tol) {
   const mz = _martinez();
   const w = (((objet.style || {}).epaisseur) || 1) / 2;

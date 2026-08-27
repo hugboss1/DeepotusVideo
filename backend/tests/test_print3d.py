@@ -311,3 +311,21 @@ def test_le_miroir_bundle_game_assets_3d():
     patcher = (racine / "scripts"
                / "patch_bundle_print3d.py").read_text("utf-8")
     assert "guard_downstream" in patcher and "STABLE_PROBES" in patcher
+
+
+def test_le_miroir_vectorlab_extrusion():
+    """Phase 3 : le Vectorlab extrude ses calques (aplatissement martinez
+    eprouve + mod-extrude au banc node) et poste le STL binaire — hauteurs
+    en mm, surcharge par calque (relief vitrail), y retourne (SVG y-bas →
+    plateau y-haut), textes comptes et DITS, jamais bloquants."""
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vlab = racine / "frontend" / "vectorlab"
+    assert (vlab / "js" / "mod-extrude.js").is_file()
+    exp = (vlab / "js" / "mod-export.js").read_text("utf-8")
+    assert "mod-extrude.js" in exp
+    assert "/api/print3d/from-stl" in exp and "/api/print3d/open" in exp
+    assert "ignor" in exp                      # les textes ignorés sont DITS
+    html = (vlab / "index.html").read_text("utf-8")
+    assert 'id="expPrint3d"' in html
+    boolmod = (vlab / "js" / "mod-bool.js").read_text("utf-8")
+    assert "export function versMulti" in boolmod
