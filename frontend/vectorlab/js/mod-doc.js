@@ -220,6 +220,145 @@ export function op_tourner(doc, ids, cx, cy, deg) {
 }
 
 
+/* ── nœuds Bézier (T1.3) ──
+   Une ANCRE = le point on-curve d'un segment M/L/C/Q (ses deux derniers
+   nombres). Poignée ENTRANTE = contrôles du segment porteur (C p[2..3],
+   Q p[0..1]) ; poignée SORTANTE = premier contrôle du segment C suivant.
+   Le Q partage sa poignée : v1 la rattache à l'ancre de FIN du segment. */
+
+function _trouverPath(doc, id) {
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    const o = c.objets.find((x) => x.id === id);
+    if (o) {
+      if (o.type !== "path") throw new Error(`objet ${id}: pas un chemin`);
+      return o;
+    }
+  }
+  throw new Error(`chemin introuvable (ou calque verrouillé): ${id}`);
+}
+
+function _porteurs(segs) {
+  const out = [];
+  segs.forEach((s, k) => { if (s.c !== "Z") out.push(k); });
+  return out;
+}
+
+const _fin = (s) => ({ x: s.p[s.p.length - 2], y: s.p[s.p.length - 1] });
+
+export function chemin_ancres(segs) {
+  const noeuds = _porteurs(segs);
+  return noeuds.map((k, i) => {
+    const s = segs[k];
+    const f = _fin(s);
+    const entrante = s.c === "C" ? { x: s.p[2], y: s.p[3] }
+                   : s.c === "Q" ? { x: s.p[0], y: s.p[1] } : null;
+    const kn = noeuds[i + 1];
+    const sn = kn === undefined ? null : segs[kn];
+    const sortante = sn && sn.c === "C" ? { x: sn.p[0], y: sn.p[1] } : null;
+    return { i, x: f.x, y: f.y, entrante, sortante };
+  });
+}
+
+function _segsDe(o) { return chemin_parser(o.d); }
+function _poser(o, segs) { o.d = chemin_serialiser(segs); }
+
+export function op_noeud_deplacer(doc, id, iAncre, dx, dy) {
+  const o = _trouverPath(doc, id);
+  const segs = _segsDe(o);
+  const noeuds = _porteurs(segs);
+  const k = noeuds[iAncre];
+  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  const s = segs[k];
+  s.p[s.p.length - 2] += dx;
+  s.p[s.p.length - 1] += dy;
+  if (s.c === "C") { s.p[2] += dx; s.p[3] += dy; }
+  if (s.c === "Q") { s.p[0] += dx; s.p[1] += dy; }
+  const kn = noeuds[iAncre + 1];
+  if (kn !== undefined && segs[kn].c === "C") {
+    segs[kn].p[0] += dx; segs[kn].p[1] += dy;
+  }
+  _poser(o, segs);
+}
+
+export function op_noeud_convertir(doc, id, iAncre) {
+  const o = _trouverPath(doc, id);
+  const segs = _segsDe(o);
+  const noeuds = _porteurs(segs);
+  const k = noeuds[iAncre];
+  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  const ferme = segs.some((s) => s.c === "Z");
+  const s = segs[k];
+  const f = _fin(s);
+  const a = chemin_ancres(segs)[iAncre];
+  // COURBE si la poignée ENTRANTE est vive ; une ancre mixte (entrée en
+  // ligne, sortie courbe) est un ANGLE — l'ancre M, sans entrante possible,
+  // se juge sur sa sortante.
+  const vive = (pt) => pt && (pt.x !== f.x || pt.y !== f.y);
+  const estCourbe = vive(a.entrante) || (s.c === "M" && vive(a.sortante));
+  const kn = noeuds[iAncre + 1];
+  if (estCourbe) {
+    // courbe → angle : les poignées attachées se dégénèrent sur l'ancre
+    if (s.c === "C") { s.p[2] = f.x; s.p[3] = f.y; }
+    if (s.c === "Q") { s.p[0] = f.x; s.p[1] = f.y; }
+    if (kn !== undefined && segs[kn].c === "C") {
+      segs[kn].p[0] = f.x; segs[kn].p[1] = f.y;
+    }
+  } else {
+    // angle → courbe : poignées symétriques ± (suivant − précédent) / 4
+    const ancres = chemin_ancres(segs);
+    const n = ancres.length;
+    const prev = iAncre > 0 ? ancres[iAncre - 1]
+               : (ferme && n > 1 ? ancres[n - 1] : a);
+    const next = iAncre < n - 1 ? ancres[iAncre + 1]
+               : (ferme && n > 1 ? ancres[0] : a);
+    const vx = (next.x - prev.x) / 4, vy = (next.y - prev.y) / 4;
+    const ent = { x: f.x - vx, y: f.y - vy };
+    const sor = { x: f.x + vx, y: f.y + vy };
+    if (s.c === "L") {
+      segs[k] = { c: "C", p: [prev.x, prev.y, ent.x, ent.y, f.x, f.y] };
+    } else if (s.c === "C") { s.p[2] = ent.x; s.p[3] = ent.y; }
+    else if (s.c === "Q") { s.p[0] = ent.x; s.p[1] = ent.y; }
+    if (kn !== undefined) {
+      const sn = segs[kn];
+      const nf = _fin(sn);
+      if (sn.c === "L") {
+        segs[kn] = { c: "C", p: [sor.x, sor.y, nf.x, nf.y, nf.x, nf.y] };
+      } else if (sn.c === "C" || sn.c === "Q") {
+        sn.p[0] = sor.x; sn.p[1] = sor.y;
+      }
+    }
+  }
+  _poser(o, segs);
+}
+
+export function op_noeud_supprimer(doc, id, iAncre) {
+  const o = _trouverPath(doc, id);
+  const segs = _segsDe(o);
+  const noeuds = _porteurs(segs);
+  const k = noeuds[iAncre];
+  if (k === undefined) throw new Error(`ancre ${iAncre} hors chemin`);
+  segs.splice(k, 1);
+  if (iAncre === 0) {
+    if (segs.length && segs[0].c !== "Z") {
+      segs[0] = { c: "M", p: [_fin(segs[0]).x, _fin(segs[0]).y] };
+    }
+  } else if (k < segs.length && (segs[k].c === "C" || segs[k].c === "Q")) {
+    segs[k] = { c: "L", p: [_fin(segs[k]).x, _fin(segs[k]).y] };
+  }
+  _poser(o, segs);
+}
+
+export function op_chemin_fermer(doc, id) {
+  const o = _trouverPath(doc, id);
+  const segs = _segsDe(o);
+  if (!segs.length || segs[segs.length - 1].c !== "Z") {
+    segs.push({ c: "Z", p: [] });
+  }
+  _poser(o, segs);
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
