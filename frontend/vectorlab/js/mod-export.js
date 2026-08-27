@@ -56,8 +56,10 @@ export function initExport(VL) {
   }
 
   async function exporterPNG(k) {
-    const png = await rasteriser(k, $("#expTransparent").checked);
-    const nom = `vector_${etat.docId}_${k}x.png`;
+    const transparent = $("#expTransparent").checked;
+    const png = await rasteriser(k, transparent);
+    // le transparent porte son suffixe : il n'écrase jamais l'opaque
+    const nom = `vector_${etat.docId}_${k}x${transparent ? "_t" : ""}.png`;
     const fd = new FormData();
     fd.append("file", new File([png], nom, { type: "image/png" }));
     const r = await fetch("/api/images/upload", { method: "POST", body: fd });
