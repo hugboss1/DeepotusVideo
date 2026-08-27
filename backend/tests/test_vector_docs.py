@@ -201,7 +201,9 @@ def test_l_endpoint_vitrail_sert_la_fiche_epinglee():
     import asyncio
     from httpx import AsyncClient, ASGITransport
 
-    fiche = json.loads((SERVICES / "style_vitrail.json").read_text("utf-8"))
+    services = (pathlib.Path(__file__).resolve().parent.parent
+                / "app" / "services")
+    fiche = json.loads((services / "style_vitrail.json").read_text("utf-8"))
 
     async def scenario():
         from app.main import app
