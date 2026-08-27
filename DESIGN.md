@@ -1184,3 +1184,46 @@ règle (l'or = marque seulement) s'applique au token réel.
 au changement de catégorie (§3.2) n'a pas de consommateur visible côté
 bundle (les contenus de section sont des iframes qui posent leur propre
 `--cat`) — à brancher le jour où un écran du hub lit `--cat` en direct.
+
+## Ajout du 27/08/2026 — catégorie « Vectorlab » au rail (chantier pont cartes)
+
+La famille s'agrandit d'une entrée de navigation, dans les règles du
+handoff (§15-2 : grille 24×24, masses pleines `currentColor`, sujet à 1 /
+support .26–.45, découpes evenodd, jamais de couleur en dur ni de PNG).
+
+- **Icône `vectorpen`** — sens : courbe de Bézier + ancres + poignées,
+  l'écho exact du mode nœuds de l'éditeur (ancres carrées à 45°). Sujet
+  (opacité 1) : le ruban de courbe (bande pleine ~2,6 px entre deux
+  cubiques) tendu de l'ancre bas-gauche à l'ancre haut-droite, plus les
+  deux ancres. Support (.32) : la barre de poignée à −45° croisant le
+  ventre de la courbe, terminée par deux pastilles rondes. Tracé complet :
+
+  ```html
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <rect x="1.7" y="7.8" width="14" height="1.7" rx=".85"
+          transform="rotate(-45 8.7 8.7)" opacity=".32"/>
+    <circle cx="13.6" cy="3.7" r="2" opacity=".32"/>
+    <circle cx="3.7" cy="13.6" r="2" opacity=".32"/>
+    <path d="M4.1 18.6 C4.1 9 9 4.1 18.6 4.1 L18.6 6.7 C10.4 6.7 6.7 10.4 6.7 18.6 z"/>
+    <rect x="3.4" y="16.6" width="4" height="4" transform="rotate(45 5.4 18.6)"/>
+    <rect x="16.6" y="3.4" width="4" height="4" transform="rotate(45 18.6 5.4)"/>
+  </svg>
+  ```
+
+- **Teinte `--cat-vectoriel`** : `oklch(.72 .13 340)` (rose vitrail),
+  thème clair `oklch(.52 .12 340)` — mêmes clarté/chroma que les six
+  teintes du §1.2, hue au milieu du plus grand arc libre de la roue
+  (300→25), donc distincte d'au moins 40° de toute voisine. Ajoutée aux
+  trois feuilles qui font système : `frontend/shared/deepotus.tokens.css`
+  (source), sa copie servie `frontend/dist/shared/`, et la couche tokens
+  du bundle `frontend/dist/theme-v2.css`. Le rail lui-même RESTE à l'or de
+  marque (§3.2) : la teinte vit dans la surface `/vectorlab/`
+  (vectorlab.css importe la feuille partagée et pose
+  `--cat: var(--cat-vectoriel)`).
+
+- **Entrée nav** : `{id:"vectorlab", label:"Vectorlab", icon:"vectorpen",
+  desc:"Éditeur vectoriel & vitrail", new}` entre Game Assets et
+  Settings ; la vue est une iframe `/vectorlab/` (bibliothèque sans
+  `?doc`, éditeur avec). Posée par `scripts/patch_bundle_vectorlab.py`
+  (queue de chaîne, backup `.bak_vectorlab`, jamais de repatch_all —
+  mêmes DANGERS que cardforge).
