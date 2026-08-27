@@ -316,6 +316,47 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   de 0,378 $ ne peut aller qu'à backlight (levier requis) ou au re-broyage
   de refus : décision utilisateur.**
 
+- [x] **T1-M (RÉEL) — LES MODÈLES FAL (27/08) : L'ÉCHELLE REBRANCHÉE SUR LA
+  PAIRE nano-banana-pro + gpt-image-2 PAR FAL, UNE SONDE, LE MUR FERMÉ À
+  14,917 $.** Ordre utilisateur du 26/08 (« continue de générer… utilise
+  gpt image2 et nano banana pro avec la clé fal.ai »). Rebranchement au
+  commit `c157b74` : `SERIE_ECHELLE = ("nano-banana-pro",
+  "gpt-image-2-fal")` — deux marches t2i à UN candidat. Ce qui est sorti,
+  et pourquoi : la marche FLUX re-payait LES MÊMES pixels sur une refusée
+  (graine déterministe par case, 6 candidats déjà jugés) ; l'édition
+  nano-banana n'a gagné 0 case en 80 sondes. Façade `image_providers` :
+  endpoints `fal-ai/nano-banana-pro` (+`/edit`) et `openai/gpt-image-2`
+  (+`/edit`) VÉRIFIÉS À LA DOC fal du 27/08, jamais par un tir ; qualité
+  `high` ÉCRITE dans la requête (c'est elle que la table tarife) ; branche
+  `gpt-image-2-fal` testée AVANT le préfixe `gpt-image` (piège d'ordre,
+  épinglé). Registre pricing : `nano_banana_pro_usd` 0,15 (« $0.15 per
+  image », 1K/2K — 4K double) et `gpt_image_2_fal_usd` 0,145 (table
+  taille×qualité, high 768×1024) — entrée DISTINCTE de la voie OpenAI
+  directe : deux chemins de facturation, deux entrées. L'aveu du cadre
+  re-mesuré : la marche GPT perd son bonus 2:3 (1024×1536 OpenAI) et livre
+  le preset `portrait_4_3` comme l'autre marche — UN seul cadre pour toute
+  l'échelle. Pins re-dérivés RED d'abord (échelle 0,295 ; devis à vide 50
+  ouvrables/31,86 $ la série ; plafond dur 8 × 1,80 ; garde d'ouverture
+  4,84/5,08 ; journal `n=1` ; montants interdits étendus à 0.15/0.145 ;
+  les deux contrôles du découpage FLUX partis avec leur marche) ;
+  cards_face + serie_ton + style_da + images_process verts, lint 0 ;
+  déployé par copie sha-vérifiée + stop.ps1 + relance, santé 2.5.0, le
+  devis servi dit la paire. **LA CAMPAGNE : le reste de 0,378 $ n'ouvrait
+  qu'UNE case (échelle 0,295). Sonde sur la meilleure refusée « part
+  claire » — medallion_phoenix 92,9, tête de la priorité (a) : REFUSÉE PAR
+  LES DEUX MODÈLES NEUFS, même axe unique part claire, frères mis au ton
+  compris — nano-banana-pro puis gpt-image-2-fal, meilleur 84,6 (en BAISSE
+  de 8,3 points sur la voie OpenAI d'hier), 0,295 $ au journal
+  (14,622 → 14,917, deux lignes propres). Devis re-lu après tir : reste
+  0,083 $, 0 ouvrable — LE MUR EST FERMÉ, la série reste à 42/108.** Ce
+  qu'une sonde dit et ne dit pas : le mode « trop clair » n'est PAS levé
+  par le changement de modèle sur ce sujet lumineux (phénix violet, le
+  plus favorable du vivier) — mauvais signe pour le re-broyage pur ; le
+  filtre archer via fal (l'espoir du rebranchement) et les 15 backlight
+  vierges restent NON TESTÉS, le mur a fermé avant les priorités (b) et
+  (c). Relever l'enveloppe = décision utilisateur (patron des commits
+  `d9fe431`/`f953ce9` : constante + pins re-dérivés, commit séparé).
+
 ### T2 — MESHY_MOCK au .env (D4)
 
 - [x] **T2-A** : `MESHY_MOCK=1` écrit au .env du DATA_ROOT avec commentaire
