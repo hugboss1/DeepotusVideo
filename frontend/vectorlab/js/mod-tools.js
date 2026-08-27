@@ -4,12 +4,28 @@
 // provisoires). Aucune mutation du document hors VL.executer.
 import { op_ajouter, op_supprimer, op_deplacer, op_redimensionner, op_tourner,
          op_noeud_deplacer, op_noeud_convertir, op_noeud_supprimer,
-         op_guide_ajouter, op_guide_deplacer, op_guide_supprimer,
+         op_guide_ajouter, op_guide_deplacer, op_guide_supprimer, op_style,
          chemin_parser, chemin_serialiser, chemin_ancres } from "./mod-doc.js";
 
-const STYLE_FORME = { fond: "#9DB4D6", contour: "#1F1512", epaisseur: 2 };
-const STYLE_TRAIT = { fond: "none", contour: "#1F1512", epaisseur: 3 };
 const SNS = "http://www.w3.org/2000/svg";
+
+function _objetProfond(doc, id) {
+  const chercher = (objs) => {
+    for (const o of objs) {
+      if (o.id === id) return o;
+      if (o.type === "groupe") {
+        const r = chercher(o.enfants || []);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  for (const c of doc.calques) {
+    const r = chercher(c.objets);
+    if (r) return r;
+  }
+  return null;
+}
 
 export function initOutils(VL) {
   const { $, etat } = VL;
@@ -62,6 +78,14 @@ export function initOutils(VL) {
     const t = ev.target;
     const [dx, dy] = VL.docPt(ev.clientX, ev.clientY);
 
+    const pgGrad = t.closest && t.closest(".poignee-grad");
+    if (pgGrad && etat.outil === "select") {
+      const [gid, role] = pgGrad.dataset.grad.split(":");
+      geste = { type: "grad", gid, role, patch: null };
+      ev.preventDefault();
+      return;
+    }
+
     const poignee = t.closest && t.closest(".poignee, .poignee-rot");
     if (poignee && etat.outil === "select" && etat.selection.length) {
       const b0 = VL.bboxSelectionDoc();
@@ -98,9 +122,32 @@ export function initOutils(VL) {
     }
 
     const cible = t.closest && t.closest("[data-objet]");
-    const idCible = cible ? cible.dataset.objet : null;
+    const idBrut = cible ? cible.dataset.objet : null;
+    // cliquer un enfant de groupe sélectionne le GROUPE (remontée au sommet)
+    const idCible = idBrut ? (VL.sommetDe(idBrut) || idBrut) : null;
     const selectionnable = idCible
       && objetsSelectionnables().includes(idCible);
+
+    if (etat.outil === "pipette") {
+      if (idBrut) {
+        const o = _objetProfond(etat.doc, idBrut);
+        if (o && o.style) {
+          const pioche = {};
+          for (const k of ["fond", "contour", "epaisseur", "pointilles",
+                           "joint", "opacite"]) {
+            if (k in o.style) pioche[k] = o.style[k];
+          }
+          etat.styleCourant = { ...etat.styleCourant, ...pioche };
+          if (etat.selection.length) {
+            VL.executer(op_style, etat.selection.slice(), pioche);
+          } else {
+            VL.toast("style adopté — les nouveaux objets le prendront");
+            VL.surSelection();
+          }
+        }
+      }
+      return;
+    }
 
     if (etat.outil === "select") {
       if (selectionnable) {
@@ -244,6 +291,20 @@ export function initOutils(VL) {
       const el = document.querySelector(
         `#canvasHost [data-objet="${geste.id}"]`);
       if (el && d) el.setAttribute("d", d);
+    } else if (geste.type === "grad") {
+      const [ax, ay] = VL.aimantePt(dx, dy);
+      const gr = (etat.doc.degrades || {})[geste.gid];
+      if (!gr) return;
+      let patch;
+      if (geste.role === "p1") patch = { x1: ax, y1: ay };
+      else if (geste.role === "p2") patch = { x2: ax, y2: ay };
+      else if (geste.role === "centre") patch = { cx: ax, cy: ay };
+      else patch = { r: Math.max(1, Math.hypot(dx - gr.cx, dy - gr.cy)) };
+      geste.patch = patch;
+      const el = document.getElementById(geste.gid);   // aperçu live du defs
+      if (el) {
+        for (const [k, v] of Object.entries(patch)) el.setAttribute(k, v);
+      }
     } else if (geste.type === "guide-move") {
       geste.pos = geste.axe === "v" ? dx : dy;
       const el = document.querySelector(
@@ -304,11 +365,12 @@ export function initOutils(VL) {
       let objet;
       if (g.forme === "rect") {
         objet = { type: "rect", x: Math.min(g.x0, g.x1),
-                  y: Math.min(g.y0, g.y1), w, h, style: { ...STYLE_FORME } };
+                  y: Math.min(g.y0, g.y1), w, h,
+                  style: { ...etat.styleCourant } };
       } else {
         objet = { type: "ellipse", cx: (g.x0 + g.x1) / 2,
                   cy: (g.y0 + g.y1) / 2, rx: w / 2, ry: h / 2,
-                  style: { ...STYLE_FORME } };
+                  style: { ...etat.styleCourant } };
       }
       const id = VL.executer(op_ajouter, etat.calqueActif, objet);
       if (id) VL.setSelection([id]);
@@ -321,6 +383,9 @@ export function initOutils(VL) {
       if (g.dxA || g.dyA) {
         VL.executer(op_noeud_deplacer, g.id, g.i, g.dxA, g.dyA);
       }
+    } else if (g.type === "grad") {
+      if (g.patch) VL.executer(VL.opDegradeModifier, g.gid, g.patch);
+      else VL.rendreOverlay();
     } else if (g.type === "guide-move") {
       if (g.pos === null) return;
       const r = stage.getBoundingClientRect();
@@ -425,7 +490,9 @@ export function initOutils(VL) {
       if (fermer) segs.push({ c: "Z", p: [] });
       const id = VL.executer(op_ajouter, etat.calqueActif,
         { type: "path", d: chemin_serialiser(segs),
-          style: { ...STYLE_TRAIT } });
+          style: { fond: "none",
+                   contour: etat.styleCourant.contour || "#1F1512",
+                   epaisseur: etat.styleCourant.epaisseur || 3 } });
       if (id) VL.setSelection([id]);
     }
     trace = null;

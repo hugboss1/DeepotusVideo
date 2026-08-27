@@ -3,10 +3,11 @@
 // (zoom/pan), overlay (sélection, poignées, ancres, guides), règles,
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
-import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique }
-  from "./mod-doc.js";
+import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
+         sommetDe } from "./mod-doc.js";
 import { initOutils } from "./mod-tools.js";
 import { initCalques } from "./mod-layers.js";
+import { initStyle } from "./mod-style.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -35,6 +36,8 @@ const etat = {
   zoom: 1, tx: 40, ty: 40,
   grille: { active: true, pas: 8 },
   histo: new Historique(100),
+  // le style des NOUVEAUX objets — nourri par le panneau et la pipette
+  styleCourant: { fond: "#9DB4D6", contour: "#1F1512", epaisseur: 2 },
 };
 
 /* ── conversions écran ↔ document ── */
@@ -98,6 +101,14 @@ function setSelection(ids) {
   etat.selection = [...new Set(ids)];
   etat.ancreSel = null;
   rendreOverlay();
+  VL.surSelection();
+}
+function objetDe(id) {
+  for (const c of etat.doc.calques) {
+    const o = c.objets.find((x) => x.id === id);
+    if (o) return { calque: c, objet: o };
+  }
+  return null;
 }
 function selectionElems() {
   return etat.selection
@@ -212,6 +223,37 @@ function rendreOverlay() {
         fill: etat.ancreSel === a.i ? "#e0b34a" : "#eef1f5",
         stroke: "#2c4a75", class: "ancre", "data-ancre": a.i,
         transform: `rotate(45 ${ax} ${ay})` }));
+    }
+  }
+  // poignées du dégradé de fond (sélection unique, outil sélection)
+  if (etat.outil === "select" && etat.selection.length === 1) {
+    const t = objetDe(etat.selection[0]);
+    const f = t && t.objet.style && t.objet.style.fond;
+    const gid = (typeof f === "string" && f.startsWith("grad:"))
+      ? f.slice(5) : null;
+    const gr = gid && etat.doc.degrades ? etat.doc.degrades[gid] : null;
+    if (gr) {
+      const pg = (x, y, role) => {
+        const [ex, ey] = ecranPt(x, y);
+        o.appendChild(ov("circle", { cx: ex, cy: ey, r: 6, fill: "#39b3d0",
+          stroke: "#eef1f5", class: "poignee-grad",
+          "data-grad": `${gid}:${role}` }));
+        return [ex, ey];
+      };
+      if (gr.type === "lineaire") {
+        const [ax, ay] = ecranPt(gr.x1, gr.y1);
+        const [bx, by] = ecranPt(gr.x2, gr.y2);
+        o.appendChild(ov("line", { x1: ax, y1: ay, x2: bx, y2: by,
+          stroke: "#39b3d0", "stroke-width": 1.5 }));
+        pg(gr.x1, gr.y1, "p1");
+        pg(gr.x2, gr.y2, "p2");
+      } else {
+        const [cx, cy] = ecranPt(gr.cx, gr.cy);
+        o.appendChild(ov("circle", { cx, cy, r: gr.r * etat.zoom,
+          fill: "none", stroke: "#39b3d0", "stroke-dasharray": "5 4" }));
+        pg(gr.cx, gr.cy, "centre");
+        pg(gr.cx + gr.r, gr.cy, "rayon");
+      }
     }
   }
   // le groupe temporaire des outils (lasso, aperçus) — toujours en dernier
@@ -350,7 +392,8 @@ document.addEventListener("keydown", (ev) => {
       || (ev.ctrlKey && ev.shiftKey && ev.key.toLowerCase() === "z")) { refaire(); ev.preventDefault(); return; }
   if (ev.ctrlKey && ev.key.toLowerCase() === "s") { sauver(); ev.preventDefault(); return; }
   if (ev.ctrlKey) return;
-  const outils = { v: "select", p: "plume", r: "rect", e: "ellipse", n: "noeuds" };
+  const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
+                   n: "noeuds", i: "pipette" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") {
@@ -380,11 +423,14 @@ const VL = {
   docPt, ecranPt, tolDoc, aimantePt,
   executer, annuler, refaire, sauver, charger,
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
-  pathSelectionne, purgerSelection,
+  pathSelectionne, purgerSelection, objetDe,
+  sommetDe: (id) => sommetDe(etat.doc, id),
   rendre, rendreOverlay, appliquerVue, setOutil, toast,
   surRendu: () => {}, surOutil: () => {}, surTouche: () => {},
+  surSelection: () => {},
 };
 initCalques(VL);
+initStyle(VL);
 initOutils(VL);
 window.VL = VL;
 charger();

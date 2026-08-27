@@ -25,6 +25,7 @@
       <button data-outil="rect" title="Rectangle — Maj = carré (R)">▭</button>
       <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)">◯</button>
       <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)">✜</button>
+      <button data-outil="pipette" title="Pipette — adopte le style de l'objet cliqué et l'applique à la sélection (I)">💧</button>
     </nav>
     <div class="scene">
       <canvas id="regleH" class="regle regle-h" height="24"></canvas>
@@ -37,6 +38,8 @@
       </div>
     </div>
     <aside id="panneauCalques" class="panneau">
+      <div class="panneau-tete">Apparence</div>
+      <div id="panneauStyle"></div>
       <div class="panneau-tete">Calques
         <button id="btnCalquePlus" title="Nouveau calque">＋</button>
       </div>

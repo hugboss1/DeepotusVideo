@@ -1,0 +1,188 @@
+// mod-style.js — le panneau Apparence (T2.5) : fond (couleur / aucun /
+// dégradé linéaire ou radial), contour (couleur, épaisseur, pointillés,
+// joint), opacité, ordre z, grouper/dégrouper, stops du dégradé. Chaque
+// interaction = UNE commande via VL.executer ; le panneau reflète le
+// premier objet sélectionné, sinon le style courant des nouveaux objets.
+import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
+         op_degrade_modifier, op_degrade_stop_ajouter,
+         op_degrade_stop_modifier, op_degrade_stop_supprimer }
+  from "./mod-doc.js";
+
+const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
+const JOINTS = ["round", "miter", "bevel"];
+
+export function initStyle(VL) {
+  const { $, etat } = VL;
+  const hote = $("#panneauStyle");
+
+  function objetReflete() {
+    if (!etat.selection.length) return null;
+    const t = VL.objetDe(etat.selection[0]);
+    return t ? t.objet : null;
+  }
+  function styleReflete() {
+    const o = objetReflete();
+    return o ? (o.style || {}) : etat.styleCourant;
+  }
+
+  function appliquer(patch) {
+    for (const [k, v] of Object.entries(patch)) {
+      if (v === null) delete etat.styleCourant[k];
+      else etat.styleCourant[k] = v;
+    }
+    if (etat.selection.length) {
+      VL.executer(op_style, etat.selection.slice(), patch);
+    } else rendrePanneau();
+  }
+
+  function degradeDefaut(type) {
+    if (etat.selection.length !== 1) {
+      VL.toast("sélectionne UN objet pour poser un dégradé", true);
+      return;
+    }
+    const b = VL.bboxSelectionDoc();
+    const sel = etat.selection.slice();
+    const base = typeof styleReflete().fond === "string"
+      && !styleReflete().fond.startsWith("grad:")
+      && styleReflete().fond !== "none"
+      ? styleReflete().fond : "#0047AB";
+    const spec = type === "lineaire"
+      ? { type, x1: b.x, y1: b.y + b.h / 2, x2: b.x + b.w,
+          y2: b.y + b.h / 2,
+          stops: [{ t: 0, couleur: base }, { t: 1, couleur: "#FFFFFF" }] }
+      : { type, cx: b.x + b.w / 2, cy: b.y + b.h / 2,
+          r: Math.max(b.w, b.h) / 2,
+          stops: [{ t: 0, couleur: "#FFFFFF" }, { t: 1, couleur: base }] };
+    VL.executer((doc) => {          // une seule entrée d'historique
+      const id = op_degrade_creer(doc, spec);
+      op_style(doc, sel, { fond: "grad:" + id });
+    });
+  }
+
+  function fondDegradeId() {
+    const f = styleReflete().fond;
+    return (typeof f === "string" && f.startsWith("grad:")) ? f.slice(5) : null;
+  }
+
+  function rendrePanneau() {
+    if (!etat.doc) { hote.innerHTML = ""; return; }
+    const s = styleReflete();
+    const fondCouleur = (typeof s.fond === "string" && s.fond.startsWith("#"))
+      ? s.fond : "#9DB4D6";
+    const gid = fondDegradeId();
+    const g = gid && etat.doc.degrades ? etat.doc.degrades[gid] : null;
+    const sel = etat.selection.length;
+    hote.innerHTML = `
+      <div class="ap-ligne"><span>Fond</span>
+        <input type="color" id="apFond" value="${fondCouleur}"
+               title="Couleur de fond"/>
+        <button id="apFondAucun" class="${s.fond === "none" ? "actif" : ""}"
+                title="Sans fond">∅</button>
+        <button id="apGradL" title="Dégradé linéaire (sélection unique)">▤</button>
+        <button id="apGradR" title="Dégradé radial (sélection unique)">◉</button>
+      </div>
+      <div class="ap-ligne"><span>Contour</span>
+        <input type="color" id="apContour"
+               value="${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
+               title="Couleur de contour"/>
+        <button id="apContourAucun"
+                class="${!s.contour || s.contour === "none" ? "actif" : ""}"
+                title="Sans contour">∅</button>
+        <input type="number" id="apEpaisseur" min="0.5" max="200" step="0.5"
+               value="${s.epaisseur ?? 2}" title="Épaisseur"/>
+      </div>
+      <div class="ap-ligne"><span>Trait</span>
+        <select id="apPointilles" title="Pointillés">${POINTILLES.map(
+          ([v, l]) => `<option value="${v}"${(s.pointilles || "") === v
+            ? " selected" : ""}>${l}</option>`).join("")}</select>
+        <select id="apJoint" title="Joint des angles">${JOINTS.map(
+          (j) => `<option${(s.joint || "round") === j ? " selected" : ""}>${j}
+          </option>`).join("")}</select>
+      </div>
+      <div class="ap-ligne"><span>Opacité</span>
+        <input type="range" id="apOpacite" min="0" max="100"
+               value="${Math.round((s.opacite ?? 1) * 100)}"/>
+        <b id="apOpaciteVal">${Math.round((s.opacite ?? 1) * 100)}</b>
+      </div>
+      <div class="ap-ligne"><span>Ordre</span>
+        <button data-ordre="devant" title="Tout devant">⤒</button>
+        <button data-ordre="avant" title="Un cran devant">↑</button>
+        <button data-ordre="arriere" title="Un cran derrière">↓</button>
+        <button data-ordre="derriere" title="Tout derrière">⤓</button>
+      </div>
+      <div class="ap-ligne">
+        <button id="apGrouper" ${sel >= 2 ? "" : "disabled"}
+                title="Grouper la sélection (les transformations deviennent communes)">Grouper</button>
+        <button id="apDegrouper" ${sel === 1 && objetReflete()
+          && objetReflete().type === "groupe" ? "" : "disabled"}
+                title="Dissoudre le groupe (son transform suit les enfants)">Dégrouper</button>
+      </div>
+      ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
+        ${g.stops.map((st, i) => `<div class="ap-stop">
+          <input type="color" data-stop="${i}" value="${st.couleur}"/>
+          <input type="number" data-stopt="${i}" min="0" max="100"
+                 value="${Math.round(st.t * 100)}"/>%
+          <button data-stopx="${i}" title="Retirer ce stop">✕</button>
+        </div>`).join("")}
+        <button id="apStopPlus" title="Ajouter un stop médian">＋ stop</button>
+      </div>` : ""}`;
+
+    $("#apFond").addEventListener("change",
+      (e) => appliquer({ fond: e.target.value }));
+    $("#apFondAucun").addEventListener("click",
+      () => appliquer({ fond: "none" }));
+    $("#apGradL").addEventListener("click", () => degradeDefaut("lineaire"));
+    $("#apGradR").addEventListener("click", () => degradeDefaut("radial"));
+    $("#apContour").addEventListener("change",
+      (e) => appliquer({ contour: e.target.value }));
+    $("#apContourAucun").addEventListener("click",
+      () => appliquer({ contour: null }));
+    $("#apEpaisseur").addEventListener("change",
+      (e) => appliquer({ epaisseur: Math.max(0.5, +e.target.value || 1) }));
+    $("#apPointilles").addEventListener("change",
+      (e) => appliquer({ pointilles: e.target.value || null }));
+    $("#apJoint").addEventListener("change",
+      (e) => appliquer({ joint: e.target.value === "round"
+                                ? null : e.target.value }));
+    $("#apOpacite").addEventListener("input",
+      (e) => { $("#apOpaciteVal").textContent = e.target.value; });
+    $("#apOpacite").addEventListener("change",
+      (e) => appliquer({ opacite: +e.target.value === 100
+                                  ? null : +e.target.value / 100 }));
+    hote.querySelectorAll("[data-ordre]").forEach((b) =>
+      b.addEventListener("click", () => {
+        if (etat.selection.length) {
+          VL.executer(op_ordre, etat.selection.slice(), b.dataset.ordre);
+        }
+      }));
+    $("#apGrouper").addEventListener("click", () => {
+      const id = VL.executer(op_grouper, etat.selection.slice());
+      if (id) VL.setSelection([id]);
+    });
+    $("#apDegrouper").addEventListener("click", () => {
+      const ids = VL.executer(op_degrouper, etat.selection[0]);
+      if (ids) VL.setSelection(ids);
+    });
+    if (g) {
+      hote.querySelectorAll("[data-stop]").forEach((inp) =>
+        inp.addEventListener("change", () => VL.executer(
+          op_degrade_stop_modifier, gid, +inp.dataset.stop,
+          { couleur: inp.value })));
+      hote.querySelectorAll("[data-stopt]").forEach((inp) =>
+        inp.addEventListener("change", () => VL.executer(
+          op_degrade_stop_modifier, gid, +inp.dataset.stopt,
+          { t: Math.max(0, Math.min(1, +inp.value / 100)) })));
+      hote.querySelectorAll("[data-stopx]").forEach((b) =>
+        b.addEventListener("click", () => VL.executer(
+          op_degrade_stop_supprimer, gid, +b.dataset.stopx)));
+      $("#apStopPlus").addEventListener("click", () => VL.executer(
+        op_degrade_stop_ajouter, gid, { t: 0.5, couleur: "#888888" }));
+    }
+  }
+
+  const suivantRendu = VL.surRendu;
+  VL.surRendu = () => { suivantRendu(); rendrePanneau(); };
+  const suivantSel = VL.surSelection;
+  VL.surSelection = () => { suivantSel(); rendrePanneau(); };
+  VL.opDegradeModifier = op_degrade_modifier;   // pour les poignées (tools)
+}

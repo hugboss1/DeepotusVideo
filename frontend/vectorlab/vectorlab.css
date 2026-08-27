@@ -84,3 +84,28 @@ button:disabled { opacity: .4; cursor: default; }
 .calque .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .calque button { padding: 1px 6px; font-size: 12px; }
 .calque .off { opacity: .38; }
+
+/* ── panneau Apparence (phase 2) ── */
+#panneauStyle { padding: 6px 10px; border-bottom: 1px solid #262b34;
+  display: flex; flex-direction: column; gap: 6px; }
+.ap-ligne { display: flex; align-items: center; gap: 6px; }
+.ap-ligne > span { width: 52px; color: #8b93a0; font-size: 12px; }
+.ap-ligne input[type="color"] { width: 30px; height: 24px; padding: 1px;
+  border: 1px solid #313847; border-radius: 5px; background: #232833; }
+.ap-ligne input[type="number"] { width: 52px; background: #232833;
+  color: #d6d9de; border: 1px solid #313847; border-radius: 5px;
+  padding: 2px 4px; }
+.ap-ligne select { background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 5px; padding: 2px; }
+.ap-ligne input[type="range"] { flex: 1; }
+.ap-stops { border-top: 1px dashed #313847; padding-top: 6px;
+  display: flex; flex-direction: column; gap: 4px; }
+.ap-stop { display: flex; align-items: center; gap: 6px; }
+.ap-stop input[type="number"] { width: 48px; background: #232833;
+  color: #d6d9de; border: 1px solid #313847; border-radius: 5px;
+  padding: 1px 3px; }
+.ap-stop input[type="color"] { width: 26px; height: 20px; padding: 1px;
+  border: 1px solid #313847; border-radius: 4px; background: #232833; }
+.calque .op { width: 44px; background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 5px; padding: 1px 3px;
+  font-size: 11px; }

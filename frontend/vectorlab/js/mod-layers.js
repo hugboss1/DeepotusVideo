@@ -2,8 +2,8 @@
 // est l'ordre de peinture : le panneau s'affiche INVERSÉ (le dessus en
 // haut). Toute mutation passe par les commandes pures via VL.executer.
 import { op_calque_ajouter, op_calque_renommer, op_calque_reordonner,
-         op_calque_visible, op_calque_verrou, op_calque_supprimer }
-  from "./mod-doc.js";
+         op_calque_visible, op_calque_verrou, op_calque_supprimer,
+         op_calque_opacite } from "./mod-doc.js";
 
 export function initCalques(VL) {
   const { $, etat } = VL;
@@ -20,6 +20,9 @@ export function initCalques(VL) {
         <button data-act="verrou" class="${c.verrou ? "" : "off"}"
                 title="Verrou">🔒</button>
         <span class="nom">${c.nom || c.id}</span>
+        <input type="number" class="op" data-act="opacite" min="0" max="100"
+               value="${Math.round((c.opacite ?? 1) * 100)}"
+               title="Opacité du calque (%)"/>
         <button data-act="monter" title="Monter d'un cran">▲</button>
         <button data-act="descendre" title="Descendre d'un cran">▼</button>
         <button data-act="poubelle" title="Supprimer le calque et ses objets">🗑</button>
@@ -36,9 +39,17 @@ export function initCalques(VL) {
     if (nom !== null) VL.executer(op_calque_renommer, id, nom);
   });
 
+  $("#listeCalques").addEventListener("change", (ev) => {
+    const ligne = ev.target.closest(".calque");
+    if (!ligne || ev.target.dataset.act !== "opacite") return;
+    VL.executer(op_calque_opacite, ligne.dataset.calque,
+                Math.max(0, Math.min(100, +ev.target.value)) / 100);
+  });
+
   $("#listeCalques").addEventListener("click", (ev) => {
     const ligne = ev.target.closest(".calque");
     if (!ligne) return;
+    if (ev.target.dataset.act === "opacite") return;   // l'input gère seul
     const id = ligne.dataset.calque;
     const act = ev.target.dataset.act;
     const c = etat.doc.calques.find((x) => x.id === id);
