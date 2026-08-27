@@ -17,6 +17,19 @@ export function parserDoc(doc) {
     if (!c.id) throw new Error("calque sans id");
     if (!Array.isArray(c.objets)) throw new Error(`calque ${c.id}: objets[] requis`);
   }
+  // éditeur complet (E1) : deux champs OPTIONNELS rétro-compatibles —
+  // l'unité d'affichage (le document reste en px) et la palette sauvée
+  if (doc.unites !== undefined) {
+    const u = doc.unites;
+    if (!u || typeof u !== "object"
+        || !["px", "mm", "cm", "in"].includes(u.affichage)
+        || !(+u.dpi > 0)) {
+      throw new Error("document: unites {affichage px|mm|cm|in, dpi>0}");
+    }
+  }
+  if (doc.palette !== undefined && !Array.isArray(doc.palette)) {
+    throw new Error("document: palette = liste de couleurs");
+  }
   return doc;
 }
 
