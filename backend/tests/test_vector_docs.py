@@ -319,3 +319,108 @@ def test_les_routes_vignette():
             assert r.json()["meta"]["vignette"] is True
 
     asyncio.run(scenario())
+
+
+# ── H. les liaisons (phase 6) : instancier par RÉFÉRENCE, zéro orpheline ─────
+# Un seul document derrière toutes les instances — l'édition se voit partout
+# par construction ; retirer la liaison ne touche jamais le doc.
+
+def test_le_crud_des_liaisons():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # un doc de bibliothèque (sans chapitre) et un doc propre à ch-p6a
+            r = await c.post("/api/vector/docs", json={
+                "name": "Décor partagé p6", "role": "decor", "doc": _doc()})
+            biblio = r.json()["id"]
+            r = await c.post("/api/vector/docs", json={
+                "name": "Propre p6", "role": "decor", "chapter_id": "ch-p6a",
+                "doc": _doc()})
+            propre = r.json()["id"]
+            # instancier le même doc dans DEUX chapitres
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6a", "doc_id": biblio})
+            assert r.status_code == 200, r.text
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6b", "doc_id": biblio})
+            assert r.status_code == 200
+            # refus nets : doublon → 409 ; déjà PROPRE au chapitre → 409 ;
+            # doc inconnu → 404 ; corps incomplet → 400
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6a", "doc_id": biblio})
+            assert r.status_code == 409
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6a", "doc_id": propre})
+            assert r.status_code == 409
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6a",
+                                   "doc_id": "fantome"})
+            assert r.status_code == 404
+            r = await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6a"})
+            assert r.status_code == 400
+            # GET filtré par chapitre puis par doc
+            r = await c.get("/api/vector/links",
+                            params={"chapter_id": "ch-p6b"})
+            assert [l["doc_id"] for l in r.json()["links"]] == [biblio]
+            r = await c.get("/api/vector/links", params={"doc_id": biblio})
+            assert sorted(l["chapter_id"] for l in r.json()["links"]) == \
+                ["ch-p6a", "ch-p6b"]
+            # retirer la liaison : elle part, le doc ne bouge pas
+            r = await c.delete("/api/vector/links",
+                               params={"chapter_id": "ch-p6b",
+                                       "doc_id": biblio})
+            assert r.status_code == 200
+            r = await c.get("/api/vector/links", params={"doc_id": biblio})
+            assert [l["chapter_id"] for l in r.json()["links"]] == ["ch-p6a"]
+            r = await c.get(f"/api/vector/docs/{biblio}")
+            assert r.status_code == 200
+            # retirer une liaison absente → 404
+            r = await c.delete("/api/vector/links",
+                               params={"chapter_id": "ch-p6b",
+                                       "doc_id": biblio})
+            assert r.status_code == 404
+
+    asyncio.run(scenario())
+
+
+def test_supprimer_doc_ou_chapitre_emporte_les_liaisons():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # DELETE du doc → ses liaisons partent avec lui
+            r = await c.post("/api/vector/docs", json={
+                "name": "Éphémère p6", "role": "decor", "doc": _doc()})
+            did = r.json()["id"]
+            await c.post("/api/vector/links",
+                         json={"chapter_id": "ch-p6c", "doc_id": did})
+            await c.delete(f"/api/vector/docs/{did}")
+            r = await c.get("/api/vector/links", params={"doc_id": did})
+            assert r.json()["links"] == []
+            # DELETE du chapitre (le vrai, celui de l'Atelier) → pareil
+            r = await c.post("/api/chapters", json={"title": "Chapitre banc p6"})
+            chid = r.json()["id"]
+            r = await c.post("/api/vector/docs", json={
+                "name": "Autre p6", "role": "decor", "doc": _doc()})
+            d2 = r.json()["id"]
+            await c.post("/api/vector/links",
+                         json={"chapter_id": chid, "doc_id": d2})
+            r = await c.delete(f"/api/chapters/{chid}")
+            assert r.status_code == 200
+            r = await c.get("/api/vector/links", params={"chapter_id": chid})
+            assert r.json()["links"] == []
+            await c.delete(f"/api/vector/docs/{d2}")   # banc propre
+
+    asyncio.run(scenario())

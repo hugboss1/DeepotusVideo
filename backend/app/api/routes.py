@@ -4846,11 +4846,17 @@ async def update_chapter(chapter_id: str, body: dict):
 
 @router.delete("/chapters/{chapter_id}")
 async def delete_chapter(chapter_id: str):
-    from app.services.storage import Chapter, async_session_factory
+    from sqlalchemy import delete as _delete
+    from app.services.storage import (Chapter, VectorDocLink,
+                                      async_session_factory)
     async with async_session_factory() as session:
         ch = await session.get(Chapter, chapter_id)
         if not ch:
             raise HTTPException(404, "Chapter not found")
+        # phase 6 Vectorlab : les liaisons d'instanciation partent avec le
+        # chapitre (les documents, eux, ne bougent pas)
+        await session.execute(_delete(VectorDocLink)
+                              .where(VectorDocLink.chapter_id == chapter_id))
         await session.delete(ch)
         await session.commit()
     return {"ok": True}
@@ -5276,9 +5282,12 @@ async def update_vector_doc(doc_id: str, body: dict):
 
 @router.delete("/vector/docs/{doc_id}")
 async def delete_vector_doc(doc_id: str):
-    """Archive le contenu (dernière version sur disque) et retire l'index."""
+    """Archive le contenu (dernière version sur disque) et retire l'index —
+    ses liaisons d'instanciation partent avec lui (jamais d'orphelines)."""
+    from sqlalchemy import delete as _delete
     from app.services import vector_store as VS
-    from app.services.storage import VectorDoc, async_session_factory
+    from app.services.storage import (VectorDoc, VectorDocLink,
+                                      async_session_factory)
     async with async_session_factory() as session:
         row = await session.get(VectorDoc, doc_id)
         if not row:
@@ -5287,6 +5296,8 @@ async def delete_vector_doc(doc_id: str):
             VS.supprimer(doc_id)
         except FileNotFoundError:
             pass                      # index orphelin : on nettoie quand même
+        await session.execute(_delete(VectorDocLink)
+                              .where(VectorDocLink.doc_id == doc_id))
         await session.delete(row)
         await session.commit()
     return {"ok": True}
@@ -5320,6 +5331,70 @@ async def get_vector_export_svg(doc_id: str):
         raise HTTPException(404, "Aucun export encore : exporte d'abord "
                                  "depuis l'éditeur (bouton Exporter → SVG)")
     return Response(content=svg, media_type="image/svg+xml")
+
+
+# Les liaisons d'instanciation (phase 6) : un chapitre RÉFÉRENCE un doc de
+# la bibliothèque globale ou d'un autre chapitre, sans copie — un seul
+# document, l'édition se voit partout. Jamais d'orphelines : DELETE du doc
+# et DELETE du chapitre emportent leurs liaisons.
+
+def _vector_link_dict(l) -> dict:
+    return {"chapter_id": l.chapter_id, "doc_id": l.doc_id,
+            "created_at": l.created_at.isoformat() if l.created_at else None}
+
+
+@router.post("/vector/links")
+async def create_vector_link(body: dict):
+    """Body: {chapter_id, doc_id} — instancie le doc dans le chapitre par
+    référence. 409 déjà lié ou déjà propre au chapitre, 404 doc inconnu."""
+    from app.services.storage import (VectorDoc, VectorDocLink,
+                                      async_session_factory)
+    chapter_id = str(body.get("chapter_id") or "").strip()
+    doc_id = str(body.get("doc_id") or "").strip()
+    if not chapter_id or not doc_id:
+        raise HTTPException(400, "chapter_id et doc_id requis")
+    async with async_session_factory() as session:
+        doc = await session.get(VectorDoc, doc_id)
+        if not doc:
+            raise HTTPException(404, "Document introuvable")
+        if doc.chapter_id == chapter_id:
+            raise HTTPException(409, "Ce document est déjà propre à ce "
+                                     "chapitre — rien à instancier")
+        if await session.get(VectorDocLink, (chapter_id, doc_id)):
+            raise HTTPException(409, "Déjà instancié dans ce chapitre")
+        session.add(VectorDocLink(chapter_id=chapter_id, doc_id=doc_id))
+        await session.commit()
+    return {"ok": True, "chapter_id": chapter_id, "doc_id": doc_id}
+
+
+@router.get("/vector/links")
+async def list_vector_links(chapter_id: str = "", doc_id: str = ""):
+    from app.services.storage import VectorDocLink, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        q = select(VectorDocLink)
+        if chapter_id:
+            q = q.where(VectorDocLink.chapter_id == chapter_id)
+        if doc_id:
+            q = q.where(VectorDocLink.doc_id == doc_id)
+        rows = (await session.execute(
+            q.order_by(VectorDocLink.created_at.desc()))).scalars().all()
+        return {"links": [_vector_link_dict(l) for l in rows]}
+
+
+@router.delete("/vector/links")
+async def delete_vector_link(chapter_id: str = "", doc_id: str = ""):
+    """Retire la liaison — le document, lui, ne bouge pas."""
+    from app.services.storage import VectorDocLink, async_session_factory
+    if not chapter_id or not doc_id:
+        raise HTTPException(400, "chapter_id et doc_id requis")
+    async with async_session_factory() as session:
+        l = await session.get(VectorDocLink, (chapter_id, doc_id))
+        if not l:
+            raise HTTPException(404, "Liaison introuvable")
+        await session.delete(l)
+        await session.commit()
+    return {"ok": True}
 
 
 _PNG_MAGIC = b"\x89PNG\r\n\x1a\n"

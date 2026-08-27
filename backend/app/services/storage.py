@@ -199,6 +199,21 @@ class VectorDoc(Base):
                                                  default=datetime.utcnow)
 
 
+class VectorDocLink(Base):
+    """Vectorlab (phase 6) — liaison d'INSTANCIATION chapitre↔document : le
+    chapitre référence un doc (bibliothèque globale ou doc d'un autre
+    chapitre) SANS copie — un seul document, l'édition se voit partout ;
+    « dupliquer » crée la copie indépendante et retire la liaison. PK
+    composite = unicité de la paire ; table neuve : create_all suffit."""
+    __tablename__ = "vector_doc_links"
+
+    chapter_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    doc_id: Mapped[str] = mapped_column(String(36), primary_key=True,
+                                        index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime,
+                                                 default=datetime.utcnow)
+
+
 class Chapter(Base):
     """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
     spans linking text zones to bible entities ([{start,end,text,entity_id}]
