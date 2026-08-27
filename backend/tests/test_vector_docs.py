@@ -486,3 +486,64 @@ def test_la_liste_par_chapitre_fusionne_et_la_recherche_filtre():
             assert [d["id"] for d in r.json()["docs"]] == [lie2]
 
     asyncio.run(scenario())
+
+
+# ── J. dupliquer pour diverger : la copie remplace la référence ──────────────
+
+def test_dupliquer_isole():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # source de bibliothèque : v2 sur disque, vignette, lié à ch-p6d
+            r = await c.post("/api/vector/docs", json={
+                "name": "Source p6", "role": "decor",
+                "doc": _doc("Source p6")})
+            src = r.json()["id"]
+            await c.put(f"/api/vector/docs/{src}",
+                        json={"doc": _doc("Source v2")})
+            await c.post(f"/api/vector/docs/{src}/vignette",
+                         content=_PNG_MIN,
+                         headers={"Content-Type": "image/png"})
+            await c.post("/api/vector/links",
+                         json={"chapter_id": "ch-p6d", "doc_id": src})
+            # dupliquer DANS le chapitre : copie indépendante v1, liaison
+            # RETIRÉE (la copie remplace la référence)
+            r = await c.post(f"/api/vector/docs/{src}/duplicate",
+                             json={"chapter_id": "ch-p6d"})
+            assert r.status_code == 200, r.text
+            cid = r.json()["id"]
+            assert cid != src and r.json()["version"] == 1
+            r = await c.get(f"/api/vector/docs/{cid}")
+            m, d = r.json()["meta"], r.json()["doc"]
+            assert m["chapter_id"] == "ch-p6d" and m["role"] == "decor"
+            assert m["version"] == 1
+            assert m["name"] == "Source p6 (copie)"
+            assert d["nom"] == "Source v2"      # le contenu COURANT du disque
+            assert m["vignette"] is True        # vignette héritée
+            r = await c.get("/api/vector/links", params={"doc_id": src})
+            assert r.json()["links"] == []
+            # la divergence est réelle : éditer le source laisse la copie
+            await c.put(f"/api/vector/docs/{src}",
+                        json={"doc": _doc("Source v3")})
+            r = await c.get(f"/api/vector/docs/{cid}")
+            assert r.json()["doc"]["nom"] == "Source v2"
+            # dupliquer SANS chapitre → copie de bibliothèque, nom sur mesure
+            r = await c.post(f"/api/vector/docs/{src}/duplicate",
+                             json={"name": "Copie libre p6"})
+            cid2 = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{cid2}")
+            assert r.json()["meta"]["chapter_id"] is None
+            assert r.json()["meta"]["name"] == "Copie libre p6"
+            # source inconnue → 404
+            r = await c.post("/api/vector/docs/fantome/duplicate", json={})
+            assert r.status_code == 404
+            for i in (cid, cid2):               # banc propre
+                await c.delete(f"/api/vector/docs/{i}")
+
+    asyncio.run(scenario())

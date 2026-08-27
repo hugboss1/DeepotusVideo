@@ -5322,6 +5322,38 @@ async def delete_vector_doc(doc_id: str):
     return {"ok": True}
 
 
+@router.post("/vector/docs/{doc_id}/duplicate")
+async def duplicate_vector_doc(doc_id: str, body: dict):
+    """Body: {chapter_id?, name?} — la copie INDÉPENDANTE qui fait diverger :
+    contenu COURANT relu du disque, id neuf, version 1, rôle copié,
+    entity_id non copié ; ancrée au chapitre demandé (sinon bibliothèque).
+    Si la liaison (chapter_id, source) existe elle est RETIRÉE — la copie
+    remplace la référence. La vignette du source est copiée."""
+    from app.services import vector_store as VS
+    from app.services.storage import (VectorDoc, VectorDocLink,
+                                      async_session_factory)
+    chapter_id = (body.get("chapter_id") or None)
+    async with async_session_factory() as session:
+        src = await session.get(VectorDoc, doc_id)
+        if not src:
+            raise HTTPException(404, "Document introuvable")
+        try:
+            nid = VS.creer(VS.lire(doc_id))
+        except FileNotFoundError:
+            raise HTTPException(404, "Contenu du document introuvable")
+        VS.copier_vignette(doc_id, nid)
+        name = (str(body.get("name") or "").strip()
+                or f"{src.name} (copie)")[:120]
+        session.add(VectorDoc(id=nid, name=name, chapter_id=chapter_id,
+                              role=src.role, version=1))
+        if chapter_id:
+            lien = await session.get(VectorDocLink, (chapter_id, doc_id))
+            if lien:
+                await session.delete(lien)
+        await session.commit()
+    return {"id": nid, "version": 1}
+
+
 @router.post("/vector/docs/{doc_id}/export")
 async def export_vector_doc(doc_id: str, body: dict):
     """Body: {svg}. Le CLIENT compile (compilateur unique du Vectorlab,
