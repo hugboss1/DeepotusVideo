@@ -115,3 +115,33 @@ def supprimer(did: str) -> None:
     if not courant.is_file():
         raise FileNotFoundError(did)
     os.replace(courant, d / f"{did}.v{version(did)}.json")
+
+
+def ecrire_vignette(did: str, octets: bytes) -> str:
+    """Vignette PNG (mini-export du client au save) — `<did>.png` à côté du
+    JSON, écriture atomique. Le magasin stocke des octets ; le magic PNG se
+    vérifie à la ROUTE."""
+    d = _dossier()
+    if not (d / f"{did}.json").is_file():
+        raise FileNotFoundError(did)
+    tmp = d / f"{did}.png.tmp"
+    tmp.write_bytes(octets)
+    os.replace(tmp, d / f"{did}.png")
+    return f"{did}.png"
+
+
+def lire_vignette(did: str):
+    p = _dossier() / f"{did}.png"
+    return p.read_bytes() if p.is_file() else None
+
+
+def a_vignette(did: str) -> bool:
+    return (_dossier() / f"{did}.png").is_file()
+
+
+def copier_vignette(src: str, dst: str) -> None:
+    """Socle de « dupliquer » : la copie hérite de la vignette du source —
+    no-op silencieux si le source n'en a pas."""
+    octets = lire_vignette(src)
+    if octets is not None:
+        ecrire_vignette(dst, octets)

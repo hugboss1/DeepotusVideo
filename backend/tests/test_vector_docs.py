@@ -248,3 +248,74 @@ def test_le_mount_vectorlab_et_le_panneau_atelier():
     assert "/vector/docs?chapter_id=" in js
     assert "/vectorlab/?doc=" in js
     assert "loadVectorDocs" in js
+
+
+# ── G. les vignettes (phase 6) : mini-PNG au save, à CÔTÉ du JSON ────────────
+# Jamais par /images/upload : chaque sauvegarde spammerait la Library réelle.
+# Le magasin stocke des octets ; c'est la ROUTE qui vérifie le magic PNG.
+
+_PNG_MIN = b"\x89PNG\r\n\x1a\n" + b"vectorlab-banc-p6"
+
+
+def test_le_magasin_des_vignettes_ecrit_lit_copie():
+    from app.services import vector_store as VS
+    did = VS.creer(_doc("Vignette"))
+    assert VS.a_vignette(did) is False
+    assert VS.lire_vignette(did) is None
+    VS.ecrire_vignette(did, _PNG_MIN)
+    assert VS.a_vignette(did) is True
+    assert VS.lire_vignette(did) == _PNG_MIN
+    dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+    assert (dossier / f"{did}.png").is_file()
+    # la copie (socle de « dupliquer ») : la cible hérite des mêmes octets
+    d2 = VS.creer(_doc("Copie"))
+    VS.copier_vignette(did, d2)
+    assert VS.lire_vignette(d2) == _PNG_MIN
+    # source sans vignette → no-op silencieux, rien de créé
+    d3 = VS.creer(_doc("Sans"))
+    VS.copier_vignette("fantome", d3)
+    assert VS.a_vignette(d3) is False
+
+
+def test_les_routes_vignette():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={
+                "name": "Vignette route", "role": "decor", "doc": _doc()})
+            did = r.json()["id"]
+            # avant la première : 404 parlant, et la méta le dit
+            r = await c.get(f"/api/vector/docs/{did}/vignette.png")
+            assert r.status_code == 404
+            assert "vignette" in r.json()["detail"].lower()
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["meta"]["vignette"] is False
+            # refus nets : pas un PNG ; doc inconnu
+            r = await c.post(f"/api/vector/docs/{did}/vignette",
+                             content=b"PAS UN PNG",
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 400
+            r = await c.post("/api/vector/docs/fantome/vignette",
+                             content=_PNG_MIN,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 404
+            # la vignette s'écrit puis se sert au bon type, octets exacts
+            r = await c.post(f"/api/vector/docs/{did}/vignette",
+                             content=_PNG_MIN,
+                             headers={"Content-Type": "image/png"})
+            assert r.status_code == 200, r.text
+            assert r.json()["filename"] == f"{did}.png"
+            r = await c.get(f"/api/vector/docs/{did}/vignette.png")
+            assert r.status_code == 200
+            assert r.headers["content-type"].startswith("image/png")
+            assert r.content == _PNG_MIN
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["meta"]["vignette"] is True
+
+    asyncio.run(scenario())

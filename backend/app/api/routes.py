@@ -5189,9 +5189,11 @@ _VECTOR_ROLES = ("decor", "lumiere", "personnage", "libre")
 
 
 def _vector_meta(row) -> dict:
+    from app.services import vector_store as VS
     return {"id": row.id, "name": row.name, "chapter_id": row.chapter_id,
             "entity_id": row.entity_id, "role": row.role,
             "version": row.version,
+            "vignette": VS.a_vignette(row.id),
             "updated_at": (row.updated_at.isoformat()
                            if row.updated_at else None)}
 
@@ -5318,6 +5320,38 @@ async def get_vector_export_svg(doc_id: str):
         raise HTTPException(404, "Aucun export encore : exporte d'abord "
                                  "depuis l'éditeur (bouton Exporter → SVG)")
     return Response(content=svg, media_type="image/svg+xml")
+
+
+_PNG_MAGIC = b"\x89PNG\r\n\x1a\n"
+
+
+@router.post("/vector/docs/{doc_id}/vignette")
+async def set_vector_vignette(doc_id: str, request: Request):
+    """Corps binaire image/png : la MINI-vignette rasterisée par le client
+    au save. Stockée `<id>.png` à côté du JSON — jamais par /images/upload,
+    la Library réelle reste propre."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    octets = await request.body()
+    if not octets.startswith(_PNG_MAGIC):
+        raise HTTPException(400, "vignette: un PNG est attendu")
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    try:
+        return {"filename": VS.ecrire_vignette(doc_id, octets)}
+    except FileNotFoundError:
+        raise HTTPException(404, "Contenu du document introuvable")
+
+
+@router.get("/vector/docs/{doc_id}/vignette.png")
+async def get_vector_vignette(doc_id: str):
+    from app.services import vector_store as VS
+    octets = VS.lire_vignette(doc_id)
+    if octets is None:
+        raise HTTPException(404, "Aucune vignette encore : elle naît au "
+                                 "premier Sauver dans l'éditeur")
+    return Response(content=octets, media_type="image/png")
 
 
 @router.get("/vector/vitrail")
