@@ -190,6 +190,23 @@ export function initOutils(VL) {
       if (o && o.objet.type === "path") VL.setSelection([idCible]);
       return;
     }
+
+    if (etat.outil === "texte") {
+      const [ax, ay] = VL.aimantePt(dx, dy);
+      const contenu = prompt("Texte :", "");
+      if (contenu) {
+        const sc = etat.styleCourant;
+        const fill = (sc.fond && sc.fond !== "none"
+                      && !String(sc.fond).startsWith("grad:"))
+          ? sc.fond : (sc.contour && sc.contour !== "none"
+                       ? sc.contour : "#1F1512");
+        const id = VL.executer(op_ajouter, etat.calqueActif,
+          { type: "texte", x: ax, y: ay, contenu,
+            style: { fond: fill, police: "Segoe UI", corps: 24 } });
+        if (id) { VL.setOutil("select"); VL.setSelection([id]); }
+      }
+      return;
+    }
   });
 
   /* ═══════════ pointermove : les aperçus ═══════════ */
@@ -398,6 +415,25 @@ export function initOutils(VL) {
 
   /* ═══════════ double-clic : conversion d'ancre ═══════════ */
   stage.addEventListener("dblclick", (ev) => {
+    if (etat.outil === "select") {
+      // rééditer un texte en place
+      const el = ev.target.closest && ev.target.closest("[data-objet]");
+      if (el) {
+        const o = _objetProfond(etat.doc, el.dataset.objet);
+        if (o && o.type === "texte") {
+          const contenu = prompt("Texte :", o.contenu || "");
+          if (contenu !== null) {
+            const cibleId = o.id;
+            VL.executer((doc) => {
+              const c = _objetProfond(doc, cibleId);
+              if (!c) throw new Error("texte introuvable");
+              c.contenu = contenu;
+            });
+          }
+          return;
+        }
+      }
+    }
     if (etat.outil === "noeuds") {
       const ancre = ev.target.closest && ev.target.closest(".ancre");
       const p = VL.pathSelectionne();

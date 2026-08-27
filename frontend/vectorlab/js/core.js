@@ -393,7 +393,7 @@ document.addEventListener("keydown", (ev) => {
   if (ev.ctrlKey && ev.key.toLowerCase() === "s") { sauver(); ev.preventDefault(); return; }
   if (ev.ctrlKey) return;
   const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
-                   n: "noeuds", i: "pipette" };
+                   n: "noeuds", i: "pipette", t: "texte" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") {

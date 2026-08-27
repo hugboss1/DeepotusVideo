@@ -7,6 +7,7 @@ import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
          op_degrade_modifier, op_degrade_stop_ajouter,
          op_degrade_stop_modifier, op_degrade_stop_supprimer }
   from "./mod-doc.js";
+import { op_booleen, op_division } from "./mod-bool.js";
 
 const POINTILLES = [["", "plein"], ["6 4", "tirets"], ["2 3", "points"]];
 const JOINTS = ["round", "miter", "bevel"];
@@ -117,6 +118,31 @@ export function initStyle(VL) {
           && objetReflete().type === "groupe" ? "" : "disabled"}
                 title="Dissoudre le groupe (son transform suit les enfants)">Dégrouper</button>
       </div>
+      <div class="ap-ligne"><span>Booléens</span>
+        <button data-bool="union" ${sel >= 2 ? "" : "disabled"}
+                title="Union — fusionne la sélection en un chemin">∪</button>
+        <button data-bool="soustraction" ${sel >= 2 ? "" : "disabled"}
+                title="Soustraction — le plus BAS moins les autres">⊖</button>
+        <button data-bool="intersection" ${sel >= 2 ? "" : "disabled"}
+                title="Intersection — la partie commune">∩</button>
+        <button data-bool="division" ${sel >= 2 ? "" : "disabled"}
+                title="Division — le preset vitrail : la plaque (le plus BAS) est découpée par les autres — un plomb TRACÉ découpe par son épaisseur — en fragments indépendants ; les plombs restent">⧉</button>
+      </div>
+      ${objetReflete() && objetReflete().type === "texte" ? `
+      <div class="ap-ligne"><span>Fonte</span>
+        <input type="text" id="apPolice" value="${s.police || "Segoe UI"}"
+               title="Famille de fonte" style="width:90px"/>
+        <input type="number" id="apCorps" min="4" max="400"
+               value="${s.corps || 16}" title="Corps"/>
+      </div>
+      <div class="ap-ligne"><span></span>
+        <select id="apGraisse" title="Graisse">${["normal", "bold", "300",
+          "600", "800"].map((g) => `<option${(s.graisse || "normal") === g
+          ? " selected" : ""}>${g}</option>`).join("")}</select>
+        <input type="number" id="apInterlettrage" step="0.5" min="-10"
+               max="40" value="${s.interlettrage || 0}"
+               title="Interlettrage"/>
+      </div>` : ""}
       ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
         ${g.stops.map((st, i) => `<div class="ap-stop">
           <input type="color" data-stop="${i}" value="${st.couleur}"/>
@@ -163,6 +189,29 @@ export function initStyle(VL) {
       const ids = VL.executer(op_degrouper, etat.selection[0]);
       if (ids) VL.setSelection(ids);
     });
+    hote.querySelectorAll("[data-bool]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const sel2 = etat.selection.slice();
+        if (sel2.length < 2) return;
+        if (b.dataset.bool === "division") {
+          const ids = VL.executer(op_division, sel2);
+          if (ids) VL.setSelection(ids);
+        } else {
+          const id = VL.executer(op_booleen, sel2, b.dataset.bool);
+          if (id) VL.setSelection([id]);
+        }
+      }));
+    if (objetReflete() && objetReflete().type === "texte") {
+      $("#apPolice").addEventListener("change",
+        (e) => appliquer({ police: e.target.value || null }));
+      $("#apCorps").addEventListener("change",
+        (e) => appliquer({ corps: Math.max(4, +e.target.value || 16) }));
+      $("#apGraisse").addEventListener("change",
+        (e) => appliquer({ graisse: e.target.value === "normal"
+                                    ? null : e.target.value }));
+      $("#apInterlettrage").addEventListener("change",
+        (e) => appliquer({ interlettrage: +e.target.value || null }));
+    }
     if (g) {
       hote.querySelectorAll("[data-stop]").forEach((inp) =>
         inp.addEventListener("change", () => VL.executer(
