@@ -798,6 +798,9 @@ const STYLE_PRESETS = [
   { label: "SF rétro-futuriste", canon: "bd_realiste", sp: "retro-futuristic science-fiction concept art, neon accents, brutalist megastructures, atmospheric haze" },
   { label: "Aquarelle", canon: "davinci", sp: "watercolor illustration, soft washes, visible paper grain, delicate ink lines, muted palette" },
   { label: "Noir encré", canon: "davinci", sp: "high-contrast black and white ink illustration, film noir shadows, dramatic chiaroscuro, crosshatching" },
+  // Miroir du preset backend "vitrail" — le sp est LE bloc de la fiche épinglée
+  // style_vitrail.json (test_style_vitrail.py vérifie l'égalité, zéro dérive).
+  { label: "Vitrail Młoda Polska", canon: "vitrail", sp: "monumental Art Nouveau stained-glass window design, Central European modernism of about 1900: bold sinuous dark leadlines #1F1512, thick supple contours enclosing every shape and covering about a tenth of the canvas, irregular fragments of intensely saturated glass in 3 to 5 major colours - cobalt blue #0047AB, ruby red #9B111E, emerald green #046307, golden amber #DAA520, deep violet #4A235A - light transmitted from within the image as through a window, frontal ascending composition in a vertical or ogival bay, one central figure filling roughly two thirds of the height, simple hierarchy of figure then radiating halo then ornamental border of stylized flowers on the outer edge of the frame, flat decorative space with no deep linear perspective, high readability at distance" },
 ];
 // Miroir de PROPORTION_CANONS (backend) — canons de proportions issus des
 // grandes écoles: De Vinci, manga japonais, ligne claire belge, école
@@ -813,6 +816,7 @@ const PROPORTION_CANONS = [
   { id: "gros_nez", label: "Comique franco-belge (gros nez)", hint: "4–5,5 têtes (Astérix, Gaston, Gotlib) : gros nez rond, membres élastiques, gros souliers." },
   { id: "bd_realiste", label: "BD réaliste (Moebius)", hint: "≈8 têtes élégantes et élancées (Moebius/Jodorowsky), trait fin, hachures." },
   { id: "comics_heroic", label: "Comics héroïque (DC/Marvel)", hint: "8,5–9 têtes, épaules de 3 têtes de large, torse en V, musculature dessinée." },
+  { id: "vitrail", label: "Vitrail Młoda Polska", hint: "Figure monumentale frontale 7–8 têtes, visage aux contours forts et sereins, espace décoratif APLATI (plomb + verre, pas de perspective profonde)." },
 ];
 let daSettings = {};
 

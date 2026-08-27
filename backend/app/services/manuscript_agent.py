@@ -478,6 +478,40 @@ def parse_fountain_segments(fountain_text: str) -> list[dict]:
 
 # ───────────────── DA. direction artistique proposée ─────────────────
 
+# Copie épinglée du skill vitrail-mloda-polska (chantier 27/08) : le
+# compositeur (`style_vitrail.py`) et la grammaire machine
+# (`style_vitrail.json`) vivent EN DÉPÔT pour le backend déployé, où
+# ~/.claude/skills/ n'existe pas. Toute retouche se fait AU SKILL puis se
+# recopie (leçon phase 6) — tests/test_style_vitrail.py recalcule les
+# empreintes (LF normalisé) et compare au skill sur le poste de dev.
+VITRAIL_COPIE = {
+    "origine": "skill vitrail-mloda-polska (user-level, ~/.claude/skills/"
+               "vitrail-mloda-polska/) — scripts/vitrail_prompt.py + "
+               "fiche_style.json",
+    "copie_le": "2026-08-27",
+    "source_grammaire": "docs/superpowers/specs/"
+                        "2026-08-27-guide-skill-prompts-mloda-polska.md "
+                        "(guide utilisateur, commit 4e8b026)",
+    "sha256": {
+        "style_vitrail.py":
+            "d84f03b0001b1e9d6a533132694940a646922d68f9f4764adbdc607af47af7d7",
+        "style_vitrail.json":
+            "83ed6897ab8528c6901eff21d2c3f46bc7b3e5a54e09627eee2baab0d133b9c1",
+    },
+}
+
+# Le bloc de style du preset vitrail VIENT de la fiche épinglée (zéro dérive
+# possible entre le chip du DA et ce que /images/generate applique). Repli
+# court si la copie manquait (déploiement partiel) : la DA reste utilisable.
+try:
+    from app.services import style_vitrail as _vitrail
+    _VITRAIL_BLOC = _vitrail.bloc_style("vitrail")
+except Exception:                                     # pragma: no cover
+    _VITRAIL_BLOC = ("monumental Art Nouveau stained-glass window design, "
+                     "Central European modernism of about 1900, bold dark "
+                     "leadlines, saturated glass fields, light transmitted "
+                     "from within the image")
+
 # "canon" = canon de proportions par défaut du preset (PROPORTION_CANONS).
 STYLE_PRESETS = [
     {"id": "bd", "label": "BD franco-belge", "canon": "ligne_claire",
@@ -506,6 +540,8 @@ STYLE_PRESETS = [
     {"id": "noir", "label": "Noir encré", "canon": "davinci",
      "style_prompt": "high-contrast black and white ink illustration, film "
                      "noir shadows, dramatic chiaroscuro, crosshatching"},
+    {"id": "vitrail", "label": "Vitrail Młoda Polska", "canon": "vitrail",
+     "style_prompt": _VITRAIL_BLOC},
 ]
 
 
@@ -770,6 +806,35 @@ PROPORTION_CANONS = {
                   "urban canyons, bold cast shadows, impact perspective"),
         "kw": ["comics", "american comic", "superhero", "dc", "marvel",
                "super", "héro", "hero"],
+    },
+    # Chantier vitrail 27/08 — un canon dédié plutôt que De Vinci : le champ
+    # "decor" académique impose une perspective linéaire vraie, exactement ce
+    # que l'espace décoratif APLATI du vitrail refuse. Les proportions restent
+    # monumentales (figure frontale lisible de loin, guide §3.A).
+    "vitrail": {
+        "label": "Vitrail Młoda Polska",
+        "frame": "portrait_16_9",
+        "heads": (6.5, 8.5),
+        "framing": ("in the final image the head spans barely one eighth of "
+                    "the frame height and the standing figure fills about "
+                    "two thirds of the frame height, monumental frontal "
+                    "window figure"),
+        "char": ("monumental stained-glass figure proportions: an elongated "
+                 "frontal adult figure 7 to 8 heads tall — the head is only "
+                 "one eighth of the total height, long legs make up half the "
+                 "total height; simplified monumental silhouette readable "
+                 "from afar, frontal ascending posture — never squat, never "
+                 "compressed, no oversized head"),
+        "face": ("stylized serene face drawn by strong supple contour lines, "
+                 "simplified features, calm frontal or three-quarter gaze, "
+                 "decorative hair masses"),
+        "decor": ("flat decorative stained-glass space: ornamental flattened "
+                  "background, stylized plants and geometric rays, no deep "
+                  "linear perspective, bold leadline contours around every "
+                  "shape, ornamental border framing the scene"),
+        "kw": ["vitrail", "stained glass", "stained-glass", "witraż",
+               "witraz", "mloda", "młoda", "jeune pologne", "young poland",
+               "leadline"],
     },
 }
 _DEFAULT_CANON = "davinci"

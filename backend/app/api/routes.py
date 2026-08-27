@@ -1857,19 +1857,36 @@ def _paragraph_scenes(script: str) -> list[dict]:
             for p in paras[:60]]
 
 
-def _ai_scenes(script: str, lang: str) -> list[dict]:
+def _ai_scenes(script: str, lang: str, sujet_seul: bool = False) -> list[dict]:
+    """sujet_seul=True (option de style du chantier vitrail 27/08): l'agent
+    écrit des prompts SUJET — personnages, décor, action, ambiance — SANS
+    vocabulaire de style ni thème de marque; le bloc de style est appliqué
+    ensuite, de façon déterministe, par la route."""
     from app.services.summarizer import _chat_dispatch
     langname = "French" if lang.startswith("fr") else "English"
     n = max(3, min(12, len(script.split()) // 80 + 1))
-    system = ("You are a storyboard director for DEEPOTUS, a deep-sea / abyssal "
-              "themed brand. You split a narrated novel chapter into visual scenes "
-              "and write a vivid image prompt for each. Return ONLY valid JSON.")
+    if sujet_seul:
+        system = ("You are a storyboard director. You split a narrated novel "
+                  "chapter into visual scenes and write a concise "
+                  "subject-focused image prompt for each. Return ONLY valid "
+                  "JSON.")
+        consigne = (f"\"illustration_prompt\" = a concise subject-focused "
+                    f"image prompt in {langname} (characters, setting, "
+                    f"action, mood) WITHOUT any style vocabulary — no "
+                    f"medium, palette or art-movement words, the visual "
+                    f"style is applied separately")
+    else:
+        system = ("You are a storyboard director for DEEPOTUS, a deep-sea / abyssal "
+                  "themed brand. You split a narrated novel chapter into visual scenes "
+                  "and write a vivid image prompt for each. Return ONLY valid JSON.")
+        consigne = (f"\"illustration_prompt\" = a vivid cinematic image "
+                    f"prompt in {langname} (deep-sea, bioluminescent, "
+                    f"atmospheric)")
     prompt = (
         f"Split this chapter into about {n} sequential scenes for a narrated video. "
         f"For each scene return: \"text\" = the chapter text for that scene, COPIED "
         f"VERBATIM and in order so concatenating all texts reproduces the chapter; "
-        f"and \"illustration_prompt\" = a vivid cinematic image prompt in {langname} "
-        f"(deep-sea, bioluminescent, atmospheric). Return ONLY a JSON array "
+        f"and {consigne}. Return ONLY a JSON array "
         f"[{{\"text\":\"...\",\"illustration_prompt\":\"...\"}}].\n\nChapter:\n{script[:12000]}")
     out, _prov = _chat_dispatch(prompt, system, 4000)
     if not out:
@@ -1907,18 +1924,49 @@ async def episode_scenes(request: Request):
         raise HTTPException(400, "Empty script")
     method = (payload.get("method") or "paragraph").lower()
     lang = str(payload.get("language") or "en").lower()
+    # option de style (chantier vitrail 27/08): les prompts d'illustration
+    # naissent SUJET (l'agent n'écrit pas de style) puis le bloc de la
+    # famille est appliqué ici, de façon déterministe — les prompts restent
+    # éditables dans les cartes de scène.
+    style = (payload.get("style") or "").strip().lower()
+    if style:
+        from app.services import style_vitrail as SV
+        try:
+            SV.bloc_style(style)         # valide la famille avant tout travail
+        except KeyError as e:
+            raise HTTPException(400, f"Style inconnu: {e}")
+        except FileNotFoundError as e:
+            raise HTTPException(400, f"Style '{style}': {e}")
+
+    def _styliser(scenes: list[dict]) -> list[dict]:
+        if not style:
+            return scenes
+        from app.services import style_vitrail as SV
+        for s in scenes:
+            p = (s.get("illustration_prompt") or "").strip()
+            if not p:
+                continue
+            try:
+                s["illustration_prompt"] = SV.appliquer(SV.epurer_noms(p),
+                                                        style)
+            except ValueError:           # le prompt n'était QU'un nom épuré
+                s["illustration_prompt"] = ""
+        return scenes
+
     if method == "ai":
         from app.services.summarizer import available
         if not available():
             return {"scenes": [], "method": "ai",
                     "error": "Aucun LLM configuré (Réglages → clés API). Utilise le découpage par paragraphe."}
         loop = asyncio.get_running_loop()
-        scenes = await loop.run_in_executor(None, lambda: _ai_scenes(script, lang))
+        scenes = await loop.run_in_executor(
+            None, lambda: _ai_scenes(script, lang, sujet_seul=bool(style)))
         if not scenes:
             return {"scenes": [], "method": "ai",
                     "error": "Le découpage IA a échoué — réessaie, ou utilise les paragraphes."}
-        return {"scenes": scenes, "method": "ai", "count": len(scenes)}
-    scenes = _paragraph_scenes(script)
+        return {"scenes": _styliser(scenes), "method": "ai",
+                "count": len(scenes)}
+    scenes = _styliser(_paragraph_scenes(script))
     return {"scenes": scenes, "method": "paragraph", "count": len(scenes)}
 
 
@@ -3676,6 +3724,19 @@ async def generate_image(body: dict, background_tasks: BackgroundTasks):
         raise HTTPException(400, "prompt is required")
     n = max(1, min(4, int(body.get("n") or 1)))
     size = body.get("size") or "portrait_16_9"
+    # option de style (chantier vitrail 27/08): style="vitrail" (ou toute
+    # famille de la fiche épinglée) → le prompt de l'appelant garde son sujet
+    # et gagne le bloc de la famille + les garde-fous; un nom d'artiste tapé
+    # par l'utilisateur est épuré avant l'envoi (doctrine du skill).
+    style = (body.get("style") or "").strip().lower()
+    if style:
+        from app.services import style_vitrail as SV
+        try:
+            prompt = SV.appliquer(SV.epurer_noms(prompt), style)
+        except KeyError as e:
+            raise HTTPException(400, f"Style inconnu: {e}")
+        except (ValueError, FileNotFoundError) as e:
+            raise HTTPException(400, f"Style '{style}': {e}")
     model = (body.get("model") or "").strip().lower()
     if not model:
         # Callers that drive the API directly (plan agents, scripts) send no

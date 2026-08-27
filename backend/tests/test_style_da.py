@@ -251,6 +251,79 @@ async def main():
         # décors: la perspective/échelle du canon (De Vinci par défaut) est
         # injectée sur le panneau maître
         assert "true human scale" in CALLS[0]["arguments"]["prompt"]
+
+        # ── option vitrail (27/08): /images/generate applique le bloc épinglé
+        CALLS.clear()
+        r = await c.post("/api/images/generate",
+                         json={"prompt": "a lighthouse keeper", "n": 1,
+                               "model": "flux", "style": "vitrail"})
+        assert r.status_code == 200, r.text
+        envoye = CALLS[0]["arguments"]["prompt"]
+        assert envoye.startswith("a lighthouse keeper")
+        assert "#0047AB" in envoye and "entirely original artwork" in envoye
+        assert "wyspia" not in envoye.lower()
+        assert r.json()["prompt"] == envoye     # le prompt stylisé est rendu
+        # un nom d'artiste tapé par l'utilisateur est épuré avant l'envoi
+        CALLS.clear()
+        r = await c.post("/api/images/generate",
+                         json={"prompt": "after Wyspianski, a tall tower",
+                               "n": 1, "model": "flux", "style": "vitrail"})
+        assert r.status_code == 200, r.text
+        assert "wyspia" not in CALLS[0]["arguments"]["prompt"].lower()
+        assert "tall tower" in CALLS[0]["arguments"]["prompt"]
+        # sans style: prompt inchangé (non-régression)
+        CALLS.clear()
+        r = await c.post("/api/images/generate",
+                         json={"prompt": "plain subject", "n": 1,
+                               "model": "flux"})
+        assert r.status_code == 200, r.text
+        assert CALLS[0]["arguments"]["prompt"] == "plain subject"
+        # style inconnu: refus clair, aucune dépense
+        CALLS.clear()
+        r = await c.post("/api/images/generate",
+                         json={"prompt": "x", "model": "flux",
+                               "style": "gothico"})
+        assert r.status_code == 400, r.text
+        assert not CALLS
+
+        # ── option vitrail: /episodes/scenes stylise les prompts de scène ──
+        SCENES = json.dumps([
+            {"text": "Para un.", "illustration_prompt": "a keeper on a pier"},
+            {"text": "Para deux.",
+             "illustration_prompt": "a lake city at dusk"},
+        ])
+        CAP = []
+        SUMZ.available = lambda: True
+        SUMZ._chat_dispatch = lambda p, s, m: (CAP.append((p, s)) or SCENES,
+                                               "stub")
+        r = await c.post("/api/episodes/scenes",
+                         json={"script": "Para un.\n\nPara deux.",
+                               "method": "ai", "style": "vitrail"})
+        assert r.status_code == 200, r.text
+        sc = r.json()["scenes"]
+        assert len(sc) == 2
+        for s in sc:
+            assert s["illustration_prompt"].startswith(("a keeper", "a lake"))
+            assert "#0047AB" in s["illustration_prompt"]
+            assert "wyspia" not in s["illustration_prompt"].lower()
+        # avec style, la consigne LLM demande des prompts SUJET (le thème
+        # abyssal câblé ne s'impose plus); sans style, comportement d'origine
+        assert "deep-sea" not in CAP[-1][0]
+        CAP.clear()
+        r = await c.post("/api/episodes/scenes",
+                         json={"script": "Para un.\n\nPara deux.",
+                               "method": "ai"})
+        assert [s["illustration_prompt"] for s in r.json()["scenes"]] == \
+            ["a keeper on a pier", "a lake city at dusk"]
+        assert "deep-sea" in CAP[-1][0]
+        # paragraphes + style: la première phrase du paragraphe, stylisée
+        r = await c.post("/api/episodes/scenes",
+                         json={"script": "Para un.\n\nPara deux.",
+                               "method": "paragraph", "style": "vitrail"})
+        assert r.status_code == 200
+        for s in r.json()["scenes"]:
+            assert s["illustration_prompt"].startswith("Para")
+            assert "#0047AB" in s["illustration_prompt"]
     print("STYLE DA TEST: PASS")
 
 

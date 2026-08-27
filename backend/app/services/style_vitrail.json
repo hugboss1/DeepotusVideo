@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "nom": "vitrail-mloda-polska",
+  "source": "docs/superpowers/specs/2026-08-27-guide-skill-prompts-mloda-polska.md (depot DeepotusVideo, commit 4e8b026, guide fourni par l'utilisateur le 27/08/2026)",
+  "provenance": "Bornes et hex DECLARES depuis le vocabulaire du guide pedagogique - PAS mesures sur un corpus d'oeuvres (contrairement a la fiche walkuski, agregee sur 16 affiches). Les hex sont des ancres de pigments canoniques; les fractions sont des cibles de composition enoncees par le guide ou deduites de ses codes formels. Toute borne est candidate a une re-mesure future sur corpus avant d'etalonner un juge.",
+  "mouvement": {
+    "nom": "Mloda Polska (Jeune Pologne)",
+    "periode": "1890-1918",
+    "foyer": "Cracovie",
+    "nature": "modernisme polonais pluriel: symbolisme, Art nouveau/Secession, impressionnisme, synthetisme, folklore, arts decoratifs - une bibliotheque de familles visuelles, pas un filtre unique"
+  },
+  "doctrine": {
+    "principe": "transferer des codes, pas reproduire - produire des images originales qui reprennent des caracteristiques generales de courants, techniques et preoccupations plastiques",
+    "interdits_formulation": [
+      "reproduis [titre d'oeuvre]",
+      "copie exactement le tableau de...",
+      "dans le style exact de [artiste]",
+      "refaire la meme composition avec un autre personnage",
+      "toute demande visant a reconstituer une oeuvre ou un personnage reconnaissable"
+    ],
+    "artistes_jamais_dans_un_prompt": [
+      "Wyspianski", "Wyspiański", "Mehoffer", "Malczewski",
+      "Boznanska", "Boznańska", "Wyczolkowski", "Wyczołkowski",
+      "Pankiewicz", "Slewinski", "Ślewiński", "Axentowicz",
+      "Tetmajer", "Ruszczyc", "Stanislawski", "Stanisławski", "Matejko"
+    ],
+    "note_artistes": "Les referents restent dans la pedagogie (SKILL.md, fiches, conversation) - jamais dans le champ prompt d'un generateur. Meme morts, les noms produisent des pastiches colles aux oeuvres reelles et des refus de generateurs. Un grep avant l'envoi coute zero. 'Weiss' est exclu de la liste de garde (mot allemand courant = faux positifs) mais reste soumis a la doctrine.",
+    "garde_fous_sortie": [
+      "oeuvre entierement originale",
+      "sans texte ni lettrage",
+      "sans signature, sans logo, sans filigrane",
+      "sans reproduction d'une oeuvre ou d'une fenetre existante",
+      "sans personnage religieux ou historique reconnaissable"
+    ],
+    "garde_fous_en": "entirely original artwork, not a reproduction of any existing painting or window, no recognizable religious or historical figure, no text, no lettering, no signature, no logo, no watermark"
+  },
+  "formule": {
+    "gabarit": "[SUJET ORIGINAL], [ACTION / ETAT], dans une interpretation [FAMILLE VISUELLE], composition [CADRAGE + STRUCTURE], palette [COULEURS], lumiere [QUALITE], traitement [LIGNE + MATIERE + TEXTURE], decor [MOTIFS / ENVIRONNEMENT], ambiance [EMOTION], medium simule [VITRAIL / PASTEL / HUILE / AFFICHE], modernisme polonais de la fin du XIXe et du debut du XXe siecle, oeuvre entierement originale, sans reproduire de tableau existant, sans texte ni signature.",
+    "etapes": [
+      "identifier la famille visuelle dominante (UNE seule)",
+      "selectionner 3 a 6 codes formels de cette famille",
+      "ajouter un sujet et une narration entierement originaux",
+      "definir cadrage, hierarchie et qualite de lumiere",
+      "limiter la palette a 3-5 couleurs majeures",
+      "ajouter medium et texture simules",
+      "ajouter les garde-fous: originalite, sans texte, sans signature, sans reproduction",
+      "generer une version longue, une version courte et une variante negative"
+    ]
+  },
+  "variables": {
+    "sujet": {"role": "le contenu narratif original", "exemples": ["saint imaginaire", "astronome", "joueuse", "villageois", "jardin", "creature mythique"]},
+    "famille": {"role": "le systeme visuel principal", "valeurs": ["vitrail", "symbolisme", "portrait", "folklore", "paysage", "impressionnisme", "synthetisme", "decoratif"]},
+    "composition": {"role": "la lisibilite de l'image", "exemples": ["verticale axiale", "frise", "diagonale dramatique", "portrait buste", "horizon bas"]},
+    "palette": {"role": "l'identite emotionnelle", "exemples": ["cobalt-or", "vert mousse", "gris perle", "ocre-rouge", "bleu de Prusse"]},
+    "lumiere": {"role": "le moteur atmospherique", "exemples": ["transmise", "voilee", "crepusculaire", "solaire", "tempetueuse"]},
+    "motifs": {"role": "le vocabulaire decoratif", "exemples": ["iris", "pavots", "bles", "rubans", "insectes", "vitraux geometriques", "textiles"]},
+    "intensite": {"role": "quantite de symbolisme, d'ornement et de dramatisation", "bornes": [1, 5]},
+    "usage": {"role": "ajuste le format et la densite", "exemples": ["affiche", "carte", "environnement de jeu", "couverture", "vitrail fictif", "etude pedagogique"]}
+  },
+  "intensites": {
+    "1": "ornement minimal: figure, halo, deux motifs floraux",
+    "2": "ornement discret: figure, halo, motifs floraux comptes",
+    "3": "ornement moyen: bordure, vegetaux, fragments de verre varies",
+    "4": "ornement riche: bordure dense, vegetal, motifs celestes",
+    "5": "ornement maximal: decor cosmique, vegetal, heraldique et architectural integre"
+  },
+  "familles": {
+    "vitrail": {
+      "label": "Vitrail sacre moderniste",
+      "label_en": "modernist sacred stained glass",
+      "referents_pedagogiques": ["Wyspianski", "Mehoffer"],
+      "codes": [
+        "format vertical ou ogival, composition frontale et ascendante",
+        "contours noirs / brun fonce, epais mais souples",
+        "couleurs franches: bleu cobalt, rouge rubis, vert emeraude, jaune dore, violet profond",
+        "motifs naturalistes stylises: iris, lys, tournesols, feuillages, nuages, rayons, oiseaux",
+        "fragments de verre irreguliers, plomb visible, contrastes pour la lumiere traversante",
+        "hierarchie simple: figure centrale, halo ou energie rayonnante, bordure ornementale"
+      ],
+      "palette": {
+        "majeures": 5,
+        "ancres": {"cobalt": "#0047AB", "rubis": "#9B111E", "emeraude": "#046307", "ambre_dore": "#DAA520", "violet_profond": "#4A235A"},
+        "contour": {"noir_brun": "#1F1512"}
+      },
+      "lumiere": "transmise, tres intense, venant de l'interieur de l'image",
+      "lumiere_en": "light transmitted from within the image, as through a window",
+      "motifs": ["iris", "lys", "tournesols", "feuillages", "nuages", "rayons solaires geometriques", "oiseaux", "constellations"],
+      "bornes": {
+        "part_contours_plomb": [0.06, 0.15],
+        "part_champs_satures": [0.5, 0.8],
+        "part_neutre_max": 0.2,
+        "hauteur_figure_centrale": [0.55, 0.85],
+        "part_bordure_ornementale": [0.05, 0.15],
+        "couleurs_majeures": [3, 5],
+        "format_ratio_l_sur_h": [0.5, 0.75]
+      },
+      "bloc_en": "monumental Art Nouveau stained-glass window design, Central European modernism of about 1900: bold sinuous dark leadlines #1F1512, thick supple contours enclosing every shape and covering about a tenth of the canvas, irregular fragments of intensely saturated glass in 3 to 5 major colours - cobalt blue #0047AB, ruby red #9B111E, emerald green #046307, golden amber #DAA520, deep violet #4A235A - light transmitted from within the image as through a window, frontal ascending composition in a vertical or ogival bay, one central figure filling roughly two thirds of the height, simple hierarchy of figure then radiating halo then ornamental border of stylized flowers on the outer edge of the frame, flat decorative space with no deep linear perspective, high readability at distance",
+      "negatif_en": "no photographic realism, no 3D render, no plastic CGI, no neon cyberpunk aesthetic, no recognizable existing window or religious figure, no muddy desaturated colours, no soft airbrush without leadlines, no deep linear perspective",
+      "usage_conseille": ["chapelles fictives", "fenetres", "affiches verticales", "decors muraux"]
+    },
+    "symbolisme": {
+      "label": "Symbolisme national et mythologique",
+      "label_en": "Central European symbolist allegory",
+      "referents_pedagogiques": ["Malczewski", "Weiss"],
+      "codes": [
+        "personnage pensif ou isole, souvent face a une apparition",
+        "melange du quotidien et du mythique: atelier, champ, foret; faune, ange, muse, figure masquee",
+        "perspective legerement instable ou espace theatral",
+        "couleurs terreuses et profondes",
+        "gestes suspendus, regards absents, densite emotionnelle",
+        "accessoires comme symboles: echelle, masque, lettre, epee, fleur fanee, miroir, oiseau"
+      ],
+      "palette": {
+        "majeures": 5,
+        "ancres": {"brun_terre": "#6B4423", "vert_profond": "#2F4F2F", "bleu_nuit": "#1B2A49", "rouge_oxyde": "#8B3A2E", "ivoire": "#FFFFF0"}
+      },
+      "lumiere": "fin d'orage, crepusculaire, interieure",
+      "lumiere_en": "end-of-storm light, low and charged",
+      "motifs": ["echelle", "masque", "lettre", "fleur fanee", "miroir", "oiseau", "instrument"],
+      "bornes": {"couleurs_majeures": [4, 5], "figures": [1, 4], "part_symboles_max": 0.2},
+      "bloc_en": "original Central European symbolist allegory of about 1900: one pensive figure facing a mythic apparition in a theatrical, slightly unstable space, suspended gestures and absent gazes, earthy deep palette - earth brown #6B4423, deep green #2F4F2F, night blue #1B2A49, oxidized red #8B3A2E, ivory #FFFFF0 - end-of-storm light, oil on canvas with visible texture, one material accessory carrying the symbol",
+      "negatif_en": "no decorative monster without an idea, no crowded pantheon, no glossy fantasy rendering, no more than a handful of symbols, no photographic realism",
+      "usage_conseille": ["scenes narratives", "couvertures", "concepts de jeu"]
+    },
+    "portrait": {
+      "label": "Portrait atmospherique",
+      "label_en": "atmospheric modernist portrait",
+      "referents_pedagogiques": ["Boznanska"],
+      "codes": [
+        "cadrage buste ou trois-quarts, pose calme",
+        "fond indecis: interieur sombre, rideau, fenetre froide, mur texture",
+        "palette reduite: gris perle, vert de cendre, bleu ardoise, brun violet, rose eteint",
+        "bords fondus, details concentres autour des yeux et des mains",
+        "lumiere diffuse, sans contraste dur; matiere granuleuse ou brossee",
+        "emotion: distance, fragilite, reserve, melancolie calme"
+      ],
+      "palette": {
+        "majeures": 4,
+        "ancres": {"gris_perle": "#C9C0BB", "vert_cendre": "#8A9A5B", "bleu_ardoise": "#708090", "brun_violet": "#6F4E5C", "rose_eteint": "#C08081"}
+      },
+      "lumiere": "diffuse, froide, laterale, sans contraste dur",
+      "lumiere_en": "cold diffuse side light, no hard contrast",
+      "motifs": ["rideau", "fenetre froide", "objet discret", "carnet", "instrument"],
+      "bornes": {"couleurs_majeures": [3, 4], "nettete_hors_visage": "reduite", "part_fond_indecis": [0.4, 0.7]},
+      "bloc_en": "original atmospheric modernist portrait of about 1900: bust or three-quarter framing, calm pose, indeterminate background dissolving into the air, restrained palette of 3 to 4 tone families - pearl grey #C9C0BB, ash green #8A9A5B, slate blue #708090, violet brown #6F4E5C - melted edges, detail concentrated in the eyes and hands, cold diffuse light, granular brushed oil matter, silent psychological presence",
+      "negatif_en": "no photographic sharpness outside the face, no saturated palette, no narrative background, no caricatural expression, no hard studio lighting",
+      "usage_conseille": ["personnages", "portraits editoriaux", "concept art intimiste"]
+    },
+    "folklore": {
+      "label": "Folklore moderniste",
+      "label_en": "modernist folk scene",
+      "referents_pedagogiques": ["Axentowicz", "Tetmajer"],
+      "codes": [
+        "costumes structures par broderies, rubans, perles, chales, coiffes",
+        "palette chaude et claire: rouge carmin, blanc casse, noir velours, bleu outremer, ocre, vert herbe",
+        "gestes rituels: danse, depart, benediction, marche, cueillette, veillee",
+        "alternance portraits elegants / scenes collectives",
+        "decor rural traite comme une scene: arbres, maison en bois, montagne, champs",
+        "simplification decorative des tissus et des silhouettes"
+      ],
+      "palette": {
+        "majeures": 5,
+        "ancres": {"rouge_carmin": "#960018", "blanc_casse": "#F8F4E3", "noir_velours": "#1C1C1C", "bleu_outremer": "#120A8F", "ocre": "#CC7722", "vert_herbe": "#57A639"}
+      },
+      "lumiere": "doree, brume legere, crepuscule de fete",
+      "lumiere_en": "golden festive light with a light haze",
+      "motifs": ["rubans", "broderies", "bouquets stylises", "gerbes de ble", "lanternes", "textiles"],
+      "bornes": {"couleurs_majeures": [4, 5], "composition": "frise ou portrait", "part_textile_detaille": [0.15, 0.45]},
+      "bloc_en": "original modernist folk scene of Central Europe about 1900: embroidered structured costumes with ribbons and shawls treated as decorative rhythm, frieze composition or elegant single portrait, warm clear palette - carmine red #960018, off-white #F8F4E3, velvet black #1C1C1C, ultramarine #120A8F, ochre #CC7722 - a precise ritual gesture rather than tourist imagery, golden light and light haze, Art Nouveau elegance, decorative painting",
+      "negatif_en": "no tourist postcard cliche, no caricature of folk costume, no modern clothing, no photographic realism, no neon colours",
+      "usage_conseille": ["scenes de village", "mode", "worldbuilding culturel"]
+    },
+    "paysage": {
+      "label": "Paysage monumental et dramatique",
+      "label_en": "monumental symbolist landscape",
+      "referents_pedagogiques": ["Ruszczyc"],
+      "codes": [
+        "horizon bas et ciel occupant plus de la moitie de l'image",
+        "grand arbre, grange, moulin, chemin ou attelage comme point d'ancrage",
+        "nuages massifs, lumiere d'orage, vent visible dans les herbes",
+        "terre brun rouge, vert sombre, bleu gris, blanc de nuage",
+        "personnages secondaires, presque absorbes par le paysage",
+        "sens de l'effort, du cycle des saisons, de la solitude"
+      ],
+      "palette": {
+        "majeures": 4,
+        "ancres": {"terre_brun_rouge": "#80461B", "vert_sombre": "#355E3B", "bleu_gris": "#6E7F80", "blanc_nuage": "#ECEFF1"}
+      },
+      "lumiere": "orage, trouee blanche, lumiere froide apres la pluie",
+      "lumiere_en": "storm light with one white break in the clouds",
+      "motifs": ["nuages massifs", "herbes pliees", "grange", "moulin", "attelage", "corbeau"],
+      "bornes": {"horizon": [0.2, 0.35], "part_ciel": [0.5, 0.8], "hauteur_sujet_humain": [0.05, 0.15], "dynamique_meteo": [4, 5], "couleurs_majeures": [3, 4]},
+      "bloc_en": "original monumental symbolist landscape of about 1900: horizon set in the lowest third of the frame, an immense sky of heavy clouds filling two thirds of the image, one anchoring element - lone tree, barn, mill or cart - and human figures at most a tenth of the frame height, absorbed by the land, earth palette - red-brown earth #80461B, dark green #355E3B, blue grey #6E7F80, heavy cloud white #ECEFF1 - storm light with one white break, expressive oil, wind visible in the grasses, feeling of persistence and solitude",
+      "negatif_en": "no golden-hour postcard, no tiny decorative sky, no dominant human figure, no saturated tourist colours, no photographic detail",
+      "usage_conseille": ["environnements", "matte paintings", "couvertures"]
+    },
+    "impressionnisme": {
+      "label": "Impressionnisme urbain et plein air",
+      "label_en": "Polish plein-air impressionism",
+      "referents_pedagogiques": ["Pankiewicz", "Wyczolkowski"],
+      "codes": [
+        "touche visible et legere, non lissee",
+        "couleurs modulees par la lumiere: ombres bleues, jaunes chauds, gris colores",
+        "sujet ordinaire: marche, promenade, quai, jardin, rue pluvieuse",
+        "cadrage pris sur le vif, parfois decentre",
+        "air, poussiere, brume ou soleil comme sujet reel",
+        "peu de symboles explicites; priorite a la perception"
+      ],
+      "palette": {
+        "majeures": 5,
+        "ancres": {"ombre_lavande": "#9895C5", "jaune_pale": "#F5E6A8", "rose_pale": "#F4C2C2", "vert_frais": "#7BB661", "gris_lumineux": "#D6D6D6"}
+      },
+      "lumiere": "heure du jour assumee: matin froid, midi solaire, soir pluvieux",
+      "lumiere_en": "one explicit time of day driving every colour",
+      "motifs": ["auvents", "parasols", "paniers", "kiosque", "pluie de printemps"],
+      "bornes": {"couleurs_majeures": [4, 5], "part_touche_visible": "haute", "cadrage": "sur le vif, decentre"},
+      "bloc_en": "original Polish plein-air impressionist scene of about 1900: ordinary subject caught on the spot with a slightly off-centre framing, visible light unsmoothed oil touches, colours driven by one explicit time of day, lavender-blue shadows #9895C5, warm pale yellows #F5E6A8, fresh greens #7BB661, luminous coloured greys #D6D6D6, humid vibrant air as the real subject",
+      "negatif_en": "no smooth digital rendering, no explicit symbolism, no dramatic staging, no neon saturation, no sharp photographic edges",
+      "usage_conseille": ["environnements naturels", "scenes urbaines", "plein air"]
+    },
+    "synthetisme": {
+      "label": "Synthetisme et formes condensees",
+      "label_en": "synthetist interior or still life",
+      "referents_pedagogiques": ["Slewinski"],
+      "codes": [
+        "trois a six grandes masses dominantes, peu de details disperses",
+        "contours souples ou couleurs nettement separees",
+        "palette limitee, souvent sourde mais franche",
+        "motifs simples: chaise, fenetre, chat, vase, colline, mer, barque, figure assise",
+        "espace aplati, profondeur reduite",
+        "atmosphere meditative, intime ou silencieuse"
+      ],
+      "palette": {
+        "majeures": 4,
+        "ancres": {"vert_mousse": "#8A9A5B", "ocre": "#CC7722", "bleu_profond": "#1F3A93", "rose_eteint": "#C08081", "noir": "#1C1C1C"}
+      },
+      "lumiere": "mate, stable, sans effet",
+      "lumiere_en": "flat matte light, no effects",
+      "motifs": ["chaise", "fenetre", "chat", "vase", "barque", "figure assise"],
+      "bornes": {"masses": [3, 6], "couleurs_majeures": [3, 4], "profondeur": "reduite"},
+      "bloc_en": "original synthetist composition of about 1900: three to six large dominant masses and almost no scattered detail, supple contours or cleanly separated colour fields, limited muted but frank palette - moss green #8A9A5B, ochre #CC7722, deep blue #1F3A93, faded rose #C08081, black #1C1C1C - flattened space with reduced depth, matte oil, meditative silent atmosphere",
+      "negatif_en": "no clutter, no deep perspective, no glossy highlights, no busy detail, no more than six masses",
+      "usage_conseille": ["affiches", "decors de jeu", "natures mortes", "interieurs"]
+    },
+    "decoratif": {
+      "label": "Arts decoratifs / art total",
+      "label_en": "Central European Art Nouveau decorative design",
+      "referents_pedagogiques": ["Wyspianski", "Mehoffer", "ateliers de Cracovie"],
+      "codes": [
+        "motif original decline en plusieurs supports (vitrail, papier peint, affiche, mobilier)",
+        "decor profus, presque joaillier, equilibre par des zones de repos",
+        "vegetal stylise et rythmes de rubans",
+        "tissus, fleurs, insectes et fruits comme signes visuels",
+        "integration image / objet / espace (art total)",
+        "couleurs riches et saturees tenues par la ligne"
+      ],
+      "palette": {
+        "majeures": 5,
+        "ancres": {"cobalt": "#0047AB", "or": "#DAA520", "emeraude": "#046307", "rubis": "#9B111E", "ivoire": "#FFFFF0"}
+      },
+      "lumiere": "coloree, decorative, portee par les aplats",
+      "lumiere_en": "decorative coloured light carried by the flat fields",
+      "motifs": ["iris", "rubans floraux", "libellules", "fruits", "etoiles", "textiles"],
+      "bornes": {"couleurs_majeures": [4, 5], "part_zones_de_repos": [0.2, 0.4], "densite_ornement": [3, 5]},
+      "bloc_en": "original Central European Art Nouveau decorative design of about 1900: one original motif treated as ornament, profuse almost jewel-like decoration balanced by quiet rest zones covering about a third of the surface, stylized plants and ribbon rhythms, rich saturated colours held by an energetic decorative line - cobalt #0047AB, gold #DAA520, emerald #046307, ruby #9B111E, ivory #FFFFF0 - total-art integration of image, object and space",
+      "negatif_en": "no chaotic ornament without rest zones, no photographic texture, no 3D render, no random motif soup",
+      "usage_conseille": ["UI decorative", "ornements", "vitraux", "design d'objets"]
+    }
+  },
+  "melange": {
+    "regle": "une seule famille dominante; l'ajout est limite et nomme",
+    "coherents": [
+      {"base": "vitrail", "ajout": "paysage", "resultat": "vitrail de tempete, ciel monumental, plantes stylisees"},
+      {"base": "decoratif", "ajout": "folklore", "resultat": "scene rituelle raffinee, textiles et jardin symbolique"},
+      {"base": "symbolisme", "ajout": "portrait", "resultat": "allegorie intime, peu de figures, tension psychologique"},
+      {"base": "impressionnisme", "ajout": "paysage", "resultat": "plein air lumineux, marche ou recolte, lumiere saisonniere"},
+      {"base": "synthetisme", "ajout": "decoratif", "resultat": "affiche ou interieur a grands aplats et motifs floraux"},
+      {"base": "symbolisme", "ajout": "paysage", "resultat": "personnage melancolique dans un paysage orageux"}
+    ],
+    "prudences": [
+      "vitrail sature + portrait de demi-teintes: choisir une dominante, sinon incoherence",
+      "impressionnisme leger + allegorie complexe: reduire le nombre de symboles",
+      "folklore detaille + synthetisme: simplifier les costumes a quelques motifs structurants",
+      "decoratif tres dense + paysage dramatique: reserver l'ornement au cadre ou aux bordures"
+    ]
+  },
+  "checklist_sortie": [
+    "le sujet est original et ne reutilise pas une composition ou un personnage iconique",
+    "une seule famille visuelle reste dominante",
+    "la composition est decrite, pas seulement 'le style'",
+    "la palette contient un nombre limite de couleurs coherentes",
+    "la lumiere est explicitement definie",
+    "le niveau de decoratif et de symbolisme correspond a l'usage demande",
+    "le medium simule est precise",
+    "le prompt exclut le texte, les signatures et les reproductions d'oeuvres existantes",
+    "une courte note pedagogique explique les codes mobilises"
+  ],
+  "modele_reponse": "## Direction visuelle\n\n**Famille :** [famille retenue]\n**Codes mobilises :** [3 a 5 codes]\n**Pourquoi :** [une phrase pedagogique]\n\n## Prompt\n\n```text\n[prompt complet]\n```\n\n## Variante\n\n```text\n[variante : autre lumiere, autre niveau d'ornement ou autre cadrage]\n```\n\n## A eviter\n\n```text\n[contraintes et negatif]\n```\n\n## Lecture pedagogique\n\n- Composition : [analyse]\n- Couleur : [analyse]\n- Lumiere : [analyse]\n- Symbolisme / decor : [analyse]\n- Referents de la Jeune Pologne : [familles ou artistes, sans pretendre copier une oeuvre]"
+}
