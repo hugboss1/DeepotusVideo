@@ -141,3 +141,28 @@ def test_le_crud_vector_docs():
         assert list(dossier.glob("*.v*.json"))   # l'archive est bien là
 
     asyncio.run(scenario())
+
+
+# ── D. les surfaces : mount /vectorlab et panneau chapitre de l'Atelier ──────
+
+def test_le_mount_vectorlab_et_le_panneau_atelier():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.get("/vectorlab/")
+            assert r.status_code == 200 and "Vectorlab" in r.text
+
+    asyncio.run(scenario())
+    # miroirs atelier : le panneau par chapitre interroge /vector/docs et
+    # ouvre l'éditeur — même nature d'assertion que les miroirs de presets.
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    js = (racine / "frontend" / "atelier" / "atelier.js").read_text("utf-8")
+    assert "Éléments vectoriels" in (racine / "frontend" / "atelier"
+                                     / "index.html").read_text("utf-8")
+    assert "/vector/docs?chapter_id=" in js
+    assert "/vectorlab/?doc=" in js
+    assert "loadVectorDocs" in js

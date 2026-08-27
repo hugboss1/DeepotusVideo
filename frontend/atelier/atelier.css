@@ -318,3 +318,17 @@ select option:disabled{color:var(--ink-muted)}
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
 }
+
+/* ══════════ éléments vectoriels du chapitre (Vectorlab, phase 0) ══════════ */
+.vector-panel { margin-top: 14px; border: 1px solid var(--line, #2a2f3a);
+  border-radius: 8px; background: rgba(255, 255, 255, .02); }
+.vector-head { display: flex; align-items: center; justify-content: space-between;
+  gap: 8px; padding: 8px 12px; font-weight: 600;
+  border-bottom: 1px solid var(--line, #2a2f3a); }
+.vector-btns { display: flex; gap: 6px; }
+.vector-list { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+.vector-row { display: flex; align-items: center; gap: 10px; }
+.vector-row .btn { margin-left: auto; text-decoration: none; }
+.vector-role { font-size: 11px; padding: 1px 8px; border-radius: 9px;
+  background: rgba(157, 180, 214, .14); color: #9db4d6; }
+.vector-v { color: var(--ink-muted, #8b93a0); font-size: 11px; }

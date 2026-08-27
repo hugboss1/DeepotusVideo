@@ -68,6 +68,7 @@ async function openChapter(id) {
   shots = []; scenes = [];
   if (mode === "board") await loadShots(true);
   if (mode === "screenplay") await loadScenes(true);
+  await loadVectorDocs();
 }
 
 function scheduleSave() {
@@ -916,6 +917,54 @@ async function daPropose() {
   } catch (e) { toast("Proposition DA : " + e.message, true); }
 }
 
+/* ═════════ éléments vectoriels du chapitre (Vectorlab, phase 0) ═════════ */
+const VECTOR_ROLES = { decor: "Décor", lumiere: "Lumière",
+                       personnage: "Personnage", libre: "Libre" };
+
+function docVectorielVierge(nom) {
+  return { v: 1, nom, taille: { w: 1280, h: 1920 }, fond: "#F8F4E3",
+           calques: [{ id: "c1", nom: "fond", visible: true, verrou: false,
+                       objets: [] }] };
+}
+
+async function loadVectorDocs() {
+  const panel = $("#vectorPanel");
+  if (!panel) return;
+  if (!chapter) { panel.classList.add("hidden"); return; }
+  panel.classList.remove("hidden");
+  let docs = [];
+  try {
+    docs = (await api.get(`/vector/docs?chapter_id=${chapter.id}`)).docs || [];
+  } catch (e) {
+    $("#vectorList").innerHTML =
+      `<div class="empty-note">Vectorlab injoignable : ${esc(e.message)}</div>`;
+    return;
+  }
+  $("#vectorList").innerHTML = docs.length ? docs.map(d => `
+    <div class="vector-row">
+      <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
+      <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
+      <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
+         target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+    </div>`).join("")
+    : `<div class="empty-note">Aucun élément vectoriel — crée un décor, une
+       lumière ou un personnage pour ce chapitre.</div>`;
+}
+
+async function vectorCreer(role) {
+  if (!chapter) { toast("Ouvre d'abord un chapitre.", true); return; }
+  const nom = prompt(`Nom du nouvel élément (${VECTOR_ROLES[role]}) :`,
+                     `${VECTOR_ROLES[role]} — ${chapter.title || "chapitre"}`);
+  if (!nom) return;
+  try {
+    const d = await api.send("POST", "/vector/docs", {
+      name: nom, role, chapter_id: chapter.id,
+      doc: docVectorielVierge(nom) });
+    await loadVectorDocs();
+    window.open(`/vectorlab/?doc=${encodeURIComponent(d.id)}`, "_blank");
+  } catch (e) { toast("Vectorlab : " + e.message, true); }
+}
+
 /* ═════════ style global du projet ═════════ */
 async function loadGlobalStyle() {
   try {
@@ -1116,6 +1165,10 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#msClose").addEventListener("click", () => $("#msModal").classList.add("hidden"));
   $("#msModal").addEventListener("click", (e) => { if (e.target.id === "msModal") $("#msModal").classList.add("hidden"); });
   $("#msRun").addEventListener("click", msRun);
+
+  $("#vpAddDecor").addEventListener("click", () => vectorCreer("decor"));
+  $("#vpAddLumiere").addEventListener("click", () => vectorCreer("lumiere"));
+  $("#vpAddPerso").addEventListener("click", () => vectorCreer("personnage"));
 
   // modal
   $("#libClose").addEventListener("click", () => $("#libModal").classList.add("hidden"));
