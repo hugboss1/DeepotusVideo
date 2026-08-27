@@ -357,6 +357,36 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   (c). Relever l'enveloppe = décision utilisateur (patron des commits
   `d9fe431`/`f953ce9` : constante + pins re-dérivés, commit séparé).
 
+- [x] **T1-N (RÉEL) — L'ENVELOPPE À 16 $ (ordre du 27/08 : « relève a 16$
+  et vise monolith, archer et autre ») : +2 CASES SUR 4 SONDES, LA SÉRIE À
+  44/108 — LE VERROU BACKLIGHT SAUTE, LE FILTRE ARCHER AUSSI.** Relèvement
+  au commit `511c02d` (15→16, pins re-dérivés RED d'abord : garde
+  d'ouverture 3 cases/15,24 et reliquat 0,76, plafond dur reste 1,60,
+  frontière du mur à 15, état/devis 16 et 54 ouvrables à vide ;
+  cards_face + serie_ton verts ; déployé sha-vérifié + relance, santé
+  2.5.0, devis servi : reste 1,083, 3 ouvrables). Sondes au patron
+  devis-puis-confirmation, lot de 2 puis 1 et 1. **Deux servies, toutes
+  deux voie nano-banana-pro MARCHE 1 + frère mis au ton, 0,15 $ chacune :
+  backlight_wolf rouge 100,0 (LE 3e SCORE PARFAIT de la série,
+  gen_96349e5d_ton.png) et backlight_crystals ocre 82,1
+  (gen_fce2a2d7_ton.png) — LES DEUX PREMIÈRES BACKLIGHT JAMAIS SERVIES :
+  l'exclusion « structurelle » (0/18 depuis la campagne close) tombe avec
+  le modèle neuf.** Deux refus à l'échelle complète (0,295 chacun), tous
+  deux tués par la SEULE « part claire (L>200) » à 82,1 :
+  backlight_monolith (le sujet le plus sombre ne suffit pas à contre-jour)
+  et vista_archer — MAIS l'archer est désormais JUGÉ SUR PIXELS : le
+  filtre de sécurité OpenAI (2 × 400 safety au T1-L) ne bloque PLUS l'arc
+  via fal ; la case a un score, une voie et des axes au lieu d'un refus
+  technique à 0. **Bilan de l'enveloppe : 0,89 $ pour 2 cases (42→44/108),
+  dépense 15,807/16,00, reste 0,193 < 0,295 — mur re-fermé (devis machine
+  vérifié : 0 ouvrable).** Le motif des modèles fal après 5 sondes (T1-M
+  comprise) : 2 victoires, 3 refus — et les 3 refus n'ont qu'UN axe rouge,
+  « part claire » (phoenix 84,6 · monolith 82,1 · archer 82,1, frères ton
+  compris) : le re-broyage des refusées claires est MORT ; la veine
+  vivante = les backlight à sujet sombre par nano-banana-pro + mise au ton
+  (2/2). Restent 12 backlight vierges (~3,54 $ au pire à 0,295 l'une) :
+  la suite est une décision utilisateur.
+
 ### T2 — MESHY_MOCK au .env (D4)
 
 - [x] **T2-A** : `MESHY_MOCK=1` écrit au .env du DATA_ROOT avec commentaire
