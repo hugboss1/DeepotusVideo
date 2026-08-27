@@ -105,6 +105,121 @@ export function chemin_serialiser(segs) {
 }
 
 
+/* ── opérations d'objets (T1.2) : les COMMANDES pures sur le modèle ──
+   L'UI ne fait que traduire des gestes vers ces fonctions ; l'historique
+   d'annulation capture le JSON avant chacune. Déplacement et
+   redimensionnement réécrivent la GÉOMÉTRIE (les booléens de phase 3
+   veulent des coordonnées vraies) ; seule la rotation compose `transform`. */
+
+function _calque(doc, calqueId) {
+  const c = doc.calques.find((x) => x.id === calqueId);
+  if (!c) throw new Error(`calque inconnu: ${calqueId}`);
+  return c;
+}
+
+function* _objetsCibles(doc, ids, { ignorerVerrouilles = true } = {}) {
+  const voulu = new Set(ids);
+  for (const c of doc.calques) {
+    if (ignorerVerrouilles && c.verrou) continue;
+    for (let i = c.objets.length - 1; i >= 0; i--) {
+      if (voulu.has(c.objets[i].id)) yield { calque: c, objet: c.objets[i], i };
+    }
+  }
+}
+
+export function op_ajouter(doc, calqueId, objet) {
+  const c = _calque(doc, calqueId);
+  if (c.verrou) throw new Error(`calque verrouillé: ${calqueId}`);
+  const pris = new Set();
+  for (const cl of doc.calques) {
+    (function visiter(objs) {
+      for (const o of objs) {
+        pris.add(o.id);
+        if (o.type === "groupe") visiter(o.enfants || []);
+      }
+    })(cl.objets);
+  }
+  let id = objet.id;
+  if (!id || pris.has(id)) {
+    let n = 1;
+    while (pris.has("o" + n)) n++;
+    id = "o" + n;
+  }
+  c.objets.push({ ...objet, id });
+  return id;
+}
+
+export function op_supprimer(doc, ids) {
+  let n = 0;
+  for (const { calque, i } of _objetsCibles(doc, ids)) {
+    calque.objets.splice(i, 1);
+    n++;
+  }
+  return n;
+}
+
+function _decalerObjet(o, dx, dy) {
+  switch (o.type) {
+    case "rect": o.x += dx; o.y += dy; break;
+    case "ellipse": o.cx += dx; o.cy += dy; break;
+    case "texte": o.x += dx; o.y += dy; break;
+    case "path": {
+      const segs = chemin_parser(o.d);
+      for (const s of segs) {
+        for (let k = 0; k < s.p.length; k += 2) { s.p[k] += dx; s.p[k + 1] += dy; }
+      }
+      o.d = chemin_serialiser(segs);
+      break;
+    }
+    case "groupe": (o.enfants || []).forEach((e) => _decalerObjet(e, dx, dy)); break;
+  }
+}
+
+export function op_deplacer(doc, ids, dx, dy) {
+  for (const { objet } of _objetsCibles(doc, ids)) _decalerObjet(objet, dx, dy);
+}
+
+function _mapperObjet(o, av, ap) {
+  const sx = ap.w / av.w, sy = ap.h / av.h;
+  const fx = (X) => (X - av.x) * sx + ap.x;
+  const fy = (Y) => (Y - av.y) * sy + ap.y;
+  switch (o.type) {
+    case "rect":
+      o.x = fx(o.x); o.y = fy(o.y);
+      o.w = o.w * sx; o.h = o.h * sy; break;
+    case "ellipse":
+      o.cx = fx(o.cx); o.cy = fy(o.cy);
+      o.rx = Math.abs(o.rx * sx); o.ry = Math.abs(o.ry * sy); break;
+    case "texte": o.x = fx(o.x); o.y = fy(o.y); break;
+    case "path": {
+      const segs = chemin_parser(o.d);
+      for (const s of segs) {
+        for (let k = 0; k < s.p.length; k += 2) {
+          s.p[k] = fx(s.p[k]); s.p[k + 1] = fy(s.p[k + 1]);
+        }
+      }
+      o.d = chemin_serialiser(segs);
+      break;
+    }
+    case "groupe": (o.enfants || []).forEach((e) => _mapperObjet(e, av, ap)); break;
+  }
+}
+
+export function op_redimensionner(doc, ids, bboxAvant, bboxApres) {
+  if (!(bboxAvant.w > 0) || !(bboxAvant.h > 0)) return;
+  for (const { objet } of _objetsCibles(doc, ids)) {
+    _mapperObjet(objet, bboxAvant, bboxApres);
+  }
+}
+
+export function op_tourner(doc, ids, cx, cy, deg) {
+  const t = `rotate(${nbc(deg)} ${nbc(cx)} ${nbc(cy)})`;
+  for (const { objet } of _objetsCibles(doc, ids)) {
+    objet.transform = objet.transform ? `${t} ${objet.transform}` : t;
+  }
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
