@@ -283,3 +283,107 @@ def ecrire_3mf(tris, nom="Deepotus") -> bytes:
         z.writestr("_rels/.rels", _3MF_RELS)
         z.writestr("3D/3dmodel.model", "\n".join(xml))
     return tampon.getvalue()
+
+
+# ── STL binaire : lecture (la voie retour du Vectorlab et de la Forge 3D) ────
+
+def lire_stl(data: bytes):
+    """STL BINAIRE → triangles. L'ASCII est refusé parlant : nos
+    producteurs écrivent tous du binaire, et un « solid » textuel tronqué
+    ressemblerait trop à un octet près."""
+    if len(data) < 84:
+        raise ValueError("STL binaire attendu (fichier trop court)")
+    n = struct.unpack_from("<I", data, 80)[0]
+    if 84 + 50 * n != len(data):
+        raise ValueError("STL binaire attendu (compte de triangles et "
+                         "taille du fichier en désaccord — ASCII ou tronqué)")
+    tris = []
+    for k in range(n):
+        v = struct.unpack_from("<9f", data, 84 + 50 * k + 12)
+        tris.append(((v[0], v[1], v[2]), (v[3], v[4], v[5]),
+                     (v[6], v[7], v[8])))
+    return tris
+
+
+# ── dossiers d'export : un dossier par export, jamais d'écrasement muet ──────
+
+def _slug(nom: str) -> str:
+    s = "".join(c if c.isalnum() else "-" for c in str(nom).lower())
+    while "--" in s:
+        s = s.replace("--", "-")
+    return s.strip("-")[:40] or "objet"
+
+
+def creer_export(base, nom, tris, cible_mm=None, source="",
+                 etancheite="inconnue"):
+    """Écrit `<slug>-<date>/` (STL + 3MF aux mm + impression.json) sous
+    `base` et rend {dossier, stl, mf3, triangles}."""
+    import datetime as _dt
+    from pathlib import Path
+    base = Path(base)
+    base.mkdir(parents=True, exist_ok=True)
+    jour = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%d")
+    racine = f"{_slug(nom)}-{jour}"
+    dossier = base / racine
+    n = 2
+    while dossier.exists():
+        dossier = base / f"{racine}-{n}"
+        n += 1
+    dossier.mkdir()
+    monde = mettre_a_l_echelle(tris, cible_mm)
+    stl_nom = _slug(nom) + ".stl"
+    mf3_nom = _slug(nom) + ".3mf"
+    (dossier / stl_nom).write_bytes(ecrire_stl(monde))
+    (dossier / mf3_nom).write_bytes(ecrire_3mf(monde, nom=nom))
+    meta = {"nom": str(nom), "source": str(source),
+            "cible_mm": (float(cible_mm) if cible_mm is not None else None),
+            "etancheite": etancheite, "stl": stl_nom, "mf3": mf3_nom,
+            "triangles": len(monde),
+            "cree": _dt.datetime.now(_dt.timezone.utc).isoformat()}
+    (dossier / "impression.json").write_text(
+        json.dumps(meta, ensure_ascii=False, indent=1), "utf-8")
+    return {"dossier": dossier.name, "stl": stl_nom, "mf3": mf3_nom,
+            "triangles": len(monde)}
+
+
+def lister_exports(base):
+    from pathlib import Path
+    base = Path(base)
+    out = []
+    if base.is_dir():
+        for d in base.iterdir():
+            j = d / "impression.json"
+            if d.is_dir() and j.is_file():
+                try:
+                    meta = json.loads(j.read_text("utf-8"))
+                except (OSError, ValueError):
+                    continue
+                out.append({"dossier": d.name, **meta})
+    out.sort(key=lambda e: e.get("cree") or "", reverse=True)
+    return out
+
+
+# ── ouverture dans le slicer : association Windows, repli SLICER_PATH ────────
+
+def _lancer_startfile(chemin: str):          # pragma: no cover — mocké au banc
+    import os
+    os.startfile(chemin)                     # noqa: S606 — le geste voulu
+
+
+def ouvrir_dans_slicer(chemin) -> str:
+    """Ouvre le `.3mf` : SLICER_PATH du .env s'il est posé, sinon
+    l'association Windows (`os.startfile`). Rend le mode employé."""
+    import os
+    import subprocess
+    slicer = os.environ.get("SLICER_PATH", "").strip()
+    if slicer:
+        subprocess.Popen([slicer, str(chemin)])
+        return "slicer_path"
+    try:
+        _lancer_startfile(str(chemin))
+        return "association"
+    except OSError:
+        raise RuntimeError(
+            "aucune association pour .3mf — installe ElegooSlicer (livré "
+            "avec la Centauri Carbon 2) ou renseigne SLICER_PATH dans le "
+            ".env de DeepotusVideoGenData")

@@ -188,3 +188,97 @@ def test_le_lecteur_lit_un_glb_du_producteur_maison():
     assert len(tris) >= 12
     xs = [v[0] for t in tris for v in t]
     assert max(xs) > min(xs)              # un volume, pas un point
+
+
+# ── C. dossiers d'export + routes + ouverture slicer GARDÉE ──────────────────
+
+def test_les_routes_print3d_exportent_et_ouvrent():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services import print3d as P3
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        base = pathlib.Path(_tmp, "print3d")
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # un job assets3d de banc : SEUL model.glb existe (lisible)
+            job = pathlib.Path(_tmp, "outputs", "assets3d", "job_banc")
+            job.mkdir(parents=True)
+            (job / "model.glb").write_bytes(_glb_cube_translate())
+            r = await c.post("/api/print3d/from-assets3d/job_banc",
+                             json={"cible_mm": 80, "nom": "Banc figurine"})
+            assert r.status_code == 200, r.text
+            d = r.json()
+            dossier = base / d["dossier"]
+            assert (dossier / d["stl"]).is_file()
+            assert (dossier / d["mf3"]).is_file()
+            meta = _json.loads((dossier / "impression.json")
+                               .read_text("utf-8"))
+            assert meta["cible_mm"] == 80
+            assert meta["etancheite"] == "inconnue"
+            assert meta["source"] == "assets3d:job_banc"
+            # le STL écrit est à l'échelle : plus grande dimension = 80
+            stl = (dossier / d["stl"]).read_bytes()
+            tris = P3.lire_stl(stl)
+            dims = [b[1] - b[0] for b in P3.bbox(tris)]
+            assert max(dims) == pytest.approx(80.0, abs=1e-3)
+            # job inconnu → 404 ; opt.glb SEUL → 409 parlant
+            r = await c.post("/api/print3d/from-assets3d/fantome",
+                             json={"cible_mm": 80})
+            assert r.status_code == 404
+            job2 = pathlib.Path(_tmp, "outputs", "assets3d", "job_opt")
+            job2.mkdir(parents=True)
+            (job2 / "model.opt.glb").write_bytes(b"meshopt-optimise")
+            r = await c.post("/api/print3d/from-assets3d/job_opt",
+                             json={"cible_mm": 80})
+            assert r.status_code == 409 and "model.glb" in r.json()["detail"]
+            # la voie STL directe (Forge 3D cartes, Vectorlab) : corps binaire
+            stl_brut = P3.ecrire_stl([
+                ((0, 0, 0), (10, 0, 0), (0, 10, 0)),
+                ((10, 0, 0), (10, 10, 0), (0, 10, 0))])
+            r = await c.post("/api/print3d/from-stl?nom=Plaque banc"
+                             "&source=vectorlab&etanche=garantie",
+                             content=stl_brut,
+                             headers={"Content-Type":
+                                      "application/octet-stream"})
+            assert r.status_code == 200, r.text
+            d2 = r.json()
+            meta2 = _json.loads((base / d2["dossier"] / "impression.json")
+                                .read_text("utf-8"))
+            assert meta2["etancheite"] == "garantie"
+            assert meta2["cible_mm"] is None          # « tel quel »
+            # pas un STL → 400 sans dossier créé
+            n_avant = len(list(base.iterdir()))
+            r = await c.post("/api/print3d/from-stl?nom=X",
+                             content=b"pas un stl du tout")
+            assert r.status_code == 400
+            assert len(list(base.iterdir())) == n_avant
+            # la liste datée
+            r = await c.get("/api/print3d/exports")
+            noms = [e["dossier"] for e in r.json()["exports"]]
+            assert d["dossier"] in noms and d2["dossier"] in noms
+            # OUVERTURE GARDÉE : l'ouvreur est mocké — le banc n'ouvre RIEN
+            appels = []
+            vrai = P3._lancer_startfile
+            P3._lancer_startfile = lambda chemin: appels.append(chemin)
+            try:
+                r = await c.post("/api/print3d/open",
+                                 json={"dossier": d["dossier"]})
+                assert r.status_code == 200, r.text
+                assert r.json()["mode"] == "association"
+                assert len(appels) == 1 and appels[0].endswith(".3mf")
+                # dossier inconnu → 404 ; traversée → 400, JAMAIS d'appel
+                r = await c.post("/api/print3d/open",
+                                 json={"dossier": "n-existe-pas"})
+                assert r.status_code == 404
+                r = await c.post("/api/print3d/open",
+                                 json={"dossier": "../images"})
+                assert r.status_code == 400
+                assert len(appels) == 1
+            finally:
+                P3._lancer_startfile = vrai
+
+    asyncio.run(scenario())

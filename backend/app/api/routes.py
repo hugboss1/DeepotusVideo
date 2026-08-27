@@ -7771,3 +7771,97 @@ async def subtitles_job(jid: str):
         raise HTTPException(404, "Travail de sous-titrage inconnu (ou expiré "
                                  "avec le redémarrage du backend).")
     return {"ok": True, "job_id": jid, **j}
+
+
+# ── Impression 3D : exports vers le slicer (plan 2026-08-27) ─────────────────
+# Service print3d : 100 % local, python pur (lecteur GLB minimal, STL/3MF
+# stdlib). Un dossier par export sous assets/print3d ; « Ouvrir dans le
+# slicer » = association Windows du .3mf, repli SLICER_PATH du .env.
+
+def _print3d_base() -> Path:
+    base = settings.outputs_path.parent / "print3d"
+    base.mkdir(parents=True, exist_ok=True)
+    return base
+
+
+@router.post("/print3d/from-assets3d/{job}")
+async def print3d_from_assets3d(job: str, body: dict):
+    """Body: {cible_mm?, nom?} — convertit le maillage d'un job Game
+    Assets 3D en dossier d'impression (STL + 3MF aux mm). Préfère le
+    `model.stl` du moteur quand il existe (zéro conversion = zéro risque),
+    sinon lit `model.glb` ; `model.opt.glb` SEUL → 409 parlant (meshopt)."""
+    from app.services import print3d as P3
+    d = settings.outputs_path / "assets3d" / Path(job).name
+    if not d.is_dir():
+        raise HTTPException(404, f"Job 3D introuvable: {job}")
+    cible = body.get("cible_mm")
+    cible = float(cible) if cible not in (None, "") else None
+    nom = str(body.get("nom") or Path(job).name).strip()[:80]
+    try:
+        if (d / "model.stl").is_file():
+            tris = P3.lire_stl((d / "model.stl").read_bytes())
+        elif (d / "model.glb").is_file():
+            tris = P3.lire_glb_triangles((d / "model.glb").read_bytes())
+        elif (d / "model.opt.glb").is_file():
+            raise HTTPException(409,
+                "seul model.opt.glb existe — il est compressé meshopt (pour "
+                "les moteurs de jeu) ; il faut model.glb, la source non "
+                "compressée")
+        else:
+            raise HTTPException(404,
+                "aucun maillage lisible (model.stl / model.glb) dans ce job")
+        export = await asyncio.to_thread(
+            P3.creer_export, _print3d_base(), nom, tris, cible,
+            f"assets3d:{Path(job).name}", "inconnue")
+    except ValueError as e:
+        raise HTTPException(409, str(e))
+    return export
+
+
+@router.post("/print3d/from-stl")
+async def print3d_from_stl(request: Request, nom: str = "objet",
+                           cible_mm: float | None = None,
+                           source: str = "stl", etanche: str = "inconnue"):
+    """Corps binaire = STL BINAIRE (la voie de la Forge 3D cartes et du
+    Vectorlab). `cible_mm` absent = « tel quel » (les producteurs mm) ;
+    `etanche=garantie` seulement quand le producteur le PROUVE (gate
+    forge3d)."""
+    from app.services import print3d as P3
+    octets = await request.body()
+    try:
+        tris = P3.lire_stl(octets)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    export = await asyncio.to_thread(
+        P3.creer_export, _print3d_base(), str(nom)[:80], tris, cible_mm,
+        str(source)[:40],
+        "garantie" if etanche == "garantie" else "inconnue")
+    return export
+
+
+@router.get("/print3d/exports")
+async def print3d_exports():
+    from app.services import print3d as P3
+    return {"exports": P3.lister_exports(_print3d_base())}
+
+
+@router.post("/print3d/open")
+async def print3d_open(body: dict):
+    """Ouvre le `.3mf` d'un export dans le slicer. Le nom de dossier est
+    CONTENU dans assets/print3d — jamais de startfile arbitraire."""
+    from app.services import print3d as P3
+    nom = str(body.get("dossier") or "")
+    safe = Path(nom).name
+    if not safe or safe != nom or safe in (".", ".."):
+        raise HTTPException(400, "nom de dossier invalide")
+    dossier = _print3d_base() / safe
+    if not dossier.is_dir():
+        raise HTTPException(404, "export introuvable")
+    mf3 = sorted(dossier.glob("*.3mf"))
+    if not mf3:
+        raise HTTPException(404, "aucun .3mf dans cet export")
+    try:
+        mode = P3.ouvrir_dans_slicer(mf3[0])
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
+    return {"ok": True, "mode": mode, "fichier": mf3[0].name}
