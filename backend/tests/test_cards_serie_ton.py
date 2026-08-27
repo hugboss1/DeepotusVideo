@@ -187,10 +187,10 @@ def test_la_voie_sert_la_case_par_le_frere_ajuste_sans_payer_plus(monkeypatch):
 def test_la_voie_n_offre_pas_de_frere_aux_axes_non_tonals(monkeypatch):
     """Une toile saturée (chroma hors corpus) n'est PAS rescuable au ton : la
     passe ne doit même pas essayer — pas de faux espoir, pas de travail
-    caché. L'échelle monte comme avant et la case est refusée comme avant."""
+    caché. La case est refusée comme avant."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
+    at = _Atelier(banana_pro="saturee").pose(monkeypatch)
     did = _deck()
     r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
     assert r.status_code == 200, r.text

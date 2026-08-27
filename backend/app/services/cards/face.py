@@ -1120,16 +1120,18 @@ async def stamp_png(did: str, fmt: str, dpi: int, request: Request,
 SERIE_ID = "walkuski"
 SERIE_V = 1                       # schéma du manifeste
 SERIE_DIR = "cardforge_series"    # sous `DATA_ROOT`, patron des modèles perso
-SERIE_PLAFOND_USD = 20.00         # LE MUR (plan D2) — dur, pas indicatif.
+SERIE_PLAFOND_USD = 25.00         # LE MUR (plan D2) — dur, pas indicatif.
 # 6,00 à la naissance (T1) ; 8,00 le 25/08/2026 (« relève à 8$ ») ; 10,00,
 # 12,00 puis 15,00 le 26/08/2026, chaque fois SUR ORDRE EXPLICITE DE
 # L'UTILISATEUR (« relève l'enveloppe à 10$ / 12$ / 15$ ») — la relance
 # T1-I/J/K à la voie de mise au ton en ligne a servi 30 cases sur 55
 # sondes ; 16,00 le 27/08/2026 (« relève a 16$ et vise monolith, archer et
 # autre » — la première enveloppe de la paire fal, relevé T1-N) ; 20,00 le
-# 27/08/2026 (« relève a 20$ et fini les backlights » — relevé T1-O). Ce
-# nombre ne bouge QUE sur un ordre utilisateur — jamais un agent (la leçon
-# de la campagne, écrite au plan).
+# 27/08/2026 (« relève a 20$ et fini les backlights » — relevé T1-O) ;
+# 25,00 le 27/08/2026 au soir (« relève a 25$ et tire le reste mais
+# focalise toi uniquement sur nano banana pro » — relevé T1-P). Ce nombre
+# ne bouge QUE sur un ordre utilisateur — jamais un agent (la leçon de la
+# campagne, écrite au plan).
 # NOTE DU 27/08/2026 : la marche FLUX (6 candidats, lots 4+2 — le plafond
 # fournisseur `num_images ≤ 4` mesuré en payant le 25/08) est SORTIE de
 # l'échelle avec ses constantes `SERIE_CANDIDATS`/`SERIE_FLUX_MAX` : sa
@@ -2019,8 +2021,8 @@ def serie_prix() -> dict:
 
 
 def cout_echelle_usd() -> float:
-    """CE QUE COÛTE UNE CASE AU PIRE : l'échelle ENTIÈRE, un candidat par
-    marche de la paire. Calculé sur la table, jamais écrit — un plafond qui
+    """CE QUE COÛTE UNE CASE AU PIRE : l'échelle ENTIÈRE — la marche unique
+    Nano Banana Pro. Calculé sur la table, jamais écrit — un plafond qui
     se libelle dans une autre monnaie que la facture ne protège rien.
 
     C'est le nombre qui décide si une case s'OUVRE (correction de ronde) : le
@@ -2036,26 +2038,19 @@ def cout_echelle_usd() -> float:
     return round(total, 4)
 
 
-# ── les deux voies : le MÊME chemin de service que `/images/generate` ──────
+# ── la voie : le MÊME chemin de service que `/images/generate` ─────────────
 #
 # La campagne est une route de CE backend : elle ne se parle pas à elle-même
 # en HTTP (un client vers son propre serveur, c'est un point mort dès que la
 # boucle est occupée, et une seconde autorité sur les paramètres). Elle
 # appelle la fonction de service que `/images/generate` appelle : la façade
-# `image_providers.generate`, pour les deux marches. C'est l'idiome de
-# `routes.py` — on l'imite, on ne recopie pas ses branches inlined.
+# `image_providers.generate`. C'est l'idiome de `routes.py` — on l'imite,
+# on ne recopie pas ses branches inlined.
 
 async def _tirer_banana_pro(prompt: str) -> list:
     from app.services import image_providers
     out = await image_providers.generate(
         "nano-banana-pro", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1)
-    return list((out or {}).get("images") or [])
-
-
-async def _tirer_gpt(prompt: str) -> list:
-    from app.services import image_providers
-    out = await image_providers.generate(
-        "gpt-image-2-fal", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1)
     return list((out or {}).get("images") or [])
 
 
@@ -2098,24 +2093,25 @@ def _sans_chemin(txt, n: int = 200) -> str:
 
 # ── LA CAMPAGNE — l'échelle de secours, le journal, le mur ──────────────────
 #
-# L'ÉCHELLE DU 27/08/2026 (ordre utilisateur du 26/08 : « utilise gpt image2
-# et nano banana pro avec la clé fal.ai ») — LA PAIRE FAL, marche par marche,
-# pour UNE case :
+# L'ÉCHELLE DU 27/08/2026 AU SOIR (ordre utilisateur : « tire le reste mais
+# focalise toi uniquement sur nano banana pro ») — LA MARCHE UNIQUE, pour
+# UNE case :
 #
 #   1. UN candidat Nano Banana Pro (fal) ; le juge le note, avec son frère
-#      mis au ton gratuit quand il est rescuable ; s'il TIENT, c'est fini ;
-#   2. sinon, UN GPT Image 2 servi PAR fal (endpoint openai/gpt-image-2 —
-#      la clé fal facture, le filtre de sécurité OpenAI direct qui a rejeté
-#      2 × le sujet archer n'est plus la porte) ;
-#   3. sinon la case RESTE VECTORIELLE, et son refus est journalisé avec ses
+#      mis au ton gratuit quand il est rescuable ; s'il TIENT, la case est
+#      servie ;
+#   2. sinon la case RESTE VECTORIELLE, et son refus est journalisé avec ses
 #      axes rouges. Une case sans image n'est pas un trou : c'est le dessin du
 #      catalogue, et l'écran le dit.
 #
 # CE QUI EST SORTI DE L'ÉCHELLE, ET POURQUOI : la marche FLUX (6 candidats à
 # graine DÉTERMINISTE par case — re-tirer une refusée aurait payé les mêmes
-# pixels, jugés et refusés le 25-26/08) et la marche d'ÉDITION nano-banana
-# (0 case gagnée en 80 sondes, relevés T1-I à T1-L). Le levier neuf, c'est
-# le MODÈLE — les prompts, eux, sont épuisés comme levier et ne bougent pas.
+# pixels, jugés et refusés le 25-26/08), la marche d'ÉDITION nano-banana
+# (0 case gagnée en 80 sondes, relevés T1-I à T1-L), et la marche GPT Image 2
+# par fal (0 case gagnée en 15 montées payées — 2,175 $ de secours pour rien,
+# relevés T1-M à T1-O ; les 5 victoires fal sont TOUTES nées à la première
+# marche). La façade et la table gardent `gpt-image-2-fal` : un retour ne
+# coûterait qu'une ligne d'échelle.
 #
 # LE MUR EST VÉRIFIÉ AVANT CHAQUE TIR, pas après : `dépense + prix > plafond`
 # arrête la campagne AVANT l'appel. Le prix vient de `pricing`, jamais d'un
@@ -2127,7 +2123,7 @@ def _sans_chemin(txt, n: int = 200) -> str:
 # atteint plus tôt, jamais plus tard), et le journal porte `panne` pour que le
 # bilan ne fasse pas passer une panne pour une dépense utile.
 
-SERIE_ECHELLE = ("nano-banana-pro", "gpt-image-2-fal")
+SERIE_ECHELLE = ("nano-banana-pro",)
 SERIE_MOTIFS = {
     "fin": "toutes les cases demandées ont été traitées",
     "limite": "limite de session atteinte",
@@ -2199,8 +2195,8 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
 
     prompt = serie_prompt(case)
 
-    # marche 1 — UN candidat Nano Banana Pro (les frères mis au ton sont
-    # gratuits et jugés dans `_juger`, comme sur toutes les marches)
+    # la marche unique — UN candidat Nano Banana Pro (les frères mis au ton
+    # sont gratuits et jugés dans `_juger`)
     prix_case = await _payer(SERIE_ECHELLE[0], 1)
     try:
         noms = await _tirer_banana_pro(prompt)
@@ -2212,29 +2208,6 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
         raise _Panne("le générateur n'a rendu aucune image")
     best = meilleur_candidat(await _juger(noms))
     best["voie"] = SERIE_ECHELLE[0]
-    if best.get("verdict") == "TIENT":
-        best["prix_usd"] = round(prix_case, 4)
-        return best
-
-    # marche 2 — un GPT Image 2 par fal, la dernière
-    prix_case += await _payer(SERIE_ECHELLE[1], 1)
-    try:
-        noms = await _tirer_gpt(prompt)
-    except Exception as e:
-        journal[-1]["panne"] = True
-        raise _Panne(_sans_chemin(e))
-    if noms:
-        neuf = meilleur_candidat(await _juger(noms))
-        neuf["voie"] = SERIE_ECHELLE[1]
-        if neuf.get("verdict") == "TIENT":
-            neuf["prix_usd"] = round(prix_case, 4)
-            return neuf
-        # le meilleur VERDICT garde la main sur la voie du refus (natures
-        # avant notes, comme `meilleur_candidat`) ; à l'égalité stricte, la
-        # première marche reste `best`
-        best = max([best, neuf],
-                   key=lambda n: (_RANG_VERDICT.get(n["verdict"], 0),
-                                  n["score"]))
     best["prix_usd"] = round(prix_case, 4)
     return best
 
@@ -2500,11 +2473,10 @@ def devis(voulues: list, limite: int = 0) -> dict:
     """CE QUE CETTE DEMANDE FERAIT, ET CE QU'ELLE COÛTERAIT AU PIRE — sans
     rien dépenser.
 
-    Le pire cas est l'échelle complète × les cases visées : 31,86 $ pour la
-    série entière à la paire fal du 27/08, soit 2,12 fois le plafond. La
-    campagne est donc MULTI-SESSION par construction, et le devis le DIT
-    plutôt que de laisser l'utilisateur le découvrir au troisième « plafond
-    atteint »."""
+    Le pire cas est l'échelle complète × les cases visées : 16,20 $ pour la
+    série entière à la marche unique du 27/08 au soir — pour la première
+    fois sous le plafond d'une série vierge. `multi_session` reste calculé,
+    jamais affirmé : c'est la DEMANDE et la table du jour qui décident."""
     m, _ = manifeste_lire()
     cibles = [c for c in (voulues or serie_cases()) if c not in m["cases"]]
     if limite:

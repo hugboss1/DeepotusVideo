@@ -2708,8 +2708,8 @@ def test_la_molette_p1_coalesce_son_zoom_a_la_frame():
 # CENTIME, et ce n'est pas une intention, c'est un compte :
 #
 #   * chaque test de campagne pose son ESPION sur les trois seules fonctions
-#     de la pièce qui appellent un générateur (`_tirer_banana_pro`,
-#     `_tirer_gpt`) — l'espion écrit une image SYNTHÉTIQUE sur le disque local
+#     de la pièce qui appelle un générateur (`_tirer_banana_pro`) —
+#     l'espion écrit une image SYNTHÉTIQUE sur le disque local
 #     et rend son nom ;
 #   * la SENTINELLE (patron `test_cards_capture.py`, recopié et non importé —
 #     règle 8 : deux bancs ne partagent pas un outil) referme derrière lui les
@@ -2872,13 +2872,13 @@ def _sentinelle(monkeypatch) -> _Sentinelle:
 
 
 class _Atelier:
-    """L'ESPION DES DEUX VOIES. Il écrit une image synthétique dans le
+    """L'ESPION DE LA VOIE UNIQUE. Il écrit une image synthétique dans le
     magasin d'images et rend son nom — le même contrat que le vrai
-    générateur, sans le fournisseur. `banana_pro` / `gpt` disent QUEL
-    genre d'image chaque voie rend (un genre, ou une liste par candidat)."""
+    générateur, sans le fournisseur. `banana_pro` dit QUEL genre d'image
+    la marche rend (un genre, ou une liste par candidat)."""
 
-    def __init__(self, banana_pro="saturee", gpt="saturee"):
-        self.banana_pro, self.gpt = banana_pro, gpt
+    def __init__(self, banana_pro="saturee"):
+        self.banana_pro = banana_pro
         self.appels: list = []
 
     _GENRES = {"conforme": _toile_conforme, "retouchable": _toile_a_retoucher,
@@ -2900,13 +2900,8 @@ class _Atelier:
         self.appels.append(("nano-banana-pro", prompt, 1))
         return [self._poser(self._genres(self.banana_pro, 1)[0])]
 
-    async def tirer_gpt(self, prompt):
-        self.appels.append(("gpt-image-2-fal", prompt, 1))
-        return [self._poser(self._genres(self.gpt, 1)[0])]
-
     def pose(self, monkeypatch):
         monkeypatch.setattr(FA, "_tirer_banana_pro", self.tirer_banana_pro)
-        monkeypatch.setattr(FA, "_tirer_gpt", self.tirer_gpt)
         return self
 
 
@@ -2990,10 +2985,11 @@ def test_le_tarif_nano_banana_est_TABULE_et_publie_par_egalite():
     # tirer — mieux vaut une marche sautée qu'une facture au tarif d'un autre.
     assert FA.prix_usd("modele-inconnu") is None
     assert FA.prix_usd("nano-banana", 2) == pytest.approx(2 * 0.039)
-    # l'échelle de la série est la PAIRE fal depuis le 27/08 — et ses prix
-    # sont tabulés eux aussi (le test voisin les épingle à la source)
+    # l'échelle de la série est la MARCHE UNIQUE nano-banana-pro depuis le
+    # 27/08 au soir (« focalise toi uniquement sur nano banana pro ») — son
+    # prix est tabulé (le test voisin l'épingle à la source)
     assert set(FA.serie_prix()) == set(FA.SERIE_ECHELLE) \
-        == {"nano-banana-pro", "gpt-image-2-fal"}
+        == {"nano-banana-pro"}
     assert all(v is not None for v in FA.serie_prix().values())
     # ... et l'écran /ai-models le publie par ÉGALITÉ à la table
     did = _deck()
@@ -3031,6 +3027,10 @@ def test_les_tarifs_de_la_paire_fal_sont_TABULES_et_publies_par_egalite():
                               "n": 2})
     assert devis["total_usd"] == pytest.approx(2 * 0.15)
     assert devis["breakdown"][0]["provider"] == "fal"
+    # les DEUX tarifs restent tabulés — gpt-image-2-fal est sorti de
+    # l'ÉCHELLE (0 victoire en 15 montées, ordre du 27/08 au soir), pas de
+    # la table : la façade le sert toujours, et un retour ne coûterait
+    # qu'une ligne d'échelle
     assert FA.prix_usd("gpt-image-2-fal") == pytest.approx(0.145)
     assert FA.prix_usd("nano-banana-pro") == pytest.approx(0.15)
 
@@ -3578,14 +3578,13 @@ def test_GET_serie_dit_l_etat_le_plafond_et_les_prix(monkeypatch):
     d = r.json()
     assert d["serie"] == "walkuski" and d["v"] == FA.SERIE_V
     assert d["total"] == 108 and d["faites"] == 0 and d["restantes"] == 108
-    assert d["plafond_usd"] == pytest.approx(20.0)  # relevé utilisateur 27/08
+    assert d["plafond_usd"] == pytest.approx(25.0)  # relevé utilisateur 27/08
     assert d["depense_totale_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(20.0)
+    assert d["reste_usd"] == pytest.approx(25.0)
     from app.services import pricing
+    assert set(d["prix"]) == {"nano-banana-pro"}
     assert d["prix"]["nano-banana-pro"] == \
         pytest.approx(pricing.load()["nano_banana_pro_usd"])
-    assert d["prix"]["gpt-image-2-fal"] == \
-        pytest.approx(pricing.load()["gpt_image_2_fal_usd"])
     assert d["familles"] == {"ocre": 54, "rouge": 27, "graphite": 20,
                              "violet": 7}
     assert d["juge"]["copie_le"] == FA.SERIE_JUGE["copie_le"]
@@ -3714,44 +3713,41 @@ def test_la_reprise_ne_refait_PAS_les_cases_faites(monkeypatch):
     s.zero()
 
 
-def test_l_echelle_a_deux_marches_gpt_en_secours_puis_le_vectoriel(
+def test_l_echelle_a_une_marche_refuse_ou_sert_puis_laisse_le_vectoriel(
         monkeypatch):
-    """L'ÉCHELLE DU 27/08, marche par marche : la PAIRE fal remplace le trio
-    (les 51 refusées avaient déjà brûlé leurs six candidats FLUX à graine
-    DÉTERMINISTE — re-tirer la marche aurait payé les mêmes pixels ; la
-    marche d'édition n'a gagné 0 case en 80 sondes). Nano Banana Pro refuse :
-    un GPT Image 2 par fal. Toujours refusé : la case RESTE VECTORIELLE — et
-    le refus est journalisé avec ses axes rouges, parce qu'un refus muet ne
-    dit pas quoi changer."""
+    """L'ÉCHELLE DU 27/08 AU SOIR : LA MARCHE UNIQUE nano-banana-pro («
+    focalise toi uniquement sur nano banana pro » — la marche gpt-image-2
+    par fal n'a gagné 0 case en 15 montées payées, elle sort de l'échelle
+    comme FLUX et l'édition avant elle). Le candidat TIENT — servi. Sinon la
+    case RESTE VECTORIELLE — et le refus est journalisé avec ses axes
+    rouges, parce qu'un refus muet ne dit pas quoi changer."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
+    at = _Atelier(banana_pro="saturee").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert [a[0] for a in at.appels] == ["nano-banana-pro"]
     assert not d["traitees"] and len(d["refusees"]) == 1
     ref = d["refusees"][0]
-    # les deux marches rendent la MÊME toile de banc : à l'égalité de verdict
-    # et de score, la première marche garde la main sur la voie du refus
     assert ref["voie"] == "nano-banana-pro"
     assert ref["axes_rouges"], "le refus ne nomme aucun axe"
     m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
     assert ref["case"] in m["refus"] and ref["case"] not in m["cases"]
-    # ... et la marche de secours gagne quand elle rattrape le coup
+    # ... et la même marche SERT quand le candidat tient
     _serie_neuve()
-    at2 = _Atelier(banana_pro="saturee", gpt="conforme").pose(monkeypatch)
+    at2 = _Atelier(banana_pro="conforme").pose(monkeypatch)
     d2 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at2.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
-    assert d2["traitees"][0]["voie"] == "gpt-image-2-fal"
-    # ... et une première marche « à retoucher » ne gagne PAS la case : sans
-    # marche d'édition, l'échelle monte quand même, et le meilleur verdict
-    # décide de la voie du refus si la seconde échoue aussi
+    assert [a[0] for a in at2.appels] == ["nano-banana-pro"]
+    assert d2["traitees"][0]["voie"] == "nano-banana-pro"
+    # ... et un « à retoucher » sans marche au-dessus est un refus NOMMÉ
+    # (meilleur score dit), pas une montée : il n'y a plus rien à gravir
     _serie_neuve()
-    at3 = _Atelier(banana_pro="retouchable", gpt="saturee").pose(monkeypatch)
+    at3 = _Atelier(banana_pro="retouchable").pose(monkeypatch)
     d3 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at3.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert [a[0] for a in at3.appels] == ["nano-banana-pro"]
     assert not d3["traitees"] and len(d3["refusees"]) == 1
     assert d3["refusees"][0]["voie"] == "nano-banana-pro"
+    assert "aucun candidat ne TIENT" in d3["refusees"][0]["motif"]
     s.zero()
 
 
@@ -3868,73 +3864,67 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
 
     Une case ne s'OUVRE donc que si L'ÉCHELLE COMPLÈTE tient sous le plafond,
     et le reliquat inutilisable est AVOUÉ au bilan. Le coût de l'échelle vient
-    de la table (1 Nano Banana Pro + 1 GPT par fal), jamais d'un nombre écrit
-    ici."""
+    de la table (la marche unique Nano Banana Pro), jamais d'un nombre écrit
+    ici. À UNE marche, la garde d'ouverture et la garde par tir sont LA MÊME
+    arithmétique — le scénario « ouverte à moitié » est structurellement
+    mort, et ce test garde l'autre moitié de la leçon : le mur qui arrête
+    AVANT d'ouvrir, et le reliquat dit avec ses deux nombres."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    # LE SCÉNARIO QUI DISTINGUE, et c'est celui que la revue a mesuré : il
-    # faut que le reliquat COUVRE la première marche sans couvrir la
-    # seconde, et que la case CLIMBE. Tarifs du banc : 0,08 pour Nano Banana
-    # Pro, 5,00 pour le GPT — échelle 5,08. TROIS cases traitées laissent
-    # 4,76 de reliquat sous l'enveloppe de 20,00 (relevé utilisateur du
-    # 27/08 ; c'était 3 cases et 0,76 sous celle de 16,00, deux cases et
-    # 4,84 sous 15,00, 1,84 sous 12,00, une case et 4,92 sous 10,00, 2,92
-    # sous 8,00, 0,92 sous 6,00) : de quoi payer la première marche (0,08)
-    # et se faire arrêter sur la seconde, sans aucune trace — si la garde
-    # d'ouverture n'existait pas.
-    p = _prix_de_banc(monkeypatch, nano_banana_pro_usd=0.08,
-                      gpt_image_2_fal_usd=5.00)
-    echelle = p["nano_banana_pro_usd"] + p["gpt_image_2_fal_usd"]
+    # Tarif du banc : 5,08 la marche — QUATRE cases traitées font 20,32 et
+    # laissent 4,68 de reliquat sous l'enveloppe de 25,00 (relevé
+    # utilisateur du 27/08 au soir ; l'historique des reliquats vit dans
+    # l'historique de ce fichier).
+    p = _prix_de_banc(monkeypatch, nano_banana_pro_usd=5.08)
+    echelle = p["nano_banana_pro_usd"]
     assert FA.cout_echelle_usd() == pytest.approx(echelle) == pytest.approx(5.08)
-    _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
+    _Atelier(banana_pro="saturee").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond"
-    assert not d["traitees"] and len(d["refusees"]) == 3
-    assert d["depense_totale_usd"] == pytest.approx(15.24), \
-        "une case a été ouverte à moitié : de l'argent parti sans trace"
-    assert d["reste_usd"] == pytest.approx(4.76)
+    assert not d["traitees"] and len(d["refusees"]) == 4
+    assert d["depense_totale_usd"] == pytest.approx(20.32)
+    assert d["reste_usd"] == pytest.approx(4.68)
     assert d["echelle_usd"] == pytest.approx(5.08)
     # LE RELIQUAT EST AVOUÉ, avec les deux nombres qui le rendent lisible
-    assert "4,76" in d["message"] and "5,08" in d["message"], d["message"]
+    assert "4,68" in d["message"] and "5,08" in d["message"], d["message"]
     assert d["reste_usd"] < d["echelle_usd"]
     # ... et TOUT tir du journal appartient à une case TRACÉE
     tracees = {t["case"] for t in d["traitees"]} | {r["case"] for r in d["refusees"]}
     assert {l["case"] for l in d["journal"]} == tracees
-    assert len(d["journal"]) == 6, d["journal"]
+    assert len(d["journal"]) == 4, d["journal"]
     # le mur est UNE seule arithmétique, partagée par la boucle et par le tir
-    # (la frontière suit l'enveloppe : 20,00 depuis le relevé utilisateur)
-    assert FA.tient_sous_le_mur(19.0, 1.0) and not FA.tient_sous_le_mur(19.0, 1.01)
+    # (la frontière suit l'enveloppe : 25,00 depuis le relevé utilisateur)
+    assert FA.tient_sous_le_mur(24.0, 1.0) and not FA.tient_sous_le_mur(24.0, 1.01)
     s.zero()
 
 
 def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
-    """LE PLAFOND EST UN MUR, PAS UN VŒU. À 1,80 $ le candidat unique, chaque
-    case coûte 1,80 $ en voie Nano Banana Pro mais S'OUVRE à l'échelle
-    complète (1,959 $) : onze cases tiennent sous l'enveloppe de 20,00 $
-    (19,80 payés, 19,959 à l'ouverture de la onzième), la douzième ne PART
-    PAS (21,759 > 20). La campagne s'arrête proprement, rend son bilan, et
-    le prochain POST reprend là où elle s'est arrêtée. (Le scénario était à
-    8 cases sous 16,00 $ et sous 15,00, 6 sous 12,00, 5 sous 10,00, 4 sous
-    8,00 et 3 sous 6,00 — re-dérivé à chaque relevé utilisateur.)"""
+    """LE PLAFOND EST UN MUR, PAS UN VŒU. À 1,80 $ la marche unique, chaque
+    case gagnée coûte 1,80 $ et s'ouvre au même prix : treize cases tiennent
+    sous l'enveloppe de 25,00 $ (23,40 payés, 23,40 + 1,80 à l'ouverture de
+    la quatorzième = 25,20 > 25 — elle ne PART PAS). La campagne s'arrête
+    proprement, rend son bilan, et le prochain POST reprend là où elle
+    s'est arrêtée. (Le scénario était à 11 cases sous 20,00 $, 8 sous 16,00
+    et 15,00, 6 sous 12,00, 5 sous 10,00, 4 sous 8,00 et 3 sous 6,00 —
+    re-dérivé à chaque relevé utilisateur.)"""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    _prix_de_banc(monkeypatch, nano_banana_pro_usd=1.80,
-                  gpt_image_2_fal_usd=0.159)
+    _prix_de_banc(monkeypatch, nano_banana_pro_usd=1.80)
     _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond", d["arret"]
-    assert len(d["traitees"]) == 11, [t["case"] for t in d["traitees"]]
-    assert d["depense_totale_usd"] == pytest.approx(19.80)
-    assert d["reste_usd"] == pytest.approx(0.20)
-    assert d["faites"] == 11 and d["restantes"] == 97
+    assert len(d["traitees"]) == 13, [t["case"] for t in d["traitees"]]
+    assert d["depense_totale_usd"] == pytest.approx(23.40)
+    assert d["reste_usd"] == pytest.approx(1.60)
+    assert d["faites"] == 13 and d["restantes"] == 95
     assert "plafond" in d["message"].lower()
-    assert len(d["journal"]) == 11
+    assert len(d["journal"]) == 13
     # un second POST ne dépense plus rien : le mur tient d'un appel à l'autre
     e = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert e["arret"] == "plafond" and not e["traitees"]
-    assert e["depense_totale_usd"] == pytest.approx(19.80)
+    assert e["depense_totale_usd"] == pytest.approx(23.40)
     s.zero()
 
 
@@ -3946,14 +3936,16 @@ def test_le_prix_de_chaque_appel_vient_de_pricing_et_se_journalise_AVANT(
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     p = _prix_de_banc(monkeypatch)
-    _Atelier(banana_pro="saturee", gpt="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="saturee").pose(monkeypatch)
     did = _deck()
-    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
+    # deux cases refusées = deux tirs : le cumul AVANT s'enchaîne d'une
+    # case à l'autre, et c'est lui qui rend le plafond vérifiable
+    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2").json()
     j = d["journal"]
-    assert [l["modele"] for l in j] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert [l["modele"] for l in j] == ["nano-banana-pro", "nano-banana-pro"]
     assert j[0]["n"] == 1 and j[1]["n"] == 1
     assert j[0]["prix_usd"] == pytest.approx(p["nano_banana_pro_usd"])
-    assert j[1]["prix_usd"] == pytest.approx(p["gpt_image_2_fal_usd"])
+    assert j[1]["prix_usd"] == pytest.approx(p["nano_banana_pro_usd"])
     assert j[0]["cumul_avant_usd"] == 0.0
     assert j[1]["cumul_avant_usd"] == pytest.approx(j[0]["prix_usd"])
     assert d["depense_totale_usd"] == pytest.approx(
@@ -3999,9 +3991,10 @@ def test_la_campagne_EXIGE_une_confirmation_et_rend_le_devis(monkeypatch):
 
 def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     """Le devis n'est pas un slogan : chaque nombre se refait. Le pire cas est
-    l'échelle complète × les cases que CETTE demande viserait — donc 31,86 $
-    pour la série entière, 2,12 fois le plafond : la campagne est
-    MULTI-SESSION par construction, et le devis le dit."""
+    l'échelle complète × les cases que CETTE demande viserait — 16,20 $ pour
+    la série entière à la marche unique : pour la PREMIÈRE fois l'enveloppe
+    (25,00) couvre le pire cas d'une série vierge, et le devis le dit
+    (`multi_session` retombe à False)."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     p = _prix_de_banc(monkeypatch)
@@ -4009,16 +4002,16 @@ def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     did = _deck()
     d = _api("POST", f"/api/cards/{did}/face/serie/generer",
              json={}).json()["detail"]["devis"]
-    echelle = p["nano_banana_pro_usd"] + p["gpt_image_2_fal_usd"]
-    assert d["echelle_usd"] == pytest.approx(echelle) == pytest.approx(0.295)
+    echelle = p["nano_banana_pro_usd"]
+    assert d["echelle_usd"] == pytest.approx(echelle) == pytest.approx(0.15)
     assert d["cases_manquantes"] == 108
     assert d["pire_cas_usd"] == pytest.approx(108 * echelle)
-    assert d["pire_cas_usd"] == pytest.approx(31.86, abs=1e-3)
-    assert d["plafond_usd"] == pytest.approx(20.0)  # relevé utilisateur 27/08
+    assert d["pire_cas_usd"] == pytest.approx(16.20, abs=1e-3)
+    assert d["plafond_usd"] == pytest.approx(25.0)  # relevé utilisateur 27/08
     assert d["depense_courante_usd"] == 0.0
-    assert d["reste_usd"] == pytest.approx(20.0)
-    assert d["cases_ouvrables"] == int(20.0 / echelle) == 67
-    assert d["multi_session"] is True
+    assert d["reste_usd"] == pytest.approx(25.0)
+    assert d["cases_ouvrables"] == int(25.0 / echelle) == 166
+    assert d["multi_session"] is False
     # le détail du devis nomme LA PAIRE, une image par marche
     assert set(d["detail_echelle"]) == set(FA.SERIE_ECHELLE)
     for m_ in FA.SERIE_ECHELLE:
@@ -4106,10 +4099,10 @@ def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     # LE PLAFOND BORNE AUSSI LE BANC : sans limite, `?cases=` lance la
-    # campagne ENTIÈRE (108 cases). À 4,00 $ le candidat le mur tombe après
+    # campagne ENTIÈRE (108 cases). À 8,00 $ le candidat le mur tombe après
     # trois cases — le test reste court ET prouve que la voie « sans
     # limite » est bien tenue par le plafond, pas par la patience.
-    _prix_de_banc(monkeypatch, nano_banana_pro_usd=4.00)
+    _prix_de_banc(monkeypatch, nano_banana_pro_usd=8.00)
     _Atelier(banana_pro="conforme").pose(monkeypatch)
     for did, attendu in (("pas_un_deck", 400), ("deck_ZZZZZZZZ", 400),
                          ("deck_00000000", 404)):
@@ -4161,29 +4154,28 @@ def test_la_cle_du_banc_est_neutralisee_et_la_sentinelle_COMPTE(monkeypatch):
 def test_la_piece_appelle_le_SERVICE_et_jamais_un_client_http_vers_elle_meme():
     """La campagne est une route du backend : elle ne doit pas se parler à
     elle-même en HTTP. Elle appelle le MÊME chemin de service que
-    `/images/generate` — la façade `image_providers` pour les deux marches
-    de la paire fal (l'idiome de routes.py, imité et non recopié)."""
+    `/images/generate` — la façade `image_providers` pour la marche unique
+    (l'idiome de routes.py, imité et non recopié)."""
     py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
     assert "from app.services import image_providers" in py
     sans = _py_sans_texte(pathlib.Path(FA.__file__))
     for interdit in ("httpx", "AsyncClient", "urlopen", "requests"):
         assert interdit not in sans, f"{interdit} : la pièce sort en HTTP"
-    # les DEUX voies passent par DEUX fonctions nommées, et rien d'autre
-    for fn in ("_tirer_banana_pro", "_tirer_gpt"):
-        assert f"async def {fn}(" in py, fn
-    assert sans.count("image_providers") == 4, \
-        ("la façade est nommée ailleurs que dans les deux `_tirer_*` "
-         "(un import + un appel chacun)")
+    # LA voie passe par UNE fonction nommée, et rien d'autre
+    assert "async def _tirer_banana_pro(" in py
+    assert sans.count("image_providers") == 2, \
+        ("la façade est nommée ailleurs que dans `_tirer_banana_pro` "
+         "(un import + un appel)")
 
 
-def test_les_deux_voies_SAVENT_appeler_leur_service(monkeypatch):
-    """LE CONTRÔLE QUI PROTÈGE T5. Toute la campagne est jouée par des espions
-    posés SUR les deux `_tirer_*` : leur corps — le seul endroit qui touche un
+def test_la_voie_SAIT_appeler_son_service(monkeypatch):
+    """LE CONTRÔLE QUI PROTÈGE T5. Toute la campagne est jouée par un espion
+    posé SUR `_tirer_banana_pro` : son corps — le seul endroit qui touche un
     vrai générateur — n'est donc jamais exécuté par le banc. Une dérive de
     signature (`image_providers.generate` renomme un paramètre) ne se verrait
     qu'en campagne RÉELLE, après avoir payé les cases précédentes.
 
-    Ici les deux corps sont exécutés pour de bon, avec la VRAIE signature du
+    Ici le corps est exécuté pour de bon, avec la VRAIE signature du
     service en face : on remplace la fonction de service par un faux qui
     commence par `inspect.signature(vraie).bind(...)`. L'appel est donc
     vérifié contre le contrat réel, et rien ne sort de la machine."""
@@ -4202,19 +4194,15 @@ def test_les_deux_voies_SAVENT_appeler_leur_service(monkeypatch):
                         _garde(IP.generate, {"images": ["b.png"], "seed": None}))
     p = FA.serie_prompt("vista_tower")
     assert asyncio.run(FA._tirer_banana_pro(p)) == ["b.png"]
-    assert asyncio.run(FA._tirer_gpt(p)) == ["b.png"]
-    assert [v[0] for v in vus] == ["generate", "generate"]
+    assert [v[0] for v in vus] == ["generate"]
     # le cadre demandé est bien celui de la pièce, pas un défaut du service,
-    # et chaque marche nomme SON modèle de la paire — dans l'ordre
+    # et la marche nomme SON modèle
     assert vus[0][1][0] == "nano-banana-pro"
-    assert vus[1][1][0] == "gpt-image-2-fal"
-    assert all(FA.SERIE_TAILLE in v[1] for v in vus)
-    # ... et le garde-fou de nom vaut sur les DEUX voies, pas seulement à la
+    assert FA.SERIE_TAILLE in vus[0][1]
+    # ... et le garde-fou de nom vaut sur la voie, pas seulement à la
     # construction du prompt : c'est la dernière porte avant le fournisseur.
-    for voie, args in ((FA._tirer_banana_pro, ("in the style of Walkuski",)),
-                       (FA._tirer_gpt, ("by Walkuski",))):
-        with pytest.raises(ValueError):
-            asyncio.run(voie(*args))
+    with pytest.raises(ValueError):
+        asyncio.run(FA._tirer_banana_pro("in the style of Walkuski"))
 
 
 # NOTE DU 27/08 : les deux contrôles du DÉCOUPAGE FLUX (plafond fournisseur
