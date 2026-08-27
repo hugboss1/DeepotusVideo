@@ -109,12 +109,15 @@ def lire_svg(did: str):
 
 
 def supprimer(did: str) -> None:
-    """Archive le courant en `.v<version>` — jamais de suppression brute."""
+    """Archive le courant en `.v<version>` — jamais de suppression brute.
+    La vignette, elle, PART : artefact dérivé qui renaît au premier Sauver,
+    pas d'orpheline sur disque."""
     d = _dossier()
     courant = d / f"{did}.json"
     if not courant.is_file():
         raise FileNotFoundError(did)
     os.replace(courant, d / f"{did}.v{version(did)}.json")
+    (d / f"{did}.png").unlink(missing_ok=True)
 
 
 def ecrire_vignette(did: str, octets: bytes) -> str:

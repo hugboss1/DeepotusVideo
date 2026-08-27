@@ -275,6 +275,11 @@ def test_le_magasin_des_vignettes_ecrit_lit_copie():
     d3 = VS.creer(_doc("Sans"))
     VS.copier_vignette("fantome", d3)
     assert VS.a_vignette(d3) is False
+    # supprimer ARCHIVE le doc mais emporte la vignette : artefact dérivé,
+    # elle renaît au premier Sauver — pas d'orpheline sur disque
+    VS.supprimer(did)
+    assert VS.a_vignette(did) is False
+    assert (dossier / f"{did}.v1.json").is_file()   # l'archive, elle, reste
 
 
 def test_les_routes_vignette():
