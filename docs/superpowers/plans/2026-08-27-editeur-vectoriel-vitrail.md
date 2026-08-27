@@ -523,6 +523,40 @@ mesure PIL de l'export PNG vérifie la part de pixels de contours dans
 mesure_style walkuski) ; la fiche reste l'unique source (pas de constantes
 recopiées : le test rougit si l'endpoint et la fiche divergent).
 
+### Expansion d'exécution (27/08, phase 4 livrée)
+
+Décisions : la mesure de couverture des plombs se fait DEUX fois — au banc
+qa node en ANALYTIQUE (union martinez des contours GONFLÉS de la baie
+générée / aire de la toile, bornes lues DANS la fiche épinglée par le
+test — zéro constante recopiée), et en PIL AU PIXEL sur l'export PNG réel
+(pixels proches du plomb / total, pendant la preuve T5.5 — le banc backend
+n'a pas de rasterizer SVG et ne lira pas le dossier images de
+l'utilisateur). Le générateur est PUR (`generer_baie(famille, params)` →
+objets sans id) ; l'insertion est UNE commande composée (calques `verre`
+sous `contours` créés au besoin par NOM, `op_ajouter` en série). Réseau de
+meneaux/traverses sous la naissance de l'ogive ; tympan = un panneau ;
+bordure = contour intérieur en retrait de `bordure×min(W,H)`, fraction
+CLAMPÉE aux bornes de la fiche ; les verres cyclent sur les 5 ancres ; les
+contours sont des tracés `fond:none` — donc DIVISIBLES par le ⧉ existant.
+
+- [ ] **T5.1 endpoint fiche** : `GET /api/vector/vitrail` sert
+  `familles.vitrail` de la copie épinglée — le pytest compare à l'octet
+  avec le fichier (divergence → rouge) — RED d'abord
+- [ ] **T5.2 générateur + motifs** : `generer_baie` (ogive/rectangle,
+  colonnes×rangées, bordure clampée, comptes exacts, ancres cyclées,
+  plomb de la fiche), `motif_iris`/`motif_rayons`/`motif_halo` (groupes,
+  palette de la fiche) — qa `vitrail.test.mjs` RED d'abord
+- [ ] **T5.3 couverture analytique** : part des contours gonflés de la
+  baie par défaut ∈ bornes `part_contours_plomb` LUES dans la fiche
+  (export `contour_en_multi` de mod-bool) — même banc
+- [ ] **T5.4 UI** : panneau Vitrail (palette 5 ancres + plomb cliquables,
+  bouton Baie… avec invite de paramètres, boutons Iris/Rayons/Halo),
+  nourri par l'endpoint (caché si indisponible) — node --check
+- [ ] **T5.5 déploiement & preuve réelle** : un vitrail complet créé DANS
+  l'app (baie générée + motifs + couleurs à la palette), export PNG →
+  Library, **mesure PIL au pixel dans les bornes de la fiche**, zéro
+  générateur d'images, relevé au plan
+
 ## Phase 6 — Bibliothèque par chapitre
 
 Contrats : bibliothèque globale (docs sans chapitre) + instanciation par
