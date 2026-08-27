@@ -26,7 +26,9 @@ function styleAttrs(s = {}) {
   if (s.contour && s.contour !== "none") {
     out += ` stroke="${escAttr(s.contour)}"`
         + ` stroke-width="${Number(s.epaisseur || 1)}"`
-        + ` stroke-linejoin="round" stroke-linecap="round"`;
+        + ` stroke-linejoin="${escAttr(s.joint || "round")}"`
+        + ` stroke-linecap="round"`;
+    if (s.pointilles) out += ` stroke-dasharray="${escAttr(s.pointilles)}"`;
   }
   if (s.opacite !== undefined && Number(s.opacite) !== 1) {
     out += ` opacity="${Number(s.opacite)}"`;
@@ -402,6 +404,24 @@ export function op_calque_supprimer(doc, id) {
 }
 
 
+/* ── apparence (T2.1) : style fusionné par patch, opacité de calque ── */
+
+export function op_style(doc, ids, patch) {
+  for (const { objet } of _objetsCibles(doc, ids)) {
+    const s = { ...(objet.style || {}) };
+    for (const [k, v] of Object.entries(patch || {})) {
+      if (v === null) delete s[k];
+      else s[k] = v;
+    }
+    objet.style = s;
+  }
+}
+
+export function op_calque_opacite(doc, id, opacite) {
+  _calque(doc, id).opacite = Math.max(0, Math.min(1, Number(opacite)));
+}
+
+
 /* ── historique (T1.5) : annulation par INSTANTANÉS du JSON ──
    `capturer(doc)` AVANT chaque commande ; `annuler(courant)` rend l'état
    capturé et empile le courant côté refaire ; `refaire(courant)` fait
@@ -487,8 +507,10 @@ export function compilerSVG(doc) {
     : "";
   const calques = doc.calques.map((c) => {
     const cache = c.visible === false ? ` style="display:none"` : "";
+    const op = (c.opacite !== undefined && Number(c.opacite) !== 1)
+      ? ` opacity="${Number(c.opacite)}"` : "";
     return `<g data-calque="${escAttr(c.id)}"`
-         + ` data-nom="${escAttr(c.nom || "")}"${cache}>`
+         + ` data-nom="${escAttr(c.nom || "")}"${op}${cache}>`
          + c.objets.map(compilerObjet).join("") + `</g>`;
   }).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg"`
