@@ -56,6 +56,55 @@ function compilerObjet(o) {
   }
 }
 
+/* ── chemins (T1.1) : le d de path, parsé, structuré, canonisé ──
+   Segments {c:"M"|"L"|"C"|"Q"|"Z", p:[nombres]} en ABSOLU seulement (v1) ;
+   lecture tolérante (virgules, implicites SVG), écriture canonique stable
+   à l'octet — les opérations de nœuds et les booléens s'appuient dessus. */
+const ARITE = { M: 2, L: 2, C: 6, Q: 4, Z: 0 };
+
+// arrondi 2 décimales SANS le piège flottant (1.005 → 1.01, 3.10 → 3.1)
+const nbc = (x) => String(Math.round(Number((x * 100).toPrecision(12))) / 100);
+
+export function chemin_parser(d) {
+  const src = String(d ?? "").replace(/,/g, " ").trim();
+  const jetons = src.match(/[A-Za-z]|-?(?:\d+\.?\d*|\.\d+)(?:e-?\d+)?/g) || [];
+  const segs = [];
+  let i = 0, cmd = null;
+  while (i < jetons.length) {
+    const t = jetons[i];
+    if (/^[A-Za-z]$/.test(t)) {
+      if (!(t in ARITE)) {
+        if (t.toUpperCase() in ARITE) {
+          throw new Error(`chemin: commande relative '${t}' non supportée `
+                          + "(v1: M/L/C/Q/Z absolus)");
+        }
+        throw new Error(`chemin: commande inconnue '${t}'`);
+      }
+      cmd = t;
+      i++;
+      if (cmd === "Z") { segs.push({ c: "Z", p: [] }); cmd = null; }
+      continue;
+    }
+    if (cmd === null) throw new Error("chemin: nombre sans commande");
+    const p = [];
+    for (let k = 0; k < ARITE[cmd]; k++, i++) {
+      if (i >= jetons.length || /^[A-Za-z]$/.test(jetons[i])) {
+        throw new Error(`chemin: arité de ${cmd} incomplète`);
+      }
+      p.push(Number(jetons[i]));
+    }
+    segs.push({ c: cmd, p });
+    if (cmd === "M") cmd = "L";     // implicite SVG : paires après M = L
+  }
+  return segs;
+}
+
+export function chemin_serialiser(segs) {
+  return segs.map((s) => s.c === "Z" ? "Z"
+                       : s.c + " " + s.p.map(nbc).join(" ")).join(" ");
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
