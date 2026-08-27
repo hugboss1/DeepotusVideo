@@ -9,6 +9,7 @@ import { initOutils } from "./mod-tools.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
+import { initVitrail } from "./mod-vitrail.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -434,5 +435,6 @@ initCalques(VL);
 initStyle(VL);
 initOutils(VL);
 initExport(VL);
+initVitrail(VL);
 window.VL = VL;
 charger();

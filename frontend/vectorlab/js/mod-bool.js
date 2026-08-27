@@ -215,6 +215,10 @@ function _disque(cx, cy, r, n = 24) {
   return pts;
 }
 
+export function contour_en_multi(objet, tol = TOL) {
+  return _contourEnMulti(objet, tol);
+}
+
 function _contourEnMulti(objet, tol) {
   const mz = _martinez();
   const w = (((objet.style || {}).epaisseur) || 1) / 2;
@@ -327,6 +331,24 @@ export function op_division(doc, ids) {
     nouveaux.push(id);
   });
   return nouveaux;
+}
+
+/* aire d'un MULTIPOLYGONE martinez, INDIFFÉRENTE à l'orientation des
+   anneaux (la lib ne la garantit pas — piège déjà vu) : par polygone,
+   |extérieur| − Σ|trous|. */
+export function aire_multi(mp) {
+  let total = 0;
+  for (const poly of mp || []) {
+    poly.forEach((ring, idx) => {
+      if (!ring || ring.length < 3) return;
+      const clos = ring[0][0] === ring[ring.length - 1][0]
+                && ring[0][1] === ring[ring.length - 1][1];
+      const pts = clos ? ring.slice(0, -1) : ring;
+      const a = Math.abs(_signee(pts));
+      total += idx === 0 ? a : -a;
+    });
+  }
+  return total;
 }
 
 /* aire d'un jeu d'anneaux : somme SIGNÉE absolue (les trous, en

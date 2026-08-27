@@ -120,3 +120,12 @@ button:disabled { opacity: .4; cursor: default; }
 .exp-menu label { display: flex; align-items: center; gap: 6px;
   color: #8b93a0; font-size: 12px; padding: 2px 4px; }
 .hidden { display: none; }
+
+/* ── panneau Vitrail (phase 5) ── */
+#panneauVitrail { padding: 6px 10px; border-bottom: 1px solid #262b34;
+  display: flex; flex-direction: column; gap: 6px; }
+.vit-palette { display: flex; gap: 5px; }
+.vit-sw { width: 24px; height: 24px; padding: 0; border-radius: 6px;
+  border: 1px solid #3a4150; cursor: pointer; }
+.vit-sw:hover { outline: 2px solid #5b82b8; }
+.vit-plomb { border: 1px dashed #8b93a0; }
