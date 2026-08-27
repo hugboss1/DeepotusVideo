@@ -122,6 +122,7 @@ a:hover{color:var(--ink-strong)}
   --cat-tuiles:oklch(.72 .13 145);    /* vert   — Tuiles */
   --cat-matieres:oklch(.72 .13 80);   /* ambre  — Matières */
   --cat-cartes:oklch(.72 .13 25);     /* rouge  — Cartes */
+  --cat-vectoriel:oklch(.72 .13 340); /* rose   — Vectorlab (27/08) */
   --cat:var(--accent);
   --cat-fill:oklch(from var(--cat) l c h / .14);
   --cat-line:oklch(from var(--cat) l c h / .55);
@@ -138,5 +139,6 @@ a:hover{color:var(--ink-strong)}
   --cat-3d:oklch(.52 .12 255); --cat-3dstudio:oklch(.52 .12 300);
   --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
   --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
+  --cat-vectoriel:oklch(.52 .12 340);
   --cat-ink:#ffffff;
 }

@@ -162,6 +162,7 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
   --cat-3d:oklch(.72 .13 255); --cat-3dstudio:oklch(.72 .13 300);
   --cat-sprites:oklch(.72 .13 200); --cat-tuiles:oklch(.72 .13 145);
   --cat-matieres:oklch(.72 .13 80); --cat-cartes:oklch(.72 .13 25);
+  --cat-vectoriel:oklch(.72 .13 340);
   --cat:var(--accent);
   --cat-fill:oklch(from var(--cat) l c h / .14);
   --cat-line:oklch(from var(--cat) l c h / .55);
@@ -175,5 +176,6 @@ button[style*="border: 1px solid rgb(0, 229, 255)"]:not([style*="linear-gradient
   --cat-3d:oklch(.52 .12 255); --cat-3dstudio:oklch(.52 .12 300);
   --cat-sprites:oklch(.52 .12 200); --cat-tuiles:oklch(.52 .12 145);
   --cat-matieres:oklch(.52 .12 80); --cat-cartes:oklch(.52 .12 25);
+  --cat-vectoriel:oklch(.52 .12 340);
   --cat-ink:#ffffff;
 }
