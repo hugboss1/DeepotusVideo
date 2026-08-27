@@ -316,6 +316,47 @@ objet/calque, groupes (grouper/dégrouper, transformations composées), ordre z
 (avant/arrière), pipette. **Preuve :** snapshots SVG au banc (docs de
 référence compilés → SVG attendu figé, diff exact) ; rendu réel vérifié.
 
+### Expansion d'exécution (27/08, phase 1 livrée)
+
+Décisions : les dégradés vivent dans `doc.degrades {id: {type: lineaire|
+radial, stops:[{t, couleur, opacite?}], x1..y2 | cx,cy,r}}` en coordonnées
+DOCUMENT (`userSpaceOnUse`) — c'est ce qui rend les poignées sur canevas
+possibles ; un fond y réfère par `style.fond = "grad:<id>"`, la compilation
+émet `<defs>` et retombe sur `none` si le dégradé manque (jamais de
+document cassé). Le style des nouveaux objets devient un ÉTAT
+(`etat.styleCourant`, nourri par le panneau et la pipette). Grouper déplace
+les objets (ordre de peinture conservé) dans le calque de l'objet le plus
+haut, en fin de calque ; dégrouper POUSSE le transform du groupe dans les
+enfants (préfixe). La sélection au clic REMONTE AU SOMMET (`sommetDe`) :
+cliquer un enfant sélectionne son groupe. `stroke-linejoin` reste `round`
+par défaut (compat phase 1), `joint` le surcharge ; `pointilles` est la
+chaîne dasharray. Pipette : adopte le style de l'objet cliqué et
+l'applique à la sélection si elle existe.
+
+- [ ] **T2.1 style, joints, pointillés, opacités** : `op_style(doc, ids,
+  patch)` (null retire la clé), `op_calque_opacite`, compilation
+  dasharray/linejoin/opacity calque — qa `apparence.test.mjs` RED d'abord
+- [ ] **T2.2 dégradés** : `op_degrade_creer/modifier/stop_ajouter/
+  stop_modifier/stop_supprimer (≥2 restants)/supprimer`, compilation
+  `<defs>` triée par t, `url(#id)`, repli `none` — qa `degrades.test.mjs`
+- [ ] **T2.3 groupes & ordre z** : `op_grouper` (≥2 objets, hôte = calque du
+  plus haut), `op_degrouper` (transform poussé aux enfants),
+  `op_ordre(devant|derriere|avant|arriere)` par calque, `sommetDe(doc, id)`
+  — qa `groupes.test.mjs`
+- [ ] **T2.4 snapshot complet figé** : un document de référence exerçant
+  TOUT (dash+joint+opacités, dégradé linéaire et radial, groupe transformé,
+  ordre) compilé → chaîne SVG attendue LITTÉRALE, diff exact — qa
+  `snapshot.test.mjs`
+- [ ] **T2.5 UI** : panneau Apparence (`mod-style.js` : fond/contour/
+  épaisseur/pointillés/joint/opacité, éditeur de stops, boutons dégradé
+  linéaire/radial), poignées de dégradé sur canevas (drag →
+  `op_degrade_modifier`), pipette (outil I), boutons grouper/dégrouper et
+  ordre z, opacité par calque dans le panneau calques, sélection remontée
+  au sommet, `styleCourant` — node --check
+- [ ] **T2.6 déploiement & preuve réelle** : statiques déployés, scénario
+  navigateur (styles appliqués, dégradé rendu en `url(#…)`, groupe qui se
+  déplace d'un bloc, ordre z constaté, pipette), relevé au plan
+
 ## Phase 3 — Booléens & texte
 
 Contrats : union/soustraction/intersection/division sur 2+ objets
