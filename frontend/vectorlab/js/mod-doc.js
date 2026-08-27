@@ -433,6 +433,51 @@ export class Historique {
 }
 
 
+/* ── aimantation et guides (T1.6) : les guides d'abord (l'intention posée
+   par l'utilisateur prime sur la grille), rien hors tolérance. Les guides
+   vivent dans doc.guides {v:[x…], h:[y…]} — mutés par commandes, donc
+   capturés par l'historique comme le reste du document. */
+
+export function aimanter(v, { pas = 0, guides = [] } = {}, tol = 0) {
+  let meilleur = null, ecart = Infinity;
+  for (const g of guides) {
+    const e = Math.abs(v - g);
+    if (e <= tol && e < ecart) { meilleur = g; ecart = e; }
+  }
+  if (meilleur !== null) return meilleur;
+  if (pas > 0) {
+    const g = Math.round(v / pas) * pas;
+    if (Math.abs(v - g) <= tol) return g;
+  }
+  return v;
+}
+
+function _axeGuides(doc, axe) {
+  if (axe !== "v" && axe !== "h") throw new Error(`axe de guide inconnu: ${axe}`);
+  if (!doc.guides) doc.guides = { v: [], h: [] };
+  if (!Array.isArray(doc.guides[axe])) doc.guides[axe] = [];
+  return doc.guides[axe];
+}
+
+export function op_guide_ajouter(doc, axe, pos) {
+  const g = _axeGuides(doc, axe);
+  g.push(Number(pos));
+  return g.length - 1;
+}
+
+export function op_guide_deplacer(doc, axe, i, pos) {
+  const g = _axeGuides(doc, axe);
+  if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
+  g[i] = Number(pos);
+}
+
+export function op_guide_supprimer(doc, axe, i) {
+  const g = _axeGuides(doc, axe);
+  if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
+  g.splice(i, 1);
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
