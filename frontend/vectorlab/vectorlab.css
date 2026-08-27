@@ -178,7 +178,50 @@ button:disabled { opacity: .4; cursor: default; }
 .bib-actions button { flex: 1; padding: 3px 4px; font-size: 12px; }
 .bib-vide { color: #8b93a0; padding: 24px; grid-column: 1 / -1; }
 
-/* ── panneau Vitrail (phase 5) ── */
+/* ── nuancier (éditeur complet, E4) ── */
+#nuancier {
+  position: fixed; z-index: 60; width: 210px;
+  background: #1c2028; border: 1px solid #313847; border-radius: 10px;
+  padding: 10px; display: flex; flex-direction: column; gap: 7px;
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .55);
+}
+#nuancier.hidden { display: none; }
+#nuSV { border-radius: 6px; cursor: crosshair; touch-action: none; }
+#nuH { width: 100%; margin: 0; -webkit-appearance: none; height: 12px;
+  border-radius: 6px; outline: none;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+#nuH::-webkit-slider-thumb { -webkit-appearance: none; width: 14px;
+  height: 14px; border-radius: 50%; background: #eef1f5;
+  border: 2px solid #101216; }
+.nu-ligne { display: flex; align-items: center; gap: 6px; }
+.nu-bloc { width: 26px; height: 22px; border-radius: 5px;
+  border: 1px solid #313847; }
+#nuHex { flex: 1; background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 5px; padding: 3px 6px;
+  font-family: Consolas, monospace; font-size: 12px; }
+.nu-champs { justify-content: space-between; }
+.nu-champs label { display: flex; align-items: center; gap: 3px;
+  color: #8b93a0; font-size: 11px; }
+.nu-champs input { width: 40px; background: #232833; color: #d6d9de;
+  border: 1px solid #313847; border-radius: 4px; padding: 1px 3px;
+  font-size: 11px; }
+.nu-tete { display: flex; align-items: center; justify-content: space-between;
+  color: #8b93a0; font-size: 11px; margin-top: 2px; }
+.nu-tete button { padding: 0 6px; font-size: 12px; }
+.nu-sw { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.nu-case { width: 100%; aspect-ratio: 1; padding: 0; border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, .14); cursor: pointer; }
+.nu-case:hover { outline: 2px solid var(--cat); }
+.nu-vide { color: #5f6873; font-size: 11px; }
+.nu-fin { justify-content: flex-end; }
+.nu-pastille { width: 30px; height: 24px; padding: 0; border-radius: 5px;
+  border: 1px solid #313847; cursor: pointer; }
+.nu-pastille:hover { outline: 2px solid var(--cat); }
+
+/* ── panneau Vitrail (phase 5) — un MODE replié par défaut (E9) ── */
+#vitrailDetails > summary { cursor: pointer; list-style: none; }
+#vitrailDetails > summary::before { content: "▸ "; color: #8b93a0; }
+#vitrailDetails[open] > summary::before { content: "▾ "; }
 #panneauVitrail { padding: 6px 10px; border-bottom: 1px solid #262b34;
   display: flex; flex-direction: column; gap: 6px; }
 .vit-palette { display: flex; gap: 5px; }

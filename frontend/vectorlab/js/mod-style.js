@@ -75,17 +75,19 @@ export function initStyle(VL) {
     const sel = etat.selection.length;
     hote.innerHTML = `
       <div class="ap-ligne"><span>Fond</span>
-        <input type="color" id="apFond" value="${fondCouleur}"
-               title="Couleur de fond"/>
+        <button class="nu-pastille" id="apFond" style="background:${fondCouleur}"
+                data-hex="${fondCouleur}"
+                title="Couleur de fond — ouvre le nuancier (RGB, CMJN, hex, palettes)"></button>
         <button id="apFondAucun" class="${s.fond === "none" ? "actif" : ""}"
                 title="Sans fond">∅</button>
         <button id="apGradL" title="Dégradé linéaire (sélection unique)">▤</button>
         <button id="apGradR" title="Dégradé radial (sélection unique)">◉</button>
       </div>
       <div class="ap-ligne"><span>Contour</span>
-        <input type="color" id="apContour"
-               value="${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
-               title="Couleur de contour"/>
+        <button class="nu-pastille" id="apContour"
+                style="background:${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
+                data-hex="${s.contour && s.contour !== "none" ? s.contour : "#1F1512"}"
+                title="Couleur de contour — ouvre le nuancier"></button>
         <button id="apContourAucun"
                 class="${!s.contour || s.contour === "none" ? "actif" : ""}"
                 title="Sans contour">∅</button>
@@ -145,7 +147,9 @@ export function initStyle(VL) {
       </div>` : ""}
       ${g ? `<div class="ap-stops" title="Stops du dégradé du fond">
         ${g.stops.map((st, i) => `<div class="ap-stop">
-          <input type="color" data-stop="${i}" value="${st.couleur}"/>
+          <button class="nu-pastille" data-stop="${i}"
+                  style="background:${st.couleur}" data-hex="${st.couleur}"
+                  title="Couleur du stop — ouvre le nuancier"></button>
           <input type="number" data-stopt="${i}" min="0" max="100"
                  value="${Math.round(st.t * 100)}"/>%
           <button data-stopx="${i}" title="Retirer ce stop">✕</button>
@@ -153,14 +157,16 @@ export function initStyle(VL) {
         <button id="apStopPlus" title="Ajouter un stop médian">＋ stop</button>
       </div>` : ""}`;
 
-    $("#apFond").addEventListener("change",
-      (e) => appliquer({ fond: e.target.value }));
+    $("#apFond").addEventListener("click", (e) =>
+      VL.ouvrirNuancier(e.currentTarget.dataset.hex,
+                        (hex) => appliquer({ fond: hex }), e.currentTarget));
     $("#apFondAucun").addEventListener("click",
       () => appliquer({ fond: "none" }));
     $("#apGradL").addEventListener("click", () => degradeDefaut("lineaire"));
     $("#apGradR").addEventListener("click", () => degradeDefaut("radial"));
-    $("#apContour").addEventListener("change",
-      (e) => appliquer({ contour: e.target.value }));
+    $("#apContour").addEventListener("click", (e) =>
+      VL.ouvrirNuancier(e.currentTarget.dataset.hex,
+                        (hex) => appliquer({ contour: hex }), e.currentTarget));
     $("#apContourAucun").addEventListener("click",
       () => appliquer({ contour: null }));
     $("#apEpaisseur").addEventListener("change",
@@ -213,10 +219,12 @@ export function initStyle(VL) {
         (e) => appliquer({ interlettrage: +e.target.value || null }));
     }
     if (g) {
-      hote.querySelectorAll("[data-stop]").forEach((inp) =>
-        inp.addEventListener("change", () => VL.executer(
-          op_degrade_stop_modifier, gid, +inp.dataset.stop,
-          { couleur: inp.value })));
+      hote.querySelectorAll("[data-stop]").forEach((btn) =>
+        btn.addEventListener("click", () => VL.ouvrirNuancier(
+          btn.dataset.hex,
+          (hex) => VL.executer(op_degrade_stop_modifier, gid,
+                               +btn.dataset.stop, { couleur: hex }),
+          btn)));
       hote.querySelectorAll("[data-stopt]").forEach((inp) =>
         inp.addEventListener("change", () => VL.executer(
           op_degrade_stop_modifier, gid, +inp.dataset.stopt,

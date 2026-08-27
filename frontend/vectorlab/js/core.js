@@ -13,6 +13,7 @@ import { initStyle } from "./mod-style.js";
 import { initExport } from "./mod-export.js";
 import { initVitrail } from "./mod-vitrail.js";
 import { initBiblio } from "./mod-biblio.js";
+import { initCouleur } from "./mod-couleur.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -495,6 +496,19 @@ $("#btnUnite").addEventListener("click", () => {
 });
 window.addEventListener("resize", appliquerVue);
 
+// le vitrail est un MODE (E9) : replié par défaut, l'ouverture mémorisée
+{
+  const vd = $("#vitrailDetails");
+  if (vd) {
+    try { vd.open = localStorage.getItem("dz_vl_vitrail") === "1"; }
+    catch (e) { /* stockage indisponible */ }
+    vd.addEventListener("toggle", () => {
+      try { localStorage.setItem("dz_vl_vitrail", vd.open ? "1" : "0"); }
+      catch (e) { /* idem */ }
+    });
+  }
+}
+
 /* ── le cœur, injecté dans les modules UI (et exposé pour la preuve) ── */
 const VL = {
   etat, api, $,
@@ -510,6 +524,7 @@ const VL = {
   surSelection: () => {},
 };
 initCalques(VL);
+initCouleur(VL);
 initStyle(VL);
 initOutils(VL);
 initExport(VL);

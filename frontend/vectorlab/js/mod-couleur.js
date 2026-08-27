@@ -100,3 +100,184 @@ export function op_palette_retirer(doc, hex) {
   if (i < 0) throw new Error(`absente de la palette : ${h}`);
   p.splice(i, 1);
 }
+
+/* ── DOM : le nuancier (E4) — un popover unique, ouvert par
+   VL.ouvrirNuancier(hexInitial, onChoix, ancre). Rien au chargement. ── */
+export function initCouleur(VL) {
+  const { $, etat } = VL;
+  const recentes = [];                  // session — 10 dernières appliquées
+  let hote = null, courant = null;      // courant = { hsv, cb }
+
+  function construire() {
+    hote = document.createElement("div");
+    hote.id = "nuancier";
+    hote.className = "hidden";
+    hote.innerHTML = `
+      <canvas id="nuSV" width="188" height="132" title="Saturation / valeur"></canvas>
+      <input id="nuH" type="range" min="0" max="359" value="0" title="Teinte"/>
+      <div class="nu-ligne">
+        <span class="nu-bloc" id="nuAvant" title="Couleur d'origine"></span>
+        <span class="nu-bloc" id="nuApres" title="Nouvelle couleur"></span>
+        <input id="nuHex" type="text" maxlength="7" spellcheck="false"
+               title="Hexadécimal #RRGGBB"/>
+      </div>
+      <div class="nu-ligne nu-champs">
+        <label>R<input data-rgb="r" type="number" min="0" max="255"/></label>
+        <label>V<input data-rgb="g" type="number" min="0" max="255"/></label>
+        <label>B<input data-rgb="b" type="number" min="0" max="255"/></label>
+      </div>
+      <div class="nu-ligne nu-champs"
+           title="CMJN indicatif — conversion naïve, sans profil ICC">
+        <label>C<input data-cmjn="c" type="number" min="0" max="100"/></label>
+        <label>M<input data-cmjn="m" type="number" min="0" max="100"/></label>
+        <label>J<input data-cmjn="j" type="number" min="0" max="100"/></label>
+        <label>N<input data-cmjn="n" type="number" min="0" max="100"/></label>
+      </div>
+      <div class="nu-tete">Palette du document
+        <button id="nuPalPlus"
+          title="Ajouter la couleur courante à la palette du document (annulable, sauvée avec lui)">＋</button>
+      </div>
+      <div id="nuPalDoc" class="nu-sw"
+           title="Clic : prendre — clic droit : retirer de la palette"></div>
+      <div class="nu-tete">Nuances</div>
+      <div id="nuPalDef" class="nu-sw"></div>
+      <div class="nu-tete">Récentes</div>
+      <div id="nuRecentes" class="nu-sw"></div>
+      <div class="nu-ligne nu-fin">
+        <button id="nuOk" class="primaire">Appliquer</button>
+        <button id="nuAnnul">Annuler</button>
+      </div>`;
+    document.body.appendChild(hote);
+
+    const sv = $("#nuSV"), ctx = sv.getContext("2d");
+    const hexCourant = () => rgbVersHex(hsvVersRgb(courant.hsv));
+
+    function peindreSV() {
+      const base = rgbVersHex(hsvVersRgb({ h: courant.hsv.h, s: 100, v: 100 }));
+      const gx = ctx.createLinearGradient(0, 0, sv.width, 0);
+      gx.addColorStop(0, "#FFFFFF"); gx.addColorStop(1, base);
+      ctx.fillStyle = gx; ctx.fillRect(0, 0, sv.width, sv.height);
+      const gy = ctx.createLinearGradient(0, 0, 0, sv.height);
+      gy.addColorStop(0, "rgba(0,0,0,0)"); gy.addColorStop(1, "#000000");
+      ctx.fillStyle = gy; ctx.fillRect(0, 0, sv.width, sv.height);
+      const x = courant.hsv.s / 100 * sv.width;
+      const y = (1 - courant.hsv.v / 100) * sv.height;
+      ctx.beginPath(); ctx.arc(x, y, 5, 0, Math.PI * 2);
+      ctx.strokeStyle = "#FFFFFF"; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+      ctx.strokeStyle = "#101216"; ctx.lineWidth = 1; ctx.stroke();
+    }
+    function swatches(conteneur, liste, retirables) {
+      conteneur.innerHTML = liste.map((h) =>
+        `<button class="nu-case" data-hex="${h}"${retirables
+          ? ' data-retirable="1"' : ""} style="background:${h}" title="${h}${
+          retirables ? " — clic droit : retirer" : ""}"></button>`).join("")
+        || '<span class="nu-vide">—</span>';
+    }
+    function synchroniser() {
+      const rgb = hsvVersRgb(courant.hsv);
+      const cmjn = rgbVersCmjn(rgb);
+      $("#nuApres").style.background = hexCourant();
+      $("#nuHex").value = hexCourant();
+      for (const i of hote.querySelectorAll("[data-rgb]")) i.value = rgb[i.dataset.rgb];
+      for (const i of hote.querySelectorAll("[data-cmjn]")) i.value = cmjn[i.dataset.cmjn];
+      $("#nuH").value = courant.hsv.h;
+      peindreSV();
+      swatches($("#nuPalDoc"), (etat.doc && etat.doc.palette) || [], true);
+      swatches($("#nuPalDef"), palette_defaut(), false);
+      swatches($("#nuRecentes"), recentes, false);
+    }
+    function prendre(rgb) {
+      courant.hsv = rgbVersHsv(rgb);
+      synchroniser();
+    }
+
+    let glisse = false;
+    const surSV = (ev) => {
+      const r = sv.getBoundingClientRect();
+      const s = Math.max(0, Math.min(100, (ev.clientX - r.left) / r.width * 100));
+      const v = Math.max(0, Math.min(100, 100 - (ev.clientY - r.top) / r.height * 100));
+      courant.hsv = { h: courant.hsv.h, s: Math.round(s), v: Math.round(v) };
+      synchroniser();
+    };
+    sv.addEventListener("pointerdown", (ev) => { glisse = true; surSV(ev);
+      try { sv.setPointerCapture(ev.pointerId); } catch (e) { /* synthétique */ } });
+    sv.addEventListener("pointermove", (ev) => { if (glisse) surSV(ev); });
+    sv.addEventListener("pointerup", () => { glisse = false; });
+    $("#nuH").addEventListener("input", (ev) => {
+      courant.hsv.h = +ev.target.value; synchroniser();
+    });
+    $("#nuHex").addEventListener("change", (ev) => {
+      try { prendre(hexVersRgb(ev.target.value.trim())); }
+      catch (e) { VL.toast(e.message, true); synchroniser(); }
+    });
+    hote.querySelectorAll("[data-rgb]").forEach((i) =>
+      i.addEventListener("change", () => {
+        const rgb = hsvVersRgb(courant.hsv);
+        rgb[i.dataset.rgb] = Math.max(0, Math.min(255, +i.value || 0));
+        prendre(rgb);
+      }));
+    hote.querySelectorAll("[data-cmjn]").forEach((i) =>
+      i.addEventListener("change", () => {
+        const cmjn = rgbVersCmjn(hsvVersRgb(courant.hsv));
+        cmjn[i.dataset.cmjn] = Math.max(0, Math.min(100, +i.value || 0));
+        prendre(cmjnVersRgb(cmjn));
+      }));
+    hote.addEventListener("click", (ev) => {
+      const c = ev.target.closest(".nu-case");
+      if (c) prendre(hexVersRgb(c.dataset.hex));
+    });
+    hote.addEventListener("contextmenu", (ev) => {
+      const c = ev.target.closest('.nu-case[data-retirable="1"]');
+      if (!c) return;
+      ev.preventDefault();
+      VL.executer(op_palette_retirer, c.dataset.hex);
+      synchroniser();
+    });
+    $("#nuPalPlus").addEventListener("click", () => {
+      VL.executer(op_palette_ajouter, hexCourant());
+      synchroniser();
+    });
+    $("#nuOk").addEventListener("click", () => {
+      const h = hexCourant();
+      const i = recentes.indexOf(h);
+      if (i >= 0) recentes.splice(i, 1);
+      recentes.unshift(h);
+      if (recentes.length > 10) recentes.pop();
+      const cb = courant.cb;
+      fermer();
+      cb(h);
+    });
+    $("#nuAnnul").addEventListener("click", fermer);
+    document.addEventListener("pointerdown", (ev) => {
+      if (courant && !hote.contains(ev.target)
+          && !ev.target.closest(".nu-pastille")) fermer();
+    }, true);
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && courant) { fermer(); ev.stopPropagation(); }
+    }, true);
+    VL._synchroniserNuancier = synchroniser;
+  }
+
+  function fermer() {
+    courant = null;
+    if (hote) hote.classList.add("hidden");
+  }
+
+  VL.ouvrirNuancier = (hexInitial, onChoix, ancre) => {
+    if (!hote) construire();
+    let rgb;
+    try { rgb = hexVersRgb(hexInitial); }
+    catch (e) { rgb = { r: 157, g: 180, b: 214 }; }
+    courant = { hsv: rgbVersHsv(rgb), cb: onChoix };
+    $("#nuAvant").style.background = rgbVersHex(rgb);
+    hote.classList.remove("hidden");
+    // près de l'ancre, borné à la fenêtre
+    const r = ancre && ancre.getBoundingClientRect
+      ? ancre.getBoundingClientRect() : { left: 60, bottom: 60 };
+    const w = hote.offsetWidth || 210, h = hote.offsetHeight || 380;
+    hote.style.left = Math.max(6, Math.min(window.innerWidth - w - 6, r.left)) + "px";
+    hote.style.top = Math.max(6, Math.min(window.innerHeight - h - 6, r.bottom + 6)) + "px";
+    VL._synchroniserNuancier();
+  };
+}
