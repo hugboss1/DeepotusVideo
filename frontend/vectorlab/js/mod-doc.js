@@ -147,12 +147,13 @@ function _idsPris(doc) {
   return pris;
 }
 
-function _idLibre(doc) {
+export function idLibre(doc) {
   const pris = _idsPris(doc);
   let n = 1;
   while (pris.has("o" + n)) n++;
   return "o" + n;
 }
+const _idLibre = idLibre;
 
 export function op_ajouter(doc, calqueId, objet) {
   const c = _calque(doc, calqueId);

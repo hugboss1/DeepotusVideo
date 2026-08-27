@@ -4,7 +4,7 @@
 // et division-métier. Le transform des objets est APPLIQUÉ à
 // l'aplatissement (suites de rotate composées en matrice — les seules que
 // nos opérations émettent).
-import { chemin_parser, chemin_serialiser } from "./mod-doc.js";
+import { chemin_parser, chemin_serialiser, idLibre } from "./mod-doc.js";
 
 /* ── résolveur martinez : injecté au banc, window.martinez à l'écran ── */
 let _mz = null;
@@ -153,6 +153,180 @@ export function aplatir_objet(objet, tol = TOL) {
     anneaux.push(ring);
   }
   return anneaux;
+}
+
+/* ── anneaux ↔ multipolygone martinez ──
+   Le multipolygone d'un objet = pli XOR de ses anneaux (sémantique
+   pair-impair : un anneau intérieur devient un trou, quelle que soit son
+   orientation — c'est aussi ce que nos divisions émettent). */
+function _versMulti(anneaux) {
+  const mz = _martinez();
+  let mp = null;
+  for (const ring of anneaux) {
+    const p = [[ring]];
+    mp = mp ? mz.xor(mp, p) : p;
+  }
+  return mp || [];
+}
+
+function _signee(pts) {           // aire signée d'un anneau SANS doublon final
+  let s = 0;
+  for (let k = 0; k < pts.length; k++) {
+    const a = pts[k], b = pts[(k + 1) % pts.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return s / 2;
+}
+
+function _dDePoly(poly) {
+  // martinez ne garantit PAS l'opposition d'orientation des trous : on la
+  // FORCE ici (extérieur positif, trous négatifs) — sans elle le rendu
+  // nonzero peindrait les trous pleins et les aires s'additionneraient.
+  const segs = [];
+  poly.forEach((ring, idx) => {
+    if (!ring || ring.length < 3) return;
+    const clos = ring[0][0] === ring[ring.length - 1][0]
+              && ring[0][1] === ring[ring.length - 1][1];
+    let pts = clos ? ring.slice(0, -1) : ring.slice();
+    if (pts.length < 3) return;
+    const veutPositif = idx === 0;
+    if ((_signee(pts) > 0) !== veutPositif) pts = pts.reverse();
+    segs.push({ c: "M", p: [pts[0][0], pts[0][1]] });
+    for (let k = 1; k < pts.length; k++) {
+      segs.push({ c: "L", p: [pts[k][0], pts[k][1]] });
+    }
+    segs.push({ c: "Z", p: [] });
+  });
+  return chemin_serialiser(segs);
+}
+const _dDeMulti = (mp) => mp.map(_dDePoly).filter(Boolean).join(" ");
+
+/* ── contour GONFLÉ d'un objet tracé (fond none) : union de
+   quadrilatères par segment + disques aux sommets (joints/bouts ronds,
+   comme notre rendu). C'est ce qui permet au réseau de plombs tracé à la
+   plume de découper la plaque. ── */
+function _disque(cx, cy, r, n = 24) {
+  const pts = [];
+  for (let k = 0; k < n; k++) {
+    const a = 2 * Math.PI * k / n;
+    pts.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+  }
+  pts.push([pts[0][0], pts[0][1]]);
+  return pts;
+}
+
+function _contourEnMulti(objet, tol) {
+  const mz = _martinez();
+  const w = (((objet.style || {}).epaisseur) || 1) / 2;
+  let mp = null;
+  const ajouter = (ring) => {
+    const p = [[ring]];
+    mp = mp ? mz.union(mp, p) : p;
+  };
+  for (const l of polylignes_objet(objet, tol)) {
+    const pts = l.points;
+    const nSeg = l.ferme ? pts.length : pts.length - 1;
+    for (let k = 0; k < nSeg; k++) {
+      const p = pts[k], q = pts[(k + 1) % pts.length];
+      const dx = q[0] - p[0], dy = q[1] - p[1];
+      const lg = Math.hypot(dx, dy);
+      if (lg < 1e-9) continue;
+      const nx = -dy / lg * w, ny = dx / lg * w;
+      ajouter([[p[0] + nx, p[1] + ny], [q[0] + nx, q[1] + ny],
+               [q[0] - nx, q[1] - ny], [p[0] - nx, p[1] - ny],
+               [p[0] + nx, p[1] + ny]]);
+    }
+    for (const p of pts) ajouter(_disque(p[0], p[1], w));
+  }
+  return mp || [];
+}
+
+/* ── les opérations : tout se CALCULE avant de muter (un refus ne laisse
+   aucune trace) ; le résultat remplace les opérandes à l'emplacement du
+   plus BAS, son style copié ── */
+function _ciblesOrdonnees(doc, ids) {
+  const voulu = new Set(ids);
+  const out = [];
+  for (const c of doc.calques) {
+    if (c.verrou) continue;
+    c.objets.forEach((o, i) => {
+      if (voulu.has(o.id)) out.push({ calque: c, objet: o, i });
+    });
+  }
+  return out;
+}
+
+export function op_booleen(doc, ids, mode) {
+  if (!["union", "soustraction", "intersection"].includes(mode)) {
+    throw new Error(`booléen: mode inconnu ${mode}`);
+  }
+  const cibles = _ciblesOrdonnees(doc, ids);
+  if (cibles.length < 2) {
+    throw new Error("booléen: au moins deux objets déverrouillés");
+  }
+  const mz = _martinez();
+  const multis = cibles.map((c) => _versMulti(aplatir_objet(c.objet)));
+  let mp;
+  if (mode === "union") {
+    mp = multis[0];
+    for (let k = 1; k < multis.length; k++) mp = mz.union(mp, multis[k]);
+  } else if (mode === "intersection") {
+    mp = multis[0];
+    for (let k = 1; k < multis.length; k++) {
+      mp = mz.intersection(mp, multis[k]);
+      if (!mp || !mp.length) break;
+    }
+  } else {
+    let autres = multis[1];
+    for (let k = 2; k < multis.length; k++) autres = mz.union(autres, multis[k]);
+    mp = mz.diff(multis[0], autres);
+  }
+  if (!mp || !mp.length) throw new Error("booléen: résultat vide");
+  const bas = cibles[0];
+  const indexBas = bas.i;         // le plus bas: rien de retiré avant lui
+  for (const t of cibles) {
+    const j = t.calque.objets.indexOf(t.objet);
+    if (j >= 0) t.calque.objets.splice(j, 1);
+  }
+  const id = idLibre(doc);
+  bas.calque.objets.splice(Math.min(indexBas, bas.calque.objets.length), 0,
+    { id, type: "path", d: _dDeMulti(mp),
+      style: { ...(bas.objet.style || {}) } });
+  return id;
+}
+
+export function op_division(doc, ids) {
+  const cibles = _ciblesOrdonnees(doc, ids);
+  if (cibles.length < 2) {
+    throw new Error("division: la plaque et au moins un découpeur");
+  }
+  const mz = _martinez();
+  const plaque = cibles[0];       // le plus BAS = la plaque de verre
+  const plaqueMp = _versMulti(aplatir_objet(plaque.objet));
+  let cut = null;
+  for (const t of cibles.slice(1)) {
+    const o = t.objet;
+    const fondPlein = o.style && o.style.fond && o.style.fond !== "none";
+    const m = fondPlein ? _versMulti(aplatir_objet(o))
+                        : _contourEnMulti(o, TOL);
+    cut = cut ? mz.union(cut, m) : m;
+  }
+  const reste = mz.diff(plaqueMp, cut);
+  if (!reste || !reste.length) {
+    throw new Error("division: la découpe ne laisse aucun fragment");
+  }
+  const indexP = plaque.i;
+  plaque.calque.objets.splice(plaque.calque.objets.indexOf(plaque.objet), 1);
+  const nouveaux = [];
+  reste.forEach((poly, k) => {
+    const id = idLibre(doc);
+    plaque.calque.objets.splice(
+      Math.min(indexP + k, plaque.calque.objets.length), 0,
+      { id, type: "path", d: _dDePoly(poly),
+        style: { ...(plaque.objet.style || {}) } });
+    nouveaux.push(id);
+  });
+  return nouveaux;
 }
 
 /* aire d'un jeu d'anneaux : somme SIGNÉE absolue (les trous, en
