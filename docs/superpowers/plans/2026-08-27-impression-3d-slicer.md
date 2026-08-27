@@ -3,14 +3,49 @@
 > **For agentic workers:** REQUIRED SUB-SKILL: Use
 > superpowers:subagent-driven-development (recommended) or
 > superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> checkbox (`- [x]`) syntax for tracking.
 
-> **CE PLAN EST SOUMIS À L'UTILISATEUR AVANT TOUT CODE** (patron du 27/08 :
-> « fonctionnalité nouvelle à planifier » — le plan Vectorlab a été validé
-> avant sa première ligne). Rien de ce document n'est implémenté. La
-> phase 0 est détaillée au pas TDD ; les phases 1→4 sont cadrées par
-> contrats et preuves et recevront leur expansion pas-à-pas dans leur
-> session d'exécution, après validation.
+> **PLAN VALIDÉ PAR L'UTILISATEUR LE 27/08 (« le plan me va ») — PHASES
+> 0→4 EXÉCUTÉES LE JOUR MÊME, sauf le chapitre de guide (reste connu).**
+>
+> **RELEVÉ (27/08) :** TDD tenu de bout en bout — banc `test_print3d.py`
+> **11 tests** (lecteur GLB pur à fixtures fabriquées à l'octet — cube à
+> matrices composées parent×enfant —, refus motivés draco/meshopt/externe/
+> non-triangles, STL binaire aux octets, 3MF zip+xml `millimeter` à
+> sommets DÉDUPLIQUÉS mesurés, échelle mm/pose au sol, routes
+> from-assets3d/from-stl/exports/open à ouvreur MOCKÉ et chemin CONTENU,
+> garde du plateau 256 qui avertit sans interdire, miroirs des trois
+> écrans) ; le GLB du producteur MAISON (build_glb) se lit tel quel.
+> **Phase 1** : bouton « → Impression 3D » de la Forge 3D quand le STL du
+> gate est écrit (étanchéité GARANTIE dite par le producteur) —
+> cards_forge3d 44 s vert. **Phase 2** : `patch_bundle_print3d.py`
+> (nouvelle queue de chaîne, +1567 o, helper `__dzPrint3d` + bouton par
+> job de la rangée des formats, node --check OK). **Phase 3** :
+> `mod-extrude.js` PUR (oreilles à ponts de trous — **piège attrapé au
+> banc : un sommet exactement sur la diagonale d'une oreille doit la
+> bloquer, le L concave rendait 400 pour 300** —, prisme fermé prouvé par
+> arête-et-son-inverse, volume exact, STL binaire ; **13 contrôles qa,
+> 288 cumulés**) + « → Impression 3D… » au menu Exporter du Vectorlab
+> (aplatissement martinez éprouvé, union par calque, hauteur par calque
+> `nom=mm`, y retourné SVG→plateau, textes ignorés et DITS). **Phase 4** :
+> garde 256 TDD ; SLICER_PATH documenté dans le message d'échec
+> d'association. Déployé sha-vérifié (backend 2 + statiques 7 + bundle),
+> stop+relance, santé 2.5.0. **Preuves réelles** : un job Game Assets 3D
+> RÉEL (144 274 triangles) → dossier `preuve-figurine-80-*` STL+3MF,
+> dimensions MESURÉES 57,3 × **80,0** × 3,2 mm Z=0, **ouvert dans le
+> slicer par association Windows (mode « association » constaté)** ; le
+> VRAI « Vitrail - baie generee » extrudé par le vrai menu (prompt
+> « 2, contours=5 ») → 7 504 triangles, **161,4 × 246,1 mm** (tient sur
+> le plateau, aucun avertissement) **aux niveaux z EXACTS [0 · 2,0 ·
+> 5,0 mm] — les verres à 2, les plombs à 5 : le relief vitrail par
+> surcharge de calque** ; dossier de preuve vitrail supprimé, l'export
+> figurine LAISSÉ (ouvert dans le slicer de l'utilisateur — à lui de le
+> jeter ou l'imprimer). **RESTE CONNU (assumé)** : le chapitre « Imprimer
+> ses créations » du guide FR/EN + PDF (phase 4) n'est pas écrit — les
+> trois boutons portent leurs infobulles complètes en attendant.
+>
+> La phase 0 était détaillée au pas TDD ; les phases 1→4 cadrées par
+> contrats et preuves — exécutées comme telles.
 
 **Contexte matériel :** l'utilisateur a acquis une **Elegoo Centauri
 Carbon 2** (FDM, annoncée 27/08/2026). Specs utiles au plan : volume
@@ -195,7 +230,7 @@ dans le slicer par association. Preuve réelle : l'utilisateur ouvre le
 **Files:** Create `backend/app/services/print3d.py`,
 `backend/tests/test_print3d.py`.
 
-- [ ] **Step 1 : test RED** — deux fixtures fabriquées PAR LE BANC :
+- [x] **Step 1 : test RED** — deux fixtures fabriquées PAR LE BANC :
   (a) un GLB écrit par NOTRE `gltf_builder` (le producteur réel de
   l'app) ; (b) un GLB minimal artisanal (JSON+BIN à la main : un cube
   indexé u16, un nœud avec translation + un enfant avec matrice) :
@@ -217,22 +252,22 @@ def test_le_lecteur_refuse_parlant_les_glb_compresses():
         P3.lire_glb_triangles(_glb_ext_requise("KHR_draco_mesh_compression"))
 ```
 
-- [ ] **Step 2 : le voir échouer** (`run-tests.ps1 -Filter print3d` →
+- [x] **Step 2 : le voir échouer** (`run-tests.ps1 -Filter print3d` →
   ModuleNotFoundError)
-- [ ] **Step 3 : implémenter** — parse GLB v2 (magic `glTF`, chunks JSON
+- [x] **Step 3 : implémenter** — parse GLB v2 (magic `glTF`, chunks JSON
   et BIN), accessors POSITION/indices (5126 f32, 5123 u16, 5125 u32),
   parcours des scènes/nœuds avec composition TRS→matrice (ordre T·R·S,
   quaternions) et `matrix` littérale, primitives mode 4 seulement ;
   `extensionsRequired` intersecté avec la liste refusée → ValueError
   nommant l'extension et le remède
-- [ ] **Step 4 : le voir passer**
-- [ ] **Step 5 : commit** — `print3d : lecteur GLB pur (triangles monde, refus motives des compressions)`
+- [x] **Step 4 : le voir passer**
+- [x] **Step 5 : commit** — `print3d : lecteur GLB pur (triangles monde, refus motives des compressions)`
 
 ### Task 0.2 : écrivains STL binaire + 3MF, échelle mm
 
 **Files:** Modify `backend/app/services/print3d.py` ; Test idem.
 
-- [ ] **Step 1 : test RED** :
+- [x] **Step 1 : test RED** :
 
 ```python
 def test_l_ecrivain_stl_binaire_est_conforme_aux_octets():
@@ -262,7 +297,7 @@ def test_le_3mf_est_un_zip_xml_en_millimetres():
     assert "[Content_Types].xml" in z.namelist()
 ```
 
-- [ ] **Step 2 : échec constaté** → **Step 3 : implémenter** (STL :
+- [x] **Step 2 : échec constaté** → **Step 3 : implémenter** (STL :
   struct little-endian, normale recalculée par produit vectoriel ; 3MF :
   `[Content_Types].xml` + `_rels/.rels` + `3D/3dmodel.model` — vertices
   dédupliqués, un `<object>` + `<build>`) → **Step 4 : passer** →
@@ -272,7 +307,7 @@ def test_le_3mf_est_un_zip_xml_en_millimetres():
 
 **Files:** Modify `backend/app/api/routes.py`, `print3d.py` ; Test idem.
 
-- [ ] **Step 1 : test RED (app bootée, patron test_vector_docs)** —
+- [x] **Step 1 : test RED (app bootée, patron test_vector_docs)** —
   `POST /api/print3d/from-assets3d/{job} {cible_mm, nom?}` → crée
   `assets/print3d/<slug>/` avec `.stl` + `.3mf` + `impression.json`
   (provenance, cible_mm, étanchéité "inconnue"), préfère `model.stl` du
@@ -284,7 +319,7 @@ def test_le_3mf_est_un_zip_xml_en_millimetres():
   par monkeypatch — le banc N'OUVRE RIEN), 404 dossier inconnu, chemin
   contenu dans `assets/print3d` sinon 400 (jamais de startfile
   arbitraire)
-- [ ] **Step 2 : échec** → **Step 3 : implémenter** (ouvreur :
+- [x] **Step 2 : échec** → **Step 3 : implémenter** (ouvreur :
   `os.startfile(3mf)` ; si association absente (WinError) ou
   `SLICER_PATH` posé → `subprocess.Popen([slicer, chemin])` ; message
   parlant sinon) → **Step 4 : passer + suites voisines** →
@@ -292,7 +327,7 @@ def test_le_3mf_est_un_zip_xml_en_millimetres():
 
 ### Task 0.4 : preuve réelle
 
-- [ ] Déploiement patron sha+stop+relance+santé ; par l'API réelle :
+- [x] Déploiement patron sha+stop+relance+santé ; par l'API réelle :
   un job Game Assets 3D EXISTANT converti en 80 mm → dossier né, `.3mf`
   ouvert dans ElegooSlicer (l'œil de l'utilisateur : l'objet fait 80 mm
   sur le plateau CC2) ; nettoyage du dossier de test ; relevé au plan
