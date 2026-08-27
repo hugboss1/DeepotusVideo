@@ -241,11 +241,57 @@ Contrats : plume Bézier (clic=ancre, glisser=poignées, double-clic=fin,
 transformations (déplacer/redimensionner avec poignées/rotation), calques
 (créer/renommer/réordonner/verrou/visibilité), undo/redo (pile de commandes
 sur le JSON — patron core cardforge), snapping grille + guides tirés des
-règles, raccourcis (V plume P rect R ellipse E, Ctrl+Z/Y, Suppr).
+règles, raccourcis (V sélection, P plume, R rect, E ellipse, N nœuds,
+Ctrl+Z/Y, Suppr, G grille).
 **Preuve :** banc qa headless sur CHAQUE commande (le doc JSON après commande
 == attendu, aller-retour compiler/parser stable octet à octet) ; scénario
 navigateur : dessiner 3 objets sur 2 calques, sauver, rouvrir → JSON
 identique ; undo ramène exactement l'état précédent (comparaison JSON).
+
+### Expansion d'exécution (27/08, après validation du plan)
+
+Toutes les opérations sont PURES dans `mod-doc.js` (le modèle ET ses
+mutations — la vérité reste un seul module testable sans DOM) ; l'UI
+(`mod-tools.js`, `mod-layers.js`, `core.js`) ne fait que traduire des gestes
+en commandes. Undo = pile de INSTANTANÉS du JSON (cap 100), classe pure
+`Historique`. La rotation s'accumule dans `transform` (rotate a cx cy) ;
+déplacement et redimensionnement réécrivent la GÉOMÉTRIE (les booléens de
+phase 3 veulent des coordonnées vraies) — un redimensionnement sur objet
+déjà tourné transforme la géométrie brute (limite assumée v1). Chemins :
+`d` reste la vérité (M/L/C/Q/Z absolus, forme canonique) ; le parseur
+structure, le sérialiseur canonise, l'aller-retour est stable à l'octet.
+Guides persistés dans `doc.guides {v:[],h:[]}` (mutations = commandes,
+donc annulables) ; `parserDoc` les accepte en option.
+
+- [ ] **T1.1 chemins** : `chemin_parser(d)` / `chemin_serialiser(segs)`
+  M/L/C/Q/Z absolus, canonique, round-trip octet à octet — qa
+  `chemin.test.mjs` RED d'abord
+- [ ] **T1.2 objets** : `op_ajouter(doc, calque, objet)` (id unique, calque
+  actif, refus calque verrouillé), `op_supprimer(doc, ids)`,
+  `op_deplacer(doc, ids, dx, dy)` (rect/ellipse/path C-Q compris),
+  `op_redimensionner(doc, ids, bboxAvant, bboxApres)` (application affine
+  exacte), `op_tourner(doc, ids, cx, cy, deg)` (compose transform) — qa
+  `ops.test.mjs`
+- [ ] **T1.3 nœuds** : `op_noeud_deplacer(doc, id, iAncre, dx, dy)` (les
+  poignées C attachées suivent), `op_noeud_convertir(doc, id, iAncre)`
+  (angle↔courbe, poignées symétriques déduites des voisins),
+  `op_noeud_supprimer`, `op_chemin_fermer` — qa `noeuds.test.mjs`
+- [ ] **T1.4 calques** : `op_calque_ajouter/renommer/reordonner/visible/
+  verrou/supprimer` — qa `calques.test.mjs` ; panneau `mod-layers.js`
+- [ ] **T1.5 historique** : classe `Historique` (capturer/annuler/refaire,
+  cap 100, refaire invalidé par une nouvelle commande) — qa
+  `historique.test.mjs`
+- [ ] **T1.6 aimantation & guides** : `aimanter(v, {pas, guides}, tol)` ;
+  `op_guide_ajouter/deplacer/supprimer` ; `parserDoc` accepte
+  `doc.guides` — qa `aimant.test.mjs`
+- [ ] **T1.7 UI** : barre d'outils (V/P/R/E/N), overlay écran (poignées 8 +
+  rotation, lasso, aperçu d'outil, ancres), règles + guides tirés à la
+  souris, panneau calques, raccourcis, rendu sélection ; gestes → commandes
+  via `executer()` du core (node --check + preuve navigateur)
+- [ ] **T1.8 io & preuve** : Sauver (PUT version bump, témoin modifié,
+  Ctrl+S) ; scénario navigateur réel : 3 objets sur 2 calques → sauver →
+  rouvrir → JSON identique ; undo = état exact ; déploiement (fichiers
+  statiques seuls, backend intact) ; relevé au plan
 
 ## Phase 2 — Apparence
 
