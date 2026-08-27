@@ -191,6 +191,10 @@ class VectorDoc(Base):
     chapter_id: Mapped[Optional[str]] = mapped_column(String(36), index=True,
                                                       nullable=True)
     entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    # le pont cartes (27/08) : un doc peut appartenir à un JEU du Cardforge —
+    # miroir de chapter_id, colonne née par _auto_migrate sur les bases d'avant
+    deck_id: Mapped[Optional[str]] = mapped_column(String(36), index=True,
+                                                   nullable=True)
     role: Mapped[str] = mapped_column(String(12), index=True, default="libre")
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime,
@@ -403,6 +407,11 @@ SHOTS_COLUMNS = [
     ("energy", "INTEGER"),
 ]
 
+# Vectorlab — pont cartes (27/08) : l'ancre deck_id sur les bases d'avant
+VECTOR_DOCS_COLUMNS = [
+    ("deck_id", "VARCHAR(36)"),
+]
+
 
 async def _auto_migrate():
     """Add new columns to existing tables without losing data."""
@@ -476,7 +485,8 @@ async def _auto_migrate():
                                ("scheduled_posts", SCHEDULED_POSTS_COLUMNS),
                                ("avatar_presets", AVATAR_PRESETS_COLUMNS),
                                ("bible_entities", BIBLE_ENTITIES_COLUMNS),
-                               ("shots", SHOTS_COLUMNS)):
+                               ("shots", SHOTS_COLUMNS),
+                               ("vector_docs", VECTOR_DOCS_COLUMNS)):
             result = await conn.execute(text(f"PRAGMA table_info({table})"))
             existing_cols = {row[1] for row in result.fetchall()}
             if not existing_cols:

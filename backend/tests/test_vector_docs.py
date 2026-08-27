@@ -22,6 +22,25 @@ os.environ["IMAGES_FOLDER"] = str(pathlib.Path(_tmp, "images"))
 pathlib.Path(_tmp, "images").mkdir(exist_ok=True)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Le pont cartes (27/08) ajoute `deck_id` par _auto_migrate : la migration
+# est exercée EN VRAI — la base est pré-créée ici à l'ANCIENNE forme
+# (vector_docs sans deck_id, une ligne héritée) AVANT tout import de l'app ;
+# le premier init_db() la migre, et TOUT le banc tourne sur la base migrée.
+import sqlite3
+
+_con = sqlite3.connect(pathlib.Path(_tmp, "t.db"))
+_con.execute("""CREATE TABLE vector_docs (
+    id VARCHAR(36) NOT NULL PRIMARY KEY, name VARCHAR(120) NOT NULL,
+    chapter_id VARCHAR(36), entity_id VARCHAR(36),
+    role VARCHAR(12) NOT NULL, version INTEGER NOT NULL,
+    created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL)""")
+_con.execute(
+    "INSERT INTO vector_docs VALUES ('vd-legacy', 'Legacy pré-migration', "
+    "'ch-legacy', NULL, 'decor', 1, '2026-08-27 00:00:00.000000', "
+    "'2026-08-27 00:00:00.000000')")
+_con.commit()
+_con.close()
+
 
 def _doc(nom="Baie test"):
     return {"v": 1, "nom": nom, "taille": {"w": 640, "h": 960},
@@ -590,3 +609,53 @@ def test_le_miroir_atelier_bibliotheque():
     # les lignes montrent la vignette servie par la route dédiée et le badge réf
     assert "/vignette.png" in js
     assert "liaison" in js
+
+
+# ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───
+
+def test_le_pont_cartes_deck_id_et_la_migration():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import (VectorDoc, async_session_factory,
+                                          init_db)
+        await init_db()                  # migre la base pré-créée à froid
+        async with async_session_factory() as s:
+            legacy = await s.get(VectorDoc, "vd-legacy")
+            assert legacy is not None
+            assert legacy.name == "Legacy pré-migration"
+            assert legacy.deck_id is None    # colonne née, ligne survivante
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={
+                "name": "Décor de carte", "role": "libre",
+                "deck_id": "deck_test77", "doc": _doc("Décor de carte")})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            # la méta porte l'ancre
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["meta"]["deck_id"] == "deck_test77"
+            # le filtre ?deck_id= ne rend que les docs du jeu
+            await c.post("/api/vector/docs", json={
+                "name": "Hors deck", "role": "libre", "doc": _doc("Hors deck")})
+            r = await c.get("/api/vector/docs",
+                            params={"deck_id": "deck_test77"})
+            assert [d["name"] for d in r.json()["docs"]] == ["Décor de carte"]
+            # dupliquer ancré au jeu : la copie porte l'ancre
+            r = await c.post(f"/api/vector/docs/{did}/duplicate",
+                             json={"deck_id": "deck_test77",
+                                   "name": "Copie deck"})
+            assert r.status_code == 200, r.text
+            nid = r.json()["id"]
+            r = await c.get(f"/api/vector/docs/{nid}")
+            assert r.json()["meta"]["deck_id"] == "deck_test77"
+            # banc propre (le doc hors deck reste : il est sans ancre)
+            r = await c.get("/api/vector/docs",
+                            params={"deck_id": "deck_test77"})
+            for d in r.json()["docs"]:
+                assert (await c.delete(
+                    f"/api/vector/docs/{d['id']}")).status_code == 200
+
+    asyncio.run(scenario())

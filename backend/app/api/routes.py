@@ -5197,7 +5197,8 @@ _VECTOR_ROLES = ("decor", "lumiere", "personnage", "libre")
 def _vector_meta(row) -> dict:
     from app.services import vector_store as VS
     return {"id": row.id, "name": row.name, "chapter_id": row.chapter_id,
-            "entity_id": row.entity_id, "role": row.role,
+            "entity_id": row.entity_id, "deck_id": row.deck_id,
+            "role": row.role,
             "version": row.version,
             "vignette": VS.a_vignette(row.id),
             "liaison": False,          # la liste par chapitre marque les liés
@@ -5223,16 +5224,19 @@ async def create_vector_doc(body: dict):
         session.add(VectorDoc(id=did, name=name,
                               chapter_id=(body.get("chapter_id") or None),
                               entity_id=(body.get("entity_id") or None),
+                              deck_id=(body.get("deck_id") or None),
                               role=role, version=1))
         await session.commit()
     return {"id": did, "version": 1}
 
 
 @router.get("/vector/docs")
-async def list_vector_docs(chapter_id: str = "", role: str = "", q: str = ""):
+async def list_vector_docs(chapter_id: str = "", role: str = "", q: str = "",
+                           deck_id: str = ""):
     """`chapter_id` FUSIONNE les docs propres et les docs LIÉS au chapitre
-    (méta `liaison: true`) ; `role` et `q` (sous-chaîne insensible à la
-    casse sur le nom) se cumulent ; tri updated_at desc."""
+    (méta `liaison: true`) ; `deck_id` (pont cartes) ne rend que les docs
+    du jeu ; `role` et `q` (sous-chaîne insensible à la casse sur le nom)
+    se cumulent ; tri updated_at desc."""
     from app.services.storage import (VectorDoc, VectorDocLink,
                                       async_session_factory)
     from sqlalchemy import select
@@ -5246,6 +5250,8 @@ async def list_vector_docs(chapter_id: str = "", role: str = "", q: str = ""):
         propres = select(VectorDoc)
         if chapter_id:
             propres = propres.where(VectorDoc.chapter_id == chapter_id)
+        if deck_id:
+            propres = propres.where(VectorDoc.deck_id == deck_id)
         paires = [(r, False) for r in
                   (await session.execute(_affiner(propres))).scalars().all()]
         if chapter_id:
@@ -5326,13 +5332,15 @@ async def delete_vector_doc(doc_id: str):
 async def duplicate_vector_doc(doc_id: str, body: dict):
     """Body: {chapter_id?, name?} — la copie INDÉPENDANTE qui fait diverger :
     contenu COURANT relu du disque, id neuf, version 1, rôle copié,
-    entity_id non copié ; ancrée au chapitre demandé (sinon bibliothèque).
-    Si la liaison (chapter_id, source) existe elle est RETIRÉE — la copie
-    remplace la référence. La vignette du source est copiée."""
+    entity_id non copié ; ancrée au chapitre demandé — ou au JEU demandé
+    (`deck_id`, pont cartes) — sinon bibliothèque. Si la liaison
+    (chapter_id, source) existe elle est RETIRÉE — la copie remplace la
+    référence. La vignette du source est copiée."""
     from app.services import vector_store as VS
     from app.services.storage import (VectorDoc, VectorDocLink,
                                       async_session_factory)
     chapter_id = (body.get("chapter_id") or None)
+    deck_id = (body.get("deck_id") or None)
     async with async_session_factory() as session:
         src = await session.get(VectorDoc, doc_id)
         if not src:
@@ -5345,7 +5353,7 @@ async def duplicate_vector_doc(doc_id: str, body: dict):
         name = (str(body.get("name") or "").strip()
                 or f"{src.name} (copie)")[:120]
         session.add(VectorDoc(id=nid, name=name, chapter_id=chapter_id,
-                              role=src.role, version=1))
+                              deck_id=deck_id, role=src.role, version=1))
         if chapter_id:
             lien = await session.get(VectorDocLink, (chapter_id, doc_id))
             if lien:
