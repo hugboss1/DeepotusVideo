@@ -1923,15 +1923,16 @@
   }
 
   /* La taille du document neuf = la FENETRE D'ILLUSTRATION courante (le
-     cadrage que la carte donnera a l'export), repli 815x1110 px. */
+     cadrage que la carte donnera a l'export), repli 815x1110 px — et le
+     dpi du jeu : le Vectorlab affichera des mm, la carte est physique. */
   function vecTailleDefaut() {
     try {
       const g = CF.geom();
       const w = frameWindow(g);
       const px = [Math.round(w[2]), Math.round(w[3])];
-      if (px[0] > 0 && px[1] > 0) return px;
+      if (px[0] > 0 && px[1] > 0) return [px[0], px[1], g.dpi || 300];
     } catch (e) { /* geometrie indisponible : repli */ }
-    return [815, 1110];
+    return [815, 1110, 300];
   }
 
   async function creerVec() {
@@ -1942,6 +1943,7 @@
       || "Illustration " + (VECS.docs.length + 1);
     const t = vecTailleDefaut();
     const doc = { v: 1, nom: nom, taille: { w: t[0], h: t[1] },
+      unites: { affichage: "mm", dpi: t[2] },
       calques: [{ id: "c1", nom: "calque 1", visible: true, verrou: false,
                   objets: [] }] };
     const r = await fetch("/api/vector/docs", {

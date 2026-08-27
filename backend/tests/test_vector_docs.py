@@ -635,6 +635,41 @@ def test_le_miroir_bibliotheque_vectorlab():
     assert "--cat-vectoriel" in css and "color-scheme" in css
 
 
+# ── P. miroirs de l'éditeur complet (27/08) : unités, couleur, classiques ───
+
+def test_le_miroir_editeur_complet():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vlab = racine / "frontend" / "vectorlab"
+    js = lambda n: (vlab / "js" / n).read_text("utf-8")  # noqa: E731
+    html = (vlab / "index.html").read_text("utf-8")
+    # unités : module pur + règles/cotes branchées + bouton cyclique
+    unites = js("mod-unites.js")
+    assert "libelle_mesure" in unites and "pxParUnite" in unites
+    core = js("core.js")
+    assert "mod-unites.js" in core and "btnUnite" in core
+    assert 'id="btnUnite"' in html
+    # couleur : nuancier (RGB/CMJN naïf/hex/palettes) sur les pastilles
+    couleur = js("mod-couleur.js")
+    assert "rgbVersCmjn" in couleur and "palette_defaut" in couleur
+    assert "ouvrirNuancier" in couleur
+    assert "ouvrirNuancier" in js("mod-style.js")
+    # cotes vives + outils ligne/mesure
+    tools = js("mod-tools.js")
+    assert "etiquette" in tools and "trace-ligne" in tools
+    assert 'data-outil="ligne"' in html and 'data-outil="mesure"' in html
+    # formats à la création ; le vitrail est un MODE replié
+    assert 'id="bibNouvFormat"' in html
+    assert 'id="vitrailDetails"' in html
+    # classiques : les ops pures branchées au panneau
+    style = js("mod-style.js")
+    assert "op_aligner" in style and "op_distribuer" in style
+    assert "op_miroir" in style and "op_rect_rayon" in style
+    # le pont cartes crée des documents en mm (la carte est physique)
+    face = (racine / "frontend" / "cardforge" / "js"
+            / "mod-face.js").read_text("utf-8")
+    assert '"mm"' in face and "unites" in face
+
+
 # ── O. miroirs du pont cartes : l'onglet Vectoriel du panneau face ───────────
 
 def test_le_miroir_pont_cartes_mod_face():
