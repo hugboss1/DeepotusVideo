@@ -16,6 +16,17 @@
     <button id="btnGrille" title="Grille d'aimantation (G)">⌗ 8</button>
     <button id="btnAnnuler" title="Annuler (Ctrl+Z)">↶</button>
     <button id="btnRefaire" title="Refaire (Ctrl+Y)">↷</button>
+    <span class="exp-conteneur">
+      <button id="btnExporter" title="Exporter le document">Exporter ▾</button>
+      <div id="expMenu" class="exp-menu hidden">
+        <button id="expSvg" title="Compile ici, stocké au serveur, servi sur export.svg">SVG (serveur)</button>
+        <button id="expPng1" title="PNG taille du document → Library">PNG 1×</button>
+        <button id="expPng2" title="PNG double → Library">PNG 2×</button>
+        <button id="expPng4" title="PNG quadruple → Library">PNG 4×</button>
+        <label title="Compile sans le fond du document — coché d'office pour un calque de lumière"><input type="checkbox" id="expTransparent"/> fond transparent</label>
+        <button id="expBible" title="Exporte en 2× et l'ajoute aux images d'inspiration d'une entité de la bible — les planches s'y conditionnent ensuite (machinerie existante, tir opt-in)">→ Bible…</button>
+      </div>
+    </span>
     <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
   </header>
   <div class="rangee">

@@ -8,6 +8,7 @@ import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
 import { initOutils } from "./mod-tools.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
+import { initExport } from "./mod-export.js";
 
 const $ = (s) => document.querySelector(s);
 const api = {
@@ -432,5 +433,6 @@ const VL = {
 initCalques(VL);
 initStyle(VL);
 initOutils(VL);
+initExport(VL);
 window.VL = VL;
 charger();
