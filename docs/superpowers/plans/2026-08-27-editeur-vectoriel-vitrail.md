@@ -383,6 +383,52 @@ graisse, interlettrage) posé et transformable. **Preuve :** banc qa des
 booléens sur cas de référence (aires attendues à ±0,5 %, compte de fragments
 exact sur la division) ; licence martinez jointe et créditée.
 
+### Expansion d'exécution (27/08, phase 2 livrée)
+
+Décisions : martinez vendorisé en UMD sous `vendor/` avec un `package.json
+{type: commonjs}` local (node le `require`, le navigateur le charge en
+script classique avant les modules → `window.martinez`) ; le wrapper
+`mod-bool.js` reçoit la lib par résolveur (`fournirMartinez()` au banc,
+`window.martinez` à l'écran). L'aplatissement APPLIQUE le transform de
+l'objet (suites de `rotate` composées en matrice — les seules que nos ops
+émettent). Un découpeur à fond `none` compte par son CONTOUR GONFLÉ
+(union de quadrilatères par segment + disques aux sommets, joints/bouts
+ronds comme notre rendu) — c'est ce qui permet au réseau de plombs TRACÉ à
+la plume de découper la plaque. La division garde les plombs et remplace
+la plaque par ses fragments (un objet par polygone, trous en sous-chemins,
+style de la plaque). Sémantique : union = tous ; intersection = pli de
+tous ; soustraction = le plus BAS moins l'union des autres ; le résultat
+remplace les opérandes à l'emplacement du plus bas, son style conservé.
+Le texte porte fonte/corps/graisse/interlettrage DANS `style` (op_style
+marche gratuitement) ; le redimensionnement met le corps à l'échelle ; la
+vectorisation des glyphes reste hors périmètre (un texte dans une
+sélection booléenne est refusé avec message).
+
+- [ ] **T3.1 vendor** : martinez UMD épinglé + LICENCE jointe +
+  `package.json` commonjs local + résolveur `mod-bool.js` — fumée qa
+  (union 2 carrés, require node)
+- [ ] **T3.2 aplatir** : `aplatir_objet(objet, tol=0.25)` → anneaux
+  (rect exact, ellipse adaptative, path M/L/C/Q/Z par subdivision,
+  sous-chemins multiples, transform appliqué) + `aire_de(anneaux)` — qa
+  `booleens.test.mjs` : aires ±0,5 % (ellipse, cercle en 4 cubiques),
+  rotation à aire conservée
+- [ ] **T3.3 union/soustraction/intersection** : `op_booleen(doc, ids,
+  mode)` — remplace au plus bas, style conservé, aires exactes sur rects
+  (15000/5000/5000), refus <2 objets et texte
+- [ ] **T3.4 division** : `op_division(doc, ids)` — plaque = le plus bas,
+  découpeurs = fonds pleins OU contours gonflés, fragments indépendants
+  (compte EXACT : bande verticale → 2 ; découpeur intérieur → 1 avec trou
+  en sous-chemin), plombs conservés
+- [ ] **T3.5 texte** : compilation `<text>` échappée (police, corps,
+  graisse, interlettrage depuis style), déplacement/redimensionnement
+  (corps à l'échelle), snapshot étendu — qa `texte.test.mjs`
+- [ ] **T3.6 UI** : outil Texte (T, clic → invite), section Fonte du
+  panneau (sélection texte), rangée Booléens (∪ ⊖ ∩ ⧉ — ⧉ EST le preset
+  métier « diviser le verre par les plombs »), raccourcis — node --check
+- [ ] **T3.7 déploiement & preuve réelle** : plaque + plombs à la plume →
+  division dans l'app réelle (fragments comptés, plombs intacts), texte
+  posé/stylé, relevé au plan
+
 ## Phase 4 — Exports & intégrations
 
 Contrats : export SVG (GET `/api/vector/docs/{id}/export.svg` — compilation
