@@ -583,6 +583,76 @@ rôle ; vignettes (mini-export PNG au save) ; recherche par nom. **Preuve :**
 scénario réel : 2 chapitres partagent un décor, l'édition se propage, la
 duplication isole ; banc CRUD des liaisons.
 
+### Expansion d'exécution (27/08, phase 5 livrée)
+
+Décisions : la liaison vit dans SQLite — `VectorDocLink`
+(`vector_doc_links`, PK COMPOSITE `chapter_id+doc_id` = unicité gratuite,
+`created_at`), table NEUVE que `create_all` apporte seul (aucun ALTER, le
+patron `_auto_migrate` reste intact). Le `chapter_id` de `VectorDoc` reste
+l'ancre du chapitre PROPRIÉTAIRE (null = bibliothèque globale) ; la liaison
+dit « ce chapitre INSTANCIE ce doc par référence » — il n'y a qu'UN
+document, donc l'édition se voit partout PAR CONSTRUCTION. Sémantique :
+instancier = `POST /vector/links {chapter_id, doc_id}` (404 doc inconnu,
+409 déjà lié OU doc déjà propre au chapitre ; l'existence du chapitre n'est
+pas contrôlée — même règle que le CRUD phase 0, dont le banc dit `ch-42`) ;
+retirer la liaison = `DELETE /vector/links?chapter_id=&doc_id=` (le doc ne
+bouge pas) ; supprimer le DOC emporte ses liaisons et supprimer le CHAPITRE
+emporte les siennes (ajout au `delete_chapter` existant) — jamais
+d'orphelines. Dupliquer pour diverger : `POST /vector/docs/{id}/duplicate
+{chapter_id?, name?}` relit le contenu COURANT du disque → doc neuf (id
+neuf, version 1, rôle copié, `entity_id` non copié), ancré au chapitre
+demandé (sinon bibliothèque) ; si la liaison `(chapter_id, source)` existe
+elle est RETIRÉE — la copie remplace la référence ; la vignette du source
+est copiée (l'œil a tout de suite quelque chose). Vignettes : `<id>.png` À
+CÔTÉ du JSON dans le dossier vector (PAS par `/images/upload` — chaque save
+spammerait la Library réelle), écriture atomique, `POST
+/vector/docs/{id}/vignette` (corps binaire, magic PNG vérifié → 400) et
+`GET /vector/docs/{id}/vignette.png` (404 parlant avant la première) ;
+`_vector_meta` gagne `vignette: bool`. Côté éditeur, `sauver()` déclenche
+APRÈS le PUT réussi un mini-export NON bloquant (le `rasteriser` existant
+de mod-export, échelle `256/max(w,h)`, jamais transparent) — l'échec de
+vignette ne casse jamais une sauvegarde. Recherche : paramètre `q` sur
+`GET /vector/docs` (sous-chaîne insensible à la casse sur `name`, cumulable
+avec `role`/`chapter_id`). Liste par chapitre : `?chapter_id=` FUSIONNE
+docs propres + docs liés (méta `liaison: true`), tri `updated_at` desc.
+Atelier : le panneau « Éléments vectoriels » gagne un bouton
+« Bibliothèque » qui déplie un tiroir (recherche + filtre rôle) listant les
+docs HORS du chapitre courant — bibliothèque globale (badge ◇) ET docs des
+autres chapitres (badge ⚓ — D4 le promettait) — avec bouton Instancier ;
+les lignes du chapitre gagnent la vignette, le badge « réf » et
+Dupliquer/Retirer sur les docs liés.
+
+- [ ] **T6.1 vignettes au magasin + routes** : vector_store
+  `ecrire_vignette/lire_vignette/a_vignette/copier_vignette` (atomique) ;
+  routes POST vignette (400 magic, 404 doc inconnu) + GET vignette.png
+  (404 parlant) ; `_vector_meta.vignette` — pytest RED d'abord
+- [ ] **T6.2 liaisons** : modèle `VectorDocLink` + `POST/GET/DELETE
+  /vector/links` (409 double et déjà-propre, 404 doc inconnu, filtres
+  `chapter_id`/`doc_id` au GET) ; DELETE doc → liaisons emportées ; DELETE
+  chapitre → liaisons emportées — pytest RED d'abord (le banc CRUD du
+  contrat)
+- [ ] **T6.3 liste fusionnée + recherche** : `?chapter_id=` rend propres +
+  liés (`liaison: true`, tri updated_at desc) ; `?q=` insensible à la
+  casse, cumulable — pytest RED d'abord
+- [ ] **T6.4 dupliquer** : copie indépendante (contenu du disque, v1,
+  vignette copiée), liaison remplacée si présente, 404 source inconnue —
+  pytest RED d'abord
+- [ ] **T6.5 éditeur : vignette au save** : `VL.vignette()` dans
+  mod-export.js (rasteriser 256/max, POST binaire), accroche non bloquante
+  dans `sauver()` — node --check + miroir pytest
+- [ ] **T6.6 Atelier : bibliothèque + lignes enrichies** : tiroir
+  Bibliothèque (recherche, rôle, Instancier, badges ◇/⚓), lignes du
+  chapitre (vignette, badge réf, Dupliquer/Retirer sur les liés) — miroirs
+  pytest RED → GREEN, node --check
+- [ ] **T6.7 déploiement & preuve réelle** : patron sha+stop+relance+santé ;
+  scénario réel sur 2 chapitres de TEST créés puis SUPPRIMÉS (docs
+  jetables archivés par DELETE, les docs réels « Baie vitrail - demo » et
+  « Vitrail - baie generee » intouchés) : un décor de bibliothèque
+  instancié dans A et B, l'édition (save v2) vue des DEUX panneaux,
+  Dupliquer dans B → la copie isole (v3 du source vue de A seule),
+  vignettes à l'œil ; `run-tests.ps1 -Filter vector` + voisins verts + qa
+  node 203 ; relevé au plan
+
 ---
 
 ## Ordre, dépendances, estimation
