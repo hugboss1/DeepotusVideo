@@ -297,3 +297,17 @@ def test_le_miroir_forge3d_imprimer():
     assert "/api/print3d/from-stl" in js
     assert "etanche" in js and "garantie" in js
     assert "/api/print3d/open" in js
+
+
+def test_le_miroir_bundle_game_assets_3d():
+    """Phase 2 : le bouton par job du panneau 3D du hub vit dans le BUNDLE,
+    pose par patch_bundle_print3d.py (queue de chaine, auto-verifie) — ce
+    pin fige l'etat pour attraper un effacement silencieux de la chaine."""
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    bundle = (racine / "frontend" / "dist" / "assets"
+              / "index-BEOJX8L5.js").read_text("utf-8")
+    assert bundle.count("__dzPrint3d") == 2      # la définition + l'appel
+    assert "/api/print3d/from-assets3d/" in bundle
+    patcher = (racine / "scripts"
+               / "patch_bundle_print3d.py").read_text("utf-8")
+    assert "guard_downstream" in patcher and "STABLE_PROBES" in patcher
