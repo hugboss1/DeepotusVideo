@@ -5180,6 +5180,116 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         return _shot_dict(s)
 
 
+# ── Vectorlab (phase 0) : documents vectoriels versionnés ────────────────────
+# Plan : docs/superpowers/plans/2026-08-27-editeur-vectoriel-vitrail.md.
+# Contenu en fichiers (services/vector_store), index et ancrage en SQLite
+# (storage.VectorDoc). La suppression ARCHIVE — l'historique reste sur disque.
+
+_VECTOR_ROLES = ("decor", "lumiere", "personnage", "libre")
+
+
+def _vector_meta(row) -> dict:
+    return {"id": row.id, "name": row.name, "chapter_id": row.chapter_id,
+            "entity_id": row.entity_id, "role": row.role,
+            "version": row.version,
+            "updated_at": (row.updated_at.isoformat()
+                           if row.updated_at else None)}
+
+
+@router.post("/vector/docs")
+async def create_vector_doc(body: dict):
+    """Body: {name, role, doc, chapter_id?, entity_id?} → {id, version:1}."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    name = str(body.get("name") or "").strip()[:120] or "Sans titre"
+    role = str(body.get("role") or "libre").strip().lower()
+    if role not in _VECTOR_ROLES:
+        raise HTTPException(400, f"role invalide: {role} "
+                                 f"(valides: {', '.join(_VECTOR_ROLES)})")
+    try:
+        did = VS.creer(body.get("doc") or {})
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    async with async_session_factory() as session:
+        session.add(VectorDoc(id=did, name=name,
+                              chapter_id=(body.get("chapter_id") or None),
+                              entity_id=(body.get("entity_id") or None),
+                              role=role, version=1))
+        await session.commit()
+    return {"id": did, "version": 1}
+
+
+@router.get("/vector/docs")
+async def list_vector_docs(chapter_id: str = "", role: str = ""):
+    from app.services.storage import VectorDoc, async_session_factory
+    from sqlalchemy import select
+    async with async_session_factory() as session:
+        q = select(VectorDoc)
+        if chapter_id:
+            q = q.where(VectorDoc.chapter_id == chapter_id)
+        if role:
+            q = q.where(VectorDoc.role == role)
+        rows = (await session.execute(
+            q.order_by(VectorDoc.updated_at.desc()))).scalars().all()
+        return {"docs": [_vector_meta(r) for r in rows]}
+
+
+@router.get("/vector/docs/{doc_id}")
+async def get_vector_doc(doc_id: str):
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    async with async_session_factory() as session:
+        row = await session.get(VectorDoc, doc_id)
+        if not row:
+            raise HTTPException(404, "Document introuvable")
+        try:
+            doc = VS.lire(doc_id)
+        except FileNotFoundError:
+            raise HTTPException(404, "Contenu du document introuvable")
+        return {"meta": _vector_meta(row), "doc": doc}
+
+
+@router.put("/vector/docs/{doc_id}")
+async def update_vector_doc(doc_id: str, body: dict):
+    """Body: {doc, name?} → {id, version} — bump + historique disque."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    async with async_session_factory() as session:
+        row = await session.get(VectorDoc, doc_id)
+        if not row:
+            raise HTTPException(404, "Document introuvable")
+        try:
+            v = VS.ecrire(doc_id, body.get("doc") or {})
+        except FileNotFoundError:
+            raise HTTPException(404, "Contenu du document introuvable")
+        except ValueError as e:
+            raise HTTPException(400, str(e))
+        row.version = v
+        if body.get("name"):
+            row.name = str(body["name"]).strip()[:120]
+        row.updated_at = datetime.utcnow()
+        await session.commit()
+        return {"id": doc_id, "version": v}
+
+
+@router.delete("/vector/docs/{doc_id}")
+async def delete_vector_doc(doc_id: str):
+    """Archive le contenu (dernière version sur disque) et retire l'index."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    async with async_session_factory() as session:
+        row = await session.get(VectorDoc, doc_id)
+        if not row:
+            raise HTTPException(404, "Document introuvable")
+        try:
+            VS.supprimer(doc_id)
+        except FileNotFoundError:
+            pass                      # index orphelin : on nettoie quand même
+        await session.delete(row)
+        await session.commit()
+    return {"ok": True}
+
+
 @router.get("/atelier/shotcraft")
 async def shotcraft_info():
     """v1.22 (W-d) — état du pont video-shotcraft + catalogue des recettes

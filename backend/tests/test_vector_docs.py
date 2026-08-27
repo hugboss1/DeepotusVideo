@@ -83,3 +83,61 @@ def test_l_index_sqlite_porte_le_catalogue_et_l_ancrage():
             assert row.version == 1 and row.updated_at is not None
 
     asyncio.run(scenario())
+
+
+# ── C. le CRUD /api/vector/docs ──────────────────────────────────────────────
+
+def test_le_crud_vector_docs():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # créer (rôle validé, version 1)
+            r = await c.post("/api/vector/docs", json={
+                "name": "Baie ogivale", "role": "decor",
+                "chapter_id": "ch-42", "doc": _doc("Baie ogivale")})
+            assert r.status_code == 200, r.text
+            did = r.json()["id"]
+            assert r.json()["version"] == 1
+            # rôle hors liste → 400, rien d'écrit
+            r = await c.post("/api/vector/docs", json={
+                "name": "X", "role": "gothico", "doc": _doc()})
+            assert r.status_code == 400
+            # liste filtrée par chapitre puis par rôle
+            await c.post("/api/vector/docs", json={
+                "name": "Halo", "role": "lumiere", "doc": _doc("Halo")})
+            r = await c.get("/api/vector/docs",
+                            params={"chapter_id": "ch-42"})
+            assert [d["name"] for d in r.json()["docs"]] == ["Baie ogivale"]
+            r = await c.get("/api/vector/docs", params={"role": "lumiere"})
+            assert [d["name"] for d in r.json()["docs"]] == ["Halo"]
+            # lire : méta + contenu
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            assert r.json()["meta"]["role"] == "decor"
+            assert r.json()["doc"]["taille"] == {"w": 640, "h": 960}
+            # réécrire : version bump, contenu remplacé
+            d2 = _doc("Baie ogivale")
+            d2["calques"][0]["nom"] = "verre"
+            r = await c.put(f"/api/vector/docs/{did}", json={"doc": d2})
+            assert r.status_code == 200 and r.json()["version"] == 2
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.json()["doc"]["calques"][0]["nom"] == "verre"
+            assert r.json()["meta"]["version"] == 2
+            # document invalide → 400
+            r = await c.put(f"/api/vector/docs/{did}", json={"doc": {"x": 1}})
+            assert r.status_code == 400
+            # suppression = archivage : la ligne part, le contenu reste
+            r = await c.delete(f"/api/vector/docs/{did}")
+            assert r.status_code == 200
+            r = await c.get(f"/api/vector/docs/{did}")
+            assert r.status_code == 404
+        dossier = pathlib.Path(os.environ["VECTOR_FOLDER"])
+        assert list(dossier.glob("*.v*.json"))   # l'archive est bien là
+
+    asyncio.run(scenario())
