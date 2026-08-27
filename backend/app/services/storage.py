@@ -179,6 +179,26 @@ class BibleEntity(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 
+class VectorDoc(Base):
+    """Vectorlab (phase 0) — l'INDEX d'un document vectoriel : nom, ancrage
+    (chapitre et/ou entité de la bible), rôle (decor | lumiere | personnage |
+    libre) et version courante. Le CONTENU vit sur disque
+    (services/vector_store.py : `<id>.json` + historique `.v<n>.json`)."""
+    __tablename__ = "vector_docs"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(120))
+    chapter_id: Mapped[Optional[str]] = mapped_column(String(36), index=True,
+                                                      nullable=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    role: Mapped[str] = mapped_column(String(12), index=True, default="libre")
+    version: Mapped[int] = mapped_column(Integer, default=1)
+    created_at: Mapped[datetime] = mapped_column(DateTime,
+                                                 default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime,
+                                                 default=datetime.utcnow)
+
+
 class Chapter(Base):
     """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
     spans linking text zones to bible entities ([{start,end,text,entity_id}]
