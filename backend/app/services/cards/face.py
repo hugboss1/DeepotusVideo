@@ -1120,15 +1120,16 @@ async def stamp_png(did: str, fmt: str, dpi: int, request: Request,
 SERIE_ID = "walkuski"
 SERIE_V = 1                       # schéma du manifeste
 SERIE_DIR = "cardforge_series"    # sous `DATA_ROOT`, patron des modèles perso
-SERIE_PLAFOND_USD = 16.00         # LE MUR (plan D2) — dur, pas indicatif.
+SERIE_PLAFOND_USD = 20.00         # LE MUR (plan D2) — dur, pas indicatif.
 # 6,00 à la naissance (T1) ; 8,00 le 25/08/2026 (« relève à 8$ ») ; 10,00,
 # 12,00 puis 15,00 le 26/08/2026, chaque fois SUR ORDRE EXPLICITE DE
 # L'UTILISATEUR (« relève l'enveloppe à 10$ / 12$ / 15$ ») — la relance
 # T1-I/J/K à la voie de mise au ton en ligne a servi 30 cases sur 55
 # sondes ; 16,00 le 27/08/2026 (« relève a 16$ et vise monolith, archer et
-# autre » — la première enveloppe de la paire fal, relevé T1-N). Ce nombre
-# ne bouge QUE sur un ordre utilisateur — jamais un agent (la leçon de la
-# campagne, écrite au plan).
+# autre » — la première enveloppe de la paire fal, relevé T1-N) ; 20,00 le
+# 27/08/2026 (« relève a 20$ et fini les backlights » — relevé T1-O). Ce
+# nombre ne bouge QUE sur un ordre utilisateur — jamais un agent (la leçon
+# de la campagne, écrite au plan).
 # NOTE DU 27/08/2026 : la marche FLUX (6 candidats, lots 4+2 — le plafond
 # fournisseur `num_images ≤ 4` mesuré en payant le 25/08) est SORTIE de
 # l'échelle avec ses constantes `SERIE_CANDIDATS`/`SERIE_FLUX_MAX` : sa
