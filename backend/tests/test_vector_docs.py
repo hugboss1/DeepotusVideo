@@ -424,3 +424,65 @@ def test_supprimer_doc_ou_chapitre_emporte_les_liaisons():
             await c.delete(f"/api/vector/docs/{d2}")   # banc propre
 
     asyncio.run(scenario())
+
+
+# ── I. la liste par chapitre FUSIONNE propres + liés ; recherche `q` ─────────
+
+def test_la_liste_par_chapitre_fusionne_et_la_recherche_filtre():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            # un doc PROPRE au chapitre ch-p6f, un doc de bibliothèque LIÉ,
+            # un doc d'un AUTRE chapitre LIÉ (D4 : référence inter-chapitres)
+            r = await c.post("/api/vector/docs", json={
+                "name": "Fresque propre", "role": "decor",
+                "chapter_id": "ch-p6f", "doc": _doc()})
+            propre = r.json()["id"]
+            r = await c.post("/api/vector/docs", json={
+                "name": "Fresque biblio", "role": "decor", "doc": _doc()})
+            lie1 = r.json()["id"]
+            r = await c.post("/api/vector/docs", json={
+                "name": "Fresque voisine", "role": "lumiere",
+                "chapter_id": "ch-p6g", "doc": _doc()})
+            lie2 = r.json()["id"]
+            for did in (lie1, lie2):
+                await c.post("/api/vector/links",
+                             json={"chapter_id": "ch-p6f", "doc_id": did})
+            # la liste du chapitre rend les TROIS, les liés marqués
+            r = await c.get("/api/vector/docs",
+                            params={"chapter_id": "ch-p6f"})
+            docs = {d["id"]: d for d in r.json()["docs"]}
+            assert set(docs) == {propre, lie1, lie2}
+            assert docs[propre]["liaison"] is False
+            assert docs[lie1]["liaison"] is True
+            assert docs[lie2]["liaison"] is True
+            # le filtre rôle s'applique aussi aux liés
+            r = await c.get("/api/vector/docs",
+                            params={"chapter_id": "ch-p6f",
+                                    "role": "lumiere"})
+            assert [d["id"] for d in r.json()["docs"]] == [lie2]
+            # tri updated_at desc : réécrire le propre le remonte en tête
+            await c.put(f"/api/vector/docs/{propre}",
+                        json={"doc": _doc("Fresque propre")})
+            r = await c.get("/api/vector/docs",
+                            params={"chapter_id": "ch-p6f"})
+            assert r.json()["docs"][0]["id"] == propre
+            # recherche par nom : insensible à la casse, cumulable
+            r = await c.get("/api/vector/docs", params={"q": "fresque"})
+            assert {d["name"] for d in r.json()["docs"]} == \
+                {"Fresque propre", "Fresque biblio", "Fresque voisine"}
+            r = await c.get("/api/vector/docs",
+                            params={"q": "FRESQUE", "role": "lumiere"})
+            assert [d["name"] for d in r.json()["docs"]] == \
+                ["Fresque voisine"]
+            r = await c.get("/api/vector/docs",
+                            params={"chapter_id": "ch-p6f", "q": "voisine"})
+            assert [d["id"] for d in r.json()["docs"]] == [lie2]
+
+    asyncio.run(scenario())

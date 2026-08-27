@@ -5200,6 +5200,7 @@ def _vector_meta(row) -> dict:
             "entity_id": row.entity_id, "role": row.role,
             "version": row.version,
             "vignette": VS.a_vignette(row.id),
+            "liaison": False,          # la liste par chapitre marque les liés
             "updated_at": (row.updated_at.isoformat()
                            if row.updated_at else None)}
 
@@ -5228,18 +5229,36 @@ async def create_vector_doc(body: dict):
 
 
 @router.get("/vector/docs")
-async def list_vector_docs(chapter_id: str = "", role: str = ""):
-    from app.services.storage import VectorDoc, async_session_factory
+async def list_vector_docs(chapter_id: str = "", role: str = "", q: str = ""):
+    """`chapter_id` FUSIONNE les docs propres et les docs LIÉS au chapitre
+    (méta `liaison: true`) ; `role` et `q` (sous-chaîne insensible à la
+    casse sur le nom) se cumulent ; tri updated_at desc."""
+    from app.services.storage import (VectorDoc, VectorDocLink,
+                                      async_session_factory)
     from sqlalchemy import select
     async with async_session_factory() as session:
-        q = select(VectorDoc)
+        def _affiner(query):
+            if role:
+                query = query.where(VectorDoc.role == role)
+            if q:
+                query = query.where(VectorDoc.name.ilike(f"%{q}%"))
+            return query
+        propres = select(VectorDoc)
         if chapter_id:
-            q = q.where(VectorDoc.chapter_id == chapter_id)
-        if role:
-            q = q.where(VectorDoc.role == role)
-        rows = (await session.execute(
-            q.order_by(VectorDoc.updated_at.desc()))).scalars().all()
-        return {"docs": [_vector_meta(r) for r in rows]}
+            propres = propres.where(VectorDoc.chapter_id == chapter_id)
+        paires = [(r, False) for r in
+                  (await session.execute(_affiner(propres))).scalars().all()]
+        if chapter_id:
+            lies = _affiner(
+                select(VectorDoc)
+                .join(VectorDocLink, VectorDocLink.doc_id == VectorDoc.id)
+                .where(VectorDocLink.chapter_id == chapter_id))
+            paires += [(r, True) for r in
+                       (await session.execute(lies)).scalars().all()]
+        paires.sort(key=lambda p: p[0].updated_at or datetime.min,
+                    reverse=True)
+        return {"docs": [{**_vector_meta(r), "liaison": lie}
+                         for r, lie in paires]}
 
 
 @router.get("/vector/docs/{doc_id}")
