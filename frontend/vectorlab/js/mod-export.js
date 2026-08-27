@@ -69,6 +69,19 @@ export function initExport(VL) {
     return d.filename;
   }
 
+  async function vignette() {
+    // phase 6 : le mini-export qui suit chaque Sauver — 256 px de plus
+    // grand côté, POSTé en binaire vers <id>.png à côté du JSON. Jamais
+    // par /images/upload : la Library réelle reste propre.
+    const { w, h } = etat.doc.taille;
+    const png = await rasteriser(256 / Math.max(w, h), false);
+    const r = await fetch("/api/vector/docs/"
+      + encodeURIComponent(etat.docId) + "/vignette", {
+      method: "POST", headers: { "Content-Type": "image/png" }, body: png,
+    });
+    if (!r.ok) throw new Error("vignette : " + r.status);
+  }
+
   async function versBible() {
     const ents = (await VL.api.get("/bible/entities")).entities || [];
     if (!ents.length) {
@@ -110,4 +123,5 @@ export function initExport(VL) {
   $("#expBible").addEventListener("click", garde(versBible));
 
   VL.exporterPNG = exporterPNG;      // la preuve et les phases suivantes
+  VL.vignette = vignette;            // le save de core.js l'appelle
 }

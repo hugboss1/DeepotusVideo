@@ -334,6 +334,9 @@ async function sauver() {
     majTete();
     $("#temoin").textContent = "✓";
     $("#temoin").classList.remove("sale");
+    // phase 6 : la vignette suit la sauvegarde — jamais bloquante, son
+    // échec ne casse pas un save
+    if (VL.vignette) VL.vignette().catch(() => {});
   } catch (e) { toast("sauvegarde : " + e.message, true); }
 }
 

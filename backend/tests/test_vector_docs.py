@@ -547,3 +547,21 @@ def test_dupliquer_isole():
                 await c.delete(f"/api/vector/docs/{i}")
 
     asyncio.run(scenario())
+
+
+# ── K. miroirs de l'éditeur (phase 6) : la vignette naît au Sauver ───────────
+
+def test_le_miroir_editeur_vignette_au_save():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    vlab = racine / "frontend" / "vectorlab" / "js"
+    exp = (vlab / "mod-export.js").read_text("utf-8")
+    # le mini-export : rasteriser à 256 px de grand côté, POST binaire vers
+    # la route vignette — jamais par /images/upload
+    assert "/vignette" in exp
+    assert "VL.vignette" in exp
+    assert "256" in exp
+    core = (vlab / "core.js").read_text("utf-8")
+    # accrochée à sauver(), jamais bloquante : l'échec de vignette ne casse
+    # pas une sauvegarde
+    assert "VL.vignette" in core
+    assert core.index("VL.vignette") > core.index("async function sauver")
