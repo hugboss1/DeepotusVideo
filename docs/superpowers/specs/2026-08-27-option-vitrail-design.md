@@ -1,5 +1,19 @@
 # Option de style « Vitrail Młoda Polska » dans l'app — design
 
+> **RELEVÉ (27/08, fin de chantier) : LIVRÉ ET DÉPLOYÉ.** Skill
+> `vitrail-mloda-polska` créé et testé RED→GREEN (baseline sans skill : nom
+> d'artiste dans les prompts ; avec skill : conforme). Copies épinglées +
+> preset + canon + `style` sur les deux routes + miroir atelier + patch
+> bundle `episodes_style` : commits 04358c5 et 0606f8d, bancs style_da,
+> style_vitrail, atelier ×2, image_model_default, manuscript, voiceover ×2
+> verts, déployé sha-vérifié, santé 2.5.0, chip DA et select Épisodes
+> prouvés dans l'app réelle (clic chip → bloc + canon `vitrail`). Amendement
+> en cours de route : le preset backend DÉRIVE de la fiche à l'import (repli
+> court si copie absente) au lieu d'un littéral dupliqué — D4 tenu plus
+> fort ; le mode paragraphe des Épisodes stylise aussi ses prompts
+> (première phrase), pas seulement le mode IA. L'éditeur vectoriel a son
+> plan séparé (2026-08-27-editeur-vectoriel-vitrail.md), non implémenté.
+
 **Date** : 2026-08-27. **Ordre utilisateur** : « génère un skill qui va reproduire dans
 l'application un style vitrail en reprenant tous les codes du mouvement Jeune Pologne
 (Młoda Polska) […] à intégrer dans la création d'illustrations sous forme d'option ».
