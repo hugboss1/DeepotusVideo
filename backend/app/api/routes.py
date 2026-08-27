@@ -5320,6 +5320,25 @@ async def get_vector_export_svg(doc_id: str):
     return Response(content=svg, media_type="image/svg+xml")
 
 
+@router.get("/vector/vitrail")
+async def vector_vitrail():
+    """Le mode vitrail du Vectorlab lit la FICHE ÉPINGLÉE
+    (services/style_vitrail.json, copie du skill vitrail-mloda-polska) —
+    l'unique source des ancres, bornes et motifs. Le banc compare la
+    réponse à l'octet avec le fichier : toute divergence rougit."""
+    import json as _json
+    from pathlib import Path as _P
+    fiche = (_P(__file__).resolve().parent.parent / "services"
+             / "style_vitrail.json")
+    try:
+        data = _json.loads(fiche.read_text(encoding="utf-8"))
+        return {"famille": data["familles"]["vitrail"],
+                "source": "style_vitrail.json (copie épinglée du skill "
+                          "vitrail-mloda-polska)"}
+    except Exception as e:
+        raise HTTPException(503, f"fiche style_vitrail.json indisponible: {e}")
+
+
 @router.get("/atelier/shotcraft")
 async def shotcraft_info():
     """v1.22 (W-d) — état du pont video-shotcraft + catalogue des recettes

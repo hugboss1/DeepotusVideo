@@ -191,6 +191,38 @@ def test_l_export_svg_stocke_et_sert():
     asyncio.run(scenario())
 
 
+# ── F. le mode vitrail lit la FICHE ÉPINGLÉE — l'unique source ───────────────
+
+def test_l_endpoint_vitrail_sert_la_fiche_epinglee():
+    """`GET /api/vector/vitrail` sert `familles.vitrail` de
+    style_vitrail.json (copie épinglée du skill). Le test compare À L'OCTET
+    avec le fichier : toute divergence endpoint↔fiche rougit ici — aucune
+    constante recopiée nulle part."""
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    fiche = json.loads((SERVICES / "style_vitrail.json").read_text("utf-8"))
+
+    async def scenario():
+        from app.main import app
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.get("/api/vector/vitrail")
+            assert r.status_code == 200, r.text
+            corps = r.json()
+            assert corps["famille"] == fiche["familles"]["vitrail"]
+            assert "épinglée" in corps["source"]
+            # les pièces dont le Vectorlab dépend sont bien là
+            f = corps["famille"]
+            assert len(f["palette"]["ancres"]) == 5
+            assert f["palette"]["contour"]["noir_brun"].startswith("#")
+            lo, hi = f["bornes"]["part_contours_plomb"]
+            assert 0 < lo < hi < 1
+            assert f["bornes"]["part_bordure_ornementale"]
+
+    asyncio.run(scenario())
+
+
 # ── D. les surfaces : mount /vectorlab et panneau chapitre de l'Atelier ──────
 
 def test_le_mount_vectorlab_et_le_panneau_atelier():
