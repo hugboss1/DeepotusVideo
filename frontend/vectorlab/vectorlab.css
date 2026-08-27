@@ -1,19 +1,23 @@
-/* Vectorlab — thème sobre sombre (phase 0 : lecture, zoom/pan). */
+/* Vectorlab — thème sobre sombre. Phase 1 : outils, règles, calques, overlay. */
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 body {
   display: flex; flex-direction: column;
   background: #101216; color: #d6d9de;
   font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+  user-select: none;
 }
 .bar {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 14px; background: #171a20;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 12px; background: #171a20;
   border-bottom: 1px solid #262b34;
 }
 .brand { font-weight: 700; letter-spacing: .04em; color: #9db4d6; }
 .doc b { color: #eef1f5; font-weight: 600; }
 .doc span { color: #8b93a0; margin-left: 6px; font-size: 12px; }
+.doc .erreur { color: #e08a8a; }
+#temoin { color: #7bb661; font-weight: 700; }
+#temoin.sale { color: #e0b34a; }
 .spacer { flex: 1; }
 #zoomLabel { color: #8b93a0; font-variant-numeric: tabular-nums; }
 button {
@@ -21,6 +25,24 @@ button {
   border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px;
 }
 button:hover { background: #2b3140; }
+button.primaire { background: #2c4a75; border-color: #3c5f92; }
+button.primaire:hover { background: #35588a; }
+button.actif { background: #2c4a75; border-color: #5b82b8; }
+button:disabled { opacity: .4; cursor: default; }
+
+.rangee { flex: 1; display: flex; min-height: 0; }
+.outils {
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 6px; background: #171a20; border-right: 1px solid #262b34;
+}
+.outils button { width: 36px; height: 36px; padding: 0; font-size: 16px; }
+
+.scene { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.scene-basse { flex: 1; display: flex; min-height: 0; }
+.regle { background: #14171d; }
+.regle-h { border-bottom: 1px solid #262b34; margin-left: 24px; width: calc(100% - 24px); }
+.regle-v { border-right: 1px solid #262b34; height: 100%; }
+
 #stage {
   flex: 1; overflow: hidden; position: relative;
   background:
@@ -28,13 +50,37 @@ button:hover { background: #2b3140; }
     linear-gradient(45deg, #14171c 25%, transparent 25%, transparent 75%, #14171c 75%),
     #191d23;
   background-size: 24px 24px; background-position: 0 0, 12px 12px;
-  cursor: grab;
 }
-#stage.saisi { cursor: grabbing; }
-#canvasHost { position: absolute; inset: 0; display: grid; place-items: center; }
+#stage.main-panoramique { cursor: grab; }
+#canvasHost { position: absolute; inset: 0; overflow: hidden; }
 #canvasHost svg {
-  transform-origin: center center;
+  position: absolute; left: 0; top: 0;
+  transform-origin: 0 0;
   box-shadow: 0 6px 32px rgba(0, 0, 0, .55);
   background: #fff;
 }
-.erreur { color: #e08a8a; }
+#overlay {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  pointer-events: none; overflow: visible;
+}
+#overlay .poignee { pointer-events: auto; cursor: nwse-resize; }
+#overlay .poignee-rot { pointer-events: auto; cursor: crosshair; }
+#overlay .guide { pointer-events: auto; }
+#overlay .ancre { pointer-events: auto; cursor: move; }
+
+.panneau {
+  width: 210px; background: #171a20; border-left: 1px solid #262b34;
+  display: flex; flex-direction: column;
+}
+.panneau-tete {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 10px; font-weight: 600; border-bottom: 1px solid #262b34;
+}
+.calque {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px; border-bottom: 1px solid #20242d; cursor: pointer;
+}
+.calque.actif { background: #20293a; }
+.calque .nom { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.calque button { padding: 1px 6px; font-size: 12px; }
+.calque .off { opacity: .38; }

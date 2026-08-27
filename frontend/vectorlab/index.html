@@ -10,13 +10,39 @@
   <header class="bar">
     <div class="brand">◧ Vectorlab</div>
     <div class="doc"><b id="docTitle">…</b> <span id="docMeta"></span></div>
+    <span id="temoin" title="État d'enregistrement">✓</span>
     <div class="spacer"></div>
-    <span id="zoomLabel" title="Molette : zoom · glisser : déplacer">100 %</span>
-    <button id="btnRecharger" title="Recharger le document">⟳</button>
+    <span id="zoomLabel" title="Molette : zoom · glisser (main ou fond) : déplacer">100 %</span>
+    <button id="btnGrille" title="Grille d'aimantation (G)">⌗ 8</button>
+    <button id="btnAnnuler" title="Annuler (Ctrl+Z)">↶</button>
+    <button id="btnRefaire" title="Refaire (Ctrl+Y)">↷</button>
+    <button id="btnSauver" class="primaire" title="Sauver (Ctrl+S)">Sauver</button>
   </header>
-  <main id="stage">
-    <div id="canvasHost"></div>
-  </main>
+  <div class="rangee">
+    <nav id="outils" class="outils">
+      <button data-outil="select" class="actif" title="Sélection — déplacer, lasso, poignées (V)">▢</button>
+      <button data-outil="plume" title="Plume Bézier — clic = ancre, glisser = poignées, double-clic = finir, clic sur la première ancre = fermer (P)">✒</button>
+      <button data-outil="rect" title="Rectangle — Maj = carré (R)">▭</button>
+      <button data-outil="ellipse" title="Ellipse — Maj = cercle (E)">◯</button>
+      <button data-outil="noeuds" title="Nœuds — glisser une ancre, double-clic = angle↔courbe, Suppr = retirer (N)">✜</button>
+    </nav>
+    <div class="scene">
+      <canvas id="regleH" class="regle regle-h" height="24"></canvas>
+      <div class="scene-basse">
+        <canvas id="regleV" class="regle regle-v" width="24"></canvas>
+        <main id="stage">
+          <div id="canvasHost"></div>
+          <svg id="overlay"></svg>
+        </main>
+      </div>
+    </div>
+    <aside id="panneauCalques" class="panneau">
+      <div class="panneau-tete">Calques
+        <button id="btnCalquePlus" title="Nouveau calque">＋</button>
+      </div>
+      <div id="listeCalques"></div>
+    </aside>
+  </div>
   <script type="module" src="js/core.js"></script>
 </body>
 </html>
