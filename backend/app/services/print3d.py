@@ -16,8 +16,11 @@ model.obj/model.stl du moteur quand elle existe.
 """
 from __future__ import annotations
 
+import io
 import json
 import struct
+import zipfile
+from xml.sax.saxutils import escape as _xml
 
 # extensions de compression : illisibles sans décodeur — refus motivé
 _REFUS_EXTENSIONS = {
@@ -168,3 +171,115 @@ def lire_glb_triangles(data: bytes):
     for i in racines:
         _noeud(i, _IDENTITE)
     return tris
+
+
+# ── bbox, échelle mm, pose au sol ────────────────────────────────────────────
+
+def bbox(tris):
+    """((xmin, xmax), (ymin, ymax), (zmin, zmax)) des triangles."""
+    xs = [v[0] for t in tris for v in t]
+    ys = [v[1] for t in tris for v in t]
+    zs = [v[2] for t in tris for v in t]
+    if not xs:
+        raise ValueError("maillage vide")
+    return ((min(xs), max(xs)), (min(ys), max(ys)), (min(zs), max(zs)))
+
+
+def mettre_a_l_echelle(tris, cible_mm=None):
+    """Échelle uniforme : la PLUS GRANDE dimension devient `cible_mm`
+    (None = « tel quel », échelle 1) ; centré en X/Y, Z posé au sol —
+    prêt pour le plateau du slicer."""
+    if cible_mm is not None and not (float(cible_mm) > 0):
+        raise ValueError("cible en mm > 0 requise")
+    bb = bbox(tris)
+    dims = [b[1] - b[0] for b in bb]
+    plus_grande = max(dims)
+    if cible_mm is not None and plus_grande <= 0:
+        raise ValueError("maillage sans volume : rien à mettre à l'échelle")
+    s = float(cible_mm) / plus_grande if cible_mm is not None else 1.0
+    cx = (bb[0][0] + bb[0][1]) / 2
+    cy = (bb[1][0] + bb[1][1]) / 2
+    z0 = bb[2][0]
+    return [tuple(((v[0] - cx) * s, (v[1] - cy) * s, (v[2] - z0) * s)
+                  for v in t) for t in tris]
+
+
+# ── STL binaire : 80 o d'en-tête + u32 + 50 o/triangle ───────────────────────
+
+def _normale(t):
+    ux, uy, uz = (t[1][0] - t[0][0], t[1][1] - t[0][1], t[1][2] - t[0][2])
+    vx, vy, vz = (t[2][0] - t[0][0], t[2][1] - t[0][1], t[2][2] - t[0][2])
+    nx, ny, nz = (uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx)
+    long = (nx * nx + ny * ny + nz * nz) ** 0.5
+    return (nx / long, ny / long, nz / long) if long > 0 else (0.0, 0.0, 0.0)
+
+
+def ecrire_stl(tris) -> bytes:
+    tete = b"Deepotus print3d - STL binaire (mm)"
+    out = [tete + b"\x00" * (80 - len(tete)), struct.pack("<I", len(tris))]
+    for t in tris:
+        n = _normale(t)
+        out.append(struct.pack("<12fH", *n, *t[0], *t[1], *t[2], 0))
+    return b"".join(out)
+
+
+# ── 3MF : un ZIP + XML stdlib, unité MILLIMÈTRE dite ─────────────────────────
+
+_3MF_NS = "http://schemas.microsoft.com/3dmanufacturing/core/2015/02"
+
+_3MF_TYPES = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/'
+    'content-types">\n'
+    '<Default Extension="rels" ContentType="application/vnd.'
+    'openxmlformats-package.relationships+xml"/>\n'
+    '<Default Extension="model" ContentType="application/vnd.ms-package.'
+    '3dmanufacturing-3dmodel+xml"/>\n</Types>'
+)
+
+_3MF_RELS = (
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/'
+    'relationships">\n'
+    '<Relationship Target="/3D/3dmodel.model" Id="rel0" '
+    'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>'
+    '\n</Relationships>'
+)
+
+
+def ecrire_3mf(tris, nom="Deepotus") -> bytes:
+    """3MF minimal : sommets DÉDUPLIQUÉS, triangles indexés, un item de
+    build — le fichier qu'on OUVRE (l'unité mm y est dite, pas devinée)."""
+    index = {}
+    sommets = []
+    faces = []
+    for t in tris:
+        ids = []
+        for v in t:
+            cle = (round(v[0], 6), round(v[1], 6), round(v[2], 6))
+            i = index.get(cle)
+            if i is None:
+                i = len(sommets)
+                index[cle] = i
+                sommets.append(cle)
+            ids.append(i)
+        faces.append(ids)
+    xml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        f'<model unit="millimeter" xml:lang="fr-FR" xmlns="{_3MF_NS}">',
+        "<resources>",
+        f'<object id="1" type="model" name="{_xml(str(nom))}"><mesh>',
+        "<vertices>",
+    ]
+    xml += [f'<vertex x="{v[0]:g}" y="{v[1]:g}" z="{v[2]:g}"/>'
+            for v in sommets]
+    xml += ["</vertices>", "<triangles>"]
+    xml += [f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in faces]
+    xml += ["</triangles>", "</mesh></object>", "</resources>",
+            '<build><item objectid="1"/></build>', "</model>"]
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", _3MF_TYPES)
+        z.writestr("_rels/.rels", _3MF_RELS)
+        z.writestr("3D/3dmodel.model", "\n".join(xml))
+    return tampon.getvalue()

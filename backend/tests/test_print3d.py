@@ -121,6 +121,64 @@ def test_le_lecteur_refuse_parlant_compressions_et_formes_hors_perimetre():
         P3.lire_glb_triangles(lignes)
 
 
+# ── B. écrivains STL binaire + 3MF, échelle mm et pose au sol ────────────────
+
+def _deux_triangles():
+    # un quad z=0 en DEUX triangles qui PARTAGENT une arête : la
+    # déduplication de sommets du 3MF se mesure (6 bruts → 4 uniques)
+    return [((0.0, 0.0, 0.0), (1.0, 0.0, 0.0), (0.0, 1.0, 0.0)),
+            ((1.0, 0.0, 0.0), (1.0, 1.0, 0.0), (0.0, 1.0, 0.0))]
+
+
+def test_l_ecrivain_stl_binaire_est_conforme_aux_octets():
+    from app.services import print3d as P3
+    data = P3.ecrire_stl(_deux_triangles())
+    assert len(data) == 80 + 4 + 2 * 50
+    assert struct.unpack("<I", data[80:84])[0] == 2
+    # la normale du premier triangle (plan z=0, sens trigonométrique) = +Z
+    nx, ny, nz = struct.unpack_from("<3f", data, 84)
+    assert (nx, ny, nz) == pytest.approx((0.0, 0.0, 1.0))
+
+
+def test_l_echelle_cible_la_plus_grande_dimension_et_pose_au_sol():
+    from app.services import print3d as P3
+    tris = P3.lire_glb_triangles(_glb_cube_translate())   # cube 2×2×2
+    monde = P3.mettre_a_l_echelle(tris, cible_mm=80.0)
+    bb = P3.bbox(monde)
+    dims = [b[1] - b[0] for b in bb]
+    assert max(dims) == pytest.approx(80.0)
+    assert bb[2][0] == pytest.approx(0.0)                 # Z posé au sol
+    assert bb[0][0] == pytest.approx(-bb[0][1])           # centré en X
+    assert bb[1][0] == pytest.approx(-bb[1][1])           # centré en Y
+    # « tel quel » : échelle identité, mais centré/posé quand demandé
+    brut = P3.mettre_a_l_echelle(tris, cible_mm=None)
+    bb2 = P3.bbox(brut)
+    assert bb2[2][0] == pytest.approx(0.0)
+    assert bb2[0][1] - bb2[0][0] == pytest.approx(2.0)
+    with pytest.raises(ValueError, match="cible"):
+        P3.mettre_a_l_echelle(tris, cible_mm=-5)
+
+
+def test_le_3mf_est_un_zip_xml_en_millimetres():
+    import io
+    import xml.etree.ElementTree as ET
+    import zipfile
+    from app.services import print3d as P3
+    data = P3.ecrire_3mf(_deux_triangles(), nom="Banc")
+    z = zipfile.ZipFile(io.BytesIO(data))
+    assert "[Content_Types].xml" in z.namelist()
+    assert "_rels/.rels" in z.namelist()
+    xml = z.read("3D/3dmodel.model").decode("utf-8")
+    root = ET.fromstring(xml)                              # XML valide
+    assert root.get("unit") == "millimeter"
+    ns = "{http://schemas.microsoft.com/3dmanufacturing/core/2015/02}"
+    sommets = root.findall(f".//{ns}vertex")
+    faces = root.findall(f".//{ns}triangle")
+    assert len(faces) == 2
+    assert len(sommets) == 4                # 6 bruts → 4 : dédup MESURÉE
+    assert root.find(f".//{ns}build/{ns}item") is not None
+
+
 def test_le_lecteur_lit_un_glb_du_producteur_maison():
     # le GLB que l'app produit ELLE-MÊME (Material Forge) se lit tel quel
     from app.services import print3d as P3
