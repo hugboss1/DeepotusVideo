@@ -155,13 +155,14 @@ def test_la_mise_au_ton_laisse_en_paix_une_toile_aux_tons_au_corpus(tmp_path):
 # ── 3. la voie de campagne : un frère ajusté, zéro centime de plus ──────────
 
 def test_la_voie_sert_la_case_par_le_frere_ajuste_sans_payer_plus(monkeypatch):
-    """SIX candidats trop clairs : hier la case montait l'échelle (gpt payé)
-    et finissait refusée ; avec la passe, UN frère mis au ton TIENT et la
-    case est servie AU PRIX DU SEUL TIR FLUX. La sentinelle garde la porte :
-    zéro appel réel, et l'espion des voies ne voit QUE flux."""
+    """UN candidat trop clair : hier la case montait l'échelle (la marche de
+    secours payée) et finissait refusée ; avec la passe, UN frère mis au ton
+    TIENT et la case est servie AU PRIX DU SEUL TIR DE LA PREMIÈRE MARCHE.
+    La sentinelle garde la porte : zéro appel réel, et l'espion des voies ne
+    voit QUE Nano Banana Pro."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="trop_claire").pose(monkeypatch)
+    at = _Atelier(banana_pro="trop_claire").pose(monkeypatch)
     at._GENRES = dict(_Atelier._GENRES, trop_claire=_toile_trop_claire)
     did = _deck()
     r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
@@ -170,15 +171,15 @@ def test_la_voie_sert_la_case_par_le_frere_ajuste_sans_payer_plus(monkeypatch):
     assert len(d["traitees"]) == 1 and not d["refusees"], d
     t = d["traitees"][0]
     assert t["verdict"] == "TIENT"
-    assert t["voie"] == "flux"
+    assert t["voie"] == "nano-banana-pro"
     assert t.get("mise_au_ton") is True
-    assert [a[0] for a in at.appels] == ["flux"], at.appels
+    assert [a[0] for a in at.appels] == ["nano-banana-pro"], at.appels
     m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
     case = t["case"]
     assert m["cases"][case]["mise_au_ton"] is True
-    # le prix de la case est LE TIR FLUX SEUL — la passe est gratuite
-    assert m["cases"][case]["prix_usd"] == FA.prix_usd("flux",
-                                                       FA.SERIE_CANDIDATS)
+    # le prix de la case est LE TIR DE LA PREMIÈRE MARCHE SEUL — la passe
+    # est gratuite
+    assert m["cases"][case]["prix_usd"] == FA.prix_usd("nano-banana-pro", 1)
     assert (_settings.images_path / m["cases"][case]["img"]).is_file()
     s.zero()
 
@@ -189,7 +190,7 @@ def test_la_voie_n_offre_pas_de_frere_aux_axes_non_tonals(monkeypatch):
     caché. L'échelle monte comme avant et la case est refusée comme avant."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="saturee", gpt="saturee").pose(monkeypatch)
+    at = _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
     did = _deck()
     r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
     assert r.status_code == 200, r.text

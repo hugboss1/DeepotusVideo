@@ -2708,7 +2708,7 @@ def test_la_molette_p1_coalesce_son_zoom_a_la_frame():
 # CENTIME, et ce n'est pas une intention, c'est un compte :
 #
 #   * chaque test de campagne pose son ESPION sur les trois seules fonctions
-#     de la pièce qui appellent un générateur (`_tirer_flux`, `_tirer_banana`,
+#     de la pièce qui appellent un générateur (`_tirer_banana_pro`,
 #     `_tirer_gpt`) — l'espion écrit une image SYNTHÉTIQUE sur le disque local
 #     et rend son nom ;
 #   * la SENTINELLE (patron `test_cards_capture.py`, recopié et non importé —
@@ -2834,7 +2834,7 @@ class _Sentinelle:
 
 def _sentinelle(monkeypatch) -> _Sentinelle:
     """Les portes du dehors, refermées sur le compteur. L'espion de la route
-    est ailleurs (chaque test pose le sien sur les trois `_tirer_*`) ;
+    est ailleurs (chaque test pose le sien sur les deux `_tirer_*`) ;
     celle-ci est la CEINTURE."""
     s = _Sentinelle()
     try:
@@ -2872,13 +2872,13 @@ def _sentinelle(monkeypatch) -> _Sentinelle:
 
 
 class _Atelier:
-    """L'ESPION DES TROIS VOIES. Il écrit une image synthétique dans le
+    """L'ESPION DES DEUX VOIES. Il écrit une image synthétique dans le
     magasin d'images et rend son nom — le même contrat que le vrai
-    générateur, sans le fournisseur. `flux` / `banana` / `gpt` disent QUEL
+    générateur, sans le fournisseur. `banana_pro` / `gpt` disent QUEL
     genre d'image chaque voie rend (un genre, ou une liste par candidat)."""
 
-    def __init__(self, flux="saturee", banana="saturee", gpt="saturee"):
-        self.flux, self.banana, self.gpt = flux, banana, gpt
+    def __init__(self, banana_pro="saturee", gpt="saturee"):
+        self.banana_pro, self.gpt = banana_pro, gpt
         self.appels: list = []
 
     _GENRES = {"conforme": _toile_conforme, "retouchable": _toile_a_retoucher,
@@ -2896,21 +2896,16 @@ class _Atelier:
             return [spec] * n
         return list(spec)[:n] or ["saturee"]
 
-    async def tirer_flux(self, prompt, n, graine):
-        self.appels.append(("flux", prompt, n))
-        return [self._poser(g) for g in self._genres(self.flux, n)]
-
-    async def tirer_banana(self, prompt, source):
-        self.appels.append(("nano-banana", prompt, 1))
-        return [self._poser(self._genres(self.banana, 1)[0])]
+    async def tirer_banana_pro(self, prompt):
+        self.appels.append(("nano-banana-pro", prompt, 1))
+        return [self._poser(self._genres(self.banana_pro, 1)[0])]
 
     async def tirer_gpt(self, prompt):
-        self.appels.append(("gpt-image-2", prompt, 1))
+        self.appels.append(("gpt-image-2-fal", prompt, 1))
         return [self._poser(self._genres(self.gpt, 1)[0])]
 
     def pose(self, monkeypatch):
-        monkeypatch.setattr(FA, "_tirer_flux", self.tirer_flux)
-        monkeypatch.setattr(FA, "_tirer_banana", self.tirer_banana)
+        monkeypatch.setattr(FA, "_tirer_banana_pro", self.tirer_banana_pro)
         monkeypatch.setattr(FA, "_tirer_gpt", self.tirer_gpt)
         return self
 
@@ -2995,7 +2990,10 @@ def test_le_tarif_nano_banana_est_TABULE_et_publie_par_egalite():
     # tirer — mieux vaut une marche sautée qu'une facture au tarif d'un autre.
     assert FA.prix_usd("modele-inconnu") is None
     assert FA.prix_usd("nano-banana", 2) == pytest.approx(2 * 0.039)
-    assert set(FA.serie_prix()) == {"flux", "nano-banana", "gpt-image-2"}
+    # l'échelle de la série est la PAIRE fal depuis le 27/08 — et ses prix
+    # sont tabulés eux aussi (le test voisin les épingle à la source)
+    assert set(FA.serie_prix()) == set(FA.SERIE_ECHELLE) \
+        == {"nano-banana-pro", "gpt-image-2-fal"}
     assert all(v is not None for v in FA.serie_prix().values())
     # ... et l'écran /ai-models le publie par ÉGALITÉ à la table
     did = _deck()
@@ -3005,6 +3003,79 @@ def test_le_tarif_nano_banana_est_TABULE_et_publie_par_egalite():
     assert "nano-banana" in par_id, sorted(par_id)
     assert par_id["nano-banana"]["usd_par_image"] == \
         pytest.approx(pricing.load()["nano_banana_usd"])
+
+
+def test_les_tarifs_de_la_paire_fal_sont_TABULES_et_publies_par_egalite():
+    """RE-VÉRIFIÉS LE 27/08/2026 sur les pages des modèles, jamais par un tir
+    payant. fal.ai/models/fal-ai/nano-banana-pro : « Your request will cost
+    $0.15 per image. For $1.00, you can run this model 7 times. » (1K/2K ; le
+    4K double). fal.ai/models/openai/gpt-image-2 : table par taille × qualité,
+    0,145 $ l'image en qualité `high` (le défaut, que la voie ÉPINGLE) au
+    format 768×1024 — `portrait_4_3`, le cadre que la série demande.
+
+    Le modèle OpenAI direct reste tabulé À PART (`gpt_image_2_usd`, 1024×1536
+    facturé par OpenAI) : deux voies, deux factures — recycler sa clé de prix
+    aurait affiché le tarif d'un autre chemin de facturation."""
+    from app.services import pricing
+    assert pricing.DEFAULTS.get("nano_banana_pro_usd") == 0.15
+    assert pricing.DEFAULTS.get("gpt_image_2_fal_usd") == 0.145
+    table = pricing._IMAGE_MODELS
+    assert table.get("nano-banana-pro", ("", "", ""))[1] == "fal"
+    assert table.get("nano-banana-pro", ("", "", ""))[2] == "nano_banana_pro_usd"
+    assert table.get("gpt-image-2-fal", ("", "", ""))[1] == "fal"
+    assert table.get("gpt-image-2-fal", ("", "", ""))[2] == "gpt_image_2_fal_usd"
+    # l'entrée OpenAI directe n'a pas bougé : le reste du logiciel facture
+    # gpt-image-2 chez OpenAI, la série facture la paire chez fal
+    assert table["gpt-image-2"][1] == "openai"
+    devis = pricing.estimate({"kind": "image", "model": "nano-banana-pro",
+                              "n": 2})
+    assert devis["total_usd"] == pytest.approx(2 * 0.15)
+    assert devis["breakdown"][0]["provider"] == "fal"
+    assert FA.prix_usd("gpt-image-2-fal") == pytest.approx(0.145)
+    assert FA.prix_usd("nano-banana-pro") == pytest.approx(0.15)
+
+
+def test_la_paire_part_chez_fal_aux_endpoints_de_la_doc(monkeypatch):
+    """LES IDENTIFIANTS D'ENDPOINT VIENNENT DE LA DOC fal (27/08/2026), pas
+    d'un tir payant : `fal-ai/nano-banana-pro` (+ `/edit`) et
+    `openai/gpt-image-2` (+ `/edit`). Les deux providers de la paire exigent
+    LA CLÉ FAL — c'est fal qui facture, et le filtre de sécurité OpenAI
+    direct (2 × 400 sur le sujet archer, relevé T1-L) n'est plus la porte de
+    la série. La qualité `high` est ÉCRITE dans la requête : c'est elle que
+    la table tarife, et un défaut fal qui changerait ne doit pas pouvoir
+    changer la facture en silence."""
+    from app.services import image_providers as IP
+    m, args = IP.build_banana_request("p", FA.SERIE_TAILLE, 1, None,
+                                      None, pro=True)
+    assert m == "fal-ai/nano-banana-pro"
+    assert args["aspect_ratio"] == FA.SERIE_RATIO
+    assert args["num_images"] == 1 and args["output_format"] == "png"
+    m2, args2 = IP.build_banana_request("p", FA.SERIE_TAILLE, 1, "http://u",
+                                        FA.SERIE_RATIO, pro=True)
+    assert m2 == "fal-ai/nano-banana-pro/edit"
+    assert args2["image_urls"] == ["http://u"]
+    # ... et SANS `pro`, les requêtes nano-banana d'hier n'ont pas bougé
+    assert IP.build_banana_request("p", FA.SERIE_TAILLE, 1, None)[0] \
+        == "fal-ai/nano-banana"
+    m3, a3 = IP.build_fal_gpt_request("p", FA.SERIE_TAILLE, 1, None)
+    assert m3 == "openai/gpt-image-2"
+    assert a3["image_size"] == FA.SERIE_TAILLE and a3["quality"] == "high"
+    assert a3["num_images"] == 1 and a3["output_format"] == "png"
+    m4, a4 = IP.build_fal_gpt_request("p", FA.SERIE_TAILLE, 1, "http://u")
+    assert m4 == "openai/gpt-image-2/edit" and a4["image_urls"] == ["http://u"]
+    assert IP.PROVIDERS["nano-banana-pro"]["needs"] == "FAL_KEY"
+    assert IP.PROVIDERS["gpt-image-2-fal"]["needs"] == "FAL_KEY"
+    # la façade ROUTE `gpt-image-2-fal` vers fal : sans clé fal elle refuse
+    # en nommant FAL_KEY — elle ne retombe pas sur la branche OpenAI (le
+    # préfixe `gpt-image` est un piège d'ordre des branches, épinglé ici)
+    from app.config import settings as _st
+    monkeypatch.setattr(_st, "FAL_KEY", "")
+    with pytest.raises(RuntimeError) as e:
+        asyncio.run(IP.generate("gpt-image-2-fal", "p", FA.SERIE_TAILLE, 1))
+    assert "FAL_KEY" in str(e.value)
+    with pytest.raises(RuntimeError) as e2:
+        asyncio.run(IP.generate("nano-banana-pro", "p", FA.SERIE_TAILLE, 1))
+    assert "FAL_KEY" in str(e2.value)
 
 
 # ── B. le juge et la fiche, EN DÉPÔT, datés, et frais ────────────────────────
@@ -3264,7 +3335,7 @@ def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
     l'application (`image_providers._BANANA_ASPECT`), et le rapport d'édition
     de la pièce doit être CELUI de ce cadre — sinon une passe de retouche
     changerait la forme de l'image entre deux marches de l'échelle."""
-    from app.services.image_providers import _BANANA_ASPECT, _OPENAI_SIZE
+    from app.services.image_providers import _BANANA_ASPECT
     cible = 2.0 / 3.0
     ratios = {}
     for nom, asp in _BANANA_ASPECT.items():
@@ -3275,16 +3346,16 @@ def test_le_cadre_demande_est_le_PLUS_PROCHE_du_2_3_de_la_fiche():
     assert FA.SERIE_RATIO == _BANANA_ASPECT[FA.SERIE_TAILLE], \
         "le cadre de l'édition ne suit pas celui de la génération"
     assert abs(ratios[FA.SERIE_TAILLE] - cible) == pytest.approx(0.0833, abs=1e-3)
-    # LE SECOND MIROIR, celui que la première version ne lisait pas : la
-    # marche GPT ne passe pas par les rapports de nano-banana, elle passe par
-    # une table de TAILLES. Et cette table rend le 2:3 EXACT pour le même nom
-    # de cadre — la marche de secours livre donc le cadre de la fiche, mieux
-    # que les deux autres. Ce n'est pas un défaut, c'est un bonus ; mais il
-    # doit être ÉPINGLÉ, sinon un jour la table change et la série se met à
-    # mélanger deux cadres sans que personne ne le voie.
-    l, h = (int(x) for x in _OPENAI_SIZE[FA.SERIE_TAILLE].split("x"))
-    assert (l, h) == (1024, 1536)
-    assert l / h == pytest.approx(cible, abs=1e-4), (l, h)
+    # LE SECOND MIROIR, re-mesuré au rebranchement fal (27/08) : la marche
+    # GPT ne passe plus par la table de TAILLES OpenAI (qui rendait un 2:3
+    # exact en 1024×1536) — elle passe par les presets fal et transmet LE
+    # MÊME nom de cadre que la première marche. L'échelle entière livre donc
+    # UN seul cadre (0,750, à 0,083 du 2:3 de la fiche) : l'uniformité est
+    # gagnée, le bonus 2:3 de la voie OpenAI directe est perdu — ÉPINGLÉ ici
+    # pour que personne ne le redécouvre sur une image livrée.
+    from app.services.image_providers import build_fal_gpt_request
+    _, a_gpt = build_fal_gpt_request("p", FA.SERIE_TAILLE, 1, None)
+    assert a_gpt["image_size"] == FA.SERIE_TAILLE
     assert "2:3" in pathlib.Path(FA.__file__).read_text(encoding="utf-8"), \
         "le cadre visé n'est nommé nulle part dans la pièce"
 
@@ -3511,9 +3582,10 @@ def test_GET_serie_dit_l_etat_le_plafond_et_les_prix(monkeypatch):
     assert d["depense_totale_usd"] == 0.0
     assert d["reste_usd"] == pytest.approx(15.0)
     from app.services import pricing
-    assert d["prix"]["flux"] == pytest.approx(pricing.load()["flux_image_usd"])
-    assert d["prix"]["nano-banana"] == \
-        pytest.approx(pricing.load()["nano_banana_usd"])
+    assert d["prix"]["nano-banana-pro"] == \
+        pytest.approx(pricing.load()["nano_banana_pro_usd"])
+    assert d["prix"]["gpt-image-2-fal"] == \
+        pytest.approx(pricing.load()["gpt_image_2_fal_usd"])
     assert d["familles"] == {"ocre": 54, "rouge": 27, "graphite": 20,
                              "violet": 7}
     assert d["juge"]["copie_le"] == FA.SERIE_JUGE["copie_le"]
@@ -3551,25 +3623,25 @@ def test_GET_serie_ne_fait_JAMAIS_500(monkeypatch):
 
 def test_la_campagne_pose_la_case_gagnante_au_magasin_et_au_manifeste(
         monkeypatch):
-    """LE CHEMIN HEUREUX. Six candidats FLUX, le juge note, le meilleur qui
-    TIENT gagne : son fichier reste dans le magasin d'images de l'application
+    """LE CHEMIN HEUREUX. Un candidat Nano Banana Pro, le juge note, il
+    TIENT : son fichier reste dans le magasin d'images de l'application
     et le manifeste porte son nom, son score et sa voie."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux=["saturee", "conforme", "saturee", "saturee",
-                        "saturee", "saturee"]).pose(monkeypatch)
+    at = _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1")
     assert r.status_code == 200, r.text
     d = r.json()
     assert len(d["traitees"]) == 1 and not d["refusees"]
     t = d["traitees"][0]
-    assert t["verdict"] == "TIENT" and t["voie"] == "flux"
+    assert t["verdict"] == "TIENT" and t["voie"] == "nano-banana-pro"
     assert t["score"] >= 78
     assert (_settings.images_path / t["img"]).is_file()
-    # UN SEUL appel de générateur : six candidats en une fois, pas six appels
-    assert [a[0] for a in at.appels] == ["flux"]
-    assert at.appels[0][2] == FA.SERIE_CANDIDATS
+    # UN SEUL appel de générateur : la première marche suffit, la seconde
+    # (payante elle aussi) n'est jamais gravie pour rien
+    assert [a[0] for a in at.appels] == ["nano-banana-pro"]
+    assert at.appels[0][2] == 1
     # le manifeste porte la case
     m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
     assert m["v"] == FA.SERIE_V and m["serie"] == "walkuski"
@@ -3586,7 +3658,7 @@ def test_le_manifeste_est_VERSIONNE_et_ne_laisse_aucun_brouillon(monkeypatch):
     images payées."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    _Atelier(flux="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     _lancer(f"/api/cards/{did}/face/serie/generer?limite=2")
     d = FA.serie_root()
@@ -3629,7 +3701,7 @@ def test_l_ecriture_du_manifeste_est_ATOMIQUE_pas_seulement_propre(
 def test_la_reprise_ne_refait_PAS_les_cases_faites(monkeypatch):
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme").pose(monkeypatch)
+    at = _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     a = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2").json()
     faites = {t["case"] for t in a["traitees"]}
@@ -3642,38 +3714,44 @@ def test_la_reprise_ne_refait_PAS_les_cases_faites(monkeypatch):
     s.zero()
 
 
-def test_l_echelle_de_secours_retouche_puis_gpt_puis_laisse_le_vectoriel(
+def test_l_echelle_a_deux_marches_gpt_en_secours_puis_le_vectoriel(
         monkeypatch):
-    """L'ÉCHELLE DE D2, marche par marche. FLUX ne rend qu'un « à retoucher » :
-    une passe nano-banana. Toujours refusé : un GPT Image 2. Toujours refusé :
-    la case RESTE VECTORIELLE — et le refus est journalisé avec ses axes
-    rouges, parce qu'un refus muet ne dit pas quoi changer."""
+    """L'ÉCHELLE DU 27/08, marche par marche : la PAIRE fal remplace le trio
+    (les 51 refusées avaient déjà brûlé leurs six candidats FLUX à graine
+    DÉTERMINISTE — re-tirer la marche aurait payé les mêmes pixels ; la
+    marche d'édition n'a gagné 0 case en 80 sondes). Nano Banana Pro refuse :
+    un GPT Image 2 par fal. Toujours refusé : la case RESTE VECTORIELLE — et
+    le refus est journalisé avec ses axes rouges, parce qu'un refus muet ne
+    dit pas quoi changer."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="retouchable", banana="saturee",
-                  gpt="saturee").pose(monkeypatch)
+    at = _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at.appels] == ["flux", "nano-banana", "gpt-image-2"]
+    assert [a[0] for a in at.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
     assert not d["traitees"] and len(d["refusees"]) == 1
     ref = d["refusees"][0]
-    assert ref["voie"] == "gpt-image-2"
+    # les deux marches rendent la MÊME toile de banc : à l'égalité de verdict
+    # et de score, la première marche garde la main sur la voie du refus
+    assert ref["voie"] == "nano-banana-pro"
     assert ref["axes_rouges"], "le refus ne nomme aucun axe"
     m = json.loads((FA.serie_root() / "walkuski.json").read_text("utf-8"))
     assert ref["case"] in m["refus"] and ref["case"] not in m["cases"]
-    # ... et la RETOUCHE gagne quand elle rattrape le coup
+    # ... et la marche de secours gagne quand elle rattrape le coup
     _serie_neuve()
-    at2 = _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
+    at2 = _Atelier(banana_pro="saturee", gpt="conforme").pose(monkeypatch)
     d2 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at2.appels] == ["flux", "nano-banana"]
-    assert d2["traitees"][0]["voie"] == "nano-banana"
-    # ... et un lot ENTIÈREMENT hors style saute la retouche : il n'y a rien
-    # à retoucher, on monte directement d'une marche
+    assert [a[0] for a in at2.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert d2["traitees"][0]["voie"] == "gpt-image-2-fal"
+    # ... et une première marche « à retoucher » ne gagne PAS la case : sans
+    # marche d'édition, l'échelle monte quand même, et le meilleur verdict
+    # décide de la voie du refus si la seconde échoue aussi
     _serie_neuve()
-    at3 = _Atelier(flux="saturee", gpt="conforme").pose(monkeypatch)
+    at3 = _Atelier(banana_pro="retouchable", gpt="saturee").pose(monkeypatch)
     d3 = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert [a[0] for a in at3.appels] == ["flux", "gpt-image-2"]
-    assert d3["traitees"][0]["voie"] == "gpt-image-2"
+    assert [a[0] for a in at3.appels] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert not d3["traitees"] and len(d3["refusees"]) == 1
+    assert d3["refusees"][0]["voie"] == "nano-banana-pro"
     s.zero()
 
 
@@ -3691,14 +3769,14 @@ def test_une_image_illisible_ne_perd_NI_les_cases_NI_la_depense(monkeypatch):
     en refus journalisé, la campagne CONTINUE)."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme")
+    at = _Atelier(banana_pro="conforme")
     vrai_poser = at._poser
     etat = {"n": 0}
 
     def _poser_casse(genre):
         etat["n"] += 1
         nom = vrai_poser(genre)
-        if etat["n"] == 13:            # la 3e case, 1er candidat (6 par case)
+        if etat["n"] == 3:             # la 3e case, son candidat unique
             (_settings.images_path / nom).write_bytes(b"ceci n'est pas un PNG")
         return nom
     monkeypatch.setattr(at, "_poser", _poser_casse)
@@ -3733,7 +3811,7 @@ def test_un_refus_ne_publie_JAMAIS_un_chemin_absolu(monkeypatch):
     La classe de l'exception reste (elle sert au diagnostic), le chemin part."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme")
+    at = _Atelier(banana_pro="conforme")
     vrai_poser = at._poser
 
     def _poser_casse(genre):
@@ -3764,7 +3842,7 @@ def test_le_manifeste_est_ecrit_APRES_CHAQUE_CASE(monkeypatch):
     boucle, il ne porterait rien tant que la campagne n'est pas finie."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme")
+    at = _Atelier(banana_pro="conforme")
     vus = []
     vrai_poser = at._poser
 
@@ -3776,9 +3854,9 @@ def test_le_manifeste_est_ecrit_APRES_CHAQUE_CASE(monkeypatch):
     at.pose(monkeypatch)
     did = _deck()
     _lancer(f"/api/cards/{did}/face/serie/generer?limite=3")
-    # 6 candidats par case : au 1er candidat de la 2e case le disque porte
-    # déjà 1 case, au 1er de la 3e il en porte 2.
-    assert vus[0] == 0 and vus[6] == 1 and vus[12] == 2, vus
+    # un candidat par case gagnée : au candidat de la 2e case le disque porte
+    # déjà 1 case, à celui de la 3e il en porte 2.
+    assert vus[0] == 0 and vus[1] == 1 and vus[2] == 2, vus
     s.zero()
 
 
@@ -3790,25 +3868,24 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
 
     Une case ne s'OUVRE donc que si L'ÉCHELLE COMPLÈTE tient sous le plafond,
     et le reliquat inutilisable est AVOUÉ au bilan. Le coût de l'échelle vient
-    de la table (6 × FLUX + 1 nano + 1 GPT), jamais d'un nombre écrit ici."""
+    de la table (1 Nano Banana Pro + 1 GPT par fal), jamais d'un nombre écrit
+    ici."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     # LE SCÉNARIO QUI DISTINGUE, et c'est celui que la revue a mesuré : il
-    # faut que le reliquat COUVRE les premières marches sans couvrir la
-    # dernière, et que la case CLIMBE. Tarifs du banc : 6 × 0,01 = 0,06 pour
-    # FLUX, 0,02 pour l'édition, 5,00 pour le GPT — échelle 5,08. DEUX cases
-    # traitées laissent 4,84 de reliquat sous l'enveloppe de 15,00 (relevé
-    # utilisateur du 26/08 ; c'était 1,84 sous celle de 12,00, une case et
-    # 4,92 sous celle de 10,00, 2,92 sous 8,00, 0,92 sous 6,00) : de quoi
-    # payer FLUX et l'édition (0,08) et se faire arrêter sur la dernière
-    # marche, sans aucune trace — si la garde d'ouverture n'existait pas.
-    p = _prix_de_banc(monkeypatch, flux_image_usd=0.01, nano_banana_usd=0.02,
-                      gpt_image_2_usd=5.00)
-    echelle = (FA.SERIE_CANDIDATS * p["flux_image_usd"]
-               + p["nano_banana_usd"] + p["gpt_image_2_usd"])
+    # faut que le reliquat COUVRE la première marche sans couvrir la
+    # seconde, et que la case CLIMBE. Tarifs du banc : 0,08 pour Nano Banana
+    # Pro, 5,00 pour le GPT — échelle 5,08. DEUX cases traitées laissent
+    # 4,84 de reliquat sous l'enveloppe de 15,00 (relevé utilisateur du
+    # 26/08 ; c'était 1,84 sous celle de 12,00, une case et 4,92 sous celle
+    # de 10,00, 2,92 sous 8,00, 0,92 sous 6,00) : de quoi payer la première
+    # marche (0,08) et se faire arrêter sur la seconde, sans aucune trace —
+    # si la garde d'ouverture n'existait pas.
+    p = _prix_de_banc(monkeypatch, nano_banana_pro_usd=0.08,
+                      gpt_image_2_fal_usd=5.00)
+    echelle = p["nano_banana_pro_usd"] + p["gpt_image_2_fal_usd"]
     assert FA.cout_echelle_usd() == pytest.approx(echelle) == pytest.approx(5.08)
-    _Atelier(flux="retouchable", banana="saturee",
-             gpt="saturee").pose(monkeypatch)
+    _Atelier(banana_pro="saturee", gpt="saturee").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond"
@@ -3823,7 +3900,7 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
     # ... et TOUT tir du journal appartient à une case TRACÉE
     tracees = {t["case"] for t in d["traitees"]} | {r["case"] for r in d["refusees"]}
     assert {l["case"] for l in d["journal"]} == tracees
-    assert len(d["journal"]) == 6, d["journal"]
+    assert len(d["journal"]) == 4, d["journal"]
     # le mur est UNE seule arithmétique, partagée par la boucle et par le tir
     # (la frontière suit l'enveloppe : 15,00 depuis le relevé utilisateur)
     assert FA.tient_sous_le_mur(14.0, 1.0) and not FA.tient_sous_le_mur(14.0, 1.01)
@@ -3831,18 +3908,20 @@ def test_une_case_ne_s_OUVRE_que_si_l_echelle_ENTIERE_tient(monkeypatch):
 
 
 def test_le_plafond_dur_ARRETE_la_campagne_avec_son_bilan(monkeypatch):
-    """LE PLAFOND EST UN MUR, PAS UN VŒU. À 0,30 $ l'image et six candidats,
-    chaque case coûte 1,80 $ en voie FLUX mais S'OUVRE à l'échelle complète
-    (1,959 $) : huit cases tiennent sous l'enveloppe de 15,00 $ (14,40 payés,
-    14,559 d'ouverture), la neuvième ne PART PAS (16,359 > 15). La campagne
-    s'arrête proprement, rend son bilan, et le prochain POST reprend là où
-    elle s'est arrêtée. (Le scénario était à 6 cases sous l'enveloppe de
-    12,00 $, 5 sous 10,00, 4 sous 8,00 et 3 sous 6,00 — re-dérivé au relevé
-    utilisateur du 26/08.)"""
+    """LE PLAFOND EST UN MUR, PAS UN VŒU. À 1,80 $ le candidat unique, chaque
+    case coûte 1,80 $ en voie Nano Banana Pro mais S'OUVRE à l'échelle
+    complète (1,959 $) : huit cases tiennent sous l'enveloppe de 15,00 $
+    (14,40 payés, 14,559 d'ouverture), la neuvième ne PART PAS
+    (16,359 > 15). La campagne s'arrête proprement, rend son bilan, et le
+    prochain POST reprend là où elle s'est arrêtée. (Le scénario était à
+    6 cases sous l'enveloppe de 12,00 $, 5 sous 10,00, 4 sous 8,00 et 3 sous
+    6,00 — re-dérivé au relevé utilisateur du 26/08, retendu au même total à
+    la paire fal du 27/08.)"""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    _prix_de_banc(monkeypatch, flux_image_usd=0.30)
-    _Atelier(flux="conforme").pose(monkeypatch)
+    _prix_de_banc(monkeypatch, nano_banana_pro_usd=1.80,
+                  gpt_image_2_fal_usd=0.159)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer").json()
     assert d["arret"] == "plafond", d["arret"]
@@ -3867,22 +3946,23 @@ def test_le_prix_de_chaque_appel_vient_de_pricing_et_se_journalise_AVANT(
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     p = _prix_de_banc(monkeypatch)
-    _Atelier(flux="retouchable", banana="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="saturee", gpt="conforme").pose(monkeypatch)
     did = _deck()
     d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
     j = d["journal"]
-    assert [l["modele"] for l in j] == ["flux", "nano-banana"]
-    assert j[0]["prix_usd"] == pytest.approx(
-        FA.SERIE_CANDIDATS * p["flux_image_usd"])
-    assert j[1]["prix_usd"] == pytest.approx(p["nano_banana_usd"])
+    assert [l["modele"] for l in j] == ["nano-banana-pro", "gpt-image-2-fal"]
+    assert j[0]["n"] == 1 and j[1]["n"] == 1
+    assert j[0]["prix_usd"] == pytest.approx(p["nano_banana_pro_usd"])
+    assert j[1]["prix_usd"] == pytest.approx(p["gpt_image_2_fal_usd"])
     assert j[0]["cumul_avant_usd"] == 0.0
     assert j[1]["cumul_avant_usd"] == pytest.approx(j[0]["prix_usd"])
     assert d["depense_totale_usd"] == pytest.approx(
         sum(l["prix_usd"] for l in j))
-    # la pièce ne porte AUCUN montant écrit à la main
+    # la pièce ne porte AUCUN montant écrit à la main — ni ceux d'hier, ni
+    # ceux de la paire fal du 27/08
     sans = _py_sans_texte(pathlib.Path(FA.__file__))
-    assert "_flux_generate" in sans, "le dépouillement a mangé le code"
-    for montant in ("0.039", "0.003", "0.12"):
+    assert "_fabriquer_case" in sans, "le dépouillement a mangé le code"
+    for montant in ("0.039", "0.003", "0.12", "0.15", "0.145"):
         assert montant not in sans, f"{montant} recopié dans la pièce"
     s.zero()
 
@@ -3899,7 +3979,7 @@ def test_la_campagne_EXIGE_une_confirmation_et_rend_le_devis(monkeypatch):
     au pire, ce qui reste sous le plafond."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme").pose(monkeypatch)
+    at = _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     for corps in ({}, {"confirmer": False}, {"confirmer": "oui"}, None):
         r = _api("POST", f"/api/cards/{did}/face/serie/generer",
@@ -3919,27 +3999,30 @@ def test_la_campagne_EXIGE_une_confirmation_et_rend_le_devis(monkeypatch):
 
 def test_le_devis_est_arithmetiquement_JUSTE(monkeypatch):
     """Le devis n'est pas un slogan : chaque nombre se refait. Le pire cas est
-    l'échelle complète × les cases que CETTE demande viserait — donc 19,12 $
-    pour la série entière, 1,27 fois le plafond : la campagne est
+    l'échelle complète × les cases que CETTE demande viserait — donc 31,86 $
+    pour la série entière, 2,12 fois le plafond : la campagne est
     MULTI-SESSION par construction, et le devis le dit."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     p = _prix_de_banc(monkeypatch)
-    _Atelier(flux="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     d = _api("POST", f"/api/cards/{did}/face/serie/generer",
              json={}).json()["detail"]["devis"]
-    echelle = (FA.SERIE_CANDIDATS * p["flux_image_usd"]
-               + p["nano_banana_usd"] + p["gpt_image_2_usd"])
-    assert d["echelle_usd"] == pytest.approx(echelle) == pytest.approx(0.177)
+    echelle = p["nano_banana_pro_usd"] + p["gpt_image_2_fal_usd"]
+    assert d["echelle_usd"] == pytest.approx(echelle) == pytest.approx(0.295)
     assert d["cases_manquantes"] == 108
     assert d["pire_cas_usd"] == pytest.approx(108 * echelle)
-    assert d["pire_cas_usd"] == pytest.approx(19.116, abs=1e-3)
+    assert d["pire_cas_usd"] == pytest.approx(31.86, abs=1e-3)
     assert d["plafond_usd"] == pytest.approx(15.0)  # relevé utilisateur 26/08
     assert d["depense_courante_usd"] == 0.0
     assert d["reste_usd"] == pytest.approx(15.0)
-    assert d["cases_ouvrables"] == int(15.0 / echelle) == 84
+    assert d["cases_ouvrables"] == int(15.0 / echelle) == 50
     assert d["multi_session"] is True
+    # le détail du devis nomme LA PAIRE, une image par marche
+    assert set(d["detail_echelle"]) == set(FA.SERIE_ECHELLE)
+    for m_ in FA.SERIE_ECHELLE:
+        assert d["detail_echelle"][m_]["n"] == 1
     # le devis suit la DEMANDE : deux cases visées, deux cases chiffrées
     d2 = _api("POST", f"/api/cards/{did}/face/serie/generer"
                       "?cases=vista_tower,medallion_wolf", json={}
@@ -3956,7 +4039,7 @@ def test_une_selection_VIDE_ne_lance_pas_toute_la_serie(monkeypatch):
     vouloir dire « fais tout » : c'est un 400 nommé (D2-4)."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme").pose(monkeypatch)
+    at = _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     for q in ("?cases=", "?cases=,,,", "?cases=%20", "?limite=", "?limite=0",
               "?limite=-4", "?limite=abc"):
@@ -3977,7 +4060,7 @@ def test_deux_campagnes_simultanees_ne_depensent_pas_double(monkeypatch):
     qu'UNE campagne — sinon un double-clic double la facture, en silence."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    at = _Atelier(flux="conforme").pose(monkeypatch)
+    at = _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
 
     async def deux():
@@ -4005,7 +4088,7 @@ def test_deux_campagnes_simultanees_ne_depensent_pas_double(monkeypatch):
 def test_les_parametres_cases_et_limite_bornent_la_session(monkeypatch):
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    _Atelier(flux="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     voulues = "stained_beacon,medallion_wolf"
     d = _lancer(f"/api/cards/{did}/face/serie/generer?cases={voulues}").json()
@@ -4023,11 +4106,11 @@ def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
     s = _sentinelle(monkeypatch)
     _serie_neuve()
     # LE PLAFOND BORNE AUSSI LE BANC : sans limite, `?cases=` lance la
-    # campagne ENTIÈRE (108 cases × 6 candidats). À 0,30 $ l'image le mur
-    # tombe après trois cases — le test reste court ET prouve que la voie
-    # « sans limite » est bien tenue par le plafond, pas par la patience.
-    _prix_de_banc(monkeypatch, flux_image_usd=0.30)
-    _Atelier(flux="conforme").pose(monkeypatch)
+    # campagne ENTIÈRE (108 cases). À 4,00 $ le candidat le mur tombe après
+    # trois cases — le test reste court ET prouve que la voie « sans
+    # limite » est bien tenue par le plafond, pas par la patience.
+    _prix_de_banc(monkeypatch, nano_banana_pro_usd=4.00)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     for did, attendu in (("pas_un_deck", 400), ("deck_ZZZZZZZZ", 400),
                          ("deck_00000000", 404)):
         r = _lancer(f"/api/cards/{did}/face/serie/generer")
@@ -4042,9 +4125,9 @@ def test_la_campagne_ne_fait_JAMAIS_500(monkeypatch):
     # refusée, la campagne continue, et le motif est dit
     _serie_neuve()
 
-    async def _casse(prompt, n, graine):
+    async def _casse(prompt):
         raise RuntimeError("fournisseur indisponible")
-    monkeypatch.setattr(FA, "_tirer_flux", _casse)
+    monkeypatch.setattr(FA, "_tirer_banana_pro", _casse)
     r = _lancer(f"/api/cards/{did}/face/serie/generer?limite=2")
     assert r.status_code == 200, r.text
     d = r.json()
@@ -4078,39 +4161,33 @@ def test_la_cle_du_banc_est_neutralisee_et_la_sentinelle_COMPTE(monkeypatch):
 def test_la_piece_appelle_le_SERVICE_et_jamais_un_client_http_vers_elle_meme():
     """La campagne est une route du backend : elle ne doit pas se parler à
     elle-même en HTTP. Elle appelle le MÊME chemin de service que
-    `/images/generate` — `_flux_generate` pour FLUX, la façade
-    `image_providers` pour les deux autres (l'idiome de routes.py, répété à
-    ses trois appels)."""
+    `/images/generate` — la façade `image_providers` pour les deux marches
+    de la paire fal (l'idiome de routes.py, imité et non recopié)."""
     py = pathlib.Path(FA.__file__).read_text(encoding="utf-8")
-    assert "from app.api.routes import _flux_generate" in py
     assert "from app.services import image_providers" in py
     sans = _py_sans_texte(pathlib.Path(FA.__file__))
     for interdit in ("httpx", "AsyncClient", "urlopen", "requests"):
         assert interdit not in sans, f"{interdit} : la pièce sort en HTTP"
-    # les TROIS voies passent par TROIS fonctions nommées, et rien d'autre
-    for fn in ("_tirer_flux", "_tirer_banana", "_tirer_gpt"):
+    # les DEUX voies passent par DEUX fonctions nommées, et rien d'autre
+    for fn in ("_tirer_banana_pro", "_tirer_gpt"):
         assert f"async def {fn}(" in py, fn
-    assert sans.count("_flux_generate") == 2, \
-        "FLUX est appelé ailleurs que dans `_tirer_flux` (import + appel)"
     assert sans.count("image_providers") == 4, \
         ("la façade est nommée ailleurs que dans les deux `_tirer_*` "
          "(un import + un appel chacun)")
 
 
-def test_les_trois_voies_SAVENT_appeler_leur_service(monkeypatch):
+def test_les_deux_voies_SAVENT_appeler_leur_service(monkeypatch):
     """LE CONTRÔLE QUI PROTÈGE T5. Toute la campagne est jouée par des espions
-    posés SUR les trois `_tirer_*` : leur corps — le seul endroit qui touche un
+    posés SUR les deux `_tirer_*` : leur corps — le seul endroit qui touche un
     vrai générateur — n'est donc jamais exécuté par le banc. Une dérive de
-    signature (`_flux_generate` gagne un paramètre, `image_providers.generate`
-    en renomme un) ne se verrait qu'en campagne RÉELLE, après avoir payé les
-    cases précédentes.
+    signature (`image_providers.generate` renomme un paramètre) ne se verrait
+    qu'en campagne RÉELLE, après avoir payé les cases précédentes.
 
-    Ici les trois corps sont exécutés pour de bon, avec la VRAIE signature du
+    Ici les deux corps sont exécutés pour de bon, avec la VRAIE signature du
     service en face : on remplace la fonction de service par un faux qui
     commence par `inspect.signature(vraie).bind(...)`. L'appel est donc
     vérifié contre le contrat réel, et rien ne sort de la machine."""
     import inspect
-    from app.api import routes as RT
     from app.services import image_providers as IP
     vus = []
 
@@ -4121,108 +4198,31 @@ def test_les_trois_voies_SAVENT_appeler_leur_service(monkeypatch):
             return retour
         return _faux
 
-    monkeypatch.setattr(RT, "_flux_generate",
-                        _garde(RT._flux_generate, {"images": ["a.png"], "seed": 1}))
     monkeypatch.setattr(IP, "generate",
                         _garde(IP.generate, {"images": ["b.png"], "seed": None}))
     p = FA.serie_prompt("vista_tower")
-    # FLUX part en PLUSIEURS tirs depuis la campagne réelle (SERIE_FLUX_MAX) :
-    # six candidats ne tiennent pas dans un appel. Le nombre d'appels est
-    # DÉRIVÉ, jamais écrit — sinon ce test redeviendrait un pin périmé.
-    n_tirs = -(-FA.SERIE_CANDIDATS // FA.SERIE_FLUX_MAX)
-    assert asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 42)) \
-        == ["a.png"] * n_tirs
-    assert asyncio.run(FA._tirer_banana(p, "src.png")) == ["b.png"]
+    assert asyncio.run(FA._tirer_banana_pro(p)) == ["b.png"]
     assert asyncio.run(FA._tirer_gpt(p)) == ["b.png"]
-    assert [v[0] for v in vus] == ["_flux_generate"] * n_tirs \
-        + ["generate", "generate"]
-    # le cadre demandé est bien celui de la pièce, pas un défaut du service
-    assert FA.SERIE_TAILLE in vus[0][1]
-    assert vus[n_tirs][1][0] == "nano-banana"
-    assert vus[n_tirs + 1][1][0] == "gpt-image-2"
-    # ... et le garde-fou de nom vaut sur les TROIS voies, pas seulement à la
+    assert [v[0] for v in vus] == ["generate", "generate"]
+    # le cadre demandé est bien celui de la pièce, pas un défaut du service,
+    # et chaque marche nomme SON modèle de la paire — dans l'ordre
+    assert vus[0][1][0] == "nano-banana-pro"
+    assert vus[1][1][0] == "gpt-image-2-fal"
+    assert all(FA.SERIE_TAILLE in v[1] for v in vus)
+    # ... et le garde-fou de nom vaut sur les DEUX voies, pas seulement à la
     # construction du prompt : c'est la dernière porte avant le fournisseur.
-    for voie, args in ((FA._tirer_flux, ("in the style of Walkuski", 1, 0)),
-                       (FA._tirer_banana, ("by Walkuski", "src.png")),
+    for voie, args in ((FA._tirer_banana_pro, ("in the style of Walkuski",)),
                        (FA._tirer_gpt, ("by Walkuski",))):
         with pytest.raises(ValueError):
             asyncio.run(voie(*args))
 
 
-def test_aucun_tir_FLUX_ne_depasse_le_plafond_du_fournisseur(monkeypatch):
-    """LE DÉFAUT QUE SEULE LA CAMPAGNE PAYANTE POUVAIT VOIR (T5, 25/08).
-
-    Le contrôle voisin vérifie la SIGNATURE de `_flux_generate` : elle liait,
-    et elle liait juste. Mais `fal-ai/flux/schnell` refuse `num_images > 4` —
-    à la VALIDATION du corps, avant de calculer quoi que ce soit. Les six
-    candidats de `SERIE_CANDIDATS` partaient donc en UN appel, et les DOUZE
-    premières cases de la campagne réelle sont mortes sur le même 422, sans
-    qu'une image soit produite (magasin d'images inchangé à l'octet).
-
-    Ce que ce test épingle, et qu'aucun autre ne disait : la VALEUR du
-    troisième argument, contre le plafond du fournisseur. Le nombre d'appels
-    est DÉRIVÉ des deux constantes — un pin écrit à la main redeviendrait
-    faux au premier réglage."""
-    from app.api import routes as RT
-    vus = []
-
-    async def _faux(prompt, size, n, **k):
-        vus.append((int(n), k.get("seed")))
-        return {"images": ["f%d_%d.png" % (len(vus), i) for i in range(int(n))],
-                "seed": k.get("seed")}
-
-    monkeypatch.setattr(RT, "_flux_generate", _faux)
-    p = FA.serie_prompt("vista_tower")
-    noms = asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 4242))
-
-    # 0. LE PLAFOND EST UN FAIT DU FOURNISSEUR, PAS UN RÉGLAGE — et cette
-    #    ligne-ci est la seule du test qui ne se dérive de rien. Le premier
-    #    jet ne l'avait pas, et sa ronde de mutation l'a payé : porter
-    #    SERIE_FLUX_MAX à 8 ramenait le tir unique de six (le défaut EXACT
-    #    qui a tué douze cases payées) et le contrôle restait VERT, parce
-    #    qu'il dérivait son attendu de la constante qu'il prétend garder.
-    #    Un oracle qui cite l'accusé ne juge personne.
-    assert FA.SERIE_FLUX_MAX <= 4, (
-        "fal-ai/flux/schnell refuse num_images > 4 : 422 à la validation du "
-        "corps, mesuré en campagne réelle le 25/08/2026")
-
-    # 1. aucun tir ne demande plus que ce que le fournisseur accepte
-    assert vus, "aucun tir émis"
-    assert max(n for n, _ in vus) <= FA.SERIE_FLUX_MAX, vus
-    # 2. et pourtant les six candidats sont bien là : le lot est découpé,
-    #    pas rogné (rogner reviendrait à payer six et juger quatre)
-    assert sum(n for n, _ in vus) == FA.SERIE_CANDIDATS, vus
-    assert len(noms) == FA.SERIE_CANDIDATS, noms
-    assert len(vus) == -(-FA.SERIE_CANDIDATS // FA.SERIE_FLUX_MAX), vus
-    # 3. une graine par tir : deux lots à la même graine rendraient deux fois
-    #    la même image, et la sur-génération ne servirait plus à rien
-    assert len(set(g for _, g in vus)) == len(vus), vus
-    # 4. ... et le tirage reste DÉTERMINISTE d'un lancement à l'autre
-    vus2 = list(vus)
-    del vus[:]
-    asyncio.run(FA._tirer_flux(p, FA.SERIE_CANDIDATS, 4242))
-    assert vus == vus2, (vus, vus2)
-
-
-def test_le_prix_d_une_case_se_compte_a_l_IMAGE_pas_a_l_APPEL(monkeypatch):
-    """LE COROLLAIRE DU DÉCOUPAGE, ÉPINGLÉ. Découper six candidats en deux
-    appels ne doit RIEN changer à la facture ni au mur : `_payer` est appelé
-    UNE fois pour `SERIE_CANDIDATS` images, avant le premier tir. Sans ce
-    contrôle, un futur découpage qui paierait par appel doublerait la
-    dépense d'une campagne sans qu'un seul test rougisse."""
-    s = _sentinelle(monkeypatch)
-    _serie_neuve()
-    p = _prix_de_banc(monkeypatch)
-    at = _Atelier(flux="conforme").pose(monkeypatch)
-    did = _deck()
-    d = _lancer(f"/api/cards/{did}/face/serie/generer?limite=1").json()
-    assert len(d["journal"]) == 1, d["journal"]
-    assert d["journal"][0]["modele"] == "flux"
-    assert d["journal"][0]["n"] == FA.SERIE_CANDIDATS
-    assert d["journal"][0]["prix_usd"] == pytest.approx(
-        FA.SERIE_CANDIDATS * p["flux_image_usd"])
-    assert at.appels[0][2] == FA.SERIE_CANDIDATS
-    s.zero()
+# NOTE DU 27/08 : les deux contrôles du DÉCOUPAGE FLUX (plafond fournisseur
+# `num_images ≤ 4`, prix compté à l'image et non à l'appel) sont partis avec
+# la marche qu'ils gardaient — la paire fal tire UN candidat par marche, et
+# le pin `n == 1` du journal vit dans le test du journal-avant-l'appel. La
+# leçon du fournisseur (422 sur num_images > 4, douze cases payées mortes le
+# 25/08) reste consignée au plan §T1 et dans l'historique de ce fichier.
 
 
 # ── H. l'écran : la voie, la retombée avouée, le miroir ──────────────────────
@@ -4321,7 +4321,7 @@ def test_le_devis_dit_ENVELOPPE_TOTALE_et_jamais_par_session(monkeypatch):
     jamais recopiés : ils viennent du devis que la même réponse porte."""
     s = _sentinelle(monkeypatch)
     _serie_neuve()
-    _Atelier(flux="conforme").pose(monkeypatch)
+    _Atelier(banana_pro="conforme").pose(monkeypatch)
     did = _deck()
     detail = _api("POST", f"/api/cards/{did}/face/serie/generer").json()["detail"]
     d = detail["devis"]

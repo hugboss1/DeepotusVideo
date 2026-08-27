@@ -29,6 +29,13 @@ PROVIDERS = {
                     "needs": "OPENAI_API_KEY", "seeds": False},
     "nano-banana": {"label": "Nano Banana (Gemini, via fal)",
                     "needs": "FAL_KEY", "seeds": False},
+    "nano-banana-pro": {"label": "Nano Banana Pro (Gemini 3, via fal)",
+                        "needs": "FAL_KEY", "seeds": False},
+    # le MÊME modèle que gpt-image-2, servi et facturé PAR fal (endpoint
+    # openai/gpt-image-2) : pas de clé OpenAI sur ce chemin, et le filtre
+    # de sécurité côté OpenAI direct n'est pas la porte.
+    "gpt-image-2-fal": {"label": "GPT Image 2 (OpenAI, via fal)",
+                        "needs": "FAL_KEY", "seeds": False},
 }
 
 _OPENAI_SIZE = {"portrait_16_9": "1024x1536", "portrait_4_3": "1024x1536",
@@ -106,36 +113,76 @@ async def _openai_generate(model: str, prompt: str, size: str, n: int,
 
 def build_banana_request(prompt: str, size: str, n: int,
                          image_url: str | None,
-                         ratio: str | None = None) -> tuple[str, dict]:
+                         ratio: str | None = None,
+                         pro: bool = False) -> tuple[str, dict]:
     """(model_id, arguments) fal pour Nano Banana. Exposé pur pour les tests.
     `ratio` (ex. "9:16") force le cadre de sortie d'un EDIT — par défaut
     l'edit suit le cadre de l'image d'entrée (leçon tests canons: un corps
-    en pied chaîné sur un headshot 3:4 sort tassé ou coupé)."""
+    en pied chaîné sur un headshot 3:4 sort tassé ou coupé). `pro` vise
+    fal-ai/nano-banana-pro (Gemini 3, mêmes arguments — doc fal du
+    27/08/2026), au tarif de SA clé de prix."""
+    endpoint = "fal-ai/nano-banana-pro" if pro else "fal-ai/nano-banana"
     if image_url:
         args = {"prompt": prompt, "image_urls": [image_url],
                 "num_images": n, "output_format": "png"}
         if ratio:
             args["aspect_ratio"] = ratio
-        return ("fal-ai/nano-banana/edit", args)
-    return ("fal-ai/nano-banana",
+        return (endpoint + "/edit", args)
+    return (endpoint,
             {"prompt": prompt, "num_images": n, "output_format": "png",
              "aspect_ratio": _BANANA_ASPECT.get(size, "1:1")})
 
 
 async def _banana_generate(prompt: str, size: str, n: int,
                            image_path: Path | None,
-                           ratio: str | None = None) -> list[str]:
+                           ratio: str | None = None,
+                           pro: bool = False) -> list[str]:
     import fal_client
     image_url = None
     if image_path is not None:
         from app.services.fal_service import FalSeedanceClient
         image_url = await FalSeedanceClient.upload_image(image_path)
-    model, arguments = build_banana_request(prompt, size, n, image_url, ratio)
+    model, arguments = build_banana_request(prompt, size, n, image_url, ratio,
+                                            pro)
     result = await fal_client.subscribe_async(model, arguments=arguments)
     urls = [im.get("url") for im in (result or {}).get("images", [])
             if im.get("url")]
     if not urls:
         raise RuntimeError(f"Nano Banana returned no images: {result}")
+    return await _download(urls)
+
+
+# ───────────────────── GPT Image 2 (OpenAI, via fal) ─────────────────────
+
+def build_fal_gpt_request(prompt: str, size: str, n: int,
+                          image_url: str | None) -> tuple[str, dict]:
+    """(model_id, arguments) fal pour GPT Image 2 servi par fal. Exposé pur
+    pour les tests. Les identifiants de taille du projet SONT les presets
+    fal (`portrait_4_3`…) : ils passent tels quels. La qualité `high` est
+    ÉCRITE plutôt qu'héritée du défaut : c'est elle que la table de tarifs
+    chiffre, et un défaut fal qui changerait ne doit pas changer la facture
+    en silence."""
+    args = {"prompt": prompt, "image_size": size, "quality": "high",
+            "num_images": n, "output_format": "png"}
+    if image_url:
+        args["image_urls"] = [image_url]
+        return ("openai/gpt-image-2/edit", args)
+    return ("openai/gpt-image-2", args)
+
+
+async def _fal_gpt_generate(prompt: str, size: str, n: int,
+                            image_path: Path | None) -> list[str]:
+    import fal_client
+    image_url = None
+    if image_path is not None:
+        from app.services.fal_service import FalSeedanceClient
+        image_url = await FalSeedanceClient.upload_image(image_path)
+    model, arguments = build_fal_gpt_request(prompt, size, n, image_url)
+    result = await fal_client.subscribe_async(model, arguments=arguments)
+    urls = [im.get("url") for im in (result or {}).get("images", [])
+            if im.get("url")]
+    if not urls:
+        raise RuntimeError(f"GPT Image 2 (fal) returned no images: {result}")
     return await _download(urls)
 
 
@@ -149,14 +196,23 @@ async def generate(provider: str, prompt: str, size: str, n: int = 1,
     "seed": int|None} (seed None = provider non déterministe). `ratio`
     (ex. "9:16") force le cadre des EDITS (image_path fourni) — sinon le
     modèle edit suit le cadre de l'image d'entrée."""
+    # LES CHEMINS FAL D'ABORD : « gpt-image-2-fal » commence par « gpt-image »
+    # — testé après le préfixe OpenAI, il partirait chez OpenAI avec la
+    # mauvaise clé ET la mauvaise facture.
+    if provider == "gpt-image-2-fal":
+        if not settings.FAL_KEY:
+            raise RuntimeError("FAL_KEY manquante (Réglages).")
+        imgs = await _fal_gpt_generate(prompt, size, n, image_path)
+        return {"images": imgs, "seed": None}
+    if provider in ("nano-banana", "nano-banana-pro"):
+        if not settings.FAL_KEY:
+            raise RuntimeError("FAL_KEY manquante (Réglages).")
+        imgs = await _banana_generate(prompt, size, n, image_path, ratio,
+                                      pro=(provider == "nano-banana-pro"))
+        return {"images": imgs, "seed": None}
     if provider.startswith("gpt-image") or provider.startswith("dall-e"):
         if not settings.OPENAI_API_KEY:
             raise RuntimeError("OPENAI_API_KEY manquante (Réglages).")
         imgs = await _openai_generate(provider, prompt, size, n, image_path)
-        return {"images": imgs, "seed": None}
-    if provider == "nano-banana":
-        if not settings.FAL_KEY:
-            raise RuntimeError("FAL_KEY manquante (Réglages).")
-        imgs = await _banana_generate(prompt, size, n, image_path, ratio)
         return {"images": imgs, "seed": None}
     raise RuntimeError(f"Générateur inconnu: {provider}")

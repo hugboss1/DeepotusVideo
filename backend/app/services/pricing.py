@@ -26,7 +26,20 @@ DEFAULTS = {
     # to the FLUX rate (0.003) for it — a price 13x too low, served as if it
     # were the model's own.
     "nano_banana_usd": 0.039,
+    # fal.ai nano-banana-pro (Gemini 3 Pro Image), per image at 1K/2K.
+    # Re-verified 2026-08-27 on fal.ai/models/fal-ai/nano-banana-pro: "Your
+    # request will cost $0.15 per image. For $1.00, you can run this model
+    # 7 times." 4K outputs are charged double — the série never asks for 4K.
+    "nano_banana_pro_usd": 0.15,
     "gpt_image_2_usd": 0.12,          # OpenAI gpt-image-2, per image (portrait, directional)
+    # GPT Image 2 servi PAR fal (endpoint openai/gpt-image-2, facturé fal —
+    # pas de clé OpenAI sur ce chemin). Tarif du 27/08/2026, table fal par
+    # taille × qualité : 0,145 $ l'image en qualité `high` (le défaut, que
+    # la requête épingle) au format 768×1024 (`portrait_4_3`). La voie
+    # OpenAI directe garde SA clé de prix ci-dessus : deux chemins de
+    # facturation, deux entrées — un seul chiffre pour les deux mentirait
+    # sur l'une des deux factures.
+    "gpt_image_2_fal_usd": 0.145,
     "gpt_image_1_usd": 0.06,          # OpenAI gpt-image-1, per image
     "gpt_image_1_mini_usd": 0.015,    # OpenAI gpt-image-1-mini, per image
     "seedance_usd_per_s": 0.04,       # fal.ai Seedance, per second of video
@@ -87,7 +100,11 @@ _IMAGE_MODELS = {
     # id + label mirror routes.list_image_models so the Cardforge screens can
     # join the two tables on the id alone.
     "nano-banana":      ("Nano Banana (Gemini)", "fal", "nano_banana_usd"),
+    "nano-banana-pro":  ("Nano Banana Pro (Gemini 3)", "fal",
+                         "nano_banana_pro_usd"),
     "gpt-image-2":      ("GPT Image 2",      "openai", "gpt_image_2_usd"),
+    "gpt-image-2-fal":  ("GPT Image 2 (via fal)", "fal",
+                         "gpt_image_2_fal_usd"),
     "gpt-image-1":      ("GPT Image 1",      "openai", "gpt_image_1_usd"),
     "gpt-image-1-mini": ("GPT Image 1 mini", "openai", "gpt_image_1_mini_usd"),
 }

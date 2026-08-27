@@ -94,7 +94,7 @@ __all__ = [
     "price_table", "SUB_RENAMES",
     # ── la série « affiche polonaise » (phase 5, T1) ────────────────────────
     "SERIES", "SERIE_ID", "SERIE_V", "SERIE_JUGE", "SERIE_PLAFOND_USD",
-    "SERIE_CANDIDATS", "SERIE_FLUX_MAX", "FAMILLES", "NOMS_INTERDITS",
+    "FAMILLES", "NOMS_INTERDITS",
     "PALETTE_NEUTRE",
     "fiche_style", "serie_cases", "serie_famille", "serie_familles",
     "serie_accent", "serie_prompt", "serie_prompt_retouche",
@@ -1127,22 +1127,12 @@ SERIE_PLAFOND_USD = 15.00         # LE MUR (plan D2) — dur, pas indicatif.
 # T1-I/J/K à la voie de mise au ton en ligne a servi 30 cases sur 55
 # sondes. Ce nombre ne bouge QUE sur un ordre utilisateur — jamais un
 # agent (la leçon de la campagne, écrite au plan).
-SERIE_CANDIDATS = 6               # candidats par case à la première marche
-# LE PLAFOND DU FOURNISSEUR, MESURÉ EN PAYANT (campagne T5, 25/08/2026).
-# `fal-ai/flux/schnell` refuse `num_images > 4`, et il le refuse à la
-# VALIDATION DU CORPS, avant tout calcul :
-#   {'type': 'less_than_equal', 'loc': ['body', 'num_images'],
-#    'msg': 'Input should be less than or equal to 4', 'input': 6}
-# Les six candidats du plan D2 partent donc en DEUX tirs (4 + 2). Le prix ne
-# bouge pas d'un centime : il se compte à l'IMAGE (6 × 0,003 $), jamais à
-# l'appel — `_payer` reste inchangé, et le plafond de campagne aussi. C'est
-# une contrainte de TRANSPORT, pas de facturation.
-#
-# CE QUI A LAISSÉ PASSER LE DÉFAUT : le banc vérifiait la SIGNATURE de
-# `_flux_generate` (elle liait, et elle liait juste) mais jamais la VALEUR de
-# son troisième argument. Une signature n'est pas un contrat de domaine : le
-# fournisseur avait le droit de refuser un nombre que la fonction acceptait.
-SERIE_FLUX_MAX = 4
+# NOTE DU 27/08/2026 : la marche FLUX (6 candidats, lots 4+2 — le plafond
+# fournisseur `num_images ≤ 4` mesuré en payant le 25/08) est SORTIE de
+# l'échelle avec ses constantes `SERIE_CANDIDATS`/`SERIE_FLUX_MAX` : sa
+# graine par case étant déterministe, re-tirer une case refusée aurait payé
+# LES MÊMES pixels. Le format 4+2 de son journal survit dans
+# `journal_vers_cases` (le rescapage mappe toujours les campagnes du 25/08).
 SERIE_TAILLE = "portrait_4_3"     # cadre demandé au service de génération
 SERIE_RATIO = "3:4"               # le même, dit comme l'édition l'écrit
 JUGE_FICHIER = "style_walkuski.py"
@@ -2021,13 +2011,13 @@ def prix_usd(modele: str, n: int = 1):
 
 
 def serie_prix() -> dict:
-    """{modèle: $ par image} pour les trois marches de l'échelle."""
+    """{modèle: $ par image} pour les marches de l'échelle."""
     return {m: prix_usd(m, 1) for m in SERIE_ECHELLE}
 
 
 def cout_echelle_usd() -> float:
-    """CE QUE COÛTE UNE CASE AU PIRE : l'échelle ENTIÈRE, six candidats FLUX +
-    une édition + un GPT. Calculé sur la table, jamais écrit — un plafond qui
+    """CE QUE COÛTE UNE CASE AU PIRE : l'échelle ENTIÈRE, un candidat par
+    marche de la paire. Calculé sur la table, jamais écrit — un plafond qui
     se libelle dans une autre monnaie que la facture ne protège rien.
 
     C'est le nombre qui décide si une case s'OUVRE (correction de ronde) : le
@@ -2035,63 +2025,34 @@ def cout_echelle_usd() -> float:
     laisser de trace, et le bilan annonçait « 3 traitées, 0 refusées » pour de
     l'argent parti. Une case ne commence donc que si elle peut finir."""
     total = 0.0
-    for modele, n in ((SERIE_ECHELLE[0], SERIE_CANDIDATS),
-                      (SERIE_ECHELLE[1], 1), (SERIE_ECHELLE[2], 1)):
-        prix = prix_usd(modele, n)
+    for modele in SERIE_ECHELLE:
+        prix = prix_usd(modele, 1)
         if prix is None:                                  # pragma: no cover
             continue
         total += prix
     return round(total, 4)
 
 
-# ── les trois voies : le MÊME chemin de service que `/images/generate` ──────
+# ── les deux voies : le MÊME chemin de service que `/images/generate` ──────
 #
 # La campagne est une route de CE backend : elle ne se parle pas à elle-même
 # en HTTP (un client vers son propre serveur, c'est un point mort dès que la
 # boucle est occupée, et une seconde autorité sur les paramètres). Elle
-# appelle les fonctions de service que `/images/generate` appelle :
-# `_flux_generate` pour FLUX, la façade `image_providers.generate` pour les
-# deux autres. C'est l'idiome de `routes.py`, répété à ses trois appels
-# (images/generate, images/process, matériaux) — on l'imite, on ne recopie pas
-# ses branches inlined.
+# appelle la fonction de service que `/images/generate` appelle : la façade
+# `image_providers.generate`, pour les deux marches. C'est l'idiome de
+# `routes.py` — on l'imite, on ne recopie pas ses branches inlined.
 
-async def _tirer_flux(prompt: str, n: int, graine: int) -> list:
-    """Les `n` candidats, en autant de tirs que le fournisseur en accepte.
-
-    Le nom est vérifié UNE fois, avant le premier tir : la garde est la même
-    pour tous les lots, et rien ne part si elle lève."""
-    from app.api.routes import _flux_generate
-    propre = sans_nom_d_artiste(prompt)
-    noms: list = []
-    reste = max(0, int(n))
-    tir = 0
-    while reste > 0:
-        lot = min(reste, SERIE_FLUX_MAX)
-        # UNE GRAINE PAR TIR. La même graine pour les deux lots rendrait le
-        # second identique au premier : on paierait six images pour n'en
-        # juger que quatre distinctes. Décalée par le RANG du tir, elle reste
-        # déterministe — la même case retire toujours les mêmes candidats.
-        out = await _flux_generate(propre, SERIE_TAILLE, lot,
-                                   seed=(int(graine) + tir) & 0x7FFFFFFF)
-        noms.extend((out or {}).get("images") or [])
-        reste -= lot
-        tir += 1
-    return noms
-
-
-async def _tirer_banana(prompt: str, source: str) -> list:
+async def _tirer_banana_pro(prompt: str) -> list:
     from app.services import image_providers
-    from app.config import settings
     out = await image_providers.generate(
-        "nano-banana", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1,
-        image_path=settings.images_path / str(source), ratio=SERIE_RATIO)
+        "nano-banana-pro", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1)
     return list((out or {}).get("images") or [])
 
 
 async def _tirer_gpt(prompt: str) -> list:
     from app.services import image_providers
     out = await image_providers.generate(
-        "gpt-image-2", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1)
+        "gpt-image-2-fal", sans_nom_d_artiste(prompt), SERIE_TAILLE, 1)
     return list((out or {}).get("images") or [])
 
 
@@ -2134,19 +2095,24 @@ def _sans_chemin(txt, n: int = 200) -> str:
 
 # ── LA CAMPAGNE — l'échelle de secours, le journal, le mur ──────────────────
 #
-# L'ÉCHELLE (plan D2), marche par marche, pour UNE case :
+# L'ÉCHELLE DU 27/08/2026 (ordre utilisateur du 26/08 : « utilise gpt image2
+# et nano banana pro avec la clé fal.ai ») — LA PAIRE FAL, marche par marche,
+# pour UNE case :
 #
-#   1. six candidats FLUX schnell d'un seul appel — sur un modèle à 0,003 $,
-#      sur-générer coûte moins cher qu'un aller-retour de prompt ;
-#   2. le juge note les six ; le meilleur qui TIENT gagne, et c'est fini ;
-#   3. sinon, si le meilleur est « à retoucher », UNE passe d'édition
-#      nano-banana partant de CE fichier, avec les axes à corriger dans le
-#      prompt. Si le lot entier est hors style, on saute cette marche : il n'y
-#      a rien à retoucher, et une édition partant d'un raté coûte pour rien ;
-#   4. sinon, UN GPT Image 2 ;
-#   5. sinon la case RESTE VECTORIELLE, et son refus est journalisé avec ses
+#   1. UN candidat Nano Banana Pro (fal) ; le juge le note, avec son frère
+#      mis au ton gratuit quand il est rescuable ; s'il TIENT, c'est fini ;
+#   2. sinon, UN GPT Image 2 servi PAR fal (endpoint openai/gpt-image-2 —
+#      la clé fal facture, le filtre de sécurité OpenAI direct qui a rejeté
+#      2 × le sujet archer n'est plus la porte) ;
+#   3. sinon la case RESTE VECTORIELLE, et son refus est journalisé avec ses
 #      axes rouges. Une case sans image n'est pas un trou : c'est le dessin du
 #      catalogue, et l'écran le dit.
+#
+# CE QUI EST SORTI DE L'ÉCHELLE, ET POURQUOI : la marche FLUX (6 candidats à
+# graine DÉTERMINISTE par case — re-tirer une refusée aurait payé les mêmes
+# pixels, jugés et refusés le 25-26/08) et la marche d'ÉDITION nano-banana
+# (0 case gagnée en 80 sondes, relevés T1-I à T1-L). Le levier neuf, c'est
+# le MODÈLE — les prompts, eux, sont épuisés comme levier et ne bougent pas.
 #
 # LE MUR EST VÉRIFIÉ AVANT CHAQUE TIR, pas après : `dépense + prix > plafond`
 # arrête la campagne AVANT l'appel. Le prix vient de `pricing`, jamais d'un
@@ -2158,7 +2124,7 @@ def _sans_chemin(txt, n: int = 200) -> str:
 # atteint plus tôt, jamais plus tard), et le journal porte `panne` pour que le
 # bilan ne fasse pas passer une panne pour une dépense utile.
 
-SERIE_ECHELLE = ("flux", "nano-banana", "gpt-image-2")
+SERIE_ECHELLE = ("nano-banana-pro", "gpt-image-2-fal")
 SERIE_MOTIFS = {
     "fin": "toutes les cases demandées ont été traitées",
     "limite": "limite de session atteinte",
@@ -2229,12 +2195,12 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
         return notes
 
     prompt = serie_prompt(case)
-    graine = fnv1a32(SERIE_ID + ":" + case) & 0x7FFFFFFF
 
-    # marche 1 — FLUX, six candidats d'un seul appel
-    prix_case = await _payer("flux", SERIE_CANDIDATS)
+    # marche 1 — UN candidat Nano Banana Pro (les frères mis au ton sont
+    # gratuits et jugés dans `_juger`, comme sur toutes les marches)
+    prix_case = await _payer(SERIE_ECHELLE[0], 1)
     try:
-        noms = await _tirer_flux(prompt, SERIE_CANDIDATS, graine)
+        noms = await _tirer_banana_pro(prompt)
     except Exception as e:
         journal[-1]["panne"] = True
         raise _Panne(_sans_chemin(e))
@@ -2242,32 +2208,13 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
         journal[-1]["panne"] = True
         raise _Panne("le générateur n'a rendu aucune image")
     best = meilleur_candidat(await _juger(noms))
-    best["voie"] = "flux"
+    best["voie"] = SERIE_ECHELLE[0]
     if best.get("verdict") == "TIENT":
         best["prix_usd"] = round(prix_case, 4)
         return best
 
-    # marche 2 — UNE édition, seulement s'il y a quelque chose à retoucher
-    if best.get("verdict") == "A RETOUCHER":
-        prix_case += await _payer("nano-banana", 1)
-        try:
-            noms = await _tirer_banana(
-                serie_prompt_retouche(case, best.get("ecarts")), best["img"])
-        except Exception as e:
-            journal[-1]["panne"] = True
-            raise _Panne(_sans_chemin(e))
-        if noms:
-            neuf = meilleur_candidat(await _juger(noms))
-            neuf["voie"] = "nano-banana"
-            if neuf.get("verdict") == "TIENT":
-                neuf["prix_usd"] = round(prix_case, 4)
-                return neuf
-            best = max([best, neuf],
-                       key=lambda n: (_RANG_VERDICT.get(n["verdict"], 0),
-                                      n["score"]))
-
-    # marche 3 — un GPT Image 2, la dernière
-    prix_case += await _payer("gpt-image-2", 1)
+    # marche 2 — un GPT Image 2 par fal, la dernière
+    prix_case += await _payer(SERIE_ECHELLE[1], 1)
     try:
         noms = await _tirer_gpt(prompt)
     except Exception as e:
@@ -2275,12 +2222,16 @@ async def _fabriquer_case(case: str, sac: dict, journal: list) -> dict:
         raise _Panne(_sans_chemin(e))
     if noms:
         neuf = meilleur_candidat(await _juger(noms))
-        neuf["voie"] = "gpt-image-2"
+        neuf["voie"] = SERIE_ECHELLE[1]
         if neuf.get("verdict") == "TIENT":
             neuf["prix_usd"] = round(prix_case, 4)
             return neuf
-        if neuf["score"] > best["score"]:
-            best = neuf
+        # le meilleur VERDICT garde la main sur la voie du refus (natures
+        # avant notes, comme `meilleur_candidat`) ; à l'égalité stricte, la
+        # première marche reste `best`
+        best = max([best, neuf],
+                   key=lambda n: (_RANG_VERDICT.get(n["verdict"], 0),
+                                  n["score"]))
     best["prix_usd"] = round(prix_case, 4)
     return best
 
@@ -2546,10 +2497,11 @@ def devis(voulues: list, limite: int = 0) -> dict:
     """CE QUE CETTE DEMANDE FERAIT, ET CE QU'ELLE COÛTERAIT AU PIRE — sans
     rien dépenser.
 
-    Le pire cas est l'échelle complète × les cases visées : 19,12 $ pour la
-    série entière, soit 1,27 fois le plafond. La campagne est donc
-    MULTI-SESSION par construction, et le devis le DIT plutôt que de laisser
-    l'utilisateur le découvrir au troisième « plafond atteint »."""
+    Le pire cas est l'échelle complète × les cases visées : 31,86 $ pour la
+    série entière à la paire fal du 27/08, soit 2,12 fois le plafond. La
+    campagne est donc MULTI-SESSION par construction, et le devis le DIT
+    plutôt que de laisser l'utilisateur le découvrir au troisième « plafond
+    atteint »."""
     m, _ = manifeste_lire()
     cibles = [c for c in (voulues or serie_cases()) if c not in m["cases"]]
     if limite:
@@ -2568,13 +2520,8 @@ def devis(voulues: list, limite: int = 0) -> dict:
         "cases_ouvrables": ouvrables,
         "multi_session": len(cibles) > ouvrables,
         "prix": serie_prix(), "devise": "USD",
-        "detail_echelle": {"flux": {"n": SERIE_CANDIDATS,
-                                    "usd": prix_usd(SERIE_ECHELLE[0],
-                                                    SERIE_CANDIDATS)},
-                           SERIE_ECHELLE[1]: {"n": 1,
-                                              "usd": prix_usd(SERIE_ECHELLE[1], 1)},
-                           SERIE_ECHELLE[2]: {"n": 1,
-                                              "usd": prix_usd(SERIE_ECHELLE[2], 1)}},
+        "detail_echelle": {m: {"n": 1, "usd": prix_usd(m, 1)}
+                           for m in SERIE_ECHELLE},
     }
 
 
