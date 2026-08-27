@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans
 > (exécution inline dans la session du spawn task_0c033bf7). Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> checkbox (`- [x]`) syntax for tracking.
 
 > Suite du plan `2026-08-27-editeur-vectoriel-vitrail.md` (COMPLET 0→6, on
 > n'y touche pas). Ordre utilisateur du 27/08 : « une fonctionnalité propre
@@ -11,6 +11,47 @@
 > Les chapitres y accèdent déjà (phase 6) ; ce chantier livre les deux accès
 > manquants. Cette expansion est COMMITTÉE avant le code (patron des
 > phases 0→6).
+
+> **RELEVÉ (27/08) : CHANTIER LIVRÉ, DÉPLOYÉ, PROUVÉ EN RÉEL, NETTOYÉ.**
+> Six commits (expansion → deck_id → bibliothèque → onglet Cardforge →
+> tokens → patcher+bundle, plus un correctif attrapé par la preuve). TDD
+> tenu : RED constaté à chaque pas (AttributeError deck_id, module
+> mod-biblio introuvable, miroirs N/O rouges avant l'UI) ; banc vector
+> 19 tests verts, qa node **217 contrôles** (203+14), voisins atelier ×2,
+> cards_face 147, cards_capture, cards_frame verts ; patcher appliqué
+> (+820 o, 3 ancres, 5 sondes aux comptes, node --check du bundle OK,
+> re-lancement = restore+réapplication propre). Déployé sha-vérifié
+> (12 fichiers), stop+relance, santé 2.5.0 — `_auto_migrate` a ajouté
+> `deck_id` à la vraie base au démarrage. **Preuves app réelle** (DOM,
+> pane non composité comme prévu) : entrée « Vectorlab » au rail avec
+> l'icône vectorpen rendue (3 rects + 2 cercles + 1 path, viewBox 24),
+> clic → iframe `/vectorlab/` en mode bibliothèque, teinte `--cat` =
+> oklch(.72 .13 340) traversée par l'@import, les 2 docs réels listés
+> (repli ◧ honnête : leurs vignettes n'existent pas encore, flags API
+> false), recherche « generee » filtre en réel, état vide qui NOMME le
+> filtre, création 320×200 → l'éditeur s'ouvre, ⌂ → retour liste ;
+> Cardforge sur un jeu de TEST : onglet « Vectorlab » (libellé compté),
+> création → doc ancré `deck_id` ouvert dans l'éditeur (window.open
+> capturé), taille héritée de la vraie fenêtre d'illustration (588×525),
+> **le garde de pose refuse AVANT export** (« aucun export 2× encore… »),
+> dessin par le vrai pipeline (3 objets, VL.executer), Sauver v2 +
+> vignette née, exporterPNG(2) → Library 200 image/png, Rafraîchir → ligne
+> v2 + vignette `?v=2`, **Poser 2× : face.src passe de
+> `cat:face_ember_vista_tower` à `img:vector_<id>_2x.png`, toast
+> « illustration posée », et la jauge MESURE la trame posée : 600 DPI,
+> source 1176×1050 = exactement le 2×** ; thème clair : token .52 servi,
+> surface vectorlab légitimement sombre, selects color-scheme dark.
+> **DEUX VRAIS DÉFAUTS ATTRAPÉS** : (1) le garde HEAD tombait dans le
+> catch-all SPA (200 HTML) et posait un export inexistant → GET +
+> contrôle content-type, miroir durci (piège n°7 rejoué) ; (2) pièges de
+> banc découverts : le pin de cloisonnement cards scanne tout `id="` du
+> source (→ URLSearchParams) et un garde historique interdit la
+> sous-chaîne `cf-face-vec` (→ classes `cf-face-vlab-*`). Nettoyage
+> vérifié aux endpoints : 2 docs jetables archivés, jeu de test supprimé,
+> PNG retiré de la Library (404), `dz_cf_deck_id` restauré — les docs
+> réels « Baie vitrail - demo » et « Vitrail - baie generee » INTOUCHÉS
+> (v2/v2). Leçon de banc : les timers d'un onglet caché sont throttlés —
+> prouver en petits pas, un état par appel.
 
 **Goal :** la catégorie « Vectorlab » au rail de navigation de la SPA
 (icône au style §15-2, teinte `--cat-vectoriel`, vue iframe `/vectorlab/`),
@@ -230,7 +271,7 @@ DESIGN.md                               §15-bis : ajout daté (icône + teinte)
 **Files:** Modify `backend/app/services/storage.py`,
 `backend/app/api/routes.py`, `backend/tests/test_vector_docs.py`.
 
-- [ ] **1.1 RED** — dans test_vector_docs.py : (a) au module, APRÈS le bloc
+- [x] **1.1 RED** — dans test_vector_docs.py : (a) au module, APRÈS le bloc
   d'env et AVANT tout import app, pré-créer la base à l'ANCIENNE forme
   (sqlite3 stdlib : table `vector_docs` sans `deck_id` + une ligne héritée
   `vd-legacy` nommée « Legacy pré-migration », chapter ch-legacy, role
@@ -274,16 +315,16 @@ def test_le_pont_cartes_deck_id_et_la_migration():
     asyncio.run(scenario())
 ```
 
-- [ ] **1.2** le voir échouer (`run-tests.ps1 -Filter vector`) — colonne et
+- [x] **1.2** le voir échouer (`run-tests.ps1 -Filter vector`) — colonne et
   filtre inexistants
-- [ ] **1.3 GREEN** — storage.py : colonne
+- [x] **1.3 GREEN** — storage.py : colonne
   `deck_id: Mapped[Optional[str]] = mapped_column(String(36), index=True, nullable=True)`
   + `VECTOR_DOCS_COLUMNS = [("deck_id", "VARCHAR(36)")]` + l'entrée dans la
   boucle `_auto_migrate` ; routes.py : `deck_id` accepté au POST, filtré au
   GET, exposé par `_vector_meta`, accepté au duplicate
-- [ ] **1.4** banc vector vert (16 tests + le neuf) ; voisins atelier ×2
+- [x] **1.4** banc vector vert (16 tests + le neuf) ; voisins atelier ×2
   verts
-- [ ] **1.5 commit** — `vectorlab : ancre deck_id (pont cartes) par _auto_migrate, migration exercee a froid`
+- [x] **1.5 commit** — `vectorlab : ancre deck_id (pont cartes) par _auto_migrate, migration exercee a froid`
 
 ## Task 2 : la bibliothèque du Vectorlab (TDD qa node)
 
@@ -291,7 +332,7 @@ def test_le_pont_cartes_deck_id_et_la_migration():
 `frontend/vectorlab/qa/biblio.test.mjs` ; Modify `index.html`,
 `vectorlab.css`, `js/core.js`, `backend/tests/test_vector_docs.py` (N).
 
-- [ ] **2.1 RED** — `qa/biblio.test.mjs` (patron des bancs existants,
+- [x] **2.1 RED** — `qa/biblio.test.mjs` (patron des bancs existants,
   sortie UTF-8) : `parseTaille` (« 640×960 », « 640x960 », « 640 x 960 » →
   {w:640,h:960} ; refuse vide/NaN/≤0/>8192) ; `docVierge("Baie", 640, 960)`
   → accepté par `parserDoc` de mod-doc, un calque `c1` déverrouillé
@@ -300,73 +341,73 @@ def test_le_pont_cartes_deck_id_et_la_migration():
   ÉCHAPPÉ (`<script>` neutralisé), badge ⚓/🂠/◇ selon
   chapter_id/deck_id/aucun, les trois `data-bib-*` portant l'id ;
   `bibVide(q, role)` nomme les filtres actifs
-- [ ] **2.2** le voir échouer (`node qa/run.mjs` → module introuvable)
-- [ ] **2.3 GREEN pur** — mod-biblio.js : les quatre fonctions pures
+- [x] **2.2** le voir échouer (`node qa/run.mjs` → module introuvable)
+- [x] **2.3 GREEN pur** — mod-biblio.js : les quatre fonctions pures
   exportées (echappement local, badges, cache-buster) + `initBiblio(VL)`
   (DOM seulement à l'appel)
-- [ ] **2.4** banc qa node vert (203 + les neufs)
-- [ ] **2.5 UI** — index.html (section #biblio + bouton ⌂ dans la barre),
+- [x] **2.4** banc qa node vert (203 + les neufs)
+- [x] **2.5 UI** — index.html (section #biblio + bouton ⌂ dans la barre),
   vectorlab.css (@import tokens, `--cat`, `select{color-scheme:dark}`,
   grille de cartes, mode-biblio), core.js (charger() sans ?doc →
   `VL.ouvrirBiblio()` ; initBiblio dans la chaîne d'init) ; `node --check`
   sur core.js et mod-biblio.js
-- [ ] **2.6 miroir pytest** — section N (RED puis GREEN) : index.html porte
+- [x] **2.6 miroir pytest** — section N (RED puis GREEN) : index.html porte
   `id="biblio"` et le bouton ⌂ ; mod-biblio.js interroge `/vector/docs`,
   ouvre `?doc=`, duplique et supprime ; core.js appelle `ouvrirBiblio`
-- [ ] **2.7 commit** — `vectorlab : page d'accueil bibliotheque (recherche, roles, creer/dupliquer/supprimer, vignettes)`
+- [x] **2.7 commit** — `vectorlab : page d'accueil bibliotheque (recherche, roles, creer/dupliquer/supprimer, vignettes)`
 
 ## Task 3 : l'onglet Vectoriel du Cardforge
 
 **Files:** Modify `frontend/cardforge/js/mod-face.js`,
 `backend/tests/test_vector_docs.py` (O).
 
-- [ ] **3.1 RED miroir** — section O : mod-face.js contient
+- [x] **3.1 RED miroir** — section O : mod-face.js contient
   `"vec"` dans la liste des onglets, `data-tab="vec"`,
   `cf-face-pane-vec`, `/api/vector/docs?deck_id=`, `/vectorlab/?doc=`,
   `img:vector_` et le HEAD de présence `/api/images/vector_`
-- [ ] **3.2 GREEN** — mod-face.js : état module `VECS` + `chargerVecs()`
+- [x] **3.2 GREEN** — mod-face.js : état module `VECS` + `chargerVecs()`
   (fetch par deck courant, silencieux hors deck), onglet + volet (création
   taille fenêtre d'illustration via `frameWindow(g)` repli 815×1110,
   Rafraîchir, lignes vignette/Ouvrir/Poser 2×/Supprimer), `poserVec` (HEAD
   puis purge `IMGS` puis `setArt("img:…")`), rechargement sur `core:doc` ;
   `node --check`
-- [ ] **3.3** banc vector vert ; `run-tests.ps1 -Filter cards_face` vert
+- [x] **3.3** banc vector vert ; `run-tests.ps1 -Filter cards_face` vert
   (le miroir cards du panneau P1)
-- [ ] **3.4 commit** — `cardforge : onglet Vectoriel du panneau face - docs lies au jeu, poser l'export 2x en illustration`
+- [x] **3.4 commit** — `cardforge : onglet Vectoriel du panneau face - docs lies au jeu, poser l'export 2x en illustration`
 
 ## Task 4 : la teinte `--cat-vectoriel`
 
 **Files:** Modify `frontend/shared/deepotus.tokens.css`,
 `frontend/dist/shared/deepotus.tokens.css`, `frontend/dist/theme-v2.css`.
 
-- [ ] **4.1** les deux blocs de chaque fichier (sombre `.72 .13 340`,
+- [x] **4.1** les deux blocs de chaque fichier (sombre `.72 .13 340`,
   clair `.52 .12 340`), la copie dist/shared restant byte-identique à la
   source (sha comparés) ; vectorlab.css consomme (fait en 2.5)
-- [ ] **4.2 commit** — `design : teinte de categorie --cat-vectoriel (OKLCH 340) aux trois feuilles de tokens`
+- [x] **4.2 commit** — `design : teinte de categorie --cat-vectoriel (OKLCH 340) aux trois feuilles de tokens`
 
 ## Task 5 : le patcher bundle + DESIGN.md
 
 **Files:** Create `scripts/patch_bundle_vectorlab.py` ; Modify
 `frontend/dist/assets/index-BEOJX8L5.js` (résultat), `DESIGN.md`.
 
-- [ ] **5.1** le patcher D7 (squelette cardforge complet) ; `--check` sur
+- [x] **5.1** le patcher D7 (squelette cardforge complet) ; `--check` sur
   le dépôt : 3 ancres à 1, marqueur absent, CRLF homogène
-- [ ] **5.2** application ; sondes stables à 1 ; copie `.mjs` +
+- [x] **5.2** application ; sondes stables à 1 ; copie `.mjs` +
   `node --check` ; relance → refus de double application constaté
-- [ ] **5.3** DESIGN.md §15-bis : ajout daté 27/08 (l'icône vectorpen —
+- [x] **5.3** DESIGN.md §15-bis : ajout daté 27/08 (l'icône vectorpen —
   tracé complet —, la teinte 340, l'entrée nav, la branche iframe, le
   patcher en queue)
-- [ ] **5.4 commit** — `bundle : categorie Vectorlab au rail (icone vectorpen, entree nav, vue iframe) - patcher assert-garde en queue de chaine`
+- [x] **5.4 commit** — `bundle : categorie Vectorlab au rail (icone vectorpen, entree nav, vue iframe) - patcher assert-garde en queue de chaine`
 
 ## Task 6 : déploiement + preuve réelle + nettoyage (D8)
 
-- [ ] **6.1** copie sha-vérifiée vers `%LOCALAPPDATA%\DeepotusVideoGen`
+- [x] **6.1** copie sha-vérifiée vers `%LOCALAPPDATA%\DeepotusVideoGen`
   (backend touché ⇒ stop.ps1, relance uvicorn cachée, santé 2.5.0)
-- [ ] **6.2** la preuve D8 au navigateur, de bout en bout, thème sombre
+- [x] **6.2** la preuve D8 au navigateur, de bout en bout, thème sombre
   puis clair pour le rail/l'iframe
-- [ ] **6.3** nettoyage vérifié aux endpoints (docs jetables, jeu de test,
+- [x] **6.3** nettoyage vérifié aux endpoints (docs jetables, jeu de test,
   PNG jetables ; les 2 docs réels intouchés)
-- [ ] **6.4** relevé dans CE document + commit final —
+- [x] **6.4** relevé dans CE document + commit final —
   `docs(plans): releve du chantier vectorlab menu general + pont cartes`
 
 ## Hors périmètre (assumé)
