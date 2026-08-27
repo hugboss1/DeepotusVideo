@@ -1874,6 +1874,148 @@
   }
 
   /* ═══════════════════════════════════════════════════════════════════════
+     3-ter. LE PONT VECTORLAB (27/08) — les documents vectoriels DU JEU
+     ═══════════════════════════════════════════════════════════════════════
+     Un document Vectorlab s'ancre au jeu (colonne deck_id du backend) et
+     s'edite dans SA surface (/vectorlab/?doc=, nouvel onglet — le meme
+     geste que l'export.svg du Vectorlab). Son export PNG 2x arrive dans le
+     magasin d'images de l'application sous le nom STABLE
+     `vector_<id>_2x.png` : « Poser 2x » le pose comme n'importe quelle
+     illustration `img:` — l'identifiant que resolvent deja artSource,
+     l'apercu et la production. Reediter puis re-exporter REECRIT le
+     fichier en place : la carte suit le vecteur. Le meme fichier sert
+     aussi les decors de cadre (source img: de la piece Cadre). */
+  let VECS = { deck: null, docs: [] };
+  let VEC_CHARGE = false;
+
+  function vecDeckId() {
+    const did = String((CF.doc() || {}).id || "");
+    return /^[A-Za-z0-9_-]{1,64}$/.test(did) ? did : "";
+  }
+
+  async function chargerVecs() {
+    const did = vecDeckId();
+    if (!did || VEC_CHARGE) return;
+    VEC_CHARGE = true;
+    try {
+      /* URLSearchParams et pas une concaténation : le pin de cloisonnement
+         du banc scanne le source pour tout identifiant DOM hors préfixe —
+         une query concaténée finissant par deck_ + i + d + signe + guillemet
+         y ressemblerait trait pour trait */
+      const ps = new URLSearchParams({ deck_id: did });
+      const r = await fetch("/api/vector/docs?" + ps);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error((d && d.detail) || String(r.status));
+      VECS = { deck: did, docs: d.docs || [] };
+    } catch (e) {
+      VECS = { deck: did, docs: [] };
+      CF.toast("documents vectoriels : " + String((e && e.message) || e), true);
+    } finally { VEC_CHARGE = false; }
+    if (CF.get("face.tab", "cat") === "vec") renderPanel();
+  }
+
+  /* Ne recharge que si la liste affichee n'est pas celle du jeu courant —
+     appele par la chaine de renderPanel, donc au premier affichage de
+     l'onglet et apres un changement de jeu. */
+  function fillVecs() {
+    if (CF.get("face.tab", "cat") !== "vec") return;
+    if (VECS.deck !== vecDeckId()) chargerVecs();
+  }
+
+  /* La taille du document neuf = la FENETRE D'ILLUSTRATION courante (le
+     cadrage que la carte donnera a l'export), repli 815x1110 px. */
+  function vecTailleDefaut() {
+    try {
+      const g = CF.geom();
+      const w = frameWindow(g);
+      const px = [Math.round(w[2]), Math.round(w[3])];
+      if (px[0] > 0 && px[1] > 0) return px;
+    } catch (e) { /* geometrie indisponible : repli */ }
+    return [815, 1110];
+  }
+
+  async function creerVec() {
+    const did = vecDeckId();
+    if (!did) { CF.toast("aucun jeu ouvert", true); return; }
+    const inp = q("#cf-face-vlab-nom");
+    const nom = String((inp && inp.value) || "").trim()
+      || "Illustration " + (VECS.docs.length + 1);
+    const t = vecTailleDefaut();
+    const doc = { v: 1, nom: nom, taille: { w: t[0], h: t[1] },
+      calques: [{ id: "c1", nom: "calque 1", visible: true, verrou: false,
+                  objets: [] }] };
+    const r = await fetch("/api/vector/docs", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: nom, role: "libre", deck_id: did,
+                             doc: doc }),
+    });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { CF.toast("création : " + (d.detail || r.status), true); return; }
+    window.open("/vectorlab/?doc=" + encodeURIComponent(d.id), "_blank");
+    VECS = { deck: null, docs: [] };     /* la liste se recharge d'elle-meme */
+    chargerVecs();
+  }
+
+  function vecExportNom(id) { return "vector_" + id + "_2x.png"; }
+
+  async function poserVec(id) {
+    const nom = vecExportNom(id);
+    const url = imgURL(nom);
+    let present = false;
+    try {
+      present = (await fetch(url, { method: "HEAD", cache: "no-store" })).ok;
+    } catch (e) { present = false; }
+    if (!present) {
+      CF.toast("aucun export 2× encore : dans le Vectorlab, menu Exporter "
+        + "→ PNG 2×, puis « Poser 2× » à nouveau", true);
+      return;
+    }
+    /* un re-export ECRASE le fichier sous le meme nom : purger le cache de
+       session, sinon la pose repeindrait l'ancien pixel */
+    IMGS.delete(url);
+    setArt("img:" + nom);
+  }
+
+  async function supprimerVec(id) {
+    if (!confirm("Supprimer ce document vectoriel ? Sa dernière version "
+                 + "reste archivée sur disque.")) return;
+    const r = await fetch("/api/vector/docs/" + encodeURIComponent(id),
+                          { method: "DELETE" });
+    if (!r.ok) { CF.toast("suppression : " + r.status, true); return; }
+    VECS = { deck: null, docs: [] };
+    chargerVecs();
+  }
+
+  function vecListeHTML() {
+    const did = vecDeckId();
+    if (!did) return '<p class="empty-note sm">Aucun jeu ouvert.</p>';
+    if (VECS.deck !== did) return '<p class="empty-note sm">chargement…</p>';
+    if (!VECS.docs.length) {
+      return '<p class="empty-note sm">Aucun document vectoriel pour ce jeu '
+        + '— créez-en un ci-dessus.</p>';
+    }
+    return VECS.docs.map((d) => {
+      const id = esc(String(d.id));
+      const vig = d.vignette
+        ? '<img src="/api/vector/docs/' + encodeURIComponent(d.id)
+          + '/vignette.png?v=' + encodeURIComponent(d.version)
+          + '" alt="" loading="lazy">'
+        : '<span class="cf-face-vlab-sans" title="la vignette naît au premier Sauver">◧</span>';
+      return '<div class="cf-face-vlab-ligne">'
+        + '<span class="cf-face-vlab-vig">' + vig + '</span>'
+        + '<span class="cf-face-vlab-nomcol"><b>' + esc(d.name) + '</b>'
+        + '<i>' + esc(d.role) + ' · v' + esc(String(d.version)) + '</i></span>'
+        + '<button class="btn sm" type="button" data-vec-open="' + id
+        + '" title="Ouvrir dans le Vectorlab (nouvel onglet)">Ouvrir</button>'
+        + '<button class="btn sm" type="button" data-vec-pose="' + id
+        + '" title="Pose l\'export PNG 2× comme illustration de la carte">Poser 2×</button>'
+        + '<button class="btn sm" type="button" data-vec-del="' + id
+        + '" title="Supprimer (la dernière version reste archivée)">✕</button>'
+        + '</div>';
+    }).join("");
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════
      4. RESOLUTION DE L'ILLUSTRATION + CACHE
      ═══════════════════════════════════════════════════════════════════════ */
   /* CF.imageURL() construit /api/images/file/<nom> — cette route N'EXISTE PAS
@@ -3164,7 +3306,7 @@
     if (!HOST) return;
     const f = CF.doc().face;
     const g = CF.geom();
-    const tab = ["cat", "imp", "ai"].indexOf(f.tab) >= 0 ? f.tab : "cat";
+    const tab = ["cat", "imp", "ai", "vec"].indexOf(f.tab) >= 0 ? f.tab : "cat";
     const serie = serieActive() || "vectoriel";
     const free = f.fit === "free";
     /* CE QU'IL Y A A ADOPTER DE LA PIECE 10, calcule ICI et pas garde : le
@@ -3179,6 +3321,8 @@
       + '<button class="seg-b' + (tab === "cat" ? " active" : "") + '" type="button" data-tab="cat">Catalogue ' + DRAWINGS + '</button>'
       + '<button class="seg-b' + (tab === "imp" ? " active" : "") + '" type="button" data-tab="imp">Importées ' + PILE.length + '</button>'
       + '<button class="seg-b' + (tab === "ai" ? " active" : "") + '" type="button" data-tab="ai">Générer par IA</button>'
+      + '<button class="seg-b' + (tab === "vec" ? " active" : "") + '" type="button" data-tab="vec" title="Documents vectoriels du jeu (Vectorlab)">Vectorlab'
+      + (VECS.deck === vecDeckId() && VECS.deck ? " " + VECS.docs.length : "") + '</button>'
       + '</div>'
 
       /* ── catalogue ── */
@@ -3317,6 +3461,19 @@
       + '<div id="cf-face-ai-out"></div>'
       + '</div>'
 
+      /* ── vectorlab (27/08) : les documents vectoriels du jeu ── */
+      + '<div class="cf-face-pane' + (tab === "vec" ? " on" : "") + '" id="cf-face-pane-vec">'
+      + '<div class="cf-face-row">'
+      + '<input class="search sm" id="cf-face-vlab-nom" type="text" placeholder="nom du nouveau document">'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-new" title="Crée un document ancré à ce jeu (taille = fenêtre d\'illustration) et l\'ouvre dans le Vectorlab">+ Nouveau</button>'
+      + '<button class="btn sm" type="button" id="cf-face-vlab-refresh" title="Relit la liste (versions, vignettes, exports)">Rafraîchir</button>'
+      + '</div>'
+      + '<div id="cf-face-vlab-liste">' + vecListeHTML() + '</div>'
+      + '<p class="hint">Un document s\'édite dans le <b>Vectorlab</b> (nouvel onglet). « Poser 2× » pose son export PNG '
+      + '(menu Exporter → PNG 2× du Vectorlab) comme illustration de la carte ; rééditer puis ré-exporter met la carte à jour '
+      + '(même fichier, réécrit en place). Le même PNG sert aussi de source img: aux décors de la pièce Cadre.</p>'
+      + '</div>'
+
       /* ── placement ── */
       + '<div class="sep"></div>'
       + '<div class="cf-face-place">'
@@ -3386,6 +3543,7 @@
     fillCatalog();
     fillPile();
     fillAI();
+    fillVecs();
     fillPalettes();
     paintGauge();
     readout();
@@ -3912,6 +4070,29 @@
       M.patch({ serie: voie });
       if (voie !== "vectoriel") await serieLoad();
       renderPanel();
+    });
+
+    /* vectorlab */
+    q("#cf-face-vlab-new").addEventListener("click", () => {
+      creerVec().catch((e) => CF.toast(String((e && e.message) || e), true));
+    });
+    q("#cf-face-vlab-refresh").addEventListener("click", () => {
+      VECS = { deck: null, docs: [] };
+      chargerVecs();
+    });
+    q("#cf-face-vlab-liste").addEventListener("click", (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      if (b.dataset.vecOpen) {
+        window.open("/vectorlab/?doc=" + encodeURIComponent(b.dataset.vecOpen),
+                    "_blank");
+      } else if (b.dataset.vecPose) {
+        poserVec(b.dataset.vecPose)
+          .catch((err) => CF.toast(String((err && err.message) || err), true));
+      } else if (b.dataset.vecDel) {
+        supprimerVec(b.dataset.vecDel)
+          .catch((err) => CF.toast(String((err && err.message) || err), true));
+      }
     });
 
     /* importees */

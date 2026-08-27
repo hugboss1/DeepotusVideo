@@ -635,6 +635,26 @@ def test_le_miroir_bibliotheque_vectorlab():
     assert "--cat-vectoriel" in css and "color-scheme" in css
 
 
+# ── O. miroirs du pont cartes : l'onglet Vectoriel du panneau face ───────────
+
+def test_le_miroir_pont_cartes_mod_face():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    face = (racine / "frontend" / "cardforge" / "js"
+            / "mod-face.js").read_text("utf-8")
+    # le 4e onglet du panneau P1 et son volet
+    assert 'data-tab="vec"' in face and "cf-face-pane-vec" in face
+    # les docs du JEU : liste filtrée par deck (URLSearchParams — le pin de
+    # cloisonnement cards interdit tout littéral `id="` hors préfixe),
+    # ouverture dans l'éditeur
+    assert "/api/vector/docs?" in face and "deck_id: did" in face
+    assert "/vectorlab/?doc=" in face
+    # le chemin RETOUR : l'export 2x du magasin posé en illustration img:,
+    # présence vérifiée AVANT la pose (HEAD), cache de session purgé pour
+    # qu'un ré-export repeigne
+    assert "poserVec" in face and "_2x.png" in face
+    assert '"HEAD"' in face and "IMGS.delete" in face
+
+
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───
 
 def test_le_pont_cartes_deck_id_et_la_migration():
