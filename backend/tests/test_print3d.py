@@ -282,3 +282,18 @@ def test_les_routes_print3d_exportent_et_ouvrent():
                 P3._lancer_startfile = vrai
 
     asyncio.run(scenario())
+
+
+# ── D. miroirs des écrans : le bouton « → Impression 3D » de la Forge 3D ─────
+
+def test_le_miroir_forge3d_imprimer():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    js = (racine / "frontend" / "cardforge" / "js"
+          / "mod-forge3d.js").read_text("utf-8")
+    # le bouton n'existe que quand le STL est ÉCRIT (gate solide fermé) ;
+    # l'export part par la voie binaire — étanchéité GARANTIE, dite par le
+    # producteur — puis l'ouverture dans le slicer est proposée
+    assert 'data-act="imprimer-3d"' in js
+    assert "/api/print3d/from-stl" in js
+    assert "etanche" in js and "garantie" in js
+    assert "/api/print3d/open" in js

@@ -870,6 +870,53 @@
     }
   }
 
+  /* « → Impression 3D » (plan 2026-08-27-impression-3d-slicer, phase 1) :
+     le STL du gate — un solide FERMÉ, aux mm réels de la carte — part par
+     sa PROVENANCE (M.api.blob) vers le service print3d qui écrit le
+     dossier STL + 3MF (étanchéité GARANTIE : le producteur le prouve),
+     puis l'ouverture dans le slicer est proposée. Vide = « tel quel ». */
+  async function imprimer3d(name) {
+    if (!name) return;
+    try {
+      const rep = prompt(
+        "Taille cible en mm ? (vide = tel quel — la carte est déjà en mm "
+        + "réels ; ex. 80 pour une figurine, 250 max sur le plateau "
+        + "Centauri Carbon 2 : 256)", "");
+      if (rep === null) return;
+      let cible = null;
+      if (rep.trim() !== "") {
+        cible = +rep.trim();
+        if (!(cible > 0)) { M.toast("taille en mm invalide", true); return; }
+      }
+      const blob = await M.api.blob("GET", "file/" + encodeURIComponent(name));
+      const doc = CF.doc() || {};
+      const ps = new URLSearchParams({
+        nom: String(doc.name || doc.id || "carte").slice(0, 60),
+        source: "forge3d", etanche: "garantie",
+      });
+      if (cible !== null) ps.set("cible_mm", String(cible));
+      const r = await fetch("/api/print3d/from-stl?" + ps, {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" }, body: blob,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.detail || String(r.status));
+      M.toast("dossier d'impression : " + d.dossier + " ("
+        + d.triangles + " triangles)");
+      if (confirm("Export écrit (" + d.dossier
+                  + ") — ouvrir le .3mf dans le slicer ?")) {
+        const o = await fetch("/api/print3d/open", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ dossier: d.dossier }),
+        });
+        const od = await o.json().catch(() => ({}));
+        if (!o.ok) throw new Error(od.detail || String(o.status));
+      }
+    } catch (e) {
+      M.toast("impression 3D : " + String((e && e.message) || e), true);
+    }
+  }
+
   function onSlipClick(e) {
     const b = e.target.closest ? e.target.closest("[data-act]") : null;
     if (!b) return;
@@ -877,6 +924,9 @@
     if (act === "grab-zip" || act === "grab-file") {
       e.preventDefault();
       grabZip(b.getAttribute("data-name"));
+    } else if (act === "imprimer-3d") {
+      e.preventDefault();
+      imprimer3d(b.getAttribute("data-name"));
     } else if (act === "publish-lib") {
       /* le MÊME acte que sur le nœud artefact (`onGraphClick`) : publier est
          une action du BORDEREAU, pas d'une vue. */
@@ -3593,9 +3643,17 @@
     }
     if (fmt === "stl") {
       /* LE MOTIF DU REFUS, TEL QUEL (`art.stl.why`) — jamais réécrit par
-         l'écran : c'est la mesure du solide fermé qui parle. */
+         l'écran : c'est la mesure du solide fermé qui parle. Quand le STL
+         EST écrit (donc fermé par le gate), l'impression 3D est à un
+         geste : dossier STL+3MF aux mm de la carte, puis le slicer. */
       return (art.stl && art.stl.written)
-        ? fichierHtml("STL", art.stl.name, art.stl.bytes)
+        ? (fichierHtml("STL", art.stl.name, art.stl.bytes)
+          + '<div class="cf-forge3d-file"><span class="mono">solide FERMÉ '
+          + '(gate) — dossier d\'impression STL + 3MF aux mm réels</span>'
+          + '<button class="btn sm" type="button" data-act="imprimer-3d" '
+          + 'data-name="' + esc(art.stl.name)
+          + '" title="Écrit un dossier assets/print3d (STL + 3MF, étanchéité garantie par le gate) puis propose d\'ouvrir le .3mf dans le slicer (ElegooSlicer)">'
+          + '→ Impression 3D</button></div>')
         : ('<p class="hint"><b>STL non fourni</b> : '
           + esc((art.stl && art.stl.why) || "motif non rendu par le backend")
           + '</p>');
@@ -5031,6 +5089,9 @@
          fichier livré se télécharge par sa PROVENANCE, d'où qu'on clique. */
       e.preventDefault();
       grabZip(b.getAttribute("data-name"));
+    } else if (act === "imprimer-3d") {
+      e.preventDefault();
+      imprimer3d(b.getAttribute("data-name"));
     } else if (act === "build3d") {
       e.preventDefault();
       build3d();
