@@ -1961,9 +1961,15 @@
   async function poserVec(id) {
     const nom = vecExportNom(id);
     const url = imgURL(nom);
+    /* GET et pas HEAD, et le content-type est CONTROLE : FastAPI ne route
+       pas HEAD — la requete tombait dans le catch-all de la SPA qui repond
+       200 HTML pour n'importe quoi (piege n°7 rejoue, attrape par la preuve
+       reelle du 27/08) et le garde laissait poser un export inexistant. */
     let present = false;
     try {
-      present = (await fetch(url, { method: "HEAD", cache: "no-store" })).ok;
+      const rep = await fetch(url, { cache: "no-store" });
+      present = rep.ok
+        && /image\/png/.test(rep.headers.get("content-type") || "");
     } catch (e) { present = false; }
     if (!present) {
       CF.toast("aucun export 2× encore : dans le Vectorlab, menu Exporter "

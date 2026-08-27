@@ -649,10 +649,14 @@ def test_le_miroir_pont_cartes_mod_face():
     assert "/api/vector/docs?" in face and "deck_id: did" in face
     assert "/vectorlab/?doc=" in face
     # le chemin RETOUR : l'export 2x du magasin posé en illustration img:,
-    # présence vérifiée AVANT la pose (HEAD), cache de session purgé pour
-    # qu'un ré-export repeigne
+    # présence vérifiée AVANT la pose par un GET dont on contrôle le
+    # content-type — JAMAIS un HEAD : FastAPI ne route pas HEAD, la requête
+    # tombait dans le catch-all SPA qui répond 200 HTML (piège n°7 rejoué,
+    # attrapé par la preuve réelle du 27/08). Cache de session purgé pour
+    # qu'un ré-export repeigne.
     assert "poserVec" in face and "_2x.png" in face
-    assert '"HEAD"' in face and "IMGS.delete" in face
+    assert '"HEAD"' not in face
+    assert "image/png" in face and "IMGS.delete" in face
 
 
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───
