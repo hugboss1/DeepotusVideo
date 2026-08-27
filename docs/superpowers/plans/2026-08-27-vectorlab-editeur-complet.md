@@ -1,7 +1,7 @@
 # Vectorlab éditeur complet — formats, couleur vraie, unités & cotes vives
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans
-> (exécution inline, session du 27/08). Steps use checkbox (`- [ ]`) syntax.
+> (exécution inline, session du 27/08). Steps use checkbox (`- [x]`) syntax.
 
 > Ordre utilisateur du 27/08 (verbatim condensé) : « vectorlab ne soit pas
 > cantonné au preset vitrail — éditer tout type d'illustration
@@ -12,6 +12,26 @@
 > s'afficher en temps réel le long du geste, en accord avec ce que je
 > dessine (longueur/largeur pour les formes, rayon/diamètre pour les
 > cercles/ellipses…) ». Expansion COMMITTÉE avant le code (patron 0→6).
+
+> **RELEVÉ (27/08) : CHANTIER LIVRÉ, DÉPLOYÉ, PROUVÉ EN RÉEL, NETTOYÉ.**
+> Huit commits T1→T8 + preuve. TDD tenu : RED constaté à chaque module
+> (unites 17, couleur 15, classiques 19, formats +7 — **41 contrôles qa
+> neufs, 275 cumulés**), un pin de test corrigé contre sa propre règle
+> (6,35 mm → 6,4 : arrondi demi-haut toPrecision(12), patron du
+> sérialiseur) ; banc vector 20 tests, cards_face 147 verts ; déployé
+> sha-vérifié (10 fichiers statiques, backend intact, santé 2.5.0).
+> **Preuves app réelle** (gestes pointer synthétiques, DOM) : select des
+> 9 formats servi, A4 → 2480×3508 px, unités mm/300, taille reflétée
+> verrouillée, bouton d'unité « mm », vitrail REPLIÉ ; **cotes vives
+> pendant le geste** : rect « 42 × 21 mm », cercle Maj « r 12,9 · ⌀ 25,7
+> mm », outil mesure « 25,7 mm ∠ 0° » SANS rien créer, outil ligne
+> « 50,8 mm ∠ 0° » → segment né ; **nuancier par la pastille du
+> panneau** : CMJN 100/0/0/0 → #00FFFF, ＋ palette du document
+> (`doc.palette`), Appliquer → fond ET rendu DOM #00FFFF, popover
+> refermé ; cycle d'unité mm→cm par le bouton puis **annulé** (vraie
+> commande) ; X saisi 50 mm → bbox exacte ; centreH d'un objet seul →
+> page (1240 px exact) ; dupliquer +1, miroir, rayon 24 posé. Nettoyage :
+> doc jetable archivé, les 2 docs réels seuls restants.
 
 **Goal :** le Vectorlab devient un éditeur vectoriel généraliste : formats
 de document à la création (A4/A5/carré/16:9/carte… px ou mm), unités
@@ -176,39 +196,39 @@ backend/tests/test_vector_docs.py      section P (miroirs éditeur complet)
 
 ## Tasks (TDD, une par commit)
 
-- [ ] **T1 unités** : qa `unites.test.mjs` RED (conversions exactes
+- [x] **T1 unités** : qa `unites.test.mjs` RED (conversions exactes
   300 dpi : 300 px = 25,4 mm = 2,54 cm = 1 in ; formatMesure px/mm/cm/in ;
   libelle_mesure rect/cercle/ellipse/segment/delta) → mod-unites.js →
   GREEN → commit
-- [ ] **T2 couleur pure** : qa `couleur.test.mjs` RED (hex↔rgb strict,
+- [x] **T2 couleur pure** : qa `couleur.test.mjs` RED (hex↔rgb strict,
   rgb↔hsv aller-retour, rgb↔cmjn naïf bornes 0/100, palette_defaut 48
   uniques valides, op_palette_ajouter dédoublonne / retirer, parserDoc
   accepte palette et REFUSE une non-liste) → mod-couleur.js (pur) +
   parserDoc (E1 : unites + palette) → GREEN → commit
-- [ ] **T3 classiques purs** : qa `classiques.test.mjs` RED
+- [x] **T3 classiques purs** : qa `classiques.test.mjs` RED
   (op_dupliquer ids neufs récursifs + décalage ; op_miroir h/v rect/
   ellipse/path exactes, texte position seule ; op_aligner 6 modes sur
   paires ; op_distribuer écarts égaux, refus < 3 ; op_rect_rayon borné
   ≥ 0 et rects seuls) → ops dans mod-doc → GREEN → commit
-- [ ] **T4 formats** : blocs RED dans biblio.test.mjs (FORMATS ≥ 8
+- [x] **T4 formats** : blocs RED dans biblio.test.mjs (FORMATS ≥ 8
   entrées, formatVersDoc A4 = 2480×3508 px @300 + unites mm, carte
   poker 750×1050, libre lit la taille, vitrail 640×960 px) →
   mod-biblio + rangée de création (select) → GREEN → commit
-- [ ] **T5 UI unités & cotes & outils** : règles en unités + bouton
+- [x] **T5 UI unités & cotes & outils** : règles en unités + bouton
   cyclique (core), étiquette d'aperçu + cotes sur rect/ellipse/resize/
   move/plume (mod-tools), outils ligne ╱ et mesure ⤢ (+ raccourcis
   L/M), Ctrl+0/Ctrl+1 ; node --check → commit
-- [ ] **T6 UI couleur** : popover nuancier (SV+teinte+RGB+CMJN+hex+
+- [x] **T6 UI couleur** : popover nuancier (SV+teinte+RGB+CMJN+hex+
   palettes), pastilles fond/contour/stops, ＋/✕ palette du document ;
   details Vitrail replié (E9) ; node --check → commit
-- [ ] **T7 UI classiques** : X/Y/L/H en unités, rangées Aligner/
+- [x] **T7 UI classiques** : X/Y/L/H en unités, rangées Aligner/
   Distribuer/Miroir/Dupliquer/Rayon dans Apparence, Ctrl+D/C/V,
   flèches ±1/±10 ; node --check → commit
-- [ ] **T8 miroirs + pont cartes** : section P pytest RED→GREEN
+- [x] **T8 miroirs + pont cartes** : section P pytest RED→GREEN
   (mod-unites/mod-couleur existent et sont branchés, index.html porte
   les outils et le bouton d'unité, mod-face pose unites mm) ; banc
   vector + qa node complets verts → commit
-- [ ] **T9 déploiement & preuve réelle** : sha+déploiement statique,
+- [x] **T9 déploiement & preuve réelle** : sha+déploiement statique,
   preuve navigateur (créer un A4 → règles en mm, tracer un rect → cote
   vive « L × H mm » constatée dans l'aperçu DOM, cercle → « r · ⌀ »,
   outil mesure, nuancier : CMJN→hex appliqué à un fond par la vraie
