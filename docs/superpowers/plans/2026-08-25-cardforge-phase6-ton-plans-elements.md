@@ -420,6 +420,42 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   dés fal ne sont pas déterministes —, backlight_pines, ou clore à 47)
   = décision utilisateur.
 
+- [x] **T1-P (RÉEL) — L'ENVELOPPE À 25 $ EN MONO-MARCHE (ordre du 27/08 au
+  soir : « relève a 25$ et tire le reste mais focalise toi uniquement sur
+  nano banana pro ») : +10 CASES SUR 34 SONDES, LA SÉRIE PASSE LA MOITIÉ —
+  57/108, DEUX 100,0 DE PLUS (6 PARFAITS AU TOTAL), BACKLIGHT À 10/18.**
+  Rebranchement au commit `679b3c0` (rebasé sur le chantier vitrail
+  f80cdfd) : `SERIE_ECHELLE = ("nano-banana-pro",)` — la marche
+  gpt-image-2-fal SORT de l'échelle (0 victoire en 15 montées payées,
+  2,175 $ de secours pour rien ; façade et table la GARDENT, un retour =
+  une ligne) ; plafond 20→25 ; pins re-dérivés RED d'abord (échelle 0,15,
+  état/devis 25, 166 ouvrables à vide et `multi_session` False — le pire
+  cas série entière 16,20 passe SOUS le plafond pour la première fois —,
+  garde d'ouverture 4 cases/reliquat 4,68, plafond dur 13 cases/23,40,
+  journal enchaîné sur 2 cases, une seule voie nommée) ; cards_face +
+  serie_ton verts ; déployé sha-vérifié, devis servi : 0,15/case, 34
+  ouvrables sur 61. **Campagne : les 34 meilleures refusées par score
+  décroissant (89,3 → 75,0), 6 lots (5×6+4), 5,10 $ — DIX victoires,
+  toutes nano-banana-pro + frère mis au ton : heraldry_monolith 100,0 et
+  medallion_beacon 100,0 (5e et 6e PARFAITS), stained_beacon 96,4,
+  backlight_whale 96,4, backlight_knight/monolith/serpent/phoenix 89,3
+  (le monolith de l'ordre T1-N tombe au 3e re-lancer, le phénix à
+  contre-jour aussi), depths_sphinx 85,7, vista_phoenix 85,7.**
+  Vingt-quatre refus (dont les re-lancers restés à quai : stained_serpent
+  92,9 tué par la SEULE part quasi-grise, heraldry_beacon 89,3 part
+  claire — les deux meilleurs tickets d'une enveloppe future) ; « part
+  claire » reste l'axe dominant, et les depths (fonds sombres immergés)
+  s'effondrent souvent en multi-axes (34,6-57,7). **ÉTAT FINAL VÉRIFIÉ
+  (bilan + devis machine) : 57/108, dépense 24,897 $/25,00, reste
+  0,103 — 0 ouvrable, mur re-fermé. Le taux mono-marche : 10/34 = 29 % à
+  0,15 $ la sonde (0,51 $ la case gagnée, contre ~1,0-1,3 $ aux échelles
+  précédentes). Cumul de la journée fal (T1-M/N/O/P) : 54 sondes, 15
+  victoires, 42→57/108 pour 10,275 $ ; backlight 10/18 ; compositions
+  servies (recomptées au GET) : stained 12 · vista 12 · heraldry 10 ·
+  backlight 10 · medallion 8 · depths 5. Restent 51 refusées — les
+  re-lancers ne sont pas déterministes : relever encore ou clore à 57 =
+  décision utilisateur.**
+
 ### T2 — MESHY_MOCK au .env (D4)
 
 - [x] **T2-A** : `MESHY_MOCK=1` écrit au .env du DATA_ROOT avec commentaire
