@@ -143,6 +143,54 @@ def test_le_crud_vector_docs():
     asyncio.run(scenario())
 
 
+# ── E. l'export SVG : le client compile, le serveur stocke et sert ───────────
+
+def test_l_export_svg_stocke_et_sert():
+    import asyncio
+    from httpx import AsyncClient, ASGITransport
+
+    async def scenario():
+        from app.main import app
+        from app.services.storage import init_db
+        await init_db()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://t") as c:
+            r = await c.post("/api/vector/docs", json={
+                "name": "Export", "role": "decor", "doc": _doc("Export")})
+            did = r.json()["id"]
+            # avant tout export : 404 parlant
+            r = await c.get(f"/api/vector/docs/{did}/export.svg")
+            assert r.status_code == 404
+            assert "export" in r.json()["detail"].lower()
+            # pousser un SVG compilé côté client
+            svg1 = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect x="1" y="1" width="6" height="6" fill="#0047AB"/></svg>'
+            r = await c.post(f"/api/vector/docs/{did}/export",
+                             json={"svg": svg1})
+            assert r.status_code == 200, r.text
+            assert r.json()["filename"] == f"{did}.svg"
+            fichier = pathlib.Path(os.environ["VECTOR_FOLDER"]) / f"{did}.svg"
+            assert fichier.is_file()
+            # le GET sert le SVG stocké, au bon type
+            r = await c.get(f"/api/vector/docs/{did}/export.svg")
+            assert r.status_code == 200
+            assert r.headers["content-type"].startswith("image/svg+xml")
+            assert r.text == svg1
+            # le ré-export remplace
+            svg2 = svg1.replace("#0047AB", "#9B111E")
+            await c.post(f"/api/vector/docs/{did}/export", json={"svg": svg2})
+            r = await c.get(f"/api/vector/docs/{did}/export.svg")
+            assert "#9B111E" in r.text
+            # refus nets : pas un svg ; id inconnu
+            r = await c.post(f"/api/vector/docs/{did}/export",
+                             json={"svg": "PAS DU SVG"})
+            assert r.status_code == 400
+            r = await c.post("/api/vector/docs/fantome/export",
+                             json={"svg": svg1})
+            assert r.status_code == 404
+
+    asyncio.run(scenario())
+
+
 # ── D. les surfaces : mount /vectorlab et panneau chapitre de l'Atelier ──────
 
 def test_le_mount_vectorlab_et_le_panneau_atelier():

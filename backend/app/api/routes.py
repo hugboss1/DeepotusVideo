@@ -5290,6 +5290,36 @@ async def delete_vector_doc(doc_id: str):
     return {"ok": True}
 
 
+@router.post("/vector/docs/{doc_id}/export")
+async def export_vector_doc(doc_id: str, body: dict):
+    """Body: {svg}. Le CLIENT compile (compilateur unique du Vectorlab,
+    verrouillé au snapshot qa) ; le serveur stocke `<id>.svg` à côté du
+    JSON et le sert au GET export.svg. Le ré-export remplace."""
+    from app.services import vector_store as VS
+    from app.services.storage import VectorDoc, async_session_factory
+    svg = (body.get("svg") or "").strip()
+    if not svg.startswith("<svg"):
+        raise HTTPException(400, "svg requis (le document compilé du client)")
+    async with async_session_factory() as session:
+        if not await session.get(VectorDoc, doc_id):
+            raise HTTPException(404, "Document introuvable")
+    try:
+        return {"filename": VS.ecrire_svg(doc_id, svg)}
+    except FileNotFoundError:
+        raise HTTPException(404, "Contenu du document introuvable")
+
+
+@router.get("/vector/docs/{doc_id}/export.svg")
+async def get_vector_export_svg(doc_id: str):
+    from fastapi.responses import Response
+    from app.services import vector_store as VS
+    svg = VS.lire_svg(doc_id)
+    if svg is None:
+        raise HTTPException(404, "Aucun export encore : exporte d'abord "
+                                 "depuis l'éditeur (bouton Exporter → SVG)")
+    return Response(content=svg, media_type="image/svg+xml")
+
+
 @router.get("/atelier/shotcraft")
 async def shotcraft_info():
     """v1.22 (W-d) — état du pont video-shotcraft + catalogue des recettes

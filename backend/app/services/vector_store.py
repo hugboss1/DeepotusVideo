@@ -91,6 +91,23 @@ def ecrire(did: str, doc: dict) -> int:
     return v + 1
 
 
+def ecrire_svg(did: str, svg: str) -> str:
+    """Stocke l'export SVG compilé PAR LE CLIENT (compilateur unique,
+    verrouillé au snapshot qa) à côté du JSON — écriture atomique."""
+    d = _dossier()
+    if not (d / f"{did}.json").is_file():
+        raise FileNotFoundError(did)
+    tmp = d / f"{did}.svg.tmp"
+    tmp.write_text(svg, encoding="utf-8")
+    os.replace(tmp, d / f"{did}.svg")
+    return f"{did}.svg"
+
+
+def lire_svg(did: str):
+    p = _dossier() / f"{did}.svg"
+    return p.read_text(encoding="utf-8") if p.is_file() else None
+
+
 def supprimer(did: str) -> None:
     """Archive le courant en `.v<version>` — jamais de suppression brute."""
     d = _dossier()
