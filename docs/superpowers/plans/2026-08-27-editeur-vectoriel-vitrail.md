@@ -383,6 +383,25 @@ graisse, interlettrage) posé et transformable. **Preuve :** banc qa des
 booléens sur cas de référence (aires attendues à ±0,5 %, compte de fragments
 exact sur la division) ; licence martinez jointe et créditée.
 
+> **RELEVÉ (27/08) : PHASE 3 LIVRÉE ET DÉPLOYÉE.** Martinez 0.7.4 vendorisé
+> (58,6 Ko UMD, licence MIT jointe, `package.json` commonjs local, fumée
+> node exacte 15000/5000/5000) ; aplatissement à matrices composées et
+> subdivision 0,25 px (plancher 64 sur l'ellipse — le polygone inscrit
+> sous-estimait l'aire de 0,54 %, le banc l'a attrapé) ; ops booléennes au
+> plus bas + division-métier à contours GONFLÉS ; texte SVG complet.
+> **43 contrôles qa neufs (189 cumulés)** — dont un VRAI défaut attrapé :
+> martinez ne garantit pas l'opposition d'orientation des trous, `_dDePoly`
+> la force (sinon rendu nonzero plein et aires additionnées). Preuves app
+> réelles (doc jetable archivé) : **plaque + croix de deux plombs TRACÉS →
+> bouton ⧉ → 4 fragments EXACTEMENT**, plombs intacts, style doré copié,
+> 4 paths rendus ; **undo de la division = état exact**, refaire ; texte
+> posé à l'outil (« Vitrail Młoda Polska » rendu), corps 36 + bold
+> appliqués au panneau et constatés dans le DOM ; sauvé v2. Périmètre v1
+> assumé : `rx` des rects arrondis ignoré à l'aplatissement ; un texte
+> dans une sélection booléenne est refusé avec message (vectorisation hors
+> périmètre, conforme au plan). Prochaine étape : phase 4 (exports &
+> intégrations), sur ordre.
+
 ### Expansion d'exécution (27/08, phase 2 livrée)
 
 Décisions : martinez vendorisé en UMD sous `vendor/` avec un `package.json
@@ -404,28 +423,28 @@ marche gratuitement) ; le redimensionnement met le corps à l'échelle ; la
 vectorisation des glyphes reste hors périmètre (un texte dans une
 sélection booléenne est refusé avec message).
 
-- [ ] **T3.1 vendor** : martinez UMD épinglé + LICENCE jointe +
+- [x] **T3.1 vendor** : martinez UMD épinglé + LICENCE jointe +
   `package.json` commonjs local + résolveur `mod-bool.js` — fumée qa
   (union 2 carrés, require node)
-- [ ] **T3.2 aplatir** : `aplatir_objet(objet, tol=0.25)` → anneaux
+- [x] **T3.2 aplatir** : `aplatir_objet(objet, tol=0.25)` → anneaux
   (rect exact, ellipse adaptative, path M/L/C/Q/Z par subdivision,
   sous-chemins multiples, transform appliqué) + `aire_de(anneaux)` — qa
   `booleens.test.mjs` : aires ±0,5 % (ellipse, cercle en 4 cubiques),
   rotation à aire conservée
-- [ ] **T3.3 union/soustraction/intersection** : `op_booleen(doc, ids,
+- [x] **T3.3 union/soustraction/intersection** : `op_booleen(doc, ids,
   mode)` — remplace au plus bas, style conservé, aires exactes sur rects
   (15000/5000/5000), refus <2 objets et texte
-- [ ] **T3.4 division** : `op_division(doc, ids)` — plaque = le plus bas,
+- [x] **T3.4 division** : `op_division(doc, ids)` — plaque = le plus bas,
   découpeurs = fonds pleins OU contours gonflés, fragments indépendants
   (compte EXACT : bande verticale → 2 ; découpeur intérieur → 1 avec trou
   en sous-chemin), plombs conservés
-- [ ] **T3.5 texte** : compilation `<text>` échappée (police, corps,
+- [x] **T3.5 texte** : compilation `<text>` échappée (police, corps,
   graisse, interlettrage depuis style), déplacement/redimensionnement
   (corps à l'échelle), snapshot étendu — qa `texte.test.mjs`
-- [ ] **T3.6 UI** : outil Texte (T, clic → invite), section Fonte du
+- [x] **T3.6 UI** : outil Texte (T, clic → invite), section Fonte du
   panneau (sélection texte), rangée Booléens (∪ ⊖ ∩ ⧉ — ⧉ EST le preset
   métier « diviser le verre par les plombs »), raccourcis — node --check
-- [ ] **T3.7 déploiement & preuve réelle** : plaque + plombs à la plume →
+- [x] **T3.7 déploiement & preuve réelle** : plaque + plombs à la plume →
   division dans l'app réelle (fragments comptés, plombs intacts), texte
   posé/stylé, relevé au plan
 
