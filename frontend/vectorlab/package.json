@@ -1,0 +1,6 @@
+{
+  "name": "vectorlab",
+  "private": true,
+  "type": "module",
+  "description": "Editeur vectoriel Deepotus - surface modulaire servie par le backend; ce package.json ne sert qu'a node (banc qa/) pour lire les memes fichiers ESM que le navigateur."
+}

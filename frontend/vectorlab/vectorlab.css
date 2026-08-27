@@ -1,0 +1,40 @@
+/* Vectorlab — thème sobre sombre (phase 0 : lecture, zoom/pan). */
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  display: flex; flex-direction: column;
+  background: #101216; color: #d6d9de;
+  font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+}
+.bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px; background: #171a20;
+  border-bottom: 1px solid #262b34;
+}
+.brand { font-weight: 700; letter-spacing: .04em; color: #9db4d6; }
+.doc b { color: #eef1f5; font-weight: 600; }
+.doc span { color: #8b93a0; margin-left: 6px; font-size: 12px; }
+.spacer { flex: 1; }
+#zoomLabel { color: #8b93a0; font-variant-numeric: tabular-nums; }
+button {
+  background: #232833; color: #d6d9de; border: 1px solid #313847;
+  border-radius: 6px; padding: 4px 10px; cursor: pointer; font-size: 13px;
+}
+button:hover { background: #2b3140; }
+#stage {
+  flex: 1; overflow: hidden; position: relative;
+  background:
+    linear-gradient(45deg, #14171c 25%, transparent 25%, transparent 75%, #14171c 75%),
+    linear-gradient(45deg, #14171c 25%, transparent 25%, transparent 75%, #14171c 75%),
+    #191d23;
+  background-size: 24px 24px; background-position: 0 0, 12px 12px;
+  cursor: grab;
+}
+#stage.saisi { cursor: grabbing; }
+#canvasHost { position: absolute; inset: 0; display: grid; place-items: center; }
+#canvasHost svg {
+  transform-origin: center center;
+  box-shadow: 0 6px 32px rgba(0, 0, 0, .55);
+  background: #fff;
+}
+.erreur { color: #e08a8a; }

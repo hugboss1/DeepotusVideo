@@ -262,6 +262,35 @@ if _atelier.is_dir():
 
     logger.info(f"Serving atelier from {_atelier}")
 
+# ── Vectorlab (phase 0, plan 2026-08-27-editeur-vectoriel-vitrail): éditeur
+# vectoriel — surface modulaire en sources (frontend/vectorlab/), servie ici
+# comme /atelier, ouverte par l'Atelier via /vectorlab/?doc=<id>.
+_vectorlab = Path(__file__).resolve().parent.parent.parent / "frontend" / "vectorlab"
+if _vectorlab.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFVl
+
+    class _VectorlabStatic(_SFVl):
+        """no-cache : core.js/mod-doc.js gardent un nom stable — sans
+        revalidation, une page périmée survivrait aux mises à jour."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/vectorlab",
+              _VectorlabStatic(directory=str(_vectorlab), html=True),
+              name="vectorlab")
+
+    @app.get("/vectorlab", include_in_schema=False)
+    async def _vectorlab_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/vectorlab/", status_code=307)
+
+    logger.info(f"Serving vectorlab from {_vectorlab}")
+
 # ── Sprite Lab (chantier 9c): Game Assets 2D — source vidéo → sprite sheet,
 # at /spritelab. Standalone page (frontend/spritelab/) outside the compiled
 # bundle, iframed by the SPA's Game Assets hub (patch_bundle_spritelab).
