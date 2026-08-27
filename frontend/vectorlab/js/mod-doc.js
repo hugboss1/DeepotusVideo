@@ -694,6 +694,131 @@ export function op_guide_deplacer(doc, axe, i, pos) {
   g[i] = Number(pos);
 }
 
+/* ── les classiques (éditeur complet, E8) : dupliquer, miroir, aligner,
+   distribuer, rayon d'angle. Les bboxes d'alignement sont FOURNIES par
+   l'appelant (le DOM mesure, l'op reste pure — patron op_redimensionner). */
+
+export function op_dupliquer(doc, ids, dx = 12, dy = 12) {
+  const cibles = [..._objetsCibles(doc, ids)];
+  if (!cibles.length) throw new Error("rien à dupliquer");
+  const pris = _idsPris(doc);
+  let n = 1;
+  const idNeuf = () => {
+    while (pris.has("o" + n)) n++;
+    const id = "o" + n;
+    pris.add(id);
+    return id;
+  };
+  const reid = (o) => {
+    o.id = idNeuf();
+    if (o.type === "groupe") (o.enfants || []).forEach(reid);
+  };
+  const neufs = [];
+  // _objetsCibles rend les index DÉCROISSANTS : insérer à i+1 ne décale
+  // jamais une cible restante
+  for (const { calque, objet, i } of cibles) {
+    const clone = JSON.parse(JSON.stringify(objet));
+    reid(clone);
+    _decalerObjet(clone, dx, dy);
+    calque.objets.splice(i + 1, 0, clone);
+    neufs.push(clone.id);
+  }
+  return neufs;
+}
+
+export function op_miroir(doc, ids, axe, bbox) {
+  if (axe !== "h" && axe !== "v") throw new Error(`miroir: axe h|v, pas ${axe}`);
+  if (!bbox || !(bbox.w >= 0) || !(bbox.h >= 0)) {
+    throw new Error("miroir: bbox de référence requise");
+  }
+  const cx = bbox.x + bbox.w / 2, cy = bbox.y + bbox.h / 2;
+  const H = axe === "h";
+  const fx = (X) => 2 * cx - X, fy = (Y) => 2 * cy - Y;
+  const refl = (o) => {
+    switch (o.type) {
+      case "rect":
+        if (H) o.x = fx(o.x) - o.w; else o.y = fy(o.y) - o.h; break;
+      case "ellipse":
+        if (H) o.cx = fx(o.cx); else o.cy = fy(o.cy); break;
+      case "texte":                     // position seule — les glyphes ne
+        if (H) o.x = fx(o.x); else o.y = fy(o.y); break;   // se reflètent pas
+      case "path": {
+        const segs = chemin_parser(o.d);
+        for (const s of segs) {
+          for (let k = 0; k < s.p.length; k += 2) {
+            if (H) s.p[k] = fx(s.p[k]); else s.p[k + 1] = fy(s.p[k + 1]);
+          }
+        }
+        o.d = chemin_serialiser(segs);
+        break;
+      }
+      case "groupe": (o.enfants || []).forEach(refl); break;
+    }
+  };
+  let n = 0;
+  for (const { objet } of _objetsCibles(doc, ids)) { refl(objet); n++; }
+  if (!n) throw new Error("rien à réfléchir");
+  return n;
+}
+
+const _ALIGNEMENTS = new Set(["gauche", "centreH", "droite",
+                              "haut", "centreV", "bas"]);
+
+export function op_aligner(doc, paires, mode, ref) {
+  if (!_ALIGNEMENTS.has(mode)) throw new Error(`aligner: mode inconnu ${mode}`);
+  if (!Array.isArray(paires) || !paires.length) {
+    throw new Error("aligner: rien à aligner");
+  }
+  if (!ref || !(ref.w >= 0)) throw new Error("aligner: référence requise");
+  for (const { id, bbox } of paires) {
+    let dx = 0, dy = 0;
+    if (mode === "gauche") dx = ref.x - bbox.x;
+    else if (mode === "centreH") dx = (ref.x + ref.w / 2) - (bbox.x + bbox.w / 2);
+    else if (mode === "droite") dx = (ref.x + ref.w) - (bbox.x + bbox.w);
+    else if (mode === "haut") dy = ref.y - bbox.y;
+    else if (mode === "centreV") dy = (ref.y + ref.h / 2) - (bbox.y + bbox.h / 2);
+    else dy = (ref.y + ref.h) - (bbox.y + bbox.h);
+    if (dx || dy) op_deplacer(doc, [id], dx, dy);
+  }
+}
+
+export function op_distribuer(doc, paires, axe) {
+  if (axe !== "h" && axe !== "v") throw new Error(`distribuer: axe h|v, pas ${axe}`);
+  if (!Array.isArray(paires) || paires.length < 3) {
+    throw new Error("distribuer: 3 objets au moins");
+  }
+  const H = axe === "h";
+  const tri = paires.slice().sort((a, b) =>
+    H ? a.bbox.x - b.bbox.x : a.bbox.y - b.bbox.y);
+  const premier = tri[0].bbox, dernier = tri[tri.length - 1].bbox;
+  const debut = H ? premier.x : premier.y;
+  const fin = H ? dernier.x + dernier.w : dernier.y + dernier.h;
+  const somme = tri.reduce((s, p) => s + (H ? p.bbox.w : p.bbox.h), 0);
+  const ecart = (fin - debut - somme) / (tri.length - 1);
+  let pos = debut;
+  for (const p of tri) {
+    const actuel = H ? p.bbox.x : p.bbox.y;
+    const d = pos - actuel;
+    if (d) op_deplacer(doc, [p.id], H ? d : 0, H ? 0 : d);
+    pos += (H ? p.bbox.w : p.bbox.h) + ecart;
+  }
+  return ecart;
+}
+
+export function op_rect_rayon(doc, ids, rayon) {
+  const r = +rayon;
+  if (!(r >= 0)) throw new Error("rayon: valeur ≥ 0 requise");
+  let n = 0;
+  for (const { objet } of _objetsCibles(doc, ids)) {
+    if (objet.type !== "rect") continue;
+    if (r === 0) delete objet.rx;
+    else objet.rx = Math.min(r, Math.min(objet.w, objet.h) / 2);
+    n++;
+  }
+  if (!n) throw new Error("aucun rectangle dans la sélection");
+  return n;
+}
+
 export function op_guide_supprimer(doc, axe, i) {
   const g = _axeGuides(doc, axe);
   if (i < 0 || i >= g.length) throw new Error(`guide ${axe}[${i}] hors bornes`);
