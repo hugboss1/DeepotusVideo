@@ -359,6 +359,49 @@ export function op_chemin_fermer(doc, id) {
 }
 
 
+/* ── calques (T1.4) : l'ordre du tableau EST l'ordre de peinture
+   (le dernier est au-dessus). Un document garde toujours au moins un
+   calque — la suppression du dernier est refusée. */
+
+export function op_calque_ajouter(doc, nom) {
+  const pris = new Set(doc.calques.map((c) => c.id));
+  let n = 1;
+  while (pris.has("c" + n)) n++;
+  const id = "c" + n;
+  doc.calques.push({ id, nom: nom || id, visible: true, verrou: false,
+                     objets: [] });
+  return id;
+}
+
+export function op_calque_renommer(doc, id, nom) {
+  _calque(doc, id).nom = String(nom || "");
+}
+
+export function op_calque_reordonner(doc, id, nouvelIndex) {
+  const c = _calque(doc, id);
+  const i = doc.calques.indexOf(c);
+  doc.calques.splice(i, 1);
+  const j = Math.max(0, Math.min(doc.calques.length, nouvelIndex));
+  doc.calques.splice(j, 0, c);
+}
+
+export function op_calque_visible(doc, id, visible) {
+  _calque(doc, id).visible = !!visible;
+}
+
+export function op_calque_verrou(doc, id, verrou) {
+  _calque(doc, id).verrou = !!verrou;
+}
+
+export function op_calque_supprimer(doc, id) {
+  const c = _calque(doc, id);
+  if (doc.calques.length <= 1) {
+    throw new Error("un document garde au moins un calque");
+  }
+  doc.calques.splice(doc.calques.indexOf(c), 1);
+}
+
+
 export function compilerSVG(doc) {
   parserDoc(doc);
   const w = +doc.taille.w, h = +doc.taille.h;
