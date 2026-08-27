@@ -54,6 +54,18 @@ export function initOutils(VL) {
     (hote || $("#ovTmp")).appendChild(el);
     return el;
   }
+  /* la COTE VIVE du geste (éditeur complet, E6) : un texte à halo posé
+     près du curseur, en coordonnées document, dans l'unité d'affichage */
+  function etiquette(g, x, y, texte) {
+    if (!g || !texte) return;
+    const t = forme("text", {
+      x: x + 14 / etat.zoom, y: y - 10 / etat.zoom,
+      "font-size": 12 / etat.zoom, fill: "#eef1f5",
+      "paint-order": "stroke", stroke: "#101216",
+      "stroke-width": 3 / etat.zoom, "stroke-linejoin": "round",
+    }, g);
+    t.textContent = texte;
+  }
 
   function objetsSelectionnables() {
     const out = [];
@@ -179,6 +191,14 @@ export function initOutils(VL) {
       return;
     }
 
+    if (etat.outil === "ligne" || etat.outil === "mesure") {
+      const [ax, ay] = VL.aimantePt(dx, dy);
+      geste = { type: "trace-ligne", mesure: etat.outil === "mesure",
+                x0: ax, y0: ay, x1: ax, y1: ay };
+      ev.preventDefault();
+      return;
+    }
+
     if (etat.outil === "plume") {
       plumeDown(dx, dy, ev);
       ev.preventDefault();
@@ -227,6 +247,8 @@ export function initOutils(VL) {
           `translate(${geste.dxA} ${geste.dyA})` + (orig ? " " + orig : ""));
       }
       VL.rendreOverlay();
+      etiquette(tmpDoc(), dx, dy,
+                VL.cote("delta", { dx: geste.dxA, dy: geste.dyA }));
     } else if (geste.type === "lasso") {
       const r = stage.getBoundingClientRect();
       const x = Math.min(geste.ex0, ev.clientX) - r.left;
@@ -259,10 +281,13 @@ export function initOutils(VL) {
       b.w = Math.max(1, b.w); b.h = Math.max(1, b.h);
       geste.b1 = b;
       const g = tmpDoc();
-      if (g) forme("rect", { x: b.x, y: b.y, width: b.w, height: b.h,
-        fill: "none", stroke: "#5b82b8",
-        "stroke-width": 1.5 / etat.zoom, "stroke-dasharray":
-        `${4 / etat.zoom} ${3 / etat.zoom}` }, g);
+      if (g) {
+        forme("rect", { x: b.x, y: b.y, width: b.w, height: b.h,
+          fill: "none", stroke: "#5b82b8",
+          "stroke-width": 1.5 / etat.zoom, "stroke-dasharray":
+          `${4 / etat.zoom} ${3 / etat.zoom}` }, g);
+        etiquette(g, ax, ay, VL.cote("rect", { w: b.w, h: b.h }));
+      }
     } else if (geste.type === "rot") {
       let a = (Math.atan2(dy - geste.cy, dx - geste.cx) - geste.a0)
               * 180 / Math.PI;
@@ -291,10 +316,31 @@ export function initOutils(VL) {
                       "stroke-width": 1.5 / etat.zoom };
       if (geste.forme === "rect") {
         forme("rect", { x, y, width: w, height: h, ...attrs }, g);
+        etiquette(g, x1, y1, VL.cote("rect", { w, h }));
       } else {
         forme("ellipse", { cx: x + w / 2, cy: y + h / 2, rx: w / 2,
                            ry: h / 2, ...attrs }, g);
+        etiquette(g, x1, y1, VL.cote("ellipse", { rx: w / 2, ry: h / 2 }));
       }
+    } else if (geste.type === "trace-ligne") {
+      let [x1, y1] = VL.aimantePt(dx, dy);
+      if (ev.shiftKey) {                      // Maj : angles contraints à 45°
+        const long = Math.hypot(x1 - geste.x0, y1 - geste.y0);
+        const a = Math.round(Math.atan2(y1 - geste.y0, x1 - geste.x0)
+                             / (Math.PI / 4)) * (Math.PI / 4);
+        x1 = geste.x0 + Math.cos(a) * long;
+        y1 = geste.y0 + Math.sin(a) * long;
+      }
+      geste.x1 = x1; geste.y1 = y1;
+      const g = tmpDoc();
+      if (!g) return;
+      forme("line", { x1: geste.x0, y1: geste.y0, x2: x1, y2: y1,
+        stroke: geste.mesure ? "#39b3d0" : "#5b82b8",
+        "stroke-width": (geste.mesure ? 1.5 : 2) / etat.zoom,
+        "stroke-dasharray": geste.mesure
+          ? `${5 / etat.zoom} ${4 / etat.zoom}` : "none" }, g);
+      etiquette(g, x1, y1, VL.cote("segment",
+        { dx: x1 - geste.x0, dy: y1 - geste.y0 }));
     } else if (geste.type === "ancre") {
       const [ax, ay] = VL.aimantePt(dx, dy);
       geste.dxA = ax - geste.x0; geste.dyA = ay - geste.y0;
@@ -376,6 +422,16 @@ export function initOutils(VL) {
       if (g.angle) {
         VL.executer(op_tourner, etat.selection.slice(), g.cx, g.cy, g.angle);
       } else VL.rendreOverlay();
+    } else if (g.type === "trace-ligne") {
+      if (g.mesure) return;                  // l'outil mesure ne crée RIEN
+      if (Math.hypot(g.x1 - g.x0, g.y1 - g.y0) < 1) return;
+      const id = VL.executer(op_ajouter, etat.calqueActif,
+        { type: "path",
+          d: `M${g.x0} ${g.y0} L${g.x1} ${g.y1}`,
+          style: { fond: "none",
+                   contour: etat.styleCourant.contour || "#1F1512",
+                   epaisseur: etat.styleCourant.epaisseur || 3 } });
+      if (id) VL.setSelection([id]);
     } else if (g.type === "trace-forme") {
       const w = Math.abs(g.x1 - g.x0), h = Math.abs(g.y1 - g.y0);
       if (w < 1 || h < 1) return;
@@ -509,6 +565,8 @@ export function initOutils(VL) {
                         fill: "#eef1f5", stroke: "#2c4a75",
                         "stroke-width": 1 / etat.zoom }, g);
     }
+    etiquette(g, cx, cy, VL.cote("segment",
+      { dx: cx - der.x, dy: cy - der.y }));
   }
   function plumeFinir(fermer) {
     if (!trace) return;
@@ -573,7 +631,16 @@ export function initOutils(VL) {
   regleVersGuide($("#regleV"), "v");   // règle de gauche → guide vertical
 
   /* ═══════════ clavier (délégué par le core) ═══════════ */
+  const FLECHES = { ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+                    ArrowUp: [0, -1], ArrowDown: [0, 1] };
   VL.surTouche = (ev) => {
+    if (FLECHES[ev.key] && etat.selection.length) {
+      const k = ev.shiftKey ? 10 : 1;
+      VL.executer(op_deplacer, etat.selection.slice(),
+                  FLECHES[ev.key][0] * k, FLECHES[ev.key][1] * k);
+      ev.preventDefault();
+      return;
+    }
     if (ev.key === "Delete" || ev.key === "Backspace") {
       if (etat.outil === "noeuds" && etat.ancreSel !== null) {
         const p = VL.pathSelectionne();

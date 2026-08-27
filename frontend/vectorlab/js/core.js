@@ -4,7 +4,9 @@
 // raccourcis. Les outils et le panneau calques reçoivent ce cœur par
 // injection (initOutils/initCalques) — aucun cycle d'import.
 import { compilerSVG, chemin_parser, chemin_ancres, aimanter, Historique,
-         sommetDe } from "./mod-doc.js";
+         sommetDe, op_dupliquer } from "./mod-doc.js";
+import { UNITES, depuisUnite, formatNombre, libelle_mesure }
+  from "./mod-unites.js";
 import { initOutils } from "./mod-tools.js";
 import { initCalques } from "./mod-layers.js";
 import { initStyle } from "./mod-style.js";
@@ -38,6 +40,7 @@ const etat = {
   calqueActif: null,
   zoom: 1, tx: 40, ty: 40,
   grille: { active: true, pas: 8 },
+  pressePapiers: null,           // { ids, n } — coller duplique les sources
   histo: new Historique(100),
   // le style des NOUVEAUX objets — nourri par le panneau et la pipette
   styleCourant: { fond: "#9DB4D6", contour: "#1F1512", epaisseur: 2 },
@@ -153,8 +156,20 @@ function appliquerVue() {
       `translate(${etat.tx}px, ${etat.ty}px) scale(${etat.zoom})`;
   }
   $("#zoomLabel").textContent = Math.round(etat.zoom * 100) + " %";
+  $("#btnUnite").textContent = unites().affichage;
   dessinerRegles();
   rendreOverlay();
+}
+function zoomCent() { etat.zoom = 1; appliquerVue(); }
+function zoomAjuster() {
+  if (!etat.doc) return;
+  const r = stageRect();
+  const k = Math.min((r.width - 80) / etat.doc.taille.w,
+                     (r.height - 80) / etat.doc.taille.h);
+  etat.zoom = Math.max(0.05, Math.min(16, k));
+  etat.tx = (r.width - etat.doc.taille.w * etat.zoom) / 2;
+  etat.ty = (r.height - etat.doc.taille.h * etat.zoom) / 2;
+  appliquerVue();
 }
 function rendre() {
   $("#canvasHost").innerHTML = etat.doc ? compilerSVG(etat.doc) : "";
@@ -263,12 +278,31 @@ function rendreOverlay() {
   o.appendChild(ov("g", { id: "ovTmp" }));
 }
 
-/* ── règles ── */
+/* ── unités d'affichage (éditeur complet, E2/E3) : le document reste en
+   px, l'unité est une affaire d'affichage — règles, cotes, panneau ── */
+function unites() {
+  return (etat.doc && etat.doc.unites) || { affichage: "px", dpi: 96 };
+}
+function cote(kind, geom) {
+  return libelle_mesure(kind, geom, unites());
+}
+
+/* ── règles : graduées dans l'UNITÉ d'affichage — pas « joli » {1,2,5}×10^k
+   unités, le plus petit dont l'écart écran ≥ 44 px, sous-graduations ÷5 ── */
 function dessinerRegles() {
   const rh = $("#regleH"), rv = $("#regleV");
   const r0 = stageRect();
   rh.width = r0.width; rv.height = r0.height;
-  const pas = etat.zoom >= 4 ? 10 : etat.zoom >= 1 ? 50 : 100;
+  const u = unites();
+  const pxU = depuisUnite(1, u);              // px d'UNE unité d'affichage
+  let pas = 1e6;
+  for (let k = -3; k <= 6 && pas === 1e6; k++) {
+    for (const b of [1, 2, 5]) {
+      const c = b * Math.pow(10, k);
+      if (c * pxU * etat.zoom >= 44) { pas = c; break; }
+    }
+  }
+  const sous = pas / 5;
   for (const [cv, horiz] of [[rh, true], [rv, false]]) {
     const c = cv.getContext("2d");
     c.clearRect(0, 0, cv.width, cv.height);
@@ -277,17 +311,21 @@ function dessinerRegles() {
     c.font = "9px system-ui";
     const long = horiz ? r0.width : r0.height;
     const dep = horiz ? etat.tx : etat.ty;
-    const d0 = Math.floor((-dep / etat.zoom) / pas) * pas;
-    for (let v = d0; v * etat.zoom + dep < long; v += pas) {
-      const e = v * etat.zoom + dep;
+    const i0 = Math.floor((-dep / etat.zoom) / (sous * pxU));
+    for (let i = i0; ; i++) {
+      const vu = i * sous;                    // position en UNITÉS
+      const e = vu * pxU * etat.zoom + dep;   // position écran
+      if (e >= long) break;
+      const majeur = ((i % 5) + 5) % 5 === 0;
       c.beginPath();
-      if (horiz) { c.moveTo(e, 24); c.lineTo(e, v % (pas * 5) ? 18 : 12); }
-      else { c.moveTo(24, e); c.lineTo(v % (pas * 5) ? 18 : 12, e); }
+      if (horiz) { c.moveTo(e, 24); c.lineTo(e, majeur ? 12 : 18); }
+      else { c.moveTo(24, e); c.lineTo(majeur ? 12 : 18, e); }
       c.stroke();
-      if (v % (pas * 5) === 0) {
-        if (horiz) c.fillText(String(v), e + 2, 10);
+      if (majeur) {
+        const lbl = formatNombre(vu * pxU, u);
+        if (horiz) c.fillText(lbl, e + 2, 10);
         else { c.save(); c.translate(10, e + 2); c.rotate(-Math.PI / 2);
-               c.fillText(String(v), 0, 0); c.restore(); }
+               c.fillText(lbl, 0, 0); c.restore(); }
       }
     }
   }
@@ -379,6 +417,26 @@ stage.addEventListener("pointermove", (ev) => {
 }, true);
 stage.addEventListener("pointerup", () => { pan = null; }, true);
 
+/* ── presse-papiers interne : coller DUPLIQUE les sources copiées (les ops
+   éprouvées font tout ; sources disparues → le refus parlant d'op_dupliquer) ── */
+function dupliquerSelection() {
+  if (!etat.selection.length) return;
+  const ids = executer(op_dupliquer, etat.selection.slice());
+  if (ids) setSelection(ids);
+}
+function copierSelection() {
+  if (!etat.selection.length) return;
+  etat.pressePapiers = { ids: etat.selection.slice(), n: 0 };
+  toast(etat.pressePapiers.ids.length + " objet(s) copié(s)");
+}
+function collerSelection() {
+  const pp = etat.pressePapiers;
+  if (!pp || !pp.ids.length) return;
+  pp.n++;
+  const ids = executer(op_dupliquer, pp.ids, 12 * pp.n, 12 * pp.n);
+  if (ids) setSelection(ids);
+}
+
 /* ── outils : bascule ── */
 function setOutil(id) {
   etat.outil = id;
@@ -398,9 +456,15 @@ document.addEventListener("keydown", (ev) => {
   if ((ev.ctrlKey && ev.key.toLowerCase() === "y")
       || (ev.ctrlKey && ev.shiftKey && ev.key.toLowerCase() === "z")) { refaire(); ev.preventDefault(); return; }
   if (ev.ctrlKey && ev.key.toLowerCase() === "s") { sauver(); ev.preventDefault(); return; }
+  if (ev.ctrlKey && ev.key.toLowerCase() === "d") { dupliquerSelection(); ev.preventDefault(); return; }
+  if (ev.ctrlKey && ev.key.toLowerCase() === "c") { copierSelection(); return; }
+  if (ev.ctrlKey && ev.key.toLowerCase() === "v") { collerSelection(); return; }
+  if (ev.ctrlKey && ev.key === "0") { zoomAjuster(); ev.preventDefault(); return; }
+  if (ev.ctrlKey && ev.key === "1") { zoomCent(); ev.preventDefault(); return; }
   if (ev.ctrlKey) return;
   const outils = { v: "select", p: "plume", r: "rect", e: "ellipse",
-                   n: "noeuds", i: "pipette", t: "texte" };
+                   n: "noeuds", i: "pipette", t: "texte",
+                   l: "ligne", m: "mesure" };
   const k = ev.key.toLowerCase();
   if (outils[k]) { setOutil(outils[k]); return; }
   if (k === "g") {
@@ -422,12 +486,21 @@ $("#btnGrille").addEventListener("click", () => {
   etat.grille.active = !etat.grille.active;
   $("#btnGrille").classList.toggle("actif", etat.grille.active);
 });
+$("#btnUnite").addEventListener("click", () => {
+  if (!etat.doc) return;
+  const u = unites();
+  const suivante = UNITES[(UNITES.indexOf(u.affichage) + 1) % UNITES.length];
+  // une COMMANDE : l'unité voyage avec le document (annulable, sauvée)
+  executer((d) => { d.unites = { affichage: suivante, dpi: u.dpi }; });
+});
 window.addEventListener("resize", appliquerVue);
 
 /* ── le cœur, injecté dans les modules UI (et exposé pour la preuve) ── */
 const VL = {
   etat, api, $,
   docPt, ecranPt, tolDoc, aimantePt,
+  unites, cote, zoomAjuster, zoomCent,
+  dupliquerSelection, copierSelection, collerSelection,
   executer, annuler, refaire, sauver, charger,
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
   pathSelectionne, purgerSelection, objetDe,
