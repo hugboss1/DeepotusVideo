@@ -523,6 +523,23 @@ mesure PIL de l'export PNG vérifie la part de pixels de contours dans
 mesure_style walkuski) ; la fiche reste l'unique source (pas de constantes
 recopiées : le test rougit si l'endpoint et la fiche divergent).
 
+> **RELEVÉ (27/08) : PHASE 5 LIVRÉE ET DÉPLOYÉE.** `GET /api/vector/vitrail`
+> sert la fiche épinglée, comparée À L'OCTET par le pytest (7 tests banc
+> vector) ; générateur de baie pur (ogive/rectangle, comptes exacts 7+5,
+> ancres cyclées, bordure clampée aux bornes de la fiche), motifs
+> iris/rayons/halo en groupes, **couverture analytique des plombs 11,12 %**
+> ∈ bornes lues DANS la fiche — 14 contrôles qa neufs (203 cumulés), dont
+> un piège rejoué : le contour gonflé du cadre est un ANNEAU, l'aire
+> signée donnait 179 % → `aire_multi` indifférente à l'orientation.
+> Preuves app réelles : panneau Vitrail (6 swatches), **baie ogivale 2×3
+> générée par le vrai bouton** (calque verre SOUS contours, une seule
+> entrée d'annulation), halo + iris insérés, **swatch rubis appliqué au
+> panneau (#9B111E de la fiche)**, sauvé v2, PNG exporté vers la Library
+> et **MESURE PIL AU PIXEL : 13,33 % ∈ [6–15 %] de la fiche** — un vitrail
+> complet créé dans l'app SANS générateur d'images, zéro tir. Le document
+> « Vitrail - baie generee » et son PNG restent en livrables. Prochaine
+> étape : phase 6 (bibliothèque par chapitre), sur ordre.
+
 ### Expansion d'exécution (27/08, phase 4 livrée)
 
 Décisions : la mesure de couverture des plombs se fait DEUX fois — au banc
@@ -539,20 +556,20 @@ bordure = contour intérieur en retrait de `bordure×min(W,H)`, fraction
 CLAMPÉE aux bornes de la fiche ; les verres cyclent sur les 5 ancres ; les
 contours sont des tracés `fond:none` — donc DIVISIBLES par le ⧉ existant.
 
-- [ ] **T5.1 endpoint fiche** : `GET /api/vector/vitrail` sert
+- [x] **T5.1 endpoint fiche** : `GET /api/vector/vitrail` sert
   `familles.vitrail` de la copie épinglée — le pytest compare à l'octet
   avec le fichier (divergence → rouge) — RED d'abord
-- [ ] **T5.2 générateur + motifs** : `generer_baie` (ogive/rectangle,
+- [x] **T5.2 générateur + motifs** : `generer_baie` (ogive/rectangle,
   colonnes×rangées, bordure clampée, comptes exacts, ancres cyclées,
   plomb de la fiche), `motif_iris`/`motif_rayons`/`motif_halo` (groupes,
   palette de la fiche) — qa `vitrail.test.mjs` RED d'abord
-- [ ] **T5.3 couverture analytique** : part des contours gonflés de la
+- [x] **T5.3 couverture analytique** : part des contours gonflés de la
   baie par défaut ∈ bornes `part_contours_plomb` LUES dans la fiche
   (export `contour_en_multi` de mod-bool) — même banc
-- [ ] **T5.4 UI** : panneau Vitrail (palette 5 ancres + plomb cliquables,
+- [x] **T5.4 UI** : panneau Vitrail (palette 5 ancres + plomb cliquables,
   bouton Baie… avec invite de paramètres, boutons Iris/Rayons/Halo),
   nourri par l'endpoint (caché si indisponible) — node --check
-- [ ] **T5.5 déploiement & preuve réelle** : un vitrail complet créé DANS
+- [x] **T5.5 déploiement & preuve réelle** : un vitrail complet créé DANS
   l'app (baie générée + motifs + couleurs à la palette), export PNG →
   Library, **mesure PIL au pixel dans les bornes de la fiche**, zéro
   générateur d'images, relevé au plan
