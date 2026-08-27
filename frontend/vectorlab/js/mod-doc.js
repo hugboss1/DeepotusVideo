@@ -20,8 +20,12 @@ export function parserDoc(doc) {
   return doc;
 }
 
-function styleAttrs(s = {}) {
-  const fond = s.fond === undefined ? "none" : s.fond;
+function styleAttrs(s = {}, ctx = {}) {
+  let fond = s.fond === undefined ? "none" : s.fond;
+  if (typeof fond === "string" && fond.startsWith("grad:")) {
+    const gid = fond.slice(5);
+    fond = (ctx.degrades && ctx.degrades[gid]) ? `url(#${gid})` : "none";
+  }
   let out = ` fill="${escAttr(fond)}"`;
   if (s.contour && s.contour !== "none") {
     out += ` stroke="${escAttr(s.contour)}"`
@@ -36,10 +40,10 @@ function styleAttrs(s = {}) {
   return out;
 }
 
-function compilerObjet(o) {
+function compilerObjet(o, ctx = {}) {
   const t = ` data-objet="${escAttr(o.id)}"`;
   const tr = o.transform ? ` transform="${escAttr(o.transform)}"` : "";
-  const st = styleAttrs(o.style);
+  const st = styleAttrs(o.style, ctx);
   switch (o.type) {
     case "rect":
       return `<rect${t} x="${+o.x}" y="${+o.y}" width="${+o.w}"`
@@ -51,7 +55,8 @@ function compilerObjet(o) {
       return `<path${t} d="${escAttr(o.d)}"${st}${tr}/>`;
     case "groupe":
       return `<g${t}${st}${tr}>`
-           + (o.enfants || []).map(compilerObjet).join("") + `</g>`;
+           + (o.enfants || []).map((e) => compilerObjet(e, ctx)).join("")
+           + `</g>`;
     default:
       // un type inconnu ne casse pas le document : il se voit au commentaire
       return `<!-- objet ${escAttr(o.id)}: type inconnu ${escAttr(o.type)} -->`;
@@ -422,6 +427,80 @@ export function op_calque_opacite(doc, id, opacite) {
 }
 
 
+/* ── dégradés (T2.2) : en coordonnées DOCUMENT (userSpaceOnUse) ──
+   doc.degrades = {id: {type: lineaire|radial, stops:[{t, couleur,
+   opacite?}], x1..y2 | cx,cy,r}}. Un fond y réfère par "grad:<id>" ; la
+   compilation émet <defs> (stops triés par t) et retombe sur "none" si le
+   dégradé manque — un document ne casse jamais. */
+
+const _TYPES_DEGRADE = new Set(["lineaire", "radial"]);
+
+function _degrades(doc) {
+  if (!doc.degrades) doc.degrades = {};
+  return doc.degrades;
+}
+function _degrade(doc, id) {
+  const g = _degrades(doc)[id];
+  if (!g) throw new Error(`degrade inconnu: ${id}`);
+  return g;
+}
+
+export function op_degrade_creer(doc, spec) {
+  if (!spec || !_TYPES_DEGRADE.has(spec.type)) {
+    throw new Error("degrade: type invalide (lineaire|radial)");
+  }
+  const stops = (Array.isArray(spec.stops) && spec.stops.length >= 2)
+    ? spec.stops
+    : [{ t: 0, couleur: "#000000" }, { t: 1, couleur: "#FFFFFF" }];
+  const degs = _degrades(doc);
+  let n = 1;
+  while (("g" + n) in degs) n++;
+  const id = "g" + n;
+  const g = { type: spec.type, stops: stops.map((s) => ({ ...s })) };
+  if (spec.type === "lineaire") {
+    g.x1 = +(spec.x1 ?? 0); g.y1 = +(spec.y1 ?? 0);
+    g.x2 = +(spec.x2 ?? 1); g.y2 = +(spec.y2 ?? 0);
+  } else {
+    g.cx = +(spec.cx ?? 0); g.cy = +(spec.cy ?? 0); g.r = +(spec.r ?? 1);
+  }
+  degs[id] = g;
+  return id;
+}
+
+export function op_degrade_modifier(doc, id, patch) {
+  const g = _degrade(doc, id);
+  for (const k of ["x1", "y1", "x2", "y2", "cx", "cy", "r"]) {
+    if (patch && k in patch) g[k] = +patch[k];
+  }
+}
+
+export function op_degrade_stop_ajouter(doc, id, stop) {
+  const g = _degrade(doc, id);
+  g.stops.push({ ...stop });
+  return g.stops.length - 1;
+}
+
+export function op_degrade_stop_modifier(doc, id, i, patch) {
+  const g = _degrade(doc, id);
+  if (i < 0 || i >= g.stops.length) throw new Error(`stop ${i} hors bornes`);
+  for (const k of ["t", "couleur", "opacite"]) {
+    if (patch && k in patch) g.stops[i][k] = patch[k];
+  }
+}
+
+export function op_degrade_stop_supprimer(doc, id, i) {
+  const g = _degrade(doc, id);
+  if (g.stops.length <= 2) throw new Error("un degrade garde au moins deux stops");
+  if (i < 0 || i >= g.stops.length) throw new Error(`stop ${i} hors bornes`);
+  g.stops.splice(i, 1);
+}
+
+export function op_degrade_supprimer(doc, id) {
+  _degrade(doc, id);
+  delete doc.degrades[id];
+}
+
+
 /* ── historique (T1.5) : annulation par INSTANTANÉS du JSON ──
    `capturer(doc)` AVANT chaque commande ; `annuler(courant)` rend l'état
    capturé et empile le courant côté refaire ; `refaire(courant)` fait
@@ -498,8 +577,43 @@ export function op_guide_supprimer(doc, axe, i) {
 }
 
 
+function _defs(doc) {
+  const refs = [];
+  const vus = new Set();
+  const visiter = (objs) => {
+    for (const o of objs) {
+      const f = o.style && o.style.fond;
+      if (typeof f === "string" && f.startsWith("grad:")) {
+        const gid = f.slice(5);
+        if (!vus.has(gid)) { vus.add(gid); refs.push(gid); }
+      }
+      if (o.type === "groupe") visiter(o.enfants || []);
+    }
+  };
+  for (const c of doc.calques) visiter(c.objets);
+  const degs = doc.degrades || {};
+  const morceaux = [];
+  for (const id of refs) {
+    const g = degs[id];
+    if (!g) continue;                 // référence orpheline: le repli "none"
+    const stops = [...g.stops].sort((a, b) => a.t - b.t).map((s) =>
+      `<stop offset="${+s.t}" stop-color="${escAttr(s.couleur)}"`
+      + ((s.opacite !== undefined && +s.opacite !== 1)
+         ? ` stop-opacity="${+s.opacite}"` : "") + `/>`).join("");
+    morceaux.push(g.type === "lineaire"
+      ? `<linearGradient id="${escAttr(id)}" gradientUnits="userSpaceOnUse"`
+        + ` x1="${+g.x1}" y1="${+g.y1}" x2="${+g.x2}" y2="${+g.y2}">`
+        + stops + `</linearGradient>`
+      : `<radialGradient id="${escAttr(id)}" gradientUnits="userSpaceOnUse"`
+        + ` cx="${+g.cx}" cy="${+g.cy}" r="${+g.r}">`
+        + stops + `</radialGradient>`);
+  }
+  return morceaux.length ? `<defs>${morceaux.join("")}</defs>` : "";
+}
+
 export function compilerSVG(doc) {
   parserDoc(doc);
+  const ctx = { degrades: doc.degrades || {} };
   const w = +doc.taille.w, h = +doc.taille.h;
   const fond = doc.fond
     ? `<rect x="0" y="0" width="${w}" height="${h}"`
@@ -511,9 +625,9 @@ export function compilerSVG(doc) {
       ? ` opacity="${Number(c.opacite)}"` : "";
     return `<g data-calque="${escAttr(c.id)}"`
          + ` data-nom="${escAttr(c.nom || "")}"${op}${cache}>`
-         + c.objets.map(compilerObjet).join("") + `</g>`;
+         + c.objets.map((o) => compilerObjet(o, ctx)).join("") + `</g>`;
   }).join("");
   return `<svg xmlns="http://www.w3.org/2000/svg"`
        + ` viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">`
-       + fond + calques + `</svg>`;
+       + _defs(doc) + fond + calques + `</svg>`;
 }
