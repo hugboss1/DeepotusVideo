@@ -565,3 +565,23 @@ def test_le_miroir_editeur_vignette_au_save():
     # pas une sauvegarde
     assert "VL.vignette" in core
     assert core.index("VL.vignette") > core.index("async function sauver")
+
+
+# ── L. miroirs de l'Atelier (phase 6) : bibliothèque, instancier, diverger ───
+
+def test_le_miroir_atelier_bibliotheque():
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    atelier = racine / "frontend" / "atelier"
+    html = (atelier / "index.html").read_text("utf-8")
+    js = (atelier / "atelier.js").read_text("utf-8")
+    # le tiroir Bibliothèque : bouton d'ouverture, recherche, filtre rôle
+    assert "vpBiblio" in html and "Bibliothèque" in html
+    assert "vbRecherche" in html and "vbRole" in html
+    # instancier = POST /vector/links ; retirer = DELETE ; diverger = duplicate
+    assert "/vector/links" in js
+    assert "/duplicate" in js
+    assert "Instancier" in js
+    assert "Dupliquer" in js and "Retirer" in js
+    # les lignes montrent la vignette servie par la route dédiée et le badge réf
+    assert "/vignette.png" in js
+    assert "liaison" in js

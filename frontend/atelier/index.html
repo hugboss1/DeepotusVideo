@@ -90,7 +90,7 @@
       <div id="shotList" class="shot-list"></div>
     </div>
 
-    <!-- ══════════ Éléments vectoriels du chapitre (Vectorlab, phase 0) ══════════ -->
+    <!-- ══════ Éléments vectoriels du chapitre (Vectorlab, phases 0+6) ══════ -->
     <div id="vectorPanel" class="vector-panel hidden">
       <div class="vector-head">
         <span>◧ Éléments vectoriels</span>
@@ -98,9 +98,23 @@
           <button id="vpAddDecor" class="btn" title="Nouveau décor vectoriel lié à ce chapitre (ouvre l'éditeur)">＋ Décor</button>
           <button id="vpAddLumiere" class="btn" title="Nouveau calque de lumière (halos, dégradés) lié à ce chapitre">＋ Lumière</button>
           <button id="vpAddPerso" class="btn" title="Nouveau personnage vectoriel lié à ce chapitre">＋ Personnage</button>
+          <button id="vpBiblio" class="btn" title="Instancier par référence un élément de la bibliothèque ou d'un autre chapitre (sans copie)">⧉ Bibliothèque</button>
         </span>
       </div>
       <div id="vectorList" class="vector-list"></div>
+      <div id="vectorBiblio" class="vector-biblio hidden">
+        <div class="vector-biblio-bar">
+          <input id="vbRecherche" type="search" placeholder="Rechercher par nom…">
+          <select id="vbRole">
+            <option value="">Tous rôles</option>
+            <option value="decor">Décor</option>
+            <option value="lumiere">Lumière</option>
+            <option value="personnage">Personnage</option>
+            <option value="libre">Libre</option>
+          </select>
+        </div>
+        <div id="vbListe" class="vector-list"></div>
+      </div>
     </div>
   </section>
 

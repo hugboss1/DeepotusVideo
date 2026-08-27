@@ -917,7 +917,7 @@ async function daPropose() {
   } catch (e) { toast("Proposition DA : " + e.message, true); }
 }
 
-/* ═════════ éléments vectoriels du chapitre (Vectorlab, phase 0) ═════════ */
+/* ═════════ éléments vectoriels du chapitre (Vectorlab, phases 0+6) ═════════ */
 const VECTOR_ROLES = { decor: "Décor", lumiere: "Lumière",
                        personnage: "Personnage", libre: "Libre" };
 
@@ -925,6 +925,16 @@ function docVectorielVierge(nom) {
   return { v: 1, nom, taille: { w: 1280, h: 1920 }, fond: "#F8F4E3",
            calques: [{ id: "c1", nom: "fond", visible: true, verrou: false,
                        objets: [] }] };
+}
+
+let vectorDocsChapitre = [];   // la liste FUSIONNÉE servie (propres + liés)
+
+function vectorVignette(d) {
+  // la vignette naît au Sauver de l'éditeur ; ?v= suit la version (cache)
+  return d.vignette
+    ? `<img class="vector-vignette" alt=""
+         src="/api/vector/docs/${encodeURIComponent(d.id)}/vignette.png?v=${d.version}">`
+    : `<span class="vector-vignette vide"></span>`;
 }
 
 async function loadVectorDocs() {
@@ -940,15 +950,28 @@ async function loadVectorDocs() {
       `<div class="empty-note">Vectorlab injoignable : ${esc(e.message)}</div>`;
     return;
   }
+  vectorDocsChapitre = docs;
   $("#vectorList").innerHTML = docs.length ? docs.map(d => `
     <div class="vector-row">
+      ${vectorVignette(d)}
       <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
       <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
-      <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
-         target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+      ${d.liaison ? `<span class="vector-ref" title="Instancié par référence —
+        l'édition du document se voit dans tous les chapitres qui le
+        référencent. Dupliquer pour diverger.">réf</span>` : ""}
+      <span class="vector-actions">
+        <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
+           target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+        ${d.liaison ? `
+        <button class="btn" data-vdup="${d.id}"
+          title="Créer une copie indépendante pour ce chapitre (remplace la référence)">Dupliquer</button>
+        <button class="btn" data-vret="${d.id}"
+          title="Retirer la référence de ce chapitre (le document n'est pas supprimé)">Retirer</button>` : ""}
+      </span>
     </div>`).join("")
     : `<div class="empty-note">Aucun élément vectoriel — crée un décor, une
-       lumière ou un personnage pour ce chapitre.</div>`;
+       lumière ou un personnage, ou instancie depuis la bibliothèque.</div>`;
+  loadVectorBiblio();          // le tiroir, s'il est ouvert, suit
 }
 
 async function vectorCreer(role) {
@@ -963,6 +986,80 @@ async function vectorCreer(role) {
     await loadVectorDocs();
     window.open(`/vectorlab/?doc=${encodeURIComponent(d.id)}`, "_blank");
   } catch (e) { toast("Vectorlab : " + e.message, true); }
+}
+
+/* ── la bibliothèque (phase 6) : instancier par référence, sans copie ── */
+
+async function loadVectorBiblio() {
+  const tiroir = $("#vectorBiblio");
+  if (!tiroir || tiroir.classList.contains("hidden") || !chapter) return;
+  const q = $("#vbRecherche").value.trim();
+  const role = $("#vbRole").value;
+  let docs = [];
+  try {
+    const ps = new URLSearchParams();
+    if (q) ps.set("q", q);
+    if (role) ps.set("role", role);
+    docs = (await api.get(`/vector/docs?${ps.toString()}`)).docs || [];
+  } catch (e) {
+    $("#vbListe").innerHTML =
+      `<div class="empty-note">Bibliothèque injoignable : ${esc(e.message)}</div>`;
+    return;
+  }
+  // hors du chapitre courant : ni propres, ni déjà instanciés
+  const deja = new Set(vectorDocsChapitre.map(d => d.id));
+  docs = docs.filter(d => !deja.has(d.id));
+  $("#vbListe").innerHTML = docs.length ? docs.map(d => `
+    <div class="vector-row">
+      ${vectorVignette(d)}
+      <span class="vector-orig" title="${d.chapter_id
+        ? "Document propre à un autre chapitre"
+        : "Document de la bibliothèque globale (sans chapitre)"}">${
+        d.chapter_id ? "⚓" : "◇"}</span>
+      <span class="vector-role">${esc(VECTOR_ROLES[d.role] || d.role)}</span>
+      <b>${esc(d.name)}</b> <span class="vector-v">v${d.version}</span>
+      <span class="vector-actions">
+        <button class="btn" data-vinst="${d.id}"
+          title="Instancier par référence dans ce chapitre — l'édition du document se verra ici aussi">Instancier</button>
+        <a class="btn" href="/vectorlab/?doc=${encodeURIComponent(d.id)}"
+           target="_blank" title="Ouvrir dans l'éditeur vectoriel">Ouvrir</a>
+      </span>
+    </div>`).join("")
+    : `<div class="empty-note">Rien à instancier${
+        q || role ? " avec ces filtres" : ""}.</div>`;
+}
+
+async function vectorInstancier(docId) {
+  try {
+    await api.send("POST", "/vector/links",
+                   { chapter_id: chapter.id, doc_id: docId });
+    await loadVectorDocs();
+    toast("Instancié par référence — l'édition du document se verra ici.");
+  } catch (e) { toast("Instancier : " + e.message, true); }
+}
+
+async function vectorRetirer(docId) {
+  try {
+    await api.send("DELETE", "/vector/links?chapter_id="
+      + encodeURIComponent(chapter.id)
+      + "&doc_id=" + encodeURIComponent(docId));
+    await loadVectorDocs();
+    toast("Référence retirée — le document existe toujours.");
+  } catch (e) { toast("Retirer : " + e.message, true); }
+}
+
+async function vectorDupliquer(docId) {
+  const src = vectorDocsChapitre.find(d => d.id === docId);
+  const nom = prompt("Nom de la copie indépendante :",
+                     `${(src && src.name) || "Élément"} (copie)`);
+  if (!nom) return;
+  try {
+    await api.send("POST",
+      `/vector/docs/${encodeURIComponent(docId)}/duplicate`,
+      { chapter_id: chapter.id, name: nom });
+    await loadVectorDocs();
+    toast("Copie indépendante créée — la référence est remplacée.");
+  } catch (e) { toast("Dupliquer : " + e.message, true); }
 }
 
 /* ═════════ style global du projet ═════════ */
@@ -1169,6 +1266,22 @@ window.addEventListener("DOMContentLoaded", async () => {
   $("#vpAddDecor").addEventListener("click", () => vectorCreer("decor"));
   $("#vpAddLumiere").addEventListener("click", () => vectorCreer("lumiere"));
   $("#vpAddPerso").addEventListener("click", () => vectorCreer("personnage"));
+  $("#vpBiblio").addEventListener("click", () => {
+    $("#vectorBiblio").classList.toggle("hidden");
+    loadVectorBiblio();
+  });
+  $("#vbRecherche").addEventListener("input", debounce(loadVectorBiblio, 300));
+  $("#vbRole").addEventListener("change", () => loadVectorBiblio());
+  $("#vbListe").addEventListener("click", (ev) => {
+    const b = ev.target.closest("[data-vinst]");
+    if (b) vectorInstancier(b.dataset.vinst);
+  });
+  $("#vectorList").addEventListener("click", (ev) => {
+    const dup = ev.target.closest("[data-vdup]");
+    if (dup) { vectorDupliquer(dup.dataset.vdup); return; }
+    const ret = ev.target.closest("[data-vret]");
+    if (ret) vectorRetirer(ret.dataset.vret);
+  });
 
   // modal
   $("#libClose").addEventListener("click", () => $("#libModal").classList.add("hidden"));

@@ -319,16 +319,29 @@ select option:disabled{color:var(--ink-muted)}
   *{transition:none!important;animation:none!important}
 }
 
-/* ══════════ éléments vectoriels du chapitre (Vectorlab, phase 0) ══════════ */
+/* ═════════ éléments vectoriels du chapitre (Vectorlab, phases 0+6) ═════════ */
 .vector-panel { margin-top: 14px; border: 1px solid var(--line, #2a2f3a);
   border-radius: 8px; background: rgba(255, 255, 255, .02); }
 .vector-head { display: flex; align-items: center; justify-content: space-between;
   gap: 8px; padding: 8px 12px; font-weight: 600;
   border-bottom: 1px solid var(--line, #2a2f3a); }
-.vector-btns { display: flex; gap: 6px; }
+.vector-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 .vector-list { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
 .vector-row { display: flex; align-items: center; gap: 10px; }
-.vector-row .btn { margin-left: auto; text-decoration: none; }
+.vector-row .btn { text-decoration: none; }
+.vector-actions { margin-left: auto; display: flex; gap: 6px;
+  align-items: center; flex: none; }
 .vector-role { font-size: 11px; padding: 1px 8px; border-radius: 9px;
   background: rgba(157, 180, 214, .14); color: #9db4d6; }
 .vector-v { color: var(--ink-muted, #8b93a0); font-size: 11px; }
+/* phase 6 : vignettes (nées au Sauver de l'éditeur), badge réf, tiroir */
+.vector-vignette { width: 34px; height: 34px; flex: none; object-fit: contain;
+  border: 1px solid var(--line, #2a2f3a); border-radius: 5px;
+  background: rgba(255, 255, 255, .04); }
+span.vector-vignette.vide { display: inline-block; }
+.vector-ref { font-size: 11px; padding: 1px 8px; border-radius: 9px;
+  background: rgba(240, 200, 120, .16); color: #d8b46a; flex: none; }
+.vector-orig { flex: none; opacity: .85; }
+.vector-biblio { border-top: 1px solid var(--line, #2a2f3a); }
+.vector-biblio-bar { display: flex; gap: 8px; padding: 8px 12px 0; }
+.vector-biblio-bar input[type="search"] { flex: 1; min-width: 0; }
