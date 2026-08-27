@@ -387,6 +387,39 @@ l'utilisateur ; le juge (fiche + verifier) ne se relâche JAMAIS.
   (2/2). Restent 12 backlight vierges (~3,54 $ au pire à 0,295 l'une) :
   la suite est une décision utilisateur.
 
+- [x] **T1-O (RÉEL) — L'ENVELOPPE À 20 $ (ordre du 27/08 : « relève a 20$
+  et fini les backlights ») : +3 CASES SUR 15 SONDES, LA SÉRIE À 47/108 —
+  BACKLIGHT FINIE À UN RE-TIR PRÈS, 5/18 SERVIES, DEUX 100,0 DE PLUS.**
+  Relèvement au commit `d0d6736` (16→20, pins re-dérivés RED d'abord :
+  garde d'ouverture reliquat 4,76, plafond dur 11 cases/19,80 et reste
+  0,20, frontière du mur à 19, état/devis 20 et 67 ouvrables à vide ;
+  cards_face + serie_ton verts ; déployé sha-vérifié + relance, santé
+  2.5.0, devis servi : reste 4,193, 14 ouvrables). Les 12 backlight
+  VIERGES toutes sondées (6 lots de 2, sombres d'abord), puis les
+  refusées re-tirables par score : grimoire + tower, puis monolith —
+  15 sondes pour 3,99 $. **Trois servies, toutes voie nano-banana-pro
+  MARCHE 1 à 0,15 $ : backlight_beacon rouge 100,0 (LE 4e SCORE PARFAIT —
+  le sujet phare était 0/5 à la campagne close ; gen_fa240f12_ton.png),
+  backlight_ship ocre 96,4 (gen_2bd0299b_ton.png) et backlight_portal
+  rouge 89,3 SANS mise au ton (gen_f3a5983c.png — le portail reste
+  invaincu, 6/6 compositions).** Douze refus à l'échelle complète (0,295
+  chacun) : les 9 vierges restantes (knight 85,7 · sphinx/serpent 82,1 ·
+  phoenix/whale 78,6 · golem 75,0 · dragon 71,9 · citadel 69,2 · archer
+  65,4) et les 3 re-tirs (grimoire 82,1 · monolith 82,1 — même score
+  qu'au matin, l'axe est REPRODUCTIBLE — · tower 75,0) ; « part claire
+  (L>200) » est dans les axes des 12, seule dans 9. **ÉTAT FINAL VÉRIFIÉ
+  (GET + devis machine) : 47/108, dépense 19,797 $/20,00, reste 0,203 —
+  0 ouvrable, mur re-fermé. Backlight : 5 servies / 13 refusées, et
+  backlight_pines (65,6, multi-axes, le pire dossier) est LA seule
+  jamais re-tirée aux modèles neufs.** Cumul de la paire fal (T1-M/N/O) :
+  20 sondes, 5 victoires (toutes nano-banana-pro marche 1 — la marche
+  gpt-image-2-fal n'a encore JAMAIS gagné), 15 refus, 5,175 $ ; la série
+  passe de 42 à 47/108. Le levier est réel sur les contre-jours sombres
+  (5/18 backlight contre 0/18) mais « part claire » reste l'axe tueur
+  structurel des modèles neufs. La suite (re-tirs supplémentaires — les
+  dés fal ne sont pas déterministes —, backlight_pines, ou clore à 47)
+  = décision utilisateur.
+
 ### T2 — MESHY_MOCK au .env (D4)
 
 - [x] **T2-A** : `MESHY_MOCK=1` écrit au .env du DATA_ROOT avec commentaire
