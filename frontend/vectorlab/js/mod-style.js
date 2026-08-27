@@ -5,7 +5,9 @@
 // premier objet sélectionné, sinon le style courant des nouveaux objets.
 import { op_style, op_ordre, op_grouper, op_degrouper, op_degrade_creer,
          op_degrade_modifier, op_degrade_stop_ajouter,
-         op_degrade_stop_modifier, op_degrade_stop_supprimer }
+         op_degrade_stop_modifier, op_degrade_stop_supprimer,
+         op_deplacer, op_redimensionner, op_aligner, op_distribuer,
+         op_miroir, op_rect_rayon }
   from "./mod-doc.js";
 import { op_booleen, op_division } from "./mod-bool.js";
 
@@ -65,6 +67,31 @@ export function initStyle(VL) {
     return (typeof f === "string" && f.startsWith("grad:")) ? f.slice(5) : null;
   }
 
+  /* la bbox DOCUMENT d'un objet, mesurée au DOM (contour compris) — les
+     ops d'alignement restent pures, c'est l'écran qui mesure (E8) */
+  function bboxDocDe(id) {
+    const el = document.querySelector(`#canvasHost [data-objet="${id}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const r0 = $("#stage").getBoundingClientRect();
+    return { x: (r.left - r0.left - etat.tx) / etat.zoom,
+             y: (r.top - r0.top - etat.ty) / etat.zoom,
+             w: r.width / etat.zoom, h: r.height / etat.zoom };
+  }
+  function pairesSelection() {
+    return etat.selection
+      .map((id) => ({ id, bbox: bboxDocDe(id) }))
+      .filter((p) => p.bbox);
+  }
+  function reunion(paires) {
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const { bbox: b } of paires) {
+      x0 = Math.min(x0, b.x); y0 = Math.min(y0, b.y);
+      x1 = Math.max(x1, b.x + b.w); y1 = Math.max(y1, b.y + b.h);
+    }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
   function rendrePanneau() {
     if (!etat.doc) { hote.innerHTML = ""; return; }
     const s = styleReflete();
@@ -73,7 +100,41 @@ export function initStyle(VL) {
     const gid = fondDegradeId();
     const g = gid && etat.doc.degrades ? etat.doc.degrades[gid] : null;
     const sel = etat.selection.length;
+    const b = sel ? VL.bboxSelectionDoc() : null;
+    const nv = (px) => Math.round(VL.versUnite(px) * 100) / 100;
+    const suf = VL.unites().affichage;
     hote.innerHTML = `
+      ${b ? `
+      <div class="ap-ligne"><span>X · Y</span>
+        <input type="number" id="apX" step="any" value="${nv(b.x)}"
+               title="X de la sélection (${suf})"/>
+        <input type="number" id="apY" step="any" value="${nv(b.y)}"
+               title="Y de la sélection (${suf})"/>
+      </div>
+      <div class="ap-ligne"><span>L · H</span>
+        <input type="number" id="apW" step="any" value="${nv(b.w)}"
+               title="Largeur (${suf})"/>
+        <input type="number" id="apH" step="any" value="${nv(b.h)}"
+               title="Hauteur (${suf})"/>
+      </div>
+      <div class="ap-ligne"><span>Aligner</span>
+        <button data-al="gauche" title="Aligner à gauche (un seul objet : sur la page)">⇤</button>
+        <button data-al="centreH" title="Centrer horizontalement">⇔</button>
+        <button data-al="droite" title="Aligner à droite">⇥</button>
+        <button data-al="haut" title="Aligner en haut">⇧</button>
+        <button data-al="centreV" title="Centrer verticalement">⇕</button>
+        <button data-al="bas" title="Aligner en bas">⇩</button>
+      </div>
+      <div class="ap-ligne"><span></span>
+        <button data-dist="h" ${sel >= 3 ? "" : "disabled"}
+                title="Distribuer horizontalement (écarts égaux, 3 objets au moins)">⇹</button>
+        <button data-dist="v" ${sel >= 3 ? "" : "disabled"}
+                title="Distribuer verticalement">⇳</button>
+        <button data-mir="h" title="Miroir horizontal (géométrie brute — un objet tourné réfléchit sa géométrie)">◧↔◨</button>
+        <button data-mir="v" title="Miroir vertical">⬒↕⬓</button>
+        <button id="apDupliquer" title="Dupliquer la sélection (Ctrl+D)">⧉+</button>
+      </div>` : ""}`;
+    hote.innerHTML += `
       <div class="ap-ligne"><span>Fond</span>
         <button class="nu-pastille" id="apFond" style="background:${fondCouleur}"
                 data-hex="${fondCouleur}"
@@ -130,6 +191,12 @@ export function initStyle(VL) {
         <button data-bool="division" ${sel >= 2 ? "" : "disabled"}
                 title="Division — le preset vitrail : la plaque (le plus BAS) est découpée par les autres — un plomb TRACÉ découpe par son épaisseur — en fragments indépendants ; les plombs restent">⧉</button>
       </div>
+      ${objetReflete() && objetReflete().type === "rect" ? `
+      <div class="ap-ligne"><span>Rayon</span>
+        <input type="number" id="apRayon" min="0" step="1"
+               value="${objetReflete().rx || 0}"
+               title="Rayon d'angle du rectangle (px du document, borné à min(L,H)/2 ; 0 = angles vifs)"/>
+      </div>` : ""}
       ${objetReflete() && objetReflete().type === "texte" ? `
       <div class="ap-ligne"><span>Fonte</span>
         <input type="text" id="apPolice" value="${s.police || "Segoe UI"}"
@@ -157,6 +224,59 @@ export function initStyle(VL) {
         <button id="apStopPlus" title="Ajouter un stop médian">＋ stop</button>
       </div>` : ""}`;
 
+    if (b) {
+      const majPos = (patch) => {
+        const b0 = VL.bboxSelectionDoc();
+        if (!b0) return;
+        const sel2 = etat.selection.slice();
+        if ("x" in patch || "y" in patch) {
+          const dx = "x" in patch ? VL.depuisUnite(patch.x) - b0.x : 0;
+          const dy = "y" in patch ? VL.depuisUnite(patch.y) - b0.y : 0;
+          if (dx || dy) VL.executer(op_deplacer, sel2, dx, dy);
+        } else {
+          const b1 = { ...b0 };
+          if ("w" in patch) b1.w = Math.max(1, VL.depuisUnite(patch.w));
+          if ("h" in patch) b1.h = Math.max(1, VL.depuisUnite(patch.h));
+          if (b1.w !== b0.w || b1.h !== b0.h) {
+            VL.executer(op_redimensionner, sel2, b0, b1);
+          }
+        }
+      };
+      $("#apX").addEventListener("change", (e) => majPos({ x: +e.target.value }));
+      $("#apY").addEventListener("change", (e) => majPos({ y: +e.target.value }));
+      $("#apW").addEventListener("change", (e) => majPos({ w: +e.target.value }));
+      $("#apH").addEventListener("change", (e) => majPos({ h: +e.target.value }));
+      hote.querySelectorAll("[data-al]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const paires = pairesSelection();
+          if (!paires.length) return;
+          // UN objet s'aligne sur LA PAGE, plusieurs sur leur réunion
+          const ref = paires.length === 1
+            ? { x: 0, y: 0, w: etat.doc.taille.w, h: etat.doc.taille.h }
+            : reunion(paires);
+          VL.executer(op_aligner, paires, btn.dataset.al, ref);
+        }));
+      hote.querySelectorAll("[data-dist]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const paires = pairesSelection();
+          if (paires.length >= 3) {
+            VL.executer(op_distribuer, paires, btn.dataset.dist);
+          }
+        }));
+      hote.querySelectorAll("[data-mir]").forEach((btn) =>
+        btn.addEventListener("click", () => {
+          const paires = pairesSelection();
+          if (!paires.length) return;
+          VL.executer(op_miroir, etat.selection.slice(), btn.dataset.mir,
+                      reunion(paires));
+        }));
+      $("#apDupliquer").addEventListener("click", VL.dupliquerSelection);
+    }
+    if (objetReflete() && objetReflete().type === "rect") {
+      $("#apRayon").addEventListener("change", (e) => VL.executer(
+        op_rect_rayon, etat.selection.slice(),
+        Math.max(0, +e.target.value || 0)));
+    }
     $("#apFond").addEventListener("click", (e) =>
       VL.ouvrirNuancier(e.currentTarget.dataset.hex,
                         (hex) => appliquer({ fond: hex }), e.currentTarget));

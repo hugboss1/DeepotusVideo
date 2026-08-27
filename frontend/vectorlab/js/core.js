@@ -514,6 +514,8 @@ const VL = {
   etat, api, $,
   docPt, ecranPt, tolDoc, aimantePt,
   unites, cote, zoomAjuster, zoomCent,
+  versUnite: (px) => px / depuisUnite(1, unites()),
+  depuisUnite: (v) => depuisUnite(v, unites()),
   dupliquerSelection, copierSelection, collerSelection,
   executer, annuler, refaire, sauver, charger,
   setSelection, selectionElems, bboxSelectionEcran, bboxSelectionDoc,
