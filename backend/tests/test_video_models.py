@@ -29,7 +29,7 @@ from app.services.storage import V1_2_NEW_COLUMNS, JobRecord       # noqa: E402
 
 
 EXPECTED_IDS = {
-    "seedance-v1-pro", "seedance-2", "seedance-2-fast",
+    "seedance-v1-pro", "seedance-2", "seedance-2-fast", "seedance-2.5",
     "kling-v3-pro", "kling-v3-standard", "pixverse-v6",
     "veo-3.1-fast-fal", "veo-3.1-google", "veo-3.1-fast-google",
     "veo-3.1-lite-google",
@@ -100,6 +100,33 @@ def test_args_seedance2():
     assert "seed" not in args and "negative_prompt" not in args
     assert any("seed" in n for n in notes)
     assert args["aspect_ratio"] == "9:16" and args["resolution"] == "1080p"
+
+
+def test_args_seedance25():
+    # Seedance 2.5 (ajouté 28/08, fal OpenAPI relu le jour même) : durées
+    # natives 4..30 s, ratio « auto » SEULEMENT (l'endpoint suit l'image ->
+    # aucun param envoyé), 480p/720p au registre — 1080p est accepté par
+    # l'endpoint mais fal ne publie pas son $/s (facturation aux tokens,
+    # seuls 480p/720p sont chiffrés) : hors registre tant que le chiffre
+    # n'est pas affiché, et le clamp le DIT dans les notes.
+    ep, args, notes = build_fal_args(
+        "seedance-2.5", image_url="u", prompt="p", negative_prompt="n",
+        end_image_url="e", duration=31, aspect_ratio="9:16",
+        resolution="1080p", seed=7)
+    assert ep == "bytedance/seedance-2.5/image-to-video"
+    assert args["duration"] == 30                    # plafond natif 30 s
+    assert args["resolution"] == "720p"              # 1080p -> 720p (prix)
+    assert "aspect_ratio" not in args                # l'endpoint suit l'image
+    assert args["end_image_url"] == "e"              # first-last supporté
+    assert args["generate_audio"] is False           # l'app possède l'audio
+    assert "seed" not in args and "negative_prompt" not in args
+    assert any("seed" in n for n in notes)
+    assert any("resolution" in n for n in notes)
+    # une durée native mi-chemin passe telle quelle (4..30 continu)
+    _, args2, _ = build_fal_args(
+        "seedance-2.5", image_url="u", prompt="p", duration=17,
+        aspect_ratio="9:16", resolution="480p")
+    assert args2["duration"] == 17 and args2["resolution"] == "480p"
 
 
 def test_args_kling():
@@ -191,6 +218,10 @@ def test_pricing():
     assert pricing.video_rate("kling-v3-pro", "1080p", p) == 0.112   # flat "*"
     # 720p-only model asked at 1080p -> priced at its max column
     assert pricing.video_rate("seedance-2-fast", "1080p", p) == 0.2419
+    # seedance-2.5 : 480p/720p chiffrés par fal ; 1080p demandé -> colonne max
+    assert pricing.video_rate("seedance-2.5", "480p", p) == 0.2205
+    assert pricing.video_rate("seedance-2.5", "720p", p) == 0.473
+    assert pricing.video_rate("seedance-2.5", "1080p", p) == 0.473
     assert pricing.video_rate("unknown-model", "1080p", p) is None
     # estimate with a model routes label+provider through the registry
     est = pricing.estimate({"kind": "seedance", "duration_s": 5,
@@ -231,6 +262,8 @@ def test_video_models_endpoint():
     assert by_id["veo-3.1-google"]["available"] is False
     assert by_id["veo-3.1-google"]["audio_included"] is True
     assert by_id["seedance-2"]["usd_per_s"]["1080p"] == 0.682
+    assert by_id["seedance-2.5"]["usd_per_s"]["720p"] == 0.473
+    assert by_id["seedance-2.5"]["available"] is True
     settings.GEMINI_API_KEY = "test-google"   # key present -> flips available
     out2 = asyncio.run(list_video_models())
     assert {m["id"]: m for m in out2["models"]}["veo-3.1-google"]["available"] is True
@@ -238,7 +271,8 @@ def test_video_models_endpoint():
 
 
 TESTS = [test_registry_shape, test_resolve, test_clamps,
-         test_args_seedance1_legacy, test_args_seedance2, test_args_kling,
+         test_args_seedance1_legacy, test_args_seedance2, test_args_seedance25,
+         test_args_kling,
          test_args_pixverse_and_veo, test_args_guards, test_google_params,
          test_google_client, test_pricing, test_schemas_and_storage,
          test_video_models_endpoint]

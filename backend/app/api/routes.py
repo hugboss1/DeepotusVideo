@@ -4217,6 +4217,11 @@ async def list_image_models():
                     "provider": "fal", "note": "fast, low cost"})
         out.append({"id": "nano-banana", "label": "Nano Banana (Gemini)",
                     "provider": "fal", "note": "strong edits"})
+        # Nano Banana Pro était au catalogue (image_providers, pricing, série
+        # Cardforge) mais ABSENT de cette liste — donc d'aucun sélecteur UI,
+        # qui la lisent tous. Corrigé 28/08/2026.
+        out.append({"id": "nano-banana-pro", "label": "Nano Banana Pro (Gemini 3)",
+                    "provider": "fal", "note": "2K/4K, 14 refs"})
     if settings.OPENAI_API_KEY:
         out.append({"id": "gpt-image-2", "label": "GPT Image 2",
                     "provider": "openai", "note": "best quality"})

@@ -84,6 +84,20 @@ VIDEO_MODELS: dict = {
         "resolutions": ["720p"], "end_image": True, "seed": False,
         "audio_param": "generate_audio",
     },
+    # Seedance 2.5 (Dreamina) — ajouté 28/08/2026, OpenAPI fal relu le jour
+    # même : durées natives 4..30 s (enum "auto"|4-30 — l'app envoie l'entier),
+    # aspect_ratio "auto" SEULEMENT (l'endpoint suit l'image -> ratios None,
+    # aucun param envoyé), pas de seed d'entrée (présent en sortie seulement).
+    # 1080p est accepté par l'endpoint mais fal ne publie que les $/s 480p et
+    # 720p (facturation aux tokens, 0,0214 $/1k) : il reste HORS registre tant
+    # que le chiffre n'est pas affiché — le clamp le dit dans les notes.
+    "seedance-2.5": {
+        "label": "Seedance 2.5", "provider": "fal", "family": "seedance25",
+        "endpoint": "bytedance/seedance-2.5/image-to-video",
+        "durations": list(range(4, 31)), "ratios": None,
+        "resolutions": ["480p", "720p"], "end_image": True, "seed": False,
+        "audio_param": "generate_audio",
+    },
     "kling-v3-pro": {
         "label": "Kling v3 Pro", "provider": "fal", "family": "kling",
         "endpoint": "fal-ai/kling-video/v3/pro/image-to-video",

@@ -52,6 +52,11 @@ DEFAULTS = {
         "seedance-v1-pro":     {"720p": 0.054, "1080p": 0.124},
         "seedance-2":          {"720p": 0.3034, "1080p": 0.682},
         "seedance-2-fast":     {"720p": 0.2419},
+        # fal.ai bytedance/seedance-2.5, relu 2026-08-28 : facturation aux
+        # tokens (0,0214 $/1k), soit ~0,2205 $/s en 480p et ~0,4730 $/s en
+        # 720p (cas 16:9) — 1080p accepté mais non chiffré par fal, donc
+        # absent ici ET du registre (voir fal_service.VIDEO_MODELS).
+        "seedance-2.5":        {"480p": 0.2205, "720p": 0.473},
         "kling-v3-pro":        {"*": 0.112},
         "kling-v3-standard":   {"*": 0.084},
         "pixverse-v6":         {"720p": 0.045, "1080p": 0.090},
