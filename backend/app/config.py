@@ -84,6 +84,9 @@ class Settings(BaseSettings):
     # HeyGen (optional, v1.4) - required for avatar/composition features
     HEYGEN_API_KEY: str = ""
     MESHY_API_KEY: str = ""
+    # Import Figma → Bibliothèque (28/08) : Personal Access Token Figma
+    # (figma.com → Settings → Security → Personal access tokens)
+    FIGMA_TOKEN: str = ""
     # v2.1 (3D Studio) : MESHY_MOCK=1 = simulateur local fidèle aux réponses
     # Meshy — le pipeline complet tourne sans clé ni crédits (démo, QA, tests).
     # MESHY_MOCK_SPEED < 1 accélère les tâches simulées (0.01 dans les tests).

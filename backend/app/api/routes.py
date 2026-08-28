@@ -1348,6 +1348,7 @@ async def list_images():
                 size_kb=p.stat().st_size // 1024,
                 width=width,
                 height=height,
+                mtime=p.stat().st_mtime,
             ))
     return {"folder": str(folder), "images": [i.model_dump() for i in items]}
 
@@ -7865,3 +7866,29 @@ async def print3d_open(body: dict):
     except RuntimeError as e:
         raise HTTPException(409, str(e))
     return {"ok": True, "mode": mode, "fichier": mf3[0].name}
+
+
+# ── Bibliothèque unifiée (28/08) : import Figma → Bibliothèque ──────────────
+
+@router.post("/images/import-figma")
+async def import_figma(body: dict):
+    """Body: {url} — le lien d'un CALQUE Figma (node-id présent) devient un
+    PNG de la Bibliothèque (`figma_<clé>_<node>.png`, réécrit en place au
+    ré-import). Jeton = FIGMA_TOKEN du .env des données ; absent → 409
+    parlant. Le service ne sort que vers api.figma.com."""
+    from app.services import figma_import as FI
+    jeton = str(getattr(settings, "FIGMA_TOKEN", "") or "").strip()
+    if not jeton:
+        raise HTTPException(409,
+            "FIGMA_TOKEN absent — crée un Personal Access Token Figma "
+            "(figma.com → Settings → Security), pose FIGMA_TOKEN=... dans "
+            "le .env des données (DeepotusVideoGenData\.env) puis relance "
+            "l'application.")
+    try:
+        nom = await FI.importer(str(body.get("url") or ""), jeton,
+                                settings.images_path)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    return {"filename": nom}

@@ -420,6 +420,8 @@ class ImageItem(BaseModel):
     size_kb: int
     width: Optional[int] = None
     height: Optional[int] = None
+    # le sélecteur de Bibliothèque trie « récentes d'abord » (additif)
+    mtime: Optional[float] = None
 
 
 # ============ Prompt Builder ============
