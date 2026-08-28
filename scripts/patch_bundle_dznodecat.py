@@ -17,11 +17,12 @@ deux seules en hexa littéral.
 
   S1  `Qr` passe sur HUIT tokens `--nd-*` (deepotus.tokens.css + copie
       dist/shared + theme-v2.css, sombre et clair) : clarté/chroma
-      identiques, teintes distinctes d'au moins 25°, et jamais les
-      sémantiques MESURÉES au poste — la couche Cinema remappe `--cyan`
-      sur l'or de marque #f0b429 : sélection = or ~83°, succès #5ec8a0
-      ~163°, échec #e35d4a ~33°. Un nœud au repos ne ressemble donc ni à
-      un sélectionné, ni à un réussi, ni à un échoué ;
+      identiques, ROUE À 45° — huit teintes espacées de 45° minimum (le
+      premier essai à 25° laissait l'arc bleu trop voisin à l'œil). Les
+      sémantiques sont MESURÉES au poste — la couche Cinema remappe
+      `--cyan` sur l'or de marque #f0b429 : sélection = or ~83°, succès
+      #5ec8a0 ~163°, échec #e35d4a ~33° ; trois proximités bornées et
+      dites en §15-quater, les cinq autres teintes à 27° ou plus ;
   S2  les quatre concaténations hexa-alpha deviennent des `color-mix`
       (40 %/33 %/10 %/13 %) — thémables, et l'anomalie latente meurt ;
   S3  les rangées de la colonne Nodes (starters, en-têtes de catégorie,

@@ -1271,18 +1271,23 @@ TROIS feuilles — deepotus.tokens.css, sa copie dist/shared, theme-v2) :
 
 | catégorie | teinte | | catégorie | teinte |
 |---|---|---|---|---|
-| source | cyan 190 (le flux entrant) | | gen | pourpre 290 |
-| audio | bleu 215 | | master | magenta 315 |
-| compose | indigo 240 | | output | rose 340 |
-| edit | violet 265 | | motion | lime 120 |
+| motion | rose-rouge 10 | | compose | cyan 190 |
+| source | orange 55 | | audio | bleu 235 |
+| master | or-olive 100 | | edit | violet 280 |
+| output | vert-lime 145 | | gen | magenta 325 |
 
-Les teintes se tiennent à ≥25° l'une de l'autre et **jamais sur les
-sémantiques MESURÉES au poste** — découverte en route : la couche Cinema
-(theme-v2) remappe `--cyan` sur l'or de marque `#f0b429`, donc la
-SÉLECTION est un or ~83° (l'ambre historique de « source » lui tombait
-dessus — d'où le cyan) ; succès `#5ec8a0` ~163°, échec `#e35d4a` ~33°.
-La règle §3.2 tient : un nœud au repos ne ressemble ni à un sélectionné,
-ni à un réussi, ni à un échoué. La palette (en-têtes + pastilles) et les
+**Roue à 45°** — la première passe espaçait de 25° et l'arc bleu
+(190/215/240…) restait perceptuellement trop voisin : l'œil lisait
+« deux bleus, deux violets » (retour utilisateur, capture du 28/08). À
+45° minimum, les huit se distinguent d'un regard. Découverte en route :
+la couche Cinema (theme-v2) remappe `--cyan` sur l'or de marque
+`#f0b429`, donc la SÉLECTION est un or ~83° (l'ambre historique de
+« source » lui tombait dessus) ; succès `#5ec8a0` ~163°, échec `#e35d4a`
+~33°. Trois proximités d'état assumées et bornées — motion à 23° du
+rouge, master à 17° de l'or, output à 18° du vert — les états repeignent
+la bordure ET posent leur badge (run/ok), la sélection ajoute son halo :
+la couleur n'est jamais le seul porteur (§3.2). Les cinq autres teintes
+se tiennent à ≥27° de tout état. La palette (en-têtes + pastilles) et les
 BORDURES des nœuds du graphe lisaient déjà `Qr` — corriger la carte a
 tout corrigé d'un geste. Anomalie latente réparée au passage
 (`patch_bundle_dznodecat.py`) : la carte de nœud concaténait

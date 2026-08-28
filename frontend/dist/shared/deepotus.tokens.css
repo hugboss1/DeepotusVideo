@@ -144,26 +144,29 @@ a:hover{color:var(--ink-strong)}
 }
 /* ── Les HUIT teintes des catégories de nœuds du Studio (28/08) ──────────
    Même doctrine que --cat-* : clarté et chroma identiques, seule la teinte
-   varie — aucune catégorie ne domine, et CHAQUE catégorie a la sienne
-   (l'ambre était porté deux fois, gen/compose étaient deux cyans jumeaux,
-   master volait le rouge d'échec, output était blanc). Les teintes se
-   tiennent à 25° au moins l'une de l'autre et à distance des SEMANTIQUES
-   MESURÉES sur la couche Cinema (theme-v2 remappe --cyan sur l'or de
-   marque !) : sélection = or ~83°, succès ~163°, échec ~33° — jamais
-   réutilisés par une catégorie au repos. */
+   varie — aucune catégorie ne domine, et CHAQUE catégorie a la sienne.
+   ROUE À 45° : huit teintes espacées d'au moins 45° — la première passe
+   (pas de 25° dans l'arc bleu) restait perceptuellement trop voisine,
+   l'œil lisait « deux bleus, deux violets » (retour utilisateur, capture
+   du 28/08). Trois proximités d'état ASSUMÉES et bornées (les états
+   repeignent la bordure ET posent un badge run/ok, la sélection ajoute
+   son halo) : motion à 23° du rouge d'échec (#e35d4a ~33°), master à 17°
+   de l'or de sélection (#f0b429 ~83° — la couche Cinema remappe --cyan
+   sur l'or !), output à 18° du vert de succès (#5ec8a0 ~163°). Les cinq
+   autres se tiennent à 27° ou plus de tout état. */
 :root{
-  --nd-source:oklch(.72 .13 190);   /* cyan    — Source (le flux entrant) */
-  --nd-audio:oklch(.72 .13 215);    /* bleu    — Audio */
-  --nd-compose:oklch(.72 .13 240);  /* indigo  — Composition */
-  --nd-edit:oklch(.72 .13 265);     /* violet  — Edit */
-  --nd-gen:oklch(.72 .13 290);      /* pourpre — Generator */
-  --nd-master:oklch(.72 .13 315);   /* magenta — Master */
-  --nd-output:oklch(.72 .13 340);   /* rose    — Output */
-  --nd-motion:oklch(.72 .13 120);   /* lime    — Animations */
+  --nd-motion:oklch(.72 .13 10);    /* rose-rouge — Animations */
+  --nd-source:oklch(.72 .13 55);    /* orange     — Source */
+  --nd-master:oklch(.72 .13 100);   /* or-olive   — Master */
+  --nd-output:oklch(.72 .13 145);   /* vert-lime  — Output */
+  --nd-compose:oklch(.72 .13 190);  /* cyan       — Composition */
+  --nd-audio:oklch(.72 .13 235);    /* bleu       — Audio */
+  --nd-edit:oklch(.72 .13 280);     /* violet     — Edit */
+  --nd-gen:oklch(.72 .13 325);      /* magenta    — Generator */
 }
 :root[data-theme="light"]{
-  --nd-source:oklch(.52 .12 190); --nd-audio:oklch(.52 .12 215);
-  --nd-compose:oklch(.52 .12 240); --nd-edit:oklch(.52 .12 265);
-  --nd-gen:oklch(.52 .12 290); --nd-master:oklch(.52 .12 315);
-  --nd-output:oklch(.52 .12 340); --nd-motion:oklch(.52 .12 120);
+  --nd-motion:oklch(.52 .12 10); --nd-source:oklch(.52 .12 55);
+  --nd-master:oklch(.52 .12 100); --nd-output:oklch(.52 .12 145);
+  --nd-compose:oklch(.52 .12 190); --nd-audio:oklch(.52 .12 235);
+  --nd-edit:oklch(.52 .12 280); --nd-gen:oklch(.52 .12 325);
 }
