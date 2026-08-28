@@ -1,4 +1,9 @@
 """Pipeline orchestrator — v1.4."""
+# asyncio au MODULE : la passe 43961b5 a pose des asyncio.to_thread dans
+# run() en comptant sur cet import — quatre autres methodes n'avaient qu'un
+# import LOCAL, et run() plantait en NameError A L'ETAPE MERGE, apres le
+# rendu fal paye et telecharge (trois seedance perdus le 27/08).
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
