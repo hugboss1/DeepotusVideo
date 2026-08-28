@@ -1258,3 +1258,47 @@ Cardforge :
 
 Écart assumé : les largeurs restent 232→64 (cotes réelles du bundle,
 même règle de correspondance que §15-bis) — le prototype disait 236→62.
+
+# 15-quater. Ajout du 28/08/2026 — les catégories de nœuds du Studio
+
+**Une teinte par catégorie, zéro doublon.** La carte `Qr` du Studio (huit
+catégories : source, gen, audio, edit, motion, compose, master, output)
+portait des collisions : source ET motion en ambre, gen (`var(--cyan)`)
+et compose (`#06b6d4`) deux cyans jumeaux, master sur le ROUGE d'échec,
+output en blanc. La doctrine §1.2 s'étend au domaine des nœuds par huit
+tokens `--nd-*` (mêmes clarté/chroma OKLCH, clair à .52, ajoutés aux
+TROIS feuilles — deepotus.tokens.css, sa copie dist/shared, theme-v2) :
+
+| catégorie | teinte | | catégorie | teinte |
+|---|---|---|---|---|
+| source | cyan 190 (le flux entrant) | | gen | pourpre 290 |
+| audio | bleu 215 | | master | magenta 315 |
+| compose | indigo 240 | | output | rose 340 |
+| edit | violet 265 | | motion | lime 120 |
+
+Les teintes se tiennent à ≥25° l'une de l'autre et **jamais sur les
+sémantiques MESURÉES au poste** — découverte en route : la couche Cinema
+(theme-v2) remappe `--cyan` sur l'or de marque `#f0b429`, donc la
+SÉLECTION est un or ~83° (l'ambre historique de « source » lui tombait
+dessus — d'où le cyan) ; succès `#5ec8a0` ~163°, échec `#e35d4a` ~33°.
+La règle §3.2 tient : un nœud au repos ne ressemble ni à un sélectionné,
+ni à un réussi, ni à un échoué. La palette (en-têtes + pastilles) et les
+BORDURES des nœuds du graphe lisaient déjà `Qr` — corriger la carte a
+tout corrigé d'un geste. Anomalie latente réparée au passage
+(`patch_bundle_dznodecat.py`) : la carte de nœud concaténait
+`f.color+"66"`/`"22"`/`1a`/`55` en hexa-alpha — CSS invalide sur un
+`var()`, seuls compose et output teintaient vraiment leur dégradé
+d'en-tête, halo de run et puce d'icône. Les quatre sites passent en
+`color-mix(in srgb, … 40 %/33 %/10 %/13 %, transparent)`.
+
+**Le repli de la colonne Nodes au mouvement §4.4** : largeur de grille et
+fondu du conteneur sur `--dur-panel`/`--ease-panel` (la feuille nodedock
+disait .28 s sur une autre courbe — battue par spécificité doublée, sans
+la modifier), échappée des rangées (starters, en-têtes, nœuds — classe
+`dzNd`) en `--dur-label` + `translateX(-22px)/380 ms`, décalage
+25 ms × rang posé par `dzdOpen` (le seul chemin de geste : bouton Hide,
+touche /, Échap, poignée) ; la restauration `dz_studio_dock` rend l'état
+final au premier rendu — sans animation (§4.6). Écarts assumés : pas de
+rebond d'icônes (le repli va à ZÉRO — rien ne survit pour rebondir), et
+rang plafonné à 14 (~40 rangées : une cascade pleine traînerait 1 s
+derrière une largeur fermée en 460 ms).

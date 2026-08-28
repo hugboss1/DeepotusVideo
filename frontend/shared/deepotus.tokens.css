@@ -142,3 +142,28 @@ a:hover{color:var(--ink-strong)}
   --cat-vectoriel:oklch(.52 .12 340);
   --cat-ink:#ffffff;
 }
+/* ── Les HUIT teintes des catégories de nœuds du Studio (28/08) ──────────
+   Même doctrine que --cat-* : clarté et chroma identiques, seule la teinte
+   varie — aucune catégorie ne domine, et CHAQUE catégorie a la sienne
+   (l'ambre était porté deux fois, gen/compose étaient deux cyans jumeaux,
+   master volait le rouge d'échec, output était blanc). Les teintes se
+   tiennent à 25° au moins l'une de l'autre et à distance des SEMANTIQUES
+   MESURÉES sur la couche Cinema (theme-v2 remappe --cyan sur l'or de
+   marque !) : sélection = or ~83°, succès ~163°, échec ~33° — jamais
+   réutilisés par une catégorie au repos. */
+:root{
+  --nd-source:oklch(.72 .13 190);   /* cyan    — Source (le flux entrant) */
+  --nd-audio:oklch(.72 .13 215);    /* bleu    — Audio */
+  --nd-compose:oklch(.72 .13 240);  /* indigo  — Composition */
+  --nd-edit:oklch(.72 .13 265);     /* violet  — Edit */
+  --nd-gen:oklch(.72 .13 290);      /* pourpre — Generator */
+  --nd-master:oklch(.72 .13 315);   /* magenta — Master */
+  --nd-output:oklch(.72 .13 340);   /* rose    — Output */
+  --nd-motion:oklch(.72 .13 120);   /* lime    — Animations */
+}
+:root[data-theme="light"]{
+  --nd-source:oklch(.52 .12 190); --nd-audio:oklch(.52 .12 215);
+  --nd-compose:oklch(.52 .12 240); --nd-edit:oklch(.52 .12 265);
+  --nd-gen:oklch(.52 .12 290); --nd-master:oklch(.52 .12 315);
+  --nd-output:oklch(.52 .12 340); --nd-motion:oklch(.52 .12 120);
+}
