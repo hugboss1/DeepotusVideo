@@ -46,8 +46,8 @@ STABLE_PROBES = [
     ("dzdesign", "__dzCatBar", 2),
 ]
 
-SPEC_CHAR_DELTA = 6981
-SPEC_BYTE_DELTA = 7037
+SPEC_CHAR_DELTA = 6994
+SPEC_BYTE_DELTA = 7050
 
 _BTN_STYLE = ('style:{width:"100%",fontSize:12,padding:"6px 12px",'
               'borderRadius:7,cursor:"pointer",background:"var(--bg-panel-2)",'
@@ -76,9 +76,13 @@ PICKER = (
     '".dzlp-grille{flex:1;overflow:auto;display:grid;'
     "grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px;"
     'padding:14px}"+'
+    # hauteur EXPLICITE : mesuré dans l'app (28/08), une case en
+    # overflow:hidden contribue ~0 a la hauteur intrinseque des rangees de
+    # cette grille — la grille rendait 998 lignes de 2 px (capture
+    # utilisateur). 123 = img 96 + legende 25 + bordures 2.
     '".dzlp-case{border:1px solid var(--stroke,#20262d);border-radius:9px;'
     "overflow:hidden;background:var(--bg-base,#0a0c0f);cursor:pointer;"
-    'padding:0;text-align:left}"+'
+    'padding:0;text-align:left;height:123px}"+'
     '".dzlp-case:hover{border-color:var(--cat,var(--accent,#f0b429))}"+'
     '".dzlp-case img{width:100%;height:96px;object-fit:cover;display:block;'
     'background:#0b1016}"+'
