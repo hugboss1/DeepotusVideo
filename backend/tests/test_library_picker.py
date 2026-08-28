@@ -157,3 +157,23 @@ def test_la_liste_des_images_porte_mtime():
                     > par_nom["banc_vieux.png"]["mtime"])
 
     asyncio.run(scenario())
+
+
+# ── D. miroirs du bundle : le sélecteur et ses trois greffes ─────────────────
+
+def test_le_miroir_bundle_selecteur():
+    """Le picker vit dans le BUNDLE, posé par patch_bundle_libpicker.py
+    (queue de chaîne auto-vérifiée) — ce pin attrape un effacement
+    silencieux de la chaîne."""
+    racine = pathlib.Path(__file__).resolve().parent.parent.parent
+    bundle = (racine / "frontend" / "dist" / "assets"
+              / "index-BEOJX8L5.js").read_text("utf-8")
+    assert bundle.count("__dzLibPicker") == 8
+    # les trois greffes : nœud Image du Studio, Quick départ et fin
+    assert 'label:"Bibliothèque"' in bundle
+    assert "Image de départ" in bundle and "Image de fin" in bundle
+    # le picker interroge la liste, téléverse, importe Figma
+    assert "/api/images/import-figma" in bundle
+    patcher = (racine / "scripts"
+               / "patch_bundle_libpicker.py").read_text("utf-8")
+    assert "guard_downstream" in patcher and "STABLE_PROBES" in patcher
