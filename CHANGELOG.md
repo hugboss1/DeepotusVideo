@@ -4,6 +4,67 @@
 
 ---
 
+# 🐙 Deepotus Video Gen — v2.6.0 "Bibliothèque unifiée"
+
+**La Bibliothèque devient le carrefour de l'application, la carte part à
+l'imprimante 3D, et l'écran suit le design au pixel et à la milliseconde.**
+Chaque asset connaît sa provenance et s'« envoie vers » dix surfaces ; un
+sélecteur commun remplace les pickers locaux ; le service print3d écrit des
+dossiers STL/3MF aux millimètres réels ; le Cardforge gagne le bandeau à la
+souris, les colonnes coulissantes et le pont Vectorlab ; le menu s'anime
+comme le handoff l'écrit.
+
+## Bibliothèque : provenance & « Envoyer vers… »
+
+- table `library_assets` — chaque image et chaque rendu porte sa source
+  (fonction productrice, provider) ; hooks sur tous les producteurs et
+  réconciliation au démarrage : 998 assets existants rétro-indexés ;
+- chips de tri « par fonction » (Images) et « par provider » (Renders) ;
+- menu « Envoyer vers… » sur chaque asset — dix cibles (Studio, Quick,
+  Template, Bible, Montage, Cardforge, Sprites, Scheduler, impression 3D,
+  planche), chaque envoi réutilisant le mécanisme de l'écran qui le possède ;
+- sélecteur unifié `__dzLibPicker` (996 vignettes réelles, recherche, tri
+  par date) greffé au nœud Image du Studio et aux écrans Quick ; import
+  direct fichier local et Figma par jeton personnel (Réglages).
+
+## Impression 3D réelle
+
+- service print3d (stdlib pure) : GLB → dossier STL + 3MF aux millimètres
+  réels, garde du plateau 256 mm (avertit, n'interdit pas) ;
+- « → Impression 3D » depuis la Forge 3D, le hub 3D et « Envoyer vers… » ;
+  ouverture du .3mf dans le slicer par association ;
+- relief vitrail par calque (0 / 2 / 5 mm) côté Vectorlab ;
+- chapitre 20 du guide (FR/EN, PDF 31 pages), capturé sur l'app réelle.
+
+## Cardforge : écrans 02/03 et pont Vectorlab
+
+- le bandeau se règle à la souris sur le plan (plein manuel / pointillé
+  auto, double-clic = auto, bornes miroir du backend) ;
+- colonnes coulissantes (`CF.coulisse`) : la pièce dit combien de colonnes
+  dorment, la scène absorbe chaque pixel au-delà du plafond ; zoom d'aperçu ;
+- pont cartes ↔ Vectorlab : documents vectoriels ancrés au jeu, onglet
+  Vectoriel du panneau Face (créer, ouvrir, poser l'export 2×, supprimer),
+  le même fichier servant les décors de cadre ; entrée « Vectorlab » au rail
+  (icône plume-Bézier, teinte rose vitrail).
+
+## Le design tient jusqu'au menu
+
+- animations de repli du rail de navigation (§4.4 du handoff) : libellés qui
+  s'échappent en cascade (25 ms par ligne), rebond des icônes armé par le
+  geste seul, icône immobile au pixel, `prefers-reduced-motion` honoré ;
+- le livrable design (design.md, toile de référence, support) entre au dépôt.
+
+## Architecture & réparations
+
+- cards : plus un réseau nu dans les pièces — les dehors `/api/vector` et
+  `/api/print3d` passent par le CORE (routes et verbes figés, entrées
+  validées), le pin d'architecture reste tel quel ;
+- pipeline seedance : un rendu payé ne se perd plus à l'étape merge (import
+  manquant attrapé) ; banc d'hygiène des imports sur tout le backend ;
+- la ligne réparée a été rejouée sans nouvelle dépense.
+
+---
+
 # 🐙 Deepotus Video Gen — v2.5.0 "Cardforge composable"
 
 **Card Forge accepte enfin une carte qui vient d'ailleurs, et laisse composer

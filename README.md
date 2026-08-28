@@ -1,4 +1,4 @@
-# 🐙 Deepotus Video Gen — v2.5.0
+# 🐙 Deepotus Video Gen — v2.6.0
 
 Local Windows studio for generating 9:16 crypto/Web3 videos — Seedance clips,
 HeyGen talking avatars, spatial compositions, and RSS→reel news posts — with a
@@ -87,6 +87,11 @@ palette, scale from the format) and adopt its art, border or zones — plus
 **Figma-style multi-selection** in the layout piece (batch move, 6 alignments,
 distributions, object-to-object snapping guides, rotation handle, rect /
 ellipse / line / arrow shapes), an `extrude` 3D node and **glass materials**.
+v2.6.0 adds the **unified Library** — every asset knows its provenance
+(producing feature, provider), a shared picker with search and file / Figma
+import, and a "Send to…" menu with ten targets — plus real **3D print
+export** (STL/3MF folders at physical millimetres, stained-glass relief per
+layer) and the animated collapse of the navigation rail.
 The only steps that use keys are optional: AI face generation (fal.ai), the
 optional AI cut-out on import, and the image→3D engines of the Forge 3D graph
 (5 fal engines billed in $, or Meshy 6/7 in credits — the price is shown
