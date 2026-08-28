@@ -1,7 +1,7 @@
 # Bibliothèque unifiée (vignettes partout + import Figma) & guide impression
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans
-> (exécution inline, session du 28/08). Steps use checkbox (`- [ ]`) syntax.
+> (exécution inline, session du 28/08). Steps use checkbox (`- [x]`) syntax.
 
 > Ordre utilisateur du 28/08 : (a) le chapitre du guide « Imprimer ses
 > créations » (le reste connu d'hier, confirmé voulu) ; (b) « unifier la
@@ -12,6 +12,37 @@
 > nœud image du Studio, dont « le dropdown me donne la liste des noms, ce
 > n'est pas pratique — je veux une vue directement sur le contenu réel de
 > la librairie ». Expansion COMMITTÉE avant le code (patron établi).
+
+> **RELEVÉ (28/08) : CHANTIER LIVRÉ, DÉPLOYÉ, PROUVÉ EN RÉEL, NETTOYÉ.**
+> T1 : chapitre 20 FR/EN + TOC, PDF régénérés Edge headless (30 → 31
+> pages), servis par l'app (`/guide/fr.html` c20 constaté, PDF 200).
+> T2 TDD : `test_library_picker.py` 5 tests RED d'abord — figma_cible pur
+> (3 formes d'URL, refus parlants), route import-figma mockée bout-à-bout
+> (écrit `figma_<clé>_<node>.png`, ré-import réécrit, 400/502/409 aux
+> bons codes, le 409 NOMME FIGMA_TOKEN — clé Settings nouvelle),
+> ImageItem.mtime additif. T3 : `patch_bundle_libpicker.py` (queue de
+> chaîne, 4 ancres, deltas 6981/7037, 6 sondes amont, marqueur épinglé
+> ×10, node --check OK) — un correctif attrapé par la preuve : la
+> fonction était module-scopée, `window.__dzLibPicker` absent → exposée.
+> **Preuves app réelle** : depuis Quick, le bouton « 📚 Parcourir les
+> vignettes… » ouvre le sélecteur — **996 vignettes réelles de la
+> Bibliothèque, tri récentes d'abord** (les exports vector d'hier en
+> tête), état vide qui nomme la recherche (« Aucune image pour
+> “figurine” »), filtre « vector_031d » → 1, **clic → le champ Start
+> image AFFICHE le fichier choisi** ; End image : contre-épreuve
+> identique affichée ; **import fichier réel par le picker** (PNG canvas
+> → /images/upload → sélectionné → présent en Bibliothèque → supprimé
+> après) ; **Figma sans jeton → le 409 parlant tel quel à l'écran**.
+> **Limites assumées (dites)** : (1) un fichier importé À L'INSTANT est
+> bien sélectionné/téléversé mais le dropdown custom de Quick l'affiche
+> « — » jusqu'à la prochaine visite de l'écran (sa liste d'options date
+> du montage) — le nœud Studio, lui, montre le nom dans son champ
+> Filename et son aperçu ; (2) la greffe du nœud Image du Studio est
+> prouvée au bundle + miroirs + mécanisme identique vivant sur Quick,
+> mais la sélection d'un nœud au canevas résiste aux clics synthétiques
+> (piège mémorisé — l'ajout se fait par glisser) : l'œil de l'utilisateur
+> la verra à sa première sélection de nœud ; (3) l'import Figma réel
+> attend un FIGMA_TOKEN — le chemin succès est verrouillé au banc mocké.
 
 **Goal :** un sélecteur de Bibliothèque UNIQUE — recherche + grille de
 vignettes réelles + import (fichier local ET lien Figma) — injecté dans le
@@ -118,18 +149,18 @@ frontend/dist/assets/index-BEOJX8L5.js patché (résultat committé)
 
 ## Tasks
 
-- [ ] **T1 guide** : sections c20 FR/EN + TOC, PDF régénérés, déployés —
+- [x] **T1 guide** : sections c20 FR/EN + TOC, PDF régénérés, déployés —
   commit
-- [ ] **T2 backend RED** : test_library_picker.py (figma_cible pure —
+- [x] **T2 backend RED** : test_library_picker.py (figma_cible pure —
   formats d'URL et refus ; route import-figma mockée : succès →
   figma_<key>_<node>.png écrit + {filename}, sans token → 409, URL sans
   node → 400, erreur Figma → 502 ; list_images porte mtime) → GREEN
   (schemas + config + service + routes) → voisins verts → commit
-- [ ] **T3 patcher** : patch_bundle_libpicker.py (préambule picker +
+- [x] **T3 patcher** : patch_bundle_libpicker.py (préambule picker +
   greffe Bh + greffes Quick ×2, sondes des marqueurs amont, deltas
   épinglés, --check, node --check du bundle, garde de double
   application) + miroirs au banc → commit
-- [ ] **T4 déploiement & preuve réelle** : sha + stop/relance + santé ;
+- [x] **T4 déploiement & preuve réelle** : sha + stop/relance + santé ;
   preuves DOM : le picker s'ouvre DEPUIS le nœud Image du Studio,
   vignettes réelles listées, recherche filtre, clic → le nœud reçoit le
   fichier ; les boutons Quick présents ; import fichier local par le
