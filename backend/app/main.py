@@ -131,6 +131,13 @@ async def lifespan(app: FastAPI):
     from app.services.fs_guard import startup_check
     startup_check(settings.images_path)
     await init_db()
+    # provenance (28/08) : rétro-remplit l'index des assets (heuristique
+    # de noms, dite) et rattrape les écritures hors boucle — idempotent.
+    try:
+        from app.services import library_index as _LI
+        await _LI.reconcilier()
+    except Exception as e:
+        logger.warning(f"library_index.reconcilier au boot ignoré: {e}")
     news_task = asyncio.create_task(news_daily_loop())
     sched_task = asyncio.create_task(schedule_loop())
     # v1.15.1: HeyGen's /v2/avatars is slow (60s+ for large catalogues). Warm

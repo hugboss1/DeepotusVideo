@@ -539,6 +539,7 @@ async def save_asset3d_shot(job: str, i: int):
         dest = settings.images_path / f"shot_{Path(job).name}_{int(i)}_{n}.png"
         n += 1
     shutil.copy2(src, dest)
+    await LI.noter([dest.name], "assets3d", job_id=Path(job).name)
     return {"filename": dest.name}
 
 
@@ -839,6 +840,7 @@ async def save_sprite_sheet(job: str):
         dest = settings.images_path / f"gen_sprite_{Path(job).name}_{n}.png"
         n += 1
     shutil.copy2(src, dest)
+    await LI.noter([dest.name], "sprites", job_id=Path(job).name)
     return {"filename": dest.name}
 
 
@@ -1501,6 +1503,7 @@ async def upload_audio(file: UploadFile = File(...)):
         None, lambda: sfx_service.record_meta(safe, {
             "kind": sfx_service.classify_kind(safe),
             "created": datetime.now().isoformat(timespec="seconds")}))
+    await LI.noter([safe], "import", kind="audio")
     return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
 
 
@@ -3728,11 +3731,29 @@ async def import_image_url(body: dict):
         logger.warning(f"news image import failed: {e}")
         raise HTTPException(502, f"Could not import the image: {e}")
     logger.info(f"imported news image -> {fname}")
+    await LI.noter([fname], "news")
     return {"filename": fname}
 
 
 @router.post("/images/generate")
 async def generate_image(body: dict, background_tasks: BackgroundTasks):
+    """Provenance (28/08) : l'enveloppe indexe les images rendues par les
+    trois chemins modèles d'un coup — source = hint `source` du body si
+    slug connu (appelants ciblés : épisodes, planificateur…), sinon
+    `generation`."""
+    out = await _generate_image_core(body, background_tasks)
+    try:
+        src = str(body.get("source") or "").strip().lower()
+        if src not in LI.SOURCES:
+            src = "generation"
+        if isinstance(out, dict) and out.get("images"):
+            await LI.noter(out["images"], src)
+    except Exception as e:  # noqa: BLE001 — l'index ne casse pas le tir
+        logger.warning(f"index generation ignoré: {e}")
+    return out
+
+
+async def _generate_image_core(body: dict, background_tasks: BackgroundTasks):
     """Text-to-image via fal.ai FLUX (same FAL_KEY as Seedance). Saves the
     PNG(s) into the images folder so they're immediately usable as Seedance
     start frames. Body: {prompt, n=1, size="portrait_16_9"}. Synchronous —
@@ -4149,6 +4170,7 @@ async def fetch_image(body: dict):
     fname = f"gen_{uuid4().hex[:8]}{ext}"
     (settings.images_path / fname).write_bytes(r.content)
     logger.info(f"Fetched image -> {fname} ({len(r.content) // 1024} KB)")
+    await LI.noter([fname], "import_url")
     return {"filename": fname}
 
 
@@ -4677,6 +4699,8 @@ async def generate_bible_reference(entity_id: str, body: dict):
             board = BS.compose_board(
                 settings.images_path, rows, plan["row_heights"],
                 palette_from=(list(panels.values()) if plan.get("palette") else None))
+        # provenance : panneaux (gen_*), miroirs et planche (board_*)
+        await LI.noter(sorted(set(panels.values())) + [board], "atelier")
         e.ref_image = board
         e.face_image = None            # tout est dans la planche composite
         e.seed = recipe_panels[0].get("seed")
@@ -5208,6 +5232,7 @@ async def generate_shot_sketch(shot_id: str, body: dict):
         seed = body.get("seed")
         seed = int(seed) if isinstance(seed, (int, float)) else None
         out = await _flux_generate(prompt, "portrait_16_9", 1, seed=seed)
+        await LI.noter([out["images"][0]], "atelier")
         s.sketch_image = out["images"][0]
         s.sketch_seed = out.get("seed")
         s.updated_at = datetime.utcnow()
@@ -6491,6 +6516,7 @@ async def _run_material_job(jid: str, spec: dict):
                 raise RuntimeError("Le générateur n'a renvoyé aucune image")
             src = settings.images_path / Path(names[0]).name
             spec["filename"] = src.name
+            await LI.noter([src.name], "matieres")
 
         upd(step="Préparation", pct=40)
         with PILImage.open(src) as im:
@@ -7920,4 +7946,5 @@ async def import_figma(body: dict):
         raise HTTPException(400, str(e))
     except RuntimeError as e:
         raise HTTPException(502, str(e))
+    await LI.noter([nom], "figma")
     return {"filename": nom}

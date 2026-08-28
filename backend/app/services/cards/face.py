@@ -2751,7 +2751,19 @@ async def serie_rescaper(did: str, body: dict | None = None):
     appliquer = (body or {}).get("appliquer") is True
 
     async def _faire():
-        return await asyncio.to_thread(_rescaper, reb, appliquer)
+        rap = await asyncio.to_thread(_rescaper, reb, appliquer)
+        if appliquer:
+            # provenance : les gagnants copiés dans la Library sont du
+            # Cardforge (le rescapage court en thread, on note ici)
+            try:
+                from app.services import library_index as _LI
+                imgs = [v.get("img") for v in (rap.get("gagnees")
+                                               or {}).values() if v.get("img")]
+                if imgs:
+                    await _LI.noter(imgs, "cardforge", deck_id=did)
+            except Exception:  # noqa: BLE001 — l'index ne casse pas la route
+                pass
+        return rap
 
     try:
         info, mien = await _coalesce(SERIE_ID, _faire)

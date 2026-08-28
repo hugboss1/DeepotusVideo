@@ -199,6 +199,63 @@ def test_l_api_replie_sur_l_heuristique_a_la_volee():
     asyncio.run(scenario())
 
 
+def test_les_copies_et_imports_sont_sources_au_depot():
+    """Sheet Sprite Lab, vue Game Assets 3D, import Figma (mocké) : les
+    noms produits seraient aussi devinables au préfixe — c'est l'origin
+    `depot` qui PROUVE que le hook du producteur a parlé, pas le repli."""
+    import asyncio
+    from httpx import ASGITransport, AsyncClient
+
+    async def scenario():
+        from app.main import app
+        from app.services import figma_import as FI
+        from app.services.storage import init_db
+        await init_db()
+        out = pathlib.Path(os.environ["OUTPUTS_FOLDER"])
+        (out / "sprites" / "abc12345").mkdir(parents=True, exist_ok=True)
+        (out / "sprites" / "abc12345" / "sheet.png").write_bytes(_PNG)
+        (out / "assets3d" / "def67890").mkdir(parents=True, exist_ok=True)
+        (out / "assets3d" / "def67890" / "shot_1.png").write_bytes(_PNG)
+
+        async def faux_json(url, jeton):
+            return {"images": {"7:8": "https://cdn.figma/x.png"}}
+
+        async def faux_octets(url):
+            return _PNG
+
+        vrai_json, vrai_octets = FI._get_json, FI._get_bytes
+        FI._get_json, FI._get_bytes = faux_json, faux_octets
+        os.environ.setdefault("FIGMA_TOKEN", "figd_banc")
+        from app.config import settings as _st
+        ancien_jeton = _st.FIGMA_TOKEN
+        _st.FIGMA_TOKEN = "figd_banc"
+        try:
+            transport = ASGITransport(app=app)
+            async with AsyncClient(transport=transport,
+                                   base_url="http://t") as c:
+                r = await c.post("/api/assets/sprite/abc12345/save")
+                assert r.status_code == 200, r.text
+                sheet = r.json()["filename"]
+                r = await c.post("/api/assets/3d/def67890/shot/1/save")
+                assert r.status_code == 200, r.text
+                vue = r.json()["filename"]
+                r = await c.post("/api/images/import-figma", json={
+                    "url": "https://www.figma.com/design/AbCyz/F?node-id=7-8"})
+                assert r.status_code == 200, r.text
+                fig = r.json()["filename"]
+                r = await c.get("/api/images")
+                par_nom = {i["filename"]: i for i in r.json()["images"]}
+            for nom, src in ((sheet, "sprites"), (vue, "assets3d"),
+                             (fig, "figma")):
+                assert par_nom[nom]["source"] == src, (nom, par_nom[nom])
+                assert par_nom[nom]["source_origin"] == "depot", nom
+        finally:
+            FI._get_json, FI._get_bytes = vrai_json, vrai_octets
+            _st.FIGMA_TOKEN = ancien_jeton
+
+    asyncio.run(scenario())
+
+
 # ── D. miroirs bundle (posés par patch_bundle_libprov, T3) ───────────────────
 
 def test_le_miroir_bundle_chips():
