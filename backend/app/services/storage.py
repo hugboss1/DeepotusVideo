@@ -218,6 +218,27 @@ class VectorDocLink(Base):
                                                  default=datetime.utcnow)
 
 
+class LibraryAsset(Base):
+    """Bibliothèque (28/08) — l'index de PROVENANCE d'un fichier du magasin
+    (images, audio) : quelle FONCTION de l'app l'a produit (`source`, slug
+    de library_index.SOURCES), comment on le sait (`origin` : depot =
+    enregistré à l'écriture, heuristique = déduit du nom — dit à l'UI) et
+    les liens utiles. Le filename canonique reste l'identifiant de tout le
+    dépôt (décision D5 du plan) ; table neuve : create_all suffit."""
+    __tablename__ = "library_assets"
+
+    filename: Mapped[str] = mapped_column(String(255), primary_key=True)
+    source: Mapped[str] = mapped_column(String(24), index=True,
+                                        default="inconnu")
+    kind: Mapped[str] = mapped_column(String(12), default="image")
+    origin: Mapped[str] = mapped_column(String(12), default="depot")
+    job_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    deck_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    doc_id: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    created: Mapped[datetime] = mapped_column(DateTime,
+                                              default=datetime.utcnow)
+
+
 class Chapter(Base):
     """v1.17 (Atelier P1) — a story chapter: raw script text + the annotated
     spans linking text zones to bible entities ([{start,end,text,entity_id}]

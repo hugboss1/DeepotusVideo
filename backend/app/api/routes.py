@@ -16,6 +16,7 @@ from PIL import Image as PILImage
 from loguru import logger
 
 from app.config import settings, APP_VERSION, SSL_VERIFY
+from app.services import library_index as LI
 from app.models.schemas import (
     GenerateRequest,
     GenerateResponse,
@@ -1350,6 +1351,16 @@ async def list_images():
                 height=height,
                 mtime=p.stat().st_mtime,
             ))
+    # provenance (28/08) : l'index dit la fonction productrice ; un fichier
+    # jamais indexé est classé par son nom, en le disant (heuristique)
+    prov = await LI.carte()
+    for it in items:
+        connu = prov.get(it.filename)
+        if connu:
+            it.source, it.source_origin = connu[0], connu[1]
+        else:
+            it.source = LI.heuristique(it.filename)
+            it.source_origin = "heuristique"
     return {"folder": str(folder), "images": [i.model_dump() for i in items]}
 
 
@@ -1363,6 +1374,10 @@ async def upload_image(file: UploadFile = File(...)):
     dest = folder / safe
     contents = await file.read()
     dest.write_bytes(contents)
+    # provenance : les exports du Vectorlab passent par cette route avec
+    # leur préfixe ; tout le reste est un import utilisateur
+    await LI.noter([safe], "vectorlab" if safe.startswith("vector_")
+                   else "import")
     return {"saved": str(dest), "filename": safe, "size_kb": len(contents) // 1024}
 
 
@@ -1399,6 +1414,7 @@ async def delete_image_file(filename: str):
     except Exception:
         raise HTTPException(404, f"Image not found: {filename}")
     p.unlink()
+    await LI.retirer(safe)
     return {"deleted": safe}
 
 
@@ -1440,6 +1456,7 @@ async def rename_image_file(filename: str, body: dict):
         raise HTTPException(404, f"Image not found: {filename}")
     except Exception as e:
         raise HTTPException(400, str(e))
+    await LI.renommer(Path(filename).name, final)
     return {"old": Path(filename).name, "new": final}
 
 
@@ -3813,6 +3830,18 @@ _CROP_RATIOS = {"9:16": (9, 16), "16:9": (16, 9), "1:1": (1, 1),
 
 @router.post("/images/process")
 async def process_image(body: dict):
+    """Provenance (28/08) : l'enveloppe indexe `retouche` d'un coup les
+    fichiers rendus par les 8 ops du cœur ({images:[…]}) — un seul site."""
+    out = await _process_image_core(body)
+    try:
+        if isinstance(out, dict) and out.get("images"):
+            await LI.noter(out["images"], "retouche")
+    except Exception as e:  # noqa: BLE001 — l'index ne casse pas la retouche
+        logger.warning(f"index retouche ignoré: {e}")
+    return out
+
+
+async def _process_image_core(body: dict):
     """Post-traitements des nœuds image du Studio. Body: {op, filename, ...}.
     Ops:
       - crop        {ratio "9:16"}            — recadrage centré, local (PIL)

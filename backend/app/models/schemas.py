@@ -422,6 +422,10 @@ class ImageItem(BaseModel):
     height: Optional[int] = None
     # le sélecteur de Bibliothèque trie « récentes d'abord » (additif)
     mtime: Optional[float] = None
+    # provenance (28/08, additif) : slug de library_index.SOURCES + origin
+    # depot|heuristique — un fichier jamais indexé est classé au nom
+    source: Optional[str] = None
+    source_origin: Optional[str] = None
 
 
 # ============ Prompt Builder ============
