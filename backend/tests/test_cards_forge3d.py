@@ -1029,7 +1029,7 @@ def test_clean_graph_ne_laisse_plus_d_aretes_pendantes():
 
 
 def test_info_publie_moteurs_prix_matieres_et_bornes(monkeypatch):
-    """7 moteurs, prix fal en $ depuis pricing, crédits Meshy depuis la grille
+    """8 moteurs, prix fal en $ depuis pricing, crédits Meshy depuis la grille
     partagée (+ conversion $ directionnelle meshy_credit_usd), matières de la
     boutique, bornes matière/transform — l'écran ne recopie RIEN."""
     from app.config import settings
@@ -1041,8 +1041,10 @@ def test_info_publie_moteurs_prix_matieres_et_bornes(monkeypatch):
     try:
         info = _api("GET", f"/api/cards/{did}/forge3d/info").json()
         eng = {e["id"]: e for e in info["mesh3d"]["engines"]}
-        assert list(eng) == ["tripo", "hunyuan", "trellis", "rodin", "triposr",
-                             "meshy-6", "meshy-7"]
+        # 29/08 : tripo-h3.1 rejoint le miroir (la « v3.1 » de la spec
+        # Magnific, publiée sous h3.1 sur fal) — juste après tripo v2.5.
+        assert list(eng) == ["tripo", "tripo-h3.1", "hunyuan", "trellis",
+                             "rodin", "triposr", "meshy-6", "meshy-7"]
         # roster lock (M4) : les moteurs fal du miroir 2b sont un
         # SOUS-ENSEMBLE du registre asset3d_service — jamais un moteur que
         # le job (Task 4) ne saurait pas router.
@@ -1132,7 +1134,7 @@ def test_info_degrade_au_lieu_de_500_si_prix_ou_matieres_explosent(monkeypatch):
     assert "disque HS" in b1["materials_degraded"]
     # le reste du payload reste INTACT : la panne de la boutique ne touche
     # pas la table des moteurs (les deux dégradent ISOLÉMENT)
-    assert len(b1["mesh3d"]["engines"]) == 7
+    assert len(b1["mesh3d"]["engines"]) == 8
     assert b1["mesh3d"]["degraded"] is None
     monkeypatch.undo()
 

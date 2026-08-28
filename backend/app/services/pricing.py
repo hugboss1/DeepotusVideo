@@ -307,10 +307,23 @@ def estimate(op: dict, p: dict | None = None) -> dict:
         # multi-view edits. Rates seeded from each provider's docs (editable).
         engine = str(op.get("engine") or "tripo").lower()
         tex = bool(op.get("textures", True))
+        hd = str(op.get("quality") or "").lower() in ("high", "hd")
         rates = {"tripo": 0.30 if tex else 0.20, "triposr": 0.07,
-                 "hunyuan": 0.48 if tex else 0.16, "trellis": 0.35, "rodin": 0.40}
+                 "hunyuan": 0.48 if tex else 0.16, "trellis": 0.35, "rodin": 0.40,
+                 # Tripo H3.1, page fal relue le 29/08/2026 : « $0.20 (without
+                 # textures), $0.30 (with standard textures), or $0.40 (with HD
+                 # textures), plus an additional $0.20 for detailed geometry
+                 # and $0.05 for quad mesh if selected. »
+                 "tripo-h3.1": (0.40 if hd else 0.30) if tex else 0.20}
         unit = rates.get(engine, 0.30)
         lines.append(_line("fal", f"3D mesh ({engine})", 1, "gen", unit))
+        if engine == "tripo-h3.1":
+            # suppléments FACTURÉS, donc affichés : les taire ferait mentir la
+            # pastille de coût au moment précis où l'utilisateur décide
+            if op.get("geometry_detaillee"):
+                lines.append(_line("fal", "Géométrie détaillée", 1, "opt", 0.20))
+            if op.get("quad"):
+                lines.append(_line("fal", "Maillage quad", 1, "opt", 0.05))
         # formats the first call doesn't return get re-exported = one more paid
         # generation each (worst case), so surface them in the estimate
         extra = len({str(f).lower() for f in (op.get("formats") or [])} - {"glb"})

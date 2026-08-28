@@ -223,9 +223,13 @@ RELIEF_GRID_PREVIEW = 96             # l'apercu d'UN noeud (node-preview, 2c)
                                       # ecrit sur le noeud, juste plafonne
                                       # pour CETTE reponse ephemere.
 
-# ── mesh3d (2b) : les 7 moteurs — 5 fal (asset3d_service) + Meshy direct ────
+# ── mesh3d (2b) : les 8 moteurs — 6 fal (asset3d_service) + Meshy direct ────
 MESH3D_ENGINES = [
     {"id": "tripo",   "provider": "fal",   "label": "Tripo v2.5"},
+    # 29/08/2026 — la generation « v3.1 » de la spec Magnific est publiee sur
+    # fal sous le nom h3.1 (tripo3d/tripo/v3.1 n'existe pas). Voir le registre
+    # asset3d_service.ENGINES, qui reste la seule verite des capacites.
+    {"id": "tripo-h3.1", "provider": "fal", "label": "Tripo H3.1"},
     {"id": "hunyuan", "provider": "fal",   "label": "Hunyuan3D v2"},
     {"id": "trellis", "provider": "fal",   "label": "TRELLIS"},
     {"id": "rodin",   "provider": "fal",   "label": "Rodin"},

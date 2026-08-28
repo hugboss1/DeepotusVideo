@@ -539,7 +539,11 @@ async def list_asset3d_engines():
                                    "textures": True, "multiview": False})
         brouillon = _pricing.estimate({"kind": "asset3d", "engine": eid,
                                        "textures": False, "multiview": False})
-        out.append({**{k: v for k, v in e.items() if k != "endpoint"},
+        # AUCUNE URL de fournisseur vers le client : le filtre porte sur le
+        # PRÉFIXE, pas sur la clé exacte — `endpoint_multiview` (H3.1) était
+        # passé à travers un filtre qui ne connaissait que `endpoint`.
+        out.append({**{k: v for k, v in e.items()
+                       if not k.startswith("endpoint")},
                     "id": eid, "available": dispo,
                     "usd_texture": devis["total_usd"],
                     "usd_brouillon": brouillon["total_usd"]})

@@ -178,9 +178,10 @@ def _job(nom: str, glb: bytes | None = None, avec_ref=True) -> str:
 
 # ══ A. registre de capacités 3D ═════════════════════════════════════════════
 
-def test_le_registre_garde_ses_cinq_moteurs_et_gagne_ses_capacites():
+def test_le_registre_garde_ses_moteurs_et_gagne_ses_capacites():
     # non-régression : d'autres bancs épinglent l'ensemble des clés
-    assert set(A3.ENGINES) == {"tripo", "hunyuan", "trellis", "rodin", "triposr"}
+    assert set(A3.ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
+                               "rodin", "triposr"}
     for eid, e in A3.ENGINES.items():
         for flag in ("multiview", "max_images", "texture_modes", "draft",
                      "detailed", "pbr", "tpose", "quality_passthrough",
@@ -218,7 +219,7 @@ def test_la_matrice_besoin_moteur_est_motivee():
     r = A3.recommend_engine("rig")
     assert r["engine"] == "rodin" and "pose" in r["why"].lower()
     assert r["opts"]["tpose"] is True
-    assert A3.recommend_engine("hero")["engine"] == "tripo"
+    assert A3.recommend_engine("hero")["engine"] == "tripo-h3.1"
     assert A3.recommend_engine("brouillon")["opts"]["textures"] is False
     # chaque besoin nomme un moteur du registre et porte sa justification
     for bid, b in A3.BESOINS_3D.items():
@@ -551,7 +552,7 @@ def test_routes_phase_d():
             r = await c.get("/api/assets3d/engines")
             assert r.status_code == 200, r.text
             d = r.json()
-            assert len(d["engines"]) == 5 and d["default"] == "tripo"
+            assert len(d["engines"]) == 6 and d["default"] == "tripo"
             e0 = d["engines"][0]
             assert "endpoint" not in e0            # pas d'URL fournisseur en clair
             assert "multiview" in e0 and "available" in e0
@@ -1116,7 +1117,7 @@ def test_le_chemin_heureux_dune_generation_3d_tourne_hors_ligne():
     assert r["shots"] == [f"shot_{i}.png" for i in range(5)]
     # …mais le PLAFOND du registre s'applique à ce qui part au moteur
     envoi = [c for c in CALLS if c["kind"] == "subscribe"
-             and "tripo" in str(c["model"])]
+             and "tripo" in str(c.get("model"))]
     assert len(envoi) == 1
     assert len(envoi[0]["arguments"]["multiview_images"]) == A3.ENGINES["tripo"]["max_images"]
     assert envoi[0]["arguments"]["texture"] == "HD"
@@ -1129,3 +1130,273 @@ def test_le_chemin_heureux_dune_generation_3d_tourne_hors_ligne():
     assert reg["current_version"] == 1
     assert reg["entries"][0]["geometry"]["tris"] == 12
     assert reg["entries"][0]["source"]["engine"] == "tripo"
+
+
+# ══ J. Tripo H3.1 (29/08) — le moteur, ses deux endpoints, son ordre de vues ═
+
+def test_h31_est_au_registre_avec_ses_capacites_relues():
+    caps = A3.engine_caps("tripo-h3.1")
+    assert caps["endpoint"] == "tripo3d/h3.1/image-to-3d"
+    assert caps["endpoint_multiview"] == "tripo3d/h3.1/multiview-to-3d"
+    assert caps["view_order"] == ["front", "left", "back", "right"]
+    assert caps["formats"] == ["glb", "fbx"]
+    assert caps["multiview"] is True and caps["max_images"] == 4
+    assert caps["draft"] is True and caps["detailed"] is True
+    # les DEUX capacités que personne d'autre n'a
+    assert caps["face_limit"] is True and caps["quad"] is True
+    assert caps["seed"] is True
+    autres = [e for k, e in A3.ENGINES.items() if k != "tripo-h3.1"]
+    assert not any(e["face_limit"] or e["quad"] or e["seed"] for e in autres)
+
+
+def test_h31_choisit_lendpoint_selon_le_nombre_de_vues():
+    assert A3.resolve_endpoint("tripo-h3.1", 1) == "tripo3d/h3.1/image-to-3d"
+    assert A3.resolve_endpoint("tripo-h3.1", 4) == "tripo3d/h3.1/multiview-to-3d"
+    # un moteur sans endpoint multi-vues garde le sien quoi qu'il arrive
+    assert A3.resolve_endpoint("tripo", 4) == "tripo3d/tripo/v2.5/image-to-3d"
+    assert A3.resolve_endpoint("trellis", 4) == "fal-ai/trellis"
+    with pytest.raises(ValueError):
+        A3.resolve_endpoint("tripo-v3.1", 1)      # le nom de la spec n'existe pas
+
+
+def test_lordre_des_vues_suit_le_contrat_du_moteur():
+    """fal documente « Order: [front, left, back, right]. Front view is
+    required. » — nos vues sont produites dans l'ordre face, dos, gauche,
+    droite. Les envoyer telles quelles mettrait un DOS là où le moteur
+    attend un profil gauche."""
+    urls = ["U_src", "U_front", "U_back", "U_left", "U_right"]
+    cles = A3.cles_des_vues(len(urls))
+    assert cles == ["source", "front", "back", "left", "right"]
+
+    ordonne = A3.ordonner_vues("tripo-h3.1", urls, cles)
+    assert ordonne == ["U_front", "U_left", "U_back", "U_right"]
+
+    # sans vue de face générée, la SOURCE tient le rôle obligatoire
+    partiel = ["U_src", "U_front"]
+    assert A3.ordonner_vues("tripo-h3.1", partiel,
+                            A3.cles_des_vues(2)) == ["U_front"]
+    deux = A3.ordonner_vues("tripo-h3.1", ["U_src"], ["source"])
+    assert deux == ["U_src"]
+
+    # les moteurs SANS ordre imposé ne bougent pas — seul le plafond joue
+    assert A3.ordonner_vues("tripo", urls, cles) == urls[:4]
+    assert A3.ordonner_vues("trellis", urls, cles) == ["U_src"]
+    # clés absentes ou incohérentes : passage tel quel, plafonné
+    assert A3.ordonner_vues("tripo-h3.1", urls, None) == urls[:4]
+    assert A3.ordonner_vues("tripo-h3.1", urls, ["a", "b"]) == urls[:4]
+
+
+def test_h31_construit_des_arguments_conformes_a_la_page_fal():
+    une = A3.build_engine_args("tripo-h3.1", ["U0"],
+                               {"format": "glb", "textures": True,
+                                "quality": "medium"})
+    # `texture` et `pbr` sont des BOOLÉENS ici — v2.5 attendait un littéral
+    assert une["texture"] is True and une["pbr"] is True
+    assert une["texture_quality"] == "standard"
+    assert une["image_url"] == "U0" and "image_urls" not in une
+    # aucun output_format : la sortie porte toujours glb ET fbx
+    assert "output_format" not in une
+
+    hd = A3.build_engine_args("tripo-h3.1", ["U0"],
+                              {"textures": True, "quality": "hd"})
+    assert hd["texture_quality"] == "detailed"
+
+    sans = A3.build_engine_args("tripo-h3.1", ["U0"], {"textures": False})
+    assert sans["texture"] is False and sans["pbr"] is False
+    assert "texture_quality" not in sans
+
+    # les suppléments FACTURÉS ne partent que si on les demande
+    assert "geometry_quality" not in une and "quad" not in une
+    assert "face_limit" not in une and "model_seed" not in une
+    opt = A3.build_engine_args("tripo-h3.1", ["U0"],
+                               {"textures": True, "face_limit": 8000,
+                                "quad": True, "geometry_detaillee": True,
+                                "seed": 77})
+    assert opt["face_limit"] == 8000 and opt["quad"] is True
+    assert opt["geometry_quality"] == "detailed"
+    assert opt["model_seed"] == 77 and opt["texture_seed"] == 77
+
+    multi = A3.build_engine_args(
+        "tripo-h3.1", ["U_src", "U_front", "U_back", "U_left", "U_right"],
+        {"textures": True, "view_keys": A3.cles_des_vues(5)})
+    assert multi["image_urls"] == ["U_front", "U_left", "U_back", "U_right"]
+    assert "image_url" not in multi
+
+
+def test_h31_livre_ses_formats_dans_model_urls():
+    """La sortie H3.1 met glb et fbx dans un OBJET `model_urls`, pas dans la
+    liste `model_meshes` — sans ce parsing, le .fbx annoncé n'était jamais
+    récupéré et une génération PAYANTE de plus partait pour l'obtenir."""
+    res = A3.parse_engine_result("tripo-h3.1", {
+        "model_mesh": {"url": "https://x/m.glb"},
+        "model_urls": {"glb": "https://x/m.glb", "fbx": "https://x/m.fbx",
+                       "base_model": "https://x/base.glb",
+                       "pbr_model": "https://x/pbr.glb"},
+        "rendered_image": {"url": "https://x/prev.webp"}})
+    assert res["mesh_url"] == "https://x/m.glb"
+    assert res["format_urls"]["fbx"] == "https://x/m.fbx"
+    assert res["format_urls"]["glb"] == "https://x/m.glb"
+    assert res["preview_url"] == "https://x/prev.webp"
+    # non-régression : la forme v2.5 (model_meshes) marche toujours
+    v25 = A3.parse_engine_result("tripo", {
+        "pbr_model": {"url": "https://x/pbr.glb"},
+        "model_meshes": [{"url": "https://x/a.fbx"}]})
+    assert v25["mesh_url"] == "https://x/pbr.glb"
+    assert v25["format_urls"] == {"fbx": "https://x/a.fbx"}
+
+
+def test_le_tarif_h31_suit_la_page_fal_supplements_compris():
+    from app.services.pricing import estimate
+    base = {"kind": "asset3d", "engine": "tripo-h3.1", "multiview": False}
+    assert estimate({**base, "textures": False})["total_usd"] == 0.20
+    assert estimate({**base, "textures": True})["total_usd"] == 0.30
+    assert estimate({**base, "textures": True, "quality": "hd"})["total_usd"] == 0.40
+    # suppléments annoncés séparément, jamais fondus dans le prix de base
+    avec = estimate({**base, "textures": True, "geometry_detaillee": True,
+                     "quad": True})
+    assert avec["total_usd"] == 0.55
+    libelles = [l["label"] for l in avec["breakdown"]]
+    assert "Géométrie détaillée" in libelles and "Maillage quad" in libelles
+    # les autres moteurs n'ont pas gagné de suppléments au passage
+    assert estimate({"kind": "asset3d", "engine": "tripo",
+                     "textures": True, "quad": True})["total_usd"] == 0.30
+
+
+def test_h31_est_dans_TOUTES_les_listes_de_lapplication():
+    """« dans toutes les listes de l'application » — chaque surface est
+    vérifiée à sa source, pas par transitivité."""
+    # 1. le registre backend
+    assert "tripo-h3.1" in A3.ENGINES
+    # 2. la liste Cardforge (mesh3d)
+    from app.services.cards.forge3d import MESH3D_ENGINES
+    ids = [e["id"] for e in MESH3D_ENGINES]
+    assert "tripo-h3.1" in ids and ids.index("tripo-h3.1") == 1
+    # 3. le tarif (sinon la pastille de coût retomberait sur le défaut 0,30)
+    from app.services.pricing import estimate
+    assert estimate({"kind": "asset3d", "engine": "tripo-h3.1",
+                     "textures": False})["total_usd"] == 0.20
+    # 4. la matrice besoin→moteur de l'Atelier / Chapitre
+    assert A3.recommend_engine("hero")["engine"] == "tripo-h3.1"
+    assert A3.recommend_engine("realtime")["engine"] == "tripo-h3.1"
+    assert A3.recommend_engine("realtime")["opts"]["face_limit"] == 10000
+    # 5. le bundle (écran Game Assets 3D) — sélecteur ET pastille de coût
+    import pathlib
+    b = pathlib.Path(__file__).resolve().parents[2] / \
+        "frontend" / "dist" / "assets" / "index-BEOJX8L5.js"
+    if b.is_file():
+        src = b.read_text(encoding="utf-8")
+        assert src.count('{value:"tripo-h3.1"') == 1, "sélecteur du bundle"
+        assert src.count('"tripo-h3.1":p.textures') == 1, "tarif du bundle"
+
+
+def test_route_engines_expose_h31_et_ses_deux_paliers():
+    import asyncio
+    import httpx
+    from httpx import ASGITransport
+    from app.main import app
+    from app.services.storage import init_db
+
+    async def scenario():
+        await init_db()
+        async with httpx.AsyncClient(transport=ASGITransport(app=app),
+                                     base_url="http://t") as c:
+            d = (await c.get("/api/assets3d/engines")).json()
+            assert len(d["engines"]) == 6
+            h = [e for e in d["engines"] if e["id"] == "tripo-h3.1"][0]
+            assert h["label"] == "Tripo H3.1"
+            assert h["usd_brouillon"] == 0.20 and h["usd_texture"] == 0.30
+            assert h["face_limit"] is True and h["quad"] is True
+            assert h["view_order"] == ["front", "left", "back", "right"]
+            # l'endpoint fournisseur ne fuit toujours pas vers le client
+            assert "endpoint" not in h and "endpoint_multiview" not in h
+            besoins = {b["id"]: b for b in d["besoins"]}
+            assert besoins["hero"]["engine"] == "tripo-h3.1"
+            assert besoins["realtime"]["engine"] == "tripo-h3.1"
+
+    asyncio.run(scenario())
+
+
+def test_generation_h31_multivues_tape_le_bon_endpoint_dans_le_bon_ordre():
+    """Bout en bout hors ligne : 4 vues demandées, endpoint multi-vues choisi,
+    ordre du contrat respecté, formats glb ET fbx récupérés sans deuxième
+    génération payante."""
+    import asyncio
+    j = "h31_e2e"
+    (settings.images_path / "src_h31.png").write_bytes(_png(32, 32))
+
+    async def _faux_subscribe(model, arguments=None, **kw):
+        CALLS.append({"kind": "subscribe", "model": model, "arguments": arguments})
+        if "seedream" in str(model):
+            return {"images": [{"url": f"http://fal.test/{len(CALLS)}.png"}]}
+        return {"model_mesh": {"url": "http://fal.test/m.glb"},
+                "model_urls": {"glb": "http://fal.test/m.glb",
+                               "fbx": "http://fal.test/m.fbx"},
+                "rendered_image": {"url": "http://fal.test/p.png"}}
+
+    def _faux_download(url, dest, timeout=120):
+        dest.write_bytes(_glb_cube() if dest.suffix == ".glb" else _png(8, 8))
+        return True
+
+    vrai_dl = A3._download
+    A3._download = _faux_download
+    _stub.subscribe_async = _faux_subscribe
+    raz_calls()
+    try:
+        r = asyncio.run(A3.generate_asset3d(
+            {"engine": "tripo-h3.1", "image_filename": "src_h31.png",
+             "multiview": True, "views": 4, "textures": True,
+             "quality": "hd", "face_limit": 12000,
+             "formats": ["glb", "fbx"], "subject": "un casque"}, j))
+    finally:
+        A3._download = vrai_dl
+        _stub.subscribe_async = _fake_subscribe
+
+    moteur = [c for c in CALLS if "h3.1" in str(c.get("model"))]
+    assert len(moteur) == 1, "une seule génération payante, pas de ré-export"
+    assert moteur[0]["model"] == "tripo3d/h3.1/multiview-to-3d"
+    a = moteur[0]["arguments"]
+    assert len(a["image_urls"]) == 4          # plafond max_images respecté
+    assert a["texture_quality"] == "detailed" and a["face_limit"] == 12000
+    # les 4 vues Seedream partent AVANT, dans l'ordre d'auteur
+    seedream = [c for c in CALLS if "seedream" in str(c.get("model"))]
+    assert len(seedream) == 4
+    assert "front view" in seedream[0]["arguments"]["prompt"]
+    assert "back view" in seedream[1]["arguments"]["prompt"]
+
+    d = MR.job_dir(j)
+    assert (d / "model.glb").is_file() and (d / "model.fbx").is_file()
+    assert r["texture_mode"] == "HD" and not r["skipped_formats"]
+
+
+def test_generation_h31_une_seule_vue_tape_lendpoint_simple():
+    import asyncio
+    j = "h31_solo"
+    (settings.images_path / "src_solo.png").write_bytes(_png(32, 32))
+
+    async def _faux_subscribe(model, arguments=None, **kw):
+        CALLS.append({"kind": "subscribe", "model": model, "arguments": arguments})
+        return {"model_mesh": {"url": "http://fal.test/m.glb"},
+                "model_urls": {"glb": "http://fal.test/m.glb"}}
+
+    def _faux_download(url, dest, timeout=120):
+        dest.write_bytes(_glb_cube())
+        return True
+
+    vrai_dl = A3._download
+    A3._download = _faux_download
+    _stub.subscribe_async = _faux_subscribe
+    raz_calls()
+    try:
+        asyncio.run(A3.generate_asset3d(
+            {"engine": "tripo-h3.1", "image_filename": "src_solo.png",
+             "multiview": False, "textures": False}, j))
+    finally:
+        A3._download = vrai_dl
+        _stub.subscribe_async = _fake_subscribe
+
+    moteur = [c for c in CALLS if "h3.1" in str(c.get("model"))]
+    assert len(moteur) == 1
+    assert moteur[0]["model"] == "tripo3d/h3.1/image-to-3d"
+    assert moteur[0]["arguments"]["image_url"] == "http://fal.test/up.png"
+    assert moteur[0]["arguments"]["texture"] is False
+    assert A3.read_manifest(j)["stage"] == "draft"

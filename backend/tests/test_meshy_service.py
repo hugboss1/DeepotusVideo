@@ -463,9 +463,13 @@ async def main():
 
     # garde anti-régression : Game Assets 3D (fal) intact
     from app.services.asset3d_service import ENGINES
-    assert set(ENGINES) == {"tripo", "hunyuan", "trellis", "rodin", "triposr"}
+    # 29/08/2026 : tripo-h3.1 rejoint le registre (la « v3.1 » de la spec
+    # Magnific, publiée sous h3.1 sur fal). Le pin reste EXACT à dessein —
+    # c'est lui qui force à passer par ici pour tout ajout de moteur.
+    assert set(ENGINES) == {"tripo", "tripo-h3.1", "hunyuan", "trellis",
+                            "rodin", "triposr"}
     assert "meshy" not in ENGINES
-    ok("ENGINES fal inchangés — meshy ne s'y invite pas")
+    ok("ENGINES fal — 6 moteurs, meshy ne s'y invite pas")
 
 
 asyncio.run(main())

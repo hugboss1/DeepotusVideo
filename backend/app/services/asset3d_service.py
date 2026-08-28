@@ -77,7 +77,38 @@ ENGINES = {
         "texture_modes": ["no", "standard", "HD"],
         "draft": True, "detailed": True, "pbr": True, "tpose": False,
         "quality_passthrough": True,
+        "face_limit": False, "quad": False, "seed": False,
         "note": "multi-vues + texture HD + 5 formats — le plus complet.",
+    },
+    # Tripo H3.1 — ajouté le 29/08/2026, pages fal relues le jour même.
+    # ATTENTION AU NOM : la spec Magnific §9.1 parle de « Tripo v3.1 ». Cet
+    # endpoint N'EXISTE PAS sur fal (tripo3d/tripo/v3.1 → 404) ; la génération
+    # correspondante y est publiée sous **h3.1**, avec DEUX endpoints séparés
+    # (image unique / multi-vues) là où v2.5 n'en avait qu'un.
+    # Paramètres relevés sur la page API : image_url | image_urls (2-4, ordre
+    # IMPOSÉ [front, left, back, right], front obligatoire), texture (bool),
+    # pbr (bool), texture_quality standard|detailed, geometry_quality
+    # standard|detailed, texture_alignment original_image|geometry,
+    # face_limit (int), quad (bool), model_seed, texture_seed, auto_size,
+    # orientation default|align_image.
+    # Sortie : model_mesh + model_urls{glb, fbx, base_model, pbr_model}
+    # + rendered_image.
+    # Prix affiché : 0,20 $ sans texture · 0,30 $ texture standard · 0,40 $
+    # texture HD, + 0,20 $ géométrie détaillée, + 0,05 $ maillage quad.
+    "tripo-h3.1": {
+        "endpoint": "tripo3d/h3.1/image-to-3d",
+        "endpoint_multiview": "tripo3d/h3.1/multiview-to-3d",
+        "formats": ["glb", "fbx"],
+        "label": "Tripo H3.1",
+        "multiview": True, "max_images": 4,
+        "view_order": ["front", "left", "back", "right"],
+        "texture_modes": ["no", "standard", "HD"],
+        "draft": True, "detailed": True, "pbr": True, "tpose": False,
+        "quality_passthrough": True,
+        # les DEUX seules capacités de topologie de tout le registre
+        "face_limit": True, "quad": True, "seed": True,
+        "note": "budget de faces et maillage quad — le seul du registre à "
+                "piloter la topologie ; multi-vues sur endpoint dédié.",
     },
     "hunyuan": {
         "endpoint": "fal-ai/hunyuan3d/v2",
@@ -87,6 +118,7 @@ ENGINES = {
         "texture_modes": ["no", "standard"],
         "draft": True, "detailed": False, "pbr": False, "tpose": False,
         "quality_passthrough": False,
+        "face_limit": False, "quad": False, "seed": False,
         "note": "image unique, texture on/off — pas de palier HD ici.",
     },
     "trellis": {
@@ -97,6 +129,7 @@ ENGINES = {
         "texture_modes": ["standard"],
         "draft": False, "detailed": False, "pbr": False, "tpose": False,
         "quality_passthrough": False,
+        "face_limit": False, "quad": False, "seed": False,
         "note": "image unique texturée, GLB seul — conversion directe.",
     },
     "rodin": {
@@ -107,6 +140,7 @@ ENGINES = {
         "texture_modes": ["standard"],
         "draft": False, "detailed": False, "pbr": True, "tpose": True,
         "quality_passthrough": True,
+        "face_limit": False, "quad": False, "seed": False,
         "note": "le SEUL à savoir demander une T-pose (asset à rigger).",
     },
     "triposr": {
@@ -117,6 +151,7 @@ ENGINES = {
         "texture_modes": ["standard"],
         "draft": False, "detailed": False, "pbr": False, "tpose": False,
         "quality_passthrough": False,
+        "face_limit": False, "quad": False, "seed": False,
         "note": "le moins cher — itération de concept, pas de livrable final.",
     },
 }
@@ -127,9 +162,10 @@ ENGINES = {
 BESOINS_3D = {
     "hero": {
         "label": "Hero / personnage détaillé",
-        "engine": "tripo",
-        "why": "seul moteur cumulant multi-vues (max_images 4) et texture HD ; "
-               "5 formats d'export pour la suite de production.",
+        "engine": "tripo-h3.1",
+        "why": "multi-vues sur endpoint dédié (ordre imposé, donc reconstruction "
+               "moins ambiguë) + texture HD, et seul moteur à accepter un seed "
+               "de géométrie — une planche hero se rejoue à l'identique.",
         "opts": {"multiview": True, "views": 3, "textures": True, "quality": "hd"},
     },
     "prop": {
@@ -155,17 +191,18 @@ BESOINS_3D = {
     },
     "realtime": {
         "label": "Temps réel / faible polygone",
-        "engine": "triposr",
-        "why": "aucun moteur du registre n'expose la topologie : le budget de "
-               "triangles s'obtient APRÈS coup par gltfpack (preset « game »), "
-               "donc on prend le moteur le moins cher.",
-        "opts": {"multiview": False},
+        "engine": "tripo-h3.1",
+        "why": "le seul moteur du registre à piloter la topologie À LA SOURCE "
+               "(face_limit, et quad pour un maillage éditable) — meilleur "
+               "qu'une décimation après coup, qui ne peut que retirer.",
+        "opts": {"multiview": False, "textures": True, "face_limit": 10000},
         # Ce n'est PAS exécuté automatiquement : c'est une étape suivante,
         # rendue par l'API et par la réponse de génération pour que le
         # client puisse la lancer. Un champ qui promettrait une action que
         # rien n'exécute serait un mensonge de plus.
         "apres_generation": {
-            "quoi": "budget de triangles par gltfpack (local, gratuit)",
+            "quoi": "vérifier le budget atteint, et le forcer par gltfpack si "
+                    "le moteur est resté au-dessus (local, gratuit)",
             "route": "POST /api/assets/3d/{job}/optimize",
             "body": {"preset": "game"},
         },
@@ -212,10 +249,78 @@ def texture_mode(engine: str, textures: bool, quality: str | None) -> str:
     return "standard" if "standard" in modes else modes[0]
 
 
+# Clés des vues, dans l'ordre où `view_prompts` les produit. La liste des
+# shots d'un job est [source, *VUES_CLES[:n]] — c'est ce qui permet de
+# RÉORDONNER pour un moteur dont l'ordre est imposé.
+VUES_CLES = ["front", "back", "left", "right"]
+
+
+def cles_des_vues(n_urls: int) -> list[str]:
+    """Clés parallèles à `image_urls` = ['source', 'front', 'back', ...]."""
+    return ["source"] + VUES_CLES[:max(0, n_urls - 1)]
+
+
+def ordonner_vues(engine: str, image_urls: list[str],
+                  view_keys: list[str] | None = None) -> list[str]:
+    """Réordonne les vues selon l'ordre IMPOSÉ par le moteur, s'il en a un.
+
+    Tripo H3.1 multiview documente « Order: [front, left, back, right]. Front
+    view is required. » — envoyer nos vues dans l'ordre d'auteur (face, dos,
+    gauche, droite) donnerait donc un dos là où le moteur attend un profil.
+    Sans `view_order` au registre, ou sans clés fournies, on passe la liste
+    telle quelle : le comportement des quatre autres moteurs ne bouge pas.
+    """
+    e = ENGINES.get(engine) or {}
+    ordre = e.get("view_order")
+    if not ordre or not view_keys or len(view_keys) != len(image_urls):
+        return image_urls[:e.get("max_images") or len(image_urls)]
+    par_cle = dict(zip(view_keys, image_urls))
+    sortie = [par_cle[k] for k in ordre if k in par_cle]
+    # « Front view is required » : à défaut de vue de face générée, l'image
+    # SOURCE tient ce rôle — c'est elle qui a produit toutes les autres.
+    if "front" not in par_cle and "source" in par_cle:
+        sortie.insert(0, par_cle["source"])
+    return sortie[:e.get("max_images") or len(sortie)]
+
+
+def resolve_endpoint(engine: str, n_images: int = 1) -> str:
+    """L'endpoint à appeler. H3.1 sépare image unique et multi-vues en DEUX
+    endpoints ; v2.5 passait ses vues en paramètre du même."""
+    e = engine_caps(engine)
+    if n_images > 1 and e.get("endpoint_multiview"):
+        return e["endpoint_multiview"]
+    return e["endpoint"]
+
+
 def build_engine_args(engine: str, image_urls: list[str], opts: dict) -> dict:
     """Map the common request to the chosen engine's fal arguments."""
     fmt = (opts.get("format") or "glb").lower()
     primary = image_urls[0] if image_urls else None
+    if engine == "tripo-h3.1":
+        # Contrat relu sur fal le 29/08/2026 : `texture` et `pbr` sont des
+        # BOOLÉENS (v2.5 attendait un littéral dans `texture`), le palier vit
+        # dans `texture_quality` standard|detailed. Aucun `output_format` :
+        # la sortie porte toujours glb ET fbx dans `model_urls`.
+        tex_on = bool(opts.get("textures", True))
+        hd = str(opts.get("quality", "")).lower() in ("high", "hd")
+        a = {"texture": tex_on, "pbr": tex_on}
+        if tex_on:
+            a["texture_quality"] = "detailed" if hd else "standard"
+        if opts.get("geometry_detaillee"):
+            a["geometry_quality"] = "detailed"      # +0,20 $ — jamais d'office
+        if opts.get("face_limit"):
+            a["face_limit"] = int(opts["face_limit"])
+        if opts.get("quad"):
+            a["quad"] = True                        # +0,05 $
+        if opts.get("seed") is not None:
+            a["model_seed"] = int(opts["seed"])
+            a["texture_seed"] = int(opts["seed"])
+        vues = ordonner_vues(engine, image_urls, opts.get("view_keys"))
+        if len(vues) > 1:
+            a["image_urls"] = vues
+        else:
+            a["image_url"] = vues[0] if vues else primary
+        return a
     if engine == "rodin":
         return {"input_image_urls": image_urls, "geometry_file_format": fmt,
                 "material": "PBR", "quality_mesh_option": opts.get("quality", "medium"),
@@ -267,6 +372,16 @@ def parse_engine_result(engine: str, res: dict) -> dict:
         if u:
             ext = u.rsplit(".", 1)[-1].split("?")[0].lower()
             meshes[ext] = u
+    # Tripo H3.1 livre ses formats dans un OBJET `model_urls`
+    # {glb, fbx, base_model, pbr_model} — pas dans la liste `model_meshes`.
+    # Sans ceci, le .fbx annoncé par le registre n'était jamais récupéré et
+    # `generate_asset3d` relançait une génération PAYANTE pour l'obtenir.
+    mu = res.get("model_urls")
+    if isinstance(mu, dict):
+        for cle in ("glb", "fbx", "obj", "stl", "usdz"):
+            u = _url(mu.get(cle))
+            if u:
+                meshes.setdefault(cle, u)
     textures = [t for t in (_url(x) for x in (res.get("textures") or [])) if t]
     preview = None
     for key in ("preview_render", "rendered_image", "preview", "thumbnail"):
@@ -282,9 +397,14 @@ async def _upload(path):
     return await FalSeedanceClient.upload_image(path)
 
 
-async def _run_engine(engine, args):
+async def _run_engine(engine, args, endpoint=None):
     import fal_client
-    ep = ENGINES[engine]["endpoint"]
+    # H3.1 a un endpoint multi-vues DISTINCT. Le nombre d'images est déjà
+    # dans `args` (image_url seule, ou une liste image_urls/multiview_images
+    # déjà ordonnée et plafonnée) : le déduire ICI évite de le faire remonter
+    # dans chaque appelant — et garde la signature historique utilisable.
+    n = max((len(v) for v in args.values() if isinstance(v, list)), default=1)
+    ep = endpoint or resolve_endpoint(engine, n)
     try:
         res = await fal_client.subscribe_async(ep, arguments=args, with_logs=False)
     except Exception as e:
@@ -366,16 +486,25 @@ async def generate_asset3d(payload: dict, job_id: str, on_step=None):
 
     await _step(f"Running {engine}", 60)
     base_opts = {"format": "glb", "textures": payload.get("textures", True),
-                 "quality": payload.get("quality", "medium"), "tpose": payload.get("tpose")}
-    # Plafond du registre (§8 : un drapeau qui ment est pire que pas de
-    # drapeau). Avec views=4 la liste vaut source + 4 vues = 5 images, alors
-    # que `max_images` en déclare 4 : on tronque ici, à l'entrée du moteur.
-    _max = ENGINES[engine]["max_images"]
-    if len(image_urls) > _max:
-        logger.info(f"{engine}: {len(image_urls)} vues réduites à {_max} "
-                    f"(max_images du registre)")
-        image_urls = image_urls[:_max]
-    result = await _run_engine(engine, build_engine_args(engine, image_urls, base_opts))
+                 "quality": payload.get("quality", "medium"),
+                 "tpose": payload.get("tpose"),
+                 # options de topologie / reproductibilité — seul H3.1 les
+                 # câble ; les autres adaptateurs les ignorent
+                 "face_limit": payload.get("face_limit"),
+                 "quad": payload.get("quad"),
+                 "geometry_detaillee": payload.get("geometry_detaillee"),
+                 "seed": payload.get("seed")}
+    # UN SEUL mécanisme pour le plafond du registre ET l'ordre imposé : avec
+    # views=4 la liste vaut source + 4 vues = 5 images alors que `max_images`
+    # en déclare 4 (§8 : un drapeau qui ment est pire que pas de drapeau), et
+    # H3.1 exige [front, left, back, right].
+    vues = ordonner_vues(engine, image_urls, cles_des_vues(len(image_urls)))
+    if len(vues) != len(image_urls):
+        logger.info(f"{engine}: {len(image_urls)} vues → {len(vues)} envoyées "
+                    f"(max_images {ENGINES[engine]['max_images']}"
+                    + (f", ordre {ENGINES[engine]['view_order']}"
+                       if ENGINES[engine].get("view_order") else "") + ")")
+    result = await _run_engine(engine, build_engine_args(engine, vues, base_opts))
 
     files = {}
     if result.get("mesh_url"):
@@ -557,17 +686,20 @@ async def refine_asset3d(job: str, quality: str = "hd", on_step=None) -> dict:
             "moteur à l'identique.")
 
     await _step("Renvoi des vues", 15)
-    # Plafond du registre : envoyer plus d'images que `max_images` ferait
-    # mentir le drapeau — et certains moteurs ignorent silencieusement le
-    # surplus, qu'on aurait payé pour rien.
+    # On renvoie TOUTES les vues conservées, puis `ordonner_vues` applique le
+    # plafond et l'ordre imposé du moteur : tronquer avant réordonnancement
+    # amputerait H3.1 de son profil droit.
     urls = []
-    for s in shots[:caps["max_images"]]:
+    for s in shots[:1 + len(VUES_CLES)]:
         urls.append(await _upload(d / s))
+    vues = ordonner_vues(engine, urls, cles_des_vues(len(urls)))
 
     await _step(f"{caps['label']} · texture {cible}", 55)
     opts = {"format": "glb", "textures": True, "quality": quality,
-            "tpose": man.get("tpose")}
-    res = await _run_engine(engine, build_engine_args(engine, urls, opts))
+            "tpose": man.get("tpose"),
+            "face_limit": man.get("face_limit"), "quad": man.get("quad"),
+            "seed": man.get("seed")}
+    res = await _run_engine(engine, build_engine_args(engine, vues, opts))
     if not res.get("mesh_url"):
         raise RuntimeError(f"{engine} : aucun mesh dans la réponse fal")
 
