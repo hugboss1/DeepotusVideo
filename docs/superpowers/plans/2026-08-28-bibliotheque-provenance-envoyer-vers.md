@@ -15,6 +15,36 @@
 > sélectionner toutes les autres cibles de l'application : chapitre,
 > montage, template, etc. ».
 
+> **RELEVÉ (28/08) : CHANTIER LIVRÉ, DÉPLOYÉ, PROUVÉ EN RÉEL, NETTOYÉ.**
+> T1-T2 : `library_assets` + `library_index.py` (noter/renommer/retirer/
+> reconcilier/carte, hooks résilients), TOUS les producteurs notent au
+> dépôt, réconciliation au boot ; banc `test_library_provenance.py`
+> 8 tests RED d'abord, 12 fichiers voisins verts. T3 `libprov` (13
+> ancres, deltas +2830/+2835) ; T4 `libsend` (4 ancres, +7457/+7568,
+> pin print3d 2→3 commenté) ; `test_library_sendto.py` 3 tests ;
+> node --check OK ×2. **Déployé** (7 fichiers sha-vérifiés, stop/
+> relance, santé 2.5.0) — le boot a rétro-indexé les **998 assets réels**
+> (934 generation, 56 inconnu, 4 vectorlab, 2 news, 1 atelier,
+> 1 assets3d — tous `heuristique`, dits). **Preuves navigateur** :
+> chips Images (« Tout (998) · ≈ Générateur (934) · … », 22 px, clic
+> Vectorlab → 4/4 cases vector_*), chips Renders par provider
+> (75 = 1+3+4+1+24+33+9, clic Heygen → 3 vidéos), chips du picker
+> (998→4, chip active) ; menu « Envoyer vers… » 8 cibles image /
+> 3 rendu / print3d (3D) / sheet (Sprites) : → Studio (nœud Image,
+> Filename = le fichier), → Quick (« Start image | vector_… » affiché),
+> → Template (Spatial compose au canevas, image câblée), → Bible
+> (entité de test, PUT réel, inspirations = [fichier], toast),
+> → Montage (clip posé sur la vraie timeline puis retiré par le bouton
+> Annuler de l'éditeur), → Cardforge (toast « img:… copié » + iframe
+> /cardforge/), → Scheduler ×2 (brouillons source_image ET job_id créés
+> puis SUPPRIMÉS), copie de sheet arrivée **sourcée sprites/depot par le
+> hook vivant** puis supprimée. Nettoyage vérifié aux endpoints (998
+> images, 0 post/entité/sheet de banc, timeline restaurée). Limites
+> dites : vignettes news écrites en thread = indexées au boot suivant
+> (préfixe exact) ; l'entrée Sprite Lab du menu appelle le
+> `__dzToSpriteLab` déjà prouvé de son chantier ; l'entrée Impression 3D
+> ouvre le `window.prompt` mm existant (non cliqué au banc navigateur).
+
 **Goal :** chaque asset de la Bibliothèque porte la FONCTION qui l'a
 produit (table d'index alimentée au dépôt + rétro-remplissage honnête),
 filtrable par chips dans l'écran Library ET le sélecteur `__dzLibPicker` ;
@@ -238,7 +268,7 @@ frontend/dist/assets/index-BEOJX8L5.js  patché (résultat committé)
 
 ## Tasks
 
-- [ ] **T1 backend RED→GREEN (chantier A)** :
+- [x] **T1 backend RED→GREEN (chantier A)** :
   `test_library_provenance.py` (UN processus, patron test_library_picker)
   — (a) heuristique pure (7 préfixes + inconnu) ; (b) upload → source
   `import` / `vector_*` → `vectorlab` dans GET /api/images ; (c)
@@ -250,19 +280,19 @@ frontend/dist/assets/index-BEOJX8L5.js  patché (résultat committé)
   GREEN → `scripts\run-tests.ps1 -Filter test_library_provenance` +
   voisins (test_library_picker, test_image_rename, test_images_process,
   test_hygiene_imports) → commit.
-- [ ] **T2 hooks restants + lifespan** : generate ×3 (+hint), process ×6,
+- [x] **T2 hooks restants + lifespan** : generate ×3 (+hint), process ×6,
   matières, planche/sketch atelier, face.py cardforge, sprite/shot
   saves, audio upload, import-url ; `main.py` reconcilier ; re-run banc +
   test_cards_face si touché → commit.
-- [ ] **T3 patcher libprov** : items vm sourcés + état/reset/filtre/chips
+- [x] **T3 patcher libprov** : items vm sourcés + état/reset/filtre/chips
   vm + chips picker ; `--check` d'abord ; miroirs dans
   test_library_provenance (marqueur `dzlp-chips`, patcher gardé,
   `__dzLibPicker`×10 INCHANGÉ) ; node --check ; commit.
-- [ ] **T4 patcher libsend** : helper `__dzSendTo` + bouton modal +
+- [x] **T4 patcher libsend** : helper `__dzSendTo` + bouton modal +
   greffes Quick/Montage + pin print3d 2→3 ; `test_library_sendto.py`
   miroirs (helper présent, greffes présentes, comptes) ; node --check ;
   commit.
-- [ ] **T5 déploiement & preuves réelles** : copie sha-vérifiée bundle +
+- [x] **T5 déploiement & preuves réelles** : copie sha-vérifiée bundle +
   backend → %LOCALAPPDATA%\DeepotusVideoGen, stop.ps1 + relance uvicorn
   caché, santé 2.5.0 ; preuves navigateur en PETITS PAS : chips visibles
   et filtrantes (compter les cases AFFICHÉES, offsetHeight>0), sources
