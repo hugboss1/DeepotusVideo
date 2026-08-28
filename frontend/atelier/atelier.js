@@ -223,11 +223,17 @@ async function renderBible() {
         : ""}
       <div class="seedrow">
         ${e.seed != null ? `<span class="seedbadge" title="Seed verrouillé de la planche">🔒 ${e.seed}</span>` : `<span class="seedbadge" style="opacity:.5">seed —</span>`}
+        ${e.model3d_job
+          ? `<a class="seedbadge" href="/api/assets/3d/${encodeURIComponent(e.model3d_job)}/version/1" title="Maillage verrouillé — télécharger le GLB (Blender, Unity, Unreal, three.js)">🧊 GLB</a>`
+          : ""}
       </div>
       <div class="entity-actions">
         <button class="btn primary act-gen" title="Génère la planche de référence multi-vues (personnage: face + profils + dos + gros plans visage — un seul seed pour tous les angles)">🎨 Planche</button>
         <button class="btn act-roll" title="Nouvelle planche, seed aléatoire">🎲</button>
         ${e.has_recipe ? `<button class="btn act-recipe" title="Rejoue la recette verrouillée (prompt exact + seed) — image identique garantie">🔁</button>` : ""}
+        ${BESOIN_3D_PAR_KIND[e.kind]
+          ? `<button class="btn act-3d" title="Verrouille l'entité EN 3D : une vue unique → maillage GLB réutilisable par tous les chapitres, et exportable vers Blender / Unity / Unreal. Le moteur et son coût sont annoncés avant de lancer.">🧊 3D</button>`
+          : ""}
       </div>
     </div>
     <div class="entity-main">
@@ -285,6 +291,8 @@ async function renderBible() {
     card.querySelector(".act-roll").addEventListener("click", () => generateRef(id, null));
     const rbtn = card.querySelector(".act-recipe");
     if (rbtn) rbtn.addEventListener("click", () => generateRef(id, null, true));
+    const btn3d = card.querySelector(".act-3d");
+    if (btn3d) btn3d.addEventListener("click", () => entityTo3D(id));
     card.querySelector(".act-del").addEventListener("click", async () => {
       if (!confirm(`Supprimer « ${ent().name} » de la bible ?`)) return;
       try {
@@ -704,6 +712,68 @@ async function openLibrary(entityId, onPick) {
         await libOnPick(img.dataset.f);
       }));
   } catch (e) { grid.innerHTML = `<div class="empty-note">Erreur : ${esc(e.message)}</div>`; }
+}
+
+/* ═════════ ancrage 3D d'une entité (spec Magnific §9.1) ═════════
+   « Employer le flux image → 3D lorsque l'application a besoin de verrouiller
+   un produit, accessoire, véhicule, élément de décor ou personnage stylisé. »
+   La bible verrouillait en 2D (planche + seed) ; ici elle gagne un maillage.
+   Deux garde-fous portés par l'UI : on choisit UNE vue (jamais la planche
+   composite, que la route refuserait), et le moteur + son coût sont annoncés
+   AVANT de lancer. */
+
+const BESOIN_3D_PAR_KIND = {
+  character: "hero", object: "prop", place: "decor", decor: "decor",
+};
+let engines3d = null;
+
+async function catalogue3d() {
+  if (engines3d) return engines3d;
+  try { engines3d = await api.get("/assets3d/engines"); }
+  catch { engines3d = { engines: [], besoins: [] }; }
+  return engines3d;
+}
+
+async function entityTo3D(id) {
+  const ent = entities.find(x => x.id === id);
+  if (!ent) return;
+  const besoin = BESOIN_3D_PAR_KIND[ent.kind];
+  if (!besoin) { toast("Seuls personnages, objets, lieux et décors se verrouillent en 3D.", true); return; }
+
+  const cat = await catalogue3d();
+  const b = (cat.besoins || []).find(x => x.id === besoin) || {};
+  const eng = (cat.engines || []).find(x => x.id === b.engine) || {};
+  if (eng.available === false) {
+    toast("Clé fal absente — ajoute-la dans les Réglages avant de générer un maillage.", true);
+    return;
+  }
+  toast("Choisis UNE vue — un moteur image→3D veut un seul angle, pas une planche.");
+  openLibrary(id, async (f) => {
+    const cout = eng.usd_texture != null ? `≈ ${eng.usd_texture} $` : "inconnu";
+    const ok = confirm(
+      `Verrouiller « ${ent.name} » en 3D ?\n\n` +
+      `Moteur : ${eng.label || b.engine || "?"}\n` +
+      `Pourquoi ce moteur : ${b.why || "—"}\n` +
+      `Vue de départ : ${f}\n` +
+      `Coût estimé : ${cout}`);
+    if (!ok) return;
+    try {
+      const r = await api.send("POST", `/bible/entities/${id}/model3d`,
+                               { image_filename: f, besoin });
+      toast(`🧊 Maillage en cours (${r.engine}) — 1 à 3 min…`);
+      const poll = setInterval(async () => {
+        try {
+          const st = await api.get("/jobs/" + r.job_id);
+          if (st.status !== "done" && st.status !== "failed") return;
+          clearInterval(poll);
+          if (st.status === "failed") { toast("3D : " + (st.error || "échec"), true); return; }
+          await loadEntities();
+          await renderBible();
+          toast(`🧊 « ${ent.name} » verrouillé en 3D — le GLB est sur sa fiche.`);
+        } catch (e) { /* poll silencieux */ }
+      }, 3000);
+    } catch (e) { toast("3D : " + e.message, true); }
+  });
 }
 
 /* ═════════ casting voix (B) ═════════ */

@@ -175,6 +175,13 @@ class BibleEntity(Base):
     voice_id: Mapped[Optional[str]] = mapped_column(String(80), nullable=True)
     voice_name: Mapped[Optional[str]] = mapped_column(String(200), nullable=True)
     voice_prev: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # v2.7 (phase D — spec Magnific §9.1 « verrouiller un produit, accessoire,
+    # véhicule, élément de décor ou personnage stylisé ») : l'ancrage 3D de
+    # l'entité. `model3d_job` = le dossier outputs/assets3d/<job> qui porte le
+    # maillage ; `model3d_file` = la VERSION retenue (model.glb, model.v2.glb).
+    # La bible verrouillait jusqu'ici en 2D seulement (ref_image + seed).
+    model3d_job: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
+    model3d_file: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
@@ -418,6 +425,9 @@ BIBLE_ENTITIES_COLUMNS = [
     ("voice_id", "VARCHAR(80)"),
     ("voice_name", "VARCHAR(200)"),
     ("voice_prev", "TEXT"),
+    # v2.7 (phase D) — ancrage 3D de l'entité
+    ("model3d_job", "VARCHAR(36)"),
+    ("model3d_file", "VARCHAR(64)"),
 ]
 
 

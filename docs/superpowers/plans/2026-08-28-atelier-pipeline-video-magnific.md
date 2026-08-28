@@ -27,6 +27,30 @@ porte de validation humaine avant elle.
 
 ---
 
+> **RELEVÉ (28/08, même soir) : la PHASE D est LIVRÉE.** Sur demande de
+> l'utilisateur, le chantier §9 (3D) + §13 phase D (3D et finition) a été
+> exécuté avant les lots 0-5, et la décision **D4 ci-dessous est caduque**
+> (elle sortait la 3D du périmètre ; elle est conservée telle quelle avec sa
+> révision, pour que le plan reste lisible comme un journal).
+>
+> Livré : registre de capacités 3D + matrice besoin→moteur motivée
+> (`asset3d_service.ENGINES`, `BESOINS_3D`, `GET /api/assets3d/engines`) ·
+> vues quasi-orthographiques (§9.2 étape 1) · porte brouillon→texture finale
+> avec `model.v{n}.glb` versionné (étapes 2 et 5) · fiche de maillage
+> `mesh_report.py` — sha256, faces, poids, inventaire de textures,
+> silhouettes projetées, arêtes de bord (étapes 3 et 6) · contrôle qualité
+> `asset3d_qc.py` — IoU de silhouette contre la référence maître, verdict de
+> compatibilité runtime, passe vision optionnelle (étape 7) · ancrage 3D
+> d'une entité de la bible (§9.1 — colonne `model3d_job`, route dédiée,
+> bouton 🧊 3D dans `/atelier`) · finition `finition.py` — agrandissement
+> mesuré (netteté / dérive / coût) et export de montage à audio séparé
+> comparé au son natif. Banc `test_asset3d_phase_d.py`, 39 tests.
+>
+> **Coût API réel du chantier : 0 $** — tout est mesuré localement, les
+> bancs stubbent fal (générations ET uploads).
+
+---
+
 ## 1. Inventaire MESURÉ de l'existant — « section Chapitres étendue »
 
 Ce que le dépôt contient réellement au 28/08 (branche
@@ -143,7 +167,7 @@ diffère) · **❌ manque**.
 
 | Concept | État | Détail |
 |---|:--:|---|
-| Image → 3D (§9) | ✅ hors périmètre | `asset3d_service`, `meshy_service`, `print3d` livrés (GLB, STL/3MF). **Ne pas rouvrir dans ce chantier.** |
+| Image → 3D (§9) | ✅ **LIVRÉ 28/08** | La production existait (`asset3d_service`, `meshy_service`, `print3d` — GLB, STL/3MF) ; c'est la **couche de contrôle** de §9.2 qui manquait entièrement et qui a été ajoutée : capacités par moteur, porte brouillon→final versionnée, fiche à checksum, silhouettes et arêtes de bord, IoU contre la référence maître, compatibilité runtime, ancrage bible↔maillage. Voir le RELEVÉ en tête. |
 | Audio piste indépendante (§10) | ✅ | VO minuté par scène (`scenes.vo_audio` + `duration_s`), casting voix **par personnage** (`bible_entities.voice_id`), `sfx_service`, `music_service`, sous-titres. **Plus avancé que la spec sur le casting.** |
 | Diagnostic d'échec typé + retake ciblé (§11) | ❌ | régénérer = relancer le même appel |
 | Politique de retry en 4 paliers (§11.2) | ❌ | absente |
@@ -317,8 +341,17 @@ image-clé contrôlée → image-to-video.*
   multi-panneaux de Magnific : le découpage individuel permet le retake
   granulaire que §11 exige, et `board_service` a déjà mesuré que la
   diffusion est peu fiable sur les mises en page multi-panneaux.
-- **D4 — La 3D reste hors chantier.** `asset3d`/`meshy`/`print3d` couvrent
-  déjà §9 ; le rouvrir diluerait le lot vidéo.
+- **D4 — ~~La 3D reste hors chantier.~~ RÉVISÉE le 28/08 au soir.** Le
+  raisonnement d'origine était que `asset3d`/`meshy`/`print3d` couvraient
+  déjà §9. **Il était faux, et la relecture ligne à ligne l'a montré** : ces
+  services savent *produire* un maillage et l'exporter, mais aucun des sept
+  points de la stratégie §9.2 n'existait — ni palier brouillon→final, ni
+  fiche à checksum, ni inspection de silhouette, ni comparaison à la
+  référence maître, et rien ne reliait la bible à un maillage (§9.1). La
+  phase D a donc été livrée (voir le RELEVÉ en tête). Ce que la décision
+  visait juste : ne pas réécrire les moteurs eux-mêmes — le chantier n'a
+  touché aucun adaptateur fal existant, il a ajouté la couche de contrôle
+  qui manquait autour.
 - **D5 — Versionner par snapshot JSON**, pas par table par entité : une
   table `entity_versions` (`entity_id`, `version`, `payload` JSON,
   `created_at`) suffit et suit le patron `VectorDoc` (contenu hors table

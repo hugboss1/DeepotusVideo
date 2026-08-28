@@ -430,6 +430,12 @@ async def assets_3d(body: dict, background_tasks: BackgroundTasks):
     return {"job_id": job_id, "status": "queued"}
 
 
+# model.v2.glb, model.v3.glb… : les VERSIONS écrites par le raffinement de la
+# phase D. Le manifeste liste des FORMATS d'export — sans ce filtre, il
+# annonçait « v2.glb » comme un format téléchargeable inexistant.
+_MODEL_VERSION_RE = re.compile(r"^model\.v\d+\.glb$", re.I)
+
+
 @router.get("/assets/3d/{job}/manifest")
 async def get_asset3d_manifest(job: str):
     """List what a 3D asset job produced (read from disk — ground truth):
@@ -443,6 +449,9 @@ async def get_asset3d_manifest(job: str):
         n = f.name
         if n == "model.opt.glb":
             continue                    # le GLB optimisé a sa propre UI (10a)
+        if _MODEL_VERSION_RE.match(n):
+            continue                    # model.v2.glb = une VERSION (phase D),
+                                        # pas un format d'export
         if n.startswith("model.") and f.is_file():
             formats.append(n.split(".", 1)[1].lower())
         elif n.startswith("shot_") and n.endswith(".png"):
@@ -506,6 +515,289 @@ async def download_asset3d_optimized(job: str):
         raise HTTPException(404, "Not found")
     return FileResponse(p, media_type="model/gltf-binary",
                         filename=f"asset3d_{Path(job).name}_optimized.glb")
+
+
+# ---- Phase D (spec Magnific §9 + §13) : fiche, porte brouillon→final,
+# contrôle qualité et comparaison. MÊME RÈGLE que /preview et /optimize :
+# ces sous-routes d'UN segment sont déclarées AVANT /{fmt}, sinon elles
+# seraient capturées comme fmt="report", fmt="approve", etc.
+
+@router.get("/assets3d/engines")
+async def list_asset3d_engines():
+    """Registre des moteurs 3D avec leurs CAPABILITY FLAGS (§8 transposé à la
+    3D) + la matrice « besoin d'asset → moteur, et pourquoi ».
+
+    Miroir de GET /api/video-models : chaque entrée porte `available`
+    (FAL_KEY présente) et son coût unitaire, pour que l'UI montre-mais-grise
+    au lieu de laisser choisir un moteur inutilisable."""
+    from app.services.asset3d_service import ENGINES, BESOINS_3D
+    from app.services import pricing as _pricing
+    dispo = bool(settings.FAL_KEY)
+    out = []
+    for eid, e in ENGINES.items():
+        devis = _pricing.estimate({"kind": "asset3d", "engine": eid,
+                                   "textures": True, "multiview": False})
+        brouillon = _pricing.estimate({"kind": "asset3d", "engine": eid,
+                                       "textures": False, "multiview": False})
+        out.append({**{k: v for k, v in e.items() if k != "endpoint"},
+                    "id": eid, "available": dispo,
+                    "usd_texture": devis["total_usd"],
+                    "usd_brouillon": brouillon["total_usd"]})
+    out.sort(key=lambda m: m["id"])
+    return {"engines": out, "default": "tripo",
+            "besoins": [{"id": k, **v} for k, v in BESOINS_3D.items()]}
+
+
+@router.get("/assets/3d/{job}/report")
+async def get_asset3d_report(job: str):
+    """Registre versionné des fiches de maillage (§9.2 étape 6 : checksum,
+    faces, taille, textures, version). 404 tant qu'aucune fiche n'existe —
+    les jobs antérieurs peuvent en obtenir une par POST .../report."""
+    from app.services import mesh_report
+    try:
+        return mesh_report.read_registry(job)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/assets/3d/{job}/report")
+async def build_asset3d_report(job: str, body: dict = None):
+    """(Re)calcule la fiche d'un maillage du job. Body: {file?, version?,
+    silhouettes?}. Tout est local et gratuit."""
+    from app.services import mesh_report
+    body = body or {}
+    f = Path(str(body.get("file") or "model.glb")).name
+    version = body.get("version")
+    if version is not None:
+        try:
+            version = int(version)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "version doit être un entier.")
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            None, lambda: mesh_report.write_report(
+                job, f, version=version,
+                avec_silhouettes=bool(body.get("silhouettes", True))))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+
+@router.get("/assets/3d/{job}/approve")
+async def get_asset3d_approval(job: str):
+    """État de la porte humaine du brouillon."""
+    from app.services.asset3d_service import approval
+    return approval(job)
+
+
+@router.post("/assets/3d/{job}/approve")
+async def approve_asset3d(job: str, body: dict = None):
+    """Porte humaine de l'étape 5 : la géométrie du brouillon est validée
+    (ou refusée avec un motif). Body: {approved?: bool, note?: str}.
+    Rien de payant ne franchit cette porte tout seul."""
+    from app.services.asset3d_service import approve
+    body = body or {}
+    try:
+        return approve(job, bool(body.get("approved", True)),
+                       str(body.get("note") or ""))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.post("/assets/3d/{job}/refine")
+async def refine_asset3d_route(job: str, background_tasks: BackgroundTasks,
+                               body: dict = None):
+    """Rejoue le même moteur sur les mêmes vues en texture haute qualité, et
+    écrit model.v{n}.glb — jamais un écrasement (§2.1). Refusé tant que le
+    brouillon n'est pas approuvé. Body: {quality?: "hd"}.
+    Rend un job_id : POLLER GET /api/jobs/{job_id}."""
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import asset3d_service as A3
+    from app.services.storage import JobRecord, async_session_factory
+
+    body = body or {}
+    quality = str(body.get("quality") or "hd")
+    if not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+
+    # TOUT ce qui peut refuser refuse MAINTENANT — y compris les deux refus
+    # qui ne vivaient que dans le service, et qui rendaient un 200 « queued »
+    # suivi d'un job FAILED sans qu'aucun travail ait été tenté.
+    try:
+        man = A3.read_manifest(job)
+        caps = A3.engine_caps(str(man.get("engine") or ""))
+        cible = A3.texture_mode(caps["id"], True, quality)
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+    if not A3.approval(job).get("approved"):
+        raise HTTPException(
+            409, "Brouillon non approuvé : valide la géométrie "
+                 "(POST .../approve) avant la passe texturée.")
+    if not caps["detailed"]:
+        raise HTTPException(
+            400, f"{caps['label']} n'a pas de palier haute qualité dans "
+                 f"cet adaptateur — régénère avec un moteur qui l'a.")
+    if cible == man.get("texture_mode"):
+        raise HTTPException(
+            409, f"Le maillage est déjà en texture « {cible} » — repayer "
+                 "la même passe ne changerait rien.")
+    _d3 = settings.outputs_path / "assets3d" / Path(job).name
+    if not [s for s in (man.get("shots") or []) if (_d3 / s).is_file()]:
+        raise HTTPException(
+            400, "Aucune vue conservée sur le disque : le moteur ne peut pas "
+                 "être rejoué à l'identique. Relance une génération complète.")
+
+    # Verrou : sans lui, deux clics rapides lancent DEUX passes HD facturées.
+    from app.services.storage import JobRecord as _JR, async_session_factory as _sf
+    from sqlalchemy import select as _sel
+    async with _sf() as s:
+        res = await s.execute(
+            _sel(_JR).where(_JR.provider == "asset3d",
+                            _JR.image_filename == f"asset3d_{Path(job).name}",
+                            _JR.status.notin_(["done", "failed"])))
+        if res.scalars().first() is not None:
+            raise HTTPException(
+                409, "Un raffinement de ce maillage est déjà en cours — "
+                     "attends qu'il finisse (file des rendus).")
+
+    job_id = str(uuid4())
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=f"3D · {caps['label']} · texture {quality}",
+            image_filename=f"asset3d_{Path(job).name}",
+            provider="asset3d", current_step="Refine 3D"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await A3.refine_asset3d(job, quality=quality, on_step=on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.final_video_path = str(
+                        settings.outputs_path / "assets3d" / Path(job).name / r["file"])
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps({"engine": r["engine"],
+                                                "job": Path(job).name,
+                                                "refine": True,
+                                                "version": r["version"],
+                                                "texture_mode": r["texture_mode"]})
+                    await s.commit()
+        except Exception as e:
+            logger.exception(f"asset3d refine {job_id} failed: {e}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error = JobStatus.FAILED.value, str(e)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "source_job": Path(job).name}
+
+
+@router.post("/assets/3d/{job}/qc")
+async def qc_asset3d(job: str, body: dict = None):
+    """Scores 0-100 du maillage contre sa référence maître (§9.2 étapes 3 et
+    7) + le verdict de compatibilité runtime (§13 phase D).
+
+    Body: {ref_image?, version?, seuils?, vision?}. La mesure principale est
+    LOCALE et GRATUITE (IoU de silhouettes) ; `vision: true` ajoute un score
+    d'identité par LLM, best-effort (absent sans clé, jamais bloquant)."""
+    from app.services import asset3d_qc as QC
+    body = body or {}
+    # Entrées validées ICI : sans ça, {"seuils": [70]} ou {"version": []}
+    # remontaient en TypeError non rattrapé, donc en 500 pour une faute
+    # purement cliente.
+    seuils = body.get("seuils")
+    if seuils is not None:
+        if not isinstance(seuils, dict) or not all(
+                isinstance(v, (int, float)) and not isinstance(v, bool)
+                for v in seuils.values()):
+            raise HTTPException(
+                400, "seuils doit être un objet {axe: nombre} — ex. "
+                     '{"silhouette": 70}.')
+    version = body.get("version")
+    if version is not None:
+        try:
+            version = int(version)
+        except (TypeError, ValueError):
+            raise HTTPException(400, "version doit être un entier.")
+    loop = asyncio.get_running_loop()
+    try:
+        res = await loop.run_in_executor(None, lambda: QC.controler(
+            job, ref_image=body.get("ref_image"), version=version,
+            seuils=seuils))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+    except ValueError as e:
+        raise HTTPException(400, str(e))
+
+    if body.get("vision"):
+        d = settings.outputs_path / "assets3d" / Path(job).name
+        rendu = next((d / n for n in ("preview.png", "shot_0.png")
+                      if (d / n).is_file()), None)
+        ref_n = Path(str(body.get("ref_image") or "")).name
+        ref = (settings.images_path / ref_n) if ref_n else (d / "shot_0.png")
+        if rendu and ref.is_file() and rendu != ref:
+            res["identite"] = await loop.run_in_executor(
+                None, lambda: QC.identite(rendu, ref))
+        else:
+            res["identite"] = None
+            res["identite_note"] = ("aucun rendu du moteur distinct de la "
+                                    "référence — passe vision sans objet")
+    return res
+
+
+@router.get("/assets/3d/{job}/compare")
+async def compare_asset3d(job: str, other: str, va: int = None, vb: int = None):
+    """Compare deux maillages (§13 phase D : « image unique vs quatre vues »,
+    « comparer les moteurs selon l'asset »). Rend les écarts mesurés —
+    triangles, poids, textures, arêtes de bord, IoU des silhouettes — et
+    jamais un gagnant : c'est l'humain qui tranche, chiffres en main."""
+    from app.services import asset3d_qc as QC
+    try:
+        return await asyncio.get_running_loop().run_in_executor(
+            None, lambda: QC.comparer(Path(job).name, Path(other).name,
+                                      version_a=va, version_b=vb))
+    except FileNotFoundError as e:
+        raise HTTPException(404, str(e))
+
+
+@router.get("/assets/3d/{job}/version/{v}")
+async def get_asset3d_version(job: str, v: int):
+    """Télécharge une version précise du maillage (v1 = model.glb)."""
+    d = settings.outputs_path / "assets3d" / Path(job).name
+    p = d / ("model.glb" if int(v) == 1 else f"model.v{int(v)}.glb")
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="model/gltf-binary",
+                        filename=f"asset3d_{Path(job).name}_v{int(v)}.glb")
+
+
+@router.get("/assets/3d/{job}/silhouette/{vue}")
+async def get_asset3d_silhouette(job: str, vue: str, v: int = 1):
+    """Masque projeté (face|profil|dessus) d'une version — l'aperçu honnête
+    de la géométrie, sans moteur de rendu."""
+    d = settings.outputs_path / "assets3d" / Path(job).name
+    p = d / f"sil_v{int(v)}" / f"silhouette_{Path(vue).name}.png"
+    if not p.is_file():
+        raise HTTPException(404, "Not found")
+    return FileResponse(p, media_type="image/png")
 
 
 @router.get("/assets/3d/{job}/{fmt}")
@@ -4414,6 +4706,8 @@ def _entity_dict(e) -> dict:
             "voice_id": getattr(e, "voice_id", None),
             "voice_name": getattr(e, "voice_name", None),
             "voice_prev": getattr(e, "voice_prev", None),
+            "model3d_job": getattr(e, "model3d_job", None),
+            "model3d_file": getattr(e, "model3d_file", None),
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "updated_at": e.updated_at.isoformat() if e.updated_at else None}
 
@@ -4479,7 +4773,8 @@ async def update_bible_entity(entity_id: str, body: dict):
         if "aliases" in body:
             e.aliases = _json.dumps(body["aliases"] or [])
         # v1.21 — casting voix (choix manuel ou application d'une suggestion)
-        for vk in ("voice_id", "voice_name", "voice_prev"):
+        for vk in ("voice_id", "voice_name", "voice_prev",
+                   "model3d_job", "model3d_file"):
             if vk in body:
                 setattr(e, vk, body[vk] or None)
         # v1.17.1 — allow re-linking a reference / pinning a seed directly
@@ -4494,6 +4789,184 @@ async def update_bible_entity(entity_id: str, body: dict):
         await session.commit()
         await session.refresh(e)
         return _entity_dict(e)
+
+
+@router.post("/bible/entities/{entity_id}/model3d")
+async def generate_bible_model3d(entity_id: str, background_tasks: BackgroundTasks,
+                                 body: dict = None):
+    """Verrouille une entité de la bible EN 3D — spec Magnific §9.1.
+
+    « Employer le flux image → 3D lorsque l'application a besoin de
+    verrouiller un produit, accessoire, véhicule, élément de décor ou
+    personnage stylisé » : jusqu'ici la bible verrouillait en 2D seulement
+    (planche + seed). Le maillage devient l'ancrage géométrique, réutilisable
+    par tous les chapitres — et exportable en GLB vers un moteur.
+
+    Body: {image_filename?, besoin?, engine?, multiview?, views?, textures?,
+    quality?, formats?}. `besoin` (hero|prop|decor|rig|realtime|brouillon)
+    choisit le moteur ET ses options, avec la justification rendue.
+
+    Piège traité : la référence d'un personnage est une PLANCHE composite
+    (board_*.png, plusieurs vues côte à côte). La donner à un moteur
+    image→3D produirait un monstre — la route refuse et le dit, au lieu de
+    payer une génération absurde.
+    """
+    from datetime import datetime as _dtu
+    import json as _json
+    from app.services import asset3d_service as A3
+    from app.services.asset3d_service import generate_asset3d
+    from app.services.storage import BibleEntity, JobRecord, async_session_factory
+
+    body = body or {}
+    if not settings.FAL_KEY:
+        raise HTTPException(400, "FAL_KEY not configured. Add it in Settings.")
+
+    async with async_session_factory() as session:
+        e = await session.get(BibleEntity, entity_id)
+        if e is None:
+            raise HTTPException(404, "Entity not found")
+        nom, kind = e.name, e.kind
+        ref = e.ref_image
+
+    # 1. quelle image nourrit le moteur ?
+    demande = Path(str(body.get("image_filename") or "")).name
+    src = demande or (ref or "")
+    if not src:
+        raise HTTPException(
+            400, f"« {nom} » n'a pas de référence : génère d'abord sa planche "
+                 "(🎨 Planche), puis choisis une vue unique.")
+    # Le refus porte sur le nom EFFECTIVEMENT retenu, d'où qu'il vienne : le
+    # tester seulement sur le chemin de repli laissait passer la planche dès
+    # que le client la nommait — c'est-à-dire toujours, puisque le sélecteur
+    # de la Bibliothèque affiche aussi les planches.
+    if src.startswith("board_") and not body.get("force_planche"):
+        raise HTTPException(
+            400, f"« {src} » est une PLANCHE composite : plusieurs vues sur "
+                 "une même image. Un moteur image→3D a besoin d'UNE vue — il "
+                 "reconstruirait les quatre côte à côte. Choisis une vue "
+                 "seule dans la Bibliothèque, ou passe `force_planche: true` "
+                 "si tu sais ce que tu fais.")
+    if not (settings.images_path / src).is_file():
+        raise HTTPException(400, f"Image introuvable dans la Bibliothèque : {src}")
+
+    # 2. moteur : besoin motivé, ou choix explicite
+    besoin = str(body.get("besoin") or "").strip().lower()
+    reco = None
+    opts: dict = {}
+    if besoin:
+        try:
+            reco = A3.recommend_engine(besoin)
+        except ValueError as ve:
+            raise HTTPException(400, str(ve))
+        opts = dict(reco["opts"])
+        engine = reco["engine"]
+    else:
+        engine = str(body.get("engine") or "tripo").lower()
+    if body.get("engine"):
+        engine = str(body["engine"]).lower()
+    try:
+        caps = A3.engine_caps(engine)
+    except ValueError as ve:
+        raise HTTPException(400, str(ve))
+
+    for k in ("multiview", "views", "textures", "quality", "tpose", "formats"):
+        if k in body:
+            opts[k] = body[k]
+    # Mêmes validations d'entrée que la route sœur POST /assets/3d : sans
+    # elles, `views` non entier ferait tomber le job en arrière-plan, et
+    # CHAQUE format supplémentaire est une génération facturée en plus
+    # (asset3d_service ré-appelle le moteur par format manquant).
+    if "views" in opts:
+        try:
+            int(opts["views"])
+        except (TypeError, ValueError):
+            raise HTTPException(400, "views doit être un entier (1-4).")
+    if "formats" in opts:
+        fmts = opts["formats"]
+        if not isinstance(fmts, list) or not all(isinstance(f, str) for f in fmts):
+            raise HTTPException(400, "formats doit être une liste de chaînes.")
+        inconnus = sorted({f.lower() for f in fmts} - set(caps["formats"]))
+        if inconnus:
+            raise HTTPException(
+                400, f"{caps['label']} n'exporte pas {', '.join(inconnus)} "
+                     f"(formats : {', '.join(caps['formats'])}).")
+        extra = len({f.lower() for f in fmts} - {"glb"})
+        if extra and not body.get("confirm_formats"):
+            raise HTTPException(
+                400, f"{extra} format(s) en plus du GLB = {extra} "
+                     "génération(s) facturée(s) de plus. Renvoie avec "
+                     "`confirm_formats: true` pour accepter.")
+    if opts.get("multiview") and not caps["multiview"]:
+        raise HTTPException(
+            400, f"{caps['label']} ne prend qu'une vue (max_images "
+                 f"{caps['max_images']}) — désactive multiview ou change de moteur.")
+    if opts.get("tpose") and not caps["tpose"]:
+        raise HTTPException(
+            400, f"{caps['label']} ne sait pas demander une T-pose — "
+                 "utilise le besoin « rig » (Rodin).")
+
+    payload = {**opts, "engine": engine, "image_filename": src,
+               "subject": f"{nom} — the same {kind}, consistent design",
+               "title": f"3D · {nom}"}
+    job_id = str(uuid4())
+    short = job_id[:8]
+    async with async_session_factory() as s:
+        s.add(JobRecord(
+            id=job_id, status=JobStatus.GENERATING_VIDEO.value, progress=10,
+            title=f"3D · {nom} ({caps['label']})",
+            image_filename=f"asset3d_{short}",
+            provider="asset3d", current_step="Generating 3D"))
+        await s.commit()
+
+    async def on_step(label, pct):
+        async with async_session_factory() as s2:
+            jr2 = await s2.get(JobRecord, job_id)
+            if jr2 is not None:
+                jr2.current_step, jr2.progress = label, int(pct)
+                await s2.commit()
+
+    async def _run():
+        try:
+            r = await generate_asset3d(payload, short, on_step=on_step)
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.progress = JobStatus.DONE.value, 100
+                    jr.final_video_path = r.get("glb")
+                    if r.get("preview"):
+                        jr.image_filename = "preview.png"
+                    jr.current_step = "Complete"
+                    jr.completed_at = _dtu.utcnow()
+                    jr.cost_meta = _json.dumps(
+                        {"engine": r["engine"], "files": r["files"],
+                         "shots": r["shots"], "job": short,
+                         "entity_id": entity_id,
+                         "skipped_formats": r.get("skipped_formats") or []})
+                # l'ancrage : l'entité porte désormais son maillage
+                ent = await s.get(BibleEntity, entity_id)
+                if ent is not None:
+                    ent.model3d_job = short
+                    ent.model3d_file = "model.glb"
+                    ent.updated_at = _dtu.utcnow()
+                await s.commit()
+        except Exception as ex:
+            logger.exception(f"bible model3d {job_id} failed: {ex}")
+            async with async_session_factory() as s:
+                jr = await s.get(JobRecord, job_id)
+                if jr is not None:
+                    jr.status, jr.error = JobStatus.FAILED.value, str(ex)
+                    jr.current_step = "Failed"
+                    await s.commit()
+
+    background_tasks.add_task(_run)
+    return {"job_id": job_id, "status": "queued", "asset3d_job": short,
+            "engine": engine, "image_filename": src,
+            "besoin": reco["besoin"] if reco else None,
+            "why": reco["why"] if reco else None,
+            # étape suivante conseillée du besoin (ex. budget de triangles
+            # après un asset « temps réel ») — rendue pour être exécutable,
+            # jamais lancée d'office
+            "apres_generation": (reco or {}).get("apres_generation")}
 
 
 @router.delete("/bible/entities/{entity_id}")
@@ -7953,3 +8426,173 @@ async def import_figma(body: dict):
         raise HTTPException(502, str(e))
     await LI.noter([nom], "figma")
     return {"filename": nom}
+
+
+# ═══ Finition — spec Magnific §13 phase D, les deux derniers points ═════════
+#
+# « Tester upscale seulement après verrouillage du plan ; mesurer gain visuel
+#   vs coût et dérive. »
+# « Générer des exports de montage avec audio séparé, puis comparer au son
+#   natif du clip. »
+
+def _finition_dir() -> Path:
+    d = settings.outputs_path / "finition"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+async def _resoudre_video(body: dict) -> Path:
+    """`job_id` (rendu fini) ou `filename` (outputs/videos) → chemin réel."""
+    from app.services.storage import JobRecord, async_session_factory
+    jid = str(body.get("job_id") or "").strip()
+    if jid:
+        async with async_session_factory() as s:
+            jr = await s.get(JobRecord, jid)
+        if jr is None:
+            raise HTTPException(404, f"Job inconnu : {jid}")
+        p = jr.final_video_path or jr.video_path
+        if not p or not Path(p).is_file():
+            raise HTTPException(400, f"Le job {jid} n'a pas de vidéo sur le "
+                                     f"disque (statut « {jr.status} »).")
+        return Path(p)
+    fn = Path(str(body.get("filename") or "")).name
+    if not fn:
+        raise HTTPException(400, "Passe job_id (rendu) ou filename (vidéo).")
+    p = settings.outputs_path / "videos" / fn
+    if not p.is_file():
+        raise HTTPException(404, f"Vidéo introuvable : {fn}")
+    return p
+
+
+@router.post("/finition/stems")
+async def finition_stems(body: dict):
+    """Un montage → vidéo MUETTE + stem audio WAV, et la comparaison au son
+    natif d'un rush.
+
+    Body: {job_id? | filename?, natif?}. `natif` = nom d'un rush
+    (outputs/videos) ou d'un fichier audio : sa loudness est mesurée avec le
+    MÊME filtre ebur128 que POST /api/montage/measure, donc les chiffres se
+    comparent.
+
+    Honnêteté déclarée dans la réponse (`fidelite`) : le WAV est le DÉCODAGE
+    de la piste livrée (AAC du mp4) — c'est ce que le spectateur entend, la
+    bonne référence pour cette comparaison, mais PAS un master pré-encodage.
+    Un vrai master exigerait de rejouer le graphe audio du montage.
+    Local et gratuit : 0 $."""
+    from app.services import finition as F
+    src = await _resoudre_video(body)
+    loop = asyncio.get_running_loop()
+    try:
+        out = await loop.run_in_executor(
+            None, lambda: F.separer(src, _finition_dir()))
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+
+    natif = Path(str(body.get("natif") or "")).name
+    if natif:
+        cand = [settings.outputs_path / "videos" / natif,
+                settings.images_path.parent / "audio" / natif,
+                settings.outputs_path / "audio" / natif,
+                settings.images_path / natif]
+        pn = next((c for c in cand if c.is_file()), None)
+        if pn is None:
+            raise HTTPException(404, f"Source native introuvable : {natif}")
+        try:
+            out["comparaison"] = await loop.run_in_executor(
+                None, lambda: F.comparer_audio(src, pn))
+        except RuntimeError as e:
+            raise HTTPException(502, str(e))
+    return {"ok": True, "source": src.name, "dir": "outputs/finition", **out}
+
+
+@router.post("/finition/upscale-measure")
+async def finition_upscale_measure(body: dict):
+    """Agrandit et MESURE : gain de netteté, dérive au retour, coût.
+
+    Body: {filename, scale?=2, ai?=false, confirm?=false, shot_id?}.
+
+    Porte avant dépense (doctrine §2.3) : la variante LOCALE (PIL Lanczos,
+    0 $) tourne toujours ; la variante payante (fal-ai/esrgan) exige
+    `ai: true` ET `confirm: true` — sans confirmation, la route rend la
+    mesure gratuite et dit ce que coûterait l'autre. `shot_id`, s'il est
+    fourni, doit désigner un plan existant : le verrou par plan
+    (shot.status = keyframe_ok) arrivera avec le lot « image-clé » du plan
+    d'ensemble et se branchera ici.
+
+    Aucun gagnant n'est déclaré : un upscale n'a pas de vérité terrain. On
+    rend deux mesures orthogonales — le détail produit et la fidélité à la
+    source — et l'humain tranche."""
+    from app.services import finition as F
+    fn = Path(str(body.get("filename") or "")).name
+    if not fn:
+        raise HTTPException(400, "filename requis.")
+    src = settings.images_path / fn
+    if not src.is_file():
+        raise HTTPException(404, f"Image introuvable : {fn}")
+    try:
+        scale = max(2, min(4, int(body.get("scale") or 2)))
+    except (TypeError, ValueError):
+        raise HTTPException(400, "scale doit être un entier (2-4).")
+
+    sid = str(body.get("shot_id") or "").strip()
+    if sid:
+        from app.services.storage import Shot, async_session_factory
+        async with async_session_factory() as s:
+            if await s.get(Shot, sid) is None:
+                raise HTTPException(404, f"Plan inconnu : {sid}")
+
+    loop = asyncio.get_running_loop()
+    variantes = []
+
+    r = await _process_image_core({"op": "upscale", "filename": fn,
+                                   "scale": scale, "mode": "simple"})
+    nom = (r.get("images") or [None])[0]
+    if not nom:
+        raise HTTPException(502, "L'agrandissement local n'a rien produit.")
+    try:
+        await LI.noter([nom], "retouche")
+    except Exception:
+        pass
+    variantes.append(await loop.run_in_executor(
+        None, lambda: F.mesurer_variante(src, settings.images_path / nom,
+                                         mode="simple", scale=scale, usd=0.0)))
+
+    veut_ai = bool(body.get("ai"))
+    if veut_ai and not body.get("confirm"):
+        return {"ok": True, "source": F.fiche_image(src), "scale": scale,
+                "variantes": variantes,
+                "en_attente": {
+                    "mode": "ai", "provider": "fal-ai/esrgan", "usd": None,
+                    "usd_note": "tarif fal-ai/esrgan non renseigné dans "
+                                "pricing.json — la clé reste vide tant que le "
+                                "catalogue fal n'a pas été relu (même règle "
+                                "que le 1080p de Seedance 2.5).",
+                    "message": "Renvoie la requête avec confirm:true pour "
+                               "lancer l'agrandissement payant."}}
+    if veut_ai:
+        if not settings.FAL_KEY:
+            raise HTTPException(400, "FAL_KEY not configured (Settings) — "
+                                     "la variante locale est déjà mesurée.")
+        r2 = await _process_image_core({"op": "upscale", "filename": fn,
+                                        "scale": scale, "mode": "ai"})
+        nom2 = (r2.get("images") or [None])[0]
+        if not nom2:
+            raise HTTPException(502, "esrgan n'a rien produit.")
+        try:
+            await LI.noter([nom2], "retouche")
+        except Exception:
+            pass
+        variantes.append(await loop.run_in_executor(
+            None, lambda: F.mesurer_variante(
+                src, settings.images_path / nom2, mode="ai", scale=scale,
+                usd=None)))
+
+    return {"ok": True, "source": F.fiche_image(src), "scale": scale,
+            "variantes": variantes,
+            "lecture": "Compare `nettete` ENTRE variantes (même taille cible, "
+                       "même source) : c'est elle qui départage. `derive` dit "
+                       "l'écart à la source au retour. Forte netteté + forte "
+                       "dérive = détail INVENTÉ ; forte netteté + faible "
+                       "dérive = détail restitué. `gain_nettete` compare à une "
+                       "image de taille différente : indicatif seulement, et "
+                       "négatif pour un Lanczos, qui lisse sans rien inventer."}
