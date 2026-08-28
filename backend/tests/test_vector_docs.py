@@ -676,22 +676,34 @@ def test_le_miroir_pont_cartes_mod_face():
     racine = pathlib.Path(__file__).resolve().parent.parent.parent
     face = (racine / "frontend" / "cardforge" / "js"
             / "mod-face.js").read_text("utf-8")
+    core = (racine / "frontend" / "cardforge" / "js"
+            / "core.js").read_text("utf-8")
     # le 4e onglet du panneau P1 et son volet
     assert 'data-tab="vec"' in face and "cf-face-pane-vec" in face
-    # les docs du JEU : liste filtrée par deck (URLSearchParams — le pin de
-    # cloisonnement cards interdit tout littéral `id="` hors préfixe),
-    # ouverture dans l'éditeur
-    assert "/api/vector/docs?" in face and "deck_id: did" in face
+    # les docs du JEU : liste filtrée par deck — PAR LE CORE (28/08). Le
+    # pont était né (27/08) avec ses fetch nus : exactement le « fetch
+    # libre » que makeApi a retiré, et le pin d'architecture cards
+    # (test_cards_type, test_P3_…_AUCUN_RESEAU_NU) a rougi comme son pavé
+    # l'avait promis. /api/vector vit hors du sous-préfixe de la pièce
+    # (règle 8), donc la voie est le patron CF.images : core.js fige la
+    # route, le verbe et la validation du deck (URLSearchParams — jamais de
+    # concaténation), la pièce consomme.
+    assert "CF.vector.docs(" in face and "CF.vector.create(" in face
+    assert "CF.vector.del(" in face
+    assert '"/vector/docs?" + ps' in core and "deck_id: did" in core
     assert "/vectorlab/?doc=" in face
     # le chemin RETOUR : l'export 2x du magasin posé en illustration img:,
-    # présence vérifiée AVANT la pose par un GET dont on contrôle le
-    # content-type — JAMAIS un HEAD : FastAPI ne route pas HEAD, la requête
-    # tombait dans le catch-all SPA qui répond 200 HTML (piège n°7 rejoué,
-    # attrapé par la preuve réelle du 27/08). Cache de session purgé pour
-    # qu'un ré-export repeigne.
+    # présence vérifiée AVANT la pose par la sonde du CORE — un GET dont le
+    # content-type est contrôlé, JAMAIS un HEAD : FastAPI ne route pas HEAD,
+    # la requête tombait dans le catch-all SPA qui répond 200 HTML (piège
+    # n°7 rejoué, attrapé par la preuve réelle du 27/08). La pièce dit le
+    # type qu'elle attend ; cache de session purgé pour qu'un ré-export
+    # repeigne.
     assert "poserVec" in face and "_2x.png" in face
-    assert '"HEAD"' not in face
-    assert "image/png" in face and "IMGS.delete" in face
+    assert "CF.images.probe(" in face and '"image/png"' in face
+    assert '"HEAD"' not in face and '"HEAD"' not in core
+    assert "no-store" in core
+    assert "IMGS.delete" in face
 
 
 # ── M. le pont cartes : deck_id (colonne _auto_migrate) + migration réelle ───

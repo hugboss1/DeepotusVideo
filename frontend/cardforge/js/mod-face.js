@@ -1884,7 +1884,13 @@
      illustration `img:` — l'identifiant que resolvent deja artSource,
      l'apercu et la production. Reediter puis re-exporter REECRIT le
      fichier en place : la carte suit le vecteur. Le meme fichier sert
-     aussi les decors de cadre (source img: de la piece Cadre). */
+     aussi les decors de cadre (source img: de la piece Cadre).
+
+     LE TRANSPORT EST AU CORE (28/08) : /api/vector vit hors du sous-prefixe
+     de la piece (regle 8) et le pin d'architecture cards interdit tout
+     reseau nu dans une piece — les routes, les verbes et la validation du
+     deck sont figes dans core.js (CF.vector, CF.images.probe, §8), la piece
+     ne fait que consommer. */
   let VECS = { deck: null, docs: [] };
   let VEC_CHARGE = false;
 
@@ -1898,15 +1904,10 @@
     if (!did || VEC_CHARGE) return;
     VEC_CHARGE = true;
     try {
-      /* URLSearchParams et pas une concaténation : le pin de cloisonnement
-         du banc scanne le source pour tout identifiant DOM hors préfixe —
-         une query concaténée finissant par deck_ + i + d + signe + guillemet
-         y ressemblerait trait pour trait */
-      const ps = new URLSearchParams({ deck_id: did });
-      const r = await fetch("/api/vector/docs?" + ps);
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error((d && d.detail) || String(r.status));
-      VECS = { deck: did, docs: d.docs || [] };
+      /* la liste vient PAR LE CORE : route, verbe et validation du deck
+         vivent dans core.js (CF.vector, §8) — et c'est aussi la-bas que la
+         query se construit en URLSearchParams, jamais en concatenation. */
+      VECS = { deck: did, docs: await CF.vector.docs(did) };
     } catch (e) {
       VECS = { deck: did, docs: [] };
       CF.toast("documents vectoriels : " + String((e && e.message) || e), true);
@@ -1946,13 +1947,14 @@
       unites: { affichage: "mm", dpi: t[2] },
       calques: [{ id: "c1", nom: "calque 1", visible: true, verrou: false,
                   objets: [] }] };
-    const r = await fetch("/api/vector/docs", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: nom, role: "libre", deck_id: did,
-                             doc: doc }),
-    });
-    const d = await r.json().catch(() => ({}));
-    if (!r.ok) { CF.toast("création : " + (d.detail || r.status), true); return; }
+    let d;
+    try {
+      d = await CF.vector.create({ name: nom, role: "libre", deck_id: did,
+                                   doc: doc });
+    } catch (e) {
+      CF.toast("création : " + String((e && e.message) || e), true);
+      return;
+    }
     window.open("/vectorlab/?doc=" + encodeURIComponent(d.id), "_blank");
     VECS = { deck: null, docs: [] };     /* la liste se recharge d'elle-meme */
     chargerVecs();
@@ -1962,17 +1964,13 @@
 
   async function poserVec(id) {
     const nom = vecExportNom(id);
-    const url = imgURL(nom);
-    /* GET et pas HEAD, et le content-type est CONTROLE : FastAPI ne route
-       pas HEAD — la requete tombait dans le catch-all de la SPA qui repond
-       200 HTML pour n'importe quoi (piege n°7 rejoue, attrape par la preuve
-       reelle du 27/08) et le garde laissait poser un export inexistant. */
-    let present = false;
-    try {
-      const rep = await fetch(url, { cache: "no-store" });
-      present = rep.ok
-        && /image\/png/.test(rep.headers.get("content-type") || "");
-    } catch (e) { present = false; }
+    /* la sonde du CORE (CF.images.probe) : un GET dont le content-type est
+       CONTROLE, jamais un HEAD — FastAPI ne route pas HEAD, la requete
+       tombait dans le catch-all de la SPA qui repond 200 HTML pour
+       n'importe quoi (piege n°7 rejoue, attrape par la preuve reelle du
+       27/08) et le garde laissait poser un export inexistant. La piece dit
+       le TYPE qu'elle attend ; la sonde ne repond que present/absent. */
+    const present = await CF.images.probe(nom, "image/png");
     if (!present) {
       CF.toast("aucun export 2× encore : dans le Vectorlab, menu Exporter "
         + "→ PNG 2×, puis « Poser 2× » à nouveau", true);
@@ -1980,16 +1978,19 @@
     }
     /* un re-export ECRASE le fichier sous le meme nom : purger le cache de
        session, sinon la pose repeindrait l'ancien pixel */
-    IMGS.delete(url);
+    IMGS.delete(imgURL(nom));
     setArt("img:" + nom);
   }
 
   async function supprimerVec(id) {
     if (!confirm("Supprimer ce document vectoriel ? Sa dernière version "
                  + "reste archivée sur disque.")) return;
-    const r = await fetch("/api/vector/docs/" + encodeURIComponent(id),
-                          { method: "DELETE" });
-    if (!r.ok) { CF.toast("suppression : " + r.status, true); return; }
+    try {
+      await CF.vector.del(id);
+    } catch (e) {
+      CF.toast("suppression : " + String((e && e.message) || e), true);
+      return;
+    }
     VECS = { deck: null, docs: [] };
     chargerVecs();
   }

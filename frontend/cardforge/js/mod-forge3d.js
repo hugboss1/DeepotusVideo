@@ -890,27 +890,22 @@
       }
       const blob = await M.api.blob("GET", "file/" + encodeURIComponent(name));
       const doc = CF.doc() || {};
-      const ps = new URLSearchParams({
+      /* le depart part PAR LE CORE (CF.print3d, §8 de core.js) : /api/print3d
+         vit hors du sous-prefixe de la piece (regle 8) et le pin
+         d'architecture cards interdit tout reseau nu dans une piece — la
+         route et le verbe sont figes la-bas, la piece ne passe que le Blob
+         (provenance M.api.blob) et le bordereau. */
+      const bord = {
         nom: String(doc.name || doc.id || "carte").slice(0, 60),
         source: "forge3d", etanche: "garantie",
-      });
-      if (cible !== null) ps.set("cible_mm", String(cible));
-      const r = await fetch("/api/print3d/from-stl?" + ps, {
-        method: "POST",
-        headers: { "Content-Type": "application/octet-stream" }, body: blob,
-      });
-      const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.detail || String(r.status));
+      };
+      if (cible !== null) bord.cible_mm = cible;
+      const d = await CF.print3d.fromStl(blob, bord);
       M.toast("dossier d'impression : " + d.dossier + " ("
         + d.triangles + " triangles)");
       if (confirm("Export écrit (" + d.dossier
                   + ") — ouvrir le .3mf dans le slicer ?")) {
-        const o = await fetch("/api/print3d/open", {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dossier: d.dossier }),
-        });
-        const od = await o.json().catch(() => ({}));
-        if (!o.ok) throw new Error(od.detail || String(o.status));
+        await CF.print3d.open(d.dossier);
       }
     } catch (e) {
       M.toast("impression 3D : " + String((e && e.message) || e), true);

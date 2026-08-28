@@ -294,9 +294,18 @@ def test_le_miroir_forge3d_imprimer():
     # l'export part par la voie binaire — étanchéité GARANTIE, dite par le
     # producteur — puis l'ouverture dans le slicer est proposée
     assert 'data-act="imprimer-3d"' in js
-    assert "/api/print3d/from-stl" in js
     assert "etanche" in js and "garantie" in js
-    assert "/api/print3d/open" in js
+    # PAR LE CORE (28/08) : les deux fetch nus de la pièce rougissaient le
+    # pin d'architecture cards (test_cards_type, test_P3_…_AUCUN_RESEAU_NU —
+    # « le CORE est le seul dehors ») ; /api/print3d vit hors du sous-préfixe
+    # de la pièce (règle 8), donc core.js fige la route et le verbe et FILTRE
+    # le bordereau (nom/source/etanche/cible_mm, pas une clé de plus) — la
+    # pièce ne passe que le Blob, dont la provenance reste M.api.blob.
+    assert "CF.print3d.fromStl(" in js and "CF.print3d.open(" in js
+    core = (racine / "frontend" / "cardforge" / "js"
+            / "core.js").read_text("utf-8")
+    assert '"/print3d/from-stl?" + ps' in core and '"/print3d/open"' in core
+    assert "cible_mm" in core and "octet-stream" in core
 
 
 def test_le_miroir_bundle_game_assets_3d():

@@ -1443,11 +1443,15 @@
     return Object.freeze(api);
   }
 
-  /* Le SEUL dehors, tenu par le CORE : la generation d'images. C'est la seule
-     action qui DEPENSE (regle 17 de la spec) et elle doit se compter a un seul
-     endroit — pas dans huit modules avec huit fetch libres. */
+  /* Les DEHORS de l'application sont tenus par le CORE, jamais par une piece.
+     Le premier : la generation d'images — la seule action qui DEPENSE (regle
+     17 de la spec), elle doit se compter a un seul endroit — pas dans huit
+     modules avec huit fetch libres. Les autres dehors (catalogue §9bis,
+     /api/vector et /api/print3d ci-dessous) suivent le meme patron. */
   const images = Object.freeze({
     url: imageURL,
+    /* la sonde du magasin — « ce nom est-il servi, et du bon type ? » */
+    probe: imageProbe,
     async models() {
       try { return await jsonFetch("GET", "/image-models"); }
       catch (e) { if (e && e.missing) return { models: [] }; throw e; }
@@ -1473,6 +1477,103 @@
     if (/^(https?:|data:|blob:|\/)/.test(s)) return s;
     return "/api/images/file/" + encodeURIComponent(s);
   }
+
+  /* LA SONDE DU MAGASIN D'IMAGES — un GET, cache coupe, et le TYPE controle
+     par l'appelant. JAMAIS un HEAD : FastAPI ne route pas HEAD, la requete
+     tombe dans le catch-all de la SPA qui repond 200 HTML pour n'importe
+     quoi (piege n°7, preuve reelle du 27/08) — un HEAD « ok » ne prouverait
+     donc rien. Et la vraie route du magasin est GET /api/images/{filename}
+     (routes.py) : `imageURL` ci-dessus construit /api/images/file/, qui
+     tombe sur le meme catch-all — la sonde ne s'en sert pas (le releve de la
+     piece Face, §4 de mod-face.js). Un nom de fichier NU seulement : la
+     question est « ce nom est-il dans le magasin ? », jamais « que repond
+     cette URL ? ». */
+  async function imageProbe(fname, type) {
+    const s = String(fname == null ? "" : fname);
+    if (!s || /[/\\:]/.test(s)) return false;
+    let r;
+    try { r = await fetch("/api/images/" + encodeURIComponent(s), { cache: "no-store" }); }
+    catch (e) { return false; }
+    if (!r.ok) return false;
+    if (!type) return true;
+    return (r.headers.get("content-type") || "").indexOf(String(type)) >= 0;
+  }
+
+  /* ── LES AUTRES DEHORS : /api/vector et /api/print3d (28/08) ─────────────
+     Le pont Vectorlab de la piece Face et le depart imprimante de la Forge
+     3D (tous deux du 27/08) etaient nes avec leurs fetch nus — exactement le
+     « fetch libre » que `makeApi` a retire, et le pin d'architecture
+     (test_cards_type, test_P3_…_AUCUN_RESEAU_NU) a rougi comme son pave
+     l'avait promis : « le premier module qui le reprend le rouvre pour les
+     huit autres » — ils etaient deja DEUX, le meme jour. La voie est celle
+     de §9bis : ces routes vivent hors de tout sous-prefixe de piece (regle
+     8, `subPath` leve sur l'absolu), donc le CORE les tient, a un seul
+     endroit, entrees validees. Et une piece ne peut toujours pas formuler de
+     requete arbitraire : chaque methode fige sa route et son verbe. */
+  const VEC_DECK_RE = /^[A-Za-z0-9_-]{1,64}$/;  /* le contrat deck_id du service vector */
+  async function vectorDocs(deckId) {
+    const did = String(deckId == null ? "" : deckId);
+    if (!VEC_DECK_RE.test(did))
+      throw new Error("cardforge: CF.vector.docs exige un identifiant de jeu ([A-Za-z0-9_-], 64 max)");
+    const ps = new URLSearchParams({ deck_id: did });
+    try {
+      const d = await jsonFetch("GET", "/vector/docs?" + ps);
+      return Array.isArray(d && d.docs) ? d.docs : [];
+    } catch (e) {
+      /* route absente = ce backend n'a pas de documents vectoriels a offrir :
+         une LISTE VIDE, pas une panne (meme regle que `images.models`). */
+      if (e && e.missing) return [];
+      throw e;
+    }
+  }
+  async function vectorCreate(req) {
+    const o = isPlain(req) ? req : {};
+    const name = String(o.name == null ? "" : o.name).trim();
+    if (!name) throw new Error("cardforge: CF.vector.create exige un nom");
+    if (!isPlain(o.doc)) throw new Error("cardforge: CF.vector.create exige un document (objet)");
+    const body = { name: name, role: String(o.role || "libre"), doc: o.doc };
+    if (o.deck_id != null && o.deck_id !== "") {
+      const did = String(o.deck_id);
+      if (!VEC_DECK_RE.test(did))
+        throw new Error("cardforge: CF.vector.create : deck_id invalide ([A-Za-z0-9_-], 64 max)");
+      body.deck_id = did;
+    }
+    return jsonFetch("POST", "/vector/docs", body);
+  }
+  async function vectorDel(id) {
+    const s = String(id == null ? "" : id);
+    if (!s) throw new Error("cardforge: CF.vector.del exige un identifiant de document");
+    return jsonFetch("DELETE", "/vector/docs/" + encodeURIComponent(s));
+  }
+  const vector = Object.freeze({ docs: vectorDocs, create: vectorCreate, del: vectorDel });
+
+  /* Le depart imprimante 3D : le STL part par sa PROVENANCE (un Blob rapporte
+     par M.api.blob), les champs du bordereau sont FILTRES ici — quatre cles,
+     pas une de plus — et l'ouverture du slicer ne dit que le dossier. */
+  async function print3dFromStl(blob, req) {
+    if (typeof Blob === "undefined" || !(blob instanceof Blob))
+      throw new Error("cardforge: CF.print3d.fromStl attend un Blob (le STL rapporte par M.api.blob)");
+    const o = isPlain(req) ? req : {};
+    const ps = new URLSearchParams({
+      nom: String(o.nom == null ? "carte" : o.nom).slice(0, 60) || "carte",
+      source: String(o.source || "cardforge"),
+    });
+    if (o.etanche != null) ps.set("etanche", String(o.etanche));
+    if (o.cible_mm != null) {
+      const mm = Number(o.cible_mm);
+      if (!isFinite(mm) || mm <= 0)
+        throw new Error("cardforge: CF.print3d.fromStl : cible_mm doit etre un nombre de mm > 0");
+      ps.set("cible_mm", String(mm));
+    }
+    return jsonFetch("POST", "/print3d/from-stl?" + ps, blob,
+      { "Content-Type": "application/octet-stream" });
+  }
+  async function print3dOpen(dossier) {
+    const s = String(dossier == null ? "" : dossier);
+    if (!s) throw new Error("cardforge: CF.print3d.open exige un dossier");
+    return jsonFetch("POST", "/print3d/open", { dossier: s });
+  }
+  const print3d = Object.freeze({ fromStl: print3dFromStl, open: print3dOpen });
 
   /* ── TELECHARGEMENT : la provenance, pas la politesse ────────────────────
      « Les reperes ne sont jamais exportes » et « renderCard est la seule
@@ -2492,6 +2593,9 @@
        (patron sanscore) : une chaine SVG, jamais un noeud partage. */
     chevronSVG: CHEVRON_SVG,
     images: images, imageURL: imageURL, ApiMissing: ApiMissing,
+    /* les dehors /api/vector et /api/print3d — routes et verbes figes au
+       CORE (§8) : aucune piece ne formule de requete arbitraire. */
+    vector: vector, print3d: print3d,
     /* LECTURE SEULE, copie profonde gelee — voir `modelsPublic` (§9bis). */
     models: modelsPublic,
     download: download,
