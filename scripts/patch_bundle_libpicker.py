@@ -35,7 +35,7 @@ import time
 REL_BUNDLE = pathlib.Path("frontend/dist/assets/index-BEOJX8L5.js")
 TAG = "libpicker"
 MARKER = "__dzLibPicker"
-MARKER_ATTENDU = 8      # definition + 3 greffes + Host x2 + Style x2
+MARKER_ATTENDU = 10     # definition + window x2 + 3 greffes + Host x2 + Style x2
 
 STABLE_PROBES = [
     ("screen-switch", 's==="assets3d"&&r.jsx(DzGameAssetsHub,{variant:e})', 1),
@@ -46,8 +46,8 @@ STABLE_PROBES = [
     ("dzdesign", "__dzCatBar", 2),
 ]
 
-SPEC_CHAR_DELTA = 6946
-SPEC_BYTE_DELTA = 7002
+SPEC_CHAR_DELTA = 6981
+SPEC_BYTE_DELTA = 7037
 
 _BTN_STYLE = ('style:{width:"100%",fontSize:12,padding:"6px 12px",'
               'borderRadius:7,cursor:"pointer",background:"var(--bg-panel-2)",'
@@ -177,6 +177,9 @@ PICKER = (
     '.catch(function(e){window.alert("Figma : "'
     "+String(e&&e.message||e))})})"
     '}catch(e){window.alert("Bibliothèque : "+String(e&&e.message||e))}}'
+    # exposée sur window : les greffes la voient lexicalement, mais les
+    # surfaces sœurs (iframes same-origin) et les preuves passent par window
+    "window.__dzLibPicker=__dzLibPicker;"
 )
 
 GREFFE_BH = (

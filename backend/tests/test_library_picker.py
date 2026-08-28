@@ -168,7 +168,7 @@ def test_le_miroir_bundle_selecteur():
     racine = pathlib.Path(__file__).resolve().parent.parent.parent
     bundle = (racine / "frontend" / "dist" / "assets"
               / "index-BEOJX8L5.js").read_text("utf-8")
-    assert bundle.count("__dzLibPicker") == 8
+    assert bundle.count("__dzLibPicker") == 10
     # les trois greffes : nœud Image du Studio, Quick départ et fin
     assert 'label:"Bibliothèque"' in bundle
     assert "Image de départ" in bundle and "Image de fin" in bundle
