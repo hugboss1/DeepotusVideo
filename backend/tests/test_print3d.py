@@ -306,7 +306,9 @@ def test_le_miroir_bundle_game_assets_3d():
     racine = pathlib.Path(__file__).resolve().parent.parent.parent
     bundle = (racine / "frontend" / "dist" / "assets"
               / "index-BEOJX8L5.js").read_text("utf-8")
-    assert bundle.count("__dzPrint3d") == 2      # la définition + l'appel
+    # la définition + l'appel du hub + l'appel du menu « Envoyer vers… »
+    # de la Library (patch_bundle_libsend, 28/08)
+    assert bundle.count("__dzPrint3d") == 3
     assert "/api/print3d/from-assets3d/" in bundle
     patcher = (racine / "scripts"
                / "patch_bundle_print3d.py").read_text("utf-8")
