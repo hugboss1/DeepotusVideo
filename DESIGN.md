@@ -1227,3 +1227,34 @@ support .26–.45, découpes evenodd, jamais de couleur en dur ni de PNG).
   `?doc`, éditeur avec). Posée par `scripts/patch_bundle_vectorlab.py`
   (queue de chaîne, backup `.bak_vectorlab`, jamais de repatch_all —
   mêmes DANGERS que cardforge).
+
+# 15-ter. Ajout du 28/08/2026 — les animations de MENU du bundle (§4.4)
+
+Le rail de navigation du bundle (composant `tg`) savait se replier mais
+sans les animations du handoff : la largeur glissait sur les anciens
+tokens (`--dur-3`), et surtout les libellés étaient DÉMONTÉS du DOM à
+l'instant du repli (`!n&&…`) — aucune échappée ni cascade n'était même
+jouable. `scripts/patch_bundle_dzrailmotion.py` (queue de chaîne, backup
+`.bak_dzrailmotion`, marqueur `__dzNavMotion`) applique le patron du rail
+Cardforge :
+
+- **largeur** sur `--dur-panel`/`--ease-panel` (460 ms, la courbe du
+  handoff) ; `overflow:hidden` sur l'aside ;
+- **libellés toujours montés**, échappée `opacity --dur-label` +
+  `translateX(-22px)/380 ms`, **décalage 25 ms × rang** (`--ri` posé par
+  la ligne) ; badge « new » = méta masquée au repli ;
+- **icônes** : rebond `dzNavPop` (1→.74→1.08→1 sur 460 ms) en cascade,
+  **armé par le geste seulement** — classe `dzNavAnime` posée sur `<body>`
+  (React repeint le className de l'aside à chaque bascule : une classe
+  posée sur lui serait perdue par le rendu même qu'elle habille) par
+  l'intercepteur de persistance du patch navrail, retirée à 700 ms ; la
+  restauration `dz_nav_collapsed` au chargement pose l'état final SANS
+  animation (§4.6) ;
+- **l'icône ne bouge pas d'un pixel** (§4.4) : padding et alignement de
+  ligne deviennent constants — le rail replié est aligné à gauche comme
+  le prototype, plus centré ;
+- `prefers-reduced-motion` : durées à 1 ms, cascade et rebond supprimés,
+  états conservés (§1.3) — en plus du kill-switch global des tokens.
+
+Écart assumé : les largeurs restent 232→64 (cotes réelles du bundle,
+même règle de correspondance que §15-bis) — le prototype disait 236→62.
