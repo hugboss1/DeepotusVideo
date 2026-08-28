@@ -77,17 +77,23 @@ if (Test-Path $stagedScripts) {
 # scratch. Neither is read by anything the buyer runs.
 foreach ($d in @("docs\superpowers", "docs\plans", ".claude", ".pytest_cache",
                  ".cache", ".superpowers",
+                 "Design d'ic$([char]0xF4)nes applicatives",
                  "frontend\patches", "frontend\public")) {
     $p = Join-Path $stageApp $d
     if (Test-Path $p) { Remove-Item $p -Recurse -Force; Write-Host "  removed $d" -ForegroundColor Green }
 }
 # Fichiers de developpement du frontend : le buyer recoit dist/, pas la chaine
 # de build. SOURCE.md documente la relation bundle<->sources pre-patch et
-# contient les chemins de la machine de dev.
+# contient les chemins de la machine de dev. DESIGN.md est le cahier de
+# design interne (depuis le handoff du 26/08 en section 15, il cite des
+# chemins de la machine de dev) : l'atelier, pas l'app -- comme le dossier
+# "Design d'icones applicatives" retire ci-dessus (constat build v2.6.0 :
+# la garde anti-fuite a leve ces deux-la, premiers .md avertis depuis
+# qu'elle existe).
 foreach ($f in @("frontend\SOURCE.md", "frontend\package.json",
                  "frontend\package-lock.json", "frontend\vite.config.js",
                  "frontend\tailwind.config.js", "frontend\postcss.config.js",
-                 "frontend\index.html")) {
+                 "frontend\index.html", "DESIGN.md")) {
     $p = Join-Path $stageApp $f
     if (Test-Path $p) { Remove-Item $p -Force; Write-Host "  removed $f" -ForegroundColor Green }
 }
