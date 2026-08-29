@@ -140,3 +140,37 @@ def test_l_importmap_de_la_page_est_en_ligne_et_conforme_au_fichier():
     # et elle doit PRÉCÉDER le premier <script type="module"> : posée après,
     # elle arrive trop tard, le module ayant déjà tenté sa résolution.
     assert html.index('type="importmap"') < html.index('type="module"')
+
+
+# ── C. chargement et cadrage ─────────────────────────────────────────────────
+
+def test_le_viewer_branche_les_deux_decodeurs():
+    js = _lire("lib3d/viewer.js")
+    assert "meshopt_decoder" in js
+    assert "DRACOLoader" in js
+    assert "setDRACOLoader" in js
+
+
+def test_le_viewer_cadre_sur_la_boite_englobante():
+    """Sans cadrage, un modèle en mètres et un modèle en centimètres donnent
+    l'un un point, l'autre un mur : le cadrage est ce qui rend les étapes
+    comparables."""
+    js = _lire("lib3d/viewer.js")
+    assert "cadrer" in js
+    assert "Box3" in js
+
+
+def test_le_viewer_libere_la_memoire_entre_deux_chargements():
+    """Charger dix étapes de 200 Mo sans disposer sature le GPU."""
+    js = _lire("lib3d/viewer.js")
+    assert "dispose" in js
+
+
+def test_le_redimensionnement_compare_le_tampon_et_non_les_pixels_css():
+    """`canvas.width` est le tampon de dessin (multiplié par le pixelRatio),
+    `clientWidth` des pixels CSS : les comparer directement rend la condition
+    vraie à chaque image dès que le DPR dépasse 1. Mesure : tampon 800x600
+    contre client 400x300, en permanence.
+    """
+    js = _lire("lib3d/viewer.js")
+    assert "getPixelRatio" in js
