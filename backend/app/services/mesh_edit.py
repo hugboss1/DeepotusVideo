@@ -731,3 +731,59 @@ def extraire(data: bytes, noeuds) -> bytes:
     # Tripo, Rodin) ne posent pas de lumières de scène ; si P4-P5 en amène,
     # c'est ici qu'il faudra regarder — ne pas supposer que c'est déjà couvert.
     return ecrire_glb(out, bytes(neuf))
+
+
+def ecrire_version(job: str, data: bytes, *, operation: str,
+                   detail: dict | None = None) -> dict:
+    """Dépose un GLB corrigé comme NOUVELLE version d'un job, avec sa fiche.
+
+    Jamais d'écrasement (doctrine §2.1) : le numéro vient de
+    `asset3d_service.next_version`, et `mesh_report.write_report` ajoute la
+    fiche au registre en gardant toutes les précédentes.
+    """
+    from app.services import asset3d_service, mesh_report
+
+    d = mesh_report.job_dir(job)
+    d.mkdir(parents=True, exist_ok=True)
+    v = asset3d_service.next_version(job)
+    nom = f"model.v{v}.glb"
+    (d / nom).write_bytes(data)
+    return mesh_report.write_report(
+        job, nom, version=v,
+        extra={"outil": "etabli", "operation": operation,
+               **(detail or {})})
+
+
+def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
+    """Fait entrer un maillage Meshy dans le monde des jobs `assets3d`.
+
+    Les binaires rapatriés vivent dans `outputs/meshy3d/<id>/`, qui n'a pas de
+    registre : sans adoption, une correction n'aurait nulle part où être
+    versionnée. Idempotent — adopter deux fois rend le même job.
+    """
+    import json as _json
+    from pathlib import Path as _Path
+
+    from app.config import settings
+    from app.services import mesh_report
+
+    tid = _Path(str(task_id)).name
+    src = settings.outputs_path / "meshy3d" / tid / _Path(str(fichier)).name
+    if not src.is_file():
+        raise FileNotFoundError(f"meshy3d/{tid}/{_Path(fichier).name} introuvable")
+
+    job = f"meshy_{tid}"
+    d = mesh_report.job_dir(job)
+    d.mkdir(parents=True, exist_ok=True)
+    cible = d / "model.glb"
+    if not cible.is_file():
+        cible.write_bytes(src.read_bytes())
+        (d / "asset.json").write_text(_json.dumps({
+            "name": job, "engine": "meshy", "stage": "adopte",
+            "version": 1, "adopte_de": f"meshy3d/{tid}",
+        }, ensure_ascii=False, indent=1), encoding="utf-8")
+        mesh_report.write_report(job, "model.glb", version=1,
+                                 extra={"outil": "etabli",
+                                        "operation": "adoption",
+                                        "meshy_task": tid})
+    return job

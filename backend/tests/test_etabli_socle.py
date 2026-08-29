@@ -597,3 +597,95 @@ def test_extraire_apres_reparer_ne_perd_pas_la_correction():
     bb = print3d.bbox(print3d.lire_glb_triangles(piece))
     for (lo, hi), (alo, ahi) in zip(bb, monde):
         assert abs(lo - alo) < 1e-9 and abs(hi - ahi) < 1e-9
+
+
+# ── F. écriture versionnée ───────────────────────────────────────────────────
+
+def test_ecrire_version_ajoute_sans_ecraser():
+    from app.config import settings
+    from app.services import mesh_edit
+    d = settings.outputs_path / "assets3d" / "job_banc"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube_et_sol())
+
+    fiche = mesh_edit.ecrire_version(
+        "job_banc", mesh_edit.extraire(_cube_et_sol(), [0]),
+        operation="extraire", detail={"noeuds": [0]})
+
+    assert fiche["version"] == 2
+    assert fiche["file"] == "model.v2.glb"
+    assert (d / "model.glb").is_file()          # le brouillon survit
+    assert (d / "model.v2.glb").is_file()
+    registre = json.loads((d / "report.json").read_text("utf-8"))
+    assert registre["current"] == "model.v2.glb"
+    assert fiche["source"]["operation"] == "extraire"
+
+
+def test_la_fiche_d_une_version_decompressee_ne_la_dit_plus_compressee():
+    """Conseil de la revue de la tâche 5, et il porte.
+
+    `extraire` filtre désormais `extensionsRequired`. Une version écrite
+    derrière une extraction qui a laissé la compression au vestiaire ne doit
+    donc PAS être fichée comme encore compressée — sinon `mesh_report` renonce
+    à la géométrie et la fiche ment sur ce qu'on vient d'écrire.
+    """
+    from app.config import settings
+    from app.services import mesh_edit
+    d = settings.outputs_path / "assets3d" / "job_decomp"
+    d.mkdir(parents=True, exist_ok=True)
+
+    # un document mixte : un maillage draco, un maillage libre
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    o = len(tampon)
+    tampon += b"\xAA" * 32
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": o, "byteLength": 32})
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    doc["meshes"][0]["primitives"][0].setdefault("extensions", {})[
+        "KHR_draco_mesh_compression"] = {
+            "bufferView": len(doc["bufferViews"]) - 1,
+            "attributes": {"POSITION": 0}}
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    libre = json.loads(json.dumps(doc["meshes"][0]))
+    libre["primitives"][0].pop("extensions", None)
+    doc["meshes"].append(libre)
+    doc["nodes"].append({"name": "libre", "mesh": 1})
+    doc["scenes"][0]["nodes"] = [0, 1]
+    (d / "model.glb").write_bytes(mesh_edit.ecrire_glb(doc, bytes(tampon)))
+
+    piece = mesh_edit.extraire((d / "model.glb").read_bytes(), [1])
+    fiche = mesh_edit.ecrire_version(
+        "job_decomp", piece, operation="extraire", detail={"noeuds": [1]})
+
+    assert fiche["gltf"]["extensions_required"] == []
+    # et la géométrie est bien calculée, pas abandonnée sur un faux refus
+    assert fiche["geometry"]["tris_lus"] == 12
+
+
+# ── F2. adoption d'une tâche Meshy ───────────────────────────────────────────
+
+def test_une_tache_meshy_est_adoptee_par_un_job():
+    from app.config import settings
+    from app.services import mesh_edit
+    src = settings.outputs_path / "meshy3d" / "tache_abc"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_cube_et_sol())
+
+    job = mesh_edit.adopter_meshy("tache_abc", "model.glb")
+
+    assert job == "meshy_tache_abc"
+    d = settings.outputs_path / "assets3d" / job
+    assert (d / "model.glb").is_file()
+    man = json.loads((d / "asset.json").read_text("utf-8"))
+    assert man["adopte_de"] == "meshy3d/tache_abc"
+    # adopter deux fois ne duplique pas
+    assert mesh_edit.adopter_meshy("tache_abc", "model.glb") == job
+
+
+def test_l_adoption_refuse_une_tache_sans_glb():
+    from app.services import mesh_edit
+    with pytest.raises(FileNotFoundError):
+        mesh_edit.adopter_meshy("tache_absente", "model.glb")
