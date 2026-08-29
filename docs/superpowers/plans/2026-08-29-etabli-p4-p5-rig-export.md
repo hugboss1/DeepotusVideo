@@ -189,6 +189,13 @@ export function surlignerChaine(api, nomOs) {
 
 - [ ] **Step 4 : brancher le panneau Rig**
 
+> **Contrat de `rig_inventory` à respecter si tu bâtis un arbre depuis `inv.os`
+> plutôt que depuis les os three.js :** `os` ne contient que les JOINTS, donc un
+> `os[].parent` peut désigner un nœud **absent** de la liste — cas courant des
+> exports Blender et Mixamo, où la racine d'armature porte le déplacement global
+> sans être elle-même un os. Traiter un `parent` introuvable comme une racine ;
+> ne jamais supposer qu'il se résout dans `os`.
+
 Ajouter à `frontend/etabli/etabli.js` :
 
 ```js

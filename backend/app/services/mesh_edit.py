@@ -87,6 +87,13 @@ def rig_inventory(data: bytes) -> dict:
 
     Instantané même sur un GLB de 200 Mo, et c'est le but : le panneau Rig doit
     pouvoir annoncer l'absence de squelette sans rien télécharger.
+
+    CONTRAT À LIRE AVANT DE BÂTIR UN ARBRE DESSUS : `os` ne contient que les
+    JOINTS. Un `os[].parent` peut donc désigner un nœud absent de la liste —
+    c'est le cas courant des exports Blender ou Mixamo, où la racine
+    d'armature (`skins[].skeleton`) porte le déplacement global sans être
+    elle-même un os. Un consommateur doit traiter un `parent` introuvable
+    comme une racine, jamais supposer qu'il se résout dans `os`.
     """
     doc, _ = lire_glb(data)
     nodes = _l(doc, "nodes")
