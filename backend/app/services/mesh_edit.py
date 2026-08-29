@@ -226,8 +226,32 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
     `recentrer` est la seule option qui a besoin de la géométrie : elle passe
     par `print3d.lire_glb_triangles`, qui refuse un GLB compressé avec un
     message explicite. Les deux autres options n'ont pas cette limite.
+
+    Seule la scène active (`doc["scene"]`) est corrigée : un GLB multi-scènes
+    garderait les autres intactes. C'est la convention de tout le module —
+    `print3d.lire_glb_triangles` et `rig_inventory` font de même — et les
+    maillages livrés par Meshy, Tripo ou Rodin sont mono-scène en pratique.
+
+    Deux réparations successives EMPILENT deux nœuds `etabli_correction`
+    imbriqués : c'est voulu, chaque correction restant ainsi annulable. Mais
+    cela veut dire qu'on ne cherche jamais « le » nœud de correction par son
+    nom — il peut y en avoir plusieurs.
     """
     from app.services import print3d
+
+    # Types validés AVANT toute lecture : ces deux paramètres viendront d'un
+    # corps JSON (tâche 8), et la route ne traduit en 400 que les ValueError.
+    # Sans ces gardes, `axe_haut=123` lève AttributeError et `echelle=[1.0]`
+    # lève TypeError — deux 500 au lieu de deux refus parlants.
+    if axe_haut is not None and not isinstance(axe_haut, str):
+        raise ValueError("axe_haut attend une chaîne (Y ou Z), reçu "
+                         f"{type(axe_haut).__name__}")
+    if echelle is not None and (isinstance(echelle, bool)
+                                or not isinstance(echelle, (int, float))):
+        # `bool` est un `int` en Python : sans ce garde, `echelle=True`
+        # deviendrait silencieusement une échelle de 1.
+        raise ValueError("echelle attend un nombre, reçu "
+                         f"{type(echelle).__name__}")
 
     doc, binc = lire_glb(data)
     axe = (axe_haut or "Y").upper()
@@ -247,6 +271,9 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 
     scenes = doc.get("scenes") or [{"nodes": []}]
     isc = int(doc.get("scene", 0))
+    if not (0 <= isc < len(scenes)):
+        raise ValueError(f"scène active {isc} hors du document "
+                         f"({len(scenes)} scènes)")
     racines = list(scenes[isc].get("nodes") or [])
     doc.setdefault("nodes", []).append({
         "name": "etabli_correction",

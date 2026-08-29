@@ -245,6 +245,28 @@ def test_reparer_refuse_une_echelle_nulle_ou_negative():
             mesh_edit.reparer(_cube(), echelle=mauvaise)
 
 
+def test_reparer_refuse_des_parametres_de_mauvais_type():
+    """Ces deux paramètres viendront d'un corps JSON (tâche 8), et la route ne
+    traduit en 400 que les `ValueError`. Sans gardes, `axe_haut=123` lève
+    AttributeError et `echelle=[1.0]` TypeError — deux 500."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="axe_haut attend une chaîne"):
+        mesh_edit.reparer(_cube(), axe_haut=123)
+    with pytest.raises(ValueError, match="echelle attend un nombre"):
+        mesh_edit.reparer(_cube(), echelle=[1.0])
+    # `bool` est un `int` : sans garde, True passerait pour une échelle de 1
+    with pytest.raises(ValueError, match="echelle attend un nombre"):
+        mesh_edit.reparer(_cube(), echelle=True)
+
+
+def test_reparer_refuse_une_scene_active_hors_du_document():
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["scene"] = 5
+    with pytest.raises(ValueError, match="scène active 5 hors du document"):
+        mesh_edit.reparer(mesh_edit.ecrire_glb(doc, binc))
+
+
 def _cube_compresse() -> bytes:
     """Un cube qui se DÉCLARE draco. `print3d` refuse sur la déclaration
     `extensionsRequired`, pas sur le décodage : c'est donc une simulation
