@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Établi — Deepotus Video Gen</title>
+<link rel="stylesheet" href="etabli.css">
+<!-- Carte EN LIGNE, et non <script type="importmap" src="…"> : les import maps
+     externes ne sont supportées par aucun navigateur — mesuré, la page reste
+     inerte avec « Failed to resolve module specifier "three" ». La référence du
+     dossier vendorisé reste /assets/three/importmap.json ; un banc de
+     test_etabli_canevas.py interdit que les deux divergent. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "/assets/three/three.module.min.js",
+    "three/addons/": "/assets/three/addons/"
+  }
+}
+</script>
+</head>
+<body>
+<div class="etabli" id="etabli">
+
+  <!-- ══════════ gauche : la vie du modèle ══════════ -->
+  <aside class="rail-left">
+    <div class="dt-label">La vie du modèle</div>
+    <div class="chrono" id="chrono">
+      <div class="chrono-vide">chargement…</div>
+    </div>
+    <div class="chrono-aide">
+      clic : charger · <b>alt-clic</b> : comparer
+    </div>
+  </aside>
+
+  <!-- ══════════ centre : le grand canevas ══════════ -->
+  <main class="centre">
+    <header class="head">
+      <span class="head-title">Établi</span>
+      <span class="head-chip" id="chipSource">—</span>
+      <div class="head-right">
+        <button id="btnCompare" title="Fermer la comparaison">A/B ✕</button>
+      </div>
+    </header>
+
+    <div class="vues" id="vues">
+      <div class="vue" id="vueA"><canvas></canvas><span class="vue-tag">A</span></div>
+      <div class="vue hidden" id="vueB"><canvas></canvas><span class="vue-tag">B</span></div>
+    </div>
+
+    <div class="ecart hidden" id="ecart"></div>
+
+    <footer class="barre" id="barre">
+      <span id="barreFichier">aucun modèle chargé</span>
+      <span id="barreGeo">—</span>
+      <span class="barre-attente" id="barreAttente"></span>
+    </footer>
+  </main>
+
+  <!-- ══════════ droite : les onglets ══════════ -->
+  <aside class="rail-right">
+    <div class="onglets">
+      <button class="on actif" data-onglet="parties">Parties</button>
+      <button class="on" data-onglet="rig">Rig</button>
+      <button class="on" data-onglet="fiche">Fiche</button>
+      <button class="on" data-onglet="export">Export</button>
+    </div>
+    <div class="panneau" id="panParties"></div>
+    <div class="panneau hidden" id="panRig">
+      <div class="vide">le panneau Rig arrive en P4</div>
+    </div>
+    <div class="panneau hidden" id="panFiche"></div>
+    <div class="panneau hidden" id="panExport">
+      <div class="vide">l'export par moteur arrive en P5</div>
+    </div>
+  </aside>
+</div>
+<script type="module" src="etabli.js"></script>
+</body>
+</html>

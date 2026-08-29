@@ -443,6 +443,41 @@ if _studio3d.is_dir():
 
     logger.info(f"Serving studio3d from {_studio3d}")
 
+# ── /etabli : l'inspecteur 3D en bout de chaîne du 3D Studio ─────────────────
+# Même patron standalone que /studio3d — HORS du bundle minifié. La page pilote
+# three.js (servi depuis /assets/three) ; l'écriture des GLB reste au serveur.
+_etabli = Path(__file__).resolve().parent.parent.parent / "frontend" / "etabli"
+if _etabli.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFEt
+
+    class _EtabliStatic(_SFEt):
+        """no-cache comme /studio3d : etabli.js garde un nom stable, donc le
+        navigateur doit revalider au lieu de servir une version périmée."""
+        async def get_response(self, path, scope):
+            resp = await super().get_response(path, scope)
+            try:
+                resp.headers["Cache-Control"] = "no-cache, must-revalidate"
+            except Exception:
+                pass
+            return resp
+
+    app.mount("/etabli", _EtabliStatic(directory=str(_etabli), html=True),
+              name="etabli")
+
+    @app.get("/etabli", include_in_schema=False)
+    async def _etabli_no_slash():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/etabli/", status_code=307)
+
+    logger.info(f"Serving etabli from {_etabli}")
+
+# ── /lib3d : le canevas 3D PARTAGÉ (Établi aujourd'hui, Plateau le jour où) ──
+_lib3d = Path(__file__).resolve().parent.parent.parent / "frontend" / "lib3d"
+if _lib3d.is_dir():
+    from fastapi.staticfiles import StaticFiles as _SFL3
+    app.mount("/lib3d", _SFL3(directory=str(_lib3d)), name="lib3d")
+    logger.info(f"Serving lib3d from {_lib3d}")
+
 _meshy_client = Path(__file__).resolve().parent.parent.parent / "frontend" / "meshy"
 if _meshy_client.is_dir():
     from fastapi.staticfiles import StaticFiles as _SFMc
