@@ -127,13 +127,17 @@ function ouvrirPrincipale(cible) {
 
 async function _ouvrirPrincipale(cible, numero) {
   if (numero !== _demande) return;   // dépassée pendant l'attente : on se retire
-  if (!S.vueA) S.vueA = creerCanevas($("#vueA canvas"));
   const geoBox = $("#barreGeo");
   $("#barreFichier").textContent = cible.url.split("/").pop();
   geoBox.classList.remove("erreur");
   geoBox.textContent = "chargement…";
   let geo;
   try {
+    /* creerCanevas() DANS le try : sans contexte WebGL (GPU sur liste noire,
+       trop de contextes ouverts) il lève, et posé au-dessus il serait le seul
+       chemin d'échec de cette fonction à ne PAS se voir — « chargement… »
+       resterait figé, le `.catch` de la file ayant avalé la promesse. */
+    if (!S.vueA) S.vueA = creerCanevas($("#vueA canvas"));
     geo = await charger(S.vueA, cible.url);
   } catch (e) {
     /* Un GLB absent (404), tronqué, ou compressé sans son décodeur laisse le
