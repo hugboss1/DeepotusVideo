@@ -649,6 +649,45 @@ def test_reparer_refuse_un_axe_inconnu():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="axe haut inconnu"):
         mesh_edit.reparer(_cube(), axe_haut="Q")
+
+
+def test_reparer_refuse_une_echelle_nulle_ou_negative():
+    """Politique DIFFÉRENTE de `transformer`, et c'est voulu : une échelle
+    globale ≤ 0 n'a pas de sens pour une assise, alors qu'un `scale` négatif
+    par axe est un miroir glTF parfaitement valide."""
+    from app.services import mesh_edit
+    for mauvaise in (0.0, -1.0):
+        with pytest.raises(ValueError, match="strictement positive"):
+            mesh_edit.reparer(_cube(), echelle=mauvaise)
+
+
+def _cube_compresse() -> bytes:
+    """Un cube qui se DÉCLARE draco. `print3d` refuse sur la déclaration
+    `extensionsRequired`, pas sur le décodage : c'est donc une simulation
+    honnête du contrat, sans embarquer un encodeur Draco au banc."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    return mesh_edit.ecrire_glb(doc, binc)
+
+
+def test_sur_un_glb_compresse_la_degradation_est_partielle_et_explicite():
+    """LE principe du dépôt : axe et échelle passent, seul le recentrage
+    refuse — et il dit pourquoi. Jamais un échec global quand une partie du
+    travail est faisable."""
+    from app.services import mesh_edit, print3d
+    comp = _cube_compresse()
+    with pytest.raises(ValueError, match="draco"):
+        print3d.lire_glb_triangles(comp)
+    # axe + échelle : aucune géométrie n'est lue, donc ça passe
+    sortie, _ = mesh_edit.lire_glb(
+        mesh_edit.reparer(comp, axe_haut="Z", echelle=2.0))
+    assert sortie["nodes"][-1]["name"] == "etabli_correction"
+    assert sortie["extensionsRequired"] == ["KHR_draco_mesh_compression"]
+    # le recentrage, lui, a besoin des triangles : il refuse, en le disant
+    with pytest.raises(ValueError, match="draco"):
+        mesh_edit.reparer(comp, recentrer=True)
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -734,7 +773,7 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 18 tests PASS.
+Attendu : 20 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1074,7 +1113,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 24 tests PASS.
+Attendu : 26 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1161,7 +1200,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 25 tests PASS.
+Attendu : 27 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1242,7 +1281,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 27 tests PASS.
+Attendu : 29 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1431,7 +1470,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 29 tests PASS.
+Attendu : 31 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1614,7 +1653,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 33 tests PASS.
+Attendu : 35 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
