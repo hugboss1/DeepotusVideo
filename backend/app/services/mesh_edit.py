@@ -283,3 +283,330 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
     scenes[isc]["nodes"] = [len(doc["nodes"]) - 1]
     doc["scenes"] = scenes
     return ecrire_glb(doc, binc)
+
+
+def _dependances(doc: dict, garder: set[int]) -> dict:
+    """Tout ce qu'un ensemble de nœuds retenus tire derrière lui.
+
+    L'ordre compte : nœuds -> meshes/skins -> accesseurs et matériaux ->
+    textures -> images -> bufferViews. Un maillon oublié produit un GLB qui
+    référence un index disparu, et le lecteur le dit brutalement.
+    """
+    nodes = _l(doc, "nodes")
+    meshes = {nodes[i]["mesh"] for i in garder
+              if nodes[i].get("mesh") is not None}
+    skins = {nodes[i]["skin"] for i in garder
+             if nodes[i].get("skin") is not None}
+    # un skin dont TOUS les joints ne sont pas retenus est lâché : le garder
+    # produirait une peau qui vise des os absents
+    skins = {s for s in skins
+             if all(j in garder for j in _l(_l(doc, "skins")[s], "joints"))}
+
+    acc: set[int] = set()
+    mats: set[int] = set()
+    for mi in meshes:
+        for p in _l(_l(doc, "meshes")[mi], "primitives"):
+            acc.update((p.get("attributes") or {}).values())
+            if p.get("indices") is not None:
+                acc.add(p["indices"])
+            for cible in _l(p, "targets"):
+                acc.update(cible.values())
+            if p.get("material") is not None:
+                mats.add(p["material"])
+    for si in skins:
+        ibm = _l(doc, "skins")[si].get("inverseBindMatrices")
+        if ibm is not None:
+            acc.add(ibm)
+
+    texs: set[int] = set()
+
+    def _tex(x) -> None:
+        if isinstance(x, dict) and x.get("index") is not None:
+            texs.add(x["index"])
+
+    for mi in mats:
+        m = _l(doc, "materials")[mi]
+        pbr = m.get("pbrMetallicRoughness") or {}
+        _tex(pbr.get("baseColorTexture"))
+        _tex(pbr.get("metallicRoughnessTexture"))
+        _tex(m.get("normalTexture"))
+        _tex(m.get("occlusionTexture"))
+        _tex(m.get("emissiveTexture"))
+
+    imgs: set[int] = set()
+    smps: set[int] = set()
+    for ti in texs:
+        t = _l(doc, "textures")[ti]
+        if t.get("source") is not None:
+            imgs.add(t["source"])
+        if t.get("sampler") is not None:
+            smps.add(t["sampler"])
+
+    bvs: set[int] = set()
+    for ai in acc:
+        a = _l(doc, "accessors")[ai]
+        if a.get("bufferView") is not None:
+            bvs.add(a["bufferView"])
+        sparse = a.get("sparse") or {}
+        for part in ("indices", "values"):
+            vue = (sparse.get(part) or {}).get("bufferView")
+            if vue is not None:
+                bvs.add(vue)
+    for ii in imgs:
+        vue = _l(doc, "images")[ii].get("bufferView")
+        if vue is not None:
+            bvs.add(vue)
+    # compression : la vue Draco est RECOPIÉE sans être décodée — c'est ce qui
+    # fait marcher l'extraction là où le lecteur de triangles refuse
+    for mi in meshes:
+        for p in _l(_l(doc, "meshes")[mi], "primitives"):
+            draco = (p.get("extensions") or {}).get(
+                "KHR_draco_mesh_compression") or {}
+            if draco.get("bufferView") is not None:
+                bvs.add(draco["bufferView"])
+
+    return {"meshes": meshes, "skins": skins, "accessors": acc,
+            "materials": mats, "textures": texs, "images": imgs,
+            "samplers": smps, "bufferViews": bvs}
+
+
+_IDENTITE = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+             0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+
+def _mat_mul(a: list, b: list) -> list:
+    """Produit de deux matrices 4×4 COLONNE-majeures (convention glTF).
+
+    `m[c * 4 + r]` = colonne c, ligne r. Le produit `a · b` applique b PUIS a.
+
+    `print3d` a ses propres matrices, mais en LIGNE-majeur pour ses calculs
+    internes. Ici on écrit dans le champ `matrix` d'un nœud glTF, qui est
+    colonne-majeur : convertir d'une convention à l'autre serait plus
+    fragile que de tenir les seize lignes ci-dessous.
+    """
+    out = [0.0] * 16
+    for c in range(4):
+        for r in range(4):
+            out[c * 4 + r] = sum(a[k * 4 + r] * b[c * 4 + k] for k in range(4))
+    return out
+
+
+def _mat_locale(node: dict) -> list:
+    """Transformation locale d'un nœud, en colonne-majeur.
+
+    glTF autorise soit `matrix`, soit un TRS — jamais les deux.
+    """
+    if node.get("matrix"):
+        return [float(x) for x in node["matrix"]]
+    t = node.get("translation") or [0.0, 0.0, 0.0]
+    r = node.get("rotation") or [0.0, 0.0, 0.0, 1.0]
+    s = node.get("scale") or [1.0, 1.0, 1.0]
+    x, y, z, w = (float(v) for v in r)
+    rot = ((1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)),
+           (2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)),
+           (2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)))
+    m = [0.0] * 16
+    for c in range(3):
+        for lig in range(3):
+            m[c * 4 + lig] = rot[lig][c] * float(s[c])
+    m[12], m[13], m[14] = float(t[0]), float(t[1]), float(t[2])
+    m[15] = 1.0
+    return m
+
+
+def _monde_des_ancetres(doc: dict, cible: int) -> list:
+    """Matrice monde des ancêtres STRICTS de `cible` (elle-même exclue).
+
+    Identité si la cible est déjà une racine. C'est cette matrice qu'il faut
+    pré-multiplier dans la racine extraite pour que la pièce sorte là où
+    l'utilisateur la voyait — sans quoi une correction d'assise posée par
+    `reparer` disparaîtrait en silence à la découpe.
+
+    La boucle garde un ensemble de nœuds vus : un `children` cyclique dans un
+    GLB tiers ne doit pas la faire tourner à l'infini.
+    """
+    nodes = _l(doc, "nodes")
+    parent: dict[int, int] = {}
+    for i, n in enumerate(nodes):
+        for c in _l(n, "children"):
+            parent[c] = i
+    chaine: list[int] = []
+    cur = parent.get(cible)
+    vus: set[int] = set()
+    while cur is not None and cur not in vus:
+        vus.add(cur)
+        chaine.append(cur)
+        cur = parent.get(cur)
+    m = list(_IDENTITE)
+    for i in reversed(chaine):          # de la racine vers le parent direct
+        m = _mat_mul(m, _mat_locale(nodes[i]))
+    return m
+
+
+def _carte(ref: set[int]) -> tuple[dict[int, int], list[int]]:
+    ordre = sorted(ref)
+    return {v: i for i, v in enumerate(ordre)}, ordre
+
+
+def extraire(data: bytes, noeuds) -> bytes:
+    """Un GLB qui ne contient QUE le sous-arbre demandé et ses dépendances.
+
+    RECOPIE D'OCTETS : les bufferViews retenus sont copiés tels quels, sans
+    décodage. L'opération survit donc à Draco et meshopt, contrairement à tout
+    ce qui lit des triangles.
+    """
+    doc, binc = lire_glb(data)
+    nodes = _l(doc, "nodes")
+
+    garder: set[int] = set()
+    pile = [int(n) for n in (noeuds or [])]
+    while pile:
+        i = pile.pop()
+        if i in garder or not (0 <= i < len(nodes)):
+            continue
+        garder.add(i)
+        pile.extend(_l(nodes[i], "children"))
+    if not garder:
+        raise ValueError("aucun noeud retenu — la selection est vide")
+
+    dep = _dependances(doc, garder)
+    m_node, o_node = _carte(garder)
+    m_mesh, o_mesh = _carte(dep["meshes"])
+    m_mat, o_mat = _carte(dep["materials"])
+    m_tex, o_tex = _carte(dep["textures"])
+    m_img, o_img = _carte(dep["images"])
+    m_smp, o_smp = _carte(dep["samplers"])
+    m_acc, o_acc = _carte(dep["accessors"])
+    m_bv, o_bv = _carte(dep["bufferViews"])
+    m_skin, o_skin = _carte(dep["skins"])
+
+    neuf = bytearray()
+    vues: list[dict] = []
+    for bi in o_bv:
+        v = dict(_l(doc, "bufferViews")[bi])
+        off, ln = v.get("byteOffset", 0), v["byteLength"]
+        while len(neuf) % 4:
+            neuf.append(0)
+        v["byteOffset"] = len(neuf)
+        v["buffer"] = 0
+        neuf += binc[off:off + ln]
+        vues.append(v)
+
+    out: dict = {"asset": doc.get("asset") or {"version": "2.0"}}
+    out["bufferViews"] = vues
+    out["buffers"] = [{"byteLength": len(neuf)}]
+
+    out["accessors"] = []
+    for ai in o_acc:
+        a = dict(_l(doc, "accessors")[ai])
+        if a.get("bufferView") is not None:
+            a["bufferView"] = m_bv[a["bufferView"]]
+        out["accessors"].append(a)
+
+    if o_smp:
+        out["samplers"] = [dict(_l(doc, "samplers")[i]) for i in o_smp]
+    if o_img:
+        out["images"] = []
+        for ii in o_img:
+            im = dict(_l(doc, "images")[ii])
+            if im.get("bufferView") is not None:
+                im["bufferView"] = m_bv[im["bufferView"]]
+            out["images"].append(im)
+    if o_tex:
+        out["textures"] = []
+        for ti in o_tex:
+            t = dict(_l(doc, "textures")[ti])
+            if t.get("source") is not None:
+                t["source"] = m_img[t["source"]]
+            if t.get("sampler") is not None:
+                t["sampler"] = m_smp[t["sampler"]]
+            out["textures"].append(t)
+    if o_mat:
+        out["materials"] = []
+        for mi in o_mat:
+            m = json.loads(json.dumps(_l(doc, "materials")[mi]))
+            pbr = m.get("pbrMetallicRoughness") or {}
+            for hote, cle in ((pbr, "baseColorTexture"),
+                              (pbr, "metallicRoughnessTexture"),
+                              (m, "normalTexture"), (m, "occlusionTexture"),
+                              (m, "emissiveTexture")):
+                cible = hote.get(cle)
+                if isinstance(cible, dict) and cible.get("index") is not None:
+                    cible["index"] = m_tex[cible["index"]]
+            out["materials"].append(m)
+
+    out["meshes"] = []
+    for mi in o_mesh:
+        me = json.loads(json.dumps(_l(doc, "meshes")[mi]))
+        for p in me.get("primitives") or []:
+            p["attributes"] = {k: m_acc[v]
+                               for k, v in (p.get("attributes") or {}).items()}
+            if p.get("indices") is not None:
+                p["indices"] = m_acc[p["indices"]]
+            if p.get("material") is not None:
+                p["material"] = m_mat[p["material"]]
+            for cible in p.get("targets") or []:
+                for k in list(cible):
+                    cible[k] = m_acc[cible[k]]
+            draco = (p.get("extensions") or {}).get(
+                "KHR_draco_mesh_compression")
+            if draco and draco.get("bufferView") is not None:
+                draco["bufferView"] = m_bv[draco["bufferView"]]
+        out["meshes"].append(me)
+
+    if o_skin:
+        out["skins"] = []
+        for si in o_skin:
+            s = json.loads(json.dumps(_l(doc, "skins")[si]))
+            if s.get("inverseBindMatrices") is not None:
+                s["inverseBindMatrices"] = m_acc[s["inverseBindMatrices"]]
+            s["joints"] = [m_node[j] for j in _l(s, "joints")]
+            if s.get("skeleton") in m_node:
+                s["skeleton"] = m_node[s["skeleton"]]
+            else:
+                s.pop("skeleton", None)
+            out["skins"].append(s)
+
+    out["nodes"] = []
+    for ni in o_node:
+        n = json.loads(json.dumps(nodes[ni]))
+        enfants = [m_node[c] for c in _l(n, "children") if c in m_node]
+        if enfants:
+            n["children"] = enfants
+        else:
+            n.pop("children", None)
+        if n.get("mesh") is not None:
+            n["mesh"] = m_mesh[n["mesh"]]
+        if n.get("skin") is not None:
+            if n["skin"] in m_skin:
+                n["skin"] = m_skin[n["skin"]]
+            else:
+                n.pop("skin")
+        n.pop("camera", None)
+        out["nodes"].append(n)
+
+    # Chaque racine extraite absorbe la transformation de ses ANCÊTRES restés
+    # hors sélection. Sans cela, découper un nœud placé sous le nœud
+    # `etabli_correction` de `reparer` ferait perdre la correction EN SILENCE :
+    # mesuré — la pièce ressortait en ((-1,1), (2,4), (-1,1)), c'est-à-dire
+    # couchée, au lieu du monde redressé ((-1,1), (-1,1), (2,4)).
+    for i in sorted({int(x) for x in noeuds}):
+        if i not in m_node:
+            continue
+        a = _monde_des_ancetres(doc, i)
+        if a == _IDENTITE:
+            continue                    # déjà une racine : rien à absorber
+        n = out["nodes"][m_node[i]]
+        locale = _mat_locale(nodes[i])
+        for cle in ("translation", "rotation", "scale"):
+            n.pop(cle, None)
+        n["matrix"] = _mat_mul(a, locale)
+
+    racines = [m_node[i] for i in sorted({int(x) for x in noeuds})
+               if i in m_node]
+    out["scenes"] = [{"nodes": racines}]
+    out["scene"] = 0
+    for cle in ("extensionsUsed", "extensionsRequired"):
+        if doc.get(cle):
+            out[cle] = doc[cle]
+    return ecrire_glb(out, bytes(neuf))

@@ -294,3 +294,83 @@ def test_sur_un_glb_compresse_la_degradation_est_partielle_et_explicite():
     # le recentrage, lui, a besoin des triangles : il refuse, en le disant
     with pytest.raises(ValueError, match="draco"):
         mesh_edit.reparer(comp, recentrer=True)
+
+
+# ── E. extraire : la somme des parties fait le tout ──────────────────────────
+
+def test_le_depart_porte_bien_deux_parties():
+    from app.services import print3d
+    assert len(print3d.lire_glb_triangles(_cube_et_sol())) == 14
+
+
+def test_extraire_le_cube_garde_ses_douze_triangles():
+    from app.services import mesh_edit, print3d
+    cube = mesh_edit.extraire(_cube_et_sol(), [0])
+    tris = print3d.lire_glb_triangles(cube)
+    assert len(tris) == 12
+    assert print3d.bbox(tris) == ((-1.0, 1.0), (-1.0, 1.0), (-1.0, 1.0))
+
+
+def test_extraire_elague_les_dependances_de_l_autre_partie():
+    """Le cube ne doit PAS trainer la texture du sol : c'est tout l'interet
+    d'extraire plutot que de masquer."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(mesh_edit.extraire(_cube_et_sol(), [0]))
+    assert len(doc["nodes"]) == 1
+    assert len(doc["meshes"]) == 1
+    assert len(doc.get("materials", [])) == 1
+    assert len(doc.get("images", [])) == 0
+    assert len(doc["accessors"]) == 5
+    assert len(doc["bufferViews"]) == 5
+    assert len(binc) == 1224
+
+
+def test_extraire_le_sol_garde_SA_texture():
+    from app.services import mesh_edit, print3d
+    sol = mesh_edit.extraire(_cube_et_sol(), [1])
+    doc, _ = mesh_edit.lire_glb(sol)
+    assert len(print3d.lire_glb_triangles(sol)) == 2
+    assert len(doc["images"]) == 1
+    assert len(doc["materials"]) == 1
+
+
+def test_extraire_emporte_les_enfants_du_noeud():
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    doc["nodes"][0]["children"] = [1]
+    doc["scenes"][0]["nodes"] = [0]
+    tout = mesh_edit.ecrire_glb(doc, binc)
+    sortie, _ = mesh_edit.lire_glb(mesh_edit.extraire(tout, [0]))
+    assert len(sortie["nodes"]) == 2
+
+
+def test_extraire_refuse_une_selection_vide():
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="aucun noeud retenu"):
+        mesh_edit.extraire(_cube_et_sol(), [])
+
+
+def test_extraire_apres_reparer_ne_perd_pas_la_correction():
+    """LE piège que la revue de la tâche 4 a repéré.
+
+    Après `reparer`, la scène a une racine synthétique qui porte la
+    correction, et le maillage est devenu son enfant. Extraire cet enfant en
+    ne recopiant que sa transformation LOCALE ferait ressortir la pièce
+    couchée — mesuré : ((-1,1), (2,4), (-1,1)) au lieu du monde redressé
+    ((-1,1), (-1,1), (2,4)). Un modèle qu'on vient de redresser reviendrait
+    de travers dans Blender, sans le moindre message.
+    """
+    from app.services import mesh_edit, print3d
+    haut = mesh_edit.transformer(_cube(), {"0": {"translation": [0.0, 3.0, 0.0]}})
+    redresse = mesh_edit.reparer(haut, axe_haut="Z")
+    monde = print3d.bbox(print3d.lire_glb_triangles(redresse))
+    assert monde == ((-1.0, 1.0), (-1.0, 1.0), (2.0, 4.0))
+
+    doc, _ = mesh_edit.lire_glb(redresse)
+    racine = doc["scenes"][doc.get("scene", 0)]["nodes"][0]
+    enfant = doc["nodes"][racine]["children"][0]
+
+    piece = mesh_edit.extraire(redresse, [enfant])
+    bb = print3d.bbox(print3d.lire_glb_triangles(piece))
+    for (lo, hi), (alo, ahi) in zip(bb, monde):
+        assert abs(lo - alo) < 1e-9 and abs(hi - ahi) < 1e-9
