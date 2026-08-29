@@ -195,7 +195,7 @@ async function amorcer() {
        dans la console. textContent et non innerHTML — le message vient du
        serveur, il n'a rien à faire dans le balisage. */
     box.innerHTML = '<div class="chrono-vide"></div>';
-    box.firstElementChild.textContent = `sources illisibles — ${e.message}`;
+    box.firstElementChild.textContent = `chronologie illisible — ${e.message}`;
   }
 }
 amorcer();

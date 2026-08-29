@@ -213,8 +213,10 @@ def test_la_page_lit_la_chronologie_unifiee():
     assert "\namorcer();" in js
     # les libellés viennent du DISQUE — un nom de dossier, un `asset.json`
     # écrit à la main : sans esc(), une apostrophe double ferme l'attribut qui
-    # les porte et emporte la ligne entière.
-    assert 'data-libelle="${esc(' in js
+    # les porte et emporte la ligne entière. On COMPTE les deux occurrences :
+    # un simple `in` se satisfaisait de la branche Meshy et laissait retirer
+    # esc() de la branche jobs — le chemin principal — sans rien casser.
+    assert js.count('data-libelle="${esc(') == 2   # jobs ET meshy
 
 
 def test_le_seuil_de_charge_est_affiche_et_configurable():
@@ -226,8 +228,13 @@ def test_le_seuil_de_charge_est_affiche_et_configurable():
     par mutation — `lourd = false` et le bloc de la barre supprimé.
     """
     js = _lire("etabli/etabli.js")
+    # VERROU D'ORTHOGRAPHE, et rien d'autre : il fige la valeur que la spec
+    # documente, donc il attrape un seuil changé par accident — mais il mord
+    # aussi sur `80 * 1024 ** 2`, identique en valeur comme en comportement.
+    # Ce n'est PAS une garde de comportement ; les trois suivantes le sont.
     assert "80 * 1024 * 1024" in js
     assert "geo.tris > SEUIL.triangles" in js     # montré dans la barre du bas
+    assert "tri > SEUIL.triangles" in js          # montré sur la puce
     assert "e.bytes > SEUIL.octets" in js         # montré sur la puce
 
 
@@ -242,7 +249,10 @@ def test_le_refus_se_voit_et_le_canevas_a_une_hauteur():
     La file : sans le `.catch`, `_file` reste rejetée pour toujours et la
     chronologie devient muette au premier échec. Le refus : la classe posée
     par le JS doit exister dans la CSS, sinon l'échec est invisible. Les
-    hauteurs : sans ces deux maillons, le <canvas> retombe à 300x150.
+    hauteurs : les deux maillons les PLUS SILENCIEUX de la chaîne, ceux dont
+    le retrait ne laisse aucune trace — les cinq autres qu'énumère le
+    commentaire de tête d'etabli.css ne sont pas gardés ici, un banc miroir
+    qui lit du texte ne sachant pas suivre une chaîne de hauteurs.
     """
     js, css = _lire("etabli/etabli.js"), _lire("etabli/etabli.css")
     assert "_file = _file.then(" in js and ").catch(" in js
