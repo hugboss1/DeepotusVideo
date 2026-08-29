@@ -145,10 +145,19 @@ def test_l_importmap_de_la_page_est_en_ligne_et_conforme_au_fichier():
 # ── C. chargement et cadrage ─────────────────────────────────────────────────
 
 def test_le_viewer_branche_les_deux_decodeurs():
+    """IMPORTER un décodeur ne le BRANCHE pas : sans setMeshoptDecoder(), le
+    module est bien téléchargé et un GLB meshopt s'affiche NOIR — le mode de
+    panne que nomme déjà la section A. On épingle donc les deux câblages, plus
+    le chemin du décodeur Draco : VERSION.txt lui consacre une démonstration
+    entière (la RACINE, pas le sous-dossier gltf/), et rien n'empêcherait
+    sinon qu'il dérive vers gltf/ ou vers un CDN sans le moindre bruit.
+    """
     js = _lire("lib3d/viewer.js")
     assert "meshopt_decoder" in js
     assert "DRACOLoader" in js
     assert "setDRACOLoader" in js
+    assert "setMeshoptDecoder" in js
+    assert '/assets/three/addons/libs/draco/"' in js
 
 
 def test_le_viewer_cadre_sur_la_boite_englobante():
@@ -156,14 +165,27 @@ def test_le_viewer_cadre_sur_la_boite_englobante():
     l'un un point, l'autre un mur : le cadrage est ce qui rend les étapes
     comparables."""
     js = _lire("lib3d/viewer.js")
-    assert "cadrer" in js
+    # l'EXPORT, pas le seul nom : la tâche 5 l'importe nommément, et un
+    # `assert "cadrer" in js` resterait vrai sur une fonction devenue privée.
+    assert "export function cadrer" in js
+    assert "export async function charger" in js
     assert "Box3" in js
 
 
 def test_le_viewer_libere_la_memoire_entre_deux_chargements():
-    """Charger dix étapes de 200 Mo sans disposer sature le GPU."""
+    """Charger dix étapes de 200 Mo sans disposer sature le GPU.
+
+    Les marqueurs portent sur du CODE : un simple `"dispose" in js` était
+    satisfait par le commentaire de vider() lui-même (« sans disposer sature
+    la carte »), au point qu'on pouvait vider le corps de la fonction en
+    gardant sa prose et laisser le banc au vert. Vérifié par mutation.
+    """
     js = _lire("lib3d/viewer.js")
-    assert "dispose" in js
+    assert "export function vider" in js
+    assert "geometry.dispose" in js and "m.dispose" in js
+    # la mémoire HÔTE compte autant que la GPU : `gltf` retient parser.json,
+    # les ArrayBuffers du GLB entier et le cache d'images.
+    assert "api.gltf = null" in js
 
 
 def test_le_redimensionnement_compare_le_tampon_et_non_les_pixels_css():

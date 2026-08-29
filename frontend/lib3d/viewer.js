@@ -31,7 +31,10 @@ export function creerCanevas(canvas) {
   key.position.set(3, 5, 2);
   scene.add(key);
 
-  const api = { renderer, scene, camera, controls, racine: null };
+  /* RÈGLE : toute clé de `api` se déclare ICI, `null` compris — c'est le seul
+     endroit lisible où le contrat de forme existe, et s'il cesse d'être
+     exhaustif il ne le redeviendra jamais. */
+  const api = { renderer, scene, camera, controls, racine: null, gltf: null };
 
   function redimensionner() {
     const w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
@@ -76,7 +79,10 @@ function loader() {
 }
 
 /* Libère la mémoire GPU. Charger dix étapes d'un maillage texturé sans
-   disposer sature la carte en quelques minutes. */
+   disposer sature la carte en quelques minutes.
+   Libère le MODÈLE, pas le CANEVAS : ce dernier n'a délibérément aucun
+   démontage, les deux vues étant mises en cache pour la durée de vie de la
+   page — et `enableDamping` exige de toute façon une boucle permanente. */
 export function vider(api) {
   if (!api.racine) return;
   api.racine.traverse((o) => {
@@ -92,11 +98,27 @@ export function vider(api) {
   });
   api.scene.remove(api.racine);
   api.racine = null;
+  /* `gltf` retient `parser`, donc `parser.json`, les ArrayBuffers du GLB
+     ENTIER et le cache d'images : le laisser accroché garderait des centaines
+     de Mo côté hôte après une libération censée tout rendre. Le mettre à null
+     rend du même geste exactes les gardes en `api.gltf` des tâches suivantes,
+     qui sinon franchiraient la garde sur une vue vidée pour aller déréférencer
+     `api.racine`, nul. */
+  api.gltf = null;
 }
 
 /* Cadre la caméra sur la boîte englobante. Indispensable : un modèle en
    mètres et un modèle en centimètres donneraient l'un un point, l'autre un
-   mur — et deux étapes ne seraient pas comparables à l'œil. */
+   mur — et deux étapes ne seraient pas comparables à l'œil.
+   Le cadrage est DÉLIBÉRÉMENT invariant par aspect : la position ne dépend que
+   de la boîte englobante, donc une vue A cadrée en pleine largeur reste cadrée
+   à l'identique une fois réduite de moitié à l'ouverture de B — c'est
+   précisément ce qui rend A et B comparables. Contrepartie mesurée : un
+   canevas plus haut que large (aspect ≈ 0,75) peut rogner d'environ 35 %
+   horizontalement ; la marge de 1,35 absorbe le cas courant. La vraie
+   correction — tenir compte de l'aspect ET re-cadrer A à l'ouverture de B —
+   appartient à la tâche 5, pas ici : un terme en 1/aspect posé seul cadrerait
+   A et B à deux distances différentes et casserait la comparaison. */
 export function cadrer(api, marge = 1.35) {
   if (!api.racine) return null;
   const boite = new THREE.Box3().setFromObject(api.racine);
@@ -113,6 +135,14 @@ export function cadrer(api, marge = 1.35) {
   return { taille, centre, rayon };
 }
 
+/* NON RÉ-ENTRANT — l'appelant doit sérialiser (le verrou appartient à
+   ouvrirPrincipale(), tâche 4). Sur deux clics rapides dans la chronologie, le
+   second vider() s'exécute pendant que le premier loadAsync est encore en vol,
+   puis les DEUX font scene.add() : le perdant reste dans le graphe pour
+   toujours, vider() ne retirant que `api.racine`. C'est exactement la fuite
+   que cette fonction promet d'empêcher, déclenchée par un double-clic.
+   À noter aussi : un loadAsync qui REJETTE laisse le canevas vide, le modèle
+   précédent ayant déjà été vidé. */
 export async function charger(api, url) {
   vider(api);
   const gltf = await loader().loadAsync(url);
