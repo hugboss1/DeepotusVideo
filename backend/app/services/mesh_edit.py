@@ -6,7 +6,8 @@ navigateur voit et manipule, Python écrit. Aucun GLB n'est jamais produit par
 le client, de sorte que tout artefact reste versionné, fiché par mesh_report,
 et vérifiable par le harnais.
 
-Deux propriétés portent la sûreté du module, et les bancs les épinglent :
+Deux propriétés porteront la sûreté du module, et les bancs des tâches 4 et 5
+de ce plan les épingleront (elles n'existent pas encore à la tâche 1) :
 
 * `extraire` est une RECOPIE D'OCTETS, jamais un décodage de géométrie — les
   bufferViews retenus sont copiés tels quels. L'extraction fonctionne donc sur
@@ -35,13 +36,19 @@ def lire_glb(data: bytes) -> tuple[dict, bytes]:
     """
     if len(data) < 12 or data[:4] != _MAGIC:
         raise ValueError("magic GLB absent — ce fichier n'est pas un .glb")
-    version = struct.unpack_from("<I", data, 4)[0]
+    version, longueur = struct.unpack_from("<II", data, 4)
     if version != 2:
         raise ValueError(f"GLB v{version} non géré (v2 attendu)")
     doc: dict | None = None
     binc = b""
     off = 12
-    while off + 8 <= len(data):
+    # Borner par la longueur DÉCLARÉE dans l'en-tête, comme le fait déjà
+    # `print3d._chunks`. Sans cette borne, des octets parasites après la fin
+    # du conteneur (téléchargement rejoué, artefact d'un générateur tiers)
+    # seraient lus comme des chunks : si les quatre suivants ressemblent à
+    # `BIN\0`, le tampon déjà lu serait écrasé EN SILENCE. Un GLB de 200 Mo
+    # venu de Meshy ou Tripo mérite mieux qu'une corruption muette.
+    while off + 8 <= min(longueur, len(data)):
         clen, ctype = struct.unpack_from("<II", data, off)
         off += 8
         bloc = data[off:off + clen]

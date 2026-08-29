@@ -75,3 +75,21 @@ def test_un_fichier_qui_n_est_pas_un_glb_est_refuse_parlant():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="magic GLB"):
         mesh_edit.lire_glb(b"ceci n'est pas un GLB")
+
+
+def test_des_octets_parasites_apres_la_fin_declaree_sont_ignores():
+    """Le conteneur GLB déclare sa longueur à l'octet 8, et cette longueur
+    FAIT AUTORITÉ — `print3d._chunks` la respecte déjà.
+
+    Sans cette borne, des octets traînant après la fin (téléchargement
+    rejoué, artefact d'un générateur tiers) seraient lus comme des chunks.
+    Ici la queue imite un chunk BIN vide : sans borne, le tampon déjà lu
+    serait écrasé EN SILENCE, sans la moindre exception."""
+    from app.services import mesh_edit
+    data = _cube()
+    doc, binc = mesh_edit.lire_glb(data)
+    assert binc, "le cube doit avoir un tampon binaire"
+    parasite = data + struct.pack("<I", 0) + b"BIN\x00"
+    doc2, bin2 = mesh_edit.lire_glb(parasite)
+    assert doc2 == doc
+    assert bin2 == binc          # et surtout : PAS écrasé par le bruit
