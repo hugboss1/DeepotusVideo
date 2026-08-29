@@ -672,6 +672,28 @@ def _cube_compresse() -> bytes:
     return mesh_edit.ecrire_glb(doc, binc)
 
 
+def test_reparer_refuse_des_parametres_de_mauvais_type():
+    """Ces deux paramètres viendront d'un corps JSON (tâche 8), et la route ne
+    traduit en 400 que les `ValueError`. Sans gardes, `axe_haut=123` lève
+    AttributeError et `echelle=[1.0]` TypeError — deux 500."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="axe_haut attend une chaîne"):
+        mesh_edit.reparer(_cube(), axe_haut=123)
+    with pytest.raises(ValueError, match="echelle attend un nombre"):
+        mesh_edit.reparer(_cube(), echelle=[1.0])
+    # `bool` est un `int` : sans garde, True passerait pour une échelle de 1
+    with pytest.raises(ValueError, match="echelle attend un nombre"):
+        mesh_edit.reparer(_cube(), echelle=True)
+
+
+def test_reparer_refuse_une_scene_active_hors_du_document():
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["scene"] = 5
+    with pytest.raises(ValueError, match="scène active 5 hors du document"):
+        mesh_edit.reparer(mesh_edit.ecrire_glb(doc, binc))
+
+
 def test_sur_un_glb_compresse_la_degradation_est_partielle_et_explicite():
     """LE principe du dépôt : axe et échelle passent, seul le recentrage
     refuse — et il dit pourquoi. Jamais un échec global quand une partie du
@@ -735,8 +757,32 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
     `recentrer` est la seule option qui a besoin de la géométrie : elle passe
     par `print3d.lire_glb_triangles`, qui refuse un GLB compressé avec un
     message explicite. Les deux autres options n'ont pas cette limite.
+
+    Seule la scène active (`doc["scene"]`) est corrigée : un GLB multi-scènes
+    garderait les autres intactes. C'est la convention de tout le module —
+    `print3d.lire_glb_triangles` et `rig_inventory` font de même — et les
+    maillages livrés par Meshy, Tripo ou Rodin sont mono-scène en pratique.
+
+    Deux réparations successives EMPILENT deux nœuds `etabli_correction`
+    imbriqués : c'est voulu, chaque correction restant ainsi annulable. Mais
+    cela veut dire qu'on ne cherche jamais « le » nœud de correction par son
+    nom — il peut y en avoir plusieurs.
     """
     from app.services import print3d
+
+    # Types validés AVANT toute lecture : ces deux paramètres viendront d'un
+    # corps JSON (tâche 8), et la route ne traduit en 400 que les ValueError.
+    # Sans ces gardes, `axe_haut=123` lève AttributeError et `echelle=[1.0]`
+    # lève TypeError — deux 500 au lieu de deux refus parlants.
+    if axe_haut is not None and not isinstance(axe_haut, str):
+        raise ValueError("axe_haut attend une chaîne (Y ou Z), reçu "
+                         f"{type(axe_haut).__name__}")
+    if echelle is not None and (isinstance(echelle, bool)
+                                or not isinstance(echelle, (int, float))):
+        # `bool` est un `int` en Python : sans ce garde, `echelle=True`
+        # deviendrait silencieusement une échelle de 1.
+        raise ValueError("echelle attend un nombre, reçu "
+                         f"{type(echelle).__name__}")
 
     doc, binc = lire_glb(data)
     axe = (axe_haut or "Y").upper()
@@ -756,6 +802,9 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 
     scenes = doc.get("scenes") or [{"nodes": []}]
     isc = int(doc.get("scene", 0))
+    if not (0 <= isc < len(scenes)):
+        raise ValueError(f"scène active {isc} hors du document "
+                         f"({len(scenes)} scènes)")
     racines = list(scenes[isc].get("nodes") or [])
     doc.setdefault("nodes", []).append({
         "name": "etabli_correction",
@@ -773,7 +822,7 @@ def reparer(data: bytes, *, axe_haut: str | None = None,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 20 tests PASS.
+Attendu : 22 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -792,6 +841,29 @@ git commit -m 'etabli : reparer axe haut, echelle et recentrage par un noeud rac
 
 La pièce centrale du design. Le sous-arbre retenu garde ses bufferViews
 **copiés tels quels** ; tout le reste est élagué et les index sont remappés.
+
+> ### ⚠ Décision de conception issue de la revue de la tâche 4
+>
+> La revue a repéré un piège que cette tâche doit traiter, et qui n'était pas
+> dans la première rédaction du plan.
+>
+> Après un `reparer`, la scène a une racine synthétique `etabli_correction`
+> qui porte la matrice de correction, et les anciennes racines sont devenues
+> ses enfants. Si `extraire` sélectionne un nœud **sous** cette racine et
+> recopie sa seule transformation locale, la pièce extraite **perd en silence
+> la correction d'axe et d'échelle** : un modèle redressé puis découpé
+> ressortirait couché.
+>
+> **Tranche retenue : `extraire` compose les matrices des ANCÊTRES hors
+> sélection dans chaque racine extraite.** La pièce sort donc là où
+> l'utilisateur la voyait — ce qui est le sens même de « séparer une partie
+> de ce modèle ». L'inverse (garder l'espace local) serait défendable pour un
+> outil de rigging, pas pour un outil qui sépare ce qu'on regarde.
+>
+> **Un banc doit l'épingler** : `reparer(axe_haut="Z")` puis `extraire` d'un
+> sous-nœud, et vérifier que la bbox extraite est bien celle du monde
+> redressé, pas celle d'avant correction. Les valeurs attendues seront
+> **mesurées** avant d'être écrites, comme le reste de ce plan.
 
 - [ ] **Step 1 : écrire le banc qui échoue**
 
@@ -1113,7 +1185,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 26 tests PASS.
+Attendu : 28 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1200,7 +1272,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 27 tests PASS.
+Attendu : 29 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1281,7 +1353,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 29 tests PASS.
+Attendu : 31 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1470,7 +1542,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 31 tests PASS.
+Attendu : 33 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1653,7 +1725,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 35 tests PASS.
+Attendu : 37 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
