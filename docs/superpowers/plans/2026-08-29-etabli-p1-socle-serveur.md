@@ -210,8 +210,11 @@ Deux propriétés porteront la sûreté du module, et les bancs des tâches 3 et
 de ce plan les épingleront (elles n'existent pas encore à la tâche 1) :
 
 * `extraire` est une RECOPIE D'OCTETS, jamais un décodage de géométrie — les
-  bufferViews retenus sont copiés tels quels. L'extraction fonctionne donc sur
-  un GLB Draco ou meshopt, là où `print3d.lire_glb_triangles` refuse.
+  bufferViews retenus sont copiés tels quels. L'extraction traverse donc un
+  GLB **Draco**, là où `print3d.lire_glb_triangles` refuse. Elle refuse en
+  revanche **meshopt**, qui place ses octets dans un buffer et à un décalage
+  pouvant différer des champs de premier niveau : les recopier en aveugle
+  donnerait un fichier faux en silence, ce qui est pire qu'un refus.
 * `transformer` ne touche QUE le document JSON — le tampon binaire ressort
   identique octet pour octet, ce qui rend l'opération sûre sur 200 Mo.
 
@@ -970,6 +973,106 @@ def test_extraire_traverse_la_compression_que_le_lecteur_refuse():
     assert bin_sortie[v["byteOffset"]:v["byteOffset"] + v["byteLength"]] == opaque
 
 
+def test_extraire_remappe_les_vues_d_un_accesseur_sparse():
+    """Un accesseur `sparse` porte deux vues DANS DES SOUS-OBJETS. Elles
+    étaient collectées mais jamais remappées — mesuré : elles restaient aux
+    index 11 et 12 dans une pièce réduite à 7 vues, donc hors bornes."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    oi = len(tampon)
+    tampon += b"\x00" * 4
+    ov = len(tampon)
+    tampon += b"\x00" * 24
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": oi, "byteLength": 4})
+    vi = len(doc["bufferViews"]) - 1
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": ov, "byteLength": 24})
+    vv = len(doc["bufferViews"]) - 1
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    pos = doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    doc["accessors"][pos]["sparse"] = {
+        "count": 2,
+        "indices": {"bufferView": vi, "byteOffset": 0, "componentType": 5123},
+        "values": {"bufferView": vv, "byteOffset": 0},
+    }
+    source = mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+    sortie, _ = mesh_edit.lire_glb(mesh_edit.extraire(source, [0]))
+    pos2 = sortie["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    sparse = sortie["accessors"][pos2]["sparse"]
+    n = len(sortie["bufferViews"])
+    assert sparse["indices"]["bufferView"] < n
+    assert sparse["values"]["bufferView"] < n
+    # et le document SOURCE ne doit pas avoir été abîmé au passage
+    assert doc["accessors"][pos]["sparse"]["indices"]["bufferView"] == vi
+
+
+def test_extraire_ne_declare_que_les_extensions_reellement_presentes():
+    """Recopier `extensionsRequired` en bloc ferait déclarer draco à une pièce
+    sans un octet compressé — et `print3d` la refuserait alors qu'elle est
+    saine. Mesuré : c'est exactement ce qui se passait."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    o = len(tampon)
+    tampon += b"\xAA" * 32
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": o, "byteLength": 32})
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    doc["meshes"][0]["primitives"][0].setdefault("extensions", {})[
+        "KHR_draco_mesh_compression"] = {
+            "bufferView": len(doc["bufferViews"]) - 1,
+            "attributes": {"POSITION": 0}}
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    # un second maillage, celui-là sans une once de compression
+    libre = json.loads(json.dumps(doc["meshes"][0]))
+    libre["name"] = "libre"
+    libre["primitives"][0].pop("extensions", None)
+    doc["meshes"].append(libre)
+    doc["nodes"].append({"name": "libre", "mesh": 1})
+    doc["scenes"][0]["nodes"] = [0, 1]
+    mixte = mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+    piece = mesh_edit.extraire(mixte, [1])
+    sortie, _ = mesh_edit.lire_glb(piece)
+    assert "extensionsRequired" not in sortie
+    # la preuve par l'usage : le lecteur accepte enfin cette pièce saine
+    assert len(print3d.lire_glb_triangles(piece)) == 12
+
+
+def test_extraire_suit_une_texture_reference_par_une_extension_materiau():
+    """`KHR_materials_clearcoat` et consorts référencent des textures hors des
+    cinq emplacements PBR de base. Sans les suivre, la pièce sortait avec un
+    `clearcoatTexture.index` pointant dans le vide — mesuré."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    doc["materials"][0].setdefault("extensions", {})[
+        "KHR_materials_clearcoat"] = {"clearcoatTexture": {"index": 0}}
+    doc["extensionsUsed"] = ["KHR_materials_clearcoat"]
+    source = mesh_edit.ecrire_glb(doc, binc)
+
+    sortie, _ = mesh_edit.lire_glb(mesh_edit.extraire(source, [0]))
+    cc = sortie["materials"][0]["extensions"]["KHR_materials_clearcoat"]
+    assert cc["clearcoatTexture"]["index"] < len(sortie["textures"])
+    assert len(sortie["images"]) == 1        # la texture a suivi la pièce
+
+
+def test_extraire_refuse_meshopt_au_lieu_de_recopier_de_travers():
+    """meshopt place ses octets hors des champs de premier niveau : les
+    recopier en aveugle donnerait un fichier faux EN SILENCE. Le refus dit
+    quoi faire à la place."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["EXT_meshopt_compression"]
+    doc["extensionsUsed"] = ["EXT_meshopt_compression"]
+    with pytest.raises(ValueError, match="meshopt"):
+        mesh_edit.extraire(mesh_edit.ecrire_glb(doc, binc), [0])
+
+
 def test_extraire_un_parent_et_son_enfant_ne_double_pas_la_geometrie():
     """Cocher un parent PUIS son enfant est un geste naturel du panneau
     Parties. Les lister tous deux comme racines de scène dessinerait l'enfant
@@ -1035,6 +1138,54 @@ Attendu : `AttributeError: ... has no attribute 'extraire'`.
 Ajouter à `backend/app/services/mesh_edit.py` :
 
 ```python
+def _renvois_de_texture(materiau: dict) -> list[dict]:
+    """Tous les renvois de texture d'un matériau, EXTENSIONS COMPRISES.
+
+    Les emplacements PBR de base ne sont que cinq, mais
+    `KHR_materials_clearcoat`, `_sheen`, `_transmission`, `_specular`… en
+    ajoutent d'autres. Tenir la liste à jour serait perdre la course : on
+    cherche donc toute clé finissant par « Texture » et portant un `index`.
+
+    Rend les sous-dictionnaires eux-mêmes, pour que l'appelant puisse y
+    réécrire l'index remappé.
+    """
+    trouves: list[dict] = []
+    pile: list = [materiau]
+    while pile:
+        cur = pile.pop()
+        if isinstance(cur, dict):
+            for cle, val in cur.items():
+                if (isinstance(cle, str) and cle.endswith("Texture")
+                        and isinstance(val, dict)
+                        and val.get("index") is not None):
+                    trouves.append(val)
+                else:
+                    pile.append(val)
+        elif isinstance(cur, list):
+            pile.extend(cur)
+    return trouves
+
+
+def _extensions_presentes(noeud) -> set[str]:
+    """Noms des extensions réellement utilisées quelque part dans un document.
+
+    Sert à ne déclarer dans `extensionsUsed` / `extensionsRequired` que ce que
+    la pièce extraite porte vraiment.
+    """
+    trouvees: set[str] = set()
+    pile: list = [noeud]
+    while pile:
+        cur = pile.pop()
+        if isinstance(cur, dict):
+            ext = cur.get("extensions")
+            if isinstance(ext, dict):
+                trouvees.update(k for k in ext if isinstance(k, str))
+            pile.extend(cur.values())
+        elif isinstance(cur, list):
+            pile.extend(cur)
+    return trouvees
+
+
 def _dependances(doc: dict, garder: set[int]) -> dict:
     """Tout ce qu'un ensemble de nœuds retenus tire derrière lui.
 
@@ -1069,19 +1220,9 @@ def _dependances(doc: dict, garder: set[int]) -> dict:
             acc.add(ibm)
 
     texs: set[int] = set()
-
-    def _tex(x) -> None:
-        if isinstance(x, dict) and x.get("index") is not None:
-            texs.add(x["index"])
-
     for mi in mats:
-        m = _l(doc, "materials")[mi]
-        pbr = m.get("pbrMetallicRoughness") or {}
-        _tex(pbr.get("baseColorTexture"))
-        _tex(pbr.get("metallicRoughnessTexture"))
-        _tex(m.get("normalTexture"))
-        _tex(m.get("occlusionTexture"))
-        _tex(m.get("emissiveTexture"))
+        for renvoi in _renvois_de_texture(_l(doc, "materials")[mi]):
+            texs.add(renvoi["index"])
 
     imgs: set[int] = set()
     smps: set[int] = set()
@@ -1157,6 +1298,17 @@ def _mat_locale(node: dict) -> list:
     r = node.get("rotation") or [0.0, 0.0, 0.0, 1.0]
     s = node.get("scale") or [1.0, 1.0, 1.0]
     x, y, z, w = (float(v) for v in r)
+    # Un quaternion non unitaire ne donne pas une sur-échelle propre mais un
+    # CISAILLEMENT du plan perpendiculaire à l'axe — mesuré : pour une norme
+    # de 1,2, les termes hors-diagonale ressortent à 1,44 pendant que l'axe
+    # reste à 1,0. `transformer` refuse un tel quaternion, parce qu'il vient
+    # d'un client. Ici il vient d'un FICHIER qu'on ne fait que lire : refuser
+    # rendrait inexploitable un GLB tiers un peu dérivé, alors on normalise —
+    # et on le dit, pour que l'asymétrie avec `transformer` soit un choix lu
+    # et non une incohérence.
+    norme = (x * x + y * y + z * z + w * w) ** 0.5
+    if norme and abs(norme - 1.0) > 1e-6:
+        x, y, z, w = x / norme, y / norme, z / norme, w / norme
     rot = ((1 - 2 * (y * y + z * z), 2 * (x * y - z * w), 2 * (x * z + y * w)),
            (2 * (x * y + z * w), 1 - 2 * (x * x + z * z), 2 * (y * z - x * w)),
            (2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)))
@@ -1207,11 +1359,23 @@ def extraire(data: bytes, noeuds) -> bytes:
     """Un GLB qui ne contient QUE le sous-arbre demandé et ses dépendances.
 
     RECOPIE D'OCTETS : les bufferViews retenus sont copiés tels quels, sans
-    décodage. L'opération survit donc à Draco et meshopt, contrairement à tout
-    ce qui lit des triangles.
+    décodage. L'opération traverse donc Draco, contrairement à tout ce qui lit
+    des triangles. Elle refuse meshopt, dont les octets vivent hors des champs
+    de premier niveau (voir le refus ci-dessous).
     """
     doc, binc = lire_glb(data)
     nodes = _l(doc, "nodes")
+
+    # meshopt place ses octets dans un buffer et à un décalage qui peuvent
+    # différer de ceux déclarés au premier niveau de la bufferView. Ce module
+    # ne lit qu'un seul buffer : plutôt que de recopier les mauvais octets en
+    # silence — un fichier faux qui ne se voit qu'à l'ouverture — on refuse,
+    # et on dit quoi faire à la place.
+    if "EXT_meshopt_compression" in (doc.get("extensionsRequired") or []):
+        raise ValueError(
+            "GLB compressé meshopt — l'extraction ne sait pas le recopier "
+            "sans risque (les octets vivent hors des champs de premier "
+            "niveau de la bufferView). Pars du model.glb non compressé.")
 
     garder: set[int] = set()
     pile = [int(n) for n in (noeuds or [])]
@@ -1253,9 +1417,20 @@ def extraire(data: bytes, noeuds) -> bytes:
 
     out["accessors"] = []
     for ai in o_acc:
-        a = dict(_l(doc, "accessors")[ai])
+        # COPIE PROFONDE : un accesseur `sparse` porte des sous-objets qu'on
+        # va réécrire ; une copie superficielle abîmerait le document source.
+        a = json.loads(json.dumps(_l(doc, "accessors")[ai]))
         if a.get("bufferView") is not None:
             a["bufferView"] = m_bv[a["bufferView"]]
+        # Un accesseur `sparse` porte DEUX vues de plus, dans des sous-objets.
+        # `_dependances` les garde déjà ; sans ce remappage elles resteraient
+        # aux index d'origine — mesuré : 11 et 12 dans une pièce réduite à
+        # 7 vues, donc hors bornes et GLB invalide.
+        sparse = a.get("sparse") or {}
+        for part in ("indices", "values"):
+            bloc = sparse.get(part)
+            if isinstance(bloc, dict) and bloc.get("bufferView") is not None:
+                bloc["bufferView"] = m_bv[bloc["bufferView"]]
         out["accessors"].append(a)
 
     if o_smp:
@@ -1280,14 +1455,10 @@ def extraire(data: bytes, noeuds) -> bytes:
         out["materials"] = []
         for mi in o_mat:
             m = json.loads(json.dumps(_l(doc, "materials")[mi]))
-            pbr = m.get("pbrMetallicRoughness") or {}
-            for hote, cle in ((pbr, "baseColorTexture"),
-                              (pbr, "metallicRoughnessTexture"),
-                              (m, "normalTexture"), (m, "occlusionTexture"),
-                              (m, "emissiveTexture")):
-                cible = hote.get(cle)
-                if isinstance(cible, dict) and cible.get("index") is not None:
-                    cible["index"] = m_tex[cible["index"]]
+            # Même parcours qu'à la collecte : sans lui, une `clearcoatTexture`
+            # survivrait avec un index pointant dans le vide — mesuré.
+            for renvoi in _renvois_de_texture(m):
+                renvoi["index"] = m_tex[renvoi["index"]]
             out["materials"].append(m)
 
     out["meshes"] = []
@@ -1383,9 +1554,17 @@ def extraire(data: bytes, noeuds) -> bytes:
 
     out["scenes"] = [{"nodes": [m_node[i] for i in vraies_racines]}]
     out["scene"] = 0
+
+    # Ne déclarer que les extensions RÉELLEMENT présentes dans la pièce.
+    # Recopier les listes en bloc ferait déclarer `KHR_draco_mesh_compression`
+    # à une pièce sans un seul octet compressé — et `lire_glb_triangles` la
+    # refuserait alors qu'elle est saine. Mesuré : la fiche de version de la
+    # tâche 6 aurait essuyé un refus injustifié, très déroutant à diagnostiquer.
+    presentes = _extensions_presentes(out)
     for cle in ("extensionsUsed", "extensionsRequired"):
-        if doc.get(cle):
-            out[cle] = doc[cle]
+        gardees = [e for e in (doc.get(cle) or []) if e in presentes]
+        if gardees:
+            out[cle] = gardees
     return ecrire_glb(out, bytes(neuf))
 ```
 
@@ -1395,7 +1574,7 @@ def extraire(data: bytes, noeuds) -> bytes:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 32 tests PASS.
+Attendu : 36 tests PASS.
 
 - [ ] **Step 6 : commit**
 
@@ -1482,7 +1661,7 @@ def ecrire_version(job: str, data: bytes, *, operation: str,
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 33 tests PASS.
+Attendu : 37 tests PASS.
 
 - [ ] **Step 5 : écrire le banc de l'adoption (spec §6.2)**
 
@@ -1563,7 +1742,7 @@ def adopter_meshy(task_id: str, fichier: str = "model.glb") -> str:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 35 tests PASS.
+Attendu : 39 tests PASS.
 
 - [ ] **Step 8 : commit**
 
@@ -1752,7 +1931,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 37 tests PASS.
+Attendu : 41 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -1935,7 +2114,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 41 tests PASS.
+Attendu : 45 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
