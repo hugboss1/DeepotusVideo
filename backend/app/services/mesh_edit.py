@@ -134,3 +134,31 @@ def rig_inventory(data: bytes) -> dict:
                   for i, s in enumerate(skins)],
         "clips": clips,
     }
+
+
+_TAILLES = {"translation": 3, "rotation": 4, "scale": 3}
+
+
+def transformer(data: bytes, transforms: dict) -> bytes:
+    """Position / rotation / échelle de nœuds nommés.
+
+    N'écrit QUE le document : le tampon binaire ressort identique octet pour
+    octet, et le banc l'épingle. `matrix` est retiré du nœud touché — glTF
+    interdit de porter à la fois une matrice et un TRS.
+    """
+    doc, binc = lire_glb(data)
+    nodes = _l(doc, "nodes")
+    for cle, trs in (transforms or {}).items():
+        i = int(cle)
+        if not (0 <= i < len(nodes)):
+            raise ValueError(f"noeud {i} hors du document ({len(nodes)} noeuds)")
+        n = nodes[i]
+        n.pop("matrix", None)
+        for champ, taille in _TAILLES.items():
+            if champ not in trs:
+                continue
+            v = [float(x) for x in trs[champ]]
+            if len(v) != taille:
+                raise ValueError(f"{champ} attend {taille} valeurs, reçu {len(v)}")
+            n[champ] = v
+    return ecrire_glb(doc, binc)

@@ -122,3 +122,34 @@ def test_l_inventaire_lit_les_os_et_leur_hierarchie():
     assert inv["os"][0]["enfants"] == [base + 1]
     assert inv["os"][1]["parent"] == base
     assert inv["clips"] == [{"nom": "idle", "canaux": 0}]
+
+
+# ── C. transformer : JSON seulement ──────────────────────────────────────────
+
+def test_transformer_laisse_le_tampon_binaire_identique():
+    """LA propriété qui rend l'opération sûre sur un fichier de 200 Mo."""
+    from app.services import mesh_edit
+    base = _cube()
+    bouge = mesh_edit.transformer(base, {"0": {"translation": [0.0, 3.0, 0.0]}})
+    _, bin_avant = mesh_edit.lire_glb(base)
+    _, bin_apres = mesh_edit.lire_glb(bouge)
+    assert bin_avant == bin_apres
+
+
+def test_transformer_deplace_vraiment_le_maillage():
+    from app.services import mesh_edit, print3d
+    bouge = mesh_edit.transformer(_cube(), {"0": {"translation": [0.0, 3.0, 0.0]}})
+    assert print3d.bbox(print3d.lire_glb_triangles(bouge)) == (
+        (-1.0, 1.0), (2.0, 4.0), (-1.0, 1.0))
+
+
+def test_transformer_refuse_un_noeud_hors_document():
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="hors du document"):
+        mesh_edit.transformer(_cube(), {"99": {"translation": [0.0, 0.0, 0.0]}})
+
+
+def test_transformer_refuse_un_vecteur_de_mauvaise_taille():
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="attend 3 valeurs"):
+        mesh_edit.transformer(_cube(), {"0": {"translation": [1.0, 2.0]}})
