@@ -305,6 +305,13 @@ def _renvois_de_texture(materiau: dict) -> list[dict]:
         cur = pile.pop()
         if isinstance(cur, dict):
             for cle, val in cur.items():
+                if cle == "extras":
+                    # `extras` est de la donnée LIBRE d'application : la spec
+                    # glTF n'y met aucune structure. Un outil tiers peut y
+                    # poser une clé finissant par « Texture » avec un `index`
+                    # qui ne désigne aucune texture — mesuré : IndexError au
+                    # remappage. On ne descend donc jamais dedans.
+                    continue
                 if (isinstance(cle, str) and cle.endswith("Texture")
                         and isinstance(val, dict)
                         and val.get("index") is not None):
@@ -451,6 +458,14 @@ def _mat_locale(node: dict) -> list:
     # rendrait inexploitable un GLB tiers un peu dérivé, alors on normalise —
     # et on le dit, pour que l'asymétrie avec `transformer` soit un choix lu
     # et non une incohérence.
+    #
+    # CONSÉQUENCE MESURÉE, à connaître : sur un fichier déjà invalide au sens
+    # glTF, la pièce extraite ne coïncide plus avec ce que
+    # `print3d.lire_glb_triangles` lit de la scène source — le lecteur
+    # applique le quaternion brut, donc le cisaillement. Avec une norme de
+    # 1,2 : source ((-1,1), (-3.2, 0.56), (2.44, 6.2)), pièce extraite
+    # identique au cas unitaire. On restitue la rotation manifestement voulue
+    # plutôt que la déformation ; c'est un choix, pas un hasard.
     norme = (x * x + y * y + z * z + w * w) ** 0.5
     if norme and abs(norme - 1.0) > 1e-6:
         x, y, z, w = x / norme, y / norme, z / norme, w / norme
@@ -709,4 +724,10 @@ def extraire(data: bytes, noeuds) -> bytes:
         gardees = [e for e in (doc.get(cle) or []) if e in presentes]
         if gardees:
             out[cle] = gardees
+
+    # DETTE ASSUMÉE : le sous-objet racine `doc["extensions"]` n'est PAS
+    # recopié. Un nœud portant `KHR_lights_punctual.light` sortirait donc avec
+    # un index qui ne se résout plus. Les générateurs de ce pipeline (Meshy,
+    # Tripo, Rodin) ne posent pas de lumières de scène ; si P4-P5 en amène,
+    # c'est ici qu'il faudra regarder — ne pas supposer que c'est déjà couvert.
     return ecrire_glb(out, bytes(neuf))

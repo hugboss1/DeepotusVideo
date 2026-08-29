@@ -484,6 +484,57 @@ def test_extraire_suit_une_texture_reference_par_une_extension_materiau():
     assert len(sortie["images"]) == 1        # la texture a suivi la pièce
 
 
+def test_extraire_ne_confond_pas_extras_avec_une_texture():
+    """`extras` est de la donnée LIBRE : la spec glTF n'y met aucune
+    structure. Un outil tiers peut y poser une clé finissant par « Texture »
+    portant un `index` qui ne désigne rien — mesuré : IndexError au
+    remappage, un plantage au lieu d'un refus parlant."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["materials"][0]["extras"] = {
+        "monOutilTexture": {"index": 7, "note": "métadonnée libre"}}
+    source = mesh_edit.ecrire_glb(doc, binc)
+    piece = mesh_edit.extraire(source, [0])
+    assert len(print3d.lire_glb_triangles(piece)) == 12
+    sortie, _ = mesh_edit.lire_glb(piece)
+    # l'extra est recopié tel quel, sans avoir été pris pour une structure
+    assert sortie["materials"][0]["extras"]["monOutilTexture"]["index"] == 7
+
+
+def test_extraire_normalise_un_quaternion_derive_d_un_ancetre():
+    """`_mat_locale` normalise un quaternion non unitaire lu d'un fichier.
+
+    Conséquence MESURÉE et assumée : sur un fichier déjà invalide au sens
+    glTF, la pièce extraite ne coïncide plus avec ce que `print3d` lit de la
+    scène source — le lecteur applique le quaternion brut, donc un
+    cisaillement. On restitue la rotation manifestement voulue plutôt que la
+    déformation, et ce banc épingle ce choix : sans lui, une régression
+    réintroduirait le cisaillement sans que rien ne le voie avant Blender.
+    """
+    from app.services import mesh_edit, print3d
+
+    def scene(q):
+        doc, binc = mesh_edit.lire_glb(_cube())
+        doc["nodes"][0]["translation"] = [0.0, 3.0, 0.0]
+        doc["nodes"].append({"name": "ancetre", "children": [0], "rotation": q})
+        doc["scenes"][0]["nodes"] = [1]
+        return mesh_edit.ecrire_glb(doc, binc)
+
+    r2 = (2 ** 0.5) / 2
+    unitaire = scene([r2, 0.0, 0.0, r2])          # 90° autour de X
+    derive = scene([r2 * 1.2, 0.0, 0.0, r2 * 1.2])   # même rotation, norme 1,2
+
+    # la SOURCE dérivée est bel et bien cisaillée quand on la lit brute
+    bb_source = print3d.bbox(print3d.lire_glb_triangles(derive))
+    assert bb_source[1][0] < -3.0                 # mesuré : -3.2
+
+    # les deux PIÈCES extraites, elles, sont identiques
+    a = print3d.bbox(print3d.lire_glb_triangles(mesh_edit.extraire(unitaire, [0])))
+    b = print3d.bbox(print3d.lire_glb_triangles(mesh_edit.extraire(derive, [0])))
+    for (lo, hi), (alo, ahi) in zip(a, b):
+        assert abs(lo - alo) < 1e-9 and abs(hi - ahi) < 1e-9
+
+
 def test_extraire_refuse_meshopt_au_lieu_de_recopier_de_travers():
     """meshopt place ses octets hors des champs de premier niveau : les
     recopier en aveugle donnerait un fichier faux EN SILENCE. Le refus dit
