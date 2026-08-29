@@ -1949,6 +1949,54 @@ def test_la_chronologie_survit_a_un_job_sans_registre():
     assert len(lignes) == 1
     assert lignes[0]["etapes"][0]["version"] == 1
     assert lignes[0]["etapes"][0]["triangles"] is None
+
+
+def test_un_job_abime_n_eteint_pas_toute_la_chronologie():
+    """« Il LIT ce qui existe » a une conséquence : ce dossier est ouvert aux
+    mains de l'utilisateur.
+
+    Mesuré : un seul `model.v2 (1).glb` — le nom que l'explorateur Windows
+    génère tout seul sur une copie — faisait tomber la liste ENTIÈRE, jobs
+    sains compris. La bibliothèque 3D disparaissait de l'écran à cause d'un
+    fichier copié à la main.
+    """
+    from app.config import settings
+    from app.services import mesh_sources
+    sain = settings.outputs_path / "assets3d" / "job_voisin_sain"
+    sain.mkdir(parents=True, exist_ok=True)
+    (sain / "model.glb").write_bytes(_cube())
+
+    abime = settings.outputs_path / "assets3d" / "job_voisin_abime"
+    abime.mkdir(parents=True, exist_ok=True)
+    (abime / "model.glb").write_bytes(_cube())
+    (abime / "model.v2 (1).glb").write_bytes(_cube())
+    (abime / "asset.json").write_text("[1, 2, 3]", encoding="utf-8")
+
+    lignes = mesh_sources.lister()
+    assert "job_voisin_sain" in [x["id"] for x in lignes]
+    # le job abîmé reste listable avec ce qu'on sait en lire, et surtout il
+    # n'emporte pas les autres avec lui
+    abimee = [x for x in lignes if x["id"] == "job_voisin_abime"]
+    assert len(abimee) == 1
+    assert [e["version"] for e in abimee[0]["etapes"]] == [1]
+
+
+def test_les_lignes_des_deux_sources_ont_la_meme_forme():
+    """Le panneau de gauche ne doit pas avoir à distinguer les deux sources :
+    une clé sans valeur vaut `None`, elle n'est pas absente."""
+    from app.config import settings
+    from app.services import mesh_edit, mesh_sources
+    src = settings.outputs_path / "meshy3d" / "tache_forme"
+    src.mkdir(parents=True, exist_ok=True)
+    (src / "model.glb").write_bytes(_cube())
+    job = mesh_edit.adopter_meshy("tache_forme")
+
+    ligne = [x for x in mesh_sources.lister() if x["id"] == job][0]
+    for cle in ("source", "id", "nom", "moteur", "phase", "kind",
+                "adopte_de", "adopte_en", "created_at", "etapes"):
+        assert cle in ligne, cle
+    # l'adoption laisse une trace exploitable pour relier les deux vues
+    assert ligne["adopte_de"] == "meshy3d/tache_forme"
 ```
 
 - [ ] **Step 2 : lancer le banc et vérifier qu'il échoue**
@@ -1976,11 +2024,29 @@ from __future__ import annotations
 
 import json
 
+from loguru import logger
+
 from app.config import settings
 
 
 def _jobs_dir():
     return settings.outputs_path / "assets3d"
+
+
+def _numero_de_version(nom: str) -> int | None:
+    """Le numéro d'une version, ou `None` si le nom ne suit pas la convention.
+
+    L'explorateur Windows produit spontanément `model.v2 (1).glb` sur une
+    copie à la main. Mesuré : sans cette garde, `int()` lève et TOUTE la
+    chronologie tombe — y compris les jobs sains d'à côté. La bibliothèque 3D
+    entière disparaîtrait de l'écran à cause d'un fichier copié.
+    """
+    if nom == "model.glb":
+        return 1
+    if not (nom.startswith("model.v") and nom.endswith(".glb")):
+        return None
+    reste = nom[len("model.v"):-len(".glb")]
+    return int(reste) if reste.isdigit() else None
 
 
 def _versions_du_job(job: str) -> list[dict]:
@@ -1991,8 +2057,10 @@ def _versions_du_job(job: str) -> list[dict]:
     fiches: dict[str, dict] = {}
     try:
         registre = mesh_report.read_registry(job)
-        for e in registre.get("entries") or []:
-            fiches[str(e.get("file"))] = e
+        if isinstance(registre, dict):
+            for e in registre.get("entries") or []:
+                if isinstance(e, dict):
+                    fiches[str(e.get("file"))] = e
     except (FileNotFoundError, ValueError):
         pass                      # un job sans registre reste listable
 
@@ -2000,8 +2068,9 @@ def _versions_du_job(job: str) -> list[dict]:
     for glb in sorted(d.glob("model*.glb")):
         if glb.name == "model.opt.glb":
             continue
-        v = 1 if glb.name == "model.glb" else int(
-            glb.name.split(".v")[1].split(".")[0])
+        v = _numero_de_version(glb.name)
+        if v is None:
+            continue              # nom hors convention : ignoré, jamais fatal
         f = fiches.get(glb.name) or {}
         geo = f.get("geometry") or {}
         etapes.append({
@@ -2037,9 +2106,16 @@ async def lister_meshy(limit: int = 60) -> list[dict]:
                 if str(u).endswith(".glb")}
         if not glbs:
             continue
+        # Si cette tâche a déjà été adoptée, on le DIT plutôt que de laisser
+        # l'interface afficher deux fois le même maillage sans lien entre eux.
+        # (`adopter_meshy` nomme le job `meshy_<id>`.)
+        adopte = f"meshy_{t['id']}"
         out.append({
             "source": "meshy", "id": t["id"], "nom": t["id"][:12],
             "phase": t.get("phase"), "kind": t.get("kind"),
+            "moteur": "meshy",           # même forme que les lignes assets3d
+            "adopte_de": None,
+            "adopte_en": adopte if (_jobs_dir() / adopte).is_dir() else None,
             "created_at": t.get("created_at"),
             "etapes": [{
                 "version": None, "file": cle, "libelle": cle,
@@ -2050,8 +2126,48 @@ async def lister_meshy(limit: int = 60) -> list[dict]:
     return out
 
 
+def _ligne_de_job(d) -> dict | None:
+    """La ligne d'un job, ou `None` s'il ne porte aucune version."""
+    etapes = _versions_du_job(d.name)
+    if not etapes:
+        return None
+    manifeste = {}
+    p = d / "asset.json"
+    if p.is_file():
+        try:
+            manifeste = json.loads(p.read_text(encoding="utf-8"))
+        except ValueError:
+            manifeste = {}
+    if not isinstance(manifeste, dict):
+        # un `asset.json` valide mais qui n'est pas un objet (une liste, par
+        # exemple) traverserait le `except ValueError` ci-dessus
+        manifeste = {}
+    return {
+        "source": "assets3d", "id": d.name,
+        "nom": manifeste.get("name") or d.name,
+        "moteur": manifeste.get("engine"),
+        "phase": manifeste.get("stage"),
+        "kind": None,                   # même forme que les lignes meshy
+        "adopte_de": manifeste.get("adopte_de"),
+        "adopte_en": None,
+        "created_at": manifeste.get("created_at"),
+        "etapes": etapes,
+    }
+
+
 def lister() -> list[dict]:
-    """Les jobs `assets3d` et leurs versions. Synchrone : lecture de disque."""
+    """Les jobs `assets3d` et leurs versions. Synchrone : lecture de disque.
+
+    ORDRE : les jobs sortent triés par NOM de dossier, qui est un préfixe
+    d'UUID — donc sans rapport avec le temps. `created_at` est là pour que
+    l'appelant retrie ; l'interface ne doit pas faire confiance à cet ordre.
+    Seules les `etapes` d'un job sont, elles, réellement chronologiques.
+
+    APPELANT ASYNCHRONE : c'est de l'E/S disque synchrone. Une route
+    `async def` doit l'envelopper dans `asyncio.to_thread(...)`, sinon elle
+    gèle la boucle d'événements — donc TOUTES les requêtes du serveur, pas
+    seulement la sienne.
+    """
     racine = _jobs_dir()
     if not racine.is_dir():
         return []
@@ -2059,24 +2175,16 @@ def lister() -> list[dict]:
     for d in sorted(racine.iterdir()):
         if not d.is_dir():
             continue
-        etapes = _versions_du_job(d.name)
-        if not etapes:
+        try:
+            ligne = _ligne_de_job(d)
+        except Exception as e:      # noqa: BLE001 — un job abîmé n'en éteint pas 300
+            # « il LIT ce qui existe » a une conséquence : ce dossier est
+            # ouvert aux mains de l'utilisateur. Un voisin abîmé ne doit pas
+            # faire disparaître toute la bibliothèque de l'écran.
+            logger.warning(f"mesh_sources: job {d.name} illisible ({e}) — ignoré")
             continue
-        manifeste = {}
-        p = d / "asset.json"
-        if p.is_file():
-            try:
-                manifeste = json.loads(p.read_text(encoding="utf-8"))
-            except ValueError:
-                manifeste = {}
-        out.append({
-            "source": "assets3d", "id": d.name,
-            "nom": manifeste.get("name") or d.name,
-            "moteur": manifeste.get("engine"),
-            "phase": manifeste.get("stage"),
-            "created_at": manifeste.get("created_at"),
-            "etapes": etapes,
-        })
+        if ligne:
+            out.append(ligne)
     return out
 ```
 
@@ -2086,7 +2194,7 @@ def lister() -> list[dict]:
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 45 tests PASS.
+Attendu : 47 tests PASS.
 
 - [ ] **Step 5 : commit**
 
@@ -2269,7 +2377,7 @@ async def etabli_reparer(body: dict):
 .\scripts\run-tests.ps1 -Filter test_etabli_socle.py
 ```
 
-Attendu : 49 tests PASS.
+Attendu : 51 tests PASS.
 
 - [ ] **Step 5 : vérifier qu'on n'a rien cassé ailleurs**
 
