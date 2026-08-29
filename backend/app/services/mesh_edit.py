@@ -137,6 +137,7 @@ def rig_inventory(data: bytes) -> dict:
 
 
 _TAILLES = {"translation": 3, "rotation": 4, "scale": 3}
+_TOLERANCE_QUATERNION = 1e-3
 
 
 def transformer(data: bytes, transforms: dict) -> bytes:
@@ -145,11 +146,31 @@ def transformer(data: bytes, transforms: dict) -> bytes:
     N'écrit QUE le document : le tampon binaire ressort identique octet pour
     octet, et le banc l'épingle. `matrix` est retiré du nœud touché — glTF
     interdit de porter à la fois une matrice et un TRS.
+
+    Trois refus explicites plutôt que des corrections silencieuses, parce que
+    cette fonction sera exposée par une route HTTP (tâche 8) qui ne traduit
+    en 400 que les `ValueError` : entrée non-dictionnaire, clé de nœud non
+    numérique, quaternion non normalisé. Normaliser un quaternion en douce
+    masquerait un bug amont ; le refuser le montre.
+
+    `scale` négatif ou nul passe DÉLIBÉRÉMENT : une échelle négative par axe
+    est un TRS glTF valide (effet miroir). `reparer` refuse au contraire une
+    échelle globale ≤ 0. Les deux fonctions n'ont pas la même politique, et
+    c'est voulu — ne pas « harmoniser » sans y repenser.
     """
+    if transforms is None:
+        transforms = {}
+    if not isinstance(transforms, dict):
+        raise ValueError(
+            "transforms attend un dictionnaire noeud -> TRS, reçu "
+            f"{type(transforms).__name__}")
     doc, binc = lire_glb(data)
     nodes = _l(doc, "nodes")
-    for cle, trs in (transforms or {}).items():
-        i = int(cle)
+    for cle, trs in transforms.items():
+        try:
+            i = int(cle)
+        except (TypeError, ValueError):
+            raise ValueError(f"clé de noeud non numérique : {cle!r}") from None
         if not (0 <= i < len(nodes)):
             raise ValueError(f"noeud {i} hors du document ({len(nodes)} noeuds)")
         n = nodes[i]
@@ -160,5 +181,14 @@ def transformer(data: bytes, transforms: dict) -> bytes:
             v = [float(x) for x in trs[champ]]
             if len(v) != taille:
                 raise ValueError(f"{champ} attend {taille} valeurs, reçu {len(v)}")
+            if champ == "rotation":
+                # glTF exige un quaternion UNITAIRE. Non normalisé, il déforme
+                # chez les lecteurs stricts et pas chez les autres : un bug qui
+                # ne se voit qu'à l'export, donc à attraper à l'écriture.
+                norme = sum(x * x for x in v) ** 0.5
+                if abs(norme - 1.0) > _TOLERANCE_QUATERNION:
+                    raise ValueError(
+                        "rotation attend un quaternion normé [x,y,z,w] ; "
+                        f"norme reçue {norme:.4f}")
             n[champ] = v
     return ecrire_glb(doc, binc)

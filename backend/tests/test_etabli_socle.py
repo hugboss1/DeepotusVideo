@@ -153,3 +153,51 @@ def test_transformer_refuse_un_vecteur_de_mauvaise_taille():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="attend 3 valeurs"):
         mesh_edit.transformer(_cube(), {"0": {"translation": [1.0, 2.0]}})
+
+
+def test_transformer_refuse_un_quaternion_non_norme():
+    """glTF exige un quaternion UNITAIRE. Le refuser plutôt que le normaliser
+    en douce : normaliser masquerait le bug amont qui l'a produit."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="quaternion normé"):
+        mesh_edit.transformer(_cube(), {"0": {"rotation": [0.0, 0.0, 0.0, 2.0]}})
+
+
+def test_transformer_refuse_une_entree_qui_n_est_pas_un_dictionnaire():
+    """Sans ce garde, une liste lève AttributeError — que la route de la
+    tâche 8 ne rattrape pas, et qui sortirait donc en 500 au lieu d'un 400."""
+    from app.services import mesh_edit
+    with pytest.raises(ValueError, match="dictionnaire"):
+        mesh_edit.transformer(_cube(), [{"0": {}}])
+    with pytest.raises(ValueError, match="non numérique"):
+        mesh_edit.transformer(_cube(), {"abc": {"translation": [0.0, 0.0, 0.0]}})
+
+
+def test_transformer_exerce_aussi_rotation_et_echelle():
+    """Les chemins `rotation` et `scale` de `_TAILLES` ne sont exercés par
+    aucun autre banc. TRS glTF = T · R · S : le cube unité mis à l'échelle 2,
+    tourné d'un quart de tour autour de X, puis décalé de +3 en Y."""
+    from app.services import mesh_edit, print3d
+    q = [(2 ** 0.5) / 2, 0.0, 0.0, (2 ** 0.5) / 2]      # 90° autour de X
+    sortie = mesh_edit.transformer(_cube(), {"0": {
+        "translation": [0.0, 3.0, 0.0], "rotation": q, "scale": [2.0, 2.0, 2.0]}})
+    doc, _ = mesh_edit.lire_glb(sortie)
+    assert doc["nodes"][0]["scale"] == [2.0, 2.0, 2.0]
+    bb = print3d.bbox(print3d.lire_glb_triangles(sortie))
+    attendu = ((-2.0, 2.0), (1.0, 5.0), (-2.0, 2.0))
+    for (lo, hi), (alo, ahi) in zip(bb, attendu):
+        assert abs(lo - alo) < 1e-6 and abs(hi - ahi) < 1e-6
+
+
+def test_transformer_retire_une_matrice_preexistante():
+    """glTF interdit de porter `matrix` ET un TRS : la docstring en fait une
+    garantie, ce banc l'épingle."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["nodes"][0]["matrix"] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+                                 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    avec = mesh_edit.ecrire_glb(doc, binc)
+    sortie, _ = mesh_edit.lire_glb(
+        mesh_edit.transformer(avec, {"0": {"translation": [0.0, 1.0, 0.0]}}))
+    assert "matrix" not in sortie["nodes"][0]
+    assert sortie["nodes"][0]["translation"] == [0.0, 1.0, 0.0]
