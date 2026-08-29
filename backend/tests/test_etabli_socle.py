@@ -350,6 +350,52 @@ def test_extraire_refuse_une_selection_vide():
         mesh_edit.extraire(_cube_et_sol(), [])
 
 
+def test_extraire_traverse_la_compression_que_le_lecteur_refuse():
+    """LA propriété phare du design — et elle n'était couverte par rien.
+
+    On fabrique un GLB dont une primitive porte une vue Draco d'octets
+    opaques. `print3d.lire_glb_triangles` refuse ce fichier ; `extraire`, qui
+    ne décode aucune géométrie et se contente de recopier des octets, le
+    traverse — et les 192 octets ressortent bit pour bit.
+
+    Sans ce banc, on aurait pu casser la recopie sans qu'aucun test bronche :
+    tous les autres passent par des GLB non compressés.
+    """
+    from app.services import mesh_edit, print3d
+    opaque = bytes(range(64)) * 3
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    offset = len(tampon)
+    tampon += opaque
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": offset,
+                               "byteLength": len(opaque)})
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    prim = doc["meshes"][0]["primitives"][0]
+    prim.setdefault("extensions", {})["KHR_draco_mesh_compression"] = {
+        "bufferView": len(doc["bufferViews"]) - 1,
+        "attributes": {"POSITION": 0},
+    }
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    doc["nodes"].append({"name": "voisin"})     # de quoi élaguer
+    doc["scenes"][0]["nodes"] = [0, 1]
+    compresse = mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+    with pytest.raises(ValueError, match="draco"):
+        print3d.lire_glb_triangles(compresse)
+
+    piece = mesh_edit.extraire(compresse, [0])
+    sortie, bin_sortie = mesh_edit.lire_glb(piece)
+    assert len(sortie["nodes"]) == 1
+    assert sortie["extensionsRequired"] == ["KHR_draco_mesh_compression"]
+    draco = sortie["meshes"][0]["primitives"][0]["extensions"][
+        "KHR_draco_mesh_compression"]
+    v = sortie["bufferViews"][draco["bufferView"]]
+    assert bin_sortie[v["byteOffset"]:v["byteOffset"] + v["byteLength"]] == opaque
+
+
 def test_extraire_un_parent_et_son_enfant_ne_double_pas_la_geometrie():
     """Cocher un parent PUIS son enfant est un geste naturel du panneau
     Parties. Les lister tous deux comme racines de scène dessinerait l'enfant
