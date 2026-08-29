@@ -718,3 +718,35 @@ def test_une_adoption_interrompue_se_repare_au_passage_suivant():
     assert (d / "asset.json").is_file()
     # le binaire, lui, n'a PAS été réécrit
     assert (d / "model.glb").stat().st_mtime_ns == empreinte
+
+
+# ── G. chronologie des étapes ────────────────────────────────────────────────
+
+def test_la_chronologie_fond_les_versions_d_un_job():
+    from app.config import settings
+    from app.services import mesh_edit, mesh_sources
+    d = settings.outputs_path / "assets3d" / "job_chrono"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    mesh_edit.ecrire_version("job_chrono", _cube_et_sol(),
+                             operation="banc", detail={})
+
+    lignes = [x for x in mesh_sources.lister() if x["id"] == "job_chrono"]
+    assert len(lignes) == 1
+    versions = lignes[0]["etapes"]
+    assert [e["version"] for e in versions] == [1, 2]
+    assert versions[0]["url"].endswith("/version/1")
+    assert versions[1]["triangles"] == 14
+    assert versions[0]["sha256"] != versions[1]["sha256"]
+
+
+def test_la_chronologie_survit_a_un_job_sans_registre():
+    from app.config import settings
+    from app.services import mesh_sources
+    d = settings.outputs_path / "assets3d" / "job_nu"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "model.glb").write_bytes(_cube())
+    lignes = [x for x in mesh_sources.lister() if x["id"] == "job_nu"]
+    assert len(lignes) == 1
+    assert lignes[0]["etapes"][0]["version"] == 1
+    assert lignes[0]["etapes"][0]["triangles"] is None
