@@ -233,3 +233,42 @@ def test_reparer_refuse_un_axe_inconnu():
     from app.services import mesh_edit
     with pytest.raises(ValueError, match="axe haut inconnu"):
         mesh_edit.reparer(_cube(), axe_haut="Q")
+
+
+def test_reparer_refuse_une_echelle_nulle_ou_negative():
+    """Politique DIFFÉRENTE de `transformer`, et c'est voulu : une échelle
+    globale ≤ 0 n'a pas de sens pour une assise, alors qu'un `scale` négatif
+    par axe est un miroir glTF parfaitement valide."""
+    from app.services import mesh_edit
+    for mauvaise in (0.0, -1.0):
+        with pytest.raises(ValueError, match="strictement positive"):
+            mesh_edit.reparer(_cube(), echelle=mauvaise)
+
+
+def _cube_compresse() -> bytes:
+    """Un cube qui se DÉCLARE draco. `print3d` refuse sur la déclaration
+    `extensionsRequired`, pas sur le décodage : c'est donc une simulation
+    honnête du contrat, sans embarquer un encodeur Draco au banc."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    return mesh_edit.ecrire_glb(doc, binc)
+
+
+def test_sur_un_glb_compresse_la_degradation_est_partielle_et_explicite():
+    """LE principe du dépôt : axe et échelle passent, seul le recentrage
+    refuse — et il dit pourquoi. Jamais un échec global quand une partie du
+    travail est faisable."""
+    from app.services import mesh_edit, print3d
+    comp = _cube_compresse()
+    with pytest.raises(ValueError, match="draco"):
+        print3d.lire_glb_triangles(comp)
+    # axe + échelle : aucune géométrie n'est lue, donc ça passe
+    sortie, _ = mesh_edit.lire_glb(
+        mesh_edit.reparer(comp, axe_haut="Z", echelle=2.0))
+    assert sortie["nodes"][-1]["name"] == "etabli_correction"
+    assert sortie["extensionsRequired"] == ["KHR_draco_mesh_compression"]
+    # le recentrage, lui, a besoin des triangles : il refuse, en le disant
+    with pytest.raises(ValueError, match="draco"):
+        mesh_edit.reparer(comp, recentrer=True)
