@@ -396,6 +396,106 @@ def test_extraire_traverse_la_compression_que_le_lecteur_refuse():
     assert bin_sortie[v["byteOffset"]:v["byteOffset"] + v["byteLength"]] == opaque
 
 
+def test_extraire_remappe_les_vues_d_un_accesseur_sparse():
+    """Un accesseur `sparse` porte deux vues DANS DES SOUS-OBJETS. Elles
+    étaient collectées mais jamais remappées — mesuré : elles restaient aux
+    index 11 et 12 dans une pièce réduite à 7 vues, donc hors bornes."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    oi = len(tampon)
+    tampon += b"\x00" * 4
+    ov = len(tampon)
+    tampon += b"\x00" * 24
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": oi, "byteLength": 4})
+    vi = len(doc["bufferViews"]) - 1
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": ov, "byteLength": 24})
+    vv = len(doc["bufferViews"]) - 1
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    pos = doc["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    doc["accessors"][pos]["sparse"] = {
+        "count": 2,
+        "indices": {"bufferView": vi, "byteOffset": 0, "componentType": 5123},
+        "values": {"bufferView": vv, "byteOffset": 0},
+    }
+    source = mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+    sortie, _ = mesh_edit.lire_glb(mesh_edit.extraire(source, [0]))
+    pos2 = sortie["meshes"][0]["primitives"][0]["attributes"]["POSITION"]
+    sparse = sortie["accessors"][pos2]["sparse"]
+    n = len(sortie["bufferViews"])
+    assert sparse["indices"]["bufferView"] < n
+    assert sparse["values"]["bufferView"] < n
+    # et le document SOURCE ne doit pas avoir été abîmé au passage
+    assert doc["accessors"][pos]["sparse"]["indices"]["bufferView"] == vi
+
+
+def test_extraire_ne_declare_que_les_extensions_reellement_presentes():
+    """Recopier `extensionsRequired` en bloc ferait déclarer draco à une pièce
+    sans un octet compressé — et `print3d` la refuserait alors qu'elle est
+    saine. Mesuré : c'est exactement ce qui se passait."""
+    from app.services import mesh_edit, print3d
+    doc, binc = mesh_edit.lire_glb(_cube())
+    tampon = bytearray(binc)
+    while len(tampon) % 4:
+        tampon.append(0)
+    o = len(tampon)
+    tampon += b"\xAA" * 32
+    doc["bufferViews"].append({"buffer": 0, "byteOffset": o, "byteLength": 32})
+    doc["buffers"][0]["byteLength"] = len(tampon)
+    doc["meshes"][0]["primitives"][0].setdefault("extensions", {})[
+        "KHR_draco_mesh_compression"] = {
+            "bufferView": len(doc["bufferViews"]) - 1,
+            "attributes": {"POSITION": 0}}
+    doc["extensionsUsed"] = ["KHR_draco_mesh_compression"]
+    doc["extensionsRequired"] = ["KHR_draco_mesh_compression"]
+    # un second maillage, celui-là sans une once de compression
+    libre = json.loads(json.dumps(doc["meshes"][0]))
+    libre["name"] = "libre"
+    libre["primitives"][0].pop("extensions", None)
+    doc["meshes"].append(libre)
+    doc["nodes"].append({"name": "libre", "mesh": 1})
+    doc["scenes"][0]["nodes"] = [0, 1]
+    mixte = mesh_edit.ecrire_glb(doc, bytes(tampon))
+
+    piece = mesh_edit.extraire(mixte, [1])
+    sortie, _ = mesh_edit.lire_glb(piece)
+    assert "extensionsRequired" not in sortie
+    # la preuve par l'usage : le lecteur accepte enfin cette pièce saine
+    assert len(print3d.lire_glb_triangles(piece)) == 12
+
+
+def test_extraire_suit_une_texture_reference_par_une_extension_materiau():
+    """`KHR_materials_clearcoat` et consorts référencent des textures hors des
+    cinq emplacements PBR de base. Sans les suivre, la pièce sortait avec un
+    `clearcoatTexture.index` pointant dans le vide — mesuré."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube_et_sol())
+    doc["materials"][0].setdefault("extensions", {})[
+        "KHR_materials_clearcoat"] = {"clearcoatTexture": {"index": 0}}
+    doc["extensionsUsed"] = ["KHR_materials_clearcoat"]
+    source = mesh_edit.ecrire_glb(doc, binc)
+
+    sortie, _ = mesh_edit.lire_glb(mesh_edit.extraire(source, [0]))
+    cc = sortie["materials"][0]["extensions"]["KHR_materials_clearcoat"]
+    assert cc["clearcoatTexture"]["index"] < len(sortie["textures"])
+    assert len(sortie["images"]) == 1        # la texture a suivi la pièce
+
+
+def test_extraire_refuse_meshopt_au_lieu_de_recopier_de_travers():
+    """meshopt place ses octets hors des champs de premier niveau : les
+    recopier en aveugle donnerait un fichier faux EN SILENCE. Le refus dit
+    quoi faire à la place."""
+    from app.services import mesh_edit
+    doc, binc = mesh_edit.lire_glb(_cube())
+    doc["extensionsRequired"] = ["EXT_meshopt_compression"]
+    doc["extensionsUsed"] = ["EXT_meshopt_compression"]
+    with pytest.raises(ValueError, match="meshopt"):
+        mesh_edit.extraire(mesh_edit.ecrire_glb(doc, binc), [0])
+
+
 def test_extraire_un_parent_et_son_enfant_ne_double_pas_la_geometrie():
     """Cocher un parent PUIS son enfant est un geste naturel du panneau
     Parties. Les lister tous deux comme racines de scène dessinerait l'enfant
